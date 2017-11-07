@@ -104,7 +104,7 @@ void HiPropertyComponent::resized()
 		overlay.setBounds(getLocalBounds());
 }
 
-const var& HiPropertyComponent::getCurrentPropertyValue(bool returnUndefinedWhenMultipleSelection) const
+var HiPropertyComponent::getCurrentPropertyValue(bool returnUndefinedWhenMultipleSelection/*=true*/) const
 {
 	
 
@@ -247,7 +247,7 @@ void HiSliderPropertyComponent::refresh()
 
 void HiSliderPropertyComponent::updateRange()
 {
-	int oldRange = (double)comp.slider.getMaximum();
+	int oldRange = (int)comp.slider.getMaximum();
 
 	static const Identifier x("x");
 	static const Identifier y("y");
@@ -584,7 +584,7 @@ void HiColourPropertyComponent::ColourComp::setDisplayedColour(Colour& c)
 	repaint();
 }
 
-void HiColourPropertyComponent::ColourComp::mouseDown(const MouseEvent& event)
+void HiColourPropertyComponent::ColourComp::mouseDown(const MouseEvent& /*event*/)
 {
 	auto p = new Popup(this);
 
@@ -600,7 +600,7 @@ void HiColourPropertyComponent::ColourComp::changeListenerCallback(ChangeBroadca
 	updateColour(selector->getCurrentColour());
 }
 
-void HiColourPropertyComponent::ColourComp::labelTextChanged(Label* labelThatHasChanged)
+void HiColourPropertyComponent::ColourComp::labelTextChanged(Label* /*labelThatHasChanged*/)
 {
 	const String t = l.getText().trimCharactersAtStart("#");
 
@@ -659,7 +659,7 @@ void HiColourPropertyComponent::ColourComp::Popup::resized()
 	selector.setBounds(getLocalBounds().reduced(10));
 }
 
-void HiPropertyComponent::Overlay::buttonClicked(Button* b)
+void HiPropertyComponent::Overlay::buttonClicked(Button* /*b*/)
 {
 	Identifier id = findParentComponentOfClass<HiPropertyComponent>()->getId();
 

@@ -622,11 +622,20 @@ void JavascriptProcessor::storeCurrentInterfaceStateInContentProperties()
 		}
 
 		
-		pwsc->getScriptingContent()->createComponentsFromValueTree(v);
+		Result r = pwsc->getScriptingContent()->createComponentsFromValueTree(v);
 
-		compileScript();
+		if (r.wasOk())
+		{
+			compileScript();
 
-		PresetHandler::showMessageWindow("Sucess", "The current state was copied into the internal object.\nYou can now safely delete all JSON definitions and unneeded widget.set() calls", PresetHandler::IconType::Info);
+			PresetHandler::showMessageWindow("Sucess", "The current state was copied into the internal object.\nYou can now safely delete all JSON definitions and unneeded widget.set() calls", PresetHandler::IconType::Info);
+		}
+		else
+		{
+			PresetHandler::showMessageWindow("Error", r.getErrorMessage(), PresetHandler::IconType::Error);
+		}
+
+		
 	}
 }
 

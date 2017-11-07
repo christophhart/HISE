@@ -412,7 +412,7 @@ var FloatingPanelTemplates::createSettingsWindow(MainController* mc)
 	ib.getContent<FloatingTabComponent>(tabs)->setPanelColour(FloatingTabComponent::PanelColourId::bgColour, Colour(0xff000000));
 	ib.getContent<FloatingTabComponent>(tabs)->setPanelColour(FloatingTabComponent::PanelColourId::itemColour1, Colour(0xff333333));
 
-	int settingsWindows = ib.addChild<CustomSettingsWindowPanel>(tabs);
+	ib.addChild<CustomSettingsWindowPanel>(tabs);
 
 #if IS_STANDALONE_APP
 	ib.addChild<MidiSourcePanel>(tabs);

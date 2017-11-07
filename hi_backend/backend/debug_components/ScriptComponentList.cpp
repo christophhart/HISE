@@ -120,7 +120,7 @@ String getSearchTerm(ScriptComponent* c)
 
 	getSearchTermInternal(c, term);
 
-	return term;
+	return term.toLowerCase();
 
 }
 
@@ -153,7 +153,7 @@ ScriptComponentList::ScriptComponentItem::~ScriptComponentItem()
 	c = nullptr;
 }
 
-void ScriptComponentList::ScriptComponentItem::changeListenerCallback(SafeChangeBroadcaster* b)
+void ScriptComponentList::ScriptComponentItem::changeListenerCallback(SafeChangeBroadcaster* /*b*/)
 {
 	repaint();
 }
@@ -196,7 +196,7 @@ void ScriptComponentList::ScriptComponentItem::itemDragEnter(const SourceDetails
 	repaint();
 }
 
-void ScriptComponentList::ScriptComponentItem::itemDragExit(const SourceDetails& dragSourceDetails)
+void ScriptComponentList::ScriptComponentItem::itemDragExit(const SourceDetails& /*dragSourceDetails*/)
 {
 	insertDragAfterComponent = false;
 	insertDragAsParentComponent = false;
@@ -244,6 +244,8 @@ void ScriptComponentList::ScriptComponentItem::mouseUp(const MouseEvent& event)
 			RenameComponent,
 			CreateScriptVariableDeclaration,
 			CreateCustomCallbackDefinition,
+			CopyProperties,
+			PasteProperties,
 			numOptions
 		};
 
@@ -256,6 +258,12 @@ void ScriptComponentList::ScriptComponentItem::mouseUp(const MouseEvent& event)
 		m.addItem(PopupMenuOptions::DeleteSelection, "Delete selected Components", b->getSelection().size() > 0);
 		m.addItem(PopupMenuOptions::CreateScriptVariableDeclaration, "Create script variable definition");
 		m.addItem(PopupMenuOptions::CreateCustomCallbackDefinition, "Create custom callback definition");
+		m.addItem(PopupMenuOptions::CreateCustomCallbackDefinition, "Create custom callback definition");
+
+		auto clipboardData = JSON::parse(SystemClipboard::getTextFromClipboard());
+
+		m.addItem(PopupMenuOptions::CopyProperties, "Copy properties");
+		m.addItem(PopupMenuOptions::PasteProperties, "Paste properties to selection", clipboardData.isObject());
 
 		const PopupMenuOptions result = (PopupMenuOptions)m.show();
 
@@ -283,10 +291,9 @@ void ScriptComponentList::ScriptComponentItem::mouseUp(const MouseEvent& event)
 		}
 		case CreateScriptVariableDeclaration:
 		{
-			auto s = ScriptingApi::Content::Helpers::createScriptVariableDeclaration(b->getSelection());
+			auto st = ScriptingApi::Content::Helpers::createScriptVariableDeclaration(b->getSelection());
 
-
-			SystemClipboard::copyTextToClipboard(s);
+			SystemClipboard::copyTextToClipboard(st);
 			break;
 		}
 		case CreateCustomCallbackDefinition:
@@ -310,6 +317,14 @@ void ScriptComponentList::ScriptComponentItem::mouseUp(const MouseEvent& event)
 			SystemClipboard::copyTextToClipboard(code);
 
 		}
+		case CopyProperties:
+		{
+			SystemClipboard::copyTextToClipboard(c->getScriptObjectPropertiesAsJSON());
+		}
+		case PasteProperties:
+		{
+			ScriptingApi::Content::Helpers::pasteProperties(b->getSelection(), clipboardData);
+		}
 		default:
 			break;
 		}
@@ -318,8 +333,7 @@ void ScriptComponentList::ScriptComponentItem::mouseUp(const MouseEvent& event)
 	else
 	{
 		auto l = findParentComponentOfClass<ScriptComponentList>();
-		auto b = l->getScriptComponentEditBroadcaster();
-
+		
 		if (event.mods.isShiftDown() && l->lastClickedComponent != nullptr)
 		{
 			auto content = c->parent;
@@ -442,12 +456,12 @@ void ScriptComponentList::ScriptComponentItem::paint(Graphics& g)
 	
 	float textOffset = h + 2.0f + (float)(childDepth * 10);
 	
-	g.drawText(id, textOffset, 0, typeOffset, ITEM_HEIGHT, Justification::centredLeft);
+	g.drawText(id, (int)textOffset, 0, (int)typeOffset, ITEM_HEIGHT, Justification::centredLeft);
 
 	g.setColour(textColour.withMultipliedBrightness(0.4f));
 	g.setFont(GLOBAL_FONT());
 
-	g.drawText(typeName, textOffset + typeOffset, 0, getWidth() - (textOffset + typeOffset), ITEM_HEIGHT, Justification::centredLeft);
+	g.drawText(typeName, (int)(textOffset + typeOffset), 0, getWidth() - (int)(textOffset + typeOffset), ITEM_HEIGHT, Justification::centredLeft);
 
 	if (insertDragAfterComponent)
 	{

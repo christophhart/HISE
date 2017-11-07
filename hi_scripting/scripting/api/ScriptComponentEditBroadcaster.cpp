@@ -235,7 +235,7 @@ void ScriptComponentEditBroadcaster::setScriptComponentPropertyForSelection(cons
 	
 }
 
-void ScriptComponentEditBroadcaster::setScriptComponentPropertyDeltaForSelection(const Identifier& propertyId, const var& delta, NotificationType notifyListeners /*= sendNotification*/, bool beginNewTransaction /*= true*/)
+void ScriptComponentEditBroadcaster::setScriptComponentPropertyDeltaForSelection(const Identifier& propertyId, const var& delta, NotificationType notifyListeners /*= sendNotification*/, bool /*beginNewTransaction*/ /*= true*/)
 {
 	manager.beginNewTransaction("Multiple");
 
@@ -299,7 +299,7 @@ String ScriptComponentEditBroadcaster::getTransactionName(ScriptComponent* sc, c
 	return p;
 }
 
-void ScriptComponentEditBroadcaster::sendPropertyChangeMessage(ScriptComponent* sc, const Identifier& id, const var& newValue)
+void ScriptComponentEditBroadcaster::sendPropertyChangeMessage(ScriptComponent* /*sc*/, const Identifier& id, const var& newValue)
 {
 	for (int i = 0; i < listeners.size(); i++)
 	{

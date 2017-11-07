@@ -221,11 +221,8 @@ void ScriptEditHandler::toggleComponentSelectMode(bool shouldSelectOnClick)
 
 void ScriptEditHandler::compileScript()
 {
-	ProcessorWithScriptingContent *s = dynamic_cast<ProcessorWithScriptingContent*>(getScriptEditHandlerProcessor());
-	
 	Processor* p = dynamic_cast<Processor*>(getScriptEditHandlerProcessor());
-	Component* thisAsComponent = dynamic_cast<Component*>(this);
-
+	
 	PresetHandler::setChanged(p);
 
 	scriptEditHandlerCompileCallback();
@@ -395,9 +392,9 @@ void ScriptingContentOverlay::scriptComponentSelectionChanged()
 }
 
 
-void ScriptingContentOverlay::scriptComponentPropertyChanged(ScriptComponent* sc, Identifier idThatWasChanged, const var& newValue)
+void ScriptingContentOverlay::scriptComponentPropertyChanged(ScriptComponent* /*sc*/, Identifier /*idThatWasChanged*/, const var& /*newValue*/)
 {
-	var x = 2;
+	
 }
 
 
@@ -427,8 +424,6 @@ bool ScriptingContentOverlay::keyPressed(const KeyPress &key)
 			b->setScriptComponentPropertyDeltaForSelection(x, delta, sendNotification, true);
 			return true;
 		}
-
-		return true;
 	}
 	else if (keyCode == KeyPress::upKey || keyCode == KeyPress::downKey)
 	{
@@ -442,8 +437,6 @@ bool ScriptingContentOverlay::keyPressed(const KeyPress &key)
 			b->setScriptComponentPropertyDeltaForSelection(y, delta, sendNotification, true);
 			return true;
 		}
-
-		return true;
 	}
 	else if (keyCode == 'Z' && key.getModifiers().isCommandDown())
 	{
@@ -514,8 +507,6 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 		Array<ScriptingApi::Content::ScriptComponent*> components;
 
 		content->getScriptComponentsFor(components, e.getEventRelativeTo(content).getPosition());
-
-		auto mc = processor->getMainController();
 
 		if (components.size() > 1)
 		{
@@ -720,7 +711,7 @@ static void removeChildComponentsFromArray(Array<ScriptComponent*>& arrayToClean
 	}
 }
 
-void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
+void ScriptingContentOverlay::mouseUp(const MouseEvent &/*e*/)
 {
 	if (lasso.isVisible())
 	{
@@ -829,7 +820,7 @@ void ScriptingContentOverlay::Dragger::mouseDrag(const MouseEvent& e)
 		dragger.dragComponent(this, e, &constrainer);
 }
 
-void ScriptingContentOverlay::Dragger::mouseUp(const MouseEvent& e)
+void ScriptingContentOverlay::Dragger::mouseUp(const MouseEvent& /*e*/)
 {
 	snapShot = Image();
 
@@ -907,7 +898,7 @@ void ScriptingContentOverlay::Dragger::duplicateSelection(int deltaX, int deltaY
 	
 }
 
-void ScriptingContentOverlay::Dragger::MovementWatcher::componentMovedOrResized(bool /*wasMoved*/, bool wasResized)
+void ScriptingContentOverlay::Dragger::MovementWatcher::componentMovedOrResized(bool /*wasMoved*/, bool /*wasResized*/)
 {
 	auto c = getComponent()->findParentComponentOfClass<ScriptContentComponent>();
 

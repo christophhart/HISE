@@ -257,7 +257,7 @@ void ScriptComponentEditPanel::scriptComponentSelectionChanged()
 	fillPanel();
 }
 
-void ScriptComponentEditPanel::scriptComponentPropertyChanged(ScriptComponent* sc, Identifier idThatWasChanged, const var& newValue)
+void ScriptComponentEditPanel::scriptComponentPropertyChanged(ScriptComponent* sc, Identifier /*idThatWasChanged*/, const var& /*newValue*/)
 {
 	if (getScriptComponentEditBroadcaster()->isFirstComponentInSelection(sc))
 	{
@@ -310,7 +310,7 @@ Identifier ScriptComponentEditPanel::Panel::getProcessorTypeId() const
 	return JavascriptProcessor::getConnectorId();
 }
 
-Component* ScriptComponentEditPanel::Panel::createContentComponent(int index)
+Component* ScriptComponentEditPanel::Panel::createContentComponent(int /*index*/)
 {
 	auto rootWindow = getParentShell()->getRootFloatingTile()->findParentComponentOfClass<BackendRootWindow>();
 

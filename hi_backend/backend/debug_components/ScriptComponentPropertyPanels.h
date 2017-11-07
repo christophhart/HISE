@@ -55,7 +55,7 @@ public:
 protected:
 
 	/** Returns the value from the first selected component. */
-	const var& getCurrentPropertyValue(bool returnUndefinedWhenMultipleSelection=true) const;
+	var getCurrentPropertyValue(bool returnUndefinedWhenMultipleSelection=true) const;
 
 	PopupLookAndFeel plaf;
 
@@ -70,7 +70,7 @@ private:
 	struct Overlay : public Component,
 					 public ButtonListener
 	{
-		Overlay(HiPropertyComponent* parent)
+		Overlay(HiPropertyComponent* /*parent*/)
 		{
 			addAndMakeVisible(gotoButton);
 			gotoButton.setButtonText("SHOW");

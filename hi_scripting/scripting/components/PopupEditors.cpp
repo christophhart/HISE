@@ -184,25 +184,39 @@ void PopupIncludeEditor::compileInternal()
 
 			auto v = ValueTreeConverters::convertVarArrayToFlatValueTree(newData, "ContentProperties", "Component");
 
-			sp->getContent()->createComponentsFromValueTree(v);
-			sp->clearContentPropertiesDoc();
-
-
-
-			auto& tmp = sp;
-			auto f = [tmp]()
-			{
-				tmp->compileScript();
-			};
-
-			new DelayedFunctionCaller(f, 100);
-
-			auto panel = findParentComponentOfClass<CodeEditorPanel>();
 			
-			panel->setContentWithUndo(dynamic_cast<Processor*>(sp), 0);
+			r = sp->getContent()->createComponentsFromValueTree(v);
+
+			if (r.wasOk())
+			{
+				sp->clearContentPropertiesDoc();
+
+				auto& tmp = sp;
+				auto f = [tmp]()
+				{
+					tmp->compileScript();
+				};
+
+				new DelayedFunctionCaller(f, 100);
+
+				auto panel = findParentComponentOfClass<CodeEditorPanel>();
+
+				panel->setContentWithUndo(dynamic_cast<Processor*>(sp), 0);
 
 
-			return;
+				return;
+			}
+			else
+			{
+				lastCompileOk = false;
+				resultLabel->setText(r.getErrorMessage());
+				resultLabel->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white);
+				resultLabel->setColour(TextEditor::ColourIds::textColourId, Colours::white);
+				startTimer(200);
+				return;
+			}
+
+			
 		}
 		else
 		{

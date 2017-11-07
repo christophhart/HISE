@@ -481,7 +481,7 @@ void ScriptContentPanel::Editor::scriptComponentSelectionChanged()
 }
 
 
-void ScriptContentPanel::Editor::scriptComponentPropertyChanged(ScriptComponent* sc, Identifier idThatWasChanged, const var& newValue)
+void ScriptContentPanel::Editor::scriptComponentPropertyChanged(ScriptComponent* /*sc*/, Identifier /*idThatWasChanged*/, const var& /*newValue*/)
 {
 
 }

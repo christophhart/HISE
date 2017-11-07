@@ -1028,8 +1028,6 @@ String ModulatorSynthGroup::getFMStateString() const
 			return "FM is deactivated";
 		}
 	}
-
-	return "Invalid mode";
 }
 
 void ModulatorSynthGroup::restoreFromValueTree(const ValueTree &v)

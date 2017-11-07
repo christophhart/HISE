@@ -163,7 +163,7 @@ public:
 
 	int getNumCollectionsToCreate() const override { return 1; }
 
-	Collection *createCollection(int index) override
+	Collection *createCollection(int /*index*/) override
 	{
 		return new AllCollection(jp, showOnlyVisibleItems);
 	}

@@ -1397,32 +1397,9 @@ public:
 		return contentPropertyData;
 	}
 
-	ScriptComponent* addComponentFromValueTree(const ValueTree& child, int insertIndex=-1)
-	{
-		auto sc = Helpers::createComponentFromId(this, child.getProperty("type").toString(), child.getProperty("id").toString(), 0, 0, 100, 100);
+	ScriptComponent* addComponentFromValueTree(const ValueTree& child, int insertIndex=-1);
 
-		DynamicObject* dyn = new DynamicObject();
-		var d(dyn);
-
-		ValueTreeConverters::copyValueTreePropertiesToDynamicObject(child, d);
-
-		components.insert(insertIndex, sc);
-
-		ScriptComponent::ScopedPropertyEnabler spe(sc);
-		sc->setPropertiesFromJSON(d);
-
-		contentPropertyData.addChild(child, insertIndex, nullptr);
-
-		return sc;
-	}
-
-	void createComponentsFromValueTree(const ValueTree& newProperties)
-	{
-		contentPropertyData = newProperties;
-
-		rebuildComponentListFromValueTree();
-
-	}
+	Result createComponentsFromValueTree(const ValueTree& newProperties);
 
 	struct Wrapper;
 
@@ -1441,6 +1418,8 @@ public:
 		static void duplicateSelection(Content* c, ReferenceCountedArray<ScriptComponent> selection, int deltaX, int deltaY);
 
 		static void moveComponents(ScriptComponent* target, var list, bool insertAsParentComponent);
+
+		static void pasteProperties(ReferenceCountedArray<ScriptComponent> selection, var clipboardData);
 
 		static ScriptComponent* createComponentFromId(Content* c, const Identifier& typeId, const Identifier& name, int x, int y, int width, int h);
 
@@ -1486,7 +1465,7 @@ private:
 
 	template<class Subtype> Subtype *addComponent(Identifier name, int x, int y, int width = -1, int height = -1);
 
-	void rebuildComponentListFromValueTree(bool recompile=false);
+	void rebuildComponentListFromValueTree(bool recompile=false, Identifier* errorId=nullptr);
 
 	friend class ScriptContentComponent;
 	friend class WeakReference<ScriptingApi::Content>;

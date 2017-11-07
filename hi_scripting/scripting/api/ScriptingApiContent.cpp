@@ -278,7 +278,7 @@ void ScriptingApi::Content::ScriptComponent::restoreFromValueTree(const ValueTre
 	}
 }
 
-void ScriptingApi::Content::ScriptComponent::doubleClickCallback(const MouseEvent &, Component* componentToNotify)
+void ScriptingApi::Content::ScriptComponent::doubleClickCallback(const MouseEvent &, Component* /*componentToNotify*/)
 {
 #if USE_BACKEND
 
@@ -540,6 +540,22 @@ void ScriptingApi::Content::ScriptComponent::setPropertiesFromJSON(const var &js
 			}
 		}
 
+		for (int i = 0; i < propertyIds.size(); i++)
+		{
+			auto propertyId = propertyIds[i];
+
+			if (priorityProperties.contains(propertyId))
+				continue;
+
+			if (dataSet.contains(propertyId))
+			{
+				handleScriptPropertyChange(propertyId);
+				setScriptObjectPropertyWithChangeMessage(propertyId, dataSet[propertyId], dontSendNotification);
+			}
+		}
+
+
+#if 0
 		for (int i = 0; i < dataSet.size(); i++)
 		{
 			Identifier propertyId = dataSet.getName(i);
@@ -553,6 +569,7 @@ void ScriptingApi::Content::ScriptComponent::setPropertiesFromJSON(const var &js
 
 			setScriptObjectPropertyWithChangeMessage(propertyId, dataSet.getValueAt(i), dontSendNotification);
 		}
+#endif
 	}
 
 	SEND_MESSAGE(this);
@@ -3497,7 +3514,7 @@ void ScriptingApi::Content::cleanJavascriptObjects()
 	}
 }
 
-void ScriptingApi::Content::rebuildComponentListFromValueTree(bool recompile/*=false*/)
+void ScriptingApi::Content::rebuildComponentListFromValueTree(bool recompile/*=false*/, Identifier* errorId/*=nullptr*/)
 {
 	components.clear();
 
@@ -3506,6 +3523,12 @@ void ScriptingApi::Content::rebuildComponentListFromValueTree(bool recompile/*=f
 	for (int i = 0; i < contentPropertyData.getNumChildren(); i++)
 	{
 		auto child = contentPropertyData.getChild(i);
+
+		if (errorId != nullptr)
+		{
+			*errorId = Identifier(child.getProperty("id").toString());
+		}
+
 		addComponentFromValueTree(child);
 	}
 
@@ -3513,6 +3536,55 @@ void ScriptingApi::Content::rebuildComponentListFromValueTree(bool recompile/*=f
 	{
 		dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->compileScript();
 	}
+}
+
+Result ScriptingApi::Content::createComponentsFromValueTree(const ValueTree& newProperties)
+{
+	auto oldData = contentPropertyData;
+
+	contentPropertyData = newProperties;
+
+	Identifier errorId;
+
+	try
+	{
+
+		rebuildComponentListFromValueTree(false, &errorId);
+	}
+	catch (String& message)
+	{
+		contentPropertyData = oldData;
+
+		rebuildComponentListFromValueTree(false);
+
+		return Result::fail(errorId.toString() + ": " +  message);
+	}
+
+	return Result::ok();
+}
+
+ScriptingApi::Content::ScriptComponent* ScriptingApi::Content::addComponentFromValueTree(const ValueTree& child, int insertIndex/*=-1*/)
+{
+	auto sc = Helpers::createComponentFromId(this, child.getProperty("type").toString(), child.getProperty("id").toString(), 0, 0, 100, 100);
+
+	
+
+	DynamicObject* dyn = new DynamicObject();
+	var d(dyn);
+
+	ValueTreeConverters::copyValueTreePropertiesToDynamicObject(child, d);
+
+
+
+	components.insert(insertIndex, sc);
+
+
+	ScriptComponent::ScopedPropertyEnabler spe(sc);
+	sc->setPropertiesFromJSON(d);
+
+	contentPropertyData.addChild(child, insertIndex, nullptr);
+
+	return sc;
 }
 
 #undef ADD_TO_TYPE_SELECTOR
@@ -3672,7 +3744,7 @@ void ScriptingApi::Content::Helpers::moveComponents(ScriptComponent* target, var
 
 			content->contentPropertyData.addChild(child, insertIndex, nullptr);
 
-			auto newC = content->addComponentFromValueTree(child, insertIndex++);
+			content->addComponentFromValueTree(child, insertIndex++);
 
 			//int insertIndex = content->getComponentIndex(n) + 1;
 		}
@@ -3686,42 +3758,42 @@ void ScriptingApi::Content::Helpers::moveComponents(ScriptComponent* target, var
 
 ScriptingApi::Content::ScriptComponent* ScriptingApi::Content::Helpers::createComponentFromId(Content* c, const Identifier& typeId, const Identifier& name, int x, int y, int w, int h)
 {
-	ScriptComponent* sc = nullptr;
+	
 
-	if (sc = createComponentIfTypeMatches<ScriptSlider>(c, typeId, name, x, y, w, h))
+	if (auto sc = createComponentIfTypeMatches<ScriptSlider>(c, typeId, name, x, y, w, h))
 		return sc;
 	
-	if (sc = createComponentIfTypeMatches<ScriptButton>(c, typeId, name, x, y, w, h))
+	if (auto sc = createComponentIfTypeMatches<ScriptButton>(c, typeId, name, x, y, w, h))
 		return sc;
 
-	if (sc = createComponentIfTypeMatches<ScriptLabel>(c, typeId, name, x, y, w, h))
+	if (auto sc = createComponentIfTypeMatches<ScriptLabel>(c, typeId, name, x, y, w, h))
 		return sc;
 
-	if (sc = createComponentIfTypeMatches<ScriptComboBox>(c, typeId, name, x, y, w, h))
+	if (auto sc = createComponentIfTypeMatches<ScriptComboBox>(c, typeId, name, x, y, w, h))
 		return sc;
 
-	if (sc = createComponentIfTypeMatches<ScriptTable>(c, typeId, name, x, y, w, h))
+	if (auto sc = createComponentIfTypeMatches<ScriptTable>(c, typeId, name, x, y, w, h))
 		return sc;
 
-	if (sc = createComponentIfTypeMatches<ScriptSliderPack>(c, typeId, name, x, y, w, h))
+	if (auto sc = createComponentIfTypeMatches<ScriptSliderPack>(c, typeId, name, x, y, w, h))
 		return sc;
 
-	if (sc = createComponentIfTypeMatches<ScriptImage>(c, typeId, name, x, y, w, h))
+	if (auto sc = createComponentIfTypeMatches<ScriptImage>(c, typeId, name, x, y, w, h))
 		return sc;
 
-	if (sc = createComponentIfTypeMatches<ScriptPanel>(c, typeId, name, x, y, w, h))
+	if (auto sc = createComponentIfTypeMatches<ScriptPanel>(c, typeId, name, x, y, w, h))
 		return sc;
 
-	if (sc = createComponentIfTypeMatches<ScriptedViewport>(c, typeId, name, x, y, w, h))
+	if (auto sc = createComponentIfTypeMatches<ScriptedViewport>(c, typeId, name, x, y, w, h))
 		return sc;
 
-	if (sc = createComponentIfTypeMatches<ModulatorMeter>(c, typeId, name, x, y, w, h))
+	if (auto sc = createComponentIfTypeMatches<ModulatorMeter>(c, typeId, name, x, y, w, h))
 		return sc;
 
-	if (sc = createComponentIfTypeMatches<ScriptAudioWaveform>(c, typeId, name, x, y, w, h))
+	if (auto sc = createComponentIfTypeMatches<ScriptAudioWaveform>(c, typeId, name, x, y, w, h))
 		return sc;
 
-	if (sc = createComponentIfTypeMatches<ScriptFloatingTile>(c, typeId, name, x, y, w, h))
+	if (auto sc = createComponentIfTypeMatches<ScriptFloatingTile>(c, typeId, name, x, y, w, h))
 		return sc;
 
 	return nullptr;
@@ -3782,4 +3854,29 @@ void ScriptingApi::Content::Helpers::recompileAndSearchForPropertyChange(ScriptC
 	sc->setPropertyToLookFor(Identifier());
 	
 	jp->compileScript();
+}
+
+void ScriptingApi::Content::Helpers::pasteProperties(ReferenceCountedArray<ScriptComponent> selection, var clipboardData)
+{
+	if (selection.size() != 0)
+	{
+		if (auto dyn = clipboardData.getDynamicObject())
+		{
+			dyn->removeProperty("x");
+			dyn->removeProperty("y");
+
+			auto content = selection.getFirst()->parent;
+
+			for (auto s : selection)
+			{
+				auto child = content->contentPropertyData.getChildWithProperty("id", s->getName().toString());
+
+				ValueTreeConverters::copyDynamicObjectPropertiesToValueTree(child, clipboardData);
+			}
+
+			content->rebuildComponentListFromValueTree(true);
+		}
+
+		
+	}
 }
