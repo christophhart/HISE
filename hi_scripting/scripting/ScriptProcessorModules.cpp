@@ -44,6 +44,8 @@ front(false),
 deferred(false),
 deferredUpdatePending(false)
 {
+	initContent();
+
     editorStateIdentifiers.add("contentShown");
 	editorStateIdentifiers.add("onInitOpen");
 	editorStateIdentifiers.add("onNoteOnOpen");
@@ -62,8 +64,7 @@ deferredUpdatePending(false)
 
 JavascriptMidiProcessor::~JavascriptMidiProcessor()
 {
-	getMainController()->getScriptComponentEditBroadcaster()->clearSelection(sendNotification);
-
+	cleanupEngine();
 	clearExternalWindows();
 
 	onInitCallback = nullptr;
@@ -173,7 +174,9 @@ void JavascriptMidiProcessor::processHiseEvent(HiseEvent &m)
 
 void JavascriptMidiProcessor::registerApiClasses()
 {
-	content = new ScriptingApi::Content(this);
+	
+
+	//content = new ScriptingApi::Content(this);
     front = false;
 
 	currentMidiMessage = new ScriptingApi::Message(this);
@@ -184,7 +187,7 @@ void JavascriptMidiProcessor::registerApiClasses()
 
 	samplerObject = new ScriptingApi::Sampler(this, dynamic_cast<ModulatorSampler*>(getOwnerSynth()));
 
-	scriptEngine->registerNativeObject("Content", content);
+	scriptEngine->registerNativeObject("Content", getScriptingContent());
 	scriptEngine->registerApiClass(currentMidiMessage);
 	scriptEngine->registerApiClass(engineObject);
 	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
@@ -459,6 +462,8 @@ prepareToPlayCallback(new SnippetDocument("prepareToPlay", "sampleRate blockSize
 processBlockCallback(new SnippetDocument("processBlock", "channels")),
 onControlCallback(new SnippetDocument("onControl", "number value"))
 {
+	initContent();
+
 	editorStateIdentifiers.add("contentShown");
 	editorStateIdentifiers.add("onInitOpen");
 	editorStateIdentifiers.add("prepareToPlayOpen");
@@ -480,6 +485,7 @@ onControlCallback(new SnippetDocument("onControl", "number value"))
 JavascriptMasterEffect::~JavascriptMasterEffect()
 {
 	clearExternalWindows();
+	cleanupEngine();
 
 #if USE_BACKEND
 	if (consoleEnabled)
@@ -562,7 +568,7 @@ const JavascriptProcessor::SnippetDocument * JavascriptMasterEffect::getSnippet(
 
 void JavascriptMasterEffect::registerApiClasses()
 {
-	content = new ScriptingApi::Content(this);
+	//content = new ScriptingApi::Content(this);
 
 	engineObject = new ScriptingApi::Engine(this);
 	
@@ -668,6 +674,8 @@ Modulation(m),
 JavascriptProcessor(mc),
 ProcessorWithScriptingContent(mc)
 {
+	initContent();
+
 	onInitCallback = new SnippetDocument("onInit");
 	onVoiceStartCallback = new SnippetDocument("onVoiceStart", "voiceIndex");
 	onVoiceStopCallback = new SnippetDocument("onVoiceStop", "voiceIndex");
@@ -686,6 +694,7 @@ ProcessorWithScriptingContent(mc)
 JavascriptVoiceStartModulator::~JavascriptVoiceStartModulator()
 {
 	clearExternalWindows();
+	cleanupEngine();
 
 #if USE_BACKEND
 	if (consoleEnabled)
@@ -813,6 +822,8 @@ JavascriptProcessor(mc),
 ProcessorWithScriptingContent(mc),
 buffer(new VariantBuffer(0))
 {
+	initContent();
+
 	onInitCallback = new SnippetDocument("onInit");
 	prepareToPlayCallback = new SnippetDocument("prepareToPlay", "sampleRate samplesPerBlock");
 	processBlockCallback = new SnippetDocument("processBlock", "buffer");
@@ -836,6 +847,8 @@ buffer(new VariantBuffer(0))
 JavascriptTimeVariantModulator::~JavascriptTimeVariantModulator()
 {
 	clearExternalWindows();
+
+	cleanupEngine();
 
 	ScopedWriteLock sl(mainController->getCompileLock());
 
@@ -1020,6 +1033,8 @@ EnvelopeModulator(mc, id, numVoices, m),
 Modulation(m),
 buffer(new VariantBuffer(0))
 {
+	initContent();
+
 	onInitCallback = new SnippetDocument("onInit");
 	prepareToPlayCallback = new SnippetDocument("prepareToPlay", "sampleRate samplesPerBlock");
 	renderVoiceCallback = new SnippetDocument("renderVoice", "voiceIndex uptime data");
@@ -1049,6 +1064,7 @@ buffer(new VariantBuffer(0))
 
 JavascriptEnvelopeModulator::~JavascriptEnvelopeModulator()
 {
+	cleanupEngine();
 	clearExternalWindows();
 }
 
@@ -1394,6 +1410,8 @@ onNoteOffCallback(new SnippetDocument("onNoteOff")),
 onControllerCallback(new SnippetDocument("onController")),
 onControlCallback(new SnippetDocument("onControl", "number value"))
 {
+	initContent();
+
 	scriptChain1Buffer = AudioSampleBuffer(1, 0);
 	scriptChain2Buffer = AudioSampleBuffer(1, 0);
 
@@ -1424,6 +1442,8 @@ onControlCallback(new SnippetDocument("onControl", "number value"))
 JavascriptModulatorSynth::~JavascriptModulatorSynth()
 {
 	clearExternalWindows();
+
+	cleanupEngine();
 
 #if USE_BACKEND
 	if (consoleEnabled)

@@ -48,7 +48,6 @@ class ProcessorWithScriptingContent
 public:
 
 	ProcessorWithScriptingContent(MainController* mc_) :
-		content(nullptr),
 		restoredContentValues(ValueTree("Content")),
 		mc(mc_)
 	{}
@@ -103,6 +102,12 @@ public:
 
 protected:
 
+	/** Call this from the base class to create the content. */
+	void initContent()
+	{
+		content = new ScriptingApi::Content(this);
+	}
+
 	friend class JavascriptProcessor;
 
 	JavascriptProcessor* thisAsJavascriptProcessor = nullptr;
@@ -112,7 +117,10 @@ protected:
 	bool allowObjectConstructors;
 
 	ValueTree restoredContentValues;
-	WeakReference<ScriptingApi::Content> content;
+	
+	ReferenceCountedObjectPtr<ScriptingApi::Content> content;
+
+	//WeakReference<ScriptingApi::Content> content;
 };
 
 
@@ -454,6 +462,8 @@ public:
 		compileScript();
 	}
 
+	void cleanupEngine();
+
 	void setCallStackEnabled(bool shouldBeEnabled);
 
 	void addBreakpointListener(HiseJavascriptEngine::Breakpoint::Listener* newListener)
@@ -466,24 +476,16 @@ public:
 		breakpointListeners.removeAllInstancesOf(listenerToRemove);
 	}
 
-	var getContentProperties()
+	ScriptingApi::Content* getContent()
 	{
-		return contentPropertyData;
-	}
-
-	const var getContentProperties() const
-	{
-		return contentPropertyData;
-	}
-
-	void setContentProperties(const var& newProperties)
-	{
-		if (newProperties.getDynamicObject() == nullptr)
-			throw String("You have to use a object for the content properties.");
-
-		contentPropertyData = newProperties;
+		return dynamic_cast<ProcessorWithScriptingContent*>(this)->getScriptingContent();
 	}
 	
+	const ScriptingApi::Content* getContent() const
+	{
+		return dynamic_cast<const ProcessorWithScriptingContent*>(this)->getScriptingContent();
+	}
+
 	void clearContentPropertiesDoc()
 	{
 		contentPropertyDocument = nullptr;
@@ -572,7 +574,7 @@ private:
 
 	bool cycleReferenceCheckEnabled = false;
 
-	var contentPropertyData;
+	
 
 	ScopedPointer<CodeDocument> contentPropertyDocument;
 

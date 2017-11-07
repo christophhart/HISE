@@ -44,7 +44,7 @@ class ScriptComponentEditListener
 {
 public:
 
-	ScriptComponentEditListener(GlobalScriptCompileBroadcaster* broadcaster_);;
+	ScriptComponentEditListener(Processor* p);;
 
 	virtual ~ScriptComponentEditListener()
 	{
@@ -61,6 +61,13 @@ public:
 
 	const ScriptComponentEditBroadcaster* getScriptComponentEditBroadcaster() const { return broadcaster; }
 
+	const Processor* getProcessor() const
+	{
+		return editedProcessor.get();
+	}
+
+
+
 protected:
 
 	/** Call this from the constructor and it will register itself. */
@@ -70,6 +77,8 @@ protected:
 	void removeAsScriptEditListener();
 
 private:
+
+	WeakReference<Processor> editedProcessor;
 
 	friend class WeakReference<ScriptComponentEditListener>;
 	WeakReference<ScriptComponentEditListener>::Master masterReference;
@@ -137,7 +146,7 @@ public:
 		{
 			while (index < broadcaster->currentSelection.size())
 			{
-				if (auto r = broadcaster->currentSelection[index++]->sc)
+				if (auto r = broadcaster->currentSelection[index++])
 					return r;
 			}
 
@@ -148,7 +157,7 @@ public:
 		{
 			while (index < broadcaster->currentSelection.size())
 			{
-				if (auto r = broadcaster->currentSelection[index++]->sc)
+				if (auto r = broadcaster->currentSelection[index++])
 					return r;
 			}
 
@@ -190,7 +199,7 @@ public:
 
 	void setScriptComponentProperty(ScriptComponent* sc, const Identifier& propertyId, const var& newValue, NotificationType notifyListeners=sendNotification, bool beginNewTransaction=true);
 
-	
+	bool isSelected(ScriptComponent* sc) const;
 
 	void setScriptComponentPropertyForSelection(const Identifier& propertyId, const var& newValue, NotificationType notifyListeners);
 
@@ -199,6 +208,8 @@ public:
 	void setScriptComponentPropertyDelta(ScriptComponent* sc, const Identifier& propertyId, const var& delta, NotificationType notifyListeners = sendNotification, bool beginNewTransaction = true);
 
 	bool isFirstComponentInSelection(ScriptComponent* sc) const;
+
+	ScriptComponentSelection getSelection() { return currentSelection; }
 
 	ScriptComponent* getFirstFromSelection();
 
@@ -283,27 +294,14 @@ public:
 
 private:
 
+	WeakReference<Processor> currentlyEditedProcessor;
+
 	void setPropertyInternal(ScriptComponent* sc, const Identifier& propertyId, const var& newValue, NotificationType notifyListeners);
 
-	bool isSelected(ScriptComponent* sc) const;
+	
 
 	UndoManager manager;
 
-	struct ScriptComponentWithLocation
-	{
-		ScriptComponentWithLocation(ScriptComponent* sc);
-
-		bool operator== (const ScriptComponentWithLocation& other) const
-		{
-			return sc == other.sc;
-		}
-
-		ReferenceCountedObjectPtr<ScriptComponent> sc;
-		CodeDocument::Position location;
-		CodeDocument* doc;
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptComponentWithLocation);
-	};
 
 	/* @internal. */
 	void sendPropertyChangeMessage(ScriptComponent* sc, const Identifier& id, const var& newValue);
@@ -314,7 +312,7 @@ private:
 
 	Array<WeakReference<ScriptComponentEditListener>> listeners;
 
-	OwnedArray<ScriptComponentWithLocation> currentSelection;
+	ScriptComponentSelection currentSelection;
 	
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptComponentEditBroadcaster)

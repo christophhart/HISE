@@ -225,5 +225,38 @@ public:
 
 
 
+struct ValueTreeConverters
+{
+	static String convertDynamicObjectToBase64(const var& object, const Identifier& id, bool compress);;
+
+	static ValueTree convertDynamicObjectToValueTree(const var& object, const Identifier& id);
+
+	static String convertValueTreeToBase64(const ValueTree& v, bool compress);
+
+	static var convertBase64ToDynamicObject(const String& base64String, bool isCompressed);
+
+	static ValueTree convertBase64ToValueTree(const String& base64String, bool isCompressed);
+
+	static var convertValueTreeToDynamicObject(const ValueTree& v);
+
+	static var convertFlatValueTreeToVarArray(const ValueTree& v);
+
+	static ValueTree convertVarArrayToFlatValueTree(const var& ar, const Identifier& rootId, const Identifier& childId);
+
+	static void copyDynamicObjectPropertiesToValueTree(ValueTree& v, const var& obj);
+
+	static void copyValueTreePropertiesToDynamicObject(const ValueTree& v, var& obj);
+
+private:
+
+	static void v2d_internal(var& object, const ValueTree& v);
+
+	static void d2v_internal(ValueTree& v, const Identifier& id, const var& object);;
+
+
+};
+
+
+
 
 #endif  // SCRIPTINGBASEOBJECTS_H_INCLUDED

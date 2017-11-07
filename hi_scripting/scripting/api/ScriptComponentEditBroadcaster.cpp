@@ -29,8 +29,9 @@
 */
 
 
-ScriptComponentEditListener::ScriptComponentEditListener(GlobalScriptCompileBroadcaster* gscb) :
-	broadcaster(gscb->getScriptComponentEditBroadcaster())
+ScriptComponentEditListener::ScriptComponentEditListener(Processor* p) :
+	broadcaster(p->getMainController()->getScriptComponentEditBroadcaster()),
+	editedProcessor(p)
 {
 
 }
@@ -49,24 +50,16 @@ void ScriptComponentEditBroadcaster::addToSelection(ScriptComponent* componentTo
 {
 	for (int i = 0; i < currentSelection.size(); i++)
 	{
-		if (currentSelection[i]->sc == componentToAdd)
+		if (currentSelection[i] == componentToAdd)
 			return;
 	}
 
-    ScopedPointer<ScriptComponentWithLocation> n = new ScriptComponentWithLocation(componentToAdd);
-    
-    if(n->doc != nullptr)
-    {
-        currentSelection.add(n.release());
-        
-        if(notifyListeners)
-            sendSelectionChangeMessage();
-    }
-    else
-    {
-        PresetHandler::showMessageWindow("Can't find UI definition", "The UI definition for the widget " + componentToAdd->getName().toString() + " can't be found.");
-    }
-    
+	currentlyEditedProcessor = dynamic_cast<Processor*>(componentToAdd->getScriptProcessor());
+
+	currentSelection.add(componentToAdd);
+
+	if (notifyListeners)
+		sendSelectionChangeMessage();
 	
 }
 
@@ -74,10 +67,10 @@ void ScriptComponentEditBroadcaster::removeFromSelection(ScriptComponent* compon
 {
 	for (int i = 0; i < currentSelection.size(); i++)
 	{
-		if (currentSelection[i]->sc == componentToRemove)
+		if (currentSelection[i] == componentToRemove)
 		{
-			currentSelection.remove(i, true);
-			return;
+			currentSelection.remove(i);
+			break;
 		}
 			
 	}
@@ -140,28 +133,6 @@ void ScriptComponentEditBroadcaster::setScriptComponentProperty(ScriptComponent*
 void ScriptComponentEditBroadcaster::setPropertyInternal(ScriptComponent* sc, const Identifier& propertyId, const var& newValue, NotificationType notifyListeners)
 {
 	sc->updateContentPropertyInternal(propertyId, newValue);
-
-	if (isPositionId(propertyId))
-	{
-		for (int i = 0; i < currentSelection.size(); i++)
-		{
-			if (currentSelection[i]->sc == sc)
-			{
-				if (currentSelection[i]->doc != nullptr)
-				{
-					auto loc = currentSelection[i]->location;
-
-					auto coordinates = sc->getPosition().getPosition();
-
-					JavascriptCodeEditor::Helpers::changeXYOfUIDefinition(sc, currentSelection[i]->doc, loc, coordinates.x, coordinates.y);
-					break;
-				}
-			}
-
-
-		}
-
-	}
 
 	if (notifyListeners)
 		sendPropertyChangeMessage(sc, propertyId, newValue);
@@ -227,12 +198,12 @@ bool ScriptComponentEditBroadcaster::isFirstComponentInSelection(ScriptComponent
 
 ScriptComponent* ScriptComponentEditBroadcaster::getFirstFromSelection()
 {
-	return (currentSelection.size() != 0 ? currentSelection.getFirst()->sc.get() : nullptr);
+	return currentSelection.getFirst();
 }
 
 const ScriptComponent* ScriptComponentEditBroadcaster::getFirstFromSelection() const
 {
-	return (currentSelection.size() != 0 ? currentSelection.getFirst()->sc.get() : nullptr);
+	return currentSelection.getFirst();
 }
 
 bool ScriptComponentEditBroadcaster::isPositionId(const Identifier& id)
@@ -269,6 +240,9 @@ void ScriptComponentEditBroadcaster::sendPropertyChangeMessage(ScriptComponent* 
 			listeners.remove(i--);
 		}
 
+		if (listeners[i]->getProcessor() != currentlyEditedProcessor.get())
+			continue;
+
 		Iterator iter(this);
 
 		while (auto sc = iter.getNextScriptComponent())
@@ -287,13 +261,9 @@ void ScriptComponentEditBroadcaster::sendSelectionChangeMessage()
 			listeners.remove(i--);
 		}
 
+		if (listeners[i]->getProcessor() != currentlyEditedProcessor.get())
+			continue;
+
 		listeners[i]->scriptComponentSelectionChanged();
 	}
 }
-
-ScriptComponentEditBroadcaster::ScriptComponentWithLocation::ScriptComponentWithLocation(ScriptComponent* sc_):
-	sc(sc_)
-{
-	doc = JavascriptCodeEditor::Helpers::getPositionOfUIDefinition(sc, location);
-}
-

@@ -176,13 +176,15 @@ void PopupIncludeEditor::compileInternal()
 	{
 		var newData;
 
-		Result r = JSON::parse(editor->getDocument().getAllContent().fromFirstOccurrenceOf("{", true, true), newData);
+		Result r = JSON::parse(editor->getDocument().getAllContent().fromFirstOccurrenceOf("[", true, true), newData);
 
-		if (r.wasOk() && newData.isObject())
+		if (r.wasOk() && newData.isArray())
 		{
 			editor = nullptr;
 
-			sp->setContentProperties(newData);
+			auto v = ValueTreeConverters::convertVarArrayToFlatValueTree(newData, "ContentProperties", "Component");
+
+			sp->getContent()->createComponentsFromValueTree(v);
 			sp->clearContentPropertiesDoc();
 
 

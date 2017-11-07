@@ -356,7 +356,9 @@ public:
 		ScriptSlider(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name_, int x, int y, int, int);
 		~ScriptSlider();
 
-		Identifier 	getObjectName() const override { RETURN_STATIC_IDENTIFIER("ScriptSlider") }
+		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptSlider"); }
+
+		Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		virtual bool isAutomatable() const { return true; }
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification) override;
@@ -431,7 +433,9 @@ public:
 
 		// ========================================================================================================
 
-		Identifier 	getObjectName() const override { RETURN_STATIC_IDENTIFIER("ScriptButton") }
+		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptButton") }
+
+		Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		bool isAutomatable() const override { return true; }
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 		const Image getImage() const { return image; };
@@ -463,7 +467,9 @@ public:
 
 		// ========================================================================================================
 
-		virtual Identifier 	getObjectName() const override { RETURN_STATIC_IDENTIFIER("ScriptComboBox"); }
+		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptComboBox"); }
+
+		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		bool isAutomatable() const override { return true; }
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification);
@@ -506,7 +512,9 @@ public:
 		
 		// ========================================================================================================
 
-		virtual Identifier 	getObjectName() const override { RETURN_STATIC_IDENTIFIER("ScriptLabel"); }
+		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptLabel"); }
+
+		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 		StringArray getOptionsFor(const Identifier &id) override;
 		Justification getJustification();
@@ -582,7 +590,9 @@ public:
 
 		// ========================================================================================================
 
-		virtual Identifier 	getObjectName() const override { return "ScriptTable"; }
+		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptTable"); }
+
+		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification) override;
 		StringArray getOptionsFor(const Identifier &id) override;
@@ -640,7 +650,9 @@ public:
 
 		// ========================================================================================================
 
-		virtual Identifier 	getObjectName() const override { RETURN_STATIC_IDENTIFIER("ScriptSliderPack"); }
+		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptSliderPack"); }
+
+		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 		StringArray getOptionsFor(const Identifier &id) override;
 		ValueTree exportAsValueTree() const override;
@@ -713,7 +725,8 @@ public:
 
 		// ========================================================================================================
 
-		virtual Identifier 	getObjectName() const override { RETURN_STATIC_IDENTIFIER("ScriptImage"); }
+		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptImage"); }
+		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		virtual String getDebugValue() const override { return getScriptObjectProperty(Properties::FileName); }
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification) override;
@@ -780,7 +793,8 @@ public:
 
 		// ========================================================================================================
 
-		virtual Identifier 	getObjectName() const override { RETURN_STATIC_IDENTIFIER("ScriptPanel"); }
+		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptPanel"); }
+		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		
 		StringArray getOptionsFor(const Identifier &id) override;
 		StringArray getItemList() const;
@@ -1020,7 +1034,8 @@ public:
 
 		ScriptedViewport(ProcessorWithScriptingContent* base, Content* parentContent, Identifier viewportName, int x, int y, int width, int height);
 
-		virtual Identifier 	getObjectName() const override { return "ScriptedViewport"; }
+		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptedViewport"); }
+		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 
 		
@@ -1037,7 +1052,8 @@ public:
 
 		// ========================================================================================================
 
-		virtual Identifier 	getObjectName() const override { return "ScriptedPlotter"; }
+		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptedPlotter"); }
+		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 
 		void addModulator(Modulator *m) { mods.add(m); };
@@ -1078,7 +1094,8 @@ public:
 
 		// ========================================================================================================
 
-		virtual Identifier 	getObjectName() const override { RETURN_STATIC_IDENTIFIER("ModulatorMeter"); }
+		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ModulatorMeter"); }
+		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification) override;
 		StringArray getOptionsFor(const Identifier &id) override;
@@ -1108,7 +1125,8 @@ public:
 
 		// ========================================================================================================
 
-		virtual Identifier 	getObjectName() const override { RETURN_STATIC_IDENTIFIER("ScriptAudioWaveform"); };
+		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptAudioWaveform"); }
+		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); };
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification) override;
 		StringArray getOptionsFor(const Identifier &id) override;
@@ -1143,7 +1161,8 @@ public:
 
 		// ========================================================================================================
 
-		virtual Identifier 	getObjectName() const override { RETURN_STATIC_IDENTIFIER("ScriptFloatingTile"); };
+		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptFloatingTile"); }
+		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); };
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 		
 		
@@ -1285,6 +1304,8 @@ public:
 	/** Set this to true to render all script panels with double resolution for retina or rescaling. */
 	void setUseHighResolutionForPanels(bool shouldUseDoubleResolution);
 
+	
+
 	// ================================================================================================================
 
 	// Restores the content and sets the attributes so that the macros and the control callbacks gets executed.
@@ -1293,12 +1314,16 @@ public:
 	Colour getColour() const { return colour; };
 	void endInitialization();
 
+	void beginInitialization();
+
 	ValueTree exportAsValueTree() const override;
 	void restoreFromValueTree(const ValueTree &v) override;
 
+	void cleanJavascriptObjects();
+
 	bool isEmpty();
 	int getNumComponents() const noexcept{ return components.size(); };
-	ScriptComponent *getComponent(int index);;
+	ScriptComponent *getComponent(int index);
 	const ScriptComponent *getComponent(int index) const { return components[index]; };
 	ScriptComponent * getComponentWithName(const Identifier &componentName);
 	const ScriptComponent * getComponentWithName(const Identifier &componentName) const;
@@ -1312,63 +1337,103 @@ public:
 		return useDoubleResolution;
 	}
 
+	ValueTree getContentProperties()
+	{
+		return contentPropertyData;
+	}
+
+	const ValueTree getContentProperties() const
+	{
+		return contentPropertyData;
+	}
+
+	void createComponentsFromValueTree(const ValueTree& newProperties)
+	{
+		contentPropertyData = newProperties;
+
+		components.clear();
+
+		components.ensureStorageAllocated(contentPropertyData.getNumChildren());
+
+		for (int i = 0; i < contentPropertyData.getNumChildren(); i++)
+		{
+			auto child = contentPropertyData.getChild(i);
+
+			auto sc = Helpers::createComponentFromId(this, child.getProperty("type").toString(), child.getProperty("id").toString(), 0, 0, 100, 100);
+
+			DynamicObject* dyn = sc->getScriptObjectProperties();
+
+			var d(dyn);
+			ValueTreeConverters::copyValueTreePropertiesToDynamicObject(child, d);
+
+			components.add(sc);
+		}
+	}
+
 	struct Wrapper;
 
-#if 0
-	struct Iterator
+	struct Helpers
 	{
-		Iterator(const Content* c_, int pos_) :
-			c(c_),
-			pos(pos_)
-		{}
 
-		bool operator!= (const Iterator& other) const
+		static Identifier getUniqueIdentifier(Content* c, const String& id);
+
+		static void deleteComponent(Content* c, const Identifier& id, bool compileAfterDeletion=true);
+
+		static void deleteSelection(Content* c, ScriptComponentEditBroadcaster* b);
+
+		static void renameComponent(Content* c, const Identifier& id, const Identifier& newId);
+
+		static void duplicateSelection(Content* c, ReferenceCountedArray<ScriptComponent> selection, int deltaX, int deltaY);
+
+		static ScriptComponent* createComponentFromId(Content* c, const Identifier& typeId, const Identifier& name, int x, int y, int width, int h);
+
+		template <class T> static T* createComponentIfTypeMatches(ScriptingApi::Content* c, const Identifier& typeId, const Identifier& name, int x, int y, int w, int h)
 		{
-			return c != other.c;
+			if (typeId == T::getStaticObjectName())
+				return new T(c->getScriptProcessor(), c, name, x, y, w, h);
+
+			return nullptr;
 		}
 
-		const Iterator& operator++ ()
-		{
-			++pos;
-			return *this;
-		}
-
-		const ScriptComponent* operator* () const
-		{
-			return c->getComponent(pos);
-		}
-
-		ScriptComponent* operator* ()
-		{
-			return const_cast<ScriptComponent*>(c->getComponent(pos));
-		}
-
-	private:
-
-		const Content* c;
-		int pos;
 	};
 
-	Iterator begin() const
+	template <class SubType> SubType* createNewComponent(const Identifier& id, int x, int y, int w, int h)
 	{
-		return Iterator(this, 0);
-	}
+		SubType* newComponent = new SubType(getScriptProcessor(), this, id, x, y, w, h);
 
-	Iterator end() const
-	{
-		return Iterator(this, getNumComponents());
+		static const Identifier xId("x");
+		static const Identifier yId("y");
+		static const Identifier wId("width");
+		static const Identifier hId("height");
+
+		components.add(newComponent);
+
+		ValueTree newData("Component");
+		newData.setProperty("type", newComponent->getObjectName().toString(), nullptr);
+		newData.setProperty("id", id.toString(), nullptr);
+		newData.setProperty(xId, x, nullptr);
+		newData.setProperty(yId, y, nullptr);
+		newData.setProperty(wId, w, nullptr);
+		newData.setProperty(hId, h, nullptr);
+
+		contentPropertyData.addChild(newData, -1, nullptr);
+		
+		return newComponent;
 	}
-#endif
 
 private:
 
 	template<class Subtype> Subtype *addComponent(Identifier name, int x, int y, int width = -1, int height = -1);
+
+	
 
 	friend class ScriptContentComponent;
 	friend class WeakReference<ScriptingApi::Content>;
 	WeakReference<ScriptingApi::Content>::Master masterReference;
 
 	bool useDoubleResolution = false;
+
+	ValueTree contentPropertyData;
 
 	CriticalSection lock;
 	bool allowGuiCreation;

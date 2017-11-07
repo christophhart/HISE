@@ -36,11 +36,12 @@ HardcodedScriptProcessor::HardcodedScriptProcessor(MainController *mc, const Str
 	Synth(this, ms),
 	Engine(this),
 	Console(this),
-	Content(this),
+	refCountedContent(new ScriptingApi::Content(this)),
+	Content(*refCountedContent.get()),
 	Sampler(this, dynamic_cast<ModulatorSampler*>(ms))
 {
 	
-	content = &Content;
+	content = refCountedContent;
 
 	jassert(ms != nullptr);
 
@@ -51,6 +52,12 @@ HardcodedScriptProcessor::HardcodedScriptProcessor(MainController *mc, const Str
 	allowObjectConstructors = false;
 
 };
+
+HardcodedScriptProcessor::~HardcodedScriptProcessor()
+{
+	refCountedContent = nullptr;
+	content = nullptr;
+}
 
 ProcessorEditorBody *HardcodedScriptProcessor::createEditor(ProcessorEditor *parentEditor)
 {

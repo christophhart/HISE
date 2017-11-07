@@ -139,10 +139,6 @@ public:
 
 	void refreshContentButton();
 
-	ScriptingApi::Content::ScriptComponent *getEditedComponent();
-
-	Component* setEditedScriptComponent(ScriptingApi::Content::ScriptComponent *sc);
-
 	bool keyPressed(const KeyPress &key) override;
 
 	ScriptingApi::Content::ScriptComponent *getScriptComponentFor(Point<int> pos);
@@ -174,6 +170,8 @@ public:
 
 	void resized();
 
+	
+
 private:
 
 	
@@ -185,8 +183,6 @@ private:
 	WeakReference<ScriptingApi::Content> contentData;
 	ProcessorWithScriptingContent* processor;
 	WeakReference<Processor> p;
-
-	int editedComponent;
 
 	OwnedArray<ScriptCreatedComponentWrapper> componentWrappers;
 };

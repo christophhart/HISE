@@ -34,8 +34,6 @@ ScriptWatchTable::ScriptWatchTable(BackendRootWindow* window) :
 	controller(window->getBackendProcessor()),
 	rebuilder(this)
 {
-	addAsScriptEditListener();
-
 	setOpaque(true);
 
 	setName(getHeadline());
@@ -76,8 +74,6 @@ ScriptWatchTable::ScriptWatchTable(BackendRootWindow* window) :
 
 ScriptWatchTable::~ScriptWatchTable()
 {
-	removeAsScriptEditListener();
-
 	rebuilder.cancelPendingUpdate();
 
 	if (auto jp = dynamic_cast<JavascriptProcessor*>(processor.get()))
@@ -255,9 +251,6 @@ void ScriptWatchTable::mouseDoubleClick(const MouseEvent &)
 	if (processor.get() != nullptr)
 	{
 		DebugInformation *info = getDebugInformationForRow(table->getSelectedRow(0));
-
-		
-
 
 		if (info != nullptr)
 		{

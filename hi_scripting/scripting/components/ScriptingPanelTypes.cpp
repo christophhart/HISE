@@ -431,7 +431,7 @@ namespace EditorIcons
 
 
 ScriptContentPanel::Editor::Editor(Processor* p):
-	ScriptComponentEditListener(p->getMainController())
+	ScriptComponentEditListener(p)
 {
 	addAndMakeVisible(zoomSelector = new ComboBox("Zoom"));
 	zoomSelector->addListener(this);

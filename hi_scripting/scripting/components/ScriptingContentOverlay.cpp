@@ -68,6 +68,107 @@ void ScriptEditHandler::createNewComponent(Widgets componentType, int x, int y)
 	case Widgets::FloatingTile:		widgetType = "FloatingTile"; break;
 	case Widgets::duplicateWidget:
 	{
+		auto b = getScriptEditHandlerOverlay()->getScriptComponentEditBroadcaster();
+
+		auto sc = b->getFirstFromSelection();
+
+		widgetType = sc->getObjectName().toString();
+		widgetType = widgetType.replace("Scripted", "");
+		widgetType = widgetType.replace("Script", "");
+		widgetType = widgetType.replace("Slider", "Knob");
+		break;
+	}
+	case Widgets::numWidgets: break;
+	}
+
+	String id = PresetHandler::getCustomName(widgetType);
+
+	String errorMessage = isValidWidgetName(id);
+
+	while (errorMessage.isNotEmpty() && PresetHandler::showYesNoWindow("Wrong variable name", errorMessage + "\nPress 'OK' to re-enter a valid variable name or 'Cancel' to abort", PresetHandler::IconType::Warning))
+	{
+		id = PresetHandler::getCustomName(widgetType);
+		errorMessage = isValidWidgetName(id);
+	}
+
+	errorMessage = isValidWidgetName(id);
+
+	if (errorMessage.isNotEmpty()) return;
+
+	auto content = getScriptEditHandlerProcessor()->getContent();
+
+	switch (componentType)
+	{
+	case hise::ScriptEditHandler::Widgets::Knob: 
+		content->createNewComponent<ScriptingApi::Content::ScriptSlider>(id, x, y, 128, 48);
+		break;
+	case hise::ScriptEditHandler::Widgets::Button:
+		content->createNewComponent<ScriptingApi::Content::ScriptButton>(id, x, y, 128, 28);
+		break;
+	case hise::ScriptEditHandler::Widgets::Table:
+		content->createNewComponent<ScriptingApi::Content::ScriptTable>(id, x, y, 100, 50);
+		break;
+	case hise::ScriptEditHandler::Widgets::ComboBox:
+		content->createNewComponent<ScriptingApi::Content::ScriptComboBox>(id, x, y, 128, 32);
+		break;
+	case hise::ScriptEditHandler::Widgets::Label:
+		content->createNewComponent<ScriptingApi::Content::ScriptLabel>(id, x, y, 128, 28);
+		break;
+	case hise::ScriptEditHandler::Widgets::Image:
+		content->createNewComponent<ScriptingApi::Content::ScriptImage>(id, x, y, 50, 50);
+		break;
+	case hise::ScriptEditHandler::Widgets::Viewport:
+		content->createNewComponent<ScriptingApi::Content::ScriptedViewport>(id, x, y, 200, 100);
+		break;
+	case hise::ScriptEditHandler::Widgets::Plotter:
+		content->createNewComponent<ScriptingApi::Content::ScriptedPlotter>(id, x, y, 100, 50);
+		break;
+	case hise::ScriptEditHandler::Widgets::ModulatorMeter:
+		content->createNewComponent<ScriptingApi::Content::ModulatorMeter>(id, x, y, 100, 50);
+		break;
+	case hise::ScriptEditHandler::Widgets::Panel:
+		content->createNewComponent<ScriptingApi::Content::ScriptPanel>(id, x, y, 100, 50);
+		break;
+	case hise::ScriptEditHandler::Widgets::AudioWaveform:
+		content->createNewComponent<ScriptingApi::Content::ScriptAudioWaveform>(id, x, y, 200, 100);
+		break;
+	case hise::ScriptEditHandler::Widgets::SliderPack:
+		content->createNewComponent<ScriptingApi::Content::ScriptSliderPack>(id, x, y, 200, 100);
+		break;
+	case hise::ScriptEditHandler::Widgets::FloatingTile:
+		content->createNewComponent<ScriptingApi::Content::ScriptFloatingTile>(id, x, y, 200, 100);
+		break;
+	case hise::ScriptEditHandler::Widgets::duplicateWidget:
+		jassertfalse;
+		break;
+	case hise::ScriptEditHandler::Widgets::numWidgets:
+		jassertfalse;
+		break;
+	default:
+		break;
+	}
+
+	compileScript();
+
+
+#if 0
+	switch (componentType)
+	{
+	case Widgets::Knob:				widgetType = "Knob"; break;
+	case Widgets::Button:			widgetType = "Button"; break;
+	case Widgets::Table:				widgetType = "Table"; break;
+	case Widgets::ComboBox:			widgetType = "ComboBox"; break;
+	case Widgets::Label:				widgetType = "Label"; break;
+	case Widgets::Image:				widgetType = "Image"; break;
+	case Widgets::Viewport:			widgetType = "Viewport"; break;
+	case Widgets::Plotter:			widgetType = "Plotter"; break;
+	case Widgets::ModulatorMeter:	widgetType = "ModulatorMeter"; break;
+	case Widgets::Panel:				widgetType = "Panel"; break;
+	case Widgets::AudioWaveform:		widgetType = "AudioWaveform"; break;
+	case Widgets::SliderPack:		widgetType = "SliderPack"; break;
+	case Widgets::FloatingTile:		widgetType = "FloatingTile"; break;
+	case Widgets::duplicateWidget:
+	{
 		widgetType = getScriptEditHandlerContent()->getEditedComponent()->getObjectName().toString();
 		widgetType = widgetType.replace("Scripted", "");
 		widgetType = widgetType.replace("Script", "");
@@ -115,7 +216,7 @@ void ScriptEditHandler::createNewComponent(Widgets componentType, int x, int y)
 	onInit->insertText(end, textToInsert);
 
 	compileScript();
-
+#endif
 }
 
 void ScriptEditHandler::toggleComponentSelectMode(bool shouldSelectOnClick)
@@ -156,7 +257,7 @@ String ScriptEditHandler::isValidWidgetName(const String &id)
 }
 
 ScriptingContentOverlay::ScriptingContentOverlay(ScriptEditHandler* handler_) :
-	ScriptComponentEditListener(dynamic_cast<Processor*>(handler_->getScriptEditHandlerProcessor())->getMainController()),
+	ScriptComponentEditListener(dynamic_cast<Processor*>(handler_->getScriptEditHandlerProcessor())),
 	handler(handler_)
 {
 	addAsScriptEditListener();
@@ -281,6 +382,13 @@ void ScriptingContentOverlay::scriptComponentSelectionChanged()
 	{
 		auto draggedComponent = content->getComponentFor(c);
 
+		if (draggedComponent == nullptr)
+		{
+			PresetHandler::showMessageWindow("Can't select component", "The component " + c->getName() + " can't be selected", PresetHandler::IconType::Error);
+			clearDraggers();
+			return;
+		}
+
 		auto d = new Dragger(c, draggedComponent);
 
 		addAndMakeVisible(d);
@@ -349,6 +457,22 @@ bool ScriptingContentOverlay::keyPressed(const KeyPress &key)
 		b->getUndoManager().undo();
 		return true;
 	}
+	else if (keyCode == 'D' && key.getModifiers().isCommandDown())
+	{
+		if (draggers.size() > 0)
+		{
+			auto pwsc = dynamic_cast<ProcessorWithScriptingContent*>(handler->getScriptEditHandlerProcessor());
+
+			auto start = draggers.getFirst()->getPosition();
+
+			auto end = getMouseXYRelative();
+
+			auto deltaX = end.x - start.x;
+			auto deltaY = end.y - start.y;
+
+			ScriptingApi::Content::Helpers::duplicateSelection(pwsc->getScriptingContent(), b->getSelection(), deltaX, deltaY);
+		}
+	}
 
 	return false;
 }
@@ -391,14 +515,27 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 			m.setLookAndFeel(luf);
 
 			m.addSectionHeader("Choose Control to Edit");
+
+
 			for (int i = 0; i < components.size(); i++)
 			{
 				auto name = components[i]->getName().toString();
 
 				if (!components[i]->isShowing())
-					name << " (Hidden)";
+					continue;
 
 				m.addItem(i + 1, name);
+			}
+
+			for (int i = 0; i < components.size(); i++)
+			{
+				auto name = components[i]->getName().toString();
+
+				if (!components[i]->isShowing())
+				{
+					name << " (Hidden)";
+					m.addItem(i + 1, name);
+				}
 			}
 
 			const int result = m.show();
@@ -464,7 +601,7 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 			m.addItem((int)ScriptEditHandler::Widgets::SliderPack, "Add new SliderPack");
 			m.addItem((int)ScriptEditHandler::Widgets::FloatingTile, "Add new FloatingTile");
 
-			m.addItem((int)ScriptEditHandler::Widgets::duplicateWidget, "Duplicate selected component", content->getEditedComponent() != nullptr);
+			m.addItem((int)ScriptEditHandler::Widgets::duplicateWidget, "Duplicate selected component", components.size() > 0);
 
 			if (components.size() != 0)
 			{
@@ -695,7 +832,9 @@ void ScriptingContentOverlay::Dragger::mouseUp(const MouseEvent& e)
 		const int newX = oldX + constrainer.getDeltaX();
 		const int newY = oldY + constrainer.getDeltaY();
 
-		parentHandler->createNewComponent(ScriptEditHandler::Widgets::duplicateWidget, newX, newY);
+		auto handler = findParentComponentOfClass<ScriptEditHandler>();
+
+		handler->createNewComponent(ScriptEditHandler::Widgets::duplicateWidget, newX, newY);
 
 		copyMode = false;
 

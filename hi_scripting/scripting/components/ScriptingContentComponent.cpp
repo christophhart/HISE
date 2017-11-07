@@ -46,8 +46,7 @@ mod(m)
 
 ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_) :
 processor(p_),
-p(dynamic_cast<Processor*>(p_)),
-editedComponent(-1)
+p(dynamic_cast<Processor*>(p_))
 {
     setNewContent(processor->getScriptingContent());
 
@@ -390,61 +389,6 @@ void ScriptContentComponent::refreshContentButton()
 
 #endif
 
-}
-
-
-ScriptingApi::Content::ScriptComponent * ScriptContentComponent::getEditedComponent()
-{
-	if (contentData.get() != nullptr && editedComponent != -1)
-	{
-		return contentData->getComponent(editedComponent);
-	}
-
-	return nullptr;
-}
-
-Component* ScriptContentComponent::setEditedScriptComponent(ScriptingApi::Content::ScriptComponent *sc)
-{
-	if (sc == nullptr)
-	{
-		editedComponent = -1;
-
-		setWantsKeyboardFocus(false);
-
-		repaint();
-		return nullptr;
-
-	}
-
-	String id = sc->getName().toString();
-
-	// Use the text value for the slider (hack because the slider class doesn't allow a dedicated name. */
-	String text = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::text).toString();
-
-	for (int i = 0; i < componentWrappers.size(); i++)
-	{
-
-		const bool isSlider = dynamic_cast<Slider*>(componentWrappers[i]->getComponent()) != nullptr;
-
-		const bool sliderMatches = isSlider && (componentWrappers[i]->getComponent()->getName() == text || componentWrappers[i]->getComponent()->getName() == id);
-
-		if (sliderMatches || id == componentWrappers[i]->getComponent()->getName())
-		{
-			editedComponent = i;
-
-			//setWantsKeyboardFocus(true);
-			//grabKeyboardFocus();
-
-			repaint();
-			return componentWrappers[i]->getComponent();
-		}
-	}
-
-	editedComponent = -1;
-
-	repaint();
-
-	return nullptr;
 }
 
 bool ScriptContentComponent::keyPressed(const KeyPress &/*key*/)

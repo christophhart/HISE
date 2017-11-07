@@ -321,6 +321,13 @@ void JavascriptProcessor::showPopupForCallback(const Identifier& callback, int /
 }
 
 
+void JavascriptProcessor::cleanupEngine()
+{
+	mainController->getScriptComponentEditBroadcaster()->clearSelection(sendNotification);
+	scriptEngine = nullptr;
+	dynamic_cast<ProcessorWithScriptingContent*>(this)->content = nullptr;
+}
+
 void JavascriptProcessor::setCallStackEnabled(bool shouldBeEnabled)
 {
 	callStackEnabled = shouldBeEnabled;
@@ -432,8 +439,7 @@ lastCompileWasOK(false),
 currentCompileThread(nullptr),
 lastResult(Result::ok())
 {
-	DynamicObject::Ptr c = new DynamicObject();
-	contentPropertyData = var(c);
+	
 }
 
 
@@ -446,7 +452,7 @@ JavascriptProcessor::~JavascriptProcessor()
 
 	deleteAllPopups();
 
-	contentPropertyData = var();
+	
 
 	scriptEngine = nullptr;
 }
@@ -505,6 +511,7 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	content = thisAsScriptBaseProcessor->getScriptingContent();
 
+	content->beginInitialization();
     scriptEngine->setIsInitialising(true);
     
 	if(cycleReferenceCheckEnabled)
@@ -596,19 +603,28 @@ void JavascriptProcessor::storeCurrentInterfaceStateInContentProperties()
 
 	if (auto content = pwsc->getScriptingContent())
 	{
-		DynamicObject::Ptr newData = new DynamicObject();
+		ValueTree v("ContentProperties");
 
 		for (int i = 0; i < content->getNumComponents(); i++)
 		{
 			auto sc = content->getComponent(i);
 
 			auto newProps = sc->getNonDefaultScriptObjectProperties();
+
+			newProps.getDynamicObject()->setProperty("id", sc->getName().toString());
 			newProps.getDynamicObject()->setProperty("type", sc->getObjectName().toString());
 
-			newData->setProperty(sc->getName(), newProps);
+			ValueTree child("Component");
+
+			ValueTreeConverters::copyDynamicObjectPropertiesToValueTree(child, newProps);
+
+			v.addChild(child, -1, nullptr);
 		}
 
-		contentPropertyData = var(newData);
+		
+		pwsc->getScriptingContent()->createComponentsFromValueTree(v);
+
+		compileScript();
 
 		PresetHandler::showMessageWindow("Sucess", "The current state was copied into the internal object.\nYou can now safely delete all JSON definitions and unneeded widget.set() calls", PresetHandler::IconType::Info);
 	}
@@ -674,6 +690,8 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileScript()
 void JavascriptProcessor::setupApi()
 {
 	clearFileWatchers();
+
+	dynamic_cast<ProcessorWithScriptingContent*>(this)->getScriptingContent()->cleanJavascriptObjects();
 
 	scriptEngine = new HiseJavascriptEngine(this);
 
@@ -776,161 +794,15 @@ CodeDocument* JavascriptProcessor::createAndUpdateJsonDoc()
 		header << "// From now on until you press 'Apply changes' (or hit the F5 button), all other " << nl;
 		header << "// changes you make will be overwritten as soon as you compile this JSON object." << nl << nl;
 
-		contentPropertyDocument->replaceAllContent(header + JSON::toString(contentPropertyData));
+		auto cTree = dynamic_cast<ProcessorWithScriptingContent*>(this)->getScriptingContent()->getContentProperties();
+
+		auto v = ValueTreeConverters::convertFlatValueTreeToVarArray(cTree);
+		
+		contentPropertyDocument->replaceAllContent(header + JSON::toString(v));
 	}
 
 	return contentPropertyDocument;
 }
-
-struct ValueTreeConverters
-{
-	static String convertDynamicObjectToBase64(const var& object, const Identifier& id, bool compress)
-	{
-		ValueTree v = convertDynamicObjectToValueTree(object, id);
-		return convertValueTreeToBase64(v, compress);
-	};
-
-	static ValueTree convertDynamicObjectToValueTree(const var& object, const Identifier& id)
-	{
-		ValueTree v(id);
-
-		DBG(JSON::toString(object));
-
-		d2v_internal(v, "Data", object);
-
-		return v;
-	}
-
-	static String convertValueTreeToBase64(const ValueTree& v, bool compress)
-	{
-		MemoryOutputStream mos;
-
-		if (compress)
-		{
-			GZIPCompressorOutputStream gzipper(&mos, 9);
-			v.writeToStream(gzipper);
-			gzipper.flush();
-		}
-		else
-		{
-			v.writeToStream(mos);
-		}
-
-		return mos.getMemoryBlock().toBase64Encoding();
-	}
-
-	static var convertBase64ToDynamicObject(const String& base64String, bool isCompressed)
-	{
-		auto v = convertBase64ToValueTree(base64String, isCompressed);
-		return convertValueTreeToDynamicObject(v);
-	}
-
-	static ValueTree convertBase64ToValueTree(const String& base64String, bool isCompressed)
-	{
-		MemoryBlock mb;
-		if (!mb.fromBase64Encoding(base64String))
-		{
-			jassertfalse;
-			return ValueTree();
-		}
-			
-		MemoryInputStream(mb, false);
-
-		if (isCompressed)
-		{
-			auto v = ValueTree::readFromGZIPData(mb.getData(), mb.getSize());
-			jassert(v.isValid());
-			return v;
-		}
-		else
-		{
-			auto v = ValueTree::readFromData(mb.getData(), mb.getSize());
-			jassert(v.isValid());
-			return v;
-		}
-	}
-
-	static var convertValueTreeToDynamicObject(const ValueTree& v)
-	{
-		jassert(v.isValid());
-
-		DynamicObject::Ptr d = new DynamicObject();
-		var dData = var(d);
-
-		v2d_internal(dData, v);
-		return dData;
-	}
-
-private:
-
-	static void v2d_internal(var& object, const ValueTree& v)
-	{
-		if (auto dyn = object.getDynamicObject())
-		{
-			auto& dynSet = dyn->getProperties();
-
-			for (int i = 0; i < v.getNumProperties(); i++)
-			{
-				auto propId = v.getPropertyName(i);
-				auto value = v.getProperty(propId);
-
-				jassert(!value.isObject());
-
-				dynSet.set(propId, value);
-			}
-
-			for (int i = 0; i < v.getNumChildren(); i++)
-			{
-				DynamicObject::Ptr child = new DynamicObject();
-				var childVar(child);
-
-				auto childTree = v.getChild(i);
-				auto propId = childTree.getType();
-
-				v2d_internal(childVar, childTree);
-
-				dynSet.set(propId, childVar);
-			}
-		}
-		else
-		{
-			jassertfalse;
-		}
-	}
-
-	static void d2v_internal(ValueTree& v, const Identifier& id, const var& object)
-	{
-		if (auto dyn = object.getDynamicObject())
-		{
-			auto& dynSet = dyn->getProperties();
-
-			for (int i = 0; i < dynSet.size(); i++)
-			{
-				auto v1 = dynSet.getValueAt(i);
-				auto id1 = dynSet.getName(i);
-
-				if (v1.isObject())
-				{
-					ValueTree child(dynSet.getName(i));
-
-					d2v_internal(child, id1, v1);
-					v.addChild(child, -1, nullptr);
-				}
-				else
-				{
-					jassert(!v1.isArray());
-					v.setProperty(id1, v1, nullptr);
-				}
-			}
-		}
-		else
-		{
-			jassertfalse;
-		}
-	};
-
-
-};
 
 
 
@@ -947,13 +819,9 @@ void JavascriptProcessor::saveScript(ValueTree &v) const
 		mergeCallbacksToScript(x);
 	}
 
-	if (auto dyn = contentPropertyData.getDynamicObject())
-	{
-		if (dyn->getProperties().size() > 0)
-		{
-			v.addChild(ValueTreeConverters::convertDynamicObjectToValueTree(contentPropertyData, "ContentProperties"), -1, nullptr);
-		}
-	}
+	auto pwsc = dynamic_cast<const ProcessorWithScriptingContent*>(this);
+
+	v.addChild(pwsc->getScriptingContent()->getContentProperties().createCopy(), -1, nullptr);
 
 	v.setProperty("Script", x, nullptr);
 }
@@ -966,10 +834,7 @@ void JavascriptProcessor::restoreScript(const ValueTree &v)
 
 	if (contentPropertyChild.isValid())
 	{
-		auto newValues = ValueTreeConverters::convertValueTreeToDynamicObject(contentPropertyChild);
-
-		if (auto dyn = newValues.getDynamicObject())
-			contentPropertyData = newValues;
+		dynamic_cast<ProcessorWithScriptingContent*>(this)->getScriptingContent()->createComponentsFromValueTree(contentPropertyChild);
 	}
 
 	if (x.startsWith("{EXTERNAL_SCRIPT}"))

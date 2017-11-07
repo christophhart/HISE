@@ -49,7 +49,7 @@ class HardcodedScriptProcessor: public ScriptBaseMidiProcessor
 public:
 
 	HardcodedScriptProcessor(MainController *mc, const String &id, ModulatorSynth *ms);
-	virtual ~HardcodedScriptProcessor() {};
+	virtual ~HardcodedScriptProcessor();;
 
 	/** This callback will get called if the object is created or resetted. */
 	virtual void onInit() {};
@@ -96,13 +96,13 @@ protected:
 	}
 
 	
-
+	ReferenceCountedObjectPtr<ScriptingApi::Content> refCountedContent;
 
 	ScriptingApi::Message Message;
 	ScriptingApi::Synth Synth;
 	ScriptingApi::Console Console;
 	ScriptingApi::Engine Engine;
-	ScriptingApi::Content Content;
+	ScriptingApi::Content& Content;
 	ScriptingApi::Sampler Sampler;
 
 	void processHiseEvent(HiseEvent &m) override;

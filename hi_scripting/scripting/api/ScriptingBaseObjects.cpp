@@ -35,7 +35,9 @@
 ScriptingObject::ScriptingObject(ProcessorWithScriptingContent *p) :
 processor(p),
 thisAsProcessor(dynamic_cast<Processor*>(p))
-{};
+{
+	jassert((thisAsProcessor != nullptr) == (processor != nullptr));
+};
 
 ProcessorWithScriptingContent *ScriptingObject::getScriptProcessor()
 {
@@ -99,3 +101,207 @@ void ScriptingObject::reportIllegalCall(const String &callName, const String &al
 
 	reportScriptError(x);
 };
+
+String ValueTreeConverters::convertDynamicObjectToBase64(const var& object, const Identifier& id, bool compress)
+{
+	ValueTree v = convertDynamicObjectToValueTree(object, id);
+	return convertValueTreeToBase64(v, compress);
+}
+
+ValueTree ValueTreeConverters::convertDynamicObjectToValueTree(const var& object, const Identifier& id)
+{
+	ValueTree v(id);
+
+	DBG(JSON::toString(object));
+
+	d2v_internal(v, "Data", object);
+
+	return v;
+}
+
+String ValueTreeConverters::convertValueTreeToBase64(const ValueTree& v, bool compress)
+{
+	MemoryOutputStream mos;
+
+	if (compress)
+	{
+		GZIPCompressorOutputStream gzipper(&mos, 9);
+		v.writeToStream(gzipper);
+		gzipper.flush();
+	}
+	else
+	{
+		v.writeToStream(mos);
+	}
+
+	return mos.getMemoryBlock().toBase64Encoding();
+}
+
+var ValueTreeConverters::convertBase64ToDynamicObject(const String& base64String, bool isCompressed)
+{
+	auto v = convertBase64ToValueTree(base64String, isCompressed);
+	return convertValueTreeToDynamicObject(v);
+}
+
+ValueTree ValueTreeConverters::convertBase64ToValueTree(const String& base64String, bool isCompressed)
+{
+	MemoryBlock mb;
+	if (!mb.fromBase64Encoding(base64String))
+	{
+		jassertfalse;
+		return ValueTree();
+	}
+
+	MemoryInputStream(mb, false);
+
+	if (isCompressed)
+	{
+		auto v = ValueTree::readFromGZIPData(mb.getData(), mb.getSize());
+		jassert(v.isValid());
+		return v;
+	}
+	else
+	{
+		auto v = ValueTree::readFromData(mb.getData(), mb.getSize());
+		jassert(v.isValid());
+		return v;
+	}
+}
+
+var ValueTreeConverters::convertValueTreeToDynamicObject(const ValueTree& v)
+{
+	jassert(v.isValid());
+
+	DynamicObject::Ptr d = new DynamicObject();
+	var dData = var(d);
+
+	v2d_internal(dData, v);
+	return dData;
+}
+
+var ValueTreeConverters::convertFlatValueTreeToVarArray(const ValueTree& v)
+{
+	Array<var> ar;
+
+	for (int i = 0; i < v.getNumChildren(); i++)
+	{
+		auto child = v.getChild(i);
+
+		DynamicObject::Ptr obj = new DynamicObject();
+		var d(obj);
+
+		copyValueTreePropertiesToDynamicObject(v.getChild(i), d);
+
+		ar.add(d);
+	}
+
+	return ar;
+}
+
+ValueTree ValueTreeConverters::convertVarArrayToFlatValueTree(const var& ar, const Identifier& rootId, const Identifier& childId)
+{
+	ValueTree v(rootId);
+
+	if (auto a = ar.getArray())
+	{
+		for (auto value : *a)
+		{
+			ValueTree child(childId);
+			copyDynamicObjectPropertiesToValueTree(child, value);
+			v.addChild(child, -1, nullptr);
+		}
+	}
+
+	return v;
+}
+
+void ValueTreeConverters::copyDynamicObjectPropertiesToValueTree(ValueTree& v, const var& obj)
+{
+	if (auto obj_ = obj.getDynamicObject())
+	{
+		auto s = obj_->getProperties();
+
+		for (int i = 0; i < s.size(); i++)
+		{
+			v.setProperty(s.getName(i), s.getValueAt(i), nullptr);
+		}
+	}
+}
+
+void ValueTreeConverters::copyValueTreePropertiesToDynamicObject(const ValueTree& v, var& obj)
+{
+	if (auto o = obj.getDynamicObject())
+	{
+		for (int i = 0; i < v.getNumProperties(); i++)
+		{
+			auto n = v.getPropertyName(i);
+			o->setProperty(n, v.getProperty(n));
+		}
+	}
+}
+
+void ValueTreeConverters::v2d_internal(var& object, const ValueTree& v)
+{
+	if (auto dyn = object.getDynamicObject())
+	{
+		auto& dynSet = dyn->getProperties();
+
+		for (int i = 0; i < v.getNumProperties(); i++)
+		{
+			auto propId = v.getPropertyName(i);
+			auto value = v.getProperty(propId);
+
+			jassert(!value.isObject());
+
+			dynSet.set(propId, value);
+		}
+
+		for (int i = 0; i < v.getNumChildren(); i++)
+		{
+			DynamicObject::Ptr child = new DynamicObject();
+			var childVar(child);
+
+			auto childTree = v.getChild(i);
+			auto propId = childTree.getType();
+
+			v2d_internal(childVar, childTree);
+
+			dynSet.set(propId, childVar);
+		}
+	}
+	else
+	{
+		jassertfalse;
+	}
+}
+
+void ValueTreeConverters::d2v_internal(ValueTree& v, const Identifier& id, const var& object)
+{
+	if (auto dyn = object.getDynamicObject())
+	{
+		auto& dynSet = dyn->getProperties();
+
+		for (int i = 0; i < dynSet.size(); i++)
+		{
+			auto v1 = dynSet.getValueAt(i);
+			auto id1 = dynSet.getName(i);
+
+			if (v1.isObject())
+			{
+				ValueTree child(dynSet.getName(i));
+
+				d2v_internal(child, id1, v1);
+				v.addChild(child, -1, nullptr);
+			}
+			else
+			{
+				jassert(!v1.isArray());
+				v.setProperty(id1, v1, nullptr);
+			}
+		}
+	}
+	else
+	{
+		jassertfalse;
+	}
+}
