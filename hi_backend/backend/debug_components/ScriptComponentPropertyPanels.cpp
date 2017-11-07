@@ -315,6 +315,33 @@ void HiTextPropertyComponent::update()
 }
 
 
+
+HiColourPropertyComponent::HiColourPropertyComponent(const Identifier& id, ScriptComponentEditPanel* panel) :
+	HiPropertyComponent(id, panel)
+{
+	addAndMakeVisible(comp);
+	refresh();
+}
+
+void HiColourPropertyComponent::refresh()
+{
+	auto v = getCurrentPropertyValue();
+
+	Colour c;
+
+	if (v.isString())
+	{
+		c = Colour::fromString(v.toString());
+	}
+	else if (v.isInt() || v.isInt64())
+	{
+		c = Colour((int)v);
+	}
+
+	comp.setDisplayedColour(c);
+}
+
+
 HiFilePropertyComponent::HiFilePropertyComponent(const Identifier& id, ScriptComponentEditPanel* panel):
 	HiPropertyComponent(id, panel)
 {
@@ -373,51 +400,103 @@ HiFilePropertyComponent::CombinedComponent::CombinedComponent() :
 	button.setColour(TextButton::textColourOffId, Colour(0x99ffffff));
 }
 
-
-#if 0
-
- HiFilePropertyComponent::HiFilePropertyComponent(DynamicObject *properties_, Identifier id_, const StringArray &options, ScriptComponentEditPanel *panel_) :
-	PropertyComponent(id_.toString()),
-	 HiPropertyComponent(properties_, id_, panel_),
-	component(this)
+HiColourPropertyComponent::ColourComp::ColourComp()
 {
-	addAndMakeVisible(component);
+	addAndMakeVisible(l);
 
-	
+	l.setColour(Label::ColourIds::backgroundColourId, Colours::transparentBlack);
+	l.setColour(Label::ColourIds::outlineColourId, Colours::transparentBlack);
+	l.setColour(Label::ColourIds::outlineWhenEditingColourId, Colour(SIGNAL_COLOUR));
+	l.addListener(this);
+	l.setFont(GLOBAL_BOLD_FONT());
+	l.setEditable(true);
+}
 
-	pooledFiles.addArray(options, 1);
+void HiColourPropertyComponent::ColourComp::setDisplayedColour(Colour& c)
+{
+	colour = c;
 
-	component.box.addItemList(pooledFiles, 1);
+	Colour textColour = Colours::white;
+
+	l.setColour(Label::ColourIds::textColourId, Colours::white);
+	l.setColour(Label::ColourIds::textWhenEditingColourId, Colours::white);
+	l.setColour(TextEditor::ColourIds::highlightColourId, textColour.contrasting(0.5f));
+	l.setColour(TextEditor::ColourIds::highlightedTextColourId, textColour);
+
+	l.setText("#" + colour.toDisplayString(true), dontSendNotification);
+
+	repaint();
+}
+
+void HiColourPropertyComponent::ColourComp::mouseDown(const MouseEvent& event)
+{
+	auto p = new Popup(this);
+
+	auto root = findParentComponentOfClass<FloatingTile>()->getRootFloatingTile();
+
+	CallOutBox::launchAsynchronously(p, root->getLocalArea(this, getLocalBounds()), root);
+}
+
+void HiColourPropertyComponent::ColourComp::changeListenerCallback(ChangeBroadcaster* b)
+{
+	auto selector = dynamic_cast<ColourSelector*>(b);
+
+	updateColour(selector->getCurrentColour());
+}
+
+void HiColourPropertyComponent::ColourComp::labelTextChanged(Label* labelThatHasChanged)
+{
+	const String t = l.getText().trimCharactersAtStart("#");
+
+	auto c = Colour::fromString(t);
+
+	updateColour(c);
+}
+
+
+void HiColourPropertyComponent::ColourComp::updateColour(Colour c)
+{
+	auto prop = findParentComponentOfClass<HiPropertyComponent>();
+
+	auto b = findParentComponentOfClass<ScriptComponentEditListener>()->getScriptComponentEditBroadcaster();
+
+	var newValue = var((int64)c.getARGB());
+
+	b->setScriptComponentPropertyForSelection(prop->getId(), newValue, sendNotification);
+}
+
+
+void HiColourPropertyComponent::ColourComp::paint(Graphics& g)
+{
+	auto r = getLocalBounds();
+	auto lr = r.removeFromLeft(80);
+
+	g.fillCheckerBoard(r, 10, 10, Colour(0xFF888888), Colour(0xFF444444));
+
+	g.setColour(colour);
+	g.fillRect(r);
+
+	g.setColour(Colours::white.withAlpha(0.5f));
+	g.drawRect(r, 1);
 
 }
 
-void  HiFilePropertyComponent::refresh()
+HiColourPropertyComponent::ColourComp::Popup::Popup(ColourComp* parent) :
+	selector(ColourSelector::ColourSelectorOptions::showAlphaChannel |
+		ColourSelector::ColourSelectorOptions::showColourspace |
+		ColourSelector::ColourSelectorOptions::showSliders)
 {
-	currentFile = propertiesObject->getProperty(id);
+	selector.setColour(ColourSelector::ColourIds::backgroundColourId, Colours::transparentBlack);
+	selector.setColour(ColourSelector::ColourIds::labelTextColourId, Colours::white);
 
-	const int currentIndex = pooledFiles.indexOf(currentFile);
+	addAndMakeVisible(selector);
 
-	component.box.setSelectedItemIndex(currentIndex, dontSendNotification);
+	selector.addChangeListener(parent);
+
+	setSize(300, 300);
 }
 
-void  HiFilePropertyComponent::buttonClicked(Button *)
+void HiColourPropertyComponent::ColourComp::Popup::resized()
 {
-	
+	selector.setBounds(getLocalBounds().reduced(10));
 }
-
-void  HiFilePropertyComponent::comboBoxChanged(ComboBox *)
-{
-	const String fileName = component.box.getItemText(component.box.getSelectedItemIndex());
-
-	currentFile = GET_PROJECT_HANDLER(GET_BACKEND_ROOT_WINDOW(this)->getMainSynthChain()).getFileReference(fileName, ProjectHandler::SubDirectories::Images);
-
-	sendSynchronousChangeMessage();
-}
-
-
-
- HiFilePropertyComponent::CombinedComponent::CombinedComponent(HiFilePropertyComponent *parent) :
-	
-
-#endif
-	 

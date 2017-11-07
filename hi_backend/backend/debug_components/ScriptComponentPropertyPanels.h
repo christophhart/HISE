@@ -143,6 +143,59 @@ private:
 	bool useNumberMode;
 };
 
+class HiColourPropertyComponent : public HiPropertyComponent
+{
+public:
+
+	HiColourPropertyComponent(const Identifier& id, ScriptComponentEditPanel* panel);
+
+	void refresh() override;
+
+private:
+
+	
+
+	struct ColourComp : public Component,
+						public Label::Listener,
+						public ChangeListener
+	{
+		struct Popup : public Component
+		{
+			Popup(ColourComp* parent);
+
+			void resized() override;
+
+			ColourSelector selector;
+		};
+
+		ColourComp();
+
+		void setDisplayedColour(Colour& c);
+
+		void mouseDown(const MouseEvent& event);
+
+		void changeListenerCallback(ChangeBroadcaster* b);
+
+		void resized() override
+		{
+			l.setBounds(getLocalBounds().withWidth(80));
+		}
+
+		void labelTextChanged(Label* labelThatHasChanged) override;
+
+		void paint(Graphics& g) override;
+
+	private:
+
+		void updateColour(Colour c);
+
+		Label l;
+
+		Colour colour;
+	};
+
+	ColourComp comp;
+};
 
 class HiFilePropertyComponent : 
 	public HiPropertyComponent,
@@ -184,6 +237,7 @@ private:
 
 	CombinedComponent combinedComponent;
 };
+
 
 
 #endif  // SCRIPTCOMPONENTPROPERTYPANELS_H_INCLUDED

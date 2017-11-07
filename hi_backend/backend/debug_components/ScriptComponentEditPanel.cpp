@@ -33,7 +33,7 @@
 
 
 ScriptComponentEditPanel::ScriptComponentEditPanel(BackendRootWindow* rootWindow, Processor* p) :
-	ScriptComponentEditListener(p->getMainController()),
+	ScriptComponentEditListener(p),
 	mc(rootWindow->getBackendProcessor()),
 	connectedProcessor(p)
 {
@@ -214,19 +214,11 @@ void ScriptComponentEditPanel::addProperty(Array<PropertyComponent*> &arrayToAdd
 		arrayToAddTo.add(b);
 		
 	}
-#if 0
 	else if (t == ScriptComponentPropertyTypeSelector::ColourPickerSelector) // All colour properties
 	{
-
-		int64 colour = (int64)obj->getProperty(id);
-
-		Colour c((uint32)colour);
-
-		arrayToAddTo.add(new HiColourPropertyComponent(id.toString(), false, c, this));
-		dynamic_cast<HiColourPropertyComponent*>(arrayToAddTo.getLast())->addChangeListener(this);
+		arrayToAddTo.add(new HiColourPropertyComponent(id, this));
 		arrayToAddTo.getLast()->setLookAndFeel(&pplaf);
 	}
-#endif
 	else if (t == ScriptComponentPropertyTypeSelector::FileSelector) // File list
 	{
 		arrayToAddTo.add(new HiFilePropertyComponent(id, this));
