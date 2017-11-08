@@ -211,6 +211,8 @@ StringArray ScriptingApi::Content::ScriptComponent::getOptionsFor(const Identifi
 
 		StringArray sa;
 
+		sa.add("");
+
 		for (int i = 0; i < c->getNumComponents(); i++)
 		{
 			if (c->getComponent(i) == this) break;
