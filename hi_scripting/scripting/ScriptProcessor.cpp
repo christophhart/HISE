@@ -606,6 +606,11 @@ void JavascriptProcessor::storeCurrentInterfaceStateInContentProperties()
 
 	if (auto content = pwsc->getScriptingContent())
 	{
+		ScriptingApi::Content::Helpers::copyComponentSnapShotToValueTree(content);
+
+		PresetHandler::showMessageWindow("Sucess", "The current state was copied into the internal object.\nYou can now safely delete all JSON definitions and unneeded widget.set() calls", PresetHandler::IconType::Info);
+
+#if 0
 		ValueTree v("ContentProperties");
 
 		for (int i = 0; i < content->getNumComponents(); i++)
@@ -643,7 +648,7 @@ void JavascriptProcessor::storeCurrentInterfaceStateInContentProperties()
 			PresetHandler::showMessageWindow("Error", r.getErrorMessage(), PresetHandler::IconType::Error);
 		}
 
-		
+#endif
 	}
 }
 

@@ -1426,7 +1426,12 @@ public:
 		return contentPropertyData;
 	}
 
-	ScriptComponent* addComponentFromValueTree(const ValueTree& child, int insertIndex=-1);
+	ValueTree getValueTreeForComponent(const Identifier& id);
+
+
+	
+
+	void addComponentsFromValueTree(ValueTree& v);
 
 	Result createComponentsFromValueTree(const ValueTree& newProperties);
 
@@ -1434,11 +1439,13 @@ public:
 
 	struct Helpers
 	{
+		static void copyComponentSnapShotToValueTree(Content* c);
+
 		static void gotoLocation(ScriptComponent* sc);
 
 		static Identifier getUniqueIdentifier(Content* c, const String& id);
 
-		static void deleteComponent(Content* c, const Identifier& id, bool compileAfterDeletion=true);
+		static void deleteComponent(Content* c, const Identifier& id, bool rebuildContent=true);
 
 		static void deleteSelection(Content* c, ScriptComponentEditBroadcaster* b);
 
@@ -1446,9 +1453,13 @@ public:
 
 		static void duplicateSelection(Content* c, ReferenceCountedArray<ScriptComponent> selection, int deltaX, int deltaY);
 
-		static void moveComponents(ScriptComponent* target, var list, bool insertAsParentComponent);
+		static void moveComponentsAfter(ScriptComponent* target, var list);
 
 		static void pasteProperties(ReferenceCountedArray<ScriptComponent> selection, var clipboardData);
+
+		static void setComponentValueTreeFromJSON(Content* c, const Identifier& id, const var& data);
+
+		static Result setParentComponent(ScriptComponent* parent, var newChildren);
 
 		static ScriptComponent* createComponentFromId(Content* c, const Identifier& typeId, const Identifier& name, int x, int y, int width, int h);
 
@@ -1514,7 +1525,7 @@ private:
 
 	template<class Subtype> Subtype *addComponent(Identifier name, int x, int y, int width = -1, int height = -1);
 
-	void rebuildComponentListFromValueTree(bool recompile=false, Identifier* errorId=nullptr);
+	void rebuildComponentListFromValueTree(bool rebuildContent=false, Identifier* errorId=nullptr);
 
 	friend class ScriptContentComponent;
 	friend class WeakReference<ScriptingApi::Content>;

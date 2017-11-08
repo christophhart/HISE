@@ -554,7 +554,7 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 			}
 
 		}
-		else
+		else if (components.size() == 1)
 		{
 			ScriptingApi::Content::ScriptComponent *sc = content->getScriptComponentFor(e.getEventRelativeTo(content).getPosition());
 			

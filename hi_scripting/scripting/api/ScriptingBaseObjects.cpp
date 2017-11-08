@@ -215,7 +215,7 @@ ValueTree ValueTreeConverters::convertVarArrayToFlatValueTree(const var& ar, con
 	return v;
 }
 
-void ValueTreeConverters::copyDynamicObjectPropertiesToValueTree(ValueTree& v, const var& obj)
+void ValueTreeConverters::copyDynamicObjectPropertiesToValueTree(ValueTree& v, const var& obj, bool skipArray/*=false*/)
 {
 	if (auto obj_ = obj.getDynamicObject())
 	{
@@ -223,6 +223,9 @@ void ValueTreeConverters::copyDynamicObjectPropertiesToValueTree(ValueTree& v, c
 
 		for (int i = 0; i < s.size(); i++)
 		{
+			if (skipArray && s.getValueAt(i).isArray())
+				continue;
+
 			v.setProperty(s.getName(i), s.getValueAt(i), nullptr);
 		}
 	}
@@ -238,6 +241,74 @@ void ValueTreeConverters::copyValueTreePropertiesToDynamicObject(const ValueTree
 			o->setProperty(n, v.getProperty(n));
 		}
 	}
+}
+
+var ValueTreeConverters::convertContentPropertiesToDynamicObject(const ValueTree& v)
+{
+	static const Identifier ch("childComponents");
+
+	DynamicObject::Ptr vDyn = new DynamicObject();
+	var vDynVar(vDyn);
+
+	copyValueTreePropertiesToDynamicObject(v, vDynVar);
+
+	auto list = Array<var>();
+
+	for (int i = 0; i < v.getNumChildren(); i++)
+	{
+		auto child = v.getChild(i);
+
+		auto childVar = convertContentPropertiesToDynamicObject(child);
+
+		list.add(childVar);
+	}
+
+	if (list.size() > 0)
+	{
+		vDyn->setProperty(ch, var(list));
+	}
+
+	return vDynVar;
+}
+
+ValueTree ValueTreeConverters::convertDynamicObjectToContentProperties(const var& d)
+{
+	static const Identifier ch("childComponents");
+
+	ValueTree root;
+
+	if (auto ar = d.getArray())
+	{
+		root = ValueTree("ContentProperties");
+
+		for (auto child : *ar)
+		{
+			auto cTree = convertDynamicObjectToContentProperties(child);
+
+			root.addChild(cTree, -1, nullptr);
+		}
+
+	}
+	else if (auto dyn = d.getDynamicObject())
+	{
+		root = ValueTree("Component");
+
+		copyDynamicObjectPropertiesToValueTree(root, d, true);
+
+		auto childList = d.getProperty(ch, var());
+		
+		if (auto ar = childList.getArray())
+		{
+			for (auto child : *ar)
+			{
+				auto cTree = convertDynamicObjectToContentProperties(child);
+
+				root.addChild(cTree, -1, nullptr);
+			}
+		}
+	}
+
+	return root;
 }
 
 void ValueTreeConverters::v2d_internal(var& object, const ValueTree& v)

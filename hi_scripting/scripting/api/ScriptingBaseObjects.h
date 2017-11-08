@@ -244,9 +244,13 @@ struct ValueTreeConverters
 
 	static ValueTree convertVarArrayToFlatValueTree(const var& ar, const Identifier& rootId, const Identifier& childId);
 
-	static void copyDynamicObjectPropertiesToValueTree(ValueTree& v, const var& obj);
+	static void copyDynamicObjectPropertiesToValueTree(ValueTree& v, const var& obj, bool skipArray=false);
 
 	static void copyValueTreePropertiesToDynamicObject(const ValueTree& v, var& obj);
+
+	static var convertContentPropertiesToDynamicObject(const ValueTree& v);
+
+	static ValueTree convertDynamicObjectToContentProperties(const var& d);
 
 private:
 
