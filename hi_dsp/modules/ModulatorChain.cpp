@@ -554,6 +554,7 @@ void VoiceStartModulatorFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(KeyModulator);
 	ADD_NAME_TO_TYPELIST(RandomModulator);
 	ADD_NAME_TO_TYPELIST(GlobalVoiceStartModulator);
+	ADD_NAME_TO_TYPELIST(GlobalStaticTimeVariantModulator);
 	ADD_NAME_TO_TYPELIST(ArrayModulator);
 	ADD_NAME_TO_TYPELIST(JavascriptVoiceStartModulator);
 }

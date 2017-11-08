@@ -310,6 +310,10 @@ public:
 	/** Returns a read pointer to the calculated values. This is used by the global modulator system. */
 	virtual const float *getCalculatedValues(int /*voiceIndex*/);
 
+	float getLastConstantValue() const {
+		return lastConstantValue;
+	}
+
 protected:
 
 	TimeModulation(Modulation::Mode m):
@@ -362,7 +366,11 @@ protected:
 
 	AudioSampleBuffer internalBuffer;
 
+	
+
 private:
+
+	float lastConstantValue = 1.0f;
 
 	void handleFirstBuffer(float * destinationValues, int numValues) const;
 
@@ -915,8 +923,10 @@ class VoiceStartModulatorFactoryType: public FactoryType
 		keyModulator,
 		randomModulator,
 		globalVoiceStartModulator,
+		globalStaticTimeVariantModulator,
 		arrayModulator,
-		scriptVoiceStartModulator
+		scriptVoiceStartModulator,
+
 	};
 
 public:

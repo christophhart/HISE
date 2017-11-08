@@ -108,6 +108,7 @@ StringArray GlobalModulator::getListOfAllModulatorsWithType()
 			{
 			case VoiceStart: matches = dynamic_cast<VoiceStartModulator*>(chain->getHandler()->getProcessor(i)) != nullptr; break;
 			case TimeVariant: matches = dynamic_cast<TimeVariantModulator*>(chain->getHandler()->getProcessor(i)) != nullptr; break;
+			case StaticTimeVariant: matches = dynamic_cast<TimeVariantModulator*>(chain->getHandler()->getProcessor(i)) != nullptr; break;
             case numTypes: jassertfalse; break;
 			}
 
@@ -276,6 +277,83 @@ float GlobalVoiceStartModulator::calculateVoiceStartValue(const HiseEvent &m)
 	return 1.0f;
 }
 
+GlobalStaticTimeVariantModulator::GlobalStaticTimeVariantModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m):
+	VoiceStartModulator(mc, id, numVoices, m),
+	Modulation(m),
+	GlobalModulator(mc)
+{
+	parameterNames.add("UseTable");
+}
+
+
+
+GlobalStaticTimeVariantModulator::~GlobalStaticTimeVariantModulator()
+{
+	removeFromAllContainers();
+}
+
+void GlobalStaticTimeVariantModulator::restoreFromValueTree(const ValueTree &v)
+{
+	VoiceStartModulator::restoreFromValueTree(v);
+	loadFromValueTree(v);
+}
+
+ValueTree GlobalStaticTimeVariantModulator::exportAsValueTree() const
+{
+	ValueTree v = VoiceStartModulator::exportAsValueTree();
+	saveToValueTree(v);
+	return v;
+}
+
+hise::ProcessorEditorBody * GlobalStaticTimeVariantModulator::createEditor(ProcessorEditor *parentEditor)
+{
+#if USE_BACKEND
+	return new GlobalModulatorEditor(parentEditor);
+#else
+	ignoreUnused(parentEditor);
+	jassertfalse;
+	return nullptr;
+#endif
+
+}
+
+void GlobalStaticTimeVariantModulator::setInternalAttribute(int parameterIndex, float newValue)
+{
+	switch (parameterIndex)
+	{
+	case UseTable:			useTable = (newValue != 0.0f); break;
+	default:				jassertfalse; break;
+	}
+}
+
+float GlobalStaticTimeVariantModulator::getAttribute(int parameterIndex) const
+{
+	switch (parameterIndex)
+	{
+	case UseTable:			return useTable ? 1.0f : 0.0f;
+	default:				jassertfalse; return -1.0f;
+	}
+}
+
+float GlobalStaticTimeVariantModulator::calculateVoiceStartValue(const HiseEvent&)
+{
+	if (isConnected())
+	{
+		float globalValue = static_cast<TimeVariantModulator*>(getOriginalModulator())->getLastConstantValue();
+
+		if (useTable)
+		{
+			const int index = (int)((float)globalValue * 127.0f);
+			globalValue = table->get(index);
+
+			sendTableIndexChangeMessage(false, table, (float)index / 127.0f);
+		}
+
+		return globalValue;
+	}
+
+	return 1.0f;
+}
 
 GlobalTimeVariantModulator::GlobalTimeVariantModulator(MainController *mc, const String &id, Modulation::Mode m) :
 TimeVariantModulator(mc, id, m),

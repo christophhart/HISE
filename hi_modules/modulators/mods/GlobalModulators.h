@@ -54,6 +54,7 @@ public:
 	{
 		VoiceStart,
 		TimeVariant,
+		StaticTimeVariant,
 		numTypes
 	};
 
@@ -151,6 +152,33 @@ public:
 
 	/** Calculates a new random value. If the table is used, it is converted to 7bit.*/
 	float calculateVoiceStartValue(const HiseEvent& ) override;;
+};
+
+class GlobalStaticTimeVariantModulator : public VoiceStartModulator,
+										 public GlobalModulator
+{
+public:
+
+	SET_PROCESSOR_NAME("GlobalStaticTimeVariantModulator", "Global Static Time Variant Modulator");
+
+	GlobalModulator::ModulatorType getModulatorType() const override { return GlobalModulator::StaticTimeVariant; };
+
+	GlobalStaticTimeVariantModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m);
+
+	~GlobalStaticTimeVariantModulator();
+
+	void restoreFromValueTree(const ValueTree &v) override;;
+
+	ValueTree exportAsValueTree() const override;
+
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
+
+	void setInternalAttribute(int parameterIndex, float newValue) override;;
+
+	float getAttribute(int parameterIndex) const override;;
+
+	/** Calculates a new random value. If the table is used, it is converted to 7bit.*/
+	float calculateVoiceStartValue(const HiseEvent&) override;;
 };
 
 class GlobalTimeVariantModulator : public TimeVariantModulator,

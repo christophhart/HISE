@@ -163,6 +163,8 @@ void TimeModulation::renderNextBlock(AudioSampleBuffer &buffer, int startSample,
 
 	if (shouldUpdatePlotter()) updatePlotter(internalBuffer, startIndex, samplesToCopy);
 
+	lastConstantValue = internalBuffer.getSample(0, 0);
+
 	applyTimeModulation(buffer, startIndex, samplesToCopy);
 }
 
@@ -330,6 +332,7 @@ Processor *VoiceStartModulatorFactoryType::createProcessor(int typeIndex, const 
 		case keyModulator:		return new KeyModulator(m, id, numVoices, mode);
 		case randomModulator: return new RandomModulator(m, id, numVoices, mode);
 		case globalVoiceStartModulator:	return new GlobalVoiceStartModulator(m, id, numVoices, mode);
+		case globalStaticTimeVariantModulator: return new GlobalStaticTimeVariantModulator(m, id, numVoices, mode);
 		case arrayModulator:	return new ArrayModulator(m, id, numVoices, mode);
 		case scriptVoiceStartModulator:	return new JavascriptVoiceStartModulator(m, id, numVoices, mode);
 		default: jassertfalse; return nullptr;

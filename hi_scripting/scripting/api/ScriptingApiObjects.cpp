@@ -265,6 +265,7 @@ struct ScriptingObjects::ScriptingModulator::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingModulator, exportScriptControls);
 	API_METHOD_WRAPPER_3(ScriptingModulator, addModulator);
 	API_METHOD_WRAPPER_3(ScriptingModulator, addGlobalModulator);
+	API_METHOD_WRAPPER_3(ScriptingModulator, addStaticGlobalModulator);
 	API_METHOD_WRAPPER_0(ScriptingModulator, asTableProcessor);
 
 };
@@ -305,6 +306,7 @@ moduleHandler(m_)
 	ADD_API_METHOD_0(exportScriptControls);
 	ADD_API_METHOD_3(addModulator);
 	ADD_API_METHOD_3(addGlobalModulator);
+	ADD_API_METHOD_3(addStaticGlobalModulator);
 	ADD_API_METHOD_0(asTableProcessor);
 }
 
@@ -541,6 +543,31 @@ var ScriptingObjects::ScriptingModulator::addGlobalModulator(var chainIndex, var
 	return var();
 }
 
+var ScriptingObjects::ScriptingModulator::addStaticGlobalModulator(var chainIndex, var timeVariantMod, String modName)
+{
+	if (checkValidObject())
+	{
+		if (auto gm = dynamic_cast<ScriptingModulator*>(timeVariantMod.getObject()))
+		{
+			ModulatorChain *c = dynamic_cast<ModulatorChain*>(mod->getChildProcessor(chainIndex));
+
+			if (c == nullptr)
+				reportScriptError("Modulator Chain with index " + chainIndex.toString() + " does not exist");
+
+			auto p = moduleHandler.addAndConnectToGlobalModulator(c, gm->getModulator(), modName, true);
+
+			if (p != nullptr)
+			{
+				auto newMod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), p);
+				return var(newMod);
+			}
+
+		}
+	}
+
+	return var();
+}
+
 var ScriptingObjects::ScriptingModulator::asTableProcessor()
 {
 	if (checkValidObject())
@@ -573,6 +600,7 @@ struct ScriptingObjects::ScriptingEffect::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingEffect, exportScriptControls);
 	API_METHOD_WRAPPER_3(ScriptingEffect, addModulator);
 	API_METHOD_WRAPPER_3(ScriptingEffect, addGlobalModulator);
+	API_METHOD_WRAPPER_3(ScriptingEffect, addStaticGlobalModulator);
 };
 
 ScriptingObjects::ScriptingEffect::ScriptingEffect(ProcessorWithScriptingContent *p, EffectProcessor *fx) :
@@ -607,6 +635,7 @@ moduleHandler(fx)
 	ADD_API_METHOD_0(getNumAttributes);
 	ADD_API_METHOD_3(addModulator);
 	ADD_API_METHOD_3(addGlobalModulator);
+	ADD_API_METHOD_3(addStaticGlobalModulator);
 };
 
 
@@ -762,6 +791,32 @@ var ScriptingObjects::ScriptingEffect::addGlobalModulator(var chainIndex, var gl
 	return var();
 }
 
+var ScriptingObjects::ScriptingEffect::addStaticGlobalModulator(var chainIndex, var timeVariantMod, String modName)
+{
+	if (checkValidObject())
+	{
+		if (auto gm = dynamic_cast<ScriptingModulator*>(timeVariantMod.getObject()))
+		{
+			ModulatorChain *c = dynamic_cast<ModulatorChain*>(effect->getChildProcessor(chainIndex));
+
+			if (c == nullptr)
+				reportScriptError("Modulator Chain with index " + chainIndex.toString() + " does not exist");
+
+			auto p = moduleHandler.addAndConnectToGlobalModulator(c, gm->getModulator(), modName, true);
+
+			if (p != nullptr)
+			{
+				auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), p);
+				return var(mod);
+			}
+
+			return var();
+		}
+	}
+
+	return var();
+}
+
 // ScriptingSlotFX ==============================================================================================================
 
 
@@ -880,6 +935,7 @@ struct ScriptingObjects::ScriptingSynth::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptingSynth, restoreState);
 	API_METHOD_WRAPPER_3(ScriptingSynth, addModulator);
 	API_METHOD_WRAPPER_3(ScriptingSynth, addGlobalModulator);
+	API_METHOD_WRAPPER_3(ScriptingSynth, addStaticGlobalModulator);
 	API_METHOD_WRAPPER_0(ScriptingSynth, asSampler);
 };
 
@@ -914,6 +970,7 @@ ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *
 	ADD_API_METHOD_0(getNumAttributes);
 	ADD_API_METHOD_3(addModulator);
 	ADD_API_METHOD_3(addGlobalModulator);
+	ADD_API_METHOD_3(addStaticGlobalModulator);
 	ADD_API_METHOD_0(asSampler);
 };
 
@@ -1042,6 +1099,30 @@ var ScriptingObjects::ScriptingSynth::addGlobalModulator(var chainIndex, var glo
 				reportScriptError("Modulator Chain with index " + chainIndex.toString() + " does not exist");
 
 			auto p = moduleHandler.addAndConnectToGlobalModulator(c, gm->getModulator(), modName);
+
+			if (p != nullptr)
+			{
+				auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), p);
+				return var(mod);
+			}
+		}
+	}
+
+	return var();
+}
+
+var ScriptingObjects::ScriptingSynth::addStaticGlobalModulator(var chainIndex, var timeVariantMod, String modName)
+{
+	if (checkValidObject())
+	{
+		if (auto gm = dynamic_cast<ScriptingModulator*>(timeVariantMod.getObject()))
+		{
+			ModulatorChain *c = dynamic_cast<ModulatorChain*>(synth->getChildProcessor(chainIndex));
+
+			if (c == nullptr)
+				reportScriptError("Modulator Chain with index " + chainIndex.toString() + " does not exist");
+
+			auto p = moduleHandler.addAndConnectToGlobalModulator(c, gm->getModulator(), modName, true);
 
 			if (p != nullptr)
 			{
@@ -2198,7 +2279,7 @@ Processor* ApiHelpers::ModuleHandler::addModule(Chain* c, const String& type, co
 	return pFree;
 }
 
-Modulator* ApiHelpers::ModuleHandler::addAndConnectToGlobalModulator(Chain* c, Modulator* globalModulator, const String& modName)
+hise::Modulator* ApiHelpers::ModuleHandler::addAndConnectToGlobalModulator(Chain* c, Modulator* globalModulator, const String& modName, bool connectAsStaticMod/*=false*/)
 {
 	if (globalModulator == nullptr)
 		throw String("Global Modulator does not exist");
@@ -2214,8 +2295,16 @@ Modulator* ApiHelpers::ModuleHandler::addAndConnectToGlobalModulator(Chain* c, M
 		}
 		else if (dynamic_cast<TimeVariantModulator*>(globalModulator) != nullptr)
 		{
-			auto tMod = addModule(c, GlobalTimeVariantModulator::getClassType().toString(), modName);
-			m = dynamic_cast<GlobalModulator*>(tMod);
+			if (connectAsStaticMod)
+			{
+				auto tMod = addModule(c, GlobalStaticTimeVariantModulator::getClassType().toString(), modName);
+				m = dynamic_cast<GlobalModulator*>(tMod);
+			}
+			else
+			{
+				auto tMod = addModule(c, GlobalTimeVariantModulator::getClassType().toString(), modName);
+				m = dynamic_cast<GlobalModulator*>(tMod);
+			}
 		}
 		else
 			throw String("Not a global modulator");

@@ -52,7 +52,7 @@ public:
 
 		Processor* addModule(Chain* c, const String& type, const String& id, int index = -1);
 
-		Modulator* addAndConnectToGlobalModulator(Chain* c, Modulator* globalModulator, const String& modName);
+		Modulator* addAndConnectToGlobalModulator(Chain* c, Modulator* globalModulator, const String& modName, bool connectAsStaticMod=false);
 
 	private:
 
@@ -397,6 +397,9 @@ public:
 		/** Adds a and connects a receiver modulator for the given global modulator. */
 		var addGlobalModulator(var chainIndex, var globalMod, String modName);
 
+		/** Adds and connects a receiving static time variant modulator for the given global modulator. */
+		var addStaticGlobalModulator(var chainIndex, var timeVariantMod, String modName);
+
 		/** Returns a reference as table processor to modify the table or undefined if no table modulator. */
 		var asTableProcessor();
 
@@ -480,6 +483,9 @@ public:
 
 		/** Adds a and connects a receiver modulator for the given global modulator. */
 		var addGlobalModulator(var chainIndex, var globalMod, String modName);
+
+		/** Adds and connects a receiving static time variant modulator for the given global modulator. */
+		var addStaticGlobalModulator(var chainIndex, var timeVariantMod, String modName);
 
 		// ============================================================================================================
 
@@ -611,6 +617,9 @@ public:
 
 		/** Adds a and connects a receiver modulator for the given global modulator. */
 		var addGlobalModulator(var chainIndex, var globalMod, String modName);
+
+		/** Adds and connects a receiving static time variant modulator for the given global modulator. */
+		var addStaticGlobalModulator(var chainIndex, var timeVariantMod, String modName);
 
 		/** Returns a reference as Sampler or undefined if no Sampler. */
 		var asSampler();
