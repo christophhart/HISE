@@ -678,4 +678,29 @@ void JSONEditor::replace()
 	}
 }
 
+
+void JSONEditor::executeCallback()
+{
+	var newData;
+
+	auto result = JSON::parse(doc->getAllContent(), newData);
+
+	if (result.wasOk())
+	{
+		callback(newData);
+		
+		auto f = [this]()
+		{
+			this->findParentComponentOfClass<FloatingTilePopup>()->deleteAndClose();
+		};
+
+		//new DelayedFunctionCaller(f, 200);
+
+	}
+	else
+	{
+		PresetHandler::showMessageWindow("JSON Parser Error", result.getErrorMessage(), PresetHandler::IconType::Error);
+	}
+}
+
 } // namespace hise

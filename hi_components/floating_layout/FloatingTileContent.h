@@ -114,6 +114,8 @@ class JSONEditor : public Component
 {
 public:
 
+	using F5Callback = std::function<void(const var&)>;
+
 	JSONEditor(ObjectWithDefaultProperties* editedObject):
 		editedComponent(dynamic_cast<Component*>(editedObject))
 	{
@@ -164,7 +166,6 @@ public:
 		editor->setColour(ScrollBar::ColourIds::thumbColourId, Colour(0x3dffffff));
 		editor->setReadOnly(true);
 		editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(16.0f));
-		editor->setReadOnly(true);
 
 		constrainer.setMinimumWidth(200);
 		constrainer.setMinimumHeight(300);
@@ -208,20 +209,41 @@ public:
 
 	bool keyPressed(const KeyPress& key)
 	{
-		if (editedComponent == nullptr)
-			return false;
+		
 
 		if (key == KeyPress::F5Key)
 		{
-			replace();
+			if (callback)
+			{
+				executeCallback();
+			}
+			else
+			{
+				if (editedComponent == nullptr)
+					return false;
+
+				replace();
+			}
+
 			return true;
 		}
 
 		return false;
 	}
 
+	void setEditable(bool shouldBeEditable)
+	{
+		editor->setReadOnly(!shouldBeEditable);
+	}
+
 	void replace();
 	
+	void executeCallback();
+
+	void setCallback(const F5Callback& newCallback)
+	{
+		callback = newCallback;
+	}
 
 	void resized() override
 	{
@@ -231,6 +253,8 @@ public:
 
 
 private:
+
+	F5Callback callback;
 
 	Component::SafePointer<Component> editedComponent;
 
