@@ -49,6 +49,24 @@ public:
 
 	// ================================================================================================================
 
+	class RebuildListener
+	{
+	public:
+
+		virtual ~RebuildListener()
+		{
+			masterReference.clear();
+		}
+
+		virtual void contentWasRebuilt() = 0;
+
+	private:
+
+		friend class WeakReference<RebuildListener>;
+
+		WeakReference<RebuildListener>::Master masterReference;
+	};
+
 	class PluginParameterConnector
 	{
 	public:
@@ -1370,6 +1388,16 @@ public:
 	ValueTree exportAsValueTree() const override;
 	void restoreFromValueTree(const ValueTree &v) override;
 
+	void addRebuildListener(RebuildListener* listener)
+	{
+		rebuildListeners.addIfNotAlreadyThere(listener);
+	}
+
+	void removeRebuildListener(RebuildListener* listenerToRemove)
+	{
+		rebuildListeners.removeAllInstancesOf(listenerToRemove);
+	}
+
 	void cleanJavascriptObjects();
 
 	bool isEmpty();
@@ -1464,6 +1492,23 @@ public:
 	}
 
 private:
+
+	void sendRebuildMessage()
+	{
+		for (int i = 0; i < rebuildListeners.size(); i++)
+		{
+			if(rebuildListeners[i] != nullptr)
+			{
+				rebuildListeners[i]->contentWasRebuilt();
+			}
+			else
+			{
+				rebuildListeners.remove(i--);
+			}
+		}
+	}
+
+	Array<WeakReference<RebuildListener>> rebuildListeners;
 
 	var templateFunctions;
 

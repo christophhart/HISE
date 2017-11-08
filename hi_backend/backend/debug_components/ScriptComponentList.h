@@ -38,6 +38,7 @@ namespace hise { using namespace juce;
 
 class ScriptComponentList : public SearchableListComponent,
 							public ScriptComponentEditListener,
+							public ScriptingApi::Content::RebuildListener,
 							public GlobalScriptCompileListener,
 							public ButtonListener,
 							public DragAndDropContainer
@@ -73,7 +74,7 @@ public:
 
 		void mouseDrag(const MouseEvent& event) override;
 
-		
+		bool keyPressed(const KeyPress& key) override;
 
 		bool isInterestedInDragSource(const SourceDetails& dragSourceDetails) override;
 		
@@ -125,6 +126,11 @@ public:
 		{
 			rebuildModuleList(true);
 		}
+	}
+
+	void contentWasRebuilt() override
+	{
+		rebuildModuleList(true);
 	}
 
 	class AllCollection : public SearchableListComponent::Collection

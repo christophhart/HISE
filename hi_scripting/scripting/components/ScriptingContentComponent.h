@@ -83,7 +83,8 @@ private:
 */
 class ScriptContentComponent: public Component,
 							  public SafeChangeListener,
-							  public GlobalScriptCompileListener
+							  public GlobalScriptCompileListener,
+							  public ScriptingApi::Content::RebuildListener
 {
 public:
 
@@ -126,6 +127,8 @@ public:
 	}
 
 	void paint(Graphics &g) override;
+
+	void contentWasRebuilt() override;
 
 	void scriptWasCompiled(JavascriptProcessor *p) override;
 

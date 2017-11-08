@@ -37,6 +37,8 @@ ScriptComponentList::ScriptComponentList(BackendRootWindow* window, JavascriptPr
 	ScriptComponentEditListener(dynamic_cast<Processor*>(p)),
 	jp(p)
 {
+	p->getContent()->addRebuildListener(this);
+
 	hideButton = new ShapeButton("hide", Colours::white.withAlpha(0.5f), Colours::white, Colours::white);
 
 
@@ -60,6 +62,8 @@ ScriptComponentList::ScriptComponentList(BackendRootWindow* window, JavascriptPr
 
 ScriptComponentList::~ScriptComponentList()
 {
+	jp->getContent()->removeRebuildListener(this);
+
 	dynamic_cast<Processor*>(jp)->getMainController()->removeScriptListener(this);
 	removeAsScriptEditListener();
 }
@@ -132,6 +136,8 @@ ScriptComponentList::ScriptComponentItem::ScriptComponentItem(ScriptComponent* c
 	c(c_)
 {
 	setOpaque(true);
+
+	setWantsKeyboardFocus(true);
 
 	c->addChangeListener(this);
 
@@ -219,7 +225,14 @@ void ScriptComponentList::ScriptComponentItem::itemDropped(const SourceDetails& 
 	insertDragAfterComponent = dragSourceDetails.localPosition.getY() > (ITEM_HEIGHT / 2);
 	insertDragAsParentComponent = !insertDragAfterComponent;
 
-	ScriptingApi::Content::Helpers::moveComponents(c, dragSourceDetails.description, insertDragAsParentComponent);
+	if (insertDragAsParentComponent)
+	{
+		ScriptingApi::Content::Helpers::setParentComponent(c, dragSourceDetails.description);
+	}
+	else
+	{
+		ScriptingApi::Content::Helpers::moveComponentsAfter(c, dragSourceDetails.description);
+	}
 
 	insertDragAfterComponent = false;
 	insertDragAsParentComponent = false;
@@ -248,6 +261,7 @@ void ScriptComponentList::ScriptComponentItem::mouseUp(const MouseEvent& event)
 			CreateCustomCallbackDefinition,
 			CopyProperties,
 			PasteProperties,
+			editJson,
 			numOptions
 		};
 
@@ -384,7 +398,7 @@ void ScriptComponentList::ScriptComponentItem::mouseDrag(const MouseEvent& event
 
 	if (event.mouseWasDraggedSinceMouseDown())
 	{
-		b->prepareSelectionForDragging(c);
+		//b->prepareSelectionForDragging(c);
 
 		ScriptComponentEditBroadcaster::Iterator iter(b);
 
@@ -402,6 +416,39 @@ void ScriptComponentList::ScriptComponentItem::mouseDrag(const MouseEvent& event
 
 
 
+
+bool ScriptComponentList::ScriptComponentItem::keyPressed(const KeyPress& key)
+{
+	if (key.getKeyCode() == 'J')
+	{
+		auto tree = c->parent->getValueTreeForComponent(c->name);
+
+		auto v = ValueTreeConverters::convertContentPropertiesToDynamicObject(tree);
+
+		JSONEditor* editor = new JSONEditor(v);
+
+		editor->setEditable(true);
+		
+		auto content = c->parent;
+		auto id = c->name;
+
+		auto callback = [content, id, this](const var& newData)
+		{
+			ScriptingApi::Content::Helpers::setComponentValueTreeFromJSON(content, id, newData);
+			return;
+		};
+
+		editor->setCallback(callback);
+
+		editor->setName("Editing JSON data of " + c->name);
+
+		editor->setSize(400, 400);
+
+		findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(editor, this, getLocalBounds().getCentre());
+	}
+
+	return false;
+}
 
 void ScriptComponentList::ScriptComponentItem::paint(Graphics& g)
 {

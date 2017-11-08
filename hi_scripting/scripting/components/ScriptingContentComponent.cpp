@@ -50,6 +50,8 @@ ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_
 processor(p_),
 p(dynamic_cast<Processor*>(p_))
 {
+	processor->getScriptingContent()->addRebuildListener(this);
+
     setNewContent(processor->getScriptingContent());
 
 	setInterceptsMouseClicks(false, true);
@@ -63,6 +65,8 @@ p(dynamic_cast<Processor*>(p_))
 
 ScriptContentComponent::~ScriptContentComponent()
 {
+	processor->getScriptingContent()->removeRebuildListener(this);
+
 	if (contentData.get() != nullptr)
 	{
 		contentData->removeChangeListener(this);
@@ -313,9 +317,15 @@ void ScriptContentComponent::scriptWasCompiled(JavascriptProcessor *jp)
 	if (jp == getScriptProcessor())
 	{
 		setNewContent(processor->getScriptingContent());
-		updateContent();
 	}
 }
+
+void ScriptContentComponent::contentWasRebuilt()
+{
+	setNewContent(processor->getScriptingContent());
+}
+
+
 
 void ScriptContentComponent::setNewContent(ScriptingApi::Content *c)
 {
