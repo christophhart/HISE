@@ -611,6 +611,11 @@ void JavascriptProcessor::storeCurrentInterfaceStateInContentProperties()
 
 			auto newProps = sc->getNonDefaultScriptObjectProperties();
 
+			newProps.getDynamicObject()->setProperty("x", sc->getPosition().getX());
+			newProps.getDynamicObject()->setProperty("y", sc->getPosition().getY());
+			newProps.getDynamicObject()->setProperty("width", sc->getPosition().getWidth());
+			newProps.getDynamicObject()->setProperty("height", sc->getPosition().getHeight());
+
 			newProps.getDynamicObject()->setProperty("id", sc->getName().toString());
 			newProps.getDynamicObject()->setProperty("type", sc->getObjectName().toString());
 
