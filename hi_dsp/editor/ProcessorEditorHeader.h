@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,6 +33,7 @@
 #ifndef PROCESSOREDITORHEADER_H_INCLUDED
 #define PROCESSOREDITORHEADER_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 class VuMeter;
 
@@ -179,5 +180,7 @@ private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ProcessorEditorHeader)
 };
+
+} // namespace hise
 
 #endif

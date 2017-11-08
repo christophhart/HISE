@@ -30,6 +30,8 @@
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
+
 void PresetBrowserColumn::ButtonLookAndFeel::drawButtonBackground(Graphics& /*g*/, Button& /*button*/, const Colour& /*backgroundColour*/, bool /*isMouseOverButton*/, bool /*isButtonDown*/)
 {
 
@@ -775,3 +777,6 @@ void PresetBrowserSearchBar::paint(Graphics &g)
 
 	g.fillPath(path);
 }
+
+
+} // namespace hise

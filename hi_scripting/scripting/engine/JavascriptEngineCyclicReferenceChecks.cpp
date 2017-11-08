@@ -30,6 +30,8 @@
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
+
 #if LOG_REFERENCE_CHECKS
 #define LOG_REFERENCE_CHECK(x) DBG(x)
 #else
@@ -535,3 +537,5 @@ void ScriptingApi::Content::ScriptPanel::prepareCycleReferenceCheck()
 }
 
 #undef LOG_REFERENCE_CHECK
+
+} // namespace hise

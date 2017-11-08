@@ -21,6 +21,8 @@
 #define __JUCE_HEADER_CEB145587AFA4A1E__
 
 //[Headers]     -- You can add your own extra header files here --
+namespace hise { using namespace juce;
+
 #define ControlEditor(x) ProcessorEditor(x, new ControlEditorBody(x))
 //[/Headers]
 
@@ -101,6 +103,7 @@ private:
 //[EndFile] You can add extra defines here...
 
 /** \endcond */
+} // namespace hise
 
 //[/EndFile]
 

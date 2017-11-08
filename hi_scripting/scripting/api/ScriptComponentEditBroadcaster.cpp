@@ -28,6 +28,7 @@
 *   http://www.juce.com
 */
 
+namespace hise { using namespace juce;
 
 ScriptComponentEditListener::ScriptComponentEditListener(Processor* p) :
 	broadcaster(p->getMainController()->getScriptComponentEditBroadcaster()),
@@ -335,3 +336,5 @@ void ScriptComponentEditBroadcaster::sendSelectionChangeMessage()
 		listeners[i]->scriptComponentSelectionChanged();
 	}
 }
+
+} // namespace hise

@@ -48,6 +48,7 @@
 
 #include <cmath>
 
+namespace hise { using namespace juce;
 
 
 void ScriptingApi::Content::PluginParameterConnector::setConnected(ScriptedControlAudioParameter *p)
@@ -283,9 +284,7 @@ void ScriptingApi::Content::ScriptComponent::doubleClickCallback(const MouseEven
 #if USE_BACKEND
 
 	jassertfalse;
-
-#else
-	ignoreUnused(componentToNotify);
+	
 #endif
 }
 
@@ -3880,3 +3879,5 @@ void ScriptingApi::Content::Helpers::pasteProperties(ReferenceCountedArray<Scrip
 		
 	}
 }
+
+} // namespace hise

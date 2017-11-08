@@ -33,6 +33,7 @@
 #ifndef SAMPLEMAPBROWSER_H_INCLUDED
 #define SAMPLEMAPBROWSER_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 
 class SampleMapBrowser : public Component,
@@ -123,5 +124,6 @@ private:
 };
 
 
+} // namespace hise
 
 #endif  // SAMPLEMAPBROWSER_H_INCLUDED

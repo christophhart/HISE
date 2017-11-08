@@ -18,6 +18,7 @@
 */
 
 //[Headers] You can add your own extra header files here...
+namespace hise { using namespace juce;
 //[/Headers]
 
 //[MiscUserDefs] You can add your own user definitions and misc code here...
@@ -249,4 +250,5 @@ END_JUCER_METADATA
 
 
 //[EndFile] You can add extra defines here...
+} // namespace hise
 //[/EndFile]

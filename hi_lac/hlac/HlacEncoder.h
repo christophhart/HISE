@@ -32,6 +32,8 @@
 #ifndef HLACENCODER_H_INCLUDED
 #define HLACENCODER_H_INCLUDED
 
+namespace hlac { using namespace juce; 
+
 class HlacEncoder
 {
 public:
@@ -222,5 +224,6 @@ private:
 	double decompressionSpeed = 0.0;
 };
 
+} // namespace hlac
 
 #endif  // HLACENCODER_H_INCLUDED

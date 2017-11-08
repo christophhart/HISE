@@ -30,6 +30,7 @@
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
 
 //==============================================================================
 /** The Math Object. */
@@ -237,3 +238,5 @@ struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 
 	template <typename Type> static Type sign_(Type n) noexcept{ return n > 0 ? (Type)1 : (n < 0 ? (Type)-1 : 0); }
 };
+
+} // namespace hise

@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -49,6 +49,8 @@
 #define HISE_SMOOTH_FIRST_MOD_BUFFER 1
 #endif
 
+namespace hise { using namespace juce;
+
 #if ENABLE_STARTUP_LOG
 class StartupLogger
 {
@@ -73,5 +75,7 @@ private:
 #undef USE_FRONTEND
 #define USE_FRONTEND 0
 #endif
+
+} // namespace hise
 
 #endif

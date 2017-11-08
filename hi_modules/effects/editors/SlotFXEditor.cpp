@@ -8,6 +8,8 @@
   ==============================================================================
 */
 
+namespace hise { using namespace juce;
+
 #include "SlotFXEditor.h"
 
 SlotFXEditor::SlotFXEditor(ProcessorEditor* parentEditor) :
@@ -26,3 +28,5 @@ void SlotFXEditor::comboBoxChanged(ComboBox* /*comboBoxThatHasChanged*/)
 {
 	dynamic_cast<SlotFX*>(getProcessor())->setEffect(effectSelector->getText());
 }
+
+} // namespace hise

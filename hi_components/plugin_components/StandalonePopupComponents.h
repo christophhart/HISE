@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -34,6 +34,7 @@
 #ifndef STANDALONEPOPUPCOMPONENTS_H_INCLUDED
 #define STANDALONEPOPUPCOMPONENTS_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 class ToggleButtonList : public Component,
 	public ButtonListener,
@@ -368,6 +369,6 @@ private:
 	ScopedPointer<ShapeButton> closeButton;
 };
 
-
+} // namespace hise
 
 #endif  // STANDALONEPOPUPCOMPONENTS_H_INCLUDED

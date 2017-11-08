@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,6 +33,7 @@
 #ifndef VUMETER_H_INCLUDED
 #define VUMETER_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 /** A Slider-style component that displays peak values.
 *	@ingroup components
@@ -159,5 +160,7 @@ private:
 	Component::SafePointer<ComboBox> selector;
 
 };
+
+} // namespace hise
 
 #endif  // VUMETER_H_INCLUDED

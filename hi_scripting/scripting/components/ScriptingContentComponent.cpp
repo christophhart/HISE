@@ -30,6 +30,8 @@
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
+
 ModulatorPeakMeter::ModulatorPeakMeter(Modulator *m) :
 mod(m)
 {
@@ -504,3 +506,5 @@ void ScriptContentComponent::getScriptComponentsFor(Array<ScriptingApi::Content:
 		}
 	}
 }
+
+} // namespace hise

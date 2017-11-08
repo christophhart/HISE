@@ -18,6 +18,7 @@
 */
 
 //[Headers] You can add your own extra header files here...
+namespace hise { using namespace juce;
 //[/Headers]
 
 #include "SfzGroupSelectorDialog.h"
@@ -97,4 +98,5 @@ END_JUCER_METADATA
 
 
 //[EndFile] You can add extra defines here...
+} // namespace hise
 //[/EndFile]

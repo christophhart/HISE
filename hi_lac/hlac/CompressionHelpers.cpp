@@ -28,6 +28,7 @@
 *
 */
 
+namespace hlac { using namespace juce; 
 
 CompressionHelpers::AudioBufferInt16::AudioBufferInt16(AudioSampleBuffer& b, int channelToUse, bool normalizeBeforeStoring)
 {
@@ -1525,3 +1526,5 @@ HlacArchiver::Flag HlacArchiver::readFlag(FileInputStream* fis)
 
 #undef VERBOSE_LOG
 #undef STATUS_LOG
+
+} // namespace hlac

@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,7 +33,9 @@
 #ifndef SAMPLEBUFFER_H_INCLUDED
 #define SAMPLEBUFFER_H_INCLUDED
 
-typedef hlac::CompressionHelpers::AudioBufferInt16 FixedSampleBuffer;
+namespace hlac { using namespace juce; 
+
+typedef CompressionHelpers::AudioBufferInt16 FixedSampleBuffer;
 
 /** A buffer for audio signals with two storage types: 32bit float and 16bit integer. 
 *
@@ -162,5 +164,6 @@ private:
 
 };
 
+} // namespace hlac
 
 #endif  // SAMPLEBUFFER_H_INCLUDED

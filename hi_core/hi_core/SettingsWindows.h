@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -34,6 +34,7 @@
 #ifndef SETTINGSWINDOWS_H_INCLUDED
 #define SETTINGSWINDOWS_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 
 /** Contains all Setting windows that can popup and edit a specified XML file. */
@@ -260,5 +261,6 @@ public:
 
 };
 
+} // namespace hise
 
 #endif  // SETTINGSWINDOWS_H_INCLUDED

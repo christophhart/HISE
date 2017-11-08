@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,12 +33,10 @@
 #ifndef HI_BINARY_DATA_H_INCLUDED
 #define HI_BINARY_DATA_H_INCLUDED
 
-
-namespace HiBinaryData
-{
 #include "FrontendBinaryData.h"
 #include "ProcessorEditorHeaderBinaryData.h"
 #include "LookAndFeelBinaryData.h"
-}
+
+
 
 #endif  // HI_BINARY_DATA_H_INCLUDED

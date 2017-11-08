@@ -23,14 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
-
+namespace hise { using namespace juce;
 
 ScriptComponentEditPanel::ScriptComponentEditPanel(BackendRootWindow* rootWindow, Processor* p) :
 	ScriptComponentEditListener(p),
@@ -318,3 +318,5 @@ Component* ScriptComponentEditPanel::Panel::createContentComponent(int /*index*/
 
 	return new ScriptComponentEditPanel(rootWindow, getConnectedProcessor());
 }
+
+} // namespace hise

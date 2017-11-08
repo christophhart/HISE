@@ -8,7 +8,7 @@
   ==============================================================================
 */
 
-#include "SlotFX.h"
+namespace hise { using namespace juce;
 
 SlotFX::SlotFX(MainController *mc, const String &uid) :
 	MasterEffectProcessor(mc, uid)
@@ -147,3 +147,4 @@ void SlotFX::createList()
 	f = nullptr;
 }
 
+} // namespace hise

@@ -33,6 +33,7 @@
 #ifndef HISEJAVASCRIPTENGINE_H_INCLUDED
 #define HISEJAVASCRIPTENGINE_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 class JavascriptProcessor;
 class DialogWindowWithBackgroundThread;
@@ -940,5 +941,5 @@ private:
 
 
 
-
+} // namespace hise
 #endif  // HISEJAVASCRIPTENGINE_H_INCLUDED

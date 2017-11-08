@@ -23,12 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
+
+namespace hise { using namespace juce;
 
 ProcessorEditorBody* SineSynth::createEditor(ProcessorEditor *parentEditor)
 {
@@ -170,3 +172,5 @@ void SineSynthVoice::calculateBlock(int startSample, int numSamples)
 	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
 	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
 }
+
+} // namespace hise

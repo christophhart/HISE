@@ -22,6 +22,8 @@
 
 //[Headers]     -- You can add your own extra header files here --
 
+namespace hise { using namespace juce;
+
 class CurveEqEditor;
 
 class FilterTypeSelector: public Component,
@@ -689,6 +691,7 @@ private:
 };
 
 //[EndFile] You can add extra defines here...
+} // namespace hise
 //[/EndFile]
 
 #endif   // __JUCE_HEADER_53931F8EE608D824__

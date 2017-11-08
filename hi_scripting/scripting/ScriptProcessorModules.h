@@ -33,7 +33,7 @@
 #ifndef SCRIPTPROCESSORMODULES_H_INCLUDED
 #define SCRIPTPROCESSORMODULES_H_INCLUDED
 
-
+namespace hise { using namespace juce;
 
 
 /** This scripting processor uses the JavaScript Engine to execute small scripts that can change the midi message.
@@ -605,5 +605,5 @@ private:
 	ScriptingApi::Engine* engineObject;
 };
 
-
+} // namespace hise
 #endif  // SCRIPTPROCESSORMODULES_H_INCLUDED

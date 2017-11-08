@@ -23,12 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
+
+namespace hise { using namespace juce;
 
 ScriptWatchTable::ScriptWatchTable(BackendRootWindow* window) :
 	controller(window->getBackendProcessor()),
@@ -433,3 +435,4 @@ void ScriptWatchTable::resized()
 	fuzzySearchBox->setBounds(24, 0, getWidth()-24, 23);
 }
 
+} // namespace hise

@@ -23,12 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
+
+namespace hise { using namespace juce;
 
 #if USE_BACKEND
 void Processor::debugProcessor(const String &t)
@@ -643,3 +645,5 @@ ValueTree ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(const
 
 	return ValueTree::readFromGZIPData(mb.getData(), mb.getSize());
 }
+
+} // namespace hise

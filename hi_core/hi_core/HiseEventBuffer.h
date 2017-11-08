@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -32,6 +32,8 @@
 
 #ifndef HISEEVENTBUFFER_H_INCLUDED
 #define HISEEVENTBUFFER_H_INCLUDED
+
+namespace hise { using namespace juce;
 
 #define HISE_EVENT_ID_ARRAY_SIZE 16384
 
@@ -535,6 +537,6 @@ private:
 
 
 
-
+} // namespace hise
 
 #endif  // HISEEVENTBUFFER_H_INCLUDED

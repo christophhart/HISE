@@ -46,10 +46,10 @@ public:
 
 protected:
 
-	ScopedPointer<FFTProcessor> realFloatFFTs;
-	ScopedPointer<FFTProcessor> realDoubleFFTs;
-	ScopedPointer<FFTProcessor> complexFloatFFTs;
-	ScopedPointer<FFTProcessor> complexDoubleFFTs;
+	juce::ScopedPointer<FFTProcessor> realFloatFFTs;
+	juce::ScopedPointer<FFTProcessor> realDoubleFFTs;
+	juce::ScopedPointer<FFTProcessor> complexFloatFFTs;
+	juce::ScopedPointer<FFTProcessor> complexDoubleFFTs;
 
 };
 
@@ -259,9 +259,9 @@ class FrequencyAnalysis : public AudioAnalysisBase
 
 private:
 
-	AudioSampleBuffer fundamentalFreqBuffer1;
-	AudioSampleBuffer fundamentalFreqBuffer2;
-	AudioSampleBuffer fundamentalFreqBuffer3;
+	juce::AudioSampleBuffer fundamentalFreqBuffer1;
+	juce::AudioSampleBuffer fundamentalFreqBuffer2;
+	juce::AudioSampleBuffer fundamentalFreqBuffer3;
 
 };
 

@@ -23,13 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
 
 Arpeggiator::Arpeggiator(MainController *mc, const String &id, ModulatorSynth *ms) :
 	HardcodedScriptProcessor(mc, id, ms)
@@ -621,3 +622,5 @@ void Arpeggiator::reset(bool do_all_notes_off, bool do_stop)
 
 	last_step_was_tied = false;
 }
+
+} // namespace hise

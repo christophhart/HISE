@@ -23,12 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
+
+namespace hise { using namespace juce;
 
 ApiCollection::ApiCollection(BackendRootWindow* window) :
 SearchableListComponent(window),
@@ -124,3 +126,5 @@ void ApiCollection::ClassCollection::paint(Graphics &g)
 	g.setFont(GLOBAL_MONOSPACE_FONT());
 	g.drawText(name, 10, 0, getWidth() - 10, COLLECTION_HEIGHT, Justification::centredLeft, true);
 }
+
+} // namespace hise

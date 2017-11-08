@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-
+namespace hise { using namespace juce;
 
 
 // MidiList =====================================================================================================================
@@ -2243,3 +2243,5 @@ Modulator* ApiHelpers::ModuleHandler::addAndConnectToGlobalModulator(Chain* c, M
 	else
 		throw String("The modulator you passed in is not a global modulator. You must specify a modulator in a Global Modulator Container");
 }
+
+} // namespace hise

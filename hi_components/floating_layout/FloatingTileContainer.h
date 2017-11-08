@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -32,6 +32,8 @@
 
 #ifndef FLOATINGTILECONTAINER_H_INCLUDED
 #define FLOATINGTILECONTAINER_H_INCLUDED
+
+namespace hise { using namespace juce;
 
 class FloatingTile;
 
@@ -352,5 +354,7 @@ public:
 
 	VerticalTile(FloatingTile* parent): ResizableFloatingTileContainer(parent, false) {}
 };
+
+} // namespace hise
 
 #endif  // FLOATINGTILECONTAINER_H_INCLUDED

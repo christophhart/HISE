@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,6 +33,7 @@
 #ifndef SAMPLEEXPORTER_H_INCLUDED
 #define SAMPLEEXPORTER_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 class ReferenceSearcher
 {
@@ -145,6 +146,6 @@ private:
 
 class ModulatorSynthChain;
 
-
+} // namespace hise
 
 #endif  // SAMPLEEXPORTER_H_INCLUDED

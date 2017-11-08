@@ -41,25 +41,27 @@
 #include "hi_dsp_library.h"
 
 
-namespace hise
-{
-using namespace juce;
-
 #include "dsp_library/DspBaseModule.cpp"
 
-size_t HelperFunctions::writeString(char* location, const char* content)
+namespace hise
 {
-	strcpy(location, content);
-	return strlen(content);
+	using namespace juce;
+
+	size_t HelperFunctions::writeString(char* location, const char* content)
+	{
+		strcpy(location, content);
+		return strlen(content);
+	}
+
+	juce::String HelperFunctions::createStringFromChar(const char* charFromOtherHeap, size_t length)
+	{
+		return juce::String(charFromOtherHeap, length);
+	}
+
+
 }
 
-String HelperFunctions::createStringFromChar(const char* charFromOtherHeap, size_t length)
-{
-	return String(charFromOtherHeap, length);
-}
 
-
-}
 
 #endif
 

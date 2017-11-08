@@ -8,7 +8,7 @@
   ==============================================================================
 */
 
-#include "Dynamics.h"
+namespace hise { using namespace juce;
 
 DynamicsEffect::DynamicsEffect(MainController *mc, const String &uid) :
 	MasterEffectProcessor(mc, uid),
@@ -270,3 +270,5 @@ void DynamicsEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 	compressor.setSampleRate(sampleRate);
 	limiter.setSampleRate(sampleRate);
 }
+
+} // namespace hise

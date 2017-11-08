@@ -21,7 +21,7 @@
 #define __JUCE_HEADER_E5F6E8EEDB7946A4__
 
 //[Headers]     -- You can add your own extra header files here --
-
+namespace hise { using namespace juce;
 //[/Headers]
 
 
@@ -89,6 +89,7 @@ private:
 };
 
 //[EndFile] You can add extra defines here...
+} // namespace hise
 //[/EndFile]
 
 #endif   // __JUCE_HEADER_E5F6E8EEDB7946A4__

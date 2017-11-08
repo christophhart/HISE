@@ -11,6 +11,7 @@
 #ifndef SLOTFX_H_INCLUDED
 #define SLOTFX_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 /** A simple gain effect that allows time variant modulation. */
 class SlotFX : public MasterEffectProcessor
@@ -164,5 +165,6 @@ private:
 };
 
 
+} // namespace hise
 
 #endif  // SLOTFX_H_INCLUDED

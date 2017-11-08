@@ -23,12 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
+
+namespace hise { using namespace juce;
 
 #if USE_BACKEND
 
@@ -272,3 +274,5 @@ int Console::ConsoleTokeniser::readNextToken(CodeDocument::Iterator& source)
 
 
 #endif
+
+} // namespace hise

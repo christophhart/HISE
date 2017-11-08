@@ -23,7 +23,7 @@
 *   http://www.hartinstruments.net/hise/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -77,17 +77,10 @@ AudioProcessor* createPlugin(ValueTree &presetData, ValueTree &imageData, ValueT
 
 #include "frontend/TurboActivateHeader.h"
 
-namespace hise
-{
-
-
-using namespace juce;
 
 #include "frontend/FrontEndProcessor.h"
 #include "frontend/FrontendProcessorEditor.h"
 
-
-}
 
 #define USER_PRESET_OFFSET 8192
 

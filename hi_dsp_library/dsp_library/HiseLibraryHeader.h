@@ -167,6 +167,8 @@ compatible version can be found in the Github Repository of this API.
 #ifndef HISELIBRARYHEADER_H_INCLUDED
 #define HISELIBRARYHEADER_H_INCLUDED
 
+namespace hise {using namespace juce;
+
 /** @file */ 
 
 /** returns a static Identifier called `id`. */
@@ -265,5 +267,6 @@ DLL_EXPORT void InternalLibraryFunctions::destroyDspObject(DspBaseObject* handle
 */
 DLL_EXPORT LoadingErrorCode initialise(const char* args);
 
+} // namespace hise
 
 #endif  // HISELIBRARYHEADER_H_INCLUDED

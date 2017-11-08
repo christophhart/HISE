@@ -35,6 +35,8 @@
 
 //==============================================================================
 
+namespace hise { using namespace juce;
+
 bool HiseJavascriptEngine::isJavascriptFunction(const var& v)
 {
 	return v.isObject() && dynamic_cast<HiseJavascriptEngine::RootObject::FunctionObject*>(v.getObject());
@@ -797,3 +799,5 @@ void ScriptingObject::reportScriptError(const String &errorMessage) const
 
 #endif
 }
+
+} // namespace hise

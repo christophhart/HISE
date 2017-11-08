@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -32,6 +32,8 @@
 
 #ifndef ARPEGGIATOR_H_INCLUDED
 #define ARPEGGIATOR_H_INCLUDED
+
+namespace hise { using namespace juce;
 
 /** A hardcoded midi script arpeggiator.
 *
@@ -234,5 +236,5 @@ private:
 
 
 
-
+} // namespace hise
 #endif  // ARPEGGIATOR_H_INCLUDED

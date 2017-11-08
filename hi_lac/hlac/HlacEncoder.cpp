@@ -28,6 +28,8 @@
 *
 */
 
+namespace hlac { using namespace juce; 
+
 void HlacEncoder::compress(AudioSampleBuffer& source, OutputStream& output, uint32* blockOffsetData)
 {
 	bool compressStereo = source.getNumChannels() == 2;
@@ -563,3 +565,5 @@ int HlacEncoder::getCycleLengthFromTemplate(CompressionHelpers::AudioBufferInt16
 		return newCycle.size;
 	}
 }
+
+} // namespace hlac

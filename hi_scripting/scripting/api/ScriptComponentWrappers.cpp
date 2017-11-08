@@ -30,6 +30,7 @@
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
 
 #undef GET_SCRIPT_PROPERTY
 #undef GET_OBJECT_COLOUR
@@ -1086,3 +1087,5 @@ ScriptedControlAudioParameter::Type ScriptedControlAudioParameter::getType(Scrip
 	else if (dynamic_cast<ScriptingApi::Content::ScriptPanel*>(component)) return Type::Panel;
 	else return Type::Unsupported;
 }
+
+} // namespace hise

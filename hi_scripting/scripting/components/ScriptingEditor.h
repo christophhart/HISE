@@ -33,6 +33,7 @@
 #ifndef __JUCE_HEADER_87B359E078BBC6D4__
 #define __JUCE_HEADER_87B359E078BBC6D4__
 
+namespace hise { using namespace juce;
 
 
 class ScriptingEditor;
@@ -249,4 +250,5 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ScriptingEditor)
 };
 
+} // namespace hise
 #endif   // __JUCE_HEADER_87B359E078BBC6D4__

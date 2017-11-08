@@ -28,6 +28,7 @@
 *
 */
 
+namespace hlac { using namespace juce; 
 
 HiseLosslessAudioFormatWriter::HiseLosslessAudioFormatWriter(EncodeMode mode_, OutputStream* output, double sampleRate, int numChannels, uint32* blockOffsetBuffer) :
 	AudioFormatWriter(output, "HLAC", sampleRate, numChannels, 16),
@@ -212,3 +213,5 @@ void HiseLosslessAudioFormatWriter::deleteTemp()
 	tempFile = nullptr;
 	tempOutputStream = nullptr;
 }
+
+} // namespace hlac

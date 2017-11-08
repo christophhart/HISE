@@ -24,14 +24,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
-
+namespace hlac { using namespace juce; 
 
 HiseSampleBuffer::HiseSampleBuffer(HiseSampleBuffer& otherBuffer, int offset)
 {
@@ -244,3 +244,5 @@ AudioSampleBuffer* HiseSampleBuffer::getFloatBufferForFileReader()
 
 	return &floatBuffer;
 }
+
+} // namespace hlac

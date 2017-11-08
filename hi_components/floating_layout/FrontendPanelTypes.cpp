@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -54,7 +54,7 @@ const var data = {%EXAMPLE_JSON};
 
 */
 
-
+namespace hise { using namespace juce;
 
 ActivityLedPanel::ActivityLedPanel(FloatingTile* parent) :
 	FloatingTileContent(parent)
@@ -479,3 +479,5 @@ void PresetBrowserPanel::resized()
 	presetBrowser->setBounds(getLocalBounds());
 	presetBrowser->setHighlightColourAndFont(findPanelColour(PanelColourId::itemColour1), findPanelColour(PanelColourId::bgColour), getFont());
 }
+
+} // namespace hise

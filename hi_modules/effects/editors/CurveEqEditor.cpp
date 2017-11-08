@@ -19,6 +19,8 @@
 
 //[Headers] You can add your own extra header files here...
 
+namespace hise { using namespace juce;
+
 #if JUCE_IOS
 #else
 #include "../fx/dustfft.c"
@@ -644,4 +646,5 @@ END_JUCER_METADATA
 
 
 //[EndFile] You can add extra defines here...
+} // namespace hise
 //[/EndFile]

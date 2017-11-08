@@ -33,6 +33,8 @@
 #ifndef SCRIPTINGCONTENTCOMPONENT_H_INCLUDED
 #define SCRIPTINGCONTENTCOMPONENT_H_INCLUDED
 
+namespace hise { using namespace juce;
+
 #define GET_SCRIPT_PROPERTY(component, id) (component->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::id))
 
 #define GET_OBJECT_COLOUR(component, id) (Colour((uint32)(int64)GET_SCRIPT_PROPERTY(component, id)))
@@ -189,5 +191,5 @@ private:
 
 
 
-
+} // namespace hise
 #endif  // SCRIPTINGCONTENTCOMPONENT_H_INCLUDED

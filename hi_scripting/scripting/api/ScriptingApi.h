@@ -33,7 +33,7 @@
 #ifndef HI_SCRIPTING_API_H_INCLUDED
 #define HI_SCRIPTING_API_H_INCLUDED
 
-
+namespace hise { using namespace juce;
 
 
 
@@ -775,5 +775,5 @@ public:
 	};
 };
 
-
+} // namespace hise
 #endif

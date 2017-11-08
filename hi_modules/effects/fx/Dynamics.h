@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -32,6 +32,8 @@
 
 #ifndef DYNAMICS_H_INCLUDED
 #define DYNAMICS_H_INCLUDED
+
+namespace hise { using namespace juce;
 
 /** A simple gain effect that allows time variant modulation. */
 class DynamicsEffect : public MasterEffectProcessor
@@ -100,5 +102,6 @@ private:
 };
 
 
+} // namespace hise
 
 #endif  // DYNAMICS_H_INCLUDED

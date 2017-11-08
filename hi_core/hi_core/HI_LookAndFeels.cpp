@@ -23,12 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
+
+namespace hise { using namespace juce;
 
 void FilmstripLookAndFeel::drawToggleButton(Graphics &g, ToggleButton &b, bool isMouseOverButton, bool isButtonDown)
 {
@@ -881,3 +883,5 @@ void BlackTextButtonLookAndFeel::drawToggleButton(Graphics &g, ToggleButton &b, 
 
 	g.drawHorizontalLine(b.getHeight() - 1, 0.0f, (float)b.getWidth());
 }
+
+} // namespace hise

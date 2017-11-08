@@ -21,6 +21,9 @@
 #define __JUCE_HEADER_DC8D364231F284E6__
 
 //[Headers]     -- You can add your own extra header files here --
+
+namespace hise { using namespace juce;
+
 #include "../../../projects/standalone/JuceLibraryCode/JuceHeader.h"
 //[/Headers]
 
@@ -95,6 +98,7 @@ private:
 };
 
 //[EndFile] You can add extra defines here...
+} // namespace hise
 //[/EndFile]
 
 #endif   // __JUCE_HEADER_DC8D364231F284E6__

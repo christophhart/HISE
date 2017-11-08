@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -32,6 +32,8 @@
 
 #ifndef MACROS_H_INCLUDED
 #define MACROS_H_INCLUDED
+
+namespace hise { using namespace juce;
 
 #if (defined (_WIN32) || defined (_WIN64))
 #define JUCE_WINDOWS 1
@@ -91,10 +93,10 @@
 
 #if JUCE_WINDOWS || JUCE_MAC || JUCE_IOS
 
-static juce::Typeface::Ptr oxygenBoldTypeFace = juce::Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_bold_ttf, HiBinaryData::FrontendBinaryData::oxygen_bold_ttfSize);
-static juce::Typeface::Ptr oxygenTypeFace = juce::Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_regular_ttf, HiBinaryData::FrontendBinaryData::oxygen_regular_ttfSize);
-static juce::Typeface::Ptr sourceCodeProTypeFace = juce::Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otf, HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otfSize);
-static juce::Typeface::Ptr sourceCodeProBoldTypeFace = juce::Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProBold_otf, HiBinaryData::FrontendBinaryData::SourceCodeProBold_otfSize);
+static Typeface::Ptr oxygenBoldTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_bold_ttf, HiBinaryData::FrontendBinaryData::oxygen_bold_ttfSize);
+static Typeface::Ptr oxygenTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_regular_ttf, HiBinaryData::FrontendBinaryData::oxygen_regular_ttfSize);
+static Typeface::Ptr sourceCodeProTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otf, HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otfSize);
+static Typeface::Ptr sourceCodeProBoldTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProBold_otf, HiBinaryData::FrontendBinaryData::SourceCodeProBold_otfSize);
 
 #define GLOBAL_FONT() (Font(oxygenTypeFace).withHeight(13.0f))
 #define GLOBAL_BOLD_FONT() (Font(oxygenBoldTypeFace).withHeight(14.0f))
@@ -108,10 +110,10 @@ class LinuxFontHandler
 
     LinuxFontHandler()
     {
-        juce::Typeface::Ptr oxygenBoldTypeFace = juce::Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_bold_ttf, HiBinaryData::FrontendBinaryData::oxygen_bold_ttfSize);
-        juce::Typeface::Ptr oxygenTypeFace = juce::Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_regular_ttf, HiBinaryData::FrontendBinaryData::oxygen_regular_ttfSize);
-        juce::Typeface::Ptr sourceCodeProTypeFace = juce::Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otf, HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otfSize);
-        juce::Typeface::Ptr sourceCodeProBoldTypeFace = juce::Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProBold_otf, HiBinaryData::FrontendBinaryData::SourceCodeProBold_otfSize);
+        Typeface::Ptr oxygenBoldTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_bold_ttf, HiBinaryData::FrontendBinaryData::oxygen_bold_ttfSize);
+        Typeface::Ptr oxygenTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_regular_ttf, HiBinaryData::FrontendBinaryData::oxygen_regular_ttfSize);
+        Typeface::Ptr sourceCodeProTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otf, HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otfSize);
+        Typeface::Ptr sourceCodeProBoldTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProBold_otf, HiBinaryData::FrontendBinaryData::SourceCodeProBold_otfSize);
 
         globalFont = Font(oxygenTypeFace).withHeight(13.0f);
         globalBoldFont = Font(oxygenBoldTypeFace).withHeight(14.0f);
@@ -308,5 +310,6 @@ private:
 
 #include "copyProtectionMacros.h"
 
+} // namespace hise
 
 #endif  // MACROS_H_INCLUDED

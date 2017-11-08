@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-
+namespace hise { using namespace juce;
 
 void ProcessorWithScriptingContent::setControlValue(int index, float newValue)
 {
@@ -1162,3 +1162,5 @@ float ScriptBaseMidiProcessor::getDefaultValue(int index) const
 	else
 		return 0.0f;
 }
+
+} // namespace hise

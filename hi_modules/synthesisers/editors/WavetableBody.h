@@ -22,7 +22,7 @@
 
 //[Headers]     -- You can add your own extra header files here --
 
-
+namespace hise { using namespace juce;
 
 
 class WavetableDisplayComponent: public Component,
@@ -158,6 +158,7 @@ private:
 };
 
 //[EndFile] You can add extra defines here...
+} // namespace hise
 //[/EndFile]
 
 #endif   // __JUCE_HEADER_38A6EE76FFB94F36__

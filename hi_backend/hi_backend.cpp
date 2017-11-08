@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,9 +33,7 @@
 
 #include "JuceHeader.h"
 
-namespace hise
-{
-using namespace juce;
+
 
 #include "backend/BackendBinaryData.cpp"
 #include "backend/BackendCommandIcons.cpp"
@@ -69,4 +67,3 @@ using namespace juce;
 #include "backend/CompileExporter.cpp"
 #include "backend/HisePlayerExporter.cpp"
 
-}

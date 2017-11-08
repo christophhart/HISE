@@ -23,14 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
-#include "SampleDisplayComponent.h"
+namespace hise { using namespace juce;
 
 SamplerSoundWaveform::SamplerSoundWaveform(const ModulatorSampler *ownerSampler):
 	AudioDisplayComponent(ownerSampler->getCache()),
@@ -637,3 +637,5 @@ void AudioSampleBufferComponent::paint(Graphics &g)
 		g.drawRect(getLocalBounds(), 4);
 	}
 }
+
+} // namespace hise

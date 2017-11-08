@@ -30,6 +30,7 @@
 #ifndef DSPBASEMODULE_H_INCLUDED
 #define DSPBASEMODULE_H_INCLUDED
 
+namespace hise {using namespace juce;
 
 
 /** @file */
@@ -240,5 +241,6 @@ public:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DspBaseObject)
 };
 
+} // namespace hise
 
 #endif  // DSPBASEMODULE_H_INCLUDED

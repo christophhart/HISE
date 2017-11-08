@@ -35,6 +35,7 @@
 
 #include "TccLibrary.cpp"
 
+namespace hise { using namespace juce;
 
 #define CALL_TCC_FUNCTION(name, variableName, rVar, ...) name variableName = (name)dll->getFunction(#name); rVar = variableName(__VA_ARGS__);
 #define CALL_VOID_TCC_FUNCTION(name, variableName, ...) name variableName = (name)dll->getFunction(#name); variableName(__VA_ARGS__);
@@ -213,3 +214,4 @@ int TccContext::compile(const String &code)
 #undef CALL_TCC_FUNCTION
 #undef CALL_VOID_TCC_FUNCTION
 
+} // namespace hise

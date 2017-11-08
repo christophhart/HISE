@@ -32,6 +32,8 @@
 #ifndef BITCOMPRESSORS_H_INCLUDED
 #define BITCOMPRESSORS_H_INCLUDED
 
+namespace hlac { using namespace juce; 
+
 #define LOG_RATIO(x) 
 
 #define USE_SSE 0
@@ -204,5 +206,6 @@ struct BitCompressors
 	struct UnitTests;
 };
 
+} // namespace hlac
 
 #endif  // BITCOMPRESSORS_H_INCLUDED

@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,6 +33,7 @@
 #ifndef PROCESSORVIEWS_H_INCLUDED
 #define PROCESSORVIEWS_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 /** A ViewInfo Object contains all EditorStates of every child processor.
 *	@ingroup views
@@ -238,4 +239,6 @@ private:
 	int scrollY;
 };
 
+
+} // namespace hise
 #endif  // PROCESSORVIEWS_H_INCLUDED

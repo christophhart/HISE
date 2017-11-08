@@ -33,6 +33,8 @@
 #ifndef HARDCODEDSCRIPTPROCESSOR_H_INCLUDED
 #define HARDCODEDSCRIPTPROCESSOR_H_INCLUDED
 
+namespace hise { using namespace juce;
+
 class ModulatorSynth;
 
 /** The base class for all MidiProcessors that are hardcoded scripts.
@@ -747,5 +749,5 @@ private:
 };
 
 
-
+} // namespace hise
 #endif  // HARDCODEDSCRIPTPROCESSOR_H_INCLUDED

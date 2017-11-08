@@ -1,3 +1,4 @@
+namespace hise { using namespace juce;
 
 AudioDeviceDialog::AudioDeviceDialog(AudioProcessorDriver *ownerProcessor_) :
 ownerProcessor(ownerProcessor_)
@@ -117,13 +118,8 @@ StandaloneProcessor::StandaloneProcessor()
     
 	LOG_START("OK");
 
-	dynamic_cast<FrontendSampleManager*>(wrappedProcessor.get())->loadSamplesAfterSetup();
-
 #endif
-
 	
-	
-		
 }
 
 
@@ -386,3 +382,5 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
 
 
 }
+
+} // namespace hise

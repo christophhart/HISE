@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -72,9 +72,7 @@ END_JUCE_MODULE_DECLARATION
 *	Contains all classes related to the editors of DSP modules
 */
 
-namespace hise
-{
-using namespace juce;
+
 
 #include "Processor.h"
 #include "ProcessorInterfaces.h"
@@ -181,6 +179,5 @@ class ProcessorEditor;
 #include "plugin_parameter/PluginParameterProcessor.h"
 
 
-}
 
 #endif  // HI_DSP_H_INCLUDED

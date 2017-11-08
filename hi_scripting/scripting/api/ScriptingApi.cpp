@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-
+namespace hise { using namespace juce;
 
 #define SEND_MESSAGE(broadcaster) {	if (MessageManager::getInstance()->isThisTheMessageThread()) broadcaster->sendSynchronousChangeMessage(); else broadcaster->sendChangeMessage();}
 #define ADD_TO_TYPE_SELECTOR(x) (ScriptComponentPropertyTypeSelector::addToTypeSelector(ScriptComponentPropertyTypeSelector::x, propertyIds.getLast()))
@@ -3128,3 +3128,5 @@ Array<Identifier> ScriptingApi::ModuleIds::getTypeList(ModulatorSynth* s)
 
 	return ids;
 }
+
+} // namespace hise

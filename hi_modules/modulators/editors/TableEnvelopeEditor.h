@@ -21,6 +21,7 @@
 #define __JUCE_HEADER_9A1036EE3AE7F8AC__
 
 //[Headers]     -- You can add your own extra header files here --
+namespace hise { using namespace juce;
 
 #define TableEnvelopeEditor(x) ModulatorEditor(x, new TableEnvelopeEditorBody(x))
 
@@ -169,6 +170,7 @@ private:
 
 //[EndFile] You can add extra defines here...
 /** \endcond */
+} // namespace hise
 
 //[/EndFile]
 

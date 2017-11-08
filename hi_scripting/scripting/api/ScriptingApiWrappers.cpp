@@ -30,6 +30,8 @@
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
+
 #define GET_OBJECT(x) (dynamic_cast<ScriptingApi::x*> (args.thisObject.getObject()))
 
 #if ENABLE_SCRIPTING_SAFE_CHECKS
@@ -961,3 +963,5 @@ var ScriptingApi::Content::Wrapper::createPath(const var::NativeFunctionArgs& ar
 #undef GET_OBJECT
 #undef CHECK_ARGUMENTS
 #undef CHECK_IF_DEFERRED
+
+} // namespace hise

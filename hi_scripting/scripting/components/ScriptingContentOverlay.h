@@ -34,6 +34,7 @@
 #ifndef SCRIPTINGCONTENTOVERLAY_H_INCLUDED
 #define SCRIPTINGCONTENTOVERLAY_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 namespace OverlayIcons
 {
@@ -392,5 +393,5 @@ public:
 
 
 
-
+} // namespace hise
 #endif  // SCRIPTINGCONTENTOVERLAY_H_INCLUDED

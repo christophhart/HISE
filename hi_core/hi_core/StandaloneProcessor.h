@@ -11,6 +11,8 @@
 #ifndef STANDALONEPROCESSOR_H_INCLUDED
 #define STANDALONEPROCESSOR_H_INCLUDED
 
+namespace hise { using namespace juce;
+
 class ToggleButtonList;
 
 
@@ -294,6 +296,6 @@ private:
 
 };
 
-
+} // namespace hise
 
 #endif  // STANDALONEPROCESSOR_H_INCLUDED

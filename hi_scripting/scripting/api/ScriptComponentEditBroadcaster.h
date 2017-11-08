@@ -33,6 +33,8 @@
 #ifndef SCRIPTCOMPONENTEDITBROADCASTER_H_INCLUDED
 #define SCRIPTCOMPONENTEDITBROADCASTER_H_INCLUDED
 
+namespace hise { using namespace juce;
+
 class ScriptComponentEditBroadcaster;
 
 /** A class that will get updated whenever the selection of currently selected components changes.
@@ -326,5 +328,5 @@ private:
 };
 
 
-
+} // namespace hise
 #endif  // SCRIPTCOMPONENTEDITBROADCASTER_H_INCLUDED

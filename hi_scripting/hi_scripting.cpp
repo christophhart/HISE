@@ -36,12 +36,10 @@
 
 #include <regex>
 
-namespace hise
-{
-	using namespace juce;
+
 
 #if JUCE_IOS
-#else
+#elif INCLUDE_TCC
 #include "scripting/api/TccContext.cpp"
 #include "scripting/api/TccDspObject.cpp"
 #endif
@@ -94,4 +92,4 @@ namespace hise
 
 #endif 
 
-}
+

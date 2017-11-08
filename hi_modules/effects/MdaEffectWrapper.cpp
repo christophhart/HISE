@@ -23,12 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
+
+namespace hise { using namespace juce;
 
 MdaLimiterEffect::MdaLimiterEffect(MainController *mc, const String &id):
 	MdaEffectWrapper(mc, id)
@@ -95,3 +97,5 @@ ProcessorEditorBody *MdaDegradeEffect::createEditor(ProcessorEditor *parentEdito
 
 #endif
 };
+
+} // namespace hise

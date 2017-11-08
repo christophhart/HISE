@@ -58,7 +58,7 @@ public:
 private:
 
 #if USE_IPP
-	ScopedPointer<hise::IppFFT> fftData;
+	juce::ScopedPointer<hise::IppFFT> fftData;
 #endif
 
 };

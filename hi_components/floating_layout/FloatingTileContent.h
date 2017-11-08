@@ -23,17 +23,20 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
-#define OLD_COLOUR 0
 
 #ifndef FLOATINGTILECONTENT_H_INCLUDED
 #define FLOATINGTILECONTENT_H_INCLUDED
+
+#define OLD_COLOUR 0
+
+namespace hise { using namespace juce;
 
 class FloatingTile;
 class FloatingTileContainer;
@@ -696,6 +699,6 @@ struct FloatingPanelTemplates
 };
 
 
-
+} // namespace hise
 
 #endif  // FLOATINGTILECONTENT_H_INCLUDED

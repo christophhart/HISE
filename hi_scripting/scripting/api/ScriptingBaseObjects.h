@@ -33,6 +33,7 @@
 #ifndef SCRIPTINGBASEOBJECTS_H_INCLUDED
 #define SCRIPTINGBASEOBJECTS_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 class ModulatorSynthGroup;
 class ProcessorWithScriptingContent;
@@ -258,5 +259,5 @@ private:
 
 
 
-
+} // namespace hise
 #endif  // SCRIPTINGBASEOBJECTS_H_INCLUDED

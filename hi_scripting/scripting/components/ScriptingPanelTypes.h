@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,6 +33,7 @@
 #ifndef SCRIPTINGPANELTYPES_H_INCLUDED
 #define SCRIPTINGPANELTYPES_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 class CodeEditorPanel : public PanelWithProcessorConnection,
 						public GlobalScriptCompileListener
@@ -391,5 +392,5 @@ struct BackendCommandIcons
 };
 
 
-
+} // namespace hise
 #endif  // SCRIPTINGPANELTYPES_H_INCLUDED

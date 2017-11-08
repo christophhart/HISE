@@ -32,7 +32,7 @@
 
 #include <regex>
 
-
+namespace hise { using namespace juce;
 
 
 //==============================================================================
@@ -633,3 +633,4 @@ void ScriptingEditor::checkActiveSnippets()
 	}
 }
 
+} // namespace hise

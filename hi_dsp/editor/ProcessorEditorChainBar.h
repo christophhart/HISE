@@ -24,7 +24,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -34,6 +34,7 @@
 #ifndef PROCESSOR_EDITOR_CHAIN_BAR_H_INCLUDED
 #define PROCESSOR_EDITOR_CHAIN_BAR_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 class ProcessorEditorChainBar  : public ProcessorEditorChildComponent,
 								 public ButtonListener,
@@ -164,5 +165,6 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ProcessorEditorChainBar)
 };
 
+} // namespace hise
 
 #endif   

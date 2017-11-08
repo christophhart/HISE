@@ -1,3 +1,5 @@
+namespace hise { using namespace juce;
+
 // =================================================================================================================== SamplerSubEditor
 
 void SamplerSubEditor::selectSounds(const Array<ModulatorSamplerSound*> &selection)
@@ -1226,3 +1228,5 @@ void SamplerSoundTable::selectedRowsChanged(int /*lastRowSelected*/)
 		handler->getSelection().addToSelection(sortedSoundList[selection[i]]);
 	}
 };
+
+} // namespace hise

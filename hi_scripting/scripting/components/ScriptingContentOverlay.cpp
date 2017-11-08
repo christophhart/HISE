@@ -32,7 +32,7 @@
 
 
 
-
+namespace hise { using namespace juce;
 
 ScriptEditHandler::ScriptEditHandler()
 {
@@ -908,3 +908,6 @@ void ScriptingContentOverlay::Dragger::MovementWatcher::componentMovedOrResized(
 		dragComponent->setBounds(boundsInParent);
 	}
 }
+
+
+} // namespace hise

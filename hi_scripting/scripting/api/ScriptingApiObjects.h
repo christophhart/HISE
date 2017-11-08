@@ -34,6 +34,7 @@
 #ifndef SCRIPTINGAPIOBJECTS_H_INCLUDED
 #define SCRIPTINGAPIOBJECTS_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 class ApiHelpers
 {
@@ -1033,5 +1034,5 @@ public:
 
 
 
-
+} // namespace hise
 #endif  // SCRIPTINGAPIOBJECTS_H_INCLUDED

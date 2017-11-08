@@ -1,4 +1,4 @@
-
+namespace hise { using namespace juce;
 
 //==============================================================================
 struct HiseJavascriptEngine::RootObject::TokenIterator
@@ -2360,3 +2360,5 @@ HiseJavascriptEngine::RootObject::FunctionObject::FunctionObject(const FunctionO
 
 	tb.parseFunctionParamsAndBody(*this);
 }
+
+} // namespace hise

@@ -10,6 +10,8 @@
 #ifndef _ICST_DSPLIB_AUDIOSYNTH_INCLUDED
 #define _ICST_DSPLIB_AUDIOSYNTH_INCLUDED
 
+
+
 /** The base class of ICSTDSP effects. */
 class Effect
 {
@@ -35,14 +37,14 @@ protected:
 	void enableInplaceProcessing(bool shouldBeEnabled, int numMaxSamplesToExpect)
 	{
 		inplaceProcessingEnabled = shouldBeEnabled;
-		inplaceBuffer = AudioSampleBuffer(1, numMaxSamplesToExpect);
+		inplaceBuffer = juce::AudioSampleBuffer(1, numMaxSamplesToExpect);
 	}
 
 private:
 
 	bool inplaceProcessingEnabled;
 
-	AudioSampleBuffer inplaceBuffer;
+	juce::AudioSampleBuffer inplaceBuffer;
 };
 
 // wavetable oscillator
@@ -275,7 +277,7 @@ public:
 					float looplen=0	);	// loop length in samples, 0:no loop	
 private:
 
-	CriticalSection lock;
+	juce::CriticalSection lock;
 
 	static int instances;				// number of object instances
 	static float* c;					// interpolation coefficients

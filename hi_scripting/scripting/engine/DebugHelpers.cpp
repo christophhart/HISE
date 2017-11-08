@@ -32,6 +32,8 @@
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
+
 String DebugInformation::varArrayToString(const Array<var> &arrayToStringify)
 {
 	String output;
@@ -217,3 +219,4 @@ DebugInformation* DebugableObject::Helpers::getDebugInformation(HiseJavascriptEn
 	return nullptr;
 }
 
+} // namespace hise

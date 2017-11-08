@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -31,6 +31,8 @@
 */
 
 #include "ClarinetData.cpp"
+
+namespace hise { using namespace juce;
 
 ProcessorEditorBody* WavetableSynth::createEditor(ProcessorEditor *parentEditor)
 {
@@ -88,3 +90,5 @@ int WavetableSynthVoice::getSmoothSize() const
 {
 	return wavetableSynth->getMorphSmoothing();
 }
+
+} // namespace hise

@@ -30,6 +30,7 @@
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
 
 JavascriptMidiProcessor::JavascriptMidiProcessor(MainController *mc, const String &id) :
 ScriptBaseMidiProcessor(mc, id),
@@ -1646,3 +1647,5 @@ ProcessorEditorBody* JavascriptModulatorSynth::createEditor(ProcessorEditor *par
 	return nullptr;
 #endif
 }
+
+} // namespace hise

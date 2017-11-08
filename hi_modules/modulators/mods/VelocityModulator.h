@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,7 +33,7 @@
 #ifndef VELOCITYMODULATOR_H_INCLUDED
 #define VELOCITYMODULATOR_H_INCLUDED
 
-
+namespace hise { using namespace juce;
 
 /** This modulator changes the output depending on the velocity of note on messages.
 *	@ingroup modulatorTypes
@@ -181,5 +181,6 @@ private:
 };
 
 
+} // namespace hise
 
 #endif  // VELOCITYMODULATOR_H_INCLUDED

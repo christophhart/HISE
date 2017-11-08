@@ -54,9 +54,6 @@ END_JUCE_MODULE_DECLARATION
 #include "AppConfig.h"
 #include "../JUCE/modules/juce_core/juce_core.h"
 
-namespace hise
-{
-using namespace juce;
 
 
 /** Config: HI_EXPORT_DSP_LIBRARY
@@ -94,22 +91,21 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #else
 
 
-// Write this here and clean up later...
-namespace HelperFunctions
-{
-	size_t writeString(char* location, const char* content);
+namespace hise {
+	namespace HelperFunctions
+	{
+		size_t writeString(char* location, const char* content);
 
-	String createStringFromChar(const char* charFromOtherHeap, size_t length);
-};
-#endif
-
-
-
-
-#endif
-
-
+		juce::String createStringFromChar(const char* charFromOtherHeap, size_t length);
+	};
 }
+#endif
+
+
+
+
+#endif
+
 
  
 #endif

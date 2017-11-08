@@ -23,12 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
+
+namespace hise { using namespace juce;
 
 HeaderButton::HeaderButton(const String &name, const unsigned char *path, size_t pathSize, ProcessorEditorHeader *parentHeader_) :
 parentHeader(parentHeader_)
@@ -529,3 +531,5 @@ Drawable * ButtonShapes::routingShape(bool, bool enabled)
 
 	return di;
 }
+
+} // namespace hise

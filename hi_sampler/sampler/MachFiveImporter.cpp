@@ -1,4 +1,4 @@
-
+namespace hise { using namespace juce;
 
 
 StringArray MachFiveImporter::getLayerNames(const File &machFiveFile)
@@ -103,3 +103,5 @@ ValueTree MachFiveImporter::getSampleMapValueTree(const File &machFiveFile, cons
 
 	return ValueTree();
 }
+
+} // namespace hise

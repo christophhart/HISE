@@ -20,16 +20,9 @@
 #include "Foundation/NSString.h"
 #endif
 
-namespace hise
-{
-using namespace juce;
-
-HiseColourScheme::Scheme HiseColourScheme::currentColourScheme = Dark;
+hise::HiseColourScheme::Scheme hise::HiseColourScheme::currentColourScheme = Dark;
 
 #include "hi_binary_data/hi_binary_data.cpp"
-
-
-}
 
 #include "hi_core/hi_core.cpp"
 

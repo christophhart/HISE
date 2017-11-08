@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -35,6 +35,7 @@
 
 #include <float.h>
 
+namespace hise { using namespace juce;
 
 /** A table is a data structure that allows editing of a look up table with a TableEditor. It uses a list of graph points to create a path which is rendered to a float 
 *	array of the desired size.
@@ -396,5 +397,7 @@ private:
 	float data[128];
 
 };
+
+} // namespace hise
 
 #endif  // TABLES_H_INCLUDED

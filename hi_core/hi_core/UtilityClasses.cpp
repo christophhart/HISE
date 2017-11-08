@@ -23,13 +23,14 @@
 *   http ://www.hartinstruments.net/hise/
 *
 *   HISE is based on the JUCE library,
-*which must be separately licensed for cloused source applications :
+*which must be separately licensed for closed source applications :
 *
 *   http ://www.juce.com
 *
 * == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == =
 */
 
+namespace hise { using namespace juce;
 
 
 #if  JUCE_MAC
@@ -794,3 +795,5 @@ bool SafeFunctionCall::call()
 
 	return false;
 }
+
+} // namespace hise

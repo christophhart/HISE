@@ -1,4 +1,4 @@
-
+namespace hise {using namespace juce;
 
 #pragma warning( push )
 #pragma warning( disable : 4100 )
@@ -28,3 +28,5 @@ bool DspBaseObject::getConstant(int index, float** data, int &size) noexcept		{ 
 bool DspBaseObject::getConstant(int index, float& value) const noexcept				{ return false; }
 
 #pragma warning( pop )
+
+} // namespace hise

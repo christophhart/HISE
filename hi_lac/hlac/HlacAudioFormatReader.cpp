@@ -28,6 +28,8 @@
 *
 */
 
+namespace hlac { using namespace juce; 
+
 HiseLosslessAudioFormatReader::HiseLosslessAudioFormatReader(InputStream* input_) :
 	AudioFormatReader(input_, "HLAC"),
 	internalReader(input_)
@@ -562,3 +564,5 @@ void HlacSubSectionReader::readIntoFixedBuffer(HiseSampleBuffer& buffer, int sta
 		}
 	}
 }
+
+} // namespace hlac

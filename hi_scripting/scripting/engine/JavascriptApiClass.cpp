@@ -1,4 +1,4 @@
-
+namespace hise { using namespace juce;
 
 VarRegister::VarRegister() :
 empty(var::undefined())
@@ -408,3 +408,5 @@ ApiClass::Constant& ApiClass::Constant::operator=(const Constant& other)
 	value = other.value;
 	return *this;
 }
+
+} // namespace hise

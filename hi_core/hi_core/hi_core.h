@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -34,6 +34,16 @@
 #define HI_CORE_H_INCLUDED
 
 
+template <class A, class B>
+struct AreSame { enum { VALUE = -1 }; };
+template <class A>
+struct AreSame<A, A> { enum { VALUE = 1 }; };
+
+struct TestGlobalNamespace
+{
+	int test_namespace[AreSame<TestGlobalNamespace, ::TestGlobalNamespace>::VALUE];
+};
+
 
 #ifndef INT_MAX
 #define INT_MAX 2147483647
@@ -43,14 +53,8 @@
 #define INT_MIN -2147483647
 #endif
 
-namespace juce
-{
 #include "VariantBuffer.h"
-}
 
-namespace hise
-{
-	using namespace juce;
 
 #if USE_IPP
 #include "IppFFT.h"
@@ -94,7 +98,5 @@ namespace hise
 #include "MacroControlBroadcaster.h"
 #include "MiscComponents.h"
 #include "StandaloneProcessor.h"
-
-}
 
 #endif  // HI_CORE_H_INCLUDED

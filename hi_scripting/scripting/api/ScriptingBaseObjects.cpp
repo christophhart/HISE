@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-
+namespace hise { using namespace juce;
 
 ScriptingObject::ScriptingObject(ProcessorWithScriptingContent *p) :
 processor(p),
@@ -305,3 +305,5 @@ void ValueTreeConverters::d2v_internal(ValueTree& v, const Identifier& id, const
 		jassertfalse;
 	}
 }
+
+} // namespace hise

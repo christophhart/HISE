@@ -18,6 +18,7 @@
 */
 
 //[Headers] You can add your own extra header files here...
+namespace hise { using namespace juce;
 //[/Headers]
 
 #include "FileImportDialog.h"
@@ -184,4 +185,5 @@ void FileImportDialog::buttonClicked (Button* buttonThatWasClicked)
 
 
 //[EndFile] You can add extra defines here...
+} // namespace hise
 //[/EndFile]

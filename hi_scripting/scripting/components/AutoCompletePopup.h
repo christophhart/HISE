@@ -34,6 +34,7 @@
 #ifndef AUTOCOMPLETEPOPUP_H_INCLUDED
 #define AUTOCOMPLETEPOPUP_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 
 class JavascriptCodeEditor::AutoCompletePopup : public ListBoxModel,
@@ -158,5 +159,5 @@ private:
 
 
 
-
+} // namespace hise
 #endif  // AUTOCOMPLETE_H_INCLUDED

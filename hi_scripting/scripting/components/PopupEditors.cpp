@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-
+namespace hise { using namespace juce;
 
 PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileToEdit) :
 	sp(s),
@@ -238,3 +238,5 @@ void PopupIncludeEditor::compileInternal()
 
 	
 }
+
+} // namespace hise

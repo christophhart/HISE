@@ -30,7 +30,7 @@ Permission has been granted to release this port under the WDL/IPlug license:
 */
 
 namespace mf {
-
+	using namespace juce;
 
 
 class PolyBLEP {

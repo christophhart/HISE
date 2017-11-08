@@ -30,6 +30,8 @@
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
+
 HardcodedScriptProcessor::HardcodedScriptProcessor(MainController *mc, const String &id, ModulatorSynth *ms):
 	ScriptBaseMidiProcessor(mc, id),
 	Message(this),
@@ -172,3 +174,4 @@ Processor *HardcodedScriptFactoryType::createProcessor(int typeIndex, const Stri
 	return mp;
 }
 
+} // namespace hise

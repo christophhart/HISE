@@ -32,6 +32,8 @@
 #ifndef COMPRESSIONHELPERS_H_INCLUDED
 #define COMPRESSIONHELPERS_H_INCLUDED
 
+namespace hlac { using namespace juce; 
+
 #define DUMP(x) CompressionHelpers::dump(x);
 
 #if HLAC_DEBUG_LOG
@@ -340,6 +342,6 @@ private:
 };
 
 
-
+} // namespace hlac
 
 #endif  // COMPRESSIONHELPERS_H_INCLUDED

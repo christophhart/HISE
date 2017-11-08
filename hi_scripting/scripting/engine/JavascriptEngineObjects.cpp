@@ -1,4 +1,4 @@
-
+namespace hise { using namespace juce;
 
 
 //==============================================================================
@@ -375,3 +375,4 @@ struct HiseJavascriptEngine::RootObject::IntegerClass : public DynamicObject
 };
 
 
+} // namespace hise

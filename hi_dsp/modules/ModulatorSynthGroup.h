@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -34,6 +34,7 @@
 #ifndef MODULATORSYNTHGROUP_H_INCLUDED
 #define MODULATORSYNTHGROUP_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 #define NUM_MAX_UNISONO_VOICES 16
 
@@ -492,6 +493,6 @@ private:
 	ScopedPointer<FactoryType> modulatorSynthFactory;
 };
 
-
+} // namespace hise
 
 #endif  // MODULATORSYNTHGROUP_H_INCLUDED

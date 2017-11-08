@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -32,6 +32,8 @@
 
 #ifndef PRESET_HANDLER_H_INCLUDED
 #define PRESET_HANDLER_H_INCLUDED
+
+namespace hise { using namespace juce;
 
 #define PRESET_MENU_ITEM_DELTA 80
 #define CLIPBOARD_ITEM_MENU_INDEX 999
@@ -892,5 +894,7 @@ public:
 	static void addInstrumentToPackageXml(const String &instrumentFileName, const String &packageName);
 
 };
+
+} // namespace hise
 
 #endif

@@ -10,7 +10,7 @@
 
 #ifndef MACHFIVEIMPORTER_H_INCLUDED
 #define MACHFIVEIMPORTER_H_INCLUDED
-
+namespace hise { using namespace juce;
 
 class MachFiveImporter
 {
@@ -30,5 +30,5 @@ private:
 };
 
 
-
+} // namespace hise
 #endif  // MACHFIVEIMPORTER_H_INCLUDED

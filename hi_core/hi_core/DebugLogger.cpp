@@ -1,4 +1,4 @@
-
+namespace hise { using namespace juce;
 
 #if ENABLE_STARTUP_LOG
 File StartupLogger::getLogFile()
@@ -1125,3 +1125,5 @@ String DebugLogger::getSystemSpecs() const
 
 	return stats;
 }
+
+} // namespace hise

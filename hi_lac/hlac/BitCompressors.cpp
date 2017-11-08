@@ -28,6 +28,7 @@
 *
 */
 
+namespace hlac { using namespace juce; 
 
 void printRuler()
 {
@@ -1176,3 +1177,4 @@ int BitCompressors::Collection::getNumBytesForBitRate(uint8 bitRate, int element
 }
 
 
+} // namespace hlac

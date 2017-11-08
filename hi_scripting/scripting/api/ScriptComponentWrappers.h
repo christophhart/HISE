@@ -30,6 +30,10 @@
 *   ===========================================================================
 */
 
+#ifndef SCRIPT_COMPONENT_WRAPPERS_H_INCLUDED
+#define SCRIPT_COMPONENT_WRAPPERS_H_INCLUDED
+
+namespace hise { using namespace juce;
 
 class ScriptedControlAudioParameter : public AudioProcessorParameterWithID
 {
@@ -448,3 +452,6 @@ public:
 
 };
 
+} // namespace hise
+
+#endif // SCRIPT_COMPONENT_WRAPPERS_H_INCLUDED

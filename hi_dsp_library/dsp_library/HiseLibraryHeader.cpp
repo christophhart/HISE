@@ -4,14 +4,14 @@
 #include  "JuceHeader.h"
 
 
-size_t HelperFunctions::writeString(char* location, const char* content)
+size_t hise::HelperFunctions::writeString(char* location, const char* content)
 {
 	strcpy(location, content);
 
 	return strlen(content);
 }
 
-String HelperFunctions::createStringFromChar(const char* charFromOtherHeap, size_t length)
+String hise::HelperFunctions::createStringFromChar(const char* charFromOtherHeap, size_t length)
 {
 	std::string s;
 	s.reserve(length);

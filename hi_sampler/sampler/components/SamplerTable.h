@@ -21,7 +21,7 @@
 #define __JUCE_HEADER_F82F7FBC07454100__
 
 //[Headers]     -- You can add your own extra header files here --
- 
+ namespace hise { using namespace juce;
 
 class RetriggerLabel : public Label
 {
@@ -132,6 +132,7 @@ private:
 };
 
 //[EndFile] You can add extra defines here...
+} // namespace hise
 //[/EndFile]
 
 #endif   // __JUCE_HEADER_F82F7FBC07454100__

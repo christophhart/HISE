@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -32,6 +32,8 @@
 
 #ifndef SLIDERPACK_H_INCLUDED
 #define SLIDERPACK_H_INCLUDED
+
+namespace hise { using namespace juce;
 
 /** The data model for a SliderPack widget. */
 class SliderPackData: public SafeChangeBroadcaster
@@ -226,5 +228,5 @@ private:
 };
 
 
-
+} // namespace hise
 #endif  // SLIDERPACK_H_INCLUDED

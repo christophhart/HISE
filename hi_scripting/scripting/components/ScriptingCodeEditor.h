@@ -32,6 +32,7 @@
 #ifndef SCRIPTINGCODEEDITOR_H_INCLUDED
 #define SCRIPTINGCODEEDITOR_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 
 /** A subclass of CodeEditorComponent which improves working with Javascript scripts.
@@ -380,5 +381,5 @@ private:
 };
 
 
-
+} // namespace hise
 #endif  // SCRIPTINGCODEEDITOR_H_INCLUDED

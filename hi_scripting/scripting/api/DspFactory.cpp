@@ -30,6 +30,7 @@
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
 
 class DspFactory::LibraryLoader : public DynamicObject
 {
@@ -386,8 +387,7 @@ DspFactory::Handler::Handler()
 {
 	registerStaticFactories(this);
     
-#if JUCE_IOS
-#else
+#if INCLUDE_TCC
 	tccFactory = new TccDspFactory();
 #endif
 }
@@ -395,8 +395,7 @@ DspFactory::Handler::Handler()
 DspFactory::Handler::~Handler()
 {
 	loadedPlugins.clear();
-#if JUCE_IOS
-#else
+#if INCLUDE_TCC
 	tccFactory = nullptr;
 #endif
 }
@@ -413,7 +412,7 @@ DspFactory * DspFactory::Handler::getFactory(const String &name, const String& p
 {
 	Identifier id(name);
 
-#if USE_BACKEND && !JUCE_IOS
+#if USE_BACKEND && INCLUDE_TCC
 	if (id == tccFactory->getId()) return tccFactory;
 #endif
 
@@ -454,8 +453,9 @@ void DspFactory::Handler::setMainController(MainController* mc_)
 {
 	mc = mc_;
     
-#if JUCE_IOS
-#else
+#if INCLUDE_TCC
 	tccFactory->setMainController(mc);
 #endif
 }
+
+} // namespace hise

@@ -32,7 +32,7 @@
 
 #ifndef SCRIPTPROCESSOR_H_INCLUDED
 #define SCRIPTPROCESSOR_H_INCLUDED
-
+namespace hise { using namespace juce;
 
 
 class ModulatorSynthGroup;
@@ -585,5 +585,5 @@ public:
 };
 
 
-
+} // namespace hise
 #endif  // SCRIPTPROCESSOR_H_INCLUDED

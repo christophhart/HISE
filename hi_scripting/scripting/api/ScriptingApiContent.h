@@ -33,7 +33,7 @@
 #ifndef SCRIPTINGAPICONTENT_H_INCLUDED
 #define SCRIPTINGAPICONTENT_H_INCLUDED
 
-
+namespace hise { using namespace juce;
 
 
 /** This is the interface area that can be filled with buttons, knobs, etc.
@@ -1491,4 +1491,5 @@ private:
 using ScriptComponent = ScriptingApi::Content::ScriptComponent;
 using ScriptComponentSelection = ReferenceCountedArray<ScriptComponent>;
 
+} // namespace hise
 #endif  // SCRIPTINGAPICONTENT_H_INCLUDED

@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,7 +33,7 @@
 #ifndef HARMONICFILTER_H_INCLUDED
 #define HARMONICFILTER_H_INCLUDED
 
-
+namespace hise { using namespace juce;
 
 class BaseHarmonicFilter
 {
@@ -246,5 +246,6 @@ private:
 
 
 
+} // namespace hise
 
 #endif  // HARMONICFILTER_H_INCLUDED

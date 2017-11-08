@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,6 +33,7 @@
 #ifndef HI_EFFECT_PROCESSORCHAIN_H_INCLUDED
 #define HI_EFFECT_PROCESSORCHAIN_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 #define FOR_EACH_VOICE_EFFECT(x) {for(int i = 0; i < voiceEffects.size(); ++i) {if(!voiceEffects[i]->isBypassed()) voiceEffects[i]->x;}}
 #define FOR_EACH_MONO_EFFECT(x) {for(int i = 0; i < monoEffects.size(); ++i) {if(!monoEffects[i]->isBypassed())monoEffects[i]->x;}}
@@ -404,6 +405,6 @@ private:
 };
 
 
-
+} // namespace hise
 
 #endif

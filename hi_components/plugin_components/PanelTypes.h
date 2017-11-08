@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -34,6 +34,7 @@
 #ifndef PANELTYPES_H_INCLUDED
 #define PANELTYPES_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 /** Type-ID: `CustomSettings`
 
@@ -217,6 +218,6 @@ private:
 	int numMidiDevices = 0;
 };
 
-
+} // namespace hise
 
 #endif  // PANELTYPES_H_INCLUDED

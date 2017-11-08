@@ -23,13 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
 
 MainController::GlobalAsyncModuleHandler::JobData::JobData(Processor* parent_, Processor* processor_, What what_) :
 	what(what_),
@@ -136,3 +137,6 @@ void MainController::GlobalAsyncModuleHandler::addAsync(Chain* c, Processor* p, 
 
 	p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, KillStateHandler::SampleLoadingThread);
 }
+
+
+} // namespace hise
