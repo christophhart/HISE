@@ -573,7 +573,8 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 		{
 			addCallbackOffset = 10000,
 			showCallbackOffset = 15000,
-			editComponentOffset = 20000
+			editComponentOffset = 20000,
+			addDefinition
 		};
 
 		PopupMenu m;
@@ -601,8 +602,6 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 			m.addItem((int)ScriptEditHandler::Widgets::SliderPack, "Add new SliderPack");
 			m.addItem((int)ScriptEditHandler::Widgets::FloatingTile, "Add new FloatingTile");
 
-			m.addItem((int)ScriptEditHandler::Widgets::duplicateWidget, "Duplicate selected component", components.size() > 0);
-
 			if (components.size() != 0)
 			{
 				m.addSeparator();
@@ -610,27 +609,29 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 				if (components.size() == 1)
 				{
 					m.addItem(editComponentOffset, "Edit \"" + components[0]->getName().toString() + "\" in Panel");
-					m.addItem(addCallbackOffset, "Add custom callback for " + components[0]->getName().toString(), components[0]->getCustomControlCallback() == nullptr);
-					m.addItem(showCallbackOffset, "Show custom callback for " + components[0]->getName().toString(), components[0]->getCustomControlCallback() != nullptr);
 				}
 				else
 				{
 					PopupMenu editSub;
-					PopupMenu addSub;
-					PopupMenu showSub;
-
+					
 					for (int i = 0; i < components.size(); i++)
 					{
 						editSub.addItem(editComponentOffset + i, components[i]->getName().toString());
-						addSub.addItem(addCallbackOffset + i, components[i]->getName().toString(), components[0]->getCustomControlCallback() == nullptr);
-						showSub.addItem(showCallbackOffset + i, components[i]->getName().toString(), components[0]->getCustomControlCallback() != nullptr);
 					}
 
 					m.addSubMenu("Edit in Panel", editSub, components.size() != 0);
-					m.addSubMenu("Add custom callback for", addSub, components.size() != 0);
-					m.addSubMenu("Show custom callback for", showSub, components.size() != 0);
+					
 				}
+
+				
 			}
+
+			if (getScriptComponentEditBroadcaster()->getNumSelected() > 0)
+			{
+				m.addItem(addCallbackOffset, "Create custom callback for selection");
+				m.addItem(addDefinition, "Create script definition for selection");
+			}
+
 		}
 		else
 		{
@@ -639,11 +640,32 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 
 		int result = m.show();
 
-		if (result >= (int)ScriptEditHandler::Widgets::Knob && result < (int)ScriptEditHandler::Widgets::numWidgets)
+		if (result == addCallbackOffset)
+		{
+			auto selection = getScriptComponentEditBroadcaster()->getSelection();
+
+			auto code = ScriptingApi::Content::Helpers::createCustomCallbackDefinition(selection);
+
+			debugToConsole(processor, String(selection.size()) + " callback definitions created and copied to the clipboard");
+
+			SystemClipboard::copyTextToClipboard(code);
+		}
+		else if (result == addDefinition)
+		{
+			auto selection = getScriptComponentEditBroadcaster()->getSelection();
+
+			auto code = ScriptingApi::Content::Helpers::createScriptVariableDeclaration(selection);
+
+			debugToConsole(processor, String(selection.size()) + " script component definitions created and copied to the clipboard");
+
+			SystemClipboard::copyTextToClipboard(code);
+		}
+		else if (result >= (int)ScriptEditHandler::Widgets::Knob && result < (int)ScriptEditHandler::Widgets::numWidgets)
 		{
 			const int insertX = e.getEventRelativeTo(content).getMouseDownPosition().getX();
 			const int insertY = e.getEventRelativeTo(content).getMouseDownPosition().getY();
 
+			
 			handler->createNewComponent((ScriptEditHandler::Widgets)result, insertX, insertY);
 		}
 		else if (result >= editComponentOffset) // EDIT IN PANEL
@@ -663,38 +685,7 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 			if (func != nullptr)
 				func->doubleClickCallback(e, dynamic_cast<Component*>(handler));
 		}
-		else if (result >= addCallbackOffset)
-		{
-			auto componentToUse = components[result - addCallbackOffset];
-
-			auto name = componentToUse->getName();
-
-			NewLine nl;
-			String code;
-
-
-			String callbackName = "on" + name.toString() + "Control";
-
-			code << nl;
-			code << "inline function " << callbackName << "(component, value)" << nl;
-			code << "{" << nl;
-			code << "\t//Add your custom logic here..." << nl;
-			code << "};" << nl;
-			code << nl;
-			code << name.toString() << ".setControlCallback(" << callbackName << ");" << nl;
-
-			
-			auto doc = JavascriptCodeEditor::Helpers::gotoAndReturnDocumentWithDefinition(processor, componentToUse);
-
-			if (doc != nullptr)
-			{
-				int insertPos = JavascriptCodeEditor::Helpers::getPositionAfterDefinition(*doc, name).getPosition();
-
-				doc->insertText(insertPos, code);
-			}
-
-			handler->compileScript();
-		}
+		
 	}
 }
 

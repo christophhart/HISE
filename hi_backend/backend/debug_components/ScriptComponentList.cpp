@@ -260,12 +260,21 @@ void ScriptComponentList::ScriptComponentItem::mouseUp(const MouseEvent& event)
 		m.addItem(PopupMenuOptions::DeleteSelection, "Delete selected Components", b->getSelection().size() > 0);
 		m.addItem(PopupMenuOptions::CreateScriptVariableDeclaration, "Create script variable definition");
 		m.addItem(PopupMenuOptions::CreateCustomCallbackDefinition, "Create custom callback definition");
-		m.addItem(PopupMenuOptions::CreateCustomCallbackDefinition, "Create custom callback definition");
 
 		auto clipboardData = JSON::parse(SystemClipboard::getTextFromClipboard());
 
 		m.addItem(PopupMenuOptions::CopyProperties, "Copy properties");
 		m.addItem(PopupMenuOptions::PasteProperties, "Paste properties to selection", clipboardData.isObject());
+
+		ScriptComponentSelection componentListToUse;
+		
+		if (b->getNumSelected() == 0)
+			componentListToUse.add(c);
+		else
+			componentListToUse = b->getSelection();
+
+		
+
 
 		const PopupMenuOptions result = (PopupMenuOptions)m.show();
 
@@ -283,7 +292,7 @@ void ScriptComponentList::ScriptComponentItem::mouseUp(const MouseEvent& event)
 		}
 		case RenameComponent:
 		{
-			auto newId = Identifier(PresetHandler::getCustomName("ID"));
+			auto newId = Identifier(PresetHandler::getCustomName(c->name.toString(), "Enter the new ID for the component"));
 
 			if (c->parent->getComponentWithName(newId) == nullptr)
 			{
@@ -293,39 +302,33 @@ void ScriptComponentList::ScriptComponentItem::mouseUp(const MouseEvent& event)
 		}
 		case CreateScriptVariableDeclaration:
 		{
-			auto st = ScriptingApi::Content::Helpers::createScriptVariableDeclaration(b->getSelection());
+			auto st = ScriptingApi::Content::Helpers::createScriptVariableDeclaration(componentListToUse);
+
+			debugToConsole(dynamic_cast<Processor*>(c->parent->getScriptProcessor()), String(b->getNumSelected()) + " script definitions created and copied to the clipboard");
 
 			SystemClipboard::copyTextToClipboard(st);
 			break;
 		}
 		case CreateCustomCallbackDefinition:
 		{
-			auto name = c->getName();
+			auto st = ScriptingApi::Content::Helpers::createCustomCallbackDefinition(componentListToUse);
 
-			NewLine nl;
-			String code;
+			
 
+			debugToConsole(dynamic_cast<Processor*>(c->parent->getScriptProcessor()), String(b->getNumSelected()) + " callback definitions created and copied to the clipboard");
 
-			String callbackName = "on" + name.toString() + "Control";
-
-			code << nl;
-			code << "inline function " << callbackName << "(component, value)" << nl;
-			code << "{" << nl;
-			code << "\t//Add your custom logic here..." << nl;
-			code << "};" << nl;
-			code << nl;
-			code << name.toString() << ".setControlCallback(" << callbackName << ");" << nl;
-
-			SystemClipboard::copyTextToClipboard(code);
-
+			SystemClipboard::copyTextToClipboard(st);
+			break;
 		}
 		case CopyProperties:
 		{
 			SystemClipboard::copyTextToClipboard(c->getScriptObjectPropertiesAsJSON());
+			break;
 		}
 		case PasteProperties:
 		{
 			ScriptingApi::Content::Helpers::pasteProperties(b->getSelection(), clipboardData);
+			break;
 		}
 		default:
 			break;

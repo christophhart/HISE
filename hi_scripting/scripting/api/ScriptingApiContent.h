@@ -1433,6 +1433,9 @@ public:
 		}
 
 		static String createScriptVariableDeclaration(ReferenceCountedArray<ScriptComponent> selection);
+
+		static String createCustomCallbackDefinition(ReferenceCountedArray<ScriptComponent> selection);
+
 		static void recompileAndSearchForPropertyChange(ScriptComponent * sc, const Identifier& id);
 	};
 

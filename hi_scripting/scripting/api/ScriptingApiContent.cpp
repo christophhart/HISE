@@ -3896,4 +3896,31 @@ void ScriptingApi::Content::Helpers::pasteProperties(ReferenceCountedArray<Scrip
 	}
 }
 
+String ScriptingApi::Content::Helpers::createCustomCallbackDefinition(ReferenceCountedArray<ScriptComponent> selection)
+{
+	NewLine nl;
+	String code;
+
+	for (int i = 0; i < selection.size(); i++)
+	{
+		auto c = selection[i];
+
+		auto name = c->getName();
+
+		String callbackName = "on" + name.toString() + "Control";
+
+		code << nl;
+		code << "inline function " << callbackName << "(component, value)" << nl;
+		code << "{" << nl;
+		code << "\t//Add your custom logic here..." << nl;
+		code << "};" << nl;
+		code << nl;
+		code << "Content.getComponent(\"" << name.toString() << "\").setControlCallback(" << callbackName << ");" << nl;
+
+	}
+
+	return code;
+	
+}
+
 } // namespace hise
