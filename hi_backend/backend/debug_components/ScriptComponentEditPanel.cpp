@@ -118,7 +118,6 @@ void ScriptComponentEditPanel::fillPanel()
 		basicIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::enabled));
 		basicIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::visible));
 		basicIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::tooltip));
-		basicIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::parentComponent));
 		basicIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::useUndoManager));
 
 		addSectionToPanel(basicIds, "Basic Properties");
@@ -182,7 +181,10 @@ void ScriptComponentEditPanel::addProperty(Array<PropertyComponent*> &arrayToAdd
 {
 	ScriptComponentPropertyTypeSelector::SelectorTypes t = ScriptComponentPropertyTypeSelector::getTypeForId(id);
 
-	
+	static const Identifier pc("parentComponent");
+
+	if (id == pc)
+		return;
 
 	if (t == ScriptComponentPropertyTypeSelector::SliderSelector)
 	{
