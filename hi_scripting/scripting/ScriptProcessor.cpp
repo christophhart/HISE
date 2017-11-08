@@ -48,14 +48,17 @@ void ProcessorWithScriptingContent::setControlValue(int index, float newValue)
 			{
 				if (int group = b->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::Properties::radioGroup))
 				{
-					for (int i = 0; i < content->getNumComponents(); i++)
+					if (newValue > 0.5f)
 					{
-						if (i == index) continue;
-						
-						if (auto other = dynamic_cast<ScriptingApi::Content::ScriptButton*>(content->getComponent(i)))
+						for (int i = 0; i < content->getNumComponents(); i++)
 						{
-							if ((int)other->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::Properties::radioGroup) == group)
-								other->setValue(0);
+							if (i == index) continue;
+
+							if (auto other = dynamic_cast<ScriptingApi::Content::ScriptButton*>(content->getComponent(i)))
+							{
+								if ((int)other->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::Properties::radioGroup) == group)
+									other->setValue(0);
+							}
 						}
 					}
 				}
