@@ -596,6 +596,7 @@ void FileImportDialogWindow::run()
 
 	{
 		ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
+		MessageManagerLock mLock;
 
 		for (int i = 0; i < collection.dataList.size(); i++)
 		{
@@ -615,7 +616,6 @@ void FileImportDialogWindow::run()
 		}
 	}
 	
-
 	sampler->setShouldUpdateUI(true);
 	pool->setUpdatePool(true);
 	pool->setDeactivatePoolSearch(false);
