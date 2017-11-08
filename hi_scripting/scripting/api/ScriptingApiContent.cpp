@@ -1274,9 +1274,10 @@ ScriptComponent(base, parentContent, name, x, y, 128, 32),
 image(nullptr)
 {
 	ADD_SCRIPT_PROPERTY(i00, "filmstripImage");	ADD_TO_TYPE_SELECTOR(SelectorTypes::FileSelector);
-	ADD_SCRIPT_PROPERTY(i01, "isVertical");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	ADD_SCRIPT_PROPERTY(i02, "scaleFactor");
-	ADD_SCRIPT_PROPERTY(i03, "radioGroup");
+	ADD_SCRIPT_PROPERTY(i01, "numStrips");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(i02, "isVertical");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i03, "scaleFactor");
+	ADD_SCRIPT_PROPERTY(i04, "radioGroup");
 
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
@@ -1284,6 +1285,7 @@ image(nullptr)
 	deactivatedProperties.removeAllInstancesOf(getIdFor(ScriptComponent::Properties::isPluginParameter));
 
 	setDefaultValue(ScriptButton::Properties::filmstripImage, "");
+	setDefaultValue(ScriptButton::Properties::numStrips, "2");
 	setDefaultValue(ScriptButton::Properties::isVertical, true);
 	setDefaultValue(ScriptButton::Properties::scaleFactor, 1.0f);
 	setDefaultValue(ScriptButton::Properties::radioGroup, 0);
@@ -1338,16 +1340,28 @@ void ScriptingApi::Content::ScriptButton::setScriptObjectPropertyWithChangeMessa
 
 StringArray ScriptingApi::Content::ScriptButton::getOptionsFor(const Identifier &id)
 {
-	if (id != getIdFor(filmstripImage)) return ScriptComponent::getOptionsFor(id);
+	if (id == getIdFor(filmstripImage))
+	{
+		StringArray sa;
 
-	StringArray sa;
+		sa.add("Load new File");
 
-	sa.add("Load new File");
+		sa.add("Use default skin");
+		sa.addArray(getProcessor()->getMainController()->getSampleManager().getImagePool()->getFileNameList());
 
-	sa.add("Use default skin");
-	sa.addArray(getProcessor()->getMainController()->getSampleManager().getImagePool()->getFileNameList());
+		return sa;
+	}
+	else if (id == getIdFor(numStrips))
+	{
+		StringArray sa;
 
-	return sa;
+		sa.add("2");
+		sa.add("6");
+
+		return sa;
+	}
+
+	return ScriptComponent::getOptionsFor(id);
 }
 
 

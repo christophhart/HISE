@@ -473,6 +473,7 @@ public:
 		enum Properties
 		{
 			filmstripImage = ScriptComponent::Properties::numProperties,
+			numStrips,
 			isVertical,
 			scaleFactor,
 			radioGroup,

@@ -289,7 +289,7 @@ ScriptCreatedComponentWrapper(content, index)
 		FilmstripLookAndFeel *fslaf = new FilmstripLookAndFeel();
 
 		fslaf->setFilmstripImage(sb->getImage(),
-			2,
+			sb->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::numStrips).toString().getIntValue(),
 			sb->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::isVertical));
 
 		b->setLookAndFeelOwned(fslaf);
