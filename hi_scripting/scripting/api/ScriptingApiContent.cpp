@@ -337,9 +337,12 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 	{
 		auto c = getScriptProcessor()->getScriptingContent();
 
+		int oldParentIndex = parentComponentIndex;
+
 		if (newValue.toString().isEmpty())
 		{
 			parentComponentIndex = -1;
+
 		}
 		else
 		{
@@ -359,6 +362,10 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 			}
 		}
 
+		if (oldParentIndex != parentComponentIndex)
+		{
+			parent->contentNeedsRebuilding = true;
+		}
 	}
 	else if (id == getIdFor(x) || id == getIdFor(y) || id == getIdFor(width) ||
 		id == getIdFor(height) || id == getIdFor(visible) || id == getIdFor(enabled))
@@ -3537,6 +3544,8 @@ void ScriptingApi::Content::rebuildComponentListFromValueTree(bool rebuildConten
 
 	addComponentsFromValueTree(contentPropertyData);
 
+	contentNeedsRebuilding = false;
+
 	if (rebuildContent)
 	{
 		sendRebuildMessage();
@@ -3579,7 +3588,6 @@ void ScriptingApi::Content::addComponentsFromValueTree(ValueTree& v)
 
 		ScriptComponent::ScopedPropertyEnabler spe(sc);
 		sc->setPropertiesFromJSON(d);
-
 	}
 
 	for (int i = 0; i < v.getNumChildren(); i++)
@@ -3896,48 +3904,125 @@ void ScriptingApi::Content::Helpers::setComponentValueTreeFromJSON(Content* c, c
 	c->rebuildComponentListFromValueTree(true);
 }
 
-void updatePosition(ValueTree& v, Point<int> localPoint, Point<int> oldParentPosition)
+struct ContentValueTreeHelpers
 {
-	static const Identifier x("x");
-	static const Identifier y("y");
-
-	auto newPoint = localPoint - oldParentPosition;
-
-	v.setProperty(x, newPoint.getX(), nullptr);
-	v.setProperty(y, newPoint.getY(), nullptr);
-}
-
-Point<int> getLocalPosition(ValueTree& v)
-{
-	static const Identifier x("x");
-	static const Identifier y("y");
-	static const Identifier root("ContentProperties");
-
-	if (v.getType() == root)
+	static void removeFromParent(ValueTree& v)
 	{
-		return Point<int>();
+		v.getParent().removeChild(v, nullptr);
 	}
 
-	return Point<int>(v.getProperty(x), v.getProperty(y));
-}
-
-bool getAbsolutePosition(ValueTree& v, Point<int>& offset)
-{
-	static const Identifier x("x");
-	static const Identifier y("y");
-	static const Identifier root("ContentProperties");
-
-	auto parent = v.getParent();
-
-	if (parent.isValid() && parent.getType() != root)
+	static Result setNewParent(ValueTree& newParent, ValueTree& child)
 	{
-		offset.addXY((int)parent.getProperty(x), (int)parent.getProperty(y));
+		if (newParent.isAChildOf(child))
+		{
+			return Result::fail("Can't set child as parent of child");
+		}
 
-		return getAbsolutePosition(v.getParent(), offset);
+		if (child.getParent() == newParent)
+			return Result::ok();
+
+		removeFromParent(child);
+		newParent.addChild(child, -1, nullptr);
+
+		return Result::ok();
 	}
 
-	return false;
-}
+	static void updatePosition(ValueTree& v, Point<int> localPoint, Point<int> oldParentPosition)
+	{
+		static const Identifier x("x");
+		static const Identifier y("y");
+
+		auto newPoint = localPoint - oldParentPosition;
+
+		v.setProperty(x, newPoint.getX(), nullptr);
+		v.setProperty(y, newPoint.getY(), nullptr);
+	}
+
+	static Point<int> getLocalPosition(ValueTree& v)
+	{
+		static const Identifier x("x");
+		static const Identifier y("y");
+		static const Identifier root("ContentProperties");
+
+		if (v.getType() == root)
+		{
+			return Point<int>();
+		}
+
+		return Point<int>(v.getProperty(x), v.getProperty(y));
+	}
+
+	static bool getAbsolutePosition(ValueTree& v, Point<int>& offset)
+	{
+		static const Identifier x("x");
+		static const Identifier y("y");
+		static const Identifier root("ContentProperties");
+
+		auto parent = v.getParent();
+
+		if (parent.isValid() && parent.getType() != root)
+		{
+			offset.addXY((int)parent.getProperty(x), (int)parent.getProperty(y));
+
+			return getAbsolutePosition(v.getParent(), offset);
+		}
+
+		return false;
+	}
+
+	static void addComponentToValueTreeRecursive(Array<Identifier>& usedIds, const ScriptComponentSelection list, ValueTree& v)
+	{
+
+		static const Identifier type_("type");
+		static const Identifier id_("id");
+		static const Identifier parentComponent("parentComponent");
+		static const Identifier x("x");
+		static const Identifier y("y");
+		static const Identifier w("width");
+		static const Identifier h("height");
+
+		for (auto sc : list)
+		{
+			if (usedIds.contains(sc->getName()))
+				continue;
+
+			usedIds.add(sc->getName());
+
+			auto data = sc->getNonDefaultScriptObjectProperties();
+
+			ValueTree child("Component");
+
+			auto pos = sc->getPosition();
+
+			child.setProperty(type_, sc->getObjectName().toString(), nullptr);
+			child.setProperty(id_, sc->name.toString(), nullptr);
+
+			// Copy these because the default values for the position are a bit funky...
+			child.setProperty(x, pos.getX(), nullptr);
+			child.setProperty(y, pos.getY(), nullptr);
+			child.setProperty(w, pos.getWidth(), nullptr);
+			child.setProperty(h, pos.getHeight(), nullptr);
+
+			ValueTreeConverters::copyDynamicObjectPropertiesToValueTree(child, data);
+
+			// Remove this because it's handled via the tree hierarchy...
+			child.removeProperty(parentComponent, nullptr);
+
+			ScriptComponentSelection childList;
+
+			for (int i = 0; i < sc->getNumChildComponents(); i++)
+			{
+				childList.add(sc->getChildComponent(i));
+			}
+
+			addComponentToValueTreeRecursive(usedIds, childList, child);
+
+			v.addChild(child, -1, nullptr);
+		}
+	}
+};
+
+
 
 
 void ScriptingApi::Content::Helpers::moveComponentsAfter(ScriptComponent* target, var list)
@@ -3948,7 +4033,7 @@ void ScriptingApi::Content::Helpers::moveComponentsAfter(ScriptComponent* target
 
 	auto parent = tTree.getParent();
 
-	auto pPosition = getLocalPosition(parent);
+	auto pPosition = ContentValueTreeHelpers::getLocalPosition(parent);
 
 	auto insertAfterTree = tTree;
 
@@ -3961,19 +4046,20 @@ void ScriptingApi::Content::Helpers::moveComponentsAfter(ScriptComponent* target
 
 			auto mTree = c->getValueTreeForComponent(mc->name);
 
-			auto mPosition = getLocalPosition(mTree);
-			getAbsolutePosition(mTree, mPosition);
+			auto mPosition = ContentValueTreeHelpers::getLocalPosition(mTree);
+			ContentValueTreeHelpers::getAbsolutePosition(mTree, mPosition);
 
 			if (mTree == parent)
 			{
 				break;
 			}
 
-			mTree.getParent().removeChild(mTree, nullptr);
+			ContentValueTreeHelpers::removeFromParent(mTree);
 
+			
 			int currentIndex = parent.indexOf(insertAfterTree) + 1;
 
-			updatePosition(mTree, mPosition, pPosition);
+			ContentValueTreeHelpers::updatePosition(mTree, mPosition, pPosition);
 
 			parent.addChild(mTree, currentIndex, nullptr);
 
@@ -3985,117 +4071,103 @@ void ScriptingApi::Content::Helpers::moveComponentsAfter(ScriptComponent* target
 }
 
 
-Result ScriptingApi::Content::Helpers::setParentComponent(ScriptComponent* parent, var newChildren)
+Result ScriptingApi::Content::Helpers::setParentComponent(ScriptComponent* parent, var newChildren, bool rebuildNow/*=true*/)
 {
 	static const Identifier x("x");
 	static const Identifier y("y");
 
+	
+
 	if (auto ar = newChildren.getArray())
 	{
-		auto content = parent->parent;
+		ScriptingApi::Content* content = nullptr;
 
-		auto pTree = content->getValueTreeForComponent(parent->getName());
-
-		for (auto it : *ar)
+		if (parent != nullptr)
 		{
-			auto c = dynamic_cast<ScriptComponent*>(it.getObject());
+			content = parent->parent;
 
-			if (c == nullptr)
-				continue;
+			auto pTree = content->getValueTreeForComponent(parent->getName());
 
-			auto cTree = content->getValueTreeForComponent(c->getName());
-
-			jassert(cTree.isValid());
-
-			if (pTree.isAChildOf(cTree))
+			for (auto it : *ar)
 			{
-				return Result::fail("Can't set a child as a parent of its parent");
-			}
+				auto c = dynamic_cast<ScriptComponent*>(it.getObject());
 
-			if (cTree.getParent() == pTree)
+				if (c == nullptr)
+					continue;
+
+				auto cTree = content->getValueTreeForComponent(c->getName());
+
+				jassert(cTree.isValid());
+
+				if (pTree.isAChildOf(cTree))
+				{
+					return Result::fail("Can't set a child as a parent of its parent");
+				}
+
+				if (cTree.getParent() == pTree)
+				{
+					// nothing do to...
+					continue;
+				}
+
+				Point<int> cPosition = ContentValueTreeHelpers::getLocalPosition(cTree);
+				ContentValueTreeHelpers::getAbsolutePosition(cTree, cPosition);
+
+				Point<int> pPosition(pTree.getProperty(x), pTree.getProperty(y));
+				ContentValueTreeHelpers::getAbsolutePosition(pTree, pPosition);
+
+				ContentValueTreeHelpers::updatePosition(cTree, cPosition, pPosition);
+				ContentValueTreeHelpers::setNewParent(pTree, cTree);
+			}
+		}
+		else
+		{
+			auto firstInList = ar->getFirst();
+
+			if (auto firstC = dynamic_cast<ScriptComponent*>(firstInList.getObject()))
 			{
-				// nothing do to...
-				continue;
+				content = firstC->parent;
+
+				for (auto it : *ar)
+				{
+					auto c = dynamic_cast<ScriptComponent*>(it.getObject());
+
+					if (c == nullptr)
+						continue;
+
+					auto cTree = content->getValueTreeForComponent(c->getName());
+
+					jassert(cTree.isValid());
+
+					Point<int> cPosition = ContentValueTreeHelpers::getLocalPosition(cTree);
+					ContentValueTreeHelpers::getAbsolutePosition(cTree, cPosition);
+					ContentValueTreeHelpers::updatePosition(cTree, cPosition, Point<int>());
+
+					ContentValueTreeHelpers::setNewParent(content->contentPropertyData, cTree);
+				}
 			}
-
-			Point<int> cPosition = getLocalPosition(cTree);
-			getAbsolutePosition(cTree, cPosition);
-			
-			Point<int> pPosition(pTree.getProperty(x), pTree.getProperty(y));
-			getAbsolutePosition(pTree, pPosition);
-
-			updatePosition(cTree, cPosition, pPosition);
-
-			
-
-			cTree.getParent().removeChild(cTree, nullptr);
-
-			pTree.addChild(cTree, -1, nullptr);
 		}
 
-		content->rebuildComponentListFromValueTree(true);
+		if (content == nullptr)
+			return Result::fail("Nothing done");
 
-		content->getScriptProcessor()->getMainController_()->getScriptComponentEditBroadcaster()->clearSelection(sendNotification);
+		if (rebuildNow)
+		{
+			content->rebuildComponentListFromValueTree(true);
+			content->getScriptProcessor()->getMainController_()->getScriptComponentEditBroadcaster()->clearSelection(sendNotification);
+		}
 
 		return Result::ok();
 	}
-
-	
 }
 
 void ScriptingApi::Content::Helpers::copyComponentSnapShotToValueTree(Content* c)
 {
 	ValueTree v("ContentProperties");
 
-	static const Identifier type_("type");
-	static const Identifier id_("id");
-	static const Identifier parentComponent("parentComponent");
-	static const Identifier x("x");
-	static const Identifier y("y");
-	static const Identifier w("width");
-	static const Identifier h("height");
+	Array<Identifier> childComponentIds;
 
-	for (int i = 0; i < c->getNumComponents(); i++)
-	{
-		auto sc = c->getComponent(i);
-
-		auto data = sc->getNonDefaultScriptObjectProperties();
-
-		ValueTree child("Component");
-
-		auto pos = sc->getPosition();
-
-		child.setProperty(type_, sc->getObjectName().toString(), nullptr);
-		child.setProperty(id_, sc->name.toString(), nullptr);
-
-		// Copy these because the default values for the position are a bit funky...
-		child.setProperty(x, pos.getX(), nullptr);
-		child.setProperty(y, pos.getY(), nullptr);
-		child.setProperty(w, pos.getWidth(), nullptr);
-		child.setProperty(h, pos.getHeight(), nullptr);
-
-		ValueTreeConverters::copyDynamicObjectPropertiesToValueTree(child, data);
-
-		// Remove this because it's handled via the tree hierarchy...
-		child.removeProperty(parentComponent, nullptr);
-
-		auto parentIndex = sc->getParentComponentIndex();
-
-		if (parentIndex != -1)
-		{
-			auto parentId = var(c->getComponent(i)->name.toString());
-
-			auto parent = findChildRecursive(v, parentId);
-
-			jassert(parent.isValid());
-
-			parent.addChild(child, -1, nullptr);
-		}
-		else
-		{
-			v.addChild(child, -1, nullptr);
-		}
-	}
+	ContentValueTreeHelpers::addComponentToValueTreeRecursive(childComponentIds, c->components, v);
 
 	c->contentPropertyData = v;
 

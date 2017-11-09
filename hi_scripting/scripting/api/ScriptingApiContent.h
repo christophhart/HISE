@@ -1429,7 +1429,13 @@ public:
 	ValueTree getValueTreeForComponent(const Identifier& id);
 
 
-	
+	void resetContentProperties()
+	{
+		rebuildComponentListFromValueTree(true);
+	};
+
+	bool contentNeedsRebuilding = false;
+
 
 	void addComponentsFromValueTree(ValueTree& v);
 
@@ -1459,7 +1465,7 @@ public:
 
 		static void setComponentValueTreeFromJSON(Content* c, const Identifier& id, const var& data);
 
-		static Result setParentComponent(ScriptComponent* parent, var newChildren);
+		static Result setParentComponent(ScriptComponent* parent, var newChildren, bool rebuildNow=true);
 
 		static ScriptComponent* createComponentFromId(Content* c, const Identifier& typeId, const Identifier& name, int x, int y, int width, int h);
 
