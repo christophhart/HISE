@@ -195,56 +195,65 @@ void MainController::loadPresetFromValueTree(const ValueTree &v, Component* /*ma
 
 void MainController::loadPresetInternal(const ValueTree& v)
 {
-	ModulatorSynthChain *synthChain = getMainSynthChain();
-
-	jassert(killStateHandler.getCurrentThread() == KillStateHandler::SampleLoadingThread);
-	jassert(!synthChain->areVoicesActive());
-	
-	clearPreset();
-
-	getSampleManager().setShouldSkipPreloading(true);
-
-	// Reset the sample rate so that prepareToPlay does not get called in restoreFromValueTree
-	// synthChain->setCurrentPlaybackSampleRate(-1.0);
-	synthChain->setId(v.getProperty("ID", "MainSynthChain"));
-
-	skipCompilingAtPresetLoad = true;
-
-	synthChain->restoreFromValueTree(v);
-
-	skipCompilingAtPresetLoad = false;
-
-	synthChain->compileAllScripts();
-
-	if (sampleRate > 0.0)
+	try
 	{
-		LOG_START("Initialising audio callback");
+		ModulatorSynthChain *synthChain = getMainSynthChain();
 
-		synthChain->prepareToPlay(sampleRate, bufferSize.get());
-	}
+		jassert(killStateHandler.getCurrentThread() == KillStateHandler::SampleLoadingThread);
+		jassert(!synthChain->areVoicesActive());
 
-	synthChain->loadMacrosFromValueTree(v);
+		clearPreset();
 
-	
-	getSampleManager().getAudioSampleBufferPool()->clearData();
+		getSampleManager().setShouldSkipPreloading(true);
+
+		// Reset the sample rate so that prepareToPlay does not get called in restoreFromValueTree
+		// synthChain->setCurrentPlaybackSampleRate(-1.0);
+		synthChain->setId(v.getProperty("ID", "MainSynthChain"));
+
+		skipCompilingAtPresetLoad = true;
+
+		synthChain->restoreFromValueTree(v);
+
+		skipCompilingAtPresetLoad = false;
+
+		synthChain->compileAllScripts();
+
+		if (sampleRate > 0.0)
+		{
+			LOG_START("Initialising audio callback");
+
+			synthChain->prepareToPlay(sampleRate, bufferSize.get());
+		}
+
+		synthChain->loadMacrosFromValueTree(v);
+
+
+		getSampleManager().getAudioSampleBufferPool()->clearData();
 
 #if USE_BACKEND
-	Processor::Iterator<ModulatorSynth> iter(synthChain, false);
+		Processor::Iterator<ModulatorSynth> iter(synthChain, false);
 
-	while (ModulatorSynth *synth = iter.getNextProcessor())
-	{
-		synth->setEditorState(Processor::EditorState::Folded, true);
-	}
+		while (ModulatorSynth *synth = iter.getNextProcessor())
+		{
+			synth->setEditorState(Processor::EditorState::Folded, true);
+		}
 
-	changed = false;
+		changed = false;
 
-	synthChain->sendRebuildMessage(true);
+		synthChain->sendRebuildMessage(true);
 
-	getSampleManager().preloadEverything();
+		getSampleManager().preloadEverything();
 
 #endif
 
-	allNotesOff(true);
+		allNotesOff(true);
+	}
+	catch (String& errorMessage)
+	{
+		writeToConsole(errorMessage, 1, getMainSynthChain());
+	}
+
+	
 }
 
 

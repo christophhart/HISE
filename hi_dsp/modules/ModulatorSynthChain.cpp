@@ -181,6 +181,8 @@ void ModulatorSynthChain::compileAllScripts()
 
 		while ((sp = it.getNextProcessor()) != 0)
 		{
+			sp->getContent()->resetContentProperties();
+
 			sp->compileScript();
 		}
 	}

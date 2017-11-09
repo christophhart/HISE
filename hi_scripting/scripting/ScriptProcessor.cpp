@@ -856,7 +856,14 @@ void JavascriptProcessor::restoreScript(const ValueTree &v)
 
 	if (contentPropertyChild.isValid())
 	{
-		dynamic_cast<ProcessorWithScriptingContent*>(this)->getScriptingContent()->createComponentsFromValueTree(contentPropertyChild);
+		auto buildComponents = !mainController->shouldSkipCompiling();
+
+		auto r = dynamic_cast<ProcessorWithScriptingContent*>(this)->getScriptingContent()->createComponentsFromValueTree(contentPropertyChild, buildComponents);
+
+		if (r.failed())
+		{
+			debugError(dynamic_cast<Processor*>(this), r.getErrorMessage());
+		}
 	}
 
 	if (x.startsWith("{EXTERNAL_SCRIPT}"))

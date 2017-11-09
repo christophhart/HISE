@@ -1462,7 +1462,7 @@ public:
 
 	void addComponentsFromValueTree(ValueTree& v);
 
-	Result createComponentsFromValueTree(const ValueTree& newProperties);
+	Result createComponentsFromValueTree(const ValueTree& newProperties, bool buildComponentList=true);
 
 	struct Wrapper;
 

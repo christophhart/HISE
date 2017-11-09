@@ -3568,21 +3568,31 @@ void ScriptingApi::Content::rebuildComponentListFromValueTree(bool rebuildConten
 
 	addComponentsFromValueTree(contentPropertyData);
 
-	contentNeedsRebuilding = false;
+	
 
 	if (rebuildContent)
 	{
+
 		sendRebuildMessage();
 	}
 }
 
-Result ScriptingApi::Content::createComponentsFromValueTree(const ValueTree& newProperties)
+Result ScriptingApi::Content::createComponentsFromValueTree(const ValueTree& newProperties, bool buildComponentList/*=true*/)
 {
 	auto oldData = contentPropertyData;
 
 	contentPropertyData = newProperties;
 
-	rebuildComponentListFromValueTree(true);
+	components.clear();
+
+	Identifier errorId;
+
+	if (buildComponentList)
+	{
+		rebuildComponentListFromValueTree(true, &errorId);
+	}
+	else
+		contentNeedsRebuilding = true;
 
 	return Result::ok();
 }
