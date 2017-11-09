@@ -489,6 +489,7 @@ void ScriptingContentOverlay::findLassoItemsInArea(Array<ScriptComponent*> &item
 
 void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 {
+#if 0
 	if (e.mods.isShiftDown())
 	{
 		lassoSet.deselectAll();
@@ -508,59 +509,13 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 
 		content->getScriptComponentsFor(components, e.getEventRelativeTo(content).getPosition());
 
-		if (components.size() > 1)
-		{
-			PopupMenu m;
-			ScopedPointer<PopupLookAndFeel> luf = new PopupLookAndFeel();
-			m.setLookAndFeel(luf);
+		auto sc = components.getFirst();
 
-			m.addSectionHeader("Choose Control to Edit");
-
-
-			for (int i = 0; i < components.size(); i++)
-			{
-				auto name = components[i]->getName().toString();
-
-				if (!components[i]->isShowing())
-					continue;
-
-				m.addItem(i + 1, name);
-			}
-
-			for (int i = 0; i < components.size(); i++)
-			{
-				auto name = components[i]->getName().toString();
-
-				if (!components[i]->isShowing())
-				{
-					name << " (Hidden)";
-					m.addItem(i + 1, name);
-				}
-			}
-
-			const int result = m.show();
-
-			if (result > 0)
-			{
-				auto sc = components[result - 1];
-				
-				
-
-				getScriptComponentEditBroadcaster()->updateSelectionBasedOnModifier(sc, e.mods, sendNotification);
-
-				
-				auto root = GET_ROOT_FLOATING_TILE(this);
-				BackendPanelHelpers::toggleVisibilityForRightColumnPanel<ScriptComponentEditPanel::Panel>(root, sc != nullptr);
-			}
-
-		}
-		else if (components.size() == 1)
+		if (sc != nullptr)
 		{
 			ScriptingApi::Content::ScriptComponent *sc = content->getScriptComponentFor(e.getEventRelativeTo(content).getPosition());
-			
-			getScriptComponentEditBroadcaster()->updateSelectionBasedOnModifier(sc, e.mods, sendNotification);
 
-			
+			getScriptComponentEditBroadcaster()->updateSelectionBasedOnModifier(sc, e.mods, sendNotification);
 
 			auto root = GET_ROOT_FLOATING_TILE(this);
 			BackendPanelHelpers::toggleVisibilityForRightColumnPanel<ScriptComponentEditPanel::Panel>(root, sc != nullptr);
@@ -571,10 +526,11 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 	{
 		enum ComponentOffsets
 		{
-			addCallbackOffset = 10000,
-			showCallbackOffset = 15000,
+			createCallbackDefinition = 10000,
+			addDefinition,
+			showCallback,
 			editComponentOffset = 20000,
-			addDefinition
+			
 		};
 
 		PopupMenu m;
@@ -623,14 +579,18 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 					
 				}
 
+				m.addSeparator();
+
+				m.addItem(createCallbackDefinition, "Create custom callback for selection");
+				m.addItem(addDefinition, "Create script definition for selection");
+
+				auto first = components.getFirst();
+
+				m.addItem(showCallback, "Show callback for " + first->getName().toString(), first->getCustomControlCallback() != nullptr);
 				
 			}
 
-			if (getScriptComponentEditBroadcaster()->getNumSelected() > 0)
-			{
-				m.addItem(addCallbackOffset, "Create custom callback for selection");
-				m.addItem(addDefinition, "Create script definition for selection");
-			}
+			
 
 		}
 		else
@@ -640,7 +600,7 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 
 		int result = m.show();
 
-		if (result == addCallbackOffset)
+		if (result == createCallbackDefinition)
 		{
 			auto selection = getScriptComponentEditBroadcaster()->getSelection();
 
@@ -675,18 +635,21 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 			getScriptComponentEditBroadcaster()->updateSelectionBasedOnModifier(sc, e.mods, sendNotification);
 
 		}
-		else if (result >= showCallbackOffset)
+		else if (result >= showCallback)
 		{
-			auto componentToUse = components[result - showCallbackOffset];
+			auto componentToUse = components.getFirst();
 
-			auto func = dynamic_cast<DebugableObject*>(componentToUse->getCustomControlCallback());
+			if (componentToUse != nullptr)
+			{
+				auto func = dynamic_cast<DebugableObject*>(componentToUse->getCustomControlCallback());
 
-			
-			if (func != nullptr)
-				func->doubleClickCallback(e, dynamic_cast<Component*>(handler));
+
+				if (func != nullptr)
+					func->doubleClickCallback(e, dynamic_cast<Component*>(handler));
+			}
 		}
-		
 	}
+#endif
 }
 
 static void removeChildComponentsFromArray(Array<ScriptComponent*>& arrayToClean)
@@ -702,7 +665,7 @@ static void removeChildComponentsFromArray(Array<ScriptComponent*>& arrayToClean
 	}
 }
 
-void ScriptingContentOverlay::mouseUp(const MouseEvent &/*e*/)
+void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 {
 	if (lasso.isVisible())
 	{
@@ -723,6 +686,153 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &/*e*/)
 			b->addToSelection(itemsFound[i], (i == itemsFound.size() - 1 ? sendNotification : dontSendNotification));
 		}
 	}
+	else
+	{
+		auto content = handler->getScriptEditHandlerContent();
+		auto processor = dynamic_cast<Processor*>(handler->getScriptEditHandlerProcessor());
+		auto b = getScriptComponentEditBroadcaster();
+
+		if (e.mods.isRightButtonDown())
+		{
+			enum ComponentOffsets
+			{
+				createCallbackDefinition = 10000,
+				addDefinition,
+				showCallback,
+				restoreToData,
+				copySnapshot,
+				editComponentOffset = 20000,
+
+			};
+
+			PopupMenu m;
+			ScopedPointer<PopupLookAndFeel> luf = new PopupLookAndFeel();
+			m.setLookAndFeel(luf);
+
+			m.addSectionHeader("Create new widget");
+			m.addItem((int)ScriptEditHandler::Widgets::Knob, "Add new Slider");
+			m.addItem((int)ScriptEditHandler::Widgets::Button, "Add new Button");
+			m.addItem((int)ScriptEditHandler::Widgets::Table, "Add new Table");
+			m.addItem((int)ScriptEditHandler::Widgets::ComboBox, "Add new ComboBox");
+			m.addItem((int)ScriptEditHandler::Widgets::Label, "Add new Label");
+			m.addItem((int)ScriptEditHandler::Widgets::Image, "Add new Image");
+			m.addItem((int)ScriptEditHandler::Widgets::Viewport, "Add new Viewport");
+			m.addItem((int)ScriptEditHandler::Widgets::Plotter, "Add new Plotter");
+			m.addItem((int)ScriptEditHandler::Widgets::ModulatorMeter, "Add new ModulatorMeter");
+			m.addItem((int)ScriptEditHandler::Widgets::Panel, "Add new Panel");
+			m.addItem((int)ScriptEditHandler::Widgets::AudioWaveform, "Add new AudioWaveform");
+			m.addItem((int)ScriptEditHandler::Widgets::SliderPack, "Add new SliderPack");
+			m.addItem((int)ScriptEditHandler::Widgets::FloatingTile, "Add new FloatingTile");
+
+			auto components = b->getSelection();
+
+			if (components.size() != 0)
+			{
+				m.addSeparator();
+
+				if (components.size() == 1)
+				{
+					m.addItem(editComponentOffset, "Edit \"" + components[0]->getName().toString() + "\" in Panel");
+				}
+				else
+				{
+					PopupMenu editSub;
+
+					for (int i = 0; i < components.size(); i++)
+					{
+						editSub.addItem(editComponentOffset + i, components[i]->getName().toString());
+					}
+
+					m.addSubMenu("Edit in Panel", editSub, components.size() != 0);
+
+				}
+
+				m.addSeparator();
+
+				m.addItem(createCallbackDefinition, "Create custom callback for selection");
+				m.addItem(addDefinition, "Create script definition for selection");
+
+				auto first = components.getFirst();
+
+				m.addItem(showCallback, "Show callback for " + first->getName().toString(), first->getCustomControlCallback() != nullptr);
+			}
+
+			m.addSeparator();
+			m.addItem(restoreToData, "Discard script changes");
+			m.addItem(copySnapshot, "Save script changes to UI Data");
+
+			int result = m.show();
+
+			if (result == createCallbackDefinition)
+			{
+				auto code = ScriptingApi::Content::Helpers::createCustomCallbackDefinition(components);
+
+				debugToConsole(processor, String(components.size()) + " callback definitions created and copied to the clipboard");
+
+				SystemClipboard::copyTextToClipboard(code);
+			}
+			else if (result == addDefinition)
+			{
+				auto code = ScriptingApi::Content::Helpers::createScriptVariableDeclaration(components);
+
+				debugToConsole(processor, String(components.size()) + " script component definitions created and copied to the clipboard");
+
+				SystemClipboard::copyTextToClipboard(code);
+			}
+			else if (result >= (int)ScriptEditHandler::Widgets::Knob && result < (int)ScriptEditHandler::Widgets::numWidgets)
+			{
+				const int insertX = e.getEventRelativeTo(content).getMouseDownPosition().getX();
+				const int insertY = e.getEventRelativeTo(content).getMouseDownPosition().getY();
+
+				handler->createNewComponent((ScriptEditHandler::Widgets)result, insertX, insertY);
+			}
+			else if (result == showCallback)
+			{
+				auto componentToUse = components.getFirst();
+
+				if (componentToUse != nullptr)
+				{
+					auto func = dynamic_cast<DebugableObject*>(componentToUse->getCustomControlCallback());
+
+
+					if (func != nullptr)
+						func->doubleClickCallback(e, dynamic_cast<Component*>(handler));
+				}
+			}
+			else if (result == copySnapshot)
+			{
+				ScriptingApi::Content::Helpers::copyComponentSnapShotToValueTree(handler->getScriptEditHandlerProcessor()->getContent());
+			}
+			else if (result == restoreToData)
+			{
+				auto c = handler->getScriptEditHandlerProcessor()->getContent();
+
+				c->resetContentProperties();
+			}
+			else if (result >= editComponentOffset) // EDIT IN PANEL
+			{
+				auto sc = components[result - editComponentOffset];
+
+				getScriptComponentEditBroadcaster()->updateSelectionBasedOnModifier(sc, e.mods, sendNotification);
+			}
+		}
+		else
+		{
+			Array<ScriptingApi::Content::ScriptComponent*> components;
+
+			content->getScriptComponentsFor(components, e.getEventRelativeTo(content).getPosition());
+
+			auto sc = components.getFirst();
+
+			
+
+			if (sc == nullptr)
+				b->clearSelection();
+			else
+				b->updateSelectionBasedOnModifier(sc, e.mods);
+			
+		}
+	}
 }
 
 
@@ -731,7 +841,15 @@ void ScriptingContentOverlay::mouseDrag(const MouseEvent& e)
 	if (lasso.isVisible())
 	{
 		lasso.dragLasso(e);
-
+	}
+	else
+	{
+		if (e.mouseWasDraggedSinceMouseDown())
+		{
+			lassoSet.deselectAll();
+			addAndMakeVisible(lasso);
+			lasso.beginLasso(e, this);
+		}
 	}
 }
 
@@ -781,27 +899,34 @@ void ScriptingContentOverlay::Dragger::paint(Graphics &g)
 
 void ScriptingContentOverlay::Dragger::mouseDown(const MouseEvent& e)
 {
-	auto parent = dynamic_cast<ScriptingContentOverlay*>(getParentComponent());
-
-	constrainer.setStartPosition(getBounds());
-
-	if (e.eventComponent == this && draggedComponent.getComponent() != nullptr)
+	if (e.mods.isLeftButtonDown())
 	{
-		snapShot = draggedComponent->createComponentSnapshot(draggedComponent->getLocalBounds());
+		auto parent = dynamic_cast<ScriptingContentOverlay*>(getParentComponent());
 
+		if (e.mods.isShiftDown())
+		{
+			parent->getScriptComponentEditBroadcaster()->clearSelection();
+			return;
+		}
+
+		constrainer.setStartPosition(getBounds());
 		startBounds = getBounds();
 
-		dragger.startDraggingComponent(this, e);
-	}
+		if (e.eventComponent == this && draggedComponent.getComponent() != nullptr)
+		{
+			snapShot = draggedComponent->createComponentSnapshot(draggedComponent->getLocalBounds());
 
-	if (e.mods.isRightButtonDown())
-	{
-		parent->getScriptComponentEditBroadcaster()->clearSelection(sendNotification);
+			dragger.startDraggingComponent(this, e);
+		}
+		
 	}
 }
 
 void ScriptingContentOverlay::Dragger::mouseDrag(const MouseEvent& e)
 {
+	if (e.mods.isRightButtonDown())
+		return;
+
 	constrainer.setRasteredMovement(e.mods.isCommandDown());
 	constrainer.setLockedMovement(e.mods.isShiftDown());
 
@@ -811,8 +936,14 @@ void ScriptingContentOverlay::Dragger::mouseDrag(const MouseEvent& e)
 		dragger.dragComponent(this, e, &constrainer);
 }
 
-void ScriptingContentOverlay::Dragger::mouseUp(const MouseEvent& /*e*/)
+void ScriptingContentOverlay::Dragger::mouseUp(const MouseEvent& e)
 {
+	if (e.mods.isRightButtonDown())
+	{
+		getParentComponent()->mouseUp(e);
+		return;
+	}
+
 	snapShot = Image();
 
 	Rectangle<int> newBounds = getBounds();
