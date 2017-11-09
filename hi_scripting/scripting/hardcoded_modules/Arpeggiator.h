@@ -72,7 +72,6 @@ private:
 
 	double timeInterval = 1.0;
 	
-	Array<double> timeSigValArray;
 	Array<int> userHeldKeysArray;
 	Array<int> userHeldKeysArraySorted;
 	Array<int> currentlyPlayingKeys;
@@ -128,8 +127,6 @@ private:
 	int last_tied_note = -1;
 	bool dir_needs_change = false;
 	int curTiedNote = -1;
-
-	static Array<double> createTempoDivisionValueArrayViaStringArray(const String& tempoValues);
 
 	void changeDirection();;
 
@@ -222,7 +219,7 @@ private:
 	ScriptingApi::Content::ScriptButton *bypassButton;
 	ScriptingApi::Content::ScriptSlider *numStepSlider;
 	ScriptingApi::Content::ScriptButton* sortKeysButton;
-	ScriptingApi::Content::ScriptComboBox* speedComboBox;
+	ScriptingApi::Content::ScriptSlider* speedKnob;
 	ScriptingApi::Content::ScriptComboBox* sequenceComboBox;
 	ScriptingApi::Content::ScriptSlider *stepReset;
 	ScriptingApi::Content::ScriptSlider *stepSkipSlider;
