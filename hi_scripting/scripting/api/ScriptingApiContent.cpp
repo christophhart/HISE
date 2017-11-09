@@ -3650,15 +3650,23 @@ ValueTree findChildRecursive(const ValueTree& v, const var& n)
 {
 	String na = n.toString();
 
+	
 	static const Identifier id_("id");
 
-	ValueTree child = v.getChildWithProperty(id_, n);
 
-	if (child.isValid())
-		return child;
+	if (v.getProperty(id_) == n)
+	{
+		return v;
+	}
 
 	for (int i = 0; i < v.getNumChildren(); i++)
-		return findChildRecursive(v.getChild(i), n);
+	{
+		auto child = findChildRecursive(v.getChild(i), n);
+
+		if (child.isValid())
+			return child;
+	}
+		
 
 	return ValueTree();
 }
