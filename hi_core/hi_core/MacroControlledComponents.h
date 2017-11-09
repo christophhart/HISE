@@ -393,6 +393,12 @@ public:
 		isMomentary = shouldBeMomentary;
 	}
 
+	void setPopupData(const var& newPopupData, Rectangle<int>& newPopupPosition)
+	{
+		popupData = newPopupData;
+		popupPosition = newPopupPosition;
+	}
+
 	void setLookAndFeelOwned(LookAndFeel *fslaf);
 
     void mouseDown(const MouseEvent &e) override;
@@ -418,6 +424,11 @@ public:
 	};
 	
 private:
+
+	var popupData;
+	Rectangle<int> popupPosition;
+
+	Component::SafePointer<Component> currentPopup;
 
 	bool isMomentary = false;
 

@@ -282,6 +282,11 @@ ScriptCreatedComponentWrapper(content, index)
 
 	b->setup(getProcessor(), getIndex(), sb->name.toString());
 
+	if (sb->getPopupData().isObject())
+	{
+		b->setPopupData(sb->getPopupData(), sb->getPopupPosition());
+	}
+
 	b->updateValue();
 
 	if (sb->getImage().isValid())

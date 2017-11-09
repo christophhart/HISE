@@ -332,6 +332,7 @@ void HiToggleButton::setLookAndFeelOwned(LookAndFeel *laf_)
 
 void HiToggleButton::mouseDown(const MouseEvent &e)
 {
+
     if(e.mods.isLeftButtonDown())
     {
         checkLearnMode();
@@ -347,6 +348,34 @@ void HiToggleButton::mouseDown(const MouseEvent &e)
 			ToggleButton::mouseDown(e);
 		}
 
+		if (popupData.isObject())
+		{
+			if (findParentComponentOfClass<FloatingTilePopup>() == nullptr) // Deactivate this function in popups...
+			{
+				if (currentPopup.getComponent() != nullptr)
+				{
+					findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(nullptr, this, popupPosition.getPosition());
+					currentPopup = nullptr;
+				}
+				else
+				{
+#if USE_BACKEND
+					auto mc = GET_BACKEND_ROOT_WINDOW(this)->getBackendProcessor();
+#else
+					auto mc = dynamic_cast<MainController*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor());
+#endif
+
+					FloatingTile *t = new FloatingTile(mc, nullptr, popupData);
+					t->setOpaque(false);
+
+					t->setName(t->getCurrentFloatingPanel()->getBestTitle());
+
+					t->setSize(popupPosition.getWidth(), popupPosition.getHeight());
+					currentPopup = findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(t, this, popupPosition.getPosition());
+				}
+
+			}
+		}
     }
     else
     {

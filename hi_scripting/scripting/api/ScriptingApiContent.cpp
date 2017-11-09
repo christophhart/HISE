@@ -1278,6 +1278,11 @@ void ScriptingApi::Content::ScriptSlider::setMode(String mode)
 }
 
 
+struct ScriptingApi::Content::ScriptButton::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_2(ScriptButton, setPopupData);
+};
+
 ScriptingApi::Content::ScriptButton::ScriptButton(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name, int x, int y, int, int) :
 ScriptComponent(base, parentContent, name, x, y, 128, 32),
 image(nullptr)
@@ -1300,6 +1305,8 @@ image(nullptr)
 	setDefaultValue(ScriptButton::Properties::scaleFactor, 1.0f);
 	setDefaultValue(ScriptButton::Properties::radioGroup, 0);
 	setDefaultValue(ScriptButton::Properties::isMomentary, 0);
+
+	ADD_API_METHOD_2(setPopupData);
 }
 
 ScriptingApi::Content::ScriptButton::~ScriptButton()
@@ -1374,6 +1381,21 @@ StringArray ScriptingApi::Content::ScriptButton::getOptionsFor(const Identifier 
 
 	return ScriptComponent::getOptionsFor(id);
 }
+
+void ScriptingApi::Content::ScriptButton::setPopupData(var jsonData, var position)
+{
+	popupData = jsonData;
+
+	Result r = Result::ok();
+
+	popupPosition = ApiHelpers::getIntRectangleFromVar(position, &r);
+
+	if (r.failed())
+	{
+		throw String("position must be an array with this structure: [x, y, w, h]");
+	}
+}
+
 
 
 struct ScriptingApi::Content::ScriptLabel::Wrapper

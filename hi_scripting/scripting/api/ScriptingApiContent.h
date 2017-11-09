@@ -513,9 +513,32 @@ public:
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification) override;
 		StringArray getOptionsFor(const Identifier &id) override;
 
-	private:
+		// ======================================================================================================== API Methods
+
+		/** Sets a FloatingTile that is used as popup. */
+		void setPopupData(var jsonData, var position);
 
 		// ========================================================================================================
+
+		Rectangle<int> getPopupPosition() const
+		{
+			return popupPosition;
+		}
+
+		const var& getPopupData() const
+		{
+			return popupData;
+		}
+
+	private:
+
+		struct Wrapper;
+
+		// ========================================================================================================
+
+		Rectangle<int> popupPosition;
+
+		var popupData;
 
 		Image image;
 
