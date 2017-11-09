@@ -691,12 +691,12 @@ File ScriptingApi::Content::ScriptComponent::getExternalFile(var newValue)
 
 var ScriptingApi::Content::ScriptComponent::getWidth() const
 {
-	return getScriptObjectProperty(Properties::width);
+	return (int)getScriptObjectProperty(Properties::width);
 }
 
 var ScriptingApi::Content::ScriptComponent::getHeight() const
 {
-	return getScriptObjectProperty(Properties::height);
+	return (int)getScriptObjectProperty(Properties::height);
 }
 
 int ScriptingApi::Content::ScriptComponent::getParentComponentIndex() const
