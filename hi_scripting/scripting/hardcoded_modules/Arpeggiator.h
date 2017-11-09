@@ -220,14 +220,13 @@ private:
 	ScriptingApi::Content::ScriptSliderPack *velocitySliderPack;
 	ScriptingApi::Content::ScriptSliderPack *lengthSliderPack;
 	ScriptingApi::Content::ScriptButton *bypassButton;
-	ScriptingApi::Content::ScriptSlider *internalBPMSlider;
 	ScriptingApi::Content::ScriptSlider *numStepSlider;
-	ScriptingApi::Content::ScriptButton* syncHostButton;
 	ScriptingApi::Content::ScriptButton* sortKeysButton;
 	ScriptingApi::Content::ScriptComboBox* speedComboBox;
 	ScriptingApi::Content::ScriptComboBox* sequenceComboBox;
 	ScriptingApi::Content::ScriptSlider *stepReset;
 	ScriptingApi::Content::ScriptSlider *stepSkipSlider;
+	ScriptingApi::Content::ScriptButton *resetButton;
 	ScriptingApi::Content::ScriptSlider *currentStepSlider;
 	ScriptingApi::Content::ScriptSlider *octaveSlider;
 	ScriptingApi::Content::ScriptSlider *shuffleSlider;

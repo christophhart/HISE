@@ -866,6 +866,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_0(Engine, allNotesOff);
 	API_METHOD_WRAPPER_0(Engine, getUptime);
 	API_METHOD_WRAPPER_0(Engine, getHostBpm);
+	API_VOID_METHOD_WRAPPER_1(Engine, setHostBpm);
 	API_METHOD_WRAPPER_0(Engine, getCpuUsage);
 	API_METHOD_WRAPPER_0(Engine, getNumVoices);
 	API_METHOD_WRAPPER_0(Engine, getMemoryUsage);
@@ -921,6 +922,7 @@ ApiClass(0)
 	ADD_API_METHOD_0(allNotesOff);
 	ADD_API_METHOD_0(getUptime);
 	ADD_API_METHOD_0(getHostBpm);
+	ADD_API_METHOD_1(setHostBpm);
 	ADD_API_METHOD_0(getCpuUsage);
 	ADD_API_METHOD_0(getNumVoices);
 	ADD_API_METHOD_0(getMemoryUsage);
@@ -1022,6 +1024,11 @@ double ScriptingApi::Engine::getUptime() const
 	return getProcessor()->getMainController()->getUptime(); 
 }
 double ScriptingApi::Engine::getHostBpm() const		 { return getProcessor()->getMainController()->getBpm(); }
+
+void ScriptingApi::Engine::setHostBpm(double newTempo)
+{
+	getProcessor()->getMainController()->setHostBpm(newTempo);
+}
 
 double ScriptingApi::Engine::getMemoryUsage() const
 {

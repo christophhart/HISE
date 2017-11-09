@@ -256,6 +256,9 @@ public:
 		/** Returns the Bpm of the host. */
 		double getHostBpm() const;
 		
+		/** Overwrites the host BPM. Use -1 for sync to host. */
+		void setHostBpm(double newTempo);
+
 		/** Returns the current memory usage in MB. */
 		double getMemoryUsage() const;
 

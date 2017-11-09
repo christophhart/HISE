@@ -756,6 +756,8 @@ public:
         return bpm.load() > 0.0 ? bpm.load() : 120.0;
     };
 
+	void setHostBpm(double newTempo);
+
 	/** skins the given component (applies the global look and feel to it). */
     void skin(Component &c);
 	

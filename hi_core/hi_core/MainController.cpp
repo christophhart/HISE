@@ -707,13 +707,13 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 	getMainSynthChain()->setIsOnAir(true);
 }
 
-void MainController::setBpm(double bpm_)
+void MainController::setBpm(double newTempo)
 {
     
     
-	if(bpm != bpm_)
+	if(bpm != newTempo)
 	{
-		bpm = bpm_;
+		bpm = newTempo;
 
 		for(int i = 0; i < tempoListeners.size(); i++)
 		{
@@ -729,6 +729,20 @@ void MainController::setBpm(double bpm_)
 		}
 	}
 };
+
+void MainController::setHostBpm(double newTempo)
+{
+	if (newTempo > 0.0)
+	{
+		int nt = jlimit(32, 280, (int)newTempo);
+
+		dynamic_cast<GlobalSettingManager*>(this)->globalBPM = nt;
+	}
+	else
+	{
+		dynamic_cast<GlobalSettingManager*>(this)->globalBPM = -1;
+	}
+}
 
 void MainController::addTempoListener(TempoListener *t)
 {
