@@ -324,6 +324,8 @@ void SearchableListComponent::Collection::resized()
 {
 	int h = COLLECTION_HEIGHT;
 
+	visibleItems = 0;
+
 	for (int i = 0; i < items.size(); i++)
 	{
 		if (!items[i]->isIncludedInSearch() || isFolded())
@@ -339,6 +341,8 @@ void SearchableListComponent::Collection::resized()
 
 			//items[i]->setTopLeftPosition(12, h);
 			h += ITEM_HEIGHT;
+
+			visibleItems++;
 		}
 	}
 }

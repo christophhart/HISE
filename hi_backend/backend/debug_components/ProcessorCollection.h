@@ -208,6 +208,14 @@ public:
 
 		void setFolded(bool shouldBeFolded) noexcept;;
 
+		int getNumItems(bool countOnlyVisibleItems) const
+		{
+			if (countOnlyVisibleItems)
+				return visibleItems;
+
+			return items.size();
+		}
+
 	protected:
 
 		OwnedArray<SearchableListComponent::Item> items;
