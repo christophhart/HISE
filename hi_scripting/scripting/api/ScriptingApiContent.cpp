@@ -2503,12 +2503,13 @@ void ScriptingApi::Content::ScriptPanel::setPopupData(var jsonData, var position
 {
 	jsonPopupData = jsonData;
 	
-	if (position.isArray())
+	Result r = Result::ok(); 
+	
+	popupBounds = ApiHelpers::getIntRectangleFromVar(position, &r);
+
+	if (r.failed())
 	{
-		popupBounds.setX(position[0]);
-		popupBounds.setY(position[1]);
-		popupBounds.setWidth(position[2]);
-		popupBounds.setHeight(position[3]);
+		throw String(r.getErrorMessage());
 	}
 }
 
@@ -3562,12 +3563,26 @@ void ScriptingApi::Content::cleanJavascriptObjects()
 
 void ScriptingApi::Content::rebuildComponentListFromValueTree(bool rebuildContent/*=false*/, Identifier* errorId/*=nullptr*/)
 {
+	NamedValueSet values;
+
+	for (auto c : components)
+	{
+		values.set(c->name, c->getValue());
+	}
+
 	components.clear();
 
 	components.ensureStorageAllocated(contentPropertyData.getNumChildren());
 
 	addComponentsFromValueTree(contentPropertyData);
 
+	for (int i = 0; i < values.size(); i++)
+	{
+		auto sc = getComponentWithName(values.getName(i));
+
+		if (sc != nullptr)
+			sc->value = values.getValueAt(i);
+	}
 	
 
 	if (rebuildContent)

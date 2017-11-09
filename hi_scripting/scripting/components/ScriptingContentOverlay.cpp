@@ -487,171 +487,6 @@ void ScriptingContentOverlay::findLassoItemsInArea(Array<ScriptComponent*> &item
 
 }
 
-void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
-{
-#if 0
-	if (e.mods.isShiftDown())
-	{
-		lassoSet.deselectAll();
-		addAndMakeVisible(lasso);
-		lasso.beginLasso(e, this);
-		return;
-	}
-
-	auto content = handler->getScriptEditHandlerContent();
-	auto processor = dynamic_cast<Processor*>(handler->getScriptEditHandlerProcessor());
-	
-	jassert(content != nullptr);
-
-	if (e.mods.isLeftButtonDown() && handler->editModeEnabled())
-	{
-		Array<ScriptingApi::Content::ScriptComponent*> components;
-
-		content->getScriptComponentsFor(components, e.getEventRelativeTo(content).getPosition());
-
-		auto sc = components.getFirst();
-
-		if (sc != nullptr)
-		{
-			ScriptingApi::Content::ScriptComponent *sc = content->getScriptComponentFor(e.getEventRelativeTo(content).getPosition());
-
-			getScriptComponentEditBroadcaster()->updateSelectionBasedOnModifier(sc, e.mods, sendNotification);
-
-			auto root = GET_ROOT_FLOATING_TILE(this);
-			BackendPanelHelpers::toggleVisibilityForRightColumnPanel<ScriptComponentEditPanel::Panel>(root, sc != nullptr);
-		}
-	}
-
-	if (e.mods.isRightButtonDown())
-	{
-		enum ComponentOffsets
-		{
-			createCallbackDefinition = 10000,
-			addDefinition,
-			showCallback,
-			editComponentOffset = 20000,
-			
-		};
-
-		PopupMenu m;
-		ScopedPointer<PopupLookAndFeel> luf = new PopupLookAndFeel();
-		m.setLookAndFeel(luf);
-
-		Array<ScriptingApi::Content::ScriptComponent*> components;
-
-		content->getScriptComponentsFor(components, e.getEventRelativeTo(content).getPosition());
-
-		if (handler->editModeEnabled())
-		{
-			m.addSectionHeader("Create new widget");
-			m.addItem((int)ScriptEditHandler::Widgets::Knob, "Add new Slider");
-			m.addItem((int)ScriptEditHandler::Widgets::Button, "Add new Button");
-			m.addItem((int)ScriptEditHandler::Widgets::Table, "Add new Table");
-			m.addItem((int)ScriptEditHandler::Widgets::ComboBox, "Add new ComboBox");
-			m.addItem((int)ScriptEditHandler::Widgets::Label, "Add new Label");
-			m.addItem((int)ScriptEditHandler::Widgets::Image, "Add new Image");
-			m.addItem((int)ScriptEditHandler::Widgets::Viewport, "Add new Viewport");
-			m.addItem((int)ScriptEditHandler::Widgets::Plotter, "Add new Plotter");
-			m.addItem((int)ScriptEditHandler::Widgets::ModulatorMeter, "Add new ModulatorMeter");
-			m.addItem((int)ScriptEditHandler::Widgets::Panel, "Add new Panel");
-			m.addItem((int)ScriptEditHandler::Widgets::AudioWaveform, "Add new AudioWaveform");
-			m.addItem((int)ScriptEditHandler::Widgets::SliderPack, "Add new SliderPack");
-			m.addItem((int)ScriptEditHandler::Widgets::FloatingTile, "Add new FloatingTile");
-
-			if (components.size() != 0)
-			{
-				m.addSeparator();
-
-				if (components.size() == 1)
-				{
-					m.addItem(editComponentOffset, "Edit \"" + components[0]->getName().toString() + "\" in Panel");
-				}
-				else
-				{
-					PopupMenu editSub;
-					
-					for (int i = 0; i < components.size(); i++)
-					{
-						editSub.addItem(editComponentOffset + i, components[i]->getName().toString());
-					}
-
-					m.addSubMenu("Edit in Panel", editSub, components.size() != 0);
-					
-				}
-
-				m.addSeparator();
-
-				m.addItem(createCallbackDefinition, "Create custom callback for selection");
-				m.addItem(addDefinition, "Create script definition for selection");
-
-				auto first = components.getFirst();
-
-				m.addItem(showCallback, "Show callback for " + first->getName().toString(), first->getCustomControlCallback() != nullptr);
-				
-			}
-
-			
-
-		}
-		else
-		{
-			return;
-		}
-
-		int result = m.show();
-
-		if (result == createCallbackDefinition)
-		{
-			auto selection = getScriptComponentEditBroadcaster()->getSelection();
-
-			auto code = ScriptingApi::Content::Helpers::createCustomCallbackDefinition(selection);
-
-			debugToConsole(processor, String(selection.size()) + " callback definitions created and copied to the clipboard");
-
-			SystemClipboard::copyTextToClipboard(code);
-		}
-		else if (result == addDefinition)
-		{
-			auto selection = getScriptComponentEditBroadcaster()->getSelection();
-
-			auto code = ScriptingApi::Content::Helpers::createScriptVariableDeclaration(selection);
-
-			debugToConsole(processor, String(selection.size()) + " script component definitions created and copied to the clipboard");
-
-			SystemClipboard::copyTextToClipboard(code);
-		}
-		else if (result >= (int)ScriptEditHandler::Widgets::Knob && result < (int)ScriptEditHandler::Widgets::numWidgets)
-		{
-			const int insertX = e.getEventRelativeTo(content).getMouseDownPosition().getX();
-			const int insertY = e.getEventRelativeTo(content).getMouseDownPosition().getY();
-
-			
-			handler->createNewComponent((ScriptEditHandler::Widgets)result, insertX, insertY);
-		}
-		else if (result >= editComponentOffset) // EDIT IN PANEL
-		{
-			auto sc = components[result - editComponentOffset];
-
-			getScriptComponentEditBroadcaster()->updateSelectionBasedOnModifier(sc, e.mods, sendNotification);
-
-		}
-		else if (result >= showCallback)
-		{
-			auto componentToUse = components.getFirst();
-
-			if (componentToUse != nullptr)
-			{
-				auto func = dynamic_cast<DebugableObject*>(componentToUse->getCustomControlCallback());
-
-
-				if (func != nullptr)
-					func->doubleClickCallback(e, dynamic_cast<Component*>(handler));
-			}
-		}
-	}
-#endif
-}
-
 static void removeChildComponentsFromArray(Array<ScriptComponent*>& arrayToClean)
 {
 	for (int i = 0; i < arrayToClean.size(); i++)
@@ -822,8 +657,16 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 
 			content->getScriptComponentsFor(components, e.getEventRelativeTo(content).getPosition());
 
-			auto sc = components.getFirst();
+			ScriptComponent* sc = nullptr;
 
+			for (auto sc_ : components)
+			{
+				if (!sc_->isShowing())
+					continue;
+
+				sc = sc_;
+				break;
+			}
 			
 
 			if (sc == nullptr)

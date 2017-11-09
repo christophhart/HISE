@@ -578,19 +578,19 @@ bool ScriptComponentList::AllCollection::isInterestedInDragSource(const SourceDe
 	return false;
 }
 
-void ScriptComponentList::AllCollection::itemDragEnter(const SourceDetails& dragSourceDetails)
+void ScriptComponentList::AllCollection::itemDragEnter(const SourceDetails& /*dragSourceDetails*/)
 {
 	isDropTarget = true;
 	repaint();
 }
 
-void ScriptComponentList::AllCollection::itemDragExit(const SourceDetails& dragSourceDetails)
+void ScriptComponentList::AllCollection::itemDragExit(const SourceDetails& /*dragSourceDetails*/)
 {
 	isDropTarget = false;
 	repaint();
 }
 
-void ScriptComponentList::AllCollection::itemDragMove(const SourceDetails& dragSourceDetails)
+void ScriptComponentList::AllCollection::itemDragMove(const SourceDetails& /*dragSourceDetails*/)
 {
 
 }
