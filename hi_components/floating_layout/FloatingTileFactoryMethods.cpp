@@ -299,6 +299,13 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 #endif
 		break;
 	}
+	case FloatingTileContent::Factory::PopupMenuOptions::ScriptComponentList:
+	{
+#if USE_BACKEND
+		path.loadPathFromData(BackendBinaryData::ToolbarIcons::customInterface, sizeof(BackendBinaryData::ToolbarIcons::customInterface));
+#endif
+		break;
+	}
 	case FloatingTileContent::Factory::PopupMenuOptions::TablePanel:
 	{
 		static const unsigned char pathData[] = { 110,109,0,208,241,65,0,192,141,66,108,0,208,241,65,0,192,144,66,108,0,208,241,65,0,38,222,66,108,0,219,140,66,0,38,222,66,108,0,219,140,66,0,192,141,66,108,0,208,241,65,0,192,141,66,99,109,0,232,4,66,0,192,147,66,108,0,88,134,66,0,192,147,66,98,169,221,

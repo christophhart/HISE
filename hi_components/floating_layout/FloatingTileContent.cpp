@@ -486,8 +486,12 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 	ib.setSizes(codeEditor, { -0.75, -0.25 });
 	ib.setSizes(codeVertical, { -0.8, -0.2 });
 
+
 	const int interfaceDesigner = ib.addChild <VerticalTile>(mainVertical);
 	ib.setDynamic(interfaceDesigner, false);
+
+	const int scriptComponentList = ib.addChild<ScriptComponentList::Panel>(interfaceDesigner);
+
 	const int interfaceHorizontal = ib.addChild<HorizontalTile>(interfaceDesigner);
 	ib.setDynamic(interfaceHorizontal, false);
 	const int interfacePanel = ib.addChild<ScriptContentPanel>(interfaceHorizontal);
@@ -507,7 +511,7 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
     ib.setId(codeEditor, "ScriptingWorkspaceCodeEditor");
     ib.setId(interfaceDesigner, "ScriptingWorkspaceInterfaceDesigner");
     
-	ib.setSizes(interfaceDesigner, { -0.8, -0.2 });
+	ib.setSizes(interfaceDesigner, {-0.15, -0.7, -0.15 });
 
 	ib.setFoldable(mainVertical, false, { false, true, true, true, true });
 	ib.setFoldable(interfaceHorizontal, false, { false, true, true });
