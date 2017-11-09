@@ -1286,7 +1286,8 @@ image(nullptr)
 	ADD_SCRIPT_PROPERTY(i01, "numStrips");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(i02, "isVertical");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i03, "scaleFactor");
-	ADD_SCRIPT_PROPERTY(i04, "radioGroup");
+	ADD_SCRIPT_PROPERTY(i05, "radioGroup");
+	ADD_SCRIPT_PROPERTY(i04, "isMomentary");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
@@ -1298,6 +1299,7 @@ image(nullptr)
 	setDefaultValue(ScriptButton::Properties::isVertical, true);
 	setDefaultValue(ScriptButton::Properties::scaleFactor, 1.0f);
 	setDefaultValue(ScriptButton::Properties::radioGroup, 0);
+	setDefaultValue(ScriptButton::Properties::isMomentary, 0);
 }
 
 ScriptingApi::Content::ScriptButton::~ScriptButton()

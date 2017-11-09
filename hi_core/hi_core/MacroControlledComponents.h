@@ -388,9 +388,16 @@ public:
 		notifyEditor = notify;
 	}
 
+	void setIsMomentary(bool shouldBeMomentary)
+	{
+		isMomentary = shouldBeMomentary;
+	}
+
 	void setLookAndFeelOwned(LookAndFeel *fslaf);
 
     void mouseDown(const MouseEvent &e) override;
+
+	void mouseUp(const MouseEvent& e) override;
 
 #if USE_BACKEND
 	void paint(Graphics &g) override
@@ -411,6 +418,8 @@ public:
 	};
 	
 private:
+
+	bool isMomentary = false;
 
 	NotificationType notifyEditor;
 	ScopedPointer<LookAndFeel> laf;

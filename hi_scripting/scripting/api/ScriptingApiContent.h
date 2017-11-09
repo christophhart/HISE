@@ -495,7 +495,7 @@ public:
 			isVertical,
 			scaleFactor,
 			radioGroup,
-			isPluginParameter,
+			isMomentary,
 			numProperties
 		};
 

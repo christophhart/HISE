@@ -338,7 +338,15 @@ void HiToggleButton::mouseDown(const MouseEvent &e)
         
         PresetHandler::setChanged(getProcessor());
         
-        ToggleButton::mouseDown(e);
+		if (isMomentary)
+		{
+			setToggleState(true, sendNotification);
+		}
+		else
+		{
+			ToggleButton::mouseDown(e);
+		}
+
     }
     else
     {
@@ -354,6 +362,18 @@ void HiToggleButton::mouseDown(const MouseEvent &e)
 			removeParameterWithPopup();
 #endif
     }
+}
+
+void HiToggleButton::mouseUp(const MouseEvent& e)
+{
+	if (isMomentary)
+	{
+		setToggleState(false, sendNotification);
+	}
+	else
+	{
+		ToggleButton::mouseUp(e);
+	}
 }
 
 void HiComboBox::setup(Processor *p, int parameterIndex, const String &parameterName)
