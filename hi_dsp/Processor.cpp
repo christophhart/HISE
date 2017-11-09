@@ -487,7 +487,7 @@ StringArray ProcessorHelpers::getListOfAllConnectableProcessors(const Processor*
 		if (p == processorToSkip)
 			continue;
 
-		if (dynamic_cast<const Chain*>(p) != nullptr) continue;
+		if (is<Chain>(p) && !is<ModulatorSynth>(p)) continue;
 
 		processorList.add(p);
 	}
