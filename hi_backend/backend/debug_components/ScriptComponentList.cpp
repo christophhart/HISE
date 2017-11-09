@@ -400,6 +400,8 @@ void ScriptComponentList::ScriptComponentItem::mouseDrag(const MouseEvent& event
 	{
 		//b->prepareSelectionForDragging(c);
 
+		b->addToSelection(c);
+
 		ScriptComponentEditBroadcaster::Iterator iter(b);
 
 		Array<var> list;
@@ -542,6 +544,63 @@ ScriptComponentList::AllCollection::AllCollection(JavascriptProcessor* p, bool s
 		items.add(new ScriptComponentItem(content->getComponent(i)));
 		addAndMakeVisible(items.getLast());
 	}
+}
+
+void ScriptComponentList::AllCollection::paint(Graphics& g)
+{
+	g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::DebugAreaBackgroundColourId));
+
+	if (isDropTarget)
+	{
+		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.2f));
+		g.fillAll();
+		g.setColour(Colour(SIGNAL_COLOUR));
+		g.drawRect(getLocalBounds(), 1);
+	}
+
+	g.setColour(Colours::white);
+	g.setFont(GLOBAL_BOLD_FONT());
+
+	String t;
+
+	t << getNumItems(false) << " Components (" << getNumItems(true) << " visible)";
+
+	g.drawText(t, getLocalBounds().removeFromTop(30), Justification::centred);
+}
+
+bool ScriptComponentList::AllCollection::isInterestedInDragSource(const SourceDetails& dragSourceDetails)
+{
+	if (auto ar = dragSourceDetails.description.getArray())
+	{
+		return ar->size() > 0;
+	}
+
+	return false;
+}
+
+void ScriptComponentList::AllCollection::itemDragEnter(const SourceDetails& dragSourceDetails)
+{
+	isDropTarget = true;
+	repaint();
+}
+
+void ScriptComponentList::AllCollection::itemDragExit(const SourceDetails& dragSourceDetails)
+{
+	isDropTarget = false;
+	repaint();
+}
+
+void ScriptComponentList::AllCollection::itemDragMove(const SourceDetails& dragSourceDetails)
+{
+
+}
+
+void ScriptComponentList::AllCollection::itemDropped(const SourceDetails& dragSourceDetails)
+{
+	ScriptingApi::Content::Helpers::setParentComponent(nullptr, dragSourceDetails.description);
+
+	isDropTarget = false;
+	repaint();
 }
 
 Component* ScriptComponentList::Panel::createContentComponent(int /*index*/)

@@ -133,16 +133,28 @@ public:
 		rebuildModuleList(true);
 	}
 
-	class AllCollection : public SearchableListComponent::Collection
+	class AllCollection : public SearchableListComponent::Collection,
+						  public DragAndDropTarget
 	{
 	public:
 
 		AllCollection(JavascriptProcessor* p, bool showOnlyVisibleItems);
 
-		void paint(Graphics& g) override
-		{
-			g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::DebugAreaBackgroundColourId));
-		}
+		void paint(Graphics& g) override;
+
+		bool isInterestedInDragSource(const SourceDetails& dragSourceDetails) override;
+
+		void itemDragEnter(const SourceDetails& dragSourceDetails) override;
+
+		void itemDragExit(const SourceDetails& dragSourceDetails) override;
+
+		void itemDragMove(const SourceDetails& dragSourceDetails) override;
+
+		void itemDropped(const SourceDetails& dragSourceDetails) override;
+
+	private:
+
+		bool isDropTarget = false;
 	};
 
 	class Panel : public PanelWithProcessorConnection
