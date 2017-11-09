@@ -83,7 +83,15 @@ public:
 			else
 			{
 				if (lock)
-					s->getMainController()->getSampleManager().getSamplerSoundLock().enter();
+				{
+					lock = s->getMainController()->getSampleManager().getSamplerSoundLock().tryEnter();
+
+					if (!lock)
+						jassertfalse;
+
+					//s->getMainController()->getSampleManager().getSamplerSoundLock().enter();
+				}
+					
 			}
 		}
 
