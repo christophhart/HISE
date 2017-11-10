@@ -163,7 +163,7 @@ private:
 
 	bool encodeBlock(CompressionHelpers::AudioBufferInt16& block, OutputStream& output);
 
-	MemoryBlock createCompressedBlock(CompressionHelpers::AudioBufferInt16& block);
+	juce::MemoryBlock createCompressedBlock(CompressionHelpers::AudioBufferInt16& block);
 
 	uint8 getBitReductionAmountForMSEncoding(AudioSampleBuffer& block);
 
@@ -209,7 +209,7 @@ private:
 
 	int firstCycleLength = -1;
 
-	MemoryBlock readBuffer;
+	juce::MemoryBlock readBuffer;
 
 	CompressorOptions options;
 

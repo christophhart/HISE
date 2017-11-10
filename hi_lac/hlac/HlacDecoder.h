@@ -115,7 +115,7 @@ private:
 
 	int16 firstCycleLength = -1;
 
-	MemoryBlock readBuffer;
+	juce::MemoryBlock readBuffer;
 
 	float ratio = 0.0f;
 

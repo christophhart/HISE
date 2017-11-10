@@ -30,10 +30,11 @@
 
 #include "hi_lac.h"
 
-using namespace juce;
 
 namespace hlac
 {
+	using namespace juce;
+
 	#include "hlac/BitCompressors.cpp"
 	#include "hlac/CompressionHelpers.cpp"
 	#include "hlac/SampleBuffer.cpp"
