@@ -166,7 +166,7 @@ bool HlacEncoder::encodeBlock(CompressionHelpers::AudioBufferInt16& block16, Out
 }
 
 
-MemoryBlock HlacEncoder::createCompressedBlock(CompressionHelpers::AudioBufferInt16& block16)
+juce::MemoryBlock HlacEncoder::createCompressedBlock(CompressionHelpers::AudioBufferInt16& block16)
 {
 	jassert(block16.size == COMPRESSION_BLOCK_SIZE);
 
@@ -199,7 +199,7 @@ MemoryBlock HlacEncoder::createCompressedBlock(CompressionHelpers::AudioBufferIn
 		if (numRemaining <= 4)
 		{
 			if (!encodeCycleDelta(rest, blockMos))
-				return MemoryBlock();
+				return juce::MemoryBlock();
 
 			indexInBlock += numRemaining;
 
@@ -245,7 +245,7 @@ MemoryBlock HlacEncoder::createCompressedBlock(CompressionHelpers::AudioBufferIn
 		indexInBlock += cycleLength;
 
 		if (!encodeCycle(currentCycle, blockMos))
-			return MemoryBlock();
+			return juce::MemoryBlock();
 
 
 		while (options.useDeltaEncoding && !isBlockExhausted())
@@ -363,7 +363,7 @@ bool HlacEncoder::encodeCycle(CompressionHelpers::AudioBufferInt16& cycle, Outpu
 
 	if (numBytesToWrite > 0)
 	{
-		MemoryBlock mb;
+		juce::MemoryBlock mb;
 		mb.setSize(numBytesToWrite, true);
 		compressor->compress((uint8*)mb.getData(), cycle.getReadPointer(), cycle.size);
 
@@ -420,7 +420,7 @@ bool HlacEncoder::encodeDiff(CompressionHelpers::AudioBufferInt16& cycle, Output
 
 	if (numBytesForFull > 0)
 	{
-		MemoryBlock mbFull;
+		juce::MemoryBlock mbFull;
 		mbFull.setSize(numBytesForFull);
 		compressorFull->compress((uint8*)mbFull.getData(), packedBuffer.getReadPointer(), numFullValues);
 
@@ -432,7 +432,7 @@ bool HlacEncoder::encodeDiff(CompressionHelpers::AudioBufferInt16& cycle, Output
 
 	if (numBytesForError > 0)
 	{
-		MemoryBlock mbError;
+		juce::MemoryBlock mbError;
 		mbError.setSize(numBytesForError);
 		compressorError->compress((uint8*)mbError.getData(), packedErrorBuffer.getReadPointer(), numErrorValues);
 
@@ -466,7 +466,7 @@ bool HlacEncoder::encodeCycleDelta(CompressionHelpers::AudioBufferInt16& nextCyc
 
 	if (numBytesToWrite > 0)
 	{
-		MemoryBlock mb;
+		juce::MemoryBlock mb;
 		mb.setSize(numBytesToWrite, true);
 		compressor->compress((uint8*)mb.getData(), workBuffer.getReadPointer(), nextCycle.size);
 		return output.write(mb.getData(), numBytesToWrite);
