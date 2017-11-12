@@ -47,6 +47,14 @@ class ScriptingApi::Content : public ScriptingObject,
 {
 public:
 
+	enum UpdateLevel
+	{
+		DoNothing = 1,
+		UpdateInterface,
+		FullRecompile,
+		numUpdateLevels
+	};
+
 	// ================================================================================================================
 
 	class RebuildListener
@@ -1123,6 +1131,12 @@ public:
 		{
 			scrollbarThickness = ScriptComponent::numProperties,
 			autoHide,
+			useList,
+			Items,
+			FontName,
+			FontSize,
+			FontStyle,
+			Alignment,
 			numProperties
 		};
 
@@ -1131,6 +1145,18 @@ public:
 		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptedViewport"); }
 		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
+
+		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */) override;
+
+		StringArray getOptionsFor(const Identifier &id) override;
+		Justification getJustification();
+
+		const StringArray& getItemList() const { return currentItems; }
+
+	private:
+
+		StringArray currentItems;
+
 
 		
 	};
@@ -1408,6 +1434,12 @@ public:
 
 	void beginInitialization();
 
+	void setUpdateLevel(UpdateLevel newUpdateLevel) { currentUpdateLevel = newUpdateLevel; }
+
+	UpdateLevel getUpdateLevel() const noexcept { return currentUpdateLevel; }
+
+	UpdateLevel getRequiredUpdate() const { return requiredUpdate; }
+
 	ValueTree exportAsValueTree() const override;
 	void restoreFromValueTree(const ValueTree &v) override;
 
@@ -1454,13 +1486,12 @@ public:
 
 	void resetContentProperties()
 	{
-		rebuildComponentListFromValueTree(true);
+		rebuildComponentListFromValueTree();
 	};
 
-	bool contentNeedsRebuilding = false;
+	
 
-
-	void addComponentsFromValueTree(ValueTree& v);
+	void addComponentsFromValueTree(const ValueTree& v);
 
 	Result createComponentsFromValueTree(const ValueTree& newProperties, bool buildComponentList=true);
 
@@ -1474,7 +1505,7 @@ public:
 
 		static Identifier getUniqueIdentifier(Content* c, const String& id);
 
-		static void deleteComponent(Content* c, const Identifier& id, bool rebuildContent=true);
+		static void deleteComponent(Content* c, const Identifier& id, NotificationType rebuildContent=sendNotification);
 
 		static void deleteSelection(Content* c, ScriptComponentEditBroadcaster* b);
 
@@ -1488,9 +1519,14 @@ public:
 
 		static void setComponentValueTreeFromJSON(Content* c, const Identifier& id, const var& data);
 
-		static Result setParentComponent(ScriptComponent* parent, var newChildren, bool rebuildNow=true);
+		static Result setParentComponent(ScriptComponent* parent, var newChildren);
+
+		/** Sets the parent component by reordering the internal data structure. */
+		static Result setParentComponent(Content* content, const var& parentId, const var& childIdList);
 
 		static ScriptComponent* createComponentFromId(Content* c, const Identifier& typeId, const Identifier& name, int x, int y, int width, int h);
+
+		static void createNewComponentData(Content* c, ValueTree& p, const String& typeName, const String& id);
 
 		template <class T> static T* createComponentIfTypeMatches(ScriptingApi::Content* c, const Identifier& typeId, const Identifier& name, int x, int y, int w, int h)
 		{
@@ -1531,22 +1567,20 @@ public:
 		return newComponent;
 	}
 
+	void updateAndSetLevel(UpdateLevel requiredUpdate);
+
+	void clearRequiredUpdate()
+	{
+		requiredUpdate = DoNothing;
+	}
+
 private:
 
-	void sendRebuildMessage()
-	{
-		for (int i = 0; i < rebuildListeners.size(); i++)
-		{
-			if(rebuildListeners[i] != nullptr)
-			{
-				rebuildListeners[i]->contentWasRebuilt();
-			}
-			else
-			{
-				rebuildListeners.remove(i--);
-			}
-		}
-	}
+	UpdateLevel currentUpdateLevel = FullRecompile;
+
+	UpdateLevel requiredUpdate = DoNothing;
+
+	void sendRebuildMessage();
 
 	Array<WeakReference<RebuildListener>> rebuildListeners;
 
@@ -1554,7 +1588,7 @@ private:
 
 	template<class Subtype> Subtype *addComponent(Identifier name, int x, int y, int width = -1, int height = -1);
 
-	void rebuildComponentListFromValueTree(bool rebuildContent=false, Identifier* errorId=nullptr);
+	void rebuildComponentListFromValueTree();
 
 	friend class ScriptContentComponent;
 	friend class WeakReference<ScriptingApi::Content>;
@@ -1579,6 +1613,130 @@ private:
 
 using ScriptComponent = ScriptingApi::Content::ScriptComponent;
 using ScriptComponentSelection = ReferenceCountedArray<ScriptComponent>;
+
+
+
+struct ContentValueTreeHelpers
+{
+	static void removeFromParent(ValueTree& v)
+	{
+		v.getParent().removeChild(v, nullptr);
+	}
+
+	
+
+	static Result setNewParent(ValueTree& newParent, ValueTree& child)
+	{
+		if (newParent.isAChildOf(child))
+		{
+			return Result::fail("Can't set child as parent of child");
+		}
+
+		if (child.getParent() == newParent)
+			return Result::ok();
+
+		removeFromParent(child);
+		newParent.addChild(child, -1, nullptr);
+
+		return Result::ok();
+	}
+
+	static void updatePosition(ValueTree& v, Point<int> localPoint, Point<int> oldParentPosition)
+	{
+		static const Identifier x("x");
+		static const Identifier y("y");
+
+		auto newPoint = localPoint - oldParentPosition;
+
+		v.setProperty(x, newPoint.getX(), nullptr);
+		v.setProperty(y, newPoint.getY(), nullptr);
+	}
+
+	static Point<int> getLocalPosition(const ValueTree& v)
+	{
+		static const Identifier x("x");
+		static const Identifier y("y");
+		static const Identifier root("ContentProperties");
+
+		if (v.getType() == root)
+		{
+			return Point<int>();
+		}
+
+		return Point<int>(v.getProperty(x), v.getProperty(y));
+	}
+
+	static bool getAbsolutePosition(const ValueTree& v, Point<int>& offset)
+	{
+		static const Identifier x("x");
+		static const Identifier y("y");
+		static const Identifier root("ContentProperties");
+
+		auto parent = v.getParent();
+
+		if (parent.isValid() && parent.getType() != root)
+		{
+			offset.addXY((int)parent.getProperty(x), (int)parent.getProperty(y));
+
+			return getAbsolutePosition(parent, offset);
+		}
+
+		return false;
+	}
+
+	static void addComponentToValueTreeRecursive(Array<Identifier>& usedIds, const ScriptComponentSelection list, ValueTree& v)
+	{
+
+		static const Identifier type_("type");
+		static const Identifier id_("id");
+		static const Identifier parentComponent("parentComponent");
+		static const Identifier x("x");
+		static const Identifier y("y");
+		static const Identifier w("width");
+		static const Identifier h("height");
+
+		for (auto sc : list)
+		{
+			if (usedIds.contains(sc->getName()))
+				continue;
+
+			usedIds.add(sc->getName());
+
+			auto data = sc->getNonDefaultScriptObjectProperties();
+
+			ValueTree child("Component");
+
+			auto pos = sc->getPosition();
+
+			child.setProperty(type_, sc->getObjectName().toString(), nullptr);
+			child.setProperty(id_, sc->name.toString(), nullptr);
+
+			// Copy these because the default values for the position are a bit funky...
+			child.setProperty(x, pos.getX(), nullptr);
+			child.setProperty(y, pos.getY(), nullptr);
+			child.setProperty(w, pos.getWidth(), nullptr);
+			child.setProperty(h, pos.getHeight(), nullptr);
+
+			ValueTreeConverters::copyDynamicObjectPropertiesToValueTree(child, data);
+
+			// Remove this because it's handled via the tree hierarchy...
+			child.removeProperty(parentComponent, nullptr);
+
+			ScriptComponentSelection childList;
+
+			for (int i = 0; i < sc->getNumChildComponents(); i++)
+			{
+				childList.add(sc->getChildComponent(i));
+			}
+
+			addComponentToValueTreeRecursive(usedIds, childList, child);
+
+			v.addChild(child, -1, nullptr);
+		}
+	}
+};
+
+
 
 } // namespace hise
 #endif  // SCRIPTINGAPICONTENT_H_INCLUDED

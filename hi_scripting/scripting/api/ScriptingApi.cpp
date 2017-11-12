@@ -1678,6 +1678,7 @@ var ScriptingApi::Sampler::getSampleMapList() const
 
 	rootDir.findChildFiles(childFiles, File::findFiles, true, "*.xml");
 
+	childFiles.sort();
 
 	for (int i = 0; i < childFiles.size(); i++)
 	{
@@ -1690,6 +1691,8 @@ var ScriptingApi::Sampler::getSampleMapList() const
 		//sampleMapNames.add(childFiles[i].getFileNameWithoutExtension());
 	}
 
+	
+
 #else
 
 	ValueTree v = dynamic_cast<const FrontendDataHolder*>(getProcessor()->getMainController())->getValueTree(ProjectHandler::SubDirectories::SampleMaps);
@@ -1700,6 +1703,8 @@ var ScriptingApi::Sampler::getSampleMapList() const
 	{
 		sampleMapNames.add(v.getChild(i).getProperty(id));
 	}
+
+	
 
 #endif
 
@@ -2740,6 +2745,7 @@ bool ScriptingApi::Synth::removeModulator(var mod)
 	if (auto m = dynamic_cast<ScriptingObjects::ScriptingModulator*>(mod.getObject()))
 	{
 		Modulator* modToRemove = m->getModulator();
+
 		return moduleHandler.removeModule(modToRemove);
 	}
 

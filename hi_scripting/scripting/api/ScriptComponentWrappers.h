@@ -402,8 +402,50 @@ public:
 
 		~ViewportWrapper();
 
+
 		void updateComponent() override;
 		
+	private:
+
+		class ColumnListBoxModel : public ListBoxModel
+		{
+		public:
+			ColumnListBoxModel(ViewportWrapper* parent);
+
+			int getNumRows() override;
+
+
+			void listBoxItemClicked(int row, const MouseEvent &) override;
+			void paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected) override;
+			void returnKeyPressed(int row) override;
+			
+			bool shouldUpdate(const StringArray& newItems)
+			{
+				return list != newItems;
+			}
+
+			void setItems(const StringArray& newItems)
+			{
+				list.clear();
+				list.addArray(newItems);
+			}
+
+			Justification justification;
+
+			Colour bgColour;
+			Colour itemColour1;
+			Colour itemColour2;
+			Colour textColour;
+			
+			Font font;
+			
+			ViewportWrapper* parent;
+			StringArray list;
+		};
+
+		bool shouldUseList = false;
+
+		ScopedPointer<ColumnListBoxModel> model;
 
 	};
 

@@ -250,7 +250,11 @@ void MainController::loadPresetInternal(const ValueTree& v)
 	}
 	catch (String& errorMessage)
 	{
+#if USE_BACKEND
 		writeToConsole(errorMessage, 1, getMainSynthChain());
+#else
+		DBG(errorMessage);
+#endif
 	}
 
 	
