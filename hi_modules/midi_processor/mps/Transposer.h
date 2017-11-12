@@ -49,7 +49,9 @@ public:
 	Transposer(MainController *mc, const String &id):
 		MidiProcessor(mc, id),
 		transposeAmount(0)
-	{};
+	{
+		parameterNames.add("TransposeAmount");
+	};
 
 
 	~Transposer()
