@@ -119,6 +119,72 @@ class ScriptCreatedComponentWrapper
 {
 public:
 
+	class ValuePopup : public Component,
+					   public Timer
+	{
+	public:
+
+		ValuePopup(Component* c_):
+			c(c_)
+		{
+			updateText();
+			startTimer(30);
+		}
+
+		void updateText()
+		{
+			if (auto slider = dynamic_cast<Slider*>(c.getComponent()))
+			{
+				auto oldText = currentText;
+
+				currentText = slider->getTextFromValue(slider->getValue());
+
+				if (currentText != oldText)
+				{
+					auto f = GLOBAL_BOLD_FONT();
+					int newWidth = f.getStringWidth(currentText) + 20;
+
+					setSize(newWidth, 20);
+
+					repaint();
+				}
+			}
+		}
+
+		void timerCallback() override
+		{
+			updateText();
+		}
+
+		void paint(Graphics& g) override
+		{
+			
+			auto ar = Rectangle<float>(1.0f, 1.0f, (float)getWidth()-2.0f, (float)getHeight()-2.0f);
+
+			g.setGradientFill(ColourGradient(itemColour, 0.0f, 0.0f, itemColour2, 0.0f, (float)getHeight(), false));
+			g.fillRoundedRectangle(ar, 2.0f);
+
+			g.setColour(bgColour);
+			g.drawRoundedRectangle(ar, 2.0f, 2.0f);
+
+			if (auto slider = dynamic_cast<Slider*>(c.getComponent()))
+			{
+				g.setFont(GLOBAL_BOLD_FONT());
+				g.setColour(textColour);
+				g.drawText(currentText, getLocalBounds(), Justification::centred);
+			}
+		}
+
+		Colour bgColour;
+		Colour itemColour;
+		Colour itemColour2;
+		Colour textColour;
+
+		String currentText;
+
+		Component::SafePointer<Component> c;
+	};
+
 	/** Don't forget to deregister the listener here. */
 	virtual ~ScriptCreatedComponentWrapper() {};
 
@@ -282,7 +348,21 @@ public:
 		void updateComponent() override;
 		void sliderValueChanged(Slider *s) override;
 
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SliderWrapper)
+		void sliderDragStarted(Slider* s) override;
+
+		void sliderDragEnded(Slider* s) override;
+
+		ScopedPointer<ValuePopup> currentPopup;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SliderWrapper);
+
+	private:
+
+		void updateFilmstrip();
+
+		String filmStripName;
+		int numStrips = 0;
+
 	};
 
 	class ButtonWrapper : public ScriptCreatedComponentWrapper,

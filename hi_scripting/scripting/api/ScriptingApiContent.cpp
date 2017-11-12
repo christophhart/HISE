@@ -877,16 +877,17 @@ maximum(1.0f)
 
 	ADD_SCRIPT_PROPERTY(i01, "mode");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(i02, "style");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
-	ADD_SCRIPT_PROPERTY(i03, "stepSize");
+	ADD_SCRIPT_PROPERTY(i03, "stepSize");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(i04, "middlePosition");
 	ADD_SCRIPT_PROPERTY(i05, "defaultValue");
 	ADD_SCRIPT_PROPERTY(i06, "suffix");
 	ADD_SCRIPT_PROPERTY(i07, "filmstripImage");	ADD_TO_TYPE_SELECTOR(SelectorTypes::FileSelector);
-	ADD_SCRIPT_PROPERTY(i08, "numStrips");
+	ADD_SCRIPT_PROPERTY(i08, "numStrips");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(i09, "isVertical");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	ADD_SCRIPT_PROPERTY(i10, "scaleFactor");
+	ADD_SCRIPT_PROPERTY(i10, "scaleFactor");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(i11, "mouseSensitivity");
 	ADD_SCRIPT_PROPERTY(i12, "dragDirection");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(i13, "showValuePopup"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 
 	deactivatedProperties.removeAllInstancesOf(getIdFor(isPluginParameter));
 
@@ -901,6 +902,7 @@ maximum(1.0f)
 	componentProperties->setProperty(getIdFor(isVertical), true);
 	componentProperties->setProperty(getIdFor(mouseSensitivity), 1.0);
 	componentProperties->setProperty(getIdFor(dragDirection), 0);
+	componentProperties->setProperty(getIdFor(showValuePopup), 0);
 
 	priorityProperties.add(getIdFor(Mode));
 
@@ -918,6 +920,7 @@ maximum(1.0f)
 	setDefaultValue(ScriptSlider::Properties::scaleFactor, 1.0f);
 	setDefaultValue(ScriptSlider::Properties::mouseSensitivity, 1.0f);
 	setDefaultValue(ScriptSlider::Properties::dragDirection, "Diagonal");
+	setDefaultValue(ScriptSlider::Properties::showValuePopup, "No");
 
 	setScriptObjectPropertyWithChangeMessage(getIdFor(Mode), "Linear", dontSendNotification);
 	setScriptObjectPropertyWithChangeMessage(getIdFor(Style), "Knob", dontSendNotification);
@@ -1052,6 +1055,11 @@ StringArray ScriptingApi::Content::ScriptSlider::getOptionsFor(const Identifier 
 		sa.add("Vertical");
 		sa.add("Range");
 		break;
+	case Properties::stepSize:
+		sa.add("0.01");
+		sa.add("0.1");
+		sa.add("1.0");
+		break;
 	case filmstripImage:
 		sa.add("Load new File");
 		sa.add("Use default skin");
@@ -1061,6 +1069,22 @@ StringArray ScriptingApi::Content::ScriptSlider::getOptionsFor(const Identifier 
 		sa.add("Diagonal");
 		sa.add("Vertical");
 		sa.add("Horizontal");
+		break;
+	case numStrips:
+		sa.add("99");
+		sa.add("100");
+		sa.add("127");
+		break;
+	case Properties::scaleFactor:
+		sa.add("0.5");
+		sa.add("1.0");
+		break;
+	case showValuePopup:
+		sa.add("No");
+		sa.add("Above");
+		sa.add("Below");
+		sa.add("Left");
+		sa.add("Right");
 		break;
 	default:				sa = ScriptComponent::getOptionsFor(id);
 	}
@@ -1082,7 +1106,7 @@ void ScriptingApi::Content::ScriptSlider::setMidPoint(double valueForMidPoint)
 	const bool illegalMidPoint = !range.contains(valueForMidPoint);
 	if (illegalMidPoint)
 	{
-		reportScriptError("setMidPoint() value must be in the knob range.");
+		debugError(parent->getProcessor(), "setMidPoint() value must be in the knob range.");
 		valueForMidPoint = (range.getEnd() - range.getStart()) / 2.0 + range.getStart();
 	}
 

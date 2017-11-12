@@ -83,20 +83,9 @@ ScriptCreatedComponentWrapper(content, index)
 
 	s->setup(getProcessor(), getIndex(), sc->name.toString());
 
-	if (sc->getImage().isValid())
-	{
-		FilmstripLookAndFeel *fslaf = new FilmstripLookAndFeel();
+	component = s;
 
-		fslaf->setFilmstripImage(sc->getImage(),
-			sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::numStrips),
-			sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::isVertical));
-
-		s->setTextBoxStyle(Slider::NoTextBox, true, 0, 0);
-
-		s->setLookAndFeelOwned(fslaf);
-
-		s->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
-	}
+	updateFilmstrip();
 
 	double min = GET_SCRIPT_PROPERTY(min);
 	double max = GET_SCRIPT_PROPERTY(max);
@@ -109,8 +98,49 @@ ScriptCreatedComponentWrapper(content, index)
 
 	s->updateValue(dontSendNotification);
 
-	component = s;
+	
 }
+
+void ScriptCreatedComponentWrappers::SliderWrapper::updateFilmstrip()
+{
+	HiSlider *s = dynamic_cast<HiSlider*>(getComponent());
+
+
+
+	ScriptingApi::Content::ScriptSlider* sc = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(getScriptComponent());
+
+	if (s == nullptr || sc == nullptr)
+		return;
+
+	if (sc->getImage().isValid())
+	{
+		String thisFilmStrip = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::filmstripImage);
+
+		int thisStrips = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::numStrips);
+
+		
+
+		if (thisFilmStrip != filmStripName || thisStrips != numStrips)
+		{
+			filmStripName = thisFilmStrip;
+			numStrips = thisStrips;
+
+			FilmstripLookAndFeel *fslaf = new FilmstripLookAndFeel();
+
+			fslaf->setFilmstripImage(sc->getImage(),
+				sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::numStrips),
+				sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::isVertical));
+
+			s->setTextBoxStyle(Slider::NoTextBox, true, 0, 0);
+
+			s->setLookAndFeelOwned(fslaf);
+
+			s->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
+		}
+	}
+}
+
+
 
 void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent()
 {
@@ -134,6 +164,10 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent()
 		s->setMouseDragSensitivity((int)sensitivity);
 	}
 
+	String currentFilmStrip = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::filmstripImage);
+	
+	updateFilmstrip();
+	
 	const double min = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::min);
 	const double max = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::max);
 	const double stepsize = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::stepSize);
@@ -231,6 +265,123 @@ void ScriptCreatedComponentWrappers::SliderWrapper::sliderValueChanged(Slider *s
 	else
 	{
 		/*changed(s->getValue());*/ // setInternalAttribute handles this for HiWidgets.
+	}
+}
+
+void ScriptCreatedComponentWrappers::SliderWrapper::sliderDragStarted(Slider* s)
+{
+	enum Direction
+	{
+		No,
+		Above,
+		Below,
+		Left,
+		Right,
+		numDirections
+	};
+
+	Direction d = numDirections;
+
+	if (auto sc = getScriptComponent())
+	{
+		auto svp = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::showValuePopup).toString();
+
+		if (svp == "No") d = No;
+		if (svp == "Above") d = Above;
+		if (svp == "Below") d = Below;
+		if (svp == "Left") d = Left;
+		if (svp == "Right") d = Right;
+
+		jassert(d != numDirections);
+	}
+
+	if (d == No)
+		return;
+
+	if (auto c = getComponent())
+	{
+		auto parentTile = c->findParentComponentOfClass<FloatingTile>(); // always in a tile...
+
+		if (parentTile == nullptr)
+		{
+			// Ouch...
+			jassertfalse;
+			return;
+		}
+
+		parentTile->addAndMakeVisible(currentPopup = new ValuePopup(c));
+
+		currentPopup->setAlwaysOnTop(true);
+
+		currentPopup->itemColour = GET_OBJECT_COLOUR(itemColour);
+		currentPopup->itemColour2 = GET_OBJECT_COLOUR(itemColour2);
+		currentPopup->textColour = GET_OBJECT_COLOUR(textColour);
+		currentPopup->bgColour = GET_OBJECT_COLOUR(bgColour);
+
+		auto l = parentTile->getLocalArea(c, c->getLocalBounds());
+
+		int x = 0;
+		int y = 0;
+
+		switch (d)
+		{
+		case Above:
+		{
+			int xP = l.getCentreX();
+			int wP = currentPopup->getWidth();
+			x = xP - wP / 2;
+
+			y = l.getY() - 25;
+			break;
+		}
+		case numDirections:
+		case Below:
+		{
+			int xP = l.getCentreX();
+			int wP = currentPopup->getWidth();
+			x = xP - wP / 2;
+			
+			y = l.getBottom();
+			break;
+		}
+			
+		case Left:
+		{
+			x = l.getX() - currentPopup->getWidth() - 10;
+			y = l.getCentreY() - currentPopup->getHeight() / 2;
+			break;
+		}
+		case Right:
+		{
+			x = l.getRight() + 10;
+			y = l.getCentreY() - currentPopup->getHeight() / 2;
+			break;
+		}
+		default:
+			break;
+		}
+
+		currentPopup->setTopLeftPosition(x, y);
+	}
+}
+
+void ScriptCreatedComponentWrappers::SliderWrapper::sliderDragEnded(Slider* s)
+{
+	if (auto c = getComponent())
+	{
+		Desktop::getInstance().getAnimator().fadeOut(currentPopup, 200);
+
+		auto parentTile = c->findParentComponentOfClass<FloatingTile>(); // always in a tile...
+
+		if (parentTile == nullptr)
+		{
+			// Ouch...
+			jassertfalse;
+			return;
+		}
+
+		parentTile->removeChildComponent(currentPopup);
+		currentPopup = nullptr;
 	}
 }
 

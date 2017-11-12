@@ -428,6 +428,7 @@ public:
 			scaleFactor,
 			mouseSensitivity,
 			dragDirection,
+			showValuePopup,
 			numProperties
 		};
 
