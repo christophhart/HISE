@@ -485,11 +485,11 @@ void HiColourPropertyComponent::refresh()
 
 	if (v.isString())
 	{
-		c = Colour::fromString(v.toString());
+		c = Colour((uint32)v.toString().getLargeIntValue());
 	}
 	else if (v.isInt() || v.isInt64())
 	{
-		c = Colour((int)v);
+		c = Colour((uint32)(int64)v);
 	}
 
 	comp.setDisplayedColour(c);
