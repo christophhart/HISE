@@ -408,7 +408,11 @@ HiTextPropertyComponent::HiTextPropertyComponent(const Identifier& id, ScriptCom
 	}
 
 	editor.setMultiLine(isMultiline);
+	editor.setReturnKeyStartsNewLine(isMultiline);
 	editor.addListener(this);
+
+	if (isMultiline)
+		setPreferredHeight(200);
 
 	setLookAndFeel(&plaf);
 }
@@ -524,24 +528,32 @@ void HiFilePropertyComponent::refresh()
 	}
 }
 
+void HiFilePropertyComponent::updateFile(const String& absoluteFilePath)
+{
+	String currentFile = GET_PROJECT_HANDLER(GET_BACKEND_ROOT_WINDOW(this)->getMainSynthChain()).getFileReference(absoluteFilePath, ProjectHandler::SubDirectories::Images);
+
+	auto b = panel->getScriptComponentEditBroadcaster();
+
+	b->setScriptComponentPropertyForSelection(getId(), currentFile, sendNotification);
+}
+
+
+
 void HiFilePropertyComponent::buttonClicked(Button *)
 {
 	FileChooser fc("Load File", GET_PROJECT_HANDLER(GET_BACKEND_ROOT_WINDOW(this)->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Images));
 
 	if (fc.browseForFileToOpen())
 	{
-		String currentFile = GET_PROJECT_HANDLER(GET_BACKEND_ROOT_WINDOW(this)->getMainSynthChain()).getFileReference(fc.getResult().getFullPathName(), ProjectHandler::SubDirectories::Images);
-
-		auto b = panel->getScriptComponentEditBroadcaster();
-
-		b->setScriptComponentPropertyForSelection(getId(), currentFile, sendNotification);
+		auto path = fc.getResult().getFullPathName();
+		updateFile(path);
 	}
 }
 
 void HiFilePropertyComponent::comboBoxChanged(ComboBox *)
 {
-	auto b = panel->getScriptComponentEditBroadcaster();
-	b->setScriptComponentPropertyForSelection(getId(), combinedComponent.box.getText(), sendNotification);
+	auto path = combinedComponent.box.getText();
+	updateFile(path);
 }
 
 HiFilePropertyComponent::CombinedComponent::CombinedComponent() :

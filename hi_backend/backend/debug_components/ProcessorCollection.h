@@ -95,6 +95,11 @@ public:
 			searchKeywords(searchString)
 		{}
 
+		~Item()
+		{
+			searchKeywords = String();
+		}
+
 		/** A basic component which is displayed whenever the user clicks right on the item.
 		*
 		*	It can be used to show additional information.
@@ -138,7 +143,7 @@ public:
 		bool usePopupMenu;
 		bool isSelected;
 		bool includedInSearch;
-		const String searchKeywords;
+		String searchKeywords;
 
 	private:
 
@@ -251,7 +256,7 @@ public:
 	/** Remove this. */
 	void fillNameList(); 
 
-	void setSelectedItem(Item *item) noexcept{ selectedItem = item; };
+	void setSelectedItem(Item* /*item*/) noexcept{  };
 
 	void setFuzzyness(double newFuzzyness) { fuzzyness = newFuzzyness; };
 
@@ -327,8 +332,6 @@ private:
 	
 	Array<int> displayedIndexes;
 
-	Component::SafePointer<Item> selectedItem;
-    
 	bool internalRebuildFlag;
 
 	Array<Component::SafePointer<ShapeButton>> customButtons;

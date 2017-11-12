@@ -493,6 +493,8 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	ScriptingApi::Content* content = thisAsScriptBaseProcessor->getScriptingContent();
 
+	content->clearRequiredUpdate();
+
 	const bool saveThisContent = lastCompileWasOK && content != nullptr && !useStoredContentData;
 
 	if (saveThisContent) 
@@ -592,6 +594,12 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 	thisAsScriptBaseProcessor->allowObjectConstructors = false;
 
 	lastCompileWasOK = true;
+
+	if (thisAsProcessor->getMainController()->getScriptComponentEditBroadcaster()->isBeingEdited(thisAsProcessor))
+	{
+		debugToConsole(thisAsProcessor, "Compiled OK");
+	}
+	
 
 	postCompileCallback();
 

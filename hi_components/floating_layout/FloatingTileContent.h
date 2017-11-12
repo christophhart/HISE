@@ -240,9 +240,10 @@ public:
 	
 	void executeCallback();
 
-	void setCallback(const F5Callback& newCallback)
+	void setCallback(const F5Callback& newCallback, bool closeAfterExecution=false)
 	{
 		callback = newCallback;
+		closeAfterCallbackExecution = closeAfterExecution;
 	}
 
 	void resized() override
@@ -255,6 +256,8 @@ public:
 private:
 
 	F5Callback callback;
+
+	bool closeAfterCallbackExecution = false;
 
 	Component::SafePointer<Component> editedComponent;
 

@@ -209,6 +209,9 @@ void ScriptComponentEditBroadcaster::setPropertyInternal(ScriptComponent* sc, co
 
 bool ScriptComponentEditBroadcaster::isSelected(ScriptComponent* sc) const
 {
+	if (sc == nullptr)
+		return false;
+
 	Iterator iter(this);
 
 	while (auto sc_ = iter.getNextScriptComponent())

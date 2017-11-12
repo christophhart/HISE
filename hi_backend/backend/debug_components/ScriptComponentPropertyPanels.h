@@ -276,6 +276,8 @@ public:
 
 private:
 
+	void updateFile(const String& absoluteFilePath);
+
 	class CombinedComponent : public Component
 	{
 	public:

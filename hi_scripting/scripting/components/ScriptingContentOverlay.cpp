@@ -138,11 +138,11 @@ void ScriptEditHandler::createNewComponent(Widgets componentType, int x, int y)
 		break;
 	}
 
-	compileScript();
+	content->updateAndSetLevel(ScriptingApi::Content::DoNothing);
 
 	auto b = content->getScriptProcessor()->getMainController_()->getScriptComponentEditBroadcaster();
 
-	b->setSelection(newComponent);
+	b->setSelection(content->getComponentWithName(id));
 
 #if 0
 	switch (componentType)
@@ -252,6 +252,10 @@ ScriptingContentOverlay::ScriptingContentOverlay(ScriptEditHandler* handler_) :
 {
 	addAsScriptEditListener();
 
+	dynamic_cast<JavascriptProcessor*>(getProcessor())->getContent()->addRebuildListener(this);
+
+	getProcessor()->getMainController()->addScriptListener(this);
+
 	addAndMakeVisible(dragModeButton = new ShapeButton("Drag Mode", Colours::black.withAlpha(0.6f), Colours::black.withAlpha(0.8f), Colours::black.withAlpha(0.8f)));
 
 	Path path;
@@ -272,6 +276,8 @@ ScriptingContentOverlay::ScriptingContentOverlay(ScriptEditHandler* handler_) :
 ScriptingContentOverlay::~ScriptingContentOverlay()
 {
 	removeAsScriptEditListener();
+	getProcessor()->getMainController()->removeScriptListener(this);
+	dynamic_cast<JavascriptProcessor*>(getProcessor())->getContent()->removeRebuildListener(this);
 }
 
 void ScriptingContentOverlay::resized()
@@ -291,6 +297,27 @@ void ScriptingContentOverlay::toggleEditMode()
 	setEditMode(!dragMode);
 
 	handler->toggleComponentSelectMode(dragMode);
+}
+
+
+void ScriptingContentOverlay::refreshUpdateStatus()
+{
+	auto c = dynamic_cast<JavascriptProcessor*>(getProcessor())->getContent();
+
+	auto level = c->getRequiredUpdate();
+
+	if (level > ScriptingApi::Content::UpdateLevel::DoNothing)
+	{
+		isDisabledUntilUpdate = true;
+		draggers.clear();
+	}
+	else
+	{
+		isDisabledUntilUpdate = false;
+		
+	}
+
+	repaint();
 }
 
 void ScriptingContentOverlay::setEditMode(bool editModeEnabled)
@@ -354,6 +381,15 @@ void ScriptingContentOverlay::paint(Graphics& g)
 		g.setColour(c.withAlpha(0.2f));
 
 		g.fillRoundedRectangle(getFloatRectangle(dragModeButton->getBounds().expanded(3)), 3.0f);
+	}
+
+	if (isDisabledUntilUpdate)
+	{
+		g.setColour(Colours::red.withAlpha(0.08f));
+		g.fillAll();
+		g.setColour(Colours::white.withAlpha(0.1f));
+		g.setFont(GLOBAL_BOLD_FONT().withHeight(24.0f));
+		g.drawText("DISABLED UNTIL UPDATE (Press F5)", getLocalBounds(), Justification::centred);
 	}
 }
 
@@ -475,7 +511,7 @@ bool ScriptingContentOverlay::keyPressed(const KeyPress &key)
 
 		return true;
 	}
-
+	
 	return false;
 }
 
@@ -502,6 +538,9 @@ static void removeChildComponentsFromArray(Array<ScriptComponent*>& arrayToClean
 
 void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 {
+	if (isDisabledUntilUpdate)
+		return;
+
 	if (lasso.isVisible())
 	{
 		lasso.setVisible(false);
@@ -681,6 +720,9 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 
 void ScriptingContentOverlay::mouseDrag(const MouseEvent& e)
 {
+	if (isDisabledUntilUpdate)
+		return;
+
 	if (lasso.isVisible())
 	{
 		lasso.dragLasso(e);

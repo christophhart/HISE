@@ -450,6 +450,22 @@ ScriptContentPanel::Editor::Editor(Processor* p):
 	zoomSelector->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::transparentBlack);
 	zoomSelector->setColour(MacroControlledObject::HiBackgroundColours::textColour, Colours::white.withAlpha(0.8f));
 
+	auto content_ = dynamic_cast<ProcessorWithScriptingContent*>(p)->getScriptingContent();
+
+	addAndMakeVisible(updateLevelSelector = new ComboBox("Update Level"));
+	updateLevelSelector->addListener(this);
+	updateLevelSelector->addItem("Do nothing", 1);
+	updateLevelSelector->addItem("Rebuild", 2);
+	updateLevelSelector->addItem("Recompile", 3);
+	updateLevelSelector->setSelectedId((int)content_->getUpdateLevel(), dontSendNotification);
+	updateLevelSelector->setLookAndFeel(&klaf);
+	updateLevelSelector->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, Colours::black.withAlpha(0.4f));
+	updateLevelSelector->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, Colours::black.withAlpha(0.4f));
+	updateLevelSelector->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::transparentBlack);
+	updateLevelSelector->setColour(MacroControlledObject::HiBackgroundColours::textColour, Colours::white.withAlpha(0.8f));
+
+	addAndMakeVisible(updateLed = new UpdateLevelLed(content_));
+
 	addAndMakeVisible(editSelector = new HiseShapeButton("Edit", this, ColumnIcons::getPath(OverlayIcons::penShape, sizeof(OverlayIcons::penShape)),
 															     ColumnIcons::getPath(OverlayIcons::lockShape, sizeof(OverlayIcons::lockShape))));
 
@@ -462,16 +478,22 @@ ScriptContentPanel::Editor::Editor(Processor* p):
 
 	addAndMakeVisible(redoButton = new HiseShapeButton("Redo", this, ColumnIcons::getPath(EditorIcons::redoIcon, sizeof(EditorIcons::redoIcon))));
 
+	addAndMakeVisible(rebuildButton = new HiseShapeButton("Rebuild", this, ColumnIcons::getPath(ColumnIcons::moveIcon, sizeof(ColumnIcons::moveIcon))));
+
 	addAndMakeVisible(viewport = new Viewport());
 
 	viewport->setViewedComponent(new Canvas(p), true);
 
+	zoomSelector->setTooltip("Select Update Level for Refreshing the interface (Cmd +/-)");
 	zoomSelector->setTooltip("Select Zoom Level");
-	editSelector->setTooltip("Toggle Edit / Presentation Mode");
-	compileButton->setTooltip("Apply changes to selection (Compile)");
-	cancelButton->setTooltip("Deselect current item");
+	editSelector->setTooltip("Toggle Edit / Presentation Mode (F4)");
+	compileButton->setTooltip("Rebuild Interface + compile (Shift + F5)");
+	cancelButton->setTooltip("Deselect current item (Escape)");
 	undoButton->setTooltip("Undo last item change");
 	redoButton->setTooltip("Redo last item change");
+	rebuildButton->setTooltip("Rebuild Interface (F5)");
+
+	setWantsKeyboardFocus(true);
 }
 
 
@@ -512,10 +534,6 @@ void ScriptContentPanel::Editor::resized()
 
 		x = editSelector->getRight() + 8;
 
-		compileButton->setBounds(x, 2, 20, 20);
-
-		x = compileButton->getRight() + 8;
-
 		cancelButton->setBounds(x, 2, 20, 20);
 
 		x = cancelButton->getRight() + 16;
@@ -529,6 +547,24 @@ void ScriptContentPanel::Editor::resized()
 		x = undoButton->getRight() + 8;
 
 		redoButton->setBounds(x, 2, 20, 20);
+
+		x = redoButton->getRight() + 20;
+
+		rebuildButton->setBounds(x, 2, 20, 20);
+
+		x = rebuildButton->getRight() + 8;
+
+		updateLevelSelector->setBounds(x, 2, 100, 20);
+
+		x = updateLevelSelector->getRight() + 8;
+
+		updateLed->setBounds(x, 2, 20, 20);
+
+		x = updateLed->getRight() + 8;
+
+		compileButton->setBounds(x, 2, 20, 20);
+
+		x = compileButton->getRight() + 8;
 
 		viewport->setBounds(getLocalBounds().withTrimmedTop(24));
 	}
@@ -552,18 +588,12 @@ void ScriptContentPanel::Editor::buttonClicked(Button* b)
 	}
 	if (b == compileButton)
 	{
-		auto jsp = dynamic_cast<JavascriptProcessor*>(findParentComponentOfClass<PanelWithProcessorConnection>()->getConnectedProcessor());
-
-		JavascriptCodeEditor::Helpers::applyChangesFromActiveEditor(jsp);
-
-		jsp->compileScript();
-		
-		getScriptComponentEditBroadcaster()->clearSelection();
+		Actions::rebuildAndRecompile(this);
 
 	}
 	if (b == cancelButton)
 	{
-		getScriptComponentEditBroadcaster()->clearSelection();
+		Actions::deselectAll(this);
 	}
 	if (b == undoButton)
 	{
@@ -573,19 +603,33 @@ void ScriptContentPanel::Editor::buttonClicked(Button* b)
 	{
 		getScriptComponentEditBroadcaster()->getUndoManager().redo();
 	}
+	if (b == rebuildButton)
+	{
+		Actions::rebuild(this);
+	}
 }
 
-void ScriptContentPanel::Editor::comboBoxChanged(ComboBox* /*comboBoxThatHasChanged*/)
+void ScriptContentPanel::Editor::comboBoxChanged(ComboBox* c)
 {
-	switch (zoomSelector->getSelectedId())
+	if (c == zoomSelector)
 	{
-	case 1: setZoomAmount(0.5); break;
-	case 2: setZoomAmount(0.75); break;
-	case 3: setZoomAmount(1.0); break;
-	case 4: setZoomAmount(1.25); break;
-	case 5: setZoomAmount(1.5); break;
-	case 6: setZoomAmount(2.0); break;
+		switch (zoomSelector->getSelectedId())
+		{
+		case 1: setZoomAmount(0.5); break;
+		case 2: setZoomAmount(0.75); break;
+		case 3: setZoomAmount(1.0); break;
+		case 4: setZoomAmount(1.25); break;
+		case 5: setZoomAmount(1.5); break;
+		case 6: setZoomAmount(2.0); break;
+		}
 	}
+	else if (c == updateLevelSelector)
+	{
+		auto content_ = dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())->getScriptingContent();
+
+		content_->setUpdateLevel((ScriptingApi::Content::UpdateLevel)c->getSelectedId());
+	}
+	
 }
 
 void ScriptContentPanel::Editor::setZoomAmount(double newZoomAmount)
@@ -630,6 +674,96 @@ bool ScriptContentPanel::Editor::isEditModeEnabled() const
 	return editSelector->getToggleState();
 }
 
+
+void ScriptContentPanel::Editor::Actions::deselectAll(Editor* e)
+{
+	e->getScriptComponentEditBroadcaster()->clearSelection();
+}
+
+void ScriptContentPanel::Editor::Actions::rebuild(Editor* e)
+{
+	auto jp = dynamic_cast<JavascriptProcessor*>(e->getProcessor());
+	auto content = jp->getContent();
+
+	content->resetContentProperties();
+}
+
+void ScriptContentPanel::Editor::Actions::rebuildAndRecompile(Editor* e)
+{
+	auto jp = dynamic_cast<JavascriptProcessor*>(e->getProcessor());
+	auto content = jp->getContent();
+
+	content->resetContentProperties();
+
+	jp->compileScript();
+
+
+	e->getScriptComponentEditBroadcaster()->clearSelection();
+}
+
+void ScriptContentPanel::Editor::Actions::zoomIn(Editor* e)
+{
+	int currentId = e->zoomSelector->getSelectedId();
+	int numIds = e->zoomSelector->getNumItems();
+
+	int newId = jlimit<int>(1, numIds, currentId + 1);
+
+	e->zoomSelector->setSelectedId(newId, sendNotification);
+}
+
+void ScriptContentPanel::Editor::Actions::zoomOut(Editor* e)
+{
+
+	int currentId = e->zoomSelector->getSelectedId();
+	int numIds = e->zoomSelector->getNumItems();
+
+	int newId = jlimit<int>(1, numIds, currentId - 1);
+
+	e->zoomSelector->setSelectedId(newId, sendNotification);
+}
+
+void ScriptContentPanel::Editor::Actions::toggleEditMode(Editor* e)
+{
+	e->editSelector->triggerClick();
+}
+
+bool ScriptContentPanel::Editor::keyPressed(const KeyPress& key)
+{
+	if (key == KeyPress::F4Key)
+	{
+		Actions::toggleEditMode(this);
+		return true;
+	}
+	if (key == KeyPress::escapeKey)
+	{
+		Actions::deselectAll(this);
+		return true;
+	}
+	else if (key == KeyPress::F5Key)
+	{
+		updateLed->handleAndClearUpdate();
+		
+		return true;
+	}
+	else if (key == KeyPress::F5Key && key.getModifiers().isCommandDown())
+	{
+		Actions::rebuildAndRecompile(this);
+		return true;
+	}
+	else if (key.getKeyCode() == '+' && key.getModifiers().isCommandDown())
+	{
+		Actions::zoomIn(this);
+		return true;
+	}
+	else if (key.getKeyCode() == '-' && key.getModifiers().isCommandDown())
+	{
+		Actions::zoomOut(this);
+		return true;
+	}
+
+	return false;
+}
+
 Identifier ScriptWatchTablePanel::getProcessorTypeId() const
 {
 	return JavascriptProcessor::getConnectorId();
@@ -666,5 +800,6 @@ void ConnectorHelpers::tut(PanelWithProcessorConnection* connector, const Identi
 		}
 	}
 }
+
 
 } // namespace hise

@@ -68,6 +68,10 @@ public:
 		return editedProcessor.get();
 	}
 
+	Processor* getProcessor()
+	{
+		return editedProcessor.get();
+	}
 
 
 protected:
@@ -223,6 +227,11 @@ public:
 	const ScriptComponent* getFirstFromSelection() const;
 
 	static bool isPositionId(const Identifier& id);
+
+	bool isBeingEdited(const Processor* p) const
+	{
+		return currentlyEditedProcessor.get() == p;
+	}
 
 	class PropertyChange : public UndoableAction
 	{

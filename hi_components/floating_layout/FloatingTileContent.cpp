@@ -698,8 +698,8 @@ void JSONEditor::executeCallback()
 			this->findParentComponentOfClass<FloatingTilePopup>()->deleteAndClose();
 		};
 
-		//new DelayedFunctionCaller(f, 200);
-
+		if(closeAfterCallbackExecution)
+			new DelayedFunctionCaller(f, 200);
 	}
 	else
 	{

@@ -120,7 +120,9 @@ class ScriptingEditor;
 class ScriptingContentOverlay : public Component,
 								public ButtonListener,
 								public ScriptComponentEditListener,
-								public LassoSource<ScriptComponent*>
+								public LassoSource<ScriptComponent*>,
+								public ScriptingApi::Content::RebuildListener,
+							    public GlobalScriptCompileListener
 {
 public:
 
@@ -132,6 +134,21 @@ public:
 	void buttonClicked(Button* buttonThatWasClicked);
 
 	void toggleEditMode();
+
+	void contentWasRebuilt() override
+	{
+		refreshUpdateStatus();
+	}
+
+	void scriptWasCompiled(JavascriptProcessor *processor)
+	{
+		if (getProcessor() == dynamic_cast<Processor*>(processor))
+		{
+			refreshUpdateStatus();
+		}
+	}
+
+	void refreshUpdateStatus();
 
 	void setEditMode(bool editModeEnabled);
 
@@ -374,6 +391,8 @@ public:
 		Rectangle<int> startBounds;
 
 	};
+
+	bool isDisabledUntilUpdate = false;
 
 	SelectedItemSet<ScriptComponent*> lassoSet;
 
