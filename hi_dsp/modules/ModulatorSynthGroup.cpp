@@ -226,6 +226,8 @@ void ModulatorSynthGroupVoice::calculateNoFMVoiceInternal(ModulatorSynth * child
 	const float g_left = detuneValues.getGainFactor(false) * gain * childSynth->getBalance(false);
 	const float g_right = detuneValues.getGainFactor(true) * gain * childSynth->getBalance(true);
 
+	const bool forceMono = getOwnerSynth()->getAttribute(ModulatorSynthGroup::SpecialParameters::ForceMono) > 0.5f;
+
 	for (int i = 0; i < childContainer.size(); i++)
 	{
 		ModulatorSynthVoice *childVoice = childContainer.getVoice(i); //static_cast<ModulatorSynthVoice*>(childSynth->getVoice(childVoiceIndex));
@@ -249,8 +251,22 @@ void ModulatorSynthGroupVoice::calculateNoFMVoiceInternal(ModulatorSynth * child
 			childVoice->applyKillFadeout(startSample, numSamples);
 		}
 
-		voiceBuffer.addFrom(0, startSample, childVoice->getVoiceValues(0, startSample), numSamples, g_left);
-		voiceBuffer.addFrom(1, startSample, childVoice->getVoiceValues(1, startSample), numSamples, g_right);
+		if (forceMono)
+		{
+			float* scratch = (float*)alloca(sizeof(float)*numSamples);
+
+			FloatVectorOperations::copy(scratch, childVoice->getVoiceValues(0, startSample), numSamples);
+			FloatVectorOperations::add(scratch, childVoice->getVoiceValues(1, startSample), numSamples);
+			FloatVectorOperations::multiply(scratch, 0.5f, numSamples);
+
+			voiceBuffer.addFrom(0, startSample, scratch, numSamples, g_left);
+			voiceBuffer.addFrom(1, startSample, scratch, numSamples, g_right);
+		}
+		else
+		{
+			voiceBuffer.addFrom(0, startSample, childVoice->getVoiceValues(0, startSample), numSamples, g_left);
+			voiceBuffer.addFrom(1, startSample, childVoice->getVoiceValues(1, startSample), numSamples, g_right);
+		}
 
 		if (childVoice->getCurrentlyPlayingSound() == nullptr)
 			resetVoice();
@@ -367,6 +383,8 @@ void ModulatorSynthGroupVoice::calculateFMCarrierInternal(ModulatorSynthGroup * 
 
 	auto& childContainer = getChildContainer(childVoiceIndex);
 
+	const bool forceMono = getOwnerSynth()->getAttribute(ModulatorSynthGroup::SpecialParameters::ForceMono) > 0.5f;
+
 	for (int i = 0; i < childContainer.size(); i++)
 	{
 		ModulatorSynthVoice *carrierVoice = childContainer.getVoice(i); // static_cast<ModulatorSynthVoice*>(carrierSynth->getVoice(childVoiceIndex));
@@ -402,8 +420,26 @@ void ModulatorSynthGroupVoice::calculateFMCarrierInternal(ModulatorSynthGroup * 
 			carrierVoice->applyKillFadeout(startSample, numSamples);
 		}
 
-		voiceBuffer.addFrom(0, startSample, carrierVoice->getVoiceValues(0, startSample), numSamples, g_left);
-		voiceBuffer.addFrom(1, startSample, carrierVoice->getVoiceValues(1, startSample), numSamples, g_right);
+		if (forceMono)
+		{
+			float* scratch = (float*)alloca(sizeof(float)*numSamples);
+
+			FloatVectorOperations::copy(scratch, carrierVoice->getVoiceValues(0, startSample), numSamples);
+			FloatVectorOperations::add(scratch, carrierVoice->getVoiceValues(1, startSample), numSamples);
+			FloatVectorOperations::multiply(scratch, 0.5f, numSamples);
+
+			voiceBuffer.addFrom(0, startSample, scratch, numSamples, g_left);
+			voiceBuffer.addFrom(1, startSample, scratch, numSamples, g_right);
+		}
+		else
+		{
+			voiceBuffer.addFrom(0, startSample, carrierVoice->getVoiceValues(0, startSample), numSamples, g_left);
+			voiceBuffer.addFrom(1, startSample, carrierVoice->getVoiceValues(1, startSample), numSamples, g_right);
+		}
+
+
+		
+
 
 #if ENABLE_ALL_PEAK_METERS
 		const float peak2 = FloatVectorOperations::findMaximum(carrierVoice->getVoiceValues(0, startSample), numSamples);
@@ -619,6 +655,7 @@ ModulatorSynthGroup::ModulatorSynthGroup(MainController *mc, const String &id, i
 	parameterNames.add("UnisonoVoiceAmount");
 	parameterNames.add("UnisonoDetune");
 	parameterNames.add("UnisonoSpread");
+	parameterNames.add("ForceMono");
 
 	allowStates.clear();
 
@@ -698,6 +735,7 @@ void ModulatorSynthGroup::setInternalAttribute(int index, float newValue)
 	case UnisonoVoiceAmount: setUnisonoVoiceAmount((int)newValue); break;
 	case UnisonoDetune:		 setUnisonoDetuneAmount(newValue); break;
 	case UnisonoSpread:		 setUnisonoSpreadAmount(newValue); break;
+	case ForceMono:			 forceMono = newValue > 0.5f; break;
 	default:				 jassertfalse;
 	}
 }
@@ -717,6 +755,7 @@ float ModulatorSynthGroup::getAttribute(int index) const
 	case UnisonoVoiceAmount: return (float)unisonoVoiceAmount;
 	case UnisonoDetune:		 return (float)unisonoDetuneAmount;
 	case UnisonoSpread:		 return unisonoSpreadAmount;
+	case ForceMono:			 return forceMono ? 1.0f : 0.0f;
 	default:				 jassertfalse; return -1.0f;
 	}
 }
@@ -737,6 +776,7 @@ float ModulatorSynthGroup::getDefaultValue(int parameterIndex) const
 	case UnisonoVoiceAmount: return 1.0f;
 	case UnisonoDetune:		 return 0.0f;
 	case UnisonoSpread:		 return 0.0f;
+	case ForceMono:		 return 0.0f;
 	default:			 jassertfalse; return -1.0f;
 	}
 }

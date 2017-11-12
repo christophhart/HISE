@@ -137,11 +137,18 @@ GroupBody::GroupBody (ProcessorEditor *p)
     spreadSlider->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
     spreadSlider->addListener (this);
 
+    addAndMakeVisible (forceMonoButton = new HiToggleButton (String()));
+    forceMonoButton->setTooltip (TRANS("Enables FM Modulation\n"));
+    forceMonoButton->setButtonText (TRANS("Force Mono"));
+    forceMonoButton->addListener (this);
+    forceMonoButton->setColour (ToggleButton::textColourId, Colours::white);
+
 
     //[UserPreSize]
 
 	label->setFont(GLOBAL_BOLD_FONT().withHeight(28.0f));
 
+	forceMonoButton->setup(getProcessor(), ModulatorSynthGroup::ForceMono, "Force Mono");
 	fmButton->setup(getProcessor(), ModulatorSynthGroup::EnableFM, "Enable FM");
 	modSelector->setup(getProcessor(), ModulatorSynthGroup::ModulatorIndex, "Modulation Carrier");
 	carrierSelector->setup(getProcessor(), ModulatorSynthGroup::CarrierIndex, "Carrier Index");
@@ -197,6 +204,7 @@ GroupBody::~GroupBody()
     unisonoSlider = nullptr;
     detuneSlider = nullptr;
     spreadSlider = nullptr;
+    forceMonoButton = nullptr;
 
 
     //[Destructor]. You can add your own custom destruction code here..
@@ -231,6 +239,7 @@ void GroupBody::resized()
     unisonoSlider->setBounds (16, 64, 128, 48);
     detuneSlider->setBounds (160, 64, 128, 48);
     spreadSlider->setBounds (296, 64, 128, 48);
+    forceMonoButton->setBounds (103 + 79 - 6, 16, 128, 32);
     //[UserResized] Add your own custom resize handling here..
 
     //[/UserResized]
@@ -312,6 +321,11 @@ void GroupBody::buttonClicked (Button* buttonThatWasClicked)
         //[UserButtonCode_fmButton] -- add your button handler code here..
 		getProcessor()->sendChangeMessage();
         //[/UserButtonCode_fmButton]
+    }
+    else if (buttonThatWasClicked == forceMonoButton)
+    {
+        //[UserButtonCode_forceMonoButton] -- add your button handler code here..
+        //[/UserButtonCode_forceMonoButton]
     }
 
     //[UserbuttonClicked_Post]
@@ -424,6 +438,10 @@ BEGIN_JUCER_METADATA
           min="-100" max="100" int="1" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="40"
           textBoxHeight="20" skewFactor="1" needsCallback="1"/>
+  <TOGGLEBUTTON name="" id="de09f67cde1a32b8" memberName="forceMonoButton" virtualName="HiToggleButton"
+                explicitFocusOrder="0" pos="6R 16 128 32" posRelativeX="f18e00eab8404cdf"
+                tooltip="Enables FM Modulation&#10;" txtcol="ffffffff" buttonText="Force Mono"
+                connectedEdges="0" needsCallback="1" radioGroupId="0" state="0"/>
 </JUCER_COMPONENT>
 
 END_JUCER_METADATA

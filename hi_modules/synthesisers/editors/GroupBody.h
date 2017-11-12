@@ -89,7 +89,7 @@ public:
 		unisonoSlider->updateValue();
 		detuneSlider->updateValue();
 		spreadSlider->updateValue();
-
+		forceMonoButton->updateValue();
 	};
 
     //[/UserMethods]
@@ -121,6 +121,7 @@ private:
     ScopedPointer<HiSlider> unisonoSlider;
     ScopedPointer<HiSlider> detuneSlider;
     ScopedPointer<HiSlider> spreadSlider;
+    ScopedPointer<HiToggleButton> forceMonoButton;
 
 
     //==============================================================================

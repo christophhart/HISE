@@ -267,6 +267,7 @@ public:
 		UnisonoVoiceAmount,
 		UnisonoDetune,
 		UnisonoSpread,
+		ForceMono,
 		numSynthGroupParameters
 	};
 
@@ -474,6 +475,8 @@ private:
 
 	AudioSampleBuffer spreadBuffer;
 	AudioSampleBuffer detuneBuffer;
+
+	bool forceMono = false;
 
 	bool fmEnabled;
 	bool fmCorrectlySetup;
