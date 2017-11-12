@@ -284,7 +284,8 @@ ScriptCreatedComponentWrapper(content, index)
 
 	if (sb->getPopupData().isObject())
 	{
-		b->setPopupData(sb->getPopupData(), sb->getPopupPosition());
+        auto r = sb->getPopupPosition();
+		b->setPopupData(sb->getPopupData(), r);
 	}
 
 	b->updateValue();
