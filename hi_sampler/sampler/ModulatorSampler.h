@@ -567,6 +567,16 @@ public:
 
 	void killAllVoicesAndCall(const ProcessorFunction& f);
 
+	void setSoundPropertyAsync(ModulatorSamplerSound* s, int index, int newValue)
+	{
+		samplePropertyUpdater.addNewPropertyChange(s, index, newValue, false);
+	}
+
+	void setSoundPropertyAsyncForAllSamples(int index, int newValue)
+	{
+		samplePropertyUpdater.addNewPropertyChange(nullptr, index, newValue, true);
+	}
+
 private:
 
 	bool isOnSampleLoadingThread() const
@@ -579,8 +589,102 @@ private:
 		return getMainController()->getKillStateHandler().voicesAreKilled();
 	}
 
+	struct SamplePropertyUpdater: public Timer
+	{
+		SamplePropertyUpdater(ModulatorSampler* s):
+			sampler(s)
+		{
+
+		};
+
+		struct PropertyChange
+		{
+			PropertyChange(ModulatorSamplerSound* s, int i, var n, bool a) :
+				sound(s),
+				index(i),
+				newValue(n),
+				allSamples(a)
+			{};
+
+			ModulatorSamplerSound::Ptr sound;
+			int index;
+			int newValue;
+			bool allSamples;
+		};
+
+		void timerCallback() override
+		{
+			if (!sampler->sampleMapLoadingPending)
+			{
+				handlePendingChanges();
+			}
+		}
+
+		void handlePendingChanges()
+		{
+			Array<PropertyChange> thisTime;
+
+			{
+				ScopedLock sl(arrayLock);
+				thisTime.swapWith(pendingChanges);
+			}
+
+			for (auto c : thisTime)
+			{
+				if (c.allSamples)
+				{
+					jassert(c.sound == nullptr);
+
+					ModulatorSampler::SoundIterator iter(sampler, false);
+
+					while (auto s = iter.getNextSound())
+					{
+						dynamic_cast<ModulatorSamplerSound*>(s)->setProperty((ModulatorSamplerSound::Property)c.index, c.newValue, dontSendNotification);
+					}
+				}
+				else
+				{
+					if (c.sound != nullptr)
+					{
+						dynamic_cast<ModulatorSamplerSound*>(c.sound.get())->setProperty((ModulatorSamplerSound::Property)c.index, c.newValue, dontSendNotification);
+					}
+				}
+
+				
+			}
+
+			stopTimer();
+		}
+
+		void addNewPropertyChange(ModulatorSamplerSound* sound, int index, int newValue, bool allSamples)
+		{
+			ScopedLock sl(arrayLock);
+
+			for (auto& c : pendingChanges)
+			{
+				if (c.sound == sound && c.index == index && c.allSamples == allSamples)
+				{
+					c.newValue = newValue;
+					return;
+				}
+			}
+
+			pendingChanges.add(PropertyChange(sound, index, newValue, allSamples));
+
+			if (!sampler->sampleMapLoadingPending)
+			{
+				startTimer(200);
+			}
+		}
+
+		CriticalSection arrayLock;
+
+		ModulatorSampler* sampler;
+
+		Array<PropertyChange> pendingChanges;
+	};
 	
-	
+
 
 	struct AsyncPurger : public AsyncUpdater,
 						 public Timer
@@ -613,12 +717,13 @@ private:
 		ModulatorSampler *sampler;
 	};
 
+	SamplePropertyUpdater samplePropertyUpdater;
     
 
     /** Sets the streaming buffer and preload buffer sizes. */
     void setPreloadSize(int newPreloadSize);
     
-	
+	bool sampleMapLoadingPending = false;
 
 	CriticalSection exportLock;
 

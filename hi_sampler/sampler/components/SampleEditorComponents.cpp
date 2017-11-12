@@ -635,7 +635,7 @@ void SamplerSoundMap::updateSoundData()
 	{
 		sampleComponents.clear();
 
-		ModulatorSampler::SoundIterator sIter(ownerSampler);
+		ModulatorSampler::SoundIterator sIter(ownerSampler, false);
 
 		while (auto sound = sIter.getNextSound())
 		{
@@ -942,7 +942,7 @@ bool SamplerSoundMap::newSamplesDetected()
 {
 	if(ownerSampler->getNumSounds() != sampleComponents.size()) return true;
 
-	ModulatorSampler::SoundIterator sIter(ownerSampler);
+	ModulatorSampler::SoundIterator sIter(ownerSampler, false);
 
 	if (sIter.size() != sampleComponents.size())
 		return true;
@@ -1104,7 +1104,7 @@ void SamplerSoundTable::refreshList()
 {
 	sortedSoundList.clear();
 
-	ModulatorSampler::SoundIterator sIter(ownerSampler);
+	ModulatorSampler::SoundIterator sIter(ownerSampler, false);
 
 	while (auto sound = sIter.getNextSound())
 		sortedSoundList.add(sound);

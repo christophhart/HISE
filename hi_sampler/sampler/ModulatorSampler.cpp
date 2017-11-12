@@ -54,7 +54,8 @@ reversed(false),
 numChannels(1),
 deactivateUIUpdate(false),
 samplePreloadPending(false),
-temporaryVoiceBuffer(true, 2, 0)
+temporaryVoiceBuffer(true, 2, 0),
+samplePropertyUpdater(this)
 {
 #if USE_BACKEND
 	sampleEditHandler = new SampleEditHandler(this);
@@ -962,7 +963,13 @@ void ModulatorSampler::loadSampleMapFromIdAsync(const String& sampleMapId)
     
 	getMainController()->getDebugLogger().logMessage("**Loading samplemap** " + sampleMapId);
     
-	auto f = [sampleMapId](Processor* p) { dynamic_cast<ModulatorSampler*>(p)->loadSampleMapFromId(sampleMapId); return true; };
+	sampleMapLoadingPending = true;
+
+	auto f = [sampleMapId](Processor* p)
+	{ 
+		dynamic_cast<ModulatorSampler*>(p)->loadSampleMapFromId(sampleMapId);
+		return true; 
+	};
 
 	killAllVoicesAndCall(f);
 }
@@ -1056,6 +1063,10 @@ void ModulatorSampler::loadSampleMapFromId(const String& sampleMapId)
 	}
 
 	setAttribute(ModulatorSampler::RRGroupAmount, (float)maxGroup, sendNotification);
+
+	sampleMapLoadingPending = false;
+
+	samplePropertyUpdater.handlePendingChanges();
 }
 
 void ModulatorSampler::saveSampleMap() const

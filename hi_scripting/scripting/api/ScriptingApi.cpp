@@ -1313,6 +1313,7 @@ struct ScriptingApi::Sampler::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Sampler, selectSounds);
 	API_METHOD_WRAPPER_0(Sampler, getNumSelectedSounds);
 	API_VOID_METHOD_WRAPPER_2(Sampler, setSoundPropertyForSelection);
+	API_VOID_METHOD_WRAPPER_2(Sampler, setSoundPropertyForAllSamples);
 	API_METHOD_WRAPPER_2(Sampler, getSoundProperty);
 	API_VOID_METHOD_WRAPPER_3(Sampler, setSoundProperty);
 	API_VOID_METHOD_WRAPPER_2(Sampler, purgeMicPosition);
@@ -1339,6 +1340,7 @@ sampler(sampler_)
 	ADD_API_METHOD_1(selectSounds);
 	ADD_API_METHOD_0(getNumSelectedSounds);
 	ADD_API_METHOD_2(setSoundPropertyForSelection);
+	ADD_API_METHOD_2(setSoundPropertyForAllSamples);
 	ADD_API_METHOD_2(getSoundProperty);
 	ADD_API_METHOD_3(setSoundProperty);
 	ADD_API_METHOD_2(purgeMicPosition);
@@ -1478,9 +1480,22 @@ void ScriptingApi::Sampler::setSoundPropertyForSelection(int propertyId, var new
 	{
 		if (sounds[i].get() != nullptr)
 		{
-			sounds[i]->setProperty((ModulatorSamplerSound::Property)propertyId, newValue, dontSendNotification);
+			s->setSoundPropertyAsync(sounds[i], (int)propertyId, (int)newValue);
 		}
 	}
+}
+
+void ScriptingApi::Sampler::setSoundPropertyForAllSamples(int propertyIndex, var newValue)
+{
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("setSoundsProperty() only works with Samplers.");
+		return;
+	}
+
+	s->setSoundPropertyAsyncForAllSamples(propertyIndex, newValue);
 }
 
 var ScriptingApi::Sampler::getSoundProperty(int propertyIndex, int soundIndex)
@@ -1521,7 +1536,7 @@ void ScriptingApi::Sampler::setSoundProperty(int soundIndex, int propertyIndex, 
 
 	if (sound != nullptr)
 	{
-		sound->setProperty((ModulatorSamplerSound::Property)propertyIndex, newValue, dontSendNotification);
+		s->setSoundPropertyAsync(sound, (int)propertyIndex, (int)newValue);
 	}
 	else
 	{

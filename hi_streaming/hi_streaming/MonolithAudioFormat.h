@@ -399,7 +399,7 @@ public:
 
 	int64 getMonolithLength(int sampleIndex) const
 	{
-		return multiChannelSampleInformation[0][sampleIndex].length;
+		return jmax<int>(0, multiChannelSampleInformation[0][sampleIndex].length);
 	}
 
 	double getMonolithSampleRate(int sampleIndex) const

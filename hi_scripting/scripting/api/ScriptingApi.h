@@ -378,6 +378,9 @@ public:
 		/** Sets the property of the sampler sound for the selection. */
 		void setSoundPropertyForSelection(int propertyIndex, var newValue);
 
+		/** Sets the property for all samples of the sampler. */
+		void setSoundPropertyForAllSamples(int propertyIndex, var newValue);
+
 		/** Returns the property of the sound with the specified index. */
 		var getSoundProperty(int propertyIndex, int soundIndex);
 

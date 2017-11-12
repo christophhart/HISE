@@ -243,7 +243,18 @@ void ModulatorSamplerSound::setProperty(Property p, int newValue, NotificationTy
 	
 	if (enableAsyncPropertyChange && isAsyncProperty(p))
 	{
-		auto f = [this, p, newValue](Processor*) { setPreloadPropertyInternal(p, newValue); return true; };
+
+		WeakReference<ModulatorSamplerSound> refPtr = this;
+		auto f = [refPtr, p, newValue](Processor*)
+		{
+			if (refPtr != nullptr)
+			{
+				static_cast<ModulatorSamplerSound*>(refPtr.get())->setPreloadPropertyInternal(p, newValue);
+				
+			}
+
+			return true;
+		};
 
 		getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 	}
@@ -796,8 +807,6 @@ void ModulatorSamplerSoundPool::clearUnreferencedSamples()
 {
 	if (pool.size() > 0)
 	{
-		jassert(mc->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::SampleLoadingThread);
-
 		MessageManagerLock mml;
 
 		for (int i = 0; i < pool.size(); i++)

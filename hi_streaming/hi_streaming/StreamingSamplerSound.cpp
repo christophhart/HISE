@@ -188,7 +188,7 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 		{
 			sampleRate = reader->sampleRate;
 			sampleEnd = jmin<int>(sampleEnd, (int)reader->lengthInSamples);
-			sampleLength = sampleEnd - sampleStart;
+			sampleLength = jmax<int>(0, sampleEnd - sampleStart);
 			loopEnd = jmin(loopEnd, sampleEnd);
 		}
 	}
@@ -416,7 +416,7 @@ void StreamingSamplerSound::lengthChanged()
 {
 	ScopedLock sl(getSampleLock());
 
-	sampleLength = sampleEnd - sampleStart;
+	sampleLength = jmax<int>(0, sampleEnd - sampleStart);
 
 	setPreloadSize(preloadSize, true);
 }
@@ -808,7 +808,7 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
 					{
 						memoryReader->mapSectionOfFile(Range<int64>((int64)(sound->sampleStart) + (int64)(sound->monolithOffset), (int64)(sound->sampleEnd)));
 
-						sampleLength = memoryReader->getMappedSection().getLength();
+						sampleLength = jmax<int>(0, memoryReader->getMappedSection().getLength());
 
 						stereo = memoryReader->numChannels > 1;
 					}

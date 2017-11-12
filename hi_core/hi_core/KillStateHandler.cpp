@@ -43,9 +43,9 @@ MainController::KillStateHandler::KillStateHandler(MainController* mc_) :
 	mc(mc_),
 	killState(NewKillState::Clear),
 	pendingStates(0),
-	pendingMessageThreadFunctions(4096),
-	pendingAudioThreadFunctions(4096),
-	pendingSampleLoadFunctions(4096)
+	pendingMessageThreadFunctions(8192),
+	pendingAudioThreadFunctions(8192),
+	pendingSampleLoadFunctions(8192)
 {
 	pendingFunctions[TargetThread::AudioThread] = &pendingAudioThreadFunctions;
 	pendingFunctions[TargetThread::MessageThread] = &pendingMessageThreadFunctions;
