@@ -2234,6 +2234,9 @@ ApiHelpers::ModuleHandler::~ModuleHandler()
 
 bool ApiHelpers::ModuleHandler::removeModule(Processor* p)
 {
+	if (p == nullptr)
+		return true;
+
 	if (p->getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::AudioThread)
 	{
 		throw String("Effects can't be removed from the audio thread!");
