@@ -32,11 +32,38 @@
 
 namespace hise { using namespace juce;
 
+
+void loadKeyboardSkins(ModulatorSynthChain* chainToExport)
+{
+	auto mc = chainToExport->getMainController();
+
+	auto& handler = GET_PROJECT_HANDLER(chainToExport);
+
+	const bool hasCustomSkin = handler.getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("keyboard").isDirectory();
+
+	if (!hasCustomSkin)
+		return;
+
+	for (int i = 0; i < 12; i++)
+	{
+		auto img = ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}keyboard/up_" + String(i) + ".png");
+		jassert(img.isValid());
+		auto img2 = ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png");
+		jassert(img2.isValid());
+	}
+}
+
 ValueTree BaseExporter::exportReferencedImageFiles()
 {
 	// Export the interface
 
+
+	loadKeyboardSkins(chainToExport);
+
 	ImagePool *imagePool = chainToExport->getMainController()->getSampleManager().getImagePool();
+
+	
+
 	ValueTree imageTree = imagePool->exportAsValueTree();
 
 	return imageTree;

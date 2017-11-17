@@ -369,8 +369,16 @@ void BackendProcessorEditor::loadNewContainer(const ValueTree &v)
 	isLoadingPreset = true;
 	viewport->showPreloadMessage(true);
 	
+	if (CompileExporter::isExportingFromCommandLine())
+	{
+		getRootWindow()->getMainSynthChain()->getMainController()->loadPresetFromValueTree(v, nullptr);
+	}
+	else
+	{
+		owner->killAndCallOnLoadingThread([v](Processor* p) {p->getMainController()->loadPresetFromValueTree(v, nullptr); return true; });
+	}
 
-	owner->killAndCallOnLoadingThread([v](Processor* p) {p->getMainController()->loadPresetFromValueTree(v, nullptr); return true; });
+	
 }
 
 
