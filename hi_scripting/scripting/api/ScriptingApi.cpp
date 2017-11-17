@@ -911,6 +911,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getSettingsWindowObject);
 	API_METHOD_WRAPPER_1(Engine, getMasterPeakLevel);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadFont);
+	API_VOID_METHOD_WRAPPER_2(Engine, loadFontAs);
 	API_VOID_METHOD_WRAPPER_0(Engine, undo);
 	API_VOID_METHOD_WRAPPER_0(Engine, redo);
 };
@@ -966,6 +967,7 @@ ApiClass(0)
 	ADD_API_METHOD_0(createMessageHolder);
 	ADD_API_METHOD_0(createSliderPackData);
 	ADD_API_METHOD_1(loadFont);
+	ADD_API_METHOD_2(loadFontAs);
 	ADD_API_METHOD_0(undo);
 	ADD_API_METHOD_0(redo);
 }
@@ -980,6 +982,12 @@ void ScriptingApi::Engine::allNotesOff()
 
 void ScriptingApi::Engine::loadFont(const String &fileName)
 {
+	debugError(getProcessor(), "loadFont is deprecated. Use loadFontAs() instead to prevent cross platform issues");
+}
+
+void ScriptingApi::Engine::loadFontAs(String fileName, String fontId)
+{
+
 #if USE_BACKEND
 
 	const String absolutePath = GET_PROJECT_HANDLER(getProcessor()).getFilePath(fileName, ProjectHandler::SubDirectories::Images);
@@ -996,7 +1004,7 @@ void ScriptingApi::Engine::loadFont(const String &fileName)
 		MemoryBlock mb;
 
 		fis->readIntoMemoryBlock(mb);
-		getProcessor()->getMainController()->loadTypeFace(fileName, mb.getData(), mb.getSize());
+		getProcessor()->getMainController()->loadTypeFace(fileName, mb.getData(), mb.getSize(), fontId);
 	}
 
 #else
