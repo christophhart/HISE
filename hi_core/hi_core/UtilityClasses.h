@@ -839,7 +839,10 @@ public:
 	void timerCallback() override
 	{
 		stopTimer();
-		f();
+
+		if(f)
+			f();
+
 		delete this;
 	}
 
