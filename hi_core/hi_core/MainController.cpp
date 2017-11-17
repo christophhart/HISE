@@ -149,6 +149,8 @@ void MainController::loadPresetFromFile(const File &f, Component* /*mainEditor*/
 
 void MainController::clearPreset()
 {
+	ScopedLock sl(getLock());
+
 	jassert(!getMainSynthChain()->areVoicesActive());
 
 	getMainSynthChain()->reset();

@@ -623,7 +623,7 @@ void ModulatorSampler::setVoiceAmountInternal()
 	jassert(allVoicesAreKilled());
 
 	{
-		MessageManagerLock mml;
+		//MessageManagerLock mml;
 		deleteAllVoices();
 	}
 	

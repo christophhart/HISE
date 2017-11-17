@@ -807,8 +807,6 @@ void ModulatorSamplerSoundPool::clearUnreferencedSamples()
 {
 	if (pool.size() > 0)
 	{
-		MessageManagerLock mml;
-
 		for (int i = 0; i < pool.size(); i++)
 		{
 			if (pool[i]->getReferenceCount() == 2)
