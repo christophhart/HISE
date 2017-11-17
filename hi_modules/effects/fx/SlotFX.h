@@ -61,7 +61,7 @@ public:
         auto d = v.getChildWithName("ChildProcessors").getChild(0);
         
         
-        setEffect(d.getProperty("Type"));
+        setEffect(d.getProperty("Type"), true);
         
         wrappedEffect->restoreFromValueTree(d);
     }
@@ -89,7 +89,7 @@ public:
 	{
 		isClear = true;
 		
-		setEffect(GainEffect::getClassType().toString());
+		setEffect(EmptyFX::getClassType().toString(), true);
 	}
 
 	void swap(SlotFX* otherSlot)
@@ -122,7 +122,7 @@ public:
 
 	const StringArray& getEffectList() const { return effectList; }
 
-	bool setEffect(const String& typeName);
+	bool setEffect(const String& typeName, bool synchronously=false);
 
 private:
 

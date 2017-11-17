@@ -48,9 +48,12 @@ void SlotFX::renderWholeBuffer(AudioSampleBuffer &buffer)
 	}
 }
 
-bool SlotFX::setEffect(const String& typeName)
+bool SlotFX::setEffect(const String& typeName, bool synchronously)
 {
 	int index = effectList.indexOf(typeName);
+
+	if (currentIndex == index)
+		return true;
 
 	if (index != -1)
 	{
@@ -63,28 +66,39 @@ bool SlotFX::setEffect(const String& typeName)
 
 		if (wrappedEffect != nullptr)
 		{
-			auto pendingDeleteEffect = wrappedEffect.release();
-
-			auto df = [pendingDeleteEffect, this]()
+			if (synchronously)
 			{
-				pendingDeleteEffect->sendDeleteMessage();
+				wrappedEffect->sendDeleteMessage();
 
 				auto p = this->wrappedEffect.get();
+			}
+			else
+			{
+				auto pendingDeleteEffect = wrappedEffect.release();
 
-				if (p != nullptr)
+				auto df = [pendingDeleteEffect, this]()
 				{
-					for (int i = 0; i < p->getNumInternalChains(); i++)
+					pendingDeleteEffect->sendDeleteMessage();
+
+					auto p = this->wrappedEffect.get();
+
+					if (p != nullptr)
 					{
-						dynamic_cast<ModulatorChain*>(p->getChildProcessor(i))->setColour(p->getColour());
+						for (int i = 0; i < p->getNumInternalChains(); i++)
+						{
+							dynamic_cast<ModulatorChain*>(p->getChildProcessor(i))->setColour(p->getColour());
+						}
+
+						this->sendRebuildMessage(true);
 					}
 
-					this->sendRebuildMessage(true);
-				}
+					delete pendingDeleteEffect;
+				};
 
-				delete pendingDeleteEffect;
-			};
+				new DelayedFunctionCaller(df, 100);
+			}
 
-			new DelayedFunctionCaller(df, 100);
+			
 		}
 			
 
@@ -115,12 +129,11 @@ bool SlotFX::setEffect(const String& typeName)
             
 			wrappedEffect = p;
             
-        
             hasScriptFX = thisIsScriptFX;
 		}
 
-        
-
+		if (synchronously)
+			sendRebuildMessage(true);
 
 		return true;
 	}
