@@ -384,6 +384,8 @@ public:
 	void preVoiceRendering(int startSample, int numThisTime) override;;
 	void postVoiceRendering(int startSample, int numThisTime) override;;
 
+	void handleRetriggeredNote(ModulatorSynthVoice *voice) override;
+
 	void killAllVoices() override;
 
 	void resetAllVoices() override;
@@ -482,6 +484,9 @@ private:
 	bool fmCorrectlySetup;
 	int modIndex;
 	int carrierIndex;
+
+	// Used to check the retrigger behaviour
+	bool carrierIsSampler = false;
 
 	int unisonoVoiceAmount;
 	int unisonoVoiceLimit;

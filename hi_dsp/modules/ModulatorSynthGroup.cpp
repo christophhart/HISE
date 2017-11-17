@@ -727,7 +727,12 @@ void ModulatorSynthGroup::setInternalAttribute(int index, float newValue)
 		if (carrierIndex != nv)
 		{
 			carrierIndex = nv;
+
 			checkFmState();
+
+			auto c = getFMCarrier();
+
+			carrierIsSampler = dynamic_cast<ModulatorSampler*>(c) != nullptr;
 		}
 
 		break;
@@ -1006,6 +1011,19 @@ void ModulatorSynthGroup::postVoiceRendering(int startSample, int numThisTime)
 
 	// Apply the gain after the rendering of the child synths...
 	ModulatorSynth::postVoiceRendering(startSample, numThisTime);
+}
+
+
+void ModulatorSynthGroup::handleRetriggeredNote(ModulatorSynthVoice *voice)
+{
+	if (carrierIsSampler)
+	{
+		getFMCarrier()->handleRetriggeredNote(voice);
+	}
+	else
+	{
+		ModulatorSynth::handleRetriggeredNote(voice);
+	}
 }
 
 void ModulatorSynthGroup::killAllVoices()
