@@ -846,7 +846,7 @@ public:
 
 	void insertStringAtLastActiveEditor(const String &string, bool selectArguments);
 
-	void loadTypeFace(const String& fileName, const void* fontData, size_t fontDataSize);
+	void loadTypeFace(const String& fileName, const void* fontData, size_t fontDataSize, const String& fontId=String());
 
 	
 	void fillWithCustomFonts(StringArray &fontList);
@@ -1136,7 +1136,18 @@ private:
 	friend class WeakReference<MainController>;
 	WeakReference<MainController>::Master masterReference;
 
-	ReferenceCountedArray<juce::Typeface> customTypeFaces;
+	struct CustomTypeFace
+	{
+		CustomTypeFace(Typeface* tf, Identifier id_) :
+			typeface(tf),
+			id(id_)
+		{};
+
+		ReferenceCountedObjectPtr<juce::Typeface> typeface;
+		Identifier id;
+	};
+
+	Array<CustomTypeFace> customTypeFaces;
 	ValueTree customTypeFaceData;
 
 	Array<var> globalVariableArray;
