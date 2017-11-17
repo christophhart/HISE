@@ -762,11 +762,13 @@ void MainController::removeTempoListener(TempoListener *t)
 
 juce::Typeface* MainController::getFont(const String &fontName) const
 {
-	for (int i = 0; i < customTypeFaces.size(); i++)
+	for (auto& tf: customTypeFaces)
 	{
-		if (customTypeFaces[i]->getName() == fontName)
+		auto nameToUse = tf.id.isValid() ? tf.id.toString() : tf.typeface->getName();
+
+		if (nameToUse == fontName)
 		{
-			return customTypeFaces[i].get();
+			return tf.typeface.get();
 		}
 	}
 
@@ -775,6 +777,18 @@ juce::Typeface* MainController::getFont(const String &fontName) const
 
 Font MainController::getFontFromString(const String& fontName, float fontSize) const
 {
+	const Identifier id(fontName);
+
+	for (auto& tf : customTypeFaces)
+	{
+		if (tf.id.isValid() && tf.id == id)
+		{
+			Font currentFont;
+			juce::Typeface::Ptr typeface = tf.typeface;
+			return Font(typeface).withHeight(fontSize);
+		}
+	}
+
 	static const String boldString(" Bold");
 	static const String italicString(" Italic");
 
@@ -800,17 +814,22 @@ Font MainController::getFontFromString(const String& fontName, float fontSize) c
 
 void MainController::fillWithCustomFonts(StringArray &fontList)
 {
-	for (int i = 0; i < customTypeFaces.size(); i++)
+	for (auto& tf : customTypeFaces)
 	{
-		fontList.addIfNotAlreadyThere(customTypeFaces[i]->getName());
+		auto nameToUse = tf.id.isValid() ? tf.id.toString() : tf.typeface->getName();
+		fontList.addIfNotAlreadyThere(nameToUse);
 	}
 }
 
-void MainController::loadTypeFace(const String& fileName, const void* fontData, size_t fontDataSize)
+void MainController::loadTypeFace(const String& fileName, const void* fontData, size_t fontDataSize, const String& fontId/*=String()*/)
 {
 	if (customTypeFaceData.getChildWithProperty("Name", fileName).isValid()) return;
 
-	customTypeFaces.add(juce::Typeface::createSystemTypefaceFor(fontData, fontDataSize));
+	if (fontId.isNotEmpty() && customTypeFaceData.getChildWithProperty("FontId", fontId).isValid()) return;
+
+	Identifier id_ = fontId.isEmpty() ? Identifier() : Identifier(fontId);
+
+	customTypeFaces.add(CustomTypeFace(juce::Typeface::createSystemTypefaceFor(fontData, fontDataSize), id_));
 
 	MemoryBlock mb(fontData, fontDataSize);
 	
@@ -818,6 +837,10 @@ void MainController::loadTypeFace(const String& fileName, const void* fontData, 
 	v.setProperty("Name", fileName, nullptr);
 	v.setProperty("Data", var(mb), nullptr);
 	v.setProperty("Size", var((int)mb.getSize()), nullptr);
+	
+	if (fontId.isNotEmpty())
+		v.setProperty("FontId", fontId, nullptr);
+
 
 	customTypeFaceData.addChild(v, -1, nullptr);
 }
@@ -852,10 +875,19 @@ void MainController::restoreCustomFontValueTree(const ValueTree &v)
 
 		MemoryBlock *mb = c.getBinaryData();
 
-
 		if (mb != nullptr)
 		{
-			customTypeFaces.add(juce::Typeface::createSystemTypefaceFor(mb->getData(), mb->getSize()));
+			auto fontId = child.getProperty("FontId", "").toString();
+
+			if (fontId.isNotEmpty())
+			{
+				Identifier id_(fontId);
+				customTypeFaces.add(CustomTypeFace(juce::Typeface::createSystemTypefaceFor(mb->getData(), mb->getSize()), id_));
+			}
+			else
+			{
+				customTypeFaces.add(CustomTypeFace(juce::Typeface::createSystemTypefaceFor(mb->getData(), mb->getSize()), Identifier()));
+			}
 		}
 		else
 		{
