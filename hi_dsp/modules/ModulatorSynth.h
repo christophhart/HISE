@@ -419,7 +419,14 @@ protected:
 
 	bool checkTimerCallback(int timerIndex) const noexcept
 	{
-		return nextTimerCallbackTimes[timerIndex] != 0.0 && (getMainController()->getUptime() > nextTimerCallbackTimes[timerIndex]);
+		if (nextTimerCallbackTimes[timerIndex] == 0.0)
+			return false;
+
+		auto uptime = getMainController()->getUptime();
+		auto timeThisBlock = (double)getBlockSize() / getSampleRate();
+
+		Range<double> rangeThisBlock(uptime, uptime + timeThisBlock);
+		return rangeThisBlock.contains(nextTimerCallbackTimes[timerIndex]);
 	};
 	
 	// Used to display the playing position

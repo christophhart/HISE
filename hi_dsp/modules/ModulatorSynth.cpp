@@ -205,14 +205,15 @@ void ModulatorSynth::synthTimerCallback(uint8 index)
 	{
 		ADD_GLITCH_DETECTOR(this, DebugLogger::Location::TimerCallback);
 
-		const double thisUptime = getMainController()->getUptime() - (getBlockSize() / getSampleRate());
-		uint16 offsetInBuffer = (uint16)((nextTimerCallbackTimes[index] - thisUptime) * getSampleRate());
+		const double uptime = getMainController()->getUptime();
+
+		uint16 offsetInBuffer = (uint16)((nextTimerCallbackTimes[index] - uptime) * getSampleRate());
 
 		while (synthTimerIntervals[index] > 0.0 && offsetInBuffer < getBlockSize())
 		{
 			eventBuffer.addEvent(HiseEvent::createTimerEvent(index, offsetInBuffer));
 			nextTimerCallbackTimes[index].store(nextTimerCallbackTimes[index].load() + synthTimerIntervals[index].load());
-			offsetInBuffer = (uint16)((nextTimerCallbackTimes[index] - thisUptime) * getSampleRate());
+			offsetInBuffer = (uint16)((nextTimerCallbackTimes[index] - uptime) * getSampleRate());
 		}
 	}
 	else jassertfalse;
