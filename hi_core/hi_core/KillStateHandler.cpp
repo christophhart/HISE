@@ -51,7 +51,7 @@ MainController::KillStateHandler::KillStateHandler(MainController* mc_) :
 	pendingFunctions[TargetThread::MessageThread] = &pendingMessageThreadFunctions;
 	pendingFunctions[TargetThread::SampleLoadingThread] = &pendingSampleLoadFunctions;
 
-
+	audioThreads.ensureStorageAllocated(16);
 
 	threadIds[TargetThread::AudioThread] = nullptr;
 	threadIds[TargetThread::SampleLoadingThread] = mc->getSampleManager().getGlobalSampleThreadPool()->getThreadId();
@@ -338,34 +338,37 @@ MainController::KillStateHandler::TargetThread MainController::KillStateHandler:
 {
 	jassert(threadIds[(int)TargetThread::SampleLoadingThread] != nullptr);
 
+	
+
+	auto threadId = Thread::getCurrentThreadId();
+
+	if(audioThreads.contains(threadId))
+		return TargetThread::AudioThread;
+	else if (threadId == threadIds[(int)TargetThread::SampleLoadingThread])
+		return TargetThread::SampleLoadingThread;
+	
 	if (auto mm = MessageManager::getInstanceWithoutCreating())
 	{
 		if (mm->isThisTheMessageThread())
 			return MessageThread;
 	}
 
+	jassertfalse;
+
+	return MessageThread;
+}
+
+
+void MainController::KillStateHandler::addThreadIdToAudioThreadList()
+{
 	auto threadId = Thread::getCurrentThreadId();
 
-	if (threadId == threadIds[(int)TargetThread::AudioThread])
-		return TargetThread::AudioThread;
-	else if (threadId == threadIds[(int)TargetThread::SampleLoadingThread])
-		return TargetThread::SampleLoadingThread;
-	else
-	{
-		jassertfalse;
-		return MessageThread;
-	}
+	audioThreads.addIfNotAlreadyThere(threadId);
 }
 
 void MainController::KillStateHandler::initAudioThreadId()
 {
-	if (threadIds[(int)TargetThread::AudioThread] == nullptr)
-	{
-		auto audioThreadId = Thread::getCurrentThreadId();
-
-		jassert(audioThreadId != nullptr);
-		threadIds[(int)TargetThread::AudioThread] = audioThreadId;
-	}
+	addThreadIdToAudioThreadList();
 }
 
 void MainController::KillStateHandler::executePendingAudioThreadFunctions()

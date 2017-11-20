@@ -175,7 +175,12 @@ void MainController::clearPreset()
 
 void MainController::loadPresetFromValueTree(const ValueTree &v, Component* /*mainEditor*/)
 {
-	jassert(killStateHandler.getCurrentThread() == KillStateHandler::SampleLoadingThread);
+#if USE_BACKEND
+    const bool isCommandLine = CompileExporter::isExportingFromCommandLine();
+    const bool isSampleLoadingThread = killStateHandler.getCurrentThread() == KillStateHandler::SampleLoadingThread;
+    
+	jassert(isCommandLine || isSampleLoadingThread);
+#endif
 
 	if (v.isValid() && v.getProperty("Type", var::undefined()).toString() == "SynthChain")
 	{
@@ -201,7 +206,13 @@ void MainController::loadPresetInternal(const ValueTree& v)
 	{
 		ModulatorSynthChain *synthChain = getMainSynthChain();
 
-		jassert(killStateHandler.getCurrentThread() == KillStateHandler::SampleLoadingThread);
+#if USE_BACKEND
+        const bool isCommandLine = CompileExporter::isExportingFromCommandLine();
+        const bool isSampleLoadingThread = killStateHandler.getCurrentThread() == KillStateHandler::SampleLoadingThread;
+        
+		jassert(isCommandLine || isSampleLoadingThread);
+#endif
+        
 		jassert(!synthChain->areVoicesActive());
 
 		clearPreset();
@@ -510,7 +521,7 @@ void MainController::storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositi
 
 void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &midiMessages)
 {
-    ADD_GLITCH_DETECTOR(getMainSynthChain(), DebugLogger::Location::MainRenderCallback);
+	ADD_GLITCH_DETECTOR(getMainSynthChain(), DebugLogger::Location::MainRenderCallback);
     
 	
 
@@ -608,9 +619,13 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	synthChain->renderNextBlockWithModulators(buffer, masterEventBuffer);
 
 #else
-	multiChannelBuffer.clear();
 
-	synthChain->renderNextBlockWithModulators(multiChannelBuffer, masterEventBuffer);
+
+	AudioSampleBuffer thisMultiChannelBuffer(multiChannelBuffer.getArrayOfWritePointers(), multiChannelBuffer.getNumChannels(), 0, bufferSize.get());
+
+	thisMultiChannelBuffer.clear();
+
+	synthChain->renderNextBlockWithModulators(thisMultiChannelBuffer, masterEventBuffer);
 
 	const bool isUsingMultiChannel = buffer.getNumChannels() != 2;
 
@@ -618,13 +633,13 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	{
 		if (replaceBufferContent)
 		{
-			FloatVectorOperations::copy(buffer.getWritePointer(0), multiChannelBuffer.getReadPointer(0), buffer.getNumSamples());
-			FloatVectorOperations::copy(buffer.getWritePointer(1), multiChannelBuffer.getReadPointer(1), buffer.getNumSamples());
+			FloatVectorOperations::copy(buffer.getWritePointer(0), thisMultiChannelBuffer.getReadPointer(0), bufferSize.get());
+			FloatVectorOperations::copy(buffer.getWritePointer(1), thisMultiChannelBuffer.getReadPointer(1), bufferSize.get());
 		}
 		else
 		{
-			FloatVectorOperations::add(buffer.getWritePointer(0), multiChannelBuffer.getReadPointer(0), buffer.getNumSamples());
-			FloatVectorOperations::add(buffer.getWritePointer(1), multiChannelBuffer.getReadPointer(1), buffer.getNumSamples());
+			FloatVectorOperations::add(buffer.getWritePointer(0), thisMultiChannelBuffer.getReadPointer(0), bufferSize.get());
+			FloatVectorOperations::add(buffer.getWritePointer(1), thisMultiChannelBuffer.getReadPointer(1), bufferSize.get());
 		}
 	}
 	else
@@ -640,11 +655,11 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 			if (replaceBufferContent)
 			{
-				FloatVectorOperations::copy(buffer.getWritePointer(destinationChannel), multiChannelBuffer.getReadPointer(i), buffer.getNumSamples());
+				FloatVectorOperations::copy(buffer.getWritePointer(destinationChannel), thisMultiChannelBuffer.getReadPointer(i), bufferSize.get());
 			}
 			else
 			{
-				FloatVectorOperations::add(buffer.getWritePointer(destinationChannel), multiChannelBuffer.getReadPointer(i), buffer.getNumSamples());
+				FloatVectorOperations::add(buffer.getWritePointer(destinationChannel), thisMultiChannelBuffer.getReadPointer(i), bufferSize.get());
 			}
 			
 		}
@@ -1002,5 +1017,6 @@ void MainController::CodeHandler::setMainConsole(Console* console)
 {
 	mainConsole = dynamic_cast<Component*>(console);
 }
+
 
 } // namespace hise

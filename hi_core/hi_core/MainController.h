@@ -612,6 +612,8 @@ public:
 
 		TargetThread getCurrentThread() const;
 
+		void addThreadIdToAudioThreadList();
+
 	private:
 
 		
@@ -674,6 +676,8 @@ public:
 
 		void* threadIds[(int)TargetThread::numTargetThreads];
 		
+		Array<void*> audioThreads;
+
 		LockfreeQueue<SafeFunctionCall>* pendingFunctions[TargetThread::numTargetThreads];
 	};
 
