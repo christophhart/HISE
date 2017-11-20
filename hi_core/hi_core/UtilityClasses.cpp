@@ -745,7 +745,7 @@ float BalanceCalculator::getGainFactorForBalance(float balanceValue, bool calcul
 {
 	if (balanceValue == 0.0f) return 1.0f;
 
-	const float balance = jlimit(-100.0f, 100.0f, balanceValue / 100.0f);
+	const float balance = jlimit(-1.0f, 1.0f, balanceValue / 100.0f);
 
 	float panValue = (float_Pi * (balance + 1.0f)) * 0.25f;
 
