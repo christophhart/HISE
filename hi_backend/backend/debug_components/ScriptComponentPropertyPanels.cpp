@@ -256,8 +256,6 @@ void HiSliderPropertyComponent::updateRange()
 	static const Identifier w("width");
 	static const Identifier h("height");
 
-	const bool isSize = getId() == w || getId() == h;
-
 	ScriptComponent* sc = panel->getScriptComponentEditBroadcaster()->getFirstFromSelection();
 
 	int maxWidth = sc->parent->getContentWidth();

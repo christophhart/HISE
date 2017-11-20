@@ -167,7 +167,7 @@ public:
 			g.setColour(bgColour);
 			g.drawRoundedRectangle(ar, 2.0f, 2.0f);
 
-			if (auto slider = dynamic_cast<Slider*>(c.getComponent()))
+			if (dynamic_cast<Slider*>(c.getComponent()) != nullptr)
 			{
 				g.setFont(GLOBAL_BOLD_FONT());
 				g.setColour(textColour);

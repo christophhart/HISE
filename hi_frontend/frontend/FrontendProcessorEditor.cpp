@@ -50,7 +50,13 @@ AudioProcessorEditor(fp)
 	
 	container->addAndMakeVisible(deactiveOverlay = new DeactiveOverlay());
 
+
+
 #if !FRONTEND_IS_PLUGIN
+
+
+	deactiveOverlay->setState(DeactiveOverlay::SamplesNotInstalled, !ProjectHandler::Frontend::checkSamplesCorrectlyInstalled());
+
 	deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, !fp->areSamplesLoadedCorrectly());
 #else
 

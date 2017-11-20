@@ -983,6 +983,7 @@ void ScriptingApi::Engine::allNotesOff()
 void ScriptingApi::Engine::loadFont(const String &fileName)
 {
 	debugError(getProcessor(), "loadFont is deprecated. Use loadFontAs() instead to prevent cross platform issues");
+	loadFontAs(fileName, String());
 }
 
 void ScriptingApi::Engine::loadFontAs(String fileName, String fontId)

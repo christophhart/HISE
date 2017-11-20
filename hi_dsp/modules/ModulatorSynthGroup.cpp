@@ -89,7 +89,7 @@ void ModulatorSynthGroupVoice::startNote(int midiNoteNumber, float velocity, Syn
 
 	numUnisonoVoices = (int)getOwnerSynth()->getAttribute(ModulatorSynthGroup::SpecialParameters::UnisonoVoiceAmount);
 	
-	const float detune = getOwnerSynth()->getAttribute(ModulatorSynthGroup::SpecialParameters::UnisonoDetune);
+
 
 	auto mod = getFMModulator();
 
@@ -780,7 +780,7 @@ float ModulatorSynthGroup::getDefaultValue(int parameterIndex) const
 	case CarrierIndex:	 return (float)-1;
 	case UnisonoVoiceAmount: return 1.0f;
 	case UnisonoDetune:		 return 0.0f;
-	case UnisonoSpread:		 return 0.0f;
+	case UnisonoSpread:		 return 1.0f;
 	case ForceMono:		 return 0.0f;
 	default:			 jassertfalse; return -1.0f;
 	}
@@ -1154,7 +1154,7 @@ void ModulatorSynthGroup::checkFMStateInternally()
 	}
 	else
 	{
-		if (auto c = getFMCarrier())
+		if (getFMCarrier() != nullptr)
 		{
 			fmCorrectlySetup = false;
 		}

@@ -289,7 +289,7 @@ ValueTree ValueTreeConverters::convertDynamicObjectToContentProperties(const var
 		}
 
 	}
-	else if (auto dyn = d.getDynamicObject())
+	else if (d.getDynamicObject() != nullptr)
 	{
 		root = ValueTree("Component");
 

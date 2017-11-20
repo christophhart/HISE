@@ -70,7 +70,6 @@ bool SlotFX::setEffect(const String& typeName, bool synchronously)
 			{
 				wrappedEffect->sendDeleteMessage();
 
-				auto p = this->wrappedEffect.get();
 			}
 			else
 			{

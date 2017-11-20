@@ -412,11 +412,14 @@ var FloatingPanelTemplates::createSettingsWindow(MainController* mc)
 	ib.getContent<FloatingTabComponent>(tabs)->setPanelColour(FloatingTabComponent::PanelColourId::bgColour, Colour(0xff000000));
 	ib.getContent<FloatingTabComponent>(tabs)->setPanelColour(FloatingTabComponent::PanelColourId::itemColour1, Colour(0xff333333));
 
-	const int settingsWindows = ib.addChild<CustomSettingsWindowPanel>(tabs);
+
 
 #if IS_STANDALONE_APP
 	ib.addChild<MidiSourcePanel>(tabs);
 #else
+    
+   	const int settingsWindows = ib.addChild<CustomSettingsWindowPanel>(tabs);
+    
 	auto sw = ib.getContent<CustomSettingsWindowPanel>(settingsWindows);
 
 	DynamicObject::Ptr sData = new DynamicObject();
@@ -490,7 +493,7 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 	const int interfaceDesigner = ib.addChild <VerticalTile>(mainVertical);
 	ib.setDynamic(interfaceDesigner, false);
 
-	const int scriptComponentList = ib.addChild<ScriptComponentList::Panel>(interfaceDesigner);
+    ib.addChild<ScriptComponentList::Panel>(interfaceDesigner);
 
 	const int interfaceHorizontal = ib.addChild<HorizontalTile>(interfaceDesigner);
 	ib.setDynamic(interfaceHorizontal, false);

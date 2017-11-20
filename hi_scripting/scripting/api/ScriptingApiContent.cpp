@@ -827,7 +827,7 @@ void ScriptingApi::Content::ScriptComponent::updateContentPropertyInternal(int p
 
 void ScriptingApi::Content::ScriptComponent::updateContentPropertyInternal(const Identifier& propId, const var& newValue)
 {
-	if (auto jp = dynamic_cast<JavascriptProcessor*>(getProcessor()))
+	if (dynamic_cast<JavascriptProcessor*>(getProcessor()) != nullptr)
 	{
 		auto componentId = getName();
 		auto cTree = parent->getContentProperties();
@@ -2256,6 +2256,10 @@ timerRoutine(var())
 
 ScriptingApi::Content::ScriptPanel::~ScriptPanel()
 {
+	timerRoutine = var();
+	mouseRoutine = var();
+	paintRoutine = var();
+
     stopTimer();
     
 	if (HiseJavascriptEngine::isJavascriptFunction(loadRoutine))
@@ -2269,9 +2273,7 @@ ScriptingApi::Content::ScriptPanel::~ScriptPanel()
     
     graphics = nullptr;
     
-    timerRoutine = var();
-    mouseRoutine = var();
-    paintRoutine = var();
+    
 }
 
 StringArray ScriptingApi::Content::ScriptPanel::getOptionsFor(const Identifier &id)
@@ -3782,6 +3784,7 @@ void ScriptingApi::Content::updateAndSetLevel(UpdateLevel newUpdateLevel)
 						  rebuildComponentListFromValueTree(); 
 						  dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->compileScript();
 						  break;
+    default: break;
 	}
 }
 
@@ -4246,6 +4249,8 @@ Result ScriptingApi::Content::Helpers::setParentComponent(ScriptComponent* paren
 
 		return Result::ok();
 	}
+
+	return Result::fail("Invalid var");
 }
 
 Result ScriptingApi::Content::Helpers::setParentComponent(Content* content, const var& parentId, const var& childIdList)
@@ -4313,6 +4318,7 @@ Result ScriptingApi::Content::Helpers::setParentComponent(Content* content, cons
 	content->updateAndSetLevel(FullRecompile);
 	content->getScriptProcessor()->getMainController_()->getScriptComponentEditBroadcaster()->clearSelection(sendNotification);
 
+	return Result::ok();
 }
 
 void ScriptingApi::Content::Helpers::copyComponentSnapShotToValueTree(Content* c)

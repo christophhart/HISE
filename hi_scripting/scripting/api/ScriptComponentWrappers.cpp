@@ -268,7 +268,7 @@ void ScriptCreatedComponentWrappers::SliderWrapper::sliderValueChanged(Slider *s
 	}
 }
 
-void ScriptCreatedComponentWrappers::SliderWrapper::sliderDragStarted(Slider* s)
+void ScriptCreatedComponentWrappers::SliderWrapper::sliderDragStarted(Slider* /*s*/)
 {
 	enum Direction
 	{
@@ -365,7 +365,7 @@ void ScriptCreatedComponentWrappers::SliderWrapper::sliderDragStarted(Slider* s)
 	}
 }
 
-void ScriptCreatedComponentWrappers::SliderWrapper::sliderDragEnded(Slider* s)
+void ScriptCreatedComponentWrappers::SliderWrapper::sliderDragEnded(Slider* /*s*/)
 {
 	if (auto c = getComponent())
 	{

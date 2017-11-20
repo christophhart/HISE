@@ -75,6 +75,23 @@ public:
 		return rootTile;
 	}
 
+	void setSamplesCorrectlyInstalled(bool wasOK)
+	{
+		if (deactiveOverlay != nullptr)
+		{
+			deactiveOverlay->setState(DeactiveOverlay::SamplesNotInstalled, !wasOK);
+		}
+
+		if (wasOK)
+		{
+			auto fp = dynamic_cast<FrontendProcessor*>(getAudioProcessor());
+			
+			fp->setAllSampleReferencesCorrect();
+			fp->loadSamplesAfterRegistration();
+		}
+			
+	}
+
 	void overlayMessageSent(int state, const String& message) override
 	{
 		if (deactiveOverlay != nullptr)

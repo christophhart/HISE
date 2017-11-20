@@ -46,11 +46,11 @@ public:
 
 	var loadKeyFile();
 
-	forcedinline var isUnlocked() const;
+	var isUnlocked() const;
 
 	static RSAKey getPublicKey();
 
-	forcedinline var isValidMachine(const String& machineId) const;
+	var isValidMachine(const String& machineId) const;
 
 	static void showActivationWindow(Component* overlay);
 

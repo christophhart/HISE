@@ -256,6 +256,8 @@ public:
 
 	struct CyclicReferenceCheckBase
 	{
+        virtual ~CyclicReferenceCheckBase() {};
+        
 		struct ThreadData;
 
 		struct Reference

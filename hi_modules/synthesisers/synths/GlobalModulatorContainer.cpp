@@ -230,6 +230,7 @@ void GlobalModulatorData::prepareToPlay(double /*sampleRate*/, int blockSize)
 	case GlobalModulator::VoiceStart:	valuesForCurrentBuffer = AudioSampleBuffer(1, 0); return;
 	case GlobalModulator::TimeVariant:	ProcessorHelpers::increaseBufferIfNeeded(valuesForCurrentBuffer, blockSize); break;
     case GlobalModulator::numTypes: break;
+    default: break;
 	}
 }
 
@@ -242,6 +243,7 @@ void GlobalModulatorData::saveValuesToBuffer(int startIndex, int numSamples, int
 	case GlobalModulator::VoiceStart:	jassert(noteNumber != -1);  constantVoiceValues.set(noteNumber, static_cast<VoiceStartModulator*>(modulator.get())->getVoiceStartValue(voiceIndex)); break;
 	case GlobalModulator::TimeVariant:	FloatVectorOperations::copy(valuesForCurrentBuffer.getWritePointer(0, startIndex), static_cast<TimeVariantModulator*>(modulator.get())->getCalculatedValues(0) + startIndex, numSamples); break;
     case GlobalModulator::numTypes: break;
+    default: break;
 	}
 }
 
@@ -252,6 +254,7 @@ const float * GlobalModulatorData::getModulationValues(int startIndex, int /*voi
 	case GlobalModulator::VoiceStart:	jassertfalse; return nullptr;
 	case GlobalModulator::TimeVariant:	return valuesForCurrentBuffer.getReadPointer(0, startIndex);
     case GlobalModulator::numTypes: return nullptr;
+    default: break;
 	}
 
 	return nullptr;

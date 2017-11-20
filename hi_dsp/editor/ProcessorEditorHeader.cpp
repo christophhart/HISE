@@ -930,7 +930,7 @@ void ProcessorEditorHeader::update()
 		if (isHeaderOfChain())
 			return;
 
-		if (auto envelope = dynamic_cast<EnvelopeModulator*>(mod))
+		if (dynamic_cast<EnvelopeModulator*>(mod) != nullptr)
 		{
 			auto retrigger = getProcessor()->getAttribute(EnvelopeModulator::Parameters::Retrigger) > 0.5f;
 			auto monophonic = getProcessor()->getAttribute(EnvelopeModulator::Parameters::Monophonic) > 0.5f;

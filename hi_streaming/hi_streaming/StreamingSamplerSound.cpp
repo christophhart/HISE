@@ -808,7 +808,7 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
 					{
 						memoryReader->mapSectionOfFile(Range<int64>((int64)(sound->sampleStart) + (int64)(sound->monolithOffset), (int64)(sound->sampleEnd)));
 
-						sampleLength = jmax<int>(0, memoryReader->getMappedSection().getLength());
+						sampleLength = jmax<int64>(0, memoryReader->getMappedSection().getLength());
 
 						stereo = memoryReader->numChannels > 1;
 					}

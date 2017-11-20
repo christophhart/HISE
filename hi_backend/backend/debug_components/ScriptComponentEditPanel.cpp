@@ -190,8 +190,6 @@ void ScriptComponentEditPanel::addProperty(Array<PropertyComponent*> &arrayToAdd
 	{
 		HiSliderPropertyComponent *slider = new HiSliderPropertyComponent(id, this);
 
-		ScriptComponentPropertyTypeSelector::SliderRange range = ScriptComponentPropertyTypeSelector::getRangeForId(id);
-
 		arrayToAddTo.add(slider);
 
 		slider->setLookAndFeel(&pplaf);

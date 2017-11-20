@@ -1385,8 +1385,6 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 			VERBOSE_LOG("    Channels: " + String(reader->numChannels));
 			VERBOSE_LOG("    Length: " + String(reader->lengthInSamples));
 
-			const int nameLength = name.length() + 1;
-
 			WRITE_FLAG(Flag::BeginName);
 			fos->writeString(name);
 			WRITE_FLAG(Flag::EndName);
