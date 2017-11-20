@@ -218,6 +218,8 @@ void ModulatorSynthGroupVoice::calculateNoFMVoiceInternal(ModulatorSynth * child
 	if (childVoiceIndex >= NUM_POLYPHONIC_VOICES)
 		return;
 
+	
+
 	calculateDetuneMultipliers(childVoiceIndex);
 
 	auto& childContainer = getChildContainer(childVoiceIndex);
@@ -269,7 +271,11 @@ void ModulatorSynthGroupVoice::calculateNoFMVoiceInternal(ModulatorSynth * child
 		}
 
 		if (childVoice->getCurrentlyPlayingSound() == nullptr)
-			resetVoice();
+		{
+			resetInternal(childSynth, childVoiceIndex);
+			return;
+		}
+			
 	}
 
 	childSynth->setPeakValues(gain, gain);

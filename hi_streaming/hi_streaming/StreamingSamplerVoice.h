@@ -169,6 +169,8 @@ private:
 
 	bool isReadingFromPreloadBuffer;
 
+	bool entireSampleIsLoaded;
+
 	bool voiceCounterWasIncreased;
 
 	int sampleStartModValue;

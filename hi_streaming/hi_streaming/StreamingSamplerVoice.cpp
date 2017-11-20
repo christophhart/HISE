@@ -118,8 +118,13 @@ void SampleLoader::startNote(StreamingSamplerSound const *s, int startTime)
 
 	voiceCounterWasIncreased = false;
 
-	// The other buffer will be filled on the next free thread pool slot
-	requestNewData();
+	entireSampleIsLoaded = s->isEntireSampleLoaded();
+
+	if (!entireSampleIsLoaded)
+	{
+		// The other buffer will be filled on the next free thread pool slot
+		requestNewData();
+	}
 };
 
 void SampleLoader::reset()
@@ -200,7 +205,7 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 		{
 			const int numSamplesToCopyFromSecondBuffer = jmin<int>(numSamplesAvailableInSecondBuffer, voiceBuffer.getNumSamples() - offset);
 
-			if (writeBufferIsBeingFilled)
+			if (writeBufferIsBeingFilled || entireSampleIsLoaded)
 			{
 				voiceBuffer.clear(offset, numSamplesToCopyFromSecondBuffer);
 			}
@@ -266,14 +271,23 @@ bool SampleLoader::advanceReadIndex(double uptime)
 
 	if (readIndexDouble >= numSamplesInBuffer)
 	{
-		lastSwapPosition = (double)positionInSampleFile;
-		positionInSampleFile += getNumSamplesForStreamingBuffers();
-		readIndexDouble = uptime - lastSwapPosition;
+		if (entireSampleIsLoaded)
+		{
+			return true;
+		}
+		else
+		{
+			lastSwapPosition = (double)positionInSampleFile;
+			positionInSampleFile += getNumSamplesForStreamingBuffers();
+			readIndexDouble = uptime - lastSwapPosition;
 
-		swapBuffers();
-		const bool queueIsFree = requestNewData();
+			swapBuffers();
+			const bool queueIsFree = requestNewData();
 
-		return queueIsFree;
+			return queueIsFree;
+		}
+
+		
 	}
 
 	return true;

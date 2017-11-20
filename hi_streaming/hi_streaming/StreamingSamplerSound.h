@@ -168,6 +168,8 @@ public:
 	/** Sets the basic MIDI mapping data (key-range, velocity-range and root note) from the given data object. */
 	void setBasicMappingData(const StreamingHelpers::BasicMappingData& data);
 
+	bool isEntireSampleLoaded() const noexcept { return entireSampleLoaded; };
+
 	// ==============================================================================================================================================
 
 	/** Set the preload size.
