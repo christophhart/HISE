@@ -28,6 +28,8 @@
 *
 */
 
+namespace hlac { using namespace juce; 
+
 void HlacDecoder::setupForDecompression()
 {
 	reset();
@@ -416,3 +418,5 @@ uint16 HlacDecoder::CycleHeader::getNumSamples() const
 	}
 
 }
+
+} // namespace hlac

@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -60,9 +60,7 @@ END_JUCE_MODULE_DECLARATION
 
 #include "effects/fx/chunkware_simple_dynamics/chunkware_simple_dynamics.h"
 
-namespace hise
-{
-using namespace juce;
+
 
 /** @defgroup modulatorTypes ModulatorTypes =========================================================================
 *	@ingroup modulator
@@ -213,7 +211,7 @@ using namespace juce;
 
 #endif
 
-}
+
 
 
 

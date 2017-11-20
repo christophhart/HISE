@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -32,6 +32,8 @@
 
 #ifndef MODULATORS_H_INCLUDED
 #define MODULATORS_H_INCLUDED
+
+namespace hise { using namespace juce;
 
 #pragma warning( push )
 #pragma warning( disable: 4589 )
@@ -308,6 +310,10 @@ public:
 	/** Returns a read pointer to the calculated values. This is used by the global modulator system. */
 	virtual const float *getCalculatedValues(int /*voiceIndex*/);
 
+	float getLastConstantValue() const {
+		return lastConstantValue;
+	}
+
 protected:
 
 	TimeModulation(Modulation::Mode m):
@@ -360,7 +366,11 @@ protected:
 
 	AudioSampleBuffer internalBuffer;
 
+	
+
 private:
+
+	float lastConstantValue = 1.0f;
 
 	void handleFirstBuffer(float * destinationValues, int numValues) const;
 
@@ -913,8 +923,10 @@ class VoiceStartModulatorFactoryType: public FactoryType
 		keyModulator,
 		randomModulator,
 		globalVoiceStartModulator,
+		globalStaticTimeVariantModulator,
 		arrayModulator,
-		scriptVoiceStartModulator
+		scriptVoiceStartModulator,
+
 	};
 
 public:
@@ -1032,5 +1044,7 @@ private:
 };
 
 #pragma warning (pop)
+
+} // namespace hise
 
 #endif  // MODULATORS_H_INCLUDED

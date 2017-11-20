@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -32,6 +32,8 @@
 
 #ifndef __JUCE_HEADER_BD6D51421EADA068__
 #define __JUCE_HEADER_BD6D51421EADA068__
+
+namespace hise { using namespace juce;
 
 class MidiKeyboardFocusTraverser : public KeyboardFocusTraverser
 {
@@ -193,5 +195,7 @@ public:
     virtual Component *getKeyboard() const = 0;
 };
 
+
+} // namespace hise
 
 #endif   

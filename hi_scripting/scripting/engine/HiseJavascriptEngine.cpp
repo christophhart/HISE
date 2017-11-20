@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-
+namespace hise { using namespace juce;
 
 #define JUCE_JS_OPERATORS(X) \
     X(semicolon,     ";")        X(dot,          ".")       X(comma,        ",") \
@@ -950,3 +950,5 @@ NativeJITCompiler* HiseJavascriptEngine::RootObject::HiseSpecialData::getNativeC
 	return nullptr;
 }
 #endif
+
+} // namespace hise

@@ -23,12 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
+
+namespace hise { using namespace juce;
 
 bool FuzzySearcher::fitsSearch(const String &searchTerm, const String &stringToMatch, double fuzzyness)
 {
@@ -322,6 +324,8 @@ void SearchableListComponent::Collection::resized()
 {
 	int h = COLLECTION_HEIGHT;
 
+	visibleItems = 0;
+
 	for (int i = 0; i < items.size(); i++)
 	{
 		if (!items[i]->isIncludedInSearch() || isFolded())
@@ -337,6 +341,8 @@ void SearchableListComponent::Collection::resized()
 
 			//items[i]->setTopLeftPosition(12, h);
 			h += ITEM_HEIGHT;
+
+			visibleItems++;
 		}
 	}
 }
@@ -451,3 +457,4 @@ void SearchableListComponent::Item::PopupComponent::paint(Graphics& g)
 	if (parent.getComponent() != nullptr) parent->paintPopupBox(g);
 }
 
+} // namespace hise

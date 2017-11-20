@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,15 +33,15 @@
 #ifndef SAMPLETHREADPOOL_H_INCLUDED
 #define SAMPLETHREADPOOL_H_INCLUDED
 
+namespace hise { using namespace juce;
 
-
-class NewSampleThreadPool : public Thread
+class SampleThreadPool : public Thread
 {
 public:
 
-	NewSampleThreadPool();
+	SampleThreadPool();
 
-	~NewSampleThreadPool();
+	~SampleThreadPool();
 	
 
 	class Job
@@ -73,9 +73,13 @@ public:
 
 		bool isQueued() const noexcept{ return queued.load(); };
 
+	protected:
+
+		Thread* getCurrentThread() { return currentThread.load(); }
+
 	private:
 
-		friend class NewSampleThreadPool;
+		friend class SampleThreadPool;
         
         friend class WeakReference<Job>;
         WeakReference<Job>::Master masterReference;
@@ -85,6 +89,8 @@ public:
 		std::atomic<bool> running;
 
 		std::atomic<bool> shouldStop;
+
+		std::atomic<Thread*> currentThread;
 
 		const String name;
 	};
@@ -101,7 +107,7 @@ public:
 
 };
 
-typedef NewSampleThreadPool SampleThreadPool;
-typedef NewSampleThreadPool::Job SampleThreadPoolJob;
+typedef SampleThreadPool::Job SampleThreadPoolJob;
 
+} // namespace hise
 #endif  // SAMPLETHREADPOOL_H_INCLUDED

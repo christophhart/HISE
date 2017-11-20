@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -32,6 +32,8 @@
 
 #ifndef MACROCONTROLLEDCOMPONENTS_H_INCLUDED
 #define MACROCONTROLLEDCOMPONENTS_H_INCLUDED
+
+namespace hise { using namespace juce;
 
 #include <limits>
 
@@ -386,9 +388,22 @@ public:
 		notifyEditor = notify;
 	}
 
+	void setIsMomentary(bool shouldBeMomentary)
+	{
+		isMomentary = shouldBeMomentary;
+	}
+
+	void setPopupData(const var& newPopupData, Rectangle<int>& newPopupPosition)
+	{
+		popupData = newPopupData;
+		popupPosition = newPopupPosition;
+	}
+
 	void setLookAndFeelOwned(LookAndFeel *fslaf);
 
     void mouseDown(const MouseEvent &e) override;
+
+	void mouseUp(const MouseEvent& e) override;
 
 #if USE_BACKEND
 	void paint(Graphics &g) override
@@ -409,6 +424,13 @@ public:
 	};
 	
 private:
+
+	var popupData;
+	Rectangle<int> popupPosition;
+
+	Component::SafePointer<Component> currentPopup;
+
+	bool isMomentary = false;
 
 	NotificationType notifyEditor;
 	ScopedPointer<LookAndFeel> laf;
@@ -699,6 +721,6 @@ private:
 };
 
 
-
+} // namespace hise
 
 #endif  // MACROCONTROLLEDCOMPONENTS_H_INCLUDED

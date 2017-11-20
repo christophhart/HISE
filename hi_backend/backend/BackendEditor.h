@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -39,6 +39,7 @@
 #define SCROLLBAR_WIDTH 16
 #endif
 
+namespace hise { using namespace juce;
 
 class ProcessorEditorPanel;
 class PopupWindow;
@@ -65,7 +66,8 @@ struct BackendHelpers
 class BackendProcessorEditor: public FloatingTileContent,
 							  public Component,
 							  public GlobalScriptCompileListener,
-                              public Label::Listener
+                              public Label::Listener,
+							  public MainController::SampleManager::PreloadListener
 {
 public:
 
@@ -94,6 +96,8 @@ public:
 	void removeContainer();
 
 	void setRootProcessorWithUndo(Processor *p);
+
+	void preloadStateChanged(bool isPreloading) override;
 
 	void viewedComponentChanged()
 	{
@@ -209,7 +213,7 @@ public:
 
 	void loadNewContainer(const File &f);
 
-	void loadNewContainer(ValueTree &v);
+	void loadNewContainer(const ValueTree &v);
 
 	
 	void addProcessorToPanel(Processor *p);
@@ -307,6 +311,8 @@ private:
 	ScopedPointer<DebugLoggerComponent> debugLoggerWindow;
 
 	bool rootEditorIsMainSynthChain;
+
+	std::atomic<bool> isLoadingPreset;
 };
 
 
@@ -385,6 +391,6 @@ private:
 };
 
 
-
+} // namespace hise
 
 #endif

@@ -28,6 +28,7 @@
 *
 */
 
+namespace hlac { using namespace juce; 
 
 CompressionHelpers::AudioBufferInt16::AudioBufferInt16(AudioSampleBuffer& b, int channelToUse, bool normalizeBeforeStoring)
 {
@@ -120,7 +121,7 @@ void CompressionHelpers::AudioBufferInt16::reverse(int startSample, int numSampl
 
 	for (int i = 0; i < fadeLength; i++)
 	{
-		s2[i] *= g;
+		s2[i] = (int16)((float)s2[i] * g);
 		g -= 1.0f / (float)(fadeLength-1);
 	}
 
@@ -1384,8 +1385,6 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 			VERBOSE_LOG("    Channels: " + String(reader->numChannels));
 			VERBOSE_LOG("    Length: " + String(reader->lengthInSamples));
 
-			const int nameLength = name.length() + 1;
-
 			WRITE_FLAG(Flag::BeginName);
 			fos->writeString(name);
 			WRITE_FLAG(Flag::EndName);
@@ -1525,3 +1524,5 @@ HlacArchiver::Flag HlacArchiver::readFlag(FileInputStream* fis)
 
 #undef VERBOSE_LOG
 #undef STATUS_LOG
+
+} // namespace hlac

@@ -1,4 +1,4 @@
-
+namespace hise { using namespace juce;
 
 struct HiseJavascriptEngine::RootObject::LockStatement : public Statement
 {
@@ -359,3 +359,5 @@ struct HiseJavascriptEngine::RootObject::ContinueStatement : public Statement
 	ContinueStatement(const CodeLocation& l) noexcept : Statement(l) {}
 	ResultCode perform(const Scope&, var*) const override  { return continueWasHit; }
 };
+
+} // namespace hise

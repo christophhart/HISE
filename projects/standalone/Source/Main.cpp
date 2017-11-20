@@ -174,10 +174,15 @@ public:
 
         void closeButtonPressed()
         {
+			auto mw = dynamic_cast<MainContentComponent*>(getContentComponent());
+
             // This is called when the user tries to close this window. Here, we'll just
             // ask the app to quit when this happens, but you can change this to do
             // whatever you need.
-            JUCEApplication::getInstance()->systemRequestedQuit();
+
+			mw->requestQuit([]() {JUCEApplication::getInstance()->systemRequestedQuit(); });
+
+            
         }
 
         /* Note: Be careful if you override any DocumentWindow methods - the base

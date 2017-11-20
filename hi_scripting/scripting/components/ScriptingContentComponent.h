@@ -33,6 +33,8 @@
 #ifndef SCRIPTINGCONTENTCOMPONENT_H_INCLUDED
 #define SCRIPTINGCONTENTCOMPONENT_H_INCLUDED
 
+namespace hise { using namespace juce;
+
 #define GET_SCRIPT_PROPERTY(component, id) (component->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::id))
 
 #define GET_OBJECT_COLOUR(component, id) (Colour((uint32)(int64)GET_SCRIPT_PROPERTY(component, id)))
@@ -81,7 +83,8 @@ private:
 */
 class ScriptContentComponent: public Component,
 							  public SafeChangeListener,
-							  public GlobalScriptCompileListener
+							  public GlobalScriptCompileListener,
+							  public ScriptingApi::Content::RebuildListener
 {
 public:
 
@@ -125,6 +128,8 @@ public:
 
 	void paint(Graphics &g) override;
 
+	void contentWasRebuilt() override;
+
 	void scriptWasCompiled(JavascriptProcessor *p) override;
 
 	/** Recreates all components based on the supplied Content object and restores its values. */
@@ -139,17 +144,17 @@ public:
 
 	void refreshContentButton();
 
-	ScriptingApi::Content::ScriptComponent *getEditedComponent();
-
-	Component* setEditedScriptComponent(ScriptingApi::Content::ScriptComponent *sc);
-
 	bool keyPressed(const KeyPress &key) override;
 
 	ScriptingApi::Content::ScriptComponent *getScriptComponentFor(Point<int> pos);
 
 	ScriptingApi::Content::ScriptComponent* getScriptComponentFor(Component* component);
 
+	Component* getComponentFor(ScriptingApi::Content::ScriptComponent* sc);
+
 	void getScriptComponentsFor(Array<ScriptingApi::Content::ScriptComponent*> &arrayToFill, Point<int> pos);
+
+	void getScriptComponentsFor(Array<ScriptingApi::Content::ScriptComponent*> &arrayToFill, const Rectangle<int> area);
 
 	void refreshMacroIndexes();
 
@@ -170,6 +175,8 @@ public:
 
 	void resized();
 
+	
+
 private:
 
 	
@@ -182,12 +189,10 @@ private:
 	ProcessorWithScriptingContent* processor;
 	WeakReference<Processor> p;
 
-	int editedComponent;
-
 	OwnedArray<ScriptCreatedComponentWrapper> componentWrappers;
 };
 
 
 
-
+} // namespace hise
 #endif  // SCRIPTINGCONTENTCOMPONENT_H_INCLUDED

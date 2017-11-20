@@ -21,7 +21,7 @@
 #define __JUCE_HEADER_A08737CC2A7FE8DA__
 
 //[Headers]     -- You can add your own extra header files here --
- 
+ namespace hise { using namespace juce;
 
 class PopupLabel;
 
@@ -304,6 +304,7 @@ private:
 };
 
 //[EndFile] You can add extra defines here...
+} // namespace hise
 //[/EndFile]
 
 #endif   // __JUCE_HEADER_A08737CC2A7FE8DA__

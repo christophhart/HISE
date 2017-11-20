@@ -1,0 +1,326 @@
+/*  ===========================================================================
+*
+*   This file is part of HISE.
+*   Copyright 2016 Christoph Hart
+*
+*   HISE is free software: you can redistribute it and/or modify
+*   it under the terms of the GNU General Public License as published by
+*   the Free Software Foundation, either version 3 of the License, or
+*   (at your option) any later version.
+*
+*   HISE is distributed in the hope that it will be useful,
+*   but WITHOUT ANY WARRANTY; without even the implied warranty of
+*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*   GNU General Public License for more details.
+*
+*   You should have received a copy of the GNU General Public License
+*   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
+*
+*   Commercial licenses for using HISE in an closed source project are
+*   available on request. Please visit the project's website to get more
+*   information about commercial licensing:
+*
+*   http://www.hise.audio/
+*
+*   HISE is based on the JUCE library,
+*   which must be separately licensed for closed source applications:
+*
+*   http://www.juce.com
+*
+*   ===========================================================================
+*/
+
+
+#ifndef SCRIPTCOMPONENTLIST_H_INCLUDED
+#define SCRIPTCOMPONENTLIST_H_INCLUDED
+
+namespace hise { using namespace juce;
+
+
+
+
+//==============================================================================
+class ScriptComponentListItem : public TreeViewItem,
+								private ValueTree::Listener
+{
+public:
+
+	ScriptComponentListItem(const ValueTree& v, UndoManager& um_, ScriptingApi::Content* c, const String& searchTerm);
+
+	~ScriptComponentListItem()
+	{
+		tree.removeListener(this);
+	}
+
+	String getUniqueName() const override
+	{
+		return id;
+	}
+
+	bool isRootItem() const
+	{
+		return id == "Components";
+	}
+
+	bool mightContainSubItems() override
+	{
+		return tree.getNumChildren() > 0;
+	}
+
+	void paintItem(Graphics& g, int width, int height) override;
+
+
+	int getItemHeight() const
+	{
+		return fitsSearch ? 20 : 0;
+	}
+
+	void itemSelectionChanged(bool isNowSelected) override;
+
+	void itemOpennessChanged(bool isNowOpen) override
+	{
+		if (isNowOpen && getNumSubItems() == 0)
+			refreshSubItems();
+		else
+			clearSubItems();
+	}
+
+	var getDragSourceDescription() override;;
+
+	
+
+	bool isInterestedInDragSource(const DragAndDropTarget::SourceDetails& dragSourceDetails) override;
+
+	void itemDropped(const DragAndDropTarget::SourceDetails&, int insertIndex) override;
+
+	static void moveItems(TreeView& treeView, const OwnedArray<ValueTree>& items,
+		ValueTree newParent, int insertIndex, UndoManager& undoManager);
+
+	static void getSelectedTreeViewItems(TreeView& treeView, OwnedArray<ValueTree>& items);
+
+	void updateSelection(ScriptComponentSelection newSelection);
+
+	void checkSearchTerm(const String& searchTerm_)
+	{
+		if (searchTerm_.isEmpty())
+		{
+			fitsSearch = true;
+			return;
+		}
+
+		fitsSearch = FuzzySearcher::fitsSearch(searchTerm_, getItemIdentifierString(), 0.8);
+	}
+
+private:
+
+	String searchTerm;
+
+	friend class ScriptComponentList;
+
+
+	bool fitsSearch = true;
+
+	ScriptComponent::Ptr connectedComponent;
+	ValueTree tree;
+	UndoManager& undoManager;
+
+	ScriptingApi::Content* content;
+
+	String id;
+
+	void refreshSubItems()
+	{
+		clearSubItems();
+
+		bool hasVisibleChildren = false;
+
+		for (int i = 0; i < tree.getNumChildren(); ++i)
+		{
+			auto scli = new ScriptComponentListItem(tree.getChild(i), undoManager, content, searchTerm);
+
+			addSubItem(scli);
+			scli->checkSearchTerm(searchTerm);
+
+			if (!hasVisibleChildren && scli->getItemHeight() > 0)
+				hasVisibleChildren = true;
+		}
+		
+		if (!fitsSearch && hasVisibleChildren)
+			fitsSearch = true;
+	}
+
+	void valueTreePropertyChanged(ValueTree&, const Identifier&) override
+	{
+		repaintItem();
+	}
+
+	void valueTreeChildAdded(ValueTree& parentTree, ValueTree&) override { treeChildrenChanged(parentTree); }
+	void valueTreeChildRemoved(ValueTree& parentTree, ValueTree&, int) override { treeChildrenChanged(parentTree); }
+	void valueTreeChildOrderChanged(ValueTree& parentTree, int, int) override { treeChildrenChanged(parentTree); }
+	void valueTreeParentChanged(ValueTree&) override {}
+
+	void treeChildrenChanged(const ValueTree& parentTree)
+	{
+		if (parentTree == tree)
+		{
+			refreshSubItems();
+			treeHasChanged();
+			setOpen(true);
+		}
+	}
+
+	
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptComponentListItem)
+};
+
+//==============================================================================
+class ScriptComponentList : public Component,
+	public DragAndDropContainer,
+	public ScriptingApi::Content::RebuildListener,
+	public ScriptComponentEditListener,
+	private ButtonListener,
+	private Timer,
+	public TextEditor::Listener
+{
+public:
+	ScriptComponentList(ScriptingApi::Content* c);
+
+	~ScriptComponentList();
+
+	void scriptComponentPropertyChanged(ScriptComponent* sc, Identifier /*idThatWasChanged*/, const var& /*newValue*/) override;
+
+	void scriptComponentSelectionChanged() override;
+
+	void mouseUp(const MouseEvent& e) override;
+
+	void mouseDoubleClick(const MouseEvent& e) override;
+
+	class Panel : public PanelWithProcessorConnection
+	{
+	public:
+
+		Panel(FloatingTile* parent) :
+			PanelWithProcessorConnection(parent)
+		{};
+
+		SET_PANEL_NAME("ScriptComponentList");
+
+		Identifier getProcessorTypeId() const override { return JavascriptProcessor::getConnectorId(); }
+
+		Component* createContentComponent(int /*index*/) override;
+
+
+
+		void fillModuleList(StringArray& moduleList) override
+		{
+			fillModuleListWithType<JavascriptProcessor>(moduleList);
+		}
+	};
+
+	void paint(Graphics& g) override;
+
+	void textEditorReturnKeyPressed(TextEditor&) override
+	{
+		searchTerm = fuzzySearchBox->getText();
+
+		resetRootItem();
+		foldAll(false);
+		
+	}
+
+	void contentWasRebuilt() override
+	{
+		resetRootItem();
+	}
+
+	void resetRootItem();
+
+	void resized() override;
+
+	void deleteSelectedItems()
+	{
+		OwnedArray<ValueTree> selectedItems;
+		ScriptComponentListItem::getSelectedTreeViewItems(tree, selectedItems);
+
+		for (int i = selectedItems.size(); --i >= 0;)
+		{
+			ValueTree& v = *selectedItems.getUnchecked(i);
+
+			if (v.getParent().isValid())
+				v.getParent().removeChild(v, &undoManager);
+		}
+
+		content->updateAndSetLevel(ScriptingApi::Content::FullRecompile);
+	}
+
+	bool keyPressed(const KeyPress& key) override;
+
+	void buttonClicked(Button* b) override
+	{
+		bool ok = false;
+
+		if (b == &undoButton)
+		{
+			ok = undoManager.undo();
+			if (ok)
+				content->updateAndSetLevel(ScriptingApi::Content::FullRecompile);
+		}
+		else if (b == &redoButton)
+		{
+			ok = undoManager.redo();
+			if (ok)
+				content->updateAndSetLevel(ScriptingApi::Content::FullRecompile);
+		}
+		else if (b == &foldButton)
+		{
+			foldAll(true);
+		}
+		else if (b == &unfoldButton)
+		{
+			foldAll(false);
+		}
+	}
+
+private:
+
+	void foldAll(bool shouldBeFolded)
+	{
+		for (int i = 0; i < rootItem->getNumSubItems(); i++)
+		{
+			rootItem->getSubItem(i)->setOpenness(shouldBeFolded ? TreeViewItem::opennessClosed : TreeViewItem::opennessOpen);
+		}
+	}
+
+	Path searchPath;
+	
+	ScopedPointer<XmlElement> openState;
+
+	AlertWindowLookAndFeel alaf;
+
+	ScriptingApi::Content* content;
+
+	ScopedPointer<TextEditor> fuzzySearchBox;
+
+	String searchTerm;
+
+	TreeView tree;
+	TextButton undoButton, redoButton, foldButton, unfoldButton;
+	ScopedPointer<ScriptComponentListItem> rootItem;
+	UndoManager undoManager;
+
+	void timerCallback() override
+	{
+		undoManager.beginNewTransaction();
+	}
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptComponentList)
+};
+
+
+
+
+
+} // namespace hise
+
+#endif  // SCRIPTCOMPONENTLIST_H_INCLUDED

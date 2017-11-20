@@ -22,6 +22,8 @@
   ==============================================================================
 */
 
+namespace hise { using namespace juce;
+
 ThreadWithQuasiModalProgressWindow::ThreadWithQuasiModalProgressWindow (const String& title,
                                                     const bool hasProgressBar,
                                                     const bool hasCancelButton,
@@ -400,3 +402,5 @@ void ThreadWithQuasiModalProgressWindow::Holder::WindowDelayer::timerCallback()
 	parent.showDialog();
 	stopTimer();
 }
+
+} // namespace hise

@@ -23,12 +23,12 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 **/
 
-
+namespace hise { using namespace juce;
 
 Identifier FloatingTileContent::getDefaultablePropertyId(int index) const
 {
@@ -392,12 +392,15 @@ Component* FloatingPanelTemplates::createSamplerWorkspace(FloatingTile* rootTile
 	return nullptr;
 }
 
+#define SET_FALSE(x) sData->setProperty(sw->getDefaultablePropertyId((int)x), false);
+
 var FloatingPanelTemplates::createSettingsWindow(MainController* mc)
 {
-#if IS_STANDALONE_APP
+	MessageManagerLock mm;
+	
 	ScopedPointer<FloatingTile> root = new FloatingTile(mc, nullptr);
 
-	mc->setIsOnAir(false);
+	root->setAllowChildComponentCreation(false);
 
 	FloatingInterfaceBuilder ib(root);
 
@@ -409,25 +412,46 @@ var FloatingPanelTemplates::createSettingsWindow(MainController* mc)
 	ib.getContent<FloatingTabComponent>(tabs)->setPanelColour(FloatingTabComponent::PanelColourId::bgColour, Colour(0xff000000));
 	ib.getContent<FloatingTabComponent>(tabs)->setPanelColour(FloatingTabComponent::PanelColourId::itemColour1, Colour(0xff333333));
 
-	ib.addChild<CustomSettingsWindowPanel>(tabs);
+
+
+#if IS_STANDALONE_APP
 	ib.addChild<MidiSourcePanel>(tabs);
+#else
+    
+   	const int settingsWindows = ib.addChild<CustomSettingsWindowPanel>(tabs);
+    
+	auto sw = ib.getContent<CustomSettingsWindowPanel>(settingsWindows);
+
+	DynamicObject::Ptr sData = new DynamicObject();
+
+	SET_FALSE(CustomSettingsWindowPanel::SpecialPanelIds::BufferSize);
+	SET_FALSE(CustomSettingsWindowPanel::SpecialPanelIds::SampleRate);
+	SET_FALSE(CustomSettingsWindowPanel::SpecialPanelIds::Output);
+	SET_FALSE(CustomSettingsWindowPanel::SpecialPanelIds::Driver);
+	SET_FALSE(CustomSettingsWindowPanel::SpecialPanelIds::Device);
+
+	var sd(sData);
+
+	ib.getContent<CustomSettingsWindowPanel>(settingsWindows)->fromDynamicObject(sd);
+#endif
+
 	ib.addChild<MidiChannelPanel>(tabs);
 
 	ib.getContent<FloatingTabComponent>(tabs)->setCurrentTabIndex(0);
 	
+#if IS_STANDALONE_APP
 	ib.setCustomName(tabs, "Settings", { "Audio Settings", "Midi Sources", "MIDI Channels" });
+#else
+	ib.setCustomName(tabs, "Settings", { "Plugin Settings", "MIDI Channels" });
+#endif
+
 
 	auto v = ib.getContent(0)->toDynamicObject();
 
-	mc->setIsOnAir(true);
-
 	return v;
-#else
-
-	ignoreUnused(mc);
-	return var();
-#endif
 }
+
+#undef SET_FALSE
 
 Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTile)
 {
@@ -465,8 +489,12 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 	ib.setSizes(codeEditor, { -0.75, -0.25 });
 	ib.setSizes(codeVertical, { -0.8, -0.2 });
 
+
 	const int interfaceDesigner = ib.addChild <VerticalTile>(mainVertical);
 	ib.setDynamic(interfaceDesigner, false);
+
+    ib.addChild<ScriptComponentList::Panel>(interfaceDesigner);
+
 	const int interfaceHorizontal = ib.addChild<HorizontalTile>(interfaceDesigner);
 	ib.setDynamic(interfaceHorizontal, false);
 	const int interfacePanel = ib.addChild<ScriptContentPanel>(interfaceHorizontal);
@@ -474,7 +502,7 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 	const int keyboard = ib.addChild<MidiKeyboardPanel>(interfaceHorizontal);
 	ib.getPanel(keyboard)->getLayoutData().setForceFoldButton(true);
 
-	ib.addChild<GenericPanel<ScriptComponentEditPanel>>(interfaceDesigner);
+	ib.addChild<ScriptComponentEditPanel::Panel>(interfaceDesigner);
 
 	ib.setSizes(interfaceHorizontal, { -0.7, -0.3, 72.0 });
 	ib.setCustomName(interfaceHorizontal, "", { "Interface", "onInit Callback", "" });
@@ -486,7 +514,7 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
     ib.setId(codeEditor, "ScriptingWorkspaceCodeEditor");
     ib.setId(interfaceDesigner, "ScriptingWorkspaceInterfaceDesigner");
     
-	ib.setSizes(interfaceDesigner, { -0.8, -0.2 });
+	ib.setSizes(interfaceDesigner, {-0.15, -0.7, -0.15 });
 
 	ib.setFoldable(mainVertical, false, { false, true, true, true, true });
 	ib.setFoldable(interfaceHorizontal, false, { false, true, true });
@@ -568,7 +596,7 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 	const int scriptWatchTable = ib.addChild<ScriptWatchTablePanel>(rightColumn);
 	ib.getPanel(scriptWatchTable)->setCloseTogglesVisibility(true);
 
-	const int editPanel = ib.addChild<GenericPanel<ScriptComponentEditPanel>>(rightColumn);
+	const int editPanel = ib.addChild<ScriptComponentEditPanel::Panel>(rightColumn);
 	ib.getPanel(editPanel)->setCloseTogglesVisibility(true);
 
 	const int plotter = ib.addChild<PlotterPanel>(rightColumn);
@@ -656,3 +684,30 @@ void JSONEditor::replace()
 		}
 	}
 }
+
+
+void JSONEditor::executeCallback()
+{
+	var newData;
+
+	auto result = JSON::parse(doc->getAllContent(), newData);
+
+	if (result.wasOk())
+	{
+		callback(newData);
+		
+		auto f = [this]()
+		{
+			this->findParentComponentOfClass<FloatingTilePopup>()->deleteAndClose();
+		};
+
+		if(closeAfterCallbackExecution)
+			new DelayedFunctionCaller(f, 200);
+	}
+	else
+	{
+		PresetHandler::showMessageWindow("JSON Parser Error", result.getErrorMessage(), PresetHandler::IconType::Error);
+	}
+}
+
+} // namespace hise

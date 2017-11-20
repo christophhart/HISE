@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,6 +33,7 @@
 #ifndef PROCESSORINTERFACES_H_INCLUDED
 #define PROCESSORINTERFACES_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 /** A Processor that uses a Table.
 *	@ingroup processor_interfaces
@@ -334,7 +335,7 @@ public:
 		virtual void add(Processor *newProcessor, Processor *siblingToInsertBefore) = 0;
 
 		/** Deletes a processor from the chain. */
-		virtual void remove(Processor *processorToBeRemoved) = 0;
+		virtual void remove(Processor *processorToBeRemoved, bool deleteProcessor=true) = 0;
 
 		/** Returns the processor at the index. */
 		virtual Processor *getProcessor(int processorIndex) = 0;
@@ -518,5 +519,6 @@ private:
 	// ================================================================================================================
 };
 
+} // namespace hise
 
 #endif  // PROCESSORINTERFACES_H_INCLUDED

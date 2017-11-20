@@ -23,13 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
 
 Component * MidiKeyboardFocusTraverser::getDefaultComponent(Component *parentComponent)
 {
@@ -529,3 +530,6 @@ static const unsigned char resource_CustomKeyboard_white_key_on_png[] = { 137,80
 const char* CustomKeyboardLookAndFeel::white_key_on_png = (const char*) resource_CustomKeyboard_white_key_on_png;
 const int CustomKeyboardLookAndFeel::white_key_on_pngSize = 1611;
 
+
+
+} // namespace hise

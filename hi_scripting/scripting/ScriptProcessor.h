@@ -32,7 +32,7 @@
 
 #ifndef SCRIPTPROCESSOR_H_INCLUDED
 #define SCRIPTPROCESSOR_H_INCLUDED
-
+namespace hise { using namespace juce;
 
 
 class ModulatorSynthGroup;
@@ -48,7 +48,6 @@ class ProcessorWithScriptingContent
 public:
 
 	ProcessorWithScriptingContent(MainController* mc_) :
-		content(nullptr),
 		restoredContentValues(ValueTree("Content")),
 		mc(mc_)
 	{}
@@ -92,9 +91,6 @@ public:
 		return restoredContentValues.getChildWithName(name).getProperty("value", var::undefined());
 	}
 
-	/** Checks if any of the properties was changed. */
-	ScriptingApi::Content::ScriptComponent *checkContentChangedInPropertyPanel();
-
 	void restoreContent(const ValueTree &restoredState);
 
 	void saveContent(ValueTree &savedState) const;
@@ -106,6 +102,12 @@ public:
 
 protected:
 
+	/** Call this from the base class to create the content. */
+	void initContent()
+	{
+		content = new ScriptingApi::Content(this);
+	}
+
 	friend class JavascriptProcessor;
 
 	JavascriptProcessor* thisAsJavascriptProcessor = nullptr;
@@ -115,7 +117,10 @@ protected:
 	bool allowObjectConstructors;
 
 	ValueTree restoredContentValues;
-	WeakReference<ScriptingApi::Content> content;
+	
+	ReferenceCountedObjectPtr<ScriptingApi::Content> content;
+
+	//WeakReference<ScriptingApi::Content> content;
 };
 
 
@@ -261,6 +266,8 @@ class JavascriptProcessor :	public FileChangeListener,
 {
 public:
 
+	
+
 	// ================================================================================================================
 
 	/** A named document that contains a callback function. */
@@ -369,6 +376,9 @@ public:
 	SnippetDocument *getSnippet(const Identifier& id);
 	const SnippetDocument *getSnippet(const Identifier& id) const;
 
+
+	
+
 	void saveScript(ValueTree &v) const;
 	void restoreScript(const ValueTree &v);
 
@@ -452,6 +462,8 @@ public:
 		compileScript();
 	}
 
+	void cleanupEngine();
+
 	void setCallStackEnabled(bool shouldBeEnabled);
 
 	void addBreakpointListener(HiseJavascriptEngine::Breakpoint::Listener* newListener)
@@ -463,6 +475,23 @@ public:
 	{
 		breakpointListeners.removeAllInstancesOf(listenerToRemove);
 	}
+
+	ScriptingApi::Content* getContent()
+	{
+		return dynamic_cast<ProcessorWithScriptingContent*>(this)->getScriptingContent();
+	}
+	
+	const ScriptingApi::Content* getContent() const
+	{
+		return dynamic_cast<const ProcessorWithScriptingContent*>(this)->getScriptingContent();
+	}
+
+	void clearContentPropertiesDoc()
+	{
+		contentPropertyDocument = nullptr;
+	}
+
+	CodeDocument* createAndUpdateJsonDoc();
 
 protected:
 
@@ -544,8 +573,17 @@ private:
 	bool callStackEnabled = false;
 
 	bool cycleReferenceCheckEnabled = false;
+
+	
+
+	ScopedPointer<CodeDocument> contentPropertyDocument;
+
+	
+
+public:
+	void storeCurrentInterfaceStateInContentProperties();
 };
 
 
-
+} // namespace hise
 #endif  // SCRIPTPROCESSOR_H_INCLUDED

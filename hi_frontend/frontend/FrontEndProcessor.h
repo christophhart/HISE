@@ -23,7 +23,7 @@
 *   http://www.hartinstruments.net/hise/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,6 +33,7 @@
 #ifndef FRONTENDPROCESSOR_H_INCLUDED
 #define FRONTENDPROCESSOR_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 #if USE_COPY_PROTECTION
 class Unlocker
@@ -45,11 +46,11 @@ public:
 
 	var loadKeyFile();
 
-	forcedinline var isUnlocked() const;
+	var isUnlocked() const;
 
 	static RSAKey getPublicKey();
 
-	forcedinline var isValidMachine(const String& machineId) const;
+	var isValidMachine(const String& machineId) const;
 
 	static void showActivationWindow(Component* overlay);
 
@@ -87,6 +88,8 @@ public:
 	~FrontendProcessor()
 	{
 		setEnabledMidiChannels(synthChain->getActiveChannelData()->exportData());
+
+		clearPreset();
 
 		synthChain = nullptr;
 
@@ -370,5 +373,7 @@ private:
 
 	ScopedPointer<MainWindow> mainWindow;
 };
+
+} // namespace hise
 
 #endif  // FRONTENDPROCESSOR_H_INCLUDED

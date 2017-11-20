@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -31,147 +31,8 @@
 */
 
 
-SoundPreloadThread::SoundPreloadThread(ModulatorSampler *s) :
-ThreadWithQuasiModalProgressWindow("Loading Sample Data", true, true, s->getMainController(), 10000, "Abort loading"),
-sampler(s)
-{
-	getAlertWindow()->setLookAndFeel(&laf);
-}
+namespace hise { using namespace juce;
 
-
-SoundPreloadThread::SoundPreloadThread(ModulatorSampler *s, Array<ModulatorSamplerSound*> soundsToPreload_) :
-ThreadWithQuasiModalProgressWindow("Preloading Sample Data", true, true, s->getMainController()),
-sampler(s),
-soundsToPreload(soundsToPreload_)
-{
-	getAlertWindow()->setLookAndFeel(&laf);
-}
-
-void SoundPreloadThread::run()
-{
-    if(sampler == nullptr)
-    {
-        jassertfalse;
-        
-        return;
-    }
-    
-	ModulatorSamplerSoundPool *pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
-
-	//dynamic_cast<AudioProcessor*>(sampler->getMainController())->suspendProcessing(true);
-	sampler->checkAndLogIsSoftBypassed(DebugLogger::Location::SamplePreloadingThread);
-
-	jassert(!pool->getPreloadLockFlag());
-
-	ScopedValueSetter<bool> preloadLock(pool->getPreloadLockFlag(), true);
-    
-	const int numSoundsToPreload = sampler->getNumSounds();
-
-	const int preloadSize = (int)sampler->getAttribute(ModulatorSampler::PreloadSize) * sampler->getPreloadScaleFactor();
-
-    const bool wasBypassed = sampler->isBypassed();
-    
-	sampler->resetNotes();
-
-	sampler->setBypassed(true);
-
-	sampler->setShouldUpdateUI(false);
-	pool->setUpdatePool(false);
-
-	debugToConsole(sampler, "Changing preload size to " + String(preloadSize) + " samples");
-
-	const bool isReversed = sampler->getAttribute(ModulatorSampler::Reversed) > 0.5f;
-
-	
-	for(int i = 0; i < numSoundsToPreload; ++i)
-	{
-        if(threadShouldExit()) break;
-
-		setProgress(i / (double)numSoundsToPreload);
-
-		if (sampler->getSound(i) == nullptr) continue;
-
-		sampler->getSound(i)->checkFileReference();
-
-		
-
-		if (sampler->getNumMicPositions() == 1)
-		{
-			StreamingSamplerSound *s = sampler->getSound(i)->getReferenceToSound();
-			preloadSample(s, preloadSize, i);
-		}
-		else
-		{
-			for (int j = 0; j < sampler->getNumMicPositions(); j++)
-			{
-                const bool isEnabled = sampler->getChannelData(j).enabled;
-                
-                ModulatorSamplerSound *sound = sampler->getSound(i);
-                
-                if(sound != nullptr)
-                {
-                    StreamingSamplerSound *s = sound->getReferenceToSound(j);
-                    
-                    if(s != nullptr)
-                    {
-                        if(isEnabled)
-                        {
-                            preloadSample(s, preloadSize, i);
-                        }
-                        else
-                        {
-                            s->setPurged(true);
-                        }
-                     
-                    }
-                }
-			}
-		}
-
-		sampler->getSound(i)->setReversed(isReversed);
-	}
-
-	sampler->setBypassed(wasBypassed);
-	sampler->setShouldUpdateUI(true);
-	sampler->sendChangeMessage();
-	sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->setUpdatePool(true);
-	sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
-	dynamic_cast<AudioProcessor*>(sampler->getMainController())->suspendProcessing(false);
-
-	LOG_START("Loaded Samples for " + sampler->getId());
-
-};
-
-void SoundPreloadThread::preloadSample(StreamingSamplerSound * s, const int preloadSize, int soundIndex)
-{
-	jassert(s != nullptr);
-
-	String fileName = s->getFileName(false);
-
-	setStatusMessage("Loading sample " + String(soundIndex) + "/" + String(sampler->getNumSounds()));
-
-	try
-	{
-		s->setPreloadSize(s->hasActiveState() ? preloadSize : 0, true);
-		s->closeFileHandle();
-	}
-	catch (StreamingSamplerSound::LoadingError l)
-	{
-		String x;
-		x << "Error at preloading sample " << l.fileName << ": " << l.errorDescription;
-		sampler->getMainController()->getDebugLogger().logMessage(x);
-
-#if USE_FRONTEND
-		sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage, x);
-#else
-		debugError(sampler, x);
-#endif
-
-		sampler->setBypassed(false);
-        
-		signalThreadShouldExit();
-	}
-}
 
 
 ThumbnailHandler::ThumbnailHandler(const File &directoryToLoad, const StringArray &fileNames, ModulatorSampler *s) :
@@ -265,46 +126,6 @@ void ThumbnailHandler::run()
 };
 
 
-SampleWriter::SampleWriter(ModulatorSampler *sampler_, const StringArray &fileNames_):
-	ThreadWithProgressWindow("Saving samples", true, true),
-	sampler(sampler_),
-	fileNames(fileNames_)
-{
-
-
-};
-
-void SampleWriter::run()
-{
-	if(sampler->getNumSounds() == fileNames.size())
-	{
-
-		if(fileNames.size() != 0 && !File(fileNames[0]).getParentDirectory().exists())
-		{
-			File(fileNames[0]).getParentDirectory().createDirectory();
-		}
-
-		AudioFormatManager afm;
-		afm.registerBasicFormats();
-
-		for(int i = 0; i < fileNames.size(); i++)
-		{
-			setProgress((double)i / (double)fileNames.size());
-
-			if(threadShouldExit()) return;
-
-			const String originalFileName = sampler->getPropertyForSound(i, ModulatorSamplerSound::FileName);
-
-			if(fileNames[i] != originalFileName)
-			{
-				File originalFile(originalFileName);
-
-				originalFile.copyFileTo(File(fileNames[i]));
-			}
-		}
-	}
-}
-
 SampleMap::SampleMap(ModulatorSampler *sampler_):
 	sampler(sampler_),
 	fileOnDisk(File()),
@@ -328,26 +149,31 @@ SampleMap::FileList SampleMap::createFileList()
 		list.add(new Array<File>());
 	}
 
-	for (int i = 0; i < sampler->getNumSounds(); i++)
 	{
-		ModulatorSamplerSound* sound = sampler->getSound(i);
+		ModulatorSampler::SoundIterator soundIter(sampler);
 
-		for (int j = 0; j < sound->getNumMultiMicSamples(); j++)
+		while (auto sound = soundIter.getNextSound())
 		{
-			StreamingSamplerSound* sample = sound->getReferenceToSound(j);
-
-			File file = sample->getFileName(true);
-
-			if (!file.existsAsFile())
+			for (int i = 0; i < sound->getNumMultiMicSamples(); i++)
 			{
-				allFound = false;
+				StreamingSamplerSound* sample = sound->getReferenceToSound(i);
 
-				missingFileList << file.getFullPathName() << "\n";
+				File file = sample->getFileName(true);
+
+				if (!file.existsAsFile())
+				{
+					allFound = false;
+
+					missingFileList << file.getFullPathName() << "\n";
+				}
+
+				list[i]->add(file);
 			}
-
-			list[j]->add(file);
 		}
 	}
+
+	
+
 
 	if (!allFound)
 	{
@@ -382,6 +208,8 @@ void SampleMap::clear()
 
 void SampleMap::restoreFromValueTree(const ValueTree &v)
 {
+	ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
+
 	mode = (SaveMode)(int)v.getProperty("SaveMode");
 
 	const String sampleMapName = v.getProperty("ID");
@@ -433,28 +261,27 @@ ValueTree SampleMap::exportAsValueTree() const
 
 	StringArray absoluteFileNames;
 
-	for(int i = 0; i < sampler->getNumSounds(); i++)
-	{
-		ValueTree soundTree = sampler->getSound(i)->exportAsValueTree();
+	ModulatorSampler::SoundIterator sIter(sampler);
 
-        
-        
-        
+	while (auto sound = sIter.getNextSound())
+	{
+		ValueTree soundTree = sound->exportAsValueTree();
+
 		if (soundTree.getNumChildren() != 0)
 		{
 			for (int j = 0; j < soundTree.getNumChildren(); j++)
 			{
-                ValueTree child = soundTree.getChild(j);
-                
+				ValueTree child = soundTree.getChild(j);
+
 				replaceFileReferences(child);
-			}	
+			}
 		}
 		else
 		{
 			replaceFileReferences(soundTree);
 		}
 
-		v.addChild(soundTree, i, nullptr);
+		v.addChild(soundTree, -1, nullptr);
 	}
 
 	return v;
@@ -585,28 +412,34 @@ void SampleMap::loadSamplesFromDirectory(const ValueTree &v)
     ModulatorSamplerSoundPool *pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
     pool->setUpdatePool(false);
     
-	for(int i = 0; i < treeToUse->getNumChildren(); i++)
 	{
-		try
+		ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
+
+		for (int i = 0; i < treeToUse->getNumChildren(); i++)
 		{
-			sampler->addSamplerSound(treeToUse->getChild(i), i);
-		}
-		catch(StreamingSamplerSound::LoadingError l)
-		{
-			String x;
-			x << "Error at preloading sample " << l.fileName << ": " << l.errorDescription;
-			sampler->getMainController()->getDebugLogger().logMessage(x);
-			
+			try
+			{
+				sampler->addSamplerSound(treeToUse->getChild(i), i);
+			}
+			catch (StreamingSamplerSound::LoadingError l)
+			{
+				String x;
+				x << "Error at preloading sample " << l.fileName << ": " << l.errorDescription;
+				sampler->getMainController()->getDebugLogger().logMessage(x);
+
 #if USE_FRONTEND
-			sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage, x);
+				sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage, x);
 #else
-			debugError(sampler, x);
+				debugError(sampler, x);
 #endif
 
-			return;
+				return;
+			}
+
 		}
-		
 	}
+
+	
 
     pool->setUpdatePool(true);
     pool->sendChangeMessage();
@@ -918,7 +751,7 @@ int RoundRobinMap::getRRGroupsForMessage(int noteNumber, int velocity)
 }
 
 MonolithExporter::MonolithExporter(SampleMap* sampleMap_) :
-	ThreadWithAsyncProgressWindow("Exporting samples as monolith"),
+	DialogWindowWithBackgroundThread("Exporting samples as monolith"),
 	AudioFormatWriter(nullptr, "", 0.0, 0, 1),
 	sampleMapDirectory(GET_PROJECT_HANDLER(sampleMap_->getSampler()).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps)),
 	monolithDirectory(GET_PROJECT_HANDLER(sampleMap_->getSampler()).getSubDirectory(ProjectHandler::SubDirectories::Samples))
@@ -1171,3 +1004,5 @@ void MonolithExporter::updateSampleMap()
 		}
 	}
 }
+
+} // namespace hise

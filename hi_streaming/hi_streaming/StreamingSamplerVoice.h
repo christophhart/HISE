@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,6 +33,7 @@
 #ifndef STREAMINGSAMPLERVOICE_H_INCLUDED
 #define STREAMINGSAMPLERVOICE_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 
 /** This is a utility class that handles buffered sample streaming in a background thread.
@@ -295,5 +296,5 @@ private:
 	SampleLoader loader;
 };
 
-
+} // namespace hise
 #endif  // STREAMINGSAMPLERVOICE_H_INCLUDED

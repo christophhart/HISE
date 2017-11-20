@@ -32,6 +32,7 @@
 
 #include <regex>
 
+namespace hise { using namespace juce;
 
 
 JavascriptCodeEditor::JavascriptCodeEditor(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p, const Identifier& snippetId_) :
@@ -564,7 +565,7 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 		{
 			const bool success = s->parseSnippetsFromString(x);
 
-			if (success)
+			if (editor != nullptr && success)
 				editor->compileScript();
 		}
 
@@ -1604,3 +1605,5 @@ void DebugConsoleTextEditor::textEditorReturnKeyPressed(TextEditor& /*t*/)
 		}
 	}
 }
+
+} // namespace hise

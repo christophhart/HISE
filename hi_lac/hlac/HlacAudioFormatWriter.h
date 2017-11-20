@@ -31,7 +31,7 @@
 #ifndef HLACAUDIOFORMATWRITER_H_INCLUDED
 #define HLACAUDIOFORMATWRITER_H_INCLUDED
 
-
+namespace hlac { using namespace juce; 
 
 class HiseLosslessAudioFormatWriter : public AudioFormatWriter
 {
@@ -87,5 +87,6 @@ private:
 	uint8 globalBitShiftAmount = 0;
 };
 
+} // namespace hlac
 
 #endif  // HLACAUDIOFORMATWRITER_H_INCLUDED

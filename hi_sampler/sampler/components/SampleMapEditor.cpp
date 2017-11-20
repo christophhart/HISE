@@ -18,6 +18,7 @@
 */
 
 //[Headers] You can add your own extra header files here...
+namespace hise { using namespace juce;
 //[/Headers]
 
 #include "SampleMapEditor.h"
@@ -434,13 +435,25 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	case ZoomIn:			zoom(false); return true;
 	case ZoomOut:			zoom(true); return true;
 	case ToggleVerticalSize:toggleVerticalSize(); return true;
-	case NewSampleMap:		if(PresetHandler::showYesNoWindow("Clear Sample Map", "Do you want to clear the sample map?", PresetHandler::IconType::Question)) 
-								sampler->clearSampleMap(); return true;
+	case NewSampleMap:		if (PresetHandler::showYesNoWindow("Clear Sample Map", "Do you want to clear the sample map?", PresetHandler::IconType::Question))
+	{
+		auto f = [](Processor* p) {dynamic_cast<ModulatorSampler*>(p)->clearSampleMap(); return true; };
+		sampler->killAllVoicesAndCall(f);
+		return true;
+	}
+								
 	case LoadSampleMap:		{
 							FileChooser f("Load new samplemap", GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps), "*.xml;*.m5p");
 							if(f.browseForFileToOpen())
 							{
-								sampler->loadSampleMap(f.getResult());
+								auto tmp = f.getResult();
+								auto func = [tmp](Processor* p)
+								{
+									static_cast<ModulatorSampler*>(p)->loadSampleMapSync(tmp); return true;
+								};
+
+								sampler->killAllVoicesAndCall(func);
+								
 							}
 							return true;
 							}
@@ -690,4 +703,6 @@ END_JUCER_METADATA
 
 
 //[EndFile] You can add extra defines here...
+
+} // namespace hise
 //[/EndFile]

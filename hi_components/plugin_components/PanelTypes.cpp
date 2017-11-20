@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -31,7 +31,7 @@
 */
 
 
-#include "PanelTypes.h"
+namespace hise { using namespace juce;
 
 
 CustomSettingsWindowPanel::CustomSettingsWindowPanel(FloatingTile* parent) :
@@ -42,12 +42,14 @@ CustomSettingsWindowPanel::CustomSettingsWindowPanel(FloatingTile* parent) :
 
 	addAndMakeVisible(viewport = new Viewport());
 
-	window = new CustomSettingsWindow(getMainController());
+	window = new CustomSettingsWindow(getMainController(), parent->shouldCreateChildComponents());
 
 	viewport->setViewedComponent(window);
 	viewport->setScrollBarsShown(true, false, true, false);
 
 	window->setFont(GLOBAL_BOLD_FONT());
+
+	
 }
 
 
@@ -82,7 +84,6 @@ var CustomSettingsWindowPanel::toDynamicObject() const
 	SET(CustomSettingsWindow::Properties::DebugMode);
 
 	storePropertyInObject(obj, (int)CustomSettingsWindow::Properties::ScaleFactorList, var(window->scaleFactorList));
-
 
 	return obj;
 }
@@ -308,3 +309,5 @@ void MidiSourcePanel::toggleButtonWasClicked(ToggleButtonList* /*list*/, int ind
 
 	dynamic_cast<AudioProcessorDriver*>(getMainController())->toggleMidiInput(midiName, value);
 }
+
+} // namespace hise

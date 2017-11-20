@@ -23,13 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
 
 void CopyPasteTarget::grabCopyAndPasteFocus()
 {   
@@ -982,6 +983,8 @@ void ProjectHandler::createNewProject(File &workingDirectory, Component* mainEdi
 
 void ProjectHandler::setWorkingProject(const File &workingDirectory, Component* mainEditor)
 {
+	MessageManagerLock mm;
+
 	if (workingDirectory == currentWorkDirectory) return;
 
 	if (!isValidProjectFolder(workingDirectory))
@@ -1748,18 +1751,10 @@ String ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(const Str
 void ProjectHandler::Frontend::setSampleLocation(const File &newLocation)
 {
 #if USE_FRONTEND
-	File appDataDir = getAppDataDirectory();
+	
+	auto linkFile = getSampleLinkFile();
 
-	// The installer should take care of creating the app data directory...
-	jassert(appDataDir.isDirectory());
-
-#if JUCE_MAC && ENABLE_APPLE_SANDBOX
-    File childFile = ProjectHandler::getLinkFile(File(appDataDir.getChildFile("Resources/"));
-#else
-    File childFile = ProjectHandler::getLinkFile(appDataDir);
-#endif
-
-	childFile.replaceWithText(newLocation.getFullPathName());
+	linkFile.replaceWithText(newLocation.getFullPathName());
 
 #else
 
@@ -1767,6 +1762,25 @@ void ProjectHandler::Frontend::setSampleLocation(const File &newLocation)
 
 #endif
 }
+
+
+
+File ProjectHandler::Frontend::getSampleLinkFile()
+{
+	File appDataDir = getAppDataDirectory();
+
+	// The installer should take care of creating the app data directory...
+	jassert(appDataDir.isDirectory());
+
+#if JUCE_MAC && ENABLE_APPLE_SANDBOX
+	File childFile = ProjectHandler::getLinkFile(File(appDataDir.getChildFile("Resources/"));
+#else
+	File childFile = ProjectHandler::getLinkFile(appDataDir);
+#endif
+
+	return childFile;
+}
+
 
 
 
@@ -1821,6 +1835,10 @@ File ProjectHandler::Frontend::getUserPresetDirectory()
 #endif
 }
 
+const bool ProjectHandler::Frontend::checkSamplesCorrectlyInstalled()
+{
+	return getSampleLinkFile().existsAsFile();
+}
 
 
 
@@ -2560,7 +2578,7 @@ void FrontendSampleManager::loadSamplesAfterSetup()
 		LOG_START("Loading samples");
 
 		dynamic_cast<AudioProcessor*>(this)->suspendProcessing(false);
-		dynamic_cast<MainController*>(this)->getSampleManager().setShouldSkipPreloading(false);
+		
 		dynamic_cast<MainController*>(this)->getSampleManager().preloadEverything();
 	}
 	else
@@ -2601,3 +2619,5 @@ bool FrontendSampleManager::areSampleReferencesCorrect() const
 {
 	return samplesCorrectlyLoaded;
 }
+
+} // namespace hise

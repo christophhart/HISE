@@ -23,12 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
+
+namespace hise { namespace HiBinaryData {
 
 namespace headerIcons
 {
@@ -123,3 +125,5 @@ namespace headerIcons
 67,233,137,157,67,108,143,37,12,67,159,136,157,67,108,36,8,12,67,17,136,157,67,108,180,234,11,67,64,136,157,67,108,130,234,11,67,64,136,157,67,108,130,234,11,67,64,136,157,67,99,109,2,77,14,67,0,139,160,67,108,2,219,26,67,128,174,163,67,108,2,77,14,67,
 0,210,166,67,108,2,77,14,67,0,139,160,67,99,101,0,0 };
 }
+
+}} // namespace hise::HiBinaryData

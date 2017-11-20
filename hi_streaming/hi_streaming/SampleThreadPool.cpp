@@ -23,17 +23,17 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
 
 
-
-struct NewSampleThreadPool::Pimpl
+struct SampleThreadPool::Pimpl
 {
 	Pimpl() :
 		jobQueue(2048),
@@ -63,7 +63,7 @@ struct NewSampleThreadPool::Pimpl
 	static const String errorMessage;
 };
 
-NewSampleThreadPool::NewSampleThreadPool() :
+SampleThreadPool::SampleThreadPool() :
 	Thread("Sample Loading Thread"),
 	pimpl(new Pimpl())
 {
@@ -71,19 +71,19 @@ NewSampleThreadPool::NewSampleThreadPool() :
 	startThread(9);
 }
 
-NewSampleThreadPool::~NewSampleThreadPool()
+SampleThreadPool::~SampleThreadPool()
 {
 	pimpl = nullptr;
 
 	stopThread(300);
 }
 
-double NewSampleThreadPool::getDiskUsage() const noexcept
+double SampleThreadPool::getDiskUsage() const noexcept
 {
 	return pimpl->diskUsage.load();
 }
 
-void NewSampleThreadPool::addJob(Job* jobToAdd, bool unused)
+void SampleThreadPool::addJob(Job* jobToAdd, bool unused)
 {
 	++pimpl->counter;
 
@@ -105,7 +105,7 @@ void NewSampleThreadPool::addJob(Job* jobToAdd, bool unused)
 	notify();
 }
 
-void NewSampleThreadPool::run()
+void SampleThreadPool::run()
 {
 	while (!threadShouldExit())
 	{
@@ -123,8 +123,10 @@ void NewSampleThreadPool::run()
 			{
 				pimpl->currentlyExecutedJob.store(j);
 
-				j->running.store(true);
+				j->currentThread.store(this);
 
+				j->running.store(true);
+				
 				Job::JobStatus status = j->runJob();
 
 				j->running.store(false);
@@ -163,4 +165,6 @@ void NewSampleThreadPool::run()
 	}
 }
 
-const String NewSampleThreadPool::Pimpl::errorMessage("HDD overflow");
+const String SampleThreadPool::Pimpl::errorMessage("HDD overflow");
+
+} // namespace hise

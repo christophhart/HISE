@@ -34,6 +34,8 @@
 #ifndef TCCCONTEXT_H_INCLUDED
 #define TCCCONTEXT_H_INCLUDED
 
+namespace hise { using namespace juce;
+
 class TccContext;
 
 #define TCC_CPP 1
@@ -113,5 +115,5 @@ private:
 
 
 
-
+} // namespace hise
 #endif  // TCCCONTEXT_H_INCLUDED

@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -49,6 +49,7 @@
 #define ADD_DESKTOP_ONLY(x)(p.addCommandItem(mainCommandManager, x))
 #endif
 
+namespace hise { using namespace juce;
 
 BackendCommandTarget::BackendCommandTarget(BackendProcessor *owner_):
 owner(owner_),
@@ -1449,16 +1450,20 @@ void BackendCommandTarget::Actions::redirectScriptFolder(BackendRootWindow * /*b
 
 void BackendCommandTarget::Actions::exportSampleDataForInstaller(BackendRootWindow * bpe)
 {
-	auto exporter = new SampleDataExporter(bpe->mainEditor);
+	auto mbw = dynamic_cast<ModalBaseWindow*>(bpe->mainEditor.getComponent());
 
-	exporter->setModalBaseWindowComponent(bpe);
+	auto exporter = new SampleDataExporter(mbw);
+
+	exporter->setModalBaseWindowComponent(bpe->mainEditor);
 }
 
 void BackendCommandTarget::Actions::importArchivedSamples(BackendRootWindow * bpe)
 {
-	auto importer = new SampleDataImporter(bpe->mainEditor);
+	auto mbw = dynamic_cast<ModalBaseWindow*>(bpe->mainEditor.getComponent());
 
-	importer->setModalBaseWindowComponent(bpe);
+	auto importer = new SampleDataImporter(mbw);
+
+	importer->setModalBaseWindowComponent(bpe->mainEditor);
 
 }
 
@@ -2328,3 +2333,5 @@ void BackendCommandTarget::Actions::validateUserPresets(BackendRootWindow * bpe)
 #undef ADD_IOS_ONLY
 #undef ADD_DESKTOP_ONLY
 #undef toggleVisibility
+
+} // namespace hise

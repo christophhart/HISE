@@ -30,6 +30,8 @@
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
+
 ModulatorPeakMeter::ModulatorPeakMeter(Modulator *m) :
 mod(m)
 {
@@ -46,9 +48,10 @@ mod(m)
 
 ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_) :
 processor(p_),
-p(dynamic_cast<Processor*>(p_)),
-editedComponent(-1)
+p(dynamic_cast<Processor*>(p_))
 {
+	processor->getScriptingContent()->addRebuildListener(this);
+
     setNewContent(processor->getScriptingContent());
 
 	setInterceptsMouseClicks(false, true);
@@ -62,6 +65,8 @@ editedComponent(-1)
 
 ScriptContentComponent::~ScriptContentComponent()
 {
+	processor->getScriptingContent()->removeRebuildListener(this);
+
 	if (contentData.get() != nullptr)
 	{
 		contentData->removeChangeListener(this);
@@ -312,9 +317,15 @@ void ScriptContentComponent::scriptWasCompiled(JavascriptProcessor *jp)
 	if (jp == getScriptProcessor())
 	{
 		setNewContent(processor->getScriptingContent());
-		updateContent();
 	}
 }
+
+void ScriptContentComponent::contentWasRebuilt()
+{
+	setNewContent(processor->getScriptingContent());
+}
+
+
 
 void ScriptContentComponent::setNewContent(ScriptingApi::Content *c)
 {
@@ -392,61 +403,6 @@ void ScriptContentComponent::refreshContentButton()
 
 }
 
-
-ScriptingApi::Content::ScriptComponent * ScriptContentComponent::getEditedComponent()
-{
-	if (contentData.get() != nullptr && editedComponent != -1)
-	{
-		return contentData->getComponent(editedComponent);
-	}
-
-	return nullptr;
-}
-
-Component* ScriptContentComponent::setEditedScriptComponent(ScriptingApi::Content::ScriptComponent *sc)
-{
-	if (sc == nullptr)
-	{
-		editedComponent = -1;
-
-		setWantsKeyboardFocus(false);
-
-		repaint();
-		return nullptr;
-
-	}
-
-	String id = sc->getName().toString();
-
-	// Use the text value for the slider (hack because the slider class doesn't allow a dedicated name. */
-	String text = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::text).toString();
-
-	for (int i = 0; i < componentWrappers.size(); i++)
-	{
-
-		const bool isSlider = dynamic_cast<Slider*>(componentWrappers[i]->getComponent()) != nullptr;
-
-		const bool sliderMatches = isSlider && (componentWrappers[i]->getComponent()->getName() == text || componentWrappers[i]->getComponent()->getName() == id);
-
-		if (sliderMatches || id == componentWrappers[i]->getComponent()->getName())
-		{
-			editedComponent = i;
-
-			//setWantsKeyboardFocus(true);
-			//grabKeyboardFocus();
-
-			repaint();
-			return componentWrappers[i]->getComponent();
-		}
-	}
-
-	editedComponent = -1;
-
-	repaint();
-
-	return nullptr;
-}
-
 bool ScriptContentComponent::keyPressed(const KeyPress &/*key*/)
 {
 	return false;
@@ -499,6 +455,28 @@ ScriptingApi::Content::ScriptComponent* ScriptContentComponent::getScriptCompone
 	return nullptr;
 }
 
+Component* ScriptContentComponent::getComponentFor(ScriptingApi::Content::ScriptComponent* sc)
+{
+	if (sc == nullptr)
+		return nullptr;
+
+	if (contentData != nullptr)
+	{
+		auto index = contentData->getComponentIndex(sc->getName());
+
+		if (index != -1)
+		{
+			auto cw = componentWrappers[index];
+			if (cw != nullptr)
+			{
+				return cw->getComponent();
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 void ScriptContentComponent::getScriptComponentsFor(Array<ScriptingApi::Content::ScriptComponent*> &arrayToFill, Point<int> pos)
 {
 	for (int i = componentWrappers.size() - 1; i >= 0; --i)
@@ -513,3 +491,30 @@ void ScriptContentComponent::getScriptComponentsFor(Array<ScriptingApi::Content:
 		}
 	}
 }
+
+void ScriptContentComponent::getScriptComponentsFor(Array<ScriptingApi::Content::ScriptComponent*> &arrayToFill, const Rectangle<int> area)
+{
+	arrayToFill.clear();
+
+	for (int i = componentWrappers.size() - 1; i >= 0; --i)
+	{
+		auto sc = contentData->getComponent(i);
+
+		Component* c = componentWrappers[i]->getComponent();
+
+		if (sc == nullptr || !sc->isShowing())
+			continue;
+
+		Component* parentOfC = c->getParentComponent();
+
+		auto cBounds = getLocalArea(parentOfC, c->getBounds());
+
+
+		if (area.contains(cBounds))
+		{
+			arrayToFill.addIfNotAlreadyThere(sc);
+		}
+	}
+}
+
+} // namespace hise

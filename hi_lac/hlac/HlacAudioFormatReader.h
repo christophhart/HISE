@@ -31,7 +31,7 @@
 #ifndef HLACAUDIOFORMATREADER_H_INCLUDED
 #define HLACAUDIOFORMATREADER_H_INCLUDED
 
-
+namespace hlac { using namespace juce; 
 
 struct HiseLosslessHeader
 {
@@ -224,5 +224,6 @@ private:
 	int64 length;
 };
 
+} // namespace hlac
 
 #endif  // HLACAUDIOFORMATREADER_H_INCLUDED

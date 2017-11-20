@@ -35,6 +35,8 @@
 
 #include <atomic>
 
+namespace hise { using namespace juce;
+
 #define REGISTER_STATIC_DSP_LIBRARIES() void hise::DspFactory::Handler::registerStaticFactories(hise::DspFactory::Handler *instance)
 #define REGISTER_STATIC_DSP_FACTORY(factoryName) hise::DspFactory::Handler::registerStaticFactory<factoryName>(instance);
 
@@ -85,7 +87,9 @@ private:
 
 typedef DspBaseObject*(*createDspModule_)(const char *);
 
+#if INCLUDE_TCC
 class TccDspFactory;
+#endif
 
 class DspFactory::Handler
 {
@@ -138,8 +142,7 @@ private:
 
 	MainController* mc = nullptr;
 
-#if JUCE_IOS
-#else
+#if INCLUDE_TCC
 	ReferenceCountedObjectPtr<TccDspFactory> tccFactory;
 #endif
 };
@@ -271,5 +274,5 @@ private:
 
 
 
-
+} // namespace hise
 #endif  // DSPINSTANCE_H_INCLUDED

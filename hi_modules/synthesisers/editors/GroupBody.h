@@ -21,7 +21,7 @@
 #define __JUCE_HEADER_2557D757746C7D52__
 
 //[Headers]     -- You can add your own extra header files here --
-
+namespace hise { using namespace juce;
 //[/Headers]
 
 
@@ -89,7 +89,7 @@ public:
 		unisonoSlider->updateValue();
 		detuneSlider->updateValue();
 		spreadSlider->updateValue();
-
+		forceMonoButton->updateValue();
 	};
 
     //[/UserMethods]
@@ -121,6 +121,7 @@ private:
     ScopedPointer<HiSlider> unisonoSlider;
     ScopedPointer<HiSlider> detuneSlider;
     ScopedPointer<HiSlider> spreadSlider;
+    ScopedPointer<HiToggleButton> forceMonoButton;
 
 
     //==============================================================================
@@ -129,6 +130,7 @@ private:
 
 //[EndFile] You can add extra defines here...
 /** \endcond */
+} // namespace hise
 //[/EndFile]
 
 #endif   // __JUCE_HEADER_2557D757746C7D52__

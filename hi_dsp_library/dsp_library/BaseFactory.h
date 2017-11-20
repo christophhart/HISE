@@ -33,6 +33,9 @@
 #ifndef BASEFACTORY_H_INCLUDED
 #define BASEFACTORY_H_INCLUDED
 
+namespace hise {using namespace juce;
+
+
 #pragma warning (push)
 #pragma warning (disable: 4127)
 
@@ -86,5 +89,7 @@ private:
 
 
 #pragma warning (pop)
+
+} // namespace hise
 
 #endif  // BASEFACTORY_H_INCLUDED

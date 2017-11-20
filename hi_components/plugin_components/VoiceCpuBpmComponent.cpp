@@ -23,18 +23,24 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
 
 VoiceCpuBpmComponent::VoiceCpuBpmComponent(MainController *mc_)
 {
 	if (mc_ != nullptr)
+	{
 		mainControllers.add(mc_);
+
+		mc_->getSampleManager().addPreloadListener(this);
+	}
+		
 
 	addAndMakeVisible(cpuSlider = new VuMeter());
 
@@ -107,6 +113,12 @@ VoiceCpuBpmComponent::VoiceCpuBpmComponent(MainController *mc_)
 
 
 
+VoiceCpuBpmComponent::~VoiceCpuBpmComponent()
+{
+	if (auto mc = mainControllers.getFirst())
+		mc->getSampleManager().removePreloadListener(this);
+}
+
 void VoiceCpuBpmComponent::buttonClicked(Button *)
 {
 	for (int i = 0; i < mainControllers.size(); i++)
@@ -117,7 +129,7 @@ void VoiceCpuBpmComponent::buttonClicked(Button *)
 			continue;
 		}
 
-		mainControllers[i]->allNotesOff();
+		mainControllers[i]->allNotesOff(true);
 	}
 
 }
@@ -177,51 +189,81 @@ void VoiceCpuBpmComponent::resized()
 
 void VoiceCpuBpmComponent::paint(Graphics& g)
 {
-	if (isOpaque()) g.fillAll(findColour(Slider::ColourIds::backgroundColourId));
+	if (!preloadActive)
+	{
+		if (isOpaque()) g.fillAll(findColour(Slider::ColourIds::backgroundColourId));
 
-	g.setColour(Colours::white.withAlpha(0.4f));
-	g.setFont(GLOBAL_BOLD_FONT().withHeight(10.0f));
+		g.setColour(Colours::white.withAlpha(0.4f));
+		g.setFont(GLOBAL_BOLD_FONT().withHeight(10.0f));
 
 #if JUCE_WINDOWS
 
-	const int x1 = 18;
-	const int x2 = 42;
-	const int x3 = 74;
+		const int x1 = 18;
+		const int x2 = 42;
+		const int x3 = 74;
 
-	const int y = 1;
+		const int y = 1;
 
 #else
 
-	const int x1 = 16;
-	const int x2 = 44;
-	const int x3 = 76;
+		const int x1 = 16;
+		const int x2 = 44;
+		const int x3 = 76;
 
-	const int y = 3;
+		const int y = 3;
 
 #endif
 
-	g.drawText("Voices", x1, y, 50, 11, Justification::left, true);
-	g.drawText("BPM", x2, y, 30, 11, Justification::right, true);
-	g.drawText("CPU", x3, y, 30, 11, Justification::right, true);
+		g.drawText("Voices", x1, y, 50, 11, Justification::left, true);
+		g.drawText("BPM", x2, y, 30, 11, Justification::right, true);
+		g.drawText("CPU", x3, y, 30, 11, Justification::right, true);
+	}
+	
 }
 
 void VoiceCpuBpmComponent::paintOverChildren(Graphics& g)
 {
-	g.setColour(Colours::white.withAlpha(0.7f));
-	g.setFont(GLOBAL_FONT().withHeight(10.0f));
-
-	double cpuUsage = 0.0;
-
-	for (int i = 0; i < mainControllers.size(); i++)
+	if (preloadActive)
 	{
-		if (mainControllers[i].get() == nullptr)
+		g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId));
+
+		g.setColour(Colour(0xFF444444));
+
+		g.drawRect(Rectangle<int>(0, 0, getWidth(), getHeight()), 1);
+
+		g.setColour(Colours::white.withAlpha(0.7f));
+		g.setFont(GLOBAL_FONT());
+
+		g.drawText("Preloading...", getLocalBounds(), Justification::centred);
+	}
+	else
+	{
+		g.setColour(Colours::white.withAlpha(0.7f));
+		g.setFont(GLOBAL_FONT().withHeight(10.0f));
+
+		double cpuUsage = 0.0;
+
+		for (int i = 0; i < mainControllers.size(); i++)
 		{
-			mainControllers.remove(i--);
-			continue;
+			if (mainControllers[i].get() == nullptr)
+			{
+				mainControllers.remove(i--);
+				continue;
+			}
+
+			cpuUsage += mainControllers[i]->getCpuUsage();
 		}
 
-		cpuUsage += mainControllers[i]->getCpuUsage();
+		g.drawText(String(cpuUsage, 1) + "%", cpuSlider->getBounds(), Justification::centred, true);
 	}
-    
-	g.drawText(String(cpuUsage, 1) + "%", cpuSlider->getBounds(), Justification::centred, true);
+
+	
 }
+
+void VoiceCpuBpmComponent::preloadStateChanged(bool isPreloading)
+{
+	preloadActive = isPreloading;
+	repaint();
+}
+
+} // namespace hise

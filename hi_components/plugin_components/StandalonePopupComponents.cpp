@@ -23,14 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
-
+namespace hise { using namespace juce;
 
 ToggleButtonList::ToggleButtonList(StringArray& names, Listener* listener_) :
 	listener(listener_)
@@ -126,7 +126,7 @@ private:
 
 #define ADD(x) propIds.add(Identifier(#x));
 
-CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
+CustomSettingsWindow::CustomSettingsWindow(MainController* mc_, bool buildMenus) :
 	mc(mc_),
     font(GLOBAL_BOLD_FONT())
 {
@@ -216,7 +216,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 		setProperty(Properties::SampleLocation, false);
 	}
 
-	if(mc->isOnAir())
+	if(buildMenus)
 		rebuildMenus(true, true);
 
 	setSize(320, 400);
@@ -809,3 +809,6 @@ void CombinedSettingsWindow::periodicCheckCallback(ToggleButtonList* list)
 		AudioProcessorDriver::updateMidiToggleList(mc, midiSources);
 	}
 }
+
+
+} // namespace hise

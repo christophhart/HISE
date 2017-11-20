@@ -62,7 +62,7 @@ void MainContentComponent::handleCommandLineArguments(const String& args)
 
 			if (presetFile.getFileExtension() == ".hip")
 			{
-				mainSynthChain->getMainController()->loadPreset(presetFile, editor);
+				mainSynthChain->getMainController()->loadPresetFromFile(presetFile, editor);
 			}
 			else if (presetFile.getFileExtension() == ".xml")
 			{
@@ -105,4 +105,9 @@ void MainContentComponent::resized()
 #endif
 #endif
 
+}
+
+void MainContentComponent::requestQuit(const std::function<void(void)>& f)
+{
+	standaloneProcessor->requestQuit(f);
 }

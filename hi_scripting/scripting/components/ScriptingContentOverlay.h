@@ -34,6 +34,7 @@
 #ifndef SCRIPTINGCONTENTOVERLAY_H_INCLUDED
 #define SCRIPTINGCONTENTOVERLAY_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 namespace OverlayIcons
 {
@@ -52,7 +53,7 @@ namespace OverlayIcons
 
 class ScriptingContentOverlay;
 
-class ScriptEditHandler : public ScriptComponentEditListener
+class ScriptEditHandler
 {
 public:
 
@@ -91,26 +92,17 @@ public:
 
 	bool editModeEnabled() const { return useComponentSelectMode; }
 
-	void setEditedScriptComponent(ReferenceCountedObject* component);
-
-
-
 	void toggleComponentSelectMode(bool shouldSelectOnClick);
-
-	void changePositionOfComponent(ScriptingApi::Content::ScriptComponent* sc, int newX, int newY);
 
 	virtual void selectOnInitCallback() = 0;
 
 	void compileScript();
 
-	void scriptComponentChanged(ReferenceCountedObject* scriptComponent, Identifier) override;
-
-
-
 	virtual void scriptEditHandlerCompileCallback()
 	{
 
 	}
+
 
 private:
 
@@ -126,17 +118,37 @@ private:
 class ScriptingEditor;
 
 class ScriptingContentOverlay : public Component,
-	public ButtonListener
+								public ButtonListener,
+								public ScriptComponentEditListener,
+								public LassoSource<ScriptComponent*>,
+								public ScriptingApi::Content::RebuildListener,
+							    public GlobalScriptCompileListener
 {
 public:
 
-	ScriptingContentOverlay(ScriptEditHandler* parentHandler);
+	ScriptingContentOverlay(ScriptEditHandler* handler);
+	~ScriptingContentOverlay();
 
 	void resized();
 
 	void buttonClicked(Button* buttonThatWasClicked);
 
 	void toggleEditMode();
+
+	void contentWasRebuilt() override
+	{
+		refreshUpdateStatus();
+	}
+
+	void scriptWasCompiled(JavascriptProcessor *processor)
+	{
+		if (getProcessor() == dynamic_cast<Processor*>(processor))
+		{
+			refreshUpdateStatus();
+		}
+	}
+
+	void refreshUpdateStatus();
 
 	void setEditMode(bool editModeEnabled);
 
@@ -147,13 +159,33 @@ public:
 
 	void paint(Graphics& g) override;
 
-	void mouseDown(const MouseEvent& e) override;
+	void scriptComponentSelectionChanged() override;
+
+	void scriptComponentPropertyChanged(ScriptComponent* sc, Identifier idThatWasChanged, const var& newValue) override;
+
+	bool keyPressed(const KeyPress &key) override;
+
+	void findLassoItemsInArea(Array<ScriptComponent*> &itemsFound, const Rectangle< int > &area) override;
+		
+	SelectedItemSet<ScriptComponent*>& getLassoSelection() override
+	{
+		return lassoSet;
+	}
+
+	void clearDraggers()
+	{
+		draggers.clear();
+	}
+
+	void mouseUp(const MouseEvent &e) override;
+
+	void mouseDrag(const MouseEvent& e) override;
 
 	class Dragger : public Component
 	{
 	public:
 
-		Dragger(ScriptEditHandler* parentHandler);
+		Dragger(ScriptComponent* sc, Component* componentToDrag);
 
 		~Dragger();
 
@@ -172,99 +204,9 @@ public:
 
 		void moveOverlayedComponent(int deltaX, int deltaY);
 
-		void resizeOverlayedComponent(int deltaX, int deltaY);
+		void resizeOverlayedComponent(int newWidth, int newHeight);
 
-		void undo()
-		{
-			undoManager.undo();
-		}
-
-		void redo()
-		{
-			undoManager.redo();
-		}
-
-		bool keyPressed(const KeyPress &key) override
-		{
-			if (currentlyDraggedComponent == nullptr) return false;
-
-			ScriptingApi::Content::ScriptComponent *sc = currentScriptComponent;
-
-			if (sc == nullptr) return false;
-
-			const int keyCode = key.getKeyCode();
-			const int delta = key.getModifiers().isCommandDown() ? 10 : 1;
-			const bool resizeComponent = key.getModifiers().isShiftDown();
-
-			if (keyCode == KeyPress::leftKey)
-			{
-				if (resizeComponent)
-				{
-
-					undoManager.perform(new OverlayAction(this, true, -delta, 0));
-				}
-				else
-				{
-					undoManager.perform(new OverlayAction(this, false, -delta, 0));
-				}
-
-				return true;
-			}
-			else if (keyCode == KeyPress::rightKey)
-			{
-				if (resizeComponent)
-				{
-					undoManager.perform(new OverlayAction(this, true, delta, 0));
-				}
-				else
-				{
-					undoManager.perform(new OverlayAction(this, false, delta, 0));
-				}
-
-
-				return true;
-			}
-			else if (keyCode == KeyPress::upKey)
-			{
-				if (resizeComponent)
-				{
-					undoManager.perform(new OverlayAction(this, true, 0, -delta));
-				}
-				else
-				{
-					undoManager.perform(new OverlayAction(this, false, 0, -delta));
-				}
-
-
-				return true;
-			}
-			else if (keyCode == KeyPress::downKey)
-			{
-				if (resizeComponent)
-				{
-					undoManager.perform(new OverlayAction(this, true, 0, delta));
-				}
-				else
-				{
-					undoManager.perform(new OverlayAction(this, false, 0, delta));
-				}
-
-
-				return true;
-			}
-			else if (keyCode == 'Z' && key.getModifiers().isCommandDown())
-			{
-				
-				undoManager.undo();
-				return true;
-			}
-
-			return false;
-		}
-
-
-
-		void setDraggedControl(Component* componentToDrag, ScriptingApi::Content::ScriptComponent* sc);;
+		void duplicateSelection(int deltaX, int deltaY);
 
 	private:
 
@@ -363,7 +305,6 @@ public:
 				currentPosition = Rectangle<int>(newBounds);
 			}
 
-
 			void setStartPosition(const Rectangle<int>& startPos)
 			{
 				startPosition = Rectangle<int>(startPos);
@@ -403,6 +344,8 @@ public:
 				lockMovement = shouldBeLocked;
 			}
 
+			Rectangle<int> getPosition() const { return currentPosition; }
+
 		private:
 
 			bool rasteredMovement = false;
@@ -429,81 +372,12 @@ public:
 			Component* dragComponent;
 		};
 
-		class OverlayAction : public UndoableAction
-		{
-		public:
-
-			OverlayAction(Dragger* overlay_, bool isResized_, int deltaX_, int deltaY_) :
-				overlay(overlay_),
-				draggedComponent(overlay_->currentlyDraggedComponent),
-				isResized(isResized_),
-				deltaX(deltaX_),
-				deltaY(deltaY_)
-			{}
-
-			bool perform() override
-			{
-				if (overlay.getComponent() != nullptr)
-				{
-					if (isResized)
-					{
-						overlay->resizeOverlayedComponent(deltaX, deltaY);
-					}
-					else
-					{
-						overlay->moveOverlayedComponent(deltaX, deltaY);
-					}
-
-					return true;
-				}
-
-				return false;
-
-			}
-
-			bool undo() override
-			{
-				if (draggedComponent.getComponent() != nullptr &&
-					overlay.getComponent() != nullptr &&
-					overlay->currentlyDraggedComponent.getComponent() == draggedComponent.getComponent())
-				{
-					if (isResized)
-					{
-						overlay->resizeOverlayedComponent(-deltaX, -deltaY);
-					}
-					else
-					{
-						overlay->moveOverlayedComponent(-deltaX, -deltaY);
-					}
-
-					return true;
-				}
-
-				return false;
-
-			}
-
-		private:
-
-			Component::SafePointer<Dragger> overlay;
-			Component::SafePointer<Component> draggedComponent;
-
-			const bool isResized;
-			const int deltaX;
-			const int deltaY;
-
-		};
-
-
-
-		Component::SafePointer<Component> currentlyDraggedComponent;
-		ScriptingApi::Content::ScriptComponent* currentScriptComponent;
+		Component::SafePointer<Component> draggedComponent;
+		ScriptComponent* sc;
 
 		ScopedPointer<MovementWatcher> currentMovementWatcher;
 
 		ComponentDragger dragger;
-
-		UndoManager undoManager;
 
 		Constrainer constrainer;
 
@@ -514,21 +388,27 @@ public:
 
 		ScriptEditHandler* parentHandler;
 
+		Rectangle<int> startBounds;
+
 	};
+
+	bool isDisabledUntilUpdate = false;
+
+	SelectedItemSet<ScriptComponent*> lassoSet;
 
 	bool dragMode;
 
-
-	ScopedPointer<Dragger> dragger;
+	OwnedArray<Dragger> draggers;
 
 	ScopedPointer<ShapeButton> dragModeButton;
 
-	ScriptEditHandler* parentHandler;
-	
+	LassoComponent<ScriptComponent*> lasso;
+
+	ScriptEditHandler* handler;
 };
 
 
 
 
-
+} // namespace hise
 #endif  // SCRIPTINGCONTENTOVERLAY_H_INCLUDED

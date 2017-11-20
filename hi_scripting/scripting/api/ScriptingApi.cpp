@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-
+namespace hise { using namespace juce;
 
 #define SEND_MESSAGE(broadcaster) {	if (MessageManager::getInstance()->isThisTheMessageThread()) broadcaster->sendSynchronousChangeMessage(); else broadcaster->sendChangeMessage();}
 #define ADD_TO_TYPE_SELECTOR(x) (ScriptComponentPropertyTypeSelector::addToTypeSelector(ScriptComponentPropertyTypeSelector::x, propertyIds.getLast()))
@@ -155,6 +155,15 @@ String ApiHelpers::createCodeToInsert(const ValueTree &method, const String &cla
 	if (name == "setMouseCallback")
 	{
 		const String argumentName = "event";
+		String functionDef = className;
+		functionDef << "." << name + "(function(" << argumentName << ")\n";
+		functionDef << "{\n\t\n});\n";
+
+		return functionDef;
+	}
+	else if (name == "setLoadingCallback")
+	{
+		const String argumentName = "isPreloading";
 		String functionDef = className;
 		functionDef << "." << name + "(function(" << argumentName << ")\n";
 		functionDef << "{\n\t\n});\n";
@@ -857,6 +866,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_0(Engine, allNotesOff);
 	API_METHOD_WRAPPER_0(Engine, getUptime);
 	API_METHOD_WRAPPER_0(Engine, getHostBpm);
+	API_VOID_METHOD_WRAPPER_1(Engine, setHostBpm);
 	API_METHOD_WRAPPER_0(Engine, getCpuUsage);
 	API_METHOD_WRAPPER_0(Engine, getNumVoices);
 	API_METHOD_WRAPPER_0(Engine, getMemoryUsage);
@@ -901,6 +911,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getSettingsWindowObject);
 	API_METHOD_WRAPPER_1(Engine, getMasterPeakLevel);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadFont);
+	API_VOID_METHOD_WRAPPER_2(Engine, loadFontAs);
 	API_VOID_METHOD_WRAPPER_0(Engine, undo);
 	API_VOID_METHOD_WRAPPER_0(Engine, redo);
 };
@@ -912,6 +923,7 @@ ApiClass(0)
 	ADD_API_METHOD_0(allNotesOff);
 	ADD_API_METHOD_0(getUptime);
 	ADD_API_METHOD_0(getHostBpm);
+	ADD_API_METHOD_1(setHostBpm);
 	ADD_API_METHOD_0(getCpuUsage);
 	ADD_API_METHOD_0(getNumVoices);
 	ADD_API_METHOD_0(getMemoryUsage);
@@ -955,6 +967,7 @@ ApiClass(0)
 	ADD_API_METHOD_0(createMessageHolder);
 	ADD_API_METHOD_0(createSliderPackData);
 	ADD_API_METHOD_1(loadFont);
+	ADD_API_METHOD_2(loadFontAs);
 	ADD_API_METHOD_0(undo);
 	ADD_API_METHOD_0(redo);
 }
@@ -969,6 +982,13 @@ void ScriptingApi::Engine::allNotesOff()
 
 void ScriptingApi::Engine::loadFont(const String &fileName)
 {
+	debugError(getProcessor(), "loadFont is deprecated. Use loadFontAs() instead to prevent cross platform issues");
+	loadFontAs(fileName, String());
+}
+
+void ScriptingApi::Engine::loadFontAs(String fileName, String fontId)
+{
+
 #if USE_BACKEND
 
 	const String absolutePath = GET_PROJECT_HANDLER(getProcessor()).getFilePath(fileName, ProjectHandler::SubDirectories::Images);
@@ -985,7 +1005,7 @@ void ScriptingApi::Engine::loadFont(const String &fileName)
 		MemoryBlock mb;
 
 		fis->readIntoMemoryBlock(mb);
-		getProcessor()->getMainController()->loadTypeFace(fileName, mb.getData(), mb.getSize());
+		getProcessor()->getMainController()->loadTypeFace(fileName, mb.getData(), mb.getSize(), fontId);
 	}
 
 #else
@@ -1013,6 +1033,11 @@ double ScriptingApi::Engine::getUptime() const
 	return getProcessor()->getMainController()->getUptime(); 
 }
 double ScriptingApi::Engine::getHostBpm() const		 { return getProcessor()->getMainController()->getBpm(); }
+
+void ScriptingApi::Engine::setHostBpm(double newTempo)
+{
+	getProcessor()->getMainController()->setHostBpm(newTempo);
+}
 
 double ScriptingApi::Engine::getMemoryUsage() const
 {
@@ -1297,6 +1322,7 @@ struct ScriptingApi::Sampler::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Sampler, selectSounds);
 	API_METHOD_WRAPPER_0(Sampler, getNumSelectedSounds);
 	API_VOID_METHOD_WRAPPER_2(Sampler, setSoundPropertyForSelection);
+	API_VOID_METHOD_WRAPPER_2(Sampler, setSoundPropertyForAllSamples);
 	API_METHOD_WRAPPER_2(Sampler, getSoundProperty);
 	API_VOID_METHOD_WRAPPER_3(Sampler, setSoundProperty);
 	API_VOID_METHOD_WRAPPER_2(Sampler, purgeMicPosition);
@@ -1323,6 +1349,7 @@ sampler(sampler_)
 	ADD_API_METHOD_1(selectSounds);
 	ADD_API_METHOD_0(getNumSelectedSounds);
 	ADD_API_METHOD_2(setSoundPropertyForSelection);
+	ADD_API_METHOD_2(setSoundPropertyForAllSamples);
 	ADD_API_METHOD_2(getSoundProperty);
 	ADD_API_METHOD_3(setSoundProperty);
 	ADD_API_METHOD_2(purgeMicPosition);
@@ -1462,9 +1489,22 @@ void ScriptingApi::Sampler::setSoundPropertyForSelection(int propertyId, var new
 	{
 		if (sounds[i].get() != nullptr)
 		{
-			sounds[i]->setProperty((ModulatorSamplerSound::Property)propertyId, newValue, dontSendNotification);
+			s->setSoundPropertyAsync(sounds[i], (int)propertyId, (int)newValue);
 		}
 	}
+}
+
+void ScriptingApi::Sampler::setSoundPropertyForAllSamples(int propertyIndex, var newValue)
+{
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("setSoundsProperty() only works with Samplers.");
+		return;
+	}
+
+	s->setSoundPropertyAsyncForAllSamples(propertyIndex, newValue);
 }
 
 var ScriptingApi::Sampler::getSoundProperty(int propertyIndex, int soundIndex)
@@ -1505,7 +1545,7 @@ void ScriptingApi::Sampler::setSoundProperty(int soundIndex, int propertyIndex, 
 
 	if (sound != nullptr)
 	{
-		sound->setProperty((ModulatorSamplerSound::Property)propertyIndex, newValue, dontSendNotification);
+		s->setSoundPropertyAsync(sound, (int)propertyIndex, (int)newValue);
 	}
 	else
 	{
@@ -1662,6 +1702,7 @@ var ScriptingApi::Sampler::getSampleMapList() const
 
 	rootDir.findChildFiles(childFiles, File::findFiles, true, "*.xml");
 
+	childFiles.sort();
 
 	for (int i = 0; i < childFiles.size(); i++)
 	{
@@ -1674,6 +1715,8 @@ var ScriptingApi::Sampler::getSampleMapList() const
 		//sampleMapNames.add(childFiles[i].getFileNameWithoutExtension());
 	}
 
+	
+
 #else
 
 	ValueTree v = dynamic_cast<const FrontendDataHolder*>(getProcessor()->getMainController())->getValueTree(ProjectHandler::SubDirectories::SampleMaps);
@@ -1684,6 +1727,8 @@ var ScriptingApi::Sampler::getSampleMapList() const
 	{
 		sampleMapNames.add(v.getChild(i).getProperty(id));
 	}
+
+	
 
 #endif
 
@@ -2724,6 +2769,7 @@ bool ScriptingApi::Synth::removeModulator(var mod)
 	if (auto m = dynamic_cast<ScriptingObjects::ScriptingModulator*>(mod.getObject()))
 	{
 		Modulator* modToRemove = m->getModulator();
+
 		return moduleHandler.removeModule(modToRemove);
 	}
 
@@ -3119,3 +3165,5 @@ Array<Identifier> ScriptingApi::ModuleIds::getTypeList(ModulatorSynth* s)
 
 	return ids;
 }
+
+} // namespace hise

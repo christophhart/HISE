@@ -23,13 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
 
 ModulatorSynthChain::ModulatorSynthChain(MainController *mc, const String &id, int numVoices_, UndoManager *viewUndoManager /*= nullptr*/) :
 	MacroControlBroadcaster(this),
@@ -180,6 +181,8 @@ void ModulatorSynthChain::compileAllScripts()
 
 		while ((sp = it.getNextProcessor()) != 0)
 		{
+			sp->getContent()->resetContentProperties();
+
 			sp->compileScript();
 		}
 	}
@@ -315,14 +318,22 @@ void ModulatorSynthChain::restoreFromValueTree(const ValueTree &v)
 
 void ModulatorSynthChain::reset()
 {
-	sendDeleteMessage();
 
-	Processor::Iterator<Processor> iter(this, false);
-
-	while (auto p = iter.getNextProcessor())
 	{
-		p->sendDeleteMessage();
+		MessageManagerLock mm;
+
+		
+
+		sendDeleteMessage();
+
+		Processor::Iterator<Processor> iter(this, false);
+
+		while (auto p = iter.getNextProcessor())
+		{
+			p->sendDeleteMessage();
+		}
 	}
+	
 
     this->getHandler()->clear();
     
@@ -331,6 +342,25 @@ void ModulatorSynthChain::reset()
     effectChain->getHandler()->clear();
     getMatrix().resetToDefault();
     getMatrix().setNumSourceChannels(2);
+
+	setIconColour(Colours::transparentBlack);
+
+	
+
+#if USE_BACKEND
+	setId("Master Chain");
+#endif
+
+
+	for (int i = 0; i < getNumInternalChains(); i++)
+	{
+		getChildProcessor(i)->setEditorState(getEditorStateForIndex(Processor::Visible), false, sendNotification);
+	}
+
+	for (int i = 0; i < ModulatorSynth::numModulatorSynthParameters; i++)
+	{
+		setAttribute(i, getDefaultValue(i), dontSendNotification);
+	}
 
 #if USE_BACKEND
     clearAllViews();
@@ -361,6 +391,12 @@ void ModulatorSynthChain::killAllVoices()
 {
 	for (auto synth : synths)
 		synth->killAllVoices();
+}
+
+void ModulatorSynthChain::resetAllVoices()
+{
+	for (auto synth : synths)
+		synth->resetAllVoices();
 }
 
 bool ModulatorSynthChain::areVoicesActive() const
@@ -491,11 +527,15 @@ void ModulatorSynthChain::ModulatorSynthChainHandler::add(Processor *newProcesso
 	sendChangeMessage();
 }
 
-void ModulatorSynthChain::ModulatorSynthChainHandler::remove(Processor *processorToBeRemoved)
+void ModulatorSynthChain::ModulatorSynthChainHandler::remove(Processor *processorToBeRemoved, bool removeSynth)
 {
 	{
-		MainController::ScopedSuspender ss(synth->getMainController(), MainController::ScopedSuspender::LockType::Lock);
-		synth->synths.removeObject(dynamic_cast<ModulatorSynth*>(processorToBeRemoved));
+		auto& tmp = synth;
+
+		auto f = [tmp, removeSynth](Processor* p) { tmp->synths.removeObject(dynamic_cast<ModulatorSynth*>(p), removeSynth); return true; };
+
+		synth->getMainController()->getKillStateHandler().killVoicesAndCall(processorToBeRemoved, f, MainController::KillStateHandler::TargetThread::MessageThread);
+		
 	}
 
 	sendChangeMessage();
@@ -524,3 +564,5 @@ void ModulatorSynthChain::ModulatorSynthChainHandler::clear()
 
 	sendChangeMessage();
 }
+
+} // namespace hise

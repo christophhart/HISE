@@ -23,9 +23,8 @@ namespace wdl
 
 #include "effects/fx/chunkware_simple_dynamics/chunkware_simple_dynamics.cpp"
 
-namespace hise
-{
-	using namespace juce;
+
+
 
 
 /** @defgroup modulatorTypes ModulatorTypes =========================================================================
@@ -173,4 +172,3 @@ namespace hise
 
 #endif
 
-}

@@ -23,13 +23,16 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
+
+#define LOG_ARP(x)
 
 Arpeggiator::Arpeggiator(MainController *mc, const String &id, ModulatorSynth *ms) :
 	HardcodedScriptProcessor(mc, id, ms)
@@ -76,9 +79,6 @@ void Arpeggiator::onInit()
 	userHeldKeysArray.ensureStorageAllocated(128);
 	userHeldKeysArraySorted.ensureStorageAllocated(128);
 
-	static const String tempoList = "1/1\n1/2D\n1/2\n1/2T\n1/4D\n1/4\n1/4T\n1/8D\n1/8\n1/8T\n1/16D\n1/16\n1/16T\n1/32D\n1/32\n1/32D\n1/64D\n1/64\n1/64T";
-
-	timeSigValArray = createTempoDivisionValueArrayViaStringArray(tempoList);
 	minNoteLenSamples = (int)(Engine.getSampleRate() / 80.0);
 
 	bypassButton = Content.addButton("BypassButton", 10, 10);
@@ -86,27 +86,15 @@ void Arpeggiator::onInit()
 	
 	parameterNames.add("Bypass");
 
-	syncHostButton = Content.addButton("SyncHostButton", 10, 50);
-	syncHostButton->set("text", "Sync to Host");
+	resetButton = Content.addButton("ResetButton", 10, 60);
 
-	parameterNames.add("SyncToHost");
+	resetButton->set("isMomentary", true);
+	resetButton->set("text", "Reset");
 
-	internalBPMSlider = Content.addKnob("InternalBPMSlider", 10, 90);
-	
-	internalBPMSlider->set("text", "Internal BPM");
-	internalBPMSlider->set("width", 130);
-	internalBPMSlider->set("height", 50);
-	internalBPMSlider->set("min", 40);
-	internalBPMSlider->set("max", 180);
-	internalBPMSlider->set("stepSize", "1");
-	internalBPMSlider->set("defaultValue", "120");
-	internalBPMSlider->set("suffix", " BPM");
-	
-	parameterNames.add("InternalBPM");
+	parameterNames.add("Reset");
 
 
-
-	numStepSlider = Content.addKnob("NumStepSlider", 10, 140);
+	numStepSlider = Content.addKnob("NumStepSlider", 10, 110);
 
 	numStepSlider->set("text", "Num Steps");
 	numStepSlider->set("min", 1);
@@ -116,7 +104,7 @@ void Arpeggiator::onInit()
 
 	parameterNames.add("NumSteps");
 
-	stepReset = Content.addKnob("StepReset", 10, 200);
+	stepReset = Content.addKnob("StepReset", 10, 170);
 
 	stepReset->set("text", "Step Reset");
 	stepReset->set("max", 32);
@@ -126,7 +114,7 @@ void Arpeggiator::onInit()
 	
 
 
-	stepSkipSlider = Content.addKnob("StepSkipSlider", 10, 260);
+	stepSkipSlider = Content.addKnob("StepSkipSlider", 10, 230);
 
 	stepSkipSlider->set("text", "Stride");
 	stepSkipSlider->set("min", -12);
@@ -137,15 +125,17 @@ void Arpeggiator::onInit()
 	parameterNames.add("Stride");
 
 
-	sortKeysButton = Content.addButton("SortKeysButton", 10, 330);
+	sortKeysButton = Content.addButton("SortKeysButton", 10, 300);
 	sortKeysButton->set("text", "Sort Keys");
 
 	parameterNames.add("SortKeys");
 
-	speedComboBox = Content.addComboBox("SpeedComboBox", 10, 370);
+	speedKnob = Content.addKnob("SpeedKnob", 10, 340);
 
-	speedComboBox->set("text", "Speed");
-	speedComboBox->set("items", tempoList);
+	speedKnob->set("mode", "TempoSync");
+
+	speedKnob->set("text", "Speed");
+	
 
 	parameterNames.add("Tempo");
 
@@ -158,7 +148,7 @@ void Arpeggiator::onInit()
 
 	octaveSlider = Content.addKnob("OctaveRange", 10, 445);
 
-	octaveSlider->set("min", 0);
+	octaveSlider->set("min", -2);
 	octaveSlider->set("max", 4);
 	octaveSlider->set("stepSize", "1");
 
@@ -166,9 +156,7 @@ void Arpeggiator::onInit()
 
 	shuffleSlider = Content.addKnob("Shuffle", 150, 445);
 	
-
 	parameterNames.add("Shuffle");
-
 
 	currentStepSlider = Content.addKnob("CurrentValue", 160, 400);
 
@@ -253,11 +241,11 @@ void Arpeggiator::onInit()
 
 	
 
-	internalBPMSlider->setValue(120);
-	syncHostButton->setValue(false);
+	
 	stepSkipSlider->setValue(1);
 	sequenceComboBox->setValue(1);
-	speedComboBox->setValue(3); 
+	speedKnob->setValue((int)TempoSyncer::Tempo::Sixteenth); 
+	resetButton->setValue(0);
 	numStepSlider->setValue(4);
 	currentStepSlider->setValue(0);
 	octaveSlider->setValue(0);
@@ -295,7 +283,7 @@ void Arpeggiator::onControl(ScriptingApi::Content::ScriptComponent *c, var value
 {
 	if (c == numStepSlider)
 	{
-		int newNumber = jmax<int>(1, (int)value);
+		int newNumber = jlimit<int>(1, 32, (int)value);
 
 		lengthSliderPack->set("sliderAmount", newNumber);
 		velocitySliderPack->set("sliderAmount", newNumber);
@@ -304,14 +292,19 @@ void Arpeggiator::onControl(ScriptingApi::Content::ScriptComponent *c, var value
 	}
 	else if (c == bypassButton)
 	{
+		if ((double)value > 0.5)
+		{
+			userHeldKeysArray.clearQuick();
+			userHeldKeysArraySorted.clearQuick();
+
+			reset(true, true);
+		}
+	}
+	else if (c == resetButton)
+	{
 		userHeldKeysArray.clearQuick();
 		userHeldKeysArraySorted.clearQuick();
-
 		reset(true, true);
-	}
-	else if (c == syncHostButton)
-	{
-		internalBPMSlider->set("enabled", 1 - (int)value);
 	}
 	else if (c == sequenceComboBox)
 	{
@@ -349,14 +342,18 @@ void Arpeggiator::playNote()
 	MidiSequenceArray.clearQuick();
 	MidiSequenceArraySorted.clearQuick();
 
-	auto octaveAmount = (int)octaveSlider->getValue() + 1;
+	const int octaveRaw = (int)octaveSlider->getValue();
+
+	const int octaveSign = octaveRaw >= 0 ? 1 : -1;
+
+	auto octaveAmount = abs(octaveRaw) + 1;
 
 	for (int i = 0; i < octaveAmount; i++)
 	{
 		for (int j = 0; j < userHeldKeysArray.size(); j++)
 		{
-			MidiSequenceArray.addIfNotAlreadyThere(userHeldKeysArray[j] + i * 12);
-			MidiSequenceArraySorted.addIfNotAlreadyThere(userHeldKeysArraySorted[j] + i * 12);
+			MidiSequenceArray.addIfNotAlreadyThere(userHeldKeysArray[j] + octaveSign * i * 12);
+			MidiSequenceArraySorted.addIfNotAlreadyThere(userHeldKeysArraySorted[j] + octaveSign * i * 12);
 		}
 	}
 
@@ -498,63 +495,6 @@ void Arpeggiator::playNote()
 
 
 
-Array<double> Arpeggiator::createTempoDivisionValueArrayViaStringArray(const String& tempoValues)
-{
-	StringArray timeSignatureStrArray = StringArray::fromLines(tempoValues);
-
-	DBG("====");
-	DBG("createTempoDivisionValueArrayViaStringArray(timeSignatureStrArray)");
-	DBG("----");
-
-	int numerator;
-	int denominator;
-	double modifier;
-	String modifier_str;
-	double result;
-	StringArray regexArray;
-	Array<double> collection;
-
-	for (int i = 0; i < timeSignatureStrArray.size(); ++i)
-	{
-		regexArray = RegexFunctions::getFirstMatch("(\\d+)/(\\d+)(.?)", timeSignatureStrArray[i]);
-
-		DBG("Matched " + String(regexArray.size() - 1) + " regex groups after parsing time signatre.");
-
-		if (regexArray.isEmpty())
-			continue;
-
-		numerator = regexArray[1].getIntValue();
-		denominator = regexArray[2].getIntValue();
-
-		if (denominator == 0)
-		{
-			// Hello, my name is C++ and I'll crash at trying to divide by zero...
-			continue;
-		}
-
-		modifier_str = regexArray[3];
-
-		if (RegexFunctions::matchesWildcard("[\\.dD]", modifier_str))
-			modifier = 1.5;
-		else if (RegexFunctions::matchesWildcard("[tT]", modifier_str))
-			modifier = 1.0 / 1.5;
-		else
-			modifier = 1.0;
-
-		result = (double)numerator / (double)denominator * modifier;
-		result = (double)result * 4.0; // because music theory
-
-		collection.add(result);
-
-		DBG(timeSignatureStrArray[i] + " > is parsed as " + regexArray[1] + "/" + regexArray[2] + regexArray[3]);
-		//DBG(result + " = " + String(numerator + " / " + denominator + " * " + modifier);
-		DBG("----");
-	}
-	DBG("Input had " + String(timeSignatureStrArray.size()) + " elements");
-	DBG("====");
-
-	return collection;
-}
 
 void Arpeggiator::changeDirection()
 {
@@ -571,11 +511,13 @@ void Arpeggiator::changeDirection()
 
 void Arpeggiator::calcTimeInterval()
 {
-	//DBG("timeSigValArray[enum("+this.timeSigEnum+")] = " + this.timeSigValArray[this.timeSigEnum] + " / " + this.timeSigStrArray[this.timeSigEnum]);
-	BPM = ((int)syncHostButton->getValue() > 0) ? (double)Engine.getHostBpm() : (double)internalBPMSlider->getValue();
+	//LOG_ARP("timeSigValArray[enum("+this.timeSigEnum+")] = " + this.timeSigValArray[this.timeSigEnum] + " / " + this.timeSigStrArray[this.timeSigEnum]);
+	BPM = Engine.getHostBpm();
 	BPS = BPM / 60.0;
 
-	timeInterval = jmax<double>(minTimerTime, (double)timeSigValArray[speedComboBox->getValue()] * 1.0 / BPS);
+	auto t = TempoSyncer::getTempoInMilliSeconds(BPM, (TempoSyncer::Tempo)(int)speedKnob->getValue()) * 0.001;
+	
+	timeInterval = jmax<double>(minTimerTime, t);
 }
 
 void Arpeggiator::addUserHeldKey(int notenumber)
@@ -621,3 +563,5 @@ void Arpeggiator::reset(bool do_all_notes_off, bool do_stop)
 
 	last_step_was_tied = false;
 }
+
+} // namespace hise

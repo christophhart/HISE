@@ -30,6 +30,9 @@
 *   ===========================================================================
 */
 
+
+namespace hise { using namespace juce;
+
 ValueTree SampleMapBrowser::ValueTreeHelpers::createEntry(const String& displayName, const String& id /*= String()*/)
 {
 	const bool isDirectory = id.isEmpty();
@@ -109,6 +112,8 @@ void SampleMapBrowser::ColumnListBoxModel::listBoxItemClicked(int row, const Mou
 		{
 			if (auto content = attachedComponent->findParentComponentOfClass<ScriptContentComponent>())
 			{
+				
+
 				auto sc = content->getScriptComponentFor(attachedComponent);
 				auto pwsc = const_cast<ProcessorWithScriptingContent*>(dynamic_cast<const ProcessorWithScriptingContent*>(content->getScriptProcessor()));
 
@@ -338,3 +343,5 @@ void SampleMapBrowser::rebuildColumns()
 
 	columns.getFirst()->setData(columnData);
 }
+
+} // namespace hise

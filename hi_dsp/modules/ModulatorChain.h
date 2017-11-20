@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,6 +33,7 @@
 #ifndef ModulatorChainProcessor_H_INCLUDED
 #define ModulatorChainProcessor_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 /** A chain of Modulators that can be processed serially.
 *
@@ -231,9 +232,9 @@ public:
 		void add(Processor *newProcessor, Processor *siblingToInsertBefore) override;
 	
 		/** Deletes the Modulator. */
-		void deleteModulator(Modulator *modulatorToBeDeleted);
+		void deleteModulator(Modulator *modulatorToBeDeleted, bool deleteMod);
 
-		void remove(Processor *processorToBeRemoved) override;
+		void remove(Processor *processorToBeRemoved, bool deleteProcessor=true) override;
 
 		/** Returns the modulator at the specified index. */
 		Modulator *getModulator(int modIndex) const
@@ -449,4 +450,5 @@ private:
 	ScopedPointer<EnvelopeModulatorFactoryType> envelopeFactory;
 };
 
+} // namespace hise
 #endif  // ModulatorChainProcessor_H_INCLUDED

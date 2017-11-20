@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -54,17 +54,18 @@ END_JUCE_MODULE_DECLARATION
 #include "AppConfig.h"
 #include "../hi_modules/hi_modules.h"
 
-namespace hise
-{
-using namespace juce;
+
 
 #include "backend/BackendBinaryData.h"
 
 #include "backend/debug_components/SamplePoolTable.h"
 #include "backend/debug_components/MacroEditTable.h"
 #include "backend/debug_components/ScriptWatchTable.h"
+#include "backend/debug_components/ScriptComponentEditPanel.h"
+#include "backend/debug_components/ScriptComponentPropertyPanels.h"
 #include "backend/debug_components/ProcessorCollection.h"
 #include "backend/debug_components/ApiBrowser.h"
+#include "backend/debug_components/ScriptComponentList.h"
 #include "backend/debug_components/ModuleBrowser.h"
 #include "backend/debug_components/PatchBrowser.h"
 #include "backend/debug_components/FileBrowser.h"
@@ -80,7 +81,7 @@ using namespace juce;
 #include "backend/BackendRootWindow.h"
 #include "backend/CompileExporter.h"
 #include "backend/HisePlayerExporter.h"
-}
+
 
 
 

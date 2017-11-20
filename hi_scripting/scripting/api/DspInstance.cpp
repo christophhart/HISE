@@ -30,6 +30,8 @@
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
+
 struct DspInstance::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(DspInstance, processBlock);
@@ -514,3 +516,5 @@ void DspInstance::unload()
 		factory = nullptr;
 	}
 }
+
+} // namespace hise

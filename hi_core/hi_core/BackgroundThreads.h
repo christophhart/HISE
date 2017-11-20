@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,7 +33,9 @@
 #ifndef BACKGROUNDTHREADS_H_INCLUDED
 #define BACKGROUNDTHREADS_H_INCLUDED
 
+namespace hise { using namespace juce;
 
+class MainController;
 
 class QuasiModalComponent
 {
@@ -62,6 +64,11 @@ public:
 	void setModalComponent(Component *component, int fadeInTime=0);
 	bool isCurrentlyModal() const;
 	void clearModalComponent();
+
+	/** This returns the main controller depending on the project type. */
+	const MainController* getMainController() const;
+
+	MainController* getMainController();
 
 	ScopedPointer<Component> modalComponent;
 	DropShadow s;
@@ -208,6 +215,7 @@ private:
 };
 
 class MainController;
+class ModulatorSynthChain;
 
 class PresetLoadingThread : public DialogWindowWithBackgroundThread
 {
@@ -237,5 +245,113 @@ private:
 class ProjectHandler;
 
 
+class SampleDataExporter : public DialogWindowWithBackgroundThread,
+	public hlac::HlacArchiver::Listener
+{
+public:
+
+	enum PartSize
+	{
+		HalfGig = 0,
+		OneGig,
+		OneAndHalfGig,
+		TwoGig,
+		numPartSizes
+	};
+
+	SampleDataExporter(ModalBaseWindow* mbw);;
+
+	void logVerboseMessage(const String& verboseMessage) override;
+	void logStatusMessage(const String& message) override;
+
+	void run() override;;
+	void threadFinished() override;
+
+private:
+
+	Array<File> collectMonoliths();
+
+	String getMetadataJSON() const;
+
+	String getProjectName() const;
+
+	String getCompanyName() const;
+
+	String getProjectVersion() const;
+
+	File getTargetFile() const;
+
+	ModulatorSynthChain* synthChain;
+
+	ModalBaseWindow* modalBaseWindow;
+	ScopedPointer<FilenameComponent> targetFile;
+	ScopedPointer<ProgressBar> totalProgressBar;
+	double totalProgress = 0.0;
+	int numExported = 0;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SampleDataExporter)
+};
+
+
+class SampleDataImporter : public DialogWindowWithBackgroundThread,
+	public hlac::HlacArchiver::Listener
+{
+public:
+
+	enum class ErrorCode
+	{
+		OK = 0,
+		ProductMismatch,
+		VersionMismatch,
+		FileError,
+		numErrorCodes
+	};
+
+	SampleDataImporter(ModalBaseWindow* bpe_);
+
+	void logVerboseMessage(const String& verboseMessage) override;
+
+	void logStatusMessage(const String& message) override;
+
+	void run() override;
+
+	void threadFinished() override;
+
+private:
+
+	String getProjectName() const;
+
+	String getCompanyName() const;
+
+	String getProjectVersion() const;
+
+	File getTargetDirectory() const;
+
+	String getMetadata() const;
+
+	File getSourceFile() const;
+
+	void checkSanity(var metadata)
+	{
+
+	}
+
+	Result result;
+
+	ScopedPointer<FilenameComponent> targetFile;
+	ScopedPointer<FilenameComponent> sampleDirectory;
+
+	ScopedPointer<ProgressBar> totalProgressBar;
+	ScopedPointer<ProgressBar> partProgressBar;
+
+	double partProgress = 0.0;
+	double totalProgress = 0.0;
+
+	ModalBaseWindow* modalBaseWindow;
+
+	ModulatorSynthChain* synthChain;
+};
+
+} // namespace hise
 
 #endif  // BACKGROUNDTHREADS_H_INCLUDED

@@ -23,12 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
+
+namespace hise { using namespace juce;
 
 LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mode m):
 	TimeVariantModulator(mc, id, m),
@@ -391,3 +393,5 @@ float LfoModulator::sineTable[SAMPLE_LOOKUP_TABLE_SIZE];
 float LfoModulator::triangleTable[SAMPLE_LOOKUP_TABLE_SIZE];
 float LfoModulator::sawTable[SAMPLE_LOOKUP_TABLE_SIZE];
 float LfoModulator::squareTable[SAMPLE_LOOKUP_TABLE_SIZE];
+
+} // namespace hise

@@ -23,12 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
+
+namespace hise { using namespace juce;
 
 CCDucker::CCDucker(MainController *mc, const String &id, Modulation::Mode m):
 TimeVariantModulator(mc, id, m),
@@ -226,3 +228,4 @@ float CCDucker::getNextValue()
 	}
 }
 
+} // namespace hise

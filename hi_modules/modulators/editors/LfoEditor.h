@@ -21,6 +21,7 @@
 #define __JUCE_HEADER_52D6A5016C50158E__
 
 //[Headers]     -- You can add your own extra header files here --
+namespace hise { using namespace juce;
 #define LfoEditor(x) ProcessorEditor(x, new LfoEditorBody(x))
 //[/Headers]
 
@@ -140,6 +141,7 @@ private:
 
 //[EndFile] You can add extra defines here...
 /** \endcond */
+} // namespace hise
 
 //[/EndFile]
 

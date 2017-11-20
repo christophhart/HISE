@@ -33,6 +33,7 @@
 #ifndef DEBUGHELPERS_H_INCLUDED
 #define DEBUGHELPERS_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 class DebugInformation;
 class HiseJavascriptEngine;
@@ -320,4 +321,5 @@ public:
 	const Identifier namespaceId;
 };
 
+} // namespace hise
 #endif  // DEBUGHELPERS_H_INCLUDED

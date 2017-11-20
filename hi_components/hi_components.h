@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -62,9 +62,6 @@ END_JUCE_MODULE_DECLARATION
 *	custom components for HI.
 */
 
-namespace hise
-{
-using namespace juce;
 
 #include "resizable_height_component/ResizableHeightComponent.h"
 
@@ -77,7 +74,9 @@ using namespace juce;
 #include "plugin_components/PresetBrowser.h"
 #include "plugin_components/PresetComponents.h"
 #include "plugin_components/StandalonePopupComponents.h"
+
 #include "plugin_components/FrontendBar.h"
+
 
 #if USE_BACKEND
 #include "plugin_components/PluginPreviewWindow.h"
@@ -94,8 +93,6 @@ using namespace juce;
 #include "eq_plot/EqComponent.h"
 
 #include "floating_layout/FloatingLayout.h"
-
-}
-
+#include "plugin_components/PanelTypes.h"
 
 #endif  // HI_COMPONENTS_H_INCLUDED

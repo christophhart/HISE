@@ -25,6 +25,7 @@
 #ifndef JUCE_THREADWITHQUASIMODALPROGRESSWINDOW_H_INCLUDED
 #define JUCE_THREADWITHQUASIMODALPROGRESSWINDOW_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 //==============================================================================
 /**
@@ -282,5 +283,7 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ThreadWithQuasiModalProgressWindow)
 };
+
+} // namespace hise
 
 #endif   // JUCE_THREADWITHPROGRESSWINDOW_H_INCLUDED

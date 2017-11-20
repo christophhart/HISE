@@ -32,7 +32,7 @@
 #ifndef HISELOSSLESSAUDIOFORMAT_H_INCLUDED
 #define HISELOSSLESSAUDIOFORMAT_H_INCLUDED
 
-
+namespace hlac { using namespace juce; 
 
 
 class HiseLosslessAudioFormat : public AudioFormat
@@ -68,5 +68,6 @@ public:
 	HeapBlock<uint32> blockOffsets;
 };
 
+} // namespace hlac
 
 #endif  // HISELOSSLESSAUDIOFORMAT_H_INCLUDED

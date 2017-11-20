@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,6 +33,7 @@
 #ifndef MODULATORSYNTH_H_INCLUDED
 #define MODULATORSYNTH_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 class ModulatorSynthChain;
 class ModulatorSynthEditor;
@@ -101,15 +102,6 @@ public:
 		Quarters = 0,
 		Half = -1,
 		Bar = -2
-	};
-
-	enum class BypassState
-	{
-		Active = 0,
-		RampStartPending,
-		Ramping,
-		SoftBypassed,
-		numBypassStates
 	};
 
 	// ===================================================================================================================
@@ -183,7 +175,7 @@ public:
 	void setIconColour(Colour newIconColour)
 	{ 
 		iconColour = newIconColour; 
-		getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::ProcessorColourChange);
+		getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::ProcessorColourChange, false);
 	};
 
 	Colour getIconColour() const { return iconColour; }
@@ -237,25 +229,31 @@ public:
 	/** Kills the voice that is playing for the longest time. */
 	void killLastVoice();
 
-	void setSoftBypass(bool shouldBeBypassed);
-
-	bool isSoftBypassed() const { return bypassState == (int)BypassState::SoftBypassed; };
-
 	
 
-    void deleteAllVoices();
+	bool isSoftBypassed() const { return bypassState; };
+
+	void deleteAllVoices();
     
-	void resetAllVoices();
+	virtual void resetAllVoices();
 
 	virtual void killAllVoices();
 
+	/** Call this from the message thread and it'll kill all voices at the next buffer. 
+	*
+	*	Pass in a lambda and it will execute this asynchronously as soon as all voices are killed
+	*
+	*	@functionToExecuteWhenKilled: a lambda that will be executed as soon as the voices are killed
+	*	@executeOnAudioThread:		  if true, the lambda will be synchronously called on the audio thread
+	*
+	*/
 	virtual bool areVoicesActive() const;
 
 	void setVoiceLimit(int newVoiceLimit);
 
 	void setKillFadeOutTime(double fadeTimeSeconds);
 
-	/** Checks if the message fits the sound, but can be overriden to implement other group start logic. */
+		/** Checks if the message fits the sound, but can be overriden to implement other group start logic. */
 	virtual bool soundCanBePlayed(ModulatorSynthSound *sound, int midiChannel, int midiNoteNumber, float velocity);
 
 	void startVoiceWithHiseEvent(ModulatorSynthVoice* voice, SynthesiserSound *sound, const HiseEvent &e);
@@ -263,7 +261,7 @@ public:
 	/** Same functionality as Synthesiser::noteOn(), but calls calculateVoiceStartValue() if a new voice is started. */
 	void noteOn(const HiseEvent &m);
 
-	void noteOn(int midiChannel, int midiNoteNumber, float velocity) override;
+	void noteOn(int midiChannel, int midiNoteNumber, float velocity) final override;
 
 
 	virtual void noteOff(const HiseEvent &m);
@@ -272,9 +270,6 @@ public:
 	int getVoiceIndex(const SynthesiserVoice *v) const;;
 
 	void processHiseEventBuffer(const HiseEventBuffer &inputBuffer, int numSamples);
-
-	/** Checks the flag and implements the soft bypass logic. Returns false if the ramp is pending. */
-	virtual bool handleSoftBypass();
 
 	/** Adds a SimpleEnvelope to a empty ModulatorSynth to prevent clicks. */
 	virtual void addProcessorsWhenEmpty();
@@ -332,6 +327,14 @@ public:
 
 	/** Returns the index of the child synth if it resides in a group and -1 if not. */
 	int getIndexInGroup() const;
+
+	/** Returns either itself or the group that is playing its voices. */
+
+	ModulatorSynth* getPlayingSynth();
+
+	const ModulatorSynth* getPlayingSynth() const;
+
+
 
 	/** Sets the interval for the internal clock callback. */
 	void setClockSpeed(ClockSpeed newClockSpeed)
@@ -408,6 +411,10 @@ public:
 
 	bool getMidiInputFlag();
 
+	void setSoftBypass(bool shouldBeBypassed);
+
+	
+
 protected:
 
 	bool checkTimerCallback(int timerIndex) const noexcept
@@ -418,9 +425,12 @@ protected:
 	// Used to display the playing position
 	ModulatorSynthVoice *lastStartedVoice;
 
-	std::atomic<int> bypassState;
+	
 
 private:
+
+	
+
 
 	// ===================================================================================================================
 
@@ -455,6 +465,8 @@ private:
 	std::atomic<float> killFadeTime;
 	
 	
+
+	std::atomic<bool> bypassState;
 
 	// ===================================================================================================================
 
@@ -619,6 +631,8 @@ public:
 	{
 		killFadeFactor = newKillFadeFactor;
 	}
+
+	
 
 	void applyKillFadeout(int startSample, int numSamples)
 	{
@@ -856,5 +870,7 @@ private:
 	int numVoices;
 
 };
+
+} // namespace hise
 
 #endif  // MODULATORSYNTH_H_INCLUDED

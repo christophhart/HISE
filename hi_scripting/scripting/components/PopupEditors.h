@@ -33,6 +33,7 @@
 #ifndef POPUPEDITORS_H_INCLUDED
 #define POPUPEDITORS_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 
 class JavascriptCodeEditor;
@@ -101,5 +102,7 @@ private:
 
 	// ================================================================================================================
 };
+
+} // namespace hise
 
 #endif  // POPUPEDITORS_H_INCLUDED

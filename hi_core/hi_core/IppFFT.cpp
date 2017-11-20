@@ -23,13 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
 
 
 IppFFT::IppFFT(DataType typeToUse, int maxPowerOfTwo /*= IPP_FFT_MAX_POWER_OF_TWO*/, const int flagToUse /*= IPP_FFT_NODIV_BY_ANY*/) :
@@ -354,3 +355,5 @@ void IppFFT::Buffer::releaseData()
 		data = nullptr;
 	}
 }
+
+} // namespace hise

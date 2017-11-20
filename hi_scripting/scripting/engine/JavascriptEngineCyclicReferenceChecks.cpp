@@ -30,6 +30,8 @@
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
+
 #if LOG_REFERENCE_CHECKS
 #define LOG_REFERENCE_CHECK(x) DBG(x)
 #else
@@ -244,13 +246,13 @@ Identifier HiseJavascriptEngine::CyclicReferenceCheckBase::Reference::ListHelper
 
 bool HiseJavascriptEngine::CyclicReferenceCheckBase::Reference::ListHelpers::varHasReferences(const var& v)
 {
-	if (auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(v.getObject()))
+	if (dynamic_cast<ScriptingApi::Content::ScriptPanel*>(v.getObject()) != nullptr)
 		return true;
 
 	if (!isVarWithReferences(v))
 		return false;
 
-	if (auto cc = dynamic_cast<HiseJavascriptEngine::CyclicReferenceCheckBase*>(v.getObject()))
+	if (dynamic_cast<HiseJavascriptEngine::CyclicReferenceCheckBase*>(v.getObject()) != nullptr)
 	{
 		return true;
 	}
@@ -535,3 +537,5 @@ void ScriptingApi::Content::ScriptPanel::prepareCycleReferenceCheck()
 }
 
 #undef LOG_REFERENCE_CHECK
+
+} // namespace hise

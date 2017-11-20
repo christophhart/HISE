@@ -11,6 +11,8 @@
 #ifndef STANDALONEPROCESSOR_H_INCLUDED
 #define STANDALONEPROCESSOR_H_INCLUDED
 
+namespace hise { using namespace juce;
+
 class ToggleButtonList;
 
 
@@ -250,6 +252,8 @@ class StandaloneProcessor
 {
 public:
 
+	
+
 	StandaloneProcessor();
 
 	~StandaloneProcessor()
@@ -280,6 +284,8 @@ public:
 #endif
 	}
 
+	void requestQuit(const std::function<void(void)>& f);
+
 private:
 
 	ScopedPointer<AudioProcessor> wrappedProcessor;
@@ -290,6 +296,6 @@ private:
 
 };
 
-
+} // namespace hise
 
 #endif  // STANDALONEPROCESSOR_H_INCLUDED

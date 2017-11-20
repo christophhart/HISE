@@ -23,13 +23,14 @@
 *   http://www.hartinstruments.net/hise/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
 
 void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
@@ -156,8 +157,6 @@ unlockCounter(0)
     MainController::ScopedSuspender ss(this);
 
 	getSampleManager().setShouldSkipPreloading(true);
-
-	
 
 	setSkipCompileAtPresetLoad(true);
 
@@ -371,3 +370,5 @@ FrontendStandaloneApplication::MainWindow::MainWindow(String name) : DocumentWin
 
 	setVisible(true);
 }
+
+} // namespace hise

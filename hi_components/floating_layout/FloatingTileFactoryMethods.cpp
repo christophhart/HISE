@@ -23,14 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
-
+namespace hise { using namespace juce;
 
 void FloatingTileContent::Factory::registerAllPanelTypes()
 {
@@ -58,6 +58,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<BackendProcessorEditor>(PopupMenuOptions::MenuCommandOffset);
 	registerType<ScriptWatchTablePanel>(PopupMenuOptions::ScriptWatchTable);
 	registerType<ConsolePanel>(PopupMenuOptions::Console);
+	registerType<ScriptComponentList::Panel>(PopupMenuOptions::ScriptComponentList);
 #endif
 
 
@@ -97,7 +98,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<PlotterPanel>(PopupMenuOptions::Plotter);
 	
 #if USE_BACKEND
-	registerType<GenericPanel<ScriptComponentEditPanel>>(PopupMenuOptions::ScriptComponentEditPanel);
+	registerType<ScriptComponentEditPanel::Panel>(PopupMenuOptions::ScriptComponentEditPanel);
 	registerType<ApplicationCommandButtonPanel>(PopupMenuOptions::MenuCommandOffset);
 #endif
 
@@ -292,6 +293,13 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 		break;
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::ScriptContent:
+	{
+#if USE_BACKEND
+		path.loadPathFromData(BackendBinaryData::ToolbarIcons::customInterface, sizeof(BackendBinaryData::ToolbarIcons::customInterface));
+#endif
+		break;
+	}
+	case FloatingTileContent::Factory::PopupMenuOptions::ScriptComponentList:
 	{
 #if USE_BACKEND
 		path.loadPathFromData(BackendBinaryData::ToolbarIcons::customInterface, sizeof(BackendBinaryData::ToolbarIcons::customInterface));
@@ -537,6 +545,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(m, PopupMenuOptions::ScriptEditor, "Script Editor");
 			addToPopupMenu(m, PopupMenuOptions::ScriptContent, "Script Content");
 			addToPopupMenu(m, PopupMenuOptions::ScriptComponentEditPanel, "Script Interface Property Editor");
+			addToPopupMenu(m, PopupMenuOptions::ScriptComponentList, "Script Component List");
 			addToPopupMenu(m, PopupMenuOptions::ApiCollection, "API Browser");
 			addToPopupMenu(m, PopupMenuOptions::ScriptWatchTable, "Live Variable View");
 			addToPopupMenu(m, PopupMenuOptions::Console, "Console");
@@ -637,9 +646,10 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 		
 	case PopupMenuOptions::ScriptEditor:		parent->setNewContent(GET_PANEL_NAME(CodeEditorPanel)); break;
 	case PopupMenuOptions::ScriptContent:		parent->setNewContent(GET_PANEL_NAME(ScriptContentPanel)); break;
+	case PopupMenuOptions::ScriptComponentList: parent->setNewContent(GET_PANEL_NAME(ScriptComponentList::Panel)); break;
 	case PopupMenuOptions::InterfaceContent:	parent->setNewContent(GET_PANEL_NAME(InterfaceContentPanel)); break;
 	case PopupMenuOptions::Plotter:				parent->setNewContent(GET_PANEL_NAME(PlotterPanel)); break;
-	case PopupMenuOptions::ScriptComponentEditPanel: parent->setNewContent(GET_PANEL_NAME(GenericPanel<ScriptComponentEditPanel>)); break;
+	case PopupMenuOptions::ScriptComponentEditPanel: parent->setNewContent(GET_PANEL_NAME(ScriptComponentEditPanel::Panel)); break;
 	case PopupMenuOptions::SliderPackPanel:		parent->setNewContent(GET_PANEL_NAME(SliderPackPanel)); break;
 	case PopupMenuOptions::ScriptConnectorPanel:parent->setNewContent(GET_PANEL_NAME(GlobalConnectorPanel<JavascriptProcessor>)); break;
 	case PopupMenuOptions::Console:				parent->setNewContent(GET_PANEL_NAME(ConsolePanel)); break;
@@ -674,3 +684,5 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	
 #endif
 }
+
+} // namespace hise

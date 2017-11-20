@@ -1,4 +1,4 @@
-
+namespace hise { using namespace juce;
 
 struct HiseJavascriptEngine::RootObject::LiteralValue : public Expression
 {
@@ -541,3 +541,5 @@ bool HiseJavascriptEngine::RootObject::Scope::invokeMidiCallback(const Identifie
 
 	return false;
 }
+
+} // namespace hise

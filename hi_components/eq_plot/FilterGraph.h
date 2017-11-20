@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -36,6 +36,7 @@
 #ifndef __FILTERGRAPH_H_3CCF0ED1__
 #define __FILTERGRAPH_H_3CCF0ED1__
 
+namespace hise { using namespace juce;
 
 //==============================================================================
 class FilterGraph    : public Component,
@@ -220,4 +221,7 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FilterGraph)
 };
+
+} // namespace hise
+
 #endif  // __FILTERGRAPH_H_3CCF0ED1__

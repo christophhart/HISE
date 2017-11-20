@@ -23,12 +23,15 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
+
+namespace hise { using namespace juce;
+
 GlobalModulatorContainer::GlobalModulatorContainer(MainController *mc, const String &id, int numVoices) :
 ModulatorSynth(mc, id, numVoices)
 {
@@ -227,6 +230,7 @@ void GlobalModulatorData::prepareToPlay(double /*sampleRate*/, int blockSize)
 	case GlobalModulator::VoiceStart:	valuesForCurrentBuffer = AudioSampleBuffer(1, 0); return;
 	case GlobalModulator::TimeVariant:	ProcessorHelpers::increaseBufferIfNeeded(valuesForCurrentBuffer, blockSize); break;
     case GlobalModulator::numTypes: break;
+    default: break;
 	}
 }
 
@@ -239,6 +243,7 @@ void GlobalModulatorData::saveValuesToBuffer(int startIndex, int numSamples, int
 	case GlobalModulator::VoiceStart:	jassert(noteNumber != -1);  constantVoiceValues.set(noteNumber, static_cast<VoiceStartModulator*>(modulator.get())->getVoiceStartValue(voiceIndex)); break;
 	case GlobalModulator::TimeVariant:	FloatVectorOperations::copy(valuesForCurrentBuffer.getWritePointer(0, startIndex), static_cast<TimeVariantModulator*>(modulator.get())->getCalculatedValues(0) + startIndex, numSamples); break;
     case GlobalModulator::numTypes: break;
+    default: break;
 	}
 }
 
@@ -249,6 +254,7 @@ const float * GlobalModulatorData::getModulationValues(int startIndex, int /*voi
 	case GlobalModulator::VoiceStart:	jassertfalse; return nullptr;
 	case GlobalModulator::TimeVariant:	return valuesForCurrentBuffer.getReadPointer(0, startIndex);
     case GlobalModulator::numTypes: return nullptr;
+    default: break;
 	}
 
 	return nullptr;
@@ -258,3 +264,5 @@ float GlobalModulatorData::getConstantVoiceValue(int noteNumber)
 {
 	return constantVoiceValues[noteNumber];
 }
+
+} // namespace hise

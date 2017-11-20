@@ -101,19 +101,16 @@ If enabled, then the unit test suite will be compiled and added to all unit test
 #define HLAC_INCLUDE_TEST_SUITE 0
 #endif
 
-using namespace juce;
 
-namespace hlac
-{
-	#include "hlac/BitCompressors.h"
-	#include "hlac/CompressionHelpers.h"
-	#include "hlac/SampleBuffer.h"
-	#include "hlac/HlacEncoder.h"
-	#include "hlac/HlacDecoder.h"
-	#include "hlac/HlacAudioFormatWriter.h"
-	#include "hlac/HlacAudioFormatReader.h"
-	#include "hlac/HiseLosslessAudioFormat.h"
-}
+#include "hlac/BitCompressors.h"
+#include "hlac/CompressionHelpers.h"
+#include "hlac/SampleBuffer.h"
+#include "hlac/HlacEncoder.h"
+#include "hlac/HlacDecoder.h"
+#include "hlac/HlacAudioFormatWriter.h"
+#include "hlac/HlacAudioFormatReader.h"
+#include "hlac/HiseLosslessAudioFormat.h"
+
 
 
 #endif   // HI_LAC_INCLUDED

@@ -30,6 +30,7 @@
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
 
 class CodeReplacer : public DialogWindowWithBackgroundThread,
 	public TextEditorListener
@@ -391,3 +392,5 @@ Range<int> JavascriptCodeEditor::Helpers::getFunctionParameterTextRange(CodeDocu
 
 	return returnRange;
 }
+
+} // namespace hise

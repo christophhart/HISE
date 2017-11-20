@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -32,7 +32,7 @@
 
 #ifndef MODULATORSAMPLER_H_INCLUDED
 #define MODULATORSAMPLER_H_INCLUDED
-
+namespace hise { using namespace juce;
 
 
  
@@ -63,6 +63,74 @@ class ModulatorSampler: public ModulatorSynth,
 						public LookupTableProcessor
 {
 public:
+
+	/** A small helper tool that iterates over the sound array in a thread-safe way.
+	*
+	*/
+	class SoundIterator
+	{
+	public:
+
+		/** This iterates over all sounds and locks the sound lock if desired. */
+		SoundIterator(ModulatorSampler* s_, bool lock_=true):
+			s(s_),
+			lock(lock_)
+		{
+			if (s->getNumSounds() == 0)
+			{
+				lock = false;
+			}
+			else
+			{
+				if (lock)
+				{
+					lock = s->getMainController()->getSampleManager().getSamplerSoundLock().tryEnter();
+
+					if (!lock)
+						jassertfalse;
+
+					//s->getMainController()->getSampleManager().getSamplerSoundLock().enter();
+				}
+					
+			}
+		}
+
+		ModulatorSamplerSound* getNextSound()
+		{
+			while (auto sound = getSoundInternal())
+				return sound;
+
+			return nullptr;
+		}
+
+		~SoundIterator()
+		{
+			if(lock)
+				s->getMainController()->getSampleManager().getSamplerSoundLock().exit();
+		}
+
+		int size() const
+		{
+			return s->getNumSounds();
+		}
+
+	private:
+
+		ModulatorSamplerSound* getSoundInternal()
+		{
+			if (index >= s->getNumSounds())
+				return nullptr;
+
+			return static_cast<ModulatorSamplerSound*>(s->getSound(index++));
+		}
+
+		bool lock;
+
+		int index = 0;
+
+		ModulatorSampler* s;
+	};
+
 
 	SET_PROCESSOR_NAME("StreamingSampler", "Sampler")
 
@@ -111,7 +179,6 @@ public:
 		numEditorStates
 	};
 
-
 	/** Creates a new ModulatorSampler. */
 	ModulatorSampler(MainController *mc, const String &id, int numVoices);;
 	~ModulatorSampler();
@@ -125,9 +192,6 @@ public:
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
 
 	int getNumMicPositions() const { return numChannels; }
-
-	const ModulatorSamplerSound *getSound(int soundIndex) const;
-	ModulatorSamplerSound *getSound(int soundIndex);
 
 	Processor *getChildProcessor(int processorIndex) override;;
 	const Processor *getChildProcessor(int processorIndex) const override;;
@@ -192,6 +256,7 @@ public:
 	*/
 	void setVoiceAmount(int newVoiceAmount);
 
+	void setVoiceAmountInternal();
 	
 
     /** Sets the streaming buffer and preload buffer sizes asynchronously. */
@@ -209,7 +274,7 @@ public:
 	*
 	*	
 	*/
-	void addSamplerSound(const ValueTree &description, int index, bool forceReuse=false);
+	ModulatorSamplerSound* addSamplerSound(const ValueTree &description, int index, bool forceReuse=false);
 
 	void addSamplerSounds(OwnedArray<ModulatorSamplerSound>& monolithicSounds);
 
@@ -252,10 +317,15 @@ public:
 	SampleMap *getSampleMap() {	return sampleMap; };
 	void clearSampleMap();
 	
-	void loadSampleMap(const File &f);
-	void loadSampleMap(const ValueTree &valueTreeData);
+	void loadSampleMapSync(const File &f);
+	void loadSampleMapSync(const ValueTree &valueTreeData);
 	void loadSampleMapFromIdAsync(const String& sampleMapId);
 	void loadSampleMapFromId(const String& sampleMapId);
+
+	/** This function will be called on a background thread and preloads all samples. */
+	bool preloadAllSamples();
+
+	bool preloadSample(StreamingSamplerSound * s, const int preloadSizeToUse);
 
 	void saveSampleMap() const;
 
@@ -312,43 +382,68 @@ public:
 	{
 		if (reversed != shouldBeReversed)
 		{
-			reversed = shouldBeReversed;
-
-			for (int i = 0; i < getNumSounds(); i++)
+			auto f = [shouldBeReversed](Processor* p)
 			{
-				getSound(i)->setReversed(reversed);
-			}
+				auto s = static_cast<ModulatorSampler*>(p);
+
+				s->reversed = shouldBeReversed;
+
+				ModulatorSampler::SoundIterator sIter(s);
+
+				while (auto sound = sIter.getNextSound())
+				{
+					sound->setReversed(shouldBeReversed);
+				}
+
+				s->refreshMemoryUsage();
+
+				return true;
+			};
+
+			killAllVoicesAndCall(f);
 		}
 
-		refreshMemoryUsage();
+		
 	}
 
 	void purgeAllSamples(bool shouldBePurged)
 	{
+		
 
 		if (shouldBePurged != purged)
 		{
-            purged = shouldBePurged;
-
-            if(purged)
-            {
-                getMainController()->getDebugLogger().logMessage("**Purging samples** from " + getId());
-            }
-            else
-            {
-                getMainController()->getDebugLogger().logMessage("**Unpurging samples** from " + getId());
-            }
-            
-			for (int i = 0; i < sounds.size(); i++)
+			if (shouldBePurged)
 			{
-				ModulatorSamplerSound *sound = static_cast<ModulatorSamplerSound*>(getSound(i));
-
-				sound->setPurged(shouldBePurged);
+				getMainController()->getDebugLogger().logMessage("**Purging samples** from " + getId());
+			}
+			else
+			{
+				getMainController()->getDebugLogger().logMessage("**Unpurging samples** from " + getId());
 			}
 
-			refreshPreloadSizes();
-			refreshMemoryUsage();
-			
+
+			auto f = [shouldBePurged](Processor* p)
+			{
+				auto s = static_cast<ModulatorSampler*>(p);
+
+				jassert(s->allVoicesAreKilled());
+
+				s->purged = shouldBePurged;
+
+				for (int i = 0; i < s->sounds.size(); i++)
+				{
+					ModulatorSamplerSound *sound = static_cast<ModulatorSamplerSound*>(s->getSound(i));
+
+					sound->setPurged(shouldBePurged);
+				}
+
+				s->refreshPreloadSizes();
+				s->refreshMemoryUsage();
+
+				return true;
+			};
+
+			killAllVoicesAndCall(f);
 		}
 	}
 
@@ -463,7 +558,133 @@ public:
 
 	bool checkAndLogIsSoftBypassed(DebugLogger::Location location) const;
 
+	void setHasPendingSampleLoad(bool hasSamplesPending)
+	{
+		samplePreloadPending = hasSamplesPending;
+	}
+
+	bool hasPendingSampleLoad() const { return samplePreloadPending; }
+
+	void killAllVoicesAndCall(const ProcessorFunction& f);
+
+	void setSoundPropertyAsync(ModulatorSamplerSound* s, int index, int newValue)
+	{
+		samplePropertyUpdater.addNewPropertyChange(s, index, newValue, false);
+	}
+
+	void setSoundPropertyAsyncForAllSamples(int index, int newValue)
+	{
+		samplePropertyUpdater.addNewPropertyChange(nullptr, index, newValue, true);
+	}
+
 private:
+
+	bool isOnSampleLoadingThread() const
+	{
+		return getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::SampleLoadingThread;
+	}
+
+	bool allVoicesAreKilled() const
+	{
+		return getMainController()->getKillStateHandler().voicesAreKilled();
+	}
+
+	struct SamplePropertyUpdater: public Timer
+	{
+		SamplePropertyUpdater(ModulatorSampler* s):
+			sampler(s)
+		{
+
+		};
+
+		struct PropertyChange
+		{
+			PropertyChange(ModulatorSamplerSound* s, int i, var n, bool a) :
+				sound(s),
+				index(i),
+				newValue(n),
+				allSamples(a)
+			{};
+
+			ModulatorSamplerSound::Ptr sound;
+			int index;
+			int newValue;
+			bool allSamples;
+		};
+
+		void timerCallback() override
+		{
+			if (!sampler->sampleMapLoadingPending)
+			{
+				handlePendingChanges();
+			}
+		}
+
+		void handlePendingChanges()
+		{
+			Array<PropertyChange> thisTime;
+
+			{
+				ScopedLock sl(arrayLock);
+				thisTime.swapWith(pendingChanges);
+			}
+
+			for (auto c : thisTime)
+			{
+				if (c.allSamples)
+				{
+					jassert(c.sound == nullptr);
+
+					ModulatorSampler::SoundIterator iter(sampler, false);
+
+					while (auto s = iter.getNextSound())
+					{
+						dynamic_cast<ModulatorSamplerSound*>(s)->setProperty((ModulatorSamplerSound::Property)c.index, c.newValue, dontSendNotification);
+					}
+				}
+				else
+				{
+					if (c.sound != nullptr)
+					{
+						dynamic_cast<ModulatorSamplerSound*>(c.sound.get())->setProperty((ModulatorSamplerSound::Property)c.index, c.newValue, dontSendNotification);
+					}
+				}
+
+				
+			}
+
+			stopTimer();
+		}
+
+		void addNewPropertyChange(ModulatorSamplerSound* sound, int index, int newValue, bool allSamples)
+		{
+			ScopedLock sl(arrayLock);
+
+			for (auto& c : pendingChanges)
+			{
+				if (c.sound == sound && c.index == index && c.allSamples == allSamples)
+				{
+					c.newValue = newValue;
+					return;
+				}
+			}
+
+			pendingChanges.add(PropertyChange(sound, index, newValue, allSamples));
+
+			if (!sampler->sampleMapLoadingPending)
+			{
+				startTimer(200);
+			}
+		}
+
+		CriticalSection arrayLock;
+
+		ModulatorSampler* sampler;
+
+		Array<PropertyChange> pendingChanges;
+	};
+	
+
 
 	struct AsyncPurger : public AsyncUpdater,
 						 public Timer
@@ -496,85 +717,17 @@ private:
 		ModulatorSampler *sampler;
 	};
 
-    struct AsyncPreloader: public AsyncUpdater,
-						   public Timer
-    {
-        AsyncPreloader(ModulatorSampler *sampler_):
-        sampler(sampler_),
-        preloadSize(-1)
-        {};
-        
-		void timerCallback()
-		{
-			triggerAsyncUpdate();
-			stopTimer();
-		}
-
-        void handleAsyncUpdate()
-        {
-			if (sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->isPreloading())
-			{
-				startTimer(100);
-				return;
-			}
-
-            sampler->setPreloadSize(preloadSize);
-        }
-        
-        void setPreloadSize(int newPreloadSize)
-        {
-            preloadSize = newPreloadSize;
-            triggerAsyncUpdate();
-        }
-        
-        int preloadSize;
-        
-        ModulatorSampler *sampler;
-    };
+	SamplePropertyUpdater samplePropertyUpdater;
     
-	struct AsyncSampleMapLoader : public AsyncUpdater,
-								  public Timer
-	{
-		AsyncSampleMapLoader(ModulatorSampler* s) :
-			sampler(s)
-		{};
-
-		void timerCallback()
-		{
-			triggerAsyncUpdate();
-			stopTimer();
-		}
-
-		void handleAsyncUpdate()
-		{
-			if (sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->isPreloading())
-			{
-				startTimer(100);
-				return;
-			}
-
-			sampler->loadSampleMapFromId(sampleMapId);
-		}
-
-		void loadSampleMap(const String& newSampleMapId)
-		{
-			sampleMapId = newSampleMapId;
-			startTimer(50);
-		}
-
-		String sampleMapId;
-
-		ModulatorSampler *sampler;
-	};
 
     /** Sets the streaming buffer and preload buffer sizes. */
     void setPreloadSize(int newPreloadSize);
     
+	bool sampleMapLoadingPending = false;
+
 	CriticalSection exportLock;
 
-    AsyncPreloader asyncPreloader;
 	AsyncPurger asyncPurger;
-	AsyncSampleMapLoader asyncSampleMapLoader;
 
 	void refreshCrossfadeTables();
 
@@ -625,8 +778,10 @@ private:
 	ScopedPointer<SampleEditHandler> sampleEditHandler;
 #endif
 
+    std::atomic<bool> samplePreloadPending;
+
 };
 
 
-
+} // namespace hise
 #endif  // MODULATORSAMPLER_H_INCLUDED

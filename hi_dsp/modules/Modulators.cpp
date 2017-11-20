@@ -23,14 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
-
+namespace hise { using namespace juce;
 
 float Modulation::calcIntensityValue(float calculatedModulationValue) const noexcept
 {
@@ -162,6 +162,8 @@ void TimeModulation::renderNextBlock(AudioSampleBuffer &buffer, int startSample,
 	calculateBlock(startSample, numSamples);
 
 	if (shouldUpdatePlotter()) updatePlotter(internalBuffer, startIndex, samplesToCopy);
+
+	lastConstantValue = internalBuffer.getSample(0, 0);
 
 	applyTimeModulation(buffer, startIndex, samplesToCopy);
 }
@@ -330,6 +332,7 @@ Processor *VoiceStartModulatorFactoryType::createProcessor(int typeIndex, const 
 		case keyModulator:		return new KeyModulator(m, id, numVoices, mode);
 		case randomModulator: return new RandomModulator(m, id, numVoices, mode);
 		case globalVoiceStartModulator:	return new GlobalVoiceStartModulator(m, id, numVoices, mode);
+		case globalStaticTimeVariantModulator: return new GlobalStaticTimeVariantModulator(m, id, numVoices, mode);
 		case arrayModulator:	return new ArrayModulator(m, id, numVoices, mode);
 		case scriptVoiceStartModulator:	return new JavascriptVoiceStartModulator(m, id, numVoices, mode);
 		default: jassertfalse; return nullptr;
@@ -393,3 +396,5 @@ int VoiceModulation::PolyphonyManager::getLastStartedVoice() const
 {
 	return lastStartedVoice;
 }
+
+} // namespace hise

@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -32,6 +32,7 @@
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
 
 //==============================================================================
 FilterResponse::FilterResponse (double magnitudeInit, double phaseInit)
@@ -230,3 +231,4 @@ void FilterInfo::setCustom (std::vector <double> numCoeffs, std::vector <double>
     denominatorCoeffs = denCoeffs;
 }
 
+} // namespace hise

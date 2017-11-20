@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -32,6 +32,8 @@
 
 #ifndef FRONTENDPANELTYPES_H_INCLUDED
 #define FRONTENDPANELTYPES_H_INCLUDED
+
+namespace hise { using namespace juce;
 
 /** A LED that will light up when an MIDI message was received.
 *
@@ -423,5 +425,7 @@ private:
 
 	ScopedPointer<TooltipBar> tooltipBar;
 };
+
+} // namespace hise
 
 #endif  // FRONTENDPANELTYPES_H_INCLUDED

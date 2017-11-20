@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -32,6 +32,8 @@
 
 #ifndef MAINCONTROLLER_H_INCLUDED
 #define MAINCONTROLLER_H_INCLUDED
+
+namespace hise { using namespace juce;
 
 /** A class for handling application wide tasks.
 *	@ingroup core
@@ -49,6 +51,41 @@ public:
 	class SampleManager
 	{
 	public:
+
+		class PreloadListener
+		{
+		public:
+
+			virtual ~PreloadListener()
+			{
+				masterReference.clear();
+			}
+
+			virtual void preloadStateChanged(bool isPreloading) = 0;
+
+		protected:
+
+		private:
+
+			friend class WeakReference<PreloadListener>;
+			WeakReference<PreloadListener>::Master masterReference;
+		};
+		
+		/** A POD structure that contains information about a Preload function. */
+		struct PreloadThreadData
+		{
+			Thread* thread = nullptr;
+			double* progress = nullptr;
+			int samplesLoaded = 0;
+			int totalSamplesToLoad = 0;
+		};
+
+		/** A PreloadFunction is a lambda that will be called by the preload thread.
+		*
+		*
+		*	Regularly check the PreloadThreadData thread if it should exit and return false on a failure to abort.
+		*/
+		using PreloadFunction = std::function<bool(Processor*, PreloadThreadData&)>;
 
 		enum class DiskMode
 		{
@@ -107,11 +144,65 @@ public:
 
 		bool shouldSkipPreloading() const { return skipPreloading; };
 
-		void setShouldSkipPreloading(bool skip) { skipPreloading = skip; }
+		/** If you load multiple samplemaps at once (eg. at startup), call this and it will coallescate the preloading. */
+		void setShouldSkipPreloading(bool skip);
 
+		/** Preload everything since the last call to setShouldSkipPreloading. */
 		void preloadEverything();
 
+		void clearPreloadFlag();
+		void setPreloadFlag();
+
+		void triggerSamplePreloading();
+
+		void addPreloadListener(PreloadListener* p);
+		void removePreloadListener(PreloadListener* p);
+
+		/** Lock this everytime you add / remove ModulatorSamplerSounds.
+		*
+		*	If you use a ModulatorSampler:SoundIterator, it will lock automatically.
+		*
+		*/
+		CriticalSection& getSamplerSoundLock() { return samplerSoundLock; }
+
 	private:
+
+		CriticalSection samplerSoundLock;
+
+		struct PreloadListenerUpdater : public AsyncUpdater
+		{
+		public:
+
+			PreloadListenerUpdater(SampleManager* manager_) :
+				manager(manager_)
+			{};
+
+			void handleAsyncUpdate() override;
+
+		private:
+
+			SampleManager* manager;
+		};
+
+		PreloadListenerUpdater preloadListenerUpdater;
+
+		
+
+		struct PreloadJob : public SampleThreadPoolJob
+		{
+		public:
+
+
+			PreloadJob(MainController* mc);
+			JobStatus runJob() override;
+
+		private:
+
+			MainController* mc = nullptr;
+			double progress = 0.0;
+		};
+
+		CriticalSection preloadLock;
 
 		ProjectHandler projectHandler;
 
@@ -127,6 +218,14 @@ public:
 		bool hddMode = false;
 		bool useRelativePathsToProjectFolder;
 		bool skipPreloading = false;
+
+		PreloadJob internalPreloadJob;
+
+		// Just used for the listeners
+		std::atomic<bool> preloadFlag;
+
+		Array<WeakReference<PreloadListener>> preloadListeners;
+
 	};
 
 	/** Contains methods for handling macros. */
@@ -236,27 +335,16 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(EventIdHandler)
 	};
 
-	class UserPresetHandler : public Timer,
-							  public ThreadWithQuasiModalProgressWindow::Holder::Listener
+	class UserPresetHandler
 	{
 	public:
-
-		enum RampFlags
-		{
-			Active = 0,
-			Bypassed = -2,
-			FadeIn = 1,
-			FadeOut = -1
-		};
 
 		class Listener
 		{
 		public:
 
 			virtual ~Listener() { masterReference.clear(); };
-
 			virtual void presetChanged(const File& newPreset) = 0;
-
 			virtual void presetListUpdated() = 0;
 
 		private:
@@ -265,142 +353,71 @@ public:
 			WeakReference<Listener>::Master masterReference;
 		};
 
-		UserPresetHandler(MainController* mc_);
-		~UserPresetHandler();
-
-		void lastTaskRemoved() override;
-
-
-
-		// ===========================================================================================================
-
-		void addListener(Listener* listener)
-		{
-			listeners.add(listener);
-		}
-
-		void removeListener(Listener* listener)
-		{
-			listeners.removeAllInstancesOf(listener);
-		}
-
-		void timerCallback();
-
-		void loadUserPreset(const ValueTree& presetToLoad);
-
-		void loadUserPreset(const File& fileToLoad);
-
-		File getCurrentlyLoadedFile() const { return currentlyLoadedFile; };
-
-		void setCurrentlyLoadedFile(const File& f) { currentlyLoadedFile = f; };
+		UserPresetHandler(MainController* mc_) :
+			mc(mc_)
+		{};
 
 		void incPreset(bool next, bool stayInSameDirectory);
+		void loadUserPreset(const ValueTree& v);
+		void loadUserPreset(const File& f);
 
-		void sendRebuildMessage()
-		{
-			for (int i = 0; i < listeners.size(); i++)
-			{
-				if (listeners[i] != nullptr)
-				{
-					listeners[i]->presetListUpdated();
-				}
-			}
-		}
+		File getCurrentlyLoadedFile() const;;
 
-		void savePreset(String presetName=String())
-		{
-			newPresetName = presetName;
+		void setCurrentlyLoadedFile(const File& f);
 
-			saver.triggerAsyncUpdate();
-		}
-
-		// ===========================================================================================================
+		void sendRebuildMessage();
+		void savePreset(String presetName = String());
+		void addListener(Listener* listener);
+		void removeListener(Listener* listener);
 
 	private:
 
-		class Saver : public AsyncUpdater
-		{
-		public:
-
-			Saver(UserPresetHandler* handler_) :
-				handler(handler_)
-			{};
-		
-			void handleAsyncUpdate() override
-			{
-				File currentPresetFile = handler->getCurrentlyLoadedFile();
-
-				if (handler->newPresetName.isNotEmpty())
-					currentPresetFile = currentPresetFile.getSiblingFile(handler->newPresetName + ".preset");
-				
-				handler->setCurrentlyLoadedFile(currentPresetFile);
-
-				UserPresetHelpers::saveUserPreset(handler->mc->getMainSynthChain(), currentPresetFile.getFullPathName());
-			}
-
-		private:
-			
-			UserPresetHandler* handler;
-		};
-
-		Saver saver;
-
-		void loadPresetInternal();
+		void loadUserPresetInternal(const ValueTree& v);
+		void saveUserPresetInternal(const String& name=String());
 
 		Array<WeakReference<Listener>> listeners;
-		
-		MainController* mc;
-		ValueTree currentPreset;
-
-		String newPresetName;
 
 		File currentlyLoadedFile;
 
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(UserPresetHandler)
-
+		MainController* mc;
 	};
 
-	struct GlobalAsyncModuleHandler : public AsyncUpdater
+	struct GlobalAsyncModuleHandler: public AsyncUpdater
 	{
-		~GlobalAsyncModuleHandler()
+		GlobalAsyncModuleHandler() :
+			pendingJobs(1024)
+		{};
+
+		struct JobData
 		{
-			cancelPendingUpdate();
-			handleAsyncUpdate();
-		}
-
-		void removeAsync(Processor* p, Component* rootWindow);
-
-		void addAsync(Chain* c, Processor* p, Component* rootWindow, const String& type, const String& id, int index);
-
-		void handleAsyncUpdate() override;
-
-		struct Job
-		{
-			enum class What
+			enum What
 			{
 				Delete,
 				Add,
 				numWhat
 			};
 
-			void add();
+			JobData(Processor* parent_, Processor* processor_, What what_);;
+			JobData();;
 
-			void remove();
-
-			String type;
-			String id;
-			int index = 0;
-
-			Component::SafePointer<Component> rootWindow;
-
-			WeakReference<Processor> chain;
-			WeakReference<Processor> processorToRemove;
+			WeakReference<Processor> parent;
+			WeakReference<Processor> processorToDelete;
 			WeakReference<Processor> processorToAdd;
 
 			What what; // what
+
+			void doit();
 		};
 
-		Array<Job> thingsToDo;
+		void removeAsync(Processor* p, Component* rootWindow);
+
+		void addAsync(Chain* c, Processor* p, Component* rootWindow, const String& type, const String& id, int index);
+
+		void addPendingUIJob(Processor* parent, Processor* p, JobData::What what);
+
+		void handleAsyncUpdate() override;
+
+		LockfreeQueue<JobData> pendingJobs;
 	};
 
 	class ProcessorChangeHandler : public AsyncUpdater
@@ -508,7 +525,6 @@ public:
 		void handleAsyncUpdate();
 
 
-
 		enum class ConsoleMessageItems
 		{
 			WarningLevel = 0,
@@ -552,6 +568,119 @@ public:
 
 	};
 
+	class KillStateHandler : private AsyncUpdater
+	{
+	public:
+
+		enum TargetThread
+		{
+			MessageThread = 0,
+			SampleLoadingThread,
+			AudioThread,
+			numTargetThreads
+		};
+
+		KillStateHandler(MainController* mc);
+
+		/** Returns false if there is a pending action somewhere that prevents clickless voice rendering. */
+		bool voiceStartIsDisabled() const;
+
+		/** Call this in the processBlock method and it will check whether voice starts are allowed.
+		*
+		*	It checks if anything is pending and if yes, voiceStartIsDisabled() will return true for the callback.
+		*/
+		void handleKillState();
+
+		/** Checks if all voices are killed. Use this as an assertion on all functions where you assume killed voices. */
+		bool voicesAreKilled() const;
+
+		/** Give this method a lambda and a processor and it will call it as soon as all voices are killed.
+		*
+		*	If the voices are already killed, it will synchronously call the function if this function is called from the given targetThread.
+		*	If not, it will kill all functions and execute the function on the specified thread.
+		*
+		*	It will check whether the processor was deleted before calling the function.
+		*/
+		void killVoicesAndCall(Processor* p, const ProcessorFunction& functionToExecuteWhenKilled, TargetThread targetThread);
+
+		/** This can be set by the Internal Preloader. */
+		void setSampleLoadingPending(bool isPending);
+
+		void setSampleLoadingThreadId(void* newId);
+
+		LockfreeQueue<SafeFunctionCall>& getSampleLoadingQueue() { return pendingSampleLoadFunctions; }
+
+		TargetThread getCurrentThread() const;
+
+		void addThreadIdToAudioThreadList();
+
+	private:
+
+		
+
+		void initAudioThreadId();
+
+		enum NewKillState
+		{
+			Clear,				// when nothing happens
+			Pending,			// something is pending...
+			SetForClearance,    // when all callbacks are done, it will check in the next audio callback and reset to clear
+			numNewKillStates
+		};
+
+		enum PendingState
+		{
+			VoiceKillStart = 0,
+			VoiceKill,
+			AudioThreadFunction,
+			SyncMessageCallback,
+			WaitingForAsyncUpdate,
+			AsyncMessageCallback,
+			SampleLoading,
+			numPendingStates
+		};
+
+		/*@ internal*/
+		static String getStringForKillState(NewKillState s);
+		/*@ internal*/
+		static String getStringForPendingState(PendingState state);
+		/*@ internal*/
+		void onAllVoicesAreKilled();
+		void triggerPendingMessageCallbackFunctionsUpdate();
+		void triggerPendingSampleLoadingFunctionsUpdate();
+		void executePendingAudioThreadFunctions();
+		/*@ internal*/
+		void handleAsyncUpdate() override;
+		/*@ internal*/
+		void setPendingState(PendingState pendingState, bool isPending);
+		/*@ internal*/
+		void setKillState(NewKillState newKillState);
+		/*@ internal*/
+		bool isPending(PendingState state) const;
+		/*@ internal*/
+		bool isNothingPending() const;
+		/*@ internal*/
+		void addFunctionToExecute(Processor* p, const ProcessorFunction& functionToCallWhenVoicesAreKilled, TargetThread targetThread, NotificationType triggerUpdate);
+
+		BigInteger pendingStates;
+
+		std::atomic<NewKillState> killState;
+
+		LockfreeQueue<SafeFunctionCall> pendingAudioThreadFunctions;
+		LockfreeQueue<SafeFunctionCall> pendingMessageThreadFunctions;
+		LockfreeQueue<SafeFunctionCall> pendingSampleLoadFunctions;
+
+		MainController* mc;
+
+		bool disableVoiceStartsThisCallback = false;
+
+		void* threadIds[(int)TargetThread::numTargetThreads];
+		
+		Array<void*> audioThreads;
+
+		LockfreeQueue<SafeFunctionCall>* pendingFunctions[TargetThread::numTargetThreads];
+	};
+
 	MainController();
 
 	virtual ~MainController();
@@ -580,20 +709,22 @@ public:
 	GlobalAsyncModuleHandler& getGlobalAsyncModuleHandler() { return globalAsyncModuleHandler; }
 	const GlobalAsyncModuleHandler& getGlobalAsyncModuleHandler() const { return globalAsyncModuleHandler; }
 
+	KillStateHandler& getKillStateHandler() { return killStateHandler; };
+	const KillStateHandler& getKillStateHandler() const { return killStateHandler; };
 #if USE_BACKEND
 	/** Writes to the console. */
 	void writeToConsole(const String &message, int warningLevel, const Processor *p=nullptr, Colour c=Colours::transparentBlack);
 #endif
 
-	void loadPreset(const File &f, Component *mainEditor=nullptr);
-	void loadPreset(ValueTree &v, Component *mainEditor=nullptr);
+	void loadPresetFromFile(const File &f, Component *mainEditor=nullptr);
+	void loadPresetFromValueTree(const ValueTree &v, Component *mainEditor=nullptr);
     void clearPreset();
     
 	/** Compiles all scripts in the main synth chain */
 	void compileAllScripts();
 
 	/** Call this if you want all voices to stop. */
-	void allNotesOff();;
+	void allNotesOff(bool resetSoftBypassState=false);;
 
 	/** Create a new processor and returns it. You have to supply a Chain that the Processor will be added to.
 	*
@@ -629,6 +760,8 @@ public:
         return bpm.load() > 0.0 ? bpm.load() : 120.0;
     };
 
+	void setHostBpm(double newTempo);
+
 	/** skins the given component (applies the global look and feel to it). */
     void skin(Component &c);
 	
@@ -661,18 +794,9 @@ public:
 
 	void setScriptWatchTable(ScriptWatchTable *table);
 	
-	void addScriptComponentEditPanel(ScriptComponentEditPanel *panel);
-
 	void setWatchedScriptProcessor(JavascriptProcessor *p, Component *editor);
 
-	/** Sets the ScriptComponent object to be edited in the main ScriptComponentEditPanel.
-	*
-	*	The pointer is a DynamicObject because of forward declaration issues, but make sure, you only call this method with ScriptComponent objects
-	*	(otherwise it will have no effect)
-	*/
-	void setEditedScriptComponent(ReferenceCountedObject* c, Component *listener);
 	
-	bool hasScriptEditingPanels();
 
 #endif
 
@@ -726,12 +850,9 @@ public:
 
 	void insertStringAtLastActiveEditor(const String &string, bool selectArguments);
 
-	void loadTypeFace(const String& fileName, const void* fontData, size_t fontDataSize);
+	void loadTypeFace(const String& fileName, const void* fontData, size_t fontDataSize, const String& fontId=String());
 
-	void setIsOnAir(bool shouldBeOnAir) { onAir = shouldBeOnAir; }
-	bool isOnAir() const { return onAir; }
-
-
+	
 	void fillWithCustomFonts(StringArray &fontList);
 	juce::Typeface* getFont(const String &fontName) const;
 	ValueTree exportCustomFontsAsValueTree() const;
@@ -802,12 +923,7 @@ public:
 		return skipCompilingAtPresetLoad;
 	}
 
-	void loadUserPresetAsync(const ValueTree& v)
-	{
-		allNotesOff();
-		presetLoadRampFlag.set(-1);
-		userPresetHandler.loadUserPreset(v);
-	}
+	void loadUserPresetAsync(const ValueTree& v);
 
 	UndoManager* getControlUndoManager() { return controlUndoManager; }
 
@@ -980,7 +1096,16 @@ protected:
 		return suspendIndex >= 0;
 	}
 
+
+	void killAndCallOnMessageThread(const ProcessorFunction& f);
+
+	void killAndCallOnAudioThread(const ProcessorFunction& f);
+
+	void killAndCallOnLoadingThread(const ProcessorFunction& f);
+
 private:
+
+	void loadPresetInternal(const ValueTree& v);
 
 	CriticalSection processLock;
 
@@ -997,8 +1122,6 @@ private:
 	bool skipCompilingAtPresetLoad = false;
 
 	bool replaceBufferContent = true;
-
-	bool onAir = true;
 
 	HiseEventBuffer masterEventBuffer;
 	EventIdHandler eventIdHandler;
@@ -1017,7 +1140,18 @@ private:
 	friend class WeakReference<MainController>;
 	WeakReference<MainController>::Master masterReference;
 
-	ReferenceCountedArray<juce::Typeface> customTypeFaces;
+	struct CustomTypeFace
+	{
+		CustomTypeFace(Typeface* tf, Identifier id_) :
+			typeface(tf),
+			id(id_)
+		{};
+
+		ReferenceCountedObjectPtr<juce::Typeface> typeface;
+		Identifier id;
+	};
+
+	Array<CustomTypeFace> customTypeFaces;
 	ValueTree customTypeFaceData;
 
 	Array<var> globalVariableArray;
@@ -1030,6 +1164,8 @@ private:
 
 	ScopedPointer<SampleManager> sampleManager;
 	MacroManager macroManager;
+
+	KillStateHandler killStateHandler;
 
 	Component::SafePointer<Plotter> plotter;
 
@@ -1101,5 +1237,6 @@ private:
 	std::atomic<int> suspendIndex;
 };
 
+} // namespace hise
 
 #endif

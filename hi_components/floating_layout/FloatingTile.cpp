@@ -23,14 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
-
+namespace hise { using namespace juce;
 
 FloatingTilePopup::FloatingTilePopup(Component* content_, Component* attachedComponent_, Point<int> localPoint) :
 	content(content_),
@@ -742,6 +742,27 @@ bool FloatingTile::canDoLayoutMode() const
 		return false;
 
 	return getParentContainer()->isDynamic();
+}
+
+
+void FloatingTile::setAllowChildComponentCreation(bool shouldCreateChildComponents)
+{
+	jassert(getParentType() == ParentType::Root);
+
+	allowChildComponentCreation = shouldCreateChildComponents;
+}
+
+
+bool FloatingTile::shouldCreateChildComponents() const
+{
+	if (getParentType() == ParentType::Root)
+	{
+		return allowChildComponentCreation;
+	}
+	else
+	{
+		return getRootFloatingTile()->shouldCreateChildComponents();
+	}
 }
 
 bool FloatingTile::hasChildren() const
@@ -1530,3 +1551,5 @@ FloatingTile* FloatingTileDocumentWindow::getRootFloatingTile()
 }
 
 #endif
+
+} // namespace hise

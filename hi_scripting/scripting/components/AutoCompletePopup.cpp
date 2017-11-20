@@ -30,6 +30,7 @@
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
 
 JavascriptCodeEditor::AutoCompletePopup::AutoCompletePopup(int fontHeight_, JavascriptCodeEditor* editor_, Range<int> tokenRange_, const String &tokenText) :
 	fontHeight(fontHeight_),
@@ -575,3 +576,4 @@ void JavascriptCodeEditor::AutoCompletePopup::InfoBox::paint(Graphics &g)
 	}
 }
 
+} // namespace hise

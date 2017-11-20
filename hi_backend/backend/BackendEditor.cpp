@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -32,12 +32,17 @@
 
 #define toggleVisibility(x) {x->setVisible(!x->isVisible()); owner->setComponentShown(info.commandID, x->isVisible());}
 
+namespace hise { using namespace juce;
+
 BackendProcessorEditor::BackendProcessorEditor(FloatingTile* parent) :
 FloatingTileContent(parent),
 owner(static_cast<BackendProcessor*>(parent->getMainController())),
 parentRootWindow(parent->getBackendRootWindow()),
-rootEditorIsMainSynthChain(true)
+rootEditorIsMainSynthChain(true),
+isLoadingPreset(false)
 {
+	owner->getSampleManager().addPreloadListener(this);
+
     setOpaque(true);
 
 	setLookAndFeel(&lookAndFeelV3);
@@ -58,8 +63,9 @@ rootEditorIsMainSynthChain(true)
 
 BackendProcessorEditor::~BackendProcessorEditor()
 {
+	owner->getSampleManager().removePreloadListener(this);
+
 	owner->removeScriptListener(this);
-	
 	
 	// Remove the popup components
 
@@ -159,6 +165,17 @@ void BackendProcessorEditor::setRootProcessorWithUndo(Processor *p)
     }
 }
 
+void BackendProcessorEditor::preloadStateChanged(bool isPreloading)
+{
+	if (isLoadingPreset && !isPreloading)
+	{
+		isLoadingPreset = false;
+		viewport->showPreloadMessage(false);
+		refreshInterfaceAfterPresetLoad();
+		parentRootWindow->sendRootContainerRebuildMessage(true);
+	}
+}
+
 void BackendProcessorEditor::setViewportPositions(int viewportX, const int viewportY, const int /*viewportWidth*/, int /*viewportHeight*/)
 {
 	debugLoggerWindow->setBounds(0, getHeight() - 60, getWidth(), 60);
@@ -189,9 +206,10 @@ bool BackendProcessorEditor::isPluginPreviewCreatable() const
 
 void BackendProcessorEditor::paint(Graphics &g)
 {
-    g.setColour(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
-    
-    g.fillAll();
+	g.setColour(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
+	g.fillAll();
+
+
 }
 
 
@@ -316,9 +334,12 @@ void BackendProcessorEditor::showPseudoModalWindow(Component *componentToShow, c
 
 void BackendProcessorEditor::loadNewContainer(const File &f)
 {
-	MainController::ScopedSuspender ss(getBackendProcessor());
+	clearModuleList();
+	container = nullptr;
 
-	clearPreset();
+	isLoadingPreset = true;
+	viewport->showPreloadMessage(true);
+	
 
 	f.setLastAccessTime(Time::getCurrentTime());
 
@@ -327,19 +348,7 @@ void BackendProcessorEditor::loadNewContainer(const File &f)
 		GET_PROJECT_HANDLER(getMainSynthChain()).setWorkingProject(f.getParentDirectory().getParentDirectory(), this);
 	}
 
-	getBackendProcessor()->getMainSynthChain()->setBypassed(true);
-
-
-
-	clearModuleList();
-
-	container = nullptr;
-
-	owner->loadPreset(f, this);
-
-	auto refreshFunction = [this]()->void { refreshInterfaceAfterPresetLoad(); parentRootWindow->sendRootContainerRebuildMessage(true); };
-	new DelayedFunctionCaller(refreshFunction, 300);
-	
+	owner->killAndCallOnLoadingThread([f](Processor* p) {p->getMainController()->loadPresetFromFile(f, nullptr); return true; });
 }
 
 void BackendProcessorEditor::refreshInterfaceAfterPresetLoad()
@@ -351,72 +360,40 @@ void BackendProcessorEditor::refreshInterfaceAfterPresetLoad()
     container->setRootProcessorEditor(p);
 }
 
-void BackendProcessorEditor::loadNewContainer(ValueTree &v)
+void BackendProcessorEditor::loadNewContainer(const ValueTree &v)
 {
-    const int presetVersion = v.getProperty("BuildVersion", 0);
-    
-    if(presetVersion > BUILD_SUB_VERSION)
-    {
-        PresetHandler::showMessageWindow("Version mismatch", "The preset was built with a newer the build of HISE: " + String(presetVersion) + ". To ensure perfect compatibility, update to at least this build.", PresetHandler::IconType::Warning);
-    }
-    
-	MainController::ScopedSuspender ss(getBackendProcessor());
+	getRootWindow()->getRootFloatingTile()->showComponentInRootPopup(nullptr, nullptr, Point<int>());
 
-	getBackendProcessor()->getMainSynthChain()->setBypassed(true);
-
-	clearModuleList();
+    clearModuleList();
 	container = nullptr;
+	isLoadingPreset = true;
+	viewport->showPreloadMessage(true);
+	
+	if (CompileExporter::isExportingFromCommandLine())
+	{
+		getRootWindow()->getMainSynthChain()->getMainController()->loadPresetFromValueTree(v, nullptr);
+	}
+	else
+	{
+		owner->killAndCallOnLoadingThread([v](Processor* p) {p->getMainController()->loadPresetFromValueTree(v, nullptr); return true; });
+	}
 
-	owner->loadPreset(v, this);
-
-
-	auto refreshFunction = [this]()->void { refreshInterfaceAfterPresetLoad(); parentRootWindow->sendRootContainerRebuildMessage(true); };
-	new DelayedFunctionCaller(refreshFunction, 300);
+	
 }
 
 
 
 void BackendProcessorEditor::clearPreset()
 {
-	getBackendProcessor()->getMainSynthChain()->setBypassed(true);
-
 	setPluginPreviewWindow(nullptr);
 
 	clearModuleList();
-
     container = nullptr;
-    
-    owner->clearPreset();
-    
-    Processor *p = static_cast<Processor*>(owner->synthChain);
-    
-    
-    
-    
-	owner->synthChain->setIconColour(Colours::transparentBlack);
+	isLoadingPreset = true;
+	viewport->showPreloadMessage(true);
 
-	owner->getSampleManager().getImagePool()->clearData();
-	owner->getSampleManager().getAudioSampleBufferPool()->clearData();
+	owner->killAndCallOnLoadingThread([](Processor* p) {p->getMainController()->clearPreset(); return true; });
 
-    owner->synthChain->setId("Master Chain");
-    
-	for (int i = 0; i < owner->synthChain->getNumInternalChains(); i++)
-	{
-		owner->synthChain->getChildProcessor(i)->setEditorState(owner->synthChain->getEditorStateForIndex(Processor::Visible), false, sendNotification);
-	}
-
-    for(int i = 0; i < ModulatorSynth::numModulatorSynthParameters; i++)
-    {
-        owner->synthChain->setAttribute(i, owner->synthChain->getDefaultValue(i), dontSendNotification);
-    }
-
-	rebuildContainer();
-
-	container->setRootProcessorEditor(p);
-
-	parentRootWindow->sendRootContainerRebuildMessage(false);
-
-	getBackendProcessor()->getMainSynthChain()->setBypassed(false);
 }
 
 void BackendProcessorEditor::clearModuleList()
@@ -1033,8 +1010,11 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 
 		c->setName("Settings");
 
-
+#if IS_STANDALONE_APP
 		c->setSize(380, 610);
+#else
+		c->setSize(380, 410);
+#endif
 
 		button = settingsButton;
 		break;
@@ -1121,3 +1101,5 @@ void BackendHelpers::callIfNotInRootContainer(std::function<void(void)> func, Co
 		func();
 	}
 }
+
+} // namespace hise

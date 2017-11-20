@@ -23,13 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
 
 struct SamplerBasePanel::EditListener : public SampleEditHandler::Listener
 {
@@ -141,3 +142,5 @@ Component* SamplerTablePanel::createContentComponent(int /*index*/)
 
 	return st;
 }
+
+} // namespace hise

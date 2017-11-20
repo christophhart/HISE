@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -35,7 +35,7 @@
 #ifndef HI_FILTER_INFO_H_INCLUDED
 #define HI_FILTER_INFO_H_INCLUDED
 
-
+namespace hise { using namespace juce;
 
 #ifndef double_E
 #define double_E 2.71828183
@@ -105,5 +105,7 @@ private:
 
 	bool enabled;
 };
+
+} // namespace hise
 
 #endif

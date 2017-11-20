@@ -30,6 +30,7 @@
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
 
 #undef GET_SCRIPT_PROPERTY
 #undef GET_OBJECT_COLOUR
@@ -82,20 +83,9 @@ ScriptCreatedComponentWrapper(content, index)
 
 	s->setup(getProcessor(), getIndex(), sc->name.toString());
 
-	if (sc->getImage().isValid())
-	{
-		FilmstripLookAndFeel *fslaf = new FilmstripLookAndFeel();
+	component = s;
 
-		fslaf->setFilmstripImage(sc->getImage(),
-			sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::numStrips),
-			sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::isVertical));
-
-		s->setTextBoxStyle(Slider::NoTextBox, true, 0, 0);
-
-		s->setLookAndFeelOwned(fslaf);
-
-		s->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
-	}
+	updateFilmstrip();
 
 	double min = GET_SCRIPT_PROPERTY(min);
 	double max = GET_SCRIPT_PROPERTY(max);
@@ -108,8 +98,49 @@ ScriptCreatedComponentWrapper(content, index)
 
 	s->updateValue(dontSendNotification);
 
-	component = s;
+	
 }
+
+void ScriptCreatedComponentWrappers::SliderWrapper::updateFilmstrip()
+{
+	HiSlider *s = dynamic_cast<HiSlider*>(getComponent());
+
+
+
+	ScriptingApi::Content::ScriptSlider* sc = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(getScriptComponent());
+
+	if (s == nullptr || sc == nullptr)
+		return;
+
+	if (sc->getImage().isValid())
+	{
+		String thisFilmStrip = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::filmstripImage);
+
+		int thisStrips = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::numStrips);
+
+		
+
+		if (thisFilmStrip != filmStripName || thisStrips != numStrips)
+		{
+			filmStripName = thisFilmStrip;
+			numStrips = thisStrips;
+
+			FilmstripLookAndFeel *fslaf = new FilmstripLookAndFeel();
+
+			fslaf->setFilmstripImage(sc->getImage(),
+				sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::numStrips),
+				sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::isVertical));
+
+			s->setTextBoxStyle(Slider::NoTextBox, true, 0, 0);
+
+			s->setLookAndFeelOwned(fslaf);
+
+			s->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
+		}
+	}
+}
+
+
 
 void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent()
 {
@@ -133,6 +164,10 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent()
 		s->setMouseDragSensitivity((int)sensitivity);
 	}
 
+	String currentFilmStrip = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::filmstripImage);
+	
+	updateFilmstrip();
+	
 	const double min = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::min);
 	const double max = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::max);
 	const double stepsize = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::stepSize);
@@ -233,6 +268,123 @@ void ScriptCreatedComponentWrappers::SliderWrapper::sliderValueChanged(Slider *s
 	}
 }
 
+void ScriptCreatedComponentWrappers::SliderWrapper::sliderDragStarted(Slider* /*s*/)
+{
+	enum Direction
+	{
+		No,
+		Above,
+		Below,
+		Left,
+		Right,
+		numDirections
+	};
+
+	Direction d = numDirections;
+
+	if (auto sc = getScriptComponent())
+	{
+		auto svp = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::showValuePopup).toString();
+
+		if (svp == "No") d = No;
+		if (svp == "Above") d = Above;
+		if (svp == "Below") d = Below;
+		if (svp == "Left") d = Left;
+		if (svp == "Right") d = Right;
+
+		jassert(d != numDirections);
+	}
+
+	if (d == No)
+		return;
+
+	if (auto c = getComponent())
+	{
+		auto parentTile = c->findParentComponentOfClass<FloatingTile>(); // always in a tile...
+
+		if (parentTile == nullptr)
+		{
+			// Ouch...
+			jassertfalse;
+			return;
+		}
+
+		parentTile->addAndMakeVisible(currentPopup = new ValuePopup(c));
+
+		currentPopup->setAlwaysOnTop(true);
+
+		currentPopup->itemColour = GET_OBJECT_COLOUR(itemColour);
+		currentPopup->itemColour2 = GET_OBJECT_COLOUR(itemColour2);
+		currentPopup->textColour = GET_OBJECT_COLOUR(textColour);
+		currentPopup->bgColour = GET_OBJECT_COLOUR(bgColour);
+
+		auto l = parentTile->getLocalArea(c, c->getLocalBounds());
+
+		int x = 0;
+		int y = 0;
+
+		switch (d)
+		{
+		case Above:
+		{
+			int xP = l.getCentreX();
+			int wP = currentPopup->getWidth();
+			x = xP - wP / 2;
+
+			y = l.getY() - 25;
+			break;
+		}
+		case numDirections:
+		case Below:
+		{
+			int xP = l.getCentreX();
+			int wP = currentPopup->getWidth();
+			x = xP - wP / 2;
+			
+			y = l.getBottom();
+			break;
+		}
+			
+		case Left:
+		{
+			x = l.getX() - currentPopup->getWidth() - 10;
+			y = l.getCentreY() - currentPopup->getHeight() / 2;
+			break;
+		}
+		case Right:
+		{
+			x = l.getRight() + 10;
+			y = l.getCentreY() - currentPopup->getHeight() / 2;
+			break;
+		}
+		default:
+			break;
+		}
+
+		currentPopup->setTopLeftPosition(x, y);
+	}
+}
+
+void ScriptCreatedComponentWrappers::SliderWrapper::sliderDragEnded(Slider* /*s*/)
+{
+	if (auto c = getComponent())
+	{
+		Desktop::getInstance().getAnimator().fadeOut(currentPopup, 200);
+
+		auto parentTile = c->findParentComponentOfClass<FloatingTile>(); // always in a tile...
+
+		if (parentTile == nullptr)
+		{
+			// Ouch...
+			jassertfalse;
+			return;
+		}
+
+		parentTile->removeChildComponent(currentPopup);
+		currentPopup = nullptr;
+	}
+}
+
 ScriptCreatedComponentWrappers::ComboBoxWrapper::ComboBoxWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptComboBox *scriptComboBox, int index) :
 ScriptCreatedComponentWrapper(content, index)
 {
@@ -281,6 +433,12 @@ ScriptCreatedComponentWrapper(content, index)
 
 	b->setup(getProcessor(), getIndex(), sb->name.toString());
 
+	if (sb->getPopupData().isObject())
+	{
+        auto r = sb->getPopupPosition();
+		b->setPopupData(sb->getPopupData(), r);
+	}
+
 	b->updateValue();
 
 	if (sb->getImage().isValid())
@@ -288,7 +446,7 @@ ScriptCreatedComponentWrapper(content, index)
 		FilmstripLookAndFeel *fslaf = new FilmstripLookAndFeel();
 
 		fslaf->setFilmstripImage(sb->getImage(),
-			2,
+			sb->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::numStrips).toString().getIntValue(),
 			sb->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::isVertical));
 
 		b->setLookAndFeelOwned(fslaf);
@@ -312,6 +470,8 @@ void ScriptCreatedComponentWrappers::ButtonWrapper::updateComponent()
     {
         fslaf->setScaleFactor(getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::scaleFactor));
     }
+
+	b->setIsMomentary(getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::isMomentary));
 
     b->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, GET_OBJECT_COLOUR(bgColour));
     b->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, GET_OBJECT_COLOUR(itemColour));
@@ -487,31 +647,143 @@ public:
 ScriptCreatedComponentWrappers::ViewportWrapper::ViewportWrapper(ScriptContentComponent* content, ScriptingApi::Content::ScriptedViewport* viewport, int index):
 	ScriptCreatedComponentWrapper(content, index)
 {
-	Viewport* vp = new Viewport();
+	
 
-	vp->setName(viewport->name.toString());
+	shouldUseList = (bool)viewport->getScriptObjectProperty(ScriptingApi::Content::ScriptedViewport::Properties::useList);
 
-	vp->setViewedComponent(new DummyComponent(), true);
+	if (!shouldUseList)
+	{
+		Viewport* vp = new Viewport();
 
-	component = vp;
+		vp->setName(viewport->name.toString());
+
+		vp->setViewedComponent(new DummyComponent(), true);
+
+		component = vp;
+	}
+	else
+	{
+		model = new ColumnListBoxModel(this);
+		auto table = new ListBox();
+
+		table->setModel(model);
+
+		table->setMultipleSelectionEnabled(false);
+
+		table->setColour(ListBox::ColourIds::backgroundColourId, Colours::white.withAlpha(0.15f));
+		table->setRowHeight(30);
+		table->setWantsKeyboardFocus(true);
+
+		if (HiseDeviceSimulator::isMobileDevice())
+			table->setRowSelectedOnMouseDown(false);
+
+
+		table->getViewport()->setScrollOnDragEnabled(true);
+
+		component = table;
+	}
+	
+	
 }
 
 
 ScriptCreatedComponentWrappers::ViewportWrapper::~ViewportWrapper()
 {
-	
+	component = nullptr;
+	model = nullptr;
 }
 
 void ScriptCreatedComponentWrappers::ViewportWrapper::updateComponent()
 {
-	auto vp = dynamic_cast<Viewport*>(component.get());
+	
+
+	
 
 	auto vpc = dynamic_cast<ScriptingApi::Content::ScriptedViewport*>(getScriptComponent());
 
-	vp->setScrollBarThickness(vpc->getScriptObjectProperty(ScriptingApi::Content::ScriptedViewport::Properties::scrollbarThickness));
+	if (shouldUseList)
+	{
+		auto listBox = dynamic_cast<ListBox*>(component.get());
 
-	vp->setColour(ScrollBar::ColourIds::thumbColourId, GET_OBJECT_COLOUR(itemColour));
+		if (listBox != nullptr)
+		{
+			Font f;
 
+			const String fontName = vpc->getScriptObjectProperty(ScriptingApi::Content::ScriptedViewport::FontName).toString();
+			const String fontStyle = vpc->getScriptObjectProperty(ScriptingApi::Content::ScriptedViewport::FontStyle).toString();
+			const float fontSize = (float)vpc->getScriptObjectProperty(ScriptingApi::Content::ScriptedViewport::FontSize);
+
+			if (fontName == "Oxygen" || fontName == "Default")
+			{
+				if (fontStyle == "Bold")
+				{
+					f = GLOBAL_BOLD_FONT().withHeight(fontSize);
+				}
+				else
+				{
+					f = GLOBAL_FONT().withHeight(fontSize);
+				}
+			}
+			else if (fontName == "Source Code Pro")
+			{
+				f = GLOBAL_MONOSPACE_FONT().withHeight(fontSize);
+			}
+			else
+			{
+				ScriptContentComponent* content = listBox->findParentComponentOfClass<ScriptContentComponent>();
+				const juce::Typeface::Ptr typeface = dynamic_cast<const Processor*>(content->getScriptProcessor())->getMainController()->getFont(fontName);
+
+
+
+				if (typeface != nullptr)
+				{
+					f = Font(typeface).withHeight(fontSize);
+				}
+				else
+				{
+					f = Font(fontName, fontStyle, fontSize);
+				}
+			}
+
+			auto itemColour1 = GET_OBJECT_COLOUR(itemColour);
+			auto itemColour2 = GET_OBJECT_COLOUR(itemColour2);
+			auto bgColour = GET_OBJECT_COLOUR(bgColour);
+			auto textColour = GET_OBJECT_COLOUR(textColour);
+
+			model->font = f;
+			model->itemColour1 = itemColour1;
+			model->itemColour2 = itemColour2;
+			model->bgColour = bgColour;
+			model->textColour = textColour;
+			
+			listBox->setRowHeight((int)f.getHeight() + 15);
+
+			listBox->getViewport()->setColour(ScrollBar::ColourIds::thumbColourId, itemColour1);
+
+			listBox->setColour(ListBox::ColourIds::backgroundColourId, bgColour);
+			listBox->setColour(ListBox::ColourIds::outlineColourId, itemColour2);
+
+			model->justification = vpc->getJustification();
+
+			if (model->shouldUpdate(vpc->getItemList()))
+			{
+				model->setItems(vpc->getItemList());
+			}
+
+			int viewportIndex = vpc->getValue();
+
+			listBox->selectRow(viewportIndex);
+
+			listBox->updateContent();
+		}
+	}
+	else
+	{
+		auto vp = dynamic_cast<Viewport*>(component.get());
+
+		vp->setScrollBarThickness(vpc->getScriptObjectProperty(ScriptingApi::Content::ScriptedViewport::Properties::scrollbarThickness));
+		vp->setColour(ScrollBar::ColourIds::thumbColourId, GET_OBJECT_COLOUR(itemColour));
+	}
 }
 
 ScriptCreatedComponentWrappers::PlotterWrapper::PlotterWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptedPlotter *p, int index):
@@ -658,7 +930,8 @@ void ScriptCreatedComponentWrappers::PanelWrapper::mouseCallback(const var &mous
 {
 	auto sp = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
 
-	sp->mouseCallback(mouseInformation);
+	if(sp != nullptr)
+		sp->mouseCallback(mouseInformation);
 }
 
 void ScriptCreatedComponentWrappers::PanelWrapper::boundsChanged(const Rectangle<int> &newBounds)
@@ -1085,3 +1358,48 @@ ScriptedControlAudioParameter::Type ScriptedControlAudioParameter::getType(Scrip
 	else if (dynamic_cast<ScriptingApi::Content::ScriptPanel*>(component)) return Type::Panel;
 	else return Type::Unsupported;
 }
+
+ScriptCreatedComponentWrappers::ViewportWrapper::ColumnListBoxModel::ColumnListBoxModel(ViewportWrapper* parent_):
+	parent(parent_),
+	font(GLOBAL_BOLD_FONT()),
+	justification(Justification::centredLeft)
+{
+
+}
+
+int ScriptCreatedComponentWrappers::ViewportWrapper::ColumnListBoxModel::getNumRows()
+{
+	return list.size();
+}
+
+void ScriptCreatedComponentWrappers::ViewportWrapper::ColumnListBoxModel::listBoxItemClicked(int row, const MouseEvent &)
+{
+	parent->changed(row);
+}
+
+void ScriptCreatedComponentWrappers::ViewportWrapper::ColumnListBoxModel::paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected)
+{
+	if (rowNumber < list.size())
+	{
+		auto text = list[rowNumber];
+
+		Rectangle<int> area(0, 1, width, height - 2);
+
+		g.setColour(rowIsSelected ? itemColour1 : bgColour);
+		g.fillRect(area);
+		g.setColour(itemColour2);
+		if (rowIsSelected) g.drawRect(area, 1);
+
+		g.setColour(textColour);
+		g.setFont(font);
+		g.drawText(text, 10, 0, width - 20, height, justification);
+	}
+}
+
+void ScriptCreatedComponentWrappers::ViewportWrapper::ColumnListBoxModel::returnKeyPressed(int row)
+{
+	parent->changed(row);
+}
+
+
+} // namespace hise

@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -32,6 +32,8 @@
 
 #ifndef MODULATORSYNTHCHAIN_H_INCLUDED
 #define MODULATORSYNTHCHAIN_H_INCLUDED
+
+namespace hise { using namespace juce;
 
 /** This constrainer removes all Modulators that depend on midi input.
 *
@@ -80,8 +82,6 @@ private:
 
 	Array<FactoryType::ProcessorEntry> forbiddenModulators;
 };
-
-class ModulatorSynthChain;
 
 
 
@@ -181,6 +181,8 @@ public:
 
 	void killAllVoices() override;
 	
+	void resetAllVoices() override;
+
 	bool areVoicesActive() const override;
 
 	/** Handles the ModulatorSynthChain. */
@@ -197,7 +199,7 @@ public:
 		void add(Processor *newProcessor, Processor *siblingToInsertBefore) override;
 
 		/** Deletes a processor from the chain. */
-		virtual void remove(Processor *processorToBeRemoved) override;;
+		virtual void remove(Processor *processorToBeRemoved, bool removeSynth=true) override;;
 
 		/** Returns the processor at the index. */
 		virtual Processor *getProcessor(int processorIndex) override;;
@@ -239,5 +241,6 @@ private:
 	String packageName;
 };
 
+} // namespace hise
 
 #endif  // MODULATORSYNTHCHAIN_H_INCLUDED

@@ -11,7 +11,7 @@
 #ifndef DSPCOREMODULES_H_INCLUDED
 #define DSPCOREMODULES_H_INCLUDED
 
-
+namespace hise { using namespace juce;
 
 #define DELAY_BUFFER_SIZE 65536
 #define DELAY_BUFFER_MASK 65536-1
@@ -146,5 +146,6 @@ private:
 };
 
 
+} // namespace hise
 
 #endif  // DSPCOREMODULES_H_INCLUDED

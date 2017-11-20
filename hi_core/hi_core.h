@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -289,16 +289,12 @@ For all defined variables:
 #include "ipp.h"
 #endif
 
-namespace hise
-{
-using namespace juce;
+
 
 #include "hi_binary_data/hi_binary_data.h"
 
 #include "LibConfig.h"
 #include "Macros.h"
-
-}
 
 #include "hi_core/hi_core.h" // has its own namespace definition
 

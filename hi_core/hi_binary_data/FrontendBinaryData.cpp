@@ -23,13 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
+namespace hise { namespace HiBinaryData {
 
 //================== oxygen.bold.ttf ==================
 static const unsigned char temp_binary_data_15126[] =
@@ -4789,3 +4790,5 @@ static const unsigned char temp_binary_data_199[] =
 133,148,18,169,9,56,169,154,192,225,59,178,45,24,2,0,122,150,218,222,113,255,53,68,94,96,209,121,102,175,8,196,38,115,114,189,124,7,86,58,55,5,71,245,180,8,0,0,0,0,0 };
 
 const char* FrontendBinaryData::SourceCodeProRegular_otf = (const char*) temp_binary_data_199;
+
+}} // namespace hise::HiBinaryData

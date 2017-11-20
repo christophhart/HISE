@@ -11,6 +11,7 @@
 #ifndef SLOTFXEDITOR_H_INCLUDED
 #define SLOTFXEDITOR_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 class SlotFXEditor : public ProcessorEditorBody,
 					 public ComboBox::Listener
@@ -38,6 +39,8 @@ private:
 	ScopedPointer<ComboBox> effectSelector;
 
 };
+
+} // namespace hise
 
 
 #endif  // SLOTFXEDITOR_H_INCLUDED

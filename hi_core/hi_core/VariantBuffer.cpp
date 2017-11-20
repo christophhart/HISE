@@ -1,4 +1,4 @@
-using namespace hise;
+namespace juce { using namespace hise;
 
 VariantBuffer::VariantBuffer(float *externalData, int size_) :
 size((externalData != nullptr) ? size_ : 0)
@@ -298,3 +298,5 @@ void operator>>(float f, VariantBuffer &b)
 {
 	FloatVectorOperations::fill(b.buffer.getWritePointer(0), f, b.size);
 }
+
+} // namespace juce

@@ -1,3 +1,4 @@
+namespace hise { using namespace juce;
 
 AudioDeviceDialog::AudioDeviceDialog(AudioProcessorDriver *ownerProcessor_) :
 ownerProcessor(ownerProcessor_)
@@ -117,15 +118,19 @@ StandaloneProcessor::StandaloneProcessor()
     
 	LOG_START("OK");
 
-	dynamic_cast<FrontendSampleManager*>(wrappedProcessor.get())->loadSamplesAfterSetup();
-
 #endif
-
 	
-	
-		
 }
 
+
+void StandaloneProcessor::requestQuit(const std::function<void(void)>& f)
+{
+	auto f2 = [f](Processor* ) {f(); return true; };
+
+	auto mc = dynamic_cast<MainController*>(wrappedProcessor.get());
+	
+	mc->getKillStateHandler().killVoicesAndCall(mc->getMainSynthChain(), f2, MainController::KillStateHandler::TargetThread::MessageThread);
+}
 
 XmlElement * AudioProcessorDriver::getSettings()
 {
@@ -377,3 +382,5 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
 
 
 }
+
+} // namespace hise

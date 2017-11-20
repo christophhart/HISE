@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -32,6 +32,8 @@
 
 #ifndef PROCESSOR_H_INCLUDED
 #define PROCESSOR_H_INCLUDED
+
+namespace hise { using namespace juce;
 
 class Chain;
 
@@ -364,7 +366,7 @@ public:
 
 		if (notifyChangeHandler)
 			getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, 
-				MainController::ProcessorChangeHandler::EventType::ProcessorRenamed);
+				MainController::ProcessorChangeHandler::EventType::ProcessorRenamed, false);
 	};
 
 	const Identifier& getIDAsIdentifier() const
@@ -897,6 +899,16 @@ public:
 		return dynamic_cast<ProcessorType*>(p) != nullptr;
 	}
 
+	template <class ProcessorType> static ProcessorType* getFirstProcessorWithType(const Processor *root)
+	{
+		Processor::Iterator<ProcessorType> iter(root);
+
+		if (auto p = iter.getNextProcessor())
+			return p;
+
+		return nullptr;
+	}
+
 	/** Checks if the Processor can be hidden. This returns true for all processors that show up in the popup list. */
 	static bool isHiddableProcessor(const Processor *p);
 
@@ -940,5 +952,6 @@ public:
 
 };
 
+} // namespace hise
 
 #endif  // PROCESSOR_H_INCLUDED

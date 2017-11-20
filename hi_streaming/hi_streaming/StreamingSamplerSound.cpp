@@ -23,12 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
+
+namespace hise { using namespace juce;
 
 // ==================================================================================================== StreamingSamplerSound methods
 
@@ -186,7 +188,7 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 		{
 			sampleRate = reader->sampleRate;
 			sampleEnd = jmin<int>(sampleEnd, (int)reader->lengthInSamples);
-			sampleLength = sampleEnd - sampleStart;
+			sampleLength = jmax<int>(0, sampleEnd - sampleStart);
 			loopEnd = jmin(loopEnd, sampleEnd);
 		}
 	}
@@ -414,7 +416,7 @@ void StreamingSamplerSound::lengthChanged()
 {
 	ScopedLock sl(getSampleLock());
 
-	sampleLength = sampleEnd - sampleStart;
+	sampleLength = jmax<int>(0, sampleEnd - sampleStart);
 
 	setPreloadSize(preloadSize, true);
 }
@@ -806,7 +808,7 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
 					{
 						memoryReader->mapSectionOfFile(Range<int64>((int64)(sound->sampleStart) + (int64)(sound->monolithOffset), (int64)(sound->sampleEnd)));
 
-						sampleLength = memoryReader->getMappedSection().getLength();
+						sampleLength = jmax<int64>(0, memoryReader->getMappedSection().getLength());
 
 						stereo = memoryReader->numChannels > 1;
 					}
@@ -955,3 +957,5 @@ void StreamingSamplerSound::FileReader::setMonolithicInfo(MonolithInfoToUse* inf
 	monolithicName = info->getFileName(channelIndex, sampleIndex);
 	monolithicChannelIndex = channelIndex;
 }
+
+} // namespace hise

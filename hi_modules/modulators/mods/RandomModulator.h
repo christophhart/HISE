@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -31,6 +31,8 @@
 */
 #ifndef RANDOMMODULATOR_H_INCLUDED
 #define RANDOMMODULATOR_H_INCLUDED
+
+namespace hise { using namespace juce;
 
 /** A constant Modulator which calculates a random value at the voice start.
 *	@ingroup modulatorTypes
@@ -78,5 +80,6 @@ private:
 };
 
 
+} // namespace hise
 
 #endif  // RANDOMMODULATOR_H_INCLUDED

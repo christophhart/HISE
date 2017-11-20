@@ -23,12 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
+
+namespace hise { using namespace juce;
 
 TableEnvelope::TableEnvelope(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m, float attackTimeMs, float releaseTimeMs):
 		EnvelopeModulator(mc, id, voiceAmount, m),
@@ -374,3 +376,5 @@ ProcessorEditorBody *TableEnvelope::createEditor(ProcessorEditor *parentEditor)
 #endif
 
 };
+
+} // namespace hise

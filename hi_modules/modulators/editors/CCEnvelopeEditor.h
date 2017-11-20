@@ -21,7 +21,7 @@
 #define __JUCE_HEADER_276191B71AEC15F6__
 
 //[Headers]     -- You can add your own extra header files here --
-
+namespace hise { using namespace juce;
 
 
 class CCEnvelopeDisplay: public Component,
@@ -159,6 +159,7 @@ private:
 };
 
 //[EndFile] You can add extra defines here...
+} // namespace hise
 //[/EndFile]
 
 #endif   // __JUCE_HEADER_276191B71AEC15F6__

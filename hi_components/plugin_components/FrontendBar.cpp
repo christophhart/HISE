@@ -23,13 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
 
 DefaultFrontendBar::DefaultFrontendBar(MainController *mc_) : mc(mc_),
 												height(32),
@@ -412,6 +413,8 @@ DeactiveOverlay::DeactiveOverlay() :
 #endif
 	addAndMakeVisible(resolveSamplesButton = new TextButton("Choose Sample Folder"));
 
+	addAndMakeVisible(installSampleButton = new TextButton("Install Samples"));
+
 	addAndMakeVisible(ignoreButton = new TextButton("Ignore"));
 
 	resolveLicenseButton->setLookAndFeel(&alaf);
@@ -419,12 +422,14 @@ DeactiveOverlay::DeactiveOverlay() :
 	registerProductButton->setLookAndFeel(&alaf);
 	useActivationResponseButton->setLookAndFeel(&alaf);
 	ignoreButton->setLookAndFeel(&alaf);
+	installSampleButton->setLookAndFeel(&alaf);
 
 	resolveLicenseButton->addListener(this);
 	resolveSamplesButton->addListener(this);
 	registerProductButton->addListener(this);
 	useActivationResponseButton->addListener(this);
 	ignoreButton->addListener(this);
+	installSampleButton->addListener(this);
 }
 
 void DeactiveOverlay::buttonClicked(Button *b)
@@ -463,6 +468,16 @@ void DeactiveOverlay::buttonClicked(Button *b)
 		}
 #endif
 	}
+	else if (b == installSampleButton)
+	{
+#if USE_FRONTEND
+		auto fpe = findParentComponentOfClass<FrontendProcessorEditor>();
+
+		auto l = new SampleDataImporter(fpe);
+
+		l->setModalBaseWindowComponent(fpe);
+#endif
+	}
 	else if (b == resolveSamplesButton)
 	{
 		FileChooser fc("Select Sample Location", ProjectHandler::Frontend::getSampleLocationForCompiledPlugin(), "*.*", true);
@@ -485,13 +500,12 @@ void DeactiveOverlay::buttonClicked(Button *b)
 				}
 
 				setState(SamplesNotFound, !fp->areSampleReferencesCorrect());
+				setState(SamplesNotInstalled, !fp->areSampleReferencesCorrect());
 			}
 			else
 			{
 				setState(SamplesNotFound, true);
 			}
-
-
 		}
 	}
 	else if (b == registerProductButton)
@@ -612,6 +626,9 @@ String DeactiveOverlay::getTextForError(State s) const
 	case DeactiveOverlay::SamplesNotFound:
 		return "The sample directory could not be located. \nClick below to choose the sample folder.";
 		break;
+	case DeactiveOverlay::SamplesNotInstalled:
+		return "Please click below to install the samples from the downloaded archive or point to the location where you've already installed the samples.";
+		break;
 	case DeactiveOverlay::LicenseNotFound:
 	{
 #if USE_COPY_PROTECTION
@@ -677,7 +694,7 @@ String DeactiveOverlay::getTextForError(State s) const
 void DeactiveOverlay::resized()
 {
 	useActivationResponseButton->setVisible(false);
-
+	installSampleButton->setVisible(false);
 	
 
 	if (currentState != 0)
@@ -712,6 +729,9 @@ void DeactiveOverlay::resized()
 	{
 		resolveLicenseButton->setVisible(false);
 		registerProductButton->setVisible(false);
+
+		
+
 		resolveSamplesButton->setVisible(true);
 		ignoreButton->setVisible(true);
 
@@ -724,6 +744,23 @@ void DeactiveOverlay::resized()
 		ignoreButton->setButtonText("Ignore");
 	}
 
+	if (currentState[SamplesNotInstalled])
+	{
+		resolveLicenseButton->setVisible(false);
+		registerProductButton->setVisible(false);
+
+		installSampleButton->setVisible(true);
+
+		resolveSamplesButton->setVisible(true);
+		ignoreButton->setVisible(false);
+
+		installSampleButton->centreWithSize(200, 32);
+		resolveSamplesButton->centreWithSize(200, 32);
+
+		resolveSamplesButton->setTopLeftPosition(resolveSamplesButton->getX(),
+			installSampleButton->getY() + 40);
+	}
+
 	if (currentState[LicenseNotFound] ||
 		currentState[LicenseInvalid] ||
 		currentState[MachineNumbersNotMatching] ||
@@ -734,7 +771,8 @@ void DeactiveOverlay::resized()
 		registerProductButton->setVisible(true);
 		resolveSamplesButton->setVisible(false);
 		ignoreButton->setVisible(false);
-
+        installSampleButton->setVisible(false);
+        
 		resolveLicenseButton->centreWithSize(200, 32);
 		registerProductButton->centreWithSize(200, 32);
 
@@ -746,6 +784,7 @@ void DeactiveOverlay::resized()
 		resolveLicenseButton->setVisible(true);
 
 		resolveSamplesButton->setVisible(false);
+        installSampleButton->setVisible(false);
 		ignoreButton->setVisible(false);
 
 		String text = getTextForError(DeactiveOverlay::State::CopyProtectionError);
@@ -780,7 +819,10 @@ void DeactiveOverlay::resized()
 		resolveLicenseButton->setVisible(false);
 		registerProductButton->setVisible(false);
 		resolveSamplesButton->setVisible(false);
+        installSampleButton->setVisible(false);
 		ignoreButton->setVisible(false);
 	}
 }
 
+
+} // namespace hise

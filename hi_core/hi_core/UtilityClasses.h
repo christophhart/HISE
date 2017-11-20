@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,7 +33,7 @@
 #ifndef UTILITYCLASSES_H_INCLUDED
 #define UTILITYCLASSES_H_INCLUDED
 
-
+namespace hise { using namespace juce;
 
 class Processor;
 class MainController;
@@ -147,7 +147,7 @@ private:
     
     static int lastPositiveId;
 
-	Processor* p;
+	WeakReference<Processor> p;
 
     // =================================================================================================================================
     
@@ -439,16 +439,24 @@ public:
 	enum Tempo
 	{
 		Whole = 0, ///< a whole note
+		HalfDuet,
 		Half, ///< a half note
 		HalfTriplet, ///< a half triplet note
+		QuarterDuet,
 		Quarter, ///< a quarter note
 		QuarterTriplet, ///< a quarter triplet note
+		EighthDuet,
 		Eighth, ///< a eighth note
 		EighthTriplet, ///< a eighth triplet note
+		SixteenthDuet,
 		Sixteenth, ///< a sixteenth note
 		SixteenthTriplet, ///< a sixteenth triplet
+		ThirtyTwoDuet,
 		ThirtyTwo,
 		ThirtyTwoTriplet,
+		SixtyForthDuet,
+		SixtyForth,
+		SixtyForthTriplet,
 		numTempos
 	};
 
@@ -494,21 +502,27 @@ public:
 	static void initTempoData()
 	{
 		tempoNames.add("1/1");		tempoFactors[Whole] = 4.0f;
+		tempoNames.add("1/2D");	    tempoFactors[HalfDuet] = 2.0f * 1.5f;
 		tempoNames.add("1/2");		tempoFactors[Half] = 2.0f;
 		tempoNames.add("1/2T");		tempoFactors[HalfTriplet] = 4.0f / 3.0f;
+		tempoNames.add("1/4D");	    tempoFactors[QuarterDuet] = 1.0f * 1.5f;
 		tempoNames.add("1/4");		tempoFactors[Quarter] = 1.0f;
 		tempoNames.add("1/4T");		tempoFactors[QuarterTriplet] = 2.0f / 3.0f;
+		tempoNames.add("1/8D");	    tempoFactors[EighthDuet] = 0.5f * 1.5f;
 		tempoNames.add("1/8");		tempoFactors[Eighth] = 0.5f;
 		tempoNames.add("1/8T");		tempoFactors[EighthTriplet] = 1.0f / 3.0f;
+		tempoNames.add("1/16D");	tempoFactors[SixteenthDuet] = 0.25f * 1.5f;
 		tempoNames.add("1/16");		tempoFactors[Sixteenth] = 0.25f;
 		tempoNames.add("1/16T");	tempoFactors[SixteenthTriplet] = 0.5f / 3.0f;
+		tempoNames.add("1/32D");	tempoFactors[ThirtyTwoDuet] = 0.125f * 1.5f;
 		tempoNames.add("1/32");		tempoFactors[ThirtyTwo] = 0.125f;
 		tempoNames.add("1/32T");	tempoFactors[ThirtyTwoTriplet] = 0.25f / 3.0f;
+		tempoNames.add("1/64D");	tempoFactors[SixtyForthDuet] = 0.125f * 0.5f * 1.5f;
+		tempoNames.add("1/64");		tempoFactors[SixtyForth] = 0.125f * 0.5f;
+		tempoNames.add("1/64T");	tempoFactors[SixteenthTriplet] = 0.125f * 0.5f / 3.0f;
 	}
 
 private:
-
-
 
 	static float getTempoFactor(Tempo t) { return tempoFactors[(int)t]; };
 
@@ -650,6 +664,8 @@ class MainController;
 class AutoSaver : public Timer
 {
 public:
+
+	
 
 	AutoSaver(MainController *mc_) :
 		mc(mc_),
@@ -823,7 +839,10 @@ public:
 	void timerCallback() override
 	{
 		stopTimer();
-		f();
+
+		if(f)
+			f();
+
 		delete this;
 	}
 
@@ -832,6 +851,20 @@ private:
 	std::function<void(void)> f;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DelayedFunctionCaller);
+};
+
+using ProcessorFunction = std::function<bool(Processor*)>;
+
+struct SafeFunctionCall
+{
+	SafeFunctionCall(Processor* p_, const ProcessorFunction& f_);
+
+	SafeFunctionCall();;
+
+	bool call();
+
+	ProcessorFunction f;
+	WeakReference<Processor> p;
 };
 
 
@@ -861,5 +894,7 @@ private:
 };
 
 #endif
+
+} // namespace hise
 
 #endif  // UTILITYCLASSES_H_INCLUDED

@@ -28,6 +28,7 @@
 *
 */
 
+namespace hlac { using namespace juce; 
 
 HiseLosslessAudioFormat::HiseLosslessAudioFormat() :
 	AudioFormat("HLAC", StringArray(".hlac"))
@@ -316,3 +317,5 @@ void HiseLosslessHeader::storeOffsets(uint32* offsets, int numOffsets)
 {
 	memcpy(blockOffsets, offsets, sizeof(uint32)*numOffsets);
 }
+
+} // namespace hlac

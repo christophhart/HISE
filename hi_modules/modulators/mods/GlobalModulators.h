@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,7 +33,7 @@
 #ifndef GLOBALMODULATORS_H_INCLUDED
 #define GLOBALMODULATORS_H_INCLUDED
 
- 
+ namespace hise { using namespace juce;
 
 class GlobalModulatorContainer;
 
@@ -54,6 +54,7 @@ public:
 	{
 		VoiceStart,
 		TimeVariant,
+		StaticTimeVariant,
 		numTypes
 	};
 
@@ -153,6 +154,33 @@ public:
 	float calculateVoiceStartValue(const HiseEvent& ) override;;
 };
 
+class GlobalStaticTimeVariantModulator : public VoiceStartModulator,
+										 public GlobalModulator
+{
+public:
+
+	SET_PROCESSOR_NAME("GlobalStaticTimeVariantModulator", "Global Static Time Variant Modulator");
+
+	GlobalModulator::ModulatorType getModulatorType() const override { return GlobalModulator::StaticTimeVariant; };
+
+	GlobalStaticTimeVariantModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m);
+
+	~GlobalStaticTimeVariantModulator();
+
+	void restoreFromValueTree(const ValueTree &v) override;;
+
+	ValueTree exportAsValueTree() const override;
+
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
+
+	void setInternalAttribute(int parameterIndex, float newValue) override;;
+
+	float getAttribute(int parameterIndex) const override;;
+
+	/** Calculates a new random value. If the table is used, it is converted to 7bit.*/
+	float calculateVoiceStartValue(const HiseEvent&) override;;
+};
+
 class GlobalTimeVariantModulator : public TimeVariantModulator,
 								   public GlobalModulator
 {
@@ -201,5 +229,6 @@ private:
 };
 
 
+} // namespace hise
 
 #endif  // GLOBALMODULATORS_H_INCLUDED

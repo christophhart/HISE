@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,6 +33,7 @@
 #ifndef SAMPLERASTER_H_INCLUDED
 #define SAMPLERASTER_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 /** The SampleRaster is a small utility processor that quantisizes timestamps of midi data to a specific step size.
 *
@@ -92,5 +93,6 @@ private:
 
 
 
+} // namespace hise
 
 #endif  // SAMPLERASTER_H_INCLUDED

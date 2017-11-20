@@ -30,17 +30,20 @@
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
+
 HardcodedScriptProcessor::HardcodedScriptProcessor(MainController *mc, const String &id, ModulatorSynth *ms):
 	ScriptBaseMidiProcessor(mc, id),
 	Message(this),
 	Synth(this, ms),
 	Engine(this),
 	Console(this),
-	Content(this),
+	refCountedContent(new ScriptingApi::Content(this)),
+	Content(*refCountedContent.get()),
 	Sampler(this, dynamic_cast<ModulatorSampler*>(ms))
 {
 	
-	content = &Content;
+	content = refCountedContent;
 
 	jassert(ms != nullptr);
 
@@ -51,6 +54,12 @@ HardcodedScriptProcessor::HardcodedScriptProcessor(MainController *mc, const Str
 	allowObjectConstructors = false;
 
 };
+
+HardcodedScriptProcessor::~HardcodedScriptProcessor()
+{
+	refCountedContent = nullptr;
+	content = nullptr;
+}
 
 ProcessorEditorBody *HardcodedScriptProcessor::createEditor(ProcessorEditor *parentEditor)
 {
@@ -165,3 +174,4 @@ Processor *HardcodedScriptFactoryType::createProcessor(int typeIndex, const Stri
 	return mp;
 }
 
+} // namespace hise

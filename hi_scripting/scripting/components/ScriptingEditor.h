@@ -33,6 +33,7 @@
 #ifndef __JUCE_HEADER_87B359E078BBC6D4__
 #define __JUCE_HEADER_87B359E078BBC6D4__
 
+namespace hise { using namespace juce;
 
 
 class ScriptingEditor;
@@ -112,8 +113,6 @@ public:
 	void showOnInitCallback();
 
 	void openContentInPopup();
-	void closeContentPopup();
-
 	void closeAllPopup();
 
 	void gotoChar(int character);
@@ -205,59 +204,7 @@ public:
 		}
 	}
 
-	class ContentPopup : public DocumentWindow
-	{
-	public:
-
-		ContentPopup(ProcessorWithScriptingContent* pwsc, ScriptingEditor* parentEditor) :
-			DocumentWindow("Interface Popup", Colours::black, DocumentWindow::allButtons, true),
-			parent(parentEditor)
-		{
-			holder = new Component();
-			holder->addAndMakeVisible(content = new ScriptContentComponent(pwsc));
-			holder->addAndMakeVisible(dragOverlay = new ScriptingContentOverlay(parentEditor));
-			holder->setSize(jmax<int>(40, content->getContentWidth()), jmax<int>(40, content->getContentHeight()));
-
-			setContentNonOwned(holder, true);
-
-			setUsingNativeTitleBar(true);
-
-			setResizable(false, false);
-			setVisible(true);
-
-			centreWithSize(holder->getWidth(), holder->getHeight());
-		}
-
-		void closeButtonPressed() override
-		{
-			if (parent.getComponent() != nullptr)
-			{
-				parent->closeContentPopup();
-			}
-		}
-
-
-		void mouseDown(const MouseEvent& /*e*/) override
-		{
-
-		}
-
-		void resized()
-		{
-			content->setBounds(0, 0, content->getContentWidth(), content->getContentHeight());
-			dragOverlay->setBounds(0, 0, content->getContentWidth(), content->getContentHeight());
-			holder->setBounds(0, 0, content->getContentWidth(), content->getContentHeight());
-		}
-
-		ScopedPointer<Component> holder;
-
-		Component::SafePointer<ScriptingEditor> parent;
-
-		ScopedPointer<ScriptContentComponent> content;
-		ScopedPointer<ScriptingContentOverlay> dragOverlay;
-	};
-
-
+	
 private:
 
 	bool isFront = false;
@@ -271,8 +218,7 @@ private:
 
 	ScopedPointer<JavascriptTokeniser> tokenizer;
 
-	ScopedPointer<ContentPopup> contentPopup;
-
+	
 	bool editorShown;
 
 	bool useComponentSelectMode;
@@ -304,4 +250,5 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ScriptingEditor)
 };
 
+} // namespace hise
 #endif   // __JUCE_HEADER_87B359E078BBC6D4__

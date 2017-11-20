@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,6 +33,7 @@
 #ifndef MODULATORSAMPLERVOICE_H_INCLUDED
 #define MODULATORSAMPLERVOICE_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 /** A ModulatorSamplerVoice is a wrapper around a StreamingSamplerVoice with logic for modulation stuff
 *	@ingroup sampler
@@ -150,5 +151,5 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MultiMicModulatorSamplerVoice)
 };
 
-
+} // namespace hise
 #endif  // MODULATORSAMPLERVOICE_H_INCLUDED

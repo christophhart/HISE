@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,6 +33,8 @@
 
 #ifndef MONOLITHAUDIOFORMAT_H_INCLUDED
 #define MONOLITHAUDIOFORMAT_H_INCLUDED
+
+namespace hise { using namespace juce;
 
 #define USE_OLD_MONOLITH_FORMAT 0
 
@@ -397,7 +399,7 @@ public:
 
 	int64 getMonolithLength(int sampleIndex) const
 	{
-		return multiChannelSampleInformation[0][sampleIndex].length;
+		return jmax<int64>(0, multiChannelSampleInformation[0][sampleIndex].length);
 	}
 
 	double getMonolithSampleRate(int sampleIndex) const
@@ -521,4 +523,5 @@ private:
 typedef HlacMonolithInfo MonolithInfoToUse ;
 #endif
 
+} // namespace hise
 #endif  // MONOLITHAUDIOFORMAT_H_INCLUDED

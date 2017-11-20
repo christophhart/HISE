@@ -23,12 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
+
+namespace hise { using namespace juce;
 
 MainController::MainController():
 	sampleManager(new SampleManager(this)),
@@ -59,8 +61,9 @@ MainController::MainController():
 	userPresetHandler(this),
 	codeHandler(this),
 	processorChangeHandler(this),
+	killStateHandler(this),
 	debugLogger(this),
-	presetLoadRampFlag(0),
+	//presetLoadRampFlag(OldUserPresetHandler::Active),
 	suspendIndex(0),
 	controlUndoManager(new UndoManager()),
     globalCodeFontSize(17.0f)
@@ -121,30 +124,34 @@ const CriticalSection & MainController::getLock() const
 	return processLock;
 }
 
-void MainController::loadPreset(const File &f, Component *mainEditor)
+void MainController::loadPresetFromFile(const File &f, Component* /*mainEditor*/)
 {
-	clearPreset();
-
-	PresetLoadingThread *presetLoader = new PresetLoadingThread(this, f);
-
-	if (mainEditor != nullptr)
+	auto f2 = [f](Processor* p)
 	{
-		presetLoader->setModalBaseWindowComponent(mainEditor);
-	}
+		FileInputStream fis(f);
+
+		ValueTree v = ValueTree::readFromStream(fis);
+		p->getMainController()->loadPresetFromValueTree(v);
+		return true;
+	};
+
+#if USE_BACKEND
+	const bool synchronous = CompileExporter::isExportingFromCommandLine();
+
+	if (synchronous)
+		f2(getMainSynthChain());
 	else
-	{
-		presetLoader->showOnDesktop();
-	}
-
-	presetLoader->runSynchronous();
+		killAndCallOnLoadingThread(f2);
+#else
+	jassertfalse;
+#endif
 }
 
 void MainController::clearPreset()
 {
-	ScopedSuspender ss(this, ScopedSuspender::LockType::SuspendOnly);
+	ScopedLock sl(getLock());
 
-	
-	
+	jassert(!getMainSynthChain()->areVoicesActive());
 
 	getMainSynthChain()->reset();
 
@@ -159,67 +166,114 @@ void MainController::clearPreset()
     
 	clearIncludedFiles();
 
+	getSampleManager().getImagePool()->clearData();
+	getSampleManager().getAudioSampleBufferPool()->clearData();
+
+
     changed = false;
 }
 
-void MainController::loadPreset(ValueTree &v, Component* /*mainEditor*/)
+void MainController::loadPresetFromValueTree(const ValueTree &v, Component* /*mainEditor*/)
 {
+#if USE_BACKEND
+    const bool isCommandLine = CompileExporter::isExportingFromCommandLine();
+    const bool isSampleLoadingThread = killStateHandler.getCurrentThread() == KillStateHandler::SampleLoadingThread;
+    
+	jassert(isCommandLine || isSampleLoadingThread);
+#endif
+
 	if (v.isValid() && v.getProperty("Type", var::undefined()).toString() == "SynthChain")
 	{
-		ScopedLock sl(getLock());
-
-		clearPreset();
 
 		if (v.getType() != Identifier("Processor"))
 		{
-			v = PresetHandler::changeFileStructureToNewFormat(v);
+			jassertfalse;
+			
 		}
 
-		ModulatorSynthChain *synthChain = getMainSynthChain();
-
-		sampleRate = synthChain->getSampleRate();
-		bufferSize = synthChain->getBlockSize();
-
-		synthChain->setBypassed(true);
-
-		// Reset the sample rate so that prepareToPlay does not get called in restoreFromValueTree
-		synthChain->setCurrentPlaybackSampleRate(-1.0);
-		synthChain->setId(v.getProperty("ID", "MainSynthChain"));
-
-		skipCompilingAtPresetLoad = true;
-
-
-		synthChain->restoreFromValueTree(v);
-
-		skipCompilingAtPresetLoad = false;
-
-		synthChain->prepareToPlay(sampleRate, bufferSize.get());
-		synthChain->compileAllScripts();
-
-        synthChain->loadMacrosFromValueTree(v);
-
-		getSampleManager().getAudioSampleBufferPool()->clearData();
-
-		synthChain->setBypassed(false);
-
-        
-        Processor::Iterator<ModulatorSynth> iter(synthChain, false);
-        
-        while(ModulatorSynth *synth = iter.getNextProcessor())
-        {
-            synth->setEditorState(Processor::EditorState::Folded, true);
-        }
-        
-        changed = false;
-        
-		synthChain->sendRebuildMessage(true);
-
+		loadPresetInternal(v);
 	}
 	else
 	{
 		PresetHandler::showMessageWindow("No valid container", "This preset is not a container file", PresetHandler::IconType::Error);
 	}
 }
+
+
+void MainController::loadPresetInternal(const ValueTree& v)
+{
+	try
+	{
+		ModulatorSynthChain *synthChain = getMainSynthChain();
+
+#if USE_BACKEND
+        const bool isCommandLine = CompileExporter::isExportingFromCommandLine();
+        const bool isSampleLoadingThread = killStateHandler.getCurrentThread() == KillStateHandler::SampleLoadingThread;
+        
+		jassert(isCommandLine || isSampleLoadingThread);
+#endif
+        
+		jassert(!synthChain->areVoicesActive());
+
+		clearPreset();
+
+		getSampleManager().setShouldSkipPreloading(true);
+
+		// Reset the sample rate so that prepareToPlay does not get called in restoreFromValueTree
+		// synthChain->setCurrentPlaybackSampleRate(-1.0);
+		synthChain->setId(v.getProperty("ID", "MainSynthChain"));
+
+		skipCompilingAtPresetLoad = true;
+
+		synthChain->restoreFromValueTree(v);
+
+		skipCompilingAtPresetLoad = false;
+
+		synthChain->compileAllScripts();
+
+		if (sampleRate > 0.0)
+		{
+			LOG_START("Initialising audio callback");
+
+			synthChain->prepareToPlay(sampleRate, bufferSize.get());
+		}
+
+		synthChain->loadMacrosFromValueTree(v);
+
+
+		getSampleManager().getAudioSampleBufferPool()->clearData();
+
+#if USE_BACKEND
+		Processor::Iterator<ModulatorSynth> iter(synthChain, false);
+
+		while (ModulatorSynth *synth = iter.getNextProcessor())
+		{
+			synth->setEditorState(Processor::EditorState::Folded, true);
+		}
+
+		changed = false;
+
+		synthChain->sendRebuildMessage(true);
+
+		getSampleManager().preloadEverything();
+
+#endif
+
+		allNotesOff(true);
+	}
+	catch (String& errorMessage)
+	{
+#if USE_BACKEND
+		writeToConsole(errorMessage, 1, getMainSynthChain());
+#else
+		DBG(errorMessage);
+#endif
+	}
+
+	
+}
+
+
 
 
 void MainController::startCpuBenchmark(int bufferSize_)
@@ -247,9 +301,31 @@ void MainController::compileAllScripts()
 	}
 };
 
-void MainController::allNotesOff()
+void MainController::allNotesOff(bool resetSoftBypassState/*=false*/)
 {
-	allNotesOffFlag = true;
+	if (resetSoftBypassState)
+	{
+		auto f = [](Processor* p)
+		{
+			Processor::Iterator<ModulatorSynth> iter(p);
+
+			while (auto s = iter.getNextProcessor())
+			{
+				if (!s->isBypassed())
+				{
+					s->setSoftBypass(false);
+				}
+			}
+
+			return true;
+		};
+
+		getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::TargetThread::MessageThread);
+	}
+	else
+	{
+		allNotesOffFlag = true;
+	}
 }
 
 void MainController::stopCpuBenchmark()
@@ -266,6 +342,21 @@ void MainController::stopCpuBenchmark()
 	{
 		usagePercent.store(lastUsage*0.99f);
 	}
+}
+
+void MainController::killAndCallOnMessageThread(const ProcessorFunction& f)
+{
+	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::MessageThread);
+}
+
+void MainController::killAndCallOnAudioThread(const ProcessorFunction& f)
+{
+	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::AudioThread);
+}
+
+void MainController::killAndCallOnLoadingThread(const ProcessorFunction& f)
+{
+	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::SampleLoadingThread);
 }
 
 int MainController::getNumActiveVoices() const
@@ -430,19 +521,14 @@ void MainController::storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositi
 
 void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &midiMessages)
 {
-    ADD_GLITCH_DETECTOR(getMainSynthChain(), DebugLogger::Location::MainRenderCallback);
+	ADD_GLITCH_DETECTOR(getMainSynthChain(), DebugLogger::Location::MainRenderCallback);
     
 	
 
 	getDebugLogger().checkAudioCallbackProperties(thisAsProcessor->getSampleRate(), buffer.getNumSamples());
 
 	ScopedNoDenormals snd;
-    
-	if (presetLoadRampFlag.get() == UserPresetHandler::RampFlags::Bypassed)
-	{
-		buffer.clear();
-		return;
-	}
+
 
 	getDebugLogger().checkPriorityInversion(processLock);
 
@@ -473,6 +559,8 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	getMacroManager().getMidiControlAutomationHandler()->handleParameterData(midiMessages); // TODO_BUFFER: Move this after the next line...
 
 	masterEventBuffer.addEvents(midiMessages);
+
+	killStateHandler.handleKillState();
 
     if (!masterEventBuffer.isEmpty()) setMidiInputFlag();
     
@@ -531,9 +619,13 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	synthChain->renderNextBlockWithModulators(buffer, masterEventBuffer);
 
 #else
-	multiChannelBuffer.clear();
 
-	synthChain->renderNextBlockWithModulators(multiChannelBuffer, masterEventBuffer);
+
+	AudioSampleBuffer thisMultiChannelBuffer(multiChannelBuffer.getArrayOfWritePointers(), multiChannelBuffer.getNumChannels(), 0, bufferSize.get());
+
+	thisMultiChannelBuffer.clear();
+
+	synthChain->renderNextBlockWithModulators(thisMultiChannelBuffer, masterEventBuffer);
 
 	const bool isUsingMultiChannel = buffer.getNumChannels() != 2;
 
@@ -541,13 +633,13 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	{
 		if (replaceBufferContent)
 		{
-			FloatVectorOperations::copy(buffer.getWritePointer(0), multiChannelBuffer.getReadPointer(0), buffer.getNumSamples());
-			FloatVectorOperations::copy(buffer.getWritePointer(1), multiChannelBuffer.getReadPointer(1), buffer.getNumSamples());
+			FloatVectorOperations::copy(buffer.getWritePointer(0), thisMultiChannelBuffer.getReadPointer(0), bufferSize.get());
+			FloatVectorOperations::copy(buffer.getWritePointer(1), thisMultiChannelBuffer.getReadPointer(1), bufferSize.get());
 		}
 		else
 		{
-			FloatVectorOperations::add(buffer.getWritePointer(0), multiChannelBuffer.getReadPointer(0), buffer.getNumSamples());
-			FloatVectorOperations::add(buffer.getWritePointer(1), multiChannelBuffer.getReadPointer(1), buffer.getNumSamples());
+			FloatVectorOperations::add(buffer.getWritePointer(0), thisMultiChannelBuffer.getReadPointer(0), bufferSize.get());
+			FloatVectorOperations::add(buffer.getWritePointer(1), thisMultiChannelBuffer.getReadPointer(1), bufferSize.get());
 		}
 	}
 	else
@@ -563,11 +655,11 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 			if (replaceBufferContent)
 			{
-				FloatVectorOperations::copy(buffer.getWritePointer(destinationChannel), multiChannelBuffer.getReadPointer(i), buffer.getNumSamples());
+				FloatVectorOperations::copy(buffer.getWritePointer(destinationChannel), thisMultiChannelBuffer.getReadPointer(i), bufferSize.get());
 			}
 			else
 			{
-				FloatVectorOperations::add(buffer.getWritePointer(destinationChannel), multiChannelBuffer.getReadPointer(i), buffer.getNumSamples());
+				FloatVectorOperations::add(buffer.getWritePointer(destinationChannel), thisMultiChannelBuffer.getReadPointer(i), bufferSize.get());
 			}
 			
 		}
@@ -580,21 +672,6 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 			FloatVectorOperations::clip(buffer.getWritePointer(i, 0), buffer.getReadPointer(i, 0), -1.0f, 1.0f, buffer.getNumSamples());
 	}
 
-	if (presetLoadRampFlag.get() != UserPresetHandler::RampFlags::Active)
-	{
-		if (presetLoadRampFlag.get() == UserPresetHandler::RampFlags::FadeOut)
-		{
-			buffer.applyGainRamp(0, buffer.getNumSamples(), 1.0f, 0.0f);
-			presetLoadRampFlag.set(UserPresetHandler::RampFlags::Bypassed);
-		}
-		else if (presetLoadRampFlag.get() == UserPresetHandler::RampFlags::FadeIn)
-		{
-			buffer.applyGainRamp(0, buffer.getNumSamples(), 0.0f, 1.0f);
-			presetLoadRampFlag.set(UserPresetHandler::RampFlags::Active);
-		}
-	}
-
-	//midiMessages.clear();
 #endif
 
 #if ENABLE_CPU_MEASUREMENT
@@ -651,13 +728,13 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 	getMainSynthChain()->setIsOnAir(true);
 }
 
-void MainController::setBpm(double bpm_)
+void MainController::setBpm(double newTempo)
 {
     
     
-	if(bpm != bpm_)
+	if(bpm != newTempo)
 	{
-		bpm = bpm_;
+		bpm = newTempo;
 
 		for(int i = 0; i < tempoListeners.size(); i++)
 		{
@@ -674,6 +751,20 @@ void MainController::setBpm(double bpm_)
 	}
 };
 
+void MainController::setHostBpm(double newTempo)
+{
+	if (newTempo > 0.0)
+	{
+		int nt = jlimit(32, 280, (int)newTempo);
+
+		dynamic_cast<GlobalSettingManager*>(this)->globalBPM = nt;
+	}
+	else
+	{
+		dynamic_cast<GlobalSettingManager*>(this)->globalBPM = -1;
+	}
+}
+
 void MainController::addTempoListener(TempoListener *t)
 {
 	ScopedLock sl(getLock());
@@ -688,11 +779,13 @@ void MainController::removeTempoListener(TempoListener *t)
 
 juce::Typeface* MainController::getFont(const String &fontName) const
 {
-	for (int i = 0; i < customTypeFaces.size(); i++)
+	for (auto& tf: customTypeFaces)
 	{
-		if (customTypeFaces[i]->getName() == fontName)
+		auto nameToUse = tf.id.isValid() ? tf.id.toString() : tf.typeface->getName();
+
+		if (nameToUse == fontName)
 		{
-			return customTypeFaces[i].get();
+			return tf.typeface.get();
 		}
 	}
 
@@ -701,6 +794,18 @@ juce::Typeface* MainController::getFont(const String &fontName) const
 
 Font MainController::getFontFromString(const String& fontName, float fontSize) const
 {
+	const Identifier id(fontName);
+
+	for (auto& tf : customTypeFaces)
+	{
+		if (tf.id.isValid() && tf.id == id)
+		{
+			Font currentFont;
+			juce::Typeface::Ptr typeface = tf.typeface;
+			return Font(typeface).withHeight(fontSize);
+		}
+	}
+
 	static const String boldString(" Bold");
 	static const String italicString(" Italic");
 
@@ -726,17 +831,22 @@ Font MainController::getFontFromString(const String& fontName, float fontSize) c
 
 void MainController::fillWithCustomFonts(StringArray &fontList)
 {
-	for (int i = 0; i < customTypeFaces.size(); i++)
+	for (auto& tf : customTypeFaces)
 	{
-		fontList.addIfNotAlreadyThere(customTypeFaces[i]->getName());
+		auto nameToUse = tf.id.isValid() ? tf.id.toString() : tf.typeface->getName();
+		fontList.addIfNotAlreadyThere(nameToUse);
 	}
 }
 
-void MainController::loadTypeFace(const String& fileName, const void* fontData, size_t fontDataSize)
+void MainController::loadTypeFace(const String& fileName, const void* fontData, size_t fontDataSize, const String& fontId/*=String()*/)
 {
 	if (customTypeFaceData.getChildWithProperty("Name", fileName).isValid()) return;
 
-	customTypeFaces.add(juce::Typeface::createSystemTypefaceFor(fontData, fontDataSize));
+	if (fontId.isNotEmpty() && customTypeFaceData.getChildWithProperty("FontId", fontId).isValid()) return;
+
+	Identifier id_ = fontId.isEmpty() ? Identifier() : Identifier(fontId);
+
+	customTypeFaces.add(CustomTypeFace(juce::Typeface::createSystemTypefaceFor(fontData, fontDataSize), id_));
 
 	MemoryBlock mb(fontData, fontDataSize);
 	
@@ -744,6 +854,10 @@ void MainController::loadTypeFace(const String& fileName, const void* fontData, 
 	v.setProperty("Name", fileName, nullptr);
 	v.setProperty("Data", var(mb), nullptr);
 	v.setProperty("Size", var((int)mb.getSize()), nullptr);
+	
+	if (fontId.isNotEmpty())
+		v.setProperty("FontId", fontId, nullptr);
+
 
 	customTypeFaceData.addChild(v, -1, nullptr);
 }
@@ -778,10 +892,19 @@ void MainController::restoreCustomFontValueTree(const ValueTree &v)
 
 		MemoryBlock *mb = c.getBinaryData();
 
-
 		if (mb != nullptr)
 		{
-			customTypeFaces.add(juce::Typeface::createSystemTypefaceFor(mb->getData(), mb->getSize()));
+			auto fontId = child.getProperty("FontId", "").toString();
+
+			if (fontId.isNotEmpty())
+			{
+				Identifier id_(fontId);
+				customTypeFaces.add(CustomTypeFace(juce::Typeface::createSystemTypefaceFor(mb->getData(), mb->getSize()), id_));
+			}
+			else
+			{
+				customTypeFaces.add(CustomTypeFace(juce::Typeface::createSystemTypefaceFor(mb->getData(), mb->getSize()), Identifier()));
+			}
 		}
 		else
 		{
@@ -826,6 +949,13 @@ bool MainController::checkAndResetMidiInputFlag()
 	return returnValue;
 }
 
+void MainController::loadUserPresetAsync(const ValueTree& v)
+{
+	//getMainSynthChain()->killAllVoices();
+	//presetLoadRampFlag.set(OldUserPresetHandler::FadeOut);
+	userPresetHandler.loadUserPreset(v);
+}
+
 #if USE_BACKEND
 
 void MainController::writeToConsole(const String &message, int warningLevel, const Processor *p, Colour c)
@@ -842,84 +972,46 @@ void MainController::setWatchedScriptProcessor(JavascriptProcessor *p, Component
 	{
 		scriptWatchTable->setScriptProcessor(p, dynamic_cast<ScriptingEditor*>(editor));
 	}
-};
-
-
-void MainController::setEditedScriptComponent(ReferenceCountedObject* c, Component *listener)
-{
-	ScriptingApi::Content::ScriptComponent *sc = dynamic_cast<ScriptingApi::Content::ScriptComponent *>(c);
-
-
-	for (int i = 0; i < scriptComponentEditPanels.size(); i++)
-	{
-		auto scriptComponentEditPanel = scriptComponentEditPanels[i].getComponent();
-
-		if (scriptComponentEditPanel == nullptr)
-		{
-			scriptComponentEditPanels.remove(i--);
-			continue;
-		}
-		
-		scriptComponentEditPanel->setEditedComponent(sc);
-
-		ScriptComponentEditListener *l = dynamic_cast<ScriptComponentEditListener *>(listener);
-
-		if (l != nullptr)
-		{
-			scriptComponentEditPanel->removeAllListeners();
-			scriptComponentEditPanel->addListener(l);
-		}
-	}
-
-	ScriptEditHandler *editor = dynamic_cast<ScriptEditHandler *>(listener);
-
-	if (editor != nullptr)
-	{
-		editor->setEditedScriptComponent(sc);
-	}
-};
-
-bool MainController::hasScriptEditingPanels()
-{
-	for (int i = 0; i < scriptComponentEditPanels.size(); i++)
-	{
-		if (scriptComponentEditPanels[i].getComponent() == nullptr)
-			scriptComponentEditPanels.remove(i--);
-	}
-
-	return scriptComponentEditPanels.size() > 0;
-}
+};;
 
 void MainController::setScriptWatchTable(ScriptWatchTable *table)
 {
 	scriptWatchTable = table;
 }
 
-void MainController::addScriptComponentEditPanel(ScriptComponentEditPanel *panel)
-{
-	for (int i = 0; i < scriptComponentEditPanels.size(); i++)
-	{
-		if (scriptComponentEditPanels[i].getComponent() == nullptr)
-			scriptComponentEditPanels.remove(i--);
-	}
-
-	scriptComponentEditPanels.addIfNotAlreadyThere(panel);
-}
-
 #endif
+
+void MainController::SampleManager::setShouldSkipPreloading(bool skip)
+{
+	skipPreloading = skip;
+}
 
 void MainController::SampleManager::preloadEverything()
 {
-	// This makes no sense...
-	jassert(!skipPreloading);
+	
+	jassert(skipPreloading);
+
+	skipPreloading = false;
+	
+	jassert(mc->getKillStateHandler().voicesAreKilled());
 
 	Processor::Iterator<ModulatorSampler> it(mc->getMainSynthChain());
 
+	Array<WeakReference<Processor>> samplersToPreload;
+
 	while (ModulatorSampler* s = it.getNextProcessor())
 	{
-		s->refreshPreloadSizes();
+		if (s->hasPendingSampleLoad())
+		{
+			auto f = [](Processor* p)->bool {
+				return static_cast<ModulatorSampler*>(p)->preloadAllSamples();
+			};
+
+			mc->getKillStateHandler().killVoicesAndCall(s, f, KillStateHandler::SampleLoadingThread);
+		}
 	}
 }
+
 
 void MainController::CodeHandler::setMainConsole(Console* console)
 {
@@ -927,162 +1019,4 @@ void MainController::CodeHandler::setMainConsole(Console* console)
 }
 
 
-
-void MainController::UserPresetHandler::incPreset(bool next, bool stayInSameDirectory)
-{
-	Array<File> allPresets;
-
-#if USE_BACKEND
-	auto userDirectory = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
-#else
-	auto userDirectory = ProjectHandler::Frontend::getUserPresetDirectory();
-#endif
-
-	userDirectory.findChildFiles(allPresets, File::findFiles, true, "*.preset");
-	allPresets.sort();
-
-	if (!currentlyLoadedFile.existsAsFile())
-	{
-		currentlyLoadedFile = allPresets.getFirst();
-	}
-	else
-	{
-		if (stayInSameDirectory)
-		{
-			allPresets.clear();
-			currentlyLoadedFile.getParentDirectory().findChildFiles(allPresets, File::findFiles, false, "*.preset");
-			allPresets.sort();
-		}
-
-		if (allPresets.size() == 1)
-			return;
-
-		const int oldIndex = allPresets.indexOf(currentlyLoadedFile);
-
-		if (next)
-		{
-			const int newIndex = (oldIndex + 1) % allPresets.size();
-			currentlyLoadedFile = allPresets[newIndex];
-		}
-		else
-		{
-			int newIndex = oldIndex - 1;
-			if (newIndex == -1)
-				newIndex = allPresets.size() - 1;
-
-			currentlyLoadedFile = allPresets[newIndex];
-		}
-	}
-
-	loadUserPreset(currentlyLoadedFile);
-
-}
-
-void MainController::GlobalAsyncModuleHandler::removeAsync(Processor* p, Component* rootWindow)
-{
-	Job d;
-
-	d.processorToRemove = p;
-	d.what = Job::What::Delete;
-	d.rootWindow = rootWindow;
-
-	thingsToDo.add(d);
-	triggerAsyncUpdate();
-}
-
-void MainController::GlobalAsyncModuleHandler::addAsync(Chain* c, Processor* p, Component* rootWindow, const String& type, const String& id, int index)
-{
-	Job d;
-
-	d.chain = dynamic_cast<Processor*>(c);
-	d.processorToAdd = p;
-	d.what = Job::What::Add;
-	d.rootWindow = rootWindow;
-	d.type = type;
-	d.id = id;
-	d.index = index;
-
-	thingsToDo.add(d);
-	triggerAsyncUpdate();
-}
-
-void MainController::GlobalAsyncModuleHandler::handleAsyncUpdate()
-{
-#if USE_BACKEND
-	BackendRootWindow* rootWindow = dynamic_cast<BackendRootWindow*>(thingsToDo.getFirst().rootWindow.getComponent());
-
-	WeakReference<Processor> currentRoot;
-	
-	if (rootWindow != nullptr)
-	{
-		currentRoot = rootWindow->getMainPanel()->getRootContainer()->getRootEditor()->getProcessor();
-		rootWindow->getMainPanel()->removeContainer();
-	}
-	
-#endif
-
-	while (!thingsToDo.isEmpty())
-	{
-		auto thisJob = thingsToDo.getFirst();
-
-		
-
-		if (thisJob.what == Job::What::Delete)
-			thisJob.remove();
-		else
-			thisJob.add();
-
-		thingsToDo.remove(0);
-	}
-
-#if USE_BACKEND
-	
-	if (rootWindow != nullptr && currentRoot != nullptr)
-	{
-		rootWindow->getMainPanel()->setRootProcessor(currentRoot);
-		rootWindow->sendRootContainerRebuildMessage(false);
-	}
-		
-#endif
-}
-
-void MainController::GlobalAsyncModuleHandler::Job::add()
-{
-	auto c = dynamic_cast<Chain*>(chain.get());
-
-	if (processorToAdd.get() == nullptr)
-		return;
-
-	if (c == nullptr)
-	{
-		delete processorToAdd.get(); // Rather bad...
-		return;
-	}
-
-	if (index >= 0 && index < c->getHandler()->getNumProcessors())
-	{
-		Processor* sibling = c->getHandler()->getProcessor(index);
-		c->getHandler()->add(processorToAdd, sibling);
-	}
-	else
-	{
-		c->getHandler()->add(processorToAdd, nullptr);
-	}
-}
-
-void MainController::GlobalAsyncModuleHandler::Job::remove()
-{
-	auto p = processorToRemove.get();
-
-	if (p == nullptr)
-		return;
-
-	auto c = dynamic_cast<Chain*>(ProcessorHelpers::findParentProcessor(p, false));
-
-	jassert(c != nullptr);
-
-	if (c == nullptr)
-		return;
-
-	c->getHandler()->remove(p);
-}
+} // namespace hise

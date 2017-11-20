@@ -33,6 +33,8 @@
 #ifndef HARDCODEDSCRIPTPROCESSOR_H_INCLUDED
 #define HARDCODEDSCRIPTPROCESSOR_H_INCLUDED
 
+namespace hise { using namespace juce;
+
 class ModulatorSynth;
 
 /** The base class for all MidiProcessors that are hardcoded scripts.
@@ -49,7 +51,7 @@ class HardcodedScriptProcessor: public ScriptBaseMidiProcessor
 public:
 
 	HardcodedScriptProcessor(MainController *mc, const String &id, ModulatorSynth *ms);
-	virtual ~HardcodedScriptProcessor() {};
+	virtual ~HardcodedScriptProcessor();;
 
 	/** This callback will get called if the object is created or resetted. */
 	virtual void onInit() {};
@@ -96,13 +98,13 @@ protected:
 	}
 
 	
-
+	ReferenceCountedObjectPtr<ScriptingApi::Content> refCountedContent;
 
 	ScriptingApi::Message Message;
 	ScriptingApi::Synth Synth;
 	ScriptingApi::Console Console;
 	ScriptingApi::Engine Engine;
-	ScriptingApi::Content Content;
+	ScriptingApi::Content& Content;
 	ScriptingApi::Sampler Sampler;
 
 	void processHiseEvent(HiseEvent &m) override;
@@ -326,6 +328,7 @@ public:
 		timeKnob->setRange(0, 20, 0.1);
 		table = Content.addTable("TimeTable", 140, 0);
 
+		table->enableAllocationFreeMessages(30);
 		table->setPosition(140, 0, 480, 100);
 
 		attenuationLevel = 1.0; 
@@ -747,5 +750,5 @@ private:
 };
 
 
-
+} // namespace hise
 #endif  // HARDCODEDSCRIPTPROCESSOR_H_INCLUDED

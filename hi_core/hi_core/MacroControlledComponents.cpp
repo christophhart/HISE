@@ -23,12 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
+
+namespace hise { using namespace juce;
 
 #define GET_MACROCHAIN() (getProcessor()->getMainController()->getMacroManager().getMacroChain())
 
@@ -330,13 +332,50 @@ void HiToggleButton::setLookAndFeelOwned(LookAndFeel *laf_)
 
 void HiToggleButton::mouseDown(const MouseEvent &e)
 {
+
     if(e.mods.isLeftButtonDown())
     {
         checkLearnMode();
         
         PresetHandler::setChanged(getProcessor());
         
-        ToggleButton::mouseDown(e);
+		if (isMomentary)
+		{
+			setToggleState(true, sendNotification);
+		}
+		else
+		{
+			ToggleButton::mouseDown(e);
+		}
+
+		if (popupData.isObject())
+		{
+			if (findParentComponentOfClass<FloatingTilePopup>() == nullptr) // Deactivate this function in popups...
+			{
+				if (currentPopup.getComponent() != nullptr)
+				{
+					findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(nullptr, this, popupPosition.getPosition());
+					currentPopup = nullptr;
+				}
+				else
+				{
+#if USE_BACKEND
+					auto mc = GET_BACKEND_ROOT_WINDOW(this)->getBackendProcessor();
+#else
+					auto mc = dynamic_cast<MainController*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor());
+#endif
+
+					FloatingTile *t = new FloatingTile(mc, nullptr, popupData);
+					t->setOpaque(false);
+
+					t->setName(t->getCurrentFloatingPanel()->getBestTitle());
+
+					t->setSize(popupPosition.getWidth(), popupPosition.getHeight());
+					currentPopup = findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(t, this, popupPosition.getPosition());
+				}
+
+			}
+		}
     }
     else
     {
@@ -352,6 +391,18 @@ void HiToggleButton::mouseDown(const MouseEvent &e)
 			removeParameterWithPopup();
 #endif
     }
+}
+
+void HiToggleButton::mouseUp(const MouseEvent& e)
+{
+	if (isMomentary)
+	{
+		setToggleState(false, sendNotification);
+	}
+	else
+	{
+		ToggleButton::mouseUp(e);
+	}
 }
 
 void HiComboBox::setup(Processor *p, int parameterIndex, const String &parameterName)
@@ -500,3 +551,5 @@ bool MacroControlledObject::UndoableControlEvent::undo()
 	}
 	else return false;
 }
+
+} // namespace hise

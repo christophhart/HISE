@@ -30,6 +30,7 @@
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
 
 void multiply(float* dst, const float* src, int numValues)
 {
@@ -124,3 +125,4 @@ void TccDspFactory::destroyDspBaseObject(DspBaseObject *object) const
 }
 
 
+} // namespace hise

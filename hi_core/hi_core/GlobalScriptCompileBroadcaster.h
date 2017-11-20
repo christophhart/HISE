@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,8 +33,13 @@
 #ifndef GLOBALSCRIPTCOMPILEBROADCASTER_H_INCLUDED
 #define GLOBALSCRIPTCOMPILEBROADCASTER_H_INCLUDED
 
+namespace hise { using namespace juce;
+
 class JavascriptMidiProcessor;
 class JavascriptProcessor;
+
+class GlobalScriptCompileBroadcaster;
+
 
 
 /** A GlobalScriptCompileListener gets informed whenever a script was compiled.
@@ -101,23 +106,19 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ExternalScriptFile)
 };
 
+class ScriptComponentEditBroadcaster;
 
 /** This class sends a message to all registered listeners. */
 class GlobalScriptCompileBroadcaster
 {
 public:
 
-	GlobalScriptCompileBroadcaster() :
-		timeOut(5.0),
-		useBackgroundCompiling(false),
-		enableGlobalRecompile(true)
-	{
-        createDummyLoader();
-    }
+	GlobalScriptCompileBroadcaster();
 
 	virtual ~GlobalScriptCompileBroadcaster()
 	{
         dummyLibraryLoader = nullptr;
+		globalEditBroadcaster = nullptr;
     
 		clearIncludedFiles();
     };
@@ -174,8 +175,20 @@ public:
 		includedFiles.clear();
 	}
 
+	ScriptComponentEditBroadcaster* getScriptComponentEditBroadcaster()
+	{
+		return globalEditBroadcaster;
+	}
+
+	const ScriptComponentEditBroadcaster* getScriptComponentEditBroadcaster() const
+	{
+		return globalEditBroadcaster;
+	}
+
 private:
 	
+	ScopedPointer<ScriptComponentEditBroadcaster> globalEditBroadcaster;
+
     void createDummyLoader();
     
 	bool useBackgroundCompiling;
@@ -192,10 +205,10 @@ private:
     
 	ReferenceCountedArray<ExternalScriptFile> includedFiles;
 
-    
 	Array<WeakReference<GlobalScriptCompileListener>> listenerListStart;
 	Array<WeakReference<GlobalScriptCompileListener>> listenerListEnd;
 };
 
+} // namespace hise
 
 #endif  // GLOBALSCRIPTCOMPILEBROADCASTER_H_INCLUDED

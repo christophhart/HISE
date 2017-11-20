@@ -23,12 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
+
+namespace hise { using namespace juce;
 
 ModulatorChain::ModulatorChain(MainController *mc, const String &uid, int numVoices, Mode m, Processor *p): 
 	EnvelopeModulator(mc, uid, numVoices, m),
@@ -309,7 +311,7 @@ void ModulatorChain::ModulatorChainHandler::add(Processor *newProcessor, Process
 	sendChangeMessage();
 }
 
-void ModulatorChain::ModulatorChainHandler::deleteModulator(Modulator *modulatorToBeDeleted)
+void ModulatorChain::ModulatorChainHandler::deleteModulator(Modulator *modulatorToBeDeleted, bool deleteMod)
 {
 	for(int i = 0; i < getNumModulators(); ++i)
 	{
@@ -318,17 +320,17 @@ void ModulatorChain::ModulatorChainHandler::deleteModulator(Modulator *modulator
 		
 	for(int i = 0; i < chain->variantModulators.size(); ++i)
 	{
-		if(chain->variantModulators[i] == modulatorToBeDeleted) chain->variantModulators.remove(i, true);
+		if(chain->variantModulators[i] == modulatorToBeDeleted) chain->variantModulators.remove(i, deleteMod);
 	};
 
 	for(int i = 0; i < chain->envelopeModulators.size(); ++i)
 	{
-		if(chain->envelopeModulators[i] == modulatorToBeDeleted) chain->envelopeModulators.remove(i, true);
+		if(chain->envelopeModulators[i] == modulatorToBeDeleted) chain->envelopeModulators.remove(i, deleteMod);
 	};
 
 	for(int i = 0; i < chain->voiceStartModulators.size(); ++i) 
 	{
-		if(chain->voiceStartModulators[i] == modulatorToBeDeleted) chain->voiceStartModulators.remove(i, true);
+		if(chain->voiceStartModulators[i] == modulatorToBeDeleted) chain->voiceStartModulators.remove(i, deleteMod);
 	};
 
 	jassert(chain->checkModulatorStructure());
@@ -336,12 +338,12 @@ void ModulatorChain::ModulatorChainHandler::deleteModulator(Modulator *modulator
 };
 
 
-void ModulatorChain::ModulatorChainHandler::remove(Processor *processorToBeRemoved)
+void ModulatorChain::ModulatorChainHandler::remove(Processor *processorToBeRemoved, bool deleteMod)
 {
 	ScopedLock sl(chain->getMainController()->getLock());
 
 	jassert(dynamic_cast<Modulator*>(processorToBeRemoved) != nullptr);
-	deleteModulator(dynamic_cast<Modulator*>(processorToBeRemoved));
+	deleteModulator(dynamic_cast<Modulator*>(processorToBeRemoved), deleteMod);
     
 	const bool isPitchChainOfNonGroup = chain->getMode() == Modulation::PitchMode;
 	if (isPitchChainOfNonGroup && getNumModulators() == 0)
@@ -552,6 +554,7 @@ void VoiceStartModulatorFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(KeyModulator);
 	ADD_NAME_TO_TYPELIST(RandomModulator);
 	ADD_NAME_TO_TYPELIST(GlobalVoiceStartModulator);
+	ADD_NAME_TO_TYPELIST(GlobalStaticTimeVariantModulator);
 	ADD_NAME_TO_TYPELIST(ArrayModulator);
 	ADD_NAME_TO_TYPELIST(JavascriptVoiceStartModulator);
 }
@@ -580,3 +583,5 @@ Processor *ModulatorChainFactoryType::createProcessor(int typeIndex, const Strin
 		
 	return MainController::createProcessor(factory, s, id);
 };
+
+} // namespace hise

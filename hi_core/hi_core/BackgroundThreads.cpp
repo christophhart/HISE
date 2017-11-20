@@ -23,13 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
 
 void QuasiModalComponent::setModalBaseWindowComponent(Component * childComponentOfModalBaseWindow, int fadeInTime)
 {
@@ -199,121 +200,6 @@ void DialogWindowWithBackgroundThread::runThread()
 }
 
 
-#if 0
-PresetLoadingThread::PresetLoadingThread(MainController *mc, const ValueTree v_) :
-DialogWindowWithBackgroundThread("Loading Preset " + v_.getProperty("ID").toString()),
-v(v_),
-mc(mc),
-fileNeedsToBeParsed(false)
-{
-	addBasicComponents(false);
-}
-
-PresetLoadingThread::PresetLoadingThread(MainController *mc, const File &presetFile) :
-DialogWindowWithBackgroundThread("Loading Preset " + presetFile.getFileName()),
-file(presetFile),
-fileNeedsToBeParsed(true),
-mc(mc)
-{
-
-
-	addBasicComponents(false);
-}
-
-void PresetLoadingThread::run()
-{
-	if (fileNeedsToBeParsed)
-	{
-		setProgress(0.0);
-		showStatusMessage("Parsing preset file");
-		FileInputStream fis(file);
-
-		v = ValueTree::readFromStream(fis);
-
-		if (v.isValid() && v.getProperty("Type", var::undefined()).toString() == "SynthChain")
-		{
-			if (v.getType() != Identifier("Processor"))
-			{
-				v = PresetHandler::changeFileStructureToNewFormat(v);
-			}
-		}
-
-		const int presetVersion = v.getProperty("BuildVersion", 0);
-
-		if (presetVersion > BUILD_SUB_VERSION)
-		{
-			PresetHandler::showMessageWindow("Version mismatch", "The preset was built with a newer the build of HISE: " + String(presetVersion) + ". To ensure perfect compatibility, update to at least this build.", PresetHandler::IconType::Warning);
-		}
-
-		setProgress(0.5);
-		if (threadShouldExit())
-		{
-			mc->clearPreset();
-			return;
-		}
-
-	}
-
-	ModulatorSynthChain *synthChain = mc->getMainSynthChain();
-
-
-
-	sampleRate = synthChain->getSampleRate();
-	bufferSize = synthChain->getBlockSize();
-
-	mc->getSampleManager().setShouldSkipPreloading(true);
-
-	// Reset the sample rate so that prepareToPlay does not get called in restoreFromValueTree
-	synthChain->setCurrentPlaybackSampleRate(-1.0);
-
-	synthChain->setId(v.getProperty("ID", "MainSynthChain"));
-
-	if (threadShouldExit()) return;
-
-	showStatusMessage("Loading modules");
-
-    
-    mc->skipCompilingAtPresetLoad = true;
-	synthChain->restoreFromValueTree(v);
-    mc->skipCompilingAtPresetLoad = false;
-    
-	if (threadShouldExit()) return;
-
-}
-
-void PresetLoadingThread::threadFinished()
-{
-	ModulatorSynthChain *synthChain = mc->getMainSynthChain();
-
-	ScopedLock sl(synthChain->getMainController()->getLock());
-
-	synthChain->prepareToPlay(sampleRate, bufferSize);
-	synthChain->compileAllScripts();
-
-	mc->getSampleManager().getAudioSampleBufferPool()->clearData();
-
-	Processor::Iterator<ModulatorSampler> iter(synthChain, false);
-
-	mc->getSampleManager().preloadEverything();
-
-	int i = 0;
-
-	while (ModulatorSampler *sampler = iter.getNextProcessor())
-	{
-		showStatusMessage("Loading samples from " + sampler->getId());
-		setProgress((double)i / (double)iter.getNumProcessors());
-		sampler->refreshPreloadSizes();
-		sampler->refreshMemoryUsage();
-		if (threadShouldExit())
-		{
-			mc->clearPreset();
-			return;
-		}
-	}
-}
-#endif
-
-
 ModalBaseWindow::ModalBaseWindow()
 {
 	s.colour = Colours::black;
@@ -369,3 +255,359 @@ void ModalBaseWindow::clearModalComponent()
 	shadow = nullptr;
 	modalComponent = nullptr;
 }
+
+
+const hise::MainController* ModalBaseWindow::getMainController() const
+{
+#if USE_BACKEND
+	return dynamic_cast<const BackendProcessorEditor*>(this)->getMainController();
+	
+#else
+	auto fp = dynamic_cast<const FrontendProcessorEditor*>(this)->getAudioProcessor();
+	return dynamic_cast<const MainController*>(fp);
+#endif
+}
+
+hise::MainController* ModalBaseWindow::getMainController()
+{
+#if USE_BACKEND
+	return dynamic_cast<BackendProcessorEditor*>(this)->getMainController();
+#else
+	auto fp = dynamic_cast<FrontendProcessorEditor*>(this)->getAudioProcessor();
+	return dynamic_cast<MainController*>(fp);
+#endif
+}
+
+SampleDataExporter::SampleDataExporter(ModalBaseWindow* mbw) :
+	DialogWindowWithBackgroundThread("Export Samples for Installer"),
+	modalBaseWindow(mbw),
+	synthChain(modalBaseWindow->getMainController()->getMainSynthChain())
+{
+	StringArray sa;
+	sa.add("Export Monolith files only");
+
+	addComboBox("file_selection", sa, "Select files to export");
+
+	StringArray sa2;
+
+	sa2.add("500 MB");
+	sa2.add("1 GB");
+	sa2.add("1.5 GB");
+	sa2.add("2 GB");
+
+	addComboBox("split", sa2, "Split archive size");
+
+	targetFile = new FilenameComponent("Target directory", File(), true, true, true, "", "", "Choose export directory");
+	targetFile->setSize(300, 24);
+	addCustomComponent(targetFile);
+
+	totalProgressBar = new ProgressBar(totalProgress);
+	totalProgressBar->setName("Total Progress");
+	totalProgressBar->setSize(300, 24);
+	addCustomComponent(totalProgressBar);
+
+	addBasicComponents(true);
+
+	showStatusMessage("Select the target file and press OK");
+}
+
+void SampleDataExporter::logVerboseMessage(const String& verboseMessage)
+{
+#if USE_BACKEND
+	debugToConsole(synthChain, verboseMessage);
+#else
+	ignoreUnused(verboseMessage);
+#endif
+}
+
+void SampleDataExporter::logStatusMessage(const String& message)
+{
+	showStatusMessage(message);
+}
+
+void SampleDataExporter::run()
+{
+	showStatusMessage("Collecting samples");
+
+	showStatusMessage("Exporting");
+
+	hlac::HlacArchiver compressor(getCurrentThread());
+
+	compressor.setListener(this);
+
+	hlac::HlacArchiver::CompressData data;
+
+	data.targetFile = getTargetFile();
+	data.metadataJSON = getMetadataJSON();
+	data.fileList = collectMonoliths();
+	data.progress = &progress;
+	data.totalProgress = &totalProgress;
+	data.partSize = 1024 * 1024;
+
+	auto partSize = (PartSize)getComboBoxComponent("split")->getSelectedItemIndex();
+
+	switch (partSize)
+	{
+	case PartSize::HalfGig: data.partSize *= 500; break;
+	case PartSize::OneGig: data.partSize *= 1000; break;
+	case PartSize::OneAndHalfGig: data.partSize *= 1500; break;
+	case PartSize::TwoGig: data.partSize *= 2000; break;
+    default: break;
+		break;
+	}
+
+	compressor.compressSampleData(data);
+}
+
+void SampleDataExporter::threadFinished()
+{
+	PresetHandler::showMessageWindow("Samples successfully exported", "All samples were exported without errors");
+}
+
+Array<File> SampleDataExporter::collectMonoliths()
+{
+	Array<File> sampleMonoliths;
+
+	File sampleDirectory = GET_PROJECT_HANDLER(modalBaseWindow->getMainController()->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Samples);
+
+	sampleDirectory.findChildFiles(sampleMonoliths, File::findFiles, false, "*.ch*");
+
+	sampleMonoliths.sort();
+
+	numExported = sampleMonoliths.size();
+
+	return sampleMonoliths;
+}
+
+String SampleDataExporter::getMetadataJSON() const
+{
+	DynamicObject::Ptr d = new DynamicObject();
+
+	d->setProperty("Name", getProjectName());
+	d->setProperty("Version", getProjectVersion());
+	d->setProperty("Company", getCompanyName());
+
+	var data(d);
+
+	return JSON::toString(data, true);
+}
+
+String SampleDataExporter::getProjectName() const
+{
+	return SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, &GET_PROJECT_HANDLER(synthChain));
+}
+
+String SampleDataExporter::getCompanyName() const
+{
+	return SettingWindows::getSettingValue((int)SettingWindows::UserSettingWindow::Attributes::Company, &GET_PROJECT_HANDLER(synthChain));
+}
+
+String SampleDataExporter::getProjectVersion() const
+{
+	return SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(synthChain));
+}
+
+File SampleDataExporter::getTargetFile() const
+{
+	auto currentFile = targetFile->getCurrentFile();
+	auto name = getProjectName();
+	auto version = getProjectVersion();
+	version = version.replaceCharacter('.', '_');
+	auto fileName = name + "_" + version + "_Samples.hr1";
+	return currentFile.getChildFile(fileName);
+}
+
+SampleDataImporter::SampleDataImporter(ModalBaseWindow* mbw) :
+	DialogWindowWithBackgroundThread("Install Sample Archive"),
+	modalBaseWindow(mbw),
+	synthChain(mbw->getMainController()->getMainSynthChain()),
+	result(Result::ok())
+{
+	addTextBlock("Please select the .hr1 file that you've downloaded in order to extract the samples.");
+
+	targetFile = new FilenameComponent("Sample Archive Location", File(), true, false, false, "*.hr1", "", "Select Sample Archive to install");
+	targetFile->setSize(300, 24);
+	addCustomComponent(targetFile);
+
+#if USE_FRONTEND
+	sampleDirectory = new FilenameComponent("Sample Folder", File(), true, true, true, "", "", "Select the location where the samples should be installed");
+
+	sampleDirectory->setSize(300, 24);
+	addCustomComponent(sampleDirectory);
+#endif
+
+	StringArray sa;
+
+	sa.add("Overwrite if newer");
+	sa.add("Leave existing files");
+	sa.add("Force overwrite");
+
+	addComboBox("overwrite", sa, "Overwrite existing samples");
+
+	partProgressBar = new ProgressBar(partProgress);
+	partProgressBar->setName("Part Progress");
+	partProgressBar->setSize(300, 24);
+	addCustomComponent(partProgressBar);
+
+	totalProgressBar = new ProgressBar(totalProgress);
+	totalProgressBar->setSize(300, 24);
+	totalProgressBar->setName("Total Progress");
+	addCustomComponent(totalProgressBar);
+
+	addBasicComponents(true);
+
+	showStatusMessage("Choose a sample archive and press OK.");
+}
+
+void SampleDataImporter::logVerboseMessage(const String& verboseMessage)
+{
+#if USE_BACKEND
+	debugToConsole(synthChain, verboseMessage);
+#else
+	ignoreUnused(verboseMessage);
+#endif
+	
+}
+
+void SampleDataImporter::logStatusMessage(const String& message)
+{
+	showStatusMessage(message);
+}
+
+void SampleDataImporter::run()
+{
+#if USE_FRONTEND
+
+	if (!sampleDirectory->getCurrentFile().isDirectory())
+	{
+		result = Result::fail("You haven't specified a valid target directory");
+		return;
+	}
+		
+
+#endif
+
+	showStatusMessage("Reading metadata");
+
+	auto md = getMetadata();
+
+	showStatusMessage("Importing Samples");
+
+	auto option = (hlac::HlacArchiver::OverwriteOption)getComboBoxComponent("overwrite")->getSelectedItemIndex();
+
+	hlac::HlacArchiver::DecompressData data;
+
+	data.option = option;
+	data.sourceFile = getSourceFile();
+	data.targetDirectory = getTargetDirectory();
+	data.progress = &progress;
+	data.partProgress = &partProgress;
+	data.totalProgress = &totalProgress;
+
+	hlac::HlacArchiver decompressor(getCurrentThread());
+
+	decompressor.setListener(this);
+
+	bool ok = decompressor.extractSampleData(data);
+
+	if (!ok)
+	{
+		result = Result::fail("Something went wrong during extraction");
+		return;
+	}
+		
+
+#if USE_FRONTEND
+	
+	auto sampleLocation = sampleDirectory->getCurrentFile();
+
+	ProjectHandler::Frontend::setSampleLocation(sampleLocation);
+
+	showStatusMessage("Checking Sample references");
+
+	auto fp = dynamic_cast<FrontendProcessor*>(synthChain->getMainController());
+
+	auto sampleMapData = fp->getValueTree(ProjectHandler::SubDirectories::SampleMaps);
+
+	const String missingSample = ProjectHandler::Frontend::checkSampleReferences(sampleMapData, false);
+
+	if (missingSample.isNotEmpty())
+	{
+		result = Result::fail("The sample " + missingSample + " is missing");
+		return;
+	}
+#endif
+
+	result = Result::ok();
+
+}
+
+void SampleDataImporter::threadFinished()
+{
+	if (!result.wasOk())
+	{
+		PresetHandler::showMessageWindow("Error during sample installation", result.getErrorMessage());
+	}
+	else
+	{
+		PresetHandler::showMessageWindow("Samples imported", "All samples were imported successfully.");
+
+#if USE_FRONTEND
+
+		auto fpe = dynamic_cast<FrontendProcessorEditor*>(modalBaseWindow);
+
+		fpe->setSamplesCorrectlyInstalled(true);
+
+#endif
+
+	}
+}
+
+String SampleDataImporter::getProjectName() const
+{
+#if USE_BACKEND
+	return SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, &GET_PROJECT_HANDLER(synthChain));
+#else
+	return ProjectHandler::Frontend::getProjectName();
+#endif
+}
+
+String SampleDataImporter::getCompanyName() const
+{
+#if USE_BACKEND
+	return SettingWindows::getSettingValue((int)SettingWindows::UserSettingWindow::Attributes::Company, &GET_PROJECT_HANDLER(synthChain));
+#else
+	return ProjectHandler::Frontend::getCompanyName();
+#endif
+}
+
+String SampleDataImporter::getProjectVersion() const
+{
+#if USE_BACKEND
+	return SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(synthChain));
+#else
+	return ProjectHandler::Frontend::getVersionString();
+#endif
+}
+
+File SampleDataImporter::getTargetDirectory() const
+{
+#if USE_BACKEND
+	return GET_PROJECT_HANDLER(synthChain).getSubDirectory(ProjectHandler::SubDirectories::Samples);
+#else
+	return sampleDirectory->getCurrentFile();
+#endif
+}
+
+String SampleDataImporter::getMetadata() const
+{
+	return hlac::HlacArchiver::getMetadataJSON(getSourceFile());
+}
+
+File SampleDataImporter::getSourceFile() const
+{
+	return targetFile->getCurrentFile();
+}
+
+
+} // namespace hise

@@ -8,7 +8,7 @@
   ==============================================================================
 */
 
-
+namespace hise { using namespace juce;
 
 void FloatingInterfaceBuilder::setSizes(int index, Array<double> sizes, NotificationType shouldUpdateLayout/*=sendNotification*/)
 {
@@ -195,3 +195,5 @@ FloatingTile* FloatingInterfaceBuilder::finalizeAndReturnRoot()
 
 	return createdComponents.getFirst();
 }
+
+} // namespace hise

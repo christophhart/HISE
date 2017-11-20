@@ -23,14 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
-
+namespace hise { using namespace juce;
 
 ModulatorSynthGroupVoice::ModulatorSynthGroupVoice(ModulatorSynth *ownerSynth) :
 	ModulatorSynthVoice(ownerSynth)
@@ -89,7 +89,7 @@ void ModulatorSynthGroupVoice::startNote(int midiNoteNumber, float velocity, Syn
 
 	numUnisonoVoices = (int)getOwnerSynth()->getAttribute(ModulatorSynthGroup::SpecialParameters::UnisonoVoiceAmount);
 	
-	const float detune = getOwnerSynth()->getAttribute(ModulatorSynthGroup::SpecialParameters::UnisonoDetune);
+
 
 	auto mod = getFMModulator();
 
@@ -226,6 +226,8 @@ void ModulatorSynthGroupVoice::calculateNoFMVoiceInternal(ModulatorSynth * child
 	const float g_left = detuneValues.getGainFactor(false) * gain * childSynth->getBalance(false);
 	const float g_right = detuneValues.getGainFactor(true) * gain * childSynth->getBalance(true);
 
+	const bool forceMono = getOwnerSynth()->getAttribute(ModulatorSynthGroup::SpecialParameters::ForceMono) > 0.5f;
+
 	for (int i = 0; i < childContainer.size(); i++)
 	{
 		ModulatorSynthVoice *childVoice = childContainer.getVoice(i); //static_cast<ModulatorSynthVoice*>(childSynth->getVoice(childVoiceIndex));
@@ -249,8 +251,22 @@ void ModulatorSynthGroupVoice::calculateNoFMVoiceInternal(ModulatorSynth * child
 			childVoice->applyKillFadeout(startSample, numSamples);
 		}
 
-		voiceBuffer.addFrom(0, startSample, childVoice->getVoiceValues(0, startSample), numSamples, g_left);
-		voiceBuffer.addFrom(1, startSample, childVoice->getVoiceValues(1, startSample), numSamples, g_right);
+		if (forceMono)
+		{
+			float* scratch = (float*)alloca(sizeof(float)*numSamples);
+
+			FloatVectorOperations::copy(scratch, childVoice->getVoiceValues(0, startSample), numSamples);
+			FloatVectorOperations::add(scratch, childVoice->getVoiceValues(1, startSample), numSamples);
+			FloatVectorOperations::multiply(scratch, 0.5f, numSamples);
+
+			voiceBuffer.addFrom(0, startSample, scratch, numSamples, g_left);
+			voiceBuffer.addFrom(1, startSample, scratch, numSamples, g_right);
+		}
+		else
+		{
+			voiceBuffer.addFrom(0, startSample, childVoice->getVoiceValues(0, startSample), numSamples, g_left);
+			voiceBuffer.addFrom(1, startSample, childVoice->getVoiceValues(1, startSample), numSamples, g_right);
+		}
 
 		if (childVoice->getCurrentlyPlayingSound() == nullptr)
 			resetVoice();
@@ -319,6 +335,11 @@ void ModulatorSynthGroupVoice::calculateFMBlock(ModulatorSynthGroup * group, int
 
 	modVoice->calculateBlock(startSample, numSamples);
 
+	if (modVoice->shouldBeKilled())
+	{
+		modVoice->applyKillFadeout(startSample, numSamples);
+	}
+
 	const float *modValues = modVoice->getVoiceValues(0, startSample); // Channel is the same;
 
 	FloatVectorOperations::copy(fmModBuffer, modValues, numSamples);
@@ -362,6 +383,8 @@ void ModulatorSynthGroupVoice::calculateFMCarrierInternal(ModulatorSynthGroup * 
 
 	auto& childContainer = getChildContainer(childVoiceIndex);
 
+	const bool forceMono = getOwnerSynth()->getAttribute(ModulatorSynthGroup::SpecialParameters::ForceMono) > 0.5f;
+
 	for (int i = 0; i < childContainer.size(); i++)
 	{
 		ModulatorSynthVoice *carrierVoice = childContainer.getVoice(i); // static_cast<ModulatorSynthVoice*>(carrierSynth->getVoice(childVoiceIndex));
@@ -392,8 +415,31 @@ void ModulatorSynthGroupVoice::calculateFMCarrierInternal(ModulatorSynthGroup * 
 #endif
 		carrierVoice->calculateBlock(startSample, numSamples);
 
-		voiceBuffer.addFrom(0, startSample, carrierVoice->getVoiceValues(0, startSample), numSamples, g_left);
-		voiceBuffer.addFrom(1, startSample, carrierVoice->getVoiceValues(1, startSample), numSamples, g_right);
+		if (carrierVoice->shouldBeKilled())
+		{
+			carrierVoice->applyKillFadeout(startSample, numSamples);
+		}
+
+		if (forceMono)
+		{
+			float* scratch = (float*)alloca(sizeof(float)*numSamples);
+
+			FloatVectorOperations::copy(scratch, carrierVoice->getVoiceValues(0, startSample), numSamples);
+			FloatVectorOperations::add(scratch, carrierVoice->getVoiceValues(1, startSample), numSamples);
+			FloatVectorOperations::multiply(scratch, 0.5f, numSamples);
+
+			voiceBuffer.addFrom(0, startSample, scratch, numSamples, g_left);
+			voiceBuffer.addFrom(1, startSample, scratch, numSamples, g_right);
+		}
+		else
+		{
+			voiceBuffer.addFrom(0, startSample, carrierVoice->getVoiceValues(0, startSample), numSamples, g_left);
+			voiceBuffer.addFrom(1, startSample, carrierVoice->getVoiceValues(1, startSample), numSamples, g_right);
+		}
+
+
+		
+
 
 #if ENABLE_ALL_PEAK_METERS
 		const float peak2 = FloatVectorOperations::findMaximum(carrierVoice->getVoiceValues(0, startSample), numSamples);
@@ -585,7 +631,6 @@ ModulatorSynthGroup::ModulatorSynthGroup(MainController *mc, const String &id, i
 	fmEnabled(getDefaultValue(ModulatorSynthGroup::SpecialParameters::EnableFM) > 0.5f),
 	carrierIndex((int)getDefaultValue(ModulatorSynthGroup::SpecialParameters::CarrierIndex)),
 	modIndex((int)getDefaultValue(ModulatorSynthGroup::SpecialParameters::ModulatorIndex)),
-	fmState("FM disabled"),
 	fmCorrectlySetup(false),
 	unisonoVoiceAmount((int)getDefaultValue(ModulatorSynthGroup::SpecialParameters::UnisonoVoiceAmount)),
 	unisonoDetuneAmount((double)getDefaultValue(ModulatorSynthGroup::SpecialParameters::UnisonoDetune)),
@@ -610,6 +655,7 @@ ModulatorSynthGroup::ModulatorSynthGroup(MainController *mc, const String &id, i
 	parameterNames.add("UnisonoVoiceAmount");
 	parameterNames.add("UnisonoDetune");
 	parameterNames.add("UnisonoSpread");
+	parameterNames.add("ForceMono");
 
 	allowStates.clear();
 
@@ -681,7 +727,12 @@ void ModulatorSynthGroup::setInternalAttribute(int index, float newValue)
 		if (carrierIndex != nv)
 		{
 			carrierIndex = nv;
+
 			checkFmState();
+
+			auto c = getFMCarrier();
+
+			carrierIsSampler = dynamic_cast<ModulatorSampler*>(c) != nullptr;
 		}
 
 		break;
@@ -689,6 +740,7 @@ void ModulatorSynthGroup::setInternalAttribute(int index, float newValue)
 	case UnisonoVoiceAmount: setUnisonoVoiceAmount((int)newValue); break;
 	case UnisonoDetune:		 setUnisonoDetuneAmount(newValue); break;
 	case UnisonoSpread:		 setUnisonoSpreadAmount(newValue); break;
+	case ForceMono:			 forceMono = newValue > 0.5f; break;
 	default:				 jassertfalse;
 	}
 }
@@ -708,6 +760,7 @@ float ModulatorSynthGroup::getAttribute(int index) const
 	case UnisonoVoiceAmount: return (float)unisonoVoiceAmount;
 	case UnisonoDetune:		 return (float)unisonoDetuneAmount;
 	case UnisonoSpread:		 return unisonoSpreadAmount;
+	case ForceMono:			 return forceMono ? 1.0f : 0.0f;
 	default:				 jassertfalse; return -1.0f;
 	}
 }
@@ -727,23 +780,10 @@ float ModulatorSynthGroup::getDefaultValue(int parameterIndex) const
 	case CarrierIndex:	 return (float)-1;
 	case UnisonoVoiceAmount: return 1.0f;
 	case UnisonoDetune:		 return 0.0f;
-	case UnisonoSpread:		 return 0.0f;
+	case UnisonoSpread:		 return 1.0f;
+	case ForceMono:		 return 0.0f;
 	default:			 jassertfalse; return -1.0f;
 	}
-}
-
-
-bool ModulatorSynthGroup::handleSoftBypass()
-{
-	ModulatorSynth *child;
-	ChildSynthIterator iterator(this, ChildSynthIterator::SkipUnallowedSynths);
-
-	while (iterator.getNextAllowedChild(child))
-	{
-		child->handleSoftBypass();
-	}
-
-	return ModulatorSynth::handleSoftBypass();
 }
 
 ModulatorSynth* ModulatorSynthGroup::getFMModulator()
@@ -751,13 +791,21 @@ ModulatorSynth* ModulatorSynthGroup::getFMModulator()
 	if (fmIsCorrectlySetup())
 	{
 		auto offset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
-
 		return static_cast<ModulatorSynth*>(getChildProcessor(modIndex - 1 + offset));
 	}
 	else
-	{
 		return nullptr;
+}
+
+const ModulatorSynth* ModulatorSynthGroup::getFMModulator() const
+{
+	if (fmIsCorrectlySetup())
+	{
+		auto offset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
+		return static_cast<const ModulatorSynth*>(getChildProcessor(modIndex - 1 + offset));
 	}
+	else
+		return nullptr;
 }
 
 ModulatorSynth* ModulatorSynthGroup::getFMCarrier()
@@ -768,8 +816,19 @@ ModulatorSynth* ModulatorSynthGroup::getFMCarrier()
 	else
 	{
 		auto offset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
-
 		return static_cast<ModulatorSynth*>(getChildProcessor(carrierIndex - 1 + offset));
+	}
+}
+
+const ModulatorSynth* ModulatorSynthGroup::getFMCarrier() const
+{
+	if (carrierIndex == -1)
+		return nullptr;
+
+	else
+	{
+		auto offset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
+		return static_cast<const ModulatorSynth*>(getChildProcessor(carrierIndex - 1 + offset));
 	}
 }
 
@@ -954,6 +1013,81 @@ void ModulatorSynthGroup::postVoiceRendering(int startSample, int numThisTime)
 	ModulatorSynth::postVoiceRendering(startSample, numThisTime);
 }
 
+
+void ModulatorSynthGroup::handleRetriggeredNote(ModulatorSynthVoice *voice)
+{
+	if (carrierIsSampler)
+	{
+		getFMCarrier()->handleRetriggeredNote(voice);
+	}
+	else
+	{
+		ModulatorSynth::handleRetriggeredNote(voice);
+	}
+}
+
+void ModulatorSynthGroup::killAllVoices()
+{
+	for (int i = 0; i < voices.size(); i++)
+	{
+		auto v = static_cast<ModulatorSynthGroupVoice*>(getVoice(i));
+
+		v->killVoice();
+
+		for (auto c : v->childSynths)
+		{
+			if (c.isActiveForThisVoice)
+			{
+				static_cast<ModulatorSynthVoice*>(c.synth->getVoice(i))->killVoice();
+			}
+		}
+	}
+}
+
+void ModulatorSynthGroup::resetAllVoices()
+{
+	ModulatorSynth::resetAllVoices();
+
+	for (auto s : synths)
+		s->resetAllVoices();
+}
+
+String ModulatorSynthGroup::getFMStateString() const
+{
+	auto offset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
+
+	if (fmEnabled)
+	{
+		if (carrierIndex == -1 || getChildProcessor(carrierIndex - 1 + offset) == nullptr)
+		{
+			return "The carrier syntesizer is not valid.";
+		}
+		else if (modIndex == -1 || getChildProcessor(modIndex - 1 + offset) == nullptr)
+		{
+			return "The modulation synthesizer is not valid.";
+		}
+		else if (modIndex == carrierIndex)
+		{
+			return "You can't use the same synthesiser as carrier and modulator.";
+		}
+		else
+		{
+			return "FM is working.";
+		}
+	}
+	else
+	{
+		if (auto c = getFMCarrier())
+		{
+			return c->getId() + " is soloed (no FM)";
+		}
+		else
+		{
+			return "FM is deactivated";
+		}
+	}
+}
+
 void ModulatorSynthGroup::restoreFromValueTree(const ValueTree &v)
 {
 	ModulatorSynth::restoreFromValueTree(v);
@@ -983,47 +1117,49 @@ ValueTree ModulatorSynthGroup::exportAsValueTree() const
 
 void ModulatorSynthGroup::checkFmState()
 {
+	getMainController()->getKillStateHandler().killVoicesAndCall(this, 
+		[](Processor* p) {dynamic_cast<ModulatorSynthGroup*>(p)->checkFMStateInternally(); return true; },
+		MainController::KillStateHandler::TargetThread::AudioThread);
+
+
+	sendChangeMessage();
+}
+
+
+
+void ModulatorSynthGroup::checkFMStateInternally()
+{
 	auto offset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
 
-	killAllVoices();
+	jassert(!areVoicesActive());
 
 	if (fmEnabled)
 	{
-		
-
 		if (carrierIndex == -1 || getChildProcessor(carrierIndex - 1 + offset) == nullptr)
 		{
-			fmState = "The carrier syntesizer is not valid.";
 			fmCorrectlySetup = false;
 		}
 		else if (modIndex == -1 || getChildProcessor(modIndex - 1 + offset) == nullptr)
 		{
-			fmState = "The modulation synthesizer is not valid.";
 			fmCorrectlySetup = false;
 		}
 		else if (modIndex == carrierIndex)
 		{
-			fmState = "You can't use the same synthesiser as carrier and modulator.";
 			fmCorrectlySetup = false;
 		}
 		else
 		{
-			fmState = "FM is working.";
 			fmCorrectlySetup = true;
-
-			getFMModulator()->resetAllVoices();
-		}	
+		}
 	}
 	else
 	{
-		if (auto c = getFMCarrier())
+		if (getFMCarrier() != nullptr)
 		{
-			fmState = c->getId() + " is soloed (no FM)";
 			fmCorrectlySetup = false;
 		}
 		else
 		{
-			fmState = "FM is deactivated";
 			fmCorrectlySetup = false;
 		}
 	}
@@ -1035,10 +1171,7 @@ void ModulatorSynthGroup::checkFmState()
 		static_cast<ModulatorSynth*>(getChildProcessor(carrierIndex - 1 + offset))->enablePitchModulation(true);
 	}
 
-	sendChangeMessage();
 }
-
-
 
 void ModulatorSynthGroup::ModulatorSynthGroupHandler::add(Processor *newProcessor, Processor * /*siblingToInsertBefore*/)
 {
@@ -1105,7 +1238,7 @@ void ModulatorSynthGroup::ModulatorSynthGroupHandler::add(Processor *newProcesso
 }
 
 
-void ModulatorSynthGroup::ModulatorSynthGroupHandler::remove(Processor *processorToBeRemoved)
+void ModulatorSynthGroup::ModulatorSynthGroupHandler::remove(Processor *processorToBeRemoved, bool removeSynth)
 {
 	{
 		MainController::ScopedSuspender ss(group->getMainController(), MainController::ScopedSuspender::LockType::Lock);
@@ -1117,7 +1250,7 @@ void ModulatorSynthGroup::ModulatorSynthGroupHandler::remove(Processor *processo
 			static_cast<ModulatorSynthGroupVoice*>(group->getVoice(i))->removeChildSynth(m);
 		}
 
-		group->synths.removeObject(m);
+		group->synths.removeObject(m, removeSynth);
 
 		group->checkFmState();
 	}
@@ -1223,3 +1356,5 @@ ModulatorSynth* ModulatorSynthGroupVoice::Iterator::getNextActiveChildSynth()
 		return nullptr;
 	}
 }
+
+} // namespace hise

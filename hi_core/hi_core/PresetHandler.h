@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -32,6 +32,8 @@
 
 #ifndef PRESET_HANDLER_H_INCLUDED
 #define PRESET_HANDLER_H_INCLUDED
+
+namespace hise { using namespace juce;
 
 #define PRESET_MENU_ITEM_DELTA 80
 #define CLIPBOARD_ITEM_MENU_INDEX 999
@@ -245,6 +247,9 @@ public:
 		static String getSanitiziedFileNameForPoolReference(const String &absoluteFileName);
 		
 		static void setSampleLocation(const File &newLocation);
+
+		static File getSampleLinkFile();
+
 		static File getUserPresetDirectory();
 		
 		static String getProjectName();
@@ -258,6 +263,8 @@ public:
 		/** on IOS this returns the folder where all the resources (samples, images, etc) are found.
 		*	It uses a shared folder for both the AUv3 and Standalone version in order to avoid duplicating the data. */
 		static File getResourcesFolder();
+
+		static const bool checkSamplesCorrectlyInstalled();
 	};
 
 	static File getLinkFile(const File &subDirectory);
@@ -892,5 +899,7 @@ public:
 	static void addInstrumentToPackageXml(const String &instrumentFileName, const String &packageName);
 
 };
+
+} // namespace hise
 
 #endif

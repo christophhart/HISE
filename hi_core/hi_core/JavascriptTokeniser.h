@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,6 +33,7 @@
 #ifndef JAVASCRIPT_TOKENISER_H_INCLUDED
 #define JAVASCRIPT_TOKENISER_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 class JavascriptTokeniser    : public CodeTokeniser
 {
@@ -67,5 +68,6 @@ private:
     JUCE_LEAK_DETECTOR (JavascriptTokeniser)
 };
 
+} // namespace hise
 
 #endif   // JUCE_CPLUSPLUSCODETOKENISER_H_INCLUDED

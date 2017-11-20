@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-
+namespace hise { using namespace juce;
 
 void ProcessorWithScriptingContent::setControlValue(int index, float newValue)
 {
@@ -48,14 +48,17 @@ void ProcessorWithScriptingContent::setControlValue(int index, float newValue)
 			{
 				if (int group = b->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::Properties::radioGroup))
 				{
-					for (int i = 0; i < content->getNumComponents(); i++)
+					if (newValue > 0.5f)
 					{
-						if (i == index) continue;
-						
-						if (auto other = dynamic_cast<ScriptingApi::Content::ScriptButton*>(content->getComponent(i)))
+						for (int i = 0; i < content->getNumComponents(); i++)
 						{
-							if ((int)other->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::Properties::radioGroup) == group)
-								other->setValue(0);
+							if (i == index) continue;
+
+							if (auto other = dynamic_cast<ScriptingApi::Content::ScriptButton*>(content->getComponent(i)))
+							{
+								if ((int)other->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::Properties::radioGroup) == group)
+									other->setValue(0);
+							}
 						}
 					}
 				}
@@ -204,19 +207,6 @@ void ProcessorWithScriptingContent::saveContent(ValueTree &savedState) const
 		savedState.addChild(content->exportAsValueTree(), -1, nullptr);
 }
 
-
-ScriptingApi::Content::ScriptComponent * ProcessorWithScriptingContent::checkContentChangedInPropertyPanel()
-{
-	if (content.get() == nullptr) return nullptr;
-
-	for (int i = 0; i < content->getNumComponents(); i++)
-	{
-		if (content->getComponent(i)->isChanged()) return content->getComponent(i);
-	}
-
-	return nullptr;
-}
-
 FileChangeListener::~FileChangeListener()
 {
 	watchers.clear();
@@ -334,6 +324,13 @@ void JavascriptProcessor::showPopupForCallback(const Identifier& callback, int /
 }
 
 
+void JavascriptProcessor::cleanupEngine()
+{
+	mainController->getScriptComponentEditBroadcaster()->clearSelection(sendNotification);
+	scriptEngine = nullptr;
+	dynamic_cast<ProcessorWithScriptingContent*>(this)->content = nullptr;
+}
+
 void JavascriptProcessor::setCallStackEnabled(bool shouldBeEnabled)
 {
 	callStackEnabled = shouldBeEnabled;
@@ -445,14 +442,20 @@ lastCompileWasOK(false),
 currentCompileThread(nullptr),
 lastResult(Result::ok())
 {
-
+	
 }
 
 
 
 JavascriptProcessor::~JavascriptProcessor()
 {
+	
+
+	
+
 	deleteAllPopups();
+
+	
 
 	scriptEngine = nullptr;
 }
@@ -484,9 +487,13 @@ void JavascriptProcessor::clearExternalWindows()
 
 JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 {
+	
+
 	ProcessorWithScriptingContent* thisAsScriptBaseProcessor = dynamic_cast<ProcessorWithScriptingContent*>(this);
 
 	ScriptingApi::Content* content = thisAsScriptBaseProcessor->getScriptingContent();
+
+	content->clearRequiredUpdate();
 
 	const bool saveThisContent = lastCompileWasOK && content != nullptr && !useStoredContentData;
 
@@ -494,6 +501,8 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 		thisAsScriptBaseProcessor->restoredContentValues = content->exportAsValueTree();
 
 	auto thisAsProcessor = dynamic_cast<Processor*>(this);
+
+	thisAsProcessor->getMainController()->getScriptComponentEditBroadcaster()->clearSelection(sendNotification);
 
     ScopedLock callbackLock(thisAsProcessor->isOnAir() ? mainController->getLock() : thisAsProcessor->getDummyLockWhenNotOnAir());
 
@@ -507,6 +516,7 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	content = thisAsScriptBaseProcessor->getScriptingContent();
 
+	content->beginInitialization();
     scriptEngine->setIsInitialising(true);
     
 	if(cycleReferenceCheckEnabled)
@@ -585,12 +595,70 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	lastCompileWasOK = true;
 
+	if (thisAsProcessor->getMainController()->getScriptComponentEditBroadcaster()->isBeingEdited(thisAsProcessor))
+	{
+		debugToConsole(thisAsProcessor, "Compiled OK");
+	}
+	
+
 	postCompileCallback();
 
 	return SnippetResult(Result::ok(), getNumSnippets());
 }
 
 
+
+void JavascriptProcessor::storeCurrentInterfaceStateInContentProperties()
+{
+	auto pwsc = dynamic_cast<ProcessorWithScriptingContent*>(this);
+
+	if (auto content = pwsc->getScriptingContent())
+	{
+		ScriptingApi::Content::Helpers::copyComponentSnapShotToValueTree(content);
+
+		PresetHandler::showMessageWindow("Sucess", "The current state was copied into the internal object.\nYou can now safely delete all JSON definitions and unneeded widget.set() calls", PresetHandler::IconType::Info);
+
+#if 0
+		ValueTree v("ContentProperties");
+
+		for (int i = 0; i < content->getNumComponents(); i++)
+		{
+			auto sc = content->getComponent(i);
+
+			auto newProps = sc->getNonDefaultScriptObjectProperties();
+
+			newProps.getDynamicObject()->setProperty("x", sc->getPosition().getX());
+			newProps.getDynamicObject()->setProperty("y", sc->getPosition().getY());
+			newProps.getDynamicObject()->setProperty("width", sc->getPosition().getWidth());
+			newProps.getDynamicObject()->setProperty("height", sc->getPosition().getHeight());
+
+			newProps.getDynamicObject()->setProperty("id", sc->getName().toString());
+			newProps.getDynamicObject()->setProperty("type", sc->getObjectName().toString());
+
+			ValueTree child("Component");
+
+			ValueTreeConverters::copyDynamicObjectPropertiesToValueTree(child, newProps);
+
+			v.addChild(child, -1, nullptr);
+		}
+
+		
+		Result r = pwsc->getScriptingContent()->createComponentsFromValueTree(v);
+
+		if (r.wasOk())
+		{
+			compileScript();
+
+			PresetHandler::showMessageWindow("Sucess", "The current state was copied into the internal object.\nYou can now safely delete all JSON definitions and unneeded widget.set() calls", PresetHandler::IconType::Info);
+		}
+		else
+		{
+			PresetHandler::showMessageWindow("Error", r.getErrorMessage(), PresetHandler::IconType::Error);
+		}
+
+#endif
+	}
+}
 
 JavascriptProcessor::SnippetResult JavascriptProcessor::compileScript()
 {
@@ -653,6 +721,8 @@ void JavascriptProcessor::setupApi()
 {
 	clearFileWatchers();
 
+	dynamic_cast<ProcessorWithScriptingContent*>(this)->getScriptingContent()->cleanJavascriptObjects();
+
 	scriptEngine = new HiseJavascriptEngine(this);
 
 	scriptEngine->addBreakpointListener(this);
@@ -703,6 +773,69 @@ const JavascriptProcessor::SnippetDocument * JavascriptProcessor::getSnippet(con
 	return nullptr;
 }
 
+#if 0
+void JavascriptProcessor::DelayedPositionUpdater::scriptComponentChanged(ReferenceCountedObject *componentThatWasChanged, Identifier idThatWasChanged)
+{
+	if (currentScriptComponent != nullptr)
+	{
+		JavascriptCodeEditor::Helpers::changePositionOfComponent(currentScriptComponent, newPosition.x, newPosition.y);
+	}
+
+	auto sc = dynamic_cast<ScriptComponent*>(componentThatWasChanged);
+
+	if (sc != nullptr)
+	{
+		JavascriptCodeEditor::Helpers::gotoAndReturnDocumentWithDefinition(dynamic_cast<Processor*>(p), sc);
+	}
+
+	currentScriptComponent = sc;
+}
+
+void JavascriptProcessor::DelayedPositionUpdater::scriptComponentUpdated(Identifier idThatWasChanged, var newValue)
+{
+	if (currentScriptComponent != nullptr)
+	{
+		static Identifier xId("x");
+		static const Identifier yId("y");
+
+		if (idThatWasChanged == xId)
+		{
+			int y = currentScriptComponent->getScriptObjectProperty(ScriptComponent::Properties::y);
+			newPosition = Point<int>((int)newValue, y);
+		}
+		else if (idThatWasChanged == yId)
+		{
+			int x = currentScriptComponent->getScriptObjectProperty(ScriptComponent::Properties::x);
+			newPosition = Point<int>(x, (int)newValue);
+		}
+	}
+}
+#endif
+
+CodeDocument* JavascriptProcessor::createAndUpdateJsonDoc()
+{
+	if (contentPropertyDocument == nullptr)
+	{
+		contentPropertyDocument = new CodeDocument();
+
+		String header; 
+		NewLine nl;
+		header << "// Important: This UI JSON Object is autogenerated from the internal data object." << nl;
+		header << "// From now on until you press 'Apply changes' (or hit the F5 button), all other " << nl;
+		header << "// changes you make will be overwritten as soon as you compile this JSON object." << nl << nl;
+
+		auto cTree = dynamic_cast<ProcessorWithScriptingContent*>(this)->getScriptingContent()->getContentProperties();
+
+		auto v = ValueTreeConverters::convertFlatValueTreeToVarArray(cTree);
+		
+		contentPropertyDocument->replaceAllContent(header + JSON::toString(v));
+	}
+
+	return contentPropertyDocument;
+}
+
+
+
 void JavascriptProcessor::saveScript(ValueTree &v) const
 {
 	String x;
@@ -716,12 +849,30 @@ void JavascriptProcessor::saveScript(ValueTree &v) const
 		mergeCallbacksToScript(x);
 	}
 
+	auto pwsc = dynamic_cast<const ProcessorWithScriptingContent*>(this);
+
+	v.addChild(pwsc->getScriptingContent()->getContentProperties().createCopy(), -1, nullptr);
+
 	v.setProperty("Script", x, nullptr);
 }
 
 void JavascriptProcessor::restoreScript(const ValueTree &v)
 {
 	String x = v.getProperty("Script", String());
+
+	auto contentPropertyChild = v.getChildWithName("ContentProperties");
+
+	if (contentPropertyChild.isValid())
+	{
+		auto buildComponents = !mainController->shouldSkipCompiling();
+
+		auto r = dynamic_cast<ProcessorWithScriptingContent*>(this)->getScriptingContent()->createComponentsFromValueTree(contentPropertyChild, buildComponents);
+
+		if (r.failed())
+		{
+			debugError(dynamic_cast<Processor*>(this), r.getErrorMessage());
+		}
+	}
 
 	if (x.startsWith("{EXTERNAL_SCRIPT}"))
 	{
@@ -1034,3 +1185,5 @@ float ScriptBaseMidiProcessor::getDefaultValue(int index) const
 	else
 		return 0.0f;
 }
+
+} // namespace hise

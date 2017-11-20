@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,40 +33,10 @@
 #ifndef MODULATORSAMPLERDATA_H_INCLUDED
 #define MODULATORSAMPLERDATA_H_INCLUDED
 
+namespace hise { using namespace juce;
+
 class ModulatorSampler;
 class ModulatorSamplerSound;
-
-/** A background thread which loads sample data into the preload buffer of a StreamingSamplerSound
-*	@ingroup sampler
-*
-*	Whenever you need to change the preloadSize, create an instance of this
-*/
-class SoundPreloadThread: public ThreadWithQuasiModalProgressWindow
-{
-public:
-
-	/** Creates a preload thread which preloads all sounds from the supplied sampler. */
-	SoundPreloadThread(ModulatorSampler *s);;
-
-	/** Creates a preload thread which preloads all sounds from the pointer array. 
-	*
-	*	This can be used to only preload a selection (which is the case when changing sample starts).
-	*/
-	SoundPreloadThread(ModulatorSampler *s, Array<ModulatorSamplerSound*> soundsToPreload_);;
-
-	/** preloads either all sounds from the sampler or the list of sounds that was passed in the constructor. */
-	void run() override;
-
-	void preloadSample(StreamingSamplerSound * s, const int preloadSize, int soundIndex);
-
-private:
-
-	AlertWindowLookAndFeel laf;
-
-	Array<ModulatorSamplerSound*> soundsToPreload;
-
-	ModulatorSampler *sampler;
-};
 
 /** Handles all thumbnail related stuff
 *	@ingroup sampler
@@ -147,23 +117,6 @@ private:
 	ModulatorSampler *sampler;
 };
 
-/** Writes all samples that are loaded into the sampler to the specified filenames.
-*	@ingroup sampler
-*
-*	The number of loaded samples must be the same as the size of the filename array.
-*/
-class SampleWriter: public ThreadWithProgressWindow
-{
-public:
-	SampleWriter(ModulatorSampler *sampler, const StringArray &fileNames);
-
-	void run() override;
-
-private:
-
-	ModulatorSampler *sampler;
-	StringArray fileNames;
-};
 
 /** A SampleMap is a data structure that encapsulates all data loaded into an ModulatorSampler. 
 *	@ingroup sampler
@@ -338,7 +291,7 @@ private:
 };
 
 
-class MonolithExporter : public ThreadWithAsyncProgressWindow,
+class MonolithExporter : public DialogWindowWithBackgroundThread,
 						 public AudioFormatWriter
 {
 public:
@@ -346,7 +299,7 @@ public:
 	MonolithExporter(SampleMap* sampleMap_);
 
 	MonolithExporter(const String &name, ModulatorSynthChain* chain) :
-		ThreadWithAsyncProgressWindow(name),
+		DialogWindowWithBackgroundThread(name),
 		AudioFormatWriter(nullptr, "", 0.0, 0, 1),
 		sampleMapDirectory(GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps)),
 		monolithDirectory(GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::Samples)),
@@ -413,5 +366,5 @@ private:
 	String error;
 };
 
-
+} // namespace hise
 #endif  // MODULATORSAMPLERDATA_H_INCLUDED

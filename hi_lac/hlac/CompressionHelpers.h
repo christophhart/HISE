@@ -1,5 +1,5 @@
 /*  HISE Lossless Audio Codec
-*	©2017 Christoph Hart
+*	ï¿½2017 Christoph Hart
 *
 *	Redistribution and use in source and binary forms, with or without modification,
 *	are permitted provided that the following conditions are met:
@@ -31,6 +31,8 @@
 
 #ifndef COMPRESSIONHELPERS_H_INCLUDED
 #define COMPRESSIONHELPERS_H_INCLUDED
+
+namespace hlac { using namespace juce; 
 
 #define DUMP(x) CompressionHelpers::dump(x);
 
@@ -286,6 +288,8 @@ struct HlacArchiver
 
 	struct Listener
 	{
+        virtual ~Listener() {};
+        
 		virtual void logStatusMessage(const String& message) = 0;
 
 		virtual void logVerboseMessage(const String& verboseMessage) = 0;
@@ -340,6 +344,6 @@ private:
 };
 
 
-
+} // namespace hlac
 
 #endif  // COMPRESSIONHELPERS_H_INCLUDED

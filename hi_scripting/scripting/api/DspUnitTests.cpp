@@ -206,4 +206,307 @@ public:
 
 static DspUnitTests dspUnitTest;
 
+
+class CustomContainerTest : public UnitTest
+{
+public:
+
+	struct DummyStruct
+	{
+		DummyStruct(int index_) :
+			index(index_)
+		{};
+
+		DummyStruct() :
+			index(0)
+		{}
+
+		int index;
+	};
+
+	struct DummyStruct2
+	{
+		DummyStruct2(int a1, int a2, int a3, int a4) :
+			a({ a1, a2, a3, a4 })
+		{
+
+		}
+
+		DummyStruct2() :
+			a({ 0, 0, 0, 0 })
+		{}
+
+
+		int getSum() const
+		{
+			int sum = 0;
+			for (auto a_ : a)
+				sum += a_;
+
+			return sum;
+		}
+
+	private:
+
+		std::vector<int> a;
+
+	};
+
+	CustomContainerTest() :
+		UnitTest("Testing custom containers")
+	{
+
+	}
+
+	void runTest() override
+	{
+		testingUnorderedStack();
+
+		testingLockFreeQueue();
+	}
+
+private:
+
+	void testingUnorderedStack()
+	{
+		beginTest("Testing Unordered Stack: basic functions with ints");
+
+		UnorderedStack<int> intStack;
+
+		intStack.insert(1);
+		intStack.insert(2);
+		intStack.insert(3);
+
+		expectEquals<int>(intStack.size(), 3, "Size after insertion");
+
+		intStack.remove(2);
+
+		expectEquals<int>(intStack.size(), 2, "Size after deletion");
+
+		intStack.insert(4);
+
+		expectEquals<int>(intStack[0], 1, "First Element");
+		expectEquals<int>(intStack[1], 3, "Second Element");
+		expectEquals<int>(intStack[2], 4, "Third Element");
+		expectEquals<int>(intStack[3], 0, "Default Element");
+
+		expect(intStack.contains(4), "Contains int 1");
+		expect(!intStack.contains(5), "Contains int 1");
+
+		const float data[5] = { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f };
+
+		beginTest("Testing Unordered Stack: functions with float pointer");
+
+		UnorderedStack<const float*> fpStack;
+
+		expect(fpStack[0] == nullptr, "Null pointer");
+
+		fpStack.insert(data);
+		fpStack.insert(data + 1);
+		fpStack.insert(data + 2);
+		fpStack.insert(data + 3);
+		fpStack.insert(data + 4);
+
+		expectEquals<int>(fpStack.size(), 5);
+
+		expect(fpStack[5] == nullptr, "Null pointer 2");
+
+		expectEquals<float>(*fpStack[0], data[0], "Float pointer elements");
+		expectEquals<float>(*fpStack[1], data[1], "Float pointer elements");
+		expectEquals<float>(*fpStack[2], data[2], "Float pointer elements");
+		expectEquals<float>(*fpStack[3], data[3], "Float pointer elements");
+		expectEquals<float>(*fpStack[4], data[4], "Float pointer elements");
+
+		expect(fpStack.contains(data + 2), "Contains float* 1");
+
+		float d2 = 2.0f;
+
+		expect(!fpStack.contains(&d2), "Contains not float 2");
+		expect(!fpStack.contains(nullptr), "No null");
+
+		fpStack.remove(data + 2);
+
+		fpStack.insert(data + 2);
+
+		expectEquals<float>(*fpStack[0], data[0], "Float pointer elements after shuffle 1");
+		expectEquals<float>(*fpStack[1], data[1], "Float pointer elements after shuffle 2");
+		expectEquals<float>(*fpStack[2], data[4], "Float pointer elements after shuffle 3");
+		expectEquals<float>(*fpStack[3], data[3], "Float pointer elements after shuffle 4");
+		expectEquals<float>(*fpStack[4], data[2], "Float pointer elements after shuffle 5");
+
+		beginTest("Testing Unordered Stack: with dummy struct");
+
+		OwnedArray<DummyStruct> elements;
+
+		UnorderedStack<DummyStruct*> elementStack;
+
+		for (int i = 0; i < UNORDERED_STACK_SIZE; i++)
+		{
+			elements.add(new DummyStruct(i));
+		}
+
+		Random r;
+
+		for (int i = 0; i < 1000; i++)
+		{
+			const int indexToInsert = r.nextInt(Range<int>(0, elements.size() - 1));
+
+			auto ds = elements[indexToInsert];
+
+			if (!elements.contains(ds))
+			{
+				elementStack.insert(ds);
+			}
+			else
+			{
+				elementStack.remove(ds);
+			}
+		}
+
+		for (int i = 0; i < elementStack.size(); i++)
+		{
+			expect(elementStack[i] != nullptr);
+		}
+
+		for (int i = elementStack.size(); i < UNORDERED_STACK_SIZE; i++)
+		{
+			expect(elementStack[i] == nullptr);
+		}
+	}
+
+	void testingLockFreeQueue()
+	{
+
+		testLockFreeQueueWithInt();
+		testLockFreeQueueWithDummyStruct();
+		testLockFreeQueueWithLambda();
+
+
+	}
+
+	void testLockFreeQueueWithInt()
+	{
+		beginTest("Testing Lockfree Queue with ints");
+
+		LockfreeQueue<int> q(1024);
+
+		expect(q.push(1), "Push first element");
+		expect(q.push(2), "Push second element");
+		expect(q.push(3), "Push third element");
+
+		expectEquals(q.size(), 3, "Size");
+
+		int result;
+
+		expect(q.pop(result), "Pop First Element");
+		expectEquals<int>(result, 1, "first element value");
+
+		expect(q.pop(result), "Pop Second Element");
+		expectEquals<int>(result, 2, "second element value");
+
+		expect(q.pop(result), "Pop Third Element");
+		expectEquals<int>(result, 3, "third element value");
+
+		expect(q.isEmpty(), "Queue is empty");
+		expect(q.pop(result) == false, "Return false when empty");
+
+
+		q.push(1);
+		q.push(2);
+		q.push(3);
+
+		int sum = 0;
+
+		LockfreeQueue<int>::ElementFunction makeSum = [&sum](int& i)->bool { sum += i; return i != 0; };
+
+		expect(q.callForEveryElementInQueue(makeSum), "Call function for element");
+
+		expect(q.isEmpty(), "Empty after call");
+		expectEquals<int>(sum, 6, "Function call result");
+
+
+	};
+
+	void testLockFreeQueueWithDummyStruct()
+	{
+		beginTest("Testing Lockfree Queue with dummy struct");
+
+		LockfreeQueue<DummyStruct2> q2(3);
+
+		expect(q2.push(DummyStruct2(1, 2, 3, 4)), "Pushing first dummy struct");
+		expect(q2.push(DummyStruct2(2, 3, 4, 5)), "Pushing second dummy struct");
+		expect(q2.push(DummyStruct2(3, 4, 5, 6)), "Pushing third dummy struct");
+		expect(q2.push(DummyStruct2(4, 5, 6, 7)) == false, "Pushing forth dummy struct");
+		expect(q2.push(DummyStruct2(4, 5, 6, 7)) == false, "Pushing fifth dummy struct");
+
+		DummyStruct2 result;
+
+
+		expect(q2.pop(result), "Pop first element");
+		expectEquals<int>(result.getSum(), 1 + 2 + 3 + 4, "Sum of first element");
+
+		int sum = 0;
+
+		LockfreeQueue<DummyStruct2>::ElementFunction makeSum = [&sum](DummyStruct2& s)->bool{ sum += s.getSum(); return true; };
+
+		const int expectedSum = 2 + 3 + 4 + 5 + 3 + 4 + 5 + 6;
+
+		q2.callForEveryElementInQueue(makeSum);
+
+		expect(q2.isEmpty(), "Queue is empty");
+		expectEquals<int>(sum, expectedSum, "Accumulate function calls");
+
+	}
+
+	void testLockFreeQueueWithLambda()
+	{
+		beginTest("Testing Lockfree Queue with lambda");
+
+		using TestFunction = std::function<bool()>;
+
+		LockfreeQueue<TestFunction> q(100);
+
+		int sum = 0;
+
+		TestFunction addTwo = [&sum]() { sum += 2; return true; };
+
+		LockfreeQueue<TestFunction>::ElementFunction call = [](TestFunction& f) {f(); return true; };
+
+		call(addTwo);
+		call(addTwo);
+		call(addTwo);
+
+		expectEquals<int>(sum, 6, "lambda is working");
+
+		sum = 0;
+
+		q.push([&sum]() {sum += 1; return true; });
+		q.push([&sum]() {sum += 2; return true; });
+		q.push([&sum]() {sum += 3; return true; });
+		
+		q.callForEveryElementInQueue(call);
+
+		expect(q.isEmpty(), "Queue empty after calling");
+
+		expectEquals<int>(sum, 6, "Result after calling");
+
+		sum = 0;
+
+		q.push([&sum]() {sum += 2; return true; });
+		q.push([&sum]() {sum += 3; return true; });
+		q.push([&sum]() {sum += 4; return true; });
+
+		expect(q.callEveryElementInQueue(), "Direct call");
+		expectEquals<int>(sum, 9, "Result after direct call");
+	}
+
+};
+
+
+static CustomContainerTest unorderedStackTest;
+
+
+
+
+
 #endif

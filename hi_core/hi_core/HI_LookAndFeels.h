@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,6 +33,7 @@
 #ifndef HI_LOOKANDFEELS_H_INCLUDED
 #define HI_LOOKANDFEELS_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 /** A class that provides the image data from the binary resources. It selects the correct image size based on the dpi scaling of the display to support retina displays. */
 class ImageProvider
@@ -1564,5 +1565,6 @@ private:
 	Image unticked;
 };
 
+} // namespace hise
 
 #endif

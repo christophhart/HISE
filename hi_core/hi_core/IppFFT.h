@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -31,6 +31,8 @@
 */
 #ifndef IPPFFT_H_INCLUDED
 #define IPPFFT_H_INCLUDED
+
+namespace hise { using namespace juce;
 
 #define IPP_FFT_MAX_POWER_OF_TWO 16
 
@@ -178,6 +180,6 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(IppFFT)
 };
 
-
+} // namespace hise
 
 #endif  // IPPFFT_H_INCLUDED

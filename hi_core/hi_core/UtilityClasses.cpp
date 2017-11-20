@@ -23,13 +23,14 @@
 *   http ://www.hartinstruments.net/hise/
 *
 *   HISE is based on the JUCE library,
-*which must be separately licensed for cloused source applications :
+*which must be separately licensed for closed source applications :
 *
 *   http ://www.juce.com
 *
 * == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == =
 */
 
+namespace hise { using namespace juce;
 
 
 #if  JUCE_MAC
@@ -69,6 +70,9 @@ ScopedGlitchDetector::ScopedGlitchDetector(Processor* const processor, int locat
 
 ScopedGlitchDetector::~ScopedGlitchDetector() 
 {
+	if (p.get() == nullptr)
+		return;
+
 	DebugLogger& logger = p->getMainController()->getDebugLogger();
 
 	if (logger.isLogging())
@@ -666,27 +670,32 @@ void FloatSanitizers::Test::runTest()
 
 void SafeChangeBroadcaster::sendSynchronousChangeMessage()
 {
-	// Ooops, only call this in the message thread.
-	// Use sendChangeMessage() if you need to send a message from elsewhere.
-	jassert(MessageManager::getInstance()->isThisTheMessageThread() || MessageManager::getInstance()->currentThreadHasLockedMessageManager());
-
-	ScopedLock sl(listeners.getLock());
-
-	for (int i = 0; i < listeners.size(); i++)
+	if (MessageManager::getInstance()->isThisTheMessageThread() || MessageManager::getInstance()->currentThreadHasLockedMessageManager())
 	{
-		if (listeners[i].get() != nullptr)
-		{
-			listeners[i]->changeListenerCallback(this);
-		}
-		else
-		{
-			// Ooops, you called an deleted listener. 
-			// Normally, it would crash now, but since this is really lame, this class only throws an assert!
-			jassertfalse;
+		ScopedLock sl(listeners.getLock());
 
-			listeners.remove(i--);
+		for (int i = 0; i < listeners.size(); i++)
+		{
+			if (listeners[i].get() != nullptr)
+			{
+				listeners[i]->changeListenerCallback(this);
+			}
+			else
+			{
+				// Ooops, you called an deleted listener. 
+				// Normally, it would crash now, but since this is really lame, this class only throws an assert!
+				jassertfalse;
+
+				listeners.remove(i--);
+			}
 		}
 	}
+	else
+	{
+		sendChangeMessage();
+	}
+
+	
 }
 
 void SafeChangeBroadcaster::addChangeListener(SafeChangeListener *listener)
@@ -736,7 +745,7 @@ float BalanceCalculator::getGainFactorForBalance(float balanceValue, bool calcul
 {
 	if (balanceValue == 0.0f) return 1.0f;
 
-	const float balance = balanceValue / 100.0f;
+	const float balance = jlimit(-100.0f, 100.0f, balanceValue / 100.0f);
 
 	float panValue = (float_Pi * (balance + 1.0f)) * 0.25f;
 
@@ -767,3 +776,27 @@ String BalanceCalculator::getBalanceAsString(int balanceValue)
 
 	else return String(balanceValue) + (balanceValue > 0 ? "R" : "L");
 }
+
+SafeFunctionCall::SafeFunctionCall(Processor* p_, const ProcessorFunction& f_) :
+	p(p_),
+	f(f_)
+{
+
+}
+
+SafeFunctionCall::SafeFunctionCall() :
+	p(nullptr),
+	f()
+{
+
+}
+
+bool SafeFunctionCall::call()
+{
+	if (p.get() != nullptr)
+		return f(p.get());
+
+	return false;
+}
+
+} // namespace hise

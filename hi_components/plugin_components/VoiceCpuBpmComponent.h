@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,15 +33,20 @@
 #ifndef VOICECPUBPMCOMPONENT_H_INCLUDED
 #define VOICECPUBPMCOMPONENT_H_INCLUDED
 
+namespace hise { using namespace juce;
+
 class VuMeter;
 
 class VoiceCpuBpmComponent : public Component,
 	public Timer,
-	public ButtonListener
+	public ButtonListener,
+	public MainController::SampleManager::PreloadListener
 {
 public:
 
 	VoiceCpuBpmComponent(MainController *mc_);
+
+	~VoiceCpuBpmComponent();
 
 	// ================================================================================================================
 
@@ -57,7 +62,11 @@ public:
 		mainControllers.swapWith(newMainControllers);
 	}
 
+	void preloadStateChanged(bool isPreloading) override;
+
 private:
+
+	bool preloadActive = false;
 
 	// ================================================================================================================
 
@@ -73,6 +82,6 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VoiceCpuBpmComponent)
 };
 
-
+} // namespace hise
 
 #endif  // VOICECPUBPMCOMPONENT_H_INCLUDED

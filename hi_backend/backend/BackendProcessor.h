@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,6 +33,7 @@
 #ifndef BACKEND_PROCESSOR_H_INCLUDED
 #define BACKEND_PROCESSOR_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 class BackendProcessor;
 
@@ -88,22 +89,34 @@ public:
 
 	void setStateInformation(const void *data,int sizeInBytes) override
 	{
-		ValueTree v = ValueTree::readFromData(data, sizeInBytes);
 
-		String fileName = v.getProperty("ProjectRootFolder", String());
-
-		if (fileName.isNotEmpty())
+		auto f = [data, sizeInBytes](Processor* p)
 		{
-			File root(fileName);
-			if (root.exists() && root.isDirectory())
+			ValueTree v = ValueTree::readFromData(data, sizeInBytes);
+
+			String fileName = v.getProperty("ProjectRootFolder", String());
+
+			if (fileName.isNotEmpty())
 			{
-				GET_PROJECT_HANDLER(synthChain).setWorkingProject(root, nullptr);
+				File root(fileName);
+				if (root.exists() && root.isDirectory())
+				{
+					GET_PROJECT_HANDLER(p).setWorkingProject(root, nullptr);
+				}
 			}
-		}
 
-        loadPreset(v);
+			p->getMainController()->loadPresetFromValueTree(v);
 
-		editorInformation = JSON::parse(v.getProperty("InterfaceData", ""));
+			auto bp = dynamic_cast<BackendProcessor*>(p->getMainController());
+
+			bp->editorInformation = JSON::parse(v.getProperty("InterfaceData", ""));
+
+			return true;
+		};
+
+		getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
+		
+		
 	}
 
 	void processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages);
@@ -183,4 +196,7 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BackendProcessor)
 };
 
+} // namespace hise
+
 #endif
+

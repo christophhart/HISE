@@ -8,11 +8,10 @@
   ==============================================================================
 */
 
-#include "SlotFX.h"
+namespace hise { using namespace juce;
 
 SlotFX::SlotFX(MainController *mc, const String &uid) :
-	MasterEffectProcessor(mc, uid),
-	updater(this)
+	MasterEffectProcessor(mc, uid)
 {
 	createList();
 
@@ -39,20 +38,22 @@ ProcessorEditorBody * SlotFX::createEditor(ProcessorEditor *parentEditor)
 
 void SlotFX::renderWholeBuffer(AudioSampleBuffer &buffer)
 {
-	if (dynamic_cast<EmptyFX*>(wrappedEffect.get()) == nullptr && !wrappedEffect->isBypassed())
+	if (auto w = wrappedEffect.get())
 	{
-        ScopedLock callbackLock(getMainController()->getLock());
-        ScopedReadLock sl(getMainController()->getCompileLock());
-        
-        
-        wrappedEffect->renderAllChains(0, buffer.getNumSamples());
-        wrappedEffect->renderWholeBuffer(buffer);
+		if (dynamic_cast<EmptyFX*>(w) == nullptr && !w->isBypassed())
+		{
+			wrappedEffect->renderAllChains(0, buffer.getNumSamples());
+			wrappedEffect->renderWholeBuffer(buffer);
+		}
 	}
 }
 
-bool SlotFX::setEffect(const String& typeName)
+bool SlotFX::setEffect(const String& typeName, bool synchronously)
 {
 	int index = effectList.indexOf(typeName);
+
+	if (currentIndex == index)
+		return true;
 
 	if (index != -1)
 	{
@@ -62,8 +63,44 @@ bool SlotFX::setEffect(const String& typeName)
 
 		currentIndex = index;
 
+
 		if (wrappedEffect != nullptr)
-			wrappedEffect->sendDeleteMessage();
+		{
+			if (synchronously)
+			{
+				wrappedEffect->sendDeleteMessage();
+
+			}
+			else
+			{
+				auto pendingDeleteEffect = wrappedEffect.release();
+
+				auto df = [pendingDeleteEffect, this]()
+				{
+					pendingDeleteEffect->sendDeleteMessage();
+
+					auto p = this->wrappedEffect.get();
+
+					if (p != nullptr)
+					{
+						for (int i = 0; i < p->getNumInternalChains(); i++)
+						{
+							dynamic_cast<ModulatorChain*>(p->getChildProcessor(i))->setColour(p->getColour());
+						}
+
+						this->sendRebuildMessage(true);
+					}
+
+					delete pendingDeleteEffect;
+				};
+
+				new DelayedFunctionCaller(df, 100);
+			}
+
+			
+		}
+			
+
 
 
 		auto p = dynamic_cast<MasterEffectProcessor*>(f->createProcessor(f->getProcessorTypeIndex(typeName), typeName));
@@ -91,19 +128,11 @@ bool SlotFX::setEffect(const String& typeName)
             
 			wrappedEffect = p;
             
-        
             hasScriptFX = thisIsScriptFX;
 		}
 
-        
-
-        
-		updater.triggerAsyncUpdate();
-        
-
-
-        
-		
+		if (synchronously)
+			sendRebuildMessage(true);
 
 		return true;
 	}
@@ -130,19 +159,4 @@ void SlotFX::createList()
 	f = nullptr;
 }
 
-
-
-void SlotFX::Updater::handleAsyncUpdate()
-{
-    auto p = fx->wrappedEffect.get();
-
-	if (p != nullptr)
-	{
-		for (int i = 0; i < p->getNumInternalChains(); i++)
-		{
-			dynamic_cast<ModulatorChain*>(p->getChildProcessor(i))->setColour(p->getColour());
-		}
-
-		fx->sendRebuildMessage(true);
-	}
-}
+} // namespace hise

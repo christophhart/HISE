@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -78,9 +78,10 @@ Set this to true if you add this module to your existing C++ project and don't e
 #define STANDALONE_STREAMING 1
 #endif
 
-namespace hise
-{
-using namespace juce;
+
+#include "hi_streaming/lockfree_fifo/readerwriterqueue.h"
+
+
 
 #include "hi_streaming/SampleThreadPool.h"
 #include "hi_streaming/MonolithAudioFormat.h"
@@ -89,9 +90,6 @@ using namespace juce;
 #include "hi_streaming/StreamingSamplerVoice.h"
 
 
-
-
-}
 
 
 

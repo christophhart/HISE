@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -32,6 +32,8 @@
 
 #ifndef SAMPLEEDITORCOMPONENTS_H_INCLUDED
 #define SAMPLEEDITORCOMPONENTS_H_INCLUDED
+
+namespace hise { using namespace juce;
 
 class SamplerBody;
 class SampleEditHandler;
@@ -567,6 +569,9 @@ private:
 
 		int compareElements (const ModulatorSamplerSound* first, const ModulatorSamplerSound* second) const
         {
+			if (first == nullptr || second == nullptr)
+				return direction;
+
 			int result = first->getProperty (propertyToSort).toString()
                            .compareNatural (second->getProperty (propertyToSort).toString());
 
@@ -580,5 +585,7 @@ private:
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SamplerSoundTable)
 };
+
+} // namespace hise
 
 #endif  // SAMPLEEDITORCOMPONENTS_H_INCLUDED

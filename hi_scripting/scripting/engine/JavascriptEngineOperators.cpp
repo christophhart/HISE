@@ -1,3 +1,4 @@
+namespace hise { using namespace juce;
 
 struct HiseJavascriptEngine::RootObject::BinaryOperatorBase : public Expression
 {
@@ -363,3 +364,4 @@ struct HiseJavascriptEngine::RootObject::ConditionalOp : public Expression
 	ExpPtr condition, trueBranch, falseBranch;
 };
 
+} // namespace hise

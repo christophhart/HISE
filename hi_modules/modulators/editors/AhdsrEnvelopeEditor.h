@@ -21,7 +21,7 @@
 #define __JUCE_HEADER_A0E3EB6B16ECB822__
 
 //[Headers]     -- You can add your own extra header files here --
-
+namespace hise { using namespace juce;
 
 class AhdsrEnvelopeEditor;
 
@@ -137,6 +137,7 @@ private:
 
 //[EndFile] You can add extra defines here...
 /** \endcond */
+} // namespace hise
 //[/EndFile]
 
 #endif   // __JUCE_HEADER_A0E3EB6B16ECB822__

@@ -23,12 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
+
+namespace hise { using namespace juce;
 
 ProcessorPopupItem::ProcessorPopupItem(ModulatorSynth *synth, BackendProcessorEditor *mainEditor) :
 PopupMenu::CustomComponent(false),
@@ -527,3 +529,5 @@ void ProcessorList::refreshList()
 	setSize(260, getHeightOfAllItems());
 	resized();
 }
+
+} // namespace hise

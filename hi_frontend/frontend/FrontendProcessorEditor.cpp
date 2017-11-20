@@ -23,13 +23,14 @@
 *   http://www.hartinstruments.net/hise/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
 
 FrontendProcessorEditor::FrontendProcessorEditor(FrontendProcessor *fp) :
 AudioProcessorEditor(fp)
@@ -49,7 +50,13 @@ AudioProcessorEditor(fp)
 	
 	container->addAndMakeVisible(deactiveOverlay = new DeactiveOverlay());
 
+
+
 #if !FRONTEND_IS_PLUGIN
+
+
+	deactiveOverlay->setState(DeactiveOverlay::SamplesNotInstalled, !ProjectHandler::Frontend::checkSamplesCorrectlyInstalled());
+
 	deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, !fp->areSamplesLoadedCorrectly());
 #else
 
@@ -161,3 +168,5 @@ void FrontendProcessorEditor::resized()
 	loaderOverlay->setBounds(0, 0, width, height);
 	debugLoggerComponent->setBounds(0, height-90, width, 90);
 }
+
+} // namespace hise

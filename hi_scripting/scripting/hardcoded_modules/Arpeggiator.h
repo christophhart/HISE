@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -32,6 +32,8 @@
 
 #ifndef ARPEGGIATOR_H_INCLUDED
 #define ARPEGGIATOR_H_INCLUDED
+
+namespace hise { using namespace juce;
 
 /** A hardcoded midi script arpeggiator.
 *
@@ -70,7 +72,6 @@ private:
 
 	double timeInterval = 1.0;
 	
-	Array<double> timeSigValArray;
 	Array<int> userHeldKeysArray;
 	Array<int> userHeldKeysArraySorted;
 	Array<int> currentlyPlayingKeys;
@@ -126,8 +127,6 @@ private:
 	int last_tied_note = -1;
 	bool dir_needs_change = false;
 	int curTiedNote = -1;
-
-	static Array<double> createTempoDivisionValueArrayViaStringArray(const String& tempoValues);
 
 	void changeDirection();;
 
@@ -218,14 +217,13 @@ private:
 	ScriptingApi::Content::ScriptSliderPack *velocitySliderPack;
 	ScriptingApi::Content::ScriptSliderPack *lengthSliderPack;
 	ScriptingApi::Content::ScriptButton *bypassButton;
-	ScriptingApi::Content::ScriptSlider *internalBPMSlider;
 	ScriptingApi::Content::ScriptSlider *numStepSlider;
-	ScriptingApi::Content::ScriptButton* syncHostButton;
 	ScriptingApi::Content::ScriptButton* sortKeysButton;
-	ScriptingApi::Content::ScriptComboBox* speedComboBox;
+	ScriptingApi::Content::ScriptSlider* speedKnob;
 	ScriptingApi::Content::ScriptComboBox* sequenceComboBox;
 	ScriptingApi::Content::ScriptSlider *stepReset;
 	ScriptingApi::Content::ScriptSlider *stepSkipSlider;
+	ScriptingApi::Content::ScriptButton *resetButton;
 	ScriptingApi::Content::ScriptSlider *currentStepSlider;
 	ScriptingApi::Content::ScriptSlider *octaveSlider;
 	ScriptingApi::Content::ScriptSlider *shuffleSlider;
@@ -234,5 +232,5 @@ private:
 
 
 
-
+} // namespace hise
 #endif  // ARPEGGIATOR_H_INCLUDED

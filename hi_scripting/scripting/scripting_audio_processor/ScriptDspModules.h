@@ -33,6 +33,7 @@
 #ifndef SCRIPTDSPMODULES_H_INCLUDED
 #define SCRIPTDSPMODULES_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 #ifndef FILL_PARAMETER_ID
 #define FILL_PARAMETER_ID(enumClass, enumId, size, text) case (int)enumClass::enumId: strcpy(text, #enumId); size = (int)strlen(text); break;
@@ -1826,4 +1827,5 @@ class HiseCoreDspFactory : public StaticDspFactory
 
 #undef FILL_PARAMETER_ID
 
+} // namespace hise
 #endif  // SCRIPTDSPMODULES_H_INCLUDED

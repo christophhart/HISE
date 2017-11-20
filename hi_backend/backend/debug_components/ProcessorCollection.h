@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -40,6 +40,8 @@
 
 #define COLLECTION_WIDTH 380
 #define ITEM_WIDTH (380 - 16 - 8 - 24)
+
+namespace hise { using namespace juce;
 
 /** A fuzzy search algorithm that uses the Levenshtein distance algorithm to find approximate strings. */
 class FuzzySearcher
@@ -93,6 +95,11 @@ public:
 			searchKeywords(searchString)
 		{}
 
+		~Item()
+		{
+			searchKeywords = String();
+		}
+
 		/** A basic component which is displayed whenever the user clicks right on the item.
 		*
 		*	It can be used to show additional information.
@@ -136,7 +143,7 @@ public:
 		bool usePopupMenu;
 		bool isSelected;
 		bool includedInSearch;
-		const String searchKeywords;
+		String searchKeywords;
 
 	private:
 
@@ -206,6 +213,14 @@ public:
 
 		void setFolded(bool shouldBeFolded) noexcept;;
 
+		int getNumItems(bool countOnlyVisibleItems) const
+		{
+			if (countOnlyVisibleItems)
+				return visibleItems;
+
+			return items.size();
+		}
+
 	protected:
 
 		OwnedArray<SearchableListComponent::Item> items;
@@ -241,7 +256,7 @@ public:
 	/** Remove this. */
 	void fillNameList(); 
 
-	void setSelectedItem(Item *item) noexcept{ selectedItem = item; };
+	void setSelectedItem(Item* /*item*/) noexcept{  };
 
 	void setFuzzyness(double newFuzzyness) { fuzzyness = newFuzzyness; };
 
@@ -317,12 +332,11 @@ private:
 	
 	Array<int> displayedIndexes;
 
-	Component::SafePointer<Item> selectedItem;
-    
 	bool internalRebuildFlag;
 
 	Array<Component::SafePointer<ShapeButton>> customButtons;
 };
 
+} // namespace hise
 
 #endif

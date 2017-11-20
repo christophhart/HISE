@@ -1,3 +1,5 @@
+namespace hise { using namespace juce;
+
 // =================================================================================================================== SamplerSubEditor
 
 void SamplerSubEditor::selectSounds(const Array<ModulatorSamplerSound*> &selection)
@@ -633,11 +635,11 @@ void SamplerSoundMap::updateSoundData()
 	{
 		sampleComponents.clear();
 
-		for(int i = 0; i < ownerSampler->getNumSounds(); i++)
-		{
-			SampleComponent *c = new SampleComponent(ownerSampler->getSound(i), this);
+		ModulatorSampler::SoundIterator sIter(ownerSampler, false);
 
-			sampleComponents.add(c);
+		while (auto sound = sIter.getNextSound())
+		{
+			sampleComponents.add(new SampleComponent(sound, this));
 		}
 	}
 	else
@@ -940,13 +942,22 @@ bool SamplerSoundMap::newSamplesDetected()
 {
 	if(ownerSampler->getNumSounds() != sampleComponents.size()) return true;
 
-	for(int i = 0; i < sampleComponents.size(); i++)
+	ModulatorSampler::SoundIterator sIter(ownerSampler, false);
+
+	if (sIter.size() != sampleComponents.size())
+		return true;
+
+	int i = 0;
+
+	while (auto sound = sIter.getNextSound())
 	{
 		const ModulatorSamplerSound *s = sampleComponents[i]->getSound();
 
+		i++;
+
 		if (s == nullptr)
 			return true;
-		if (s != ownerSampler->getSound(i))
+		if (s != sound)
 			return true;
 	}
 
@@ -1093,10 +1104,10 @@ void SamplerSoundTable::refreshList()
 {
 	sortedSoundList.clear();
 
-	for(int i = 0; i < ownerSampler->getNumSounds(); i++)
-	{
-		sortedSoundList.add(ownerSampler->getSound(i));
-	}
+	ModulatorSampler::SoundIterator sIter(ownerSampler, false);
+
+	while (auto sound = sIter.getNextSound())
+		sortedSoundList.add(sound);
 
     // we could now change some initial settings..
     table.getHeader().setSortColumnId (2, true); // sort forwards by the ID column
@@ -1217,3 +1228,5 @@ void SamplerSoundTable::selectedRowsChanged(int /*lastRowSelected*/)
 		handler->getSelection().addToSelection(sortedSoundList[selection[i]]);
 	}
 };
+
+} // namespace hise

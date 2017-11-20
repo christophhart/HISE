@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,6 +33,7 @@
 #ifndef HI_EFFECT_PROCESSORCHAIN_H_INCLUDED
 #define HI_EFFECT_PROCESSORCHAIN_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 #define FOR_EACH_VOICE_EFFECT(x) {for(int i = 0; i < voiceEffects.size(); ++i) {if(!voiceEffects[i]->isBypassed()) voiceEffects[i]->x;}}
 #define FOR_EACH_MONO_EFFECT(x) {for(int i = 0; i < monoEffects.size(); ++i) {if(!monoEffects[i]->isBypassed())monoEffects[i]->x;}}
@@ -209,7 +210,7 @@ public:
 		*/
 		void add(Processor *newProcessor, Processor *siblingToInsertBefore) override;
 
-		void remove(Processor *processorToBeRemoved) override
+		void remove(Processor *processorToBeRemoved, bool removeEffect=true) override
 		{
 			ScopedLock sl(chain->getMainController()->getLock());
 
@@ -217,9 +218,9 @@ public:
 			
 			chain->allEffects.removeAllInstancesOf(dynamic_cast<EffectProcessor*>(processorToBeRemoved));
 
-			if(VoiceEffectProcessor* vep = dynamic_cast<VoiceEffectProcessor*>(processorToBeRemoved)) chain->voiceEffects.removeObject(vep);
-			else if (MasterEffectProcessor* mep = dynamic_cast<MasterEffectProcessor*>(processorToBeRemoved)) chain->masterEffects.removeObject(mep);
-			else if (MonophonicEffectProcessor* moep = dynamic_cast<MonophonicEffectProcessor*>(processorToBeRemoved)) chain->monoEffects.removeObject(moep);
+			if(VoiceEffectProcessor* vep = dynamic_cast<VoiceEffectProcessor*>(processorToBeRemoved)) chain->voiceEffects.removeObject(vep, removeEffect);
+			else if (MasterEffectProcessor* mep = dynamic_cast<MasterEffectProcessor*>(processorToBeRemoved)) chain->masterEffects.removeObject(mep, removeEffect);
+			else if (MonophonicEffectProcessor* moep = dynamic_cast<MonophonicEffectProcessor*>(processorToBeRemoved)) chain->monoEffects.removeObject(moep, removeEffect);
 			else jassertfalse;
 
 			jassert(chain->allEffects.size() == (chain->masterEffects.size() + chain->voiceEffects.size() + chain->monoEffects.size()));
@@ -404,6 +405,6 @@ private:
 };
 
 
-
+} // namespace hise
 
 #endif

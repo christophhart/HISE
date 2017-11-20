@@ -1,3 +1,4 @@
+namespace hise { using namespace juce;
 
 struct HiseJavascriptEngine::RootObject::RegisterVarStatement : public Statement
 {
@@ -710,8 +711,7 @@ struct HiseJavascriptEngine::RootObject::ExternalCFunction: public ReferenceCoun
 		cCode << "#include <math.h>\n";
 		cCode << codeToCompile;
 
-#if JUCE_IOS
-#else
+#if INCLUDE_TCC
 		int dllLoading = c.openContext();
 
 		if (dllLoading != (int)LoadingErrorCode::LoadingSuccessful)
@@ -810,10 +810,11 @@ struct HiseJavascriptEngine::RootObject::ExternalCFunction: public ReferenceCoun
 	int numArguments;
 	void* f;
     
-#if JUCE_IOS
-#else
+#if INCLUDE_TCC
 	TccContext c;
 #endif
 	bool compiledOk;
 	String commentDoc;
 };
+
+} // namespace hise

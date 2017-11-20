@@ -51,6 +51,8 @@ END_JUCE_MODULE_DECLARATION
 #ifndef HI_SCRIPTING_INCLUDED
 #define HI_SCRIPTING_INCLUDED
 
+#define INCLUDE_TCC 0
+
 #define MAX_SCRIPT_HEIGHT 700
 
 #define INCLUDE_NATIVE_JIT 0
@@ -63,9 +65,6 @@ END_JUCE_MODULE_DECLARATION
 #include "../hi_native_jit/hi_native_jit_public.h"
 #endif
 
-namespace hise
-{
-using namespace juce;
 
 
 #include "scripting/api/ScriptMacroDefinitions.h"
@@ -73,16 +72,17 @@ using namespace juce;
 #include "scripting/api/ScriptingBaseObjects.h"
 
 #if JUCE_IOS
-#else
+#elif INCLUDE_TCC
 #include "scripting/api/TccContext.h"
 #endif
 
 //#include "scripting/api/DspFactory.h"
 #include "scripting/api/DspInstance.h"
 #if JUCE_IOS
-#else
+#elif INCLUDE_TCC
 #include "scripting/api/TccDspObject.h"
 #endif
+
 #include "scripting/scripting_audio_processor/ScriptDspModules.h"
 #include "scripting/scripting_audio_processor/ScriptedAudioProcessor.h"
 
@@ -93,6 +93,7 @@ using namespace juce;
 #include "scripting/api/ScriptingApiObjects.h"
 #include "scripting/api/ScriptingApi.h"
 #include "scripting/api/ScriptingApiContent.h"
+#include "scripting/api/ScriptComponentEditBroadcaster.h"
 
 #include "scripting/ScriptProcessor.h"
 #include "scripting/ScriptProcessorModules.h"
@@ -102,8 +103,11 @@ using namespace juce;
 #include "scripting/api/ScriptComponentWrappers.h"
 #include "scripting/components/ScriptingContentComponent.h"
 
+
+
 #if USE_BACKEND
 
+#include "scripting/components/ScriptingPanelTypes.h"
 #include "scripting/components/PopupEditors.h"
 #include "scripting/components/ScriptingCodeEditor.h"
 #include "scripting/components/AutoCompletePopup.h"
@@ -112,7 +116,7 @@ using namespace juce;
 
 #endif 
 
-}
+
 
 #endif
 

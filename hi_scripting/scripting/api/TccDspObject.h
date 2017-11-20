@@ -35,6 +35,7 @@
 #ifndef TCCDSPOBJECT_H_INCLUDED
 #define TCCDSPOBJECT_H_INCLUDED
 
+namespace hise { using namespace juce;
  
 
 
@@ -142,4 +143,5 @@ private:
 	MainController* mc;
 };
 
+} // namespace hise
 #endif  // TCCDSPOBJECT_H_INCLUDED

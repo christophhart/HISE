@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,6 +33,7 @@
 #ifndef SCRIPTINGPANELTYPES_H_INCLUDED
 #define SCRIPTINGPANELTYPES_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 class CodeEditorPanel : public PanelWithProcessorConnection,
 						public GlobalScriptCompileListener
@@ -157,11 +158,16 @@ public:
 
 	class Editor : public Component,
 				   public ComboBox::Listener,
-				   public Button::Listener
+				   public Button::Listener,
+				   public ScriptComponentEditListener
 	{
 	public:
 
 		Editor(Processor* p);
+
+		void scriptComponentSelectionChanged() override;
+
+		void scriptComponentPropertyChanged(ScriptComponent* sc, Identifier idThatWasChanged, const var& newValue) override;
 
 		void resized() override;
 
@@ -179,7 +185,114 @@ public:
 
 		bool isEditModeEnabled() const;
 
+		bool keyPressed(const KeyPress& key) override;
+
 	public:
+
+		struct Actions
+		{
+			static void deselectAll(Editor* e);
+			
+			static void rebuild(Editor* e);
+
+			static void rebuildAndRecompile(Editor* e);
+
+			static void zoomIn(Editor* e);
+
+			static void zoomOut(Editor* e);
+
+			static void toggleEditMode(Editor* e);
+
+		};
+
+		struct UpdateLevelLed: public Component,
+							   public ScriptingApi::Content::RebuildListener,
+							   public GlobalScriptCompileListener
+		{
+		public:
+
+			UpdateLevelLed(ScriptingApi::Content* c_) :
+				c(c_)
+			{
+				c->addRebuildListener(this);
+				c->getProcessor()->getMainController()->addScriptListener(this);
+			}
+
+			~UpdateLevelLed()
+			{
+				c->removeRebuildListener(this);
+				c->getProcessor()->getMainController()->removeScriptListener(this);
+			}
+
+			void paint(Graphics& g) override
+			{
+				if (level == ScriptingApi::Content::UpdateLevel::FullRecompile)
+				{
+					g.setColour(Colours::red.withAlpha(0.7f));
+				}
+				else if (level == ScriptingApi::Content::UpdateLevel::UpdateInterface)
+				{
+					g.setColour(Colours::yellow.withAlpha(0.7f));
+				}
+				else
+				{
+					g.setColour(Colours::green.withAlpha(0.7f));
+				}
+
+				g.fillRect(getLocalBounds().reduced(4));
+
+				g.setColour(Colours::white.withAlpha(0.4f));
+				g.drawRect(getLocalBounds().reduced(4), 1);
+
+			}
+
+			void mouseDown(const MouseEvent& /*e*/)
+			{
+				handleAndClearUpdate();
+			}
+			
+			void scriptWasCompiled(JavascriptProcessor *processor) override
+			{
+				if (dynamic_cast<Processor*>(processor) == c->getProcessor())
+				{
+					refresh();
+				}
+			}
+
+			void contentWasRebuilt() override
+			{
+				refresh();
+			}
+
+			void handleAndClearUpdate()
+			{
+				c->clearRequiredUpdate();
+
+				if (level == ScriptingApi::Content::UpdateLevel::UpdateInterface)
+				{
+					Actions::rebuild(findParentComponentOfClass<Editor>());
+				}
+				if (level == ScriptingApi::Content::UpdateLevel::FullRecompile)
+				{
+					Actions::rebuildAndRecompile(findParentComponentOfClass<Editor>());
+				}
+
+				refresh();
+			}
+
+		private:
+
+			void refresh()
+			{
+				level = c->getRequiredUpdate();
+
+				repaint();
+			}
+
+			ScriptingApi::Content::UpdateLevel level;
+
+			ScriptingApi::Content* c;
+		};
 
 		double zoomAmount;
 
@@ -192,6 +305,11 @@ public:
 
 		ScopedPointer<HiseShapeButton> undoButton;
 		ScopedPointer<HiseShapeButton> redoButton;
+		ScopedPointer<HiseShapeButton> rebuildButton;
+
+		ScopedPointer<UpdateLevelLed> updateLed;
+
+		ScopedPointer<ComboBox> updateLevelSelector;
 
 		ScopedPointer<Viewport> viewport;
 	};
@@ -251,10 +369,7 @@ public:
 
 	Component* createContentComponent(int /*index*/) override;
 
-	void fillModuleList(StringArray& moduleList) override
-	{
-		fillModuleListWithType<JavascriptProcessor>(moduleList);
-	}
+	void fillModuleList(StringArray& moduleList) override;
 
 private:
 
@@ -389,5 +504,5 @@ struct BackendCommandIcons
 };
 
 
-
+} // namespace hise
 #endif  // SCRIPTINGPANELTYPES_H_INCLUDED

@@ -18,6 +18,7 @@
 */
 
 //[Headers] You can add your own extra header files here...
+namespace hise { using namespace juce;
 
 #define setMod(x, y) (getProcessor()->setAttribute(x, y, dontSendNotification) )
 
@@ -230,4 +231,5 @@ END_JUCER_METADATA
 
 
 //[EndFile] You can add extra defines here...
+} // namespace hise
 //[/EndFile]

@@ -11,6 +11,7 @@
 #ifndef SLOTFX_H_INCLUDED
 #define SLOTFX_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 /** A simple gain effect that allows time variant modulation. */
 class SlotFX : public MasterEffectProcessor
@@ -60,7 +61,7 @@ public:
         auto d = v.getChildWithName("ChildProcessors").getChild(0);
         
         
-        setEffect(d.getProperty("Type"));
+        setEffect(d.getProperty("Type"), true);
         
         wrappedEffect->restoreFromValueTree(d);
     }
@@ -88,7 +89,7 @@ public:
 	{
 		isClear = true;
 		
-		setEffect(GainEffect::getClassType().toString());
+		setEffect(EmptyFX::getClassType().toString(), true);
 	}
 
 	void swap(SlotFX* otherSlot)
@@ -121,27 +122,11 @@ public:
 
 	const StringArray& getEffectList() const { return effectList; }
 
-	bool setEffect(const String& typeName);
+	bool setEffect(const String& typeName, bool synchronously=false);
 
 private:
 
-	class Updater: public AsyncUpdater
-	{
-	public:
-
-		Updater(SlotFX* fx_):
-			fx(fx_)
-		{
-
-		}
-
-		void handleAsyncUpdate() override;
-
-	private:
-
-		SlotFX* fx;
-		
-	};
+	
 
 	class Constrainer : public FactoryType::Constrainer
 	{
@@ -176,11 +161,10 @@ private:
     
     bool hasScriptFX = false;
 
-	Updater updater;
-
 	ScopedPointer<MasterEffectProcessor> wrappedEffect;
 };
 
 
+} // namespace hise
 
 #endif  // SLOTFX_H_INCLUDED

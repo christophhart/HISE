@@ -21,7 +21,7 @@
 #define __JUCE_HEADER_B9A18C827CE3BAF0__
 
 //[Headers]     -- You can add your own extra header files here --
- 
+ namespace hise { using namespace juce;
 
 class KeyGraph: public Component,
 				public SafeChangeListener
@@ -279,6 +279,7 @@ private:
 };
 
 //[EndFile] You can add extra defines here...
+} // namespace hise
 //[/EndFile]
 
 #endif   // __JUCE_HEADER_B9A18C827CE3BAF0__

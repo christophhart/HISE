@@ -33,6 +33,7 @@
 #ifndef HISEJAVASCRIPTENGINE_H_INCLUDED
 #define HISEJAVASCRIPTENGINE_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 class JavascriptProcessor;
 class DialogWindowWithBackgroundThread;
@@ -202,7 +203,7 @@ public:
     
     bool isInitialising() const { return initialising; };
     
-	
+	static bool isJavascriptFunction(const var& v);
     
 	const ApiClass* getApiClass(const Identifier &className) const;
 
@@ -255,6 +256,8 @@ public:
 
 	struct CyclicReferenceCheckBase
 	{
+        virtual ~CyclicReferenceCheckBase() {};
+        
 		struct ThreadData;
 
 		struct Reference
@@ -940,5 +943,5 @@ private:
 
 
 
-
+} // namespace hise
 #endif  // HISEJAVASCRIPTENGINE_H_INCLUDED

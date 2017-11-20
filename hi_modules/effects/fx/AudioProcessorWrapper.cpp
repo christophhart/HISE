@@ -23,13 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
 
 AudioProcessorWrapper::AudioProcessorWrapper(MainController *mc, const String &uid):
 MasterEffectProcessor(mc, uid),
@@ -262,3 +263,5 @@ Array<Spatializer::SpeakerLayout> Spatializer::speakerPositions =
 	Spatializer::SpeakerLayout{ AudioChannelSet::create5point0(), { SpeakerPosition{ 1.0f, 0.0f }, SpeakerPosition{ 1.0f, -0.25f * float_Pi }, SpeakerPosition{ 1.0f, 0.25f * float_Pi }, SpeakerPosition{ 1.0f, -0.75f * float_Pi }, SpeakerPosition{ 1.0f, 0.75f * float_Pi } } }
 };
 #endif
+
+} // namespace hise

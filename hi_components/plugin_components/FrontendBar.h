@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,6 +33,7 @@
 #ifndef __FRONTENDBAR_H_INCLUDED
 #define __FRONTENDBAR_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 class BaseFrontendBar : public Component
 {
@@ -121,7 +122,7 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DefaultFrontendBar)
 };
 
-
+class SampleDataImporter;
 
 
 class DeactiveOverlay : public Component,
@@ -145,6 +146,7 @@ public:
 		LicenseInvalid,
 		CopyProtectionError,
 		CriticalCustomErrorMessage,
+		SamplesNotInstalled,
 		SamplesNotFound,
 		CustomErrorMessage,
 		CustomInformation,
@@ -202,6 +204,7 @@ private:
 	ScopedPointer<Label> descriptionLabel;
 
 	ScopedPointer<TextButton> resolveLicenseButton;
+	ScopedPointer<TextButton> installSampleButton;
 	ScopedPointer<TextButton> resolveSamplesButton;
 	ScopedPointer<TextButton> registerProductButton;
 	ScopedPointer<TextButton> useActivationResponseButton;
@@ -211,6 +214,7 @@ private:
 
 };
 
-
+} // namespace hise
 
 #endif  
+

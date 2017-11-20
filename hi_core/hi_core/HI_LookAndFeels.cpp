@@ -23,25 +23,48 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
+
 void FilmstripLookAndFeel::drawToggleButton(Graphics &g, ToggleButton &b, bool isMouseOverButton, bool isButtonDown)
 {
     SET_IMAGE_RESAMPLING_QUALITY();
     
-	if (!imageToUse.isValid() || numStrips != 2)
+	if (!imageToUse.isValid() || (numStrips != 2 && numStrips != 6))
 	{
 		KnobLookAndFeel::drawToggleButton(g, b, isMouseOverButton, isButtonDown);
 		return;
 	}
 	else
 	{
-		const int stripIndex = b.getToggleState() ? 1 : 0;
+		int stripIndex = 0;
+
+		if (numStrips == 2)
+		{
+			stripIndex = b.getToggleState() ? 1 : 0;
+
+		}
+		else if (numStrips == 6)
+		{
+			const bool on = b.getToggleState();
+			const bool hover = isMouseOverButton;
+			const bool pressed = isButtonDown;
+
+			if (hover)
+				stripIndex = 4;
+
+			if (pressed)
+				stripIndex = 2;
+
+			if (on)
+				stripIndex += 1;
+		}
 
 		Image clip;
 
@@ -58,9 +81,10 @@ void FilmstripLookAndFeel::drawToggleButton(Graphics &g, ToggleButton &b, bool i
 
 		g.setColour(Colours::black.withAlpha(b.isEnabled() ? 1.0f : 0.5f));
 
-        
-        
+
+
 		g.drawImage(clip, 0, 0, (int)((float)widthOfEachStrip * scaleFactor), (int)((float)heightOfEachStrip * scaleFactor), 0, 0, widthOfEachStrip, heightOfEachStrip);
+		
 		
 	}
 }
@@ -881,3 +905,5 @@ void BlackTextButtonLookAndFeel::drawToggleButton(Graphics &g, ToggleButton &b, 
 
 	g.drawHorizontalLine(b.getHeight() - 1, 0.0f, (float)b.getWidth());
 }
+
+} // namespace hise

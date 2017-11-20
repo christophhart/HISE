@@ -23,12 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
+
+namespace hise { using namespace juce;
 
 void SampleImporter::closeGaps(Array<ModulatorSamplerSound*> &selection, bool closeNoteGaps, bool /*increaseUpperLimit*/)
 {
@@ -208,6 +210,8 @@ void SampleImporter::importNewAudioFiles(Component *childComponentOfMainEditor, 
 
 void SampleImporter::loadAudioFilesUsingDropPoint(Component* /*childComponentOfMainEditor*/, ModulatorSampler *sampler, const StringArray &fileNames, BigInteger rootNotes)
 {
+	ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
+
 	const int startIndex = sampler->getNumSounds();
 
 	const bool mapToVelocity = fileNames.size() > 1 && rootNotes.countNumberOfSetBits() == 1;
@@ -299,6 +303,8 @@ void SampleImporter::loadAudioFilesUsingPitchDetection(Component* /*childCompone
 
 	const int startIndex = sampler->getNumSounds();
 
+	ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
+
 	for(int i = 0; i < fileNames.size(); i++)
 	{
 		const double pitch = PitchDetection::detectPitch(File(fileNames[i]), pitchDetectionBuffer, sampler->Processor::getSampleRate());
@@ -338,6 +344,8 @@ void SampleImporter::loadAudioFilesUsingPitchDetection(Component* /*childCompone
 void SampleImporter::loadAudioFilesRaw(Component* /*childComponentOfMainEditor*/, ModulatorSampler* sampler, const StringArray& fileNames)
 {
 	const int startIndex = sampler->getNumSounds();
+
+	ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
 
 	for (int i = 0; i < fileNames.size(); i++)
 	{
@@ -588,25 +596,28 @@ void FileImportDialogWindow::run()
 
 	sampler->setNumMicPositions(collection.multiMicTokens);
 
-	for (int i = 0; i < collection.dataList.size(); i++)
 	{
-		showStatusMessage("Loading sample " + collection.dataList[i].fileNames[0]);
+		ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
+		MessageManagerLock mLock;
 
-		setProgress((double)i / (double)collection.dataList.size());
-
-		SampleImporter::createSoundAndAddToSampler(sampler, collection.dataList[i]);
-
-		if (threadShouldExit())
+		for (int i = 0; i < collection.dataList.size(); i++)
 		{
-			sampler->setShouldUpdateUI(true);
-			pool->setUpdatePool(true);
-			pool->setDeactivatePoolSearch(false);
-			return;
+			showStatusMessage("Loading sample " + collection.dataList[i].fileNames[0]);
+
+			setProgress((double)i / (double)collection.dataList.size());
+
+			SampleImporter::createSoundAndAddToSampler(sampler, collection.dataList[i]);
+
+			if (threadShouldExit())
+			{
+				sampler->setShouldUpdateUI(true);
+				pool->setUpdatePool(true);
+				pool->setDeactivatePoolSearch(false);
+				return;
+			}
 		}
 	}
-
 	
-
 	sampler->setShouldUpdateUI(true);
 	pool->setUpdatePool(true);
 	pool->setDeactivatePoolSearch(false);
@@ -630,12 +641,14 @@ void FileImportDialogWindow::threadFinished()
 	int currentRRAmount = (int)sampler->getAttribute(ModulatorSampler::Parameters::RRGroupAmount);
 	int maxRRIndex = 0;
 
-	for (int i = 0; i < sampler->getNumSounds(); i++)
+	ModulatorSampler::SoundIterator sIter(sampler);
+
+	while (auto sound = sIter.getNextSound())
 	{
-		const int thisRR = sampler->getSound(i)->getProperty(ModulatorSamplerSound::RRGroup);
+		const int thisRR = sound->getProperty(ModulatorSamplerSound::RRGroup);
 
 		maxRRIndex = jmax<int>(maxRRIndex, thisRR);
-	}
+	};
 
 	if (currentRRAmount != maxRRIndex)
 	{
@@ -646,3 +659,5 @@ void FileImportDialogWindow::threadFinished()
 	}
 
 }
+
+} // namespace hise

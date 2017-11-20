@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,6 +33,7 @@
 #ifndef HI_AHDSRENVELOPE_H_INCLUDED
 #define HI_AHDSRENVELOPE_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 /** @brief A pretty common envelope type with 5 states. @ingroup modulatorTypes
 
@@ -248,5 +249,6 @@ private:
 
 
 
+} // namespace hise
 
 #endif

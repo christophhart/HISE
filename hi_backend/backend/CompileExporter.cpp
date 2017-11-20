@@ -23,20 +23,47 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
+namespace hise { using namespace juce;
 
+
+void loadKeyboardSkins(ModulatorSynthChain* chainToExport)
+{
+	auto mc = chainToExport->getMainController();
+
+	auto& handler = GET_PROJECT_HANDLER(chainToExport);
+
+	const bool hasCustomSkin = handler.getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("keyboard").isDirectory();
+
+	if (!hasCustomSkin)
+		return;
+
+	for (int i = 0; i < 12; i++)
+	{
+		auto img = ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}keyboard/up_" + String(i) + ".png");
+		jassert(img.isValid());
+		auto img2 = ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png");
+		jassert(img2.isValid());
+	}
+}
 
 ValueTree BaseExporter::exportReferencedImageFiles()
 {
 	// Export the interface
 
+
+	loadKeyboardSkins(chainToExport);
+
 	ImagePool *imagePool = chainToExport->getMainController()->getSampleManager().getImagePool();
+
+	
+
 	ValueTree imageTree = imagePool->exportAsValueTree();
 
 	return imageTree;
@@ -162,6 +189,8 @@ ValueTree BaseExporter::collectAllSampleMapsInDirectory()
 
 	sampleMapDirectory.findChildFiles(sampleMapFiles, File::findFiles, true, "*.xml");
 
+	sampleMapFiles.sort();
+
 	for (int i = 0; i < sampleMapFiles.size(); i++)
 	{
         if(sampleMapFiles[i].isHidden() || sampleMapFiles[i].getFileName().startsWith("."))
@@ -175,6 +204,8 @@ ValueTree BaseExporter::collectAllSampleMapsInDirectory()
 			sampleMaps.addChild(sampleMap, -1, nullptr);
 		}
 	}
+
+	
 
 	return sampleMaps;
 }
@@ -301,7 +332,7 @@ CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String
 
 		if (presetFile.getFileExtension() == ".hip")
 		{
-			editor->getBackendProcessor()->loadPreset(presetFile, editor);
+			editor->getBackendProcessor()->loadPresetFromFile(presetFile, editor);
 		}
 		else if (presetFile.getFileExtension() == ".xml")
 		{
@@ -1006,7 +1037,9 @@ public:
 		if (length == 1)
 			return "s" + String(start);
 
-		int breakPos = jlimit(1, length - 1, (length / 3) + rng.nextInt(length / 3));
+        int randomPart = length > 3 ? rng.nextInt(length / 3) : 0;
+        
+		int breakPos = jlimit(1, length - 1, (length / 3) + randomPart );
 
 		return "(" + getStringConcatenationExpression(rng, start, breakPos)
 			+ " + " + getStringConcatenationExpression(rng, start + breakPos, length - breakPos) + ")";
@@ -2211,3 +2244,5 @@ void CompileExporter::BuildOptionHelpers::runUnitTests()
 	jassert(BuildOptionHelpers::is64Bit(StandaloneWindowsx64x86));
 	jassert(BuildOptionHelpers::isStandalone(StandaloneWindowsx64x86));
 }
+
+} // namespace hise

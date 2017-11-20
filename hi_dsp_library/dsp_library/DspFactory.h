@@ -33,6 +33,7 @@
 #ifndef DSPFACTORY_H_INCLUDED
 #define DSPFACTORY_H_INCLUDED
 
+namespace hise {using namespace juce;
 
 class DspInstance;
 
@@ -124,6 +125,6 @@ private:
 
 
 
-
+} // namespace hise
 
 #endif  // DSPFACTORY_H_INCLUDED

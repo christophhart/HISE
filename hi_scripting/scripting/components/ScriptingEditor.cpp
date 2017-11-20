@@ -32,7 +32,7 @@
 
 #include <regex>
 
-
+namespace hise { using namespace juce;
 
 
 //==============================================================================
@@ -145,11 +145,6 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
 
 ScriptingEditor::~ScriptingEditor()
 { 
-	contentPopup = nullptr;
-
-	getProcessor()->getMainController()->setEditedScriptComponent(nullptr, nullptr);
-
-	
 	scriptContent = nullptr;
 
     codeEditor = nullptr;
@@ -189,7 +184,7 @@ int ScriptingEditor::getBodyHeight() const
 	{
 		int editorOffset = pwsc->getCallbackEditorStateOffset();
 
-		const bool showContent = getProcessor()->getEditorState(editorOffset + ProcessorWithScriptingContent::EditorStates::contentShown) && (contentPopup == nullptr);
+		const bool showContent = getProcessor()->getEditorState(editorOffset + ProcessorWithScriptingContent::EditorStates::contentShown);
 
 		const int contentHeight = showContent ? pwsc->getScriptingContent()->getContentHeight() : 0;
 
@@ -272,7 +267,7 @@ void ScriptingEditor::resized()
 
 	int editorOffset = dynamic_cast<const ProcessorWithScriptingContent*>(getProcessor())->getCallbackEditorStateOffset();
 
-	scriptContent->setVisible(contentPopup==nullptr && getProcessor()->getEditorState(editorOffset + ProcessorWithScriptingContent::contentShown));
+	scriptContent->setVisible(getProcessor()->getEditorState(editorOffset + ProcessorWithScriptingContent::contentShown));
 
 	const int contentHeight = scriptContent->isVisible() ? scriptContent->getContentHeight() : 0;
 
@@ -485,14 +480,6 @@ void ScriptingEditor::openContentInPopup()
 #endif
 }
 
-void ScriptingEditor::closeContentPopup()
-{
-	contentPopup->removeFromDesktop();
-	contentPopup = nullptr;
-	currentDragOverlay = dragOverlay;
-	refreshBodySize();
-}
-
 void ScriptingEditor::closeAllPopup()
 {
 	
@@ -646,3 +633,4 @@ void ScriptingEditor::checkActiveSnippets()
 	}
 }
 
+} // namespace hise

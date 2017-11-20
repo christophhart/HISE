@@ -11,6 +11,7 @@
 #ifndef JAVASCRIPTAPICLASS_H_INCLUDED
 #define JAVASCRIPTAPICLASS_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 
 struct VariantComparator
@@ -283,5 +284,5 @@ private:
 	// ================================================================================================================
 };
 
-
+} // namespace hise
 #endif  // JAVASCRIPTAPICLASS_H_INCLUDED

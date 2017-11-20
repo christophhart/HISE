@@ -23,12 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
+
+namespace hise { using namespace juce;
 
 #define IS(C) (ProcessorHelpers::is<C>(getProcessor()))
 
@@ -928,7 +930,7 @@ void ProcessorEditorHeader::update()
 		if (isHeaderOfChain())
 			return;
 
-		if (auto envelope = dynamic_cast<EnvelopeModulator*>(mod))
+		if (dynamic_cast<EnvelopeModulator*>(mod) != nullptr)
 		{
 			auto retrigger = getProcessor()->getAttribute(EnvelopeModulator::Parameters::Retrigger) > 0.5f;
 			auto monophonic = getProcessor()->getAttribute(EnvelopeModulator::Parameters::Monophonic) > 0.5f;
@@ -1206,6 +1208,7 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 			ConnectToScriptFile,
 			ReloadFromExternalScript,
 			DisconnectFromScriptFile,
+			SaveCurrentInterfaceState,
 			numMenuItems
 		};
 
@@ -1253,6 +1256,7 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 			m.addItem(ConnectToScriptFile, "Connect to external script", true, sp->isConnectedToExternalFile());
 			m.addItem(ReloadFromExternalScript, "Reload external script", sp->isConnectedToExternalFile(), false);
 			m.addItem(DisconnectFromScriptFile, "Disconnect from external script", sp->isConnectedToExternalFile(), false);
+			m.addItem(SaveCurrentInterfaceState, "Overwrite UI Data with current state", true, false);
 		}
 
 		int result = m.show();
@@ -1311,6 +1315,14 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 				dynamic_cast<JavascriptProcessor*>(getProcessor())->disconnectFromFile();
 			}
 		}
+		else if (result == SaveCurrentInterfaceState)
+		{
+			if (PresetHandler::showYesNoWindow("Overwrite the UI data with the current state",
+				"Do you want to overwrite the internal UI properties object with the current state?\nThis can be used to migrate an old script to the new UI data model", PresetHandler::IconType::Question))
+			{
+				dynamic_cast<JavascriptProcessor*>(getProcessor())->storeCurrentInterfaceStateInContentProperties();
+			}
+		}
 		else
 		{
 			File f = PresetHandler::getPresetFileFromMenu(result - PRESET_MENU_ITEM_DELTA, getProcessor());
@@ -1330,6 +1342,7 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 				PresetHandler::showMessageWindow("Invalid Preset", "The selected Preset file was not a container", PresetHandler::IconType::Error);
 			}
 		}
+
 	}
 };
 
@@ -1420,3 +1433,5 @@ void ProcessorEditorHeader::checkFoldButton()
 }
 
 #undef IS
+
+} // namespace hise

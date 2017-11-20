@@ -33,6 +33,7 @@
 #ifndef SCRIPTINGBASEOBJECTS_H_INCLUDED
 #define SCRIPTINGBASEOBJECTS_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 class ModulatorSynthGroup;
 class ProcessorWithScriptingContent;
@@ -61,16 +62,17 @@ public:
 	/** \internal Checks if the callback is made on the audio thread (check this with every API call that changes the MidiMessage. */
 	bool checkIfSynchronous(const Identifier &callbackName) const;
 
+
+	ProcessorWithScriptingContent *getScriptProcessor();
+	const ProcessorWithScriptingContent *getScriptProcessor() const;
+
+	Processor* getProcessor() { return thisAsProcessor; };
+	const Processor* getProcessor() const { return thisAsProcessor; }
+
 protected:
 
 	ScriptingObject(ProcessorWithScriptingContent *p);
 
-	ProcessorWithScriptingContent *getScriptProcessor(); 
-
-	const ProcessorWithScriptingContent *getScriptProcessor() const; 
-
-	Processor* getProcessor() { return thisAsProcessor; };
-	const Processor* getProcessor() const { return thisAsProcessor; }
 
 	/** \internal Prints a error in the script to the console. */
 	void reportScriptError(const String &errorMessage) const;
@@ -224,5 +226,42 @@ public:
 
 
 
+struct ValueTreeConverters
+{
+	static String convertDynamicObjectToBase64(const var& object, const Identifier& id, bool compress);;
 
+	static ValueTree convertDynamicObjectToValueTree(const var& object, const Identifier& id);
+
+	static String convertValueTreeToBase64(const ValueTree& v, bool compress);
+
+	static var convertBase64ToDynamicObject(const String& base64String, bool isCompressed);
+
+	static ValueTree convertBase64ToValueTree(const String& base64String, bool isCompressed);
+
+	static var convertValueTreeToDynamicObject(const ValueTree& v);
+
+	static var convertFlatValueTreeToVarArray(const ValueTree& v);
+
+	static ValueTree convertVarArrayToFlatValueTree(const var& ar, const Identifier& rootId, const Identifier& childId);
+
+	static void copyDynamicObjectPropertiesToValueTree(ValueTree& v, const var& obj, bool skipArray=false);
+
+	static void copyValueTreePropertiesToDynamicObject(const ValueTree& v, var& obj);
+
+	static var convertContentPropertiesToDynamicObject(const ValueTree& v);
+
+	static ValueTree convertDynamicObjectToContentProperties(const var& d);
+
+private:
+
+	static void v2d_internal(var& object, const ValueTree& v);
+
+	static void d2v_internal(ValueTree& v, const Identifier& id, const var& object);;
+
+
+};
+
+
+
+} // namespace hise
 #endif  // SCRIPTINGBASEOBJECTS_H_INCLUDED

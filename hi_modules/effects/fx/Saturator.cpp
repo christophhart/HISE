@@ -23,12 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
+
+namespace hise { using namespace juce;
 
 SaturatorEffect::SaturatorEffect(MainController *mc, const String &uid) :
 	MasterEffectProcessor(mc, uid),
@@ -192,3 +194,4 @@ void SaturatorEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 		ProcessorHelpers::increaseBufferIfNeeded(saturationBuffer, samplesPerBlock);
 	}
 }
+} // namespace hise

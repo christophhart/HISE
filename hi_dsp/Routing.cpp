@@ -23,14 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
-#include "Routing.h"
+namespace hise { using namespace juce;
 
 RoutableProcessor::MatrixData::MatrixData(RoutableProcessor *p) :
 owningProcessor(p),
@@ -560,3 +560,5 @@ void RoutableProcessor::editRouting(Component *childComponent)
 #endif
 	
 }
+
+} // namespace hise

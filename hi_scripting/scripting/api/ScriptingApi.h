@@ -33,7 +33,7 @@
 #ifndef HI_SCRIPTING_API_H_INCLUDED
 #define HI_SCRIPTING_API_H_INCLUDED
 
-
+namespace hise { using namespace juce;
 
 
 
@@ -187,8 +187,11 @@ public:
 
 		// ============================================================================================================ API Methods
 
-		/** Loads a font file. */
+		/** Loads a font file. This is deprecated, because it might result in different names on various OS. Use loadFontAs() instead. */
 		void loadFont(const String &fileName);
+
+		/** Loads the font from the given file in the image folder and registers it under the fontId. This is platform agnostic. */
+		void loadFontAs(String fileName, String fontId);
 
 		/** Returns the current sample rate. */
 		double getSampleRate() const;
@@ -256,6 +259,9 @@ public:
 		/** Returns the Bpm of the host. */
 		double getHostBpm() const;
 		
+		/** Overwrites the host BPM. Use -1 for sync to host. */
+		void setHostBpm(double newTempo);
+
 		/** Returns the current memory usage in MB. */
 		double getMemoryUsage() const;
 
@@ -374,6 +380,9 @@ public:
 
 		/** Sets the property of the sampler sound for the selection. */
 		void setSoundPropertyForSelection(int propertyIndex, var newValue);
+
+		/** Sets the property for all samples of the sampler. */
+		void setSoundPropertyForAllSamples(int propertyIndex, var newValue);
 
 		/** Returns the property of the sound with the specified index. */
 		var getSoundProperty(int propertyIndex, int soundIndex);
@@ -775,5 +784,5 @@ public:
 	};
 };
 
-
+} // namespace hise
 #endif

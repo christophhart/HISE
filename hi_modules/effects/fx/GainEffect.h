@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,6 +33,7 @@
 #ifndef GAINEFFECT_H_INCLUDED
 #define GAINEFFECT_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 /** A simple effect that does nothing. */
 class EmptyFX : public MasterEffectProcessor
@@ -204,5 +205,6 @@ private:
     
 };
 
+} // namespace hise
 
 #endif  // GAINEFFECT_H_INCLUDED

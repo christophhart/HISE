@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -33,6 +33,7 @@
 #ifndef BACKENDCOMPONENTS_H_INCLUDED
 #define BACKENDCOMPONENTS_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 class BackendProcessorEditor;
 class ScriptContentContainer;
@@ -619,9 +620,22 @@ public:
 
 	void itemDropped(const SourceDetails &dragSourceDetails) override;;
 
+	void showPreloadMessage(bool shouldShow)
+	{
+		isPreloading = shouldShow;
+		repaint();
+	}
+
 	void paint(Graphics& g)
 	{
 		g.fillAll(Colour(0xFF333333));
+
+		if (isPreloading)
+		{
+			g.setColour(Colours::white);
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText("Loading Instrument...", viewport->getLocalBounds(), Justification::centred);
+		}
 	}
 
 	void resized();
@@ -649,6 +663,8 @@ private:
 
 public:
 
+	std::atomic<bool> isPreloading;
+
 	ScopedPointer<InternalViewport> viewport;
 
 	bool dragNew;
@@ -656,6 +672,6 @@ public:
 };
 
 
-
+} // namespace hise
 
 #endif  // BACKENDCOMPONENTS_H_INCLUDED

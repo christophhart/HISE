@@ -23,12 +23,14 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
+
+namespace hise { using namespace juce;
 
 EnvelopeFollower::MagnitudeRamp::MagnitudeRamp() :
 indexInBufferedArray(0),
@@ -501,3 +503,4 @@ void EnvelopeFollower::AttackRelease::calculateCoefficients()
 		releaseCoefficient = expf(logf(0.01f) / (release * (float)sampleRate * 0.001f));
 	}
 }
+} // namespace hise

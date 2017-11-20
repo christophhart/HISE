@@ -23,7 +23,7 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -34,6 +34,7 @@
 #ifndef MODULATORSYNTHGROUP_H_INCLUDED
 #define MODULATORSYNTHGROUP_H_INCLUDED
 
+namespace hise { using namespace juce;
 
 #define NUM_MAX_UNISONO_VOICES 16
 
@@ -133,6 +134,8 @@ public:
 	int getChildVoiceAmount() const;
 
 private:
+
+	friend class ModulatorSynthGroup;
 
 	class ChildVoiceContainer
 	{
@@ -264,6 +267,7 @@ public:
 		UnisonoVoiceAmount,
 		UnisonoDetune,
 		UnisonoSpread,
+		ForceMono,
 		numSynthGroupParameters
 	};
 
@@ -295,11 +299,11 @@ public:
 	float getAttribute(int index) const override;
 	float getDefaultValue(int parameterIndex) const override;
 
-	bool handleSoftBypass() override;
-
 	ModulatorSynth* getFMModulator();
-
 	ModulatorSynth* getFMCarrier();
+
+	const ModulatorSynth* getFMModulator() const;
+	const ModulatorSynth* getFMCarrier() const;
 
 	/** returns the total amount of child groups (internal chains + all child synths) */
 	Processor *getChildProcessor(int processorIndex) override;;
@@ -380,6 +384,14 @@ public:
 	void preVoiceRendering(int startSample, int numThisTime) override;;
 	void postVoiceRendering(int startSample, int numThisTime) override;;
 
+	void handleRetriggeredNote(ModulatorSynthVoice *voice) override;
+
+	void killAllVoices() override;
+
+	void resetAllVoices() override;
+
+	String getFMStateString() const;
+
 	void restoreFromValueTree(const ValueTree &v) override;
 	ValueTree exportAsValueTree() const override;
 
@@ -403,7 +415,7 @@ public:
 		void add(Processor *newProcessor, Processor *siblingToInsertBefore) override;
 
 		/** Deletes a processor from the chain. It also removes the reference in the ModulatorSynthGroupVoices. */
-		virtual void remove(Processor *processorToBeRemoved) override;;
+		virtual void remove(Processor *processorToBeRemoved, bool removeSynth=true) override;;
 
 		/** Returns the processor at the index. */
 		virtual Processor *getProcessor(int processorIndex);;
@@ -421,8 +433,10 @@ public:
 
 	};
 
-	String getFMState() const { return fmState; };
+	String getFMState() const { return getFMStateString(); };
 	void checkFmState();
+
+	void checkFMStateInternally();
 
 	bool fmIsCorrectlySetup() const { return fmCorrectlySetup; };
 
@@ -464,12 +478,15 @@ private:
 	AudioSampleBuffer spreadBuffer;
 	AudioSampleBuffer detuneBuffer;
 
-	String fmState;
+	bool forceMono = false;
 
 	bool fmEnabled;
 	bool fmCorrectlySetup;
 	int modIndex;
 	int carrierIndex;
+
+	// Used to check the retrigger behaviour
+	bool carrierIsSampler = false;
 
 	int unisonoVoiceAmount;
 	int unisonoVoiceLimit;
@@ -484,6 +501,6 @@ private:
 	ScopedPointer<FactoryType> modulatorSynthFactory;
 };
 
-
+} // namespace hise
 
 #endif  // MODULATORSYNTHGROUP_H_INCLUDED

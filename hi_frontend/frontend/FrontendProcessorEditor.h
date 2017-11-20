@@ -23,7 +23,7 @@
 *   http://www.hartinstruments.net/hise/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
@@ -32,6 +32,8 @@
 
 #ifndef FRONTENDPROCESSOREDITOR_H_INCLUDED
 #define FRONTENDPROCESSOREDITOR_H_INCLUDED
+
+namespace hise { using namespace juce;
 
 #define INCLUDE_BAR 1
 
@@ -71,6 +73,23 @@ public:
 	FloatingTile* getRootFloatingTile() override
 	{
 		return rootTile;
+	}
+
+	void setSamplesCorrectlyInstalled(bool wasOK)
+	{
+		if (deactiveOverlay != nullptr)
+		{
+			deactiveOverlay->setState(DeactiveOverlay::SamplesNotInstalled, !wasOK);
+		}
+
+		if (wasOK)
+		{
+			auto fp = dynamic_cast<FrontendProcessor*>(getAudioProcessor());
+			
+			fp->setAllSampleReferencesCorrect();
+			fp->loadSamplesAfterRegistration();
+		}
+			
 	}
 
 	void overlayMessageSent(int state, const String& message) override
@@ -129,5 +148,6 @@ private:
 };
 
 
+} // namespace hise
 
 #endif  // FRONTENDPROCESSOREDITOR_H_INCLUDED

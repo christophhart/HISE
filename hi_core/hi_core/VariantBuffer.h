@@ -23,18 +23,21 @@
 *   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which must be separately licensed for cloused source applications:
+*   which must be separately licensed for closed source applications:
 *
 *   http://www.juce.com
 *
 *   ===========================================================================
 */
 
-#include <cmath>
+
 
 #ifndef VARIANTBUFFER_H_INCLUDED
 #define VARIANTBUFFER_H_INCLUDED
 
+#include <cmath>
+
+namespace juce { using namespace hise;
 
 #define RETURN_STATIC_IDENTIFIER(name) static const Identifier id(name); return id;
 #define CHECK_CONDITION(condition, errorMessage) if(!(condition)) throw String(errorMessage);
@@ -184,5 +187,7 @@ public:
 
 void operator >> (float f, VariantBuffer &b);
 
+
+} // namespace juce
 
 #endif  // VARIANTBUFFER_H_INCLUDED
