@@ -171,6 +171,7 @@ GroupBody::GroupBody (ProcessorEditor *p)
 
 	spreadSlider->setup(getProcessor(), ModulatorSynthGroup::SpecialParameters::UnisonoSpread, "Spread");
 	spreadSlider->setMode(HiSlider::Mode::NormalizedPercentage);
+	spreadSlider->setRange(0.0, 2.0, 0.01);
 
 	spreadSlider->setIsUsingModulatedRing(true);
 	detuneSlider->setIsUsingModulatedRing(true);
