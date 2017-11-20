@@ -319,6 +319,16 @@ public:
 
 	void onInit() override
 	{
+		currentMessageHolder = Engine.createMessageHolder();
+		currentMessageVar = var(currentMessageHolder);
+
+		messageHolders.ensureStorageAllocated(128);
+
+		for (int i = 0; i < 128; i++)
+		{
+			messageHolders.add(Engine.createMessageHolder());
+		}
+
 		Content.setHeight(100);
 		Content.setColour(140, 120, 200);
 		Content.setName("Release Trigger");
@@ -334,9 +344,8 @@ public:
 		attenuationLevel = 1.0; 
 		timeIndex = 0;
 
-		for(int i = 0; i < 127; i++)
+		for(int i = 0; i < 128; i++)
 		{
-			velocityValues[i] = 0;
 			lengthValues[i] = 0.0;
 		}
 	}
@@ -344,34 +353,58 @@ public:
 	void onNoteOn() override
 	{
 		Message.ignoreEvent(true);
-		velocityValues[Message.getNoteNumber()] = Message.getVelocity();
-		lengthValues[Message.getNoteNumber()] = Engine.getUptime();
+
+		const int number = jlimit<int>(0, 127, Message.getNoteNumber());
+
+		messageHolders[number]->setMessage(*getCurrentHiseEvent());
+
+		//velocityValues[Message.getNoteNumber()] = Message.getVelocity();
+		lengthValues[number] = Engine.getUptime();
 	};
 
 	void onNoteOff() override
 	{
 		Message.ignoreEvent(true);
 	
+		const int noteNumber = Message.getNoteNumber();
+
 		if((int)enableButton->getValue() == 1)
 		{
-			double time = Engine.getUptime() - lengthValues[Message.getNoteNumber()];
+			double time = Engine.getUptime() - lengthValues[noteNumber];
 		
 			timeIndex = (int)(time / (double)(timeKnob->getValue()) * 127.0);
-		
-			if(timeIndex > 127) timeIndex = 127;
-			if(timeIndex < 0) timeIndex = 0;
-		
+			timeIndex = jlimit<int>(0, 127, timeIndex);
+
 			attenuationLevel = table->getTableValue(timeIndex);
 		}
 		else
 		{
-			attenuationLevel = 1.0;
+			attenuationLevel = 1.0f;
 		}
 	
-		int v = (int)(velocityValues[Message.getNoteNumber()] * attenuationLevel);
+		auto onEvent = messageHolders[noteNumber]->getMessageCopy();
 
-		if(v > 0)
-			Synth.playNote(Message.getNoteNumber(), v);
+		const int v = (int)((float)onEvent.getVelocity() * attenuationLevel);
+
+		//const int v = (int)(velocityValues[noteNumber] * attenuationLevel);
+
+		if (v > 0)
+		{
+			onEvent.setVelocity(v);
+			onEvent.ignoreEvent(false);
+			onEvent.setTimeStamp(Message.getTimestamp());
+			
+
+			currentMessageHolder->setMessage(onEvent);
+
+			Synth.addMessageFromHolder(currentMessageVar);
+			
+			
+
+			//Synth.playNote(Message.getNoteNumber(), v);
+
+		}
+			
 	}
 	
 	void onControl(ScriptingApi::Content::ScriptComponent *component , var value ) override
@@ -385,13 +418,18 @@ public:
 	
 private:
 
+	ReferenceCountedArray<ScriptingObjects::ScriptingMessageHolder> messageHolders;
+
+	ReferenceCountedObjectPtr<ScriptingObjects::ScriptingMessageHolder> currentMessageHolder;
+
+	var currentMessageVar;
+
 	ScriptingApi::Content::ScriptButton *enableButton;
 	ScriptingApi::Content::ScriptSlider *timeKnob;
 	ScriptingApi::Content::ScriptTable *table;
-	double attenuationLevel;
+	float attenuationLevel;
 	int timeIndex;
 	double lengthValues[128];
-	int velocityValues[128];
 };
 
 
