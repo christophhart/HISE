@@ -389,26 +389,26 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 	while (eventIterator.getNextEvent(m, midiEventPos, true, false))
 		handleHiseEvent(m);
 
-	
+	AudioSampleBuffer thisInternalBuffer(internalBuffer.getArrayOfWritePointers(), internalBuffer.getNumChannels(), numSamplesFixed);
 
 	if (getMainController()->getDebugLogger().isLogging())
 	{
-		for (int i = 0; i < internalBuffer.getNumChannels(); i++)
+		for (int i = 0; i < thisInternalBuffer.getNumChannels(); i++)
 		{
-			getMainController()->getDebugLogger().checkSampleData(this, DebugLogger::Location::SynthRendering, i % 2 != 0, internalBuffer.getReadPointer(i), numSamplesFixed);
+			getMainController()->getDebugLogger().checkSampleData(this, DebugLogger::Location::SynthRendering, i % 2 != 0, thisInternalBuffer.getReadPointer(i), numSamplesFixed);
 		}
 	}
 
-	effectChain->renderMasterEffects(internalBuffer);
+	effectChain->renderMasterEffects(thisInternalBuffer);
 
-	for (int i = 0; i < internalBuffer.getNumChannels(); i++)
+	for (int i = 0; i < thisInternalBuffer.getNumChannels(); i++)
 	{
 		const int destinationChannel = getMatrix().getConnectionForSourceChannel(i);
 		
 		if (destinationChannel >= 0 && destinationChannel < outputBuffer.getNumChannels())
 		{
 			const float thisGain = gain.load() * (i % 2 == 0 ? leftBalanceGain : rightBalanceGain);
-			FloatVectorOperations::addWithMultiply(outputBuffer.getWritePointer(destinationChannel, 0), internalBuffer.getReadPointer(i, 0), thisGain, numSamplesFixed);
+			FloatVectorOperations::addWithMultiply(outputBuffer.getWritePointer(destinationChannel, 0), thisInternalBuffer.getReadPointer(i, 0), thisGain, numSamplesFixed);
 		}
 	}
 
@@ -416,9 +416,9 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 	{
 		float gainValues[NUM_MAX_CHANNELS];
 
-		for (int i = 0; i < internalBuffer.getNumChannels(); i++)
+		for (int i = 0; i < thisInternalBuffer.getNumChannels(); i++)
 		{
-			gainValues[i] = internalBuffer.getMagnitude(i, 0, numSamplesFixed);
+			gainValues[i] = thisInternalBuffer.getMagnitude(i, 0, numSamplesFixed);
 		}
 
 		getMatrix().setGainValues(gainValues, true);
