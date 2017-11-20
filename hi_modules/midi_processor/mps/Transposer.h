@@ -96,10 +96,9 @@ public:
 
 	void processHiseEvent(HiseEvent &m) noexcept override
 	{
-		if(m.isNoteOnOrOff())
+		if (m.isNoteOn())
 		{
-			const int noteNumber = m.getNoteNumber();
-			m.setNoteNumber(noteNumber + transposeAmount);
+			m.setTransposeAmount(m.getTransposeAmount() + transposeAmount);
 		}
 	}
 

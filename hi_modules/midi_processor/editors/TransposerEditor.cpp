@@ -47,9 +47,7 @@ TransposerEditor::TransposerEditor (ProcessorEditor *p)
 
 	intensitySlider->setup(getProcessor(), Transposer::TransposeAmount, "Transpose");
 
-
-
-	intensitySlider->setMode(HiSlider::Discrete, -24.0, 24.0);
+	intensitySlider->setMode(HiSlider::Discrete, -24.0, 24.0, 0.0, 1.0);
 	intensitySlider->setTextValueSuffix(" st");	
 
     //[/UserPreSize]
