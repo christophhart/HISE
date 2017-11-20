@@ -111,7 +111,12 @@ const Identifier Processor::getIdentifierForParameterIndex(int parameterIndex) c
 	{
 		if (auto content = pwsc->getScriptingContent())
 		{
-			return content->getComponent(parameterIndex)->getName();
+			auto child = content->getContentProperties().getChild(parameterIndex);
+
+			if (child.isValid())
+				return child.getProperty("id");
+
+			return Identifier();
 		}
 		else
 			return Identifier();
@@ -124,13 +129,28 @@ const Identifier Processor::getIdentifierForParameterIndex(int parameterIndex) c
 	}
 }
 
+void countChildren(const ValueTree& t, int& numChildren)
+{
+	numChildren++;
+
+	for (auto child : t)
+	{
+		countChildren(child, numChildren);
+	}
+}
+
 int Processor::getNumParameters() const
 {
 	if (auto pwsc = dynamic_cast<const ProcessorWithScriptingContent*>(this))
 	{
 		if (auto content = pwsc->getScriptingContent())
 		{
-			return content->getNumComponents();
+			auto c = content->getContentProperties();
+			int numChildren = -1; // the root tree doesn't count
+
+			countChildren(c, numChildren);
+
+			return numChildren;
 		}
 		else
 			return 0;
