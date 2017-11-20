@@ -1,17 +1,17 @@
 /*
   ==============================================================================
 
-  This is an automatically generated GUI class created by the Introjucer!
+  This is an automatically generated GUI class created by the Projucer!
 
   Be careful when adding custom code to these files, as only the code within
   the "//[xyz]" and "//[/xyz]" sections will be retained when the file is loaded
   and re-saved.
 
-  Created with Introjucer version: 3.2.0
+  Created with Projucer version: 4.3.0
 
   ------------------------------------------------------------------------------
 
-  The Introjucer is part of the JUCE library - "Jules' Utility Class Extensions"
+  The Projucer is part of the JUCE library - "Jules' Utility Class Extensions"
   Copyright (c) 2015 - ROLI Ltd.
 
   ==============================================================================
@@ -50,6 +50,12 @@ GlobalModulatorEditor::GlobalModulatorEditor (ProcessorEditor *p)
     globalModSelector->setTextWhenNoChoicesAvailable (TRANS("(no choices)"));
     globalModSelector->addListener (this);
 
+    addAndMakeVisible (invertButton = new HiToggleButton ("new toggle button"));
+    invertButton->setTooltip (TRANS("Use a table to calculate the value"));
+    invertButton->setButtonText (TRANS("Invert"));
+    invertButton->addListener (this);
+    invertButton->setColour (ToggleButton::textColourId, Colours::white);
+
 
     //[UserPreSize]
 
@@ -61,11 +67,13 @@ GlobalModulatorEditor::GlobalModulatorEditor (ProcessorEditor *p)
 
 	useTableButton->setup(getProcessor(), GlobalModulator::UseTable, "Use Table");
 
+	invertButton->setup(getProcessor(), GlobalModulator::Inverted, "Inverted");
+
 	getProcessor()->getMainController()->skin(*globalModSelector);
 
 	setItemEntry();
-    
-    
+
+
 
     //[/UserPreSize]
 
@@ -88,6 +96,7 @@ GlobalModulatorEditor::~GlobalModulatorEditor()
     midiTable = nullptr;
     useTableButton = nullptr;
     globalModSelector = nullptr;
+    invertButton = nullptr;
 
 
     //[Destructor]. You can add your own custom destruction code here..
@@ -100,8 +109,11 @@ void GlobalModulatorEditor::paint (Graphics& g)
     //[UserPrePaint] Add your own custom painting code here..
     //[/UserPrePaint]
 
-   
-	ProcessorEditorLookAndFeel::fillEditorBackgroundRect(g, this);
+    g.setColour (Colour (0x30000000));
+    g.fillRoundedRectangle (static_cast<float> ((getWidth() / 2) - ((getWidth() - 84) / 2)), 3.0f, static_cast<float> (getWidth() - 84), static_cast<float> (getHeight() - 6), 6.000f);
+
+    g.setColour (Colour (0x25ffffff));
+    g.drawRoundedRectangle (static_cast<float> ((getWidth() / 2) - ((getWidth() - 84) / 2)), 3.0f, static_cast<float> (getWidth() - 84), static_cast<float> (getHeight() - 6), 6.000f, 2.000f);
 
     //[UserPaint] Add your own custom painting code here..
     //[/UserPaint]
@@ -114,7 +126,8 @@ void GlobalModulatorEditor::resized()
 
     midiTable->setBounds ((getWidth() / 2) + -2 - ((getWidth() - 116) / 2), 63, getWidth() - 116, 120);
     useTableButton->setBounds (56, 16, 128, 32);
-    globalModSelector->setBounds (getWidth() - 60 - (getWidth() - 268), 16, getWidth() - 268, 32);
+    globalModSelector->setBounds (getWidth() - 204 - (getWidth() - 411), 16, getWidth() - 411, 32);
+    invertButton->setBounds (getWidth() - 193, 16, 128, 32);
     //[UserResized] Add your own custom resize handling here..
     //[/UserResized]
 }
@@ -132,6 +145,11 @@ void GlobalModulatorEditor::buttonClicked (Button* buttonThatWasClicked)
 
 		refreshBodySize();
         //[/UserButtonCode_useTableButton]
+    }
+    else if (buttonThatWasClicked == invertButton)
+    {
+        //[UserButtonCode_invertButton] -- add your button handler code here..
+        //[/UserButtonCode_invertButton]
     }
 
     //[UserbuttonClicked_Post]
@@ -190,9 +208,9 @@ void GlobalModulatorEditor::setItemEntry()
 
 //==============================================================================
 #if 0
-/*  -- Introjucer information section --
+/*  -- Projucer information section --
 
-    This is where the Introjucer stores the metadata that describe this GUI layout, so
+    This is where the Projucer stores the metadata that describe this GUI layout, so
     make changes in here at your peril!
 
 BEGIN_JUCER_METADATA
@@ -215,9 +233,14 @@ BEGIN_JUCER_METADATA
                 buttonText="UseTable" connectedEdges="0" needsCallback="1" radioGroupId="0"
                 state="0"/>
   <COMBOBOX name="new combo box" id="f9053c2b9246bbfc" memberName="globalModSelector"
-            virtualName="ComboBox" explicitFocusOrder="0" pos="60Rr 16 268M 32"
+            virtualName="ComboBox" explicitFocusOrder="0" pos="204Rr 16 411M 32"
             posRelativeX="3b242d8d6cab6cc3" editable="0" layout="33" items=""
             textWhenNonSelected="Select Global Modulator" textWhenNoItems="(no choices)"/>
+  <TOGGLEBUTTON name="new toggle button" id="d863d2ef0a6a06ff" memberName="invertButton"
+                virtualName="HiToggleButton" explicitFocusOrder="0" pos="193R 16 128 32"
+                tooltip="Use a table to calculate the value" txtcol="ffffffff"
+                buttonText="Invert" connectedEdges="0" needsCallback="1" radioGroupId="0"
+                state="0"/>
 </JUCER_COMPONENT>
 
 END_JUCER_METADATA

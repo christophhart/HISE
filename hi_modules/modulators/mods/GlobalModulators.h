@@ -47,6 +47,7 @@ public:
 	enum Parameters
 	{
 		UseTable = 0,
+		Inverted,
 		numTotalParameters
 	};
 
@@ -99,7 +100,8 @@ protected:
 
 	ScopedPointer<MidiTable> table;
 
-	bool useTable;
+	bool useTable = false;
+	bool inverted = false;
 
 private:
 
@@ -211,6 +213,8 @@ public:
 	virtual int getNumChildProcessors() const override final { return 0; };
 
 	void calculateBlock(int startSample, int numSamples) override;
+
+	void invertBuffer(int startSample, int numSamples);
 
 	/** sets the new target value if the controller number matches. */
 	void handleHiseEvent(const HiseEvent &/*m*/) override {};

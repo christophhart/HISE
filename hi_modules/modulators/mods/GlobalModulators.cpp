@@ -162,6 +162,7 @@ String GlobalModulator::getItemEntryFor(const GlobalModulatorContainer *c, const
 void GlobalModulator::saveToValueTree(ValueTree &v) const
 {
 	v.setProperty("UseTable", useTable, nullptr);
+	v.setProperty("Inverted", inverted, nullptr);
 
 	saveTable(table, "TableData");
 
@@ -172,6 +173,7 @@ void GlobalModulator::saveToValueTree(ValueTree &v) const
 void GlobalModulator::loadFromValueTree(const ValueTree &v)
 {
 	useTable = v.getProperty("UseTable");
+	inverted = v.getProperty("Inverted");
 
 	loadTable(table, "TableData");
 
@@ -204,6 +206,7 @@ Modulation(m),
 GlobalModulator(mc)
 {
 	parameterNames.add("UseTable");
+	parameterNames.add("Inverted");
 }
 
 GlobalVoiceStartModulator::~GlobalVoiceStartModulator()
@@ -240,6 +243,7 @@ void GlobalVoiceStartModulator::setInternalAttribute(int parameterIndex, float n
 	switch (parameterIndex)
 	{
 	case UseTable:			useTable = (newValue != 0.0f); break;
+	case Inverted:			inverted = (newValue > 0.5f); break;
 	default:				jassertfalse; break;
 	}
 }
@@ -249,6 +253,7 @@ float GlobalVoiceStartModulator::getAttribute(int parameterIndex) const
 	switch (parameterIndex)
 	{
 	case UseTable:			return useTable ? 1.0f : 0.0f;
+	case Inverted:			return inverted ? 1.0f : 0.0f;
 	default:				jassertfalse; return -1.0f;
 	}
 }
@@ -271,7 +276,7 @@ float GlobalVoiceStartModulator::calculateVoiceStartValue(const HiseEvent &m)
 			sendTableIndexChangeMessage(false, table, (float)index / 127.0f);
 		}
 
-		return globalValue;
+		return inverted ? 1.0f - globalValue : globalValue;
 	}
 
 	return 1.0f;
@@ -283,6 +288,7 @@ GlobalStaticTimeVariantModulator::GlobalStaticTimeVariantModulator(MainControlle
 	GlobalModulator(mc)
 {
 	parameterNames.add("UseTable");
+	parameterNames.add("Inverted");
 }
 
 
@@ -321,7 +327,8 @@ void GlobalStaticTimeVariantModulator::setInternalAttribute(int parameterIndex, 
 {
 	switch (parameterIndex)
 	{
-	case UseTable:			useTable = (newValue != 0.0f); break;
+	case UseTable:			useTable = (newValue > 0.5f); break;
+	case Inverted:			inverted = (newValue > 0.5f); break;
 	default:				jassertfalse; break;
 	}
 }
@@ -331,6 +338,7 @@ float GlobalStaticTimeVariantModulator::getAttribute(int parameterIndex) const
 	switch (parameterIndex)
 	{
 	case UseTable:			return useTable ? 1.0f : 0.0f;
+	case Inverted:			return inverted ? 1.0f : 0.0f;
 	default:				jassertfalse; return -1.0f;
 	}
 }
@@ -349,7 +357,7 @@ float GlobalStaticTimeVariantModulator::calculateVoiceStartValue(const HiseEvent
 			sendTableIndexChangeMessage(false, table, (float)index / 127.0f);
 		}
 
-		return globalValue;
+		return inverted ? 1.0f - globalValue : globalValue;
 	}
 
 	return 1.0f;
@@ -363,6 +371,7 @@ inputValue(1.0f),
 currentValue(1.0f)
 {
 	parameterNames.add("UseTable");
+	parameterNames.add("Inverted");
 }
 
 void GlobalTimeVariantModulator::restoreFromValueTree(const ValueTree &v)
@@ -396,6 +405,7 @@ void GlobalTimeVariantModulator::setInternalAttribute(int parameterIndex, float 
 	switch (parameterIndex)
 	{
 	case UseTable:			useTable = (newValue != 0.0f); break;
+	case Inverted:			inverted = (newValue > 0.5f); break;
 	default:				jassertfalse; break;
 	}
 }
@@ -405,6 +415,7 @@ float GlobalTimeVariantModulator::getAttribute(int parameterIndex) const
 	switch (parameterIndex)
 	{
 	case UseTable:			return useTable ? 1.0f : 0.0f;
+	case Inverted:			return inverted ? 1.0f : 0.0f;
 	default:				jassertfalse; return -1.0f;
 	}
 }
@@ -430,6 +441,9 @@ void GlobalTimeVariantModulator::calculateBlock(int startSample, int numSamples)
 				internalBuffer.setSample(0, startSample++, table->get(tableIndex));
 			}
 
+			invertBuffer(startSample, numSamples);
+
+
 			setOutputValue(internalBuffer.getSample(0, startIndex));
 			sendTableIndexChangeMessage(false, table, thisInputValue);
 
@@ -437,6 +451,9 @@ void GlobalTimeVariantModulator::calculateBlock(int startSample, int numSamples)
 		else
 		{
 			FloatVectorOperations::copy(internalBuffer.getWritePointer(0, startSample), getConnectedContainer()->getModulationValuesForModulator(getOriginalModulator(), startSample), numSamples);
+
+			invertBuffer(startSample, numSamples);
+
 			setOutputValue(internalBuffer.getSample(0, startSample));
 		}
 
@@ -446,6 +463,16 @@ void GlobalTimeVariantModulator::calculateBlock(int startSample, int numSamples)
 	{
 		FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), 1.0f, numSamples);
 		setOutputValue(1.0f);
+	}
+}
+
+void GlobalTimeVariantModulator::invertBuffer(int startSample, int numSamples)
+{
+	if (inverted)
+	{
+		float* d = internalBuffer.getWritePointer(0, startSample);
+		FloatVectorOperations::multiply(d, -1.0f, numSamples);
+		FloatVectorOperations::add(d, 1.0f, numSamples);
 	}
 }
 
