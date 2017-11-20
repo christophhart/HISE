@@ -276,6 +276,8 @@ void Arpeggiator::onNoteOff()
 	if (bypassButton->getValue())
 		return;
 
+	Message.ignoreEvent(true);
+
 	remUserHeldKey(Message.getNoteNumber());
 }
 
@@ -337,6 +339,8 @@ void Arpeggiator::playNote()
 
 	// start synth timer
 	start();
+
+	const int timerTimeStamp = Message.getTimestamp();
 
 	// transfer user held keys to midi sequence
 	MidiSequenceArray.clearQuick();
@@ -409,21 +413,23 @@ void Arpeggiator::playNote()
 	if (MidiSequenceArray.size() > 1 && !curr_step_is_skip())
 	{
 		// this means we are coming from the 1 note logic and we need to end the last note
-		if (currentlyPlayingKeys.size() > 0)
+		if (currentlyPlayingEventIds.size() > 0)
 		{
-			for (int i = 0; i < currentlyPlayingKeys.size(); ++i)
+			for (int i = 0; i < currentlyPlayingEventIds.size(); ++i)
 			{
-				Synth.addNoteOff(midiChannel, currentlyPlayingKeys[i], minNoteLenSamples);
+				Synth.noteOffDelayedByEventId(currentlyPlayingEventIds[i], minNoteLenSamples);
+
+				//Synth.addNoteOff(midiChannel, currentlyPlayingEventIds[i], minNoteLenSamples);
 			}
 
-			currentlyPlayingKeys.clear();
+			currentlyPlayingEventIds.clearQuick();
 		}
 
 		last_step_was_tied = false;
 
 		int shuffleTimeStamp = (currentStep % 2 != 0) ? (int)(0.8 * (double)currentNoteLengthInSamples * (double)shuffleSlider->getValue()) : 0;
 
-		Synth.addNoteOn(midiChannel, currentNote, currentVelocity, shuffleTimeStamp);
+		const int onId = Synth.addNoteOn(midiChannel, currentNote, currentVelocity, shuffleTimeStamp);
 
 		// add a little bit of time to the note off for a tied step to engage the synth's legato features
 		// only do it if next step is not going to be skipped
@@ -432,7 +438,9 @@ void Arpeggiator::playNote()
 			currentNoteLengthInSamples += minNoteLenSamples;
 		}
 
-		Synth.addNoteOff(midiChannel, currentNote, jmax<int>(minNoteLenSamples, currentNoteLengthInSamples));
+		Synth.noteOffDelayedByEventId(onId, jmax<int>(minNoteLenSamples, currentNoteLengthInSamples));
+
+		//Synth.addNoteOff(midiChannel, currentNote, jmax<int>(minNoteLenSamples, currentNoteLengthInSamples));
 	}
 	// use this PLAY NOTE only if there's 1 note in the sequence because we need to do a "hold note" kind of logic
 	else if (MidiSequenceArray.size() == 1)
@@ -442,8 +450,8 @@ void Arpeggiator::playNote()
 		{
 			int shuffleTimeStamp = (currentStep % 2 != 0) ? (int)(0.8 * (double)currentNoteLengthInSamples * (double)shuffleSlider->getValue()) : 0;
 
-			Synth.addNoteOn(midiChannel, currentNote, currentVelocity, shuffleTimeStamp);
-			currentlyPlayingKeys.add(currentNote);
+			const int onId = Synth.addNoteOn(midiChannel, currentNote, currentVelocity, shuffleTimeStamp);
+			currentlyPlayingEventIds.add(onId);
 		}
 
 		last_step_was_tied = false;
@@ -455,24 +463,28 @@ void Arpeggiator::playNote()
 		}
 		else
 		{
-			for (int i = 0; i < currentlyPlayingKeys.size(); ++i)
+			auto l = jmax<int>(minNoteLenSamples, currentNoteLengthInSamples);
+
+			for (int i = 0; i < currentlyPlayingEventIds.size(); ++i)
 			{
-				Synth.addNoteOff(midiChannel, currentlyPlayingKeys[i], jmax<int>(minNoteLenSamples, currentNoteLengthInSamples));
+				//Synth.addNoteOff(midiChannel, currentlyPlayingEventIds[i], );
+				Synth.noteOffDelayedByEventId(currentlyPlayingEventIds[i], l);
 			}
 
-			currentlyPlayingKeys.clear();
+			currentlyPlayingEventIds.clearQuick();
 		}
 
 		if (next_step_will_be_skipped())
 		{
 			last_step_was_tied = false;
 
-			for (int i = 0; i < currentlyPlayingKeys.size(); ++i)
+			for (int i = 0; i < currentlyPlayingEventIds.size(); ++i)
 			{
-				Synth.addNoteOff(midiChannel, currentlyPlayingKeys[i], jmax<int>(minNoteLenSamples, currentNoteLengthInSamples));
+				//Synth.addNoteOff(midiChannel, currentlyPlayingEventIds[i], jmax<int>(minNoteLenSamples, currentNoteLengthInSamples));
+				Synth.noteOffDelayedByEventId(currentlyPlayingEventIds[i], currentNoteLengthInSamples);
 			}
 
-			currentlyPlayingKeys.clear();
+			currentlyPlayingEventIds.clearQuick();
 		}
 	}
 

@@ -74,7 +74,7 @@ private:
 	
 	Array<int> userHeldKeysArray;
 	Array<int> userHeldKeysArraySorted;
-	Array<int> currentlyPlayingKeys;
+	Array<int> currentlyPlayingEventIds;
 	Array<int> sequence;
 
 	double internalBPM = 150.0;
