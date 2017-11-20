@@ -1772,6 +1772,7 @@ struct ScriptingApi::Synth::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Synth, deferCallbacks);
 	API_VOID_METHOD_WRAPPER_1(Synth, noteOff);
 	API_VOID_METHOD_WRAPPER_1(Synth, noteOffByEventId);
+	API_VOID_METHOD_WRAPPER_2(Synth, noteOffDelayedByEventId);
 	API_METHOD_WRAPPER_2(Synth, playNote);
 	API_METHOD_WRAPPER_4(Synth, playNoteWithStartOffset);
 	API_VOID_METHOD_WRAPPER_2(Synth, setAttribute);
@@ -1834,6 +1835,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_1(deferCallbacks);
 	ADD_API_METHOD_1(noteOff);
 	ADD_API_METHOD_1(noteOffByEventId);
+	ADD_API_METHOD_2(noteOffDelayedByEventId);
 	ADD_API_METHOD_2(playNote);
 	ADD_API_METHOD_4(playNoteWithStartOffset);
 	ADD_API_METHOD_2(setAttribute);
@@ -1903,23 +1905,26 @@ void ScriptingApi::Synth::noteOff(int noteNumber)
 
 void ScriptingApi::Synth::noteOffByEventId(int eventId)
 {
+	noteOffDelayedByEventId(eventId, 0);
+}
+
+void ScriptingApi::Synth::noteOffDelayedByEventId(int eventId, int timestamp)
+{
 	const HiseEvent e = getProcessor()->getMainController()->getEventHandler().popNoteOnFromEventId((uint16)eventId);
 
 	if (!e.isEmpty())
 	{
 #if ENABLE_SCRIPTING_SAFE_CHECKS
-        if (!e.isArtificial())
-        {
-            reportScriptError("Hell breaks loose if you kill real events artificially!");
-        }
+		if (!e.isArtificial())
+		{
+			reportScriptError("Hell breaks loose if you kill real events artificially!");
+		}
 #endif
 		const HiseEvent* current = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor())->getCurrentHiseEvent();
 
-		uint16 timestamp = 0;
-
 		if (current != nullptr)
 		{
-			timestamp = current->getTimeStamp();
+			timestamp += current->getTimeStamp();
 		}
 
 		HiseEvent noteOff(HiseEvent::Type::NoteOff, (uint8)e.getNoteNumber(), 1, (uint8)e.getChannel());
@@ -1934,7 +1939,6 @@ void ScriptingApi::Synth::noteOffByEventId(int eventId)
 		{
 			sp->addHiseEventToBuffer(noteOff);
 		}
-
 	}
 	else
 	{
@@ -2068,7 +2072,7 @@ int ScriptingApi::Synth::addMessageFromHolder(var messageHolder)
 
 		if (m != nullptr)
 		{
-			HiseEvent e = m->getMessage();
+			HiseEvent e = m->getMessageCopy();
 
 			if (e.getType() != HiseEvent::Type::Empty)
 			{
@@ -2137,7 +2141,16 @@ void ScriptingApi::Synth::startTimer(double intervalInSeconds)
 
 		p->setIndexInChain(freeTimerSlot);
 
-		owner->startSynthTimer(p->getIndexInChain(), intervalInSeconds, p->getCurrentHiseEvent() != nullptr ? p->getCurrentHiseEvent()->getTimeStamp() : 0);
+		auto* e = p->getCurrentHiseEvent();
+
+		int timestamp = 0;
+
+		if (e != nullptr)
+		{
+			timestamp = e->getTimeStamp();
+		}
+
+		owner->startSynthTimer(p->getIndexInChain(), intervalInSeconds, timestamp);
 	}
 }
 
@@ -2605,7 +2618,6 @@ void ScriptingApi::Synth::addNoteOff(int channel, int noteNumber, int timeStampS
 			{
 				if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor()))
 				{
-	
 					timeStampSamples = jmax<int>(1, timeStampSamples);
 
 					HiseEvent m = HiseEvent(HiseEvent::Type::NoteOff, (uint8)noteNumber, 127, (uint8)channel);

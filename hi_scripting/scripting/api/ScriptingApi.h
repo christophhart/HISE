@@ -470,6 +470,9 @@ public:
 		/** Sends a note off message for the supplied event ID. This is more stable than the deprecated noteOff() method. */
 		void noteOffByEventId(int eventId);
 
+		/** Sends a note off message for the supplied event ID with the given delay in samples. */
+		void noteOffDelayedByEventId(int eventId, int timestamp);
+
 		/** Plays a note and returns the event id. Be careful or you get stuck notes! */
 		int playNote(int noteNumber, int velocity);
 		

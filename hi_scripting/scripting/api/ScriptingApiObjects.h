@@ -316,7 +316,7 @@ public:
 
 		void setMessage(const HiseEvent &newEvent) { e = HiseEvent(newEvent); }
 
-		HiseEvent getMessage() const { return e; }
+		HiseEvent getMessageCopy() const { return e; }
 
 	private:
 
