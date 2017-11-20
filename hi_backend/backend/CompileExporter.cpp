@@ -189,6 +189,8 @@ ValueTree BaseExporter::collectAllSampleMapsInDirectory()
 
 	sampleMapDirectory.findChildFiles(sampleMapFiles, File::findFiles, true, "*.xml");
 
+	sampleMapFiles.sort();
+
 	for (int i = 0; i < sampleMapFiles.size(); i++)
 	{
         if(sampleMapFiles[i].isHidden() || sampleMapFiles[i].getFileName().startsWith("."))
@@ -202,6 +204,8 @@ ValueTree BaseExporter::collectAllSampleMapsInDirectory()
 			sampleMaps.addChild(sampleMap, -1, nullptr);
 		}
 	}
+
+	
 
 	return sampleMaps;
 }
@@ -1033,7 +1037,9 @@ public:
 		if (length == 1)
 			return "s" + String(start);
 
-		int breakPos = jlimit(1, length - 1, (length / 3) + rng.nextInt(length / 3));
+        int randomPart = length > 3 ? rng.nextInt(length / 3) : 0;
+        
+		int breakPos = jlimit(1, length - 1, (length / 3) + randomPart );
 
 		return "(" + getStringConcatenationExpression(rng, start, breakPos)
 			+ " + " + getStringConcatenationExpression(rng, start + breakPos, length - breakPos) + ")";

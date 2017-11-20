@@ -247,6 +247,9 @@ public:
 		static String getSanitiziedFileNameForPoolReference(const String &absoluteFileName);
 		
 		static void setSampleLocation(const File &newLocation);
+
+		static File getSampleLinkFile();
+
 		static File getUserPresetDirectory();
 		
 		static String getProjectName();
@@ -260,6 +263,8 @@ public:
 		/** on IOS this returns the folder where all the resources (samples, images, etc) are found.
 		*	It uses a shared folder for both the AUv3 and Standalone version in order to avoid duplicating the data. */
 		static File getResourcesFolder();
+
+		static const bool checkSamplesCorrectlyInstalled();
 	};
 
 	static File getLinkFile(const File &subDirectory);

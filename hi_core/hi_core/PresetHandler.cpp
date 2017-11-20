@@ -1751,18 +1751,10 @@ String ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(const Str
 void ProjectHandler::Frontend::setSampleLocation(const File &newLocation)
 {
 #if USE_FRONTEND
-	File appDataDir = getAppDataDirectory();
+	
+	auto linkFile = getSampleLinkFile();
 
-	// The installer should take care of creating the app data directory...
-	jassert(appDataDir.isDirectory());
-
-#if JUCE_MAC && ENABLE_APPLE_SANDBOX
-    File childFile = ProjectHandler::getLinkFile(File(appDataDir.getChildFile("Resources/"));
-#else
-    File childFile = ProjectHandler::getLinkFile(appDataDir);
-#endif
-
-	childFile.replaceWithText(newLocation.getFullPathName());
+	linkFile.replaceWithText(newLocation.getFullPathName());
 
 #else
 
@@ -1770,6 +1762,25 @@ void ProjectHandler::Frontend::setSampleLocation(const File &newLocation)
 
 #endif
 }
+
+
+
+File ProjectHandler::Frontend::getSampleLinkFile()
+{
+	File appDataDir = getAppDataDirectory();
+
+	// The installer should take care of creating the app data directory...
+	jassert(appDataDir.isDirectory());
+
+#if JUCE_MAC && ENABLE_APPLE_SANDBOX
+	File childFile = ProjectHandler::getLinkFile(File(appDataDir.getChildFile("Resources/"));
+#else
+	File childFile = ProjectHandler::getLinkFile(appDataDir);
+#endif
+
+	return childFile;
+}
+
 
 
 
@@ -1824,6 +1835,10 @@ File ProjectHandler::Frontend::getUserPresetDirectory()
 #endif
 }
 
+const bool ProjectHandler::Frontend::checkSamplesCorrectlyInstalled()
+{
+	return getSampleLinkFile().existsAsFile();
+}
 
 
 

@@ -122,7 +122,7 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DefaultFrontendBar)
 };
 
-
+class SampleDataImporter;
 
 
 class DeactiveOverlay : public Component,
@@ -146,6 +146,7 @@ public:
 		LicenseInvalid,
 		CopyProtectionError,
 		CriticalCustomErrorMessage,
+		SamplesNotInstalled,
 		SamplesNotFound,
 		CustomErrorMessage,
 		CustomInformation,
@@ -203,6 +204,7 @@ private:
 	ScopedPointer<Label> descriptionLabel;
 
 	ScopedPointer<TextButton> resolveLicenseButton;
+	ScopedPointer<TextButton> installSampleButton;
 	ScopedPointer<TextButton> resolveSamplesButton;
 	ScopedPointer<TextButton> registerProductButton;
 	ScopedPointer<TextButton> useActivationResponseButton;
