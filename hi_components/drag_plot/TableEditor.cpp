@@ -94,7 +94,7 @@ void TableEditor::mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &w
 void TableEditor::createDragPoints()
 {
 	jassert(editedTable->getNumGraphPoints() >= 2);
-	jassert(getWidth() != 0);
+	//jassert(getWidth() != 0);
 
 	drag_points.clear();
 

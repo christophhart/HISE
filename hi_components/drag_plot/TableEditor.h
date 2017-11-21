@@ -497,7 +497,7 @@ private:
 		/** Returns the scaled position in the TableEditor. */
 		Point<int> getPos() const
 		{
-			jassert( !dragPlotSize.isEmpty() );
+			//jassert( !dragPlotSize.isEmpty() );
 
 			const int x_pos = (int)(normalizedGraphPoint.x * dragPlotSize.getWidth());
 			const int y_pos = (int)((1.0f - normalizedGraphPoint.y) * dragPlotSize.getHeight());
@@ -527,7 +527,7 @@ private:
 		*/
 		void setPos(Point<int> newPosition)
 		{
-			jassert( !dragPlotSize.isEmpty() );
+			//jassert( !dragPlotSize.isEmpty() );
 
 			normalizedGraphPoint.x = (float)newPosition.getX() / (float)dragPlotSize.getWidth();
 			normalizedGraphPoint.y = 1.0f - ((float)newPosition.getY() / (float)dragPlotSize.getHeight());

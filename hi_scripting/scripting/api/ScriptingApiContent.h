@@ -209,6 +209,8 @@ public:
 
 		void notifyChildComponents();
 
+		virtual void cancelPendingFunctions() {};
+
 		bool isShowing() const;
 
 		template <class ChildType> class ChildIterator
@@ -995,7 +997,15 @@ public:
 
 		var getJSONPopupData() const { return jsonPopupData; }
 
-		
+		void cancelPendingFunctions() override
+		{
+			//cancelAll = true;
+
+			stopTimer();
+			repainter.stopTimer();
+			repaintNotifier.removeAllChangeListeners();
+			controlSender.cancelPendingUpdate();
+		}
 
 		Rectangle<int> getPopupSize() const { return popupBounds; }
 
@@ -1066,6 +1076,8 @@ public:
                 
             }
             
+			
+
             void triggerAsyncUpdate()
             {
                 if(!isTimerRunning()) startTimer(30);
@@ -1575,7 +1587,14 @@ public:
 		requiredUpdate = DoNothing;
 	}
 
+	bool asyncFunctionsAllowed() const
+	{
+		return allowAsyncFunctions;
+	}
+
 private:
+
+	bool allowAsyncFunctions = false;
 
 	UpdateLevel currentUpdateLevel = FullRecompile;
 

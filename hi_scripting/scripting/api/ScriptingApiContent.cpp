@@ -2256,11 +2256,13 @@ timerRoutine(var())
 
 ScriptingApi::Content::ScriptPanel::~ScriptPanel()
 {
+	stopTimer();
+
 	timerRoutine = var();
 	mouseRoutine = var();
 	paintRoutine = var();
 
-    stopTimer();
+    
     
 	if (HiseJavascriptEngine::isJavascriptFunction(loadRoutine))
 	{
@@ -2314,8 +2316,20 @@ void ScriptingApi::Content::ScriptPanel::setPaintRoutine(var paintFunction)
 
 void ScriptingApi::Content::ScriptPanel::internalRepaint()
 {
+	if (!parent->asyncFunctionsAllowed())
+	{
+		return;
+	}
+
+	ScopedReadLock sl(dynamic_cast<Processor*>(getScriptProcessor())->getMainController()->getCompileLock());
+
 	if (!usesClippedFixedImage)
 	{
+		HiseJavascriptEngine* engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
+
+		if (engine == nullptr)
+			return;
+
 		auto imageBounds = getBoundsForImage();
 
 		int canvasWidth = imageBounds.getWidth();
@@ -2350,7 +2364,7 @@ void ScriptingApi::Content::ScriptPanel::internalRepaint()
 
 		Result r = Result::ok();
 
-		HiseJavascriptEngine* engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
+		
 
         if(!engine->isInitialising())
         {
@@ -2415,6 +2429,11 @@ void ScriptingApi::Content::ScriptPanel::setMouseCallback(var mouseCallbackFunct
 
 void ScriptingApi::Content::ScriptPanel::mouseCallback(var mouseInformation)
 {
+	if (!parent->asyncFunctionsAllowed())
+	{
+		return;
+	}
+
 	if (HiseJavascriptEngine::isJavascriptFunction(mouseRoutine))
 	{
 		var thisObject(this);
@@ -2443,15 +2462,28 @@ void ScriptingApi::Content::ScriptPanel::setTimerCallback(var timerCallback_)
 
 void ScriptingApi::Content::ScriptPanel::timerCallback()
 {
+	if (!parent->asyncFunctionsAllowed())
+	{
+		return;
+	}
+		
+
+	ScopedReadLock sl(dynamic_cast<Processor*>(getScriptProcessor())->getMainController()->getCompileLock());
+
 	if (HiseJavascriptEngine::isJavascriptFunction(timerRoutine))
 	{
+		auto engine = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine();
+
+		if (engine == nullptr)
+			return;
+
 		var thisObject(this);
 		var::NativeFunctionArgs args(thisObject, nullptr, 0);
 
 		Result r = Result::ok();
 
-        auto engine = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine();
         
+
         engine->maximumExecutionTime = RelativeTime(0.5);
 		engine->callExternalFunction(timerRoutine, args, &r);
 
@@ -2464,6 +2496,9 @@ void ScriptingApi::Content::ScriptPanel::timerCallback()
 
 void ScriptingApi::Content::ScriptPanel::changed()
 {
+	if (!parent->asyncFunctionsAllowed())
+		return;
+
 	controlSender.triggerAsyncUpdate();
 }
 
@@ -3291,6 +3326,8 @@ void ScriptingApi::Content::setPropertiesFromJSON(const Identifier &componentNam
 void ScriptingApi::Content::endInitialization()
 {
 	allowGuiCreation = false;
+
+	allowAsyncFunctions = true;
 }
 
 
@@ -3630,6 +3667,8 @@ var ScriptingApi::Content::createPath()
 
 void ScriptingApi::Content::cleanJavascriptObjects()
 {
+	allowAsyncFunctions = false;
+
 	for (int i = 0; i < components.size(); i++)
 	{
 		components[i]->setControlCallback(var());
@@ -3641,6 +3680,8 @@ void ScriptingApi::Content::cleanJavascriptObjects()
 			auto data = p->getConstantValue(0).getDynamicObject();
 
 			data->clear();
+
+			p->cancelPendingFunctions();
 
 			p->setPaintRoutine(var());
 			p->setTimerCallback(var());

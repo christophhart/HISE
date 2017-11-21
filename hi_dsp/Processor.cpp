@@ -114,7 +114,7 @@ const Identifier Processor::getIdentifierForParameterIndex(int parameterIndex) c
 			auto child = content->getContentProperties().getChild(parameterIndex);
 
 			if (child.isValid())
-				return child.getProperty("id");
+				return Identifier(child.getProperty("id").toString());
 
 			return Identifier();
 		}
