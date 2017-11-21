@@ -264,9 +264,9 @@ void MonoFilterEffect::processBlockPartial(AudioSampleBuffer &buffer, int startS
 			bipolarDelta = (double)bipolarIntensity * maxFreqInBipolarModBuffer* freq;
 		}
 		
-		const double freqToUse = jlimit<double>(40.0, 20000.0, freq + bipolarDelta);
+		const double freqToUse = jlimit<double>(MIN_FILTER_FREQ, 20000.0, freq + bipolarDelta);
 
-		currentFreq = 0.15 * jmax<double>(40.0, (double)maxFreqInModBuffer * freqToUse) + 0.85 * lastCurrentFreq;
+		currentFreq = 0.15 * jmax<double>(MIN_FILTER_FREQ, (double)maxFreqInModBuffer * freqToUse) + 0.85 * lastCurrentFreq;
         
         const float lastCurrentGain = currentGain;
         
@@ -580,9 +580,9 @@ void PolyFilterEffect::applyEffect(int voiceIndex, AudioSampleBuffer &b, int sta
 	else if (bipolarIntensity < 0.0f)
 		bipolarDelta = (double)bipolarIntensity * bipolarFreqModValue * freq;
 
-	const double freqToUse = jlimit<double>(40.0, 20000.0, freq + bipolarDelta);
+	const double freqToUse = jlimit<double>(MIN_FILTER_FREQ, 20000.0, freq + bipolarDelta);
 
-	const double checkFreq = jmax<double>(70.0, std::abs(freqModValue * freqToUse));
+	const double checkFreq = jmax<double>(MIN_FILTER_FREQ, std::abs(freqModValue * freqToUse));
 
 	voiceFilters[voiceIndex]->currentFreq = checkFreq;
 	voiceFilters[voiceIndex]->freq = checkFreq;

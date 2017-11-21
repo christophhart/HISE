@@ -37,6 +37,11 @@ namespace hise { using namespace juce;
 
 #define USE_STATE_VARIABLE_FILTERS 1
 
+
+#ifndef MIN_FILTER_FREQ
+#define MIN_FILTER_FREQ 20.0
+#endif
+
 /** A base class for filters with multiple channels. 
 *
 *   It exposes an interface for different filter types which have common methods for
@@ -706,7 +711,7 @@ public:
 
 	void updateCoefficients() override
 	{
-		const float scaledQ = (float)q * 0.1f;
+		const float scaledQ = jlimit<float>(0.0f, 9.999f, (float)q * 0.1f);
 
 		float g = (float)tan(double_Pi * frequency / sampleRate);
 		//float damping = 1.0f / res;
