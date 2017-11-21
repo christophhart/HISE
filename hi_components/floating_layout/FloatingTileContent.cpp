@@ -396,10 +396,8 @@ Component* FloatingPanelTemplates::createSamplerWorkspace(FloatingTile* rootTile
 
 var FloatingPanelTemplates::createSettingsWindow(MainController* mc)
 {
-	//MessageManagerLock mm;
+	MessageManagerLock mm;
 	
-#if 0
-
 	ScopedPointer<FloatingTile> root = new FloatingTile(mc, nullptr);
 
 	root->setAllowChildComponentCreation(false);
@@ -456,10 +454,6 @@ var FloatingPanelTemplates::createSettingsWindow(MainController* mc)
 	auto v = ib.getContent(0)->toDynamicObject();
 
 	return v;
-
-#endif
-
-	return var();
 }
 
 #undef SET_FALSE

@@ -1121,6 +1121,10 @@ double ScriptingApi::Engine::getMasterPeakLevel(int channel)
 
 var ScriptingApi::Engine::getSettingsWindowObject()
 {
+	reportScriptError("Deprecated");
+
+	return var();
+
 	return FloatingPanelTemplates::createSettingsWindow(getProcessor()->getMainController());
 }
 
