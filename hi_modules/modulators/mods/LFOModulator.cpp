@@ -389,6 +389,19 @@ void LfoModulator::handleHiseEvent(const HiseEvent &m)
 
 
 
+void LfoModulator::calcAngleDelta()
+{
+	const double sr = getSampleRate();
+
+	const float frequencyToUse = tempoSync ? TempoSyncer::getTempoInHertz(getMainController()->getBpm(), currentTempo) :
+		frequency;
+
+	const float cyclesPerSecond = frequencyToUse * frequencyModulationValue;
+	const double cyclesPerSample = (double)cyclesPerSecond / sr;
+
+	angleDelta = cyclesPerSample * (double)SAMPLE_LOOKUP_TABLE_SIZE;
+}
+
 float LfoModulator::sineTable[SAMPLE_LOOKUP_TABLE_SIZE];
 float LfoModulator::triangleTable[SAMPLE_LOOKUP_TABLE_SIZE];
 float LfoModulator::sawTable[SAMPLE_LOOKUP_TABLE_SIZE];

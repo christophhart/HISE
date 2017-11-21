@@ -519,7 +519,7 @@ public:
 		tempoNames.add("1/32T");	tempoFactors[ThirtyTwoTriplet] = 0.25f / 3.0f;
 		tempoNames.add("1/64D");	tempoFactors[SixtyForthDuet] = 0.125f * 0.5f * 1.5f;
 		tempoNames.add("1/64");		tempoFactors[SixtyForth] = 0.125f * 0.5f;
-		tempoNames.add("1/64T");	tempoFactors[SixteenthTriplet] = 0.125f * 0.5f / 3.0f;
+		tempoNames.add("1/64T");	tempoFactors[SixtyForthTriplet] = 0.125f * 0.5f / 3.0f;
 	}
 
 private:

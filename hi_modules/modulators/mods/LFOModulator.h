@@ -305,18 +305,7 @@ private:
 		attackValue = 0.0f;
 	}
 
-	void calcAngleDelta()
-	{
-		const double sr = getSampleRate();
-
-		const float frequencyToUse = tempoSync ? TempoSyncer::getTempoInHertz(getMainController()->getBpm(), currentTempo):
-												 frequency;
-
-		const float cyclesPerSecond = frequencyToUse * frequencyModulationValue;
-        const double cyclesPerSample = (double)cyclesPerSecond / sr;
-
-		angleDelta = cyclesPerSample * (double)SAMPLE_LOOKUP_TABLE_SIZE;
-	};
+	void calcAngleDelta();;
 
 	static void initSampleTables()
 	{
