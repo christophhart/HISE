@@ -882,9 +882,9 @@ maximum(1.0f)
 	ADD_SCRIPT_PROPERTY(i05, "defaultValue");
 	ADD_SCRIPT_PROPERTY(i06, "suffix");
 	ADD_SCRIPT_PROPERTY(i07, "filmstripImage");	ADD_TO_TYPE_SELECTOR(SelectorTypes::FileSelector);
-	ADD_SCRIPT_PROPERTY(i08, "numStrips");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(i08, "numStrips");		
 	ADD_SCRIPT_PROPERTY(i09, "isVertical");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	ADD_SCRIPT_PROPERTY(i10, "scaleFactor");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(i10, "scaleFactor");	
 	ADD_SCRIPT_PROPERTY(i11, "mouseSensitivity");
 	ADD_SCRIPT_PROPERTY(i12, "dragDirection");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(i13, "showValuePopup"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
@@ -1069,15 +1069,6 @@ StringArray ScriptingApi::Content::ScriptSlider::getOptionsFor(const Identifier 
 		sa.add("Diagonal");
 		sa.add("Vertical");
 		sa.add("Horizontal");
-		break;
-	case numStrips:
-		sa.add("99");
-		sa.add("100");
-		sa.add("127");
-		break;
-	case Properties::scaleFactor:
-		sa.add("0.5");
-		sa.add("1.0");
 		break;
 	case showValuePopup:
 		sa.add("No");
@@ -1312,7 +1303,7 @@ ScriptComponent(base, parentContent, name, x, y, 128, 32),
 image(nullptr)
 {
 	ADD_SCRIPT_PROPERTY(i00, "filmstripImage");	ADD_TO_TYPE_SELECTOR(SelectorTypes::FileSelector);
-	ADD_SCRIPT_PROPERTY(i01, "numStrips");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(i01, "numStrips");		
 	ADD_SCRIPT_PROPERTY(i02, "isVertical");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i03, "scaleFactor");
 	ADD_SCRIPT_PROPERTY(i05, "radioGroup");
@@ -1390,15 +1381,6 @@ StringArray ScriptingApi::Content::ScriptButton::getOptionsFor(const Identifier 
 
 		sa.add("Use default skin");
 		sa.addArray(getProcessor()->getMainController()->getSampleManager().getImagePool()->getFileNameList());
-
-		return sa;
-	}
-	else if (id == getIdFor(numStrips))
-	{
-		StringArray sa;
-
-		sa.add("2");
-		sa.add("6");
 
 		return sa;
 	}
