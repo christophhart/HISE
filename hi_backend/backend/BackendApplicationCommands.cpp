@@ -1450,7 +1450,7 @@ void BackendCommandTarget::Actions::redirectScriptFolder(BackendRootWindow * /*b
 
 void BackendCommandTarget::Actions::exportSampleDataForInstaller(BackendRootWindow * bpe)
 {
-	auto mbw = dynamic_cast<ModalBaseWindow*>(bpe->mainEditor.getComponent());
+	auto mbw = dynamic_cast<ModalBaseWindow*>(bpe);
 
 	auto exporter = new SampleDataExporter(mbw);
 
@@ -1459,7 +1459,7 @@ void BackendCommandTarget::Actions::exportSampleDataForInstaller(BackendRootWind
 
 void BackendCommandTarget::Actions::importArchivedSamples(BackendRootWindow * bpe)
 {
-	auto mbw = dynamic_cast<ModalBaseWindow*>(bpe->mainEditor.getComponent());
+	auto mbw = dynamic_cast<ModalBaseWindow*>(bpe);
 
 	auto importer = new SampleDataImporter(mbw);
 

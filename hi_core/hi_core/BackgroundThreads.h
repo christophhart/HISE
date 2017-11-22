@@ -281,9 +281,11 @@ private:
 
 	File getTargetFile() const;
 
+	ModalBaseWindow* modalBaseWindow;
+
 	ModulatorSynthChain* synthChain;
 
-	ModalBaseWindow* modalBaseWindow;
+	
 	ScopedPointer<FilenameComponent> targetFile;
 	ScopedPointer<ProgressBar> totalProgressBar;
 	double totalProgress = 0.0;
@@ -337,6 +339,8 @@ private:
 	}
 
 	Result result;
+
+	File archiveFile;
 
 	ScopedPointer<FilenameComponent> targetFile;
 	ScopedPointer<FilenameComponent> sampleDirectory;

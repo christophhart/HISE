@@ -260,7 +260,7 @@ void ModalBaseWindow::clearModalComponent()
 const hise::MainController* ModalBaseWindow::getMainController() const
 {
 #if USE_BACKEND
-	return dynamic_cast<const BackendProcessorEditor*>(this)->getMainController();
+	return dynamic_cast<const BackendRootWindow*>(this)->getBackendProcessor();
 	
 #else
 	auto fp = dynamic_cast<const FrontendProcessorEditor*>(this)->getAudioProcessor();
@@ -271,7 +271,7 @@ const hise::MainController* ModalBaseWindow::getMainController() const
 hise::MainController* ModalBaseWindow::getMainController()
 {
 #if USE_BACKEND
-	return dynamic_cast<BackendProcessorEditor*>(this)->getMainController();
+	return dynamic_cast<BackendRootWindow*>(this)->getBackendProcessor();
 #else
 	auto fp = dynamic_cast<FrontendProcessorEditor*>(this)->getAudioProcessor();
 	return dynamic_cast<MainController*>(fp);
@@ -281,7 +281,7 @@ hise::MainController* ModalBaseWindow::getMainController()
 SampleDataExporter::SampleDataExporter(ModalBaseWindow* mbw) :
 	DialogWindowWithBackgroundThread("Export Samples for Installer"),
 	modalBaseWindow(mbw),
-	synthChain(modalBaseWindow->getMainController()->getMainSynthChain())
+	synthChain(mbw->getMainController()->getMainSynthChain())
 {
 	StringArray sa;
 	sa.add("Export Monolith files only");
@@ -417,24 +417,87 @@ File SampleDataExporter::getTargetFile() const
 	return currentFile.getChildFile(fileName);
 }
 
+
+File getDefaultSampleDestination()
+{
+
+#if USE_FRONTEND
+
+	const String product = ProjectHandler::Frontend::getProjectName();
+	const String company = ProjectHandler::Frontend::getCompanyName();
+
+	const String path = company + "/" + product + "/Samples";
+
+#if JUCE_WINDOWS
+	const File sourceD = File::getSpecialLocation(File::globalApplicationsDirectory).getChildFile(path);
+#else
+	const File sourceD = File::getSpecialLocation(File::userMusicDirectory).getChildFile(path);
+#endif
+
+	if (!sourceD.isDirectory())
+		sourceD.createDirectory();
+
+	return sourceD;
+
+#else
+	return File();
+
+#endif
+
+	
+
+
+}
+
 SampleDataImporter::SampleDataImporter(ModalBaseWindow* mbw) :
 	DialogWindowWithBackgroundThread("Install Sample Archive"),
 	modalBaseWindow(mbw),
 	synthChain(mbw->getMainController()->getMainSynthChain()),
 	result(Result::ok())
 {
-	addTextBlock("Please select the .hr1 file that you've downloaded in order to extract the samples.");
 
-	targetFile = new FilenameComponent("Sample Archive Location", File(), true, false, false, "*.hr1", "", "Select Sample Archive to install");
+
+#if USE_FRONTEND
+
+
+
+	PresetHandler::showMessageWindow("Choose the Sample Archive", "Please select the Hexeract Resources.hr1 file that you've downloaded");
+
+	FileChooser fc("Choose the Sample Archive", File::getSpecialLocation(File::userHomeDirectory), "*.hr1", true);
+
+
+
+	if (fc.browseForFileToOpen())
+	{
+		archiveFile = fc.getResult();
+	}
+
+	PresetHandler::showMessageWindow("Choose the Sample location folder", "Please select the location where you want to install the samples");
+
+	File sampleDestination = getDefaultSampleDestination();
+	FileChooser fc2("Choose the Sample location folder", sampleDestination);
+
+	if (fc2.browseForDirectory())
+	{
+		sampleDestination = fc2.getResult();
+	}
+
+
+	targetFile = new FilenameComponent("Sample Archive Location", archiveFile, true, false, false, "*.hr1", "", "Choose the Sample Archive");
 	targetFile->setSize(300, 24);
 	addCustomComponent(targetFile);
 
-#if USE_FRONTEND
-	sampleDirectory = new FilenameComponent("Sample Folder", File(), true, true, true, "", "", "Select the location where the samples should be installed");
+	sampleDirectory = new FilenameComponent("Sample Folder", sampleDestination, true, true, true, "", "", "Choose the Sample location folder");
 
 	sampleDirectory->setSize(300, 24);
 	addCustomComponent(sampleDirectory);
+
 #endif
+
+
+
+
+
 
 	StringArray sa;
 
@@ -444,10 +507,22 @@ SampleDataImporter::SampleDataImporter(ModalBaseWindow* mbw) :
 
 	addComboBox("overwrite", sa, "Overwrite existing samples");
 
+	StringArray sa2;
+
+	sa2.add("No");
+	sa2.add("Yes");
+
+	addComboBox("deleteArchive", sa2, "Delete Sample Archive after extraction");
+
+	getComboBoxComponent("deleteArchive")->setSelectedItemIndex(0, dontSendNotification);
+
 	partProgressBar = new ProgressBar(partProgress);
 	partProgressBar->setName("Part Progress");
 	partProgressBar->setSize(300, 24);
+
+#if USE_BACKEND
 	addCustomComponent(partProgressBar);
+#endif
 
 	totalProgressBar = new ProgressBar(totalProgress);
 	totalProgressBar->setSize(300, 24);
@@ -456,7 +531,26 @@ SampleDataImporter::SampleDataImporter(ModalBaseWindow* mbw) :
 
 	addBasicComponents(true);
 
+#if USE_FRONTEND
+
+	if (archiveFile.existsAsFile() && sampleDestination.isDirectory())
+	{
+		showStatusMessage("Press OK to extract the samples");
+	}
+	else if (!archiveFile.existsAsFile())
+	{
+		showStatusMessage("Please choose the Sample Archive file");
+	}
+	else if (!sampleDestination.isDirectory())
+	{
+		showStatusMessage("Please choose the target directory");
+	}
+
+#else
 	showStatusMessage("Choose a sample archive and press OK.");
+#endif
+
+	
 }
 
 void SampleDataImporter::logVerboseMessage(const String& verboseMessage)
@@ -559,6 +653,11 @@ void SampleDataImporter::threadFinished()
 		fpe->setSamplesCorrectlyInstalled(true);
 
 #endif
+
+		const bool deleteArchive = getComboBoxComponent("deleteArchive")->getSelectedItemIndex();
+
+		if (deleteArchive && archiveFile.existsAsFile())
+			archiveFile.deleteFile();
 
 	}
 }
