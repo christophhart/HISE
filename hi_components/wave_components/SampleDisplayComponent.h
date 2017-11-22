@@ -56,6 +56,76 @@ public:
 	{
 	public:
 
+#if 0 // sometime in the future...
+		class ValuePopup : public Component,
+			public Timer
+		{
+		public:
+
+			ValuePopup(Component* c_) :
+				c(c_)
+			{
+				updateText();
+				startTimer(30);
+			}
+
+			void updateText()
+			{
+				if (auto area = dynamic_cast<SampleArea*>(c.getComponent()))
+				{
+					auto oldText = currentText;
+
+					auto range = area->getSampleRange();
+
+					currentText = String(range.getStart()) + " - " + String(range.getEnd());
+
+					if (currentText != oldText)
+					{
+						auto f = GLOBAL_BOLD_FONT();
+						int newWidth = f.getStringWidth(currentText) + 20;
+
+						setSize(newWidth, 20);
+
+						repaint();
+					}
+				}
+			}
+
+			void timerCallback() override
+			{
+				updateText();
+			}
+
+			void paint(Graphics& g) override
+			{
+
+				auto ar = Rectangle<float>(1.0f, 1.0f, (float)getWidth() - 2.0f, (float)getHeight() - 2.0f);
+
+				g.setGradientFill(ColourGradient(itemColour, 0.0f, 0.0f, itemColour2, 0.0f, (float)getHeight(), false));
+				g.fillRoundedRectangle(ar, 2.0f);
+
+				g.setColour(bgColour);
+				g.drawRoundedRectangle(ar, 2.0f, 2.0f);
+
+				if (dynamic_cast<Slider*>(c.getComponent()) != nullptr)
+				{
+					g.setFont(GLOBAL_BOLD_FONT());
+					g.setColour(textColour);
+					g.drawText(currentText, getLocalBounds(), Justification::centred);
+				}
+			}
+
+			Colour bgColour;
+			Colour itemColour;
+			Colour itemColour2;
+			Colour textColour;
+
+			String currentText;
+
+			Component::SafePointer<Component> c;
+		};
+#endif
+
 		/** Creates a new SampleArea.
 		*
 		*	@param area the AreaType that will be used.
@@ -493,7 +563,9 @@ public:
 		}
 	};
 
-	AudioSampleBufferComponent(AudioThumbnailCache &cache);
+	AudioSampleBufferComponent(AudioThumbnailCache &cache, Processor* p);
+
+	~AudioSampleBufferComponent();
 
 	/** Call this when you want the component to display the content of the given AudioSampleBuffer. 
 	*
@@ -501,7 +573,7 @@ public:
 	*/
 	void setAudioSampleBuffer(const AudioSampleBuffer *b, const String &fileName)
 	{
-		if(b != buffer && b != nullptr)
+		if(b != nullptr)
 		{
 			currentFileName = fileName;
 
@@ -542,10 +614,12 @@ public:
 
 	void mouseDrag(const MouseEvent &) override
 	{
-		startDragging(currentFileName, this, Image(), true);
+		//startDragging(currentFileName, this, Image(), true);
 	}
 
 	void mouseDown(const MouseEvent &e) override;
+
+	void mouseDoubleClick(const MouseEvent& event) override;
 
 	void timerCallback() override
 	{
@@ -572,6 +646,8 @@ public:
 	}
 
 private:
+
+	WeakReference<Processor> connectedProcessor;
 
 	Colour bgColour;
 

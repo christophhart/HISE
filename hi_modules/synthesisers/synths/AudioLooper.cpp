@@ -72,8 +72,6 @@ void AudioLooperVoice::startNote(int midiNoteNumber, float /*velocity*/, Synthes
 
 void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 {
-	
-
 	const int startIndex = startSample;
 	const int samplesToCopy = numSamples;
 
@@ -85,13 +83,13 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 
 	const AudioSampleBuffer *buffer = looper->getBuffer();
 
-	if (buffer == nullptr || buffer->getNumChannels() == 0)
-		return;
+	const bool noBuffer = buffer == nullptr || buffer->getNumChannels() == 0;
+	const bool sampleFinished = !looper->loopEnabled && (voiceUptime + numSamples) > looper->length;
+	
 
-	const float *leftSamples = buffer->getReadPointer(0);
-	const float *rightSamples = buffer->getNumChannels() > 1 ? buffer->getReadPointer(1) : leftSamples;
+	
 
-	if (!looper->loopEnabled && (voiceUptime + numSamples) > looper->length)
+	if (sampleFinished || noBuffer)
 	{
         voiceBuffer.clear();
             
@@ -102,6 +100,8 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
         return;
 	}
     
+	const float *leftSamples = buffer->getReadPointer(0);
+	const float *rightSamples = buffer->getNumChannels() > 1 ? buffer->getReadPointer(1) : leftSamples;
 
 	while (--numSamples >= 0)
 	{

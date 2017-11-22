@@ -1,17 +1,17 @@
 /*
   ==============================================================================
 
-  This is an automatically generated GUI class created by the Introjucer!
+  This is an automatically generated GUI class created by the Projucer!
 
   Be careful when adding custom code to these files, as only the code within
   the "//[xyz]" and "//[/xyz]" sections will be retained when the file is loaded
   and re-saved.
 
-  Created with Introjucer version: 4.1.0
+  Created with Projucer version: 4.3.0
 
   ------------------------------------------------------------------------------
 
-  The Introjucer is part of the JUCE library - "Jules' Utility Class Extensions"
+  The Projucer is part of the JUCE library - "Jules' Utility Class Extensions"
   Copyright (c) 2015 - ROLI Ltd.
 
   ==============================================================================
@@ -57,7 +57,7 @@ AudioFileEnvelopeEditor::AudioFileEnvelopeEditor (ProcessorEditor *p)
     retriggerButton->addListener (this);
     retriggerButton->setColour (ToggleButton::textColourId, Colours::white);
 
-    addAndMakeVisible (sampleBufferContent = new AudioSampleBufferComponent (dynamic_cast<AudioSampleProcessor*>(getProcessor())->getCache()));
+    addAndMakeVisible (sampleBufferContent = new AudioSampleBufferComponent (dynamic_cast<AudioSampleProcessor*>(getProcessor())->getCache(), getProcessor()));
     sampleBufferContent->setName ("new component");
 
     addAndMakeVisible (modeSelector = new HiComboBox ("Mode Selection"));
@@ -138,12 +138,7 @@ AudioFileEnvelopeEditor::AudioFileEnvelopeEditor (ProcessorEditor *p)
 
 	AudioSampleProcessor *asp = dynamic_cast<AudioSampleProcessor*>(getProcessor());
 
-	sampleBufferContent->setAudioSampleBuffer(asp->getBuffer(), asp->getFileName());
-
-	sampleBufferContent->addChangeListener(asp);
-
-	getProcessor()->addChangeListener(sampleBufferContent);
-
+	
 	sampleBufferContent->setBackgroundColour(getProcessor()->getColour().withMultipliedBrightness(.6f));
 
 	sampleBufferContent->addAreaListener(this);
@@ -175,7 +170,7 @@ AudioFileEnvelopeEditor::AudioFileEnvelopeEditor (ProcessorEditor *p)
 #else
 	startTimer(30);
 #endif
-    
+
     label->setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
 
     //[/UserPreSize]
@@ -333,9 +328,9 @@ void AudioFileEnvelopeEditor::comboBoxChanged (ComboBox* comboBoxThatHasChanged)
 
 //==============================================================================
 #if 0
-/*  -- Introjucer information section --
+/*  -- Projucer information section --
 
-    This is where the Introjucer stores the metadata that describe this GUI layout, so
+    This is where the Projucer stores the metadata that describe this GUI layout, so
     make changes in here at your peril!
 
 BEGIN_JUCER_METADATA
@@ -359,7 +354,8 @@ BEGIN_JUCER_METADATA
           tooltip="The smoothing factor for the envelope follower&#10;"
           thumbcol="80666666" textboxtext="ffffffff" min="0" max="5000"
           int="1" style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
-          textBoxEditable="0" textBoxWidth="80" textBoxHeight="20" skewFactor="1"/>
+          textBoxEditable="0" textBoxWidth="80" textBoxHeight="20" skewFactor="1"
+          needsCallback="1"/>
   <TOGGLEBUTTON name="Legato" id="dfdc6e861a38fb62" memberName="retriggerButton"
                 virtualName="HiToggleButton" explicitFocusOrder="0" pos="59 55 128 32"
                 tooltip="Disables retriggering of the LFO if multiple keys are pressed."
@@ -367,7 +363,7 @@ BEGIN_JUCER_METADATA
                 radioGroupId="0" state="0"/>
   <GENERICCOMPONENT name="new component" id="e2252e55bedecdc5" memberName="sampleBufferContent"
                     virtualName="" explicitFocusOrder="0" pos="0Cc 141 112M 144"
-                    class="AudioSampleBufferComponent" params="dynamic_cast&lt;AudioSampleProcessor*&gt;(getProcessor())-&gt;getCache()"/>
+                    class="AudioSampleBufferComponent" params="dynamic_cast&lt;AudioSampleProcessor*&gt;(getProcessor())-&gt;getCache(), getProcessor()"/>
   <COMBOBOX name="Mode Selection" id="223afd792a25b6b" memberName="modeSelector"
             virtualName="HiComboBox" explicitFocusOrder="0" pos="60 20 128 28"
             tooltip="Select the Envelope Follower mode" editable="0" layout="33"
@@ -377,31 +373,33 @@ BEGIN_JUCER_METADATA
           explicitFocusOrder="0" pos="-60Cr 18 128 48" tooltip="The smoothing factor for the envelope follower&#10;"
           thumbcol="80666666" textboxtext="ffffffff" min="0" max="5000"
           int="1" style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
-          textBoxEditable="0" textBoxWidth="80" textBoxHeight="20" skewFactor="1"/>
+          textBoxEditable="0" textBoxWidth="80" textBoxHeight="20" skewFactor="1"
+          needsCallback="1"/>
   <SLIDER name="Attack" id="eba5a14864875f77" memberName="attackSlider"
           virtualName="HiSlider" explicitFocusOrder="0" pos="-33C 80 128 48"
           tooltip="The attack time of the envelope follower" thumbcol="80666666"
           textboxtext="ffffffff" min="0" max="5000" int="1" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="0" textBoxWidth="80"
-          textBoxHeight="20" skewFactor="1"/>
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
   <SLIDER name="Release" id="97ca18d8a7d619f3" memberName="releaseSlider"
           virtualName="HiSlider" explicitFocusOrder="0" pos="111C 80 128 48"
           tooltip="The Release time of the Envelope Follower" thumbcol="80666666"
           textboxtext="ffffffff" min="0" max="5000" int="1" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="0" textBoxWidth="80"
-          textBoxHeight="20" skewFactor="1"/>
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
   <SLIDER name="Offset" id="6e3a02fd45332ac7" memberName="offsetSlider"
           virtualName="HiSlider" explicitFocusOrder="0" pos="-60Cr 80 128 48"
           tooltip="Sets the lowest value for the envelope follower output."
-          thumbcol="80666666" textboxtext="ffffffff" min="0" max="1" int="0.01"
+          thumbcol="80666666" textboxtext="ffffffff" min="0" max="1" int="0.010000000000000000208"
           style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
-          textBoxEditable="0" textBoxWidth="80" textBoxHeight="20" skewFactor="1"/>
+          textBoxEditable="0" textBoxWidth="80" textBoxHeight="20" skewFactor="1"
+          needsCallback="1"/>
   <SLIDER name="Ramp Length" id="c86ec072bfac4510" memberName="rampSlider"
           virtualName="HiSlider" explicitFocusOrder="0" pos="-33C 80 128 48"
           tooltip="Sets the ramp length" thumbcol="80666666" textboxtext="ffffffff"
-          min="0" max="1" int="0.01" style="RotaryHorizontalVerticalDrag"
+          min="0" max="1" int="0.010000000000000000208" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="0" textBoxWidth="80"
-          textBoxHeight="20" skewFactor="1"/>
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
   <COMBOBOX name="Mode Selection" id="63f5b1527f75c45b" memberName="syncToHost"
             virtualName="HiComboBox" explicitFocusOrder="0" pos="60 95 128 28"
             tooltip="Select the Envelope Follower mode" editable="0" layout="33"

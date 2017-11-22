@@ -108,7 +108,6 @@ struct ScriptingApi::Content::Wrapper
 	static var getItemText(const var::NativeFunctionArgs& args);
 	static var getTableValue(const var::NativeFunctionArgs& args);
 	static var connectToOtherTable(const var::NativeFunctionArgs& args);
-	static var connectToAudioSampleProcessor(const var::NativeFunctionArgs& args);
 	static var setEditable(const var::NativeFunctionArgs& args);
 	static var clear(const var::NativeFunctionArgs& args);
 	static var setValueNormalized(const var::NativeFunctionArgs& args);;
@@ -815,18 +814,6 @@ var ScriptingApi::Content::Wrapper::connectToOtherTable (const var::NativeFuncti
 
 	return var();
 };
-
-var ScriptingApi::Content::Wrapper::connectToAudioSampleProcessor(const var::NativeFunctionArgs& args)
-{
-	if (ScriptingApi::Content::ScriptAudioWaveform* thisObject = GET_OBJECT(Content::ScriptAudioWaveform))
-	{
-		CHECK_ARGUMENTS("connectToAudioSampleProcessor()", 1);
-
-		thisObject->connectToAudioSampleProcessor(args.arguments[0].toString());
-	}
-
-	return var();
-}
 
 
 var ScriptingApi::Content::Wrapper::clear (const var::NativeFunctionArgs& args)

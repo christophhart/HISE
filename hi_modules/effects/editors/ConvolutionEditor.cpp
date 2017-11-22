@@ -1,17 +1,17 @@
 /*
   ==============================================================================
 
-  This is an automatically generated GUI class created by the Introjucer!
+  This is an automatically generated GUI class created by the Projucer!
 
   Be careful when adding custom code to these files, as only the code within
   the "//[xyz]" and "//[/xyz]" sections will be retained when the file is loaded
   and re-saved.
 
-  Created with Introjucer version: 4.1.0
+  Created with Projucer version: 4.3.0
 
   ------------------------------------------------------------------------------
 
-  The Introjucer is part of the JUCE library - "Jules' Utility Class Extensions"
+  The Projucer is part of the JUCE library - "Jules' Utility Class Extensions"
   Copyright (c) 2015 - ROLI Ltd.
 
   ==============================================================================
@@ -54,7 +54,7 @@ ConvolutionEditor::ConvolutionEditor (ProcessorEditor *p)
     addAndMakeVisible (wetMeter = new VuMeter());
     wetMeter->setName ("new component");
 
-    addAndMakeVisible (impulseDisplay = new AudioSampleBufferComponent (dynamic_cast<AudioSampleProcessor*>(getProcessor())->getCache()));
+    addAndMakeVisible (impulseDisplay = new AudioSampleBufferComponent (dynamic_cast<AudioSampleProcessor*>(getProcessor())->getCache(), getProcessor()));
     impulseDisplay->setName ("new component");
 
     addAndMakeVisible (resetButton = new HiToggleButton ("new toggle button"));
@@ -75,7 +75,7 @@ ConvolutionEditor::ConvolutionEditor (ProcessorEditor *p)
     //[UserPreSize]
 
     label->setFont(GLOBAL_BOLD_FONT().withHeight(26.0f));
-    
+
 	drySlider->setup(getProcessor(), ConvolutionEffect::DryGain, "Dry Level");
 	drySlider->setMode(HiSlider::Decibel);
 
@@ -103,16 +103,12 @@ ConvolutionEditor::ConvolutionEditor (ProcessorEditor *p)
 
 	AudioSampleProcessor *asp = dynamic_cast<AudioSampleProcessor*>(getProcessor());
 
-	impulseDisplay->setAudioSampleBuffer(asp->getBuffer(), asp->getFileName());
-
-	impulseDisplay->addChangeListener(asp);
-
 	impulseDisplay->addAreaListener(this);
 
 	impulseDisplay->setOpaque(false);
 
     ProcessorEditorLookAndFeel::setupEditorNameLabel(label);
-    
+
     //[/UserPreSize]
 
     setSize (900, 230);
@@ -147,12 +143,12 @@ void ConvolutionEditor::paint (Graphics& g)
     //[UserPrePaint] Add your own custom painting code here..
     //[/UserPrePaint]
 
-    
-    ProcessorEditorLookAndFeel::fillEditorBackgroundRectFixed(g, this, 600);
-    
-    g.setColour (Colour (0xAAffffff));
-    g.setFont (GLOBAL_BOLD_FONT().withHeight(22.0f));
-    
+    g.setColour (Colour (0x23000000));
+    g.fillRoundedRectangle (static_cast<float> ((getWidth() / 2) - (600 / 2)), 8.0f, 600.0f, static_cast<float> (getHeight() - 16), 6.000f);
+
+    g.setColour (Colour (0x25ffffff));
+    g.drawRoundedRectangle (static_cast<float> ((getWidth() / 2) - (600 / 2)), 8.0f, 600.0f, static_cast<float> (getHeight() - 16), 6.000f, 2.000f);
+
     //[UserPaint] Add your own custom painting code here..
     //[/UserPaint]
 }
@@ -219,9 +215,9 @@ void ConvolutionEditor::buttonClicked (Button* buttonThatWasClicked)
 
 //==============================================================================
 #if 0
-/*  -- Introjucer information section --
+/*  -- Projucer information section --
 
-    This is where the Introjucer stores the metadata that describe this GUI layout, so
+    This is where the Projucer stores the metadata that describe this GUI layout, so
     make changes in here at your peril!
 
 BEGIN_JUCER_METADATA
@@ -237,14 +233,15 @@ BEGIN_JUCER_METADATA
   </BACKGROUND>
   <SLIDER name="Dry Level" id="109abf6dc0fb35f3" memberName="drySlider"
           virtualName="HiSlider" explicitFocusOrder="0" pos="230Cr 123 136 48"
-          posRelativeX="350c324d3e462faa" min="-100" max="0" int="0.10000000000000001"
+          posRelativeX="350c324d3e462faa" min="-100" max="0" int="0.10000000000000000555"
           style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
-          textBoxEditable="1" textBoxWidth="80" textBoxHeight="20" skewFactor="1"/>
+          textBoxEditable="1" textBoxWidth="80" textBoxHeight="20" skewFactor="1"
+          needsCallback="1"/>
   <SLIDER name="Wet Level" id="89cc5b4c20e221e" memberName="wetSlider"
           virtualName="HiSlider" explicitFocusOrder="0" pos="230Cr 67 136 48"
-          min="-100" max="0" int="0.10000000000000001" style="RotaryHorizontalVerticalDrag"
+          min="-100" max="0" int="0.10000000000000000555" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="80"
-          textBoxHeight="20" skewFactor="1"/>
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
   <GENERICCOMPONENT name="new component" id="2d1a3b35c3a9be67" memberName="dryMeter"
                     virtualName="" explicitFocusOrder="0" pos="255C 123 24 48" class="VuMeter"
                     params=""/>
@@ -253,7 +250,7 @@ BEGIN_JUCER_METADATA
                     params=""/>
   <GENERICCOMPONENT name="new component" id="ca07ce0dc9de3398" memberName="impulseDisplay"
                     virtualName="" explicitFocusOrder="0" pos="-282C 24 360 184"
-                    class="AudioSampleBufferComponent" params="dynamic_cast&lt;AudioSampleProcessor*&gt;(getProcessor())-&gt;getCache()"/>
+                    class="AudioSampleBufferComponent" params="dynamic_cast&lt;AudioSampleProcessor*&gt;(getProcessor())-&gt;getCache(), getProcessor()"/>
   <TOGGLEBUTTON name="new toggle button" id="e6345feaa3cb5bea" memberName="resetButton"
                 virtualName="HiToggleButton" explicitFocusOrder="0" pos="165Cc 175 128 32"
                 posRelativeX="410a230ddaa2f2e8" txtcol="ffffffff" buttonText="Process Input"

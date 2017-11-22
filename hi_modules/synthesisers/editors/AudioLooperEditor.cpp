@@ -1,17 +1,17 @@
 /*
   ==============================================================================
 
-  This is an automatically generated GUI class created by the Introjucer!
+  This is an automatically generated GUI class created by the Projucer!
 
   Be careful when adding custom code to these files, as only the code within
   the "//[xyz]" and "//[/xyz]" sections will be retained when the file is loaded
   and re-saved.
 
-  Created with Introjucer version: 4.1.0
+  Created with Projucer version: 4.3.0
 
   ------------------------------------------------------------------------------
 
-  The Introjucer is part of the JUCE library - "Jules' Utility Class Extensions"
+  The Projucer is part of the JUCE library - "Jules' Utility Class Extensions"
   Copyright (c) 2015 - ROLI Ltd.
 
   ==============================================================================
@@ -34,7 +34,7 @@ AudioLooperEditor::AudioLooperEditor (ProcessorEditor *p)
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
 
-    addAndMakeVisible (sampleBufferContent = new AudioSampleBufferComponent (dynamic_cast<AudioSampleProcessor*>(getProcessor())->getCache()));
+    addAndMakeVisible (sampleBufferContent = new AudioSampleBufferComponent (dynamic_cast<AudioSampleProcessor*>(getProcessor())->getCache(), getProcessor()));
     sampleBufferContent->setName ("new component");
 
     addAndMakeVisible (label = new Label ("new label",
@@ -86,9 +86,7 @@ AudioLooperEditor::AudioLooperEditor (ProcessorEditor *p)
 
 	sampleBufferContent->setAudioSampleBuffer(asp->getBuffer(), asp->getFileName());
 
-	sampleBufferContent->addChangeListener(asp);
-
-	getProcessor()->addChangeListener(sampleBufferContent);
+	
 
 
 
@@ -141,7 +139,11 @@ void AudioLooperEditor::paint (Graphics& g)
     //[UserPrePaint] Add your own custom painting code here..
     //[/UserPrePaint]
 
-	ProcessorEditorLookAndFeel::fillEditorBackgroundRect(g, this);
+    g.setColour (Colour (0x30000000));
+    g.fillRoundedRectangle (static_cast<float> ((getWidth() / 2) - ((getWidth() - 84) / 2)), 6.0f, static_cast<float> (getWidth() - 84), static_cast<float> (getHeight() - 16), 6.000f);
+
+    g.setColour (Colour (0x25ffffff));
+    g.drawRoundedRectangle (static_cast<float> ((getWidth() / 2) - ((getWidth() - 84) / 2)), 6.0f, static_cast<float> (getWidth() - 84), static_cast<float> (getHeight() - 16), 6.000f, 2.000f);
 
     //[UserPaint] Add your own custom painting code here..
     //[/UserPaint]
@@ -221,9 +223,9 @@ void AudioLooperEditor::sliderValueChanged (Slider* sliderThatWasMoved)
 
 //==============================================================================
 #if 0
-/*  -- Introjucer information section --
+/*  -- Projucer information section --
 
-    This is where the Introjucer stores the metadata that describe this GUI layout, so
+    This is where the Projucer stores the metadata that describe this GUI layout, so
     make changes in here at your peril!
 
 BEGIN_JUCER_METADATA
@@ -239,7 +241,7 @@ BEGIN_JUCER_METADATA
   </BACKGROUND>
   <GENERICCOMPONENT name="new component" id="e2252e55bedecdc5" memberName="sampleBufferContent"
                     virtualName="" explicitFocusOrder="0" pos="0Cc 77 112M 144" class="AudioSampleBufferComponent"
-                    params="dynamic_cast&lt;AudioSampleProcessor*&gt;(getProcessor())-&gt;getCache()"/>
+                    params="dynamic_cast&lt;AudioSampleProcessor*&gt;(getProcessor())-&gt;getCache(), getProcessor()"/>
   <LABEL name="new label" id="bd1d8d6ad6d04bdc" memberName="label" virtualName=""
          explicitFocusOrder="0" pos="52Rr 12 264 40" textCol="52ffffff"
          edTextCol="ff000000" edBkgCol="0" labelText="LOOPER" editableSingleClick="0"
@@ -261,7 +263,8 @@ BEGIN_JUCER_METADATA
   <SLIDER name="Root Note" id="baa9524f7348f05" memberName="rootNote" virtualName="HiSlider"
           explicitFocusOrder="0" pos="358 20 128 48" min="0" max="127"
           int="1" style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
-          textBoxEditable="1" textBoxWidth="40" textBoxHeight="20" skewFactor="1"/>
+          textBoxEditable="1" textBoxWidth="40" textBoxHeight="20" skewFactor="1"
+          needsCallback="1"/>
 </JUCER_COMPONENT>
 
 END_JUCER_METADATA

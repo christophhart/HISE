@@ -2877,11 +2877,8 @@ StringArray ScriptingApi::Content::ModulatorMeter::getOptionsFor(const Identifie
 
 
 ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScriptingContent *base, Content *parentContent, Identifier plotterName, int x, int y, int width, int height) :
-ScriptComponent(base, parentContent, plotterName, x, y, width, height),
-connectedProcessor(nullptr)
+ScriptComponent(base, parentContent, plotterName, x, y, width, height)
 {
-	propertyIds.add("processorId");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
-
 	deactivatedProperties.add(getIdFor(text));
 	deactivatedProperties.add(getIdFor(min));
 	deactivatedProperties.add(getIdFor(max));
@@ -2890,8 +2887,7 @@ connectedProcessor(nullptr)
 	deactivatedProperties.add(getIdFor(itemColour2));
 	deactivatedProperties.add(getIdFor(textColour));
 	deactivatedProperties.add(getIdFor(macroControl));
-
-	componentProperties->setProperty(getIdFor(processorId), "");
+	deactivatedProperties.add(getIdFor(parameterId));
 
 #if 0
 	setMethod("connectToAudioSampleProcessor", Wrapper::connectToAudioSampleProcessor);
@@ -2903,53 +2899,15 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptAudioWaveform::crea
 	return new ScriptCreatedComponentWrappers::AudioWaveformWrapper(content, this, index);
 }
 
-void ScriptingApi::Content::ScriptAudioWaveform::connectToAudioSampleProcessor(String processorId)
-{
-	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
-
-	if (mp == nullptr) return;
-
-	Processor::Iterator<Processor> it(mp->getOwnerSynth(), false);
-
-	Processor *p;
-
-	while ((p = it.getNextProcessor()) != nullptr)
-	{
-		if (dynamic_cast<AudioSampleProcessor*>(p) != nullptr && p->getId() == processorId)
-		{
-			connectedProcessor = p;
-
-			return;
-		}
-
-	}
-
-	connectedProcessor = nullptr;
-
-    reportScriptError(processorId + " was not found.");
-}
-
-void ScriptingApi::Content::ScriptAudioWaveform::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /*= sendNotification*/)
-{
-	if (id == getIdFor(processorId))
-	{
-		connectToAudioSampleProcessor(newValue.toString());
-	}
-
-	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
-}
-
 
 ValueTree ScriptingApi::Content::ScriptAudioWaveform::exportAsValueTree() const
 {
 	ValueTree v = ScriptComponent::exportAsValueTree();
 
-	const AudioSampleProcessor *asp = dynamic_cast<const AudioSampleProcessor*>(connectedProcessor.get());
+	const AudioSampleProcessor *asp = dynamic_cast<const AudioSampleProcessor*>(getConnectedProcessor());
 
 	if (asp != nullptr)
 	{
-		v.setProperty("Processor", connectedProcessor->getId(), nullptr);
-
 		v.setProperty("rangeStart", asp->getRange().getStart(), nullptr);
 		v.setProperty("rangeEnd", asp->getRange().getEnd(), nullptr);
 		v.setProperty("fileName", asp->getFileName(), nullptr);
@@ -2964,11 +2922,6 @@ void ScriptingApi::Content::ScriptAudioWaveform::restoreFromValueTree(const Valu
 
 	if (id.isNotEmpty())
 	{
-		if (connectedProcessor.get() == nullptr || connectedProcessor.get()->getId() != id)
-		{
-			connectToAudioSampleProcessor(id);
-		}
-
 		const String fileName = v.getProperty("fileName", "");
 
 		if (getAudioProcessor() != nullptr && fileName.isNotEmpty())
@@ -2996,7 +2949,7 @@ StringArray ScriptingApi::Content::ScriptAudioWaveform::getOptionsFor(const Iden
 
 AudioSampleProcessor * ScriptingApi::Content::ScriptAudioWaveform::getAudioProcessor()
 {
-	return dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get());
+	return dynamic_cast<AudioSampleProcessor*>(getConnectedProcessor());
 }
 
 // ====================================================================================================== ScriptFloatingTile functions

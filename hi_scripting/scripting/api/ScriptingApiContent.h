@@ -1270,12 +1270,6 @@ public:
 	{
 		// ========================================================================================================
 
-		enum Properties
-		{
-			processorId = ScriptComponent::numProperties,
-			numProperties
-		};
-
 		ScriptAudioWaveform(ProcessorWithScriptingContent *base, Content *parentContent, Identifier plotterName, int x, int y, int width, int height);
 		~ScriptAudioWaveform() {};
 
@@ -1284,18 +1278,17 @@ public:
 		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptAudioWaveform"); }
 		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); };
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
-		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification) override;
+
 		StringArray getOptionsFor(const Identifier &id) override;
 		ValueTree exportAsValueTree() const override;
 		void restoreFromValueTree(const ValueTree &v) override;
 		AudioSampleProcessor * getAudioProcessor();;
-		void connectToAudioSampleProcessor(String processorId);
 
 		// ========================================================================================================
 
 	private:
 
-		WeakReference<Processor> connectedProcessor;
+		
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptAudioWaveform);
 

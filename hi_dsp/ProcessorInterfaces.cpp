@@ -282,20 +282,6 @@ void AudioSampleProcessor::restoreFromValueTree(const ValueTree &v)
 	setRange(range);
 }
 
-void AudioSampleProcessor::changeListenerCallback(SafeChangeBroadcaster *b)
-{
-	AudioSampleBufferComponent *bc = dynamic_cast<AudioSampleBufferComponent*>(b);
-
-	if (bc != nullptr)
-	{
-		setLoadedFile(bc->getCurrentlyLoadedFileName(), true);
-		bc->setAudioSampleBuffer(getBuffer(), loadedFileName);
-
-		dynamic_cast<Processor*>(this)->sendSynchronousChangeMessage();
-	}
-	else jassertfalse;
-}
-
 AudioSampleProcessor::AudioSampleProcessor(Processor *p) :
 length(0),
 sampleRateOfLoadedFile(-1.0)

@@ -145,6 +145,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsUpdateSampleMapIdsBasedOnFileName,
 		MenuToolsConvertSfzToSampleMaps,
 		MenuToolsRemoveAllSampleMaps,
+		MenuToolsUnloadAllAudioFiles,
 		MenuToolsEnableAutoSaving,
 		MenuToolsRecordOneSecond,
 		MenuToolsEnableDebugLogging,
@@ -439,6 +440,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsRemoveAllSampleMaps:
 		setCommandTarget(result, "Clear all Samplemaps", true, false, 'X', false);
 		break;
+	case MenuToolsUnloadAllAudioFiles:
+		setCommandTarget(result, "Unload all audio files", true, false, 'X', false);
+		break;
 	case MenuToolsEnableAutoSaving:
 		setCommandTarget(result, "Enable Autosaving", true, bpe->owner->getAutoSaver().isAutoSaving(), 'X', false);
 		break;
@@ -601,6 +605,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsUpdateSampleMapIdsBasedOnFileName:	Actions::updateSampleMapIds(bpe); return true;
 	case MenuToolsConvertSfzToSampleMaps:	Actions::convertSfzFilesToSampleMaps(bpe); return true;
 	case MenuToolsRemoveAllSampleMaps:	Actions::removeAllSampleMaps(bpe); return true;
+	case MenuToolsUnloadAllAudioFiles:  Actions::unloadAllAudioFiles(bpe); return true;
 	case MenuToolsCreateRSAKeys:		Actions::createRSAKeys(bpe); return true;
 	case MenuToolsCreateDummyLicenseFile: Actions::createDummyLicenseFile(bpe); return true;
 	case MenuToolsCheckAllSampleMaps:	Actions::checkAllSamplemaps(bpe); return true;
@@ -867,6 +872,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsUpdateSampleMapIdsBasedOnFileName);
 		ADD_DESKTOP_ONLY(MenuToolsConvertSfzToSampleMaps);
 		ADD_DESKTOP_ONLY(MenuToolsRemoveAllSampleMaps);
+		ADD_DESKTOP_ONLY(MenuToolsUnloadAllAudioFiles);
 		ADD_DESKTOP_ONLY(MenuToolsEnableAutoSaving);
 		ADD_DESKTOP_ONLY(MenuToolsEnableDebugLogging);
 		ADD_DESKTOP_ONLY(MenuToolsRecordOneSecond);
@@ -2327,6 +2333,17 @@ void BackendCommandTarget::Actions::validateUserPresets(BackendRootWindow * bpe)
 	}
 }
 
+void BackendCommandTarget::Actions::unloadAllAudioFiles(BackendRootWindow * bpe)
+{
+	auto synthChain = bpe->getMainSynthChain();
+
+	Processor::Iterator<AudioSampleProcessor> iter(synthChain);
+
+	while (auto asp = iter.getNextProcessor())
+	{
+		asp->setLoadedFile("", true);
+	}
+}
 
 
 #undef ADD_ALL_PLATFORMS

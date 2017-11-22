@@ -517,17 +517,37 @@ void AudioDisplayComponent::SampleArea::EdgeLookAndFeel::drawStretchableLayoutRe
 
 #pragma warning( pop )
 
-AudioSampleBufferComponent::AudioSampleBufferComponent(AudioThumbnailCache &cache) :
-AudioDisplayComponent(cache),
-buffer(nullptr),
-itemDragged(false),
-bgColour(Colour(0xFF555555))
+AudioSampleBufferComponent::AudioSampleBufferComponent(AudioThumbnailCache &cache, Processor* p) :
+	AudioDisplayComponent(cache),
+	buffer(nullptr),
+	itemDragged(false),
+	bgColour(Colour(0xFF555555)),
+	connectedProcessor(p)
 {
 	setOpaque(true);
 
 	areas.add(new SampleArea(AreaTypes::PlayArea, this));
 	addAndMakeVisible(areas[0]);
 	areas[0]->setAreaEnabled(true);
+
+	if (auto asp = dynamic_cast<AudioSampleProcessor*>(p))
+	{
+		setAudioSampleBuffer(asp->getBuffer(), asp->getFileName());
+		setRange(asp->getRange());
+	}
+
+	if (connectedProcessor != nullptr)
+	{
+		connectedProcessor->addChangeListener(this);
+	}
+}
+
+AudioSampleBufferComponent::~AudioSampleBufferComponent()
+{
+	if (connectedProcessor != nullptr)
+	{
+		connectedProcessor->removeChangeListener(this);
+	}
 }
 
 bool AudioSampleBufferComponent::isAudioFile(const String &s)
@@ -542,6 +562,11 @@ bool AudioSampleBufferComponent::isAudioFile(const String &s)
 
 bool AudioSampleBufferComponent::isInterestedInDragSource(const SourceDetails &dragSourceDetails)
 {
+	ignoreUnused(dragSourceDetails);
+
+	return false;
+
+#if 0
 	Component *c = dragSourceDetails.sourceComponent.get();
 
 	if (dynamic_cast<FileTreeComponent*>(c) != nullptr)
@@ -563,6 +588,7 @@ bool AudioSampleBufferComponent::isInterestedInDragSource(const SourceDetails &d
 	const bool dragSourceIsOtherDisplayComponent = dynamic_cast<AudioSampleBufferComponent*>(c) != nullptr;
 
 	return dragSourceIsTable || dragSourceIsOtherDisplayComponent;
+#endif
 }
 
 
@@ -574,6 +600,7 @@ void AudioSampleBufferComponent::changeListenerCallback(SafeChangeBroadcaster *b
 	if (asp != nullptr && asp->getBuffer() != buffer)
 	{
 		setAudioSampleBuffer(asp->getBuffer(), asp->getFileName());
+		setRange(asp->getRange());
 	}
 
 	repaint();
@@ -608,9 +635,24 @@ void AudioSampleBufferComponent::mouseDown(const MouseEvent &e)
 
 		if (fc.browseForFileToOpen())
 		{
-			currentFileName = fc.getResult().getFullPathName();
-			sendSynchronousChangeMessage();
+			if (auto asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get()))
+			{
+				auto fileName = fc.getResult().getFullPathName();
+
+				buffer = nullptr;
+				asp->setLoadedFile(fileName, true);
+				
+			}
 		}
+	}
+}
+
+void AudioSampleBufferComponent::mouseDoubleClick(const MouseEvent& event)
+{
+	if (auto asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get()))
+	{
+		buffer = nullptr;
+		asp->setLoadedFile("", true);
 	}
 }
 
@@ -618,18 +660,43 @@ void AudioSampleBufferComponent::paint(Graphics &g)
 {
 	if(isOpaque()) g.fillAll(bgColour);
 
-    if(buffer == nullptr)
+	Font f = GLOBAL_BOLD_FONT();
+
+	g.setFont(f);
+
+    if(buffer == nullptr || buffer->getNumSamples() == 0)
     {
         g.setColour(Colours::white.withAlpha(0.3f));
-        g.setFont(GLOBAL_FONT());
-        g.drawText("Drop audio files here or right click to open dialog", getLocalBounds(), Justification::centred);
+        
+		const String text = "Right click to open audio file";
+
+		const int w = f.getStringWidth(text) + 20;
+		g.setColour(Colours::black.withAlpha(0.5f));
+		Rectangle<int> r((getWidth() - w) / 2, (getHeight() - 20) / 2, w, 20);
+		g.fillRect(r);
+		g.setColour(Colours::white.withAlpha(0.5f));
+		g.drawRect(r, 1);
+
+        g.drawText(text, getLocalBounds(), Justification::centred);
     }
     
 	AudioDisplayComponent::paint(g);
 
-	g.setFont(GLOBAL_FONT());
-	g.setColour(Colours::white.withAlpha(0.5f));
-	g.drawText(ProjectHandler::isAbsolutePathCrossPlatform(currentFileName) ? File(currentFileName).getFileName() : currentFileName, getWidth() - 400, 0, 395, 20, Justification::centredRight);
+	const String fileNameToShow = ProjectHandler::isAbsolutePathCrossPlatform(currentFileName) ? File(currentFileName).getFileName() : currentFileName;
+
+	if (fileNameToShow.isNotEmpty())
+	{
+		const int w = f.getStringWidth(fileNameToShow) + 20;
+		g.setColour(Colours::black.withAlpha(0.5f));
+		Rectangle<int> r(getWidth() - w-5, 5, w, 20);
+		g.fillRect(r);
+		g.setColour(Colours::white.withAlpha(0.2f));
+		g.drawRect(r, 1);
+		g.setColour(Colours::white.withAlpha(0.6f));
+		g.drawText(fileNameToShow, r, Justification::centred);
+	}
+
+	
 
 	if (itemDragged)
 	{

@@ -180,6 +180,7 @@ public:
 		MenuToolsUpdateSampleMapIdsBasedOnFileName,
 		MenuToolsConvertSfzToSampleMaps,
 		MenuToolsRemoveAllSampleMaps,
+		MenuToolsUnloadAllAudioFiles,
 		MenuToolsCreateRSAKeys,
 		MenuToolsCreateDummyLicenseFile,
 		MenuToolsEnableAutoSaving,
@@ -333,6 +334,7 @@ public:
 		static void exportSampleDataForInstaller(BackendRootWindow * bpe);
 		static void importArchivedSamples(BackendRootWindow * bpe);
 		static void checkCyclicReferences(BackendRootWindow * bpe);
+		static void unloadAllAudioFiles(BackendRootWindow * bpe);
 	};
 
 private:

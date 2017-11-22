@@ -200,8 +200,7 @@ private:
 *	3. Add the AudioSampleBuffer as ChangeListener (and remove it in the destructor!)
 *	4. Add an AreaListener to the AudioSampleBufferComponent and call setRange() and setLoadedFile in the rangeChanged() callback
 */
-class AudioSampleProcessor : public SafeChangeListener,
-	public ExternalFileProcessor
+class AudioSampleProcessor : public ExternalFileProcessor
 {
 public:
 
@@ -264,7 +263,41 @@ public:
 	*	The AudioSampleBuffer should not change anything, but only send a message to the AudioSampleProcessor.
 	*	This is where the actual reloading happens.
 	*/
-	void changeListenerCallback(SafeChangeBroadcaster *b) override;
+
+#if 0
+	void changeListenerCallback(SafeChangeBroadcaster *b) override
+	{
+		auto thisAsProcessor = dynamic_cast<Processor*>(this);
+
+		auto& tmp = loadedFileName;
+
+		auto f = [b, tmp](Processor* p)
+		{
+			AudioSampleBufferComponent *bc = dynamic_cast<AudioSampleBufferComponent*>(b);
+
+			if (bc != nullptr)
+			{
+				auto asp = dynamic_cast<AudioSampleProcessor*>(p);
+
+				asp->setLoadedFile(bc->getCurrentlyLoadedFileName(), true);
+
+				auto df = [bc, asp, tmp]()
+				{
+					bc->setAudioSampleBuffer(asp->getBuffer(), tmp);
+				};
+
+				new DelayedFunctionCaller(df, 200);
+
+				p->sendChangeMessage();
+			}
+			else jassertfalse;
+
+			return true;
+		};
+
+		thisAsProcessor->getMainController()->getKillStateHandler().killVoicesAndCall(thisAsProcessor, f, MainController::KillStateHandler::SampleLoadingThread);
+	}
+#endif
 
 	/** Overwrite this method and do whatever needs to be done when the selected range changes. */
 	virtual void rangeUpdated() {};
