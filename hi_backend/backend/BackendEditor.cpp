@@ -1011,9 +1011,9 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 		c->setName("Settings");
 
 #if IS_STANDALONE_APP
-		c->setSize(380, 610);
+		c->setSize(380, 640);
 #else
-		c->setSize(380, 410);
+		c->setSize(380, 440);
 #endif
 
 		button = settingsButton;

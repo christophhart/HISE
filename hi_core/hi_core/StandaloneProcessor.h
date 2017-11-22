@@ -60,6 +60,11 @@ public:
 		allSamplesFound = areFound;
 	}
 
+	void setVoiceAmountMultiplier(int newVoiceAmountMultiplier)
+	{
+		voiceAmountMultiplier = newVoiceAmountMultiplier;
+	}
+
 	void setEnabledMidiChannels(int newMidiChannelNumber)
 	{
 		channelData = newMidiChannelNumber;
@@ -98,6 +103,8 @@ public:
 	int transposeValue = 0;
 	int ccSustainValue = 64;
 	int globalBPM = -1;
+
+	int voiceAmountMultiplier = 2;
 
 	int channelData = 1;
 

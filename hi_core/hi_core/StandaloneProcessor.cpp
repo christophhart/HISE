@@ -262,6 +262,63 @@ GlobalSettingManager::GlobalSettingManager()
 	}
 }
 
+void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
+{
+	LOG_START("Restoring global settings");
+
+	File savedDeviceData = getGlobalSettingsFile();
+
+	ScopedPointer<XmlElement> globalSettings = XmlDocument::parse(savedDeviceData);
+
+#if USE_FRONTEND
+	if (globalSettings == nullptr)
+		dynamic_cast<FrontendSampleManager*>(mc)->checkAllSampleReferences();
+#endif
+
+	if (globalSettings != nullptr)
+	{
+		GlobalSettingManager* gm = dynamic_cast<GlobalSettingManager*>(mc);
+
+		gm->diskMode = globalSettings->getIntAttribute("DISK_MODE");
+		gm->scaleFactor = globalSettings->getDoubleAttribute("SCALE_FACTOR", 1.0);
+		gm->microTuning = globalSettings->getDoubleAttribute("MICRO_TUNING", 0.0);
+		gm->transposeValue = globalSettings->getIntAttribute("TRANSPOSE", 0);
+		gm->globalBPM = globalSettings->getIntAttribute("GLOBAL_BPM", -1);
+		gm->channelData = globalSettings->getIntAttribute("MIDI_CHANNELS", 1);
+
+		gm->ccSustainValue = globalSettings->getIntAttribute("SUSTAIN_CC", 64);
+
+		gm->useOpenGL = globalSettings->getBoolAttribute("OPEN_GL", false);
+
+		mc->setGlobalPitchFactor(gm->microTuning);
+
+		mc->getEventHandler().setGlobalTransposeValue(gm->transposeValue);
+
+		gm->voiceAmountMultiplier = globalSettings->getIntAttribute("VOICE_AMOUNT_MULTIPLIER", 2);
+
+		mc->getEventHandler().addCCRemap(gm->ccSustainValue, 64);
+		mc->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)gm->diskMode);
+		mc->getMainSynthChain()->getActiveChannelData()->restoreFromData(gm->channelData);
+
+#if USE_FRONTEND
+		bool allSamplesThere = globalSettings->getBoolAttribute("SAMPLES_FOUND");
+
+		if (!allSamplesThere)
+		{
+			LOG_START("Samples not validated. Checking references");
+			dynamic_cast<FrontendSampleManager*>(mc)->checkAllSampleReferences();
+		}
+		else
+		{
+			LOG_START("Samples are validated. Skipping reference check");
+			dynamic_cast<FrontendSampleManager*>(mc)->setAllSampleReferencesCorrect();
+		}
+#else
+		ignoreUnused(mc);
+#endif
+	}
+}
+
 void GlobalSettingManager::saveSettingsAsXml()
 {
 	ScopedPointer<XmlElement> settings = new XmlElement("GLOBAL_SETTINGS");
@@ -271,6 +328,7 @@ void GlobalSettingManager::saveSettingsAsXml()
 	settings->setAttribute("MICRO_TUNING", microTuning);
 	settings->setAttribute("TRANSPOSE", transposeValue);
 	settings->setAttribute("SUSTAIN_CC", ccSustainValue);
+	settings->setAttribute("VOICE_AMOUNT_MULTIPLIER", voiceAmountMultiplier);
 	settings->setAttribute("GLOBAL_BPM", globalBPM);
 	settings->setAttribute("OPEN_GL", useOpenGL);
 	settings->setAttribute("MIDI_CHANNELS", channelData);
@@ -323,63 +381,6 @@ File GlobalSettingManager::getSettingDirectory()
 #endif
 
 	return parent;
-
-}
-
-void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
-{
-	LOG_START("Restoring global settings");
-
-	File savedDeviceData = getGlobalSettingsFile();
-
-	ScopedPointer<XmlElement> globalSettings = XmlDocument::parse(savedDeviceData);
-
-#if USE_FRONTEND
-	if(globalSettings == nullptr)
-		dynamic_cast<FrontendSampleManager*>(mc)->checkAllSampleReferences();
-#endif
-
-	if(globalSettings != nullptr)
-    {
-        GlobalSettingManager* gm = dynamic_cast<GlobalSettingManager*>(mc);
-        
-        gm->diskMode = globalSettings->getIntAttribute("DISK_MODE");
-        gm->scaleFactor = globalSettings->getDoubleAttribute("SCALE_FACTOR", 1.0);
-        gm->microTuning = globalSettings->getDoubleAttribute("MICRO_TUNING", 0.0);
-        gm->transposeValue = globalSettings->getIntAttribute("TRANSPOSE", 0);
-		gm->globalBPM = globalSettings->getIntAttribute("GLOBAL_BPM", -1);
-		gm->channelData = globalSettings->getIntAttribute("MIDI_CHANNELS", 1);
-        gm->ccSustainValue = globalSettings->getIntAttribute("SUSTAIN_CC", 64);
-     
-		gm->useOpenGL = globalSettings->getBoolAttribute("OPEN_GL", false);
-
-        mc->setGlobalPitchFactor(gm->microTuning);
-        
-        mc->getEventHandler().setGlobalTransposeValue(gm->transposeValue);
-        
-        mc->getEventHandler().addCCRemap(gm->ccSustainValue, 64);
-        mc->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)gm->diskMode);
-		mc->getMainSynthChain()->getActiveChannelData()->restoreFromData(gm->channelData);
-
-#if USE_FRONTEND
-		bool allSamplesThere = globalSettings->getBoolAttribute("SAMPLES_FOUND");
-
-		if (!allSamplesThere)
-		{
-			LOG_START("Samples not validated. Checking references");
-			dynamic_cast<FrontendSampleManager*>(mc)->checkAllSampleReferences();
-		}
-		else
-		{
-			LOG_START("Samples are validated. Skipping reference check");
-			dynamic_cast<FrontendSampleManager*>(mc)->setAllSampleReferencesCorrect();
-		}
-#else
-		ignoreUnused(mc);
-#endif
-    }
-
-
 
 }
 

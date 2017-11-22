@@ -45,7 +45,7 @@ killFadeTime(20.0f),
 vuValue(0.0f),
 lastStartedVoice(nullptr),
 group(nullptr),
-voiceLimit(numVoices),
+voiceLimit(-1),
 iconColour(Colours::transparentBlack),
 clockSpeed(ClockSpeed::Inactive),
 lastClockCounter(0),
@@ -53,6 +53,8 @@ wasPlayingInLastBuffer(false),
 pitchModulationActive(false),
 bypassState(false)
 {
+	setVoiceLimit(numVoices);
+
 	pitchBuffer = AudioSampleBuffer(1, 0);
 	internalBuffer = AudioSampleBuffer(2, 0);
 	gainBuffer = AudioSampleBuffer(1, 0);
@@ -844,7 +846,7 @@ void ModulatorSynth::noteOn(const HiseEvent &m)
 
 				// if the voiceLimit is reached, kill the voice!
 
-				if(voiceIsActive && j >= (voiceLimit - 1)) 
+				if(voiceIsActive && j >= (internalVoiceLimit - 1)) 
 				{
 					killLastVoice();
 				}
@@ -1212,6 +1214,7 @@ void ModulatorSynth::setVoiceLimit(int newVoiceLimit)
 	//jassert(voices.size() == 0 || newVoiceLimit <= voices.size());
 
 	voiceLimit = jmin<int>(newVoiceLimit, NUM_POLYPHONIC_VOICES);
+	internalVoiceLimit = (int)(getMainController()->getVoiceAmountMultiplier() * (float)voiceLimit);
 }
 
 void ModulatorSynth::setKillFadeOutTime(double fadeTimeMilliSeconds)

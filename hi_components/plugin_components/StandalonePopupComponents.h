@@ -244,6 +244,7 @@ public:
 		GraphicRendering,
 		StreamingMode,
 		SustainCC,
+		VoiceAmountMultiplier,
 		ClearMidiCC,
 		SampleLocation,
 		DebugMode,
@@ -329,6 +330,7 @@ private:
 	ScopedPointer<ComboBox> graphicRenderSelector;
 	ScopedPointer<ComboBox> scaleFactorSelector;
 	ScopedPointer<ComboBox> ccSustainSelector;
+	ScopedPointer<ComboBox> voiceAmountMultiplier;
 	ScopedPointer<TextButton> clearMidiLearn;
 	ScopedPointer<TextButton> relocateButton;
 	ScopedPointer<TextButton> debugButton;

@@ -790,6 +790,10 @@ public:
 	void addPlottedModulator(Modulator *m);
 	void removePlottedModulator(Modulator *m);
 	
+	float getVoiceAmountMultiplier() const;
+
+	void rebuildVoiceLimits();
+
 #if USE_BACKEND
 
 	void setScriptWatchTable(ScriptWatchTable *table);
@@ -1235,6 +1239,7 @@ private:
 	BigInteger shownComponents;
 
 	std::atomic<int> suspendIndex;
+
 };
 
 } // namespace hise

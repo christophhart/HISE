@@ -450,6 +450,9 @@ private:
 	int lastClockCounter;
 
 	int voiceLimit;
+	int internalVoiceLimit;
+
+
 	bool shouldKillRetriggeredNote = true;
 
 	std::atomic<double> synthTimerIntervals[4];

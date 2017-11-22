@@ -79,6 +79,7 @@ var CustomSettingsWindowPanel::toDynamicObject() const
 	SET(CustomSettingsWindow::Properties::GraphicRendering);
 	SET(CustomSettingsWindow::Properties::ScaleFactor);
 	SET(CustomSettingsWindow::Properties::SustainCC);
+	SET(CustomSettingsWindow::Properties::VoiceAmountMultiplier);
 	SET(CustomSettingsWindow::Properties::ClearMidiCC);
 	SET(CustomSettingsWindow::Properties::SampleLocation);
 	SET(CustomSettingsWindow::Properties::DebugMode);
@@ -106,6 +107,7 @@ void CustomSettingsWindowPanel::fromDynamicObject(const var& object)
 	SET(CustomSettingsWindow::Properties::GraphicRendering);
 	SET(CustomSettingsWindow::Properties::ScaleFactor);
 	SET(CustomSettingsWindow::Properties::SustainCC);
+	SET(CustomSettingsWindow::Properties::VoiceAmountMultiplier);
 	SET(CustomSettingsWindow::Properties::ClearMidiCC);
 	SET(CustomSettingsWindow::Properties::SampleLocation);
 	SET(CustomSettingsWindow::Properties::DebugMode);
@@ -151,6 +153,7 @@ Identifier CustomSettingsWindowPanel::getDefaultablePropertyId(int index) const
 	SET(CustomSettingsWindow::Properties::GraphicRendering);
 	SET(CustomSettingsWindow::Properties::ScaleFactor);
 	SET(CustomSettingsWindow::Properties::SustainCC);
+	SET(CustomSettingsWindow::Properties::VoiceAmountMultiplier);
 	SET(CustomSettingsWindow::Properties::ClearMidiCC);
 	SET(CustomSettingsWindow::Properties::SampleLocation);
 	SET(CustomSettingsWindow::Properties::DebugMode);
@@ -179,6 +182,7 @@ var CustomSettingsWindowPanel::getDefaultProperty(int index) const
 	SET(CustomSettingsWindow::Properties::GraphicRendering);
 	SET(CustomSettingsWindow::Properties::ScaleFactor);
 	SET(CustomSettingsWindow::Properties::SustainCC);
+	SET(CustomSettingsWindow::Properties::VoiceAmountMultiplier);
 	SET(CustomSettingsWindow::Properties::ClearMidiCC);
 	SET(CustomSettingsWindow::Properties::SampleLocation);
 	SET(CustomSettingsWindow::Properties::DebugMode);

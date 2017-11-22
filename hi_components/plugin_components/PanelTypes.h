@@ -97,6 +97,7 @@ public:
 		GraphicRendering, ///< switch between software / Open GL rendering
 		StreamingMode, ///< allows to double the preload size for old hard disks
 		SustainCC, ///< the CC number for the sustain pedal (useful if you want to remap this function)
+		VoiceAmount, ///< the voice limit per sound generator.
 		ClearMidiCC, ///< a button that clears all MIDI CC mappings
 		SampleLocation, ///< shows the location of the sample folder and a button to relocate
 		DebugMode, ///< enables Debug mode which creates a useful log file for bug chasing

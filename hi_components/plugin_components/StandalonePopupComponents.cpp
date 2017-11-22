@@ -140,6 +140,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_, bool buildMenus)
 	ADD(GraphicRendering);
 	ADD(StreamingMode);
 	ADD(SustainCC);
+	ADD(VoiceAmountMultiplier);
 	ADD(ClearMidiCC);
 	ADD(SampleLocation);
 	ADD(DebugMode);
@@ -181,6 +182,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_, bool buildMenus)
     addAndMakeVisible(graphicRenderSelector = new ComboBox("Graphic Rendering"));
 	addAndMakeVisible(scaleFactorSelector = new ComboBox("Scale Factor"));
 	addAndMakeVisible(diskModeSelector = new ComboBox("Hard Disk"));
+	addAndMakeVisible(voiceAmountMultiplier = new ComboBox("Voice Amount"));
 	addAndMakeVisible(clearMidiLearn = new TextButton("Clear MIDI CC"));
 	addAndMakeVisible(relocateButton = new TextButton("Change sample folder location"));
 	addAndMakeVisible(debugButton = new TextButton("Toggle Debug Mode"));
@@ -192,6 +194,9 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_, bool buildMenus)
 	clearMidiLearn->addListener(this);
 	relocateButton->addListener(this);
 	debugButton->addListener(this);
+
+	voiceAmountMultiplier->addListener(this);
+	voiceAmountMultiplier->setLookAndFeel(&plaf);
 
 	ccSustainSelector->setLookAndFeel(&plaf);
 	scaleFactorSelector->setLookAndFeel(&plaf);
@@ -239,6 +244,8 @@ CustomSettingsWindow::~CustomSettingsWindow()
 	relocateButton->removeListener(this);
 	diskModeSelector->removeListener(this);
 	
+	voiceAmountMultiplier->removeListener(this);
+
 	scaleFactorSelector->removeListener(this);
 	graphicRenderSelector->removeListener(this);
 	debugButton->removeListener(this);
@@ -250,6 +257,7 @@ CustomSettingsWindow::~CustomSettingsWindow()
 	clearMidiLearn = nullptr;
 	relocateButton = nullptr;
 	debugButton = nullptr;
+	voiceAmountMultiplier = nullptr;
 }
 
 void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDevices)
@@ -399,6 +407,16 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 	diskModeSelector->clear(dontSendNotification);
 	diskModeSelector->addItem("Fast - SSD", 1);
 	diskModeSelector->addItem("Slow - HDD", 2);
+
+
+
+	voiceAmountMultiplier->clear(dontSendNotification);
+	voiceAmountMultiplier->addItem(String(NUM_POLYPHONIC_VOICES) + " voices", 1);
+	voiceAmountMultiplier->addItem(String(NUM_POLYPHONIC_VOICES/2) + " voices", 2);
+	voiceAmountMultiplier->addItem(String(NUM_POLYPHONIC_VOICES/4) + " voices", 4);
+	voiceAmountMultiplier->addItem(String(NUM_POLYPHONIC_VOICES/8) + " voices", 8);
+	
+	voiceAmountMultiplier->setSelectedId(driver->voiceAmountMultiplier, dontSendNotification);
 
 	ccSustainSelector->clear(dontSendNotification);
 
@@ -587,6 +605,15 @@ void CustomSettingsWindow::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 
 		mc->getEventHandler().addCCRemap(newSustainCC, 64);
 	}
+	else if (comboBoxThatHasChanged == voiceAmountMultiplier)
+	{
+		int newVoiceAmount = comboBoxThatHasChanged->getSelectedId();
+
+		driver->voiceAmountMultiplier = newVoiceAmount;
+
+		mc->rebuildVoiceLimits();
+		
+	}
 	else if (comboBoxThatHasChanged == scaleFactorSelector)
 	{
 		double scaleFactor = scaleFactorList[scaleFactorSelector->getSelectedItemIndex()];
@@ -648,6 +675,7 @@ void CustomSettingsWindow::paint(Graphics& g)
 	DRAW_LABEL(Properties::ScaleFactor, "UI Zoom Factor");
 	DRAW_LABEL(Properties::StreamingMode, "Streaming Mode");
 	DRAW_LABEL(Properties::SustainCC, "Sustain CC");
+	DRAW_LABEL(Properties::VoiceAmountMultiplier, "Voice Amount");
 
 	if (isOn(Properties::ClearMidiCC))
 	{
@@ -693,6 +721,7 @@ void CustomSettingsWindow::resized()
 	POSITION_COMBOBOX(Properties::ScaleFactor, scaleFactorSelector);
 	POSITION_COMBOBOX(Properties::StreamingMode, diskModeSelector);
 	POSITION_COMBOBOX(Properties::SustainCC, ccSustainSelector);
+	POSITION_COMBOBOX(Properties::VoiceAmountMultiplier, voiceAmountMultiplier);
 
 	POSITION_BUTTON(Properties::ClearMidiCC, clearMidiLearn);
 	POSITION_BUTTON(Properties::SampleLocation, relocateButton);

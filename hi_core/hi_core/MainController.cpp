@@ -429,7 +429,19 @@ void MainController::removePlottedModulator(Modulator *m)
 	}
 };
 
+float MainController::getVoiceAmountMultiplier() const
+{
+	auto m = dynamic_cast<const GlobalSettingManager*>(this)->voiceAmountMultiplier;
 
+	switch (m)
+	{
+	case 8:  return 0.125f;
+	case 4:  return 0.25f;
+	case 2:  return 0.5f;
+	case 1: return 1.0f;
+	default:  return 1.0f;
+	}
+}
 
 void MainController::setPlotter(Plotter *p)
 {
@@ -977,6 +989,16 @@ void MainController::setWatchedScriptProcessor(JavascriptProcessor *p, Component
 void MainController::setScriptWatchTable(ScriptWatchTable *table)
 {
 	scriptWatchTable = table;
+}
+
+void MainController::rebuildVoiceLimits()
+{
+	Processor::Iterator<ModulatorSynth> iter(getMainSynthChain());
+
+	while (auto synth = iter.getNextProcessor())
+	{
+		synth->setVoiceLimit(synth->getAttribute(ModulatorSynth::VoiceLimit));
+	}
 }
 
 #endif
