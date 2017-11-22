@@ -154,6 +154,8 @@ public:
 		{
 			reverb.processStereo(buffer.getWritePointer(0, startSample), buffer.getWritePointer(1, startSample), numSamples);
 
+			buffer.applyGain(0.5f);
+
 			const float outputLevel = buffer.getMagnitude(startSample, numSamples);
 			const bool outputSilent = outputLevel <= 0.0001f;
 			tailActive = !outputSilent;
