@@ -78,6 +78,8 @@ public:
 
 	ScriptEditHandler();
 
+    virtual ~ScriptEditHandler() {};
+    
 	virtual ScriptContentComponent* getScriptEditHandlerContent() = 0;
 
 	virtual ScriptingContentOverlay* getScriptEditHandlerOverlay() = 0;

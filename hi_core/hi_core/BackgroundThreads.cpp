@@ -494,11 +494,6 @@ SampleDataImporter::SampleDataImporter(ModalBaseWindow* mbw) :
 
 #endif
 
-
-
-
-
-
 	StringArray sa;
 
 	sa.add("Overwrite if newer");

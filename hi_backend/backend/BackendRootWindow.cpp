@@ -300,9 +300,8 @@ void BackendRootWindow::saveInterfaceData()
 
 		var editorData = getRootFloatingTile()->getCurrentFloatingPanel()->toDynamicObject();
 
-		if (auto editorObject = editorData.getDynamicObject())
+		if (editorData.getDynamicObject() != nullptr)
 		{
-
 			Array<var> position;
 
 			position.add(getX());

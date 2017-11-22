@@ -423,8 +423,6 @@ var FloatingPanelTemplates::createSettingsWindow(MainController* mc)
 
 #else
     
-   	const int settingsWindows = ib.addChild<CustomSettingsWindowPanel>(tabs);
-    
 	auto sw = ib.getContent<CustomSettingsWindowPanel>(settingsWindows);
 
 	DynamicObject::Ptr sData = new DynamicObject();
