@@ -234,7 +234,8 @@ private:
 
 class BorderPanel : public MouseCallbackComponent,
                     public SafeChangeListener,
-					public SettableTooltipClient
+					public SettableTooltipClient,
+				    public ButtonListener
 {
 public:
 
@@ -246,6 +247,19 @@ public:
 	void paint(Graphics &g);
 	Colour c1, c2, borderColour;
 
+	void resized() override
+	{
+		if (isPopupPanel)
+		{
+			closeButton.setBounds(getWidth() - 24, 0, 24, 24);
+		}
+		else
+			closeButton.setVisible(false);
+		
+	}
+
+	void buttonClicked(Button* b) override;
+
     void changeListenerCallback(SafeChangeBroadcaster* b);
     
 	// ================================================================================================================
@@ -254,6 +268,10 @@ public:
 	float borderSize;
 	Image image;
 	bool isUsingCustomImage;
+
+	bool isPopupPanel;
+
+	ImageButton closeButton;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BorderPanel);
 	

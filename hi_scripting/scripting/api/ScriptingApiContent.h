@@ -313,7 +313,6 @@ public:
 		// End of API Methods ============================================================================================
 
 		
-
 		void setChanged(bool isChanged = true) noexcept{ changed = isChanged; }
 		bool isChanged() const noexcept{ return changed; };
 
@@ -888,6 +887,7 @@ public:
 			stepSize,
 			enableMidiLearn,
 			holdIsRightClick,
+			isPopupPanel,
 			numProperties
 		};
 
@@ -961,7 +961,15 @@ public:
         /** Sets a new value, stores this action in the undo manager and calls the control callbacks. */
         void setValueWithUndo(var oldValue, var newValue, var actionName);
         
+		/** Opens the panel as popup. */
+		void showAsPopup(bool closeOtherPopups);
+
+		/** Closes the popup manually. */
+		void closeAsPopup();
+
 		// ========================================================================================================
+
+		
 
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor=sendNotification) override
 		{
@@ -1037,9 +1045,24 @@ public:
             ScriptPanel* panel;
         };
         
-		
+		bool isVisiblePopup() const
+		{
+			if (!isShowing())
+				return false;
+
+			if (!getScriptObjectProperty(isPopupPanel))
+				return true;
+
+			return shownAsPopup;
+		}
 
 	private:
+
+		
+
+		bool shownAsPopup = false;
+
+
 
 		double getScaleFactorForCanvas() const;
 
@@ -1592,7 +1615,28 @@ public:
 		return allowAsyncFunctions;
 	}
 
+	void addPanelPopup(ScriptPanel* panel, bool closeOther)
+	{
+		if (closeOther)
+		{
+			for (auto p : popupPanels)
+			{
+				if (p == panel)
+					continue;
+
+				p->closeAsPopup();
+			}
+				
+
+			popupPanels.clear();
+		}
+
+		popupPanels.add(panel);
+	}
+
 private:
+
+	ReferenceCountedArray<ScriptPanel> popupPanels;
 
 	bool allowAsyncFunctions = false;
 

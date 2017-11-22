@@ -874,6 +874,8 @@ ScriptCreatedComponentWrapper(content, index)
 
     bp->setOpaque(panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::opaque));
     
+	bp->isPopupPanel = panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::isPopupPanel);
+
 	bp->setup(getProcessor(), getIndex(), panel->name.toString());
 
 	component = bp;
@@ -891,6 +893,9 @@ void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent()
 	bpc->borderSize = getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::borderSize);
 	bpc->image = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent())->getImage();
 	
+	bpc->setVisible(sc->isVisiblePopup());
+
+
 	bpc->isUsingCustomImage = sc->isUsingCustomPaintRoutine() || sc->isUsingClippedFixedImage();
 	bpc->setPopupMenuItems(sc->getItemList());
 	bpc->setOpaque(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::opaque));

@@ -2187,6 +2187,8 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setDraggingBounds);
 	API_VOID_METHOD_WRAPPER_2(ScriptPanel, setPopupData);
     API_VOID_METHOD_WRAPPER_3(ScriptPanel, setValueWithUndo);
+	API_VOID_METHOD_WRAPPER_1(ScriptPanel, showAsPopup);
+	API_VOID_METHOD_WRAPPER_0(ScriptPanel, closeAsPopup);
 };
 
 ScriptingApi::Content::ScriptPanel::ScriptPanel(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height) :
@@ -2212,6 +2214,7 @@ timerRoutine(var())
 	ADD_SCRIPT_PROPERTY(i09, "stepSize");
 	ADD_SCRIPT_PROPERTY(i10, "enableMidiLearn");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i11, "holdIsRightClick");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i12, "isPopupPanel");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	
 	componentProperties->setProperty(getIdFor(borderSize), 0);
 	componentProperties->setProperty(getIdFor(borderRadius), 0);
@@ -2233,6 +2236,7 @@ timerRoutine(var())
 	setDefaultValue(stepSize, 0.0);
 	setDefaultValue(enableMidiLearn, false);
 	setDefaultValue(holdIsRightClick, true);
+	setDefaultValue(isPopupPanel, false);
 	
 	addConstant("data", new DynamicObject());
 
@@ -2250,8 +2254,8 @@ timerRoutine(var())
 	ADD_API_METHOD_1(setDraggingBounds);
 	ADD_API_METHOD_2(setPopupData);
     ADD_API_METHOD_3(setValueWithUndo);
-	
-
+	ADD_API_METHOD_1(showAsPopup);
+	ADD_API_METHOD_0(closeAsPopup);
 }
 
 ScriptingApi::Content::ScriptPanel::~ScriptPanel()
@@ -2648,6 +2652,22 @@ double ScriptingApi::Content::ScriptPanel::getScaleFactorForCanvas() const
 	scaleFactor = jmin<double>(2.0, scaleFactor);
 
 	return scaleFactor;
+}
+
+void ScriptingApi::Content::ScriptPanel::showAsPopup(bool closeOtherPopups)
+{
+	shownAsPopup = true;
+
+	parent->addPanelPopup(this, closeOtherPopups);
+
+	sendChangeMessage();
+}
+
+void ScriptingApi::Content::ScriptPanel::closeAsPopup()
+{
+	shownAsPopup = false;
+
+	sendChangeMessage();
 }
 
 void ScriptingApi::Content::ScriptPanel::AsyncControlCallbackSender::handleAsyncUpdate()
@@ -3646,9 +3666,14 @@ void ScriptingApi::Content::restoreFromValueTree(const ValueTree &v)
 
 		Identifier childType(childTypeString);
 
-		if (child.isValid() && childType == components[i]->getObjectName())
+		if (child.isValid())
 		{
 			components[i]->restoreFromValueTree(child);
+
+			if (childType != components[i]->getObjectName())
+			{
+				debugError(dynamic_cast<Processor*>(getScriptProcessor()), "Type mismatch in preset");
+			}
 		}
 	}
 };
