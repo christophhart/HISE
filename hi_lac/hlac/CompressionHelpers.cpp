@@ -137,6 +137,24 @@ void CompressionHelpers::AudioBufferInt16::negate()
 	}
 }
 
+
+void CompressionHelpers::AudioBufferInt16::applyGainRamp(int startOffset, int rampLength, float startGain, float endGain)
+{
+	int16* d = getWritePointer(startOffset);
+
+	const int numToDo = jmin<int>(size - startOffset, rampLength);
+
+	const float delta = (endGain - startGain) / (float)rampLength;
+
+	float level = startGain;
+
+	for (int i = 0; i < numToDo; i++)
+	{
+		d[i] = (int16)(level * (float)d[i]);
+		level += delta;
+	}
+}
+
 int16* CompressionHelpers::AudioBufferInt16::getWritePointer(int startSample /*= 0*/)
 {
 	jassert(startSample < size);

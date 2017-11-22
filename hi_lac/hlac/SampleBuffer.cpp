@@ -234,7 +234,11 @@ void HiseSampleBuffer::applyGainRamp(int channelIndex, int startOffset, int ramp
 	}
 	else
 	{
-		throw std::logic_error("not implemented");
+		if(channelIndex == 0)
+			leftIntBuffer.applyGainRamp(startOffset, rampLength, startGain, endGain);
+
+		if(channelIndex == 1 & hasSecondChannel())
+			rightIntBuffer.applyGainRamp(startOffset, rampLength, startGain, endGain);
 	}
 }
 

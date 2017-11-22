@@ -99,6 +99,8 @@ struct CompressionHelpers
 
 		void negate();
 
+		void applyGainRamp(int startOffset, int rampLength, float startGain, float endGain);
+
 		int16* getWritePointer(int startSample = 0);
 		const int16* getReadPointer(int startSample = 0) const;
 
