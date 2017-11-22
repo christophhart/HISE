@@ -327,7 +327,7 @@ public:
 				splashScreen->setBounds(getLocalBounds());
 
 			if(editor != nullptr)
-				editor->centreWithSize(editor->getWidth(), editor->getHeight());
+				editor->setBounds(0, 0, editor->getWidth(), editor->getHeight());
 		}
 
 	private:

@@ -142,11 +142,12 @@ void FrontendProcessorEditor::setGlobalScaleFactor(float newScaleFactor)
         
         container->setTransform(scaler);
         
-        auto tl = findParentComponentOfClass<TopLevelWindow>();
+        auto tl = findParentComponentOfClass<FrontendStandaloneApplication::AudioWrapper>();
         
         if (tl != nullptr)
         {
             tl->setSize((int)((float)originalSizeX * scaleFactor), (int)((float)originalSizeY * scaleFactor));
+			setSize((int)((float)originalSizeX * scaleFactor), (int)((float)originalSizeY * scaleFactor));
         }
         else
         {
@@ -159,14 +160,21 @@ void FrontendProcessorEditor::resized()
 {
 	LOG_START("Resizing interface");
 
+#if 0
 	int width = originalSizeX != 0 ? originalSizeX : getWidth();
     int height = originalSizeY != 0 ? originalSizeY : getHeight();
-    
+#else
+	int width = getWidth();
+	int height = getHeight();
+#endif
+
+
     container->setBounds(0, 0, width, height);
 	rootTile->setBounds(0, 0, width, height);
     deactiveOverlay->setBounds(0, 0, width, height);
 	loaderOverlay->setBounds(0, 0, width, height);
 	debugLoggerComponent->setBounds(0, height-90, width, 90);
+
 }
 
 } // namespace hise
