@@ -641,7 +641,7 @@ void FileImportDialogWindow::threadFinished()
 	int currentRRAmount = (int)sampler->getAttribute(ModulatorSampler::Parameters::RRGroupAmount);
 	int maxRRIndex = 0;
 
-	ModulatorSampler::SoundIterator sIter(sampler);
+	ModulatorSampler::SoundIterator sIter(sampler, false);
 
 	while (auto sound = sIter.getNextSound())
 	{

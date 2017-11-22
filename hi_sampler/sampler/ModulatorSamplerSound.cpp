@@ -1089,7 +1089,8 @@ size_t ModulatorSamplerSoundPool::getMemoryUsageForAllSamples() const noexcept
 
 	for (int i = 0; i < pool.size(); i++)
 	{
-		memoryUsage += pool.getUnchecked(i)->getActualPreloadSize();
+		if(auto s = pool.getObjectPointer(i))
+			memoryUsage += s->getActualPreloadSize();
 	}
 
 	return memoryUsage;

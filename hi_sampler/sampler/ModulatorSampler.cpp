@@ -573,7 +573,7 @@ void ModulatorSampler::refreshMemoryUsage()
 	int64 actualPreloadSize = 0;
 
 	{
-		ModulatorSampler::SoundIterator sIter(this);
+		ModulatorSampler::SoundIterator sIter(this, false);
 
 		while (auto sound = sIter.getNextSound())
 		{

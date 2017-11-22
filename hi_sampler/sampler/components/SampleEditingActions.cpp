@@ -1063,7 +1063,7 @@ bool SampleEditHandler::SampleEditingActions::metadataWasFound(ModulatorSampler*
 		sounds = handler->getSelection().getItemArray();
 	}
 
-	ModulatorSampler::SoundIterator sIter(sampler);
+	ModulatorSampler::SoundIterator sIter(sampler, false);
 
 	while (auto sound = sIter.getNextSound())
 		sounds.add(sound);
