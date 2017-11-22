@@ -459,9 +459,9 @@ SampleDataImporter::SampleDataImporter(ModalBaseWindow* mbw) :
 
 #if USE_FRONTEND
 
+	const String productName = ProjectHandler::Frontend::getProjectName();
 
-
-	PresetHandler::showMessageWindow("Choose the Sample Archive", "Please select the Hexeract Resources.hr1 file that you've downloaded");
+	PresetHandler::showMessageWindow("Choose the Sample Archive", "Please select the " + productName + " Resources.hr1 file that you've downloaded");
 
 	FileChooser fc("Choose the Sample Archive", File::getSpecialLocation(File::userHomeDirectory), "*.hr1", true);
 
