@@ -84,8 +84,8 @@ void PhaseFX::restoreFromValueTree(const ValueTree &v)
 {
     MasterEffectProcessor::restoreFromValueTree(v);
     
-    loadAttribute(Frequency1, "Speed");
-    loadAttribute(Frequency2, "Range");
+    loadAttribute(Frequency1, "Frequency1");
+    loadAttribute(Frequency2, "Frequency2");
     loadAttribute(Feedback, "Feedback");
     loadAttribute(Mix, "Mix");
 }
@@ -94,8 +94,8 @@ ValueTree PhaseFX::exportAsValueTree() const
 {
     ValueTree v = MasterEffectProcessor::exportAsValueTree();
     
-    saveAttribute(Frequency1, "Speed");
-    saveAttribute(Frequency2, "Range");
+    saveAttribute(Frequency1, "Frequency1");
+    saveAttribute(Frequency2, "Frequency2");
     saveAttribute(Feedback, "Feedback");
     saveAttribute(Mix, "Mix");
 
