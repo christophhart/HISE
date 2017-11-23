@@ -71,7 +71,9 @@ END_JUCE_MODULE_DECLARATION
 #include <complex>
 
 
-
+#ifndef HISE_VERSION
+#define HISE_VERSION "1.1.2"
+#endif
 
 
 //=============================================================================

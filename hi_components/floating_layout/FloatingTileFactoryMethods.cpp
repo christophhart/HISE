@@ -62,6 +62,8 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 #endif
 
 
+	registerType<AboutPagePanel>(PopupMenuOptions::AboutPage);
+
 	registerType<MidiKeyboardPanel>(PopupMenuOptions::MidiKeyboard);
 	registerType<PopoutButtonPanel>(PopupMenuOptions::PopoutButton);
 	registerType<PerformanceLabelPanel>(PopupMenuOptions::PerformanceStatistics);
@@ -667,6 +669,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::ModuleBrowser:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ModuleBrowser>)); break;
 	case PopupMenuOptions::SamplePoolTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<SamplePoolTable>)); break;
 	case PopupMenuOptions::SampleMapBrowser:	parent->setNewContent(GET_PANEL_NAME(SampleMapBrowser)); break;
+	case PopupMenuOptions::AboutPage:			parent->setNewContent(GET_PANEL_NAME(AboutPagePanel)); break;
 	case PopupMenuOptions::AudioFileTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<PoolTableSubTypes::AudioFilePoolTable>)); break;
 	case PopupMenuOptions::ImageTable:			parent->setNewContent(GET_PANEL_NAME(GenericPanel<PoolTableSubTypes::ImageFilePoolTable>)); break;
 	case PopupMenuOptions::ScriptWatchTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ScriptWatchTable>)); break;

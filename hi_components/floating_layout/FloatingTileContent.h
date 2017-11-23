@@ -458,6 +458,7 @@ public:
 			TooltipPanel,
 			MidiSourceList,
 			MidiChannelList,
+			AboutPage,
 			SampleMapBrowser,
 			Matrix2x2,
 			ThreeColumns,

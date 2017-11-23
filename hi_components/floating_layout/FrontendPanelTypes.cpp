@@ -480,4 +480,132 @@ void PresetBrowserPanel::resized()
 	presetBrowser->setHighlightColourAndFont(findPanelColour(PanelColourId::itemColour1), findPanelColour(PanelColourId::bgColour), getFont());
 }
 
+
+
+AboutPagePanel::AboutPagePanel(FloatingTile* parent) :
+	FloatingTileContent(parent)
+{
+	setDefaultPanelColour(PanelColourId::textColour, Colours::white);
+	setDefaultPanelColour(PanelColourId::itemColour1, Colours::white);
+	setDefaultPanelColour(PanelColourId::bgColour, Colours::black);
+}
+
+void AboutPagePanel::fromDynamicObject(const var& object)
+{
+	FloatingTileContent::fromDynamicObject(object);
+
+	showCopyrightNotice = getPropertyWithDefault(object, CopyrightNotice).toString();
+	showLicensedEmail = getPropertyWithDefault(object, ShowLicensedEmail);
+	showVersion = getPropertyWithDefault(object, ShowVersion);
+	showBuildDate = getPropertyWithDefault(object, BuildDate);
+	showWebsiteURL = getPropertyWithDefault(object, WebsiteURL);
+
+	rebuildText();
+}
+
+
+Identifier AboutPagePanel::getDefaultablePropertyId(int index) const
+{
+	if (index < (int)PanelPropertyId::numPropertyIds)
+		return FloatingTileContent::getDefaultablePropertyId(index);
+
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::BuildDate, "BuildDate");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::CopyrightNotice, "CopyrightNotice");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowLicensedEmail, "ShowLicensedEmail");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowVersion, "ShowVersion");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::WebsiteURL, "WebsiteURL");
+	
+
+
+	jassertfalse;
+	return{};
+}
+
+var AboutPagePanel::getDefaultProperty(int index) const
+{
+	if (index < (int)PanelPropertyId::numPropertyIds)
+		return FloatingTileContent::getDefaultProperty(index);
+
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::BuildDate, true);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::CopyrightNotice, false);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowLicensedEmail, true);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowVersion, true);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::WebsiteURL, true);
+
+	jassertfalse;
+	return{};
+}
+
+void AboutPagePanel::paint(Graphics& g)
+{
+	g.fillAll(findPanelColour(PanelColourId::bgColour));
+
+	text.draw(g, { 0.0f, 0.0f, (float)getWidth(), (float)getHeight() });
+}
+
+void AboutPagePanel::rebuildText()
+{
+	text.clear();
+
+#if USE_FRONTEND
+	const String projectName = ProjectHandler::Frontend::getProjectName();
+	const String licencee = "do@do.do";
+	const String version = ProjectHandler::Frontend::getVersionString();
+	
+#else
+	auto& handler = GET_PROJECT_HANDLER(getMainController()->getMainSynthChain());
+
+	const String projectName = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, &handler);
+	const String licencee = "mailMcFaceMail@mail.mail";
+	const String version = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &handler);
+
+#endif
+
+	const String hiseVersion = String(HISE_VERSION);
+	const String buildTime = Time::getCompilationDate().toString(true, false, false, true);
+
+	Font bold = getFont().boldened();
+	Font normal = getFont();
+
+	Colour high = findPanelColour(PanelColourId::itemColour1);
+	Colour low = findPanelColour(PanelColourId::textColour);
+
+	NewLine nl;
+
+	
+	text.append(projectName + nl + nl, bold.withHeight(18.0f), high);
+
+	if (showVersion)
+	{
+		text.append("Version: ", bold, low);
+		text.append(version + nl + nl, normal, low);
+	}
+
+	if (showLicensedEmail)
+	{
+		text.append("Licensed to: ", bold, low);
+		text.append(licencee + nl, normal, low);
+	}
+	
+	text.append(nl + "Build with HISE Version ", bold, low);
+	text.append(hiseVersion + nl, bold, low);
+
+	if (showBuildDate)
+	{
+		text.append("Build Time: ", bold, low);
+		text.append(buildTime + nl + nl, normal, low);
+	}
+
+	if (showCopyrightNotice.isNotEmpty())
+	{
+		text.append(showCopyrightNotice + nl + nl, normal, low);
+	}
+
+	if (showWebsiteURL.isNotEmpty())
+	{
+		text.append(showWebsiteURL + nl, bold, low);
+	}
+	
+}
+
 } // namespace hise

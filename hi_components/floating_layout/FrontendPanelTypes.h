@@ -426,6 +426,86 @@ private:
 	ScopedPointer<TooltipBar> tooltipBar;
 };
 
+/** Type-ID: `AboutPagePanel`
+*
+*	Shows a about page with some useful information regarding version, build date, licensed e-mail adress, etc.
+*
+*	
+*	### Used base properties:
+*
+*	- `ColourData::textColour`: the text colour
+*	- `ColourData::bgColour`: the background colour *when something is shown*
+*	- `ColourData::itemColour1`: the icon colour
+*	- `Font`
+*	- `FontSize`
+*
+*	### Example JSON
+*
+```
+const var data = {
+"Type": "AboutPagePanel",
+"Font": "Arial Italic",
+"FontSize": 20,
+"ColourData": {
+"bgColour": "0x22FF0000",
+"textColour": "0xFFFFFFFF",
+"itemColour1": "0xFF00FF00"
+}
+};
+```
+*
+*/
+class AboutPagePanel : public FloatingTileContent,
+						public Component
+{
+public:
+
+	enum SpecialPanelIds
+	{
+		CopyrightNotice = (int)FloatingTileContent::PanelPropertyId::numPropertyIds, ///< the content of the text editor
+		ShowLicensedEmail ,
+		ShowVersion,
+		BuildDate,
+		WebsiteURL,
+		numSpecialPanelIds
+	};
+
+	SET_PANEL_NAME("AboutPagePanel");
+
+	AboutPagePanel(FloatingTile* parent);
+
+	~AboutPagePanel()
+	{
+		text.clear();
+	}
+
+	
+	void fromDynamicObject(const var& object) override;
+	
+	Identifier getDefaultablePropertyId(int index) const override;
+	var getDefaultProperty(int index) const override;
+
+	void paint(Graphics& g) override;
+
+private:
+
+	AttributedString text;
+
+	void rebuildText();
+
+	String showCopyrightNotice;
+	bool showLicensedEmail = true;
+	bool showVersion = true;
+	bool showBuildDate = true;
+	String showWebsiteURL;
+
+	String fontName;
+	float fontSize = 14.0f;
+
+	ScopedPointer<TooltipBar> tooltipBar;
+};
+
 } // namespace hise
+
 
 #endif  // FRONTENDPANELTYPES_H_INCLUDED
