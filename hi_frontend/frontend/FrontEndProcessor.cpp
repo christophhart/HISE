@@ -316,12 +316,11 @@ FrontendStandaloneApplication::AudioWrapper::AudioWrapper()
     setSize(size.getWidth(), size.getHeight());
 #else
 
+	setSize(1024, 768);
 
-    setSize(jmin<int>(1000, img.getWidth()), jmin<int>(1000, img.getHeight()));
+    
 #endif
     
-	
-
 	startTimer(100);
 
 #else
