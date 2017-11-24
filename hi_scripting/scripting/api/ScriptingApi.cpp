@@ -1812,6 +1812,7 @@ struct ScriptingApi::Synth::Wrapper
 	API_METHOD_WRAPPER_1(Synth, getChildSynthByIndex);
 	API_METHOD_WRAPPER_1(Synth, getIdList);
 	API_METHOD_WRAPPER_2(Synth, getModulatorIndex);
+	API_METHOD_WRAPPER_1(Synth, getAllModulators);
 	API_METHOD_WRAPPER_0(Synth, getNumPressedKeys);
 	API_METHOD_WRAPPER_0(Synth, isLegatoInterval);
 	API_METHOD_WRAPPER_0(Synth, isSustainPedalDown);
@@ -1875,6 +1876,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_1(getChildSynthByIndex);
 	ADD_API_METHOD_1(getIdList);
 	ADD_API_METHOD_2(getModulatorIndex);
+	ADD_API_METHOD_1(getAllModulators);
 	ADD_API_METHOD_0(getNumPressedKeys);
 	ADD_API_METHOD_0(isLegatoInterval);
 	ADD_API_METHOD_0(isSustainPedalDown);
@@ -2711,6 +2713,26 @@ void ScriptingApi::Synth::setShouldKillRetriggeredNote(bool killNote)
 	{
 		owner->setKillRetriggeredNote(killNote);
 	}
+}
+
+var ScriptingApi::Synth::getAllModulators(String regex)
+{
+	Processor::Iterator<Modulator> iter(owner->getMainController()->getMainSynthChain());
+
+	Array<var> list;
+
+	while (auto m = iter.getNextProcessor())
+	{
+		if (RegexFunctions::matchesWildcard(regex, m->getId(), owner->getMainController()->getMainSynthChain()))
+		{
+			auto sm = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), m);
+			var smv(sm);
+
+			list.add(smv);
+		}
+	}
+
+	return var(list);
 }
 
 void ScriptingApi::Synth::setModulatorAttribute(int chain, int modulatorIndex, int attributeIndex, float newValue)

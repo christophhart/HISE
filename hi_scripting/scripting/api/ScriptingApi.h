@@ -518,6 +518,9 @@ public:
 		/** If set to true, this will kill retriggered notes (default). */
 		void setShouldKillRetriggeredNote(bool killNote);
 
+		/** Returns an array of all modulators that match the given regex. */
+		var getAllModulators(String regex);
+
 		/** Stops the timer of the synth. You can call this also in the timer callback. */
 		void stopTimer();
 
