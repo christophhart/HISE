@@ -123,6 +123,9 @@ ModulatorSynthVoice* ModulatorSynthGroupVoice::startNoteInternal(ModulatorSynth*
 
 	ModulatorSynthSound *soundToPlay = nullptr;
 
+
+	midiNoteNumber += transposeAmount;
+
 	for (int j = 0; j < childSynth->getNumSounds(); j++)
 	{
 		ModulatorSynthSound *s = static_cast<ModulatorSynthSound*>(childSynth->getSound(j));
