@@ -81,7 +81,14 @@ void TableEditor::mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &w
 	int y = parentEvent.getMouseDownPosition().getY();
 
 	DragPoint *dp = getPointUnder(x,y);
-	if(dp != nullptr && e.mods.isCtrlDown())
+
+#if USE_BACKEND
+	const bool useEvent = dp != nullptr && e.mods.isCtrlDown();
+#else
+	const bool useEvent = dp != nullptr;
+#endif
+
+	if(useEvent)
 	{
 		dp->updateCurve(wheel.deltaY);
 		updateTable(true);
