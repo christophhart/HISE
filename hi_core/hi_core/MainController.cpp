@@ -991,6 +991,9 @@ void MainController::setScriptWatchTable(ScriptWatchTable *table)
 	scriptWatchTable = table;
 }
 
+
+#endif
+
 void MainController::rebuildVoiceLimits()
 {
 	Processor::Iterator<ModulatorSynth> iter(getMainSynthChain());
@@ -1001,7 +1004,6 @@ void MainController::rebuildVoiceLimits()
 	}
 }
 
-#endif
 
 void MainController::SampleManager::setShouldSkipPreloading(bool skip)
 {

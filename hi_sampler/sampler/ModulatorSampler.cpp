@@ -249,14 +249,9 @@ void ModulatorSampler::restoreFromValueTree(const ValueTree &v)
     loadAttribute(CrossfadeGroups, "CrossfadeGroups");
     loadAttribute(RRGroupAmount, "RRGroupAmount");
 
-	if (crossfadeGroups)
+	for (int i = 0; i < crossfadeTables.size(); i++)
 	{
-		jassert(rrGroupAmount <= crossfadeTables.size());
-
-		for (int i = 0; i < crossfadeTables.size(); i++)
-		{
-			loadTable(crossfadeTables[i], "Group" + String(i) + "Table");
-		}
+		loadTable(crossfadeTables[i], "Group" + String(i) + "Table");
 	}
 
 	ModulatorSynth::restoreFromValueTree(v);
@@ -289,14 +284,9 @@ ValueTree ModulatorSampler::exportAsValueTree() const
 
 	v.addChild(channels, -1, nullptr);
 
-	if (crossfadeGroups)
+	for (int i = 0; i < crossfadeTables.size(); i++)
 	{
-		jassert(rrGroupAmount <= crossfadeTables.size());
-
-		for (int i = 0; i < crossfadeTables.size(); i++)
-		{
-			saveTable(crossfadeTables[i], "Group" + String(i) + "Table");
-		}
+		saveTable(crossfadeTables[i], "Group" + String(i) + "Table");
 	}
 
 	v.addChild(sampleMap->exportAsValueTree(), -1, nullptr);
@@ -544,7 +534,10 @@ double ModulatorSampler::getDiskUsage()
     
 	for (int i = 0; i < getNumVoices(); i++)
 	{
-		diskUsage += static_cast<ModulatorSamplerVoice*>(getVoice(i))->getDiskUsage();
+		if (auto v = getVoice(i))
+		{
+			diskUsage += static_cast<ModulatorSamplerVoice*>(getVoice(i))->getDiskUsage();
+		}
 	}
 
 	return diskUsage * 100.0;

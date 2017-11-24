@@ -448,8 +448,10 @@ void ProcessorHelpers::restoreFromBase64String(Processor* p, const String& base6
 
 		p->setId(oldId);
 
+#if USE_BACKEND
 		if (auto firstChild = p->getChildProcessor(0))
 			firstChild->sendRebuildMessage(true);
+#endif
 	}
 	
 }
