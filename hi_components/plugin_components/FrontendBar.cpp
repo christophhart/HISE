@@ -408,7 +408,7 @@ DeactiveOverlay::DeactiveOverlay() :
 	addAndMakeVisible(useActivationResponseButton = new TextButton("Activate with activation response file"));
 #else
 	addAndMakeVisible(resolveLicenseButton = new TextButton("Use License File"));
-	addAndMakeVisible(registerProductButton = new TextButton("Online authentication"));
+	addAndMakeVisible(registerProductButton = new TextButton("Activate this computer"));
 	addAndMakeVisible(useActivationResponseButton = new TextButton("Activate with activation response file"));
 #endif
 	addAndMakeVisible(resolveSamplesButton = new TextButton("Choose Sample Folder"));
@@ -463,6 +463,8 @@ void DeactiveOverlay::buttonClicked(Button *b)
 			PresetHandler::showMessageWindow("Registration successful", "The software is now unlocked and ready to use.");
 
 			FrontendProcessor* fp = dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor());
+
+			fp->updateUnlockedSuspendStatus();
 
 			fp->loadSamplesAfterRegistration();
 		}

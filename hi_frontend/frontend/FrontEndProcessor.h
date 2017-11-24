@@ -50,6 +50,8 @@ public:
 
 	static RSAKey getPublicKey();
 
+	String getEmailAdress() const;
+
 	var isValidMachine(const String& machineId) const;
 
 	static void showActivationWindow(Component* overlay);
@@ -99,6 +101,11 @@ public:
 
 	bool shouldLoadSamplesAfterSetup() {
 		return areSamplesLoadedCorrectly() && keyFileCorrectlyLoaded;
+	}
+
+	void updateUnlockedSuspendStatus()
+	{
+
 	}
 
 	void prepareToPlay (double sampleRate, int samplesPerBlock);

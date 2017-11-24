@@ -573,7 +573,11 @@ void AboutPagePanel::rebuildText()
 
 #if USE_FRONTEND
 	const String projectName = ProjectHandler::Frontend::getProjectName();
-	const String licencee = "do@do.do";
+
+#if USE_COPY_PROTECTION
+	const String licencee = dynamic_cast<FrontendProcessor*>(getMainController())->unlocker.getEmailAdress();
+#endif
+
 	const String version = ProjectHandler::Frontend::getVersionString();
 	
 #else
@@ -607,11 +611,13 @@ void AboutPagePanel::rebuildText()
 		text.append(version + nl + nl, normal, low);
 	}
 
+#if USE_COPY_PROTECTION
 	if (showLicensedEmail)
 	{
 		text.append("Licensed to: ", bold, low);
 		text.append(licencee + nl, normal, low);
 	}
+#endif
 	
 	text.append(nl + "Build with HISE Version ", bold, low);
 	text.append(hiseVersion + nl, bold, low);

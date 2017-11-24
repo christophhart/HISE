@@ -101,14 +101,12 @@ public:
 		}
 	}
 
+	
+
 	void timerCallback()
 	{
-#if USE_COPY_PROTECTION
-		if (!dynamic_cast<FrontendProcessor*>(getAudioProcessor())->unlocker.isUnlocked())
-		{
-			getAudioProcessor()->suspendProcessing(true);
-		}
-#endif
+		dynamic_cast<FrontendProcessor*>(getAudioProcessor())->updateUnlockedSuspendStatus();
+
 	}
 
 	void paint(Graphics &g) override

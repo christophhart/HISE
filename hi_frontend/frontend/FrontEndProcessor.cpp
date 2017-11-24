@@ -35,6 +35,9 @@ namespace hise { using namespace juce;
 void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
 #if USE_COPY_PROTECTION || USE_TURBO_ACTIVATE
+	if (!keyFileCorrectlyLoaded)
+		return;
+
 	if (((unlockCounter++ & 1023) == 0) && !unlocker.isUnlocked()) return;
 #endif
 
@@ -154,48 +157,51 @@ unlockCounter(0)
 
 	synthChain->setId(synthData.getProperty("ID", String()));
 
-    MainController::ScopedSuspender ss(this);
-
-	getSampleManager().setShouldSkipPreloading(true);
-
-	setSkipCompileAtPresetLoad(true);
-
-	LOG_START("Restoring main container");
-
-	synthChain->restoreFromValueTree(synthData);
-
-	setSkipCompileAtPresetLoad(false);
-
-	LOG_START("Compiling all scripts");
-
-	synthChain->compileAllScripts();
-
-	synthChain->loadMacrosFromValueTree(synthData);
-
-	LOG_START("Adding plugin parameters");
-
-	addScriptedParameters();
-
-	CHECK_COPY_AND_RETURN_6(synthChain);
-
-	if (getSampleRate() > 0)
 	{
-		LOG_START("Initialising audio callback");
+		MainController::ScopedSuspender ss(this);
 
-		synthChain->prepareToPlay(getSampleRate(), getBlockSize());
-	}
+		getSampleManager().setShouldSkipPreloading(true);
+
+		setSkipCompileAtPresetLoad(true);
+
+		LOG_START("Restoring main container");
+
+		synthChain->restoreFromValueTree(synthData);
+
+		setSkipCompileAtPresetLoad(false);
+
+		LOG_START("Compiling all scripts");
+
+		synthChain->compileAllScripts();
+
+		synthChain->loadMacrosFromValueTree(synthData);
+
+		LOG_START("Adding plugin parameters");
+
+		addScriptedParameters();
+
+		CHECK_COPY_AND_RETURN_6(synthChain);
+
+		if (getSampleRate() > 0)
+		{
+			LOG_START("Initialising audio callback");
+
+			synthChain->prepareToPlay(getSampleRate(), getBlockSize());
+		}
 
 #if !DONT_EMBED_FILES_IN_FRONTEND
-    if(sampleMaps.getNumChildren() == 0)
-    {
-        createSampleMapValueTreeFromPreset(synthData);
-    }
+		if (sampleMaps.getNumChildren() == 0)
+		{
+			createSampleMapValueTreeFromPreset(synthData);
+		}
 #endif
+
+		createUserPresetData();
+	}
+
     
 
-
-
-	createUserPresetData();
+	updateUnlockedSuspendStatus();
 }
 
 const String FrontendProcessor::getName(void) const
@@ -207,8 +213,6 @@ void FrontendProcessor::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
     MainController::ScopedSuspender ss(this);
 
-	CHECK_COPY_AND_RETURN_1(synthChain);
-		
 	getDelayedRenderer().prepareToPlayWrapped(newSampleRate, samplesPerBlock);
 };
 
