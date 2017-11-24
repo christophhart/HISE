@@ -144,7 +144,7 @@ void CompressionHelpers::AudioBufferInt16::applyGainRamp(int startOffset, int ra
 
 	const int numToDo = jmin<int>(size - startOffset, rampLength);
 
-	const float delta = (endGain - startGain) / (float)rampLength;
+	const float delta = (endGain - startGain) / (float)(rampLength-1);
 
 	float level = startGain;
 

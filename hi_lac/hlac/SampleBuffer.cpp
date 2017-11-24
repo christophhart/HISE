@@ -173,7 +173,28 @@ void HiseSampleBuffer::add(HiseSampleBuffer& dst, const HiseSampleBuffer& source
 	}
 	else if (!source.isFloatingPoint() && !dst.isFloatingPoint())
 	{
-		Logger::writeToLog("Trying to add non floating buffer");
+		auto ld = dst.leftIntBuffer.getWritePointer(startSampleDst);
+		auto ls = source.leftIntBuffer.getReadPointer(startSampleSource);
+
+		CompressionHelpers::IntVectorOperations::add(ld, ls, numSamples);
+
+		if (dst.hasSecondChannel())
+		{
+			if (source.hasSecondChannel())
+			{
+				auto ld = dst.rightIntBuffer.getWritePointer(startSampleDst);
+				auto ls = source.rightIntBuffer.getReadPointer(startSampleSource);
+
+				CompressionHelpers::IntVectorOperations::add(ld, ls, numSamples);
+			}
+			else
+			{
+				auto ld = dst.rightIntBuffer.getWritePointer(startSampleDst);
+				auto ls = source.leftIntBuffer.getReadPointer(startSampleSource);
+
+				CompressionHelpers::IntVectorOperations::add(ld, ls, numSamples);
+			}
+		}
 	}
 	else
 	{
@@ -234,6 +255,8 @@ void HiseSampleBuffer::applyGainRamp(int channelIndex, int startOffset, int ramp
 	}
 	else
 	{
+
+
 		if(channelIndex == 0)
 			leftIntBuffer.applyGainRamp(startOffset, rampLength, startGain, endGain);
 
