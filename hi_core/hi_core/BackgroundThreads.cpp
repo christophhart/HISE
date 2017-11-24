@@ -460,12 +460,11 @@ SampleDataImporter::SampleDataImporter(ModalBaseWindow* mbw) :
 #if USE_FRONTEND
 
 	const String productName = ProjectHandler::Frontend::getProjectName();
+	const String version = ProjectHandler::Frontend::getVersionString();
 
-	PresetHandler::showMessageWindow("Choose the Sample Archive", "Please select the " + productName + " Resources.hr1 file that you've downloaded");
+	PresetHandler::showMessageWindow("Choose the Sample Archive", "Please select the " + productName + " Resources " + version + ".hr1 file that you've downloaded");
 
 	FileChooser fc("Choose the Sample Archive", File::getSpecialLocation(File::userHomeDirectory), "*.hr1", true);
-
-
 
 	if (fc.browseForFileToOpen())
 	{
@@ -612,19 +611,7 @@ void SampleDataImporter::run()
 
 	ProjectHandler::Frontend::setSampleLocation(sampleLocation);
 
-	showStatusMessage("Checking Sample references");
-
-	auto fp = dynamic_cast<FrontendProcessor*>(synthChain->getMainController());
-
-	auto sampleMapData = fp->getValueTree(ProjectHandler::SubDirectories::SampleMaps);
-
-	const String missingSample = ProjectHandler::Frontend::checkSampleReferences(sampleMapData, false);
-
-	if (missingSample.isNotEmpty())
-	{
-		result = Result::fail("The sample " + missingSample + " is missing");
-		return;
-	}
+	
 #endif
 
 	result = Result::ok();
