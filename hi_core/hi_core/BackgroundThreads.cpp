@@ -85,6 +85,19 @@ synchronous(synchronous_)
 	setColour(AlertWindow::backgroundColourId, Colour(0xff222222));
 	setColour(AlertWindow::textColourId, Colours::white);
 
+#if USE_FRONTEND && !IS_STANDALONE_APP
+
+	// make sure that there is no automatic key focus grabbing going on in hosts...
+	auto f = []()
+	{
+		Component::unfocusAllComponents();
+	};
+
+	new DelayedFunctionCaller(f, 200);
+#endif
+
+
+
 }
 
 DialogWindowWithBackgroundThread::~DialogWindowWithBackgroundThread()
@@ -231,6 +244,7 @@ void ModalBaseWindow::setModalComponent(Component *component, int fadeInTime/*=0
 	{
 		dynamic_cast<Component*>(this)->addAndMakeVisible(modalComponent);
 		modalComponent->centreWithSize(component->getWidth(), component->getHeight());
+
 	}
 	else
 	{
