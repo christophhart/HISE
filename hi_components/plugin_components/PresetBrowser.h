@@ -680,19 +680,7 @@ public:
 
 	MainController* mc;
 
-	void setHighlightColourAndFont(Colour c, Colour bgColour, Font f)
-	{
-		backgroundColour = bgColour;
-		outlineColour = c;
-
-		blaf.font = f;
-		blaf.highlightColour = c;
-
-		searchBar->setHighlightColourAndFont(c, f);
-		bankColumn->setHighlightColourAndFont(c, f);
-		categoryColumn->setHighlightColourAndFont(c, f);
-		presetColumn->setHighlightColourAndFont(c, f);
-	}
+	void setHighlightColourAndFont(Colour c, Colour bgColour, Font f);
 
 	void setShowCloseButton(bool showButton)
 	{
@@ -762,6 +750,7 @@ private:
 	ScopedPointer<ModalWindow> modalInputWindow;
 
 	ScopedPointer<TextButton> saveButton;
+	ScopedPointer<TextButton> showButton;
 
 	Array<File> allPresets;
 	int currentlyLoadedPreset = -1;

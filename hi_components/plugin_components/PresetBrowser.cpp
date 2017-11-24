@@ -37,13 +37,19 @@ void PresetBrowserColumn::ButtonLookAndFeel::drawButtonBackground(Graphics& /*g*
 
 }
 
-void PresetBrowserColumn::ButtonLookAndFeel::drawButtonText(Graphics& g, TextButton& button, bool /*isMouseOverButton*/, bool /*isButtonDown*/)
+void PresetBrowserColumn::ButtonLookAndFeel::drawButtonText(Graphics& g, TextButton& button, bool isMouseOverButton, bool isButtonDown)
 {
+	
+	if (isMouseOverButton)
+	{
+		g.fillAll(Colours::white.withAlpha(0.1f));
+	}
+
 	g.setColour(highlightColour);
 
-    g.setFont(font.withHeight(18.0f));
+    g.setFont(font);
     
-	g.drawText(button.getButtonText(), 0, 0, button.getWidth(), button.getHeight(), Justification::centred);
+	g.drawText(button.getButtonText(), 0, isButtonDown ? 1 : 0, button.getWidth(), button.getHeight(), Justification::centred);
 }
 
 PresetBrowserColumn::ColumnListModel::ColumnListModel(int index_, Listener* listener_) :
@@ -183,11 +189,11 @@ void PresetBrowserColumn::ColumnListModel::paintListBoxItem(int rowNumber, Graph
 		g.setColour(rowIsSelected ? highlightColour.withAlpha(0.3f) : Colour(0x00222222));
 		g.fillRect(area);
 		g.setColour(Colours::white.withAlpha(0.4f));
-		if(rowIsSelected) g.drawRect(area, 1);
+		//if(rowIsSelected) g.drawRect(area, 1);
 
 		if (editMode)
 		{
-			g.setColour(Colours::red);
+			g.setColour(Colour(0xFFAA0000));
 
 			const float widthOfDeleteCircle = ((float)height - 10.0f);
 
@@ -354,7 +360,7 @@ void PresetBrowserColumn::paint(Graphics& g)
 	Rectangle<int> textArea(0, 0, getWidth(), 40);
 
 	g.setColour(Colours::white.withAlpha(0.2f));
-	g.drawRect(0, 40, getWidth(), getHeight() - 40, 1);
+	//g.drawRect(0, 40, getWidth(), getHeight() - 40, 1);
     g.setColour(Colours::white.withAlpha(0.02f));
     g.fillRect(textArea);
 	g.setColour(Colours::white);
@@ -436,6 +442,10 @@ mc(mc_)
 	saveButton->addListener(this);
 	saveButton->setLookAndFeel(&blaf);
 	
+	addAndMakeVisible(showButton = new TextButton("Show Folder"));
+	showButton->addListener(this);
+	showButton->setLookAndFeel(&blaf);
+
 	setSize(width, height);
 
 	rebuildAllPresets();
@@ -526,6 +536,8 @@ void MultiColumnPresetBrowser::resized()
 		Rectangle<int> ar(3, y + 5, getWidth() - 6, 30);
 
 		saveButton->setBounds(ar.removeFromRight(100));
+		showButton->setBounds(ar.removeFromLeft(100));
+
 		searchBar->setBounds(ar);
 		
 		y += 40;
@@ -536,6 +548,7 @@ void MultiColumnPresetBrowser::resized()
 		Rectangle<int> ar(3, 3 + 3, getWidth() - 6, 30);
 
 		saveButton->setBounds(ar.removeFromRight(100));
+		showButton->setBounds(ar.removeFromLeft(100));
 		searchBar->setBounds(ar);
 		y += 40;
 	}
@@ -560,6 +573,20 @@ void MultiColumnPresetBrowser::resized()
 	}
 
 	
+}
+
+void MultiColumnPresetBrowser::setHighlightColourAndFont(Colour c, Colour bgColour, Font f)
+{
+	backgroundColour = bgColour;
+	outlineColour = c;
+
+	blaf.font = f;
+	blaf.highlightColour = c;
+
+	searchBar->setHighlightColourAndFont(c, f);
+	bankColumn->setHighlightColourAndFont(c, f);
+	categoryColumn->setHighlightColourAndFont(c, f);
+	presetColumn->setHighlightColourAndFont(c, f);
 }
 
 void MultiColumnPresetBrowser::openModalAction(ModalWindow::Action action, const String& preEnteredText, const File& fileToChange, int columnIndex, int rowIndex)
@@ -743,6 +770,10 @@ void MultiColumnPresetBrowser::buttonClicked(Button* b)
 
 			confirmReplace(tempFile, fileToBeReplaced);
 		}
+	}
+	else if (b == showButton)
+	{
+		rootFile.revealToUser();
 	}
 }
 
