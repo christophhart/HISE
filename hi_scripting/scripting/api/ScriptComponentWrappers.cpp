@@ -118,8 +118,6 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateFilmstrip()
 
 		int thisStrips = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::numStrips);
 
-		
-
 		if (thisFilmStrip != filmStripName || thisStrips != numStrips)
 		{
 			filmStripName = thisFilmStrip;
@@ -130,6 +128,8 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateFilmstrip()
 			fslaf->setFilmstripImage(sc->getImage(),
 				sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::numStrips),
 				sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::isVertical));
+
+			fslaf->setScaleFactor(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::scaleFactor));
 
 			s->setTextBoxStyle(Slider::NoTextBox, true, 0, 0);
 
@@ -199,18 +199,7 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent()
 
 	const bool usesFilmStrip = sc->getImage().isValid();
 
-	if (usesFilmStrip)
-	{
-		FilmstripLookAndFeel *fslaf = dynamic_cast<FilmstripLookAndFeel*>(&s->getLookAndFeel());
-
-		
-
-		if (fslaf != nullptr)
-		{
-			fslaf->setScaleFactor(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::scaleFactor));
-		}
-	}
-	else
+	if (!usesFilmStrip)
 	{
 		if (sc->styleId == Slider::RotaryHorizontalVerticalDrag)
 		{

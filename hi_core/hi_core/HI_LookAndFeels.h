@@ -1288,7 +1288,7 @@ private:
 
 };
 
-
+#define HI_FIXED_SCALEFACTOR_FOR_FILMSTRIPS 0.5f
 
 class FilmstripLookAndFeel : public KnobLookAndFeel
 {
@@ -1324,7 +1324,13 @@ public:
 
     void setScaleFactor(float newScaleFactor) noexcept
     {
+#ifdef HI_FIXED_SCALEFACTOR_FOR_FILMSTRIPS
+		ignoreUnused(newScaleFactor);
+
+		scaleFactor = HI_FIXED_SCALEFACTOR_FOR_FILMSTRIPS;
+#else
         scaleFactor = newScaleFactor;
+#endif
     }
     
 	void drawToggleButton(Graphics &g, ToggleButton &b, bool isMouseOverButton, bool isButtonDown) override;
