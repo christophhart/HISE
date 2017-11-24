@@ -608,6 +608,8 @@ public:
 
 		testArchiver();
 
+		testFixedSampleBuffer();
+
 		runFormatTestWithOption(HlacEncoder::CompressorOptions::Presets::WholeBlock);
 		runFormatTestWithOption(HlacEncoder::CompressorOptions::Presets::Delta);
 		runFormatTestWithOption(HlacEncoder::CompressorOptions::Presets::Diff);
@@ -709,6 +711,48 @@ public:
 			expect(!CompressionHelpers::Misc::validateChecksum(r.nextInt()), "Checksum test negative " + String(i));
 		}
 
+	}
+
+	void testFixedSampleBuffer()
+	{
+		beginTest("Testing fixed sample buffer");
+
+		const int numSamples = 1000;
+
+		hlac::FixedSampleBuffer b1 = FixedSampleBuffer(numSamples);
+
+		hlac::FixedSampleBuffer b2 = FixedSampleBuffer(numSamples);
+
+		auto d = b1.getWritePointer(0);
+		auto e = b2.getWritePointer(0);
+
+		for (int i = 0; i < numSamples; i++)
+		{
+			d[i] = 1000;
+			e[i] = 1000;
+		};
+
+		b1.applyGainRamp(0, numSamples, 0.0f, 1.0f);
+		b2.applyGainRamp(0, numSamples, 1.0f, 0.0f);
+
+		expectEquals<int16>(d[0], 0, "d[0]");
+		expectEquals<int16>(d[500], 500, "d[500]");
+		expectEquals<int16>(d[999], 999, "d[999]");
+
+		expectEquals<int16>(e[0], 1000, "e[0]");
+		expectEquals<int16>(e[500], 499, "e[500]");
+		expectEquals<int16>(e[999], 0, "e[999]");
+
+		hlac::FixedSampleBuffer b3 = FixedSampleBuffer(numSamples);
+
+		auto s = b3.getWritePointer();
+
+		CompressionHelpers::IntVectorOperations::add(s, b1.getWritePointer(), numSamples);
+		CompressionHelpers::IntVectorOperations::add(s, b2.getWritePointer(), numSamples);
+
+		expectEquals<int16>(s[0], 1000, "e[0]");
+		expectEquals<int16>(s[500], 999, "e[500]");
+		expectEquals<int16>(s[999], 999, "e[999]");
 	}
 
 	AudioSampleBuffer createTestBuffer(int numChannels=1, int size=44100)
