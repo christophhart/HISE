@@ -264,6 +264,8 @@ void Arpeggiator::onNoteOn()
 
 	Message.ignoreEvent(true);
 
+	minNoteLenSamples = (int)(Engine.getSampleRate() / 80.0);
+
 	addUserHeldKey(Message.getNoteNumber());
 
 	// do not call playNote() if timer is already running
@@ -406,6 +408,8 @@ void Arpeggiator::playNote()
 
 	// get step gate length		
 	currentNoteLengthInSamples = (int)(Engine.getSamplesForMilliSeconds(timeInterval * 1000.0) * (double)lengthSliderPack->getSliderValueAt(currentStep) / 100.0);
+
+	
 
 	/* --- PLAY NOTE LOGIC --- */
 
