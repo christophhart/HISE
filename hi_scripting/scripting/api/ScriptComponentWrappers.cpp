@@ -73,8 +73,9 @@ ScriptCreatedComponentWrapper(content, index)
 
 	s = new HiSlider(sc->name.toString());
 
-	
-	
+	const bool midiLearnEnabled = GET_SCRIPT_PROPERTY(saveInPreset);
+	s->setCanBeMidiLearned(midiLearnEnabled);
+
 
 	s->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
 	s->setTextBoxStyle(Slider::TextBoxRight, true, 80, 20);
@@ -379,6 +380,9 @@ ScriptCreatedComponentWrapper(content, index)
 {
 	HiComboBox *cb = new HiComboBox(scriptComboBox->name.toString());
 
+	const bool midiLearnEnabled = GET_SCRIPT_PROPERTY(saveInPreset);
+	cb->setCanBeMidiLearned(midiLearnEnabled);
+
 	cb->addItemList(scriptComboBox->getItemList(), 1);
 
 	cb->setup(getProcessor(), getIndex(), scriptComboBox->name.toString());
@@ -419,6 +423,9 @@ ScriptCreatedComponentWrapper(content, index)
 	b->setButtonText(sb->name.toString());
 	b->addListener(this);
 	b->setToggleState((bool)sb->value, dontSendNotification);
+
+	const bool midiLearnEnabled = GET_SCRIPT_PROPERTY(saveInPreset);
+	b->setCanBeMidiLearned(midiLearnEnabled);
 
 	b->setup(getProcessor(), getIndex(), sb->name.toString());
 

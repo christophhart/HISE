@@ -185,6 +185,16 @@ public:
 
 	void setAttributeWithUndo(float newValue, bool useCustomOldValue=false, float customOldValue=-1.0f);
 
+	void setCanBeMidiLearned(bool shouldBe)
+	{
+		midiLearnEnabled = shouldBe;
+	}
+
+	bool canBeMidiLearned() const
+	{
+		return midiLearnEnabled;
+	}
+
 	void setUseUndoManagerForEvents(bool shouldUseUndo) { useUndoManagerForEvents = shouldUseUndo; }
 
 	/** Initializes the control widget.
@@ -263,6 +273,8 @@ protected:
 	ScopedPointer<NumberTag> numberTag;
 
 private:
+
+	bool midiLearnEnabled = true;
 
 	bool useUndoManagerForEvents = true;
 

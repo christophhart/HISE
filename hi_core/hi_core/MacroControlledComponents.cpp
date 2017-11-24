@@ -83,6 +83,9 @@ void MacroControlledObject::removeParameterWithPopup()
 
 void MacroControlledObject::enableMidiLearnWithPopup()
 {
+	if (!canBeMidiLearned())
+		return;
+
 	MidiControllerAutomationHandler *handler = getProcessor()->getMainController()->getMacroManager().getMidiControlAutomationHandler();
 
 	const int midiController = handler->getMidiControllerNumber(processor, parameter);
