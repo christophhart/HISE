@@ -136,8 +136,8 @@ public:
 	int getHiKey() const { return hiKey; }
 	void setRange(int lowKey_, int hiKey_)
 	{
-		lowKey = lowKey_;
-		hiKey = hiKey_;
+		lowKey = jlimit<int>(0, 100, lowKey_);
+		hiKey = jlimit<int>(10, 128, hiKey_);
 
 		setAvailableRange(lowKey, hiKey);
 	}

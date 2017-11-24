@@ -342,10 +342,12 @@ void PresetBrowserColumn::addEntry(const String &newName)
 
 				setNewRootDirectory(currentRoot);
 				browser->rebuildAllPresets();
+				browser->showLoadedPreset();
 			}
 		}
 	}
 }
+
 
 void PresetBrowserColumn::paint(Graphics& g)
 {
@@ -430,6 +432,9 @@ mc(mc_)
 	
 	bankColumn->setNewRootDirectory(rootFile);
 
+	addAndMakeVisible(saveButton = new TextButton("Save Preset"));
+	saveButton->addListener(this);
+	saveButton->setLookAndFeel(&blaf);
 	
 	setSize(width, height);
 
@@ -476,7 +481,7 @@ void MultiColumnPresetBrowser::rebuildAllPresets()
 
 	for (int i = 0; i < allPresets.size(); i++)
 	{
-		if (allPresets[i].isHidden() || allPresets[i].getFileName().startsWith("."))
+		if (allPresets[i].isHidden() || allPresets[i].getFileName().startsWith(".") || allPresets[i].getFileExtension() == ".ini")
 		{
 			allPresets.remove(i--);
 		}
@@ -485,6 +490,8 @@ void MultiColumnPresetBrowser::rebuildAllPresets()
 	File f = mc->getUserPresetHandler().getCurrentlyLoadedFile();
 
 	currentlyLoadedPreset = allPresets.indexOf(f);
+
+	
 }
 
 String MultiColumnPresetBrowser::getCurrentlyLoadedPresetName()
@@ -515,13 +522,21 @@ void MultiColumnPresetBrowser::resized()
 #endif
 
 		y += 30;
-		searchBar->setBounds(3, y + 5, getWidth() - 6, 30);
+
+		Rectangle<int> ar(3, y + 5, getWidth() - 6, 30);
+
+		saveButton->setBounds(ar.removeFromRight(100));
+		searchBar->setBounds(ar);
+		
 		y += 40;
 
 	}
 	else
 	{
-		searchBar->setBounds(3, 3 + 3, getWidth() - 6, 30);
+		Rectangle<int> ar(3, 3 + 3, getWidth() - 6, 30);
+
+		saveButton->setBounds(ar.removeFromRight(100));
+		searchBar->setBounds(ar);
 		y += 40;
 	}
 	
@@ -666,10 +681,9 @@ void MultiColumnPresetBrowser::renameEntry(int columnIndex, int rowIndex, const 
 				presetFile.moveFileTo(newFile);
 				presetColumn->setNewRootDirectory(currentCategoryFile);
 				rebuildAllPresets();
+				showLoadedPreset();
 			}
 		}
-
-		
 	}
 }
 
@@ -706,6 +720,32 @@ void MultiColumnPresetBrowser::deleteEntry(int columnIndex, const File& f)
 
 	rebuildAllPresets();
 }
+
+
+
+void MultiColumnPresetBrowser::buttonClicked(Button* b)
+{
+	if (b == closeButton)
+	{
+		destroy();
+	}
+	else if (b == saveButton)
+	{
+		if (mc->getUserPresetHandler().getCurrentlyLoadedFile().existsAsFile())
+		{
+			
+
+			auto fileToBeReplaced = mc->getUserPresetHandler().getCurrentlyLoadedFile();
+
+			File tempFile = fileToBeReplaced.getSiblingFile("tempFileBeforeMove.preset");
+
+			UserPresetHelpers::saveUserPreset(mc->getMainSynthChain(), tempFile.getFullPathName(), dontSendNotification);
+
+			confirmReplace(tempFile, fileToBeReplaced);
+		}
+	}
+}
+
 
 
 void MultiColumnPresetBrowser::addEntry(int columnIndex, const String& name)

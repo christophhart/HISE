@@ -100,6 +100,7 @@ public:
     
 	Colour highlightColour;
 
+	
     ScopedPointer<BetterLabel> inputLabel;
     
 };
@@ -620,10 +621,7 @@ public:
 		searchBar->setColour(PresetBrowserSearchBar::ColourIds::highlightColourId, findColour(PresetBrowserSearchBar::ColourIds::highlightColourId));
 	}
 
-	void buttonClicked(Button* /*b*/) override
-	{
-		destroy();
-	}
+	void buttonClicked(Button* b) override;
 
 	MultiColumnPresetBrowser(MainController* mc_, int width=810, int height=500);
 
@@ -641,6 +639,9 @@ public:
 		bankColumn->setSelectedFile(bFile, sendNotification);
 		categoryColumn->setSelectedFile(cFile, sendNotification);
 		presetColumn->setSelectedFile(newPreset, dontSendNotification);
+
+		saveButton->setEnabled(true);
+
 	}
 
 	void presetListUpdated() override
@@ -683,6 +684,9 @@ public:
 	{
 		backgroundColour = bgColour;
 		outlineColour = c;
+
+		blaf.font = f;
+		blaf.highlightColour = c;
 
 		searchBar->setHighlightColourAndFont(c, f);
 		bankColumn->setHighlightColourAndFont(c, f);
@@ -731,6 +735,9 @@ public:
 		modalInputWindow->confirmReplacement(oldFile, newFile);
 	}
 
+
+	void showLoadedPreset();
+
 private:
 
 	// ============================================================================================
@@ -739,6 +746,8 @@ private:
 	Colour outlineColour;
 
 	PresetBrowserLookAndFeel pblaf;
+
+	PresetBrowserColumn::ButtonLookAndFeel blaf;
 
 	File rootFile;
 	File currentBankFile;
@@ -752,6 +761,8 @@ private:
 	ScopedPointer<ShapeButton> closeButton;
 	ScopedPointer<ModalWindow> modalInputWindow;
 
+	ScopedPointer<TextButton> saveButton;
+
 	Array<File> allPresets;
 	int currentlyLoadedPreset = -1;
 
@@ -763,7 +774,6 @@ private:
 
 	// ============================================================================================
 
-	void showLoadedPreset();
 };
 
 } // namespace hise

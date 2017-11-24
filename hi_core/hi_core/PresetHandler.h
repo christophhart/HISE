@@ -486,7 +486,7 @@ class UserPresetHelpers
 {
 public:
     
-    static void saveUserPreset(ModulatorSynthChain *chain, const String& targetFile=String());
+    static void saveUserPreset(ModulatorSynthChain *chain, const String& targetFile=String(), NotificationType notify=sendNotification);
     
     static void loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad);
 

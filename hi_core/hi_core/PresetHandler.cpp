@@ -346,7 +346,7 @@ void UserPresetData::refreshPresetFileList()
 
 
 
-void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String& targetFile/*=String()*/)
+void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String& targetFile/*=String()*/, NotificationType notify/*=sendNotification*/)
 {
 #if USE_BACKEND
 
@@ -415,7 +415,13 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 
 			presetFile.replaceWithText(xml->createDocument(""));
 
-			chain->getMainController()->getUserPresetHandler().sendRebuildMessage();
+			if (notify)
+			{
+				chain->getMainController()->getUserPresetHandler().setCurrentlyLoadedFile(presetFile);
+				chain->getMainController()->getUserPresetHandler().sendRebuildMessage();
+			}
+
+			
 
 			return;
 		}
