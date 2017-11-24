@@ -33,7 +33,7 @@
 namespace hise { using namespace juce;
 
 
-void loadKeyboardSkins(ModulatorSynthChain* chainToExport)
+void loadOtherReferencedImages(ModulatorSynthChain* chainToExport)
 {
 	auto mc = chainToExport->getMainController();
 
@@ -51,6 +51,14 @@ void loadKeyboardSkins(ModulatorSynthChain* chainToExport)
 		auto img2 = ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png");
 		jassert(img2.isValid());
 	}
+
+	const bool hasAboutPageImage = handler.getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("about.png").existsAsFile();
+
+	if (hasAboutPageImage)
+	{
+		// make sure it's loaded
+		ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}about.png");
+	}
 }
 
 ValueTree BaseExporter::exportReferencedImageFiles()
@@ -58,7 +66,7 @@ ValueTree BaseExporter::exportReferencedImageFiles()
 	// Export the interface
 
 
-	loadKeyboardSkins(chainToExport);
+	loadOtherReferencedImages(chainToExport);
 
 	ImagePool *imagePool = chainToExport->getMainController()->getSampleManager().getImagePool();
 

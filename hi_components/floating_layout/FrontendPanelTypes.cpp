@@ -499,6 +499,10 @@ void AboutPagePanel::fromDynamicObject(const var& object)
 	showVersion = getPropertyWithDefault(object, ShowVersion);
 	showBuildDate = getPropertyWithDefault(object, BuildDate);
 	showWebsiteURL = getPropertyWithDefault(object, WebsiteURL);
+	showProductName = getPropertyWithDefault(object, ShowProductName);
+
+	useCustomImage = getPropertyWithDefault(object, UseCustomImage);
+	
 
 	rebuildText();
 }
@@ -514,8 +518,8 @@ Identifier AboutPagePanel::getDefaultablePropertyId(int index) const
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowLicensedEmail, "ShowLicensedEmail");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowVersion, "ShowVersion");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::WebsiteURL, "WebsiteURL");
-	
-
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowProductName, "ShowProductName");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::UseCustomImage, "UseCustomImage");
 
 	jassertfalse;
 	return{};
@@ -531,6 +535,8 @@ var AboutPagePanel::getDefaultProperty(int index) const
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowLicensedEmail, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowVersion, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::WebsiteURL, true);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowProductName, true);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::UseCustomImage, false);
 
 	jassertfalse;
 	return{};
@@ -540,12 +546,30 @@ void AboutPagePanel::paint(Graphics& g)
 {
 	g.fillAll(findPanelColour(PanelColourId::bgColour));
 
-	text.draw(g, { 0.0f, 0.0f, (float)getWidth(), (float)getHeight() });
+	if (useCustomImage)
+	{
+		g.drawImageWithin(bgImage, 0, 0, getWidth(), getHeight(), RectanglePlacement::centred);
+	}
+
+	Rectangle<float> r({ 0.0f, 0.0f, (float)getWidth(), (float)getHeight() });
+
+	if (useCustomImage)
+	{
+		r = r.removeFromBottom(150.0f).reduced(10.0f);
+	}
+
+	text.draw(g, r);
 }
 
 void AboutPagePanel::rebuildText()
 {
 	text.clear();
+
+	if (useCustomImage)
+	{
+		bgImage = ImagePool::loadImageFromReference(getMainController(), "{PROJECT_FOLDER}about.png");
+	}
+	
 
 #if USE_FRONTEND
 	const String projectName = ProjectHandler::Frontend::getProjectName();
@@ -572,8 +596,10 @@ void AboutPagePanel::rebuildText()
 
 	NewLine nl;
 
-	
-	text.append(projectName + nl + nl, bold.withHeight(18.0f), high);
+	if (showProductName)
+	{
+		text.append(projectName + nl + nl, bold.withHeight(18.0f), high);
+	}
 
 	if (showVersion)
 	{

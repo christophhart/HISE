@@ -462,7 +462,9 @@ public:
 
 	enum SpecialPanelIds
 	{
-		CopyrightNotice = (int)FloatingTileContent::PanelPropertyId::numPropertyIds, ///< the content of the text editor
+		ShowProductName = (int)FloatingTileContent::PanelPropertyId::numPropertyIds, ///< the content of the text editor
+		UseCustomImage,
+		CopyrightNotice,
 		ShowLicensedEmail ,
 		ShowVersion,
 		BuildDate,
@@ -489,12 +491,16 @@ public:
 
 private:
 
+	Image bgImage;
+
 	AttributedString text;
 
 	void rebuildText();
 
 	String showCopyrightNotice;
 	bool showLicensedEmail = true;
+	bool showProductName = true;
+	bool useCustomImage = false;
 	bool showVersion = true;
 	bool showBuildDate = true;
 	String showWebsiteURL;
