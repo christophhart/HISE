@@ -544,6 +544,9 @@ void SampleMap::replaceReferencesWithGlobalFolder()
 
 String SampleMap::checkReferences(ValueTree& v, const File& sampleRootFolder, Array<File>& sampleList)
 {
+	if (v.getNumChildren() == 0)
+		return String();
+
 	if (!sampleRootFolder.isDirectory())
 		return "Sample Root folder does not exist";
 
