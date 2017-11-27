@@ -366,6 +366,30 @@ bool ProcessorHelpers::isHiddableProcessor(const Processor *p)
 		   dynamic_cast<const ModulatorSynthGroup*>(p) != nullptr;
 }
 
+String ProcessorHelpers::getPrettyNameForAutomatedParameter(const Processor* p, int parameterIndex)
+{
+	if (p == nullptr)
+		return String();
+
+	if (auto sp = dynamic_cast<const ProcessorWithScriptingContent*>(p))
+	{
+		
+
+		if (auto sc = sp->getScriptingContent()->getComponent(parameterIndex))
+		{
+			auto pluginParameterName = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::pluginParameterName).toString();
+
+			if (pluginParameterName.isNotEmpty())
+			{
+				return pluginParameterName;
+			}
+		}
+	}
+
+	// Fallback...
+	return p->getIdentifierForParameterIndex(parameterIndex).toString();
+}
+
 String ProcessorHelpers::getScriptVariableDeclaration(const Processor *p, bool copyToClipboard/*=true*/)
 {
 	String typeName;

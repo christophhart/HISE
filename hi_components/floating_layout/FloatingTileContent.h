@@ -425,6 +425,7 @@ public:
 			Note,
 			MacroControls,
 			MacroTable,
+			MidiLearnPanel,
 			MidiKeyboard,
 			PresetBrowser,
 			SampleConnector,

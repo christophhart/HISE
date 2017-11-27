@@ -99,20 +99,22 @@ private:
 	friend class ProcessorFactory;
 };
 
+#define HI_NUM_MIDI_AUTOMATION_SLOTS 8
 
 /** This handles the MIDI automation for the frontend plugin.
 *
 *	For faster performance, one CC value can only control one parameter.
 *
 */
-class MidiControllerAutomationHandler : public RestorableObject
+class MidiControllerAutomationHandler : public RestorableObject,
+										public SafeChangeBroadcaster
 {
 public:
 
 	MidiControllerAutomationHandler(MainController *mc_);
 
 	void addMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NormalisableRange<double> parameterRange, int macroIndex);
-	void removeMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex);
+	void removeMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NotificationType notifyListeners);
 
 	bool isLearningActive() const;
 
@@ -122,7 +124,7 @@ public:
 	bool isLearningActive(Processor *interfaceProcessor, int attributeIndex) const;
 	void deactivateMidiLearning();
 
-	void setUnlearndedMidiControlNumber(int ccNumber);
+	void setUnlearndedMidiControlNumber(int ccNumber, NotificationType notifyListeners);
 	int getMidiControllerNumber(Processor *interfaceProcessor, int attributeIndex) const;
 
 	void refreshAnyUsedState();
@@ -131,22 +133,38 @@ public:
 	/** The main routine. Call this for every MidiBuffer you want to process and it handles both setting parameters as well as MIDI learning. */
 	void handleParameterData(MidiBuffer &b);
 
+	
+
 	struct AutomationData
 	{
 		AutomationData();
 
+		void clear();
+
+		bool operator==(const AutomationData& other) const;
+
 		WeakReference<Processor> processor;
 		int attribute;
 		NormalisableRange<double> parameterRange;
+		NormalisableRange<double> fullRange;
 		float lastValue = -1.0f;
 		int macroIndex;
+		int ccNumber = -1;
+		bool inverted = false;
 		bool used;
 	};
 
+	/** Returns a copy of the automation data for the given index. */
+	AutomationData getDataFromIndex(int index) const;
 
+	int getNumActiveConnections() const;
+	bool setNewRangeForParameter(int index, NormalisableRange<double> range);
+	bool setParameterInverted(int index, bool value);
 private:
 
 	// ========================================================================================================
+
+	
 
 	CriticalSection lock;
 
@@ -154,7 +172,7 @@ private:
 	bool anyUsed;
 	MidiBuffer tempBuffer;
 
-	AutomationData automationData[128];
+	Array<AutomationData> automationData[128];
 	AutomationData unlearnedData;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MidiControllerAutomationHandler)

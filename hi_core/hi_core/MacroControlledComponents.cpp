@@ -125,7 +125,7 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 	}
 	else if (result == 2)
 	{
-		handler->removeMidiControlledParameter(processor, parameter);
+		handler->removeMidiControlledParameter(processor, parameter, sendNotification);
 	}
 }
 

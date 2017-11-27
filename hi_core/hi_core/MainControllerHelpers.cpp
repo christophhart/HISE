@@ -49,8 +49,10 @@ void MidiControllerAutomationHandler::addMidiControlledParameter(Processor *inte
 	unlearnedData.processor = interfaceProcessor;
 	unlearnedData.attribute = attributeIndex;
 	unlearnedData.parameterRange = parameterRange;
+	unlearnedData.fullRange = parameterRange;
 	unlearnedData.macroIndex = macroIndex;
 	unlearnedData.used = true;
+
 }
 
 bool MidiControllerAutomationHandler::isLearningActive() const
@@ -70,27 +72,33 @@ void MidiControllerAutomationHandler::deactivateMidiLearning()
 	unlearnedData = AutomationData();
 }
 
-void MidiControllerAutomationHandler::setUnlearndedMidiControlNumber(int ccNumber)
+void MidiControllerAutomationHandler::setUnlearndedMidiControlNumber(int ccNumber, NotificationType notifyListeners)
 {
 	jassert(isLearningActive());
 
 	ScopedLock sl(mc->getLock());
 
-	automationData[ccNumber] = unlearnedData;
+	unlearnedData.ccNumber = ccNumber;
+
+	automationData[ccNumber].addIfNotAlreadyThere(unlearnedData);
 	unlearnedData = AutomationData();
 
 	anyUsed = true;
+
+	if (notifyListeners)
+		sendChangeMessage();
 }
 
 int MidiControllerAutomationHandler::getMidiControllerNumber(Processor *interfaceProcessor, int attributeIndex) const
 {
 	for (int i = 0; i < 128; i++)
 	{
-		const AutomationData *a = automationData + i;
-
-		if (a->processor == interfaceProcessor && a->attribute == attributeIndex)
+		for (auto& a : automationData[i])
 		{
-			return i;
+			if (a.processor == interfaceProcessor && a.attribute == attributeIndex)
+			{
+				return i;
+			}
 		}
 	}
 
@@ -105,12 +113,13 @@ void MidiControllerAutomationHandler::refreshAnyUsedState()
 
 	for (int i = 0; i < 128; i++)
 	{
-		AutomationData *a = automationData + i;
-
-		if (a->used)
+		for (auto& a : automationData[i])
 		{
-			anyUsed = true;
-			break;
+			if (a.used)
+			{
+				anyUsed = true;
+				return;
+			}
 		}
 	}
 }
@@ -119,7 +128,7 @@ void MidiControllerAutomationHandler::clear()
 {
 	for (int i = 0; i < 128; i++)
 	{
-		automationData[i] = AutomationData();
+		automationData[i].clearQuick();
 	};
 
 	unlearnedData = AutomationData();
@@ -127,28 +136,33 @@ void MidiControllerAutomationHandler::clear()
 	anyUsed = false;
 }
 
-void MidiControllerAutomationHandler::removeMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex)
+void MidiControllerAutomationHandler::removeMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NotificationType notifyListeners)
 {
 	ScopedLock sl(mc->getLock());
 
 	for (int i = 0; i < 128; i++)
 	{
-		AutomationData *a = automationData + i;
-
-		if (a->processor == interfaceProcessor && a->attribute == attributeIndex)
+		for (auto& a : automationData[i])
 		{
-			*a = AutomationData();
-			break;
+			if (a.processor == interfaceProcessor && a.attribute == attributeIndex)
+			{
+				automationData[i].removeAllInstancesOf(a);
+				break;
+			}
 		}
 	}
 
 	refreshAnyUsedState();
+
+	if (notifyListeners == sendNotification)
+		sendChangeMessage();
 }
 
 MidiControllerAutomationHandler::AutomationData::AutomationData() :
 processor(nullptr),
 attribute(-1),
 parameterRange(NormalisableRange<double>()),
+fullRange(NormalisableRange<double>()),
 macroIndex(-1),
 used(false)
 {
@@ -157,27 +171,48 @@ used(false)
 
 
 
+void MidiControllerAutomationHandler::AutomationData::clear()
+{
+	processor = nullptr;
+	attribute = -1;
+	parameterRange = NormalisableRange<double>();
+	fullRange = NormalisableRange<double>();
+	macroIndex = -1;
+	ccNumber = -1;
+	inverted = false;
+	used = false;
+}
+
+bool MidiControllerAutomationHandler::AutomationData::operator==(const AutomationData& other) const
+{
+	return other.processor == processor && other.attribute == attribute;
+}
+
 ValueTree MidiControllerAutomationHandler::exportAsValueTree() const
 {
 	ValueTree v("MidiAutomation");
 
 	for (int i = 0; i < 128; i++)
 	{
-		const AutomationData *a = automationData + i;
-		if (a->used && a->processor != nullptr)
+		for (auto& a : automationData[i])
 		{
-			ValueTree cc("Controller");
+			if (a.used && a.processor != nullptr)
+			{
+				ValueTree cc("Controller");
 
-			cc.setProperty("Controller", i, nullptr);
-			cc.setProperty("Processor", a->processor->getId(), nullptr);
-			cc.setProperty("MacroIndex", a->macroIndex, nullptr);
-			cc.setProperty("Start", a->parameterRange.start, nullptr);
-			cc.setProperty("End", a->parameterRange.end, nullptr);
-			cc.setProperty("Skew", a->parameterRange.skew, nullptr);
-			cc.setProperty("Interval", a->parameterRange.interval, nullptr);
-			cc.setProperty("Attribute", a->attribute, nullptr);
-
-			v.addChild(cc, -1, nullptr);
+				cc.setProperty("Controller", i, nullptr);
+				cc.setProperty("Processor", a.processor->getId(), nullptr);
+				cc.setProperty("MacroIndex", a.macroIndex, nullptr);
+				cc.setProperty("Start", a.parameterRange.start, nullptr);
+				cc.setProperty("End", a.parameterRange.end, nullptr);
+				cc.setProperty("FullStart", a.fullRange.start, nullptr);
+				cc.setProperty("FullEnd", a.fullRange.end, nullptr);
+				cc.setProperty("Skew", a.parameterRange.skew, nullptr);
+				cc.setProperty("Interval", a.parameterRange.interval, nullptr);
+				cc.setProperty("Attribute", a.attribute, nullptr);
+				cc.setProperty("Inverted", a.inverted, nullptr);
+				v.addChild(cc, -1, nullptr);
+			}
 		}
 	}
 
@@ -194,23 +229,35 @@ void MidiControllerAutomationHandler::restoreFromValueTree(const ValueTree &v)
 	{
 		ValueTree cc = v.getChild(i);
 
-		int controller = cc.getProperty("Controller", i);
+		int controller = cc.getProperty("Controller", 1);
 
-		AutomationData *a = automationData + controller;
+		auto& aArray = automationData[controller];
 
-		a->processor = ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), cc.getProperty("Processor"));
-		a->macroIndex = cc.getProperty("MacroIndex");
-		a->attribute = cc.getProperty("Attribute", a->attribute);
+		AutomationData a;
+
+		a.ccNumber = controller;
+		a.processor = ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), cc.getProperty("Processor"));
+		a.macroIndex = cc.getProperty("MacroIndex");
+		a.attribute = cc.getProperty("Attribute", a.attribute);
 
 		double start = cc.getProperty("Start");
 		double end = cc.getProperty("End");
-		double skew = cc.getProperty("Skew", a->parameterRange.skew);
-		double interval = cc.getProperty("Interval", a->parameterRange.interval);
+		double skew = cc.getProperty("Skew", a.parameterRange.skew);
+		double interval = cc.getProperty("Interval", a.parameterRange.interval);
 
-		a->parameterRange = NormalisableRange<double>(start, end, interval, skew);
+		auto fullStart = cc.getProperty("FullStart", start);
+		auto fullEnd = cc.getProperty("FullEnd", end);
 
-		a->used = true;
+		a.parameterRange = NormalisableRange<double>(start, end, interval, skew);
+		a.fullRange = NormalisableRange<double>(fullStart, fullEnd, interval, skew);
+		
+		a.used = true;
+		a.inverted = cc.getProperty("Inverted", false);
+
+		aArray.addIfNotAlreadyThere(a);
 	}
+
+	sendChangeMessage();
 
 	refreshAnyUsedState();
 }
@@ -239,35 +286,38 @@ void MidiControllerAutomationHandler::handleParameterData(MidiBuffer &b)
 
 			if (isLearningActive())
 			{
-				setUnlearndedMidiControlNumber(number);
+				setUnlearndedMidiControlNumber(number, sendNotification);
 			}
 
-			AutomationData *a = automationData + number;
-
-			if (a->used)
+			for (auto& a : automationData[number])
 			{
-				jassert(a->processor.get() != nullptr);
-
-
-				const double value = a->parameterRange.convertFrom0to1((double)m.getControllerValue() / 127.0);
-
-				const float snappedValue = (float)a->parameterRange.snapToLegalValue(value);
-
-				if (a->macroIndex != -1)
+				if (a.used)
 				{
-					a->processor->getMainController()->getMacroManager().getMacroChain()->setMacroControl(a->macroIndex, (float)m.getControllerValue(), sendNotification);
-				}
-				else
-				{
-					if (a->lastValue != snappedValue)
+					jassert(a.processor.get() != nullptr);
+
+					auto normalizedValue = (double)m.getControllerValue() / 127.0;
+
+					if (a.inverted) normalizedValue = 1.0 - normalizedValue;
+
+					const double value = a.parameterRange.convertFrom0to1(normalizedValue);
+
+					const float snappedValue = (float)a.parameterRange.snapToLegalValue(value);
+
+					if (a.macroIndex != -1)
 					{
-						a->processor->setAttribute(a->attribute, snappedValue, sendNotification);
-						a->lastValue = snappedValue;
+						a.processor->getMainController()->getMacroManager().getMacroChain()->setMacroControl(a.macroIndex, (float)m.getControllerValue(), sendNotification);
 					}
-					
-				}
+					else
+					{
+						if (a.lastValue != snappedValue)
+						{
+							a.processor->setAttribute(a.attribute, snappedValue, sendNotification);
+							a.lastValue = snappedValue;
+						}
+					}
 
-				consumed = true;
+					consumed = true;
+				}
 			}
 		}
 
@@ -278,6 +328,78 @@ void MidiControllerAutomationHandler::handleParameterData(MidiBuffer &b)
 	b.addEvents(tempBuffer, 0, -1, 0);
 }
 
+
+hise::MidiControllerAutomationHandler::AutomationData MidiControllerAutomationHandler::getDataFromIndex(int index) const
+{
+	int currentIndex = 0;
+
+	for (int i = 0; i < 128; i++)
+	{
+		for (const auto& a: automationData[i])
+		{
+			if (index == currentIndex)
+				return AutomationData(a);
+
+			currentIndex++;
+		}
+	}
+
+	return AutomationData();
+}
+
+int MidiControllerAutomationHandler::getNumActiveConnections() const
+{
+	int numActive = 0;
+
+	for (int i = 0; i < 128; i++)
+	{
+		numActive += automationData[i].size();
+	}
+
+	return numActive;
+}
+
+bool MidiControllerAutomationHandler::setNewRangeForParameter(int index, NormalisableRange<double> range)
+{
+	int currentIndex = 0;
+
+	for (int i = 0; i < 128; i++)
+	{
+		for (auto& a : automationData[i])
+		{
+			if (index == currentIndex)
+			{
+				a.parameterRange = range;
+				return true;
+			}
+			
+			currentIndex++;
+		}
+	}
+
+	return false;
+}
+
+bool MidiControllerAutomationHandler::setParameterInverted(int index, bool value)
+{
+	int currentIndex = 0;
+
+	for (int i = 0; i < 128; i++)
+	{
+		for (auto& a : automationData[i])
+		{
+			if (index == currentIndex)
+			{
+				a.inverted = value;
+				return true;
+			}
+
+			currentIndex++;
+		}
+	}
+
+	return false;
+}
 
 void ConsoleLogger::logMessage(const String &message)
 {

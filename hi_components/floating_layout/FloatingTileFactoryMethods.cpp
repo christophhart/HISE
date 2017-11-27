@@ -93,6 +93,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<ScriptContentPanel>(PopupMenuOptions::ScriptContent);
 #endif
 
+	registerType<MidiLearnPanel>(PopupMenuOptions::MidiLearnPanel);
 
 	registerType<TableEditorPanel>(PopupMenuOptions::TablePanel);
 	registerType<SliderPackPanel>(PopupMenuOptions::SliderPackPanel);
@@ -662,6 +663,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::PerformanceStatistics: parent->setNewContent(GET_PANEL_NAME(PerformanceLabelPanel)); break;
 	case PopupMenuOptions::MidiSourceList:		parent->setNewContent(GET_PANEL_NAME(MidiSourcePanel)); break;
 	case PopupMenuOptions::MidiChannelList:		parent->setNewContent(GET_PANEL_NAME(MidiChannelPanel)); break;
+	case PopupMenuOptions::MidiLearnPanel:		parent->setNewContent(GET_PANEL_NAME(MidiLearnPanel)); break;
 	case PopupMenuOptions::TooltipPanel:		parent->setNewContent(GET_PANEL_NAME(TooltipPanel)); break;
 	case PopupMenuOptions::ApiCollection:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ApiCollection>)); break;
 	case PopupMenuOptions::PatchBrowser:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<PatchBrowser>)); break;

@@ -436,6 +436,16 @@ protected:
 
 class TableHeaderLookAndFeel: public PopupLookAndFeel
 {
+public:
+
+	TableHeaderLookAndFeel()
+	{
+		f = GLOBAL_BOLD_FONT();
+
+		bgColour = Colour(0xff474747);
+		textColour = Colour(0xa2ffffff);
+	};
+
 	void drawTableHeaderBackground (Graphics &, TableHeaderComponent &)
 	{
 		
@@ -446,17 +456,20 @@ class TableHeaderLookAndFeel: public PopupLookAndFeel
 	{
 		if (width > 0)
 		{
-			g.setColour(Colour(0xff474747));
+			g.setColour(bgColour);
 
 			g.fillRect(0.0f, 0.0f, (float)width - 1.0f, (float)height);
 
-
-			g.setFont(GLOBAL_BOLD_FONT());
-			g.setColour(Colour(0xa2ffffff));
+			g.setFont(f);
+			g.setColour(textColour);
 
 			g.drawText(columnName, 3, 0, width - 3, height, Justification::centredLeft, true);
 		}
 	}
+
+	Font f;
+	Colour bgColour;
+	Colour textColour;
 };
 
 
@@ -491,8 +504,22 @@ class HiPropertyPanelLookAndFeel: public LookAndFeel_V3
 {
 public:
 
+
+	void setFontForAll(const Font& newFont)
+	{
+		comboBoxFont = newFont;
+		textButtonFont = newFont;
+		labelFont = newFont;
+		popupMenuFont = newFont;
+	}
+
 	HiPropertyPanelLookAndFeel()
 	{
+		comboBoxFont = GLOBAL_FONT();
+		textButtonFont = GLOBAL_FONT();
+		labelFont = GLOBAL_MONOSPACE_FONT();
+		popupMenuFont = GLOBAL_FONT();
+
 		setColour(PopupMenu::highlightedBackgroundColourId, Colour(SIGNAL_COLOUR));
 
 		Colour dark(0xFF333333);
@@ -547,7 +574,7 @@ public:
 
 		 g.setColour (textColour.withMultipliedAlpha (component.isEnabled() ? 1.0f : 0.6f));
 
-		 g.setFont (GLOBAL_MONOSPACE_FONT());
+		 g.setFont (labelFont);
 
 		const Rectangle<int> r (getPropertyComponentContentPosition (component));
 
@@ -568,7 +595,9 @@ public:
 		const float max = (float)s.getMaximum();
 		const float min = (float)s.getMinimum();
 
-		g.fillAll(Colour (0xff606060));
+		Colour c = s.findColour(Slider::ColourIds::backgroundColourId);
+
+		g.fillAll(c);
 
 		if(isBiPolar)
 		{
@@ -589,9 +618,11 @@ public:
 			actualWidth = (float)proportion * (float)(width-2);
 		}
 
-		g.setGradientFill (ColourGradient (Colour (0xffDDDDDD).withAlpha(s.isEnabled() ? 0.8f : 0.4f),
+		c = s.findColour(Slider::ColourIds::thumbColourId);
+
+		g.setGradientFill (ColourGradient (c.withMultipliedAlpha(s.isEnabled() ? 0.8f : 0.4f),
                                        0.0f, 0.0f,
-                                       Colour (0xffAAAAAA).withAlpha(s.isEnabled() ? 0.8f : 0.4f),
+                                       c.withMultipliedAlpha(s.isEnabled() ? 0.8f : 0.4f),
                                        0.0f, (float)height,
                                        false));
 		g.fillRect(leftX, 2.0f, actualWidth , (float)(height-2));
@@ -600,17 +631,17 @@ public:
 
 	Font getLabelFont(Label &) override
 	{
-		return GLOBAL_MONOSPACE_FONT();
+		return labelFont;
 	}
 
 	Font getComboBoxFont (ComboBox&) override
 	{
-		return GLOBAL_FONT();
+		return comboBoxFont;
 	}
 
 	Font getPopupMenuFont () override
 	{
-		return GLOBAL_FONT();
+		return popupMenuFont;
 	};
 
 	
@@ -623,9 +654,15 @@ public:
 
 	Font getTextButtonFont(TextButton &, int) override
 	{
-		return GLOBAL_FONT();
+		return textButtonFont;
 	};
 
+	
+
+	Font comboBoxFont;
+	Font textButtonFont;
+	Font labelFont;
+	Font popupMenuFont;
 
    
 };

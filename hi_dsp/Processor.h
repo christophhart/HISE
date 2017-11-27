@@ -912,6 +912,8 @@ public:
 	/** Checks if the Processor can be hidden. This returns true for all processors that show up in the popup list. */
 	static bool isHiddableProcessor(const Processor *p);
 
+	static String getPrettyNameForAutomatedParameter(const Processor* p, int parameterIndex);
+
 	/** Returns a string that declares a variable to be copied into a script.
 	*
 	*	For a given Processor of type "Type" and id "name" it will return:
