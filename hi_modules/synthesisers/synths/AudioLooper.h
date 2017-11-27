@@ -67,6 +67,7 @@ private:
 
 	float syncFactor;
 
+	Random r;
 
 };
 
@@ -84,6 +85,7 @@ public:
 		LoopEnabled,
 		PitchTracking,
 		RootNote,
+		SampleStartMod,
 		numLooperParameters
 	};
 
@@ -119,6 +121,8 @@ private:
 	bool loopEnabled;
 	bool pitchTrackingEnabled;
 	int rootNote;
+
+	int sampleStartMod = 0;
 
 	friend class AudioLooperVoice;
 

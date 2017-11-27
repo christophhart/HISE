@@ -46,6 +46,12 @@ void AudioLooperVoice::startNote(int midiNoteNumber, float /*velocity*/, Synthes
 
 	voiceUptime = (double)getCurrentHiseEvent().getStartOffset();
 
+	auto maxStartModMs = (double)getOwnerSynth()->getAttribute(AudioLooper::SpecialParameters::SampleStartMod);
+	auto maxStartModSamples = maxStartModMs / 1000.0 * getSampleRate();
+	auto randomized = (double)r.nextFloat() * maxStartModSamples;
+
+	voiceUptime += randomized;
+
 	AudioLooper *looper = dynamic_cast<AudioLooper*>(getOwnerSynth());
 
 	const AudioSampleBuffer *buffer = looper->getBuffer();
@@ -171,6 +177,7 @@ rootNote(64)
 	parameterNames.add("LoopEnabled");
 	parameterNames.add("PitchTracking");
 	parameterNames.add("RootNote");
+	parameterNames.add("SampleStartMod");
 
 	inputMerger.setManualCountLimit(5);
 
@@ -192,6 +199,7 @@ void AudioLooper::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(PitchTracking, "PitchTracking");
 	loadAttribute(LoopEnabled, "LoopEnabled");
 	loadAttribute(RootNote, "RootNote");
+	loadAttribute(SampleStartMod, "SampleStartMod");
 }
 
 ValueTree AudioLooper::exportAsValueTree() const
@@ -202,6 +210,7 @@ ValueTree AudioLooper::exportAsValueTree() const
 	saveAttribute(PitchTracking, "PitchTracking");
 	saveAttribute(LoopEnabled, "LoopEnabled");
 	saveAttribute(RootNote, "RootNote");
+	saveAttribute(SampleStartMod, "SampleStartMod");
 
 	AudioSampleProcessor::saveToValueTree(v);
 
@@ -218,6 +227,7 @@ float AudioLooper::getAttribute(int parameterIndex) const
 	case LoopEnabled:	return loopEnabled ? 1.0f : 0.0f;
 	case RootNote:		return (float)rootNote;
 	case PitchTracking:	return pitchTrackingEnabled ? 1.0f : 0.0f;
+	case SampleStartMod: return (float)sampleStartMod;
 	default:					jassertfalse; return -1.0f;
 	}
 }
@@ -232,6 +242,7 @@ float AudioLooper::getDefaultValue(int parameterIndex) const
 	case LoopEnabled:	return 1.0f;
 	case RootNote:		return 64.0f;
 	case PitchTracking:	return 0.0f;
+	case SampleStartMod: return 0.0f;
 	default: jassertfalse; return -1.0f;
 	}
 }
@@ -250,6 +261,7 @@ void AudioLooper::setInternalAttribute(int parameterIndex, float newValue)
 	case LoopEnabled:	loopEnabled = newValue > 0.5f; break;
 	case RootNote:		rootNote = (int)newValue; break;
 	case PitchTracking:	pitchTrackingEnabled = newValue > 0.5f; break;
+	case SampleStartMod: sampleStartMod = jmax<int>(0, (int)newValue); break;
 	default:			jassertfalse; break;
 	}
 }

@@ -79,6 +79,12 @@ AudioLooperEditor::AudioLooperEditor (ProcessorEditor *p)
     rootNote->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
     rootNote->addListener (this);
 
+    addAndMakeVisible (startModSlider = new HiSlider ("StartMod"));
+    startModSlider->setRange (0, 127, 1);
+    startModSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
+    startModSlider->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
+    startModSlider->addListener (this);
+
 
     //[UserPreSize]
 
@@ -86,8 +92,9 @@ AudioLooperEditor::AudioLooperEditor (ProcessorEditor *p)
 
 	sampleBufferContent->setAudioSampleBuffer(asp->getBuffer(), asp->getFileName());
 
-	
 
+	startModSlider->setup(getProcessor(), AudioLooper::SampleStartMod, "Random Start");
+	startModSlider->setMode(HiSlider::Discrete, 0.0, 20000, 1000.0, 1.0);
 
 
 	sampleBufferContent->addAreaListener(this);
@@ -127,6 +134,7 @@ AudioLooperEditor::~AudioLooperEditor()
     pitchButton = nullptr;
     loopButton = nullptr;
     rootNote = nullptr;
+    startModSlider = nullptr;
 
 
     //[Destructor]. You can add your own custom destruction code here..
@@ -160,6 +168,7 @@ void AudioLooperEditor::resized()
     pitchButton->setBounds (354 - 128, 26, 128, 32);
     loopButton->setBounds (184 - 128, 11, 128, 32);
     rootNote->setBounds (358, 20, 128, 48);
+    startModSlider->setBounds (515, 20, 128, 48);
     //[UserResized] Add your own custom resize handling here..
     //[/UserResized]
 }
@@ -209,6 +218,11 @@ void AudioLooperEditor::sliderValueChanged (Slider* sliderThatWasMoved)
     {
         //[UserSliderCode_rootNote] -- add your slider handling code here..
         //[/UserSliderCode_rootNote]
+    }
+    else if (sliderThatWasMoved == startModSlider)
+    {
+        //[UserSliderCode_startModSlider] -- add your slider handling code here..
+        //[/UserSliderCode_startModSlider]
     }
 
     //[UsersliderValueChanged_Post]
@@ -265,6 +279,11 @@ BEGIN_JUCER_METADATA
           int="1" style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
           textBoxEditable="1" textBoxWidth="40" textBoxHeight="20" skewFactor="1"
           needsCallback="1"/>
+  <SLIDER name="StartMod" id="abb968f0edba4d8b" memberName="startModSlider"
+          virtualName="HiSlider" explicitFocusOrder="0" pos="515 20 128 48"
+          min="0" max="127" int="1" style="RotaryHorizontalVerticalDrag"
+          textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="40"
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
 </JUCER_COMPONENT>
 
 END_JUCER_METADATA

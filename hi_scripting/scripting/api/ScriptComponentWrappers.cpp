@@ -1055,7 +1055,7 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::rangeChanged(AudioDis
 	{
 		Range<int> newRange = broadcaster->getSampleArea(changedArea)->getSampleRange();
 
-		form->getAudioProcessor()->setLoadedFile(dynamic_cast<AudioSampleBufferComponent*>(broadcaster)->getCurrentlyLoadedFileName());
+		//form->getAudioProcessor()->setLoadedFile(dynamic_cast<AudioSampleBufferComponent*>(broadcaster)->getCurrentlyLoadedFileName());
 		form->getAudioProcessor()->setRange(newRange);
 	}
 }

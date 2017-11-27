@@ -64,6 +64,8 @@ public:
 		rootNote->updateValue();
 		pitchButton->updateValue();
 
+		startModSlider->updateValue();
+
 		rootNote->setEnabled(getProcessor()->getAttribute(AudioLooper::PitchTracking) > 0.5f);
 
 		AudioSampleProcessor *envelope = dynamic_cast<AudioSampleProcessor*>(getProcessor());
@@ -123,6 +125,7 @@ private:
     ScopedPointer<HiToggleButton> pitchButton;
     ScopedPointer<HiToggleButton> loopButton;
     ScopedPointer<HiSlider> rootNote;
+    ScopedPointer<HiSlider> startModSlider;
 
 
     //==============================================================================

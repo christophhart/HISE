@@ -2918,13 +2918,13 @@ ValueTree ScriptingApi::Content::ScriptAudioWaveform::exportAsValueTree() const
 
 void ScriptingApi::Content::ScriptAudioWaveform::restoreFromValueTree(const ValueTree &v)
 {
-	const String id = v.getProperty("Processor", "");
+	const String id = v.getProperty("id", "");
 
 	if (id.isNotEmpty())
 	{
 		const String fileName = v.getProperty("fileName", "");
 
-		if (getAudioProcessor() != nullptr && fileName.isNotEmpty())
+		if (getAudioProcessor() != nullptr)
 		{
 			getAudioProcessor()->setLoadedFile(fileName, true, false);
 
