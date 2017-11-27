@@ -101,8 +101,7 @@ ConvolutionEditor::ConvolutionEditor (ProcessorEditor *p)
 	startTimer(30);
 #endif
 
-	AudioSampleProcessor *asp = dynamic_cast<AudioSampleProcessor*>(getProcessor());
-
+	
 	impulseDisplay->addAreaListener(this);
 
 	impulseDisplay->setOpaque(false);

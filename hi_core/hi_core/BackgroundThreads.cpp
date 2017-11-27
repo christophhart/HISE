@@ -650,7 +650,7 @@ void SampleDataImporter::threadFinished()
 
 #endif
 
-		const bool deleteArchive = getComboBoxComponent("deleteArchive")->getSelectedItemIndex();
+		const bool deleteArchive = getComboBoxComponent("deleteArchive")->getSelectedItemIndex() != 0;
 
 		if (deleteArchive && archiveFile.existsAsFile())
 			archiveFile.deleteFile();

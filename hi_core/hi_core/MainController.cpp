@@ -1000,7 +1000,7 @@ void MainController::rebuildVoiceLimits()
 
 	while (auto synth = iter.getNextProcessor())
 	{
-		synth->setVoiceLimit(synth->getAttribute(ModulatorSynth::VoiceLimit));
+		synth->setVoiceLimit((int)synth->getAttribute(ModulatorSynth::VoiceLimit));
 	}
 }
 

@@ -1643,7 +1643,15 @@ File ProjectHandler::Frontend::getSampleLocationForCompiledPlugin()
 	jassert(appDataDir.isDirectory());
 	
 #if JUCE_MAC && ENABLE_APPLE_SANDBOX
-    File childFile = ProjectHandler::getLinkFile(appDataDir.getChildFile("Resources/"));
+    
+    auto resourceDir = appDataDir.getChildFile("Resources/");
+    if(!resourceDir.isDirectory())
+    {
+        resourceDir.createDirectory();
+    }
+    
+    
+    File childFile = ProjectHandler::getLinkFile(resourceDir);
 #else
     File childFile = ProjectHandler::getLinkFile(appDataDir);
 #endif
@@ -1779,7 +1787,15 @@ File ProjectHandler::Frontend::getSampleLinkFile()
 	jassert(appDataDir.isDirectory());
 
 #if JUCE_MAC && ENABLE_APPLE_SANDBOX
-	File childFile = ProjectHandler::getLinkFile(File(appDataDir.getChildFile("Resources/"));
+    
+    auto resourceDir = appDataDir.getChildFile("Resources/");
+    if(!resourceDir.isDirectory())
+    {
+        resourceDir.createDirectory();
+    }
+    
+    
+    File childFile = ProjectHandler::getLinkFile(resourceDir);
 #else
 	File childFile = ProjectHandler::getLinkFile(appDataDir);
 #endif

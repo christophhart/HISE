@@ -587,7 +587,7 @@ void BorderPanel::buttonClicked(Button* b)
 {
 	auto contentComponent = findParentComponentOfClass<ScriptContentComponent>();
 
-	const bool isInPopup = findParentComponentOfClass<FloatingTilePopup>();
+	const bool isInPopup = findParentComponentOfClass<FloatingTilePopup>() != nullptr;
 
 	if (contentComponent != nullptr)
 	{

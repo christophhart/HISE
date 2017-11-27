@@ -390,9 +390,9 @@ public:
 
 		if (v > 0)
 		{
-			onEvent.setVelocity(v);
+			onEvent.setVelocity((uint8)v);
 			onEvent.ignoreEvent(false);
-			onEvent.setTimeStamp(Message.getTimestamp());
+			onEvent.setTimeStamp((uint16)Message.getTimestamp());
 			
 
 			currentMessageHolder->setMessage(onEvent);
