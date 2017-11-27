@@ -1325,7 +1325,10 @@ int ScriptedControlAudioParameter::getNumSteps() const
 void ScriptedControlAudioParameter::setParameterNotifyingHost(int index, float newValue)
 {
 	ScopedValueSetter<bool> setter(dynamic_cast<MainController*>(parentProcessor)->getPluginParameterUpdateState(), false, true);
-	parentProcessor->setParameterNotifyingHost(index, range.convertTo0to1(newValue));
+
+	auto sanitizedValue = jlimit<float>(range.start, range.end, newValue);
+
+	parentProcessor->setParameterNotifyingHost(index, range.convertTo0to1(sanitizedValue));
 }
 
 ScriptedControlAudioParameter::Type ScriptedControlAudioParameter::getType(ScriptingApi::Content::ScriptComponent *component)
