@@ -90,7 +90,7 @@ AudioLooperEditor::AudioLooperEditor (ProcessorEditor *p)
 
 	AudioSampleProcessor *asp = dynamic_cast<AudioSampleProcessor*>(getProcessor());
 
-	sampleBufferContent->setAudioSampleBuffer(asp->getBuffer(), asp->getFileName());
+	sampleBufferContent->setAudioSampleBuffer(asp->getBuffer(), asp->getFileName(), sendNotification);
 
 
 	startModSlider->setup(getProcessor(), AudioLooper::SampleStartMod, "Random Start");
