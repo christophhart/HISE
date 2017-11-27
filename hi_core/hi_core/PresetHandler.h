@@ -252,6 +252,12 @@ public:
 
 		static File getUserPresetDirectory();
 		
+		static File getAdditionalAudioFilesDirectory();
+
+		static String getRelativePathForAdditionalAudioFile(const File& audioFile);
+
+		static File getAudioFileForRelativePath(const String& relativePath);
+
 		static String getProjectName();
 		static String getCompanyName();
 		static String getCompanyWebsiteName();

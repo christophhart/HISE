@@ -1841,6 +1841,60 @@ File ProjectHandler::Frontend::getUserPresetDirectory()
 #endif
 }
 
+
+File ProjectHandler::Frontend::getAdditionalAudioFilesDirectory()
+{
+#if USE_RELATIVE_PATH_FOR_AUDIO_FILES
+	File searchDirectory = ProjectHandler::Frontend::getAppDataDirectory().getChildFile("AudioFiles");
+
+	if (!searchDirectory.isDirectory())
+		searchDirectory.createDirectory();
+
+	return searchDirectory;
+
+#else
+	return File();
+#endif
+}
+
+
+String ProjectHandler::Frontend::getRelativePathForAdditionalAudioFile(const File& audioFile)
+{
+#if USE_RELATIVE_PATH_FOR_AUDIO_FILES
+	String fileName;
+
+	File searchDirectory = getAdditionalAudioFilesDirectory();
+
+	jassert(searchDirectory.isDirectory());
+
+	if (audioFile.isAChildOf(searchDirectory))
+	{
+		fileName = "{AUDIO_FILES}" + audioFile.getRelativePathFrom(searchDirectory);
+	}
+	else
+	{
+		fileName = audioFile.getFullPathName();
+	}
+#else
+	auto fileName = audioFile.getFullPathName();
+#endif
+
+	return fileName;
+}
+
+
+File ProjectHandler::Frontend::getAudioFileForRelativePath(const String& relativePath)
+{
+	auto root = getAdditionalAudioFilesDirectory();
+
+	if (root.isDirectory() && relativePath.startsWith("{AUDIO_FILES}"))
+	{
+		String path = relativePath.fromFirstOccurrenceOf("{AUDIO_FILES}", false, true);
+
+		return root.getChildFile(path);
+	}
+}
+
 const bool ProjectHandler::Frontend::checkSamplesCorrectlyInstalled()
 {
 	return getSampleLinkFile().existsAsFile();

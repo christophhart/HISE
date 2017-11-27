@@ -242,7 +242,10 @@ public:
 	void setRange(Range<int> newSampleRange);
 
 	/** Returns the range of the sample. */
-	Range<int> getRange() const { return sampleRange; };
+	Range<int> getRange() const
+	{ 
+		return sampleRange; 
+	};
 
 	int getTotalLength() const { return sampleBuffer.getNumSamples(); };
 

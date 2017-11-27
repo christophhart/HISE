@@ -532,7 +532,7 @@ AudioSampleBufferComponent::AudioSampleBufferComponent(AudioThumbnailCache &cach
 
 	if (auto asp = dynamic_cast<AudioSampleProcessor*>(p))
 	{
-		setAudioSampleBuffer(asp->getBuffer(), asp->getFileName());
+		setAudioSampleBuffer(asp->getBuffer(), asp->getFileName(), dontSendNotification);
 		setRange(asp->getRange());
 	}
 
@@ -597,9 +597,11 @@ void AudioSampleBufferComponent::changeListenerCallback(SafeChangeBroadcaster *b
 {
 	AudioSampleProcessor *asp = dynamic_cast<AudioSampleProcessor*>(b);
 
-	if (asp != nullptr && asp->getBuffer() != buffer)
+
+
+	if (asp != nullptr)
 	{
-		setAudioSampleBuffer(asp->getBuffer(), asp->getFileName());
+		setAudioSampleBuffer(asp->getBuffer(), asp->getFileName(), dontSendNotification);
 		setRange(asp->getRange());
 	}
 
@@ -628,7 +630,9 @@ void AudioSampleBufferComponent::mouseDown(const MouseEvent &e)
 		}
 		
 #else
-		File searchDirectory = File();
+	
+		File searchDirectory = ProjectHandler::Frontend::getAdditionalAudioFilesDirectory();
+
 #endif
 
 		FileChooser fc("Load File", searchDirectory, patterns, true);
@@ -637,8 +641,8 @@ void AudioSampleBufferComponent::mouseDown(const MouseEvent &e)
 		{
 			if (auto asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get()))
 			{
-				auto fileName = fc.getResult().getFullPathName();
-
+				auto fileName = ProjectHandler::Frontend::getRelativePathForAdditionalAudioFile(fc.getResult());
+				
 				buffer = nullptr;
 				asp->setLoadedFile(fileName, true);
 				

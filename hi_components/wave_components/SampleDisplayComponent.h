@@ -571,7 +571,7 @@ public:
 	*
 	*	It repaints the waveform, resets the range and calls rangeChanged for all registered AreaListeners.
 	*/
-	void setAudioSampleBuffer(const AudioSampleBuffer *b, const String &fileName)
+	void setAudioSampleBuffer(const AudioSampleBuffer *b, const String &fileName, NotificationType notifyListeners)
 	{
 		if(b != nullptr)
 		{
@@ -588,7 +588,9 @@ public:
 			updateRanges();
 
 			setCurrentArea(getSampleArea(0));
-			sendAreaChangedMessage();
+
+			if(notifyListeners)
+				sendAreaChangedMessage();
 		}
 	}
 
@@ -603,6 +605,10 @@ public:
 	/** Call this whenever you need to set the range from outside. */
 	void setRange(Range<int> newRange)
 	{
+		const bool isSomethingLoaded = currentFileName.isNotEmpty();
+
+		getSampleArea(0)->setVisible(isSomethingLoaded);
+
 		if (getSampleArea(0)->getSampleRange() != newRange)
 		{
 			getSampleArea(0)->setSampleRange(newRange);

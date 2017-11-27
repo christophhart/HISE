@@ -230,10 +230,20 @@ File SharedPoolBase::getFileFromFileNameString(const String& fileName)
 
 #else
 
+#if USE_RELATIVE_PATH_FOR_AUDIO_FILES
+
+	if (File::isAbsolutePath(fileName))
+		return File(fileName);
+	else
+		return ProjectHandler::Frontend::getAudioFileForRelativePath(fileName);
+
+#else
+
 	if (File::isAbsolutePath(fileName))
 		return File(fileName);
 	else
 		return File();
+#endif
 
 #endif
 
