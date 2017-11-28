@@ -39,17 +39,24 @@ void PresetBrowserColumn::ButtonLookAndFeel::drawButtonBackground(Graphics& /*g*
 
 void PresetBrowserColumn::ButtonLookAndFeel::drawButtonText(Graphics& g, TextButton& button, bool isMouseOverButton, bool isButtonDown)
 {
+	g.setColour(highlightColour.withAlpha(isMouseOverButton || button.getToggleState() ? 1.0f : 0.5f));
+    g.setFont(font);
+	g.drawText(button.getButtonText(), 0, isButtonDown ? 1 : 0, button.getWidth(), button.getHeight(), Justification::centred);
+
+	static const unsigned char pathData[] = "nm\xac&=Ca\xee<Cl\x12\x96?C%\xaf""CCl\xde\xc2""FC\xd0\xe9""CClZ\x17""AC\xebPHCl(\x17""CC\xf1""5OCl\xad&=C\xc4-KCl267C\xf1""5OCl\0""69C\xebPHCl}\x8a""3C\xd0\xe9""CClH\xb7:C%\xaf""CCce";
+
+	Path path;
+	path.loadPathFromData(pathData, sizeof(pathData));
+
 	
 	if (isMouseOverButton)
 	{
-		g.fillAll(Colours::white.withAlpha(0.1f));
+		auto r = button.getLocalBounds();
+
+		g.setColour(highlightColour.withAlpha(0.1f));
+		g.fillRoundedRectangle(FLOAT_RECTANGLE(r.reduced(3, 1)), 2.0f);
 	}
 
-	g.setColour(highlightColour);
-
-    g.setFont(font);
-    
-	g.drawText(button.getButtonText(), 0, isButtonDown ? 1 : 0, button.getWidth(), button.getHeight(), Justification::centred);
 }
 
 PresetBrowserColumn::ColumnListModel::ColumnListModel(int index_, Listener* listener_) :
@@ -64,27 +71,24 @@ listener(listener_)
 
 void MultiColumnPresetBrowser::ModalWindow::paint(Graphics& g)
 {
-    g.setColour(Colour(0xcc222222));
+    g.setColour(Colours::black.withAlpha(0.2f));
     g.fillAll();
     
     auto area = inputLabel->getBounds().expanded(50);
     
-    g.setColour(Colour(0xcc333333));
-    g.fillRect(area.expanded(40));
-    
-    g.setColour(Colour(0x33FFFFFF));
-    g.drawRect(area.expanded(40), 1);
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xe3171717)));
+    g.fillRoundedRectangle(FLOAT_RECTANGLE(area.expanded(40)), 2.0f);
     
     g.setColour(Colour(0x22000000));
     
     if(inputLabel->isVisible())
         g.fillRect(inputLabel->getBounds());
     
-    g.setColour(Colours::white);
-    g.setFont(f.boldened().withHeight(24));
+    g.setColour(Colours::white.withAlpha(0.8f));
+    g.setFont(f.withHeight(18));
     g.drawText(getTitleText(), 0, inputLabel->getY() - 80, getWidth(), 30, Justification::centredTop);
         
-    g.setFont(f.boldened());
+    g.setFont(f);
     
     g.drawText(getCommand(), area, Justification::centredTop);
 }
@@ -93,20 +97,35 @@ int PresetBrowserColumn::ColumnListModel::getNumRows()
 {
     if(wildcard.isEmpty())
     {   
-        if (!root.isDirectory())
+		const File& rootToUse = showFavoritesOnly ? totalRoot : root;
+
+		if (!rootToUse.isDirectory())
 	    {
 		    entries.clear();
 		    return 0;
 	    }
 
 	    entries.clear();
-	    root.findChildFiles(entries, displayDirectories ? File::findDirectories : File::findFiles, false);
+	    rootToUse.findChildFiles(entries, displayDirectories ? File::findDirectories : File::findFiles, showFavoritesOnly);
 
 		for (int i = 0; i < entries.size(); i++)
 		{
 			if (entries[i].isHidden() || entries[i].getFileName().startsWith("."))
 			{
 				entries.remove(i--);
+				continue;
+			}
+		}
+
+		if (showFavoritesOnly && index == 2)
+		{
+			for (int i = 0; i < entries.size(); i++)
+			{
+				if (!MultiColumnPresetBrowser::DataBaseHelpers::isFavorite(database, entries[i]))
+				{
+					entries.remove(i--);
+					continue;
+				}
 			}
 		}
 			
@@ -116,6 +135,8 @@ int PresetBrowserColumn::ColumnListModel::getNumRows()
     }
     else
     {
+		jassert(index == 2);
+
         Array<File> allFiles;
         
         totalRoot.findChildFiles(allFiles, File::findFiles, true);
@@ -135,6 +156,19 @@ int PresetBrowserColumn::ColumnListModel::getNumRows()
 				entries.remove(i--);
 			}
 		}
+
+		if (showFavoritesOnly && index == 2)
+		{
+			for (int i = 0; i < entries.size(); i++)
+			{
+				if (!MultiColumnPresetBrowser::DataBaseHelpers::isFavorite(database, entries[i]))
+				{
+					entries.remove(i--);
+					continue;
+				}
+			}
+		}
+
 
         entries.sort();
         
@@ -185,6 +219,9 @@ void PresetBrowserColumn::ColumnListModel::paintListBoxItem(int rowNumber, Graph
 	{
 		Rectangle<int> area(0, 1, width, height - 2);
 
+#if OLD_PRESET_BROWSER
+		
+
 		
 		g.setColour(rowIsSelected ? highlightColour.withAlpha(0.3f) : Colour(0x00222222));
 		g.fillRect(area);
@@ -211,6 +248,22 @@ void PresetBrowserColumn::ColumnListModel::paintListBoxItem(int rowNumber, Graph
 			g.setFont(font.withHeight(16.0f));
 			g.drawText(entries[rowNumber].getFileNameWithoutExtension(), 10, 0, width-20, height, Justification::centredLeft);
 		}
+
+#else
+
+		g.setGradientFill(ColourGradient(highlightColour.withAlpha(0.3f), 0.0f, 0.0f,
+						  highlightColour.withAlpha(0.2f), 0.0f, (float)height, false));
+
+		if(rowIsSelected)
+			g.fillRect(area);
+
+		
+		g.setColour(Colours::white.withAlpha(0.9f));
+		g.setFont(font.withHeight(16.0f));
+		g.drawText(entries[rowNumber].getFileNameWithoutExtension(), index == 2 ? 10 + 26 : 10, 0, width - 20, height, Justification::centredLeft);
+
+#endif
+
 	}
 }
 
@@ -227,22 +280,38 @@ mc(mc_),
 index(index_)
 {
 	addAndMakeVisible(editButton = new TextButton("Edit"));
-	addAndMakeVisible(addButton = new ShapeButton("Add", Colours::white, Colours::white, Colours::white));
-
-	Path addShape;
-
-	addShape.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::addIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::addIcon));
-
-	addButton->setShape(addShape, true, true, false);
-
+	editButton->addListener(this);
 	editButton->setLookAndFeel(&blaf);
+
+#if OLD_PRESET_BROWSER
+	addAndMakeVisible(addButton = new ShapeButton("Add", Colours::white, Colours::white, Colours::white));
+	Path addShape;
+	addShape.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::addIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::addIcon));
+	addButton->setShape(addShape, true, true, false);
+	addButton->setLookAndFeel(&blaf);
+	addButton->addListener(this);
+#else
+	addAndMakeVisible(addButton = new TextButton("Add"));
+	addButton->addListener(this);
 	addButton->setLookAndFeel(&blaf);
 
-	addButton->addListener(this);
-	editButton->addListener(this);
+	addAndMakeVisible(renameButton = new TextButton("Rename"));
+	renameButton->addListener(this);
+	renameButton->setLookAndFeel(&blaf);
+
+	addAndMakeVisible(deleteButton = new TextButton("Delete"));
+	deleteButton->addListener(this);
+	deleteButton->setLookAndFeel(&blaf);
+
+#endif
+
+
+	
+	
 
 	listModel = new ColumnListModel(index, listener);
 
+	listModel->database = dynamic_cast<MultiColumnPresetBrowser*>(listener)->getDataBase();
 	
 	listModel->setTotalRoot(rootDirectory);
 	
@@ -256,7 +325,12 @@ index(index_)
 	addAndMakeVisible(listbox = new ListBox());
 
 	listbox->setModel(listModel);
+#if OLD_PRESET_BROWSER
 	listbox->setColour(ListBox::ColourIds::backgroundColourId, Colours::white.withAlpha(0.15f));
+#else
+	listbox->setColour(ListBox::ColourIds::backgroundColourId, Colours::transparentBlack);
+#endif
+
 	listbox->setRowHeight(30);
 	listbox->setWantsKeyboardFocus(true);
 	
@@ -302,6 +376,8 @@ void PresetBrowserColumn::setNewRootDirectory(const File& newRootDirectory)
 	listbox->deselectAllRows();
 	listbox->updateContent();
 	listbox->repaint();
+
+	updateButtonVisibility();
 }
 
 void PresetBrowserColumn::buttonClicked(Button* b)
@@ -314,6 +390,27 @@ void PresetBrowserColumn::buttonClicked(Button* b)
 	else if (b == addButton)
 	{
 		browser->openModalAction(MultiColumnPresetBrowser::ModalWindow::Action::Add, index == 2 ? "New Preset" : "New Directory", File(), index, -1);
+	}
+	else if (b == renameButton)
+	{
+		int selectedIndex = listbox->getSelectedRow(0);
+
+		if (selectedIndex >= 0)
+		{
+			File oldFile = listModel->getFileForIndex(selectedIndex);
+
+			browser->openModalAction(MultiColumnPresetBrowser::ModalWindow::Action::Rename, oldFile.getFileNameWithoutExtension(), oldFile, index, selectedIndex);
+		}
+	}
+	else if (b == deleteButton)
+	{
+		int selectedIndex = listbox->getSelectedRow(0);
+
+		if (selectedIndex >= 0)
+		{
+			File f = listModel->getFileForIndex(selectedIndex);
+			browser->openModalAction(MultiColumnPresetBrowser::ModalWindow::Action::Delete, "", f, index, selectedIndex);
+		}
 	}
 }
 
@@ -328,6 +425,8 @@ void PresetBrowserColumn::addEntry(const String &newName)
 		newDirectory.createDirectory();
 
 		setNewRootDirectory(currentRoot);
+
+		
 	}
 	else
 	{
@@ -352,19 +451,13 @@ void PresetBrowserColumn::addEntry(const String &newName)
 			}
 		}
 	}
+
+	updateButtonVisibility();
 }
 
 
 void PresetBrowserColumn::paint(Graphics& g)
 {
-	Rectangle<int> textArea(0, 0, getWidth(), 40);
-
-	g.setColour(Colours::white.withAlpha(0.2f));
-	//g.drawRect(0, 40, getWidth(), getHeight() - 40, 1);
-    g.setColour(Colours::white.withAlpha(0.02f));
-    g.fillRect(textArea);
-	g.setColour(Colours::white);
-
 	String name;
 
 	if (isResultBar) name = "Search results";
@@ -372,8 +465,32 @@ void PresetBrowserColumn::paint(Graphics& g)
 	else if (index == 1) name = "Category";
 	else name = "Preset";
 
-    g.setFont(font.withHeight(16.0f));
-	g.drawText(name, textArea, Justification::centred);
+
+#if OLD_PRESET_BROWSER
+	Rectangle<int> textArea = listArea;
+
+	g.setColour(Colours::white.withAlpha(0.2f));
+	//g.drawRect(0, 40, getWidth(), getHeight() - 40, 1);
+    g.setColour(Colours::white.withAlpha(0.02f));
+    g.fillRect(textArea);
+
+	g.setColour(Colours::white);
+
+	
+	g.setFont(font.withHeight(16.0f));
+	g.drawText(name, listArea, Justification::centred);
+
+#else
+
+	g.setColour(highlightColour.withAlpha(0.1f));
+
+	g.drawRoundedRectangle(FLOAT_RECTANGLE(listArea), 2.0f, 2.0f);
+
+
+#endif
+
+
+	
 
 	if (currentRoot == File())
 	{
@@ -385,21 +502,65 @@ void PresetBrowserColumn::paint(Graphics& g)
 	{
 		g.setFont(font);
 		g.setColour(Colours::white.withAlpha(0.3f));
-		g.drawText("Add a " + name, 0, 0, getWidth(), getHeight(), Justification::centred);
+
+		String text = isResultBar ? "No results" : "Add a " + name;
+
+		g.drawText(text, 0, 0, getWidth(), getHeight(), Justification::centred);
 	}
 }
 
 void PresetBrowserColumn::resized()
 {
-	editButton->setBounds(0, 7, 40, 26);
+#if OLD_PRESET_BROWSER
+	listArea = { 0, 40, getWidth(), getHeight() - 40 };
+
+	listbox->setBounds(listArea);
 	addButton->setBounds(getWidth() - 30, 10, 20, 20);
-	listbox->setBounds(0, 40, getWidth(), getHeight() - 40);
+	editButton->setBounds(0, 7, 40, 26);
+#else
+
+	listArea = { 0, 0, getWidth(), getHeight()};
+	listArea = listArea.reduced(1);
+
+	updateButtonVisibility();
+
+	
+
+	auto buttonArea = listArea.removeFromBottom(28).reduced(2);
+	const int buttonWidth = buttonArea.getWidth() / 3;
+
+	addButton->setBounds(buttonArea.removeFromLeft(buttonWidth));
+	//editButton->setBounds(buttonArea.removeFromLeft(buttonWidth));
+	renameButton->setBounds(buttonArea.removeFromLeft(buttonWidth));
+	deleteButton->setBounds(buttonArea.removeFromLeft(buttonWidth));
+
+	listArea.removeFromBottom(10);
+
+	listbox->setBounds(listArea.reduced(3));
+#endif
+}
+
+
+void PresetBrowserColumn::updateButtonVisibility()
+{
+#if !OLD_PRESET_BROWSER
+	editButton->setVisible(false);
+
+	const bool buttonsVisible = !isResultBar && currentRoot.isDirectory();
+	const bool fileIsSelected = listbox->getNumSelectedRows() > 0;
+
+	addButton->setVisible(buttonsVisible);
+	deleteButton->setVisible(buttonsVisible && fileIsSelected);
+	renameButton->setVisible(buttonsVisible && fileIsSelected);
+#endif
 }
 
 MultiColumnPresetBrowser::MultiColumnPresetBrowser(MainController* mc_, int width, int height) :
 mc(mc_)
 {
 	setName("Preset Browser");
+
+	
 
 #if USE_BACKEND
 	rootFile = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
@@ -417,6 +578,8 @@ mc(mc_)
     
 #endif
 
+	loadPresetDatabase(rootFile);
+
 	mc->getUserPresetHandler().addListener(this);
 
 	addAndMakeVisible(bankColumn = new PresetBrowserColumn(mc, 0, rootFile, this));
@@ -424,6 +587,23 @@ mc(mc_)
 	addAndMakeVisible(presetColumn = new PresetBrowserColumn(mc, 2, rootFile, this));
 	addAndMakeVisible(searchBar = new PresetBrowserSearchBar());
 	addChildComponent(closeButton = new ShapeButton("Close", Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white));
+
+	addAndMakeVisible(noteLabel = new BetterLabel());
+	noteLabel->addListener(this);
+	
+	noteLabel->setEditable(true, true);
+	noteLabel->setColour(Label::ColourIds::textColourId, Colours::white);
+	noteLabel->setColour(Label::ColourIds::textWhenEditingColourId, Colours::white);
+	noteLabel->setColour(Label::ColourIds::outlineWhenEditingColourId, Colours::transparentBlack);
+	noteLabel->setColour(TextEditor::ColourIds::highlightedTextColourId, Colours::white);
+	noteLabel->setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
+	noteLabel->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colours::transparentBlack);
+	noteLabel->setJustificationType(Justification::centred);
+
+	addAndMakeVisible(tagArea = new TagArea());
+
+	addAndMakeVisible(favoriteButton = new ShapeButton("Show Favorites", Colours::white, Colours::white, Colours::white));
+	favoriteButton->addListener(this);
 
 	addAndMakeVisible(modalInputWindow = new ModalWindow());
 	modalInputWindow->setVisible(false);
@@ -436,6 +616,8 @@ mc(mc_)
 	searchBar->inputLabel->addListener(this);
 	searchBar->inputLabel->addListener(presetColumn);
 	
+	
+
 	bankColumn->setNewRootDirectory(rootFile);
 
 	addAndMakeVisible(saveButton = new TextButton("Save Preset"));
@@ -452,11 +634,15 @@ mc(mc_)
 	
 	showLoadedPreset();
 
+	updateFavoriteButton();
+
 }
 
 MultiColumnPresetBrowser::~MultiColumnPresetBrowser()
 {
 	mc->getUserPresetHandler().removeListener(this);
+
+	savePresetDatabase(rootFile);
 
 	searchBar->inputLabel->removeListener(this);
 	searchBar->inputLabel->removeListener(presetColumn);
@@ -471,7 +657,21 @@ MultiColumnPresetBrowser::~MultiColumnPresetBrowser()
 
 void MultiColumnPresetBrowser::paint(Graphics& g)
 {
+#if OLD_PRESET_BROWSER
 	g.fillAll(backgroundColour);
+#else
+
+	g.setGradientFill(ColourGradient(backgroundColour.withMultipliedBrightness(1.2f), 0.0f, 0.0f,
+		backgroundColour, 0.0f, (float)getHeight(), false));
+
+	g.fillAll();
+
+	g.setColour(tagArea->blaf.highlightColour.withAlpha(0.1f));
+	g.fillRoundedRectangle(FLOAT_RECTANGLE(noteLabel->getBounds()), 2.0f);
+
+
+
+#endif
 
 
 	if (closeButton->isVisible())
@@ -538,6 +738,8 @@ void MultiColumnPresetBrowser::resized()
 		saveButton->setBounds(ar.removeFromRight(100));
 		showButton->setBounds(ar.removeFromLeft(100));
 
+		
+
 		searchBar->setBounds(ar);
 		
 		y += 40;
@@ -547,8 +749,15 @@ void MultiColumnPresetBrowser::resized()
 	{
 		Rectangle<int> ar(3, 3 + 3, getWidth() - 6, 30);
 
+		
+
 		saveButton->setBounds(ar.removeFromRight(100));
 		showButton->setBounds(ar.removeFromLeft(100));
+
+		favoriteButton->setBounds(ar.removeFromLeft(30));
+
+		ar.removeFromLeft(10);
+
 		searchBar->setBounds(ar);
 		y += 40;
 	}
@@ -559,20 +768,64 @@ void MultiColumnPresetBrowser::resized()
 	categoryColumn->setVisible(!showOnlyPresets);
 	presetColumn->setIsResultBar(showOnlyPresets);
 
+	auto listArea = Rectangle<int>(x, y, getWidth() - 6, getHeight() - y - 3);
+
+#if 0
+	auto tagAreaAll = listArea.removeFromTop(50);
+	tagArea->setBounds(tagAreaAll.reduced(100, 0));
+#else
+	tagArea->setVisible(false);
+#endif
+
+	auto labelArea = listArea.removeFromTop(40);
+
+	noteLabel->setBounds(labelArea.reduced(3, 5));
+
 	if (showOnlyPresets)
 	{
-		presetColumn->setBounds(x, y, getWidth() - 6, getHeight() - y - 3);
+		presetColumn->setBounds(listArea);
 	}
 	else
 	{
+#if OLD_PRESET_BROWSER
 		bankColumn->setBounds(x, y, getWidth() / 3 - 5, getHeight() - y - 3);
-		x += getWidth() / 3;
+		x += 
 		categoryColumn->setBounds(x, y, getWidth() / 3 - 5, getHeight() - y - 3);
 		x += getWidth() / 3;
 		presetColumn->setBounds(x, y, getWidth() / 3 - 5, getHeight() - y - 3);
+#else
+		const int columnWidth = getWidth() / 3;
+
+		bankColumn->setBounds(listArea.removeFromLeft(columnWidth).reduced(2, 2));
+		categoryColumn->setBounds(listArea.removeFromLeft(columnWidth).reduced(2, 2));
+		presetColumn->setBounds(listArea.removeFromLeft(columnWidth).reduced(2, 2));
+#endif
 	}
 
 	
+}
+
+
+void MultiColumnPresetBrowser::loadPresetDatabase(const File& rootDirectory)
+{
+	auto dbFile = rootDirectory.getChildFile("db.json");
+
+	var d = JSON::parse(dbFile.loadFileAsString());
+
+	if (d.isObject())
+		presetDatabase = d;
+	else
+		presetDatabase = new DynamicObject();
+}
+
+
+void MultiColumnPresetBrowser::savePresetDatabase(const File& rootDirectory)
+{
+	auto content = JSON::toString(presetDatabase);
+
+	auto dbFile = rootDirectory.getChildFile("db.json");
+	
+	dbFile.replaceWithText(content);
 }
 
 void MultiColumnPresetBrowser::setHighlightColourAndFont(Colour c, Colour bgColour, Font f)
@@ -582,6 +835,16 @@ void MultiColumnPresetBrowser::setHighlightColourAndFont(Colour c, Colour bgColo
 
 	blaf.font = f;
 	blaf.highlightColour = c;
+
+	tagArea->blaf.font = f;
+	tagArea->blaf.highlightColour = c;
+
+	modalInputWindow->f = f;
+	modalInputWindow->highlightColour = c;
+
+	noteLabel->setFont(f);
+
+	favoriteButton->setColours(c.withAlpha(0.7f), c.withAlpha(0.5f), c.withAlpha(0.6f));
 
 	searchBar->setHighlightColourAndFont(c, f);
 	bankColumn->setHighlightColourAndFont(c, f);
@@ -630,6 +893,9 @@ void MultiColumnPresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*
         
         categoryColumn->setEditMode(false);
         presetColumn->setEditMode(false);
+
+		bankColumn->updateButtonVisibility();
+
 	}
 	else if (columnIndex == 1)
 	{
@@ -642,6 +908,9 @@ void MultiColumnPresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*
 
         bankColumn->setEditMode(false);
         
+		categoryColumn->updateButtonVisibility();
+		presetColumn->updateButtonVisibility();
+
 	}
 	else if (columnIndex == 2)
 	{
@@ -649,6 +918,9 @@ void MultiColumnPresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*
 
 		bankColumn->setEditMode(false);
 		categoryColumn->setEditMode(false);
+
+		presetColumn->updateButtonVisibility();
+
 	}
 }
 
@@ -734,6 +1006,7 @@ void MultiColumnPresetBrowser::deleteEntry(int columnIndex, const File& f)
 
 		categoryColumn->setNewRootDirectory(currentBankFile);
 		presetColumn->setNewRootDirectory(File());
+		
 	}
 	else if (columnIndex == 2)
 	{
@@ -743,9 +1016,12 @@ void MultiColumnPresetBrowser::deleteEntry(int columnIndex, const File& f)
 
 		presetFile.deleteFile();
 		presetColumn->setNewRootDirectory(currentCategoryFile);
+		
 	}
 
 	rebuildAllPresets();
+
+	
 }
 
 
@@ -775,6 +1051,11 @@ void MultiColumnPresetBrowser::buttonClicked(Button* b)
 	{
 		rootFile.revealToUser();
 	}
+	else if (b == favoriteButton)
+	{
+		b->setToggleState(!b->getToggleState(), dontSendNotification);
+		updateFavoriteButton();
+	}
 }
 
 
@@ -794,6 +1075,8 @@ void MultiColumnPresetBrowser::loadPreset(const File& f)
 		UserPresetHelpers::loadUserPreset(mc->getMainSynthChain(), f);
         currentlyLoadedPreset = allPresets.indexOf(f);
         
+		noteLabel->setText(DataBaseHelpers::getNoteFromXml(f), dontSendNotification);
+
 #if NEW_USER_PRESET
         if (listener != nullptr)
         {
@@ -849,5 +1132,82 @@ void PresetBrowserSearchBar::paint(Graphics &g)
 	g.fillPath(path);
 }
 
+
+PresetBrowserColumn::ColumnListModel::FavoriteOverlay::FavoriteOverlay(ColumnListModel& parent_, int index_) :
+	parent(parent_),
+	index(index_)
+{
+	addAndMakeVisible(b = new ShapeButton("Favorite", Colours::white.withAlpha(0.2f), Colours::white.withAlpha(0.8f), Colours::white));
+
+
+	refreshShape();
+
+	b->addListener(this);
+
+	setInterceptsMouseClicks(false, true);
+
+}
+
+
+PresetBrowserColumn::ColumnListModel::FavoriteOverlay::~FavoriteOverlay()
+{
+	b->removeListener(this);
+	b == nullptr;
+}
+
+void PresetBrowserColumn::ColumnListModel::FavoriteOverlay::refreshShape()
+{
+	auto f = parent.getFileForIndex(index);
+
+	const bool on = MultiColumnPresetBrowser::DataBaseHelpers::isFavorite(parent.database, f);
+
+
+	static const unsigned char onShape[] = "nm\xac&=Ca\xee<Cl\x12\x96?C%\xaf""CCl\xde\xc2""FC\xd0\xe9""CClZ\x17""AC\xebPHCl(\x17""CC\xf1""5OCl\xad&=C\xc4-KCl267C\xf1""5OCl\0""69C\xebPHCl}\x8a""3C\xd0\xe9""CClH\xb7:C%\xaf""CCce";
+
+	static const unsigned char offShape[] = { 110,109,0,144,89,67,0,103,65,67,108,0,159,88,67,0,3,68,67,108,129,106,86,67,0,32,74,67,108,1,38,77,67,0,108,74,67,108,1,121,84,67,0,28,80,67,108,129,227,81,67,255,3,89,67,108,1,144,89,67,127,206,83,67,108,1,60,97,67,255,3,89,67,108,129,166,94,67,0,28,
+		80,67,108,129,249,101,67,0,108,74,67,108,1,181,92,67,0,32,74,67,108,1,144,89,67,0,103,65,67,99,109,0,144,89,67,1,76,71,67,108,128,73,91,67,1,21,76,67,108,0,94,96,67,129,62,76,67,108,0,90,92,67,129,92,79,67,108,128,196,93,67,129,62,84,67,108,0,144,89,
+		67,129,99,81,67,108,0,91,85,67,1,63,84,67,108,128,197,86,67,129,92,79,67,108,128,193,82,67,129,62,76,67,108,0,214,87,67,1,21,76,67,108,0,144,89,67,1,76,71,67,99,101,0,0 };
+
+	Path path;
+
+	if (on)
+	{
+		b->setColours(Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white);
+		path.loadPathFromData(onShape, sizeof(onShape));
+	}
+		
+	else
+	{
+		b->setColours(Colours::white.withAlpha(0.2f), Colours::white.withAlpha(0.8f), Colours::white);
+		path.loadPathFromData(offShape, sizeof(offShape));
+	}
+	
+	b->setToggleState(on, dontSendNotification);
+
+	b->setShape(path, false, true, true);
+}
+
+
+void PresetBrowserColumn::ColumnListModel::FavoriteOverlay::buttonClicked(Button*)
+{
+	const bool newValue = !b->getToggleState();
+
+	auto f = parent.getFileForIndex(index);
+
+	MultiColumnPresetBrowser::DataBaseHelpers::setFavorite(parent.database, f, newValue);
+
+	
+	refreshShape();
+
+	findParentComponentOfClass<PresetBrowserColumn>()->listbox->updateContent();
+}
+
+
+void PresetBrowserColumn::ColumnListModel::FavoriteOverlay::resized()
+{
+	refreshShape();
+	auto r = Rectangle<int>(0, 0, getHeight(), getHeight());
+	b->setBounds(r.reduced(4));
+}
 
 } // namespace hise

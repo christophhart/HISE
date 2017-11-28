@@ -38,6 +38,8 @@ namespace hise { using namespace juce;
 class MultiColumnPresetBrowser;
 
 
+#define OLD_PRESET_BROWSER 0
+
 class PresetBrowserLookAndFeel : public LookAndFeel_V3
 {
 public:
@@ -158,6 +160,47 @@ public:
 		void listBoxItemClicked(int row, const MouseEvent &) override;
 		void paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected) override;
 
+		class FavoriteOverlay : public Component,
+								public ButtonListener
+		{
+		public:
+
+			FavoriteOverlay(ColumnListModel& parent_, int index_);
+
+			~FavoriteOverlay();
+
+
+			void refreshShape();
+
+			void buttonClicked(Button*) override;
+
+			void resized() override;
+
+			void refreshIndex(int newIndex)
+			{
+				index = newIndex;
+				
+			}
+
+			ScopedPointer<ShapeButton> b;
+
+			ColumnListModel& parent;
+			int index;
+		};
+
+		Component* refreshComponentForRow(int rowNumber, bool isRowSelected, Component* existingComponentToUpdate) override
+		{
+			if (existingComponentToUpdate != nullptr)
+				delete existingComponentToUpdate;
+
+			if (index == 2)
+			{
+				return new FavoriteOverlay(*this, rowNumber);
+			}
+			else
+				return nullptr;
+		}
+
 		void sendRowChangeMessage(int row);
 
 		void returnKeyPressed(int row) override;
@@ -166,7 +209,15 @@ public:
         
         void setTotalRoot(const File& totalRoot_) {totalRoot = totalRoot_;}
         
+		void setShowFavoritesOnly(bool shouldShowFavoritesOnly)
+		{
+			showFavoritesOnly = shouldShowFavoritesOnly;
+		}
 		
+		File getFileForIndex(int index) const
+		{
+			return entries[index];
+		};
 
 		int getIndexForFile(const File& f) const
 		{
@@ -178,7 +229,12 @@ public:
 		Colour highlightColour;
 		Font font;
 
+		var database;
+
+
 	private:
+
+		bool showFavoritesOnly = false;
 
 		Image deleteIcon;
 
@@ -201,6 +257,12 @@ public:
 	static File getChildDirectory(File& root, int level, int index);
 	void setNewRootDirectory(const File& newRootDirectory);
 
+	void setShowFavoritesOnly(bool shouldShow)
+	{
+		listModel->setShowFavoritesOnly(shouldShow);
+		listbox->updateContent();
+	}
+
     void setEditMode(bool on) { listModel->setEditMode(on); listbox->repaint(); };
     
 	void setHighlightColourAndFont(Colour c, Font fo)
@@ -212,7 +274,18 @@ public:
 		blaf.font = fo;
 		font = fo;
 
+#if OLD_PRESET_BROWSER
 		addButton->setColours(c, c.withMultipliedBrightness(1.3f), c.withMultipliedBrightness(1.5f));
+#else
+		if (auto v = listbox->getViewport())
+		{
+			v->setColour(ScrollBar::ColourIds::backgroundColourId, Colours::transparentBlack);
+			v->setColour(ScrollBar::ColourIds::thumbColourId, highlightColour.withAlpha(0.1f));
+		}
+#endif
+
+
+		
 	}
 
 	void buttonClicked(Button* b);
@@ -221,6 +294,8 @@ public:
 
 	void paint(Graphics& g) override;
 	void resized();
+
+	void updateButtonVisibility();
 
 	void labelTextChanged(Label* l) override
 	{
@@ -235,8 +310,7 @@ public:
 	void setIsResultBar(bool shouldBeResultBar)
 	{
 		isResultBar = shouldBeResultBar;
-		addButton->setVisible(!isResultBar);
-		editButton->setVisible(!isResultBar);
+		updateButtonVisibility();
 	}
 
 	void timerCallback() override
@@ -268,8 +342,13 @@ public:
 
 private:
 
+	
+
 	// ============================================================================================
 
+	
+
+	Rectangle<int> listArea;
 
 	bool isResultBar = false;
 
@@ -285,7 +364,14 @@ private:
 	ButtonLookAndFeel blaf;
 
 	ScopedPointer<TextButton> editButton;
+
+#if OLD_PRESET_BROWSER
 	ScopedPointer<ShapeButton> addButton;
+#else
+	ScopedPointer<TextButton> addButton;
+	ScopedPointer<TextButton> renameButton;
+	ScopedPointer<TextButton> deleteButton;
+#endif
 
 	ScopedPointer<ColumnListModel> listModel;
 	ScopedPointer<ListBox> listbox;
@@ -386,8 +472,9 @@ public:
 			case MultiColumnPresetBrowser::ModalWindow::Action::Add:
 				return "Enter the name";
 			case MultiColumnPresetBrowser::ModalWindow::Action::Delete:
+				return "Are you sure you want to delete the file " + le.newFile.getFileNameWithoutExtension() + "?";
 			case MultiColumnPresetBrowser::ModalWindow::Action::Replace:
-				return "Are you sure?";
+				return "Are you sure you want to replace the file " + le.newFile.getFileNameWithoutExtension() + "?";
 			case MultiColumnPresetBrowser::ModalWindow::Action::numActions:
 				break;
 			default:
@@ -581,6 +668,11 @@ public:
 			refreshModalWindow();
 		}
 
+
+		Font f;
+
+		Colour highlightColour;
+
 	private:
 
 		AlertWindowLookAndFeel alaf;
@@ -588,7 +680,6 @@ public:
 		ScopedPointer<TextButton> okButton;
 		ScopedPointer<TextButton> cancelButton;
 
-		Font f;
 
 		
 
@@ -642,6 +733,8 @@ public:
 
 		saveButton->setEnabled(true);
 
+		noteLabel->setText(DataBaseHelpers::getNoteFromXml(newPreset), dontSendNotification);
+
 	}
 
 	void presetListUpdated() override
@@ -664,19 +757,70 @@ public:
 
 	void labelTextChanged(Label* l) override
 	{
-		showOnlyPresets = l->getText().isNotEmpty();
-
-		if (showOnlyPresets)
+		if (l == noteLabel)
 		{
-			currentWildcard = "*" + l->getText() + "*";
+			auto currentPreset = allPresets[currentlyLoadedPreset];
+			auto newNote = noteLabel->getText();
+
+			DataBaseHelpers::writeNoteInXml(currentPreset, newNote);
 		}
 		else
 		{
-			currentWildcard = "*";
+			showOnlyPresets = l->getText().isNotEmpty() || favoriteButton->getToggleState();
+
+			if (showOnlyPresets)
+			{
+				currentWildcard = "*" + l->getText() + "*";
+			}
+			else
+			{
+				currentWildcard = "*";
+			}
+
+			resized();
+		}
+	}
+
+	void updateFavoriteButton()
+	{
+		const bool on = favoriteButton->getToggleState();
+
+		showOnlyPresets = currentWildcard != "*" || on;
+
+		static const unsigned char onShape[] = "nm\xac&=Ca\xee<Cl\x12\x96?C%\xaf""CCl\xde\xc2""FC\xd0\xe9""CClZ\x17""AC\xebPHCl(\x17""CC\xf1""5OCl\xad&=C\xc4-KCl267C\xf1""5OCl\0""69C\xebPHCl}\x8a""3C\xd0\xe9""CClH\xb7:C%\xaf""CCce";
+
+		static const unsigned char offShape[] = { 110,109,0,144,89,67,0,103,65,67,108,0,159,88,67,0,3,68,67,108,129,106,86,67,0,32,74,67,108,1,38,77,67,0,108,74,67,108,1,121,84,67,0,28,80,67,108,129,227,81,67,255,3,89,67,108,1,144,89,67,127,206,83,67,108,1,60,97,67,255,3,89,67,108,129,166,94,67,0,28,
+			80,67,108,129,249,101,67,0,108,74,67,108,1,181,92,67,0,32,74,67,108,1,144,89,67,0,103,65,67,99,109,0,144,89,67,1,76,71,67,108,128,73,91,67,1,21,76,67,108,0,94,96,67,129,62,76,67,108,0,90,92,67,129,92,79,67,108,128,196,93,67,129,62,84,67,108,0,144,89,
+			67,129,99,81,67,108,0,91,85,67,1,63,84,67,108,128,197,86,67,129,92,79,67,108,128,193,82,67,129,62,76,67,108,0,214,87,67,1,21,76,67,108,0,144,89,67,1,76,71,67,99,101,0,0 };
+
+		Path path;
+
+		if (on)
+		{
+			path.loadPathFromData(onShape, sizeof(onShape));
 		}
 
+		else
+		{
+			path.loadPathFromData(offShape, sizeof(offShape));
+		}
+
+		favoriteButton->setShape(path, false, true, true);
+
+		presetColumn->setShowFavoritesOnly(on);
+
 		resized();
+
+
 	}
+
+	void loadPresetDatabase(const File& rootDirectory);
+
+	void savePresetDatabase(const File& rootDirectory);
+
+	var getDataBase() { return presetDatabase; }
+
+	const var getDataBase() const { return presetDatabase; }
 
 	MainController* mc;
 
@@ -726,7 +870,182 @@ public:
 
 	void showLoadedPreset();
 
+	struct DataBaseHelpers
+	{
+		static void setFavorite(const var& database, const File& presetFile, bool isFavorite)
+		{
+			if (auto data = database.getDynamicObject())
+			{
+				auto id = getIdForFile(presetFile);
+
+				if (auto entry = data->getProperty(id).getDynamicObject())
+				{
+					entry->setProperty("Favorite", isFavorite);
+				}
+				else
+				{
+					auto e = new DynamicObject();
+
+					e->setProperty("Favorite", isFavorite);
+					data->setProperty(id, e);
+				}
+			}
+		}
+
+		static void writeNoteInXml(const File& currentPreset, const String& newNote)
+		{
+			if (currentPreset.existsAsFile())
+			{
+				ScopedPointer<XmlElement> xml = XmlDocument::parse(currentPreset);
+
+				if (xml != nullptr)
+				{
+					xml->setAttribute("Notes", newNote);
+
+					auto newPresetContent = xml->createDocument("");
+
+					currentPreset.replaceWithText(newPresetContent);
+				}
+			}
+		}
+
+		static String getNoteFromXml(const File& currentPreset)
+		{
+			if (currentPreset.existsAsFile())
+			{
+				ScopedPointer<XmlElement> xml = XmlDocument::parse(currentPreset);
+
+				if (xml != nullptr)
+				{
+					return xml->getStringAttribute("Notes", "");
+				}
+			}
+
+			return String();
+		}
+
+		static bool isFavorite(const var& database, const File& presetFile)
+		{
+			if (!presetFile.existsAsFile())
+				return false;
+
+			if (!presetFile.hasFileExtension(".preset"))
+				return false;
+
+			if (auto data = database.getDynamicObject())
+			{
+				if (auto entry = data->getProperty(getIdForFile(presetFile)).getDynamicObject())
+				{
+					return entry->getProperty("Favorite");
+				}
+			}
+		}
+
+		static Identifier getIdForFile(const File& presetFile)
+		{
+			if (presetFile.getFileExtension() == ".preset")
+			{
+				// Yo Dawg, I heard you like parent directories...
+				auto rootFile = presetFile.getParentDirectory().getParentDirectory().getParentDirectory();
+
+				auto s = presetFile.getRelativePathFrom(rootFile);
+
+				s = s.upToFirstOccurrenceOf(".preset", false, false);
+				s = s.replaceCharacter('/', '_');
+				s = s.replaceCharacter('\\', '_');
+				s = s.removeCharacters(" ");
+
+				if (Identifier::isValidIdentifier(s))
+				{
+					return Identifier(s);
+				}
+
+				jassertfalse;
+				return Identifier();
+			}
+		}
+	};
+
 private:
+
+	class TagArea : public Component,
+		public ButtonListener
+	{
+	public:
+
+		TagArea()
+		{
+			Array<var> t;
+			t.add("Favorites");
+			t.add("Bass");
+			t.add("Soundscapes");
+			t.add("Heavy");
+			t.add("Dark");
+			t.add("Arpeggiated");
+			t.add("Drums");
+			t.add("Sequenced");
+			t.add("Tuned");
+			t.add("Plucked");
+
+			tags = var(t);
+
+			rebuildTags();
+		}
+
+		void resized() override
+		{
+			auto area = getLocalBounds();
+
+			const int numColumns = 6;
+
+			const int numRows = jmax<int>(1, tagButtons.size() / numColumns + 1);
+			const int heightPerRow = getHeight() / numRows;
+			const int widthPerButton = getWidth() / numColumns;
+
+			for (int i = 0; i < tagButtons.size(); i++)
+			{
+				const int row = i / numColumns;
+				const int column = i % numColumns;
+
+				auto rowArea = Rectangle<int>(column * widthPerButton, row * heightPerRow, widthPerButton, heightPerRow);
+				tagButtons[i]->setBounds(rowArea.reduced(2));
+			}
+		};
+
+		void buttonClicked(Button* b) override
+		{
+			const int i = tagButtons.indexOf(dynamic_cast<TextButton*>(b));
+
+			
+
+			b->setToggleState(!b->getToggleState(), dontSendNotification);
+		}
+
+		void rebuildTags()
+		{
+			tagButtons.clear();
+
+			if (auto vArray = tags.getArray())
+			{
+				for (const auto& v : *vArray)
+				{
+					TextButton* t = new TextButton(v.toString());
+					t->setLookAndFeel(&blaf);
+					t->addListener(this);
+					addAndMakeVisible(t);
+					tagButtons.add(t);
+				}
+			}
+
+			resized();
+		}
+
+		var tags;
+
+		PresetBrowserColumn::ButtonLookAndFeel blaf;
+
+		OwnedArray<TextButton> tagButtons;
+	};
 
 	// ============================================================================================
 
@@ -746,7 +1065,14 @@ private:
 	ScopedPointer<PresetBrowserColumn> categoryColumn;
 	ScopedPointer<PresetBrowserColumn> presetColumn;
 
+	ScopedPointer<BetterLabel> noteLabel;
+
+	ScopedPointer<TagArea> tagArea;
+
 	ScopedPointer<ShapeButton> closeButton;
+
+	ScopedPointer<ShapeButton> favoriteButton;
+
 	ScopedPointer<ModalWindow> modalInputWindow;
 
 	ScopedPointer<TextButton> saveButton;
@@ -758,7 +1084,10 @@ private:
 	bool showOnlyPresets = false;
 	String currentWildcard = "*";
 	
+	var presetDatabase;
 	
+	
+
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MultiColumnPresetBrowser);
 
 	// ============================================================================================
