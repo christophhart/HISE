@@ -1325,8 +1325,6 @@ private:
 
 };
 
-#define HI_FIXED_SCALEFACTOR_FOR_FILMSTRIPS 0.5f
-
 class FilmstripLookAndFeel : public KnobLookAndFeel
 {
 public:

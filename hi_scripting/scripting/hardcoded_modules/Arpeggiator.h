@@ -207,7 +207,7 @@ private:
 			return (float)array[index];
 		else
 		{
-			jassertfalse;
+			//jassertfalse;
 			return 0.0f;
 		}
 			
