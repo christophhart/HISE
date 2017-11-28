@@ -78,7 +78,7 @@ float SliderPackData::getValue(int index) const
 		return values[index];
 	}
 
-	jassertfalse;
+	//jassertfalse;
 	return 0.0f;
 }
 
@@ -234,7 +234,7 @@ void SliderPack::resized()
 
 	float widthPerSlider = w / (float)data->getNumSliders();
 
-	for (int i = 0; i < data->getNumSliders(); i++)
+	for (int i = 0; i < sliders.size(); i++)
 	{
 		sliders[i]->setBounds((int)(i * widthPerSlider), 0, (int)widthPerSlider, getHeight());
 	}
@@ -436,7 +436,7 @@ void SliderPack::paintOverChildren(Graphics &g)
 
 	if (displayAlphas.size() != sliders.size())
 	{
-		jassertfalse;
+		//jassertfalse;
 		return;
 	}
 
