@@ -653,9 +653,16 @@ private:
 		{
 			for (int i = 0; i < (int)ColourId::numColourIds; i++)
 			{
-				auto s = getPropertyWithDefault(object, i).toString();
+				auto colourVar = getPropertyWithDefault(object, i);
 
-				colours[i] = Colour::fromString(s);
+				if (colourVar.isString())
+				{
+					colours[i] = Colour::fromString(colourVar.toString());
+				}
+				else if (colourVar.isInt64() || colourVar.isInt64())
+				{
+					colours[i] = Colour((uint32)(int64)colourVar);
+				}
 			}
 				
 		}
