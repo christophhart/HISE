@@ -24,7 +24,7 @@
 
 namespace hise { using namespace juce;
 
-#include "../../../projects/standalone/JuceLibraryCode/JuceHeader.h"
+//#include "../../../projects/standalone/JuceLibraryCode/JuceHeader.h"
 //[/Headers]
 
 

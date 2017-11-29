@@ -58,6 +58,8 @@ public:
 
 	static void resolveLicenseFile(Component* overlay);
 
+	String getProductErrorMessage() const;
+
 private:
 
 	friend class OnlineActivator;

@@ -699,6 +699,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	getDebugLogger().recordOutput(buffer);
 #endif
 
+	midiMessages.clear();
 
 }
 

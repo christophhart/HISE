@@ -651,7 +651,7 @@ void AudioSampleBufferComponent::mouseDown(const MouseEvent &e)
 	}
 }
 
-void AudioSampleBufferComponent::mouseDoubleClick(const MouseEvent& event)
+void AudioSampleBufferComponent::mouseDoubleClick(const MouseEvent& /*event*/)
 {
 	if (auto asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get()))
 	{

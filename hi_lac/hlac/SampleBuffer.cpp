@@ -182,17 +182,17 @@ void HiseSampleBuffer::add(HiseSampleBuffer& dst, const HiseSampleBuffer& source
 		{
 			if (source.hasSecondChannel())
 			{
-				auto ld = dst.rightIntBuffer.getWritePointer(startSampleDst);
-				auto ls = source.rightIntBuffer.getReadPointer(startSampleSource);
+				auto ld2 = dst.rightIntBuffer.getWritePointer(startSampleDst);
+				auto ls2 = source.rightIntBuffer.getReadPointer(startSampleSource);
 
-				CompressionHelpers::IntVectorOperations::add(ld, ls, numSamples);
+				CompressionHelpers::IntVectorOperations::add(ld2, ls2, numSamples);
 			}
 			else
 			{
-				auto ld = dst.rightIntBuffer.getWritePointer(startSampleDst);
-				auto ls = source.leftIntBuffer.getReadPointer(startSampleSource);
+				auto ld2 = dst.rightIntBuffer.getWritePointer(startSampleDst);
+				auto ls2 = source.leftIntBuffer.getReadPointer(startSampleSource);
 
-				CompressionHelpers::IntVectorOperations::add(ld, ls, numSamples);
+				CompressionHelpers::IntVectorOperations::add(ld2, ls2, numSamples);
 			}
 		}
 	}
@@ -255,12 +255,10 @@ void HiseSampleBuffer::applyGainRamp(int channelIndex, int startOffset, int ramp
 	}
 	else
 	{
-
-
 		if(channelIndex == 0)
 			leftIntBuffer.applyGainRamp(startOffset, rampLength, startGain, endGain);
 
-		if(channelIndex == 1 & hasSecondChannel())
+		if(channelIndex == 1 && hasSecondChannel())
 			rightIntBuffer.applyGainRamp(startOffset, rampLength, startGain, endGain);
 	}
 }

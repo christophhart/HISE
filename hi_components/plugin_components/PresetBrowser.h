@@ -188,7 +188,7 @@ public:
 			int index;
 		};
 
-		Component* refreshComponentForRow(int rowNumber, bool isRowSelected, Component* existingComponentToUpdate) override
+		Component* refreshComponentForRow(int rowNumber, bool /*isRowSelected*/, Component* existingComponentToUpdate) override
 		{
 			if (existingComponentToUpdate != nullptr)
 				delete existingComponentToUpdate;
@@ -214,9 +214,9 @@ public:
 			showFavoritesOnly = shouldShowFavoritesOnly;
 		}
 		
-		File getFileForIndex(int index) const
+		File getFileForIndex(int fileIndex) const
 		{
-			return entries[index];
+			return entries[fileIndex];
 		};
 
 		int getIndexForFile(const File& f) const
@@ -826,11 +826,11 @@ public:
 
 	void setHighlightColourAndFont(Colour c, Colour bgColour, Font f);
 
-	void setShowCloseButton(bool showButton)
+	void setShowCloseButton(bool shouldShowButton)
 	{
-		if (showButton != closeButton->isVisible())
+		if (shouldShowButton != closeButton->isVisible())
 		{
-			closeButton->setVisible(showButton);
+			closeButton->setVisible(shouldShowButton);
 			resized();
 		}
 	}
@@ -939,6 +939,8 @@ public:
 					return entry->getProperty("Favorite");
 				}
 			}
+
+			return false;
 		}
 
 		static Identifier getIdForFile(const File& presetFile)
@@ -963,6 +965,8 @@ public:
 				jassertfalse;
 				return Identifier();
 			}
+
+			return Identifier();
 		}
 	};
 

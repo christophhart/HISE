@@ -23,6 +23,7 @@
 #endif
 
 
+
 FFTProcessor::FFTProcessor(int fftDataType)
 {
 #if USE_IPP
@@ -346,7 +347,7 @@ void VectorFunctions::idst(double* d, int size)
 Complex VectorFunctions::goertzel(float* d, int size, int k)
 {
 	double tmp,c1,c2,s1=0,s2=0;
-	tmp = 2.0*M_PI*static_cast<double>(k)/static_cast<double>(size);
+	tmp = 2.0*M_PI_DOUBLE*static_cast<double>(k)/static_cast<double>(size);
 	c1 = 2.0*cos(tmp); c2 = sin(tmp);
 	int i, rm = size - ((size>>2)<<2); 
 	for (i=0; i<rm; i++) {
@@ -560,9 +561,9 @@ float VectorFunctions::sine(float* d, int size, float periods, float phase,
 	if (center) {phase -= 0.5f*periods;}
 	float endphase = phase + periods; endphase -= floorf(endphase);
 	if (size == 1) {d[0] = sinf(2.0f*M_PI_FLOAT*phase); return endphase;}
-	double temp = 2.0*M_PI*static_cast<double>(phase);
+	double temp = 2.0*M_PI_DOUBLE*static_cast<double>(phase);
 	double re2, re = cos(temp), im = sin(temp);
-	temp = 2.0*M_PI*static_cast<double>(periods)/static_cast<double>(size-1);
+	temp = 2.0*M_PI_DOUBLE*static_cast<double>(periods)/static_cast<double>(size-1);
 	double wre = cos(temp), wim = sin(temp);
 	int i, rm = size - ((size>>2)<<2); 
 	for (i=0; i<rm; i++) {
@@ -589,11 +590,11 @@ float VectorFunctions::chirp(float* d, int size, float startpd, float endpd,
 	float endphase = phase + 0.5f*(startpd+endpd); endphase -= floorf(endphase);
 	if (size == 1) {d[0] = sinf(2.0f*M_PI_FLOAT*phase); return endphase;}
 	double temp = 1.0/static_cast<double>(size-1);
-	double alpha = 2.0*M_PI*static_cast<double>(startpd)*temp;
-	double beta = M_PI*static_cast<double>(endpd-startpd)*temp*temp;
+	double alpha = 2.0*M_PI_DOUBLE*static_cast<double>(startpd)*temp;
+	double beta = M_PI_DOUBLE*static_cast<double>(endpd-startpd)*temp*temp;
 	double hre = cos(alpha+beta), him = sin(alpha+beta);
 	double cre = cos(2.0*beta), cim = sin(2.0*beta);
-	temp = 2.0*M_PI*static_cast<double>(phase);
+	temp = 2.0*M_PI_DOUBLE*static_cast<double>(phase);
 	double fre = cos(temp), fim = sin(temp);
 	double fre2,hre2;
 	int i, rm = size - ((size>>2)<<2);
@@ -637,7 +638,7 @@ float VectorFunctions::expchirp(	float* d, int size, float startpd, float endpd,
 	for (i=0; i<size; i++) {
 		x = ph + gamma*alpha;
 		SpecMath::fsplit(x);
-		d[i] = static_cast<float>(2.0*M_PI*x); 
+		d[i] = static_cast<float>(2.0*M_PI_DOUBLE*x); 
 		alpha += delta;
 		delta *= beta;
 	}
@@ -653,13 +654,13 @@ float VectorFunctions::cpxphasor(float* d, int size, float periods, float phase,
 {
 	if (center) {phase -= 0.5f*periods;}
 	float endphase = phase + periods; endphase -= floorf(endphase);
-	double temp = 2.0*M_PI*static_cast<double>(phase);
+	double temp = 2.0*M_PI_DOUBLE*static_cast<double>(phase);
 	double re2, re = cos(temp), im = sin(temp);
 	if (size == 1) {
 		d[0] = static_cast<float>(re); d[1] = static_cast<float>(im);
 		return endphase;
 	}
-	temp = 2.0*M_PI*static_cast<double>(periods)/static_cast<double>(size-1);
+	temp = 2.0*M_PI_DOUBLE*static_cast<double>(periods)/static_cast<double>(size-1);
 	double wre = cos(temp), wim = sin(temp);
 	int i, rm = 2*(size - ((size>>2)<<2)); 
 	for (i=0; i<rm; i+=2) {
@@ -897,9 +898,9 @@ void VectorFunctions::cnoise(float* d, int size)
 void VectorFunctions::sinc(float* d, int size, double periods)
 {
 	if (size == 1) {d[0] = 1.0f; return;}
-	double phi = 2.0*M_PI*periods/static_cast<double>(size-1);
+	double phi = 2.0*M_PI_DOUBLE*periods/static_cast<double>(size-1);
 	double wre = cos(phi), wim = sin(phi);
-	double x = -M_PI*periods;
+	double x = -M_PI_DOUBLE*periods;
 	double re = cos(x), im = sin(x);
 	double temp;
 	for (int i=0; i<(size>>1); i++) {
@@ -923,7 +924,7 @@ void VectorFunctions::triangle(float* d, int size)
 void VectorFunctions::trigwin2(float* d, int size, double c0, double c1)
 {
 	if (size == 1) {d[0] = static_cast<float>(c0 + c1); return;}
-	double temp = 2.0*M_PI/static_cast<double>(size-1);
+	double temp = 2.0*M_PI_DOUBLE/static_cast<double>(size-1);
 	double wre = cos(temp), wim = sin(temp);
 	double re=-1.0, im=0;
 	for (int i=0; i<=(size>>1); i++) {
@@ -938,7 +939,7 @@ void VectorFunctions::trigwin4(	float* d, int size, double c0, double c1,
 {
 	if (size == 1) {d[0] = static_cast<float>(c0 + c1 + c2 + c3); return;}
 	c0 -= c2; c1 -= (3.0*c3); c2 *= 2.0; c3 *= 4.0;
-	double temp = 2.0*M_PI/static_cast<double>(size-1);
+	double temp = 2.0*M_PI_DOUBLE/static_cast<double>(size-1);
 	double wre = cos(temp), wim = sin(temp);
 	double re=-1.0, im=0;
 	for (int i=0; i<=(size>>1); i++) {
@@ -972,7 +973,7 @@ void VectorFunctions::flattop(float* d, int size)
 {
 	if (size == 1) {d[0] = 1.0f; return;}
 	const double c0=-0.0555, c1=0.1651, c2=0.5005, c3=0.3344, c4=0.0555;
-	double temp = 2.0*M_PI/static_cast<double>(size-1);
+	double temp = 2.0*M_PI_DOUBLE/static_cast<double>(size-1);
 	double wre = cos(temp), wim = sin(temp);
 	double re=-1.0, im=0;
 	for (int i=0; i<=(size>>1); i++) {
@@ -4733,7 +4734,7 @@ void VectorFunctions::pxfade(float* d, float* r, int size)
 {
 	if (size == 1) {d[0] = 0.70710678f*(r[0] + d[0]); return;}
 	int i, rm = size - ((size>>2)<<2);
-	double temp = 0.5*M_PI/static_cast<double>(size-1);
+	double temp = 0.5*M_PI_DOUBLE/static_cast<double>(size-1);
 	double wre = cos(temp), wim = sin(temp);
 	double re=1.0, im=0, re2;
 	for (i=0; i<rm; i++) {

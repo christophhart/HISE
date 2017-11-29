@@ -1122,10 +1122,7 @@ double ScriptingApi::Engine::getMasterPeakLevel(int channel)
 var ScriptingApi::Engine::getSettingsWindowObject()
 {
 	reportScriptError("Deprecated");
-
 	return var();
-
-	return FloatingPanelTemplates::createSettingsWindow(getProcessor()->getMainController());
 }
 
 int ScriptingApi::Engine::getMidiNoteFromName(String midiNoteName) const
@@ -1935,7 +1932,7 @@ void ScriptingApi::Synth::noteOffDelayedByEventId(int eventId, int timestamp)
 
 		HiseEvent noteOff(HiseEvent::Type::NoteOff, (uint8)e.getNoteNumber(), 1, (uint8)e.getChannel());
 		noteOff.setEventId((uint16)eventId);
-		noteOff.setTimeStamp(timestamp);
+		noteOff.setTimeStamp((uint16)timestamp);
 
 		if (e.isArtificial()) noteOff.setArtificial();
 

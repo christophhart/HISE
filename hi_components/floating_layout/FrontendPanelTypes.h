@@ -605,13 +605,13 @@ public:
 	}
 
 
-	void changeListenerCallback(SafeChangeBroadcaster *b) override
+	void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override
 	{
 		updateContent();
 		repaint();
 	}
 
-	void paintRowBackground(Graphics& g, int rowNumber, int /*width*/, int /*height*/, bool rowIsSelected) override
+	void paintRowBackground(Graphics& g, int /*rowNumber*/, int /*width*/, int /*height*/, bool rowIsSelected) override
 	{
 		if (rowIsSelected)
 		{
@@ -728,15 +728,10 @@ public:
 			if (b == nullptr)
 				b = new InvertedButton(*this);
 
-
 			b->t->setColour(TextButton::buttonOnColourId, itemColour1);
 			b->t->setColour(TextButton::textColourOnId, textColour);
-
 			b->t->setColour(TextButton::buttonColourId, Colours::transparentBlack);
-			
 			b->t->setColour(TextButton::textColourOffId, textColour);
-
-			auto data = handler.getDataFromIndex(rowNumber);
 
 			b->setRowAndColumn(rowNumber, data.inverted);
 

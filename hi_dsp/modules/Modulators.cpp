@@ -293,6 +293,8 @@ void TimeModulation::handleFirstBuffer(float * destinationValues, int numValues)
 		b.applyGainRamp(0, numValues, 1.0f, valueToGoTo);
 		firstBuffer = false;
 	}
+#else
+	ignoreUnused(destinationValues, numValues);
 #endif
 }
 

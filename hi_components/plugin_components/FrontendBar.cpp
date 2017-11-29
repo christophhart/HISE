@@ -665,7 +665,10 @@ String DeactiveOverlay::getTextForError(State s) const
 	case DeactiveOverlay::LicenseInvalid:
 	{
 #if USE_COPY_PROTECTION
-		return "The license key is malicious.\nPlease contact support.";
+
+		auto ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
+
+		return ul->getProductErrorMessage();
 #else
 		return "";
 #endif

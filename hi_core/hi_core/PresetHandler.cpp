@@ -782,7 +782,8 @@ public:
 	{
 		switch (type)
 		{
-		case PresetHandler::IconType::Info: image = ImageCache::getFromMemory(BinaryData::infoInfo_png, BinaryData::infoInfo_pngSize);
+		case PresetHandler::IconType::Info: image = ImageCache::getFromMemory(
+			BinaryData::infoInfo_png, BinaryData::infoInfo_pngSize);
 			break;
 		case PresetHandler::IconType::Warning: image = ImageCache::getFromMemory(BinaryData::infoWarning_png, BinaryData::infoWarning_pngSize);
 			break;
@@ -1909,6 +1910,8 @@ File ProjectHandler::Frontend::getAudioFileForRelativePath(const String& relativ
 
 		return root.getChildFile(path);
 	}
+
+	return File();
 }
 
 const bool ProjectHandler::Frontend::checkSamplesCorrectlyInstalled()

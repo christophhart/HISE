@@ -697,7 +697,7 @@ struct HiseJavascriptEngine::RootObject::NativeJIT
 struct HiseJavascriptEngine::RootObject::ExternalCFunction: public ReferenceCountedObject,
 														    public DebugableObject
 {
-	ExternalCFunction(CodeLocation& l, const Identifier &name_, bool hasReturnType_, Array<Identifier>& arguments_, const String &comment_, const String& codeToCompile):
+	ExternalCFunction(CodeLocation& /*l*/, const Identifier &name_, bool hasReturnType_, Array<Identifier>& arguments_, const String &comment_, const String& codeToCompile):
 	name(name_),
 	hasReturnType(hasReturnType_),
 	numArguments(arguments_.size()),

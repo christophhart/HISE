@@ -297,9 +297,9 @@ ValueTree ValueTreeConverters::convertDynamicObjectToContentProperties(const var
 
 		auto childList = d.getProperty(ch, var());
 		
-		if (auto ar = childList.getArray())
+		if (auto ar2 = childList.getArray())
 		{
-			for (auto child : *ar)
+			for (auto child : *ar2)
 			{
 				auto cTree = convertDynamicObjectToContentProperties(child);
 
@@ -346,7 +346,7 @@ void ValueTreeConverters::v2d_internal(var& object, const ValueTree& v)
 	}
 }
 
-void ValueTreeConverters::d2v_internal(ValueTree& v, const Identifier& id, const var& object)
+void ValueTreeConverters::d2v_internal(ValueTree& v, const Identifier& /*id*/, const var& object)
 {
 	if (auto dyn = object.getDynamicObject())
 	{

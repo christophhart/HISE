@@ -39,7 +39,7 @@ void PresetBrowserColumn::ButtonLookAndFeel::drawButtonBackground(Graphics& /*g*
 
 void PresetBrowserColumn::ButtonLookAndFeel::drawButtonText(Graphics& g, TextButton& button, bool isMouseOverButton, bool isButtonDown)
 {
-	g.setColour(highlightColour.withAlpha(isMouseOverButton || button.getToggleState() ? 1.0f : 0.5f));
+	g.setColour(highlightColour.withAlpha(isMouseOverButton || button.getToggleState() ? 1.0f : 0.7f));
     g.setFont(font);
 	g.drawText(button.getButtonText(), 0, isButtonDown ? 1 : 0, button.getWidth(), button.getHeight(), Justification::centred);
 
@@ -1152,7 +1152,7 @@ PresetBrowserColumn::ColumnListModel::FavoriteOverlay::FavoriteOverlay(ColumnLis
 PresetBrowserColumn::ColumnListModel::FavoriteOverlay::~FavoriteOverlay()
 {
 	b->removeListener(this);
-	b == nullptr;
+	b = nullptr;
 }
 
 void PresetBrowserColumn::ColumnListModel::FavoriteOverlay::refreshShape()

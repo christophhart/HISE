@@ -583,7 +583,7 @@ borderSize(1.0f)
 		img, 1.0f, Colours::white.withAlpha(0.1f));
 }
 
-void BorderPanel::buttonClicked(Button* b)
+void BorderPanel::buttonClicked(Button* /*b*/)
 {
 	auto contentComponent = findParentComponentOfClass<ScriptContentComponent>();
 

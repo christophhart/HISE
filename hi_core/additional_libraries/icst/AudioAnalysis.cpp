@@ -507,7 +507,7 @@
 		int i,j,k; double x,y,z,tmp;
 	
 		// calculate filter coefficients
-		for (i=0; i<order; i++) {a[i] = -2.0*cos(2.0*M_PI*f[i]);}
+		for (i=0; i<order; i++) {a[i] = -2.0*cos(2.0*M_PI_DOUBLE*f[i]);}
 
 		// process data
 		for (k=0; k<size; k++) {
@@ -553,10 +553,10 @@
 		double* wi; wi = new double[order];
 		scl = 1.0/static_cast<double>(size-1);
 		for (i=0; i<order; i++) {
-			ar[i] = cos(2.0*M_PI*fstart[i]);
-			ai[i] = sin(2.0*M_PI*fstart[i]);
-			wr[i] = cos(2.0*M_PI*(scl*(fend[i]-fstart[i])));
-			wi[i] = sin(2.0*M_PI*(scl*(fend[i]-fstart[i])));
+			ar[i] = cos(2.0*M_PI_DOUBLE*fstart[i]);
+			ai[i] = sin(2.0*M_PI_DOUBLE*fstart[i]);
+			wr[i] = cos(2.0*M_PI_DOUBLE*(scl*(fend[i]-fstart[i])));
+			wi[i] = sin(2.0*M_PI_DOUBLE*(scl*(fend[i]-fstart[i])));
 		}
 
 		// process data
@@ -599,12 +599,12 @@
 		// calculate filter coefficients and increments
 		tmp = 1.0/static_cast<double>(size-1);
 		for (i=0,j=0; i<order; i+=2,j++) {
-			ar[j] = _mm_set_pd(2.0*cos(2.0*M_PI*fstart[i+1]) , 2.0*cos(2.0*M_PI*fstart[i]));
-			ai[j] = _mm_set_pd(2.0*sin(2.0*M_PI*fstart[i+1]) , 2.0*sin(2.0*M_PI*fstart[i]));
-			wr[j] = _mm_set_pd(cos(2.0*M_PI*(tmp*(fend[i+1]-fstart[i+1]))), 
-							   cos(2.0*M_PI*(tmp*(fend[i]-fstart[i])))		); 
-			wi[j] = _mm_set_pd(sin(2.0*M_PI*(tmp*(fend[i+1]-fstart[i+1]))), 
-							   sin(2.0*M_PI*(tmp*(fend[i]-fstart[i])))		);  
+			ar[j] = _mm_set_pd(2.0*cos(2.0*M_PI_DOUBLE*fstart[i+1]) , 2.0*cos(2.0*M_PI_DOUBLE*fstart[i]));
+			ai[j] = _mm_set_pd(2.0*sin(2.0*M_PI_DOUBLE*fstart[i+1]) , 2.0*sin(2.0*M_PI_DOUBLE*fstart[i]));
+			wr[j] = _mm_set_pd(cos(2.0*M_PI_DOUBLE*(tmp*(fend[i+1]-fstart[i+1]))), 
+							   cos(2.0*M_PI_DOUBLE*(tmp*(fend[i]-fstart[i])))		); 
+			wi[j] = _mm_set_pd(sin(2.0*M_PI_DOUBLE*(tmp*(fend[i+1]-fstart[i+1]))), 
+							   sin(2.0*M_PI_DOUBLE*(tmp*(fend[i]-fstart[i])))		);  
 		}
 	
 		// process data
@@ -1360,7 +1360,7 @@
 		// synthesize sinusoid
 		int i; double c0,c1,c2,c3,amp,ampinc,ar,ai,xr,xi,yr,yi,zr,zi,temp;
 		c0 = static_cast<double>(ps);
-		c1 = 2.0*M_PI*static_cast<double>(fs) + a2 + a3;
+		c1 = 2.0*M_PI_DOUBLE*static_cast<double>(fs) + a2 + a3;
 		c3 = 6.0*a3;
 		c2 = 2.0*a2 + c3;
 		xr = cos(c0); xi = sin(c0);

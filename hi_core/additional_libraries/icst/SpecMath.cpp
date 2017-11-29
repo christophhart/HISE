@@ -1196,7 +1196,7 @@ float SpecMath::chebyapprox(double* c, int d, float* y, int size)
 {
 	int i,j;
 	double x,offset;
-	double w = M_PI/static_cast<double>(size);
+	double w = M_PI_DOUBLE/static_cast<double>(size);
 	double scl = 2.0/static_cast<double>(size);
 	double sz = static_cast<double>(size-1);
 	double* dp; dp = new double[size];
@@ -1311,7 +1311,7 @@ void SpecMath::eqzbiquad(double* a, double* b, float fc, float qbw,
 							int type, float dbgain)
 {
 	double alpha,tmp,tmp2,tmp3,tmp4,tmp5,tmp6,tmp7,tmp8;
-	double omega = 2.0*M_PI*static_cast<double>(fc);
+	double omega = 2.0*M_PI_DOUBLE*static_cast<double>(fc);
 	double sn = sin(omega), cs = cos(omega);
 	if (qbw > 0) {qbw = -2.0f/logf(2.0f)*asinhf(0.5f/qbw);}	// Q specified
 	alpha = -static_cast<double>(qbw);
