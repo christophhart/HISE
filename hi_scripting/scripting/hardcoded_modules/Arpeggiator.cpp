@@ -281,6 +281,14 @@ void Arpeggiator::onNoteOff()
 	Message.ignoreEvent(true);
 
 	remUserHeldKey(Message.getNoteNumber());
+
+	if (!keys_are_held())
+	{
+		// reset arpeggiator if no midi input / user held keys
+		reset(false, true);
+	}
+
+	
 }
 
 void Arpeggiator::onControl(ScriptingApi::Content::ScriptComponent *c, var value)
@@ -321,12 +329,7 @@ void Arpeggiator::onTimer(int /*offsetInBuffer*/)
 	if (bypassButton->getValue())
 		return;
 
-	if (!keys_are_held())
-	{
-		// reset arpeggiator if no midi input / user held keys
-		reset(true, true);
-	}
-	else
+	if (keys_are_held())
 	{
 		// do work if user is holding notes
 		playNote();
@@ -578,6 +581,7 @@ void Arpeggiator::reset(bool do_all_notes_off, bool do_stop)
 		Engine.allNotesOff();
 
 	last_step_was_tied = false;
+
 }
 
 } // namespace hise
