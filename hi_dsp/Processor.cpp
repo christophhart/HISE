@@ -474,7 +474,18 @@ void ProcessorHelpers::restoreFromBase64String(Processor* p, const String& base6
 
 #if USE_BACKEND
 		if (auto firstChild = p->getChildProcessor(0))
-			firstChild->sendRebuildMessage(true);
+		{
+			
+			auto f = [](Processor* p)
+			{
+				p->sendRebuildMessage(true);
+				return true;
+			};
+
+			p->getMainController()->getKillStateHandler().killVoicesAndCall(firstChild, f, MainController::KillStateHandler::MessageThread);
+			
+		}
+			
 #endif
 	}
 	
