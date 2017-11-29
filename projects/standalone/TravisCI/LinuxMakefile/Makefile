@@ -91,6 +91,7 @@ OBJECTS := \
   $(JUCE_OBJDIR)/hi_lac_34b20439.o \
   $(JUCE_OBJDIR)/hi_sampler_35b36ab3.o \
   $(JUCE_OBJDIR)/hi_scripting_d8d7e4e2.o \
+  $(JUCE_OBJDIR)/hi_streaming_353608d.o \
   $(JUCE_OBJDIR)/juce_audio_basics_6b797ca1.o \
   $(JUCE_OBJDIR)/juce_audio_devices_a742c38b.o \
   $(JUCE_OBJDIR)/juce_audio_formats_5a29c68a.o \
@@ -195,6 +196,11 @@ $(JUCE_OBJDIR)/hi_sampler_35b36ab3.o: ../../JuceLibraryCode/hi_sampler.cpp
 $(JUCE_OBJDIR)/hi_scripting_d8d7e4e2.o: ../../JuceLibraryCode/hi_scripting.cpp
 	-@mkdir -p $(JUCE_OBJDIR)
 	@echo "Compiling hi_scripting.cpp"
+	@$(CXX) $(JUCE_CXXFLAGS) -o "$@" -c "$<"
+
+$(JUCE_OBJDIR)/hi_streaming_353608d.o: ../../JuceLibraryCode/hi_streaming.cpp
+	-@mkdir -p $(JUCE_OBJDIR)
+	@echo "Compiling hi_streaming.cpp"
 	@$(CXX) $(JUCE_CXXFLAGS) -o "$@" -c "$<"
 
 $(JUCE_OBJDIR)/juce_audio_basics_6b797ca1.o: ../../JuceLibraryCode/juce_audio_basics.cpp

@@ -32,6 +32,8 @@
 
 namespace hise { using namespace juce;
 
+#define MAX_SAMPLE_NUMBER 2147483647
+
 // ==================================================================================================== StreamingSamplerSound methods
 
 StreamingSamplerSound::StreamingSamplerSound(const String &fileNameToLoad, StreamingSamplerSoundPool *pool) :
@@ -44,12 +46,12 @@ StreamingSamplerSound::StreamingSamplerSound(const String &fileNameToLoad, Strea
 	internalPreloadSize(0),
 	entireSampleLoaded(false),
 	sampleStart(0),
-	sampleEnd(INT_MAX),
-	sampleLength(INT_MAX),
+	sampleEnd(MAX_SAMPLE_NUMBER),
+	sampleLength(MAX_SAMPLE_NUMBER),
 	sampleStartMod(0),
 	loopEnabled(false),
 	loopStart(0),
-	loopEnd(INT_MAX),
+	loopEnd(MAX_SAMPLE_NUMBER),
 	loopLength(0),
 	crossfadeLength(0),
 	crossfadeArea(Range<int>())
@@ -69,12 +71,12 @@ StreamingSamplerSound::StreamingSamplerSound(MonolithInfoToUse *info, int channe
 	internalPreloadSize(0),
 	entireSampleLoaded(false),
 	sampleStart(0),
-	sampleEnd(INT_MAX),
-	sampleLength(INT_MAX),
+	sampleEnd(MAX_SAMPLE_NUMBER),
+	sampleLength(MAX_SAMPLE_NUMBER),
 	sampleStartMod(0),
 	loopEnabled(false),
 	loopStart(0),
-	loopEnd(INT_MAX),
+	loopEnd(MAX_SAMPLE_NUMBER),
 	loopLength(0),
 	crossfadeLength(0),
 	crossfadeArea(Range<int>())
