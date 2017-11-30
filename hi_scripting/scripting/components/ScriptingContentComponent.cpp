@@ -47,8 +47,9 @@ mod(m)
 }
 
 ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_) :
-processor(p_),
-p(dynamic_cast<Processor*>(p_))
+	AsyncValueTreePropertyListener(p_->getScriptingContent()->getContentProperties(), p_->getScriptingContent()->getUpdateDispatcher()),
+	processor(p_),
+	p(dynamic_cast<Processor*>(p_))
 {
 	processor->getScriptingContent()->addRebuildListener(this);
 
@@ -186,14 +187,15 @@ void ScriptContentComponent::changeListenerCallback(SafeChangeBroadcaster *b)
 		updateValues();
 #endif
 	}
-	else if (dynamic_cast<ScriptingApi::Content::ScriptComponent*>(b) != nullptr)
-	{
-		updateContent(dynamic_cast<ScriptingApi::Content::ScriptComponent*>(b));
-	}
-	else
+	else if(dynamic_cast<ScriptingApi::Content::ScriptComponent*>(b) == nullptr)
 	{
 		updateContent();
 	}
+}
+
+void ScriptContentComponent::asyncValueTreePropertyChanged(ValueTree& v, const Identifier& id)
+{
+	
 }
 
 void ScriptContentComponent::updateComponent(int i)
@@ -204,28 +206,98 @@ void ScriptContentComponent::updateComponent(int i)
         return;
     }
     
+	updateComponentVisibility(componentWrappers[i]);
 	
+	updateComponentParent(componentWrappers[i]);
 
-	const bool v = contentData->components[i]->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::visible);
-	componentWrappers[i]->getComponent()->setVisible(v);
+	updateComponentPosition(componentWrappers[i]);
 
-	if (!contentData->components[i]->isShowing())
+	//componentWrappers[i]->updateComponent();
+	updateValue(i);
+}
+
+void ScriptContentComponent::updateContent(ScriptingApi::Content::ScriptComponent* componentToUpdate/*=nullptr*/)
+{
+	if (contentData.get() == nullptr) return;
+
+	if (componentToUpdate == nullptr)
+	{
+
+		jassert(contentData->components.size() == componentWrappers.size());
+
+		for (int i = 0; i < contentData->components.size(); i++)
+		{
+			updateComponent(i);
+		}
+
+		//resized();
+	}
+	else
+	{
+
+		jassert(contentData->components.size() == componentWrappers.size());
+
+		auto index = contentData->components.indexOf(componentToUpdate);
+
+
+		if (index >= 0)
+			updateComponent(index);
+		else
+			jassertfalse;
+	}
+}
+
+void ScriptContentComponent::updateComponentPosition(ScriptCreatedComponentWrapper* wrapper)
+{
+	auto c = wrapper->getComponent();
+	auto sc = wrapper->getScriptComponent();
+
+	const Rectangle<int> localBounds = c->getBoundsInParent();
+	const Rectangle<int> currentPosition = sc->getPosition();
+
+	if (localBounds != currentPosition)
+	{
+		const bool isInViewport = dynamic_cast<Viewport*>(c->getParentComponent()) != nullptr;
+		const bool sizeChanged = localBounds.getWidth() != currentPosition.getWidth() || localBounds.getHeight() != currentPosition.getHeight();
+
+		if (!isInViewport || sizeChanged)
+			c->setBounds(sc->getPosition());
+
+	}
+}
+
+void ScriptContentComponent::updateComponentVisibility(ScriptCreatedComponentWrapper* wrapper)
+{
+	auto sc = wrapper->getScriptComponent();
+	auto c = wrapper->getComponent();
+
+	const bool v = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::visible);
+	c->setVisible(v);
+
+	if (!sc->isShowing())
 	{
 		return;
 	}
 
-	const bool e = contentData->components[i]->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::enabled);
-	componentWrappers[i]->getComponent()->setEnabled(e);
+	const bool e = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::enabled);
+	wrapper->getComponent()->setEnabled(e);
 
-	const Rectangle<int> localBounds = componentWrappers[i]->getComponent()->getBoundsInParent();
-	const Rectangle<int> currentPosition = contentData->components[i]->getPosition();
-	
-	auto currentParentId = componentWrappers[i]->getComponent()->getParentComponent()->getName();
-	auto newParentId = contentData->components[i]->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::parentComponent).toString();
+}
+
+void ScriptContentComponent::updateComponentParent(ScriptCreatedComponentWrapper* wrapper)
+{
+	auto c = wrapper->getComponent();
+	auto sc = wrapper->getScriptComponent();
+
+	const Rectangle<int> localBounds = c->getBoundsInParent();
+	const Rectangle<int> currentPosition = sc->getPosition();
+
+	auto currentParentId = c->getParentComponent()->getName();
+	auto newParentId = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::parentComponent).toString();
 
 	if (currentParentId != newParentId)
 	{
-		auto componentToRemove = componentWrappers[i]->getComponent();
+		auto componentToRemove = c;
 
 		if (newParentId.isEmpty())
 		{
@@ -249,48 +321,7 @@ void ScriptContentComponent::updateComponent(int i)
 			}
 		}
 
-		
-	}
-
-	if (localBounds != currentPosition)
-	{
-		const bool isInViewport = dynamic_cast<Viewport*>(componentWrappers[i]->getComponent()->getParentComponent()) != nullptr;
-		const bool sizeChanged = localBounds.getWidth() != currentPosition.getWidth() || localBounds.getHeight() != currentPosition.getHeight();
-
-		if (!isInViewport || sizeChanged)
-			componentWrappers[i]->getComponent()->setBounds(contentData->components[i]->getPosition());
-	}
-
-	componentWrappers[i]->updateComponent();
-	updateValue(i);
-}
-
-void ScriptContentComponent::updateContent(ScriptingApi::Content::ScriptComponent* componentToUpdate/*=nullptr*/)
-{
-	if (contentData.get() == nullptr) return;
-
-	if (componentToUpdate == nullptr)
-	{
-
-		jassert(contentData->components.size() == componentWrappers.size());
-
-		for (int i = 0; i < contentData->components.size(); i++)
-		{
-			updateComponent(i);
-		}
-
-		//resized();
-	}
-	else
-	{
-		jassert(contentData->components.size() == componentWrappers.size());
-
-		auto index = contentData->components.indexOf(componentToUpdate);
-
-		if (index >= 0)
-			updateComponent(index);
-		else
-			jassertfalse;
+		updateComponentPosition(wrapper);
 	}
 }
 

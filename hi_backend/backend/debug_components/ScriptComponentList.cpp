@@ -81,7 +81,7 @@ void ScriptComponentListItem::paintItem(Graphics& g, int width, int height)
 	{
 		static const Identifier sip("saveInPreset");
 
-		const bool saveInPreset = connectedComponent->getScriptObjectProperties()->getProperty(sip);
+		const bool saveInPreset = connectedComponent->getScriptObjectProperty(sip);
 
 		Colour c3 = saveInPreset ? Colours::green : Colours::red;
 

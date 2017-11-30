@@ -103,18 +103,18 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 
 #define ADD_SCRIPT_PROPERTY(id, name) static const Identifier id(name); propertyIds.add(id);
 
-ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name_, int x, int y, int width, int height, int numConstants) :
-ConstScriptingObject(base, numConstants),
-name(name_),
-value(0.0),
-parent(parentContent),
-skipRestoring(false),
-componentProperties(new DynamicObject()),
-changed(false),
-customControlCallback(var()),
-parentComponentIndex(-1)
+ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingContent* base, Identifier name_, int numConstants /*= 0*/) :
+	ConstScriptingObject(base, numConstants),
+	name(name_),
+	parent(base->getScriptingContent()),
+	propertyTree(parent->getValueTreeForComponent(name)),
+	value(0.0),
+	skipRestoring(false),
+	changed(false),
+	customControlCallback(var()),
+	parentComponentIndex(-1)
 {
-	//static const Identifier textId("text"); propertyIds.add(textId);
+	jassert(propertyTree.isValid());
 
 	ADD_SCRIPT_PROPERTY(textId, "text");
 
@@ -179,16 +179,14 @@ parentComponentIndex(-1)
 	ADD_API_METHOD_1(addToMacroControl);
 	ADD_API_METHOD_0(getWidth);
 	ADD_API_METHOD_0(getHeight);
-    ADD_API_METHOD_0(getGlobalPositionX);
-    ADD_API_METHOD_0(getGlobalPositionY);
+	ADD_API_METHOD_0(getGlobalPositionX);
+	ADD_API_METHOD_0(getGlobalPositionY);
 	ADD_API_METHOD_1(setControlCallback);
 
 	//setName(name_.toString());
 
 
-    //enableAllocationFreeMessages(30);
-    
-	SEND_MESSAGE(this);
+	//enableAllocationFreeMessages(30);
 }
 
 StringArray ScriptingApi::Content::ScriptComponent::getOptionsFor(const Identifier &id)
@@ -207,7 +205,7 @@ StringArray ScriptingApi::Content::ScriptComponent::getOptionsFor(const Identifi
 	}
 	else if (id == getIdFor(parentComponent))
 	{
-		auto c = getScriptProcessor()->getScriptingContent();
+		auto c = parent;
 
 		StringArray sa;
 
@@ -260,8 +258,6 @@ ValueTree ScriptingApi::Content::ScriptComponent::exportAsValueTree() const
 		v.setProperty("value", value, nullptr);
 	}
 
-	
-	
 	return v;
 }
 
@@ -323,8 +319,6 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
         reportScriptError("You must specify the unique component name, not the object itself");
     }
     
-	componentProperties->setProperty(id, newValue);
-
 	if (id == getIdFor(macroControl))
 	{
 		StringArray sa = getOptionsFor(id);
@@ -386,10 +380,7 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 			connectedParameterIndex = -1;
 	}
 
-	if (notifyEditor == sendNotification)
-	{
-		SEND_MESSAGE(this);
-	}
+	setScriptObjectProperty(propertyIds.indexOf(id), newValue, notifyEditor);
 }
 
 const Identifier ScriptingApi::Content::ScriptComponent::getIdFor(int p) const
@@ -406,34 +397,32 @@ int ScriptingApi::Content::ScriptComponent::getNumIds() const
 
 const var ScriptingApi::Content::ScriptComponent::getScriptObjectProperty(int p) const
 {
-	jassert(componentProperties.get() != nullptr);
+	auto id = getIdFor(p);
 
-	jassert(componentProperties->hasProperty(getIdFor(p)));
-
-	return componentProperties->getProperty(getIdFor(p));
+	return propertyTree.getProperty(id);
 }
 
+const var ScriptingApi::Content::ScriptComponent::getScriptObjectProperty(Identifier id) const
+{
+	return propertyTree.getProperty(id);
+}
 
 var ScriptingApi::Content::ScriptComponent::getNonDefaultScriptObjectProperties() const
 {
-	DynamicObject::Ptr clone = componentProperties->clone();
+	DynamicObject::Ptr clone = new DynamicObject();
 
-	for (int i = 0; i < deactivatedProperties.size(); i++)
+	for (int i = 0; i < propertyTree.getNumProperties(); i++)
 	{
-		clone->removeProperty(deactivatedProperties[i]);
-	}
+		auto id = propertyTree.getPropertyName(i);
+		auto value = propertyTree.getProperty(id);
 
-	for (int i = 0; i < defaultValues.size(); i++)
-	{
-		const Identifier id = getIdFor(i);
+		if (isPropertyDeactivated(id))
+			continue;
 
-		var a = clone->getProperty(id);
-		var b = defaultValues[id];
+		if (defaultValues[id] == value)
+			continue;
 
-		if (a == b)
-		{
-			clone->removeProperty(id);
-		}
+		clone->setProperty(id, value);
 	}
 
 	return var(clone);
@@ -468,14 +457,12 @@ void ScriptingApi::Content::ScriptComponent::set(String propertyName, var newVal
 
 	handleScriptPropertyChange(propertyId);
 
-	if (!componentProperties->hasProperty(propertyId))
+	if (!propertyTree.hasProperty(propertyId))
 	{
 		reportScriptError("the property does not exist");
 		return;
 	}
 
-    
-    
 	setScriptObjectPropertyWithChangeMessage(propertyId, newValue, parent->allowGuiCreation ? dontSendNotification : sendNotification);
 }
 
@@ -515,13 +502,11 @@ void ScriptingApi::Content::ScriptComponent::setColour(int colourId, int colourA
 {
 	switch (colourId)
 	{
-	case 0: setScriptObjectProperty(bgColour, (int64)colourAs32bitHex); break;
-	case 1:	setScriptObjectProperty(itemColour, (int64)colourAs32bitHex); break;
-	case 2:	setScriptObjectProperty(itemColour2, (int64)colourAs32bitHex); break;
-	case 3:	setScriptObjectProperty(textColour, (int64)colourAs32bitHex); break;
+	case 0: propertyTree.setProperty(getIdFor(bgColour), (int64)colourAs32bitHex, nullptr); break;
+	case 1:	propertyTree.setProperty(getIdFor(itemColour), (int64)colourAs32bitHex, nullptr); break;
+	case 2:	propertyTree.setProperty(getIdFor(itemColour2), (int64)colourAs32bitHex, nullptr); break;
+	case 3:	propertyTree.setProperty(getIdFor(textColour), (int64)colourAs32bitHex, nullptr); break;
 	}
-
-	sendAllocationFreeChangeMessage();
 }
 
 
@@ -537,7 +522,7 @@ void ScriptingApi::Content::ScriptComponent::setPropertiesFromJSON(const var &js
 			{
 				handleScriptPropertyChange(priorityProperties[i]);
 
-				setScriptObjectPropertyWithChangeMessage(priorityProperties[i], dataSet[priorityProperties[i]], dontSendNotification);
+				setScriptObjectPropertyWithChangeMessage(priorityProperties[i], dataSet[priorityProperties[i]], sendNotification);
 			}
 		}
 
@@ -551,29 +536,10 @@ void ScriptingApi::Content::ScriptComponent::setPropertiesFromJSON(const var &js
 			if (dataSet.contains(propertyId))
 			{
 				handleScriptPropertyChange(propertyId);
-				setScriptObjectPropertyWithChangeMessage(propertyId, dataSet[propertyId], dontSendNotification);
+				setScriptObjectPropertyWithChangeMessage(propertyId, dataSet[propertyId], sendNotification);
 			}
 		}
-
-
-#if 0
-		for (int i = 0; i < dataSet.size(); i++)
-		{
-			Identifier propertyId = dataSet.getName(i);
-
-			if (!propertyIds.contains(propertyId))
-				continue;
-
-			if (priorityProperties.contains(propertyId)) continue;
-
-			handleScriptPropertyChange(propertyId);
-
-			setScriptObjectPropertyWithChangeMessage(propertyId, dataSet.getValueAt(i), dontSendNotification);
-		}
-#endif
 	}
-
-	SEND_MESSAGE(this);
 }
 
 int ScriptingApi::Content::ScriptComponent::getGlobalPositionX()
@@ -610,12 +576,10 @@ int ScriptingApi::Content::ScriptComponent::getGlobalPositionY()
 
 void ScriptingApi::Content::ScriptComponent::setPosition(int x, int y, int w, int h)
 {
-	componentProperties->setProperty("x", x);
-	componentProperties->setProperty("y", y);
-	componentProperties->setProperty("width", w);
-	componentProperties->setProperty("height", h);
-
-	sendAllocationFreeChangeMessage();
+	propertyTree.setProperty(getIdFor(Properties::x), x, nullptr);
+	propertyTree.setProperty(getIdFor(Properties::y), y, nullptr);
+	propertyTree.setProperty(getIdFor(Properties::width), w, nullptr);
+	propertyTree.setProperty(getIdFor(Properties::height), h, nullptr);
 }
 
 
@@ -827,6 +791,9 @@ void ScriptingApi::Content::ScriptComponent::updateContentPropertyInternal(int p
 
 void ScriptingApi::Content::ScriptComponent::updateContentPropertyInternal(const Identifier& propId, const var& newValue)
 {
+	setScriptObjectPropertyWithChangeMessage(propId, newValue);
+
+#if 0
 	if (dynamic_cast<JavascriptProcessor*>(getProcessor()) != nullptr)
 	{
 		auto componentId = getName();
@@ -850,6 +817,30 @@ void ScriptingApi::Content::ScriptComponent::updateContentPropertyInternal(const
 
 		setScriptObjectPropertyWithChangeMessage(propId, newValue);
 	}
+#endif
+}
+
+void ScriptingApi::Content::ScriptComponent::setScriptObjectProperty(int p, var newValue, NotificationType notifyListeners/*=dontSendNotification*/)
+{
+	if (notifyListeners == dontSendNotification)
+	{
+		if (auto value = propertyTree.getPropertyPointer(getIdFor(p)))
+		{
+			var copy(newValue); // rather ugly..
+			const_cast<var*>(value)->swapWith(copy);
+		}
+		else
+			propertyTree.setProperty(getIdFor(p), newValue, nullptr);
+	}
+	else
+	{
+		propertyTree.setProperty(getIdFor(p), newValue, nullptr);
+	}
+}
+
+bool ScriptingApi::Content::ScriptComponent::hasProperty(const Identifier& id) const
+{
+	return propertyIds.contains(id);
 }
 
 struct ScriptingApi::Content::ScriptSlider::Wrapper
@@ -866,7 +857,7 @@ struct ScriptingApi::Content::ScriptSlider::Wrapper
 };
 
 ScriptingApi::Content::ScriptSlider::ScriptSlider(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name_, int x, int y, int, int) :
-ScriptComponent(base, parentContent, name_, x, y, 128, 48),
+ScriptComponent(base, name_),
 styleId(Slider::SliderStyle::RotaryHorizontalVerticalDrag),
 m(HiSlider::Mode::Linear),
 image(nullptr),
@@ -891,6 +882,7 @@ maximum(1.0f)
 
 	deactivatedProperties.removeAllInstancesOf(getIdFor(isPluginParameter));
 
+#if 0
 	componentProperties->setProperty(getIdFor(Mode), 0);
 	componentProperties->setProperty(getIdFor(Style), 0);
 	componentProperties->setProperty(getIdFor(stepSize), 0);
@@ -903,9 +895,14 @@ maximum(1.0f)
 	componentProperties->setProperty(getIdFor(mouseSensitivity), 1.0);
 	componentProperties->setProperty(getIdFor(dragDirection), 0);
 	componentProperties->setProperty(getIdFor(showValuePopup), 0);
+#endif
 
 	priorityProperties.add(getIdFor(Mode));
 
+	setDefaultValue(ScriptComponent::Properties::x, x);
+	setDefaultValue(ScriptComponent::Properties::y, y);
+	setDefaultValue(ScriptComponent::Properties::width, 128);
+	setDefaultValue(ScriptComponent::Properties::height, 48);
 	setDefaultValue(ScriptSlider::Properties::Mode, "Linear");
 	setDefaultValue(ScriptSlider::Properties::Style, "Knob");
 	setDefaultValue(ScriptSlider::Properties::middlePosition, -1.0);
@@ -1253,9 +1250,9 @@ double ScriptingApi::Content::ScriptSlider::getValueNormalized() const
 
 void ScriptingApi::Content::ScriptSlider::setRange(double min_, double max_, double stepSize_)
 {
-	setScriptObjectProperty(ScriptComponent::Properties::min, var(min_));
-	setScriptObjectProperty(ScriptComponent::Properties::max, var(max_));
-	setScriptObjectProperty(Properties::stepSize, stepSize_);
+	setScriptObjectProperty(ScriptComponent::Properties::min, var(min_), sendNotification);
+	setScriptObjectProperty(ScriptComponent::Properties::max, var(max_), sendNotification);
+	setScriptObjectProperty(Properties::stepSize, stepSize_, sendNotification);
 
 	sendChangeMessage();
 }
@@ -1299,7 +1296,7 @@ struct ScriptingApi::Content::ScriptButton::Wrapper
 };
 
 ScriptingApi::Content::ScriptButton::ScriptButton(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name, int x, int y, int, int) :
-ScriptComponent(base, parentContent, name, x, y, 128, 32),
+ScriptComponent(base, name),
 image(nullptr)
 {
 	ADD_SCRIPT_PROPERTY(i00, "filmstripImage");	ADD_TO_TYPE_SELECTOR(SelectorTypes::FileSelector);
@@ -1314,6 +1311,10 @@ image(nullptr)
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::textColour));
 	deactivatedProperties.removeAllInstancesOf(getIdFor(ScriptComponent::Properties::isPluginParameter));
 
+	setDefaultValue(ScriptComponent::Properties::x, x);
+	setDefaultValue(ScriptComponent::Properties::y, y);
+	setDefaultValue(ScriptComponent::Properties::width, 128);
+	setDefaultValue(ScriptComponent::Properties::height, 28);
 	setDefaultValue(ScriptButton::Properties::filmstripImage, "");
 	setDefaultValue(ScriptButton::Properties::numStrips, "2");
 	setDefaultValue(ScriptButton::Properties::isVertical, true);
@@ -1410,7 +1411,7 @@ struct ScriptingApi::Content::ScriptLabel::Wrapper
 };
 
 ScriptingApi::Content::ScriptLabel::ScriptLabel(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name, int x, int y, int width, int) :
-ScriptComponent(base, parentContent, name, x, y, width, 16)
+ScriptComponent(base, name)
 {
 	ADD_SCRIPT_PROPERTY(i01, "fontName");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(i02, "fontSize");	ADD_AS_SLIDER_TYPE(1, 200, 1);
@@ -1419,13 +1420,19 @@ ScriptComponent(base, parentContent, name, x, y, width, 16)
 	ADD_SCRIPT_PROPERTY(i05, "editable");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i06, "multiline");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
+#if 0
 	componentProperties->setProperty(getIdFor(FontName), 0);
 	componentProperties->setProperty(getIdFor(FontSize), 0);
 	componentProperties->setProperty(getIdFor(FontStyle), 0);
 	componentProperties->setProperty(getIdFor(Alignment), 0);
 	componentProperties->setProperty(getIdFor(Editable), 0);
 	componentProperties->setProperty(getIdFor(Multiline), 0);
+#endif
 
+	setDefaultValue(ScriptComponent::Properties::x, x);
+	setDefaultValue(ScriptComponent::Properties::y, y);
+	setDefaultValue(ScriptComponent::Properties::width, width);
+	setDefaultValue(ScriptComponent::Properties::height, 16);
 	setDefaultValue(text, name.toString());
 	setDefaultValue(bgColour, (int64)0x00000000);
 	setDefaultValue(itemColour, (int64)0x00000000);
@@ -1433,6 +1440,7 @@ ScriptComponent(base, parentContent, name, x, y, width, 16)
 	setDefaultValue(FontStyle, "plain");
 	setDefaultValue(FontSize, 13.0f);
 	setDefaultValue(FontName, "Arial");
+	setDefaultValue(Alignment, "centredLeft");
 	setDefaultValue(Editable, true);
 	setDefaultValue(Multiline, false);
 
@@ -1500,7 +1508,7 @@ struct ScriptingApi::Content::ScriptComboBox::Wrapper
 };
 
 ScriptingApi::Content::ScriptComboBox::ScriptComboBox(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name, int x, int y, int width, int) :
-ScriptComponent(base, parentContent, name, x, y, width, 32)
+ScriptComponent(base, name)
 {
 	propertyIds.add(Identifier("items"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::MultilineSelector);
 	propertyIds.add(Identifier("isPluginParameter")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
@@ -1513,8 +1521,10 @@ ScriptComponent(base, parentContent, name, x, y, width, 32)
 
 	priorityProperties.add(getIdFor(Items));
 
-	componentProperties->setProperty(getIdFor(Items), 0);
-
+	setDefaultValue(ScriptComponent::Properties::x, x);
+	setDefaultValue(ScriptComponent::Properties::y, y);
+	setDefaultValue(ScriptComponent::Properties::width, width);
+	setDefaultValue(ScriptComponent::Properties::height, 32);
 	setDefaultValue(Items, "");
 	setDefaultValue(ScriptComponent::min, 1.0f);
 	setDefaultValue(isPluginParameter, false);
@@ -1535,14 +1545,12 @@ void ScriptingApi::Content::ScriptComboBox::addItem(const String &itemName)
 	newItemList.append("\n", 1);
 	newItemList.append(itemName, 128);
 
-	setScriptObjectProperty(Items, newItemList);
+	setScriptObjectProperty(Items, newItemList, sendNotification);
 
 	int size = getScriptObjectProperty(max);
 
-	setScriptObjectProperty(ScriptComponent::Properties::min, 1);
-	setScriptObjectProperty(ScriptComponent::Properties::max, size + 1);
-
-	sendChangeMessage();
+	setScriptObjectProperty(ScriptComponent::Properties::min, 1, dontSendNotification);
+	setScriptObjectProperty(ScriptComponent::Properties::max, size + 1, dontSendNotification);
 }
 
 String ScriptingApi::Content::ScriptComboBox::getItemText() const
@@ -1587,7 +1595,7 @@ struct ScriptingApi::Content::ScriptTable::Wrapper
 };
 
 ScriptingApi::Content::ScriptTable::ScriptTable(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name, int x, int y, int width, int height) :
-ScriptComponent(base, parentContent, name, x, y, width, height),
+ScriptComponent(base, name),
 ownedTable(new MidiTable()),
 useOtherTable(false),
 connectedProcessor(nullptr),
@@ -1604,9 +1612,15 @@ lookupTableIndex(-1)
 	propertyIds.add("tableIndex");
 	propertyIds.add("processorId"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 
+#if 0
 	componentProperties->setProperty(getIdFor(ProcessorId), 0);
 	componentProperties->setProperty(getIdFor(TableIndex), 0);
+#endif
 
+	setDefaultValue(ScriptComponent::Properties::x, x);
+	setDefaultValue(ScriptComponent::Properties::y, y);
+	setDefaultValue(ScriptComponent::Properties::width, width);
+	setDefaultValue(ScriptComponent::Properties::height, height);
 	setDefaultValue(ScriptTable::Properties::ProcessorId, "");
 	setDefaultValue(ScriptTable::Properties::TableIndex, 0);
 
@@ -1630,6 +1644,7 @@ float ScriptingApi::Content::ScriptTable::getTableValue(int inputValue)
 {
 	value = inputValue;
 
+	// WHYTHEFUCK
 	parent->sendChangeMessage();
 
 	if (useOtherTable)
@@ -1756,8 +1771,8 @@ struct ScriptingApi::Content::ScriptSliderPack::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptSliderPack, referToData);
 };
 
-ScriptingApi::Content::ScriptSliderPack::ScriptSliderPack(ProcessorWithScriptingContent *base, Content *parentContent, Identifier imageName, int x, int y, int width, int height) :
-ScriptComponent(base, parentContent, imageName, x, y, width, height),
+ScriptingApi::Content::ScriptSliderPack::ScriptSliderPack(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name_, int x, int y, int width, int height) :
+ScriptComponent(base, name_),
 packData(new SliderPackData()),
 existingData(nullptr)
 {
@@ -1772,6 +1787,10 @@ existingData(nullptr)
 
 	packData->setNumSliders(16);
 
+	setDefaultValue(ScriptComponent::Properties::x, x);
+	setDefaultValue(ScriptComponent::Properties::y, y);
+	setDefaultValue(ScriptComponent::Properties::width, width);
+	setDefaultValue(ScriptComponent::Properties::height, height);
 	setDefaultValue(bgColour, 0x00000000);
 	setDefaultValue(itemColour, 0x77FFFFFF);
 	setDefaultValue(itemColour2, 0x77FFFFFF);
@@ -1995,7 +2014,7 @@ struct ScriptingApi::Content::ScriptImage::Wrapper
 };
 
 ScriptingApi::Content::ScriptImage::ScriptImage(ProcessorWithScriptingContent *base, Content *parentContent, Identifier imageName, int x, int y, int width, int height) :
-ScriptComponent(base, parentContent, imageName, x, y, width, height),
+ScriptComponent(base, imageName),
 image(nullptr)
 {
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::bgColour));
@@ -2016,6 +2035,7 @@ image(nullptr)
 
 	priorityProperties.add(getIdFor(FileName));
 
+#if 0
 	componentProperties->setProperty(getIdFor(Alpha), 0);
 	componentProperties->setProperty(getIdFor(FileName), 0);
 	componentProperties->setProperty(getIdFor(Offset), 0);
@@ -2023,7 +2043,12 @@ image(nullptr)
 	componentProperties->setProperty(getIdFor(AllowCallbacks), 0);
 	componentProperties->setProperty(getIdFor(PopupMenuItems), "");
 	componentProperties->setProperty(getIdFor(PopupOnRightClick), true);
+#endif
 
+	setDefaultValue(ScriptComponent::Properties::x, x);
+	setDefaultValue(ScriptComponent::Properties::y, y);
+	setDefaultValue(ScriptComponent::Properties::width, width);
+	setDefaultValue(ScriptComponent::Properties::height, height);
 	setDefaultValue(ScriptComponent::Properties::saveInPreset, false);
 	setDefaultValue(Alpha, 1.0f);
 	setDefaultValue(FileName, String());
@@ -2086,13 +2111,13 @@ void ScriptingApi::Content::ScriptImage::setImageFile(const String &absoluteFile
 
 	if (absoluteFileName.isEmpty())
 	{
-		setScriptObjectProperty(FileName, absoluteFileName);
+		setScriptObjectProperty(FileName, absoluteFileName, sendNotification);
 		return;
 	}
 
 	ImagePool *pool = getProcessor()->getMainController()->getSampleManager().getImagePool();
 
-	setScriptObjectProperty(FileName, absoluteFileName);
+	setScriptObjectProperty(FileName, absoluteFileName, sendNotification);
 
 #if USE_FRONTEND
 
@@ -2112,11 +2137,9 @@ void ScriptingApi::Content::ScriptImage::setImageFile(const String &absoluteFile
 
 	if (image.isValid())
 	{
-		setScriptObjectProperty(ScriptComponent::width, image.getWidth());
-		setScriptObjectProperty(ScriptComponent::height, image.getHeight());
+		setScriptObjectProperty(ScriptComponent::width, image.getWidth(), dontSendNotification);
+		setScriptObjectProperty(ScriptComponent::height, image.getHeight(), sendNotification);
 	}
-
-	parent->sendChangeMessage();
 };
 
 
@@ -2174,7 +2197,7 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
 };
 
 ScriptingApi::Content::ScriptPanel::ScriptPanel(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height) :
-ScriptComponent(base, parentContent, panelName, x, y, width, height, 1),
+ScriptComponent(base, panelName, 1),
 graphics(new ScriptingObjects::GraphicsObject(base, this)),
 repainter(this),
 repaintNotifier(this),
@@ -2198,10 +2221,16 @@ timerRoutine(var())
 	ADD_SCRIPT_PROPERTY(i11, "holdIsRightClick");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i12, "isPopupPanel");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	
+#if 0
 	componentProperties->setProperty(getIdFor(borderSize), 0);
 	componentProperties->setProperty(getIdFor(borderRadius), 0);
 	componentProperties->setProperty(getIdFor(allowCallbacks), 0);
+#endif
 
+	setDefaultValue(ScriptComponent::Properties::x, x);
+	setDefaultValue(ScriptComponent::Properties::y, y);
+	setDefaultValue(ScriptComponent::Properties::width, width);
+	setDefaultValue(ScriptComponent::Properties::height, height);
 	setDefaultValue(ScriptComponent::Properties::saveInPreset, false);
 	setDefaultValue(textColour, 0x23FFFFFF);
 	setDefaultValue(itemColour, 0x30000000);
@@ -2210,7 +2239,7 @@ timerRoutine(var())
 	setDefaultValue(borderRadius, 6.0f);
     setDefaultValue(opaque, false);
 	setDefaultValue(allowDragging, 0);
-	setDefaultValue(allowCallbacks, 0);
+	setDefaultValue(allowCallbacks, "No Callbacks");
 	setDefaultValue(PopupMenuItems, "");
 	setDefaultValue(PopupOnRightClick, true);
 	setDefaultValue(popupMenuAlign, false);
@@ -2248,7 +2277,6 @@ ScriptingApi::Content::ScriptPanel::~ScriptPanel()
 	mouseRoutine = var();
 	paintRoutine = var();
 
-    
     
 	if (HiseJavascriptEngine::isJavascriptFunction(loadRoutine))
 	{
@@ -2349,8 +2377,6 @@ void ScriptingApi::Content::ScriptPanel::internalRepaint()
 		graphics->setGraphics(&g, &paintCanvas);
 
 		Result r = Result::ok();
-
-		
 
         if(!engine->isInitialising())
         {
@@ -2642,6 +2668,7 @@ void ScriptingApi::Content::ScriptPanel::showAsPopup(bool closeOtherPopups)
 
 	parent->addPanelPopup(this, closeOtherPopups);
 
+	// WHYTHEFUCK
 	sendChangeMessage();
 }
 
@@ -2649,6 +2676,7 @@ void ScriptingApi::Content::ScriptPanel::closeAsPopup()
 {
 	shownAsPopup = false;
 
+	// WHYTHEFUCK
 	sendChangeMessage();
 }
 
@@ -2667,7 +2695,7 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptedViewport::createC
 }
 
 ScriptingApi::Content::ScriptedViewport::ScriptedViewport(ProcessorWithScriptingContent* base, Content* parentContent, Identifier viewportName, int x, int y, int width, int height):
-	ScriptComponent(base, parentContent, viewportName, x, y, width, height)
+	ScriptComponent(base, viewportName)
 {
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::macroControl));
 
@@ -2680,7 +2708,10 @@ ScriptingApi::Content::ScriptedViewport::ScriptedViewport(ProcessorWithScripting
 	ADD_SCRIPT_PROPERTY(i03, "fontStyle");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(i04, "alignment");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 
-	
+	setDefaultValue(ScriptComponent::Properties::x, x);
+	setDefaultValue(ScriptComponent::Properties::y, y);
+	setDefaultValue(ScriptComponent::Properties::width, width);
+	setDefaultValue(ScriptComponent::Properties::height, height);
 	setDefaultValue(scrollbarThickness, 16.0);
 	setDefaultValue(autoHide, true);
 	setDefaultValue(useList, false);
@@ -2748,7 +2779,7 @@ struct ScriptingApi::Content::ScriptedPlotter::Wrapper
 };
 
 ScriptingApi::Content::ScriptedPlotter::ScriptedPlotter(ProcessorWithScriptingContent *base, Content *parentContent, Identifier plotterName, int x, int y, int width, int height) :
-ScriptComponent(base, parentContent, plotterName, x, y, width, height)
+ScriptComponent(base, plotterName)
 {
 	ADD_API_METHOD_2(addModulatorToPlotter);
 	ADD_API_METHOD_0(clearModulatorPlotter);
@@ -2795,7 +2826,7 @@ void ScriptingApi::Content::ScriptedPlotter::clearModulatorPlotter()
 
 
 ScriptingApi::Content::ModulatorMeter::ModulatorMeter(ProcessorWithScriptingContent *base, Content *parentContent, Identifier modulatorName, int x, int y, int width, int height) :
-ScriptComponent(base, parentContent, modulatorName, x, y, width, height),
+ScriptComponent(base, modulatorName),
 targetMod(nullptr)
 {
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
@@ -2805,7 +2836,7 @@ targetMod(nullptr)
 
 	propertyIds.add("modulatorId");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 
-	componentProperties->setProperty(getIdFor(ModulatorId), 0);
+	
 
 	setScriptObjectProperty(ModulatorId, "");
 }
@@ -2876,8 +2907,8 @@ StringArray ScriptingApi::Content::ModulatorMeter::getOptionsFor(const Identifie
 };
 
 
-ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScriptingContent *base, Content *parentContent, Identifier plotterName, int x, int y, int width, int height) :
-ScriptComponent(base, parentContent, plotterName, x, y, width, height)
+ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScriptingContent *base, Content *parentContent, Identifier waveformName, int x, int y, int width, int height) :
+ScriptComponent(base, waveformName)
 {
 	deactivatedProperties.add(getIdFor(text));
 	deactivatedProperties.add(getIdFor(min));
@@ -2888,6 +2919,12 @@ ScriptComponent(base, parentContent, plotterName, x, y, width, height)
 	deactivatedProperties.add(getIdFor(textColour));
 	deactivatedProperties.add(getIdFor(macroControl));
 	deactivatedProperties.add(getIdFor(parameterId));
+
+	setDefaultValue(ScriptComponent::Properties::x, x);
+	setDefaultValue(ScriptComponent::Properties::y, y);
+	setDefaultValue(ScriptComponent::Properties::width, width);
+	setDefaultValue(ScriptComponent::Properties::height, height);
+	
 
 #if 0
 	setMethod("connectToAudioSampleProcessor", Wrapper::connectToAudioSampleProcessor);
@@ -2932,6 +2969,7 @@ void ScriptingApi::Content::ScriptAudioWaveform::restoreFromValueTree(const Valu
 
 			getAudioProcessor()->setRange(range);
 
+			//WHYTHEFUCK
 			sendChangeMessage();
 		}
 	}
@@ -2960,7 +2998,7 @@ struct ScriptingApi::Content::ScriptFloatingTile::Wrapper
 };
 
 ScriptingApi::Content::ScriptFloatingTile::ScriptFloatingTile(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height) :
-	ScriptComponent(base, parentContent, panelName, x, y, width, height)
+	ScriptComponent(base, panelName)
 {
 	propertyIds.add("updateAfterInit");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
@@ -2974,7 +3012,12 @@ ScriptingApi::Content::ScriptFloatingTile::ScriptFloatingTile(ProcessorWithScrip
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::tooltip));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::textColour));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::useUndoManager));
-
+	
+	setDefaultValue(ScriptComponent::Properties::x, x);
+	setDefaultValue(ScriptComponent::Properties::y, y);
+	setDefaultValue(ScriptComponent::Properties::width, width);
+	setDefaultValue(ScriptComponent::Properties::height, height);
+	setDefaultValue(ScriptComponent::Properties::saveInPreset, false);
 	setDefaultValue(ScriptComponent::Properties::saveInPreset, false);
 	setDefaultValue(Properties::updateAfterInit, true);
 
@@ -3080,8 +3123,6 @@ template <class Subtype> Subtype* ScriptingApi::Content::addComponent(Identifier
 	{
 		// Make a copy of the properties so that they won't get changed when
 		// you call set(id, value);
-
-		//contentDataSet.set(name, var(t->getScriptObjectProperties()->clone()));
 
 		ValueTree newChild("Component");
 		newChild.setProperty("type", t->getObjectName().toString(), nullptr);
@@ -3714,7 +3755,9 @@ void ScriptingApi::Content::addComponentsFromValueTree(const ValueTree& v)
 
 	if (v.getType() == co)
 	{
-		auto sc = Helpers::createComponentFromId(this, v.getProperty(type_).toString(), v.getProperty(id).toString(), 0, 0, 100, 100);
+		//auto sc = Helpers::createComponentFromId(this, v.getProperty(type_).toString(), v.getProperty(id).toString());
+
+		auto sc = Helpers::createComponentFromValueTree(this, v);
 
 		DynamicObject* dyn = new DynamicObject();
 		var d(dyn);
@@ -3946,50 +3989,6 @@ void ScriptingApi::Content::Helpers::createNewComponentData(Content* c, ValueTre
 	p.addChild(n, -1, nullptr);
 
 	c->updateAndSetLevel(FullRecompile);
-}
-
-
-ScriptingApi::Content::ScriptComponent* ScriptingApi::Content::Helpers::createComponentFromId(Content* c, const Identifier& typeId, const Identifier& name, int x, int y, int w, int h)
-{
-	
-
-	if (auto sc = createComponentIfTypeMatches<ScriptSlider>(c, typeId, name, x, y, w, h))
-		return sc;
-	
-	if (auto sc = createComponentIfTypeMatches<ScriptButton>(c, typeId, name, x, y, w, h))
-		return sc;
-
-	if (auto sc = createComponentIfTypeMatches<ScriptLabel>(c, typeId, name, x, y, w, h))
-		return sc;
-
-	if (auto sc = createComponentIfTypeMatches<ScriptComboBox>(c, typeId, name, x, y, w, h))
-		return sc;
-
-	if (auto sc = createComponentIfTypeMatches<ScriptTable>(c, typeId, name, x, y, w, h))
-		return sc;
-
-	if (auto sc = createComponentIfTypeMatches<ScriptSliderPack>(c, typeId, name, x, y, w, h))
-		return sc;
-
-	if (auto sc = createComponentIfTypeMatches<ScriptImage>(c, typeId, name, x, y, w, h))
-		return sc;
-
-	if (auto sc = createComponentIfTypeMatches<ScriptPanel>(c, typeId, name, x, y, w, h))
-		return sc;
-
-	if (auto sc = createComponentIfTypeMatches<ScriptedViewport>(c, typeId, name, x, y, w, h))
-		return sc;
-
-	if (auto sc = createComponentIfTypeMatches<ModulatorMeter>(c, typeId, name, x, y, w, h))
-		return sc;
-
-	if (auto sc = createComponentIfTypeMatches<ScriptAudioWaveform>(c, typeId, name, x, y, w, h))
-		return sc;
-
-	if (auto sc = createComponentIfTypeMatches<ScriptFloatingTile>(c, typeId, name, x, y, w, h))
-		return sc;
-
-	return nullptr;
 }
 
 String ScriptingApi::Content::Helpers::createScriptVariableDeclaration(ReferenceCountedArray<ScriptComponent> selection)
@@ -4333,6 +4332,61 @@ void ScriptingApi::Content::Helpers::copyComponentSnapShotToValueTree(Content* c
 	c->contentPropertyData = v;
 
 	c->rebuildComponentListFromValueTree();
+}
+
+ScriptingApi::Content::ScriptComponent * ScriptingApi::Content::Helpers::createComponentFromValueTree(Content* c, const ValueTree& v)
+{
+	static const Identifier x_("x");
+	static const Identifier y_("x");
+	static const Identifier width_("x");
+	static const Identifier height_("x");
+	static const Identifier id_("id");
+	static const Identifier type_("type");
+
+	auto typeId = Identifier(v.getProperty(type_).toString());
+	auto name = Identifier(v.getProperty(id_).toString());
+	auto x = (int)v.getProperty(x_);
+	auto y = (int)v.getProperty(y_);
+	auto w = (int)v.getProperty(width_);
+	auto h = (int)v.getProperty(height_);
+
+	if (auto sc = createComponentIfTypeMatches<ScriptSlider>(c, typeId, name, x, y, w, h))
+		return sc;
+
+	if (auto sc = createComponentIfTypeMatches<ScriptButton>(c, typeId, name, x, y, w, h))
+		return sc;
+
+	if (auto sc = createComponentIfTypeMatches<ScriptLabel>(c, typeId, name, x, y, w, h))
+		return sc;
+
+	if (auto sc = createComponentIfTypeMatches<ScriptComboBox>(c, typeId, name, x, y, w, h))
+		return sc;
+
+	if (auto sc = createComponentIfTypeMatches<ScriptTable>(c, typeId, name, x, y, w, h))
+		return sc;
+
+	if (auto sc = createComponentIfTypeMatches<ScriptSliderPack>(c, typeId, name, x, y, w, h))
+		return sc;
+
+	if (auto sc = createComponentIfTypeMatches<ScriptImage>(c, typeId, name, x, y, w, h))
+		return sc;
+
+	if (auto sc = createComponentIfTypeMatches<ScriptPanel>(c, typeId, name, x, y, w, h))
+		return sc;
+
+	if (auto sc = createComponentIfTypeMatches<ScriptedViewport>(c, typeId, name, x, y, w, h))
+		return sc;
+
+	if (auto sc = createComponentIfTypeMatches<ModulatorMeter>(c, typeId, name, x, y, w, h))
+		return sc;
+
+	if (auto sc = createComponentIfTypeMatches<ScriptAudioWaveform>(c, typeId, name, x, y, w, h))
+		return sc;
+
+	if (auto sc = createComponentIfTypeMatches<ScriptFloatingTile>(c, typeId, name, x, y, w, h))
+		return sc;
+
+	return nullptr;
 }
 
 } // namespace hise

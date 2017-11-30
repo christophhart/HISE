@@ -114,7 +114,7 @@ var HiPropertyComponent::getCurrentPropertyValue(bool returnUndefinedWhenMultipl
 
 	auto first = b->getFirstFromSelection();
 
-	const var& firstValue = first->getScriptObjectProperties()->getProperty(getId());
+	const var& firstValue = first->getScriptObjectProperty(getId());
 	
 	if (returnUndefinedWhenMultipleSelection && (b->getNumSelected() > 1))
 	{
@@ -122,7 +122,7 @@ var HiPropertyComponent::getCurrentPropertyValue(bool returnUndefinedWhenMultipl
 
 		while (auto sc = iter.getNextScriptComponent())
 		{
-			auto nextValue = sc->getScriptObjectProperties()->getProperty(getId());
+			auto nextValue = sc->getScriptObjectProperty(getId());
 			if (nextValue != firstValue)
 				return var::undefined();
 		}

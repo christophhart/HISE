@@ -96,6 +96,197 @@ private:
 	WeakReference<SafeChangeListener>::Master masterReference;
 };
 
+
+/** This class is used to coallescate multiple calls to an asynchronous update for a given Listener.
+*
+*	It is designed to be a replacement for the normal AsyncUpdater which can clog the message thread if too
+*	many change notifications are sent.
+*
+*	In order to use this class, just create an instance and pass this to your subclassed listeners, which then
+*	can be used just like the standard AsyncUpdater from JUCE.
+*
+*	Another nice feature is that you can use the same mechanism to call a function asynchronously by passing
+*	a lambda to callFunctionAsynchronously.
+*/
+class UpdateDispatcher : public AsyncUpdater
+{
+public:
+
+	UpdateDispatcher() :
+		pendingListeners(1024),
+		pendingFunctions(1024)
+	{};
+
+	~UpdateDispatcher()
+	{
+		masterReference.clear();
+	}
+
+	class Listener
+	{
+	public:
+
+		Listener(UpdateDispatcher* dispatcher_) :
+			dispatcher(dispatcher_),
+			pending(false)
+		{
+
+		};
+
+		virtual ~Listener()
+		{
+			masterReference.clear();
+		};
+
+		virtual void handleAsyncUpdate() = 0;
+
+		virtual void triggerAsyncUpdate()
+		{
+			if (pending)
+				return;
+
+			pending = true;
+
+			if (dispatcher != nullptr)
+				dispatcher->triggerAsyncUpdateForListener(this);
+		}
+
+	private:
+
+		std::atomic<bool> pending;
+
+		friend class WeakReference<Listener>;
+		WeakReference<Listener>::Master masterReference;
+
+		friend class UpdateDispatcher;
+
+		WeakReference<UpdateDispatcher> dispatcher;
+	};
+
+	using Func = std::function<void(void)>;
+
+	void triggerAsyncUpdateForListener(Listener* l)
+	{
+		pendingListeners.push(l);
+		triggerAsyncUpdate();
+	}
+
+	void callFunctionAsynchronously(const Func& f)
+	{
+		pendingFunctions.push(Func(f));
+		triggerAsyncUpdate();
+	}
+
+
+private:
+
+	friend class WeakReference<UpdateDispatcher>;
+	WeakReference<UpdateDispatcher>::Master masterReference;
+
+	void handleAsyncUpdate() override
+	{
+		WeakReference<Listener> l;
+
+		while (pendingListeners.pop(l))
+		{
+			if (l != nullptr)
+			{
+				l->handleAsyncUpdate();
+				l->pending = false;
+			}
+		}
+
+		Func f;
+
+		while (pendingFunctions.pop(f))
+		{
+			f();
+		}
+	}
+
+	friend class Listener;
+
+	hise::LockfreeQueue<WeakReference<Listener>> pendingListeners;
+	hise::LockfreeQueue<Func> pendingFunctions;
+};
+
+/** This class can be used to listen to ValueTree property changes asynchronously.
+*
+*	It uses the UpdateDispatcher class to coallescate multiple updates without clogging the message thread
+*/
+class AsyncValueTreePropertyListener : public ValueTree::Listener
+{
+public:
+
+	AsyncValueTreePropertyListener(ValueTree v_, UpdateDispatcher* dispatcher_) :
+		v(v_),
+		dispatcher(dispatcher_),
+		asyncHandler(*this)
+	{
+		pendingPropertyChanges.ensureStorageAllocated(1024);
+		v.addListener(this);
+	}
+
+	void valueTreePropertyChanged(ValueTree& v, const Identifier& id) final override
+	{
+		pendingPropertyChanges.addIfNotAlreadyThere(PropertyChange(v, id));
+
+		asyncHandler.triggerAsyncUpdate();
+	};
+
+	virtual void asyncValueTreePropertyChanged(ValueTree& v, const Identifier& id) = 0;
+
+	void valueTreeChildAdded(ValueTree&, ValueTree&) override {}
+	void valueTreeChildRemoved(ValueTree&, ValueTree&, int) override {}
+	void valueTreeChildOrderChanged(ValueTree&, int, int) override {}
+	void valueTreeParentChanged(ValueTree&) override {}
+private:
+
+	struct PropertyChange
+	{
+		PropertyChange(ValueTree v_, Identifier id_) : v(v_), id(id_) {};
+		PropertyChange() {};
+
+		bool operator==(const PropertyChange& other) const
+		{
+			return v == other.v && id == other.id;
+		}
+
+		ValueTree v;
+		Identifier id;
+	};
+
+	struct AsyncHandler : public UpdateDispatcher::Listener
+	{
+		AsyncHandler(AsyncValueTreePropertyListener& parent_) :
+			Listener(parent_.dispatcher),
+			parent(parent_)
+		{};
+
+		void handleAsyncUpdate() override
+		{
+			Array<PropertyChange> thisTime;
+
+			thisTime.swapWith(parent.pendingPropertyChanges);
+
+			for (auto& pc : thisTime)
+			{
+				parent.asyncValueTreePropertyChanged(pc.v, pc.id);
+			}
+		}
+
+		AsyncValueTreePropertyListener& parent;
+	};
+
+	ValueTree v;
+	WeakReference<UpdateDispatcher> dispatcher;
+	AsyncHandler asyncHandler;
+
+	Array<PropertyChange> pendingPropertyChanges;
+};
+
+
+
 /** A small helper class that detects a timeout.
 *
 *   Use this to catch down drop outs by adding it to time critical functions in the audio thread and set a global time out value 

@@ -78,8 +78,7 @@ void ScriptComponentEditPanel::addSectionToPanel(const Array<Identifier> &idList
 
 		while (auto sc = iter.getNextScriptComponent())
 		{
-			if (!sc->getScriptObjectProperties()->hasProperty(id) ||
-				sc->isPropertyDeactivated(id))
+			if (!sc->hasProperty(id) || sc->isPropertyDeactivated(id))
 			{
 				shouldAddProperty = false;
 				break;

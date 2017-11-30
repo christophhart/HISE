@@ -49,11 +49,37 @@ Array<Identifier> ScriptComponentPropertyTypeSelector::fileProperties = Array<Id
 Array<ScriptComponentPropertyTypeSelector::SliderRange> ScriptComponentPropertyTypeSelector::sliderRanges = Array<ScriptComponentPropertyTypeSelector::SliderRange>();
 
 
+void ScriptCreatedComponentWrapper::updateComponent(int index, var newValue)
+{
+	auto propIndex = (ScriptingApi::Content::ScriptComponent::Properties)index;
+
+	switch (propIndex)
+	{
+	case hise::ScriptingApi::Content::ScriptComponent::visible: contentComponent->updateComponentVisibility(this); break;
+	case hise::ScriptingApi::Content::ScriptComponent::enabled: contentComponent->updateComponentVisibility(this); break;
+	case hise::ScriptingApi::Content::ScriptComponent::x:
+	case hise::ScriptingApi::Content::ScriptComponent::y:
+	case hise::ScriptingApi::Content::ScriptComponent::width:
+	case hise::ScriptingApi::Content::ScriptComponent::height: contentComponent->updateComponentPosition(this); break;
+	case hise::ScriptingApi::Content::ScriptComponent::parentComponent: contentComponent->updateComponentParent(this); break;
+	default:
+		break;
+	}
+}
+
 void ScriptCreatedComponentWrapper::changed(var newValue)
 {
 	getScriptComponent()->value = newValue;
 
 	dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())->controlCallback(getScriptComponent(), newValue);
+}
+
+ScriptCreatedComponentWrapper::ScriptCreatedComponentWrapper(ScriptContentComponent *content, int index_) :
+	AsyncValueTreePropertyListener(content->contentData->getComponent(index_)->getPropertyValueTree(), content->contentData->getUpdateDispatcher()),
+	contentComponent(content),
+	index(index_)
+{
+	scriptComponent = content->contentData->getComponent(index_);
 }
 
 Processor * ScriptCreatedComponentWrapper::getProcessor()
@@ -119,10 +145,13 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateFilmstrip()
 
 		int thisStrips = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::numStrips);
 
-		if (thisFilmStrip != filmStripName || thisStrips != numStrips)
+		auto thisScaleFactor = (double)sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::scaleFactor);
+
+		if (thisFilmStrip != filmStripName || thisStrips != numStrips || scaleFactor != thisScaleFactor)
 		{
 			filmStripName = thisFilmStrip;
 			numStrips = thisStrips;
+			scaleFactor = thisScaleFactor;
 
 			FilmstripLookAndFeel *fslaf = new FilmstripLookAndFeel();
 
@@ -130,7 +159,7 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateFilmstrip()
 				sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::numStrips),
 				sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::isVertical));
 
-			fslaf->setScaleFactor(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::scaleFactor));
+			fslaf->setScaleFactor(thisScaleFactor);
 
 			s->setTextBoxStyle(Slider::NoTextBox, true, 0, 0);
 
@@ -143,20 +172,25 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateFilmstrip()
 
 
 
-void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent()
+
+void ScriptCreatedComponentWrappers::SliderWrapper::updateColours(HiSlider * s)
 {
-	HiSlider *s = dynamic_cast<HiSlider*>(getComponent());
+	s->setColour(Slider::backgroundColourId, GET_OBJECT_COLOUR(bgColour));
+	s->setColour(Slider::thumbColourId, GET_OBJECT_COLOUR(itemColour));
+	s->setColour(Slider::trackColourId, GET_OBJECT_COLOUR(itemColour2));
 
-	jassert(s != nullptr);
+	s->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, GET_OBJECT_COLOUR(bgColour));
+	s->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, GET_OBJECT_COLOUR(itemColour));
+	s->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, GET_OBJECT_COLOUR(itemColour2));
 
-	s->setUseUndoManagerForEvents(GET_SCRIPT_PROPERTY(useUndoManager));
+	s->setColour(Slider::textBoxTextColourId, GET_OBJECT_COLOUR(textColour));
+}
 
-	s->setTooltip(GET_SCRIPT_PROPERTY(tooltip));
-	s->setName(GET_SCRIPT_PROPERTY(text));
-	s->enableMacroControlledComponent(GET_SCRIPT_PROPERTY(enabled));
 
-	ScriptingApi::Content::ScriptSlider* sc = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(getScriptComponent());
 
+
+void ScriptCreatedComponentWrappers::SliderWrapper::updateSensitivity(ScriptingApi::Content::ScriptSlider* sc, HiSlider * s)
+{
 	double sensitivityScaler = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::mouseSensitivity);
 
 	if (sensitivityScaler != 1.0)
@@ -164,16 +198,15 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent()
 		double sensitivity = jmax<double>(1.0, 250.0 * sensitivityScaler);
 		s->setMouseDragSensitivity((int)sensitivity);
 	}
+}
 
-	String currentFilmStrip = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::filmstripImage);
-	
-	updateFilmstrip();
-	
+void ScriptCreatedComponentWrappers::SliderWrapper::updateSliderRange(ScriptingApi::Content::ScriptSlider* sc, HiSlider * s)
+{
 	const double min = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::min);
 	const double max = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::max);
 	const double stepsize = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::stepSize);
 	const double middlePos = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::middlePosition);
-	const double defaultValue = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::defaultValue);
+
 	const String suffix = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::suffix);
 
 	if (min >= max || stepsize <= 0.0 || min < -100000.0 || max > 100000.0)
@@ -191,10 +224,60 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent()
 		if (sc->m == HiSlider::Mode::Linear) s->setTextValueSuffix(suffix);
 	}
 
+	const double defaultValue = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::defaultValue);
+
 	if (defaultValue >= min && defaultValue <= max)
 	{
 		s->setDoubleClickReturnValue(true, defaultValue);
 	}
+}
+
+void ScriptCreatedComponentWrappers::SliderWrapper::updateSliderStyle(ScriptingApi::Content::ScriptSlider* sc, HiSlider * s)
+{
+	if (sc->styleId == Slider::RotaryHorizontalVerticalDrag)
+	{
+		String direction = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::dragDirection);
+
+		if (direction == "Horizontal") s->setSliderStyle(Slider::RotaryHorizontalDrag);
+		else if (direction == "Vertical") s->setSliderStyle(Slider::RotaryVerticalDrag);
+		else s->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
+	}
+	else
+	{
+		s->setSliderStyle(sc->styleId);
+	}
+
+	if (sc->styleId == Slider::TwoValueHorizontal)
+	{
+		s->setTextBoxStyle(Slider::NoTextBox, false, 0, 0);
+	}
+}
+
+void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent()
+{
+	jassertfalse;
+
+	HiSlider *s = dynamic_cast<HiSlider*>(getComponent());
+
+	jassert(s != nullptr);
+
+	s->setUseUndoManagerForEvents(GET_SCRIPT_PROPERTY(useUndoManager));
+
+	s->setTooltip(GET_SCRIPT_PROPERTY(tooltip));
+	s->setName(GET_SCRIPT_PROPERTY(text));
+	s->enableMacroControlledComponent(GET_SCRIPT_PROPERTY(enabled));
+
+	ScriptingApi::Content::ScriptSlider* sc = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(getScriptComponent());
+
+	updateSensitivity(sc, s);
+
+
+	updateFilmstrip();
+	
+	updateSliderRange(sc, s);
+
+
+	
 
 	s->setValue(sc->value, dontSendNotification);
 
@@ -202,38 +285,62 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent()
 
 	if (!usesFilmStrip)
 	{
-		if (sc->styleId == Slider::RotaryHorizontalVerticalDrag)
-		{
-			String direction = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::dragDirection);
+		updateSliderStyle(sc, s);
 
-			if (direction == "Horizontal") s->setSliderStyle(Slider::RotaryHorizontalDrag);
-			else if (direction == "Vertical") s->setSliderStyle(Slider::RotaryVerticalDrag);
-			else s->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
-		}
-		else
-		{
-			s->setSliderStyle(sc->styleId);
-		}
 
-		if (sc->styleId == Slider::TwoValueHorizontal)
-		{
-			s->setTextBoxStyle(Slider::NoTextBox, false, 0, 0);
-		}
+		updateColours(s);
 
-		s->setColour(Slider::backgroundColourId, GET_OBJECT_COLOUR(bgColour));
-		s->setColour(Slider::thumbColourId, GET_OBJECT_COLOUR(itemColour));
-		s->setColour(Slider::trackColourId, GET_OBJECT_COLOUR(itemColour2));
-
-		s->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, GET_OBJECT_COLOUR(bgColour));
-		s->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, GET_OBJECT_COLOUR(itemColour));
-		s->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, GET_OBJECT_COLOUR(itemColour2));
-
-		s->setColour(Slider::textBoxTextColourId, GET_OBJECT_COLOUR(textColour));
 	}
 
 	
 
 	s->repaint();
+}
+
+#define PROPERTY_CASE case hise::ScriptingApi::Content
+
+void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent(int index, var newValue)
+{
+	if (index < ScriptingApi::Content::ScriptComponent::Properties::numProperties)
+	{
+		ScriptCreatedComponentWrapper::updateComponent(index, newValue);
+		
+	}
+
+	HiSlider *s = dynamic_cast<HiSlider*>(getComponent());
+	auto sc = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(getScriptComponent());
+
+	auto propIndex = (ScriptingApi::Content::ScriptSlider::Properties)index;
+
+	switch (index)
+	{
+		PROPERTY_CASE::ScriptComponent::useUndoManager:	s->setUseUndoManagerForEvents(GET_SCRIPT_PROPERTY(useUndoManager)); break;
+		PROPERTY_CASE::ScriptComponent::text:			s->setName(GET_SCRIPT_PROPERTY(text)); break;
+		PROPERTY_CASE::ScriptComponent::enabled:		s->enableMacroControlledComponent(GET_SCRIPT_PROPERTY(enabled));
+		PROPERTY_CASE::ScriptComponent::tooltip :		s->setTooltip(GET_SCRIPT_PROPERTY(tooltip)); break;
+		PROPERTY_CASE::ScriptComponent::bgColour:
+		PROPERTY_CASE::ScriptComponent::itemColour :
+		PROPERTY_CASE::ScriptComponent::itemColour2 :
+		PROPERTY_CASE::ScriptComponent::textColour :	updateColours(s); break;
+		PROPERTY_CASE::ScriptSlider::Style:				updateSliderStyle(sc, s); break;
+		PROPERTY_CASE::ScriptSlider::Mode:
+		PROPERTY_CASE::ScriptComponent::min :
+		PROPERTY_CASE::ScriptComponent::max :
+		PROPERTY_CASE::ScriptSlider::stepSize :
+		PROPERTY_CASE::ScriptSlider::middlePosition :
+		PROPERTY_CASE::ScriptSlider::defaultValue :
+		PROPERTY_CASE::ScriptSlider::suffix :			updateSliderRange(sc, s); break;
+		PROPERTY_CASE::ScriptSlider::filmstripImage:		;
+		PROPERTY_CASE::ScriptSlider::numStrips:
+		PROPERTY_CASE::ScriptSlider::isVertical :
+		PROPERTY_CASE::ScriptSlider::scaleFactor :		updateFilmstrip(); break;
+		PROPERTY_CASE::ScriptSlider::mouseSensitivity:		updateSensitivity(sc, s); break;
+		PROPERTY_CASE::ScriptSlider::dragDirection:
+		PROPERTY_CASE::ScriptSlider::showValuePopup:
+		PROPERTY_CASE::ScriptSlider::numProperties:
+	default:
+		break;
+	}
 }
 
 void ScriptCreatedComponentWrappers::SliderWrapper::sliderValueChanged(Slider *s)
@@ -454,6 +561,8 @@ ScriptCreatedComponentWrapper(content, index)
 
 void ScriptCreatedComponentWrappers::ButtonWrapper::updateComponent()
 {
+	jassertfalse;
+
 	HiToggleButton *b = dynamic_cast<HiToggleButton*>(component.get());
 
 	b->enableMacroControlledComponent(GET_SCRIPT_PROPERTY(enabled));
@@ -468,17 +577,48 @@ void ScriptCreatedComponentWrappers::ButtonWrapper::updateComponent()
     }
 
 	b->setIsMomentary(getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::isMomentary));
+	updateColours(b);
 
-    b->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, GET_OBJECT_COLOUR(bgColour));
-    b->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, GET_OBJECT_COLOUR(itemColour));
-    b->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, GET_OBJECT_COLOUR(itemColour2));
-    
-	b->setTooltip(GET_SCRIPT_PROPERTY(tooltip));
 	b->setButtonText(GET_SCRIPT_PROPERTY(text));
 	b->setToggleState((bool)getScriptComponent()->value, dontSendNotification);
 	b->setRadioGroupId(getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::radioGroup));
 }
 
+
+void ScriptCreatedComponentWrappers::ButtonWrapper::updateComponent(int index, var newValue)
+{
+	if (index < ScriptingApi::Content::ScriptComponent::Properties::numProperties)
+	{
+		ScriptCreatedComponentWrapper::updateComponent(index, newValue);
+	}
+
+	HiToggleButton *b = dynamic_cast<HiToggleButton*>(getComponent());
+	auto sc = dynamic_cast<ScriptingApi::Content::ScriptButton*>(getScriptComponent());
+
+	switch (index)
+	{
+		PROPERTY_CASE::ScriptComponent::useUndoManager:	b->setUseUndoManagerForEvents(GET_SCRIPT_PROPERTY(useUndoManager)); break;
+		PROPERTY_CASE::ScriptComponent::text:			b->setButtonText(GET_SCRIPT_PROPERTY(text)); break;
+		PROPERTY_CASE::ScriptComponent::enabled:		b->enableMacroControlledComponent(GET_SCRIPT_PROPERTY(enabled)); break;
+		PROPERTY_CASE::ScriptComponent::tooltip :		b->setTooltip(GET_SCRIPT_PROPERTY(tooltip)); break;
+		PROPERTY_CASE::ScriptComponent::bgColour:
+		PROPERTY_CASE::ScriptComponent::itemColour :
+		PROPERTY_CASE::ScriptComponent::itemColour2 :
+		PROPERTY_CASE::ScriptComponent::textColour :	updateColours(b); break;
+		PROPERTY_CASE::ScriptButton::radioGroup:		b->setRadioGroupId(getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::radioGroup)); break;
+		PROPERTY_CASE::ScriptButton::isMomentary :		b->setIsMomentary(getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::isMomentary)); break;
+			PROPERTY_CASE::ScriptSlider::numProperties :
+	default:
+		break;
+	}
+}
+
+void ScriptCreatedComponentWrappers::ButtonWrapper::updateColours(HiToggleButton * b)
+{
+	b->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, GET_OBJECT_COLOUR(bgColour));
+	b->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, GET_OBJECT_COLOUR(itemColour));
+	b->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, GET_OBJECT_COLOUR(itemColour2));
+}
 
 ScriptCreatedComponentWrappers::LabelWrapper::LabelWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptLabel *sl, int index):
 ScriptCreatedComponentWrapper(content, index)

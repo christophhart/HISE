@@ -256,7 +256,7 @@ void ScriptComponentEditBroadcaster::setScriptComponentPropertyDelta(ScriptCompo
 	if (beginNewTransaction)
 		manager.beginNewTransaction("Delta");
 
-	var oldValue = sc->getScriptObjectProperties()->getProperty(propertyId);
+	var oldValue = sc->getScriptObjectProperty(propertyId);
 
 	var newValue = (double)oldValue + (double)delta;
 
@@ -297,7 +297,7 @@ String ScriptComponentEditBroadcaster::getTransactionName(ScriptComponent* sc, c
 	else
 	{
 		p << sc->getName().toString() << "." << id.toString() << ": ";
-		p << sc->getScriptObjectProperties()->getProperty(id).toString() << " -> " << newValue.toString();
+		p << sc->getScriptObjectProperty(id).toString() << " -> " << newValue.toString();
 	}
 
 	return p;
