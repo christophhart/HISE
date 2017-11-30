@@ -136,11 +136,7 @@ AudioFileEnvelopeEditor::AudioFileEnvelopeEditor (ProcessorEditor *p)
 
 	ProcessorEditorLookAndFeel::setupEditorNameLabel(label);
 
-	AudioSampleProcessor *asp = dynamic_cast<AudioSampleProcessor*>(getProcessor());
-
-	
 	sampleBufferContent->setBackgroundColour(getProcessor()->getColour().withMultipliedBrightness(.6f));
-
 	sampleBufferContent->addAreaListener(this);
 
 	modeSelector->setup(getProcessor(), AudioFileEnvelope::Parameters::Mode, "Envelope Mode");
