@@ -283,7 +283,12 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
 		gm->scaleFactor = globalSettings->getDoubleAttribute("SCALE_FACTOR", 1.0);
 		gm->microTuning = globalSettings->getDoubleAttribute("MICRO_TUNING", 0.0);
 		gm->transposeValue = globalSettings->getIntAttribute("TRANSPOSE", 0);
+
+#if IS_STANDALONE_APP
+		// Don't save this for plugins as they are usually synced to the host
 		gm->globalBPM = globalSettings->getIntAttribute("GLOBAL_BPM", -1);
+#endif
+
 		gm->channelData = globalSettings->getIntAttribute("MIDI_CHANNELS", 1);
 
 		gm->ccSustainValue = globalSettings->getIntAttribute("SUSTAIN_CC", 64);
@@ -329,7 +334,12 @@ void GlobalSettingManager::saveSettingsAsXml()
 	settings->setAttribute("TRANSPOSE", transposeValue);
 	settings->setAttribute("SUSTAIN_CC", ccSustainValue);
 	settings->setAttribute("VOICE_AMOUNT_MULTIPLIER", voiceAmountMultiplier);
+
+#if IS_STANDALONE_APP
+	// Dont save this in plugins
 	settings->setAttribute("GLOBAL_BPM", globalBPM);
+#endif
+
 	settings->setAttribute("OPEN_GL", useOpenGL);
 	settings->setAttribute("MIDI_CHANNELS", channelData);
 
