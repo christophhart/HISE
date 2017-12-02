@@ -163,14 +163,7 @@ struct ScriptComponentSorter
 
 void addChildrenToSelection(ScriptComponentEditBroadcaster* b, ScriptComponent* sc)
 {
-	for (int i = 0; i < sc->getNumChildComponents(); i++)
-	{
-		auto child = sc->getChildComponent(i);
-
-		addChildrenToSelection(b, child);
-
-		b->addToSelection(child, dontSendNotification);
-	}
+	jassertfalse;
 }
 
 void ScriptComponentEditBroadcaster::prepareSelectionForDragging(ScriptComponent* source)

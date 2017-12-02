@@ -108,7 +108,8 @@ private:
 *	Another nice feature is that you can use the same mechanism to call a function asynchronously by passing
 *	a lambda to callFunctionAsynchronously.
 */
-class UpdateDispatcher : public AsyncUpdater
+class UpdateDispatcher : public AsyncUpdater,
+						 public Timer
 {
 public:
 
@@ -140,6 +141,15 @@ public:
 
 		virtual void handleAsyncUpdate() = 0;
 
+		virtual void cancelPendingUpdate()
+		{
+			if (!pending)
+				return;
+			
+			if(dispatcher != nullptr)
+				dispatcher->cancelPendingUpdateForListener(this);
+		}
+
 		virtual void triggerAsyncUpdate()
 		{
 			if (pending)
@@ -167,16 +177,35 @@ public:
 
 	void triggerAsyncUpdateForListener(Listener* l)
 	{
-		pendingListeners.push(l);
-		triggerAsyncUpdate();
+		const bool ok = pendingListeners.push(l);
+
+		jassert(ok);
+
+		startTimer(30);
+
+		//triggerAsyncUpdate();
 	}
 
 	void callFunctionAsynchronously(const Func& f)
 	{
 		pendingFunctions.push(Func(f));
-		triggerAsyncUpdate();
+
+		startTimer(30);
+
+		//triggerAsyncUpdate();
 	}
 
+	void cancelPendingUpdateForListener(Listener* l)
+	{
+		cancelledListeners.addIfNotAlreadyThere(l);
+	}
+
+	void timerCallback() override
+	{
+		stopTimer();
+		handleAsyncUpdate();
+		
+	}
 
 private:
 
@@ -191,6 +220,14 @@ private:
 		{
 			if (l != nullptr)
 			{
+				if (cancelledListeners.contains(l))
+				{
+					l->pending = false;
+					cancelledListeners.removeAllInstancesOf(l);
+					continue;
+				}
+					
+
 				l->handleAsyncUpdate();
 				l->pending = false;
 			}
@@ -205,6 +242,8 @@ private:
 	}
 
 	friend class Listener;
+
+	Array<WeakReference<Listener>> cancelledListeners;
 
 	hise::LockfreeQueue<WeakReference<Listener>> pendingListeners;
 	hise::LockfreeQueue<Func> pendingFunctions;
@@ -436,6 +475,8 @@ public:
     void sendAllocationFreeChangeMessage();
     
     void enableAllocationFreeMessages(int timerIntervalMilliseconds);
+
+	bool hasChangeListeners() const noexcept { return !listeners.isEmpty(); }
 
 private:
 

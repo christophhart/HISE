@@ -172,6 +172,8 @@ public:
 
 	void asyncValueTreePropertyChanged(ValueTree& v, const Identifier& id) override;
 
+	void valueTreeChildAdded(ValueTree& parent, ValueTree& child) override;
+
 	void updateComponent(int i);
 
 	void updateContent(ScriptingApi::Content::ScriptComponent* componentToUpdate=nullptr);

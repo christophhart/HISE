@@ -42,7 +42,6 @@ namespace hise { using namespace juce;
 */
 class ScriptingApi::Content : public ScriptingObject,
 	public DynamicObject,
-	public SafeChangeBroadcaster,
 	public RestorableObject
 {
 public:
@@ -136,7 +135,7 @@ public:
 
 		virtual ~ScriptComponent() 
 		{
-			childComponents.clear();
+			
 		};
 
 		virtual StringArray getOptionsFor(const Identifier &id);
@@ -145,6 +144,14 @@ public:
 
 		Identifier getName() const;
 		Identifier getObjectName() const override;
+
+		String getParentComponentId() const;
+
+		bool hasParentComponent() const;
+
+		ScriptComponent* getParentScriptComponent();
+
+		const ScriptComponent* getParentScriptComponent() const;
 
 		virtual void preRecompileCallback() {};
 
@@ -159,6 +166,8 @@ public:
 		var getAssignedValue(int index) const override;
 		void assign(const int index, var newValue) override;
 		int getCachedIndex(const var &indexExpression) const override;
+
+		void setScriptObjectProperty(int p, var newValue, NotificationType notifyListeners = dontSendNotification);
 
 		virtual void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification);
 		virtual bool isAutomatable() const { return false; }
@@ -179,32 +188,12 @@ public:
 
 		Rectangle<int> getPosition() const;
 
-		int getParentComponentIndex() const;
-
-		bool addChildComponent(ScriptComponent* childComponent);
-
-		/** Checks if the component is a child component.
-		*
-		*	It also looks in the child components' child componenents ... */
-		bool isChildComponent(ScriptComponent* childComponent);
-
 		int getIndexForProperty(const Identifier& id) const
 		{
 			return propertyIds.indexOf(id);
 		}
 
-		int getNumChildComponents() const
-		{
-			return childComponents.size();
-		}
-
-		ScriptComponent* getChildComponent(int index)
-		{
-			if (index < childComponents.size())
-				return childComponents[index].get();
-
-			return nullptr;
-		}
+		
 
 		ReferenceCountedObject* getCustomControlCallback();
 
@@ -216,11 +205,9 @@ public:
 
 		void updateContentPropertyInternal(const Identifier& propertyId, const var& newValue);
 
-		void notifyChildComponents();
-
 		virtual void cancelPendingFunctions() {};
 
-		bool isShowing() const;
+		virtual bool isShowing(bool checkParentComponentVisibility = true) const;
 
 		template <class ChildType> class ChildIterator
 		{
@@ -228,11 +215,24 @@ public:
 
 			ChildIterator(ScriptComponent* c)
 			{
-				addToArray(c);
+				for (int i = 0; i < c->parent->getNumComponents(); i++)
+				{
+					if (auto sc = dynamic_cast<ChildType*>(c->parent->getComponent(i)))
+					{
+						auto scTree = sc->getPropertyValueTree();
+						auto cTree = c->getPropertyValueTree();
+
+						if (scTree == cTree || scTree.isAChildOf(cTree))
+						{
+							childComponents.add(sc);
+						}
+					}
+				}
 			}
 
 			ChildType* getNextChildComponent()
 			{
+				
 				return childComponents[index++];
 			}
 
@@ -240,22 +240,13 @@ public:
 
 			int index = 0;
 
-			void addToArray(ScriptComponent* c)
-			{
-				if (auto cTyped = dynamic_cast<ChildType*>(c))
-					childComponents.add(cTyped);
-
-				for (int i = 0; i < c->getNumChildComponents(); i++)
-					addToArray(c->getChildComponent(i));
-			}
-
 			Array<ChildType*> childComponents;
 		};
 
 		// API Methods =====================================================================================================
 
 		/** returns the value of the property. */
-		var get(String propertyName) const { return propertyTree.getProperty(Identifier(propertyName)); }
+		var get(String propertyName) const;
 
 		/** Sets the property. */
 		void set(String propertyName, var value);;
@@ -390,29 +381,46 @@ public:
 
 	protected:
 
+		bool isCorrectlyInitialised(int p) const
+		{
+			return initialisedProperties[p];
+		}
+
+		bool isCorrectlyInitialised(const Identifier& id) const
+		{
+			int p = propertyIds.indexOf(id);
+
+			return initialisedProperties[p];
+		}
+
+		void initInternalPropertyFromValueTreeOrDefault(int id, bool justSetInitFlag=false);
+
 		void setDefaultValue(int p, const var &defaultValue);
-		void setScriptObjectProperty(int p, var newValue, NotificationType notifyListeners=dontSendNotification);
+		
 
 		Array<Identifier> propertyIds;
 		Array<Identifier> deactivatedProperties;
 		Array<Identifier> priorityProperties;
 		
-		ValueTree propertyTree;
+		bool removePropertyIfDefault = true;
 
 	private:
 
+		bool isPositionProperty(Identifier id) const;
+
+		ValueTree propertyTree;
+
 		Array<Identifier> scriptChangedProperties;
+
 		bool countJsonSetProperties = true;
 		Identifier searchedProperty;
 
-		ReferenceCountedArray<ScriptComponent> childComponents;
+		BigInteger initialisedProperties;
 
 		var customControlCallback;
 
 		NamedValueSet defaultValues;
 		bool changed;
-
-		int parentComponentIndex;
 
 		WeakReference<Processor> connectedProcessor;
 		int connectedParameterIndex = -1;
@@ -496,7 +504,7 @@ public:
 
 		struct Wrapper;
 
-		HiSlider::Mode m;
+		HiSlider::Mode m = HiSlider::Mode::Linear;
 		Slider::SliderStyle styleId;
 		Image getImage() const { return image; };
 
@@ -670,12 +678,12 @@ public:
 		{
 			if (id == getIdFor((int)ScriptComponent::Properties::text))
 			{
+				jassert(isCorrectlyInitialised(ScriptComponent::Properties::text));
 				setValue(newValue.toString());
 			}
-			else
-			{
-				ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
-			}
+			
+			ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
+			
 		}
 
 		// ======================================================================================================== API Methods
@@ -926,7 +934,8 @@ public:
 			stopTimer();
 			repaintNotifier.removeAllChangeListeners();
 			controlSender.cancelPendingUpdate();
-			repainter.stopTimer();
+			repainter.cancelPendingUpdate();
+			//repainter.stopTimer();
 		}
 
 		bool updateCyclicReferenceList(ThreadData& data, const Identifier& id) override;
@@ -980,24 +989,32 @@ public:
 
 		// ========================================================================================================
 
-		
+		void forcedRepaint()
+		{
+			
+		};
 
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor=sendNotification) override
 		{
-			ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
-
 			if (id == getIdFor((int)ScriptComponent::Properties::visible))
 			{
-				setScriptObjectProperty(ScriptComponent::visible, newValue);
+				const bool wasVisible = (bool)getScriptObjectProperty(visible);
 
-				ChildIterator<ScriptPanel> iter(this);
+				const bool isNowVisible = (bool)newValue;
 
-				while (auto childPanel = iter.getNextChildComponent())
-					childPanel->repaintImmediately();	
+				setScriptObjectProperty(visible, newValue);
+
+				if (wasVisible != isNowVisible)
+				{
+					repaintThisAndAllChildren();
+
+				}
 			}
-			
-			
+
+			ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 		}
+
+		void repaintThisAndAllChildren();
 
 		struct Wrapper;
 
@@ -1021,7 +1038,7 @@ public:
 			//cancelAll = true;
 
 			stopTimer();
-			repainter.stopTimer();
+			//repainter.stopTimer();
 			repaintNotifier.removeAllChangeListeners();
 			controlSender.cancelPendingUpdate();
 		}
@@ -1056,9 +1073,9 @@ public:
             ScriptPanel* panel;
         };
         
-		bool isVisiblePopup() const
+		bool isShowing(bool checkParentComponentVisibility=true) const override
 		{
-			if (!isShowing())
+			if (!ScriptComponent::isShowing(checkParentComponentVisibility))
 				return false;
 
 			if (!getScriptObjectProperty(isPopupPanel))
@@ -1089,7 +1106,7 @@ public:
 
 		WeakReference<ScriptPanel>::Master masterReference;
 
-		void internalRepaint();
+		void internalRepaint(bool forceRepaint=false);
 
 		struct AsyncControlCallbackSender : public AsyncUpdater
 		{
@@ -1101,27 +1118,31 @@ public:
 			ProcessorWithScriptingContent* p;
 		};
 
-		struct AsyncRepainter : public Timer
+		struct AsyncRepainter : public UpdateDispatcher::Listener //public Timer
 		{
-			AsyncRepainter(ScriptPanel* parent_) : parent(parent_){}
+			AsyncRepainter(ScriptPanel* parent_) :
+				UpdateDispatcher::Listener(parent_->parent->getUpdateDispatcher()),
+				parent(parent_)
+			{}
 
             ~AsyncRepainter()
             {
                 
             }
             
-			
-
+#if 0
             void triggerAsyncUpdate()
             {
                 if(!isTimerRunning()) startTimer(30);
             }
+
             
             void timerCallback() override
             {
                 handleAsyncUpdate();
                 stopTimer();
             }
+#endif
             
 			void handleAsyncUpdate()
 			{
@@ -1801,6 +1822,8 @@ struct ContentValueTreeHelpers
 	static void addComponentToValueTreeRecursive(Array<Identifier>& usedIds, const ScriptComponentSelection list, ValueTree& v)
 	{
 
+		jassertfalse;
+
 		static const Identifier type_("type");
 		static const Identifier id_("id");
 		static const Identifier parentComponent("parentComponent");
@@ -1838,10 +1861,12 @@ struct ContentValueTreeHelpers
 
 			ScriptComponentSelection childList;
 
+#if 0
 			for (int i = 0; i < sc->getNumChildComponents(); i++)
 			{
 				childList.add(sc->getChildComponent(i));
 			}
+#endif
 
 			addComponentToValueTreeRecursive(usedIds, childList, child);
 

@@ -195,11 +195,16 @@ public:
 
 	void setDefaultValue(double defaultValue);
 
+	void setColourForSliders(int colourId, Colour c);
+
 	const SliderPackData* getData() const { return data; }
 
 	void resized() override;
 	void setValuesFromLine();
 	int getNumSliders();
+	void setFlashActive(bool setFlashActive);
+	void setShowValueOverlay(bool shouldShowValueOverlay);
+	void setStepSize(double stepSize);
 private:
 
 	SliderPackData dummyData;
@@ -225,6 +230,7 @@ private:
 	WeakReference<SliderPackData> data;
 
 	OwnedArray<Slider> sliders;
+
 };
 
 

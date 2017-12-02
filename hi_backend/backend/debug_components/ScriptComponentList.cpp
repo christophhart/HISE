@@ -45,6 +45,7 @@ Component* ScriptComponentList::Panel::createContentComponent(int /*index*/)
 
 
 ScriptComponentListItem::ScriptComponentListItem(const ValueTree& v, UndoManager& um_, ScriptingApi::Content* c, const String& searchTerm_) : 
+	AsyncValueTreePropertyListener(v, c->getUpdateDispatcher()),
 	tree(v),
 	undoManager(um_),
 	content(c),
@@ -166,6 +167,8 @@ void ScriptComponentListItem::itemDropped(const DragAndDropTarget::SourceDetails
 
 void ScriptComponentListItem::moveItems(TreeView& treeView, const OwnedArray<ValueTree>& items, ValueTree newParent, int insertIndex, UndoManager& undoManager)
 {
+	static const Identifier pc("parentComponent");
+
 	if (items.size() > 0)
 	{
 		ScopedPointer<XmlElement> oldOpenness(treeView.getOpennessState(false));
@@ -188,6 +191,9 @@ void ScriptComponentListItem::moveItems(TreeView& treeView, const OwnedArray<Val
 				ContentValueTreeHelpers::updatePosition(v, cPos, pPos);
 
 				v.getParent().removeChild(v, &undoManager);
+
+				v.setProperty(pc, newParent.getProperty("id"), nullptr);
+
 				newParent.addChild(v, insertIndex, &undoManager);
 			}
 		}

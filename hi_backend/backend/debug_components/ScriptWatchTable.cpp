@@ -167,17 +167,6 @@ void ScriptWatchTable::applySearchFilter()
 		}
 	}
 
-	String dbg = "{ ";
-
-	for (int i = 0; i < filteredIndexes.size(); i++)
-	{
-		dbg << " " << String(filteredIndexes[i]) << ", ";
-	}
-
-	dbg << "}";
-
-	DBG(dbg);
-
 	table->updateContent();
 	repaint();
 }

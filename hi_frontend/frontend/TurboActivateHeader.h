@@ -93,7 +93,7 @@ public:
 
 	private:
 
-		FileOutputStream* fos = nullptr;
+        juce::FileOutputStream* fos = nullptr;
 	};
 
 };

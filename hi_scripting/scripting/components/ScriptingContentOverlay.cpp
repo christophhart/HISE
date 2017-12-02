@@ -525,15 +525,7 @@ void ScriptingContentOverlay::findLassoItemsInArea(Array<ScriptComponent*> &item
 
 static void removeChildComponentsFromArray(Array<ScriptComponent*>& arrayToClean)
 {
-	for (int i = 0; i < arrayToClean.size(); i++)
-	{
-		auto sc = arrayToClean[i];
-
-		for (int j = 0; j < sc->getNumChildComponents(); j++)
-		{
-			arrayToClean.removeAllInstancesOf(sc->getChildComponent(j));
-		}
-	}
+	jassertfalse;
 }
 
 void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
@@ -868,7 +860,7 @@ void ScriptingContentOverlay::Dragger::moveOverlayedComponent(int deltaX, int de
 
 	String sizeString = "[" + String(deltaX) + ", " + String(deltaY) + "]";
 
-	auto tName = ScriptComponentEditBroadcaster::getTransactionName(sc, pos, var(sizeString));
+	auto tName = "Position update: " + sizeString;
 
 	b->getUndoManager().beginNewTransaction(tName);
 
@@ -886,7 +878,7 @@ void ScriptingContentOverlay::Dragger::resizeOverlayedComponent(int newWidth, in
 
 	String sizeString = "[" + String(newWidth) + ", " + String(newHeight) + "]";
 
-	auto tName = ScriptComponentEditBroadcaster::getTransactionName(sc, size, var(sizeString));
+	auto tName = "Resize";
 
 	b->getUndoManager().beginNewTransaction(tName);
 

@@ -266,8 +266,6 @@ float LfoModulator::calculateNewValue ()
 
 			currentSliderIndex = (currentSliderIndex + 1) % data->getNumSliders();
 
-			DBG(currentSliderIndex);
-
 			data->setDisplayedIndex(currentSliderIndex);
 
 			currentSliderValue = 1.0f - data->getValue(currentSliderIndex);	

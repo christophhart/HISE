@@ -196,6 +196,9 @@ public:
 	/** Overwrite this method and update the component for the property that has changed. */
 	virtual void updateComponent(int index, var newValue);
 
+	/** Overwrite this method and update the value of the component. */
+	virtual void updateValue(var newValue) {};
+
 	/** Call this in your listener callback with the new value. */
 	void changed(var newValue);
 
@@ -208,6 +211,8 @@ public:
 
 		updateComponent(index, value);
 	}
+
+	virtual void valueTreeParentChanged(ValueTree& v) override;
 
 	int getIndex() const { return index; }
 
@@ -229,7 +234,9 @@ protected:
 
 	ScriptingApi::Content *getContent();
 
-	
+	void initAllProperties();
+
+
 
 	/** the component that will be owned by this wrapper. */
 	ScopedPointer<Component> component;
@@ -355,6 +362,8 @@ public:
 		void updateComponent() override;
 		void updateComponent(int index, var newValue) override;
 
+		void updateValue(var newValue) override;
+
 		void sliderValueChanged(Slider *s) override;
 
 		void sliderDragStarted(Slider* s) override;
@@ -385,11 +394,15 @@ public:
 
 		ButtonWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptButton *sb, int index);
 
+		void updateFilmstrip(HiToggleButton* b, ScriptingApi::Content::ScriptButton* sb);
+
 		void updateComponent() override;
 
 		void updateComponent(int index, var newValue) override;
 
 		void updateColours(HiToggleButton * b);
+
+		void updateValue(var newValue) override;
 
 		void buttonClicked(Button* ) override { /*changed(b->getToggleState());*/ };
 
@@ -405,7 +418,16 @@ public:
 
 		void updateComponent() override;
 
+		void updateComponent(int index, var newValue) override;
 		void labelTextChanged(Label *l) override;;
+
+		void updateValue(var newValue) override;
+
+	private:
+
+		void updateEditability(ScriptingApi::Content::ScriptLabel * sl, MultilineLabel * l);
+		void updateFont(ScriptingApi::Content::ScriptLabel * sl, MultilineLabel * l);
+		void updateColours(MultilineLabel * l);
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LabelWrapper)
 	};
@@ -420,7 +442,17 @@ public:
 
 		void updateComponent() override;
 
+		void updateComponent(int index, var newValue) override;
+
+		
+		void updateValue(var newValue) override;
+
 		void comboBoxChanged(ComboBox* ) override { /*changed(c->getText());*/ };
+
+	private:
+
+		void updateItems(HiComboBox * cb);
+		void updateColours(HiComboBox * cb);
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ComboBoxWrapper)
 	};
@@ -432,6 +464,12 @@ public:
 		TableWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptTable *table, int index);
 
 		void updateComponent() override;
+
+		void updateComponent(int index, var newValue) override;
+
+		void updateConnectedTable(TableEditor * t);
+
+		
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TableWrapper)
 	};
@@ -467,6 +505,12 @@ public:
 
 		void updateComponent() override;
         
+		void updateComponent(int index, var newValue);
+
+		void updateImage(ImageComponentWithMouseCallback * ic, ScriptingApi::Content::ScriptImage * si);
+
+		void updatePopupMenu(ScriptingApi::Content::ScriptImage * si, ImageComponentWithMouseCallback * ic);
+
         void mouseCallback(const var &mouseInformation) override;
         
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ImageWrapper)
@@ -479,9 +523,18 @@ public:
 	public:
 
 		PanelWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptPanel *panel, int index);
+
 		~PanelWrapper();
 
 		void updateComponent() override;
+
+		void updateComponent(int index, var newValue) override;
+
+		void updateRange(BorderPanel * bpc);
+
+		void updateColourAndBorder(BorderPanel * bpc);
+
+		void updateValue(var newValue) override;
 
 		void mouseCallback(const var &mouseInformation) override;
 
@@ -496,13 +549,17 @@ public:
 	public:
 
 		ViewportWrapper(ScriptContentComponent* content, ScriptingApi::Content::ScriptedViewport* viewport, int index);
-
 		~ViewportWrapper();
 
-
 		void updateComponent() override;
-		
+		void updateComponent(int index, var newValue) override;
+		void updateValue(var newValue) override;
+
 	private:
+
+		void updateItems(ScriptingApi::Content::ScriptedViewport * vpc);
+		void updateColours();
+		void updateFont(ScriptingApi::Content::ScriptedViewport * vpc);
 
 		class ColumnListBoxModel : public ListBoxModel
 		{
@@ -555,7 +612,18 @@ public:
 
 		void updateComponent() override;
 
+		void updateComponent(int index, var newValue) override;
+
+		
+		void updateValue(var newValue) override;
+
 		void sliderPackChanged(SliderPack *, int newIndex) override { changed(newIndex); };
+
+	private:
+
+		void updateColours(SliderPack * sp);
+		void updateRange(SliderPackData* data);
+
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SliderPackWrapper)
 	};
@@ -572,6 +640,8 @@ public:
 
 		void updateComponent() override;
 
+		void updateComponent(int index, var newValue) override;
+
 		void rangeChanged(AudioDisplayComponent *broadcaster, int changedArea);
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioWaveformWrapper)
@@ -584,6 +654,10 @@ public:
 		FloatingTileWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptFloatingTile *floatingTile, int index);
 
 		void updateComponent() override;
+
+		void updateComponent(int index, var newValue) override;
+
+		void updateValue(var newValue) override;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FloatingTileWrapper)
 	};

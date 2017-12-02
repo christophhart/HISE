@@ -41,7 +41,7 @@ namespace hise { using namespace juce;
 
 //==============================================================================
 class ScriptComponentListItem : public TreeViewItem,
-								private ValueTree::Listener
+								private AsyncValueTreePropertyListener
 {
 public:
 
@@ -149,7 +149,7 @@ private:
 			fitsSearch = true;
 	}
 
-	void valueTreePropertyChanged(ValueTree&, const Identifier&) override
+	void asyncValueTreePropertyChanged(ValueTree&, const Identifier&) override
 	{
 		repaintItem();
 	}

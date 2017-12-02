@@ -261,7 +261,7 @@ void HiSliderPropertyComponent::updateRange()
 	int maxWidth = sc->parent->getContentWidth();
 	int maxHeight = sc->parent->getContentHeight();
 
-	auto parent = sc->parent->getComponent(sc->getParentComponentIndex());
+	auto parent = sc->getParentScriptComponent();
 
 	if (parent != nullptr)
 	{

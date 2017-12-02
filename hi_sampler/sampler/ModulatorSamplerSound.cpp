@@ -564,7 +564,7 @@ void ModulatorSamplerSound::selectSoundsBasedOnRegex(const String &regexWildcard
     {
 		std::regex reg(wildcard.toStdString());
 
-		ModulatorSampler::SoundIterator iter(sampler);
+		ModulatorSampler::SoundIterator iter(sampler, false);
 
 		while (auto sound = iter.getNextSound())
 		{

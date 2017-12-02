@@ -166,26 +166,26 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 
 		JavascriptProcessor::SnippetDocument* onControlCallback = thisAsJavascriptProcessor->getSnippet(callbackIndex);
 
-		if (onControlCallback->isSnippetEmpty())
+		if (!onControlCallback->isSnippetEmpty())
 		{
-			return;
-		}
+			HiseJavascriptEngine* scriptEngine = thisAsJavascriptProcessor->getScriptEngine();
 
-		HiseJavascriptEngine* scriptEngine = thisAsJavascriptProcessor->getScriptEngine();
-
-		scriptEngine->maximumExecutionTime = RelativeTime(3.0);
+			scriptEngine->maximumExecutionTime = RelativeTime(3.0);
 
 #if ENABLE_SCRIPTING_BREAKPOINTS
-		thisAsJavascriptProcessor->breakpointWasHit(-1);
+			thisAsJavascriptProcessor->breakpointWasHit(-1);
 #endif
 
-		ScopedReadLock sl(getMainController_()->getCompileLock());
+			ScopedReadLock sl(getMainController_()->getCompileLock());
 
-		scriptEngine->setCallbackParameter(callbackIndex, 0, component);
-		scriptEngine->setCallbackParameter(callbackIndex, 1, controllerValue);
-		scriptEngine->executeCallback(callbackIndex, &thisAsJavascriptProcessor->lastResult);
+			scriptEngine->setCallbackParameter(callbackIndex, 0, component);
+			scriptEngine->setCallbackParameter(callbackIndex, 1, controllerValue);
+			scriptEngine->executeCallback(callbackIndex, &thisAsJavascriptProcessor->lastResult);
 
-		BACKEND_ONLY(if (!thisAsJavascriptProcessor->lastResult.wasOk()) debugError(thisAsProcessor, thisAsJavascriptProcessor->lastResult.getErrorMessage()));
+			BACKEND_ONLY(if (!thisAsJavascriptProcessor->lastResult.wasOk()) debugError(thisAsProcessor, thisAsJavascriptProcessor->lastResult.getErrorMessage()));
+		}
+
+		
 	}
 
 	if (MessageManager::getInstance()->isThisTheMessageThread())
@@ -515,11 +515,13 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	scriptEngine->clearDebugInformation();
 
+	content->beginInitialization();
+
 	setupApi();
 
 	content = thisAsScriptBaseProcessor->getScriptingContent();
 
-	content->beginInitialization();
+	
     scriptEngine->setIsInitialising(true);
     
 	if(cycleReferenceCheckEnabled)

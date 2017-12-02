@@ -112,8 +112,7 @@ ValueTree ValueTreeConverters::convertDynamicObjectToValueTree(const var& object
 {
 	ValueTree v(id);
 
-	DBG(JSON::toString(object));
-
+	
 	d2v_internal(v, "Data", object);
 
 	return v;

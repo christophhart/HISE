@@ -70,8 +70,6 @@ ScriptContentComponent::~ScriptContentComponent()
 
 	if (contentData.get() != nullptr)
 	{
-		contentData->removeChangeListener(this);
-
 		for (int i = 0; i < contentData->getNumComponents(); i++)
 		{
 			contentData->getComponent(i)->removeChangeListener(this);
@@ -187,7 +185,13 @@ void ScriptContentComponent::changeListenerCallback(SafeChangeBroadcaster *b)
 		updateValues();
 #endif
 	}
-	else if(dynamic_cast<ScriptingApi::Content::ScriptComponent*>(b) == nullptr)
+	
+	else if (auto sc = dynamic_cast<ScriptingApi::Content::ScriptComponent*>(b))
+	{
+		auto index = contentData->getComponentIndex(sc->name);
+		componentWrappers[index]->updateValue(sc->getValue());
+	}
+	else
 	{
 		updateContent();
 	}
@@ -196,6 +200,11 @@ void ScriptContentComponent::changeListenerCallback(SafeChangeBroadcaster *b)
 void ScriptContentComponent::asyncValueTreePropertyChanged(ValueTree& v, const Identifier& id)
 {
 	
+}
+
+void ScriptContentComponent::valueTreeChildAdded(ValueTree& parent, ValueTree& child)
+{
+
 }
 
 void ScriptContentComponent::updateComponent(int i)
@@ -271,16 +280,17 @@ void ScriptContentComponent::updateComponentVisibility(ScriptCreatedComponentWra
 	auto sc = wrapper->getScriptComponent();
 	auto c = wrapper->getComponent();
 
-	const bool v = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::visible);
+	const bool v = sc->isShowing(false);
 	c->setVisible(v);
 
-	if (!sc->isShowing())
+	if (!v && !sc->isShowing(true))
 	{
 		return;
 	}
 
 	const bool e = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::enabled);
 	wrapper->getComponent()->setEnabled(e);
+	wrapper->getComponent()->setInterceptsMouseClicks(e, true);
 
 }
 
@@ -364,8 +374,6 @@ void ScriptContentComponent::setNewContent(ScriptingApi::Content *c)
 
 	contentData = c;
 
-	contentData->addChangeListener(this);
-
 	deleteAllScriptComponents();
 
 	for (int i = 0; i < contentData->components.size(); i++)
@@ -376,27 +384,26 @@ void ScriptContentComponent::setNewContent(ScriptingApi::Content *c)
 
 		componentWrappers.add(sc->createComponentWrapper(this, i));
 
-		const int parentIndex = sc->getParentComponentIndex();
+		auto newComponent = componentWrappers.getLast()->getComponent();
 
-		if (parentIndex != -1 && parentIndex < componentWrappers.size())
+		if (auto scParent = sc->getParentScriptComponent())
 		{
-			Component* parentComponentOfSc = componentWrappers[parentIndex]->getComponent();
-			
-			if (parentComponentOfSc != nullptr)
+			auto pOfSc = getComponentFor(scParent);
+
+			if (auto vp = dynamic_cast<Viewport*>(pOfSc))
 			{
-				if (auto vp = dynamic_cast<Viewport*>(parentComponentOfSc))
-				{
-					vp->setViewedComponent(componentWrappers.getLast()->getComponent(), false);
-				}
-				else
-				{
-					parentComponentOfSc->addAndMakeVisible(componentWrappers.getLast()->getComponent());
-				}
+				vp->setViewedComponent(newComponent, false);
+			}
+			else
+			{
+				pOfSc->addChildComponent(newComponent);
+				newComponent->setVisible(sc->isShowing(false));
 			}
 		}
 		else
 		{
-			addAndMakeVisible(componentWrappers.getLast()->getComponent());
+			addChildComponent(newComponent);
+			newComponent->setVisible(sc->isShowing(false));
 		}
 	}
 
