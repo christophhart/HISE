@@ -365,6 +365,7 @@ PerformanceLabelPanel::PerformanceLabelPanel(FloatingTile* parent) :
 	statisticLabel->setColour(Label::ColourIds::textColourId, Colours::white);
 
 	setDefaultPanelColour(PanelColourId::textColour, Colours::white);
+	setDefaultPanelColour(PanelColourId::bgColour, Colours::transparentBlack);
 
 	statisticLabel->setFont(GLOBAL_BOLD_FONT());
 
@@ -395,6 +396,7 @@ void PerformanceLabelPanel::fromDynamicObject(const var& object)
 	FloatingTileContent::fromDynamicObject(object);
 
 	statisticLabel->setColour(Label::ColourIds::textColourId, findPanelColour(PanelColourId::textColour));
+	statisticLabel->setFont(getFont());
 }
 
 void PerformanceLabelPanel::resized()
@@ -592,7 +594,7 @@ void AboutPagePanel::rebuildText()
 	const String hiseVersion = String(HISE_VERSION);
 	const String buildTime = Time::getCompilationDate().toString(true, false, false, true);
 
-	Font bold = getFont().boldened();
+	Font bold = getFont(); // .boldened();
 	Font normal = getFont();
 
 	Colour high = findPanelColour(PanelColourId::itemColour1);

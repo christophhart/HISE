@@ -40,6 +40,19 @@ FloatingTilePopup::FloatingTilePopup(Component* content_, Component* attachedCom
 	
 	setColour((int)ColourIds::backgroundColourId, Colours::black.withAlpha(0.96f));
 
+	setColour(Slider::ColourIds::textBoxOutlineColourId, Colours::white.withAlpha(0.6f));
+
+	if (auto ftc = dynamic_cast<FloatingTile*>(content_))
+	{
+		auto c = ftc->getCurrentFloatingPanel()->findPanelColour(FloatingTileContent::PanelColourId::bgColour);
+
+		setColour((int)ColourIds::backgroundColourId, c);
+
+		auto c2 = ftc->getCurrentFloatingPanel()->findPanelColour(FloatingTileContent::PanelColourId::itemColour3);
+
+		setColour(Slider::ColourIds::textBoxOutlineColourId, c2);
+	}
+
 	addAndMakeVisible(content);
 	addAndMakeVisible(closeButton = new ImageButton("Close"));
 
@@ -100,13 +113,13 @@ FloatingTilePopup::FloatingTilePopup(Component* content_, Component* attachedCom
 
 	const int offset = 12;
 
-	setSize(content->getWidth() + 2*offset, content->getHeight() + 24 + 20 + 12);
+	const int titleOffset = hasTitle() ? 20 : 0;
+
+	setSize(content->getWidth() + 2*offset, content->getHeight() + 24 + titleOffset + 12);
 }
 
 void FloatingTilePopup::paint(Graphics &g)
 {
-	
-
 	g.setColour(findColour((int)ColourIds::backgroundColourId));
 
 	if (arrowX > 0)
@@ -150,7 +163,11 @@ void FloatingTilePopup::paint(Graphics &g)
 		p.closeSubPath();
 
 		g.fillPath(p);
-		g.setColour(Colours::white.withAlpha(0.6f));
+
+
+		g.setColour(findColour(Slider::ColourIds::textBoxOutlineColourId));
+
+		
 		g.strokePath(p, PathStrokeType(2.0f));
 
 	}
@@ -163,7 +180,7 @@ void FloatingTilePopup::paint(Graphics &g)
 		g.drawRoundedRectangle((float)area.getX() + 1.0f, (float)area.getY() + 1.0f, (float)area.getWidth() - 2.0f, (float)area.getHeight() - 2.0f, 5.0f, 2.0f);
 	}
 
-	if (content != nullptr && content->getName().isNotEmpty())
+	if (hasTitle())
 	{
 		g.setColour(Colours::white);
 		g.setFont(GLOBAL_BOLD_FONT());
@@ -197,7 +214,16 @@ void FloatingTilePopup::resized()
 {
 	closeButton->setBounds(getWidth() - 24, 0, 24, 24);
 	
-	content->setBounds(6, 18 + 20, content->getWidth(), content->getHeight());
+	if (hasTitle())
+	{
+		content->setBounds(6, 18 + 20, content->getWidth(), content->getHeight());
+	}
+	else
+	{
+		content->setBounds(6, 18, content->getWidth(), content->getHeight());
+	}
+
+	
 }
 
 void FloatingTilePopup::deleteAndClose()

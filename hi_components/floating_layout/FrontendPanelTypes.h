@@ -313,6 +313,11 @@ public:
 	void resized() override;
 	bool showTitleInPresentationMode() const override;
 
+	void paint(Graphics& g) override
+	{
+		g.fillAll(findPanelColour(FloatingTileContent::PanelColourId::bgColour));
+	}
+
 private:
 
 	ScopedPointer<Label> statisticLabel;
