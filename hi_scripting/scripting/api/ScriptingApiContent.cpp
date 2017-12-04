@@ -816,14 +816,16 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectProperty(int p, var 
 	if (removePropertyIfDefault && isDefaultValue && !isPositionProperty(id))
 	{
 		propertyTree.removeProperty(id, nullptr);
+
+		if(notifyListeners)
+			propertyTree.sendPropertyChangeMessage(id);
+
 		return;
 	}
 		
 
 	if (notifyListeners == dontSendNotification)
 	{
-		
-
 		if (auto value = propertyTree.getPropertyPointer(getIdFor(p)))
 		{
 			var copy(newValue); // rather ugly..
