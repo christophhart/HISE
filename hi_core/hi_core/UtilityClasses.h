@@ -108,8 +108,7 @@ private:
 *	Another nice feature is that you can use the same mechanism to call a function asynchronously by passing
 *	a lambda to callFunctionAsynchronously.
 */
-class UpdateDispatcher : public AsyncUpdater,
-						 public Timer
+class UpdateDispatcher : public AsyncUpdater
 {
 public:
 
@@ -181,30 +180,19 @@ public:
 
 		jassert(ok);
 
-		startTimer(30);
-
-		//triggerAsyncUpdate();
+		triggerAsyncUpdate();
 	}
 
 	void callFunctionAsynchronously(const Func& f)
 	{
 		pendingFunctions.push(Func(f));
 
-		startTimer(30);
-
-		//triggerAsyncUpdate();
+		triggerAsyncUpdate();
 	}
 
 	void cancelPendingUpdateForListener(Listener* l)
 	{
 		cancelledListeners.addIfNotAlreadyThere(l);
-	}
-
-	void timerCallback() override
-	{
-		stopTimer();
-		handleAsyncUpdate();
-		
 	}
 
 private:
