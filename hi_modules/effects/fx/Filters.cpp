@@ -202,17 +202,23 @@ void MonoFilterEffect::setMode(int filterMode)
 		stateFilter.setType((int)StateVariableFilter::FilterType::BPShelf);
 		currentFilter = &stateFilter;
 		break;
+#endif
 	case MonoFilterEffect::StateVariableNotch:
-		stateFilter.setType((int)StateVariableFilter::FilterType::Notch);
+		stateFilter.setType((int)StateVariableFilter::FilterType::NOTCH);
 		currentFilter = &stateFilter;
 		break;
+#if 0
 	case MonoFilterEffect::StateVariableAllpass:
-		stateFilter.setType((int)StateVariableFilter::FilterType::Allpass);
+		stateFilter.setType((int)StateVariableFilter::FilterType::ALLPASS);
 		currentFilter = &stateFilter;
 		break;
 #endif
 	case MonoFilterEffect::MoogLP:
 		currentFilter = &moogFilter;
+		break;
+	case MonoFilterEffect::LadderFourPoleLP:
+		currentFilter = &ladderFilter;
+		ladderFilter.setType(Ladder::FilterType::LP24);
 		break;
 	default:
 		break;
@@ -239,6 +245,7 @@ void MonoFilterEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 		simpleFilter.setSampleRate(sampleRate);
 		moogFilter.setSampleRate(sampleRate);
 		staticBiquadFilter.setSampleRate(sampleRate);
+		ladderFilter.setSampleRate(sampleRate);
 
 		calcCoefficients();
 	}
