@@ -1037,7 +1037,10 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::updateItems(ScriptingApi::
 	{
 		if (model->shouldUpdate(vpc->getItemList()))
 		{
+			
 			model->setItems(vpc->getItemList());
+			listBox->deselectAllRows();
+			listBox->repaint();
 		}
 
 		listBox->updateContent();
