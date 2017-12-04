@@ -71,6 +71,8 @@ public:
 	{
 	public:
 
+		using SharedPointer = ReferenceCountedObjectPtr<ModulatorSamplerSound>;
+
 		/** This iterates over all sounds and locks the sound lock if desired. */
 		SoundIterator(ModulatorSampler* s_, bool lock_=true):
 			s(s_),
@@ -95,7 +97,7 @@ public:
 			}
 		}
 
-		ModulatorSamplerSound* getNextSound()
+		SharedPointer getNextSound()
 		{
 			while (auto sound = getSoundInternal())
 				return sound;
@@ -115,6 +117,8 @@ public:
 		}
 
 	private:
+
+		
 
 		ModulatorSamplerSound* getSoundInternal()
 		{
@@ -639,7 +643,7 @@ private:
 
 					while (auto s = iter.getNextSound())
 					{
-						dynamic_cast<ModulatorSamplerSound*>(s)->setProperty((ModulatorSamplerSound::Property)c.index, c.newValue, dontSendNotification);
+						s->setProperty((ModulatorSamplerSound::Property)c.index, c.newValue, dontSendNotification);
 					}
 				}
 				else

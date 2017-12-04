@@ -1107,7 +1107,7 @@ void SamplerSoundTable::refreshList()
 	ModulatorSampler::SoundIterator sIter(ownerSampler, false);
 
 	while (auto sound = sIter.getNextSound())
-		sortedSoundList.add(sound);
+		sortedSoundList.add(sound.get());
 
     // we could now change some initial settings..
     table.getHeader().setSortColumnId (2, true); // sort forwards by the ID column

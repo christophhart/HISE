@@ -289,7 +289,7 @@ void SampleEditHandler::SampleEditingActions::selectAllSamples(SampleEditHandler
 	{
 		if (thisIndex == -1 || sound->getRRGroup() == thisIndex)
 		{
-			handler->getSelection().addToSelection(sound);
+			handler->getSelection().addToSelection(sound.get());
 		}
 	}
 }
@@ -1066,7 +1066,7 @@ bool SampleEditHandler::SampleEditingActions::metadataWasFound(ModulatorSampler*
 	ModulatorSampler::SoundIterator sIter(sampler, false);
 
 	while (auto sound = sIter.getNextSound())
-		sounds.add(sound);
+		sounds.add(sound.get());
 
 	AudioFormatManager *afm = &(sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->afm);
 
@@ -1106,7 +1106,7 @@ void SampleEditHandler::SampleEditingActions::automapUsingMetadata(ModulatorSamp
 
 	while (auto sound = sIter.getNextSound())
 	{
-		sounds.add(sound);
+		sounds.add(sound.get());
 	}
 
 

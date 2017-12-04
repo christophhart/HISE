@@ -574,11 +574,11 @@ void ModulatorSamplerSound::selectSoundsBasedOnRegex(const String &regexWildcard
 			{
 				if (subtractMode)
 				{
-					set.deselect(sound);
+					set.deselect(sound.get());
 				}
 				else
 				{
-					set.addToSelection(sound);
+					set.addToSelection(sound.get());
 				}
 			}
 		}

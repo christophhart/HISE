@@ -100,7 +100,7 @@ void SampleEditHandler::handleMidiSelection()
 				{
 					if (sampler->soundCanBePlayed(sound, 1, noteNumber, (float)velocity / 127.0f))
 					{
-						selectedSamplerSounds.addToSelection(sound);
+						selectedSamplerSounds.addToSelection(sound.get());
 					}
 				}
 
