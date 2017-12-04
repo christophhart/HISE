@@ -38,6 +38,8 @@ ProcessorEditorBody * SlotFX::createEditor(ProcessorEditor *parentEditor)
 
 void SlotFX::renderWholeBuffer(AudioSampleBuffer &buffer)
 {
+	
+
 	if (auto w = wrappedEffect.get())
 	{
 		if (dynamic_cast<EmptyFX*>(w) == nullptr && !w->isBypassed())
@@ -77,6 +79,8 @@ bool SlotFX::setEffect(const String& typeName, bool synchronously)
 
 				auto df = [pendingDeleteEffect, this]()
 				{
+					
+
 					pendingDeleteEffect->sendDeleteMessage();
 
 					auto p = this->wrappedEffect.get();
@@ -90,6 +94,8 @@ bool SlotFX::setEffect(const String& typeName, bool synchronously)
 
 						this->sendRebuildMessage(true);
 					}
+
+					ScopedLock sl(getMainController()->getLock());
 
 					delete pendingDeleteEffect;
 				};
@@ -122,7 +128,7 @@ bool SlotFX::setEffect(const String& typeName, bool synchronously)
 
 			p->setId(newId);
 
-            ScopedLock callbackLock(getMainController()->getLock());
+			ScopedLock sl(getMainController()->getLock());
             
             p->setIsOnAir(true);
             
