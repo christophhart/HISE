@@ -256,8 +256,11 @@ public:
 
 	void valueTreePropertyChanged(ValueTree& v, const Identifier& id) final override
 	{
-		pendingPropertyChanges.addIfNotAlreadyThere(PropertyChange(v, id));
-
+		{
+			ScopedLock sl(arrayLock);
+			pendingPropertyChanges.addIfNotAlreadyThere(PropertyChange(v, id));
+		}
+		
 		asyncHandler.triggerAsyncUpdate();
 	};
 
@@ -294,7 +297,10 @@ private:
 		{
 			Array<PropertyChange> thisTime;
 
-			thisTime.swapWith(parent.pendingPropertyChanges);
+			{
+				ScopedLock sl(parent.arrayLock);
+				thisTime.swapWith(parent.pendingPropertyChanges);
+			}
 
 			for (auto& pc : thisTime)
 			{
@@ -304,6 +310,8 @@ private:
 
 		AsyncValueTreePropertyListener& parent;
 	};
+
+	CriticalSection arrayLock;
 
 	ValueTree v;
 	WeakReference<UpdateDispatcher> dispatcher;
