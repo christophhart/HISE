@@ -597,6 +597,8 @@ public:
 	/** sets the mode. */
 	void setMode(Mode m, double min, double max, double mid=DBL_MAX, double stepSize=DBL_MAX)
 	{ 
+		
+
 		if(mode != m)
 		{
 			mode = m; 
@@ -606,6 +608,10 @@ public:
 			setValue(modeValues[m], dontSendNotification);
 
 			repaint();
+		}
+		else
+		{
+			setModeRange(min, max, mid, stepSize);
 		}
 	};
 
