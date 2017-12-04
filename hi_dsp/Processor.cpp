@@ -111,10 +111,16 @@ const Identifier Processor::getIdentifierForParameterIndex(int parameterIndex) c
 	{
 		if (auto content = pwsc->getScriptingContent())
 		{
-			auto child = content->getContentProperties().getChild(parameterIndex);
-
-			if (child.isValid())
-				return Identifier(child.getProperty("id").toString());
+			if (auto sc = content->getComponent(parameterIndex))
+			{
+				return sc->name.toString();
+			}
+            
+            auto child = content->getContentProperties().getChild(parameterIndex);
+            
+            if(child.isValid())
+                return Identifier(child.getProperty("id").toString());
+            
 
 			return Identifier();
 		}
