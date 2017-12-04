@@ -337,14 +337,19 @@ public:
 
 			if (result != 0)
 				combo->setSelectedId(result);
+
+			combo->addItemsToMenu(*combo->getRootMenu());
 		}
 	}
 
 	void showPopup() override
 	{
 		PopupMenu menu = *getRootMenu();
-		menu.setLookAndFeel(&getLookAndFeel());
+
 		addItemsToMenu(menu);
+
+		menu.setLookAndFeel(&getLookAndFeel());
+		
 
 		
 
