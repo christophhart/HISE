@@ -1527,7 +1527,7 @@ ScriptComponent(base, name)
 	setDefaultValue(FontStyle, "plain");
 	setDefaultValue(FontSize, 13.0f);
 	setDefaultValue(FontName, "Arial");
-	setDefaultValue(Alignment, "left");
+	setDefaultValue(Alignment, "centred");
 	setDefaultValue(Editable, true);
 	setDefaultValue(Multiline, false);
 
