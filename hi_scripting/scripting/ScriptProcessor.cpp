@@ -1184,8 +1184,13 @@ bool JavascriptProcessor::parseSnippetsFromString(const String &x, bool clearUnd
 
 		if (!x.contains(filter))
 		{
-			PresetHandler::showMessageWindow("Invalid script", "The script you are trying to load is not a valid HISE script file.\nThe callback " + s->getCallbackName().toString() + " is not defined.", PresetHandler::IconType::Error);
-			debugError(dynamic_cast<Processor*>(this), s->getCallbackName().toString() + " could not be parsed!");
+            if(MessageManager::getInstance()->isThisTheMessageThread())
+            {
+                PresetHandler::showMessageWindow("Invalid script", "The script you are trying to load is not a valid HISE script file.\nThe callback " + filter + " is not defined.", PresetHandler::IconType::Error);
+            }
+            
+            debugError(dynamic_cast<Processor*>(this), s->getCallbackName().toString() + " could not be parsed!");
+			
 			return false;
 		}
 
