@@ -404,7 +404,7 @@ void HiseDeviceSimulator::init(AudioProcessor::WrapperType wrapper)
     if(isIPad)
 		currentDevice = isStandalone ? DeviceType::iPad : DeviceType::iPadAUv3;
     else
-		currentDevice = DeviceType::iPhone5;
+		currentDevice = DeviceType::iPhone6;
 #else
 	ignoreUnused(wrapper);
     currentDevice = DeviceType::Desktop;
