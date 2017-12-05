@@ -382,6 +382,8 @@ public:
 	void saveScript(ValueTree &v) const;
 	void restoreScript(const ValueTree &v);
 
+	void restoreInterfaceData(ValueTree propertyData);
+
 	String getBase64CompressedScript() const;
 
 	bool restoreBase64CompressedScript(const String &base64compressedScript);
@@ -493,6 +495,14 @@ public:
 
 	CodeDocument* createAndUpdateJsonDoc();
 
+	void createUICopyFromDesktop();
+
+	void setDeviceTypeForInterface(int newDevice);
+
+	ValueTree getContentPropertiesForDevice(int deviceIndex);
+
+	bool hasUIDataForDeviceType() const;
+
 protected:
 
 	void clearExternalWindows();
@@ -578,7 +588,7 @@ private:
 
 	ScopedPointer<CodeDocument> contentPropertyDocument;
 
-	
+	ValueTree allInterfaceData;
 
 public:
 	void storeCurrentInterfaceStateInContentProperties();

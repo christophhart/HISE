@@ -393,8 +393,6 @@ ValueTree FileChangeListener::collectAllScriptFiles(ModulatorSynthChain *chainTo
 
 		scriptDirectory.findChildFiles(allScriptFiles, File::findFiles, true, "*.js");
 
-		Array<File> mobileWildcardFiles;
-
 		for (auto f : allScriptFiles)
 		{
 			if (HiseDeviceSimulator::fileNameContainsDeviceWildcard(f))
@@ -445,7 +443,11 @@ lastCompileWasOK(false),
 currentCompileThread(nullptr),
 lastResult(Result::ok())
 {
-	
+	allInterfaceData = ValueTree("UIData");
+	auto defaultContent = ValueTree("ContentProperties");
+	defaultContent.setProperty("DeviceType", "Desktop", nullptr);
+	allInterfaceData.addChild(defaultContent, -1, nullptr);
+
 }
 
 
@@ -856,7 +858,7 @@ void JavascriptProcessor::saveScript(ValueTree &v) const
 
 	auto pwsc = dynamic_cast<const ProcessorWithScriptingContent*>(this);
 
-	v.addChild(pwsc->getScriptingContent()->getContentProperties().createCopy(), -1, nullptr);
+	v.addChild(allInterfaceData, -1, nullptr);
 
 	v.setProperty("Script", x, nullptr);
 }
@@ -866,17 +868,30 @@ void JavascriptProcessor::restoreScript(const ValueTree &v)
 	String x = v.getProperty("Script", String());
 
 	auto contentPropertyChild = v.getChildWithName("ContentProperties");
+	auto uiData = v.getChildWithName("UIData");
+
+	static const Identifier deviceType("DeviceType");
 
 	if (contentPropertyChild.isValid())
 	{
-		auto buildComponents = !mainController->shouldSkipCompiling();
+		allInterfaceData = ValueTree("UIData");
 
-		auto r = dynamic_cast<ProcessorWithScriptingContent*>(this)->getScriptingContent()->createComponentsFromValueTree(contentPropertyChild, buildComponents);
+		auto deviceName = HiseDeviceSimulator::getDeviceName((int)HiseDeviceSimulator::DeviceType::Desktop);
 
-		if (r.failed())
-		{
-			debugError(dynamic_cast<Processor*>(this), r.getErrorMessage());
-		}
+		auto copy = contentPropertyChild.createCopy();
+
+		copy.setProperty(deviceType, deviceName, nullptr);
+
+		allInterfaceData.addChild(copy, -1, nullptr);
+
+		restoreInterfaceData(copy);
+	}
+	if (uiData.isValid())
+	{
+		allInterfaceData = uiData;
+		auto deviceIndex = (int)HiseDeviceSimulator::getDeviceType();
+
+		setDeviceTypeForInterface(deviceIndex);
 	}
 
 	if (x.startsWith("{EXTERNAL_SCRIPT}"))
@@ -901,6 +916,102 @@ void JavascriptProcessor::restoreScript(const ValueTree &v)
 		{
 			compileScript();
 		}
+	}
+}
+
+void JavascriptProcessor::setDeviceTypeForInterface(int deviceIndex)
+{
+	static const Identifier deviceType("DeviceType");
+
+	auto deviceName = HiseDeviceSimulator::getDeviceName(deviceIndex);
+
+	auto ct = allInterfaceData.getChildWithProperty(deviceType, deviceName);
+
+	if (!ct.isValid())
+		ct = allInterfaceData.getChild(0);
+
+	jassert(ct.isValid());
+
+	restoreInterfaceData(ct);
+}
+
+
+
+ValueTree JavascriptProcessor::getContentPropertiesForDevice(int deviceIndex)
+{
+	static const Identifier deviceType("DeviceType");
+
+	auto desktopName = HiseDeviceSimulator::getDeviceName((int)HiseDeviceSimulator::DeviceType::Desktop);
+	auto deviceName = HiseDeviceSimulator::getDeviceName();
+
+	auto ct = allInterfaceData.getChildWithProperty(deviceType, deviceName);
+
+	if (!ct.isValid())
+	{
+		ct = allInterfaceData.getChildWithProperty(deviceType, desktopName);
+	}
+
+	jassert(ct.isValid());
+
+	return ct;
+}
+
+bool JavascriptProcessor::hasUIDataForDeviceType() const
+{
+	static const Identifier deviceType("DeviceType");
+
+	auto deviceName = HiseDeviceSimulator::getDeviceName();
+
+	auto ct = allInterfaceData.getChildWithProperty(deviceType, deviceName);
+
+	return ct.isValid();
+}
+
+void JavascriptProcessor::createUICopyFromDesktop()
+{
+	static const Identifier deviceType("DeviceType");
+
+	auto desktopName = HiseDeviceSimulator::getDeviceName((int)HiseDeviceSimulator::DeviceType::Desktop);
+	auto deviceName = HiseDeviceSimulator::getDeviceName();
+
+	if (desktopName == deviceName)
+	{
+		jassertfalse;
+		return;
+	}
+
+	auto ct = allInterfaceData.getChildWithProperty(deviceType, deviceName);
+
+	if (ct.isValid())
+	{
+		if (!PresetHandler::showYesNoWindow("Overwrite existing data", "There is already a UI model for this device type.\nThe current data will be merciless overwritten", PresetHandler::IconType::Warning))
+		{
+			return;
+		}
+	}
+	
+	ValueTree copy = allInterfaceData.getChildWithProperty(deviceType, desktopName).createCopy();
+
+	jassert(copy.isValid());
+
+	copy.setProperty(deviceType, deviceName, nullptr);
+
+	allInterfaceData.addChild(copy, -1, nullptr);
+
+	restoreInterfaceData(copy);
+}
+
+
+
+void JavascriptProcessor::restoreInterfaceData(ValueTree propertyData)
+{
+	auto buildComponents = !mainController->shouldSkipCompiling();
+
+	auto r = dynamic_cast<ProcessorWithScriptingContent*>(this)->getScriptingContent()->createComponentsFromValueTree(propertyData, buildComponents);
+
+	if (r.failed())
+	{
+		debugError(dynamic_cast<Processor*>(this), r.getErrorMessage());
 	}
 }
 
