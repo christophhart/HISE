@@ -131,6 +131,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsCheckCyclicReferences,
 		MenuToolsCreateToolbarPropertyDefinition,
 		MenuToolsCreateExternalScriptFile,
+		MenuToolsCreateUIDataFromDesktop,
 		MenuToolsValidateUserPresets,
 		MenuToolsResolveMissingSamples,
 		MenuToolsDeleteMissingSamples,
@@ -394,6 +395,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsCreateExternalScriptFile:
 		setCommandTarget(result, "Create external script file", true, false, 'X', false);
 		break;
+	case MenuToolsCreateUIDataFromDesktop:
+		setCommandTarget(result, "Copy UI Data from Desktop", Helpers::canCopyDeviceType(bpe), Helpers::deviceTypeHasUIData(bpe), 'X', false);
+		break;
 	case MenuToolsValidateUserPresets:
 		setCommandTarget(result, "Validate User Presets", true, false, 'X', false);
 		break;
@@ -597,6 +601,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsResolveMissingSamples:Actions::resolveMissingSamples(bpe); return true;
 	case MenuToolsUseRelativePaths:		Actions::toggleRelativePath(bpe); updateCommands();  return true;
 	case MenuToolsCollectExternalFiles:	Actions::collectExternalFiles(bpe); return true;
+	case MenuToolsCreateUIDataFromDesktop: Actions::createUIDataFromDesktop(bpe); updateCommands(); return true;
 	case MenuToolsCheckUnusedImages:	Actions::checkUnusedImages(bpe); return true;
     case MenuToolsRedirectSampleFolder: Actions::redirectSampleFolder(bpe->getMainSynthChain()); updateCommands(); return true;
 	case MenuToolsRedirectScriptFolder: Actions::redirectScriptFolder(bpe); updateCommands(); return true;
@@ -845,6 +850,8 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsCreateExternalScriptFile);
 		ADD_DESKTOP_ONLY(MenuToolsRedirectScriptFolder);
 		ADD_DESKTOP_ONLY(MenuToolsValidateUserPresets);
+		
+		p.addSeparator();
 
 		PopupMenu sub;
 
@@ -855,6 +862,8 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		}
 
 		p.addSubMenu("Device simulator", sub);
+
+		ADD_DESKTOP_ONLY(MenuToolsCreateUIDataFromDesktop);
 
 		p.addSeparator();
 		p.addSectionHeader("Sample Management");
@@ -1026,7 +1035,18 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int topLevelMenuInde
 
 		HiseDeviceSimulator::setDeviceType(newDevice);
 
-		owner->getCommandManager()->invoke(MenuToolsRecompile, false);
+		auto mp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(owner);
+
+		
+
+		if (mp != nullptr)
+		{
+			auto contentData = mp->getContent()->exportAsValueTree();
+			mp->setDeviceTypeForInterface((int)newDevice);
+			mp->compileScript();
+			mp->getContent()->restoreFromValueTree(contentData);
+		}
+
 	}
 }
 
@@ -2346,9 +2366,44 @@ void BackendCommandTarget::Actions::unloadAllAudioFiles(BackendRootWindow * bpe)
 }
 
 
+void BackendCommandTarget::Actions::createUIDataFromDesktop(BackendRootWindow * bpe)
+{
+	auto mp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(bpe->getBackendProcessor());
+
+	if (mp != nullptr)
+	{
+		mp->createUICopyFromDesktop();
+	}
+}
+
 #undef ADD_ALL_PLATFORMS
 #undef ADD_IOS_ONLY
 #undef ADD_DESKTOP_ONLY
 #undef toggleVisibility
+
+bool BackendCommandTarget::Helpers::deviceTypeHasUIData(BackendRootWindow* bpe)
+{
+	auto mp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(bpe->getBackendProcessor());
+
+	if (mp == nullptr)
+		return false;
+
+	return mp->hasUIDataForDeviceType();
+
+}
+
+bool BackendCommandTarget::Helpers::canCopyDeviceType(BackendRootWindow* bpe)
+{
+	if (!HiseDeviceSimulator::isMobileDevice())
+		return false;
+
+
+	auto mp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(bpe->getBackendProcessor());
+
+	if (mp == nullptr)
+		return false;
+
+	return !mp->hasUIDataForDeviceType();
+}
 
 } // namespace hise
