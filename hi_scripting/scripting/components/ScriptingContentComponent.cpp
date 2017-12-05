@@ -297,10 +297,18 @@ void ScriptContentComponent::updateComponentVisibility(ScriptCreatedComponentWra
 void ScriptContentComponent::updateComponentParent(ScriptCreatedComponentWrapper* wrapper)
 {
 	auto c = wrapper->getComponent();
+
+	if (c->getParentComponent() == nullptr)
+	{
+		return;
+	}
+
 	auto sc = wrapper->getScriptComponent();
 
 	const Rectangle<int> localBounds = c->getBoundsInParent();
 	const Rectangle<int> currentPosition = sc->getPosition();
+
+
 
 	auto currentParentId = c->getParentComponent()->getName();
 	auto newParentId = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::parentComponent).toString();

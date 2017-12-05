@@ -1526,6 +1526,8 @@ public:
 	const ScriptComponent * getComponentWithName(const Identifier &componentName) const;
 	int getComponentIndex(const Identifier &componentName) const;
 
+	bool hasComponent(const ScriptComponent* sc) const { return components.indexOf(sc) != -1; };
+
 	int getContentHeight() const { return height; }
 	int getContentWidth() const { return width; }
 
