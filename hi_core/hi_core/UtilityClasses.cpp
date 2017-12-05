@@ -453,7 +453,7 @@ Rectangle<int> HiseDeviceSimulator::getDisplayResolution()
 	case HiseDeviceSimulator::DeviceType::iPadPro:		return{ 0, 0, 1366, 1024 };
 	case HiseDeviceSimulator::DeviceType::iPadAUv3:		return{ 0, 0, 1024, 335 };
 	case HiseDeviceSimulator::DeviceType::iPhone5:		return{ 0, 0, 568, 320 };
-	case HiseDeviceSimulator::DeviceType::iPhone6:		return{ 0, 0, 568, 320 };
+    case HiseDeviceSimulator::DeviceType::iPhone6:		return{ 0, 0, 667, 375 };
 	case HiseDeviceSimulator::DeviceType::iPodTouch6:	return{ 0, 0, 568, 320 };
 	case HiseDeviceSimulator::DeviceType::numDeviceTypes:
 	default:
