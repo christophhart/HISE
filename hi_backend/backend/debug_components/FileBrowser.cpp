@@ -440,14 +440,16 @@ void FileBrowser::previewFile(const File& f)
 
 FileBrowser::~FileBrowser()
 {
-	GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).removeListener(this);
+	//GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).removeListener(this);
 
     saveFavoriteFile();
     
+    fileTreeComponent = nullptr;
+    fileFilter = nullptr;
+    
    	directoryList = nullptr;
 
-	fileTreeComponent = nullptr;
-	fileFilter = nullptr;
+	
 }
 
 void FileBrowser::resized()

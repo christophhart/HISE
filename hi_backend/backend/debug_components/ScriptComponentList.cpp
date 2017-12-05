@@ -44,23 +44,19 @@ Component* ScriptComponentList::Panel::createContentComponent(int /*index*/)
 
 
 
-ScriptComponentListItem::ScriptComponentListItem(const ValueTree& v, UndoManager& um_, ScriptingApi::Content* c, const String& searchTerm_) : 
+ScriptComponentListItem::ScriptComponentListItem(ValueTree v, UndoManager& um_, ScriptingApi::Content* c, const String& searchTerm_) : 
 	AsyncValueTreePropertyListener(v, c->getUpdateDispatcher()),
 	tree(v),
 	undoManager(um_),
 	content(c),
 	searchTerm(searchTerm_)
 {
-	
-
 	static const Identifier coPro("ContentProperties");
 
 	if (tree.getType() == coPro)
 		id = "Components";
 	else
 		id = tree.getProperty("id");
-
-	connectedComponent = content->getComponentWithName(id);
 
 	tree.addListener(this);
 }
@@ -78,30 +74,26 @@ void ScriptComponentListItem::paintItem(Graphics& g, int width, int height)
 
 
 
-	if (connectedComponent != nullptr)
-	{
-		static const Identifier sip("saveInPreset");
+	static const Identifier sip("saveInPreset");
 
-		const bool saveInPreset = connectedComponent->getScriptObjectProperty(sip);
+	const bool saveInPreset = tree.getProperty(sip, false);
 
-		Colour c3 = saveInPreset ? Colours::green : Colours::red;
+	Colour c3 = saveInPreset ? Colours::green : Colours::red;
 
-		c3 = c3.withAlpha(JUCE_LIVE_CONSTANT_OFF(0.3f));
+	c3 = c3.withAlpha(JUCE_LIVE_CONSTANT_OFF(0.3f));
 
-		g.setColour(c3);
+	g.setColour(c3);
 
-		const float offset = JUCE_LIVE_CONSTANT_OFF(8.0f);
-		Rectangle<float> circle(offset, offset, (float)ITEM_HEIGHT - 2.0f * offset, (float)ITEM_HEIGHT - 2.0f * offset);
+	const float offset = JUCE_LIVE_CONSTANT_OFF(8.0f);
+	Rectangle<float> circle(offset, offset, (float)ITEM_HEIGHT - 2.0f * offset, (float)ITEM_HEIGHT - 2.0f * offset);
 
-		g.fillEllipse(circle);
+	g.fillEllipse(circle);
 
-		g.drawEllipse(circle, 1.0f);
-	}
+	g.drawEllipse(circle, 1.0f);
 
 	g.setColour(Colours::white);
 
-
-	if (connectedComponent == nullptr || !connectedComponent->isShowing())
+	if (!tree.getProperty("visible", true))
 	{
 		g.setColour(Colours::white.withAlpha(0.4f));
 	}
@@ -216,9 +208,13 @@ void ScriptComponentListItem::updateSelection(ScriptComponentSelection newSelect
 {
 	bool select = false;
 
-	if (connectedComponent != nullptr)
+	for (auto& sc : newSelection)
 	{
-		select = newSelection.contains(connectedComponent);
+		if (sc->getPropertyValueTree() == tree)
+		{
+			select = true;
+			break;
+		}
 	}
 
 	setSelected(select, false, dontSendNotification);
@@ -239,6 +235,9 @@ ScriptComponentList::ScriptComponentList(ScriptingApi::Content* c) :
 	unfoldButton("Unfold"),
 	content(c)
 {
+    
+    DBG("Create List");
+    
 	addAsScriptEditListener();
 
 	content->addRebuildListener(this);
@@ -250,17 +249,17 @@ ScriptComponentList::ScriptComponentList(ScriptingApi::Content* c) :
 	fuzzySearchBox->setSelectAllWhenFocused(true);
 	fuzzySearchBox->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
 
-	addAndMakeVisible(tree);
+	addAndMakeVisible(tree = new TreeView());
 
-	tree.setDefaultOpenness(true);
-	tree.setMultiSelectEnabled(true);
-	tree.setColour(TreeView::backgroundColourId, Colours::transparentBlack);
-	tree.setColour(TreeView::ColourIds::dragAndDropIndicatorColourId, Colour(SIGNAL_COLOUR));
-	tree.setColour(TreeView::ColourIds::selectedItemBackgroundColourId, Colours::transparentBlack);
-	tree.setColour(TreeView::ColourIds::linesColourId, Colours::black.withAlpha(0.1f));
+	tree->setDefaultOpenness(true);
+	tree->setMultiSelectEnabled(true);
+	tree->setColour(TreeView::backgroundColourId, Colours::transparentBlack);
+	tree->setColour(TreeView::ColourIds::dragAndDropIndicatorColourId, Colour(SIGNAL_COLOUR));
+	tree->setColour(TreeView::ColourIds::selectedItemBackgroundColourId, Colours::transparentBlack);
+	tree->setColour(TreeView::ColourIds::linesColourId, Colours::black.withAlpha(0.1f));
 	resetRootItem();
 
-	tree.setRootItemVisible(false);
+	tree->setRootItemVisible(false);
 
 	addAndMakeVisible(undoButton);
 	addAndMakeVisible(redoButton);
@@ -276,7 +275,7 @@ ScriptComponentList::ScriptComponentList(ScriptingApi::Content* c) :
 	foldButton.setLookAndFeel(&alaf);
 	unfoldButton.setLookAndFeel(&alaf);
 
-	tree.addMouseListener(this, true);
+	tree->addMouseListener(this, true);
 
 	static const unsigned char searchIcon[] = { 110, 109, 0, 0, 144, 68, 0, 0, 48, 68, 98, 7, 31, 145, 68, 198, 170, 109, 68, 78, 223, 103, 68, 148, 132, 146, 68, 85, 107, 42, 68, 146, 2, 144, 68, 98, 54, 145, 219, 67, 43, 90, 143, 68, 66, 59, 103, 67, 117, 24, 100, 68, 78, 46, 128, 67, 210, 164, 39, 68, 98, 93, 50, 134, 67, 113, 58, 216, 67, 120, 192, 249, 67, 83, 151,
 		103, 67, 206, 99, 56, 68, 244, 59, 128, 67, 98, 72, 209, 112, 68, 66, 60, 134, 67, 254, 238, 144, 68, 83, 128, 238, 67, 0, 0, 144, 68, 0, 0, 48, 68, 99, 109, 0, 0, 208, 68, 0, 0, 0, 195, 98, 14, 229, 208, 68, 70, 27, 117, 195, 211, 63, 187, 68, 146, 218, 151, 195, 167, 38, 179, 68, 23, 8, 77, 195, 98, 36, 92, 165, 68, 187, 58,
@@ -304,14 +303,19 @@ ScriptComponentList::~ScriptComponentList()
 	removeAsScriptEditListener();
 	content->removeRebuildListener(this);
 
-	tree.setRootItem(nullptr);
+	tree->setRootItem(nullptr);
+    
+    tree = nullptr;
+    
+    rootItem = nullptr;
+    
 }
 
 void ScriptComponentList::scriptComponentPropertyChanged(ScriptComponent* sc, Identifier /*idThatWasChanged*/, const var& /*newValue*/)
 {
 	if (sc != nullptr)
 	{
-		auto item = tree.findItemFromIdentifierString(sc->name.toString());
+		auto item = tree->findItemFromIdentifierString(sc->name.toString());
 
 		if (item != nullptr)
 		{
@@ -354,7 +358,7 @@ void ScriptComponentList::mouseUp(const MouseEvent& event)
 
 		auto clipboardData = JSON::parse(SystemClipboard::getTextFromClipboard());
 
-		const bool isSingleSelection = tree.getNumSelectedItems() == 1;
+		const bool isSingleSelection = tree->getNumSelectedItems() == 1;
 
 		m.addItem(PopupMenuOptions::CopyProperties, "Copy properties", isSingleSelection);
 		m.addItem(PopupMenuOptions::PasteProperties, "Paste properties to selection", clipboardData.isObject());
@@ -363,7 +367,7 @@ void ScriptComponentList::mouseUp(const MouseEvent& event)
 		
 		if (isSingleSelection)
 		{
-			pTree = static_cast<ScriptComponentListItem*>(tree.getSelectedItem(0))->tree;
+			pTree = static_cast<ScriptComponentListItem*>(tree->getSelectedItem(0))->tree;
 
 			m.addSectionHeader("Add new widget");
 			m.addItem((int)ScriptEditHandler::Widgets::Knob, "Add new Slider");
@@ -411,14 +415,10 @@ void ScriptComponentList::mouseUp(const MouseEvent& event)
 		}
 		case CopyProperties:
 		{
-			if (tree.getNumSelectedItems() == 1)
+			if (tree->getNumSelectedItems() == 1)
 			{
-				auto sc = static_cast<ScriptComponentListItem*>(tree.getSelectedItem(0))->connectedComponent;
-
-				if (sc != nullptr)
-				{
-					SystemClipboard::copyTextToClipboard(sc->getScriptObjectPropertiesAsJSON());
-				}
+				// TODO
+				jassertfalse;
 			}
 
 			
@@ -452,12 +452,14 @@ void ScriptComponentList::mouseUp(const MouseEvent& event)
 
 void ScriptComponentList::mouseDoubleClick(const MouseEvent& e)
 {
-	auto i = dynamic_cast<ScriptComponentListItem*>(tree.getItemAt(e.getMouseDownY()));
+	auto i = dynamic_cast<ScriptComponentListItem*>(tree->getItemAt(e.getMouseDownY()));
 
 	if (i != nullptr)
 	{
+#if 0
 		if (i->connectedComponent)
 			ScriptingApi::Content::Helpers::gotoLocation(i->connectedComponent);
+#endif
 	}
 }
 
@@ -477,13 +479,17 @@ void ScriptComponentList::resetRootItem()
 {
 	auto v = content->getContentProperties();
 
-	openState = tree.getOpennessState(true);
+	openState = tree->getOpennessState(true);
 
-	tree.setRootItem(rootItem = new ScriptComponentListItem(v, undoManager, content, searchTerm));
+    tree->setRootItem(nullptr);
+    
+    rootItem = new ScriptComponentListItem(v, undoManager, content, searchTerm);
+    
+	tree->setRootItem(rootItem);
 
 	if (openState != nullptr)
 	{
-		tree.restoreOpennessState(*openState, false);
+		//tree.restoreOpennessState(*openState, false);
 	}
 }
 
@@ -506,7 +512,7 @@ void ScriptComponentList::resized()
 	buttons.removeFromLeft(6);
 
 	r.removeFromBottom(4);
-	tree.setBounds(r);
+	tree->setBounds(r);
 }
 
 #undef ADD_WIDGET
@@ -540,9 +546,9 @@ bool ScriptComponentList::keyPressed(const KeyPress& key)
 	{
 		Array<var> list;
 
-		for (int i = 0; i < tree.getNumSelectedItems(); i++)
+		for (int i = 0; i < tree->getNumSelectedItems(); i++)
 		{
-			auto t = static_cast<ScriptComponentListItem*>(tree.getSelectedItem(i))->tree;
+			auto t = static_cast<ScriptComponentListItem*>(tree->getSelectedItem(i))->tree;
 			auto v = ValueTreeConverters::convertContentPropertiesToDynamicObject(t);
 			list.add(v);
 		}

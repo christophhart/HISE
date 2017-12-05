@@ -113,19 +113,21 @@ public:
 
 private:
 
-	String searchTerm;
+	
 
 	friend class ScriptComponentList;
 
 
 	bool fitsSearch = true;
 
-	ScriptComponent::Ptr connectedComponent;
+	
 	ValueTree tree;
 	UndoManager& undoManager;
-
+    
 	ScriptingApi::Content* content;
 
+    String searchTerm;
+    
 	String id;
 
 	void refreshSubItems()
@@ -241,7 +243,7 @@ public:
 	void deleteSelectedItems()
 	{
 		OwnedArray<ValueTree> selectedItems;
-		ScriptComponentListItem::getSelectedTreeViewItems(tree, selectedItems);
+		ScriptComponentListItem::getSelectedTreeViewItems(*tree, selectedItems);
 
 		for (int i = selectedItems.size(); --i >= 0;)
 		{
@@ -293,6 +295,9 @@ private:
 	}
 
 	Path searchPath;
+    
+    UndoManager undoManager;
+    
 	
 	ScopedPointer<XmlElement> openState;
 
@@ -304,10 +309,12 @@ private:
 
 	String searchTerm;
 
-	TreeView tree;
+    ScopedPointer<ScriptComponentListItem> rootItem;
+    
+	ScopedPointer<TreeView> tree;
 	TextButton undoButton, redoButton, foldButton, unfoldButton;
-	ScopedPointer<ScriptComponentListItem> rootItem;
-	UndoManager undoManager;
+	
+	
 
 	void timerCallback() override
 	{
