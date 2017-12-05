@@ -45,11 +45,11 @@ class ScriptComponentListItem : public TreeViewItem,
 {
 public:
 
-	ScriptComponentListItem(const ValueTree& v, UndoManager& um_, ScriptingApi::Content* c, const String& searchTerm);
+	ScriptComponentListItem(ValueTree v, UndoManager& um_, ScriptingApi::Content* c, const String& searchTerm);
 
 	~ScriptComponentListItem()
 	{
-		tree.removeListener(this);
+		
 	}
 
 	String getUniqueName() const override
