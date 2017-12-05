@@ -206,10 +206,10 @@ public:
 
 	virtual void asyncValueTreePropertyChanged(ValueTree& v, const Identifier& id)
 	{
-		auto index = getScriptComponent()->getIndexForProperty(id);
+		auto idIndex = getScriptComponent()->getIndexForProperty(id);
 		auto value = v.getProperty(id);
 
-		updateComponent(index, value);
+		updateComponent(idIndex, value);
 	}
 
 	virtual void valueTreeParentChanged(ValueTree& v) override;

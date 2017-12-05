@@ -186,7 +186,7 @@ public:
 
 	void updateCoefficients() override
 	{
-		int lFrequency = jlimit<double>(20.0, 20000.0, frequency);
+		auto lFrequency = jlimit<double>(20.0, 20000.0, frequency);
 
 		fc = lFrequency / (0.5 *sampleRate);
 		res = q / 2.0;
@@ -428,12 +428,12 @@ public:
 
 	void updateCoefficients() override
 	{
-		float inFreq = jlimit<float>(20.0f, 20000.0f, frequency);
+		float inFreq = jlimit<float>(20.0f, 20000.0f, (float)frequency);
 
-		const float x = 2.0f * float_Pi*inFreq / sampleRate;
+		const float x = 2.0f * float_Pi*inFreq / (float)sampleRate;
 
 		cut = jlimit<float>(0.0f, 0.8f, x);
-		res = jlimit<float>(0.3f, 4.0f, q / 2.0f);
+		res = jlimit<float>(0.3f, 4.0f, (float)q / 2.0f);
 	}
 
 private:
@@ -791,7 +791,7 @@ public:
 			gCoeff = wa * T / 2.0f;			// Calculate g (gain element of integrator)
 
 											// Calculate Zavalishin's R from Q (referred to as damping parameter)
-			RCoeff = 1.0f / (2.0f * q);
+			RCoeff = 1.0f / (2.0f * (float)q);
 
 			x1 = (2.0f * RCoeff + gCoeff);
 			x2 = 1.0f / (1.0f + (2.0f * RCoeff * gCoeff) + gCoeff * gCoeff);

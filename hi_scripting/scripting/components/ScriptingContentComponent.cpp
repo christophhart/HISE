@@ -197,12 +197,12 @@ void ScriptContentComponent::changeListenerCallback(SafeChangeBroadcaster *b)
 	}
 }
 
-void ScriptContentComponent::asyncValueTreePropertyChanged(ValueTree& v, const Identifier& id)
+void ScriptContentComponent::asyncValueTreePropertyChanged(ValueTree& /*v*/, const Identifier& /*id*/)
 {
 	
 }
 
-void ScriptContentComponent::valueTreeChildAdded(ValueTree& parent, ValueTree& child)
+void ScriptContentComponent::valueTreeChildAdded(ValueTree& /*parent*/, ValueTree& /*child*/)
 {
 
 }
@@ -318,11 +318,11 @@ void ScriptContentComponent::updateComponentParent(ScriptCreatedComponentWrapper
 		}
 		else
 		{
-			for (int c = 0; c < componentWrappers.size(); c++)
+			for (int cIndex = 0; cIndex < componentWrappers.size(); cIndex++)
 			{
-				if (componentWrappers[c]->getComponent()->getName() == newParentId)
+				if (componentWrappers[cIndex]->getComponent()->getName() == newParentId)
 				{
-					auto newParent = componentWrappers[c]->getComponent();
+					auto newParent = componentWrappers[cIndex]->getComponent();
 					componentToRemove->getParentComponent()->removeChildComponent(componentToRemove);
 					newParent->addChildComponent(componentToRemove);
 					componentToRemove->setBounds(currentPosition);

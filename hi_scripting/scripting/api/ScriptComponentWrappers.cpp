@@ -49,12 +49,12 @@ Array<Identifier> ScriptComponentPropertyTypeSelector::fileProperties = Array<Id
 Array<ScriptComponentPropertyTypeSelector::SliderRange> ScriptComponentPropertyTypeSelector::sliderRanges = Array<ScriptComponentPropertyTypeSelector::SliderRange>();
 
 
-void ScriptCreatedComponentWrapper::updateComponent(int index, var newValue)
+void ScriptCreatedComponentWrapper::updateComponent(int propertyIndex, var newValue)
 {
-	if (index >= ScriptingApi::Content::ScriptComponent::Properties::numProperties)
+	if (propertyIndex >= ScriptingApi::Content::ScriptComponent::Properties::numProperties)
 		return;
 
-	auto propIndex = (ScriptingApi::Content::ScriptComponent::Properties)index;
+	auto propIndex = (ScriptingApi::Content::ScriptComponent::Properties)propertyIndex;
 
 	switch (propIndex)
 	{
@@ -77,7 +77,7 @@ void ScriptCreatedComponentWrapper::changed(var newValue)
 	dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())->controlCallback(getScriptComponent(), newValue);
 }
 
-void ScriptCreatedComponentWrapper::valueTreeParentChanged(ValueTree& v)
+void ScriptCreatedComponentWrapper::valueTreeParentChanged(ValueTree& /*v*/)
 {
 	contentComponent->updateComponentParent(this);
 }
@@ -166,7 +166,7 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateFilmstrip()
 				sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::numStrips),
 				sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::isVertical));
 
-			fslaf->setScaleFactor(thisScaleFactor);
+			fslaf->setScaleFactor((float)thisScaleFactor);
 
 			s->setTextBoxStyle(Slider::NoTextBox, true, 0, 0);
 
@@ -216,6 +216,8 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateSliderRange(ScriptingA
 
 	Range<double> r(min, max);
 
+
+
 	const String suffix = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::suffix);
 
 	if (min >= max || stepsize <= 0.0 || min < -100000.0 || max > 100000.0)
@@ -229,7 +231,7 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateSliderRange(ScriptingA
 		s->setSkewFactor(1.0);
 		s->setMode(sc->m, min, max);
 		s->setRange(min, max, stepsize);
-		if (r.contains(middlePos)) s->setSkewFactorFromMidPoint(middlePos);
+		if (middlePos != min && r.contains(middlePos)) s->setSkewFactorFromMidPoint(middlePos);
 		if (sc->m == HiSlider::Mode::Linear) s->setTextValueSuffix(suffix);
 	}
 
@@ -308,16 +310,14 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent()
 
 #define PROPERTY_CASE case hise::ScriptingApi::Content
 
-void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent(int index, var newValue)
+void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent(int propertyIndex, var newValue)
 {
-	ScriptCreatedComponentWrapper::updateComponent(index, newValue);
+	ScriptCreatedComponentWrapper::updateComponent(propertyIndex, newValue);
 	
 	HiSlider *s = dynamic_cast<HiSlider*>(getComponent());
 	auto sc = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(getScriptComponent());
 
-	auto propIndex = (ScriptingApi::Content::ScriptSlider::Properties)index;
-
-	switch (index)
+	switch (propertyIndex)
 	{
 		PROPERTY_CASE::ScriptComponent::useUndoManager:	s->setUseUndoManagerForEvents(GET_SCRIPT_PROPERTY(useUndoManager)); break;
 		PROPERTY_CASE::ScriptComponent::text:			s->setName(GET_SCRIPT_PROPERTY(text)); break;
@@ -514,20 +514,19 @@ ScriptCreatedComponentWrapper(content, index)
 
 void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateComponent()
 {
-	HiComboBox *cb = dynamic_cast<HiComboBox*>(component.get());
 
 	
 
 }
 
-void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateComponent(int index, var newValue)
+void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateComponent(int propertyIndex, var newValue)
 {
-	ScriptCreatedComponentWrapper::updateComponent(index, newValue);
+	ScriptCreatedComponentWrapper::updateComponent(propertyIndex, newValue);
 	
 	HiComboBox *cb = dynamic_cast<HiComboBox*>(component.get());
 	auto sc = dynamic_cast<ScriptingApi::Content::ScriptComboBox*>(getScriptComponent());
 
-	switch (index)
+	switch (propertyIndex)
 	{
 		PROPERTY_CASE::ScriptComponent::tooltip :		cb->setTooltip(newValue); break;
 		PROPERTY_CASE::ScriptComponent::useUndoManager: cb->setUseUndoManagerForEvents(newValue); break;
@@ -633,14 +632,14 @@ void ScriptCreatedComponentWrappers::ButtonWrapper::updateComponent()
 }
 
 
-void ScriptCreatedComponentWrappers::ButtonWrapper::updateComponent(int index, var newValue)
+void ScriptCreatedComponentWrappers::ButtonWrapper::updateComponent(int propertyIndex, var newValue)
 {
-	ScriptCreatedComponentWrapper::updateComponent(index, newValue);
+	ScriptCreatedComponentWrapper::updateComponent(propertyIndex, newValue);
 	
 	HiToggleButton *b = dynamic_cast<HiToggleButton*>(getComponent());
 	auto sc = dynamic_cast<ScriptingApi::Content::ScriptButton*>(getScriptComponent());
 
-	switch (index)
+	switch (propertyIndex)
 	{
 		PROPERTY_CASE::ScriptComponent::saveInPreset:   b->setCanBeMidiLearned(newValue); break;
 		PROPERTY_CASE::ScriptComponent::useUndoManager:	b->setUseUndoManagerForEvents(GET_SCRIPT_PROPERTY(useUndoManager)); break;
@@ -711,17 +710,17 @@ void ScriptCreatedComponentWrappers::LabelWrapper::updateComponent()
 
 }
 
-void ScriptCreatedComponentWrappers::LabelWrapper::updateComponent(int index, var newValue)
+void ScriptCreatedComponentWrappers::LabelWrapper::updateComponent(int propertyIndex, var newValue)
 {
-	if (index < ScriptingApi::Content::ScriptComponent::Properties::numProperties)
+	if (propertyIndex < ScriptingApi::Content::ScriptComponent::Properties::numProperties)
 	{
-		ScriptCreatedComponentWrapper::updateComponent(index, newValue);
+		ScriptCreatedComponentWrapper::updateComponent(propertyIndex, newValue);
 	}
 
 	MultilineLabel *l = dynamic_cast<MultilineLabel*>(component.get());
 	auto sc = dynamic_cast<ScriptingApi::Content::ScriptLabel*>(getScriptComponent());
 
-	switch (index)
+	switch (propertyIndex)
 	{
 		PROPERTY_CASE::ScriptComponent::tooltip :		l->setTooltip(GET_SCRIPT_PROPERTY(tooltip)); break;
 		PROPERTY_CASE::ScriptComponent::bgColour:
@@ -842,14 +841,13 @@ void ScriptCreatedComponentWrappers::TableWrapper::updateComponent()
 
 }
 
-void ScriptCreatedComponentWrappers::TableWrapper::updateComponent(int index, var newValue)
+void ScriptCreatedComponentWrappers::TableWrapper::updateComponent(int propertyIndex, var newValue)
 {
-	ScriptCreatedComponentWrapper::updateComponent(index, newValue);
+	ScriptCreatedComponentWrapper::updateComponent(propertyIndex, newValue);
 	
 	TableEditor *t = dynamic_cast<TableEditor*>(component.get());
-	auto sc = dynamic_cast<ScriptingApi::Content::ScriptTable*>(getScriptComponent());
-
-	switch (index)
+	
+	switch (propertyIndex)
 	{
 		PROPERTY_CASE::ScriptComponent::tooltip: t->setTooltip(GET_SCRIPT_PROPERTY(tooltip)); break;
 		PROPERTY_CASE::ScriptTable::Properties::ProcessorId:
@@ -983,11 +981,11 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::updateComponent()
 
 
 
-void ScriptCreatedComponentWrappers::ViewportWrapper::updateComponent(int index, var newValue)
+void ScriptCreatedComponentWrappers::ViewportWrapper::updateComponent(int propertyIndex, var newValue)
 {
-	if (index < ScriptingApi::Content::ScriptComponent::Properties::numProperties)
+	if (propertyIndex < ScriptingApi::Content::ScriptComponent::Properties::numProperties)
 	{
-		ScriptCreatedComponentWrapper::updateComponent(index, newValue);
+		ScriptCreatedComponentWrapper::updateComponent(propertyIndex, newValue);
 	}
 
 	auto vpc = dynamic_cast<ScriptingApi::Content::ScriptedViewport*>(getScriptComponent());
@@ -995,7 +993,7 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::updateComponent(int index,
 
 	if (shouldUseList)
 	{
-		switch (index)
+		switch (propertyIndex)
 		{
 			PROPERTY_CASE::ScriptedViewport::Properties::FontName:
 			PROPERTY_CASE::ScriptedViewport::Properties::FontSize :
@@ -1010,7 +1008,7 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::updateComponent(int index,
 	}
 	else
 	{
-		switch (index)
+		switch (propertyIndex)
 		{
 			PROPERTY_CASE::ScriptedViewport::Properties::scrollbarThickness: vp->setScrollBarThickness(newValue); break;
 			PROPERTY_CASE::ScriptComponent::itemColour: vp->setColour(ScrollBar::ColourIds::thumbColourId, GET_OBJECT_COLOUR(itemColour)); break;
@@ -1199,14 +1197,14 @@ void ScriptCreatedComponentWrappers::ImageWrapper::updateComponent()
 	contentComponent->repaint();
 }
 
-void ScriptCreatedComponentWrappers::ImageWrapper::updateComponent(int index, var newValue)
+void ScriptCreatedComponentWrappers::ImageWrapper::updateComponent(int propertyIndex, var newValue)
 {
-	ScriptCreatedComponentWrapper::updateComponent(index, newValue);
+	ScriptCreatedComponentWrapper::updateComponent(propertyIndex, newValue);
 
 	ImageComponentWithMouseCallback *ic = dynamic_cast<ImageComponentWithMouseCallback*>(component.get());
 	ScriptingApi::Content::ScriptImage *si = dynamic_cast<ScriptingApi::Content::ScriptImage*>(getScriptComponent());
 
-	switch (index)
+	switch (propertyIndex)
 	{
 		PROPERTY_CASE::ScriptImage::AllowCallbacks:
 		PROPERTY_CASE::ScriptImage::PopupMenuItems :
@@ -1252,15 +1250,10 @@ ScriptCreatedComponentWrapper(content, index)
 	bp->addMouseCallbackListener(this);
 	bp->setDraggingEnabled(panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::allowDragging));
 	bp->setDragBounds(panel->getDragBounds(), this);
-
     bp->setOpaque(panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::opaque));
-    
 	bp->isPopupPanel = panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::isPopupPanel);
-
 	bp->setJSONPopupData(panel->getJSONPopupData(), panel->getPopupSize());
-
 	bp->setup(getProcessor(), getIndex(), panel->name.toString());
-
 	bp->isUsingCustomImage = panel->isUsingCustomPaintRoutine() || panel->isUsingClippedFixedImage();
 
 	component = bp;
@@ -1311,14 +1304,14 @@ void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent()
 	
 }
 
-void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent(int index, var newValue)
+void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent(int propertyIndex, var newValue)
 {
-	ScriptCreatedComponentWrapper::updateComponent(index, newValue);
+	ScriptCreatedComponentWrapper::updateComponent(propertyIndex, newValue);
 
 	BorderPanel *bpc = dynamic_cast<BorderPanel*>(component.get());
 	auto sc = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
 
-	switch (index)
+	switch (propertyIndex)
 	{
 		PROPERTY_CASE::ScriptComponent::bgColour:
 		PROPERTY_CASE::ScriptComponent::itemColour :
@@ -1425,21 +1418,18 @@ ScriptCreatedComponentWrapper(content, index)
 void ScriptCreatedComponentWrappers::SliderPackWrapper::updateComponent()
 {
 	SliderPack *sp = dynamic_cast<SliderPack*>(component.get());
-	ScriptingApi::Content::ScriptSliderPack *ssp = dynamic_cast<ScriptingApi::Content::ScriptSliderPack*>(getScriptComponent());
-
 	
-
 	updateColours(sp);
 }
 
-void ScriptCreatedComponentWrappers::SliderPackWrapper::updateComponent(int index, var newValue)
+void ScriptCreatedComponentWrappers::SliderPackWrapper::updateComponent(int propertyIndex, var newValue)
 {
-	ScriptCreatedComponentWrapper::updateComponent(index, newValue);
+	ScriptCreatedComponentWrapper::updateComponent(propertyIndex, newValue);
 
 	SliderPack *sp = dynamic_cast<SliderPack*>(component.get());
 	ScriptingApi::Content::ScriptSliderPack *ssp = dynamic_cast<ScriptingApi::Content::ScriptSliderPack*>(getScriptComponent());
 
-	switch (index)
+	switch (propertyIndex)
 	{
 		PROPERTY_CASE::ScriptComponent::itemColour :
 		PROPERTY_CASE::ScriptComponent::itemColour2 :
@@ -1541,9 +1531,9 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateComponent()
 	
 }
 
-void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateComponent(int index, var newValue)
+void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateComponent(int propertyIndex, var newValue)
 {
-	ScriptCreatedComponentWrapper::updateComponent(index, newValue);
+	ScriptCreatedComponentWrapper::updateComponent(propertyIndex, newValue);
 }
 
 void ScriptCreatedComponentWrappers::AudioWaveformWrapper::rangeChanged(AudioDisplayComponent *broadcaster, int changedArea)
@@ -1588,11 +1578,9 @@ void ScriptCreatedComponentWrappers::FloatingTileWrapper::updateComponent()
 	
 }
 
-void ScriptCreatedComponentWrappers::FloatingTileWrapper::updateComponent(int index, var newValue)
+void ScriptCreatedComponentWrappers::FloatingTileWrapper::updateComponent(int propertyIndex, var newValue)
 {
-	ScriptCreatedComponentWrapper::updateComponent(index, newValue);
-
-	auto sft = dynamic_cast<ScriptingApi::Content::ScriptFloatingTile*>(getScriptComponent());
+	ScriptCreatedComponentWrapper::updateComponent(propertyIndex, newValue);
 
 	auto ft = dynamic_cast<FloatingTile*>(component.get());
 
@@ -1601,7 +1589,7 @@ void ScriptCreatedComponentWrappers::FloatingTileWrapper::updateComponent(int in
 	if (ftc == nullptr)
 		return;
 
-	switch (index)
+	switch (propertyIndex)
 	{
 	PROPERTY_CASE::ScriptComponent::itemColour: ftc->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, GET_OBJECT_COLOUR(itemColour)); break;
 	PROPERTY_CASE::ScriptComponent::itemColour2 : ftc->setPanelColour(FloatingTileContent::PanelColourId::itemColour2, GET_OBJECT_COLOUR(itemColour)); break;

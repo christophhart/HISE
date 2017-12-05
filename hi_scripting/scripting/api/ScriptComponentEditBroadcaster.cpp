@@ -161,7 +161,7 @@ struct ScriptComponentSorter
 #endif
 };
 
-void addChildrenToSelection(ScriptComponentEditBroadcaster* b, ScriptComponent* sc)
+void addChildrenToSelection(ScriptComponentEditBroadcaster* /*b*/, ScriptComponent* /*sc*/)
 {
 	jassertfalse;
 }

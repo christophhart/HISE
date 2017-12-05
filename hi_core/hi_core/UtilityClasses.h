@@ -245,13 +245,13 @@ class AsyncValueTreePropertyListener : public ValueTree::Listener
 {
 public:
 
-	AsyncValueTreePropertyListener(ValueTree v_, UpdateDispatcher* dispatcher_) :
-		v(v_),
+	AsyncValueTreePropertyListener(ValueTree state_, UpdateDispatcher* dispatcher_) :
+		state(state_),
 		dispatcher(dispatcher_),
 		asyncHandler(*this)
 	{
 		pendingPropertyChanges.ensureStorageAllocated(1024);
-		v.addListener(this);
+		state.addListener(this);
 	}
 
 	void valueTreePropertyChanged(ValueTree& v, const Identifier& id) final override
@@ -313,7 +313,7 @@ private:
 
 	CriticalSection arrayLock;
 
-	ValueTree v;
+	ValueTree state;
 	WeakReference<UpdateDispatcher> dispatcher;
 	AsyncHandler asyncHandler;
 

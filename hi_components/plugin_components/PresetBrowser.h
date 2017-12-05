@@ -979,12 +979,10 @@ public:
 				s = s.upToFirstOccurrenceOf(".preset", false, false);
 				s = s.replaceCharacter('/', '_');
 				s = s.replaceCharacter('\\', '_');
-				s = s.replaceCharacter('צ', 'o');
-				s = s.replaceCharacter('ה', 'a');
-				s = s.replaceCharacter('ü', 'u');
-				s = s.replaceCharacter('ך', 'e');
-				s = s.replaceCharacter('י', 'e');
-				s = s.replaceCharacter('ט', 'e');
+				s = s.replaceCharacter('\'', '_');
+
+				s = s.replaceCharacters("צהüךיט", "oaueee");
+
 
 				s = s.removeCharacters(" \t!+");
 

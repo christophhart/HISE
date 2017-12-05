@@ -1,17 +1,17 @@
 namespace hise { using namespace juce;
 
 VarRegister::VarRegister() :
-empty(var::undefined())
+empty(var())
 {
 	for (int i = 0; i < NUM_VAR_REGISTERS; i++)
 	{
-		registerStack[i] = var::undefined();
-		registerStackIds[i] = Identifier::null;
+		registerStack[i] = var();
+		registerStackIds[i] = Identifier();
 	}
 }
 
 VarRegister::VarRegister(VarRegister &other) :
-empty(var::undefined())
+empty(var())
 {
 	for (int i = 0; i < NUM_VAR_REGISTERS; i++)
 	{
@@ -24,8 +24,8 @@ VarRegister::~VarRegister()
 {
 	for (int i = 0; i < NUM_VAR_REGISTERS; i++)
 	{
-		registerStack[i] = var::undefined();
-		registerStackIds[i] = Identifier::null;
+		registerStack[i] = var();
+		registerStackIds[i] = Identifier();
 	}
 }
 
@@ -80,7 +80,7 @@ int VarRegister::getNumUsedRegisters() const
 {
 	for (int i = 0; i < NUM_VAR_REGISTERS; i++)
 	{
-		if (registerStackIds[i] == Identifier::null) return i;
+		if (registerStackIds[i].isNull()) return i;
 	}
 
 	return NUM_VAR_REGISTERS;
@@ -91,7 +91,7 @@ Identifier VarRegister::getRegisterId(int index) const
 	if (index < NUM_VAR_REGISTERS)
 		return registerStackIds[index];
 
-	return Identifier::null;
+    return {};
 }
 
 const var * VarRegister::getVarPointer(int index) const
@@ -196,7 +196,7 @@ const var ApiClass::getConstantValue(int index) const
 		return constantsToUse[index].value;
 
 	jassertfalse;
-	return var::undefined();
+	return var();
 }
 
 int ApiClass::getConstantIndex(const Identifier &id) const
@@ -215,7 +215,7 @@ Identifier ApiClass::getConstantName(int index) const
 		return constantsToUse[index].id;
 
 	jassertfalse;
-	return Identifier::null;
+    return {};
 }
 
 void ApiClass::addFunction(const Identifier &id, call0 newFunction)

@@ -523,7 +523,7 @@ void ScriptingContentOverlay::findLassoItemsInArea(Array<ScriptComponent*> &item
 
 }
 
-static void removeChildComponentsFromArray(Array<ScriptComponent*>& arrayToClean)
+static void removeChildComponentsFromArray(Array<ScriptComponent*>& /*arrayToClean*/)
 {
 	jassertfalse;
 }
