@@ -2249,8 +2249,8 @@ void ScriptingApi::Content::ScriptImage::setImageFile(const String &absoluteFile
 
 	if (image.isValid())
 	{
-		setScriptObjectProperty(ScriptComponent::width, image.getWidth(), dontSendNotification);
-		setScriptObjectProperty(ScriptComponent::height, image.getHeight(), sendNotification);
+		//setScriptObjectProperty(ScriptComponent::width, image.getWidth(), dontSendNotification);
+		//setScriptObjectProperty(ScriptComponent::height, image.getHeight(), sendNotification);
 	}
 };
 

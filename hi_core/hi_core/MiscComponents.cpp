@@ -683,9 +683,9 @@ void ImageComponentWithMouseCallback::paint(Graphics &g)
 		g.setOpacity(jmax<float>(0.0f, jmin<float>(1.0f, alpha)));
 
 		Rectangle<int> cropArea = Rectangle<int>(0,
-			offset,
-			jmin<int>(getWidth(), image.getWidth()),
-			jmin<int>(getHeight(), image.getHeight()));
+			offset * scale,
+			jmin<int>(getWidth() * scale, image.getWidth()),
+			jmin<int>(getHeight() * scale, image.getHeight()));
 
 		Image croppedImage = image.getClippedImage(cropArea);
 
