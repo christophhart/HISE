@@ -1648,6 +1648,7 @@ public:
 
 		static void recompileAndSearchForPropertyChange(ScriptComponent * sc, const Identifier& id);
 		static ScriptComponent * createComponentFromValueTree(Content* c, const ValueTree& v);
+		static bool hasLocation(ScriptComponent* sc);
 	};
 
 	template <class SubType> SubType* createNewComponent(const Identifier& id, int x, int y, int w, int h)
@@ -1801,6 +1802,26 @@ struct ContentValueTreeHelpers
 		}
 
 		return Point<int>(v.getProperty(x), v.getProperty(y));
+	}
+
+	static bool isShowing(const ValueTree& v)
+	{
+		static const Identifier visible("visible");
+		static const Identifier co("Component");
+
+		if (v.getProperty(visible, true))
+		{
+			auto p = v.getParent();
+
+			if (p.getType() == co)
+				return isShowing(p);
+			else
+				return true;
+		}
+		else
+		{
+			return false;
+		}
 	}
 
 	static bool getAbsolutePosition(const ValueTree& v, Point<int>& offset)

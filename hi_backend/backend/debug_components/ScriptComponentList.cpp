@@ -51,71 +51,121 @@ ScriptComponentListItem::ScriptComponentListItem(ValueTree v, UndoManager& um_, 
 	content(c),
 	searchTerm(searchTerm_)
 {
+	c->getProcessor()->getMainController()->addScriptListener(this);
+
+	
+
 	static const Identifier coPro("ContentProperties");
 
 	if (tree.getType() == coPro)
 		id = "Components";
 	else
+	{
 		id = tree.getProperty("id");
-
+	}
+	
 	tree.addListener(this);
+
+	startTimer(50);
+}
+
+void ScriptComponentListItem::itemDoubleClicked(const MouseEvent& e)
+{
+	if (isRootItem())
+		return;
+
+	auto id = var(getUniqueName());
+
+	auto v = content->getComponent(id);
+
+	if (auto sc = dynamic_cast<ScriptingApi::Content::ScriptComponent*>(v.getObject()))
+	{
+		ScriptingApi::Content::Helpers::gotoLocation(sc);
+	}	
 }
 
 void ScriptComponentListItem::paintItem(Graphics& g, int width, int height)
 {
-	auto area = Rectangle<int>(0, 0, width - 1, height - 1);
-
-	g.setColour(isSelected() ? Colour(SIGNAL_COLOUR).withAlpha(0.4f) : Colours::black.withAlpha(0.2f));
-
-	g.fillRect(area);
-	g.setColour(Colours::white.withAlpha(0.1f));
-	g.drawRect(area, 1);
-
-
-
-
-	static const Identifier sip("saveInPreset");
-
-	const bool saveInPreset = tree.getProperty(sip, false);
-
-	Colour c3 = saveInPreset ? Colours::green : Colours::red;
-
-	c3 = c3.withAlpha(JUCE_LIVE_CONSTANT_OFF(0.3f));
-
-	g.setColour(c3);
-
-	const float offset = JUCE_LIVE_CONSTANT_OFF(8.0f);
-	Rectangle<float> circle(offset, offset, (float)ITEM_HEIGHT - 2.0f * offset, (float)ITEM_HEIGHT - 2.0f * offset);
-
-	g.fillEllipse(circle);
-
-	g.drawEllipse(circle, 1.0f);
-
-	g.setColour(Colours::white);
-
-	if (!tree.getProperty("visible", true))
+	if (isRootItem())
 	{
-		g.setColour(Colours::white.withAlpha(0.4f));
+		g.setColour(Colours::white);
+
+		g.setFont(GLOBAL_BOLD_FONT());
+
+		int xOffset = ITEM_HEIGHT + 2;
+
+		g.drawText("Root", 2, 0, width - 4, height, Justification::centredLeft, true);
+
+	}
+	else
+	{
+		auto area = FLOAT_RECTANGLE(Rectangle<int>(0, 0, width, height-1).reduced(1));
+
+		g.setColour(isSelected() ? Colour(SIGNAL_COLOUR).withAlpha(0.2f) : Colours::black.withAlpha(0.2f));
+
+		g.fillRoundedRectangle(area, 1.0f);
+		g.setColour(Colours::white.withAlpha(0.1f));
+		g.drawRoundedRectangle(area, 1.0f, 2.0f);
+
+
+
+
+		static const Identifier sip("saveInPreset");
+
+		const bool saveInPreset = tree.getProperty(sip, false);
+
+		Colour c3 = saveInPreset ? Colours::green : Colours::red;
+
+		c3 = c3.withAlpha(JUCE_LIVE_CONSTANT_OFF(0.3f));
+
+		g.setColour(c3);
+
+		const float offset = JUCE_LIVE_CONSTANT_OFF(8.0f);
+		Rectangle<float> circle(offset, offset, (float)ITEM_HEIGHT - 2.0f * offset, (float)ITEM_HEIGHT - 2.0f * offset);
+
+		g.fillEllipse(circle);
+
+		g.drawEllipse(circle, 1.0f);
+
+		g.setColour(Colours::white);
+
+		if (!ContentValueTreeHelpers::isShowing(tree))
+		{
+			g.setColour(Colours::white.withAlpha(0.4f));
+		}
+
+		g.setFont(GLOBAL_BOLD_FONT());
+
+		int xOffset = ITEM_HEIGHT + 2;
+
+		g.drawText(id, xOffset, 0, width - 4, height, Justification::centredLeft, true);
+
+		
+
+		xOffset += GLOBAL_BOLD_FONT().getStringWidth(id) + 10;
+
+		g.setColour(Colours::white.withAlpha(0.2f));
+
+		auto typeName = tree.getProperty("type").toString().replace("Scripted", "").replace("Script", "");
+
+		if (isDefinedInScript)
+		{
+			typeName << " {...}";
+		}
+
+		g.drawText(typeName, 4 + xOffset, 0, width - 4, height, Justification::centredLeft, true);
+
 	}
 
-	g.setFont(GLOBAL_BOLD_FONT());
-
-	int xOffset = ITEM_HEIGHT + 2;
-
-	g.drawText(id, xOffset, 0, width - 4, height, Justification::centredLeft, true);
-
-	xOffset += GLOBAL_BOLD_FONT().getStringWidth(id) + 10;
-
-	g.setColour(Colours::white.withAlpha(0.2f));
-
-	g.drawText(tree.getProperty("type"), 4 + xOffset, 0, width - 4, height, Justification::centredLeft, true);
+	
+	
 }
 
 void ScriptComponentListItem::itemSelectionChanged(bool isNowSelected)
 {
 	if (!fitsSearch)
 	{
-		setSelected(false, false, dontSendNotification);
+		setSelected(false, false, sendNotification);
 		return;
 	}
 
@@ -137,9 +187,51 @@ void ScriptComponentListItem::itemSelectionChanged(bool isNowSelected)
 }
 
 
+void ScriptComponentListItem::itemOpennessChanged(bool isNowOpen)
+{
+	
+	if (isNowOpen && getNumSubItems() == 0)
+		refreshSubItems();
+	else
+		clearSubItems();
+
+	if (auto l = getOwnerView()->findParentComponentOfClass<ScriptComponentList>())
+	{
+		auto v = l->getFoldStateTree();
+
+		v.setProperty(getUniqueName(), isNowOpen, nullptr);
+	}
+}
+
 var ScriptComponentListItem::getDragSourceDescription()
 {
 	return "ScriptComponent";
+}
+
+void ScriptComponentListItem::refreshScriptDefinedState()
+{
+	if (isRootItem())
+		return;
+
+	try
+	{
+		var name(getUniqueName());
+
+		auto scVar = content->getComponent(name);
+
+		if (auto sc = dynamic_cast<ScriptingApi::Content::ScriptComponent*>(scVar.getObject()))
+		{
+			isDefinedInScript = ScriptingApi::Content::Helpers::hasLocation(sc);
+		}
+
+		repaintItem();
+	}
+	catch (String& errorMessage)
+	{
+		jassertfalse;
+	}
+
+	
 }
 
 bool ScriptComponentListItem::isInterestedInDragSource(const DragAndDropTarget::SourceDetails& dragSourceDetails)
@@ -165,6 +257,8 @@ void ScriptComponentListItem::moveItems(TreeView& treeView, const OwnedArray<Val
 	{
 		ScopedPointer<XmlElement> oldOpenness(treeView.getOpennessState(false));
 
+		undoManager.beginNewTransaction("Hierarchy change");
+
 		for (int i = items.size(); --i >= 0;)
 		{
 			ValueTree& v = *items.getUnchecked(i);
@@ -184,7 +278,7 @@ void ScriptComponentListItem::moveItems(TreeView& treeView, const OwnedArray<Val
 
 				v.getParent().removeChild(v, &undoManager);
 
-				v.setProperty(pc, newParent.getProperty("id"), nullptr);
+				v.setProperty(pc, newParent.getProperty("id"), &undoManager);
 
 				newParent.addChild(v, insertIndex, &undoManager);
 			}
@@ -229,15 +323,12 @@ void ScriptComponentListItem::updateSelection(ScriptComponentSelection newSelect
 
 ScriptComponentList::ScriptComponentList(ScriptingApi::Content* c) :
 	ScriptComponentEditListener(dynamic_cast<Processor*>(c->getScriptProcessor())),
-	undoButton("Undo"),
-	redoButton("Redo"),
-	foldButton("Fold"),
-	unfoldButton("Unfold"),
-	content(c)
+	undoManager(getScriptComponentEditBroadcaster()->getUndoManager()),
+	content(c),
+	foldState(ValueTree("FoldState"))
 {
-    
-    DBG("Create List");
-    
+	
+
 	addAsScriptEditListener();
 
 	content->addRebuildListener(this);
@@ -256,25 +347,16 @@ ScriptComponentList::ScriptComponentList(ScriptingApi::Content* c) :
 	tree->setColour(TreeView::backgroundColourId, Colours::transparentBlack);
 	tree->setColour(TreeView::ColourIds::dragAndDropIndicatorColourId, Colour(SIGNAL_COLOUR));
 	tree->setColour(TreeView::ColourIds::selectedItemBackgroundColourId, Colours::transparentBlack);
-	tree->setColour(TreeView::ColourIds::linesColourId, Colours::black.withAlpha(0.1f));
+	tree->setColour(TreeView::ColourIds::linesColourId, Colours::white.withAlpha(JUCE_LIVE_CONSTANT_OFF(0.1f)));
 	resetRootItem();
 
-	tree->setRootItemVisible(false);
+	tree->setIndentSize(12);
 
-	addAndMakeVisible(undoButton);
-	addAndMakeVisible(redoButton);
-	addAndMakeVisible(foldButton);
-	addAndMakeVisible(unfoldButton);
-	undoButton.addListener(this);
-	redoButton.addListener(this);
-	foldButton.addListener(this);
-	unfoldButton.addListener(this);
+	tree->setLookAndFeel(&laf);
 
-	undoButton.setLookAndFeel(&alaf);
-	redoButton.setLookAndFeel(&alaf);
-	foldButton.setLookAndFeel(&alaf);
-	unfoldButton.setLookAndFeel(&alaf);
+	//tree->setRootItemVisible(false);
 
+	
 	tree->addMouseListener(this, true);
 
 	static const unsigned char searchIcon[] = { 110, 109, 0, 0, 144, 68, 0, 0, 48, 68, 98, 7, 31, 145, 68, 198, 170, 109, 68, 78, 223, 103, 68, 148, 132, 146, 68, 85, 107, 42, 68, 146, 2, 144, 68, 98, 54, 145, 219, 67, 43, 90, 143, 68, 66, 59, 103, 67, 117, 24, 100, 68, 78, 46, 128, 67, 210, 164, 39, 68, 98, 93, 50, 134, 67, 113, 58, 216, 67, 120, 192, 249, 67, 83, 151,
@@ -287,7 +369,7 @@ ScriptComponentList::ScriptComponentList(ScriptingApi::Content* c) :
 	searchPath.loadPathFromData(searchIcon, sizeof(searchIcon));
 	searchPath.applyTransform(AffineTransform::rotation(float_Pi));
 
-	searchPath.scaleToFit(4.0f, 12.0f, 16.0f, 16.0f, true);
+	searchPath.scaleToFit(4.0f, 4.0f, 16.0f, 16.0f, true);
 
 	
 
@@ -449,28 +531,18 @@ void ScriptComponentList::mouseUp(const MouseEvent& event)
 	}
 }
 
-
-void ScriptComponentList::mouseDoubleClick(const MouseEvent& e)
-{
-	auto i = dynamic_cast<ScriptComponentListItem*>(tree->getItemAt(e.getMouseDownY()));
-
-	if (i != nullptr)
-	{
-#if 0
-		if (i->connectedComponent)
-			ScriptingApi::Content::Helpers::gotoLocation(i->connectedComponent);
-#endif
-	}
-}
-
 void ScriptComponentList::paint(Graphics& g)
 {
+	g.fillAll(JUCE_LIVE_CONSTANT_OFF(Colour(0xff262626)));
+
 	g.setColour(Colour(0xff353535));
 
 	auto r = fuzzySearchBox->getBounds().withLeft(0);
 
 	g.fillRect(r);
 
+    PopupLookAndFeel::drawFake3D(g, r);
+    
 	g.setColour(Colours::white.withAlpha(0.6f));
 	g.fillPath(searchPath);
 }
@@ -479,40 +551,39 @@ void ScriptComponentList::resetRootItem()
 {
 	auto v = content->getContentProperties();
 
-	openState = tree->getOpennessState(true);
-
-    tree->setRootItem(nullptr);
+	tree->setRootItem(nullptr);
     
-    rootItem = new ScriptComponentListItem(v, undoManager, content, searchTerm);
+	rootItem = new ScriptComponentListItem(v, undoManager, content, searchTerm);
     
 	tree->setRootItem(rootItem);
 
 	if (openState != nullptr)
 	{
-		//tree.restoreOpennessState(*openState, false);
+		tree->restoreOpennessState(*openState, false);
+
+		auto tmp = tree->getViewport();
+		
+		int s = scrollY;
+
+		auto f = [tmp, s]()
+		{
+			tmp->setViewPosition(0, s);
+		};
+
+		new DelayedFunctionCaller(f, 30);
 	}
 }
 
 void ScriptComponentList::resized()
 {
-	Rectangle<int> r(getLocalBounds().reduced(8));
+	Rectangle<int> r(getLocalBounds());
 
 	Rectangle<int> searchBox = r.removeFromTop(24);
 
 	fuzzySearchBox->setBounds(searchBox.withLeft(24));
 
-	Rectangle<int> buttons(r.removeFromBottom(22));
-	undoButton.setBounds(buttons.removeFromLeft(60));
-	buttons.removeFromLeft(6);
-	redoButton.setBounds(buttons.removeFromLeft(60));
-	buttons.removeFromLeft(6);
-	foldButton.setBounds(buttons.removeFromLeft(60));
-	buttons.removeFromLeft(6);
-	unfoldButton.setBounds(buttons.removeFromLeft(60));
-	buttons.removeFromLeft(6);
-
 	r.removeFromBottom(4);
-	tree->setBounds(r);
+	tree->setBounds(r.reduced(3));
 }
 
 #undef ADD_WIDGET
@@ -533,16 +604,16 @@ bool ScriptComponentList::keyPressed(const KeyPress& key)
 
 	if (key == KeyPress('z', ModifierKeys::commandModifier, 0))
 	{
-		undoButton.triggerClick();
+		undoManager.undo();
 		return true;
 	}
 
 	if (key == KeyPress('z', ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 0))
 	{
-		redoButton.triggerClick();
+		undoManager.redo();
 		return true;
 	}
-	if (key.getKeyCode() == 'J')
+	if ((key.isKeyCode('j') || key.isKeyCode('J')) )
 	{
 		Array<var> list;
 

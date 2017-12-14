@@ -232,9 +232,10 @@ void ScriptComponentEditBroadcaster::setScriptComponentPropertyForSelection(cons
 	
 }
 
-void ScriptComponentEditBroadcaster::setScriptComponentPropertyDeltaForSelection(const Identifier& propertyId, const var& delta, NotificationType notifyListeners /*= sendNotification*/, bool /*beginNewTransaction*/ /*= true*/)
+void ScriptComponentEditBroadcaster::setScriptComponentPropertyDeltaForSelection(const Identifier& propertyId, const var& delta, NotificationType notifyListeners /*= sendNotification*/, bool beginNewTransaction /*= true*/)
 {
-	manager.beginNewTransaction("Multiple");
+	if(beginNewTransaction)
+		manager.beginNewTransaction("Multiple");
 
 	Iterator iter(this);
 

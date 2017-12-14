@@ -466,7 +466,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Reset Workspaces", true, false, 'X', false);
 		break;
     case MenuViewFullscreen:
-        setCommandTarget(result, "Toggle Fullscreen", true, bpe->isFullScreenMode(), 'F');
+        setCommandTarget(result, "Toggle Fullscreen", true, bpe->isFullScreenMode(), 'X', false);
         break;
 	case MenuViewBack:
 		setCommandTarget(result, "Back: " + bpe->mainEditor->getViewUndoManager()->getUndoDescription(), bpe->mainEditor->getViewUndoManager()->canUndo(), false, 'X', false);

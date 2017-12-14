@@ -658,6 +658,7 @@ public:
 
 					const bool ok = handler.setNewRangeForParameter(row, range);
 					jassert(ok);
+                    ignoreUnused(ok);
 
 					return newRangeValue;
 				}
@@ -674,6 +675,7 @@ public:
 
 					const bool ok = handler.setNewRangeForParameter(row, range);
 					jassert(ok);
+                    ignoreUnused(ok);
 
 					return newRangeValue;
 				}
@@ -693,6 +695,7 @@ public:
 		{
 			const bool ok = handler.setParameterInverted(row, value);
 			jassert(ok);
+            ignoreUnused(ok);
 		}
 
 	}

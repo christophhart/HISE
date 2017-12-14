@@ -981,7 +981,7 @@ public:
 				s = s.replaceCharacter('\\', '_');
 				s = s.replaceCharacter('\'', '_');
 
-				s = s.replaceCharacters("φδόκιθ", "oaueee");
+				//s = s.replaceCharacters("", "oaueee");
 
 
 				s = s.removeCharacters(" \t!+");
@@ -1047,10 +1047,6 @@ private:
 
 		void buttonClicked(Button* b) override
 		{
-			const int i = tagButtons.indexOf(dynamic_cast<TextButton*>(b));
-
-			
-
 			b->setToggleState(!b->getToggleState(), dontSendNotification);
 		}
 

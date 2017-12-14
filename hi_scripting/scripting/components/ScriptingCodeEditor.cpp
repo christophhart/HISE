@@ -370,7 +370,7 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &menu, const MouseEvent *
 		const bool isUIDefinitionSelected = selection.startsWith("const var");
 
 		menu.addItem(ContextActions::CreateUiFactoryMethod, "Create UI factory method from selection", isUIDefinitionSelected);
-		menu.addItem(ContextActions::AddMissingCaseStatements, "Add missing case statements", true);
+		menu.addItem(ContextActions::ReplaceConstructorWithReference, "Replace addWidget with Content.getComponent()");
         menu.addSeparator();
         menu.addSectionHeader("Import / Export");
         menu.addItem(ContextActions::SaveScriptFile, "Save Script To File");
@@ -430,6 +430,13 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 	{
 		createMissingCaseStatementsForComponents();
 		return;
+	}
+	case JavascriptCodeEditor::ReplaceConstructorWithReference:
+	{
+		const String selection = getTextInRange(getHighlightedRegion()).trimEnd().trimStart();
+		const String newText = CodeReplacer::createWidgetReference(selection);
+
+		insertTextAtCaret(newText);
 	}
 	case JavascriptCodeEditor::JumpToDefinition:
 	{
@@ -1027,7 +1034,7 @@ bool JavascriptCodeEditor::keyPressed(const KeyPress& k)
         insertTextAtCaret(";" + getDocument().getNewLineCharacters() + lastLineIndent);
         
 	}
-	else if (k.isKeyCode(72) && k.getModifiers().isCommandDown()) // Ctrl + H 
+	else if ((k.isKeyCode('f') || k.isKeyCode('F')) && k.getModifiers().isCommandDown()) // Ctrl + F
 	{
 		CodeReplacer * replacer = new CodeReplacer(this);
 
@@ -1037,7 +1044,7 @@ bool JavascriptCodeEditor::keyPressed(const KeyPress& k)
 		replacer->getTextEditor("search")->grabKeyboardFocus();
 		return true;
 	}
-	else if (k.isKeyCode('D') && k.getModifiers().isCommandDown())
+	else if ((k.isKeyCode('d') || k.isKeyCode('D'))  && k.getModifiers().isCommandDown())
 	{
 		increaseMultiSelectionForCurrentToken();
 		return true;

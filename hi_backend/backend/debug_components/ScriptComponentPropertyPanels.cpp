@@ -90,6 +90,8 @@ HiPropertyComponent::HiPropertyComponent(const Identifier& id, ScriptComponentEd
 	panel(panel_),
 	overlay(this)
 {
+	setLookAndFeel(&plaf);
+
 	if (!checkOverwrittenProperty())
 	{
 		addAndMakeVisible(overlay);
@@ -102,8 +104,20 @@ void HiPropertyComponent::resized()
 {
 	PropertyComponent::resized();
 
-	if (overlay.isVisible())
-		overlay.setBounds(getLocalBounds());
+	if (auto c = getChildComponent(0))
+	{
+		if (overlay.isVisible())
+			overlay.setBounds(c->getBoundsInParent());
+	}
+	else
+	{
+		if (overlay.isVisible())
+			overlay.setBounds(getLocalBounds());
+	}
+
+	
+
+	
 }
 
 var HiPropertyComponent::getCurrentPropertyValue(bool returnUndefinedWhenMultipleSelection/*=true*/) const
@@ -243,6 +257,8 @@ void HiSliderPropertyComponent::refresh()
 			}
 		}
 	}
+
+	repaint();
 }
 
 
@@ -339,6 +355,8 @@ void HiChoicePropertyComponent::refresh()
 			comboBox.setText(selectedText, dontSendNotification);
 		}
 	}
+
+	repaint();
 }
 
 
@@ -382,6 +400,8 @@ void HiTogglePropertyComponent::refresh()
 
 		button.setToggleState(on, dontSendNotification);
 	}
+
+	repaint();
 }
 
 void HiTogglePropertyComponent::buttonClicked(Button *)
@@ -429,7 +449,7 @@ void HiTextPropertyComponent::refresh()
 		editor.setText(newVar.toString(), dontSendNotification);
 	}
 
-	
+	repaint();
 }
 
 void HiTextPropertyComponent::textEditorFocusLost(TextEditor&)
@@ -492,7 +512,7 @@ void HiColourPropertyComponent::refresh()
 
 	comp.setDisplayedColour(c);
 
-	
+	repaint();
 }
 
 
@@ -524,6 +544,8 @@ void HiFilePropertyComponent::refresh()
 	{
 		combinedComponent.box.setText(newVar.toString(), dontSendNotification);
 	}
+
+	repaint();
 }
 
 void HiFilePropertyComponent::updateFile(const String& absoluteFilePath)

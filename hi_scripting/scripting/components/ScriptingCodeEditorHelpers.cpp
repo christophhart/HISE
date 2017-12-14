@@ -33,7 +33,8 @@
 namespace hise { using namespace juce;
 
 class CodeReplacer : public DialogWindowWithBackgroundThread,
-	public TextEditorListener
+	public TextEditorListener,
+    public Timer
 {
 public:
 
@@ -50,8 +51,8 @@ public:
 
 		addTextEditor("replace", SystemClipboard::getTextFromClipboard().removeCharacters("\n\r"), "Replace with");
 
-		addButton("Next", 3, KeyPress(KeyPress::rightKey));
-		addButton("Replace Next", 4, KeyPress(KeyPress::returnKey));
+		addButton("Next", 3, KeyPress(KeyPress::returnKey));
+		addButton("Replace Next", 4);
 		addButton("Replace All", 5);
 
 
@@ -134,8 +135,17 @@ public:
 
 	}
 
+    void timerCallback() override
+    {
+        debounce = false;
+        stopTimer();
+    }
+    
 	void resultButtonClicked(const String &name)
 	{
+        if(debounce)
+            return;
+        
 		if (name == "Next")
 		{
 			goToNextMatch();
@@ -172,6 +182,9 @@ public:
 
 			editor->rebuildHighlightedSelection(emptyRegions);
 		}
+        
+        debounce = true;
+        startTimer(200);
 	}
 
 
@@ -203,6 +216,7 @@ public:
 			if (firstLineData.size() == 7)
 			{
 
+				
 				const String componentName = firstLineData[2];
 				const String componentType = firstLineData[3];
 				const String componentId = firstLineData[4];
@@ -245,8 +259,36 @@ public:
 		return definition;
 	}
 
+
+	static const String createWidgetReference(const String selection)
+	{
+		String regexString = "(const var |local )(\\w+)\\s*=\\s*(Content.add\\w+)\\(\\s*(\"\\w+\"),\\s*(\\d+),\\s*(\\d+)";
+
+		const StringArray firstLineData = RegexFunctions::getFirstMatch(regexString, selection);
+
+		if (firstLineData.size() == 7)
+		{
+			
+			const String variableType = firstLineData[1];
+			const String componentName = firstLineData[2];
+			const String componentType = firstLineData[3];
+			const String componentId = firstLineData[4];
+			
+			if (componentName == componentId.removeCharacters("\""))
+			{
+				return variableType + componentName + " = Content.getComponent(" + componentId + ");";
+			}
+		}
+
+		PresetHandler::showMessageWindow("Something went wrong...", "The replacement didn't work");
+		return selection;
+	}
+
+
 private:
 
+    bool debounce = false;
+    
 	void goToNextMatch()
 	{
 		const int start = editor->getCaretPos().getPosition();

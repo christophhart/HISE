@@ -41,7 +41,9 @@ namespace hise { using namespace juce;
 
 //==============================================================================
 class ScriptComponentListItem : public TreeViewItem,
-								private AsyncValueTreePropertyListener
+								private AsyncValueTreePropertyListener,
+								private GlobalScriptCompileListener,
+							    public Timer
 {
 public:
 
@@ -49,7 +51,7 @@ public:
 
 	~ScriptComponentListItem()
 	{
-		
+		content->getProcessor()->getMainController()->removeScriptListener(this);
 	}
 
 	String getUniqueName() const override
@@ -57,9 +59,39 @@ public:
 		return id;
 	}
 
+	XmlElement* getBetterOpennessState()
+	{
+		ScopedPointer<XmlElement> xml = new XmlElement("OpenState");
+		xml->setAttribute("id", getUniqueName());
+		xml->setAttribute("open", getOpenness());
+		
+		for (int i = 0; i < getNumSubItems(); i++)
+		{
+			xml->addChildElement(static_cast<ScriptComponentListItem*>(getSubItem(i))->getBetterOpennessState());
+		}
+
+		return xml.release();
+	}
+
+	void itemDoubleClicked(const MouseEvent& e) override;
+
 	bool isRootItem() const
 	{
 		return id == "Components";
+	}
+
+	void scriptWasCompiled(JavascriptProcessor *processor) override
+	{
+		if (processor->getContent() == content)
+		{
+			refreshScriptDefinedState();
+		}
+	}
+
+	void timerCallback() override
+	{
+		refreshScriptDefinedState();
+		stopTimer();
 	}
 
 	bool mightContainSubItems() override
@@ -75,20 +107,28 @@ public:
 		return fitsSearch ? 20 : 0;
 	}
 
+	void restoreFoldStateFromValueTree(const ValueTree& foldState)
+	{
+		const Identifier id_ = Identifier(getUniqueName());
+
+		if (foldState.hasProperty(id_))
+		{
+			setOpen(foldState.getProperty(id_));
+		}
+
+		for (int i = 0; i < getNumSubItems(); i++)
+		{
+			static_cast<ScriptComponentListItem*>(getSubItem(i))->restoreFoldStateFromValueTree(foldState);
+		}
+	}
+
 	void itemSelectionChanged(bool isNowSelected) override;
 
-	void itemOpennessChanged(bool isNowOpen) override
-	{
-		if (isNowOpen && getNumSubItems() == 0)
-			refreshSubItems();
-		else
-			clearSubItems();
-	}
+	void itemOpennessChanged(bool isNowOpen) override;
 
 	var getDragSourceDescription() override;;
 
 	
-
 	bool isInterestedInDragSource(const DragAndDropTarget::SourceDetails& dragSourceDetails) override;
 
 	void itemDropped(const DragAndDropTarget::SourceDetails&, int insertIndex) override;
@@ -108,7 +148,7 @@ public:
 			return;
 		}
 
-		fitsSearch = FuzzySearcher::fitsSearch(searchTerm_, getItemIdentifierString(), 0.8);
+		fitsSearch = FuzzySearcher::fitsSearch(searchTerm_, getItemIdentifierString().toLowerCase(), 0.8);
 	}
 
 private:
@@ -156,6 +196,8 @@ private:
 		repaintItem();
 	}
 
+	void refreshScriptDefinedState();
+
 	void valueTreeChildAdded(ValueTree& parentTree, ValueTree&) override { treeChildrenChanged(parentTree); }
 	void valueTreeChildRemoved(ValueTree& parentTree, ValueTree&, int) override { treeChildrenChanged(parentTree); }
 	void valueTreeChildOrderChanged(ValueTree& parentTree, int, int) override { treeChildrenChanged(parentTree); }
@@ -170,7 +212,7 @@ private:
 			setOpen(true);
 		}
 	}
-
+	bool isDefinedInScript = false;
 	
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptComponentListItem)
@@ -181,7 +223,6 @@ class ScriptComponentList : public Component,
 	public DragAndDropContainer,
 	public ScriptingApi::Content::RebuildListener,
 	public ScriptComponentEditListener,
-	private ButtonListener,
 	private Timer,
 	public TextEditor::Listener
 {
@@ -195,8 +236,6 @@ public:
 	void scriptComponentSelectionChanged() override;
 
 	void mouseUp(const MouseEvent& e) override;
-
-	void mouseDoubleClick(const MouseEvent& e) override;
 
 	class Panel : public PanelWithProcessorConnection
 	{
@@ -224,7 +263,7 @@ public:
 
 	void textEditorReturnKeyPressed(TextEditor&) override
 	{
-		searchTerm = fuzzySearchBox->getText();
+		searchTerm = fuzzySearchBox->getText().toLowerCase();
 
 		resetRootItem();
 		foldAll(false);
@@ -240,10 +279,14 @@ public:
 
 	void resized() override;
 
+	
+
 	void deleteSelectedItems()
 	{
 		OwnedArray<ValueTree> selectedItems;
 		ScriptComponentListItem::getSelectedTreeViewItems(*tree, selectedItems);
+
+		undoManager.beginNewTransaction("Delete selection");
 
 		for (int i = selectedItems.size(); --i >= 0;)
 		{
@@ -258,33 +301,34 @@ public:
 
 	bool keyPressed(const KeyPress& key) override;
 
-	void buttonClicked(Button* b) override
-	{
-		bool ok = false;
+	
 
-		if (b == &undoButton)
-		{
-			ok = undoManager.undo();
-			if (ok)
-				content->updateAndSetLevel(ScriptingApi::Content::FullRecompile);
-		}
-		else if (b == &redoButton)
-		{
-			ok = undoManager.redo();
-			if (ok)
-				content->updateAndSetLevel(ScriptingApi::Content::FullRecompile);
-		}
-		else if (b == &foldButton)
-		{
-			foldAll(true);
-		}
-		else if (b == &unfoldButton)
-		{
-			foldAll(false);
-		}
-	}
+	ValueTree getFoldStateTree() { return foldState; }
 
 private:
+
+	
+	struct LookAndFeel : public LookAndFeel_V3
+	{
+		void drawTreeviewPlusMinusBox(Graphics& g, const Rectangle<float>& area,
+			Colour backgroundColour, bool isOpen, bool isMouseOver)
+		{
+			Path p;
+			p.addTriangle(0.0f, 0.0f, 1.0f, isOpen ? 0.0f : 0.5f, isOpen ? 0.5f : 0.0f, 1.0f);
+
+			g.setColour(Colours::white.withAlpha(isMouseOver ? 0.8f : 0.6f));
+			g.fillPath(p, p.getTransformToScaleToFit(area.reduced(3, 3), true));
+		}
+
+		bool areLinesDrawnForTreeView(TreeView&)
+		{
+			return true;
+		}
+	};
+
+	LookAndFeel laf;
+
+	bool foldStateRestorePending = false;
 
 	void foldAll(bool shouldBeFolded)
 	{
@@ -296,8 +340,9 @@ private:
 
 	Path searchPath;
     
-    UndoManager undoManager;
+    UndoManager& undoManager;
     
+	ValueTree foldState;
 	
 	ScopedPointer<XmlElement> openState;
 
@@ -312,13 +357,20 @@ private:
     ScopedPointer<ScriptComponentListItem> rootItem;
     
 	ScopedPointer<TreeView> tree;
-	TextButton undoButton, redoButton, foldButton, unfoldButton;
 	
 	
+	
+	int scrollY = 0;
 
 	void timerCallback() override
 	{
 		undoManager.beginNewTransaction();
+
+		if (tree != nullptr)
+		{
+			scrollY = tree->getViewport()->getViewPositionY();
+			openState = tree->getOpennessState(false);
+		}
 	}
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptComponentList)

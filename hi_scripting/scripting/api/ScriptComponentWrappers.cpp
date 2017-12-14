@@ -524,8 +524,7 @@ void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateComponent(int proper
 	ScriptCreatedComponentWrapper::updateComponent(propertyIndex, newValue);
 	
 	HiComboBox *cb = dynamic_cast<HiComboBox*>(component.get());
-	auto sc = dynamic_cast<ScriptingApi::Content::ScriptComboBox*>(getScriptComponent());
-
+	
 	switch (propertyIndex)
 	{
 		PROPERTY_CASE::ScriptComponent::tooltip :		cb->setTooltip(newValue); break;

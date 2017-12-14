@@ -362,7 +362,7 @@ void BackendRootWindow::resized()
 	if (menuBarOffset != 0)
 		menuBar->setBounds(getLocalBounds().withHeight(menuBarOffset));
 
-	floatingRoot->setBounds(4, menuBarOffset + 4, getWidth() - 8, getHeight() - menuBarOffset - 8);
+	floatingRoot->setBounds(0, menuBarOffset, getWidth(), getHeight() - menuBarOffset);
 
 #if IS_STANDALONE_APP
 

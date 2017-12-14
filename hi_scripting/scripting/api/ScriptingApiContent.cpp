@@ -2468,7 +2468,7 @@ void ScriptingApi::Content::ScriptPanel::internalRepaint(bool forceRepaint/*=fal
 		int canvasWidth = imageBounds.getWidth();
 		int canvasHeight = imageBounds.getHeight();
 
-		if (!forceRepaint && !isShowing() || canvasWidth <= 0 || canvasHeight <= 0)
+		if ((!forceRepaint && !isShowing()) || canvasWidth <= 0 || canvasHeight <= 0)
 		{
 			paintCanvas = Image();
 
@@ -3932,37 +3932,43 @@ Result ScriptingApi::Content::createComponentsFromValueTree(const ValueTree& new
 
 void ScriptingApi::Content::addComponentsFromValueTree(const ValueTree& v)
 {
-	
-	static const Identifier co("Component");
-	static const Identifier coPro("ContentProperties");
-	static const Identifier id("id");
-	static const Identifier type_("type");
-	static const Identifier parent("parentComponent");
-
-	if (v.getType() == co)
+	try
 	{
-		const Identifier thisId = Identifier(v.getProperty(id).toString());
+		static const Identifier co("Component");
+		static const Identifier coPro("ContentProperties");
+		static const Identifier id("id");
+		static const Identifier type_("type");
+		static const Identifier parent("parentComponent");
 
-		auto sc = Helpers::createComponentFromValueTree(this, v);
+		if (v.getType() == co)
+		{
+			const Identifier thisId = Identifier(v.getProperty(id).toString());
 
-		DynamicObject* dyn = new DynamicObject();
-		var d(dyn);
+			auto sc = Helpers::createComponentFromValueTree(this, v);
 
-		auto parentComponentName = v.getParent().getProperty(id).toString();
+			DynamicObject* dyn = new DynamicObject();
+			var d(dyn);
 
-		dyn->setProperty(parent, parentComponentName);
+			auto parentComponentName = v.getParent().getProperty(id).toString();
 
-		ValueTreeConverters::copyValueTreePropertiesToDynamicObject(v, d);
+			dyn->setProperty(parent, parentComponentName);
 
-		components.add(sc);
+			ValueTreeConverters::copyValueTreePropertiesToDynamicObject(v, d);
 
-		ScriptComponent::ScopedPropertyEnabler spe(sc);
-		sc->setPropertiesFromJSON(d);
+			components.add(sc);
+
+			ScriptComponent::ScopedPropertyEnabler spe(sc);
+			sc->setPropertiesFromJSON(d);
+		}
+
+		for (int i = 0; i < v.getNumChildren(); i++)
+		{
+			addComponentsFromValueTree(v.getChild(i));
+		}
 	}
-
-	for (int i = 0; i < v.getNumChildren(); i++)
+	catch (String& errorMessage)
 	{
-		addComponentsFromValueTree(v.getChild(i));
+		debugError(getProcessor(), errorMessage);
 	}
 }
 
@@ -4072,6 +4078,8 @@ void ScriptingApi::Content::Helpers::deleteSelection(Content* c, ScriptComponent
 {
 	ScriptComponentEditBroadcaster::Iterator iter(b);
 
+	b->getUndoManager().beginNewTransaction("Delete selection");
+
 	while (auto sc = iter.getNextScriptComponent())
 	{
 		deleteComponent(c, sc->getName(), dontSendNotification);
@@ -4086,7 +4094,9 @@ void ScriptingApi::Content::Helpers::deleteComponent(Content* c, const Identifie
 {
 	auto childToRemove = c->getValueTreeForComponent(id);
 
-	childToRemove.getParent().removeChild(childToRemove, nullptr);
+	auto b = c->getProcessor()->getMainController()->getScriptComponentEditBroadcaster();
+
+	childToRemove.getParent().removeChild(childToRemove, &b->getUndoManager());
 
 	if (rebuildContent == sendNotification)
 	{
@@ -4098,8 +4108,21 @@ void ScriptingApi::Content::Helpers::renameComponent(Content* c, const Identifie
 {
 	auto childTree = c->getValueTreeForComponent(id);
 
+	auto& undoManager = c->getProcessor()->getMainController()->getScriptComponentEditBroadcaster()->getUndoManager();
+
+	undoManager.beginNewTransaction("Rename Component");
+
 	if (childTree.isValid())
-		childTree.setProperty("id", newId.toString(), nullptr);
+	{
+		childTree.setProperty("id", newId.toString(), &undoManager);
+
+		for (int i = 0; i < childTree.getNumChildren(); i++)
+		{
+			auto child = childTree.getChild(i);
+			child.setProperty("parentComponent", newId.toString(), &undoManager);
+		}
+	}
+		
 
 	c->updateAndSetLevel(FullRecompile);
 }
@@ -4169,7 +4192,7 @@ void ScriptingApi::Content::Helpers::createNewComponentData(Content* c, ValueTre
 	n.setProperty("width", 100, nullptr);
 	n.setProperty("height", 100, nullptr);
 
-	jassert(p.isAChildOf(c->contentPropertyData));
+	jassert(p == c->contentPropertyData || p.isAChildOf(c->contentPropertyData));
 
 	p.addChild(n, -1, nullptr);
 
@@ -4192,6 +4215,32 @@ String ScriptingApi::Content::Helpers::createScriptVariableDeclaration(Reference
 	s << nl;
 
 	return s;
+}
+
+bool ScriptingApi::Content::Helpers::hasLocation(ScriptComponent* sc)
+{
+	if (sc == nullptr)
+		return false;
+
+	Processor* p = dynamic_cast<Processor*>(const_cast<ProcessorWithScriptingContent*>(sc->parent->getScriptProcessor()));
+	auto jp = dynamic_cast<JavascriptProcessor*>(p);
+
+	auto engine = jp->getScriptEngine();
+
+	if (engine == nullptr)
+		return false;
+
+	for (int i = 0; i < engine->getNumDebugObjects(); i++)
+	{
+		auto info = engine->getDebugInformation(i);
+
+		if (info->getObject() == sc)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void ScriptingApi::Content::Helpers::gotoLocation(ScriptComponent* sc)
@@ -4573,5 +4622,7 @@ ScriptingApi::Content::ScriptComponent * ScriptingApi::Content::Helpers::createC
 
 	return nullptr;
 }
+
+
 
 } // namespace hise

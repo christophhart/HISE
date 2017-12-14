@@ -354,7 +354,7 @@ void ScriptingContentOverlay::paint(Graphics& g)
 {
 	if (dragMode)
 	{
-        g.setColour(Colours::white.withAlpha(0.05f));
+        g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x47a7a7a)));
 		g.fillAll();
 
 		const bool isInPopup = findParentComponentOfClass<ScriptingEditor>() == nullptr;
@@ -452,6 +452,7 @@ bool ScriptingContentOverlay::keyPressed(const KeyPress &key)
 	{
 		if (resizeComponent)
 		{
+			
 			b->setScriptComponentPropertyDeltaForSelection(w, delta, sendNotification, true);
 			return true;
 		}
@@ -523,9 +524,20 @@ void ScriptingContentOverlay::findLassoItemsInArea(Array<ScriptComponent*> &item
 
 }
 
-static void removeChildComponentsFromArray(Array<ScriptComponent*>& /*arrayToClean*/)
+static void removeChildComponentsFromArray(Array<ScriptComponent*>& arrayToClean)
 {
-	jassertfalse;
+	for (int i = 0; i < arrayToClean.size(); i++)
+	{
+		auto sc = arrayToClean[i];
+
+		if (auto parent = sc->getParentScriptComponent())
+		{
+			if (arrayToClean.indexOf(parent) != -1)
+			{
+				arrayToClean.remove(i--);
+			}
+		}
+	}
 }
 
 void ScriptingContentOverlay::mouseUp(const MouseEvent &e)

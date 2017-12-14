@@ -44,6 +44,28 @@ ScriptComponentEditPanel::ScriptComponentEditPanel(BackendRootWindow* rootWindow
 	addAndMakeVisible(idEditor = new TextEditor());
 	
 	idEditor->addListener(this);
+	idEditor->setFont(GLOBAL_MONOSPACE_FONT());
+
+	idEditor->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white.withAlpha(0.2f));
+	idEditor->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
+	idEditor->setColour(Label::ColourIds::outlineWhenEditingColourId, Colour(SIGNAL_COLOUR));
+	idEditor->setColour(TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR));
+
+	Colour normal = Colours::white.withAlpha(0.6f);
+	Colour over = Colours::white.withAlpha(0.8f);
+	Colour down = Colours::white;
+
+	addAndMakeVisible(copyButton = new ShapeButton("Copy", normal, over, down));
+	copyButton->setShape(PathFactory::createPath(PathFactory::Copy), true, true, true);
+	copyButton->addListener(this);
+	copyButton->setTooltip("Copy the selected properties");
+
+	addAndMakeVisible(pasteButton = new ShapeButton("Paste", normal, over, down));
+	pasteButton->setShape(PathFactory::createPath(PathFactory::Paste), true, true, true);
+	pasteButton->addListener(this);
+	pasteButton->setTooltip("Paste the copied properties to the selection");
+	
+
 
 	addAndMakeVisible(panel = new PropertyPanel());
 
@@ -245,7 +267,7 @@ void ScriptComponentEditPanel::updateIdEditor()
 	}
 	else
 	{
-		idEditor->setText("Multiple elements selected", dontSendNotification);
+		idEditor->setText("*", dontSendNotification);
 		idEditor->setReadOnly(true);
 	}
 }
@@ -287,12 +309,133 @@ void ScriptComponentEditPanel::textEditorReturnKeyPressed(TextEditor& t)
 	}
 }
 
+void ScriptComponentEditPanel::buttonClicked(Button* b)
+{
+	if (b == copyButton)
+	{
+		copyAction();
+	}
+	if (b == pasteButton)
+	{
+		pasteAction();
+	}
+}
+
+void ScriptComponentEditPanel::paint(Graphics &g)
+{
+	auto total = getLocalBounds();
+
+	auto topRow = total.removeFromTop(24);
+	g.setColour(Colours::black.withAlpha(JUCE_LIVE_CONSTANT_OFF(0.2f)));
+
+	g.fillRect(topRow);
+
+    PopupLookAndFeel::drawFake3D(g, topRow);
+    
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff262626)));
+	g.fillRect(total);
+
+	g.setFont(GLOBAL_BOLD_FONT());
+	g.setColour(Colours::white);
+	g.drawText("ID", 0, 0, 24, 24, Justification::centred);
+
+	CopyPasteTarget::paintOutlineIfSelected(g);
+}
+
 void ScriptComponentEditPanel::resized()
 {
-	Rectangle<int> b = getLocalBounds();
+	auto b = getLocalBounds();
+	auto topRow = b.removeFromTop(24);
+	topRow.removeFromLeft(24);
 
-	idEditor->setBounds(b.removeFromTop(40).reduced(8));
+	const int numButtons = 2;
+
+	auto buttonArea = topRow.removeFromRight(numButtons * 24);
+
+	idEditor->setBounds(topRow.withHeight(23));
+
+	copyButton->setBounds(buttonArea.removeFromLeft(24).reduced(3));
+	
+	pasteButton->setBounds(buttonArea.removeFromLeft(24).reduced(3));
+
+	
+	
 	panel->setBounds(b);
+}
+
+void ScriptComponentEditPanel::copyAction()
+{
+	auto b = getScriptComponentEditBroadcaster();
+
+	auto sc = b->getFirstFromSelection();
+
+	if (sc != nullptr)
+	{
+		DynamicObject::Ptr newObject = new DynamicObject();
+
+		String properties;
+		NewLine nl;
+
+		if (selectedComponents.getNumSelected() == 0)
+		{
+			PresetHandler::showMessageWindow("Nothing selected", "You need to select properties by clicking on their name", PresetHandler::IconType::Error);
+			return;
+		}
+
+		for (auto p : selectedComponents)
+		{
+			if (p.getComponent() == nullptr)
+				return;
+
+			auto id = p->getId();
+
+			auto value = sc->getScriptObjectProperty(id);
+
+			properties << id.toString() << nl;
+
+			newObject->setProperty(id, value);
+		}
+
+		var newData(newObject);
+
+		auto clipboardContent = JSON::toString(newData, false);
+		SystemClipboard::copyTextToClipboard(clipboardContent);
+
+		debugToConsole(mc->getMainSynthChain(), "The following properties were copied to the clipboard:\n" + properties);
+
+	}
+}
+
+void ScriptComponentEditPanel::pasteAction()
+{
+	auto clipboardContent = SystemClipboard::getTextFromClipboard();
+
+	var parsedJson;
+
+	auto result = JSON::parse(clipboardContent, parsedJson);
+
+	if (result.wasOk())
+	{
+		auto set = parsedJson.getDynamicObject()->getProperties();
+
+		auto b = getScriptComponentEditBroadcaster();
+
+		ScriptComponentEditBroadcaster::Iterator iter(b);
+
+		auto& undoManager = b->getUndoManager();
+
+		undoManager.beginNewTransaction("Paste properties");
+
+		while (auto sc = iter.getNextScriptComponent())
+		{
+			auto vt = sc->getPropertyValueTree();
+
+			for (int i = 0; i < set.size(); i++)
+			{
+				vt.setProperty(set.getName(i), set.getValueAt(i), &undoManager);
+			}
+		}
+	}
 }
 
 void ScriptComponentEditPanel::debugProperties(DynamicObject *properties)

@@ -298,7 +298,7 @@ void ScriptContentComponent::updateComponentParent(ScriptCreatedComponentWrapper
 {
 	auto c = wrapper->getComponent();
 
-	if (c->getParentComponent() == nullptr)
+	if (c == nullptr || c->getParentComponent() == nullptr)
 	{
 		return;
 	}

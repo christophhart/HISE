@@ -856,8 +856,6 @@ void JavascriptProcessor::saveScript(ValueTree &v) const
 		mergeCallbacksToScript(x);
 	}
 
-	auto pwsc = dynamic_cast<const ProcessorWithScriptingContent*>(this);
-
 	v.addChild(allInterfaceData, -1, nullptr);
 
 	v.setProperty("Script", x, nullptr);

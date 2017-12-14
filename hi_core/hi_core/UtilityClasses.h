@@ -179,7 +179,9 @@ public:
 		const bool ok = pendingListeners.push(l);
 
 		jassert(ok);
-
+        ignoreUnused(ok);
+        
+        
 		triggerAsyncUpdate();
 	}
 
@@ -269,7 +271,8 @@ public:
 	void valueTreeChildAdded(ValueTree&, ValueTree&) override {}
 	void valueTreeChildRemoved(ValueTree&, ValueTree&, int) override {}
 	void valueTreeChildOrderChanged(ValueTree&, int, int) override {}
-	void valueTreeParentChanged(ValueTree&) override {}
+	void valueTreeParentChanged(ValueTree&) override {}
+
 private:
 
 	struct PropertyChange
@@ -320,7 +323,8 @@ private:
 	Array<PropertyChange> pendingPropertyChanges;
 };
 
-
+
+
 
 /** A small helper class that detects a timeout.
 *

@@ -345,7 +345,7 @@ void Arpeggiator::playNote()
 	// start synth timer
 	start();
 
-	const int timerTimeStamp = Message.getTimestamp();
+	
 
 	// transfer user held keys to midi sequence
 	MidiSequenceArray.clearQuick();

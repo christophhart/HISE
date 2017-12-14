@@ -159,7 +159,8 @@ public:
 	class Editor : public Component,
 				   public ComboBox::Listener,
 				   public Button::Listener,
-				   public ScriptComponentEditListener
+				   public ScriptComponentEditListener,
+				   public Timer
 	{
 	public:
 
@@ -173,7 +174,30 @@ public:
 
 		void refreshContent();
 
+		void paint(Graphics& g) override
+		{
+			auto total = getLocalBounds();
+
+			auto topRow = total.removeFromTop(24);
+
+			g.setColour(Colours::black.withAlpha(JUCE_LIVE_CONSTANT_OFF(0.2f)));
+
+			g.fillRect(topRow);
+
+            PopupLookAndFeel::drawFake3D(g, topRow);
+            
+			g.setColour(Colour(0xFF262626));
+			g.fillRect(total);
+		}
+
 		void buttonClicked(Button* b) override;
+
+		void timerCallback() override
+		{
+			updateUndoDescription();
+		}
+
+		void updateUndoDescription();
 
 		void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override;
 
@@ -205,6 +229,7 @@ public:
 
 		};
 
+#if 0
 		struct UpdateLevelLed: public Component,
 							   public ScriptingApi::Content::RebuildListener,
 							   public GlobalScriptCompileListener
@@ -293,6 +318,7 @@ public:
 
 			ScriptingApi::Content* c;
 		};
+#endif
 
 		double zoomAmount;
 
@@ -300,16 +326,11 @@ public:
 
 		ScopedPointer<ComboBox> zoomSelector;
 		ScopedPointer<HiseShapeButton> editSelector;
-		ScopedPointer<HiseShapeButton> compileButton;
 		ScopedPointer<HiseShapeButton> cancelButton;
 
 		ScopedPointer<HiseShapeButton> undoButton;
 		ScopedPointer<HiseShapeButton> redoButton;
 		ScopedPointer<HiseShapeButton> rebuildButton;
-
-		ScopedPointer<UpdateLevelLed> updateLed;
-
-		ScopedPointer<ComboBox> updateLevelSelector;
 
 		ScopedPointer<Viewport> viewport;
 	};

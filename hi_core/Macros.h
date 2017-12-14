@@ -62,7 +62,7 @@ namespace hise { using namespace juce;
 
 #define SCALE_FACTOR() ((float)Desktop::getInstance().getDisplays().getMainDisplay().scale)
 
-#if JUCE_DEBUG || USE_FRONTEND
+#if JUCE_DEBUG || USE_FRONTEND || JUCE_MAC
 #define RETURN_IF_NO_THROW(x) return x;
 #define RETURN_VOID_IF_NO_THROW() return;
 #else
