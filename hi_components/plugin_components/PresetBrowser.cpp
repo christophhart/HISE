@@ -640,6 +640,8 @@ mc(mc_)
 	showLoadedPreset();
 
 	updateFavoriteButton();
+    
+    setOpaque(true);
 
 }
 
@@ -666,6 +668,8 @@ void MultiColumnPresetBrowser::paint(Graphics& g)
 	g.fillAll(backgroundColour);
 #else
 
+    g.fillAll(Colour(0xFF666666));
+    
 	g.setGradientFill(ColourGradient(backgroundColour.withMultipliedBrightness(1.2f), 0.0f, 0.0f,
 		backgroundColour, 0.0f, (float)getHeight(), false));
 
