@@ -1086,10 +1086,17 @@ var ScriptingApi::Engine::getDeviceResolution()
 
 bool ScriptingApi::Engine::isPlugin() const
 {
+#if HISE_IOS
+    
+    return HiseDeviceSimulator::isAUv3();
+    
+#else
+    
 #if IS_STANDALONE_APP
 	return false;
 #else
 	return true;
+#endif
 #endif
 }
 
