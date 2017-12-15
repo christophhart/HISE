@@ -105,7 +105,7 @@ public:
 		ModulatorSamplerSoundPool *getModulatorSamplerSoundPool() const { return globalSamplerSoundPool; }
 
 		/** Copies the samples to an internal clipboard for copy & paste functionality. */
-		void copySamplesToClipboard(const Array<WeakReference<ModulatorSamplerSound>> &soundsToCopy);
+		void copySamplesToClipboard(void* soundsToCopy);
 
 		const ValueTree &getSamplesFromClipboard() const;
 

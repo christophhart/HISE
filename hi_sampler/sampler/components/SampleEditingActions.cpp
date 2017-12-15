@@ -51,14 +51,14 @@ void SampleEditHandler::SampleEditingActions::deleteSelectedSounds(SampleEditHan
 		return true;
 	};
 
-	handler->sampler->killAllVoicesAndCall(f);
+	handler->sampler->getMainController()->getKillStateHandler().killVoicesAndCall(handler->sampler, f, MainController::KillStateHandler::TargetThread::MessageThread);
 }
 
 void SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(SampleEditHandler *handler)
 {
 	ModulatorSampler *s = handler->sampler;
 
-	const Array<WeakReference<ModulatorSamplerSound>> sounds = handler->getSelection().getItemArray();
+	auto sounds = handler->getSelection().getItemArray();
 
 	ScopedLock sl(s->getMainController()->getSampleManager().getSamplerSoundLock());
 
@@ -80,9 +80,9 @@ void SampleEditHandler::SampleEditingActions::removeDuplicateSounds(SampleEditHa
 {
 	if (PresetHandler::showYesNoWindow("Confirm", "Do you really want to remove all duplicates?"))
 	{
-		Array<WeakReference<ModulatorSamplerSound>> soundsInSampler = handler->getSelection().getItemArray();
+		auto soundsInSampler = handler->getSelection().getItemArray();
 
-		Array<WeakReference<ModulatorSamplerSound>> soundsToDelete;
+		SampleSelection soundsToDelete;
 
 		StringArray fileNames;
 
@@ -130,14 +130,14 @@ void SampleEditHandler::SampleEditingActions::cutSelectedSounds(SampleEditHandle
 
 void SampleEditHandler::SampleEditingActions::copySelectedSounds(SampleEditHandler *handler)
 {
-	const Array<WeakReference<ModulatorSamplerSound>> sounds = handler->getSelection().getItemArray();
+	auto sounds = handler->getSelection().getItemArray();
 
-	handler->sampler->getMainController()->getSampleManager().copySamplesToClipboard(sounds);
+	handler->sampler->getMainController()->getSampleManager().copySamplesToClipboard(&sounds);
 }
 
 void SampleEditHandler::SampleEditingActions::automapVelocity(SampleEditHandler *handler)
 {
-	const Array<WeakReference<ModulatorSamplerSound>> sounds = handler->getSelection().getItemArray();
+	auto sounds = handler->getSelection().getItemArray();
 
 	int upperLimit = 0;
 	int lowerLimit = 127;
@@ -221,7 +221,7 @@ void SampleEditHandler::SampleEditingActions::pasteSelectedSounds(SampleEditHand
 
 void SampleEditHandler::SampleEditingActions::refreshCrossfades(SampleEditHandler * handler)
 {
-	const Array<WeakReference<ModulatorSamplerSound>> sounds = handler->getSelection().getItemArray();
+	auto sounds = handler->getSelection().getItemArray();
 
 	for (int i = 0; i < sounds.size(); i++)
 	{
@@ -307,7 +307,7 @@ public:
 
 	void run() override
 	{
-		Array<WeakReference<ModulatorSamplerSound>> soundList = handler->getSelection().getItemArray();
+		auto soundList = handler->getSelection().getItemArray();
 
 		for (int i = 0; i < soundList.size(); i++)
 		{
@@ -1054,7 +1054,7 @@ bool setSoundPropertiesFromMetadata(ModulatorSamplerSound *sound, const StringPa
 
 bool SampleEditHandler::SampleEditingActions::metadataWasFound(ModulatorSampler* sampler)
 {
-	Array<WeakReference<ModulatorSamplerSound>> sounds;
+	SampleSelection sounds;
 
 	auto handler = sampler->getSampleEditHandler();
 
@@ -1093,7 +1093,7 @@ bool SampleEditHandler::SampleEditingActions::metadataWasFound(ModulatorSampler*
 
 void SampleEditHandler::SampleEditingActions::automapUsingMetadata(ModulatorSampler* sampler)
 {
-	Array<WeakReference<ModulatorSamplerSound>> sounds;
+	SampleSelection sounds;
 	
 	auto handler = sampler->getSampleEditHandler();
 
@@ -1136,7 +1136,7 @@ void SampleEditHandler::SampleEditingActions::automapUsingMetadata(ModulatorSamp
 
 void SampleEditHandler::SampleEditingActions::trimSampleStart(SampleEditHandler * handler)
 {
-	Array<WeakReference<ModulatorSamplerSound>> sounds = handler->getSelection().getItemArray();
+	auto sounds = handler->getSelection().getItemArray();
 
     int multiMicIndex = 0;
     
@@ -1163,7 +1163,7 @@ void SampleEditHandler::SampleEditingActions::trimSampleStart(SampleEditHandler 
 	{
 		if (sounds[i].get() != nullptr)
 		{
-			AudioFormatReader* reader = sounds[i]->getReferenceToSound(multiMicIndex)->createReaderForAnalysis();
+			AudioFormatReader* reader = sounds[i]->getReferenceToSound(multiMicIndex)->createReaderForPreview();
 
 			if (reader != nullptr)
 			{
@@ -1181,6 +1181,11 @@ void SampleEditHandler::SampleEditingActions::trimSampleStart(SampleEditHandler 
 
 					const float maxLevel = jmax<float>(std::fabs(lLow), std::fabs(lHigh), std::fabs(rLow), std::fabs(rHigh));
                     
+					if (maxLevel == 0.0f)
+					{
+						debugError(sampler, "Empty sample content. Skipping sample " + sounds[i]->getReferenceToSound()->getFileName());
+					}
+
 					const float threshHoldLevel = Decibels::decibelsToGain(dBThreshold) * maxLevel;
 
 					int sample = sounds[i]->getProperty(ModulatorSamplerSound::SampleStart);
@@ -1199,11 +1204,24 @@ void SampleEditHandler::SampleEditingActions::trimSampleStart(SampleEditHandler 
 					jassert(sample < numSamples - 1);
 
 					sounds[i]->setPropertyWithUndo(ModulatorSamplerSound::SampleStart, var(sample));
-					sounds[i]->sendChangeMessage();
+					
 				}
+				else
+				{
+					debugError(sampler, "Sample " + sounds[i]->getReferenceToSound()->getFileName() + " is empty.");
+				}
+			}
+			else
+			{
+				debugError(sampler, "Can't read sample " + sounds[i]->getReferenceToSound()->getFileName());
 			}
 		}
 	}
+
+	if (auto s = sounds.getFirst())
+	{
+		s->sendChangeMessage();
+	};
 }
 
 } // namespace hise

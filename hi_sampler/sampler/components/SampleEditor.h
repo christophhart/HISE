@@ -207,7 +207,7 @@ public:
 
 
 
-	void soundsSelected(const Array<ModulatorSamplerSound*>  &selectedSoundList) override
+	void soundsSelected(const SampleSelection  &selectedSoundList) override
 	{
 		selection.clear();
 

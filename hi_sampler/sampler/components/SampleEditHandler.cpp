@@ -111,7 +111,7 @@ void SampleEditHandler::handleMidiSelection()
 
 SampleSelection SampleEditHandler::getSanitizedSelection()
 {
-	const Array<WeakReference<ModulatorSamplerSound>> sounds = selectedSamplerSounds.getItemArray();
+	auto sounds = selectedSamplerSounds.getItemArray();
 
 	SampleSelection existingSounds;
 

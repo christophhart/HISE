@@ -1489,7 +1489,7 @@ void ScriptingApi::Sampler::setSoundPropertyForSelection(int propertyId, var new
 		return;
 	}
 
-	Array<WeakReference<ModulatorSamplerSound>> sounds = soundSelection.getItemArray();
+	auto sounds = soundSelection.getItemArray();
 
 	const int numSelected = sounds.size();
 

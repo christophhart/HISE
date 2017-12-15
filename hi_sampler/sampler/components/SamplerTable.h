@@ -90,7 +90,7 @@ public:
 		table->refreshList();
 	}
 
-	void soundsSelected(const Array<ModulatorSamplerSound*> &selection) override
+	void soundsSelected(const SampleSelection &selection) override
 	{
 		table->soundsSelected(selection);
 

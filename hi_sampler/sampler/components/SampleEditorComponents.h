@@ -40,6 +40,8 @@ class SampleEditHandler;
 class SamplerSoundWaveform;
 class SamplerSoundMap;
 
+
+
 /** A base class for all sample editing components.
 *
 *	It offers a synchronous callback system for selecting sounds with recursive protection.
@@ -56,7 +58,7 @@ public:
     virtual ~SamplerSubEditor() {};
 
 	/** Call this whenever the selection changes and you want to update the other editors. */
-    void selectSounds(const Array<ModulatorSamplerSound*> &selection);
+    void selectSounds(const SampleSelection &selection);
 
 	/** Overwrite this and call the method that updates the interface. */
 	virtual void updateInterface() = 0;
@@ -67,7 +69,7 @@ protected:
 	*
 	*	Make sure you update the interface to select the new sounds here. Calls to selectSounds are legal, as they do not trigger the callback again.
 	*/
-    virtual void soundsSelected(const Array<ModulatorSamplerSound*> &selection) = 0;
+    virtual void soundsSelected(const SampleSelection &selectedSounds) = 0;
 
 	SampleEditHandler* handler;
 
@@ -300,7 +302,7 @@ private:
 	Path outline;
 
 	SamplerSoundMap *map;
-	WeakReference<ModulatorSamplerSound> sound;
+	ModulatorSamplerSound::Ptr sound;
 };
 
 /** A component which displays all loaded ModulatorSamplerSounds and allows editing of their properties. 
@@ -399,7 +401,7 @@ public:
 	void setPressedKeys(const uint8 *pressedKeyData);
 
 	/** change the selection to the supplied list of sounds. */
-	void setSelectedIds(const Array<ModulatorSamplerSound*> newSelectionList);
+	void setSelectedIds(const SampleSelection& newSelectionList);
 
 	/** checks if the sound with the id is selected. */
 	bool isSelected(int id) { return selectedIds.contains(id); };
@@ -533,7 +535,7 @@ public:
 
     void sortOrderChanged (int newSortColumnId, bool isForwards) override;
 
-	void soundsSelected(const Array<ModulatorSamplerSound *> &selectedSounds) override;
+	void soundsSelected(const SampleSelection &selectedSounds) override;
     
     void resized() override;
 
@@ -551,7 +553,7 @@ private:
     TableListBox table;     
     Font font;
 
-	Array<WeakReference<ModulatorSamplerSound>> sortedSoundList;
+	SampleSelection sortedSoundList;
 
     int numRows;
 

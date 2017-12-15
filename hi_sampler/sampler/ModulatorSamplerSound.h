@@ -96,6 +96,8 @@ class ModulatorSamplerSound : public ModulatorSynthSound,
 {
 public:
 
+	using Ptr = ReferenceCountedObjectPtr<ModulatorSamplerSound>;
+
 	// ====================================================================================================================
 
 	/** The extended properties of the ModulatorSamplerSound */
@@ -347,7 +349,7 @@ public:
 
 	// ====================================================================================================================
 
-	static void selectSoundsBasedOnRegex(const String &regexWildcard, ModulatorSampler *sampler, SelectedItemSet<WeakReference<ModulatorSamplerSound>> &set);
+	static void selectSoundsBasedOnRegex(const String &regexWildcard, ModulatorSampler *sampler, SelectedItemSet<ModulatorSamplerSound::Ptr> &set);
 
 private:
 
@@ -379,7 +381,7 @@ private:
 
 		// ============================================================================================================
 
-		WeakReference<ModulatorSamplerSound> sound;
+		WeakReference<ControlledObject> sound;
 
 		Property changedProperty;
 
@@ -394,9 +396,7 @@ private:
 	// ================================================================================================================
 
 	friend class MultimicMergeDialogWindow;
-	friend class WeakReference<ModulatorSamplerSound>;
-	WeakReference<ModulatorSamplerSound>::Master masterReference;
-
+	
 	const CriticalSection& getLock() const { return wrappedSound.get()->getSampleLock(); };
 	
 	CriticalSection exportLock;
@@ -440,6 +440,8 @@ private:
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModulatorSamplerSound)
 };
+
+typedef Array<ModulatorSamplerSound::Ptr> SampleSelection;
 
 /** This object acts as global pool for all samples used in an instance of the plugin
 *	@ingroup sampler
