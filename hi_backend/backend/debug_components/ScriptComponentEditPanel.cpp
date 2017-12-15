@@ -373,7 +373,7 @@ void ScriptComponentEditPanel::copyAction()
 	{
 		DynamicObject::Ptr newObject = new DynamicObject();
 
-		String properties;
+		String prop;
 		NewLine nl;
 
 		if (selectedComponents.getNumSelected() == 0)
@@ -391,7 +391,7 @@ void ScriptComponentEditPanel::copyAction()
 
 			auto value = sc->getScriptObjectProperty(id);
 
-			properties << id.toString() << nl;
+			prop << id.toString() << nl;
 
 			newObject->setProperty(id, value);
 		}
@@ -401,7 +401,7 @@ void ScriptComponentEditPanel::copyAction()
 		auto clipboardContent = JSON::toString(newData, false);
 		SystemClipboard::copyTextToClipboard(clipboardContent);
 
-		debugToConsole(mc->getMainSynthChain(), "The following properties were copied to the clipboard:\n" + properties);
+		debugToConsole(mc->getMainSynthChain(), "The following properties were copied to the clipboard:\n" + prop);
 
 	}
 }

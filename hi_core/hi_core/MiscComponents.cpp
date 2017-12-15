@@ -682,8 +682,8 @@ void ImageComponentWithMouseCallback::paint(Graphics &g)
 
 		Rectangle<int> cropArea = Rectangle<int>(0,
 			offset * scale,
-			jmin<int>(getWidth() * scale, image.getWidth()),
-			jmin<int>(getHeight() * scale, image.getHeight()));
+			jmin<int>((int)((float)getWidth() * scale), image.getWidth()),
+			jmin<int>((int)((float)getHeight() * scale), image.getHeight()));
 
 		Image croppedImage = image.getClippedImage(cropArea);
 

@@ -69,14 +69,14 @@ ScriptComponentListItem::ScriptComponentListItem(ValueTree v, UndoManager& um_, 
 	startTimer(50);
 }
 
-void ScriptComponentListItem::itemDoubleClicked(const MouseEvent& e)
+void ScriptComponentListItem::itemDoubleClicked(const MouseEvent& /*e*/)
 {
 	if (isRootItem())
 		return;
 
-	auto id = var(getUniqueName());
+	auto scId = var(getUniqueName());
 
-	auto v = content->getComponent(id);
+	auto v = content->getComponent(scId);
 
 	if (auto sc = dynamic_cast<ScriptingApi::Content::ScriptComponent*>(v.getObject()))
 	{
@@ -91,8 +91,6 @@ void ScriptComponentListItem::paintItem(Graphics& g, int width, int height)
 		g.setColour(Colours::white);
 
 		g.setFont(GLOBAL_BOLD_FONT());
-
-		int xOffset = ITEM_HEIGHT + 2;
 
 		g.drawText("Root", 2, 0, width - 4, height, Justification::centredLeft, true);
 
@@ -226,7 +224,7 @@ void ScriptComponentListItem::refreshScriptDefinedState()
 
 		repaintItem();
 	}
-	catch (String& errorMessage)
+	catch (String& /*errorMessage*/)
 	{
 		jassertfalse;
 	}

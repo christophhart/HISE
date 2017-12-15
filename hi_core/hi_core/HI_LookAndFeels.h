@@ -172,15 +172,15 @@ public:
         Colour shadowLight = JUCE_LIVE_CONSTANT_OFF(Colour(0x58000000));
         
         
-        g.setGradientFill(ColourGradient(c1, 0, area.getY(), c2, 0, area.getBottom(), false));
+        g.setGradientFill(ColourGradient(c1, 0.0f, (float)area.getY(), c2, 0.0f, (float)area.getBottom(), false));
         g.fillRect(area);
         
         g.setColour(upperLight);
         
-        g.drawHorizontalLine(area.getY(), area.getX(), area.getRight());
+        g.drawHorizontalLine(area.getY(), (float)area.getX(), (float)area.getRight());
         
         g.setColour(shadowLight);
-        g.drawHorizontalLine(area.getBottom()-1, area.getX(), area.getRight());
+        g.drawHorizontalLine(area.getBottom()-1, (float)area.getX(), (float)area.getRight());
     }
     
 	PopupLookAndFeel()

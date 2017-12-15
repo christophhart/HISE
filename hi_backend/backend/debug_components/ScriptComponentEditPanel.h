@@ -165,7 +165,7 @@ public:
 	void copyAction() override;;
 	virtual void pasteAction();;
 
-	void mouseDown(const MouseEvent& event) override
+	void mouseDown(const MouseEvent& /*event*/) override
 	{
 		grabCopyAndPasteFocus();
 	}
