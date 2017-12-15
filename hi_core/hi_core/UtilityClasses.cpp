@@ -404,7 +404,7 @@ void HiseDeviceSimulator::init(AudioProcessor::WrapperType wrapper)
     if(isIPad)
 		currentDevice = isStandalone ? DeviceType::iPad : DeviceType::iPadAUv3;
     else
-		currentDevice = DeviceType::iPhone5;
+		currentDevice = DeviceType::iPhone6;
 #else
 	ignoreUnused(wrapper);
     currentDevice = DeviceType::Desktop;
@@ -453,7 +453,7 @@ Rectangle<int> HiseDeviceSimulator::getDisplayResolution()
 	case HiseDeviceSimulator::DeviceType::iPadPro:		return{ 0, 0, 1366, 1024 };
 	case HiseDeviceSimulator::DeviceType::iPadAUv3:		return{ 0, 0, 1024, 335 };
 	case HiseDeviceSimulator::DeviceType::iPhone5:		return{ 0, 0, 568, 320 };
-	case HiseDeviceSimulator::DeviceType::iPhone6:		return{ 0, 0, 568, 320 };
+    case HiseDeviceSimulator::DeviceType::iPhone6:		return{ 0, 0, 568, 320 };
 	case HiseDeviceSimulator::DeviceType::iPodTouch6:	return{ 0, 0, 568, 320 };
 	case HiseDeviceSimulator::DeviceType::numDeviceTypes:
 	default:

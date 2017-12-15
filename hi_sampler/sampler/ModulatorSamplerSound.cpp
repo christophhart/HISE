@@ -90,7 +90,6 @@ purgeChannels(0)
 
 ModulatorSamplerSound::~ModulatorSamplerSound()
 {
-	masterReference.clear();
 	soundList.clear();
 	removeAllChangeListeners();
 }
@@ -243,14 +242,12 @@ void ModulatorSamplerSound::setProperty(Property p, int newValue, NotificationTy
 	
 	if (enableAsyncPropertyChange && isAsyncProperty(p))
 	{
-
-		WeakReference<ModulatorSamplerSound> refPtr = this;
+		ModulatorSamplerSound::Ptr refPtr = this;
 		auto f = [refPtr, p, newValue](Processor*)
 		{
 			if (refPtr != nullptr)
 			{
-				static_cast<ModulatorSamplerSound*>(refPtr.get())->setPreloadPropertyInternal(p, newValue);
-				
+				static_cast<ModulatorSamplerSound*>(refPtr.get())->setPreloadPropertyInternal(p, newValue);	
 			}
 
 			return true;
@@ -536,7 +533,7 @@ bool ModulatorSamplerSound::preloadBufferIsNonZero() const noexcept
 
 int ModulatorSamplerSound::getRRGroup() const {	return rrGroup; }
 
-void ModulatorSamplerSound::selectSoundsBasedOnRegex(const String &regexWildcard, ModulatorSampler *sampler, SelectedItemSet<WeakReference<ModulatorSamplerSound>> &set)
+void ModulatorSamplerSound::selectSoundsBasedOnRegex(const String &regexWildcard, ModulatorSampler *sampler, SelectedItemSet<ModulatorSamplerSound::Ptr> &set)
 {
 	bool subtractMode = false;
 
@@ -564,7 +561,7 @@ void ModulatorSamplerSound::selectSoundsBasedOnRegex(const String &regexWildcard
     {
 		std::regex reg(wildcard.toStdString());
 
-		ModulatorSampler::SoundIterator iter(sampler);
+		ModulatorSampler::SoundIterator iter(sampler, false);
 
 		while (auto sound = iter.getNextSound())
 		{
@@ -574,11 +571,11 @@ void ModulatorSamplerSound::selectSoundsBasedOnRegex(const String &regexWildcard
 			{
 				if (subtractMode)
 				{
-					set.deselect(sound);
+					set.deselect(sound.get());
 				}
 				else
 				{
-					set.addToSelection(sound);
+					set.addToSelection(sound.get());
 				}
 			}
 		}
@@ -662,7 +659,7 @@ ModulatorSamplerSound::PropertyChange::PropertyChange(ModulatorSamplerSound *sou
 changedProperty(p),
 currentValue(newValue),
 sound(soundToChange),
-lastValue(sound->getProperty(p))
+lastValue(soundToChange->getProperty(p))
 {
 
 }
@@ -672,7 +669,9 @@ bool ModulatorSamplerSound::PropertyChange::perform()
 {
 	if (sound != nullptr)
 	{
-		sound->setProperty(changedProperty, currentValue);
+		auto s = dynamic_cast<ModulatorSamplerSound*>(sound.get());
+
+		s->setProperty(changedProperty, currentValue);
 		return true;
 	}
 	else return false;
@@ -682,7 +681,9 @@ bool ModulatorSamplerSound::PropertyChange::undo()
 {
 	if (sound != nullptr)
 	{
-		sound->setProperty(changedProperty, lastValue);
+		auto s = dynamic_cast<ModulatorSamplerSound*>(sound.get());
+
+		s->setProperty(changedProperty, lastValue);
 		return true;
 	}
 	else return false;

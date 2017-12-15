@@ -768,4 +768,78 @@ private:
 
 static HiseEventUnitTest eventBufferTestInstance;
 
+namespace IDs
+{
+#define DECLARE_ID(name) const juce::Identifier name (#name);
+	DECLARE_ID(TREE)
+	DECLARE_ID(pi)
+	DECLARE_ID(Test)
+	DECLARE_ID(x)
+#undef DECLARE_ID
+};
+
+struct CustomValueTreeUnitTests : public UnitTest
+{
+public:
+
+	
+
+	class DummyListener : public AsyncValueTreePropertyListener
+	{
+	public:
+
+		DummyListener(ValueTree v, UpdateDispatcher* ds, CustomValueTreeUnitTests& parent_) :
+			AsyncValueTreePropertyListener(v, ds),
+			parent(parent_)
+		{}
+
+		void asyncValueTreePropertyChanged(ValueTree& v, const Identifier& id) override
+		{
+			DBG(v.getProperty(id).toString());
+			parent.lastValue = v.getProperty(id);
+			parent.numCalled++;
+		}
+
+		CustomValueTreeUnitTests& parent;
+	};
+
+	CustomValueTreeUnitTests() :
+		UnitTest("Testing custom ValueTree classes"),
+		t("Test"),
+		vlt(t, &dispatcher, *this)
+	{}
+
+	void runTest() override
+	{
+		beginTest("Testing async callback");
+
+		t.setProperty(IDs::x, 20, nullptr);
+
+		auto value = t.getPropertyAsValue(IDs::x, &vUndoManager);
+		value = 12;
+		t.setProperty(IDs::x, 90, &vUndoManager);
+		vUndoManager.undo();
+
+		auto f = [this]
+		{
+			jassert(this->lastValue == this->t.getProperty(IDs::x));
+			jassert(this->numCalled == 1);
+		};
+
+		new DelayedFunctionCaller(f, 500);
+	}
+
+private:
+
+	int numCalled = 0;
+	var lastValue;
+	UndoManager vUndoManager;
+	ValueTree t;
+	UpdateDispatcher dispatcher;
+	DummyListener vlt;
+
+};
+
+//static CustomValueTreeUnitTests customValueTreeTestInstance;
+
 #endif

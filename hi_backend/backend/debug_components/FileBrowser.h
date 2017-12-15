@@ -293,16 +293,21 @@ private:
         }
     }
 
+    FileBrowserLookAndFeel laf;
+    PopupLookAndFeel plaf;
+    
+    TimeSliceThread directorySearcher;
+    
 	File currentlyPreviewFile;
     
 
 	friend class FileBrowserToolbarFactory;
 
-	FileBrowserLookAndFeel laf;
+	
 
 	ScopedPointer<DirectoryContentsList> directoryList;
 
-	TimeSliceThread directorySearcher;
+	
 
 	ScopedPointer<FileTreeComponent> fileTreeComponent;
 
@@ -316,7 +321,7 @@ private:
 
 	var fileArray;
 
-	PopupLookAndFeel plaf;
+	
 
 	ScopedPointer<UndoManager> browseUndoManager;
 	ScopedPointer<ApplicationCommandManager> browserCommandManager;

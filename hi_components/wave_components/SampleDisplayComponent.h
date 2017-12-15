@@ -484,7 +484,7 @@ public:
 private:
 
 	const ModulatorSampler *sampler;
-	WeakReference<ModulatorSamplerSound> currentSound;
+	ReferenceCountedObjectPtr<ModulatorSamplerSound> currentSound;
 
 	int numSamplesInCurrentSample;
 

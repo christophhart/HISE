@@ -261,7 +261,7 @@ public:
 			{
 				if (sc != nullptr)
 				{
-					oldValues.add(sc->getScriptObjectProperties()->getProperty(id));
+					oldValues.add(sc->getScriptObjectProperty(id));
 					b->setPropertyInternal(sc, id, newValue, notifyListeners);
 				}
 				else

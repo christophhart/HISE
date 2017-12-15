@@ -84,7 +84,8 @@ private:
 class ScriptContentComponent: public Component,
 							  public SafeChangeListener,
 							  public GlobalScriptCompileListener,
-							  public ScriptingApi::Content::RebuildListener
+							  public ScriptingApi::Content::RebuildListener,
+							  public AsyncValueTreePropertyListener
 {
 public:
 
@@ -169,9 +170,19 @@ public:
 
 	void changeListenerCallback(SafeChangeBroadcaster *b) override;
 
+	void asyncValueTreePropertyChanged(ValueTree& v, const Identifier& id) override;
+
+	void valueTreeChildAdded(ValueTree& parent, ValueTree& child) override;
+
 	void updateComponent(int i);
 
 	void updateContent(ScriptingApi::Content::ScriptComponent* componentToUpdate=nullptr);
+
+	void updateComponentPosition(ScriptCreatedComponentWrapper* wrapper);
+
+	void updateComponentVisibility(ScriptCreatedComponentWrapper* wrapper);
+
+	void updateComponentParent(ScriptCreatedComponentWrapper* wrapper);
 
 	void resized();
 

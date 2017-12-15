@@ -53,6 +53,12 @@ public:
 
 	void buttonClicked(Button* b);
 	void paint(Graphics &g);
+
+	bool hasTitle() const
+	{
+		return content != nullptr && content->getName().containsNonWhitespaceChars();
+	}
+
 	void resized();
 
 	void deleteAndClose();

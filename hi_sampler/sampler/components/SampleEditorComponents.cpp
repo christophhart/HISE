@@ -2,7 +2,7 @@ namespace hise { using namespace juce;
 
 // =================================================================================================================== SamplerSubEditor
 
-void SamplerSubEditor::selectSounds(const Array<ModulatorSamplerSound*> &selection)
+void SamplerSubEditor::selectSounds(const SampleSelection &selection)
     {
         if(internalChange) return;
 
@@ -906,7 +906,7 @@ void SamplerSoundMap::checkEventForSampleDragging(const MouseEvent &e)
 }
 
 
-void SamplerSoundMap::setSelectedIds(const Array<ModulatorSamplerSound*> newSelectionList)
+void SamplerSoundMap::setSelectedIds(const SampleSelection& newSelectionList)
 {
 	selectedSounds->deselectAll();
 
@@ -1107,7 +1107,7 @@ void SamplerSoundTable::refreshList()
 	ModulatorSampler::SoundIterator sIter(ownerSampler, false);
 
 	while (auto sound = sIter.getNextSound())
-		sortedSoundList.add(sound);
+		sortedSoundList.add(sound.get());
 
     // we could now change some initial settings..
     table.getHeader().setSortColumnId (2, true); // sort forwards by the ID column
@@ -1188,7 +1188,7 @@ void SamplerSoundTable::sortOrderChanged (int newSortColumnId, bool isForwards)
     }
 }
 
-void SamplerSoundTable::soundsSelected(const Array<ModulatorSamplerSound *> &selectedSounds)
+void SamplerSoundTable::soundsSelected(const SampleSelection &selectedSounds)
 {
 	table.deselectAllRows();
 

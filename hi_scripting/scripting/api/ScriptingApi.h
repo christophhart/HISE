@@ -427,7 +427,7 @@ public:
 	private:
 
 		WeakReference<Processor> sampler;
-		SelectedItemSet<WeakReference<ModulatorSamplerSound>> soundSelection;
+		SelectedItemSet<ModulatorSamplerSound::Ptr> soundSelection;
 	};
 	
 

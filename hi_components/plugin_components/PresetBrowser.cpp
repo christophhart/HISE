@@ -71,15 +71,15 @@ listener(listener_)
 
 void MultiColumnPresetBrowser::ModalWindow::paint(Graphics& g)
 {
-    g.setColour(Colours::black.withAlpha(0.2f));
+    g.setColour(Colours::black.withAlpha(JUCE_LIVE_CONSTANT_OFF(0.7f)));
     g.fillAll();
     
     auto area = inputLabel->getBounds().expanded(50);
     
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xe3171717)));
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xfa212121)));
     g.fillRoundedRectangle(FLOAT_RECTANGLE(area.expanded(40)), 2.0f);
     
-    g.setColour(Colour(0x22000000));
+    g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x228e8e8e)));
     
     if(inputLabel->isVisible())
         g.fillRect(inputLabel->getBounds());
@@ -110,7 +110,10 @@ int PresetBrowserColumn::ColumnListModel::getNumRows()
 
 		for (int i = 0; i < entries.size(); i++)
 		{
-			if (entries[i].isHidden() || entries[i].getFileName().startsWith("."))
+			const bool isNoPresetFile = entries[i].isHidden() || entries[i].getFileName().startsWith(".") || entries[i].getFileExtension() != ".preset";
+			const bool isNoDirectory = !entries[i].isDirectory();
+
+			if (isNoPresetFile && isNoDirectory)
 			{
 				entries.remove(i--);
 				continue;
@@ -151,7 +154,9 @@ int PresetBrowserColumn::ColumnListModel::getNumRows()
         
 		for (int i = 0; i < entries.size(); i++)
 		{
-			if (entries[i].isHidden() || entries[i].getFileName().startsWith("."))
+			const bool isNoPresetFile = entries[i].isHidden() || entries[i].getFileName().startsWith(".") || entries[i].getFileExtension() != ".preset";
+			
+			if (isNoPresetFile)
 			{
 				entries.remove(i--);
 			}
@@ -635,6 +640,8 @@ mc(mc_)
 	showLoadedPreset();
 
 	updateFavoriteButton();
+    
+    setOpaque(true);
 
 }
 
@@ -661,6 +668,8 @@ void MultiColumnPresetBrowser::paint(Graphics& g)
 	g.fillAll(backgroundColour);
 #else
 
+    g.fillAll(Colour(0xFF666666));
+    
 	g.setGradientFill(ColourGradient(backgroundColour.withMultipliedBrightness(1.2f), 0.0f, 0.0f,
 		backgroundColour, 0.0f, (float)getHeight(), false));
 
@@ -691,7 +700,10 @@ void MultiColumnPresetBrowser::rebuildAllPresets()
 
 	for (int i = 0; i < allPresets.size(); i++)
 	{
-		if (allPresets[i].isHidden() || allPresets[i].getFileName().startsWith(".") || allPresets[i].getFileExtension() == ".ini")
+		const bool isNoPresetFile = allPresets[i].isHidden() || allPresets[i].getFileName().startsWith(".") || allPresets[i].getFileExtension() != ".preset";
+		const bool isNoDirectory = !allPresets[i].isDirectory();
+
+		if (isNoDirectory && isNoPresetFile)
 		{
 			allPresets.remove(i--);
 		}
@@ -896,6 +908,8 @@ void MultiColumnPresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*
 
 		bankColumn->updateButtonVisibility();
 
+		noteLabel->setText("", dontSendNotification);
+
 	}
 	else if (columnIndex == 1)
 	{
@@ -911,6 +925,7 @@ void MultiColumnPresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*
 		categoryColumn->updateButtonVisibility();
 		presetColumn->updateButtonVisibility();
 
+		noteLabel->setText("", dontSendNotification);
 	}
 	else if (columnIndex == 2)
 	{

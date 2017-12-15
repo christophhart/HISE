@@ -108,6 +108,8 @@ private:
 	// ================================================================================================================
 };
 
+
+
 class ScriptContentComponent;
 
 /** A baseclass for the wrappers of script created components.
@@ -115,7 +117,7 @@ class ScriptContentComponent;
 *	They usually contain the component and are subclassed from their listener. In their listener callback
 *	you simply call changed() with whatever new value comes in.
 */
-class ScriptCreatedComponentWrapper
+class ScriptCreatedComponentWrapper: public AsyncValueTreePropertyListener
 {
 public:
 
@@ -191,14 +193,33 @@ public:
 	/** Overwrite this method and update the component. */
 	virtual void updateComponent() = 0;
 
+	/** Overwrite this method and update the component for the property that has changed. */
+	virtual void updateComponent(int index, var newValue);
+
+	/** Overwrite this method and update the value of the component. */
+	virtual void updateValue(var newValue) {};
+
 	/** Call this in your listener callback with the new value. */
 	void changed(var newValue);
 
 	Component *getComponent() { return component; }
 
-	
+	virtual void asyncValueTreePropertyChanged(ValueTree& v, const Identifier& id)
+	{
+		auto idIndex = getScriptComponent()->getIndexForProperty(id);
+		auto value = v.getProperty(id);
+
+		updateComponent(idIndex, value);
+	}
+
+	virtual void valueTreeParentChanged(ValueTree& v) override;
 
 	int getIndex() const { return index; }
+
+	ScriptingApi::Content::ScriptComponent *getScriptComponent()
+	{
+		return scriptComponent;
+	};
 
 protected:
 
@@ -207,24 +228,15 @@ protected:
 	*	1. Create the component and setup the component with every property you need.
 	*	2. Add the wrapper itself as listener to the component (if you want the control callback).
 	*/
-	ScriptCreatedComponentWrapper(ScriptContentComponent *content, int index_):
-		contentComponent(content),
-		index(index_)
-	{
-
-	}
+	ScriptCreatedComponentWrapper(ScriptContentComponent *content, int index_);
 	
-	Processor *getProcessor();;
+	Processor *getProcessor();
 
 	ScriptingApi::Content *getContent();
 
-	ScriptingApi::Content::ScriptComponent *getScriptComponent()
-	{ 
-		if(getContent() != nullptr)
-			return getContent()->getComponent(getIndex()); 
+	void initAllProperties();
 
-		return nullptr;
-	};
+
 
 	/** the component that will be owned by this wrapper. */
 	ScopedPointer<Component> component;
@@ -233,6 +245,8 @@ protected:
 	ScriptContentComponent *contentComponent;
 
 private:
+
+	ScriptingApi::Content::ScriptComponent::Ptr scriptComponent;
 
 	const int index;
 
@@ -346,6 +360,10 @@ public:
 		SliderWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptSlider *scriptSlider, int index);
 
 		void updateComponent() override;
+		void updateComponent(int index, var newValue) override;
+
+		void updateValue(var newValue) override;
+
 		void sliderValueChanged(Slider *s) override;
 
 		void sliderDragStarted(Slider* s) override;
@@ -359,10 +377,14 @@ public:
 	private:
 
 		void updateFilmstrip();
+		void updateColours(HiSlider * s);
+		void updateSensitivity(ScriptingApi::Content::ScriptSlider* sc, HiSlider * s);
+		void updateSliderRange(ScriptingApi::Content::ScriptSlider* sc, HiSlider * s);
+		void updateSliderStyle(ScriptingApi::Content::ScriptSlider* sc, HiSlider * s);
 
 		String filmStripName;
 		int numStrips = 0;
-
+		double scaleFactor = 1.0;
 	};
 
 	class ButtonWrapper : public ScriptCreatedComponentWrapper,
@@ -372,7 +394,15 @@ public:
 
 		ButtonWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptButton *sb, int index);
 
+		void updateFilmstrip(HiToggleButton* b, ScriptingApi::Content::ScriptButton* sb);
+
 		void updateComponent() override;
+
+		void updateComponent(int index, var newValue) override;
+
+		void updateColours(HiToggleButton * b);
+
+		void updateValue(var newValue) override;
 
 		void buttonClicked(Button* ) override { /*changed(b->getToggleState());*/ };
 
@@ -388,7 +418,16 @@ public:
 
 		void updateComponent() override;
 
+		void updateComponent(int index, var newValue) override;
 		void labelTextChanged(Label *l) override;;
+
+		void updateValue(var newValue) override;
+
+	private:
+
+		void updateEditability(ScriptingApi::Content::ScriptLabel * sl, MultilineLabel * l);
+		void updateFont(ScriptingApi::Content::ScriptLabel * sl, MultilineLabel * l);
+		void updateColours(MultilineLabel * l);
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LabelWrapper)
 	};
@@ -403,7 +442,17 @@ public:
 
 		void updateComponent() override;
 
+		void updateComponent(int index, var newValue) override;
+
+		
+		void updateValue(var newValue) override;
+
 		void comboBoxChanged(ComboBox* ) override { /*changed(c->getText());*/ };
+
+	private:
+
+		void updateItems(HiComboBox * cb);
+		void updateColours(HiComboBox * cb);
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ComboBoxWrapper)
 	};
@@ -415,6 +464,12 @@ public:
 		TableWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptTable *table, int index);
 
 		void updateComponent() override;
+
+		void updateComponent(int index, var newValue) override;
+
+		void updateConnectedTable(TableEditor * t);
+
+		
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TableWrapper)
 	};
@@ -450,6 +505,12 @@ public:
 
 		void updateComponent() override;
         
+		void updateComponent(int index, var newValue);
+
+		void updateImage(ImageComponentWithMouseCallback * ic, ScriptingApi::Content::ScriptImage * si);
+
+		void updatePopupMenu(ScriptingApi::Content::ScriptImage * si, ImageComponentWithMouseCallback * ic);
+
         void mouseCallback(const var &mouseInformation) override;
         
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ImageWrapper)
@@ -462,9 +523,18 @@ public:
 	public:
 
 		PanelWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptPanel *panel, int index);
+
 		~PanelWrapper();
 
 		void updateComponent() override;
+
+		void updateComponent(int index, var newValue) override;
+
+		void updateRange(BorderPanel * bpc);
+
+		void updateColourAndBorder(BorderPanel * bpc);
+
+		void updateValue(var newValue) override;
 
 		void mouseCallback(const var &mouseInformation) override;
 
@@ -479,13 +549,17 @@ public:
 	public:
 
 		ViewportWrapper(ScriptContentComponent* content, ScriptingApi::Content::ScriptedViewport* viewport, int index);
-
 		~ViewportWrapper();
 
-
 		void updateComponent() override;
-		
+		void updateComponent(int index, var newValue) override;
+		void updateValue(var newValue) override;
+
 	private:
+
+		void updateItems(ScriptingApi::Content::ScriptedViewport * vpc);
+		void updateColours();
+		void updateFont(ScriptingApi::Content::ScriptedViewport * vpc);
 
 		class ColumnListBoxModel : public ListBoxModel
 		{
@@ -538,7 +612,18 @@ public:
 
 		void updateComponent() override;
 
+		void updateComponent(int index, var newValue) override;
+
+		
+		void updateValue(var newValue) override;
+
 		void sliderPackChanged(SliderPack *, int newIndex) override { changed(newIndex); };
+
+	private:
+
+		void updateColours(SliderPack * sp);
+		void updateRange(SliderPackData* data);
+
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SliderPackWrapper)
 	};
@@ -555,6 +640,8 @@ public:
 
 		void updateComponent() override;
 
+		void updateComponent(int index, var newValue) override;
+
 		void rangeChanged(AudioDisplayComponent *broadcaster, int changedArea);
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioWaveformWrapper)
@@ -567,6 +654,10 @@ public:
 		FloatingTileWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptFloatingTile *floatingTile, int index);
 
 		void updateComponent() override;
+
+		void updateComponent(int index, var newValue) override;
+
+		void updateValue(var newValue) override;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FloatingTileWrapper)
 	};

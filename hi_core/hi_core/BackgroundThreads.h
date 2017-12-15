@@ -142,6 +142,12 @@ public:
 	*/
 	virtual void resultButtonClicked(const String &/*name*/) {};
 
+	/** If you want to check something (on the message thread) before launching the actual task, overwrite this method.
+	*
+	*	This will be called when the user presses OK. If you return false, it won't launch the process.
+	*/
+	virtual bool checkConditionsBeforeStartingThread() { return true; }
+
 	void wait(int milliSeconds)
 	{
 		if (thread != nullptr)
@@ -318,6 +324,8 @@ public:
 	void run() override;
 
 	void threadFinished() override;
+
+	bool checkConditionsBeforeStartingThread() override;
 
 private:
 

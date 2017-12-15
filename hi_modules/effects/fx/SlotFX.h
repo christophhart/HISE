@@ -60,9 +60,11 @@ public:
 
         auto d = v.getChildWithName("ChildProcessors").getChild(0);
         
+		
         
         setEffect(d.getProperty("Type"), true);
         
+		ScopedLock sl(getMainController()->getLock());
         wrappedEffect->restoreFromValueTree(d);
     }
     
@@ -72,7 +74,7 @@ public:
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) 
 	{ 
-		ScopedLock sl(swapLock);
+		ScopedLock sl(getMainController()->getLock());
 
 		Processor::prepareToPlay(sampleRate, samplesPerBlock);
 		wrappedEffect->prepareToPlay(sampleRate, samplesPerBlock); 
@@ -103,7 +105,7 @@ public:
 		otherSlot->currentIndex = tempIndex;
 
 		{
-			ScopedLock sl(swapLock);
+			ScopedLock sl(getMainController()->getLock());
 
 			wrappedEffect = oe;
 			otherSlot->wrappedEffect = te;
@@ -154,8 +156,6 @@ private:
 	int currentIndex = -1;
 
 	StringArray effectList;
-
-	CriticalSection swapLock;
 
 	bool isClear = true;
     

@@ -531,7 +531,7 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 
 void SampleMapEditor::refreshRootNotes()
 {
-	Array<WeakReference<ModulatorSamplerSound>> sounds = handler->getSelection().getItemArray();
+	auto sounds = handler->getSelection().getItemArray();
 
 	if (sounds.size() == 0 && map->selectedRootNotes == 0) return;
 

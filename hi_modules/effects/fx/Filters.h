@@ -110,6 +110,7 @@ public:
 	void setSampleRate(double newSampleRate)
 	{
 		sampleRate = newSampleRate;
+
 		reset();
 		updateCoefficients();
 	}
@@ -185,7 +186,9 @@ public:
 
 	void updateCoefficients() override
 	{
-		fc = frequency / (0.5 *sampleRate);
+		auto lFrequency = jlimit<double>(20.0, 20000.0, frequency);
+
+		fc = lFrequency / (0.5 *sampleRate);
 		res = q / 2.0;
 		if (res > 4.0) res = 4.0;
 		f = fc * 1.16;
@@ -390,6 +393,69 @@ public:
 	IIRCoefficients currentCoefficients;
 
 	IIRFilter filters[NUM_MAX_CHANNELS];
+};
+
+
+
+
+class Ladder : public MultiChannelFilter
+{
+public:
+
+	enum FilterType
+	{
+		LP24 = 0,
+		numTypes
+	};
+
+	void reset() override
+	{
+		memset(buf, 0, sizeof(float) * NUM_MAX_CHANNELS * 4);
+		updateCoefficients();
+	}
+
+	void processSamples(AudioSampleBuffer& b, int startSample, int numSamples)
+	{
+		for (int c = 0; c < b.getNumChannels(); c++)
+		{
+			for (int i = 0; i < numSamples; i++)
+			{
+				float* d = b.getWritePointer(c, i + startSample);
+				*d = processSample(*d, c);
+			}
+		}
+	}
+
+	void updateCoefficients() override
+	{
+		float inFreq = jlimit<float>(20.0f, 20000.0f, (float)frequency);
+
+		const float x = 2.0f * float_Pi*inFreq / (float)sampleRate;
+
+		cut = jlimit<float>(0.0f, 0.8f, x);
+		res = jlimit<float>(0.3f, 4.0f, (float)q / 2.0f);
+	}
+
+private:
+
+	float processSample(float input, int channel)
+	{
+		float* buffer = buf[channel];
+
+		float resoclip = buffer[3];
+
+		const float in = input - (resoclip * res);
+		buffer[0] = ((in - buffer[0]) * cut) + buffer[0];
+		buffer[1] = ((buffer[0] - buffer[1]) * cut) + buffer[1];
+		buffer[2] = ((buffer[1] - buffer[2]) * cut) + buffer[2];
+		buffer[3] = ((buffer[2] - buffer[3]) * cut) + buffer[3];
+		return 2.0f * buffer[3];
+	}
+
+	float buf[NUM_MAX_CHANNELS][4];
+
+	float cut;
+	float res;
 };
 
 
@@ -692,6 +758,7 @@ public:
 		HP,
 		BP,
 		NOTCH,
+		ALLPASS,
 		numTypes
 	};
 
@@ -713,15 +780,36 @@ public:
 	{
 		const float scaledQ = jlimit<float>(0.0f, 9.999f, (float)q * 0.1f);
 
-		float g = (float)tan(double_Pi * frequency / sampleRate);
-		//float damping = 1.0f / res;
-		//k = damping;
-		k = 1.0f - 0.99f * scaledQ;
-		float ginv = g / (1.0f + g * (g + k));
-		g1 = ginv;
-		g2 = 2.0f * (g + k) * ginv;
-		g3 = g * ginv;
-		g4 = 2.0f * ginv;
+		if (type == FilterType::ALLPASS)
+		{
+			// prewarp the cutoff (for bilinear-transform filters)
+			float wd = static_cast<float>(frequency * 2.0f * float_Pi);
+			float T = 1.0f / (float)sampleRate;
+			float wa = (2.0f / T) * tan(wd * T / 2.0f);
+
+			// Calculate g (gain element of integrator)
+			gCoeff = wa * T / 2.0f;			// Calculate g (gain element of integrator)
+
+											// Calculate Zavalishin's R from Q (referred to as damping parameter)
+			RCoeff = 1.0f / (2.0f * (float)q);
+
+			x1 = (2.0f * RCoeff + gCoeff);
+			x2 = 1.0f / (1.0f + (2.0f * RCoeff * gCoeff) + gCoeff * gCoeff);
+		}
+		else
+		{
+			float g = (float)tan(double_Pi * frequency / sampleRate);
+			//float damping = 1.0f / res;
+			//k = damping;
+			k = 1.0f - 0.99f * scaledQ;
+			float ginv = g / (1.0f + g * (g + k));
+			g1 = ginv;
+			g2 = 2.0f * (g + k) * ginv;
+			g3 = g * ginv;
+			g4 = 2.0f * ginv;
+		}
+
+		
 		
 	}
 
@@ -798,6 +886,33 @@ public:
 
 			break;
 		}
+		case FilterType::ALLPASS:
+		{
+			for (int c = 0; c < numChannels; c++)
+			{
+				float* d = buffer.getWritePointer(c, startSample);
+
+				for (int i = 0; i < numSamples; ++i)
+				{
+					const float input = d[i];
+					const float HP = (input - x1 * z1_A[c] - v2[c]) / x2;
+					const float BP = HP * gCoeff + z1_A[c];
+					const float LP = BP * gCoeff + v2[c];
+
+					z1_A[c] = gCoeff * HP + BP;
+					v2[c] = gCoeff * BP + LP;
+
+					const float AP = input - (4.0f * RCoeff * BP);
+					d[i] = AP;
+				}
+			}
+			
+
+			
+
+			break;
+		}
+
 		case NOTCH:
 		{
 			for (int c = 0; c < numChannels; c++)
@@ -828,7 +943,7 @@ private:
 	float z1_A[NUM_MAX_CHANNELS];
 	float v2[NUM_MAX_CHANNELS];
 
-	float k, g1, g2, g3, g4;
+	float k, g1, g2, g3, g4, x1, x2, gCoeff, RCoeff;
 
 #endif
 
@@ -916,6 +1031,8 @@ public:
 		StateVariableNotch,
 		StateVariableBandPass,
 		StateVariableAllpass,
+		LadderFourPoleLP,
+		LadderFourPoleHP,
 		numFilterModes
 	};
 
@@ -962,6 +1079,8 @@ public:
 		case MonoFilterEffect::ResoLow:			return makeResoLowPass(getSampleRate(), freq, q);
 		case MonoFilterEffect::StateVariableLP: return makeResoLowPass(getSampleRate(), freq, q);
 		case MonoFilterEffect::StateVariableHP: return IIRCoefficients::makeHighPass(getSampleRate(), freq);
+		case MonoFilterEffect::LadderFourPoleLP: return makeResoLowPass(getSampleRate(), freq, q);
+		case MonoFilterEffect::LadderFourPoleHP: return IIRCoefficients::makeHighPass(getSampleRate(), freq);
 		case MonoFilterEffect::MoogLP:			return makeResoLowPass(getSampleRate(), freq, q);
 		default:								return IIRCoefficients();
 		}
@@ -1007,6 +1126,7 @@ private:
 	MoogFilter moogFilter;
 	StateVariableFilter stateFilter;
 	SimpleOnePole simpleFilter;
+	Ladder ladderFilter;
 	
 	MultiChannelFilter* currentFilter = nullptr;
 

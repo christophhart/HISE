@@ -482,6 +482,21 @@ void DeactiveOverlay::buttonClicked(Button *b)
 	}
 	else if (b == resolveSamplesButton)
 	{
+		if (currentState[SamplesNotInstalled])
+		{
+			if (!PresetHandler::showYesNoWindow("Have you installed the samples yet", "Use this only if you have previously installed and extracted all samples from the .hr1 file.\nIf you don't have installed them yet, press cancel to open the sample install dialogue instead"))
+			{
+#if USE_FRONTEND
+				auto fpe = findParentComponentOfClass<FrontendProcessorEditor>();
+
+				auto l = new SampleDataImporter(fpe);
+
+				l->setModalBaseWindowComponent(fpe);
+				return;
+#endif
+			}
+		}
+		
 		FileChooser fc("Select Sample Location", ProjectHandler::Frontend::getSampleLocationForCompiledPlugin(), "*.*", true);
 
 		if (fc.browseForDirectory())

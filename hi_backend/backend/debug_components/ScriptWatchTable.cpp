@@ -167,17 +167,6 @@ void ScriptWatchTable::applySearchFilter()
 		}
 	}
 
-	String dbg = "{ ";
-
-	for (int i = 0; i < filteredIndexes.size(); i++)
-	{
-		dbg << " " << String(filteredIndexes[i]) << ", ";
-	}
-
-	dbg << "}";
-
-	DBG(dbg);
-
 	table->updateContent();
 	repaint();
 }
@@ -279,6 +268,8 @@ void ScriptWatchTable::paint(Graphics &g)
 	g.fillRect(0.0f, 25.0f, (float)getWidth(), 25.0f);
 
 	g.setColour(HiseColourScheme::getColour(HiseColourScheme::ColourIds::DebugAreaBackgroundColourId));
+
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff262626)));
 	g.fillRect(0, 25, getWidth(), getHeight());
 
 	g.setColour(Colours::white.withAlpha(0.6f));

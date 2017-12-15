@@ -58,8 +58,10 @@ MainController::SampleManager::SampleManager(MainController *mc_) :
 }
 
 
-void MainController::SampleManager::copySamplesToClipboard(const Array<WeakReference<ModulatorSamplerSound>> &soundsToCopy)
+void MainController::SampleManager::copySamplesToClipboard(void* soundsToCopy_)
 {
+	auto soundsToCopy = *reinterpret_cast<SampleSelection*>(soundsToCopy_);
+
 	sampleClipboard.removeAllChildren(nullptr);
 
 	for (int i = 0; i < soundsToCopy.size(); i++)

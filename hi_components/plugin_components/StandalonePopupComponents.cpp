@@ -574,8 +574,6 @@ void CustomSettingsWindow::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 		driver->setAudioDevice(name);
 
 		rebuildMenus(false, false);
-
-		DBG(name);
 	}
 	else if (comboBoxThatHasChanged == outputSelector)
 	{

@@ -616,29 +616,30 @@ void ModulatorSampler::setVoiceAmountInternal()
 	jassert(allVoicesAreKilled());
 
 	{
-		//MessageManagerLock mml;
+		ScopedLock sl(getMainController()->getLock());
+
 		deleteAllVoices();
+
+		for (int i = 0; i < voiceAmount; i++)
+		{
+
+			if (numChannels != 1)
+			{
+				addVoice(new MultiMicModulatorSamplerVoice(this, numChannels));
+			}
+			else
+			{
+				addVoice(new ModulatorSamplerVoice(this));
+			}
+
+			dynamic_cast<ModulatorSamplerVoice*>(voices.getLast())->setStreamingBufferDataType(temporaryVoiceBuffer.isFloatingPoint());
+
+			if (Processor::getSampleRate() != -1.0)
+			{
+				static_cast<ModulatorSamplerVoice*>(getVoice(i))->prepareToPlay(Processor::getSampleRate(), getBlockSize());
+			}
+		};
 	}
-	
-
-	for (int i = 0; i < voiceAmount; i++)
-	{
-		if (numChannels != 1)
-		{
-			addVoice(new MultiMicModulatorSamplerVoice(this, numChannels));
-		}
-		else
-		{
-			addVoice(new ModulatorSamplerVoice(this));
-		}
-
-		dynamic_cast<ModulatorSamplerVoice*>(voices.getLast())->setStreamingBufferDataType(temporaryVoiceBuffer.isFloatingPoint());
-
-		if (Processor::getSampleRate() != -1.0)
-		{
-			static_cast<ModulatorSamplerVoice*>(getVoice(i))->prepareToPlay(Processor::getSampleRate(), getBlockSize());
-		}
-	};
 
 	setKillFadeOutTime((int)getAttribute(ModulatorSynth::KillFadeTime));
 

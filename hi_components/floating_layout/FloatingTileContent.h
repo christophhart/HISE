@@ -296,6 +296,8 @@ protected:
 	{
 		styleData = getDefaultProperty((int)PanelPropertyId::StyleData);
 
+		setDefaultPanelColour(PanelColourId::itemColour3, Colours::white.withAlpha(0.6f));
+
 	}
 
 public:

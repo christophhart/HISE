@@ -161,16 +161,9 @@ struct ScriptComponentSorter
 #endif
 };
 
-void addChildrenToSelection(ScriptComponentEditBroadcaster* b, ScriptComponent* sc)
+void addChildrenToSelection(ScriptComponentEditBroadcaster* /*b*/, ScriptComponent* /*sc*/)
 {
-	for (int i = 0; i < sc->getNumChildComponents(); i++)
-	{
-		auto child = sc->getChildComponent(i);
-
-		addChildrenToSelection(b, child);
-
-		b->addToSelection(child, dontSendNotification);
-	}
+	jassertfalse;
 }
 
 void ScriptComponentEditBroadcaster::prepareSelectionForDragging(ScriptComponent* source)
@@ -239,9 +232,10 @@ void ScriptComponentEditBroadcaster::setScriptComponentPropertyForSelection(cons
 	
 }
 
-void ScriptComponentEditBroadcaster::setScriptComponentPropertyDeltaForSelection(const Identifier& propertyId, const var& delta, NotificationType notifyListeners /*= sendNotification*/, bool /*beginNewTransaction*/ /*= true*/)
+void ScriptComponentEditBroadcaster::setScriptComponentPropertyDeltaForSelection(const Identifier& propertyId, const var& delta, NotificationType notifyListeners /*= sendNotification*/, bool beginNewTransaction /*= true*/)
 {
-	manager.beginNewTransaction("Multiple");
+	if(beginNewTransaction)
+		manager.beginNewTransaction("Multiple");
 
 	Iterator iter(this);
 
@@ -256,7 +250,7 @@ void ScriptComponentEditBroadcaster::setScriptComponentPropertyDelta(ScriptCompo
 	if (beginNewTransaction)
 		manager.beginNewTransaction("Delta");
 
-	var oldValue = sc->getScriptObjectProperties()->getProperty(propertyId);
+	var oldValue = sc->getScriptObjectProperty(propertyId);
 
 	var newValue = (double)oldValue + (double)delta;
 
@@ -297,7 +291,7 @@ String ScriptComponentEditBroadcaster::getTransactionName(ScriptComponent* sc, c
 	else
 	{
 		p << sc->getName().toString() << "." << id.toString() << ": ";
-		p << sc->getScriptObjectProperties()->getProperty(id).toString() << " -> " << newValue.toString();
+		p << sc->getScriptObjectProperty(id).toString() << " -> " << newValue.toString();
 	}
 
 	return p;

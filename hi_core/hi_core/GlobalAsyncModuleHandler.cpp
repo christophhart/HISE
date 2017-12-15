@@ -59,8 +59,6 @@ void MainController::GlobalAsyncModuleHandler::JobData::doit()
 	}
 	else
 	{
-		DBG("Deleting processor");
-
 		processorToDelete->sendDeleteMessage();
 
 		if (parent.get() != nullptr)
@@ -79,8 +77,6 @@ void MainController::GlobalAsyncModuleHandler::addPendingUIJob(Processor* parent
 
 void MainController::GlobalAsyncModuleHandler::handleAsyncUpdate()
 {
-	DBG(String(pendingJobs.size()) + " jobs to do");
-
 	JobData d;
 
 	while (pendingJobs.pop(d))

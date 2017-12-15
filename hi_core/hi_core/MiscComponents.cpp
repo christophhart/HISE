@@ -587,8 +587,6 @@ void BorderPanel::buttonClicked(Button* /*b*/)
 {
 	auto contentComponent = findParentComponentOfClass<ScriptContentComponent>();
 
-	const bool isInPopup = findParentComponentOfClass<FloatingTilePopup>() != nullptr;
-
 	if (contentComponent != nullptr)
 	{
 		auto c = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(contentComponent->getScriptComponentFor(this));
@@ -683,18 +681,27 @@ void ImageComponentWithMouseCallback::paint(Graphics &g)
 		g.setOpacity(jmax<float>(0.0f, jmin<float>(1.0f, alpha)));
 
 		Rectangle<int> cropArea = Rectangle<int>(0,
-			offset,
-			jmin<int>(getWidth(), image.getWidth()),
-			jmin<int>(getHeight(), image.getHeight()));
+			offset * scale,
+			jmin<int>((int)((float)getWidth() * scale), image.getWidth()),
+			jmin<int>((int)((float)getHeight() * scale), image.getHeight()));
 
 		Image croppedImage = image.getClippedImage(cropArea);
 
+#if 1
+        float ratio  = (float)getHeight() / (float)getWidth();
+        
+        int heightInImage = (int)((float)image.getWidth() * ratio);
+      
+        g.drawImage(image, 0, 0, getWidth(), getHeight(), 0, offset, image.getWidth(), heightInImage);
+#else
+        
 		if (scale != 1.0)
 		{
 			croppedImage = croppedImage.rescaled((int)((double)croppedImage.getWidth() / scale), (int)((double)croppedImage.getHeight() / scale));
 		}
 
 		g.drawImageAt(croppedImage, 0, 0);
+#endif
 	}
 }
 

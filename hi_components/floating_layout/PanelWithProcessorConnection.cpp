@@ -72,12 +72,14 @@ void PanelWithProcessorConnection::paint(Graphics& g)
 
 	const bool scb = getStyleProperty(showConnectionBar, true) && findParentComponentOfClass<ScriptContentComponent>() == nullptr;
 
+    
+    
 	if (scb)
 	{
 		const bool connected = getProcessor() != nullptr && (!hasSubIndex() || currentIndex != -1);
 
-		g.setColour(Colour(0xFF3D3D3D));
-		g.fillRect(0, bounds.getY(), getWidth(), 18);
+		//g.setColour(Colour(0xFF3D3D3D));
+		//g.fillRect(0, bounds.getY(), getWidth(), 18);
 
 		g.setColour(connected ? getProcessor()->getColour() : Colours::white.withAlpha(0.1f));
 

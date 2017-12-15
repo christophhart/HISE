@@ -175,6 +175,7 @@ public:
 		MenuToolsCheckUnusedImages,
         MenuToolsRedirectSampleFolder,
 		MenuToolsRedirectScriptFolder,
+		MenuToolsCreateUIDataFromDesktop,
 		MenuToolsForcePoolSearch,
 		MenuToolsConvertAllSamplesToMonolith,
 		MenuToolsUpdateSampleMapIdsBasedOnFileName,
@@ -259,6 +260,12 @@ public:
 
 	ColumnMode getColumnMode() const noexcept { return currentColumnMode; }
 
+	struct Helpers
+	{
+		static bool deviceTypeHasUIData(BackendRootWindow* bpe);
+		static bool canCopyDeviceType(BackendRootWindow* bpe);
+	};
+
 	class Actions
 	{
 	public:
@@ -335,6 +342,7 @@ public:
 		static void importArchivedSamples(BackendRootWindow * bpe);
 		static void checkCyclicReferences(BackendRootWindow * bpe);
 		static void unloadAllAudioFiles(BackendRootWindow * bpe);
+		static void createUIDataFromDesktop(BackendRootWindow * bpe);
 	};
 
 private:

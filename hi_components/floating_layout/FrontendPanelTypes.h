@@ -313,6 +313,11 @@ public:
 	void resized() override;
 	bool showTitleInPresentationMode() const override;
 
+	void paint(Graphics& g) override
+	{
+		g.fillAll(findPanelColour(FloatingTileContent::PanelColourId::bgColour));
+	}
+
 private:
 
 	ScopedPointer<Label> statisticLabel;
@@ -653,6 +658,7 @@ public:
 
 					const bool ok = handler.setNewRangeForParameter(row, range);
 					jassert(ok);
+                    ignoreUnused(ok);
 
 					return newRangeValue;
 				}
@@ -669,6 +675,7 @@ public:
 
 					const bool ok = handler.setNewRangeForParameter(row, range);
 					jassert(ok);
+                    ignoreUnused(ok);
 
 					return newRangeValue;
 				}
@@ -688,6 +695,7 @@ public:
 		{
 			const bool ok = handler.setParameterInverted(row, value);
 			jassert(ok);
+            ignoreUnused(ok);
 		}
 
 	}

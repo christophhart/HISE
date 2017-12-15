@@ -68,6 +68,20 @@ public:
         return t;
     }  
     
+	void textEditorReturnKeyPressed(TextEditor& t) override
+	{
+		if (getText() == t.getText())
+		{
+			hideEditor(true);
+			textWasEdited();
+			callChangeListeners();
+		}
+		else
+		{
+			Label::textEditorReturnKeyPressed(t);
+		}
+	}
+
     void textWasEdited() override
     {
         if(refreshWithEachKey)
@@ -807,6 +821,8 @@ public:
 
 		favoriteButton->setShape(path, false, true, true);
 
+		
+
 		presetColumn->setShowFavoritesOnly(on);
 
 		resized();
@@ -878,6 +894,9 @@ public:
 			{
 				auto id = getIdForFile(presetFile);
 
+				if (id.isNull())
+					return;
+				
 				if (auto entry = data->getProperty(id).getDynamicObject())
 				{
 					entry->setProperty("Favorite", isFavorite);
@@ -934,7 +953,12 @@ public:
 
 			if (auto data = database.getDynamicObject())
 			{
-				if (auto entry = data->getProperty(getIdForFile(presetFile)).getDynamicObject())
+				auto id = getIdForFile(presetFile);
+
+				if (id.isNull())
+					return false;
+
+				if (auto entry = data->getProperty(id).getDynamicObject())
 				{
 					return entry->getProperty("Favorite");
 				}
@@ -955,7 +979,12 @@ public:
 				s = s.upToFirstOccurrenceOf(".preset", false, false);
 				s = s.replaceCharacter('/', '_');
 				s = s.replaceCharacter('\\', '_');
-				s = s.removeCharacters(" ");
+				s = s.replaceCharacter('\'', '_');
+
+				//s = s.replaceCharacters("öäüèêé", "oaueee");
+
+
+				s = s.removeCharacters(" \t!+");
 
 				if (Identifier::isValidIdentifier(s))
 				{
@@ -1018,10 +1047,6 @@ private:
 
 		void buttonClicked(Button* b) override
 		{
-			const int i = tagButtons.indexOf(dynamic_cast<TextButton*>(b));
-
-			
-
 			b->setToggleState(!b->getToggleState(), dontSendNotification);
 		}
 

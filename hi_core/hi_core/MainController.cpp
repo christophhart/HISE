@@ -180,6 +180,7 @@ void MainController::loadPresetFromValueTree(const ValueTree &v, Component* /*ma
     const bool isSampleLoadingThread = killStateHandler.getCurrentThread() == KillStateHandler::SampleLoadingThread;
     
 	jassert(isCommandLine || isSampleLoadingThread);
+    ignoreUnused(isCommandLine, isSampleLoadingThread);
 #endif
 
 	if (v.isValid() && v.getProperty("Type", var::undefined()).toString() == "SynthChain")
@@ -211,6 +212,7 @@ void MainController::loadPresetInternal(const ValueTree& v)
         const bool isSampleLoadingThread = killStateHandler.getCurrentThread() == KillStateHandler::SampleLoadingThread;
         
 		jassert(isCommandLine || isSampleLoadingThread);
+        ignoreUnused(isCommandLine, isSampleLoadingThread);
 #endif
         
 		jassert(!synthChain->areVoicesActive());

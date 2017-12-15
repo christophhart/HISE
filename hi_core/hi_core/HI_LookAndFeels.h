@@ -163,6 +163,26 @@ private:
 class PopupLookAndFeel : public LookAndFeel_V3
 {
 public:
+    
+    static void drawFake3D(Graphics& g, Rectangle<int> area)
+    {
+        Colour upperLight = JUCE_LIVE_CONSTANT_OFF(Colour(0x10ffffff));
+        Colour c1 = JUCE_LIVE_CONSTANT_OFF(Colour(0x06ffffff));
+        Colour c2 = JUCE_LIVE_CONSTANT_OFF(Colour(0x10000000));
+        Colour shadowLight = JUCE_LIVE_CONSTANT_OFF(Colour(0x58000000));
+        
+        
+        g.setGradientFill(ColourGradient(c1, 0.0f, (float)area.getY(), c2, 0.0f, (float)area.getBottom(), false));
+        g.fillRect(area);
+        
+        g.setColour(upperLight);
+        
+        g.drawHorizontalLine(area.getY(), (float)area.getX(), (float)area.getRight());
+        
+        g.setColour(shadowLight);
+        g.drawHorizontalLine(area.getBottom()-1, (float)area.getX(), (float)area.getRight());
+    }
+    
 	PopupLookAndFeel()
 	{
 		setColour(PopupMenu::highlightedBackgroundColourId, Colour(SIGNAL_COLOUR));
@@ -419,6 +439,12 @@ protected:
                           Justification::bottomLeft, 1);
     }
 
+	Rectangle<int> getPropertyComponentContentPosition(PropertyComponent& component)
+	{
+		const int textW = jmin(200, component.getWidth() / 3);
+		return Rectangle<int>(textW, 1, component.getWidth() - textW - 1 - component.getHeight()-1, component.getHeight() - 3);
+	}
+
 	Component* getParentComponentForMenuOptions(const PopupMenu::Options& options)
 	{
 		if (HiseDeviceSimulator::isAUv3())
@@ -517,7 +543,7 @@ public:
 	{
 		comboBoxFont = GLOBAL_FONT();
 		textButtonFont = GLOBAL_FONT();
-		labelFont = GLOBAL_MONOSPACE_FONT();
+		labelFont = GLOBAL_FONT();
 		popupMenuFont = GLOBAL_FONT();
 
 		setColour(PopupMenu::highlightedBackgroundColourId, Colour(SIGNAL_COLOUR));
@@ -538,18 +564,24 @@ public:
 
 	void drawPropertyPanelSectionHeader (Graphics& g, const String& name, bool isOpen, int width, int height) override
 	{
-		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff6b6b6b)));
+		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff1b1b1b)));
 
-		g.fillRoundedRectangle(1.0f, 0.0f, (float)width-2.0f, (float)height, 1.0f);
+        auto r = Rectangle<int>(0, 0, width, height);
+        
+		g.fillRect(r);
 
+        PopupLookAndFeel::drawFake3D(g, r);
+        
+        
+        
 		const float buttonSize = height * 0.75f;
 		const float buttonIndent = (height - buttonSize) * 0.5f;
 
-		drawTreeviewPlusMinusBox (g, Rectangle<float> (buttonIndent, buttonIndent, buttonSize, buttonSize), Colours::white, isOpen, false);
+		drawTreeviewPlusMinusBox (g, Rectangle<float> (buttonIndent, buttonIndent, buttonSize, buttonSize), Colours::black, isOpen, false);
 
 		const int textX = (int) (buttonIndent * 2.0f + buttonSize + 2.0f);
 
-		g.setColour (JUCE_LIVE_CONSTANT_OFF(Colour(0xFF000000)));
+		g.setColour (JUCE_LIVE_CONSTANT_OFF(Colour(0xffa2a2a2)));
 		g.setFont (GLOBAL_BOLD_FONT());
 		g.drawText (name, textX, 0, width - textX - 4, height, Justification::centredLeft, true);
 	}

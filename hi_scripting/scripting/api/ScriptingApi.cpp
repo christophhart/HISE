@@ -1086,10 +1086,17 @@ var ScriptingApi::Engine::getDeviceResolution()
 
 bool ScriptingApi::Engine::isPlugin() const
 {
+#if HISE_IOS
+    
+    return HiseDeviceSimulator::isAUv3();
+    
+#else
+    
 #if IS_STANDALONE_APP
 	return false;
 #else
 	return true;
+#endif
 #endif
 }
 
@@ -1482,7 +1489,7 @@ void ScriptingApi::Sampler::setSoundPropertyForSelection(int propertyId, var new
 		return;
 	}
 
-	Array<WeakReference<ModulatorSamplerSound>> sounds = soundSelection.getItemArray();
+	auto sounds = soundSelection.getItemArray();
 
 	const int numSelected = sounds.size();
 

@@ -69,6 +69,7 @@ public:
 		SearchReplace,
 		AddCodeBookmark,
 		CreateUiFactoryMethod,
+		ReplaceConstructorWithReference,
 		AddMissingCaseStatements,
 		OpenExternalFile,
 		OpenInPopup,

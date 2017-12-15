@@ -51,6 +51,31 @@ public:
 	
 	void resized() override;
 	
+	void mouseDown(const MouseEvent& event) override
+	{
+		auto parentPanel = findParentComponentOfClass<ScriptComponentEditPanel>();
+
+		auto& s = parentPanel->getPropertySelection();
+
+		s.addToSelectionOnMouseDown(this, event.mods);
+
+		parentPanel->repaintAllPanels();
+	}
+
+	void paint(Graphics& g) override
+	{
+		PropertyComponent::paint(g);
+
+		auto& s = findParentComponentOfClass<ScriptComponentEditPanel>()->getPropertySelection();
+
+		auto selected = s.isSelected(this);
+
+		if (selected)
+		{
+			g.setColour(Colour(SIGNAL_COLOUR).withAlpha(.1f));
+			g.fillAll();
+		}
+	}
 
 protected:
 
@@ -80,10 +105,10 @@ private:
 		
 		void paint(Graphics &g) override
 		{
-			g.fillAll(Colours::black.withAlpha(0.8f));
+			g.fillAll(Colours::black.withAlpha(0.7f));
 			g.setColour(Colours::white);
 			g.setFont(GLOBAL_BOLD_FONT());
-			g.drawText("This property was overwritten by the script", 0, 0, getWidth() - 80, getHeight(), Justification::centred);
+			g.drawText("Overwritten by script", 0, 0, getWidth() - 80, getHeight(), Justification::centred);
 		}
 
 		void resized() override
@@ -99,6 +124,8 @@ private:
 	};
 
 	Overlay overlay;
+
+	bool resultOfMouseDownSelectMethod = false;
 
 };
 

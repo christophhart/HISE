@@ -145,6 +145,9 @@ void DialogWindowWithBackgroundThread::buttonClicked(Button* b)
 {
 	if (b->getName() == "OK")
 	{
+		if (!checkConditionsBeforeStartingThread())
+			return;
+
 		if (synchronous)
 		{
 			runSynchronous();
@@ -473,8 +476,8 @@ SampleDataImporter::SampleDataImporter(ModalBaseWindow* mbw) :
 
 #if USE_FRONTEND
 
-	const String productName = ProjectHandler::Frontend::getProjectName();
-	const String version = ProjectHandler::Frontend::getVersionString();
+	const String productName = getProjectName();
+	const String version = getProjectVersion();
 
 	PresetHandler::showMessageWindow("Choose the Sample Archive", "Please select the " + productName + " Resources " + version + ".hr1 file that you've downloaded");
 
@@ -589,6 +592,8 @@ void SampleDataImporter::run()
 
 #endif
 
+	result = Result::fail("User pressed cancel");
+
 	showStatusMessage("Reading metadata");
 
 	auto md = getMetadata();
@@ -658,6 +663,23 @@ void SampleDataImporter::threadFinished()
 	}
 }
 
+bool SampleDataImporter::checkConditionsBeforeStartingThread()
+{
+	if (!getSourceFile().existsAsFile())
+	{
+		PresetHandler::showMessageWindow("No Sample Archive selected", "Please select the " + getProjectName() + " Resources " + getProjectVersion() + ".hr1 file that you've downloaded", PresetHandler::IconType::Warning);
+		return false;
+	}
+
+	if (!getTargetDirectory().isDirectory())
+	{
+		PresetHandler::showMessageWindow("No Sample Location selected", "Please select the location where you want to install the samples", PresetHandler::IconType::Warning);
+		return false;
+	}
+
+	return true;
+}
+
 String SampleDataImporter::getProjectName() const
 {
 #if USE_BACKEND
@@ -681,7 +703,11 @@ String SampleDataImporter::getProjectVersion() const
 #if USE_BACKEND
 	return SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(synthChain));
 #else
-	return ProjectHandler::Frontend::getVersionString();
+
+	// TODO: change this later...
+	return "1.0.0";
+
+	//return ProjectHandler::Frontend::getVersionString();
 #endif
 }
 

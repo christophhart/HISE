@@ -34,7 +34,7 @@
 #define SAMPLEEDITHANDLER_H_INCLUDED
 namespace hise { using namespace juce;
 
-typedef Array<ModulatorSamplerSound*> SampleSelection;
+
 
 class SampleEditHandler: public ChangeListener
 {
@@ -83,7 +83,7 @@ public:
 		selectionListeners.removeAllInstancesOf(l);
 	}
 	
-	SelectedItemSet<WeakReference<ModulatorSamplerSound>> &getSelection()
+	SelectedItemSet<ModulatorSamplerSound::Ptr> &getSelection()
 	{
 		return selectedSamplerSounds;
 	}
@@ -108,7 +108,7 @@ public:
 
 		timeSinceLastSelectionChange = thisTime;
 
-		const Array<WeakReference<ModulatorSamplerSound>> newSelection = selectedSamplerSounds.getItemArray();
+		auto newSelection = selectedSamplerSounds.getItemArray();
 
 		auto existingSounds = getSanitizedSelection();
 
@@ -166,7 +166,7 @@ private:
 
 	int rrIndex = -1;
 
-	SelectedItemSet<WeakReference<ModulatorSamplerSound>> selectedSamplerSounds;
+	SelectedItemSet<ModulatorSamplerSound::Ptr> selectedSamplerSounds;
 	
 	int timeSinceLastSelectionChange = 0;
 

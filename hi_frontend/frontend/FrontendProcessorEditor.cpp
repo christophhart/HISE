@@ -52,7 +52,7 @@ AudioProcessorEditor(fp)
 
 
 
-#if !FRONTEND_IS_PLUGIN
+#if !FRONTEND_IS_PLUGIN && !HISE_IOS
 
 
 	deactiveOverlay->setState(DeactiveOverlay::SamplesNotInstalled, !ProjectHandler::Frontend::checkSamplesCorrectlyInstalled());
@@ -107,14 +107,24 @@ AudioProcessorEditor(fp)
 	const float displayScaleFactor = (float)Desktop::getInstance().getDisplays().getMainDisplay().scale;
 	const int unscaledInterfaceHeight = getHeight();
 
+    
+#if HISE_IOS
+    
+    const float iosScaleFactor = (float)availableHeight / (float)originalSizeY;
+    
+    setGlobalScaleFactor(iosScaleFactor);
+    
+#else
+    
 	if (displayScaleFactor == 1.0f && availableHeight > 0 && (availableHeight - unscaledInterfaceHeight < 40))
 	{
 		setGlobalScaleFactor(0.85f);
 	}
 	else
 	{
-		setGlobalScaleFactor((float)fp->getGlobalScaleFactor());
+        setGlobalScaleFactor((float)fp->getGlobalScaleFactor());
 	}
+#endif
 }
 
 FrontendProcessorEditor::~FrontendProcessorEditor()
@@ -160,7 +170,7 @@ void FrontendProcessorEditor::resized()
 {
 	LOG_START("Resizing interface");
 
-#if 0
+#if HISE_IOS
 	int width = originalSizeX != 0 ? originalSizeX : getWidth();
     int height = originalSizeY != 0 ? originalSizeY : getHeight();
 #else

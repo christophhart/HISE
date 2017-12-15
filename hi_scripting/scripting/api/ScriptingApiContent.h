@@ -42,7 +42,6 @@ namespace hise { using namespace juce;
 */
 class ScriptingApi::Content : public ScriptingObject,
 	public DynamicObject,
-	public SafeChangeBroadcaster,
 	public RestorableObject
 {
 public:
@@ -132,11 +131,11 @@ public:
 
 		File getExternalFile(var newValue);
 
-		ScriptComponent(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name_, int x, int y, int width, int height, int numConstants=0);
-		
+		ScriptComponent(ProcessorWithScriptingContent* base, Identifier name_, int numConstants = 0);
+
 		virtual ~ScriptComponent() 
 		{
-			childComponents.clear();
+			
 		};
 
 		virtual StringArray getOptionsFor(const Identifier &id);
@@ -145,6 +144,14 @@ public:
 
 		Identifier getName() const;
 		Identifier getObjectName() const override;
+
+		String getParentComponentId() const;
+
+		bool hasParentComponent() const;
+
+		ScriptComponent* getParentScriptComponent();
+
+		const ScriptComponent* getParentScriptComponent() const;
 
 		virtual void preRecompileCallback() {};
 
@@ -160,6 +167,8 @@ public:
 		void assign(const int index, var newValue) override;
 		int getCachedIndex(const var &indexExpression) const override;
 
+		void setScriptObjectProperty(int p, var newValue, NotificationType notifyListeners = dontSendNotification);
+
 		virtual void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification);
 		virtual bool isAutomatable() const { return false; }
 
@@ -168,34 +177,23 @@ public:
 
 		const var getScriptObjectProperty(int p) const;
 
+		const var getScriptObjectProperty(Identifier id) const;
+
 		var getNonDefaultScriptObjectProperties() const;
 
 		String getScriptObjectPropertiesAsJSON() const;
-		DynamicObject *getScriptObjectProperties() const { return componentProperties.get(); }
+		
 		bool isPropertyDeactivated(Identifier &id) const;
+		bool hasProperty(const Identifier& id) const;
+
 		Rectangle<int> getPosition() const;
 
-		int getParentComponentIndex() const;
-
-		bool addChildComponent(ScriptComponent* childComponent);
-
-		/** Checks if the component is a child component.
-		*
-		*	It also looks in the child components' child componenents ... */
-		bool isChildComponent(ScriptComponent* childComponent);
-
-		int getNumChildComponents() const
+		int getIndexForProperty(const Identifier& id) const
 		{
-			return childComponents.size();
+			return propertyIds.indexOf(id);
 		}
 
-		ScriptComponent* getChildComponent(int index)
-		{
-			if (index < childComponents.size())
-				return childComponents[index].get();
-
-			return nullptr;
-		}
+		
 
 		ReferenceCountedObject* getCustomControlCallback();
 
@@ -207,11 +205,9 @@ public:
 
 		void updateContentPropertyInternal(const Identifier& propertyId, const var& newValue);
 
-		void notifyChildComponents();
-
 		virtual void cancelPendingFunctions() {};
 
-		bool isShowing() const;
+		virtual bool isShowing(bool checkParentComponentVisibility = true) const;
 
 		template <class ChildType> class ChildIterator
 		{
@@ -219,11 +215,24 @@ public:
 
 			ChildIterator(ScriptComponent* c)
 			{
-				addToArray(c);
+				for (int i = 0; i < c->parent->getNumComponents(); i++)
+				{
+					if (auto sc = dynamic_cast<ChildType*>(c->parent->getComponent(i)))
+					{
+						auto scTree = sc->getPropertyValueTree();
+						auto cTree = c->getPropertyValueTree();
+
+						if (scTree == cTree || scTree.isAChildOf(cTree))
+						{
+							childComponents.add(sc);
+						}
+					}
+				}
 			}
 
 			ChildType* getNextChildComponent()
 			{
+				
 				return childComponents[index++];
 			}
 
@@ -231,22 +240,13 @@ public:
 
 			int index = 0;
 
-			void addToArray(ScriptComponent* c)
-			{
-				if (auto cTyped = dynamic_cast<ChildType*>(c))
-					childComponents.add(cTyped);
-
-				for (int i = 0; i < c->getNumChildComponents(); i++)
-					addToArray(c->getChildComponent(i));
-			}
-
 			Array<ChildType*> childComponents;
 		};
 
 		// API Methods =====================================================================================================
 
 		/** returns the value of the property. */
-		var get(String propertyName) const { return componentProperties->getProperty(Identifier(propertyName)); }
+		var get(String propertyName) const;
 
 		/** Sets the property. */
 		void set(String propertyName, var value);;
@@ -329,6 +329,8 @@ public:
 
 		int getConnectedParameterIndex() { return connectedParameterIndex; };
 
+		ValueTree getPropertyValueTree() { return propertyTree; }
+
 		struct ScopedPropertyEnabler
 		{
 			ScopedPropertyEnabler(ScriptComponent* c_) :
@@ -379,28 +381,46 @@ public:
 
 	protected:
 
+		bool isCorrectlyInitialised(int p) const
+		{
+			return initialisedProperties[p];
+		}
+
+		bool isCorrectlyInitialised(const Identifier& id) const
+		{
+			int p = propertyIds.indexOf(id);
+
+			return initialisedProperties[p];
+		}
+
+		void initInternalPropertyFromValueTreeOrDefault(int id, bool justSetInitFlag=false);
+
 		void setDefaultValue(int p, const var &defaultValue);
-		void setScriptObjectProperty(int p, var newValue) { componentProperties->setProperty(getIdFor(p), newValue); }
+		
 
 		Array<Identifier> propertyIds;
 		Array<Identifier> deactivatedProperties;
 		Array<Identifier> priorityProperties;
-		DynamicObject::Ptr componentProperties;
+		
+		bool removePropertyIfDefault = true;
 
 	private:
 
+		bool isPositionProperty(Identifier id) const;
+
+		ValueTree propertyTree;
+
 		Array<Identifier> scriptChangedProperties;
+
 		bool countJsonSetProperties = true;
 		Identifier searchedProperty;
 
-		ReferenceCountedArray<ScriptComponent> childComponents;
+		BigInteger initialisedProperties;
 
 		var customControlCallback;
 
 		NamedValueSet defaultValues;
 		bool changed;
-
-		int parentComponentIndex;
 
 		WeakReference<Processor> connectedProcessor;
 		int connectedParameterIndex = -1;
@@ -484,7 +504,7 @@ public:
 
 		struct Wrapper;
 
-		HiSlider::Mode m;
+		HiSlider::Mode m = HiSlider::Mode::Linear;
 		Slider::SliderStyle styleId;
 		Image getImage() const { return image; };
 
@@ -626,7 +646,6 @@ public:
 		void restoreFromValueTree(const ValueTree &v) override
 		{
 			setValue(v.getProperty("value", ""));
-			sendChangeMessage();
 		}
 
 		ValueTree exportAsValueTree() const override
@@ -659,12 +678,12 @@ public:
 		{
 			if (id == getIdFor((int)ScriptComponent::Properties::text))
 			{
+				jassert(isCorrectlyInitialised(ScriptComponent::Properties::text));
 				setValue(newValue.toString());
 			}
-			else
-			{
-				ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
-			}
+			
+			ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
+			
 		}
 
 		// ======================================================================================================== API Methods
@@ -915,7 +934,8 @@ public:
 			stopTimer();
 			repaintNotifier.removeAllChangeListeners();
 			controlSender.cancelPendingUpdate();
-			repainter.stopTimer();
+			repainter.cancelPendingUpdate();
+			//repainter.stopTimer();
 		}
 
 		bool updateCyclicReferenceList(ThreadData& data, const Identifier& id) override;
@@ -969,24 +989,32 @@ public:
 
 		// ========================================================================================================
 
-		
+		void forcedRepaint()
+		{
+			
+		};
 
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor=sendNotification) override
 		{
-			ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
-
 			if (id == getIdFor((int)ScriptComponent::Properties::visible))
 			{
-				setScriptObjectProperty(ScriptComponent::visible, newValue);
+				const bool wasVisible = (bool)getScriptObjectProperty(visible);
 
-				ChildIterator<ScriptPanel> iter(this);
+				const bool isNowVisible = (bool)newValue;
 
-				while (auto childPanel = iter.getNextChildComponent())
-					childPanel->repaintImmediately();	
+				setScriptObjectProperty(visible, newValue);
+
+				if (wasVisible != isNowVisible)
+				{
+					repaintThisAndAllChildren();
+
+				}
 			}
-			
-			
+
+			ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 		}
+
+		void repaintThisAndAllChildren();
 
 		struct Wrapper;
 
@@ -1010,7 +1038,7 @@ public:
 			//cancelAll = true;
 
 			stopTimer();
-			repainter.stopTimer();
+			//repainter.stopTimer();
 			repaintNotifier.removeAllChangeListeners();
 			controlSender.cancelPendingUpdate();
 		}
@@ -1045,9 +1073,9 @@ public:
             ScriptPanel* panel;
         };
         
-		bool isVisiblePopup() const
+		bool isShowing(bool checkParentComponentVisibility=true) const override
 		{
-			if (!isShowing())
+			if (!ScriptComponent::isShowing(checkParentComponentVisibility))
 				return false;
 
 			if (!getScriptObjectProperty(isPopupPanel))
@@ -1078,7 +1106,7 @@ public:
 
 		WeakReference<ScriptPanel>::Master masterReference;
 
-		void internalRepaint();
+		void internalRepaint(bool forceRepaint=false);
 
 		struct AsyncControlCallbackSender : public AsyncUpdater
 		{
@@ -1090,27 +1118,31 @@ public:
 			ProcessorWithScriptingContent* p;
 		};
 
-		struct AsyncRepainter : public Timer
+		struct AsyncRepainter : public UpdateDispatcher::Listener //public Timer
 		{
-			AsyncRepainter(ScriptPanel* parent_) : parent(parent_){}
+			AsyncRepainter(ScriptPanel* parent_) :
+				UpdateDispatcher::Listener(parent_->parent->getUpdateDispatcher()),
+				parent(parent_)
+			{}
 
             ~AsyncRepainter()
             {
                 
             }
             
-			
-
+#if 0
             void triggerAsyncUpdate()
             {
                 if(!isTimerRunning()) startTimer(30);
             }
+
             
             void timerCallback() override
             {
                 handleAsyncUpdate();
                 stopTimer();
             }
+#endif
             
 			void handleAsyncUpdate()
 			{
@@ -1484,6 +1516,8 @@ public:
 
 	void cleanJavascriptObjects();
 
+	UpdateDispatcher* getUpdateDispatcher() { return &updateDispatcher; }
+
 	bool isEmpty();
 	int getNumComponents() const noexcept{ return components.size(); };
 	ScriptComponent *getComponent(int index);
@@ -1491,6 +1525,8 @@ public:
 	ScriptComponent * getComponentWithName(const Identifier &componentName);
 	const ScriptComponent * getComponentWithName(const Identifier &componentName) const;
 	int getComponentIndex(const Identifier &componentName) const;
+
+	bool hasComponent(const ScriptComponent* sc) const { return components.indexOf(sc) != -1; };
 
 	int getContentHeight() const { return height; }
 	int getContentWidth() const { return width; }
@@ -1553,7 +1589,48 @@ public:
 		/** Sets the parent component by reordering the internal data structure. */
 		static Result setParentComponent(Content* content, const var& parentId, const var& childIdList);
 
-		static ScriptComponent* createComponentFromId(Content* c, const Identifier& typeId, const Identifier& name, int x, int y, int width, int h);
+#if 0
+		static ScriptComponent* createComponentFromId(Content* c, const Identifier& typeId, const Identifier& name)
+		{
+			if (auto sc = createComponentIfTypeMatches<ScriptSlider>(c, typeId, name, x, y, w, h))
+				return sc;
+
+			if (auto sc = createComponentIfTypeMatches<ScriptButton>(c, typeId, name, x, y, w, h))
+				return sc;
+
+			if (auto sc = createComponentIfTypeMatches<ScriptLabel>(c, typeId, name, x, y, w, h))
+				return sc;
+
+			if (auto sc = createComponentIfTypeMatches<ScriptComboBox>(c, typeId, name, x, y, w, h))
+				return sc;
+
+			if (auto sc = createComponentIfTypeMatches<ScriptTable>(c, typeId, name, x, y, w, h))
+				return sc;
+
+			if (auto sc = createComponentIfTypeMatches<ScriptSliderPack>(c, typeId, name, x, y, w, h))
+				return sc;
+
+			if (auto sc = createComponentIfTypeMatches<ScriptImage>(c, typeId, name, x, y, w, h))
+				return sc;
+
+			if (auto sc = createComponentIfTypeMatches<ScriptPanel>(c, typeId, name, x, y, w, h))
+				return sc;
+
+			if (auto sc = createComponentIfTypeMatches<ScriptedViewport>(c, typeId, name, x, y, w, h))
+				return sc;
+
+			if (auto sc = createComponentIfTypeMatches<ModulatorMeter>(c, typeId, name, x, y, w, h))
+				return sc;
+
+			if (auto sc = createComponentIfTypeMatches<ScriptAudioWaveform>(c, typeId, name, x, y, w, h))
+				return sc;
+
+			if (auto sc = createComponentIfTypeMatches<ScriptFloatingTile>(c, typeId, name, x, y, w, h))
+				return sc;
+
+			return nullptr;
+		}
+#endif
 
 		static void createNewComponentData(Content* c, ValueTree& p, const String& typeName, const String& id);
 
@@ -1570,21 +1647,19 @@ public:
 		static String createCustomCallbackDefinition(ReferenceCountedArray<ScriptComponent> selection);
 
 		static void recompileAndSearchForPropertyChange(ScriptComponent * sc, const Identifier& id);
+		static ScriptComponent * createComponentFromValueTree(Content* c, const ValueTree& v);
+		static bool hasLocation(ScriptComponent* sc);
 	};
 
 	template <class SubType> SubType* createNewComponent(const Identifier& id, int x, int y, int w, int h)
 	{
-		SubType* newComponent = new SubType(getScriptProcessor(), this, id, x, y, w, h);
-
 		static const Identifier xId("x");
 		static const Identifier yId("y");
 		static const Identifier wId("width");
 		static const Identifier hId("height");
 
-		components.add(newComponent);
-
 		ValueTree newData("Component");
-		newData.setProperty("type", newComponent->getObjectName().toString(), nullptr);
+		newData.setProperty("type", SubType::getStaticObjectName().toString(), nullptr);
 		newData.setProperty("id", id.toString(), nullptr);
 		newData.setProperty(xId, x, nullptr);
 		newData.setProperty(yId, y, nullptr);
@@ -1592,7 +1667,11 @@ public:
 		newData.setProperty(hId, h, nullptr);
 
 		contentPropertyData.addChild(newData, -1, nullptr);
-		
+
+		SubType* newComponent = new SubType(getScriptProcessor(), this, id, x, y, w, h);
+
+		components.add(newComponent);
+
 		return newComponent;
 	}
 
@@ -1628,6 +1707,8 @@ public:
 	}
 
 private:
+
+	UpdateDispatcher updateDispatcher;
 
 	ReferenceCountedArray<ScriptPanel> popupPanels;
 
@@ -1723,6 +1804,26 @@ struct ContentValueTreeHelpers
 		return Point<int>(v.getProperty(x), v.getProperty(y));
 	}
 
+	static bool isShowing(const ValueTree& v)
+	{
+		static const Identifier visible("visible");
+		static const Identifier co("Component");
+
+		if (v.getProperty(visible, true))
+		{
+			auto p = v.getParent();
+
+			if (p.getType() == co)
+				return isShowing(p);
+			else
+				return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
 	static bool getAbsolutePosition(const ValueTree& v, Point<int>& offset)
 	{
 		static const Identifier x("x");
@@ -1743,6 +1844,8 @@ struct ContentValueTreeHelpers
 
 	static void addComponentToValueTreeRecursive(Array<Identifier>& usedIds, const ScriptComponentSelection list, ValueTree& v)
 	{
+
+		jassertfalse;
 
 		static const Identifier type_("type");
 		static const Identifier id_("id");
@@ -1781,10 +1884,12 @@ struct ContentValueTreeHelpers
 
 			ScriptComponentSelection childList;
 
+#if 0
 			for (int i = 0; i < sc->getNumChildComponents(); i++)
 			{
 				childList.add(sc->getChildComponent(i));
 			}
+#endif
 
 			addComponentToValueTreeRecursive(usedIds, childList, child);
 

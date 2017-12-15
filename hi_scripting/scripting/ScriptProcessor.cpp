@@ -166,26 +166,26 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 
 		JavascriptProcessor::SnippetDocument* onControlCallback = thisAsJavascriptProcessor->getSnippet(callbackIndex);
 
-		if (onControlCallback->isSnippetEmpty())
+		if (!onControlCallback->isSnippetEmpty())
 		{
-			return;
-		}
+			HiseJavascriptEngine* scriptEngine = thisAsJavascriptProcessor->getScriptEngine();
 
-		HiseJavascriptEngine* scriptEngine = thisAsJavascriptProcessor->getScriptEngine();
-
-		scriptEngine->maximumExecutionTime = RelativeTime(3.0);
+			scriptEngine->maximumExecutionTime = RelativeTime(3.0);
 
 #if ENABLE_SCRIPTING_BREAKPOINTS
-		thisAsJavascriptProcessor->breakpointWasHit(-1);
+			thisAsJavascriptProcessor->breakpointWasHit(-1);
 #endif
 
-		ScopedReadLock sl(getMainController_()->getCompileLock());
+			ScopedReadLock sl(getMainController_()->getCompileLock());
 
-		scriptEngine->setCallbackParameter(callbackIndex, 0, component);
-		scriptEngine->setCallbackParameter(callbackIndex, 1, controllerValue);
-		scriptEngine->executeCallback(callbackIndex, &thisAsJavascriptProcessor->lastResult);
+			scriptEngine->setCallbackParameter(callbackIndex, 0, component);
+			scriptEngine->setCallbackParameter(callbackIndex, 1, controllerValue);
+			scriptEngine->executeCallback(callbackIndex, &thisAsJavascriptProcessor->lastResult);
 
-		BACKEND_ONLY(if (!thisAsJavascriptProcessor->lastResult.wasOk()) debugError(thisAsProcessor, thisAsJavascriptProcessor->lastResult.getErrorMessage()));
+			BACKEND_ONLY(if (!thisAsJavascriptProcessor->lastResult.wasOk()) debugError(thisAsProcessor, thisAsJavascriptProcessor->lastResult.getErrorMessage()));
+		}
+
+		
 	}
 
 	if (MessageManager::getInstance()->isThisTheMessageThread())
@@ -393,8 +393,6 @@ ValueTree FileChangeListener::collectAllScriptFiles(ModulatorSynthChain *chainTo
 
 		scriptDirectory.findChildFiles(allScriptFiles, File::findFiles, true, "*.js");
 
-		Array<File> mobileWildcardFiles;
-
 		for (auto f : allScriptFiles)
 		{
 			if (HiseDeviceSimulator::fileNameContainsDeviceWildcard(f))
@@ -445,7 +443,11 @@ lastCompileWasOK(false),
 currentCompileThread(nullptr),
 lastResult(Result::ok())
 {
-	
+	allInterfaceData = ValueTree("UIData");
+	auto defaultContent = ValueTree("ContentProperties");
+	defaultContent.setProperty("DeviceType", "Desktop", nullptr);
+	allInterfaceData.addChild(defaultContent, -1, nullptr);
+
 }
 
 
@@ -515,11 +517,13 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	scriptEngine->clearDebugInformation();
 
+	content->beginInitialization();
+
 	setupApi();
 
 	content = thisAsScriptBaseProcessor->getScriptingContent();
 
-	content->beginInitialization();
+	
     scriptEngine->setIsInitialising(true);
     
 	if(cycleReferenceCheckEnabled)
@@ -852,9 +856,7 @@ void JavascriptProcessor::saveScript(ValueTree &v) const
 		mergeCallbacksToScript(x);
 	}
 
-	auto pwsc = dynamic_cast<const ProcessorWithScriptingContent*>(this);
-
-	v.addChild(pwsc->getScriptingContent()->getContentProperties().createCopy(), -1, nullptr);
+	v.addChild(allInterfaceData, -1, nullptr);
 
 	v.setProperty("Script", x, nullptr);
 }
@@ -864,17 +866,30 @@ void JavascriptProcessor::restoreScript(const ValueTree &v)
 	String x = v.getProperty("Script", String());
 
 	auto contentPropertyChild = v.getChildWithName("ContentProperties");
+	auto uiData = v.getChildWithName("UIData");
+
+	static const Identifier deviceType("DeviceType");
 
 	if (contentPropertyChild.isValid())
 	{
-		auto buildComponents = !mainController->shouldSkipCompiling();
+		allInterfaceData = ValueTree("UIData");
 
-		auto r = dynamic_cast<ProcessorWithScriptingContent*>(this)->getScriptingContent()->createComponentsFromValueTree(contentPropertyChild, buildComponents);
+		auto deviceName = HiseDeviceSimulator::getDeviceName((int)HiseDeviceSimulator::DeviceType::Desktop);
 
-		if (r.failed())
-		{
-			debugError(dynamic_cast<Processor*>(this), r.getErrorMessage());
-		}
+		auto copy = contentPropertyChild.createCopy();
+
+		copy.setProperty(deviceType, deviceName, nullptr);
+
+		allInterfaceData.addChild(copy, -1, nullptr);
+
+		restoreInterfaceData(copy);
+	}
+	if (uiData.isValid())
+	{
+		allInterfaceData = uiData;
+		auto deviceIndex = (int)HiseDeviceSimulator::getDeviceType();
+
+		setDeviceTypeForInterface(deviceIndex);
 	}
 
 	if (x.startsWith("{EXTERNAL_SCRIPT}"))
@@ -899,6 +914,102 @@ void JavascriptProcessor::restoreScript(const ValueTree &v)
 		{
 			compileScript();
 		}
+	}
+}
+
+void JavascriptProcessor::setDeviceTypeForInterface(int deviceIndex)
+{
+	static const Identifier deviceType("DeviceType");
+
+	auto deviceName = HiseDeviceSimulator::getDeviceName(deviceIndex);
+
+	auto ct = allInterfaceData.getChildWithProperty(deviceType, deviceName);
+
+	if (!ct.isValid())
+		ct = allInterfaceData.getChild(0);
+
+	jassert(ct.isValid());
+
+	restoreInterfaceData(ct);
+}
+
+
+
+ValueTree JavascriptProcessor::getContentPropertiesForDevice(int deviceIndex)
+{
+	static const Identifier deviceType("DeviceType");
+
+	auto desktopName = HiseDeviceSimulator::getDeviceName((int)HiseDeviceSimulator::DeviceType::Desktop);
+	auto deviceName = HiseDeviceSimulator::getDeviceName();
+
+	auto ct = allInterfaceData.getChildWithProperty(deviceType, deviceName);
+
+	if (!ct.isValid())
+	{
+		ct = allInterfaceData.getChildWithProperty(deviceType, desktopName);
+	}
+
+	jassert(ct.isValid());
+
+	return ct;
+}
+
+bool JavascriptProcessor::hasUIDataForDeviceType() const
+{
+	static const Identifier deviceType("DeviceType");
+
+	auto deviceName = HiseDeviceSimulator::getDeviceName();
+
+	auto ct = allInterfaceData.getChildWithProperty(deviceType, deviceName);
+
+	return ct.isValid();
+}
+
+void JavascriptProcessor::createUICopyFromDesktop()
+{
+	static const Identifier deviceType("DeviceType");
+
+	auto desktopName = HiseDeviceSimulator::getDeviceName((int)HiseDeviceSimulator::DeviceType::Desktop);
+	auto deviceName = HiseDeviceSimulator::getDeviceName();
+
+	if (desktopName == deviceName)
+	{
+		jassertfalse;
+		return;
+	}
+
+	auto ct = allInterfaceData.getChildWithProperty(deviceType, deviceName);
+
+	if (ct.isValid())
+	{
+		if (!PresetHandler::showYesNoWindow("Overwrite existing data", "There is already a UI model for this device type.\nThe current data will be merciless overwritten", PresetHandler::IconType::Warning))
+		{
+			return;
+		}
+	}
+	
+	ValueTree copy = allInterfaceData.getChildWithProperty(deviceType, desktopName).createCopy();
+
+	jassert(copy.isValid());
+
+	copy.setProperty(deviceType, deviceName, nullptr);
+
+	allInterfaceData.addChild(copy, -1, nullptr);
+
+	restoreInterfaceData(copy);
+}
+
+
+
+void JavascriptProcessor::restoreInterfaceData(ValueTree propertyData)
+{
+	auto buildComponents = !mainController->shouldSkipCompiling();
+
+	auto r = dynamic_cast<ProcessorWithScriptingContent*>(this)->getScriptingContent()->createComponentsFromValueTree(propertyData, buildComponents);
+
+	if (r.failed())
+	{
+		debugError(dynamic_cast<Processor*>(this), r.getErrorMessage());
 	}
 }
 
@@ -1071,8 +1182,13 @@ bool JavascriptProcessor::parseSnippetsFromString(const String &x, bool clearUnd
 
 		if (!x.contains(filter))
 		{
-			PresetHandler::showMessageWindow("Invalid script", "The script you are trying to load is not a valid HISE script file.\nThe callback " + s->getCallbackName().toString() + " is not defined.", PresetHandler::IconType::Error);
-			debugError(dynamic_cast<Processor*>(this), s->getCallbackName().toString() + " could not be parsed!");
+            if(MessageManager::getInstance()->isThisTheMessageThread())
+            {
+                PresetHandler::showMessageWindow("Invalid script", "The script you are trying to load is not a valid HISE script file.\nThe callback " + filter + " is not defined.", PresetHandler::IconType::Error);
+            }
+            
+            debugError(dynamic_cast<Processor*>(this), s->getCallbackName().toString() + " could not be parsed!");
+			
 			return false;
 		}
 

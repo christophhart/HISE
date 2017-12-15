@@ -133,7 +133,7 @@ public:
 
 	}
 
-	void setCurrentSelection(const Array<ModulatorSamplerSound*> &newSelection)
+	void setCurrentSelection(const SampleSelection &newSelection)
 	{
 		for(int i = 0; i < currentSelection.size(); i++)
 		{
@@ -148,7 +148,10 @@ public:
 
 		for(int i = 0; i < currentSelection.size(); i++)
 		{
-			currentSelection[i]->addChangeListener(this);
+			if (auto s = currentSelection[i].get())
+			{
+				s->addChangeListener(this);
+			}
 		}
 
 
@@ -266,7 +269,7 @@ private:
 
 	LookAndFeel_V3 laf;
 
-	Array<WeakReference<ModulatorSamplerSound>> currentSelection;
+	SampleSelection currentSelection;
 
 	Array<int> dragStartValues;
 

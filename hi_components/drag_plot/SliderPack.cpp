@@ -631,6 +631,38 @@ int SliderPack::getNumSliders()
 	return sliders.size();
 }
 
+
+void SliderPack::setFlashActive(bool flashShouldBeActive)
+{
+	if (data != nullptr)
+		data->setFlashActive(flashShouldBeActive);
+}
+
+void SliderPack::setColourForSliders(int colourId, Colour c)
+{
+	// when the sliderpack gets updated, it fetches the colour from here...
+	setColour(colourId, c);
+
+	for (int i = 0; i < sliders.size(); i++)
+	{
+		sliders[i]->setColour(colourId, c);
+	}
+}
+
+void SliderPack::setShowValueOverlay(bool shouldShowValueOverlay)
+{
+	if (data != nullptr)
+		data->setShowValueOverlay(shouldShowValueOverlay);
+}
+
+void SliderPack::setStepSize(double stepSize)
+{
+	if (data != nullptr)
+	{
+		data->setRange(data->getRange().getStart(), data->getRange().getEnd(), stepSize);
+	}
+}
+
 SliderPack::Listener::~Listener()
 {
 	masterReference.clear();

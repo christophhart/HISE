@@ -337,14 +337,19 @@ public:
 
 			if (result != 0)
 				combo->setSelectedId(result);
+
+			combo->addItemsToMenu(*combo->getRootMenu());
 		}
 	}
 
 	void showPopup() override
 	{
 		PopupMenu menu = *getRootMenu();
-		menu.setLookAndFeel(&getLookAndFeel());
+
 		addItemsToMenu(menu);
+
+		menu.setLookAndFeel(&getLookAndFeel());
+		
 
 		
 
@@ -592,6 +597,8 @@ public:
 	/** sets the mode. */
 	void setMode(Mode m, double min, double max, double mid=DBL_MAX, double stepSize=DBL_MAX)
 	{ 
+		
+
 		if(mode != m)
 		{
 			mode = m; 
@@ -601,6 +608,10 @@ public:
 			setValue(modeValues[m], dontSendNotification);
 
 			repaint();
+		}
+		else
+		{
+			setModeRange(min, max, mid, stepSize);
 		}
 	};
 

@@ -354,7 +354,7 @@ void ScriptingContentOverlay::paint(Graphics& g)
 {
 	if (dragMode)
 	{
-        g.setColour(Colours::white.withAlpha(0.05f));
+        g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x47a7a7a)));
 		g.fillAll();
 
 		const bool isInPopup = findParentComponentOfClass<ScriptingEditor>() == nullptr;
@@ -452,6 +452,7 @@ bool ScriptingContentOverlay::keyPressed(const KeyPress &key)
 	{
 		if (resizeComponent)
 		{
+			
 			b->setScriptComponentPropertyDeltaForSelection(w, delta, sendNotification, true);
 			return true;
 		}
@@ -529,9 +530,12 @@ static void removeChildComponentsFromArray(Array<ScriptComponent*>& arrayToClean
 	{
 		auto sc = arrayToClean[i];
 
-		for (int j = 0; j < sc->getNumChildComponents(); j++)
+		if (auto parent = sc->getParentScriptComponent())
 		{
-			arrayToClean.removeAllInstancesOf(sc->getChildComponent(j));
+			if (arrayToClean.indexOf(parent) != -1)
+			{
+				arrayToClean.remove(i--);
+			}
 		}
 	}
 }
@@ -868,7 +872,7 @@ void ScriptingContentOverlay::Dragger::moveOverlayedComponent(int deltaX, int de
 
 	String sizeString = "[" + String(deltaX) + ", " + String(deltaY) + "]";
 
-	auto tName = ScriptComponentEditBroadcaster::getTransactionName(sc, pos, var(sizeString));
+	auto tName = "Position update: " + sizeString;
 
 	b->getUndoManager().beginNewTransaction(tName);
 
@@ -886,7 +890,7 @@ void ScriptingContentOverlay::Dragger::resizeOverlayedComponent(int newWidth, in
 
 	String sizeString = "[" + String(newWidth) + ", " + String(newHeight) + "]";
 
-	auto tName = ScriptComponentEditBroadcaster::getTransactionName(sc, size, var(sizeString));
+	auto tName = "Resize";
 
 	b->getUndoManager().beginNewTransaction(tName);
 
