@@ -707,9 +707,17 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 {
+    LOG_START("Preparing playback");
+    
 	bufferSize = samplesPerBlock;
 	sampleRate = sampleRate_;
-    
+ 
+	// Prevent high buffer sizes from blowing up the 350MB limitation...
+	if (HiseDeviceSimulator::isAUv3())
+	{
+		bufferSize = jmin<int>(samplesPerBlock, 1024);
+	}
+
     thisAsProcessor = dynamic_cast<AudioProcessor*>(this);
     
 #if ENABLE_CONSOLE_OUTPUT
@@ -724,7 +732,7 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 	// Updates the channel amount
 	multiChannelBuffer.setSize(getMainSynthChain()->getMatrix().getNumSourceChannels(), multiChannelBuffer.getNumSamples());
 
-	ProcessorHelpers::increaseBufferIfNeeded(multiChannelBuffer, samplesPerBlock);
+	ProcessorHelpers::increaseBufferIfNeeded(multiChannelBuffer, bufferSize.get());
 
 #if IS_STANDALONE_APP || IS_STANDALONE_FRONTEND
 	getMainSynthChain()->getMatrix().setNumDestinationChannels(2);
@@ -738,7 +746,7 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
     
 #endif
 
-    getMainSynthChain()->prepareToPlay(sampleRate, samplesPerBlock);
+    getMainSynthChain()->prepareToPlay(sampleRate, bufferSize.get());
 
 	getMainSynthChain()->setIsOnAir(true);
 }
