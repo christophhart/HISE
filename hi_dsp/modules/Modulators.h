@@ -366,15 +366,9 @@ protected:
 
 	AudioSampleBuffer internalBuffer;
 
-	
-
 private:
 
 	float lastConstantValue = 1.0f;
-
-	void handleFirstBuffer(float * destinationValues, int numValues) const;
-
-	mutable bool firstBuffer;
 
 };
 
