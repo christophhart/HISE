@@ -1402,8 +1402,8 @@ CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(TargetType
 
 	ProjectTemplateHelpers::handleCompilerInfo(this, templateProject);
 
-	ProjectTemplateHelpers::handleAdditionalSourceCode(this, templateProject);
-	ProjectTemplateHelpers::handleCopyProtectionInfo(this, templateProject);
+	ProjectTemplateHelpers::handleAdditionalSourceCode(this, templateProject, option);
+	ProjectTemplateHelpers::handleCopyProtectionInfo(this, templateProject, option);
 
 	return HelperClasses::saveProjucerFile(templateProject, this);
 }
@@ -1441,8 +1441,8 @@ CompileExporter::ErrorCodes CompileExporter::createStandaloneAppProjucerFile()
 	ProjectTemplateHelpers::handleCompanyInfo(this, templateProject);
 	ProjectTemplateHelpers::handleCompilerInfo(this, templateProject);
 
-	ProjectTemplateHelpers::handleAdditionalSourceCode(this, templateProject);
-	ProjectTemplateHelpers::handleCopyProtectionInfo(this, templateProject);
+	ProjectTemplateHelpers::handleAdditionalSourceCode(this, templateProject, option);
+	ProjectTemplateHelpers::handleCopyProtectionInfo(this, templateProject, option);
 
 	return HelperClasses::saveProjucerFile(templateProject, this);
 }
@@ -1506,7 +1506,7 @@ void CompileExporter::ProjectTemplateHelpers::handleVisualStudioVersion(String& 
 
 
 
-void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(CompileExporter* exporter, String &templateProject)
+void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(CompileExporter* exporter, String &templateProject, BuildOption option)
 {
 	ModulatorSynthChain* chainToExport = exporter->chainToExport;
 
@@ -1516,7 +1516,7 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 
 	File additionalMainHeaderFile = additionalSourceCodeDirectory.getChildFile("AdditionalSourceCode.h");
 
-	if (additionalMainHeaderFile.existsAsFile())
+	if (!BuildOptionHelpers::isIOS(option) && additionalMainHeaderFile.existsAsFile())
 	{
 		additionalSourceFiles.add(additionalMainHeaderFile);
 	}
@@ -1656,11 +1656,11 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 
 }
 
-void CompileExporter::ProjectTemplateHelpers::handleCopyProtectionInfo(CompileExporter* exporter, String &templateProject)
+void CompileExporter::ProjectTemplateHelpers::handleCopyProtectionInfo(CompileExporter* exporter, String &templateProject, BuildOption option)
 {
 	ModulatorSynthChain* chainToExport = exporter->chainToExport;
 
-	const bool useCopyProtection = GET_PROJECT_HANDLER(chainToExport).getPublicKey().isNotEmpty();
+    const bool useCopyProtection = !BuildOptionHelpers::isIOS(option) && GET_PROJECT_HANDLER(chainToExport).getPublicKey().isNotEmpty();
 
 	templateProject = templateProject.replace("%USE_COPY_PROTECTION%", useCopyProtection ? "enabled" : "disabled");
 }
