@@ -2,36 +2,38 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2015 - ROLI Ltd.
+   Copyright (c) 2017 - ROLI Ltd.
 
-   Permission is granted to use this software under the terms of either:
-   a) the GPL v2 (or any later version)
-   b) the Affero GPL v3
+   JUCE is an open source library subject to commercial or open-source
+   licensing.
 
-   Details of these licenses can be found at: www.gnu.org/licenses
+   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
+   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
+   27th April 2017).
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   End User License Agreement: www.juce.com/juce-5-licence
+   Privacy Policy: www.juce.com/juce-5-privacy-policy
 
-   ------------------------------------------------------------------------------
+   Or: You may also use this code under the terms of the GPL v3 (see
+   www.gnu.org/licenses).
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.juce.com for more information.
+   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
+   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
+   DISCLAIMED.
 
   ==============================================================================
 */
 
-#include "../../jucer_Headers.h"
+#include "../../Application/jucer_Headers.h"
 #include "../../Application/jucer_Application.h"
 #include "../jucer_ObjectTypes.h"
 #include "../jucer_UtilityFunctions.h"
-#include "../ui/jucer_JucerCommandIDs.h"
-#include "../ui/jucer_ComponentOverlayComponent.h"
+#include "../UI/jucer_JucerCommandIDs.h"
+#include "../UI/jucer_ComponentOverlayComponent.h"
 #include "jucer_ComponentNameProperty.h"
-#include "../properties/jucer_PositionPropertyBase.h"
-#include "../properties/jucer_ComponentColourProperty.h"
-#include "../ui/jucer_TestComponent.h"
+#include "../Properties/jucer_PositionPropertyBase.h"
+#include "../Properties/jucer_ComponentColourProperty.h"
+#include "../UI/jucer_TestComponent.h"
 
 static String getTypeInfoName (const std::type_info& info)
 {
@@ -76,7 +78,7 @@ ComponentOverlayComponent* ComponentTypeHandler::createOverlayComponent (Compone
 
 static void dummyMenuCallback (int, int) {}
 
-void ComponentTypeHandler::showPopupMenu (Component*, ComponentLayout&)
+void ComponentTypeHandler::showPopupMenu (Component*, ComponentLayout& layout)
 {
     PopupMenu m;
 
@@ -85,6 +87,16 @@ void ComponentTypeHandler::showPopupMenu (Component*, ComponentLayout&)
     m.addCommandItem (commandManager, JucerCommandIDs::toFront);
     m.addCommandItem (commandManager, JucerCommandIDs::toBack);
     m.addSeparator();
+
+    if (layout.getSelectedSet().getNumSelected() > 1)
+    {
+        m.addCommandItem (commandManager, JucerCommandIDs::alignTop);
+        m.addCommandItem (commandManager, JucerCommandIDs::alignRight);
+        m.addCommandItem (commandManager, JucerCommandIDs::alignBottom);
+        m.addCommandItem (commandManager, JucerCommandIDs::alignLeft);
+        m.addSeparator();
+    }
+
     m.addCommandItem (commandManager, StandardApplicationCommandIDs::cut);
     m.addCommandItem (commandManager, StandardApplicationCommandIDs::copy);
     m.addCommandItem (commandManager, StandardApplicationCommandIDs::paste);
@@ -344,7 +356,12 @@ public:
 
     void setPosition (const RelativePositionedRectangle& newPos)
     {
-        document.getComponentLayout()->setComponentPosition (component, newPos, true);
+        auto* l = document.getComponentLayout();
+
+        if (l->getSelectedSet().getNumSelected() > 1)
+            positionOtherSelectedComponents (ComponentTypeHandler::getComponentPosition (component), newPos);
+
+        l->setComponentPosition (component, newPos, true);
     }
 
     RelativePositionedRectangle getPosition() const
@@ -354,6 +371,41 @@ public:
 
 private:
     JucerDocument& document;
+
+    void positionOtherSelectedComponents (const RelativePositionedRectangle& oldPos, const RelativePositionedRectangle& newPos)
+    {
+        for (auto* s : document.getComponentLayout()->getSelectedSet())
+        {
+            if (s != component)
+            {
+                auto currentPos = ComponentTypeHandler::getComponentPosition (s);
+                auto diff = 0.0;
+
+                if (dimension == ComponentPositionDimension::componentX)
+                {
+                    diff = newPos.rect.getX() - oldPos.rect.getX();
+                    currentPos.rect.setX (currentPos.rect.getX() + diff);
+                }
+                else if (dimension == ComponentPositionDimension::componentY)
+                {
+                    diff = newPos.rect.getY() - oldPos.rect.getY();
+                    currentPos.rect.setY (currentPos.rect.getY() + diff);
+                }
+                else if (dimension == ComponentPositionDimension::componentWidth)
+                {
+                    diff = newPos.rect.getWidth() - oldPos.rect.getWidth();
+                    currentPos.rect.setWidth (currentPos.rect.getWidth() + diff);
+                }
+                else if (dimension == ComponentPositionDimension::componentHeight)
+                {
+                    diff = newPos.rect.getHeight() - oldPos.rect.getHeight();
+                    currentPos.rect.setHeight (currentPos.rect.getHeight() + diff);
+                }
+
+                document.getComponentLayout()->setComponentPosition (s, currentPos, true);
+            }
+        }
+    }
 };
 
 
@@ -411,27 +463,32 @@ private:
 //==============================================================================
 void ComponentTypeHandler::getEditableProperties (Component* component,
                                                   JucerDocument& document,
-                                                  Array<PropertyComponent*>& props)
+                                                  Array<PropertyComponent*>& props,
+                                                  bool multipleSelected)
 {
-    props.add (new ComponentMemberNameProperty (component, document));
-    props.add (new ComponentNameProperty (component, document));
-    props.add (new ComponentVirtualClassProperty (component, document));
+    if (! multipleSelected)
+    {
+        props.add (new ComponentMemberNameProperty (component, document));
+        props.add (new ComponentNameProperty (component, document));
+        props.add (new ComponentVirtualClassProperty (component, document));
+
+        if (dynamic_cast<SettableTooltipClient*> (component) != nullptr)
+            props.add (new TooltipProperty (component, document));
+
+        props.add (new FocusOrderProperty (component, document));
+    }
 
     props.add (new ComponentPositionProperty (component, document, "x", ComponentPositionProperty::componentX));
     props.add (new ComponentPositionProperty (component, document, "y", ComponentPositionProperty::componentY));
     props.add (new ComponentPositionProperty (component, document, "width", ComponentPositionProperty::componentWidth));
     props.add (new ComponentPositionProperty (component, document, "height", ComponentPositionProperty::componentHeight));
-
-    if (dynamic_cast<SettableTooltipClient*> (component) != nullptr)
-        props.add (new TooltipProperty (component, document));
-
-    props.add (new FocusOrderProperty (component, document));
 }
 
-void ComponentTypeHandler::addPropertiesToPropertyPanel (Component* comp, JucerDocument& document, PropertyPanel& panel)
+void ComponentTypeHandler::addPropertiesToPropertyPanel (Component* comp, JucerDocument& document,
+                                                         PropertyPanel& panel, bool multipleSelected)
 {
     Array <PropertyComponent*> props;
-    getEditableProperties (comp, document, props);
+    getEditableProperties (comp, document, props, multipleSelected);
 
     panel.addSection (getClassName (comp), props);
 }
@@ -523,7 +580,7 @@ void ComponentTypeHandler::fillInResizeCode (GeneratedCode& code, Component* com
 
 String ComponentTypeHandler::getCreationParameters (GeneratedCode&, Component*)
 {
-    return String();
+    return {};
 }
 
 void ComponentTypeHandler::fillInCreationCode (GeneratedCode& code, Component* component, const String& memberVariableName)

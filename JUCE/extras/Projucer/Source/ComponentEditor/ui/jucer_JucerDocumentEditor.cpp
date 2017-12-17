@@ -2,29 +2,30 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2015 - ROLI Ltd.
+   Copyright (c) 2017 - ROLI Ltd.
 
-   Permission is granted to use this software under the terms of either:
-   a) the GPL v2 (or any later version)
-   b) the Affero GPL v3
+   JUCE is an open source library subject to commercial or open-source
+   licensing.
 
-   Details of these licenses can be found at: www.gnu.org/licenses
+   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
+   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
+   27th April 2017).
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   End User License Agreement: www.juce.com/juce-5-licence
+   Privacy Policy: www.juce.com/juce-5-privacy-policy
 
-   ------------------------------------------------------------------------------
+   Or: You may also use this code under the terms of the GPL v3 (see
+   www.gnu.org/licenses).
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.juce.com for more information.
+   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
+   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
+   DISCLAIMED.
 
   ==============================================================================
 */
 
-#include "../../jucer_Headers.h"
-#include "../../Application/jucer_AppearanceSettings.h"
-#include "../../Application/jucer_GlobalPreferences.h"
+#include "../../Application/jucer_Headers.h"
+#include "../../Settings/jucer_AppearanceSettings.h"
 #include "../../Application/jucer_Application.h"
 #include "jucer_JucerDocumentEditor.h"
 #include "jucer_TestComponent.h"
@@ -32,10 +33,9 @@
 #include "jucer_ComponentLayoutPanel.h"
 #include "jucer_PaintRoutinePanel.h"
 #include "jucer_ResourceEditorPanel.h"
-#include "../properties/jucer_ComponentTextProperty.h"
-#include "../properties/jucer_ComponentChoiceProperty.h"
-#include "../ui/jucer_JucerCommandIDs.h"
-
+#include "../Properties/jucer_ComponentTextProperty.h"
+#include "../Properties/jucer_ComponentChoiceProperty.h"
+#include "../UI/jucer_JucerCommandIDs.h"
 
 //==============================================================================
 class ExtraMethodsList  : public PropertyComponent,
@@ -69,9 +69,15 @@ public:
             return;
 
         if (rowIsSelected)
+        {
             g.fillAll (findColour (TextEditor::highlightColourId));
+            g.setColour (findColour (defaultHighlightedTextColourId));
+        }
+        else
+        {
+            g.setColour (findColour (defaultTextColourId));
+        }
 
-        g.setColour (Colours::black);
         g.setFont (height * 0.6f);
         g.drawText (returnValues [row] + " " + baseClasses [row] + "::" + methods [row],
                     30, 0, width - 32, height,
@@ -163,14 +169,19 @@ public:
         document.removeChangeListener (this);
     }
 
-    void resized()
+    void resized() override
     {
         int pw = jmin (getWidth() / 2 - 20, 350);
         panel1.setBounds (10, 6, pw, getHeight() - 12);
         panel2.setBounds (panel1.getRight() + 20, panel1.getY(), pw, panel1.getHeight());
     }
 
-    void changeListenerCallback (ChangeBroadcaster*)
+    void paint (Graphics& g) override
+    {
+        g.fillAll (findColour (secondaryBackgroundColourId));
+    }
+
+    void changeListenerCallback (ChangeBroadcaster*) override
     {
         panel1.refreshAll();
         panel2.refreshAll();
@@ -311,11 +322,7 @@ static SourceCodeEditor* createCodeEditor (const File& file, SourceCodeDocument&
 //==============================================================================
 JucerDocumentEditor::JucerDocumentEditor (JucerDocument* const doc)
     : document (doc),
-      tabbedComponent (TabbedButtonBar::TabsAtTop),
-      compLayoutPanel (0),
-      lastViewportX (0),
-      lastViewportY (0),
-      currentZoomLevel (1.0)
+      tabbedComponent (doc)
 {
     setOpaque (true);
 
@@ -339,8 +346,7 @@ JucerDocumentEditor::JucerDocumentEditor (JucerDocument* const doc)
                                                                      document->getCppDocument()), true);
 
         updateTabs();
-
-        tabbedComponent.setCurrentTabIndex (1);
+        restoreLastSelectedTab();
 
         document->addChangeListener (this);
 
@@ -353,6 +359,7 @@ JucerDocumentEditor::JucerDocumentEditor (JucerDocument* const doc)
 
 JucerDocumentEditor::~JucerDocumentEditor()
 {
+    saveLastSelectedTab();
     tabbedComponent.clearTabs();
 }
 
@@ -418,12 +425,12 @@ void JucerDocumentEditor::updateTabs()
 //==============================================================================
 void JucerDocumentEditor::paint (Graphics& g)
 {
-    ProjucerLookAndFeel::fillWithBackgroundTexture (*this, g);
+    g.fillAll (findColour (backgroundColourId));
 }
 
 void JucerDocumentEditor::resized()
 {
-    tabbedComponent.setBounds (getLocalBounds().reduced (4, 2));
+    tabbedComponent.setBounds (getLocalBounds().withTrimmedLeft (12));
 }
 
 void JucerDocumentEditor::changeListenerCallback (ChangeBroadcaster*)
@@ -586,15 +593,73 @@ void JucerDocumentEditor::addComponent (const int index)
         document->beginTransaction();
     }
 }
+//==============================================================================
+void JucerDocumentEditor::saveLastSelectedTab() const
+{
+    if (document != nullptr)
+    {
+        auto* project = document->getCppDocument().getProject();
+        if (project != nullptr)
+        {
+            auto& projectProps = project->getStoredProperties();
+
+            ScopedPointer<XmlElement> root (projectProps.getXmlValue ("GUIComponentsLastTab"));
+
+            if (root == nullptr)
+                root = new XmlElement ("FILES");
+
+            auto fileName = document->getCppFile().getFileName();
+
+            auto* child = root->getChildByName (fileName);
+
+            if (child == nullptr)
+                child = root->createNewChildElement (fileName);
+
+            child->setAttribute ("tab", tabbedComponent.getCurrentTabIndex());
+
+            projectProps.setValue ("GUIComponentsLastTab", root);
+        }
+    }
+}
+
+void JucerDocumentEditor::restoreLastSelectedTab()
+{
+    if (document != nullptr)
+    {
+        auto* project = document->getCppDocument().getProject();
+        if (project != nullptr)
+        {
+            ScopedPointer<XmlElement> root (project->getStoredProperties().getXmlValue ("GUIComponentsLastTab"));
+            if (root != nullptr)
+            {
+                auto* child = root->getChildByName (document->getCppFile().getFileName());
+
+                if (child != nullptr)
+                    tabbedComponent.setCurrentTabIndex (child->getIntAttribute ("tab"));
+            }
+        }
+    }
+}
 
 //==============================================================================
 bool JucerDocumentEditor::isSomethingSelected() const
 {
-    if (ComponentLayout* layout = getCurrentLayout())
+    if (auto* layout = getCurrentLayout())
         return layout->getSelectedSet().getNumSelected() > 0;
 
-    if (PaintRoutine* routine = getCurrentPaintRoutine())
+    if (auto* routine = getCurrentPaintRoutine())
         return routine->getSelectedElements().getNumSelected() > 0;
+
+    return false;
+}
+
+bool JucerDocumentEditor::areMultipleThingsSelected() const
+{
+    if (auto* layout = getCurrentLayout())
+        return layout->getSelectedSet().getNumSelected() > 1;
+
+    if (auto* routine = getCurrentPaintRoutine())
+        return routine->getSelectedElements().getNumSelected() > 1;
 
     return false;
 }
@@ -622,6 +687,10 @@ void JucerDocumentEditor::getAllCommands (Array <CommandID>& commands)
         JucerCommandIDs::compOverlay33,
         JucerCommandIDs::compOverlay66,
         JucerCommandIDs::compOverlay100,
+        JucerCommandIDs::alignTop,
+        JucerCommandIDs::alignRight,
+        JucerCommandIDs::alignBottom,
+        JucerCommandIDs::alignLeft,
         StandardApplicationCommandIDs::undo,
         StandardApplicationCommandIDs::redo,
         StandardApplicationCommandIDs::cut,
@@ -802,6 +871,34 @@ void JucerDocumentEditor::getCommandInfo (const CommandID commandID, Application
             result.setActive (currentPaintRoutine != nullptr && document->getComponentLayout() != nullptr);
             result.setTicked (amount == currentAmount);
         }
+        break;
+
+    case JucerCommandIDs::alignTop:
+            result.setInfo (TRANS ("Align top"),
+                            TRANS ("Aligns the top edges of all selected components to the first component that was selected."),
+                            CommandCategories::editing, 0);
+            result.setActive (areMultipleThingsSelected());
+        break;
+
+    case JucerCommandIDs::alignRight:
+            result.setInfo (TRANS ("Align right"),
+                            TRANS ("Aligns the right edges of all selected components to the first component that was selected."),
+                            CommandCategories::editing, 0);
+            result.setActive (areMultipleThingsSelected());
+        break;
+
+    case JucerCommandIDs::alignBottom:
+            result.setInfo (TRANS ("Align bottom"),
+                            TRANS ("Aligns the bottom edges of all selected components to the first component that was selected."),
+                            CommandCategories::editing, 0);
+            result.setActive (areMultipleThingsSelected());
+        break;
+
+    case JucerCommandIDs::alignLeft:
+            result.setInfo (TRANS ("Align left"),
+                            TRANS ("Aligns the left edges of all selected components to the first component that was selected."),
+                            CommandCategories::editing, 0);
+            result.setActive (areMultipleThingsSelected());
         break;
 
     case StandardApplicationCommandIDs::undo:
@@ -997,6 +1094,38 @@ bool JucerDocumentEditor::perform (const InvocationInfo& info)
                 currentPaintRoutine->ungroupSelected();
             break;
 
+        case JucerCommandIDs::alignTop:
+            if (currentLayout != nullptr)
+                currentLayout->alignTop();
+            else if (currentPaintRoutine != nullptr)
+                currentPaintRoutine->alignTop();
+
+            break;
+
+        case JucerCommandIDs::alignRight:
+            if (currentLayout != nullptr)
+                currentLayout->alignRight();
+            else if (currentPaintRoutine != nullptr)
+                currentPaintRoutine->alignRight();
+
+            break;
+
+        case JucerCommandIDs::alignBottom:
+            if (currentLayout != nullptr)
+                currentLayout->alignBottom();
+            else if (currentPaintRoutine != nullptr)
+                currentPaintRoutine->alignBottom();
+
+            break;
+
+        case JucerCommandIDs::alignLeft:
+            if (currentLayout != nullptr)
+                currentLayout->alignLeft();
+            else if (currentPaintRoutine != nullptr)
+                currentPaintRoutine->alignLeft();
+
+            break;
+
         case StandardApplicationCommandIDs::cut:
             if (currentLayout != nullptr)
             {
@@ -1021,9 +1150,7 @@ bool JucerDocumentEditor::perform (const InvocationInfo& info)
 
         case StandardApplicationCommandIDs::paste:
             {
-                ScopedPointer<XmlElement> doc (XmlDocument::parse (SystemClipboard::getTextFromClipboard()));
-
-                if (doc != nullptr)
+                if (ScopedPointer<XmlElement> doc = XmlDocument::parse (SystemClipboard::getTextFromClipboard()))
                 {
                     if (doc->hasTagName (ComponentLayout::clipboardXmlTag))
                     {
@@ -1088,9 +1215,8 @@ bool JucerDocumentEditor::keyPressed (const KeyPress& key)
 JucerDocumentEditor* JucerDocumentEditor::getActiveDocumentHolder()
 {
     ApplicationCommandInfo info (0);
-    ApplicationCommandTarget* target = ProjucerApplication::getCommandManager().getTargetForCommand (JucerCommandIDs::editCompLayout, info);
-
-    return dynamic_cast<JucerDocumentEditor*> (target);
+    return dynamic_cast<JucerDocumentEditor*> (ProjucerApplication::getCommandManager()
+                                                  .getTargetForCommand (JucerCommandIDs::editCompLayout, info));
 }
 
 Image JucerDocumentEditor::createComponentLayerSnapshot() const
@@ -1098,7 +1224,7 @@ Image JucerDocumentEditor::createComponentLayerSnapshot() const
     if (compLayoutPanel != nullptr)
         return compLayoutPanel->createComponentSnapshot();
 
-    return Image();
+    return {};
 }
 
 const int gridSnapMenuItemBase = 0x8723620;
@@ -1180,13 +1306,13 @@ void createGUIEditorMenu (PopupMenu& menu)
 
 void handleGUIEditorMenuCommand (int menuItemID)
 {
-    if (JucerDocumentEditor* ed = JucerDocumentEditor::getActiveDocumentHolder())
+    if (auto* ed = JucerDocumentEditor::getActiveDocumentHolder())
     {
         int gridIndex = menuItemID - gridSnapMenuItemBase;
 
         if (isPositiveAndBelow (gridIndex, numElementsInArray (snapSizes)))
         {
-            JucerDocument& doc = *ed->getDocument();
+            auto& doc = *ed->getDocument();
 
             doc.setSnappingGrid (snapSizes [gridIndex],
                                  doc.isSnapActive (false),

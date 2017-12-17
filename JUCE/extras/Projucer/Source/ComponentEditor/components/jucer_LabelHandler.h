@@ -2,26 +2,32 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2015 - ROLI Ltd.
+   Copyright (c) 2017 - ROLI Ltd.
 
-   Permission is granted to use this software under the terms of either:
-   a) the GPL v2 (or any later version)
-   b) the Affero GPL v3
+   JUCE is an open source library subject to commercial or open-source
+   licensing.
 
-   Details of these licenses can be found at: www.gnu.org/licenses
+   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
+   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
+   27th April 2017).
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   End User License Agreement: www.juce.com/juce-5-licence
+   Privacy Policy: www.juce.com/juce-5-privacy-policy
 
-   ------------------------------------------------------------------------------
+   Or: You may also use this code under the terms of the GPL v3 (see
+   www.gnu.org/licenses).
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.juce.com for more information.
+   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
+   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
+   DISCLAIMED.
 
   ==============================================================================
 */
 
+#pragma once
+
+
+//==============================================================================
 class LabelHandler  : public ComponentTypeHandler
 {
 public:
@@ -36,12 +42,12 @@ public:
         registerColour (TextEditor::highlightColourId, "highlight", "hiliteCol");
     }
 
-    Component* createNewComponent (JucerDocument*)
+    Component* createNewComponent (JucerDocument*) override
     {
         return new Label ("new label", "label text");
     }
 
-    XmlElement* createXmlFor (Component* comp, const ComponentLayout* layout)
+    XmlElement* createXmlFor (Component* comp, const ComponentLayout* layout) override
     {
         Label* const l = dynamic_cast<Label*> (comp);
 
@@ -54,14 +60,19 @@ public:
 
         e->setAttribute ("fontname", l->getProperties().getWithDefault ("typefaceName", FontPropertyComponent::getDefaultFont()).toString());
         e->setAttribute ("fontsize", roundToInt (l->getFont().getHeight() * 100.0) / 100.0);
+        e->setAttribute ("kerning", roundToInt (l->getFont().getExtraKerningFactor() * 1000.0) / 1000.0);
         e->setAttribute ("bold", l->getFont().isBold());
         e->setAttribute ("italic", l->getFont().isItalic());
         e->setAttribute ("justification", l->getJustificationType().getFlags());
+        if (l->getFont().getTypefaceStyle() != "Regular")
+        {
+            e->setAttribute ("typefaceStyle", l->getFont().getTypefaceStyle());
+        }
 
         return e;
     }
 
-    bool restoreFromXml (const XmlElement& xml, Component* comp, const ComponentLayout* layout)
+    bool restoreFromXml (const XmlElement& xml, Component* comp, const ComponentLayout* layout) override
     {
         Label* const l = dynamic_cast<Label*> (comp);
 
@@ -74,6 +85,11 @@ public:
         font.setHeight ((float) xml.getDoubleAttribute ("fontsize", 15.0));
         font.setBold (xml.getBoolAttribute ("bold", false));
         font.setItalic (xml.getBoolAttribute ("italic", false));
+        font.setExtraKerningFactor ((float) xml.getDoubleAttribute ("kerning", 0.0));
+        auto fontStyle = xml.getStringAttribute ("typefaceStyle");
+        if (! fontStyle.isEmpty())
+            font.setTypefaceStyle (fontStyle);
+
         l->setFont (font);
 
         l->getProperties().set ("typefaceName", xml.getStringAttribute ("fontname", FontPropertyComponent::getDefaultFont()));
@@ -97,7 +113,7 @@ public:
         label->setFont (f);
     }
 
-    String getCreationParameters (GeneratedCode& code, Component* component)
+    String getCreationParameters (GeneratedCode& code, Component* component) override
     {
         Label* const l = dynamic_cast<Label*> (component);
 
@@ -106,7 +122,7 @@ public:
                  + quotedString (l->getText(), code.shouldUseTransMacro());
     }
 
-    void fillInCreationCode (GeneratedCode& code, Component* component, const String& memberVariableName)
+    void fillInCreationCode (GeneratedCode& code, Component* component, const String& memberVariableName) override
     {
         ComponentTypeHandler::fillInCreationCode (code, component, memberVariableName);
 
@@ -134,13 +150,13 @@ public:
         code.constructorCode += s;
     }
 
-    void fillInGeneratedCode (Component* component, GeneratedCode& code)
+    void fillInGeneratedCode (Component* component, GeneratedCode& code) override
     {
         ComponentTypeHandler::fillInGeneratedCode (component, code);
 
         if (needsCallback (component))
         {
-            String& callback = code.getCallbackCode ("public LabelListener",
+            String& callback = code.getCallbackCode ("public Label::Listener",
                                                      "void",
                                                      "labelTextChanged (Label* labelThatHasChanged)",
                                                      true);
@@ -157,24 +173,30 @@ public:
         }
     }
 
-    void getEditableProperties (Component* component, JucerDocument& document, Array<PropertyComponent*>& props)
+    void getEditableProperties (Component* component, JucerDocument& document,
+                                Array<PropertyComponent*>& props, bool multipleSelected) override
     {
-        ComponentTypeHandler::getEditableProperties (component, document, props);
+        ComponentTypeHandler::getEditableProperties (component, document, props, multipleSelected);
 
-        Label* const l = dynamic_cast<Label*> (component);
-        props.add (new LabelTextProperty (l, document));
+        if (multipleSelected)
+            return;
 
-        props.add (new LabelJustificationProperty (l, document));
-        props.add (new FontNameProperty (l, document));
-        props.add (new FontSizeProperty (l, document));
-        props.add (new FontStyleProperty (l, document));
+        if (auto* const l = dynamic_cast<Label*> (component))
+        {
+            props.add (new LabelTextProperty          (l, document));
+            props.add (new LabelJustificationProperty (l, document));
+            props.add (new FontNameProperty           (l, document));
+            props.add (new FontStyleProperty          (l, document));
+            props.add (new FontSizeProperty           (l, document));
+            props.add (new FontKerningProperty        (l, document));
+
+            props.add (new LabelEditableProperty (l, document));
+
+            if (l->isEditableOnDoubleClick() || l->isEditableOnSingleClick())
+                props.add (new LabelLossOfFocusProperty (l, document));
+        }
 
         addColourProperties (component, document, props);
-
-        props.add (new LabelEditableProperty (l, document));
-
-        if (l->isEditableOnDoubleClick() || l->isEditableOnSingleClick())
-            props.add (new LabelLossOfFocusProperty (l, document));
     }
 
     static bool needsCallback (Component* label)
@@ -567,10 +589,7 @@ private:
         {
             document.addChangeListener (this);
 
-            choices.add ("normal");
-            choices.add ("bold");
-            choices.add ("italic");
-            choices.add ("bold + italic");
+            updateStylesList (label->getFont());
         }
 
         ~FontStyleProperty()
@@ -578,12 +597,44 @@ private:
             document.removeChangeListener (this);
         }
 
+        void updateStylesList (const Font& newFont)
+        {
+            if (getNumChildComponents() > 0)
+            {
+                if (auto cb = dynamic_cast<ComboBox*> (getChildComponent (0)))
+                    cb->clear();
+
+                getChildComponent (0)->setVisible (false);
+                removeAllChildren();
+            }
+
+            choices.clear();
+
+            choices.add ("Regular");
+            choices.add ("Bold");
+            choices.add ("Italic");
+            choices.add ("Bold Italic");
+
+            choices.mergeArray (newFont.getAvailableStyles());
+            refresh();
+        }
+
         void setIndex (int newIndex)
         {
             Font f (label->getFont());
 
-            f.setBold (newIndex == 1 || newIndex == 3);
-            f.setItalic (newIndex == 2 || newIndex == 3);
+            if (f.getAvailableStyles().contains (choices[newIndex]))
+            {
+                f.setBold   (false);
+                f.setItalic (false);
+                f.setTypefaceStyle (choices[newIndex]);
+            }
+            else
+            {
+                f.setTypefaceStyle ("Regular");
+                f.setBold   (newIndex == 1 || newIndex == 3);
+                f.setItalic (newIndex == 2 || newIndex == 3);
+            }
 
             document.perform (new FontStyleChangeAction (label, *document.getComponentLayout(), f),
                               "Change Label font style");
@@ -591,17 +642,28 @@ private:
 
         int getIndex() const
         {
-            if (label->getFont().isBold() && label->getFont().isItalic())
-                return 3;
-            else if (label->getFont().isBold())
-                return 1;
-            else if (label->getFont().isItalic())
-                return 2;
+            auto f = label->getFont();
 
-            return 0;
+            const auto typefaceIndex = choices.indexOf (f.getTypefaceStyle());
+            if (typefaceIndex == -1)
+            {
+                if (f.isBold() && f.isItalic())
+                    return 3;
+                else if (f.isBold())
+                    return 1;
+                else if (f.isItalic())
+                    return 2;
+
+                return 0;
+            }
+
+            return typefaceIndex;
         }
 
-        void changeListenerCallback (ChangeBroadcaster*)     { refresh(); }
+        void changeListenerCallback (ChangeBroadcaster*)
+        {
+            updateStylesList (label->getFont());
+        }
 
     private:
         Label* const label;
@@ -634,6 +696,80 @@ private:
             }
 
             Font newState, oldState;
+        };
+    };
+
+    //==============================================================================
+    class FontKerningProperty  : public SliderPropertyComponent,
+                                 public ChangeListener
+    {
+    public:
+        FontKerningProperty (Label* const label_, JucerDocument& doc)
+            : SliderPropertyComponent ("kerning", -0.5, 0.5, 0.001),
+              label (label_),
+              document (doc)
+        {
+            document.addChangeListener (this);
+        }
+
+        ~FontKerningProperty()
+        {
+            document.removeChangeListener (this);
+        }
+
+        void setValue (double newValue)
+        {
+            document.getUndoManager().undoCurrentTransactionOnly();
+
+            document.perform (new FontKerningChangeAction (label, *document.getComponentLayout(), (float) newValue),
+                              "Change Label font kerning");
+        }
+
+        double getValue() const
+        {
+            return label->getFont().getExtraKerningFactor();
+        }
+
+        void changeListenerCallback (ChangeBroadcaster*)
+        {
+            refresh();
+        }
+
+    private:
+        Label* const label;
+        JucerDocument& document;
+
+        class FontKerningChangeAction  : public ComponentUndoableAction <Label>
+        {
+        public:
+            FontKerningChangeAction (Label* const comp, ComponentLayout& l, const float newState_)
+                : ComponentUndoableAction <Label> (comp, l),
+                  newState (newState_)
+            {
+                oldState = comp->getFont().getExtraKerningFactor();
+            }
+
+            bool perform()
+            {
+                showCorrectTab();
+                Font f (getComponent()->getFont());
+                f.setExtraKerningFactor ((float) newState);
+                getComponent()->setFont (f);
+                changed();
+                return true;
+            }
+
+            bool undo()
+            {
+                showCorrectTab();
+                Font f (getComponent()->getFont());
+                f.setExtraKerningFactor ((float) oldState);
+                getComponent()->setFont (f);
+                changed();
+                return true;
+            }
+
+            float newState, oldState;
         };
     };
 };

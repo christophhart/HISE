@@ -2,26 +2,32 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2015 - ROLI Ltd.
+   Copyright (c) 2017 - ROLI Ltd.
 
-   Permission is granted to use this software under the terms of either:
-   a) the GPL v2 (or any later version)
-   b) the Affero GPL v3
+   JUCE is an open source library subject to commercial or open-source
+   licensing.
 
-   Details of these licenses can be found at: www.gnu.org/licenses
+   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
+   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
+   27th April 2017).
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   End User License Agreement: www.juce.com/juce-5-licence
+   Privacy Policy: www.juce.com/juce-5-privacy-policy
 
-   ------------------------------------------------------------------------------
+   Or: You may also use this code under the terms of the GPL v3 (see
+   www.gnu.org/licenses).
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.juce.com for more information.
+   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
+   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
+   DISCLAIMED.
 
   ==============================================================================
 */
 
+#pragma once
+
+
+//==============================================================================
 class HyperlinkButtonHandler  : public ButtonHandler
 {
 public:
@@ -31,7 +37,7 @@ public:
         registerColour (HyperlinkButton::textColourId, "text", "textCol");
     }
 
-    Component* createNewComponent (JucerDocument*)
+    Component* createNewComponent (JucerDocument*) override
     {
         HyperlinkButton* hb = new HyperlinkButton ("new hyperlink", URL ("http://www.juce.com"));
 
@@ -39,15 +45,21 @@ public:
         return hb;
     }
 
-    void getEditableProperties (Component* component, JucerDocument& document, Array<PropertyComponent*>& props)
+    void getEditableProperties (Component* component, JucerDocument& document,
+                                Array<PropertyComponent*>& props, bool multipleSelected) override
     {
-        HyperlinkButton* const hb = (HyperlinkButton*) component;
-        ButtonHandler::getEditableProperties (component, document, props);
-        props.add (new HyperlinkURLProperty (hb, document));
+        ButtonHandler::getEditableProperties (component, document, props, multipleSelected);
+
+        if (multipleSelected)
+            return;
+
+        if (auto* hb = dynamic_cast<HyperlinkButton*> (component))
+            props.add (new HyperlinkURLProperty (hb, document));
+
         addColourProperties (component, document, props);
     }
 
-    XmlElement* createXmlFor (Component* comp, const ComponentLayout* layout)
+    XmlElement* createXmlFor (Component* comp, const ComponentLayout* layout) override
     {
         HyperlinkButton* const hb = (HyperlinkButton*) comp;
         XmlElement* const e = ButtonHandler::createXmlFor (comp, layout);
@@ -55,7 +67,7 @@ public:
         return e;
     }
 
-    bool restoreFromXml (const XmlElement& xml, Component* comp, const ComponentLayout* layout)
+    bool restoreFromXml (const XmlElement& xml, Component* comp, const ComponentLayout* layout) override
     {
         HyperlinkButton* const hb = (HyperlinkButton*) comp;
 
@@ -67,7 +79,7 @@ public:
         return true;
     }
 
-    String getCreationParameters (GeneratedCode& code, Component* comp)
+    String getCreationParameters (GeneratedCode& code, Component* comp) override
     {
         HyperlinkButton* const hb = dynamic_cast<HyperlinkButton*> (comp);
 
@@ -77,7 +89,7 @@ public:
                 + ")";
     }
 
-    void fillInCreationCode (GeneratedCode& code, Component* component, const String& memberVariableName)
+    void fillInCreationCode (GeneratedCode& code, Component* component, const String& memberVariableName) override
     {
         ButtonHandler::fillInCreationCode (code, component, memberVariableName);
 
@@ -96,7 +108,7 @@ private:
 
         void setText (const String& newText) override
         {
-            document.perform (new HyperlinkURLChangeAction (component, *document.getComponentLayout(), URL (newText)),
+            document.perform (new HyperlinkURLChangeAction (component, *document.getComponentLayout(), URL::createWithoutParsing (newText)),
                               "Change hyperlink URL");
         }
 

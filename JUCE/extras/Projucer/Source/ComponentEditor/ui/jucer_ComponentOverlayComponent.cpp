@@ -2,27 +2,29 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2015 - ROLI Ltd.
+   Copyright (c) 2017 - ROLI Ltd.
 
-   Permission is granted to use this software under the terms of either:
-   a) the GPL v2 (or any later version)
-   b) the Affero GPL v3
+   JUCE is an open source library subject to commercial or open-source
+   licensing.
 
-   Details of these licenses can be found at: www.gnu.org/licenses
+   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
+   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
+   27th April 2017).
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   End User License Agreement: www.juce.com/juce-5-licence
+   Privacy Policy: www.juce.com/juce-5-privacy-policy
 
-   ------------------------------------------------------------------------------
+   Or: You may also use this code under the terms of the GPL v3 (see
+   www.gnu.org/licenses).
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.juce.com for more information.
+   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
+   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
+   DISCLAIMED.
 
   ==============================================================================
 */
 
-#include "../../jucer_Headers.h"
+#include "../../Application/jucer_Headers.h"
 #include "jucer_ComponentLayoutEditor.h"
 #include "../jucer_UtilityFunctions.h"
 
@@ -76,11 +78,17 @@ void ComponentOverlayComponent::paint (Graphics& g)
 {
     jassert (target != nullptr);
 
+    border->setColour (backgroundColourId, Colours::transparentBlack);
     if (selected)
     {
+        auto selectedItems = layout.getSelectedSet();
+        auto baseColour = findColour (defaultHighlightColourId);
+
         const BorderSize<int> borderSize (border->getBorderThickness());
 
-        drawResizableBorder (g, getWidth(), getHeight(), borderSize, (isMouseOverOrDragging() || border->isMouseOverOrDragging()));
+        drawResizableBorder (g, getWidth(), getHeight(), borderSize,
+                             (isMouseOverOrDragging() || border->isMouseOverOrDragging()),
+                             baseColour.withAlpha (selectedItems.getSelectedItem (0) == target ? 1.0f : 0.3f));
     }
     else if (isMouseOverOrDragging())
     {
@@ -229,21 +237,38 @@ void ComponentOverlayComponent::checkBounds (Rectangle<int>& b,
     }
 }
 
-void ComponentOverlayComponent::applyBoundsToComponent (Component* component, const Rectangle<int>& b)
+void ComponentOverlayComponent::applyBoundsToComponent (Component& component, Rectangle<int> b)
 {
-    if (component->getBounds() != b)
+    if (component.getBounds() != b)
     {
         layout.getDocument()->getUndoManager().undoCurrentTransactionOnly();
 
-        component->setBounds (b);
+        auto dX = b.getX() - component.getX();
+        auto dY = b.getY() - component.getY();
+        auto dW = b.getWidth() - component.getWidth();
+        auto dH = b.getHeight() - component.getHeight();
 
-        if (Component* const parent = target->getParentComponent())
+        component.setBounds (b);
+
+        if (auto* parent = target->getParentComponent())
             target->setBounds (b.getX() + borderThickness - parent->getX(),
                                b.getY() + borderThickness - parent->getY(),
                                b.getWidth() - borderThickness * 2,
                                b.getHeight() - borderThickness * 2);
 
         layout.updateStoredComponentPosition (target, true);
+
+        if (layout.getSelectedSet().getNumSelected() > 1)
+        {
+            for (auto s : layout.getSelectedSet())
+            {
+                if (s != target)
+                {
+                    s->setBounds (s->getX() + dX, s->getY() + dY, s->getWidth() + dW, s->getHeight() + dH);
+                    layout.updateStoredComponentPosition (s, true);
+                }
+            }
+        }
     }
 }
 

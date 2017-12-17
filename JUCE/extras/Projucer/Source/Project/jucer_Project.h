@@ -2,31 +2,33 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2015 - ROLI Ltd.
+   Copyright (c) 2017 - ROLI Ltd.
 
-   Permission is granted to use this software under the terms of either:
-   a) the GPL v2 (or any later version)
-   b) the Affero GPL v3
+   JUCE is an open source library subject to commercial or open-source
+   licensing.
 
-   Details of these licenses can be found at: www.gnu.org/licenses
+   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
+   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
+   27th April 2017).
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   End User License Agreement: www.juce.com/juce-5-licence
+   Privacy Policy: www.juce.com/juce-5-privacy-policy
 
-   ------------------------------------------------------------------------------
+   Or: You may also use this code under the terms of the GPL v3 (see
+   www.gnu.org/licenses).
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.juce.com for more information.
+   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
+   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
+   DISCLAIMED.
 
   ==============================================================================
 */
 
-#ifndef JUCER_PROJECT_H_INCLUDED
-#define JUCER_PROJECT_H_INCLUDED
+#pragma once
+
+#include "jucer_ProjectType.h"
 
 class ProjectExporter;
-class ProjectType;
 class LibraryModule;
 class EnabledModuleList;
 
@@ -54,8 +56,8 @@ public:
     //==============================================================================
     File getProjectFolder() const                       { return getFile().getParentDirectory(); }
     ValueTree getProjectRoot() const                    { return projectRoot; }
-    String getTitle() const;
-    Value getProjectNameValue()                         { return getMainGroup().getNameValue(); }
+    String getTitle() const                             { return projectRoot [Ids::name]; }
+    Value getProjectNameValue()                         { return getProjectValue (Ids::name); }
     String getProjectFilenameRoot()                     { return File::createLegalFileName (getDocumentTitle()); }
     String getProjectUID() const                        { return projectRoot [Ids::ID]; }
 
@@ -91,17 +93,27 @@ public:
     String getDefaultAAXIdentifier()                    { return getDefaultBundleIdentifier(); }
 
     Value getCompanyName()                              { return getProjectValue (Ids::companyName); }
+    Value getCompanyCopyright()                         { return getProjectValue (Ids::companyCopyright); }
     Value getCompanyWebsite()                           { return getProjectValue (Ids::companyWebsite); }
     Value getCompanyEmail()                             { return getProjectValue (Ids::companyEmail); }
-	Value getCompanyCopyright()							{ return getProjectValue(Ids::companyCopyright); }
+
+    Value shouldDisplaySplashScreen()                   { return getProjectValue (Ids::displaySplashScreen); }
+    Value shouldReportAppUsage()                        { return getProjectValue (Ids::reportAppUsage); }
+    Value splashScreenColour()                          { return getProjectValue (Ids::splashScreenColour); }
+
+    Value getCppStandardValue()                         { return getProjectValue (Ids::cppLanguageStandard); }
 
     //==============================================================================
-    Value getProjectValue (const Identifier& name)      { return projectRoot.getPropertyAsValue (name, getUndoManagerFor (projectRoot)); }
+    Value getProjectValue (const Identifier& name)       { return projectRoot.getPropertyAsValue (name, getUndoManagerFor (projectRoot)); }
+    var   getProjectVar   (const Identifier& name) const { return projectRoot.getProperty        (name); }
 
-    Value getProjectPreprocessorDefs()                  { return getProjectValue (Ids::defines); }
+    Value getProjectHeaderSearchPaths()                  { return getProjectValue (Ids::headerPath); }
+    String getHeaderSearchPaths() const                  { return projectRoot [Ids::headerPath]; }
+
+    Value getProjectPreprocessorDefs()                   { return getProjectValue (Ids::defines); }
     StringPairArray getPreprocessorDefs() const;
 
-    Value getProjectUserNotes()                         { return getProjectValue (Ids::userNotes); }
+    Value getProjectUserNotes()                          { return getProjectValue (Ids::userNotes); }
 
     //==============================================================================
     File getGeneratedCodeFolder() const                         { return getFile().getSiblingFile ("JuceLibraryCode"); }
@@ -123,13 +135,25 @@ public:
 
     //==============================================================================
     // Some helper methods for audio plugin/host projects.
-    Value shouldBuildVST()                      { return getProjectValue ("buildVST"); }
-    Value shouldBuildVST3()                     { return getProjectValue ("buildVST3"); }
-    Value shouldBuildAU()                       { return getProjectValue ("buildAU"); }
-    Value shouldBuildAUv3()                     { return getProjectValue ("buildAUv3"); }
-    Value shouldBuildRTAS()                     { return getProjectValue ("buildRTAS"); }
-    Value shouldBuildAAX()                      { return getProjectValue ("buildAAX"); }
-    Value shouldBuildStandalone()               { return shouldBuildAUv3(); /* TODO: enable this when standalone becomes independent from AUv3: getProjectValue ("buildStandalone"); */}
+    Value getShouldBuildVSTAsValue()                      { return getProjectValue ("buildVST"); }
+    Value getShouldBuildVST3AsValue()                     { return getProjectValue ("buildVST3"); }
+    Value getShouldBuildAUAsValue()                       { return getProjectValue ("buildAU"); }
+    Value getShouldBuildAUv3AsValue()                     { return getProjectValue ("buildAUv3"); }
+    Value getShouldBuildRTASAsValue()                     { return getProjectValue ("buildRTAS"); }
+    Value getShouldBuildAAXAsValue()                      { return getProjectValue ("buildAAX"); }
+    Value getShouldBuildStandalonePluginAsValue()         { return getProjectValue ("buildStandalone");}
+    Value getShouldEnableIAAAsValue()                     { return getProjectValue ("enableIAA"); }
+
+    bool shouldBuildVST()         const                   { return getProjectVar ("buildVST"); }
+    bool shouldBuildVST3()        const                   { return getProjectVar ("buildVST3"); }
+    bool shouldBuildAU()          const                   { return getProjectVar ("buildAU"); }
+    bool shouldBuildAUv3()        const                   { return getProjectVar ("buildAUv3"); }
+    bool shouldBuildRTAS()        const                   { return getProjectVar ("buildRTAS"); }
+    bool shouldBuildAAX()         const                   { return getProjectVar ("buildAAX"); }
+    bool shouldBuildStandalonePlugin()  const             { return getProjectVar ("buildStandalone"); }
+    bool shouldEnableIAA()        const                   { return getProjectVar ("enableIAA"); }
+
+    //==============================================================================
     Value getPluginName()                       { return getProjectValue ("pluginName"); }
     Value getPluginDesc()                       { return getProjectValue ("pluginDesc"); }
     Value getPluginManufacturer()               { return getProjectValue ("pluginManufacturer"); }
@@ -153,12 +177,18 @@ public:
     String getPluginRTASCategoryCode();
     String getAUMainTypeString();
     String getAUMainTypeCode();
+    String getIAATypeCode();
+    String getIAAPluginName();
     String getPluginVSTCategoryString();
 
     bool isAUPluginHost();
     bool isVSTPluginHost();
     bool isVST3PluginHost();
 
+    bool shouldBuildTargetType (ProjectType::Target::Type targetType) const noexcept;
+    static ProjectType::Target::Type getTargetTypeFromFilePath (const File& file, bool returnSharedTargetIfNoValidSuffix);
+
+    //==============================================================================
     void updateDeprecatedProjectSettingsInteractively();
 
     //==============================================================================
@@ -237,7 +267,7 @@ public:
 
         UndoManager* getUndoManager() const              { return project.getUndoManagerFor (state); }
 
-        Icon getIcon() const;
+        Icon getIcon (bool isOpen = false) const;
         bool isIconCrossedOut() const;
 
         Project& project;
@@ -289,7 +319,7 @@ public:
     static const char* const configFlagDisabled;
 
     Value getConfigFlag (const String& name);
-    bool isConfigFlagEnabled (const String& name) const;
+    bool isConfigFlagEnabled (const String& name, bool defaultIsEnabled = false) const;
 
     //==============================================================================
     EnabledModuleList& getModules();
@@ -317,10 +347,18 @@ public:
     bool hasProjectBeenModified();
     void updateModificationTime() { modificationTime = getFile().getLastModificationTime(); }
 
+    //==============================================================================
+    String getUniqueTargetFolderSuffixForExporter (const String& exporterName, const String& baseTargetFolder);
+
+    //==============================================================================
+    bool shouldWaitAfterSaving = false;
+    String specifiedExporterToSave = {};
+
 private:
     //==============================================================================
     void setMissingAudioPluginDefaultValues();
     void createAudioPluginPropertyEditors (PropertyListBuilder& props);
+    bool setCppVersionFromOldExporterSettings();
 
     //==============================================================================
     friend class Item;
@@ -344,6 +382,3 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Project)
 };
-
-
-#endif   // JUCER_PROJECT_H_INCLUDED
