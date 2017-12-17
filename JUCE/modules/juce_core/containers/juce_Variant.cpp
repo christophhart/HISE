@@ -64,6 +64,7 @@ public:
     virtual bool isArray() const noexcept     { return false; }
     virtual bool isBinary() const noexcept    { return false; }
     virtual bool isMethod() const noexcept    { return false; }
+	virtual bool isBuffer() const noexcept { return false; }
 
     virtual void cleanUp (ValueUnion&) const noexcept {}
     virtual void createCopy (ValueUnion& dest, const ValueUnion& source) const      { dest = source; }
@@ -296,6 +297,48 @@ public:
     }
 };
 
+class var::VariantType_Buffer : public var::VariantType
+{
+public:
+	VariantType_Buffer() noexcept {}
+	static const VariantType_Buffer instance;
+
+	void cleanUp(ValueUnion& data) const noexcept override { if (data.objectValue != nullptr) data.objectValue->decReferenceCount(); }
+
+	void createCopy(ValueUnion& dest, const ValueUnion& source) const override
+	{
+		dest.objectValue = source.objectValue;
+		if (dest.objectValue != nullptr)
+			dest.objectValue->incReferenceCount();
+	}
+
+	String toString(const ValueUnion& data) const override { return "Object 0x" + String::toHexString((int)(pointer_sized_int)data.objectValue); }
+	bool toBool(const ValueUnion& data) const noexcept override { return data.objectValue != nullptr; }
+	ReferenceCountedObject* toObject(const ValueUnion& data) const noexcept override { return data.objectValue; }
+	bool isObject() const noexcept override { return true; }
+	bool isBuffer() const noexcept override { return true; };
+
+	bool equals(const ValueUnion& data, const ValueUnion& otherData, const VariantType& otherType) const noexcept override
+	{
+		return otherType.toObject(otherData) == data.objectValue;
+	}
+
+	var clone(const var& original) const override
+	{
+		if (DynamicObject* d = original.getDynamicObject())
+			return d->clone().get();
+
+		jassertfalse; // can only clone DynamicObjects!
+		return var();
+	}
+
+	void writeToStream(const ValueUnion&, OutputStream& output) const override
+	{
+		jassertfalse; // Can't write an object to a stream!
+		output.writeCompressedInt(0);
+	}
+};
+
 //==============================================================================
 class var::VariantType_Array   : public var::VariantType_Object
 {
@@ -428,7 +471,7 @@ const var::VariantType_Object       var::VariantType_Object::instance;
 const var::VariantType_Array        var::VariantType_Array::instance;
 const var::VariantType_Binary       var::VariantType_Binary::instance;
 const var::VariantType_Method       var::VariantType_Method::instance;
-
+const var::VariantType_Buffer		var::VariantType_Buffer::instance;
 
 //==============================================================================
 var::var() noexcept : type (&VariantType_Void::instance) {}
@@ -476,6 +519,14 @@ var::var (ReferenceCountedObject* const object)  : type (&VariantType_Object::in
         object->incReferenceCount();
 }
 
+var::var(VariantBuffer *buffer) : type(&VariantType_Buffer::instance)
+{
+	value.objectValue = (ReferenceCountedObject*)buffer;
+
+	if (value.objectValue != nullptr)
+		value.objectValue->incReferenceCount();
+}
+
 var var::undefined() noexcept           { return var (VariantType_Undefined::instance); }
 
 //==============================================================================
@@ -490,6 +541,7 @@ bool var::isObject() const noexcept     { return type->isObject(); }
 bool var::isArray() const noexcept      { return type->isArray(); }
 bool var::isBinaryData() const noexcept { return type->isBinary(); }
 bool var::isMethod() const noexcept     { return type->isMethod(); }
+bool var::isBuffer() const noexcept { return type->isBuffer(); }
 
 var::operator int() const noexcept                      { return type->toInt (value); }
 var::operator int64() const noexcept                    { return type->toInt64 (value); }
@@ -502,6 +554,13 @@ ReferenceCountedObject* var::getObject() const noexcept { return type->toObject 
 Array<var>* var::getArray() const noexcept              { return type->toArray (value); }
 MemoryBlock* var::getBinaryData() const noexcept        { return type->toBinary (value); }
 DynamicObject* var::getDynamicObject() const noexcept   { return dynamic_cast<DynamicObject*> (getObject()); }
+
+VariantBuffer * var::getBuffer() const noexcept
+{
+	// All because this line...
+	if (isBuffer()) return (VariantBuffer*)(getObject());
+	else return nullptr;
+}
 
 //==============================================================================
 void var::swapWith (var& other) noexcept
@@ -522,6 +581,7 @@ var& var::operator= (const MemoryBlock& v)       { type->cleanUp (value); type =
 var& var::operator= (const Array<var>& v)        { var v2 (v); swapWith (v2); return *this; }
 var& var::operator= (ReferenceCountedObject* v)  { var v2 (v); swapWith (v2); return *this; }
 var& var::operator= (NativeFunction v)           { var v2 (v); swapWith (v2); return *this; }
+var& var::operator= (VariantBuffer *buffer) { var v2(buffer); swapWith(v2); return *this; }
 
 var::var (var&& other) noexcept
     : type (other.type),

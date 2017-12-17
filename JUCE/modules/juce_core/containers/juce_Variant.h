@@ -23,6 +23,8 @@
 namespace juce
 {
 
+class VariantBuffer;
+
 //==============================================================================
 /**
     A variant class, that can be used to hold a range of primitive values.
@@ -83,6 +85,7 @@ public:
     var (NativeFunction method) noexcept;
     var (const void* binaryData, size_t dataSize);
     var (const MemoryBlock& binaryData);
+	var (VariantBuffer *buffer);
 
     var& operator= (const var& valueToCopy);
     var& operator= (int value);
@@ -96,6 +99,7 @@ public:
     var& operator= (const Array<var>& value);
     var& operator= (ReferenceCountedObject* object);
     var& operator= (NativeFunction method);
+	var& operator= (VariantBuffer *buffer);
 
     var (var&&) noexcept;
     var (String&&);
@@ -137,6 +141,8 @@ public:
     ReferenceCountedObject* getObject() const noexcept;
     DynamicObject* getDynamicObject() const noexcept;
 
+	VariantBuffer *getBuffer() const noexcept;
+
     //==============================================================================
     bool isVoid() const noexcept;
     bool isUndefined() const noexcept;
@@ -149,6 +155,8 @@ public:
     bool isArray() const noexcept;
     bool isBinaryData() const noexcept;
     bool isMethod() const noexcept;
+
+	bool isBuffer() const noexcept;
 
     /** Returns true if this var has the same value as the one supplied.
         Note that this ignores the type, so a string var "123" and an integer var with the
@@ -291,6 +299,7 @@ private:
     class VariantType_Array;      friend class VariantType_Array;
     class VariantType_Binary;     friend class VariantType_Binary;
     class VariantType_Method;     friend class VariantType_Method;
+	class VariantType_Buffer;	  friend class VariantType_Buffer;
 
     union ValueUnion
     {
