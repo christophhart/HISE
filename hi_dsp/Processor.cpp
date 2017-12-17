@@ -516,7 +516,12 @@ void ProcessorHelpers::increaseBufferIfNeeded(AudioSampleBuffer& b, int numSampl
 	// The channel amount must be set correctly in the constructor
 	jassert(b.getNumChannels() > 0);
 
-	if (b.getNumSamples() < numSamplesNeeded)
+    
+    // On iOS AUv3, always shrink the buffer because of memory
+    const bool shouldResize = HiseDeviceSimulator::isAUv3() ||
+                              (b.getNumSamples() < numSamplesNeeded);
+    
+	if (shouldResize)
 	{
 		b.setSize(b.getNumChannels(), numSamplesNeeded, true, true, true);
 		b.clear();

@@ -433,6 +433,11 @@ void MainController::removePlottedModulator(Modulator *m)
 
 float MainController::getVoiceAmountMultiplier() const
 {
+    if(HiseDeviceSimulator::isAUv3())
+    {
+        return 0.25f;
+    }
+    
 	auto m = dynamic_cast<const GlobalSettingManager*>(this)->voiceAmountMultiplier;
 
 	switch (m)
