@@ -566,7 +566,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 		}
 		else
 		{
-			result = createStandaloneAppProjucerFile();
+			result = createStandaloneAppProjucerFile(option);
 
 			if (result != ErrorCodes::OK) return result;
 		}
@@ -1408,7 +1408,7 @@ CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(TargetType
 	return HelperClasses::saveProjucerFile(templateProject, this);
 }
 
-CompileExporter::ErrorCodes CompileExporter::createStandaloneAppProjucerFile()
+hise::CompileExporter::CompileExporter::ErrorCodes CompileExporter::createStandaloneAppProjucerFile(BuildOption option)
 {
 	String templateProject = String(projectStandaloneTemplate_jucer);
 

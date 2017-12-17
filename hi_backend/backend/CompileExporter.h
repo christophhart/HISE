@@ -223,8 +223,8 @@ private:
 		static void handleCompilerInfo(CompileExporter* exporter, String& templateProject);
 		static void handleCompanyInfo(CompileExporter* exporter, String& templateProject);
 		static void handleVisualStudioVersion(String& templateProject);
-		static void handleAdditionalSourceCode(CompileExporter* exporter, String &templateProject);
-		static void handleCopyProtectionInfo(CompileExporter* exporter, String &templateProject);
+		static void handleAdditionalSourceCode(CompileExporter* exporter, String &templateProject, BuildOption option);
+		static void handleCopyProtectionInfo(CompileExporter* exporter, String &templateProject, BuildOption option);
 		static String getTargetFamilyString(BuildOption option);
 	};
 
@@ -245,7 +245,7 @@ private:
 	File getProjucerProjectFile();
 	
 	ErrorCodes createStandaloneAppHeaderFile(const String& solutionDirectory, const String& uniqueId, const String& version, String publicKey);
-	CompileExporter::ErrorCodes createStandaloneAppProjucerFile();
+	CompileExporter::ErrorCodes createStandaloneAppProjucerFile(BuildOption option);
 
 	struct BatchFileCreator
 	{
