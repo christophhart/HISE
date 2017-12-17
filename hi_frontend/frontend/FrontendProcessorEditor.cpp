@@ -65,6 +65,8 @@ AudioProcessorEditor(fp)
 
 #endif
 
+
+    
 #if USE_COPY_PROTECTION
 
 	if (!fp->unlocker.isUnlocked())
@@ -110,9 +112,11 @@ AudioProcessorEditor(fp)
     
 #if HISE_IOS
     
-    const float iosScaleFactor = (float)availableHeight / (float)originalSizeY;
-    
-    setGlobalScaleFactor(iosScaleFactor);
+    if(!HiseDeviceSimulator::isAUv3())
+    {
+        const float iosScaleFactor = (float)availableHeight / (float)originalSizeY;
+        setGlobalScaleFactor(iosScaleFactor);
+    }
     
 #else
     
