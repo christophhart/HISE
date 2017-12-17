@@ -50,6 +50,7 @@ LookAndFeel::LookAndFeel()
 
 LookAndFeel::~LookAndFeel()
 {
+#if 0
     /* This assertion is triggered if you try to delete a LookAndFeel object while it's
          - still being used as the default LookAndFeel; or
          - is set as a Component's current lookandfeel; or
@@ -62,6 +63,7 @@ LookAndFeel::~LookAndFeel()
     jassert (masterReference.getNumActiveWeakReferences() == 0
               || (masterReference.getNumActiveWeakReferences() == 1
                    && this == &getDefaultLookAndFeel()));
+#endif
 }
 
 //==============================================================================
