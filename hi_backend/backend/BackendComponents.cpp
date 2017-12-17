@@ -431,7 +431,7 @@ isCurrentlyScrolling(false)
 
 	//getVerticalScrollBar()->addMouseListener(this, true);
 	//getVerticalScrollBar()->setWantsKeyboardFocus(false);
-	getVerticalScrollBar()->setMouseClickGrabsKeyboardFocus(false);
+	getVerticalScrollBar().setMouseClickGrabsKeyboardFocus(false);
 
 	setWantsKeyboardFocus(false);
 

@@ -39,6 +39,8 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 {
 	PresetHandler::buildProcessorDataBase(owner->getMainSynthChain());
 
+	Desktop::getInstance().setDefaultLookAndFeel(&globalLookAndFeel);
+
 	addAndMakeVisible(floatingRoot = new FloatingTile(owner, nullptr));
 
 	bool loadedCorrectly = true;

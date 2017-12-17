@@ -1516,6 +1516,8 @@ DebugConsoleTextEditor::DebugConsoleTextEditor(const String& name, Processor* p)
 
 DebugConsoleTextEditor::~DebugConsoleTextEditor()
 {
+	setLookAndFeel(nullptr);
+
 	if (processor != nullptr)
 	{
 		processor->getMainController()->removeScriptListener(this);

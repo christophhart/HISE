@@ -302,6 +302,11 @@ protected:
         g.drawText(text, 0, 0, width, height, Justification::centred);
     }
 
+	bool shouldPopupMenuScaleWithTargetComponent(const PopupMenu::Options& options) override
+	{
+		return false;
+	};
+
 	void drawPopupMenuBackground(Graphics& g, int width, int height) override
 	{
 		Colour c1 = findColour(PopupMenu::backgroundColourId).withMultipliedBrightness(JUCE_LIVE_CONSTANT_OFF(1.3f));
@@ -509,7 +514,7 @@ class VUSliderLookAndFeel: public LookAndFeel_V3
 
 class FileBrowserLookAndFeel : public LookAndFeel_V3
 {
-	void drawFileBrowserRow(Graphics&, int width, int height,
+	void drawFileBrowserRow(Graphics&, int width, int height, const File& file,
 		const String& filename, Image* icon,
 		const String& fileSizeDescription, const String& fileTimeDescription,
 		bool isDirectory, bool isItemSelected, int itemIndex,

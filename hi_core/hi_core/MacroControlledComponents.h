@@ -338,7 +338,9 @@ public:
 			if (result != 0)
 				combo->setSelectedId(result);
 
-			combo->addItemsToMenu(*combo->getRootMenu());
+			
+
+			//combo->addItemsToMenu(*combo->getRootMenu());
 		}
 	}
 
@@ -346,7 +348,7 @@ public:
 	{
 		PopupMenu menu = *getRootMenu();
 
-		addItemsToMenu(menu);
+		//addItemsToMenu(menu);
 
 		menu.setLookAndFeel(&getLookAndFeel());
 		

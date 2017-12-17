@@ -54,6 +54,11 @@ public:
 
 	ToggleButtonList(StringArray& names, Listener* listener_);
 
+	~ToggleButtonList()
+	{
+		buttons.clear();
+	}
+
 	void rebuildList(const StringArray &names);
 
 	void buttonClicked(Button* b) override;

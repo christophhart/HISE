@@ -258,6 +258,9 @@ ScriptingContentOverlay::ScriptingContentOverlay(ScriptEditHandler* handler_) :
 
 	addAndMakeVisible(dragModeButton = new ShapeButton("Drag Mode", Colours::black.withAlpha(0.6f), Colours::black.withAlpha(0.8f), Colours::black.withAlpha(0.8f)));
 
+	lasso.setColour(LassoComponent<ScriptComponent*>::ColourIds::lassoFillColourId, Colours::white.withAlpha(0.1f));
+	lasso.setColour(LassoComponent<ScriptComponent*>::ColourIds::lassoOutlineColourId, Colours::white.withAlpha(0.4f));
+
 	Path path;
 	path.loadPathFromData(OverlayIcons::lockShape, sizeof(OverlayIcons::lockShape));
 
@@ -583,8 +586,9 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 
 			};
 
-			PopupMenu m;
 			ScopedPointer<PopupLookAndFeel> luf = new PopupLookAndFeel();
+			PopupMenu m;
+			
 			m.setLookAndFeel(luf);
 
 			m.addSectionHeader("Create new widget");
@@ -759,7 +763,9 @@ ScriptingContentOverlay::Dragger::Dragger(ScriptComponent* sc_, Component* compo
 	setWantsKeyboardFocus(true);
 
 	setAlwaysOnTop(true);
-	grabKeyboardFocus();
+
+	
+	
 
 	
 }

@@ -546,7 +546,7 @@ public:
 		setName("Create User Interface");
 
 		setWantsKeyboardFocus(true);
-		grabKeyboardFocus();
+		
 
 		addAndMakeVisible(sizeSelector = new ComboBox());
 		sizeSelector->setLookAndFeel(&klaf);
