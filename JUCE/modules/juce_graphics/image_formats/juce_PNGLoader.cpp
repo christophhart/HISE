@@ -2,25 +2,30 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2015 - ROLI Ltd.
+   Copyright (c) 2017 - ROLI Ltd.
 
-   Permission is granted to use this software under the terms of either:
-   a) the GPL v2 (or any later version)
-   b) the Affero GPL v3
+   JUCE is an open source library subject to commercial or open-source
+   licensing.
 
-   Details of these licenses can be found at: www.gnu.org/licenses
+   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
+   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
+   27th April 2017).
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   End User License Agreement: www.juce.com/juce-5-licence
+   Privacy Policy: www.juce.com/juce-5-privacy-policy
 
-   ------------------------------------------------------------------------------
+   Or: You may also use this code under the terms of the GPL v3 (see
+   www.gnu.org/licenses).
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.juce.com for more information.
+   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
+   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
+   DISCLAIMED.
 
   ==============================================================================
 */
+
+namespace juce
+{
 
 #if JUCE_MSVC
  #pragma warning (push)
@@ -61,6 +66,9 @@ namespace pnglibNamespace
   #if JUCE_CLANG
    #pragma clang diagnostic push
    #pragma clang diagnostic ignored "-Wsign-conversion"
+   #if __has_warning("-Wcomma")
+    #pragma clang diagnostic ignored "-Wcomma"
+   #endif
   #endif
 
   #undef check
@@ -320,7 +328,11 @@ namespace PNGHelpers
 
     static void JUCE_CDECL errorCallback (png_structp p, png_const_charp)
     {
+       #ifdef PNG_SETJMP_SUPPORTED
+        setjmp(png_jmpbuf(p));
+       #else
         longjmp (*(jmp_buf*) p->error_ptr, 1);
+       #endif
     }
 
     static void JUCE_CDECL warningCallback (png_structp, png_const_charp) {}
@@ -442,8 +454,13 @@ namespace PNGHelpers
             for (size_t y = 0; y < height; ++y)
                 rows[y] = (png_bytep) (tempBuffer + lineStride * y);
 
+            png_bytep trans_alpha = nullptr;
+            png_color_16p trans_color = nullptr;
+            int num_trans = 0;
+            png_get_tRNS (pngReadStruct, pngInfoStruct, &trans_alpha, &num_trans, &trans_color);
+
             if (readImageData (pngReadStruct, pngInfoStruct, errorJumpBuf, rows))
-                return createImageFromData ((colorType & PNG_COLOR_MASK_ALPHA) != 0 || pngInfoStruct->num_trans > 0,
+                return createImageFromData ((colorType & PNG_COLOR_MASK_ALPHA) != 0 || num_trans != 0,
                                             (int) width, (int) height, rows);
         }
 
@@ -528,7 +545,7 @@ bool PNGImageFormat::writeImageToStream (const Image& image, OutputStream& out)
                   PNG_COMPRESSION_TYPE_BASE,
                   PNG_FILTER_TYPE_BASE);
 
-    HeapBlock<uint8> rowData ((size_t) width * 4);
+    HeapBlock<uint8> rowData (width * 4);
 
     png_color_8 sig_bit;
     sig_bit.red   = 8;
@@ -584,3 +601,5 @@ bool PNGImageFormat::writeImageToStream (const Image& image, OutputStream& out)
 
     return true;
 }
+
+} // namespace juce

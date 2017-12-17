@@ -2,25 +2,30 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2015 - ROLI Ltd.
+   Copyright (c) 2017 - ROLI Ltd.
 
-   Permission is granted to use this software under the terms of either:
-   a) the GPL v2 (or any later version)
-   b) the Affero GPL v3
+   JUCE is an open source library subject to commercial or open-source
+   licensing.
 
-   Details of these licenses can be found at: www.gnu.org/licenses
+   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
+   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
+   27th April 2017).
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   End User License Agreement: www.juce.com/juce-5-licence
+   Privacy Policy: www.juce.com/juce-5-privacy-policy
 
-   ------------------------------------------------------------------------------
+   Or: You may also use this code under the terms of the GPL v3 (see
+   www.gnu.org/licenses).
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.juce.com for more information.
+   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
+   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
+   DISCLAIMED.
 
   ==============================================================================
 */
+
+namespace juce
+{
 
 void LookAndFeel::playAlertSound()
 {
@@ -74,7 +79,7 @@ private:
 
     void handleAsyncUpdate() override
     {
-        const int result = getResult();
+        auto result = getResult();
 
         if (callback != nullptr)
             callback->modalStateFinished (result);
@@ -140,48 +145,100 @@ int JUCE_CALLTYPE NativeMessageBox::showYesNoCancelBox (AlertWindow::AlertIconTy
                                 "Yes", "Cancel", "No", callback != nullptr);
 }
 
+int JUCE_CALLTYPE NativeMessageBox::showYesNoBox (AlertWindow::AlertIconType iconType,
+                                                  const String& title, const String& message,
+                                                  Component* /*associatedComponent*/,
+                                                  ModalComponentManager::Callback* callback)
+{
+    return OSXMessageBox::show (iconType, title, message, callback,
+                                "Yes", "No", nullptr, callback != nullptr);
+}
+
 
 //==============================================================================
-bool DragAndDropContainer::performExternalDragDropOfFiles (const StringArray& files, const bool /*canMoveFiles*/)
+static NSRect getDragRect (NSView* view, NSEvent* event)
 {
-    if (files.size() == 0)
-        return false;
+    auto eventPos = [event locationInWindow];
 
-    MouseInputSource* draggingSource = Desktop::getInstance().getDraggingMouseSource(0);
+    return [view convertRect: NSMakeRect (eventPos.x - 16.0f, eventPos.y - 16.0f, 32.0f, 32.0f)
+                    fromView: nil];
+}
 
-    if (draggingSource == nullptr)
-    {
-        jassertfalse;  // This method must be called in response to a component's mouseDown or mouseDrag event!
-        return false;
-    }
-
-    Component* sourceComp = draggingSource->getComponentUnderMouse();
-
+static NSView* getNSViewForDragEvent (Component* sourceComp)
+{
     if (sourceComp == nullptr)
+        if (auto* draggingSource = Desktop::getInstance().getDraggingMouseSource(0))
+            sourceComp = draggingSource->getComponentUnderMouse();
+
+    if (sourceComp != nullptr)
+        return (NSView*) sourceComp->getWindowHandle();
+
+    jassertfalse;  // This method must be called in response to a component's mouseDown or mouseDrag event!
+    return nil;
+}
+
+struct TextDragDataProviderClass   : public ObjCClass<NSObject>
+{
+    TextDragDataProviderClass()  : ObjCClass<NSObject> ("JUCE_NSTextDragDataProvider_")
     {
-        jassertfalse;  // This method must be called in response to a component's mouseDown or mouseDrag event!
-        return false;
+        addIvar<String*> ("text");
+        addMethod (@selector (dealloc), dealloc, "v@:");
+        addMethod (@selector (pasteboard:item:provideDataForType:), provideDataForType, "v@:@@@");
+        addProtocol (@protocol (NSPasteboardItemDataProvider));
+        registerClass();
     }
 
-    JUCE_AUTORELEASEPOOL
+    static void setText (id self, const String& text)
     {
-        if (NSView* view = (NSView*) sourceComp->getWindowHandle())
+        object_setInstanceVariable (self, "text", new String (text));
+    }
+
+private:
+    static void dealloc (id self, SEL)
+    {
+        delete getIvar<String*> (self, "text");
+        sendSuperclassMessage (self, @selector (dealloc));
+    }
+
+    static void provideDataForType (id self, SEL, NSPasteboard* sender, NSPasteboardItem*, NSString* type)
+    {
+        if ([type compare: NSPasteboardTypeString] == NSOrderedSame)
+            if (auto* text = getIvar<String*> (self, "text"))
+                [sender setData: [juceStringToNS (*text) dataUsingEncoding: NSUTF8StringEncoding]
+                        forType: NSPasteboardTypeString];
+    }
+};
+
+bool DragAndDropContainer::performExternalDragDropOfText (const String& text, Component* sourceComponent)
+{
+    if (text.isEmpty())
+        return false;
+
+    if (auto* view = getNSViewForDragEvent (sourceComponent))
+    {
+        JUCE_AUTORELEASEPOOL
         {
-            if (NSEvent* event = [[view window] currentEvent])
+            if (auto* event = [[view window] currentEvent])
             {
-                NSPoint eventPos = [event locationInWindow];
-                NSRect dragRect = [view convertRect: NSMakeRect (eventPos.x - 16.0f, eventPos.y - 16.0f, 32.0f, 32.0f)
-                                           fromView: nil];
+                static TextDragDataProviderClass dataProviderClass;
+                id delegate = [dataProviderClass.createInstance() init];
+                TextDragDataProviderClass::setText (delegate, text);
 
-                for (int i = 0; i < files.size(); ++i)
-                {
-                    if (! [view dragFile: juceStringToNS (files[i])
-                                fromRect: dragRect
-                               slideBack: YES
-                                   event: event])
-                        return false;
-                }
+                auto* pasteboardItem = [[NSPasteboardItem new] autorelease];
+                [pasteboardItem setDataProvider: delegate
+                                       forTypes: [NSArray arrayWithObjects: NSPasteboardTypeString, nil]];
 
+                auto* dragItem = [[[NSDraggingItem alloc] initWithPasteboardWriter: pasteboardItem] autorelease];
+
+                NSImage* image = [[NSWorkspace sharedWorkspace] iconForFile: nsEmptyString()];
+                [dragItem setDraggingFrame: getDragRect (view, event) contents: image];
+
+                auto* draggingSession = [view beginDraggingSessionWithItems: [NSArray arrayWithObject: dragItem]
+                                                                      event: event
+                                                                     source: delegate];
+
+                draggingSession.animatesToStartingPositionsOnCancelOrFail = YES;
+                draggingSession.draggingFormation = NSDraggingFormationNone;
                 return true;
             }
         }
@@ -190,9 +247,62 @@ bool DragAndDropContainer::performExternalDragDropOfFiles (const StringArray& fi
     return false;
 }
 
-bool DragAndDropContainer::performExternalDragDropOfText (const String& /*text*/)
+struct NSDraggingSourceHelper   : public ObjCClass<NSObject<NSDraggingSource>>
 {
-    jassertfalse;    // not implemented!
+    NSDraggingSourceHelper() : ObjCClass<NSObject<NSDraggingSource>> ("JUCENSDraggingSourceHelper_")
+    {
+        addMethod (@selector (draggingSession:sourceOperationMaskForDraggingContext:), sourceOperationMaskForDraggingContext, "c@:@@");
+        registerClass();
+    }
+
+    static NSDragOperation sourceOperationMaskForDraggingContext (id, SEL, NSDraggingSession*, NSDraggingContext)
+    {
+        return NSDragOperationCopy;
+    }
+};
+
+static NSDraggingSourceHelper draggingSourceHelper;
+
+bool DragAndDropContainer::performExternalDragDropOfFiles (const StringArray& files, bool /*canMoveFiles*/,
+                                                           Component* sourceComponent)
+{
+    if (files.isEmpty())
+        return false;
+
+    if (auto* view = getNSViewForDragEvent (sourceComponent))
+    {
+        JUCE_AUTORELEASEPOOL
+        {
+            if (auto* event = [[view window] currentEvent])
+            {
+                auto* dragItems = [[[NSMutableArray alloc] init] autorelease];
+
+                for (auto& filename : files)
+                {
+                    auto* nsFilename = juceStringToNS (filename);
+                    auto* fileURL = [NSURL fileURLWithPath: nsFilename];
+                    auto* dragItem = [[NSDraggingItem alloc] initWithPasteboardWriter: fileURL];
+
+                    auto eventPos = [event locationInWindow];
+                    auto dragRect = [view convertRect: NSMakeRect (eventPos.x - 16.0f, eventPos.y - 16.0f, 32.0f, 32.0f)
+                                             fromView: nil];
+                    auto *dragImage = [[NSWorkspace sharedWorkspace] iconForFile: nsFilename];
+                    [dragItem setDraggingFrame: dragRect
+                                      contents: dragImage];
+
+                    [dragItems addObject: dragItem];
+                    [dragItem release];
+                }
+
+                auto* helper = [draggingSourceHelper.createInstance() autorelease];
+
+                return [view beginDraggingSessionWithItems: dragItems
+                                                     event: event
+                                                    source: helper];
+            }
+        }
+    }
+
     return false;
 }
 
@@ -206,8 +316,8 @@ Point<float> MouseInputSource::getCurrentRawMousePosition()
 {
     JUCE_AUTORELEASEPOOL
     {
-        const NSPoint p ([NSEvent mouseLocation]);
-        return Point<float> ((float) p.x, (float) (getMainScreenHeight() - p.y));
+        auto p = [NSEvent mouseLocation];
+        return { (float) p.x, (float) (getMainScreenHeight() - p.y) };
     }
 }
 
@@ -314,9 +424,8 @@ bool Desktop::isScreenSaverEnabled()
 }
 
 //==============================================================================
-class DisplaySettingsChangeCallback  : private DeletedAtShutdown
+struct DisplaySettingsChangeCallback  : private DeletedAtShutdown
 {
-public:
     DisplaySettingsChangeCallback()
     {
         CGDisplayRegisterReconfigurationCallback (displayReconfigurationCallBack, 0);
@@ -335,7 +444,6 @@ public:
 
     juce_DeclareSingleton_SingleThreaded_Minimal (DisplaySettingsChangeCallback)
 
-private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DisplaySettingsChangeCallback)
 };
 
@@ -450,6 +558,7 @@ static Image createNSWindowSnapshot (NSWindow* nsWindow)
     }
 }
 
+Image createSnapshotOfNativeWindow (void*);
 Image createSnapshotOfNativeWindow (void* nativeWindowHandle)
 {
     if (id windowOrView = (id) nativeWindowHandle)
@@ -461,7 +570,7 @@ Image createSnapshotOfNativeWindow (void* nativeWindowHandle)
             return createNSWindowSnapshot ([(NSView*) windowOrView window]);
     }
 
-    return Image();
+    return {};
 }
 
 //==============================================================================
@@ -484,12 +593,9 @@ String SystemClipboard::getTextFromClipboard()
 void Process::setDockIconVisible (bool isVisible)
 {
     ProcessSerialNumber psn { 0, kCurrentProcess };
-    ProcessApplicationTransformState state = isVisible
-        ? kProcessTransformToForegroundApplication
-        : kProcessTransformToUIElementApplication;
 
-    OSStatus err = TransformProcessType (&psn, state);
-
+    OSStatus err = TransformProcessType (&psn, isVisible ? kProcessTransformToForegroundApplication
+                                                         : kProcessTransformToUIElementApplication);
     jassert (err == 0);
     ignoreUnused (err);
 }
@@ -499,3 +605,5 @@ bool Desktop::isOSXDarkModeActive()
     return [[[NSUserDefaults standardUserDefaults] stringForKey: nsStringLiteral ("AppleInterfaceStyle")]
                 isEqualToString: nsStringLiteral ("Dark")];
 }
+
+} // namespace juce
