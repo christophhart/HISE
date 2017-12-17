@@ -1,0 +1,930 @@
+From f8b408d77c6a1d0788ca7b78ef2953b3ef4e046a Mon Sep 17 00:00:00 2001
+From: Christoph Hart <christoph-hart@gmx.de>
+Date: Wed, 25 Jan 2017 12:36:05 +0100
+Subject: [PATCH] - added scripting breakpoints!
+
+---
+ .../juce_gui_extra/code_editor/juce_CodeDocument.h |   2 +-
+ .../code_editor/juce_CodeEditorComponent.cpp       |   5 +
+ .../code_editor/juce_CodeEditorComponent.h         |   2 +
+ hi_core/hi_core.h                                  |   8 ++
+ hi_scripting/scripting/ScriptProcessor.cpp         |  20 +++-
+ hi_scripting/scripting/ScriptProcessor.h           |  97 +++++++++++++++++-
+ hi_scripting/scripting/components/PopupEditors.cpp |  10 +-
+ .../scripting/components/ScriptingCodeEditor.cpp   |  97 ++++++++++++++++--
+ .../scripting/components/ScriptingCodeEditor.h     |  10 +-
+ .../scripting/engine/HiseJavascriptEngine.cpp      |  30 +++++-
+ .../scripting/engine/HiseJavascriptEngine.h        |  69 ++++++++++++-
+ .../engine/JavascriptEngineAdditionalMethods.cpp   |  14 ++-
+ .../scripting/engine/JavascriptEngineParser.cpp    | 108 ++++++++++++++-------
+ .../engine/JavascriptEngineStatements.cpp          |   9 ++
+ projects/standalone/HISE Standalone.jucer          |   3 +-
+ projects/standalone/JuceLibraryCode/AppConfig.h    |   4 +
+ 16 files changed, 431 insertions(+), 57 deletions(-)
+
+diff --git a/JUCE/modules/juce_gui_extra/code_editor/juce_CodeDocument.h b/JUCE/modules/juce_gui_extra/code_editor/juce_CodeDocument.h
+index a98cef7..4b776ce 100644
+--- a/JUCE/modules/juce_gui_extra/code_editor/juce_CodeDocument.h
++++ b/JUCE/modules/juce_gui_extra/code_editor/juce_CodeDocument.h
+@@ -46,7 +46,7 @@ public:
+     CodeDocument();
+ 
+     /** Destructor. */
+-    ~CodeDocument();
++    virtual ~CodeDocument();
+ 
+     //==============================================================================
+     /** A position in a code document.
+diff --git a/JUCE/modules/juce_gui_extra/code_editor/juce_CodeEditorComponent.cpp b/JUCE/modules/juce_gui_extra/code_editor/juce_CodeEditorComponent.cpp
+index d3b0d2c..1cbc548 100644
+--- a/JUCE/modules/juce_gui_extra/code_editor/juce_CodeEditorComponent.cpp
++++ b/JUCE/modules/juce_gui_extra/code_editor/juce_CodeEditorComponent.cpp
+@@ -501,6 +501,11 @@ void CodeEditorComponent::paint (Graphics& g)
+         lines.getUnchecked(i)->draw (*this, g, font, rightClip, x, lineHeight * i, lineHeight, charWidth);
+ }
+ 
++Component* CodeEditorComponent::getGutterComponent()
++{
++	return gutter;
++}
++
+ void CodeEditorComponent::setScrollbarThickness (const int thickness)
+ {
+     if (scrollbarThickness != thickness)
+diff --git a/JUCE/modules/juce_gui_extra/code_editor/juce_CodeEditorComponent.h b/JUCE/modules/juce_gui_extra/code_editor/juce_CodeEditorComponent.h
+index 485c13c..50f8b9f 100644
+--- a/JUCE/modules/juce_gui_extra/code_editor/juce_CodeEditorComponent.h
++++ b/JUCE/modules/juce_gui_extra/code_editor/juce_CodeEditorComponent.h
+@@ -263,6 +263,8 @@ public:
+         lineNumberTextId            = 0x1004505,  /**< The colour to use for drawing the line numbers. */
+     };
+ 
++	Component* getGutterComponent();
++
+     //==============================================================================
+     /** Changes the size of the scrollbars. */
+     void setScrollbarThickness (int thickness);
+diff --git a/hi_core/hi_core.h b/hi_core/hi_core.h
+index d0fafa6..1ad4aa7 100644
+--- a/hi_core/hi_core.h
++++ b/hi_core/hi_core.h
+@@ -163,6 +163,14 @@ Set this to 0 to deactivate the safe checks for scripting
+ #define ENABLE_SCRIPTING_SAFE_CHECKS 1
+ #endif
+ 
++
++/** Config: ENABLE_SCRIPTING_BREAKPOINTS
++
++*/
++#ifndef ENABLE_SCRIPTING_BREAKPOINTS
++#define ENABLE_SCRIPTING_BREAKPOINTS 0
++#endif
++
+ /** Config: ENABLE_ALL_PEAK_METERS
+ 
+ Set this to 0 to deactivate peak collection for any other processor than the main synth chain
+diff --git a/hi_scripting/scripting/ScriptProcessor.cpp b/hi_scripting/scripting/ScriptProcessor.cpp
+index 09473de..bc99e4c 100644
+--- a/hi_scripting/scripting/ScriptProcessor.cpp
++++ b/hi_scripting/scripting/ScriptProcessor.cpp
+@@ -432,7 +432,22 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
+ 
+ 			if (!getSnippet(i)->isSnippetEmpty())
+ 			{
+-				lastResult = scriptEngine->execute(getSnippet(i)->getSnippetAsFunction(), getSnippet(i)->getCallbackName() == onInit);
++				const Identifier callbackId = getSnippet(i)->getCallbackName();
++
++#if ENABLE_SCRIPTING_BREAKPOINTS
++				Array<HiseJavascriptEngine::Breakpoint> breakpointsForCallback;
++
++				for (int k = 0; k < breakpoints.size(); k++)
++				{
++					if (breakpoints[k].snippetId == callbackId || breakpoints[k].snippetId.toString().startsWith("File_"))
++						breakpointsForCallback.add(breakpoints[k]);
++				}
++
++				if (!breakpointsForCallback.isEmpty())
++					scriptEngine->setBreakpoints(breakpointsForCallback);
++#endif
++
++				lastResult = scriptEngine->execute(getSnippet(i)->getSnippetAsFunction(), callbackId == onInit);
+ 
+ 				if (!lastResult.wasOk())
+ 				{
+@@ -536,6 +551,9 @@ void JavascriptProcessor::setupApi()
+ 	clearFileWatchers();
+ 
+ 	scriptEngine = new HiseJavascriptEngine(this);
++
++	scriptEngine->addBreakpointListener(this);
++
+ 	scriptEngine->maximumExecutionTime = RelativeTime(mainController->getCompileTimeOut());
+ 
+ 	registerApiClasses();
+diff --git a/hi_scripting/scripting/ScriptProcessor.h b/hi_scripting/scripting/ScriptProcessor.h
+index 49c50b4..1ed8db9 100644
+--- a/hi_scripting/scripting/ScriptProcessor.h
++++ b/hi_scripting/scripting/ScriptProcessor.h
+@@ -293,7 +293,8 @@ private:
+ *	@ingroup processor_interfaces
+ *	
+ */
+-class JavascriptProcessor :	public FileChangeListener
++class JavascriptProcessor :	public FileChangeListener,
++							public HiseJavascriptEngine::Breakpoint::Listener
+ {
+ public:
+ 
+@@ -304,6 +305,8 @@ public:
+ 	{
+ 	public:
+ 
++		
++
+ 		/** Create a snippet document. 
+ 		*
+ 		*	If you want to supply parameters, supply a whitespace separated list as last argument:
+@@ -357,7 +360,25 @@ public:
+ 	JavascriptProcessor(MainController *mc);
+ 	virtual ~JavascriptProcessor();
+ 
+-	
++	void breakpointWasHit(int index) override
++	{
++		for (int i = 0; i < breakpoints.size(); i++)
++		{
++			breakpoints.getReference(i).hit = (i == index);
++		}
++
++		repaintUpdater.triggerAsyncUpdate();
++	}
++
++	void addEditor(Component* editor)
++	{
++		repaintUpdater.editors.add(editor);
++	}
++
++	void removeEditor(Component* editor)
++	{
++		repaintUpdater.editors.removeAllInstancesOf(editor);
++	}
+ 
+ 	virtual void fileChanged() override;
+ 
+@@ -395,9 +416,58 @@ public:
+ 
+ 	void setCompileScriptAsWhole(bool shouldCompileWholeScript) { compileScriptAsWhole = shouldCompileWholeScript; }
+ 
+-protected:
++	void toggleBreakpoint(const Identifier& snippetId, int lineNumber, int charNumber)
++	{
++		HiseJavascriptEngine::Breakpoint bp(snippetId, lineNumber, charNumber, breakpoints.size());
++
++		int index = breakpoints.indexOf(bp);
++
++		if (index != -1)
++		{
++			breakpoints.remove(index);
++		}
++		else
++		{
++			breakpoints.add(bp);
++		}
+ 
++		compileScript();
++	}
+ 
++	HiseJavascriptEngine::Breakpoint getBreakpointForLine(const Identifier &id, int lineIndex)
++	{
++		for (int i = 0; i < breakpoints.size(); i++)
++		{
++			if (breakpoints[i].snippetId == id && breakpoints[i].lineNumber == lineIndex)
++				return breakpoints[i];
++		}
++
++		return HiseJavascriptEngine::Breakpoint();
++	}
++
++	void getBreakPointsForDisplayedRange(const Identifier& snippetId, Range<int> displayedLineNumbers, Array<int> &lineNumbers)
++	{
++		for (int i = 0; i < breakpoints.size(); i++)
++		{
++			if (breakpoints[i].snippetId != snippetId) continue;
++
++			if (displayedLineNumbers.contains(breakpoints[i].lineNumber))
++			{
++				lineNumbers.add(breakpoints[i].lineNumber);
++			}
++		}
++	}
++
++	bool anyBreakpointsActive() const { return breakpoints.size() != 0; }
++
++	void removeAllBreakpoints()
++	{
++		breakpoints.clear();
++
++		compileScript();
++	}
++
++protected:
+ 
+ 	void clearExternalWindows();
+ 
+@@ -455,7 +525,28 @@ private:
+ 
+ 	};
+ 
++	struct RepaintUpdater : public AsyncUpdater
++	{
++		void handleAsyncUpdate()
++		{
++			for (int i = 0; i < editors.size(); i++)
++			{
++				editors[i]->repaint();
++			}
++		}
++
++		Array<Component::SafePointer<Component>> editors;
++	};
++
++	RepaintUpdater repaintUpdater;
++
++	Array<HiseJavascriptEngine::Breakpoint> breakpoints;
++
+ 	Array<Component::SafePointer<DocumentWindow>> callbackPopups;
++
++	
++
++	
+ };
+ 
+ 
+diff --git a/hi_scripting/scripting/components/PopupEditors.cpp b/hi_scripting/scripting/components/PopupEditors.cpp
+index 3e1f637..fe32716 100644
+--- a/hi_scripting/scripting/components/PopupEditors.cpp
++++ b/hi_scripting/scripting/components/PopupEditors.cpp
+@@ -43,8 +43,10 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileT
+ 
+ 	doc->replaceAllContent(file.loadFileAsString());
+ 
++	const Identifier snippetId = Identifier("File_" + fileToEdit.getFileNameWithoutExtension());
++
+ 	tokeniser = new JavascriptTokeniser();
+-	addAndMakeVisible(editor = new JavascriptCodeEditor(*doc, tokeniser, s));
++	addAndMakeVisible(editor = new JavascriptCodeEditor(*doc, tokeniser, s, snippetId));
+ 
+ 	addAndMakeVisible(resultLabel = new Label());
+ 
+@@ -68,7 +70,7 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s, const Identifier
+ 	doc.setNonOwned(sp->getSnippet(callback_));
+ 
+ 	tokeniser = new JavascriptTokeniser();
+-	addAndMakeVisible(editor = new JavascriptCodeEditor(*doc, tokeniser, s));
++	addAndMakeVisible(editor = new JavascriptCodeEditor(*doc, tokeniser, s, callback));
+ 
+ 	addAndMakeVisible(resultLabel = new Label());
+ 
+@@ -94,8 +96,10 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s) :
+ 	doc->clearUndoHistory();
+ 	doc->setSavePoint();
+ 
++	static const Identifier empty("empty");
++
+ 	tokeniser = new JavascriptTokeniser();
+-	addAndMakeVisible(editor = new JavascriptCodeEditor(*doc, tokeniser, s));
++	addAndMakeVisible(editor = new JavascriptCodeEditor(*doc, tokeniser, s, empty));
+ 
+ 	addAndMakeVisible(resultLabel = new Label());
+ 
+diff --git a/hi_scripting/scripting/components/ScriptingCodeEditor.cpp b/hi_scripting/scripting/components/ScriptingCodeEditor.cpp
+index 8e03cfe..9d9e9e7 100644
+--- a/hi_scripting/scripting/components/ScriptingCodeEditor.cpp
++++ b/hi_scripting/scripting/components/ScriptingCodeEditor.cpp
+@@ -34,12 +34,17 @@
+ 
+ 
+ 
+-JavascriptCodeEditor::JavascriptCodeEditor(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p) :
++JavascriptCodeEditor::JavascriptCodeEditor(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p, const Identifier& snippetId_) :
+ CodeEditorComponent(document, codeTokeniser),
+ scriptProcessor(p),
+-processor(dynamic_cast<Processor*>(p))
++processor(dynamic_cast<Processor*>(p)),
++snippetId(snippetId_)
+ {
+ 
++	p->addEditor(this);
++
++	getGutterComponent()->addMouseListener(this, true);
++
+ 	setColour(CodeEditorComponent::backgroundColourId, Colour(0xff262626));
+ 	setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFCCCCCC));
+ 	setColour(CodeEditorComponent::ColourIds::lineNumberTextId, Colour(0xFFCCCCCC));
+@@ -57,7 +62,7 @@ JavascriptCodeEditor::~JavascriptCodeEditor()
+ {
+ 	currentPopup = nullptr;
+ 
+-	
++	scriptProcessor->removeEditor(this);
+ 
+ 	processor->getMainController()->getFontSizeChangeBroadcaster().removeChangeListener(this);
+ 
+@@ -746,12 +751,12 @@ void JavascriptCodeEditor::paintOverChildren(Graphics& g)
+ {
+ 	CopyPasteTarget::paintOutlineIfSelected(g);
+ 
++	const int firstLine = getFirstLineOnScreen();
++	const int numLinesShown = getNumLinesOnScreen();
++	Range<int> lineRange(firstLine, firstLine + numLinesShown);
++
+ 	if (highlightedSelection.size() != 0)
+ 	{
+-		const int firstLine = getFirstLineOnScreen();
+-		const int numLinesShown = getNumLinesOnScreen();
+-		Range<int> lineRange(firstLine, firstLine + numLinesShown);
+-
+ 		for (int i = 0; i < highlightedSelection.size(); i++)
+ 		{
+ 			CodeDocument::Position pos(getDocument(), highlightedSelection[i].getStart());
+@@ -773,6 +778,37 @@ void JavascriptCodeEditor::paintOverChildren(Graphics& g)
+ 			}
+ 		}
+ 	}
++
++#if ENABLE_SCRIPTING_BREAKPOINTS
++	if (scriptProcessor->anyBreakpointsActive())
++	{
++
++		int startLine = getFirstLineOnScreen();
++
++		int endLine = startLine + getNumLinesOnScreen();
++
++		for (int i = startLine; i < endLine; i++)
++		{
++			HiseJavascriptEngine::Breakpoint bp = scriptProcessor->getBreakpointForLine(snippetId, i);
++
++			if(bp.lineNumber != -1)
++			{
++				const float x = 5.0f;
++				const float y = (float)((bp.lineNumber - getFirstLineOnScreen()) * getLineHeight() + 1);
++
++				const float w = (float)(getLineHeight() - 2);
++				const float h = w;
++
++				g.setColour(Colours::darkred.withAlpha(bp.hit ? 1.0f : 0.3f));
++				g.fillEllipse(x, y, w, h);
++				g.setColour(Colours::white.withAlpha(bp.hit ? 1.0f : 0.5f));
++				g.drawEllipse(x, y, w, h, 1.0f);
++				g.setFont(GLOBAL_MONOSPACE_FONT().withHeight((float)(getLineHeight() - 3)));
++				g.drawText(String(bp.index+1), (int)x, (int)y, (int)w, (int)h, Justification::centred);
++			}
++		}
++	}
++#endif
+ }
+ 
+ 
+@@ -872,6 +908,7 @@ void JavascriptCodeEditor::increaseMultiSelectionForCurrentToken()
+ 	repaint();
+ }
+ 
++
+ bool JavascriptCodeEditor::keyPressed(const KeyPress& k)
+ {
+ #if USE_BACKEND
+@@ -1147,9 +1184,51 @@ void JavascriptCodeEditor::insertTextAtCaret(const String& newText)
+ }
+ 
+ 
+-CodeEditorWrapper::CodeEditorWrapper(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p)
++void JavascriptCodeEditor::mouseDown(const MouseEvent& e)
++{
++	CodeEditorComponent::mouseDown(e);
++
++#if ENABLE_SCRIPTING_BREAKPOINTS
++	if (e.x < 35)
++	{
++		if (e.mods.isShiftDown())
++		{
++			scriptProcessor->removeAllBreakpoints();
++		}
++		else
++		{
++			int lineNumber = e.y / getLineHeight() + getFirstLineOnScreen();
++			CodeDocument::Position start(getDocument(), lineNumber, 0);
++
++			int charNumber = start.getPosition();
++
++			const String content = getDocument().getAllContent().substring(charNumber);
++
++			HiseJavascriptEngine::RootObject::TokenIterator it(content, "");
++
++			try
++			{
++				it.skipWhitespaceAndComments();
++			}
++			catch (String &)
++			{
++
++			}
++
++			const int offsetToFirstToken = (int)(it.location.location - content.getCharPointer());
++
++			CodeDocument::Position tokenStart(getDocument(), charNumber + offsetToFirstToken);
++
++			scriptProcessor->toggleBreakpoint(snippetId, tokenStart.getLineNumber(), tokenStart.getPosition());
++			repaint();
++		}
++	}
++#endif
++}
++
++CodeEditorWrapper::CodeEditorWrapper(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p, const Identifier& snippetId)
+ {
+-	addAndMakeVisible(editor = new JavascriptCodeEditor(document, codeTokeniser, p));
++	addAndMakeVisible(editor = new JavascriptCodeEditor(document, codeTokeniser, p, snippetId));
+ 
+ 	restrainer.setMinimumHeight(50);
+ 	restrainer.setMaximumHeight(600);
+diff --git a/hi_scripting/scripting/components/ScriptingCodeEditor.h b/hi_scripting/scripting/components/ScriptingCodeEditor.h
+index 9d2bc66..62521c4 100644
+--- a/hi_scripting/scripting/components/ScriptingCodeEditor.h
++++ b/hi_scripting/scripting/components/ScriptingCodeEditor.h
+@@ -64,6 +64,7 @@ public:
+ 		LoadScriptFile,
+ 		SaveScriptClipboard,
+ 		LoadScriptClipboard,
++		JumpToDefinition,
+ 		SearchReplace,
+ 		AddCodeBookmark,
+ 		CreateUiFactoryMethod,
+@@ -79,7 +80,7 @@ public:
+ 
+ 	// ================================================================================================================
+ 
+-	JavascriptCodeEditor(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p);;
++	JavascriptCodeEditor(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p, const Identifier& snippetId_);
+ 	virtual ~JavascriptCodeEditor();
+ 
+ 	// ================================================================================================================
+@@ -121,8 +122,12 @@ public:
+ 	void handleEscapeKey() override;
+ 	void insertTextAtCaret(const String& newText) override;
+ 
++	void mouseDown(const MouseEvent& e) override;
++
+ 	// ================================================================================================================
+ 
++	
++
+ private:
+ 
+ 	class AutoCompletePopup;
+@@ -173,6 +178,7 @@ private:
+ 
+ 	PopupMenu m;
+ 	
++	const Identifier snippetId;
+ 
+ 	PopupLookAndFeel plaf;
+ 
+@@ -211,7 +217,7 @@ public:
+ 
+ 	// ================================================================================================================
+ 
+-	CodeEditorWrapper(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p);
++	CodeEditorWrapper(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p, const Identifier& snippetId);
+ 	virtual ~CodeEditorWrapper();
+ 
+ 	ScopedPointer<JavascriptCodeEditor> editor;
+diff --git a/hi_scripting/scripting/engine/HiseJavascriptEngine.cpp b/hi_scripting/scripting/engine/HiseJavascriptEngine.cpp
+index d2c5cd4..c1b5454 100644
+--- a/hi_scripting/scripting/engine/HiseJavascriptEngine.cpp
++++ b/hi_scripting/scripting/engine/HiseJavascriptEngine.cpp
+@@ -75,8 +75,17 @@ HiseJavascriptEngine::~HiseJavascriptEngine()
+ {
+ 	root->hiseSpecialData.clear();
+ 	root = nullptr;
++	breakpointListeners.clear();
+ }
+ 
++
++void HiseJavascriptEngine::setBreakpoints(Array<Breakpoint> &breakpoints)
++{
++	root->breakpoints.clear();
++	root->breakpoints.addArray(breakpoints);
++}
++
++
+ void HiseJavascriptEngine::prepareTimeout() const noexcept{ root->timeout = Time::getCurrentTime() + maximumExecutionTime; }
+ 
+ 
+@@ -225,10 +234,13 @@ struct HiseJavascriptEngine::RootObject::Statement
+ 	Statement(const CodeLocation& l) noexcept : location(l) {}
+ 	virtual ~Statement() {}
+ 
+-	enum ResultCode  { ok = 0, returnWasHit, breakWasHit, continueWasHit };
++	enum ResultCode  { ok = 0, returnWasHit, breakWasHit, continueWasHit, breakpointWasHit };
+ 	virtual ResultCode perform(const Scope&, var*) const  { return ok; }
+ 
+ 	CodeLocation location;
++
++	int breakpointIndex = -1;
++
+ 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Statement)
+ };
+ 
+@@ -278,6 +290,8 @@ Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowCon
+ 	{
+ 		prepareTimeout();
+ 		root->execute(javascriptCode, allowConstDeclarations);
++
++		
+ 	}
+ 	catch (String& error)
+ 	{
+@@ -286,6 +300,16 @@ Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowCon
+ #endif
+ 		return Result::fail(error);
+ 	}
++	catch (Breakpoint bp)
++	{
++#if ENABLE_SCRIPTING_BREAKPOINTS
++		sendBreakpointMessage(bp.index);
++		return Result::fail("Breakpoint Nr. " + String(bp.index + 1) + " was hit");
++#else
++		// This should not happen
++		jassertfalse;
++#endif
++	}
+ 
+ 	return Result::ok();
+ }
+@@ -305,6 +329,10 @@ var HiseJavascriptEngine::evaluate(const String& code, Result* result)
+ #endif
+ 		if (result != nullptr) *result = Result::fail(error);
+ 	}
++	catch (Breakpoint bp)
++	{
++		return "Breakpoint was hit";
++	}
+ 
+ 	return var::undefined();
+ }
+diff --git a/hi_scripting/scripting/engine/HiseJavascriptEngine.h b/hi_scripting/scripting/engine/HiseJavascriptEngine.h
+index e1abbc0..b032df9 100644
+--- a/hi_scripting/scripting/engine/HiseJavascriptEngine.h
++++ b/hi_scripting/scripting/engine/HiseJavascriptEngine.h
+@@ -99,6 +99,69 @@ public:
+ 	/** Destructor. */
+ 	~HiseJavascriptEngine();
+ 
++	struct Breakpoint
++	{
++	public:
++
++		class Listener
++		{
++		public:
++			virtual void breakpointWasHit(int breakpointIndex) = 0;
++
++			~Listener()
++			{
++				masterReference.clear();
++			}
++
++		private:
++			
++			friend class WeakReference<Listener>;
++
++			WeakReference<Listener>::Master masterReference;
++		};
++
++		Breakpoint() : snippetId(Identifier()), lineNumber(-1), charNumber(-1), index(-1) {}
++		Breakpoint(const Identifier& snippetId_, int lineNumber_, int charNumber_, int index_) : snippetId(snippetId_), lineNumber(lineNumber_), charNumber(charNumber_), index(index_) {};
++
++		bool operator ==(const Breakpoint& other) const
++		{
++			return snippetId == other.snippetId && lineNumber == other.lineNumber;
++		}
++
++		const Identifier snippetId;
++		const int lineNumber;
++		const int charNumber;
++		const int index;
++
++		bool found = false;
++		bool hit = false;
++	};
++
++	
++
++	void setBreakpoints(Array<Breakpoint> &breakpoints);
++
++	void addBreakpointListener(Breakpoint::Listener* listener)
++	{
++		breakpointListeners.add(listener);
++	}
++
++	void removeBreakpointListener(Breakpoint::Listener* listener)
++	{
++		breakpointListeners.removeAllInstancesOf(listener);
++	}
++
++	void sendBreakpointMessage(int breakpointIndex)
++	{
++		for (int i = 0; i < breakpointListeners.size(); i++)
++		{
++			if (breakpointListeners[i].get() != nullptr)
++			{
++				breakpointListeners[i]->breakpointWasHit(breakpointIndex);
++			}
++		}
++	}
++
+ 	/** Attempts to parse and run a block of javascript code.
+ 	If there's a parse or execution error, the error description is returned in
+ 	the result.
+@@ -244,6 +307,8 @@ public:
+ 
+ 		Time timeout;
+ 
++		Array<Breakpoint> breakpoints;
++
+ 		typedef const var::NativeFunctionArgs& Args;
+ 		typedef const char* TokenType;
+ 
+@@ -447,7 +512,7 @@ public:
+ 
+ 			void doubleClickCallback(const MouseEvent &, Component* e)
+ 			{
+-				DebugableObject::Helpers::gotoLocation(e, namespaceLocation);
++				DebugableObject::Helpers::gotoLocation(e, nullptr, namespaceLocation);
+ 			}
+ 
+ 			int getNumDebugObjects() const
+@@ -586,6 +651,8 @@ private:
+ 	ReferenceCountedObjectPtr<RootObject> root;
+ 	void prepareTimeout() const noexcept;
+ 	
++	Array<WeakReference<Breakpoint::Listener>> breakpointListeners;
++
+ 	DynamicObject::Ptr unneededScope;
+ 
+ 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HiseJavascriptEngine)
+diff --git a/hi_scripting/scripting/engine/JavascriptEngineAdditionalMethods.cpp b/hi_scripting/scripting/engine/JavascriptEngineAdditionalMethods.cpp
+index a838e6e..eab1fc7 100644
+--- a/hi_scripting/scripting/engine/JavascriptEngineAdditionalMethods.cpp
++++ b/hi_scripting/scripting/engine/JavascriptEngineAdditionalMethods.cpp
+@@ -599,16 +599,26 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
+ 		try
+ 		{
+ 			prepareTimeout();
++
+ 			return c->perform(root);
+ 		}
+ 		catch (String &error)
+ 		{
+ 			c->cleanLocalProperties();
+ 
+-			
+-
+ 			if (result != nullptr) *result = Result::fail(error);
+ 		}
++		catch (Breakpoint bp)
++		{
++#if ENABLE_SCRIPTING_BREAKPOINTS
++			c->cleanLocalProperties();
++			sendBreakpointMessage(bp.index);
++			*result = Result::fail("Breakpoint Nr. " + String((int)bp.index + 1) + " was hit");
++#else
++			// This should not happen...
++			jassertfalse;
++#endif
++		}
+ 	}
+ 
+ 	c->cleanLocalProperties();
+diff --git a/hi_scripting/scripting/engine/JavascriptEngineParser.cpp b/hi_scripting/scripting/engine/JavascriptEngineParser.cpp
+index 0b99bee..ef4a983 100644
+--- a/hi_scripting/scripting/engine/JavascriptEngineParser.cpp
++++ b/hi_scripting/scripting/engine/JavascriptEngineParser.cpp
+@@ -60,6 +60,36 @@ struct HiseJavascriptEngine::RootObject::TokenIterator
+ 
+ 	String lastComment;
+ 
++	void skipWhitespaceAndComments()
++	{
++		for (;;)
++		{
++			p = p.findEndOfWhitespace();
++
++			if (*p == '/')
++			{
++				const juce_wchar c2 = p[1];
++
++				if (c2 == '/') { p = CharacterFunctions::find(p, (juce_wchar) '\n'); continue; }
++
++				if (c2 == '*')
++				{
++					location.location = p;
++
++					lastComment = String(p).upToFirstOccurrenceOf("*/", false, false).fromFirstOccurrenceOf("/**", false, false).trim();
++
++					p = CharacterFunctions::find(p + 2, CharPointer_ASCII("*/"));
++
++
++					if (p.isEmpty()) location.throwError("Unterminated '/*' comment");
++					p += 2; continue;
++				}
++			}
++
++			break;
++		}
++	}
++
+ private:
+ 	String::CharPointerType p;
+ 
+@@ -108,35 +138,7 @@ private:
+ 	}
+ 
+ 
+-	void skipWhitespaceAndComments()
+-	{
+-		for (;;)
+-		{
+-			p = p.findEndOfWhitespace();
+-
+-			if (*p == '/')
+-			{
+-				const juce_wchar c2 = p[1];
+-
+-				if (c2 == '/')  { p = CharacterFunctions::find(p, (juce_wchar) '\n'); continue; }
+-
+-				if (c2 == '*')
+-				{
+-					location.location = p;
+-
+-					lastComment = String(p).upToFirstOccurrenceOf("*/", false, false).fromFirstOccurrenceOf("/**", false, false).trim();
+-					
+-					p = CharacterFunctions::find(p + 2, CharPointer_ASCII("*/"));
+-
+-					
+-					if (p.isEmpty()) location.throwError("Unterminated '/*' comment");
+-					p += 2; continue;
+-				}
+-			}
+-
+-			break;
+-		}
+-	}
++	
+ 
+ 	bool parseStringLiteral(juce_wchar quoteType)
+ 	{
+@@ -236,7 +238,15 @@ private:
+ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIterator
+ {
+ 	ExpressionTreeBuilder(const String code, const String externalFile) :
+-		TokenIterator(code, externalFile){}
++		TokenIterator(code, externalFile)
++	{
++		if (externalFile.isNotEmpty())
++		{
++			fileId = Identifier("File_" + File(externalFile).getFileNameWithoutExtension());
++		}
++
++		
++	}
+ 
+ 	void setupApiData(HiseSpecialData &data, const String& codeToPreprocess)
+ 	{
+@@ -255,7 +265,31 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
+ 
+ 		while (currentType != TokenTypes::closeBrace && currentType != TokenTypes::eof)
+ 		{
++#if ENABLE_SCRIPTING_BREAKPOINTS
++			const int64 charactersBeforeToken = (location.location - location.program.getCharPointer());
+ 			ScopedPointer<Statement> s = parseStatement();
++			const int64 charactersAfterToken = (location.location - location.program.getCharPointer());
++			Range<int64> r(charactersBeforeToken, charactersAfterToken);
++
++			for (int i = 0; i < breakpoints.size(); i++)
++			{
++				if (!fileId.isNull() && breakpoints[i].snippetId != fileId)
++					continue;
++
++				if (breakpoints[i].found)
++					continue;
++
++				if (r.contains(breakpoints[i].charNumber))
++				{
++					s->breakpointIndex = breakpoints[i].index;
++					breakpoints.getReference(i).found = true;
++					break;
++
++				}
++			}
++#else
++			ScopedPointer<Statement> s = parseStatement();
++#endif
+ 
+ 			if (LockStatement* ls = dynamic_cast<LockStatement*>(s.get()))
+ 			{
+@@ -318,17 +352,17 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
+ 		return lhs.release();
+ 	}
+ 
+-	
++	Array<Breakpoint> breakpoints;
+ 
+ private:
+ 
+-	
+-
+ 	HiseSpecialData *hiseSpecialData;
+ 
+ 	bool currentlyParsingInlineFunction = false;
+ 	Identifier currentlyParsedCallback = Identifier::null;
+ 
++	Identifier fileId;
++
+ 	DynamicObject* currentInlineFunction = nullptr;
+ 
+ 	JavascriptNamespace* currentNamespace = nullptr;
+@@ -511,6 +545,10 @@ private:
+ 			{
+ 				ExpressionTreeBuilder ftb(fileContent, refFileName);
+ 
++#if ENABLE_SCRIPTING_BREAKPOINTS
++				ftb.breakpoints.addArray(breakpoints);
++#endif
++
+ 				ftb.hiseSpecialData = hiseSpecialData;
+ 				ftb.currentNamespace = hiseSpecialData;
+ 
+@@ -2106,6 +2144,10 @@ void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowCon
+ {
+ 	ExpressionTreeBuilder tb(code, String());
+ 
++#if ENABLE_SCRIPTING_BREAKPOINTS
++	tb.breakpoints.swapWith(breakpoints);
++#endif
++
+ 	tb.setupApiData(hiseSpecialData, allowConstDeclarations ? code : String());
+ 
+ 	ScopedPointer<BlockStatement>(tb.parseStatementList())->perform(Scope(nullptr, this, this), nullptr);
+diff --git a/hi_scripting/scripting/engine/JavascriptEngineStatements.cpp b/hi_scripting/scripting/engine/JavascriptEngineStatements.cpp
+index a9a393a..6d76c71 100644
+--- a/hi_scripting/scripting/engine/JavascriptEngineStatements.cpp
++++ b/hi_scripting/scripting/engine/JavascriptEngineStatements.cpp
+@@ -30,6 +30,15 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
+ 			s.root->currentLocation = &statements.getUnchecked(i)->location;
+ #endif
+ 
++#if ENABLE_SCRIPTING_BREAKPOINTS
++			if (statements.getUnchecked(i)->breakpointIndex != -1)
++			{
++				Breakpoint bp = Breakpoint(Identifier(), -1, -1, statements.getUnchecked(i)->breakpointIndex);
++
++				throw bp;
++			}
++#endif
++
+ 			if (ResultCode r = statements.getUnchecked(i)->perform(s, returnedValue))
+ 				return r;
+ 		}
+diff --git a/projects/standalone/HISE Standalone.jucer b/projects/standalone/HISE Standalone.jucer
+index 963378d..d07eb0d 100644
+--- a/projects/standalone/HISE Standalone.jucer	
++++ b/projects/standalone/HISE Standalone.jucer	
+@@ -245,7 +245,8 @@
+                ENABLE_PLOTTER="enabled" ENABLE_SCRIPTING_SAFE_CHECKS="enabled"
+                ENABLE_ALL_PEAK_METERS="enabled" ENABLE_CONSOLE_OUTPUT="enabled"
+                ENABLE_HOST_INFO="enabled" ENABLE_CPU_MEASUREMENT="enabled" HI_EXPORT_DSP_LIBRARY="disabled"
+-               JUCE_ALSA="enabled" JUCE_JACK="enabled" USE_VDSP_FFT="disabled"/>
++               JUCE_ALSA="enabled" JUCE_JACK="enabled" USE_VDSP_FFT="disabled"
++               ENABLE_SCRIPTING_BREAKPOINTS="enabled"/>
+   <LIVE_SETTINGS>
+     <OSX defines="USE_IPP=0"/>
+   </LIVE_SETTINGS>
+diff --git a/projects/standalone/JuceLibraryCode/AppConfig.h b/projects/standalone/JuceLibraryCode/AppConfig.h
+index 232b320..5a3a6e5 100644
+--- a/projects/standalone/JuceLibraryCode/AppConfig.h
++++ b/projects/standalone/JuceLibraryCode/AppConfig.h
+@@ -106,6 +106,10 @@
+  #define   ENABLE_SCRIPTING_SAFE_CHECKS 1
+ #endif
+ 
++#ifndef    ENABLE_SCRIPTING_BREAKPOINTS
++ #define   ENABLE_SCRIPTING_BREAKPOINTS 1
++#endif
++
+ #ifndef    ENABLE_ALL_PEAK_METERS
+  #define   ENABLE_ALL_PEAK_METERS 1
+ #endif
+-- 
+2.7.4.windows.1
+

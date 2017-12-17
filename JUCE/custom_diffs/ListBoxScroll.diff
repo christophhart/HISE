@@ -1,0 +1,63 @@
+From a5bff591bc5ecfc67314745cef1fb6cff7506dd8 Mon Sep 17 00:00:00 2001
+From: Christoph Hart <christoph-hart@gmx.de>
+Date: Mon, 24 Jul 2017 21:25:51 +0200
+Subject: [PATCH] - fixed preset browser scrolling on iOS
+
+---
+ JUCE/modules/juce_gui_basics/widgets/juce_ListBox.cpp     | 2 ++
+ hi_core/hi_components/plugin_components/PresetBrowser.cpp | 3 +++
+ hi_core/hi_components/plugin_components/PresetBrowser.h   | 4 ++++
+ 3 files changed, 9 insertions(+)
+
+diff --git a/JUCE/modules/juce_gui_basics/widgets/juce_ListBox.cpp b/JUCE/modules/juce_gui_basics/widgets/juce_ListBox.cpp
+index 5aa9ff5..13c10bf 100644
+--- a/JUCE/modules/juce_gui_basics/widgets/juce_ListBox.cpp
++++ b/JUCE/modules/juce_gui_basics/widgets/juce_ListBox.cpp
+@@ -108,6 +108,8 @@ public:
+             {
+                 SparseSet<int> rowsToDrag;
+ 
++				selectRowOnMouseUp = false;
++
+                 if (owner.selectOnMouseDown || owner.isRowSelected (row))
+                     rowsToDrag = owner.getSelectedRows();
+                 else
+diff --git a/hi_core/hi_components/plugin_components/PresetBrowser.cpp b/hi_core/hi_components/plugin_components/PresetBrowser.cpp
+index 5f18681..e055140 100644
+--- a/hi_core/hi_components/plugin_components/PresetBrowser.cpp
++++ b/hi_core/hi_components/plugin_components/PresetBrowser.cpp
+@@ -228,6 +228,9 @@ index(index_)
+ 	listbox->setRowHeight(30);
+ 	listbox->setWantsKeyboardFocus(true);
+ 	
++	if (HiseDeviceSimulator::isMobileDevice())
++		listbox->setRowSelectedOnMouseDown(false);
++
+ 	listbox->getViewport()->setScrollOnDragEnabled(true);
+ 	
+ 	setSize(150, 300);
+diff --git a/hi_core/hi_components/plugin_components/PresetBrowser.h b/hi_core/hi_components/plugin_components/PresetBrowser.h
+index f0768c3..3924673 100644
+--- a/hi_core/hi_components/plugin_components/PresetBrowser.h
++++ b/hi_core/hi_components/plugin_components/PresetBrowser.h
+@@ -318,6 +318,9 @@ public:
+ 
+ 	void presetChanged(const File& newPreset) override
+ 	{
++		if (allPresets[currentlyLoadedPreset] == newPreset)
++			return;
++
+ 		File pFile = newPreset;
+ 		File cFile = pFile.getParentDirectory();
+ 		File bFile = cFile.getParentDirectory();
+@@ -429,6 +432,7 @@ private:
+ 
+ 	Array<File> allPresets;
+ 	int currentlyLoadedPreset = -1;
++	
+ 
+ #if NEW_USER_PRESET
+ 	Listener* listener = nullptr;
+-- 
+2.7.4.windows.1
+

@@ -1,0 +1,269 @@
+From 62bbc19609caeb183442be5039781911b368d8cd Mon Sep 17 00:00:00 2001
+From: Christoph Hart <christoph-hart@gmx.de>
+Date: Tue, 25 Jul 2017 12:29:31 +0200
+Subject: [PATCH] - added support for mousebutton 4 & 5 for switching tabs
+
+---
+ .../juce_gui_basics/keyboard/juce_ModifierKeys.h   | 12 +++++++++-
+ .../native/juce_win32_Windowing.cpp                | 11 ++++++---
+ .../backend/debug_components/FileBrowser.cpp       |  4 ++++
+ .../floating_layout/FloatingTileContainer.cpp      | 27 ++++++++++++++++++++++
+ .../floating_layout/FloatingTileContainer.h        |  2 ++
+ .../PanelWithProcessorConnection.cpp               | 16 +++++++++++++
+ .../floating_layout/PanelWithProcessorConnection.h |  2 ++
+ .../floating_layout/ScriptingPanelTypes.cpp        | 20 ++++++++++++++++
+ .../floating_layout/ScriptingPanelTypes.h          |  4 ++++
+ 9 files changed, 94 insertions(+), 4 deletions(-)
+
+diff --git a/JUCE/modules/juce_gui_basics/keyboard/juce_ModifierKeys.h b/JUCE/modules/juce_gui_basics/keyboard/juce_ModifierKeys.h
+index c44d77b..a681de2 100644
+--- a/JUCE/modules/juce_gui_basics/keyboard/juce_ModifierKeys.h
++++ b/JUCE/modules/juce_gui_basics/keyboard/juce_ModifierKeys.h
+@@ -87,6 +87,10 @@ public:
+ 
+     inline bool isMiddleButtonDown() const noexcept     { return testFlags (middleButtonModifier); }
+ 
++	inline bool isX1ButtonDown() const noexcept { return testFlags(x1ButtonModifier); }
++
++	inline bool isX2ButtonDown() const noexcept { return testFlags(x2ButtonModifier); }
++
+     /** Tests for any of the mouse-button flags. */
+     inline bool isAnyMouseButtonDown() const noexcept   { return testFlags (allMouseButtonModifiers); }
+ 
+@@ -133,6 +137,12 @@ public:
+         /** Middle mouse button flag. */
+         middleButtonModifier                    = 64,
+ 
++		/** First additional mouse button */
++		x1ButtonModifier						= 128,
++
++		/** Second additional mouse button. */
++		x2ButtonModifier                        = 256,
++
+        #if JUCE_MAC
+         /** Command key flag - on windows this is the same as the CTRL key flag. */
+         commandModifier                         = 8,
+@@ -153,7 +163,7 @@ public:
+         allKeyboardModifiers                    = shiftModifier | ctrlModifier | altModifier | commandModifier,
+ 
+         /** Represents a combination of all the mouse buttons at once. */
+-        allMouseButtonModifiers                 = leftButtonModifier | rightButtonModifier | middleButtonModifier,
++        allMouseButtonModifiers                 = leftButtonModifier | rightButtonModifier | middleButtonModifier | x1ButtonModifier | x2ButtonModifier,
+ 
+         /** Represents a combination of all the alt, ctrl and command key modifiers. */
+         ctrlAltCommandModifiers                 = ctrlModifier | altModifier | commandModifier
+diff --git a/JUCE/modules/juce_gui_basics/native/juce_win32_Windowing.cpp b/JUCE/modules/juce_gui_basics/native/juce_win32_Windowing.cpp
+index 821a8da..1b35888 100644
+--- a/JUCE/modules/juce_gui_basics/native/juce_win32_Windowing.cpp
++++ b/JUCE/modules/juce_gui_basics/native/juce_win32_Windowing.cpp
+@@ -990,6 +990,8 @@ public:
+         if (wParam & MK_LBUTTON)   mouseMods |= ModifierKeys::leftButtonModifier;
+         if (wParam & MK_RBUTTON)   mouseMods |= ModifierKeys::rightButtonModifier;
+         if (wParam & MK_MBUTTON)   mouseMods |= ModifierKeys::middleButtonModifier;
++		if (wParam & MK_XBUTTON1)  mouseMods |= ModifierKeys::x1ButtonModifier;
++		if (wParam & MK_XBUTTON2)  mouseMods |= ModifierKeys::x2ButtonModifier;
+ 
+         currentModifiers = currentModifiers.withoutMouseButtons().withFlags (mouseMods);
+         updateKeyModifiers();
+@@ -2549,11 +2551,14 @@ private:
+ 
+             case WM_LBUTTONDOWN:
+             case WM_MBUTTONDOWN:
+-            case WM_RBUTTONDOWN:        doMouseDown (getPointFromLParam (lParam), wParam); return 0;
+-
++            case WM_RBUTTONDOWN:        
++			case WM_XBUTTONDOWN:		doMouseDown(getPointFromLParam(lParam), wParam); return 0;
++			
+             case WM_LBUTTONUP:
+             case WM_MBUTTONUP:
+-            case WM_RBUTTONUP:          doMouseUp (getPointFromLParam (lParam), wParam); return 0;
++            case WM_RBUTTONUP:          
++			case WM_XBUTTONUP:			doMouseUp(getPointFromLParam(lParam), wParam); return 0;
++
+ 
+             case 0x020A: /* WM_MOUSEWHEEL */   doMouseWheel (wParam, true);  return 0;
+             case 0x020E: /* WM_MOUSEHWHEEL */  doMouseWheel (wParam, false); return 0;
+diff --git a/hi_backend/backend/debug_components/FileBrowser.cpp b/hi_backend/backend/debug_components/FileBrowser.cpp
+index df8e3e2..38619d9 100644
+--- a/hi_backend/backend/debug_components/FileBrowser.cpp
++++ b/hi_backend/backend/debug_components/FileBrowser.cpp
+@@ -455,8 +455,12 @@ void FileBrowser::resized()
+ 	fileTreeComponent->setBounds(0, 24, getWidth(), getHeight() - 24);
+ }
+ 
++
++
+ void FileBrowser::mouseDown(const MouseEvent& e)
+ {
++	RETURN_WHEN_X_BUTTON();
++
+ 	if (e.mods.isLeftButtonDown())
+ 	{
+ 		StringArray sa;
+diff --git a/hi_core/hi_components/floating_layout/FloatingTileContainer.cpp b/hi_core/hi_components/floating_layout/FloatingTileContainer.cpp
+index 73ed6bb..69845bb 100644
+--- a/hi_core/hi_components/floating_layout/FloatingTileContainer.cpp
++++ b/hi_core/hi_components/floating_layout/FloatingTileContainer.cpp
+@@ -365,6 +365,8 @@ void FloatingTabComponent::componentAdded(FloatingTile* newComponent)
+ 
+ 	String text = newComponent->getCurrentFloatingPanel()->getCustomTitle();
+ 
++	newComponent->addMouseListener(this, true);
++
+ 	if (text.isEmpty())
+ 		text = "Untitled";
+ 
+@@ -389,6 +391,8 @@ void FloatingTabComponent::componentRemoved(FloatingTile* deletedComponent)
+ 		}
+ 	}
+ 
++	deletedComponent->removeMouseListener(this);
++
+ 	setCurrentTabIndex(getNumTabs() - 1);
+ 
+ 	notifySiblingChange();
+@@ -397,6 +401,29 @@ void FloatingTabComponent::componentRemoved(FloatingTile* deletedComponent)
+ 	repaint();
+ }
+ 
++void FloatingTabComponent::mouseDown(const MouseEvent& event)
++{
++	if (getNumTabs() == 1)
++		return;
++
++	int newTabIndex = getCurrentTabIndex();
++
++	if (event.mods.isX1ButtonDown())
++	{
++		newTabIndex = jmin<int>(newTabIndex + 1, getNumTabs() - 1);
++
++		if (newTabIndex != getCurrentTabIndex())
++			setCurrentTabIndex(newTabIndex);
++	}
++	else if (event.mods.isX2ButtonDown())
++	{
++		newTabIndex = jmax<int>(newTabIndex - 1, 0);
++
++		if (newTabIndex != getCurrentTabIndex())
++			setCurrentTabIndex(newTabIndex);
++	}
++}
++
+ var FloatingTabComponent::toDynamicObject() const
+ {
+ 	var obj = FloatingTileContainer::toDynamicObject();
+diff --git a/hi_core/hi_components/floating_layout/FloatingTileContainer.h b/hi_core/hi_components/floating_layout/FloatingTileContainer.h
+index 832a0f6..bab1ebc 100644
+--- a/hi_core/hi_components/floating_layout/FloatingTileContainer.h
++++ b/hi_core/hi_components/floating_layout/FloatingTileContainer.h
+@@ -192,6 +192,8 @@ public:
+ 	void componentAdded(FloatingTile* newComponent) override;
+ 	void componentRemoved(FloatingTile* deletedComponent) override;
+ 
++	void mouseDown(const MouseEvent& event) override;
++
+ 	var toDynamicObject() const override;
+ 	void fromDynamicObject(const var& objectData) override;
+ 
+diff --git a/hi_core/hi_components/floating_layout/PanelWithProcessorConnection.cpp b/hi_core/hi_components/floating_layout/PanelWithProcessorConnection.cpp
+index 90f36ce..59a5179 100644
+--- a/hi_core/hi_components/floating_layout/PanelWithProcessorConnection.cpp
++++ b/hi_core/hi_components/floating_layout/PanelWithProcessorConnection.cpp
+@@ -147,6 +147,22 @@ var PanelWithProcessorConnection::getDefaultProperty(int index) const
+ 	return{};
+ }
+ 
++void PanelWithProcessorConnection::incIndex(bool up)
++{
++	int newIndex = currentIndex;
++
++	if (up)
++	{
++		newIndex = jmin<int>(currentIndex + 1, indexSelector->getNumItems()-1);
++	}
++	else
++	{
++		newIndex = jmax<int>(newIndex - 1, 0);
++	}
++
++	setContentWithUndo(currentProcessor, newIndex);
++}
++
+ void PanelWithProcessorConnection::moduleListChanged(Processor* b, MainController::ProcessorChangeHandler::EventType type)
+ {
+ 	if (type == MainController::ProcessorChangeHandler::EventType::ProcessorBypassed ||
+diff --git a/hi_core/hi_components/floating_layout/PanelWithProcessorConnection.h b/hi_core/hi_components/floating_layout/PanelWithProcessorConnection.h
+index 577bb10..4ce6d06 100644
+--- a/hi_core/hi_components/floating_layout/PanelWithProcessorConnection.h
++++ b/hi_core/hi_components/floating_layout/PanelWithProcessorConnection.h
+@@ -93,6 +93,8 @@ public:
+ 
+ 	var getDefaultProperty(int index) const override;
+ 
++	void incIndex(bool up);
++
+ 
+ 
+ 	void moduleListChanged(Processor* b, MainController::ProcessorChangeHandler::EventType type) override;
+diff --git a/hi_core/hi_components/floating_layout/ScriptingPanelTypes.cpp b/hi_core/hi_components/floating_layout/ScriptingPanelTypes.cpp
+index c4f4134..22015a0 100644
+--- a/hi_core/hi_components/floating_layout/ScriptingPanelTypes.cpp
++++ b/hi_core/hi_components/floating_layout/ScriptingPanelTypes.cpp
+@@ -55,6 +55,7 @@ Component* CodeEditorPanel::createContentComponent(int index)
+ 	if (isCallback)
+ 	{
+ 		auto pe = new PopupIncludeEditor(p, p->getSnippet(index)->getCallbackName());
++		pe->addMouseListener(this, true);
+ 		getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
+ 		return pe;
+ 	}
+@@ -63,12 +64,31 @@ Component* CodeEditorPanel::createContentComponent(int index)
+ 		const int fileIndex = index - p->getNumSnippets();
+ 
+ 		auto pe = new PopupIncludeEditor(p, p->getWatchedFile(fileIndex));
++		pe->addMouseListener(this, true);
+ 		getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
+ 
+ 		return pe;
+ 	}
+ }
+ 
++void CodeEditorPanel::mouseDown(const MouseEvent& event)
++{
++	if (auto tab = findParentComponentOfClass<FloatingTabComponent>())
++	{
++		if (tab->getNumTabs() > 1)
++			return;
++	}
++
++	if (event.mods.isX1ButtonDown())
++	{
++		incIndex(true);
++	}
++	else
++	{
++		incIndex(false);
++	}
++}
++
+ Identifier CodeEditorPanel::getProcessorTypeId() const
+ {
+ 	return JavascriptProcessor::getConnectorId();
+diff --git a/hi_core/hi_components/floating_layout/ScriptingPanelTypes.h b/hi_core/hi_components/floating_layout/ScriptingPanelTypes.h
+index 07ee725..10c2af0 100644
+--- a/hi_core/hi_components/floating_layout/ScriptingPanelTypes.h
++++ b/hi_core/hi_components/floating_layout/ScriptingPanelTypes.h
+@@ -57,6 +57,10 @@ public:
+ 		refreshIndexList();
+ 	}
+ 
++	void mouseDown(const MouseEvent& event) override;
++
++
++
+ 	Identifier getProcessorTypeId() const override;
+ 
+ 	bool hasSubIndex() const override { return true; }
+-- 
+2.7.4.windows.1
+

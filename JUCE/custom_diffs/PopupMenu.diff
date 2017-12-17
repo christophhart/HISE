@@ -1,0 +1,41 @@
+From 9689943a3ca9ea12e2e037b450e9cb93038132df Mon Sep 17 00:00:00 2001
+From: Christoph Hart <christoph-hart@gmx.de>
+Date: Sat, 15 Jul 2017 12:08:24 +0200
+Subject: [PATCH] - tweaked popup menu (again)
+
+---
+ JUCE/modules/juce_gui_basics/menus/juce_PopupMenu.cpp | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/JUCE/modules/juce_gui_basics/menus/juce_PopupMenu.cpp b/JUCE/modules/juce_gui_basics/menus/juce_PopupMenu.cpp
+index 8eb3168..7909287 100644
+--- a/JUCE/modules/juce_gui_basics/menus/juce_PopupMenu.cpp
++++ b/JUCE/modules/juce_gui_basics/menus/juce_PopupMenu.cpp
+@@ -901,11 +901,23 @@ public:
+         if (childComp != nullptr
+              && hasActiveSubMenu (childComp->item))
+         {
++            
++#if JUCE_IOS
++            Component* targetComp = childComp;
++#else
++            Component* targetComp = nullptr;
++#endif
++            
++            
+             activeSubMenu = new HelperClasses::MenuWindow (*(childComp->item.subMenu), this,
+                                                            options.withTargetScreenArea (childComp->getScreenBounds())
+                                                                   .withMinimumWidth (0)
+-                                                                  .withTargetComponent (childComp),
++                                                                  .withTargetComponent (targetComp),
+                                                            false, dismissOnMouseUp, managerOfChosenCommand);
++            
++            
++            
++            
+ 
+             activeSubMenu->setVisible (true); // (must be called before enterModalState on Windows to avoid DropShadower confusion)
+             activeSubMenu->enterModalState (false);
+-- 
+2.7.4.windows.1
+

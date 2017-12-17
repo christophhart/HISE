@@ -1,0 +1,68 @@
+From 91b6ef157a7e08c3a935a56188fbf409856774ac Mon Sep 17 00:00:00 2001
+From: Christoph Hart <christoph-hart@gmx.de>
+Date: Fri, 14 Jul 2017 21:51:42 +0200
+Subject: [PATCH] - fixed on screen keyboard for AUv3 - fixed popup submenus
+ for AUv3
+
+---
+ JUCE/modules/juce_gui_basics/menus/juce_PopupMenu.cpp             | 3 ++-
+ .../juce_gui_basics/native/juce_ios_UIViewComponentPeer.mm        | 8 ++++++--
+ 2 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/JUCE/modules/juce_gui_basics/menus/juce_PopupMenu.cpp b/JUCE/modules/juce_gui_basics/menus/juce_PopupMenu.cpp
+index c1dbceb..8eb3168 100644
+--- a/JUCE/modules/juce_gui_basics/menus/juce_PopupMenu.cpp
++++ b/JUCE/modules/juce_gui_basics/menus/juce_PopupMenu.cpp
+@@ -904,7 +904,7 @@ public:
+             activeSubMenu = new HelperClasses::MenuWindow (*(childComp->item.subMenu), this,
+                                                            options.withTargetScreenArea (childComp->getScreenBounds())
+                                                                   .withMinimumWidth (0)
+-                                                                  .withTargetComponent (nullptr),
++                                                                  .withTargetComponent (childComp),
+                                                            false, dismissOnMouseUp, managerOfChosenCommand);
+ 
+             activeSubMenu->setVisible (true); // (must be called before enterModalState on Windows to avoid DropShadower confusion)
+@@ -1458,6 +1458,7 @@ void PopupMenu::addSubMenu (const String& subMenuName, const PopupMenu& subMenu,
+     i.text = subMenuName;
+     i.itemID = itemResultID;
+     i.subMenu = new PopupMenu (subMenu);
++    i.subMenu->setLookAndFeel(lookAndFeel);
+     i.isEnabled = isActive && (itemResultID != 0 || subMenu.getNumItems() > 0);
+     i.isTicked = isTicked;
+     i.image = iconToUse;
+diff --git a/JUCE/modules/juce_gui_basics/native/juce_ios_UIViewComponentPeer.mm b/JUCE/modules/juce_gui_basics/native/juce_ios_UIViewComponentPeer.mm
+index afdc295..bc29435 100644
+--- a/JUCE/modules/juce_gui_basics/native/juce_ios_UIViewComponentPeer.mm
++++ b/JUCE/modules/juce_gui_basics/native/juce_ios_UIViewComponentPeer.mm
+@@ -214,7 +214,7 @@ public:
+     UIWindow* window;
+     JuceUIView* view;
+     JuceUIViewController* controller;
+-    bool isSharedWindow, fullScreen, insideDrawRect;
++    bool isSharedWindow, fullScreen, insideDrawRect, isAppEx;
+     static ModifierKeys currentModifiers;
+ 
+     static int64 getMouseTime (UIEvent* e) noexcept
+@@ -551,7 +551,8 @@ UIViewComponentPeer::UIViewComponentPeer (Component& comp, const int windowStyle
+       controller (nil),
+       isSharedWindow (viewToAttachTo != nil),
+       fullScreen (false),
+-      insideDrawRect (false)
++      insideDrawRect (false),
++      isAppEx (SystemStats::isRunningInAppExtensionSandbox())
+ {
+     CGRect r = convertToCGRect (component.getBounds());
+ 
+@@ -917,6 +918,9 @@ void UIViewComponentPeer::viewFocusLoss()
+ 
+ bool UIViewComponentPeer::isFocused() const
+ {
++    if (isAppEx)
++        return true;
++    
+     return isSharedWindow ? this == currentlyFocusedPeer
+                           : (window != nil && [window isKeyWindow]);
+ }
+-- 
+2.7.4.windows.1
+

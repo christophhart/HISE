@@ -1,0 +1,4983 @@
+From 9e887686f6504ff6393247d55fe9fc6ffa8d56bb Mon Sep 17 00:00:00 2001
+From: Christoph Hart <christoph-hart@gmx.de>
+Date: Sun, 28 May 2017 01:28:26 +0200
+Subject: [PATCH] - added sample edit panels - various fixes for floating
+ panels
+
+---
+ .../juce_gui_basics/widgets/juce_ComboBox.cpp      |  19 +-
+ .../backend/BackendApplicationCommandWindows.cpp   |   2 +-
+ hi_backend/backend/BackendApplicationCommands.cpp  |   2 +-
+ hi_backend/backend/BackendApplicationCommands.h    |   4 +-
+ hi_backend/backend/BackendEditor.h                 |   5 +
+ hi_backend/backend/BackendProcessor.h              |   2 +-
+ .../debug_components/ProcessorCollection.cpp       |   2 +-
+ .../backend/debug_components/ScriptWatchTable.cpp  |  13 +-
+ .../floating_layout/FloatingInterfaceBuilder.cpp   |  44 ---
+ .../floating_layout/FloatingInterfaceBuilder.h     |   4 +-
+ .../hi_components/floating_layout/FloatingTile.cpp | 436 ++++++++++++---------
+ .../hi_components/floating_layout/FloatingTile.h   | 146 ++-----
+ .../floating_layout/FloatingTileContainer.cpp      | 145 ++++---
+ .../floating_layout/FloatingTileContainer.h        |  31 +-
+ .../floating_layout/FloatingTileContent.cpp        | 343 +++++++++++++---
+ .../floating_layout/FloatingTileContent.h          |  61 +++
+ .../floating_layout/MiscFloatingPanelTypes.cpp     | 228 ++++++++++-
+ .../floating_layout/MiscFloatingPanelTypes.h       | 124 ++++--
+ hi_core/hi_core/Console.cpp                        | 106 +----
+ hi_core/hi_core/Console.h                          |  39 +-
+ hi_core/hi_core/HI_LookAndFeels.h                  |  17 +-
+ hi_core/hi_core/MainController.cpp                 |  21 +-
+ hi_core/hi_core/MainController.h                   |  69 +++-
+ hi_core/hi_core/MainControllerSubClasses.cpp       |  90 +++++
+ hi_core/hi_core/PresetHandler.cpp                  |  26 ++
+ hi_core/hi_core/UtilityClasses.h                   |   2 +
+ hi_core/hi_dsp/ProcessorInterfaces.h               |   6 +
+ hi_core/hi_dsp/editor/ProcessorEditor.cpp          |   5 +
+ hi_core/hi_dsp/editor/ProcessorEditor.h            |  14 +-
+ hi_core/hi_sampler/hi_sampler.cpp                  |   2 +
+ hi_core/hi_sampler/hi_sampler.h                    |   1 +
+ hi_core/hi_sampler/sampler/ModulatorSampler.cpp    |   3 +-
+ hi_core/hi_sampler/sampler/ModulatorSampler.h      |   8 +
+ hi_core/hi_sampler/sampler/SampleImporter.cpp      |   2 +-
+ .../sampler/components/SampleEditHandler.cpp       | 123 ++++++
+ .../sampler/components/SampleEditHandler.h         | 164 ++++++++
+ .../sampler/components/SampleEditingActions.cpp    | 154 ++++----
+ .../hi_sampler/sampler/components/SampleEditor.cpp |  56 ++-
+ .../hi_sampler/sampler/components/SampleEditor.h   |   1 +
+ .../sampler/components/SampleEditorComponents.cpp  |  30 +-
+ .../sampler/components/SampleEditorComponents.h    |  23 +-
+ .../sampler/components/SampleMapEditor.cpp         |  39 +-
+ .../hi_sampler/sampler/components/SamplerBody.cpp  |  11 +-
+ .../hi_sampler/sampler/components/SamplerBody.h    | 139 +------
+ .../hi_sampler/sampler/components/SamplerTable.cpp |  11 +-
+ hi_modules/modulators/mods/TableEnvelope.h         |   2 +
+ hi_scripting/scripting/api/ScriptingApi.cpp        |   2 +-
+ projects/standalone/Source/MainComponent.cpp       |  49 ++-
+ 48 files changed, 1860 insertions(+), 966 deletions(-)
+ create mode 100644 hi_core/hi_sampler/sampler/components/SampleEditHandler.cpp
+ create mode 100644 hi_core/hi_sampler/sampler/components/SampleEditHandler.h
+
+diff --git a/JUCE/modules/juce_gui_basics/widgets/juce_ComboBox.cpp b/JUCE/modules/juce_gui_basics/widgets/juce_ComboBox.cpp
+index aaeddef..1ff06ac 100644
+--- a/JUCE/modules/juce_gui_basics/widgets/juce_ComboBox.cpp
++++ b/JUCE/modules/juce_gui_basics/widgets/juce_ComboBox.cpp
+@@ -561,12 +561,19 @@ void ComboBox::showPopup()
+ 
+ 	addItemsToMenu(currentMenu);
+ 
+-    currentMenu.showMenuAsync (PopupMenu::Options().withTargetComponent (this)
+-                                            .withItemThatMustBeVisible (getSelectedId())
+-                                            .withMinimumWidth (getWidth())
+-                                            .withMaximumNumColumns (1)
+-                                            .withStandardItemHeight (label->getHeight()),
+-                        ModalCallbackFunction::forComponent (comboBoxPopupMenuFinishedCallback, this));
++	if (currentMenu.getNumItems() > 0)
++	{
++		currentMenu.showMenuAsync(PopupMenu::Options().withTargetComponent(this)
++			.withItemThatMustBeVisible(getSelectedId())
++			.withMinimumWidth(getWidth())
++			.withMaximumNumColumns(1)
++			.withStandardItemHeight(label->getHeight()),
++			ModalCallbackFunction::forComponent(comboBoxPopupMenuFinishedCallback, this));
++	}
++	else
++	{
++		menuActive = false;
++	}
+ }
+ 
+ //==============================================================================
+diff --git a/hi_backend/backend/BackendApplicationCommandWindows.cpp b/hi_backend/backend/BackendApplicationCommandWindows.cpp
+index 5fc2d3f..46e13cb 100644
+--- a/hi_backend/backend/BackendApplicationCommandWindows.cpp
++++ b/hi_backend/backend/BackendApplicationCommandWindows.cpp
+@@ -566,7 +566,7 @@ public:
+ 			SampleImporter::loadAudioFilesRaw(bpe, sampler, fileNames);
+ 		}
+ 
+-		SamplerBody::SampleEditingActions::automapUsingMetadata(nullptr, sampler);
++		SampleEditHandler::SampleEditingActions::automapUsingMetadata(sampler);
+ 
+ 
+ 
+diff --git a/hi_backend/backend/BackendApplicationCommands.cpp b/hi_backend/backend/BackendApplicationCommands.cpp
+index 25124d4..720149e 100644
+--- a/hi_backend/backend/BackendApplicationCommands.cpp
++++ b/hi_backend/backend/BackendApplicationCommands.cpp
+@@ -534,7 +534,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
+     case MenuDeleteView:                Actions::deleteView(bpe); updateCommands();return true;
+     case MenuRenameView:                Actions::renameView(bpe); updateCommands();return true;
+     case MenuViewSaveCurrentView:       Actions::saveView(bpe); updateCommands(); return true;
+-    case MenuToolsClearConsole:         owner->clearConsole(); return true;
++    case MenuToolsClearConsole:         owner->getConsoleHandler().clearConsole(); return true;
+ 	case MenuHelpShowAboutPage:			Actions::showAboutPage(bpe); return true;
+     case MenuHelpCheckVersion:          Actions::checkVersion(bpe); return true;
+ 	case MenuOneColumn:					Actions::setColumns(bpe, this, OneColumn);  updateCommands(); return true;
+diff --git a/hi_backend/backend/BackendApplicationCommands.h b/hi_backend/backend/BackendApplicationCommands.h
+index c262a86..0bb29c4 100644
+--- a/hi_backend/backend/BackendApplicationCommands.h
++++ b/hi_backend/backend/BackendApplicationCommands.h
+@@ -218,9 +218,7 @@ public:
+ 
+ 	void setCopyPasteTarget(CopyPasteTarget *newTarget)
+ 	{
+-        
+-        
+-		if (currentCopyPasteTarget.get() != nullptr)
++        if (currentCopyPasteTarget.get() != nullptr)
+ 		{
+ 			currentCopyPasteTarget->deselect();
+ 		}
+diff --git a/hi_backend/backend/BackendEditor.h b/hi_backend/backend/BackendEditor.h
+index 591f2e1..71aacf5 100644
+--- a/hi_backend/backend/BackendEditor.h
++++ b/hi_backend/backend/BackendEditor.h
+@@ -312,6 +312,11 @@ public:
+ 		return false;
+ 	}
+ 
++	void paint(Graphics& g) override
++	{
++		g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId));
++	}
++
+ 	void resized() override;
+ 
+ 	SET_PANEL_NAME("MainTopBar");
+diff --git a/hi_backend/backend/BackendProcessor.h b/hi_backend/backend/BackendProcessor.h
+index 115e911..f0b9b86 100644
+--- a/hi_backend/backend/BackendProcessor.h
++++ b/hi_backend/backend/BackendProcessor.h
+@@ -86,7 +86,7 @@ public:
+ 	void prepareToPlay (double sampleRate, int samplesPerBlock);
+ 	void releaseResources() 
+ 	{
+-		writeToConsole("RELEASE_RESOURCES_CALLED", Console::Error, getMainSynthChain());
++		writeToConsole("RELEASE_RESOURCES_CALLED", CodeHandler::Error, getMainSynthChain());
+ 	};
+ 
+ 	void getStateInformation	(MemoryBlock &destData) override
+diff --git a/hi_backend/backend/debug_components/ProcessorCollection.cpp b/hi_backend/backend/debug_components/ProcessorCollection.cpp
+index 7f0af8d..fcdfa2d 100644
+--- a/hi_backend/backend/debug_components/ProcessorCollection.cpp
++++ b/hi_backend/backend/debug_components/ProcessorCollection.cpp
+@@ -187,7 +187,7 @@ void SearchableListComponent::resized()
+ 
+ void SearchableListComponent::paint(Graphics& g)
+ {
+-    g.setColour(Colour(DEBUG_AREA_BACKGROUND_COLOUR_DARK));
++    g.setColour(Colour(0xff353535));
+     g.fillRect(0.0f, 0.0f, (float)getWidth(), 25.0f);
+     
+ 	g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.5f), 0.0f, 25.0f,
+diff --git a/hi_backend/backend/debug_components/ScriptWatchTable.cpp b/hi_backend/backend/debug_components/ScriptWatchTable.cpp
+index e7d0269..dd144cd 100644
+--- a/hi_backend/backend/debug_components/ScriptWatchTable.cpp
++++ b/hi_backend/backend/debug_components/ScriptWatchTable.cpp
+@@ -228,18 +228,9 @@ void ScriptWatchTable::mouseDoubleClick(const MouseEvent &e)
+ 
+ 			if (auto editorPanel = editor->findParentComponentOfClass<CodeEditorPanel>())
+ 			{
+-				editorPanel->setContentWithUndo(processor, 0);
+-
+-				editor = editorPanel->getContent<PopupIncludeEditor>()->getEditor();
+-
+-				CodeDocument::Position pos(editor->getDocument(), info->location.charNumber);
+-				editor->scrollToLine(jmax<int>(0, pos.getLineNumber()));
++				editorPanel->gotoLocation(processor, info->location.fileName, info->location.charNumber);
+ 			}
+ 
+-			
+-
+-			
+-
+ #if 0
+ 
+ 			DebugableObject::Helpers::gotoLocation(editor.getComponent(), dynamic_cast<JavascriptProcessor*>(processor.get()), info->location);
+@@ -259,7 +250,7 @@ void ScriptWatchTable::mouseDoubleClick(const MouseEvent &e)
+ 
+ void ScriptWatchTable::paint(Graphics &g)
+ {
+-	g.setColour(Colour(DEBUG_AREA_BACKGROUND_COLOUR_DARK));
++	g.setColour(Colour(0xff353535));
+ 	g.fillRect(0.0f, 0.0f, (float)getWidth(), 25.0f);
+ 
+ 	g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.5f), 0.0f, 25.0f,
+diff --git a/hi_core/hi_components/floating_layout/FloatingInterfaceBuilder.cpp b/hi_core/hi_components/floating_layout/FloatingInterfaceBuilder.cpp
+index 5856187..08d8626 100644
+--- a/hi_core/hi_components/floating_layout/FloatingInterfaceBuilder.cpp
++++ b/hi_core/hi_components/floating_layout/FloatingInterfaceBuilder.cpp
+@@ -54,50 +54,6 @@ void FloatingInterfaceBuilder::setFolded(int index, Array<bool> foldStates, Noti
+ 		jassertfalse;
+ }
+ 
+-void FloatingInterfaceBuilder::setAbsoluteSize(int index, Array<bool> absoluteState, NotificationType shouldUpdateLayout /*= sendNotification*/)
+-{
+-	if (auto c = getTileManager(index))
+-	{
+-		if (absoluteState.size() != c->getNumComponents())
+-		{
+-			jassertfalse;
+-			return;
+-		}
+-
+-		for (int i = 0; i < c->getNumComponents(); i++)
+-		{
+-			c->getComponent(i)->getLayoutData().isAbsolute = absoluteState[i];
+-		}
+-
+-		if (shouldUpdateLayout == sendNotification)
+-			c->refreshLayout();
+-	}
+-	else
+-		jassertfalse;
+-}
+-
+-void FloatingInterfaceBuilder::setLocked(int index, Array<bool> lockedStates, NotificationType shouldUpdateLayout/*=sendNotification*/)
+-{
+-	if (auto c = getTileManager(index))
+-	{
+-		if (lockedStates.size() != c->getNumComponents())
+-		{
+-			jassertfalse;
+-			return;
+-		}
+-
+-		for (int i = 0; i < c->getNumComponents(); i++)
+-		{
+-			c->getComponent(i)->getLayoutData().isLocked = lockedStates[i];
+-		}
+-
+-		if (shouldUpdateLayout == sendNotification)
+-			c->refreshLayout();
+-	}
+-	else
+-		jassertfalse;
+-}
+-
+ 
+ void FloatingInterfaceBuilder::setFoldable(int index, bool isFoldable, Array<bool> childFoldableStates, NotificationType /*= dontSendNotification*/)
+ {
+diff --git a/hi_core/hi_components/floating_layout/FloatingInterfaceBuilder.h b/hi_core/hi_components/floating_layout/FloatingInterfaceBuilder.h
+index 93d323a..3706988 100644
+--- a/hi_core/hi_components/floating_layout/FloatingInterfaceBuilder.h
++++ b/hi_core/hi_components/floating_layout/FloatingInterfaceBuilder.h
+@@ -76,9 +76,7 @@ public:
+ 
+ 	void setSizes(int index, Array<double> sizes, NotificationType shouldUpdateLayout= dontSendNotification);
+ 	void setFolded(int index, Array<bool> foldStates, NotificationType shouldUpdateLayout = dontSendNotification);
+-	void setAbsoluteSize(int index, Array<bool> absoluteState, NotificationType shouldUpdateLayout = dontSendNotification);
+-	void setLocked(int index, Array<bool> lockedStates, NotificationType shouldUpdateLayout= dontSendNotification);
+-	
++
+ 	void setFoldable(int index, bool isFoldable, Array<bool> childFoldableStates, NotificationType = dontSendNotification);
+ 
+ 	void setCustomName(int index, const String& name, Array<String> names=Array<String>());
+diff --git a/hi_core/hi_components/floating_layout/FloatingTile.cpp b/hi_core/hi_components/floating_layout/FloatingTile.cpp
+index eca93f4..79e4af9 100644
+--- a/hi_core/hi_components/floating_layout/FloatingTile.cpp
++++ b/hi_core/hi_components/floating_layout/FloatingTile.cpp
+@@ -32,19 +32,31 @@
+ 
+ void FloatingTile::LayoutData::updateValueTree(ValueTree & v) const
+ {
+-	v.setProperty("Locked", isLocked, nullptr);
+-	v.setProperty("Folded", isFolded, nullptr);
+-	v.setProperty("isAbsolute", isAbsolute, nullptr);
++	v.setProperty("Folded", foldState, nullptr);
+ 	v.setProperty("Size", currentSize, nullptr);
++
++	if (minSize > 0)
++		v.setProperty("MinimumSize", minSize, nullptr);
++
++	if (backgroundColour != Colour(0))
++	{
++		v.setProperty("Colour", backgroundColour.toString(), nullptr);
++	}
+ }
+ 
+ 
+ void FloatingTile::LayoutData::restoreFromValueTree(const ValueTree &v)
+ {
+-	isLocked = v.getProperty("Locked", false);
+-	isFolded = v.getProperty("Folded", false);
+-	isAbsolute = v.getProperty("isAbsolute", false);
++	foldState = v.getProperty("Folded", 0);
+ 	currentSize = v.getProperty("Size", -0.5);
++
++	minSize = v.getProperty("MinimumSize", -1);
++
++	if (v.hasProperty("Colour"))
++	{
++		backgroundColour = Colour::fromString(v.getProperty("Colour", "0x00000000").toString());
++	}
++
+ }
+ 
+ FloatingTile::CloseButton::CloseButton() :
+@@ -74,6 +86,7 @@ void FloatingTile::CloseButton::buttonClicked(Button* )
+ 
+ 		ec->clear();
+ 
++		
+ 	
+ 	}
+ 	else
+@@ -99,7 +112,52 @@ void FloatingTile::MoveButton::buttonClicked(Button* )
+ {
+ 	auto ec = dynamic_cast<FloatingTile*>(getParentComponent());
+ 
+-	ec->getRootComponent()->enableSwapMode(!ec->layoutData.swappingEnabled, ec);
++	if (ec->hasChildren())
++	{
++		PopupMenu m;
++
++		m.setLookAndFeel(&ec->plaf);
++
++		m.addItem(1, "Swap Position", !ec->isVital(), ec->getLayoutData().swappingEnabled);
++
++		PopupMenu containerTypes;
++
++		auto thisContainer = dynamic_cast<FloatingTabComponent*>(ec->getCurrentFloatingPanel());
++
++		bool isTabs = dynamic_cast<FloatingTabComponent*>(ec->getCurrentFloatingPanel()) != nullptr;
++		bool isHorizontal = dynamic_cast<HorizontalTile*>(ec->getCurrentFloatingPanel()) != nullptr;
++		bool isVertical = dynamic_cast<VerticalTile*>(ec->getCurrentFloatingPanel()) != nullptr;
++
++		ec->getPanelFactory()->addToPopupMenu(containerTypes, FloatingTileContent::Factory::PopupMenuOptions::Tabs, "Tabs", !isTabs, isTabs);
++		ec->getPanelFactory()->addToPopupMenu(containerTypes, FloatingTileContent::Factory::PopupMenuOptions::HorizontalTile, "Horizontal Tile", !isHorizontal, isHorizontal);
++		ec->getPanelFactory()->addToPopupMenu(containerTypes, FloatingTileContent::Factory::PopupMenuOptions::VerticalTile, "Vertical Tile", !isVertical, isVertical);
++
++		m.addSubMenu("Swap Container Type", containerTypes, !ec->isVital());
++
++		const int result = m.show();
++
++		if (result == (int)FloatingTileContent::Factory::PopupMenuOptions::Tabs)
++		{
++			ec->swapContainerType(FloatingTabComponent::getPanelId());
++		}
++		else if (result == (int)FloatingTileContent::Factory::PopupMenuOptions::HorizontalTile)
++		{
++			ec->swapContainerType(HorizontalTile::getPanelId());
++		}
++		else if (result == (int)FloatingTileContent::Factory::PopupMenuOptions::VerticalTile)
++		{
++			ec->swapContainerType(VerticalTile::getPanelId());
++		}
++	}
++	else
++	{
++		ec->getRootComponent()->enableSwapMode(!ec->layoutData.swappingEnabled, ec);
++	}
++
++	
++
++
++	
+ }
+ 
+ FloatingTile::ResizeButton::ResizeButton() :
+@@ -126,31 +184,10 @@ void FloatingTile::FoldButton::buttonClicked(Button* )
+ {
+ 	auto pc = findParentComponentOfClass<FloatingTile>();
+ 	
+-	pc->setFolded(!pc->getLayoutData().isFolded);
+-
+-	if (auto cl = dynamic_cast<ResizableFloatingTileContainer*>(pc->getParentContainer()))
+-	{
+-		cl->refreshLayout();
+-	}
+-}
+-
+-FloatingTile::LockButton::LockButton():
+-	ShapeButton("Lock", Colours::white.withAlpha(0.2f), Colours::white.withAlpha(0.8f), Colours::white.withAlpha(0.8f))
+-{
+-	Path p;
+-	p.loadPathFromData(ColumnIcons::lockIcon, sizeof(ColumnIcons::lockIcon));
+-
+-	setShape(p, false, true, true);
+-
+-	addListener(this);
+-}
+-
++	if (!pc->canBeFolded())
++		return;
+ 
+-void FloatingTile::LockButton::buttonClicked(Button* b)
+-{
+-	auto pc = findParentComponentOfClass<FloatingTile>();
+-	
+-	pc->setLockedSize(!b->getToggleState());
++	pc->setFolded(!pc->isFolded());
+ 
+ 	if (auto cl = dynamic_cast<ResizableFloatingTileContainer*>(pc->getParentContainer()))
+ 	{
+@@ -158,26 +195,6 @@ void FloatingTile::LockButton::buttonClicked(Button* b)
+ 	}
+ }
+ 
+-void FloatingTile::toggleLayoutModeForParentContainer()
+-{
+-	if (getParentType() == ParentType::Root)
+-	{
+-		setLayoutModeEnabled(!isLayoutModeEnabled());
+-		return;
+-	}
+-
+-	if(!getParentContainer())
+-		return;
+-	
+-	if(!getParentContainer()->getParentShell())
+-		return;
+-	
+-	bool en = getParentContainer()->getParentShell()->isLayoutModeEnabled();
+-
+-	getParentContainer()->getParentShell()->setLayoutModeEnabled(!en);
+-
+-}
+-
+ FloatingTile::ParentType FloatingTile::getParentType() const
+ {
+ 	if (getParentContainer() == nullptr)
+@@ -208,7 +225,6 @@ FloatingTile::FloatingTile(FloatingTileContainer* parent, ValueTree state /*= Va
+ 	addAndMakeVisible(closeButton = new CloseButton());
+ 	addAndMakeVisible(moveButton = new MoveButton());
+ 	addAndMakeVisible(foldButton = new FoldButton());
+-	addAndMakeVisible(lockButton = new LockButton());
+ 	addAndMakeVisible(resizeButton = new ResizeButton());
+ 
+ 	setContent(state);
+@@ -219,9 +235,84 @@ bool FloatingTile::isEmpty() const
+ 	return dynamic_cast<const EmptyComponent*>(getCurrentFloatingPanel()) != nullptr;
+ }
+ 
++bool FloatingTile::showTitle() const
++{
++	/** Show the title if:
++	
++		- is folded and in horizontal container
++		- is not container and the panel wants a title in presentation mode
++		- is dynamic container and in layout mode
++		- is container and has a custom title or is foldable
++
++		Don't show the title if:
++
++		- is folded and in vertical container
++		- is root
++		- is in tab & layout mode is deactivated
++	
++	
++	*/
++
++	auto pt = getParentType();
++
++	const bool isRoot = pt == ParentType::Root;
++	const bool isInTab = pt == ParentType::Tabbed;
++	
++	if (isRoot)
++		return false;
++
++	if (isInTab && !isLayoutModeEnabled())
++		return false;
++
++	if (isFolded())
++		return isInVerticalLayout();
++
++	if (hasChildren())
++	{
++		const bool isDynamicContainer = dynamic_cast<const FloatingTileContainer*>(getCurrentFloatingPanel())->isDynamic();
++
++		if (isDynamicContainer && isLayoutModeEnabled())
++		{
++			return true;
++		}
++		else
++		{
++			if (getCurrentFloatingPanel()->hasCustomTitle())
++				return true;
++
++			if (canBeFolded())
++				return true;
++		
++			if (getCurrentFloatingPanel()->hasCustomTitle())
++				return true;
++
++			return false;
++		}
++			
++	}
++	else
++	{
++		return getCurrentFloatingPanel()->showTitleInPresentationMode();
++	}
++}
++
++Rectangle<int> FloatingTile::getContentBounds()
++{
++	if (isFolded())
++		return Rectangle<int>();
++
++	if (showTitle())
++		return Rectangle<int>(0, 16, getWidth(), getHeight() - 16);
++	else
++		return getLocalBounds();
++}
++
+ void FloatingTile::setFolded(bool shouldBeFolded)
+ {
+-	layoutData.isFolded = shouldBeFolded;
++	if (!canBeFolded())
++		return;
++
++	layoutData.setFoldState(1 - (int)layoutData.isFolded());
+ 
+ 	refreshFoldButton();
+ }
+@@ -244,22 +335,24 @@ void FloatingTile::refreshFoldButton()
+ 
+ void FloatingTile::setCanBeFolded(bool shouldBeFoldable)
+ {
+-	layoutData.foldable = shouldBeFoldable;
++	if (!shouldBeFoldable)
++		layoutData.setFoldState(-1);
++	else
++		layoutData.setFoldState(0);
++
+ 	resized();
+ }
+ 
+ bool FloatingTile::canBeFolded() const
+ {
+-	return layoutData.foldable;
++	return layoutData.canBeFolded();
+ }
+ 
+-void FloatingTile::setUseAbsoluteSize(bool shouldUseAbsoluteSize)
++void FloatingTile::refreshPinButton()
+ {
+-	layoutData.isAbsolute = shouldUseAbsoluteSize;
+-
+ 	Path p;
+ 
+-	if (shouldUseAbsoluteSize)
++	if (layoutData.isAbsolute())
+ 		p.loadPathFromData(ColumnIcons::absoluteIcon, sizeof(ColumnIcons::absoluteIcon));
+ 	else
+ 		p.loadPathFromData(ColumnIcons::relativeIcon, sizeof(ColumnIcons::relativeIcon));
+@@ -271,11 +364,11 @@ void FloatingTile::toggleAbsoluteSize()
+ {
+ 	if (auto pl = dynamic_cast<ResizableFloatingTileContainer*>(getParentContainer()))
+ 	{
+-		setUseAbsoluteSize(!layoutData.isAbsolute);
++		bool shouldBeAbsolute = !layoutData.isAbsolute();
+ 
+ 		int totalWidth = pl->getDimensionSize(pl->getContainerBounds());
+ 
+-		if (layoutData.isAbsolute)
++		if (shouldBeAbsolute)
+ 		{
+ 			layoutData.currentSize = (double)pl->getDimensionSize(getLocalBounds());
+ 		}
+@@ -286,20 +379,12 @@ void FloatingTile::toggleAbsoluteSize()
+ 			layoutData.currentSize = newAbsoluteSize;
+ 		}
+ 
++		refreshPinButton();
++
+ 		pl->refreshLayout();
+ 	}
+ }
+ 
+-void FloatingTile::setLockedSize(bool shouldBeLocked)
+-{
+-	layoutData.isLocked = shouldBeLocked;
+-
+-	lockButton->setToggleState(shouldBeLocked, dontSendNotification);
+-
+-	if(getParentContainer())
+-		getParentContainer()->refreshLayout();
+-}
+-
+ const BackendRootWindow* FloatingTile::getRootWindow() const
+ {
+ 	auto rw = findParentComponentOfClass<BackendRootWindow>();
+@@ -339,10 +424,9 @@ const FloatingTile* FloatingTile::getRootComponent() const
+ void FloatingTile::clear()
+ {
+ 	layoutData.reset();
+-	setUseAbsoluteSize(false);
+-	setLockedSize(false);
+-	setFolded(false);
+-
++	refreshPinButton();
++	refreshFoldButton();
++	refreshMouseClickTarget();
+ 	refreshRootLayout();
+ }
+ 
+@@ -449,43 +533,38 @@ void FloatingTile::bringButtonsToFront()
+ 	moveButton->toFront(false);
+ 	foldButton->toFront(false);
+ 	closeButton->toFront(false);
+-	lockButton->toFront(false);
+ 	resizeButton->toFront(false);
+ }
+ 
+ void FloatingTile::paint(Graphics& g)
+ {
+-	g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::ModulatorSynthBackgroundColourId));
++	if (!layoutData.backgroundColour.isTransparent())
++	{
++		g.fillAll(layoutData.backgroundColour);
++	}
++	else
++	{
++		g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::ModulatorSynthBackgroundColourId));
++	}
+ 
+ 	auto pt = getParentType();
+ 
+-	const bool isVerticalAndFolded = getLayoutData().isFolded && !isInVerticalLayout();
+-
+-	if (isVerticalAndFolded)
+-		return;
+-
+-	const bool isInTabOrRoot = pt == ParentType::Tabbed || pt == ParentType::Root;
+-
+-	if (isInTabOrRoot)
+-		return;
+-
+-	if (!getCurrentFloatingPanel()->showTitleInPresentationMode() && !isLayoutModeEnabled())
+-		return;
++	if (showTitle())
++	{
++		g.setGradientFill(ColourGradient(Colour(0xFF222222), 0.0f, 0.0f,
++			Colour(0xFF151515), 0.0f, 16.0f, false));
+ 
+-	if (!canDoLayoutMode())
+-		return;
++		g.fillRect(0, 0, getWidth(), 16);
+ 
+-	Rectangle<int> titleArea = Rectangle<int>(leftOffset, 0, rightOffset - leftOffset, 16);
++		Rectangle<int> titleArea = Rectangle<int>(leftOffsetForTitleText, 0, rightOffsetForTitleText - leftOffsetForTitleText, 16);
+ 
+-	if (titleArea.getWidth() > 40)
+-	{
+-		g.setGradientFill(ColourGradient(Colour(0xFF333333), 0.0f, 0.0f,
+-									     Colour(0xFF2D2D2D), 0.0f, 16.0f, false));
++		if (titleArea.getWidth() > 40)
++		{
++			g.setFont(GLOBAL_BOLD_FONT());
++			g.setColour(Colours::white.withAlpha(0.8f));
+ 
+-		g.setFont(GLOBAL_BOLD_FONT());
+-		g.fillRect(0, 0, getWidth(), 16);
+-		g.setColour(Colours::white.withAlpha(0.8f));
+-		g.drawText(getCurrentFloatingPanel()->getTitle(), titleArea, Justification::centred);
++			g.drawText(getCurrentFloatingPanel()->getBestTitle(), titleArea, Justification::centred);
++		}
+ 	}
+ }
+ 
+@@ -521,7 +600,11 @@ void FloatingTile::paintOverChildren(Graphics& g)
+ 
+ void FloatingTile::refreshMouseClickTarget()
+ {
+-	if (!hasChildren())
++	if (isEmpty())
++	{
++		setInterceptsMouseClicks(true, false);
++	}
++	else if (!hasChildren())
+ 	{
+ 		bool allowClicksOnContent = !isLayoutModeEnabled();
+ 
+@@ -574,7 +657,7 @@ void FloatingTile::resized()
+ 
+ 	if (LayoutHelpers::showFoldButton(this))
+ 	{
+-		leftOffset = 16;
++		leftOffsetForTitleText = 16;
+ 		foldButton->setBounds(1, 1, 14, 14);
+ 		foldButton->setVisible(LayoutHelpers::showFoldButton(this));
+ 	}
+@@ -582,14 +665,14 @@ void FloatingTile::resized()
+ 		foldButton->setVisible(false);
+ 
+ 
+-	rightOffset = getWidth();
++	rightOffsetForTitleText = getWidth();
+ 
+ 	if (LayoutHelpers::showCloseButton(this))
+ 	{
+-		rightOffset -= 18;
++		rightOffsetForTitleText -= 18;
+ 
+-		closeButton->setVisible(rightOffset > 16);
+-		closeButton->setBounds(rightOffset, 0, 16, 16);
++		closeButton->setVisible(rightOffsetForTitleText > 16);
++		closeButton->setBounds(rightOffsetForTitleText, 0, 16, 16);
+ 	}
+ 	else
+ 	{
+@@ -598,48 +681,35 @@ void FloatingTile::resized()
+ 
+ 	if (LayoutHelpers::showMoveButton(this))
+ 	{
+-		rightOffset -= 18;
+-		moveButton->setVisible(rightOffset > 16);
+-		moveButton->setBounds(rightOffset, 0, 16, 16);
++		rightOffsetForTitleText -= 18;
++		moveButton->setVisible(rightOffsetForTitleText > 16);
++		moveButton->setBounds(rightOffsetForTitleText, 0, 16, 16);
+ 		
+ 	}
+ 	else
+ 		moveButton->setVisible(false);
+ 	
+-	if (LayoutHelpers::showMoveButton(this))
++	if (LayoutHelpers::showPinButton(this))
+ 	{
+-		rightOffset -= 18;
+-		resizeButton->setVisible(rightOffset > 16);
+-		resizeButton->setBounds(rightOffset, 0, 16, 16);
++		rightOffsetForTitleText -= 18;
++		resizeButton->setVisible(rightOffsetForTitleText > 16);
++		resizeButton->setBounds(rightOffsetForTitleText, 0, 16, 16);
+ 		
+ 	}
+ 	else
+ 		resizeButton->setVisible(false);
+-
+-	if (LayoutHelpers::showLockButton(this))
+-	{
+-		rightOffset -= 18;
+-		lockButton->setVisible(rightOffset > 16);
+-		lockButton->setBounds(rightOffset, 0, 16, 16);
+-		
+-	}
+-	else
+-		lockButton->setVisible(false);
+-
+-
+-	
+ }
+ 
+ 
+ double FloatingTile::getCurrentSizeInContainer()
+ {
+-	if (layoutData.isFolded)
++	if (isFolded())
+ 	{
+ 		return layoutData.currentSize;
+ 	}
+ 	else
+ 	{
+-		if (layoutData.isAbsolute)
++		if (layoutData.isAbsolute())
+ 		{
+ 			return getParentType() == ParentType::Horizontal ? getWidth() : getHeight();
+ 		}
+@@ -683,7 +753,7 @@ bool FloatingTile::canBeDeleted() const
+ 
+ bool FloatingTile::isFolded() const
+ {
+-	return layoutData.isFolded;
++	return layoutData.isFolded();
+ }
+ 
+ bool FloatingTile::isInVerticalLayout() const
+@@ -704,10 +774,10 @@ void FloatingTile::setContent(ValueTree& data)
+ 	else
+ 		addAndMakeVisible(content = new EmptyComponent(this));
+ 
+-	refreshFoldButton();
++	refreshFixedSizeForNewContent();
+ 
+-	setLockedSize(layoutData.isLocked);
+-	setUseAbsoluteSize(layoutData.isAbsolute);
++	refreshFoldButton();
++	refreshPinButton();
+ 
+ 	if(getParentContainer())
+ 		getParentContainer()->refreshLayout();
+@@ -722,16 +792,11 @@ void FloatingTile::setNewContent(const Identifier& newId)
+ {
+ 	addAndMakeVisible(content = dynamic_cast<Component*>(FloatingTileContent::createNewPanel(newId, this)));
+ 
+-	int fixedSize = getCurrentFloatingPanel()->getFixedSizeForOrientation();
++	refreshFixedSizeForNewContent();
++	
++	if (hasChildren())
++		setCanBeFolded(false);
+ 
+-	if (fixedSize != 0)
+-	{
+-		layoutData.currentSize = fixedSize;
+-		layoutData.isLocked = true;
+-		layoutData.isAbsolute = true;
+-	}
+-		
+-	setLockedSize(layoutData.isLocked);
+ 	refreshRootLayout();
+ 
+ 	bringButtonsToFront();
+@@ -752,22 +817,13 @@ bool FloatingTile::isSwappable() const
+ 
+ }
+ 
+-void FloatingTile::setSelector(const FloatingTileContent* originPanel, Point<int> mousePosition)
++void FloatingTile::refreshFixedSizeForNewContent()
+ {
+-	if (originPanel != nullptr)
+-	{
+-		jassert(getParentType() == ParentType::Root);
+-
+-		auto b = getLocalArea(originPanel->getParentShell(), originPanel->getParentShell()->getLocalBounds());
+-
+-		addAndMakeVisible(currentSelector = new Selector(b, mousePosition));
++	int fixedSize = getCurrentFloatingPanel()->getFixedSizeForOrientation();
+ 
+-		currentSelector->setBounds(getLocalBounds());
+-	}
+-	else
++	if (fixedSize != 0)
+ 	{
+-		Desktop::getInstance().getAnimator().fadeOut(currentSelector, 150);
+-		currentSelector = nullptr;
++		layoutData.currentSize = fixedSize;
+ 	}
+ }
+ 
+@@ -775,10 +831,17 @@ void FloatingTile::LayoutHelpers::setContentBounds(FloatingTile* t)
+ {
+ 	t->content->setVisible(!t->isFolded());
+ 	t->content->setBounds(t->getLocalBounds());
++	t->content->resized();
+ }
+ 
+ bool FloatingTile::LayoutHelpers::showCloseButton(const FloatingTile* t)
+ {
++	if (t->getParentType() == ParentType::Tabbed)
++		return false;
++
++	return t->canBeDeleted();
++
++#if 0
+ 	if (!t->getCurrentFloatingPanel()->showTitleInPresentationMode() && !t->isLayoutModeEnabled())
+ 		return false;
+ 
+@@ -806,13 +869,26 @@ bool FloatingTile::LayoutHelpers::showCloseButton(const FloatingTile* t)
+ 	}
+ 
+ 	return false;
++#endif
++
+ }
+ 
+ bool FloatingTile::LayoutHelpers::showMoveButton(const FloatingTile* t)
+ {
++	if (t->hasChildren() && dynamic_cast<const FloatingTileContainer*>(t->getCurrentFloatingPanel())->isDynamic() && t->isLayoutModeEnabled())
++		return true;
++
++	return showPinButton(t);
++}
++
++bool FloatingTile::LayoutHelpers::showPinButton(const FloatingTile* t)
++{
+ 	if (!t->isSwappable())
+ 		return false;
+ 
++	if (t->getParentType() == ParentType::Tabbed)
++		return false;
++
+ 	if (!t->isLayoutModeEnabled())
+ 		return false;
+ 
+@@ -832,39 +908,49 @@ bool FloatingTile::LayoutHelpers::showMoveButton(const FloatingTile* t)
+ 
+ bool FloatingTile::LayoutHelpers::showFoldButton(const FloatingTile* t)
+ {
+-	if (!t->getCurrentFloatingPanel()->showTitleInPresentationMode() && !t->isLayoutModeEnabled())
+-		return false;
+-
+ 	if (!t->canBeFolded())
+ 		return false;
+ 
+-	auto pt = t->getParentType();
+-
+-	if (pt == ParentType::Root)
++	if (t->getParentType() == ParentType::Tabbed)
+ 		return false;
+ 
+-	const bool isInTile = pt == ParentType::Horizontal || pt == ParentType::Vertical;
++	if (t->getParentType() == ParentType::Horizontal)
++		return true;
+ 
+-	return isInTile;
+-}
++	if (t->showTitle())
++		return true;
+ 
+-bool FloatingTile::LayoutHelpers::showLockButton(const FloatingTile* t)
+-{
+ 	return false;
++}
+ 
+-	if (!t->isLayoutModeEnabled())
+-		return false;
++void FloatingTile::TilePopupLookAndFeel::getIdealPopupMenuItemSize(const String &text, bool isSeparator, int standardMenuItemHeight, int &idealWidth, int &idealHeight)
++{
++	if (isSeparator)
++	{
++		idealWidth = 50;
++		idealHeight = standardMenuItemHeight > 0 ? standardMenuItemHeight / 2 : 10;
++	}
++	else
++	{
++		Font font(getPopupMenuFont());
+ 
+-	if (!t->canDoLayoutMode())
+-		return false;
++		if (standardMenuItemHeight > 0 && font.getHeight() > standardMenuItemHeight / 1.3f)
++			font.setHeight(standardMenuItemHeight / 1.3f);
+ 
+-	auto pt = t->getParentType();
++		idealHeight = JUCE_LIVE_CONSTANT_OFF(26);
+ 
+-	if (pt == ParentType::Horizontal || pt == ParentType::Vertical)
+-	{
+-		return t->isInVerticalLayout() || !t->isFolded();
++		idealWidth = font.getStringWidth(text) + idealHeight * 2;
+ 	}
+-
+-	return false;
+ }
+ 
++void FloatingTile::TilePopupLookAndFeel::drawPopupMenuSectionHeader(Graphics& g, const Rectangle<int>& area, const String& sectionName)
++{
++	g.fillAll(JUCE_LIVE_CONSTANT_OFF(Colour(0x1AFFFFFF)));
++
++	g.setFont(getPopupMenuFont());
++	g.setColour(Colours::white);
++
++	g.drawFittedText(sectionName,
++		area.getX() + 12, area.getY(), area.getWidth() - 16, (int)(area.getHeight() * 0.8f),
++		Justification::bottomLeft, 1);
++}
+diff --git a/hi_core/hi_components/floating_layout/FloatingTile.h b/hi_core/hi_components/floating_layout/FloatingTile.h
+index 94aaf00..532ae20 100644
+--- a/hi_core/hi_components/floating_layout/FloatingTile.h
++++ b/hi_core/hi_components/floating_layout/FloatingTile.h
+@@ -47,23 +47,32 @@ public:
+ 		void updateValueTree(ValueTree & v) const;
+ 		void restoreFromValueTree(const ValueTree &v);
+ 
+-		bool isLocked = false;
+-		bool isFolded = false;
+-		bool isAbsolute = false;
+ 		double currentSize = -0.5;
+ 		bool swappingEnabled = false;
+ 		
+-		bool foldable = true;
+-
+ 		void reset()
+ 		{
+-			isLocked = false;
+-			isFolded = false;
+-			isAbsolute = false;
++			foldState = 0;
+ 			currentSize = -0.5;
+ 			swappingEnabled = false;
+-			foldable = true;
++			backgroundColour = {};
+ 		}
++
++		bool isAbsolute() const { return currentSize > 0.0; }
++
++		bool isFolded() const { return foldState > 0; }
++		bool canBeFolded() const { return foldState >= 0; }
++		void setFoldState(int newFoldState) { foldState = newFoldState; }
++
++		Colour backgroundColour = {};
++
++		int minSize = -1;
++
++	private:
++
++		
++
++		int foldState = 0;
+ 	};
+ 
+ 	template <typename ContentType> class Iterator
+@@ -130,12 +139,6 @@ public:
+ 		void buttonClicked(Button* b);
+ 	};
+ 
+-	struct LockButton : public ShapeButton, public ButtonListener
+-	{
+-		LockButton();
+-		void buttonClicked(Button* b);
+-	};
+-
+ 	struct ResizeButton : public ShapeButton, public ButtonListener
+ 	{
+ 		ResizeButton();
+@@ -150,25 +153,26 @@ public:
+ 		foldButton = nullptr;
+ 		moveButton = nullptr;
+ 		resizeButton = nullptr;
+-		lockButton = nullptr;
+ 		closeButton = nullptr;
+ 	}
+ 
++	void setContent(ValueTree& data);
++	void setNewContent(const Identifier& newId);
++
+ 	bool isEmpty() const;
++	bool showTitle() const;
+ 
+-	void setFolded(bool shouldBeFolded);
++	Rectangle<int> getContentBounds();
+ 
++	bool isFolded() const;
++	void setFolded(bool shouldBeFolded);
+ 	void refreshFoldButton();
+-
+ 	void setCanBeFolded(bool shouldBeFoldable);
+-
+ 	bool canBeFolded() const;
+ 
+-	void setUseAbsoluteSize(bool shouldUseAbsoluteSize);
++	void refreshPinButton();
+ 	void toggleAbsoluteSize();
+ 
+-	void setLockedSize(bool shouldBeLocked);
+-
+ 	const BackendRootWindow* getRootWindow() const;
+ 	BackendRootWindow* getRootWindow();
+ 
+@@ -178,14 +182,11 @@ public:
+ 
+ 	void clear();
+ 	void refreshRootLayout();
++	
+ 	void setLayoutModeEnabled(bool shouldBeEnabled, bool setChildrenToSameSetting=true);
+-
+ 	bool isLayoutModeEnabled() const;;
+-
+ 	bool canDoLayoutMode() const;
+ 
+-	void toggleLayoutModeForParentContainer();
+-
+ 	ParentType getParentType() const;
+ 
+ 	const FloatingTileContainer* getParentContainer() const { return parentContainer; }
+@@ -196,6 +197,8 @@ public:
+ 	void enableSwapMode(bool shouldBeEnabled, FloatingTile* source);
+ 	void swapWith(FloatingTile* otherComponent);
+ 
++	void swapContainerType(const Identifier& containerId);
++
+ 	void bringButtonsToFront();
+ 
+ 	void paint(Graphics& g) override;
+@@ -215,14 +218,12 @@ public:
+ 	const FloatingTileContent* getCurrentFloatingPanel() const;
+ 	FloatingTileContent* getCurrentFloatingPanel();
+ 	
+-	bool isFolded() const;
+ 	bool isInVerticalLayout() const;
+ 
+ 	const LayoutData& getLayoutData() const { return layoutData; }
+ 	LayoutData& getLayoutData() { return layoutData; }
+ 
+ 	String exportAsJSON() const;
+-
+ 	void loadFromJSON(const String& jsonData);
+ 
+ 	struct LayoutHelpers
+@@ -232,121 +233,50 @@ public:
+ 		static void setContentBounds(FloatingTile* t);
+ 		static bool showCloseButton(const FloatingTile* t);
+ 		static bool showMoveButton(const FloatingTile* t);
++		static bool showPinButton(const FloatingTile* t);
+ 		static bool showFoldButton(const FloatingTile* t);
+-		static bool showLockButton(const FloatingTile* t);
+ 	};
+ 
+-	void setContent(ValueTree& data);
+-
+-	void setNewContent(const Identifier& newId);
+-
+ 	void setVital(bool shouldBeVital) { vital = shouldBeVital; }
+-
+ 	bool isVital() const { return vital; }
+-
+ 	bool canBeDeleted() const;
+-
+ 	bool isSwappable() const;
+ 
+ 	FloatingTileContent::Factory* getPanelFactory() { return &panelFactory; };
+ 
+-	void setSelector(const FloatingTileContent* originPanel, Point<int> mousePosition);
++private:
+ 
+-	class Selector : public Component
++	class TilePopupLookAndFeel : public PopupLookAndFeel
+ 	{
+-	public:
+-
+-		Selector(Rectangle<int>& target_, Point<int> pos):
+-			target(target_),
+-			mousePosition(pos)
+-		{
+-			addAndMakeVisible(content = new Content());
+-		}
+-
+-		~Selector()
+-		{
+-
+-		}
++		void getIdealPopupMenuItemSize(const String &text, bool isSeparator, int standardMenuItemHeight, int &idealWidth, int &idealHeight) override;
+ 
+-		void mouseDown(const MouseEvent& event)
+-		{
+-			findParentComponentOfClass<FloatingTile>()->setSelector(nullptr, {});
+-		}
+-
+-		void paint(Graphics& g)
+-		{
+-			g.fillAll(Colours::black.withAlpha(0.2f));
+-
+-			g.setColour(Colours::white.withAlpha(0.1f));
+-			g.fillRect(target);
+-		}
+-
+-		void resized()
+-		{
+-			int x = jmax<int>(mousePosition.getX() - 300, 10);
+-			int y = jmax<int>(mousePosition.getY() - 300, 10);
+-
+-			x = jmin<int>(x, getWidth() - 610);
+-			y = jmin<int>(y, getHeight() - 510);
+-
+-			content->setBounds(x, y, 600, 500);
+-		}
+-
+-	private:
+-
+-		class Content : public Component
+-		{
+-		public:
+-
+-			void paint(Graphics& g)
+-			{
+-				g.fillAll(Colours::black.withAlpha(0.3f));
+-			}
+-
+-			void mouseDown(const MouseEvent&)
+-			{
+-				findParentComponentOfClass<FloatingTile>()->setSelector(nullptr, {});
+-			}
+-
+-		private:
+-
+-		};
+-		
+-		Rectangle<int> target;
+-
+-		ScopedPointer<Content> content;
+-
+-		Point<int> mousePosition;
++		void drawPopupMenuSectionHeader(Graphics& g, const Rectangle<int>& area, const String& sectionName);
+ 
+ 	};
+ 
+-private:
++	void refreshFixedSizeForNewContent();
+ 
+ 	bool vital = false;
+ 
+ 	bool layoutModeEnabled = false;
+ 
+-	ScopedPointer<Selector> currentSelector;
+-
+-	int leftOffset = 0;
+-	int rightOffset = 0;
++	int leftOffsetForTitleText = 0;
++	int rightOffsetForTitleText = 0;
+ 
+ 	LayoutData layoutData;
+ 
+-	PopupLookAndFeel plaf;
++	TilePopupLookAndFeel plaf;
+ 
+ 	Component::SafePointer<FloatingTile> currentSwapSource;
+ 
+ 	ScopedPointer<ShapeButton> closeButton;
+ 	ScopedPointer<MoveButton> moveButton;
+ 	ScopedPointer<FoldButton> foldButton;
+-	ScopedPointer<LockButton> lockButton;
+ 	ScopedPointer<ResizeButton> resizeButton;
+ 
+ 	ScopedPointer<Component> content;
+ 
+ 	FloatingTileContainer* parentContainer;
+-
+ 	FloatingTileContent::Factory panelFactory;
+ };
+ 
+diff --git a/hi_core/hi_components/floating_layout/FloatingTileContainer.cpp b/hi_core/hi_components/floating_layout/FloatingTileContainer.cpp
+index ff90ecb..2ef8128 100644
+--- a/hi_core/hi_components/floating_layout/FloatingTileContainer.cpp
++++ b/hi_core/hi_components/floating_layout/FloatingTileContainer.cpp
+@@ -89,7 +89,7 @@ void FloatingTileContainer::removeFloatingTile(FloatingTile* componentToRemove)
+ 
+ bool FloatingTileContainer::shouldIntendAddButton() const
+ {
+-	return getParentShell()->isLayoutModeEnabled() || FloatingTile::LayoutHelpers::showFoldButton(getParentShell());
++	return FloatingTile::LayoutHelpers::showFoldButton(getParentShell());
+ }
+ 
+ ValueTree FloatingTileContainer::exportAsValueTree() const
+@@ -136,11 +136,6 @@ void FloatingTileContainer::enableSwapMode(bool shouldBeSwappable, FloatingTile*
+ 	}
+ }
+ 
+-void FloatingTileContainer::setAllowInserting(bool shouldBeAllowed)
+-{
+-	allowInserting = shouldBeAllowed;
+-}
+-
+ void FloatingTileContainer::refreshLayout()
+ {
+ 	FloatingTile::Iterator<FloatingTileContainer> iter(getParentShell());
+@@ -181,12 +176,29 @@ int FloatingTabComponent::LookAndFeel::getTabButtonBestWidth(TabBarButton &b, in
+ 	return (int)(w + 48);
+ }
+ 
++
++Path createTabBackgroundPath(Rectangle<float> bounds)
++{
++
++	Path p;
++
++	p.startNewSubPath(bounds.getX(), bounds.getY() + 4);
++	p.lineTo(bounds.getX() + 3, bounds.getY()+1);
++	p.lineTo(bounds.getRight() - 3, bounds.getY()+1);
++	p.lineTo(bounds.getRight(), bounds.getY() + 4);
++	p.lineTo(bounds.getRight(), bounds.getBottom());
++	p.lineTo(bounds.getX(), bounds.getBottom());
++	p.closeSubPath();
++
++	return p;
++}
++
+ void FloatingTabComponent::LookAndFeel::drawTabButton(TabBarButton &b, Graphics &g, bool isMouseOver, bool /*isMouseDown*/)
+ {
+ 	if (isMouseOver)
+ 	{
+-		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x13000000)));
+-		g.fillRect(0, 0, b.getWidth(), 22);
++		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x13ffffff)));
++		g.fillPath(createTabBackgroundPath(Rectangle<float>(0.0f, 0.0f, (float)b.getWidth(), 20.0f)));
+ 	}
+ 
+ 	g.setColour(Colours::black.withAlpha(0.1f));
+@@ -196,7 +208,7 @@ void FloatingTabComponent::LookAndFeel::drawTabButton(TabBarButton &b, Graphics
+ 	g.setColour(Colours::white.withAlpha(a));
+ 	g.setFont(GLOBAL_BOLD_FONT());
+ 
+-	g.drawText(b.getButtonText(), 5, 4, b.getWidth() - 10, b.getHeight() - 4, Justification::centredLeft);
++	g.drawText(b.getButtonText(), 5, 2, b.getWidth() - 10, b.getHeight() - 4, Justification::centredLeft);
+ }
+ 
+ 
+@@ -205,13 +217,19 @@ Rectangle< int > FloatingTabComponent::LookAndFeel::getTabButtonExtraComponentBo
+ 	return Rectangle<int>(b.getWidth() - 18, 2, 16, 16);
+ }
+ 
++
+ void FloatingTabComponent::LookAndFeel::drawTabAreaBehindFrontButton(TabbedButtonBar &b, Graphics &g, int , int )
+ {
+-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff333333)));
++	
+ 
+ 	if (b.getCurrentTabIndex() != -1)
+ 	{
+-		g.fillRect(b.getTabButton(b.getCurrentTabIndex())->getBoundsInParent());
++
++		g.setColour(HiseColourScheme::getColour(HiseColourScheme::EditorBackgroundColourIdBright));
++
++		auto bounds = FLOAT_RECTANGLE(b.getTabButton(b.getCurrentTabIndex())->getBoundsInParent());
++
++		g.fillPath(createTabBackgroundPath(bounds));
+ 	}
+ 		
+ }
+@@ -245,6 +263,48 @@ FloatingTabComponent::~FloatingTabComponent()
+ 	clear();
+ }
+ 
++void FloatingTabComponent::popupMenuClickOnTab(int tabIndex, const String& tabName)
++{
++	PopupMenu m;
++
++	m.setLookAndFeel(&plaf);
++
++	m.addItem(1, "Rename Tab", !getComponent(tabIndex)->isVital());
++	m.addSeparator();
++	m.addItem(2, "Export Tab as JSON", !getComponent(tabIndex)->isVital());
++	m.addItem(3, "Replace Tab with JSON in clipboard", !getComponent(tabIndex)->isVital());
++
++	const int result = m.show();
++
++	if (result == 1)
++	{
++		auto newName = PresetHandler::getCustomName("Tab", "Enter the tab name");
++		getComponent(tabIndex)->getCurrentFloatingPanel()->setCustomTitle(newName);
++		
++		getTabbedButtonBar().repaint();
++	}
++	else if (result == 2)
++	{
++		SystemClipboard::copyTextToClipboard(getComponent(tabIndex)->exportAsJSON());
++	}
++	else if (result == 3)
++	{
++		getComponent(tabIndex)->loadFromJSON(SystemClipboard::getTextFromClipboard());
++	}
++}
++
++void FloatingTabComponent::refreshLayout()
++{
++	FloatingTileContainer::refreshLayout();
++
++	if (getCurrentTabIndex() != -1)
++	{
++		getComponent(getCurrentTabIndex())->resized();
++	}
++
++	resized();
++}
++
+ void FloatingTabComponent::componentAdded(FloatingTile* newComponent)
+ {
+ 	int i = getNumTabs();
+@@ -290,31 +350,14 @@ ValueTree FloatingTabComponent::exportAsValueTree() const
+ 
+ 	v.setProperty("CurrentTab", getCurrentTabIndex(), nullptr);
+ 
+-	for (int i = 0; i < getNumComponents(); i++)
+-	{
+-		auto child = getComponent(i)->getCurrentFloatingPanel();
+-
+-		ValueTree cv;
+-
+-		cv = child->exportAsValueTree();
+-	
+-		v.addChild(cv, -1, nullptr);
+-	}
+-
+ 	return v;
+ }
+ 
+ void FloatingTabComponent::restoreFromValueTree(const ValueTree &v)
+ {
+-	FloatingTileContainer::restoreFromValueTree(v);
+-
+-	clear();
+ 	clearTabs();
+ 
+-	for (int i = 0; i < v.getNumChildren(); i++)
+-	{
+-		addFloatingTile(new FloatingTile(this, v.getChild(i)));
+-	}
++	FloatingTileContainer::restoreFromValueTree(v);
+ 
+ 	setCurrentTabIndex(v.getProperty("CurrentTab", -1));
+ }
+@@ -322,10 +365,10 @@ void FloatingTabComponent::restoreFromValueTree(const ValueTree &v)
+ void FloatingTabComponent::paint(Graphics& g)
+ {
+ 	g.setColour(HiseColourScheme::getColour(HiseColourScheme::EditorBackgroundColourId));
+-	g.fillRect(0, 4, getWidth(), 18);
+-
+-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF666666)));
+ 	g.fillRect(0, 0, getWidth(), 24);
++
++	g.setColour(HiseColourScheme::getColour(HiseColourScheme::EditorBackgroundColourIdBright));
++	g.fillRect(0, 20, getWidth(), 4);
+ }
+ 
+ void FloatingTabComponent::resized()
+@@ -339,7 +382,7 @@ void FloatingTabComponent::resized()
+ 	{
+ 		for (int i = 0; i < getNumTabs(); i++)
+ 		{
+-			String text = getComponent(i)->getCurrentFloatingPanel()->getCustomTitle();
++			String text = getComponent(i)->getCurrentFloatingPanel()->getBestTitle();
+ 
+ 			if (text.isEmpty())
+ 				text = "Untitled";
+@@ -357,7 +400,7 @@ void FloatingTabComponent::resized()
+ 
+ 	
+ 
+-	if (!isInsertingEnabled())
++	if (!isDynamic())
+ 		addButton->setVisible(false);
+ 
+ 	const int intend = FloatingTile::LayoutHelpers::showFoldButton(getParentShell()) ? 16 : 0;
+@@ -368,9 +411,9 @@ void FloatingTabComponent::resized()
+ 	auto b = getTabbedButtonBar().getTabButton(getTabbedButtonBar().getNumTabs() - 1);
+ 
+ 	if (b != nullptr)
+-		addButton->setBounds(b->getRight() + intend + 4, 6, 16, 16);
++		addButton->setBounds(b->getRight() + intend + 4, 2, 16, 16);
+ 	else
+-		addButton->setBounds(intend + 2, 6, 16, 16);
++		addButton->setBounds(intend + 2, 2, 16, 16);
+ }
+ 
+ void FloatingTabComponent::buttonClicked(Button* )
+@@ -387,8 +430,7 @@ void ResizableFloatingTileContainer::refreshLayout()
+ 
+ void ResizableFloatingTileContainer::paint(Graphics& g)
+ {
+-	g.setColour(findColour(ColourIds::backgroundColourId));
+-	g.fillAll();
++	
+ }
+ 
+ Rectangle<int> ResizableFloatingTileContainer::getContainerBounds() const
+@@ -427,8 +469,6 @@ ResizableFloatingTileContainer::ResizableFloatingTileContainer(FloatingTile* par
+ 	FloatingTileContainer(parent),
+ 	vertical(isVerticalTile)
+ {
+-	setOpaque(true);
+-
+ 	setColour(ColourIds::backgroundColourId, Colour(0xff373737));
+ 
+ 	addAndMakeVisible(addButton = new ShapeButton("Add Column", Colours::white.withAlpha(0.7f), Colours::white, Colours::white));
+@@ -494,7 +534,7 @@ void ResizableFloatingTileContainer::resized()
+ 	if (getParentComponent() == nullptr || getParentShell()->getCurrentFloatingPanel() == nullptr) // avoid resizing
+ 		return;
+ 
+-	addButton->setVisible(isTitleBarDisplayed());
++	addButton->setVisible(isTitleBarDisplayed() && isDynamic());
+ 	addButton->setBounds(shouldIntendAddButton() ? 18 : 1, 1, 30, 15);
+ 	addButton->toFront(false);
+ 
+@@ -534,7 +574,11 @@ void ResizableFloatingTileContainer::foldComponent(Component* c, bool shouldBeFo
+ 
+ bool ResizableFloatingTileContainer::isTitleBarDisplayed() const
+ {
+-	const bool layoutModeWithAddingEnabled = getParentShell()->isLayoutModeEnabled() && isInsertingEnabled();
++	return getParentShell()->showTitle();
++
++#if 0
++
++	const bool layoutModeWithAddingEnabled = getParentShell()->isLayoutModeEnabled() && isDynamic();
+ 
+ 	if (layoutModeWithAddingEnabled)
+ 		return true;
+@@ -546,6 +590,7 @@ bool ResizableFloatingTileContainer::isTitleBarDisplayed() const
+ 	
+ 	if (hasCustomTitle())
+ 		return true;
++#endif
+ }
+ 
+ void ResizableFloatingTileContainer::mouseDown(const MouseEvent& event)
+@@ -590,9 +635,9 @@ void ResizableFloatingTileContainer::performLayout(Rectangle<int> area)
+ 		if (i < getNumComponents() - 1)
+ 			availableSize -= resizers[i]->getCurrentSize();
+ 
+-		if (lData.isFolded)
++		if (pc->isFolded())
+ 			availableSize -= 16;
+-		else if (lData.isAbsolute)
++		else if (lData.isAbsolute())
+ 			availableSize -= lData.currentSize;
+ 		else
+ 			totalRelativeAmount += lData.currentSize * -1.0;
+@@ -614,14 +659,16 @@ void ResizableFloatingTileContainer::performLayout(Rectangle<int> area)
+ 
+ 		auto& lData = pc->getLayoutData();
+ 
+-		if (lData.isFolded)
++		if (pc->isFolded())
+ 		{
+ 			setBoundsOneDimension(pc, offset, 16, area);
+ 			offset += 16;
+ 		}
+-		else if (lData.isAbsolute)
++		else if (lData.isAbsolute())
+ 		{
+-			double size = jmax<int>(lData.currentSize, 16);
++			int size = jmax<int>((int)lData.currentSize, 16);
++
++			pc->setVisible(size > lData.minSize);
+ 
+ 			setBoundsOneDimension(pc, offset, size, area);
+ 			offset += lData.currentSize;
+@@ -633,6 +680,8 @@ void ResizableFloatingTileContainer::performLayout(Rectangle<int> area)
+ 			int size = availableSize * scaledPercentage;
+ 			size = jmax<int>(size, 16);
+ 
++			pc->setVisible(size > lData.minSize);
++
+ 			setBoundsOneDimension(pc, offset, size, area);
+ 			offset += size;
+ 		}
+@@ -694,7 +743,7 @@ ResizableFloatingTileContainer::InternalResizer::InternalResizer(ResizableFloati
+ 	{
+ 		auto &lData = parent->getComponent(i)->getLayoutData();
+ 
+-		bool cantBeResized = lData.isLocked || lData.isFolded || lData.isAbsolute;
++		bool cantBeResized = parent->getComponent(i)->isFolded() || lData.isAbsolute();
+ 
+ 		if (cantBeResized)
+ 			continue;
+diff --git a/hi_core/hi_components/floating_layout/FloatingTileContainer.h b/hi_core/hi_components/floating_layout/FloatingTileContainer.h
+index 91bf0ca..66f1de2 100644
+--- a/hi_core/hi_components/floating_layout/FloatingTileContainer.h
++++ b/hi_core/hi_components/floating_layout/FloatingTileContainer.h
+@@ -96,17 +96,11 @@ public:
+ 
+ 	void restoreFromValueTree(const ValueTree &v) override;
+ 
+-
+-
+ 	void enableSwapMode(bool shouldBeSwappable, FloatingTile* source);
+ 
+-	/** This will be called whenever the layout needs to be updated (eg. when a new floating tile is added or the resizers were dragged. */
++	/** This will be called whenever the layout needs to be updated eg. when a new floating tile is added or the resizers were dragged. */
+ 	virtual void refreshLayout();
+ 
+-	void setAllowInserting(bool shouldBeAllowed);
+-
+-	bool isInsertingEnabled() const { return allowInserting; }
+-
+ 	bool showTitleInPresentationMode() const override { return false; }
+ 
+ 	void setIsDynamic(bool shouldBeDynamic)
+@@ -132,8 +126,6 @@ private:
+ 
+ 	OwnedArray<FloatingTile> components;
+ 
+-	bool allowInserting = true;
+-
+ 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FloatingTileContainer)
+ };
+ 
+@@ -164,11 +156,6 @@ public:
+ 
+ 	~FloatingTabComponent();
+ 
+-	bool showTitleInPresentationMode() const override
+-	{
+-		return true;
+-	}
+-
+ 	String getTitle() const override { return ""; };
+ 
+ 	Rectangle<int> getContainerBounds() const override
+@@ -178,12 +165,9 @@ public:
+ 		return localBounds.withTrimmedTop(getTabBarDepth());
+ 	}
+ 
+-	void refreshLayout() override
+-	{
+-		FloatingTileContainer::refreshLayout();
++	void popupMenuClickOnTab(int tabIndex, const String& tabName) override;
+ 
+-		resized();
+-	}
++	void refreshLayout() override;
+ 
+ 	void componentAdded(FloatingTile* newComponent) override;
+ 	void componentRemoved(FloatingTile* deletedComponent) override;
+@@ -200,6 +184,8 @@ private:
+ 
+ 	ScopedPointer<ShapeButton> addButton;
+ 
++	PopupLookAndFeel plaf;
++
+ 	LookAndFeel laf;
+ };
+ 
+@@ -267,12 +253,7 @@ public:
+ 
+ 	String getTitle() const override;
+ 
+-	bool showTitleInPresentationMode() const override
+-	{
+-		return getCustomTitle().isNotEmpty();
+-	}
+-
+-    Rectangle<int> getContainerBounds() const override;
++	Rectangle<int> getContainerBounds() const override;
+ 	
+ 	virtual bool isVertical() const { return vertical; }
+ 
+diff --git a/hi_core/hi_components/floating_layout/FloatingTileContent.cpp b/hi_core/hi_components/floating_layout/FloatingTileContent.cpp
+index 0dfccbc..1a7fdbb 100644
+--- a/hi_core/hi_components/floating_layout/FloatingTileContent.cpp
++++ b/hi_core/hi_components/floating_layout/FloatingTileContent.cpp
+@@ -118,6 +118,10 @@ ValueTree FloatingTileContent::exportAsValueTree() const
+ 
+ 	getParentShell()->getLayoutData().updateValueTree(v);
+ 
++	// Don't store the size for fixed width components
++	if (getFixedSizeForOrientation() != 0)
++		v.removeProperty("Size", nullptr);
++
+ 	return v;
+ }
+ 
+@@ -145,6 +149,12 @@ FloatingTileContent* FloatingTileContent::createNewPanel(const Identifier& id, F
+ 	return parent->getPanelFactory()->createFromId(id, parent);
+ }
+ 
++void FloatingTileContent::setDynamicTitle(const String& newDynamicTitle)
++{
++	dynamicTitle = newDynamicTitle;
++	getParentShell()->repaint();
++}
++
+ const BackendProcessorEditor* FloatingTileContent::getMainPanel() const
+ {
+ 	return getParentShell()->findParentComponentOfClass<BackendRootWindow>()->getMainPanel();
+@@ -288,6 +298,8 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
+ 	registerType<MidiKeyboardPanel>();
+ 	registerType<TableEditorPanel>();
+ 	registerType<CodeEditorPanel>();
++	registerType<SampleMapEditorPanel>();
++	registerType<SampleEditorPanel>();
+ 	registerType<ScriptContentPanel>();
+ 	registerType<SliderPackPanel>();
+ 	registerType<GlobalConnectorPanel>();
+@@ -303,6 +315,240 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
+ }
+ 
+ 
++Drawable* FloatingTileContent::Factory::getIcon(PopupMenuOptions type)
++{
++	Path path;
++	
++
++	switch (type)
++	{
++	case FloatingTileContent::Factory::PopupMenuOptions::Cancel:
++		break;
++	case FloatingTileContent::Factory::PopupMenuOptions::Empty:
++		break;
++	case FloatingTileContent::Factory::PopupMenuOptions::Spacer:
++	{
++		static const unsigned char pathData[] = { 110,109,0,120,111,66,255,167,242,66,108,0,120,111,66,0,84,4,67,108,0,134,111,66,0,84,4,67,108,0,134,111,66,128,86,4,67,108,0,195,141,66,128,86,4,67,108,0,195,141,66,128,86,1,67,108,0,120,123,66,128,86,1,67,108,0,120,123,66,255,167,242,66,108,0,120,111,
++			66,255,167,242,66,99,109,0,150,20,66,0,180,242,66,108,0,150,20,66,128,93,1,67,108,0,24,233,65,128,93,1,67,108,0,24,233,65,128,93,4,67,108,0,140,32,66,128,93,4,67,108,0,140,32,66,0,90,4,67,108,0,150,32,66,0,90,4,67,108,0,150,32,66,0,180,242,66,108,0,150,
++			20,66,0,180,242,66,99,109,0,120,232,65,0,61,24,67,108,0,120,232,65,0,61,27,67,108,0,74,20,66,0,61,27,67,108,0,74,20,66,128,63,35,67,108,0,74,32,66,128,63,35,67,108,0,74,32,66,128,63,24,67,108,0,60,32,66,128,63,24,67,108,0,60,32,66,0,61,24,67,108,0,120,
++			232,65,0,61,24,67,99,109,0,84,112,66,0,86,24,67,108,0,84,112,66,128,89,24,67,108,0,74,112,66,128,89,24,67,108,0,74,112,66,128,89,35,67,108,0,74,124,66,128,89,35,67,108,0,74,124,66,0,86,27,67,108,0,42,142,66,0,86,27,67,108,0,42,142,66,0,86,24,67,108,0,
++			84,112,66,0,86,24,67,99,101,0,0 };
++
++		path.loadPathFromData(pathData, sizeof(pathData));
++
++		break;
++	}
++	case FloatingTileContent::Factory::PopupMenuOptions::BigResizer:
++		break;
++	case FloatingTileContent::Factory::PopupMenuOptions::HorizontalTile:
++	{
++		static const unsigned char pathData[] = { 110,109,0,191,29,67,129,235,111,67,108,0,51,205,66,129,235,111,67,108,0,51,205,66,128,254,121,67,108,0,191,29,67,128,254,121,67,108,0,191,29,67,129,235,111,67,99,109,0,159,29,67,1,209,91,67,108,1,242,204,66,1,209,91,67,108,1,242,204,66,129,228,101,67,
++			108,0,159,29,67,129,228,101,67,108,0,159,29,67,1,209,91,67,99,109,3,151,29,67,0,247,129,67,108,6,227,204,66,0,247,129,67,108,6,227,204,66,192,0,135,67,108,3,151,29,67,192,0,135,67,108,3,151,29,67,0,247,129,67,99,101,0,0 };
++
++		path.loadPathFromData(pathData, sizeof(pathData));
++		break;
++	}
++	case FloatingTileContent::Factory::PopupMenuOptions::VerticalTile:
++	{
++		static const unsigned char pathData[] = { 110,109,1,53,250,66,128,66,89,67,108,1,53,250,66,0,52,136,67,108,128,45,7,67,0,52,136,67,108,128,45,7,67,128,66,89,67,108,1,53,250,66,128,66,89,67,99,109,0,0,210,66,128,98,89,67,108,0,0,210,66,64,68,136,67,108,0,39,230,66,64,68,136,67,108,0,39,230,66,
++			128,98,89,67,108,0,0,210,66,128,98,89,67,99,109,0,29,17,67,128,106,89,67,108,0,29,17,67,0,72,136,67,108,128,48,27,67,0,72,136,67,108,128,48,27,67,128,106,89,67,108,0,29,17,67,128,106,89,67,99,101,0,0 };
++
++		path.loadPathFromData(pathData, sizeof(pathData));
++
++		break;
++	}	
++	case FloatingTileContent::Factory::PopupMenuOptions::Tabs:
++	{
++		static const unsigned char pathData[] = { 110,109,0,0,170,66,64,174,153,67,108,0,0,170,66,64,46,176,67,108,0,205,189,66,64,46,176,67,108,0,205,189,66,0,142,158,67,108,0,0,2,67,0,142,158,67,108,0,0,2,67,64,174,153,67,108,0,0,170,66,64,174,153,67,99,109,0,126,199,66,192,250,160,67,108,0,126,199,
++			66,192,122,183,67,108,0,191,16,67,192,122,183,67,108,0,191,16,67,192,250,160,67,108,0,126,199,66,192,250,160,67,99,101,0,0 };
++
++
++		path.loadPathFromData(pathData, sizeof(pathData));
++
++		break;
++	}
++	case FloatingTileContent::Factory::PopupMenuOptions::Matrix2x2:
++		break;
++	case FloatingTileContent::Factory::PopupMenuOptions::ThreeColumns:
++		break;
++	case FloatingTileContent::Factory::PopupMenuOptions::ThreeRows:
++		break;
++	case FloatingTileContent::Factory::PopupMenuOptions::Note:
++	{
++		static const unsigned char pathData[] = { 110,109,0,160,54,67,64,174,213,67,108,0,160,54,67,192,178,217,67,108,0,137,42,67,192,178,217,67,108,0,137,42,67,192,178,218,67,108,0,137,42,67,192,57,243,67,108,0,55,101,67,192,57,243,67,108,0,55,101,67,192,178,217,67,108,0,128,89,67,192,178,217,67,108,
++			0,128,89,67,64,174,213,67,108,0,128,84,67,64,174,213,67,108,0,128,84,67,192,178,217,67,108,0,128,79,67,192,178,217,67,108,0,128,79,67,64,174,213,67,108,0,128,74,67,64,174,213,67,108,0,128,74,67,192,178,217,67,108,0,224,69,67,192,178,217,67,108,0,224,
++			69,67,64,174,213,67,108,0,224,64,67,64,174,213,67,108,0,224,64,67,192,178,217,67,108,0,160,59,67,192,178,217,67,108,0,160,59,67,64,174,213,67,108,0,160,54,67,64,174,213,67,99,109,0,137,46,67,192,178,219,67,108,0,160,54,67,192,178,219,67,108,0,160,54,
++			67,64,46,221,67,108,0,160,59,67,64,46,221,67,108,0,160,59,67,192,178,219,67,108,0,224,64,67,192,178,219,67,108,0,224,64,67,64,46,221,67,108,0,224,69,67,64,46,221,67,108,0,224,69,67,192,178,219,67,108,0,128,74,67,192,178,219,67,108,0,128,74,67,64,46,221,
++			67,108,0,128,79,67,64,46,221,67,108,0,128,79,67,192,178,219,67,108,0,128,84,67,192,178,219,67,108,0,128,84,67,64,46,221,67,108,0,128,89,67,64,46,221,67,108,0,128,89,67,192,178,219,67,108,0,55,97,67,192,178,219,67,108,0,55,97,67,192,57,241,67,108,0,137,
++			46,67,192,57,241,67,108,0,137,46,67,192,178,219,67,99,109,0,167,54,67,64,238,222,67,108,0,167,54,67,64,110,224,67,108,128,179,89,67,64,110,224,67,108,128,179,89,67,64,238,222,67,108,0,167,54,67,64,238,222,67,99,109,0,167,54,67,64,238,227,67,108,0,167,
++			54,67,64,110,229,67,108,128,179,89,67,64,110,229,67,108,128,179,89,67,64,238,227,67,108,0,167,54,67,64,238,227,67,99,109,0,167,54,67,64,238,232,67,108,0,167,54,67,64,110,234,67,108,128,179,89,67,64,110,234,67,108,128,179,89,67,64,238,232,67,108,0,167,
++			54,67,64,238,232,67,99,109,0,167,54,67,64,238,237,67,108,0,167,54,67,64,110,239,67,108,128,179,89,67,64,110,239,67,108,128,179,89,67,64,238,237,67,108,0,167,54,67,64,238,237,67,99,101,0,0 };
++
++		path.loadPathFromData(pathData, sizeof(pathData));
++
++		break;
++	}
++		
++	case FloatingTileContent::Factory::PopupMenuOptions::MidiKeyboard:
++		path.loadPathFromData(BackendBinaryData::ToolbarIcons::keyboard, sizeof(BackendBinaryData::ToolbarIcons::keyboard));
++		break;
++	case FloatingTileContent::Factory::PopupMenuOptions::GlobalConnectorPanel:
++	{
++		static const unsigned char pathData[] = { 110,109,0,0,52,67,0,57,195,66,108,0,0,52,67,0,57,195,66,108,7,192,51,67,51,60,195,66,108,55,128,51,67,202,69,195,66,108,184,64,51,67,191,85,195,66,108,180,1,51,67,8,108,195,66,108,83,195,50,67,150,136,195,66,108,188,133,50,67,87,171,195,66,108,23,73,
++			50,67,53,212,195,66,108,139,13,50,67,22,3,196,66,108,62,211,49,67,219,55,196,66,108,86,154,49,67,100,114,196,66,108,246,98,49,67,138,178,196,66,108,66,45,49,67,36,248,196,66,108,92,249,48,67,7,67,197,66,108,103,199,48,67,1,147,197,66,108,129,151,48,67,
++			224,231,197,66,108,201,105,48,67,110,65,198,66,108,92,62,48,67,114,159,198,66,108,87,21,48,67,174,1,199,66,108,212,238,47,67,228,103,199,66,108,235,202,47,67,212,209,199,66,108,179,169,47,67,56,63,200,66,108,65,139,47,67,203,175,200,66,108,170,111,47,
++			67,70,35,201,66,108,253,86,47,67,93,153,201,66,108,77,65,47,67,198,17,202,66,108,165,46,47,67,52,140,202,66,108,19,31,47,67,88,8,203,66,108,160,18,47,67,226,133,203,66,108,84,9,47,67,131,4,204,66,108,53,3,47,67,233,131,204,66,108,71,0,47,67,196,3,205,
++			66,108,0,0,47,67,0,57,205,66,108,0,0,47,67,0,57,205,66,108,0,0,47,67,0,57,205,66,108,74,2,47,67,232,184,205,66,108,197,7,47,67,108,56,206,66,108,128,9,47,67,0,86,206,66,108,128,9,47,67,0,86,206,66,108,128,152,35,67,0,199,217,66,108,128,152,35,67,0,199,
++			217,66,108,234,106,35,67,43,109,217,66,108,37,59,35,67,2,24,217,66,108,78,9,35,67,186,199,216,66,108,134,213,34,67,135,124,216,66,108,237,159,34,67,153,54,216,66,108,166,104,34,67,30,246,215,66,108,212,47,34,67,61,187,215,66,108,156,245,33,67,29,134,
++			215,66,108,34,186,33,67,224,86,215,66,108,142,125,33,67,164,45,215,66,108,4,64,33,67,131,10,215,66,108,174,1,33,67,149,237,214,66,108,179,194,32,67,234,214,214,66,108,59,131,32,67,147,198,214,66,108,110,67,32,67,153,188,214,66,108,118,3,32,67,3,185,214,
++			66,108,0,0,32,67,0,185,214,66,108,0,0,32,67,0,185,214,66,108,0,0,32,67,0,185,214,66,108,7,192,31,67,51,188,214,66,108,55,128,31,67,202,197,214,66,108,184,64,31,67,191,213,214,66,108,180,1,31,67,8,236,214,66,108,83,195,30,67,150,8,215,66,108,188,133,30,
++			67,87,43,215,66,108,23,73,30,67,53,84,215,66,108,139,13,30,67,22,131,215,66,108,62,211,29,67,219,183,215,66,108,86,154,29,67,100,242,215,66,108,246,98,29,67,138,50,216,66,108,66,45,29,67,36,120,216,66,108,92,249,28,67,7,195,216,66,108,103,199,28,67,1,
++			19,217,66,108,129,151,28,67,224,103,217,66,108,201,105,28,67,110,193,217,66,108,92,62,28,67,114,31,218,66,108,87,21,28,67,174,129,218,66,108,212,238,27,67,228,231,218,66,108,235,202,27,67,212,81,219,66,108,179,169,27,67,56,191,219,66,108,65,139,27,67,
++			203,47,220,66,108,170,111,27,67,70,163,220,66,108,253,86,27,67,93,25,221,66,108,77,65,27,67,198,145,221,66,108,165,46,27,67,52,12,222,66,108,19,31,27,67,88,136,222,66,108,160,18,27,67,226,5,223,66,108,84,9,27,67,131,132,223,66,108,53,3,27,67,233,3,224,
++			66,108,71,0,27,67,196,131,224,66,108,0,0,27,67,0,185,224,66,108,0,0,27,67,0,185,224,66,108,0,0,27,67,0,185,224,66,108,154,1,27,67,242,56,225,66,108,101,6,27,67,147,184,225,66,108,96,14,27,67,144,55,226,66,108,132,25,27,67,152,181,226,66,108,203,39,27,
++			67,91,50,227,66,108,43,57,27,67,137,173,227,66,108,154,77,27,67,210,38,228,66,108,11,101,27,67,234,157,228,66,108,110,127,27,67,132,18,229,66,108,178,156,27,67,85,132,229,66,108,197,188,27,67,21,243,229,66,108,146,223,27,67,125,94,230,66,108,4,5,28,67,
++			72,198,230,66,108,1,45,28,67,52,42,231,66,108,113,87,28,67,0,138,231,66,108,56,132,28,67,112,229,231,66,108,57,179,28,67,72,60,232,66,108,87,228,28,67,82,142,232,66,108,115,23,29,67,89,219,232,66,108,106,76,29,67,43,35,233,66,108,29,131,29,67,155,101,
++			233,66,108,102,187,29,67,126,162,233,66,108,36,245,29,67,174,217,233,66,108,47,48,30,67,6,11,234,66,108,100,108,30,67,103,54,234,66,108,155,169,30,67,182,91,234,66,108,173,231,30,67,218,122,234,66,108,114,38,31,67,193,147,234,66,108,194,101,31,67,88,
++			166,234,66,108,117,165,31,67,150,178,234,66,108,99,229,31,67,114,184,234,66,108,0,0,32,67,0,185,234,66,108,0,0,32,67,0,185,234,66,108,0,0,32,67,0,185,234,66,108,249,63,32,67,168,181,234,66,108,200,127,32,67,237,171,234,66,108,68,191,32,67,212,155,234,
++			66,108,69,254,32,67,104,133,234,66,108,162,60,33,67,183,104,234,66,108,52,122,33,67,211,69,234,66,108,211,182,33,67,211,28,234,66,108,88,242,33,67,208,237,233,66,108,157,44,34,67,234,184,233,66,108,126,101,34,67,65,126,233,66,108,213,156,34,67,252,61,
++			233,66,108,127,210,34,67,67,248,232,66,108,90,6,35,67,67,173,232,66,108,68,56,35,67,44,93,232,66,108,30,104,35,67,50,8,232,66,108,201,149,35,67,138,174,231,66,108,128,151,35,67,255,170,231,66,108,128,151,35,67,255,170,231,66,108,0,37,47,67,0,57,243,66,
++			108,0,37,47,67,0,57,243,66,108,7,27,47,67,108,183,243,66,108,58,20,47,67,175,54,244,66,108,157,16,47,67,120,182,244,66,108,0,16,47,67,0,249,244,66,108,0,16,47,67,0,249,244,66,108,0,16,47,67,0,249,244,66,108,154,17,47,67,242,120,245,66,108,101,22,47,67,
++			147,248,245,66,108,96,30,47,67,144,119,246,66,108,132,41,47,67,152,245,246,66,108,203,55,47,67,91,114,247,66,108,43,73,47,67,137,237,247,66,108,154,93,47,67,210,102,248,66,108,11,117,47,67,234,221,248,66,108,110,143,47,67,132,82,249,66,108,178,172,47,
++			67,85,196,249,66,108,197,204,47,67,21,51,250,66,108,146,239,47,67,125,158,250,66,108,4,21,48,67,72,6,251,66,108,1,61,48,67,52,106,251,66,108,113,103,48,67,0,202,251,66,108,56,148,48,67,112,37,252,66,108,57,195,48,67,72,124,252,66,108,87,244,48,67,82,
++			206,252,66,108,115,39,49,67,89,27,253,66,108,106,92,49,67,43,99,253,66,108,29,147,49,67,155,165,253,66,108,102,203,49,67,126,226,253,66,108,36,5,50,67,174,25,254,66,108,47,64,50,67,6,75,254,66,108,100,124,50,67,103,118,254,66,108,155,185,50,67,182,155,
++			254,66,108,173,247,50,67,218,186,254,66,108,114,54,51,67,193,211,254,66,108,194,117,51,67,88,230,254,66,108,117,181,51,67,150,242,254,66,108,99,245,51,67,114,248,254,66,108,0,16,52,67,0,249,254,66,108,0,16,52,67,0,249,254,66,108,0,16,52,67,0,249,254,
++			66,108,249,79,52,67,205,245,254,66,108,201,143,52,67,54,236,254,66,108,72,207,52,67,65,220,254,66,108,76,14,53,67,248,197,254,66,108,173,76,53,67,106,169,254,66,108,68,138,53,67,169,134,254,66,108,233,198,53,67,203,93,254,66,108,116,2,54,67,235,46,254,
++			66,108,193,60,54,67,37,250,253,66,108,170,117,54,67,157,191,253,66,108,10,173,54,67,119,127,253,66,108,190,226,54,67,220,57,253,66,108,163,22,55,67,250,238,252,66,108,153,72,55,67,255,158,252,66,108,127,120,55,67,32,74,252,66,108,55,166,55,67,146,240,
++			251,66,108,163,209,55,67,143,146,251,66,108,168,250,55,67,83,48,251,66,108,44,33,56,67,28,202,250,66,108,21,69,56,67,45,96,250,66,108,77,102,56,67,201,242,249,66,108,191,132,56,67,53,130,249,66,108,86,160,56,67,187,14,249,66,108,2,185,56,67,164,152,248,
++			66,108,179,206,56,67,58,32,248,66,108,91,225,56,67,205,165,247,66,108,237,240,56,67,169,41,247,66,108,96,253,56,67,31,172,246,66,108,172,6,57,67,126,45,246,66,108,203,12,57,67,23,174,245,66,108,185,15,57,67,61,46,245,66,108,0,16,57,67,0,249,244,66,108,
++			0,16,57,67,0,249,244,66,108,0,16,57,67,0,249,244,66,108,102,14,57,67,14,121,244,66,108,155,9,57,67,109,249,243,66,108,160,1,57,67,112,122,243,66,108,124,246,56,67,104,252,242,66,108,53,232,56,67,166,127,242,66,108,213,214,56,67,120,4,242,66,108,102,194,
++			56,67,47,139,241,66,108,245,170,56,67,23,20,241,66,108,147,144,56,67,125,159,240,66,108,78,115,56,67,172,45,240,66,108,59,83,56,67,236,190,239,66,108,110,48,56,67,132,83,239,66,108,253,10,56,67,185,235,238,66,108,0,227,55,67,206,135,238,66,108,144,184,
++			55,67,2,40,238,66,108,201,139,55,67,146,204,237,66,108,199,92,55,67,185,117,237,66,108,169,43,55,67,175,35,237,66,108,142,248,54,67,168,214,236,66,108,150,195,54,67,214,142,236,66,108,228,140,54,67,102,76,236,66,108,154,84,54,67,130,15,236,66,108,221,
++			26,54,67,83,216,235,66,108,210,223,53,67,251,166,235,66,108,157,163,53,67,154,123,235,66,108,102,102,53,67,75,86,235,66,108,84,40,53,67,38,55,235,66,108,143,233,52,67,64,30,235,66,108,62,170,52,67,168,11,235,66,108,139,106,52,67,106,255,234,66,108,158,
++			42,52,67,142,249,234,66,108,0,16,52,67,0,249,234,66,108,0,16,52,67,0,249,234,66,108,0,16,52,67,0,249,234,66,108,8,208,51,67,69,252,234,66,108,56,144,51,67,238,5,235,66,108,187,80,51,67,244,21,235,66,108,184,17,51,67,78,44,235,66,108,89,211,50,67,238,
++			72,235,66,108,196,149,50,67,192,107,235,66,108,34,89,50,67,175,148,235,66,108,154,29,50,67,160,195,235,66,108,81,227,49,67,118,248,235,66,108,108,170,49,67,14,51,236,66,108,16,115,49,67,67,115,236,66,108,97,61,49,67,237,184,236,66,108,129,9,49,67,222,
++			3,237,66,108,145,215,48,67,230,83,237,66,108,177,167,48,67,211,168,237,66,108,128,135,48,67,0,231,237,66,108,128,135,48,67,0,231,237,66,108,128,238,36,67,0,78,226,66,108,128,238,36,67,0,78,226,66,108,121,247,36,67,71,207,225,66,108,68,253,36,67,209,79,
++			225,66,108,223,255,36,67,239,207,224,66,108,0,0,37,67,0,185,224,66,108,0,0,37,67,0,185,224,66,108,0,0,37,67,0,185,224,66,108,66,254,36,67,16,57,224,66,108,81,249,36,67,117,185,223,66,108,50,241,36,67,129,58,223,66,108,128,239,36,67,1,37,223,66,108,128,
++			239,36,67,1,37,223,66,108,128,64,48,67,0,211,211,66,108,128,64,48,67,0,211,211,66,108,239,107,48,67,254,48,212,66,108,169,153,48,67,135,138,212,66,108,146,201,48,67,97,223,212,66,108,138,251,48,67,85,47,213,66,108,114,47,49,67,50,122,213,66,108,40,101,
++			49,67,198,191,213,66,108,138,156,49,67,229,255,213,66,108,116,213,49,67,103,58,214,66,108,194,15,50,67,38,111,214,66,108,80,75,50,67,0,158,214,66,108,245,135,50,67,214,198,214,66,108,141,197,50,67,144,233,214,66,108,239,3,51,67,23,6,215,66,108,244,66,
++			51,67,88,28,215,66,108,115,130,51,67,70,44,215,66,108,67,194,51,67,213,53,215,66,108,0,0,52,67,0,57,215,66,108,0,0,52,67,0,57,215,66,108,0,0,52,67,0,57,215,66,108,249,63,52,67,205,53,215,66,108,201,127,52,67,54,44,215,66,108,72,191,52,67,65,28,215,66,
++			108,76,254,52,67,248,5,215,66,108,173,60,53,67,106,233,214,66,108,68,122,53,67,169,198,214,66,108,233,182,53,67,203,157,214,66,108,116,242,53,67,235,110,214,66,108,193,44,54,67,37,58,214,66,108,170,101,54,67,157,255,213,66,108,10,157,54,67,119,191,213,
++			66,108,190,210,54,67,220,121,213,66,108,163,6,55,67,250,46,213,66,108,153,56,55,67,255,222,212,66,108,127,104,55,67,32,138,212,66,108,55,150,55,67,146,48,212,66,108,163,193,55,67,143,210,211,66,108,168,234,55,67,83,112,211,66,108,44,17,56,67,28,10,211,
++			66,108,21,53,56,67,45,160,210,66,108,77,86,56,67,201,50,210,66,108,191,116,56,67,53,194,209,66,108,86,144,56,67,187,78,209,66,108,2,169,56,67,164,216,208,66,108,179,190,56,67,58,96,208,66,108,91,209,56,67,205,229,207,66,108,237,224,56,67,169,105,207,
++			66,108,96,237,56,67,31,236,206,66,108,172,246,56,67,126,109,206,66,108,203,252,56,67,23,238,205,66,108,185,255,56,67,61,110,205,66,108,0,0,57,67,0,57,205,66,108,0,0,57,67,0,57,205,66,108,0,0,57,67,0,57,205,66,108,102,254,56,67,14,185,204,66,108,155,249,
++			56,67,109,57,204,66,108,160,241,56,67,112,186,203,66,108,124,230,56,67,104,60,203,66,108,53,216,56,67,166,191,202,66,108,213,198,56,67,120,68,202,66,108,102,178,56,67,47,203,201,66,108,245,154,56,67,23,84,201,66,108,147,128,56,67,125,223,200,66,108,78,
++			99,56,67,172,109,200,66,108,59,67,56,67,236,254,199,66,108,110,32,56,67,132,147,199,66,108,253,250,55,67,185,43,199,66,108,0,211,55,67,206,199,198,66,108,144,168,55,67,2,104,198,66,108,201,123,55,67,146,12,198,66,108,199,76,55,67,185,181,197,66,108,169,
++			27,55,67,175,99,197,66,108,142,232,54,67,168,22,197,66,108,150,179,54,67,214,206,196,66,108,228,124,54,67,102,140,196,66,108,154,68,54,67,130,79,196,66,108,221,10,54,67,83,24,196,66,108,210,207,53,67,251,230,195,66,108,157,147,53,67,154,187,195,66,108,
++			102,86,53,67,75,150,195,66,108,84,24,53,67,38,119,195,66,108,143,217,52,67,64,94,195,66,108,62,154,52,67,168,75,195,66,108,139,90,52,67,106,63,195,66,108,158,26,52,67,142,57,195,66,108,0,0,52,67,0,57,195,66,108,0,0,52,67,0,57,195,66,99,101,0,0 };
++
++		path.loadPathFromData(pathData, sizeof(pathData));
++
++		break;
++	}
++	case FloatingTileContent::Factory::PopupMenuOptions::ScriptEditor:
++	{
++		path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor));
++		break;
++	}
++	case FloatingTileContent::Factory::PopupMenuOptions::ScriptContent:
++	{
++		path.loadPathFromData(BackendBinaryData::ToolbarIcons::customInterface, sizeof(BackendBinaryData::ToolbarIcons::customInterface));
++		break;
++	}
++	case FloatingTileContent::Factory::PopupMenuOptions::TablePanel:
++	{
++		static const unsigned char pathData[] = { 110,109,0,208,241,65,0,192,141,66,108,0,208,241,65,0,192,144,66,108,0,208,241,65,0,38,222,66,108,0,219,140,66,0,38,222,66,108,0,219,140,66,0,192,141,66,108,0,208,241,65,0,192,141,66,99,109,0,232,4,66,0,192,147,66,108,0,88,134,66,0,192,147,66,98,169,221,
++			125,66,48,89,190,66,241,53,32,66,226,20,210,66,0,232,4,66,0,249,214,66,108,0,232,4,66,0,192,147,66,99,109,0,219,134,66,0,85,166,66,108,0,219,134,66,0,38,216,66,108,0,66,31,66,0,38,216,66,98,108,248,64,66,21,141,208,66,248,121,117,66,254,2,193,66,0,219,
++			134,66,0,85,166,66,99,101,0,0 };
++		path.loadPathFromData(pathData, sizeof(pathData));
++
++		break;
++	}
++	case FloatingTileContent::Factory::PopupMenuOptions::SliderPackPanel:
++	{
++		static const unsigned char pathData[] = { 110,109,0,128,157,66,0,185,141,66,108,0,128,157,66,0,185,144,66,108,0,128,157,66,0,185,227,66,108,0,128,243,66,0,185,227,66,108,0,128,243,66,0,185,141,66,108,0,128,157,66,0,185,141,66,99,109,0,128,163,66,0,185,147,66,108,0,128,237,66,0,185,147,66,108,
++			0,128,237,66,0,185,221,66,108,0,0,233,66,0,185,221,66,108,0,0,233,66,0,185,154,66,108,0,0,227,66,0,185,154,66,108,0,0,227,66,0,185,221,66,108,0,0,223,66,0,185,221,66,108,0,0,223,66,0,185,164,66,108,0,0,217,66,0,185,164,66,108,0,0,217,66,0,185,221,66,
++			108,0,0,213,66,0,185,221,66,108,0,0,213,66,0,185,174,66,108,0,0,207,66,0,185,174,66,108,0,0,207,66,0,185,221,66,108,0,0,203,66,0,185,221,66,108,0,0,203,66,0,185,194,66,108,0,0,197,66,0,185,194,66,108,0,0,197,66,0,185,221,66,108,0,0,193,66,0,185,221,66,
++			108,0,0,193,66,0,185,184,66,108,0,0,187,66,0,185,184,66,108,0,0,187,66,0,185,221,66,108,0,0,183,66,0,185,221,66,108,0,0,183,66,0,185,194,66,108,0,0,177,66,0,185,194,66,108,0,0,177,66,0,185,221,66,108,0,0,173,66,0,185,221,66,108,0,0,173,66,0,185,204,66,
++			108,0,0,167,66,0,185,204,66,108,0,0,167,66,0,185,221,66,108,0,128,163,66,0,185,221,66,108,0,128,163,66,0,185,147,66,99,101,0,0 };
++
++		path.loadPathFromData(pathData, sizeof(pathData));
++
++
++		break;
++	}
++	case FloatingTileContent::Factory::PopupMenuOptions::Console:
++	{
++		path.loadPathFromData(BackendBinaryData::ToolbarIcons::debugPanel, sizeof(BackendBinaryData::ToolbarIcons::debugPanel));
++		break;
++	}
++	case FloatingTileContent::Factory::PopupMenuOptions::ApiCollection:
++	{
++		path.loadPathFromData(BackendBinaryData::ToolbarIcons::apiList, sizeof(BackendBinaryData::ToolbarIcons::apiList));
++		break;
++	}
++	case FloatingTileContent::Factory::PopupMenuOptions::ScriptWatchTable:
++	{
++		path.loadPathFromData(BackendBinaryData::ToolbarIcons::viewPanel, sizeof(BackendBinaryData::ToolbarIcons::viewPanel));
++		break;
++	}
++	case FloatingTileContent::Factory::PopupMenuOptions::ScriptComponentEditPanel:
++	{
++		path.loadPathFromData(BackendBinaryData::ToolbarIcons::mixer, sizeof(BackendBinaryData::ToolbarIcons::mixer));
++		path.applyTransform(AffineTransform::rotation(float_Pi / 2.0f));
++
++		break;
++	}
++	case FloatingTileContent::Factory::PopupMenuOptions::ModuleBrowser:
++	{
++		path.loadPathFromData(BackendBinaryData::ToolbarIcons::modulatorList, sizeof(BackendBinaryData::ToolbarIcons::modulatorList));
++		break;
++	}
++	case FloatingTileContent::Factory::PopupMenuOptions::PatchBrowser:
++	{
++
++	}
++		break;
++	case FloatingTileContent::Factory::PopupMenuOptions::FileBrowser:
++	{
++		path.loadPathFromData(BackendBinaryData::ToolbarIcons::fileBrowser, sizeof(BackendBinaryData::ToolbarIcons::fileBrowser));
++		break;
++	}
++		
++	case FloatingTileContent::Factory::PopupMenuOptions::toggleLayoutMode:
++		break;
++	case FloatingTileContent::Factory::PopupMenuOptions::toggleGlobalLayoutMode:
++		break;
++	case FloatingTileContent::Factory::PopupMenuOptions::exportAsJSON:
++		break;
++	case FloatingTileContent::Factory::PopupMenuOptions::loadFromJSON:
++		break;
++	case FloatingTileContent::Factory::PopupMenuOptions::MenuCommandOffset:
++		break;
++	case FloatingTileContent::Factory::PopupMenuOptions::numOptions:
++		break;
++	default:
++		break;
++	}
++
++	if (!path.isEmpty())
++	{
++		auto d = new DrawablePath();
++		d->setPath(path);
++
++		return d;
++	}
++	else
++		return nullptr;
++}
++
++
++
++void FloatingTileContent::Factory::addToPopupMenu(PopupMenu& m, PopupMenuOptions type, const String& name, bool isEnabled, bool isTicked)
++{
++	m.addItem((int)type, name, isEnabled, isTicked, getIcon(type));
++}
++
+ void addCommandIcon(FloatingTile* parent, PopupMenu& m, int commandID)
+ {
+ 	ApplicationCommandInfo r(commandID);
+@@ -314,77 +560,51 @@ void addCommandIcon(FloatingTile* parent, PopupMenu& m, int commandID)
+ 
+ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* parent)
+ {
+-	
+-
+-	enum class PopupMenuOptions
+-	{
+-		Cancel = 0,
+-		Empty,
+-		Spacer,
+-		BigResizer,
+-		HorizontalTile,
+-		VerticalTile,
+-		Tabs,
+-		Matrix2x2,
+-		ThreeColumns,
+-		ThreeRows,
+-		Note,
+-		MidiKeyboard,
+-		GlobalConnectorPanel,
+-		ScriptEditor,
+-		ScriptContent,
+-		TablePanel,
+-		SliderPackPanel,
+-		Console,
+-		ApiCollection,
+-		ScriptWatchTable,
+-		ScriptComponentEditPanel,
+-		ModuleBrowser,
+-		PatchBrowser,
+-		FileBrowser,
+-		toggleLayoutMode,
+-		toggleGlobalLayoutMode,
+-		exportAsJSON,
+-		loadFromJSON,
+-		MenuCommandOffset = 10000,
+-		
+-		numOptions
+-	};
+-
+ 	if (parent->canBeDeleted())
+ 	{
+ 		if (parent->isLayoutModeEnabled())
+ 		{
+ 			m.addSectionHeader("Layout Elements");
+-			m.addItem((int)PopupMenuOptions::Spacer, "Spacer");
+-			m.addItem((int)PopupMenuOptions::BigResizer, "Big Resizer");
+-			m.addItem((int)PopupMenuOptions::HorizontalTile, "Horizontal Tile");
+-			m.addItem((int)PopupMenuOptions::VerticalTile, "Vertical Tile");
+-			m.addItem((int)PopupMenuOptions::Tabs, "Tabs");
+-			m.addItem((int)PopupMenuOptions::Matrix2x2, "2x2 Matrix");
+-			m.addItem((int)PopupMenuOptions::ThreeColumns, "3 Columns");
+-			m.addItem((int)PopupMenuOptions::ThreeRows, "3 Rows");
++
++			addToPopupMenu(m, PopupMenuOptions::Tabs, "Tabs");
++			addToPopupMenu(m, PopupMenuOptions::HorizontalTile, "Horizontal Tile");
++			addToPopupMenu(m, PopupMenuOptions::VerticalTile, "Vertical Tile");
++			addToPopupMenu(m, PopupMenuOptions::Spacer, "Spacer");
++
++			PopupMenu combinedLayouts;
++
++			addToPopupMenu(combinedLayouts, PopupMenuOptions::Matrix2x2, "2x2 Matrix");
++			addToPopupMenu(combinedLayouts, PopupMenuOptions::ThreeColumns, "3 Columns");
++			addToPopupMenu(combinedLayouts, PopupMenuOptions::ThreeRows, "3 Rows");
++
++			m.addSubMenu("Combined Layouts", combinedLayouts);
+ 		}
+ 
+ 		m.addSectionHeader("Scripting Tools");
+ 		
+-		m.addItem((int)PopupMenuOptions::GlobalConnectorPanel, "Sibling Panel Setter");
+-		m.addItem((int)PopupMenuOptions::ScriptEditor, "Script Editor");
+-		m.addItem((int)PopupMenuOptions::ScriptContent, "Script Content");
+-		m.addItem((int)PopupMenuOptions::ScriptComponentEditPanel, "Script Interface Property Editor");
+-		m.addItem((int)PopupMenuOptions::ApiCollection, "API Browser");
+-		m.addItem((int)PopupMenuOptions::ScriptWatchTable, "Live Variable View");
+-		m.addItem((int)PopupMenuOptions::Console, "Console");
++		addToPopupMenu(m, PopupMenuOptions::GlobalConnectorPanel, "Sibling Panel Setter");
++		addToPopupMenu(m, PopupMenuOptions::ScriptEditor, "Script Editor");
++		addToPopupMenu(m, PopupMenuOptions::ScriptContent, "Script Content");
++		addToPopupMenu(m, PopupMenuOptions::ScriptComponentEditPanel, "Script Interface Property Editor");
++		addToPopupMenu(m, PopupMenuOptions::ApiCollection, "API Browser");
++		addToPopupMenu(m, PopupMenuOptions::ScriptWatchTable, "Live Variable View");
++		addToPopupMenu(m, PopupMenuOptions::Console, "Console");
+ 		
++		m.addSectionHeader("Sampler Tools");
++
++		addToPopupMenu(m, PopupMenuOptions::SampleMapEditor, "Sample Map Editor");
++		addToPopupMenu(m, PopupMenuOptions::SampleEditor, "Sample Editor");
++
+ 
+ 		m.addSectionHeader("Misc Tools");
+-		m.addItem((int)PopupMenuOptions::Note, "Note");
+-		m.addItem((int)PopupMenuOptions::MidiKeyboard, "Virtual Keyboard");
+-		m.addItem((int)PopupMenuOptions::TablePanel, "Table Editor");
+-		m.addItem((int)PopupMenuOptions::ModuleBrowser, "Module Browser");
+-		m.addItem((int)PopupMenuOptions::PatchBrowser, "Patch Browser");
+-		m.addItem((int)PopupMenuOptions::FileBrowser, "File Browser");
+-		m.addItem((int)PopupMenuOptions::SliderPackPanel, "Array Editor");
++		
++		addToPopupMenu(m, PopupMenuOptions::TablePanel, "Table Editor");
++		addToPopupMenu(m, PopupMenuOptions::ModuleBrowser, "Module Browser");
++		addToPopupMenu(m, PopupMenuOptions::PatchBrowser, "Patch Browser");
++		addToPopupMenu(m, PopupMenuOptions::FileBrowser, "File Browser");
++		addToPopupMenu(m, PopupMenuOptions::SliderPackPanel, "Array Editor");
++		addToPopupMenu(m, PopupMenuOptions::MidiKeyboard, "Virtual Keyboard");
++		addToPopupMenu(m, PopupMenuOptions::Note, "Note");
+ 		
+ 		m.addSeparator();
+ 
+@@ -433,6 +653,8 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
+ 	case PopupMenuOptions::Note:				parent->setNewContent(GET_PANEL_NAME(Note)); break;
+ 	case PopupMenuOptions::MidiKeyboard:		parent->setNewContent(GET_PANEL_NAME(MidiKeyboardPanel)); break;
+ 	case PopupMenuOptions::TablePanel:			parent->setNewContent(GET_PANEL_NAME(TableEditorPanel)); break;
++	case PopupMenuOptions::SampleMapEditor:		parent->setNewContent(GET_PANEL_NAME(SampleMapEditorPanel)); break;
++	case PopupMenuOptions::SampleEditor:		parent->setNewContent(GET_PANEL_NAME(SampleEditorPanel)); break;
+ 	case PopupMenuOptions::ScriptEditor:		parent->setNewContent(GET_PANEL_NAME(CodeEditorPanel)); break;
+ 	case PopupMenuOptions::ScriptContent :		parent->setNewContent(GET_PANEL_NAME(ScriptContentPanel)); break;
+ 	case PopupMenuOptions::ScriptComponentEditPanel: parent->setNewContent(GET_PANEL_NAME(GenericPanel<ScriptComponentEditPanel>)); break;
+@@ -444,8 +666,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
+ 	case PopupMenuOptions::FileBrowser:			parent->setNewContent(GET_PANEL_NAME(GenericPanel<FileBrowser>)); break;
+ 	case PopupMenuOptions::ModuleBrowser:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ModuleBrowser>)); break;
+ 	case PopupMenuOptions::ScriptWatchTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ScriptWatchTable>)); break;
+-	case PopupMenuOptions::toggleLayoutMode:    parent->toggleLayoutModeForParentContainer(); break;
+-	case PopupMenuOptions::toggleGlobalLayoutMode:    parent->getRootComponent()->toggleLayoutModeForParentContainer(); break;
++	case PopupMenuOptions::toggleGlobalLayoutMode:    parent->getRootComponent()->setLayoutModeEnabled(!parent->isLayoutModeEnabled()); break;
+ 	case PopupMenuOptions::exportAsJSON:		SystemClipboard::copyTextToClipboard(parent->exportAsJSON()); break;
+ 	case PopupMenuOptions::loadFromJSON:		parent->loadFromJSON(SystemClipboard::getTextFromClipboard()); break;
+ 	case PopupMenuOptions::numOptions:
+diff --git a/hi_core/hi_components/floating_layout/FloatingTileContent.h b/hi_core/hi_components/floating_layout/FloatingTileContent.h
+index 3055b77..d538d71 100644
+--- a/hi_core/hi_components/floating_layout/FloatingTileContent.h
++++ b/hi_core/hi_components/floating_layout/FloatingTileContent.h
+@@ -116,6 +116,25 @@ public:
+ 
+ 	bool hasCustomTitle() const { return customTitle.isNotEmpty(); }
+ 
++	bool hasDynamicTitle() const { return dynamicTitle.isNotEmpty(); }
++
++	/** Sets a title that is supposed to change during runtime. It will not be stored in the JSON data. */
++	void setDynamicTitle(const String& newDynamicTitle);
++
++	String getDynamicTitle() const { return dynamicTitle; }
++
++	/** This returns the title that is supposed to be displayed. */
++	String getBestTitle() const
++	{
++		if (hasDynamicTitle())
++			return getDynamicTitle();
++
++		if (hasCustomTitle())
++			return getCustomTitle();
++
++		return getTitle();
++	}
++
+ 	BackendProcessorEditor* getMainPanel();
+ 
+ 	const BackendProcessorEditor* getMainPanel() const;
+@@ -124,6 +143,43 @@ public:
+ 	{
+ 	public:
+ 
++		enum class PopupMenuOptions
++		{
++			Cancel = 0,
++			Empty,
++			Spacer,
++			BigResizer,
++			HorizontalTile,
++			VerticalTile,
++			Tabs,
++			Matrix2x2,
++			ThreeColumns,
++			ThreeRows,
++			Note,
++			MidiKeyboard,
++			SampleMapEditor,
++			SampleEditor,
++			GlobalConnectorPanel,
++			ScriptEditor,
++			ScriptContent,
++			TablePanel,
++			SliderPackPanel,
++			Console,
++			ApiCollection,
++			ScriptWatchTable,
++			ScriptComponentEditPanel,
++			ModuleBrowser,
++			PatchBrowser,
++			FileBrowser,
++			toggleLayoutMode,
++			toggleGlobalLayoutMode,
++			exportAsJSON,
++			loadFromJSON,
++			MenuCommandOffset = 10000,
++
++			numOptions
++		};
++
+ 		/** Register a subclass to this factory. The subclass must have a static method 'Identifier getName()'. */
+ 		template <typename DerivedClass> void registerType()
+ 		{
+@@ -150,6 +206,10 @@ public:
+ 
+ 		void registerAllPanelTypes();
+ 
++		Drawable* getIcon(PopupMenuOptions type);
++
++		void addToPopupMenu(PopupMenu& m, PopupMenuOptions type, const String& name, bool isEnabled=true, bool isTicked=false);
++
+ 	private:
+ 
+ 		/** @internal */
+@@ -184,6 +244,7 @@ private:
+ 	Component::SafePointer<FloatingTile> parent;
+ 	
+ 	String customTitle;
++	String dynamicTitle;
+ 
+ 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FloatingTileContent)
+ };
+diff --git a/hi_core/hi_components/floating_layout/MiscFloatingPanelTypes.cpp b/hi_core/hi_components/floating_layout/MiscFloatingPanelTypes.cpp
+index ffc6406..aa6acd1 100644
+--- a/hi_core/hi_components/floating_layout/MiscFloatingPanelTypes.cpp
++++ b/hi_core/hi_components/floating_layout/MiscFloatingPanelTypes.cpp
+@@ -89,6 +89,11 @@ ConsolePanel::ConsolePanel(FloatingTile* parent) :
+ 	addAndMakeVisible(console = new Console(getRootWindow()->getBackendProcessor()));
+ }
+ 
++void ConsolePanel::resized()
++{
++	console->setBounds(getParentShell()->getContentBounds());
++}
++
+ MidiKeyboardPanel::MidiKeyboardPanel(FloatingTile* parent) :
+ 	FloatingTileContent(parent)
+ {
+@@ -151,16 +156,20 @@ PanelWithProcessorConnection::~PanelWithProcessorConnection()
+ 
+ void PanelWithProcessorConnection::paint(Graphics& g)
+ {
++	auto bounds = getParentShell()->getContentBounds();
+ 
+ 	const bool connected = getProcessor() != nullptr && (!hasSubIndex() || currentIndex != -1);
+ 
+-	g.setColour(Colour(0xFF3D3D3D));
+-	g.fillRect(0, 16, getWidth(), 18);
+-	g.setColour(connected ? Colours::white.withAlpha(0.9f) : Colours::white.withAlpha(0.1f));
++	//g.setColour(Colour(0xFF3D3D3D));
++	g.setColour(HiseColourScheme::getColour(HiseColourScheme::EditorBackgroundColourIdBright));
++	g.fillRect(0, bounds.getY(), getWidth(), 18);
++
++	
++	g.setColour(connected ? getProcessor()->getColour() : Colours::white.withAlpha(0.1f));
+ 	
+ 	Path p;
+ 	p.loadPathFromData(ColumnIcons::connectionIcon, sizeof(ColumnIcons::connectionIcon));
+-	p.scaleToFit(2.0, 18.0, 14.0, 14.0, true);
++	p.scaleToFit(2.0, (float)bounds.getY() + 2.0, 14.0, 14.0, true);
+ 	g.fillPath(p);
+ 
+ }
+@@ -173,20 +182,27 @@ void PanelWithProcessorConnection::resized()
+ 		refreshConnectionList();
+ 		listInitialised = true;
+ 	}
+-		
++	
++	auto bounds = getParentShell()->getContentBounds();
++
++	if (bounds.isEmpty())
++		return;
+ 
+ 	connectionSelector->setVisible(!getParentShell()->isFolded());
+-	connectionSelector->setBounds(18, 16, 128, 18);
++	connectionSelector->setBounds(18, bounds.getY(), 128, 18);
+ 
+ 	indexSelector->setVisible(!getParentShell()->isFolded() && hasSubIndex());
+-	indexSelector->setBounds(connectionSelector->getRight() + 5, 16, 128, 18);
++	indexSelector->setBounds(connectionSelector->getRight() + 5, bounds.getY(), 128, 18);
+ 
+ 	if (content != nullptr)
+ 	{
+ 		if (getHeight() > 18)
+ 		{
+ 			content->setVisible(true);
+-			content->setBounds(0, 16+18, getWidth(), jmax<int>(0, getHeight() - 18-16));
++
++			content->setBounds(getParentShell()->getContentBounds().withTrimmedTop(18));
++
++			//content->setBounds(0, 16+18, getWidth(), jmax<int>(0, getHeight() - 18-16));
+ 		}
+ 		else
+ 			content->setVisible(false);
+@@ -313,17 +329,41 @@ void PanelWithProcessorConnection::setContentWithUndo(Processor* newProcessor, i
+ }
+ 
+ 
++CodeEditorPanel::CodeEditorPanel(FloatingTile* parent) :
++	PanelWithProcessorConnection(parent)
++{
++	tokeniser = new JavascriptTokeniser();
++
++	
++}
++
++CodeEditorPanel::~CodeEditorPanel()
++{
++	tokeniser = nullptr;
++}
++
++
+ Component* CodeEditorPanel::createContentComponent(int index)
+ {
+ 	auto p = dynamic_cast<JavascriptProcessor*>(getProcessor());
+ 
+-	auto pe = new PopupIncludeEditor(p, p->getSnippet(index)->getCallbackName());
++	const bool isCallback = index < p->getNumSnippets();
+ 
+-	getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
++	if (isCallback)
++	{
++		auto pe = new PopupIncludeEditor(p, p->getSnippet(index)->getCallbackName());
++		getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
++		return pe;
++	}
++	else
++	{
++		const int fileIndex = index - p->getNumSnippets();
+ 
+-	pe->getEditor()->grabKeyboardFocus();
++		auto pe = new PopupIncludeEditor(p, p->getWatchedFile(fileIndex));
++		getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
+ 
+-	return pe;
++		return pe;
++	}
+ }
+ 
+ void CodeEditorPanel::fillIndexList(StringArray& indexList)
+@@ -336,9 +376,49 @@ void CodeEditorPanel::fillIndexList(StringArray& indexList)
+ 		{
+ 			indexList.add(p->getSnippet(i)->getCallbackName().toString());
+ 		}
++
++		for (int i = 0; i < p->getNumWatchedFiles(); i++)
++		{
++			indexList.add(p->getWatchedFile(i).getFileName());
++		}
+ 	}
+ }
+ 
++void CodeEditorPanel::gotoLocation(Processor* p, const String& fileName, int charNumber)
++{
++	if (fileName.isEmpty())
++	{
++		setContentWithUndo(p, 0);
++	}
++	else
++	{
++		auto jp = dynamic_cast<JavascriptProcessor*>(p);
++
++		int fileIndex = -1;
++
++		for (int i = 0; i < jp->getNumWatchedFiles(); i++)
++		{
++			if (jp->getWatchedFile(i).getFullPathName() == fileName)
++			{
++				fileIndex = i;
++				break;
++			}
++		}
++
++		if (fileIndex != -1)
++		{
++			setContentWithUndo(p, jp->getNumSnippets() + fileIndex);
++		}
++		else
++			return;
++	}
++
++	auto editor = getContent<PopupIncludeEditor>()->getEditor();
++
++	CodeDocument::Position pos(editor->getDocument(), charNumber);
++	editor->scrollToLine(jmax<int>(0, pos.getLineNumber()));
++}
++
+ Component* ScriptContentPanel::createContentComponent(int /*index*/)
+ {
+ 	return new Editor(getConnectedProcessor());
+@@ -449,4 +529,126 @@ void GlobalConnectorPanel::contentChanged()
+ 	{
+ 		p->setContentWithUndo(getProcessor(), 0);
+ 	}
+-}
+\ No newline at end of file
++}
++
++void SliderPackPanel::resized()
++{
++	PanelWithProcessorConnection::resized();
++
++	if (auto sp = getContent<SliderPack>())
++	{
++		int numSliders = sp->getNumSliders();
++
++		int width = getWidth();
++
++		int wPerSlider = getWidth() / numSliders;
++
++		int newWidth = numSliders * wPerSlider;
++
++		int y = sp->getY();
++		int height = sp->getHeight();
++
++		sp->setBounds((getWidth() - newWidth) / 2, y, newWidth, height);
++	}
++}
++
++void SampleMapEditorPanel::changeListenerCallback(SafeChangeBroadcaster* b)
++{
++	if (getProcessor())
++	{
++		if (auto map = getContent<SampleMapEditor>())
++		{
++			auto& x = dynamic_cast<ModulatorSampler*>(getProcessor())->getSamplerDisplayValues();
++
++			map->setPressedKeys(x.currentNotes);
++			map->updateSoundData();
++		}
++	}
++}
++
++Component* SampleMapEditorPanel::createContentComponent(int index)
++{
++	auto sme = new SampleMapEditor(dynamic_cast<ModulatorSampler*>(getProcessor()), nullptr);
++
++	sme->enablePopoutMode(nullptr);
++
++	return sme;
++
++}
++
++
++void SampleMapEditorPanel::contentChanged()
++{
++	if (getProcessor())
++	{
++		getProcessor()->addChangeListener(this);
++		
++	}
++}
++
++struct SampleEditorPanel::EditListener : public SampleEditHandler::Listener
++{
++	EditListener(SampleEditorPanel* parent_) :
++		parent(parent_)
++	{
++
++	};
++
++	void soundSelectionChanged()
++	{
++		if (parent->getProcessor())
++		{
++			auto handler = dynamic_cast<ModulatorSampler*>(parent->getProcessor())->getSampleEditHandler();
++
++			const Array<WeakReference<ModulatorSamplerSound>> sounds = handler->getSelection().getItemArray();
++
++			Array<ModulatorSamplerSound*> existingSounds;
++
++			for (int i = 0; i < sounds.size(); i++)
++			{
++				if (sounds[i].get() != nullptr) existingSounds.add(sounds[i].get());
++			}
++
++			if (auto sampleEditor = parent->getContent<SampleEditor>())
++			{
++				sampleEditor->selectSounds(existingSounds);
++			}
++		}
++	}
++
++	SampleEditorPanel* parent;
++};
++
++
++
++SampleEditorPanel::SampleEditorPanel(FloatingTile* parent) :
++	PanelWithProcessorConnection(parent)
++{
++	editListener = new EditListener(this);
++}
++
++void SampleEditorPanel::changeListenerCallback(SafeChangeBroadcaster* b)
++{
++	if (getProcessor())
++	{
++		auto se = getContent<SampleEditor>();
++
++		se->updateWaveform();
++	}
++}
++
++
++
++Component* SampleEditorPanel::createContentComponent(int index)
++{
++	return new SampleEditor(dynamic_cast<ModulatorSampler*>(getProcessor()), nullptr);
++}
++
++void SampleEditorPanel::contentChanged()
++{
++	if (getProcessor())
++	{
++		getProcessor()->addChangeListener(this);
++		dynamic_cast<ModulatorSampler*>(getProcessor())->getSampleEditHandler()->addSelectionListener(editListener);
++	}
++}
+diff --git a/hi_core/hi_components/floating_layout/MiscFloatingPanelTypes.h b/hi_core/hi_components/floating_layout/MiscFloatingPanelTypes.h
+index 8c57e64..ba1d888 100644
+--- a/hi_core/hi_components/floating_layout/MiscFloatingPanelTypes.h
++++ b/hi_core/hi_components/floating_layout/MiscFloatingPanelTypes.h
+@@ -233,7 +233,12 @@ public:
+ 
+ 	void resized() override
+ 	{
+-		keyboard->setBounds(0, 0, getWidth(), 72);
++		int maxWidth = CONTAINER_WIDTH;
++
++		if (getWidth() < maxWidth)
++			keyboard->setBounds(0, 0, getWidth(), 72);
++		else
++			keyboard->setBounds((getWidth() - maxWidth) / 2, 0, maxWidth, 72);
+ 	}
+ 
+ 	int getFixedHeight() const override { return 72; }
+@@ -345,7 +350,7 @@ public:
+ 
+ 	void setContentWithUndo(Processor* newProcessor, int newIndex);
+ 
+-	virtual void refreshContent()
++	void refreshContent()
+ 	{
+ 		if (getConnectedProcessor())
+ 			connectionSelector->setText(getConnectedProcessor()->getId(), dontSendNotification);
+@@ -365,6 +370,15 @@ public:
+ 			addAndMakeVisible(content = createContentComponent(currentIndex));
+ 		}
+ 
++		auto titleToUse = hasCustomTitle() ? getCustomTitle() : getTitle();
++
++		if (getProcessor())
++		{
++			titleToUse << ": " << getConnectedProcessor()->getId();
++		}
++
++		setDynamicTitle(titleToUse);
++
+ 		resized();
+ 		repaint();
+ 
+@@ -461,12 +475,7 @@ public:
+ 	{
+ 		auto ltp = dynamic_cast<LookupTableProcessor*>(getConnectedProcessor());
+ 
+-		int numTables = 0;
+-
+-		while (ltp->getTable(numTables) != nullptr)
+-			numTables++;
+-
+-		for (int i = 0; i < numTables; i++)
++		for (int i = 0; i < ltp->getNumTables(); i++)
+ 		{
+ 			indexList.add("Table " + String(i + 1));
+ 		}
+@@ -480,7 +489,8 @@ public:
+ 
+ 	SliderPackPanel(FloatingTile* parent) :
+ 		PanelWithProcessorConnection(parent)
+-	{};
++	{
++	};
+ 
+ 	SET_PANEL_NAME("SliderPackEditor");
+ 
+@@ -488,7 +498,12 @@ public:
+ 	{
+ 		auto p = dynamic_cast<SliderPackProcessor*>(getProcessor());
+ 
+-		return new SliderPack(p->getSliderPackData(0));
++		auto sp = new SliderPack(p->getSliderPackData(0));
++
++		sp->setOpaque(true);
++		sp->setColour(Slider::backgroundColourId, Colour(0xff333333));
++
++		return sp;
+ 	}
+ 
+ 	void fillModuleList(StringArray& moduleList) override
+@@ -496,19 +511,19 @@ public:
+ 		fillModuleListWithType<SliderPackProcessor>(moduleList);
+ 	}
+ 
++	void resized() override;
+ 	
+ };
+ 
+ 
+ class CodeEditorPanel : public PanelWithProcessorConnection
++					    
+ {
+ public:
+ 
+-	CodeEditorPanel(FloatingTile* parent) :
+-		PanelWithProcessorConnection(parent)
+-	{
+-		tokeniser = new JavascriptTokeniser();
+-	};
++	CodeEditorPanel(FloatingTile* parent);;
++
++	~CodeEditorPanel();
+ 
+ 	SET_PANEL_NAME("ScriptEditor");
+ 
+@@ -523,6 +538,8 @@ public:
+ 
+ 	void fillIndexList(StringArray& indexList) override;
+ 
++	void gotoLocation(Processor* p, const String& fileName, int charNumber);
++
+ private:
+ 
+ 	ScopedPointer<JavascriptTokeniser> tokeniser;
+@@ -603,7 +620,12 @@ public:
+ 
+ 	SET_PANEL_NAME("GlobalConnectorPanel");
+ 
+-	int getFixedHeight() const override { return 32; }
++	int getFixedHeight() const override { return 18; }
++
++	bool showTitleInPresentationMode() const override
++	{
++		return false;
++	}
+ 
+ 	bool hasSubIndex() const override { return false; }
+ 
+@@ -623,6 +645,66 @@ private:
+ 
+ };
+ 
++class SampleMapEditorPanel : public PanelWithProcessorConnection,
++							 public SafeChangeListener
++{
++public:
++
++	SampleMapEditorPanel(FloatingTile* parent) :
++		PanelWithProcessorConnection(parent)
++	{};
++
++	
++
++	SET_PANEL_NAME("SampleMapEditor");
++
++	void changeListenerCallback(SafeChangeBroadcaster* b);
++
++	bool hasSubIndex() const override { return false; }
++
++	Component* createContentComponent(int index) override;
++
++	
++	void fillModuleList(StringArray& moduleList) override
++	{
++		fillModuleListWithType<ModulatorSampler>(moduleList);
++	};
++
++	void contentChanged() override;
++
++};
++
++
++
++class SampleEditorPanel : public PanelWithProcessorConnection,
++						  public SafeChangeListener
++{
++public:
++
++	SampleEditorPanel(FloatingTile* parent);;
++
++	SET_PANEL_NAME("SampleEditor");
++
++	void changeListenerCallback(SafeChangeBroadcaster* b);
++
++	
++	Component* createContentComponent(int index) override;
++
++	void fillModuleList(StringArray& moduleList) override
++	{
++		fillModuleListWithType<ModulatorSampler>(moduleList);
++	};
++
++	void contentChanged() override;
++
++private:
++
++	struct EditListener;
++
++	ScopedPointer<EditListener> editListener;
++
++};
++
+ 
+ #define SET_GENERIC_PANEL_ID(x) static Identifier getGenericPanelId() { static const Identifier id(x); return x;}
+ 
+@@ -650,7 +732,7 @@ public:
+ 
+ 	void resized() override
+ 	{
+-		component->setBounds(0, 16, jmax<int>(0, getWidth()), jmax<int>(0, getHeight() - 16));
++		component->setBounds(getParentShell()->getContentBounds());
+ 	}
+ 
+ private:
+@@ -667,13 +749,7 @@ public:
+ 
+ 	ConsolePanel(FloatingTile* parent);
+ 
+-	void resized() override
+-	{
+-		console->setBounds(getLocalBounds().withTrimmedTop(16));
+-	}
+-
+-	
+-
++	void resized() override;
+ 
+ private:
+ 
+diff --git a/hi_core/hi_core/Console.cpp b/hi_core/hi_core/Console.cpp
+index 170fb6f..913e6ea 100644
+--- a/hi_core/hi_core/Console.cpp
++++ b/hi_core/hi_core/Console.cpp
+@@ -51,21 +51,20 @@ CodeEditorComponent(doc, tok)
+ }
+ 
+ 
+-Console::Console(MainController* mc) :
+-	overflowProtection(false)
++Console::Console(MainController* mc_):
++	mc(mc_)
+ {
+ 	setName("Console");
+ 
+ 	tokeniser = new ConsoleTokeniser();
+ 
+-	addAndMakeVisible(newTextConsole = new ConsoleEditorComponent(*mc->getConsoleData(), tokeniser));
++	addAndMakeVisible(newTextConsole = new ConsoleEditorComponent(*mc->getConsoleHandler().getConsoleData(), tokeniser));
+ 	newTextConsole->addMouseListener(this, true);
+ }
+ 
+ Console::~Console()
+ {
+ 	newTextConsole = nullptr;
+-	doc = nullptr;
+ 	tokeniser = nullptr;
+ 
+ 	masterReference.clear();
+@@ -81,9 +80,9 @@ void Console::resized()
+ 
+ void Console::clear()
+ {
+-	clearFlag = true;
++	mc->getConsoleHandler().clearConsole();
+ 
+-	triggerAsyncUpdate();
++	
+ }
+ 
+ void Console::mouseDown(const MouseEvent &e)
+@@ -173,25 +172,21 @@ void Console::mouseDown(const MouseEvent &e)
+ 				js->setEditorState(editorStateOffset + i, editorStateIndex == i, dontSendNotification);
+ 			}
+ 
+-#if TODO_CONSOLE
+-			editor->setRootProcessorWithUndo(js);
+-#endif
+-
++			findParentComponentOfClass<BackendRootWindow>()->getMainPanel()->setRootProcessorWithUndo(js);
+ 		}
+     }
+     else if (e.mods.isAltDown())
+     {
+-		
+-
+ #if USE_BACKEND
+         
+-#if TODO_CONSOLE
+ 		CodeDocument::Position pos = newTextConsole->getCaretPos();
+ 
+ 		String name = newTextConsole->getDocument().getLine(pos.getLineNumber()).upToFirstOccurrenceOf(":", false, false);
+ 
+         if(name.isNotEmpty())
+         {
++			auto editor = findParentComponentOfClass<BackendRootWindow>()->getMainPanel();
++
+             Processor *p = ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), name);
+             
+             if(p != nullptr)
+@@ -200,8 +195,6 @@ void Console::mouseDown(const MouseEvent &e)
+             }
+         }
+ #endif
+-
+-#endif
+         
+     }
+ }
+@@ -272,92 +265,13 @@ void Console::mouseDoubleClick(const MouseEvent& /*e*/)
+ 			}
+ 		}
+ 	}
+-}
+-
+-void Console::logMessage(const String &t, WarningLevel warningLevel, const Processor *p, Colour c)
+-{
+-	
+-
+-
+-	if(overflowProtection) return;
+-
+-	else
+-	{
+-		ScopedLock sl(getLock());
+-
+-		if(unprintedMessages.size() > 10)
+-		{
+-			unprintedMessages.push_back(ConsoleMessage(Error, const_cast<Processor*>(p), "Console Overflow"));
+-			overflowProtection = true;
+-			return;
+-		}
+-		else
+-		{
+-			unprintedMessages.push_back(ConsoleMessage(warningLevel, const_cast<Processor*>(p), t));
+-		}
+-	}
+-
+-	if (MessageManager::getInstance()->isThisTheMessageThread())
+-	{
+-		handleAsyncUpdate();
+-	}
+-	else
+-	{
+-		triggerAsyncUpdate();
+-	}
+-};
+-
+-
+-void Console::handleAsyncUpdate()
+-{
+-	if (clearFlag)
+-	{
+-		newTextConsole->getDocument().replaceAllContent("");
+-		clearFlag = false;
+-	}
+-
+-	std::vector<ConsoleMessage> messagesForThisTime;
+-	messagesForThisTime.reserve(10);
+-
+-	if(unprintedMessages.size() != 0)
+-	{
+-		ScopedLock sl(getLock());
+-		messagesForThisTime.swap(unprintedMessages);
+-	}
+-	else return;
+-
+-	String message;
+-
+-	for(size_t i = 0; i < messagesForThisTime.size(); i++)
+-	{
+-        const Processor* processor = std::get<(int)ConsoleMessageItems::Processor>(messagesForThisTime[i]).get();
+-        
+-        if(processor == nullptr)
+-        {
+-            jassertfalse;
+-            continue;
+-        }
+-        
+-		message << processor->getId() << ":";
+-		message << (std::get<(int)ConsoleMessageItems::WarningLevel>(messagesForThisTime[i]) == WarningLevel::Error ? "! " : " ");
+-		message << std::get<(int)ConsoleMessageItems::Message>(messagesForThisTime[i]) << "\n";
+-	}
+-
+-	doc->insertText(doc->getNumCharacters(), message);
+-
+-	int numLinesVisible = jmax<int>(0, doc->getNumLines() - (int)((float)newTextConsole->getHeight() / GLOBAL_MONOSPACE_FONT().getHeight()));
+-
+-	newTextConsole->scrollToLine(numLinesVisible);
+-	overflowProtection = false;
+-
+-	return;
+-};
++};;
+ 
+ Console::ConsoleTokeniser::ConsoleTokeniser()
+ {
+ 	s.set("id", Colours::white);
+ 	s.set("default", Colours::white.withBrightness(0.75f));
+-	s.set("error", Colours::red.withBrightness(0.9f));
++	s.set("error", JUCE_LIVE_CONSTANT_OFF(Colour(0xffff3939)));
+ }
+ 
+ int Console::ConsoleTokeniser::readNextToken(CodeDocument::Iterator& source)
+diff --git a/hi_core/hi_core/Console.h b/hi_core/hi_core/Console.h
+index 81da37e..6f2b7b5 100644
+--- a/hi_core/hi_core/Console.h
++++ b/hi_core/hi_core/Console.h
+@@ -64,24 +64,13 @@ protected:
+ *	For Modulators there is the macro function debugMod(String &t)
+ */
+ class Console: public Component,
+-			   public AsyncUpdater,
+ 			   public ComponentWithAccessToMainPanel
+ {
+ public:
+ 
+-	
+-	
+-	enum WarningLevel
+-	{
+-		Message = 0,
+-		Error = 1
+-	};
+-
+ 	Console(MainController* mc);
+ 
+ 	~Console();
+-
+-	void sendChangeMessage();
+     
+     void mouseDown(const MouseEvent &e) override;
+     void mouseMove(const MouseEvent &e) override;
+@@ -91,14 +80,11 @@ public:
+ 
+     void clear();
+ 
+-	void handleAsyncUpdate();
+-
+ 	/** Adds a new line to the console.
+     *
+ 	*   This can be called in the audio thread. It stores all text in an internal String buffer and writes it periodically
+ 	*   on the timer callback.
+ 	*/
+-	void logMessage(const String &t, WarningLevel warningLevel, const Processor *p, Colour c);
+ 
+ private:
+ 
+@@ -127,38 +113,15 @@ private:
+ 		ConsoleEditorComponent(CodeDocument &doc, CodeTokeniser *tok);
+ 
+ 		void addPopupMenuItems(PopupMenu &/*menuToAddTo*/, const MouseEvent *) override {};
+-
+-		
+-
+ 	};
+ 
+-
+-	enum class ConsoleMessageItems
+-	{
+-		WarningLevel = 0,
+-		Processor,
+-		Message
+-	};
+-
+-	using ConsoleMessage = std::tuple < WarningLevel, const WeakReference<Processor>, String > ;
+-
+-	const CriticalSection &getLock() const { return lock; }
+-
+-
+-	std::vector<ConsoleMessage> unprintedMessages;
+-
+ 	friend class WeakReference<Console>;
+ 	WeakReference<Console>::Master masterReference;
+ 	
+-	CriticalSection lock;
+-
+-	ScopedPointer<CodeDocument> doc;
+ 	ScopedPointer<ConsoleEditorComponent> newTextConsole;
+ 	ScopedPointer<CodeTokeniser> tokeniser;
+ 
+-	bool overflowProtection;
+-
+-	bool clearFlag;
++	MainController* mc;
+ 
+ };
+ 
+diff --git a/hi_core/hi_core/HI_LookAndFeels.h b/hi_core/hi_core/HI_LookAndFeels.h
+index 69896ea..d9b698b 100644
+--- a/hi_core/hi_core/HI_LookAndFeels.h
++++ b/hi_core/hi_core/HI_LookAndFeels.h
+@@ -182,7 +182,7 @@ public:
+ 
+ 	};
+ 
+-private:
++protected:
+ 
+ 	Font getPopupMenuFont() override
+ 	{
+@@ -351,7 +351,20 @@ private:
+             
+             if (icon != nullptr)
+             {
+-                icon->drawWithin (g, iconArea, RectanglePlacement::centred | RectanglePlacement::onlyReduceInSize, 1.0f);
++				if (auto dp = dynamic_cast<const DrawablePath*>(icon))
++				{
++					auto p = dp->getPath();
++
++					p.scaleToFit(iconArea.getX(), iconArea.getY(), iconArea.getWidth(), iconArea.getHeight(), true);
++
++					g.fillPath(p);
++				}
++				else
++				{
++					icon->drawWithin(g, iconArea, RectanglePlacement::centred | RectanglePlacement::onlyReduceInSize, 1.0f);
++				}
++
++				
+             }
+             else if (isTicked)
+             {
+diff --git a/hi_core/hi_core/MainController.cpp b/hi_core/hi_core/MainController.cpp
+index b590741..3b4a6b2 100644
+--- a/hi_core/hi_core/MainController.cpp
++++ b/hi_core/hi_core/MainController.cpp
+@@ -57,6 +57,7 @@ MainController::MainController():
+ 	masterEventBuffer(),
+ 	eventIdHandler(masterEventBuffer),
+ 	userPresetHandler(this),
++	codeHandler(this),
+ 	debugLogger(this),
+ 	presetLoadRampFlag(0),
+ 	suspendIndex(0),
+@@ -260,12 +261,6 @@ void MainController::stopCpuBenchmark()
+ 	}
+ }
+ 
+-void MainController::clearConsole()
+-{
+-	consoleData.clearUndoHistory();
+-	consoleData.replaceAllContent({});
+-}
+-
+ int MainController::getNumActiveVoices() const
+ {
+ 	return getMainSynthChain()->getNumActiveVoices();
+@@ -781,19 +776,9 @@ bool MainController::checkAndResetMidiInputFlag()
+ 
+ void MainController::writeToConsole(const String &message, int warningLevel, const Processor *p, Colour c)
+ {
+-	consoleData.clearUndoHistory();
+-	
+-	auto pos = CodeDocument::Position(consoleData, consoleData.getNumCharacters());
+-	consoleData.insertText(consoleData.getNumCharacters(), message);
+-
+-	return;
+-
+-	CHECK_KEY(this);
+-
+-	Console *currentConsole = usePopupConsole ? popupConsole.get() : console.get();
+-
+-	if (currentConsole != nullptr) currentConsole->logMessage(message, (Console::WarningLevel)warningLevel, p, (p != nullptr && c.isTransparent()) ? p->getColour() : c);
++	codeHandler.writeToConsole(message, warningLevel, p, c);
+ 
++	
+ 
+ }
+ 
+diff --git a/hi_core/hi_core/MainController.h b/hi_core/hi_core/MainController.h
+index 7af435c..d65d53a 100644
+--- a/hi_core/hi_core/MainController.h
++++ b/hi_core/hi_core/MainController.h
+@@ -279,6 +279,61 @@ public:
+ 
+ 	};
+ 
++	class CodeHandler: public AsyncUpdater
++	{
++	public:
++
++		enum WarningLevel
++		{
++			Message = 0,
++			Error = 1
++		};
++
++		CodeHandler(MainController* mc);
++
++		void writeToConsole(const String &t, int warningLevel, const Processor *p, Colour c);
++
++		void handleAsyncUpdate();
++
++
++
++		enum class ConsoleMessageItems
++		{
++			WarningLevel = 0,
++			Processor,
++			Message
++		};
++
++		using ConsoleMessage = std::tuple < WarningLevel, const WeakReference<Processor>, String >;
++
++		const CriticalSection &getLock() const { return lock; }
++
++		std::vector<ConsoleMessage> unprintedMessages;
++
++		CriticalSection lock;
++
++		void clearConsole()
++		{
++			clearFlag = true;
++
++			triggerAsyncUpdate();
++
++		}
++
++		CodeDocument* getConsoleData() { return &consoleData; }
++
++	private:
++
++		bool overflowProtection = false;
++
++		bool clearFlag = false;
++
++		CodeDocument consoleData;
++
++		MainController* mc;
++
++	};
++
+ 	MainController();
+ 
+ 	virtual ~MainController();
+@@ -298,6 +353,9 @@ public:
+ 	UserPresetHandler& getUserPresetHandler() { return userPresetHandler; };
+ 	const UserPresetHandler& getUserPresetHandler() const { return userPresetHandler; };
+ 
++	CodeHandler& getConsoleHandler() { return codeHandler; };
++	const CodeHandler& getConsoleHandler() const { return codeHandler; };
++
+ #if USE_BACKEND
+ 	/** Writes to the console. */
+ 	void writeToConsole(const String &message, int warningLevel, const Processor *p=nullptr, Colour c=Colours::transparentBlack);
+@@ -420,13 +478,6 @@ public:
+ 
+ 	void replaceReferencesToGlobalFolder();
+ 
+-	CodeDocument* getConsoleData()
+-	{
+-		return &consoleData;
+-	}
+-
+-    void clearConsole();
+-
+ 	void setLastActiveEditor(CodeEditorComponent *editor, CodeDocument::Position position)
+ 	{
+ 		lastActiveEditor = editor;
+@@ -692,8 +743,10 @@ private:
+ 	friend class UserPresetHandler;
+     friend class PresetLoadingThread;
+ 	friend class DelayedRenderer;
++	friend class CodeHandler;
+ 
+ 	DelayedRenderer delayedRenderer;
++	CodeHandler codeHandler;
+ 
+ 	bool skipCompilingAtPresetLoad = false;
+ 
+@@ -758,7 +811,7 @@ private:
+ 
+ #if USE_BACKEND
+     
+-	CodeDocument consoleData;
++	
+ 
+ 	Component::SafePointer<ScriptWatchTable> scriptWatchTable;
+ 	Component::SafePointer<ScriptComponentEditPanel> scriptComponentEditPanel;
+diff --git a/hi_core/hi_core/MainControllerSubClasses.cpp b/hi_core/hi_core/MainControllerSubClasses.cpp
+index 70d4717..8247318 100644
+--- a/hi_core/hi_core/MainControllerSubClasses.cpp
++++ b/hi_core/hi_core/MainControllerSubClasses.cpp
+@@ -326,6 +326,96 @@ void MainController::UserPresetHandler::loadPresetInternal()
+ }
+ 
+ 
++MainController::CodeHandler::CodeHandler(MainController* mc_):
++	mc(mc_)
++{
++
++}
++
++
++
++
++void MainController::CodeHandler::writeToConsole(const String &t, int warningLevel, const Processor *p, Colour c)
++{
++	if (overflowProtection) return;
++
++	else
++	{
++		ScopedLock sl(getLock());
++
++		if (unprintedMessages.size() > 10)
++		{
++			unprintedMessages.push_back(ConsoleMessage(Error, const_cast<Processor*>(p), "Console Overflow"));
++			overflowProtection = true;
++			return;
++		}
++		else
++		{
++			unprintedMessages.push_back(ConsoleMessage((WarningLevel)warningLevel, const_cast<Processor*>(p), t));
++		}
++	}
++
++	if (MessageManager::getInstance()->isThisTheMessageThread())
++	{
++		handleAsyncUpdate();
++	}
++	else
++	{
++		triggerAsyncUpdate();
++	}
++}
++
++
++void MainController::CodeHandler::handleAsyncUpdate()
++{
++	consoleData.clearUndoHistory();
++
++
++	if (clearFlag)
++	{
++		consoleData.clearUndoHistory();
++		consoleData.replaceAllContent({});
++		clearFlag = false;
++	}
++
++	std::vector<ConsoleMessage> messagesForThisTime;
++	messagesForThisTime.reserve(10);
++
++	if (unprintedMessages.size() != 0)
++	{
++		ScopedLock sl(getLock());
++		messagesForThisTime.swap(unprintedMessages);
++	}
++	else return;
++
++	String message;
++
++	for (size_t i = 0; i < messagesForThisTime.size(); i++)
++	{
++		const Processor* processor = std::get<(int)ConsoleMessageItems::Processor>(messagesForThisTime[i]).get();
++
++		if (processor == nullptr)
++		{
++			jassertfalse;
++			continue;
++		}
++
++		message << processor->getId() << ":";
++		message << (std::get<(int)ConsoleMessageItems::WarningLevel>(messagesForThisTime[i]) == WarningLevel::Error ? "! " : " ");
++		message << std::get<(int)ConsoleMessageItems::Message>(messagesForThisTime[i]) << "\n";
++	}
++
++	consoleData.insertText(consoleData.getNumCharacters(), message);
++
++#if 0
++	int numLinesVisible = jmax<int>(0, doc->getNumLines() - (int)((float)newTextConsole->getHeight() / GLOBAL_MONOSPACE_FONT().getHeight()));
++
++	newTextConsole->scrollToLine(numLinesVisible);
++#endif
++	overflowProtection = false;
++}
++
++
+ MainController::EventIdHandler::EventIdHandler(HiseEventBuffer& masterBuffer_) :
+ 	masterBuffer(masterBuffer_),
+ 	currentEventId(1)
+diff --git a/hi_core/hi_core/PresetHandler.cpp b/hi_core/hi_core/PresetHandler.cpp
+index 0bed8e6..81902b9 100644
+--- a/hi_core/hi_core/PresetHandler.cpp
++++ b/hi_core/hi_core/PresetHandler.cpp
+@@ -74,6 +74,32 @@ void CopyPasteTarget::grabCopyAndPasteFocus()
+ }
+ 
+ 
++void CopyPasteTarget::dismissCopyAndPasteFocus()
++{
++#if USE_BACKEND
++	Component *thisAsComponent = dynamic_cast<Component*>(this);
++
++	if (thisAsComponent)
++	{
++		BackendRootWindow *editor = thisAsComponent->findParentComponentOfClass<BackendRootWindow>();
++
++		if (editor != nullptr && isSelected)
++		{
++			editor->setCopyPasteTarget(nullptr);
++			isSelected = false;
++			thisAsComponent->repaint();
++		}
++	}
++	else
++	{
++		// You can only use components as CopyAndPasteTargets!
++		jassertfalse;
++	}
++#endif
++}
++
++
++
+ UserPresetData::UserPresetData(MainController* mc_) :
+ mc(mc_)
+ {
+diff --git a/hi_core/hi_core/UtilityClasses.h b/hi_core/hi_core/UtilityClasses.h
+index bb9171d..ea02d9a 100644
+--- a/hi_core/hi_core/UtilityClasses.h
++++ b/hi_core/hi_core/UtilityClasses.h
+@@ -815,6 +815,8 @@ public:
+ 
+ 	void grabCopyAndPasteFocus();
+ 
++	void dismissCopyAndPasteFocus();
++
+ 	bool isSelectedForCopyAndPaste() { return isSelected; };
+ 
+ 	void paintOutlineIfSelected(Graphics &g)
+diff --git a/hi_core/hi_dsp/ProcessorInterfaces.h b/hi_core/hi_dsp/ProcessorInterfaces.h
+index 9718783..8992578 100644
+--- a/hi_core/hi_dsp/ProcessorInterfaces.h
++++ b/hi_core/hi_dsp/ProcessorInterfaces.h
+@@ -68,6 +68,12 @@ public:
+ 	*	If you only have one table, ignore this parameter.*/
+ 	virtual Table *getTable(int tableIndex) const = 0;
+ 
++	/** Overwrite this and return the number of tables that this processor uses.
++	*
++	*	It assumes one table so if you do have one table, you don't need to do anything...
++	*/
++	virtual int getNumTables() const { return 1; }
++
+ 	/** Adds a listener to this processor. */
+ 	void addTableChangeListener(SafeChangeListener *listener);;
+ 
+diff --git a/hi_core/hi_dsp/editor/ProcessorEditor.cpp b/hi_core/hi_dsp/editor/ProcessorEditor.cpp
+index fcde3c9..37932c2 100644
+--- a/hi_core/hi_dsp/editor/ProcessorEditor.cpp
++++ b/hi_core/hi_dsp/editor/ProcessorEditor.cpp
+@@ -48,11 +48,16 @@ isPopupMode(false)
+ 	addAndMakeVisible(panel = new ProcessorEditorPanel(this));
+ 	addAndMakeVisible(chainBar = new ProcessorEditorChainBar(this));
+ 
++	header->addMouseListener(this, false);
++	body->addMouseListener(this, false);
++
+     setOpaque(true);
+ 	
+ 
+ 	setSize(ProcessorEditorContainer::getWidthForIntendationLevel(intendationLevel), getActualHeight());
+ 
++	setInterceptsMouseClicks(true, true);
++
+ 	header->update();
+ 	body->updateGui();
+ }
+diff --git a/hi_core/hi_dsp/editor/ProcessorEditor.h b/hi_core/hi_dsp/editor/ProcessorEditor.h
+index e072198..e6d486c 100644
+--- a/hi_core/hi_dsp/editor/ProcessorEditor.h
++++ b/hi_core/hi_dsp/editor/ProcessorEditor.h
+@@ -47,7 +47,7 @@
+ 
+ 
+ /** The container that holds all vertically stacked ProcessorEditors. */
+-class ProcessorEditorContainer : public ComponentWithMidiKeyboardTraverser,
++class ProcessorEditorContainer : public Component,
+ 							     public SafeChangeBroadcaster,
+ 								 public Processor::DeleteListener
+ {
+@@ -99,7 +99,7 @@ class ProcessorEditorHeader;
+ class ProcessorEditorChainBar;
+ class ProcessorEditorPanel;
+ 
+-class ProcessorEditor : public ComponentWithMidiKeyboardTraverser,
++class ProcessorEditor : public Component,
+ 							  public SafeChangeListener,
+ 							  public DragAndDropTarget,
+ 
+@@ -192,6 +192,14 @@ public:
+ 		CopyPasteTarget::paintOutlineIfSelected(g);
+ 	}
+ 
++	void mouseDown(const MouseEvent& event) override
++	{
++		if (event.mods.isRightButtonDown())
++			CopyPasteTarget::dismissCopyAndPasteFocus();
++		else
++			CopyPasteTarget::grabCopyAndPasteFocus();
++	}
++
+ 	String getObjectTypeName() { return getProcessor()->getId(); };
+ 	void copyAction();
+ 	void pasteAction();
+@@ -293,7 +301,7 @@ private:
+ *
+ *
+ */
+-class ProcessorEditorChildComponent: public ComponentWithMidiKeyboardTraverser
++class ProcessorEditorChildComponent: public Component
+ {
+ public:
+ 
+diff --git a/hi_core/hi_sampler/hi_sampler.cpp b/hi_core/hi_sampler/hi_sampler.cpp
+index 6bb7e36..d49d612 100644
+--- a/hi_core/hi_sampler/hi_sampler.cpp
++++ b/hi_core/hi_sampler/hi_sampler.cpp
+@@ -54,6 +54,7 @@
+ #include "sampler/components/FileNameImporterDialog.cpp"
+ #include "sampler/components/FileImportDialog.cpp"
+ #include "sampler/components/SfzGroupSelectorComponent.cpp"
++
+ #include "sampler/components/SampleEditorComponents.cpp"
+ #include "sampler/components/SamplerSettings.cpp"
+ #include "sampler/components/ValueSettingComponent.cpp"
+@@ -61,6 +62,7 @@
+ #include "sampler/components/SampleEditor.cpp"
+ #include "sampler/components/SampleMapEditor.cpp"
+ #include "sampler/components/SamplerTable.cpp"
++#include "sampler/components/SampleEditHandler.cpp"
+ #include "sampler/components/SamplerBody.cpp"
+ #include "sampler/components/SampleEditingActions.cpp"
+ 
+diff --git a/hi_core/hi_sampler/hi_sampler.h b/hi_core/hi_sampler/hi_sampler.h
+index ba12c07..b1175f2 100644
+--- a/hi_core/hi_sampler/hi_sampler.h
++++ b/hi_core/hi_sampler/hi_sampler.h
+@@ -61,6 +61,7 @@
+ #include "sampler/components/SampleEditor.h"
+ #include "sampler/components/SampleMapEditor.h"
+ #include "sampler/components/SamplerTable.h"
++#include "sampler/components/SampleEditHandler.h"
+ #include "sampler/components/SamplerBody.h"
+ 
+ #endif
+diff --git a/hi_core/hi_sampler/sampler/ModulatorSampler.cpp b/hi_core/hi_sampler/sampler/ModulatorSampler.cpp
+index bb2dc0e..ed58d90 100644
+--- a/hi_core/hi_sampler/sampler/ModulatorSampler.cpp
++++ b/hi_core/hi_sampler/sampler/ModulatorSampler.cpp
+@@ -51,7 +51,8 @@ crossfadeGroups(false),
+ useGlobalFolder(false),
+ purged(false),
+ numChannels(1),
+-deactivateUIUpdate(false)
++deactivateUIUpdate(false),
++sampleEditHandler(new SampleEditHandler(this))
+ {
+ 	crossfadeBuffer = AudioSampleBuffer(1, 0);
+ 	temporaryVoiceBuffer = AudioSampleBuffer(2, 0);
+diff --git a/hi_core/hi_sampler/sampler/ModulatorSampler.h b/hi_core/hi_sampler/sampler/ModulatorSampler.h
+index 579944f..2a2b6aa 100644
+--- a/hi_core/hi_sampler/sampler/ModulatorSampler.h
++++ b/hi_core/hi_sampler/sampler/ModulatorSampler.h
+@@ -37,6 +37,9 @@
+ 
+ #include "JuceHeader.h"
+ 
++
++class SampleEditHandler;
++
+ /** The main sampler class.
+ *	@ingroup sampler
+ *
+@@ -269,6 +272,9 @@ public:
+ 	
+ 	const CriticalSection& getExportLock() const { return exportLock; }
+ 
++	SampleEditHandler* getSampleEditHandler() { return sampleEditHandler; }
++	const SampleEditHandler* getSampleEditHandler() const { return sampleEditHandler; }
++
+ 	bool useGlobalFolderForSaving() const;
+ 	void setUseGlobalFolderForSaving() { useGlobalFolder = true; };
+ 	void replaceReferencesWithGlobalFolder() override;
+@@ -586,6 +592,8 @@ private:
+ 	ScopedPointer<ModulatorChain> crossFadeChain;
+ 	ScopedPointer<AudioThumbnailCache> soundCache;
+ 	
++	ScopedPointer<SampleEditHandler> sampleEditHandler;
++
+ };
+ 
+ 
+diff --git a/hi_core/hi_sampler/sampler/SampleImporter.cpp b/hi_core/hi_sampler/sampler/SampleImporter.cpp
+index 8139847..da1100d 100644
+--- a/hi_core/hi_sampler/sampler/SampleImporter.cpp
++++ b/hi_core/hi_sampler/sampler/SampleImporter.cpp
+@@ -200,7 +200,7 @@ void SampleImporter::importNewAudioFiles(Component *childComponentOfMainEditor,
+ 
+ 			if (body != nullptr)
+ 			{
+-				SamplerBody::SampleEditingActions::automapUsingMetadata(body, sampler);
++				SampleEditHandler::SampleEditingActions::automapUsingMetadata(sampler);
+ 			}
+ 		}
+ 	}
+diff --git a/hi_core/hi_sampler/sampler/components/SampleEditHandler.cpp b/hi_core/hi_sampler/sampler/components/SampleEditHandler.cpp
+new file mode 100644
+index 0000000..5acf4a3
+--- /dev/null
++++ b/hi_core/hi_sampler/sampler/components/SampleEditHandler.cpp
+@@ -0,0 +1,123 @@
++
++void SampleEditHandler::moveSamples(SamplerSoundMap::Neighbour direction)
++{
++	ModulatorSampler *s = sampler;
++
++	s->getUndoManager()->beginNewTransaction("Moving Samples");
++
++	switch (direction)
++	{
++	case SamplerSoundMap::Right:
++	case SamplerSoundMap::Left:
++	{
++		for (int i = 0; i < selectedSamplerSounds.getNumSelected(); i++)
++		{
++			ModulatorSamplerSound *sound = selectedSamplerSounds.getSelectedItem(i);
++
++			if (direction == SamplerSoundMap::Right)
++			{
++				changeProperty(sound, ModulatorSamplerSound::KeyHigh, 1);
++				changeProperty(sound, ModulatorSamplerSound::KeyLow, 1);
++				changeProperty(sound, ModulatorSamplerSound::RootNote, 1);
++			}
++			else
++			{
++				changeProperty(sound, ModulatorSamplerSound::KeyLow, -1);
++				changeProperty(sound, ModulatorSamplerSound::KeyHigh, -1);
++				changeProperty(sound, ModulatorSamplerSound::RootNote, -1);
++			}
++		}
++		break;
++	}
++	case SamplerSoundMap::Up:
++	case SamplerSoundMap::Down:
++	{
++		for (int i = 0; i < selectedSamplerSounds.getNumSelected(); i++)
++		{
++			ModulatorSamplerSound *sound = selectedSamplerSounds.getSelectedItem(i);
++
++			changeProperty(sound, ModulatorSamplerSound::VeloHigh, direction == SamplerSoundMap::Up ? 1 : -1);
++			changeProperty(sound, ModulatorSamplerSound::VeloLow, direction == SamplerSoundMap::Up ? 1 : -1);
++		}
++		break;
++	}
++	}
++}
++
++/*  ===========================================================================
++*
++*   This file is part of HISE.
++*   Copyright 2016 Christoph Hart
++*
++*   HISE is free software: you can redistribute it and/or modify
++*   it under the terms of the GNU General Public License as published by
++*   the Free Software Foundation, either version 3 of the License, or
++*   (at your option) any later version.
++*
++*   HISE is distributed in the hope that it will be useful,
++*   but WITHOUT ANY WARRANTY; without even the implied warranty of
++*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++*   GNU General Public License for more details.
++*
++*   You should have received a copy of the GNU General Public License
++*   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
++*
++*   Commercial licences for using HISE in an closed source project are
++*   available on request. Please visit the project's website to get more
++*   information about commercial licencing:
++*
++*   http://www.hartinstruments.net/hise/
++*
++*   HISE is based on the JUCE library,
++*   which also must be licenced for commercial applications:
++*
++*   http://www.juce.com
++*
++*   ===========================================================================
++*/
++
++void SampleEditHandler::handleMidiSelection()
++{
++	auto& x = sampler->getSamplerDisplayValues();
++
++	if (sampler->getEditorState(ModulatorSampler::MidiSelectActive) && newKeysPressed(x.currentNotes))
++	{
++		selectedSamplerSounds.deselectAll();
++
++		SelectedItemSet<const ModulatorSamplerSound*> midiSounds;
++
++		for (int i = 0; i < 127; i++)
++		{
++			if (x.currentNotes[i] != 0)
++			{
++				const int noteNumber = i;
++				const int velocity = x.currentNotes[i];
++
++				for (int j = 0; j < sampler->getNumSounds(); j++)
++				{
++					if (sampler->soundCanBePlayed(sampler->getSound(j), 1, noteNumber, (float)velocity / 127.0f))
++					{
++						selectedSamplerSounds.addToSelection(sampler->getSound(j));
++					}
++				}
++
++			}
++		}
++	}
++}
++
++bool SampleEditHandler::newKeysPressed(const uint8 *currentNotes)
++{
++	for (int i = 0; i < 127; i++)
++	{
++		if (currentNotes[i] != 0) return true;
++	}
++	return false;
++}
++
++void SampleEditHandler::changeProperty(ModulatorSamplerSound *s, ModulatorSamplerSound::Property p, int delta)
++{
++	const int v = s->getProperty(p);
++
++	s->setPropertyWithUndo(p, v + delta);
++}
+diff --git a/hi_core/hi_sampler/sampler/components/SampleEditHandler.h b/hi_core/hi_sampler/sampler/components/SampleEditHandler.h
+new file mode 100644
+index 0000000..189055e
+--- /dev/null
++++ b/hi_core/hi_sampler/sampler/components/SampleEditHandler.h
+@@ -0,0 +1,164 @@
++/*  ===========================================================================
++*
++*   This file is part of HISE.
++*   Copyright 2016 Christoph Hart
++*
++*   HISE is free software: you can redistribute it and/or modify
++*   it under the terms of the GNU General Public License as published by
++*   the Free Software Foundation, either version 3 of the License, or
++*   (at your option) any later version.
++*
++*   HISE is distributed in the hope that it will be useful,
++*   but WITHOUT ANY WARRANTY; without even the implied warranty of
++*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++*   GNU General Public License for more details.
++*
++*   You should have received a copy of the GNU General Public License
++*   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
++*
++*   Commercial licences for using HISE in an closed source project are
++*   available on request. Please visit the project's website to get more
++*   information about commercial licencing:
++*
++*   http://www.hartinstruments.net/hise/
++*
++*   HISE is based on the JUCE library,
++*   which also must be licenced for commercial applications:
++*
++*   http://www.juce.com
++*
++*   ===========================================================================
++*/
++
++#ifndef SAMPLEEDITHANDLER_H_INCLUDED
++#define SAMPLEEDITHANDLER_H_INCLUDED
++
++
++class SampleEditHandler: public ChangeListener
++{
++public:
++
++	struct Listener
++	{
++		virtual ~Listener()
++		{
++			masterReference.clear();
++		}
++
++		virtual void soundSelectionChanged() = 0;
++
++	private:
++
++		friend class WeakReference<Listener>;
++		WeakReference<Listener>::Master masterReference;
++	};
++
++	SampleEditHandler(ModulatorSampler* sampler_):
++		sampler(sampler_)
++	{
++		selectedSamplerSounds.addChangeListener(this);
++	}
++
++	~SampleEditHandler()
++	{
++		selectedSamplerSounds.removeChangeListener(this);
++	}
++
++	void changeListenerCallback(ChangeBroadcaster* source)
++	{
++		sendSelectionChangeMessage();
++	}
++
++	void addSelectionListener(Listener* l)
++	{
++		selectionListeners.addIfNotAlreadyThere(l);
++	}
++
++	void removeSelectionListener(Listener* l)
++	{
++		selectionListeners.removeAllInstancesOf(l);
++	}
++	
++	SelectedItemSet<WeakReference<ModulatorSamplerSound>> &getSelection()
++	{
++		return selectedSamplerSounds;
++	}
++
++	ModulatorSampler* getSampler() { return sampler; }
++
++	void moveSamples(SamplerSoundMap::Neighbour direction);
++
++	void setDisplayOnlyRRGroup(int newRRIndex) { rrIndex = newRRIndex; }
++
++	int getCurrentlyDisplayedRRGroup() const { return rrIndex; }
++
++	void sendSelectionChangeMessage()
++	{
++		const Array<WeakReference<ModulatorSamplerSound>> newSelection = selectedSamplerSounds.getItemArray();
++
++		Array<ModulatorSamplerSound*> existingSounds;
++
++		for (int i = 0; i < newSelection.size(); i++)
++		{
++			if (newSelection[i].get() != nullptr) existingSounds.add(newSelection[i].get());
++		}
++
++		if (existingSounds != lastSelection)
++		{
++			for (int i = 0; i < selectionListeners.size(); i++)
++			{
++				selectionListeners[i]->soundSelectionChanged();
++			}
++
++			lastSelection.clear();
++			lastSelection.addArray(existingSounds);
++		}
++	}
++
++	void handleMidiSelection();
++
++	struct SampleEditingActions
++	{
++		static void deleteSelectedSounds(SampleEditHandler *body);
++		static void duplicateSelectedSounds(SampleEditHandler *body);
++		static void removeDuplicateSounds(SampleEditHandler *body);
++		static void cutSelectedSounds(SampleEditHandler *body);
++		static void copySelectedSounds(SampleEditHandler *body);
++		static void automapVelocity(SampleEditHandler *body);
++		static void pasteSelectedSounds(SampleEditHandler *body);
++
++		static void checkMicPositionAmountBeforePasting(const ValueTree &v, ModulatorSampler * s);
++
++		static void refreshCrossfades(SampleEditHandler * body);
++		static void selectAllSamples(SampleEditHandler * body);
++		static void mergeIntoMultiSamples(SampleEditHandler * body, Component* childOfRoot);
++		static void extractToSingleMicSamples(SampleEditHandler * body);
++		static void normalizeSamples(SampleEditHandler *handler, Component* childOfRoot);
++		static void automapUsingMetadata(ModulatorSampler* sampler);
++		static void trimSampleStart(SampleEditHandler * body);
++	};
++
++	
++
++private:
++
++	bool newKeysPressed(const uint8 *currentNotes);
++
++	void changeProperty(ModulatorSamplerSound *s, ModulatorSamplerSound::Property p, int delta);;
++
++	int rrIndex = -1;
++
++	SelectedItemSet<WeakReference<ModulatorSamplerSound>> selectedSamplerSounds;
++	
++
++
++	Array<ModulatorSamplerSound*> lastSelection;
++
++	Array<WeakReference<Listener>> selectionListeners;
++
++	ModulatorSampler* sampler;
++};
++
++
++
++#endif  // SAMPLEEDITHANDLER_H_INCLUDED
+diff --git a/hi_core/hi_sampler/sampler/components/SampleEditingActions.cpp b/hi_core/hi_sampler/sampler/components/SampleEditingActions.cpp
+index 10e15b3..be51474 100644
+--- a/hi_core/hi_sampler/sampler/components/SampleEditingActions.cpp
++++ b/hi_core/hi_sampler/sampler/components/SampleEditingActions.cpp
+@@ -30,28 +30,26 @@
+ *   ===========================================================================
+ */
+ 
+-void SamplerBody::SampleEditingActions::deleteSelectedSounds(SamplerBody *body)
++void SampleEditHandler::SampleEditingActions::deleteSelectedSounds(SampleEditHandler *handler)
+ {
+-	ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(body->getProcessor());
+-
+-	const Array<WeakReference<ModulatorSamplerSound>> soundsToBeDeleted = body->getSelection().getItemArray();
++	auto soundsToBeDeleted = handler->getSelection().getItemArray();
+ 
+ 	const int numToBeDeleted = soundsToBeDeleted.size();
+ 
+ 	for (int i = 0; i < numToBeDeleted; i++)
+ 	{
+-		if (soundsToBeDeleted[i].get() != nullptr) sampler->deleteSound(soundsToBeDeleted[i].get());
++		if (soundsToBeDeleted[i].get() != nullptr) handler->sampler->deleteSound(soundsToBeDeleted[i].get());
+ 	}
+ 
+-	body->getSelection().deselectAll();
+-	body->getSelection().dispatchPendingMessages();
++	handler->getSelection().deselectAll();
++	handler->getSelection().dispatchPendingMessages();
+ }
+ 
+-void SamplerBody::SampleEditingActions::duplicateSelectedSounds(SamplerBody *body)
++void SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(SampleEditHandler *handler)
+ {
+-	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(body->getProcessor());
++	ModulatorSampler *s = handler->sampler;
+ 
+-	const Array<WeakReference<ModulatorSamplerSound>> sounds = body->getSelection().getItemArray();
++	const Array<WeakReference<ModulatorSamplerSound>> sounds = handler->getSelection().getItemArray();
+ 
+ 	for (int i = 0; i < sounds.size(); i++)
+ 	{
+@@ -60,20 +58,20 @@ void SamplerBody::SampleEditingActions::duplicateSelectedSounds(SamplerBody *bod
+ 
+ 		s->addSamplerSound(v, index, true);
+         
+-		body->getSelection().addToSelection(s->getSound(index));
++		handler->getSelection().addToSelection(s->getSound(index));
+ 	}
+     
+     s->refreshPreloadSizes();
+ 
+-	body->getSelection().dispatchPendingMessages();
++	handler->getSelection().dispatchPendingMessages();
+ }
+ 
+ 
+-void SamplerBody::SampleEditingActions::removeDuplicateSounds(SamplerBody *body)
++void SampleEditHandler::SampleEditingActions::removeDuplicateSounds(SampleEditHandler *handler)
+ {
+ 	if (PresetHandler::showYesNoWindow("Confirm", "Do you really want to remove all duplicates?"))
+ 	{
+-		Array<WeakReference<ModulatorSamplerSound>> soundsInSampler = body->getSelection().getItemArray();
++		Array<WeakReference<ModulatorSamplerSound>> soundsInSampler = handler->getSelection().getItemArray();
+ 
+ 		Array<WeakReference<ModulatorSamplerSound>> soundsToDelete;
+ 
+@@ -98,15 +96,13 @@ void SamplerBody::SampleEditingActions::removeDuplicateSounds(SamplerBody *body)
+ 			}
+ 		}
+ 
+-		body->getSelection().deselectAll();
++		handler->getSelection().deselectAll();
+ 
+ 		const int numDeleted = soundsToDelete.size();
+ 
+-		ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(body->getProcessor());
+-
+ 		for (int i = 0; i < soundsToDelete.size(); i++)
+ 		{
+-			sampler->deleteSound(soundsToDelete[i]);
++			handler->sampler->deleteSound(soundsToDelete[i]);
+ 		}
+ 
+ 		if (numDeleted != 0)
+@@ -117,23 +113,22 @@ void SamplerBody::SampleEditingActions::removeDuplicateSounds(SamplerBody *body)
+ }
+ 
+ 
+-void SamplerBody::SampleEditingActions::cutSelectedSounds(SamplerBody *body)
++void SampleEditHandler::SampleEditingActions::cutSelectedSounds(SampleEditHandler *handler)
+ {
+-	copySelectedSounds(body);
+-	deleteSelectedSounds(body);
++	copySelectedSounds(handler);
++	deleteSelectedSounds(handler);
+ }
+ 
+-void SamplerBody::SampleEditingActions::copySelectedSounds(SamplerBody *body)
++void SampleEditHandler::SampleEditingActions::copySelectedSounds(SampleEditHandler *handler)
+ {
+-	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(body->getProcessor());
+-	const Array<WeakReference<ModulatorSamplerSound>> sounds = body->getSelection().getItemArray();
++	const Array<WeakReference<ModulatorSamplerSound>> sounds = handler->getSelection().getItemArray();
+ 
+-	s->getMainController()->getSampleManager().copySamplesToClipboard(sounds);
++	handler->sampler->getMainController()->getSampleManager().copySamplesToClipboard(sounds);
+ }
+ 
+-void SamplerBody::SampleEditingActions::automapVelocity(SamplerBody *body)
++void SampleEditHandler::SampleEditingActions::automapVelocity(SampleEditHandler *handler)
+ {
+-	const Array<WeakReference<ModulatorSamplerSound>> sounds = body->getSelection().getItemArray();
++	const Array<WeakReference<ModulatorSamplerSound>> sounds = handler->getSelection().getItemArray();
+ 
+ 	int upperLimit = 0;
+ 	int lowerLimit = 127;
+@@ -149,14 +144,11 @@ void SamplerBody::SampleEditingActions::automapVelocity(SamplerBody *body)
+ 	float peakValue = 0.0f;
+ 
+ 	for (int i = 0; i < sounds.size(); i++)
+-	{
+ 		peakValue = sounds[i]->getNormalizedPeak();
+-
+-	}
+ }
+ 
+ 
+-void SamplerBody::SampleEditingActions::checkMicPositionAmountBeforePasting(const ValueTree &v, ModulatorSampler * s)
++void SampleEditHandler::SampleEditingActions::checkMicPositionAmountBeforePasting(const ValueTree &v, ModulatorSampler * s)
+ {
+ 	int numMics = 1;
+ 
+@@ -192,9 +184,9 @@ void SamplerBody::SampleEditingActions::checkMicPositionAmountBeforePasting(cons
+ }
+ 
+ 
+-void SamplerBody::SampleEditingActions::pasteSelectedSounds(SamplerBody *body)
++void SampleEditHandler::SampleEditingActions::pasteSelectedSounds(SampleEditHandler *handler)
+ {
+-	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(body->getProcessor());
++	ModulatorSampler *s = handler->sampler;
+ 
+ 	const ValueTree &v = s->getMainController()->getSampleManager().getSamplesFromClipboard();
+ 	
+@@ -206,17 +198,17 @@ void SamplerBody::SampleEditingActions::pasteSelectedSounds(SamplerBody *body)
+ 
+ 		s->addSamplerSound(v.getChild(i), index);
+ 
+-		body->getSelection().addToSelection(s->getSound(index));
++		handler->getSelection().addToSelection(s->getSound(index));
+ 	}
+ 
+ 	s->refreshPreloadSizes();
+ 
+-	body->getSelection().dispatchPendingMessages();
++	handler->getSelection().dispatchPendingMessages();
+ }
+ 
+-void SamplerBody::SampleEditingActions::refreshCrossfades(SamplerBody * body)
++void SampleEditHandler::SampleEditingActions::refreshCrossfades(SampleEditHandler * handler)
+ {
+-	const Array<WeakReference<ModulatorSamplerSound>> sounds = body->getSelection().getItemArray();
++	const Array<WeakReference<ModulatorSamplerSound>> sounds = handler->getSelection().getItemArray();
+ 
+ 	for (int i = 0; i < sounds.size(); i++)
+ 	{
+@@ -247,8 +239,6 @@ void SamplerBody::SampleEditingActions::refreshCrossfades(SamplerBody * body)
+ 
+ 			const Range<int> thisNoteRange = thisSound->getNoteRange();
+ 
+-
+-
+ 			if (!thisNoteRange.intersects(referenceNoteRange)) continue;
+ 
+ 			Range<int> thisVelocityRange = thisSound->getVelocityRange();
+@@ -272,21 +262,21 @@ void SamplerBody::SampleEditingActions::refreshCrossfades(SamplerBody * body)
+ 	};
+ }
+ 
+-void SamplerBody::SampleEditingActions::selectAllSamples(SamplerBody * body)
++void SampleEditHandler::SampleEditingActions::selectAllSamples(SampleEditHandler * handler)
+ {
+-	body->getSelection().deselectAll();
+-
+-	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(body->getProcessor());
++	handler->getSelection().deselectAll();
+ 
+-	int thisIndex = body->map->getCurrentRRGroup();
++	ModulatorSampler *s = handler->sampler;
+ 
++	int thisIndex = handler->getCurrentlyDisplayedRRGroup();  
++	
+ 	for (int i = 0; i < s->getNumSounds(); i++)
+ 	{
+ 		ModulatorSamplerSound* sound = s->getSound(i);
+ 
+ 		if (thisIndex == -1 || sound->getRRGroup() == thisIndex)
+ 		{
+-			body->getSelection().addToSelection(s->getSound(i));
++			handler->getSelection().addToSelection(s->getSound(i));
+ 		}
+ 	}
+ }
+@@ -295,27 +285,23 @@ class NormalizeThread : public ThreadWithAsyncProgressWindow
+ {
+ public:
+ 
+-	NormalizeThread(SamplerBody *body_):
++	NormalizeThread(SampleEditHandler *handler_):
+ 		ThreadWithAsyncProgressWindow("Normalizing samples"),
+-		body(body_)
++		handler(handler_)
+ 	{
+ 		addBasicComponents(false);
+ 	}
+ 
+ 	void run() override
+ 	{
+-		Array<WeakReference<ModulatorSamplerSound>> soundList = body->getSelection().getItemArray();
+-
+-		//ScopedLock sl(dynamic_cast<ModulatorSampler*>(body->getProcessor())->getSamplerLock());
++		Array<WeakReference<ModulatorSamplerSound>> soundList = handler->getSelection().getItemArray();
+ 
+ 		for (int i = 0; i < soundList.size(); i++)
+ 		{
+ 			if (soundList[i].get() == nullptr) continue;
+ 
+ 			if (threadShouldExit())
+-			{
+ 				return;
+-			}
+ 
+ 			setProgress((double)i / (double)soundList.size());
+ 
+@@ -326,20 +312,20 @@ public:
+ 
+ 	void threadFinished() override
+ 	{
+-		body->soundSelectionChanged();
++		handler->sendSelectionChangeMessage();
+ 	}
+ 
+ private:
+ 
+-	Component::SafePointer<SamplerBody> body;
++	SampleEditHandler* handler;
+ };
+ 
+ 
+-void SamplerBody::SampleEditingActions::normalizeSamples(SamplerBody *body)
++void SampleEditHandler::SampleEditingActions::normalizeSamples(SampleEditHandler *handler, Component* childOfRoot)
+ {
+-	NormalizeThread *nm = new NormalizeThread(body);
++	NormalizeThread *nm = new NormalizeThread(handler);
+ 
+-	nm->setModalBaseWindowComponent(body);
++	nm->setModalBaseWindowComponent(childOfRoot);
+ 	
+ 	nm->runThread();
+ }
+@@ -371,9 +357,9 @@ public:
+ 		numDetectionModes
+ 	};
+ 
+-	MultimicMergeDialogWindow(SamplerBody *body_):
++	MultimicMergeDialogWindow(SampleEditHandler *handler_):
+ 		ThreadWithAsyncProgressWindow("Merge sample files to multimic sounds", true),
+-		body(body_),
++		handler(handler_),
+ 		separator("_")
+ 	{
+ 		if (sanityCheck())
+@@ -413,14 +399,14 @@ public:
+ 		}
+ 
+ 
+-		body.getComponent()->getSelection().deselectAll();
++		handler->getSelection().deselectAll();
+ 
+-		while (body.getComponent()->getSelection().getNumSelected() != 0)
++		while (handler->getSelection().getNumSelected() != 0)
+ 		{
+ 			wait(200);
+ 		}
+ 
+-		ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(body->getProcessor());
++		ModulatorSampler *sampler = handler->getSampler();
+ 
+ 		sampler->setBypassed(true);
+ 
+@@ -541,7 +527,7 @@ private:
+ 
+ 	void rebuildTokenList()
+ 	{
+-		ModulatorSamplerSound *firstSound = body->getSelection().getSelectedItem(0).get();
++		ModulatorSamplerSound *firstSound = handler->getSelection().getSelectedItem(0).get();
+ 
+ 		String fileName = firstSound->getReferenceToSound()->getFileName().upToFirstOccurrenceOf(".", false, false);
+ 
+@@ -557,9 +543,9 @@ private:
+ 	{
+ 		channelNames.clear();
+ 
+-		for (int i = 0; i < body->getSelection().getNumSelected(); i++)
++		for (int i = 0; i < handler->getSelection().getNumSelected(); i++)
+ 		{
+-			String thisChannel = getChannelNameFromSound(body->getSelection().getSelectedItem(i).get());
++			String thisChannel = getChannelNameFromSound(handler->getSelection().getSelectedItem(i).get());
+ 
+ 			channelNames.addIfNotAlreadyThere(thisChannel);
+ 		}
+@@ -575,7 +561,7 @@ private:
+ 	{
+ 		if (channelNames.size() < 2) return;
+ 
+-		ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(body->getProcessor());
++		ModulatorSampler *sampler = handler->getSampler();
+ 
+ 		setProgress(0.0);
+ 		showStatusMessage("Creating collections");
+@@ -658,14 +644,14 @@ private:
+ 
+ 	bool checkAllSelected()
+ 	{
+-		return body->getSelection().getNumSelected() == dynamic_cast<ModulatorSampler*>(body->getProcessor())->getNumSounds();
++		return handler->getSelection().getNumSelected() == handler->getSampler()->getNumSounds();
+ 	}
+ 
+ 	bool noExistingMultimics()
+ 	{		
+-		for (int i = 0; i < body->getSelection().getNumSelected(); i++)
++		for (int i = 0; i < handler->getSelection().getNumSelected(); i++)
+ 		{
+-            const int multimics = body->getSelection().getSelectedItem(i).get()->getNumMultiMicSamples();
++            const int multimics = handler->getSelection().getSelectedItem(i).get()->getNumMultiMicSamples();
+             
+ 			if (multimics != 1)
+ 			{
+@@ -807,7 +793,7 @@ private:
+ 		return fileName;
+ 	}
+ 
+-	Component::SafePointer<SamplerBody> body;
++	SampleEditHandler* handler;
+ 
+ 	String separator;
+ 
+@@ -824,22 +810,22 @@ private:
+ 	OwnedArray<MultiMicCollection> collections;
+ };
+ 
+-void SamplerBody::SampleEditingActions::mergeIntoMultiSamples(SamplerBody * body)
++void SampleEditHandler::SampleEditingActions::mergeIntoMultiSamples(SampleEditHandler * handler, Component* childOfRoot)
+ {
+-	MultimicMergeDialogWindow * dialogWindow = new MultimicMergeDialogWindow(body);
++	MultimicMergeDialogWindow * dialogWindow = new MultimicMergeDialogWindow(handler);
+ 
+-	dialogWindow->setModalBaseWindowComponent(body);
++	dialogWindow->setModalBaseWindowComponent(childOfRoot);
+ }
+ 
+ 
+ 
+-void SamplerBody::SampleEditingActions::extractToSingleMicSamples(SamplerBody * body)
++void SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(SampleEditHandler * handler)
+ {
+ 	if (PresetHandler::showYesNoWindow("Extract Multimics to Single mics", "Do you really want to extract the multimics to single samples?"))
+ 	{
+-		body->getSelection().deselectAll();
++		handler->getSelection().deselectAll();
+ 
+-		ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(body->getProcessor());
++		ModulatorSampler *sampler = handler->sampler;
+ 
+ 		sampler->setBypassed(true);
+ 
+@@ -988,13 +974,15 @@ bool setSoundPropertiesFromMetadata(ModulatorSamplerSound *sound, const StringPa
+ 
+ #undef SET_PROPERTY_FROM_METADATA_STRING
+ 
+-void SamplerBody::SampleEditingActions::automapUsingMetadata(SamplerBody * body, ModulatorSampler* sampler)
++void SampleEditHandler::SampleEditingActions::automapUsingMetadata(ModulatorSampler* sampler)
+ {
+ 	Array<WeakReference<ModulatorSamplerSound>> sounds;
+ 	
+-	if (body != nullptr)
++	auto handler = sampler->getSampleEditHandler();
++
++	if (handler != nullptr)
+ 	{
+-		sounds = body->getSelection().getItemArray();
++		sounds = handler->getSelection().getItemArray();
+ 	}
+ 
+ 	if (sounds.size() == 0)
+@@ -1029,11 +1017,11 @@ void SamplerBody::SampleEditingActions::automapUsingMetadata(SamplerBody * body,
+ }
+ 
+ 
+-void SamplerBody::SampleEditingActions::trimSampleStart(SamplerBody * body)
++void SampleEditHandler::SampleEditingActions::trimSampleStart(SampleEditHandler * handler)
+ {
+-	Array<WeakReference<ModulatorSamplerSound>> sounds = body->getSelection().getItemArray();
++	Array<WeakReference<ModulatorSamplerSound>> sounds = handler->getSelection().getItemArray();
+ 
+-	ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(body->getProcessor());
++	ModulatorSampler *sampler = handler->getSampler();
+ 
+ 	sampler->getUndoManager()->beginNewTransaction();
+ 
+@@ -1085,7 +1073,5 @@ void SamplerBody::SampleEditingActions::trimSampleStart(SamplerBody * body)
+ 				}
+ 			}
+ 		}
+-
+-		
+ 	}
+ }
+diff --git a/hi_core/hi_sampler/sampler/components/SampleEditor.cpp b/hi_core/hi_sampler/sampler/components/SampleEditor.cpp
+index b322510..b390e14 100644
+--- a/hi_core/hi_sampler/sampler/components/SampleEditor.cpp
++++ b/hi_core/hi_sampler/sampler/components/SampleEditor.cpp
+@@ -27,8 +27,9 @@
+ //[/MiscUserDefs]
+ 
+ //==============================================================================
+-SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b)
+-    : sampler(s)
++SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
++	SamplerSubEditor(s->getSampleEditHandler()),
++	sampler(s)
+ {
+     //[Constructor_pre] You can add your own custom stuff here..
+     //[/Constructor_pre]
+@@ -168,10 +169,45 @@ void SampleEditor::paint (Graphics& g)
+ 
+ void SampleEditor::resized()
+ {
+-    //[UserPreResize] Add your own custom resize code here..
+-    //[/UserPreResize]
++    
++	int width = 150;
++	int halfWidth = 75;
++	int setterHeight = 32;
+ 
+-    viewport->setBounds (8, 41, getWidth() - 16, 119);
++	int y1 = getHeight() - 50;
++	int y2 = y1 - 50;
++
++	int viewportY = 41;
++	int viewportHeight = y2 - 32;
++
++	int widthOfSetters = width * 3 + halfWidth * 2;
++
++	int x = (getWidth() - widthOfSetters) / 2;
++
++    viewport->setBounds (8, viewportY, getWidth() - 16, viewportHeight);
++
++	volumeSetter->setBounds(x, y1, width-5, setterHeight);
++	
++	panSetter->setBounds(x, y2, halfWidth-5, setterHeight);
++	x += halfWidth;
++
++	pitchSetter->setBounds(x, y2, halfWidth-5, setterHeight);
++	x += halfWidth;
++
++	sampleStartSetter->setBounds(x, y1, width-5, setterHeight);
++	sampleEndSetter->setBounds(x, y2, width-5, setterHeight);
++
++	x += width;
++
++	loopStartSetter->setBounds(x, y1, width-5, setterHeight);
++	loopEndSetter->setBounds(x, y2, width-5, setterHeight);
++
++	x += width;
++
++	startModulationSetter->setBounds(x, y1, width-5, setterHeight);
++	loopCrossfadeSetter->setBounds(x, y2, width-5, setterHeight);
++
++#if 0
+     volumeSetter->setBounds (proportionOfWidth (0.3150f) - proportionOfWidth (0.1400f), 162, proportionOfWidth (0.1400f), 32);
+     pitchSetter->setBounds ((proportionOfWidth (0.3150f) - proportionOfWidth (0.1400f)) + 61, 195, proportionOfWidth (0.1000f), 32);
+     sampleStartSetter->setBounds ((getWidth() / 2) + 4 - proportionOfWidth (0.1400f), 162, proportionOfWidth (0.1400f), 32);
+@@ -180,13 +216,15 @@ void SampleEditor::resized()
+     loopEndSetter->setBounds (proportionOfWidth (0.5188f) + 0, 196, proportionOfWidth (0.1400f), 32);
+     loopCrossfadeSetter->setBounds (((getWidth() / 2) + 139) + roundFloatToInt (proportionOfWidth (0.1400f) * 0.0000f), 196, proportionOfWidth (0.1400f), 32);
+     startModulationSetter->setBounds ((getWidth() / 2) + 139, 160, proportionOfWidth (0.1400f), 32);
++	panSetter->setBounds(proportionOfWidth(0.2388f) - proportionOfWidth(0.1000f), 195, proportionOfWidth(0.1000f), 32);
++#endif
+     toolbar->setBounds (12, 10, getWidth() - 175, 20);
+-    panSetter->setBounds (proportionOfWidth (0.2388f) - proportionOfWidth (0.1000f), 195, proportionOfWidth (0.1000f), 32);
+-    //[UserResized] Add your own custom resize handling here..
++    
++    
+ 
+ 	currentWaveForm->setSize((int)(viewport->getWidth() * zoomFactor), viewport->getHeight() - (viewport->isHorizontalScrollBarShown() ? viewport->getScrollBarThickness() : 0));
+ 
+-    //[/UserResized]
++    
+ }
+ 
+ 
+@@ -198,7 +236,7 @@ bool SampleEditor::perform (const InvocationInfo &info)
+ 
+ 	switch(info.commandID)
+ 	{
+-	case NormalizeVolume:  SamplerBody::SampleEditingActions::normalizeSamples(body); return true;
++	case NormalizeVolume:  SampleEditHandler::SampleEditingActions::normalizeSamples(handler, this); return true;
+ 	case LoopEnabled:	   {for(int i = 0; i < selection.size(); i++)
+ 						   {
+ 							   selection[i]->toggleBoolProperty(ModulatorSamplerSound::LoopEnabled);
+diff --git a/hi_core/hi_sampler/sampler/components/SampleEditor.h b/hi_core/hi_sampler/sampler/components/SampleEditor.h
+index 179f306..6ef9c66 100644
+--- a/hi_core/hi_sampler/sampler/components/SampleEditor.h
++++ b/hi_core/hi_sampler/sampler/components/SampleEditor.h
+@@ -24,6 +24,7 @@
+ #include "JuceHeader.h"
+ 
+ class SamplerBody;
++class SampleEditHandler;
+ 
+ //[/Headers]
+ 
+diff --git a/hi_core/hi_sampler/sampler/components/SampleEditorComponents.cpp b/hi_core/hi_sampler/sampler/components/SampleEditorComponents.cpp
+index e3e299c..e0da3ed 100644
+--- a/hi_core/hi_sampler/sampler/components/SampleEditorComponents.cpp
++++ b/hi_core/hi_sampler/sampler/components/SampleEditorComponents.cpp
+@@ -193,9 +193,9 @@ bool SampleComponent::needsToBeDrawn()
+ 
+ // =================================================================================================================== SamplerSoundMap
+ 
+-SamplerSoundMap::SamplerSoundMap(ModulatorSampler *ownerSampler_, SamplerBody *b):
+-	body(b),
++SamplerSoundMap::SamplerSoundMap(ModulatorSampler *ownerSampler_):
+ 	ownerSampler(ownerSampler_),
++	handler(ownerSampler->getSampleEditHandler()),
+ 	notePosition(-1),
+ 	veloPosition(-1),
+ 	selectedSounds(new SelectedItemSet<WeakReference<SampleComponent>>()),
+@@ -213,8 +213,6 @@ SamplerSoundMap::SamplerSoundMap(ModulatorSampler *ownerSampler_, SamplerBody *b
+ 
+ 	selectedSounds->addChangeListener(this);
+ 
+-	addMouseListener(b, true);
+-
+ 	addChildComponent(sampleLasso);
+ 
+ 	updateSoundData();
+@@ -227,7 +225,7 @@ void SamplerSoundMap::changeListenerCallback(ChangeBroadcaster *b)
+ {
+ 	if(b == selectedSounds)
+ 	{
+-		body->getSelection().deselectAll();
++		handler->getSelection().deselectAll();
+ 
+ 		for(int i = 0; i < sampleComponents.size(); i++)
+ 		{
+@@ -244,7 +242,7 @@ void SamplerSoundMap::changeListenerCallback(ChangeBroadcaster *b)
+ 
+ 				if (selectedSampleComponents[i]->getSound() != nullptr)
+ 				{
+-					body->getSelection().addToSelection(selectedSampleComponents[i]->getSound());
++					handler->getSelection().addToSelection(selectedSampleComponents[i]->getSound());
+ 				}
+ 			}
+ 		}
+@@ -301,8 +299,8 @@ void SamplerSoundMap::selectNeighbourSample(Neighbour direction)
+ 
+ 			if(selectThisComponent)
+ 			{
+-				body->getSelection().deselectAll();
+-				body->getSelection().addToSelection(sampleComponents[i]->getSound());
++				handler->getSelection().deselectAll();
++				handler->getSelection().addToSelection(sampleComponents[i]->getSound());
+ 			}
+ 		}
+ 	}
+@@ -316,7 +314,7 @@ void SamplerSoundMap::endSampleDragging(bool copyDraggedSounds)
+ {
+     if(currentDragDeltaX == 0 && currentDragDeltaY == 0) return;
+     
+-    if(copyDraggedSounds) SamplerBody::SampleEditingActions::duplicateSelectedSounds(body);
++    if(copyDraggedSounds) SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(handler);
+ 
+ 	ownerSampler->getUndoManager()->beginNewTransaction("Dragging of " + String(dragStartData.size()) + " samples");
+ 
+@@ -895,6 +893,8 @@ void SamplerSoundMap::setSelectedIds(const Array<ModulatorSamplerSound*> newSele
+ 
+ void SamplerSoundMap::soloGroup(int groupIndex)
+ {
++	handler->setDisplayOnlyRRGroup(groupIndex);
++
+ 	for(int i = 0; i < sampleComponents.size(); i++)
+ 	{
+ 		const bool visible = (groupIndex == - 1) || sampleComponents[i]->appliesToGroup(groupIndex);
+@@ -926,13 +926,13 @@ bool SamplerSoundMap::newSamplesDetected()
+ 
+ // =================================================================================================================== MapWithKeyboard
+ 
+-MapWithKeyboard::MapWithKeyboard(ModulatorSampler *ownerSampler, SamplerBody *b):
++MapWithKeyboard::MapWithKeyboard(ModulatorSampler *ownerSampler):
+ 	sampler(ownerSampler),
+ 	lastNoteNumber(-1)
+ {
+     setBufferedToImage(true);
+     
+-	addAndMakeVisible(map = new SamplerSoundMap(ownerSampler, b));
++	addAndMakeVisible(map = new SamplerSoundMap(ownerSampler));
+ };
+ 
+ void MapWithKeyboard::paint(Graphics &g)
+@@ -1017,10 +1017,10 @@ void MapWithKeyboard::mouseUp(const MouseEvent &e)
+ 
+ // =================================================================================================================== SamplerSoundTable
+ 
+-SamplerSoundTable::SamplerSoundTable(ModulatorSampler *ownerSampler_, SamplerBody *b)   :
++SamplerSoundTable::SamplerSoundTable(ModulatorSampler *ownerSampler_, SampleEditHandler* handler)   :
++	SamplerSubEditor(handler),
+ 	font (GLOBAL_FONT()),
+ 	ownerSampler(ownerSampler_),
+-	body(b),
+ 	internalSelection(false)
+ {
+ 
+@@ -1178,10 +1178,10 @@ void SamplerSoundTable::selectedRowsChanged(int /*lastRowSelected*/)
+ 
+ 	SparseSet<int> selection = table.getSelectedRows();
+ 
+-	body->getSelection().deselectAll();
++	handler->getSelection().deselectAll();
+ 
+ 	for(int i = 0; i < selection.size(); i++)
+ 	{
+-		body->getSelection().addToSelection(sortedSoundList[selection[i]]);
++		handler->getSelection().addToSelection(sortedSoundList[selection[i]]);
+ 	}
+ };
+\ No newline at end of file
+diff --git a/hi_core/hi_sampler/sampler/components/SampleEditorComponents.h b/hi_core/hi_sampler/sampler/components/SampleEditorComponents.h
+index 6c9f4af..36ae06b 100644
+--- a/hi_core/hi_sampler/sampler/components/SampleEditorComponents.h
++++ b/hi_core/hi_sampler/sampler/components/SampleEditorComponents.h
+@@ -34,6 +34,7 @@
+ #define SAMPLEEDITORCOMPONENTS_H_INCLUDED
+ 
+ class SamplerBody;
++class SampleEditHandler;
+ class SamplerSoundWaveform;
+ class SamplerSoundMap;
+ 
+@@ -45,7 +46,10 @@ class SamplerSubEditor
+ {
+ public:
+ 
+-    SamplerSubEditor(): internalChange(false) {};
++    SamplerSubEditor(SampleEditHandler* handler_): 
++		internalChange(false),
++		handler(handler_)
++	{};
+     
+     virtual ~SamplerSubEditor() {};
+ 
+@@ -60,8 +64,12 @@ protected:
+ 	*/
+     virtual void soundsSelected(const Array<ModulatorSamplerSound*> &selection) = 0;
+ 
++	SampleEditHandler* handler;
++
+ private:
+ 
++	
++
+     bool internalChange;
+ };
+ 
+@@ -311,7 +319,7 @@ public:
+ 		numDragLimiters
+ 	};
+ 
+-	SamplerSoundMap(ModulatorSampler *ownerSampler_, SamplerBody *b);
++	SamplerSoundMap(ModulatorSampler *ownerSampler_);
+ 
+ 	~SamplerSoundMap()
+ 	{
+@@ -426,10 +434,8 @@ private:
+ 
+ 	void endSampleDragging(bool copyDraggedSounds);
+ 	
+-
+-
+ 	ModulatorSampler *ownerSampler;
+-	SamplerBody *body;
++	SampleEditHandler* handler;
+ 
+ 	Rectangle<int> dragArea;
+ 	Array<DragData> dragStartData;
+@@ -467,7 +473,7 @@ class MapWithKeyboard: public Component
+ {
+ public:
+ 
+-	MapWithKeyboard(ModulatorSampler *ownerSampler, SamplerBody *b);
++	MapWithKeyboard(ModulatorSampler *ownerSampler);
+ 
+ 	void paint(Graphics &g) override;
+ 	void resized() override;
+@@ -492,7 +498,7 @@ class SamplerSoundTable    : public Component,
+ 							 public SamplerSubEditor
+ {
+ public:
+-	SamplerSoundTable(ModulatorSampler *ownerSampler_, SamplerBody *b);
++	SamplerSoundTable(ModulatorSampler *ownerSampler_, SampleEditHandler* handler);
+ 
+ 	void refreshList();
+ 
+@@ -518,8 +524,7 @@ public:
+ private:
+ 
+ 	ModulatorSampler *ownerSampler;
+-	SamplerBody *body;
+-
++	
+ 	bool internalSelection;
+ 
+     TableListBox table;     
+diff --git a/hi_core/hi_sampler/sampler/components/SampleMapEditor.cpp b/hi_core/hi_sampler/sampler/components/SampleMapEditor.cpp
+index e17db1e..a9cdf2e 100644
+--- a/hi_core/hi_sampler/sampler/components/SampleMapEditor.cpp
++++ b/hi_core/hi_sampler/sampler/components/SampleMapEditor.cpp
+@@ -27,8 +27,9 @@
+ //[/MiscUserDefs]
+ 
+ //==============================================================================
+-SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b)
+-    : sampler(s)
++SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
++	SamplerSubEditor(s->getSampleEditHandler()),
++	sampler(s)
+ {
+     //[Constructor_pre] You can add your own custom stuff here..
+ 
+@@ -66,7 +67,7 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b)
+     addAndMakeVisible (viewport = new Viewport ("new viewport"));
+     viewport->setScrollBarsShown (false, true);
+     viewport->setScrollBarThickness (12);
+-    viewport->setViewedComponent (new MapWithKeyboard (sampler, b));
++    viewport->setViewedComponent (new MapWithKeyboard (sampler));
+ 
+     addAndMakeVisible (toolbar = new Toolbar());
+     toolbar->setName ("new component");
+@@ -98,7 +99,7 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b)
+ 
+ 	map = dynamic_cast<MapWithKeyboard*>(viewport->getViewedComponent());
+ 
+-
++	
+ 
+ 	groupDisplay->setEditable(false);
+ 
+@@ -416,15 +417,15 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
+ {
+ 	switch(info.commandID)
+ 	{
+-	case DuplicateSamples:	SamplerBody::SampleEditingActions::duplicateSelectedSounds(body); return true;
+-	case DeleteDuplicateSamples: SamplerBody::SampleEditingActions::removeDuplicateSounds(body); return true;
+-	case DeleteSamples:		SamplerBody::SampleEditingActions::deleteSelectedSounds(body); return true;
+-	case CutSamples:		SamplerBody::SampleEditingActions::cutSelectedSounds(body); return true;
+-	case CopySamples:		SamplerBody::SampleEditingActions::copySelectedSounds(body); return true;
+-	case PasteSamples:		SamplerBody::SampleEditingActions::pasteSelectedSounds(body); return true;
+-	case SelectAllSamples:	SamplerBody::SampleEditingActions::selectAllSamples(body); return true;
+-	case MergeIntoMultisamples:		SamplerBody::SampleEditingActions::mergeIntoMultiSamples(body); return true;
+-	case ExtractToSingleMicSamples:	SamplerBody::SampleEditingActions::extractToSingleMicSamples(body); return true;
++	case DuplicateSamples:	SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(handler); return true;
++	case DeleteDuplicateSamples: SampleEditHandler::SampleEditingActions::removeDuplicateSounds(handler); return true;
++	case DeleteSamples:		SampleEditHandler::SampleEditingActions::deleteSelectedSounds(handler); return true;
++	case CutSamples:		SampleEditHandler::SampleEditingActions::cutSelectedSounds(handler); return true;
++	case CopySamples:		SampleEditHandler::SampleEditingActions::copySelectedSounds(handler); return true;
++	case PasteSamples:		SampleEditHandler::SampleEditingActions::pasteSelectedSounds(handler); return true;
++	case SelectAllSamples:	SampleEditHandler::SampleEditingActions::selectAllSamples(handler); return true;
++	case MergeIntoMultisamples:		SampleEditHandler::SampleEditingActions::mergeIntoMultiSamples(handler, this); return true;
++	case ExtractToSingleMicSamples:	SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(handler); return true;
+ 	case ZoomIn:			zoom(false); return true;
+ 	case ZoomOut:			zoom(true); return true;
+ 	case ToggleVerticalSize:toggleVerticalSize(); return true;
+@@ -497,13 +498,13 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
+ 
+ 							return true;
+ 							}
+-	case AutomapVelocity:	SamplerBody::SampleEditingActions::automapVelocity(body);
++	case AutomapVelocity:	SampleEditHandler::SampleEditingActions::automapVelocity(handler);
+ 							return true;
+-	case RefreshVelocityXFade:	SamplerBody::SampleEditingActions::refreshCrossfades(body);
++	case RefreshVelocityXFade:	SampleEditHandler::SampleEditingActions::refreshCrossfades(handler);
+ 							return true;
+-	case AutomapUsingMetadata: SamplerBody::SampleEditingActions::automapUsingMetadata(body, sampler);
++	case AutomapUsingMetadata: SampleEditHandler::SampleEditingActions::automapUsingMetadata(sampler);
+ 							return true;
+-	case TrimSampleStart:	SamplerBody::SampleEditingActions::trimSampleStart(body);
++	case TrimSampleStart:	SampleEditHandler::SampleEditingActions::trimSampleStart(handler);
+ 							return true;
+ 	}
+ 	return false;
+@@ -513,7 +514,7 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
+ 
+ void SampleMapEditor::refreshRootNotes()
+ {
+-	Array<WeakReference<ModulatorSamplerSound>> sounds = body->getSelection().getItemArray();
++	Array<WeakReference<ModulatorSamplerSound>> sounds = handler->getSelection().getItemArray();
+ 
+ 	if (sounds.size() == 0 && map->selectedRootNotes == 0) return;
+ 
+@@ -573,7 +574,7 @@ void SampleMapEditor::popoutMap()
+ 
+ 	popoutCopy->setSize(337, editor->getHeight() - 150); // 337 is very important to keep the world running.
+ 
+-	Array<WeakReference<ModulatorSamplerSound>> refArray = body->getSelection().getItemArray();
++	Array<WeakReference<ModulatorSamplerSound>> refArray = handler->getSelection().getItemArray();
+ 
+ 	Array<ModulatorSamplerSound*> soundArray;
+ 
+diff --git a/hi_core/hi_sampler/sampler/components/SamplerBody.cpp b/hi_core/hi_sampler/sampler/components/SamplerBody.cpp
+index 5a448d0..dc97736 100644
+--- a/hi_core/hi_sampler/sampler/components/SamplerBody.cpp
++++ b/hi_core/hi_sampler/sampler/components/SamplerBody.cpp
+@@ -109,8 +109,12 @@ SamplerBody::SamplerBody (ProcessorEditor *p)
+ 
+ 	sampleEditor->addMouseListener(this, false);
+ 
++	getSampleEditHandler()->addSelectionListener(this);
++
++#if SAMPLER_DEPRECATED
+ 	selectionListener = new SelectionListener(this);
+-	selectedSamplerSounds.addChangeListener(selectionListener);
++#endif
++	
+ 
+ 	//soundTable->addMouseListener(this, true);
+ 
+@@ -165,6 +169,9 @@ SamplerBody::SamplerBody (ProcessorEditor *p)
+ SamplerBody::~SamplerBody()
+ {
+     //[Destructor_pre]. You can add your own custom destruction code here..
++
++	getSampleEditHandler()->removeSelectionListener(this);
++
+     //[/Destructor_pre]
+ 
+     sampleEditor = nullptr;
+@@ -188,7 +195,7 @@ void SamplerBody::soundSelectionChanged()
+ 
+ 	if ((thisTime - timeSinceLastSelectionChange) > interval)
+ 	{
+-		const Array<WeakReference<ModulatorSamplerSound>> sounds = selectedSamplerSounds.getItemArray();
++		const Array<WeakReference<ModulatorSamplerSound>> sounds = getSampleEditHandler()->getSelection().getItemArray();
+ 
+ 		Array<ModulatorSamplerSound*> existingSounds;
+ 
+diff --git a/hi_core/hi_sampler/sampler/components/SamplerBody.h b/hi_core/hi_sampler/sampler/components/SamplerBody.h
+index 99e7dbf..fce03ae 100644
+--- a/hi_core/hi_sampler/sampler/components/SamplerBody.h
++++ b/hi_core/hi_sampler/sampler/components/SamplerBody.h
+@@ -40,7 +40,8 @@
+                                                                     //[/Comments]
+ */
+ class SamplerBody  : public ProcessorEditorBody,
+-                     public ButtonListener
++                     public ButtonListener,
++					 public SampleEditHandler::Listener
+ {
+ public:
+     //==============================================================================
+@@ -50,6 +51,7 @@ public:
+     //==============================================================================
+     //[UserMethods]     -- You can add your own custom methods in this section.
+ 
++#if SAMPLER_DEPRECATED
+ 	class SelectionListener: public ChangeListener
+ 	{
+ 	public:
+@@ -83,54 +85,21 @@ public:
+ 
+ 		SamplerBody *body;
+ 	};
++#endif
+ 
+-
+-
+-	bool newKeysPressed(const uint8 *currentNotes)
+-	{
+-		for(int i = 0; i < 127; i++)
+-		{
+-			if(currentNotes[i] != 0) return true;
+-		}
+-		return false;
+-	}
++	
+ 
+ 	void updateGui() override
+ 	{
+ 		if (!dynamic_cast<ModulatorSampler*>(getProcessor())->shouldUpdateUI()) return;
+ 
+-		const ModulatorSampler::SamplerDisplayValues x = dynamic_cast<ModulatorSampler*>(getProcessor())->getSamplerDisplayValues();
++		auto& x = dynamic_cast<ModulatorSampler*>(getProcessor())->getSamplerDisplayValues();
+ 
+ 		settingsPanel->updateGui();
+ 
+ 		sampleEditor->updateWaveform();
+ 
+-		if(getProcessor()->getEditorState(ModulatorSampler::MidiSelectActive) && newKeysPressed(x.currentNotes))
+-		{
+-			selectedSamplerSounds.deselectAll();
+-
+-			SelectedItemSet<const ModulatorSamplerSound*> midiSounds;
+-
+-			ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(getProcessor());
+-
+-			for(int i = 0; i < 127; i++)
+-			{
+-				if(x.currentNotes[i] != 0)
+-				{
+-					const int noteNumber = i;
+-					const int velocity = x.currentNotes[i];
+-
+-					for(int j = 0; j < sampler->getNumSounds(); j++)
+-					{
+-						if (sampler->soundCanBePlayed(sampler->getSound(j), 1, noteNumber, (float)velocity / 127.0f))
+-						{
+-							selectedSamplerSounds.addToSelection(sampler->getSound(j));
+-						}
+-					}
+-
+-				}
+-			}
+-		}
++		getSampleEditHandler()->handleMidiSelection();
+ 
+ 		soundTable->refreshList();
+ 
+@@ -139,39 +108,19 @@ public:
+ 		map->updateSoundData();
+ 	};
+ 
+-	struct SampleEditingActions
+-	{
+-		static void deleteSelectedSounds(SamplerBody *body);
+-		static void duplicateSelectedSounds(SamplerBody *body);
+-		static void removeDuplicateSounds(SamplerBody *body);
+-		static void cutSelectedSounds(SamplerBody *body);
+-		static void copySelectedSounds(SamplerBody *body);
+-		static void automapVelocity(SamplerBody *body);
+-		static void pasteSelectedSounds(SamplerBody *body);
+-
+-		static void checkMicPositionAmountBeforePasting(const ValueTree &v, ModulatorSampler * s);
+-
+-		static void refreshCrossfades(SamplerBody * body);
+-		static void selectAllSamples(SamplerBody * body);
+-		static void mergeIntoMultiSamples(SamplerBody * body);
+-		static void extractToSingleMicSamples(SamplerBody * body);
+-		static void normalizeSamples(SamplerBody *body);
+-		static void automapUsingMetadata(SamplerBody * body, ModulatorSampler* sampler);
+-		static void trimSampleStart(SamplerBody * body);
+-	};
+-
+ 
+ 	/** This is called whenever the selection changes.
+ 	*
+ 	*	Since the SamplerBody itself is a ChangeBroadcaster for updateGui(), it has to use another callback
+ 	*/
+-	void soundSelectionChanged();;
++	void soundSelectionChanged() override;
+ 
+-	SelectedItemSet<WeakReference<ModulatorSamplerSound>> &getSelection()
++	SampleEditHandler* getSampleEditHandler()
+ 	{
+-		return selectedSamplerSounds;
++		return dynamic_cast<ModulatorSampler*>(getProcessor())->getSampleEditHandler();
+ 	}
+ 
++
+ 	int getBodyHeight() const override
+ 	{
+ 		const bool bigMap = getProcessor()->getEditorState(getProcessor()->getEditorStateForIndex(ModulatorSampler::EditorStates::BigSampleMap));
+@@ -181,57 +130,8 @@ public:
+ 		return h + (settingsHeight != 0 ? settingsPanel->getPanelHeight() : 0) + waveFormHeight + thisMapHeight + tableHeight;
+ 	};
+ 
+-	void changeProperty(ModulatorSamplerSound *s, ModulatorSamplerSound::Property p, int delta)
+-	{
+-		const int v = s->getProperty(p);
+-
+-		s->setPropertyWithUndo(p, v + delta);
+-	};
+-
+-	void moveSamples(SamplerSoundMap::Neighbour direction)
+-	{
+-		ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(getProcessor());
+ 
+-		s->getUndoManager()->beginNewTransaction("Moving Samples");
+-
+-		switch(direction)
+-		{
+-		case SamplerSoundMap::Right:
+-		case SamplerSoundMap::Left:
+-		{
+-			for(int i = 0; i < selectedSamplerSounds.getNumSelected(); i++)
+-			{
+-				ModulatorSamplerSound *sound = selectedSamplerSounds.getSelectedItem(i);
+-
+-				if(direction == SamplerSoundMap::Right)
+-				{
+-					changeProperty(sound, ModulatorSamplerSound::KeyHigh, 1);
+-					changeProperty(sound, ModulatorSamplerSound::KeyLow, 1);
+-					changeProperty(sound, ModulatorSamplerSound::RootNote, 1);
+-				}
+-				else
+-				{
+-					changeProperty(sound, ModulatorSamplerSound::KeyLow, -1);
+-					changeProperty(sound, ModulatorSamplerSound::KeyHigh, -1);
+-					changeProperty(sound, ModulatorSamplerSound::RootNote, -1);
+-				}
+-			}
+-			break;
+-		}
+-		case SamplerSoundMap::Up:
+-		case SamplerSoundMap::Down:
+-		{
+-			for(int i = 0; i < selectedSamplerSounds.getNumSelected(); i++)
+-			{
+-				ModulatorSamplerSound *sound = selectedSamplerSounds.getSelectedItem(i);
+-
+-				changeProperty(sound, ModulatorSamplerSound::VeloHigh, direction == SamplerSoundMap::Up ? 1 : -1);
+-				changeProperty(sound, ModulatorSamplerSound::VeloLow, direction == SamplerSoundMap::Up ? 1 : -1);
+-			}
+-			break;
+-		}
+-		}
+-	}
++	
+ 
+ 	bool keyPressed(const KeyPress &k) override
+ 	{
+@@ -269,7 +169,7 @@ public:
+ 		if(k.getKeyCode() == KeyPress::leftKey)
+ 		{
+ 			if(k.getModifiers().isCommandDown())
+-				moveSamples(SamplerSoundMap::Left);
++				getSampleEditHandler()->moveSamples(SamplerSoundMap::Left);
+ 			else
+ 				map->getMapComponent()->selectNeighbourSample(SamplerSoundMap::Left);
+ 			return true;
+@@ -277,7 +177,7 @@ public:
+ 		else if (k.getKeyCode() == KeyPress::rightKey)
+ 		{
+ 			if(k.getModifiers().isCommandDown())
+-				moveSamples(SamplerSoundMap::Right);
++				getSampleEditHandler()->moveSamples(SamplerSoundMap::Right);
+ 			else
+ 				map->getMapComponent()->selectNeighbourSample(SamplerSoundMap::Right);
+ 			return true;
+@@ -285,7 +185,7 @@ public:
+ 		else if (k.getKeyCode() == KeyPress::upKey)
+ 		{
+ 			if(k.getModifiers().isCommandDown())
+-				moveSamples(SamplerSoundMap::Up);
++				getSampleEditHandler()->moveSamples(SamplerSoundMap::Up);
+ 			else
+ 				map->getMapComponent()->selectNeighbourSample(SamplerSoundMap::Up);
+ 			return true;
+@@ -293,7 +193,7 @@ public:
+ 		else if( k.getKeyCode() == KeyPress::downKey)
+ 		{
+ 			if(k.getModifiers().isCommandDown())
+-				moveSamples(SamplerSoundMap::Down);
++				getSampleEditHandler()->moveSamples(SamplerSoundMap::Down);
+ 			else
+ 				map->getMapComponent()->selectNeighbourSample(SamplerSoundMap::Down);
+ 			return true;
+@@ -320,15 +220,14 @@ private:
+ 	int tableHeight;
+ 
+ 	bool internalChange;
++	uint32 timeSinceLastSelectionChange = 0;
+ 
+-	SelectedItemSet<WeakReference<ModulatorSamplerSound>> selectedSamplerSounds;
+-
++#if SAMPLER_DEPRECATED
+ 	ScopedPointer<SelectionListener> selectionListener;
++#endif
+ 
+ 	ChainBarButtonLookAndFeel cblaf;
+ 
+-	uint32 timeSinceLastSelectionChange;
+-
+     //[/UserVariables]
+ 
+     //==============================================================================
+diff --git a/hi_core/hi_sampler/sampler/components/SamplerTable.cpp b/hi_core/hi_sampler/sampler/components/SamplerTable.cpp
+index b18988c..070dcee 100644
+--- a/hi_core/hi_sampler/sampler/components/SamplerTable.cpp
++++ b/hi_core/hi_sampler/sampler/components/SamplerTable.cpp
+@@ -29,14 +29,15 @@
+ //[/MiscUserDefs]
+ 
+ //==============================================================================
+-SamplerTable::SamplerTable (ModulatorSampler *s, SamplerBody *b)
+-    : sampler(s),
+-      body(b)
++SamplerTable::SamplerTable (ModulatorSampler *s, SamplerBody *b):
++	SamplerSubEditor(s->getSampleEditHandler()),
++	sampler(s),
++    body(b)
+ {
+     //[Constructor_pre] You can add your own custom stuff here..
+     //[/Constructor_pre]
+ 
+-    addAndMakeVisible (table = new SamplerSoundTable (s, b));
++    addAndMakeVisible (table = new SamplerSoundTable (s, handler));
+     table->setName ("new component");
+ 
+     addAndMakeVisible (searchLabel = new RetriggerLabel ("new label",
+@@ -167,7 +168,7 @@ void SamplerTable::labelTextChanged (Label* labelThatHasChanged)
+         //[UserLabelCode_searchLabel] -- add your label text handling code here..
+ 		String wildcard = searchLabel->getText(false);
+ 
+-		ModulatorSamplerSound::selectSoundsBasedOnRegex(wildcard, sampler, body->getSelection());
++		ModulatorSamplerSound::selectSoundsBasedOnRegex(wildcard, sampler, handler->getSelection());
+ 
+         //[/UserLabelCode_searchLabel]
+     }
+diff --git a/hi_modules/modulators/mods/TableEnvelope.h b/hi_modules/modulators/mods/TableEnvelope.h
+index e95e8f0..f9c2de5 100644
+--- a/hi_modules/modulators/mods/TableEnvelope.h
++++ b/hi_modules/modulators/mods/TableEnvelope.h
+@@ -220,6 +220,8 @@ public:
+ 		}
+ 	}
+ 
++	int getNumTables() const override { return 2; }
++
+ 	ModulatorState *createSubclassedState(int voiceIndex) const override {return new TableEnvelopeState(voiceIndex); };
+ 
+ private:
+diff --git a/hi_scripting/scripting/api/ScriptingApi.cpp b/hi_scripting/scripting/api/ScriptingApi.cpp
+index 72d812a..375edd9 100644
+--- a/hi_scripting/scripting/api/ScriptingApi.cpp
++++ b/hi_scripting/scripting/api/ScriptingApi.cpp
+@@ -2627,7 +2627,7 @@ void ScriptingApi::Console::stop()
+ 
+ void ScriptingApi::Console::clear()
+ {
+-	getProcessor()->getMainController()->clearConsole();
++	getProcessor()->getMainController()->getConsoleHandler().clearConsole();
+ }
+ 
+ #undef SEND_MESSAGE
+diff --git a/projects/standalone/Source/MainComponent.cpp b/projects/standalone/Source/MainComponent.cpp
+index 31e3b54..c0b6d3c 100644
+--- a/projects/standalone/Source/MainComponent.cpp
++++ b/projects/standalone/Source/MainComponent.cpp
+@@ -18,6 +18,8 @@
+ // Use this to quickly scale the window
+ #define SCALE_2 0
+ 
++
++
+ struct ValueTreeHelpers
+ {
+ 	static var convertToDynamicObject(ValueTree& v)
+@@ -105,6 +107,26 @@ void FloatingTile::loadFromJSON(const String& jsonData)
+ }
+ 
+ 
++void FloatingTile::swapContainerType(const Identifier& containerId)
++{
++	auto v = getCurrentFloatingPanel()->exportAsValueTree();
++
++	var vAsObject = ValueTreeHelpers::convertToDynamicObject(v);
++
++	vAsObject.getDynamicObject()->setProperty("Type", containerId.toString());
++
++	auto newContainer = ValueTreeHelpers::createFromDynamicObject(vAsObject);
++
++	for (int i = 0; i < newContainer.getNumChildren(); i++)
++	{
++		newContainer.getChild(i).setProperty("Size", -0.5, nullptr);
++	}
++
++	setContent(newContainer);
++}
++
++
++
+ struct DebugPanelLookAndFeel : public ResizableFloatingTileContainer::LookAndFeel
+ {
+ 	void paintBackground(Graphics& g, ResizableFloatingTileContainer& container) override
+@@ -141,39 +163,47 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
+ 	ib.getContainer(tabs)->setIsDynamic(true);
+ 
+ 	ib.setSizes(root, { 32.0, -1.0 });
+-	ib.setAbsoluteSize(root, { true, false });
+-
+-	ib.getContainer(root)->setAllowInserting(false);
+-
++	
+ 	ib.setFoldable(root, false, { false, false });
+ 
+ 	const int firstVertical = ib.addChild<VerticalTile>(tabs);
+ 
+ 	ib.getContainer(firstVertical)->setIsDynamic(false);
+ 	ib.getPanel(firstVertical)->setVital(true);
++	ib.getPanel(firstVertical)->getLayoutData().backgroundColour = HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright);
+ 
+ 	const int leftColumn = ib.addChild<HorizontalTile>(firstVertical);
+ 	const int mainColumn = ib.addChild<HorizontalTile>(firstVertical);
+ 	const int rightColumn = ib.addChild<HorizontalTile>(firstVertical);
+ 
++	
++
+ 	ib.getContainer(leftColumn)->setIsDynamic(true);
+ 	ib.getContainer(mainColumn)->setIsDynamic(false);
+ 	ib.getContainer(rightColumn)->setIsDynamic(true);
+ 
+-	dynamic_cast<Component*>(ib.getContainer(root))->setColour(ResizableFloatingTileContainer::ColourIds::backgroundColourId, HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId));
++	ib.getPanel(leftColumn)->getLayoutData().backgroundColour = Colour(0xFF222222);
++	ib.getPanel(leftColumn)->getLayoutData().minSize = 150;
++	ib.getPanel(leftColumn)->setCanBeFolded(true);
++	
++	ib.getPanel(mainColumn)->getLayoutData().backgroundColour = HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright);
++
++	ib.getPanel(rightColumn)->getLayoutData().backgroundColour = Colour(0xFF222222);
++	ib.getPanel(rightColumn)->getLayoutData().minSize = 150;
++	ib.getPanel(rightColumn)->setCanBeFolded(true);
++
++	ib.getPanel(root)->getLayoutData().backgroundColour = HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId);
+ 	
+ 	ib.setSizes(firstVertical, { -0.5, 900.0, -0.5 }, dontSendNotification);
+-	ib.setAbsoluteSize(firstVertical, { false, true, false }, dontSendNotification);
+-	ib.setLocked(firstVertical, { false, true, false }, sendNotification);
+ 	
+ 
+ 	const int mainArea = ib.addChild<EmptyComponent>(mainColumn);
+ 	const int keyboard = ib.addChild<MidiKeyboardPanel>(mainColumn);
+ 
++	ib.getPanel(keyboard)->getLayoutData().backgroundColour = HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright);
++
+ 	ib.setFoldable(mainColumn, false, { false, false });
+ 
+-	ib.getContainer(firstVertical)->setAllowInserting(false);
+-	
+ 	ib.setCustomName(firstVertical, "Main Workspace", { "Left Panel", "", "Right Panel" });
+ 
+ #if PUT_FLOAT_IN_CODEBASE
+@@ -183,7 +213,6 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
+ 	ib.finalizeAndReturnRoot(true);
+ 
+ 	return dynamic_cast<Component*>(ib.getPanel(mainArea)->getCurrentFloatingPanel());
+-
+ }
+ 
+ void EmptyComponent::resized()
+-- 
+2.7.4.windows.1
+

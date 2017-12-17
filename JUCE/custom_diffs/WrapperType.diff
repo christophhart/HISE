@@ -1,0 +1,39 @@
+From 4ed42980fa11779acbbb87ab8d91543370c0c316 Mon Sep 17 00:00:00 2001
+From: Christoph Hart <christoph-hart@gmx.de>
+Date: Sun, 10 Sep 2017 22:12:57 +0200
+Subject: [PATCH] - fixed AAX instrument bus layout - added plugin validate
+ mode to HISE standalone app
+
+---
+ .../processors/juce_AudioProcessor.cpp             |   5 +
+ .../processors/juce_AudioProcessor.h               |   2 +
+
+diff --git a/JUCE/modules/juce_audio_processors/processors/juce_AudioProcessor.cpp b/JUCE/modules/juce_audio_processors/processors/juce_AudioProcessor.cpp
+index 502c255..c488ed0 100644
+--- a/JUCE/modules/juce_audio_processors/processors/juce_AudioProcessor.cpp
++++ b/JUCE/modules/juce_audio_processors/processors/juce_AudioProcessor.cpp
+@@ -959,6 +959,11 @@ void AudioProcessor::editorBeingDeleted (AudioProcessorEditor* const editor) noe
+         activeEditor = nullptr;
+ }
+ 
++AudioProcessor::WrapperType AudioProcessor::getWrapperTypeBeingCreated() const
++{
++	return wrapperTypeBeingCreated.get();
++}
++
+ AudioProcessorEditor* AudioProcessor::createEditorIfNeeded()
+ {
+     if (activeEditor != nullptr)
+diff --git a/JUCE/modules/juce_audio_processors/processors/juce_AudioProcessor.h b/JUCE/modules/juce_audio_processors/processors/juce_AudioProcessor.h
+index 391be75..d87cd63 100644
+--- a/JUCE/modules/juce_audio_processors/processors/juce_AudioProcessor.h
++++ b/JUCE/modules/juce_audio_processors/processors/juce_AudioProcessor.h
+@@ -1270,6 +1270,8 @@ public:
+         wrapperType_Standalone
+     };
+ 
++	WrapperType getWrapperTypeBeingCreated() const;
++
+     /** When loaded by a plugin wrapper, this flag will be set to indicate the type
+         of plugin within which the processor is running.
+     */
