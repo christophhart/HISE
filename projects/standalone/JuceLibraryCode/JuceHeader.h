@@ -10,8 +10,7 @@
 
 */
 
-#ifndef __APPHEADERFILE_JUHBUI__
-#define __APPHEADERFILE_JUHBUI__
+#pragma once
 
 #include "AppConfig.h"
 
@@ -38,7 +37,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_gui_extra/juce_gui_extra.h>
 #include <juce_opengl/juce_opengl.h>
-#include <juce_tracktion_marketplace/juce_tracktion_marketplace.h>
+#include <juce_product_unlocking/juce_product_unlocking.h>
 
 #include "BinaryData.h"
 
@@ -56,5 +55,3 @@ namespace ProjectInfo
     const int          versionNumber  = 0x10102;
 }
 #endif
-
-#endif   // __APPHEADERFILE_JUHBUI__

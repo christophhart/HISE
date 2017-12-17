@@ -63,7 +63,7 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_audio_devices/juce_audio_devices.h"
 #include "../JUCE/modules/juce_audio_utils/juce_audio_utils.h"
 #include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
-#include "../JUCE/modules/juce_tracktion_marketplace/juce_tracktion_marketplace.h"
+#include "../JUCE/modules/juce_product_unlocking/juce_product_unlocking.h"
 #include "../JUCE/modules/juce_opengl/juce_opengl.h"
 #include "../hi_streaming/hi_streaming.h"
 
