@@ -1346,6 +1346,8 @@ public:
         if (wParam & MK_LBUTTON)   mouseMods |= ModifierKeys::leftButtonModifier;
         if (wParam & MK_RBUTTON)   mouseMods |= ModifierKeys::rightButtonModifier;
         if (wParam & MK_MBUTTON)   mouseMods |= ModifierKeys::middleButtonModifier;
+		if (wParam & MK_XBUTTON1)  mouseMods |= ModifierKeys::x1ButtonModifier;
+		if (wParam & MK_XBUTTON2)  mouseMods |= ModifierKeys::x2ButtonModifier;
 
         currentModifiers = currentModifiers.withoutMouseButtons().withFlags (mouseMods);
         updateKeyModifiers();
