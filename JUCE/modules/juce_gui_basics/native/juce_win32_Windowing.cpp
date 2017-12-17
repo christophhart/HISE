@@ -1349,6 +1349,7 @@ public:
 		if (wParam & MK_XBUTTON1)  mouseMods |= ModifierKeys::x1ButtonModifier;
 		if (wParam & MK_XBUTTON2)  mouseMods |= ModifierKeys::x2ButtonModifier;
 
+
         currentModifiers = currentModifiers.withoutMouseButtons().withFlags (mouseMods);
         updateKeyModifiers();
     }
@@ -3036,6 +3037,7 @@ private:
                     return 0;
                 break;
 
+
             //==============================================================================
             case WM_MOUSEMOVE:          doMouseMove (getPointFromLParam (lParam), false); return 0;
 
@@ -3044,10 +3046,12 @@ private:
 
             case WM_LBUTTONDOWN:
             case WM_MBUTTONDOWN:
-            case WM_RBUTTONDOWN:        doMouseDown (getPointFromLParam (lParam), wParam); return 0;
+            case WM_RBUTTONDOWN:        
+			case WM_XBUTTONDOWN:		 doMouseDown (getPointFromLParam (lParam), wParam); return 0;
 
             case WM_LBUTTONUP:
             case WM_MBUTTONUP:
+			case WM_XBUTTONUP:
             case WM_RBUTTONUP:          doMouseUp (getPointFromLParam (lParam), wParam); return 0;
 
             case WM_POINTERWHEEL:
