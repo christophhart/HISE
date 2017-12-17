@@ -262,22 +262,20 @@ public:
 
 	static const String createWidgetReference(const String selection)
 	{
-		String regexString = "(const var |local )(\\w+)\\s*=\\s*(Content.add\\w+)\\(\\s*(\"\\w+\"),\\s*(\\d+),\\s*(\\d+)";
+		String regexString = "(\\s*)(const\\s+var |local )(\\w+)\\s*=\\s*(Content.add\\w+)\\(\\s*(\"\\w+\"),\\s*(\\d+),\\s*(\\d+)";
 
 		const StringArray firstLineData = RegexFunctions::getFirstMatch(regexString, selection);
 
-		if (firstLineData.size() == 7)
+		if (firstLineData.size() == 8)
 		{
 			
-			const String variableType = firstLineData[1];
-			const String componentName = firstLineData[2];
-			const String componentType = firstLineData[3];
-			const String componentId = firstLineData[4];
+			const String whitespace = firstLineData[1];
+			const String variableType = firstLineData[2];
+			const String componentName = firstLineData[3];
+			const String componentType = firstLineData[4];
+			const String componentId = firstLineData[5];
 			
-			if (componentName == componentId.removeCharacters("\""))
-			{
-				return variableType + componentName + " = Content.getComponent(" + componentId + ");";
-			}
+			return whitespace + variableType + componentName + " = Content.getComponent(" + componentId + ");";
 		}
 
 		PresetHandler::showMessageWindow("Something went wrong...", "The replacement didn't work");
