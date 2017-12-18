@@ -194,9 +194,10 @@ void GlobalModulatorContainerVoice::calculateBlock(int startSample, int numSampl
 }
 
 GlobalModulatorData::GlobalModulatorData(Processor *modulator_):
-modulator(modulator_)
+modulator(modulator_),
+valuesForCurrentBuffer(1, 0)
 {
-	valuesForCurrentBuffer = AudioSampleBuffer(1, 0);
+	
 
 	if (getTimeVariantModulator() != nullptr)
 	{

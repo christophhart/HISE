@@ -48,6 +48,7 @@ useRoundRobinCycleLogic(true),
 pitchTrackingEnabled(true),
 oneShotEnabled(false),
 crossfadeGroups(false),
+crossfadeBuffer(1, 0),
 useGlobalFolder(false),
 purged(false),
 reversed(false),
@@ -61,7 +62,7 @@ samplePropertyUpdater(this)
 	sampleEditHandler = new SampleEditHandler(this);
 #endif
 
-	crossfadeBuffer = AudioSampleBuffer(1, 0);
+	
 	
 
 	setGain(1.0);

@@ -39,9 +39,10 @@ SaturatorEffect::SaturatorEffect(MainController *mc, const String &uid) :
 	wet(1.0f),
 	dry(0.0f),
 	preGain(1.0f),
-    postGain(1.0f)
+    postGain(1.0f),
+    saturationBuffer(1, 0)
 {
-	saturationBuffer = AudioSampleBuffer(1, 0);
+	
 
 	parameterNames.add("Saturation");
 	parameterNames.add("WetAmount");

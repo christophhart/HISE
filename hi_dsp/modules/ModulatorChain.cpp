@@ -37,10 +37,11 @@ ModulatorChain::ModulatorChain(MainController *mc, const String &uid, int numVoi
 	Modulation(m),
 	handler(this),
 	parentProcessor(p),
-	isVoiceStartChain(false)
+	isVoiceStartChain(false),
+    internalVoiceBuffer(numVoices, 0),
+    envelopeTempBuffer(1, 0)
 {
-	internalVoiceBuffer = AudioSampleBuffer(numVoices, 0);
-	envelopeTempBuffer = AudioSampleBuffer(1, 0);
+	
 
 	activeVoices.setRange(0, numVoices, false);
 	setFactoryType(new ModulatorChainFactoryType(numVoices, m, p));

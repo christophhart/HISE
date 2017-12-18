@@ -56,10 +56,9 @@ StereoEffect::StereoEffect(MainController *mc, const String &uid, int numVoices)
 	VoiceEffectProcessor(mc, uid, numVoices),
 	balanceChain(new ModulatorChain(mc, "Pan Modulation", numVoices, Modulation::GainMode, this)),
 	pan(getDefaultValue(Pan)),
-	width(getDefaultValue(Width))
+	width(getDefaultValue(Width)),
+    panBuffer(1, 0)
 {
-	panBuffer = AudioSampleBuffer(1, 0);
-
 	parameterNames.add("Pan");
 	parameterNames.add("Width");
 

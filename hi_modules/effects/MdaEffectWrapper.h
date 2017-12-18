@@ -79,10 +79,9 @@ class MdaEffectWrapper: public MasterEffectProcessor
 public:
 
 	MdaEffectWrapper(MainController *mc, const String &id):
-		MasterEffectProcessor(mc, id)
+		MasterEffectProcessor(mc, id),
+        inputBuffer(2, 0)
 	{
-		inputBuffer = AudioSampleBuffer(2, 0);
-
 		currentValues.inL = 0.0f;
 		currentValues.inR = 0.0f;
 		currentValues.outL = 0.0f;

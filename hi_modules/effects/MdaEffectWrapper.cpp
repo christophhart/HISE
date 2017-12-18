@@ -64,7 +64,8 @@ ProcessorEditorBody *MdaLimiterEffect::createEditor(ProcessorEditor *parentEdito
 MdaDegradeEffect::MdaDegradeEffect(MainController *mc, const String &id):
 	MdaEffectWrapper(mc, id),
 	dryWet(1.0f),
-	dryWetChain(new ModulatorChain(mc, "FX Modulation", 1, ModulatorChain::GainMode, this))
+	dryWetChain(new ModulatorChain(mc, "FX Modulation", 1, ModulatorChain::GainMode, this)),
+    dryWetBuffer(1, 0)
 {
 	parameterNames.add("Headroom");
 	parameterNames.add("Quant");
@@ -77,8 +78,6 @@ MdaDegradeEffect::MdaDegradeEffect(MainController *mc, const String &id):
 
 	useStepSizeCalculation(false);
 	effect = new mdaDegrade();
-    
-    dryWetBuffer = AudioSampleBuffer(1, 0);
 };
 
 ProcessorEditorBody *MdaDegradeEffect::createEditor(ProcessorEditor *parentEditor)

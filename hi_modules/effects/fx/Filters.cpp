@@ -45,14 +45,15 @@ useFixedFrequency(false),
 useInternalChains(true),
 freqChain(new ModulatorChain(mc, "Freq Modulation", 1, Modulation::GainMode, this)),
 gainChain(new ModulatorChain(mc, "Gain Modulation", 1, Modulation::GainMode, this)),
-bipolarFreqChain(new ModulatorChain(mc, "Bipolar Freq Mod", 1, Modulation::GainMode, this))
+bipolarFreqChain(new ModulatorChain(mc, "Bipolar Freq Mod", 1, Modulation::GainMode, this)),
+freqBuffer(1, 0),
+gainBuffer(1, 0),
+bipolarFreqBuffer(1, 0)
+
 {
 	currentFilter = &simpleFilter;
 
-	freqBuffer = AudioSampleBuffer(1, 0);
-	gainBuffer = AudioSampleBuffer(1, 0);
-	bipolarFreqBuffer = AudioSampleBuffer(1, 0);
-
+	
 	editorStateIdentifiers.add("FrequencyChainShown");
 	editorStateIdentifiers.add("GainChainShown");
 	editorStateIdentifiers.add("BipolarFreqChainShown");
@@ -401,12 +402,13 @@ gain(1.0f),
 q(1.0),
 freqChain(new ModulatorChain(mc, "Frequency Modulation", numVoices, Modulation::GainMode, this)),
 gainChain(new ModulatorChain(mc, "Gain Modulation", numVoices, Modulation::GainMode, this)),
-bipolarFreqChain(new ModulatorChain(mc, "Bipolar Freq Modulation", numVoices, Modulation::GainMode, this))
-{
-	timeVariantFreqModulatorBuffer = AudioSampleBuffer(1, 0);
-	timeVariantGainModulatorBuffer = AudioSampleBuffer(1, 0);
-	timeVariantBipolarFreqModulatorBuffer = AudioSampleBuffer(1, 0);
+bipolarFreqChain(new ModulatorChain(mc, "Bipolar Freq Modulation", numVoices, Modulation::GainMode, this)),
+timeVariantFreqModulatorBuffer(1, 0),
+timeVariantGainModulatorBuffer(1, 0),
+timeVariantBipolarFreqModulatorBuffer(1, 0)
 
+{
+	
 	editorStateIdentifiers.add("FrequencyChainShown");
 	editorStateIdentifiers.add("GainChainShown");
 	editorStateIdentifiers.add("BipolarFreqChainShown");

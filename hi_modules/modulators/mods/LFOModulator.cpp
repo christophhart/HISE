@@ -49,6 +49,8 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	frequencyModulationValue(1.0f),
 	frequencyChain(new ModulatorChain(mc, "LFO Frequency Mod", 1, Modulation::GainMode, this)),
 	intensityChain(new ModulatorChain(mc, "LFO Intensity Mod", 1, Modulation::GainMode, this)),
+    intensityBuffer(1, 0),
+    frequencyBuffer(1, 0),
 	customTable(new SampleLookupTable()),
 	data(new SliderPackData()),
 	currentWaveform((Waveform)(int)getDefaultValue(WaveFormType)),
@@ -59,9 +61,7 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	tempoSync(getDefaultValue(TempoSync) >= 0.5f),
 	smoothingTime(getDefaultValue(SmoothingTime))
 {
-	intensityBuffer = AudioSampleBuffer(1, 0);
-
-	frequencyBuffer = AudioSampleBuffer(1, 0);
+	
 
 	editorStateIdentifiers.add("IntensityChainShown");
 	editorStateIdentifiers.add("FrequencyChainShown");

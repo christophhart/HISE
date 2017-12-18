@@ -39,9 +39,10 @@ numVoices(numVoices_),
 xFadeChain(new ModulatorChain(mc, "X-Fade Modulation", numVoices_, Modulation::GainMode, this)),
 filterBandIndex(OneBand),
 currentCrossfadeValue(0.5f),
-semiToneTranspose(0)
+semiToneTranspose(0),
+timeVariantFreqModulatorBuffer(1, 0)
 {
-	timeVariantFreqModulatorBuffer = AudioSampleBuffer(1, 0);
+	
 
 	editorStateIdentifiers.add("XFadeChainShown");
 
@@ -328,7 +329,8 @@ q(12.0f),
 xFadeChain(new ModulatorChain(mc, "X-Fade Modulation", 1, Modulation::GainMode, this)),
 filterBandIndex(OneBand),
 currentCrossfadeValue(0.5f),
-semiToneTranspose(0)
+semiToneTranspose(0),
+timeVariantFreqModulatorBuffer(1, 0)
 {
 	editorStateIdentifiers.add("XFadeChainShown");
 
@@ -344,7 +346,7 @@ semiToneTranspose(0)
 
 	setQ(q);
     
-    timeVariantFreqModulatorBuffer = AudioSampleBuffer(1, 0);
+    
 }
 
 void HarmonicMonophonicFilter::setInternalAttribute(int parameterIndex, float newValue)

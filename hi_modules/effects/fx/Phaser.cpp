@@ -38,9 +38,10 @@ freq1(400.0f),
 freq2(1600.0f),
 feedback(0.7f),
 mix(1.0f),
-phaseModulationChain(new ModulatorChain(mc, "Phase Modulation", 1, Modulation::GainMode, this))
+phaseModulationChain(new ModulatorChain(mc, "Phase Modulation", 1, Modulation::GainMode, this)),
+phaseModulationBuffer(1, 0)
 {
-	phaseModulationBuffer = AudioSampleBuffer(1, 0);
+	
 
     parameterNames.add("Frequency1");
     parameterNames.add("Frequency2");

@@ -40,13 +40,14 @@ widthChain(new ModulatorChain(mc, "Width Modulation", 1, Modulation::GainMode, t
 balanceChain(new ModulatorChain(mc, "Pan Modulation", 1, Modulation::GainMode, this)),
 gain(1.0f),
 delay(0.0f),
-balance(0.0f)
-{
-	gainBuffer = AudioSampleBuffer(1, 0);
-	delayBuffer = AudioSampleBuffer(1, 0);
-	widthBuffer = AudioSampleBuffer(1, 0);
-	balanceBuffer = AudioSampleBuffer(1, 0);
+balance(0.0f),
+gainBuffer(1, 0),
+delayBuffer(1, 0),
+widthBuffer(1, 0),
+balanceBuffer(1, 0)
 
+{
+	
 	smoother.setSmoothingTime(0.2f);
 
 	parameterNames.add("Gain");
