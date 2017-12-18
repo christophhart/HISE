@@ -1281,7 +1281,7 @@ CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(TargetType
 	else
 	{
 		if (BuildOptionHelpers::isIOS(option))
-			REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "");
+			REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "{0, 2}");
 		else if (BuildOptionHelpers::isAAX(option))
 			REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "{1, 1}, {2, 2}");
 		else
