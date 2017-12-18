@@ -298,7 +298,9 @@ private:
 	ScopedPointer<AudioProcessor> wrappedProcessor;
 	ScopedPointer<AudioDeviceManager> deviceManager;
 	ScopedPointer<AudioProcessorPlayer> callback;
-	
+
+    ScopedPointer<MidiInput> virtualMidiPort;
+    
 	float scaleFactor = 1.0;
 
 };

@@ -258,6 +258,9 @@ ScriptingContentOverlay::ScriptingContentOverlay(ScriptEditHandler* handler_) :
 
 	addAndMakeVisible(dragModeButton = new ShapeButton("Drag Mode", Colours::black.withAlpha(0.6f), Colours::black.withAlpha(0.8f), Colours::black.withAlpha(0.8f)));
 
+	lasso.setColour(LassoComponent<ScriptComponent*>::ColourIds::lassoFillColourId, Colours::white.withAlpha(0.1f));
+	lasso.setColour(LassoComponent<ScriptComponent*>::ColourIds::lassoOutlineColourId, Colours::white.withAlpha(0.4f));
+
 	Path path;
 	path.loadPathFromData(OverlayIcons::lockShape, sizeof(OverlayIcons::lockShape));
 
@@ -475,12 +478,12 @@ bool ScriptingContentOverlay::keyPressed(const KeyPress &key)
 			return true;
 		}
 	}
-	else if (keyCode == 'Z' && key.getModifiers().isCommandDown())
+	else if ((keyCode == 'Z' || keyCode == 'z') && key.getModifiers().isCommandDown())
 	{
 		b->getUndoManager().undo();
 		return true;
 	}
-	else if (keyCode == 'D' && key.getModifiers().isCommandDown())
+	else if ((keyCode == 'D' || keyCode == 'd') && key.getModifiers().isCommandDown())
 	{
 		if (draggers.size() > 0)
 		{
@@ -498,7 +501,7 @@ bool ScriptingContentOverlay::keyPressed(const KeyPress &key)
 
 		return true;
 	}
-	else if (keyCode == 'C' && key.getModifiers().isCommandDown())
+	else if ((keyCode == 'C' || keyCode == 'c') && key.getModifiers().isCommandDown())
 	{
 		auto s = ScriptingApi::Content::Helpers::createScriptVariableDeclaration(b->getSelection());
 		SystemClipboard::copyTextToClipboard(s);
@@ -583,8 +586,9 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 
 			};
 
-			PopupMenu m;
 			ScopedPointer<PopupLookAndFeel> luf = new PopupLookAndFeel();
+			PopupMenu m;
+			
 			m.setLookAndFeel(luf);
 
 			m.addSectionHeader("Create new widget");
@@ -759,7 +763,9 @@ ScriptingContentOverlay::Dragger::Dragger(ScriptComponent* sc_, Component* compo
 	setWantsKeyboardFocus(true);
 
 	setAlwaysOnTop(true);
-	grabKeyboardFocus();
+
+	
+	
 
 	
 }

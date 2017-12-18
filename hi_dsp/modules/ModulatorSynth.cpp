@@ -40,6 +40,9 @@ gainChain(new ModulatorChain(mc, "GainModulation", numVoices, TimeModulation::Ga
 pitchChain(new ModulatorChain(mc, "PitchModulation", numVoices, TimeModulation::PitchMode, this)),
 midiProcessorChain(new MidiProcessorChain(mc, "Midi Processor", this)),
 effectChain(new EffectProcessorChain(this, "FX", numVoices)),
+pitchBuffer(1, 0),
+internalBuffer(2, 0),
+gainBuffer(1, 0),
 gain(0.25f),
 killFadeTime(20.0f),
 vuValue(0.0f),
@@ -55,9 +58,7 @@ bypassState(false)
 {
 	setVoiceLimit(numVoices);
 
-	pitchBuffer = AudioSampleBuffer(1, 0);
-	internalBuffer = AudioSampleBuffer(2, 0);
-	gainBuffer = AudioSampleBuffer(1, 0);
+	
 
 	for (int i = 0; i < 4; i++)
 	{

@@ -62,6 +62,8 @@ TableEditor::~TableEditor()
 	{
 		ltp->removeTableChangeListener(this);
 	}
+
+	closeTouchOverlay();
 }
 
 void TableEditor::refreshGraph()
@@ -138,6 +140,7 @@ void TableEditor::paint (Graphics& g)
     
     KnobLookAndFeel::fillPathHiStyle(g, dragPath, getWidth(), getHeight());
     
+#if !HISE_IOS
     if (currently_dragged_point != nullptr)
     {
         int index = drag_points.indexOf(currently_dragged_point);
@@ -178,6 +181,7 @@ void TableEditor::paint (Graphics& g)
         g.setColour(Colours::darkgrey.withAlpha(0.4f));
         g.drawLine(0.0f, (float)getHeight(), (float)getWidth(), (float)getHeight());
     }
+#endif
     
     g.setOpacity(isEnabled() ? 1.0f : 0.2f);
  
@@ -273,6 +277,8 @@ void TableEditor::mouseDown(const MouseEvent &e)
 		if(clickedComponent != this)
 		{
 			currently_dragged_point = this->getPointUnder(x,y);
+
+			showTouchOverlay();
 		}
 		else
 		{
@@ -284,13 +290,8 @@ void TableEditor::mouseDown(const MouseEvent &e)
 		if(clickedComponent != this)
 		{
 			DragPoint *dp = this->getPointUnder(x,y);
-			if(! dp->isStartOrEnd())
-			{
-				
-				drag_points.remove(drag_points.indexOf(dp));
-				
-				updateTable(true);
-			}
+			removeDragPoint(dp);
+            return;
 		}
 	}
 
@@ -303,6 +304,22 @@ void TableEditor::mouseDown(const MouseEvent &e)
 
 }
 
+
+void TableEditor::removeDragPoint(DragPoint * dp)
+{
+	if (!dp->isStartOrEnd())
+	{
+
+		drag_points.remove(drag_points.indexOf(dp));
+
+		updateTable(true);
+        refreshGraph();
+        
+        needsRepaint = true;
+        repaint();
+
+	}
+}
 
 void TableEditor::mouseDoubleClick(const MouseEvent& e)
 {
@@ -337,6 +354,8 @@ void TableEditor::mouseUp(const MouseEvent &)
 {	
 	if (!isEnabled()) return;
 
+	closeTouchOverlay();
+
 	currently_dragged_point = nullptr;
 	updateTable(true);
 
@@ -367,6 +386,8 @@ void TableEditor::mouseDrag(const MouseEvent &e)
 	{
 		currently_dragged_point->changePos(Point<int>(x, y));
 
+		updateTouchOverlayPosition();
+
 		updateTable(false); // Only update small tables while dragging
 		refreshGraph();
 
@@ -376,8 +397,44 @@ void TableEditor::mouseDrag(const MouseEvent &e)
 
 };
 
+void TableEditor::showTouchOverlay()
+{
+#if HISE_IOS
+	auto mainWindow = getTopLevelComponent();
+	mainWindow->addAndMakeVisible(touchOverlay = new TouchOverlay(currently_dragged_point));
+	updateTouchOverlayPosition();
+#endif
+}
 
 
+
+void TableEditor::closeTouchOverlay()
+{
+#if HISE_IOS
+	if (touchOverlay != nullptr)
+	{
+		auto mainWindow = getTopLevelComponent();
+
+		if (mainWindow != nullptr)
+		{
+			mainWindow->removeChildComponent(touchOverlay);
+			touchOverlay = nullptr;
+		}
+	}
+#endif
+}
+
+void TableEditor::updateTouchOverlayPosition()
+{
+#if HISE_IOS
+	auto mw = getTopLevelComponent();
+	auto pArea = mw->getLocalArea(this, currently_dragged_point->getBoundsInParent());
+	auto tl = pArea.getCentre();
+	tl.addXY(-100, -100);
+
+	touchOverlay->setTopLeftPosition(tl);
+#endif
+}
 
 //==============================================================================
 TableEditor::DragPoint::DragPoint(bool isStart_, bool isEnd_):
@@ -435,6 +492,80 @@ void TableEditor::DragPoint::resized()
     // This method is where you should set the bounds of any child
     // components that your component contains..
 
+}
+
+TableEditor::TouchOverlay::TouchOverlay(DragPoint* point)
+{
+	table = point->findParentComponentOfClass<TableEditor>();
+
+	addAndMakeVisible(curveSlider = new Slider());
+
+	curveSlider->setSliderStyle(Slider::SliderStyle::LinearBarVertical);
+	curveSlider->setTextBoxStyle(Slider::NoTextBox, false, 0, 0);
+	curveSlider->setColour(Slider::ColourIds::backgroundColourId, Colours::transparentBlack);
+	curveSlider->setColour(Slider::ColourIds::thumbColourId, Colours::white.withAlpha(0.1f));
+	curveSlider->setColour(Slider::ColourIds::trackColourId, Colours::white.withAlpha(0.3f));
+	curveSlider->setRange(0.0, 1.0, 0.01);
+	curveSlider->setValue(point->getCurve(), dontSendNotification);
+
+	addAndMakeVisible(deletePointButton = new ShapeButton("Delete", Colours::white.withAlpha(0.4f), Colours::white.withAlpha(0.8f), Colours::white));
+
+	curveSlider->addListener(this);
+	deletePointButton->addListener(this);
+
+	Path p;
+
+	p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon));
+
+	setInterceptsMouseClicks(false, true);
+
+	deletePointButton->setShape(p, false, true, true);
+
+	setSize(200, 200);
+}
+
+
+void TableEditor::TouchOverlay::resized()
+{
+	if (auto te = table.getComponent())
+	{
+		if (auto dp = te->currently_dragged_point)
+		{
+			deletePointButton->setVisible(!dp->isStartOrEnd());
+		}
+	}
+
+	auto area = getLocalBounds();
+	curveSlider->setBounds(area.removeFromLeft(40));
+	deletePointButton->setBounds(area.removeFromRight(50).removeFromTop(50));
+}
+
+
+
+void TableEditor::TouchOverlay::buttonClicked(Button* b)
+{
+	if (auto te = table.getComponent())
+	{
+		if(auto dp = te->currently_dragged_point)
+		{
+			te->removeDragPoint(dp);
+			te->closeTouchOverlay();
+		}
+	}
+}
+
+
+void TableEditor::TouchOverlay::sliderValueChanged(Slider* slider)
+{
+	if (auto te = table.getComponent())
+	{
+		if (auto dp = te->currently_dragged_point)
+		{
+			dp->setCurve(slider->getValue());
+			te->updateTable(true);
+			te->refreshGraph();
+		}
+	}
 }
 
 } // namespace hise

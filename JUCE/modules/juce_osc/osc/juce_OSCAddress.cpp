@@ -2,25 +2,30 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2015 - ROLI Ltd.
+   Copyright (c) 2017 - ROLI Ltd.
 
-   Permission is granted to use this software under the terms of either:
-   a) the GPL v2 (or any later version)
-   b) the Affero GPL v3
+   JUCE is an open source library subject to commercial or open-source
+   licensing.
 
-   Details of these licenses can be found at: www.gnu.org/licenses
+   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
+   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
+   27th April 2017).
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   End User License Agreement: www.juce.com/juce-5-licence
+   Privacy Policy: www.juce.com/juce-5-privacy-policy
 
-   ------------------------------------------------------------------------------
+   Or: You may also use this code under the terms of the GPL v3 (see
+   www.gnu.org/licenses).
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.juce.com for more information.
+   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
+   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
+   DISCLAIMED.
 
   ==============================================================================
 */
+
+namespace juce
+{
 
 namespace
 {
@@ -37,7 +42,7 @@ namespace
             if (pattern == patternEnd)
                 return matchTerminator (target, targetEnd);
 
-            const juce_wchar c = pattern.getAndAdvance();
+            auto c = pattern.getAndAdvance();
 
             switch (c)
             {
@@ -100,7 +105,7 @@ namespace
 
             while (pattern != patternEnd)
             {
-                const juce_wchar c = pattern.getAndAdvance();
+                auto c = pattern.getAndAdvance();
 
                 switch (c)
                 {
@@ -130,9 +135,9 @@ namespace
             if (set.size() == 0)
                 return match (pattern, patternEnd, target, targetEnd);
 
-            for (const String* str = set.begin(); str != set.end(); ++str)
-                if (str->getCharPointer().compareUpTo (target, str->length()) == 0)
-                    if (match (pattern, patternEnd, target + str->length(), targetEnd))
+            for (auto& str : set)
+                if (str.getCharPointer().compareUpTo (target, str.length()) == 0)
+                    if (match (pattern, patternEnd, target + str.length(), targetEnd))
                         return true;
 
             return false;
@@ -150,7 +155,7 @@ namespace
 
             while (pattern != patternEnd)
             {
-                const juce_wchar c = pattern.getAndAdvance();
+                auto c = pattern.getAndAdvance();
 
                 switch (c)
                 {
@@ -198,8 +203,8 @@ namespace
         static bool matchCharSetNegated (const Array<juce_wchar>& set, CharPtr pattern,
                                          CharPtr patternEnd, CharPtr target, CharPtr targetEnd)
         {
-            for (juce_wchar* c = set.begin(); c != set.end(); ++c)
-                if (*target == *c)
+            for (auto c : set)
+                if (*target == c)
                     return false;
 
             return match (pattern, patternEnd, target + 1, targetEnd);
@@ -209,8 +214,8 @@ namespace
         static bool matchCharSetNotNegated (const Array<juce_wchar>& set, CharPtr pattern,
                                             CharPtr patternEnd, CharPtr target, CharPtr targetEnd)
         {
-            for (juce_wchar* c = set.begin(); c != set.end(); ++c)
-                if (*target == *c)
+            for (auto c : set)
+                if (*target == c)
                     if (match (pattern, patternEnd, target + 1, targetEnd))
                         return true;
 
@@ -224,8 +229,8 @@ namespace
             if (target == targetEnd)
                 return false;
 
-            juce_wchar rangeStart = set.getLast();
-            juce_wchar rangeEnd = pattern.getAndAdvance();
+            auto rangeStart = set.getLast();
+            auto rangeEnd = pattern.getAndAdvance();
 
             if (rangeEnd == ']')
             {
@@ -276,9 +281,10 @@ namespace
 
         static bool containsOnlyAllowedPrintableASCIIChars (const String& string) noexcept
         {
-            for (String::CharPointerType charPtr (string.getCharPointer()); ! charPtr.isEmpty();)
+            for (auto charPtr = string.getCharPointer(); ! charPtr.isEmpty();)
             {
-                juce_wchar c = charPtr.getAndAdvance();
+                auto c = charPtr.getAndAdvance();
+
                 if (! isPrintableASCIIChar (c) || isDisallowedChar (c))
                     return false;
             }
@@ -299,8 +305,8 @@ namespace
             oscSymbols.addTokens (address, "/", StringRef());
             oscSymbols.removeEmptyStrings (false);
 
-            for (String* token = oscSymbols.begin(); token != oscSymbols.end(); ++token)
-                if (! containsOnlyAllowedPrintableASCIIChars (*token))
+            for (auto& token : oscSymbols)
+                if (! containsOnlyAllowedPrintableASCIIChars (token))
                     throw OSCFormatError ("OSC format error: encountered characters not allowed in address string.");
 
             return oscSymbols;
@@ -395,7 +401,7 @@ String OSCAddressPattern::toString() const noexcept
 class OSCAddressTests : public UnitTest
 {
 public:
-    OSCAddressTests() : UnitTest ("OSCAddress class") {}
+    OSCAddressTests() : UnitTest ("OSCAddress class", "OSC") {}
 
     void runTest()
     {
@@ -439,7 +445,7 @@ static OSCAddressTests OSCAddressUnitTests;
 class OSCAddressPatternTests  : public UnitTest
 {
 public:
-    OSCAddressPatternTests() : UnitTest ("OSCAddressPattern class") {}
+    OSCAddressPatternTests() : UnitTest ("OSCAddressPattern class", "OSC") {}
 
     void runTest()
     {
@@ -578,7 +584,7 @@ static OSCAddressPatternTests OSCAddressPatternUnitTests;
 class OSCPatternMatcherTests : public UnitTest
 {
 public:
-    OSCPatternMatcherTests() : UnitTest ("OSCAddress class / pattern matching") {}
+    OSCPatternMatcherTests() : UnitTest ("OSCAddress class / pattern matching", "OSC") {}
 
     void runTest()
     {
@@ -775,3 +781,5 @@ public:
 static OSCPatternMatcherTests OSCPatternMatcherUnitTests;
 
 #endif // JUCE_UNIT_TESTS
+
+} // namespace juce

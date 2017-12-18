@@ -165,6 +165,8 @@ public:
 
 private:
 
+	LookAndFeel_V3 globalLookAndFeel;
+
 	OwnedArray<FloatingTileDocumentWindow> popoutWindows;
 
 	int currentWorkspace = BackendCommandTarget::WorkspaceMain;

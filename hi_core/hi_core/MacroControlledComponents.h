@@ -328,6 +328,7 @@ public:
 	}
 #endif
 
+#if 0
 	static void comboBoxPopupMenuFinishedCallback(int result, HiComboBox* combo)
 	{
 		if (combo != nullptr)
@@ -338,15 +339,18 @@ public:
 			if (result != 0)
 				combo->setSelectedId(result);
 
-			combo->addItemsToMenu(*combo->getRootMenu());
+			
+
+			//combo->addItemsToMenu(*combo->getRootMenu());
 		}
 	}
+
 
 	void showPopup() override
 	{
 		PopupMenu menu = *getRootMenu();
 
-		addItemsToMenu(menu);
+		//addItemsToMenu(menu);
 
 		menu.setLookAndFeel(&getLookAndFeel());
 		
@@ -360,6 +364,7 @@ public:
 			.withStandardItemHeight(28),
 			ModalCallbackFunction::forComponent(comboBoxPopupMenuFinishedCallback, this));
 	}
+#endif
 
     void mouseDown(const MouseEvent &e);
 

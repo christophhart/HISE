@@ -44,6 +44,7 @@ MasterEffectProcessor(mc, id),
 AudioSampleProcessor(this),
 dryGain(0.0f),
 wetGain(1.0f),
+wetBuffer(2, 0),
 latency(0),
 isReloading(false),
 rampFlag(false),
@@ -53,8 +54,6 @@ loadAfterProcessFlag(false),
 isCurrentlyProcessing(false),
 wdlPimpl(new WdlPimpl())
 {
-	wetBuffer = AudioSampleBuffer(2, 0);
-
 	parameterNames.add("DryGain");
 	parameterNames.add("WetGain");
 	parameterNames.add("Latency");

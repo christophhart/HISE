@@ -221,8 +221,7 @@ void MouseCallbackComponent::touchAndHold(Point<int> downPosition)
 
 	Point<float> newPos((float)downPosition.getX(), (float)downPosition.getY());
 	ModifierKeys mods = ModifierKeys(ModifierKeys::rightButtonModifier);
-	MouseEvent e = MouseEvent(Desktop::getInstance().getMainMouseSource(), newPos, mods, 0.0f, this, this, Time(), newPos, Time(), 1, false);
-
+	MouseEvent e(Desktop::getInstance().getMainMouseSource(), newPos, mods, 0.0f, 0.0, 0.0, 0.0, 0.0f, this, this, Time(), newPos, Time(), 1, false);
 
 	if (callbackLevel < CallbackLevel::PopupMenuOnly) return;
 

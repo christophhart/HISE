@@ -397,7 +397,10 @@ public:
 	*	A right mouse click on a point deletes it.
 	*/
 	void mouseDown(const MouseEvent &e) override;
+
 	
+
+
 	void mouseDoubleClick(const MouseEvent& event) override;
 
 	/** If the table size is bigger than 5000, it only recalculates the lookup table here to save some processing */
@@ -552,9 +555,14 @@ private:
 			normalizedGraphPoint.curve = jlimit<float>(0.0f, 1.0f, normalizedGraphPoint.curve);
 		};
 
-		void setCurve(float curve)
+		void setCurve(float newValue)
 		{
-			normalizedGraphPoint.curve = curve;
+			normalizedGraphPoint.curve = jlimit<float>(0.0f, 1.0f, newValue);
+		}
+
+		float getCurve() const
+		{
+			return normalizedGraphPoint.curve;
 		}
 
 		/** Saves the TableEditor size for scaling. Call this method whenever you resize the TableEditor */
@@ -676,6 +684,30 @@ private:
 
 	WeakReference<Processor> connectedProcessor;
 
+	class TouchOverlay : public Component,
+						 public ButtonListener,
+						 public SliderListener
+	{
+	public:
+
+		TouchOverlay(DragPoint* point);
+
+		void resized() override;
+
+		void buttonClicked(Button* b) override;
+
+		void sliderValueChanged(Slider* slider) override;
+
+	private:
+
+		Component::SafePointer<TableEditor> table;
+
+		ScopedPointer<ShapeButton> deletePointButton;
+		ScopedPointer<Slider> curveSlider;
+	};
+
+	
+
 	float displayIndex;
 
 	Path dragPath;
@@ -686,8 +718,17 @@ private:
 
 	ScopedPointer<Ruler> ruler;
 
+	ScopedPointer<TouchOverlay> touchOverlay;
+
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TableEditor)
+		void showTouchOverlay();
+
+	void updateTouchOverlayPosition();
+
+	void closeTouchOverlay();
+
+	void removeDragPoint(DragPoint * dp);
 };
 
 

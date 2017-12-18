@@ -35,9 +35,10 @@ namespace hise { using namespace juce;
 AudioProcessorWrapper::AudioProcessorWrapper(MainController *mc, const String &uid):
 MasterEffectProcessor(mc, uid),
 wetAmountChain(new ModulatorChain(mc, "Wet Amount", 1, Modulation::GainMode, this)),
+wetAmountBuffer(1, 0),
 loadedProcessorId(Identifier("unused"))
 {
-    wetAmountBuffer = AudioSampleBuffer(1, 0);
+    
 }
 
 

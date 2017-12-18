@@ -504,14 +504,16 @@ public:
 		voiceIndex(ownerSynth_->getNumVoices()),
 		pitchModulationActive(ownerSynth_->isPitchModulationActive()),
 		voiceUptime(0.0),
+		voiceBuffer(2, 0),
 		uptimeDelta(0.0),
 		killThisVoice(false),
 		startUptime(DBL_MAX),
 		killFadeLevel(1.0f),
 		killFadeFactor(0.5f),
 		isTailing(false)
+		
 	{
-		voiceBuffer = AudioSampleBuffer(2, 0);
+		
 	};
 
 	/** If not overriden, this uses a sine generator for an example usage of this voice class. */

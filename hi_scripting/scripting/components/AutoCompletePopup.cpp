@@ -63,8 +63,8 @@ JavascriptCodeEditor::AutoCompletePopup::AutoCompletePopup(int fontHeight_, Java
 
 
 	listbox->getViewport()->setScrollBarThickness(8);
-	listbox->getVerticalScrollBar()->setColour(ScrollBar::ColourIds::thumbColourId, Colours::black.withAlpha(0.6f));
-	listbox->getVerticalScrollBar()->setColour(ScrollBar::ColourIds::trackColourId, Colours::black.withAlpha(0.4f));
+	listbox->getVerticalScrollBar().setColour(ScrollBar::ColourIds::thumbColourId, Colours::black.withAlpha(0.6f));
+	listbox->getVerticalScrollBar().setColour(ScrollBar::ColourIds::trackColourId, Colours::black.withAlpha(0.4f));
 
 	listbox->setWantsKeyboardFocus(false);
 	setWantsKeyboardFocus(false);

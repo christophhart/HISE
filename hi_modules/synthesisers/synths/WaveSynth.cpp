@@ -50,11 +50,10 @@ WaveSynth::WaveSynth(MainController *mc, const String &id, int numVoices) :
 	pulseWidth2(getDefaultValue(PulseWidth2)),
 	waveForm1(WaveformComponent::Saw),
 	waveForm2(WaveformComponent::Saw),
+    tempBuffer(2, 0),
+    mixBuffer(1, 0),
 	mixChain(new ModulatorChain(mc, "Mix Modulation", 1, Modulation::GainMode, this))
 {
-	tempBuffer = AudioSampleBuffer(2, 0);
-	mixBuffer = AudioSampleBuffer(1, 0);
-
 	parameterNames.add("OctaveTranspose1");
 	parameterNames.add("WaveForm1");
 	parameterNames.add("Detune1");

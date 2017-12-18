@@ -83,6 +83,8 @@ AudioFileEnvelope::AudioFileEnvelope(MainController *mc, const String &id, Modul
 	frequencyModulationValue(1.0f),
 	frequencyChain(new ModulatorChain(mc, "Frequency Modulation", 1, Modulation::PitchMode, this)),
 	intensityChain(new ModulatorChain(mc, "Intensity Modulation", 1, m, this)),
+    intensityBuffer(1, 0),
+    frequencyBuffer(1, 0),
 	legato(false),
 	mode(SimpleLP),
 	smoothingTime(0.0f),
@@ -91,8 +93,7 @@ AudioFileEnvelope::AudioFileEnvelope(MainController *mc, const String &id, Modul
 	resampleFactor(1.0),
 	attackReleaseEnvelopeFollower(EnvelopeFollower::AttackRelease(50.0, 50.0))
 {
-	intensityBuffer = AudioSampleBuffer(1, 0);
-	frequencyBuffer = AudioSampleBuffer(1, 0);
+	
 
 	editorStateIdentifiers.add("IntensityChainShown");
 	editorStateIdentifiers.add("FrequencyChainShown");

@@ -91,6 +91,14 @@ StandaloneProcessor::StandaloneProcessor()
 	deviceManager = new AudioDeviceManager();
 	callback = new AudioProcessorPlayer();
 
+#if HISE_IOS
+    if(virtualMidiPort = MidiInput::createNewDevice("HISE Virtual MIDI Input", callback))
+    {
+        virtualMidiPort->start();
+    }
+#endif
+    
+    
 	LOG_START("Create Main Processor");
 
 	wrappedProcessor = createProcessor();

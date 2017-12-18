@@ -2,25 +2,30 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2015 - ROLI Ltd.
+   Copyright (c) 2017 - ROLI Ltd.
 
-   Permission is granted to use this software under the terms of either:
-   a) the GPL v2 (or any later version)
-   b) the Affero GPL v3
+   JUCE is an open source library subject to commercial or open-source
+   licensing.
 
-   Details of these licenses can be found at: www.gnu.org/licenses
+   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
+   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
+   27th April 2017).
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   End User License Agreement: www.juce.com/juce-5-licence
+   Privacy Policy: www.juce.com/juce-5-privacy-policy
 
-   ------------------------------------------------------------------------------
+   Or: You may also use this code under the terms of the GPL v3 (see
+   www.gnu.org/licenses).
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.juce.com for more information.
+   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
+   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
+   DISCLAIMED.
 
   ==============================================================================
 */
+
+namespace juce
+{
 
 class SimpleDeviceManagerInputLevelMeter  : public Component,
                                             public Timer
@@ -197,8 +202,8 @@ static String getNoDeviceString()   { return "<< " + TRANS("none") + " >>"; }
 //==============================================================================
 class AudioDeviceSettingsPanel : public Component,
                                  private ChangeListener,
-                                 private ComboBoxListener,  // (can't use ComboBox::Listener due to idiotic VC2005 bug)
-                                 private ButtonListener
+                                 private ComboBox::Listener,
+                                 private Button::Listener
 {
 public:
     AudioDeviceSettingsPanel (AudioIODeviceType& t, AudioDeviceSetupDetails& setupDetails,
@@ -446,8 +451,6 @@ public:
                         = new ChannelSelectorListBox (setup, ChannelSelectorListBox::audioOutputType,
                                                       TRANS ("(no audio output channels found)")));
                     outputChanLabel = new Label (String(), TRANS("Active output channels:"));
-					outputChanLabel->setColour(Label::textColourId, Colours::white);
-					outputChanLabel->setFont(getLookAndFeel().getAlertWindowFont().boldened());
                     outputChanLabel->setJustificationType (Justification::centredRight);
                     outputChanLabel->attachToComponent (outputChanList, true);
                 }
@@ -469,8 +472,6 @@ public:
                         = new ChannelSelectorListBox (setup, ChannelSelectorListBox::audioInputType,
                                                       TRANS("(no audio input channels found)")));
                     inputChanLabel = new Label (String(), TRANS("Active input channels:"));
-					inputChanLabel->setColour(Label::textColourId, Colours::white);
-					inputChanLabel->setFont(getLookAndFeel().getAlertWindowFont().boldened());
                     inputChanLabel->setJustificationType (Justification::centredRight);
                     inputChanLabel->attachToComponent (inputChanList, true);
                 }
@@ -485,19 +486,18 @@ public:
 
             updateSampleRateComboBox (currentDevice);
             updateBufferSizeComboBox (currentDevice);
-
-			sampleRateLabel->setColour(Label::textColourId, Colours::white);
-			sampleRateLabel->setFont(getLookAndFeel().getAlertWindowFont().boldened());
-
-			bufferSizeLabel->setColour(Label::textColourId, Colours::white);
-			bufferSizeLabel->setFont(getLookAndFeel().getAlertWindowFont().boldened());
         }
         else
         {
             jassert (setup.manager->getCurrentAudioDevice() == nullptr); // not the correct device type!
 
+            inputChanLabel = nullptr;
+            outputChanLabel = nullptr;
             sampleRateLabel = nullptr;
             bufferSizeLabel = nullptr;
+
+            inputChanList = nullptr;
+            outputChanList = nullptr;
             sampleRateDropDown = nullptr;
             bufferSizeDropDown = nullptr;
 
@@ -566,8 +566,8 @@ private:
     {
         int y = 0;
 
-        for (int i = getNumChildComponents(); --i >= 0;)
-            y = jmax (y, getChildComponent (i)->getBottom());
+        for (auto* c : getChildren())
+            y = jmax (y, c->getBottom());
 
         return y;
     }
@@ -579,7 +579,7 @@ private:
 
         if (currentDevice != nullptr && currentDevice->hasControlPanel())
         {
-            addAndMakeVisible (showUIButton = new TextButton (TRANS ("Control panel"),
+            addAndMakeVisible (showUIButton = new TextButton (TRANS ("Control Panel"),
                                                               TRANS ("Opens the device's own control panel")));
             showUIButton->addListener (this);
         }
@@ -595,7 +595,7 @@ private:
             {
                 if (resetDeviceButton == nullptr)
                 {
-                    addAndMakeVisible (resetDeviceButton = new TextButton (TRANS ("Reset device"),
+                    addAndMakeVisible (resetDeviceButton = new TextButton (TRANS ("Reset Device"),
                         TRANS ("Resets the audio interface - sometimes needed after changing a device's properties in its custom control panel")));
 
                     resetDeviceButton->addListener (this);
@@ -624,9 +624,6 @@ private:
                                                                                   : TRANS("Device:"));
                 outputDeviceLabel->attachToComponent (outputDeviceDropDown, true);
 
-				outputDeviceLabel->setColour(Label::textColourId, Colours::white);
-				outputDeviceLabel->setFont(getLookAndFeel().getAlertWindowFont().boldened());
-
                 if (setup.maxNumOutputChannels > 0)
                 {
                     addAndMakeVisible (testButton = new TextButton (TRANS("Test"),
@@ -652,8 +649,6 @@ private:
                 addAndMakeVisible (inputDeviceDropDown);
 
                 inputDeviceLabel = new Label (String(), TRANS("Input:"));
-				inputDeviceLabel->setColour(Label::textColourId, Colours::white);
-				outputDeviceLabel->setFont(getLookAndFeel().getAlertWindowFont().boldened());
                 inputDeviceLabel->attachToComponent (inputDeviceDropDown, true);
 
                 addAndMakeVisible (inputLevelMeter
@@ -785,13 +780,11 @@ public:
             return items.size();
         }
 
-        void paintListBoxItem (int row, Graphics& g, int width, int height, bool rowIsSelected) override
+        void paintListBoxItem (int row, Graphics& g, int width, int height, bool) override
         {
             if (isPositiveAndBelow (row, items.size()))
             {
-                if (rowIsSelected)
-                    g.fillAll (findColour (TextEditor::highlightColourId)
-                                   .withMultipliedAlpha (0.3f));
+                g.fillAll (findColour (ListBox::backgroundColourId));
 
                 const String item (items [row]);
                 bool enabled = false;
@@ -822,7 +815,7 @@ public:
 
                 g.setFont (height * 0.6f);
                 g.setColour (findColour (ListBox::textColourId, true).withMultipliedAlpha (enabled ? 1.0f : 0.6f));
-                g.drawText (item, x, 0, width - x - 2, height, Justification::centredLeft, true);
+                g.drawText (item, x + 5, 0, width - x - 5, height, Justification::centredLeft, true);
             }
         }
 
@@ -969,7 +962,7 @@ public:
 
         int getTickX() const
         {
-            return getRowHeight() + 5;
+            return getRowHeight();
         }
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ChannelSelectorListBox)
@@ -1017,10 +1010,6 @@ AudioDeviceSelectorComponent::AudioDeviceSelectorComponent (AudioDeviceManager& 
         deviceTypeDropDown->addListener (this);
 
         deviceTypeDropDownLabel = new Label (String(), TRANS("Audio device type:"));
-
-		deviceTypeDropDownLabel->setColour(Label::ColourIds::textColourId, Colours::white);
-		deviceTypeDropDownLabel->setFont(getLookAndFeel().getAlertWindowFont().boldened());
-
         deviceTypeDropDownLabel->setJustificationType (Justification::centredRight);
         deviceTypeDropDownLabel->attachToComponent (deviceTypeDropDown, true);
     }
@@ -1035,8 +1024,6 @@ AudioDeviceSelectorComponent::AudioDeviceSelectorComponent (AudioDeviceManager& 
         midiInputsLabel->setJustificationType (Justification::topRight);
         midiInputsLabel->attachToComponent (midiInputsList, true);
 
-		midiInputsLabel->setColour(Label::ColourIds::textColourId, Colours::white);
-		midiInputsLabel->setFont(getLookAndFeel().getAlertWindowFont().boldened());
         if (BluetoothMidiDevicePairingDialogue::isAvailable())
         {
             addAndMakeVisible (bluetoothButton = new TextButton (TRANS("Bluetooth MIDI"),
@@ -1057,7 +1044,6 @@ AudioDeviceSelectorComponent::AudioDeviceSelectorComponent (AudioDeviceManager& 
         midiOutputSelector->addListener (this);
 
         midiOutputLabel = new Label ("lm", TRANS("MIDI Output:"));
-		midiOutputLabel->setColour(Label::ColourIds::textColourId, Colours::white);
         midiOutputLabel->attachToComponent (midiOutputSelector, true);
     }
     else
@@ -1116,6 +1102,9 @@ void AudioDeviceSelectorComponent::resized()
 
     if (midiOutputSelector != nullptr)
         midiOutputSelector->setBounds (r.removeFromTop (itemHeight));
+
+    r.removeFromTop (itemHeight);
+    setSize (getWidth(), r.getY());
 }
 
 void AudioDeviceSelectorComponent::timerCallback()
@@ -1179,7 +1168,6 @@ void AudioDeviceSelectorComponent::updateAllControls()
             details.useStereoPairs = showChannelsAsStereoPairs;
 
             AudioDeviceSettingsPanel* sp = new AudioDeviceSettingsPanel (*type, details, hideAdvancedOptionsWithButton);
-
             audioDeviceSettingsComp = sp;
             addAndMakeVisible (sp);
             sp->updateAllControls();
@@ -1219,10 +1207,18 @@ void AudioDeviceSelectorComponent::updateAllControls()
 void AudioDeviceSelectorComponent::buttonClicked (Button* btn)
 {
     if (bluetoothButton == btn)
-        BluetoothMidiDevicePairingDialogue::open();
+    {
+        if (! RuntimePermissions::isGranted (RuntimePermissions::bluetoothMidi))
+            RuntimePermissions::request (RuntimePermissions::bluetoothMidi, nullptr);
+
+        if (RuntimePermissions::isGranted (RuntimePermissions::bluetoothMidi))
+            BluetoothMidiDevicePairingDialogue::open();
+    }
 }
 
 ListBox* AudioDeviceSelectorComponent::getMidiInputSelectorListBox() const noexcept
 {
     return midiInputsList;
 }
+
+} // namespace juce

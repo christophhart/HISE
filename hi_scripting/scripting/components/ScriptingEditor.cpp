@@ -401,7 +401,9 @@ void ScriptingEditor::goToSavedPosition(int newCallback)
 		}
 		
 		codeEditor->editor->scrollToColumn(0);
-		codeEditor->editor->grabKeyboardFocus();
+
+		if(codeEditor->editor->isShowing())
+			codeEditor->editor->grabKeyboardFocus();
 	}
 }
 

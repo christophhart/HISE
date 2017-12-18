@@ -452,7 +452,7 @@ void HiComboBox::updateValue(NotificationType /*sendAttributeChange*/)
 
 	setSelectedId(roundFloatToInt(getProcessor()->getAttribute(parameter)), dontSendNotification);
 
-	addItemsToMenu(*getRootMenu());
+	//addItemsToMenu(*getRootMenu());
 }
 
 void HiComboBox::comboBoxChanged(ComboBox *c)

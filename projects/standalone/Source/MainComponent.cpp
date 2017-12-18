@@ -95,14 +95,11 @@ void MainContentComponent::paint (Graphics& g)
 
 void MainContentComponent::resized()
 {
-#if !PUT_FLOAT_IN_CODEBASE
-	root->setBounds(getLocalBounds());
-#else
+
 #if SCALE_2
 	editor->setSize(getWidth()*2, getHeight()*2);
 #else
     editor->setSize(getWidth(), getHeight());
-#endif
 #endif
 
 }

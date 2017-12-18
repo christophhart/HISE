@@ -33,10 +33,9 @@
 namespace hise { using namespace juce;
 
 ChorusEffect::ChorusEffect(MainController *mc, const String &id) :
-MasterEffectProcessor(mc, id)
+MasterEffectProcessor(mc, id),
+tempBuffer(2, 0)
 {
-	tempBuffer = AudioSampleBuffer(2, 0);
-
 	parameterNames.add("Rate");
 	parameterNames.add("Width");
 	parameterNames.add("Feedback");

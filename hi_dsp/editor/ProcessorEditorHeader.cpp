@@ -1029,8 +1029,9 @@ void ProcessorEditorHeader::createProcessorFromPopup(Processor *insertBeforeSibl
 	// Create the Popup
 
 	{
-		PopupMenu m;
 		ScopedPointer<PopupLookAndFeel> l = new PopupLookAndFeel();
+		PopupMenu m;
+		
 		m.setLookAndFeel(l);
 
 		m.addSectionHeader("Create new Processor ");

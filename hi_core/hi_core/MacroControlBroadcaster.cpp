@@ -62,7 +62,7 @@ MacroControlBroadcaster::MacroControlledParameterData::MacroControlledParameterD
 MacroControlBroadcaster::MacroControlledParameterData::MacroControlledParameterData(ModulatorSynthChain *chain, XmlElement &xml):
 	range(NormalisableRange<double>(xml.getDoubleAttribute("min", 0.0),
 							xml.getDoubleAttribute("max", 1.0))),
-	parameter(xml.getIntAttribute("parameter", parameter)),
+	parameter(xml.getIntAttribute("parameter", -1)),
 	parameterName(xml.getStringAttribute("parameter_name", "")),
 	id (xml.getStringAttribute("id", id)),
 	readOnly(xml.getBoolAttribute("readonly", true))

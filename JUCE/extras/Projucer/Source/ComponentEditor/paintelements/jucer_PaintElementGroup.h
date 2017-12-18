@@ -2,32 +2,32 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2015 - ROLI Ltd.
+   Copyright (c) 2017 - ROLI Ltd.
 
-   Permission is granted to use this software under the terms of either:
-   a) the GPL v2 (or any later version)
-   b) the Affero GPL v3
+   JUCE is an open source library subject to commercial or open-source
+   licensing.
 
-   Details of these licenses can be found at: www.gnu.org/licenses
+   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
+   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
+   27th April 2017).
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   End User License Agreement: www.juce.com/juce-5-licence
+   Privacy Policy: www.juce.com/juce-5-privacy-policy
 
-   ------------------------------------------------------------------------------
+   Or: You may also use this code under the terms of the GPL v3 (see
+   www.gnu.org/licenses).
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.juce.com for more information.
+   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
+   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
+   DISCLAIMED.
 
   ==============================================================================
 */
 
-#ifndef JUCER_PAINTELEMENTGROUP_H_INCLUDED
-#define JUCER_PAINTELEMENTGROUP_H_INCLUDED
+#pragma once
 
 #include "jucer_PaintElement.h"
 #include "../jucer_ObjectTypes.h"
-
 
 //==============================================================================
 class PaintElementGroup   : public PaintElement
@@ -105,11 +105,11 @@ public:
     }
 
     //==============================================================================
-    void setInitialBounds (int /*parentWidth*/, int /*parentHeight*/)
+    void setInitialBounds (int /*parentWidth*/, int /*parentHeight*/) override
     {
     }
 
-    Rectangle<int> getCurrentBounds (const Rectangle<int>& parentArea) const
+    Rectangle<int> getCurrentBounds (const Rectangle<int>& parentArea) const override
     {
         Rectangle<int> r;
 
@@ -124,7 +124,7 @@ public:
         return r;
     }
 
-    void setCurrentBounds (const Rectangle<int>& b, const Rectangle<int>& parentArea, const bool undoable)
+    void setCurrentBounds (const Rectangle<int>& b, const Rectangle<int>& parentArea, const bool undoable) override
     {
         Rectangle<int> newBounds (b);
         newBounds.setSize (jmax (1, newBounds.getWidth()),
@@ -161,18 +161,19 @@ public:
     }
 
     //==============================================================================
-    void draw (Graphics& g, const ComponentLayout* layout, const Rectangle<int>& parentArea)
+    void draw (Graphics& g, const ComponentLayout* layout, const Rectangle<int>& parentArea) override
     {
         for (int i = 0; i < subElements.size(); ++i)
             subElements.getUnchecked(i)->draw (g, layout, parentArea);
     }
 
-    void getEditableProperties (Array<PropertyComponent*>& props)
+    void getEditableProperties (Array<PropertyComponent*>& props, bool multipleSelected) override
     {
-        props.add (new UngroupProperty (this));
+        if (! multipleSelected)
+            props.add (new UngroupProperty (this));
     }
 
-    void fillInGeneratedCode (GeneratedCode& code, String& paintMethodCode)
+    void fillInGeneratedCode (GeneratedCode& code, String& paintMethodCode) override
     {
         for (int i = 0; i < subElements.size(); ++i)
             subElements.getUnchecked(i)->fillInGeneratedCode (code, paintMethodCode);
@@ -180,7 +181,7 @@ public:
 
     static const char* getTagName() noexcept        { return "GROUP"; }
 
-    XmlElement* createXml() const
+    XmlElement* createXml() const override
     {
         XmlElement* e = new XmlElement (getTagName());
 
@@ -193,7 +194,7 @@ public:
         return e;
     }
 
-    bool loadFromXml (const XmlElement& xml)
+    bool loadFromXml (const XmlElement& xml) override
     {
         if (xml.hasTagName (getTagName()))
         {
@@ -208,12 +209,17 @@ public:
         return false;
     }
 
-private:
-    OwnedArray <PaintElement> subElements;
-
-    class UngroupProperty  : public ButtonPropertyComponent
+    void applyCustomPaintSnippets (StringArray& snippets) override
     {
-    public:
+        for (auto* e : subElements)
+            e->applyCustomPaintSnippets (snippets);
+    }
+
+private:
+    OwnedArray<PaintElement> subElements;
+
+    struct UngroupProperty  : public ButtonPropertyComponent
+    {
         UngroupProperty (PaintElementGroup* const e)
             : ButtonPropertyComponent ("ungroup", false),
               element (e)
@@ -230,10 +236,6 @@ private:
             return "Ungroup";
         }
 
-    private:
-        PaintElementGroup* const element;
+        PaintElementGroup* element;
     };
 };
-
-
-#endif   // JUCER_PAINTELEMENTGROUP_H_INCLUDED

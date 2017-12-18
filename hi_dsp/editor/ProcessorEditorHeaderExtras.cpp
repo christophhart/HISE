@@ -203,7 +203,7 @@ public:
 
 	int getNumSwatches() const override { return 8; }
 	
-	void setSwatchColour(int index, const Colour& newColour) const override
+	void setSwatchColour(int index, const Colour& newColour) override
 	{
 		swatchColours[index] = newColour;
 	}

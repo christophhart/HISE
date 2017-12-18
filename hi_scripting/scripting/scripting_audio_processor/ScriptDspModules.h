@@ -111,7 +111,9 @@ public:
 		*/
 		VariantBuffer *getBuffer()
 		{
-			return const_cast<VariantBuffer*>(getBuffer());
+            throw String("No internal storage");
+            
+            return nullptr;
 		}
 
 		virtual const VariantBuffer *getBuffer() const
@@ -813,7 +815,7 @@ public:
 		/** Overwrite this method and do your processing on the given sample data. */
 		void processBlock(float **data, int numChannels, int numSamples) override
 		{
-			AudioSampleBuffer b = AudioSampleBuffer(data, numChannels, numSamples);
+			AudioSampleBuffer b(data, numChannels, numSamples);
 
 			if (enablePeak)
 			{

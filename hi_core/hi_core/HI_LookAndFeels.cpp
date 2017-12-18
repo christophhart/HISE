@@ -553,7 +553,7 @@ void ProcessorEditorLookAndFeel::drawNoiseBackground(Graphics &g, Rectangle<int>
     g.setOpacity(1.0f);
 }
 
-void FileBrowserLookAndFeel::drawFileBrowserRow(Graphics&g, int width, int height, const String& filename, Image* icon, const String& fileSizeDescription, const String& fileTimeDescription, bool isDirectory, bool isItemSelected, int /*itemIndex*/, DirectoryContentsDisplayComponent& dcc)
+void FileBrowserLookAndFeel::drawFileBrowserRow(Graphics&g, int width, int height, const File& file, const String& filename, Image* icon, const String& fileSizeDescription, const String& fileTimeDescription, bool isDirectory, bool isItemSelected, int /*itemIndex*/, DirectoryContentsDisplayComponent& dcc)
 {
 	Component* const fileListComp = dynamic_cast<Component*> (&dcc);
     

@@ -71,11 +71,10 @@ public:
 		tempoSync(true),
 		syncTimeLeft(TempoSyncer::QuarterTriplet),
 		syncTimeRight(TempoSyncer::Quarter),
-		skipFirstBuffer(true)
+		skipFirstBuffer(true),
+        leftDelayFrames(1, 0),
+        rightDelayFrames(1, 0)
 	{
-		leftDelayFrames = AudioSampleBuffer(1, 0);
-		rightDelayFrames = AudioSampleBuffer(1, 0);
-
 		parameterNames.add("DelayTimeLeft");
 		parameterNames.add("DelayTimeRight");
 		parameterNames.add("FeedbackLeft");

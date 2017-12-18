@@ -1409,12 +1409,11 @@ renderVoiceCallback(new SnippetDocument("renderVoice", "voiceIndex channels")),
 onNoteOnCallback(new SnippetDocument("onNoteOn")),
 onNoteOffCallback(new SnippetDocument("onNoteOff")),
 onControllerCallback(new SnippetDocument("onController")),
-onControlCallback(new SnippetDocument("onControl", "number value"))
+onControlCallback(new SnippetDocument("onControl", "number value")),
+scriptChain1Buffer(1, 0),
+scriptChain2Buffer(1, 0)
 {
 	initContent();
-
-	scriptChain1Buffer = AudioSampleBuffer(1, 0);
-	scriptChain2Buffer = AudioSampleBuffer(1, 0);
 
 	scriptChain1->setColour(Colour(0xFF666666));
 	scriptChain2->setColour(Colour(0xFF666666));

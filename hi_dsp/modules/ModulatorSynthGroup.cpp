@@ -645,10 +645,11 @@ ModulatorSynthGroup::ModulatorSynthGroup(MainController *mc, const String &id, i
 	unisonoDetuneAmount((double)getDefaultValue(ModulatorSynthGroup::SpecialParameters::UnisonoDetune)),
 	unisonoSpreadAmount(getDefaultValue(ModulatorSynthGroup::SpecialParameters::UnisonoSpread)),
 	detuneChain(new ModulatorChain(mc, "Detune Mod", numVoices, Modulation::GainMode, this)),
-	spreadChain(new ModulatorChain(mc, "Spread Mod", numVoices, Modulation::GainMode, this))
+	spreadChain(new ModulatorChain(mc, "Spread Mod", numVoices, Modulation::GainMode, this)),
+    spreadBuffer(1, 0),
+    detuneBuffer(1, 0)
 {
-	spreadBuffer = AudioSampleBuffer(1, 0);
-	detuneBuffer = AudioSampleBuffer(1, 0);
+	
 
 	setFactoryType(new ModulatorSynthChainFactoryType(numVoices, this));
 	getFactoryType()->setConstrainer(new SynthGroupConstrainer());
