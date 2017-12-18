@@ -140,6 +140,7 @@ void TableEditor::paint (Graphics& g)
     
     KnobLookAndFeel::fillPathHiStyle(g, dragPath, getWidth(), getHeight());
     
+#if !HISE_IOS
     if (currently_dragged_point != nullptr)
     {
         int index = drag_points.indexOf(currently_dragged_point);
@@ -180,6 +181,7 @@ void TableEditor::paint (Graphics& g)
         g.setColour(Colours::darkgrey.withAlpha(0.4f));
         g.drawLine(0.0f, (float)getHeight(), (float)getWidth(), (float)getHeight());
     }
+#endif
     
     g.setOpacity(isEnabled() ? 1.0f : 0.2f);
  
@@ -289,7 +291,7 @@ void TableEditor::mouseDown(const MouseEvent &e)
 		{
 			DragPoint *dp = this->getPointUnder(x,y);
 			removeDragPoint(dp);
-
+            return;
 		}
 	}
 
@@ -311,6 +313,11 @@ void TableEditor::removeDragPoint(DragPoint * dp)
 		drag_points.remove(drag_points.indexOf(dp));
 
 		updateTable(true);
+        refreshGraph();
+        
+        needsRepaint = true;
+        repaint();
+
 	}
 }
 
@@ -423,7 +430,7 @@ void TableEditor::updateTouchOverlayPosition()
 	auto mw = getTopLevelComponent();
 	auto pArea = mw->getLocalArea(this, currently_dragged_point->getBoundsInParent());
 	auto tl = pArea.getCentre();
-	tl.addXY(-50, -50);
+	tl.addXY(-100, -100);
 
 	touchOverlay->setTopLeftPosition(tl);
 #endif
@@ -496,12 +503,12 @@ TableEditor::TouchOverlay::TouchOverlay(DragPoint* point)
 	curveSlider->setSliderStyle(Slider::SliderStyle::LinearBarVertical);
 	curveSlider->setTextBoxStyle(Slider::NoTextBox, false, 0, 0);
 	curveSlider->setColour(Slider::ColourIds::backgroundColourId, Colours::transparentBlack);
-	curveSlider->setColour(Slider::ColourIds::thumbColourId, Colours::white.withAlpha(0.2f));
-	curveSlider->setColour(Slider::ColourIds::trackColourId, Colours::white.withAlpha(0.5f));
+	curveSlider->setColour(Slider::ColourIds::thumbColourId, Colours::white.withAlpha(0.1f));
+	curveSlider->setColour(Slider::ColourIds::trackColourId, Colours::white.withAlpha(0.3f));
 	curveSlider->setRange(0.0, 1.0, 0.01);
 	curveSlider->setValue(point->getCurve(), dontSendNotification);
 
-	addAndMakeVisible(deletePointButton = new ShapeButton("Delete", Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white));
+	addAndMakeVisible(deletePointButton = new ShapeButton("Delete", Colours::white.withAlpha(0.4f), Colours::white.withAlpha(0.8f), Colours::white));
 
 	curveSlider->addListener(this);
 	deletePointButton->addListener(this);
@@ -514,7 +521,7 @@ TableEditor::TouchOverlay::TouchOverlay(DragPoint* point)
 
 	deletePointButton->setShape(p, false, true, true);
 
-	setSize(100, 100);
+	setSize(200, 200);
 }
 
 
@@ -529,8 +536,8 @@ void TableEditor::TouchOverlay::resized()
 	}
 
 	auto area = getLocalBounds();
-	curveSlider->setBounds(area.removeFromLeft(25));
-	deletePointButton->setBounds(area.removeFromRight(25).removeFromTop(25));
+	curveSlider->setBounds(area.removeFromLeft(40));
+	deletePointButton->setBounds(area.removeFromRight(50).removeFromTop(50));
 }
 
 
