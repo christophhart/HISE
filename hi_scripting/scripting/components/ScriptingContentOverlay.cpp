@@ -478,12 +478,12 @@ bool ScriptingContentOverlay::keyPressed(const KeyPress &key)
 			return true;
 		}
 	}
-	else if (keyCode == 'Z' && key.getModifiers().isCommandDown())
+	else if ((keyCode == 'Z' || keyCode == 'z') && key.getModifiers().isCommandDown())
 	{
 		b->getUndoManager().undo();
 		return true;
 	}
-	else if (keyCode == 'D' && key.getModifiers().isCommandDown())
+	else if ((keyCode == 'D' || keyCode == 'd') && key.getModifiers().isCommandDown())
 	{
 		if (draggers.size() > 0)
 		{
@@ -501,7 +501,7 @@ bool ScriptingContentOverlay::keyPressed(const KeyPress &key)
 
 		return true;
 	}
-	else if (keyCode == 'C' && key.getModifiers().isCommandDown())
+	else if ((keyCode == 'C' || keyCode == 'c') && key.getModifiers().isCommandDown())
 	{
 		auto s = ScriptingApi::Content::Helpers::createScriptVariableDeclaration(b->getSelection());
 		SystemClipboard::copyTextToClipboard(s);
