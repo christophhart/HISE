@@ -317,10 +317,9 @@ public:
 protected:
 
 	TimeModulation(Modulation::Mode m):
-		Modulation(m)
-	{
-		internalBuffer = AudioSampleBuffer(1, 0);
-	};
+		Modulation(m),
+		internalBuffer(1, 0)
+	{};
 
 	/** Creates the internal buffer with double the size of the expected buffer block size.
     */

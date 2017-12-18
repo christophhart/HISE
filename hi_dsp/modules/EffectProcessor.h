@@ -48,11 +48,10 @@ public:
 	EffectProcessor(MainController *mc, const String &uid): 
 		Processor(mc, uid),	
 		isTailing(false),
-		useStepSize(true) 
-	{
-		tailCheck = AudioSampleBuffer(2, 0);
-		emptyBuffer = AudioSampleBuffer(1, 0);
-	};
+		useStepSize(true),
+		tailCheck(2, 0),
+		emptyBuffer(1, 0) 
+	{};
 
 	virtual ~EffectProcessor() {};
 
