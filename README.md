@@ -129,6 +129,12 @@ sudo apt-get -y install libasound2-dev
 sudo apt-get -y install freeglut3-dev
 sudo apt-get -y install libxcomposite-dev
 sudo apt-get -y install libcurl4-gnutls-dev
+
+and, since JUCE 5, also these:
+
+sudo apt-get -y install libwebkit2gtk-4.0 
+sudo apt-get -y install libgtk-3-dev
+
 ```
 
 2. Clone this repository.
@@ -137,23 +143,8 @@ sudo apt-get -y install libcurl4-gnutls-dev
 
 4. Open the terminal and navigate to this subdirectory: `projects/standalone/Builds/LinuxMakefile`
 
-5. If you want to compile an optimized version of HISE, change these lines in the makefile:
+5. Type `make CONFIG=Release` and wait. If you need the debug version (that is slower but allows you to jump around in the source code, use `make CONFIG=Debug`.
 
-	```makefile
-	ifndef CONFIG
-	  CONFIG=Debug
-	endif
-	```
-
-	to
-
-	```makefile
-	ifndef CONFIG
-	  CONFIG=Release
-	endif
-	```
-
-6. type `make` and wait. 
 
 ## License
 
