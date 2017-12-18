@@ -111,7 +111,9 @@ public:
 		*/
 		VariantBuffer *getBuffer()
 		{
-			return const_cast<VariantBuffer*>(getBuffer());
+            throw String("No internal storage");
+            
+            return nullptr;
 		}
 
 		virtual const VariantBuffer *getBuffer() const
