@@ -328,6 +328,7 @@ public:
 	}
 #endif
 
+#if 0
 	static void comboBoxPopupMenuFinishedCallback(int result, HiComboBox* combo)
 	{
 		if (combo != nullptr)
@@ -343,6 +344,7 @@ public:
 			//combo->addItemsToMenu(*combo->getRootMenu());
 		}
 	}
+
 
 	void showPopup() override
 	{
@@ -362,6 +364,7 @@ public:
 			.withStandardItemHeight(28),
 			ModalCallbackFunction::forComponent(comboBoxPopupMenuFinishedCallback, this));
 	}
+#endif
 
     void mouseDown(const MouseEvent &e);
 
