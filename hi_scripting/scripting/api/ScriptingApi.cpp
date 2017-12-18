@@ -1716,7 +1716,7 @@ var ScriptingApi::Sampler::getSampleMapList() const
 	{
 		auto n = childFiles[i].getRelativePathFrom(rootDir).upToFirstOccurrenceOf(".xml", false, true);
 
-		n = n.replace(File::separatorString, "/");
+		n = n.replace(File::getSeparatorString(), "/");
 
 		sampleMapNames.add(n);
 

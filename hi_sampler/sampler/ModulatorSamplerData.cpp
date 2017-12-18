@@ -326,7 +326,7 @@ void SampleMap::save()
 
 		auto name = f.getRelativePathFrom(rootDirectory).upToFirstOccurrenceOf(".xml", false, true);
 
-		name = name.replace(File::separatorString, "/");
+		name = name.replace(File::getSeparatorString(), "/");
 
 		sampleMapId = Identifier(name);
 
@@ -811,7 +811,7 @@ void MonolithExporter::run()
 
 	auto name = sampleMapFile.getRelativePathFrom(sampleMapDirectory).upToFirstOccurrenceOf(".xml", false, true);
 
-	name = name.replace(File::separatorString, "/");
+	name = name.replace(File::getSeparatorString(), "/");
 
 	sampleMap->setId(name);
 
