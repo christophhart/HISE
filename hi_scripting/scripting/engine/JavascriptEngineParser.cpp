@@ -1938,6 +1938,11 @@ private:
 			return parseNewOperator();
 		}
 
+		if (matchIf(TokenTypes::isDefined_))
+		{
+			return parseIsDefined();
+		}
+
 		throwError("Found " + getTokenName(currentType) + " when expecting an expression");
 		RETURN_IF_NO_THROW(nullptr);
 	}
@@ -1981,6 +1986,17 @@ private:
 	{
 		location.throwError("new is not supported anymore");
 		return nullptr;
+	}
+
+	Expression* parseIsDefined()
+	{
+		match(TokenTypes::openParen);
+
+		ExpPtr a(parseExpression());
+
+		match(TokenTypes::closeParen);
+
+		return new IsDefinedTest(location, a.release());
 	}
 
 	Expression* parseMultiplyDivide()
@@ -2073,6 +2089,9 @@ private:
 		e->falseBranch = parseExpression();
 		return e.release();
 	}
+
+	
+
 
 	
 

@@ -487,7 +487,7 @@ public:
 		struct GlobalVarStatement;		struct GlobalReference;		struct LocalVarStatement;
 		struct LocalReference;			struct LockStatement;	    struct CallbackParameterReference;
 		struct CallbackLocalStatement;  struct CallbackLocalReference;  struct ExternalCFunction;
-		struct NativeJIT;
+		struct NativeJIT;				struct IsDefinedTest;
 
 		// Parser classes
 

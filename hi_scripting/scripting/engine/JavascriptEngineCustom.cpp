@@ -176,6 +176,28 @@ struct HiseJavascriptEngine::RootObject::ConstObjectApiCall : public Expression
 	mutable ReferenceCountedObjectPtr<ConstScriptingObject> object;
 };
 
+struct HiseJavascriptEngine::RootObject::IsDefinedTest : public Expression
+{
+	IsDefinedTest(const CodeLocation& l, Expression* expressionToTest) noexcept :
+		Expression(l),
+		test(expressionToTest)
+	{}
+
+	var getResult(const Scope& s) const override
+	{
+		auto result = test->getResult(s);
+
+		if (result.isUndefined() || result.isVoid())
+		{
+			return var(false);
+		}
+
+		return var(true);
+	}
+
+	ExpPtr test;
+};
+
 struct HiseJavascriptEngine::RootObject::InlineFunction
 {
 	struct FunctionCall;

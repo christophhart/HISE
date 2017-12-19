@@ -30,7 +30,8 @@
 *   ===========================================================================
 */
 
-namespace hise { using namespace juce;
+namespace hise {
+	using namespace juce;
 
 #define JUCE_JS_OPERATORS(X) \
     X(semicolon,     ";")        X(dot,          ".")       X(comma,        ",") \
@@ -54,7 +55,7 @@ X(rightShiftUnsigned, ">>>") X(rightShiftEquals, ">>=") X(rightShift,   ">>")   
     X(typeof_,  "typeof")	X(switch_, "switch") X(case_, "case")	 X(default_,  "default")  X(register_var, "reg") \
 	X(in, 		"in")		X(inline_, "inline") X(const_, "const")	 X(global_,   "global")	  X(local_,	   "local") \
 	X(include_,  "include") X(rLock_,   "readLock") X(wLock_,"writeLock") 	X(extern_, "extern") X(namespace_, "namespace") \
-	X(loadJit_, "loadJITModule");
+	X(loadJit_, "loadJITModule") X(isDefined_, "isDefined");
 
 namespace TokenTypes
 {
