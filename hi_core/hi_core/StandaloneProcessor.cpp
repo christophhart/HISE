@@ -92,9 +92,12 @@ StandaloneProcessor::StandaloneProcessor()
 	callback = new AudioProcessorPlayer();
 
 #if HISE_IOS
-    if(virtualMidiPort = MidiInput::createNewDevice("HISE Virtual MIDI Input", callback))
+    if(!HiseDeviceSimulator::isAUv3())
     {
-        virtualMidiPort->start();
+        if(virtualMidiPort = MidiInput::createNewDevice("HISE Virtual MIDI Input", callback))
+        {
+            virtualMidiPort->start();
+        }
     }
 #endif
     
