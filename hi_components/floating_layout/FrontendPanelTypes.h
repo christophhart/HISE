@@ -361,6 +361,13 @@ class PresetBrowserPanel : public FloatingTileContent,
 {
 public:
 
+	enum SpecialPanelIds
+	{
+		ShowFolderButton = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		ShowSaveButton,
+		numSpecialProperties
+	};
+
 	SET_PANEL_NAME("PresetBrowser");
 
 	PresetBrowserPanel(FloatingTile* parent);
@@ -370,6 +377,9 @@ public:
 	void fromDynamicObject(const var& object) override;
 	bool showTitleInPresentationMode() const override;
 	void resized() override;
+
+	Identifier getDefaultablePropertyId(int index) const override;
+	var getDefaultProperty(int index) const override;
 
 private:
 

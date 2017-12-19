@@ -39,16 +39,15 @@ void PresetBrowserColumn::ButtonLookAndFeel::drawButtonBackground(Graphics& /*g*
 
 void PresetBrowserColumn::ButtonLookAndFeel::drawButtonText(Graphics& g, TextButton& button, bool isMouseOverButton, bool isButtonDown)
 {
+#if OLD_PRESET_BROWSER
+	g.setColour(highlightColour);
+	g.setFont(font.withHeight(18.0f));
+	g.drawText(button.getButtonText(), 0, 0, button.getWidth(), button.getHeight(), Justification::centred);
+#else
 	g.setColour(highlightColour.withAlpha(isMouseOverButton || button.getToggleState() ? 1.0f : 0.7f));
     g.setFont(font);
 	g.drawText(button.getButtonText(), 0, isButtonDown ? 1 : 0, button.getWidth(), button.getHeight(), Justification::centred);
 
-	static const unsigned char pathData[] = "nm\xac&=Ca\xee<Cl\x12\x96?C%\xaf""CCl\xde\xc2""FC\xd0\xe9""CClZ\x17""AC\xebPHCl(\x17""CC\xf1""5OCl\xad&=C\xc4-KCl267C\xf1""5OCl\0""69C\xebPHCl}\x8a""3C\xd0\xe9""CClH\xb7:C%\xaf""CCce";
-
-	Path path;
-	path.loadPathFromData(pathData, sizeof(pathData));
-
-	
 	if (isMouseOverButton)
 	{
 		auto r = button.getLocalBounds();
@@ -56,6 +55,7 @@ void PresetBrowserColumn::ButtonLookAndFeel::drawButtonText(Graphics& g, TextBut
 		g.setColour(highlightColour.withAlpha(0.1f));
 		g.fillRoundedRectangle(FLOAT_RECTANGLE(r.reduced(3, 1)), 2.0f);
 	}
+#endif
 
 }
 
@@ -231,7 +231,7 @@ void PresetBrowserColumn::ColumnListModel::paintListBoxItem(int rowNumber, Graph
 		g.setColour(rowIsSelected ? highlightColour.withAlpha(0.3f) : Colour(0x00222222));
 		g.fillRect(area);
 		g.setColour(Colours::white.withAlpha(0.4f));
-		//if(rowIsSelected) g.drawRect(area, 1);
+		if(rowIsSelected) g.drawRect(area, 1);
 
 		if (editMode)
 		{
@@ -396,6 +396,7 @@ void PresetBrowserColumn::buttonClicked(Button* b)
 	{
 		browser->openModalAction(MultiColumnPresetBrowser::ModalWindow::Action::Add, index == 2 ? "New Preset" : "New Directory", File(), index, -1);
 	}
+#if !OLD_PRESET_BROWSER
 	else if (b == renameButton)
 	{
 		int selectedIndex = listbox->getSelectedRow(0);
@@ -417,6 +418,7 @@ void PresetBrowserColumn::buttonClicked(Button* b)
 			browser->openModalAction(MultiColumnPresetBrowser::ModalWindow::Action::Delete, "", f, index, selectedIndex);
 		}
 	}
+#endif
 }
 
 void PresetBrowserColumn::addEntry(const String &newName)
@@ -475,15 +477,16 @@ void PresetBrowserColumn::paint(Graphics& g)
 	Rectangle<int> textArea = listArea;
 
 	g.setColour(Colours::white.withAlpha(0.2f));
-	//g.drawRect(0, 40, getWidth(), getHeight() - 40, 1);
+	g.drawRect(0, 40, getWidth(), getHeight() - 40, 1);
     g.setColour(Colours::white.withAlpha(0.02f));
     g.fillRect(textArea);
 
 	g.setColour(Colours::white);
 
+
 	
 	g.setFont(font.withHeight(16.0f));
-	g.drawText(name, listArea, Justification::centred);
+	g.drawText(name, 0, 0, getWidth(), 30, Justification::centred);
 
 #else
 
@@ -665,6 +668,7 @@ MultiColumnPresetBrowser::~MultiColumnPresetBrowser()
 void MultiColumnPresetBrowser::paint(Graphics& g)
 {
 #if OLD_PRESET_BROWSER
+	g.fillAll(Colours::black.withAlpha(0.97f));
 	g.fillAll(backgroundColour);
 #else
 
@@ -747,10 +751,10 @@ void MultiColumnPresetBrowser::resized()
 
 		Rectangle<int> ar(3, y + 5, getWidth() - 6, 30);
 
+#if !OLD_PRESET_BROWSER
 		saveButton->setBounds(ar.removeFromRight(100));
 		showButton->setBounds(ar.removeFromLeft(100));
-
-		
+#endif
 
 		searchBar->setBounds(ar);
 		
@@ -762,11 +766,11 @@ void MultiColumnPresetBrowser::resized()
 		Rectangle<int> ar(3, 3 + 3, getWidth() - 6, 30);
 
 		
-
+#if !OLD_PRESET_BROWSER
 		saveButton->setBounds(ar.removeFromRight(100));
 		showButton->setBounds(ar.removeFromLeft(100));
-
 		favoriteButton->setBounds(ar.removeFromLeft(30));
+#endif
 
 		ar.removeFromLeft(10);
 
@@ -782,16 +786,12 @@ void MultiColumnPresetBrowser::resized()
 
 	auto listArea = Rectangle<int>(x, y, getWidth() - 6, getHeight() - y - 3);
 
-#if 0
-	auto tagAreaAll = listArea.removeFromTop(50);
-	tagArea->setBounds(tagAreaAll.reduced(100, 0));
-#else
 	tagArea->setVisible(false);
-#endif
 
+#if !OLD_PRESET_BROWSER
 	auto labelArea = listArea.removeFromTop(40);
-
 	noteLabel->setBounds(labelArea.reduced(3, 5));
+#endif
 
 	if (showOnlyPresets)
 	{
@@ -801,7 +801,7 @@ void MultiColumnPresetBrowser::resized()
 	{
 #if OLD_PRESET_BROWSER
 		bankColumn->setBounds(x, y, getWidth() / 3 - 5, getHeight() - y - 3);
-		x += 
+		x += getWidth() / 3;
 		categoryColumn->setBounds(x, y, getWidth() / 3 - 5, getHeight() - y - 3);
 		x += getWidth() / 3;
 		presetColumn->setBounds(x, y, getWidth() / 3 - 5, getHeight() - y - 3);

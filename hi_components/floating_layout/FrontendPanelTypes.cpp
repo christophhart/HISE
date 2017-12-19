@@ -469,6 +469,13 @@ void PresetBrowserPanel::fromDynamicObject(const var& object)
 	FloatingTileContent::fromDynamicObject(object);
 
 	presetBrowser->setHighlightColourAndFont(findPanelColour(PanelColourId::itemColour1), findPanelColour(PanelColourId::bgColour), getFont());
+
+	const bool showSaveButton = getPropertyWithDefault(object, SpecialPanelIds::ShowSaveButton);
+	const bool showFolderButton = getPropertyWithDefault(object, SpecialPanelIds::ShowFolderButton);
+
+	presetBrowser->setShowButton(0, showFolderButton);
+	presetBrowser->setShowButton(1, showSaveButton);
+
 }
 
 bool PresetBrowserPanel::showTitleInPresentationMode() const
@@ -483,6 +490,29 @@ void PresetBrowserPanel::resized()
 }
 
 
+
+juce::Identifier PresetBrowserPanel::getDefaultablePropertyId(int index) const
+{
+	if (index < (int)PanelPropertyId::numPropertyIds)
+		return FloatingTileContent::getDefaultablePropertyId(index);
+
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowFolderButton, "ShowFolderButton");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowSaveButton, "ShowSaveButton");
+}
+
+
+var PresetBrowserPanel::getDefaultProperty(int index) const
+{
+	if (index < (int)PanelPropertyId::numPropertyIds)
+		return FloatingTileContent::getDefaultProperty(index);
+
+#if HISE_IOS
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowFolderButton, false);
+#else
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowFolderButton, true);
+#endif
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowSaveButton, true);
+}
 
 AboutPagePanel::AboutPagePanel(FloatingTile* parent) :
 	FloatingTileContent(parent)

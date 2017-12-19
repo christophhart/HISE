@@ -204,6 +204,9 @@ public:
 
 		Component* refreshComponentForRow(int rowNumber, bool /*isRowSelected*/, Component* existingComponentToUpdate) override
 		{
+#if OLD_PRESET_BROWSER
+			return nullptr;
+#else
 			if (existingComponentToUpdate != nullptr)
 				delete existingComponentToUpdate;
 
@@ -213,6 +216,7 @@ public:
 			}
 			else
 				return nullptr;
+#endif
 		}
 
 		void sendRowChangeMessage(int row);
@@ -632,7 +636,7 @@ public:
 
 			if (inputLabel->isVisible())
 				inputLabel->showEditor();
-			else
+			else if (isShowing())
 				grabKeyboardFocus();
 		}
 
@@ -841,6 +845,31 @@ public:
 	MainController* mc;
 
 	void setHighlightColourAndFont(Colour c, Colour bgColour, Font f);
+
+	/** SaveButton = 1, ShowFolderButton = 0 */
+	void setShowButton(int buttonId, bool newValue)
+	{
+		enum ButtonIndexes
+		{
+			ShowFolderButton = 0,
+			SaveButton,
+			numButtonsToShow
+		};
+
+#if !OLD_PRESET_BROWSER
+		if (buttonId == SaveButton)
+		{
+			saveButton->setVisible(newValue);
+			
+		}
+		else if (buttonId == ShowFolderButton)
+		{
+			showButton->setVisible(newValue);
+		}
+
+		resized();
+#endif
+	}
 
 	void setShowCloseButton(bool shouldShowButton)
 	{
