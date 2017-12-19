@@ -181,7 +181,11 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 			var parameters[5];
 
 			for (int i = 0; i < arguments.size(); i++)
+			{
 				parameters[i] = arguments[i]->getResult(s);
+				HiseJavascriptEngine::checkValidParameter(i, parameters[i], location);
+			}
+				
 
 			return constObject->callFunction(functionIndex, parameters, numArgs);
 		}
@@ -801,3 +805,4 @@ void ScriptingObject::reportScriptError(const String &errorMessage) const
 }
 
 } // namespace hise
+

@@ -925,6 +925,8 @@ public:
 		root->setUseCycleReferenceCheckForNextCompilation();
 	}
 
+	static void checkValidParameter(int index, const var& valueToTest, const RootObject::CodeLocation& location);
+
 private:
 
     bool initialising = false;

@@ -91,6 +91,8 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 		for (int i = 0; i < expectedNumArguments; i++)
 		{
 			results[i] = argumentList[i]->getResult(s);
+
+			HiseJavascriptEngine::checkValidParameter(i, results[i], location);
 		}
 
 		CHECK_CONDITION_WITH_LOCATION(apiClass != nullptr, "API class does not exist");
@@ -153,6 +155,8 @@ struct HiseJavascriptEngine::RootObject::ConstObjectApiCall : public Expression
 		for (int i = 0; i < expectedNumArguments; i++)
 		{
 			results[i] = argumentList[i]->getResult(s);
+
+			HiseJavascriptEngine::checkValidParameter(i, results[i], location);
 		}
 
 		CHECK_CONDITION_WITH_LOCATION(object != nullptr, "Object does not exist");

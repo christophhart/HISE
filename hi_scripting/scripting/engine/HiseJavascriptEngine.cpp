@@ -910,6 +910,17 @@ var HiseJavascriptEngine::executeWithoutAllocation(const Identifier &function, c
 	return returnVal;
 }
 
+void HiseJavascriptEngine::checkValidParameter(int index, const var& valueToTest, const RootObject::CodeLocation& location)
+{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+
+	if (valueToTest.isUndefined() || valueToTest.isVoid())
+	{
+		location.throwError("API call with undefined parameter " + String(index));
+	}
+#endif
+}
+
 
 HiseJavascriptEngine::RootObject::Callback::Callback(const Identifier &id, int numArgs_, double bufferTime_) :
 callbackName(id),
