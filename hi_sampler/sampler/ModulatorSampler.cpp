@@ -698,8 +698,6 @@ void ModulatorSampler::setSoundPropertyAsyncForAllSamples(int index, int newValu
 
 void ModulatorSampler::SamplePropertyUpdater::handlePendingChanges()
 {
-    dsp::Convolution;
-    
     Array<PropertyChange> thisTime;
 
 	{
