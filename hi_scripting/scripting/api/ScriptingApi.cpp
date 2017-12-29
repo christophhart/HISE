@@ -305,6 +305,8 @@ Rectangle<float> ApiHelpers::getRectangleFromVar(const var &data, Result *r/*=nu
 		{
 			Rectangle<float> rectangle((float)d->getUnchecked(0), (float)d->getUnchecked(1), (float)d->getUnchecked(2), (float)d->getUnchecked(3));
 
+            if(r != nullptr) *r = Result::ok();
+            
 			return rectangle;
 		}
 		else

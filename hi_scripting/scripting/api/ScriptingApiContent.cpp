@@ -2689,7 +2689,14 @@ StringArray ScriptingApi::Content::ScriptPanel::getItemList() const
 
 Rectangle<int> ScriptingApi::Content::ScriptPanel::getDragBounds() const
 {
-	return ApiHelpers::getIntRectangleFromVar(dragBounds);
+    if(dragBounds.isArray())
+    {
+        return ApiHelpers::getIntRectangleFromVar(dragBounds);
+    }
+    else
+    {
+        return {};
+    }
 }
 
 void ScriptingApi::Content::ScriptPanel::setDraggingBounds(var area)
@@ -3564,8 +3571,6 @@ void ScriptingApi::Content::makeFullScreenInterface()
 {
 	width = HiseDeviceSimulator::getDisplayResolution().getWidth();
 	height = HiseDeviceSimulator::getDisplayResolution().getHeight();
-
-	setUseHighResolutionForPanels(HiseDeviceSimulator::isRetina());
 
 	dynamic_cast<JavascriptMidiProcessor*>(getProcessor())->addToFront(true);
 }
