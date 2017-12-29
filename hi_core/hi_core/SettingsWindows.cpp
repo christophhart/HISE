@@ -185,33 +185,42 @@ void SettingWindows::BaseSettingsWindow::setSettingsFile()
 	{
 		ValueTypes type = getValueType(settings->getChildElement(i));
 
-		const String tag = settings->getChildElement(i)->getTagName();
-		const String value = settings->getChildElement(i)->getStringAttribute("value");
-		const String description = settings->getChildElement(i)->getStringAttribute("description");
+        auto settingsChild = settings->getChildElement(i);
 
-		if (type == ValueTypes::List)
-		{
-			const StringArray options = StringArray::fromLines(settings->getChildElement(i)->getStringAttribute("options"));
-			const int index = options.indexOf(value);
+        const String tag = settingsChild->getTagName();
 
-			addComboBox(tag, options, description);
-			getComboBoxComponent(tag)->setSelectedItemIndex(index);
-		}
-		else if (type == ValueTypes::Text)
-		{
-			addTextEditor(tag, value, description);
+        auto templateChild = compare->getChildByName(tag);
 
-			
-		}
-		else if (type == ValueTypes::File)
-		{
-			fileComponents.add(new FilenameComponent(tag, value, true, true, false, "", "", description));
+        if (templateChild != nullptr)
+        {
+            const String value = settings->getChildElement(i)->getStringAttribute("value");
+            const String description = settings->getChildElement(i)->getStringAttribute("description");
 
-			fileComponents.getLast()->setSize(400, 24);
+            if (type == ValueTypes::List)
+            {
+                const StringArray options = StringArray::fromLines(templateChild->getStringAttribute("options"));
+                const int index = options.indexOf(value);
 
-			addCustomComponent(fileComponents.getLast());
-		}
+                addComboBox(tag, options, description);
+                getComboBoxComponent(tag)->setSelectedItemIndex(index);
+            }
+            else if (type == ValueTypes::Text)
+            {
+                addTextEditor(tag, value, description);
 
+
+            }
+            else if (type == ValueTypes::File)
+            {
+                fileComponents.add(new FilenameComponent(tag, value, true, true, false, "", "", description));
+
+                fileComponents.getLast()->setSize(400, 24);
+
+                addCustomComponent(fileComponents.getLast());
+            }
+        }
+        else
+            jassertfalse;
 	}
 
 	addButton("OK", 1, KeyPress(KeyPress::returnKey));
@@ -334,7 +343,7 @@ XmlElement * SettingWindows::CompilerSettingWindow::createNewSettingsFile() cons
 	XmlElement *xml = new XmlElement("CompilerSettings");
 
 	addFileAsChildElement(*xml, (int)Attributes::HisePath, "", "Path to HISE modules");
-	addChildElementWithOptions(*xml, (int)Attributes::VisualStudioVersion, "Visual Studio 2013", "Installed VisualStudio version", "Visual Studio 2013\nVisual Studio 2015");
+	addChildElementWithOptions(*xml, (int)Attributes::VisualStudioVersion, "Visual Studio 2015", "Installed VisualStudio version", "Visual Studio 2015\nVisual Studio 2017");
 	addChildElementWithOptions(*xml, (int)Attributes::UseIPP, "Yes", "Use IPP", "Yes\nNo");
 
 	return xml;

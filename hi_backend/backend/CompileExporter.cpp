@@ -1222,7 +1222,9 @@ CompileExporter::ErrorCodes CompileExporter::createResourceFile(const String &so
 	resourcesFile << "  END" << "\n";
 	resourcesFile << "END" << "\n";
 
-	File resourcesFileObject(solutionDirectory + "/Builds/VisualStudio2013/resources.rc");
+    String year = HelperClasses::isUsingVisualStudio2015() ? "2015" : "2017";
+
+	File resourcesFileObject(solutionDirectory + "/Builds/VisualStudio" + year + "/resources.rc");
 
 	resourcesFileObject.deleteFile();
 
@@ -1499,8 +1501,8 @@ void CompileExporter::ProjectTemplateHelpers::handleVisualStudioVersion(String& 
 	}
 	else
 	{
-		REPLACE_WILDCARD_WITH_STRING("%VS_VERSION%", "VS2013");
-		REPLACE_WILDCARD_WITH_STRING("%TARGET_FOLDER%", "VisualStudio2013");
+		REPLACE_WILDCARD_WITH_STRING("%VS_VERSION%", "VS2017");
+		REPLACE_WILDCARD_WITH_STRING("%TARGET_FOLDER%", "VisualStudio2017");
 	}
 }
 
@@ -1902,7 +1904,7 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 #if JUCE_WINDOWS
     
 	const String msbuildPath = HelperClasses::isUsingVisualStudio2015() ? "\"C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\MsBuild.exe\"" :
-																	      "\"C:\\Program Files (x86)\\MSBuild\\12.0\\Bin\\MsBuild.exe\"";
+																	      "\"C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\MSBuild\\15.0\\Bin\\MsBuild.exe\"";
 
 	const String projucerPath = exporter->hisePath.getChildFile("tools/Projucer/Projucer.exe").getFullPathName();
 
@@ -1923,7 +1925,7 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 		}
 		else
 		{
-			ADD_LINE("set VisualStudioVersion=12.0");
+			ADD_LINE("set VisualStudioVersion=15.0");
 		}
 
 		ADD_LINE("set Platform=Win32");
@@ -1934,7 +1936,7 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 		}
 		else
 		{
-			ADD_LINE(msbuildPath << " \"%build_path%\\Builds\\VisualStudio2013\\%project%.sln\" /p:Configuration=\"Release\" /verbosity:minimal");
+			ADD_LINE(msbuildPath << " \"%build_path%\\Builds\\VisualStudio2017\\%project%.sln\" /p:Configuration=\"Release\" /verbosity:minimal");
 		}
 
 		ADD_LINE("");
@@ -1954,7 +1956,7 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 		}
 		else
 		{
-			ADD_LINE("set VisualStudioVersion=12.0");
+			ADD_LINE("set VisualStudioVersion=15.0");
 		}
 
 		ADD_LINE("set Platform=X64");
@@ -1965,7 +1967,7 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 		}
 		else
 		{
-			ADD_LINE(msbuildPath << " \"%build_path%\\Builds\\VisualStudio2013\\%project%.sln\" /p:Configuration=\"Release\" /verbosity:minimal");
+			ADD_LINE(msbuildPath << " \"%build_path%\\Builds\\VisualStudio2017\\%project%.sln\" /p:Configuration=\"Release\" /verbosity:minimal");
 		}
 
 		ADD_LINE("");
