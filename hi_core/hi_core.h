@@ -36,7 +36,7 @@ BEGIN_JUCE_MODULE_DECLARATION
 
   ID:               hi_core
   vendor:           Hart Instruments
-  version:          1.1.2
+  version:          1.5.0
   name:             HISE Core module
   description:      The core classes for HISE
   website:          http://hise.audio
@@ -65,6 +65,7 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
 #include "../JUCE/modules/juce_product_unlocking/juce_product_unlocking.h"
 #include "../JUCE/modules/juce_opengl/juce_opengl.h"
+#include "../JUCE/modules/juce_dsp/juce_dsp.h"
 #include "../hi_streaming/hi_streaming.h"
 
 
@@ -72,7 +73,7 @@ END_JUCE_MODULE_DECLARATION
 
 
 #ifndef HISE_VERSION
-#define HISE_VERSION "1.1.2"
+#define HISE_VERSION "1.5.0"
 #endif
 
 

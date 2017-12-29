@@ -36,7 +36,7 @@ BEGIN_JUCE_MODULE_DECLARATION
 
   ID:               hi_modules
   vendor:           Hart Instruments
-  version:          1.1.2
+  version:          1.5.0
   name:             HISE Processor Modules
   description:      All processors for HISE
   website:          http://hise.audio

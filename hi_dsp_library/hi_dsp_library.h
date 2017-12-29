@@ -36,7 +36,7 @@ BEGIN_JUCE_MODULE_DECLARATION
 
   ID:               hi_dsp_library
   vendor:           Hart Instruments
-  version:          1.1.2
+  version:          1.5.0
   name:             HISE DSP Library module
   description:      The module for building DSP modules
   website:          http://hise.audio
