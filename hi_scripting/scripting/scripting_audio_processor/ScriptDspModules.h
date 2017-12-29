@@ -140,6 +140,8 @@ public:
 		}
 	};
 
+
+
 	class SmoothedGainer : public DspBaseObject
 	{
 	public:
@@ -1805,7 +1807,99 @@ public:
 #endif
 };
 
+// Disable this until we're jumping to C++14
+#define ENABLE_JUCE_DSP 0
 
+#if ENABLE_JUCE_DSP
+struct JuceDspModuleFactory: public StaticDspFactory
+{
+    template <class ModuleType> class BaseModule: public DspBaseObject
+    {
+    public:
+
+        BaseModule() = default;
+
+        virtual ~BaseModule() = default;
+
+        void prepareToPlay(double sampleRate, int blockSize) override
+        {
+            dsp::ProcessSpec spec;
+            spec.maximumBlockSize = blockSize;
+            spec.numChannels = 2;
+            spec.sampleRate = sampleRate;
+
+            module.prepare(spec);
+
+            module.reset();
+        }
+
+        void processBlock(float** data, int numChannels, int numSamples) override
+        {
+            dsp::AudioBlock<float> b(data, numChannels, numSamples);
+            dsp::ProcessContextReplacing<float> c(b);
+            
+            module.process(c);
+        }
+
+    protected:
+
+        ModuleType module;
+    };
+
+
+    class GainModule: public BaseModule<dsp::Gain<float>>
+    {
+    public:
+
+        SET_MODULE_NAME("gain");
+
+        enum class ParameterIds
+        {
+            Gain = 0,
+            SmoothingTime,
+            numParameterIds
+        };
+
+        int getNumParameters() const override
+        {
+            return (int)ParameterIds::numParameterIds;
+        }
+
+        float getParameter(int index) const override
+        {
+            auto p = ParameterIds(index);
+
+            switch(p)
+            {
+            case ParameterIds::Gain: return module.getGainLinear();
+            case ParameterIds::SmoothingTime: return module.getRampDurationSeconds();
+            case ParameterIds::numParameterIds: break;
+            default: ;
+            }
+        }
+
+        void setParameter(int index, float newValue) override
+        {
+            auto p = ParameterIds(index);
+
+            switch (p)
+            {
+            case ParameterIds::Gain: module.setGainLinear(newValue); break;
+            case ParameterIds::SmoothingTime: module.setRampDurationSeconds(newValue); break;
+            case ParameterIds::numParameterIds: break;
+            default:;
+            }
+        }
+    };
+
+    Identifier getId() const override { RETURN_STATIC_IDENTIFIER("juce") };
+
+    void registerModules() override
+    {
+        registerDspModule<GainModule>();
+    }
+};
+#endif
 
 class HiseCoreDspFactory : public StaticDspFactory
 {

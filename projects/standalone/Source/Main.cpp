@@ -15,6 +15,10 @@
 REGISTER_STATIC_DSP_LIBRARIES()
 {
 	REGISTER_STATIC_DSP_FACTORY(HiseCoreDspFactory);
+
+#if ENABLE_JUCE_DSP
+    REGISTER_STATIC_DSP_FACTORY(JuceDspModuleFactory);
+#endif
 }
 
 AudioProcessor* hise::StandaloneProcessor::createProcessor()
