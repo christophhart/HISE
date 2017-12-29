@@ -127,6 +127,8 @@ public:
 
 private:
 
+    LookAndFeel_V3 globalLookAndFeel;
+    
     ScopedPointer<FrontendEditorHolder> container;
     
 	friend class BaseFrontendBar;

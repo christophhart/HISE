@@ -35,6 +35,8 @@ namespace hise { using namespace juce;
 FrontendProcessorEditor::FrontendProcessorEditor(FrontendProcessor *fp) :
 AudioProcessorEditor(fp)
 {
+    Desktop::getInstance().setDefaultLookAndFeel(&globalLookAndFeel);
+    
 	LOG_START("Creating Interface")
 
     addAndMakeVisible(container = new FrontendEditorHolder());
@@ -116,6 +118,13 @@ AudioProcessorEditor(fp)
     {
         const float iosScaleFactor = (float)availableHeight / (float)originalSizeY;
         setGlobalScaleFactor(iosScaleFactor);
+        
+        
+        
+    }
+    else if (HiseDeviceSimulator::isiPhone())
+    {
+        setGlobalScaleFactor(1.15f);
     }
     
 #else

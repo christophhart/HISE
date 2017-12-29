@@ -96,7 +96,7 @@ ValueTree BaseExporter::exportReferencedAudioFiles()
 
 #endif
 
-		samplePool->loadFileIntoPool(iter.getFile().getFullPathName());
+		samplePool->loadFileIntoPool(iter.getFile().getFullPathName(), nullptr);
 	}
 
 	return samplePool->exportAsValueTree();
@@ -1571,9 +1571,19 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 
 	File splashScreenFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("SplashScreen.png");
 
-	if (splashScreenFile.existsAsFile())
+    File splashScreeniPhoneFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("SplashScreeniPhone.png");
+    
+	if (splashScreenFile.existsAsFile() || splashScreeniPhoneFile.existsAsFile())
 	{
-		additionalSourceFiles.add(splashScreenFile);
+        if(splashScreenFile.existsAsFile())
+        {
+            additionalSourceFiles.add(splashScreenFile);
+        }
+        if(splashScreeniPhoneFile.existsAsFile())
+        {
+            additionalSourceFiles.add(splashScreeniPhoneFile);
+        }
+		
 		REPLACE_WILDCARD_WITH_STRING("%USE_SPLASH_SCREEN%", "enabled");
 	}
 	else
@@ -1618,7 +1628,7 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 
 			bool isSourceFile = additionalSourceFiles[i].hasFileExtension(".cpp");
 
-			bool isSplashScreen = (additionalSourceFiles[i].getFileName() == "SplashScreen.png");
+            bool isSplashScreen = additionalSourceFiles[i].getFileName().contains("SplashScreen");
 
 			bool isTurboActivate = (additionalSourceFiles[i].getFileName() == "TurboActivate.dat");
 

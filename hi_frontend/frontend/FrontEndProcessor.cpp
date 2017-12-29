@@ -308,11 +308,18 @@ FrontendStandaloneApplication::AudioWrapper::AudioWrapper()
 {
 #if USE_SPLASH_SCREEN
 
-	Image img = ImageCache::getFromMemory(BinaryData::SplashScreen_png, BinaryData::SplashScreen_pngSize);
+    
 
+    Image imgiPhone = ImageCache::getFromMemory(BinaryData::SplashScreeniPhone_png, BinaryData::SplashScreeniPhone_pngSize);
+
+	Image imgiPad = ImageCache::getFromMemory(BinaryData::SplashScreen_png, BinaryData::SplashScreen_pngSize);
+
+
+    const bool isIPhone = SystemStats::getDeviceDescription() == "iPhone";
+    
 	addAndMakeVisible(splashScreen = new ImageComponent());
 
-	splashScreen->setImage(img);
+    splashScreen->setImage(isIPhone ? imgiPhone : imgiPad);
 
 #if HISE_IOS
     auto size = Desktop::getInstance().getDisplays().getMainDisplay().totalArea;
