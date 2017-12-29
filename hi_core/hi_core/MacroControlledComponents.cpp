@@ -333,6 +333,21 @@ void HiToggleButton::setLookAndFeelOwned(LookAndFeel *laf_)
 	setLookAndFeel(laf);
 }
 
+void HiToggleButton::touchAndHold(Point<int> /*downPosition*/)
+{
+#if USE_FRONTEND
+    enableMidiLearnWithPopup();
+#else
+        
+    const bool isOnPreview = findParentComponentOfClass<FloatingTilePopup>() != nullptr;
+        
+    if (isOnPreview)
+        enableMidiLearnWithPopup();
+    else
+        removeParameterWithPopup();
+#endif
+}
+    
 void HiToggleButton::mouseDown(const MouseEvent &e)
 {
 
@@ -341,6 +356,8 @@ void HiToggleButton::mouseDown(const MouseEvent &e)
         checkLearnMode();
         
         PresetHandler::setChanged(getProcessor());
+        
+        startTouch(e.getMouseDownPosition());
         
 		if (isMomentary)
 		{
@@ -398,6 +415,8 @@ void HiToggleButton::mouseDown(const MouseEvent &e)
 
 void HiToggleButton::mouseUp(const MouseEvent& e)
 {
+    abortTouch();
+    
 	if (isMomentary)
 	{
 		setToggleState(false, sendNotification);
@@ -423,6 +442,9 @@ void HiComboBox::mouseDown(const MouseEvent &e)
         
         PresetHandler::setChanged(getProcessor());
         
+        startTouch(e.getMouseDownPosition());
+        
+        
         ComboBox::mouseDown(e);
     }
     else
@@ -442,6 +464,21 @@ void HiComboBox::mouseDown(const MouseEvent &e)
     }
 }
 
+void HiComboBox::touchAndHold(Point<int> /*downPosition*/)
+{
+#if USE_FRONTEND
+    enableMidiLearnWithPopup();
+#else
+        
+    const bool isOnPreview = findParentComponentOfClass<FloatingTilePopup>() != nullptr;
+        
+    if (isOnPreview)
+        enableMidiLearnWithPopup();
+    else
+        removeParameterWithPopup();
+#endif
+}
+    
 void HiComboBox::updateValue(NotificationType /*sendAttributeChange*/)
 {
 	const bool enabled = !isLocked();

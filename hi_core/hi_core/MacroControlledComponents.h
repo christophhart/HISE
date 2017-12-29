@@ -290,7 +290,8 @@ private:
 /** A combobox which can be controlled by the macro system. */
 class HiComboBox: public ComboBox,
 				  public ComboBox::Listener,
-				  public MacroControlledObject
+				  public MacroControlledObject,
+                  public TouchAndHoldComponent
 {
 public:
 
@@ -313,7 +314,15 @@ public:
 	void updateValue(NotificationType sendAttributeChange = sendNotification) override;
 
 	void comboBoxChanged(ComboBox *c) override;
-
+               
+    void mouseUp(const MouseEvent& e) override
+    {
+        abortTouch();
+        ComboBox::mouseUp(e);
+    }
+    
+    void touchAndHold(Point<int> downPosition) override;
+    
 #if USE_BACKEND
 	void paint(Graphics &g) override
 	{
@@ -381,7 +390,8 @@ public:
 
 class HiToggleButton: public ToggleButton,
 					  public Button::Listener,
-				      public MacroControlledObject
+				      public MacroControlledObject,
+                      public TouchAndHoldComponent
 {
 public:
 
@@ -427,6 +437,8 @@ public:
 
 	void mouseUp(const MouseEvent& e) override;
 
+    void touchAndHold(Point<int> downPosition) override;
+    
 #if USE_BACKEND
 	void paint(Graphics &g) override
 	{
