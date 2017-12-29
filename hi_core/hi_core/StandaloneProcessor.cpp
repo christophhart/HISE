@@ -94,7 +94,9 @@ StandaloneProcessor::StandaloneProcessor()
 #if HISE_IOS
     if(!HiseDeviceSimulator::isAUv3())
     {
-        if(virtualMidiPort = MidiInput::createNewDevice("HISE Virtual MIDI Input", callback))
+        const String portName = ProjectHandler::Frontend::getProjectName() + " Virtual MIDI";
+        
+        if(virtualMidiPort = MidiInput::createNewDevice(portName, callback))
         {
             virtualMidiPort->start();
         }
