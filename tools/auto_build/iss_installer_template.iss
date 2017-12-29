@@ -37,9 +37,9 @@ Name: "x64Plugin"; Description: "64bit VST Plugin Stereo Out"; Types: compact cu
 Name: "Standalone64bit"; Description: "64bit Standalone application"; ExtraDiskSpaceRequired: 9000; Types: full compact custom
 
 [Files]
-Source: "..\..\projects\standalone\Builds\VisualStudio2015\x64\Release\$PRODUCT.exe"; DestDir: "{app}"; Flags: 64bit; Components: Standalone64bit
+Source: "..\..\projects\standalone\Builds\VisualStudio2015\x64\Release\App\$PRODUCT.exe"; DestDir: "{app}"; Flags: 64bit; Components: Standalone64bit
 Source: "C:\Program Files\VST Plugins\$PRODUCT x64.dll"; DestDir: "{code:Getx64bitDir}"; Flags: 64bit; Components: x64Plugin
-Source: "..\..\projects\plugin\Builds\VisualStudio2015\Release\$PRODUCT x86.dll"; DestDir: "{code:Getx86bitDir}"; Flags: 32bit; Components: x86Plugin
+Source: "..\..\projects\plugin\Builds\VisualStudio2015\Win32\Release\VST\$PRODUCT x86.dll"; DestDir: "{code:Getx86bitDir}"; Flags: 32bit; Components: x86Plugin
 
 [Icons]
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"; 
