@@ -957,12 +957,9 @@ public:
 	{
 		Desktop = 0,
 		iPad,
-		iPadRetina,
-		iPadPro,
 		iPadAUv3,
-		iPhone5,
-		iPhone6,
-		iPodTouch6,
+		iPhone,
+        iPhoneAUv3,
 		numDeviceTypes
 	};
 
@@ -980,9 +977,13 @@ public:
 	static bool fileNameContainsDeviceWildcard(const File& f);
 
 	static bool isMobileDevice() { return currentDevice > DeviceType::Desktop; }
-	static bool isRetina() { return currentDevice > DeviceType::iPad; }
-
-    static bool isAUv3() { return currentDevice == DeviceType::iPadAUv3; };
+	
+    static bool isAUv3() { return currentDevice == DeviceType::iPadAUv3 || currentDevice == DeviceType::iPhoneAUv3; };
+    
+    static bool isiPhone()
+    {
+        return currentDevice == DeviceType::iPhone || currentDevice == DeviceType::iPhoneAUv3;
+    }
     
     static bool isStandalone()
     {

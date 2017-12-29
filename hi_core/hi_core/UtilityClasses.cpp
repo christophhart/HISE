@@ -404,7 +404,7 @@ void HiseDeviceSimulator::init(AudioProcessor::WrapperType wrapper)
     if(isIPad)
 		currentDevice = isStandalone ? DeviceType::iPad : DeviceType::iPadAUv3;
     else
-		currentDevice = DeviceType::iPhone6;
+        currentDevice = isStandalone ? DeviceType::iPhone : DeviceType::iPhoneAUv3;
 #else
 	ignoreUnused(wrapper);
     currentDevice = DeviceType::Desktop;
@@ -419,12 +419,9 @@ String HiseDeviceSimulator::getDeviceName(int index)
 	{
 	case DeviceType::Desktop: return "Desktop";
 	case DeviceType::iPad: return "iPad";
-	case DeviceType::iPadRetina: return "iPadRetina";
-	case DeviceType::iPadPro: return "iPadPro";
 	case DeviceType::iPadAUv3: return "iPadAUv3";
-	case DeviceType::iPhone5: return "iPhone5";
-	case DeviceType::iPhone6: return "iPhone6";
-	case DeviceType::iPodTouch6: return "iPodTouch6";
+	case DeviceType::iPhone: return "iPhone";
+	case DeviceType::iPhoneAUv3: return "iPhoneAUv3";
 	default:
 		return{};
 	}
@@ -449,12 +446,9 @@ Rectangle<int> HiseDeviceSimulator::getDisplayResolution()
 	{
 	case HiseDeviceSimulator::DeviceType::Desktop:		return{ 0, 0, 1024, 768 };
 	case HiseDeviceSimulator::DeviceType::iPad:			return{ 0, 0, 1024, 768 };
-	case HiseDeviceSimulator::DeviceType::iPadRetina:	return{ 0, 0, 1024, 768 };
-	case HiseDeviceSimulator::DeviceType::iPadPro:		return{ 0, 0, 1366, 1024 };
 	case HiseDeviceSimulator::DeviceType::iPadAUv3:		return{ 0, 0, 1024, 335 };
-	case HiseDeviceSimulator::DeviceType::iPhone5:		return{ 0, 0, 568, 320 };
-    case HiseDeviceSimulator::DeviceType::iPhone6:		return{ 0, 0, 568, 320 };
-	case HiseDeviceSimulator::DeviceType::iPodTouch6:	return{ 0, 0, 568, 320 };
+	case HiseDeviceSimulator::DeviceType::iPhone:		return{ 0, 0, 568, 320 };
+    case HiseDeviceSimulator::DeviceType::iPhoneAUv3:	return{ 0, 0, 568, 172 };
 	case HiseDeviceSimulator::DeviceType::numDeviceTypes:
 	default:
 		return {};
