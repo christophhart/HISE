@@ -436,13 +436,10 @@ void UserPresetHelpers::loadUserPreset(ModulatorSynthChain *chain, const File &f
     {
 		if (!checkVersionNumber(chain, *xml))
 		{
-			if (PresetHandler::showYesNoWindow("Update user preset", "This user preset was built with a previous version. Do you want to update it?", PresetHandler::IconType::Question))
-			{
-				addMissingControlsToUserPreset(chain, fileToLoad);
-				updateVersionNumber(chain, fileToLoad);
-
-				xml = XmlDocument::parse(fileToLoad);
-			}
+            addMissingControlsToUserPreset(chain, fileToLoad);
+            updateVersionNumber(chain, fileToLoad);
+            
+            xml = XmlDocument::parse(fileToLoad);
 		}
 
         ValueTree parent = ValueTree::fromXml(*xml);
