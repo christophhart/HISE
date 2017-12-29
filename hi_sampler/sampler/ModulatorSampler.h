@@ -32,11 +32,8 @@
 
 #ifndef MODULATORSAMPLER_H_INCLUDED
 #define MODULATORSAMPLER_H_INCLUDED
+
 namespace hise { using namespace juce;
-
-
- 
-
 
 class SampleEditHandler;
 
@@ -382,33 +379,7 @@ public:
 	int getRRGroupsForMessage(int noteNumber, int velocity);
 	void refreshRRMap();
 
-	void setReversed(bool shouldBeReversed)
-	{
-		if (reversed != shouldBeReversed)
-		{
-			auto f = [shouldBeReversed](Processor* p)
-			{
-				auto s = static_cast<ModulatorSampler*>(p);
-
-				s->reversed = shouldBeReversed;
-
-				ModulatorSampler::SoundIterator sIter(s);
-
-				while (auto sound = sIter.getNextSound())
-				{
-					sound->setReversed(shouldBeReversed);
-				}
-
-				s->refreshMemoryUsage();
-
-				return true;
-			};
-
-			killAllVoicesAndCall(f);
-		}
-
-		
-	}
+    void setReversed(bool shouldBeReversed);
 
 	void purgeAllSamples(bool shouldBePurged)
 	{
@@ -571,15 +542,9 @@ public:
 
 	void killAllVoicesAndCall(const ProcessorFunction& f);
 
-	void setSoundPropertyAsync(ModulatorSamplerSound* s, int index, int newValue)
-	{
-		samplePropertyUpdater.addNewPropertyChange(s, index, newValue, false);
-	}
+    void setSoundPropertyAsync(ModulatorSamplerSound* s, int index, int newValue);
 
-	void setSoundPropertyAsyncForAllSamples(int index, int newValue)
-	{
-		samplePropertyUpdater.addNewPropertyChange(nullptr, index, newValue, true);
-	}
+    void setSoundPropertyAsyncForAllSamples(int index, int newValue);
 
 private:
 
@@ -624,62 +589,9 @@ private:
 			}
 		}
 
-		void handlePendingChanges()
-		{
-			Array<PropertyChange> thisTime;
+		void handlePendingChanges();
 
-			{
-				ScopedLock sl(arrayLock);
-				thisTime.swapWith(pendingChanges);
-			}
-
-			for (auto c : thisTime)
-			{
-				if (c.allSamples)
-				{
-					jassert(c.sound == nullptr);
-
-					ModulatorSampler::SoundIterator iter(sampler, false);
-
-					while (auto s = iter.getNextSound())
-					{
-						s->setProperty((ModulatorSamplerSound::Property)c.index, c.newValue, dontSendNotification);
-					}
-				}
-				else
-				{
-					if (c.sound != nullptr)
-					{
-						dynamic_cast<ModulatorSamplerSound*>(c.sound.get())->setProperty((ModulatorSamplerSound::Property)c.index, c.newValue, dontSendNotification);
-					}
-				}
-
-				
-			}
-
-			stopTimer();
-		}
-
-		void addNewPropertyChange(ModulatorSamplerSound* sound, int index, int newValue, bool allSamples)
-		{
-			ScopedLock sl(arrayLock);
-
-			for (auto& c : pendingChanges)
-			{
-				if (c.sound == sound && c.index == index && c.allSamples == allSamples)
-				{
-					c.newValue = newValue;
-					return;
-				}
-			}
-
-			pendingChanges.add(PropertyChange(sound, index, newValue, allSamples));
-
-			if (!sampler->sampleMapLoadingPending)
-			{
-				startTimer(200);
-			}
-		}
+		void addNewPropertyChange(ModulatorSamplerSound* sound, int index, int newValue, bool allSamples);
 
 		CriticalSection arrayLock;
 
@@ -699,22 +611,9 @@ private:
 			sampler(sampler_)
 		{};
 
-		void timerCallback()
-		{
-			triggerAsyncUpdate();
-			stopTimer();
-		}
+		void timerCallback();
 
-		void handleAsyncUpdate()
-		{
-			if (sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->isPreloading())
-			{
-				startTimer(100);
-				return;
-			}
-
-			sampler->refreshChannelsForSounds();
-		}
+		void handleAsyncUpdate() override;
 
 	private:
 

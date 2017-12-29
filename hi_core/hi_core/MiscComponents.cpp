@@ -680,27 +680,15 @@ void ImageComponentWithMouseCallback::paint(Graphics &g)
 		g.setOpacity(jmax<float>(0.0f, jmin<float>(1.0f, alpha)));
 
 		Rectangle<int> cropArea = Rectangle<int>(0,
-			offset * scale,
-			jmin<int>((int)((float)getWidth() * scale), image.getWidth()),
-			jmin<int>((int)((float)getHeight() * scale), image.getHeight()));
+			(int)((float)offset * scale),
+			jmin<int>((int)((float)getWidth() * (float)scale), image.getWidth()),
+			jmin<int>((int)((float)getHeight() * (float)scale), image.getHeight()));
 
 		Image croppedImage = image.getClippedImage(cropArea);
 
-#if 1
         float ratio  = (float)getHeight() / (float)getWidth();
-        
         int heightInImage = (int)((float)image.getWidth() * ratio);
-      
         g.drawImage(image, 0, 0, getWidth(), getHeight(), 0, offset, image.getWidth(), heightInImage);
-#else
-        
-		if (scale != 1.0)
-		{
-			croppedImage = croppedImage.rescaled((int)((double)croppedImage.getWidth() / scale), (int)((double)croppedImage.getHeight() / scale));
-		}
-
-		g.drawImageAt(croppedImage, 0, 0);
-#endif
 	}
 }
 

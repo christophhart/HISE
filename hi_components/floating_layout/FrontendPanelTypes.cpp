@@ -498,6 +498,8 @@ juce::Identifier PresetBrowserPanel::getDefaultablePropertyId(int index) const
 
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowFolderButton, "ShowFolderButton");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowSaveButton, "ShowSaveButton");
+
+	return Identifier();
 }
 
 
@@ -512,6 +514,8 @@ var PresetBrowserPanel::getDefaultProperty(int index) const
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowFolderButton, true);
 #endif
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowSaveButton, true);
+
+	return var();
 }
 
 AboutPagePanel::AboutPagePanel(FloatingTile* parent) :

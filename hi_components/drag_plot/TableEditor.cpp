@@ -542,7 +542,7 @@ void TableEditor::TouchOverlay::resized()
 
 
 
-void TableEditor::TouchOverlay::buttonClicked(Button* b)
+void TableEditor::TouchOverlay::buttonClicked(Button* /*b*/)
 {
 	if (auto te = table.getComponent())
 	{
@@ -561,7 +561,7 @@ void TableEditor::TouchOverlay::sliderValueChanged(Slider* slider)
 	{
 		if (auto dp = te->currently_dragged_point)
 		{
-			dp->setCurve(slider->getValue());
+			dp->setCurve((float)slider->getValue());
 			te->updateTable(true);
 			te->refreshGraph();
 		}

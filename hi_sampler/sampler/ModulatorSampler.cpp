@@ -148,6 +148,32 @@ void ModulatorSampler::refreshRRMap()
 	}
 }
 
+void ModulatorSampler::setReversed(bool shouldBeReversed)
+{
+    if (reversed != shouldBeReversed)
+    {
+        auto f = [shouldBeReversed](Processor* p)
+        {
+            auto s = static_cast<ModulatorSampler*>(p);
+
+            s->reversed = shouldBeReversed;
+
+            ModulatorSampler::SoundIterator sIter(s);
+
+            while (auto sound = sIter.getNextSound())
+            {
+                sound->setReversed(shouldBeReversed);
+            }
+
+            s->refreshMemoryUsage();
+
+            return true;
+        };
+
+        killAllVoicesAndCall(f);
+    }
+}
+
 void ModulatorSampler::setNumChannels(int numNewChannels)
 {
 
@@ -549,8 +575,8 @@ void ModulatorSampler::refreshMemoryUsage()
 	if (sampleMap == nullptr)
 		return;
 
-	const bool temporaryBufferIsFloatingPoint = getTemporaryVoiceBuffer()->isFloatingPoint();
-	const bool temporaryBufferShouldBeFloatingPoint = !sampleMap->isMonolith();
+	const auto temporaryBufferIsFloatingPoint = getTemporaryVoiceBuffer()->isFloatingPoint();
+	const auto temporaryBufferShouldBeFloatingPoint = !sampleMap->isMonolith();
 
 	if (temporaryBufferIsFloatingPoint != temporaryBufferShouldBeFloatingPoint)
 	{
@@ -558,7 +584,7 @@ void ModulatorSampler::refreshMemoryUsage()
 
 		StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, getBlockSize());
 
-		for (int i = 0; i < getNumVoices(); i++)
+		for (auto i = 0; i < getNumVoices(); i++)
 		{
 			static_cast<ModulatorSamplerVoice*>(getVoice(i))->setStreamingBufferDataType(temporaryBufferShouldBeFloatingPoint);
 		}
@@ -567,9 +593,9 @@ void ModulatorSampler::refreshMemoryUsage()
 	int64 actualPreloadSize = 0;
 
 	{
-		ModulatorSampler::SoundIterator sIter(this, false);
+		SoundIterator sIter(this, false);
 
-		while (auto sound = sIter.getNextSound())
+		while (const auto sound = sIter.getNextSound())
 		{
 			for (int j = 0; j < numChannels; j++)
 			{
@@ -604,7 +630,7 @@ void ModulatorSampler::setVoiceAmount(int newVoiceAmount)
 
 		
 		if (getAttribute(ModulatorSynth::VoiceLimit) > voiceAmount)
-			setAttribute(ModulatorSynth::VoiceLimit, (float)voiceAmount, sendNotification);
+			setAttribute(ModulatorSynth::VoiceLimit, float(voiceAmount), sendNotification);
 
 		auto f = [](Processor*p) { static_cast<ModulatorSampler*>(p)->setVoiceAmountInternal(); return true; };
 
@@ -642,7 +668,7 @@ void ModulatorSampler::setVoiceAmountInternal()
 		};
 	}
 
-	setKillFadeOutTime((int)getAttribute(ModulatorSynth::KillFadeTime));
+	setKillFadeOutTime(int(getAttribute(ModulatorSynth::KillFadeTime)));
 
 	refreshMemoryUsage();
 	refreshStreamingBuffers();
@@ -658,6 +684,92 @@ void ModulatorSampler::killAllVoicesAndCall(const ProcessorFunction& f)
 	{
 		getMainController()->getKillStateHandler().killVoicesAndCall(this, f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 	}
+}
+
+void ModulatorSampler::setSoundPropertyAsync(ModulatorSamplerSound* s, int index, int newValue)
+{
+    samplePropertyUpdater.addNewPropertyChange(s, index, newValue, false);
+}
+
+void ModulatorSampler::setSoundPropertyAsyncForAllSamples(int index, int newValue)
+{
+    samplePropertyUpdater.addNewPropertyChange(nullptr, index, newValue, true);
+}
+
+void ModulatorSampler::SamplePropertyUpdater::handlePendingChanges()
+{
+    dsp::Convolution;
+    
+    Array<PropertyChange> thisTime;
+
+	{
+		ScopedLock sl(arrayLock);
+		thisTime.swapWith(pendingChanges);
+	}
+
+	for (auto c : thisTime)
+	{
+		if (c.allSamples)
+		{
+			jassert(c.sound == nullptr);
+
+			ModulatorSampler::SoundIterator iter(sampler, false);
+
+			while (auto s = iter.getNextSound())
+			{
+				s->setProperty(ModulatorSamplerSound::Property(c.index), c.newValue, dontSendNotification);
+			}
+		}
+		else
+		{
+			if (c.sound != nullptr)
+			{
+				dynamic_cast<ModulatorSamplerSound*>(c.sound.get())->setProperty(ModulatorSamplerSound::Property(c.index),
+				                                                                 c.newValue, dontSendNotification);
+			}
+		}
+	}
+
+	stopTimer();
+}
+
+void ModulatorSampler::SamplePropertyUpdater::addNewPropertyChange(ModulatorSamplerSound* sound, int index,
+                                                                   int newValue, bool allSamples)
+{
+	ScopedLock sl(arrayLock);
+
+	for (auto& c : pendingChanges)
+	{
+		if (c.sound == sound && c.index == index && c.allSamples == allSamples)
+		{
+			c.newValue = newValue;
+			return;
+		}
+	}
+
+	pendingChanges.add(PropertyChange(sound, index, newValue, allSamples));
+
+	if (!sampler->sampleMapLoadingPending)
+	{
+		startTimer(200);
+	}
+}
+
+void ModulatorSampler::AsyncPurger::timerCallback()
+{
+	triggerAsyncUpdate();
+	stopTimer();
+}
+
+void ModulatorSampler::AsyncPurger::handleAsyncUpdate()
+{
+	if (sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->isPreloading())
+	{
+		startTimer(100);
+		return;
+	}
+
+	sampler->refreshChannelsForSounds();
 }
 
 void ModulatorSampler::setPreloadSize(int newPreloadSize)

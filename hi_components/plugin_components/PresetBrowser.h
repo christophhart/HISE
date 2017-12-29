@@ -37,8 +37,9 @@ namespace hise { using namespace juce;
 
 class MultiColumnPresetBrowser;
 
-
+#ifndef OLD_PRESET_BROWSER
 #define OLD_PRESET_BROWSER 0
+#endif
 
 class PresetBrowserLookAndFeel : public LookAndFeel_V3
 {

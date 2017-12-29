@@ -67,11 +67,7 @@ float WavetableSynthVoice::getGainValue(float modValue)
 
 const float *WavetableSynthVoice::getTableModulationValues(int startSample, int numSamples)
 {
-	
-
 	dynamic_cast<WavetableSynth*>(getOwnerSynth())->calculateTableModulationValuesForVoice(voiceIndex, startSample, numSamples);
-
-
 
 	return dynamic_cast<WavetableSynth*>(getOwnerSynth())->getTableModValues(voiceIndex);
 }

@@ -302,7 +302,7 @@ protected:
         g.drawText(text, 0, 0, width, height, Justification::centred);
     }
 
-	bool shouldPopupMenuScaleWithTargetComponent(const PopupMenu::Options& options) override
+	bool shouldPopupMenuScaleWithTargetComponent(const PopupMenu::Options& /*options*/) override
 	{
 		return false;
 	};

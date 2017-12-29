@@ -363,7 +363,7 @@ public:
 
 	enum SpecialPanelIds
 	{
-		ShowFolderButton = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		ShowFolderButton = (int)FloatingTileContent::PanelPropertyId::numPropertyIds,
 		ShowSaveButton,
 		numSpecialProperties
 	};

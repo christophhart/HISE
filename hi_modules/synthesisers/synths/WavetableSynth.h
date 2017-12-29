@@ -827,7 +827,7 @@ public:
 	};
 
 	/** This method is called to handle all modulatorchains just before the voice rendering. */
-	void preVoiceRendering(int startSample, int numThisTime)
+	void preVoiceRendering(int startSample, int numThisTime) override
 	{
 		tableIndexChain->renderNextBlock(tableBuffer, startSample, numThisTime);
 

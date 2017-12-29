@@ -233,6 +233,9 @@ void PresetBrowserColumn::ColumnListModel::paintListBoxItem(int rowNumber, Graph
 		g.setColour(Colours::white.withAlpha(0.4f));
 		if(rowIsSelected) g.drawRect(area, 1);
 
+        const float fontSize = HiseDeviceSimulator::isiPhone() ? 14.0f : 16.0f;
+        g.setFont(font.withHeight(fontSize));
+        
 		if (editMode)
 		{
 			g.setColour(Colour(0xFFAA0000));
@@ -249,8 +252,10 @@ void PresetBrowserColumn::ColumnListModel::paintListBoxItem(int rowNumber, Graph
 		}
 		else
 		{
+            
+            
 			g.setColour(Colours::white);
-			g.setFont(font.withHeight(16.0f));
+			
 			g.drawText(entries[rowNumber].getFileNameWithoutExtension(), 10, 0, width-20, height, Justification::centredLeft);
 		}
 

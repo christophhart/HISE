@@ -684,12 +684,18 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		}
 	}
 
+#if USE_HARD_CLIPPER
+	
+#else
 	// on iOS samples above 1.0f create a nasty digital distortion
-	if (USE_HARD_CLIPPER || HiseDeviceSimulator::isMobileDevice())
+	if (HiseDeviceSimulator::isMobileDevice())
 	{
 		for (int i = 0; i < buffer.getNumChannels(); i++)
 			FloatVectorOperations::clip(buffer.getWritePointer(i, 0), buffer.getReadPointer(i, 0), -1.0f, 1.0f, buffer.getNumSamples());
 	}
+#endif
+
+	
 
 #endif
 

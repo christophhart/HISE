@@ -935,7 +935,7 @@ void JavascriptProcessor::setDeviceTypeForInterface(int deviceIndex)
 
 
 
-ValueTree JavascriptProcessor::getContentPropertiesForDevice(int deviceIndex)
+ValueTree JavascriptProcessor::getContentPropertiesForDevice(int /*deviceIndex*/)
 {
 	static const Identifier deviceType("DeviceType");
 

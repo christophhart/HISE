@@ -399,8 +399,8 @@ struct ScriptContentPanel::Canvas : public ScriptEditHandler,
 		auto vpw = vp != nullptr ? vp->getWidth() - vp->getScrollBarThickness() : 0;
 		auto vph = vp != nullptr ? vp->getHeight() - vp->getScrollBarThickness() : 0;
 
-		auto w = unscaledWidth * zoomLevel + 20;
-		auto h = unscaledHeight * zoomLevel + 20;
+		auto w = (int)((float)unscaledWidth * zoomLevel) + 20;
+		auto h = (int)((float)unscaledHeight * zoomLevel) + 20;
 
 		setSize(jmax<int>(w, vpw), jmax<int>(h, vph));
 		resized();
@@ -440,8 +440,8 @@ public:
 			int w = content->getContentWidth();
 			int h = content->getContentHeight();
 
-			int scaledWidth = w * zoomLevel;
-			int scaledHeight = h * zoomLevel;
+			int scaledWidth = (int)((float)w * zoomLevel);
+			int scaledHeight = (int)((float)h * zoomLevel);
 
 			float centreX = (float)(getWidth() - w*zoomLevel) / 2;
 			float centreY = (float)(getHeight() - h*zoomLevel) / 2;
@@ -514,9 +514,6 @@ ScriptContentPanel::Editor::Editor(Processor* p):
 	zoomSelector->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::transparentBlack);
 	zoomSelector->setColour(MacroControlledObject::HiBackgroundColours::textColour, Colours::white.withAlpha(0.8f));
 
-	auto content_ = dynamic_cast<ProcessorWithScriptingContent*>(p)->getScriptingContent();
-
-	
 	addAndMakeVisible(editSelector = new HiseShapeButton("Edit", this, ColumnIcons::getPath(OverlayIcons::penShape, sizeof(OverlayIcons::penShape)),
 															     ColumnIcons::getPath(OverlayIcons::lockShape, sizeof(OverlayIcons::lockShape))));
 
@@ -579,8 +576,6 @@ void ScriptContentPanel::Editor::resized()
 	}
 	else
 	{
-		int x = 4;
-
 		auto total = getLocalBounds();
 
 		auto topRow = total.removeFromTop(24);
@@ -679,11 +674,9 @@ void ScriptContentPanel::Editor::setZoomAmount(double newZoomAmount)
 	{
 		zoomAmount = newZoomAmount;
 
-		
-
 		auto canvas = dynamic_cast<Canvas*>(viewport->getViewedComponent());
 
-		canvas->setZoomLevel(zoomAmount);
+		canvas->setZoomLevel((float)zoomAmount);
 
 		
 		
