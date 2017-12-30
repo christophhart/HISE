@@ -176,7 +176,7 @@
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </VS2015>
-    <VS2017 targetFolder="Builds/VisualStudio2015" vstFolder="c:\SDKs\vstsdk2.4"
+    <VS2017 targetFolder="Builds/VisualStudio2017" vstFolder="c:\SDKs\vstsdk2.4"
             smallIcon="" useIPP="Sequential" aaxFolder="D:\Development\SDKs\AAX"
             IPPLibrary="Sequential" windowsTargetPlatformVersion="8.1">
       <CONFIGURATIONS>
