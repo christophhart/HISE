@@ -29,8 +29,8 @@ echo Resaving projects...
 cd..
 cd..
 
-%projucerPath% --set-version %versionPoint% %standalone_projucer_project%
-%projucerPath% --set-version %versionPoint% %plugin_projucer_project%
+REM %projucerPath% --set-version %versionPoint% %standalone_projucer_project%
+REM %projucerPath% --set-version %versionPoint% %plugin_projucer_project%
 
 %projucerPath% --resave %standalone_projucer_project%
 %projucerPath% --resave %plugin_projucer_project%
@@ -40,15 +40,16 @@ REM Compiling
 
 echo Compiling 32bit VST Plugins
 
-set VisualStudioVersion=14.0
+set VisualStudioVersion=15.0
 set Platform=X86 
 
-"C:\Program Files (x86)\MSBuild\14.0\Bin\MsBuild.exe" %plugin_project% /t:Build /p:Configuration=Release;Platform=Win32 /verbosity:minimal
+"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MsBuild.exe" %plugin_project% /t:Build /p:Configuration=Release;Platform=Win32 /verbosity:minimal
 
 if %errorlevel% NEQ 0 (
 	echo ========================================================================
 	echo Error at compiling. Aborting...
 	cd tools\auto_build
+	pause
 	exit 1
 )
 
@@ -60,7 +61,7 @@ set Platform=X64
 
 echo Compiling Stereo Version...
 
-"C:\Program Files (x86)\MSBuild\14.0\Bin\MsBuild.exe"  %plugin_project% /t:Build /p:Configuration="Release";Platform=x64 /v:m
+"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MsBuild.exe"  %plugin_project% /t:Build /p:Configuration="Release";Platform=x64 /v:m
 
 if %errorlevel% NEQ 0 (
 	echo ========================================================================
@@ -73,7 +74,7 @@ echo OK
 
 echo Compiling 64bit Standalone App...
 
-"C:\Program Files (x86)\MSBuild\14.0\Bin\MsBuild.exe"  %standalone_project% /t:Build /p:Configuration="Release";Platform=x64 /v:m
+"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MsBuild.exe"  %standalone_project% /t:Build /p:Configuration="Release";Platform=x64 /v:m
 
 if %errorlevel% NEQ 0 (
 	echo ========================================================================
