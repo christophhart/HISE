@@ -1466,6 +1466,11 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 
 		tmpFile.deleteFile();
 	}
+#else
+
+    ignoreUnused(data);
+
+
 #endif
 }
 

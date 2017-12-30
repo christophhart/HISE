@@ -919,6 +919,8 @@ void HiseJavascriptEngine::checkValidParameter(int index, const var& valueToTest
 	{
 		location.throwError("API call with undefined parameter " + String(index));
 	}
+#else
+    ignoreUnused(location, index, valueToTest);
 #endif
 }
 

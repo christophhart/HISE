@@ -215,6 +215,8 @@ void ThreadWithQuasiModalProgressWindow::Overlay::paint(Graphics &g)
 
 		g.drawText("Task: " + String(currentTaskIndex) + "/" + String(totalTasks), textArea, Justification::centred);
 	}
+#else
+    ignoreUnused(g);
 #endif
 }
 
