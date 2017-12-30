@@ -68,7 +68,7 @@ echo "Building Installer..."
 
 mv build/HISE.pkg Output/HISE_$version.pkg
 
-echo "Codesigning Standalone App..."
+echo "Codesigning Installer..."
 codesign -s "$apple_id" ./Output/HISE_$version.pkg
 echo "OK."
 

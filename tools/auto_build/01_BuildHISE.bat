@@ -29,8 +29,10 @@ echo Resaving projects...
 cd..
 cd..
 
-REM %projucerPath% --set-version %versionPoint% %standalone_projucer_project%
-REM %projucerPath% --set-version %versionPoint% %plugin_projucer_project%
+echo Setting version number %versionPoint%
+
+%projucerPath% --set-version %versionPoint% %standalone_projucer_project%
+%projucerPath% --set-version %versionPoint% %plugin_projucer_project%
 
 %projucerPath% --resave %standalone_projucer_project%
 %projucerPath% --resave %plugin_projucer_project%
