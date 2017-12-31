@@ -322,13 +322,14 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent(int property
 	{
 		PROPERTY_CASE::ScriptComponent::useUndoManager:	s->setUseUndoManagerForEvents(GET_SCRIPT_PROPERTY(useUndoManager)); break;
 		PROPERTY_CASE::ScriptComponent::text:			s->setName(GET_SCRIPT_PROPERTY(text)); break;
-		PROPERTY_CASE::ScriptComponent::enabled:		s->enableMacroControlledComponent(GET_SCRIPT_PROPERTY(enabled));
-		PROPERTY_CASE::ScriptComponent::tooltip :		s->setTooltip(GET_SCRIPT_PROPERTY(tooltip)); break;
-		PROPERTY_CASE::ScriptComponent::saveInPreset:   s->setCanBeMidiLearned(newValue);
+		PROPERTY_CASE::ScriptComponent::enabled:		s->enableMacroControlledComponent(GET_SCRIPT_PROPERTY(enabled)); break;
+		PROPERTY_CASE::ScriptComponent::tooltip :		updateTooltip(s); break;
+		PROPERTY_CASE::ScriptComponent::saveInPreset:   s->setCanBeMidiLearned(newValue); break;
 		PROPERTY_CASE::ScriptComponent::bgColour:
 		PROPERTY_CASE::ScriptComponent::itemColour :
 		PROPERTY_CASE::ScriptComponent::itemColour2 :
 		PROPERTY_CASE::ScriptComponent::textColour :	updateColours(s); break;
+		PROPERTY_CASE::ScriptSlider::dragDirection:
 		PROPERTY_CASE::ScriptSlider::Style:				updateSliderStyle(sc, s); break;
 		PROPERTY_CASE::ScriptSlider::Mode:
 		PROPERTY_CASE::ScriptComponent::min :
@@ -342,7 +343,6 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent(int property
 		PROPERTY_CASE::ScriptSlider::isVertical :
 		PROPERTY_CASE::ScriptSlider::scaleFactor :		updateFilmstrip(); break;
 		PROPERTY_CASE::ScriptSlider::mouseSensitivity:		updateSensitivity(sc, s); break;
-		PROPERTY_CASE::ScriptSlider::dragDirection:
 		PROPERTY_CASE::ScriptSlider::showValuePopup:
 		PROPERTY_CASE::ScriptSlider::numProperties:
 	default:
@@ -355,13 +355,13 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateValue(var newValue)
 	if (auto s = dynamic_cast<HiSlider*>(getComponent()))
 	{
 		s->updateValue(dontSendNotification);
+		updateTooltip(s);
 	}
 	
 }
 
 void ScriptCreatedComponentWrappers::SliderWrapper::sliderValueChanged(Slider *s)
 {
-	
 	if (s->getSliderStyle() == Slider::TwoValueHorizontal)
 	{
 		if (s->getThumbBeingDragged() == 1)
@@ -378,6 +378,19 @@ void ScriptCreatedComponentWrappers::SliderWrapper::sliderValueChanged(Slider *s
 	else
 	{
 		/*changed(s->getValue());*/ // setInternalAttribute handles this for HiWidgets.
+	}
+}
+
+void ScriptCreatedComponentWrappers::SliderWrapper::updateTooltip(Slider * s)
+{
+	auto tooltip = GET_SCRIPT_PROPERTY(tooltip).toString();
+
+	static const String valueWildCard("{VALUE}");
+
+	if (tooltip.isNotEmpty() && tooltip.contains(valueWildCard))
+	{
+		tooltip = tooltip.replace(valueWildCard, s->getTextFromValue(s->getValue()));
+		s->setTooltip(tooltip);
 	}
 }
 
@@ -1587,10 +1600,14 @@ void ScriptCreatedComponentWrappers::FloatingTileWrapper::updateComponent(int pr
 
 	switch (propertyIndex)
 	{
-	PROPERTY_CASE::ScriptComponent::itemColour: ftc->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, GET_OBJECT_COLOUR(itemColour)); break;
-	PROPERTY_CASE::ScriptComponent::itemColour2 : ftc->setPanelColour(FloatingTileContent::PanelColourId::itemColour2, GET_OBJECT_COLOUR(itemColour)); break;
-	PROPERTY_CASE::ScriptComponent::bgColour : ftc->setPanelColour(FloatingTileContent::PanelColourId::bgColour, GET_OBJECT_COLOUR(itemColour)); break;
-	PROPERTY_CASE::ScriptComponent::textColour :  ftc->setPanelColour(FloatingTileContent::PanelColourId::textColour, GET_OBJECT_COLOUR(itemColour)); break;
+	PROPERTY_CASE::ScriptComponent::itemColour: 
+	PROPERTY_CASE::ScriptComponent::itemColour2: 
+	PROPERTY_CASE::ScriptComponent::bgColour: 
+	PROPERTY_CASE::ScriptComponent::textColour: 
+	PROPERTY_CASE::ScriptFloatingTile::Properties::Font:
+	PROPERTY_CASE::ScriptFloatingTile::Properties::FontSize:
+	PROPERTY_CASE::ScriptFloatingTile::Properties::Data :
+	PROPERTY_CASE::ScriptFloatingTile::Properties::ContentType: ft->setContent(sft->getContentData()); break;
 	}
 }
 

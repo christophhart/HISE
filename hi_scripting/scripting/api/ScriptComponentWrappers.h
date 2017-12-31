@@ -370,6 +370,8 @@ public:
 
 		void sliderValueChanged(Slider *s) override;
 
+		void updateTooltip(Slider * s);
+
 		void sliderDragStarted(Slider* s) override;
 
 		void sliderDragEnded(Slider* s) override;
