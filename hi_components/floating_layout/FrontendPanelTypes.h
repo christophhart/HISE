@@ -497,6 +497,8 @@ public:
 	}
 
 	
+	var toDynamicObject() const override;
+
 	void fromDynamicObject(const var& object) override;
 	
 	Identifier getDefaultablePropertyId(int index) const override;

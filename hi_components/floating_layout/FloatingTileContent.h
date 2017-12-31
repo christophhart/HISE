@@ -236,6 +236,12 @@ public:
 		editor->setReadOnly(!shouldBeEditable);
 	}
 
+	void setDataToEdit(var newData)
+	{
+		doc->clearUndoHistory();
+		doc->replaceAllContent(JSON::toString(newData));
+	}
+
 	void replace();
 	
 	void executeCallback();
@@ -508,6 +514,10 @@ public:
 
 		void registerAllPanelTypes();
 
+		void registerFrontendPanelTypes();
+
+
+
 		Drawable* getIcon(PopupMenuOptions type) const;
 
 		static Path getPath(PopupMenuOptions path);
@@ -552,7 +562,6 @@ public:
 			return defaultValue;
 	}
 
-	
 protected:
 
 	/** Overwrite this method if the component has a fixed width. */
@@ -561,6 +570,8 @@ protected:
 	/** Overwrite this method if the component has a fixed height. */
 	virtual int getFixedHeight() const { return 0; }
 	
+	
+
 private:
 
 	struct ColourHolder : public ObjectWithDefaultProperties
@@ -637,6 +648,14 @@ private:
 			}
 		}
 
+		Colour getDefaultColour(ColourId id) const
+		{
+			if (id < ColourId::numColourIds)
+				return defaultColours[(int)id];
+
+			return Colours::transparentBlack;
+		}
+
 		var toDynamicObject() const override
 		{
 			DynamicObject::Ptr o = new DynamicObject();
@@ -701,6 +720,11 @@ private:
 	{
 		colourData.setDefaultColour(id, newColour);
 		colourData.setColour(id, newColour);
+	}
+
+	Colour getDefaultPanelColour(PanelColourId id) const
+	{
+		return colourData.getDefaultColour(id);
 	}
 
 

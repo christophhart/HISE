@@ -129,7 +129,9 @@ FloatingTileContent* FloatingTileContent::createPanel(const var& data, FloatingT
 {
 	if (auto obj = data.getDynamicObject())
 	{
-		auto panelId = Identifier(obj->getProperty("Type"));
+		auto panelIdString = obj->getProperty("Type").toString();
+
+		auto panelId = panelIdString.isNotEmpty() ? Identifier(panelIdString) : EmptyComponent::getPanelId();
 
 		auto p = parent->getPanelFactory()->createFromId(panelId, parent);
 

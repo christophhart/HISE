@@ -1332,6 +1332,10 @@ public:
 		enum Properties
 		{
 			updateAfterInit = ScriptComponent::Properties::numProperties,
+			ContentType,
+			Font,
+			FontSize,
+			Data,
 			numProperties
 		};
 
@@ -1342,10 +1346,14 @@ public:
 
 		// ========================================================================================================
 
+		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */) override;
+
+
 		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptFloatingTile"); }
 		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); };
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
-		
+
+		StringArray getOptionsFor(const Identifier &id) override;
 		
 		ValueTree exportAsValueTree() const override;
 		void restoreFromValueTree(const ValueTree &v) override;

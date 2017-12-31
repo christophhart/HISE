@@ -3149,7 +3149,13 @@ struct ScriptingApi::Content::ScriptFloatingTile::Wrapper
 ScriptingApi::Content::ScriptFloatingTile::ScriptFloatingTile(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier panelName, int x, int y, int width, int height) :
 	ScriptComponent(base, panelName)
 {
-	propertyIds.add("updateAfterInit");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	propertyIds.add("updateAfterInit");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i01, "ContentType");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(i02, "Font");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(i03, "FontSize");	ADD_TO_TYPE_SELECTOR(SelectorTypes::SliderSelector);
+	ADD_SCRIPT_PROPERTY(i04, "Data");	ADD_TO_TYPE_SELECTOR(SelectorTypes::CodeSelector);
+
+	priorityProperties.add(getIdFor(ContentType));
 
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::saveInPreset));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::macroControl));
@@ -3159,8 +3165,9 @@ ScriptingApi::Content::ScriptFloatingTile::ScriptFloatingTile(ProcessorWithScrip
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::pluginParameterName));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::text));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::tooltip));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::textColour));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::useUndoManager));
+	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::processorId));
+	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::parameterId));
 	
 	setDefaultValue(ScriptComponent::Properties::x, x);
 	setDefaultValue(ScriptComponent::Properties::y, y);
@@ -3169,6 +3176,10 @@ ScriptingApi::Content::ScriptFloatingTile::ScriptFloatingTile(ProcessorWithScrip
 	setDefaultValue(ScriptComponent::Properties::saveInPreset, false);
 	setDefaultValue(ScriptComponent::Properties::saveInPreset, false);
 	setDefaultValue(Properties::updateAfterInit, true);
+	setDefaultValue(Properties::ContentType, EmptyComponent::getPanelId().toString());
+	setDefaultValue(Properties::Font, "Default");
+	setDefaultValue(Properties::FontSize, 14.0);
+	setDefaultValue(Properties::Data, "{\n}");
 
 	ADD_API_METHOD_1(setContentData);
 }
@@ -3188,6 +3199,115 @@ ValueTree ScriptingApi::Content::ScriptFloatingTile::exportAsValueTree() const
 void ScriptingApi::Content::ScriptFloatingTile::restoreFromValueTree(const ValueTree &v)
 {
 	ScriptComponent::restoreFromValueTree(v);
+}
+
+StringArray ScriptingApi::Content::ScriptFloatingTile::getOptionsFor(const Identifier &id)
+{
+	if (id == getIdFor(ContentType))
+	{
+		FloatingTileContent::Factory factory;
+		factory.registerFrontendPanelTypes();
+
+		auto l = factory.getIdList();
+
+		StringArray sa;
+
+		for (auto& i : l)
+			sa.add(i.toString());
+
+		return sa;
+	}
+	else if (id == getIdFor(Font))
+	{
+		StringArray sa;
+
+		sa.add("Default");
+		sa.add("Oxygen");
+		sa.add("Source Code Pro");
+		getScriptProcessor()->getMainController_()->fillWithCustomFonts(sa);
+		sa.addArray(Font::findAllTypefaceNames());
+
+		return sa;
+	}
+
+	return ScriptComponent::getOptionsFor(id);
+}
+
+void ScriptingApi::Content::ScriptFloatingTile::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */)
+{
+	if (id == getIdFor(ContentType))
+	{
+		FloatingTile ft(getScriptProcessor()->getMainController_(), nullptr);
+
+		ft.setNewContent(newValue.toString());
+
+		auto ftc = ft.getCurrentFloatingPanel();
+
+		
+
+		setScriptObjectProperty(bgColour, (int64)ftc->getDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour).getARGB(), sendNotification);
+		setScriptObjectProperty(itemColour, (int64)ftc->getDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour1).getARGB(), sendNotification);
+		setScriptObjectProperty(itemColour2, (int64)ftc->getDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour2).getARGB(), sendNotification);
+		setScriptObjectProperty(textColour, (int64)ftc->getDefaultPanelColour(FloatingTileContent::PanelColourId::textColour).getARGB(), sendNotification);
+
+		jsonData = ftc->toDynamicObject();
+
+		if (auto obj = jsonData.getDynamicObject())
+		{
+			var specialData = obj->clone();
+
+			auto specialDataObj = specialData.getDynamicObject();
+
+			specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::ColourData));
+			specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::StyleData));
+			specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::LayoutData));
+			specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::Font));
+			specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::FontSize));
+			specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::Type));
+
+			setScriptObjectProperty(ContentType, newValue, sendNotification);
+			setScriptObjectProperty(Data, JSON::toString(specialData), sendNotification);
+			return;
+		}
+	}
+	else if (id == getIdFor(Data))
+	{
+		var specialData = JSON::parse(newValue.toString());
+
+		if (auto obj = specialData.getDynamicObject())
+		{
+			auto dataObject = jsonData.getDynamicObject();
+
+			auto prop = obj->getProperties();
+
+			for (int i = 0; i < prop.size(); i++)
+			{
+				dataObject->setProperty(prop.getName(i), prop.getValueAt(i));
+			}
+		}
+	}
+	else if (id == getIdFor(bgColour) || id == getIdFor(textColour) || id == getIdFor(itemColour) || id == getIdFor(itemColour2))
+	{
+		if (auto obj = jsonData.getDynamicObject())
+		{
+			// Best. Line. Ever.
+			Identifier idToUse = id == getIdFor(itemColour) ? Identifier("itemColour1"): id;
+
+			if (auto colourObj = obj->getProperty("ColourData").getDynamicObject())
+			{
+				colourObj->setProperty(idToUse, newValue);
+			}
+		}
+	}
+	else if (id == getIdFor(Font) || id == getIdFor(FontSize))
+	{
+		if (auto obj = jsonData.getDynamicObject())
+		{
+			obj->setProperty(id, newValue);
+		}
+	}
+
+	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, sendNotification);
 }
 
 // ====================================================================================================== Content functions

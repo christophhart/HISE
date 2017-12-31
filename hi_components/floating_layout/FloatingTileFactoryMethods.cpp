@@ -34,7 +34,7 @@ namespace hise { using namespace juce;
 
 void FloatingTileContent::Factory::registerAllPanelTypes()
 {
-	registerType<EmptyComponent>(PopupMenuOptions::Empty);
+	
 	registerType<SpacerPanel>(PopupMenuOptions::Spacer);
 	registerType<VisibilityToggleBar>(PopupMenuOptions::VisibilityToggleBar);
 	registerType<HorizontalTile>(PopupMenuOptions::HorizontalTile);
@@ -42,7 +42,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<FloatingTabComponent>(PopupMenuOptions::Tabs);
 	registerType<Note>(PopupMenuOptions::Note);
 
-	registerType<PresetBrowserPanel>(PopupMenuOptions::PresetBrowser);
+	
 
 #if USE_BACKEND
 	registerType<GenericPanel<MacroComponent>>(PopupMenuOptions::MacroControls);
@@ -61,25 +61,22 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<ScriptComponentList::Panel>(PopupMenuOptions::ScriptComponentList);
 #endif
 
+	registerFrontendPanelTypes();
 
-	registerType<AboutPagePanel>(PopupMenuOptions::AboutPage);
 
-	registerType<MidiKeyboardPanel>(PopupMenuOptions::MidiKeyboard);
 	registerType<PopoutButtonPanel>(PopupMenuOptions::PopoutButton);
-	registerType<PerformanceLabelPanel>(PopupMenuOptions::PerformanceStatistics);
-	registerType<ActivityLedPanel>(PopupMenuOptions::ActivityLed);
+	
+	
 	registerType<ActivationWindow>(PopupMenuOptions::ActivationPanel);
 
 	registerType<InterfaceContentPanel>(PopupMenuOptions::InterfaceContent);
 
 	registerType<TuningWindow::Panel>(PopupMenuOptions::TuningWindow),
-	registerType<CustomSettingsWindowPanel>(PopupMenuOptions::PluginSettings),
-	registerType<MidiSourcePanel>(PopupMenuOptions::MidiSourceList);
-	registerType<MidiChannelPanel>(PopupMenuOptions::MidiChannelList);
+	
 
 	registerType<SampleMapBrowser>(PopupMenuOptions::SampleMapBrowser);
 
-	registerType<TooltipPanel>(PopupMenuOptions::TooltipPanel);
+	
 
 	//MidiSourceList
 
@@ -93,7 +90,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<ScriptContentPanel>(PopupMenuOptions::ScriptContent);
 #endif
 
-	registerType<MidiLearnPanel>(PopupMenuOptions::MidiLearnPanel);
+	
 
 	registerType<TableEditorPanel>(PopupMenuOptions::TablePanel);
 	registerType<SliderPackPanel>(PopupMenuOptions::SliderPackPanel);
@@ -106,6 +103,24 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 #endif
 
 }
+
+
+void FloatingTileContent::Factory::registerFrontendPanelTypes()
+{
+	registerType<EmptyComponent>(PopupMenuOptions::Empty);
+	registerType<PresetBrowserPanel>(PopupMenuOptions::PresetBrowser);
+	registerType<AboutPagePanel>(PopupMenuOptions::AboutPage);
+	registerType<MidiKeyboardPanel>(PopupMenuOptions::MidiKeyboard);
+	registerType<PerformanceLabelPanel>(PopupMenuOptions::PerformanceStatistics);
+	registerType<ActivityLedPanel>(PopupMenuOptions::ActivityLed);
+	registerType<CustomSettingsWindowPanel>(PopupMenuOptions::PluginSettings),
+	registerType<MidiSourcePanel>(PopupMenuOptions::MidiSourceList);
+	registerType<MidiChannelPanel>(PopupMenuOptions::MidiChannelList);
+	registerType<TooltipPanel>(PopupMenuOptions::TooltipPanel);
+	registerType<MidiLearnPanel>(PopupMenuOptions::MidiLearnPanel);
+}
+
+
 
 
 Drawable* FloatingTileContent::Factory::getIcon(PopupMenuOptions type) const

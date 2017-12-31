@@ -1559,29 +1559,25 @@ ScriptCreatedComponentWrappers::FloatingTileWrapper::FloatingTileWrapper(ScriptC
 
 	auto ft = new FloatingTile(mc, nullptr);
 
+	component = ft;
+
 	ft->setName(floatingTile->name.toString());
 	ft->setOpaque(false);
-
 	ft->setContent(floatingTile->getContentData());
 	ft->refreshRootLayout();
-
-	component = ft;
 }
 
 
 
 void ScriptCreatedComponentWrappers::FloatingTileWrapper::updateComponent()
 {
-	
-
-	
-	
 }
 
 void ScriptCreatedComponentWrappers::FloatingTileWrapper::updateComponent(int propertyIndex, var newValue)
 {
 	ScriptCreatedComponentWrapper::updateComponent(propertyIndex, newValue);
 
+	auto sft = dynamic_cast<ScriptingApi::Content::ScriptFloatingTile*>(getScriptComponent());
 	auto ft = dynamic_cast<FloatingTile*>(component.get());
 
 	auto ftc = ft->getCurrentFloatingPanel();

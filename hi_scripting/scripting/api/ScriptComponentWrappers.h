@@ -658,9 +658,7 @@ public:
 		FloatingTileWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptFloatingTile *floatingTile, int index);
 
 		void updateComponent() override;
-
 		void updateComponent(int index, var newValue) override;
-
 		void updateValue(var newValue) override;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FloatingTileWrapper)

@@ -526,6 +526,22 @@ AboutPagePanel::AboutPagePanel(FloatingTile* parent) :
 	setDefaultPanelColour(PanelColourId::bgColour, Colours::black);
 }
 
+
+var AboutPagePanel::toDynamicObject() const
+{
+	auto object = FloatingTileContent::toDynamicObject();
+
+	storePropertyInObject(object, CopyrightNotice, showCopyrightNotice);
+	storePropertyInObject(object, ShowLicensedEmail, showLicensedEmail);
+	storePropertyInObject(object, ShowVersion, showVersion);
+	storePropertyInObject(object, BuildDate, showBuildDate);
+	storePropertyInObject(object, WebsiteURL, showWebsiteURL);
+	storePropertyInObject(object, ShowProductName, showProductName);
+	storePropertyInObject(object, UseCustomImage, useCustomImage);
+
+	return object;
+}
+
 void AboutPagePanel::fromDynamicObject(const var& object)
 {
 	FloatingTileContent::fromDynamicObject(object);
