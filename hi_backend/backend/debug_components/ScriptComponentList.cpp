@@ -71,6 +71,9 @@ ScriptComponentListItem::ScriptComponentListItem(ValueTree v, UndoManager& um_, 
 
 void ScriptComponentListItem::itemDoubleClicked(const MouseEvent& /*e*/)
 {
+	if (content.get() == nullptr)
+		return;
+
 	if (isRootItem())
 		return;
 
@@ -161,6 +164,9 @@ void ScriptComponentListItem::paintItem(Graphics& g, int width, int height)
 
 void ScriptComponentListItem::itemSelectionChanged(bool isNowSelected)
 {
+	if (content.get() == nullptr)
+		return;
+
 	if (!fitsSearch)
 	{
 		setSelected(false, false, sendNotification);
@@ -215,6 +221,9 @@ void ScriptComponentListItem::refreshScriptDefinedState()
 	{
 		var name(getUniqueName());
 
+		if (content.get() == nullptr)
+			return;
+
 		auto scVar = content->getComponent(name);
 
 		if (auto sc = dynamic_cast<ScriptingApi::Content::ScriptComponent*>(scVar.getObject()))
@@ -244,7 +253,10 @@ void ScriptComponentListItem::itemDropped(const DragAndDropTarget::SourceDetails
 
 	moveItems(*getOwnerView(), selectedTrees, tree, insertIndex, undoManager);
 
-	content->updateAndSetLevel(ScriptingApi::Content::FullRecompile);
+	if (content.get() != nullptr)
+	{
+		content->updateAndSetLevel(ScriptingApi::Content::FullRecompile);
+	}
 }
 
 void ScriptComponentListItem::moveItems(TreeView& treeView, const OwnedArray<ValueTree>& items, ValueTree newParent, int insertIndex, UndoManager& undoManager)

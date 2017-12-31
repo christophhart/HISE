@@ -51,6 +51,9 @@ public:
 
 	~ScriptComponentListItem()
 	{
+		if (content.get() == nullptr)
+			return;
+
 		content->getProcessor()->getMainController()->removeScriptListener(this);
 	}
 
@@ -164,7 +167,7 @@ private:
 	ValueTree tree;
 	UndoManager& undoManager;
     
-	ScriptingApi::Content* content;
+	WeakReference<ScriptingApi::Content> content;
 
     String searchTerm;
     
