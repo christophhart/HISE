@@ -521,6 +521,7 @@ ScriptContentPanel::Editor::Editor(Processor* p):
 	addAndMakeVisible(cancelButton = new HiseShapeButton("Cancel", this, ColumnIcons::getPath(EditorIcons::cancelIcon, sizeof(EditorIcons::cancelIcon))));
 
 	addAndMakeVisible(undoButton = new HiseShapeButton("Undo", this, ColumnIcons::getPath(EditorIcons::undoIcon, sizeof(EditorIcons::undoIcon))));
+	undoButton->setTooltip("Undo last item change");
 
 	addAndMakeVisible(redoButton = new HiseShapeButton("Redo", this, ColumnIcons::getPath(EditorIcons::redoIcon, sizeof(EditorIcons::redoIcon))));
 
@@ -534,9 +535,21 @@ ScriptContentPanel::Editor::Editor(Processor* p):
 	zoomSelector->setTooltip("Select Zoom Level");
 	editSelector->setTooltip("Toggle Edit / Presentation Mode (F4)");
 	cancelButton->setTooltip("Deselect current item (Escape)");
-	undoButton->setTooltip("Undo last item change");
+	
 	redoButton->setTooltip("Redo last item change");
 	rebuildButton->setTooltip("Rebuild Interface (F5)");
+
+	
+
+
+	addAndMakeVisible(verticalAlignButton = new HiseShapeButton("Vertical Align", this, ColumnIcons::getPath(ColumnIcons::verticalAlign, sizeof(ColumnIcons::verticalAlign))));
+	verticalAlignButton->setTooltip("Align the selection vertically on the left edge");
+	addAndMakeVisible(horizontalAlignButton = new HiseShapeButton("Horizontal Align", this, ColumnIcons::getPath(ColumnIcons::horizontalAlign, sizeof(ColumnIcons::horizontalAlign))));
+	horizontalAlignButton->setTooltip("Align the selection horizontally on the top edge");
+	addAndMakeVisible(verticalDistributeButton = new HiseShapeButton("Vertical Distribute", this, ColumnIcons::getPath(ColumnIcons::verticalDistribute, sizeof(ColumnIcons::verticalDistribute))));
+	verticalDistributeButton->setTooltip("Distribute the selection vertically with equal space");
+	addAndMakeVisible(horizontalDistributeButton = new HiseShapeButton("Horizontal Distribute", this, ColumnIcons::getPath(ColumnIcons::horizontalDistribute, sizeof(ColumnIcons::horizontalDistribute))));
+	horizontalDistributeButton->setTooltip("Distribute the selection horizontally with equal space");
 
 	setWantsKeyboardFocus(true);
 
@@ -573,6 +586,10 @@ void ScriptContentPanel::Editor::resized()
 		zoomSelector->setVisible(false);
 		undoButton->setVisible(false);
 		redoButton->setVisible(false);
+		verticalAlignButton->setVisible(false);
+		horizontalAlignButton->setVisible(false);
+		verticalDistributeButton->setVisible(false);
+		horizontalDistributeButton->setVisible(false);
 	}
 	else
 	{
@@ -592,6 +609,13 @@ void ScriptContentPanel::Editor::resized()
 		topRow.removeFromLeft(20);
 
 		rebuildButton->setBounds(topRow.removeFromLeft(24).reduced(2));
+
+		topRow.removeFromLeft(50);
+
+		verticalAlignButton->setBounds(topRow.removeFromLeft(24).reduced(2));
+		horizontalAlignButton->setBounds(topRow.removeFromLeft(24).reduced(2));
+		verticalDistributeButton->setBounds(topRow.removeFromLeft(24).reduced(2));
+		horizontalDistributeButton->setBounds(topRow.removeFromLeft(24).reduced(2));
 
 		auto canvas = dynamic_cast<Canvas*>(viewport->getViewedComponent());
 		
@@ -641,6 +665,23 @@ void ScriptContentPanel::Editor::buttonClicked(Button* b)
 	{
 		Actions::rebuildAndRecompile(this);
 	}
+	if (b == verticalAlignButton)
+	{
+		Actions::align(this,true);
+	}
+	if (b == horizontalAlignButton)
+	{
+		Actions::align(this,false);
+	}
+	if (b == verticalDistributeButton)
+	{
+		Actions::distribute(this,true);
+	}
+	if (b == horizontalDistributeButton)
+	{
+		Actions::distribute(this,false);
+	}
+	
 }
 
 
@@ -767,6 +808,80 @@ void ScriptContentPanel::Editor::Actions::zoomOut(Editor* e)
 void ScriptContentPanel::Editor::Actions::toggleEditMode(Editor* e)
 {
 	e->editSelector->triggerClick();
+}
+
+struct ComponentPositionComparator
+{
+	ComponentPositionComparator(bool isVertical_) :
+		isVertical(isVertical_)
+	{};
+
+	int compareElements(ScriptComponent* first, ScriptComponent* second)
+	{
+		int firstValue = isVertical ? first->getPosition().getY() : first->getPosition().getX();
+		int secondValue = isVertical ? second->getPosition().getY() : second->getPosition().getX();
+
+		return firstValue > secondValue ? 1 : -1;
+	}
+
+	bool isVertical;
+};
+
+void ScriptContentPanel::Editor::Actions::distribute(Editor* editor, bool isVertical)
+{
+	auto b = editor->getScriptComponentEditBroadcaster();
+
+	b->getUndoManager().beginNewTransaction("Distribute " + isVertical ? "vertically" : "horizontally");
+
+	auto selection = b->getSelection();
+
+	if (selection.size() < 3)
+		return;
+
+	float minV = 100000.0f;
+	float maxV = -1.0f;
+
+	ComponentPositionComparator comparator(isVertical);
+
+	selection.sort(comparator);
+
+	for (const auto& sc : selection)
+	{
+		minV = jmin<float>(minV, (float)(isVertical ? sc->getPosition().getY() : sc->getPosition().getX()));
+		maxV = jmax<float>(maxV, (float)(isVertical ? sc->getPosition().getY() : sc->getPosition().getX()));
+	}
+
+	const auto delta = (maxV - minV) / float(selection.size()-1);
+
+	auto id = isVertical ? Identifier("y") : Identifier("x");
+
+	
+
+	for (auto& sc : selection)
+	{
+		b->setScriptComponentProperty(sc, id, (int)minV, sendNotification, false);
+		minV += delta;
+	}
+
+
+}
+
+void ScriptContentPanel::Editor::Actions::align(Editor* editor, bool isVertical)
+{
+	auto b = editor->getScriptComponentEditBroadcaster();
+	
+	auto selection = b->getSelection();
+
+	int minV = INT_MAX;
+
+	for (const auto& sc : selection)
+	{
+		minV = jmin<int>(minV, isVertical ? sc->getPosition().getX() : sc->getPosition().getY());
+	}
+
+	auto id = isVertical ? Identifier("x") : Identifier("y");
+
+	b->setScriptComponentPropertyForSelection(id, minV, sendNotification);
 }
 
 bool ScriptContentPanel::Editor::keyPressed(const KeyPress& key)

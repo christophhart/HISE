@@ -227,6 +227,8 @@ public:
 
 			static void toggleEditMode(Editor* e);
 
+			static void distribute(Editor* editor, bool isVertical);
+			static void align(Editor* editor, bool isVertical);
 		};
 
 #if 0
@@ -331,6 +333,11 @@ public:
 		ScopedPointer<HiseShapeButton> undoButton;
 		ScopedPointer<HiseShapeButton> redoButton;
 		ScopedPointer<HiseShapeButton> rebuildButton;
+
+		ScopedPointer<HiseShapeButton> verticalAlignButton;
+		ScopedPointer<HiseShapeButton> horizontalAlignButton;
+		ScopedPointer<HiseShapeButton> verticalDistributeButton;
+		ScopedPointer<HiseShapeButton> horizontalDistributeButton;
 
 		ScopedPointer<Viewport> viewport;
 	};
