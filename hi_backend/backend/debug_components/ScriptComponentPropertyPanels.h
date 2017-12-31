@@ -193,6 +193,20 @@ private:
 };
 
 
+class HiCodeEditorPropertyComponent : public HiPropertyComponent
+{
+public:
+	HiCodeEditorPropertyComponent(const Identifier& id, ScriptComponentEditPanel* panel);
+
+	void refresh() override;
+
+private:
+
+	ScopedPointer<JSONEditor> editor;
+
+	var empty;
+};
+
 class HiTogglePropertyComponent : public HiPropertyComponent,
 								  public ButtonListener
 	

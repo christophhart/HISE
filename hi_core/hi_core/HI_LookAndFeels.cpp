@@ -906,4 +906,16 @@ void BlackTextButtonLookAndFeel::drawToggleButton(Graphics &g, ToggleButton &b, 
 	g.drawHorizontalLine(b.getHeight() - 1, 0.0f, (float)b.getWidth());
 }
 
+void HiPropertyPanelLookAndFeel::drawPropertyComponentBackground(Graphics& g, int width, int height, PropertyComponent& /*component*/)
+{
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff3d3d3d)));
+	g.fillAll();
+
+	g.setColour(Colours::white.withAlpha(0.03f));
+	g.drawHorizontalLine(0, 0.0f, (float)width);
+	g.setColour(Colours::black.withAlpha(0.05f));
+	g.drawHorizontalLine(height-1, 0.0f, (float)width);
+
+}
+
 } // namespace hise

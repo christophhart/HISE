@@ -239,6 +239,11 @@ void ScriptComponentEditPanel::addProperty(Array<PropertyComponent*> &arrayToAdd
 		arrayToAddTo.add(new HiTogglePropertyComponent(id, this));
 		arrayToAddTo.getLast()->setLookAndFeel(&pplaf);
 	}
+	else if (t == ScriptComponentPropertyTypeSelector::CodeSelector) // add code editor
+	{
+		arrayToAddTo.add(new HiCodeEditorPropertyComponent(id, this));
+		arrayToAddTo.getLast()->setLookAndFeel(&pplaf);
+	}
 	else
 	{
 		arrayToAddTo.add(new HiTextPropertyComponent(id, this, t == ScriptComponentPropertyTypeSelector::MultilineSelector));
@@ -430,10 +435,18 @@ void ScriptComponentEditPanel::pasteAction()
 		{
 			auto vt = sc->getPropertyValueTree();
 
+			
+
 			for (int i = 0; i < set.size(); i++)
 			{
+				// Just for the undo...
 				vt.setProperty(set.getName(i), set.getValueAt(i), &undoManager);
 			}
+
+			ScriptComponent::ScopedPropertyEnabler spe(sc);
+
+			sc->setPropertiesFromJSON(parsedJson);
+
 		}
 	}
 }

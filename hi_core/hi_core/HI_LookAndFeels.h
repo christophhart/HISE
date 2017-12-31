@@ -591,16 +591,11 @@ public:
 		g.drawText (name, textX, 0, width - textX - 4, height, Justification::centredLeft, true);
 	}
 
-    void drawPropertyComponentBackground (Graphics& g, int /*width*/, int /*height*/, PropertyComponent& /*component*/) override
-	{
-        g.setColour (JUCE_LIVE_CONSTANT_OFF(Colour(0xff3d3d3d)));
-        g.fillAll();
-		
-	}
+    void drawPropertyComponentBackground (Graphics& g, int /*width*/, int /*height*/, PropertyComponent& /*component*/) override;
 
 	Rectangle<int> getPropertyComponentContentPosition(PropertyComponent& component)
 	{
-		const int textW = jmin(220, component.getWidth() / 3);
+		const int textW = jmin(110, component.getWidth() / 3);
 		return Rectangle<int>(textW, 1, component.getWidth() - textW - 1, component.getHeight() - 3);
 	}
 

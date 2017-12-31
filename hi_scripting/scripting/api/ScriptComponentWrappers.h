@@ -273,6 +273,7 @@ public:
 		MultilineSelector,
 		TextSelector,
 		FileSelector,
+		CodeSelector,
 		numSelectorTypes
 	};
 
@@ -284,6 +285,7 @@ public:
 		else if (choiceProperties.contains(id)) return ChoiceSelector;
 		else if (multilineProperties.contains(id)) return MultilineSelector;
 		else if (fileProperties.contains(id)) return FileSelector;
+		else if (codeProperties.contains(id)) return CodeSelector;
 		else return TextSelector;
 	}
 
@@ -321,6 +323,8 @@ public:
 			break;
 		case ScriptComponentPropertyTypeSelector::TextSelector:
 			break;
+		case ScriptComponentPropertyTypeSelector::CodeSelector:
+			codeProperties.addIfNotAlreadyThere(id);
 		case ScriptComponentPropertyTypeSelector::numSelectorTypes:
 			break;
 		default:
@@ -336,13 +340,13 @@ public:
 
 private:
 
-
 	static Array<Identifier> toggleProperties;
 	static Array<Identifier> sliderProperties;
 	static Array<Identifier> colourProperties;
 	static Array<Identifier> choiceProperties;
 	static Array<Identifier> multilineProperties;
 	static Array<Identifier> fileProperties;
+	static Array<Identifier> codeProperties;
 
 	static Array<SliderRange> sliderRanges;
 

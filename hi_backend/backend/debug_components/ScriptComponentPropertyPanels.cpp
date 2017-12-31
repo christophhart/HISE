@@ -480,7 +480,39 @@ void HiTextPropertyComponent::update()
 	}
 }
 
+HiCodeEditorPropertyComponent::HiCodeEditorPropertyComponent(const Identifier& id, ScriptComponentEditPanel* panel) :
+	HiPropertyComponent(id, panel)
+{
+	empty = new DynamicObject();
 
+	addAndMakeVisible(editor = new JSONEditor(empty));
+
+	setPreferredHeight(350);
+
+	auto b = panel->getScriptComponentEditBroadcaster();
+
+	JSONEditor::F5Callback cb = [b, id](const var& newValue)
+	{
+		b->setScriptComponentPropertyForSelection(id, JSON::toString(newValue, dontSendNotification), sendNotification);
+	};
+
+	editor->setCallback(cb);
+
+	editor->setEditable(true);
+
+	refresh();
+}
+
+void HiCodeEditorPropertyComponent::refresh()
+{
+	auto d = getCurrentPropertyValue();
+
+	auto v = JSON::parse(d.toString());
+
+	editor->setDataToEdit(v.isUndefined() ? empty : v);
+
+
+}
 
 HiColourPropertyComponent::HiColourPropertyComponent(const Identifier& id, ScriptComponentEditPanel* panel) :
 	HiPropertyComponent(id, panel)
@@ -703,5 +735,7 @@ void HiPropertyComponent::Overlay::buttonClicked(Button* /*b*/)
 
 	ScriptingApi::Content::Helpers::recompileAndSearchForPropertyChange(sc, id);
 }
+
+
 
 } // namespace hise

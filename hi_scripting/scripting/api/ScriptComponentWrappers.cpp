@@ -46,6 +46,7 @@ Array<Identifier> ScriptComponentPropertyTypeSelector::colourProperties = Array<
 Array<Identifier> ScriptComponentPropertyTypeSelector::choiceProperties = Array<Identifier>();
 Array<Identifier> ScriptComponentPropertyTypeSelector::multilineProperties = Array<Identifier>();
 Array<Identifier> ScriptComponentPropertyTypeSelector::fileProperties = Array<Identifier>();
+Array<Identifier> ScriptComponentPropertyTypeSelector::codeProperties = Array<Identifier>();
 Array<ScriptComponentPropertyTypeSelector::SliderRange> ScriptComponentPropertyTypeSelector::sliderRanges = Array<ScriptComponentPropertyTypeSelector::SliderRange>();
 
 
