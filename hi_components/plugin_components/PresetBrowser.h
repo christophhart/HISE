@@ -726,10 +726,7 @@ public:
 		ScopedPointer<BetterLabel> inputLabel;
 	};
 
-	void colourChanged() override
-	{
-		searchBar->setColour(PresetBrowserSearchBar::ColourIds::highlightColourId, findColour(PresetBrowserSearchBar::ColourIds::highlightColourId));
-	}
+	
 
 	void buttonClicked(Button* b) override;
 

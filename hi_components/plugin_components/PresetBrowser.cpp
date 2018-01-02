@@ -573,6 +573,7 @@ mc(mc_)
 {
 	setName("Preset Browser");
 
+	setColour(PresetBrowserSearchBar::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR));
 	
 
 #if USE_BACKEND
@@ -1108,6 +1109,8 @@ void MultiColumnPresetBrowser::loadPreset(const File& f)
 
 PresetBrowserSearchBar::PresetBrowserSearchBar()
 {
+	setColour(ColourIds::highlightColourId, Colour(SIGNAL_COLOUR));
+
 	highlightColour = Colours::red.withBrightness(0.8f);
 
 	addAndMakeVisible(inputLabel = new BetterLabel());
