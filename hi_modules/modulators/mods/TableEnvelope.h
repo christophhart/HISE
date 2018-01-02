@@ -228,8 +228,8 @@ public:
 	{
 		switch(t)
 		{
-		case Attack:	return attackTable;
-		case Release:	return releaseTable;
+		case 0:	return attackTable;
+		case 1:	return releaseTable;
 		default:		jassertfalse; return nullptr;
 		}
 	}
