@@ -386,7 +386,9 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
         {
             String message = "The Audio driver " + deviceSelector->getText() + " could not be opened.";
             
+#if !HISE_IOS
             PresetHandler::showMessageWindow("Audio Driver Initialisation Error", message, PresetHandler::IconType::Error);
+#endif
             
             driver->deviceManager->initialiseWithDefaultDevices(0, 2);
             
