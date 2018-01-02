@@ -37,6 +37,8 @@ namespace hise { using namespace juce;
 Arpeggiator::Arpeggiator(MainController *mc, const String &id, ModulatorSynth *ms) :
 	HardcodedScriptProcessor(mc, id, ms)
 {
+	ValueTreeUpdateWatcher::ScopedDelayer sd(content->getUpdateWatcher());
+
 	onInit();
 }
 

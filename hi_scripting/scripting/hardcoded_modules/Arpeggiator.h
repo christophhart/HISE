@@ -213,20 +213,20 @@ private:
 			
 	}
 
-	ScriptingApi::Content::ScriptSliderPack *semiToneSliderPack;
-	ScriptingApi::Content::ScriptSliderPack *velocitySliderPack;
-	ScriptingApi::Content::ScriptSliderPack *lengthSliderPack;
-	ScriptingApi::Content::ScriptButton *bypassButton;
-	ScriptingApi::Content::ScriptSlider *numStepSlider;
-	ScriptingApi::Content::ScriptButton* sortKeysButton;
-	ScriptingApi::Content::ScriptSlider* speedKnob;
-	ScriptingApi::Content::ScriptComboBox* sequenceComboBox;
-	ScriptingApi::Content::ScriptSlider *stepReset;
-	ScriptingApi::Content::ScriptSlider *stepSkipSlider;
-	ScriptingApi::Content::ScriptButton *resetButton;
-	ScriptingApi::Content::ScriptSlider *currentStepSlider;
-	ScriptingApi::Content::ScriptSlider *octaveSlider;
-	ScriptingApi::Content::ScriptSlider *shuffleSlider;
+	ScriptSliderPack semiToneSliderPack;
+	ScriptSliderPack velocitySliderPack;
+	ScriptSliderPack lengthSliderPack;
+	ScriptButton bypassButton;
+	ScriptSlider numStepSlider;
+	ScriptButton sortKeysButton;
+	ScriptSlider speedKnob;
+	ScriptComboBox sequenceComboBox;
+	ScriptSlider stepReset;
+	ScriptSlider stepSkipSlider;
+	ScriptButton resetButton;
+	ScriptSlider currentStepSlider;
+	ScriptSlider octaveSlider;
+	ScriptSlider shuffleSlider;
 };
 
 

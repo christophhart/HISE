@@ -50,6 +50,11 @@ class HardcodedScriptProcessor: public ScriptBaseMidiProcessor
 {
 public:
 
+	using ScriptSliderPack = WeakReference<ScriptingApi::Content::ScriptSliderPack>;
+	using ScriptButton = WeakReference<ScriptingApi::Content::ScriptButton>;
+	using ScriptSlider = WeakReference<ScriptingApi::Content::ScriptSlider>;
+	using ScriptComboBox = WeakReference<ScriptingApi::Content::ScriptComboBox>;
+
 	HardcodedScriptProcessor(MainController *mc, const String &id, ModulatorSynth *ms);
 	virtual ~HardcodedScriptProcessor();;
 
