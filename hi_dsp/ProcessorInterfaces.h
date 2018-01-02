@@ -254,6 +254,24 @@ public:
 	*	The pointer references a object from a AudioSamplePool and should be valid as long as the pool is not cleared. */
 	const AudioSampleBuffer *getBuffer() { return &sampleBuffer; };
 
+	void setLoopFromMetadata(const File& f);
+
+	void setUseLoop(bool shouldUseLoop)
+	{
+		if (useLoop != shouldUseLoop)
+		{
+			useLoop = shouldUseLoop;
+
+			if (useLoop && loopRange.isEmpty())
+				loopRange = sampleRange;
+		}
+	}
+
+	bool isUsingLoop() const noexcept
+	{
+		return useLoop;
+	}
+
 	/** Returns the filename that was loaded.
 	*
 	*	It is possible that the file does not exist on your system:
@@ -315,6 +333,26 @@ public:
 
 	virtual const CriticalSection& getFileLock() const = 0;
 
+	Range<int> getActualRange() const
+	{
+		if (isUsingLoop())
+		{
+			int x1 = sampleRange.getStart();
+			int x2 = jmin<int>(sampleRange.getEnd(), loopRange.getEnd());
+
+			return { x1, x2 };
+		}
+		else
+		{
+			return sampleRange;
+		}
+	}
+
+	Range<int> getLoopRange()
+	{
+		return loopRange;
+	}
+
 protected:
 
 	/** Call this constructor within your subclass constructor. */
@@ -324,11 +362,17 @@ protected:
 	Range<int> sampleRange;
 	int length;
 
+	Range<int> loopRange;
+
 	const AudioSampleBuffer *getSampleBuffer() const { return &sampleBuffer; };
 
 	double sampleRateOfLoadedFile;
 
+	bool useLoop;
+
 private:
+
+	
 
 	// ================================================================================================================
 

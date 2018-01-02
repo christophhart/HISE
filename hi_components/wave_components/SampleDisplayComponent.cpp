@@ -346,8 +346,11 @@ void AudioDisplayComponent::SampleArea::mouseUp(const MouseEvent &e)
 
 	if(dragEndWidth != prevDragWidth)
 	{
-		range.setStart(getSampleForX(getX(), false));
-		range.setEnd(getSampleForX(getRight(), false));
+		if (leftEdgeClicked)
+			range.setStart(getSampleForX(getX(), false));
+		else
+			range.setEnd(getSampleForX(getRight(), false));
+
 
 		parentWaveform->sendAreaChangedMessage();
 	}
@@ -530,6 +533,7 @@ AudioSampleBufferComponent::AudioSampleBufferComponent(AudioThumbnailCache &cach
 	addAndMakeVisible(areas[0]);
 	areas[0]->setAreaEnabled(true);
 
+	
 	if (auto asp = dynamic_cast<AudioSampleProcessor*>(p))
 	{
 		setAudioSampleBuffer(asp->getBuffer(), asp->getFileName(), dontSendNotification);
@@ -540,6 +544,15 @@ AudioSampleBufferComponent::AudioSampleBufferComponent(AudioThumbnailCache &cach
 	{
 		connectedProcessor->addChangeListener(this);
 	}
+
+	static const unsigned char pathData[] = { 110,109,0,23,2,67,128,20,106,67,108,0,0,230,66,128,92,119,67,108,0,23,2,67,128,82,130,67,108,0,23,2,67,128,92,123,67,108,0,0,7,67,128,92,123,67,98,146,36,8,67,128,92,123,67,243,196,9,67,58,18,124,67,128,5,11,67,128,88,125,67,98,13,70,12,67,198,158,126,
+		67,0,0,13,67,53,39,128,67,0,0,13,67,64,197,128,67,98,0,0,13,67,109,97,129,67,151,72,12,67,91,58,130,67,0,11,11,67,128,221,130,67,98,105,205,9,67,165,128,131,67,219,50,8,67,0,220,131,67,0,0,7,67,0,220,131,67,108,0,0,210,66,0,220,131,67,98,30,54,205,66,
+		0,220,131,67,0,0,198,66,234,39,130,67,0,0,198,66,64,197,128,67,98,0,0,198,66,202,43,128,67,60,123,199,66,26,166,126,67,255,10,202,66,0,92,125,67,98,196,154,204,66,230,17,124,67,238,244,207,66,128,92,123,67,0,0,210,66,128,92,123,67,108,0,240,223,66,128,
+		92,123,67,108,0,240,223,66,128,92,115,67,108,0,0,210,66,128,92,115,67,98,241,91,202,66,128,92,115,67,115,181,195,66,237,49,117,67,0,177,190,66,128,184,119,67,98,141,172,185,66,18,63,122,67,0,0,182,66,178,164,125,67,0,0,182,66,64,197,128,67,98,0,0,182,
+		66,251,172,132,67,16,201,194,66,0,220,135,67,0,0,210,66,0,220,135,67,108,0,0,7,67,0,220,135,67,98,51,228,10,67,0,220,135,67,218,73,14,67,139,238,134,67,128,198,16,67,128,167,133,67,98,37,67,19,67,117,96,132,67,0,0,21,67,8,174,130,67,0,0,21,67,64,197,
+		128,67,98,0,0,21,67,186,175,125,67,243,57,19,67,94,72,122,67,128,186,16,67,128,189,119,67,98,13,59,14,67,162,50,117,67,110,219,10,67,128,92,115,67,0,0,7,67,128,92,115,67,108,0,23,2,67,128,92,115,67,108,0,23,2,67,128,20,106,67,99,101,0,0 };
+
+	loopPath.loadPathFromData(pathData, sizeof(pathData));
 }
 
 AudioSampleBufferComponent::~AudioSampleBufferComponent()
@@ -602,7 +615,17 @@ void AudioSampleBufferComponent::changeListenerCallback(SafeChangeBroadcaster *b
 	if (asp != nullptr)
 	{
 		setAudioSampleBuffer(asp->getBuffer(), asp->getFileName(), dontSendNotification);
-		setRange(asp->getRange());
+		setRange(asp->getActualRange());
+
+		auto loopRange = asp->getLoopRange().isEmpty() ? asp->getRange() : asp->getLoopRange();
+
+		int x1 = getSampleArea(0)->getXForSample(jmax<int>(asp->getRange().getStart(), loopRange.getStart()));
+		int x2 = getSampleArea(0)->getXForSample(jmin<int>(asp->getRange().getEnd(), loopRange.getEnd()));
+
+		xPositionOfLoop = { x1, x2 };
+
+
+
 	}
 
 	repaint();
@@ -641,11 +664,18 @@ void AudioSampleBufferComponent::mouseDown(const MouseEvent &e)
 		{
 			if (auto asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get()))
 			{
+#if USE_BACKEND
+				String fileName = fc.getResult().getFullPathName();
+#else
 				auto fileName = ProjectHandler::Frontend::getRelativePathForAdditionalAudioFile(fc.getResult());
+#endif
 				
 				buffer = nullptr;
 				asp->setLoadedFile(fileName, true);
 				
+				
+				
+
 			}
 		}
 	}
@@ -706,6 +736,39 @@ void AudioSampleBufferComponent::paint(Graphics &g)
 	{
 		g.setColour(Colours::white.withAlpha(0.7f));
 		g.drawRect(getLocalBounds(), 4);
+	}
+
+	if (showLoop)
+	{
+		g.setColour(Colours::white.withAlpha(0.6f));
+		g.drawVerticalLine(xPositionOfLoop.getStart(), 0.0f, (float)getHeight());
+		g.drawVerticalLine(xPositionOfLoop.getEnd(), 0.0f, (float)getHeight());
+
+		Path t1;
+
+		float x1 = (float)xPositionOfLoop.getStart()+1;
+		float x2 = (float)xPositionOfLoop.getEnd();
+
+		t1.startNewSubPath(x1, 0.0f);
+		t1.lineTo(x1 + 10.0f, 0.0f);
+		t1.lineTo(x1, 10.0f);
+		t1.closeSubPath();
+
+		
+
+		g.fillPath(t1);
+
+		Path t2;
+
+		t2.startNewSubPath(x2, 0.0f);
+		t2.lineTo(x2 - 10.0f, 0.0f);
+		t2.lineTo(x2, 10.0f);
+		t2.closeSubPath();
+
+		g.fillPath(t2);
+
+		loopPath.scaleToFit(x1 + 5.0f, 4.0f, 20.0f, 10.0f, true);
+		g.fillPath(loopPath);
 	}
 }
 

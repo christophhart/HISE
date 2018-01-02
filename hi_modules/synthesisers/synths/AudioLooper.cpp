@@ -76,6 +76,16 @@ void AudioLooperVoice::startNote(int midiNoteNumber, float /*velocity*/, Synthes
 	}
 }
 
+int getSamplePos(int uptime, int loopLength, int loopOffset)
+{
+	if (uptime < loopOffset)
+		return uptime;
+	else
+	{
+		return ((uptime - loopOffset) % loopLength) + loopOffset;
+	}
+}
+
 void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 {
 	const int startIndex = startSample;
@@ -90,11 +100,8 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 	const AudioSampleBuffer *buffer = looper->getBuffer();
 
 	const bool noBuffer = buffer == nullptr || buffer->getNumChannels() == 0;
-	const bool sampleFinished = !looper->loopEnabled && (voiceUptime + numSamples) > looper->length;
+	const bool sampleFinished = !looper->isUsingLoop() && (voiceUptime > looper->length);
 	
-
-	
-
 	if (sampleFinished || noBuffer)
 	{
         voiceBuffer.clear();
@@ -106,17 +113,36 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
         return;
 	}
     
-	const float *leftSamples = buffer->getReadPointer(0);
-	const float *rightSamples = buffer->getNumChannels() > 1 ? buffer->getReadPointer(1) : leftSamples;
+	int offset = looper->sampleRange.getStart();
+
+	const float *leftSamples = buffer->getReadPointer(0, offset);
+	const float *rightSamples = buffer->getNumChannels() > 1 ? buffer->getReadPointer(1, offset) : leftSamples;
+
+	int loopStart = jmax<int>(offset, looper->loopRange.getStart());
+	int loopEnd = jmin<int>(looper->loopRange.getEnd(), looper->sampleRange.getEnd());
+
+	auto length = looper->isUsingLoop() ? loopEnd - loopStart : looper->length;
+
+	if (length == 0)
+		length = looper->length;
+
+	auto loopOffset = jmax<int>(0, loopStart - offset);
+
 
 	while (--numSamples >= 0)
 	{
-		const int samplePos = (int)voiceUptime % looper->length + looper->sampleRange.getStart();
-		const int nextSamplePos = ((int)voiceUptime + 1) % looper->length + looper->sampleRange.getStart();
+	
+		int uptime = (int)voiceUptime;
 
-        if(!looper->loopEnabled && nextSamplePos > looper->length)
+		const int samplePos = getSamplePos(uptime, length, loopOffset);
+		const int nextSamplePos = getSamplePos(uptime+1, length, loopOffset);
+		
+		//const int samplePos = (int)voiceUptime % looper->length + looper->sampleRange.getStart();
+		//const int nextSamplePos = ((int)voiceUptime + 1) % looper->length + looper->sampleRange.getStart();
+
+        if(!looper->isUsingLoop() && uptime > looper->length)
         {
-            voiceBuffer.clear();
+            voiceBuffer.clear(startSample, numSamples);
             
             clearCurrentNote();
             voiceUptime = 0.0;
@@ -160,8 +186,12 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 
 	if (isLastVoice && looper->length != 0 && looper->inputMerger.shouldUpdate())
 	{
-		const float inputValue = (float)((int)voiceUptime % looper->length) / (float)looper->length;
-		looper->setInputValue(inputValue, dontSendNotification);
+		const int samplePos = getSamplePos((int)voiceUptime, length, loopOffset);
+
+		const int actualLength = looper->getActualRange().getLength();
+
+		//const float inputValue = (float)((int)voiceUptime % looper->length) / (float)looper->length;
+		looper->setInputValue((float)samplePos / (float)actualLength, dontSendNotification);
 	}
 }
 
@@ -169,7 +199,6 @@ AudioLooper::AudioLooper(MainController *mc, const String &id, int numVoices) :
 ModulatorSynth(mc, id, numVoices),
 AudioSampleProcessor(this),
 syncMode(AudioSampleProcessor::SyncToHostMode::FreeRunning),
-loopEnabled(true),
 pitchTrackingEnabled(false),
 rootNote(64)
 {
@@ -224,7 +253,7 @@ float AudioLooper::getAttribute(int parameterIndex) const
 	switch (parameterIndex)
 	{
 	case SyncMode:		return (float)(int)syncMode;
-	case LoopEnabled:	return loopEnabled ? 1.0f : 0.0f;
+	case LoopEnabled:	return isUsingLoop() ? 1.0f : 0.0f;
 	case RootNote:		return (float)rootNote;
 	case PitchTracking:	return pitchTrackingEnabled ? 1.0f : 0.0f;
 	case SampleStartMod: return (float)sampleStartMod;
@@ -258,7 +287,8 @@ void AudioLooper::setInternalAttribute(int parameterIndex, float newValue)
 	switch (parameterIndex)
 	{
 	case SyncMode:		setSyncMode((int)newValue); break;
-	case LoopEnabled:	loopEnabled = newValue > 0.5f; break;
+	case LoopEnabled:	setUseLoop(newValue > 0.5f);
+						break;
 	case RootNote:		rootNote = (int)newValue; break;
 	case PitchTracking:	pitchTrackingEnabled = newValue > 0.5f; break;
 	case SampleStartMod: sampleStartMod = jmax<int>(0, (int)newValue); break;

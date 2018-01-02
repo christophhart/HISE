@@ -68,12 +68,14 @@ public:
 
 		rootNote->setEnabled(getProcessor()->getAttribute(AudioLooper::PitchTracking) > 0.5f);
 
+		sampleBufferContent->setShowLoop(loopButton->getToggleState());
+
 		AudioSampleProcessor *envelope = dynamic_cast<AudioSampleProcessor*>(getProcessor());
 
 		if (sampleBufferContent->getSampleArea(0)->getSampleRange() != envelope->getRange())
 		{
 			sampleBufferContent->setRange(envelope->getRange());
-
+			
 
 		}
 

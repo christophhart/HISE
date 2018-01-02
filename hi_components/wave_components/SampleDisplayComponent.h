@@ -651,7 +651,22 @@ public:
 		return 44100.0;
 	}
 
+	void setShowLoop(bool shouldShowLoop)
+	{
+		if (showLoop != shouldShowLoop)
+		{
+			showLoop = shouldShowLoop;
+			repaint();
+		}
+	}
+
 private:
+
+	bool showLoop = false;
+
+	Path loopPath;
+
+	Range<int> xPositionOfLoop;
 
 	WeakReference<Processor> connectedProcessor;
 

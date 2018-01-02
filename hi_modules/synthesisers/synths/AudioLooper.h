@@ -118,7 +118,7 @@ private:
 
 	UpdateMerger inputMerger;
 
-	bool loopEnabled;
+	
 	bool pitchTrackingEnabled;
 	int rootNote;
 

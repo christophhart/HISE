@@ -263,6 +263,9 @@ void AudioSampleProcessor::saveToValueTree(ValueTree &v) const
 
 	v.setProperty("min", sampleRange.getStart(), nullptr);
 	v.setProperty("max", sampleRange.getEnd(), nullptr);
+
+	v.setProperty("loopStart", loopRange.getStart(), nullptr);
+	v.setProperty("loopEnd", loopRange.getEnd(), nullptr);
 }
 
 void AudioSampleProcessor::restoreFromValueTree(const ValueTree &v)
@@ -280,6 +283,73 @@ void AudioSampleProcessor::restoreFromValueTree(const ValueTree &v)
 	Range<int> range = Range<int>(v.getProperty("min", 0), v.getProperty("max", 0));
 
 	setRange(range);
+}
+
+
+void AudioSampleProcessor::setLoopFromMetadata(const File& f)
+{
+	auto afm = &dynamic_cast<Processor*>(this)->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->afm;
+
+	ScopedPointer<AudioFormatReader> reader = afm->createReaderFor(f);
+
+    
+    if(reader == nullptr)
+        return;
+    
+	auto metadata = reader->metadataValues;
+
+    
+	const String format = metadata.getValue("MetaDataSource", "");
+
+	String loopEnabled, loopStart, loopEnd;
+
+	if (format == "AIFF")
+	{
+		
+		loopEnabled = metadata.getValue("Loop0Type", "");
+
+		const int loopStartId = metadata.getValue("Loop0StartIdentifier", "-1").getIntValue();
+		const int loopEndId = metadata.getValue("Loop0EndIdentifier", "-1").getIntValue();
+
+		int loopStartIndex = -1;
+		int loopEndIndex = -1;
+
+		const int numCuePoints = metadata.getValue("NumCuePoints", "0").getIntValue();
+
+		for (int i = 0; i < numCuePoints; i++)
+		{
+			const String idTag = "CueLabel" + String(i) + "Identifier";
+
+			if (metadata.getValue(idTag, "-2").getIntValue() == loopStartId)
+			{
+				loopStartIndex = i;
+				loopStart = metadata.getValue("Cue" + String(i) + "Offset", "");
+			}
+			else if (metadata.getValue(idTag, "-2").getIntValue() == loopEndId)
+			{
+				loopEndIndex = i;
+				loopEnd = metadata.getValue("Cue" + String(i) + "Offset", "");
+			}
+		}
+	}
+	else if (format == "WAV")
+	{
+		loopStart = metadata.getValue("Loop0Start", "");
+		loopEnd = metadata.getValue("Loop0End", "");
+		loopEnabled = (loopStart.isNotEmpty() && loopStart != "0" && loopEnd.isNotEmpty() && loopEnd != "0") ? "1" : "";
+	}
+
+	if (loopEnabled.isNotEmpty())
+	{
+		loopRange = Range<int>(loopStart.getIntValue(), loopEnd.getIntValue());
+		setUseLoop(true);
+	}
+	else
+	{
+		loopRange = {};
+		setUseLoop(false);
+	}
+		
 }
 
 AudioSampleProcessor::AudioSampleProcessor(Processor *p) :

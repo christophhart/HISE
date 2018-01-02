@@ -98,7 +98,7 @@ AudioLooperEditor::AudioLooperEditor (ProcessorEditor *p)
 
 
 	sampleBufferContent->addAreaListener(this);
-
+	sampleBufferContent->setShowLoop(true);
 
 	syncToHost->setup(getProcessor(), AudioLooper::SyncMode, "Sync to host");
 	loopButton->setup(getProcessor(), AudioLooper::LoopEnabled, "Loop Enabled");
@@ -107,7 +107,7 @@ AudioLooperEditor::AudioLooperEditor (ProcessorEditor *p)
 
 
 #if JUCE_DEBUG
-	startTimer(150);
+	startTimer(30);
 #else
 	startTimer(30);
 #endif
