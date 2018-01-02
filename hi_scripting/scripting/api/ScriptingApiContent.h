@@ -35,6 +35,125 @@
 
 namespace hise { using namespace juce;
 
+class ValueTreeUpdateWatcher : ValueTree::Listener
+{
+public:
+
+	/** A small helper class that prevents multiple updates for every call to a ValueTree method.
+	*
+	*	Use this when you change multiple properties within a function and need to update the watcher
+	*	only when the function is finished. Create one of these on the stack and it will coallescate
+	*	the updates until it goes out of scope.
+	*/
+	class ScopedDelayer
+	{
+	public:
+
+		ScopedDelayer(ValueTreeUpdateWatcher* watcher_) :
+			watcher(watcher_)
+		{
+			if(watcher != nullptr)
+				watcher->delayCalls = true;
+		};
+
+		~ScopedDelayer()
+		{
+			if (watcher != nullptr)
+			{
+				watcher->delayCalls = false;
+
+				if (watcher->shouldCallAfterDelay)
+					watcher->callListener();
+			}
+		}
+
+	private:
+
+		WeakReference<ValueTreeUpdateWatcher> watcher;
+			
+	};
+
+	struct Listener
+	{
+		virtual ~Listener() {};
+
+		virtual void valueTreeNeedsUpdate() = 0;
+
+	private:
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+	};
+
+	ValueTreeUpdateWatcher(ValueTree& v, Listener* l) :
+		state(v),
+		listener(l)
+	{
+		state.addListener(this);
+	};
+
+	void valueTreePropertyChanged(ValueTree& /*treeWhosePropertyHasChanged*/, const Identifier& property) override
+	{
+		if (isCurrentlyUpdating)
+			return;
+
+		static const Identifier id("id");
+		static const Identifier parentComponent("parentComponent");
+
+		if (property == id || property == parentComponent)
+			callListener();
+	}
+
+	void valueTreeChildAdded(ValueTree& /*parentTree*/, ValueTree& /*childWhichHasBeenAdded*/) override
+	{
+		callListener();
+	}
+
+	void valueTreeChildRemoved(ValueTree& /*parentTree*/, ValueTree& /*childWhichHasBeenRemoved*/, int /*indexFromWhichChildWasRemoved*/) override
+	{
+		callListener();
+	}
+
+	void valueTreeChildOrderChanged(ValueTree& /*parentTreeWhoseChildrenHaveMoved*/, int /*oldIndex*/, int /*newIndex*/) override
+	{
+		callListener();
+	}
+
+	void valueTreeParentChanged(ValueTree& /*treeWhoseParentHasChanged*/) override {};
+
+private:
+
+	bool delayCalls = false;
+
+	bool shouldCallAfterDelay = false;
+
+	void callListener()
+	{
+		if (delayCalls)
+		{
+			shouldCallAfterDelay = true;
+			return;
+		}
+		
+		if (isCurrentlyUpdating)
+			return;
+
+		isCurrentlyUpdating = true;
+
+		DBG("REBUILD");
+
+        if(listener.get() != nullptr)
+            listener->valueTreeNeedsUpdate();
+        
+		isCurrentlyUpdating = false;
+	}
+
+	bool isCurrentlyUpdating = false;
+
+	ValueTree state;
+	WeakReference<Listener> listener;
+    
+    JUCE_DECLARE_WEAK_REFERENCEABLE(ValueTreeUpdateWatcher);
+};
 
 /** This is the interface area that can be filled with buttons, knobs, etc.
 *	@ingroup scriptingApi
@@ -42,17 +161,10 @@ namespace hise { using namespace juce;
 */
 class ScriptingApi::Content : public ScriptingObject,
 	public DynamicObject,
-	public RestorableObject
+	public RestorableObject,
+	public ValueTreeUpdateWatcher::Listener
 {
 public:
-
-	enum UpdateLevel
-	{
-		DoNothing = 1,
-		UpdateInterface,
-		FullRecompile,
-		numUpdateLevels
-	};
 
 	// ================================================================================================================
 
@@ -512,6 +624,8 @@ public:
 
 		double minimum, maximum;
 		Image image;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptSlider)
 	};
 
 	struct ScriptButton : public ScriptComponent
@@ -573,6 +687,7 @@ public:
 		Image image;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptButton)
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptButton)
 	};
 
 	struct ScriptComboBox : public ScriptComponent
@@ -612,6 +727,7 @@ public:
 		struct Wrapper;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptComboBox);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptComboBox)
 	};
 
 
@@ -694,6 +810,8 @@ public:
 		// ========================================================================================================
 
 		struct Wrapper;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptLabel);
 	};
 
 
@@ -750,6 +868,7 @@ public:
 		int lookupTableIndex;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptTable);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptTable);
 	};
 
 
@@ -822,6 +941,7 @@ public:
 		WeakReference<SliderPackData> existingData;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptSliderPack);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptSliderPack);
 
 		// ========================================================================================================
 	};
@@ -880,6 +1000,7 @@ public:
 		Image image;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptImage);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptImage);
 
 		// ========================================================================================================
 	};
@@ -1086,6 +1207,7 @@ public:
 
 	private:
 
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptPanel);
 		
 
 		bool shownAsPopup = false;
@@ -1102,10 +1224,7 @@ public:
 
 		Rectangle<int> popupBounds;
 
-		friend class WeakReference<ScriptPanel>;
-
-		WeakReference<ScriptPanel>::Master masterReference;
-
+		
 		void internalRepaint(bool forceRepaint=false);
 
 		struct AsyncControlCallbackSender : public AsyncUpdater
@@ -1188,6 +1307,8 @@ public:
         
 		AsyncControlCallbackSender controlSender;
 
+
+		
 		// ========================================================================================================
 	};
 
@@ -1226,7 +1347,7 @@ public:
 		StringArray currentItems;
 
 
-		
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptedViewport);
 	};
 
 
@@ -1262,6 +1383,7 @@ public:
 		Array<WeakReference<Modulator>> mods;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptedPlotter);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptedPlotter);
 
 		// ========================================================================================================
 	};
@@ -1294,6 +1416,7 @@ public:
 		WeakReference<Modulator> targetMod;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModulatorMeter)
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ModulatorMeter);
 	};
 
 
@@ -1323,6 +1446,7 @@ public:
 		
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptAudioWaveform);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptAudioWaveform);
 
 		// ========================================================================================================
 	};
@@ -1388,6 +1512,7 @@ public:
 		var jsonData;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptFloatingTile);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptFloatingTile);
 
 		// ========================================================================================================
 	};
@@ -1503,12 +1628,6 @@ public:
 
 	void beginInitialization();
 
-	void setUpdateLevel(UpdateLevel newUpdateLevel) { currentUpdateLevel = newUpdateLevel; }
-
-	UpdateLevel getUpdateLevel() const noexcept { return currentUpdateLevel; }
-
-	UpdateLevel getRequiredUpdate() const { return requiredUpdate; }
-
 	ValueTree exportAsValueTree() const override;
 	void restoreFromValueTree(const ValueTree &v) override;
 
@@ -1556,13 +1675,21 @@ public:
 
 	ValueTree getValueTreeForComponent(const Identifier& id);
 
+	ValueTreeUpdateWatcher* getUpdateWatcher() { return updateWatcher; }
 
 	void resetContentProperties()
 	{
+		MessageManagerLock mmLock;
+
 		rebuildComponentListFromValueTree();
 	};
 
-	
+	void valueTreeNeedsUpdate()
+	{
+#if USE_BACKEND
+		rebuildComponentListFromValueTree();
+#endif
+	}
 
 	void addComponentsFromValueTree(const ValueTree& v);
 
@@ -1572,7 +1699,9 @@ public:
 
 	struct Helpers
 	{
-		static void copyComponentSnapShotToValueTree(Content* c);
+		using ValueTreeIteratorFunction = std::function<bool(ValueTree&)>;
+
+		static bool callRecursive(ValueTree& v, const ValueTreeIteratorFunction& f);
 
 		static void gotoLocation(ScriptComponent* sc);
 
@@ -1584,61 +1713,16 @@ public:
 
 		static void renameComponent(Content* c, const Identifier& id, const Identifier& newId);
 
-		static void duplicateSelection(Content* c, ReferenceCountedArray<ScriptComponent> selection, int deltaX, int deltaY);
+		static void duplicateSelection(Content* c, ReferenceCountedArray<ScriptComponent> selection, int deltaX, int deltaY, UndoManager* undoManager);
 
-		static void moveComponentsAfter(ScriptComponent* target, var list);
+		
 
-		static void pasteProperties(ReferenceCountedArray<ScriptComponent> selection, var clipboardData);
-
-		static void setComponentValueTreeFromJSON(Content* c, const Identifier& id, const var& data);
+		static void setComponentValueTreeFromJSON(Content* c, const Identifier& id, const var& data, UndoManager* undoManager);
 
 		static Result setParentComponent(ScriptComponent* parent, var newChildren);
 
 		/** Sets the parent component by reordering the internal data structure. */
 		static Result setParentComponent(Content* content, const var& parentId, const var& childIdList);
-
-#if 0
-		static ScriptComponent* createComponentFromId(Content* c, const Identifier& typeId, const Identifier& name)
-		{
-			if (auto sc = createComponentIfTypeMatches<ScriptSlider>(c, typeId, name, x, y, w, h))
-				return sc;
-
-			if (auto sc = createComponentIfTypeMatches<ScriptButton>(c, typeId, name, x, y, w, h))
-				return sc;
-
-			if (auto sc = createComponentIfTypeMatches<ScriptLabel>(c, typeId, name, x, y, w, h))
-				return sc;
-
-			if (auto sc = createComponentIfTypeMatches<ScriptComboBox>(c, typeId, name, x, y, w, h))
-				return sc;
-
-			if (auto sc = createComponentIfTypeMatches<ScriptTable>(c, typeId, name, x, y, w, h))
-				return sc;
-
-			if (auto sc = createComponentIfTypeMatches<ScriptSliderPack>(c, typeId, name, x, y, w, h))
-				return sc;
-
-			if (auto sc = createComponentIfTypeMatches<ScriptImage>(c, typeId, name, x, y, w, h))
-				return sc;
-
-			if (auto sc = createComponentIfTypeMatches<ScriptPanel>(c, typeId, name, x, y, w, h))
-				return sc;
-
-			if (auto sc = createComponentIfTypeMatches<ScriptedViewport>(c, typeId, name, x, y, w, h))
-				return sc;
-
-			if (auto sc = createComponentIfTypeMatches<ModulatorMeter>(c, typeId, name, x, y, w, h))
-				return sc;
-
-			if (auto sc = createComponentIfTypeMatches<ScriptAudioWaveform>(c, typeId, name, x, y, w, h))
-				return sc;
-
-			if (auto sc = createComponentIfTypeMatches<ScriptFloatingTile>(c, typeId, name, x, y, w, h))
-				return sc;
-
-			return nullptr;
-		}
-#endif
 
 		static void createNewComponentData(Content* c, ValueTree& p, const String& typeName, const String& id);
 
@@ -1674,7 +1758,14 @@ public:
 		newData.setProperty(wId, w, nullptr);
 		newData.setProperty(hId, h, nullptr);
 
-		contentPropertyData.addChild(newData, -1, nullptr);
+#if JUCE_WINDOWS && USE_BACKEND
+		auto undoManager = &getScriptProcessor()->getMainController_()->getScriptComponentEditBroadcaster()->getUndoManager();
+		undoManager->beginNewTransaction("Add Component");
+#else
+		UndoManager* undoManager = nullptr;
+#endif
+
+		contentPropertyData.addChild(newData, -1, undoManager);
 
 		SubType* newComponent = new SubType(getScriptProcessor(), this, id, x, y, w, h);
 
@@ -1683,12 +1774,7 @@ public:
 		return newComponent;
 	}
 
-	void updateAndSetLevel(UpdateLevel requiredUpdate);
-
-	void clearRequiredUpdate()
-	{
-		requiredUpdate = DoNothing;
-	}
+	
 
 	bool asyncFunctionsAllowed() const
 	{
@@ -1722,10 +1808,6 @@ private:
 
 	bool allowAsyncFunctions = false;
 
-	UpdateLevel currentUpdateLevel = FullRecompile;
-
-	UpdateLevel requiredUpdate = DoNothing;
-
 	void sendRebuildMessage();
 
 	Array<WeakReference<RebuildListener>> rebuildListeners;
@@ -1743,6 +1825,8 @@ private:
 	bool useDoubleResolution = false;
 
 	ValueTree contentPropertyData;
+
+	ScopedPointer<ValueTreeUpdateWatcher> updateWatcher;
 
 	CriticalSection lock;
 	bool allowGuiCreation;
@@ -1768,8 +1852,6 @@ struct ContentValueTreeHelpers
 	{
 		v.getParent().removeChild(v, nullptr);
 	}
-
-	
 
 	static Result setNewParent(ValueTree& newParent, ValueTree& child)
 	{
@@ -1848,61 +1930,6 @@ struct ContentValueTreeHelpers
 		}
 
 		return false;
-	}
-
-	static void addComponentToValueTreeRecursive(Array<Identifier>& usedIds, const ScriptComponentSelection list, ValueTree& v)
-	{
-
-		jassertfalse;
-
-		static const Identifier type_("type");
-		static const Identifier id_("id");
-		static const Identifier parentComponent("parentComponent");
-		static const Identifier x("x");
-		static const Identifier y("y");
-		static const Identifier w("width");
-		static const Identifier h("height");
-
-		for (auto sc : list)
-		{
-			if (usedIds.contains(sc->getName()))
-				continue;
-
-			usedIds.add(sc->getName());
-
-			auto data = sc->getNonDefaultScriptObjectProperties();
-
-			ValueTree child("Component");
-
-			auto pos = sc->getPosition();
-
-			child.setProperty(type_, sc->getObjectName().toString(), nullptr);
-			child.setProperty(id_, sc->name.toString(), nullptr);
-
-			// Copy these because the default values for the position are a bit funky...
-			child.setProperty(x, pos.getX(), nullptr);
-			child.setProperty(y, pos.getY(), nullptr);
-			child.setProperty(w, pos.getWidth(), nullptr);
-			child.setProperty(h, pos.getHeight(), nullptr);
-
-			ValueTreeConverters::copyDynamicObjectPropertiesToValueTree(child, data);
-
-			// Remove this because it's handled via the tree hierarchy...
-			child.removeProperty(parentComponent, nullptr);
-
-			ScriptComponentSelection childList;
-
-#if 0
-			for (int i = 0; i < sc->getNumChildComponents(); i++)
-			{
-				childList.add(sc->getChildComponent(i));
-			}
-#endif
-
-			addComponentToValueTreeRecursive(usedIds, childList, child);
-
-			v.addChild(child, -1, nullptr);
-		}
 	}
 };
 

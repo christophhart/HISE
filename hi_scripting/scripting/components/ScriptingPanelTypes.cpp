@@ -647,19 +647,11 @@ void ScriptContentPanel::Editor::buttonClicked(Button* b)
 	}
 	if (b == undoButton)
 	{
-		auto& undoManager = getScriptComponentEditBroadcaster()->getUndoManager();
-		
-		undoManager.undo();
-
-		updateUndoDescription();
-
+		Actions::undo(this, true);
 	}
 	if (b == redoButton)
 	{
-		auto& undoManager = getScriptComponentEditBroadcaster()->getUndoManager();
-		undoManager.redo();
-
-		updateUndoDescription();
+		Actions::undo(this, false);
 	}
 	if (b == rebuildButton)
 	{
@@ -765,23 +757,56 @@ void ScriptContentPanel::Editor::Actions::deselectAll(Editor* e)
 
 void ScriptContentPanel::Editor::Actions::rebuild(Editor* e)
 {
+	
+
 	auto jp = dynamic_cast<JavascriptProcessor*>(e->getProcessor());
 	auto content = jp->getContent();
 
+	Array<Identifier> ids;
+
+	auto b = e->getScriptComponentEditBroadcaster();
+
+	for (auto sc : b->getSelection())
+	{
+		ids.add(sc->getName());
+	}
+
 	content->resetContentProperties();
+
+	for (auto id : ids)
+	{
+		auto sc = content->getComponentWithName(id);
+
+		if (sc != nullptr)
+			b->addToSelection(sc, id == ids.getLast() ? sendNotification : dontSendNotification);
+	}
 }
 
 void ScriptContentPanel::Editor::Actions::rebuildAndRecompile(Editor* e)
 {
-	auto jp = dynamic_cast<JavascriptProcessor*>(e->getProcessor());
-	auto content = jp->getContent();
-
-	content->resetContentProperties();
-
-	jp->compileScript();
-
-
-	e->getScriptComponentEditBroadcaster()->clearSelection();
+    auto jp = dynamic_cast<JavascriptProcessor*>(e->getProcessor());
+    auto content = jp->getContent();
+    
+    Array<Identifier> ids;
+    
+    auto b = e->getScriptComponentEditBroadcaster();
+    
+    for (auto sc : b->getSelection())
+    {
+        ids.add(sc->getName());
+    }
+    
+    content->resetContentProperties();
+    
+    jp->compileScript();
+    
+    for (auto id : ids)
+    {
+        auto sc = content->getComponentWithName(id);
+        
+        if (sc != nullptr)
+            b->addToSelection(sc, id == ids.getLast() ? sendNotification : dontSendNotification);
+    }
 }
 
 void ScriptContentPanel::Editor::Actions::zoomIn(Editor* e)
@@ -884,6 +909,15 @@ void ScriptContentPanel::Editor::Actions::align(Editor* editor, bool isVertical)
 	b->setScriptComponentPropertyForSelection(id, minV, sendNotification);
 }
 
+void ScriptContentPanel::Editor::Actions::undo(Editor * e, bool shouldUndo)
+{
+	e->getScriptComponentEditBroadcaster()->undo(shouldUndo);
+
+	rebuild(e);
+
+	
+}
+
 bool ScriptContentPanel::Editor::keyPressed(const KeyPress& key)
 {
 	if (key == KeyPress::F4Key)
@@ -896,7 +930,7 @@ bool ScriptContentPanel::Editor::keyPressed(const KeyPress& key)
 		Actions::deselectAll(this);
 		return true;
 	}
-	else if (key == KeyPress::F5Key && key.getModifiers().isCommandDown())
+	else if (key == KeyPress::F5Key)
 	{
 		Actions::rebuildAndRecompile(this);
 		return true;

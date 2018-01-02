@@ -591,7 +591,7 @@ private:
 	ValueTree allInterfaceData;
 
 public:
-	void storeCurrentInterfaceStateInContentProperties();
+	
 };
 
 

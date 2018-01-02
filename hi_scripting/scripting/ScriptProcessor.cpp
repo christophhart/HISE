@@ -498,8 +498,6 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	ScriptingApi::Content* content = thisAsScriptBaseProcessor->getScriptingContent();
 
-	content->clearRequiredUpdate();
-
 	const bool saveThisContent = lastCompileWasOK && content != nullptr && !useStoredContentData;
 
 	if (saveThisContent) 
@@ -611,60 +609,6 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 	postCompileCallback();
 
 	return SnippetResult(Result::ok(), getNumSnippets());
-}
-
-
-
-void JavascriptProcessor::storeCurrentInterfaceStateInContentProperties()
-{
-	auto pwsc = dynamic_cast<ProcessorWithScriptingContent*>(this);
-
-	if (auto content = pwsc->getScriptingContent())
-	{
-		ScriptingApi::Content::Helpers::copyComponentSnapShotToValueTree(content);
-
-		PresetHandler::showMessageWindow("Sucess", "The current state was copied into the internal object.\nYou can now safely delete all JSON definitions and unneeded widget.set() calls", PresetHandler::IconType::Info);
-
-#if 0
-		ValueTree v("ContentProperties");
-
-		for (int i = 0; i < content->getNumComponents(); i++)
-		{
-			auto sc = content->getComponent(i);
-
-			auto newProps = sc->getNonDefaultScriptObjectProperties();
-
-			newProps.getDynamicObject()->setProperty("x", sc->getPosition().getX());
-			newProps.getDynamicObject()->setProperty("y", sc->getPosition().getY());
-			newProps.getDynamicObject()->setProperty("width", sc->getPosition().getWidth());
-			newProps.getDynamicObject()->setProperty("height", sc->getPosition().getHeight());
-
-			newProps.getDynamicObject()->setProperty("id", sc->getName().toString());
-			newProps.getDynamicObject()->setProperty("type", sc->getObjectName().toString());
-
-			ValueTree child("Component");
-
-			ValueTreeConverters::copyDynamicObjectPropertiesToValueTree(child, newProps);
-
-			v.addChild(child, -1, nullptr);
-		}
-
-		
-		Result r = pwsc->getScriptingContent()->createComponentsFromValueTree(v);
-
-		if (r.wasOk())
-		{
-			compileScript();
-
-			PresetHandler::showMessageWindow("Sucess", "The current state was copied into the internal object.\nYou can now safely delete all JSON definitions and unneeded widget.set() calls", PresetHandler::IconType::Info);
-		}
-		else
-		{
-			PresetHandler::showMessageWindow("Error", r.getErrorMessage(), PresetHandler::IconType::Error);
-		}
-
-#endif
-	}
 }
 
 JavascriptProcessor::SnippetResult JavascriptProcessor::compileScript()

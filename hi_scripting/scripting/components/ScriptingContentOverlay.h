@@ -122,9 +122,8 @@ class ScriptingEditor;
 class ScriptingContentOverlay : public Component,
 								public ButtonListener,
 								public ScriptComponentEditListener,
-								public LassoSource<ScriptComponent*>,
-								public ScriptingApi::Content::RebuildListener,
-							    public GlobalScriptCompileListener
+								public LassoSource<ScriptComponent*>
+							    
 {
 public:
 
@@ -137,21 +136,6 @@ public:
 
 	void toggleEditMode();
 
-	void contentWasRebuilt() override
-	{
-		refreshUpdateStatus();
-	}
-
-	void scriptWasCompiled(JavascriptProcessor *processor)
-	{
-		if (getProcessor() == dynamic_cast<Processor*>(processor))
-		{
-			refreshUpdateStatus();
-		}
-	}
-
-	void refreshUpdateStatus();
-
 	void setEditMode(bool editModeEnabled);
 
 	void setShowEditButton(bool shouldBeVisible)
@@ -160,6 +144,8 @@ public:
 	}
 
 	void paint(Graphics& g) override;
+
+
 
 	void scriptComponentSelectionChanged() override;
 

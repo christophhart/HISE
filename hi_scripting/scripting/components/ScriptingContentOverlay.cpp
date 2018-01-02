@@ -138,8 +138,6 @@ void ScriptEditHandler::createNewComponent(Widgets componentType, int x, int y)
 		break;
 	}
 
-	content->updateAndSetLevel(ScriptingApi::Content::DoNothing);
-
 	auto b = content->getScriptProcessor()->getMainController_()->getScriptComponentEditBroadcaster();
 
 	b->setSelection(content->getComponentWithName(id));
@@ -252,10 +250,6 @@ ScriptingContentOverlay::ScriptingContentOverlay(ScriptEditHandler* handler_) :
 {
 	addAsScriptEditListener();
 
-	dynamic_cast<JavascriptProcessor*>(getProcessor())->getContent()->addRebuildListener(this);
-
-	getProcessor()->getMainController()->addScriptListener(this);
-
 	addAndMakeVisible(dragModeButton = new ShapeButton("Drag Mode", Colours::black.withAlpha(0.6f), Colours::black.withAlpha(0.8f), Colours::black.withAlpha(0.8f)));
 
 	lasso.setColour(LassoComponent<ScriptComponent*>::ColourIds::lassoFillColourId, Colours::white.withAlpha(0.1f));
@@ -279,8 +273,6 @@ ScriptingContentOverlay::ScriptingContentOverlay(ScriptEditHandler* handler_) :
 ScriptingContentOverlay::~ScriptingContentOverlay()
 {
 	removeAsScriptEditListener();
-	getProcessor()->getMainController()->removeScriptListener(this);
-	dynamic_cast<JavascriptProcessor*>(getProcessor())->getContent()->removeRebuildListener(this);
 }
 
 void ScriptingContentOverlay::resized()
@@ -300,27 +292,6 @@ void ScriptingContentOverlay::toggleEditMode()
 	setEditMode(!dragMode);
 
 	handler->toggleComponentSelectMode(dragMode);
-}
-
-
-void ScriptingContentOverlay::refreshUpdateStatus()
-{
-	auto c = dynamic_cast<JavascriptProcessor*>(getProcessor())->getContent();
-
-	auto level = c->getRequiredUpdate();
-
-	if (level > ScriptingApi::Content::UpdateLevel::DoNothing)
-	{
-		isDisabledUntilUpdate = true;
-		draggers.clear();
-	}
-	else
-	{
-		isDisabledUntilUpdate = false;
-		
-	}
-
-	repaint();
 }
 
 void ScriptingContentOverlay::setEditMode(bool editModeEnabled)
@@ -496,7 +467,7 @@ bool ScriptingContentOverlay::keyPressed(const KeyPress &key)
 			auto deltaX = end.x - start.x;
 			auto deltaY = end.y - start.y;
 
-			ScriptingApi::Content::Helpers::duplicateSelection(pwsc->getScriptingContent(), b->getSelection(), deltaX, deltaY);
+			ScriptingApi::Content::Helpers::duplicateSelection(pwsc->getScriptingContent(), b->getSelection(), deltaX, deltaY, &b->getUndoManager());
 		}
 
 		return true;
@@ -527,21 +498,7 @@ void ScriptingContentOverlay::findLassoItemsInArea(Array<ScriptComponent*> &item
 
 }
 
-static void removeChildComponentsFromArray(Array<ScriptComponent*>& arrayToClean)
-{
-	for (int i = 0; i < arrayToClean.size(); i++)
-	{
-		auto sc = arrayToClean[i];
 
-		if (auto parent = sc->getParentScriptComponent())
-		{
-			if (arrayToClean.indexOf(parent) != -1)
-			{
-				arrayToClean.remove(i--);
-			}
-		}
-	}
-}
 
 void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 {
@@ -554,9 +511,6 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 		lasso.endLasso();
 
 		auto itemsFound = lassoSet.getItemArray();
-
-		// Remove all child components from the new selection.
-		removeChildComponentsFromArray(itemsFound);
 
 		auto b = getScriptComponentEditBroadcaster();
 
@@ -639,10 +593,6 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 				m.addItem(showCallback, "Show callback for " + first->getName().toString(), first->getCustomControlCallback() != nullptr);
 			}
 
-			m.addSeparator();
-			m.addItem(restoreToData, "Discard script changes");
-			m.addItem(copySnapshot, "Save script changes to UI Data");
-
 			int result = m.show();
 
 			if (result == createCallbackDefinition)
@@ -680,16 +630,6 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 					if (func != nullptr)
 						func->doubleClickCallback(e, dynamic_cast<Component*>(handler));
 				}
-			}
-			else if (result == copySnapshot)
-			{
-				ScriptingApi::Content::Helpers::copyComponentSnapShotToValueTree(handler->getScriptEditHandlerProcessor()->getContent());
-			}
-			else if (result == restoreToData)
-			{
-				auto c = handler->getScriptEditHandlerProcessor()->getContent();
-
-				c->resetContentProperties();
 			}
 			else if (result >= editComponentOffset) // EDIT IN PANEL
 			{
@@ -804,6 +744,13 @@ void ScriptingContentOverlay::Dragger::mouseDown(const MouseEvent& e)
 			return;
 		}
 
+		if (e.mods.isCommandDown())
+		{
+
+			parent->getScriptComponentEditBroadcaster()->updateSelectionBasedOnModifier(sc, e.mods, sendNotification);
+			return;
+		}
+
 		constrainer.setStartPosition(getBounds());
 		startBounds = getBounds();
 
@@ -911,7 +858,7 @@ void ScriptingContentOverlay::Dragger::duplicateSelection(int deltaX, int deltaY
 
 	auto content = b->getFirstFromSelection()->parent;
 
-	ScriptingApi::Content::Helpers::duplicateSelection(content, b->getSelection(), deltaX, deltaY);
+	ScriptingApi::Content::Helpers::duplicateSelection(content, b->getSelection(), deltaX, deltaY, &b->getUndoManager());
 	
 }
 

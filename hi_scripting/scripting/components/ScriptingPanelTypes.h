@@ -197,7 +197,7 @@ public:
 			updateUndoDescription();
 		}
 
-		void updateUndoDescription();
+		void updateUndoDescription() override;
 
 		void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override;
 
@@ -229,6 +229,7 @@ public:
 
 			static void distribute(Editor* editor, bool isVertical);
 			static void align(Editor* editor, bool isVertical);
+			static void undo(Editor * e, bool shouldUndo);
 		};
 
 #if 0

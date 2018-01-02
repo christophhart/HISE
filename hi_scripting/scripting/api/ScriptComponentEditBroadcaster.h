@@ -73,6 +73,8 @@ public:
 		return editedProcessor.get();
 	}
 
+	/** Overwrite this and update the undo description. */
+	virtual void updateUndoDescription() {};
 
 protected:
 
@@ -93,6 +95,7 @@ private:
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptComponentEditListener)
 };
+
 
 
 
@@ -233,6 +236,9 @@ public:
 		return currentlyEditedProcessor.get() == p;
 	}
 
+	void undo(bool shouldUndo);
+
+	
 	class PropertyChange : public UndoableAction
 	{
 	public:
@@ -312,11 +318,11 @@ public:
 
 private:
 
+	ScopedPointer<ValueTreeUpdateWatcher> updateWatcher;
+
 	WeakReference<Processor> currentlyEditedProcessor;
 
 	void setPropertyInternal(ScriptComponent* sc, const Identifier& propertyId, const var& newValue, NotificationType notifyListeners);
-
-	
 
 	UndoManager manager;
 

@@ -298,8 +298,6 @@ public:
 			if (v.getParent().isValid())
 				v.getParent().removeChild(v, &undoManager);
 		}
-
-		content->updateAndSetLevel(ScriptingApi::Content::FullRecompile);
 	}
 
 	bool keyPressed(const KeyPress& key) override;

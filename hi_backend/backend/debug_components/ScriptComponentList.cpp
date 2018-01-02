@@ -179,7 +179,9 @@ void ScriptComponentListItem::itemSelectionChanged(bool isNowSelected)
 
 	if (sc != nullptr)
 	{
-		if (isNowSelected)
+		auto selectionContainsParent = b->getSelection().contains(sc->getParentScriptComponent());
+
+		if (isNowSelected && !selectionContainsParent)
 		{
 			b->addToSelection(sc);
 		}
@@ -252,11 +254,6 @@ void ScriptComponentListItem::itemDropped(const DragAndDropTarget::SourceDetails
 	getSelectedTreeViewItems(*getOwnerView(), selectedTrees);
 
 	moveItems(*getOwnerView(), selectedTrees, tree, insertIndex, undoManager);
-
-	if (content.get() != nullptr)
-	{
-		content->updateAndSetLevel(ScriptingApi::Content::FullRecompile);
-	}
 }
 
 void ScriptComponentListItem::moveItems(TreeView& treeView, const OwnedArray<ValueTree>& items, ValueTree newParent, int insertIndex, UndoManager& undoManager)
@@ -448,13 +445,9 @@ void ScriptComponentList::mouseUp(const MouseEvent& event)
 		m.addItem(PopupMenuOptions::CreateScriptVariableDeclaration, "Create script variable definition");
 		m.addItem(PopupMenuOptions::CreateCustomCallbackDefinition, "Create custom callback definition");
 
-		auto clipboardData = JSON::parse(SystemClipboard::getTextFromClipboard());
-
 		const bool isSingleSelection = tree->getNumSelectedItems() == 1;
 
-		m.addItem(PopupMenuOptions::CopyProperties, "Copy properties", isSingleSelection);
-		m.addItem(PopupMenuOptions::PasteProperties, "Paste properties to selection", clipboardData.isObject());
-
+		
 		ValueTree pTree;
 		
 		if (isSingleSelection)
@@ -505,22 +498,7 @@ void ScriptComponentList::mouseUp(const MouseEvent& event)
 			SystemClipboard::copyTextToClipboard(st);
 			break;
 		}
-		case CopyProperties:
-		{
-			if (tree->getNumSelectedItems() == 1)
-			{
-				// TODO
-				jassertfalse;
-			}
-
-			
-			break;
-		}
-		case PasteProperties:
-		{
-			ScriptingApi::Content::Helpers::pasteProperties(b->getSelection(), clipboardData);
-			break;
-		}
+		
 		ADD_WIDGET(ScriptEditHandler::Widgets::Knob, ScriptingApi::Content::ScriptSlider);
 		ADD_WIDGET(ScriptEditHandler::Widgets::Button, ScriptingApi::Content::ScriptButton);
 		ADD_WIDGET(ScriptEditHandler::Widgets::Label, ScriptingApi::Content::ScriptLabel);
@@ -614,13 +592,15 @@ bool ScriptComponentList::keyPressed(const KeyPress& key)
 
 	if (key == KeyPress('z', ModifierKeys::commandModifier, 0))
 	{
-		undoManager.undo();
+		getScriptComponentEditBroadcaster()->undo(true);
+		
 		return true;
 	}
 
 	if (key == KeyPress('z', ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 0))
 	{
-		undoManager.redo();
+		getScriptComponentEditBroadcaster()->undo(false);
+
 		return true;
 	}
 	if ((key.isKeyCode('j') || key.isKeyCode('J')) )
@@ -650,16 +630,20 @@ bool ScriptComponentList::keyPressed(const KeyPress& key)
 
 				jassert(ar->size() == selection.size());
 
+				auto undoManager = &b->getUndoManager();
+
+				ValueTreeUpdateWatcher::ScopedDelayer sd(content->getUpdateWatcher());
+
+				undoManager->beginNewTransaction("Raw JSON Edit");
+
 				for (int i = 0; i < selection.size(); i++)
 				{
 					auto sc = selection[i];
 
 					auto newJson = ar->getUnchecked(i);
 
-					ScriptingApi::Content::Helpers::setComponentValueTreeFromJSON(content, sc->name, newJson);
+					ScriptingApi::Content::Helpers::setComponentValueTreeFromJSON(content, sc->name, newJson, undoManager);
 				}
-
-				content->updateAndSetLevel(ScriptingApi::Content::UpdateLevel::FullRecompile);
 			}
 
 

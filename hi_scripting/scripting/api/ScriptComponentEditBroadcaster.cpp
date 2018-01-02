@@ -49,15 +49,24 @@ void ScriptComponentEditListener::removeAsScriptEditListener()
 
 void ScriptComponentEditBroadcaster::addToSelection(ScriptComponent* componentToAdd, NotificationType notifyListeners)
 {
+	if (componentToAdd == nullptr)
+		return;
+
 	for (int i = 0; i < currentSelection.size(); i++)
 	{
 		if (currentSelection[i] == componentToAdd)
 			return;
+
+		if (componentToAdd->getParentScriptComponent() == currentSelection[i])
+			return;
+
+		if (currentSelection[i]->getParentScriptComponent() == componentToAdd)
+			currentSelection.remove(i--);
 	}
 
-	currentlyEditedProcessor = dynamic_cast<Processor*>(componentToAdd->getScriptProcessor());
-
 	currentSelection.add(componentToAdd);
+
+	currentlyEditedProcessor = dynamic_cast<Processor*>(componentToAdd->getScriptProcessor());
 
 	if (notifyListeners)
 		sendSelectionChangeMessage();
@@ -66,6 +75,9 @@ void ScriptComponentEditBroadcaster::addToSelection(ScriptComponent* componentTo
 
 void ScriptComponentEditBroadcaster::removeFromSelection(ScriptComponent* componentToRemove, NotificationType nofifyListeners)
 {
+	if (componentToRemove == nullptr)
+		return;
+
 	for (int i = 0; i < currentSelection.size(); i++)
 	{
 		if (currentSelection[i] == componentToRemove)
@@ -76,7 +88,6 @@ void ScriptComponentEditBroadcaster::removeFromSelection(ScriptComponent* compon
 			
 	}
 	
-
 	if(nofifyListeners)
 		sendSelectionChangeMessage();
 }
@@ -280,6 +291,29 @@ bool ScriptComponentEditBroadcaster::isPositionId(const Identifier& id)
 	return id == x || id == y;
 }
 
+void ScriptComponentEditBroadcaster::undo(bool shouldUndo)
+{
+	auto jp = dynamic_cast<JavascriptProcessor*>(currentlyEditedProcessor.get());
+
+	if (jp == nullptr)
+		return;
+
+	auto content = jp->getContent();
+
+	ValueTreeUpdateWatcher::ScopedDelayer sd(content->getUpdateWatcher());
+
+	if (shouldUndo)
+		manager.undo();
+	else
+		manager.redo();
+
+	for (auto l : listeners)
+	{
+		if (l.get() != nullptr)
+			l->updateUndoDescription();
+	}
+}
+
 String ScriptComponentEditBroadcaster::getTransactionName(ScriptComponent* sc, const Identifier& id, const var& newValue)
 {
 	String p;
@@ -333,5 +367,6 @@ void ScriptComponentEditBroadcaster::sendSelectionChangeMessage()
 		listeners[i]->scriptComponentSelectionChanged();
 	}
 }
+
 
 } // namespace hise
