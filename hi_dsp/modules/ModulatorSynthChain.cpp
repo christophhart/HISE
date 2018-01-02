@@ -181,6 +181,10 @@ void ModulatorSynthChain::compileAllScripts()
 
 		while ((sp = it.getNextProcessor()) != 0)
 		{
+			auto c = sp->getContent();
+
+			ValueTreeUpdateWatcher::ScopedDelayer sd(c->getUpdateWatcher());
+
 			sp->getContent()->resetContentProperties();
 
 			sp->compileScript();

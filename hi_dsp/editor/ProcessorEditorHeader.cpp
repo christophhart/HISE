@@ -1257,7 +1257,6 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 			m.addItem(ConnectToScriptFile, "Connect to external script", true, sp->isConnectedToExternalFile());
 			m.addItem(ReloadFromExternalScript, "Reload external script", sp->isConnectedToExternalFile(), false);
 			m.addItem(DisconnectFromScriptFile, "Disconnect from external script", sp->isConnectedToExternalFile(), false);
-			m.addItem(SaveCurrentInterfaceState, "Overwrite UI Data with current state", true, false);
 		}
 
 		int result = m.show();
@@ -1314,14 +1313,6 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 			if (PresetHandler::showYesNoWindow("Disconnect from script file", "Do you want to disconnect the script from the connected file?\nAny changes you make here won't be saved in the file"))
 			{
 				dynamic_cast<JavascriptProcessor*>(getProcessor())->disconnectFromFile();
-			}
-		}
-		else if (result == SaveCurrentInterfaceState)
-		{
-			if (PresetHandler::showYesNoWindow("Overwrite the UI data with the current state",
-				"Do you want to overwrite the internal UI properties object with the current state?\nThis can be used to migrate an old script to the new UI data model", PresetHandler::IconType::Question))
-			{
-				dynamic_cast<JavascriptProcessor*>(getProcessor())->storeCurrentInterfaceStateInContentProperties();
 			}
 		}
 		else
