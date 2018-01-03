@@ -1033,6 +1033,8 @@ void ScriptingApi::Content::ScriptSlider::setScriptObjectPropertyWithChangeMessa
 {
 	jassert(propertyIds.contains(id));
 
+	auto propId = propertyIds.indexOf(id);
+	
 	if (id == Identifier("mode"))
 	{
 		jassert(isCorrectlyInitialised(id));
@@ -1351,11 +1353,29 @@ void ScriptingApi::Content::ScriptSlider::setMode(String mode)
 
 	m = (HiSlider::Mode) index;
 
-	NormalisableRange<double> nr = HiSlider::getRangeForMode(m);
+	auto currentModeName = getScriptObjectProperty(ScriptSlider::Mode).toString();
+	auto currentMode = sa.indexOf(currentModeName);
+	
+	auto currentModeDefaultRange = HiSlider::getRangeForMode((HiSlider::Mode)currentMode);
+
+	
+	const bool sameStart = currentModeDefaultRange.start == (double)getScriptObjectProperty(ScriptComponent::Properties::min);
+	const bool sameEnd = currentModeDefaultRange.end == (double)getScriptObjectProperty(ScriptComponent::Properties::max);
+	
+	const bool sameStep = currentModeDefaultRange.interval == (double)getScriptObjectProperty(ScriptSlider::Properties::stepSize);
+	
+	auto skew1 = HiSlider::getMidPointFromRangeSkewFactor(currentModeDefaultRange);
+	auto skew2 = (double)getScriptObjectProperty(ScriptSlider::Properties::middlePosition);
+
+	const bool sameSkew = (skew2 == -1.0) || skew1 == skew2;
+
+	bool isUsingDefaultRange = sameStart && sameEnd && sameStep && sameSkew;
+
+	auto nr = HiSlider::getRangeForMode(m);
 
 	setScriptObjectProperty(Mode, mode);
 
-	if ((nr.end - nr.start) != 0)
+	if (isUsingDefaultRange && (nr.end - nr.start) != 0)
 	{
 		setScriptObjectProperty(ScriptComponent::Properties::min, nr.start);
 		setScriptObjectProperty(ScriptComponent::Properties::max, nr.end);
