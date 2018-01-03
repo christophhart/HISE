@@ -678,7 +678,21 @@ private:
 
 				if (colourVar.isString())
 				{
-					colours[i] = Colour::fromString(colourVar.toString());
+					auto stringValue = colourVar.toString();
+
+					// thanks to the awesomeness of XML, this could still be a number, yay...
+
+					int64 normal = stringValue.getLargeIntValue();
+					int64 asHex = stringValue.getHexValue64();
+
+					if (stringValue.containsAnyOf("ABCDEFabcdefx"))
+					{
+						colours[i] = Colour((uint32)asHex);
+					}
+					else
+					{
+						colours[i] = Colour((uint32)normal);
+					}
 				}
 				else if (colourVar.isInt64() || colourVar.isInt64())
 				{
