@@ -16,7 +16,7 @@ echo "Compiling stereo version..."
 
 xcodebuild -project "$plugin_folder/Builds/MacOSX/HISE.xcodeproj" -configuration "Release" clean
 
-xcodebuild -project "$plugin_folder/Builds/MacOSX/HISE.xcodeproj" -configuration "Release" | xcpretty
+xcodebuild -project "$plugin_folder/Builds/MacOSX/HISE.xcodeproj" -configuration "Release"
 
 if [ $? != "0" ];
 then
@@ -41,7 +41,7 @@ echo "Compiling Standalone App..."
 
 xcodebuild -project "$standalone_folder/Builds/MacOSX/HISE Standalone.xcodeproj" -configuration "Release" clean
 
-xcodebuild -project "$standalone_folder/Builds/MacOSX/HISE Standalone.xcodeproj" -configuration "Release" | xcpretty
+xcodebuild -project "$standalone_folder/Builds/MacOSX/HISE Standalone.xcodeproj" -configuration "Release"
 
 if [ $? != "0" ];
 then
