@@ -221,6 +221,7 @@ void Label::showEditor()
         editor->setKeyboardType (keyboardType);
         editor->addListener (this);
         editor->grabKeyboardFocus();
+		editor->setJustification(getJustificationType());
 
         if (editor == nullptr) // may be deleted by a callback
             return;
