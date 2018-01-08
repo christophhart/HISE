@@ -3177,11 +3177,13 @@ struct ScriptingApi::Content::ScriptFloatingTile::Wrapper
 ScriptingApi::Content::ScriptFloatingTile::ScriptFloatingTile(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier panelName, int x, int y, int width, int height) :
 	ScriptComponent(base, panelName)
 {
-	propertyIds.add("updateAfterInit");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	
+	ADD_SCRIPT_PROPERTY(i05, "itemColour3");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ColourPickerSelector);
+	ADD_SCRIPT_PROPERTY(i06, "updateAfterInit");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i01, "ContentType");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
-	ADD_SCRIPT_PROPERTY(i02, "Font");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
-	ADD_SCRIPT_PROPERTY(i03, "FontSize");	ADD_TO_TYPE_SELECTOR(SelectorTypes::SliderSelector);
-	ADD_SCRIPT_PROPERTY(i04, "Data");	ADD_TO_TYPE_SELECTOR(SelectorTypes::CodeSelector);
+	ADD_SCRIPT_PROPERTY(i02, "Font");				ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(i03, "FontSize");			ADD_TO_TYPE_SELECTOR(SelectorTypes::SliderSelector);
+	ADD_SCRIPT_PROPERTY(i04, "Data");				ADD_TO_TYPE_SELECTOR(SelectorTypes::CodeSelector);
 
 	priorityProperties.add(getIdFor(ContentType));
 
@@ -3197,6 +3199,7 @@ ScriptingApi::Content::ScriptFloatingTile::ScriptFloatingTile(ProcessorWithScrip
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::processorId));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::parameterId));
 	
+	setDefaultValue(Properties::itemColour3, 0);
 	setDefaultValue(ScriptComponent::Properties::x, x);
 	setDefaultValue(ScriptComponent::Properties::y, y);
 	setDefaultValue(ScriptComponent::Properties::width, width);
@@ -3314,7 +3317,7 @@ void ScriptingApi::Content::ScriptFloatingTile::setScriptObjectPropertyWithChang
 			}
 		}
 	}
-	else if (id == getIdFor(bgColour) || id == getIdFor(textColour) || id == getIdFor(itemColour) || id == getIdFor(itemColour2))
+	else if (id == getIdFor(bgColour) || id == getIdFor(textColour) || id == getIdFor(itemColour) || id == getIdFor(itemColour2) || id == getIdFor(itemColour3))
 	{
 		if (auto obj = jsonData.getDynamicObject())
 		{

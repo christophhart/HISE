@@ -771,8 +771,9 @@ void ScriptCreatedComponentWrappers::LabelWrapper::updateComponent(int propertyI
 		PROPERTY_CASE::ScriptLabel::FontName:
 		PROPERTY_CASE::ScriptLabel::FontSize :
 		PROPERTY_CASE::ScriptLabel::FontStyle :
-		PROPERTY_CASE::ScriptLabel::Alignment : updateFont(sc, l); break;
+		PROPERTY_CASE::ScriptLabel::Alignment :		updateFont(sc, l); break;
 		PROPERTY_CASE::ScriptLabel::Editable:		 updateEditability(sc, l); break;
+		PROPERTY_CASE::ScriptLabel::Multiline:		l->setMultiline(newValue); break;
 		PROPERTY_CASE::ScriptSlider::numProperties :
 	default:
 		break;
