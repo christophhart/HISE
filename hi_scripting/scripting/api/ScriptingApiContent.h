@@ -562,6 +562,7 @@ public:
 			mouseSensitivity,
 			dragDirection,
 			showValuePopup,
+			showTextBox,
 			numProperties
 		};
 

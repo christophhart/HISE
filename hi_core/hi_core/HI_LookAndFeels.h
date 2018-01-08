@@ -498,6 +498,7 @@ public:
 		}
 	}
 
+	
 	Font f;
 	Colour bgColour;
 	Colour textColour;
@@ -1142,6 +1143,19 @@ public:
 
 	KnobLookAndFeel();
 
+	
+	Slider::SliderLayout getSliderLayout(Slider&s) override
+	{
+		auto layout = LookAndFeel_V3::getSliderLayout(s);
+
+		if (s.getSliderStyle() == Slider::RotaryHorizontalVerticalDrag)
+		{
+			layout.textBoxBounds = layout.textBoxBounds.withBottomY(s.getHeight()-3);
+		}
+
+		return layout;
+	}
+
 	Label *createSliderTextBox (Slider &s) override
 	{
 
@@ -1149,15 +1163,19 @@ public:
 		Label *label = new Label("Textbox");
 		label->setFont (GLOBAL_FONT());
 		label->setEditable (false, false, false);
-		label->setColour (Label::textColourId, Colour (0x66ffffff));
 		
+		Colour textColour;
+		Colour contrastColour;
 
 		if(s.getSliderStyle() == Slider::RotaryHorizontalVerticalDrag)
 		{
 			
-			label->setJustificationType (Justification::centredBottom);
+			label->setJustificationType (Justification::centred);
 			label->setEditable (false, false, false);
-			label->setColour (Label::textColourId, Colour (0x66ffffff));
+			
+			textColour = Colour(0x66ffffff);
+			contrastColour = Colours::black;
+
 			
 		}
 		else
@@ -1165,11 +1183,17 @@ public:
 			
 			label->setJustificationType (Justification::centred);
 			
-			label->setColour (Label::textColourId, s.findColour(Slider::textBoxTextColourId));
+			textColour = s.findColour(Slider::textBoxTextColourId);
+			contrastColour = textColour.contrasting();
 			
-
-
 		}
+
+		label->setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
+		label->setColour(Label::textColourId, textColour);
+		label->setColour(Label::ColourIds::textWhenEditingColourId, textColour);
+		label->setColour(TextEditor::ColourIds::highlightColourId, textColour);
+		label->setColour(TextEditor::ColourIds::highlightedTextColourId, contrastColour);
+		label->setColour(TextEditor::ColourIds::focusedOutlineColourId, textColour);
 
 		return label;
 	}

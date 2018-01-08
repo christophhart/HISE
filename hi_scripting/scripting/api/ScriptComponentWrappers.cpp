@@ -263,6 +263,14 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateSliderStyle(ScriptingA
 	{
 		s->setTextBoxStyle(Slider::NoTextBox, false, 0, 0);
 	}
+
+	if (sc->styleId == Slider::LinearBar || sc->styleId == Slider::LinearBarVertical)
+	{
+		auto showTextBox = (bool)sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::showTextBox);
+
+		s->setTextBoxStyle(showTextBox ? Slider::TextBoxAbove : Slider::NoTextBox, !showTextBox, s->getWidth(), s->getHeight());
+	}
+
 }
 
 void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent()
@@ -330,6 +338,7 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent(int property
 		PROPERTY_CASE::ScriptComponent::itemColour2 :
 		PROPERTY_CASE::ScriptComponent::textColour :	updateColours(s); break;
 		PROPERTY_CASE::ScriptSlider::dragDirection:
+		PROPERTY_CASE::ScriptSlider::showTextBox:
 		PROPERTY_CASE::ScriptSlider::Style:				updateSliderStyle(sc, s); break;
 		PROPERTY_CASE::ScriptSlider::Mode:
 		PROPERTY_CASE::ScriptComponent::min :
@@ -394,7 +403,7 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateTooltip(Slider * s)
 	}
 }
 
-void ScriptCreatedComponentWrappers::SliderWrapper::sliderDragStarted(Slider* /*s*/)
+void ScriptCreatedComponentWrappers::SliderWrapper::sliderDragStarted(Slider* s)
 {
 	enum Direction
 	{
@@ -437,12 +446,7 @@ void ScriptCreatedComponentWrappers::SliderWrapper::sliderDragStarted(Slider* /*
 
 		parentTile->addAndMakeVisible(currentPopup = new ValuePopup(c));
 
-		currentPopup->setAlwaysOnTop(true);
-
-		currentPopup->itemColour = GET_OBJECT_COLOUR(itemColour);
-		currentPopup->itemColour2 = GET_OBJECT_COLOUR(itemColour2);
-		currentPopup->textColour = GET_OBJECT_COLOUR(textColour);
-		currentPopup->bgColour = GET_OBJECT_COLOUR(bgColour);
+		
 
 		auto l = parentTile->getLocalArea(c, c->getLocalBounds());
 
@@ -486,6 +490,30 @@ void ScriptCreatedComponentWrappers::SliderWrapper::sliderDragStarted(Slider* /*
 		default:
 			break;
 		}
+
+		if (s->getSliderStyle() == Slider::LinearBar ||
+			s->getSliderStyle() == Slider::LinearBarVertical)
+		{
+			currentPopup->itemColour = Colour(0xFF222222);
+			currentPopup->itemColour2 = Colour(0xFF111111);
+			currentPopup->textColour = Colour(0xFFCCCCCC);
+			currentPopup->bgColour = Colour(0xFFCCCCCC);
+
+			if (d == Below)
+				y += 10;
+		}
+		else
+		{
+			currentPopup->itemColour = GET_OBJECT_COLOUR(itemColour);
+			currentPopup->itemColour2 = GET_OBJECT_COLOUR(itemColour2);
+			currentPopup->textColour = GET_OBJECT_COLOUR(textColour);
+			currentPopup->bgColour = GET_OBJECT_COLOUR(bgColour);
+		}
+
+
+		currentPopup->setAlwaysOnTop(true);
+
+		
 
 		currentPopup->setTopLeftPosition(x, y);
 	}

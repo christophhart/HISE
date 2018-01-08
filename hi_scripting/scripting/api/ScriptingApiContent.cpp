@@ -950,6 +950,7 @@ maximum(1.0f)
 	ADD_SCRIPT_PROPERTY(i11, "mouseSensitivity");
 	ADD_SCRIPT_PROPERTY(i12, "dragDirection");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(i13, "showValuePopup"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(i14, "showTextBox"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
 	deactivatedProperties.removeAllInstancesOf(getIdFor(isPluginParameter));
 
@@ -989,6 +990,7 @@ maximum(1.0f)
 	setDefaultValue(ScriptSlider::Properties::mouseSensitivity, 1.0f);
 	setDefaultValue(ScriptSlider::Properties::dragDirection, "Diagonal");
 	setDefaultValue(ScriptSlider::Properties::showValuePopup, "No");
+	setDefaultValue(ScriptSlider::Properties::showTextBox, true);
 
 	ScopedValueSetter<bool> svs(removePropertyIfDefault, false);
 
