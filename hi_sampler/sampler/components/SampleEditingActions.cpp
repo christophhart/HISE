@@ -62,17 +62,35 @@ void SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(SampleEdit
 
 	ScopedLock sl(s->getMainController()->getSampleManager().getSamplerSoundLock());
 
+	handler->getSelection().deselectAll();
+
+	Array<int> newSelectedIndexes;
+
 	for (int i = 0; i < sounds.size(); i++)
 	{
 		ValueTree v = sounds[i].get()->exportAsValueTree();
 		const int index = s->getNumSounds();
+
+		newSelectedIndexes.add(index);
+
 		auto newSound = s->addSamplerSound(v, index, true);
-		handler->getSelection().addToSelection(newSound);
 	}
     
     s->refreshPreloadSizes();
 
-	handler->getSelection().dispatchPendingMessages();
+	auto f = [handler, newSelectedIndexes]()
+	{
+		for (auto i : newSelectedIndexes)
+		{
+			auto newSound = dynamic_cast<ModulatorSamplerSound*>(handler->getSampler()->getSound(i));
+
+			if (newSound != nullptr)
+				handler->getSelection().addToSelection(newSound);
+		}
+	};
+
+	new DelayedFunctionCaller(f, 50);
+
 }
 
 
@@ -293,6 +311,13 @@ void SampleEditHandler::SampleEditingActions::selectAllSamples(SampleEditHandler
 		}
 	}
 }
+
+
+void SampleEditHandler::SampleEditingActions::deselectAllSamples(SampleEditHandler* handler)
+{
+	handler->getSelection().deselectAll();
+}
+
 
 class NormalizeThread : public DialogWindowWithBackgroundThread
 {

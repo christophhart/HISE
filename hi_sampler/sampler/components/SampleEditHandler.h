@@ -150,8 +150,9 @@ public:
 
 		static bool metadataWasFound(ModulatorSampler* sampler);
 
-		static void trimSampleStart(SampleEditHandler * body);
+		static void trimSampleStart(Component* childComponentOfMainEditor, SampleEditHandler * body);
 		static void createMultimicSampleMap(SampleEditHandler* handler);
+		static void deselectAllSamples(SampleEditHandler* handler);
 	};
 
 	

@@ -169,7 +169,12 @@ void ScriptComponentEditPanel::fillPanel()
 		colourIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::itemColour));
 		colourIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::itemColour2));
 		colourIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::textColour));
-
+		
+		if (auto ft = dynamic_cast<ScriptingApi::Content::ScriptFloatingTile*>(sc))
+		{
+			colourIds.add(sc->getIdFor(ScriptingApi::Content::ScriptFloatingTile::Properties::itemColour3));
+		}
+		
 		addSectionToPanel(colourIds, "Component Colours");
 
 		Array<Identifier> specialProperties;

@@ -76,6 +76,10 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 
     //[UserPreSize]
 
+
+	addAndMakeVisible(lowXFadeSetter = new ValueSettingComponent());
+	addAndMakeVisible(highXFadeSetter = new ValueSettingComponent());
+
 	groupDisplay->setFont (GLOBAL_FONT());
 	displayGroupLabel->setFont (GLOBAL_FONT());
 
@@ -101,6 +105,11 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 	map = dynamic_cast<MapWithKeyboard*>(viewport->getViewedComponent());
 
 	
+	lowXFadeSetter->setPropertyType(ModulatorSamplerSound::LowerVelocityXFade);
+	highXFadeSetter->setPropertyType(ModulatorSamplerSound::UpperVelocityXFade);
+
+	lowXFadeSetter->setVisible(false);
+	highXFadeSetter->setVisible(false);
 
 	groupDisplay->setEditable(false);
 
@@ -255,7 +264,8 @@ void SampleMapEditor::resized()
 
 	toolbar->setBounds(12, 10, 708, 20);
 
-
+	lowXFadeSetter->setBounds(lowKeySetter->getBounds());
+	highXFadeSetter->setBounds(highKeySetter->getBounds());
 
 
     //[/UserResized]
@@ -353,6 +363,10 @@ void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo
 		result.addDefaultKeypress('a', ModifierKeys::commandModifier);
 		result.setActive(true);
 		break;
+	case DeselectAllSamples: result.setInfo("Deselect all Samples", "Deselect all Samples", "Sample Editing", 0);
+		result.addDefaultKeypress(KeyPress::escapeKey, ModifierKeys::noModifiers);
+		result.setActive(true);
+		break;
 	case MergeIntoMultisamples:
 		result.setInfo("Merge into Multimic samples", "Merge into Multimic samples", "Sample Editing", 0);
 		result.setActive(selectionIsNotEmpty);
@@ -403,7 +417,7 @@ void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo
 
 	}
 	case RefreshVelocityXFade:	result.setInfo("Refresh Velocity Crossfades.", "Adds a crossfade to overlapping sounds in a group.", "Sample Editing", 0);
-		result.setActive(selectionIsNotEmpty);
+		result.setActive(true);
 		break;
 	case AutomapUsingMetadata:  result.setInfo("Automap using Metadata", "Automaps the sample using the metadata that is found in the sample file.", "Sample Editing", 0);
 		result.setActive(selectionIsNotEmpty);
@@ -429,6 +443,7 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	case CopySamples:		SampleEditHandler::SampleEditingActions::copySelectedSounds(handler); return true;
 	case PasteSamples:		SampleEditHandler::SampleEditingActions::pasteSelectedSounds(handler); return true;
 	case SelectAllSamples:	SampleEditHandler::SampleEditingActions::selectAllSamples(handler); return true;
+	case DeselectAllSamples:	SampleEditHandler::SampleEditingActions::deselectAllSamples(handler); return true;
 	case MergeIntoMultisamples:		SampleEditHandler::SampleEditingActions::mergeIntoMultiSamples(handler, this); return true;
 	case CreateMultiMicSampleMap:	SampleEditHandler::SampleEditingActions::createMultimicSampleMap(handler); return true;
 	case ExtractToSingleMicSamples:	SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(handler); return true;
@@ -517,11 +532,24 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 							}
 	case AutomapVelocity:	SampleEditHandler::SampleEditingActions::automapVelocity(handler);
 							return true;
-	case RefreshVelocityXFade:	SampleEditHandler::SampleEditingActions::refreshCrossfades(handler);
-							return true;
+	case RefreshVelocityXFade:
+	{
+		const bool showXFade = lowXFadeSetter->isVisible();
+
+		lowXFadeSetter->setVisible(!showXFade);
+		highXFadeSetter->setVisible(!showXFade);
+
+		lowKeySetter->setVisible(showXFade);
+		highKeySetter->setVisible(showXFade);
+
+		//SampleEditHandler::SampleEditingActions::refreshCrossfades(handler);
+		return true;
+	}
+		
+		
 	case AutomapUsingMetadata: SampleEditHandler::SampleEditingActions::automapUsingMetadata(sampler);
 							return true;
-	case TrimSampleStart:	SampleEditHandler::SampleEditingActions::trimSampleStart(handler);
+	case TrimSampleStart:	SampleEditHandler::SampleEditingActions::trimSampleStart(this,handler);
 							return true;
 	}
 	return false;
@@ -559,6 +587,12 @@ ApplicationCommandManager * SampleMapEditor::getCommandManager()
 
 bool SampleMapEditor::keyPressed(const KeyPress& k)
 {
+	if (int commandId = getCommandManager()->getKeyMappings()->findCommandForKeyPress(k))
+	{
+		getCommandManager()->invokeDirectly(commandId, false);
+		return true;
+	}
+
 	if (k.getModifiers().isShiftDown())
 	{
 		if (k.getKeyCode() == k.upKey)

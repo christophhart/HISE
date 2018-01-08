@@ -84,6 +84,7 @@ public:
 		PasteSamples,
 		DeleteSamples,
 		SelectAllSamples,
+		DeselectAllSamples,
 		MergeIntoMultisamples,
 		CreateMultiMicSampleMap,
 		ExtractToSingleMicSamples,
@@ -121,6 +122,7 @@ public:
 								PasteSamples,
 								DeleteSamples,
 								SelectAllSamples,
+								DeselectAllSamples,
 								CreateMultiMicSampleMap,
 								MergeIntoMultisamples,
 								ExtractToSingleMicSamples,
@@ -158,6 +160,8 @@ public:
 		highKeySetter->setCurrentSelection(selectedSounds);
 		lowVelocitySetter->setCurrentSelection(selectedSounds);
 		highVelocitySetter->setCurrentSelection(selectedSounds);
+		lowXFadeSetter->setCurrentSelection(selectedSounds);
+		highXFadeSetter->setCurrentSelection(selectedSounds);
 
 		if (popoutCopy != nullptr && popoutCopy->isVisible())
 		{
@@ -550,6 +554,8 @@ private:
 	bool isDraggingFolder;
 	StringArray filesInFolder;
 
+	ScopedPointer<ValueSettingComponent> lowXFadeSetter;
+	ScopedPointer<ValueSettingComponent> highXFadeSetter;
 	
 
     //[/UserVariables]
