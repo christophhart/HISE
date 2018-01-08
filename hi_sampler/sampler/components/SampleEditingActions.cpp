@@ -1159,94 +1159,740 @@ void SampleEditHandler::SampleEditingActions::automapUsingMetadata(ModulatorSamp
 }
 
 
-void SampleEditHandler::SampleEditingActions::trimSampleStart(SampleEditHandler * handler)
+class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 {
-	auto sounds = handler->getSelection().getItemArray();
-
-    int multiMicIndex = 0;
-    
-	int micPositions = handler->getSampler()->getNumMicPositions();
-
-    if(micPositions > 1)
-    {
-        multiMicIndex = jlimit(0, micPositions-1, PresetHandler::getCustomName("Channel Index", "Enter the channel index (starting with 0) for the mic position that you want to use to detect the sample start").getIntValue());
-    }
-    
-	float dBThreshold = PresetHandler::getCustomName("Threshold", "Enter the dB Value for the threshold (it will use this as difference to the peak level").getFloatValue();
-
-	dBThreshold = jlimit<float>(-100.0f, 0.0f, dBThreshold);
-
-	
-
-	ModulatorSampler *sampler = handler->getSampler();
-
-	sampler->getUndoManager()->beginNewTransaction();
-
-	AudioSampleBuffer analyseBuffer;
-
-	for (int i = 0; i < sounds.size(); i++)
+	static AudioSampleBuffer getBufferForAnalysis(ModulatorSamplerSound* sound, int multiMicIndex, int maxSize=INT_MAX)
 	{
-		if (sounds[i].get() != nullptr)
+		ScopedPointer<AudioFormatReader> reader = sound->getReferenceToSound(multiMicIndex)->createReaderForPreview();
+
+		AudioSampleBuffer analyseBuffer;
+
+		if (reader != nullptr)
 		{
-			AudioFormatReader* reader = sounds[i]->getReferenceToSound(multiMicIndex)->createReaderForPreview();
+			const int numSamples = jmin<int>(maxSize, (int)reader->lengthInSamples);
 
-			if (reader != nullptr)
+			if (numSamples != 0)
 			{
-				const int numSamples = (int)reader->lengthInSamples;
+				analyseBuffer.setSize(2, numSamples, false, true, true);
 
-				if (numSamples != 0)
+				reader->read(&analyseBuffer, 0, numSamples, 0, true, true);
+			}
+		}
+
+		return analyseBuffer;
+	}
+
+
+	static int calculateSampleEnd(int offset, AudioSampleBuffer &analyseBuffer, ModulatorSampler * sampler, float dBThreshold, bool snapToZero)
+	{
+		int sample = offset-1;
+		const int numSamples = (int)analyseBuffer.getNumSamples();
+
+		if (numSamples != 0)
+		{
+			const float threshHoldLevel = Decibels::decibelsToGain(dBThreshold);
+
+			int lastZero = offset;
+			int lastSign = 0;
+
+			for (; sample > 0; sample--)
+			{
+				float leftSample = analyseBuffer.getSample(0, sample);
+
+				if (snapToZero)
 				{
-					analyseBuffer.setSize(2, numSamples, false, true, true);
+					const int thisSign = leftSample > 0.0f ? 1 : -1;
 
-					reader->read(&analyseBuffer, 0, numSamples, 0, true, true);
-
-					float lLow, lHigh, rLow, rHigh;
-
-					reader->readMaxLevels(0, numSamples, lLow, lHigh, rLow, rHigh);
-
-					const float maxLevel = jmax<float>(std::fabs(lLow), std::fabs(lHigh), std::fabs(rLow), std::fabs(rHigh));
-                    
-					if (maxLevel == 0.0f)
+					if (lastSign != thisSign)
 					{
-						debugError(sampler, "Empty sample content. Skipping sample " + sounds[i]->getReferenceToSound()->getFileName());
+						lastZero = sample;
 					}
 
-					const float threshHoldLevel = Decibels::decibelsToGain(dBThreshold) * maxLevel;
+					lastSign = thisSign;
+				}
 
-					int sample = sounds[i]->getProperty(ModulatorSamplerSound::SampleStart);
+				float l = std::fabs(leftSample);
+				float r = std::fabs(analyseBuffer.getSample(1, sample));
 
-					for (; sample < numSamples; sample++)
+				if (l > threshHoldLevel || r > threshHoldLevel)
+					return snapToZero ? lastZero : sample;
+			}
+
+			return 0;
+		}
+		else
+		{
+			debugError(sampler, "Sample is empty.");
+			return -1;
+		}
+
+		return sample;
+	}
+
+	static int calculateSampleTrimOffset(int offset, AudioSampleBuffer &analyseBuffer, ModulatorSampler * sampler, float dBThreshold, bool snapToZero)
+	{
+		int sample = offset;
+		const int numSamples = (int)analyseBuffer.getNumSamples();
+
+		int lastZero = offset;
+		int lastSign = 0;
+
+		if (numSamples != 0)
+		{
+			auto lr = analyseBuffer.findMinMax(0, 0, numSamples);
+			auto rr = analyseBuffer.findMinMax(1, 0, numSamples);
+
+			const float maxLevel = jmax<float>(std::fabs(lr.getStart()), std::fabs(lr.getEnd()), std::fabs(rr.getStart()), std::fabs(rr.getEnd()));
+
+			if (maxLevel == 0.0f)
+				debugError(sampler, "Empty sample content. Skipping sample");
+
+			const float threshHoldLevel = Decibels::decibelsToGain(dBThreshold);
+
+
+
+			for (; sample < numSamples; sample++)
+			{
+				
+				float leftSample = analyseBuffer.getSample(0, sample);
+
+				if (snapToZero)
+				{
+					const int thisSign = leftSample > 0.0f ? 1 : -1;
+
+					if (lastSign != thisSign)
 					{
-						float l = analyseBuffer.getSample(0, sample);
-						float r = analyseBuffer.getSample(0, sample);
-
-						if (l > threshHoldLevel || r > threshHoldLevel)
-						{
-							break;
-						}
+						lastZero = sample;
 					}
 
-					jassert(sample < numSamples - 1);
+					lastSign = thisSign;
+				}
 
-					sounds[i]->setPropertyWithUndo(ModulatorSamplerSound::SampleStart, var(sample));
-					
+				float l = std::fabs(leftSample);
+				float r = std::fabs(analyseBuffer.getSample(1, sample));
+
+				if (l > threshHoldLevel || r > threshHoldLevel)
+					return snapToZero ? lastZero : sample;
+			}
+
+			return numSamples - 1;
+		}
+		else
+		{
+			debugError(sampler, "Sample is empty.");
+			return -1;
+		}
+
+		return sample;
+	}
+
+	class Window : public Component,
+				   public SampleEditHandler::Listener,
+				   public Value::Listener,
+				   public Timer
+	{
+	public:
+
+		struct ThreshholdPainter : public Component
+		{
+		public:
+
+			void paint(Graphics& g)
+			{
+				
+
+				if (stereo)
+				{
+					auto total = getLocalBounds();
+
+					auto upper = total.removeFromTop(total.getHeight() / 2);
+					auto lower = total;
+
+					drawThreshhold(g, upper);
+					drawThreshhold(g, lower);
 				}
 				else
 				{
-					debugError(sampler, "Sample " + sounds[i]->getReferenceToSound()->getFileName() + " is empty.");
+					drawThreshhold(g, getLocalBounds());
 				}
+
+				
+				auto b = getLocalBounds();
+				
+
+				
+			}
+
+			void setThreshhold(double newLevel)
+			{
+				threshhold = newLevel;
+				repaint();
+			}
+
+			void setStereo(bool isStereo)
+			{
+				stereo = isStereo;
+				repaint();
+			}
+
+		private:
+
+			void drawThreshhold(Graphics& g, Rectangle<int> bounds)
+			{
+				float ratio = Decibels::decibelsToGain(threshhold);
+				int height = (int)((float)bounds.getHeight() * ratio);
+
+				bounds = bounds.withSizeKeepingCentre(bounds.getWidth(), height);
+
+				g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.1f));
+
+				g.fillRect(bounds);
+			}
+
+			bool stereo = false;
+			double threshhold = -100.0;
+
+		};
+
+		Window(SampleEditHandler* handler_):
+			handler(handler_)
+		{
+			handler->addSelectionListener(this);
+
+			addAndMakeVisible(viewport = new Viewport());
+
+			firstPreview = new SamplerSoundWaveform(handler_->getSampler());
+
+			viewport->setViewedComponent(firstPreview, false);
+
+			viewport->setScrollBarsShown(false, false, false, false);
+
+
+			addAndMakeVisible(properties = new PropertyPanel());
+
+			endThreshhold.setValue(-80.0);
+			endThreshhold.addListener(this);
+
+			threshhold.setValue(-40.0);
+			
+			max = 1000.0;
+			max.addListener(this);
+			threshhold.addListener(this);
+
+			soundIndex = 1;
+
+			soundIndex.addListener(this);
+
+			snapToZero = 1;
+			snapToZero.addListener(this);
+			
+			zoomLevel = 1000.0;
+
+			zoomLevel.addListener(this);
+
+			multimicIndex = 0;
+			multimicIndex.addListener(this);
+
+			properties->setLookAndFeel(&pplaf);
+
+			addAndMakeVisible(thressholdPainter = new ThreshholdPainter());
+
+			setSize(800, 600);
+
+			updatePreview();
+			updatePropertyList();
+		}
+
+		~Window()
+		{
+			handler->removeSelectionListener(this);
+		}
+
+		void soundSelectionChanged(SampleSelection& newSelection) override
+		{
+			updatePreview();
+		}
+
+		void calculateNewSampleStartForPreview()
+		{
+			auto offset = 0;// (int)currentlyDisplayedSound->getProperty(ModulatorSamplerSound::SampleStart);
+
+			auto newSampleStart = SampleStartTrimmer::calculateSampleTrimOffset(offset, analyseBuffer, handler->getSampler(), threshhold.getValue(), shouldSnapToZero());
+
+			newSampleStart = jmin<int>(newSampleStart, max.getValue());
+
+			auto wholeArea = firstPreview->getSampleArea(SamplerSoundWaveform::AreaTypes::PlayArea);
+
+
+			
+
+			previewRange.setStart(offset + newSampleStart);
+
+			wholeArea->setSampleRange(previewRange);
+			firstPreview->refreshSampleAreaBounds();
+		}
+
+		bool shouldSnapToZero() const
+		{
+			return (int)snapToZero.getValue() == 1;
+		}
+
+		void calculateNewSampleEndForPreview()
+		{
+			auto offset = (int)currentlyDisplayedSound->getReferenceToSound()->getLengthInSamples();
+
+			AudioSampleBuffer endBuffer = SampleStartTrimmer::getBufferForAnalysis(currentlyDisplayedSound, multimicIndex.getValue());
+
+			auto newSampleEndDelta = SampleStartTrimmer::calculateSampleEnd(offset, endBuffer, handler->getSampler(), endThreshhold.getValue(), shouldSnapToZero());
+
+			auto wholeArea = firstPreview->getSampleArea(SamplerSoundWaveform::AreaTypes::PlayArea);
+
+			previewRange.setEnd(newSampleEndDelta);
+
+			wholeArea->setSampleRange(previewRange);
+			firstPreview->refreshSampleAreaBounds();
+		}
+
+		void timerCallback() override
+		{
+			if (currentlyDisplayedSound.get() == nullptr)
+			{
+				stopTimer();
+				return;
+			}
+
+			if (updateStart)
+			{
+				calculateNewSampleStartForPreview();
 			}
 			else
 			{
-				debugError(sampler, "Can't read sample " + sounds[i]->getReferenceToSound()->getFileName());
+				calculateNewSampleEndForPreview();
+			}
+
+			stopTimer();
+		}
+
+		void resized() override
+		{
+			auto all = getLocalBounds();
+
+			auto previewArea = all.removeFromTop(400);
+
+			viewport->setBounds(previewArea);
+			thressholdPainter->setBounds(previewArea);
+
+			all.removeFromTop(20);
+
+			properties->setBounds(all);
+
+			updateZoomLevel();
+		}
+
+		void valueChanged(Value& value) override
+		{
+			if (value == max)
+			{
+				updateMaxArea();
+			}
+			else if (value == threshhold)
+			{
+				thressholdPainter->setThreshhold((double)threshhold.getValue());
+				
+				if (!updateStart)
+				{
+					updateStart = true;
+					updateZoomLevel();
+				}
+
+				updateStart = true;
+
+				startTimer(100);
+			}
+			else if (value == endThreshhold)
+			{
+				thressholdPainter->setThreshhold((double)endThreshhold.getValue());
+
+				if (updateStart)
+				{
+					updateStart = false;
+					updateZoomLevel();
+				}
+
+				updateStart = false;
+					
+
+				
+				startTimer(100);
+			}
+			else if (value == soundIndex || value == multimicIndex)
+			{
+				updatePreview();
+			}
+			else if (value == zoomLevel)
+			{
+				updateStart = true;
+				updateZoomLevel();
 			}
 		}
+
+		void updatePropertyList()
+		{
+			
+
+			if (currentlyDisplayedSound != nullptr)
+			{
+
+				auto s = currentlyDisplayedSound->getReferenceToSound(multimicIndex.getValue());
+
+				if (s != nullptr)
+				{
+					const bool isStereo = s->getPreloadBuffer().getNumChannels() == 2;
+
+					thressholdPainter->setStereo(isStereo);
+				}
+
+
+				properties->clear();
+
+				Array<PropertyComponent*> props;
+
+				
+				updateMaxArea();
+
+
+				auto r = currentlyDisplayedSound->getPropertyRange(ModulatorSamplerSound::SampleStart);
+
+				Array<var> values;
+				StringArray choices;
+
+				for (int i = 0; i < handler->getSelection().getNumSelected(); i++)
+				{
+					values.add(i+1);
+					auto s = handler->getSelection().getSelectedItem(i);
+					if (s != nullptr)
+					{
+						choices.add(s->getPropertyAsString(ModulatorSamplerSound::Property::FileName));
+					}
+					else
+					{
+						choices.add("Deleted Sample");
+					}
+				}
+
+				
+				props.add(new ChoicePropertyComponent(soundIndex, "Displayed Sample", choices, values));
+				props.add(new SliderPropertyComponent(zoomLevel, "Zoom", 100.0, 3000.0, 1.0));
+
+				
+
+				props.add(new SliderPropertyComponent(max, "Max Offset", 0.0, 5000.0, 1.0));
+				props.add(new ChoicePropertyComponent(snapToZero, "Snap to zero", { "Yes", "No" }, { var(1), var(2) }));
+
+				props.add(new SliderPropertyComponent(threshhold, "Start Thresshold", -100.0, 0.0, 0.1, 4.0));
+				props.add(new SliderPropertyComponent(endThreshhold, "End Thresshold", -100.0, 0.0, 0.1, 4.0));
+
+				
+
+
+				if (currentlyDisplayedSound->getNumMultiMicSamples() > 1)
+				{
+					Array<var> multiMicValues;
+					
+					auto allMics = handler->getSampler()->getStringForMicPositions();
+					StringArray multiMicChoices = StringArray::fromTokens(allMics, ";", "");
+					multiMicChoices.removeEmptyStrings(true);
+
+					for (int i = 0; i < handler->getSampler()->getNumMicPositions(); i++)
+						multiMicValues.add(i);
+
+					props.add(new ChoicePropertyComponent(multimicIndex, "Mic Position to analyze", multiMicChoices, multiMicValues));
+				}
+
+				for (auto p : props)
+				{
+					if ((dynamic_cast<SliderPropertyComponent*>(p) != nullptr))
+					{
+						p->getChildComponent(0)->setLookAndFeel(&plaf);
+						p->getChildComponent(0)->setColour(Slider::ColourIds::textBoxTextColourId, Colours::white);
+					}
+					else
+					{
+						p->getChildComponent(0)->setLookAndFeel(&klaf);
+
+						p->getChildComponent(0)->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, Colour(0x66333333));
+						p->getChildComponent(0)->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, Colour(0xfb111111));
+						p->getChildComponent(0)->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::white.withAlpha(0.3f));
+						p->getChildComponent(0)->setColour(MacroControlledObject::HiBackgroundColours::textColour, Colours::white);
+
+					}
+				}
+				
+				properties->addProperties(props);
+			}
+		}
+
+		void updateMaxArea()
+		{
+			auto startArea = firstPreview->getSampleArea(SamplerSoundWaveform::SampleStartArea);
+
+			startArea->setAreaEnabled(false);
+
+			startArea->setSampleRange(Range<int>(0, max.getValue()));
+
+			analyseBuffer = SampleStartTrimmer::getBufferForAnalysis(currentlyDisplayedSound, multimicIndex.getValue(), max.getValue());
+
+			firstPreview->refreshSampleAreaBounds();
+		}
+
+		Value min;
+		Value max;
+		Value threshhold;
+		Value multimicIndex;
+		Value soundIndex;
+		Value zoomLevel;
+		Value endThreshhold;
+		Value snapToZero;
+
+	private:
+
+		Range<int> previewRange;
+
+		bool updateStart = false;
+
+		void updatePreview()
+		{
+			auto currentSelectionId = (int)soundIndex.getValue();
+
+			currentlyDisplayedSound = handler->getSelection().getSelectedItem(jmax<int>(0, currentSelectionId-1));
+
+			firstPreview->setSoundToDisplay(currentlyDisplayedSound, multimicIndex.getValue());
+			firstPreview->getSampleArea(SamplerSoundWaveform::PlayArea)->setAreaEnabled(false);
+			firstPreview->getSampleArea(SamplerSoundWaveform::LoopArea)->setAreaEnabled(false);
+
+			auto start = 0;
+			auto end = (int)currentlyDisplayedSound->getProperty(ModulatorSamplerSound::SampleEnd);
+
+			previewRange = { start, end };
+
+			updateMaxArea();
+
+			calculateNewSampleStartForPreview();
+			calculateNewSampleEndForPreview();
+
+			
+			updateZoomLevel();
+		}
+
+		void updateZoomLevel()
+		{
+			const int zl = updateStart ? (int)zoomLevel.getValue() / 100 : 1;
+
+			firstPreview->setSize(viewport->getWidth() * zl, viewport->getHeight());
+		}
+
+		Component::SafePointer<SliderPropertyComponent> maxSlider;
+		Component::SafePointer<ChoicePropertyComponent> sampleSelector;
+
+		HiPropertyPanelLookAndFeel pplaf;
+
+		BiPolarSliderLookAndFeel plaf;
+		KnobLookAndFeel klaf;
+
+		ScopedPointer<ThreshholdPainter> thressholdPainter;
+
+		AudioSampleBuffer analyseBuffer;
+		
+
+		ModulatorSamplerSound::Ptr currentlyDisplayedSound;
+
+		ScopedPointer<Viewport> viewport;
+		ScopedPointer<SamplerSoundWaveform> firstPreview;
+
+		ScopedPointer<PropertyPanel> properties;
+
+		
+
+		SampleEditHandler * handler;
+	};
+
+public:
+
+
+
+	SampleStartTrimmer(SampleEditHandler* handler_) :
+		DialogWindowWithBackgroundThread("Trim Samplestart", false),
+		handler(handler_)
+	{
+		addCustomComponent(window = new Window(handler));
+
+		addBasicComponents(true);
+
+		showStatusMessage("Set the threshhold and the max sample offset and press OK to trim the selection");
+
 	}
 
-	if (auto s = sounds.getFirst())
+	~SampleStartTrimmer()
 	{
-		s->sendChangeMessage();
+		window = nullptr;
+	}
+
+	void run() override
+	{
+		trimSampleStart();
+	}
+
+	void threadFinished() override
+	{
+		auto avg = (double)sum / (double)numSamples;
+
+		String report;
+		NewLine nl;
+
+		report << "Trim Statistic: min offset: " << String(minTrim) << ", max offset: " << String(maxTrim) << ", average: " << String((int)avg) << nl;
+		report << "Press Cancel to undo or OK to save the changes";
+
+		if (PresetHandler::showYesNoWindow("Sample Start trim applied", report))
+		{
+			applyTrim();
+		}
+
+	}
+
+private:
+
+	int minTrim = INT_MAX;
+	int maxTrim = -1;
+	int sum = 0;
+	int numSamples = 0;
+
+	struct TrimAction
+	{
+		ModulatorSamplerSound::Ptr s;
+		int trimStart;
+		int trimEnd;
+
+		TrimAction(ModulatorSamplerSound::Ptr s_, int trimAmount_, int trimEnd_):
+			s(s_),
+			trimStart(trimAmount_),
+			trimEnd(trimEnd_)
+		{}
+
 	};
+
+	Array<TrimAction> trimActions;
+
+	void applyTrim()
+	{
+		ModulatorSampler *sampler = handler->getSampler();
+
+		auto tmp = std::move(trimActions);
+
+		auto f = [tmp](Processor* p)
+		{
+			auto s = dynamic_cast<ModulatorSampler*>(p);
+
+			s->getUndoManager()->beginNewTransaction();
+
+			for (auto t : tmp)
+			{
+				if (t.s.get() != nullptr)
+				{
+					t.s->setPropertyWithUndo(ModulatorSamplerSound::SampleStart, t.trimStart);
+					t.s->setPropertyWithUndo(ModulatorSamplerSound::SampleEnd, t.trimEnd);
+				}
+			}
+
+			return true;
+		};
+
+		sampler->killAllVoicesAndCall(f);
+		
+	}
+
+	void trimSampleStart()
+	{
+		trimActions.clear();
+
+		auto sounds = handler->getSelection().getItemArray();
+
+		int multiMicIndex = 0;
+
+		int micPositions = handler->getSampler()->getNumMicPositions();
+
+		multiMicIndex = window->multimicIndex.getValue();
+		
+
+
+		float startThreshhold = window->threshhold.getValue();
+		float endThreshhold = window->endThreshhold.getValue();
+
+		ModulatorSampler *sampler = handler->getSampler();
+
+
+		
+
+		if (auto s = sounds.getFirst())
+		{
+			s->startPropertyChange(ModulatorSamplerSound::SampleStart, 0);
+		}
+
+		numSamples = sounds.size();
+
+		for (int i = 0; i < numSamples; i++)
+		{
+			if (sounds[i].get() != nullptr)
+			{
+				auto sound = sounds[i].get();
+
+				AudioSampleBuffer analyseBuffer = getBufferForAnalysis(sound, multiMicIndex);
+
+				auto startOffset = 0;// sound->getProperty(ModulatorSamplerSound::SampleStart);
+
+				auto endOffset = sound->getReferenceToSound()->getLengthInSamples();
+				
+				progress = (double)i / (double)numSamples;
+
+				if (threadShouldExit())
+				{
+					trimActions.clear();
+					break;
+				}
+					
+
+				int trimStart = calculateSampleTrimOffset(startOffset, analyseBuffer, sampler, startThreshhold, (int)window->snapToZero.getValue() == 1);
+				int trimEnd = calculateSampleEnd(endOffset, analyseBuffer, sampler, endThreshhold, (int)window->snapToZero.getValue() == 1);
+
+				trimStart = jmin<int>(trimStart, (int)window->max.getValue());
+
+				minTrim = jmin<int>(trimStart, minTrim);
+				maxTrim = jmax<int>(trimStart, maxTrim);
+
+				sum += trimStart;
+
+				if(trimStart != -1)
+					trimActions.add({ sound, trimStart, trimEnd});
+			}
+		}
+
+		if (auto s = sounds.getFirst())
+		{
+			s->sendChangeMessage();
+		};
+	}
+
+	
+
+	ScopedPointer<Window> window;
+	SampleEditHandler * handler;
+};
+
+
+void SampleEditHandler::SampleEditingActions::trimSampleStart(Component* childComponentOfMainEditor, SampleEditHandler * body)
+{
+	
+	auto trimmer = new SampleStartTrimmer(body);
+	trimmer->setModalBaseWindowComponent(childComponentOfMainEditor);
 }
 
 } // namespace hise
