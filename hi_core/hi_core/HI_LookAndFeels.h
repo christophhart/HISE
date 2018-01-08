@@ -477,13 +477,13 @@ public:
 		textColour = Colour(0xa2ffffff);
 	};
 
-	void drawTableHeaderBackground (Graphics &, TableHeaderComponent &)
+	void drawTableHeaderBackground (Graphics &, TableHeaderComponent &) override
 	{
 		
 		
 	}
- 
-	void drawTableHeaderColumn (Graphics &g, const String &columnName, int /*columnId*/, int width, int height, bool /*isMouseOver*/, bool /*isMouseDown*/, int /*columnFlags*/)
+
+	void drawTableHeaderColumn (Graphics &g, TableHeaderComponent&, const String &columnName, int /*columnId*/, int width, int height, bool /*isMouseOver*/, bool /*isMouseDown*/, int /*columnFlags*/) override
 	{
 		if (width > 0)
 		{

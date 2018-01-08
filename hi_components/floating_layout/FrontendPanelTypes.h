@@ -553,6 +553,8 @@ public:
 	{
 		handler.addChangeListener(this);
 
+		
+
 		setName("MIDI Control List");
 
 		// Create our table component and add it to this component..
@@ -563,6 +565,9 @@ public:
 
 
 		setDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour, Colours::transparentBlack);
+		setDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour, Colours::transparentBlack);
+
+
 		table.setColour(ListBox::backgroundColourId, Colours::transparentBlack);
 
 		table.setOutlineThickness(0);
@@ -580,11 +585,13 @@ public:
 
 		table.setMultipleSelectionEnabled(false);
 
-		table.getHeader().addColumn("CC #", CCNumber, 50);
-		table.getHeader().addColumn("Parameter", ParameterName, 150);
-		table.getHeader().addColumn("Inverted", Inverted, 50);
-		table.getHeader().addColumn("Min", Minimum, 70);
-		table.getHeader().addColumn("Max", Maximum, 70);
+		table.getHeader().addColumn("CC #", CCNumber, 40, 40, 40);
+		table.getHeader().addColumn("Parameter", ParameterName, 70);
+		table.getHeader().addColumn("Inverted", Inverted, 50, 50, 50);
+		table.getHeader().addColumn("Min", Minimum, 70, 70, 70);
+		table.getHeader().addColumn("Max", Maximum, 70, 70, 70);
+
+		table.getHeader().setStretchToFitActive(true);
 	}
 
 	~MidiLearnPanel()
