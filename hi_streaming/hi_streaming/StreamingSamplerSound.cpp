@@ -268,6 +268,11 @@ bool StreamingSamplerSound::isMonolithic() const
 	return fileReader.isMonolithic();
 }
 
+juce::AudioFormatReader* StreamingSamplerSound::createReaderForPreview()
+{
+	return fileReader.createMonolithicReaderForPreview();
+}
+
 AudioFormatReader* StreamingSamplerSound::createReaderForAnalysis()
 {
 	return fileReader.getReader();
@@ -947,7 +952,7 @@ AudioFormatReader* StreamingSamplerSound::FileReader::createMonolithicReaderForP
 	}
 	else
 	{
-		return nullptr;
+		return pool->afm.createReaderFor(loadedFile);
 	}
 }
 
@@ -957,6 +962,9 @@ void StreamingSamplerSound::FileReader::setMonolithicInfo(MonolithInfoToUse* inf
 	monolithicIndex = sampleIndex;
 	missing = (sampleIndex == -1);
 	monolithicName = info->getFileName(channelIndex, sampleIndex);
+
+	hashCode = monolithicName.hashCode64();
+
 	monolithicChannelIndex = channelIndex;
 }
 

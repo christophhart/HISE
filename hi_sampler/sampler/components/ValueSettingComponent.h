@@ -56,7 +56,7 @@ public:
 
 	void sliderValueChanged(Slider *s)
 	{
-        setSamplePropertyValue((int)s->getValue(), true);
+        setSamplePropertyValue((int)s->getValue(), false);
 
 		sendChangeMessage();
 

@@ -831,16 +831,22 @@ ModulatorSamplerSound* ModulatorSampler::addSamplerSound(const ValueTree &descri
 	ModulatorSamplerSoundPool *pool = getMainController()->getSampleManager().getModulatorSamplerSoundPool();
     ModulatorSamplerSound *newSound = pool->addSound(description, index, description.hasProperty("mono_sample_start") || forceReuse);
 
-	newSound->restoreFromValueTree(description);
+	if (newSound != nullptr)
+	{
+		newSound->restoreFromValueTree(description);
 
-	sounds.add(newSound);
-	newSound->setUndoManager(getMainController()->getControlUndoManager());
-	newSound->addChangeListener(sampleMap);
-	//newSound->setMaxRRGroupIndex(rrGroupAmount);
+		sounds.add(newSound);
+		newSound->setUndoManager(getMainController()->getControlUndoManager());
+		newSound->addChangeListener(sampleMap);
+		//newSound->setMaxRRGroupIndex(rrGroupAmount);
 
-	sendChangeMessage();
+		sendChangeMessage();
+
+		
+	}
 
 	return newSound;
+	
 }
 
 

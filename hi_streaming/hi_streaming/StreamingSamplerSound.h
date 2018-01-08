@@ -199,7 +199,7 @@ public:
 	bool isOpened();
 
 	bool isMonolithic() const;
-	AudioFormatReader* createReaderForPreview() { return fileReader.createMonolithicReaderForPreview(); }
+	AudioFormatReader* createReaderForPreview();
 
 	AudioFormatReader* createReaderForAnalysis();
 

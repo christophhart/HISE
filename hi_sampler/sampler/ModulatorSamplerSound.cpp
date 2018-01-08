@@ -1152,13 +1152,16 @@ bool ModulatorSamplerSoundPool::isFileBeingUsed(int poolIndex)
 	return false;
 }
 
-int ModulatorSamplerSoundPool::getSoundIndexFromPool(int64 hashCode)
+int ModulatorSamplerSoundPool::getSoundIndexFromPool(int64 hashCode, int64 otherPossibleHashCode)
 {
 	if (!searchPool) return -1;
 
 	for (int i = 0; i < pool.size(); i++)
 	{
 		if (pool[i]->getHashCode() == hashCode) return i;
+
+		if (otherPossibleHashCode != -1 && pool[i]->getHashCode() == otherPossibleHashCode)
+			return i;
 	}
 
 	return -1;
@@ -1166,12 +1169,17 @@ int ModulatorSamplerSoundPool::getSoundIndexFromPool(int64 hashCode)
 
 ModulatorSamplerSound * ModulatorSamplerSoundPool::addSoundWithSingleMic(const ValueTree &soundDescription, int index, bool forceReuse /*= false*/)
 {
-	String fileName = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getFilePath(soundDescription.getProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName)), ProjectHandler::SubDirectories::Samples);
+	String fileNameWildcard = soundDescription.getProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName));
+	String fileName = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getFilePath(fileNameWildcard, ProjectHandler::SubDirectories::Samples);
+	
 
 	if (forceReuse)
 	{
         int64 hash = fileName.hashCode64();
-		int i = getSoundIndexFromPool(hash);
+		int64 hashWildcard = fileNameWildcard.hashCode64();
+		
+
+		int i = getSoundIndexFromPool(hash, hashWildcard);
 
 		if (i != -1)
 		{
@@ -1195,7 +1203,9 @@ ModulatorSamplerSound * ModulatorSamplerSoundPool::addSoundWithSingleMic(const V
         if(searchThisSampleInPool)
         {
             int64 hash = fileName.hashCode64();
-            int i = getSoundIndexFromPool(hash);
+			int64 hashWildcard = fileNameWildcard.hashCode64();
+
+            int i = getSoundIndexFromPool(hash, hashWildcard);
             
             if (i != -1)
             {
@@ -1221,13 +1231,15 @@ ModulatorSamplerSound * ModulatorSamplerSoundPool::addSoundWithMultiMic(const Va
 
 	for (int i = 0; i < soundDescription.getNumChildren(); i++)
 	{
-        String fileName = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getFilePath(soundDescription.getChild(i).getProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName)).toString(), 
-														   ProjectHandler::SubDirectories::Samples);
+		String fileNameWildcard = soundDescription.getProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName));
+		String fileName = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getFilePath(fileNameWildcard, ProjectHandler::SubDirectories::Samples);
+
 
 		if (forceReuse)
 		{
             int64 hash = fileName.hashCode64();
-			int j = getSoundIndexFromPool(hash);
+			int64 hashWildcard = fileNameWildcard.hashCode64();
+			int j = getSoundIndexFromPool(hash, hashWildcard);
 
 			jassert(j != -1);
 
@@ -1245,7 +1257,8 @@ ModulatorSamplerSound * ModulatorSamplerSoundPool::addSoundWithMultiMic(const Va
 			if (searchThisSampleInPool)
             {
                 int64 hash = fileName.hashCode64();
-                int j = getSoundIndexFromPool(hash);
+				int64 hashWildcard = fileNameWildcard.hashCode64();
+                int j = getSoundIndexFromPool(hash, hashWildcard);
                 
                 if (j != -1)
                 {

@@ -545,7 +545,7 @@ private:
 
 	ReferenceCountedArray<MonolithInfoToUse> loadedMonoliths;
 
-	int getSoundIndexFromPool(int64 hashCode);
+	int getSoundIndexFromPool(int64 hashCode, int64 otherPossibleHashCode);
 
 	ModulatorSamplerSound *addSoundWithSingleMic(const ValueTree &soundDescription, int index, bool forceReuse = false);
 	ModulatorSamplerSound *addSoundWithMultiMic(const ValueTree &soundDescription, int index, bool forceReuse = false);
