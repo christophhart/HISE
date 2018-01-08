@@ -73,6 +73,32 @@ public:
 			
 	};
 
+	class ScopedSuspender
+	{
+	public:
+		
+		ScopedSuspender(ValueTreeUpdateWatcher* watcher_) :
+			watcher(watcher_)
+		{
+			if (watcher.get() != nullptr)
+			{
+				watcher->isSuspended = true;
+			}
+		};
+
+		~ScopedSuspender()
+		{
+			if (watcher.get() != nullptr)
+			{
+				watcher->isSuspended = false;
+			}
+		};
+	
+	private:
+
+		WeakReference<ValueTreeUpdateWatcher> watcher;
+	};
+
 	struct Listener
 	{
 		virtual ~Listener() {};
@@ -128,6 +154,9 @@ private:
 
 	void callListener()
 	{
+		if (isSuspended)
+			return;
+
 		if (delayCalls)
 		{
 			shouldCallAfterDelay = true;
@@ -148,6 +177,8 @@ private:
 	}
 
 	bool isCurrentlyUpdating = false;
+
+	bool isSuspended = false;
 
 	ValueTree state;
 	WeakReference<Listener> listener;
@@ -1775,11 +1806,18 @@ public:
 		UndoManager* undoManager = nullptr;
 #endif
 
-		contentPropertyData.addChild(newData, -1, undoManager);
-
+		{
+			ValueTreeUpdateWatcher::ScopedSuspender ss(updateWatcher);
+			contentPropertyData.addChild(newData, -1, undoManager);
+		}
+		
 		SubType* newComponent = new SubType(getScriptProcessor(), this, id, x, y, w, h);
 
+
+
 		components.add(newComponent);
+
+		sendRebuildMessage();
 
 		return newComponent;
 	}
