@@ -1424,6 +1424,14 @@ public:
 
 	struct ScriptAudioWaveform : public ScriptComponent
 	{
+		enum Properties
+		{
+			itemColour3 = ScriptComponent::Properties::numProperties,
+			opaque,
+			showLines,
+			numProperties
+		};
+
 		// ========================================================================================================
 
 		ScriptAudioWaveform(ProcessorWithScriptingContent *base, Content *parentContent, Identifier plotterName, int x, int y, int width, int height);
@@ -1456,7 +1464,8 @@ public:
 	{
 		enum Properties
 		{
-			updateAfterInit = ScriptComponent::Properties::numProperties,
+			itemColour3 = ScriptComponent::Properties::numProperties,
+			updateAfterInit,
 			ContentType,
 			Font,
 			FontSize,

@@ -3082,13 +3082,14 @@ StringArray ScriptingApi::Content::ModulatorMeter::getOptionsFor(const Identifie
 ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier waveformName, int x, int y, int width, int height) :
 ScriptComponent(base, waveformName)
 {
+	ADD_SCRIPT_PROPERTY(i01, "itemColour3"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ColourPickerSelector);
+	ADD_SCRIPT_PROPERTY(i02, "opaque"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i03, "showLines"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+		
+
 	deactivatedProperties.add(getIdFor(text));
 	deactivatedProperties.add(getIdFor(min));
 	deactivatedProperties.add(getIdFor(max));
-	deactivatedProperties.add(getIdFor(bgColour));
-	deactivatedProperties.add(getIdFor(itemColour));
-	deactivatedProperties.add(getIdFor(itemColour2));
-	deactivatedProperties.add(getIdFor(textColour));
 	deactivatedProperties.add(getIdFor(macroControl));
 	deactivatedProperties.add(getIdFor(parameterId));
 
@@ -3097,6 +3098,10 @@ ScriptComponent(base, waveformName)
 	setDefaultValue(ScriptComponent::Properties::width, width);
 	setDefaultValue(ScriptComponent::Properties::height, height);
 	
+	setDefaultValue(Properties::itemColour3, 0x22FFFFFF);
+	setDefaultValue(Properties::opaque, true);
+	setDefaultValue(Properties::showLines, true);
+
 
 #if 0
 	setMethod("connectToAudioSampleProcessor", Wrapper::connectToAudioSampleProcessor);

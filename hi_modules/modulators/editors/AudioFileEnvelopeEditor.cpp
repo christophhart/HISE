@@ -57,7 +57,7 @@ AudioFileEnvelopeEditor::AudioFileEnvelopeEditor (ProcessorEditor *p)
     retriggerButton->addListener (this);
     retriggerButton->setColour (ToggleButton::textColourId, Colours::white);
 
-    addAndMakeVisible (sampleBufferContent = new AudioSampleBufferComponent (dynamic_cast<AudioSampleProcessor*>(getProcessor())->getCache(), getProcessor()));
+    addAndMakeVisible (sampleBufferContent = new AudioSampleBufferComponent (getProcessor()));
     sampleBufferContent->setName ("new component");
 
     addAndMakeVisible (modeSelector = new HiComboBox ("Mode Selection"));
@@ -359,7 +359,7 @@ BEGIN_JUCER_METADATA
                 radioGroupId="0" state="0"/>
   <GENERICCOMPONENT name="new component" id="e2252e55bedecdc5" memberName="sampleBufferContent"
                     virtualName="" explicitFocusOrder="0" pos="0Cc 141 112M 144"
-                    class="AudioSampleBufferComponent" params="dynamic_cast&lt;AudioSampleProcessor*&gt;(getProcessor())-&gt;getCache(), getProcessor()"/>
+                    class="AudioSampleBufferComponent" params="getProcessor()"/>
   <COMBOBOX name="Mode Selection" id="223afd792a25b6b" memberName="modeSelector"
             virtualName="HiComboBox" explicitFocusOrder="0" pos="60 20 128 28"
             tooltip="Select the Envelope Follower mode" editable="0" layout="33"

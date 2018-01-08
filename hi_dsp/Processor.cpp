@@ -640,8 +640,17 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 
 		dynamic_cast<Processor*>(this)->sendChangeMessage();
 
-		auto f = mc->getSampleManager().getAudioSampleBufferPool()->getFileFromFileNameString(loadedFileName);
-		setLoopFromMetadata(f);
+		if (loadedFileName.isNotEmpty())
+		{
+			auto f = mc->getSampleManager().getAudioSampleBufferPool()->getFileFromFileNameString(loadedFileName);
+			setLoopFromMetadata(f);
+		}
+		else
+		{
+			loopRange = {};
+			setUseLoop(false);
+		}
+		
 
 		newFileLoaded();
 

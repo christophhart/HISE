@@ -33,6 +33,8 @@
 #ifndef SAMPLEDISPLAYCOMPONENT_H_INCLUDED
 #define SAMPLEDISPLAYCOMPONENT_H_INCLUDED
 
+
+
 namespace hise { using namespace juce;
 
 class ModulatorSampler;
@@ -42,6 +44,104 @@ class AudioDisplayComponent;
 
 #define EDGE_WIDTH 5
 
+
+
+class HiseAudioThumbnail: public Component
+{
+	
+public:
+
+	
+
+	HiseAudioThumbnail();;
+
+	~HiseAudioThumbnail();
+
+	void setBuffer(var bufferL, var bufferR = var());
+
+	void paint(Graphics& g) override;
+
+	void drawSection(Graphics &g, bool enabled);
+
+	double getTotalLength() const
+	{
+		return lengthInSeconds;
+	}
+	
+	void setReader(AudioFormatReader* r, int64 unused);
+
+	void clear();
+
+	void resized() override
+	{
+		rebuildPaths();
+	}
+
+	void setRange(const int left, const int right);
+private:
+
+	void refresh()
+	{
+		auto f = [this]()
+		{
+			this->repaint();
+		};
+
+		new DelayedFunctionCaller(f, 100);
+	}
+
+	void rebuildPaths()
+	{
+		loadingThread.startThread(5);
+	}
+
+	class LoadingThread : public Thread
+	{
+	public:
+
+		LoadingThread(HiseAudioThumbnail* parent_) :
+			Thread("Thumbnail Generator"),
+			parent(parent_)
+		{
+		};
+
+		void run() override;;
+
+		void scalePathFromLevels(Path &lPath, Rectangle<float> bounds, const float* data, const int numSamples);
+
+		void calculatePath(Path &p, float width, const float* l_, int numSamples);
+
+	private:
+
+		
+
+		WeakReference<HiseAudioThumbnail> parent;
+
+	};
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(HiseAudioThumbnail);
+
+	CriticalSection lock;
+
+	LoadingThread loadingThread;
+
+	ScopedPointer<AudioFormatReader> currentReader;
+
+	ScopedPointer<ScrollBar> scrollBar;
+
+	var lBuffer;
+	var rBuffer;
+
+	bool isClear = true;
+
+	Path leftWaveform, rightWaveform;
+
+	int leftBound = -1;
+	int rightBound = -1;
+
+	double lengthInSeconds = 0.0;
+};
+
 /** An AudioDisplayComponent displays the content of audio data and has some areas that can be dragged and send a change message on Mouse up
 *
 *	You can create subclasses of this component and populate it with some SampleArea objects (you can nest them if desired)
@@ -50,6 +150,15 @@ class AudioDisplayComponent: public Component,
 							 public ChangeListener
 {
 public:
+
+	enum ColourIds
+	{
+		bgColour = 0,
+		outlineColour,
+		fillColour,
+		textColour,
+		numColourIds,
+	};
 
 		/** A rectangle that represents a range of samples. */
 	class SampleArea: public Component
@@ -148,33 +257,13 @@ public:
 		*
 		*	If a SampleArea is a child of another SampleArea, you can still get the absolute x value by passing 'true'.a
 		*/
-		int getXForSample(int sample, bool relativeToAudioDisplayComponent=false) const
-		{
-			const double proportion = (double)sample / (double)parentWaveform->getTotalSampleAmount();
-			const int xInWaveform = (int)(parentWaveform->getWidth() * proportion);
-			const int xInParent = getParentComponent()->getLocalPoint(parentWaveform, Point<int>(xInWaveform, 0)).getX();
-
-			return relativeToAudioDisplayComponent ? xInWaveform : xInParent;
-		}
+		int getXForSample(int sample, bool relativeToAudioDisplayComponent=false) const;
 
 		/** Returns the sample index for the given x coordinate. 
 		*
 		*	If 'relativeToAudioDisplayComponent' is set to true, the x coordinate is relative to the parent AudioDisplayComponent
 		*/
-		int getSampleForX(int x, bool relativeToAudioDisplayComponent=false) const
-		{
-			// This will be useless if the width is zero!
-			jassert(parentWaveform->getWidth() != 0);
-
-			if(!relativeToAudioDisplayComponent)
-				x = parentWaveform->getLocalPoint(getParentComponent(), Point<int>(x, 0)).getX();
-
-			const int widthOfWaveForm = parentWaveform->getWidth();
-			const double proportion = (double)x / (double)widthOfWaveForm;
-			const int sample = (int)((double)proportion * parentWaveform->getTotalSampleAmount());
-
-			return sample;
-		}
+		int getSampleForX(int x, bool relativeToAudioDisplayComponent=false) const;
 
 		/** Sets the current SampleArea. */
 		void mouseDown(const MouseEvent &e) override;
@@ -276,13 +365,15 @@ public:
 		repaint();
 	};
 
-	AudioDisplayComponent(AudioThumbnailCache &cache_):
+	AudioDisplayComponent():
 	playBackPosition(0.0)
 	{
 		afm.registerBasicFormats();
 
-		preview = new AudioThumbnail(16, afm, cache_);
-		preview->addChangeListener(this);
+		addAndMakeVisible(preview = new HiseAudioThumbnail());
+
+		//preview = new AudioThumbnail(16, afm, cache_);
+		//preview->addChangeListener(this);
 	};
 
 #pragma warning( push )
@@ -290,7 +381,7 @@ public:
 
 	virtual void changeListenerCallback(ChangeBroadcaster *b) override
 	{
-		jassert(b == preview);
+		//jassert(b == preview);
 
 		repaint();
 	}
@@ -300,11 +391,13 @@ public:
 	/** Removes all listeners. */
 	virtual ~AudioDisplayComponent()
 	{
+		preview = nullptr;
+
 		list.clear();
 
-		preview->clear();
-		preview->removeAllChangeListeners();
-		preview = nullptr;
+		//preview->clear();
+		//preview->removeAllChangeListeners();
+		
 	};
 
 	/** Acts as listener and gets a callback whenever a area was changed. */
@@ -337,8 +430,15 @@ public:
 			const int x = areas[i]->getXForSample(sampleRange.getStart(), false);
 			const int right = areas[i]->getXForSample(sampleRange.getEnd(), false);
 
+			if (i == 0)
+			{
+				preview->setRange(x, right);
+			}
+
 			areas[i]->setBounds(x,0,right-x, getHeight());
 		}
+
+		
 
 		repaint();
 	}
@@ -361,23 +461,17 @@ public:
 		repaint();
 	}
 
-	virtual void resized() override
+	void resized() override
 	{
+		preview->setBounds(getLocalBounds());
 		refreshSampleAreaBounds();
 	}
 
-	virtual void paint(Graphics &g) override
+	virtual void paint(Graphics &g) override;
+
+	HiseAudioThumbnail* getThumbnail()
 	{
-        //ProcessorEditorLookAndFeel::drawNoiseBackground(g, getLocalBounds(), Colours::darkgrey);
-        
-		g.setColour(Colours::lightgrey.withAlpha(0.1f));
-		g.drawRect(getLocalBounds(), 1);
-
-		if(preview->getTotalLength() == 0.0) return;
-
-		drawWaveForm(g);
-
-		drawPlaybackBar(g);
+		return preview;
 	}
 
 	int getTotalSampleAmount() const
@@ -389,12 +483,7 @@ public:
 
 	virtual double getSampleRate() const = 0;
 
-	/** draws the waveform of the audio data
-	*
-	*	It draws the deactivated region more transparent than the activated region.
-	*/
-	void drawWaveForm(Graphics &g);
-
+	
 	virtual float getNormalizedPeak() { return 1.0f; };
 
 protected:
@@ -403,7 +492,9 @@ protected:
 
 	AudioFormatManager afm;
 	ScopedPointer<Viewport> displayViewport;
-	ScopedPointer<AudioThumbnail> preview;
+	//ScopedPointer<AudioThumbnail> preview;
+
+	ScopedPointer<HiseAudioThumbnail> preview;
 
 private:
 
@@ -474,7 +565,7 @@ public:
 	*
 	*	It listens for the global sound selection and displays the last selected sound if the selection changes. 
 	*/
-	void setSoundToDisplay(const ModulatorSamplerSound *s);
+	void setSoundToDisplay(const ModulatorSamplerSound *s, int multiMicIndex=0);
 
 	const ModulatorSamplerSound *getCurrentSound() const { return currentSound.get(); }
 
@@ -563,7 +654,7 @@ public:
 		}
 	};
 
-	AudioSampleBufferComponent(AudioThumbnailCache &cache, Processor* p);
+	AudioSampleBufferComponent(Processor* p);
 
 	~AudioSampleBufferComponent();
 
@@ -579,11 +670,28 @@ public:
 
 			buffer = b;
 
+			auto data = const_cast<float**>(b->getArrayOfReadPointers());
+
+			VariantBuffer::Ptr l = new VariantBuffer(data[0], b->getNumSamples());
+			
+			var lVar = var(l);
+			var rVar;
+
+			if (data[1] != nullptr)
+			{
+				VariantBuffer::Ptr r = new VariantBuffer(data[1], b->getNumSamples());
+				rVar = var(r);
+			}
+
+			preview->setBuffer(lVar, rVar);
+
+#if 0
 			preview->reset(b->getNumChannels(), 44100.0, 0);
 			preview->addBlock(0, *b, 0, b->getNumSamples());
 
 			preview->reset(buffer->getNumChannels(), 44100.0, 0);
 			preview->addBlock(0, *buffer, 0, buffer->getNumSamples());
+#endif
 		
 			updateRanges();
 
@@ -630,11 +738,6 @@ public:
 	void timerCallback() override
 	{
 		repaint();
-	}
-
-	void resized() override
-	{
-		refreshSampleAreaBounds();
 	}
 
 	void paint(Graphics &g) override;

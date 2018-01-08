@@ -33,7 +33,7 @@
 namespace hise { using namespace juce;
 
 SamplerSoundWaveform::SamplerSoundWaveform(const ModulatorSampler *ownerSampler):
-	AudioDisplayComponent(ownerSampler->getCache()),
+	AudioDisplayComponent(),
 	sampler(ownerSampler),
 	sampleStartPosition(-1.0),
 	currentSound(nullptr)
@@ -133,57 +133,6 @@ void SamplerSoundWaveform::toggleRangeEnabled(AreaTypes type)
 	areas[type]->toggleEnabled();
 }
 
-void AudioDisplayComponent::drawWaveForm(Graphics &g)
-{
-    
-    
-	if(preview->getTotalLength() == 0.0) return; // Nothing to draw
-
-	g.setGradientFill (ColourGradient (Colour (0xaaffffff),
-							0.0f, 0.0f,
-							Colour (0x88ffffff),
-							0.0f, (float) getHeight(),
-							false));
-
-	const double totalSamples = getTotalSampleAmount();
-
-	const float normalizedGain = getNormalizedPeak();
-
-	// Draw the pre part
-
-	const double prePart = areas[0]->getSampleRange().getStart() / totalSamples;
-	const double preSeconds = prePart * preview->getTotalLength();
-
-	const Rectangle<int> preArea = Rectangle<int>(0, 0, (int)(prePart * getWidth()), getHeight());
-
-	
-
-	g.setColour(Colours::white.withAlpha(0.3f));
-
-	preview->drawChannels(g, preArea, 0.0, preSeconds, normalizedGain);
-
-	// Draw the play part
-
-	const double playPart = areas[0]->getSampleRange().getLength() / totalSamples;
-	const double playSeconds = playPart * preview->getTotalLength();
-
-	const Rectangle<int> playArea = Rectangle<int>(preArea.getRight(), 0, (int)(playPart * getWidth()), getHeight());
-
-	g.setColour(Colours::white.withAlpha(0.8f));
-
-	preview->drawChannels(g, playArea, preSeconds, preSeconds + playSeconds, normalizedGain);
-
-	// Draw the post part
-
-	const double postPart = (totalSamples - areas[0]->getSampleRange().getEnd()) / totalSamples;
-
-	const Rectangle<int> postArea = Rectangle<int>(playArea.getRight(), 0, (int)(postPart * getWidth()), getHeight());
-
-	g.setColour(Colours::white.withAlpha(0.3f));
-
-	preview->drawChannels(g, postArea, preSeconds + playSeconds, preview->getTotalLength(), normalizedGain);
-}
-
 double SamplerSoundWaveform::getSampleRate() const
 {
 	return currentSound != nullptr ? currentSound->getSampleRate() : -1.0;
@@ -208,6 +157,34 @@ void AudioDisplayComponent::drawPlaybackBar(Graphics &g)
 		g.drawLine(Line<float>((float)x, 0.0f, (float)x, (float)getHeight()), 0.5f);
 
 	}
+}
+
+void AudioDisplayComponent::paint(Graphics &g)
+{
+	//ProcessorEditorLookAndFeel::drawNoiseBackground(g, getLocalBounds(), Colours::darkgrey);
+
+	g.setColour(Colours::lightgrey.withAlpha(0.1f));
+	g.drawRect(getLocalBounds(), 1);
+
+	if (preview->getTotalLength() == 0.0) return;
+
+	if (auto numSamples = getTotalSampleAmount())
+	{
+		const int widthPerSample = getWidth() / numSamples;
+
+		if (widthPerSample >= 10)
+		{
+			for (int i = 0; i < numSamples; i++)
+			{
+				auto x = getSampleArea(0)->getXForSample(i);
+				g.setColour(Colours::white.withAlpha(0.05f));
+				g.drawVerticalLine(x, 0.0f, (float)getHeight());
+			}
+		}
+	}
+
+
+	drawPlaybackBar(g);
 }
 
 void SamplerSoundWaveform::drawSampleStartBar(Graphics &g)
@@ -252,13 +229,13 @@ void SamplerSoundWaveform::paint(Graphics &g)
 	}
 }
 
-void SamplerSoundWaveform::setSoundToDisplay(const ModulatorSamplerSound *s)
+void SamplerSoundWaveform::setSoundToDisplay(const ModulatorSamplerSound *s, int multiMicIndex/*=0*/)
 {
 	if(s != nullptr && !s->isMissing() && !s->isPurged())
 	{
 		currentSound = const_cast<ModulatorSamplerSound*>(s);
 
-		StreamingSamplerSound::Ptr sound = s->getReferenceToSound(); // The first sample is enough
+		StreamingSamplerSound::Ptr sound = s->getReferenceToSound(multiMicIndex);
 
 		ScopedPointer<AudioFormatReader> afr;
 
@@ -268,13 +245,14 @@ void SamplerSoundWaveform::setSoundToDisplay(const ModulatorSamplerSound *s)
 		}
 		else
 		{
-			afr = PresetHandler::getReaderForFile(File(s->getProperty(ModulatorSamplerSound::FileName)));
+			afr = PresetHandler::getReaderForFile(sound->getFileName(true));
 		}
 		
 		if (afr != nullptr)
 		{
 			numSamplesInCurrentSample = (int)afr->lengthInSamples;
-			preview->setReader(afr.release(), (int64)s->getProperty(ModulatorSamplerSound::ID));
+
+			preview->setReader(afr.release(), sound->getHashCode());
 
 			updateRanges();
 		}
@@ -356,6 +334,33 @@ void AudioDisplayComponent::SampleArea::mouseUp(const MouseEvent &e)
 	}
 }
 
+int AudioDisplayComponent::SampleArea::getXForSample(int sample, bool relativeToAudioDisplayComponent/*=false*/) const
+{
+	const double proportion = jmin<double>(1.0, (double)sample / (double)(parentWaveform->getTotalSampleAmount()-1));
+	int xInWaveform = roundDoubleToInt((double)parentWaveform->getWidth() * proportion);
+	
+
+
+	const int xInParent = getParentComponent()->getLocalPoint(parentWaveform, Point<int>(xInWaveform, 0)).getX();
+
+	return relativeToAudioDisplayComponent ? xInWaveform : xInParent;
+}
+
+int AudioDisplayComponent::SampleArea::getSampleForX(int x, bool relativeToAudioDisplayComponent/*=false*/) const
+{
+	// This will be useless if the width is zero!
+	jassert(parentWaveform->getWidth() != 0);
+
+	if (!relativeToAudioDisplayComponent)
+		x = parentWaveform->getLocalPoint(getParentComponent(), Point<int>(x, 0)).getX();
+
+	const int widthOfWaveForm = parentWaveform->getWidth();
+	const double proportion = (double)x / (double)widthOfWaveForm;
+	const int sample = (int)((double)proportion * parentWaveform->getTotalSampleAmount());
+
+	return sample;
+}
+
 void AudioDisplayComponent::SampleArea::mouseDown(const MouseEvent &e)
 {
 	SET_CHANGED_FROM_PARENT_EDITOR()
@@ -376,7 +381,7 @@ void AudioDisplayComponent::SampleArea::mouseDrag(const MouseEvent &)
 
 void AudioDisplayComponent::SampleArea::paint(Graphics &g)
 {
-   
+	
 	if(area == SamplerSoundWaveform::LoopCrossfadeArea)
 	{
 		Path fadeInPath;
@@ -478,6 +483,7 @@ void AudioDisplayComponent::SampleArea::resized()
 	leftEdge->setBounds(0, 0, EDGE_WIDTH, getHeight());
 
 	rightEdge->setBounds(getWidth() - EDGE_WIDTH, 0, EDGE_WIDTH, getHeight());
+
 }
 
 Colour AudioDisplayComponent::SampleArea::getAreaColour() const
@@ -491,6 +497,8 @@ Colour AudioDisplayComponent::SampleArea::getAreaColour() const
 	default:				jassertfalse;			return Colours::transparentBlack;
 	}
 }
+
+
 
 #pragma warning( push )
 #pragma warning( disable: 4100 )
@@ -520,8 +528,8 @@ void AudioDisplayComponent::SampleArea::EdgeLookAndFeel::drawStretchableLayoutRe
 
 #pragma warning( pop )
 
-AudioSampleBufferComponent::AudioSampleBufferComponent(AudioThumbnailCache &cache, Processor* p) :
-	AudioDisplayComponent(cache),
+AudioSampleBufferComponent::AudioSampleBufferComponent(Processor* p) :
+	AudioDisplayComponent(),
 	buffer(nullptr),
 	itemDragged(false),
 	bgColour(Colour(0xFF555555)),
@@ -692,14 +700,19 @@ void AudioSampleBufferComponent::mouseDoubleClick(const MouseEvent& /*event*/)
 
 void AudioSampleBufferComponent::paint(Graphics &g)
 {
-	if(isOpaque()) g.fillAll(bgColour);
+	g.fillAll(bgColour);
 
 	Font f = GLOBAL_BOLD_FONT();
 
 	g.setFont(f);
 
+	
+
     if(buffer == nullptr || buffer->getNumSamples() == 0)
     {
+
+		
+
         g.setColour(Colours::white.withAlpha(0.3f));
         
 		const String text = "Right click to open audio file";
@@ -770,6 +783,392 @@ void AudioSampleBufferComponent::paint(Graphics &g)
 		loopPath.scaleToFit(x1 + 5.0f, 4.0f, 20.0f, 10.0f, true);
 		g.fillPath(loopPath);
 	}
+}
+
+void HiseAudioThumbnail::LoadingThread::run()
+{
+	Rectangle<int> bounds;
+	var lb;
+	var rb;
+	ScopedPointer<AudioFormatReader> reader;
+
+	{
+		if (parent.get() == nullptr)
+			return;
+
+		ScopedLock sl(parent->lock);
+
+		bounds = parent->getBounds();
+
+		if (parent->currentReader != nullptr)
+		{
+			reader.swapWith(parent->currentReader);
+		}
+		else
+		{
+			lb = parent->lBuffer;
+			rb = parent->rBuffer;
+		}
+	}
+
+	if (reader != nullptr)
+	{
+		VariantBuffer::Ptr l = new VariantBuffer(reader->lengthInSamples);
+		VariantBuffer::Ptr r;
+
+		if (reader->numChannels > 1)
+			r = new VariantBuffer(reader->lengthInSamples);
+
+		float* d[2];
+
+		d[0] = l->buffer.getWritePointer(0);
+		d[1] = r != nullptr ? r->buffer.getWritePointer(0) : nullptr;
+
+		AudioSampleBuffer tempBuffer = AudioSampleBuffer(d, reader->numChannels, reader->lengthInSamples);
+		
+
+		if (threadShouldExit())
+			return;
+
+		reader->read(&tempBuffer, 0, reader->lengthInSamples, 0, true, true);
+
+		if (threadShouldExit())
+			return;
+
+		lb = var(l);
+
+		if (reader->numChannels > 1)
+		{
+			rb = var(r);
+		}
+
+		if (parent.get() != nullptr)
+		{
+			ScopedLock sl(parent->lock);
+
+			parent->lBuffer = lb;
+			parent->rBuffer = rb;
+		}
+	}
+
+	Path lPath;
+	Path rPath;
+
+	float width = (float)bounds.getWidth();
+
+	if (auto l = lb.getBuffer())
+	{
+		if (l->size != 0)
+		{
+			const float* data = l->buffer.getReadPointer(0);
+			const int numSamples = l->size;
+
+			calculatePath(lPath, width, data, numSamples);
+		}
+	}
+
+	if (auto r = rb.getBuffer())
+	{
+		if (r->size != 0)
+		{
+			const float* data = r->buffer.getReadPointer(0);
+			const int numSamples = r->size;
+
+			calculatePath(rPath, width, data, numSamples);
+		}
+	}
+	
+	const bool isMono = rPath.isEmpty();
+
+	if (isMono)
+	{
+		if (auto l = lb.getBuffer())
+		{
+			if (l->size != 0)
+			{
+				const float* data = l->buffer.getReadPointer(0);
+				const int numSamples = l->size;
+
+				scalePathFromLevels(lPath, { 0.0f, 0.0f, (float)bounds.getWidth(), (float)bounds.getHeight() }, data, numSamples);
+			}
+		}
+	}
+	else
+	{
+
+		float h = (float)bounds.getHeight() / 2.0f;
+
+		if (auto l = lb.getBuffer())
+		{
+			if (l->size != 0)
+			{
+				const float* data = l->buffer.getReadPointer(0);
+				const int numSamples = l->size;
+
+				scalePathFromLevels(lPath, { 0.0f, 0.0f, (float)bounds.getWidth(), h }, data, numSamples);
+			}
+				
+
+			
+		}
+
+		if (auto r = rb.getBuffer())
+		{
+			if (r->size != 0)
+			{
+				const float* data = r->buffer.getReadPointer(0);
+				const int numSamples = r->size;
+
+				scalePathFromLevels(rPath, { 0.0f, h, (float)bounds.getWidth(), h }, data, numSamples);
+			}
+		}
+
+	}
+
+	{
+		if (parent.get() != nullptr)
+		{
+			ScopedLock sl(parent->lock);
+
+			parent->leftWaveform.swapWithPath(lPath);
+			parent->rightWaveform.swapWithPath(rPath);
+			parent->isClear = false;
+
+			parent->refresh();
+			
+		}
+	}
+}
+
+void HiseAudioThumbnail::LoadingThread::scalePathFromLevels(Path &p, Rectangle<float> bounds, const float* data, const int numSamples)
+{
+	if (p.isEmpty())
+		return;
+
+	auto levels = FloatVectorOperations::findMinAndMax(data, numSamples);
+
+	if (levels.isEmpty())
+	{
+		p.clear();
+		p.startNewSubPath(bounds.getX(), bounds.getCentreY());
+		p.lineTo(bounds.getRight(), bounds.getCentreY());
+		p.closeSubPath();
+	}
+	else
+	{
+		auto h = bounds.getHeight();
+
+		float half = h / 2.0f;
+
+		auto trimmedTop = (1.0f - std::fabs(levels.getEnd())) * half;
+		auto trimmedBottom = (1.0f - std::fabs(levels.getStart())) * half;
+
+		bounds.removeFromTop(trimmedTop);
+		bounds.removeFromBottom(trimmedBottom);
+
+		p.scaleToFit(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), false);
+	}
+}
+
+void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, const float* l_, int numSamples)
+{
+	int stride = roundFloatToInt((float)numSamples / width);
+	stride = jmax<int>(1, stride * 2);
+
+	if (numSamples != 0)
+	{
+		p.clear();
+		p.startNewSubPath(0.0f, 0.0f);
+		
+		for (int i = stride; i < numSamples; i += stride)
+		{
+			if (threadShouldExit())
+				return;
+
+			const int numToCheck = jmin<int>(stride, numSamples - i);
+
+			auto value = jmax<float>(0.0f, FloatVectorOperations::findMaximum(l_ + i, numToCheck));
+
+			p.lineTo(i, -1.0f * value);
+
+		};
+
+		for (int i = numSamples - 1; i > 0; i -= stride)
+		{
+			if (threadShouldExit())
+				return;
+
+			const int numToCheck = jmin<int>(stride, numSamples - i);
+
+			auto value = jmin<float>(0.0f, FloatVectorOperations::findMinimum(l_ + i, numToCheck));
+
+			p.lineTo(i, -1.0f * value);
+		};
+
+		p.closeSubPath();
+	}
+	else
+	{
+		p.clear();
+	}
+}
+
+HiseAudioThumbnail::HiseAudioThumbnail() :
+	loadingThread(this)
+{
+	setColour(AudioDisplayComponent::ColourIds::fillColour, JUCE_LIVE_CONSTANT_OFF(Colour(0xffcccccc)));
+	setColour(AudioDisplayComponent::ColourIds::outlineColour, JUCE_LIVE_CONSTANT_OFF(Colour(0xa2181818)));
+
+	setInterceptsMouseClicks(false, false);
+	setBufferedToImage(true);
+}
+
+HiseAudioThumbnail::~HiseAudioThumbnail()
+{
+	loadingThread.stopThread(400);
+}
+
+void HiseAudioThumbnail::setBuffer(var bufferL, var bufferR /*= var()*/)
+{
+	currentReader = nullptr;
+
+	lBuffer = bufferL;
+	rBuffer = bufferR;
+
+	currentReader = nullptr;
+
+	if (auto l = bufferL.getBuffer())
+	{
+		lengthInSeconds = l->size / 44100.0;
+	}
+
+	rebuildPaths();
+}
+
+void HiseAudioThumbnail::paint(Graphics& g)
+{
+	if (isClear)
+		return;
+
+	
+
+	ScopedLock sl(lock);
+	
+	auto bounds = getLocalBounds();
+
+
+	if (leftBound > 0 || rightBound > 0)
+	{
+		auto left = bounds.removeFromLeft(leftBound);
+		auto right = bounds.removeFromRight(rightBound);
+
+		g.saveState();
+
+		g.excludeClipRegion(left);
+		g.excludeClipRegion(right);
+
+
+
+		drawSection(g, true);
+
+		g.restoreState();
+		g.excludeClipRegion(bounds);
+
+		drawSection(g, false);
+	}
+	else
+	{
+		drawSection(g, true);
+	}
+
+	
+}
+
+void HiseAudioThumbnail::drawSection(Graphics &g, bool enabled)
+{
+	bool isStereo = rBuffer.isBuffer();
+
+	Colour fillColour = findColour(AudioDisplayComponent::ColourIds::fillColour);
+	Colour outlineColour = findColour(AudioDisplayComponent::ColourIds::outlineColour);
+
+	if (!enabled)
+	{
+		fillColour = fillColour.withMultipliedAlpha(0.3f);
+		outlineColour = outlineColour.withMultipliedAlpha(0.3f);
+	}
+		
+
+	if (!isStereo)
+	{
+		g.setColour(fillColour.withAlpha(0.05f));
+
+		int h = getHeight();
+
+		g.drawHorizontalLine(h/4, 0.0f, (float)getWidth());
+		g.drawHorizontalLine(3*h / 4, 0.0f, (float)getWidth());
+
+		g.setColour(fillColour);
+		g.fillPath(leftWaveform);
+
+		g.setColour(outlineColour);
+		g.strokePath(leftWaveform, PathStrokeType(1.0f));
+
+	}
+	else
+	{
+		g.setColour(fillColour.withAlpha(0.08f));
+
+		int h = getHeight()/2;
+
+		g.drawHorizontalLine(h / 4, 0.0f, (float)getWidth());
+		g.drawHorizontalLine(3 * h / 4, 0.0f, (float)getWidth());
+		g.drawHorizontalLine(h + h / 4, 0.0f, (float)getWidth());
+		g.drawHorizontalLine(h + 3 * h / 4, 0.0f, (float)getWidth());
+
+		g.setColour(fillColour);
+		g.fillPath(leftWaveform);
+		g.fillPath(rightWaveform);
+
+		g.setColour(outlineColour);
+		g.strokePath(leftWaveform, PathStrokeType(1.0f));
+		g.strokePath(rightWaveform, PathStrokeType(1.0f));
+	}
+}
+
+void HiseAudioThumbnail::setReader(AudioFormatReader* r, int64 unused)
+{
+	currentReader = r;
+
+	if (currentReader != nullptr)
+	{
+		lengthInSeconds = currentReader->lengthInSamples / currentReader->sampleRate;
+	}
+
+	rebuildPaths();
+}
+
+void HiseAudioThumbnail::clear()
+{
+	ScopedLock sl(lock);
+
+	lBuffer = var();
+	rBuffer = var();
+
+	leftWaveform.clear();
+	rightWaveform.clear();
+
+	isClear = true;
+
+	currentReader = nullptr;
+
+	repaint();
+}
+
+void HiseAudioThumbnail::setRange(const int left, const int right) 
+{
+	leftBound = left;
+	rightBound = getWidth() - right;
+	repaint();
 }
 
 } // namespace hise

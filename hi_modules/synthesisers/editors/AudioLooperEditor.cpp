@@ -34,7 +34,7 @@ AudioLooperEditor::AudioLooperEditor (ProcessorEditor *p)
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
 
-    addAndMakeVisible (sampleBufferContent = new AudioSampleBufferComponent (dynamic_cast<AudioSampleProcessor*>(getProcessor())->getCache(), getProcessor()));
+    addAndMakeVisible (sampleBufferContent = new AudioSampleBufferComponent (getProcessor()));
     sampleBufferContent->setName ("new component");
 
     addAndMakeVisible (label = new Label ("new label",
@@ -255,7 +255,7 @@ BEGIN_JUCER_METADATA
   </BACKGROUND>
   <GENERICCOMPONENT name="new component" id="e2252e55bedecdc5" memberName="sampleBufferContent"
                     virtualName="" explicitFocusOrder="0" pos="0Cc 77 112M 144" class="AudioSampleBufferComponent"
-                    params="dynamic_cast&lt;AudioSampleProcessor*&gt;(getProcessor())-&gt;getCache(), getProcessor()"/>
+                    params="getProcessor()"/>
   <LABEL name="new label" id="bd1d8d6ad6d04bdc" memberName="label" virtualName=""
          explicitFocusOrder="0" pos="52Rr 12 264 40" textCol="52ffffff"
          edTextCol="ff000000" edBkgCol="0" labelText="LOOPER" editableSingleClick="0"

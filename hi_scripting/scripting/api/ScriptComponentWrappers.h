@@ -651,6 +651,8 @@ public:
 		void rangeChanged(AudioDisplayComponent *broadcaster, int changedArea);
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioWaveformWrapper)
+	private:
+		void updateColours(AudioSampleBufferComponent* asb);
 	};
 
 	class FloatingTileWrapper : public ScriptCreatedComponentWrapper

@@ -54,7 +54,7 @@ ConvolutionEditor::ConvolutionEditor (ProcessorEditor *p)
     addAndMakeVisible (wetMeter = new VuMeter());
     wetMeter->setName ("new component");
 
-    addAndMakeVisible (impulseDisplay = new AudioSampleBufferComponent (dynamic_cast<AudioSampleProcessor*>(getProcessor())->getCache(), getProcessor()));
+    addAndMakeVisible (impulseDisplay = new AudioSampleBufferComponent (getProcessor()));
     impulseDisplay->setName ("new component");
 
     addAndMakeVisible (resetButton = new HiToggleButton ("new toggle button"));
@@ -249,7 +249,7 @@ BEGIN_JUCER_METADATA
                     params=""/>
   <GENERICCOMPONENT name="new component" id="ca07ce0dc9de3398" memberName="impulseDisplay"
                     virtualName="" explicitFocusOrder="0" pos="-282C 24 360 184"
-                    class="AudioSampleBufferComponent" params="dynamic_cast&lt;AudioSampleProcessor*&gt;(getProcessor())-&gt;getCache(), getProcessor()"/>
+                    class="AudioSampleBufferComponent" params="getProcessor()"/>
   <TOGGLEBUTTON name="new toggle button" id="e6345feaa3cb5bea" memberName="resetButton"
                 virtualName="HiToggleButton" explicitFocusOrder="0" pos="165Cc 175 128 32"
                 posRelativeX="410a230ddaa2f2e8" txtcol="ffffffff" buttonText="Process Input"

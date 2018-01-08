@@ -1541,10 +1541,7 @@ ScriptCreatedComponentWrapper(content, index)
 {
 	auto processor = const_cast<Processor*>(dynamic_cast<const Processor*>(content->getScriptProcessor()));
 
-	// Ugly as fuck
-	AudioThumbnailCache* cache = processor->getMainController()->getSampleManager().getAudioSampleBufferPool()->getCache();
-
-	AudioSampleBufferComponent *asb = new AudioSampleBufferComponent(*cache, form->getConnectedProcessor());
+	AudioSampleBufferComponent *asb = new AudioSampleBufferComponent(form->getConnectedProcessor());
 
 	asb->setName(form->name.toString());
 	asb->setOpaque(false);
@@ -1575,6 +1572,18 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateComponent()
 void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateComponent(int propertyIndex, var newValue)
 {
 	ScriptCreatedComponentWrapper::updateComponent(propertyIndex, newValue);
+
+	auto asb = dynamic_cast<AudioSampleBufferComponent*>(component.get());
+
+	switch (propertyIndex)
+	{
+		PROPERTY_CASE::ScriptAudioWaveform::Properties::opaque:	asb->setOpaque(newValue); break;
+		PROPERTY_CASE::ScriptAudioWaveform::Properties::itemColour3:
+		PROPERTY_CASE::ScriptComponent::itemColour :
+		PROPERTY_CASE::ScriptComponent::itemColour2 :
+		PROPERTY_CASE::ScriptComponent::bgColour :
+		PROPERTY_CASE::ScriptComponent::textColour : updateColours(asb); break;
+	}
 }
 
 void ScriptCreatedComponentWrappers::AudioWaveformWrapper::rangeChanged(AudioDisplayComponent *broadcaster, int changedArea)
@@ -1591,6 +1600,19 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::rangeChanged(AudioDis
 	}
 }
 
+void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateColours(AudioSampleBufferComponent* asb)
+{
+	auto tn = asb->getThumbnail();
+
+	asb->setColour(AudioDisplayComponent::ColourIds::bgColour, GET_OBJECT_COLOUR(bgColour));
+	tn->setColour(AudioDisplayComponent::ColourIds::outlineColour, GET_OBJECT_COLOUR(itemColour));
+	tn->setColour(AudioDisplayComponent::ColourIds::fillColour, GET_OBJECT_COLOUR(itemColour2));
+	tn->setColour(AudioDisplayComponent::ColourIds::textColour, GET_OBJECT_COLOUR(textColour));
+
+
+	asb->repaint();
+	tn->repaint();
+}
 
 
 ScriptCreatedComponentWrappers::FloatingTileWrapper::FloatingTileWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptFloatingTile *floatingTile, int index):
