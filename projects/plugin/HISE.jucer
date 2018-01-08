@@ -197,8 +197,8 @@
                        isDebug="0" optimisation="3" targetName="HISE x64" binaryPath=""
                        alwaysGenerateDebugSymbols="0" useRuntimeLibDLL="0" libraryPath=""
                        defines="JucePlugin_MaxNumOutputChannels=2&#10;JucePlugin_PreferredChannelConfigurations={0\,2}"
-                       debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="1"
-                       linkTimeOptimisation="1" vstBinaryLocation="C:\Program Files\VST Plugins"/>
+                       debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
+                       linkTimeOptimisation="1"/>
         <CONFIGURATION name="Debug MultiChannel" winWarningLevel="4" generateManifest="1"
                        winArchitecture="x64" isDebug="1" optimisation="1" targetName="HISE x64 Debug 16 Out"
                        binaryPath="" libraryPath="" useRuntimeLibDLL="0" defines="JucePlugin_MaxNumOutputChannels=16&#10;JucePlugin_PreferredChannelConfigurations={0\,16}"
