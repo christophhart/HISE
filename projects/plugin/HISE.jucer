@@ -178,7 +178,7 @@
     </VS2015>
     <VS2017 targetFolder="Builds/VisualStudio2017" vstFolder="c:\SDKs\vstsdk2.4"
             smallIcon="" useIPP="Sequential" aaxFolder="D:\Development\SDKs\AAX"
-            IPPLibrary="Sequential" windowsTargetPlatformVersion="8.1">
+            IPPLibrary="Sequential" windowsTargetPlatformVersion="">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
                        isDebug="1" optimisation="1" targetName="HISE x86 Debug" binaryPath=""
