@@ -109,11 +109,19 @@ void ScriptComponentListItem::paintItem(Graphics& g, int width, int height)
 		g.drawRoundedRectangle(area, 1.0f, 2.0f);
 
 
+		bool saveInPreset = false;
 
+		if (content.get() != nullptr)
+		{
+			auto scId = var(getUniqueName());
 
-		static const Identifier sip("saveInPreset");
+			auto v = content->getComponent(scId);
 
-		const bool saveInPreset = tree.getProperty(sip, false);
+			if (auto sc = dynamic_cast<ScriptingApi::Content::ScriptComponent*>(v.getObject()))
+			{
+				saveInPreset = sc->getScriptObjectProperty(ScriptComponent::Properties::saveInPreset);
+			}
+		}
 
 		Colour c3 = saveInPreset ? Colours::green : Colours::red;
 
