@@ -4,7 +4,7 @@
 */
 
 // Load a background image
-bgImage = Content.addImage("bgImage", 0, 0);
+const var bgImage = Content.addImage("bgImage", 0, 0);
 // [JSON bgImage]
 Content.setPropertiesFromJSON("bgImage", {
   "width": 700,
