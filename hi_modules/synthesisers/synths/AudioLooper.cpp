@@ -128,10 +128,8 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 
 	auto loopOffset = jmax<int>(0, loopStart - offset);
 
-
 	while (--numSamples >= 0)
 	{
-	
 		int uptime = (int)voiceUptime;
 
 		const int samplePos = getSamplePos(uptime, length, loopOffset);
