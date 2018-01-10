@@ -307,6 +307,9 @@ public:
 		/** Allows access to the data of the host (playing status, timeline, etc...). */
 		DynamicObject *getPlayHead();
 
+		/** Checks if the given CC number is used for parameter automation and returns the index of the control. */
+		int isControllerUsedByAutomation(int controllerNumber);
+
 		/** Creates a MIDI List object. */
         ScriptingObjects::MidiList *createMidiList(); 
 
