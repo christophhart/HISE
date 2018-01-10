@@ -57,6 +57,7 @@ public:
 		VolumeFade,
 		PitchFade,
 		TimerEvent,
+		ProgramChange,
 		numTypes
 	};
 
@@ -138,6 +139,8 @@ public:
 
     void setArtificial() noexcept { artificial = true; }
     bool isArtificial() const noexcept{ return artificial; };
+
+	
 
 	void setTransposeAmount(int newTransposeValue) noexcept{ transposeValue = (int8)newTransposeValue; };
 	int getTransposeAmount() const noexcept{ return (int)transposeValue; };
@@ -234,6 +237,9 @@ public:
 
 	void setControllerNumber(int controllerNumber) noexcept{ number = (uint8)controllerNumber; };
 	void setControllerValue(int controllerValue) noexcept{ value = (uint8)controllerValue; };
+
+	bool isProgramChange() const noexcept { return type == Type::ProgramChange; };
+	int getProgramChangeNumber() const noexcept { return number; };
 
 	bool isEmpty() const noexcept{ return type == Type::Empty; };
 

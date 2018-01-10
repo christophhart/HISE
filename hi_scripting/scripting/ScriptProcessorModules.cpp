@@ -242,6 +242,7 @@ void JavascriptMidiProcessor::runScriptCallbacks()
 	case HiseEvent::Type::Controller:
 	case HiseEvent::Type::PitchBend:
 	case HiseEvent::Type::Aftertouch:
+	case HiseEvent::Type::ProgramChange:
 	{
 		if (currentEvent->isControllerOfType(64))
 		{

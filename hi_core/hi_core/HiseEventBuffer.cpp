@@ -44,6 +44,7 @@ HiseEvent::HiseEvent(const MidiMessage& message)
 	else if (message.isController()) type = Type::Controller;
 	else if (message.isChannelPressure() || message.isAftertouch()) type = Type::Aftertouch;
 	else if (message.isAllNotesOff() || message.isAllSoundOff()) type = Type::AllNotesOff;
+	else if (message.isProgramChange()) type = Type::ProgramChange;
 	else
 	{
 		type = Type::Empty;
@@ -72,6 +73,7 @@ String HiseEvent::getTypeAsString() const noexcept
 	case HiseEvent::Type::VolumeFade: return "VolumeFade";
 	case HiseEvent::Type::PitchFade: return "PitchFade";
 	case HiseEvent::Type::TimerEvent: return "TimerEvent";
+	case HiseEvent::Type::ProgramChange: return "ProgramChange";
 	case HiseEvent::Type::numTypes: jassertfalse;
 	default: jassertfalse;
 	}
