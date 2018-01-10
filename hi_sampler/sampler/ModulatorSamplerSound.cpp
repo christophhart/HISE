@@ -397,7 +397,9 @@ double ModulatorSamplerSound::getPropertyPitch() const noexcept { return pitchFa
 void ModulatorSamplerSound::setMaxRRGroupIndex(int newGroupLimit)
 {
 	maxRRGroup = newGroupLimit;
-	rrGroup = jmin(rrGroup, newGroupLimit);
+
+	// Not sure why this is here, remove it when nobody complains...
+	// rrGroup = jmin(rrGroup, newGroupLimit);
 }
 
 void ModulatorSamplerSound::setMappingData(MappingData newData)
