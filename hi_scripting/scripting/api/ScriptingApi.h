@@ -100,6 +100,12 @@ public:
 		/** Changes the controller value (range 0 - 127). */
 		void setControllerValue(int newControllerValue);
 
+		/** Checks if the message is a program change message. */
+		bool isProgramChange();
+
+		/** Returns the program change number or -1 if it isn't a program change message. */
+		int getProgramChangeNumber();
+
 		/** Returns the Velocity. */
 		int getVelocity() const;
 
@@ -300,6 +306,9 @@ public:
 
 		/** Allows access to the data of the host (playing status, timeline, etc...). */
 		DynamicObject *getPlayHead();
+
+		/** Checks if the given CC number is used for parameter automation and returns the index of the control. */
+		int isControllerUsedByAutomation(int controllerNumber);
 
 		/** Creates a MIDI List object. */
         ScriptingObjects::MidiList *createMidiList(); 

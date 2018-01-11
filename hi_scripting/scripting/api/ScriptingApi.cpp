@@ -360,6 +360,8 @@ struct ScriptingApi::Message::Wrapper
 	API_METHOD_WRAPPER_0(Message, getVelocity);
 	API_METHOD_WRAPPER_0(Message, getControllerNumber);
 	API_METHOD_WRAPPER_0(Message, getControllerValue);
+	API_METHOD_WRAPPER_0(Message, isProgramChange);
+	API_METHOD_WRAPPER_0(Message, getProgramChangeNumber);
 	API_VOID_METHOD_WRAPPER_1(Message, ignoreEvent);
 	API_VOID_METHOD_WRAPPER_1(Message, delayEvent);
 	API_METHOD_WRAPPER_0(Message, getEventId);
@@ -379,6 +381,7 @@ struct ScriptingApi::Message::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Message, store);
 	API_METHOD_WRAPPER_0(Message, makeArtificial);
 	API_METHOD_WRAPPER_0(Message, isArtificial);
+	
 };
 
 
@@ -396,6 +399,8 @@ constMessageHolder(nullptr)
 	ADD_API_METHOD_1(setControllerValue);
 	ADD_API_METHOD_0(getControllerNumber);
 	ADD_API_METHOD_0(getControllerValue);
+	ADD_API_METHOD_0(isProgramChange);
+	ADD_API_METHOD_0(getProgramChangeNumber);
 	ADD_API_METHOD_0(getNoteNumber);
 	ADD_API_METHOD_0(getVelocity);
 	ADD_API_METHOD_1(ignoreEvent);
@@ -515,7 +520,7 @@ void ScriptingApi::Message::setControllerValue(int newValue)
 #if ENABLE_SCRIPTING_SAFE_CHECKS
 	if(messageHolder == nullptr)
 	{
-		reportIllegalCall("setVelocity()", "midi event");
+		reportIllegalCall("setControllerValue()", "midi event");
 		return;
 	}
 
@@ -530,6 +535,35 @@ void ScriptingApi::Message::setControllerValue(int newValue)
 	
 	messageHolder->setControllerValue(newValue);
 };
+
+bool ScriptingApi::Message::isProgramChange()
+{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if (constMessageHolder == nullptr)
+	{
+		reportIllegalCall("isProgramChange()", "midi event");
+		return false;
+	}
+#endif
+
+	return constMessageHolder->isProgramChange();
+}
+
+int ScriptingApi::Message::getProgramChangeNumber()
+{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if (messageHolder == nullptr)
+	{
+		reportIllegalCall("setVelocity()", "midi event");
+		return -1;
+	}
+#endif
+
+	if (constMessageHolder->isProgramChange())
+		return constMessageHolder->getProgramChangeNumber();
+	else
+		return -1;
+}
 
 var ScriptingApi::Message::getControllerNumber() const
 {
@@ -910,6 +944,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getDeviceResolution);
 	API_METHOD_WRAPPER_0(Engine, getZoomLevel);
 	API_METHOD_WRAPPER_0(Engine, getVersion);
+	API_METHOD_WRAPPER_1(Engine, isControllerUsedByAutomation);
 	API_METHOD_WRAPPER_0(Engine, getSettingsWindowObject);
 	API_METHOD_WRAPPER_1(Engine, getMasterPeakLevel);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadFont);
@@ -964,6 +999,7 @@ ApiClass(0)
 	ADD_API_METHOD_0(isPlugin);
 	ADD_API_METHOD_0(getZoomLevel);
 	ADD_API_METHOD_0(getVersion);
+	ADD_API_METHOD_1(isControllerUsedByAutomation);
 	ADD_API_METHOD_0(getSettingsWindowObject);
 	ADD_API_METHOD_0(createTimerObject);
 	ADD_API_METHOD_0(createMessageHolder);
@@ -1203,6 +1239,20 @@ void ScriptingApi::Engine::saveUserPreset(String presetName)
 }
 
 DynamicObject * ScriptingApi::Engine::getPlayHead() { return getProcessor()->getMainController()->getHostInfoObject(); }
+
+int ScriptingApi::Engine::isControllerUsedByAutomation(int controllerNumber)
+{
+	auto handler = getProcessor()->getMainController()->getMacroManager().getMidiControlAutomationHandler();
+
+	for (int i = 0; i < handler->getNumActiveConnections(); i++)
+	{
+		if (handler->getDataFromIndex(i).ccNumber == controllerNumber)
+			return i;
+	}
+
+	return -1;
+}
+
 ScriptingObjects::MidiList *ScriptingApi::Engine::createMidiList() { return new ScriptingObjects::MidiList(getScriptProcessor()); };
 
 ScriptingObjects::ScriptSliderPackData* ScriptingApi::Engine::createSliderPackData() { return new ScriptingObjects::ScriptSliderPackData(getScriptProcessor()); }
