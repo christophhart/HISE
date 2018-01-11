@@ -914,6 +914,15 @@ bool PresetHandler::showYesNoWindow(const String &title, const String &message, 
 
 void PresetHandler::showMessageWindow(const String &title, const String &message, PresetHandler::IconType type)
 {
+#if USE_BACKEND
+	if (CompileExporter::isExportingFromCommandLine())
+	{
+		std::cout << title << ": " << message << std::endl;
+		return;
+	}
+		
+#endif
+
 #if HISE_IOS
     
     NativeMessageBox::showMessageBox(AlertWindow::AlertIconType::NoIcon, title, message);

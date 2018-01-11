@@ -1592,9 +1592,6 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 				props.add(new SliderPropertyComponent(threshhold, "Start Thresshold", -100.0, 0.0, 0.1, 4.0));
 				props.add(new SliderPropertyComponent(endThreshhold, "End Thresshold", -100.0, 0.0, 0.1, 4.0));
 
-				
-
-
 				if (currentlyDisplayedSound->getNumMultiMicSamples() > 1)
 				{
 					Array<var> multiMicValues;
