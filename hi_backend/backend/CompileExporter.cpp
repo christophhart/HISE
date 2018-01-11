@@ -357,6 +357,33 @@ CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String
 
 		BuildOption b = exporter.getBuildOptionFromCommandLine(args);
 
+		if (isUsingCIMode())
+		{
+			bool hasHiseSDK = projectDirectory.getChildFile("src/HISE").isDirectory();
+
+			if (hasHiseSDK)
+			{
+				exporter.hisePath = projectDirectory.getChildFile("src/HISE");
+				std::cout << "HISE SDK found at " << exporter.hisePath.getFullPathName() << std::endl;
+			}
+			else
+			{
+				std::cout << "Didn't find HISE SDK in project folder, trying parent folder..." << std::endl;
+
+				hasHiseSDK = projectDirectory.getParentDirectory().getChildFile("src/HISE").isDirectory();
+
+				if (hasHiseSDK)
+				{
+					exporter.hisePath = projectDirectory.getParentDirectory().getChildFile("src/HISE/");
+					std::cout << "HISE SDK found at " << exporter.hisePath.getFullPathName() << std::endl;
+				}
+				else
+				{
+					return ErrorCodes::HISEPathNotSpecified;
+				}
+			}
+		}
+
 		pluginFile = HelperClasses::getFileNameForCompiledPlugin(mainSynthChain, b);
 
 		if (BuildOptionHelpers::isEffect(b)) result = exporter.exportMainSynthChainAsFX(b);
@@ -482,8 +509,14 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 {
     if(!useIpp) useIpp = SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::UseIPP) == "Yes";
     
-	if (isUsingCIMode()) 
-		hisePath = GET_PROJECT_HANDLER(chainToExport).getWorkDirectory().getChildFile("src/HISE/");
+	if (isUsingCIMode())
+	{
+		if (!hisePath.isDirectory())
+		{
+			return ErrorCodes::HISEPathNotSpecified;
+		}	
+	}
+		
 	else if(!hisePath.isDirectory()) 
 		hisePath = File(SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::HisePath));
 
