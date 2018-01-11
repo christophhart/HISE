@@ -713,7 +713,7 @@ bool CompileExporter::checkSanity(BuildOption option)
     
     const File hiseDirectory = File(SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::HisePath));
 
-    if(!hiseDirectory.isDirectory() || !hiseDirectory.getChildFile("hi_core/").isDirectory())
+    if(!isUsingCIMode() && (!hiseDirectory.isDirectory() || !hiseDirectory.getChildFile("hi_core/").isDirectory()))
     {
         printErrorMessage("HISE path is not valid", "You need to set the correct path to the HISE SDK at File -> Settings -> Compiler Settings");
         return false;
