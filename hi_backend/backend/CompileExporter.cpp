@@ -2044,6 +2044,8 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 	
     batchFile.replaceWithText(batchContent);
     
+	
+
 #elif JUCE_LINUX
 
 	const String projucerPath = exporter->hisePath.getChildFile("tools/projucer/Projucer").getFullPathName();
@@ -2081,7 +2083,16 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
     else
     {
         ADD_LINE("echo Compiling " << projectType << " " << projectName << " ...");
-        ADD_LINE("xcodebuild -project \"Builds/MacOSX/" << projectName << ".xcodeproj\" -configuration \"Release\" | xcpretty");
+
+		String xcodeLine;
+		xcodeLine << "xcodebuild -project \"Builds/MacOSX/" << projectName << ".xcodeproj\" -configuration \"Release\"";
+
+		if (!isUsingCIMode())
+		{
+			xcodeLine << " | xcpretty";
+		}
+
+        ADD_LINE(xcodeLine);
         ADD_LINE("echo Compiling finished. Cleaning up...");
     }
     
