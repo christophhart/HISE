@@ -343,7 +343,7 @@ XmlElement * SettingWindows::CompilerSettingWindow::createNewSettingsFile() cons
 	XmlElement *xml = new XmlElement("CompilerSettings");
 
 	addFileAsChildElement(*xml, (int)Attributes::HisePath, "", "Path to HISE modules");
-	addChildElementWithOptions(*xml, (int)Attributes::VisualStudioVersion, "Visual Studio 2015", "Installed VisualStudio version", "Visual Studio 2015\nVisual Studio 2017");
+	addChildElementWithOptions(*xml, (int)Attributes::VisualStudioVersion, "Visual Studio 2017", "Installed VisualStudio version", "Visual Studio 2015\nVisual Studio 2017");
 	addChildElementWithOptions(*xml, (int)Attributes::UseIPP, "Yes", "Use IPP", "Yes\nNo");
 
 	return xml;

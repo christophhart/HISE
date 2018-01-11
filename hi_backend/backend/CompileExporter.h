@@ -182,12 +182,20 @@ public:
 		globalCommandLineExport = true;
 	};
 
+	static void setExportUsingCI(bool shouldUseCIMode)
+	{
+		useCIMode = shouldUseCIMode;
+	}
+
+	static bool isUsingCIMode() { return useCIMode; }
+
 	static bool isExportingFromCommandLine() { return globalCommandLineExport; }
 
 private:
 
 	static bool globalCommandLineExport;
 	
+	static bool useCIMode;
 
 	struct HelperClasses
 	{

@@ -74,14 +74,96 @@ public:
 			quit();
 			return;
 		}
+		else if (commandLine.startsWith("set_version"))
+		{
+			auto argsString = commandLine.fromFirstOccurrenceOf("set_version ", false, false);
+			auto args = StringArray::fromTokens(argsString, true);
+
+			auto projectFolder = args[0];
+			String versionString;
+
+			if (args[1].startsWith("-v:"))
+				versionString = args[1].fromFirstOccurrenceOf("-v:", false, false);
+
+			SemanticVersionChecker checker(versionString, versionString);
+
+			auto pd = File(projectFolder.removeCharacters("\""));
+
+			if (pd.isDirectory())
+			{
+				auto projectFile = pd.getChildFile("project_info.xml");
+
+				if (projectFile.existsAsFile())
+				{
+					auto content = projectFile.loadFileAsString();
+					
+					auto wildcard = "Version value=\"(\\d+\\.\\d+\\.\\d+)\"";
+
+					auto firstMatch = RegexFunctions::getFirstMatch(wildcard, content);
+
+					if (firstMatch.size() == 2)
+					{
+						auto newVersion = firstMatch[0].replace(firstMatch[1], versionString);
+
+						std::cout << std::endl << "==============================================================================" << std::endl;
+						std::cout << "Old version: " << firstMatch[1] << std::endl;
+						std::cout << "New version: " << versionString << std::endl;
+						std::cout << "==============================================================================" << std::endl << std::endl;
+
+						auto newContent = content.replace(firstMatch[0], newVersion);
+						projectFile.replaceWithText(newContent);
+
+						quit();
+						return;
+					}
+					else
+					{
+						std::cout << std::endl << "==============================================================================" << std::endl;
+						std::cout << "ERROR: Regex parsing error. Check the file." << std::endl;
+						std::cout << "==============================================================================" << std::endl << std::endl;
+						exit(1);
+					}
+				}
+				else
+				{
+					std::cout << std::endl << "==============================================================================" << std::endl;
+					std::cout << "ERROR: " << projectFolder << " is not a valid folder" << std::endl;
+					std::cout << "==============================================================================" << std::endl << std::endl;
+					exit(1);
+				}
+			}
+			else
+			{
+				std::cout << std::endl << "==============================================================================" << std::endl;
+				std::cout << "ERROR: " << projectFolder << " is not a valid folder" << std::endl;
+				std::cout << "==============================================================================" << std::endl << std::endl;
+				exit(1);
+			}
+
+
+			if (checker.newVersionNumberIsValid())
+			{
+
+			}
+			else
+			{
+				std::cout << std::endl << "==============================================================================" << std::endl;
+				std::cout << "ERROR: " << versionString << " is not a valid semantic version number" << std::endl;
+				std::cout << "==============================================================================" << std::endl << std::endl;
+				exit(1);
+			}
+
+		}
 		else if (commandLine.startsWith("--help"))
 		{
 			std::cout << std::endl;
 			std::cout << "HISE Command Line Tool" << std::endl;
 			std::cout << "----------------------" << std::endl << std::endl;
 			std::cout << "Usage: " << std::endl << std::endl;
-			std::cout << "HISE export \"File.hip\" [-h:PATH -ipp] -t:TYPE [-p:TYPE] [-a:ARCH]" << std::endl << std::endl;
+			std::cout << "HISE export|export_ci \"File.hip\" [-h:PATH -ipp] -t:TYPE [-p:TYPE] [-a:ARCH]" << std::endl << std::endl;
 			std::cout << "Options: " << std::endl << std::endl;
+			std::cout << "export: builds the project using the default settings" << std::endl << std::endl;
+			std::cout << "export_ci: builds the project using customized behaviour for automated builds" << std::endl << std::endl;
 			std::cout << "-h:{TEXT} sets the HISE path. Use this if you don't have compiler settings set." << std::endl;
             std::cout << "-ipp      enables Intel Performance Primitives for fast convolution" << std::endl;
 			std::cout << "-t:{TEXT} sets the project type ('standalone' | 'instrument' | 'effect')" << std::endl;
@@ -91,6 +173,8 @@ public:
 			std::cout << "          (Leave empty on OSX for Universal binary.)" << std::endl;
 			std::cout << "--test [PLUGIN_FILE]" << std::endl;
 			std::cout << "Tests the given plugin" << std::endl << std::endl;
+			std::cout << "set_version [PROJECT_FOLDER] -v:NEW_VERSION_STRING" << std::endl;
+			std::cout << "Sets the project version number to the given string" << std::endl << std::endl;
 
 			quit();
 			return;

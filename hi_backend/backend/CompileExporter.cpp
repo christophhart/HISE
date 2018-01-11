@@ -219,6 +219,7 @@ ValueTree BaseExporter::collectAllSampleMapsInDirectory()
 }
 
 bool CompileExporter::globalCommandLineExport = false;
+bool CompileExporter::useCIMode = false;
 
 void CompileExporter::printErrorMessage(const String& title, const String &message)
 {
@@ -300,9 +301,13 @@ CompileExporter::ErrorCodes CompileExporter::exportMainSynthChainAsStandaloneApp
 
 CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String& commandLine, String& pluginFile)
 {
-	String options = commandLine.fromFirstOccurrenceOf("export ", false, false);
 
-	StringArray args = StringArray::fromTokens(options, true);
+	//String options = commandLine.fromFirstOccurrenceOf("export ", false, false);
+
+	StringArray args = StringArray::fromTokens(commandLine, true);
+
+	String exportType = args[0];
+	args.remove(0);
 
 	ErrorCodes result = ErrorCodes::OK;
 
@@ -320,6 +325,7 @@ CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String
 		std::cout << "Loading the preset...";
 
 		CompileExporter::setExportingFromCommandLine();
+		CompileExporter::setExportUsingCI(exportType == "export_ci");
 
 		ScopedPointer<StandaloneProcessor> processor = new StandaloneProcessor();
 		ScopedPointer<BackendRootWindow> editor = dynamic_cast<BackendRootWindow*>(processor->createEditor());
@@ -459,6 +465,7 @@ CompileExporter::BuildOption CompileExporter::getBuildOptionFromCommandLine(Stri
 	buildParts.add(0x0004);
 #endif
 
+
 	int o = 0;
 
 	for (int i = 0; i < buildParts.size(); i++)
@@ -475,8 +482,13 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 {
     if(!useIpp) useIpp = SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::UseIPP) == "Yes";
     
-	if(!hisePath.isDirectory()) hisePath = File(SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::HisePath));
-	if (!hisePath.isDirectory()) return ErrorCodes::HISEPathNotSpecified;
+	if (isUsingCIMode()) 
+		hisePath = GET_PROJECT_HANDLER(chainToExport).getWorkDirectory().getChildFile("src/HISE/");
+	else if(!hisePath.isDirectory()) 
+		hisePath = File(SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::HisePath));
+
+	if (!hisePath.isDirectory()) 
+		return ErrorCodes::HISEPathNotSpecified;
 
 	if (!checkSanity(option)) return ErrorCodes::SanityCheckFailed;
 
@@ -628,7 +640,6 @@ bool CompileExporter::checkSanity(BuildOption option)
         return false;
     }
     
-    
     if (!productName.containsOnly("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890 _-"))
     {
         printErrorMessage("Illegal Project name", "The Project name must not contain exotic characters");
@@ -674,7 +685,26 @@ bool CompileExporter::checkSanity(BuildOption option)
         printErrorMessage("HISE path is not valid", "You need to set the correct path to the HISE SDK at File -> Settings -> Compiler Settings");
         return false;
     };
-    
+
+	File splashScreenFile = handler->getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("SplashScreen.png");
+	File splashScreeniPhoneFile = handler->getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("SplashScreeniPhone.png");
+
+	if (splashScreenFile.existsAsFile() || splashScreeniPhoneFile.existsAsFile())
+	{
+		if (!splashScreenFile.existsAsFile())
+		{
+			printErrorMessage("Missing Splash screen file", "You have specified a splash screen file for iPhone but not for iPad. Add a file called `SplashScreen.png` to your image folder");
+			return false;
+		}
+			
+
+		if (!splashScreeniPhoneFile.existsAsFile())
+		{
+			printErrorMessage("Missing Splash screen file", "You have specified a splash screen file for iPad but not for iPhone. Add a file called `SplashScreeniPhone.png` to your image folder");
+			return false;
+		}
+	}
+
     if(BuildOptionHelpers::isVST(option))
     {
         const File vstSDKDirectory = hiseDirectory.getChildFile("tools/SDK/VST3 SDK/public.sdk/");
@@ -1467,6 +1497,7 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 	REPLACE_WILDCARD("%EXTRA_DEFINES_OSX%", SettingWindows::ProjectSettingWindow::Attributes::ExtraDefinitionsOSX);
 	REPLACE_WILDCARD("%EXTRA_DEFINES_IOS%", SettingWindows::ProjectSettingWindow::Attributes::ExtraDefinitionsIOS);
 
+	REPLACE_WILDCARD_WITH_STRING("%COPY_PLUGIN%", isUsingCIMode() ? "0" : "1");
 
 #if JUCE_MAC
 	REPLACE_WILDCARD_WITH_STRING("%IPP_COMPILER_FLAGS%", "/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a");
@@ -1581,6 +1612,7 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
         {
             additionalSourceFiles.add(splashScreenFile);
         }
+		
         if(splashScreeniPhoneFile.existsAsFile())
         {
             additionalSourceFiles.add(splashScreeniPhoneFile);
@@ -1940,10 +1972,6 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 		}
 
 		ADD_LINE("");
-		ADD_LINE("echo Compiling finished.Cleaning up...");
-		ADD_LINE("del \"%build_path%\\Compiled\\%project%.exp\"");
-		ADD_LINE("del \"%build_path%\\Compiled\\%project%.lib\"");
-		ADD_LINE("");
 	}
 	
 	if (BuildOptionHelpers::is64Bit(buildOption))
@@ -2113,6 +2141,10 @@ String CompileExporter::HelperClasses::getFileNameForCompiledPlugin(ModulatorSyn
 
 bool CompileExporter::HelperClasses::isUsingVisualStudio2015()
 {
+	// Always use VS2017 in CI mode
+	if (isUsingCIMode())
+		return false;
+
 	const String v = SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::VisualStudioVersion);
 
 	return v.isEmpty() || (v == "Visual Studio 2015");
