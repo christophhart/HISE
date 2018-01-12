@@ -313,7 +313,24 @@ CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String
 
 	if (args.size() > 2)
 	{
-		File presetFile = File(args[0].trimCharactersAtStart("\"").trimCharactersAtEnd("\""));
+		CompileExporter::setExportingFromCommandLine();
+		CompileExporter::setExportUsingCI(exportType == "export_ci");
+
+		ScopedPointer<StandaloneProcessor> processor = new StandaloneProcessor();
+		ScopedPointer<BackendRootWindow> editor = dynamic_cast<BackendRootWindow*>(processor->createEditor());
+		ModulatorSynthChain* mainSynthChain = editor->getBackendProcessor()->getMainSynthChain();
+		File currentProjectFolder = GET_PROJECT_HANDLER(mainSynthChain).getWorkDirectory();
+
+		File presetFile;
+
+		if (isUsingCIMode())
+		{
+			presetFile = currentProjectFolder.getChildFile(args[0].unquoted());
+		}
+		else
+		{
+			presetFile = File(args[0].unquoted());
+		}
 
 		if (!presetFile.existsAsFile())
 		{
@@ -324,17 +341,7 @@ CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String
 
 		std::cout << "Loading the preset...";
 
-		CompileExporter::setExportingFromCommandLine();
-		CompileExporter::setExportUsingCI(exportType == "export_ci");
-
-		ScopedPointer<StandaloneProcessor> processor = new StandaloneProcessor();
-		ScopedPointer<BackendRootWindow> editor = dynamic_cast<BackendRootWindow*>(processor->createEditor());
-
-		ModulatorSynthChain* mainSynthChain = editor->getBackendProcessor()->getMainSynthChain();
-
 		CompileExporter exporter(mainSynthChain);
-
-		File currentProjectFolder = GET_PROJECT_HANDLER(mainSynthChain).getWorkDirectory();
 
 		bool switchBack = false;
 
@@ -357,33 +364,6 @@ CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String
 
 		BuildOption b = exporter.getBuildOptionFromCommandLine(args);
 
-		if (isUsingCIMode())
-		{
-			bool hasHiseSDK = projectDirectory.getChildFile("src/HISE").isDirectory();
-
-			if (hasHiseSDK)
-			{
-				exporter.hisePath = projectDirectory.getChildFile("src/HISE");
-				std::cout << "HISE SDK found at " << exporter.hisePath.getFullPathName() << std::endl;
-			}
-			else
-			{
-				std::cout << "Didn't find HISE SDK in project folder, trying parent folder..." << std::endl;
-
-				hasHiseSDK = projectDirectory.getParentDirectory().getChildFile("src/HISE").isDirectory();
-
-				if (hasHiseSDK)
-				{
-					exporter.hisePath = projectDirectory.getParentDirectory().getChildFile("src/HISE/");
-					std::cout << "HISE SDK found at " << exporter.hisePath.getFullPathName() << std::endl;
-				}
-				else
-				{
-					return ErrorCodes::HISEPathNotSpecified;
-				}
-			}
-		}
-
 		pluginFile = HelperClasses::getFileNameForCompiledPlugin(mainSynthChain, b);
 
 		if (BuildOptionHelpers::isEffect(b)) result = exporter.exportMainSynthChainAsFX(b);
@@ -391,7 +371,7 @@ CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String
 		else if (BuildOptionHelpers::isStandalone(b)) result = exporter.exportMainSynthChainAsStandaloneApp(b);
 		else result = ErrorCodes::BuildOptionInvalid;
 
-		if (switchBack)
+		if (!isUsingCIMode() && switchBack)
 		{
 			GET_PROJECT_HANDLER(mainSynthChain).setWorkingProject(currentProjectFolder, editor);
 		}
@@ -509,14 +489,6 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 {
     if(!useIpp) useIpp = SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::UseIPP) == "Yes";
     
-	if (isUsingCIMode())
-	{
-		if (!hisePath.isDirectory())
-		{
-			return ErrorCodes::HISEPathNotSpecified;
-		}	
-	}
-		
 	else if(!hisePath.isDirectory()) 
 		hisePath = File(SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::HisePath));
 
@@ -713,7 +685,7 @@ bool CompileExporter::checkSanity(BuildOption option)
     
     const File hiseDirectory = File(SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::HisePath));
 
-    if(!isUsingCIMode() && (!hiseDirectory.isDirectory() || !hiseDirectory.getChildFile("hi_core/").isDirectory()))
+    if(!hiseDirectory.isDirectory() || !hiseDirectory.getChildFile("hi_core/").isDirectory())
     {
         printErrorMessage("HISE path is not valid", "You need to set the correct path to the HISE SDK at File -> Settings -> Compiler Settings");
         return false;
@@ -762,19 +734,18 @@ bool CompileExporter::checkSanity(BuildOption option)
     }
 #endif
 
-    
     if(BuildOptionHelpers::isAAX(option))
     {
-        const File asioSDK = hiseDirectory.getChildFile("tools/SDK/AAX/Libs");
+        const File aaxSDK = hiseDirectory.getChildFile("tools/SDK/AAX/Libs");
         
-        if(!asioSDK.isDirectory())
+        if(!aaxSDK.isDirectory())
         {
             printErrorMessage("AAX SDK not found", "You need to get the AAX SDK from Avid and copy it to '%HISE_SDK%/tools/SDK/AAX/'");
             return false;
         }
     }
     
-    if(PresetHandler::showYesNoWindow("Check Sample references", "Do you want to validate all sample references"))
+    if(!isExportingFromCommandLine() && PresetHandler::showYesNoWindow("Check Sample references", "Do you want to validate all sample references"))
     {
         const String faultySample = checkSampleReferences(chainToExport);
         

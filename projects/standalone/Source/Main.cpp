@@ -11,17 +11,28 @@
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "MainComponent.h"
 
-struct CommandLineActions
+class CommandLineActions
 {
+private:
+
 	static void throwErrorAndQuit(const String& errorMessage)
 	{
+#if JUCE_DEBUG
+		DBG(errorMessage);
+		jassertfalse;
+#else
 		print("ERROR: " + errorMessage);
 		exit(1);
+#endif
 	}
 
 	static void print(const String& message)
 	{
+#if JUCE_DEBUG
+		DBG(message);
+#else
 		std::cout << message << std::endl;
+#endif
 	}
 
 	static StringArray getCommandLineArgs(const String& commandLine)
@@ -30,10 +41,169 @@ struct CommandLineActions
 		return StringArray::fromTokens(argsString, true);
 	}
 
+	static String getArgument(const StringArray& args, const String& prefix)
+	{
+		for (auto arg : args)
+		{
+			if (arg.unquoted().startsWith(prefix))
+				return arg.unquoted().fromFirstOccurrenceOf(prefix, false, false);
+		}
+
+		return {};
+	}
+
+	static File getCurrentProjectFolder()
+	{
+		ScopedPointer<StandaloneProcessor> sp = new StandaloneProcessor();
+		ScopedPointer<MainController> mc = dynamic_cast<MainController*>(sp->createProcessor());
+
+		auto f = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getWorkDirectory();
+
+		mc = nullptr;
+		sp = nullptr;
+
+		return f;
+	}
+
+	static File getFilePathArgument(const StringArray& args)
+	{
+		auto s = getArgument(args, "-p:");
+
+		if (s.isNotEmpty() && File::isAbsolutePath(s))
+			return File(s);
+
+		throwErrorAndQuit("`" + s + "` is not a valid path");
+
+		return File();
+	}
+
+public:
+
+	static void printHelp()
+	{
+		print("");
+		print("HISE Command Line Tool");
+		print("----------------------");
+		print("");
+		print("Usage: ");
+		print("");
+		print("HISE COMMAND [FILE] [OPTIONS]");
+		print("");
+		print("Commands: ");
+		print("");
+		print("export: builds the project using the default settings");
+		print("export_ci: builds the project using customized behaviour for automated builds");
+		print(" - always use VisualStudio 2017 on Windows" );
+		print(" - don't copy the plugins to the plugin folders" );
+		print(" - use a relative path for the project file" );
+		print("Arguments: " );
+		print("FILE      The path to the project file (either .xml or .hip you want to export)." );
+		print("          In CI mode, this will be the relative path from the current project folder");
+		print("          In standard mode, it must be an absolute path");
+		print("-h:{TEXT} sets the HISE path. Use this if you don't have compiler settings set." );
+		print("-ipp      enables Intel Performance Primitives for fast convolution." );
+		print("-t:{TEXT} sets the project type ('standalone' | 'instrument' | 'effect')" );
+		print("-p:{TEXT} sets the plugin type ('VST' | 'AU' | 'VST_AU' | 'AAX' | 'ALL')" );
+		print("          (Leave empty for standalone export)" );
+		print("-a:{TEXT} sets the architecture ('x86', 'x64', 'x86x64')." );
+		print("          (Leave empty on OSX for Universal binary.)" );
+		print("--test [PLUGIN_FILE]" );
+		print("Tests the given plugin" );
+		print("");
+		print("set_project_folder -p:PATH" );
+		print("Changes the current project folder." );
+		print("");
+		print("set_hise_folder -p:PATH");
+		print("Sets the location for the HISE source code folder.");
+		print("get_project_folder" );
+		print("Returns the current project folder." );
+		print("");
+		print("set_version -v:NEW_VERSION_STRING" );
+		print("Sets the project version number to the given string");
+		print("");
+		print("clean [-p:PATH] [-all]" );
+		print("Cleans the Binaries folder of the given project.");
+		print("-p:PATH - the path to the project folder.");
+		print("");
+		print("create-win-installer" );
+		print("Creates a template install script for Inno Setup for the project" );
+
+		exit(0);
+	}
+
 	static void createWindowsInstallerFile(const String& commandLine)
 	{
 		auto args = getCommandLineArgs(commandLine);
-		auto root = getProjectRootFolder(args);
+		
+		ScopedPointer<StandaloneProcessor> sp = new StandaloneProcessor();
+		ScopedPointer<MainController> mc = dynamic_cast<MainController*>(sp->createProcessor());
+
+		const bool includeAAX = !args.contains("-noaax");
+
+		auto content = BackendCommandTarget::Actions::createWindowsInstallerTemplate(mc, includeAAX);
+
+		auto root = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getWorkDirectory();
+
+		auto installFile = root.getChildFile("WinInstaller.iss");
+		
+		installFile.replaceWithText(content);
+
+		print("The installer script was written to " + installFile.getFullPathName());
+
+		exit(0);
+	}
+
+	static void setProjectVersion(const String& commandLine)
+	{
+		auto args = getCommandLineArgs(commandLine);
+
+		auto versionString = getArgument(args, "-v:");
+
+		SemanticVersionChecker checker(versionString, versionString);
+
+		if (!checker.newVersionNumberIsValid())
+		{
+			throwErrorAndQuit(versionString + " is not a valid semantic version number");
+		}
+
+		auto pd = getCurrentProjectFolder();
+		
+		if (pd.isDirectory())
+		{
+			auto projectFile = pd.getChildFile("project_info.xml");
+
+			if (projectFile.existsAsFile())
+			{
+				auto content = projectFile.loadFileAsString();
+
+				auto wildcard = "Version value=\"(\\d+\\.\\d+\\.\\d+)\"";
+
+				auto firstMatch = RegexFunctions::getFirstMatch(wildcard, content);
+
+				if (firstMatch.size() == 2)
+				{
+					auto newVersion = firstMatch[0].replace(firstMatch[1], versionString);
+
+					print("Old version: " + firstMatch[1]);
+					print("New version: " + versionString);
+					
+					auto newContent = content.replace(firstMatch[0], newVersion);
+					projectFile.replaceWithText(newContent);
+
+					exit(0);
+				}
+				else throwErrorAndQuit("Regex parsing error. Check the file.");
+				
+			}
+			else throwErrorAndQuit(pd.getFullPathName() + " is not a valid folder");
+		}
+		else throwErrorAndQuit(pd.getFullPathName() + " is not a valid folder");
+	}
+	
+	static void setProjectFolder(const String& commandLine)
+	{
+		auto args = getCommandLineArgs(commandLine);
+		auto root = getFilePathArgument(args);
 
 		ScopedPointer<StandaloneProcessor> sp = new StandaloneProcessor();
 
@@ -45,57 +215,23 @@ struct CommandLineActions
 
 		handler->setWorkingProject(root, nullptr);
 
-		const bool includeAAX = !args.contains("-noaax");
+		mc = nullptr;
+		sp = nullptr;
 
-		auto content = BackendCommandTarget::Actions::createWindowsInstallerTemplate(mc, includeAAX);
-
-		auto installFile = root.getChildFile("WinInstaller.iss");
-		
-		installFile.replaceWithText(content);
-
-		print("The installer script was written to " + installFile.getFullPathName());
-
-		if(prevProject.isDirectory())
-			handler->setWorkingProject(prevProject, nullptr);
-		
 		exit(0);
 	}
 
-	static File getProjectRootFolder(const StringArray& args)
+	static void getProjectFolder(const String& commandLine)
 	{
-		File root;
-
-		String path;
-
-		for (auto arg : args)
-		{
-			if (arg.startsWith("-p:"))
-				path = arg.fromFirstOccurrenceOf("-p:", false, false);
-		}
-
-		root = File::getSpecialLocation(File::currentApplicationFile).getParentDirectory();
-
-		if (path.isNotEmpty())
-		{
-			if (File::isAbsolutePath(path))
-				root = path;
-		}
-		else
-			root = root.getChildFile(path);
-
-		if (!root.getChildFile("SampleMaps").isDirectory())
-		{
-			throwErrorAndQuit(root.getFullPathName() + " is not a valid HISE project folder");
-		}
-
-		return root;
+		print("Current project folder: " + getCurrentProjectFolder().getFullPathName());
+		exit(0);
 	}
 
 	static void cleanBuildFolder(const String& commandLine)
 	{
 		auto args = getCommandLineArgs(commandLine);
 
-		File root = getProjectRootFolder(args);
+		File root = getFilePathArgument(args);
 
 		bool cleanEverything = args.contains("-all");
 
@@ -125,6 +261,53 @@ struct CommandLineActions
 		}
 	}
 	
+
+	static void setHiseFolder(const String& commandLine)
+	{
+		auto args = getCommandLineArgs(commandLine);
+		auto hisePath = getFilePathArgument(args);
+
+		if (!hisePath.isDirectory())
+			throwErrorAndQuit(hisePath.getFullPathName() + " is not a valid directory");
+
+		if (!hisePath.getChildFile("hi_core/").isDirectory())
+		{
+			throwErrorAndQuit(hisePath.getFullPathName() + " is not HISE source folder");
+		}
+
+		auto compilerSettings = File(PresetHandler::getDataFolder()).getChildFile("compilerSettings.xml");
+
+		ScopedPointer<XmlElement> xml;
+
+		if (compilerSettings.existsAsFile())
+		{
+			xml = XmlDocument::parse(compilerSettings);
+		}
+		else
+		{
+			SettingWindows::CompilerSettingWindow w;
+			xml = w.createNewSettingsFile();
+		}
+
+		if (xml == nullptr)
+		{
+			throwErrorAndQuit("Compiler Settings can't be loaded");
+		}
+		else
+		{
+			if (auto child = xml->getChildByName("HisePath"))
+			{
+				child->setAttribute("value", hisePath.getFullPathName());
+				compilerSettings.replaceWithText(xml->createDocument(""));
+
+				exit(0);
+			}
+			else throwErrorAndQuit("Invalid XML");
+		}
+
+	}
+
+
 };
 
 REGISTER_STATIC_DSP_LIBRARIES()
@@ -197,121 +380,25 @@ public:
 		{
 			CommandLineActions::createWindowsInstallerFile(commandLine);
 		}
+		else if (commandLine.startsWith("set_project_folder"))
+		{
+			CommandLineActions::setProjectFolder(commandLine);
+		}
+		else if (commandLine.startsWith("get_project_folder"))
+		{
+			CommandLineActions::getProjectFolder(commandLine);
+		}
 		else if (commandLine.startsWith("set_version"))
 		{
-			auto argsString = commandLine.fromFirstOccurrenceOf("set_version ", false, false);
-			auto args = StringArray::fromTokens(argsString, true);
-
-			auto projectFolder = args[0];
-			String versionString;
-
-			if (args[1].startsWith("-v:"))
-				versionString = args[1].fromFirstOccurrenceOf("-v:", false, false);
-
-			SemanticVersionChecker checker(versionString, versionString);
-
-			auto pd = File(projectFolder.removeCharacters("\""));
-
-			if (pd.isDirectory())
-			{
-				auto projectFile = pd.getChildFile("project_info.xml");
-
-				if (projectFile.existsAsFile())
-				{
-					auto content = projectFile.loadFileAsString();
-					
-					auto wildcard = "Version value=\"(\\d+\\.\\d+\\.\\d+)\"";
-
-					auto firstMatch = RegexFunctions::getFirstMatch(wildcard, content);
-
-					if (firstMatch.size() == 2)
-					{
-						auto newVersion = firstMatch[0].replace(firstMatch[1], versionString);
-
-						std::cout << std::endl << "==============================================================================" << std::endl;
-						std::cout << "Old version: " << firstMatch[1] << std::endl;
-						std::cout << "New version: " << versionString << std::endl;
-						std::cout << "==============================================================================" << std::endl << std::endl;
-
-						auto newContent = content.replace(firstMatch[0], newVersion);
-						projectFile.replaceWithText(newContent);
-
-						quit();
-						return;
-					}
-					else
-					{
-						std::cout << std::endl << "==============================================================================" << std::endl;
-						std::cout << "ERROR: Regex parsing error. Check the file." << std::endl;
-						std::cout << "==============================================================================" << std::endl << std::endl;
-						exit(1);
-					}
-				}
-				else
-				{
-					std::cout << std::endl << "==============================================================================" << std::endl;
-					std::cout << "ERROR: " << projectFolder << " is not a valid folder" << std::endl;
-					std::cout << "==============================================================================" << std::endl << std::endl;
-					exit(1);
-				}
-			}
-			else
-			{
-				std::cout << std::endl << "==============================================================================" << std::endl;
-				std::cout << "ERROR: " << projectFolder << " is not a valid folder" << std::endl;
-				std::cout << "==============================================================================" << std::endl << std::endl;
-				exit(1);
-			}
-
-
-			if (checker.newVersionNumberIsValid())
-			{
-
-			}
-			else
-			{
-				std::cout << std::endl << "==============================================================================" << std::endl;
-				std::cout << "ERROR: " << versionString << " is not a valid semantic version number" << std::endl;
-				std::cout << "==============================================================================" << std::endl << std::endl;
-				exit(1);
-			}
-
+			CommandLineActions::setProjectVersion(commandLine);
+		}
+		else if (commandLine.startsWith("set_hise_folder"))
+		{
+			CommandLineActions::setHiseFolder(commandLine);
 		}
 		else if (commandLine.startsWith("--help"))
 		{
-			std::cout << std::endl;
-			std::cout << "HISE Command Line Tool" << std::endl;
-			std::cout << "----------------------" << std::endl << std::endl;
-			std::cout << "Usage: " << std::endl << std::endl;
-			std::cout << "HISE export|export_ci FILE [-h:PATH -ipp] -t:TYPE [-p:TYPE] [-a:ARCH]" << std::endl << std::endl;
-			std::cout << "Options: " << std::endl << std::endl;
-			std::cout << "export: builds the project using the default settings" << std::endl << std::endl;
-			std::cout << "export_ci: builds the project using customized behaviour for automated builds" << std::endl << std::endl;
-			std::cout << " - always use VisualStudio 2017 on Windows" << std::endl;
-			std::cout << " - always use VisualStudio 2017 on Windows" << std::endl;
-			std::cout << " - use the HISE source code found in {WORKSPACE}/src/HISE/" << std::endl;
-			std::cout << " - don't copy the plugins to the plugin folders" << std::endl;
-			std::cout << "Arguments: " << std::endl;
-			std::cout << "FILE      The absolute path to the project file (either .xml or .hip you want to export)." << std::endl;
-			std::cout << "-h:{TEXT} sets the HISE path. Use this if you don't have compiler settings set." << std::endl;
-			std::cout << "          In CI Mode it will look in the project folder (or its parent) for the SDK." << std::endl;
-            std::cout << "-ipp      enables Intel Performance Primitives for fast convolution" << std::endl;
-			std::cout << "-t:{TEXT} sets the project type ('standalone' | 'instrument' | 'effect')" << std::endl;
-			std::cout << "-p:{TEXT} sets the plugin type ('VST' | 'AU' | 'VST_AU' | 'AAX' | 'ALL')" << std::endl;
-			std::cout << "          (Leave empty for standalone export)" << std::endl;
-			std::cout << "-a:{TEXT} sets the architecture ('x86', 'x64', 'x86x64')." << std::endl;
-			std::cout << "          (Leave empty on OSX for Universal binary.)" << std::endl;
-			std::cout << "--test [PLUGIN_FILE]" << std::endl;
-			std::cout << "Tests the given plugin" << std::endl << std::endl;
-			std::cout << "set_version [PROJECT_FOLDER] -v:NEW_VERSION_STRING" << std::endl;
-			std::cout << "Sets the project version number to the given string" << std::endl << std::endl;
-			std::cout << "clean [-p:PATH] [-all]" << std::endl;
-			std::cout << "Cleans the Binaries folder of the given project." << std::endl << std::endl;
-			std::cout << "-p:PATH - the path to the project folder." << std::endl << std::endl;
-			std::cout << "-all removes everything" << std::endl << std::endl;
-
-			quit();
-			return;
+			CommandLineActions::printHelp();
 		}
 		else if (commandLine.startsWith("--test"))
 		{
