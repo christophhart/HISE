@@ -33,7 +33,7 @@
 
 #include "JuceHeader.h"
 
-
+#include "backend/WinInstallerTemplate.cpp"
 
 #include "backend/BackendBinaryData.cpp"
 #include "backend/BackendCommandIcons.cpp"
@@ -63,6 +63,7 @@
 
 #include "backend/ProjectTemplate.cpp"
 #include "backend/StandaloneProjectTemplate.cpp"
+
 
 #include "backend/CompileExporter.cpp"
 #include "backend/HisePlayerExporter.cpp"

@@ -2376,6 +2376,25 @@ void BackendCommandTarget::Actions::createUIDataFromDesktop(BackendRootWindow * 
 	}
 }
 
+#define REPLACE_WILDCARD(wildcard, settingId) (templateProject = templateProject.replace(wildcard, SettingWindows::getSettingValue((int)settingId, &GET_PROJECT_HANDLER(mc->getMainSynthChain()))))
+#define REPLACE_WILDCARD_WITH_STRING(wildcard, s) (templateProject = templateProject.replace(wildcard, s))
+
+juce::String BackendCommandTarget::Actions::createWindowsInstallerTemplate(MainController* mc, bool includeAAX)
+{
+	String templateProject(winInstallerTemplate);
+	
+	REPLACE_WILDCARD("%PRODUCT%", SettingWindows::ProjectSettingWindow::Attributes::Name);
+	REPLACE_WILDCARD("%VERSION%", SettingWindows::ProjectSettingWindow::Attributes::Version);
+	REPLACE_WILDCARD("%COMPANY%", SettingWindows::UserSettingWindow::Attributes::Company);
+
+	REPLACE_WILDCARD_WITH_STRING("%AAXONLY%", includeAAX ? "" : ";");
+
+	return templateProject;
+}
+
+#undef REPLACE_WILDCARD
+#undef REPLACE_WILDCARD_WITH_STRING
+
 #undef ADD_ALL_PLATFORMS
 #undef ADD_IOS_ONLY
 #undef ADD_DESKTOP_ONLY

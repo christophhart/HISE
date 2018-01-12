@@ -11,6 +11,121 @@
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "MainComponent.h"
 
+struct CommandLineActions
+{
+	static void throwErrorAndQuit(const String& errorMessage)
+	{
+		print("ERROR: " + errorMessage);
+		exit(1);
+	}
+
+	static void print(const String& message)
+	{
+		std::cout << message << std::endl;
+	}
+
+	static StringArray getCommandLineArgs(const String& commandLine)
+	{
+		auto argsString = commandLine.fromFirstOccurrenceOf(" ", false, false);
+		return StringArray::fromTokens(argsString, true);
+	}
+
+	static void createWindowsInstallerFile(const String& commandLine)
+	{
+		auto args = getCommandLineArgs(commandLine);
+		auto root = getProjectRootFolder(args);
+
+		ScopedPointer<StandaloneProcessor> sp = new StandaloneProcessor();
+
+		ScopedPointer<MainController> mc = dynamic_cast<MainController*>(sp->createProcessor());
+
+		auto handler = &GET_PROJECT_HANDLER(mc->getMainSynthChain());
+
+		auto prevProject = handler->getWorkDirectory();
+
+		handler->setWorkingProject(root, nullptr);
+
+		const bool includeAAX = !args.contains("-noaax");
+
+		auto content = BackendCommandTarget::Actions::createWindowsInstallerTemplate(mc, includeAAX);
+
+		auto installFile = root.getChildFile("WinInstaller.iss");
+		
+		installFile.replaceWithText(content);
+
+		print("The installer script was written to " + installFile.getFullPathName());
+
+		if(prevProject.isDirectory())
+			handler->setWorkingProject(prevProject, nullptr);
+		
+		exit(0);
+	}
+
+	static File getProjectRootFolder(const StringArray& args)
+	{
+		File root;
+
+		String path;
+
+		for (auto arg : args)
+		{
+			if (arg.startsWith("-p:"))
+				path = arg.fromFirstOccurrenceOf("-p:", false, false);
+		}
+
+		root = File::getSpecialLocation(File::currentApplicationFile).getParentDirectory();
+
+		if (path.isNotEmpty())
+		{
+			if (File::isAbsolutePath(path))
+				root = path;
+		}
+		else
+			root = root.getChildFile(path);
+
+		if (!root.getChildFile("SampleMaps").isDirectory())
+		{
+			throwErrorAndQuit(root.getFullPathName() + " is not a valid HISE project folder");
+		}
+
+		return root;
+	}
+
+	static void cleanBuildFolder(const String& commandLine)
+	{
+		auto args = getCommandLineArgs(commandLine);
+
+		File root = getProjectRootFolder(args);
+
+		bool cleanEverything = args.contains("-all");
+
+		auto buildDirectory = root.getChildFile("Binaries");
+
+		if (buildDirectory.isDirectory())
+		{
+			if (cleanEverything)
+			{
+				print("Wiping Build folder...");
+
+				buildDirectory.deleteRecursively();
+				buildDirectory.createDirectory();
+			}
+			else
+			{
+				print("Cleaning Builds but keeping the source code...");
+				buildDirectory.getChildFile("Builds").deleteRecursively();
+				buildDirectory.getChildFile("JuceLibraryCode").deleteRecursively();
+			}
+
+			exit(0);
+		}
+		else
+		{
+			throwErrorAndQuit("Build folder not found at " + root.getFullPathName());
+		}
+	}
+	
+};
 
 REGISTER_STATIC_DSP_LIBRARIES()
 {
@@ -73,6 +188,14 @@ public:
 			
 			quit();
 			return;
+		}
+		else if (commandLine.startsWith("clean"))
+		{
+			CommandLineActions::cleanBuildFolder(commandLine);
+		}
+		else if (commandLine.startsWith("create-win-installer"))
+		{
+			CommandLineActions::createWindowsInstallerFile(commandLine);
 		}
 		else if (commandLine.startsWith("set_version"))
 		{
@@ -182,6 +305,10 @@ public:
 			std::cout << "Tests the given plugin" << std::endl << std::endl;
 			std::cout << "set_version [PROJECT_FOLDER] -v:NEW_VERSION_STRING" << std::endl;
 			std::cout << "Sets the project version number to the given string" << std::endl << std::endl;
+			std::cout << "clean [-p:PATH] [-all]" << std::endl;
+			std::cout << "Cleans the Binaries folder of the given project." << std::endl << std::endl;
+			std::cout << "-p:PATH - the path to the project folder." << std::endl << std::endl;
+			std::cout << "-all removes everything" << std::endl << std::endl;
 
 			quit();
 			return;

@@ -343,6 +343,8 @@ public:
 		static void checkCyclicReferences(BackendRootWindow * bpe);
 		static void unloadAllAudioFiles(BackendRootWindow * bpe);
 		static void createUIDataFromDesktop(BackendRootWindow * bpe);
+
+		static String createWindowsInstallerTemplate(MainController* mc, bool includeAAX);
 	};
 
 private:
