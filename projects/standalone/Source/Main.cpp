@@ -138,7 +138,7 @@ public:
 		ScopedPointer<StandaloneProcessor> sp = new StandaloneProcessor();
 		ScopedPointer<MainController> mc = dynamic_cast<MainController*>(sp->createProcessor());
 
-		const bool includeAAX = !args.contains("-noaax");
+		const bool includeAAX = !args.contains("--noaax");
 
 		auto content = BackendCommandTarget::Actions::createWindowsInstallerTemplate(mc, includeAAX);
 
@@ -148,7 +148,11 @@ public:
 		
 		installFile.replaceWithText(content);
 
+		mc = nullptr;
+		sp = nullptr;
+
 		print("The installer script was written to " + installFile.getFullPathName());
+		print("");
 
 		exit(0);
 	}
@@ -375,30 +379,44 @@ public:
 		else if (commandLine.startsWith("clean"))
 		{
 			CommandLineActions::cleanBuildFolder(commandLine);
+			quit();
+			return;
 		}
 		else if (commandLine.startsWith("create-win-installer"))
 		{
 			CommandLineActions::createWindowsInstallerFile(commandLine);
+			quit();
+			return;
 		}
 		else if (commandLine.startsWith("set_project_folder"))
 		{
 			CommandLineActions::setProjectFolder(commandLine);
+			quit();
+			return;
 		}
 		else if (commandLine.startsWith("get_project_folder"))
 		{
 			CommandLineActions::getProjectFolder(commandLine);
+			quit();
+			return;
 		}
 		else if (commandLine.startsWith("set_version"))
 		{
 			CommandLineActions::setProjectVersion(commandLine);
+			quit();
+			return;
 		}
 		else if (commandLine.startsWith("set_hise_folder"))
 		{
 			CommandLineActions::setHiseFolder(commandLine);
+			quit();
+			return;
 		}
 		else if (commandLine.startsWith("--help"))
 		{
 			CommandLineActions::printHelp();
+			quit();
+			return;
 		}
 		else if (commandLine.startsWith("--test"))
 		{
