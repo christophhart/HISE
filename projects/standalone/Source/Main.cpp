@@ -231,7 +231,7 @@ public:
 	{
 		auto args = getCommandLineArgs(commandLine);
 
-		File root = getFilePathArgument(args);
+		File root = getCurrentProjectFolder();
 
 		bool cleanEverything = args.contains("-all");
 

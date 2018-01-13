@@ -489,7 +489,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 {
     if(!useIpp) useIpp = SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::UseIPP) == "Yes";
     
-	else if(!hisePath.isDirectory()) 
+	if(!hisePath.isDirectory()) 
 		hisePath = File(SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::HisePath));
 
 	if (!hisePath.isDirectory()) 
