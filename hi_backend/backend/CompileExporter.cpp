@@ -1981,7 +1981,18 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 		ADD_LINE("echo Compiling 32bit " << projectType << " %project% ...");
 		ADD_LINE("set Platform=Win32");
 		ADD_LINE("%msbuild% \"%build_path%\\Builds\\" << vsFolder << "\\%project%.sln\" %vs_args%");
-		ADD_LINE(R"(if %errorlevel% NEQ 0 exit /b 1)");
+
+		ADD_LINE("");
+
+		if (isUsingCIMode())
+		{
+			ADD_LINE("if %errorlevel% NEQ 0 (");
+			ADD_LINE("  echo Compile error at " << projectType);
+			ADD_LINE("  exit 1");
+			ADD_LINE(")");
+		}
+
+		
 		ADD_LINE("");
 	}
 	
@@ -1990,7 +2001,17 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 		ADD_LINE("echo Compiling 64bit " << projectType << " %project% ...");
 		ADD_LINE("set Platform=X64");
 		ADD_LINE("%msbuild% \"%build_path%\\Builds\\" << vsFolder << "\\%project%.sln\" %vs_args%");
-		ADD_LINE(R"(if %errorlevel% NEQ 0 exit /b 1)");
+		
+		ADD_LINE("");
+
+		if (isUsingCIMode())
+		{
+			ADD_LINE("if %errorlevel% NEQ 0 (");
+			ADD_LINE("  echo Compile error at " << projectType);
+			ADD_LINE("  exit 1");
+			ADD_LINE(")");
+		}
+
 		ADD_LINE("");
 	}
 
