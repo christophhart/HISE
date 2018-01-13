@@ -223,7 +223,7 @@ public:
 
 	static void getProjectFolder(const String& commandLine)
 	{
-		print("Current project folder: " + getCurrentProjectFolder().getFullPathName());
+		print("Current project folder:\n" + getCurrentProjectFolder().getFullPathName());
 		exit(0);
 	}
 
