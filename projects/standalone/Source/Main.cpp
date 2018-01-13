@@ -289,8 +289,27 @@ public:
 		}
 		else
 		{
-			SettingWindows::CompilerSettingWindow w;
-			xml = w.createNewSettingsFile();
+			xml = new XmlElement("CompilerSettings");
+			
+			auto c1 = new XmlElement("HisePath");
+			c1->setAttribute("value", hisePath.getFullPathName());
+			c1->setAttribute("type", "FILE");
+			c1->setAttribute("description", "Path to HISE modules");
+			xml->addChildElement(c1);
+
+			auto c2 = new XmlElement("VisualStudioVersion");
+			c2->setAttribute("value", "Visual Studio 2017");
+			c2->setAttribute("type", "LIST");
+			c2->setAttribute("description", "Installed VisualStudio version");
+			c2->setAttribute("options", "Visual Studio 2013&#10;Visual Studio 2015");
+			xml->addChildElement(c2);
+
+			auto c3 = new XmlElement("UseIPP");
+			c3->setAttribute("value", "Yes");
+			c3->setAttribute("type", "LIST");
+			c3->setAttribute("description", "Use IPP");
+			c3->setAttribute("options", "Yes&#10;No");
+			xml->addChildElement(c3);
 		}
 
 		if (xml == nullptr)
@@ -304,14 +323,12 @@ public:
 				child->setAttribute("value", hisePath.getFullPathName());
 				compilerSettings.replaceWithText(xml->createDocument(""));
 
+				print("HISE SDK path set to " + hisePath.getFullPathName());
 				exit(0);
 			}
 			else throwErrorAndQuit("Invalid XML");
 		}
-
 	}
-
-
 };
 
 REGISTER_STATIC_DSP_LIBRARIES()
