@@ -651,19 +651,17 @@ bool CompileExporter::checkSanity(BuildOption option)
     
     const String pluginCode = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::PluginCode, handler);
 
-    const String codeWildcard = "[A-Z][a-z][a-z][a-z]";
-    
-    if(!RegexFunctions::matchesWildcard(codeWildcard, pluginCode))
+    if(!AudioUnitCodeValidator::isValidSubtype(pluginCode))
     {
-        printErrorMessage("Illegal Project code", "The Plugin Code must have this structure: 'Abcd'");
+        printErrorMessage("Illegal Project code", "The Plugin Code must match [a-zA-Z0-9-_]{4}");
         return false;
     }
 
     const String companyCode = SettingWindows::getSettingValue((int)SettingWindows::UserSettingWindow::Attributes::CompanyCode, handler);
-    
-    if(!RegexFunctions::matchesWildcard(codeWildcard, companyCode))
+
+    if(!AudioUnitCodeValidator::isValidManufacturer(companyCode))
     {
-        printErrorMessage("Illegal Company code", "The Company Code must have this structure: 'Abcd'");
+        printErrorMessage("Illegal Company code", "The Company Code must match [a-zA-Z0-9-_]{4} with at least one upper case letter");
         return false;
     }
     

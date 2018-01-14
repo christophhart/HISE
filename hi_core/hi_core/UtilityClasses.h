@@ -57,6 +57,16 @@ public:
 
 };
 
+/** A Helper class for validating Audio Unit codes */
+class AudioUnitCodeValidator
+{
+public:
+    /** Checks if the given string is a valid Apple AU subtype code. */
+    static bool isValidSubtype(const String &fourCC);
+
+    /** Checks if the given string is a valid Apple AU manufacturer code. */
+    static bool isValidManufacturer(const String &fourCC);
+};
 
 /** A small helper class that uses RAII for enabling flush to zero mode. */
 class ScopedNoDenormals
