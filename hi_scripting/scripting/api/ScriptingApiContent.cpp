@@ -1580,6 +1580,7 @@ Justification ScriptingApi::Content::ScriptLabel::getJustification()
 
 struct ScriptingApi::Content::ScriptComboBox::Wrapper
 {
+    API_VOID_METHOD_WRAPPER_0(ScriptComboBox, clear);
 	API_VOID_METHOD_WRAPPER_1(ScriptComboBox, addItem);
 	API_METHOD_WRAPPER_0(ScriptComboBox, getItemText);
 };
@@ -1608,6 +1609,7 @@ ScriptComponent(base, name)
 
 	initInternalPropertyFromValueTreeOrDefault(Items);
 
+    ADD_API_METHOD_0(clear);
 	ADD_API_METHOD_1(addItem);
 	ADD_API_METHOD_0(getItemText);
 }
@@ -1615,6 +1617,13 @@ ScriptComponent(base, name)
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptComboBox::createComponentWrapper(ScriptContentComponent *content, int index)
 {
 	return new ScriptCreatedComponentWrappers::ComboBoxWrapper(content, this, index);
+}
+
+void ScriptingApi::Content::ScriptComboBox::clear()
+{
+    setScriptObjectProperty(Items, "", sendNotification);
+    setScriptObjectProperty(ScriptComponent::Properties::min, 1, dontSendNotification);
+    setScriptObjectProperty(ScriptComponent::Properties::max, 1, dontSendNotification);
 }
 
 void ScriptingApi::Content::ScriptComboBox::addItem(const String &itemName)
