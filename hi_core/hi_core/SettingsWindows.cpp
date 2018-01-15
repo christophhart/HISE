@@ -333,6 +333,7 @@ String SettingWindows::CompilerSettingWindow::getAttributeNameForSetting(int att
 	case Attributes::HisePath: return "HisePath";
 	case Attributes::VisualStudioVersion: return "VisualStudioVersion";
 	case Attributes::UseIPP: return "UseIPP";
+    case Attributes::EmbedImages: return "EmbedImages";
 	case Attributes::numCompilerSettingAttributes: return "";
 	default: return "";
 	}
@@ -345,6 +346,7 @@ XmlElement * SettingWindows::CompilerSettingWindow::createNewSettingsFile() cons
 	addFileAsChildElement(*xml, (int)Attributes::HisePath, "", "Path to HISE modules");
 	addChildElementWithOptions(*xml, (int)Attributes::VisualStudioVersion, "Visual Studio 2017", "Installed VisualStudio version", "Visual Studio 2015\nVisual Studio 2017");
 	addChildElementWithOptions(*xml, (int)Attributes::UseIPP, "Yes", "Use IPP", "Yes\nNo");
+    addChildElementWithOptions(*xml, (int)Attributes::EmbedImages, "Only Referenced Images", "Embed Images in Binary", "Only Referenced Images\nAll Images");
 
 	return xml;
 }
