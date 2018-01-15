@@ -862,7 +862,7 @@ public:
 		}
 		else if (buttonId == ShowFolderButton)
 		{
-			showButton->setVisible(newValue);
+			manageButton->setVisible(newValue);
 		}
 
 		resized();
@@ -1132,7 +1132,7 @@ private:
 	ScopedPointer<ModalWindow> modalInputWindow;
 
 	ScopedPointer<TextButton> saveButton;
-	ScopedPointer<TextButton> showButton;
+	ScopedPointer<TextButton> manageButton;
 
 	Array<File> allPresets;
 	int currentlyLoadedPreset = -1;

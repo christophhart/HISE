@@ -32,6 +32,204 @@
 
 namespace hise { using namespace juce;
 
+
+struct PresetHelpers
+{
+	static void importPresetsFromClipboard(const File& presetRoot, const File& category)
+	{
+		auto clipboardData = SystemClipboard::getTextFromClipboard();
+
+		if (clipboardData.startsWith("[START_PRESETS]") && clipboardData.endsWith("[END_PRESETS]"))
+		{
+			auto data = clipboardData.fromFirstOccurrenceOf("[START_PRESETS]", false, false).upToLastOccurrenceOf("[END_PRESETS]", false, false);
+
+			auto presetCollection = ValueTreeConverters::convertBase64ToValueTree(data, true);
+
+			if (presetCollection.isValid())
+			{
+				importPresetsFromValueTree(presetRoot, category, presetCollection);
+			}
+			else
+			{
+				PresetHandler::showMessageWindow("Preset Data is corrupt", "The preset data can't be parsed from the clipboard data. Aborting...", PresetHandler::IconType::Error);
+			}
+		}
+		else
+			PresetHandler::showMessageWindow("No preset data found in clipboard", "Make sure you've copied everything including the [START_PRESETS] and [END_PRESETS] tags", PresetHandler::IconType::Error);
+
+	};
+
+	static void importPresetsFromFile(const File& presetRoot, const File& category)
+	{
+		FileChooser fc("Select Preset Collection to load", File(), "*.hpa", true);
+
+		if (fc.browseForFileToOpen())
+		{
+			FileInputStream fis(fc.getResult());
+			MemoryBlock mb;
+			MemoryOutputStream mos;
+			mos.writeFromInputStream(fis, INT_MAX);
+
+			auto presetCollection = PresetHandler::loadValueTreeFromData(mos.getData(), mos.getDataSize(), true);
+
+
+			importPresetsFromValueTree(presetRoot, category, presetCollection);
+
+			
+		}
+	}
+
+	
+
+	static void exportPresetsToClipboard(const File& presetRoot, const File& category)
+	{
+		auto presetTree = exportPresets(presetRoot, category);
+
+		if (presetTree.isValid())
+		{
+			String compressed;
+			
+			compressed << "[START_PRESETS]";
+			compressed << ValueTreeConverters::convertValueTreeToBase64(presetTree, true);
+			compressed << "[END_PRESETS]";
+			SystemClipboard::copyTextToClipboard(compressed);
+			PresetHandler::showMessageWindow("Success", String(presetTree.getNumChildren()) + " presets were compressed and stored to the clipboard");
+		}
+	}
+
+	static void exportPresetsToFile(const File& presetRoot, const File& category)
+	{
+		auto presetTree = exportPresets(presetRoot, category);
+
+		if (presetTree.isValid())
+		{
+			FileChooser fc("Select Preset Archive Destination", File(), "*.hpa", true);
+
+			if (fc.browseForFileToSave(true))
+			{
+				auto f = fc.getResult().withFileExtension(".hpa");
+
+				PresetHandler::writeValueTreeAsFile(presetTree, f.getFullPathName(), true);
+				PresetHandler::showMessageWindow("Success", String(presetTree.getNumChildren()) + " presets were compressed and stored to " + f.getFullPathName());
+			}
+		}
+	}
+
+	static Array<File> getAllPresets(const File& directory)
+	{
+		Array<File> presets;
+
+		directory.findChildFiles(presets, File::findFiles, true);
+
+		for (int i = 0; i < presets.size(); i++)
+		{
+			const bool isNoPresetFile = presets[i].isHidden() || presets[i].getFileName().startsWith(".") || presets[i].getFileExtension() != ".preset";
+			
+			if (isNoPresetFile)
+			{
+				presets.remove(i--);
+				continue;
+			}
+		}
+
+		return presets;
+	}
+
+private:
+
+	static void importPresetsFromValueTree(const File &presetRoot, const File &category, juce::ValueTree &presetCollection)
+	{
+
+		bool importToRoot = !category.isDirectory();
+		String message = (importToRoot ? ("Import All Presets from the collection?") : ("Import all presets from the collection into " + category.getRelativePathFrom(presetRoot) + "?"));
+
+		if (PresetHandler::showYesNoWindow("Import Presets", message))
+		{
+			int numWritten = 0;
+			int numSkipped = 0;
+
+			if (presetCollection.isValid())
+			{
+				const bool replaceExistingFiles = PresetHandler::showYesNoWindow("Replace existing presets", "Do you want to replace existing presets? Press Cancel to keep the old ones.");
+
+				for (const auto& c : presetCollection)
+				{
+					auto relativePath = c.getProperty("FilePath").toString();
+
+					DBG(relativePath);
+
+					ScopedPointer<XmlElement> xml = c.createXml();
+
+					xml->removeAttribute("FilePath");
+
+					File newPresetFile = presetRoot.getChildFile(relativePath);
+
+					if (category.isDirectory())
+						newPresetFile = category.getChildFile(newPresetFile.getFileName());
+
+					if (!newPresetFile.getParentDirectory().isDirectory())
+						newPresetFile.getParentDirectory().createDirectory();
+
+					if (replaceExistingFiles || !newPresetFile.existsAsFile())
+					{
+						xml->writeToFile(newPresetFile, "");
+						numWritten++;
+					}
+					else
+					{
+						numSkipped++;
+					}
+				}
+
+				String m = String(numWritten) + " presets were imported from the collection";
+
+				if (numSkipped != 0)
+					m << "\n" + String(numSkipped) + " presets were not updated.";
+
+				PresetHandler::showMessageWindow("Successful", m);
+			}
+		}
+	}
+
+	static ValueTree exportPresets(const File& presetRoot, const File& category)
+	{
+		bool exportAll = !category.isDirectory();
+		String message = (exportAll ? ("Export All Presets?") : ("Export all presets from the Category " + category.getRelativePathFrom(presetRoot) + "?"));
+
+		if (PresetHandler::showYesNoWindow("Export Presets", message))
+		{
+			ValueTree presetTree("PresetCollection");
+
+			auto presetList = getAllPresets(exportAll ? presetRoot : category);
+
+			for (auto f : presetList)
+			{
+				ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+
+				if (xml != nullptr)
+				{
+					auto path = f.getRelativePathFrom(presetRoot).replaceCharacter('\\', '/');
+
+					xml->setAttribute("FilePath", path);
+					auto child = ValueTree::fromXml(*xml);
+					presetTree.addChild(child, -1, nullptr);
+				}
+				else
+				{
+					PresetHandler::showMessageWindow("Error", "The preset " + f.getFullPathName() + " could not be found");
+					return ValueTree();
+				}
+			}
+
+			return presetTree;
+		}
+
+		return ValueTree();
+	};
+	
+};
+
+
 void PresetBrowserColumn::ButtonLookAndFeel::drawButtonBackground(Graphics& /*g*/, Button& /*button*/, const Colour& /*backgroundColour*/, bool /*isMouseOverButton*/, bool /*isButtonDown*/)
 {
 
@@ -105,6 +303,7 @@ int PresetBrowserColumn::ColumnListModel::getNumRows()
 		    return 0;
 	    }
 
+		
 	    entries.clear();
 	    rootToUse.findChildFiles(entries, displayDirectories ? File::findDirectories : File::findFiles, showFavoritesOnly);
 
@@ -638,9 +837,9 @@ mc(mc_)
 	saveButton->addListener(this);
 	saveButton->setLookAndFeel(&blaf);
 	
-	addAndMakeVisible(showButton = new TextButton("Show Folder"));
-	showButton->addListener(this);
-	showButton->setLookAndFeel(&blaf);
+	addAndMakeVisible(manageButton = new TextButton("More"));
+	manageButton->addListener(this);
+	manageButton->setLookAndFeel(&blaf);
 
 	setSize(width, height);
 
@@ -759,7 +958,7 @@ void MultiColumnPresetBrowser::resized()
 
 #if !OLD_PRESET_BROWSER
 		saveButton->setBounds(ar.removeFromRight(100));
-		showButton->setBounds(ar.removeFromLeft(100));
+		manageButton->setBounds(ar.removeFromLeft(100));
 #endif
 
 		searchBar->setBounds(ar);
@@ -774,7 +973,7 @@ void MultiColumnPresetBrowser::resized()
 		
 #if !OLD_PRESET_BROWSER
 		saveButton->setBounds(ar.removeFromRight(100));
-		showButton->setBounds(ar.removeFromLeft(100));
+		manageButton->setBounds(ar.removeFromLeft(100));
 		favoriteButton->setBounds(ar.removeFromLeft(30));
 #endif
 
@@ -907,6 +1106,7 @@ void MultiColumnPresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*
 		currentBankFile = file;
 
 		categoryColumn->setNewRootDirectory(currentBankFile);
+		currentCategoryFile = File();
 		presetColumn->setNewRootDirectory(File());
         
         categoryColumn->setEditMode(false);
@@ -1046,7 +1246,6 @@ void MultiColumnPresetBrowser::deleteEntry(int columnIndex, const File& f)
 }
 
 
-
 void MultiColumnPresetBrowser::buttonClicked(Button* b)
 {
 	if (b == closeButton)
@@ -1068,9 +1267,78 @@ void MultiColumnPresetBrowser::buttonClicked(Button* b)
 			confirmReplace(tempFile, fileToBeReplaced);
 		}
 	}
-	else if (b == showButton)
+	else if (b == manageButton)
 	{
-		rootFile.revealToUser();
+		PopupLookAndFeel plaf;
+		PopupMenu p;
+		p.setLookAndFeel(&plaf);
+
+		enum ID
+		{
+			ShowPresetFolder = 1,
+			ImportPresetsFromClipboard,
+			ImportPresetsFromFile,
+			ExportPresetsToClipboard,
+			ExportPresetsToFile,
+			ClearFavorites,
+			ResetToFactoryDefault,
+			numIDs
+		};
+
+		p.addItem(ShowPresetFolder, "Show Preset Folder");
+		//p.addItem(ClearFavorites, "Clear Favorites");
+		p.addSeparator();
+
+		const bool categoryMode = currentCategoryFile.isDirectory();
+
+		const String destination = categoryMode ? ("presets in " + currentCategoryFile.getFileNameWithoutExtension()) : ("all presets");
+
+		if (HiseDeviceSimulator::isMobileDevice())
+		{
+			p.addItem(ImportPresetsFromClipboard, "Import " + destination + " from Clipboard");
+			p.addItem(ExportPresetsToClipboard, "Export " + destination + " to Clipboard");
+		}
+		else
+		{
+			p.addItem(ImportPresetsFromFile, "Import " + destination + " from Collection");
+			p.addItem(ExportPresetsToFile, "Export " + destination + " as Collection");
+		}
+
+		//p.addSeparator();
+		//p.addItem(ResetToFactoryDefault, "Reset all presets to factory default");
+	
+		
+
+		auto result = (ID)p.show();
+
+		switch (result)
+		{
+		case ShowPresetFolder:
+			rootFile.revealToUser();
+			break;
+		case ImportPresetsFromClipboard:
+			PresetHelpers::importPresetsFromClipboard(rootFile, currentCategoryFile);
+			break;
+		case ImportPresetsFromFile:
+			PresetHelpers::importPresetsFromFile(rootFile, currentCategoryFile);
+			break;
+		case ExportPresetsToClipboard:
+			PresetHelpers::exportPresetsToClipboard(rootFile, currentCategoryFile);
+			break;
+		case ExportPresetsToFile:
+			PresetHelpers::exportPresetsToFile(rootFile, currentCategoryFile);
+			break;
+		case ClearFavorites:
+			break;
+		case ResetToFactoryDefault:
+			break;
+		case numIDs:
+			break;
+		default:
+			break;
+		}
+
+		
 	}
 	else if (b == favoriteButton)
 	{
