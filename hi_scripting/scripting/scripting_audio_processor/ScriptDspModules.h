@@ -1571,93 +1571,20 @@ public:
 		icstdsp::MoogFilter moogR;
 	};
 
-#if 0
-    
-	class Filter : public DspBaseObject
+
+
+	class Biquad : public DspBaseObject
 	{
 	public:
 
-		Filter() :
-			DspObject()
+		enum class Parameters
 		{
-			ADD_DYNAMIC_METHOD(setFrequency);
-			ADD_DYNAMIC_METHOD(setResonance);
-			ADD_DYNAMIC_METHOD(setType);
-
-			static const Identifier lp("LowPass");
-			static const Identifier hp("HighPass");
-			static const Identifier bp("BandPass");
-			static const Identifier pk("Peak");
-			static const Identifier nt("Notch");
-
-			setProperty(lp, (int)icstdsp::ChambFilter::FilterType::LowPass);
-			setProperty(hp, (int)icstdsp::ChambFilter::FilterType::HighPass);
-			setProperty(bp, (int)icstdsp::ChambFilter::FilterType::BandPass);
-			setProperty(pk, (int)icstdsp::ChambFilter::FilterType::Peak);
-			setProperty(nt, (int)icstdsp::ChambFilter::FilterType::Notch);
-		}
-
-		SET_MODULE_NAME("filter");
-
-		void setFrequency(float frequency)
-		{
-			filterL.setFrequency(frequency);
-			filterR.setFrequency(frequency);
-		}
-
-		void setResonance(float resonance)
-		{
-			filterL.setResonance(resonance);
-			filterR.setResonance(resonance);
-		}
-
-		void prepareToPlay(double sampleRate, int samplesPerBlock) override
-		{
-			filterL.prepareToPlay(sampleRate, samplesPerBlock);
-			filterR.prepareToPlay(sampleRate, samplesPerBlock);
-		}
-
-		void setType(int type)
-		{
-			filterL.setFilterType((icstdsp::ChambFilter::FilterType)type);
-		}
-
-		void processMultiChannel(Array<var> &channels) override
-		{
-			float *l = channels[0].getBuffer()->buffer.getWritePointer(0);
-			float *r = channels[1].getBuffer()->buffer.getWritePointer(1);
-
-			const int numSamples = channels[0].getBuffer()->size;
-
-			filterL.processInplace(l, numSamples);
-			filterR.processInplace(r, numSamples);
-		}
-
-		void processBuffer(VariantBuffer &buffer) override
-		{
-			float *l = buffer.buffer.getWritePointer(0);
-
-			const int numSamples = buffer.size;
-
-			filterL.processInplace(l, numSamples);
-		}
-
-	private:
-
-		icstdsp::ChambFilter filterL;
-		icstdsp::ChambFilter filterR;
-
-		struct Wrappers
-		{
-			DYNAMIC_METHOD_WRAPPER(Filter, setFrequency, (float)ARG(0));
-			DYNAMIC_METHOD_WRAPPER(Filter, setType, (float)ARG(0));
-			DYNAMIC_METHOD_WRAPPER(Filter, setResonance, (float)ARG(0));
+			Frequency,
+			Q,
+			Gain,
+			Mode,
+			numParameters
 		};
-	};
-
-	class Biquad : public DspObject
-	{
-	public:
 
 		enum class Mode
 		{
@@ -1671,27 +1598,51 @@ public:
 
 		SET_MODULE_NAME("biquad")
 
-			Biquad() :
-			DspObject()
+		Biquad() :
+			DspBaseObject()
 		{
 			coefficients = IIRCoefficients::makeLowPass(44100.0, 20000.0);
 
-			setProperty("LowPass", LowPass);
-			setProperty("HighPass", HighPass);
-			setProperty("LowShelf", LowShelf);
-			setProperty("HighShelf", HighShelf);
-			setProperty("Peak", Peak);
-
-			setMethod("setMode", Wrappers::setMode);
-			setMethod("setFrequency", Wrappers::setFrequency);
-			setMethod("setGain", Wrappers::setGain);
-			setMethod("setQ", Wrappers::setQ);
 		}
 
 		void prepareToPlay(double sampleRate_, int samplesPerBlock) override
 		{
 			sampleRate = sampleRate_;
+
+			leftFilter.reset();
+			rightFilter.reset();
 		}
+
+		void setParameter(int index, float newValue) override
+		{
+			Parameters p = (Parameters)index;
+
+			switch (p)
+			{
+			case Parameters::Frequency: setFrequency(newValue); break;
+			case Parameters::Q:			setQ(newValue); break;
+			case Parameters::Gain:		setGain(newValue); break;
+			case Parameters::Mode:		setMode((Mode)(int)newValue); break;
+			case Parameters::numParameters: break;
+			}
+		};
+
+		int getNumParameters() const override { return (int)Parameters::numParameters; };
+
+		float getParameter(int index) const override
+		{
+			Parameters p = (Parameters)index;
+
+			switch (p)
+			{
+			case Parameters::Frequency: return frequency;
+			case Parameters::Q: return q;
+			case Parameters::Gain:		return gain;
+			case Parameters::Mode:		return (float)(int)m;
+			}
+
+			return -1;
+		};
 
 		void setMode(Mode newMode)
 		{
@@ -1717,62 +1668,47 @@ public:
 			calcCoefficients();
 		}
 
-		void processMultiChannel(Array<var> &channels) override
+		void processBlock(float **data, int numChannels, int numSamples) override
 		{
-			float *inL = channels[0].getBuffer()->buffer.getWritePointer(0);
-			float *inR = channels[1].getBuffer()->buffer.getWritePointer(1);
-
-			const int numSamples = channels[0].getBuffer()->size;
-
+			float *inL = data[0];
 			leftFilter.processSamples(inL, numSamples);
-			rightFilter.processSamples(inR, numSamples);
+
+			if (numChannels == 2)
+			{
+				float *inR = data[1];
+				rightFilter.processSamples(inR, numSamples);
+			}
 		}
 
-		void processBuffer(VariantBuffer &buffer) override
+		int getNumConstants() const override
 		{
-			leftFilter.processSamples(buffer.buffer.getWritePointer(0), buffer.size);
+			return (int)Parameters::numParameters;
 		}
 
-	private:
-
-		struct Wrappers
+		void getIdForConstant(int index, char*name, int &size) const noexcept override
 		{
-			static var setMode(const var::NativeFunctionArgs& args)
+			switch (index)
 			{
-				if (Biquad* thisObject = dynamic_cast<Biquad*>(args.thisObject.getObject()))
-				{
-					thisObject->setMode((Mode)(int)args.arguments[0]);
-				}
-				return var::undefined();
-			}
-
-			static var setFrequency(const var::NativeFunctionArgs& args)
-			{
-				if (Biquad* thisObject = dynamic_cast<Biquad*>(args.thisObject.getObject()))
-				{
-					thisObject->setFrequency((double)args.arguments[0]);
-				}
-				return var::undefined();
-			}
-
-			static var setGain(const var::NativeFunctionArgs& args)
-			{
-				if (Biquad* thisObject = dynamic_cast<Biquad*>(args.thisObject.getObject()))
-				{
-					thisObject->setGain((double)args.arguments[0]);
-				}
-				return var::undefined();
-			}
-
-			static var setQ(const var::NativeFunctionArgs& args)
-			{
-				if (Biquad* thisObject = dynamic_cast<Biquad*>(args.thisObject.getObject()))
-				{
-					thisObject->setQ((double)args.arguments[0]);
-				}
-				return var::undefined();
+				FILL_PARAMETER_ID(Parameters, Gain, size, name);
+				FILL_PARAMETER_ID(Parameters, Frequency, size, name);
+				FILL_PARAMETER_ID(Parameters, Q, size, name);
+				FILL_PARAMETER_ID(Parameters, Mode, size, name);
 			}
 		};
+
+		bool getConstant(int index, int& value) const noexcept override
+		{
+			if (index < getNumParameters())
+			{
+				value = index;
+				return true;
+			}
+
+			return false;
+		};
+		
+	private:
+
 
 		void calcCoefficients()
 		{
@@ -1804,7 +1740,6 @@ public:
 
 	};
 
-#endif
 };
 
 // Disable this until we're jumping to C++14
@@ -1918,6 +1853,7 @@ class HiseCoreDspFactory : public StaticDspFactory
 		registerDspModule<ScriptingDsp::PeakMeter>();
         registerDspModule<ScriptingDsp::AdditiveSynthesiser>();
 		registerDspModule<ScriptingDsp::GlitchCreator>();
+		registerDspModule<ScriptingDsp::Biquad>();
 	}
 };
 
