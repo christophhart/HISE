@@ -199,16 +199,7 @@ void DelayEditor::buttonClicked (Button* buttonThatWasClicked)
     {
         //[UserButtonCode_tempoSyncButton] -- add your button handler code here..
 
-		if(tempoSyncButton->getToggleState())
-		{
-			leftTimeSlider->setMode(HiSlider::Mode::TempoSync);
-			rightTimeSlider->setMode(HiSlider::Mode::TempoSync);
-		}
-		else
-		{
-			leftTimeSlider->setMode(HiSlider::Mode::Time);
-			rightTimeSlider->setMode(HiSlider::Mode::Time);
-		}
+		
 
 
         //[/UserButtonCode_tempoSyncButton]

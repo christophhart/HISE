@@ -51,6 +51,27 @@ public:
 	{
 		tempoSyncButton->updateValue();
 
+		
+
+		const bool isSynced = leftTimeSlider->getRange().getRange() == HiSlider::getRangeForMode(HiSlider::Mode::TempoSync).getRange();
+		const bool shouldBeSynced = tempoSyncButton->getToggleState();
+
+
+		if (isSynced != shouldBeSynced)
+		{
+			if(shouldBeSynced)
+			{
+				leftTimeSlider->setMode(HiSlider::Mode::TempoSync);
+				rightTimeSlider->setMode(HiSlider::Mode::TempoSync);
+			}
+			else
+			{
+				leftTimeSlider->setMode(HiSlider::Mode::Time);
+				rightTimeSlider->setMode(HiSlider::Mode::Time);
+			}
+		}
+		
+
 		leftTimeSlider->updateValue();
 		rightTimeSlider->updateValue();
 

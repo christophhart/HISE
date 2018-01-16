@@ -32,6 +32,100 @@
 
 namespace hise { using namespace juce;
 
+DelayEffect::DelayEffect(MainController *mc, const String &id) :
+	MasterEffectProcessor(mc, id),
+	delayTimeLeft(300.0f),
+	delayTimeRight(250.0f),
+	feedbackLeft(0.3f),
+	feedbackRight(0.3f),
+	lowPassFreq(20000.0f),
+	hiPassFreq(40.0f),
+	mix(0.5f),
+	tempoSync(true),
+	syncTimeLeft(TempoSyncer::QuarterTriplet),
+	syncTimeRight(TempoSyncer::Quarter),
+	skipFirstBuffer(true),
+	leftDelayFrames(1, 0),
+	rightDelayFrames(1, 0)
+{
+	parameterNames.add("DelayTimeLeft");
+	parameterNames.add("DelayTimeRight");
+	parameterNames.add("FeedbackLeft");
+	parameterNames.add("FeedbackRight");
+	parameterNames.add("LowPassFreq");
+	parameterNames.add("HiPassFreq");
+	parameterNames.add("Mix");
+	parameterNames.add("TempoSync");
+
+	mc->addTempoListener(this);
+
+	enableConsoleOutput(true);
+}
+
+float DelayEffect::getAttribute(int parameterIndex) const
+{
+	switch (parameterIndex)
+	{
+	case DelayTimeLeft:		return tempoSync ? (float)syncTimeLeft : delayTimeLeft;
+	case DelayTimeRight:	return tempoSync ? (float)syncTimeRight : delayTimeRight;
+	case FeedbackLeft:		return feedbackLeft;
+	case FeedbackRight:		return feedbackRight;
+	case LowPassFreq:		return lowPassFreq;
+	case HiPassFreq:		return hiPassFreq;
+	case Mix:				return mix;
+	case TempoSync:			return tempoSync ? 1.0f : 0.0f;
+	default:				jassertfalse; return 0.0f;
+	}
+}
+
+void DelayEffect::setInternalAttribute(int parameterIndex, float newValue)
+{
+	switch (parameterIndex)
+	{
+	case DelayTimeLeft:		if (tempoSync)
+								syncTimeLeft = (TempoSyncer::Tempo)(int)newValue;
+							
+							else
+								delayTimeLeft = newValue;
+
+							calcDelayTimes();
+							break;
+
+	case DelayTimeRight:	if (tempoSync)
+								syncTimeRight = (TempoSyncer::Tempo)(int)newValue;
+	
+							else
+								delayTimeRight = newValue;
+
+							calcDelayTimes();
+							break;
+	case FeedbackLeft:		feedbackLeft = newValue; break;
+	case FeedbackRight:		feedbackRight = newValue; break;
+	case LowPassFreq:		lowPassFreq = newValue; break;
+	case HiPassFreq:		hiPassFreq = newValue; break;
+	case Mix:				mix = newValue; break;
+	case TempoSync:			tempoSync = (newValue == 1.0f); 
+							calcDelayTimes(); break;
+	default:				jassertfalse;
+	}
+}
+
+float DelayEffect::getDefaultValue(int parameterIndex) const
+{
+	switch (parameterIndex)
+	{
+	case DelayTimeLeft:		return tempoSync ? (float)syncTimeLeft : delayTimeLeft;
+	case DelayTimeRight:	return tempoSync ? (float)syncTimeRight : delayTimeRight;
+	case FeedbackLeft:		return feedbackLeft;
+	case FeedbackRight:		return feedbackRight;
+	case LowPassFreq:		return lowPassFreq;
+	case HiPassFreq:		return hiPassFreq;
+	case Mix:				return 0.5f;
+	case TempoSync:			return true;
+	default:				jassertfalse; return 0.0f;
+	}
+}
+
 ProcessorEditorBody *DelayEffect::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND

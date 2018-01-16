@@ -727,6 +727,36 @@ public:
 		return tempoNames[t];
 	};
 
+	/** Returns the next Tempo index for the given time. 
+	*
+	*	This is not a super fast operation, but it helps with dealing between the
+	*	two realms.
+	*/
+	static Tempo getTempoIndexForTime(double currentBpm, double milliSeconds)
+	{
+		float delta[Tempo::numTempos];
+
+		float max = 200000.0f;
+		int index = -1;
+
+		for (int i = 0; i < numTempos; i++)
+		{
+			const float thisDelta = fabsf(getTempoInMilliSeconds(currentBpm, (Tempo)i) - milliSeconds);
+
+			if (thisDelta < max)
+			{
+				max = thisDelta;
+				index = i;
+			}
+		}
+
+		if (index >= 0)
+			return (Tempo)index;
+
+		// Fallback Dummy
+		return Tempo::Quarter;
+	}
+
 	/** Returns the index of the tempo with the name 't'. */
 	static Tempo getTempoIndex(const String &t) { return (Tempo)tempoNames.indexOf(t); };
 
