@@ -58,6 +58,7 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	currentRandomValue(1.0f),
 	currentTempo(TempoSyncer::Eighth),
 	legato(getDefaultValue(Legato) >= 0.5f),
+	loopEnabled(getDefaultValue(LoopEnabled) >= 0.5f),
 	tempoSync(getDefaultValue(TempoSync) >= 0.5f),
 	smoothingTime(getDefaultValue(SmoothingTime))
 {
@@ -73,6 +74,7 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	parameterNames.add(Identifier("TempoSync"));
 	parameterNames.add(Identifier("SmoothingTime"));
 	parameterNames.add(Identifier("NumSteps"));
+	parameterNames.add(Identifier("LoopEnabled"));
 
 	frequencyUpdater.setManualCountLimit(4096);
 
@@ -137,6 +139,8 @@ float LfoModulator::getDefaultValue(int parameterIndex) const
 		return 5.0f;
 	case Parameters::NumSteps:
 		return 16.0f;
+	case Parameters::LoopEnabled:
+		return true;
 	default:
 		jassertfalse;
 		return -1.0f;
@@ -161,6 +165,8 @@ float LfoModulator::getAttribute(int parameter_index) const
 		return smoother.getSmoothingTime();
 	case Parameters::NumSteps:
 		return (float)data->getNumSliders();
+	case Parameters::LoopEnabled:
+		return loopEnabled ? 1.0f : 0.0f;
 	default: 
 		jassertfalse;
 		return -1.0f;
@@ -229,6 +235,9 @@ void LfoModulator::setInternalAttribute (int parameter_index, float newValue)
 	case Parameters::NumSteps:
 		data->setNumSliders(jmax<int>(1, (int)newValue));
 		break;
+	case Parameters::LoopEnabled:
+		loopEnabled = newValue > 0.5f;
+		break;
 	default: 
 		jassertfalse;
 	}
@@ -260,30 +269,47 @@ float LfoModulator::calculateNewValue ()
 	}
 	else if (currentWaveform == Waveform::Steps)
 	{
+
 		if (lastSwapIndex != index && nextIndex - firstIndex != 1)
 		{
 			lastSwapIndex = index;
 
-			currentSliderIndex = (currentSliderIndex + 1) % data->getNumSliders();
+			if (!loopEnabled && (currentSliderIndex+1) == data->getNumSliders())
+			{
+				currentSliderValue = 1.0f;
+			}
+			else
+			{
+				currentSliderIndex = (currentSliderIndex + 1) % data->getNumSliders();
 
-			data->setDisplayedIndex(currentSliderIndex);
+				data->setDisplayedIndex(currentSliderIndex);
 
-			currentSliderValue = 1.0f - data->getValue(currentSliderIndex);	
+				currentSliderValue = 1.0f - data->getValue(currentSliderIndex);
+			}
+
+			
 		}
 
 		newValue = currentSliderValue;
 	}
 	else
 	{
-		jassert(currentTable != nullptr);
+		if (!loopEnabled && currentWaveform == Custom && uptime > (double)(SAMPLE_LOOKUP_TABLE_SIZE-1))
+		{
+			newValue = 1.0f;
+		}
+		else
+		{
+			jassert(currentTable != nullptr);
 
-		float v1 = currentTable[firstIndex];
-		float v2 = currentTable[nextIndex];
+			float v1 = currentTable[firstIndex];
+			float v2 = currentTable[nextIndex];
 
-		const float alpha = float(uptime) - (float)index;
-		const float invAlpha = 1.0f - alpha;
+			const float alpha = float(uptime) - (float)index;
+			const float invAlpha = 1.0f - alpha;
 
-		newValue = 1.0f - (invAlpha * v1 + alpha * v2);
+			newValue = 1.0f - (invAlpha * v1 + alpha * v2);
+		}
 	}
 
 	if(attack != 0.0f || attackValue < 1.0f) attackValue = attackBase + attackValue * attackCoef;

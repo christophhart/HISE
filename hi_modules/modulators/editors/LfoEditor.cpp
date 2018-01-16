@@ -1,17 +1,17 @@
 /*
   ==============================================================================
 
-  This is an automatically generated GUI class created by the Introjucer!
+  This is an automatically generated GUI class created by the Projucer!
 
   Be careful when adding custom code to these files, as only the code within
   the "//[xyz]" and "//[/xyz]" sections will be retained when the file is loaded
   and re-saved.
 
-  Created with Introjucer version: 4.1.0
+  Created with Projucer version: 5.2.0
 
   ------------------------------------------------------------------------------
 
-  The Introjucer is part of the JUCE library - "Jules' Utility Class Extensions"
+  The Projucer is part of the JUCE library - "Jules' Utility Class Extensions"
   Copyright (c) 2015 - ROLI Ltd.
 
   ==============================================================================
@@ -54,7 +54,7 @@ LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
 
     addAndMakeVisible (label = new Label ("new label",
                                           TRANS("lfo")));
-    label->setFont (Font ("Arial", 24.00f, Font::bold));
+    label->setFont (Font ("Arial", 24.00f, Font::plain).withTypefaceStyle ("Bold"));
     label->setJustificationType (Justification::centredRight);
     label->setEditable (false, false, false);
     label->setColour (Label::textColourId, Colour (0x52ffffff));
@@ -73,7 +73,7 @@ LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
     waveFormSelector->addItem (TRANS("Square"), 4);
     waveFormSelector->addItem (TRANS("Random"), 5);
     waveFormSelector->addItem (TRANS("Custom"), 6);
-	waveFormSelector->addItem(TRANS("Steps"), 7);
+	waveFormSelector->addItem (TRANS("Steps"), 7);
     waveFormSelector->addListener (this);
 
     addAndMakeVisible (waveformDisplay = new WaveformComponent());
@@ -101,6 +101,11 @@ LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
     smoothTimeSlider->setColour (Slider::textBoxTextColourId, Colours::white);
     smoothTimeSlider->addListener (this);
 
+    addAndMakeVisible (loopButton = new HiToggleButton ("Loop"));
+    loopButton->setTooltip (TRANS("Disables looping of the Oscillator"));
+    loopButton->addListener (this);
+    loopButton->setColour (ToggleButton::textColourId, Colours::white);
+
 
     //[UserPreSize]
 
@@ -127,15 +132,19 @@ LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
 
 	tempoSyncButton->setNotificationType(sendNotification);
 
+	
+
 	waveformTable->connectToLookupTableProcessor(getProcessor());
 
     label->setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
-    
-    //[/UserPreSize]
+
+	loopButton->setup(getProcessor(), LfoModulator::Parameters::LoopEnabled, "Loop On");
 
 	addAndMakeVisible(stepPanel = new SliderPack(dynamic_cast<SliderPackProcessor*>(getProcessor())->getSliderPackData(0)));
-
 	stepPanel->setVisible(false);
+	stepPanel->setStepSize(0.01);
+
+    //[/UserPreSize]
 
     setSize (800, 255);
 
@@ -164,6 +173,7 @@ LfoEditorBody::~LfoEditorBody()
     retriggerButton = nullptr;
     waveformTable = nullptr;
     smoothTimeSlider = nullptr;
+    loopButton = nullptr;
 
 
     //[Destructor]. You can add your own custom destruction code here..
@@ -178,6 +188,18 @@ void LfoEditorBody::paint (Graphics& g)
 	ProcessorEditorLookAndFeel::fillEditorBackgroundRect(g, this);
 
     //[/UserPrePaint]
+
+    {
+        float x = static_cast<float> ((getWidth() / 2) - ((getWidth() - 84) / 2)), y = 6.0f, width = static_cast<float> (getWidth() - 84), height = static_cast<float> (getHeight() - 16);
+        Colour fillColour = Colour (0x30000000);
+        Colour strokeColour = Colour (0x25ffffff);
+        //[UserPaintCustomArguments] Customize the painting arguments here..
+        //[/UserPaintCustomArguments]
+        g.setColour (fillColour);
+        g.fillRoundedRectangle (x, y, width, height, 6.000f);
+        g.setColour (strokeColour);
+        g.drawRoundedRectangle (x, y, width, height, 6.000f, 2.000f);
+    }
 
     //[UserPaint] Add your own custom painting code here..
     //[/UserPaint]
@@ -197,6 +219,7 @@ void LfoEditorBody::resized()
     retriggerButton->setBounds ((getWidth() / 2) + -55, 68, 128, 32);
     waveformTable->setBounds ((getWidth() / 2) - ((getWidth() - 112) / 2), 111, getWidth() - 112, 121);
     smoothTimeSlider->setBounds ((getWidth() / 2) + 88, 16, 128, 48);
+    loopButton->setBounds ((getWidth() / 2) + 96, 68, 128, 32);
     //[UserResized] Add your own custom resize handling here..
 
 	waveformTable->setVisible(tableUsed && !stepsUsed);
@@ -282,7 +305,7 @@ void LfoEditorBody::buttonClicked (Button* buttonThatWasClicked)
     {
         //[UserButtonCode_tempoSyncButton] -- add your button handler code here..
 
-		
+
 
 
 
@@ -292,6 +315,11 @@ void LfoEditorBody::buttonClicked (Button* buttonThatWasClicked)
     {
         //[UserButtonCode_retriggerButton] -- add your button handler code here..
         //[/UserButtonCode_retriggerButton]
+    }
+    else if (buttonThatWasClicked == loopButton)
+    {
+        //[UserButtonCode_loopButton] -- add your button handler code here..
+        //[/UserButtonCode_loopButton]
     }
 
     //[UserbuttonClicked_Post]
@@ -306,9 +334,9 @@ void LfoEditorBody::buttonClicked (Button* buttonThatWasClicked)
 
 //==============================================================================
 #if 0
-/*  -- Introjucer information section --
+/*  -- Projucer information section --
 
-    This is where the Introjucer stores the metadata that describe this GUI layout, so
+    This is where the Projucer stores the metadata that describe this GUI layout, so
     make changes in here at your peril!
 
 BEGIN_JUCER_METADATA
@@ -325,20 +353,21 @@ BEGIN_JUCER_METADATA
   <SLIDER name="Frequency" id="9ef32c38be6d2f66" memberName="frequencySlider"
           virtualName="HiSlider" explicitFocusOrder="0" pos="-73Cr 16 128 48"
           tooltip="Adjust the LFO Frequency" thumbcol="80666666" textboxtext="ffffffff"
-          min="0.5" max="40" int="0.01" style="RotaryHorizontalVerticalDrag"
+          min="0.5" max="40" int="0.010000000000000000208" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="0" textBoxWidth="80"
-          textBoxHeight="20" skewFactor="1"/>
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
   <SLIDER name="Fadein" id="1ef615987ac878bd" memberName="fadeInSlider"
           virtualName="HiSlider" explicitFocusOrder="0" pos="-55C 16 128 48"
           tooltip="The Fade in time after each key press" thumbcol="80666666"
           textboxtext="ffffffff" min="0" max="5000" int="1" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="0" textBoxWidth="80"
-          textBoxHeight="20" skewFactor="1"/>
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
   <LABEL name="new label" id="bd1d8d6ad6d04bdc" memberName="label" virtualName=""
          explicitFocusOrder="0" pos="50Rr 7 264 40" textCol="52ffffff"
          edTextCol="ff000000" edBkgCol="0" labelText="lfo" editableSingleClick="0"
          editableDoubleClick="0" focusDiscardsChanges="0" fontname="Arial"
-         fontsize="24" bold="1" italic="0" justification="34"/>
+         fontsize="24" kerning="0" bold="1" italic="0" justification="34"
+         typefaceStyle="Bold"/>
   <COMBOBOX name="Waveform Selection" id="223afd792a25b6b" memberName="waveFormSelector"
             virtualName="HiComboBox" explicitFocusOrder="0" pos="59 68 128 28"
             tooltip="Selects the synthesiser's waveform" editable="0" layout="33"
@@ -364,7 +393,11 @@ BEGIN_JUCER_METADATA
           tooltip="The smoothing factor for the oscillator" thumbcol="80666666"
           textboxtext="ffffffff" min="0" max="5000" int="1" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="0" textBoxWidth="80"
-          textBoxHeight="20" skewFactor="1"/>
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
+  <TOGGLEBUTTON name="Loop" id="e2c1c8f56fcae3d2" memberName="loopButton" virtualName="HiToggleButton"
+                explicitFocusOrder="0" pos="96C 68 128 32" tooltip="Disables looping of the Oscillator"
+                txtcol="ffffffff" buttonText="Loop" connectedEdges="0" needsCallback="1"
+                radioGroupId="0" state="0"/>
 </JUCER_COMPONENT>
 
 END_JUCER_METADATA

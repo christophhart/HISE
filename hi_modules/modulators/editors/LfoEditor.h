@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-  This is an automatically generated GUI class created by the Introjucer!
+  This is an automatically generated GUI class created by the Projucer!
 
   Be careful when adding custom code to these files, as only the code within
   the "//[xyz]" and "//[/xyz]" sections will be retained when the file is loaded
   and re-saved.
 
-  Created with Introjucer version: 4.1.0
+  Created with Projucer version: 5.2.0
 
   ------------------------------------------------------------------------------
 
-  The Introjucer is part of the JUCE library - "Jules' Utility Class Extensions"
+  The Projucer is part of the JUCE library - "Jules' Utility Class Extensions"
   Copyright (c) 2015 - ROLI Ltd.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_HEADER_52D6A5016C50158E__
-#define __JUCE_HEADER_52D6A5016C50158E__
+#pragma once
 
 //[Headers]     -- You can add your own extra header files here --
 namespace hise { using namespace juce;
@@ -38,9 +37,9 @@ namespace hise { using namespace juce;
 */
 class LfoEditorBody  : public ProcessorEditorBody,
                        public Timer,
-                       public SliderListener,
-                       public ComboBoxListener,
-                       public ButtonListener
+                       public Slider::Listener,
+                       public ComboBox::Listener,
+                       public Button::Listener
 {
 public:
     //==============================================================================
@@ -56,7 +55,9 @@ public:
 
 		waveFormSelector->updateValue();
 
-		waveformDisplay->setType((int)getProcessor()->getAttribute(LfoModulator::WaveFormType));
+		auto type = (int)getProcessor()->getAttribute(LfoModulator::WaveFormType);
+
+		waveformDisplay->setType(type);
 
 		tempoSyncButton->updateValue();
 		retriggerButton->updateValue();
@@ -64,6 +65,10 @@ public:
 		frequencySlider->updateValue();
 
 		smoothTimeSlider->updateValue();
+
+		loopButton->setEnabled(type == LfoModulator::Waveform::Custom || LfoModulator::Waveform::Steps);
+
+		loopButton->updateValue();
 
 		if (getProcessor()->getAttribute(LfoModulator::TempoSync) > 0.5f)
 		{
@@ -103,11 +108,11 @@ public:
 
     //[/UserMethods]
 
-    void paint (Graphics& g);
-    void resized();
-    void sliderValueChanged (Slider* sliderThatWasMoved);
-    void comboBoxChanged (ComboBox* comboBoxThatHasChanged);
-    void buttonClicked (Button* buttonThatWasClicked);
+    void paint (Graphics& g) override;
+    void resized() override;
+    void sliderValueChanged (Slider* sliderThatWasMoved) override;
+    void comboBoxChanged (ComboBox* comboBoxThatHasChanged) override;
+    void buttonClicked (Button* buttonThatWasClicked) override;
 
 
 
@@ -133,6 +138,7 @@ private:
     ScopedPointer<HiToggleButton> retriggerButton;
     ScopedPointer<TableEditor> waveformTable;
     ScopedPointer<HiSlider> smoothTimeSlider;
+    ScopedPointer<HiToggleButton> loopButton;
 
 
     //==============================================================================
@@ -144,5 +150,3 @@ private:
 } // namespace hise
 
 //[/EndFile]
-
-#endif   // __JUCE_HEADER_52D6A5016C50158E__

@@ -77,6 +77,7 @@ public:
 		TempoSync, ///< enable sync to Host Tempo
 		SmoothingTime, ///< smoothes hard edges of the oscillator
 		NumSteps,
+		LoopEnabled, ///< enables loop mode for the LFO
 		numParameters
 	};
 
@@ -108,6 +109,9 @@ public:
 		loadAttribute(Legato, "Legato");
 		
 		loadAttribute(SmoothingTime, "SmoothingTime");
+		
+		if(v.hasProperty("LoopEnabled"))
+			loadAttribute(LoopEnabled, "LoopEnabled");
 
 		loadTable(customTable, "CustomWaveform");
 
@@ -124,7 +128,8 @@ public:
 		saveAttribute(Legato, "Legato");
 		saveAttribute(TempoSync, "TempoSync");
 		saveAttribute(SmoothingTime, "SmoothingTime");
-		
+		saveAttribute(LoopEnabled, "LoopEnabled");
+
 		saveTable(customTable, "CustomWaveform");
 		
 		v.setProperty("StepData", data->toBase64(), nullptr);
@@ -202,7 +207,17 @@ public:
 
 		const float newInputValue = ((int)(uptime) % SAMPLE_LOOKUP_TABLE_SIZE) / (float)SAMPLE_LOOKUP_TABLE_SIZE;
 
-		if (inputMerger.shouldUpdate() && currentWaveform == Custom) sendTableIndexChangeMessage(false, customTable, newInputValue);
+		if (inputMerger.shouldUpdate() && currentWaveform == Custom)
+		{
+			const bool isLooped = (loopEnabled || uptime < (double)SAMPLE_LOOKUP_TABLE_SIZE);
+
+			if (isLooped)
+			{
+				sendTableIndexChangeMessage(false, customTable, newInputValue);
+			}
+			else
+				sendTableIndexChangeMessage(false, customTable, 1.0f);
+		}
 	};
 
 	/** This overwrites the TimeModulation callback to render the intensity chain. */
@@ -387,7 +402,7 @@ private:
 	Smoother smoother;
 	float smoothingTime;
 
-
+	bool loopEnabled;
 	bool legato;
 
 	bool tempoSync;
