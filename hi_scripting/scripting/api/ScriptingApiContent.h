@@ -1460,6 +1460,7 @@ public:
 			itemColour3 = ScriptComponent::Properties::numProperties,
 			opaque,
 			showLines,
+			showFileName,
 			numProperties
 		};
 

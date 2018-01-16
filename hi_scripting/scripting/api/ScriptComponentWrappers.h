@@ -636,7 +636,8 @@ public:
 	
 
 	class AudioWaveformWrapper : public ScriptCreatedComponentWrapper,
-								 public AudioDisplayComponent::Listener
+								 public AudioDisplayComponent::Listener,
+								 public Timer
 	{
 	public:
 
@@ -649,6 +650,8 @@ public:
 		void updateComponent(int index, var newValue) override;
 
 		void rangeChanged(AudioDisplayComponent *broadcaster, int changedArea);
+
+		void timerCallback() override;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioWaveformWrapper)
 	private:

@@ -140,7 +140,7 @@ double SamplerSoundWaveform::getSampleRate() const
 
 void AudioDisplayComponent::drawPlaybackBar(Graphics &g)
 {
-	if(getSampleArea(0)->getWidth() != 0)
+	if(playBackPosition >= 0.0 && getSampleArea(0)->getWidth() != 0)
 	{
 
 		NormalisableRange<double> range((double)getSampleArea(0)->getX(), (double)getSampleArea(0)->getRight());
@@ -532,26 +532,19 @@ AudioSampleBufferComponent::AudioSampleBufferComponent(Processor* p) :
 	AudioDisplayComponent(),
 	buffer(nullptr),
 	itemDragged(false),
+
 	bgColour(Colour(0xFF555555)),
 	connectedProcessor(p)
 {
+	setColour(ColourIds::bgColour, Colour(0xFF555555));
+
 	setOpaque(true);
 
 	areas.add(new SampleArea(AreaTypes::PlayArea, this));
 	addAndMakeVisible(areas[0]);
 	areas[0]->setAreaEnabled(true);
 
-	
-	if (auto asp = dynamic_cast<AudioSampleProcessor*>(p))
-	{
-		setAudioSampleBuffer(asp->getBuffer(), asp->getFileName(), dontSendNotification);
-		setRange(asp->getRange());
-	}
-
-	if (connectedProcessor != nullptr)
-	{
-		connectedProcessor->addChangeListener(this);
-	}
+	setAudioSampleProcessor(p);
 
 	static const unsigned char pathData[] = { 110,109,0,23,2,67,128,20,106,67,108,0,0,230,66,128,92,119,67,108,0,23,2,67,128,82,130,67,108,0,23,2,67,128,92,123,67,108,0,0,7,67,128,92,123,67,98,146,36,8,67,128,92,123,67,243,196,9,67,58,18,124,67,128,5,11,67,128,88,125,67,98,13,70,12,67,198,158,126,
 		67,0,0,13,67,53,39,128,67,0,0,13,67,64,197,128,67,98,0,0,13,67,109,97,129,67,151,72,12,67,91,58,130,67,0,11,11,67,128,221,130,67,98,105,205,9,67,165,128,131,67,219,50,8,67,0,220,131,67,0,0,7,67,0,220,131,67,108,0,0,210,66,0,220,131,67,98,30,54,205,66,
@@ -571,6 +564,24 @@ AudioSampleBufferComponent::~AudioSampleBufferComponent()
 	}
 }
 
+void AudioSampleBufferComponent::setAudioSampleProcessor(Processor* newProcessor)
+{
+	connectedProcessor = newProcessor;
+
+	if (auto asp = dynamic_cast<AudioSampleProcessor*>(newProcessor))
+	{
+		setAudioSampleBuffer(asp->getBuffer(), asp->getFileName(), dontSendNotification);
+		setRange(asp->getRange());
+	}
+
+	if (connectedProcessor != nullptr)
+	{
+		removeAllChangeListeners();
+		connectedProcessor->addChangeListener(this);
+		changeListenerCallback(connectedProcessor);
+	}
+}
+
 bool AudioSampleBufferComponent::isAudioFile(const String &s)
 {
 	AudioFormatManager afm;
@@ -579,37 +590,6 @@ bool AudioSampleBufferComponent::isAudioFile(const String &s)
 	afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
 
 	return File(s).existsAsFile() && afm.findFormatForFileExtension(File(s).getFileExtension()) != nullptr;
-}
-
-bool AudioSampleBufferComponent::isInterestedInDragSource(const SourceDetails &dragSourceDetails)
-{
-	ignoreUnused(dragSourceDetails);
-
-	return false;
-
-#if 0
-	Component *c = dragSourceDetails.sourceComponent.get();
-
-	if (dynamic_cast<FileTreeComponent*>(c) != nullptr)
-	{
-		String firstName = dragSourceDetails.description.toString();
-
-		return isAudioFile(firstName);
-	}
-
-	if (c == this) return false;
-
-#if USE_BACKEND
-	const bool dragSourceIsTable = c != nullptr && dynamic_cast<ExternalFileTableBase*>(c->getParentComponent());
-#else
-	const bool dragSourceIsTable = false;
-
-#endif
-
-	const bool dragSourceIsOtherDisplayComponent = dynamic_cast<AudioSampleBufferComponent*>(c) != nullptr;
-
-	return dragSourceIsTable || dragSourceIsOtherDisplayComponent;
-#endif
 }
 
 
@@ -631,13 +611,31 @@ void AudioSampleBufferComponent::changeListenerCallback(SafeChangeBroadcaster *b
 		int x2 = getSampleArea(0)->getXForSample(jmin<int>(asp->getRange().getEnd(), loopRange.getEnd()));
 
 		xPositionOfLoop = { x1, x2 };
-
+		setShowLoop(asp->isUsingLoop());
 
 
 	}
 
 	repaint();
 }
+
+
+void AudioSampleBufferComponent::loadFile(const File& f)
+{
+	if (auto asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get()))
+	{
+#if USE_BACKEND
+		String fileName = f.getFullPathName();
+#else
+		auto fileName = ProjectHandler::Frontend::getRelativePathForAdditionalAudioFile(f);
+#endif
+
+		buffer = nullptr;
+		asp->setLoadedFile(fileName, true);
+	}
+}
+
+
 
 void AudioSampleBufferComponent::mouseDown(const MouseEvent &e)
 {
@@ -670,21 +668,9 @@ void AudioSampleBufferComponent::mouseDown(const MouseEvent &e)
 
 		if (fc.browseForFileToOpen())
 		{
-			if (auto asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get()))
-			{
-#if USE_BACKEND
-				String fileName = fc.getResult().getFullPathName();
-#else
-				auto fileName = ProjectHandler::Frontend::getRelativePathForAdditionalAudioFile(fc.getResult());
-#endif
-				
-				buffer = nullptr;
-				asp->setLoadedFile(fileName, true);
-				
-				
-				
+			auto f = fc.getResult();
 
-			}
+			loadFile(f);
 		}
 	}
 }
@@ -700,21 +686,28 @@ void AudioSampleBufferComponent::mouseDoubleClick(const MouseEvent& /*event*/)
 
 void AudioSampleBufferComponent::paint(Graphics &g)
 {
+	bgColour = findColour(AudioDisplayComponent::ColourIds::bgColour);
 	g.fillAll(bgColour);
+
+}
+
+
+void AudioSampleBufferComponent::paintOverChildren(Graphics& g)
+{
 
 	Font f = GLOBAL_BOLD_FONT();
 
 	g.setFont(f);
 
-	
 
-    if(buffer == nullptr || buffer->getNumSamples() == 0)
-    {
 
-		
+	if (buffer == nullptr || buffer->getNumSamples() == 0)
+	{
 
-        g.setColour(Colours::white.withAlpha(0.3f));
-        
+
+
+		g.setColour(Colours::white.withAlpha(0.3f));
+
 		const String text = "Right click to open audio file";
 
 		const int w = f.getStringWidth(text) + 20;
@@ -724,31 +717,23 @@ void AudioSampleBufferComponent::paint(Graphics &g)
 		g.setColour(Colours::white.withAlpha(0.5f));
 		g.drawRect(r, 1);
 
-        g.drawText(text, getLocalBounds(), Justification::centred);
-    }
-    
+		g.drawText(text, getLocalBounds(), Justification::centred);
+	}
+
 	AudioDisplayComponent::paint(g);
 
 	const String fileNameToShow = ProjectHandler::isAbsolutePathCrossPlatform(currentFileName) ? File(currentFileName).getFileName() : currentFileName;
 
-	if (fileNameToShow.isNotEmpty())
+	if (showFileName && fileNameToShow.isNotEmpty())
 	{
 		const int w = f.getStringWidth(fileNameToShow) + 20;
 		g.setColour(Colours::black.withAlpha(0.5f));
-		Rectangle<int> r(getWidth() - w-5, 5, w, 20);
+		Rectangle<int> r(getWidth() - w - 5, 5, w, 20);
 		g.fillRect(r);
 		g.setColour(Colours::white.withAlpha(0.2f));
 		g.drawRect(r, 1);
 		g.setColour(Colours::white.withAlpha(0.6f));
 		g.drawText(fileNameToShow, r, Justification::centred);
-	}
-
-	
-
-	if (itemDragged)
-	{
-		g.setColour(Colours::white.withAlpha(0.7f));
-		g.drawRect(getLocalBounds(), 4);
 	}
 
 	if (showLoop)
@@ -759,7 +744,7 @@ void AudioSampleBufferComponent::paint(Graphics &g)
 
 		Path t1;
 
-		float x1 = (float)xPositionOfLoop.getStart()+1;
+		float x1 = (float)xPositionOfLoop.getStart() + 1;
 		float x2 = (float)xPositionOfLoop.getEnd();
 
 		t1.startNewSubPath(x1, 0.0f);
@@ -767,7 +752,7 @@ void AudioSampleBufferComponent::paint(Graphics &g)
 		t1.lineTo(x1, 10.0f);
 		t1.closeSubPath();
 
-		
+
 
 		g.fillPath(t1);
 
@@ -1104,8 +1089,11 @@ void HiseAudioThumbnail::drawSection(Graphics &g, bool enabled)
 
 		int h = getHeight();
 
-		g.drawHorizontalLine(h/4, 0.0f, (float)getWidth());
-		g.drawHorizontalLine(3*h / 4, 0.0f, (float)getWidth());
+		if (drawHorizontalLines)
+		{
+			g.drawHorizontalLine(h / 4, 0.0f, (float)getWidth());
+			g.drawHorizontalLine(3 * h / 4, 0.0f, (float)getWidth());
+		}
 
 		g.setColour(fillColour);
 		g.fillPath(leftWaveform);
@@ -1120,10 +1108,13 @@ void HiseAudioThumbnail::drawSection(Graphics &g, bool enabled)
 
 		int h = getHeight()/2;
 
-		g.drawHorizontalLine(h / 4, 0.0f, (float)getWidth());
-		g.drawHorizontalLine(3 * h / 4, 0.0f, (float)getWidth());
-		g.drawHorizontalLine(h + h / 4, 0.0f, (float)getWidth());
-		g.drawHorizontalLine(h + 3 * h / 4, 0.0f, (float)getWidth());
+		if (drawHorizontalLines)
+		{
+			g.drawHorizontalLine(h / 4, 0.0f, (float)getWidth());
+			g.drawHorizontalLine(3 * h / 4, 0.0f, (float)getWidth());
+			g.drawHorizontalLine(h + h / 4, 0.0f, (float)getWidth());
+			g.drawHorizontalLine(h + 3 * h / 4, 0.0f, (float)getWidth());
+		}
 
 		g.setColour(fillColour);
 		g.fillPath(leftWaveform);

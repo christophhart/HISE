@@ -77,6 +77,12 @@ public:
 		rebuildPaths();
 	}
 
+	void setDrawHorizontalLines(bool shouldDrawHorizontalLines)
+	{
+		drawHorizontalLines = shouldDrawHorizontalLines;
+		repaint();
+	}
+
 	void setRange(const int left, const int right);
 private:
 
@@ -133,6 +139,7 @@ private:
 	var rBuffer;
 
 	bool isClear = true;
+	bool drawHorizontalLines = false;
 
 	Path leftWaveform, rightWaveform;
 
@@ -364,6 +371,8 @@ public:
 		playBackPosition = normalizedPlaybackPosition;
 		repaint();
 	};
+
+
 
 	AudioDisplayComponent():
 	playBackPosition(0.0)
@@ -600,9 +609,7 @@ class AudioSampleBufferComponent: public AudioDisplayComponent,
 								  public FileDragAndDropTarget,
 								  public SafeChangeBroadcaster,
 								  public SafeChangeListener,
-								  public DragAndDropTarget,
-								  public DragAndDropContainer,
-                                  public Timer
+								  public Timer
 {
 public:
 
@@ -619,44 +626,32 @@ public:
 
 	static bool isAudioFile(const String &s);
 
-	bool isInterestedInDragSource (const SourceDetails &dragSourceDetails) override;;
- 	
-	void itemDragExit (const SourceDetails &) override
-	{
-		itemDragged = false;
-		repaint();
-	};
 	
-	void itemDragEnter (const SourceDetails &dragSourceDetails) override
-	{
-		itemDragged = isInterestedInDragSource (dragSourceDetails);
-		repaint();
-	};
-
-	void itemDropped (const SourceDetails &dragSourceDetails) override
-	{
-		const String s =  dragSourceDetails.description.toString();
-
-		if(s.isNotEmpty())
-		{
-			currentFileName = s;
-			itemDragged = false;
-			sendSynchronousChangeMessage();
-		}
-	};
- 	
 	void filesDropped(const StringArray &fileNames, int , int ) override
 	{
 		if(fileNames.size() > 0)
 		{
-			currentFileName = fileNames[0];
-			sendSynchronousChangeMessage();
+			auto f = File(fileNames[0]);
+
+			loadFile(f);
 		}
 	};
 
 	AudioSampleBufferComponent(Processor* p);
 
+	
+
 	~AudioSampleBufferComponent();
+
+	void setAudioSampleProcessor(Processor* newProcessor);
+
+	void updatePlaybackPosition()
+	{
+		if (connectedProcessor)
+			setPlaybackPosition(connectedProcessor->getInputValue());
+	}
+
+	void loadFile(const File& f);
 
 	/** Call this when you want the component to display the content of the given AudioSampleBuffer. 
 	*
@@ -724,12 +719,13 @@ public:
 		}
 	}
 
-	void setBackgroundColour(Colour c) { bgColour = c; };
-
-	void mouseDrag(const MouseEvent &) override
+	void setShowFileName(bool shouldShowFileName)
 	{
-		//startDragging(currentFileName, this, Image(), true);
+		showFileName = shouldShowFileName;
+		repaint();
 	}
+
+	void setBackgroundColour(Colour c) { bgColour = c; };
 
 	void mouseDown(const MouseEvent &e) override;
 
@@ -741,6 +737,8 @@ public:
 	}
 
 	void paint(Graphics &g) override;
+
+	void paintOverChildren(Graphics& g) override;
 
 	/** Returns the currently loaded file name. */
 	const String &getCurrentlyLoadedFileName() const
@@ -766,6 +764,7 @@ public:
 private:
 
 	bool showLoop = false;
+	bool showFileName = true;
 
 	Path loopPath;
 

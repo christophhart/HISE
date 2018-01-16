@@ -98,8 +98,7 @@ AudioLooperEditor::AudioLooperEditor (ProcessorEditor *p)
 
 
 	sampleBufferContent->addAreaListener(this);
-	sampleBufferContent->setShowLoop(true);
-
+	
 	syncToHost->setup(getProcessor(), AudioLooper::SyncMode, "Sync to host");
 	loopButton->setup(getProcessor(), AudioLooper::LoopEnabled, "Loop Enabled");
 	pitchButton->setup(getProcessor(), AudioLooper::PitchTracking, "Pitch Tracking");

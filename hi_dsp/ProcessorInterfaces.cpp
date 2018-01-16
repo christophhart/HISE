@@ -341,7 +341,8 @@ void AudioSampleProcessor::setLoopFromMetadata(const File& f)
 
 	if (loopEnabled.isNotEmpty())
 	{
-		loopRange = Range<int>(loopStart.getIntValue(), loopEnd.getIntValue());
+		loopRange = Range<int>(loopStart.getIntValue(), loopEnd.getIntValue() + 1); // add 1 because of the offset
+		sampleRange.setEnd(loopRange.getEnd());
 		setUseLoop(true);
 	}
 	else

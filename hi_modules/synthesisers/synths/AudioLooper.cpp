@@ -102,15 +102,13 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 	const bool noBuffer = buffer == nullptr || buffer->getNumChannels() == 0;
 	const bool sampleFinished = !looper->isUsingLoop() && (voiceUptime > looper->length);
 	
+	const bool isLastVoice = getOwnerSynth()->isLastStartedVoice(this);
+
 	if (sampleFinished || noBuffer)
 	{
-        voiceBuffer.clear();
-            
-        clearCurrentNote();
-        voiceUptime = 0.0;
-        uptimeDelta = 0.0;
-        isActive = false;
-        return;
+		voiceBuffer.clear(startSample, numSamples);
+		resetVoice();
+		return;
 	}
     
 	int offset = looper->sampleRange.getStart();
@@ -140,12 +138,8 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 
         if(!looper->isUsingLoop() && uptime > looper->length)
         {
-            voiceBuffer.clear(startSample, numSamples);
-            
-            clearCurrentNote();
-            voiceUptime = 0.0;
-            uptimeDelta = 0.0;
-            isActive = false;
+			voiceBuffer.clear(startSample, numSamples);
+			resetVoice();
             return;
         }
         
@@ -180,7 +174,7 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
 	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
 
-	const bool isLastVoice = getOwnerSynth()->isLastStartedVoice(this);
+	
 
 	if (isLastVoice && looper->length != 0 && looper->inputMerger.shouldUpdate())
 	{
@@ -191,6 +185,14 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 		//const float inputValue = (float)((int)voiceUptime % looper->length) / (float)looper->length;
 		looper->setInputValue((float)samplePos / (float)actualLength, dontSendNotification);
 	}
+}
+
+void AudioLooperVoice::resetVoice()
+{
+	if (getOwnerSynth()->isLastStartedVoice(this))
+		static_cast<AudioLooper*>(getOwnerSynth())->setInputValue(-1.0f);
+
+	ModulatorSynthVoice::resetVoice();
 }
 
 AudioLooper::AudioLooper(MainController *mc, const String &id, int numVoices) :

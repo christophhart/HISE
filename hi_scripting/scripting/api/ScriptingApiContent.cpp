@@ -3085,8 +3085,8 @@ ScriptComponent(base, waveformName)
 	ADD_SCRIPT_PROPERTY(i01, "itemColour3"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ColourPickerSelector);
 	ADD_SCRIPT_PROPERTY(i02, "opaque"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i03, "showLines"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i04, "showFileName"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 		
-
 	deactivatedProperties.add(getIdFor(text));
 	deactivatedProperties.add(getIdFor(min));
 	deactivatedProperties.add(getIdFor(max));
@@ -3099,8 +3099,13 @@ ScriptComponent(base, waveformName)
 	setDefaultValue(ScriptComponent::Properties::height, height);
 	
 	setDefaultValue(Properties::itemColour3, 0x22FFFFFF);
+	setDefaultValue(ScriptComponent::Properties::bgColour, (int64)0xFF555555);
+	setDefaultValue(ScriptComponent::Properties::itemColour2, (int64)0xffcccccc);
+	setDefaultValue(ScriptComponent::Properties::itemColour, (int64)0xa2181818);
+
 	setDefaultValue(Properties::opaque, true);
-	setDefaultValue(Properties::showLines, true);
+	setDefaultValue(Properties::showLines, false);
+	setDefaultValue(Properties::showFileName, true);
 
 
 #if 0

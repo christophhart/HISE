@@ -61,6 +61,9 @@ public:
 
 	void calculateBlock(int startSample, int numSamples) override;;
 
+	void resetVoice() override;
+	
+
 private:
 
 	friend class AudioLooper;
@@ -106,7 +109,6 @@ public:
 
 	void setInternalAttribute(int parameterIndex, float newValue) override;
 
-	
 	void newFileLoaded() override;
 
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;

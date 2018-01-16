@@ -703,6 +703,9 @@ void AudioSampleProcessor::setRange(Range<int> newSampleRange)
 		sampleRange.setEnd(jmin<int>(sampleBuffer.getNumSamples(), sampleRange.getEnd()));
 		length = sampleRange.getLength();
 
+		if (loopRange.getEnd() < sampleRange.getEnd())
+			loopRange.setEnd(sampleRange.getEnd());
+
 		rangeUpdated();
 		
 		dynamic_cast<Processor*>(this)->sendChangeMessage();
