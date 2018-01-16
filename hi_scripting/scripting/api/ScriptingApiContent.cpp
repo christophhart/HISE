@@ -1375,7 +1375,7 @@ void ScriptingApi::Content::ScriptSlider::setMode(String mode)
 
 	auto nr = HiSlider::getRangeForMode(m);
 
-	setScriptObjectProperty(Mode, mode);
+	setScriptObjectProperty(Mode, mode, sendNotification);
 
 	if (isUsingDefaultRange && (nr.end - nr.start) != 0)
 	{

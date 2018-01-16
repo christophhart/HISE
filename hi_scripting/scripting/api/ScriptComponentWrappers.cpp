@@ -217,7 +217,11 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateSliderRange(ScriptingA
 
 	Range<double> r(min, max);
 
-
+	if (sc->m == HiSlider::Mode::TempoSync)
+	{
+		s->setMode(HiSlider::Mode::TempoSync);
+		return;
+	}
 
 	const String suffix = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::suffix);
 
