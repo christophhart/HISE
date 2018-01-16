@@ -104,7 +104,7 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 		
 		auto index = component->getConnectedParameterIndex();
 
-		if (index == -2)
+		if (index == -2) // intensity
 		{
 			if (auto mod = dynamic_cast<Modulation*>(component->getConnectedProcessor()))
 			{
@@ -112,9 +112,13 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 				BACKEND_ONLY(component->getConnectedProcessor()->sendChangeMessage());
 			}
 		}
-		else if (index == -3)
+		else if (index == -3) // bypassed
 		{
 			component->getConnectedProcessor()->setBypassed(v > 0.5f);
+		}
+		else if (index == -4) // enabled
+		{
+			component->getConnectedProcessor()->setBypassed(v < 0.5f);
 		}
 		else
 		{

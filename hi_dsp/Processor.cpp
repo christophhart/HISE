@@ -577,6 +577,7 @@ StringArray ProcessorHelpers::getListOfAllParametersForProcessor(Processor* p)
 	StringArray parameterNames;
 
 	parameterNames.add("Bypass");
+	parameterNames.add("Enabled"); // just the opposite of Bypassed
 
 	if (is<Modulator>(p))
 		parameterNames.add("Intensity");
@@ -594,12 +595,16 @@ int ProcessorHelpers::getParameterIndexFromProcessor(Processor* p, const Identif
 {
 	static const Identifier intensityId("Intensity");
 	static const Identifier bypassId("Bypass");
+	static const Identifier enabled("Enabled");
 
 	if (id == intensityId)
 		return -2;
 
 	if (id == bypassId)
 		return -3;
+
+	if (id == enabled)
+		return -4;
 
 	if (p != nullptr)
 	{
