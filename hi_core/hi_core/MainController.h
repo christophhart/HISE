@@ -757,7 +757,7 @@ public:
 	/** returns the tempo as bpm. */
     double getBpm() const noexcept
     {
-        return bpm.load() > 0.0 ? bpm.load() : 120.0;
+		return bpm.load() > 0.0 ? bpm.load() : 120.0;
     };
 
 	void setHostBpm(double newTempo);
@@ -1226,6 +1226,8 @@ private:
     double globalPitchFactor;
     
     std::atomic<double> bpm;
+	std::atomic<double> bpmFromHost;
+
 	Atomic<int> voiceAmount;
 	bool allNotesOffFlag;
     

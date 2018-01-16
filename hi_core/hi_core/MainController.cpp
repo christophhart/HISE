@@ -40,6 +40,7 @@ MainController::MainController():
 	temp_usage(0.0f),
 	uptime(0.0),
 	bpm(120.0),
+	bpmFromHost(120.0),
 	console(nullptr),
 	voiceAmount(0),
 	scrollY(0),
@@ -602,13 +603,15 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	storePlayheadIntoDynamicObject(lastPosInfo);
 	
+	bpmFromHost = lastPosInfo.bpm;
+
 	auto otherBpm = dynamic_cast<GlobalSettingManager*>(this)->globalBPM;
 
 	if (otherBpm > 0)
 		setBpm((double)otherBpm);
 	else
 	{
-		setBpm(lastPosInfo.bpm);
+		setBpm(bpmFromHost);
 	}
 	
 #endif
@@ -792,10 +795,14 @@ void MainController::setHostBpm(double newTempo)
 		int nt = jlimit(32, 280, (int)newTempo);
 
 		dynamic_cast<GlobalSettingManager*>(this)->globalBPM = nt;
+		
+		setBpm(newTempo);
 	}
 	else
 	{
 		dynamic_cast<GlobalSettingManager*>(this)->globalBPM = -1;
+		
+		setBpm(bpmFromHost);
 	}
 }
 
