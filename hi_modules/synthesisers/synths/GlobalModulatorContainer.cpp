@@ -228,7 +228,7 @@ void GlobalModulatorData::prepareToPlay(double /*sampleRate*/, int blockSize)
 {
 	switch (type)
 	{
-	case GlobalModulator::VoiceStart:	valuesForCurrentBuffer = AudioSampleBuffer(1, 0); return;
+    case GlobalModulator::VoiceStart:	valuesForCurrentBuffer.setSize(1, 0); return;
 	case GlobalModulator::TimeVariant:	ProcessorHelpers::increaseBufferIfNeeded(valuesForCurrentBuffer, blockSize); break;
     case GlobalModulator::numTypes: break;
     default: break;
