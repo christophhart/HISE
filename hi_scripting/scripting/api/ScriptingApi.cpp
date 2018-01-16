@@ -944,6 +944,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getDeviceResolution);
 	API_METHOD_WRAPPER_0(Engine, getZoomLevel);
 	API_METHOD_WRAPPER_0(Engine, getVersion);
+	API_METHOD_WRAPPER_0(Engine, getFilterModeList);
 	API_METHOD_WRAPPER_1(Engine, isControllerUsedByAutomation);
 	API_METHOD_WRAPPER_0(Engine, getSettingsWindowObject);
 	API_METHOD_WRAPPER_1(Engine, getMasterPeakLevel);
@@ -999,6 +1000,7 @@ ApiClass(0)
 	ADD_API_METHOD_0(isPlugin);
 	ADD_API_METHOD_0(getZoomLevel);
 	ADD_API_METHOD_0(getVersion);
+	ADD_API_METHOD_0(getFilterModeList);
 	ADD_API_METHOD_1(isControllerUsedByAutomation);
 	ADD_API_METHOD_0(getSettingsWindowObject);
 	ADD_API_METHOD_0(createTimerObject);
@@ -1141,6 +1143,11 @@ bool ScriptingApi::Engine::isPlugin() const
 var ScriptingApi::Engine::getZoomLevel() const
 {
 	return dynamic_cast<const GlobalSettingManager*>(getScriptProcessor()->getMainController_())->getGlobalScaleFactor();
+}
+
+var ScriptingApi::Engine::getFilterModeList() const
+{
+	return var(new ScriptingObjects::ScriptingEffect::FilterModeObject(getScriptProcessor()));
 }
 
 String ScriptingApi::Engine::getVersion()

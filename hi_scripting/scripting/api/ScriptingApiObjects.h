@@ -428,6 +428,19 @@ public:
 	{
 	public:
 
+
+		class FilterModeObject : public ConstScriptingObject
+		{
+		public:
+
+			FilterModeObject(const ProcessorWithScriptingContent* p);
+			Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("FilterModes"); }
+
+		private:
+
+		};
+
+
 		// ============================================================================================================
 
 		ScriptingEffect(ProcessorWithScriptingContent *p, EffectProcessor *fx);

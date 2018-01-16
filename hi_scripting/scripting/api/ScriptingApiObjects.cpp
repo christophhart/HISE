@@ -817,6 +817,37 @@ var ScriptingObjects::ScriptingEffect::addStaticGlobalModulator(var chainIndex, 
 	return var();
 }
 
+ScriptingObjects::ScriptingEffect::FilterModeObject::FilterModeObject(const ProcessorWithScriptingContent* p) :
+	ConstScriptingObject(const_cast<ProcessorWithScriptingContent*>(p), (int)MonoFilterEffect::FilterMode::numFilterModes)
+{
+	
+
+#define ADD_FILTER_CONSTANT(x) addConstant(#x, (int)MonoFilterEffect::FilterMode::x)
+
+	ADD_FILTER_CONSTANT(LowPass);
+	ADD_FILTER_CONSTANT(HighPass);
+	ADD_FILTER_CONSTANT(LowShelf);
+	ADD_FILTER_CONSTANT(HighShelf);
+	ADD_FILTER_CONSTANT(Peak);
+	ADD_FILTER_CONSTANT(ResoLow);
+	ADD_FILTER_CONSTANT(StateVariableLP);
+	ADD_FILTER_CONSTANT(StateVariableHP);
+	ADD_FILTER_CONSTANT(MoogLP);
+	ADD_FILTER_CONSTANT(OnePoleLowPass);
+	ADD_FILTER_CONSTANT(OnePoleHighPass);
+	ADD_FILTER_CONSTANT(StateVariablePeak);
+	ADD_FILTER_CONSTANT(StateVariableNotch);
+	ADD_FILTER_CONSTANT(StateVariableBandPass);
+	ADD_FILTER_CONSTANT(Allpass);
+	ADD_FILTER_CONSTANT(LadderFourPoleLP);
+	ADD_FILTER_CONSTANT(LadderFourPoleHP);
+	ADD_FILTER_CONSTANT(RingMod);
+
+#undef ADD_FILTER_CONSTANT
+}
+
+
+
 // ScriptingSlotFX ==============================================================================================================
 
 

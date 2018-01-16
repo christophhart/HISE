@@ -295,6 +295,9 @@ public:
 		/** Returns the current Zoom Level. */
 		var getZoomLevel() const;
 
+		/** Returns an object that contains all filter modes. */
+		var getFilterModeList() const;
+
         /** Returns the product version (not the HISE version!). */
         String getVersion();
         
