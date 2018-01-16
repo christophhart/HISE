@@ -350,6 +350,55 @@ private:
 	float b1;
 };
 
+class RingmodFilter : public MultiChannelFilter
+{
+
+	void updateCoefficients() override
+	{
+		uptimeDelta = frequency / sampleRate * 2.0 * double_Pi;
+		oscGain = jmap<float>(q, 0.3f, 9.9f, 0.0f, 1.0f);
+		oscGain = jlimit<float>(0.0f, 1.0f, oscGain);
+	}
+
+	void reset() override
+	{
+		uptime = 0.0;
+	}
+
+	void processSamples(AudioSampleBuffer& buffer, int startSample, int numSamples) override
+	{
+		const float invGain = 1.0f - oscGain;
+
+		for (int i = 0; i < numSamples; i++)
+		{
+			const float oscValue = oscGain * std::sin(uptime);;
+			
+
+			for (int c = 0; c < numChannels; c++)
+			{
+				const float input = buffer.getSample(c, i + startSample);
+
+				buffer.setSample(c, i + startSample, invGain * input + input * oscValue);
+			}
+
+			uptime += uptimeDelta;
+			
+		}
+
+
+		
+	}
+
+private:
+
+	double uptimeDelta = 0.0;
+	double uptime = 0.0;
+	float oscGain;
+
+	
+
+};
+
 class StaticBiquad : public MultiChannelFilter
 {
 public:
@@ -397,6 +446,125 @@ public:
 
 
 
+class PhaseAllpass : public MultiChannelFilter
+{
+public:
+
+	void processSamples(AudioSampleBuffer& b, int startSample, int numSamples) override
+	{
+		for (int c = 0; c < b.getNumChannels(); c++)
+		{
+			for (int i = 0; i < numSamples; i++)
+			{
+				float* d = b.getWritePointer(c, i + startSample);
+				*d = filters[c].getNextSample(*d);
+			}
+		}
+	}
+	
+
+	void updateCoefficients() override
+	{
+		if (sampleRate <= 0.0f)
+		{
+			return;
+		}
+
+		for (int i = 0; i < numChannels; i++)
+		{
+			filters[i].fMin = frequency;
+			filters[i].minDelay = frequency / (sampleRate / 2.f);
+			filters[i].feedback = jmap<float>(q, 0.3, 9.9, 0.0f, 0.99f);
+		}
+	}
+
+	void reset() override
+	{
+		updateCoefficients();
+	}
+
+private:
+
+	struct InternalFilter
+	{
+		
+		class AllpassDelay
+		{
+		public:
+			AllpassDelay() :
+				delay(0.f),
+				currentValue(0.f)
+			{}
+
+			static float getDelayCoefficient(float delaySamples)
+			{
+				return (1.f - delaySamples) / (1.f + delaySamples);
+			}
+
+			void setDelay(float newDelay) noexcept { delay = newDelay; };
+
+			float getNextSample(float input) noexcept
+			{
+				float y = input * -delay + currentValue;
+				currentValue = y * delay + input;
+
+				return y;
+			};
+
+			float delay, currentValue;
+		};
+
+		InternalFilter()
+		{
+			reset();
+		}
+
+		void reset()
+		{
+			currentValue = 0.0f;
+		}
+
+		float getNextSample(float input)
+		{
+			float delayThisSample = minDelay;
+
+			const float delayCoefficient = AllpassDelay::getDelayCoefficient(delayThisSample);
+
+			allpassFilters[0].setDelay(delayCoefficient);
+			allpassFilters[1].setDelay(delayCoefficient);
+			allpassFilters[2].setDelay(delayCoefficient);
+			allpassFilters[3].setDelay(delayCoefficient);
+			allpassFilters[4].setDelay(delayCoefficient);
+			allpassFilters[5].setDelay(delayCoefficient);
+
+			float output = allpassFilters[0].getNextSample(
+				allpassFilters[1].getNextSample(
+					allpassFilters[2].getNextSample(
+						allpassFilters[3].getNextSample(
+							allpassFilters[4].getNextSample(
+								allpassFilters[5].getNextSample(input + currentValue * feedback))))));
+
+			currentValue = output;
+
+			return input + output;
+		}
+
+		AllpassDelay allpassFilters[6];
+
+		float minDelay, maxDelay;
+		float feedback;
+		float sampleRate;
+		float fMin;
+		float fMax;
+		float rate;
+
+		float currentValue;
+
+	};
+
+	InternalFilter filters[NUM_MAX_CHANNELS];
+	
+};
 
 class Ladder : public MultiChannelFilter
 {
@@ -1014,6 +1182,7 @@ public:
 		numEffectParameters
 	};
 
+	// Remember to keep the ScriptingObjects::ScriptingEffect::FilterListObject 
 	enum FilterMode
 	{
 		LowPass = 0,
@@ -1030,9 +1199,10 @@ public:
 		StateVariablePeak,
 		StateVariableNotch,
 		StateVariableBandPass,
-		StateVariableAllpass,
+		Allpass,
 		LadderFourPoleLP,
 		LadderFourPoleHP,
+		RingMod,
 		numFilterModes
 	};
 
@@ -1127,13 +1297,14 @@ private:
 	StateVariableFilter stateFilter;
 	SimpleOnePole simpleFilter;
 	Ladder ladderFilter;
-	
+	PhaseAllpass allpassFilter;
+	RingmodFilter ringModFilter;
+
 	MultiChannelFilter* currentFilter = nullptr;
 
 	double lastSampleRate = 0.0;
 
 };
-
 
 
 class PolyFilterEffect: public VoiceEffectProcessor,

@@ -72,6 +72,8 @@ bipolarFreqBuffer(1, 0)
 	parameterNames.add("BipolarIntensity");
 }
 
+
+
 float MonoFilterEffect::getAttribute(int parameterIndex) const
 {
 	switch (parameterIndex)
@@ -198,22 +200,16 @@ void MonoFilterEffect::setMode(int filterMode)
 		stateFilter.setType((int)StateVariableFilter::FilterType::BP);
 		currentFilter = &stateFilter;
 		break;
-#if JORDAN_HARRIS_SVF
-	case MonoFilterEffect::StateVariablePeak:
-		stateFilter.setType((int)StateVariableFilter::FilterType::BPShelf);
-		currentFilter = &stateFilter;
-		break;
-#endif
 	case MonoFilterEffect::StateVariableNotch:
 		stateFilter.setType((int)StateVariableFilter::FilterType::NOTCH);
 		currentFilter = &stateFilter;
 		break;
-#if 0
-	case MonoFilterEffect::StateVariableAllpass:
-		stateFilter.setType((int)StateVariableFilter::FilterType::ALLPASS);
-		currentFilter = &stateFilter;
+	case MonoFilterEffect::RingMod:
+		currentFilter = &ringModFilter;
 		break;
-#endif
+	case MonoFilterEffect::Allpass:
+		currentFilter = &allpassFilter;
+		break;
 	case MonoFilterEffect::MoogLP:
 		currentFilter = &moogFilter;
 		break;

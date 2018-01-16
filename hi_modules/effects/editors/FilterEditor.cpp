@@ -72,8 +72,8 @@ FilterEditor::FilterEditor (ProcessorEditor *p)
 	modeSelector->addItem(TRANS("SVF HP"), MonoFilterEffect::FilterMode::StateVariableHP + 1);
 	//modeSelector->addItem(TRANS("SVF Peak"), MonoFilterEffect::FilterMode::StateVariablePeak + 1);
 	modeSelector->addItem(TRANS("SVF Notch"), MonoFilterEffect::FilterMode::StateVariableNotch + 1);
-	//modeSelector->addItem(TRANS("SVF BP"), MonoFilterEffect::FilterMode::StateVariableBandPass + 1);
-	//modeSelector->addItem(TRANS("SVF Allpass"), MonoFilterEffect::FilterMode::StateVariableAllpass + 1);
+	modeSelector->addItem(TRANS("SVF BP"), MonoFilterEffect::FilterMode::StateVariableBandPass + 1);
+	modeSelector->addItem(TRANS("Allpass"), MonoFilterEffect::FilterMode::Allpass + 1);
 	modeSelector->addItem(TRANS("Moog LP"), MonoFilterEffect::FilterMode::MoogLP + 1);
 	modeSelector->addItem (TRANS("Biquad LP"), MonoFilterEffect::FilterMode::LowPass + 1);
     modeSelector->addItem (TRANS("Biquad HP"), MonoFilterEffect::FilterMode::HighPass + 1);
@@ -82,6 +82,7 @@ FilterEditor::FilterEditor (ProcessorEditor *p)
     modeSelector->addItem (TRANS("High Shelf EQ"), MonoFilterEffect::FilterMode::HighShelf + 1);
     modeSelector->addItem (TRANS("Peak EQ"), MonoFilterEffect::FilterMode::Peak + 1);
 	modeSelector->addItem(TRANS("Ladder 4Pole LP"), MonoFilterEffect::FilterMode::LadderFourPoleLP + 1);
+	modeSelector->addItem(TRANS("Ring Mod"), MonoFilterEffect::FilterMode::RingMod + 1);
     modeSelector->addListener (this);
 
     addAndMakeVisible (filterGraph = new FilterGraph (1));
