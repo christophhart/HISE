@@ -75,13 +75,14 @@ bool SlotFX::setEffect(const String& typeName, bool synchronously)
 			}
 			else
 			{
+				ScopedLock sl(getMainController()->getLock());
+
 				auto pendingDeleteEffect = wrappedEffect.release();
 
 				auto df = [pendingDeleteEffect, this]()
 				{
-					
-
 					pendingDeleteEffect->sendDeleteMessage();
+
 
 					auto p = this->wrappedEffect.get();
 
