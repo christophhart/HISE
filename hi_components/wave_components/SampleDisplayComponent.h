@@ -88,9 +88,14 @@ private:
 
 	void refresh()
 	{
-		auto f = [this]()
+		Component::SafePointer<Component> safeThis = this;
+
+		auto f = [safeThis]()
 		{
-			this->repaint();
+			if (safeThis.getComponent() != nullptr)
+			{
+				safeThis.getComponent()->repaint();
+			}
 		};
 
 		new DelayedFunctionCaller(f, 100);
