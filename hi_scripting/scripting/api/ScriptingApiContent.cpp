@@ -323,7 +323,7 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 
 		const int index = sa.indexOf(newValue.toString()) - 1;
 
-		if (index >= -1) addToMacroControl(index);
+		addToMacroControl(index);
 	}
 	else if (id == getIdFor(parentComponent))
 	{
@@ -630,36 +630,8 @@ void ScriptingApi::Content::ScriptComponent::setPosition(int x, int y, int w, in
 
 void ScriptingApi::Content::ScriptComponent::addToMacroControl(int macroIndex)
 {
-	if (!parent->allowGuiCreation)
-	{
-		// Will be taken care of at next compilation
-		return;
-	}
-
-	int knobIndex = parent->components.indexOf(this);
-
-	if (knobIndex == -1)
-	{
-		reportScriptError("Component not valid");
-	}
-
-	if (macroIndex == -1)
-	{
-		getProcessor()->getMainController()->getMacroManager().removeMacroControlsFor(getProcessor(), getName());
-	}
-	else
-	{
-		NormalisableRange<double> range(getScriptObjectProperty(Properties::min), getScriptObjectProperty(Properties::max));
-
-		if (dynamic_cast<ScriptSlider*>(this) != nullptr)
-		{
-			range.interval = getScriptObjectProperty((int)ScriptSlider::Properties::stepSize);
-			HiSlider::setRangeSkewFactorFromMidPoint(range, getScriptObjectProperty((int)ScriptSlider::Properties::middlePosition));
-		}
-
-		getProcessor()->getMainController()->getMacroManager().getMacroChain()->addControlledParameter(
-			macroIndex, getProcessor()->getId(), knobIndex, name.toString(), range, false);
-	}
+    connectedMacroIndex = macroIndex;
+    
 };
 
 void ScriptingApi::Content::ScriptComponent::setDefaultValue(int p, const var &defaultValue)

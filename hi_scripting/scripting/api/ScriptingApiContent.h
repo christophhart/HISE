@@ -472,6 +472,18 @@ public:
 
 		int getConnectedParameterIndex() { return connectedParameterIndex; };
 
+        bool isConnectedToMacroControll() const noexcept
+        {
+            return !macroRecursionProtection && connectedMacroIndex != -1;
+        }
+        
+        void setMacroRecursionProtection(bool shouldBeEnabled)
+        {
+            macroRecursionProtection = shouldBeEnabled;
+        }
+        
+        int getMacroControlIndex() const { return connectedMacroIndex; }
+        
 		ValueTree getPropertyValueTree() { return propertyTree; }
 
 		struct ScopedPropertyEnabler
@@ -568,6 +580,9 @@ public:
 		WeakReference<Processor> connectedProcessor;
 		int connectedParameterIndex = -1;
 
+        int connectedMacroIndex = -1;
+        bool macroRecursionProtection = false;
+        
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptComponent);
 	};
 
@@ -1670,6 +1685,8 @@ public:
 
 	void beginInitialization();
 
+    
+    
 	ValueTree exportAsValueTree() const override;
 	void restoreFromValueTree(const ValueTree &v) override;
 

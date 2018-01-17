@@ -97,7 +97,18 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 
 	ScopedValueSetter<bool> objectConstructorSetter(allowObjectConstructors, true);
 
-	if (component->isConnectedToProcessor())
+    if (component->isConnectedToMacroControll())
+    {
+        
+        float v = jlimit<float>(0.0, 127.0, (float)component->getValue());
+        
+        component->setMacroRecursionProtection(true);
+        
+        getMainController_()->getMainSynthChain()->setMacroControl(component->getMacroControlIndex(), v, sendNotification);
+        
+        component->setMacroRecursionProtection(false);
+    }
+	else if (component->isConnectedToProcessor())
 	{
 		float v = (float)controllerValue;
 		FloatSanitizers::sanitizeFloatNumber(v);
