@@ -36,7 +36,7 @@ BEGIN_JUCE_MODULE_DECLARATION
 
   ID:               hi_frontend
   vendor:           Hart Instruments
-  version:          1.5.0
+  version:          1.5.1
   name:             HISE Frontend Module
   description:      use this module for compiled plugins
   website:          http://hise.audio
