@@ -206,6 +206,9 @@ public:
 		Component* refreshComponentForRow(int rowNumber, bool /*isRowSelected*/, Component* existingComponentToUpdate) override
 		{
 #if OLD_PRESET_BROWSER
+
+			ignoreUnused(rowNumber, existingComponentToUpdate);
+
 			return nullptr;
 #else
 			if (existingComponentToUpdate != nullptr)
@@ -847,6 +850,10 @@ public:
 	/** SaveButton = 1, ShowFolderButton = 0 */
 	void setShowButton(int buttonId, bool newValue)
 	{
+#if OLD_PRESET_BROWSER
+		ignoreUnused(buttonId, newValue);
+#else
+
 		enum ButtonIndexes
 		{
 			ShowFolderButton = 0,
@@ -854,7 +861,6 @@ public:
 			numButtonsToShow
 		};
 
-#if !OLD_PRESET_BROWSER
 		if (buttonId == SaveButton)
 		{
 			saveButton->setVisible(newValue);

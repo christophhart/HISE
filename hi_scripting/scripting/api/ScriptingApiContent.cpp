@@ -1007,8 +1007,6 @@ void ScriptingApi::Content::ScriptSlider::setScriptObjectPropertyWithChangeMessa
 {
 	jassert(propertyIds.contains(id));
 
-	auto propId = propertyIds.indexOf(id);
-	
 	if (id == Identifier("mode"))
 	{
 		jassert(isCorrectlyInitialised(id));
@@ -3315,7 +3313,7 @@ void ScriptingApi::Content::ScriptFloatingTile::setScriptObjectPropertyWithChang
 		}
 	}
 
-	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, sendNotification);
+	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 }
 
 // ====================================================================================================== Content functions
@@ -4212,7 +4210,7 @@ void ScriptingApi::Content::Helpers::deleteSelection(Content* c, ScriptComponent
 }
 
 
-void ScriptingApi::Content::Helpers::deleteComponent(Content* c, const Identifier& id, NotificationType rebuildContent/*=sendNotification*/)
+void ScriptingApi::Content::Helpers::deleteComponent(Content* c, const Identifier& id, NotificationType /*rebuildContent*//*=sendNotification*/)
 {
 	auto childToRemove = c->getValueTreeForComponent(id);
 

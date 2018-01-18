@@ -241,6 +241,9 @@ void PresetBrowserColumn::ButtonLookAndFeel::drawButtonText(Graphics& g, TextBut
 	g.setColour(highlightColour);
 	g.setFont(font.withHeight(18.0f));
 	g.drawText(button.getButtonText(), 0, 0, button.getWidth(), button.getHeight(), Justification::centred);
+
+	ignoreUnused(isMouseOverButton, isButtonDown);
+
 #else
 	g.setColour(highlightColour.withAlpha(isMouseOverButton || button.getToggleState() ? 1.0f : 0.7f));
     g.setFont(font);
