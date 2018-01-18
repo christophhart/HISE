@@ -734,14 +734,12 @@ public:
 	*/
 	static Tempo getTempoIndexForTime(double currentBpm, double milliSeconds)
 	{
-		float delta[Tempo::numTempos];
-
 		float max = 200000.0f;
 		int index = -1;
 
 		for (int i = 0; i < numTempos; i++)
 		{
-			const float thisDelta = fabsf(getTempoInMilliSeconds(currentBpm, (Tempo)i) - milliSeconds);
+			const float thisDelta = fabsf(getTempoInMilliSeconds((float)currentBpm, (Tempo)i) - (float)milliSeconds);
 
 			if (thisDelta < max)
 			{

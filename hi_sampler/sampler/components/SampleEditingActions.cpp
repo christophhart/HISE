@@ -73,7 +73,7 @@ void SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(SampleEdit
 
 		newSelectedIndexes.add(index);
 
-		auto newSound = s->addSamplerSound(v, index, true);
+		s->addSamplerSound(v, index, true);
 	}
     
     s->refreshPreloadSizes();
@@ -1225,8 +1225,6 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 			debugError(sampler, "Sample is empty.");
 			return -1;
 		}
-
-		return sample;
 	}
 
 	static int calculateSampleTrimOffset(int offset, AudioSampleBuffer &analyseBuffer, ModulatorSampler * sampler, float dBThreshold, bool snapToZero)
@@ -1282,8 +1280,6 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 			debugError(sampler, "Sample is empty.");
 			return -1;
 		}
-
-		return sample;
 	}
 
 	class Window : public Component,
@@ -1339,7 +1335,7 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 
 			void drawThreshhold(Graphics& g, Rectangle<int> bounds)
 			{
-				float ratio = Decibels::decibelsToGain(threshhold);
+				float ratio = Decibels::decibelsToGain((float)threshhold);
 				int height = (int)((float)bounds.getHeight() * ratio);
 
 				bounds = bounds.withSizeKeepingCentre(bounds.getWidth(), height);
@@ -1408,7 +1404,7 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 			handler->removeSelectionListener(this);
 		}
 
-		void soundSelectionChanged(SampleSelection& newSelection) override
+		void soundSelectionChanged(SampleSelection& /*newSelection*/) override
 		{
 			updatePreview();
 		}
@@ -1569,10 +1565,10 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 				for (int i = 0; i < handler->getSelection().getNumSelected(); i++)
 				{
 					values.add(i+1);
-					auto s = handler->getSelection().getSelectedItem(i);
-					if (s != nullptr)
+					auto currentSound = handler->getSelection().getSelectedItem(i);
+					if (currentSound != nullptr)
 					{
-						choices.add(s->getPropertyAsString(ModulatorSamplerSound::Property::FileName));
+						choices.add(currentSound->getPropertyAsString(ModulatorSamplerSound::Property::FileName));
 					}
 					else
 					{
@@ -1815,12 +1811,8 @@ private:
 
 		int multiMicIndex = 0;
 
-		int micPositions = handler->getSampler()->getNumMicPositions();
-
 		multiMicIndex = window->multimicIndex.getValue();
 		
-
-
 		float startThreshhold = window->threshhold.getValue();
 		float endThreshhold = window->endThreshhold.getValue();
 
@@ -1858,7 +1850,7 @@ private:
 					
 
 				int trimStart = calculateSampleTrimOffset(startOffset, analyseBuffer, sampler, startThreshhold, (int)window->snapToZero.getValue() == 1);
-				int trimEnd = calculateSampleEnd(endOffset, analyseBuffer, sampler, endThreshhold, (int)window->snapToZero.getValue() == 1);
+				int trimEnd = calculateSampleEnd((int)endOffset, analyseBuffer, sampler, endThreshhold, (int)window->snapToZero.getValue() == 1);
 
 				trimStart = jmin<int>(trimStart, (int)window->max.getValue());
 

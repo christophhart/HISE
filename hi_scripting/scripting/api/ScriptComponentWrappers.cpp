@@ -1544,8 +1544,6 @@ void ScriptCreatedComponentWrappers::SliderPackWrapper::updateValue(var newValue
 ScriptCreatedComponentWrappers::AudioWaveformWrapper::AudioWaveformWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptAudioWaveform *form, int index):
 ScriptCreatedComponentWrapper(content, index)
 {
-	auto processor = const_cast<Processor*>(dynamic_cast<const Processor*>(content->getScriptProcessor()));
-
 	AudioSampleBufferComponent *asb = new AudioSampleBufferComponent(form->getConnectedProcessor());
 
 	asb->setName(form->name.toString());

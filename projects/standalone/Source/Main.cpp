@@ -225,7 +225,7 @@ public:
 		exit(0);
 	}
 
-	static void getProjectFolder(const String& commandLine)
+	static void getProjectFolder(const String& /*commandLine*/)
 	{
 		print("Current project folder:\n" + getCurrentProjectFolder().getFullPathName());
 		exit(0);

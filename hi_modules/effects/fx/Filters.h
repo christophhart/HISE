@@ -356,7 +356,7 @@ class RingmodFilter : public MultiChannelFilter
 	void updateCoefficients() override
 	{
 		uptimeDelta = frequency / sampleRate * 2.0 * double_Pi;
-		oscGain = jmap<float>(q, 0.3f, 9.9f, 0.0f, 1.0f);
+		oscGain = jmap<float>((float)q, 0.3f, 9.9f, 0.0f, 1.0f);
 		oscGain = jlimit<float>(0.0f, 1.0f, oscGain);
 	}
 
@@ -371,7 +371,7 @@ class RingmodFilter : public MultiChannelFilter
 
 		for (int i = 0; i < numSamples; i++)
 		{
-			const float oscValue = oscGain * std::sin(uptime);;
+			const float oscValue = oscGain * (float)std::sin(uptime);;
 			
 
 			for (int c = 0; c < numChannels; c++)
@@ -472,9 +472,9 @@ public:
 
 		for (int i = 0; i < numChannels; i++)
 		{
-			filters[i].fMin = frequency;
-			filters[i].minDelay = frequency / (sampleRate / 2.f);
-			filters[i].feedback = jmap<float>(q, 0.3, 9.9, 0.0f, 0.99f);
+			filters[i].fMin = (float)frequency;
+			filters[i].minDelay = (float)(frequency / (sampleRate / 2.0));
+			filters[i].feedback = (float)jmap<double>(q, 0.3, 9.9, 0.0, 0.99);
 		}
 	}
 

@@ -1605,7 +1605,7 @@ public:
 
 		}
 
-		void prepareToPlay(double sampleRate_, int samplesPerBlock) override
+		void prepareToPlay(double sampleRate_, int /*samplesPerBlock*/) override
 		{
 			sampleRate = sampleRate_;
 
@@ -1635,9 +1635,9 @@ public:
 
 			switch (p)
 			{
-			case Parameters::Frequency: return frequency;
-			case Parameters::Q: return q;
-			case Parameters::Gain:		return gain;
+			case Parameters::Frequency: return (float)frequency;
+			case Parameters::Q: return (float)q;
+			case Parameters::Gain:		return (float)gain;
 			case Parameters::Mode:		return (float)(int)m;
 			}
 
@@ -1716,9 +1716,9 @@ public:
 			{
 			case Mode::LowPass: coefficients = IIRCoefficients::makeLowPass(sampleRate, frequency); break;
 			case Mode::HighPass: coefficients = IIRCoefficients::makeHighPass(sampleRate, frequency); break;
-			case Mode::LowShelf: coefficients = IIRCoefficients::makeLowShelf(sampleRate, frequency, q, gain); break;
-			case Mode::HighShelf: coefficients = IIRCoefficients::makeHighShelf(sampleRate, frequency, q, gain); break;
-			case Mode::Peak:      coefficients = IIRCoefficients::makePeakFilter(sampleRate, frequency, q, gain); break;
+			case Mode::LowShelf: coefficients = IIRCoefficients::makeLowShelf(sampleRate, frequency, q, (float)gain); break;
+			case Mode::HighShelf: coefficients = IIRCoefficients::makeHighShelf(sampleRate, frequency, q, (float)gain); break;
+			case Mode::Peak:      coefficients = IIRCoefficients::makePeakFilter(sampleRate, frequency, q, (float)gain); break;
 			}
 
 			leftFilter.setCoefficients(coefficients);

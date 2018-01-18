@@ -798,24 +798,24 @@ void HiseAudioThumbnail::LoadingThread::run()
 
 	if (reader != nullptr)
 	{
-		VariantBuffer::Ptr l = new VariantBuffer(reader->lengthInSamples);
+		VariantBuffer::Ptr l = new VariantBuffer((int)reader->lengthInSamples);
 		VariantBuffer::Ptr r;
 
 		if (reader->numChannels > 1)
-			r = new VariantBuffer(reader->lengthInSamples);
+			r = new VariantBuffer((int)reader->lengthInSamples);
 
 		float* d[2];
 
 		d[0] = l->buffer.getWritePointer(0);
 		d[1] = r != nullptr ? r->buffer.getWritePointer(0) : nullptr;
 
-		AudioSampleBuffer tempBuffer = AudioSampleBuffer(d, reader->numChannels, reader->lengthInSamples);
+		AudioSampleBuffer tempBuffer = AudioSampleBuffer(d, reader->numChannels, (int)reader->lengthInSamples);
 		
 
 		if (threadShouldExit())
 			return;
 
-		reader->read(&tempBuffer, 0, reader->lengthInSamples, 0, true, true);
+		reader->read(&tempBuffer, 0, (int)reader->lengthInSamples, 0, true, true);
 
 		if (threadShouldExit())
 			return;
@@ -974,7 +974,7 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
 
 			auto value = jmax<float>(0.0f, FloatVectorOperations::findMaximum(l_ + i, numToCheck));
 
-			p.lineTo(i, -1.0f * value);
+			p.lineTo((float)i, -1.0f * value);
 
 		};
 
@@ -987,7 +987,7 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
 
 			auto value = jmin<float>(0.0f, FloatVectorOperations::findMinimum(l_ + i, numToCheck));
 
-			p.lineTo(i, -1.0f * value);
+			p.lineTo((float)i, -1.0f * value);
 		};
 
 		p.closeSubPath();
@@ -1126,7 +1126,7 @@ void HiseAudioThumbnail::drawSection(Graphics &g, bool enabled)
 	}
 }
 
-void HiseAudioThumbnail::setReader(AudioFormatReader* r, int64 unused)
+void HiseAudioThumbnail::setReader(AudioFormatReader* r, int64 /*unused*/)
 {
 	currentReader = r;
 
