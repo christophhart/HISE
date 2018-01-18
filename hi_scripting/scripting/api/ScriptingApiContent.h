@@ -315,6 +315,8 @@ public:
 		virtual void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification);
 		virtual bool isAutomatable() const { return false; }
 
+		virtual bool isClickable() const { return getScriptObjectProperty(enabled); };
+
 		const Identifier getIdFor(int p) const;
 		int getNumIds() const;
 
@@ -846,7 +848,12 @@ public:
 			}
 			
 			ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
-			
+
+		}
+
+		bool isClickable() const override
+		{
+			return getScriptObjectProperty(Editable) && ScriptComponent::isClickable();
 		}
 
 		// ======================================================================================================== API Methods
