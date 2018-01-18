@@ -1642,14 +1642,16 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
     templateProject = templateProject.replace("%OSX_STATIC_LIBS%", additionalStaticLibs);
 #else
 
-	const File additionalStaticLibFolder = File(SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::WindowsStaticLibFolder, &GET_PROJECT_HANDLER(chainToExport)));
+	auto additionalStaticLibFolder = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::WindowsStaticLibFolder, &GET_PROJECT_HANDLER(chainToExport));
 
-	if (additionalStaticLibFolder.isDirectory())
+	
+
+	if (additionalStaticLibFolder.isNotEmpty())
 	{
-		REPLACE_WILDCARD_WITH_STRING("%WIN_STATIC_LIB_FOLDER_D64%", additionalStaticLibFolder.getChildFile("Debug_x64").getFullPathName());
-		REPLACE_WILDCARD_WITH_STRING("%WIN_STATIC_LIB_FOLDER_R64%", additionalStaticLibFolder.getChildFile("Release_x64").getFullPathName());
-		REPLACE_WILDCARD_WITH_STRING("%WIN_STATIC_LIB_FOLDER_D32%", additionalStaticLibFolder.getChildFile("Debug_x86").getFullPathName());
-		REPLACE_WILDCARD_WITH_STRING("%WIN_STATIC_LIB_FOLDER_R32%", additionalStaticLibFolder.getChildFile("Release_x86").getFullPathName());
+		REPLACE_WILDCARD_WITH_STRING("%WIN_STATIC_LIB_FOLDER_D64%", additionalStaticLibFolder + "/Debug_x64");
+		REPLACE_WILDCARD_WITH_STRING("%WIN_STATIC_LIB_FOLDER_R64%", additionalStaticLibFolder + "/Release_x64");
+		REPLACE_WILDCARD_WITH_STRING("%WIN_STATIC_LIB_FOLDER_D32%", additionalStaticLibFolder + "/Debug_x86");
+		REPLACE_WILDCARD_WITH_STRING("%WIN_STATIC_LIB_FOLDER_R32%", additionalStaticLibFolder + "/Release_x86");
 	}
 	else
 	{
