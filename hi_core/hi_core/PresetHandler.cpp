@@ -385,8 +385,12 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 	
 	File presetFile = File(targetFile);
 	
+    String existingNote;
+    
 	if (presetFile.existsAsFile() && PresetHandler::showYesNoWindow("Confirm overwrite", "Do you want to overwrite the preset (Press cancel to create a new user preset?"))
 	{
+        existingNote = MultiColumnPresetBrowser::DataBaseHelpers::getNoteFromXml(presetFile);
+        
 		presetFile.deleteFile();
 		
 	}
@@ -415,6 +419,11 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 
 			presetFile.replaceWithText(xml->createDocument(""));
 
+            if(existingNote.isNotEmpty())
+            {
+                MultiColumnPresetBrowser::DataBaseHelpers::writeNoteInXml(presetFile, existingNote);
+            }
+            
 			if (notify)
 			{
 				chain->getMainController()->getUserPresetHandler().setCurrentlyLoadedFile(presetFile);

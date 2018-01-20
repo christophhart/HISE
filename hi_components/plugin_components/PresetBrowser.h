@@ -592,12 +592,20 @@ public:
 					p->deleteEntry(le.columnIndex, le.oldFile);
 					break;
 				case MultiColumnPresetBrowser::ModalWindow::Action::Replace:
-					le.oldFile.moveFileTo(le.newFile);
+                    {
+                    auto note = DataBaseHelpers::getNoteFromXml(le.newFile);
+                        
+                    le.oldFile.moveFileTo(le.newFile);
+                        
+                    if(note.isNotEmpty())
+                        DataBaseHelpers::writeNoteInXml(le.newFile, note);
+                    
 					if (le.oldFile.getFileName() == "tempFileBeforeMove.preset")
 						le.oldFile.deleteFile();
 
 					p->rebuildAllPresets();
 					break;
+                    }
 				case MultiColumnPresetBrowser::ModalWindow::Action::numActions:
 					break;
 				default:
