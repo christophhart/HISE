@@ -158,8 +158,7 @@ private:
 *
 *	You can create subclasses of this component and populate it with some SampleArea objects (you can nest them if desired)
 */
-class AudioDisplayComponent: public Component,
-							 public ChangeListener
+class AudioDisplayComponent: public Component
 {
 public:
 
@@ -373,8 +372,11 @@ public:
 	*/
 	void setPlaybackPosition(double normalizedPlaybackPosition)
 	{
-		playBackPosition = normalizedPlaybackPosition;
-		repaint();
+        if(playBackPosition != normalizedPlaybackPosition)
+        {
+            playBackPosition = normalizedPlaybackPosition;
+            repaint();
+        }
 	};
 
 
@@ -385,33 +387,14 @@ public:
 		afm.registerBasicFormats();
 
 		addAndMakeVisible(preview = new HiseAudioThumbnail());
-
-		//preview = new AudioThumbnail(16, afm, cache_);
-		//preview->addChangeListener(this);
 	};
-
-#pragma warning( push )
-#pragma warning( disable : 4100)
-
-	virtual void changeListenerCallback(ChangeBroadcaster *b) override
-	{
-		//jassert(b == preview);
-
-		repaint();
-	}
-
-#pragma warning( pop )
 
 	/** Removes all listeners. */
 	virtual ~AudioDisplayComponent()
 	{
 		preview = nullptr;
 
-		list.clear();
-
-		//preview->clear();
-		//preview->removeAllChangeListeners();
-		
+		list.clear();		
 	};
 
 	/** Acts as listener and gets a callback whenever a area was changed. */
@@ -531,7 +514,8 @@ private:
 *	It uses a timer to display the current playbar.
 */
 class SamplerSoundWaveform: public AudioDisplayComponent,
-							public Timer
+							public Timer,
+                            public SafeChangeListener
 {
 public:
 
@@ -558,7 +542,11 @@ public:
 	void timerCallback() override;
 
 	
-
+    void changeListenerCallback(SafeChangeBroadcaster* b) override
+    {
+        updateRanges(nullptr);
+    }
+    
 	/** draws a vertical ruler at the position where the sample was recently started. */
 	void drawSampleStartBar(Graphics &g);
 

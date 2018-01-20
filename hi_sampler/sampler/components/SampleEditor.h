@@ -110,7 +110,6 @@ public:
 				else
 				{
 					soundToChange->setProperty(ModulatorSamplerSound::SampleStart, (int)startSample);
-					soundToChange->closeFileHandle();
 				}
 				break;
 			}
@@ -122,7 +121,7 @@ public:
 			}
 			}
 
-			currentWaveForm->updateRanges();
+			//currentWaveForm->updateRanges();
 		}
 	};
 

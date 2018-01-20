@@ -243,11 +243,14 @@ void ModulatorSamplerSound::setProperty(Property p, int newValue, NotificationTy
 	if (enableAsyncPropertyChange && isAsyncProperty(p))
 	{
 		ModulatorSamplerSound::Ptr refPtr = this;
-		auto f = [refPtr, p, newValue](Processor*)
+		auto f = [refPtr, p, newValue, notifyEditor](Processor*)
 		{
 			if (refPtr != nullptr)
 			{
-				static_cast<ModulatorSamplerSound*>(refPtr.get())->setPreloadPropertyInternal(p, newValue);	
+				static_cast<ModulatorSamplerSound*>(refPtr.get())->setPreloadPropertyInternal(p, newValue);
+                
+                if(notifyEditor)
+                    static_cast<ModulatorSamplerSound*>(refPtr.get())->sendChangeMessage();
 			}
 
 			return true;
@@ -258,9 +261,12 @@ void ModulatorSamplerSound::setProperty(Property p, int newValue, NotificationTy
 	else
 	{
 		setPropertyInternal(p, newValue);
+        
+        if(notifyEditor)
+            sendChangeMessage();
 	}
 
-	if(notifyEditor) sendChangeMessage();
+	
 }
 
 void ModulatorSamplerSound::toggleBoolProperty(ModulatorSamplerSound::Property p, NotificationType notifyEditor/*=sendNotification*/)

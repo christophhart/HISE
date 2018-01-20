@@ -56,11 +56,15 @@ public:
 
 	void sliderValueChanged(Slider *s)
 	{
-        setSamplePropertyValue((int)s->getValue(), false);
+        bool changed = setSamplePropertyValue((int)s->getValue(), false);
 
-		sendChangeMessage();
-
-		updateValue();
+        
+        if(changed)
+        {
+            sendChangeMessage();
+            
+            updateValue();
+        }
     };
     
     bool isFileAccessingProperty() const
@@ -71,9 +75,11 @@ public:
 
     }
     
-    void setSamplePropertyValue(int value, bool forceChange)
+    bool setSamplePropertyValue(int value, bool forceChange)
     {
         const int delta = (int)value - sliderStartValue;
+        
+        bool changed = false;
         
         for(int i = 0; i < currentSelection.size(); i++)
         {
@@ -87,11 +93,12 @@ public:
                 const int clippedValue = jlimit(low, high, newValue);
                 
                 currentSelection[i]->setPropertyWithUndo(soundProperty, clippedValue);
+                
+                changed = true;
             }
         };
         
-        
-       
+        return changed;
     }
 
 	void sliderDragStarted(Slider *s)
@@ -118,9 +125,12 @@ public:
             if(isFileAccessingProperty())
             {
                 setSamplePropertyValue((int)s->getValue(), true);
+                sendChangeMessage();
             }
             
 			currentSelection[0]->endPropertyChange(soundProperty, sliderStartValue, (int)s->getValue());
+            
+            
 		}
 	};
 

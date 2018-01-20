@@ -72,6 +72,8 @@ SamplerSoundWaveform::SamplerSoundWaveform(const ModulatorSampler *ownerSampler)
 
 SamplerSoundWaveform::~SamplerSoundWaveform()
 {
+    if(currentSound.get() != nullptr)
+        currentSound->removeChangeListener(this);
 	
 }
 
@@ -86,6 +88,10 @@ void SamplerSoundWaveform::timerCallback()
 			sampleStartPosition = sampler->getSamplerDisplayValues().currentSampleStartPos;
 			setPlaybackPosition(sampler->getSamplerDisplayValues().currentSamplePos);
 		}
+        else
+        {
+            setPlaybackPosition(0);
+        }
 	}
 	
 };
@@ -231,6 +237,9 @@ void SamplerSoundWaveform::paint(Graphics &g)
 
 void SamplerSoundWaveform::setSoundToDisplay(const ModulatorSamplerSound *s, int multiMicIndex/*=0*/)
 {
+    if(currentSound.get() != nullptr)
+        currentSound->removeChangeListener(this);
+    
 	if(s != nullptr && !s->isMissing() && !s->isPurged())
 	{
 		currentSound = const_cast<ModulatorSamplerSound*>(s);
@@ -259,7 +268,8 @@ void SamplerSoundWaveform::setSoundToDisplay(const ModulatorSamplerSound *s, int
 		else jassertfalse;
 		
 
-		
+        if(currentSound.get() != nullptr)
+            currentSound->addChangeListener(this);
 
 	}
 	else
