@@ -86,9 +86,9 @@ ValueTree BaseExporter::exportReferencedImageFiles()
 
 	loadOtherReferencedImages(chainToExport);
 
-    if (SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::UseIPP) == "All Images") {
-        loadAllImages(chainToExport);
-    }
+	if (SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::EmbedImages) == "All Images") {
+		loadAllImages(chainToExport);
+	}
 
 	ImagePool *imagePool = chainToExport->getMainController()->getSampleManager().getImagePool();
 
