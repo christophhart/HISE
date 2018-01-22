@@ -935,6 +935,9 @@ void ModulatorSynth::enablePitchModulation(bool shouldBeEnabled)
 
 	if (allowEmptyPitchValues() || shouldBeEnabled)
 	{
+		// Take this lock on the Synthesizer while we iterate over voices, to prevent anyone
+		// else from modifying the array during that time.
+		const ScopedLock sl (lock);
 		for (int i = 0; i < voices.size(); i++)
 		{
 			static_cast<ModulatorSynthVoice*>(getVoice(i))->enablePitchModulation(shouldBeEnabled);
