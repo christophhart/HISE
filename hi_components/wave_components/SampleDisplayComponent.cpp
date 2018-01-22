@@ -309,8 +309,8 @@ AudioDisplayComponent::SampleArea::SampleArea(int area_, AudioDisplayComponent *
 	setInterceptsMouseClicks(false, true);
 	edgeLaf = new EdgeLookAndFeel(this);
 		
-	addAndMakeVisible(leftEdge = new ResizableEdgeComponent(this, nullptr, ResizableEdgeComponent::leftEdge));
-	addAndMakeVisible(rightEdge = new ResizableEdgeComponent(this, nullptr, ResizableEdgeComponent::rightEdge));
+	addAndMakeVisible(leftEdge = new AreaEdge(this, nullptr, ResizableEdgeComponent::leftEdge));
+	addAndMakeVisible(rightEdge = new AreaEdge(this, nullptr, ResizableEdgeComponent::rightEdge));
 
 	setAreaEnabled(false);
 

@@ -46,12 +46,10 @@ class AudioDisplayComponent;
 
 
 
-class HiseAudioThumbnail: public Component
+class HiseAudioThumbnail: public Component,
+						  public AsyncUpdater
 {
-	
 public:
-
-	
 
 	HiseAudioThumbnail();;
 
@@ -83,27 +81,44 @@ public:
 		repaint();
 	}
 
+	void handleAsyncUpdate()
+	{
+		if (rebuildOnUpdate)
+		{
+			loadingThread.stopThread(-1);
+			
+			
+
+			loadingThread.startThread(5);
+				
+
+			rebuildOnUpdate = false;
+		}
+
+		if (repaintOnUpdate)
+		{
+			repaint();
+			repaintOnUpdate = false;
+		}
+		
+	}
+
 	void setRange(const int left, const int right);
 private:
 
+	bool repaintOnUpdate = false;
+	bool rebuildOnUpdate = false;
+
 	void refresh()
 	{
-		Component::SafePointer<Component> safeThis = this;
-
-		auto f = [safeThis]()
-		{
-			if (safeThis.getComponent() != nullptr)
-			{
-				safeThis.getComponent()->repaint();
-			}
-		};
-
-		new DelayedFunctionCaller(f, 100);
+		repaintOnUpdate = true;
+		triggerAsyncUpdate();
 	}
 
 	void rebuildPaths()
 	{
-		loadingThread.startThread(5);
+		rebuildOnUpdate = true;
+		triggerAsyncUpdate();
 	}
 
 	class LoadingThread : public Thread
@@ -331,8 +346,18 @@ public:
 
 		bool leftEdgeClicked;
 
-		ScopedPointer<ResizableEdgeComponent> leftEdge;
-		ScopedPointer<ResizableEdgeComponent> rightEdge;
+		class AreaEdge : public ResizableEdgeComponent,
+			public SettableTooltipClient
+		{
+		public:
+
+			AreaEdge(Component* componentToResize, ComponentBoundsConstrainer* constrainer, Edge edgeToResize) :
+				ResizableEdgeComponent(componentToResize, constrainer, edgeToResize)
+			{};
+		};
+
+		ScopedPointer<AreaEdge> leftEdge;
+		ScopedPointer<AreaEdge> rightEdge;
 
 	private:
 
@@ -426,6 +451,9 @@ public:
 
 			const int x = areas[i]->getXForSample(sampleRange.getStart(), false);
 			const int right = areas[i]->getXForSample(sampleRange.getEnd(), false);
+
+			areas[i]->leftEdge->setTooltip(String(sampleRange.getStart()));
+			areas[i]->rightEdge->setTooltip(String(sampleRange.getEnd()));
 
 			if (i == 0)
 			{
