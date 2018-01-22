@@ -1876,6 +1876,10 @@ File ProjectHandler::Frontend::getUserPresetDirectory()
 
 File ProjectHandler::Frontend::getAdditionalAudioFilesDirectory()
 {
+#if USE_BACKEND
+    return File();
+#else
+    
 #if USE_RELATIVE_PATH_FOR_AUDIO_FILES
 	File searchDirectory = ProjectHandler::Frontend::getAppDataDirectory().getChildFile("AudioFiles");
 
@@ -1886,6 +1890,7 @@ File ProjectHandler::Frontend::getAdditionalAudioFilesDirectory()
 
 #else
 	return File();
+#endif
 #endif
 }
 
