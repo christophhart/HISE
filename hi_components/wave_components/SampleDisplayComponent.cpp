@@ -653,7 +653,7 @@ void AudioSampleBufferComponent::mouseDown(const MouseEvent &e)
 	{
 		SET_CHANGED_FROM_PARENT_EDITOR()
         
-		String patterns = "*.wav;*.aif;*.aiff;*.WAV;*.AIFF";
+		String patterns = "*.wav;*.aif;*.aiff;*.WAV;*.AIFF;*.hlac;*.flac;*.HLAC;*.FLAC";
 
 #if USE_BACKEND
 
