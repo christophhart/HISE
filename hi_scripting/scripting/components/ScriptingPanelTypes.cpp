@@ -787,6 +787,8 @@ void ScriptContentPanel::Editor::Actions::rebuildAndRecompile(Editor* e)
     auto jp = dynamic_cast<JavascriptProcessor*>(e->getProcessor());
     auto content = jp->getContent();
     
+    content->setIsRebuilding(true);
+    
     Array<Identifier> ids;
     
     auto b = e->getScriptComponentEditBroadcaster();
@@ -798,15 +800,26 @@ void ScriptContentPanel::Editor::Actions::rebuildAndRecompile(Editor* e)
     
     content->resetContentProperties();
     
-    jp->compileScript();
-    
-    for (auto id : ids)
+    auto f = [jp, content, ids, b]()
     {
-        auto sc = content->getComponentWithName(id);
         
-        if (sc != nullptr)
-            b->addToSelection(sc, id == ids.getLast() ? sendNotification : dontSendNotification);
-    }
+        
+        jp->compileScript();
+        
+        for (auto id : ids)
+        {
+            auto sc = content->getComponentWithName(id);
+            
+            if (sc != nullptr)
+                b->addToSelection(sc, id == ids.getLast() ? sendNotification : dontSendNotification);
+        }
+        
+        content->setIsRebuilding(false);
+    };
+    
+    content->getUpdateDispatcher()->callFunctionAsynchronously(f);
+    
+    
 }
 
 void ScriptContentPanel::Editor::Actions::zoomIn(Editor* e)

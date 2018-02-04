@@ -168,7 +168,7 @@ private:
 
 		isCurrentlyUpdating = true;
 
-		DBG("REBUILD");
+		
 
         if(listener.get() != nullptr)
             listener->valueTreeNeedsUpdate();
@@ -209,6 +209,8 @@ public:
 		}
 
 		virtual void contentWasRebuilt() = 0;
+        
+        virtual void contentRebuildStateChanged(bool isRebuilding) {};
 
 	private:
 
@@ -1873,8 +1875,19 @@ public:
 		popupPanels.add(panel);
 	}
 
+    void setIsRebuilding(bool isCurrentlyRebuilding)
+    {
+        for(auto rl: rebuildListeners)
+        {
+            if(rl.get() != nullptr)
+                rl->contentRebuildStateChanged(isCurrentlyRebuilding);
+        }
+    }
+    
 private:
 
+    bool isRebuilding = false;
+    
 	UpdateDispatcher updateDispatcher;
 
 	ReferenceCountedArray<ScriptPanel> popupPanels;

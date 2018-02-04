@@ -272,6 +272,13 @@ void ScriptComponentListItem::moveItems(TreeView& treeView, const OwnedArray<Val
 	{
 		ScopedPointer<XmlElement> oldOpenness(treeView.getOpennessState(false));
 
+        auto c = dynamic_cast<ScriptComponentListItem*>(treeView.getRootItem())->content.get();
+        
+        if(c == nullptr)
+            return;
+        
+        ValueTreeUpdateWatcher::ScopedDelayer sd(c->getUpdateWatcher());
+        
 		undoManager.beginNewTransaction("Hierarchy change");
 
 		for (int i = items.size(); --i >= 0;)

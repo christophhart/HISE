@@ -4015,6 +4015,10 @@ void ScriptingApi::Content::cleanJavascriptObjects()
 
 void ScriptingApi::Content::rebuildComponentListFromValueTree()
 {
+    if(isRebuilding)
+        return;
+    
+    ScopedValueSetter<bool> rebuildLimiter(isRebuilding, true);
 	NamedValueSet values;
 
 	for (auto c : components)

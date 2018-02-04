@@ -129,8 +129,32 @@ public:
 
 	void paint(Graphics &g) override;
 
+    void paintOverChildren(Graphics& g) override
+    {
+        if(isRebuilding)
+        {
+            g.fillAll(Colours::black.withAlpha(0.8f));
+            g.setColour(Colours::white);
+            g.setFont(GLOBAL_BOLD_FONT());
+            g.drawText("Rebuilding...", 0, 0, getWidth(), getHeight(), Justification::centred, false);
+        }
+    }
+    
 	void contentWasRebuilt() override;
 
+    void contentRebuildStateChanged(bool rebuildState)
+    {
+        if(rebuildState)
+        {
+            deleteAllScriptComponents();
+        }
+        
+        isRebuilding = rebuildState;
+        
+        
+        repaint();
+    };
+    
 	void scriptWasCompiled(JavascriptProcessor *p) override;
 
 	/** Recreates all components based on the supplied Content object and restores its values. */
@@ -190,7 +214,7 @@ public:
 
 private:
 
-	
+    bool isRebuilding = false;
 
 	friend class ScriptCreatedComponentWrapper;
 
