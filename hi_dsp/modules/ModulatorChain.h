@@ -314,11 +314,9 @@ private:
 		addValueToPlotter(plot4);
 		
 		// Set the output value if the chain is not only a voice start chain!
-		if(!isVoiceStartChain) setOutputValue(plot1);
+		if(!isVoiceStartChain) 
+			setOutputValue(plot1);
 
-		//currentValues.outL = plot1;
-
-		
 	};
 
 	CriticalSection lock;
@@ -347,10 +345,10 @@ private:
 	Identifier chainIdentifier;
 
 	// the values of the envelope of the first voice is stored here to retrieve it at renderNextBlock...
-	float envelopeOutputValue1;
-	float envelopeOutputValue2;
-	float envelopeOutputValue3;
-	float envelopeOutputValue4;
+	float envelopeOutputValue1 = 0.0f;
+	float envelopeOutputValue2 = 0.0f;
+	float envelopeOutputValue3 = 0.0f;
+	float envelopeOutputValue4 = 0.0f;
 
 	float lastVoiceValues[NUM_POLYPHONIC_VOICES];
 

@@ -479,6 +479,11 @@ void ModulatorChain::renderVoice(int voiceIndex, int startSample, int numSamples
 	{
 		saveEnvelopeValueForPlotter(internalBuffer, startIndex, sampleAmount);
 	}
+#elif ENABLE_ALL_PEAK_METERS
+	if (voiceIndex == polyManager.getLastStartedVoice())
+	{
+		envelopeOutputValue1 = internalBuffer.getSample(0, startIndex);
+	}
 #endif
 
 }
@@ -511,6 +516,9 @@ void ModulatorChain::renderNextBlock(AudioSampleBuffer& buffer, int startSample,
 
 #if ENABLE_PLOTTER
 		updatePlotter(internalBuffer, startSample, numSamples);
+#elif ENABLE_ALL_PEAK_METERS
+		if (!isVoiceStartChain)
+			setOutputValue(internalBuffer.getSample(0, startSample) * envelopeOutputValue1);
 #endif
 
 		FloatVectorOperations::copy(buffer.getWritePointer(0, startIndex), internalBuffer.getReadPointer(0, startIndex), sampleAmount);
