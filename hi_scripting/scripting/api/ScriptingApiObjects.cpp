@@ -531,9 +531,9 @@ var ScriptingObjects::ScriptingModulator::getModulatorChain(var chainIndex)
         if (c == nullptr)
             reportScriptError("Modulator Chain with index " + chainIndex.toString() + " does not exist");
             
-        auto mod = new ScriptingModulator(getScriptProcessor(), c);
+        auto modChain = new ScriptingModulator(getScriptProcessor(), c);
             
-        return var(mod);
+        return var(modChain);
     }
     else
     {
