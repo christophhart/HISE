@@ -351,7 +351,7 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent(int property
 		PROPERTY_CASE::ScriptSlider::middlePosition :
 		PROPERTY_CASE::ScriptSlider::defaultValue :
 		PROPERTY_CASE::ScriptSlider::suffix :			updateSliderRange(sc, s); break;
-		PROPERTY_CASE::ScriptSlider::filmstripImage:		;
+		PROPERTY_CASE::ScriptSlider::filmstripImage:
 		PROPERTY_CASE::ScriptSlider::numStrips:
 		PROPERTY_CASE::ScriptSlider::isVertical :
 		PROPERTY_CASE::ScriptSlider::scaleFactor :		updateFilmstrip(); break;

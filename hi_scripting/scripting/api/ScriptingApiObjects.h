@@ -403,6 +403,9 @@ public:
 		/** Returns a reference as table processor to modify the table or undefined if no table modulator. */
 		var asTableProcessor();
 
+        /** Returns the Modulator chain with the given index. */
+        var getModulatorChain(var chainIndex);
+        
 		// ============================================================================================================
 
 		struct Wrapper;
@@ -493,6 +496,9 @@ public:
 
 		/** Adds a modulator to the given chain and returns a reference. */
 		var addModulator(var chainIndex, var typeName, var modName);
+
+		/** Returns the Modulator chain with the given index. */
+		var getModulatorChain(var chainIndex);
 
 		/** Adds a and connects a receiver modulator for the given global modulator. */
 		var addGlobalModulator(var chainIndex, var globalMod, String modName);
@@ -627,6 +633,9 @@ public:
 
 		/** Adds a modulator to the given chain and returns a reference. */
 		var addModulator(var chainIndex, var typeName, var modName);
+
+		/** Returns the modulator chain with the given index. */
+		var getModulatorChain(var chainIndex);
 
 		/** Adds a and connects a receiver modulator for the given global modulator. */
 		var addGlobalModulator(var chainIndex, var globalMod, String modName);
