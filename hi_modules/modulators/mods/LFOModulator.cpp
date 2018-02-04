@@ -276,7 +276,10 @@ float LfoModulator::calculateNewValue ()
 
 			if (!loopEnabled && (currentSliderIndex+1) == data->getNumSliders())
 			{
-				currentSliderValue = 1.0f;
+				if (loopEndValue == -1.0f)
+					loopEndValue = 1.0f - data->getValue(data->getNumSliders() - 1);
+
+				currentSliderValue = loopEndValue;
 			}
 			else
 			{
@@ -296,7 +299,10 @@ float LfoModulator::calculateNewValue ()
 	{
 		if (!loopEnabled && currentWaveform == Custom && uptime > (double)(SAMPLE_LOOKUP_TABLE_SIZE-1))
 		{
-			newValue = 1.0f;
+			if (loopEndValue == -1.0f)
+				loopEndValue = currentTable[SAMPLE_LOOKUP_TABLE_SIZE - 1];
+
+			newValue = 1.0f - loopEndValue;
 		}
 		else
 		{
@@ -374,6 +380,8 @@ void LfoModulator::handleHiseEvent(const HiseEvent &m)
 		{
 			uptime = 0.0;
 			
+			loopEndValue = -1.0f;
+
 			if (currentWaveform == Steps)
 			{
 				currentSliderIndex = 0;
