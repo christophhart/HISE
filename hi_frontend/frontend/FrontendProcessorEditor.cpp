@@ -163,7 +163,7 @@ void FrontendProcessorEditor::setGlobalScaleFactor(float newScaleFactor)
         
         AffineTransform scaler = AffineTransform::scale(scaleFactor);
         
-        container->setTransform(scaler);
+		container->setTransform(scaler);
         
         auto tl = findParentComponentOfClass<FrontendStandaloneApplication::AudioWrapper>();
         
@@ -174,7 +174,7 @@ void FrontendProcessorEditor::setGlobalScaleFactor(float newScaleFactor)
         }
         else
         {
-            setSize((int)((float)originalSizeX * scaleFactor), (int)((float)originalSizeY * scaleFactor));
+			setSize((int)((float)originalSizeX * scaleFactor), (int)((float)originalSizeY * scaleFactor));
         }
     }
 }
@@ -187,8 +187,8 @@ void FrontendProcessorEditor::resized()
 	int width = originalSizeX != 0 ? originalSizeX : getWidth();
     int height = originalSizeY != 0 ? originalSizeY : getHeight();
 #else
-	int width = getWidth();
-	int height = getHeight();
+	int width = (int)((double)getWidth() / scaleFactor);
+	int height = (int)((double)getHeight() / scaleFactor);
 #endif
 
 
@@ -196,7 +196,11 @@ void FrontendProcessorEditor::resized()
 	rootTile->setBounds(0, 0, width, height);
     deactiveOverlay->setBounds(0, 0, width, height);
 	loaderOverlay->setBounds(0, 0, width, height);
-	debugLoggerComponent->setBounds(0, height-90, width, 90);
+	debugLoggerComponent->setBounds(0, height -90, width, 90);
+
+	
+
+
 
 }
 

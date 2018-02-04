@@ -327,7 +327,19 @@ FrontendStandaloneApplication::AudioWrapper::AudioWrapper()
     setSize(size.getWidth(), size.getHeight());
 #else
 
-	setSize(1024, 768);
+	auto userHeight = Desktop::getInstance().getDisplays().getMainDisplay().userArea.getHeight();
+
+	if (userHeight < 768)
+	{
+		setSize(870, 653);
+	}
+	else
+	{
+		setSize(1024, 768);
+	}
+	
+
+	
 
     
 #endif
@@ -367,17 +379,15 @@ FrontendStandaloneApplication::MainWindow::MainWindow(String name) : DocumentWin
 	Colours::lightgrey,
 	DocumentWindow::allButtons)
 {
-	
-
 	setUsingNativeTitleBar(true);
 	setContentOwned(new AudioWrapper(), true);
-	centreWithSize(getWidth(), getHeight());
 
 	
 
+	centreWithSize(getWidth(), getHeight());
+
+		
 	setResizable(false, false);
-
-
 	setVisible(true);
 }
 
