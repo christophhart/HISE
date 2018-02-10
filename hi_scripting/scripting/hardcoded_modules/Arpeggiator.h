@@ -98,7 +98,8 @@ private:
 		enumSeqUP = 1,
 		enumSeqDN = 2,
 		enumSeqUPDN = 3,
-		enumSeqDNUP = 4
+		enumSeqDNUP = 4,
+		enumSeqRND
 	};
 
 	int curSeqPatternEnum = 1;
@@ -120,6 +121,8 @@ private:
 	int currentNoteLengthInSamples = 0;
 	int midiChannel = 1;
 	
+	bool randomOrder = false;
+
 	bool is_playing = false;
 
 	bool do_tie_note = false;
@@ -127,6 +130,8 @@ private:
 	int last_tied_note = -1;
 	bool dir_needs_change = false;
 	int curTiedNote = -1;
+
+	Random r;
 
 	void changeDirection();;
 

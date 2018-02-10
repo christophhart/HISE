@@ -144,7 +144,7 @@ void Arpeggiator::onInit()
 	sequenceComboBox = Content.addComboBox("SequenceComboBox", 10, 410);
 
 	sequenceComboBox->set("text", "Direction");
-	sequenceComboBox->set("items", "Up\nDown\nUp-Down\nDown-Up");
+	sequenceComboBox->set("items", "Up\nDown\nUp-Down\nDown-Up\nRandom");
 
 	parameterNames.add("Direction");
 
@@ -368,23 +368,41 @@ void Arpeggiator::playNote()
 		}
 	}
 
-	// this ensure that if a new note is added to the sorted list, we update where we are supposed to be along the sequence
-	// not a good implementation of the idea, but it works for now
-	if (sortKeysButton->getValue() && curHeldNoteIdx > 1) curHeldNoteIdx = MidiSequenceArraySorted.indexOf(currentNote) + arpDirMod;
+	
+	
 
-	// we must increment and wrap separately otherwise we will go from 0 to 1 and back to 0 instantly unless more than one note is held at exactly the same time
-	curHeldNoteIdx = WrapValueFromZeroToMax(curHeldNoteIdx, MidiSequenceArray.size());
-
-	curSeqPatternEnum = sequenceComboBox->getValue();
-
-	// check if we need to reverse sequence based on up/dn mode
-	if ((int)sequenceComboBox->getValue() >= Direction::enumSeqUPDN && MidiSequenceArray.size() > 1)
+	if (randomOrder)
 	{
-		if (arpDirMod > 0 && curHeldNoteIdx == MidiSequenceArray.size() - 1)
-			arpDirMod = -abs(arpDirMod);
-		else if (arpDirMod < 0 && curHeldNoteIdx == 0)
-			arpDirMod = abs(arpDirMod);
+		int newIndex = r.nextInt(MidiSequenceArraySorted.size());
+
+		while (curHeldNoteIdx == newIndex && MidiSequenceArraySorted.size() > 2)
+			newIndex = r.nextInt(MidiSequenceArraySorted.size());
+
+		curHeldNoteIdx = newIndex;
 	}
+	else
+	{
+		// this ensure that if a new note is added to the sorted list, we update where we are supposed to be along the sequence
+		// not a good implementation of the idea, but it works for now
+		if (sortKeysButton->getValue() && curHeldNoteIdx > 1)
+			curHeldNoteIdx = MidiSequenceArraySorted.indexOf(currentNote) + arpDirMod;
+
+		// we must increment and wrap separately otherwise we will go from 0 to 1 and back to 0 instantly unless more than one note is held at exactly the same time
+		curHeldNoteIdx = WrapValueFromZeroToMax(curHeldNoteIdx, MidiSequenceArray.size());
+
+		curSeqPatternEnum = sequenceComboBox->getValue();
+
+		// check if we need to reverse sequence based on up/dn mode
+		if ((int)sequenceComboBox->getValue() >= Direction::enumSeqUPDN && MidiSequenceArray.size() > 1)
+		{
+			if (arpDirMod > 0 && curHeldNoteIdx == MidiSequenceArray.size() - 1)
+				arpDirMod = -abs(arpDirMod);
+			else if (arpDirMod < 0 && curHeldNoteIdx == 0)
+				arpDirMod = abs(arpDirMod);
+		}
+	}
+
+	
 
 	const int stepResetAmount = (int)stepReset->getValue();
 
@@ -404,6 +422,9 @@ void Arpeggiator::playNote()
 
 	// get note either from the sorted sequence array or the non-sorted
 	currentNote = sortKeysButton->getValue() ? MidiSequenceArraySorted[curHeldNoteIdx] : MidiSequenceArray[curHeldNoteIdx];
+	
+
+	
 
 	// add semitone offset if enabled
 	if (do_use_step_semitone_offsets) currentNote += (int)semiToneSliderPack->getSliderValueAt(currentStep);
@@ -499,8 +520,11 @@ void Arpeggiator::playNote()
 
 	/* --- INCREMENTORS --- */
 
-	// increment and wraparound user held note index
-	curHeldNoteIdx += arpDirMod;
+	if (!randomOrder)
+	{
+		// increment and wraparound user held note index
+		curHeldNoteIdx += arpDirMod;
+	}
 
 	currentStepSlider->setValue(currentStep + 1);
 
@@ -523,9 +547,18 @@ void Arpeggiator::changeDirection()
 	{
 	case enumSeqUP:
 		arpDirMod = 1;
+		randomOrder = false;
 		break;
 	case enumSeqDN:
 		arpDirMod = -1;
+		randomOrder = false;
+		break;
+	case enumSeqDNUP:
+	case enumSeqUPDN:
+		randomOrder = false;
+		break;
+	case enumSeqRND:
+		randomOrder = true;
 		break;
 	}
 }
