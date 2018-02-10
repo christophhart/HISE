@@ -32,11 +32,12 @@
 
 namespace hise { using namespace juce;
 
-SliderPackData::SliderPackData() :
+SliderPackData::SliderPackData(UndoManager* undoManager_) :
 stepSize(0.1),
 nextIndexToDisplay(-1),
 showValueOverlay(true),
-flashActive(true)
+flashActive(true),
+undoManager(undoManager_)
 {
     enableAllocationFreeMessages(50);
     
@@ -58,16 +59,22 @@ Range<double> SliderPackData::getRange() const { return sliderRange; }
 double SliderPackData::getStepSize() const { return stepSize; }
 int SliderPackData::getNumSliders() const { return values.size(); };
 
-void SliderPackData::setValue(int sliderIndex, float value, NotificationType notifySliderPack/*=dontSendNotification*/)
+void SliderPackData::setValue(int sliderIndex, float value, NotificationType notifySliderPack/*=dontSendNotification*/, bool useUndoManager)
 {
 	if (sliderIndex >= 0 && sliderIndex < getNumSliders())
 	{
-		values[sliderIndex] = value;
-
-		if (notifySliderPack == sendNotification)
+		if (useUndoManager && undoManager != nullptr)
 		{
-			sendChangeMessage();
+			undoManager->perform(new SliderPackAction(this, sliderIndex, values[sliderIndex], value, notifySliderPack));
 		}
+		else
+		{
+			values[sliderIndex] = value;
+
+			if (notifySliderPack == sendNotification)
+				sendChangeMessage();
+		}
+
 	}
 }
 
@@ -153,7 +160,8 @@ data(data_),
 currentlyDragged(false),
 currentlyDraggedSlider(-1),
 currentlyDraggedSliderValue(0.0),
-defaultValue(0.0)
+defaultValue(0.0),
+dummyData(nullptr)
 {
 	if (data == nullptr)
 	{
@@ -277,7 +285,7 @@ void SliderPack::sliderValueChanged(Slider *s)
 
     if(data.get() == nullptr) return;
     
-	data->setValue(index, (float)s->getValue(), sendNotification);
+	data->setValue(index, (float)s->getValue(), sendNotification, true);
 
 	for (int i = 0; i < listeners.size(); i++)
 	{
@@ -304,7 +312,7 @@ void SliderPack::mouseDown(const MouseEvent &e)
 
 	if (e.mods.isLeftButtonDown())
 	{
-		
+		data->startDrag();
 
 		int sliderIndex = (int)((float)x / (float)getWidth() * sliders.size());
 

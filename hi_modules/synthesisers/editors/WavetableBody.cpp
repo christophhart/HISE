@@ -79,7 +79,7 @@ WavetableBody::WavetableBody (ProcessorEditor *p)
     fadeTimeEditor->setColour (TextEditor::highlightColourId, Colour (0x407a0000));
     fadeTimeEditor->addListener (this);
 
-    addAndMakeVisible (component = new TableEditor (dynamic_cast<WavetableSynth*>(getProcessor())->getGainTable()));
+    addAndMakeVisible (component = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), dynamic_cast<WavetableSynth*>(getProcessor())->getGainTable()));
     component->setName ("new component");
 
     addAndMakeVisible (hiqButton = new HiToggleButton ("HQ"));

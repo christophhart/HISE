@@ -34,7 +34,7 @@ GlobalModulatorEditor::GlobalModulatorEditor (ProcessorEditor *p)
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
 
-    addAndMakeVisible (midiTable = new TableEditor (dynamic_cast<GlobalModulator*>(getProcessor())->getTable(0)));
+    addAndMakeVisible (midiTable = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), dynamic_cast<GlobalModulator*>(getProcessor())->getTable(0)));
     midiTable->setName ("new component");
 
     addAndMakeVisible (useTableButton = new HiToggleButton ("new toggle button"));

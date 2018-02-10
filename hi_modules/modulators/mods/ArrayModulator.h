@@ -54,7 +54,7 @@ public:
 	ArrayModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m) :
 		VoiceStartModulator(mc, id, numVoices, m),
 		Modulation(m),
-		data(new SliderPackData())
+		data(new SliderPackData(mc->getControlUndoManager()))
 	{
 		data->setNumSliders(128);
 		data->setRange(0.0, 1.0, 0.001);

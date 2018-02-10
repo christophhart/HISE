@@ -40,7 +40,7 @@ MacroControlModulatorEditorBody::MacroControlModulatorEditorBody (ProcessorEdito
     label->setColour (TextEditor::textColourId, Colours::black);
     label->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
-    addAndMakeVisible (valueTable = new TableEditor (static_cast<MacroModulator*>(getProcessor())->getTable()));
+    addAndMakeVisible (valueTable = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), static_cast<MacroModulator*>(getProcessor())->getTable()));
     valueTable->setName ("new component");
 
     addAndMakeVisible (useTableButton = new ToggleButton ("new toggle button"));

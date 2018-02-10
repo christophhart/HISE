@@ -457,7 +457,7 @@ public:
 	Component* createContentComponent(int index) override
 	{
 		auto ltp = dynamic_cast<LookupTableProcessor*>(getProcessor());
-		return new TableEditor(ltp->getTable(index));
+		return new TableEditor(getProcessor()->getMainController()->getControlUndoManager(), ltp->getTable(index));
 	}
 
 	void fillModuleList(StringArray& moduleList) override

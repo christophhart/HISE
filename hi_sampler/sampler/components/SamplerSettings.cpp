@@ -302,7 +302,7 @@ SamplerSettings::SamplerSettings (ModulatorSampler *s)
     crossfadeGroupEditor->setColour (TextEditor::highlightColourId, Colour (0x407a0000));
     crossfadeGroupEditor->addListener (this);
 
-    addAndMakeVisible (crossfadeEditor = new TableEditor (dynamic_cast<ModulatorSampler*>(getProcessor())->getTable(0)));
+    addAndMakeVisible (crossfadeEditor = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), dynamic_cast<ModulatorSampler*>(getProcessor())->getTable(0)));
     crossfadeEditor->setName ("new component");
 
     addAndMakeVisible (voiceLimitLabel3 = new Label ("new label",

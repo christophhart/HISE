@@ -44,7 +44,7 @@ CCDuckerEditor::CCDuckerEditor (ProcessorEditor *p)
     ccSlider->addListener (this);
     ccSlider->setSkewFactor (0.3);
 
-    addAndMakeVisible (duckingTable = new TableEditor (dynamic_cast<LookupTableProcessor*>(getProcessor())->getTable(0)));
+    addAndMakeVisible (duckingTable = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), dynamic_cast<LookupTableProcessor*>(getProcessor())->getTable(0)));
     duckingTable->setName ("new component");
 
     addAndMakeVisible (timeSlider = new HiSlider ("Ducking Time"));

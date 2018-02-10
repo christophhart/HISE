@@ -33,11 +33,12 @@
 namespace hise { using namespace juce;
 
 //==============================================================================
-TableEditor::TableEditor(Table *tableToBeEdited):
+TableEditor::TableEditor(UndoManager* undoManager_, Table *tableToBeEdited):
 	editedTable(tableToBeEdited),
 	domainRange(Range<int>()),
 	currentType(DomainType::originalSize),
-	displayIndex(0.0f)
+	displayIndex(0.0f),
+	undoManager(undoManager_)
 {
 	if (editedTable == nullptr)
 		editedTable = &dummyTable;
@@ -84,6 +85,8 @@ void TableEditor::mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &w
 
 	DragPoint *dp = getPointUnder(x,y);
 
+	int thisIndex = drag_points.indexOf(dp);
+
 #if USE_BACKEND
 	const bool useEvent = dp != nullptr && e.mods.isCtrlDown();
 #else
@@ -92,13 +95,58 @@ void TableEditor::mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &w
 
 	if(useEvent)
 	{
-		dp->updateCurve(wheel.deltaY);
-		updateTable(true);
-		refreshGraph();
+		if (undoManager != nullptr && thisIndex != lastEditedPointIndex)
+		{
+			lastEditedPointIndex = thisIndex;
+			undoManager->beginNewTransaction("Change Curve");
+		}
+			
+
+		updateCurve(x, y, wheel.deltaY, true);
 	}
 
 	else getParentComponent()->mouseWheelMove(e, wheel);
 };
+
+
+void TableEditor::updateCurve(int x, int y, float newCurveValue, bool useUndoManager)
+{
+	auto dp = getPointUnder(x, y);
+
+	if (dp == nullptr)
+		return;
+
+	if (undoManager != nullptr && useUndoManager)
+	{
+		undoManager->perform(new TableAction(this, TableAction::Curve, -1, x, y, newCurveValue, x, y, -1.0f * newCurveValue));
+	}
+	else
+	{
+		dp->updateCurve(newCurveValue);
+		updateTable(true);
+		refreshGraph();
+	}
+}
+
+void TableEditor::addDragPoint(int x, int y, float curve, bool isStart/*=false*/, bool isEnd/*=false*/, bool useUndoManager/*=false*/)
+{
+	if (useUndoManager && undoManager != nullptr)
+	{
+		undoManager->perform(new TableAction(this, TableAction::Add, -1, x, y, curve, -1, -1, -1.0f));
+	}
+	else
+	{
+		DragPoint *dp = new DragPoint(isStart, isEnd);
+
+		dp->setCurve(curve);
+
+		dp->setTableEditorSize(getWidth(), getHeight());
+		dp->setPos(Point<int>(x, y));
+		addAndMakeVisible(dp);
+		this->drag_points.add(dp);
+		if (!(isEnd || isStart)) currently_dragged_point = nullptr; // fix #59
+	}
+}
 
 void TableEditor::createDragPoints()
 {
@@ -270,26 +318,36 @@ void TableEditor::mouseDown(const MouseEvent &e)
 	int x = parentEvent.getMouseDownPosition().getX();
 	int y = parentEvent.getMouseDownPosition().getY();
 
-	Component *clickedComponent = this->getComponentAt(x, y);
+	DragPoint *dp = this->getPointUnder(x, y);
 
+	lastEditedPointIndex = drag_points.indexOf(dp);
+	
 	if(e.mods.isLeftButtonDown())
 	{
-		if(clickedComponent != this)
+		if (dp != nullptr)
 		{
-			currently_dragged_point = this->getPointUnder(x,y);
+			if (undoManager != nullptr)
+				undoManager->beginNewTransaction("Move graph point");
+
+			currently_dragged_point = dp;
 
 			showTouchOverlay();
 		}
 		else
 		{
-			addDragPoint(x, y, 0.5f);
+			if (undoManager != nullptr)
+				undoManager->beginNewTransaction("Add graph point");
+
+			addDragPoint(x, y, 0.5f, false, false, true);
 		}
 	}
 	else
 	{
-		if(clickedComponent != this)
+		if(dp != nullptr)
 		{
-			DragPoint *dp = this->getPointUnder(x,y);
+			if (undoManager != nullptr)
+				undoManager->beginNewTransaction("Remove graph point");
+
 			removeDragPoint(dp);
             return;
 		}
@@ -305,18 +363,29 @@ void TableEditor::mouseDown(const MouseEvent &e)
 }
 
 
-void TableEditor::removeDragPoint(DragPoint * dp)
+void TableEditor::removeDragPoint(DragPoint * dp, bool useUndoManager)
 {
 	if (!dp->isStartOrEnd())
 	{
 
-		drag_points.remove(drag_points.indexOf(dp));
+		if (undoManager != nullptr && useUndoManager)
+		{
+			int x = dp->getBoundsInParent().getCentreX();
+			int y = dp->getBoundsInParent().getCentreY();
 
-		updateTable(true);
-        refreshGraph();
-        
-        needsRepaint = true;
-        repaint();
+			undoManager->perform(new TableAction(this, TableAction::Delete, -1, -1, -1, -1, x, y, dp->getCurve()));
+		}
+		else
+		{
+			drag_points.remove(drag_points.indexOf(dp));
+
+			updateTable(true);
+			refreshGraph();
+
+			needsRepaint = true;
+			repaint();
+		}
+
 
 	}
 }
@@ -382,18 +451,10 @@ void TableEditor::mouseDrag(const MouseEvent &e)
 	x = jmax(x, 1);
 	y = jmax(y, 0);
 
-	if(currently_dragged_point != nullptr)
-	{
-		currently_dragged_point->changePos(Point<int>(x, y));
+	auto index = drag_points.indexOf(currently_dragged_point);
 
-		updateTouchOverlayPosition();
+	changePointPosition(index, x, y, true);
 
-		updateTable(false); // Only update small tables while dragging
-		refreshGraph();
-
-		needsRepaint = true;
-		repaint();
-	}
 
 };
 
@@ -566,6 +627,104 @@ void TableEditor::TouchOverlay::sliderValueChanged(Slider* slider)
 			te->refreshGraph();
 		}
 	}
+}
+
+
+bool TableEditor::TableAction::perform()
+{
+	if (table.getComponent() == nullptr)
+		return false;
+
+	bool refresh = false;
+
+	switch (what)
+	{
+	case hise::TableEditor::TableAction::Add:
+		table->addDragPoint(x, y, curve, false, false, false);
+		refresh = true;
+		break;
+	case hise::TableEditor::TableAction::Delete:
+	{
+		auto dp = table->getPointUnder(oldX, oldY);
+		
+		if (dp != nullptr)
+			table->removeDragPoint(dp, false);
+
+		refresh = true;
+		break;
+	}
+		
+	case hise::TableEditor::TableAction::Drag:
+		table->changePointPosition(index, x, y, false);
+		break;
+	case hise::TableEditor::TableAction::Curve:
+		table->updateCurve(x, y, curve, false);
+		break;
+	case hise::TableEditor::TableAction::numActions:
+		break;
+	default:
+		break;
+	}
+
+	if (refresh)
+	{
+		table->updateTable(false);
+		table->refreshGraph();
+
+		table->needsRepaint = true;
+		table->repaint();
+	}
+
+	return true;
+}
+
+
+bool TableEditor::TableAction::undo()
+{
+	if (table.getComponent() == nullptr)
+		return false;
+
+	bool refresh = false;
+
+	switch (what)
+	{
+	case hise::TableEditor::TableAction::Add:
+	{
+		auto dp = table->getPointUnder(x, y);
+
+		refresh = true;
+
+		if (dp != nullptr)
+			table->removeDragPoint(dp, false);
+
+		break;
+	}
+	case hise::TableEditor::TableAction::Delete:
+		table->addDragPoint(oldX, oldY, oldCurve, false, false, false);
+		refresh = true;
+		break;
+	case hise::TableEditor::TableAction::Drag:
+		table->changePointPosition(index, oldX, oldY, false);
+		break;
+	case hise::TableEditor::TableAction::Curve:
+		table->updateCurve(x, y, oldCurve, false);
+		break;
+	case hise::TableEditor::TableAction::numActions:
+		break;
+	default:
+		break;
+	}
+
+	if (refresh)
+	{
+		table->updateTable(false);
+		table->refreshGraph();
+
+		table->needsRepaint = true;
+		table->repaint();
+	}
+
+	return true;
 }
 
 } // namespace hise

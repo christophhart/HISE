@@ -43,7 +43,7 @@ PitchWheelEditorBody::PitchWheelEditorBody (ProcessorEditor *p)
     label->setColour (TextEditor::textColourId, Colours::black);
     label->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
-    addAndMakeVisible (midiTable = new TableEditor (static_cast<ControlModulator*>(getProcessor())->getTable()));
+    addAndMakeVisible (midiTable = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), static_cast<ControlModulator*>(getProcessor())->getTable()));
     midiTable->setName ("new component");
 
     addAndMakeVisible (useTableButton = new ToggleButton ("new toggle button"));

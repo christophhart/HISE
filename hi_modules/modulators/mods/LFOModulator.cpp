@@ -52,7 +52,7 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
     intensityBuffer(1, 0),
     frequencyBuffer(1, 0),
 	customTable(new SampleLookupTable()),
-	data(new SliderPackData()),
+	data(new SliderPackData(mc->getControlUndoManager())),
 	currentWaveform((Waveform)(int)getDefaultValue(WaveFormType)),
 	currentTable(nullptr),
 	currentRandomValue(1.0f),

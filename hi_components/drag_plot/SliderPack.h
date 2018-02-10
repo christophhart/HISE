@@ -40,7 +40,7 @@ class SliderPackData: public SafeChangeBroadcaster
 {
 public:
 
-	SliderPackData();
+	SliderPackData(UndoManager* undoManager);
 
 	~SliderPackData();
 
@@ -48,13 +48,21 @@ public:
 
 	Range<double> getRange() const;
 
+	void startDrag()
+	{
+		if (undoManager != nullptr)
+		{
+			undoManager->beginNewTransaction();
+		}
+	}
+
 	double getStepSize() const;
 
 	void setNumSliders(int numSliders);
 
 	int getNumSliders() const;
 
-	void setValue(int sliderIndex, float value, NotificationType notifySliderPack=dontSendNotification);
+	void setValue(int sliderIndex, float value, NotificationType notifySliderPack=dontSendNotification, bool useUndoManager=false);
 
 	float getValue(int index) const;
 
@@ -97,7 +105,53 @@ public:
 	bool isFlashActive() const { return flashActive; }
 	bool isValueOverlayShown() const { return showValueOverlay; }
 
+	void setUndoManager(UndoManager* managerToUse)
+	{
+		undoManager = managerToUse;
+	}
+
 private:
+
+	struct SliderPackAction : public UndoableAction
+	{
+		SliderPackAction(SliderPackData* data_, int sliderIndex_, float oldValue_, float newValue_, NotificationType n_) :
+			UndoableAction(),
+			data(data_),
+			sliderIndex(sliderIndex_),
+			oldValue(oldValue_),
+			newValue(newValue_),
+			n(n_)
+		{};
+
+		bool perform() override
+		{
+			if (data != nullptr)
+			{
+				data->setValue(sliderIndex, newValue, n, false);
+				return true;
+			}
+
+			return false;
+		}
+
+		bool undo() override
+		{
+			if (data != nullptr)
+			{
+				data->setValue(sliderIndex, oldValue, n, false);
+				return true;
+			}
+
+			return false;
+		}
+
+		WeakReference<SliderPackData> data;
+		int sliderIndex;
+		float oldValue, newValue;
+		NotificationType n;
+	};
+
+	UndoManager* undoManager;
 
 	bool flashActive;
 	bool showValueOverlay;

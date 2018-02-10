@@ -53,10 +53,10 @@ TableEnvelopeEditorBody::TableEnvelopeEditorBody (ProcessorEditor *p)
     releaseSlider->addListener (this);
     releaseSlider->setSkewFactor (0.3);
 
-    addAndMakeVisible (attackTable = new TableEditor (static_cast<TableEnvelope*>(getProcessor())->getTable(0)));
+    addAndMakeVisible (attackTable = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), static_cast<TableEnvelope*>(getProcessor())->getTable(0)));
     attackTable->setName ("new component");
 
-    addAndMakeVisible (releaseTable = new TableEditor (static_cast<TableEnvelope*>(getProcessor())->getTable(1)));
+    addAndMakeVisible (releaseTable = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), static_cast<TableEnvelope*>(getProcessor())->getTable(1)));
     releaseTable->setName ("new component");
 
 

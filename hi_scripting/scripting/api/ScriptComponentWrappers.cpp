@@ -868,7 +868,9 @@ void ScriptCreatedComponentWrappers::LabelWrapper::updateValue(var newValue)
 ScriptCreatedComponentWrappers::TableWrapper::TableWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptTable *table, int index) :
 ScriptCreatedComponentWrapper(content, index)
 {
-	TableEditor *t = new TableEditor(table->getTable());
+	auto mc = getContent()->getScriptProcessor()->getMainController_();
+
+	TableEditor *t = new TableEditor(mc->getControlUndoManager(), table->getTable());
 
 	t->setName(table->name.toString());
 

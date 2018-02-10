@@ -89,7 +89,7 @@ LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
     retriggerButton->addListener (this);
     retriggerButton->setColour (ToggleButton::textColourId, Colours::white);
 
-    addAndMakeVisible (waveformTable = new TableEditor (static_cast<LfoModulator*>(getProcessor())->getTable()));
+    addAndMakeVisible (waveformTable = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), static_cast<LfoModulator*>(getProcessor())->getTable()));
     waveformTable->setName ("new component");
 
     addAndMakeVisible (smoothTimeSlider = new HiSlider ("Smooth Time"));

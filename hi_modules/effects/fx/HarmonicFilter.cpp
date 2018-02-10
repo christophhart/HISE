@@ -46,9 +46,9 @@ timeVariantFreqModulatorBuffer(1, 0)
 
 	editorStateIdentifiers.add("XFadeChainShown");
 
-	dataA = new SliderPackData();
-	dataB = new SliderPackData();
-	dataMix = new SliderPackData();
+	dataA = new SliderPackData(mc->getControlUndoManager());
+	dataB = new SliderPackData(mc->getControlUndoManager());
+	dataMix = new SliderPackData(mc->getControlUndoManager());
 
 	dataA->setRange(-24.0, 24.0, 0.1);
 	dataB->setRange(-24.0, 24.0, 0.1);
@@ -334,9 +334,9 @@ timeVariantFreqModulatorBuffer(1, 0)
 {
 	editorStateIdentifiers.add("XFadeChainShown");
 
-	dataA = new SliderPackData();
-	dataB = new SliderPackData();
-	dataMix = new SliderPackData();
+	dataA = new SliderPackData(mc->getControlUndoManager());
+	dataB = new SliderPackData(mc->getControlUndoManager());
+	dataMix = new SliderPackData(mc->getControlUndoManager());
 
 	dataA->setRange(-24.0, 24.0, 0.1);
 	dataB->setRange(-24.0, 24.0, 0.1);

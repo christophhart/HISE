@@ -335,7 +335,7 @@ public:
 	*
 	*	The lifetime of the table must be longer than the editor's lifetime.
 	*/
-	explicit TableEditor(Table *tableToBeEdited=nullptr);
+	explicit TableEditor(UndoManager* undoManager, Table *tableToBeEdited=nullptr);
 
 	~TableEditor();
 
@@ -409,8 +409,35 @@ public:
 	/** Updates the graph and the points. If the table size is smaller than 5000, it also refreshes the look up table. */
 	void mouseDrag(const MouseEvent &e) override;
 
+	void changePointPosition(int index, int x, int y, bool useUndoManager=false)
+	{
+		if (index == -1 || index >= drag_points.size())
+			return;
+
+		if (undoManager != nullptr & useUndoManager)
+		{
+			auto oldPos = drag_points[index]->getPos();
+
+			undoManager->perform(new TableAction(this, TableAction::Drag, index, x, y, 0.0f, oldPos.getX(), oldPos.getY(), 0.0f));
+		}
+		else
+		{
+			drag_points[index]->changePos(Point<int>(x, y));
+
+			updateTouchOverlayPosition();
+
+			updateTable(false); // Only update small tables while dragging
+			refreshGraph();
+
+			needsRepaint = true;
+			repaint();
+		}
+	}
+
 	/** If you move the mouse wheel over a point, you can adjust the curve to the left of the point */
 	void mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &wheel)  override;
+
+	void updateCurve(int x, int y, float newCurveValue, bool useUndoManager);
 
 	/** You can set a value which is displayed as input here. If the value is changed, the table will be repainted. 
 	*
@@ -625,25 +652,12 @@ private:
 	};
 
 	// Adds a new DragPoint and selects it.
-	DragPoint *addDragPoint(int x, int y, float curve, bool isStart=false, bool isEnd=false)
-	{
-		DragPoint *dp = new DragPoint(isStart, isEnd);
-		
-		dp->setCurve(curve);
-
-		dp->setTableEditorSize(getWidth(), getHeight());
-		dp->setPos(Point<int>(x, y));
-		addAndMakeVisible(dp);
-		this->drag_points.add(dp);
-		if (! (isEnd || isStart) ) currently_dragged_point = nullptr; // fix #59
-		
-		return dp;
-	}
+	void addDragPoint(int x, int y, float curve, bool isStart=false, bool isEnd=false, bool useUndoManager=false);
 
 	// Add a drag point directly from a GraphPoint
-	DragPoint *addNormalizedDragPoint(Table::GraphPoint normalizedPoint, bool isStart=false, bool isEnd=false)
+	void addNormalizedDragPoint(Table::GraphPoint normalizedPoint, bool isStart=false, bool isEnd=false)
 	{
-		return addDragPoint((int)(normalizedPoint.x * getWidth()), (int)((1.0f - normalizedPoint.y) * getHeight()), normalizedPoint.curve, isStart, isEnd);
+		addDragPoint((int)(normalizedPoint.x * getWidth()), (int)((1.0f - normalizedPoint.y) * getHeight()), normalizedPoint.curve, isStart, isEnd);
 	}
 
 	// Recreates the drag points from the given Table. It automatically adds the start / end flags.
@@ -674,6 +688,8 @@ private:
 	Image snapshot;
 	bool needsRepaint;
 
+	int lastEditedPointIndex = -1;
+
 	DomainType currentType;
 		
 	Range<int> domainRange;
@@ -683,6 +699,42 @@ private:
 	MidiTable dummyTable;
 
 	WeakReference<Processor> connectedProcessor;
+
+	class TableAction : public UndoableAction
+	{
+	public:
+
+		enum Action
+		{
+			Add,
+			Delete,
+			Drag,
+			Curve,
+			numActions
+		};
+
+		TableAction(TableEditor* table_, Action what_, int index_, int x_, int y_, float curve_,
+			int oldX_, int oldY_, float oldCurve_) :
+			table(table_),
+			what(what_),
+			index(index_),
+			x(x_),
+			y(y_),
+			curve(curve_),
+			oldX(oldX_),
+			oldY(oldY_),
+			oldCurve(oldCurve_)
+		{};
+
+		bool perform() override;
+
+		bool undo() override;
+
+		Component::SafePointer<TableEditor> table;
+		Action what;
+		int index, x, y, oldX, oldY;
+		float curve, oldCurve;
+	};
 
 	class TouchOverlay : public Component,
 						 public ButtonListener,
@@ -716,6 +768,8 @@ private:
 
 	WeakReference<DragPoint> currently_dragged_point;
 
+	UndoManager* undoManager;
+
 	ScopedPointer<Ruler> ruler;
 
 	ScopedPointer<TouchOverlay> touchOverlay;
@@ -728,7 +782,7 @@ private:
 
 	void closeTouchOverlay();
 
-	void removeDragPoint(DragPoint * dp);
+	void removeDragPoint(DragPoint * dp, bool useUndoManager=false);
 };
 
 

@@ -34,7 +34,7 @@ KeyEditor::KeyEditor (ProcessorEditor *p)
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
 
-    addAndMakeVisible (midiTable = new TableEditor (static_cast<KeyModulator*>(getProcessor())->getTable(KeyModulator::NumberMode)));
+    addAndMakeVisible (midiTable = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), static_cast<KeyModulator*>(getProcessor())->getTable(KeyModulator::NumberMode)));
     midiTable->setName ("new component");
 
     addAndMakeVisible (discreteTableEditor = new DiscreteTableEditor (dynamic_cast<KeyModulator*>(getProcessor())->getTable(KeyModulator::KeyMode)));
