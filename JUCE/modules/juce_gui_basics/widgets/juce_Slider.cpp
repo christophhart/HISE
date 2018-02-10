@@ -1061,6 +1061,10 @@ public:
                     auto delta = getMouseWheelDelta (value, (std::abs (wheel.deltaX) > std::abs (wheel.deltaY)
                                                                   ? -wheel.deltaX : wheel.deltaY)
                                                                * (wheel.isReversed ? -1.0f : 1.0f));
+
+					if (e.mods.isCommandDown())
+						delta *= 0.1;
+
                     if (delta != 0.0)
                     {
                         auto newValue = value + jmax (interval, std::abs (delta)) * (delta < 0 ? -1.0 : 1.0);

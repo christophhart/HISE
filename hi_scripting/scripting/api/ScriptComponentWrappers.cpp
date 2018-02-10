@@ -525,6 +525,11 @@ void ScriptCreatedComponentWrappers::SliderWrapper::sliderDragStarted(Slider* s)
 
 void ScriptCreatedComponentWrappers::SliderWrapper::sliderDragEnded(Slider* /*s*/)
 {
+	startTimer(200);
+}
+
+void ScriptCreatedComponentWrappers::SliderWrapper::timerCallback()
+{
 	if (auto c = getComponent())
 	{
 		Desktop::getInstance().getAnimator().fadeOut(currentPopup, 200);
@@ -540,6 +545,8 @@ void ScriptCreatedComponentWrappers::SliderWrapper::sliderDragEnded(Slider* /*s*
 
 		parentTile->removeChildComponent(currentPopup);
 		currentPopup = nullptr;
+
+		stopTimer();
 	}
 }
 

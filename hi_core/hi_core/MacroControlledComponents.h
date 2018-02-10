@@ -481,7 +481,8 @@ private:
 class HiSlider: public juce::Slider,
 				public MacroControlledObject,
 				public SliderListener,
-				public TouchAndHoldComponent
+				public TouchAndHoldComponent,
+				public TextEditor::Listener
 {
 public:
 
@@ -553,23 +554,7 @@ public:
 	*
 	*	The slider must be initialized using setup().
 	*/
-	HiSlider(const String &name):
-		Slider(name),
-   		MacroControlledObject(),
-        mode(numModes),
-		displayValue(1.0f),
-		useModulatedRing(false)
-	{
-        FloatVectorOperations::clear(modeValues, numModes);
-		addListener(this);
-		setWantsKeyboardFocus(false);
-        
-        setColour(HiBackgroundColours::upperBgColour, Colour(0x66333333));
-        setColour(HiBackgroundColours::lowerBgColour, Colour(0xfb111111));
-        setColour(HiBackgroundColours::outlineBgColour, Colours::white.withAlpha(0.3f));
-        setColour (TextEditor::highlightColourId, Colour (SIGNAL_COLOUR).withAlpha(0.5f));
-        setColour (TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
-	};
+	HiSlider(const String &name);;
 
 	
 	void mouseDown(const MouseEvent &e) override;
@@ -579,6 +564,16 @@ public:
 	void mouseUp(const MouseEvent&) override;
 
 	void touchAndHold(Point<int> downPosition) override;
+
+	
+	void updateValueFromLabel(bool updateValue);
+	
+	void textEditorFocusLost(TextEditor&) override;
+
+	void textEditorReturnKeyPressed(TextEditor&) override;
+
+	void textEditorEscapeKeyPressed(TextEditor&) override;
+
 
 #if USE_BACKEND
 	void paint(Graphics &g) override
@@ -719,6 +714,8 @@ public:
 	}
 
 private:
+
+	ScopedPointer<TextEditor> inputLabel;
 
 	String getModeSuffix()
 	{

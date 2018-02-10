@@ -358,7 +358,8 @@ class ScriptCreatedComponentWrappers
 public:
 
 	class SliderWrapper: public ScriptCreatedComponentWrapper,
-						 public SliderListener
+						 public SliderListener,
+						 public Timer
 	{
 	public:
 		SliderWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptSlider *scriptSlider, int index);
@@ -375,6 +376,8 @@ public:
 		void sliderDragStarted(Slider* s) override;
 
 		void sliderDragEnded(Slider* s) override;
+
+		void timerCallback() override;
 
 		ScopedPointer<ValuePopup> currentPopup;
 

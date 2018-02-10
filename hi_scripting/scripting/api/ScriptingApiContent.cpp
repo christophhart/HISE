@@ -1853,7 +1853,7 @@ struct ScriptingApi::Content::ScriptSliderPack::Wrapper
 
 ScriptingApi::Content::ScriptSliderPack::ScriptSliderPack(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier name_, int x, int y, int width, int height) :
 ScriptComponent(base, name_),
-packData(new SliderPackData()),
+packData(new SliderPackData(base->getMainController_()->getControlUndoManager())),
 existingData(nullptr)
 {
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::macroControl));

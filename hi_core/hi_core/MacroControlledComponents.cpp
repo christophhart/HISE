@@ -274,15 +274,65 @@ void HiSlider::setLookAndFeelOwned(LookAndFeel *laf_)
 	setLookAndFeel(laf);
 }
 
+HiSlider::HiSlider(const String &name) :
+	Slider(name),
+	MacroControlledObject(),
+	mode(numModes),
+	displayValue(1.0f),
+	useModulatedRing(false)
+{
+	setScrollWheelEnabled(true);
+
+	FloatVectorOperations::clear(modeValues, numModes);
+	addListener(this);
+	setWantsKeyboardFocus(false);
+
+	setColour(HiBackgroundColours::upperBgColour, Colour(0x66333333));
+	setColour(HiBackgroundColours::lowerBgColour, Colour(0xfb111111));
+	setColour(HiBackgroundColours::outlineBgColour, Colours::white.withAlpha(0.3f));
+	setColour(TextEditor::highlightColourId, Colour(SIGNAL_COLOUR).withAlpha(0.5f));
+	setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
+}
+
 void HiSlider::mouseDown(const MouseEvent &e)
 {
 	if (e.mods.isLeftButtonDown())
 	{
-        PresetHandler::setChanged(getProcessor());
-        
-		checkLearnMode();
-		Slider::mouseDown(e);
-		startTouch(e.getMouseDownPosition());
+		if (e.mods.isShiftDown())
+		{
+			addAndMakeVisible(inputLabel = new TextEditor());
+			
+			
+			inputLabel->centreWithSize(getWidth(), 20);
+
+			
+			inputLabel->addListener(this);
+			
+			inputLabel->setColour(TextEditor::ColourIds::backgroundColourId, Colours::black.withAlpha(0.6f));
+			inputLabel->setColour(TextEditor::ColourIds::textColourId, Colours::white.withAlpha(0.8f));
+			inputLabel->setColour(TextEditor::ColourIds::highlightedTextColourId, Colours::black);
+			inputLabel->setColour(TextEditor::ColourIds::highlightColourId, Colours::white.withAlpha(0.5f));
+			inputLabel->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colours::transparentBlack);
+			inputLabel->setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
+
+			inputLabel->setFont(GLOBAL_BOLD_FONT());
+			inputLabel->setBorder(BorderSize<int>());
+			inputLabel->setJustification(Justification::centred);
+			
+			inputLabel->setText(getTextFromValue(getValue()), dontSendNotification);
+			inputLabel->selectAll();
+			inputLabel->grabKeyboardFocus();
+
+		}
+		else
+		{
+			PresetHandler::setChanged(getProcessor());
+
+			checkLearnMode();
+			Slider::mouseDown(e);
+			startTouch(e.getMouseDownPosition());
+		}
+		
 	}
 	else
 	{
@@ -325,6 +375,37 @@ void HiSlider::touchAndHold(Point<int> /*downPosition*/)
 	else
 		removeParameterWithPopup();
 #endif
+}
+
+void HiSlider::updateValueFromLabel(bool shouldUpdateValue)
+{
+	if (inputLabel == nullptr)
+		return;
+
+	auto doubleValue = getValueFromText(inputLabel->getText());
+
+	if (shouldUpdateValue && (getRange().getRange().contains(doubleValue) || doubleValue == getMaximum()))
+	{
+		setAttributeWithUndo(doubleValue);
+	}
+
+	inputLabel->removeListener(this);
+	inputLabel = nullptr;
+}
+
+void HiSlider::textEditorFocusLost(TextEditor&)
+{
+	updateValueFromLabel(true);
+}
+
+void HiSlider::textEditorReturnKeyPressed(TextEditor&)
+{
+	updateValueFromLabel(true);
+}
+
+void HiSlider::textEditorEscapeKeyPressed(TextEditor&)
+{
+	updateValueFromLabel(false);
 }
 
 void HiToggleButton::setLookAndFeelOwned(LookAndFeel *laf_)
