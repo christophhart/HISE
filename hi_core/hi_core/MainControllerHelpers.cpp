@@ -533,7 +533,11 @@ void DelayedRenderer::prepareToPlayWrapped(double sampleRate, int samplesPerBloc
 {
 	if (shouldDelayRendering())
 	{
+#if FRONTEND_IS_PLUGIN
+		fullBlockSize = samplesPerBlock;
+#else
 		fullBlockSize = jmin<int>(256, samplesPerBlock);
+#endif
 
 		b1.setSize(2, fullBlockSize);
 		b2.setSize(2, fullBlockSize);

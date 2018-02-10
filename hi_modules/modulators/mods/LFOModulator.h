@@ -375,6 +375,7 @@ private:
 	float frequency;
 
 	float currentValue;
+	float loopEndValue = -1.0f;
 
 	double angleDelta;
 
