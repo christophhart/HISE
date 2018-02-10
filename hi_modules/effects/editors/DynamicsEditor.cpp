@@ -7,7 +7,7 @@
   the "//[xyz]" and "//[/xyz]" sections will be retained when the file is loaded
   and re-saved.
 
-  Created with Projucer version: 4.3.0
+  Created with Projucer version: 5.2.0
 
   ------------------------------------------------------------------------------
 
@@ -46,7 +46,7 @@ DynamicsEditor::DynamicsEditor (ProcessorEditor *p)
 
     addAndMakeVisible (label = new Label ("new label",
                                           TRANS("dynamics")));
-    label->setFont (Font ("Arial", 24.00f, Font::bold));
+    label->setFont (Font ("Arial", 24.00f, Font::plain).withTypefaceStyle ("Bold"));
     label->setJustificationType (Justification::centredRight);
     label->setEditable (false, false, false);
     label->setColour (Label::textColourId, Colour (0x70ffffff));
@@ -129,6 +129,16 @@ DynamicsEditor::DynamicsEditor (ProcessorEditor *p)
     limiterRelease->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     limiterRelease->addListener (this);
 
+    addAndMakeVisible (compMakeup = new HiToggleButton ("new toggle button"));
+    compMakeup->setButtonText (TRANS("Comp Makeup"));
+    compMakeup->addListener (this);
+    compMakeup->setColour (ToggleButton::textColourId, Colours::white);
+
+    addAndMakeVisible (limiterMakeup = new HiToggleButton ("new toggle button"));
+    limiterMakeup->setButtonText (TRANS("Limiter Makeup"));
+    limiterMakeup->addListener (this);
+    limiterMakeup->setColour (ToggleButton::textColourId, Colours::white);
+
 
     //[UserPreSize]
 
@@ -147,6 +157,7 @@ DynamicsEditor::DynamicsEditor (ProcessorEditor *p)
 	limiterAttack->setMode(HiSlider::Mode::Time, 0.0, 100.0, 10.0, 0.01);
 	limiterRelease->setMode(HiSlider::Mode::Time, 0.0, 300.0, 10.0, 0.01);
 	limiterThreshold->setMode(HiSlider::Mode::Decibel, -100, 0.0, -40.0, 0.1);
+	limiterMakeup->setup(getProcessor(), DynamicsEffect::Parameters::LimiterMakeup, "Limiter Makeup");
 
 	compAttack->setup(getProcessor(), DynamicsEffect::Parameters::CompressorAttack, "Attack");
 	compRelease->setup(getProcessor(), DynamicsEffect::Parameters::CompressorRelease, "Release");
@@ -157,6 +168,7 @@ DynamicsEditor::DynamicsEditor (ProcessorEditor *p)
 	compRelease->setMode(HiSlider::Mode::Time, 0.0, 300.0, 10.0, 0.01);
 	compThreshold->setMode(HiSlider::Mode::Decibel, -100, 0.0, -40.0, 0.1);
 	compRatio->setMode(HiSlider::Mode::Linear, 1.0, 32.0, 4.0, 0.1);
+	compMakeup->setup(getProcessor(), DynamicsEffect::Parameters::CompressorMakeup, "Comp Makeup");
 
 	gateMeter->setType(VuMeter::MonoVertical);
 	gateMeter->setColour(VuMeter::backgroundColour, Colour(0xFF333333));
@@ -181,7 +193,7 @@ DynamicsEditor::DynamicsEditor (ProcessorEditor *p)
 
     //[/UserPreSize]
 
-    setSize (800, 310);
+    setSize (800, 340);
 
 
     //[Constructor] You can add your own custom stuff here..
@@ -214,6 +226,8 @@ DynamicsEditor::~DynamicsEditor()
     limiterThreshold = nullptr;
     limiterAttack = nullptr;
     limiterRelease = nullptr;
+    compMakeup = nullptr;
+    limiterMakeup = nullptr;
 
 
     //[Destructor]. You can add your own custom destruction code here..
@@ -226,8 +240,14 @@ void DynamicsEditor::paint (Graphics& g)
     //[UserPrePaint] Add your own custom painting code here..
     //[/UserPrePaint]
 
-    g.setColour (Colour (0x30000000));
-    g.fillRoundedRectangle (static_cast<float> ((getWidth() / 2) - (700 / 2)), 12.0f, 700.0f, static_cast<float> (getHeight() - 24), 6.000f);
+    {
+        float x = static_cast<float> ((getWidth() / 2) - (700 / 2)), y = 12.0f, width = 700.0f, height = static_cast<float> (getHeight() - 24);
+        Colour fillColour = Colour (0x30000000);
+        //[UserPaintCustomArguments] Customize the painting arguments here..
+        //[/UserPaintCustomArguments]
+        g.setColour (fillColour);
+        g.fillRoundedRectangle (x, y, width, height, 6.000f);
+    }
 
     //[UserPaint] Add your own custom painting code here..
     //[/UserPaint]
@@ -255,6 +275,8 @@ void DynamicsEditor::resized()
     limiterThreshold->setBounds (((getWidth() / 2) + 208 - (128 / 2)) + 128 / 2 - (128 / 2), 64 + 40, 128, 48);
     limiterAttack->setBounds (((getWidth() / 2) + 208 - (128 / 2)) + 128 / 2 - (128 / 2), 64 + 90, 128, 48);
     limiterRelease->setBounds (((getWidth() / 2) + 208 - (128 / 2)) + 128 / 2 - (128 / 2), 64 + 140, 128, 48);
+    compMakeup->setBounds ((getWidth() / 2) - (128 / 2), 288, 128, 32);
+    limiterMakeup->setBounds ((getWidth() / 2) + 208 - (128 / 2), 288, 128, 32);
     //[UserResized] Add your own custom resize handling here..
 
 	compMeter->setTransform(AffineTransform::rotation(float_Pi, (float)compMeter->getBounds().getCentreX(), (float)compMeter->getBounds().getCentreY()));
@@ -282,6 +304,16 @@ void DynamicsEditor::buttonClicked (Button* buttonThatWasClicked)
     {
         //[UserButtonCode_limiterEnabled] -- add your button handler code here..
         //[/UserButtonCode_limiterEnabled]
+    }
+    else if (buttonThatWasClicked == compMakeup)
+    {
+        //[UserButtonCode_compMakeup] -- add your button handler code here..
+        //[/UserButtonCode_compMakeup]
+    }
+    else if (buttonThatWasClicked == limiterMakeup)
+    {
+        //[UserButtonCode_limiterMakeup] -- add your button handler code here..
+        //[/UserButtonCode_limiterMakeup]
     }
 
     //[UserbuttonClicked_Post]
@@ -418,7 +450,7 @@ BEGIN_JUCER_METADATA
                  parentClasses="public ProcessorEditorBody, public Timer" constructorParams="ProcessorEditor *p"
                  variableInitialisers="ProcessorEditorBody(p)&#10;" snapPixels="8"
                  snapActive="1" snapShown="1" overlayOpacity="0.330" fixedSize="1"
-                 initialWidth="800" initialHeight="310">
+                 initialWidth="800" initialHeight="340">
   <BACKGROUND backgroundColour="0">
     <ROUNDRECT pos="0Cc 12 700 24M" cornerSize="6" fill="solid: 30000000" hasStroke="0"/>
   </BACKGROUND>
@@ -433,7 +465,8 @@ BEGIN_JUCER_METADATA
          explicitFocusOrder="0" pos="80C 16 264 40" textCol="70ffffff"
          edTextCol="ff000000" edBkgCol="0" labelText="dynamics" editableSingleClick="0"
          editableDoubleClick="0" focusDiscardsChanges="0" fontname="Arial"
-         fontsize="24" bold="1" italic="0" justification="34"/>
+         fontsize="24" kerning="0" bold="1" italic="0" justification="34"
+         typefaceStyle="Bold"/>
   <SLIDER name="Gate Threshold" id="a66c2b8be13d8dd9" memberName="gateThreshold"
           virtualName="HiSlider" explicitFocusOrder="0" pos="0Cc 40 128 48"
           posRelativeX="e6345feaa3cb5bea" posRelativeY="e6345feaa3cb5bea"
@@ -508,6 +541,14 @@ BEGIN_JUCER_METADATA
           min="0" max="1" int="0.010000000000000000208" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="80"
           textBoxHeight="20" skewFactor="1" needsCallback="1"/>
+  <TOGGLEBUTTON name="new toggle button" id="6549ebd2506430d8" memberName="compMakeup"
+                virtualName="HiToggleButton" explicitFocusOrder="0" pos="0Cc 288 128 32"
+                posRelativeX="410a230ddaa2f2e8" txtcol="ffffffff" buttonText="Comp Makeup"
+                connectedEdges="0" needsCallback="1" radioGroupId="0" state="0"/>
+  <TOGGLEBUTTON name="new toggle button" id="98e23aec76b01e5b" memberName="limiterMakeup"
+                virtualName="HiToggleButton" explicitFocusOrder="0" pos="208Cc 288 128 32"
+                posRelativeX="410a230ddaa2f2e8" txtcol="ffffffff" buttonText="Limiter Makeup"
+                connectedEdges="0" needsCallback="1" radioGroupId="0" state="0"/>
 </JUCER_COMPONENT>
 
 END_JUCER_METADATA

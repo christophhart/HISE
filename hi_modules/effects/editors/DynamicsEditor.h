@@ -7,7 +7,7 @@
   the "//[xyz]" and "//[/xyz]" sections will be retained when the file is loaded
   and re-saved.
 
-  Created with Projucer version: 4.3.0
+  Created with Projucer version: 5.2.0
 
   ------------------------------------------------------------------------------
 
@@ -17,8 +17,7 @@
   ==============================================================================
 */
 
-#ifndef __JUCE_HEADER_DC8D364231F284E6__
-#define __JUCE_HEADER_DC8D364231F284E6__
+#pragma once
 
 //[Headers]     -- You can add your own extra header files here --
 
@@ -39,8 +38,8 @@ namespace hise { using namespace juce;
 */
 class DynamicsEditor  : public ProcessorEditorBody,
                         public Timer,
-                        public ButtonListener,
-                        public SliderListener
+                        public Button::Listener,
+                        public Slider::Listener
 {
 public:
     //==============================================================================
@@ -91,6 +90,8 @@ private:
     ScopedPointer<HiSlider> limiterThreshold;
     ScopedPointer<HiSlider> limiterAttack;
     ScopedPointer<HiSlider> limiterRelease;
+    ScopedPointer<HiToggleButton> compMakeup;
+    ScopedPointer<HiToggleButton> limiterMakeup;
 
 
     //==============================================================================
@@ -100,5 +101,3 @@ private:
 //[EndFile] You can add extra defines here...
 } // namespace hise
 //[/EndFile]
-
-#endif   // __JUCE_HEADER_DC8D364231F284E6__

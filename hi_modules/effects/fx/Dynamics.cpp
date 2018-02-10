@@ -14,7 +14,11 @@ DynamicsEffect::DynamicsEffect(MainController *mc, const String &uid) :
 	MasterEffectProcessor(mc, uid),
 	gateEnabled(false),
 	compressorEnabled(false),
-	limiterEnabled(false)
+	limiterEnabled(false),
+	limiterMakeupGain(1.0f),
+	compressorMakeupGain(1.0f),
+	limiterMakeup(false),
+	compressorMakeup(false)
 {
 	parameterNames.add("GateEnabled");
 	parameterNames.add("GateThreshold");
@@ -27,11 +31,15 @@ DynamicsEffect::DynamicsEffect(MainController *mc, const String &uid) :
 	parameterNames.add("CompressorAttack");
 	parameterNames.add("CompressorRelease");
 	parameterNames.add("CompressorReduction");
+	parameterNames.add("CompressorMakeup");
 	parameterNames.add("LimiterEnabled");
 	parameterNames.add("LimiterThreshold");
 	parameterNames.add("LimiterAttack");
 	parameterNames.add("LimiterRelease");
 	parameterNames.add("LimiterReduction");
+	parameterNames.add("LimiterMakeup");
+
+	
 }
 
 void DynamicsEffect::setInternalAttribute(int parameterIndex, float newValue)
@@ -44,15 +52,17 @@ void DynamicsEffect::setInternalAttribute(int parameterIndex, float newValue)
 	case CompressorEnabled:		compressorEnabled = newValue > 0.5f; break;
 	case LimiterEnabled:		limiterEnabled = newValue > 0.5f; break;
 	case GateThreshold:			gate.setThresh((SimpleDataType)newValue); break;
-	case CompressorThreshold:	compressor.setThresh((SimpleDataType)newValue); break;
-	case LimiterThreshold:		limiter.setThresh((SimpleDataType)newValue); break;
+	case CompressorThreshold:	compressor.setThresh((SimpleDataType)newValue); updateMakeupValues(false); break;
+	case LimiterThreshold:		limiter.setThresh((SimpleDataType)newValue); updateMakeupValues(true); break;
 	case GateAttack:			gate.setAttack((SimpleDataType)newValue); break;
 	case CompressorAttack:		compressor.setAttack((SimpleDataType)newValue); break;
 	case LimiterAttack:			limiter.setAttack((SimpleDataType)newValue); break;
 	case GateRelease:			gate.setRelease((SimpleDataType)newValue); break;
 	case CompressorRelease:		compressor.setRelease((SimpleDataType)newValue); break;
 	case LimiterRelease:		limiter.setRelease((SimpleDataType)newValue); break;
-	case CompressorRatio:		compressor.setRatio((SimpleDataType)(1.0f / newValue)); break;
+	case CompressorRatio:		compressor.setRatio((SimpleDataType)(1.0f / newValue)); updateMakeupValues(false); break;
+	case CompressorMakeup:		compressorMakeup = newValue > 0.5f; updateMakeupValues(false); break;
+	case LimiterMakeup:			limiterMakeup = newValue > 0.5f; updateMakeupValues(true); break;
 	case GateReduction:
 	case CompressorReduction:
 	case LimiterReduction:		break;
@@ -85,6 +95,8 @@ float DynamicsEffect::getAttribute(int parameterIndex) const
 	case GateReduction:			return gateReduction;
 	case CompressorReduction:	return compressorReduction;
 	case LimiterReduction:		return limiterReduction;
+	case CompressorMakeup:		return compressorMakeup ? 1.0f : 0.0f;
+	case LimiterMakeup:			return compressorMakeup ? 1.0f : 0.0f;
 	default:
 		break;
 	}
@@ -114,6 +126,8 @@ float DynamicsEffect::getDefaultValue(int parameterIndex) const
 	case GateReduction:			return 0.f;
 	case CompressorReduction:	return 0.f;
 	case LimiterReduction:		return 0.f;
+	case LimiterMakeup:			return false;
+	case CompressorMakeup:		return false;
 	case numParameters:			jassertfalse;
 		
 	default:
@@ -140,6 +154,8 @@ void DynamicsEffect::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(LimiterThreshold, "LimiterThreshold");
 	loadAttribute(LimiterAttack, "LimiterAttack");
 	loadAttribute(LimiterRelease, "LimiterRelease");
+	loadAttribute(CompressorMakeup, "CompressorMakeup");
+	loadAttribute(LimiterMakeup, "LimiterMakeup");
 }
 
 ValueTree DynamicsEffect::exportAsValueTree() const
@@ -159,6 +175,8 @@ ValueTree DynamicsEffect::exportAsValueTree() const
 	saveAttribute(LimiterThreshold, "LimiterThreshold");
 	saveAttribute(LimiterAttack, "LimiterAttack");
 	saveAttribute(LimiterRelease, "LimiterRelease");
+	saveAttribute(CompressorMakeup, "CompressorMakeup");
+	saveAttribute(LimiterMakeup, "LimiterMakeup");
 
 	return v;
 }
@@ -230,6 +248,12 @@ void DynamicsEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int
 			*l++ = (float)l_;
 			*r++ = (float)r_;
 		}
+
+		if (compressorMakeup)
+		{
+			FloatVectorOperations::multiply(buffer.getWritePointer(0, startSample), compressorMakeupGain, numToProcess);
+			FloatVectorOperations::multiply(buffer.getWritePointer(1, startSample), compressorMakeupGain, numToProcess);
+		}
 	}
 
 	if (limiterEnabled)
@@ -254,6 +278,12 @@ void DynamicsEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int
 			*l++ = (float)l_;
 			*r++ = (float)r_;
 		}
+
+		if (limiterMakeup)
+		{
+			FloatVectorOperations::multiply(buffer.getWritePointer(0, startSample), limiterMakeupGain, numToProcess);
+			FloatVectorOperations::multiply(buffer.getWritePointer(1, startSample), limiterMakeupGain, numToProcess);
+		}
 	}
 	
 }
@@ -269,6 +299,31 @@ void DynamicsEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 	gate.setSampleRate(sampleRate);
 	compressor.setSampleRate(sampleRate);
 	limiter.setSampleRate(sampleRate);
+}
+
+
+void DynamicsEffect::updateMakeupValues(bool updateLimiter)
+{
+	if (updateLimiter)
+	{
+		if (limiterMakeup)
+			limiterMakeupGain = (float)Decibels::decibelsToGain(limiter.getThresh() * -1.0);
+		else
+			limiterMakeupGain = 1.0f;
+	}
+	else
+	{
+		if (compressorMakeup)
+		{
+			auto attenuation = compressor.getThresh();
+			auto ratio = compressor.getRatio();
+			auto gainDb = (1.0 - ratio) * attenuation * -1.0;
+
+			compressorMakeupGain = (float)Decibels::decibelsToGain(gainDb);
+		}
+		else
+			compressorMakeupGain = 1.0f;
+	}
 }
 
 } // namespace hise

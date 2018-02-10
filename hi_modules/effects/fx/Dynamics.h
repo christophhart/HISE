@@ -55,11 +55,13 @@ public:
 		CompressorAttack,
 		CompressorRelease,
 		CompressorReduction,
+		CompressorMakeup,
 		LimiterEnabled,
 		LimiterThreshold,
 		LimiterAttack,
 		LimiterRelease,
 		LimiterReduction,
+		LimiterMakeup,
 		numParameters
 	};
 
@@ -88,6 +90,8 @@ public:
 
 private:
 
+	void updateMakeupValues(bool updateLimiter);
+
 	chunkware_simple::SimpleGate gate;
 	chunkware_simple::SimpleComp compressor;
 	chunkware_simple::SimpleLimit limiter;
@@ -96,9 +100,15 @@ private:
 	std::atomic<bool> compressorEnabled;
 	std::atomic<bool> limiterEnabled;
 
+	std::atomic<bool> compressorMakeup;
+	std::atomic<bool> limiterMakeup;
+
 	std::atomic<float> gateReduction;
 	std::atomic<float> limiterReduction;
 	std::atomic<float> compressorReduction;
+
+	std::atomic<float> compressorMakeupGain;
+	std::atomic<float> limiterMakeupGain;
 };
 
 
