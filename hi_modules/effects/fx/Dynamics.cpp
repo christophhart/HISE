@@ -96,7 +96,7 @@ float DynamicsEffect::getAttribute(int parameterIndex) const
 	case CompressorReduction:	return compressorReduction;
 	case LimiterReduction:		return limiterReduction;
 	case CompressorMakeup:		return compressorMakeup ? 1.0f : 0.0f;
-	case LimiterMakeup:			return compressorMakeup ? 1.0f : 0.0f;
+	case LimiterMakeup:			return limiterMakeup ? 1.0f : 0.0f;
 	default:
 		break;
 	}

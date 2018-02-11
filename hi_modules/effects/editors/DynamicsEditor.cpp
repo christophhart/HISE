@@ -397,11 +397,13 @@ void DynamicsEditor::updateGui()
 	compAttack->updateValue();
 	compRelease->updateValue();
 	compRatio->updateValue();
+	compMakeup->updateValue();
 
 	limiterEnabled->updateValue();
 	limiterThreshold->updateValue();
 	limiterAttack->updateValue();
 	limiterRelease->updateValue();
+	limiterMakeup->updateValue();
 }
 
 
