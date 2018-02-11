@@ -110,6 +110,7 @@ public:
 		undoManager = managerToUse;
 	}
 
+	void setNewUndoAction() const;
 private:
 
 	struct SliderPackAction : public UndoableAction

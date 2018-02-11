@@ -147,6 +147,12 @@ void SliderPackData::fromBase64(const String &encodedValues)
 	}
 }
 
+void SliderPackData::setNewUndoAction() const
+{
+	if (undoManager != nullptr)
+		undoManager->beginNewTransaction();
+}
+
 void SliderPackData::setNumSliders(int numSliders)
 {
 	values.resize(numSliders);
@@ -540,6 +546,8 @@ void SliderPack::paintOverChildren(Graphics &g)
 
 void SliderPack::setValuesFromLine()
 {
+	data->setNewUndoAction();
+
 	for (int i = 0; i < sliders.size(); i++)
 	{
 		Slider *s = sliders[i];
