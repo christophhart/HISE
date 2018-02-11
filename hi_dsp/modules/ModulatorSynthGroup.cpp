@@ -1048,7 +1048,12 @@ void ModulatorSynthGroup::killAllVoices()
 		{
 			if (c.isActiveForThisVoice)
 			{
-				static_cast<ModulatorSynthVoice*>(c.synth->getVoice(i))->killVoice();
+				auto childVoice = c.synth->getVoice(i);
+
+				if (childVoice != nullptr)
+				{
+					static_cast<ModulatorSynthVoice*>(childVoice)->killVoice();
+				}
 			}
 		}
 	}
