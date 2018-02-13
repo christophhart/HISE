@@ -210,7 +210,7 @@ public:
 
 		virtual void contentWasRebuilt() = 0;
         
-        virtual void contentRebuildStateChanged(bool isRebuilding) {};
+        virtual void contentRebuildStateChanged(bool /*isRebuilding*/) {};
 
 	private:
 

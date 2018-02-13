@@ -570,7 +570,7 @@ public:
 	void timerCallback() override;
 
 	
-    void changeListenerCallback(SafeChangeBroadcaster* b) override
+    void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override
     {
         updateRanges(nullptr);
     }

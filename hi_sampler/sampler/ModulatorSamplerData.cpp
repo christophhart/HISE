@@ -470,7 +470,7 @@ void SampleMap::loadSamplesFromMonolith(const ValueTree &v)
 	if (!monolithDirectory.isDirectory())
 	{
 		sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage,
-			"The sample directory is not existing");
+			"The sample directory does not exist");
 #if USE_FRONTEND
 		sampler->deleteAllSounds();
 #endif

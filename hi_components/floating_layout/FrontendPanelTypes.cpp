@@ -671,7 +671,7 @@ void AboutPagePanel::rebuildText()
 	}
 #endif
 	
-	text.append(nl + "Build with HISE Version ", bold, low);
+	text.append(nl + "Built with HISE Version ", bold, low);
 	text.append(hiseVersion + nl, bold, low);
 
 	if (showBuildDate)

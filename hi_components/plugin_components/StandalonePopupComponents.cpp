@@ -675,7 +675,7 @@ void CustomSettingsWindow::paint(Graphics& g)
 	DRAW_LABEL(Properties::ScaleFactor, "UI Zoom Factor");
 	DRAW_LABEL(Properties::StreamingMode, "Streaming Mode");
 	DRAW_LABEL(Properties::SustainCC, "Sustain CC");
-	DRAW_LABEL(Properties::VoiceAmountMultiplier, "Voice Amount");
+	DRAW_LABEL(Properties::VoiceAmountMultiplier, "Max Voices");
 
 	if (isOn(Properties::ClearMidiCC))
 	{

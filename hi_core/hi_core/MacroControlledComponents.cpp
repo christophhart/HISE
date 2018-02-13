@@ -386,7 +386,7 @@ void HiSlider::updateValueFromLabel(bool shouldUpdateValue)
 
 	if (shouldUpdateValue && (getRange().getRange().contains(doubleValue) || doubleValue == getMaximum()))
 	{
-		setAttributeWithUndo(doubleValue);
+		setAttributeWithUndo((float)doubleValue);
 	}
 
 	inputLabel->removeListener(this);
