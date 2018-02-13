@@ -7,7 +7,7 @@
   the "//[xyz]" and "//[/xyz]" sections will be retained when the file is loaded
   and re-saved.
 
-  Created with Projucer version: 4.3.0
+  Created with Projucer version: 5.2.0
 
   ------------------------------------------------------------------------------
 
@@ -39,7 +39,7 @@ AudioLooperEditor::AudioLooperEditor (ProcessorEditor *p)
 
     addAndMakeVisible (label = new Label ("new label",
                                           TRANS("LOOPER")));
-    label->setFont (Font ("Arial", 24.00f, Font::bold));
+    label->setFont (Font ("Arial", 24.00f, Font::plain).withTypefaceStyle ("Bold"));
     label->setJustificationType (Justification::centredRight);
     label->setEditable (false, false, false);
     label->setColour (Label::textColourId, Colour (0x52ffffff));
@@ -85,6 +85,12 @@ AudioLooperEditor::AudioLooperEditor (ProcessorEditor *p)
     startModSlider->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
     startModSlider->addListener (this);
 
+    addAndMakeVisible (reverseButton = new HiToggleButton ("FM Synthesiser"));
+    reverseButton->setTooltip (TRANS("Reverse the playback"));
+    reverseButton->setButtonText (TRANS("Reverse"));
+    reverseButton->addListener (this);
+    reverseButton->setColour (ToggleButton::textColourId, Colours::white);
+
 
     //[UserPreSize]
 
@@ -98,12 +104,13 @@ AudioLooperEditor::AudioLooperEditor (ProcessorEditor *p)
 
 
 	sampleBufferContent->addAreaListener(this);
-	
+
 	syncToHost->setup(getProcessor(), AudioLooper::SyncMode, "Sync to host");
 	loopButton->setup(getProcessor(), AudioLooper::LoopEnabled, "Loop Enabled");
 	pitchButton->setup(getProcessor(), AudioLooper::PitchTracking, "Pitch Tracking");
 	rootNote->setup(getProcessor(), AudioLooper::RootNote, "Root Note");
 
+	reverseButton->setup(getProcessor(), AudioLooper::Reversed, "Reversed");
 
 #if JUCE_DEBUG
 	startTimer(30);
@@ -134,6 +141,7 @@ AudioLooperEditor::~AudioLooperEditor()
     loopButton = nullptr;
     rootNote = nullptr;
     startModSlider = nullptr;
+    reverseButton = nullptr;
 
 
     //[Destructor]. You can add your own custom destruction code here..
@@ -146,11 +154,17 @@ void AudioLooperEditor::paint (Graphics& g)
     //[UserPrePaint] Add your own custom painting code here..
     //[/UserPrePaint]
 
-    g.setColour (Colour (0x30000000));
-    g.fillRoundedRectangle (static_cast<float> ((getWidth() / 2) - ((getWidth() - 84) / 2)), 6.0f, static_cast<float> (getWidth() - 84), static_cast<float> (getHeight() - 16), 6.000f);
-
-    g.setColour (Colour (0x25ffffff));
-    g.drawRoundedRectangle (static_cast<float> ((getWidth() / 2) - ((getWidth() - 84) / 2)), 6.0f, static_cast<float> (getWidth() - 84), static_cast<float> (getHeight() - 16), 6.000f, 2.000f);
+    {
+        float x = static_cast<float> ((getWidth() / 2) - ((getWidth() - 84) / 2)), y = 6.0f, width = static_cast<float> (getWidth() - 84), height = static_cast<float> (getHeight() - 16);
+        Colour fillColour = Colour (0x30000000);
+        Colour strokeColour = Colour (0x25ffffff);
+        //[UserPaintCustomArguments] Customize the painting arguments here..
+        //[/UserPaintCustomArguments]
+        g.setColour (fillColour);
+        g.fillRoundedRectangle (x, y, width, height, 6.000f);
+        g.setColour (strokeColour);
+        g.drawRoundedRectangle (x, y, width, height, 6.000f, 2.000f);
+    }
 
     //[UserPaint] Add your own custom painting code here..
     //[/UserPaint]
@@ -164,10 +178,11 @@ void AudioLooperEditor::resized()
     sampleBufferContent->setBounds ((getWidth() / 2) - ((getWidth() - 112) / 2), 77, getWidth() - 112, 144);
     label->setBounds (getWidth() - 52 - 264, 12, 264, 40);
     syncToHost->setBounds (56, 45, 134, 28);
-    pitchButton->setBounds (354 - 128, 26, 128, 32);
+    pitchButton->setBounds (354 - 128, 12, 128, 32);
     loopButton->setBounds (184 - 128, 11, 128, 32);
     rootNote->setBounds (358, 20, 128, 48);
     startModSlider->setBounds (515, 20, 128, 48);
+    reverseButton->setBounds (354 - 128, 45, 128, 32);
     //[UserResized] Add your own custom resize handling here..
     //[/UserResized]
 }
@@ -202,6 +217,11 @@ void AudioLooperEditor::buttonClicked (Button* buttonThatWasClicked)
     {
         //[UserButtonCode_loopButton] -- add your button handler code here..
         //[/UserButtonCode_loopButton]
+    }
+    else if (buttonThatWasClicked == reverseButton)
+    {
+        //[UserButtonCode_reverseButton] -- add your button handler code here..
+        //[/UserButtonCode_reverseButton]
     }
 
     //[UserbuttonClicked_Post]
@@ -259,14 +279,15 @@ BEGIN_JUCER_METADATA
          explicitFocusOrder="0" pos="52Rr 12 264 40" textCol="52ffffff"
          edTextCol="ff000000" edBkgCol="0" labelText="LOOPER" editableSingleClick="0"
          editableDoubleClick="0" focusDiscardsChanges="0" fontname="Arial"
-         fontsize="24" bold="1" italic="0" justification="34"/>
+         fontsize="24" kerning="0" bold="1" italic="0" justification="34"
+         typefaceStyle="Bold"/>
   <COMBOBOX name="Mode Selection" id="63f5b1527f75c45b" memberName="syncToHost"
             virtualName="HiComboBox" explicitFocusOrder="0" pos="56 45 134 28"
             tooltip="Sync the loop to the host tempo" editable="0" layout="33"
             items="Free running&#10;1 Beat&#10;2 Beats&#10;1 Bar&#10;2 Bars&#10;4 Bars&#10;"
             textWhenNonSelected="Sync to Tempo" textWhenNoItems="(no choices)"/>
   <TOGGLEBUTTON name="FM Synthesiser" id="e77edc03c117de85" memberName="pitchButton"
-                virtualName="HiToggleButton" explicitFocusOrder="0" pos="354r 26 128 32"
+                virtualName="HiToggleButton" explicitFocusOrder="0" pos="354r 12 128 32"
                 tooltip="Enables FM Modulation&#10;" txtcol="ffffffff" buttonText="Pitch Tracking"
                 connectedEdges="0" needsCallback="1" radioGroupId="0" state="0"/>
   <TOGGLEBUTTON name="FM Synthesiser" id="3ef6a10c1e23368a" memberName="loopButton"
@@ -283,6 +304,10 @@ BEGIN_JUCER_METADATA
           min="0" max="127" int="1" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="40"
           textBoxHeight="20" skewFactor="1" needsCallback="1"/>
+  <TOGGLEBUTTON name="FM Synthesiser" id="fa26ab9f9a450d63" memberName="reverseButton"
+                virtualName="HiToggleButton" explicitFocusOrder="0" pos="354r 45 128 32"
+                tooltip="Reverse the playback" txtcol="ffffffff" buttonText="Reverse"
+                connectedEdges="0" needsCallback="1" radioGroupId="0" state="0"/>
 </JUCER_COMPONENT>
 
 END_JUCER_METADATA

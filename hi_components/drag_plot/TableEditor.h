@@ -414,7 +414,7 @@ public:
 		if (index == -1 || index >= drag_points.size())
 			return;
 
-		if (undoManager != nullptr & useUndoManager)
+		if (undoManager != nullptr && useUndoManager)
 		{
 			auto oldPos = drag_points[index]->getPos();
 

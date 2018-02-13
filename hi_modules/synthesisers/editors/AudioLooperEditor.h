@@ -7,7 +7,7 @@
   the "//[xyz]" and "//[/xyz]" sections will be retained when the file is loaded
   and re-saved.
 
-  Created with Projucer version: 4.3.0
+  Created with Projucer version: 5.2.0
 
   ------------------------------------------------------------------------------
 
@@ -17,8 +17,7 @@
   ==============================================================================
 */
 
-#ifndef __JUCE_HEADER_BFEB9E679CA60A44__
-#define __JUCE_HEADER_BFEB9E679CA60A44__
+#pragma once
 
 //[Headers]     -- You can add your own extra header files here --
 
@@ -39,9 +38,9 @@ namespace hise { using namespace juce;
 class AudioLooperEditor  : public ProcessorEditorBody,
                            public Timer,
                            public AudioDisplayComponent::Listener,
-                           public ComboBoxListener,
-                           public ButtonListener,
-                           public SliderListener
+                           public ComboBox::Listener,
+                           public Button::Listener,
+                           public Slider::Listener
 {
 public:
     //==============================================================================
@@ -64,6 +63,8 @@ public:
 		rootNote->updateValue();
 		pitchButton->updateValue();
 
+		reverseButton->updateValue();
+
 		startModSlider->updateValue();
 
 		rootNote->setEnabled(getProcessor()->getAttribute(AudioLooper::PitchTracking) > 0.5f);
@@ -75,7 +76,7 @@ public:
 		if (sampleBufferContent->getSampleArea(0)->getSampleRange() != asb->getRange())
 		{
 			sampleBufferContent->setRange(asb->getRange());
-			
+
 
 		}
 
@@ -128,6 +129,7 @@ private:
     ScopedPointer<HiToggleButton> loopButton;
     ScopedPointer<HiSlider> rootNote;
     ScopedPointer<HiSlider> startModSlider;
+    ScopedPointer<HiToggleButton> reverseButton;
 
 
     //==============================================================================
@@ -137,5 +139,3 @@ private:
 //[EndFile] You can add extra defines here...
 } // namespace hise
 //[/EndFile]
-
-#endif   // __JUCE_HEADER_BFEB9E679CA60A44__

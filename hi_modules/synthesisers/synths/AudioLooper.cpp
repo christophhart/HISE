@@ -52,7 +52,7 @@ void AudioLooperVoice::startNote(int midiNoteNumber, float /*velocity*/, Synthes
 
 	voiceUptime += randomized;
 
-	AudioLooper *looper = dynamic_cast<AudioLooper*>(getOwnerSynth());
+	AudioLooper *looper = static_cast<AudioLooper*>(getOwnerSynth());
 
 	const AudioSampleBuffer *buffer = looper->getBuffer();
 
@@ -76,13 +76,21 @@ void AudioLooperVoice::startNote(int midiNoteNumber, float /*velocity*/, Synthes
 	}
 }
 
-int getSamplePos(int uptime, int loopLength, int loopOffset)
+int getSamplePos(int uptime, int loopLength, int loopOffset, bool reversed, int totalLength)
 {
-	if (uptime < loopOffset)
-		return uptime;
+	if (reversed)
+	{
+		if (uptime > loopLength)
+			return totalLength - uptime % loopLength;
+		else
+			return totalLength - uptime;
+	}
 	else
 	{
-		return ((uptime - loopOffset) % loopLength) + loopOffset;
+		if (uptime < loopOffset)
+			return uptime;
+		else
+			return ((uptime - loopOffset) % loopLength) + loopOffset;
 	}
 }
 
@@ -95,7 +103,7 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 
 	const float *modValues = getVoiceGainValues(startSample, numSamples);
 
-	AudioLooper *looper = dynamic_cast<AudioLooper*>(getOwnerSynth());
+	AudioLooper *looper = static_cast<AudioLooper*>(getOwnerSynth());
 
 	const AudioSampleBuffer *buffer = looper->getBuffer();
 
@@ -103,6 +111,7 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 	const bool sampleFinished = !looper->isUsingLoop() && (voiceUptime > looper->length);
 	
 	const bool isLastVoice = getOwnerSynth()->isLastStartedVoice(this);
+	const bool isReversed = looper->reversed;
 
 	if (sampleFinished || noBuffer)
 	{
@@ -121,6 +130,8 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 
 	auto length = looper->isUsingLoop() ? loopEnd - loopStart : looper->length;
 
+	auto end = looper->getRange().getEnd()-1;
+
 	if (length == 0)
 		length = looper->length;
 
@@ -130,8 +141,8 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 	{
 		int uptime = (int)voiceUptime;
 
-		const int samplePos = getSamplePos(uptime, length, loopOffset);
-		const int nextSamplePos = getSamplePos(uptime+1, length, loopOffset);
+		const int samplePos = getSamplePos(uptime, length, loopOffset, isReversed, end);
+		const int nextSamplePos = getSamplePos(uptime+1, length, loopOffset, isReversed, end);
 		
 		//const int samplePos = (int)voiceUptime % looper->length + looper->sampleRange.getStart();
 		//const int nextSamplePos = ((int)voiceUptime + 1) % looper->length + looper->sampleRange.getStart();
@@ -162,8 +173,9 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 
 		jassert(voicePitchValues == nullptr || voicePitchValues[startSample] > 0.0f);
 
-		
 		const double pitchDelta = (uptimeDelta * syncFactor * (voicePitchValues == nullptr ? 1.0f : voicePitchValues[startSample]));
+
+		
 		voiceUptime += pitchDelta;
 
 		++startSample;
@@ -174,11 +186,9 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
 	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
 
-	
-
 	if (isLastVoice && looper->length != 0 && looper->inputMerger.shouldUpdate())
 	{
-		const int samplePos = getSamplePos((int)voiceUptime, length, loopOffset);
+		const int samplePos = getSamplePos((int)voiceUptime, length, loopOffset, isReversed, end);
 
 		const int actualLength = looper->getActualRange().getLength();
 
@@ -207,6 +217,7 @@ rootNote(64)
 	parameterNames.add("PitchTracking");
 	parameterNames.add("RootNote");
 	parameterNames.add("SampleStartMod");
+	parameterNames.add("Reversed");
 
 	inputMerger.setManualCountLimit(5);
 
@@ -229,6 +240,7 @@ void AudioLooper::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(LoopEnabled, "LoopEnabled");
 	loadAttribute(RootNote, "RootNote");
 	loadAttribute(SampleStartMod, "SampleStartMod");
+	loadAttribute(Reversed, "Reversed");
 }
 
 ValueTree AudioLooper::exportAsValueTree() const
@@ -240,6 +252,7 @@ ValueTree AudioLooper::exportAsValueTree() const
 	saveAttribute(LoopEnabled, "LoopEnabled");
 	saveAttribute(RootNote, "RootNote");
 	saveAttribute(SampleStartMod, "SampleStartMod");
+	saveAttribute(Reversed, "Reversed");
 
 	AudioSampleProcessor::saveToValueTree(v);
 
@@ -257,6 +270,7 @@ float AudioLooper::getAttribute(int parameterIndex) const
 	case RootNote:		return (float)rootNote;
 	case PitchTracking:	return pitchTrackingEnabled ? 1.0f : 0.0f;
 	case SampleStartMod: return (float)sampleStartMod;
+	case Reversed:		return reversed ? 1.0f : 0.0f;
 	default:					jassertfalse; return -1.0f;
 	}
 }
@@ -272,6 +286,7 @@ float AudioLooper::getDefaultValue(int parameterIndex) const
 	case RootNote:		return 64.0f;
 	case PitchTracking:	return 0.0f;
 	case SampleStartMod: return 0.0f;
+	case Reversed:		return 0.0f;
 	default: jassertfalse; return -1.0f;
 	}
 }
@@ -292,6 +307,7 @@ void AudioLooper::setInternalAttribute(int parameterIndex, float newValue)
 	case RootNote:		rootNote = (int)newValue; break;
 	case PitchTracking:	pitchTrackingEnabled = newValue > 0.5f; break;
 	case SampleStartMod: sampleStartMod = jmax<int>(0, (int)newValue); break;
+	case Reversed:		reversed = newValue > 0.5f; break;
 	default:			jassertfalse; break;
 	}
 }

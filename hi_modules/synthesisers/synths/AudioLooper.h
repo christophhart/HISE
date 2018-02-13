@@ -89,6 +89,7 @@ public:
 		PitchTracking,
 		RootNote,
 		SampleStartMod,
+		Reversed,
 		numLooperParameters
 	};
 
@@ -121,6 +122,7 @@ private:
 	UpdateMerger inputMerger;
 
 	
+	bool reversed = false;
 	bool pitchTrackingEnabled;
 	int rootNote;
 
