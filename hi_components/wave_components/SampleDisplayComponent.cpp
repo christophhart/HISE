@@ -649,7 +649,7 @@ void AudioSampleBufferComponent::loadFile(const File& f)
 
 void AudioSampleBufferComponent::mouseDown(const MouseEvent &e)
 {
-	if (e.mods.isRightButtonDown())
+	if (e.mods.isRightButtonDown() || e.mods.isCtrlDown())
 	{
 		SET_CHANGED_FROM_PARENT_EDITOR()
         
@@ -718,7 +718,7 @@ void AudioSampleBufferComponent::paintOverChildren(Graphics& g)
 
 		g.setColour(Colours::white.withAlpha(0.3f));
 
-		const String text = "Right click to open audio file";
+		const String text = "Drop audio file or Right click to open browser";
 
 		const int w = f.getStringWidth(text) + 20;
 		g.setColour(Colours::black.withAlpha(0.5f));
