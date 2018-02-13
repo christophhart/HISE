@@ -209,7 +209,7 @@ ValueTree MidiControllerAutomationHandler::exportAsValueTree() const
 				cc.setProperty("FullEnd", a.fullRange.end, nullptr);
 				cc.setProperty("Skew", a.parameterRange.skew, nullptr);
 				cc.setProperty("Interval", a.parameterRange.interval, nullptr);
-				cc.setProperty("Attribute", a.attribute, nullptr);
+				cc.setProperty("Attribute", a.processor->getIdentifierForParameterIndex(a.attribute).toString(), nullptr);
 				cc.setProperty("Inverted", a.inverted, nullptr);
 				v.addChild(cc, -1, nullptr);
 			}
@@ -238,7 +238,48 @@ void MidiControllerAutomationHandler::restoreFromValueTree(const ValueTree &v)
 		a.ccNumber = controller;
 		a.processor = ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), cc.getProperty("Processor"));
 		a.macroIndex = cc.getProperty("MacroIndex");
-		a.attribute = cc.getProperty("Attribute", a.attribute);
+
+		auto attributeString = cc.getProperty("Attribute", a.attribute).toString();
+
+		const bool isParameterId = attributeString.containsAnyOf("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
+		
+		// The parameter was stored correctly as ID
+		if (isParameterId && a.processor.get() != nullptr)
+		{
+			const Identifier pId(attributeString);
+
+			for (int j = 0; j < a.processor->getNumParameters(); j++)
+			{
+				if (a.processor->getIdentifierForParameterIndex(j) == pId)
+				{
+					a.attribute = j;
+					break;
+				}
+			}
+		}
+		else
+		{
+			// This tries to obtain the correct id.
+			auto presetVersion = v.getRoot().getProperty("Version").toString();
+
+			const Identifier pId = UserPresetHelpers::getAutomationIndexFromOldVersion(presetVersion, attributeString.getIntValue());
+
+			if (pId.isNull())
+			{
+				a.attribute = attributeString.getIntValue();
+			}
+			else
+			{
+				for (int j = 0; j < a.processor->getNumParameters(); j++)
+				{
+					if (a.processor->getIdentifierForParameterIndex(j) == pId)
+					{
+						a.attribute = j;
+						break;
+					}
+				}
+			}
+		}
 
 		double start = cc.getProperty("Start");
 		double end = cc.getProperty("End");

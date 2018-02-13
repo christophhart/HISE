@@ -535,6 +535,17 @@ int UserPresetHelpers::addMissingControlsToUserPreset(ModulatorSynthChain* chain
 	return -1;
 }
 
+#if !USE_MIDI_AUTOMATION_MIGRATION
+Identifier UserPresetHelpers::getAutomationIndexFromOldVersion(const String& oldVersion, int oldIndex)
+{	
+	jassertfalse;
+
+	// This just returns the an empty Identifier. If you want to use this function, define USE_MIDI_AUTOMATION_MIGRATION
+	// and then supply a oldIndex -> newIndex conversion function.
+	return Identifier();
+}
+#endif
+
 bool UserPresetHelpers::updateVersionNumber(ModulatorSynthChain* chain, const File& fileToUpdate)
 {
 	ScopedPointer<XmlElement> xml = XmlDocument::parse(fileToUpdate);
