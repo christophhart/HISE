@@ -1,8 +1,6 @@
 # HISE
 
-| Linux Build | Windows Build |
-| ----------- | ------------- |
-| [![Build Status](https://travis-ci.org/christophhart/HISE.svg?branch=master)](https://travis-ci.org/christophhart/HISE) | [![Build status](https://ci.appveyor.com/api/projects/status/54boowuns6wy0nhd?svg=true)](https://ci.appveyor.com/project/ChristophHart/hise) |
+![](http://hise.audio/images/github.png)
 
 
 **The open source framework for sample based instruments.**
