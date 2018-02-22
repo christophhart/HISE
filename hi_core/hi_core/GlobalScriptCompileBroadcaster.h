@@ -168,7 +168,14 @@ public:
 
 	String getExternalScriptFromCollection(const String &fileName);
 
+	int getNumExternalScriptFiles() const { return includedFiles.size(); }
+
 	ExternalScriptFile::Ptr getExternalScriptFile(const File& fileToInclude);
+
+	ExternalScriptFile::Ptr getExternalScriptFile(int index) const
+	{
+		return includedFiles[index];
+	}
 
 	void clearIncludedFiles()
 	{

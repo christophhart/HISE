@@ -66,6 +66,7 @@ public:
 		SaveScriptClipboard,
 		LoadScriptClipboard,
 		JumpToDefinition,
+		FindAllOccurences,
 		SearchReplace,
 		AddCodeBookmark,
 		CreateUiFactoryMethod,
@@ -106,6 +107,8 @@ public:
 
 	void addPopupMenuItems(PopupMenu &m, const MouseEvent *e) override;
     void performPopupMenuAction(int menuId) override;
+
+	String getCurrentToken() const;
 
 	void showAutoCompleteNew();
 	void closeAutoCompleteNew(String returnString);

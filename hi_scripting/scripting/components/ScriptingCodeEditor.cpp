@@ -358,6 +358,8 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &menu, const MouseEvent *
 
 	menu.addItem(ContextActions::JumpToDefinition, "Jump to definition", true, false);
 
+	menu.addItem(ContextActions::FindAllOccurences, "Find all occurrences", true, false);
+
     CodeEditorComponent::addPopupMenuItems(menu, e);
     
     if(true)
@@ -440,14 +442,9 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 	}
 	case JavascriptCodeEditor::JumpToDefinition:
 	{
-		CodeDocument::Position start = getCaretPos();
-		CodeDocument::Position end = start;
+		auto token = getCurrentToken();
 
-		getDocument().findTokenContaining(start, start, end);
-
-		const String namespaceId = Helpers::findNamespaceForPosition(start);
-
-		const String token = getDocument().getTextBetween(start, end);
+		const String namespaceId = Helpers::findNamespaceForPosition(getCaretPos());
 
 		if (token.isNotEmpty())
 		{
@@ -479,7 +476,14 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 
 		return;
 	}
+	case ContextActions::FindAllOccurences:
+	{
+		ReferenceFinder * finder = new ReferenceFinder(this, s);
+
+		finder->setModalBaseWindowComponent(GET_BACKEND_ROOT_WINDOW(this));
 		
+		return;
+	}
 	case JavascriptCodeEditor::SaveScriptFile:
 	{
 		if (editor != nullptr)
@@ -700,6 +704,18 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 	ignoreUnused(menuId);
 
 #endif
+}
+
+juce::String JavascriptCodeEditor::getCurrentToken() const
+{
+	CodeDocument::Position start = getCaretPos();
+	CodeDocument::Position end = start;
+
+	getDocument().findTokenContaining(start, start, end);
+
+	
+
+	return getDocument().getTextBetween(start, end);
 }
 
 void JavascriptCodeEditor::showAutoCompleteNew()

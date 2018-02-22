@@ -64,7 +64,7 @@ IIRCoefficients IIRCoefficients::makeLowPass (const double sampleRate,
                                               const double Q) noexcept
 {
     jassert (sampleRate > 0.0);
-    jassert (frequency > 0.0 && frequency <= sampleRate * 0.5);
+    //jassert (frequency > 0.0 && frequency <= sampleRate * 0.5);
     jassert (Q > 0.0);
 
     const double n = 1.0 / std::tan (double_Pi * frequency / sampleRate);

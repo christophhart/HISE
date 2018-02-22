@@ -32,6 +32,238 @@
 
 namespace hise { using namespace juce;
 
+
+class ReferenceFinder : public DialogWindowWithBackgroundThread,
+						public TableListBoxModel,
+						public TextEditorListener
+{
+public:
+
+	enum Columns
+	{
+		Document = 1,
+		Line,
+		SurroundingText,
+		numColumns
+	};
+
+	ReferenceFinder(JavascriptCodeEditor* editor_, JavascriptProcessor* jp_):
+		DialogWindowWithBackgroundThread("Find all occurrences"),
+		editor(editor_),
+		mc(dynamic_cast<Processor*>(jp_)->getMainController()),
+		jp(jp_)
+	{
+		
+		//GET_BACKEND_ROOT_WINDOW(this)
+
+		addTextEditor("searchTerm", editor->getCurrentToken(), "Search term");
+		getTextEditor("searchTerm")->addListener(this);
+
+		addAndMakeVisible(table = new TableListBox());
+		table->setModel(this);
+		table->getHeader().setLookAndFeel(&laf);
+		table->getHeader().setSize(getWidth(), 22);
+		table->setOutlineThickness(0);
+		table->getViewport()->setScrollBarsShown(true, false, false, false);
+
+		table->setColour(ListBox::backgroundColourId, JUCE_LIVE_CONSTANT_OFF(Colour(0x04ffffff)));
+
+		table->getHeader().addColumn("File", Document, 110, 110, 110);
+		table->getHeader().addColumn("Line", Line, 40, 40, 40);
+		table->getHeader().addColumn("Text", SurroundingText, 200, -1, -1);
+		
+		table->getHeader().setStretchToFitActive(true);
+
+		table->setSize(600, 300);
+
+		addCustomComponent(table);
+
+		
+
+		addTextEditor("state", "", "Status", false);
+		getTextEditor("state")->setReadOnly(true);
+
+		addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
+		
+		rebuildLines();
+	}
+
+	struct TableEntry
+	{
+		bool operator==(const TableEntry& other) const
+		{
+			return other.doc == this->doc && other.pos.getLineNumber() == this->pos.getLineNumber();
+		}
+
+		
+		String fileName;
+
+		
+		const CodeDocument* doc;
+		CodeDocument::Position pos;
+		String lineContent;
+	};
+
+	void textEditorTextChanged(TextEditor&) override
+	{
+		
+
+		rebuildLines();
+	}
+
+	OwnedArray<TableEntry> entries;
+
+	void rebuildLines()
+	{
+		entries.clear();
+
+		auto search = getTextEditor("searchTerm")->getText();
+
+		if (search.isNotEmpty())
+		{
+			for (int i = 0; i < jp->getNumSnippets(); i++)
+			{
+				auto f = jp->getSnippet(i);
+
+				fillArrayWithDoc(*f, search, jp->getSnippet(i)->getCallbackName().toString() + "()");
+			}
+
+			for (int i = 0; i < jp->getNumWatchedFiles(); i++)
+			{
+				auto& doc = jp->getWatchedFileDocument(i);
+
+				fillArrayWithDoc(doc, search, jp->getWatchedFile(i).getFullPathName());
+			}
+		}
+
+		showStatusMessage(String(entries.size()) + " occurrences found");
+
+		table->updateContent();
+	}
+
+	void fillArrayWithDoc(const CodeDocument &doc, const String &search, const String& nameToShow)
+	{
+		auto allText = doc.getAllContent();
+
+		String analyseString = allText;
+
+		while (search.isNotEmpty() && analyseString.contains(search))
+		{
+			analyseString = analyseString.fromFirstOccurrenceOf(search, false, false);
+
+			const int index = allText.length() - analyseString.length() - search.length();
+
+			JavascriptCodeEditor::CodeRegion newRegion;
+			newRegion.setStart(index);
+			newRegion.setLength(search.length());
+
+			auto newEntry = new TableEntry();
+
+			newEntry->doc = &doc;
+			newEntry->pos = CodeDocument::Position(doc, index);
+			newEntry->lineContent = doc.getLine(newEntry->pos.getLineNumber());
+			newEntry->fileName = nameToShow;
+
+			entries.addIfNotAlreadyThere(newEntry);
+		}
+	}
+
+	void run() override
+	{
+
+	}
+
+	void threadFinished() override
+	{
+
+	}
+
+	int getNumRows() override
+	{
+		return entries.size();
+	}
+
+	void paintOverChildren(Graphics& g)
+	{
+		if (entries.size() == 0)
+		{
+			g.setColour(Colours::white.withAlpha(0.2f));
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText("Nothing found", 0, 0, getWidth(), getHeight(), Justification::centred);
+		}
+	}
+
+	void paintRowBackground(Graphics& g, int rowNumber, int /*width*/, int /*height*/, bool rowIsSelected) override
+	{
+		if (rowIsSelected)
+			g.fillAll(Colour(0x66000000));
+	}
+
+	void selectedRowsChanged(int lastRowSelected) override
+	{
+		if (auto entry = entries[lastRowSelected])
+		{
+			DebugableObject::Location loc;
+
+			loc.fileName = entry->fileName;
+			loc.charNumber = entry->pos.getPosition();
+
+			DebugableObject::Helpers::gotoLocation(editor, jp, loc);
+		}
+	}
+
+	void paintCell(Graphics& g, int rowNumber, int columnId, int width, int height, bool /*rowIsSelected*/) override
+	{
+		auto area = Rectangle<float>({ 2.0f, 0.f, (float)width, (float)height });
+
+		g.setColour(Colours::white);
+		g.setFont(GLOBAL_BOLD_FONT());
+
+		if (auto entry = entries[rowNumber])
+		{
+			switch (columnId)
+			{
+			case Document:
+			{
+				if (entry->fileName.contains("()"))
+				{
+					g.drawText(entry->fileName, area, Justification::centredLeft);
+				}
+				else
+				{
+					auto f = File(entry->fileName);
+					g.drawText(f.getFileName(), area, Justification::centredLeft); 
+				}
+
+				break;
+			}
+			case Line:	g.drawText(String(entry->pos.getLineNumber()+1), area, Justification::centredLeft); break;
+			case SurroundingText:
+			{
+				g.setFont(GLOBAL_MONOSPACE_FONT());
+				auto line = entry->doc->getLine(entry->pos.getLineNumber());
+				line = line.trim();
+				g.drawText(line, area, Justification::centredLeft); 
+				break;
+			}
+			}
+		}
+
+		
+	}
+
+	TableHeaderLookAndFeel laf;
+
+	Component::SafePointer<JavascriptCodeEditor> editor;
+
+
+	ScopedPointer<TableListBox> table;
+
+	MainController* mc;
+	JavascriptProcessor* jp;
+
+};
+
 class CodeReplacer : public DialogWindowWithBackgroundThread,
 	public TextEditorListener,
     public Timer
