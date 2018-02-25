@@ -1027,10 +1027,14 @@ void HiseAudioThumbnail::setBuffer(var bufferL, var bufferR /*= var()*/)
 {
 	currentReader = nullptr;
 
+	const bool shouldBeNotEmpty = bufferL.isBuffer() && bufferL.getBuffer()->size != 0;
+	const bool isNotEmpty = lBuffer.isBuffer() && lBuffer.getBuffer()->size != 0;
+
+	if (!isNotEmpty && !shouldBeNotEmpty)
+		return;
+
 	lBuffer = bufferL;
 	rBuffer = bufferR;
-
-	currentReader = nullptr;
 
 	if (auto l = bufferL.getBuffer())
 	{
