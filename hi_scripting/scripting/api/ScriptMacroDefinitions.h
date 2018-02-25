@@ -65,4 +65,6 @@
 /** Quick way of adding a method to a Dynamic Object. Use this in combination with */
 #define ADD_DYNAMIC_METHOD(name) setMethod(#name, Wrapper::name);
 
+#define SANITIZED(x) FloatSanitizers::sanitizeFloatNumber(x)
+
 #endif  // SCRIPTMACRODEFINITIONS_H_INCLUDED

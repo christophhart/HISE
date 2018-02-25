@@ -33,6 +33,7 @@
 namespace hise { using namespace juce;
 
 
+
 // MidiList =====================================================================================================================
 
 struct ScriptingObjects::MidiList::Wrapper
@@ -1778,7 +1779,10 @@ void ScriptingObjects::PathObject::clear()
 
 void ScriptingObjects::PathObject::startNewSubPath(var x, var y)
 {
-	p.startNewSubPath(x, y);
+    auto x_ = (float)x;
+    auto y_ = (float)y;
+    
+	p.startNewSubPath(SANITIZED(x_), SANITIZED(y_));
 }
 
 void ScriptingObjects::PathObject::closeSubPath()
@@ -1788,7 +1792,10 @@ void ScriptingObjects::PathObject::closeSubPath()
 
 void ScriptingObjects::PathObject::lineTo(var x, var y)
 {
-	p.lineTo(x, y);
+    auto x_ = (float)x;
+    auto y_ = (float)y;
+    
+	p.lineTo(SANITIZED(x_), SANITIZED(y_));
 }
 
 void ScriptingObjects::PathObject::quadraticTo(var cx, var cy, var x, var y)
@@ -1800,7 +1807,10 @@ void ScriptingObjects::PathObject::addArc(var area, var fromRadians, var toRadia
 {
 	auto rect = ApiHelpers::getRectangleFromVar(area);
 
-	p.addArc(rect.getX(), rect.getY(), rect.getWidth(), rect.getHeight(), fromRadians, toRadians, true);
+    auto fr = (float)fromRadians;
+    auto tr = (float)toRadians;
+    
+	p.addArc(rect.getX(), rect.getY(), rect.getWidth(), rect.getHeight(), SANITIZED(fr), SANITIZED(tr), true);
 }
 
 var ScriptingObjects::PathObject::getBounds(var scaleFactor)
@@ -1902,28 +1912,37 @@ void ScriptingObjects::GraphicsObject::drawRect(var area, float borderSize)
 {
 	initGraphics();
 
-	g->drawRect(getRectangleFromVar(area), borderSize);
+	auto bs = (float)borderSize;
+
+	g->drawRect(getRectangleFromVar(area), SANITIZED(bs));
 }
 
 void ScriptingObjects::GraphicsObject::fillRoundedRectangle(var area, float cornerSize)
 {
 	initGraphics();
 
-	g->fillRoundedRectangle(getRectangleFromVar(area), cornerSize);
+    auto cs = (float)cornerSize;
+    
+	g->fillRoundedRectangle(getRectangleFromVar(area), SANITIZED(cs));
 }
 
 void ScriptingObjects::GraphicsObject::drawRoundedRectangle(var area, float cornerSize, float borderSize)
 {
 	initGraphics();
 
-	g->drawRoundedRectangle(getRectangleFromVar(area), cornerSize, borderSize);
+    auto cs = (float)cornerSize;
+    auto bs = (float)borderSize;
+    
+    g->drawRoundedRectangle(getRectangleFromVar(area), SANITIZED(cs), SANITIZED(bs));
 }
 
 void ScriptingObjects::GraphicsObject::drawHorizontalLine(int y, float x1, float x2)
 {
 	initGraphics();
 
-	g->drawHorizontalLine(y, x1, x2);
+    
+    
+	g->drawHorizontalLine(y, SANITIZED(x1), SANITIZED(x2));
 }
 
 void ScriptingObjects::GraphicsObject::setOpacity(float alphaValue)
@@ -1939,7 +1958,7 @@ void ScriptingObjects::GraphicsObject::drawLine(float x1, float x2, float y1, fl
 {
 	initGraphics();
 
-	g->drawLine(x1, y1, x2, y2, lineThickness);
+	g->drawLine(SANITIZED(x1), SANITIZED(y1), SANITIZED(x2), SANITIZED(y2), SANITIZED(lineThickness));
 }
 
 void ScriptingObjects::GraphicsObject::setColour(int colour)
@@ -1955,7 +1974,7 @@ void ScriptingObjects::GraphicsObject::setFont(String fontName, float fontSize)
 {
 	MainController *mc = getScriptProcessor()->getMainController_();
 
-	currentFont = mc->getFontFromString(fontName, fontSize);
+	currentFont = mc->getFontFromString(fontName, SANITIZED(fontSize));
 
 	g->setFont(currentFont);
 }
@@ -2155,7 +2174,9 @@ void ScriptingObjects::GraphicsObject::drawPath(var path, var area, var thicknes
 			p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), false);
 		}
 
-		g->strokePath(p, PathStrokeType(thickness));
+        auto t = (float)thickness;
+        
+		g->strokePath(p, PathStrokeType(SANITIZED(t)));
 	}
 }
 
@@ -2165,7 +2186,9 @@ void ScriptingObjects::GraphicsObject::rotate(var angleInRadian, var center)
 
 	Point<float> c = getPointFromVar(center);
 
-	auto a = AffineTransform::rotation(angleInRadian, c.getX(), c.getY());
+    auto air = (float)angleInRadian;
+    
+	auto a = AffineTransform::rotation(SANITIZED(air), c.getX(), c.getY());
 
 	g->addTransform(a);
 }

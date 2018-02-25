@@ -276,7 +276,10 @@ Point<float> ApiHelpers::getPointFromVar(const var& data, Result* r /*= nullptr*
 
 		if (d->size() == 2)
 		{
-			Point<float> p((float)d->getUnchecked(0), (float)d->getUnchecked(1));
+            auto d0 = (float)d->getUnchecked(0);
+            auto d1 = (float)d->getUnchecked(1);
+            
+            Point<float> p(SANITIZED(d0), SANITIZED(d1));
 
 			return p;
 		}
@@ -303,7 +306,12 @@ Rectangle<float> ApiHelpers::getRectangleFromVar(const var &data, Result *r/*=nu
 
 		if (d->size() == 4)
 		{
-			Rectangle<float> rectangle((float)d->getUnchecked(0), (float)d->getUnchecked(1), (float)d->getUnchecked(2), (float)d->getUnchecked(3));
+            auto d0 = (float)d->getUnchecked(0);
+            auto d1 = (float)d->getUnchecked(1);
+            auto d2 = (float)d->getUnchecked(2);
+            auto d3 = (float)d->getUnchecked(3);
+            
+			Rectangle<float> rectangle(SANITIZED(d0), SANITIZED(d1), SANITIZED(d2), SANITIZED(d3));
 
             if(r != nullptr) *r = Result::ok();
             
