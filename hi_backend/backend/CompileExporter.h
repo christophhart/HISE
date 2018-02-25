@@ -224,7 +224,7 @@ private:
 
 	ErrorCodes createResourceFile(const String &solutionDirectory, const String & uniqueName, const String &version);
 
-	ErrorCodes createPluginProjucerFile(TargetTypes type, BuildOption option);
+	ErrorCodes createPluginProjucerFile(TargetTypes type, BuildOption option, ModulatorSynthChain* chainToExport);
 
 	struct ProjectTemplateHelpers
 	{
@@ -234,6 +234,7 @@ private:
 		static void handleAdditionalSourceCode(CompileExporter* exporter, String &templateProject, BuildOption option);
 		static void handleCopyProtectionInfo(CompileExporter* exporter, String &templateProject, BuildOption option);
 		static String getTargetFamilyString(BuildOption option);
+		static String getPluginChannelAmount(ModulatorSynthChain* chain);
 	};
 
 	struct HeaderHelpers

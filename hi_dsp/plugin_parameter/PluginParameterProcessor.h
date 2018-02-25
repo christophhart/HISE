@@ -72,18 +72,18 @@ public:
 #if FRONTEND_IS_PLUGIN
 		return BusesProperties().withInput("Input", AudioChannelSet::stereo()).withOutput("Output", AudioChannelSet::stereo());
 #else
+auto busProp = BusesProperties();
 
+		// Protools is behaving really nasty and hiding the instrument plugin if it hasn't at least one input bus...
 		if (getWrapperTypeBeingCreated() == wrapperType_AAX)
-		{
-			return BusesProperties().withInput("Input", AudioChannelSet::stereo()).withOutput("Output", AudioChannelSet::stereo());
-		}
-		else
-		{
-			return BusesProperties().withOutput("Output", AudioChannelSet::stereo());
-		}
-#endif
-
+			busProp = busProp.withInput("Input", AudioChannelSet::stereo());
 		
+		for (int i = 0; i < HISE_NUM_PLUGIN_CHANNELS; i += 2)
+			busProp = busProp.withOutput("Channel " + String(i + 1) + "+" + String(i + 2), AudioChannelSet::stereo());
+
+		return busProp;
+
+#endif
 	}
     
     bool isBusesLayoutSupported (const BusesLayout& layouts) const override

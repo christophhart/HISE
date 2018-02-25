@@ -47,6 +47,9 @@
 #endif
 #endif
 
+#ifndef HISE_NUM_PLUGIN_CHANNELS
+#define HISE_NUM_PLUGIN_CHANNELS 2
+#endif
 
 
 #define NUM_GLOBAL_VARIABLES 128

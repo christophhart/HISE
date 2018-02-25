@@ -578,7 +578,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 		if (createPlugin)
 		{
-			result = createPluginProjucerFile(type, option);
+			result = createPluginProjucerFile(type, option, chainToExport);
 
 			if (result != ErrorCodes::OK) return result;
 		}
@@ -1302,7 +1302,7 @@ struct FileHelpers
 
 
 
-CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(TargetTypes type, BuildOption option)
+hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(TargetTypes type, BuildOption option, ModulatorSynthChain* chainToExport)
 {
 	String templateProject = String(projectTemplate_jucer);
 
@@ -1314,9 +1314,13 @@ CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(TargetType
 
 	ProjectTemplateHelpers::handleVisualStudioVersion(templateProject);
 
+	REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "");
+
+	REPLACE_WILDCARD_WITH_STRING("%PLUGIN_CHANNEL_AMOUNT%", ProjectTemplateHelpers::getPluginChannelAmount(chainToExport));
+
+
 	if (type == TargetTypes::EffectPlugin)
 	{
-		REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "{2, 2}");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "0");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN", "0");
 		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "enabled");
@@ -1324,13 +1328,6 @@ CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(TargetType
 	}
 	else
 	{
-		if (BuildOptionHelpers::isIOS(option))
-			REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "{0, 2}");
-		else if (BuildOptionHelpers::isAAX(option))
-			REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "{1, 1}, {2, 2}");
-		else
-			REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "{0, 2}");
-		
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "1");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN", "1");
 		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "disabled");
@@ -1505,6 +1502,7 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
     REPLACE_WILDCARD_WITH_STRING("%IPP_WIN_SETTING%", exporter->useIpp ? "Sequential" : String());
     
 	
+
 	REPLACE_WILDCARD("%EXTRA_DEFINES_WIN%", SettingWindows::ProjectSettingWindow::Attributes::ExtraDefinitionsWindows);
 	REPLACE_WILDCARD("%EXTRA_DEFINES_OSX%", SettingWindows::ProjectSettingWindow::Attributes::ExtraDefinitionsOSX);
 	REPLACE_WILDCARD("%EXTRA_DEFINES_IOS%", SettingWindows::ProjectSettingWindow::Attributes::ExtraDefinitionsIOS);
@@ -1739,6 +1737,11 @@ String CompileExporter::ProjectTemplateHelpers::getTargetFamilyString(BuildOptio
 		jassertfalse;
 		return "";
 	}
+}
+
+juce::String CompileExporter::ProjectTemplateHelpers::getPluginChannelAmount(ModulatorSynthChain* chain)
+{
+	return "HISE_NUM_PLUGIN_CHANNELS=" + String(chain->getMatrix().getNumSourceChannels());
 }
 
 CompileExporter::ErrorCodes CompileExporter::copyHISEImageFiles()
