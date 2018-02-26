@@ -193,7 +193,7 @@ public:
 		}
 	}
 
-	void paintRowBackground(Graphics& g, int rowNumber, int /*width*/, int /*height*/, bool rowIsSelected) override
+	void paintRowBackground(Graphics& g, int /*rowNumber*/, int /*width*/, int /*height*/, bool rowIsSelected) override
 	{
 		if (rowIsSelected)
 			g.fillAll(Colour(0x66000000));

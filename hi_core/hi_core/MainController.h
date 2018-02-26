@@ -1228,6 +1228,8 @@ private:
     std::atomic<double> bpm;
 	std::atomic<double> bpmFromHost;
 
+	std::atomic<bool> hostIsPlaying;
+
 	Atomic<int> voiceAmount;
 	bool allNotesOffFlag;
     

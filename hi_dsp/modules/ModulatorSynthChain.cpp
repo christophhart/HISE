@@ -226,7 +226,19 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 
 #if FRONTEND_IS_PLUGIN
 
+	effectChain->renderNextBlock(buffer, 0, numSamples);
 	effectChain->renderMasterEffects(buffer);
+
+	eventBuffer.clear();
+
+	processHiseEventBuffer(inputMidiBuffer, numSamples);
+
+	HiseEventBuffer::Iterator eventIterator(eventBuffer);
+
+	while (auto e = eventIterator.getNextConstEventPointer(true, false))
+	{
+		effectChain->handleHiseEvent(*e);
+	}
 
 #else
 

@@ -41,6 +41,7 @@ MainController::MainController():
 	uptime(0.0),
 	bpm(120.0),
 	bpmFromHost(120.0),
+	hostIsPlaying(false),
 	console(nullptr),
 	voiceAmount(0),
 	scrollY(0),
@@ -594,6 +595,8 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 #else
 	ignoreUnused(midiMessages);
+
+	masterEventBuffer.clear();
 #endif
 
 #if ENABLE_HOST_INFO
@@ -608,6 +611,20 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	storePlayheadIntoDynamicObject(lastPosInfo);
 	
 	bpmFromHost = lastPosInfo.bpm;
+
+	if (hostIsPlaying != lastPosInfo.isPlaying)
+	{
+		hostIsPlaying = lastPosInfo.isPlaying;
+
+#if FRONTEND_IS_PLUGIN
+		masterEventBuffer.addEvent(HiseEvent(hostIsPlaying ? HiseEvent::Type::NoteOn :
+															 HiseEvent::Type::NoteOff, 
+											 60, 127, 1));
+#endif
+	}
+
+	if (bpmFromHost == 0.0)
+		bpmFromHost = 120.0;
 
 	auto otherBpm = dynamic_cast<GlobalSettingManager*>(this)->globalBPM;
 
