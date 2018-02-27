@@ -674,7 +674,19 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 		for (int i = 0; i < matrix.getNumSourceChannels(); i++)
 		{
+			if (replaceBufferContent)
+			{
+				FloatVectorOperations::copy(buffer.getWritePointer(i), thisMultiChannelBuffer.getReadPointer(i), bufferSize.get());
+			}
+			else
+			{
+				FloatVectorOperations::add(buffer.getWritePointer(i), thisMultiChannelBuffer.getReadPointer(i), bufferSize.get());
+			}
+
+
+#if 0
 			const int destinationChannel = matrix.getConnectionForSourceChannel(i);
+
 
 			if (destinationChannel == -1)
 				continue;
@@ -687,7 +699,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 			{
 				FloatVectorOperations::add(buffer.getWritePointer(destinationChannel), thisMultiChannelBuffer.getReadPointer(i), bufferSize.get());
 			}
-			
+#endif
 		}
 	}
 

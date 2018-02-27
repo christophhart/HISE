@@ -998,6 +998,93 @@ SlotFX* ScriptingObjects::ScriptingSlotFX::getSlotFX()
 	return dynamic_cast<SlotFX*>(slotFX.get());
 }
 
+struct ScriptingObjects::ScriptRoutingMatrix::Wrapper
+{
+	API_METHOD_WRAPPER_2(ScriptRoutingMatrix, addConnection);
+	API_METHOD_WRAPPER_2(ScriptRoutingMatrix, removeConnection);
+	API_VOID_METHOD_WRAPPER_0(ScriptRoutingMatrix, clear);
+	API_METHOD_WRAPPER_1(ScriptRoutingMatrix, getSourceGainValue);
+};
+
+ScriptingObjects::ScriptRoutingMatrix::ScriptRoutingMatrix(ProcessorWithScriptingContent *p, Processor *processor):
+	ConstScriptingObject(p, 2),
+	rp(processor)
+{
+	ADD_API_METHOD_2(addConnection);
+	ADD_API_METHOD_2(removeConnection);
+	ADD_API_METHOD_0(clear);
+	ADD_API_METHOD_1(getSourceGainValue);
+
+	if (auto r = dynamic_cast<RoutableProcessor*>(rp.get()))
+	{
+		addConstant("NumInputs", r->getMatrix().getNumSourceChannels());
+		addConstant("NumOutputs", r->getMatrix().getNumDestinationChannels());
+	}
+	else
+	{
+		jassertfalse;
+		addConstant("NumInputs", -1);
+		addConstant("NumOutputs", -1);
+	}
+}
+
+bool ScriptingObjects::ScriptRoutingMatrix::addConnection(int sourceIndex, int destinationIndex)
+{
+	if (checkValidObject())
+	{
+		if (auto r = dynamic_cast<RoutableProcessor*>(rp.get()))
+		{
+			return r->getMatrix().addConnection(sourceIndex, destinationIndex);
+		}
+		else
+			return false;
+	}
+}
+
+bool ScriptingObjects::ScriptRoutingMatrix::removeConnection(int sourceIndex, int destinationIndex)
+{
+	if (checkValidObject())
+	{
+		if (auto r = dynamic_cast<RoutableProcessor*>(rp.get()))
+		{
+			return r->getMatrix().removeConnection(sourceIndex, destinationIndex);
+		}
+		else
+			return false;
+	}
+}
+
+void ScriptingObjects::ScriptRoutingMatrix::clear()
+{
+	if (checkValidObject())
+	{
+		if (auto r = dynamic_cast<RoutableProcessor*>(rp.get()))
+		{
+			r->getMatrix().resetToDefault();
+			r->getMatrix().removeConnection(0, 0);
+			r->getMatrix().removeConnection(1, 1);
+		}
+		
+	}
+}
+
+float ScriptingObjects::ScriptRoutingMatrix::getSourceGainValue(int channelIndex)
+{
+	if (checkValidObject())
+	{
+		if (auto r = dynamic_cast<RoutableProcessor*>(rp.get()))
+		{
+			if (isPositiveAndBelow(channelIndex, r->getMatrix().getNumSourceChannels()))
+			{
+				return r->getMatrix().getGainValue(channelIndex, true);
+			}
+		}
+
+	}
+
+	return 0.0f;
+}
+
 // ScriptingSynth ==============================================================================================================
 
 struct ScriptingObjects::ScriptingSynth::Wrapper
@@ -1015,6 +1102,7 @@ struct ScriptingObjects::ScriptingSynth::Wrapper
 	API_METHOD_WRAPPER_3(ScriptingSynth, addGlobalModulator);
 	API_METHOD_WRAPPER_3(ScriptingSynth, addStaticGlobalModulator);
 	API_METHOD_WRAPPER_0(ScriptingSynth, asSampler);
+	API_METHOD_WRAPPER_0(ScriptingSynth, getRoutingMatrix);
 };
 
 ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *p, ModulatorSynth *synth_) :
@@ -1051,6 +1139,7 @@ ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *
 	ADD_API_METHOD_3(addGlobalModulator);
 	ADD_API_METHOD_3(addStaticGlobalModulator);
 	ADD_API_METHOD_0(asSampler);
+	ADD_API_METHOD_0(getRoutingMatrix);
 };
 
 
@@ -1250,6 +1339,12 @@ var ScriptingObjects::ScriptingSynth::asSampler()
 	return var(t);
 }
 
+var ScriptingObjects::ScriptingSynth::getRoutingMatrix()
+{
+	auto r = new ScriptRoutingMatrix(getScriptProcessor(), synth.get());
+	return var(r);
+}
+
 // ScriptingMidiProcessor ==============================================================================================================
 
 struct ScriptingObjects::ScriptingMidiProcessor::Wrapper
@@ -1262,6 +1357,7 @@ struct ScriptingObjects::ScriptingMidiProcessor::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptingMidiProcessor, restoreState);
 	API_VOID_METHOD_WRAPPER_1(ScriptingMidiProcessor, restoreScriptControls);
 	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, exportScriptControls);
+	
 	
 };
 
