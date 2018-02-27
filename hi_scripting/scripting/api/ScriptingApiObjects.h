@@ -579,6 +579,52 @@ public:
 	};
 
 
+	class ScriptRoutingMatrix : public ConstScriptingObject,
+		public DebugableObject
+	{
+	public:
+
+		ScriptRoutingMatrix(ProcessorWithScriptingContent *p, Processor *processor);
+		~ScriptRoutingMatrix() {};
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("RoutingMatrix"); }
+		bool objectDeleted() const override { return rp.get() == nullptr; }
+		bool objectExists() const override { return rp != nullptr; }
+
+		// ============================================================================================================ 
+
+		String getDebugName() const override { return rp.get() != nullptr ? rp->getId() : "Invalid"; };
+		String getDebugDataType() const override { return getObjectName().toString(); }
+		String getDebugValue() const override { return String(); }
+		void doubleClickCallback(const MouseEvent &, Component*) override {};
+
+		// ============================================================================================================ 
+
+		/** adds a connection to the given channels. */
+		bool addConnection(int sourceIndex, int destinationIndex);
+
+		/** Removes the connection from the given channels. */
+		bool removeConnection(int sourceIndex, int destinationIndex);
+
+		/** Removes all connections. */
+		void clear();
+
+		/** Gets the current peak value of the given channelIndex. */
+		float getSourceGainValue(int channelIndex);
+
+		// ============================================================================================================ 
+
+		struct Wrapper;
+
+	private:
+
+		WeakReference<Processor> rp;
+
+
+	};
+
+
+
 	class ScriptingSynth : public ConstScriptingObject,
 						   public DebugableObject
 	{
@@ -645,6 +691,9 @@ public:
 
 		/** Returns a reference as Sampler or undefined if no Sampler. */
 		var asSampler();
+
+		/** Returns a reference to the routing matrix object of the sound generator. */
+		var getRoutingMatrix();
 
 		// ============================================================================================================ 
 

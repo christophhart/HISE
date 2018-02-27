@@ -536,7 +536,7 @@ int UserPresetHelpers::addMissingControlsToUserPreset(ModulatorSynthChain* chain
 }
 
 #if !USE_MIDI_AUTOMATION_MIGRATION
-Identifier UserPresetHelpers::getAutomationIndexFromOldVersion(const String& oldVersion, int oldIndex)
+Identifier UserPresetHelpers::getAutomationIndexFromOldVersion(const String& /*oldVersion*/, int /*oldIndex*/)
 {	
 	jassertfalse;
 

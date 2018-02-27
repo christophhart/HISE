@@ -32,12 +32,16 @@ xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_message_holder.xml" "xm
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_audio_sample_processor.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_table_processor.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_effect.xml" "xml\selection"
+xcopy "xml\classhise_1_1_scripting_objects_1_1_script_routing_matrix.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_midi_processor.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_preset_storage.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_slot_f_x.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_graphics_object.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_path_object.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_timer_object.xml" "xml\selection"
+
+
+
 
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_button.xml" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_combo_box.xml" "xml\selection"
@@ -76,6 +80,7 @@ ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_audio_sample_pr
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_table_processor.xml" "TableProcessor.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_synth.xml" "ChildSynth.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_slot_f_x.xml" "SlotFX.xml"
+ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_routing_matrix.xml" "RoutingMatrix.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_preset_storage.xml" "PresetStorage.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_graphics_object.xml" "Graphics.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_path_object.xml" "Path.xml"

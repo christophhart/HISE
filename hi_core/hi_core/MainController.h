@@ -1244,6 +1244,8 @@ private:
 
 	std::atomic<int> suspendIndex;
 
+public:
+	void updateMultiChannelBuffer(int numNewChannels);
 };
 
 } // namespace hise

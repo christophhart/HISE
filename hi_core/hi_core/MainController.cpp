@@ -691,7 +691,19 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 		for (int i = 0; i < matrix.getNumSourceChannels(); i++)
 		{
+			if (replaceBufferContent)
+			{
+				FloatVectorOperations::copy(buffer.getWritePointer(i), thisMultiChannelBuffer.getReadPointer(i), bufferSize.get());
+			}
+			else
+			{
+				FloatVectorOperations::add(buffer.getWritePointer(i), thisMultiChannelBuffer.getReadPointer(i), bufferSize.get());
+			}
+
+
+#if 0
 			const int destinationChannel = matrix.getConnectionForSourceChannel(i);
+
 
 			if (destinationChannel == -1)
 				continue;
@@ -704,7 +716,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 			{
 				FloatVectorOperations::add(buffer.getWritePointer(destinationChannel), thisMultiChannelBuffer.getReadPointer(i), bufferSize.get());
 			}
-			
+#endif
 		}
 	}
 
@@ -764,10 +776,9 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 
 #endif
     
-	// Updates the channel amount
-	multiChannelBuffer.setSize(getMainSynthChain()->getMatrix().getNumSourceChannels(), multiChannelBuffer.getNumSamples());
+	updateMultiChannelBuffer(getMainSynthChain()->getMatrix().getNumSourceChannels());
 
-	ProcessorHelpers::increaseBufferIfNeeded(multiChannelBuffer, bufferSize.get());
+	
 
 #if IS_STANDALONE_APP || IS_STANDALONE_FRONTEND
 	getMainSynthChain()->getMatrix().setNumDestinationChannels(2);
@@ -776,7 +787,7 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 #if HISE_IOS
     getMainSynthChain()->getMatrix().setNumDestinationChannels(2);
 #else
-	getMainSynthChain()->getMatrix().setNumDestinationChannels(JucePlugin_MaxNumOutputChannels);
+	getMainSynthChain()->getMatrix().setNumDestinationChannels(HISE_NUM_PLUGIN_CHANNELS);
 #endif
     
 #endif
@@ -1054,6 +1065,15 @@ void MainController::rebuildVoiceLimits()
 	}
 }
 
+void MainController::updateMultiChannelBuffer(int numNewChannels)
+{
+	ScopedLock sl(processLock);
+
+	// Updates the channel amount
+	multiChannelBuffer.setSize(numNewChannels, multiChannelBuffer.getNumSamples());
+
+	ProcessorHelpers::increaseBufferIfNeeded(multiChannelBuffer, bufferSize.get());
+}
 
 void MainController::SampleManager::setShouldSkipPreloading(bool skip)
 {

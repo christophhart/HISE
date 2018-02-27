@@ -125,6 +125,9 @@ void ModulatorSynthChain::prepareToPlay(double newSampleRate, int samplesPerBloc
 
 void ModulatorSynthChain::numSourceChannelsChanged()
 {
+	getMainController()->updateMultiChannelBuffer(getMatrix().getNumSourceChannels());
+
+
 	for (int i = 0; i < getHandler()->getNumProcessors(); i++)
 	{
 		RoutableProcessor *rp = dynamic_cast<RoutableProcessor*>(getHandler()->getProcessor(i));
