@@ -1302,7 +1302,7 @@ struct FileHelpers
 
 
 
-hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(TargetTypes type, BuildOption option, ModulatorSynthChain* chainToExport)
+hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(TargetTypes type, BuildOption option, ModulatorSynthChain* chain)
 {
 	String templateProject = String(projectTemplate_jucer);
 
@@ -1316,7 +1316,7 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 
 	REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "");
 
-	REPLACE_WILDCARD_WITH_STRING("%PLUGIN_CHANNEL_AMOUNT%", ProjectTemplateHelpers::getPluginChannelAmount(chainToExport));
+	REPLACE_WILDCARD_WITH_STRING("%PLUGIN_CHANNEL_AMOUNT%", ProjectTemplateHelpers::getPluginChannelAmount(chain));
 
 
 	if (type == TargetTypes::EffectPlugin)
@@ -1352,7 +1352,7 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 		REPLACE_WILDCARD_WITH_STRING("%AAX_IDENTIFIER%", String());
 		REPLACE_WILDCARD_WITH_STRING("%TARGET_FAMILY%", ProjectTemplateHelpers::getTargetFamilyString(option));
 
-		const File sampleFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Samples);
+		const File sampleFolder = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::Samples);
 
 		String iOSResourceFile;
 
@@ -1373,15 +1373,15 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 
 		REPLACE_WILDCARD_WITH_STRING("%IOS_SAMPLE_FOLDER%", iOSResourceFile);
 
-		const File imageFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Images);
-		const File audioFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles);
-		const File sampleMapFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+		const File imageFolder = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::Images);
+		const File audioFolder = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles);
+		const File sampleMapFolder = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
 
 		REPLACE_WILDCARD_WITH_STRING("%IOS_IMAGE_FOLDER%", imageFolder.getFullPathName());
 		REPLACE_WILDCARD_WITH_STRING("%IOS_AUDIO_FOLDER%", audioFolder.getFullPathName());
 		REPLACE_WILDCARD_WITH_STRING("%IOS_SAMPLEMAP_FOLDER%", sampleMapFolder.getFullPathName());
 
-        const String appGroupId = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::AppGroupId, &GET_PROJECT_HANDLER(chainToExport));
+        const String appGroupId = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::AppGroupId, &GET_PROJECT_HANDLER(chain));
         
         REPLACE_WILDCARD_WITH_STRING("%USE_APP_GROUPS%", appGroupId.isEmpty() ? "0" : "1");
         REPLACE_WILDCARD_WITH_STRING("%APP_GROUP_ID%",  appGroupId);
@@ -1427,8 +1427,8 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 			REPLACE_WILDCARD_WITH_STRING("%AAX_DEBUG_LIB%", aaxPath.getChildFile("Libs/Debug/").getFullPathName());
 
 			String aaxIdentifier = "com.";
-			aaxIdentifier << SettingWindows::getSettingValue((int)SettingWindows::UserSettingWindow::Attributes::Company, &GET_PROJECT_HANDLER(chainToExport)).removeCharacters(" -_.,;");
-			aaxIdentifier << "." << SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, &GET_PROJECT_HANDLER(chainToExport)).removeCharacters(" -_.,;");
+			aaxIdentifier << SettingWindows::getSettingValue((int)SettingWindows::UserSettingWindow::Attributes::Company, &GET_PROJECT_HANDLER(chain)).removeCharacters(" -_.,;");
+			aaxIdentifier << "." << SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, &GET_PROJECT_HANDLER(chain)).removeCharacters(" -_.,;");
 
 			REPLACE_WILDCARD_WITH_STRING("%AAX_IDENTIFIER%", aaxIdentifier);
 		}

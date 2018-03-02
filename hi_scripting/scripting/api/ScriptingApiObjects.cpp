@@ -1040,6 +1040,8 @@ bool ScriptingObjects::ScriptRoutingMatrix::addConnection(int sourceIndex, int d
 		else
 			return false;
 	}
+
+	return false;
 }
 
 bool ScriptingObjects::ScriptRoutingMatrix::removeConnection(int sourceIndex, int destinationIndex)
@@ -1053,6 +1055,8 @@ bool ScriptingObjects::ScriptRoutingMatrix::removeConnection(int sourceIndex, in
 		else
 			return false;
 	}
+
+	return false;
 }
 
 void ScriptingObjects::ScriptRoutingMatrix::clear()
