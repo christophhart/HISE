@@ -448,6 +448,7 @@ public:
 			TablePanel,
 			SliderPackPanel,
 			Plotter,
+			AudioAnalyser,
 			Console,
 			ApiCollection,
 			ScriptWatchTable,

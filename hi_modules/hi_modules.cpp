@@ -120,6 +120,7 @@ namespace wdl
 #include "effects/fx/Saturator.cpp"
 #include "effects/fx/AudioProcessorWrapper.cpp"
 #include "effects/fx/SlotFX.cpp"
+#include "effects/fx/Analyser.cpp"
 
 #if USE_BACKEND
 
@@ -141,6 +142,7 @@ namespace wdl
 #include "effects/editors/DynamicsEditor.cpp"
 
 #include "effects/editors/SlotFXEditor.cpp"
+#include "effects/editors/AnalyserEditor.cpp"
 
 #endif
 

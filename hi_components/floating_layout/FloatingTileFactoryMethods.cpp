@@ -118,6 +118,7 @@ void FloatingTileContent::Factory::registerFrontendPanelTypes()
 	registerType<MidiChannelPanel>(PopupMenuOptions::MidiChannelList);
 	registerType<TooltipPanel>(PopupMenuOptions::TooltipPanel);
 	registerType<MidiLearnPanel>(PopupMenuOptions::MidiLearnPanel);
+	registerType<AudioAnalyserComponent::Panel>(PopupMenuOptions::AudioAnalyser);
 }
 
 
@@ -582,6 +583,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(m, PopupMenuOptions::MacroControls, "8 Macro Controls");
 			addToPopupMenu(m, PopupMenuOptions::MacroTable, "Macro Control Editor");
 			addToPopupMenu(m, PopupMenuOptions::Plotter, "Plotter");
+			addToPopupMenu(m, PopupMenuOptions::AudioAnalyser, "Audio Analyser");
 			addToPopupMenu(m, PopupMenuOptions::TablePanel, "Table Editor");
 			addToPopupMenu(m, PopupMenuOptions::PresetBrowser, "Preset Browser");
 			addToPopupMenu(m, PopupMenuOptions::ModuleBrowser, "Module Browser");
@@ -667,6 +669,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::ScriptComponentList: parent->setNewContent(GET_PANEL_NAME(ScriptComponentList::Panel)); break;
 	case PopupMenuOptions::InterfaceContent:	parent->setNewContent(GET_PANEL_NAME(InterfaceContentPanel)); break;
 	case PopupMenuOptions::Plotter:				parent->setNewContent(GET_PANEL_NAME(PlotterPanel)); break;
+	case PopupMenuOptions::AudioAnalyser:		parent->setNewContent(GET_PANEL_NAME(AudioAnalyserComponent::Panel)); break;
 	case PopupMenuOptions::ScriptComponentEditPanel: parent->setNewContent(GET_PANEL_NAME(ScriptComponentEditPanel::Panel)); break;
 	case PopupMenuOptions::SliderPackPanel:		parent->setNewContent(GET_PANEL_NAME(SliderPackPanel)); break;
 	case PopupMenuOptions::ScriptConnectorPanel:parent->setNewContent(GET_PANEL_NAME(GlobalConnectorPanel<JavascriptProcessor>)); break;
