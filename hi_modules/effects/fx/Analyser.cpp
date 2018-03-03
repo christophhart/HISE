@@ -256,7 +256,9 @@ const AnalyserEffect* AudioAnalyserComponent::getAnalyser() const
 void FFTDisplay::paint(Graphics& g)
 {
 	g.fillAll(getColourForAnalyser(AudioAnalyserComponent::bgColour));
-	
+
+#if USE_IPP
+    
 	auto an = getAnalyser();
 
 	ScopedReadLock sl(an->getBufferLock());
@@ -315,8 +317,6 @@ void FFTDisplay::paint(Graphics& g)
 	stride *= 2;
 	
 	lPath.clear();
-
-#if 1
 
 	lPath.startNewSubPath(0.0f, (float)getHeight());
 	//lPath.lineTo(0.0f, -1.0f);
@@ -398,38 +398,19 @@ void FFTDisplay::paint(Graphics& g)
 	
 
 	lPath.lineTo((float)getWidth(), (float)getHeight());
-
-#else 
-
-	for (int i = stride; i < size; i += stride)
-	{
-		float value = 0.0f;
-
-		for (int j = 0; j < stride; j++)
-		{
-			if (j + i >= size)
-				break;
-
-			value +=  fabsf(data[i + j]);
-		}
-
-		float thisValue = value * 0.2f + lastValues[i] * 0.8f;
-		lastValues[i] = thisValue;
-		lPath.lineTo((float)i, -1.0f * thisValue);
-
-	};
-
-	lPath.lineTo((float)size, 0.0f);
-
-#endif
-
 	
 	lPath.closeSubPath();
-
-	//lPath.scaleToFit(0.0f, 0.0f, (float)getWidth(), (float)getHeight(), false);
 	
 	g.setColour(getColourForAnalyser(AudioAnalyserComponent::fillColour));
 	g.fillPath(lPath);
+    
+#else
+    
+    g.setColour(getColourForAnalyser(AudioAnalyserComponent::fillColour));
+    g.setFont(GLOBAL_BOLD_FONT());
+    g.drawText("You need IPP for the FFT Analyser", 0.0f, 0.0f, (float)getWidth(), (float)getHeight(), Justification::centred, false);
+    
+#endif
 }
 
 Component* AudioAnalyserComponent::Panel::createContentComponent(int index)

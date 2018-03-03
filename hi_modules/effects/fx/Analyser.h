@@ -265,7 +265,9 @@ public:
 
 private:
 
+#if USE_IPP
 	IppFFT fftObject;
+#endif
 
 	Path lPath;
 	Path rPath;
