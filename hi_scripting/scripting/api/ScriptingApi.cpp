@@ -2289,8 +2289,19 @@ void ScriptingApi::Synth::sendController(int controllerNumber, int controllerVal
 		{
 			if (controllerValue >= 0)
 			{
-				HiseEvent e = HiseEvent(HiseEvent::Type::Controller, (uint8)controllerNumber, (uint8)controllerValue);
-
+                HiseEvent e;
+                
+                if(controllerNumber == 129)
+                {
+                    e = HiseEvent(HiseEvent::Type::PitchBend, 0, 0);
+                    e.setPitchWheelValue(controllerValue);
+                }
+                else
+                {
+                    e = HiseEvent(HiseEvent::Type::Controller, (uint8)controllerNumber, (uint8)controllerValue);
+                }
+                
+				
 				if (const HiseEvent* current = sp->getCurrentHiseEvent())
 				{
 					e.setTimeStamp(current->getTimeStamp());

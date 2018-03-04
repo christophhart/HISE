@@ -258,7 +258,9 @@ public:
 
 	FFTDisplay(Processor* p) :
 		AudioAnalyserComponent(p),
+#if USE_IPP
 		fftObject(IppFFT::DataType::RealFloat)
+#endif
 	{};
 
 	void paint(Graphics& g) override;
