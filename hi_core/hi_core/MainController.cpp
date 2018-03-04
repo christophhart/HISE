@@ -659,7 +659,35 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	
 #if FRONTEND_IS_PLUGIN
 
-	synthChain->renderNextBlockWithModulators(buffer, masterEventBuffer);
+    const bool isUsingMultiChannel = multiChannelBuffer.getNumChannels() > 2;
+    
+    if(isUsingMultiChannel)
+    {
+        AudioSampleBuffer thisMultiChannelBuffer(multiChannelBuffer.getArrayOfWritePointers(), multiChannelBuffer.getNumChannels(), 0, bufferSize.get());
+        
+        thisMultiChannelBuffer.clear();
+        
+        FloatVectorOperations::copy(thisMultiChannelBuffer.getWritePointer(0), buffer.getReadPointer(0), bufferSize.get());
+        
+        FloatVectorOperations::copy(thisMultiChannelBuffer.getWritePointer(1), buffer.getReadPointer(1), bufferSize.get());
+        
+        synthChain->renderNextBlockWithModulators(thisMultiChannelBuffer, masterEventBuffer);
+        
+        auto& matrix = synthChain->getMatrix();
+        
+        buffer.clear();
+        
+        for (int i = 0; i < matrix.getNumSourceChannels(); i++)
+        {
+            FloatVectorOperations::add(buffer.getWritePointer(i % 2), thisMultiChannelBuffer.getReadPointer(i), bufferSize.get());
+        }
+    }
+    else
+    {
+        synthChain->renderNextBlockWithModulators(buffer, masterEventBuffer);
+    }
+    
+	
 
 #else
 
