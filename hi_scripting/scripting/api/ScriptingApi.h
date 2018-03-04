@@ -262,6 +262,12 @@ public:
 		/** Asks for a preset name (if presetName is empty) and saves the current user preset. */
 		void saveUserPreset(String presetName);
 
+		/** Loads a user preset with the given relative path (use `/` for directory separation). */
+		void loadUserPreset(const String& relativePathWithoutFileEnding);
+
+		/** Returns a list of all available user presets as relative path. */
+		var getUserPresetList() const;
+
 		/** Returns the Bpm of the host. */
 		double getHostBpm() const;
 		

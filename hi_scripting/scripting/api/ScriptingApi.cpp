@@ -933,6 +933,8 @@ struct ScriptingApi::Engine::Wrapper
 
 	API_VOID_METHOD_WRAPPER_1(Engine, loadNextUserPreset);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadPreviousUserPreset);
+	API_VOID_METHOD_WRAPPER_1(Engine, loadUserPreset);
+	API_METHOD_WRAPPER_0(Engine, getUserPresetList);
 	API_METHOD_WRAPPER_0(Engine, getCurrentUserPresetName);
 	API_VOID_METHOD_WRAPPER_1(Engine, saveUserPreset);
 	API_METHOD_WRAPPER_0(Engine, createSliderPackData);
@@ -993,6 +995,8 @@ ApiClass(0)
 	ADD_API_METHOD_1(loadPreviousUserPreset);
 	ADD_API_METHOD_0(getCurrentUserPresetName);
 	ADD_API_METHOD_1(saveUserPreset);
+	ADD_API_METHOD_1(loadUserPreset);
+	ADD_API_METHOD_0(getUserPresetList);
 	ADD_API_METHOD_0(createMidiList);
 	ADD_API_METHOD_0(getPlayHead);
 	ADD_API_METHOD_2(dumpAsJSON);
@@ -1251,6 +1255,51 @@ String ScriptingApi::Engine::getCurrentUserPresetName()
 void ScriptingApi::Engine::saveUserPreset(String presetName)
 {
 	getProcessor()->getMainController()->getUserPresetHandler().savePreset(presetName);
+}
+
+void ScriptingApi::Engine::loadUserPreset(const String& relativePath)
+{
+#if USE_BACKEND
+	File userPresetRoot = GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
+#else
+	File userPresetRoot = ProjectHandler::Frontend::getUserPresetDirectory();
+#endif
+
+	auto userPreset = userPresetRoot.getChildFile(relativePath + ".preset");
+
+	if (userPreset.existsAsFile())
+	{
+		getProcessor()->getMainController()->getUserPresetHandler().loadUserPreset(userPreset);
+	}
+	else
+	{
+		reportScriptError("User preset " + userPreset.getFullPathName() + " doesn't exist");
+	}
+}
+
+var ScriptingApi::Engine::getUserPresetList() const
+{
+#if USE_BACKEND
+	File userPresetRoot = GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
+#else
+	File userPresetRoot = ProjectHandler::Frontend::getUserPresetDirectory();
+#endif
+
+	Array<File> presets;
+
+	userPresetRoot.findChildFiles(presets, File::findFiles, true, "*.preset");
+
+	Array<var> list;
+
+	for (auto& pr : presets)
+	{
+		auto name = pr.getRelativePathFrom(userPresetRoot).upToFirstOccurrenceOf(".preset", false, true);
+		name = name.replaceCharacter('\\', '/');
+
+		list.add(var(name));
+	}
+
+	return var(list);
 }
 
 DynamicObject * ScriptingApi::Engine::getPlayHead() { return getProcessor()->getMainController()->getHostInfoObject(); }
