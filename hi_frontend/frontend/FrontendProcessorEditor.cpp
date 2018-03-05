@@ -53,21 +53,26 @@ AudioProcessorEditor(fp)
 	container->addAndMakeVisible(deactiveOverlay = new DeactiveOverlay());
 
 
-
-#if !FRONTEND_IS_PLUGIN && !HISE_IOS
-
-
-	deactiveOverlay->setState(DeactiveOverlay::SamplesNotInstalled, !ProjectHandler::Frontend::checkSamplesCorrectlyInstalled());
-
-	deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, !fp->areSamplesLoadedCorrectly());
+#if FRONTEND_IS_PLUGIN || HISE_IOS
+    const bool searchSamples = false;
 #else
-
-	// make sure to call setState at least once or the overlay will be visible...
-	deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, false);
-
+    const bool searchSamples = ProcessorHelpers::getFirstProcessorWithType<ModulatorSampler>(fp->getMainSynthChain()) != nullptr;
+    
 #endif
+    
 
-
+    if(searchSamples)
+    {
+        deactiveOverlay->setState(DeactiveOverlay::SamplesNotInstalled, !ProjectHandler::Frontend::checkSamplesCorrectlyInstalled());
+        
+        deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, !fp->areSamplesLoadedCorrectly());
+    }
+    else
+    {
+        // make sure to call setState at least once or the overlay will be visible...
+        deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, false);
+    }
+    
     
 #if USE_COPY_PROTECTION
 
