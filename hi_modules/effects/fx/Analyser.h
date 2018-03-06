@@ -257,9 +257,11 @@ class FFTDisplay : public AudioAnalyserComponent
 public:
 
 	FFTDisplay(Processor* p) :
-		AudioAnalyserComponent(p),
 #if USE_IPP
+        AudioAnalyserComponent(p),
 		fftObject(IppFFT::DataType::RealFloat)
+#else
+       AudioAnalyserComponent(p)
 #endif
 	{};
 
