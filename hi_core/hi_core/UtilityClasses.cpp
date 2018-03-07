@@ -568,6 +568,33 @@ bool RegexFunctions::matchesWildcard(const String &wildcard, const String &strin
 #endif
 }
 
+/**
+    Apple's documentation
+    (https://developer.apple.com/library/content/documentation/MusicAudio/Conceptual/AudioUnitProgrammingGuide/AudioUnitDevelopmentFundamentals/AudioUnitDevelopmentFundamentals.html#//apple_ref/doc/uid/TP40003278-CH7-SW1)
+    states that we "are free to use any subtype code, including subtypes named with only lowercase letters" and
+    "Manufacturer codes must contain at least one uppercase character."
+
+    This is evidenced by many large vendors' plugins:
+    - Native Instruments uses "-NI-" as their manufacturer code,
+    using numbers in subtype codes (i.e.: Maschine 2 is "NiM2")
+    - TAL Software's TAL Filter 2 uses "025e" as its subtype code
+    - Waves uses "ksWV" as their manufacturer code
+    - iZotope uses "iZtp" as their manufacturer code
+
+    To satisfy these requirements as simply as possible, these methods check that:
+    - all characters are within [a-zA-Z0-9_-]
+    - for manufacturer codes, at least one character is an upper case letter.
+*/
+bool AudioUnitCodeValidator::isValidSubtype(const String &fourCC)
+{
+    return fourCC.length() == 4 && fourCC.containsOnly("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_-");
+}
+
+bool AudioUnitCodeValidator::isValidManufacturer(const String &fourCC)
+{
+    return AudioUnitCodeValidator::isValidSubtype(fourCC) && fourCC.containsAnyOf("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+}
+
 ScopedNoDenormals::ScopedNoDenormals()
 {
 #if JUCE_IOS

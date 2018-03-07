@@ -297,11 +297,10 @@ String SettingWindows::ProjectSettingWindow::sanityCheck(const XmlElement& xmlSe
 	};
 
 	const String pluginCode = GET_VALUE_FROM_XML(ProjectSettingWindow::Attributes::PluginCode);
-	const String codeWildcard = "[A-Z][a-z][a-z][a-z]";
 
-	if (!RegexFunctions::matchesWildcard(codeWildcard, pluginCode))
+	if (!AudioUnitCodeValidator::isValidSubtype(pluginCode))
 	{
-		return "The plugin code doesn't match the required formula. Use something like 'Abcd'\n" \
+		return "The plugin code must contain only upper- or lower-case letters from a-z, numbers from 0-9, and - or _.\n" \
 			   "This is required for exported AU plugins to pass the AU validation.";
 	};
 
