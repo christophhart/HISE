@@ -237,7 +237,7 @@ void SampleMap::restoreFromValueTree(const ValueTree &v)
 
 void SampleMap::saveIfNeeded()
 {
-	const bool unsavedChanges = sampler->getNumSounds() != 0 && hasUnsavedChanges();
+	const bool unsavedChanges = sampler != nullptr && sampler->getNumSounds() != 0 && hasUnsavedChanges();
 
 	if(unsavedChanges)
 	{
