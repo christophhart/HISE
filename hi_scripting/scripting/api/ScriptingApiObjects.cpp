@@ -1742,17 +1742,22 @@ void ScriptingObjects::TimerObject::timerCallback()
 
     auto engine = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine();
     
-    engine->maximumExecutionTime = RelativeTime(0.5);
-    
-	auto callback = getProperty("callback");
-
-	engine->callExternalFunction(callback, args, &r);
-
-	if (r.failed())
+	if (engine != nullptr)
 	{
-		stopTimer();
-		debugError(getProcessor(), r.getErrorMessage());
+		engine->maximumExecutionTime = RelativeTime(0.5);
+
+		auto callback = getProperty("callback");
+
+		engine->callExternalFunction(callback, args, &r);
+
+		if (r.failed())
+		{
+			stopTimer();
+			debugError(getProcessor(), r.getErrorMessage());
+		}
 	}
+	else
+		stopTimer();
 }
 
 void ScriptingObjects::TimerObject::startTimer(int intervalInMilliSeconds)
