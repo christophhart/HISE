@@ -1681,10 +1681,10 @@ lookupTableIndex(-1)
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::textColour));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::macroControl));
+	deactivatedProperties.add(getIdFor(parameterId));
 
 	propertyIds.add("tableIndex");
-	propertyIds.add("processorId"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
-
+	
 #if 0
 	componentProperties->setProperty(getIdFor(ProcessorId), 0);
 	componentProperties->setProperty(getIdFor(TableIndex), 0);
@@ -1694,10 +1694,10 @@ lookupTableIndex(-1)
 	setDefaultValue(ScriptComponent::Properties::y, y);
 	setDefaultValue(ScriptComponent::Properties::width, width);
 	setDefaultValue(ScriptComponent::Properties::height, height);
-	setDefaultValue(ScriptTable::Properties::ProcessorId, "");
 	setDefaultValue(ScriptTable::Properties::TableIndex, 0);
 
-	initInternalPropertyFromValueTreeOrDefault(Properties::ProcessorId);
+	initInternalPropertyFromValueTreeOrDefault(ScriptComponent::Properties::processorId);
+	
 	initInternalPropertyFromValueTreeOrDefault(Properties::TableIndex);
 
 	ADD_API_METHOD_1(getTableValue);
@@ -1744,7 +1744,7 @@ float ScriptingApi::Content::ScriptTable::getTableValue(int inputValue)
 
 StringArray ScriptingApi::Content::ScriptTable::getOptionsFor(const Identifier &id)
 {
-	if (id != getIdFor(ProcessorId)) return ScriptComponent::getOptionsFor(id);
+	if (id != getIdFor(ScriptComponent::Properties::processorId)) return ScriptComponent::getOptionsFor(id);
 
 	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
 	if (mp == nullptr) return StringArray();
@@ -1754,9 +1754,9 @@ StringArray ScriptingApi::Content::ScriptTable::getOptionsFor(const Identifier &
 
 void ScriptingApi::Content::ScriptTable::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor)
 {
-	if (getIdFor(ProcessorId) == id)
+	if (getIdFor(ScriptComponent::Properties::processorId) == id)
 	{
-		jassert(isCorrectlyInitialised(ProcessorId));
+		jassert(isCorrectlyInitialised(ScriptComponent::Properties::processorId));
 
 		const int tableIndex = getScriptObjectProperty(TableIndex);
 
@@ -1766,7 +1766,12 @@ void ScriptingApi::Content::ScriptTable::setScriptObjectPropertyWithChangeMessag
 	{
 		jassert(isCorrectlyInitialised(TableIndex));
 
-		connectToOtherTable(getScriptObjectProperty(ProcessorId), newValue);
+		connectToOtherTable(getScriptObjectProperty(ScriptComponent::Properties::processorId), newValue);
+	}
+	else if (getIdFor(parameterId) == id)
+	{
+		// don't do anything if you try to connect a table to a parameter...
+		return;
 	}
 
 	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
@@ -1862,8 +1867,9 @@ existingData(nullptr)
 	ADD_SCRIPT_PROPERTY(i01, "stepSize");
 	ADD_SCRIPT_PROPERTY(i02, "flashActive");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i03, "showValueOverlay");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	ADD_SCRIPT_PROPERTY(i04, "ProcessorId");         ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(i05, "SliderPackIndex");     
+
+	deactivatedProperties.add(getIdFor(parameterId));
 
 	packData->setNumSliders(16);
 
@@ -1880,7 +1886,7 @@ existingData(nullptr)
 	setDefaultValue(StepSize, 0);
 	setDefaultValue(FlashActive, true);
 	setDefaultValue(ShowValueOverlay, true);
-	setDefaultValue(ProcessorId, "");
+	
 	setDefaultValue(SliderPackIndex, 0);
 
 	setDefaultValue(SliderAmount, 16);
@@ -1892,7 +1898,7 @@ existingData(nullptr)
 	initInternalPropertyFromValueTreeOrDefault(StepSize);
 	initInternalPropertyFromValueTreeOrDefault(FlashActive);
 	initInternalPropertyFromValueTreeOrDefault(ShowValueOverlay);
-	initInternalPropertyFromValueTreeOrDefault(ProcessorId);
+	initInternalPropertyFromValueTreeOrDefault(ScriptComponent::Properties::processorId);
 	initInternalPropertyFromValueTreeOrDefault(SliderPackIndex);
 
 	ADD_API_METHOD_2(setSliderAtIndex);
@@ -1978,7 +1984,7 @@ void ScriptingApi::Content::ScriptSliderPack::connectToOtherSliderPack(const Str
 
 StringArray ScriptingApi::Content::ScriptSliderPack::getOptionsFor(const Identifier &id)
 {
-	if (id == getIdFor(ProcessorId))
+	if (id == getIdFor(ScriptComponent::Properties::processorId))
 	{
 		MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
 		if (mp == nullptr) return StringArray();
@@ -2001,6 +2007,8 @@ StringArray ScriptingApi::Content::ScriptSliderPack::getOptionsFor(const Identif
 
 void ScriptingApi::Content::ScriptSliderPack::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /*= sendNotification*/)
 {
+	static const Identifier oldProcessorId = Identifier("ProcessorId");
+
 	if (id == getIdFor(SliderAmount))
 	{
 		jassert(isCorrectlyInitialised(SliderAmount));
@@ -2043,11 +2051,16 @@ void ScriptingApi::Content::ScriptSliderPack::setScriptObjectPropertyWithChangeM
 		if (existingData.get() != nullptr) return;
 		packData->setShowValueOverlay((bool)newValue);
 	}
-	else if (id == getIdFor(ProcessorId))
+	else if (id == getIdFor(ScriptComponent::Properties::processorId) || id == oldProcessorId)
 	{
-		jassert(isCorrectlyInitialised(ProcessorId));
+		jassert(isCorrectlyInitialised(ScriptComponent::Properties::processorId));
 
 		connectToOtherSliderPack(newValue.toString());
+	}
+	else if (getIdFor(parameterId) == id )
+	{
+		// don't do anything if you try to connect a slider pack to a parameter...
+		return;
 	}
 	else if (id == getIdFor(SliderPackIndex))
 	{
@@ -3140,6 +3153,16 @@ StringArray ScriptingApi::Content::ScriptAudioWaveform::getOptionsFor(const Iden
 AudioSampleProcessor * ScriptingApi::Content::ScriptAudioWaveform::getAudioProcessor()
 {
 	return dynamic_cast<AudioSampleProcessor*>(getConnectedProcessor());
+}
+
+void ScriptingApi::Content::ScriptAudioWaveform::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */)
+{
+	if (id == getIdFor(parameterId))
+	{
+		return;
+	}
+
+	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 }
 
 // ====================================================================================================== ScriptFloatingTile functions

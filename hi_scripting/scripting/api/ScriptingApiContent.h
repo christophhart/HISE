@@ -878,7 +878,6 @@ public:
 		enum Properties
 		{
 			TableIndex = ScriptComponent::Properties::numProperties,
-			ProcessorId,
 			numProperties
 		};
 
@@ -938,7 +937,6 @@ public:
 			StepSize,
 			FlashActive,
 			ShowValueOverlay,
-			ProcessorId,
 			SliderPackIndex,
 			numProperties
 		};
@@ -1498,6 +1496,8 @@ public:
 		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptAudioWaveform"); }
 		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); };
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
+
+		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */) override;
 
 		StringArray getOptionsFor(const Identifier &id) override;
 		ValueTree exportAsValueTree() const override;

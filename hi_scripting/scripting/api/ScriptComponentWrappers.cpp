@@ -905,7 +905,7 @@ void ScriptCreatedComponentWrappers::TableWrapper::updateComponent(int propertyI
 	switch (propertyIndex)
 	{
 		PROPERTY_CASE::ScriptComponent::tooltip: t->setTooltip(GET_SCRIPT_PROPERTY(tooltip)); break;
-		PROPERTY_CASE::ScriptTable::Properties::ProcessorId:
+		PROPERTY_CASE::ScriptComponent::processorId:
 		PROPERTY_CASE::ScriptTable::Properties::TableIndex : updateConnectedTable(t);
 	default:
 		break;
