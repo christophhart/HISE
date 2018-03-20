@@ -118,7 +118,7 @@ void PopupIncludeEditor::timerCallback()
 
 bool PopupIncludeEditor::keyPressed(const KeyPress& key)
 {
-	if (key.isKeyCode(KeyPress::F5Key))
+	if (key.isKeyCode(KeyPress::F5Key) && !key.getModifiers().isShiftDown())
 	{
 		compileInternal();
 		return true;

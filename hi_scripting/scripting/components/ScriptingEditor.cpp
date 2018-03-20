@@ -522,7 +522,7 @@ bool ScriptingEditor::keyPressed(const KeyPress &k)
 		contentButton->triggerClick();
 		return true;
 	}
-	else if (k.getKeyCode() == KeyPress::F5Key)
+	else if (k.getKeyCode() == KeyPress::F5Key && !k.getModifiers().isShiftDown())
 	{
 		int i = codeEditor->editor->getCaretPos().getPosition();
 
