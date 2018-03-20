@@ -587,19 +587,26 @@ struct HiseJavascriptEngine::RootObject::CallbackLocalStatement : public Stateme
 
 struct HiseJavascriptEngine::RootObject::CallbackLocalReference : public Expression
 {
-	CallbackLocalReference(const CodeLocation& l, var* data_) noexcept : Expression(l), data(data_) {}
+	CallbackLocalReference(const CodeLocation& l, Callback* parent_, const Identifier& name_) noexcept : 
+	Expression(l), 
+	parentCallback(parent_),
+	name(name_)
+	{}
 
 	var getResult(const Scope& /*s*/) const override
 	{
-		return *data;
+		return parentCallback->localProperties[name];
 	}
 
 	void assign(const Scope& /*s*/, const var& newValue) const
 	{ 
-		*data = newValue;
+		parentCallback->localProperties.set(name, newValue);
 	}
 
-	var* data;
+	Callback* parentCallback;
+	Identifier name;
+
+	CallbackLocalStatement* target;
 };
 
 #if INCLUDE_NATIVE_JIT

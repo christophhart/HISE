@@ -1860,8 +1860,9 @@ private:
 
 							if (localParameter != nullptr)
 							{
-								parseIdentifier();
-								return parseSuffixes(new CallbackLocalReference(location, localParameter));
+								auto name = parseIdentifier();
+
+								return parseSuffixes(new CallbackLocalReference(location, c, name));
 							}
 						}
 						else
