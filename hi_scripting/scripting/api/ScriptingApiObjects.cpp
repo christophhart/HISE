@@ -259,7 +259,9 @@ struct ScriptingObjects::ScriptingModulator::Wrapper
     API_METHOD_WRAPPER_1(ScriptingModulator, getAttribute);
 	API_METHOD_WRAPPER_0(ScriptingModulator, getNumAttributes);
 	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, setBypassed);
+	API_METHOD_WRAPPER_0(ScriptingModulator, isBypassed);
 	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, setIntensity);
+	API_METHOD_WRAPPER_0(ScriptingModulator, getIntensity);
 	API_METHOD_WRAPPER_0(ScriptingModulator, getCurrentLevel);
 	API_METHOD_WRAPPER_0(ScriptingModulator, exportState);
 	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, restoreState);
@@ -300,7 +302,9 @@ moduleHandler(m_)
 
 	ADD_API_METHOD_2(setAttribute);
 	ADD_API_METHOD_1(setBypassed);
+	ADD_API_METHOD_0(isBypassed);
 	ADD_API_METHOD_1(setIntensity);
+	ADD_API_METHOD_0(getIntensity);
     ADD_API_METHOD_1(getAttribute);
 	ADD_API_METHOD_0(getCurrentLevel);
 	ADD_API_METHOD_0(exportState);
@@ -397,6 +401,16 @@ void ScriptingObjects::ScriptingModulator::setBypassed(bool shouldBeBypassed)
 
 
 
+bool ScriptingObjects::ScriptingModulator::isBypassed() const
+{
+	if (checkValidObject())
+	{
+		return mod->isBypassed();
+	}
+
+	return false;
+}
+
 void ScriptingObjects::ScriptingModulator::doubleClickCallback(const MouseEvent &, Component* componentToNotify)
 {
 #if USE_BACKEND
@@ -445,6 +459,25 @@ void ScriptingObjects::ScriptingModulator::setIntensity(float newIntensity)
 };
 
 
+
+float ScriptingObjects::ScriptingModulator::getIntensity() const
+{
+	if (checkValidObject())
+	{
+		if (m->getMode() == Modulation::GainMode)
+		{
+			return dynamic_cast<const Modulation*>(mod.get())->getIntensity();
+		}
+		else
+		{
+			return dynamic_cast<const Modulation*>(mod.get())->getIntensity() * 12.0f;
+		}
+
+		
+	}
+
+	return 0.0f;
+}
 
 float ScriptingObjects::ScriptingModulator::getCurrentLevel()
 {

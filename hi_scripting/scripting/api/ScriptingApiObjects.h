@@ -373,8 +373,14 @@ public:
 		/** Bypasses the Modulator. */
 		void setBypassed(bool shouldBeBypassed);;
 
+		/** Checks if the modulator is bypassed. */
+		bool isBypassed() const;
+
 		/** Changes the Intensity of the Modulator. Ranges: Gain Mode 0 ... 1, PitchMode -12 ... 12. */
 		void setIntensity(float newIntensity);
+
+		/** Returns the intensity of the Modulator. Ranges: Gain: 0...1, Pitch: -12...12. */
+		float getIntensity() const;
 
 		/** Returns the current peak value of the modulator. */
 		float getCurrentLevel();
