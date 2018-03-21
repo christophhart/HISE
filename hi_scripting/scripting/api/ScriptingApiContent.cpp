@@ -1674,9 +1674,6 @@ useOtherTable(false),
 connectedProcessor(nullptr),
 lookupTableIndex(-1)
 {
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::bgColour));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::itemColour));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::itemColour2));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::textColour));
@@ -1684,7 +1681,8 @@ lookupTableIndex(-1)
 	deactivatedProperties.add(getIdFor(parameterId));
 
 	propertyIds.add("tableIndex");
-	
+	propertyIds.add("customColours"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+
 #if 0
 	componentProperties->setProperty(getIdFor(ProcessorId), 0);
 	componentProperties->setProperty(getIdFor(TableIndex), 0);
@@ -1695,6 +1693,7 @@ lookupTableIndex(-1)
 	setDefaultValue(ScriptComponent::Properties::width, width);
 	setDefaultValue(ScriptComponent::Properties::height, height);
 	setDefaultValue(ScriptTable::Properties::TableIndex, 0);
+	setDefaultValue(ScriptTable::Properties::customColours, 0);
 
 	initInternalPropertyFromValueTreeOrDefault(ScriptComponent::Properties::processorId);
 	
@@ -1706,6 +1705,8 @@ lookupTableIndex(-1)
 
 ScriptingApi::Content::ScriptTable::~ScriptTable()
 {
+	broadcaster.removeAllChangeListeners();
+
 	ownedTable = nullptr;
 	referencedTable = nullptr;
 	connectedProcessor = nullptr;
@@ -1719,6 +1720,10 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptTable::createCompon
 float ScriptingApi::Content::ScriptTable::getTableValue(int inputValue)
 {
 	value = inputValue;
+
+	
+
+	
 
 	if (useOtherTable)
 	{
@@ -1738,6 +1743,16 @@ float ScriptingApi::Content::ScriptTable::getTableValue(int inputValue)
 	}
 	else
 	{
+		// Connected tables will handle the update automatically, but for owned tables
+		// it must be done here explicitely...
+		if (auto t = getTable())
+		{
+			broadcaster.table = t;
+			broadcaster.tableIndex = (float)inputValue / (float)t->getTableSize();
+
+			broadcaster.sendAllocationFreeChangeMessage();
+		}
+
 		return ownedTable->get(inputValue);
 	}
 }
@@ -1779,6 +1794,8 @@ void ScriptingApi::Content::ScriptTable::setScriptObjectPropertyWithChangeMessag
 
 void ScriptingApi::Content::ScriptTable::connectToOtherTable(const String &otherTableId, int index)
 {
+	
+
 	if (otherTableId.isEmpty()) return;
 
 	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
@@ -1794,9 +1811,8 @@ void ScriptingApi::Content::ScriptTable::connectToOtherTable(const String &other
 		{
 			useOtherTable = true;
 
-			
-
 			referencedTable = dynamic_cast<LookupTableProcessor*>(p)->getTable(index);
+
 			connectedProcessor = p;
 
 			return;

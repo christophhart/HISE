@@ -49,6 +49,9 @@ TableEditor::TableEditor(UndoManager* undoManager_, Table *tableToBeEdited):
 	addAndMakeVisible(ruler = new Ruler());
 
 	
+	setColour(ColourIds::bgColour, Colours::transparentBlack);
+	setColour(ColourIds::fillColour, Colours::white.withAlpha(0.2f));
+	setColour(ColourIds::lineColour, Colours::white);
 
 	if(editedTable.get() != nullptr) editedTable->addChangeListener(this);
 }
@@ -100,9 +103,11 @@ void TableEditor::mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &w
 			lastEditedPointIndex = thisIndex;
 			undoManager->beginNewTransaction("Change Curve");
 		}
-			
-
+		
 		updateCurve(x, y, wheel.deltaY, true);
+
+		if (editedTable.get() != nullptr)
+			editedTable->sendSynchronousChangeMessage();
 	}
 
 	else getParentComponent()->mouseWheelMove(e, wheel);
@@ -174,19 +179,39 @@ void TableEditor::setEdge(float f, bool setLeftEdge)
 
 void TableEditor::paint (Graphics& g)
 {
-	g.setColour(Colours::lightgrey.withAlpha(0.1f));
-    g.drawRect(getLocalBounds(), 1);
+	if (flatDesign)
+	{
+		g.setColour(findColour(ColourIds::bgColour));
+		g.fillAll();
+	}
+	else
+	{
+		g.setColour(Colours::lightgrey.withAlpha(0.1f));
+		g.drawRect(getLocalBounds(), 1);
+	}
+	
     
 	if (editedTable.get() == nullptr)
 	{
 		g.setFont(GLOBAL_BOLD_FONT());
+		g.setColour(Colours::white.withAlpha(0.5f));
 		g.drawText("No table", getLocalBounds(), Justification::centred);
 		return;
 	}
-		
-
+	
+	if (flatDesign)
+	{
+		g.setColour(findColour(ColourIds::fillColour));
+		g.fillPath(dragPath);
+		g.setColour(findColour(ColourIds::lineColour));
+		g.strokePath(dragPath, PathStrokeType(2.0f));
+	}
+	else
+	{
+		KnobLookAndFeel::fillPathHiStyle(g, dragPath, getWidth(), getHeight());
+	}
     
-    KnobLookAndFeel::fillPathHiStyle(g, dragPath, getWidth(), getHeight());
+    
     
 #if !HISE_IOS
     if (currently_dragged_point != nullptr)
@@ -237,10 +262,27 @@ void TableEditor::paint (Graphics& g)
 
 void TableEditor::Ruler::paint(Graphics &g)
 {
-	g.setColour(Colours::lightgrey.withAlpha(0.05f));
-	g.fillRect(jmax(0.0f, value * (float)getWidth() - 5.0f), 0.0f, value == 0.0f ? 5.0f : 10.0f, (float)getHeight());
-	g.setColour(Colours::white.withAlpha(0.6f));
-	g.drawLine(Line<float>(value * (float)getWidth(), 0.0f, value * (float)getWidth(), (float)getHeight()), 0.5f);
+	auto te = findParentComponentOfClass<TableEditor>();
+
+	if (te == nullptr)
+		return;
+
+	if (te->flatDesign)
+	{
+		
+		g.setColour(te->findColour(TableEditor::ColourIds::lineColour));
+		g.drawLine(Line<float>(value * (float)getWidth(), 0.0f, value * (float)getWidth(), (float)getHeight()), 2.0f);
+	}
+	else
+	{
+		g.setColour(Colours::lightgrey.withAlpha(0.05f));
+		g.fillRect(jmax(0.0f, value * (float)getWidth() - 5.0f), 0.0f, value == 0.0f ? 5.0f : 10.0f, (float)getHeight());
+		g.setColour(Colours::white.withAlpha(0.6f));
+		g.drawLine(Line<float>(value * (float)getWidth(), 0.0f, value * (float)getWidth(), (float)getHeight()), 0.5f);
+	}
+
+
+	
 }
 
 void TableEditor::resized()
@@ -349,9 +391,13 @@ void TableEditor::mouseDown(const MouseEvent &e)
 				undoManager->beginNewTransaction("Remove graph point");
 
 			removeDragPoint(dp);
-            return;
+
+			if (editedTable.get() != nullptr) 
+				editedTable->sendSynchronousChangeMessage();
 		}
 	}
+
+	
 
 	updateTable(false);
 	refreshGraph();
@@ -527,25 +573,47 @@ TableEditor::DragPoint::~DragPoint()
 
 void TableEditor::DragPoint::paint (Graphics& g)
 {
+	bool useFlatDesign = false;
+
+	auto te = findParentComponentOfClass<TableEditor>();
+
+
+	if (te != nullptr)
+	{
+		useFlatDesign = te->flatDesign;
+	}
+	else
+		return;
+
     const float width = (float)getWidth() - 6.0f;
     const float round = width * 0.2f;
     
-	if(isStartOrEnd())
+	if (useFlatDesign)
 	{
-		g.setColour (Colours::white.withAlpha(0.3f));
-		g.drawRoundedRectangle (3.0f , 3.0f, width, width, round, over ? 2.0f : 1.0f);
-
-		g.setColour (Colours::white.withAlpha(0.2f));
-		g.fillRoundedRectangle (3.0f , 3.0f, width, width, round);
-
+		g.setColour(te->findColour(TableEditor::ColourIds::lineColour));
+		g.fillRoundedRectangle(3.0f, 3.0f, width, width, round);
 	}
 	else
 	{
-		g.setColour (Colours::white.withAlpha(0.3f));
-		g.drawRoundedRectangle (3.0f , 3.0f, width, width, round, over ? 2.0f : 1.0f);
-		g.setColour (Colours::white.withAlpha(0.2f));
-		g.fillRoundedRectangle (3.0f , 3.0f, width, width, round);
+		if (isStartOrEnd())
+		{
+			g.setColour(Colours::white.withAlpha(0.3f));
+			g.drawRoundedRectangle(3.0f, 3.0f, width, width, round, over ? 2.0f : 1.0f);
+
+			g.setColour(Colours::white.withAlpha(0.2f));
+			g.fillRoundedRectangle(3.0f, 3.0f, width, width, round);
+
+		}
+		else
+		{
+			g.setColour(Colours::white.withAlpha(0.3f));
+			g.drawRoundedRectangle(3.0f, 3.0f, width, width, round, over ? 2.0f : 1.0f);
+			g.setColour(Colours::white.withAlpha(0.2f));
+			g.fillRoundedRectangle(3.0f, 3.0f, width, width, round);
+		}
 	}
+
+	
 }
 
 void TableEditor::DragPoint::resized()

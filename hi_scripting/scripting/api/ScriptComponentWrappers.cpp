@@ -881,9 +881,26 @@ ScriptCreatedComponentWrapper(content, index)
 
 	t->setName(table->name.toString());
 
+	table->broadcaster.addChangeListener(t);
+
 	component = t;
 	
+	
+
 	updateConnectedTable(t);
+
+	initAllProperties();
+}
+
+ScriptCreatedComponentWrappers::TableWrapper::~TableWrapper()
+{
+	if (auto table = dynamic_cast<ScriptingApi::Content::ScriptTable*>(getScriptComponent()))
+	{
+		if (auto te = dynamic_cast<TableEditor*>(component.get()))
+		{
+			table->broadcaster.removeChangeListener(te);
+		}
+	}
 }
 
 void ScriptCreatedComponentWrappers::TableWrapper::updateComponent()
@@ -904,9 +921,13 @@ void ScriptCreatedComponentWrappers::TableWrapper::updateComponent(int propertyI
 	
 	switch (propertyIndex)
 	{
+		PROPERTY_CASE::ScriptComponent::bgColour: t->setColour(TableEditor::ColourIds::bgColour, GET_OBJECT_COLOUR(bgColour)); t->repaint(); break;
+		PROPERTY_CASE::ScriptComponent::itemColour: t->setColour(TableEditor::ColourIds::fillColour, GET_OBJECT_COLOUR(itemColour)); t->repaint(); break;
+		PROPERTY_CASE::ScriptComponent::itemColour2: t->setColour(TableEditor::ColourIds::lineColour, GET_OBJECT_COLOUR(itemColour2)); t->repaint(); break;
 		PROPERTY_CASE::ScriptComponent::tooltip: t->setTooltip(GET_SCRIPT_PROPERTY(tooltip)); break;
 		PROPERTY_CASE::ScriptComponent::processorId:
-		PROPERTY_CASE::ScriptTable::Properties::TableIndex : updateConnectedTable(t);
+		PROPERTY_CASE::ScriptTable::Properties::TableIndex : updateConnectedTable(t); break;
+		PROPERTY_CASE::ScriptTable::Properties::customColours: t->setUseFlatDesign(newValue); break;
 	default:
 		break;
 	}

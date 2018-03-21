@@ -321,6 +321,14 @@ class TableEditor : public Component,
 {
 public:
 
+	enum ColourIds
+	{
+		bgColour = 1024,
+		lineColour,
+		fillColour,
+		numColourIds
+	};
+
 	/** This allows different domain types, eg. time */
 	enum DomainType
 	{
@@ -391,6 +399,13 @@ public:
 		drag_points.getFirst()->setConstantValue(constantLeftEdge);
 		drag_points.getLast()->setConstantValue(constantRightEdge);
 	};
+
+
+	void setUseFlatDesign(bool shouldUseFlatDesign)
+	{
+		flatDesign = shouldUseFlatDesign;
+		repaint();
+	}
 
 	/** A left mouse click creates a new DragPoint or selects the DragPoint under the mouse which can be dragged.
 	*	
@@ -773,6 +788,8 @@ private:
 	ScopedPointer<Ruler> ruler;
 
 	ScopedPointer<TouchOverlay> touchOverlay;
+
+	bool flatDesign = false;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TableEditor)

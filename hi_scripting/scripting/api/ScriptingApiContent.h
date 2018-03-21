@@ -878,6 +878,7 @@ public:
 		enum Properties
 		{
 			TableIndex = ScriptComponent::Properties::numProperties,
+			customColours,
 			numProperties
 		};
 
@@ -912,12 +913,16 @@ public:
 
 		struct Wrapper;
 
+		LookupTableProcessor::TableChangeBroadcaster broadcaster;
+
 	private:
 
 		ScopedPointer<MidiTable> ownedTable;
 
 		WeakReference<Table> referencedTable;
 		WeakReference<Processor> connectedProcessor;
+
+		
 
 		bool useOtherTable;
 		int lookupTableIndex;

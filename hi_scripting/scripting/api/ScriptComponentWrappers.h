@@ -472,6 +472,8 @@ public:
 
 		TableWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptTable *table, int index);
 
+		~TableWrapper();
+
 		void updateComponent() override;
 
 		void updateComponent(int index, var newValue) override;
