@@ -117,10 +117,11 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 
 	wrappedVoice.setPitchCounterForThisBlock(pitchCounter);
 	wrappedVoice.setPitchValues(voicePitchValues);
+	wrappedVoice.setDynamicPitchFactor(propertyPitch);
 
 	voiceBuffer.clear();
 
-	wrappedVoice.uptimeDelta = uptimeDelta * propertyPitch;
+	
 
 	wrappedVoice.renderNextBlock(voiceBuffer, startSample, numSamples);
 
@@ -212,7 +213,7 @@ double ModulatorSamplerVoice::limitPitchDataToMaxSamplerPitch(float * pitchData,
 		for (int i = 0; i < numSamples; i++)
 		{
 			pitchCounter += jmin<double>((double)MAX_SAMPLER_PITCH, (double)*pitchData++);
-	}
+		}
 		
 #endif			
 }

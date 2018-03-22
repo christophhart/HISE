@@ -226,11 +226,20 @@ public:
 	/** Adds it's output to the outputBuffer. */
 	void renderNextBlock(AudioSampleBuffer &outputBuffer, int startSample, int numSamples) override;
 
-	/** You can pass a pointer with float values containing pitch information for each sample.
+	/** You can pass a pointer with float values containing pitch information for each sample and the delta pitch value for each sample.
 	*
 	*	The array size should be exactly the number of samples that are calculated in the current renderNextBlock method.
 	*/
-	void setPitchValues(const float *pitchDataForBlock) { pitchData = pitchDataForBlock; };
+	void setPitchValues(const float *pitchDataForBlock)
+	{ 
+		pitchData = pitchDataForBlock; 
+	};
+
+	/** Changes the pitch of the voice after the voice start with the given multiplier. */
+	void setDynamicPitchFactor(double pitchMultiplier)
+	{
+		uptimeDelta = constUptimeDelta * pitchMultiplier;
+	}
 
 	/** You have to call this before startNote() to calculate the pitch factor.
 	*
@@ -290,6 +299,9 @@ private:
 
 	double voiceUptime;
 	double uptimeDelta;
+
+	// will be calculated at note on
+	double constUptimeDelta = 1.0;
 
 	int sampleStartModValue;
 

@@ -492,6 +492,8 @@ void StreamingSamplerVoice::startNote(int /*midiNoteNumber*/,
 		uptimeDelta *= (sound->getSampleRate() / getSampleRate());
 		uptimeDelta = jmin<double>((double)MAX_SAMPLER_PITCH, uptimeDelta);
 
+		constUptimeDelta = uptimeDelta;
+
 		isActive = true;
 
 	}
