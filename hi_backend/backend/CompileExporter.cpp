@@ -62,12 +62,33 @@ void loadOtherReferencedImages(ModulatorSynthChain* chainToExport)
 	}
 }
 
+void loadAllImages(ModulatorSynthChain* chainToExport)
+{
+	auto mc = chainToExport->getMainController();
+
+	auto& handler = GET_PROJECT_HANDLER(chainToExport);
+
+	auto imageDirectory = handler.getSubDirectory(ProjectHandler::SubDirectories::Images);
+
+	Array<File> allFiles;
+	imageDirectory.findChildFiles(allFiles, File::findFiles, true);
+	for (int i = 0; i < allFiles.size(); i++)
+	{
+		auto f = allFiles[i];
+		ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}" + f.getFileName());
+	}
+}
+
 ValueTree BaseExporter::exportReferencedImageFiles()
 {
 	// Export the interface
 
 
 	loadOtherReferencedImages(chainToExport);
+
+	if (SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::EmbedImages) == "All Images") {
+		loadAllImages(chainToExport);
+	}
 
 	ImagePool *imagePool = chainToExport->getMainController()->getSampleManager().getImagePool();
 

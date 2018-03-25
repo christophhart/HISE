@@ -202,6 +202,7 @@ public:
 			HisePath = (int)ProjectSettingWindow::Attributes::numAttributes,
 			VisualStudioVersion,
 			UseIPP,
+            EmbedImages,
 			numCompilerSettingAttributes
 		};
 
