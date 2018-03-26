@@ -951,14 +951,22 @@ bool SamplerSoundMap::newSamplesDetected()
 
 	while (auto sound = sIter.getNextSound())
 	{
-		const ModulatorSamplerSound *s = sampleComponents[i]->getSound();
+		if (auto sc = sampleComponents[i])
+		{
+			const ModulatorSamplerSound *s = sc->getSound();
 
-		i++;
+			i++;
 
-		if (s == nullptr)
-			return true;
-		if (s != sound)
-			return true;
+			if (s == nullptr)
+				return true;
+			if (s != sound)
+				return true;
+		}
+		else
+			break;
+
+
+		
 	}
 
 	return false;
