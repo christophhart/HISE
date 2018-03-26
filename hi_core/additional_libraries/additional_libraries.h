@@ -69,6 +69,14 @@ namespace icstdsp
 	#include "icst/SpecMath.h"
 }
 
+
+#include "fft_convolver/Utilities.h"
+#include "fft_convolver/AudioFFT.h"
+#include "fft_convolver/FFTConvolver.h"
+#include "fft_convolver/TwoStageFFTConvolver.h"
+
+
+
 #if JUCE_MSVC
 #pragma warning (push)
 #pragma warning (disable: 4244 4127 4267)
