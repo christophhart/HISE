@@ -940,6 +940,9 @@ void HiseAudioThumbnail::LoadingThread::scalePathFromLevels(Path &p, Rectangle<f
 	if (p.isEmpty())
 		return;
 
+	if (p.getBounds().getHeight() == 0)
+		return;
+
 	auto levels = FloatVectorOperations::findMinAndMax(data, numSamples);
 
 	if (levels.isEmpty())
@@ -984,11 +987,13 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
 
 			auto value = jmax<float>(0.0f, FloatVectorOperations::findMaximum(l_ + i, numToCheck));
 
+			value = jlimit<float>(-1.0f, 1.0f, value);
+
 			p.lineTo((float)i, -1.0f * value);
 
 		};
 
-		for (int i = numSamples - 1; i > 0; i -= stride)
+		for (int i = numSamples - 1; i >= 0; i -= stride)
 		{
 			if (threadShouldExit())
 				return;
@@ -996,6 +1001,8 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
 			const int numToCheck = jmin<int>(stride, numSamples - i);
 
 			auto value = jmin<float>(0.0f, FloatVectorOperations::findMinimum(l_ + i, numToCheck));
+
+			value = jlimit<float>(-1.0f, 1.0f, value);
 
 			p.lineTo((float)i, -1.0f * value);
 		};
