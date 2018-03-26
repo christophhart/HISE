@@ -368,7 +368,7 @@ protected:
 
 	double sampleRateOfLoadedFile;
 
-	bool useLoop;
+	bool useLoop = false;
 
 private:
 
