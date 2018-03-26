@@ -88,6 +88,12 @@ ConvolutionEditor::ConvolutionEditor (ProcessorEditor *p)
     dampingSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     dampingSlider->addListener (this);
 
+    addAndMakeVisible (hiCutSlider = new HiSlider ("Dry Level"));
+    hiCutSlider->setRange (-100, 0, 0.1);
+    hiCutSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
+    hiCutSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
+    hiCutSlider->addListener (this);
+
 
     //[UserPreSize]
 
@@ -105,7 +111,10 @@ ConvolutionEditor::ConvolutionEditor (ProcessorEditor *p)
 	dampingSlider->setMode(HiSlider::Decibel);
 
 	predelaySlider->setup(getProcessor(), ConvolutionEffect::Predelay, "Predelay");
-	predelaySlider->setMode(HiSlider::Time, 0.0, 2000.0, 20.0, 0.1);
+	predelaySlider->setMode(HiSlider::Time, 0.0, 200.0, 50.0, 0.1);
+
+	hiCutSlider->setup(getProcessor(), ConvolutionEffect::HiCut, "IR High Cut");
+	hiCutSlider->setMode(HiSlider::Frequency);
 
 	dryMeter->setType(VuMeter::Type::StereoHorizontal);
 	wetMeter->setType(VuMeter::Type::StereoHorizontal);
@@ -137,7 +146,7 @@ ConvolutionEditor::ConvolutionEditor (ProcessorEditor *p)
 
     //[/UserPreSize]
 
-    setSize (900, 280);
+    setSize (900, 300);
 
 
     //[Constructor] You can add your own custom stuff here..
@@ -160,6 +169,7 @@ ConvolutionEditor::~ConvolutionEditor()
     backgroundButton = nullptr;
     predelaySlider = nullptr;
     dampingSlider = nullptr;
+    hiCutSlider = nullptr;
 
 
     //[Destructor]. You can add your own custom destruction code here..
@@ -190,16 +200,17 @@ void ConvolutionEditor::resized()
     //[UserPreResize] Add your own custom resize code here..
     //[/UserPreResize]
 
-    drySlider->setBounds ((getWidth() / 2) + -141 - 136, 76, 136, 48);
-    wetSlider->setBounds ((getWidth() / 2) + -141 - 136, 18, 136, 48);
-    dryMeter->setBounds ((getWidth() / 2) + -109, 89, 192, 24);
-    wetMeter->setBounds ((getWidth() / 2) + -109, 31, 192, 24);
-    impulseDisplay->setBounds ((getWidth() / 2) + -282, 136, 368, 120);
-    resetButton->setBounds ((getWidth() / 2) + 195 - (128 / 2), 184, 128, 32);
+    drySlider->setBounds ((getWidth() / 2) + 56 - 136, 32, 136, 48);
+    wetSlider->setBounds ((getWidth() / 2) + -118 - 136, 32, 136, 48);
+    dryMeter->setBounds (((getWidth() / 2) + 56 - 136) + 1, 86, 136, 20);
+    wetMeter->setBounds (((getWidth() / 2) + -118 - 136) + 1, 86, 136, 20);
+    impulseDisplay->setBounds ((getWidth() / 2) + -282, 129, 368, 144);
+    resetButton->setBounds ((getWidth() / 2) + 195 - (128 / 2), 215, 128, 32);
     label->setBounds ((getWidth() / 2) + 284 - 264, 15, 264, 40);
-    backgroundButton->setBounds ((getWidth() / 2) + 195 - (128 / 2), 228, 128, 32);
-    predelaySlider->setBounds ((getWidth() / 2) + 264 - 136, 61, 136, 48);
-    dampingSlider->setBounds ((getWidth() / 2) + 265 - 136, 120, 136, 48);
+    backgroundButton->setBounds ((getWidth() / 2) + 195 - (128 / 2), 253, 128, 32);
+    predelaySlider->setBounds ((getWidth() / 2) + 264 - 136, 50, 136, 48);
+    dampingSlider->setBounds ((getWidth() / 2) + 265 - 136, 160, 136, 48);
+    hiCutSlider->setBounds ((getWidth() / 2) + 265 - 136, 105, 136, 48);
     //[UserResized] Add your own custom resize handling here..
 
 	fadeoutDisplay->setBounds(impulseDisplay->getBounds());
@@ -234,6 +245,11 @@ void ConvolutionEditor::sliderValueChanged (Slider* sliderThatWasMoved)
     {
         //[UserSliderCode_dampingSlider] -- add your slider handling code here..
         //[/UserSliderCode_dampingSlider]
+    }
+    else if (sliderThatWasMoved == hiCutSlider)
+    {
+        //[UserSliderCode_hiCutSlider] -- add your slider handling code here..
+        //[/UserSliderCode_hiCutSlider]
     }
 
     //[UsersliderValueChanged_Post]
@@ -279,32 +295,32 @@ BEGIN_JUCER_METADATA
                  parentClasses="public ProcessorEditorBody, public Timer, public AudioDisplayComponent::Listener"
                  constructorParams="ProcessorEditor *p" variableInitialisers="ProcessorEditorBody(p)&#10;"
                  snapPixels="8" snapActive="1" snapShown="1" overlayOpacity="0.330"
-                 fixedSize="1" initialWidth="900" initialHeight="280">
+                 fixedSize="1" initialWidth="900" initialHeight="300">
   <BACKGROUND backgroundColour="ffffff">
     <ROUNDRECT pos="0Cc 8 600 16M" cornerSize="6" fill="solid: 23000000" hasStroke="0"/>
   </BACKGROUND>
   <SLIDER name="Dry Level" id="109abf6dc0fb35f3" memberName="drySlider"
-          virtualName="HiSlider" explicitFocusOrder="0" pos="-141Cr 76 136 48"
+          virtualName="HiSlider" explicitFocusOrder="0" pos="56Cr 32 136 48"
           posRelativeX="350c324d3e462faa" min="-100" max="0" int="0.10000000000000000555"
           style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
           textBoxEditable="1" textBoxWidth="80" textBoxHeight="20" skewFactor="1"
           needsCallback="1"/>
   <SLIDER name="Wet Level" id="89cc5b4c20e221e" memberName="wetSlider"
-          virtualName="HiSlider" explicitFocusOrder="0" pos="-141Cr 18 136 48"
+          virtualName="HiSlider" explicitFocusOrder="0" pos="-118Cr 32 136 48"
           min="-100" max="0" int="0.10000000000000000555" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="80"
           textBoxHeight="20" skewFactor="1" needsCallback="1"/>
   <GENERICCOMPONENT name="new component" id="2d1a3b35c3a9be67" memberName="dryMeter"
-                    virtualName="" explicitFocusOrder="0" pos="-109C 89 192 24" class="VuMeter"
-                    params=""/>
+                    virtualName="" explicitFocusOrder="0" pos="1 86 136 20" posRelativeX="109abf6dc0fb35f3"
+                    class="VuMeter" params=""/>
   <GENERICCOMPONENT name="new component" id="1099df2918c1e835" memberName="wetMeter"
-                    virtualName="" explicitFocusOrder="0" pos="-109C 31 192 24" class="VuMeter"
-                    params=""/>
+                    virtualName="" explicitFocusOrder="0" pos="1 86 136 20" posRelativeX="89cc5b4c20e221e"
+                    class="VuMeter" params=""/>
   <GENERICCOMPONENT name="new component" id="ca07ce0dc9de3398" memberName="impulseDisplay"
-                    virtualName="" explicitFocusOrder="0" pos="-282C 136 368 120"
+                    virtualName="" explicitFocusOrder="0" pos="-282C 129 368 144"
                     class="AudioSampleBufferComponent" params="getProcessor()"/>
   <TOGGLEBUTTON name="new toggle button" id="e6345feaa3cb5bea" memberName="resetButton"
-                virtualName="HiToggleButton" explicitFocusOrder="0" pos="195Cc 184 128 32"
+                virtualName="HiToggleButton" explicitFocusOrder="0" pos="195Cc 215 128 32"
                 posRelativeX="410a230ddaa2f2e8" txtcol="ffffffff" buttonText="Process Input"
                 connectedEdges="0" needsCallback="1" radioGroupId="0" state="0"/>
   <LABEL name="new label" id="bd1d8d6ad6d04bdc" memberName="label" virtualName=""
@@ -314,17 +330,23 @@ BEGIN_JUCER_METADATA
          fontsize="26" kerning="0" bold="1" italic="0" justification="34"
          typefaceStyle="Bold"/>
   <TOGGLEBUTTON name="new toggle button" id="f46df9985675be44" memberName="backgroundButton"
-                virtualName="HiToggleButton" explicitFocusOrder="0" pos="195Cc 228 128 32"
+                virtualName="HiToggleButton" explicitFocusOrder="0" pos="195Cc 253 128 32"
                 posRelativeX="410a230ddaa2f2e8" txtcol="ffffffff" buttonText="Multithread"
                 connectedEdges="0" needsCallback="1" radioGroupId="0" state="0"/>
   <SLIDER name="Dry Level" id="6680c278e08a4932" memberName="predelaySlider"
-          virtualName="HiSlider" explicitFocusOrder="0" pos="264Cr 61 136 48"
+          virtualName="HiSlider" explicitFocusOrder="0" pos="264Cr 50 136 48"
           posRelativeX="350c324d3e462faa" min="-100" max="0" int="0.10000000000000000555"
           style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
           textBoxEditable="1" textBoxWidth="80" textBoxHeight="20" skewFactor="1"
           needsCallback="1"/>
   <SLIDER name="Dry Level" id="9360a5b175bde664" memberName="dampingSlider"
-          virtualName="HiSlider" explicitFocusOrder="0" pos="265Cr 120 136 48"
+          virtualName="HiSlider" explicitFocusOrder="0" pos="265Cr 160 136 48"
+          posRelativeX="350c324d3e462faa" min="-100" max="0" int="0.10000000000000000555"
+          style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
+          textBoxEditable="1" textBoxWidth="80" textBoxHeight="20" skewFactor="1"
+          needsCallback="1"/>
+  <SLIDER name="Dry Level" id="15499c3c9d8b550f" memberName="hiCutSlider"
+          virtualName="HiSlider" explicitFocusOrder="0" pos="265Cr 105 136 48"
           posRelativeX="350c324d3e462faa" min="-100" max="0" int="0.10000000000000000555"
           style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
           textBoxEditable="1" textBoxWidth="80" textBoxHeight="20" skewFactor="1"

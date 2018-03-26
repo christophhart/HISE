@@ -223,6 +223,70 @@ private:
 class ConvolutionEffect: public MasterEffectProcessor,
 						 public AudioSampleProcessor
 {
+
+	class LoadingThread : public Thread,
+						  private Timer
+	{
+	public:
+
+		LoadingThread(ConvolutionEffect& parent_) :
+			Thread("Convolution Impulse Calculation"),
+			parent(parent_)
+		{
+			
+		}
+
+		~LoadingThread()
+		{
+			stopThread(1000);
+		}
+
+		
+
+		void run() override;
+
+		ConvolutionEffect& parent;
+
+		void reloadImpulse()
+		{
+			if (!isThreadRunning())
+			{
+				startThread(5);
+			}
+
+			
+
+			startTimer(30);
+		};
+
+		
+	private:
+
+		void reloadInternal();
+
+		void timerCallback() override
+		{
+			if (isReloading)
+			{
+				shouldRestart = true;
+			}
+
+			shouldReload = true;
+
+			ScopedLock sl(parent.getImpulseLock());
+
+			parent.convolverL->reset();
+			parent.convolverR->reset();
+
+			stopTimer();
+		}
+
+		bool shouldRestart = false;
+		bool shouldReload = false;
+		bool isReloading = false;
+
+	};
+
 public:
 
 	SET_PROCESSOR_NAME("Convolution", "Convolution Reverb")
@@ -238,6 +302,7 @@ public:
 		ProcessInput, ///< if this attribute is set, the engine will fade out in a short time and reset itself.
 		UseBackgroundThread, ///< if true, then the tail of the impulse response will be rendered on a background thread to save cycles on the audio thread.
 		Predelay, ///< delays the reverb tail by the given amount in milliseconds
+		HiCut, ///< applies a low pass filter to the impulse response
 		Damping, ///< applies a fade-out to the impulse response
 		numEffectParameters
 	};
@@ -257,6 +322,7 @@ public:
 
 	float getAttribute(int parameterIndex) const override;;
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
+	float getDefaultValue(int parameterIndex) const override;
 
 	void restoreFromValueTree(const ValueTree &v) override;;
 	ValueTree exportAsValueTree() const override;
@@ -274,6 +340,10 @@ public:
 	const CriticalSection& getFileLock() const override { return unusedFileLock; }
 
 private:
+
+	SpinLock swapLock;
+
+	LoadingThread loadingThread;
 
 	double getResampleFactor() const
 	{
@@ -332,10 +402,20 @@ private:
 
 #endif
 
-	
+	double cutoffFrequency = 20000.0;
 
 	double lastSampleRate = 0.0;
 	void calcPredelay();
+
+	/** Adds a exponential gain ramp to the impulse response. */
+	static void applyExponentialFadeout(AudioSampleBuffer& scratchBuffer, int numSamples, float targetValue);
+
+	/** Adds a 2-Pole Lowpass with an exponential curve to the impulse response. */
+	static void applyHighFrequencyDamping(AudioSampleBuffer& buffer, int numSamples, double cutoffFrequency, double sampleRate);
+
+
+	void calcCutoff();
+	
 };
 
 

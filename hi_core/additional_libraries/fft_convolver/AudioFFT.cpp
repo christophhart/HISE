@@ -911,7 +911,7 @@ namespace audiofft
 
 		  if (numSamples != 0)
 		  {
-			  order = log2(numSamples);
+			  order = roundDoubleToInt(log2((double)numSamples));
 
 			  fft_ = new IppFFT(hise::IppFFT::DataType::ComplexFloat);
 		  }
@@ -928,19 +928,19 @@ namespace audiofft
 	  {
 		  jassert(fft_ != nullptr);
 
-		  fft_->complexFFT(data, (float*)tempBuffer, numSamples/2);
+		  fft_->complexFFT(data, (float*)tempBuffer, (int)numSamples/2);
 
-		  ippsCplxToReal_32fc(tempBuffer, re, im, numSamples/2);
+		  ippsCplxToReal_32fc(tempBuffer, re, im, (int)numSamples/2);
 	  }
 
 	  virtual void ifft(float* data, const float* re, const float* im) override
 	  {
 		  jassert(fft_ != nullptr);
 
-		  ippsRealToCplx_32f(re, im, tempBuffer, numSamples/2);
-		  fft_->complexFFTInverse((float*)tempBuffer, data, numSamples/2);
+		  ippsRealToCplx_32f(re, im, tempBuffer, (int)numSamples/2);
+		  fft_->complexFFTInverse((float*)tempBuffer, data, (int)numSamples/2);
           
-          FloatVectorOperations::multiply(data, 1.0f / numSamples, numSamples);
+          FloatVectorOperations::multiply(data, 1.0f / (float)numSamples, (int)numSamples);
 	  }
 
   private:
@@ -949,7 +949,7 @@ namespace audiofft
 
 	  Ipp32fc* tempBuffer;
 
-	  int numSamples;
+	  size_t numSamples;
 	  int order;
 
   };

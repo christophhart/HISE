@@ -54,6 +54,7 @@ rampIndex(0),
 processFlag(true),
 loadAfterProcessFlag(false),
 isCurrentlyProcessing(false),
+loadingThread(*this),
 #if USE_FFT_CONVOLVER
 convolverL(new MultithreadedConvolver()),
 convolverR(new MultithreadedConvolver())
@@ -68,6 +69,7 @@ wdlPimpl(new WdlPimpl())
 	parameterNames.add("ProcessInput");
 	parameterNames.add("UseBackgroundThread");
 	parameterNames.add("Predelay");
+	parameterNames.add("HiCut");
 	parameterNames.add("Damping");
 
 	smoothedGainerWet.setParameter((int)ScriptingDsp::SmoothedGainer::Parameters::FastMode, 1.0f);
@@ -79,6 +81,8 @@ wdlPimpl(new WdlPimpl())
 #if USE_FFT_CONVOLVER
 	convolverL->reset();
 	convolverR->reset();
+	convolverL->setUseBackgroundThread(false);
+	convolverR->setUseBackgroundThread(false);
 #endif
 }
 
@@ -96,73 +100,7 @@ ConvolutionEffect::~ConvolutionEffect()
 
 void ConvolutionEffect::setImpulse()
 {
-	if (getSampleBuffer() == nullptr) return;
-
-	if (getSampleBuffer()->getNumChannels() == 0) return;
-
-	ScopedValueSetter<bool> s(isReloading, true);
-
-	ScopedLock sl(getImpulseLock());
-
-#if USE_FFT_CONVOLVER
-
-	const auto offset = getRange().getStart();
-	const auto irLength = getRange().getLength();
-
-	auto l = getSampleBuffer()->getReadPointer(0, offset);
-	auto r = getSampleBuffer()->getReadPointer(1, offset);
-
-	auto resampleRatio = getResampleFactor();
-
-	int resampledLength = roundDoubleToInt((double)irLength * resampleRatio);
-	AudioSampleBuffer scratchBuffer(2, resampledLength);
-
-	if (resampleRatio != 1.0)
-	{
-		
-		LagrangeInterpolator resampler;
-
-		resampler.process(resampleRatio, l, scratchBuffer.getWritePointer(0), resampledLength);
-		resampler.process(resampleRatio, r, scratchBuffer.getWritePointer(1), resampledLength);
-	}
-	else
-	{
-		FloatVectorOperations::copy(scratchBuffer.getWritePointer(0), l, irLength);
-		FloatVectorOperations::copy(scratchBuffer.getWritePointer(1), r, irLength);
-	}
-
-	if (damping != 1.0f)
-		scratchBuffer.applyGainRamp(0, resampledLength, 1.0f, damping);
-
-	
-	convolverL->reset();
-	convolverR->reset();
-
-    const auto headSize = nextPowerOfTwo(getBlockSize());
-	const auto fullTailLength = nextPowerOfTwo(resampledLength - headSize);
-
-	convolverL->init(headSize, jmin<int>(8192, fullTailLength), scratchBuffer.getReadPointer(0), resampledLength);
-	convolverR->init(headSize, jmin<int>(8192, fullTailLength), scratchBuffer.getReadPointer(1), resampledLength);
-
-#else
-
-	wdlPimpl->convolutionEngine.Reset();
-
-	wdlPimpl->impulseBuffer.SetNumChannels(getSampleBuffer()->getNumChannels());
-	const int numSamples = wdlPimpl->impulseBuffer.SetLength(length);
-
-	float *bufferL = wdlPimpl->impulseBuffer.impulses[0].Get();
-	float *bufferR = getSampleBuffer()->getNumChannels() > 1 ? wdlPimpl->impulseBuffer.impulses[1].Get() : bufferL;
-
-	FloatVectorOperations::copy(bufferL, getSampleBuffer()->getReadPointer(0, sampleRange.getStart()), numSamples);
-	if (getSampleBuffer()->getNumChannels() > 1)
-	{
-		FloatVectorOperations::copy(bufferR, getSampleBuffer()->getReadPointer(1, sampleRange.getStart()), numSamples);
-
-	}
-
-	wdlPimpl->convolutionEngine.SetImpulse(&(wdlPimpl->impulseBuffer), 0, getBlockSize(), 0, 0, getBlockSize());
-#endif
+	loadingThread.reloadImpulse();
 }
 
 float ConvolutionEffect::getAttribute(int parameterIndex) const
@@ -174,8 +112,11 @@ float ConvolutionEffect::getAttribute(int parameterIndex) const
 	case Latency:		return (float)latency;
 	case ImpulseLength:	return 1.0f;
 	case ProcessInput:	return processFlag ? 1.0f : 0.0f;
+#if USE_FFT_CONVOLVER
 	case UseBackgroundThread:	return convolverL->isUsingBackgroundThread() ? 1.0f : 0.0f;
+#endif
 	case Predelay:		return predelayMs;
+	case HiCut:			return (float)cutoffFrequency;
 	case Damping:		return Decibels::gainToDecibels(damping);
 	default:			jassertfalse; return 1.0f;
 	}
@@ -198,14 +139,39 @@ void ConvolutionEffect::setInternalAttribute(int parameterIndex, float newValue)
 	case ImpulseLength:	setImpulse();
 		break;
 	case ProcessInput:	enableProcessing(newValue >= 0.5f); break;
+#if USE_FFT_CONVOLVER
 	case UseBackgroundThread:	convolverL->setUseBackgroundThread(newValue > 0.5f);
 								convolverR->setUseBackgroundThread(newValue > 0.5f);
 								break;
+#endif
 	case Predelay:		predelayMs = newValue;
 						calcPredelay();
 						break;
-	case Damping:		damping = Decibels::decibelsToGain(newValue); break;
+	case HiCut:			cutoffFrequency = (double)newValue; 
+						calcCutoff();
+						
+						break;
+	case Damping:		damping = Decibels::decibelsToGain(newValue); 
+						setImpulse();
+						break;
 	default:			jassertfalse; return;
+	}
+}
+
+float ConvolutionEffect::getDefaultValue(int parameterIndex) const
+{
+	switch (parameterIndex)
+	{
+	case DryGain:		return -100.0f;
+	case WetGain:		return 0.0f;
+	case Latency:		return 0.0f;
+	case ImpulseLength:	return 1.0f;
+	case ProcessInput:	return true;
+	case UseBackgroundThread:	return false;
+	case Predelay:		return 0.0f;
+	case HiCut:			return 20000.0f;
+	case Damping:		return 0.0f;
+	default:			jassertfalse; return 1.0f;
 	}
 }
 
@@ -219,7 +185,8 @@ void ConvolutionEffect::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(ImpulseLength, "ImpulseLength");
 	loadAttribute(ProcessInput, "ProcessInput");
 	loadAttribute(UseBackgroundThread, "UseBackgroundThread");
-	loadAttribute(Predelay, "Predelay");
+	loadAttributeWithDefault(Predelay);
+	loadAttributeWithDefault(HiCut);
 	loadAttribute(Damping, "Damping");
 
 	AudioSampleProcessor::restoreFromValueTree(v);
@@ -236,6 +203,7 @@ ValueTree ConvolutionEffect::exportAsValueTree() const
 	saveAttribute(ProcessInput, "ProcessInput");
 	saveAttribute(UseBackgroundThread, "UseBackgroundThread");
 	saveAttribute(Predelay, "Predelay");
+	saveAttribute(HiCut, "HiCut");
 	saveAttribute(Damping, "Damping");
 
 	AudioSampleProcessor::saveToValueTree(v);
@@ -262,7 +230,10 @@ void ConvolutionEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 		rightPredelay.prepareToPlay(sampleRate);
 
 #if USE_FFT_CONVOLVER
-		// TODO: Resample IR
+		
+
+		setImpulse();
+
 #else
 		wdlPimpl->convolutionEngine.Reset();
 #endif
@@ -285,6 +256,7 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 
 	float *channels[2] = { l, r };
 
+	
 	isCurrentlyProcessing.store(true);
 
 	ScopedLock sl(getImpulseLock());
@@ -327,9 +299,12 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 		//memset(convolutedL, 0, sizeof(float)*numSamples);
 		//memset(convolutedR, 0, sizeof(float)*numSamples);
 
-		convolverL->process(l, convolutedL, numSamples);
-		convolverR->process(r, convolutedR, numSamples);
+		if (convolverL != nullptr)
+			convolverL->process(l, convolutedL, numSamples);
 
+		if(convolverR != nullptr)
+			convolverR->process(r, convolutedR, numSamples);
+		
 		smoothedGainerDry.processBlock(channels, 2, numSamples);
 
 		
@@ -371,7 +346,15 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 			{
 				if (!processFlag)
 				{
-#if !USE_FFT_CONVOLVER
+#if USE_FFT_CONVOLVER
+
+					convolverL->cleanPipeline();
+					convolverR->cleanPipeline();
+
+					
+
+#else
+
 					wdlPimpl->convolutionEngine.Reset();
 #endif
 				}
@@ -386,13 +369,13 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 				float* outL = wetBuffer.getWritePointer(0);
 				float* outR = wetBuffer.getWritePointer(1);
 
-				float* inL = convolutedL;
-				float* inR = convolutedR;
+				const float* inL = convolutedL;
+				const float* inR = convolutedR;
 
 				for (int i = 0; i < availableSamples; i++)
 				{
-					*outL++ = leftPredelay.getDelayedValue(*inL);
-					*outR++ = rightPredelay.getDelayedValue(*inR);
+					*outL++ = leftPredelay.getDelayedValue(*inL++);
+					*outR++ = rightPredelay.getDelayedValue(*inR++);
 				}
 			}
 			else
@@ -406,8 +389,8 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 			smoothedGainerWet.processBlock(wetBuffer.getArrayOfWritePointers(), 2, availableSamples);
 
 #if ENABLE_ALL_PEAK_METERS
-			currentValues.outL = wetGain * FloatVectorOperations::findMaximum(wetBuffer.getReadPointer(0), availableSamples);
-			currentValues.outR = wetGain * FloatVectorOperations::findMaximum(wetBuffer.getReadPointer(1), availableSamples);
+			currentValues.outL = FloatVectorOperations::findMaximum(wetBuffer.getReadPointer(0), availableSamples);
+			currentValues.outR = FloatVectorOperations::findMaximum(wetBuffer.getReadPointer(1), availableSamples);
 #endif
 
 			FloatVectorOperations::add(l, wetBuffer.getReadPointer(0), availableSamples);
@@ -463,6 +446,63 @@ void ConvolutionEffect::calcPredelay()
 	rightPredelay.setDelayTimeSeconds(predelayMs / 1000.0);
 }
 
+void ConvolutionEffect::applyExponentialFadeout(AudioSampleBuffer& buffer, int numSamples, float targetValue)
+{
+	float* l = buffer.getWritePointer(0);
+	float* r = buffer.getWritePointer(1);
+
+	const float base = targetValue;
+	const float invBase = 1.0f - targetValue;
+	const float factor = -1.0f * (float)numSamples / 4.0f;
+
+	for (int i = 0; i < numSamples; i++)
+	{
+		const float multiplier = base + invBase * expf((float)i / factor);
+
+		*l++ *= multiplier;
+		*r++ *= multiplier;
+	}
+}
+
+void ConvolutionEffect::applyHighFrequencyDamping(AudioSampleBuffer& buffer, int numSamples, double cutoffFrequency, double sampleRate)
+{
+	float* l = buffer.getWritePointer(0);
+	float* r = buffer.getWritePointer(1);
+
+	const double base = cutoffFrequency / 20000.0;
+	const double invBase = 1.0 - base;
+	const double factor = -1.0 * (double)numSamples / 8.0;
+
+	SimpleOnePole lp1;
+	lp1.setSampleRate(sampleRate);
+	lp1.setNumChannels(2);
+
+	SimpleOnePole lp2;
+	lp2.setSampleRate(sampleRate);
+	lp2.setNumChannels(2);
+
+	for (int i = 0; i < numSamples; i += 64)
+	{
+		const double multiplier = base + invBase * exp((double)i / factor);
+
+		lp1.setFrequency(multiplier * 20000.0);
+		lp2.setFrequency(multiplier * 20000.0);
+
+		auto numToProcess = jmin<int>(64, numSamples - i);
+
+		lp1.processSamples(buffer, i, numToProcess);
+		lp2.processSamples(buffer, i, numToProcess);
+		
+	}
+}
+
+void ConvolutionEffect::calcCutoff()
+{
+	setImpulse();
+}
+
+
+
 void GainSmoother::processBlock(float** data, int numChannels, int numSamples)
 {
 	if (numChannels == 1)
@@ -491,8 +531,6 @@ void GainSmoother::processBlock(float** data, int numChannels, int numSamples)
 				*l++ *= smoothedGain;
 			}
 		}
-
-
 	}
 
 	else if (numChannels == 2)
@@ -529,6 +567,152 @@ void GainSmoother::processBlock(float** data, int numChannels, int numSamples)
 		}
 
 	}
+}
+
+void ConvolutionEffect::LoadingThread::run()
+{
+	while (!threadShouldExit())
+	{
+		while(shouldReload)
+		{
+			ScopedValueSetter<bool> ss(isReloading, true);
+			shouldRestart = false;
+			reloadInternal();
+		}
+
+		wait(500);
+	}
+	
+}
+
+void ConvolutionEffect::LoadingThread::reloadInternal()
+{
+	if (parent.getSampleBuffer() == nullptr || parent.getSampleBuffer()->getNumChannels() == 0)
+	{
+		ScopedLock sl(parent.getImpulseLock());
+
+		parent.convolverL->reset();
+		parent.convolverR->reset();
+		shouldReload = false;
+		return;
+	}
+
+	ScopedValueSetter<bool> s(parent.isReloading, true);
+
+	auto pBuffer = *parent.getSampleBuffer();
+
+	AudioSampleBuffer copyBuffer(2, parent.getSampleBuffer()->getNumSamples());
+
+	copyBuffer.copyFrom(0, 0, pBuffer.getReadPointer(0), pBuffer.getNumSamples(), 1.0f);
+	copyBuffer.copyFrom(1, 0, pBuffer.getReadPointer(pBuffer.getNumChannels() >= 2 ? 1 : 0), pBuffer.getNumSamples(), 1.0f);
+
+	if (shouldRestart)
+	{
+		shouldReload = true;
+		return;
+	}
+	
+#if USE_FFT_CONVOLVER
+
+	const auto offset = parent.getRange().getStart();
+	const auto irLength = parent.getRange().getLength();
+
+	auto l = copyBuffer.getReadPointer(0, offset);
+	auto r = copyBuffer.getReadPointer(1, offset);
+
+	auto resampleRatio = parent.getResampleFactor();
+
+	int resampledLength = roundDoubleToInt((double)irLength * resampleRatio);
+
+	AudioSampleBuffer scratchBuffer(2, resampledLength);
+
+	if (shouldRestart)
+	{
+		shouldReload = true;
+		return;
+	}
+		
+
+	if (resampleRatio != 1.0)
+	{
+		LagrangeInterpolator resampler;
+
+		resampler.process(resampleRatio, l, scratchBuffer.getWritePointer(0), resampledLength);
+		resampler.process(resampleRatio, r, scratchBuffer.getWritePointer(1), resampledLength);
+	}
+	else
+	{
+		FloatVectorOperations::copy(scratchBuffer.getWritePointer(0), l, irLength);
+		FloatVectorOperations::copy(scratchBuffer.getWritePointer(1), r, irLength);
+	}
+
+	if (shouldRestart)
+	{
+		shouldReload = true;
+		return;
+	}
+
+	if (parent.damping != 1.0f)
+		applyExponentialFadeout(scratchBuffer, resampledLength, parent.damping);
+
+	if (shouldRestart)
+	{
+		shouldReload = true;
+		return;
+	}
+
+	if (parent.cutoffFrequency != 20000.0)
+		applyHighFrequencyDamping(scratchBuffer, resampledLength, parent.cutoffFrequency, parent.getSampleRate());
+
+	if (shouldRestart)
+	{
+		shouldReload = true;
+		return;
+	}
+
+
+	const auto headSize = nextPowerOfTwo(parent.getBlockSize());
+	const auto fullTailLength = nextPowerOfTwo(resampledLength - headSize);
+
+	ScopedLock sl(parent.getImpulseLock());
+
+	parent.convolverL->init(headSize, jmin<int>(8192, fullTailLength), scratchBuffer.getReadPointer(0), resampledLength);
+
+	if (shouldRestart)
+	{
+		shouldReload = true;
+		return;
+	}
+
+	parent.convolverR->init(headSize, jmin<int>(8192, fullTailLength), scratchBuffer.getReadPointer(1), resampledLength);
+
+	if (shouldRestart)
+	{
+		shouldReload = true;
+		return;
+	}
+
+	shouldReload = false;
+
+#else
+
+	wdlPimpl->convolutionEngine.Reset();
+
+	wdlPimpl->impulseBuffer.SetNumChannels(getSampleBuffer()->getNumChannels());
+	const int numSamples = wdlPimpl->impulseBuffer.SetLength(length);
+
+	float *bufferL = wdlPimpl->impulseBuffer.impulses[0].Get();
+	float *bufferR = getSampleBuffer()->getNumChannels() > 1 ? wdlPimpl->impulseBuffer.impulses[1].Get() : bufferL;
+
+	FloatVectorOperations::copy(bufferL, getSampleBuffer()->getReadPointer(0, sampleRange.getStart()), numSamples);
+	if (getSampleBuffer()->getNumChannels() > 1)
+	{
+		FloatVectorOperations::copy(bufferR, getSampleBuffer()->getReadPointer(1, sampleRange.getStart()), numSamples);
+
+	}
+
+	wdlPimpl->convolutionEngine.SetImpulse(&(wdlPimpl->impulseBuffer), 0, getBlockSize(), 0, 0, getBlockSize());
+#endif
 }
 
 } // namespace hise

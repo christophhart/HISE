@@ -71,6 +71,22 @@ void TwoStageFFTConvolver::reset()
 }
 
   
+void TwoStageFFTConvolver::cleanPipeline()
+{
+	_tailOutput.setZero();
+	_tailInput.setZero();
+	_tailOutput0.setZero();
+	_tailPrecalculated.setZero();
+	_tailPrecalculated0.setZero();
+	_backgroundProcessingInput.setZero();
+	_tailInputFill = 0;
+	_precalculatedPos = 0;
+	
+
+	_tailConvolver.resetInput();
+	_headConvolver.resetInput();
+}
+
 bool TwoStageFFTConvolver::init(size_t headBlockSize,
                                 size_t tailBlockSize,
                                 const Sample* ir,

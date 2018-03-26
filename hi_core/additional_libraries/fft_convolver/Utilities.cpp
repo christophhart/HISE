@@ -40,6 +40,17 @@ void Sum(Sample* FFTCONVOLVER_RESTRICT result,
          const Sample* FFTCONVOLVER_RESTRICT b,
          size_t len)
 {
+#if 1
+
+#if USE_IPP
+	ippsAdd_32f(a, b, result, (int)len);
+#else
+	FloatVectorOperations::add(result, a, b, (int)len);
+#endif
+
+#else
+
+
   const size_t end4 = 4 * (len / 4);
   for (size_t i=0; i<end4; i+=4)
   {
@@ -52,6 +63,7 @@ void Sum(Sample* FFTCONVOLVER_RESTRICT result,
   {
     result[i] = a[i] + b[i];
   }
+#endif
 }
 
 
@@ -71,6 +83,7 @@ void ComplexMultiplyAccumulate(Sample* FFTCONVOLVER_RESTRICT re,
                                const Sample* FFTCONVOLVER_RESTRICT imB,
                                const size_t len)
 {
+
 #if USE_JUCE_SSE
 
 	FloatVectorOperations::addWithMultiply(re, reA, reB, len);

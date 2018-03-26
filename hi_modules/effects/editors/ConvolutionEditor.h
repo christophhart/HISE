@@ -42,7 +42,9 @@ public:
 
 		p.clear();
 		p.startNewSubPath(0.0f, 0.0f);
-		p.lineTo(1.0f, 1.0f - damping);
+
+
+		p.quadraticTo(0.0f, 1.0f - damping, 1.0f, 1.0f - damping);
 		p.lineTo(1.0f, 1.0f);
 		p.lineTo(0.0f, 1.0f);
 		p.closeSubPath();
@@ -124,7 +126,7 @@ public:
 		wetSlider->updateValue();
 		predelaySlider->updateValue();
 		dampingSlider->updateValue();
-
+		hiCutSlider->updateValue();
 
 
 		resetButton->updateValue();
@@ -186,6 +188,7 @@ private:
     ScopedPointer<HiToggleButton> backgroundButton;
     ScopedPointer<HiSlider> predelaySlider;
     ScopedPointer<HiSlider> dampingSlider;
+    ScopedPointer<HiSlider> hiCutSlider;
 
 
     //==============================================================================

@@ -78,6 +78,8 @@ public:
   */
   void reset();
   
+  void resetInput();
+
 private:
   size_t _blockSize;
   size_t _segSize;

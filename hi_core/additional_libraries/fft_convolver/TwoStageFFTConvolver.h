@@ -81,6 +81,9 @@ public:
   */
   void reset();
   
+  /** Clears the internal buffers so that it resets the convolution pipeline. */
+  void cleanPipeline();
+
 protected:
   /**
   * @brief Method called by the convolver if work for background processing is available
