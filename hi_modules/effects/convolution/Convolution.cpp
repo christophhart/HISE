@@ -33,11 +33,13 @@
 
 namespace hise { using namespace juce;
 
+#if !USE_FFT_CONVOLVER
 struct ConvolutionEffect::WdlPimpl
 {
 	wdl::WDL_ImpulseBuffer impulseBuffer;
 	wdl::WDL_ConvolutionEngine_Div convolutionEngine;
 };
+#endif
 
 ConvolutionEffect::ConvolutionEffect(MainController *mc, const String &id) :
 MasterEffectProcessor(mc, id),
@@ -52,24 +54,44 @@ rampIndex(0),
 processFlag(true),
 loadAfterProcessFlag(false),
 isCurrentlyProcessing(false),
+#if USE_FFT_CONVOLVER
+convolverL(new MultithreadedConvolver()),
+convolverR(new MultithreadedConvolver())
+#else
 wdlPimpl(new WdlPimpl())
+#endif
 {
 	parameterNames.add("DryGain");
 	parameterNames.add("WetGain");
 	parameterNames.add("Latency");
 	parameterNames.add("ImpulseLength");
 	parameterNames.add("ProcessInput");
+	parameterNames.add("UseBackgroundThread");
+	parameterNames.add("Predelay");
+	parameterNames.add("Damping");
 
 	smoothedGainerWet.setParameter((int)ScriptingDsp::SmoothedGainer::Parameters::FastMode, 1.0f);
 	smoothedGainerDry.setParameter((int)ScriptingDsp::SmoothedGainer::Parameters::FastMode, 1.0f);
 
 	smoothedGainerWet.setParameter((int)ScriptingDsp::SmoothedGainer::Parameters::Gain, 1.0f);
 	smoothedGainerDry.setParameter((int)ScriptingDsp::SmoothedGainer::Parameters::Gain, 0.0f);
+
+#if USE_FFT_CONVOLVER
+	convolverL->reset();
+	convolverR->reset();
+#endif
 }
 
 ConvolutionEffect::~ConvolutionEffect()
 {
+#if USE_FFT_CONVOLVER
+	convolverL = nullptr;
+	convolverR = nullptr;
+#else
 	wdlPimpl = nullptr;
+#endif
+
+
 }
 
 void ConvolutionEffect::setImpulse()
@@ -81,6 +103,48 @@ void ConvolutionEffect::setImpulse()
 	ScopedValueSetter<bool> s(isReloading, true);
 
 	ScopedLock sl(getImpulseLock());
+
+#if USE_FFT_CONVOLVER
+
+	const auto offset = getRange().getStart();
+	const auto irLength = getRange().getLength();
+
+	auto l = getSampleBuffer()->getReadPointer(0, offset);
+	auto r = getSampleBuffer()->getReadPointer(1, offset);
+
+	auto resampleRatio = getResampleFactor();
+
+	int resampledLength = roundDoubleToInt((double)irLength * resampleRatio);
+	AudioSampleBuffer scratchBuffer(2, resampledLength);
+
+	if (resampleRatio != 1.0)
+	{
+		
+		LagrangeInterpolator resampler;
+
+		resampler.process(resampleRatio, l, scratchBuffer.getWritePointer(0), resampledLength);
+		resampler.process(resampleRatio, r, scratchBuffer.getWritePointer(1), resampledLength);
+	}
+	else
+	{
+		FloatVectorOperations::copy(scratchBuffer.getWritePointer(0), l, irLength);
+		FloatVectorOperations::copy(scratchBuffer.getWritePointer(1), r, irLength);
+	}
+
+	if (damping != 1.0f)
+		scratchBuffer.applyGainRamp(0, resampledLength, 1.0f, damping);
+
+	
+	convolverL->reset();
+	convolverR->reset();
+
+    const auto headSize = nextPowerOfTwo(getBlockSize());
+	const auto fullTailLength = nextPowerOfTwo(resampledLength - headSize);
+
+	convolverL->init(headSize, jmin<int>(8192, fullTailLength), scratchBuffer.getReadPointer(0), resampledLength);
+	convolverR->init(headSize, jmin<int>(8192, fullTailLength), scratchBuffer.getReadPointer(1), resampledLength);
+
+#else
 
 	wdlPimpl->convolutionEngine.Reset();
 
@@ -98,6 +162,7 @@ void ConvolutionEffect::setImpulse()
 	}
 
 	wdlPimpl->convolutionEngine.SetImpulse(&(wdlPimpl->impulseBuffer), 0, getBlockSize(), 0, 0, getBlockSize());
+#endif
 }
 
 float ConvolutionEffect::getAttribute(int parameterIndex) const
@@ -109,6 +174,9 @@ float ConvolutionEffect::getAttribute(int parameterIndex) const
 	case Latency:		return (float)latency;
 	case ImpulseLength:	return 1.0f;
 	case ProcessInput:	return processFlag ? 1.0f : 0.0f;
+	case UseBackgroundThread:	return convolverL->isUsingBackgroundThread() ? 1.0f : 0.0f;
+	case Predelay:		return predelayMs;
+	case Damping:		return Decibels::gainToDecibels(damping);
 	default:			jassertfalse; return 1.0f;
 	}
 }
@@ -130,6 +198,13 @@ void ConvolutionEffect::setInternalAttribute(int parameterIndex, float newValue)
 	case ImpulseLength:	setImpulse();
 		break;
 	case ProcessInput:	enableProcessing(newValue >= 0.5f); break;
+	case UseBackgroundThread:	convolverL->setUseBackgroundThread(newValue > 0.5f);
+								convolverR->setUseBackgroundThread(newValue > 0.5f);
+								break;
+	case Predelay:		predelayMs = newValue;
+						calcPredelay();
+						break;
+	case Damping:		damping = Decibels::decibelsToGain(newValue); break;
 	default:			jassertfalse; return;
 	}
 }
@@ -143,6 +218,9 @@ void ConvolutionEffect::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(Latency, "Latency");
 	loadAttribute(ImpulseLength, "ImpulseLength");
 	loadAttribute(ProcessInput, "ProcessInput");
+	loadAttribute(UseBackgroundThread, "UseBackgroundThread");
+	loadAttribute(Predelay, "Predelay");
+	loadAttribute(Damping, "Damping");
 
 	AudioSampleProcessor::restoreFromValueTree(v);
 }
@@ -156,6 +234,9 @@ ValueTree ConvolutionEffect::exportAsValueTree() const
 	saveAttribute(Latency, "Latency");
 	saveAttribute(ImpulseLength, "ImpulseLength");
 	saveAttribute(ProcessInput, "ProcessInput");
+	saveAttribute(UseBackgroundThread, "UseBackgroundThread");
+	saveAttribute(Predelay, "Predelay");
+	saveAttribute(Damping, "Damping");
 
 	AudioSampleProcessor::saveToValueTree(v);
 
@@ -177,7 +258,14 @@ void ConvolutionEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 		smoothedGainerWet.prepareToPlay(sampleRate, samplesPerBlock);
 		smoothedGainerDry.prepareToPlay(sampleRate, samplesPerBlock);
 
+		leftPredelay.prepareToPlay(sampleRate);
+		rightPredelay.prepareToPlay(sampleRate);
+
+#if USE_FFT_CONVOLVER
+		// TODO: Resample IR
+#else
 		wdlPimpl->convolutionEngine.Reset();
+#endif
 	}
 
 	
@@ -207,32 +295,55 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 
 #if ENABLE_ALL_PEAK_METERS
 		currentValues.inL = FloatVectorOperations::findMaximum(l, numSamples);
-		currentValues.inR = FloatVectorOperations::findMaximum(l, numSamples);
+		currentValues.inR = FloatVectorOperations::findMaximum(r, numSamples);
 #endif
 
 		isCurrentlyProcessing.store(false);
 		return;
 	}
 
+#if !USE_FFT_CONVOLVER
 	wdlPimpl->convolutionEngine.Add(channels, numSamples, 2);
-
 	smoothedGainerDry.processBlock(channels, 2, numSamples);
-
-#if ENABLE_ALL_PEAK_METERS
-	currentValues.inL = FloatVectorOperations::findMaximum(l, numSamples);
-	currentValues.inR = FloatVectorOperations::findMaximum(l, numSamples);
 #endif
 
+	
+
+#if !USE_FFT_CONVOLVER
 	const int availableSamples = jmin(wdlPimpl->convolutionEngine.Avail(numSamples), numSamples);
+#else
+	const int availableSamples = numSamples;
+#endif
+
+	
 
 	if (availableSamples > 0)
 	{
+#if USE_FFT_CONVOLVER
+
+        float* convolutedL = wetBuffer.getWritePointer(0);//reinterpret_cast<float*>(alloca(sizeof(float) * numSamples));
+        float* convolutedR = wetBuffer.getWritePointer(1);//reinterpret_cast<float*>(alloca(sizeof(float) * numSamples));
+
+		//memset(convolutedL, 0, sizeof(float)*numSamples);
+		//memset(convolutedR, 0, sizeof(float)*numSamples);
+
+		convolverL->process(l, convolutedL, numSamples);
+		convolverR->process(r, convolutedR, numSamples);
+
+		smoothedGainerDry.processBlock(channels, 2, numSamples);
+
+		
+
+#else
 		const float *convolutedL = wdlPimpl->convolutionEngine.Get()[0];
 		const float *convolutedR = wdlPimpl->convolutionEngine.Get()[1];
+#endif
 
 #if ENABLE_ALL_PEAK_METERS
-		currentValues.outL = wetGain * FloatVectorOperations::findMaximum(convolutedL, availableSamples);
-		currentValues.outR = wetGain * FloatVectorOperations::findMaximum(convolutedR, availableSamples);
+
+		currentValues.inL = FloatVectorOperations::findMaximum(l, numSamples);
+		currentValues.inR = FloatVectorOperations::findMaximum(r, numSamples);
+		
 #endif
 
 		if (rampFlag)
@@ -252,13 +363,17 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 				rampIndex++;
 			}
 
+#if !USE_FFT_CONVOLVER
 			wdlPimpl->convolutionEngine.Advance(availableSamples);
+#endif
 
 			if (rampIndex >= rampingTime)
 			{
 				if (!processFlag)
 				{
+#if !USE_FFT_CONVOLVER
 					wdlPimpl->convolutionEngine.Reset();
+#endif
 				}
 
 				rampFlag = false;
@@ -266,16 +381,43 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 		}
 		else
 		{
+			if (predelayMs != 0.0f)
+			{
+				float* outL = wetBuffer.getWritePointer(0);
+				float* outR = wetBuffer.getWritePointer(1);
 
-			FloatVectorOperations::copy(wetBuffer.getWritePointer(0), convolutedL, availableSamples);
-			FloatVectorOperations::copy(wetBuffer.getWritePointer(1), convolutedR, availableSamples);
+				float* inL = convolutedL;
+				float* inR = convolutedR;
+
+				for (int i = 0; i < availableSamples; i++)
+				{
+					*outL++ = leftPredelay.getDelayedValue(*inL);
+					*outR++ = rightPredelay.getDelayedValue(*inR);
+				}
+			}
+			else
+			{
+				FloatVectorOperations::copy(wetBuffer.getWritePointer(0), convolutedL, availableSamples);
+				FloatVectorOperations::copy(wetBuffer.getWritePointer(1), convolutedR, availableSamples);
+			}
+
+			
 
 			smoothedGainerWet.processBlock(wetBuffer.getArrayOfWritePointers(), 2, availableSamples);
+
+#if ENABLE_ALL_PEAK_METERS
+			currentValues.outL = wetGain * FloatVectorOperations::findMaximum(wetBuffer.getReadPointer(0), availableSamples);
+			currentValues.outR = wetGain * FloatVectorOperations::findMaximum(wetBuffer.getReadPointer(1), availableSamples);
+#endif
 
 			FloatVectorOperations::add(l, wetBuffer.getReadPointer(0), availableSamples);
 			FloatVectorOperations::add(r, wetBuffer.getReadPointer(1), availableSamples);
 
+
+
+#if !USE_FFT_CONVOLVER
 			wdlPimpl->convolutionEngine.Advance(availableSamples);
+#endif
 		}
 	}
 
@@ -313,6 +455,12 @@ void ConvolutionEffect::enableProcessing(bool shouldBeProcessed)
 		rampUp = shouldBeProcessed;
 		rampIndex = 0;
 	}
+}
+
+void ConvolutionEffect::calcPredelay()
+{
+	leftPredelay.setDelayTimeSeconds(predelayMs / 1000.0);
+	rightPredelay.setDelayTimeSeconds(predelayMs / 1000.0);
 }
 
 void GainSmoother::processBlock(float** data, int numChannels, int numSamples)

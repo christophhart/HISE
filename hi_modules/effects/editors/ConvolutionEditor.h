@@ -7,7 +7,7 @@
   the "//[xyz]" and "//[/xyz]" sections will be retained when the file is loaded
   and re-saved.
 
-  Created with Projucer version: 4.3.0
+  Created with Projucer version: 5.2.0
 
   ------------------------------------------------------------------------------
 
@@ -17,12 +17,62 @@
   ==============================================================================
 */
 
-#ifndef __JUCE_HEADER_7DB53C0A003C421A__
-#define __JUCE_HEADER_7DB53C0A003C421A__
+#pragma once
 
 //[Headers]     -- You can add your own extra header files here --
 
 namespace hise { using namespace juce;
+
+
+class FadeoutDisplay : public Component
+{
+public:
+
+	FadeoutDisplay()
+	{
+		setInterceptsMouseClicks(false, false);
+
+		setFadeoutValue(0.4f, {0.0f, 1.0f});
+	}
+
+	void setFadeoutValue(float newValue, Range<float> normalizedSampleRange)
+	{
+		damping = jlimit<float>(0.0f, 1.0f, newValue);
+		range = normalizedSampleRange;
+
+		p.clear();
+		p.startNewSubPath(0.0f, 0.0f);
+		p.lineTo(1.0f, 1.0f - damping);
+		p.lineTo(1.0f, 1.0f);
+		p.lineTo(0.0f, 1.0f);
+		p.closeSubPath();
+
+		auto x = (float)getWidth() * range.getStart();
+		auto w = (float)getWidth() * range.getLength();
+
+		p.scaleToFit(x, 0.0f, w, (float)getHeight(), false);
+	}
+
+	void resized() override
+	{
+		setFadeoutValue(damping, range);
+	}
+
+	void paint(Graphics& g)
+	{
+		g.setColour(Colours::white.withAlpha(0.08f));
+		g.fillPath(p);
+	}
+
+private:
+
+	float damping = 0.4f;
+	Range<float> range;
+
+	Path p;
+
+};
+
 //[/Headers]
 
 
@@ -40,8 +90,8 @@ namespace hise { using namespace juce;
 class ConvolutionEditor  : public ProcessorEditorBody,
                            public Timer,
                            public AudioDisplayComponent::Listener,
-                           public SliderListener,
-                           public ButtonListener
+                           public Slider::Listener,
+                           public Button::Listener
 {
 public:
     //==============================================================================
@@ -72,10 +122,21 @@ public:
 	{
 		drySlider->updateValue();
 		wetSlider->updateValue();
+		predelaySlider->updateValue();
+		dampingSlider->updateValue();
+
+
 
 		resetButton->updateValue();
+		backgroundButton->updateValue();
 
 		AudioSampleProcessor *sampleProcessor = dynamic_cast<AudioSampleProcessor*>(getProcessor());
+
+		const float numSamples = (float)sampleProcessor->getBuffer()->getNumSamples();
+		const float dampingValue = Decibels::decibelsToGain(getProcessor()->getAttribute(ConvolutionEffect::Damping));
+		const auto range = Range<float>(sampleProcessor->getRange().getStart() / numSamples, sampleProcessor->getRange().getEnd() / numSamples);
+
+		fadeoutDisplay->setFadeoutValue(dampingValue, range);
 
 		if(impulseDisplay->getSampleArea(0)->getSampleRange() != sampleProcessor->getRange())
 		{
@@ -109,6 +170,9 @@ public:
 private:
     //[UserVariables]   -- You can add your own custom variables in this section.
 	int h;
+
+	ScopedPointer<FadeoutDisplay> fadeoutDisplay;
+
     //[/UserVariables]
 
     //==============================================================================
@@ -119,6 +183,9 @@ private:
     ScopedPointer<AudioSampleBufferComponent> impulseDisplay;
     ScopedPointer<HiToggleButton> resetButton;
     ScopedPointer<Label> label;
+    ScopedPointer<HiToggleButton> backgroundButton;
+    ScopedPointer<HiSlider> predelaySlider;
+    ScopedPointer<HiSlider> dampingSlider;
 
 
     //==============================================================================
@@ -130,5 +197,3 @@ private:
 /** \endcond */
 } // namespace hise
 //[/EndFile]
-
-#endif   // __JUCE_HEADER_7DB53C0A003C421A__
