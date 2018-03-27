@@ -201,18 +201,8 @@ bool HlacReaderCommon::internalHlacRead(int** destSamples, int numDestChannels, 
 		{
 			float** destinationFloat = reinterpret_cast<float**>(destSamples);
 
-			if (startOffsetInDestBuffer > 0)
-			{
-				if (isStereo)
-				{
-					destinationFloat[0] = destinationFloat[0] + startOffsetInDestBuffer;
-				}
-				else
-				{
-					destinationFloat[0] = destinationFloat[0] + startOffsetInDestBuffer;
-					destinationFloat[1] = destinationFloat[1] + startOffsetInDestBuffer;
-				}
-			}
+			destinationFloat[0] += startOffsetInDestBuffer;
+			destinationFloat[1] += startOffsetInDestBuffer;
 
 			AudioSampleBuffer b(destinationFloat, 2, numSamples);
 			HiseSampleBuffer hsb(b);
@@ -222,15 +212,8 @@ bool HlacReaderCommon::internalHlacRead(int** destSamples, int numDestChannels, 
 		{
 			int16** destinationFixed = reinterpret_cast<int16**>(destSamples);
 
-			if (isStereo)
-			{
-				destinationFixed[0] = destinationFixed[0] + startOffsetInDestBuffer;
-			}
-			else
-			{
-				destinationFixed[0] = destinationFixed[0] + startOffsetInDestBuffer;
-				destinationFixed[1] = destinationFixed[1] + startOffsetInDestBuffer;
-			}
+			destinationFixed[0] += startOffsetInDestBuffer;
+			destinationFixed[1] += startOffsetInDestBuffer;
 
 			HiseSampleBuffer hsb(destinationFixed, 2, numSamples);
 			decoder.decode(hsb, true, *input, (int)startSampleInFile, numSamples);
