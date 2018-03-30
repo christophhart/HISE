@@ -466,9 +466,6 @@ void ConvolutionEffect::applyExponentialFadeout(AudioSampleBuffer& buffer, int n
 
 void ConvolutionEffect::applyHighFrequencyDamping(AudioSampleBuffer& buffer, int numSamples, double cutoffFrequency, double sampleRate)
 {
-	float* l = buffer.getWritePointer(0);
-	float* r = buffer.getWritePointer(1);
-
 	const double base = cutoffFrequency / 20000.0;
 	const double invBase = 1.0 - base;
 	const double factor = -1.0 * (double)numSamples / 8.0;
@@ -622,7 +619,7 @@ void ConvolutionEffect::LoadingThread::reloadInternal()
 
 	auto resampleRatio = parent.getResampleFactor();
 
-	int resampledLength = roundDoubleToInt((double)irLength * resampleRatio);
+	int resampledLength = roundDoubleToInt((double)irLength / resampleRatio);
 
 	AudioSampleBuffer scratchBuffer(2, resampledLength);
 
@@ -636,8 +633,8 @@ void ConvolutionEffect::LoadingThread::reloadInternal()
 	if (resampleRatio != 1.0)
 	{
 		LagrangeInterpolator resampler;
-
 		resampler.process(resampleRatio, l, scratchBuffer.getWritePointer(0), resampledLength);
+		resampler.reset();
 		resampler.process(resampleRatio, r, scratchBuffer.getWritePointer(1), resampledLength);
 	}
 	else
