@@ -297,7 +297,7 @@
   <JUCEOPTIONS JUCE_ASIO="enabled" JUCE_DIRECTSOUND="enabled" JUCE_PLUGINHOST_VST="enabled"
                JUCE_PLUGINHOST_VST3="disabled" JUCE_PLUGINHOST_AU="enabled"
                USE_BACKEND="enabled" JUCE_USE_DIRECTWRITE="enabled" IS_STANDALONE_APP="enabled"
-               USE_IPP="enabled" USE_COPY_PROTECTION="disabled" USE_GLITCH_DETECTION="enabled"
+               USE_IPP="disabled" USE_COPY_PROTECTION="disabled" USE_GLITCH_DETECTION="enabled"
                ENABLE_PLOTTER="enabled" ENABLE_SCRIPTING_SAFE_CHECKS="enabled"
                ENABLE_ALL_PEAK_METERS="enabled" ENABLE_CONSOLE_OUTPUT="enabled"
                ENABLE_HOST_INFO="enabled" ENABLE_CPU_MEASUREMENT="enabled" HI_EXPORT_DSP_LIBRARY="disabled"

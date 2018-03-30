@@ -21,7 +21,9 @@
 
 #include "AudioFFT.h"
 
+#if USE_IPP
 #include "../../hi_core/IppFFT.h"
+#endif
 
 #include <cassert>
 #include <cmath>

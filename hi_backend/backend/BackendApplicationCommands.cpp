@@ -2400,9 +2400,13 @@ juce::String BackendCommandTarget::Actions::createWindowsInstallerTemplate(MainC
 
 void BackendCommandTarget::Actions::convertSampleMapToWavetableBanks(BackendRootWindow* bpe)
 {
+#if USE_IPP
 	WavetableConverterDialog *converter = new WavetableConverterDialog(bpe->getMainSynthChain());
 
 	converter->setModalBaseWindowComponent(bpe);
+#else
+	PresetHandler::showMessageWindow("IPP required", "You need to build HISE with enabled IPP in order to use the resynthesis features", PresetHandler::IconType::Error);
+#endif
 }
 
 #undef REPLACE_WILDCARD

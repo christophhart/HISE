@@ -185,6 +185,9 @@ struct ResynthesisHelpers
 	*/
 	static bool calculateHarmonicSpectrum(const AudioSampleBuffer &buffer, double sampleRate, AudioSampleBuffer& harmonicSpectrum, double pitch, SampleMapToWavetableConverter::WindowType windowType)
 	{
+		
+
+#if USE_IPP
 		if (pitch != 0.0)
 		{
 			int size = buffer.getNumSamples();
@@ -200,10 +203,6 @@ struct ResynthesisHelpers
 			float* w = (float*)alloca(sizeof(float)*size);
 
 			
-			
-			
-			
-
 			switch (windowType)
 			{
 			case hise::SampleMapToWavetableConverter::FlatTop:		  icstdsp::VectorFunctions::flattop(w, size); break;;
@@ -220,6 +219,7 @@ struct ResynthesisHelpers
 
 			FloatVectorOperations::multiply(dl, w, size);
 			FloatVectorOperations::multiply(dr, w, size);
+
 			fft.realFFTInplace(dl, size);
 			fft.realFFTInplace(dr, size);
 
@@ -289,6 +289,9 @@ struct ResynthesisHelpers
 		{
 			return false;
 		}
+#else
+		return false;
+#endif
 	}
 
 	static int getWavetableLength(int noteNumber, double sampleRate)
