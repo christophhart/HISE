@@ -157,7 +157,7 @@ private:
   T* allocate(size_t size)
   {
 #if USE_IPP
-	  auto ptr = ippsMalloc_8u(size * sizeof(T));
+	  auto ptr = ippsMalloc_8u((int)size * sizeof(T));
 	  jassert(ptr != nullptr);
 	  return reinterpret_cast<T*>(ptr);
 #elif defined(FFTCONVOLVER_USE_SSE)

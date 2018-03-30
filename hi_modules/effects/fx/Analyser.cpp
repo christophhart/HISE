@@ -335,7 +335,7 @@ void FFTDisplay::paint(Graphics& g)
 	
 	g.setColour(getColourForAnalyser(AudioAnalyserComponent::lineColour));
 
-	int xLog10Pos = log10((float)log10Offset) / maxPos * (float)getWidth();
+	int xLog10Pos = roundToInt(log10((float)log10Offset) / maxPos * (float)getWidth());
 
 	for (int i = log10Offset; i < size; i+= 2)
 	{

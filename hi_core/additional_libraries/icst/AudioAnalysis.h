@@ -213,6 +213,8 @@ class EnvelopeFollowerAnalyis : public AudioAnalysisBase
 
 class FrequencyAnalysis : public AudioAnalysisBase
 {
+public:
+
 	/** NormalisationScheme used by getFundamentalFrequency.*/
 	enum class NormalisationScheme
 	{

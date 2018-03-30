@@ -992,7 +992,7 @@
 		res.re = 1.0f/(res.re + static_cast<float>(imax));
 		res.im = __max(0,__min(1.0f,res.im));
 
-		delete[] n1; delete[] n2; delete[] r;
+		//delete[] n1; delete[] n2; delete[] r;
 		return res;
 	}
 
@@ -1008,9 +1008,9 @@
 		fundamentalFreqBuffer2 = AudioSampleBuffer(1, hsize);
 		fundamentalFreqBuffer3 = AudioSampleBuffer(1, hsize);
 
-		float* r; r = new float[tsize];
-		float* n1; n1 = new float[hsize];
-		float* n2; n2 = new float[hsize];
+		//float* r; r = new float[tsize];
+		//float* n1; n1 = new float[hsize];
+		//float* n2; n2 = new float[hsize];
 
 	}
 
