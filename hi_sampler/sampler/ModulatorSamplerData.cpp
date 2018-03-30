@@ -330,7 +330,8 @@ void SampleMap::save()
 
 		sampleMapId = Identifier(name);
 
-		mode = SaveMode::MultipleFiles;
+		if(mode != SaveMode::Monolith)
+			mode = SaveMode::MultipleFiles;
 
 		f.deleteFile();
 

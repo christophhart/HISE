@@ -62,7 +62,7 @@ bool StreamingHelpers::preloadSample(StreamingSamplerSound * s, const int preloa
 	}
 }
 
-StreamingHelpers::BasicMappingData StreamingHelpers::getBasicMappingDataFromSample(ValueTree& sampleData)
+hise::StreamingHelpers::BasicMappingData StreamingHelpers::getBasicMappingDataFromSample(const ValueTree& sampleData)
 {
 	BasicMappingData data;
 

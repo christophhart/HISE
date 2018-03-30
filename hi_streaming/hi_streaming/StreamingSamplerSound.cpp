@@ -332,7 +332,7 @@ bool StreamingSamplerSound::isMissing() const noexcept { return fileReader.isMis
 
 bool StreamingSamplerSound::hasActiveState() const noexcept { return !isMissing() && !purged; }
 
-double StreamingSamplerSound::getPitchFactor(int noteNumberToPitch, int rootNoteForPitchFactor) const noexcept
+double StreamingSamplerSound::getPitchFactor(int noteNumberToPitch, int rootNoteForPitchFactor) noexcept
 {
 	return pow(2.0, (noteNumberToPitch - rootNoteForPitchFactor) / 12.0);
 }

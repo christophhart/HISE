@@ -31,14 +31,14 @@
 namespace hlac { using namespace juce; 
 
 HiseLosslessAudioFormat::HiseLosslessAudioFormat() :
-	AudioFormat("HLAC", StringArray(".hlac"))
+	AudioFormat("HLAC", StringArray({ ".hlac", ".ch1", ".ch2", ".ch3", ".ch4", ".ch5" }))
 {
 
 }
 
 bool HiseLosslessAudioFormat::canHandleFile(const File& fileToTest)
 {
-	return fileToTest.getFileExtension() == ".hlac";
+	return fileToTest.getFileExtension() == ".hlac" || fileToTest.getFileExtension().contains("ch");
 }
 
 Array<int> HiseLosslessAudioFormat::getPossibleSampleRates()

@@ -51,16 +51,9 @@ public:
 	*
 	*	It looks for a previously saved file and creates a new file if nothing is found.
 	*/
-	static void loadThumbnails(ModulatorSampler *sampler, const File &directory)
+	static void loadThumbnails(ModulatorSampler* /*sampler*/, const File &/*directory*/)
 	{
-		if(ThumbnailHandler::getThumbnailFile(sampler).existsAsFile())
-		{
-			ThumbnailHandler::loadThumbnailsIntoSampler(sampler);
-		}
-		else
-		{
-			ThumbnailHandler::generateThumbnailData(sampler, directory);
-		}
+		
 	}
 
 	static void saveNewThumbNails(ModulatorSampler *sampler, const StringArray &newAudioFiles);

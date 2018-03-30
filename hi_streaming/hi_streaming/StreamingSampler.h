@@ -56,7 +56,7 @@ struct StreamingHelpers
 	static bool preloadSample(StreamingSamplerSound * s, const int preloadSize, String& errorMessage);
 
 	/** Creates a BasicMappingData object from the given samplemap entry. */
-	static BasicMappingData getBasicMappingDataFromSample(ValueTree& sampleData);
+	static BasicMappingData getBasicMappingDataFromSample(const ValueTree& sampleData);
 };
 
 

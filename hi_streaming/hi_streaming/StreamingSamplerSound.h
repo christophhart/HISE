@@ -96,7 +96,7 @@ public:
 	bool appliesToChannel(int /*midiChannel*/) noexcept override { return true; };
 
 	/** Returns the pitch factor for the note number. */
-	double getPitchFactor(int noteNumberToPitch, int rootNoteForPitchFactor) const noexcept;;
+	static double getPitchFactor(int noteNumberToPitch, int rootNoteForPitchFactor) noexcept;;
 
 	int getRootNote() const { return (int)rootNote; }
 

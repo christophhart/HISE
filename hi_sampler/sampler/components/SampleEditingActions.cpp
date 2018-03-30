@@ -1582,7 +1582,7 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 
 				
 
-				props.add(new SliderPropertyComponent(max, "Max Offset", 0.0, 5000.0, 1.0));
+				props.add(new SliderPropertyComponent(max, "Max Offset", 0.0, 44100.0, 1.0));
 				props.add(new ChoicePropertyComponent(snapToZero, "Snap to zero", { "Yes", "No" }, { var(1), var(2) }));
 
 				props.add(new SliderPropertyComponent(threshhold, "Start Thresshold", -100.0, 0.0, 0.1, 4.0));

@@ -101,7 +101,13 @@ public:
 	/** Returns the number of samples that is needed to detect 50 Hz. */
 	static int getNumSamplesNeeded(double sampleRate)
 	{
-		return dywapitch_neededsamplecount((int)(50.0 * (44100.0 / sampleRate)));
+		return getNumSamplesNeeded(sampleRate, 50.0);
+	}
+
+	/** Returns the number of samples that is needed to detect the given frequency. */
+	static int getNumSamplesNeeded(double sampleRate, double minFrequencyToAnalyse)
+	{
+		return dywapitch_neededsamplecount((int)(minFrequencyToAnalyse * (44100.0 / sampleRate)));
 	}
 };
 
