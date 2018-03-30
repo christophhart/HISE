@@ -46,9 +46,13 @@ namespace icstdsp
 	#include "icst/SpecMath.cpp"
 }
 
-	
 
 #pragma warning (pop)
+
+#include "fft_convolver/Utilities.cpp"
+#include "fft_convolver/AudioFFT.cpp"
+#include "fft_convolver/FFTConvolver.cpp"
+#include "fft_convolver/TwoStageFFTConvolver.cpp"
 
 #if JUCE_MSVC
 #pragma warning (push)

@@ -47,7 +47,7 @@ class BaseConstrainer
 
 };
 
-#define loadAttribute(name, nameAsString) (setAttribute(name, (float)v.getProperty(nameAsString, false), sendNotification))
+#define loadAttribute(name, nameAsString) (setAttribute(name, (float)v.getProperty(nameAsString, false), dontSendNotification))
 #define saveAttribute(name, nameAsString) (v.setProperty(nameAsString, getAttribute(name), nullptr))
 
 #define loadAttributeWithDefault(parameterId) setAttribute(parameterId, v.getProperty(getIdentifierForParameterIndex(parameterId), getDefaultValue(parameterId)), dontSendNotification);

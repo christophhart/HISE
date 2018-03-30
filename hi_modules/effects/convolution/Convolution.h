@@ -38,6 +38,8 @@ namespace hise { using namespace juce;
 #define CONVOLUTION_RAMPING_TIME_MS 30
 
 
+#define USE_FFT_CONVOLVER 1
+
 class GainSmoother
 {
 public:
@@ -101,6 +103,114 @@ private:
 	
 };
 
+class MultithreadedConvolver : public fftconvolver::TwoStageFFTConvolver
+{
+	class BackgroundThread : public Thread
+	{
+	public:
+
+		BackgroundThread(MultithreadedConvolver& parent_) :
+			Thread("Convolution Background Thread"),
+			parent(parent_)
+		{
+			
+		}
+
+		void run() override
+		{
+			while (!threadShouldExit())
+			{
+
+				if (active)
+				{
+					ScopedValueSetter<bool> svs(currentlyRendering, true);
+					parent.doBackgroundProcessing();
+					active = false;
+
+					if (threadShouldExit())
+						return;
+				}
+
+				wait(500);
+			}
+		};
+
+		void setSomethingTodo(bool shouldBeActive)
+		{
+			active = shouldBeActive;
+		}
+
+		bool isBusy() const { return currentlyRendering; }
+
+		bool currentlyRendering = false;
+		bool active = false;
+
+		MultithreadedConvolver& parent;
+	};
+
+
+public:
+
+	MultithreadedConvolver() :
+		TwoStageFFTConvolver(),
+		backgroundThread(*this)
+	{};
+
+	virtual ~MultithreadedConvolver()
+	{
+		backgroundThread.stopThread(1000);
+	};
+
+	void startBackgroundProcessing() override
+	{
+		if (useBackgroundThread)
+		{
+			backgroundThread.setSomethingTodo(true);
+			backgroundThread.notify();
+		}
+		else
+		{
+			doBackgroundProcessing();
+		}
+	}
+
+	void waitForBackgroundProcessing() override
+	{
+		if (useBackgroundThread)
+		{
+			while (backgroundThread.isBusy())
+				jassertfalse;
+		}
+	}
+
+	void setUseBackgroundThread(bool shouldBeUsingBackgroundThread)
+	{
+		if (useBackgroundThread != shouldBeUsingBackgroundThread)
+		{
+			useBackgroundThread = shouldBeUsingBackgroundThread;
+		
+			if (useBackgroundThread)
+				backgroundThread.startThread(9);
+			else
+			{
+				if(backgroundThread.isThreadRunning())
+					backgroundThread.stopThread(1000);
+			}
+				
+		}
+	}
+
+	bool isUsingBackgroundThread() const
+	{
+		return useBackgroundThread;
+	}
+
+private:
+
+	BackgroundThread backgroundThread;
+
+	bool useBackgroundThread = true;
+};
 
 
 /** @brief A convolution reverb using zero-latency convolution
@@ -113,6 +223,70 @@ private:
 class ConvolutionEffect: public MasterEffectProcessor,
 						 public AudioSampleProcessor
 {
+
+	class LoadingThread : public Thread,
+						  private Timer
+	{
+	public:
+
+		LoadingThread(ConvolutionEffect& parent_) :
+			Thread("Convolution Impulse Calculation"),
+			parent(parent_)
+		{
+			
+		}
+
+		~LoadingThread()
+		{
+			stopThread(1000);
+		}
+
+		
+
+		void run() override;
+
+		ConvolutionEffect& parent;
+
+		void reloadImpulse()
+		{
+			if (!isThreadRunning())
+			{
+				startThread(5);
+			}
+
+			
+
+			startTimer(30);
+		};
+
+		
+	private:
+
+		void reloadInternal();
+
+		void timerCallback() override
+		{
+			if (isReloading)
+			{
+				shouldRestart = true;
+			}
+
+			shouldReload = true;
+
+			ScopedLock sl(parent.getImpulseLock());
+
+			parent.convolverL->reset();
+			parent.convolverR->reset();
+
+			stopTimer();
+		}
+
+		bool shouldRestart = false;
+		bool shouldReload = false;
+		bool isReloading = false;
+
+	};
+
 public:
 
 	SET_PROCESSOR_NAME("Convolution", "Convolution Reverb")
@@ -126,6 +300,10 @@ public:
 		Latency, ///< you can change the latency (unused)
 		ImpulseLength, ///< the Impulse length (deprecated, use the SampleArea of the AudioSampleBufferComponent to change the impulse response)
 		ProcessInput, ///< if this attribute is set, the engine will fade out in a short time and reset itself.
+		UseBackgroundThread, ///< if true, then the tail of the impulse response will be rendered on a background thread to save cycles on the audio thread.
+		Predelay, ///< delays the reverb tail by the given amount in milliseconds
+		HiCut, ///< applies a low pass filter to the impulse response
+		Damping, ///< applies a fade-out to the impulse response
 		numEffectParameters
 	};
 
@@ -144,6 +322,7 @@ public:
 
 	float getAttribute(int parameterIndex) const override;;
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
+	float getDefaultValue(int parameterIndex) const override;
 
 	void restoreFromValueTree(const ValueTree &v) override;;
 	ValueTree exportAsValueTree() const override;
@@ -161,6 +340,18 @@ public:
 	const CriticalSection& getFileLock() const override { return unusedFileLock; }
 
 private:
+
+	SpinLock swapLock;
+
+	LoadingThread loadingThread;
+
+	double getResampleFactor() const
+	{
+		const auto renderingSampleRate = getSampleRate();
+		const auto bufferSampleRate = getSampleRateForLoadedFile();
+
+		return renderingSampleRate / bufferSampleRate;
+	}
 
 	CriticalSection unusedFileLock;
 
@@ -181,6 +372,9 @@ private:
 	bool processFlag;
 	int rampIndex;
 
+	DelayLine leftPredelay;
+	DelayLine rightPredelay;
+
 	CriticalSection lock;
 
 	bool isUsingPoolData;
@@ -191,11 +385,37 @@ private:
 	float wetGain;
 	int latency;
 
+	float damping = 1.0f;
+	
+	float predelayMs = 0.0f;
+
+#if USE_FFT_CONVOLVER
+
+	ScopedPointer<MultithreadedConvolver> convolverL;
+	ScopedPointer<MultithreadedConvolver> convolverR;
+
+#else
+
 	struct WdlPimpl;
 
 	ScopedPointer<WdlPimpl> wdlPimpl;
 
+#endif
+
+	double cutoffFrequency = 20000.0;
+
 	double lastSampleRate = 0.0;
+	void calcPredelay();
+
+	/** Adds a exponential gain ramp to the impulse response. */
+	static void applyExponentialFadeout(AudioSampleBuffer& scratchBuffer, int numSamples, float targetValue);
+
+	/** Adds a 2-Pole Lowpass with an exponential curve to the impulse response. */
+	static void applyHighFrequencyDamping(AudioSampleBuffer& buffer, int numSamples, double cutoffFrequency, double sampleRate);
+
+
+	void calcCutoff();
+	
 };
 
 
