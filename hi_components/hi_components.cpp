@@ -51,7 +51,6 @@
 #endif
 
 #include "wave_components/SampleDisplayComponent.cpp"
-#include "wave_components/WavetableComponents.cpp"
 
 #include "vu_meter/VuMeter.cpp"
 

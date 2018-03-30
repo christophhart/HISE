@@ -83,7 +83,6 @@ END_JUCE_MODULE_DECLARATION
 #endif
 
 #include "wave_components/SampleDisplayComponent.h"
-#include "wave_components/WavetableComponents.h"
 
 #include "vu_meter/VuMeter.h"
 

@@ -109,6 +109,98 @@ public:
 	*/
 	virtual void threadFinished() = 0;
 
+	class AdditionalRow : public Component,
+								public ButtonListener
+	{
+	public:
+
+		struct ComboBoxWithLabel : public Component
+		{
+			ComboBoxWithLabel(const String& name):
+				label(name)
+			{
+				addAndMakeVisible(box = new ComboBox());
+			}
+
+			void paint(Graphics& g) override
+			{
+				g.setFont(GLOBAL_BOLD_FONT());
+				g.setColour(Colours::white);
+				g.drawText(label, FLOAT_RECTANGLE(getLocalBounds().removeFromTop(16)), Justification::centredLeft);
+			}
+
+			void resized() override
+			{
+				auto a = getLocalBounds();
+				a.removeFromTop(16);
+				box->setBounds(a);
+			}
+
+			ScopedPointer<ComboBox> box;
+			String label;
+		};
+
+		AdditionalRow(DialogWindowWithBackgroundThread* parent_):
+			parent(parent_)
+		{
+
+		}
+
+		~AdditionalRow()
+		{
+			buttons.clear();
+		}
+
+		void buttonClicked(Button* b) override
+		{
+			parent->buttonClicked(b);
+		}
+
+		void addComboBox(const String& name, const StringArray& items, const String& label, ComboBox::Listener* listener)
+		{
+			auto t = new ComboBoxWithLabel(label);
+
+			addAndMakeVisible(t);
+			buttons.add(t);
+			t->box->setName(name);
+			t->box->addItemList(items, 1);
+			t->box->addListener(listener);
+			t->box->setSelectedItemIndex(0, dontSendNotification);
+			
+		}
+
+		void addButton(const String& name, const KeyPress& k=KeyPress())
+		{
+			auto t = new TextButton(name);
+			addAndMakeVisible(t);
+			t->addListener(this);
+			t->addShortcut(k);
+			buttons.add(t);
+
+			resized();
+		}
+
+
+		void resized() override
+		{
+			int widthPerButton = getWidth() / buttons.size();
+			int x = 0;
+
+			for (auto* b: buttons)
+			{
+				b->setBounds(x, 0, widthPerButton - 10, getHeight());
+				x += widthPerButton;
+			}
+		}
+
+		AlertWindowLookAndFeel alaf;
+
+
+		OwnedArray<Component> buttons;
+
+		DialogWindowWithBackgroundThread* parent;
+	};
+
 
 	// ================================================================================================================
 	
