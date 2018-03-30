@@ -198,6 +198,8 @@ END_JUCE_MODULE_DECLARATION
 #include "synthesisers/synths/SineSynth.h"
 #include "synthesisers/synths/NoiseSynth.h"
 #include "synthesisers/synths/WaveSynth.h"
+#include "synthesisers/synths/WavetableTools.h"
+#include "synthesisers/editors/WavetableComponents.h"
 #include "synthesisers/synths/WavetableSynth.h"
 #include "synthesisers/synths/AudioLooper.h"
 

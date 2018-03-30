@@ -1,96 +1,27 @@
 /*
   ==============================================================================
 
-  This is an automatically generated GUI class created by the Introjucer!
+  This is an automatically generated GUI class created by the Projucer!
 
   Be careful when adding custom code to these files, as only the code within
   the "//[xyz]" and "//[/xyz]" sections will be retained when the file is loaded
   and re-saved.
 
-  Created with Introjucer version: 4.1.0
+  Created with Projucer version: 5.2.0
 
   ------------------------------------------------------------------------------
 
-  The Introjucer is part of the JUCE library - "Jules' Utility Class Extensions"
+  The Projucer is part of the JUCE library - "Jules' Utility Class Extensions"
   Copyright (c) 2015 - ROLI Ltd.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_HEADER_38A6EE76FFB94F36__
-#define __JUCE_HEADER_38A6EE76FFB94F36__
+#pragma once
 
 //[Headers]     -- You can add your own extra header files here --
 
 namespace hise { using namespace juce;
-
-
-class WavetableDisplayComponent: public Component,
-								 public Timer
-{
-public:
-
-	WavetableDisplayComponent(ModulatorSynth *synth_):
-		synth(synth_),
-		tableLength(0),
-		tableValues(nullptr)
-	{
-        if(isDisplayForWavetableSynth()) startTimer(50);
-        else setBufferedToImage(true);
-	}
-
-	bool isDisplayForWavetableSynth() const { return dynamic_cast<WavetableSynth*>(synth) != nullptr; };
-
-	void timerCallback();
-
-	void paint(Graphics &g)
-	{
-		Path p;
-
-		float w = (float)getWidth();
-		float h = (float)getHeight();
-
-		p.startNewSubPath(0.0, h / 2.0f);
-
-		const float cycle = tableLength / w;
-
-		if(tableValues != nullptr)
-		{
-
-			for(int i = 0; i < getWidth(); i++)
-			{
-				const int tableIndex = (int) ((float)i * cycle);
-
-				jassert(tableIndex < tableLength);
-
-				const float value = normalizeValue * tableValues[tableIndex];
-
-				p.lineTo((float)i, value * -(h-2)/2 + h/2);
-
-
-			}
-		}
-
-		p.lineTo(w, h/2.0f);
-
-		p.closeSubPath();
-
-		KnobLookAndFeel::fillPathHiStyle(g, p, (int)w, (int)h);
-
-
-	}
-
-private:
-
-	ModulatorSynth *synth;
-
-	float const *tableValues;
-
-	int tableLength;
-
-	float normalizeValue;
-
-};
 
 
 //[/Headers]
@@ -106,8 +37,10 @@ private:
                                                                     //[/Comments]
 */
 class WavetableBody  : public ProcessorEditorBody,
-                       public LabelListener,
-                       public ButtonListener
+                       public Timer,
+                       public Label::Listener,
+                       public Button::Listener,
+                       public ComboBox::Listener
 {
 public:
     //==============================================================================
@@ -117,11 +50,17 @@ public:
     //==============================================================================
     //[UserMethods]     -- You can add your own custom methods in this section.
 
+	void timerCallback() override
+	{
+		modMeter->setPeak(getProcessor()->getChildProcessor(WavetableSynth::TableIndexModulation)->getOutputValue());
+	}
+
 	int getBodyHeight() const override {return h;};
 
 	void updateGui() override
 	{
 		hiqButton->updateValue();
+		wavetableSelector->updateValue();
 
 		fadeTimeEditor->setText(String((int)getProcessor()->getAttribute(ModulatorSynth::KillFadeTime)), dontSendNotification);
 		voiceAmountEditor->setText(String((int)getProcessor()->getAttribute(ModulatorSynth::VoiceLimit)), dontSendNotification);
@@ -129,10 +68,11 @@ public:
 
     //[/UserMethods]
 
-    void paint (Graphics& g);
-    void resized();
-    void labelTextChanged (Label* labelThatHasChanged);
-    void buttonClicked (Button* buttonThatWasClicked);
+    void paint (Graphics& g) override;
+    void resized() override;
+    void labelTextChanged (Label* labelThatHasChanged) override;
+    void buttonClicked (Button* buttonThatWasClicked) override;
+    void comboBoxChanged (ComboBox* comboBoxThatHasChanged) override;
 
 
 
@@ -149,8 +89,12 @@ private:
     ScopedPointer<Label> voiceAmountLabel;
     ScopedPointer<Label> voiceAmountEditor;
     ScopedPointer<Label> fadeTimeEditor;
-    ScopedPointer<TableEditor> component;
+    ScopedPointer<SliderPack> component;
     ScopedPointer<HiToggleButton> hiqButton;
+    ScopedPointer<Label> voiceAmountLabel2;
+    ScopedPointer<VuMeter> modMeter;
+    ScopedPointer<Label> voiceAmountLabel3;
+    ScopedPointer<HiComboBox> wavetableSelector;
 
 
     //==============================================================================
@@ -160,5 +104,3 @@ private:
 //[EndFile] You can add extra defines here...
 } // namespace hise
 //[/EndFile]
-
-#endif   // __JUCE_HEADER_38A6EE76FFB94F36__

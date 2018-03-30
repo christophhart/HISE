@@ -1,0 +1,987 @@
+/*  ===========================================================================
+*
+*   This file is part of HISE.
+*   Copyright 2016 Christoph Hart
+*
+*   HISE is free software: you can redistribute it and/or modify
+*   it under the terms of the GNU General Public License as published by
+*   the Free Software Foundation, either version 3 of the License, or
+*   (at your option) any later version.
+*
+*   HISE is distributed in the hope that it will be useful,
+*   but WITHOUT ANY WARRANTY; without even the implied warranty of
+*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*   GNU General Public License for more details.
+*
+*   You should have received a copy of the GNU General Public License
+*   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
+*
+*   Commercial licenses for using HISE in an closed source project are
+*   available on request. Please visit the project's website to get more
+*   information about commercial licensing:
+*
+*   http://www.hise.audio/
+*
+*   HISE is based on the JUCE library,
+*   which must be separately licensed for closed source applications:
+*
+*   http://www.juce.com
+*
+*   ===========================================================================
+*/
+
+namespace hise {
+using namespace juce;
+
+#if USE_BACKEND
+
+
+WavetableConverter::WavetableConverter()
+{
+	data = ValueTree("wavetableData");
+
+	for (int i = 0; i < 128; i++)
+		dataBuffers.add(new AudioSampleBuffer());
+
+	wavetableSizes.insertMultiple(0, -1, 128);
+}
+
+juce::ValueTree WavetableConverter::convertDirectoryToWavetableData(const String &directoryPath_)
+{
+	WavAudioFormat waf;
+	double sampleRate = -1.0;
+	directoryPath = File(directoryPath_);
+	jassert(directoryPath.isDirectory());
+	DirectoryIterator iter(directoryPath, false, "*.wav");
+
+	while (iter.next())
+	{
+		File wavFile = iter.getFile();
+		const String noteName = wavFile.getFileNameWithoutExtension().upToFirstOccurrenceOf("_", false, false);
+		const int noteNumber = getMidiNoteNumber(noteName);
+
+		if (noteNumber != -1)
+		{
+			juce::AudioSampleBuffer *bufferOfNote = dataBuffers[noteNumber];
+			const int wavetableNumber = wavFile.getFileNameWithoutExtension().fromFirstOccurrenceOf("_", false, false).getIntValue();
+			jassert(wavetableNumber >= 0);
+
+			reader = waf.createMemoryMappedReader(wavFile);
+			reader->mapEntireFile();
+			sampleRate = reader->sampleRate;
+			const int numSamples = (int)reader->lengthInSamples;
+
+			if (bufferOfNote->getNumSamples() != numSamples * 64)
+			{
+				jassert(wavetableSizes[noteNumber] == -1);
+
+				bufferOfNote->setSize(2, numSamples * 64);
+				bufferOfNote->clear();
+			}
+
+			jassert(wavetableSizes[noteNumber] == numSamples || wavetableSizes[noteNumber] == -1);
+			wavetableSizes.set(noteNumber, numSamples);
+			reader->read(bufferOfNote, numSamples * wavetableNumber, numSamples, 0, true, true);
+		}
+	}
+
+
+	for (int i = 0; i < 128; i++)
+	{
+		if (wavetableSizes[i] == -1) continue;
+
+		jassert(dataBuffers[i]->getNumSamples() == wavetableSizes[i] * 64);
+		jassert(dataBuffers[i]->getMagnitude(0, 0, dataBuffers[i]->getNumSamples()) != 0.0f);
+
+		ValueTree child = ValueTree("wavetable");
+
+		child.setProperty("noteNumber", i, nullptr);
+		child.setProperty("amount", 64, nullptr);
+		child.setProperty("sampleRate", sampleRate, nullptr);
+
+		MemoryBlock mb(dataBuffers[i]->getReadPointer(0, 0), dataBuffers[i]->getNumSamples() * sizeof(float));
+		var binaryData(mb);
+		child.setProperty("data", binaryData, nullptr);
+		data.addChild(child, -1, nullptr);
+	}
+
+	return data;
+}
+
+int WavetableConverter::getWavetableLength(int noteNumber, double sampleRate)
+{
+	const double freq = MidiMessage::getMidiNoteInHertz(noteNumber);
+	const int sampleNumber = (int)(sampleRate / freq);
+
+	return sampleNumber;
+}
+
+int WavetableConverter::getMidiNoteNumber(const String &midiNoteName)
+{
+	for (int i = 0; i < 127; i++)
+	{
+		if (MidiMessage::getMidiNoteName(i, true, true, 3) == midiNoteName)
+		{
+			return i;
+		}
+
+	}
+
+	return -1;
+}
+
+
+struct ResynthesisHelpers
+{
+
+	static double getRootFrequencyInBuffer(const AudioSampleBuffer &buffer, double sampleRate, double estimatedFreq)
+	{
+		float pitch = (float)PitchDetection::detectPitch(buffer, 0, buffer.getNumSamples(), sampleRate);
+
+		FloatSanitizers::sanitizeFloatNumber(pitch);
+
+		if (PitchDetection::getNumSamplesNeeded(sampleRate, estimatedFreq) >= buffer.getNumSamples())
+			pitch = 0.0;
+
+		if (pitch != 0.0)
+			return (double)pitch;
+
+		icstdsp::FrequencyAnalysis analysis;
+
+		analysis.prepareFundamentalFrequencyBuffers(buffer.getNumSamples());
+
+		float* data_ = (float*)alloca(sizeof(float) * buffer.getNumSamples());
+		float* temp = (float*)alloca(sizeof(float) * buffer.getNumSamples());
+		float* freq = (float*)alloca(sizeof(float) * buffer.getNumSamples());
+		float* amp = (float*)alloca(sizeof(float) * buffer.getNumSamples());
+		float* time = nullptr;
+		float* dw = (float*)alloca(sizeof(float) * buffer.getNumSamples() + 1);
+		float* rw = (float*)alloca(sizeof(float) * buffer.getNumSamples() + 1);
+		float aic[4];
+		float* w = (float*)alloca(sizeof(float) * buffer.getNumSamples() + 1);
+
+		icstdsp::VectorFunctions::blackman(w, buffer.getNumSamples());
+		FloatVectorOperations::copy(data_, buffer.getReadPointer(0), buffer.getNumSamples());
+		auto freq_ = analysis.getFundamentalFrequency(data_, buffer.getNumSamples(), icstdsp::FrequencyAnalysis::NormalisationScheme::CauchySchwarz);
+		analysis.prepareWindow(w, dw, rw, aic, buffer.getNumSamples());
+		analysis.analyseSpectrum(data_, freq, amp, time, buffer.getNumSamples(), w, dw, rw, temp, aic);
+
+		FloatVectorOperations::multiply(freq, (float)sampleRate, buffer.getNumSamples());
+		int index = analysis.verifyFundamentalFrequency(amp, buffer.getNumSamples(), freq_.re);
+		pitch = jlimit<float>(0.0, (float)sampleRate / 2.0f, freq[index]);
+		FloatSanitizers::sanitizeFloatNumber(pitch);
+
+		return (double)pitch;
+	}
+
+	/** Analyses the given buffer and fills the given buffer with the normalized harmonic spectrum.
+	*
+	*	@param buffer: the input buffer
+	*	@param sampleRate: the sample rate
+	*	@param harmonicSpectrum: the audio buffer that will contain the harmonic spectrum. Just pass in an empty one
+	*							 and it will resize it to the number of available harmonics
+	*	@param debugString: a pointer to a string that is used for debugging (if not nullptr).
+	*	@returns: true if the root frequency could be successfully detected, false otherwise
+	*/
+	static bool calculateHarmonicSpectrum(const AudioSampleBuffer &buffer, double sampleRate, AudioSampleBuffer& harmonicSpectrum, double pitch, SampleMapToWavetableConverter::WindowType windowType)
+	{
+		if (pitch != 0.0)
+		{
+			int size = buffer.getNumSamples();
+
+			IppFFT fft(IppFFT::DataType::RealFloat, 16);
+
+			float* dl = (float*)alloca(sizeof(float)*size);
+			float* dr = (float*)alloca(sizeof(float)*size);
+
+			FloatVectorOperations::copy(dl, buffer.getReadPointer(0), size);
+			FloatVectorOperations::copy(dr, buffer.getReadPointer(1), size);
+
+			float* w = (float*)alloca(sizeof(float)*size);
+
+			
+			
+			
+			
+
+			switch (windowType)
+			{
+			case hise::SampleMapToWavetableConverter::FlatTop:		  icstdsp::VectorFunctions::flattop(w, size); break;;
+			case hise::SampleMapToWavetableConverter::BlackmanHarris: icstdsp::VectorFunctions::blackman(w, size); break;
+			case hise::SampleMapToWavetableConverter::Rectangular:    FloatVectorOperations::fill(w, 1.0f, size); break;
+			case hise::SampleMapToWavetableConverter::Gaussian:		  icstdsp::VectorFunctions::gauss(w, size, 0.5f); break;
+			case hise::SampleMapToWavetableConverter::Hann:			  icstdsp::VectorFunctions::hann(w, size); break;
+			case hise::SampleMapToWavetableConverter::Hamming:		  icstdsp::VectorFunctions::hamming(w, size); break;
+			case hise::SampleMapToWavetableConverter::Kaiser:		  icstdsp::VectorFunctions::kaiser(w, size, 8.0f);
+			case hise::SampleMapToWavetableConverter::Triangle:		  icstdsp::VectorFunctions::triangle(w, size); break;
+			default:												  break;
+			}
+
+
+			FloatVectorOperations::multiply(dl, w, size);
+			FloatVectorOperations::multiply(dr, w, size);
+			fft.realFFTInplace(dl, size);
+			fft.realFFTInplace(dr, size);
+
+			float* magL = (float*)alloca(sizeof(float)*size / 2);
+			float* magR = (float*)alloca(sizeof(float)*size / 2);
+
+			for (int i = 0; i < size / 2; i++)
+			{
+				magL[i] = dl[2 * i] * dl[2 * i] + dl[2 * i + 1] * dl[2 * i + 1];
+				magL[i] = sqrtf(magL[i]);
+
+				magR[i] = dr[2 * i] * dr[2 * i] + dr[2 * i + 1] * dr[2 * i + 1];
+				magR[i] = sqrtf(magR[i]);
+			}
+
+			auto halfSize = (double)size / 2.0;
+
+
+			int numHarmonics = harmonicSpectrum.getNumSamples();
+
+			float* ampL = harmonicSpectrum.getWritePointer(0);
+			float* ampR = harmonicSpectrum.getWritePointer(1);
+
+			FloatVectorOperations::clear(ampL, numHarmonics);
+			FloatVectorOperations::clear(ampR, numHarmonics);
+
+			for (int i = 0; i < numHarmonics; i++)
+			{
+				auto hmFreq = pitch * double(i + 1);
+				auto index = roundDoubleToInt(hmFreq / (sampleRate / 2.0) * halfSize);
+
+				index = jmax<int>(0, index);
+
+				if (index >= size / 2)
+				{
+					
+					ampL[i] = 0.0f;
+					ampR[i] = 0.0f;
+				}
+				else
+				{
+					ampL[i] = magL[index];
+					ampR[i] = magR[index];
+				}
+
+				
+
+				
+			}
+
+			auto maxL = FloatVectorOperations::findMaximum(ampL, numHarmonics);
+			auto maxR = FloatVectorOperations::findMaximum(ampR, numHarmonics);
+
+			if (maxL > 0.0f)
+				FloatVectorOperations::multiply(ampL, 1.0f / maxL, numHarmonics);
+			else
+				FloatVectorOperations::clear(ampL, numHarmonics);
+
+			if (maxR > 0.0f)
+				FloatVectorOperations::multiply(ampR, 1.0f / maxR, numHarmonics);
+			else
+				FloatVectorOperations::clear(ampR, numHarmonics);
+
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	static int getWavetableLength(int noteNumber, double sampleRate)
+	{
+		const double freq = MidiMessage::getMidiNoteInHertz(noteNumber);
+		const int sampleNumber = (int)(sampleRate / freq);
+
+		return sampleNumber;
+	};
+
+	static void createWavetableFromHarmonicSpectrum(const float* hmx, int numHarmonics, float* data, int noteNumber, double sampleRate = 48000.0)
+	{
+		auto length = getWavetableLength(noteNumber, sampleRate);
+
+		FloatVectorOperations::clear(data, length);
+
+
+
+
+		double rootDelta = 2.0 * double_Pi / (double)length;
+
+		for (int h = 0; h < numHarmonics; h++)
+		{
+			float harmonicGain = hmx[h];
+
+			if (harmonicGain <= 0.0001f)
+				continue;
+
+			double uptime = 0.0;
+
+			for (int i = 0; i < length; i++)
+			{
+				data[i] += harmonicGain * (float)sin(uptime);
+				uptime += rootDelta * (double)(h + 1);
+			}
+		}
+
+		auto range = FloatVectorOperations::findMinAndMax(data, length);
+
+		auto maxLevel = jmax<float>(fabsf(range.getStart()), fabsf(range.getEnd()));
+
+		FloatVectorOperations::multiply(data, 1.0f / maxLevel, length);
+
+	}
+
+};
+
+void SampleMapToWavetableConverter::HarmonicMap::clear(int numHarmonics /*= 0*/)
+{
+	memset(pitchDeviations, 0, sizeof(double) * numWavetables);
+	harmonicGains.setSize(64, numHarmonics);
+	harmonicGains.clear();
+	harmonicGainsRight.setSize(64, numHarmonics);
+	harmonicGainsRight.clear();
+
+	gainValues.clear();
+	gainValues.setSize(2, 64);
+}
+
+void SampleMapToWavetableConverter::HarmonicMap::replaceWithNeighbours(int harmonicIndex)
+{
+	replaceInternal(harmonicIndex, true);
+	replaceInternal(harmonicIndex, false);
+	return;
+}
+
+
+
+void SampleMapToWavetableConverter::HarmonicMap::replaceInternal(int harmonicIndex, bool useRightChannel)
+{
+	auto& tableToUse = useRightChannel ? harmonicGainsRight : harmonicGains;
+
+	if (harmonicGains.getNumChannels() < 2)
+		return;
+
+	int size = tableToUse.getNumSamples();
+
+	if (harmonicIndex == 0)
+	{
+		auto first = tableToUse.getWritePointer(0);
+		auto second = tableToUse.getReadPointer(1);
+
+		FloatVectorOperations::copy(first, second, size);
+	}
+	else if (harmonicIndex == tableToUse.getNumChannels() - 1)
+	{
+		auto first = tableToUse.getWritePointer(harmonicIndex);
+		auto second = tableToUse.getReadPointer(harmonicIndex - 1);
+
+		FloatVectorOperations::copy(first, second, size);
+	}
+	else
+	{
+		auto target = tableToUse.getWritePointer(harmonicIndex);
+		auto prev = tableToUse.getReadPointer(harmonicIndex - 1);
+		auto next = tableToUse.getReadPointer(harmonicIndex + 1);
+
+		for (int i = 0; i < size; i++)
+		{
+			const float interpolatedValue = (prev[i] + next[i]) / 2.0f;
+			target[i] = interpolatedValue;
+		}
+	}
+}
+
+template <typename T> bool isBetween(T valueToCheck, T lowerLimit, T upperLimit)
+{
+	return valueToCheck > lowerLimit && valueToCheck < upperLimit;
+}
+
+SampleMapToWavetableConverter::SampleMapToWavetableConverter(ModulatorSynthChain* mainSynthChain) :
+	chain(mainSynthChain),
+	leftValueTree("wavetableData"),
+	rightValueTree("wavetableData")
+{
+	afm.registerBasicFormats();
+	afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
+}
+
+juce::Result SampleMapToWavetableConverter::parseSampleMap(const File& sampleMapFile)
+{
+	Result result = Result::ok();
+
+	harmonicMaps.clear();
+
+	// Load samplemap
+	result = loadSampleMapFromFile(sampleMapFile);
+
+
+	if (result.failed())
+		return result;
+
+	for (int i = 0; i < 127; i++)
+	{
+		auto index = getSampleIndexForNoteNumber(i);
+
+		if (index != -1)
+		{
+			HarmonicMap newMap;
+
+			newMap.index.noteNumber = i;
+			newMap.index.sampleIndex = index;
+
+			harmonicMaps.add(newMap);
+		}
+	}
+
+	currentIndex = 0;
+
+	return result;
+}
+
+int SampleMapToWavetableConverter::getLowestPossibleFFTSize() const
+{
+	if (currentIndex < harmonicMaps.size())
+	{
+		return 2 * nextPowerOfTwo(harmonicMaps.getReference(currentIndex).wavetableLength);
+	}
+
+	jassertfalse;
+	return 512;
+}
+
+juce::Result SampleMapToWavetableConverter::calculateHarmonicMap()
+{
+	if (currentIndex > harmonicMaps.size() - 1)
+	{
+		jassertfalse;
+		return Result::fail("wrong array index");
+	}
+
+	auto& m = harmonicMaps.getReference(currentIndex);
+
+	Result result = Result::ok();
+
+	// Read entire sample & repitch
+	AudioSampleBuffer buffer;
+
+	result = readSample(buffer, m.index.sampleIndex, m.index.noteNumber);
+
+	if (result.failed())
+		return result;
+
+	m.wavetableLength = ResynthesisHelpers::getWavetableLength(m.index.noteNumber, sampleRate);
+
+	auto parts = splitSample(buffer);
+
+	auto nyquist = sampleRate / 2.0;
+
+	int numHarmonics = roundDoubleToInt(nyquist / MidiMessage::getMidiNoteInHertz(m.index.noteNumber));
+
+	m.clear(numHarmonics);
+
+	double lastPitch = -1.0;
+
+	int partIndex = 0;
+
+	for (const auto& p : parts)
+	{
+		AudioSampleBuffer harmonics(2, numHarmonics);
+
+		auto estimatedPitch = MidiMessage::getMidiNoteInHertz(m.index.noteNumber);
+		auto numSamplesNeeded = PitchDetection::getNumSamplesNeeded(sampleRate, estimatedPitch);
+		auto thisPitch = ResynthesisHelpers::getRootFrequencyInBuffer(p, sampleRate, estimatedPitch);
+
+		auto estimatedRatio = thisPitch / estimatedPitch;
+
+		if(isBetween(estimatedRatio, 0.0, 0.33) || estimatedRatio > 3.0)
+		{
+			if (partIndex > 4)
+			{
+				thisPitch = lastPitch;
+			}
+			else
+			{
+				return Result::fail("Pitch detection error. Expected: " + String(estimatedPitch, 0) + " + Hz" + ", Actual: " + String(thisPitch, 0) + "Hz");
+			}
+		}
+		else if (isBetween(estimatedRatio, 0.33, 0.6))
+		{
+			thisPitch *= 2.0;
+		}
+		else if (isBetween(estimatedRatio, 1.5, 3.0))
+		{
+			thisPitch /= 2.0;
+		}
+
+		auto lGain = p.getMagnitude(0, 0, p.getNumSamples());
+		auto rGain = p.getMagnitude(1, 0, p.getNumSamples());
+
+		m.gainValues.setSample(0, partIndex, lGain);
+		m.gainValues.setSample(1, partIndex, rGain);
+
+		if (lastPitch != -1.0)
+		{
+			auto pitchDelta = log2(thisPitch / lastPitch) * 1200.0;
+
+			m.pitchDeviations[partIndex] = pitchDelta;
+
+			if (abs(pitchDelta) > 100.0)
+			{
+				thisPitch = lastPitch;
+
+				//return Result::fail("Pitch Deviation too big");
+			}
+		}
+
+		lastPitch = thisPitch;
+
+		if (!ResynthesisHelpers::calculateHarmonicSpectrum(p, sampleRate, harmonics, thisPitch, windowType))
+			return Result::fail("Couldn't detect pitch at notenumber " + String(m.index.noteNumber));
+
+		FloatVectorOperations::copy(m.harmonicGains.getWritePointer(partIndex), harmonics.getReadPointer(0), numHarmonics);
+		FloatVectorOperations::copy(m.harmonicGainsRight.getWritePointer(partIndex), harmonics.getReadPointer(1), numHarmonics);
+
+		partIndex++;
+
+	}
+
+	m.analysed = true;
+
+	MessageManagerLock mm;
+	sendSynchronousChangeMessage();
+
+	return result;
+}
+
+void SampleMapToWavetableConverter::renderAllWavetablesFromHarmonicMaps(double& progress)
+{
+	for (const auto& map : harmonicMaps)
+	{
+		if (!map.analysed)
+			continue;
+
+		progress = (double)harmonicMaps.indexOf(map) / (double)harmonicMaps.size();
+
+		auto bank = calculateWavetableBank(map);
+
+		float* dataL = bank.getWritePointer(0);
+		float* dataR = bank.getWritePointer(1);
+
+		storeData(map.index.noteNumber, dataL, leftValueTree, map.wavetableLength * numParts);
+		storeData(map.index.noteNumber, dataR, rightValueTree, map.wavetableLength * numParts);
+	}
+}
+
+AudioSampleBuffer SampleMapToWavetableConverter::calculateWavetableBank(const HarmonicMap &map)
+{
+	AudioSampleBuffer bank(2, map.wavetableLength * numParts);
+
+
+	bank.clear();
+
+	float* dataL = bank.getWritePointer(0);
+	float* dataR = bank.getWritePointer(1);
+
+	int offset = reverseOrder ? bank.getNumSamples() - map.wavetableLength : 0;
+
+	int partIndex = 0;
+
+	for (int i = 0; i < map.harmonicGains.getNumChannels(); i++)
+	{
+		ResynthesisHelpers::createWavetableFromHarmonicSpectrum(map.harmonicGains.getReadPointer(partIndex), map.harmonicGains.getNumSamples(), dataL + offset, map.index.noteNumber, sampleRate);
+
+		ResynthesisHelpers::createWavetableFromHarmonicSpectrum(map.harmonicGainsRight.getReadPointer(partIndex), map.harmonicGains.getNumSamples(), dataR + offset, map.index.noteNumber, sampleRate);
+
+		if (useOriginalGain)
+		{
+			const float gainL = map.gainValues.getSample(0, partIndex);
+			const float gainR = map.gainValues.getSample(1, partIndex);
+
+			FloatVectorOperations::multiply(dataL + offset, gainL, map.wavetableLength);
+			FloatVectorOperations::multiply(dataR + offset, gainR, map.wavetableLength);
+		}
+
+		if (reverseOrder)
+			offset -= map.wavetableLength;
+		else
+			offset += map.wavetableLength;
+
+		partIndex++;
+	}
+
+	return bank;
+}
+
+juce::Result SampleMapToWavetableConverter::refreshCurrentWavetable(double& progress, bool forceReanalysis /*= true*/)
+{
+	if (currentIndex == -1)
+		return Result::fail("Nothing loaded");
+
+	jassert(currentIndex < harmonicMaps.size());
+
+	if (!forceReanalysis && harmonicMaps.getReference(currentIndex).analysed)
+	{
+		sendChangeMessage();
+		return Result::ok();
+	}
+
+
+	Result r = calculateHarmonicMap();
+
+	int numAnalysed = 0;
+
+	for (const auto& m : harmonicMaps)
+	{
+		if (m.analysed)
+			numAnalysed++;
+	}
+
+	progress = (double)numAnalysed / (double)harmonicMaps.size();
+
+	return r;
+}
+
+void SampleMapToWavetableConverter::replacePartOfCurrentMap(int index)
+{
+	if (currentIndex < harmonicMaps.size())
+	{
+		harmonicMaps.getReference(currentIndex).replaceWithNeighbours(index);
+		
+	}
+}
+
+int SampleMapToWavetableConverter::getCurrentNoteNumber() const
+{
+	if (currentIndex < harmonicMaps.size())
+	{
+		return harmonicMaps.getReference(currentIndex).index.noteNumber;
+	}
+
+	return -1;
+}
+
+juce::Result SampleMapToWavetableConverter::discardCurrentNoteAndUsePrevious()
+{
+	if (currentIndex > 0)
+	{
+		const auto& prev = harmonicMaps.getReference(currentIndex - 1);
+		auto& thisMap = harmonicMaps.getReference(currentIndex);
+
+		const auto samplesToCopy = jmin<int>(thisMap.harmonicGains.getNumSamples(), prev.harmonicGains.getNumSamples());
+
+		for (int i = 0; i < thisMap.harmonicGains.getNumChannels(); i++)
+		{
+			thisMap.harmonicGains.copyFrom(i, 0, prev.harmonicGains, i, 0, samplesToCopy);
+			thisMap.harmonicGainsRight.copyFrom(i, 0, prev.harmonicGainsRight, i, 0, samplesToCopy);
+		}
+
+		FloatVectorOperations::copy(thisMap.pitchDeviations, prev.pitchDeviations, 64);
+
+		sendChangeMessage();
+
+		return Result::ok();
+	}
+
+	return Result::fail("No previous wavetable found.");
+}
+
+juce::AudioSampleBuffer SampleMapToWavetableConverter::getPreviewBuffers(bool original)
+{
+	AudioSampleBuffer b;
+
+	if (auto currentMap = getCurrentMap())
+	{
+		if (original)
+		{
+			auto actualSampleRate = sampleRate;
+
+			sampleRate = chain->getSampleRate();
+
+			readSample(b, currentMap->index.sampleIndex, currentMap->index.noteNumber);
+
+			sampleRate = actualSampleRate;
+		}
+		else
+		{
+			auto bank = calculateWavetableBank(*currentMap);
+
+			int length = currentMap->wavetableLength;
+
+			auto numWavetables = (float)currentSampleLength / (float)length;
+
+			int numWaveTablesPerPart = jmax<int>(1, nextPowerOfTwo(numWavetables / (float)numParts));
+
+			int newLength = numWaveTablesPerPart * length * (numParts + 1);
+
+			b.setSize(2, newLength);
+
+			b.clear();
+
+			int offsetForFade = numWaveTablesPerPart * length;
+
+			AudioSampleBuffer scratchBuffer(2, offsetForFade * 2);
+
+			int targetOffset = 0;
+
+			for (int i = 0; i < numParts; i++)
+			{
+				int bOffset = i * length;
+
+				for (int j = 0; j < (2 * numWaveTablesPerPart); j++)
+				{
+					int tOffset = j * length;
+
+					scratchBuffer.copyFrom(0, tOffset, bank.getReadPointer(0, bOffset), length);
+					scratchBuffer.copyFrom(1, tOffset, bank.getReadPointer(1, bOffset), length);
+				}
+
+				if(i != 0)
+					scratchBuffer.applyGainRamp(0, offsetForFade, 0.0f, 1.0f);
+
+				scratchBuffer.applyGainRamp(offsetForFade, offsetForFade, 1.0f, 0.0f);
+
+				b.addFrom(0, targetOffset, scratchBuffer.getReadPointer(0), scratchBuffer.getNumSamples());
+				b.addFrom(1, targetOffset, scratchBuffer.getReadPointer(1), scratchBuffer.getNumSamples());
+
+				targetOffset += offsetForFade;
+			}
+
+			if (reverseOrder)
+				b.reverse(0, b.getNumSamples());
+
+			auto playbackRate = chain->getSampleRate();
+
+			if (playbackRate != sampleRate)
+			{
+				double ratio = sampleRate / playbackRate;
+				int newNumSamples = roundDoubleToInt((double)b.getNumSamples() / ratio);
+
+				LagrangeInterpolator interpolator;
+				AudioSampleBuffer resampled(2, newNumSamples);
+
+				interpolator.process(ratio, b.getReadPointer(0), resampled.getWritePointer(0), newNumSamples);
+				interpolator.reset();
+				interpolator.process(ratio, b.getReadPointer(1), resampled.getWritePointer(1), newNumSamples);
+
+				return resampled;
+			}
+
+		}
+	}
+
+	return b;
+}
+
+void SampleMapToWavetableConverter::storeData(int noteNumber, float* data, ValueTree& treeToSave, int length)
+{
+#if 0
+
+	auto name = MidiMessage::getMidiNoteName(noteNumber, true, true, 3) + ".wav";
+
+	auto f = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::Samples).getChildFile(name);
+
+	FileOutputStream* fos = new FileOutputStream(f);
+
+	WavAudioFormat waf;
+
+	ScopedPointer<AudioFormatWriter> writer = waf.createWriterFor(fos, sampleRate, AudioChannelSet::stereo(), 16, StringPairArray(), 5);
+
+	float* channels[1] = { data };
+
+	writer->writeFromFloatArrays(channels, 1, length);
+
+#else
+
+	ValueTree child = ValueTree("wavetable");
+
+	child.setProperty("noteNumber", noteNumber, nullptr);
+	child.setProperty("amount", numParts, nullptr);
+	child.setProperty("sampleRate", sampleRate, nullptr);
+
+	MemoryBlock mb(length * sizeof(float));
+
+	FloatVectorOperations::copy((float*)mb.getData(), data, length);
+
+	var binaryData(mb);
+
+	child.setProperty("data", binaryData, nullptr);
+
+	treeToSave.addChild(child, -1, nullptr);
+
+#endif
+}
+
+int SampleMapToWavetableConverter::getSampleIndexForNoteNumber(int noteNumber)
+{
+	for (int i = 0; i < sampleMap.getNumChildren(); i++)
+	{
+		auto sample = sampleMap.getChild(i);
+
+		auto range = Range<int>(getSampleProperty(sample, ModulatorSamplerSound::Property::KeyLow),
+			(int)getSampleProperty(sample, ModulatorSamplerSound::Property::KeyHigh) + 1);
+
+		if (range.contains(noteNumber))
+			return i;
+	}
+
+	return -1;
+}
+
+juce::Result SampleMapToWavetableConverter::readSample(AudioSampleBuffer& buffer, int index, int noteNumber)
+{
+	auto sample = sampleMap.getChild(index);
+
+	const bool isMonolith = (int)sampleMap.getProperty("SaveMode") == SampleMap::SaveMode::Monolith;
+
+	int monoOffset = 0;
+
+	String filePath;
+
+	if (isMonolith)
+	{
+		String sampleName;
+
+		sampleName << "{PROJECT_FOLDER}" << sampleMap.getProperty("ID").toString() << ".ch1";
+
+		sampleName = sampleName.replace("/", "_");
+
+		filePath = GET_PROJECT_HANDLER(chain).getFilePath(sampleName, ProjectHandler::SubDirectories::Samples);
+
+		monoOffset = (int)sample.getProperty("MonolithOffset", 0);
+	}
+	else
+	{
+		auto fileName = getSampleProperty(sample, ModulatorSamplerSound::FileName);
+		filePath = GET_PROJECT_HANDLER(chain).getFilePath(fileName, ProjectHandler::SubDirectories::Samples);
+	}
+
+
+
+	jassert(File::isAbsolutePath(filePath));
+	File f = File(filePath);
+
+
+	auto range = Range<int>((int)getSampleProperty(sample, ModulatorSamplerSound::Property::SampleStart) + monoOffset,
+		(int)getSampleProperty(sample, ModulatorSamplerSound::Property::SampleEnd) + monoOffset);
+
+
+	auto rootNote = (int)getSampleProperty(sample, ModulatorSamplerSound::RootNote);
+
+
+
+
+
+	if (f.existsAsFile())
+	{
+
+
+		ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(f);
+
+
+
+		if (reader != nullptr)
+		{
+
+			if (reader->sampleRate == sampleRate && rootNote == noteNumber)
+			{
+				buffer.setSize(2, range.getLength());
+
+				reader->read(&buffer, 0, range.getLength(), range.getStart(), true, true);
+				return Result::ok();
+			}
+
+			currentSampleLength = range.getLength();
+
+			AudioSampleBuffer unresampled(2, range.getLength());
+			reader->read(&unresampled, 0, range.getLength(), range.getStart(), true, true);
+
+			const auto pitchFactorSampleRate = sampleRate / reader->sampleRate;
+
+
+			auto pitchFactorRoot = StreamingSamplerSound::getPitchFactor(noteNumber, rootNote);
+			const auto pf = pitchFactorRoot * pitchFactorSampleRate;
+			const int numSamplesResampled = roundDoubleToInt((double)unresampled.getNumSamples() / pf);
+
+			LagrangeInterpolator interpolator;
+			buffer.setSize(2, numSamplesResampled);
+
+			interpolator.process(pf, unresampled.getReadPointer(0), buffer.getWritePointer(0), numSamplesResampled);
+			interpolator.reset();
+			interpolator.process(pf, unresampled.getReadPointer(1), buffer.getWritePointer(1), numSamplesResampled);
+
+			return Result::ok();
+		}
+		else
+		{
+			return Result::fail("Error opening file " + filePath);
+		}
+	}
+	else
+	{
+		return Result::fail("File couldn't be found.");
+	}
+}
+
+Array<juce::AudioSampleBuffer> SampleMapToWavetableConverter::splitSample(const AudioSampleBuffer& buffer)
+{
+	Array<AudioSampleBuffer> parts;
+	parts.ensureStorageAllocated(numParts);
+
+	int thisFFTSize = fftSize > 0 ? fftSize : getLowestPossibleFFTSize();
+
+	int oversampledLength = thisFFTSize * 1;
+	
+	
+
+	auto totalLength = buffer.getNumSamples() - thisFFTSize;
+
+	const float* lData = buffer.getReadPointer(0);
+	const float* rData = buffer.getReadPointer(1);
+
+	if (totalLength <= 0)
+	{
+		// Trying to split a buffer that's smaller than the split size...
+		jassertfalse;
+		return parts;
+	}
+
+	for (int i = 0; i < numParts; i++)
+	{
+		AudioSampleBuffer p;
+
+		auto offsetNormalized = (double)i / (double)numParts;
+		auto offsetSample = roundDoubleToInt(offsetNormalized * (double)totalLength);
+
+		p.setSize(2, oversampledLength);
+		p.clear();
+
+		FloatVectorOperations::copy(p.getWritePointer(0), lData + offsetSample, thisFFTSize);
+		FloatVectorOperations::copy(p.getWritePointer(1), rData + offsetSample, thisFFTSize);
+
+		parts.add(p);
+	}
+
+	return parts;
+}
+
+juce::Result SampleMapToWavetableConverter::loadSampleMapFromFile(File sampleMapFile)
+{
+	ScopedPointer<XmlElement> xml = XmlDocument::parse(sampleMapFile);
+
+	if (xml != nullptr)
+	{
+		sampleMap = ValueTree::fromXml(*xml);
+		return Result::ok();
+	}
+
+	jassertfalse;
+	return Result::fail("Error parsing Samplemap XML");
+}
+
+
+#endif
+
+}

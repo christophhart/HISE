@@ -178,6 +178,7 @@ public:
 		MenuToolsCreateUIDataFromDesktop,
 		MenuToolsForcePoolSearch,
 		MenuToolsConvertAllSamplesToMonolith,
+		MenuToolsConvertSampleMapToWavetableBanks,
 		MenuToolsUpdateSampleMapIdsBasedOnFileName,
 		MenuToolsConvertSfzToSampleMaps,
 		MenuToolsRemoveAllSampleMaps,
@@ -345,6 +346,7 @@ public:
 		static void createUIDataFromDesktop(BackendRootWindow * bpe);
 
 		static String createWindowsInstallerTemplate(MainController* mc, bool includeAAX);
+		static void convertSampleMapToWavetableBanks(BackendRootWindow* bpe);
 	};
 
 private:

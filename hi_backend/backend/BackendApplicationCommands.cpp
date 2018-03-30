@@ -142,6 +142,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
         MenuToolsRedirectSampleFolder,
 		MenuToolsRedirectScriptFolder,
 		MenuToolsForcePoolSearch,
+		MenuToolsConvertSampleMapToWavetableBanks,
 		MenuToolsConvertAllSamplesToMonolith,
 		MenuToolsUpdateSampleMapIdsBasedOnFileName,
 		MenuToolsConvertSfzToSampleMaps,
@@ -435,6 +436,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsConvertAllSamplesToMonolith:
 		setCommandTarget(result, "Convert all samples to Monolith + Samplemap", true, false, 'X', false);
 		break;
+	case MenuToolsConvertSampleMapToWavetableBanks:
+		setCommandTarget(result, "Convert samplemap to Wavetable Bank", true, false, 'X', false);
+		break;
 	case MenuToolsUpdateSampleMapIdsBasedOnFileName:
 		setCommandTarget(result, "Update SampleMap Ids based on file names", true, false, 'X', false);
 		break;
@@ -606,6 +610,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
     case MenuToolsRedirectSampleFolder: Actions::redirectSampleFolder(bpe->getMainSynthChain()); updateCommands(); return true;
 	case MenuToolsRedirectScriptFolder: Actions::redirectScriptFolder(bpe); updateCommands(); return true;
 	case MenuToolsForcePoolSearch:		Actions::toggleForcePoolSearch(bpe); updateCommands(); return true;
+	case MenuToolsConvertSampleMapToWavetableBanks:	Actions::convertSampleMapToWavetableBanks(bpe); return true;
 	case MenuToolsConvertAllSamplesToMonolith:	Actions::convertAllSamplesToMonolith(bpe); return true;
 	case MenuToolsUpdateSampleMapIdsBasedOnFileName:	Actions::updateSampleMapIds(bpe); return true;
 	case MenuToolsConvertSfzToSampleMaps:	Actions::convertSfzFilesToSampleMaps(bpe); return true;
@@ -877,6 +882,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsCheckUnusedImages);
 		ADD_DESKTOP_ONLY(MenuToolsRedirectSampleFolder);
 		ADD_DESKTOP_ONLY(MenuToolsForcePoolSearch);
+		ADD_DESKTOP_ONLY(MenuToolsConvertSampleMapToWavetableBanks);
 		ADD_DESKTOP_ONLY(MenuToolsConvertAllSamplesToMonolith);
 		ADD_DESKTOP_ONLY(MenuToolsUpdateSampleMapIdsBasedOnFileName);
 		ADD_DESKTOP_ONLY(MenuToolsConvertSfzToSampleMaps);
@@ -2390,6 +2396,13 @@ juce::String BackendCommandTarget::Actions::createWindowsInstallerTemplate(MainC
 	REPLACE_WILDCARD_WITH_STRING("%AAXONLY%", includeAAX ? "" : ";");
 
 	return templateProject;
+}
+
+void BackendCommandTarget::Actions::convertSampleMapToWavetableBanks(BackendRootWindow* bpe)
+{
+	WavetableConverterDialog *converter = new WavetableConverterDialog(bpe->getMainSynthChain());
+
+	converter->setModalBaseWindowComponent(bpe);
 }
 
 #undef REPLACE_WILDCARD

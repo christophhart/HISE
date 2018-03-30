@@ -1,17 +1,17 @@
 /*
   ==============================================================================
 
-  This is an automatically generated GUI class created by the Introjucer!
+  This is an automatically generated GUI class created by the Projucer!
 
   Be careful when adding custom code to these files, as only the code within
   the "//[xyz]" and "//[/xyz]" sections will be retained when the file is loaded
   and re-saved.
 
-  Created with Introjucer version: 4.1.0
+  Created with Projucer version: 5.2.0
 
   ------------------------------------------------------------------------------
 
-  The Introjucer is part of the JUCE library - "Jules' Utility Class Extensions"
+  The Projucer is part of the JUCE library - "Jules' Utility Class Extensions"
   Copyright (c) 2015 - ROLI Ltd.
 
   ==============================================================================
@@ -39,7 +39,7 @@ WavetableBody::WavetableBody (ProcessorEditor *p)
 
     addAndMakeVisible (fadeTimeLabel = new Label ("new label",
                                                   TRANS("Fade Time")));
-    fadeTimeLabel->setFont (Font ("Khmer UI", 13.00f, Font::plain));
+    fadeTimeLabel->setFont (Font ("Khmer UI", 13.00f, Font::plain).withTypefaceStyle ("Regular"));
     fadeTimeLabel->setJustificationType (Justification::centredLeft);
     fadeTimeLabel->setEditable (false, false, false);
     fadeTimeLabel->setColour (Label::textColourId, Colours::white);
@@ -48,7 +48,7 @@ WavetableBody::WavetableBody (ProcessorEditor *p)
 
     addAndMakeVisible (voiceAmountLabel = new Label ("new label",
                                                      TRANS("Voice Amount")));
-    voiceAmountLabel->setFont (Font ("Khmer UI", 13.00f, Font::plain));
+    voiceAmountLabel->setFont (Font ("Khmer UI", 13.00f, Font::plain).withTypefaceStyle ("Regular"));
     voiceAmountLabel->setJustificationType (Justification::centredLeft);
     voiceAmountLabel->setEditable (false, false, false);
     voiceAmountLabel->setColour (Label::textColourId, Colours::white);
@@ -57,7 +57,7 @@ WavetableBody::WavetableBody (ProcessorEditor *p)
 
     addAndMakeVisible (voiceAmountEditor = new Label ("new label",
                                                       TRANS("64")));
-    voiceAmountEditor->setFont (Font ("Khmer UI", 14.00f, Font::plain));
+    voiceAmountEditor->setFont (Font ("Khmer UI", 14.00f, Font::plain).withTypefaceStyle ("Regular"));
     voiceAmountEditor->setJustificationType (Justification::centredLeft);
     voiceAmountEditor->setEditable (true, true, false);
     voiceAmountEditor->setColour (Label::backgroundColourId, Colour (0x38ffffff));
@@ -69,7 +69,7 @@ WavetableBody::WavetableBody (ProcessorEditor *p)
 
     addAndMakeVisible (fadeTimeEditor = new Label ("new label",
                                                    TRANS("15 ms")));
-    fadeTimeEditor->setFont (Font ("Khmer UI", 14.00f, Font::plain));
+    fadeTimeEditor->setFont (Font ("Khmer UI", 14.00f, Font::plain).withTypefaceStyle ("Regular"));
     fadeTimeEditor->setJustificationType (Justification::centredLeft);
     fadeTimeEditor->setEditable (true, true, false);
     fadeTimeEditor->setColour (Label::backgroundColourId, Colour (0x38ffffff));
@@ -79,13 +79,42 @@ WavetableBody::WavetableBody (ProcessorEditor *p)
     fadeTimeEditor->setColour (TextEditor::highlightColourId, Colour (0x407a0000));
     fadeTimeEditor->addListener (this);
 
-    addAndMakeVisible (component = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), dynamic_cast<WavetableSynth*>(getProcessor())->getGainTable()));
+    addAndMakeVisible (component = new SliderPack (dynamic_cast<WavetableSynth*>(getProcessor())->getSliderPackData(0)));
     component->setName ("new component");
 
-    addAndMakeVisible (hiqButton = new HiToggleButton ("HQ"));
+    addAndMakeVisible (hiqButton = new HiToggleButton ("HQ Mode"));
     hiqButton->setTooltip (TRANS("Enables HQ rendering mode (more CPU intensive)"));
+    hiqButton->setButtonText (TRANS("HQ"));
     hiqButton->addListener (this);
     hiqButton->setColour (ToggleButton::textColourId, Colours::white);
+
+    addAndMakeVisible (voiceAmountLabel2 = new Label ("new label",
+                                                      TRANS("Gain Values")));
+    voiceAmountLabel2->setFont (Font ("Khmer UI", 13.00f, Font::plain).withTypefaceStyle ("Regular"));
+    voiceAmountLabel2->setJustificationType (Justification::centredLeft);
+    voiceAmountLabel2->setEditable (false, false, false);
+    voiceAmountLabel2->setColour (Label::textColourId, Colours::white);
+    voiceAmountLabel2->setColour (TextEditor::textColourId, Colours::black);
+    voiceAmountLabel2->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
+
+    addAndMakeVisible (modMeter = new VuMeter());
+    modMeter->setName ("new component");
+
+    addAndMakeVisible (voiceAmountLabel3 = new Label ("new label",
+                                                      TRANS("Wavetable Preview\n")));
+    voiceAmountLabel3->setFont (Font ("Khmer UI", 13.00f, Font::plain).withTypefaceStyle ("Regular"));
+    voiceAmountLabel3->setJustificationType (Justification::centredLeft);
+    voiceAmountLabel3->setEditable (false, false, false);
+    voiceAmountLabel3->setColour (Label::textColourId, Colours::white);
+    voiceAmountLabel3->setColour (TextEditor::textColourId, Colours::black);
+    voiceAmountLabel3->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
+
+    addAndMakeVisible (wavetableSelector = new HiComboBox ("new combo box"));
+    wavetableSelector->setEditableText (false);
+    wavetableSelector->setJustificationType (Justification::centredLeft);
+    wavetableSelector->setTextWhenNothingSelected (TRANS("Select Wavetable"));
+    wavetableSelector->setTextWhenNoChoicesAvailable (TRANS("(no choices)"));
+    wavetableSelector->addListener (this);
 
 
     //[UserPreSize]
@@ -97,11 +126,25 @@ WavetableBody::WavetableBody (ProcessorEditor *p)
 
 	hiqButton->setup(getProcessor(), WavetableSynth::HqMode, "HQ");
 
+	wavetableSelector->setup(getProcessor(), WavetableSynth::LoadedBankIndex, "Loaded Wavetable");
+
+	modMeter->setType(VuMeter::MonoHorizontal);
+
+	modMeter->setColour(VuMeter::backgroundColour, Colour(0xFF333333));
+	modMeter->setColour(VuMeter::ledColour, Colours::lightgrey);
+	modMeter->setColour(VuMeter::outlineColour, Colour(0x45FFFFFF));
+
+	wavetableSelector->addItemList(dynamic_cast<WavetableSynth*>(getProcessor())->getWavetableList(), 1);
+
+	startTimer(30);
+
 
 
     //[/UserPreSize]
 
-    setSize (800, 130);
+	
+
+    setSize (800, 300);
 
 
     //[Constructor] You can add your own custom stuff here..
@@ -122,6 +165,10 @@ WavetableBody::~WavetableBody()
     fadeTimeEditor = nullptr;
     component = nullptr;
     hiqButton = nullptr;
+    voiceAmountLabel2 = nullptr;
+    modMeter = nullptr;
+    voiceAmountLabel3 = nullptr;
+    wavetableSelector = nullptr;
 
 
     //[Destructor]. You can add your own custom destruction code here..
@@ -134,14 +181,27 @@ void WavetableBody::paint (Graphics& g)
     //[UserPrePaint] Add your own custom painting code here..
     //[/UserPrePaint]
 
-    g.setColour (Colour (0x23ffffff));
-    g.drawRect (16, 0, getWidth() - 32, getHeight() - 16, 1);
+    {
+        int x = 16, y = 0, width = getWidth() - 32, height = getHeight() - 16;
+        Colour strokeColour = Colour (0x23ffffff);
+        //[UserPaintCustomArguments] Customize the painting arguments here..
+        //[/UserPaintCustomArguments]
+        g.setColour (strokeColour);
+        g.drawRect (x, y, width, height, 1);
 
-    g.setColour (Colour (0x52ffffff));
-    g.setFont (Font ("Arial", 24.00f, Font::bold));
-    g.drawText (TRANS("WAVETABLE"),
-                getWidth() - 24 - 200, 4, 200, 30,
-                Justification::centredRight, true);
+    }
+
+    {
+        int x = getWidth() - 24 - 200, y = 4, width = 200, height = 30;
+        String text (TRANS("WAVETABLE"));
+        Colour fillColour = Colour (0x52ffffff);
+        //[UserPaintCustomArguments] Customize the painting arguments here..
+        //[/UserPaintCustomArguments]
+        g.setColour (fillColour);
+        g.setFont (Font ("Arial", 24.00f, Font::plain).withTypefaceStyle ("Bold"));
+        g.drawText (text, x, y, width, height,
+                    Justification::centredRight, true);
+    }
 
     //[UserPaint] Add your own custom painting code here..
     //[/UserPaint]
@@ -152,13 +212,17 @@ void WavetableBody::resized()
     //[UserPreResize] Add your own custom resize code here..
     //[/UserPreResize]
 
-    waveTableDisplay->setBounds (32, 10, 160, 94);
-    fadeTimeLabel->setBounds (getWidth() - 33 - 79, 31, 79, 24);
-    voiceAmountLabel->setBounds (getWidth() - 109 - 79, 32, 79, 24);
-    voiceAmountEditor->setBounds (getWidth() - 115 - 68, 50, 68, 16);
-    fadeTimeEditor->setBounds (getWidth() - 56 - 51, 50, 51, 16);
-    component->setBounds (203, 10, getWidth() - 412, 91);
-    hiqButton->setBounds (getWidth() - 54 - 128, 72, 128, 32);
+    waveTableDisplay->setBounds (31, 44, getWidth() - 466, 165);
+    fadeTimeLabel->setBounds (getWidth() - 271 - 79, 237, 79, 24);
+    voiceAmountLabel->setBounds (getWidth() - 347 - 79, 238, 79, 24);
+    voiceAmountEditor->setBounds (getWidth() - 353 - 68, 256, 68, 16);
+    fadeTimeEditor->setBounds (getWidth() - 294 - 51, 256, 51, 16);
+    component->setBounds (getWidth() - 38 - 384, 43, 384, 165);
+    hiqButton->setBounds (getWidth() - 149 - 128, 244, 128, 32);
+    voiceAmountLabel2->setBounds ((getWidth() - 38 - 384) + 0, 18, 79, 24);
+    modMeter->setBounds ((getWidth() - 38 - 384) + 0, 211, 384, 24);
+    voiceAmountLabel3->setBounds (31 + 0, 17, 136, 24);
+    wavetableSelector->setBounds (31 + 0, 211, getWidth() - 466, 24);
     //[UserResized] Add your own custom resize handling here..
     //[/UserResized]
 }
@@ -198,105 +262,100 @@ void WavetableBody::buttonClicked (Button* buttonThatWasClicked)
     //[/UserbuttonClicked_Post]
 }
 
+void WavetableBody::comboBoxChanged (ComboBox* comboBoxThatHasChanged)
+{
+    //[UsercomboBoxChanged_Pre]
+    //[/UsercomboBoxChanged_Pre]
+
+    if (comboBoxThatHasChanged == wavetableSelector)
+    {
+        //[UserComboBoxCode_wavetableSelector] -- add your combo box handling code here..
+        //[/UserComboBoxCode_wavetableSelector]
+    }
+
+    //[UsercomboBoxChanged_Post]
+    //[/UsercomboBoxChanged_Post]
+}
+
 
 
 //[MiscUserCode] You can add your own definitions of your custom methods or any other code here...
-
-void WavetableDisplayComponent::timerCallback()
-{
-	ModulatorSynthVoice *voice = dynamic_cast<ModulatorSynthVoice*>(synth->getVoice(0));
-
-	if (voice == nullptr) return;
-
-	ModulatorSynthSound *sound = dynamic_cast<ModulatorSynthSound*>(voice->getCurrentlyPlayingSound().get());
-
-	if (dynamic_cast<WavetableSound*>(sound) != nullptr)
-	{
-		WavetableSound *wavetableSound = dynamic_cast<WavetableSound*>(sound);
-		WavetableSynthVoice *wavetableVoice = dynamic_cast<WavetableSynthVoice*>(voice);
-
-		const int tableIndex = wavetableVoice->getCurrentTableIndex();
-		tableValues = wavetableSound->getWaveTableData(tableIndex);
-		tableLength = wavetableSound->getTableSize();
-
-		normalizeValue = 1.0f / wavetableSound->getMaxLevel();
-
-		repaint();
-	}
-	else if (!isDisplayForWavetableSynth())
-	{
-		tableValues = dynamic_cast<SineSynth*>(synth)->getSaturatedTableValues();
-		tableLength = 128;
-		normalizeValue = 1.0f;
-
-		repaint();
-	}
-	else
-	{
-		tableValues = nullptr;
-		repaint();
-	}
-
-
-
-}
-
 
 //[/MiscUserCode]
 
 
 //==============================================================================
 #if 0
-/*  -- Introjucer information section --
+/*  -- Projucer information section --
 
-    This is where the Introjucer stores the metadata that describe this GUI layout, so
+    This is where the Projucer stores the metadata that describe this GUI layout, so
     make changes in here at your peril!
 
 BEGIN_JUCER_METADATA
 
 <JUCER_COMPONENT documentType="Component" className="WavetableBody" componentName=""
-                 parentClasses="public ProcessorEditorBody" constructorParams="ProcessorEditor *p"
+                 parentClasses="public ProcessorEditorBody, public Timer" constructorParams="ProcessorEditor *p"
                  variableInitialisers="ProcessorEditorBody(p)" snapPixels="8"
                  snapActive="0" snapShown="1" overlayOpacity="0.330" fixedSize="1"
-                 initialWidth="800" initialHeight="130">
+                 initialWidth="800" initialHeight="300">
   <BACKGROUND backgroundColour="ffffff">
     <RECT pos="16 0 32M 16M" fill="solid: 43a52a" hasStroke="1" stroke="1, mitered, butt"
           strokeColour="solid: 23ffffff"/>
     <TEXT pos="24Rr 4 200 30" fill="solid: 52ffffff" hasStroke="0" text="WAVETABLE"
-          fontname="Arial" fontsize="24" bold="1" italic="0" justification="34"/>
+          fontname="Arial" fontsize="24" kerning="0" bold="1" italic="0"
+          justification="34" typefaceStyle="Bold"/>
   </BACKGROUND>
   <GENERICCOMPONENT name="new component" id="5bdd135efdbc6b85" memberName="waveTableDisplay"
-                    virtualName="" explicitFocusOrder="0" pos="32 10 160 94" class="WavetableDisplayComponent"
+                    virtualName="" explicitFocusOrder="0" pos="31 44 466M 165" class="WavetableDisplayComponent"
                     params="dynamic_cast&lt;WavetableSynth*&gt;(getProcessor())"/>
   <LABEL name="new label" id="f18e00eab8404cdf" memberName="fadeTimeLabel"
-         virtualName="" explicitFocusOrder="0" pos="33Rr 31 79 24" textCol="ffffffff"
+         virtualName="" explicitFocusOrder="0" pos="271Rr 237 79 24" textCol="ffffffff"
          edTextCol="ff000000" edBkgCol="0" labelText="Fade Time" editableSingleClick="0"
          editableDoubleClick="0" focusDiscardsChanges="0" fontname="Khmer UI"
-         fontsize="13" bold="0" italic="0" justification="33"/>
+         fontsize="13" kerning="0" bold="0" italic="0" justification="33"/>
   <LABEL name="new label" id="5836a90d75d1dd4a" memberName="voiceAmountLabel"
-         virtualName="" explicitFocusOrder="0" pos="109Rr 32 79 24" textCol="ffffffff"
+         virtualName="" explicitFocusOrder="0" pos="347Rr 238 79 24" textCol="ffffffff"
          edTextCol="ff000000" edBkgCol="0" labelText="Voice Amount" editableSingleClick="0"
          editableDoubleClick="0" focusDiscardsChanges="0" fontname="Khmer UI"
-         fontsize="13" bold="0" italic="0" justification="33"/>
+         fontsize="13" kerning="0" bold="0" italic="0" justification="33"/>
   <LABEL name="new label" id="fa0dc77af8626dc7" memberName="voiceAmountEditor"
-         virtualName="" explicitFocusOrder="0" pos="115Rr 50 68 16" bkgCol="38ffffff"
+         virtualName="" explicitFocusOrder="0" pos="353Rr 256 68 16" bkgCol="38ffffff"
          outlineCol="38ffffff" edTextCol="ff000000" edBkgCol="0" hiliteCol="407a0000"
          labelText="64" editableSingleClick="1" editableDoubleClick="1"
-         focusDiscardsChanges="0" fontname="Khmer UI" fontsize="14" bold="0"
-         italic="0" justification="33"/>
+         focusDiscardsChanges="0" fontname="Khmer UI" fontsize="14" kerning="0"
+         bold="0" italic="0" justification="33"/>
   <LABEL name="new label" id="9747f9d28c74d65d" memberName="fadeTimeEditor"
-         virtualName="" explicitFocusOrder="0" pos="56Rr 50 51 16" bkgCol="38ffffff"
+         virtualName="" explicitFocusOrder="0" pos="294Rr 256 51 16" bkgCol="38ffffff"
          outlineCol="38ffffff" edTextCol="ff000000" edBkgCol="0" hiliteCol="407a0000"
          labelText="15 ms" editableSingleClick="1" editableDoubleClick="1"
-         focusDiscardsChanges="0" fontname="Khmer UI" fontsize="14" bold="0"
-         italic="0" justification="33"/>
+         focusDiscardsChanges="0" fontname="Khmer UI" fontsize="14" kerning="0"
+         bold="0" italic="0" justification="33"/>
   <GENERICCOMPONENT name="new component" id="86c524f43e825eb1" memberName="component"
-                    virtualName="" explicitFocusOrder="0" pos="203 10 412M 91" class="TableEditor"
-                    params="dynamic_cast&lt;WavetableSynth*&gt;(getProcessor())-&gt;getGainTable()"/>
-  <TOGGLEBUTTON name="HQ" id="dfdc6e861a38fb62" memberName="hiqButton" virtualName="HiToggleButton"
-                explicitFocusOrder="0" pos="54Rr 72 128 32" tooltip="Enables HQ rendering mode (more CPU intensive)"
+                    virtualName="" explicitFocusOrder="0" pos="38Rr 43 384 165" class="SliderPack"
+                    params="dynamic_cast&lt;WavetableSynth*&gt;(getProcessor())-&gt;getSliderPackData(0)"/>
+  <TOGGLEBUTTON name="HQ Mode" id="dfdc6e861a38fb62" memberName="hiqButton" virtualName="HiToggleButton"
+                explicitFocusOrder="0" pos="149Rr 244 128 32" tooltip="Enables HQ rendering mode (more CPU intensive)"
                 txtcol="ffffffff" buttonText="HQ" connectedEdges="0" needsCallback="1"
                 radioGroupId="0" state="0"/>
+  <LABEL name="new label" id="bd05b8e23c53d26" memberName="voiceAmountLabel2"
+         virtualName="" explicitFocusOrder="0" pos="0 18 79 24" posRelativeX="86c524f43e825eb1"
+         textCol="ffffffff" edTextCol="ff000000" edBkgCol="0" labelText="Gain Values"
+         editableSingleClick="0" editableDoubleClick="0" focusDiscardsChanges="0"
+         fontname="Khmer UI" fontsize="13" kerning="0" bold="0" italic="0"
+         justification="33"/>
+  <GENERICCOMPONENT name="new component" id="1099df2918c1e835" memberName="modMeter"
+                    virtualName="" explicitFocusOrder="0" pos="0 211 384 24" posRelativeX="86c524f43e825eb1"
+                    class="VuMeter" params=""/>
+  <LABEL name="new label" id="ddc6a12ed233c301" memberName="voiceAmountLabel3"
+         virtualName="" explicitFocusOrder="0" pos="0 17 136 24" posRelativeX="5bdd135efdbc6b85"
+         textCol="ffffffff" edTextCol="ff000000" edBkgCol="0" labelText="Wavetable Preview&#10;"
+         editableSingleClick="0" editableDoubleClick="0" focusDiscardsChanges="0"
+         fontname="Khmer UI" fontsize="13" kerning="0" bold="0" italic="0"
+         justification="33"/>
+  <COMBOBOX name="new combo box" id="f9053c2b9246bbfc" memberName="wavetableSelector"
+            virtualName="HiComboBox" explicitFocusOrder="0" pos="0 211 466M 24"
+            posRelativeX="5bdd135efdbc6b85" editable="0" layout="33" items=""
+            textWhenNonSelected="Select Wavetable" textWhenNoItems="(no choices)"/>
 </JUCER_COMPONENT>
 
 END_JUCER_METADATA

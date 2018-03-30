@@ -458,6 +458,255 @@ private:
 	File projectDirectory;
 };
 
+class WavetableConverterDialog : public DialogWindowWithBackgroundThread,
+								 public ComboBoxListener,
+								 public FilenameComponentListener
+	
+{
+	enum ButtonIds
+	{
+		Next = 5,
+		Previous,
+		Rescan,
+		Discard,
+		Preview,
+		Original,
+		numButtonIds
+	};
+
+public:
+	WavetableConverterDialog(ModulatorSynthChain* chain_) :
+		DialogWindowWithBackgroundThread("Convert Samplemaps to Wavetable"),
+		chain(chain_),
+		converter(new SampleMapToWavetableConverter(chain_)),
+		r(Result::ok())
+	{
+		
+		sampleMapFile = new FilenameComponent("SampleMap", GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps), false, false, false, "*.xml", "", "Choose SampleMap");
+		sampleMapFile->addListener(this);
+		sampleMapFile->setSize(512, 24);
+		
+
+		addCustomComponent(sampleMapFile);
+
+		
+
+		StringArray windows;
+		windows.add("Flat Top");
+		windows.add("Blackman Harris");
+		windows.add("Hann");
+		windows.add("Hamming");
+		windows.add("Kaiser");
+		windows.add("Gaussian");
+		windows.add("Triangle");
+		windows.add("Rectangle");
+		
+		StringArray sizes;
+		sizes.add("Lowest possible");
+		sizes.add("128");
+		sizes.add("256");
+		sizes.add("512");
+		sizes.add("1024");
+		sizes.add("2048");
+		sizes.add("4096");
+		sizes.add("8192");
+
+		StringArray yesNo;
+
+		yesNo.add("Yes");
+		yesNo.add("No");
+
+		selectors = new AdditionalRow(this);
+
+
+
+		selectors->addComboBox("ReverseTables", {"Yes", "No"}, "Reverse Wavetable order", this);
+		selectors->addComboBox("WindowType", windows, "FFT Window Type", this);
+		selectors->addComboBox("FFTSize", sizes, "FFT Size", this);
+		
+		selectors->setSize(512, 40);
+		addCustomComponent(selectors);
+
+		preview = new CombinedPreview(*converter);
+		preview->setSize(512, 300);
+
+		addCustomComponent(preview);
+
+		gainPackData = new SliderPackData(nullptr);
+		gainPackData->setNumSliders(64);
+		gainPackData->setRange(0.0, 1.0, 0.01);
+		gainPack = new SliderPack(gainPackData);
+		
+		
+		gainPack->setName("Gain Values");
+		gainPack->setSize(512, 40);
+
+		addCustomComponent(gainPack);
+
+		additionalButtons = new AdditionalRow(this);
+
+
+
+		additionalButtons->addButton("Previous", KeyPress(KeyPress::leftKey));
+		additionalButtons->addButton("Next", KeyPress(KeyPress::rightKey));
+		additionalButtons->addButton("Rescan", KeyPress(KeyPress::F5Key));
+		additionalButtons->addButton("Discard");
+		additionalButtons->addButton("Preview", KeyPress(KeyPress('p')));
+		additionalButtons->addButton("Original", KeyPress(KeyPress('o')));
+
+		additionalButtons->setSize(512, 24);
+
+		addCustomComponent(additionalButtons);
+
+		addBasicComponents(true);
+
+		showStatusMessage("Choose Samplemap to convert");
+		
+		
+	}
+
+	~WavetableConverterDialog()
+	{
+		sampleMapFile->removeListener(this);
+		sampleMapFile = nullptr;
+		preview = nullptr;
+		converter = nullptr;
+	}
+
+	void filenameComponentChanged(FilenameComponent* /*fileComponentThatHasChanged*/) override
+	{
+		converter->parseSampleMap(sampleMapFile->getCurrentFile());
+		converter->refreshCurrentWavetable(getProgressCounter());
+		refreshPreview();
+	}
+
+	void resultButtonClicked(const String &name)
+	{
+		if (name == "Previous")
+		{
+			converter->moveCurrentSampleIndex(false);
+			r = converter->refreshCurrentWavetable(getProgressCounter(), false);
+		}
+		else if (name == "Next")
+		{
+			converter->moveCurrentSampleIndex(true);
+			r = converter->refreshCurrentWavetable(getProgressCounter(), false);
+		}
+		else if (name == "Rescan")
+		{
+			r = converter->refreshCurrentWavetable(getProgressCounter(), true);
+		}
+		else if (name == "Discard")
+		{
+			r = converter->discardCurrentNoteAndUsePrevious();
+		}
+		else if (name == "Original" || name == "Preview")
+		{
+			showStatusMessage("Preview");
+			auto b = converter->getPreviewBuffers(name == "Original");
+
+			chain->getMainController()->setBufferToPlay(b);
+		}
+		
+
+		refreshPreview();
+
+	}
+
+	void refreshPreview()
+	{
+		converter->sendChangeMessage();
+
+		if (auto gainData = converter->getCurrentGainValues())
+		{
+			for (int i = 0; i < 64; i++)
+			{
+				gainPackData->setValue(i, gainData[i]);
+			}
+
+			gainPackData->sendChangeMessage();
+		}
+
+		if (r.failed())
+			showStatusMessage("Fail at " + MidiMessage::getMidiNoteName(converter->getCurrentNoteNumber(), true, true, 3) + ": " + r.getErrorMessage());
+		else
+			showStatusMessage("OK: " + MidiMessage::getMidiNoteName(converter->getCurrentNoteNumber(), true, true, 3));
+	}
+
+	void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override
+	{
+		if (comboBoxThatHasChanged->getName() == "WindowType")
+		{
+			converter->windowType = (SampleMapToWavetableConverter::WindowType)comboBoxThatHasChanged->getSelectedItemIndex();
+		}
+		else if (comboBoxThatHasChanged->getName() == "ReverseTables")
+		{
+			converter->reverseOrder = comboBoxThatHasChanged->getSelectedItemIndex() == 0;
+		}
+		else
+		{
+			if (comboBoxThatHasChanged->getText() == "Lowest possible")
+			{
+				converter->fftSize = -1;
+			}
+			else
+			{
+				auto windowSize = comboBoxThatHasChanged->getText().getIntValue();
+				converter->fftSize = windowSize;
+			}
+
+			
+		}
+	}
+
+	void run() override
+	{
+		converter->renderAllWavetablesFromHarmonicMaps(getProgressCounter());
+
+		if (threadShouldExit())
+			return;
+
+		auto leftTree = converter->getValueTree(true);
+		auto rightTree = converter->getValueTree(false);
+
+		auto fileL = sampleMapFile->getCurrentFile().getFileName() + "_Left.hwt";
+		auto fileR = sampleMapFile->getCurrentFile().getFileName() + "_Right.hwt";
+
+		auto tfl = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles).getChildFile(fileL);
+		auto tfr = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles).getChildFile(fileR);
+
+		PresetHandler::writeValueTreeAsFile(leftTree, tfl.getFullPathName());		
+		PresetHandler::writeValueTreeAsFile(rightTree, tfr.getFullPathName());
+	}
+
+	void threadFinished() override
+	{
+		if (r.failed())
+			PresetHandler::showMessageWindow("Conversion failed", r.getErrorMessage(), PresetHandler::IconType::Error);
+		else
+			PresetHandler::showMessageWindow("Conversion OK", "The wavetables were created sucessfully", PresetHandler::IconType::Info);
+	}
+
+	double wavetableProgress = 0.0;
+	int numWavetables = 0;
+
+	Result r;
+
+	ScopedPointer<CombinedPreview> preview;
+
+	ScopedPointer<FilenameComponent> sampleMapFile;
+	ScopedPointer<SliderPack> gainPack;
+	ScopedPointer<SliderPackData> gainPackData;
+	ModulatorSynthChain* chain;
+	
+	ScopedPointer<AdditionalRow> selectors;
+
+	ScopedPointer<AdditionalRow> additionalButtons;
+
+	ScopedPointer<SampleMapToWavetableConverter> converter;
+
+};
+
 class MonolithConverter : public MonolithExporter
 {
 public:
@@ -660,6 +909,8 @@ public:
 	};
 
 private:
+
+	
 
 	Array<var> fileNameList;
 	Array<File> fileList;

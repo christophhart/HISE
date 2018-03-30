@@ -160,6 +160,8 @@ namespace wdl
 #include "synthesisers/synths/SineSynth.cpp"
 #include "synthesisers/synths/NoiseSynth.cpp"
 #include "synthesisers/synths/WaveSynth.cpp"
+#include "synthesisers/synths/WavetableTools.cpp"
+#include "synthesisers/editors/WavetableComponents.cpp"
 #include "synthesisers/synths/WavetableSynth.cpp"
 #include "synthesisers/synths/AudioLooper.cpp"
 

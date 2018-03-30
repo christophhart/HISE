@@ -470,6 +470,7 @@ public:
 			MidiChannelList,
 			AboutPage,
 			SampleMapBrowser,
+			WavetablePreview,
 			Matrix2x2,
 			ThreeColumns,
 			ThreeRows,

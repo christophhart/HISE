@@ -30,9 +30,40 @@
 *   ===========================================================================
 */
 
-#include "ClarinetData.cpp"
+//#include "ClarinetData.cpp"
 
 namespace hise { using namespace juce;
+
+WavetableSynth::WavetableSynth(MainController *mc, const String &id, int numVoices) :
+	ModulatorSynth(mc, id, numVoices),
+	morphSmoothing(700),
+	tableIndexChain(new ModulatorChain(mc, "Table Index", numVoices, Modulation::GainMode, this))
+{
+	tableBuffer = AudioSampleBuffer(1, 0);
+
+	parameterNames.add("HqMode");
+	parameterNames.add("LoadedBankIndex");
+	editorStateIdentifiers.add("TableIndexChainShown");
+
+	for (int i = 0; i < numVoices; i++) addVoice(new WavetableSynthVoice(this));
+
+	tableIndexChain->setColour(Colour(0xff4D54B3));
+
+
+	disableChain((ModulatorSynth::InternalChains)(int)TableIndexModulation, false);
+
+	pack = new SliderPackData(nullptr);
+	pack->setNumSliders(128);
+	pack->setRange(0.0, 1.0, 0.01);
+	pack->setFlashActive(true);
+
+
+
+	for (int i = 0; i < 128; i++)
+	{
+		pack->setValue(i, 1.0f, dontSendNotification);
+	}
+}
 
 ProcessorEditorBody* WavetableSynth::createEditor(ProcessorEditor *parentEditor)
 {
@@ -65,6 +96,183 @@ float WavetableSynthVoice::getGainValue(float modValue)
 	return wavetableSynth->getGainValueFromTable(modValue);
 }
 
+void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
+{
+	const int startIndex = startSample;
+	const int samplesToCopy = numSamples;
+
+	const float *voicePitchValues = getVoicePitchValues();
+	const float *modValues = getVoiceGainValues(startSample, numSamples);
+	const float *tableValues = getTableModulationValues(startSample, numSamples);
+
+	if (hqMode)
+	{
+		while (--numSamples >= 0)
+		{
+			// Get the two indexes for the table position
+
+
+
+			int index = (int)voiceUptime;
+
+			const int i1 = index % (tableSize);
+
+			int i2 = i1 + 1;
+
+			if (i2 >= tableSize)
+			{
+				const float tableModValue = tableValues[startSample];
+				currentTableIndex = roundToInt(tableModValue * 63);
+
+				i2 = 0;
+			}
+
+			const float tableModValue = tableValues[startSample];
+
+			const float tableValue = jlimit<float>(0.0f, 1.0f, tableModValue) * 63.0f;
+
+			const int lowerTableIndex = (int)(tableValue);
+			const int upperTableIndex = jmin(63, lowerTableIndex + 1);
+			const float tableDelta = tableValue - (float)lowerTableIndex;
+			jassert(0.0f <= tableDelta && tableDelta <= 1.0f);
+
+			lowerTable = currentSound->getWaveTableData(lowerTableIndex);
+			upperTable = currentSound->getWaveTableData(upperTableIndex);
+
+			float tableGainValue = tableGainInterpolator.interpolateLinear(currentSound->getUnnormalizedGainValue(lowerTableIndex), currentSound->getUnnormalizedGainValue(upperTableIndex), tableDelta);
+
+			tableGainValue *= getGainValue(tableModValue);
+
+			float u1 = upperTable[i1];
+			float u2 = upperTable[i2];
+
+			float l1 = lowerTable[i1];
+			float l2 = lowerTable[i2];
+
+			const float alpha = float(voiceUptime) - (float)index;
+			//const float invAlpha = 1.0f - alpha;
+
+			const float upperSample = tableGainInterpolator.interpolateLinear(u1, u2, alpha);
+
+			const float lowerSample = tableGainInterpolator.interpolateLinear(l1, l2, alpha);
+
+			float sample = lowerTableIndex != upperTableIndex ? tableGainInterpolator.interpolateLinear(lowerSample, upperSample, tableDelta) : lowerSample;
+
+			sample *= tableGainValue;
+
+			sample *= 1.0f / currentSound->getUnnormalizedMaximum();
+
+			// Stereo mode assumed
+			voiceBuffer.setSample(0, startSample, sample);
+			voiceBuffer.setSample(1, startSample, sample);
+
+			jassert(voicePitchValues == nullptr || voicePitchValues[startSample] > 0.0f);
+
+			const double delta = (uptimeDelta * (voicePitchValues == nullptr ? 1.0 : voicePitchValues[startSample]));
+
+			voiceUptime += delta;
+
+			++startSample;
+
+		}
+	}
+	else
+	{
+
+
+		while (--numSamples >= 0)
+		{
+			int index = (int)voiceUptime;
+
+			const int i1 = index % (tableSize);
+
+			int i2 = i1 + 1;
+
+			if (i2 >= tableSize)
+			{
+				i2 = 0;
+			}
+
+			//const int i2 = (index +1) % (tableSize);
+
+			const int smoothIndex = index % smoothSize;
+
+			if (index == 0 || i2 == 0)
+			{
+				const float tableModValue = tableValues[startSample];
+
+				currentTableIndex = nextTableIndex;
+				nextTableIndex = roundToInt(tableModValue * 63);
+
+				//DBG(nextTableIndex);
+
+				currentGainValue = nextGainValue;
+				nextGainValue = getGainValue(tableModValue);
+
+				currentTable = nextTable;
+				nextTable = currentSound->getWaveTableData(nextTableIndex);
+			}
+
+
+			const float tableModValue = tableValues[startSample];
+
+
+
+			const int tableGainLowIndex = (int)(tableModValue * 63);
+			const int tableGainHighIndex = jmin(63, tableGainLowIndex + 1);
+			const float tableGainAlpha = tableModValue * 63 - tableGainLowIndex;
+
+			float tableGainValue = tableGainInterpolator.interpolateLinear(currentSound->getUnnormalizedGainValue(tableGainLowIndex), currentSound->getUnnormalizedGainValue(tableGainHighIndex), tableGainAlpha);
+
+			tableGainValue *= getGainValue(tableModValue);
+
+			float v1 = currentTable[i1];
+			float v2 = currentTable[i2];
+
+			float n1 = nextTable[i1];
+			float n2 = nextTable[i2];
+
+			const float alpha = float(voiceUptime) - (float)index;
+			//const float invAlpha = 1.0f - alpha;
+
+			const float currentSample = tableGainInterpolator.interpolateLinear(v1, v2, alpha);
+
+			const float nextSample = tableGainInterpolator.interpolateLinear(n1, n2, alpha);
+
+			const float tableAlpha = (float)smoothIndex / (float)(smoothSize - 1);
+
+
+			currentGainValue = 1.0f;
+			nextGainValue = 1.0f;
+
+			float sample = tableGainInterpolator.interpolateLinear(currentSample, nextSample, tableAlpha);
+
+			sample *= tableGainValue;
+
+			sample *= 1.0f / currentSound->getUnnormalizedMaximum();
+
+			// Stereo mode assumed
+			voiceBuffer.setSample(0, startSample, sample);
+			voiceBuffer.setSample(1, startSample, sample);
+
+			const double delta = (voicePitchValues != nullptr) ? (uptimeDelta * voicePitchValues[startSample]) : uptimeDelta;
+
+			voiceUptime += delta;
+
+
+
+
+			++startSample;
+		}
+
+	}
+
+	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
+
+	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
+	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
+}
+
 const float *WavetableSynthVoice::getTableModulationValues(int startSample, int numSamples)
 {
 	dynamic_cast<WavetableSynth*>(getOwnerSynth())->calculateTableModulationValuesForVoice(voiceIndex, startSample, numSamples);
@@ -85,6 +293,87 @@ void WavetableSynthVoice::stopNote(float velocity, bool allowTailoff)
 int WavetableSynthVoice::getSmoothSize() const
 {
 	return wavetableSynth->getMorphSmoothing();
+}
+
+
+
+WavetableSound::WavetableSound(const ValueTree &wavetableData)
+{
+	jassert(wavetableData.getType() == Identifier("wavetable"));
+
+
+
+	MemoryBlock mb = MemoryBlock(*wavetableData.getProperty("data", var::undefined()).getBinaryData());
+	const int numSamples = (int)(mb.getSize() / sizeof(float));
+	wavetables.setSize(1, numSamples);
+	FloatVectorOperations::copy(wavetables.getWritePointer(0, 0), (float*)mb.getData(), numSamples);
+
+	maximum = wavetables.getMagnitude(0, numSamples);
+
+	wavetableAmount = wavetableData.getProperty("amount", 64);
+
+	sampleRate = wavetableData.getProperty("sampleRate", 48000.0);
+
+	midiNotes.setRange(0, 127, false);
+	noteNumber = wavetableData.getProperty("noteNumber", 0);
+	midiNotes.setBit(noteNumber, true);
+
+	wavetableSize = numSamples / wavetableAmount;
+
+	emptyBuffer = AudioSampleBuffer(1, wavetableSize);
+	emptyBuffer.clear();
+
+	unnormalizedMaximum = 0.0f;
+
+	normalizeTables();
+
+	pitchRatio = 1.0;
+}
+
+const float * WavetableSound::getWaveTableData(int wavetableIndex) const
+{
+	if (wavetableIndex < wavetableAmount)
+	{
+		jassert((wavetableIndex + 1) * wavetableSize <= wavetables.getNumSamples());
+
+		return wavetables.getReadPointer(0, wavetableIndex * wavetableSize);
+
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+void WavetableSound::calculatePitchRatio(double playBackSampleRate)
+{
+	const double idealCycleLength = playBackSampleRate / MidiMessage::getMidiNoteInHertz(noteNumber);
+
+	pitchRatio = 1.0;
+
+	pitchRatio = (double)wavetableSize / idealCycleLength;
+
+	//pitchRatio *= sampleRate / playBackSampleRate;
+}
+
+void WavetableSound::normalizeTables()
+{
+	for (int i = 0; i < wavetableAmount; i++)
+	{
+		float *data = wavetables.getWritePointer(0, i * wavetableSize);
+		const float peak = wavetables.getMagnitude(i * wavetableSize, wavetableSize);
+
+		unnormalizedGainValues[i] = peak;
+
+		if (peak == 0.0f) continue;
+
+		if (peak > unnormalizedMaximum)
+			unnormalizedMaximum = peak;
+
+		FloatVectorOperations::multiply(data, 1.0f / peak, wavetableSize);
+	}
+
+	maximum = 1.0f;
 }
 
 } // namespace hise
