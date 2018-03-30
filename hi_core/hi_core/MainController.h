@@ -781,6 +781,14 @@ public:
 	DebugLogger& getDebugLogger() { return debugLogger; }
 	const DebugLogger& getDebugLogger() const { return debugLogger; }
     
+	void setBufferToPlay(const AudioSampleBuffer& buffer)
+	{
+		ScopedLock sl(getLock());
+
+		previewBufferIndex = 0;
+		previewBuffer = buffer;
+	}
+
 	void setKeyboardCoulour(int keyNumber, Colour colour);
 
 	CustomKeyboardState &getKeyboardState();
@@ -1108,6 +1116,9 @@ protected:
 	void killAndCallOnLoadingThread(const ProcessorFunction& f);
 
 private:
+
+	AudioSampleBuffer previewBuffer;
+	int previewBufferIndex = -1;
 
 	void loadPresetInternal(const ValueTree& v);
 

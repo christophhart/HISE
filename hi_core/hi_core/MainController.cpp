@@ -696,6 +696,23 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	thisMultiChannelBuffer.clear();
 
+	if (previewBufferIndex != -1)
+	{
+		int numToPlay = jmin<int>(bufferSize.get(), previewBuffer.getNumSamples() - previewBufferIndex);
+
+		FloatVectorOperations::copy(multiChannelBuffer.getWritePointer(0, 0), previewBuffer.getReadPointer(0, previewBufferIndex), numToPlay);
+		FloatVectorOperations::copy(multiChannelBuffer.getWritePointer(1, 0), previewBuffer.getReadPointer(1, previewBufferIndex), numToPlay);
+
+		previewBufferIndex += numToPlay;
+
+		if (previewBufferIndex >= previewBuffer.getNumSamples())
+		{
+			previewBuffer = AudioSampleBuffer();
+			previewBufferIndex = -1;
+		}
+	}
+
+
 	synthChain->renderNextBlockWithModulators(thisMultiChannelBuffer, masterEventBuffer);
 
 	const bool isUsingMultiChannel = buffer.getNumChannels() != 2;
