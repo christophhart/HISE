@@ -206,7 +206,45 @@ void Arpeggiator::onInit()
 	lengthSliderPack->set("stepSize", "1");
 	
 	
-	
+	inputMidiChannel = Content.addComboBox("ChannelSelector", 300, 445);
+	inputMidiChannel->set("text", "MIDI Channel");
+	inputMidiChannel->addItem("All Channels");
+	inputMidiChannel->addItem("Channel 1");
+	inputMidiChannel->addItem("Channel 2");
+	inputMidiChannel->addItem("Channel 3");
+	inputMidiChannel->addItem("Channel 4");
+	inputMidiChannel->addItem("Channel 5"); 
+	inputMidiChannel->addItem("Channel 6");
+	inputMidiChannel->addItem("Channel 7");
+	inputMidiChannel->addItem("Channel 8");
+	inputMidiChannel->addItem("Channel 9");
+	inputMidiChannel->addItem("Channel 10");
+	inputMidiChannel->addItem("Channel 11");
+	inputMidiChannel->addItem("Channel 12");
+	inputMidiChannel->addItem("Channel 13");
+	inputMidiChannel->addItem("Channel 14");
+	inputMidiChannel->addItem("Channel 15");
+	inputMidiChannel->addItem("Channel 16");
+
+	outputMidiChannel = Content.addComboBox("OutputChannelSelector", 450, 445);
+	outputMidiChannel->set("text", "MIDI Channel");
+	outputMidiChannel->addItem("All Channels");
+	outputMidiChannel->addItem("Channel 1");
+	outputMidiChannel->addItem("Channel 2");
+	outputMidiChannel->addItem("Channel 3");
+	outputMidiChannel->addItem("Channel 4");
+	outputMidiChannel->addItem("Channel 5");
+	outputMidiChannel->addItem("Channel 6");
+	outputMidiChannel->addItem("Channel 7");
+	outputMidiChannel->addItem("Channel 8");
+	outputMidiChannel->addItem("Channel 9");
+	outputMidiChannel->addItem("Channel 10");
+	outputMidiChannel->addItem("Channel 11");
+	outputMidiChannel->addItem("Channel 12");
+	outputMidiChannel->addItem("Channel 13");
+	outputMidiChannel->addItem("Channel 14");
+	outputMidiChannel->addItem("Channel 15");
+	outputMidiChannel->addItem("Channel 16");
 
 	auto noteLabel = Content.addLabel("NoteLabel", 160, 11);
 	
@@ -251,6 +289,8 @@ void Arpeggiator::onInit()
 	numStepSlider->setValue(4);
 	currentStepSlider->setValue(0);
 	octaveSlider->setValue(0);
+	inputMidiChannel->setValue(1);
+	outputMidiChannel->setValue(1);
 
 	velocitySliderPack->setAllValues(127);
 	lengthSliderPack->setAllValues(75);
@@ -261,6 +301,9 @@ void Arpeggiator::onInit()
 
 void Arpeggiator::onNoteOn()
 {
+	if (channelFilter > 0 && Message.getChannel() != channelFilter)
+		return;
+
 	if (bypassButton->getValue())
 		return;
 
@@ -277,6 +320,9 @@ void Arpeggiator::onNoteOn()
 
 void Arpeggiator::onNoteOff()
 {
+	if (channelFilter > 0 && Message.getChannel() != channelFilter)
+		return;
+
 	if (bypassButton->getValue())
 		return;
 
@@ -323,6 +369,18 @@ void Arpeggiator::onControl(ScriptingApi::Content::ScriptComponent *c, var value
 	else if (c == sequenceComboBox)
 	{
 		changeDirection();
+	}
+	else if (c == inputMidiChannel)
+	{
+		reset(true, false);
+
+		channelFilter = (int)value - 1;
+	}
+	else if (c == outputMidiChannel)
+	{
+		reset(true, false);
+
+		midiChannel = jmax<int>(1, (int)value);
 	}
 }
 

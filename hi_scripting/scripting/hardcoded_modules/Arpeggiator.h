@@ -70,6 +70,8 @@ public:
 
 private:
 
+	int channelFilter = 0;
+
 	double timeInterval = 1.0;
 	
 	Array<int> userHeldKeysArray;
@@ -232,6 +234,8 @@ private:
 	ScriptSlider currentStepSlider;
 	ScriptSlider octaveSlider;
 	ScriptSlider shuffleSlider;
+	ScriptComboBox inputMidiChannel;
+	ScriptComboBox outputMidiChannel;
 };
 
 
