@@ -336,7 +336,7 @@ void SampleMapToWavetableConverter::SampleMapPreview::updateGraphics()
 {
 	samples.clear();
 
-	for (auto& s : parent.sampleMap)
+	for (const auto& s : parent.sampleMap)
 		samples.add({ s, getLocalBounds() });
 
 	for (auto& s : samples)
