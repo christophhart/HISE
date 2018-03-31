@@ -1509,6 +1509,8 @@ public:
 		void restoreFromValueTree(const ValueTree &v) override;
 		AudioSampleProcessor * getAudioProcessor();;
 
+		ModulatorSampler* getSampler();
+
 		// ========================================================================================================
 
 	private:

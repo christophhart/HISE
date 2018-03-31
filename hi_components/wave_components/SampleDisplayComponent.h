@@ -66,7 +66,7 @@ public:
 		return lengthInSeconds;
 	}
 	
-	void setReader(AudioFormatReader* r, int64 unused);
+	void setReader(AudioFormatReader* r, int64 actualNumSamples=-1);
 
 	void clear();
 
@@ -504,6 +504,11 @@ public:
 		return (int)(preview->getTotalLength() * getSampleRate());
 	}
 
+	void setIsOnInterface(bool isOnInterface)
+	{
+		onInterface = isOnInterface;
+	}
+
 	SampleArea *getSampleArea(int index) {return areas[index];};
 
 	virtual double getSampleRate() const = 0;
@@ -521,7 +526,11 @@ protected:
 
 	ScopedPointer<HiseAudioThumbnail> preview;
 
+	bool onInterface = false;
+
 private:
+
+	
 
 	double playBackPosition;
 
@@ -565,7 +574,6 @@ public:
 	~SamplerSoundWaveform();
 
 	
-
 	/** used to display the playing positions / sample start position. */
 	void timerCallback() override;
 
@@ -590,6 +598,8 @@ public:
 	double getSampleRate() const override;
 
 	void paint(Graphics &g) override;
+
+	void resized() override;
 
 	/** Sets the currently displayed sound.
 	*

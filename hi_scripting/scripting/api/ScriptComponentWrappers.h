@@ -646,6 +646,8 @@ public:
 	{
 	public:
 
+		
+
 		AudioWaveformWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptAudioWaveform *waveform, int index);
 
 		~AudioWaveformWrapper();
@@ -660,7 +662,12 @@ public:
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioWaveformWrapper)
 	private:
-		void updateColours(AudioSampleBufferComponent* asb);
+
+		class SamplerListener;
+
+		ScopedPointer<SamplerListener> samplerListener;
+
+		void updateColours(AudioDisplayComponent* asb);
 	};
 
 	class FloatingTileWrapper : public ScriptCreatedComponentWrapper

@@ -77,6 +77,8 @@ SamplerSoundWaveform::~SamplerSoundWaveform()
 	
 }
 
+
+
 void SamplerSoundWaveform::timerCallback() 
 {
 	if(sampler->getLastStartedVoice() != nullptr)
@@ -222,7 +224,7 @@ void SamplerSoundWaveform::paint(Graphics &g)
 		drawSampleStartBar(g);
 	};
 
-	if (currentSound.get() != nullptr)
+	if (!onInterface && currentSound.get() != nullptr)
 	{
 		if (currentSound->getReferenceToSound()->isMonolithic())
 		{
@@ -232,6 +234,17 @@ void SamplerSoundWaveform::paint(Graphics &g)
 			g.setColour(Colours::white);
 			g.drawText("Monolith", 0, 0, 80, 20, Justification::centred);
 		}
+	}
+}
+
+void SamplerSoundWaveform::resized()
+{
+	AudioDisplayComponent::resized();
+
+	if (onInterface)
+	{
+		for (auto a : areas)
+			a->setVisible(false);
 	}
 }
 
@@ -261,7 +274,12 @@ void SamplerSoundWaveform::setSoundToDisplay(const ModulatorSamplerSound *s, int
 		{
 			numSamplesInCurrentSample = (int)afr->lengthInSamples;
 
-			preview->setReader(afr.release(), sound->getHashCode());
+			if (onInterface && currentSound != nullptr)
+			{
+				numSamplesInCurrentSample = currentSound->getReferenceToSound()->getSampleLength();
+			}
+
+			preview->setReader(afr.release(), numSamplesInCurrentSample);
 
 			updateRanges();
 		}
@@ -1147,13 +1165,16 @@ void HiseAudioThumbnail::drawSection(Graphics &g, bool enabled)
 	}
 }
 
-void HiseAudioThumbnail::setReader(AudioFormatReader* r, int64 /*unused*/)
+void HiseAudioThumbnail::setReader(AudioFormatReader* r, int64 actualNumSamples)
 {
 	currentReader = r;
 
+	if (actualNumSamples == -1)
+		actualNumSamples = currentReader->lengthInSamples;
+
 	if (currentReader != nullptr)
 	{
-		lengthInSeconds = currentReader->lengthInSamples / currentReader->sampleRate;
+		lengthInSeconds = actualNumSamples / currentReader->sampleRate;
 	}
 
 	rebuildPaths();

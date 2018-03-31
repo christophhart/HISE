@@ -1571,15 +1571,81 @@ void ScriptCreatedComponentWrappers::SliderPackWrapper::updateValue(var newValue
 	}
 }
 
+class ScriptCreatedComponentWrappers::AudioWaveformWrapper::SamplerListener : public SafeChangeListener
+{
+public:
+
+	SamplerListener(ModulatorSampler* s_, SamplerSoundWaveform* waveform_) :
+		s(s_),
+		waveform(waveform_)
+	{
+		s->addChangeListener(this);
+
+		if (auto v = s->getLastStartedVoice())
+		{
+			lastSound = v->getCurrentlyPlayingSound();
+		}
+	}
+
+	~SamplerListener()
+	{
+		lastSound = nullptr;
+
+		s->removeChangeListener(this);
+	}
+
+	void changeListenerCallback(SafeChangeBroadcaster *b) override
+	{
+		if (auto v = s->getLastStartedVoice())
+		{
+			auto thisSound = v->getCurrentlyPlayingSound();
+
+			if (thisSound != lastSound)
+			{
+				lastSound = thisSound;
+
+				waveform->setSoundToDisplay(dynamic_cast<ModulatorSamplerSound*>(thisSound.get()), 0);
+			}
+		}
+	}
+
+
+	ModulatorSampler* s;
+	Component::SafePointer<SamplerSoundWaveform> waveform;
+	SynthesiserSound::Ptr lastSound;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SamplerListener);
+};
+
+
+
 ScriptCreatedComponentWrappers::AudioWaveformWrapper::AudioWaveformWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptAudioWaveform *form, int index):
 ScriptCreatedComponentWrapper(content, index)
 {
-	AudioSampleBufferComponent *asb = new AudioSampleBufferComponent(form->getConnectedProcessor());
+	if (auto s = form->getSampler())
+	{
+		SamplerSoundWaveform* ssw = new SamplerSoundWaveform(s);
+		ssw->setName(form->name.toString());
 
-	asb->setName(form->name.toString());
-	asb->addAreaListener(this);
+		ssw->getSampleArea(SamplerSoundWaveform::PlayArea)->setAreaEnabled(false);
 
-	component = asb;
+		ssw->setIsOnInterface(true);
+
+		component = ssw;
+
+		samplerListener = new SamplerListener(s, ssw);
+	}
+	else
+	{
+		AudioSampleBufferComponent *asb = new AudioSampleBufferComponent(form->getConnectedProcessor());
+
+		asb->setName(form->name.toString());
+		asb->addAreaListener(this);
+
+		component = asb;
+	}
+
+	
 
 	initAllProperties();
 }
@@ -1588,6 +1654,8 @@ ScriptCreatedComponentWrapper(content, index)
 
 ScriptCreatedComponentWrappers::AudioWaveformWrapper::~AudioWaveformWrapper()
 {
+	samplerListener = nullptr;
+
 	
 }
 
@@ -1600,25 +1668,37 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateComponent(int p
 {
 	ScriptCreatedComponentWrapper::updateComponent(propertyIndex, newValue);
 
-	auto asb = dynamic_cast<AudioSampleBufferComponent*>(component.get());
 	auto form = dynamic_cast<ScriptingApi::Content::ScriptAudioWaveform *>(getScriptComponent());
 
-	if (asb == nullptr)
-		return;
-
-	switch (propertyIndex)
+	if (auto adc = dynamic_cast<AudioDisplayComponent*>(component.get()))
 	{
-		PROPERTY_CASE::ScriptAudioWaveform::Properties::opaque:	asb->setOpaque((bool)newValue); break;
-		PROPERTY_CASE::ScriptAudioWaveform::Properties::itemColour3:
-		PROPERTY_CASE::ScriptComponent::visible : newValue ? startTimer(50) : stopTimer(); break;
-		PROPERTY_CASE::ScriptComponent::itemColour :
-		PROPERTY_CASE::ScriptComponent::itemColour2 :
-		PROPERTY_CASE::ScriptComponent::bgColour :
-		PROPERTY_CASE::ScriptComponent::textColour : updateColours(asb); break;
-		PROPERTY_CASE::ScriptComponent::processorId: asb->setAudioSampleProcessor(form->getConnectedProcessor()); break;
-		PROPERTY_CASE::ScriptAudioWaveform::Properties::showLines: asb->getThumbnail()->setDrawHorizontalLines((bool)newValue); break;
-		PROPERTY_CASE::ScriptAudioWaveform::Properties::showFileName: asb->setShowFileName((bool)newValue); break;
+		switch (propertyIndex)
+		{
+			PROPERTY_CASE::ScriptAudioWaveform::Properties::opaque:	adc->setOpaque((bool)newValue); break;
+			PROPERTY_CASE::ScriptAudioWaveform::Properties::itemColour3:
+			PROPERTY_CASE::ScriptComponent::visible : newValue ? startTimer(50) : stopTimer(); break;
+			PROPERTY_CASE::ScriptComponent::itemColour :
+			PROPERTY_CASE::ScriptComponent::itemColour2 :
+			PROPERTY_CASE::ScriptComponent::bgColour :
+			PROPERTY_CASE::ScriptComponent::textColour : updateColours(adc); break;
+			PROPERTY_CASE::ScriptAudioWaveform::Properties::showLines: adc->getThumbnail()->setDrawHorizontalLines((bool)newValue); break;
+		}
+
+		if (auto asb = dynamic_cast<AudioSampleBufferComponent*>(component.get()))
+		{
+			switch (propertyIndex)
+			{
+				PROPERTY_CASE::ScriptComponent::processorId: asb->setAudioSampleProcessor(form->getConnectedProcessor()); break;
+				PROPERTY_CASE::ScriptAudioWaveform::Properties::showFileName: asb->setShowFileName((bool)newValue); break;
+			}
+		}
+
 	}
+	
+
+
+
+	
 }
 
 void ScriptCreatedComponentWrappers::AudioWaveformWrapper::rangeChanged(AudioDisplayComponent *broadcaster, int changedArea)
@@ -1645,7 +1725,7 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::timerCallback()
 	
 }
 
-void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateColours(AudioSampleBufferComponent* asb)
+void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateColours(AudioDisplayComponent* asb)
 {
 	auto tn = asb->getThumbnail();
 

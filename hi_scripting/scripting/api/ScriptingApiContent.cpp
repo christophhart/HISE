@@ -3163,7 +3163,13 @@ StringArray ScriptingApi::Content::ScriptAudioWaveform::getOptionsFor(const Iden
 	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
 	if (mp == nullptr) return StringArray();
 
-	return ProcessorHelpers::getAllIdsForType<AudioSampleProcessor>(mp->getOwnerSynth());
+
+	auto aps = ProcessorHelpers::getAllIdsForType<AudioSampleProcessor>(mp->getOwnerSynth());
+	auto samplers = ProcessorHelpers::getAllIdsForType<ModulatorSampler>(mp->getOwnerSynth());
+
+	aps.addArray(samplers);
+
+	return aps;
 }
 
 AudioSampleProcessor * ScriptingApi::Content::ScriptAudioWaveform::getAudioProcessor()
@@ -3179,6 +3185,11 @@ void ScriptingApi::Content::ScriptAudioWaveform::setScriptObjectPropertyWithChan
 	}
 
 	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
+}
+
+ModulatorSampler* ScriptingApi::Content::ScriptAudioWaveform::getSampler()
+{
+	return dynamic_cast<ModulatorSampler*>(getConnectedProcessor());
 }
 
 // ====================================================================================================== ScriptFloatingTile functions
