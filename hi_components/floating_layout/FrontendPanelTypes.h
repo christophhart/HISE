@@ -154,6 +154,7 @@ public:
 		DefaultAppearance, ///< set this to true to use the standard appearance in HISE.
 		DisplayOctaveNumber, ///< set this to true to add octave numbers at each C note.
 		ToggleMode, ///< if activated, then the notes will be held until clicked again
+		MidiChannel, ///< which MIDI channel to use (1-16)
 		numProperyIds
 	};
 

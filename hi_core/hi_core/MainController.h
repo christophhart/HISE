@@ -325,7 +325,7 @@ public:
 		const HiseEventBuffer &masterBuffer;
 		HeapBlock<HiseEvent> artificialEvents;
 		uint16 lastArtificialEventIds[128];
-		HiseEvent realNoteOnEvents[128];
+		HiseEvent realNoteOnEvents[16][128];
 		uint16 currentEventId;
 
 		int transposeValue = 0;

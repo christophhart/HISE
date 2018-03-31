@@ -329,15 +329,17 @@ void MainController::EventIdHandler::handleEventIds()
 
 		if (m->isAllNotesOff())
 		{
-			memset(realNoteOnEvents, 0, sizeof(HiseEvent) * 128);
+			memset(realNoteOnEvents, 0, sizeof(HiseEvent) * 128 * 16);
 		}
 
 		if (m->isNoteOn())
 		{
-			if (realNoteOnEvents[m->getNoteNumber()].isEmpty())
+			auto channel = jlimit<int>(0, 15, m->getChannel()-1);
+
+			if (realNoteOnEvents[channel][m->getNoteNumber()].isEmpty())
 			{
 				m->setEventId(currentEventId);
-				realNoteOnEvents[m->getNoteNumber()] = HiseEvent(*m);
+				realNoteOnEvents[channel][m->getNoteNumber()] = HiseEvent(*m);
 				currentEventId++;
 			}
 			else
@@ -348,9 +350,11 @@ void MainController::EventIdHandler::handleEventIds()
 		}
 		else if (m->isNoteOff())
 		{
-			if (!realNoteOnEvents[m->getNoteNumber()].isEmpty())
+			auto channel = jlimit<int>(0, 15, m->getChannel()-1);
+
+			if (!realNoteOnEvents[channel][m->getNoteNumber()].isEmpty())
 			{
-                HiseEvent* on = &realNoteOnEvents[m->getNoteNumber()];
+                HiseEvent* on = &realNoteOnEvents[channel][m->getNoteNumber()];
                 
 				uint16 id = on->getEventId();
 				m->setEventId(id);
@@ -387,7 +391,9 @@ uint16 MainController::EventIdHandler::getEventIdForNoteOff(const HiseEvent &not
 
 	if (!noteOffEvent.isArtificial())
 	{
-		const HiseEvent* e = realNoteOnEvents + noteNumber;
+		auto channel = jlimit<int>(0, 15, noteOffEvent.getChannel()-1);
+
+		const HiseEvent* e = realNoteOnEvents[channel] + noteNumber;
 
 		return e->getEventId();
 
@@ -435,7 +441,9 @@ HiseEvent MainController::EventIdHandler::peekNoteOn(const HiseEvent& noteOffEve
 	}
 	else
 	{
-		return realNoteOnEvents[noteOffEvent.getNoteNumber()];
+		auto channel = jlimit<int>(0, 15, noteOffEvent.getChannel()-1);
+
+		return realNoteOnEvents[channel][noteOffEvent.getNoteNumber()];
 	}
 }
 

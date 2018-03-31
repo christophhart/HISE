@@ -185,8 +185,6 @@ var MidiKeyboardPanel::toDynamicObject() const
 
 	storePropertyInObject(obj, SpecialPanelIds::KeyWidth, keyboard->getKeyWidth());
 
-
-
 	storePropertyInObject(obj, SpecialPanelIds::DisplayOctaveNumber, keyboard->isShowingOctaveNumbers());
 	storePropertyInObject(obj, SpecialPanelIds::LowKey, keyboard->getRangeStart());
 	storePropertyInObject(obj, SpecialPanelIds::HiKey, keyboard->getRangeEnd());
@@ -194,6 +192,7 @@ var MidiKeyboardPanel::toDynamicObject() const
 	storePropertyInObject(obj, SpecialPanelIds::DefaultAppearance, defaultAppearance);
 	storePropertyInObject(obj, SpecialPanelIds::BlackKeyRatio, keyboard->getBlackNoteLengthProportion());
 	storePropertyInObject(obj, SpecialPanelIds::ToggleMode, keyboard->isToggleModeEnabled());
+	storePropertyInObject(obj, SpecialPanelIds::MidiChannel, keyboard->getMidiChannel());
 
 	return obj;
 }
@@ -216,6 +215,8 @@ void MidiKeyboardPanel::fromDynamicObject(const var& object)
 	keyboard->setBlackNoteLengthProportion(getPropertyWithDefault(object, SpecialPanelIds::BlackKeyRatio));
 
 	keyboard->setEnableToggleMode(getPropertyWithDefault(object, SpecialPanelIds::ToggleMode));
+
+	keyboard->setMidiChannel(getPropertyWithDefault(object, SpecialPanelIds::MidiChannel));
 }
 
 Identifier MidiKeyboardPanel::getDefaultablePropertyId(int index) const
@@ -231,7 +232,8 @@ Identifier MidiKeyboardPanel::getDefaultablePropertyId(int index) const
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::DefaultAppearance, "DefaultAppearance");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::DisplayOctaveNumber, "DisplayOctaveNumber");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ToggleMode, "ToggleMode");
-
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::MidiChannel, "MidiChannel");
+	
 	jassertfalse;
 	return{};
 }
@@ -249,6 +251,7 @@ var MidiKeyboardPanel::getDefaultProperty(int index) const
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::DefaultAppearance, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::DisplayOctaveNumber, false);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ToggleMode, false);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::MidiChannel, 1);
 
 	jassertfalse;
 	return{};
