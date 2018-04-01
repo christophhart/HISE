@@ -29,6 +29,9 @@
 #include <cmath>
 #include <cstring>
 
+#if HISE_IOS
+#define AUDIOFFT_APPLE_ACCELERATE
+#endif
 
 
 

@@ -27,7 +27,7 @@ namespace fftconvolver
 
 bool SSEEnabled()
 {
-#if defined(FFTCONVOLVER_USE_SSE)
+#if FFTCONVOLVER_USE_SSE
   return true;
 #else
   return false;
@@ -92,7 +92,7 @@ void ComplexMultiplyAccumulate(Sample* FFTCONVOLVER_RESTRICT re,
 	FloatVectorOperations::addWithMultiply(im, reA, imB, len);
 	FloatVectorOperations::subtractWithMultiply(im, imA, reB, len);
 
-#elif defined(FFTCONVOLVER_USE_SSE)
+#elif FFTCONVOLVER_USE_SSE
   const size_t end4 = 4 * (len / 4);
   for (size_t i=0; i<end4; i+=4)
   {

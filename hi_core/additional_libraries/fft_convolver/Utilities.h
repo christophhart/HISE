@@ -32,14 +32,14 @@
 namespace fftconvolver
 {
 
-#if true //defined(__SSE__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
-  #if !defined(FFTCONVOLVER_USE_SSE) && !defined(FFTCONVOLVER_DONT_USE_SSE)
-    #define FFTCONVOLVER_USE_SSE
-  #endif
+#if HISE_IOS
+#define FFTCONVOLVER_USE_SSE 0
+#else
+#define FFTCONVOLVER_USE_SSE 1
 #endif
+    
 
-
-#if defined (FFTCONVOLVER_USE_SSE)
+#if FFTCONVOLVER_USE_SSE
   #include <xmmintrin.h>
 #endif
 
@@ -156,11 +156,11 @@ public:
 private:
   T* allocate(size_t size)
   {
-#if USE_IPP
+#if USE_IPP && !HISE_IOS
 	  auto ptr = ippsMalloc_8u((int)size * sizeof(T));
 	  jassert(ptr != nullptr);
 	  return reinterpret_cast<T*>(ptr);
-#elif defined(FFTCONVOLVER_USE_SSE)
+#elif FFTCONVOLVER_USE_SSE
     return static_cast<T*>(_mm_malloc(size * sizeof(T), 16));
 #else
     return new T[size];
@@ -169,9 +169,9 @@ private:
   
   void deallocate(T* ptr)
   {
-#if USE_IPP
+#if USE_IPP && !HISE_IOS
 	  ippFree(ptr);
-#elif defined(FFTCONVOLVER_USE_SSE)
+#elif FFTCONVOLVER_USE_SSE
     _mm_free(ptr);
 #else
     delete [] ptr;
