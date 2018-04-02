@@ -64,16 +64,16 @@
                        osxArchitecture="64BitUniversal" isDebug="1" optimisation="1"
                        targetName="HISE Debug 16 Out" cppLanguageStandard="c++11" cppLibType="libc++"
                        headerPath="/opt/intel/ipp/include" libraryPath="/opt/intel/ipp/lib"
-                       defines="JucePlugin_MaxNumOutputChannels=16&#10;JucePlugin_PreferredChannelConfigurations={0\,16}"
-                       xcodeVstBinaryLocation="/Library/Audio/Plug-Ins/VST/" xcodeAudioUnitBinaryLocation="/Library/Audio/Plug-Ins/Components/"
+                       defines="HISE_NUM_PLUGIN_CHANNELS=8" xcodeVstBinaryLocation="/Library/Audio/Plug-Ins/VST/"
+                       xcodeAudioUnitBinaryLocation="/Library/Audio/Plug-Ins/Components/"
                        enablePluginBinaryCopyStep="0" vstBinaryLocation="/Library/Audio/Plug-Ins/VST/"
                        auBinaryLocation="/Library/Audio/Plug-Ins/Components/"/>
         <CONFIGURATION name="Release MultiChannel" osxSDK="default" osxCompatibility="10.7 SDK"
                        osxArchitecture="64BitUniversal" isDebug="0" optimisation="3"
                        targetName="HISE 16 Out" linkTimeOptimisation="1" cppLanguageStandard="c++11"
                        cppLibType="libc++" headerPath="/opt/intel/ipp/include" libraryPath="/opt/intel/ipp/lib&#10;"
-                       defines="JucePlugin_MaxNumOutputChannels=16&#10;JucePlugin_PreferredChannelConfigurations={0\,16}"
-                       xcodeVstBinaryLocation="/Library/Audio/Plug-Ins/VST/" xcodeAudioUnitBinaryLocation="/Library/Audio/Plug-Ins/Components/"
+                       defines="HISE_NUM_PLUGIN_CHANNELS=8" xcodeVstBinaryLocation="/Library/Audio/Plug-Ins/VST/"
+                       xcodeAudioUnitBinaryLocation="/Library/Audio/Plug-Ins/Components/"
                        enablePluginBinaryCopyStep="0" vstBinaryLocation="/Library/Audio/Plug-Ins/VST/"
                        auBinaryLocation="/Library/Audio/Plug-Ins/Components/"/>
       </CONFIGURATIONS>
@@ -111,40 +111,37 @@
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
                        isDebug="1" optimisation="1" targetName="HISE x86 Debug" binaryPath=""
-                       libraryPath="" useRuntimeLibDLL="0" defines="JucePlugin_MaxNumOutputChannels=2&#10;JucePlugin_PreferredChannelConfigurations={0\,2}"
-                       debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"/>
+                       libraryPath="" useRuntimeLibDLL="0" defines="" debugInformationFormat="ProgramDatabase"
+                       enablePluginBinaryCopyStep="0"/>
         <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
                        isDebug="0" optimisation="3" targetName="HISE x86" binaryPath=""
-                       libraryPath="" useRuntimeLibDLL="0" defines="JucePlugin_MaxNumOutputChannels=2&#10;JucePlugin_PreferredChannelConfigurations={0\,2}"
-                       debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
-                       linkTimeOptimisation="1"/>
+                       libraryPath="" useRuntimeLibDLL="0" defines="" debugInformationFormat="ProgramDatabase"
+                       enablePluginBinaryCopyStep="0" linkTimeOptimisation="1"/>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
                        isDebug="1" optimisation="1" targetName="HISE x64 Debug" binaryPath=""
-                       libraryPath="" useRuntimeLibDLL="0" defines="JucePlugin_MaxNumOutputChannels=2&#10;JucePlugin_PreferredChannelConfigurations={0\,2}"
-                       debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"/>
+                       libraryPath="" useRuntimeLibDLL="0" defines="" debugInformationFormat="ProgramDatabase"
+                       enablePluginBinaryCopyStep="0"/>
         <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
                        isDebug="0" optimisation="3" targetName="HISE x64" binaryPath=""
                        alwaysGenerateDebugSymbols="0" useRuntimeLibDLL="0" libraryPath=""
-                       defines="JucePlugin_MaxNumOutputChannels=2&#10;JucePlugin_PreferredChannelConfigurations={0\,2}"
-                       debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="1"
+                       defines="" debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="1"
                        linkTimeOptimisation="1" vstBinaryLocation=""/>
         <CONFIGURATION name="Debug MultiChannel" winWarningLevel="4" generateManifest="1"
                        winArchitecture="x64" isDebug="1" optimisation="1" targetName="HISE x64 Debug 16 Out"
-                       binaryPath="" libraryPath="" useRuntimeLibDLL="0" defines="JucePlugin_MaxNumOutputChannels=16&#10;JucePlugin_PreferredChannelConfigurations={0\,16}"
+                       binaryPath="" libraryPath="" useRuntimeLibDLL="0" defines="HISE_NUM_PLUGIN_CHANNELS=8"
                        debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"/>
         <CONFIGURATION name="Release MultiChannel" winWarningLevel="4" generateManifest="1"
                        winArchitecture="x64" isDebug="0" optimisation="3" targetName="HISE x64 16 Out"
                        binaryPath="" alwaysGenerateDebugSymbols="0" useRuntimeLibDLL="0"
-                       libraryPath="" defines="JucePlugin_MaxNumOutputChannels=16&#10;JucePlugin_PreferredChannelConfigurations={0\,16}"
-                       debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
-                       linkTimeOptimisation="1"/>
+                       libraryPath="" defines="HISE_NUM_PLUGIN_CHANNELS=8" debugInformationFormat="ProgramDatabase"
+                       enablePluginBinaryCopyStep="0" linkTimeOptimisation="1"/>
         <CONFIGURATION name="Debug MultiChannel" winWarningLevel="4" generateManifest="1"
                        winArchitecture="32-bit" isDebug="1" optimisation="1" targetName="HISE x86 Debug 16 Out"
-                       binaryPath="" libraryPath="" useRuntimeLibDLL="0" defines="JucePlugin_MaxNumOutputChannels=16&#10;JucePlugin_PreferredChannelConfigurations={0\,16}"
+                       binaryPath="" libraryPath="" useRuntimeLibDLL="0" defines="HISE_NUM_PLUGIN_CHANNELS=8"
                        debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"/>
         <CONFIGURATION name="Release MultiChannel" winWarningLevel="4" generateManifest="1"
                        winArchitecture="32-bit" isDebug="0" optimisation="3" targetName="HISE x86 16 Out"
-                       binaryPath="" libraryPath="" useRuntimeLibDLL="0" defines="JucePlugin_MaxNumOutputChannels=16&#10;JucePlugin_PreferredChannelConfigurations={0\,16}"
+                       binaryPath="" libraryPath="" useRuntimeLibDLL="0" defines="HISE_NUM_PLUGIN_CHANNELS=8"
                        debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
                        linkTimeOptimisation="1"/>
       </CONFIGURATIONS>
@@ -178,7 +175,7 @@
     </VS2015>
     <VS2017 targetFolder="Builds/VisualStudio2017" vstFolder="c:\SDKs\vstsdk2.4"
             smallIcon="" useIPP="Sequential" aaxFolder="D:\Development\SDKs\AAX"
-            IPPLibrary="Sequential" windowsTargetPlatformVersion="">
+            IPPLibrary="Sequential" windowsTargetPlatformVersion="10.0.16299.0">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
                        isDebug="1" optimisation="1" targetName="HISE x86 Debug" binaryPath=""
