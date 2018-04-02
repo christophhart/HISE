@@ -153,6 +153,8 @@ public:
 
 	Result parseSampleMap(const File& sampleMapFile);
 
+    Result parseSampleMap(const ValueTree& sampleMapTree);
+    
 	ValueTree getValueTree(bool getLeftTree)
 	{
 		return getLeftTree ? leftValueTree : rightValueTree;

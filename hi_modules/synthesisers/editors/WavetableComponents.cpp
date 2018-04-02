@@ -322,6 +322,8 @@ void SampleMapToWavetableConverter::Preview::rebuildMap()
 	{
 		auto deviation = jlimit<float>(-100.0f, 100.0f, (float)currentMap.pitchDeviations[i]);
 
+        deviation = FloatSanitizers::sanitizeFloatNumber(deviation);
+        
 		auto scaled = deviation / 100.0 * (float)getHeight() / 2.0f + getHeight() / 2.0f;
 
 		p.lineTo((float)i*rectWidth, (float)scaled);

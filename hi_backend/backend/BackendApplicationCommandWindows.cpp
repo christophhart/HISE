@@ -560,7 +560,24 @@ public:
 
 		addBasicComponents(true);
 
-		showStatusMessage("Choose Samplemap to convert");
+        if(auto s = ProcessorHelpers::getFirstProcessorWithType<ModulatorSampler>(chain))
+        {
+            auto sampleMapTree = s->getSampleMap()->exportAsValueTree();
+            
+            converter->parseSampleMap(sampleMapTree);
+            converter->refreshCurrentWavetable(getProgressCounter());
+            refreshPreview();
+            
+            showStatusMessage("Imported samplemap from " + s->getId());
+            
+        }
+        else
+        {
+            showStatusMessage("Choose Samplemap to convert");
+        }
+        
+        
+		
 		
 		
 	}

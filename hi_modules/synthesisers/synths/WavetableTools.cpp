@@ -169,7 +169,7 @@ struct ResynthesisHelpers
 		FloatVectorOperations::multiply(freq, (float)sampleRate, buffer.getNumSamples());
 		int index = analysis.verifyFundamentalFrequency(amp, buffer.getNumSamples(), freq_.re);
 		pitch = jlimit<float>(0.0, (float)sampleRate / 2.0f, freq[index]);
-		FloatSanitizers::sanitizeFloatNumber(pitch);
+		pitch = FloatSanitizers::sanitizeFloatNumber(pitch);
 
 		return (double)pitch;
 	}
@@ -411,6 +411,36 @@ SampleMapToWavetableConverter::SampleMapToWavetableConverter(ModulatorSynthChain
 	afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
 }
 
+juce::Result SampleMapToWavetableConverter::parseSampleMap(const ValueTree& sampleMapTree)
+{
+    Result result = Result::ok();
+    
+    sampleMap = sampleMapTree;
+    
+    harmonicMaps.clear();
+    
+    for (int i = 0; i < 127; i++)
+    {
+        auto index = getSampleIndexForNoteNumber(i);
+        
+        if (index != -1)
+        {
+            HarmonicMap newMap;
+            
+            newMap.index.noteNumber = i;
+            newMap.index.sampleIndex = index;
+            
+            harmonicMaps.add(newMap);
+        }
+    }
+    
+    currentIndex = 0;
+    
+    return result;
+    
+        
+}
+    
 juce::Result SampleMapToWavetableConverter::parseSampleMap(const File& sampleMapFile)
 {
 	Result result = Result::ok();

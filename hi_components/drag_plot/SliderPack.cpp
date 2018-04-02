@@ -224,7 +224,11 @@ void SliderPack::updateSliders()
 		s->setColour(Slider::thumbColourId, findColour(Slider::thumbColourId));
 		s->setColour(Slider::trackColourId, findColour(Slider::trackColourId));
 
-		s->setValue(data->getValue(i), dontSendNotification);
+        
+        float v = (float)data->getValue(i);
+        v = FloatSanitizers::sanitizeFloatNumber(v);
+        
+		s->setValue((double)v, dontSendNotification);
 
 	}
 
@@ -276,7 +280,10 @@ void SliderPack::update()
 {
 	for (int i = 0; i < sliders.size(); i++)
 	{
-		sliders[i]->setValue(data->getValue(i), dontSendNotification);
+        float v = (float)data->getValue(i);
+        v = FloatSanitizers::sanitizeFloatNumber(v);
+        
+		sliders[i]->setValue((double)v, dontSendNotification);
 	}
 }
 
