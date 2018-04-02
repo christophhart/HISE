@@ -34,12 +34,198 @@
 
 namespace hise { using namespace juce;
 
+
+class FilterGraph::Panel : public PanelWithProcessorConnection,
+						   public SafeChangeListener,
+						   public Timer
+{
+public:
+
+	enum SpecialPanelIds
+	{
+		showLines,
+		numSpecialPanelIds
+	};
+
+	SET_PANEL_NAME("FilterDisplay");
+
+	Panel(FloatingTile* parent) :
+		PanelWithProcessorConnection(parent)
+	{
+		setDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF333333));
+		setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::white);
+		setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour2, Colours::white.withAlpha(0.5f));
+		setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour3, Colours::white.withAlpha(0.2f));
+		setDefaultPanelColour(FloatingTileContent::PanelColourId::textColour, Colours::white);
+	};
+
+	~Panel()
+	{
+		if (auto p = getProcessor())
+		{
+			p->removeChangeListener(this);
+		}
+	}
+
+	juce::Identifier getProcessorTypeId() const
+	{
+		static Identifier fid("FilterGraphProcessor");
+		
+		return fid;
+	}
+
+	void changeListenerCallback(SafeChangeBroadcaster *b) override
+	{
+		updateCoefficients();
+	}
+
+	void timerCallback() override
+	{
+		if (auto filter = dynamic_cast<FilterEffect*>(getProcessor()))
+		{
+			if (auto filterGraph = getContent<FilterGraph>())
+			{
+				IIRCoefficients c = filter->getCurrentCoefficients();
+
+				for (int i = 0; i < 5; i++)
+				{
+					if (c.coefficients[i] == 0.0) // Replace with safe check function!
+					{
+						return;
+					}
+				}
+
+				if (!sameCoefficients(c, currentCoefficients))
+				{
+					currentCoefficients = c;
+
+					filterGraph->setCoefficients(0, getProcessor()->getSampleRate(), dynamic_cast<FilterEffect*>(getProcessor())->getCurrentCoefficients());
+				}
+			}
+		}
+	}
+
+	
+
+	Component* createContentComponent(int /*index*/) override
+	{
+		if (auto p = getProcessor())
+		{
+			p->addChangeListener(this);
+
+			auto c = new FilterGraph(1);
+
+			c->useFlatDesign = true;
+			c->showLines = false;
+
+			c->setColour(ColourIds::bgColour, findPanelColour(FloatingTileContent::PanelColourId::bgColour));
+			c->setColour(ColourIds::lineColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour1));
+			c->setColour(ColourIds::fillColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour2));
+			c->setColour(ColourIds::gridColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour3));
+			c->setColour(ColourIds::textColour, findPanelColour(FloatingTileContent::PanelColourId::textColour));
+
+			if (auto f = dynamic_cast<FilterEffect*>(p))
+			{
+				c->addFilter(FilterType::LowPass);
+				startTimer(30);
+			}
+			else if (auto eq = dynamic_cast<CurveEq*>(p))
+			{
+				stopTimer();
+				updateEq(eq, c);
+			}
+
+			return c;
+		}
+
+		return nullptr;
+	}
+
+	void fillModuleList(StringArray& moduleList)
+	{
+		fillModuleListWithType<CurveEq>(moduleList);
+		fillModuleListWithType<FilterEffect>(moduleList);
+	}
+
+private:
+
+	bool sameCoefficients(IIRCoefficients c1, IIRCoefficients c2)
+	{
+		for (int i = 0; i < 5; i++)
+		{
+			if (c1.coefficients[i] != c2.coefficients[i]) return false;
+		}
+
+		return true;
+	};
+
+	void updateCoefficients()
+	{
+		if (auto filterGraph = getContent<FilterGraph>())
+		{
+			if (auto c = dynamic_cast<CurveEq*>(getProcessor()))
+			{
+				for (int i = 0; i < c->getNumFilterBands(); i++)
+				{
+					IIRCoefficients ic = c->getCoefficients(i);
+
+					filterGraph->enableBand(i, c->getFilterBand(i)->isEnabled());
+					filterGraph->setCoefficients(i, getProcessor()->getSampleRate(), ic);
+				}
+			}
+		}
+	}
+
+	void updateEq(CurveEq* eq, FilterGraph* c) 
+	{
+		c->clearBands();
+
+		for (int i = 0; i < eq->getNumFilterBands(); i++)
+		{
+			addFilter(c, i, eq->getFilterBand(i)->getFilterType());
+		}
+
+		int numFilters = eq->getNumFilterBands();
+
+		if (numFilters == 0)
+		{
+			c->repaint();
+		}
+	}
+
+	void addFilter(FilterGraph* filterGraph, int filterIndex, int filterType)
+	{
+		if (auto c = dynamic_cast<CurveEq*>(getProcessor()))
+		{
+			switch (filterType)
+			{
+			case CurveEq::LowPass:		filterGraph->addFilter(FilterType::LowPass); break;
+			case CurveEq::HighPass:		filterGraph->addFilter(FilterType::HighPass); break;
+			case CurveEq::LowShelf:		filterGraph->addEqBand(BandType::LowShelf); break;
+			case CurveEq::HighShelf:	filterGraph->addEqBand(BandType::HighShelf); break;
+			case CurveEq::Peak:			filterGraph->addEqBand(BandType::Peak); break;
+			}
+
+			filterGraph->setCoefficients(filterIndex, c->getSampleRate(), c->getCoefficients(filterIndex));
+		}
+	}
+
+	IIRCoefficients currentCoefficients;
+
+};
+
 //==============================================================================
 FilterGraph::FilterGraph (int numFiltersInit, int drawType_)
     :  filterVector (),
 	drawType((DrawType)drawType_)
 {
 	setOpaque(true);
+
+	setColour(ColourIds::bgColour, Colour(0xFF333333));
+	setColour(ColourIds::lineColour, Colours::white);
+	setColour(ColourIds::fillColour, Colours::white.withAlpha(0.5f));
+	setColour(ColourIds::gridColour, Colours::white.withAlpha(0.2f));
+	setColour(ColourIds::textColour, Colours::white);
 
     numHorizontalLines = 7;
     setSize (500, 300);
@@ -207,11 +393,24 @@ void FilterGraph::paint (Graphics& g)
 	{
 		paintBackground(g);
 
-		paintGridLines(g);
+		if(showLines)
+			paintGridLines(g);
 		
 		refreshFilterPath();
 
-		KnobLookAndFeel::fillPathHiStyle(g, tracePath, getWidth(), getHeight());
+		if (useFlatDesign)
+		{
+			g.setColour(findColour(ColourIds::fillColour));
+			g.fillPath(tracePath);
+			g.setColour(findColour(ColourIds::lineColour));
+			g.strokePath(tracePath, PathStrokeType(1.0f));
+		}
+		else
+		{
+			KnobLookAndFeel::fillPathHiStyle(g, tracePath, getWidth(), getHeight());
+		}
+
+		
 	}
 
 	
@@ -249,45 +448,62 @@ void FilterGraph::setFreqRange (float newLowFreq, float newHighFreq)
 
 void FilterGraph::setFilterGain (int filterNum, double gain)
 {
-    filterVector [filterNum]->setGain (gain);
-    repaint();
+	if (filterNum < filterVector.size())
+	{
+		filterVector[filterNum]->setGain(gain);
+		repaint();
+	}
+    
 }
 
 void FilterGraph::setFilter (int filterNum, double sampleRate, double frequency, FilterType filterType)
-{    
-    filterVector [filterNum]->setSampleRate (sampleRate);
-    filterVector [filterNum]->setFilter (frequency, filterType);
+{   
+	if (filterNum < filterVector.size())
+	{
+		filterVector[filterNum]->setSampleRate(sampleRate);
+		filterVector[filterNum]->setFilter(frequency, filterType);
+
+		fs = sampleRate;
+		repaint();
+	}
     
-    fs = sampleRate;
-    repaint();
 }
 
 void FilterGraph::setEqBand (int filterNum, double sampleRate, double frequency, double Q, float gain, BandType eqType)
-{    
-    filterVector [filterNum]->setSampleRate (sampleRate);
-    filterVector [filterNum]->setEqBand (frequency, Q, gain, eqType);
+{   
+	if (filterNum < filterVector.size())
+	{
+		filterVector[filterNum]->setSampleRate(sampleRate);
+		filterVector[filterNum]->setEqBand(frequency, Q, gain, eqType);
+
+		fs = sampleRate;
+		repaint();
+	}
     
-    fs = sampleRate;
-    repaint();
 }
 
 void FilterGraph::setCustom (int filterNum, double sampleRate, std::vector <double> numCoeffs, std::vector <double> denCoeffs)
 {
-    filterVector [filterNum]->setSampleRate (sampleRate);
-    filterVector [filterNum]->setCustom (numCoeffs, denCoeffs);
-    
-    fs = sampleRate;
-    repaint();
+	if (filterNum < filterVector.size())
+	{
+		filterVector[filterNum]->setSampleRate(sampleRate);
+		filterVector[filterNum]->setCustom(numCoeffs, denCoeffs);
+
+		fs = sampleRate;
+		repaint();
+	}
 }
 
 void FilterGraph::setCoefficients(int filterNum, double sampleRate, IIRCoefficients newCoefficients)
 {
-	filterVector [filterNum]->setSampleRate (sampleRate);
-    filterVector [filterNum]->setCoefficients(filterNum, sampleRate, newCoefficients);
+	if (filterNum < filterVector.size())
+	{
+		filterVector[filterNum]->setSampleRate(sampleRate);
+		filterVector[filterNum]->setCoefficients(filterNum, sampleRate, newCoefficients);
 
-	fs = sampleRate;
-    repaint();
-
+		fs = sampleRate;
+		repaint();
+	}
 }
 
 

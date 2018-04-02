@@ -45,6 +45,16 @@ class FilterGraph    : public Component,
 {
 public:
 
+	enum ColourIds
+	{
+		bgColour = 1024,
+		lineColour,
+		fillColour,
+		gridColour,
+		textColour,
+		numColourIds
+	};
+
 	enum DrawType
 	{
 		Fill = 0,
@@ -109,20 +119,30 @@ public:
     Colour traceColour;
     TraceType traceType;
     
+	class Panel;
+
 private:
 
 	void paintBackground(Graphics &g)
 	{
 		
-		ColourGradient grad = ColourGradient(Colour(0xFF444444), 0.0f, 0.0f,
-											 Colour(0xFF222222), 0.0f, (float)getHeight(), false);
+		if (useFlatDesign)
+		{
+			g.fillAll(findColour(ColourIds::bgColour));
+		}
+		else
+		{
+			ColourGradient grad = ColourGradient(Colour(0xFF444444), 0.0f, 0.0f,
+				Colour(0xFF222222), 0.0f, (float)getHeight(), false);
 
-		g.setGradientFill(grad);
+			g.setGradientFill(grad);
 
-		g.fillAll();
+			g.fillAll();
 
-		g.setColour(Colours::lightgrey.withAlpha(0.4f));
-		g.drawRect(getLocalBounds(), 1);
+			g.setColour(Colours::lightgrey.withAlpha(0.4f));
+			g.drawRect(getLocalBounds(), 1);
+		}
+		
     
 
 
@@ -217,6 +237,8 @@ private:
     
     Path gridPath, tracePath;
     
+	bool showLines = true;
+	bool useFlatDesign = false;
 	
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FilterGraph)
