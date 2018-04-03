@@ -215,6 +215,85 @@ void DialogWindowWithBackgroundThread::runThread()
 	thread->startThread();
 }
 
+void DialogWindowWithBackgroundThread::AdditionalRow::addComboBox(const String& name, const StringArray& items, const String& label, int width/*=0*/)
+{
+	auto listener = dynamic_cast<ComboBoxListener*>(parent);
+
+	auto t = new ComboBox(label);
+	t->setName(name);
+	t->addItemList(items, 1);
+
+	if (listener != nullptr)
+		t->addListener(listener);
+
+	t->setSelectedItemIndex(0, dontSendNotification);
+
+	addCustomComponent(t, label, width);
+}
+
+void DialogWindowWithBackgroundThread::AdditionalRow::addCustomComponent(Component* newComponent, const String& name, int width/*=0*/)
+{
+	auto c = new Column(newComponent, name, width);
+
+	addAndMakeVisible(c);
+	columns.add(c);
+	
+	resized();
+}
+
+void DialogWindowWithBackgroundThread::AdditionalRow::addButton(const String& name, const KeyPress& k/*=KeyPress()*/, int width/*=0*/)
+{
+	auto t = new TextButton(name);
+
+	t->addListener(this);
+	t->addShortcut(k);
+
+	if (k.isValid())
+		t->setButtonText(t->getButtonText() + " (" + k.getTextDescriptionWithIcons() + ")");
+
+	addCustomComponent(t, "", width);
+}
+
+void DialogWindowWithBackgroundThread::AdditionalRow::resized()
+{
+	if (getWidth() == 0)
+		return;
+
+	int totalWidth = getWidth() - (columns.size()-1) * 10;
+
+	int numToDivide = columns.size();
+
+	for (auto* c : columns)
+	{
+		int w = c->width;
+
+		if (w > 0)
+		{
+			totalWidth -= w;
+			numToDivide--;
+		}
+	}
+
+	int widthPerComponent = 0;
+
+	if (numToDivide > 0)
+	{
+		widthPerComponent = totalWidth / numToDivide;
+	}
+
+	int x = 0;
+
+	for (auto c: columns)
+	{
+		int widthToUse = c->width > 0 ? c->width : widthPerComponent;
+
+		c->setBounds(x, 0, widthToUse, getHeight());
+		x += widthToUse;
+		x += 10;
+	}
+}
+
+
 
 ModalBaseWindow::ModalBaseWindow()
 {
@@ -730,5 +809,126 @@ File SampleDataImporter::getSourceFile() const
 	return targetFile->getCurrentFile();
 }
 
+
+juce::Path DialogWindowWithBackgroundThread::AdditionalRow::Column::getPath()
+{
+	static const unsigned char pathData[] = { 110,109,0,183,97,67,0,111,33,67,98,32,154,84,67,0,111,33,67,128,237,73,67,32,27,44,67,128,237,73,67,0,56,57,67,98,128,237,73,67,224,84,70,67,32,154,84,67,128,1,81,67,0,183,97,67,128,1,81,67,98,224,211,110,67,128,1,81,67,0,128,121,67,224,84,70,67,0,128,
+		121,67,0,56,57,67,98,0,128,121,67,32,27,44,67,224,211,110,67,0,111,33,67,0,183,97,67,0,111,33,67,99,109,0,183,97,67,0,111,37,67,98,119,170,108,67,0,111,37,67,0,128,117,67,137,68,46,67,0,128,117,67,0,56,57,67,98,0,128,117,67,119,43,68,67,119,170,108,67,
+		128,1,77,67,0,183,97,67,128,1,77,67,98,137,195,86,67,128,1,77,67,128,237,77,67,119,43,68,67,128,237,77,67,0,56,57,67,98,128,237,77,67,137,68,46,67,137,195,86,67,0,111,37,67,0,183,97,67,0,111,37,67,99,109,0,124,101,67,32,207,62,67,108,0,16,94,67,32,207,
+		62,67,108,0,16,94,67,32,17,62,67,113,0,16,94,67,32,44,60,67,0,126,94,67,32,0,59,67,113,0,236,94,67,32,207,57,67,0,195,95,67,32,213,56,67,113,0,159,96,67,32,219,55,67,0,151,99,67,32,101,53,67,113,0,44,101,67,32,27,52,67,0,44,101,67,32,8,51,67,113,0,44,
+		101,67,32,245,49,67,0,135,100,67,32,95,49,67,113,0,231,99,67,32,196,48,67,0,157,98,67,32,196,48,67,113,0,58,97,67,32,196,48,67,0,79,96,67,32,175,49,67,113,0,105,95,67,32,154,50,67,0,40,95,67,32,227,52,67,108,0,148,87,67,32,243,51,67,113,0,248,87,67,32,
+		197,47,67,0,155,90,67,32,59,45,67,113,0,67,93,67,32,172,42,67,0,187,98,67,32,172,42,67,113,0,253,102,67,32,172,42,67,0,155,105,67,32,115,44,67,113,0,41,109,67,32,218,46,67,0,41,109,67,32,219,50,67,113,0,41,109,67,32,132,52,67,0,62,108,67,32,15,54,67,
+		113,0,83,107,67,32,154,55,67,0,126,104,67,32,212,57,67,113,0,133,102,67,32,100,59,67,0,254,101,67,32,89,60,67,113,0,124,101,67,32,73,61,67,0,124,101,67,32,207,62,67,99,109,0,207,93,67,32,200,64,67,108,0,194,101,67,32,200,64,67,108,0,194,101,67,32,203,
+		71,67,108,0,207,93,67,32,203,71,67,108,0,207,93,67,32,200,64,67,99,101,0,0 };
+
+	Path path;
+	path.loadPathFromData(pathData, sizeof(pathData));
+
+
+	return path;
+}
+
+MarkdownParser::MarkdownParser(const String& markdownCode_) :
+	markdownCode(markdownCode_)
+{
+	Font bold = GLOBAL_BOLD_FONT();
+	Font normal = GLOBAL_FONT();
+	Font code = GLOBAL_MONOSPACE_FONT();
+}
+
+juce::AttributedString MarkdownParser::parse()
+{
+	Iterator it(markdownCode);
+
+	juce::juce_wchar c;
+
+	while(it.next(c))
+	{
+		switch (c)
+		{
+		case '*':
+		{
+			if (it.peek() == '*')
+			{
+				it.next(c);
+
+				isBold = !isBold;
+				currentFont = isBold ? GLOBAL_BOLD_FONT() : GLOBAL_FONT();
+			}
+			else
+			{
+				isItalic = !isItalic;
+			}
+
+			break;
+		}
+		case '#':
+		{
+			headlineLevel = 1;
+
+			while (it.next(c) && c == '#')
+			{
+				headlineLevel++;
+			}
+
+			break;
+		}
+		case '\n':
+		{
+			headlineLevel = 0;
+		}
+		default:
+			
+			currentFont = currentFont.withHeight(14.0 + 2 * headlineLevel);
+			s.append(String(c), currentFont);
+		}
+	}
+
+	return s;
+}
+
+void MarkdownParser::parseBoldBlock()
+{
+	juce::juce_wchar c;
+
+	while (it.next(c))
+	{
+		switch (c)
+		{
+		case '*':
+		{
+			if (it.peek() == '*')
+			{
+				it.next(c);
+				return;
+			}
+			else
+			{
+				parseItalicBlock();
+			}
+		}
+		}
+	}
+}
+
+void MarkdownParser::parseItalicBlock()
+{
+
+}
+
+void MarkdownParser::parseHeadline(int level)
+{
+
+}
+
+void MarkdownParser::parseText()
+{
+
+}
+
+juce::CharPointer_UTF8 MarkdownParser::parseMarkdownBlock()
+{
+
+}
 
 } // namespace hise

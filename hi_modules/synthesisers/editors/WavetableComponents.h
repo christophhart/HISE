@@ -202,6 +202,8 @@ public:
 
 	CombinedPreview(SampleMapToWavetableConverter& parent)
 	{
+		setName("Preview");
+
 		addAndMakeVisible(sampleMapButton = new TextButton("Sample Map"));
 		addAndMakeVisible(spectrumButton = new TextButton("Spectrum"));
 		addAndMakeVisible(sampleMap = new SampleMapToWavetableConverter::SampleMapPreview(parent));

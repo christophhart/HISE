@@ -482,14 +482,15 @@ public:
 		r(Result::ok())
 	{
 		
-		sampleMapFile = new FilenameComponent("SampleMap", GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps), false, false, false, "*.xml", "", "Choose SampleMap");
+		sampleMapFile = new FilenameComponent("SampleMap", GET_PROJECT_HANDLER(chain).getWorkDirectory(), false, false, false, "*.wtc", "", "Load Wavetable Conversion File");
 		sampleMapFile->addListener(this);
-		sampleMapFile->setSize(512, 24);
 		
+		fileHandling = new AdditionalRow(this);
+		fileHandling->addCustomComponent(sampleMapFile, "Wavetable File", 400);
+		fileHandling->addButton("Save");
+		fileHandling->setSize(512, 24+16);
 
-		addCustomComponent(sampleMapFile);
-
-		
+		addCustomComponent(fileHandling);
 
 		StringArray windows;
 		windows.add("Flat Top");
@@ -516,13 +517,15 @@ public:
 		yesNo.add("Yes");
 		yesNo.add("No");
 
+
+
 		selectors = new AdditionalRow(this);
 
 
 
-		selectors->addComboBox("ReverseTables", {"Yes", "No"}, "Reverse Wavetable order", this);
-		selectors->addComboBox("WindowType", windows, "FFT Window Type", this);
-		selectors->addComboBox("FFTSize", sizes, "FFT Size", this);
+		selectors->addComboBox("ReverseTables", {"Yes", "No"}, "Reverse Wavetable order", 90);
+		selectors->addComboBox("WindowType", windows, "FFT Window Type" );
+		selectors->addComboBox("FFTSize", sizes, "FFT Size", 90);
 		
 		selectors->setSize(512, 40);
 		addCustomComponent(selectors);
@@ -554,7 +557,7 @@ public:
 		additionalButtons->addButton("Preview", KeyPress(KeyPress('p')));
 		additionalButtons->addButton("Original", KeyPress(KeyPress('o')));
 
-		additionalButtons->setSize(512, 24);
+		additionalButtons->setSize(512, 32);
 
 		addCustomComponent(additionalButtons);
 
@@ -586,6 +589,7 @@ public:
 	{
 		sampleMapFile->removeListener(this);
 		sampleMapFile = nullptr;
+		fileHandling = nullptr;
 		preview = nullptr;
 		converter = nullptr;
 	}
@@ -711,14 +715,18 @@ public:
 
 	ScopedPointer<CombinedPreview> preview;
 
-	ScopedPointer<FilenameComponent> sampleMapFile;
+	
 	ScopedPointer<SliderPack> gainPack;
 	ScopedPointer<SliderPackData> gainPackData;
 	ModulatorSynthChain* chain;
 	
+	ScopedPointer<AdditionalRow> fileHandling;
+
 	ScopedPointer<AdditionalRow> selectors;
 
 	ScopedPointer<AdditionalRow> additionalButtons;
+
+	Component::SafePointer<FilenameComponent> sampleMapFile;
 
 	ScopedPointer<SampleMapToWavetableConverter> converter;
 
