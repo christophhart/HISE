@@ -117,12 +117,15 @@ public:
 
 			c->useFlatDesign = true;
 			c->showLines = false;
+			
 
 			c->setColour(ColourIds::bgColour, findPanelColour(FloatingTileContent::PanelColourId::bgColour));
 			c->setColour(ColourIds::lineColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour1));
 			c->setColour(ColourIds::fillColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour2));
 			c->setColour(ColourIds::gridColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour3));
 			c->setColour(ColourIds::textColour, findPanelColour(FloatingTileContent::PanelColourId::textColour));
+
+			c->setOpaque(c->findColour(bgColour).isOpaque());
 
 			if (auto f = dynamic_cast<FilterEffect*>(p))
 			{
@@ -536,6 +539,9 @@ void FilterGraph::mouseMove (const MouseEvent &)
     int xPos = mousePos.getX();
     float freq = xToFreq ((float)xPos);
     
+	if (filterVector.size() == 0)
+		return;
+
     if (traceType == Magnitude)
     {
         float magnitude = (float) (filterVector [0]->getResponse (freq).magnitudeValue);
