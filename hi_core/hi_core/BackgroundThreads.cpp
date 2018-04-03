@@ -829,7 +829,8 @@ juce::Path DialogWindowWithBackgroundThread::AdditionalRow::Column::getPath()
 }
 
 MarkdownParser::MarkdownParser(const String& markdownCode_) :
-	markdownCode(markdownCode_)
+	markdownCode(markdownCode_),
+    it(markdownCode)
 {
 	Font bold = GLOBAL_BOLD_FONT();
 	Font normal = GLOBAL_FONT();

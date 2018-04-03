@@ -90,7 +90,7 @@ private:
 
 		Iterator(const String& text_):
 			text(text_),
-			length(text.length),
+			length(text.length()),
 			it(text.getCharPointer()),
 			end(it + length)
 		{
@@ -212,7 +212,7 @@ public:
 
 		template <class ComponentType> ComponentType* getComponent(const String& name)
 		{
-			for (auto c : components)
+			for (auto c : columns)
 			{
 				if (auto typed = dynamic_cast<ComponentType*>(c))
 				{
