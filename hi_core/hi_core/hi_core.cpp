@@ -82,6 +82,7 @@
 #include "Popup.cpp"
 #include "Console.cpp"
 #include "BackgroundThreads.cpp"
+#include "Markdown.cpp"
 #include "SettingsWindows.cpp"
 #include "MiscComponents.cpp"
 #include "JavascriptTokeniser.cpp"

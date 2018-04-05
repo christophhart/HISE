@@ -62,6 +62,8 @@ class ModulatorSynth: public Synthesiser,
 {
 public:
 
+	ADD_DOCUMENTATION();
+
 	// ===================================================================================================================
 
 	enum Parameters

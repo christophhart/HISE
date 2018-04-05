@@ -148,6 +148,16 @@ class LinuxFontHandler
 
 #endif
 
+
+
+#define MARKDOWN_CHAPTER(chapter) namespace chapter {
+#define START_MARKDOWN(name) static const String name() { String content; static const String nl = "\n";
+#define ML(text) content << text << nl;
+#define ML_START_CODE() ML("```javascript")
+#define ML_END_CODE() ML("```")
+#define END_MARKDOWN() return content; };
+#define END_MARKDOWN_CHAPTER() }
+
 #define RETURN_STATIC_IDENTIFIER(name) static const Identifier id(name); return id;
 
 

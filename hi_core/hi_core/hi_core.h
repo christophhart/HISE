@@ -82,6 +82,7 @@ struct TestGlobalNamespace
 #include "Tables.h"
 #include "UpdateMerger.h"
 #include "ExternalFilePool.h"
+#include "Markdown.h"
 #include "BackgroundThreads.h"
 #include "SettingsWindows.h"
 
