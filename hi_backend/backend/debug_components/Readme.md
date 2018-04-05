@@ -33,7 +33,7 @@ RETURN(double, "The time in samples");
 
 You can help extending the API by writing the documentation of a method and post it in this forum topic:
 
-[API Forum Topic](http://forum.hise.audio/)
+[API Forum Topic](https://forum.hise.audio/topic/653/call-for-documentation/)
 
 Or you could make a pull request with the changes to the file `ExtendedApiDocumentation.cpp`. Posting it in the HISE forum is the recommended way though - I am kind of lazy when it comes to pull requests :)
 
