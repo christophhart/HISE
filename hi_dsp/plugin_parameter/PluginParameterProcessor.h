@@ -88,7 +88,11 @@ auto busProp = BusesProperties();
     
     bool isBusesLayoutSupported (const BusesLayout& layouts) const override
     {
+#if FRONTEND_IS_PLUGIN
+		return (layouts.getMainInputChannels() == 2 && layouts.getMainOutputChannels() == 2);
+#else
         return (layouts.getMainInputChannels() == 2);
+#endif
     }
     
 	virtual ~PluginParameterAudioProcessor() {};

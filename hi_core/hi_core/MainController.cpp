@@ -659,6 +659,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	
 #if FRONTEND_IS_PLUGIN
 
+
     const bool isUsingMultiChannel = multiChannelBuffer.getNumChannels() > 2;
     
     if(isUsingMultiChannel)
@@ -677,16 +678,14 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
         
         buffer.clear();
         
-        for (int i = 0; i < matrix.getNumSourceChannels(); i++)
-        {
-            FloatVectorOperations::add(buffer.getWritePointer(i % 2), thisMultiChannelBuffer.getReadPointer(i), bufferSize.get());
-        }
+		// Just use the first two channels. You need to route back all your send channels to the first stereo pair.
+		FloatVectorOperations::add(buffer.getWritePointer(0), thisMultiChannelBuffer.getReadPointer(0), bufferSize.get());
+		FloatVectorOperations::add(buffer.getWritePointer(1), thisMultiChannelBuffer.getReadPointer(1), bufferSize.get());
     }
     else
     {
         synthChain->renderNextBlockWithModulators(buffer, masterEventBuffer);
     }
-    
 	
 
 #else
