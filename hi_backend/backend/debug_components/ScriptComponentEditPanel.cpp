@@ -32,6 +32,44 @@
 
 namespace hise { using namespace juce;
 
+MARKDOWN_CHAPTER(PropertyPanelHelp)
+START_MARKDOWN(Help)
+ML("# Property Editor");
+ML("This panel can be used to change the properties of the currently selected items with full undo support.");
+ML("As soon as you have selected multiple elements, changing the property will set all controls to the given value(with the exception of the position sliders which operate relatively).If the selection has varying values for a property, it will show an asterisk **(*)** instead of the real value indicating that you are editing multiple values");
+
+ML("## Changing the ID");
+ML("The textbox at the top row can be used to change the ID of the element.**");
+ML("> Remember that the ID is **ridiculously important** for almost everything - preset restoring, creating references to scripts, resolving the parent hierarchy etc. Try to pick a name once and stick to it because changing the ID of a control will become more and more painful over the time.");
+ML("As soon as you have selected multiple elements, this text box becomes disabled.");
+
+ML("## Property List");
+
+ML("| Property | Type | Default Value | Description |");
+ML("| ------ | ---- | ----- | --------------- |")
+ML("| `text` | String | the ID of the control | The name or text that is being displayed.How this text is exactly shown(or if it's used at all) depends on the control type. |");
+ML("| `enabled`| Boolean | true | If the control should react on mouse events.Child components will inherit this property. |");
+ML("| `visible` | Boolean | true | If the control is displayed or hidden.Child components will inherit this property. |");
+ML("| `tooltip` | String | Empty | A informative text that will popup if you hover over the control. |");
+ML("| `useUndoManager` | Boolean | false | If enabled, value changes can be undone with the scripting calls `Engine.undo()` |");
+ML("| `macroControl` | Number(1 - 8) | -1 | Connect this control to a macro control slot. |");
+ML("| `saveInPreset` | Boolean | Depends on the type | If true, this control will be saved in a user preset as well as restored on recompilation.If false, controls will not be stored in the preset and their control callback will not be fired after compilation.This is a very important property and you definitely need to know when to use it. |");
+ML("| `isPluginParameter` | Boolean | false | If enabled, it exposes this control to a DAW for host automation. |");
+ML("| `pluginParameterName` | String | Empty | If this control is a plugin parameter, it will use this name for displaying in the host.| ");
+ML("| `processorId` | Module ID | Empty | The module that is controlled by this control |");
+ML("| `parameterId` | Parameter ID | Empty | the parameter ID of the module specified above that should be controlled.Use these two properties in order to hook up the control to a single parameter using the exact same range you specified below.As soon as you need something more complex, you need to use the scripting callbacks for it. |");
+ML("| `x`, `y`, `width`, `height` | Number | Various | The absolute pixel position / size of the control.You can use the sliders to change them relatively or just input a number into the text field to set all selected controls to the same value. |");
+ML("| `bgColour`, `itemColour`, `itemColour2`, `textColour` | String or hex number | Various | the colours for the given control.How these colours are used differs between the control types, but in most cases, `bgColour` is the background colour and `textColour` is used for rendering the text, otherwise it would be a bit weird. |");
+
+ML("## Copying multiple properties to a selection");
+ML("- Select one control and set all its properties how you need them.");
+ML("- Now select the properties by clicking on the property name. You'll notice it will be highlighted. Use the usual modifier keys for selecting multiple properties.");
+ML("- Click on the **Copy** button to create a JSON containing all selected properties with their value. ");
+ML("- Select all controls that you want to paste the property selection.");
+ML("- Click on the **Paste** button and all selected properties will be pasted for the entire selection.");
+END_MARKDOWN()
+END_MARKDOWN_CHAPTER()
+
 ScriptComponentEditPanel::ScriptComponentEditPanel(BackendRootWindow* rootWindow, Processor* p) :
 	ScriptComponentEditListener(p),
 	mc(rootWindow->getBackendProcessor()),
@@ -55,17 +93,21 @@ ScriptComponentEditPanel::ScriptComponentEditPanel(BackendRootWindow* rootWindow
 	Colour over = Colours::white.withAlpha(0.8f);
 	Colour down = Colours::white;
 
+	Factory f;
+
 	addAndMakeVisible(copyButton = new ShapeButton("Copy", normal, over, down));
-	copyButton->setShape(PathFactory::createPath(PathFactory::Copy), true, true, true);
+	copyButton->setShape(f.createPath("Copy"), true, true, true);
 	copyButton->addListener(this);
 	copyButton->setTooltip("Copy the selected properties");
 
 	addAndMakeVisible(pasteButton = new ShapeButton("Paste", normal, over, down));
-	pasteButton->setShape(PathFactory::createPath(PathFactory::Paste), true, true, true);
+	pasteButton->setShape(f.createPath("Paste"), true, true, true);
 	pasteButton->addListener(this);
 	pasteButton->setTooltip("Paste the copied properties to the selection");
 	
-
+	addAndMakeVisible(helpButton = new MarkdownHelpButton());
+	helpButton->setPopupWidth(600);
+	helpButton->setHelpText<MarkdownParser::PathProvider<Factory>>(PropertyPanelHelp::Help());
 
 	addAndMakeVisible(panel = new PropertyPanel());
 
@@ -361,13 +403,13 @@ void ScriptComponentEditPanel::resized()
 	const int numButtons = 2;
 
 	auto buttonArea = topRow.removeFromRight(numButtons * 24);
+	helpButton->setBounds(topRow.removeFromLeft(24).reduced(3));
 
 	idEditor->setBounds(topRow.withHeight(23));
 
 	copyButton->setBounds(buttonArea.removeFromLeft(24).reduced(3));
-	
 	pasteButton->setBounds(buttonArea.removeFromLeft(24).reduced(3));
-
+	
 	
 	
 	panel->setBounds(b);

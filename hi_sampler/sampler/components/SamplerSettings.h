@@ -167,6 +167,7 @@ private:
 	int currentChannel;
 	int currentChannelSize;
 
+	ScopedPointer<ModulatorSampler::Documentation> docs;
 
 	int h;
     //[/UserVariables]

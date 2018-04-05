@@ -26,6 +26,44 @@ namespace hise { using namespace juce;
 
 
 //[MiscUserDefs] You can add your own user definitions and misc code here...
+
+MARKDOWN_CHAPTER(SamplerTableHelp)
+START_MARKDOWN(RegexHelp)
+ML("# RegEx Cheatsheet");
+ML("- Use the regex parser as a normal wildcard search engine until it does not do what you want.");
+ML("- Select all with `.`");
+ML("- if you want to subtract something from the selection, use the prefix `sub:` (this is not official regex, but I added it for simpler handling)");
+ML("- if you want to add something to the selection but keep the other sounds selected, use the prefix `add:`");
+ML("- the end of the filename can be checked with `$`, the start of the filename can be checked with `^`.");
+
+ML("## Isolate a token in the file name")
+ML("If you want to check one specific token only (tokens are supposed to be parts of the filename that are divided by the separation character (eg. `_`), you can use this expression:");
+
+ML_START_CODE();
+ML("^.*_.*[Interesting part].*_.*");
+ML("1  2                      3");
+ML_END_CODE();
+
+ML("Whatever you enter into `[Interesting part]` will be checked only against the second token (if `_` is our separation character of course). If you have a (rather bad) filename structure like this:");
+
+ML_START_CODE()
+ML("Sample_3_50_1_127.wav");
+ML_END_CODE()
+
+ML("where there are only numbers, you can use this trick to still get the samples you want.  ");
+ML("Let's say the first number is the round robin group and we want to change the volume of the second round robin group by -6db. Just using `2` would cause all kinds of mayhem. Using `_2_` would be a little bit better, but there is no guarantee that the other tokens are not this value. The solution for this case would be:");
+
+ML_START_CODE();
+ML("^.*_2_.*");
+ML_END_CODE();
+
+ML("There are two regex elements used in this expression: the beginning of the filename character `^` and the combination `.*` which simply means");
+ML("> an arbitrary amount of any character.");
+ML("Translated into english this expression would be:");
+ML("> Any amount of characters after the beginning of the file up to the first underscore, then exactly `2`, then another underscore followed by anything.");
+END_MARKDOWN()
+END_MARKDOWN_CHAPTER()
+
 //[/MiscUserDefs]
 
 //==============================================================================
@@ -63,6 +101,10 @@ SamplerTable::SamplerTable (ModulatorSampler *s, SamplerBody *b):
 	numSelected = 0;
 
 	
+	addAndMakeVisible(helpButton = new MarkdownHelpButton());
+
+	helpButton->setPopupWidth(600);
+	helpButton->setHelpText(SamplerTableHelp::RegexHelp());
 
     //[/UserPreSize]
 
@@ -155,6 +197,9 @@ void SamplerTable::resized()
     table->setBounds (8, 40, getWidth() - 16, getHeight() - 45);
     searchLabel->setBounds (32, 8, 192, 24);
     //[UserResized] Add your own custom resize handling here..
+
+	helpButton->setBounds(searchLabel->getRight() + 4 , 10, 20, 20);
+
     //[/UserResized]
 }
 

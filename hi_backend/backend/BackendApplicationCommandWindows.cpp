@@ -32,6 +32,47 @@
 
 namespace hise { using namespace juce;
 
+
+
+
+MARKDOWN_CHAPTER(WavetableHelp)
+
+START_MARKDOWN(FileBrowserDescription)
+ML("# Wavetable Conversion File")
+ML("You can load / save configuration files that store the current settings of this dialogue.  ")
+ML("The settings will be written to the specified file when you press **OK**. In order to load a configuration, just open a previously stored file.")
+ML("## Stored information")
+ML("- Settings")
+ML("- Samplemap. ")
+ML("- Analysis progress")
+ML("- Harmonic Map of each analysed sample")
+ML("- Gain table of each analysed sample")
+END_MARKDOWN()
+
+START_MARKDOWN(ReverseWavetables)
+ML("# Reverse Wavetable order")
+ML("If this is enabled, it will store the wavetables in reversed order.  ")
+ML("This is useful if you have decaying samples and want to use the table index to modulate the decay process")
+END_MARKDOWN()
+
+START_MARKDOWN(WindowType)
+ML("# FFT Window Type")
+ML("This changes the window function that is applied to the signal before the FFT.  ")
+ML("The selection of the right window function has a drastic impact on the resulting accuracy and varies between different signal types. ")
+ML("Try out different window types and compare the results.");
+END_MARKDOWN()
+
+START_MARKDOWN(WindowSize)
+ML("# FFT Window Size")
+ML("Changes the size of the chunk that is used for the FFT.  ")
+ML("Generally, lower values yield more accurate results (and sizes above 2048 tend to smear the wavetables because their range start to overlap).  ");
+ML("However lower frequencies can't be detected with small FFT sizes so it might not work.    ")
+ML("> The recommended approach is to choose the **lowest possible FFT size** that still creates a reasonable harmonic spectrum.");
+END_MARKDOWN()
+
+END_MARKDOWN_CHAPTER()
+
+
 static bool canConnectToWebsite(const URL& url)
 {
 	ScopedPointer<InputStream> in(url.createInputStream(false, nullptr, nullptr, String(), 2000, nullptr));
@@ -482,12 +523,15 @@ public:
 		r(Result::ok())
 	{
 		
-		sampleMapFile = new FilenameComponent("SampleMap", GET_PROJECT_HANDLER(chain).getWorkDirectory(), false, false, false, "*.wtc", "", "Load Wavetable Conversion File");
+		sampleMapFile = new FilenameComponent("SampleMap", GET_PROJECT_HANDLER(chain).getWorkDirectory(), true, false, true, "*.wtc", "", "Load Wavetable Conversion File");
 		sampleMapFile->addListener(this);
 		
 		fileHandling = new AdditionalRow(this);
-		fileHandling->addCustomComponent(sampleMapFile, "Wavetable File", 400);
-		fileHandling->addButton("Save");
+		fileHandling->addCustomComponent(sampleMapFile, "Wavetable File");
+
+		fileHandling->setInfoTextForLastComponent(WavetableHelp::FileBrowserDescription());
+
+		
 		fileHandling->setSize(512, 24+16);
 
 		addCustomComponent(fileHandling);
@@ -524,9 +568,12 @@ public:
 
 
 		selectors->addComboBox("ReverseTables", {"Yes", "No"}, "Reverse Wavetable order", 90);
+		selectors->setInfoTextForLastComponent(WavetableHelp::ReverseWavetables());
 		selectors->addComboBox("WindowType", windows, "FFT Window Type" );
+		selectors->setInfoTextForLastComponent(WavetableHelp::WindowType());
 		selectors->addComboBox("FFTSize", sizes, "FFT Size", 90);
-		
+		selectors->setInfoTextForLastComponent(WavetableHelp::WindowSize());
+
 		selectors->setSize(512, 40);
 		addCustomComponent(selectors);
 
@@ -596,6 +643,13 @@ public:
 
 	void filenameComponentChanged(FilenameComponent* /*fileComponentThatHasChanged*/) override
 	{
+		currentFile = sampleMapFile->getCurrentFile();
+
+		if (currentFile.existsAsFile())
+		{
+			
+		}
+
 		converter->parseSampleMap(sampleMapFile->getCurrentFile());
 		converter->refreshCurrentWavetable(getProgressCounter());
 		refreshPreview();
@@ -729,6 +783,8 @@ public:
 	Component::SafePointer<FilenameComponent> sampleMapFile;
 
 	ScopedPointer<SampleMapToWavetableConverter> converter;
+
+	File currentFile;
 
 };
 
