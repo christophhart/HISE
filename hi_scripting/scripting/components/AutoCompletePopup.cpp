@@ -483,6 +483,8 @@ bool JavascriptCodeEditor::AutoCompletePopup::handleEditorKeyPress(const KeyPres
 		rebuildVisibleItems(selection);
 		return false;
 	}
+
+	return false;
 }
 
 void JavascriptCodeEditor::AutoCompletePopup::paint(Graphics& g)

@@ -1594,7 +1594,7 @@ public:
 		s->removeChangeListener(this);
 	}
 
-	void changeListenerCallback(SafeChangeBroadcaster *b) override
+	void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override
 	{
 		if (auto v = s->getLastStartedVoice())
 		{

@@ -74,7 +74,7 @@ public:
 		return fid;
 	}
 
-	void changeListenerCallback(SafeChangeBroadcaster *b) override
+	void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override
 	{
 		updateCoefficients();
 	}
@@ -188,9 +188,9 @@ private:
 			addFilter(c, i, eq->getFilterBand(i)->getFilterType());
 		}
 
-		int numFilters = eq->getNumFilterBands();
+		int numFilterBands = eq->getNumFilterBands();
 
-		if (numFilters == 0)
+		if (numFilterBands == 0)
 		{
 			c->repaint();
 		}

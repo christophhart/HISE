@@ -74,7 +74,7 @@ struct MarkdownParser::TextBlock : public MarkdownParser::Element
 
 	AttributedString content;
 
-	const int intendation = 5.0f;
+	const float intendation = 5.0f;
 
 	float lastWidth = -1.0f;
 	float lastHeight = -1.0f;
@@ -94,7 +94,7 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 
 	void draw(Graphics& g, Rectangle<float> area) override;
 
-	float getHeightForWidth(float width) override
+	float getHeightForWidth(float /*width*/) override
 	{
 
 
@@ -258,7 +258,7 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 
 	void draw(Graphics& g, Rectangle<float> area) override
 	{
-		g.drawImageAt(renderedCodePreview, area.getX(), area.getY() + 10);
+		g.drawImageAt(renderedCodePreview, (int)area.getX(), (int)area.getY() + 10);
 	}
 
 	float getHeightForWidth(float width) override
@@ -276,7 +276,7 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 
 			ScopedPointer<CodeEditorComponent> editor = new CodeEditorComponent(*doc, tok);
 
-			editor->setSize(width, editor->getLineHeight() * numLines + 25);
+			editor->setSize((int)width, editor->getLineHeight() * numLines + 25);
 
 			editor->setColour(CodeEditorComponent::backgroundColourId, Colour(0xff262626));
 			editor->setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFCCCCCC));
@@ -291,7 +291,7 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 			renderedCodePreview = editor->createComponentSnapshot(editor->getLocalBounds());
 
 			lastWidth = width;
-			lastHeight = editor->getHeight() + 20;
+			lastHeight = (float)editor->getHeight() + 20.0f;
 
 			return lastHeight;
 		}
@@ -326,7 +326,7 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 		if (parent->imageProvider != nullptr)
 		{
 			img = parent->imageProvider->getImage(imageURL, width);
-			return img.getHeight();
+			return (float)img.getHeight();
 		}
 
 		return 0.0f;
@@ -335,7 +335,7 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 	void draw(Graphics& g, Rectangle<float> area)
 	{
 		g.setOpacity(1.0f);
-		g.drawImageAt(img, area.getX(), area.getY());
+		g.drawImageAt(img, (int)area.getX(), (int)area.getY());
 	}
 
 	String getImageURL() const { return imageURL; }
@@ -408,17 +408,17 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 		
 		g.setColour(Colours::grey.withAlpha(0.2f));
 
-		g.drawVerticalLine(area.getX(), area.getY(), area.getBottom());
+		g.drawVerticalLine((int)area.getX(), area.getY(), area.getBottom());
 
 		for (const auto& c : headers.columns)
 		{
 			
 			if(c.index != headers.columns.getLast().index)
-				g.drawVerticalLine(c.area.getRight(), area.getY(), area.getBottom());
+				g.drawVerticalLine((int)c.area.getRight(), area.getY(), area.getBottom());
 
 		}
 
-		g.drawVerticalLine(area.getRight()-1, area.getY(), area.getBottom());
+		g.drawVerticalLine((int)area.getRight()-1, area.getY(), area.getBottom());
 		
 		
 
@@ -432,7 +432,7 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 			r.draw(g, rowArea);
 
 			g.setColour(Colours::grey.withAlpha(0.2f));
-			g.drawHorizontalLine(rowArea.getBottom(), rowArea.getX(), rowArea.getRight());
+			g.drawHorizontalLine((int)rowArea.getBottom(), rowArea.getX(), rowArea.getRight());
 		}
 	}
 
@@ -481,7 +481,7 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 	{
 		const float intendation = 8.0f;
 
-		float calculateHeightForCell(Cell& c, float width, MarkdownParser* parent)
+		float calculateHeightForCell(Cell& c, float width, MarkdownParser* parser)
 		{
 			if (!c.content.getText().isEmpty())
 			{
@@ -489,12 +489,12 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 			}
 			else
 			{
-				c.img = parent->imageProvider->getImage(c.imageURL, width - 4.0f);
+				c.img = parser->imageProvider->getImage(c.imageURL, width - 4.0f);
 				return (float)c.img.getHeight();
 			}
 		}
 
-		void updateHeight(float width, float& y, MarkdownParser* parent)
+		void updateHeight(float width, float& y, MarkdownParser* parser)
 		{
 			rowHeight = 0.0f;
 
@@ -510,7 +510,7 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 			{
 				float w = getColumnWidth(width, h.index);
 
-				rowHeight = jmax<float>(rowHeight, calculateHeightForCell(h, w - 2.0f * intendation, parent) + 2.0f * intendation );
+				rowHeight = jmax<float>(rowHeight, calculateHeightForCell(h, w - 2.0f * intendation, parser) + 2.0f * intendation );
 
 				h.area = Rectangle<float>(x, 0.0f, w, rowHeight);
 
@@ -542,11 +542,11 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 			}
 		}
 
-		float getColumnWidth(float width, int index) const
+		float getColumnWidth(float width, int columnIndex) const
 		{
 			if (totalLength > 0)
 			{
-				float fraction = (float)columns[index].length / (float)totalLength;
+				float fraction = (float)columns[columnIndex].length / (float)totalLength;
 				return fraction * width;
 			}
 			else return
@@ -613,10 +613,6 @@ void MarkdownParser::Iterator::skipWhitespace()
 
 void MarkdownParser::parse()
 {
-	juce::juce_wchar c;
-
-	
-
 	while (it.peek() != 0)
 		parseBlock();
 	
@@ -834,7 +830,7 @@ void MarkdownParser::parseTable()
 	RowContent headerItems;
 
 
-	juce_wchar c = it.peek();
+	it.peek();
 
 	while (!Helpers::isEndOfLine(it.peek()))
 	{
@@ -862,8 +858,7 @@ void MarkdownParser::parseTable()
 			headerItems.add(newCell);
 	}
 
-	int numColumns = 0;
-
+	
 	it.advance();
 
 	Array<int> lengths;
@@ -1004,7 +999,7 @@ struct MarkdownHelpButton::MarkdownHelp : public Component
 	{
 		setWantsKeyboardFocus(false);
 
-		img = Image(Image::ARGB, lineWidth, parser->getHeightForWidth((float)lineWidth), true);
+		img = Image(Image::ARGB, lineWidth, (int)parser->getHeightForWidth((float)lineWidth), true);
 		Graphics g(img);
 
 		parser->draw(g, { 0.0f, 0.0f, (float)img.getWidth(), (float)img.getHeight() });
@@ -1013,7 +1008,7 @@ struct MarkdownHelpButton::MarkdownHelp : public Component
 		
 	}
 
-	void mouseDown(const MouseEvent& e) override
+	void mouseDown(const MouseEvent& /*e*/) override
 	{
 		if (auto cb = findParentComponentOfClass<CallOutBox>())
 		{
@@ -1046,7 +1041,7 @@ MarkdownHelpButton::MarkdownHelpButton() :
 
 
 
-void MarkdownHelpButton::buttonClicked(Button* b)
+void MarkdownHelpButton::buttonClicked(Button* /*b*/)
 {
 	
 	if (parser != nullptr)
@@ -1060,7 +1055,7 @@ void MarkdownHelpButton::buttonClicked(Button* b)
 			auto nc = new MarkdownHelp(parser, popupWidth);
 
 			auto window = getTopLevelComponent();
-			auto b = window->getLocalArea(this, getLocalBounds());
+			auto lb = window->getLocalArea(this, getLocalBounds());
 
 			if (nc->getHeight() > 700)
 			{
@@ -1070,12 +1065,12 @@ void MarkdownHelpButton::buttonClicked(Button* b)
 				viewport->setSize(nc->getWidth() + viewport->getScrollBarThickness(), 700);
 				viewport->setScrollBarsShown(true, false, true, false);
 
-				currentPopup = &CallOutBox::launchAsynchronously(viewport, b, window);
+				currentPopup = &CallOutBox::launchAsynchronously(viewport, lb, window);
 				currentPopup->setWantsKeyboardFocus(!ignoreKeyStrokes);
 			}
 			else
 			{
-				currentPopup = &CallOutBox::launchAsynchronously(nc, b, window);
+				currentPopup = &CallOutBox::launchAsynchronously(nc, lb, window);
 				currentPopup->setWantsKeyboardFocus(!ignoreKeyStrokes);
 			}
 		}

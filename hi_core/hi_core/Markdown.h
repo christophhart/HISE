@@ -54,15 +54,15 @@ public:
 		*
 		*	The default function just returns a placeholder.
 		*/
-		virtual Image getImage(const String& imageURL, float width)
+		virtual Image getImage(const String& /*imageURL*/, float width)
 		{
-			Image img = Image(Image::PixelFormat::ARGB, width, width, true);
+			Image img = Image(Image::PixelFormat::ARGB, (int)width, (int)width, true);
 			Graphics g(img);
 			g.fillAll(Colours::grey);
 			g.setColour(Colours::black);
 			g.drawRect(0.0f, 0.0f, width, width, 1.0f);
 			g.setFont(GLOBAL_BOLD_FONT());
-			g.drawText("Empty", 0.0f, 0.0f, width, width, Justification::centred);
+			g.drawText("Empty", 0, 0, (int)width, (int)width, Justification::centred);
 			return img;
 		}
 
@@ -90,7 +90,7 @@ public:
 
 				p.scaleToFit(0.0f, 0.0f, floorf(width), floorf(width / r), true);
 
-				Image img(Image::PixelFormat::ARGB, p.getBounds().getWidth(), p.getBounds().getHeight(), true);
+				Image img(Image::PixelFormat::ARGB, (int)p.getBounds().getWidth(), (int)p.getBounds().getHeight(), true);
 
 				Graphics g(img);
 
@@ -390,7 +390,7 @@ public:
 		}
 	}
 
-	void componentMovedOrResized(Component& c, bool wasMoved, bool wasResized) override
+	void componentMovedOrResized(Component& c, bool /*wasMoved*/, bool /*wasResized*/) override
 	{
 		auto cBounds = c.getBoundsInParent();
 

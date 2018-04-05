@@ -524,7 +524,7 @@ juce::Result SampleMapToWavetableConverter::calculateHarmonicMap()
 		AudioSampleBuffer harmonics(2, numHarmonics);
 
 		auto estimatedPitch = MidiMessage::getMidiNoteInHertz(m.index.noteNumber);
-		auto numSamplesNeeded = PitchDetection::getNumSamplesNeeded(sampleRate, estimatedPitch);
+		
 		auto thisPitch = ResynthesisHelpers::getRootFrequencyInBuffer(p, sampleRate, estimatedPitch);
 
 		auto estimatedRatio = thisPitch / estimatedPitch;
@@ -745,7 +745,7 @@ juce::AudioSampleBuffer SampleMapToWavetableConverter::getPreviewBuffers(bool or
 
 			auto numWavetables = (float)currentSampleLength / (float)length;
 
-			int numWaveTablesPerPart = jmax<int>(1, nextPowerOfTwo(numWavetables / (float)numParts));
+			int numWaveTablesPerPart = jmax<int>(1, nextPowerOfTwo(roundToInt(numWavetables / (float)numParts)));
 
 			int newLength = numWaveTablesPerPart * length * (numParts + 1);
 

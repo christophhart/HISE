@@ -669,7 +669,6 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
         thisMultiChannelBuffer.clear();
         
         FloatVectorOperations::copy(thisMultiChannelBuffer.getWritePointer(0), buffer.getReadPointer(0), bufferSize.get());
-        
         FloatVectorOperations::copy(thisMultiChannelBuffer.getWritePointer(1), buffer.getReadPointer(1), bufferSize.get());
         
         synthChain->renderNextBlockWithModulators(thisMultiChannelBuffer, masterEventBuffer);
