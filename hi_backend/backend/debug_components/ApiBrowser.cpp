@@ -54,8 +54,20 @@ className(className_)
 {
 	setSize(380 - 16 - 8 - 24, ITEM_HEIGHT);
 
+	auto extendedHelp = ExtendedApiDocumentation::getMarkdownText(className, name);
+
+	if (extendedHelp.isNotEmpty())
+	{
+		parser = new MarkdownParser(extendedHelp);
+		parser->setTextColour(Colours::white);
+		parser->setDefaultTextSize(15.0f);
+		parser->parse();
+	}
+
 	help = ApiHelpers::createAttributedStringFromApi(methodTree, className, true, Colours::white);
 }
+
+
 
 
 void ApiCollection::MethodItem::mouseDoubleClick(const MouseEvent&)
@@ -108,6 +120,10 @@ void ApiCollection::MethodItem::paint(Graphics& g)
 }
 
 
+Array<ExtendedApiDocumentation::ClassDocumentation> ExtendedApiDocumentation::classes;
+
+bool ExtendedApiDocumentation::inititalised = false;
+
 ApiCollection::ClassCollection::ClassCollection(const ValueTree &api) :
 classApi(api),
 name(api.getType().toString())
@@ -115,6 +131,8 @@ name(api.getType().toString())
 	for (int i = 0; i < api.getNumChildren(); i++)
 	{
 		items.add(new MethodItem(api.getChild(i), name));
+
+		
 
 		addAndMakeVisible(items.getLast());
 	}
@@ -125,6 +143,112 @@ void ApiCollection::ClassCollection::paint(Graphics &g)
 	g.setColour(Colours::white.withAlpha(0.9f));
 	g.setFont(GLOBAL_MONOSPACE_FONT());
 	g.drawText(name, 10, 0, getWidth() - 10, COLLECTION_HEIGHT, Justification::centredLeft, true);
+}
+
+ExtendedApiDocumentation::MethodDocumentation::MethodDocumentation(Identifier& className_, const Identifier& id) :
+	DocumentationBase(id),
+	className(className_.toString())
+{
+
+}
+
+juce::String ExtendedApiDocumentation::MethodDocumentation::createMarkdownText() const
+{
+	String s;
+
+	s << "## " << className << "." << id.toString() << "\n";
+
+	s << "> `";
+	s << returnType.type << " " << className << "." << id << "(";
+
+	for (const auto& p : parameters)
+		s << p.type << " " << p.id << (p == parameters.getLast() ? "" : ", ");
+
+	s << ")`\n";
+	
+	s << description << "\n";
+
+
+	if (codeExample.isNotEmpty())
+	{
+		s << "### Code Example: \n";
+		s << "```javascript\n";
+		s << codeExample << "\n";
+		s << "```\n\n";
+	}
+
+	if (parameters.size() > 0)
+	{
+		s << "### Parameters\n";
+
+		s << "| Name | Type | Description |\n";
+		s << "| ---- | --- | ------------- |\n";
+
+		for (const auto& p : parameters)
+		{
+			s << "| " << p.id << " | `" << p.type << "` | " << p.description << " |\n";
+		}
+	}
+
+	if (returnType.description.isNotEmpty())
+	{
+		s << "### Returns\n";
+
+		s << "`" << returnType.type << "`: " << returnType.description << "\n";
+	}
+
+	return s;
+}
+
+ExtendedApiDocumentation::ClassDocumentation::ClassDocumentation(const Identifier& className) :
+	DocumentationBase(className)
+{
+
+}
+
+hise::ExtendedApiDocumentation::MethodDocumentation* ExtendedApiDocumentation::ClassDocumentation::addMethod(const Identifier& methodName)
+{
+	methods.add(MethodDocumentation(id, methodName));
+
+	return methods.getRawDataPointer() + methods.size() - 1;
+}
+
+juce::String ExtendedApiDocumentation::ClassDocumentation::createMarkdownText() const
+{
+	String s;
+
+	s << "# Class " << id.toString() << "\n";
+
+	s << description << "\n";
+
+	for (const auto& m : methods)
+		s << m.createMarkdownText();
+
+	return s;
+}
+
+
+hise::ExtendedApiDocumentation::ClassDocumentation* ExtendedApiDocumentation::addClass(const Identifier& name)
+{
+	classes.add(ClassDocumentation(name));
+	return classes.getRawDataPointer() + classes.size() - 1;
+}
+
+juce::String ExtendedApiDocumentation::getMarkdownText(const Identifier& className, const Identifier& methodName)
+{
+	for (auto& c : classes)
+	{
+		if (c.id == className)
+		{
+			for (auto& m : c.methods)
+			{
+				if (m.id == methodName)
+					return m.createMarkdownText();
+			}
+		}
+	}
+
+	return {};
 }
 
 } // namespace hise

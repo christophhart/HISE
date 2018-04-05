@@ -47,6 +47,100 @@ class BaseConstrainer
 
 };
 
+
+
+#define ADD_PARAMETER_DOC(parameter, description) addParameter({ parameter, #parameter, #parameter, description})
+#define ADD_PARAMETER_DOC_WITH_NAME(parameter, name, description) addParameter({ parameter, #parameter, name, description})
+#define ADD_CHAIN_DOC(chain, name, description) addChain({chain, #chain, name, description})
+
+#define SET_DOC_NAME(classType) setName(classType::getClassName());
+
+#define ADD_DOCUMENTATION_WITH_BASECLASS(baseClass) struct Documentation : public baseClass::Documentation { Documentation(); }; \
+													ProcessorDocumentation* createDocumentation() const override { return new Documentation(); };
+													
+
+#define ADD_DOCUMENTATION() struct Documentation : public ProcessorDocumentation { Documentation(); }; \
+							ProcessorDocumentation* createDocumentation() const override { return new Documentation(); };
+
+#define SET_DOCUMENTATION(className) className::Documentation::Documentation()
+
+/** A object that holds all the documentation available for a certain processor.
+*
+*	In order to use it, subclass it as a inner class of your processor called ProcessorType::Documentation
+*	and use the preprocessor macros `ADD_PARAMETER_DOC` and `ADD_CHAIN_DOC` and the addLine() method.
+*
+*	If you call the immediate base class constructor, it will make sure that all common parameters will be documented correctly.
+*
+*
+*/
+class ProcessorDocumentation
+{
+	struct Entry
+	{
+		int index;
+		Identifier id;
+		String name;
+		String helpText;
+
+		String getMarkdownLine(bool usePrettyName) const;
+
+		String createHelpText(int headLineLevel = 1) const;
+	};
+
+public:
+
+	virtual ~ProcessorDocumentation() {};
+
+	int getNumAttributes() const { return parameters.size(); }
+
+	Identifier getAttributeId(int index) const { return parameters[index].id; }
+
+	/** This creates and attaches a markdown help button to the given component.
+	*
+	*
+	*/
+	MarkdownHelpButton* createHelpButtonForParameter(int index, Component* componentToAttachTo);
+
+	MarkdownHelpButton* createHelpButton();
+
+protected:
+
+	ProcessorDocumentation()
+	{};
+
+	void addParameter(Entry newParameter)
+	{
+		parameters.add(newParameter);
+	}
+
+	void addChain(Entry newChain)
+	{
+		chains.add(newChain);
+	}
+
+	void addLine(const String &l)
+	{
+		description << l << "\n";
+	}
+
+	void setName(const String& name_)
+	{
+		name = name_;
+	}
+
+	String description;
+
+private:
+
+	String name;
+
+	Array<Entry> parameters;
+
+	Array<Entry> chains;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ProcessorDocumentation)
+};
+
 #define loadAttribute(name, nameAsString) (setAttribute(name, (float)v.getProperty(nameAsString, false), dontSendNotification))
 #define saveAttribute(name, nameAsString) (v.setProperty(nameAsString, getAttribute(name), nullptr))
 
@@ -252,7 +346,7 @@ public:
     */
 	virtual const Identifier getType() const = 0;
 
-	
+	virtual ProcessorDocumentation* createDocumentation() const { return nullptr; }
 
 	/** Returns the symbol of the Processor. 
 	*

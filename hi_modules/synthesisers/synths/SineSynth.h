@@ -102,6 +102,8 @@ class SineSynth: public ModulatorSynth
 {
 public:
 
+	ADD_DOCUMENTATION_WITH_BASECLASS(ModulatorSynth);
+
 	SET_PROCESSOR_NAME("SineSynth", "Sine Wave Generator");
 
 	enum SpecialParameters

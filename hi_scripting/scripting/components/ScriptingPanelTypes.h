@@ -81,14 +81,25 @@ class HiseShapeButton : public ShapeButton
 {
 public:
 
-	HiseShapeButton(const String& name, ButtonListener* listener, Path onShape_, Path offShape_=Path()):
-		ShapeButton(name, Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white),
-		onShape(onShape_)
+	class Factory : public PathFactory
 	{
-		if (offShape_.isEmpty())
+	public:
+
+		Path createPath(const String& id) const override;
+	};
+
+	HiseShapeButton(const String& name, ButtonListener* listener, const String& offName=String()):
+		ShapeButton(name, Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white)
+	{
+
+		Factory f;
+
+		onShape = f.createPath(name);
+
+		if (offName.isEmpty())
 			offShape = onShape;
 		else
-			offShape = offShape_;
+			offShape = f.createPath(offName);
 
 		if (listener != nullptr)
 			addListener(listener);
@@ -339,6 +350,8 @@ public:
 		ScopedPointer<HiseShapeButton> horizontalAlignButton;
 		ScopedPointer<HiseShapeButton> verticalDistributeButton;
 		ScopedPointer<HiseShapeButton> horizontalDistributeButton;
+
+		ScopedPointer<MarkdownHelpButton> helpButton;
 
 		ScopedPointer<Viewport> viewport;
 	};

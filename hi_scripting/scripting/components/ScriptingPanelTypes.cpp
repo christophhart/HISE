@@ -494,6 +494,72 @@ namespace EditorIcons
 };
 
 
+
+juce::Path HiseShapeButton::Factory::createPath(const String& id) const
+{
+	if (id == "Edit")	return ColumnIcons::getPath(OverlayIcons::penShape, sizeof(OverlayIcons::penShape));
+	if (id == "EditOff")return ColumnIcons::getPath(OverlayIcons::lockShape, sizeof(OverlayIcons::lockShape));
+	if (id == "Cancel") return ColumnIcons::getPath(EditorIcons::cancelIcon, sizeof(EditorIcons::cancelIcon));
+	if (id == "Undo")	return ColumnIcons::getPath(EditorIcons::undoIcon, sizeof(EditorIcons::undoIcon));
+	if (id == "Redo")	return ColumnIcons::getPath(EditorIcons::redoIcon, sizeof(EditorIcons::redoIcon));
+	if (id == "Rebuild")return ColumnIcons::getPath(ColumnIcons::moveIcon, sizeof(ColumnIcons::moveIcon));
+
+	if (id == "Vertical Align") return ColumnIcons::getPath(ColumnIcons::verticalAlign, sizeof(ColumnIcons::verticalAlign));
+	if (id == "Horizontal Align") return ColumnIcons::getPath(ColumnIcons::horizontalAlign, sizeof(ColumnIcons::horizontalAlign));
+	if (id == "Vertical Distribute") return ColumnIcons::getPath(ColumnIcons::verticalDistribute, sizeof(ColumnIcons::verticalDistribute));
+	if (id == "Horizontal Distribute") return ColumnIcons::getPath(ColumnIcons::horizontalDistribute, sizeof(ColumnIcons::horizontalDistribute));
+
+	return Path();
+}
+
+MARKDOWN_CHAPTER(InterfaceDesignerHelp)
+START_MARKDOWN(Help)
+ML("# The Canvas");
+ML("In the middle of the window is the Canvas, which is a preview of the interface that can be edited graphically.");
+ML("## Toolbar");
+ML("At the top of the canvas you'll find a toolbar that contains a few important tools for the entire Interface designer.");
+
+ML("| Icon | Function | Shortcut | Description |");
+ML("| -- | ------ | ---- | ------------------- |");
+ML("| ![](Edit) | **Toggle Edit / Play mode** | `F4` | Toggles the canvas between play mode(where you can actually use the widgets) and edit mode where you can edit them and drag them around. |");
+ML("| ![](Cancel) | **Deselect current item** | `Escape` | Deselects all items |");
+ML("| - | **Zoom selector** | `Cmd + / Cmd -` | Change the zoom amount from 50 % to 200 % .|");
+ML("| ![](Undo) | **Undo** | `Cmd + Z` | Undo the last property change.This is using the global undo manager, so it also undoes drag operations in the Widget List or property changes in the Property Editor. |");
+ML("| ![](Redo) | **Redo** | `Cmd + Y` | Same as undo says Captain Obvious. |");
+ML("| ![](Rebuild) | **Rebuild Interface** | `F5` | Refreshes the UI model. |");
+ML("| ![](Vertical Align) | **Vertical Align** | `` | Align the selection vertically on the left edge. |");
+ML("| ![](Horizontal Align) | **Horizontal Align** | `` | Align the selection horizontally on the top edge. |");
+ML("| ![](Vertical Distribute) | **Vertical Distribute** | `` | Distribute the selection vertically with equal space. |");
+ML("| ![](Horizontal Distribute) | **Horizontal Distribute** | `` | Distribute the selection horizontally with equal space. |");
+
+
+ML("> Basically HISE uses an additional layer called ScriptComponent, which are wrappers around the data model for each control.  " \
+	"They store a reference to the data and communicate between the actual GUI you see and the script / UI model.  " \
+	"However, in some cases, their connections breaks up and you wind up with a broken interface which looks pretty bad, but can easily be solved by simply deleting all of those wrappers and recreating them from the UI model, which is precisely what the Rebuild Button is doing.  " \
+	"If you rebuild the interface, the script will not automatically be recompiled, so in order to make a full reset, you need to rebuild the interface first, then hit recompile.");
+
+ML("## Selecting elements");
+ML("You can select an element either by directly clicking on it or drag a lasso around all controls you want to modify.  ");
+ML("If you hold down the Command key while clicking on an element, it will add it to the selection. In order to deselect all elements, just press the Escape key.");
+ML("> If you click on an already selected item, it will not be deselected. Instead it will grab the keyboard focus so that you can use the arrow keys to nudge it around (see below).");
+
+ML("## Changing the position / size");
+ML("You can change the position and size of the currently selected items by either just dragging them around or resizing them although resizing doesn't work here with multiple elements.");
+ML("> If you need to resize multiple elements at once, you'll need the property panel or the arrow keys");
+ML("When the canvas has the keyboard focus, you can use the arrow keys for nudging them around. The modifier keys can be used here to change the action. Their effect is similar for both keyboard and mouse interaction, but here is a detailed overview :");
+
+ML("| Modifier Key | Effect with Keystroke | Effect when dragging |");
+ML("| ------------ | -------------------- - | -------------------- |");
+ML("| **Cmd / Ctrl * * | Use a 10px raster | Use a 10px raster |");
+ML("| **Shift** | Change the size instead of the position | Restrict the movement to horizontal / vertical only |");
+ML("| **Alt** | nothing | Duplicating the current control |");
+
+ML("> These modifier keys can be combined, so eg. pressing `Shift + Cmd + Right-Key` will increase the width by 10 pixel.");
+ML("The changes you make with the arrow keys are completely relative(so you can move / resize a selection without messing up their relation), which makes it the go - to solution for changing the position of multiple elements at once.");
+END_MARKDOWN()
+END_MARKDOWN_CHAPTER()
+
+
 ScriptContentPanel::Editor::Editor(Processor* p):
 	ScriptComponentEditListener(p)
 {
@@ -514,18 +580,14 @@ ScriptContentPanel::Editor::Editor(Processor* p):
 	zoomSelector->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::transparentBlack);
 	zoomSelector->setColour(MacroControlledObject::HiBackgroundColours::textColour, Colours::white.withAlpha(0.8f));
 
-	addAndMakeVisible(editSelector = new HiseShapeButton("Edit", this, ColumnIcons::getPath(OverlayIcons::penShape, sizeof(OverlayIcons::penShape)),
-															     ColumnIcons::getPath(OverlayIcons::lockShape, sizeof(OverlayIcons::lockShape))));
+	addAndMakeVisible(editSelector = new HiseShapeButton("Edit", this, "EditOff"));
+	addAndMakeVisible(cancelButton = new HiseShapeButton("Cancel", this));
 
-	
-	addAndMakeVisible(cancelButton = new HiseShapeButton("Cancel", this, ColumnIcons::getPath(EditorIcons::cancelIcon, sizeof(EditorIcons::cancelIcon))));
-
-	addAndMakeVisible(undoButton = new HiseShapeButton("Undo", this, ColumnIcons::getPath(EditorIcons::undoIcon, sizeof(EditorIcons::undoIcon))));
+	addAndMakeVisible(undoButton = new HiseShapeButton("Undo", this));
 	undoButton->setTooltip("Undo last item change");
 
-	addAndMakeVisible(redoButton = new HiseShapeButton("Redo", this, ColumnIcons::getPath(EditorIcons::redoIcon, sizeof(EditorIcons::redoIcon))));
-
-	addAndMakeVisible(rebuildButton = new HiseShapeButton("Rebuild", this, ColumnIcons::getPath(ColumnIcons::moveIcon, sizeof(ColumnIcons::moveIcon))));
+	addAndMakeVisible(redoButton = new HiseShapeButton("Redo", this));
+	addAndMakeVisible(rebuildButton = new HiseShapeButton("Rebuild", this));
 
 	addAndMakeVisible(viewport = new Viewport());
 
@@ -539,17 +601,19 @@ ScriptContentPanel::Editor::Editor(Processor* p):
 	redoButton->setTooltip("Redo last item change");
 	rebuildButton->setTooltip("Rebuild Interface (F5)");
 
-	
-
-
-	addAndMakeVisible(verticalAlignButton = new HiseShapeButton("Vertical Align", this, ColumnIcons::getPath(ColumnIcons::verticalAlign, sizeof(ColumnIcons::verticalAlign))));
+	addAndMakeVisible(verticalAlignButton = new HiseShapeButton("Vertical Align", this));
 	verticalAlignButton->setTooltip("Align the selection vertically on the left edge");
-	addAndMakeVisible(horizontalAlignButton = new HiseShapeButton("Horizontal Align", this, ColumnIcons::getPath(ColumnIcons::horizontalAlign, sizeof(ColumnIcons::horizontalAlign))));
+	addAndMakeVisible(horizontalAlignButton = new HiseShapeButton("Horizontal Align", this));
 	horizontalAlignButton->setTooltip("Align the selection horizontally on the top edge");
-	addAndMakeVisible(verticalDistributeButton = new HiseShapeButton("Vertical Distribute", this, ColumnIcons::getPath(ColumnIcons::verticalDistribute, sizeof(ColumnIcons::verticalDistribute))));
+	addAndMakeVisible(verticalDistributeButton = new HiseShapeButton("Vertical Distribute", this));
 	verticalDistributeButton->setTooltip("Distribute the selection vertically with equal space");
-	addAndMakeVisible(horizontalDistributeButton = new HiseShapeButton("Horizontal Distribute", this, ColumnIcons::getPath(ColumnIcons::horizontalDistribute, sizeof(ColumnIcons::horizontalDistribute))));
+	addAndMakeVisible(horizontalDistributeButton = new HiseShapeButton("Horizontal Distribute", this));
 	horizontalDistributeButton->setTooltip("Distribute the selection horizontally with equal space");
+
+	addAndMakeVisible(helpButton = new MarkdownHelpButton());
+	helpButton->setPopupWidth(600);
+	
+	helpButton->setHelpText<MarkdownParser::PathProvider<HiseShapeButton::Factory>>(InterfaceDesignerHelp::Help());
 
 	setWantsKeyboardFocus(true);
 
@@ -590,6 +654,7 @@ void ScriptContentPanel::Editor::resized()
 		horizontalAlignButton->setVisible(false);
 		verticalDistributeButton->setVisible(false);
 		horizontalDistributeButton->setVisible(false);
+		helpButton->setVisible(false);
 	}
 	else
 	{
@@ -616,6 +681,11 @@ void ScriptContentPanel::Editor::resized()
 		horizontalAlignButton->setBounds(topRow.removeFromLeft(24).reduced(2));
 		verticalDistributeButton->setBounds(topRow.removeFromLeft(24).reduced(2));
 		horizontalDistributeButton->setBounds(topRow.removeFromLeft(24).reduced(2));
+
+		topRow.removeFromLeft(50);
+
+		helpButton->setBounds(topRow.removeFromLeft(24).reduced(2));
+
 
 		auto canvas = dynamic_cast<Canvas*>(viewport->getViewedComponent());
 		

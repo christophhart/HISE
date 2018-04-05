@@ -371,7 +371,7 @@ SamplerSettings::SamplerSettings (ModulatorSampler *s)
 
     //[UserPreSize]
 
-
+	docs = new ModulatorSampler::Documentation();
 
 	fadeTimeLabel->setFont (GLOBAL_FONT());
     voiceAmountLabel->setFont (GLOBAL_FONT());
@@ -399,6 +399,16 @@ SamplerSettings::SamplerSettings (ModulatorSampler *s)
     showCrossfadeLabel->setFont(GLOBAL_FONT());
     crossfadeGroupEditor->setFont(GLOBAL_FONT());
     purgeChannelLabel->setFont(GLOBAL_FONT());
+
+	docs->createHelpButtonForParameter(ModulatorSampler::Parameters::Purged, purgeSampleEditor);
+	docs->createHelpButtonForParameter(ModulatorSampler::Parameters::BufferSize, bufferSizeEditor);
+	docs->createHelpButtonForParameter(ModulatorSampler::Parameters::CrossfadeGroups, crossfadeGroupEditor);
+	docs->createHelpButtonForParameter(ModulatorSampler::Parameters::PitchTracking, pitchTrackingEditor);
+	docs->createHelpButtonForParameter(ModulatorSampler::Parameters::SamplerRepeatMode, retriggerEditor);
+	docs->createHelpButtonForParameter(ModulatorSampler::Parameters::VoiceAmount, voiceLimitEditor);
+	docs->createHelpButtonForParameter(ModulatorSynth::Parameters::VoiceLimit, voiceAmountEditor);
+	docs->createHelpButtonForParameter(ModulatorSynth::Parameters::KillFadeTime, fadeTimeEditor);
+	docs->createHelpButtonForParameter(ModulatorSampler::Parameters::PreloadSize, preloadBufferEditor);
 
 
 	retriggerEditor->addListener(this);

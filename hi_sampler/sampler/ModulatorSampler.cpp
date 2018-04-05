@@ -32,6 +32,64 @@
 
 namespace hise { using namespace juce;
 
+
+
+
+
+SET_DOCUMENTATION(ModulatorSampler)
+{
+	SET_DOC_NAME(ModulatorSampler);
+
+	addLine("A Sampler is a synthesiser which allows playback of samples.");
+	addLine("Features:");
+	addLine("- Disk Streaming with fast MemoryMappedFile reading");
+	addLine("- Looping with crossfades & sample start modulation");
+	addLine("- Round - Robin groups");
+	addLine("- Application - wide sample pool with reference counting to ensure minimal memory usage.");
+	addLine("- Different playback modes(pitch tracking / one shot, etc.)");
+
+	ADD_PARAMETER_DOC_WITH_NAME(PreloadSize, "Preload Size",
+		"The preload size in samples for all samples that are loaded into the sampler. " \
+		"If the preload size is `-1`, then the whole sample will be loaded into memory.");
+
+	ADD_PARAMETER_DOC_WITH_NAME(BufferSize, "Buffer Size",
+		"The buffer size of the streaming buffers (2 per voice) in samples.  " \
+		"The sampler uses two buffers which are swapped (one is used for reading from disk and one is used to supply the sampler with the audio data)");
+
+	ADD_PARAMETER_DOC_WITH_NAME(VoiceAmount, "Soft Limit", 
+		"The amount of voices that the sampler can play. ");
+
+	ADD_PARAMETER_DOC_WITH_NAME(RRGroupAmount, "RR Groups", 
+		"The number of groups that are cycled in a round robin manier. "\
+		"This is effectively just another dimension for mapping samples and " \
+		"can be used for many different purposes (handling round robins is just the default).");
+
+	ADD_PARAMETER_DOC_WITH_NAME(SamplerRepeatMode, "Retrigger",
+		"Determines how the sampler treats repeated notes.  "); 
+
+	ADD_PARAMETER_DOC(PitchTracking, 
+		"Enables pitch ratio modification for different notes than the root note. Disable this for drum samples.");
+
+	ADD_PARAMETER_DOC(OneShot, 
+		"Plays the whole sample (ignores the note off) if set to enabled.");
+
+	ADD_PARAMETER_DOC_WITH_NAME(CrossfadeGroups, "Group XF", 
+		"If enabled, the groups are played simultanously and can be crossfaded with the Group-Fade Modulation Chain.");
+
+	ADD_PARAMETER_DOC(Purged, 
+		"If this is true, all samples of this sampler won't be loaded into memory. Turning this on will load them.");
+
+	ADD_PARAMETER_DOC(Reversed, 
+		"If this is true, the samples will be fully loaded into preload buffer and reversed");
+
+	ADD_CHAIN_DOC(SampleStartModulation, "Sample Start", 
+		"Allows modification of the sample start if the sound allows this. The modulation range is depending on the *SampleStartMod* value of each sample.");
+
+	ADD_CHAIN_DOC(CrossFadeModulation, "Group Fade",
+		"Fades between the RR groups. This can be used for crossfading dynamics samples.");
+};
+
+
 ModulatorSampler::ModulatorSampler(MainController *mc, const String &id, int numVoices) :
 ModulatorSynth(mc, id, numVoices),
 preloadSize(PRELOAD_SIZE),

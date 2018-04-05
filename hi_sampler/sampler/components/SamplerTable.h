@@ -120,6 +120,8 @@ private:
 
 	int numSelected;
 
+	ScopedPointer<MarkdownHelpButton> helpButton;
+
     //[/UserVariables]
 
     //==============================================================================

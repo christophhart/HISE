@@ -147,6 +147,10 @@ private:
 	int currentlySelectedBox = -1;
 	ScopedPointer<InfoBox> infoBox;
 	ScopedPointer<ListBox> listbox;
+	ScopedPointer<MarkdownHelpButton> helpButton;
+
+	bool hasExtendedHelp = false;
+
 	JavascriptProcessor *sp;
 	Range<int> tokenRange;
 	JavascriptCodeEditor *editor;

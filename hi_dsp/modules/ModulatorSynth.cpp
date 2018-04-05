@@ -32,6 +32,23 @@
 
 namespace hise { using namespace juce;
 
+SET_DOCUMENTATION(ModulatorSynth)
+{
+	ADD_PARAMETER_DOC(Gain, "The volume of the synth. It is stored as gain value from `0...1` so you need to use the conversion functions when using decibel ranges");
+	ADD_PARAMETER_DOC(Balance, "The stereo balance of the synth. The range is `-100...100`");
+	ADD_PARAMETER_DOC(VoiceLimit, "The number of voices that this synth can play.");
+	ADD_PARAMETER_DOC(KillFadeTime, "If you play more than the number of available voices this determines the fade out time of the voice that is going to be killed in ms");
+
+	ADD_CHAIN_DOC(MidiProcessor, "MIDI",
+		"Every MIDI message that is received by the sound generator will be processed by this chain. If you ignore the message here, it won't be passed to child modules");
+	ADD_CHAIN_DOC(GainModulation, "Gain",
+		"The volume modulation of this sound generator. The modulation range 0...1 will be used as gain value");
+	ADD_CHAIN_DOC(PitchModulation, "Pitch",
+		"The pitch modulation of this sound generator. The modulation range 0...1 will be converted to pitch values according to the BiPolar parameter");
+	ADD_CHAIN_DOC(EffectChain, "FX",
+		"the effect chain of this module");
+}
+
 ModulatorSynth::ModulatorSynth(MainController *mc, const String &id, int numVoices) :
 Synthesiser(),
 Processor(mc, id),

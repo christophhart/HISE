@@ -37,6 +37,8 @@ MainController(),
 AudioProcessorDriver(deviceManager_, callback_),
 viewUndoManager(new UndoManager())
 {
+	ExtendedApiDocumentation::init();
+
     synthChain = new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES, viewUndoManager);
 
     

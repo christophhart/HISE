@@ -132,6 +132,8 @@ public:
 		/** Overwrite this and return the height of the popup component. If you return 0 (default behaviour), the functionality is deactivated. */
 		virtual int getPopupHeight() const { return 0; };
 
+		virtual int getPopupWidth() const { return 300; }
+
 		/** This is called whenever the search text updates. */
 		void matchAgainstSearch(const String &stringToMatch, double fuzzyness);
 

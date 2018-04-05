@@ -76,6 +76,10 @@ public:
 };
 
 
+
+
+
+
 /** A dialog window that performs an operation on a background thread.
 *
 *	- no modal windows
@@ -114,32 +118,7 @@ public:
 	{
 	public:
 
-		struct ComboBoxWithLabel : public Component
-		{
-			ComboBoxWithLabel(const String& name):
-				label(name)
-			{
-				addAndMakeVisible(box = new ComboBox());
-			}
-
-			void paint(Graphics& g) override
-			{
-				g.setFont(GLOBAL_BOLD_FONT());
-				g.setColour(Colours::white);
-				g.drawText(label, FLOAT_RECTANGLE(getLocalBounds().removeFromTop(16)), Justification::centredLeft);
-			}
-
-			void resized() override
-			{
-				auto a = getLocalBounds();
-				a.removeFromTop(16);
-				box->setBounds(a);
-			}
-
-			ScopedPointer<ComboBox> box;
-			String label;
-		};
-
+		
 		AdditionalRow(DialogWindowWithBackgroundThread* parent_):
 			parent(parent_)
 		{
@@ -148,7 +127,7 @@ public:
 
 		~AdditionalRow()
 		{
-			buttons.clear();
+			columns.clear();
 		}
 
 		void buttonClicked(Button* b) override
@@ -156,47 +135,101 @@ public:
 			parent->buttonClicked(b);
 		}
 
-		void addComboBox(const String& name, const StringArray& items, const String& label, ComboBox::Listener* listener)
+		void addComboBox(const String& name, const StringArray& items, const String& label, int width=0);
+
+		void addCustomComponent(Component* newComponent, const String& name=String(), int width=0);
+
+		void addButton(const String& name, const KeyPress& k=KeyPress(), int width=0);
+
+		void setInfoTextForLastComponent(const String& infoToShow)
 		{
-			auto t = new ComboBoxWithLabel(label);
-
-			addAndMakeVisible(t);
-			buttons.add(t);
-			t->box->setName(name);
-			t->box->addItemList(items, 1);
-			t->box->addListener(listener);
-			t->box->setSelectedItemIndex(0, dontSendNotification);
-			
-		}
-
-		void addButton(const String& name, const KeyPress& k=KeyPress())
-		{
-			auto t = new TextButton(name);
-			addAndMakeVisible(t);
-			t->addListener(this);
-			t->addShortcut(k);
-			buttons.add(t);
-
-			resized();
-		}
-
-
-		void resized() override
-		{
-			int widthPerButton = getWidth() / buttons.size();
-			int x = 0;
-
-			for (auto* b: buttons)
+			if (auto last = columns.getLast())
 			{
-				b->setBounds(x, 0, widthPerButton - 10, getHeight());
-				x += widthPerButton;
+				last->infoButton->setHelpText(infoToShow);
 			}
 		}
 
+		template <class ComponentType> ComponentType* getComponent(const String& name)
+		{
+			for (auto c : columns)
+			{
+				if (auto typed = dynamic_cast<ComponentType*>(c))
+				{
+					if (c->getName() == name)
+						return typed;
+				}
+			}
+
+			return nullptr;
+		}
+
+		void resized() override;
+
 		AlertWindowLookAndFeel alaf;
 
+		struct Column: public Component,
+					   public ButtonListener
+		{
+			
 
-		OwnedArray<Component> buttons;
+			Column(Component* t, const String& name_, int width_):
+				name(name_),
+				width(width_)
+			{
+				addAndMakeVisible(component = t);
+				if (name.isNotEmpty())
+				{
+					addAndMakeVisible(infoButton = new MarkdownHelpButton());
+					
+				}
+			}
+
+			void buttonClicked(Button* /*b*/) override
+			{
+				
+			}
+
+			~Column()
+			{
+				component = nullptr;
+				infoButton = nullptr;
+			}
+
+			void paint(Graphics& g) override
+			{
+				if (name.isNotEmpty())
+				{
+					auto area = getLocalBounds().removeFromTop(16);
+					area.removeFromRight(18);
+					g.setFont(GLOBAL_BOLD_FONT());
+					g.setColour(Colours::white);
+					g.drawText(name, area, Justification::centredLeft);
+				}
+			}
+
+			
+
+			void resized() override
+			{
+				auto area = getLocalBounds();
+
+				if (name.isNotEmpty())
+				{
+					auto topBar = area.removeFromTop(16);
+
+					infoButton->setBounds(topBar.removeFromRight(16));
+				}
+
+				component->setBounds(area);
+			}
+
+			ScopedPointer<Component> component;
+			ScopedPointer<MarkdownHelpButton> infoButton;
+			String name;
+			int width = 0;
+		};
+
+		OwnedArray<Column> columns;
 
 		DialogWindowWithBackgroundThread* parent;
 	};

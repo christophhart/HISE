@@ -61,6 +61,8 @@ class ModulatorSampler: public ModulatorSynth,
 {
 public:
 
+
+
 	/** A small helper tool that iterates over the sound array in a thread-safe way.
 	*
 	*/
@@ -138,16 +140,16 @@ public:
 	/** Special Parameters for the ModulatorSampler. */
 	enum Parameters
 	{
-		PreloadSize = ModulatorSynth::numModulatorSynthParameters, ///< -1 ... **11000** ... | The preload size in samples for all samples that are loaded into the sampler. If the preload size is `-1`, then the whole sample will be loaded into memory.
-		BufferSize, ///< 0 ... **4096** ... | The buffer size of the streaming buffers (2 per voice) in samples. The sampler uses two buffers which are swapped (one is used for reading from disk and one is used to supply the sampler with the audio data)
-		VoiceAmount, ///< 0 ... **64** | The amount of voices that the sampler can play. This is not the same as voice limit.
-		RRGroupAmount, ///< **0** ... x | The number of groups that are cycled in a round robin manier.
-		SamplerRepeatMode, ///< **Kill Note**, Note off, Do nothing | determines how the sampler treats repeated notes.
-		PitchTracking, ///< **On**, Off | Enables pitch ratio modification for different notes than the root note. Disable this for drum samples.
-		OneShot, ///< On, **Off** | plays the whole sample (ignores the note off) if set to enabled.
-		CrossfadeGroups, ///< On, **Off** | if enabled, the groups are played simultanously and can be crossfaded with the X-Fade Modulation Chain
-		Purged, ///< If this is true, all samples of this sampler won't be loaded into memory. Turning this on will load them.
-		Reversed, ///< If this is true, the samples will be fully loaded into preload buffer and reversed
+		PreloadSize = ModulatorSynth::numModulatorSynthParameters, 
+		BufferSize, 
+		VoiceAmount, 
+		RRGroupAmount, 
+		SamplerRepeatMode, 
+		PitchTracking,
+		OneShot,
+		CrossfadeGroups, 
+		Purged, 
+		Reversed, 
 		numModulatorSamplerParameters
 	};
 
@@ -179,6 +181,8 @@ public:
 		BigSampleMap,
 		numEditorStates
 	};
+
+	ADD_DOCUMENTATION_WITH_BASECLASS(ModulatorSynth);
 
 	/** Creates a new ModulatorSampler. */
 	ModulatorSampler(MainController *mc, const String &id, int numVoices);;

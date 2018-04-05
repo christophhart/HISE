@@ -215,6 +215,85 @@ void DialogWindowWithBackgroundThread::runThread()
 	thread->startThread();
 }
 
+void DialogWindowWithBackgroundThread::AdditionalRow::addComboBox(const String& name, const StringArray& items, const String& label, int width/*=0*/)
+{
+	auto listener = dynamic_cast<ComboBoxListener*>(parent);
+
+	auto t = new ComboBox(label);
+	t->setName(name);
+	t->addItemList(items, 1);
+
+	if (listener != nullptr)
+		t->addListener(listener);
+
+	t->setSelectedItemIndex(0, dontSendNotification);
+
+	addCustomComponent(t, label, width);
+}
+
+void DialogWindowWithBackgroundThread::AdditionalRow::addCustomComponent(Component* newComponent, const String& name, int width/*=0*/)
+{
+	auto c = new Column(newComponent, name, width);
+
+	addAndMakeVisible(c);
+	columns.add(c);
+	
+	resized();
+}
+
+void DialogWindowWithBackgroundThread::AdditionalRow::addButton(const String& name, const KeyPress& k/*=KeyPress()*/, int width/*=0*/)
+{
+	auto t = new TextButton(name);
+
+	t->addListener(this);
+	t->addShortcut(k);
+
+	if (k.isValid())
+		t->setButtonText(t->getButtonText() + " (" + k.getTextDescriptionWithIcons() + ")");
+
+	addCustomComponent(t, "", width);
+}
+
+void DialogWindowWithBackgroundThread::AdditionalRow::resized()
+{
+	if (getWidth() == 0)
+		return;
+
+	int totalWidth = getWidth() - (columns.size()-1) * 10;
+
+	int numToDivide = columns.size();
+
+	for (auto* c : columns)
+	{
+		int w = c->width;
+
+		if (w > 0)
+		{
+			totalWidth -= w;
+			numToDivide--;
+		}
+	}
+
+	int widthPerComponent = 0;
+
+	if (numToDivide > 0)
+	{
+		widthPerComponent = totalWidth / numToDivide;
+	}
+
+	int x = 0;
+
+	for (auto c: columns)
+	{
+		int widthToUse = c->width > 0 ? c->width : widthPerComponent;
+
+		c->setBounds(x, 0, widthToUse, getHeight());
+		x += widthToUse;
+		x += 10;
+	}
+}
+
+
 
 ModalBaseWindow::ModalBaseWindow()
 {
@@ -729,6 +808,5 @@ File SampleDataImporter::getSourceFile() const
 {
 	return targetFile->getCurrentFile();
 }
-
 
 } // namespace hise

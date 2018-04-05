@@ -66,6 +66,15 @@ JavascriptCodeEditor::AutoCompletePopup::AutoCompletePopup(int fontHeight_, Java
 	listbox->getVerticalScrollBar().setColour(ScrollBar::ColourIds::thumbColourId, Colours::black.withAlpha(0.6f));
 	listbox->getVerticalScrollBar().setColour(ScrollBar::ColourIds::trackColourId, Colours::black.withAlpha(0.4f));
 
+	addAndMakeVisible(helpButton = new MarkdownHelpButton());
+	helpButton->setVisible(false);
+	helpButton->setPopupWidth(600);
+	helpButton->setFontSize(15.0f);
+	helpButton->setIgnoreKeyStrokes(true);
+	
+
+
+
 	listbox->setWantsKeyboardFocus(false);
 	setWantsKeyboardFocus(false);
 	infoBox->setWantsKeyboardFocus(false);
@@ -410,9 +419,12 @@ void JavascriptCodeEditor::AutoCompletePopup::paintListBoxItem(int rowNumber, Gr
 	ApiHelpers::getColourAndCharForType(info->type, ch, colour);
 
 	g.setColour(colour);
-	g.fillRoundedRectangle(1.0f, 1.0f, height - 2.0f, height - 2.0f, 4.0f);
 
+	auto icon = Rectangle<float>(1.0f, 1.0f, height - 2.0f, height - 2.0f);
 
+	g.fillRoundedRectangle(icon, 4.0f);
+
+	
 
 	g.setColour(rowIsSelected ? Colours::white : Colours::black.withAlpha(0.7f));
 	g.setFont(GLOBAL_MONOSPACE_FONT().withHeight((float)fontHeight));
@@ -443,6 +455,10 @@ bool JavascriptCodeEditor::AutoCompletePopup::handleEditorKeyPress(const KeyPres
 	{
 		selectRowInfo(jmin<int>(getNumRows() - 1, currentlySelectedBox + 1));
 		return true;
+	}
+	else if (k == KeyPress::F1Key)
+	{
+		helpButton->triggerClick();
 	}
 	else if (k == KeyPress::returnKey)
 	{
@@ -477,6 +493,15 @@ void JavascriptCodeEditor::AutoCompletePopup::paint(Graphics& g)
 
 void JavascriptCodeEditor::AutoCompletePopup::resized()
 {
+	auto area = getLocalBounds().reduced(3);
+
+	auto topArea = area.removeFromTop(3 * fontHeight);
+
+	infoBox->setBounds(topArea);
+	listbox->setBounds(area);
+	
+
+
 	infoBox->setBounds(3, 3, getWidth() - 6, 3 * fontHeight - 6);
 	listbox->setBounds(3, 3 * fontHeight + 3, getWidth() - 6, getHeight() - 3 * fontHeight - 6);
 }
@@ -487,6 +512,36 @@ void JavascriptCodeEditor::AutoCompletePopup::selectRowInfo(int rowIndex)
 
 	currentlySelectedBox = rowIndex;
 
+	auto name = visibleInfo[rowIndex]->name;
+
+	auto c_n = name.upToFirstOccurrenceOf(".", false, false);
+
+	auto className = c_n.isNotEmpty() ? Identifier(c_n) : Identifier();
+
+	name = name.fromFirstOccurrenceOf(".", false, false);
+
+	auto m_n = name.upToFirstOccurrenceOf("(", false, false);
+
+	auto methodName = m_n.isNotEmpty() ? Identifier(m_n) : Identifier();
+
+	auto extendedHelp = ExtendedApiDocumentation::getMarkdownText(className, methodName);
+
+	hasExtendedHelp = extendedHelp.isNotEmpty();
+
+	helpButton->setVisible(hasExtendedHelp);
+
+	if (hasExtendedHelp)
+	{
+		auto r = getLocalArea(listbox, listbox->getRowPosition(rowIndex, true));
+
+		r = r.withWidth(r.getHeight()).reduced(3);
+
+		helpButton->setBounds(r);
+		
+		helpButton->setHelpText(extendedHelp);
+		
+	}
+	
 	listbox->selectRow(currentlySelectedBox);
 	listbox->repaintRow(currentlySelectedBox);
 	infoBox->setInfo(visibleInfo[currentlySelectedBox]);

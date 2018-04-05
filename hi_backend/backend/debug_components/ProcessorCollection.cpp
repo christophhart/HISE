@@ -448,7 +448,7 @@ void SearchableListComponent::Item::matchAgainstSearch(const String &stringToMat
 SearchableListComponent::Item::PopupComponent::PopupComponent(Item *p) :
 parent(p)
 {
-	setSize(300, p->getPopupHeight());
+	setSize(p->getPopupWidth(), p->getPopupHeight());
 	setWantsKeyboardFocus(true);
 }
 

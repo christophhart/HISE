@@ -741,4 +741,91 @@ ValueTree ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(const
 	return ValueTree::readFromGZIPData(mb.getData(), mb.getSize());
 }
 
+hise::MarkdownHelpButton* ProcessorDocumentation::createHelpButtonForParameter(int index, Component* componentToAttachTo)
+{
+	if (index < parameters.size())
+	{
+		auto doc = parameters[index].createHelpText(2);
+
+		auto b = new MarkdownHelpButton();
+		b->setHelpText(doc);
+
+		if (componentToAttachTo != nullptr)
+		{
+			b->attachTo(componentToAttachTo, MarkdownHelpButton::TopRight);
+		}
+
+		return b;
+	}
+
+	return nullptr;
+}
+
+hise::MarkdownHelpButton* ProcessorDocumentation::createHelpButton()
+{
+	String t;
+
+	t << "# " << name << "\n";
+	t << description << "\n";
+	t << "## Parameters \n";
+
+	t << "| `#` | ID | Description |\n";
+	t << "| - | --- | ----------- |\n";
+
+	for (auto& e : parameters)
+		t << e.getMarkdownLine(false) << "\n";
+
+	t << "## Chains \n";
+
+	t << "| `#` | Icon | ID | Description |\n";
+	t << "| - | - | --- | ----------- |\n";
+
+	for (auto& e : chains)
+		t << e.getMarkdownLine(true) << "\n";
+
+	auto b = new MarkdownHelpButton();
+	b->setHelpText<MarkdownParser::PathProvider<ChainBarPathFactory>>(t);
+
+	return b;
+}
+
+juce::String ProcessorDocumentation::Entry::getMarkdownLine(bool getChain) const
+{
+	String s;
+
+	s << "| " << String(index) << " | ";
+	
+	if (getChain)
+	{
+		s << "![" << name << "](" << name << ") | " << name;
+	}
+	else
+	{
+		s << "`" << id.toString() << "`";
+	}
+	
+	s << " | " << helpText << " |";
+	return s;
+}
+
+juce::String ProcessorDocumentation::Entry::createHelpText(int headLineLevel) const
+{
+	String s;
+
+	switch (headLineLevel)
+	{
+	case 1: s << "# "; break;
+	case 2: s << "## "; break;
+	case 3: s << "### "; break;
+	default:
+		break;
+	}
+
+	s << " " << name << "\n";
+	s << "Scripting ID: `" << id.toString() << "`  \n";
+	s << "  \n";
+	s << helpText;
+	return s;
+}
+
 } // namespace hise

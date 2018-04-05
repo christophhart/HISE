@@ -32,6 +32,40 @@
 
 namespace hise { using namespace juce;
 
+SET_DOCUMENTATION(SineSynth)
+{
+	SET_DOC_NAME(SineSynth);
+
+	addLine("A simple and lightweight sine wave generator. " \
+		    "It can be used to drive a FM Synthesiser, or stacked together for Additive Synthesis or used as simple enhancement of another sound.");
+
+	addLine("It has two operating modes for the pitch definition :");
+	addLine("");
+	addLine("- **Musical**: in octaves / semitones.");
+	addLine("- **Harmonics**: as harmonics compared to the root frequency.Use this mode for additive synthesis(it will allow to define the harmonic structure of the resulting sound more clearly.)");
+	addLine("");
+	addLine("> It also has a internal Wave - Shaper effect, that allows to quickly add some harmonics to dirten up the sound.");
+
+	ADD_PARAMETER_DOC_WITH_NAME(OctaveTranspose, "Octave Transpose",
+		"If the mode is set to Musical, this defines the coarse frequency.");
+
+	ADD_PARAMETER_DOC_WITH_NAME(SemiTones, "Semitones",
+		"If the mode is set to Musical, this defines the fine frequency in semitones.");
+
+	ADD_PARAMETER_DOC_WITH_NAME(UseFreqRatio, "Use Frequency Ratio",
+		"Toggles between the two modes for the pitch definition.");
+
+	ADD_PARAMETER_DOC_WITH_NAME(CoarseFreqRatio, "Coarse Ratio",
+		"If the mode is set to Harmonics, this defines the harmonic index(1 being the root frequency).");
+
+	ADD_PARAMETER_DOC_WITH_NAME(FineFreqRatio, "Fine Ratio",
+		"If the mode is set to Harmonics, this defines the fine frequency(as factor).");
+
+	ADD_PARAMETER_DOC_WITH_NAME(SaturationAmount, "Saturation",
+		"The saturation amount for the internal wave shaper.Use this to quickly add some harmonics.");
+
+}
+
 ProcessorEditorBody* SineSynth::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND

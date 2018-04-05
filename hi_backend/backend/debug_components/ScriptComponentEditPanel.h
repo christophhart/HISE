@@ -45,7 +45,7 @@ class ScriptComponentEditPanel : public Component,
 	public CopyPasteTarget
 {
 
-	struct PathFactory
+	struct Factory: public PathFactory
 	{
 		enum ID
 		{
@@ -58,13 +58,12 @@ class ScriptComponentEditPanel : public Component,
 			numIDs
 		};
 
-		static Path createPath(ID id)
+		Path createPath(const String& id) const override
 		{
 			Path path;
 
-			switch (id)
-			{
-			case Copy:
+			
+			if(id == "Copy")
 			{
 				static const unsigned char pathData[] = { 110,109,0,0,240,65,0,0,0,0,108,0,0,32,65,0,0,0,0,98,4,86,14,65,0,0,0,0,0,0,0,65,184,30,101,63,0,0,0,65,0,0,0,64,108,0,0,0,65,0,0,0,65,108,0,0,0,64,0,0,0,65,98,66,96,101,63,0,0,0,65,0,0,0,0,236,81,14,65,0,0,0,0,0,0,32,65,108,0,0,0,0,0,0,240,65,98,0,0,
 					0,0,254,212,248,65,66,96,101,63,0,0,0,66,0,0,0,64,0,0,0,66,108,0,0,176,65,0,0,0,66,98,10,215,184,65,0,0,0,66,0,0,192,65,254,212,248,65,0,0,192,65,0,0,240,65,108,0,0,192,65,0,0,192,65,108,0,0,240,65,0,0,192,65,98,254,212,248,65,0,0,192,65,0,0,0,66,254,
@@ -77,7 +76,7 @@ class ScriptComponentEditPanel : public Component,
 
 				return path;
 			}
-			case Paste:
+			if (id == "Paste")
 			{
 				static const unsigned char pathData[] = { 110,109,55,62,71,67,93,185,77,67,108,55,62,71,67,169,122,74,67,98,55,62,71,67,72,31,74,67,115,243,70,67,133,212,73,67,19,152,70,67,133,212,73,67,108,22,13,66,67,133,212,73,67,108,22,13,66,67,61,136,72,67,98,22,13,66,67,124,209,71,67,142,119,65,67,245,
 					59,71,67,206,192,64,67,245,59,71,67,108,61,40,62,67,245,59,71,67,98,118,113,61,67,245,59,71,67,245,219,60,67,124,209,71,67,245,219,60,67,61,136,72,67,108,245,219,60,67,133,212,73,67,108,248,80,56,67,133,212,73,67,98,149,245,55,67,133,212,73,67,212,170,
@@ -90,22 +89,8 @@ class ScriptComponentEditPanel : public Component,
 				path.loadPathFromData(pathData, sizeof(pathData));
 				return path;
 			}
-				
-			case hise::ScriptComponentEditPanel::PathFactory::Delete:
-				break;
-			case hise::ScriptComponentEditPanel::PathFactory::Rebuild:
-				break;
-			case hise::ScriptComponentEditPanel::PathFactory::Edit:
-				break;
-			case hise::ScriptComponentEditPanel::PathFactory::Play:
-				break;
-			case hise::ScriptComponentEditPanel::PathFactory::numIDs:
-				break;
-			default:
-				break;
-			}
-
-			return path;
+			
+			return Path();
 		}
 	};
 
@@ -186,7 +171,7 @@ private:
 
 	ScopedPointer<ShapeButton> copyButton;
 	ScopedPointer<ShapeButton> pasteButton;
-
+	ScopedPointer<MarkdownHelpButton> helpButton;
 
 	SelectedItemSet<Component::SafePointer<HiPropertyComponent>> selectedComponents;
 

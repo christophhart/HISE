@@ -35,6 +35,143 @@
 
 namespace hise { using namespace juce;
 
+
+class ExtendedApiDocumentation
+{
+public:
+
+	static void init();
+
+	static String getMarkdownText(const Identifier& className, const Identifier& methodName);
+
+private:
+
+	class DocumentationBase
+	{
+	protected:
+
+		DocumentationBase(const Identifier& id_) :
+			id(id_)
+		{};
+
+		String description;
+
+		Identifier id;
+
+	public:
+
+		virtual ~DocumentationBase() {};
+		virtual String createMarkdownText() const = 0;
+
+		void addDescriptionLine(const String& line)
+		{
+			description << line << "\n";
+		}
+
+		void setDescription(const String& description_)
+		{
+			description = description_;
+		}
+	};
+
+	class MethodDocumentation : public DocumentationBase
+	{
+	public:
+
+		MethodDocumentation(Identifier& className_, const Identifier& id);
+
+		struct Parameter
+		{
+			bool operator == (const Parameter& other) const
+			{
+				return id == other.id;
+			}
+
+			String id;
+			String type;
+			String description;
+		};
+
+		String createMarkdownText() const override;
+
+		using VarArray = Array<var>;
+
+		using Object = DynamicObject;
+
+		template <typename T> void addParameter(const String& id, const String& description)
+		{
+			parameters.add({ id, getTypeName<T>(), description });
+		}
+
+		void setCodeExample(const String& code)
+		{
+			codeExample = code;
+		}
+
+		void addCodeLine(const String& line)
+		{
+			codeExample << line << "\n";
+		}
+
+		template <typename T> void addReturnType(const String& returnDescription)
+		{
+			returnType.type = getTypeName<T>();
+			returnType.description = returnDescription;
+		}
+
+	private:
+
+		friend class ExtendedApiDocumentation;
+
+		template <typename T> String getTypeName() const
+		{
+			String typeName;
+
+			if      (typeid(T) == typeid(String))	typeName = "String";
+			else if (typeid(T) == typeid(int))		typeName = "int";
+			else if (typeid(T) == typeid(double))	typeName = "double";
+			else if (typeid(T) == typeid(VarArray))	typeName = "Array";
+			else if (typeid(T) == typeid(Object))	typeName = "Object";
+			else									typeName = "Unknown";
+
+			return typeName;
+		}
+
+		String className;
+		String codeExample;
+
+		Array<Parameter> parameters;
+		Parameter returnType;
+
+	};
+
+	class ClassDocumentation : public DocumentationBase
+	{
+	public:
+
+		ClassDocumentation(const Identifier& className);
+
+		MethodDocumentation* addMethod(const Identifier& methodName);
+
+		String createMarkdownText() const override;
+
+	private:
+
+		friend class ExtendedApiDocumentation;
+
+		Array<MethodDocumentation> methods;
+	};
+
+	static ClassDocumentation* addClass(const Identifier& name);
+
+	
+
+	
+
+	static bool inititalised;
+	static Array<ClassDocumentation> classes;
+};
+
 class ApiCollection : public SearchableListComponent
 {
 public:
@@ -47,13 +184,41 @@ public:
 	{
 	public:
 
+		const int extendedWidth = 600;
+
 		MethodItem(const ValueTree &methodTree_, const String &className_);
 
-		int getPopupHeight() const override	{ return 150; }
+		int getPopupHeight() const override
+		{ 
+			if (parser != nullptr) 
+				return (int)parser->getHeightForWidth((float)extendedWidth) + 20;
+			else 
+				return 150; 
+		}
+
+		int getPopupWidth() const override
+		{
+			if (parser != nullptr)
+				return extendedWidth + 20;
+			else
+				return Item::getPopupWidth();
+		}
 
 		void paintPopupBox(Graphics &g) const
 		{
-			help.draw(g, Rectangle<float>(10.0f, 10.0f, 280.0f, (float)getPopupHeight() - 20));
+			
+
+			if (parser != nullptr)
+			{
+				auto bounds = Rectangle<float>(10.0f, 10.0f, (float)extendedWidth, (float)getPopupHeight() - 20);
+				parser->draw(g, bounds);
+			}
+			else
+			{
+				auto bounds = Rectangle<float>(10.0f, 10.0f, 280.0f, (float)getPopupHeight() - 20);
+				help.draw(g, bounds);
+			}
+			
 		}
 
 		void mouseEnter(const MouseEvent&) override { repaint(); }
@@ -74,6 +239,8 @@ public:
 		String description;
 		String className;
 		String arguments;
+
+		ScopedPointer<MarkdownParser> parser;
 
 		const ValueTree methodTree;
 	};
