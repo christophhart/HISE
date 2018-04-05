@@ -75,74 +75,10 @@ public:
 	ScopedPointer<DropShadower> shadow;
 };
 
-class MarkdownParser
-{
-public:
-	MarkdownParser(const String& markdownCode);
-
-	AttributedString parse();
-
-private:
-
-	struct Iterator
-	{
-	public:
-
-		Iterator(const String& text_):
-			text(text_),
-			length(text.length()),
-			it(text.getCharPointer()),
-			end(it + length)
-		{
-
-		}
-
-		juce_wchar peek()
-		{
-			return *(it + 1);
-		}
-
-		bool next(juce::juce_wchar& c)
-		{
-			if (it != end)
-			{
-				c = *it++;
-				return true;
-			}
-			return false;
-		}
-
-	private:
-		const String text;
-		int length;
-		CharPointer_UTF8 it;
-		CharPointer_UTF8 end;
-	};
-
-	void parseBoldBlock();
-
-	void parseItalicBlock();
-
-	void parseHeadline(int level);
-
-	void parseText();
-	
-	bool isBold = false;
-	bool isItalic = false;
-	bool isCode = false;
-
-	Font currentFont;
-	int headlineLevel = 0;
-
-	Iterator it;
-
-	AttributedString s;
-	String markdownCode;
-
-	CharPointer_UTF8 parseMarkdownBlock();
 
 
-};
+
+
 
 /** A dialog window that performs an operation on a background thread.
 *
@@ -207,7 +143,10 @@ public:
 
 		void setInfoTextForLastComponent(const String& infoToShow)
 		{
-
+			if (auto last = columns.getLast())
+			{
+				last->infoButton->setHelpText(infoToShow);
+			}
 		}
 
 		template <class ComponentType> ComponentType* getComponent(const String& name)
@@ -228,8 +167,11 @@ public:
 
 		AlertWindowLookAndFeel alaf;
 
-		struct Column: public Component
+		struct Column: public Component,
+					   public ButtonListener
 		{
+			
+
 			Column(Component* t, const String& name_, int width_):
 				name(name_),
 				width(width_)
@@ -237,9 +179,14 @@ public:
 				addAndMakeVisible(component = t);
 				if (name.isNotEmpty())
 				{
-					addAndMakeVisible(infoButton = new ShapeButton("?", Colours::white.withAlpha(0.7f), Colours::white, Colours::white));
-					infoButton->setShape(getPath(), true, true, true);
+					addAndMakeVisible(infoButton = new MarkdownHelpButton());
+					
 				}
+			}
+
+			void buttonClicked(Button* /*b*/) override
+			{
+				
 			}
 
 			~Column()
@@ -260,7 +207,7 @@ public:
 				}
 			}
 
-			static Path getPath();
+			
 
 			void resized() override
 			{
@@ -277,9 +224,8 @@ public:
 			}
 
 			ScopedPointer<Component> component;
-			ScopedPointer<ShapeButton> infoButton;
+			ScopedPointer<MarkdownHelpButton> infoButton;
 			String name;
-			String helpText;
 			int width = 0;
 		};
 
