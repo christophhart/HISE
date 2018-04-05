@@ -258,6 +258,7 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 
 	void draw(Graphics& g, Rectangle<float> area) override
 	{
+        g.setOpacity(1.0f);
 		g.drawImageAt(renderedCodePreview, (int)area.getX(), (int)area.getY() + 10);
 	}
 
@@ -383,7 +384,15 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 
 			for (const auto& cell_ : e)
 			{
-				newRow.columns.add({ cell_.s, cell_.imageURL, j, Rectangle<float>(), lengths[j] });
+                Cell c;
+                
+                c.content = cell_.s;
+                c.imageURL = cell_.imageURL;
+                c.index = j;
+                c.area = {};
+                c.length = lengths[j];
+                
+				newRow.columns.add(c);
 				j++;
 			}
 
