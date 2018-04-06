@@ -37,6 +37,9 @@
 namespace hise { using namespace juce;
 
 
+
+
+
 /** Contains all Setting windows that can popup and edit a specified XML file. */
 struct SettingWindows
 {
@@ -45,6 +48,10 @@ struct SettingWindows
 		Project,
 		User,
 		Compiler,
+		Audio,
+		Midi,
+		Global,
+		Script,
 		numSettings
 	};
 
@@ -57,9 +64,136 @@ struct SettingWindows
 
 	static void checkAllSettings(ProjectHandler *handler);
 
+	class NewSettingWindows : public Component,
+		public ButtonListener,
+		public QuasiModalComponent,
+		public TextEditor::Listener
+	{
+	public:
+
+		enum ColourValues
+		{
+			bgColour = 0xFF444444,
+			barColour = 0xFF2B2B2B,
+			tabBgColour = 0xFF333333,
+			
+			overColour = 0xFF464646
+		};
+
+		using SettingList = Array<Settings>;
+
+		NewSettingWindows(ProjectHandler* handler_);
+
+		~NewSettingWindows();
+
+		void buttonClicked(Button* b) override
+		{
+			if (b == &allSettings) setContent({ Settings::Project, Settings::User, Settings::Compiler, Settings::Audio, Settings::Global });
+			if (b == &projectSettings) setContent({ Settings::Project, Settings::User });
+			if (b == &globalSettings) setContent({ Settings::Compiler });
+			if (b == &applyButton)
+			{
+				saveOnDestroy = true;
+				destroy();
+			}
+			if (b == &cancelButton) destroy();
+		}
+
+		void resized() override;
+
+		void paint(Graphics& g) override;
+
+		void textEditorTextChanged(TextEditor&) override;
+
+		void activateSearchBox()
+		{
+			fuzzySearchBox.grabKeyboardFocus();
+		}
+
+
+	private:
+
+		struct FileBasedValueTree
+		{
+			FileBasedValueTree(Settings s_, ValueTree v_, File f_) :
+				s(s_),
+				v(v_),
+				f(f_)
+			{};
+
+			void fillPropertyPanel(PropertyPanel& panel, const String& searchText);
+
+			void addProperty(ValueTree& c, Array<PropertyComponent*>& props);
+
+			String getId() const;
+
+
+			void save();
+
+
+			Settings s;
+			ValueTree v;
+			File f;
+
+			BlackTextButtonLookAndFeel blaf;
+
+		};
+
+		FileBasedValueTree* getProperlyFormattedValueTree(Settings s)
+		{
+			auto f = getFileForSettingsWindow(s, handler);
+
+			ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+
+			if (xml != nullptr)
+			{
+				return new FileBasedValueTree(s, ValueTree::fromXml(*xml), f);
+			};
+
+			return new FileBasedValueTree( s, {}, f );
+		}
+
+		
+		OwnedArray<FileBasedValueTree> settings;
+
+		class TabButtonLookAndFeel : public LookAndFeel_V3
+		{
+			void drawToggleButton(Graphics& g, ToggleButton& b, bool isMouseOverButton, bool isButtonDown) override;
+		};
+
+		TabButtonLookAndFeel tblaf;
+
+		AlertWindowLookAndFeel alaf;
+
+		class Content; 
+		void setContent(SettingList s);
+
+		ProjectHandler* handler;
+
+		ToggleButton projectSettings;
+		ToggleButton globalSettings;
+		ToggleButton allSettings;
+
+		TextButton applyButton;
+		TextButton cancelButton;
+
+		ScopedPointer<Content> currentContent;
+
+		SettingList currentList;
+
+		TextEditor fuzzySearchBox;
+
+		bool saveOnDestroy = false;
+
+	};
+
+	
+
 private:
 
 	static File getFileForSettingsWindow(Settings s, ProjectHandler *handler = nullptr);
+
+	
 
 	class BaseSettingsWindow : public DialogWindowWithBackgroundThread
 	{

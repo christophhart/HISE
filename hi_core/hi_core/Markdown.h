@@ -333,7 +333,9 @@ public:
 	enum AttachmentType
 	{
 		Overlay,
+		OverlayLeft,
 		TopRight,
+		Left,
 		numAttachmentTypes
 	};
 
@@ -383,6 +385,8 @@ public:
 			{
 				parent->addAndMakeVisible(this);
 			}
+			else
+				jassertfalse; // You tried to attach a help button to a component without a parent...
 
 			setVisible(ownerComponent->isVisible());
 			ownerComponent->addComponentListener(this);
@@ -399,6 +403,19 @@ public:
 		case Overlay:
 		{
 			setBounds(cBounds.withSizeKeepingCentre(16, 16));
+			break;
+		}
+		case OverlayLeft:
+		{
+			auto square = cBounds.removeFromLeft(20);
+
+			setBounds(square.withSizeKeepingCentre(16, 16));
+
+			break;
+		}
+		case Left:
+		{
+			setBounds(cBounds.getX() - 20, cBounds.getY() + 2, 16, 16);
 			break;
 		}
 		case TopRight:

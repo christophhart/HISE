@@ -596,8 +596,13 @@ public:
 
 	Rectangle<int> getPropertyComponentContentPosition(PropertyComponent& component)
 	{
-		const int textW = jmin(110, component.getWidth() / 3);
+		const int textW = jmin(labelWidth, component.getWidth() / 3);
 		return Rectangle<int>(textW, 1, component.getWidth() - textW - 1, component.getHeight() - 3);
+	}
+
+	void setLabelWidth(int newLabelWidth)
+	{
+		labelWidth = newLabelWidth;
 	}
 
 
@@ -690,7 +695,7 @@ public:
 		return textButtonFont;
 	};
 
-	
+	int labelWidth = 110;
 
 	Font comboBoxFont;
 	Font textButtonFont;
