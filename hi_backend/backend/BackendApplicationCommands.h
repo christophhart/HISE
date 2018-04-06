@@ -48,6 +48,7 @@ public:
 	{
 		FileMenu = 0,
 		EditMenu,
+		ExportMenu,
 		ToolsMenu,
 		ViewMenu,
 		HelpMenu,

@@ -187,8 +187,10 @@ void BackendCommandTarget::createMenuBarNames()
 
 	menuNames.add("File");
 	menuNames.add("Edit " + (currentCopyPasteTarget.get() == nullptr ? "" : currentCopyPasteTarget->getObjectTypeName()));
+	menuNames.add("Export");
 	menuNames.add("Tools");
 	menuNames.add("View");
+	
 	menuNames.add("Help");
 
 	jassert(menuNames.size() == numMenuNames);
@@ -231,22 +233,22 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	}
 	case MenuNewFile:
-		setCommandTarget(result, "New File", true, false, 'N');
+		setCommandTarget(result, "New", true, false, 'N');
 		break;
 	case MenuOpenFile:
-		setCommandTarget(result, "Open File", true, false, 'O');
+		setCommandTarget(result, "Open Archive", true, false, 'X', false);
 		break;
 	case MenuSaveFile:
-		setCommandTarget(result, "Save", true, false, 'S');
+		setCommandTarget(result, "Save Archive", true, false, 'X', false);
 		break;
 	case MenuSaveFileAs:
-		setCommandTarget(result, "Save As", true, false, 'X', false);
+		setCommandTarget(result, "Save As Archive", true, false, 'X', false);
 		break;
 	case MenuSaveFileAsXmlBackup:
-		setCommandTarget(result, "Save File as XML Backup", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
+		setCommandTarget(result, "Save as XML", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'S');
 		break;
 	case MenuOpenXmlBackup:
-		setCommandTarget(result, "Open XML Backup", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
+		setCommandTarget(result, "Open XML", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'O');
 		break;
 	case MenuProjectNew:
 		setCommandTarget(result, "Create new Project folder", true, false, 'X', false);
@@ -287,7 +289,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Export as HISE Player Library", true, false, 'X', false);
 		break;
 	case MenuExportFileAsSnippet:
-		setCommandTarget(result, "Export as pasteable web snippet", true, false, 'X', false);
+		setCommandTarget(result, "Export as HISE Snippet", true, false, 'X', false);
 		break;
 	case MenuExportSampleDataForInstaller:
 		setCommandTarget(result, "Export Samples for Installer", true, false, 'X', false);
@@ -296,7 +298,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Preset Properties", true, false, 'X', false);
 		break;
 	case MenuFileSettingsProject:
-		setCommandTarget(result, "Project Properties", true, false, 'X', false);
+		setCommandTarget(result, "Preferences", true, false, 'X', false);
 		break;
 	case MenuFileSettingsUser:
 		setCommandTarget(result, "User Settings", true, false, 'X', false);
@@ -311,7 +313,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Clean Build directory", true, false, 'X', false);
 		break;
 	case MenuReplaceWithClipboardContent:
-		setCommandTarget(result, "Replace with clipboard content", true, false, 'X', false);
+		setCommandTarget(result, "Import HISE Snippet", true, false, 'X', false);
 		break;
 	case MenuFileQuit:
 		setCommandTarget(result, "Quit", true, false, 'X', false); break;
@@ -666,33 +668,14 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 	switch (m)
 	{
 	case BackendCommandTarget::FileMenu: {
-		ADD_ALL_PLATFORMS(MenuNewFile);
 
-		ADD_DESKTOP_ONLY(MenuOpenFile);
-		ADD_ALL_PLATFORMS(MenuSaveFile);
-		ADD_ALL_PLATFORMS(MenuSaveFileAs);
-		ADD_ALL_PLATFORMS(MenuReplaceWithClipboardContent);
-
-		PopupMenu filesInProject;
-
-		if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
-		{
-			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getFileList(recentFileList, ProjectHandler::SubDirectories::Presets, "*.hip", true);
-
-			for (int i = 0; i < recentFileList.size(); i++)
-			{
-				filesInProject.addItem(MenuOpenFileFromProjectOffset+i, recentFileList[i].getFileNameWithoutExtension(), true, false);
-			}
-		}
-
-		p.addSubMenu("Open File from Project", filesInProject, filesInProject.getNumItems() != 0);
-
-		p.addSeparator();
-
+		p.addSectionHeader("Project Management");
 		ADD_ALL_PLATFORMS(MenuProjectNew);
 		ADD_DESKTOP_ONLY(MenuProjectLoad);
 		ADD_DESKTOP_ONLY(MenuCloseProject);
+
 		ADD_DESKTOP_ONLY(MenuProjectShowInFinder);
+		
 
 		PopupMenu recentProjects;
 
@@ -705,7 +688,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		userDataDirectory.findChildFiles(results, File::findDirectories, false);
 
 		String currentProject = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getWorkDirectory().getFullPathName();
-		
+
 		const String menuTitle = "Available Projects";
 
 		for (int i = 0; i < results.size(); i++)
@@ -729,72 +712,70 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 #endif
 
 		p.addSubMenu(menuTitle, recentProjects);
-        
-        p.addSeparator();
-
-		ADD_DESKTOP_ONLY(MenuFileArchiveProject);
-		ADD_ALL_PLATFORMS(MenuFileDownloadNewProject);
 
 		p.addSeparator();
 
-        ADD_ALL_PLATFORMS(MenuFileSaveUserPreset);
-        
-        PopupMenu userPresets;
-        Array<File> userPresetFiles;
-        
-        ProjectHandler *handler = &GET_PROJECT_HANDLER(bpe->getMainSynthChain());
-        
-        handler->getFileList(userPresetFiles, ProjectHandler::SubDirectories::UserPresets, "*.preset");
-            
-        for(int i = 0; i < userPresetFiles.size(); i++)
-            userPresets.addItem(i + MenuFileUserPresetMenuOffset, userPresetFiles[i].getFileName());
-        
-        
-        p.addSubMenu("User Presets", userPresets);
-        p.addSeparator();
-        
+		p.addSectionHeader("File Management");
+
+		ADD_ALL_PLATFORMS(MenuNewFile);
+		
+
+		
+
 		ADD_ALL_PLATFORMS(MenuOpenXmlBackup);
 		ADD_ALL_PLATFORMS(MenuSaveFileAsXmlBackup);
 
-        PopupMenu xmlBackups;
-        Array<File> xmlBackupFiles;
-        
+		PopupMenu xmlBackups;
+		Array<File> xmlBackupFiles;
+
 		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getFileList(xmlBackupFiles, ProjectHandler::SubDirectories::XMLPresetBackups, "*.xml");
+
+		for (int i = 0; i < xmlBackupFiles.size(); i++)
+		{
+			xmlBackups.addItem(i + MenuFileXmlBackupMenuOffset, xmlBackupFiles[i].getFileName());
+		}
+
+		p.addSubMenu("Open recent XML", xmlBackups);
+
+		p.addSeparator();
+
+		ADD_DESKTOP_ONLY(MenuOpenFile);
+		ADD_ALL_PLATFORMS(MenuSaveFile);
+		
+
+		PopupMenu filesInProject;
+
+		if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
+		{
+			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getFileList(recentFileList, ProjectHandler::SubDirectories::Presets, "*.hip", true);
+
+			for (int i = 0; i < recentFileList.size(); i++)
+			{
+				filesInProject.addItem(MenuOpenFileFromProjectOffset+i, recentFileList[i].getFileNameWithoutExtension(), true, false);
+			}
+		}
+
+		p.addSubMenu("Open recent Archive", filesInProject, filesInProject.getNumItems() != 0);
+
+		p.addSeparator();
+
+		
+		ADD_ALL_PLATFORMS(MenuReplaceWithClipboardContent);
+		
+		
+        ProjectHandler *handler = &GET_PROJECT_HANDLER(bpe->getMainSynthChain());
         
-        for(int i = 0; i < xmlBackupFiles.size(); i++)
-        {
-            xmlBackups.addItem(i + MenuFileXmlBackupMenuOffset, xmlBackupFiles[i].getFileName());
-        }
         
-        p.addSubMenu("Load XML Backup from Project", xmlBackups);
+		
 
 
 #if HISE_IOS
 #else
+
 		p.addSeparator();
 
-		PopupMenu settingsSub;
+		ADD_ALL_PLATFORMS(MenuFileSettingsProject);
 
-		settingsSub.addCommandItem(mainCommandManager, MenuFileSettingsProject);
-		settingsSub.addCommandItem(mainCommandManager, MenuFileSettingsUser);
-		settingsSub.addCommandItem(mainCommandManager, MenuFileSettingsCompiler);
-		settingsSub.addSeparator();
-		settingsSub.addCommandItem(mainCommandManager, MenuFileSettingCheckSanity);
-		settingsSub.addCommandItem(mainCommandManager, MenuFileSettingsCleanBuildDirectory);
-
-		p.addSubMenu("Settings", settingsSub);
-
-
-		PopupMenu exportSub;
-
-        exportSub.addCommandItem(mainCommandManager, MenuExportFileAsPlugin);
-		exportSub.addCommandItem(mainCommandManager, MenuExportFileAsEffectPlugin);
-		exportSub.addCommandItem(mainCommandManager, MenuExportFileAsStandaloneApp);
-		exportSub.addCommandItem(mainCommandManager, MenuExportFileAsPlayerLibrary);
-        exportSub.addCommandItem(mainCommandManager, MenuExportFileAsSnippet);
-		exportSub.addCommandItem(mainCommandManager, MenuExportSampleDataForInstaller);
-
-		p.addSubMenu("Export", exportSub);
 		p.addSeparator();
 		ADD_ALL_PLATFORMS(MenuFileQuit);
 #endif
@@ -817,28 +798,23 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
             ADD_ALL_PLATFORMS(MenuEditPaste);
             p.addSeparator();
 
-			ADD_ALL_PLATFORMS(MenuEditMoveUp);
-			ADD_ALL_PLATFORMS(MenuEditMoveDown);
-            
-            const int chainOffset = 0x6000;
-            
-            ProcessorEditor * editor = dynamic_cast<ProcessorEditor*>(bpe->currentCopyPasteTarget.get());
-            if(editor != nullptr)
-            {
-                for(int i = 0; i < editor->getProcessor()->getNumInternalChains(); i++)
-                {
-                    Processor *child =  editor->getProcessor()->getChildProcessor(i);
-                    
-                    p.addItem(chainOffset, "Show " + child->getId(), true, child->getEditorState(Processor::EditorState::Visible));
-                }
-            }
-            
             ADD_ALL_PLATFORMS(MenuEditCreateScriptVariable);
 			ADD_ALL_PLATFORMS(MenuEditCreateBase64State);
-            ADD_ALL_PLATFORMS(MenuEditCloseAllChains);
-            ADD_DESKTOP_ONLY(MenuEditPlotModulator);
         }
 		break;
+	case BackendCommandTarget::ExportMenu:
+	{
+		p.addSectionHeader("Export As");
+		ADD_DESKTOP_ONLY(MenuExportFileAsPlugin);
+		ADD_DESKTOP_ONLY(MenuExportFileAsEffectPlugin);
+		ADD_DESKTOP_ONLY(MenuExportFileAsStandaloneApp);
+		
+		p.addSectionHeader("Export Tools");
+		ADD_DESKTOP_ONLY(MenuExportFileAsSnippet);
+		ADD_DESKTOP_ONLY(MenuExportSampleDataForInstaller);
+		ADD_DESKTOP_ONLY(MenuFileSettingsCleanBuildDirectory);
+		break;
+	}
 	case BackendCommandTarget::ToolsMenu:
 	{
 		p.addSectionHeader("Scripting Tools");
@@ -851,7 +827,6 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsRecompileScriptsOnReload);
 		ADD_DESKTOP_ONLY(MenuToolsSetCompileTimeOut);
 		ADD_DESKTOP_ONLY(MenuToolsUseBackgroundThreadForCompile);
-		ADD_DESKTOP_ONLY(MenuToolsCreateToolbarPropertyDefinition);
 		ADD_DESKTOP_ONLY(MenuToolsCreateExternalScriptFile);
 		ADD_DESKTOP_ONLY(MenuToolsRedirectScriptFolder);
 		ADD_DESKTOP_ONLY(MenuToolsValidateUserPresets);
@@ -1770,37 +1745,32 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)
             
 			ScopedPointer<XmlElement> xml = v.createXml();
 
-			if(PresetHandler::showYesNoWindow("Strip Editor View information", "Do you want to strip the editor view information? This reduces the noise when using version controls systems."))
+			XmlBackupFunctions::removeEditorStatesFromXml(*xml);
+
+			File scriptDirectory = XmlBackupFunctions::getScriptDirectoryFor(bpe->getMainSynthChain());
+
+			Processor::Iterator<JavascriptProcessor> iter(bpe->getMainSynthChain());
+
+			scriptDirectory.deleteRecursively();
+
+			scriptDirectory.createDirectory();
+
+			while (JavascriptProcessor *sp = iter.getNextProcessor())
 			{
-				XmlBackupFunctions::removeEditorStatesFromXml(*xml);
+				if (sp->isConnectedToExternalFile())
+					continue;
+
+				String content;
+
+				sp->mergeCallbacksToScript(content);
+
+				File scriptFile = XmlBackupFunctions::getScriptFileFor(bpe->getMainSynthChain(), dynamic_cast<Processor*>(sp)->getId());
+
+				scriptFile.replaceWithText(content);
 			}
 
-			if (PresetHandler::showYesNoWindow("Write Scripts to external file?", "Do you want to write the scripts into an external file (They will be imported when loading this backup"))
-			{
-				File scriptDirectory = XmlBackupFunctions::getScriptDirectoryFor(bpe->getMainSynthChain());
-
-				Processor::Iterator<JavascriptProcessor> iter(bpe->getMainSynthChain());
-
-				scriptDirectory.deleteRecursively();
-
-				scriptDirectory.createDirectory();
-
-				while (JavascriptProcessor *sp = iter.getNextProcessor())
-				{
-					if (sp->isConnectedToExternalFile())
-						continue;
-
-					String content;
-
-					sp->mergeCallbacksToScript(content);
-
-					File scriptFile = XmlBackupFunctions::getScriptFileFor(bpe->getMainSynthChain(), dynamic_cast<Processor*>(sp)->getId());
-
-					scriptFile.replaceWithText(content);
-				}
-
-				XmlBackupFunctions::removeAllScripts(*xml);
-			}
+			XmlBackupFunctions::removeAllScripts(*xml);
+			
 
 			fc.getResult().replaceWithText(xml->createDocument(""));
 
@@ -1943,9 +1913,14 @@ void BackendCommandTarget::Actions::showFilePresetSettings(BackendRootWindow * /
 
 void BackendCommandTarget::Actions::showFileProjectSettings(BackendRootWindow * bpe)
 {
-	SettingWindows::ProjectSettingWindow *window = new SettingWindows::ProjectSettingWindow(&GET_PROJECT_HANDLER(bpe->getMainSynthChain()));
+	//SettingWindows::ProjectSettingWindow *window = new SettingWindows::ProjectSettingWindow(&GET_PROJECT_HANDLER(bpe->getMainSynthChain()));
+
+	auto window = new SettingWindows::NewSettingWindows(&GET_PROJECT_HANDLER(bpe->getMainSynthChain()));
+
 
 	window->setModalBaseWindowComponent(bpe);
+
+	window->activateSearchBox();
 }
 
 void BackendCommandTarget::Actions::showFileUserSettings(BackendRootWindow * bpe)
