@@ -39,6 +39,91 @@ namespace hise { using namespace juce;
 
 struct SettingDescription
 {
+    
+    
+    static void addChildElement(XmlElement &element, const String& attributeName, const String &childValue, const String &description)
+    {
+        XmlElement *child = new XmlElement(attributeName);
+        child->setAttribute("value", childValue);
+        child->setAttribute("type", "TEXT");
+        child->setAttribute("description", description);
+        
+        element.addChildElement(child);
+    }
+    
+    static void addChildElementWithOptions(XmlElement &element, const String& attributeName, const String &childValue, const String &description, const String &optionsAsLines)
+    {
+        XmlElement *child = new XmlElement(attributeName);
+        child->setAttribute("value", childValue);
+        child->setAttribute("type", "LIST");
+        child->setAttribute("description", description);
+        child->setAttribute("options", optionsAsLines);
+        
+        element.addChildElement(child);
+    }
+    
+    static void addFileAsChildElement(XmlElement &element, const String& attributeName, const String &childValue, const String &description)
+    {
+        XmlElement *child = new XmlElement(attributeName);
+        child->setAttribute("value", childValue);
+        child->setAttribute("type", "FILE");
+        child->setAttribute("description", description);
+        
+        element.addChildElement(child);
+    }
+    
+    static ValueTree createNewValueTree(SettingWindows::Settings s, ProjectHandler* handler)
+    {
+        switch(s)
+        {
+            case SettingWindows::Settings::Project:
+            {
+                ScopedPointer<XmlElement> xml = new XmlElement("ProjectSettings");
+                
+                addChildElement(*xml, "Name", handler->getWorkDirectory().getFileName(), "Project Name");
+                addChildElement(*xml, "Version", "0.1.0", "Project version");
+                addChildElement(*xml, "Description", "", "Project description");
+                addChildElement(*xml, "BundleIdentifier", "com.myCompany.product", "Bundle Identifier(eg.com.myCompany.bundle)");
+                addChildElement(*xml, "PluginCode", "Abcd", "a 4 character ID code(eg. 'Abcd')");
+                addChildElementWithOptions(*xml, "EmbedAudioFiles", "No", "Embed Audio files in plugin", "Yes\nNo");
+                addChildElement(*xml, "AdditionalDspLibraries", "", "comma separated list of all static dsp factory classes");
+                addChildElement(*xml, "WindowsStaticLibFolder", "", "Windows static library folder");
+                addChildElement(*xml, "OSXStaticLibs", "", "Additional static libs (OSX only)");
+                addChildElement(*xml, "ExtraDefinitionsWindows", "", "Extra preprocessor definitions for Windows");
+                addChildElement(*xml, "ExtraDefinitionsOSX", "", "Extra preprocessor definitions for OSX");
+                addChildElement(*xml, "ExtraDefinitionsIOS", "", "Extra preprocessor definitions for IOS");
+                addChildElement(*xml, "AppGroupId", "", "App Group ID (use this for shared resources on iOS");
+                
+                return ValueTree::fromXml(*xml);
+                
+            }
+            case SettingWindows::Settings::User:
+            {
+                ScopedPointer<XmlElement> xml = new XmlElement("UserSettings");
+                
+                addChildElement(*xml, "Company", "My Company", "Company Name");
+                addChildElement(*xml, "CompanyCode", "Abcd", "Company Code (4 characters, first must be uppercase)");
+                addChildElement(*xml, "CompanyCopyright", "(c)2017, Company", "Company Copyright");
+                addChildElement(*xml, "CompanyURL", "http://yourcompany.com", "Company Website");
+                addChildElement(*xml, "TeamDevelopmentId", "", "Apple Distribution ID");
+                
+                return ValueTree::fromXml(*xml);
+            }
+            case SettingWindows::Settings::Compiler:
+            {
+                ScopedPointer<XmlElement> xml = new XmlElement("CompilerSettings");
+                
+                addFileAsChildElement(*xml, "HisePath", "", "Path to HISE modules");
+                addChildElementWithOptions(*xml, "VisualStudioVersion", "Visual Studio 2017", "Installed VisualStudio version", "Visual Studio 2015\nVisual Studio 2017");
+                addChildElementWithOptions(*xml, "UseIPP", "Yes", "Use IPP", "Yes\nNo");
+
+                return ValueTree::fromXml(*xml);
+            }
+        }
+        
+        return {};
+    }
+    
 	static String getDescription(const String& prop)
 	{
 		String s;
@@ -967,7 +1052,7 @@ void SettingWindows::NewSettingWindows::FileBasedValueTree::fillPropertyPanel(Pr
 
 
 
-	for (auto& c : v)
+	for (auto c : v)
 	{
 
 
@@ -986,11 +1071,7 @@ void SettingWindows::NewSettingWindows::FileBasedValueTree::fillPropertyPanel(Pr
 
 		for (auto p : props)
 		{
-
-
 			auto n = p->getName();
-
-			DBG(n);
 
 			auto help = SettingDescription::getDescription(n);
 
@@ -1058,9 +1139,23 @@ juce::String SettingWindows::NewSettingWindows::FileBasedValueTree::getId() cons
 	return getUncamelcasedId(v.getType());
 }
 
+SettingWindows::NewSettingWindows::FileBasedValueTree* SettingWindows::NewSettingWindows::getProperlyFormattedValueTree(Settings s)
+{
+    auto f = getFileForSettingsWindow(s, handler);
+    
+    ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+                
+    if (xml != nullptr)
+    {
+        return new FileBasedValueTree(s, ValueTree::fromXml(*xml), f);
+    }
+    
+    return new  FileBasedValueTree( s, SettingDescription::createNewValueTree(s, handler) , f );
+}
+            
 void SettingWindows::NewSettingWindows::FileBasedValueTree::save()
 {
-	for (auto& c : v)
+	for (auto c : v)
 	{
 		if (c.getProperty("options").toString() == "Yes&#10;No")
 		{

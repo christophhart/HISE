@@ -139,19 +139,8 @@ struct SettingWindows
 
 		};
 
-		FileBasedValueTree* getProperlyFormattedValueTree(Settings s)
-		{
-			auto f = getFileForSettingsWindow(s, handler);
-
-			ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
-
-			if (xml != nullptr)
-			{
-				return new FileBasedValueTree(s, ValueTree::fromXml(*xml), f);
-			};
-
-			return new FileBasedValueTree( s, {}, f );
-		}
+        FileBasedValueTree* getProperlyFormattedValueTree(Settings s);
+		
 
 		
 		OwnedArray<FileBasedValueTree> settings;
