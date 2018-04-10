@@ -36,24 +36,112 @@
 
 namespace hise { using namespace juce;
 
+#define DECLARE_ID(name)      const Identifier name (#name)
 
+namespace HiseSettings {
+
+namespace SettingFiles
+{
+DECLARE_ID(ProjectSettings);
+DECLARE_ID(UserSettings);
+DECLARE_ID(CompilerSettings);
+DECLARE_ID(GeneralSettings);
+DECLARE_ID(DeviceSettings);
+}
+
+namespace Project
+{
+DECLARE_ID(Name);
+DECLARE_ID(Version);
+DECLARE_ID(Description);
+DECLARE_ID(BundleIdentifier);
+DECLARE_ID(PluginCode);
+DECLARE_ID(EmbedAudioFiles);
+DECLARE_ID(AdditionalDspLibraries);
+DECLARE_ID(OSXStaticLibs);
+DECLARE_ID(WindowsStaticLibFolder);
+DECLARE_ID(ExtraDefinitionsWindows);
+DECLARE_ID(ExtraDefinitionsOSX);
+DECLARE_ID(ExtraDefinitionsIOS);
+DECLARE_ID(AppGroupId);
+
+} // Project
+
+namespace Compiler
+{
+DECLARE_ID(HisePath);
+DECLARE_ID(VisualStudioVersion);
+DECLARE_ID(UseIPP);
+
+} // Compiler
+
+namespace User
+{
+DECLARE_ID(Company);
+DECLARE_ID(CompanyCode);
+DECLARE_ID(CompanyURL);
+DECLARE_ID(CompanyCopyright);
+DECLARE_ID(TeamDevelopmentID);
+
+} // User
+
+
+struct Data
+{
+	Data(MainController* mc_);
+
+	File getFileForSetting(const Identifier& id) const;
+
+	void loadDataFromFiles();
+	void refreshProjectData();
+	void loadSettingsFromFile(const Identifier& id);
+	
+	ValueTree getTreeForSettings(const Identifier& id)
+	{
+		auto v = data.getChildWithName(id);
+
+		return v;
+	}
+
+	var getSetting(const Identifier& id) const
+	{
+		for (const auto& c : data)
+			if (c.hasProperty(id))
+				return c.getProperty(id);
+
+		return var();
+	}
+
+	static StringArray getOptionsFor(const Identifier& id);
+
+	static bool isFileId(const Identifier& id);
+
+private:
+
+	static void addSetting(ValueTree& v, const Identifier& id, const String& defaultValue = String());
+
+	
+
+	void addMissingSettings(ValueTree& v, const Identifier &id);
+
+	MainController* mc;
+	ValueTree data;
+};
+
+
+
+#undef DECLARE_ID
+
+
+} // SettingIds
 
 
 
 /** Contains all Setting windows that can popup and edit a specified XML file. */
 struct SettingWindows
 {
-	enum class Settings
-	{
-		Project,
-		User,
-		Compiler,
-		Audio,
-		Midi,
-		Global,
-		Script,
-		numSettings
-	};
+	
+	
 
 	/** Use this helper function to get the actual settings.
 	*
@@ -80,17 +168,17 @@ struct SettingWindows
 			overColour = 0xFF464646
 		};
 
-		using SettingList = Array<Settings>;
+		using SettingList = Array<Identifier>;
 
-		NewSettingWindows(ProjectHandler* handler_);
+		NewSettingWindows(HiseSettings::Data& data);
 
 		~NewSettingWindows();
 
 		void buttonClicked(Button* b) override
 		{
-			if (b == &allSettings) setContent({ Settings::Project, Settings::User, Settings::Compiler, Settings::Audio, Settings::Global });
-			if (b == &projectSettings) setContent({ Settings::Project, Settings::User });
-			if (b == &globalSettings) setContent({ Settings::Compiler });
+			if (b == &allSettings) setContent({ HiseSettings::SettingFiles::ProjectSettings, HiseSettings::SettingFiles::UserSettings, HiseSettings::SettingFiles::CompilerSettings});
+			if (b == &projectSettings) setContent({ HiseSettings::SettingFiles::ProjectSettings, HiseSettings::SettingFiles::UserSettings });
+			if (b == &globalSettings) setContent({ HiseSettings::SettingFiles::CompilerSettings });
 			if (b == &applyButton)
 			{
 				saveOnDestroy = true;
@@ -115,7 +203,7 @@ struct SettingWindows
 
 		struct FileBasedValueTree
 		{
-			FileBasedValueTree(Settings s_, ValueTree v_, File f_) :
+			FileBasedValueTree(Identifier s_, ValueTree v_, File f_) :
 				s(s_),
 				v(v_),
 				f(f_)
@@ -130,8 +218,7 @@ struct SettingWindows
 
 			void save();
 
-
-			Settings s;
+			Identifier s;
 			ValueTree v;
 			File f;
 
@@ -139,9 +226,7 @@ struct SettingWindows
 
 		};
 
-        FileBasedValueTree* getProperlyFormattedValueTree(Settings s);
-		
-
+        FileBasedValueTree* getProperlyFormattedValueTree(Identifier s);
 		
 		OwnedArray<FileBasedValueTree> settings;
 
@@ -149,6 +234,8 @@ struct SettingWindows
 		{
 			void drawToggleButton(Graphics& g, ToggleButton& b, bool isMouseOverButton, bool isButtonDown) override;
 		};
+
+		HiseSettings::Data& dataObject;
 
 		TabButtonLookAndFeel tblaf;
 
@@ -180,208 +267,13 @@ struct SettingWindows
 
 private:
 
-	static File getFileForSettingsWindow(Settings s, ProjectHandler *handler = nullptr);
+	
 
 	
 
-	class BaseSettingsWindow : public DialogWindowWithBackgroundThread
-	{
-	public:
-
-		enum class ValueTypes
-		{
-			Text,
-			List,
-			File,
-			numValueTypes
-		};
-
-		BaseSettingsWindow(const String &settingName) :
-			DialogWindowWithBackgroundThread(settingName + " Properties")
-		{}
-
-		/** Saves the file to the disk. */
-		void run() override;
-
-		void threadFinished() override;
-
-		/** Reveals the file in the explorer / finder. */
-		void resultButtonClicked(const String &name);
-
-		
-		/** This method will be called before the XML file is saved.
-		*
-		*	You can add some checks here and return an error message if something is wrong.
-		*	If everything is OK, just return an empty String. */
-		virtual String sanityCheck(const XmlElement& /*xmlSettings*/) { return String(); }
-
-	protected:
-
-		static String getNameForValueType(ValueTypes t);
-
-		static ValueTypes getValueType(XmlElement *);
-
-		/** Overwrite this method and create a XML object with the following structure:
-		*
-		*	<TagName>
-		*		<option1 Name="Name" value="Value" description="SomeDescription" options="Option1\nOption2\nOption3"/>
-		*	</TagName>
-		*
-		*	Ideally you don't create these manually but use the helper functions addChildElement() and addChildElementWithOptions()
-		*/
-		virtual XmlElement *createNewSettingsFile() const = 0;
-
-		/** Overwrite this method and return the file you want to use. */
-		virtual File getFile() const = 0;
-
-		virtual String getAttributeName(int attribute) const = 0;
-
-		/** Creates a child element in the specified XML with the given data. */
-		void addChildElement(XmlElement &element, int attributeIndex, const String &childValue, const String &description) const;
-
-		/** Creates a child element in the specified XML with the given data and an option list as lines*/
-		void addChildElementWithOptions(XmlElement &element, int attributeIndex, const String &childValue, const String &description, const String &optionsAsLines) const;
-
-		void addFileAsChildElement(XmlElement &element, int attributeIndex, const String &childValue, const String &description) const;
-
-		/** Call this method in your subclass and point to the file it should use. */
-		void setSettingsFile();
-
-	private:
-
-		FilenameComponent *getFileNameComponent(const String &name)
-		{
-			for (int i = 0; i < fileComponents.size(); i++)
-			{
-				if (fileComponents[i]->getName() == name) return fileComponents[i];
-			}
-
-			return nullptr;
-		}
-
-		ScopedPointer<XmlElement> settings;
-		File settingsFile;
-
-		OwnedArray<FilenameComponent> fileComponents;
-
-	};
-
 public:
 
-	// ========================================================================================================
-
-	class ProjectSettingWindow : public BaseSettingsWindow
-	{
-	public:
-
-		enum class Attributes
-		{
-			Name,
-			Version,
-			Description,
-			BundleIdentifier,
-			PluginCode,
-			EmbedAudioFiles,
-			AdditionalDspLibraries,
-			OSXStaticLibs,
-			WindowsStaticLibFolder,
-			ExtraDefinitionsWindows,
-			ExtraDefinitionsOSX,
-			ExtraDefinitionsIOS,
-            AppGroupId,
-			numAttributes
-		};
-
-		ProjectSettingWindow(ProjectHandler *handler_) :
-			BaseSettingsWindow("Project"),
-			handler(handler_)
-		{
-			setSettingsFile();
-		};
-
-		File getFile() const override;
-
-		String getAttributeName(int attribute) const override;
-
-		static String getAttributeNameForSetting(int attribute);
-
-		XmlElement *createNewSettingsFile() const override;
-
-		String sanityCheck(const XmlElement& xmlSettings) override;
-
-	private:
-
-		ProjectHandler *handler;
-	};
-
-	// ========================================================================================================
-
-	class CompilerSettingWindow : public BaseSettingsWindow
-	{
-	public:
-
-		enum class Attributes
-		{
-			HisePath = (int)ProjectSettingWindow::Attributes::numAttributes,
-			VisualStudioVersion,
-			UseIPP,
-			numCompilerSettingAttributes
-		};
-
-
-		CompilerSettingWindow() :
-			BaseSettingsWindow("Compiler")
-		{
-			setSettingsFile();
-		};
-
-		File getFile() const override;
-
-		String getAttributeName(int attribute) const override;
-
-		static String getAttributeNameForSetting(int attribute);
-
-		XmlElement *createNewSettingsFile() const override;
-
-	private:
-
-		ProjectHandler *handler;
-	};
-
-	// ========================================================================================================
-
-	class UserSettingWindow : public BaseSettingsWindow
-	{
-	public:
-
-		enum Attributes
-		{
-			Company = (int)CompilerSettingWindow::Attributes::numCompilerSettingAttributes,
-			CompanyCode,
-			CompanyURL,
-            CompanyCopyright,
-            TeamDevelopmentId,
-			numUserSettingAttributes
-		};
-
-		UserSettingWindow(ProjectHandler *handler_) :
-			BaseSettingsWindow("User"),
-			handler(handler_)
-		{
-			setSettingsFile();
-		};
-
-		File getFile() const override;
-
-		String getAttributeName(int attribute) const override;
-
-		static String getAttributeNameForSetting(int attribute);
-
-		XmlElement *createNewSettingsFile() const override;
-
-		ProjectHandler *handler;
-	};
-
+	
 };
 
 } // namespace hise

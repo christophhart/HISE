@@ -490,17 +490,17 @@ String SampleDataExporter::getMetadataJSON() const
 
 String SampleDataExporter::getProjectName() const
 {
-	return SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, &GET_PROJECT_HANDLER(synthChain));
+	return dynamic_cast<GlobalSettingManager*>(synthChain->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Name);
 }
 
 String SampleDataExporter::getCompanyName() const
 {
-	return SettingWindows::getSettingValue((int)SettingWindows::UserSettingWindow::Attributes::Company, &GET_PROJECT_HANDLER(synthChain));
+	return dynamic_cast<GlobalSettingManager*>(synthChain->getMainController())->getSettingsObject().getSetting(HiseSettings::User::Company);
 }
 
 String SampleDataExporter::getProjectVersion() const
 {
-	return SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(synthChain));
+	return dynamic_cast<GlobalSettingManager*>(synthChain->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Version);
 }
 
 File SampleDataExporter::getTargetFile() const
@@ -762,7 +762,7 @@ bool SampleDataImporter::checkConditionsBeforeStartingThread()
 String SampleDataImporter::getProjectName() const
 {
 #if USE_BACKEND
-	return SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, &GET_PROJECT_HANDLER(synthChain));
+	return dynamic_cast<GlobalSettingManager*>(synthChain->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Name);
 #else
 	return ProjectHandler::Frontend::getProjectName();
 #endif
@@ -771,7 +771,7 @@ String SampleDataImporter::getProjectName() const
 String SampleDataImporter::getCompanyName() const
 {
 #if USE_BACKEND
-	return SettingWindows::getSettingValue((int)SettingWindows::UserSettingWindow::Attributes::Company, &GET_PROJECT_HANDLER(synthChain));
+	return dynamic_cast<GlobalSettingManager*>(synthChain->getMainController())->getSettingsObject().getSetting(HiseSettings::User::Company);
 #else
 	return ProjectHandler::Frontend::getCompanyName();
 #endif
@@ -780,7 +780,7 @@ String SampleDataImporter::getCompanyName() const
 String SampleDataImporter::getProjectVersion() const
 {
 #if USE_BACKEND
-	return SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(synthChain));
+	return dynamic_cast<GlobalSettingManager*>(synthChain->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Version);
 #else
 
 	// TODO: change this later...

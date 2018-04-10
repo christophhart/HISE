@@ -238,7 +238,7 @@ public:
 		*	- user presets (in the UserPresets subfolder)
 		*	- license key file
 		*/
-		static File getAppDataDirectory(ProjectHandler *handler=nullptr);
+		static File getAppDataDirectory(ModulatorSynthChain *chain=nullptr);
 
 		static File getLicenseKey();
 

@@ -1165,7 +1165,7 @@ var ScriptingApi::Engine::getFilterModeList() const
 String ScriptingApi::Engine::getVersion()
 {
 #if USE_BACKEND
-	return SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(getProcessor()));
+	return dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Name);
 #else
 	return ProjectHandler::Frontend::getVersionString();
 #endif

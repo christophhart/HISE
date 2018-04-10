@@ -763,10 +763,6 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_ALL_PLATFORMS(MenuReplaceWithClipboardContent);
 		
 		
-        ProjectHandler *handler = &GET_PROJECT_HANDLER(bpe->getMainSynthChain());
-        
-        
-		
 
 
 #if HISE_IOS
@@ -1915,7 +1911,7 @@ void BackendCommandTarget::Actions::showFileProjectSettings(BackendRootWindow * 
 {
 	//SettingWindows::ProjectSettingWindow *window = new SettingWindows::ProjectSettingWindow(&GET_PROJECT_HANDLER(bpe->getMainSynthChain()));
 
-	auto window = new SettingWindows::NewSettingWindows(&GET_PROJECT_HANDLER(bpe->getMainSynthChain()));
+	auto window = new SettingWindows::NewSettingWindows(bpe->getBackendProcessor()->getSettingsObject());
 
 
 	window->setModalBaseWindowComponent(bpe);
@@ -1925,16 +1921,12 @@ void BackendCommandTarget::Actions::showFileProjectSettings(BackendRootWindow * 
 
 void BackendCommandTarget::Actions::showFileUserSettings(BackendRootWindow * bpe)
 {
-	SettingWindows::UserSettingWindow *window = new SettingWindows::UserSettingWindow(&GET_PROJECT_HANDLER(bpe->getMainSynthChain()));
-
-	window->setModalBaseWindowComponent(bpe);
+	jassertfalse;
 }
 
-void BackendCommandTarget::Actions::showFileCompilerSettings(BackendRootWindow * bpe)
+void BackendCommandTarget::Actions::showFileCompilerSettings(BackendRootWindow * /*bpe*/)
 {
-	SettingWindows::CompilerSettingWindow *window = new SettingWindows::CompilerSettingWindow();
-
-	window->setModalBaseWindowComponent(bpe);
+	jassertfalse;
 }
 
 void BackendCommandTarget::Actions::checkSettingSanity(BackendRootWindow * bpe)
@@ -1990,9 +1982,10 @@ void BackendCommandTarget::Actions::createDummyLicenseFile(BackendRootWindow * b
 		return;
 	}
 
-	const String appName = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, handler);
+	auto& dataObject = bpe->getBackendProcessor()->getSettingsObject();
 
-	const String version = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, handler);
+	const auto appName = dataObject.getSetting(HiseSettings::Project::Name).toString();
+	const auto version = dataObject.getSetting(HiseSettings::Project::Version).toString();
 
 	if (appName.isEmpty() || version.isEmpty())
 	{
@@ -2357,16 +2350,18 @@ void BackendCommandTarget::Actions::createUIDataFromDesktop(BackendRootWindow * 
 	}
 }
 
-#define REPLACE_WILDCARD(wildcard, settingId) (templateProject = templateProject.replace(wildcard, SettingWindows::getSettingValue((int)settingId, &GET_PROJECT_HANDLER(mc->getMainSynthChain()))))
+#define REPLACE_WILDCARD(wildcard, x) templateProject = templateProject.replace(wildcard, data.getSetting(x).toString())
 #define REPLACE_WILDCARD_WITH_STRING(wildcard, s) (templateProject = templateProject.replace(wildcard, s))
 
 juce::String BackendCommandTarget::Actions::createWindowsInstallerTemplate(MainController* mc, bool includeAAX)
 {
 	String templateProject(winInstallerTemplate);
 	
-	REPLACE_WILDCARD("%PRODUCT%", SettingWindows::ProjectSettingWindow::Attributes::Name);
-	REPLACE_WILDCARD("%VERSION%", SettingWindows::ProjectSettingWindow::Attributes::Version);
-	REPLACE_WILDCARD("%COMPANY%", SettingWindows::UserSettingWindow::Attributes::Company);
+	auto& data = dynamic_cast<GlobalSettingManager*>(mc)->getSettingsObject();
+
+	REPLACE_WILDCARD("%PRODUCT%", HiseSettings::Project::Name);
+	REPLACE_WILDCARD("%VERSION%", HiseSettings::Project::Version);
+	REPLACE_WILDCARD("%COMPANY%", HiseSettings::User::Company);
 
 	REPLACE_WILDCARD_WITH_STRING("%AAXONLY%", includeAAX ? "" : ";");
 

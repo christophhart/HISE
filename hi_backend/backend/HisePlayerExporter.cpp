@@ -46,10 +46,10 @@ void HisePlayerExporter::run()
 
 	ProjectHandler* handler = &GET_PROJECT_HANDLER(chainToExport);
 
-	metadata.setProperty(Identifier("Name"), SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, handler), nullptr);
-	metadata.setProperty(Identifier("Version"), SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, handler), nullptr);
-	metadata.setProperty(Identifier("Company"), SettingWindows::getSettingValue((int)SettingWindows::UserSettingWindow::Attributes::Company, handler), nullptr);
-	metadata.setProperty(Identifier("CompanyWebsite"), SettingWindows::getSettingValue((int)SettingWindows::UserSettingWindow::Attributes::CompanyURL, handler), nullptr);
+	metadata.setProperty(Identifier("Name"), GET_SETTING(HiseSettings::Project::Name), nullptr);
+	metadata.setProperty(Identifier("Version"), GET_SETTING(HiseSettings::Project::Version), nullptr);
+	metadata.setProperty(Identifier("Company"), GET_SETTING(HiseSettings::User::Company), nullptr);
+	metadata.setProperty(Identifier("CompanyWebsite"), GET_SETTING(HiseSettings::User::CompanyURL), nullptr);
 
 	ValueTree library("LibraryData");
 

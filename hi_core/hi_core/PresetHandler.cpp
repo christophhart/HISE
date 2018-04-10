@@ -350,7 +350,7 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 {
 #if USE_BACKEND
 
-	const String version = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(chain));
+	const String version = dynamic_cast<GlobalSettingManager*>(chain->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Version);
 
 	SemanticVersionChecker versionChecker(version, version);
 
@@ -587,7 +587,7 @@ bool UserPresetHelpers::checkVersionNumber(ModulatorSynthChain* chain, XmlElemen
 String UserPresetHelpers::getCurrentVersionNumber(ModulatorSynthChain* chain)
 {
 #if USE_BACKEND
-	return SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(chain));
+	return dynamic_cast<GlobalSettingManager*>(chain->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Version);
 #else
 	ignoreUnused(chain);
 	return ProjectHandler::Frontend::getVersionString();
@@ -1555,18 +1555,7 @@ void ProjectHandler::createLinkFileInFolder(const File& source, const File& targ
 
 void ProjectHandler::setProjectSettings(Component *mainEditor)
 {
-	SettingWindows::ProjectSettingWindow *w = new SettingWindows::ProjectSettingWindow(this);
-
-	window = w;
-
-	if (mainEditor == nullptr)
-	{
-		w->showOnDesktop();
-	}
-	else
-	{
-		w->setModalBaseWindowComponent(mainEditor);
-	}
+	BackendCommandTarget::Actions::showFileProjectSettings(mainEditor->findParentComponentOfClass<BackendRootWindow>());
 }
 
 
@@ -1695,7 +1684,7 @@ File ProjectHandler::Frontend::getSampleLocationForCompiledPlugin()
 #endif
 }
 
-File ProjectHandler::Frontend::getAppDataDirectory(ProjectHandler *handler/*=nullptr*/)
+juce::File ProjectHandler::Frontend::getAppDataDirectory(ModulatorSynthChain *chain/*=nullptr*/)
 {
 
     const File::SpecialLocationType appDataDirectoryToUse = File::userApplicationDataDirectory;
@@ -1703,7 +1692,7 @@ File ProjectHandler::Frontend::getAppDataDirectory(ProjectHandler *handler/*=nul
 
 #if USE_FRONTEND
     
-	ignoreUnused(handler);
+	ignoreUnused(chain);
 
 #if JUCE_IOS
     
@@ -1739,10 +1728,10 @@ File ProjectHandler::Frontend::getAppDataDirectory(ProjectHandler *handler/*=nul
 #endif
 #else // BACKEND
 
-	jassert(handler != nullptr);
+	jassert(chain != nullptr);
 
-	const String company = SettingWindows::getSettingValue((int)SettingWindows::UserSettingWindow::Attributes::Company, handler);
-	const String product = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, handler);
+	auto company = dynamic_cast<GlobalSettingManager*>(chain->getMainController())->getSettingsObject().getSetting(HiseSettings::User::Company).toString();
+	auto product = dynamic_cast<GlobalSettingManager*>(chain->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Name).toString();
 
 #if JUCE_MAC
 	return File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/" + company + "/" + product);

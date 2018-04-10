@@ -37,6 +37,7 @@ MainController(),
 AudioProcessorDriver(deviceManager_, callback_),
 viewUndoManager(new UndoManager())
 {
+	
 	ExtendedApiDocumentation::init();
 
     synthChain = new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES, viewUndoManager);
@@ -51,6 +52,9 @@ viewUndoManager(new UndoManager())
 	handleEditorData(false);
 
 	restoreGlobalSettings(this);
+
+	initData(this);
+
 
 	createUserPresetData();
 }

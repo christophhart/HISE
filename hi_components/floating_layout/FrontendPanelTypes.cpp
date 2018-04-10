@@ -638,9 +638,11 @@ void AboutPagePanel::rebuildText()
 #else
 	auto& handler = GET_PROJECT_HANDLER(getMainController()->getMainSynthChain());
 
-	const String projectName = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, &handler);
+	const auto& data = dynamic_cast<GlobalSettingManager*>(getMainController())->getSettingsObject();
+
+	const String projectName = data.getSetting(HiseSettings::Project::Name);
 	const String licencee = "mailMcFaceMail@mail.mail";
-	const String version = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &handler);
+	const String version = data.getSetting(HiseSettings::Project::Version);
 
 #endif
 

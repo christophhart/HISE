@@ -88,11 +88,26 @@ public:
 		listeners.removeAllInstancesOf(listenerToRemove);
 	}
 
-	
+	HiseSettings::Data& getSettingsObject()
+	{ 
+		jassert(data != nullptr);
+		return *data; 
+	}
+
+	const HiseSettings::Data& getSettingsObject() const 
+	{
+		jassert(data != nullptr);
+		return *data; 
+	}
 
 	static File getSettingDirectory();
 
 	static void restoreGlobalSettings(MainController* mc);
+
+	void initData(MainController* mc)
+	{
+		data = new HiseSettings::Data(mc);
+	}
 
 	void saveSettingsAsXml();
 
@@ -111,6 +126,8 @@ public:
 	bool useOpenGL = false;
 
 private:
+
+	ScopedPointer<HiseSettings::Data> data;
 
 	double scaleFactor = 1.0;
 
