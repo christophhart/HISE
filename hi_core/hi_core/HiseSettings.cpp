@@ -70,6 +70,7 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(ExtraDefinitionsOSX);
 	ids.add(ExtraDefinitionsIOS);
 	ids.add(AppGroupID);
+	ids.add(RedirectSampleFolder);
 
 	return ids;
 }
@@ -251,6 +252,11 @@ struct SettingDescription
 		D("If you're compiling an iOS app, you need to add an App Group to your Apple ID for this project and supply the name here.");
 		D("App Group IDs must have reverse-domain format and start with group, like:");
 		D("> `group.company.product`");
+		P_();
+
+		P(HiseSettings::Project::RedirectSampleFolder);
+		D("You can use another location for your sample files. This is useful if you have limited space on your hard drive and need to separate the samples.");
+		D("> HISE will create a file called `LinkWindows` / `LinkOSX` in the samples folder that contains the link to the real folder.");
 		P_();
 
 		P(HiseSettings::User::Company);
@@ -503,7 +509,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 
 bool HiseSettings::Data::isFileId(const Identifier& id)
 {
-	return id == Compiler::HisePath || id == Scripting::GlobalScriptPath;
+	return id == Compiler::HisePath || id == Scripting::GlobalScriptPath || id == Project::RedirectSampleFolder;
 }
 
 
@@ -565,15 +571,18 @@ void HiseSettings::Data::initialiseAudioDriverData(bool forceReload/*=false*/)
 
 var HiseSettings::Data::getDefaultSetting(const Identifier& id)
 {
+	auto& handler = GET_PROJECT_HANDLER(mc->getMainSynthChain());
+
 	if (id == Project::Name)
 	{
-		auto handler = &GET_PROJECT_HANDLER(mc->getMainSynthChain());
-		return handler->getWorkDirectory().getFileName();
+		
+		return handler.getWorkDirectory().getFileName();
 	}
 	else if (id == Project::Version)			    return "1.0.0";
 	else if (id == Project::BundleIdentifier)	    return "com.myCompany.product";
 	else if (id == Project::PluginCode)			    return "Abcd";
 	else if (id == Project::EmbedAudioFiles)		return "No";
+	else if (id == Project::RedirectSampleFolder)	return handler.isRedirected(ProjectHandler::SubDirectories::Samples) ? handler.getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName() : "";
 	else if (id == Other::EnableAutosave)			return "Yes";
 	else if (id == Other::AutosaveInterval)			return 5;
 	else if (id == Scripting::CodeFontSize)			return 17.0;
@@ -693,6 +702,18 @@ juce::Result HiseSettings::Data::checkInput(const Identifier& id, const var& new
 
 void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newValue)
 {
+	if (id == Project::RedirectSampleFolder)
+	{
+		auto& handler = GET_PROJECT_HANDLER(mc->getMainSynthChain());
+
+
+		if (File::isAbsolutePath(newValue.toString()))
+			handler.createLinkFile(ProjectHandler::SubDirectories::Samples, File(newValue.toString()));
+		else
+			ProjectHandler::getLinkFile(handler.getWorkDirectory().getChildFile("Samples")).deleteFile();
+	
+	}
+
 	if (id == Scripting::EnableCallstack)
 		mc->updateCallstackSettingForExistingScriptProcessors();
 

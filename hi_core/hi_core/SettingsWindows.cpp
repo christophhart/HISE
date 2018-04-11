@@ -335,32 +335,101 @@ public:
 	StringArray names;
 };
 
-class FileNameValuePropertyComponent : public PropertyComponent,
-									   public FilenameComponentListener
+class FileNameValuePropertyComponent : public PropertyComponent
 {
 public:
 
+	struct MyFunkyFilenameComponent : public Component,
+									  public ButtonListener,
+									  public TextEditor::Listener
+	{
+		MyFunkyFilenameComponent(FileNameValuePropertyComponent& p) :
+			parent(p),
+			browseButton("Browse")
+		{
+			addAndMakeVisible(&editor);
+			editor.addListener(this);
+			editor.setFont(GLOBAL_BOLD_FONT());
+			editor.setSelectAllWhenFocused(true);
+
+			editor.setTextToShowWhenEmpty("No folder selected", Colours::grey);
+
+			addAndMakeVisible(&browseButton);
+			browseButton.addListener(this);
+			browseButton.setLookAndFeel(&alaf);
+		}
+
+		void buttonClicked(Button* ) override
+		{
+			FileChooser fc("Select Folder");
+
+			if (fc.browseForDirectory())
+			{
+				parent.v = fc.getResult().getFullPathName();
+			}
+		}
+
+		void textEditorReturnKeyPressed(TextEditor&) override
+		{
+			updateFromTextEditor();
+		}
+
+		void updateFromTextEditor()
+		{
+			auto t = editor.getText();
+
+			if (t.isEmpty() || (File::isAbsolutePath(t) && File(t).isDirectory()))
+			{
+				parent.v = editor.getText();
+			}
+			else
+				PresetHandler::showMessageWindow("No valid path", "You have to enter a valid folder path", PresetHandler::IconType::Warning);
+
+			
+		}
+
+		void textEditorFocusLost(TextEditor&) override
+		{
+			updateFromTextEditor();
+		}
+
+		void textEditorTextChanged(TextEditor&) override
+		{
+			
+		}
+
+		void resized() override
+		{
+			auto area = getLocalBounds();
+
+			browseButton.setBounds(area.removeFromRight(60));
+			area.removeFromRight(5);
+			editor.setBounds(area);
+		}
+
+		FileNameValuePropertyComponent& parent;
+
+		AlertWindowLookAndFeel alaf;
+		TextEditor editor;
+		TextButton browseButton;
+	};
+
 	FileNameValuePropertyComponent(const String& name, File initialFile, Value v_) :
 		PropertyComponent(name),
-		v(v_),
-		fc(name, initialFile, true, true, false, ".*", "", "Select directory")
+		fc(*this),
+		v(v_)
 	{
 		addAndMakeVisible(fc);
-
-		fc.addListener(this);	
 	}
 
 	void refresh() override
 	{
-		fc.setCurrentFile(v.getValue().toString(), true, dontSendNotification);
+		fc.editor.setText(v.getValue().toString(), dontSendNotification);
 	}
 
-	void filenameComponentChanged(FilenameComponent* /*fileComponentThatHasChanged*/) override
-	{
-		v.setValue(fc.getCurrentFile().getFullPathName());
-	}
+	
 
-	FilenameComponent fc;
+	MyFunkyFilenameComponent fc;
 	Value v;
 };
 
@@ -502,7 +571,7 @@ void SettingWindows::save(const Identifier& s)
 			c.setProperty("value", c.getProperty("value") ? "Yes" : "No", nullptr);
 	}
 
-	ScopedPointer<XmlElement> xml = getValueTree(s).createXml();
+	ScopedPointer<XmlElement> xml = HiseSettings::ConversionHelpers::getConvertedXml(getValueTree(s));
 
 	auto f = dataObject.getFileForSetting(s);
 
@@ -593,7 +662,16 @@ juce::ValueTree HiseSettings::ConversionHelpers::loadValueTreeFromXml(XmlElement
 
 juce::XmlElement* HiseSettings::ConversionHelpers::getConvertedXml(const ValueTree& v)
 {
-	return v.createXml();
+	ValueTree copy = v.createCopy();
+
+	if (copy.getType() == SettingFiles::ProjectSettings)
+	{
+		auto c = v.getChildWithName(Project::RedirectSampleFolder);
+		copy.removeChild(c, nullptr);
+	}
+
+
+	return copy.createXml();
 }
 
 Array<int> HiseSettings::ConversionHelpers::getBufferSizesForDevice(AudioIODevice* currentDevice)
