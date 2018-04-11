@@ -289,16 +289,8 @@ ValueTree SampleMap::exportAsValueTree() const
 
 void SampleMap::replaceFileReferences(ValueTree &soundTree) const
 {
-	if (sampler->getMainController()->getSampleManager().shouldUseRelativePathToProjectFolder())
-	{
-		const String reference = GET_PROJECT_HANDLER(sampler).getFileReference(soundTree.getProperty("FileName", String()), ProjectHandler::SubDirectories::Samples);
-
-		soundTree.setProperty("FileName", reference, nullptr);
-	}
-	else if (sampler->useGlobalFolderForSaving())
-	{
-		soundTree.setProperty("FileName", sampler->getGlobalReferenceForFile(soundTree.getProperty("FileName", String())), nullptr);
-	}
+	const String reference = GET_PROJECT_HANDLER(sampler).getFileReference(soundTree.getProperty("FileName", String()), ProjectHandler::SubDirectories::Samples);
+	soundTree.setProperty("FileName", reference, nullptr);
 }
 
 void SampleMap::save()

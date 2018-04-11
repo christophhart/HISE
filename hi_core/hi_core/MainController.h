@@ -121,10 +121,6 @@ public:
 		*/
 		const ValueTree getLoadedSampleMap(const String &fileName) const;
 
-		bool shouldUseRelativePathToProjectFolder() const { return useRelativePathsToProjectFolder; }
-
-		void setShouldUseRelativePathToProjectFolder(bool shouldUse) { useRelativePathsToProjectFolder = shouldUse; }
-
 		/** Returns the impulse response pool. */
 		const AudioSampleBufferPool *getAudioSampleBufferPool() const {	return globalAudioSampleBufferPool; };
 
@@ -218,7 +214,6 @@ public:
 		ScopedPointer<SampleThreadPool> samplerLoaderThreadPool;
 
 		bool hddMode = false;
-		bool useRelativePathsToProjectFolder;
 		bool skipPreloading = false;
 
 		PreloadJob internalPreloadJob;

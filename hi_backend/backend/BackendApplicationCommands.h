@@ -171,10 +171,9 @@ public:
 		MenuToolsDeleteMissingSamples,
 		MenuToolsCheckAllSampleMaps,
 		MenuToolsImportArchivedSamples,
-		MenuToolsUseRelativePaths,
 		MenuToolsCollectExternalFiles,
 		MenuToolsCheckUnusedImages,
-        MenuToolsRedirectSampleFolder,
+        
 		MenuToolsRedirectScriptFolder,
 		MenuToolsCreateUIDataFromDesktop,
 		MenuToolsForcePoolSearch,
@@ -188,8 +187,8 @@ public:
 		MenuToolsCreateDummyLicenseFile,
 		MenuToolsEnableAutoSaving,
 		MenuToolsEnableDebugLogging,
-		MenuToolsDeviceSimulatorOffset,
 		MenuToolsRecordOneSecond,
+		MenuToolsDeviceSimulatorOffset,
 		MenuHelpShowAboutPage = 0x70000,
         MenuHelpCheckVersion,
 		numCommands
@@ -304,12 +303,10 @@ public:
 		static void showProjectInFinder(BackendRootWindow *bpe);
 		static void saveUserPreset(BackendRootWindow *bpe);
 		static void loadUserPreset(BackendRootWindow *bpe, const File &fileToLoad);
-		static void toggleRelativePath(BackendRootWindow * bpe);
 		static void collectExternalFiles(BackendRootWindow * bpe);
 		static void saveFileAsXml(BackendRootWindow * bpe);
 		static void openFileFromXml(BackendRootWindow * bpe, const File &fileToLoad);
 		static void exportFileAsSnippet(BackendRootWindow* bpe);
-		static void redirectSampleFolder(Processor *processorForTheProjectHandler);
 		static void showFilePresetSettings(BackendRootWindow * bpe);
 		static void showFileProjectSettings(BackendRootWindow * bpe);
 		static void showFileUserSettings(BackendRootWindow * bpe);

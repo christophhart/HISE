@@ -136,10 +136,9 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsResolveMissingSamples,
 		MenuToolsDeleteMissingSamples,
 		MenuToolsCheckAllSampleMaps,
-		MenuToolsUseRelativePaths,
 		MenuToolsCollectExternalFiles,
 		MenuToolsCheckUnusedImages,
-        MenuToolsRedirectSampleFolder,
+        
 		MenuToolsRedirectScriptFolder,
 		MenuToolsForcePoolSearch,
 		MenuToolsConvertSampleMapToWavetableBanks,
@@ -409,9 +408,6 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsResolveMissingSamples:
 		setCommandTarget(result, "Resolve missing samples", true, false, 'X', false);
 		break;
-	case MenuToolsUseRelativePaths:
-		setCommandTarget(result, "Use relative paths to project folder", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), bpe->getBackendProcessor()->getSampleManager().shouldUseRelativePathToProjectFolder(), 'X', false);
-		break;
 	case MenuToolsCheckAllSampleMaps:
 		setCommandTarget(result, "Check all sample maps", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
 		break;
@@ -424,10 +420,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsCheckUnusedImages:
 		setCommandTarget(result, "Check for unreferenced images", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
 		break;
-    case MenuToolsRedirectSampleFolder:
-		setCommandTarget(result, "Redirect sample folder", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(),
-			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isRedirected(ProjectHandler::SubDirectories::Samples), 'X', false);
-        break;
+    
 	case MenuToolsRedirectScriptFolder:
 		setCommandTarget(result, "Redirect script folder", true, false, 'X', false);
 		break;
@@ -601,11 +594,9 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsValidateUserPresets:	Actions::validateUserPresets(bpe); return true;
 	case MenuToolsDeleteMissingSamples: Actions::deleteMissingSamples(bpe); return true;
 	case MenuToolsResolveMissingSamples:Actions::resolveMissingSamples(bpe); return true;
-	case MenuToolsUseRelativePaths:		Actions::toggleRelativePath(bpe); updateCommands();  return true;
 	case MenuToolsCollectExternalFiles:	Actions::collectExternalFiles(bpe); return true;
 	case MenuToolsCreateUIDataFromDesktop: Actions::createUIDataFromDesktop(bpe); updateCommands(); return true;
 	case MenuToolsCheckUnusedImages:	Actions::checkUnusedImages(bpe); return true;
-    case MenuToolsRedirectSampleFolder: Actions::redirectSampleFolder(bpe->getMainSynthChain()); updateCommands(); return true;
 	case MenuToolsRedirectScriptFolder: Actions::redirectScriptFolder(bpe); updateCommands(); return true;
 	case MenuToolsForcePoolSearch:		Actions::toggleForcePoolSearch(bpe); updateCommands(); return true;
 	case MenuToolsConvertSampleMapToWavetableBanks:	Actions::convertSampleMapToWavetableBanks(bpe); return true;
@@ -808,12 +799,12 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 	case BackendCommandTarget::ToolsMenu:
 	{
 		p.addSectionHeader("Scripting Tools");
-		ADD_ALL_PLATFORMS(MenuToolsCreateInterface);
+		
 		ADD_ALL_PLATFORMS(MenuToolsRecompile);
 		ADD_ALL_PLATFORMS(MenuToolsCheckDuplicate);
 		ADD_ALL_PLATFORMS(MenuToolsClearConsole);
 		ADD_DESKTOP_ONLY(MenuToolsCheckCyclicReferences);
-		ADD_DESKTOP_ONLY(MenuToolsRecompileScriptsOnReload);
+		
 		ADD_DESKTOP_ONLY(MenuToolsCreateExternalScriptFile);
 		ADD_DESKTOP_ONLY(MenuToolsValidateUserPresets);
 		
@@ -836,12 +827,10 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		
 		ADD_DESKTOP_ONLY(MenuToolsResolveMissingSamples);
 		ADD_DESKTOP_ONLY(MenuToolsDeleteMissingSamples);
-		ADD_DESKTOP_ONLY(MenuToolsUseRelativePaths);
 		ADD_DESKTOP_ONLY(MenuToolsCheckAllSampleMaps);
 		ADD_DESKTOP_ONLY(MenuToolsImportArchivedSamples);
 		ADD_DESKTOP_ONLY(MenuToolsCollectExternalFiles);
 		ADD_DESKTOP_ONLY(MenuToolsCheckUnusedImages);
-		ADD_DESKTOP_ONLY(MenuToolsRedirectSampleFolder);
 		ADD_DESKTOP_ONLY(MenuToolsForcePoolSearch);
 		ADD_DESKTOP_ONLY(MenuToolsConvertSampleMapToWavetableBanks);
 		ADD_DESKTOP_ONLY(MenuToolsConvertAllSamplesToMonolith);
@@ -1167,7 +1156,7 @@ void BackendCommandTarget::Actions::createUserInterface(BackendRootWindow * /*bp
 
 void BackendCommandTarget::Actions::checkUnusedImages(BackendRootWindow * bpe)
 {
-	auto handler = GET_PROJECT_HANDLER(bpe->getMainSynthChain());
+	auto& handler = GET_PROJECT_HANDLER(bpe->getMainSynthChain());
 
 	auto imageDirectory = handler.getSubDirectory(ProjectHandler::SubDirectories::Images);
 	
@@ -1653,14 +1642,6 @@ void BackendCommandTarget::Actions::toggleCompileScriptsOnPresetLoad(BackendRoot
 }
 
 
-void BackendCommandTarget::Actions::toggleRelativePath(BackendRootWindow * bpe)
-{
-	const bool state = bpe->getBackendProcessor()->getSampleManager().shouldUseRelativePathToProjectFolder();
-
-	bpe->getBackendProcessor()->getSampleManager().setShouldUseRelativePathToProjectFolder(!state);
-}
-
-
 void BackendCommandTarget::Actions::collectExternalFiles(BackendRootWindow * bpe)
 {
 	ExternalResourceCollector *resource = new ExternalResourceCollector(bpe->getBackendProcessor());
@@ -1824,7 +1805,7 @@ void BackendCommandTarget::Actions::loadProject(BackendRootWindow *bpe)
 
 		File f = fc.getResult();
 
-		auto handler = GET_PROJECT_HANDLER(bpe->getMainSynthChain());
+		auto& handler = GET_PROJECT_HANDLER(bpe->getMainSynthChain());
 
 		auto r = handler.setWorkingProject(f, bpe);
 
@@ -1849,7 +1830,7 @@ void BackendCommandTarget::Actions::loadProject(BackendRootWindow *bpe)
 
 void BackendCommandTarget::Actions::loadFirstXmlAfterProjectSwitch(BackendRootWindow * bpe)
 {
-	auto handler = GET_PROJECT_HANDLER(bpe->getMainSynthChain());
+	auto& handler = GET_PROJECT_HANDLER(bpe->getMainSynthChain());
 
 	auto presets = handler.getSubDirectory(ProjectHandler::SubDirectories::XMLPresetBackups);
 
@@ -1896,18 +1877,6 @@ void BackendCommandTarget::Actions::loadUserPreset(BackendRootWindow *bpe, const
     if (!shouldDiscard) return;
     
 	UserPresetHelpers::loadUserPreset(bpe->getMainSynthChain(), fileToLoad);
-}
-
-void BackendCommandTarget::Actions::redirectSampleFolder(Processor *processorForTheProjectHandler)
-{
-    FileChooser fc("Redirect sample folder to the following location");
-    
-    if (fc.browseForDirectory())
-    {
-        File f = fc.getResult();
-        
-		GET_PROJECT_HANDLER(processorForTheProjectHandler).createLinkFile(ProjectHandler::SubDirectories::Samples, f);
-    }
 }
 
 void BackendCommandTarget::Actions::showFilePresetSettings(BackendRootWindow * /*bpe*/)
