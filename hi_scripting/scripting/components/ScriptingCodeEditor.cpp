@@ -1052,6 +1052,13 @@ bool JavascriptCodeEditor::keyPressed(const KeyPress& k)
 	}
 	else if ((k.isKeyCode('f') || k.isKeyCode('F')) && k.getModifiers().isCommandDown()) // Ctrl + F
 	{
+		ReferenceFinder * finder = new ReferenceFinder(this, dynamic_cast<JavascriptProcessor*>(processor.get()));
+
+		finder->setModalBaseWindowComponent(GET_BACKEND_ROOT_WINDOW(this));
+		return true;
+	}
+	else if ((k.isKeyCode('h') || k.isKeyCode('H')) && k.getModifiers().isCommandDown()) // Ctrl + F
+	{
 		CodeReplacer * replacer = new CodeReplacer(this);
 
 		currentModalWindow = replacer;
@@ -1119,6 +1126,43 @@ bool JavascriptCodeEditor::keyPressed(const KeyPress& k)
             repaint();
         }
     }
+	if ((k.isKeyCode('x') || k.isKeyCode('X')) && k.getModifiers().isCommandDown())
+	{
+		if (highlightedSelection.size() == 0)
+		{
+			auto indexInLine = getCaretPos().getIndexInLine();
+			moveCaretToStartOfLine(false);
+			
+			moveCaretDown(true);
+			cutToClipboard();
+
+			auto preMove = getCaretPos();
+
+			auto postMove = preMove.movedBy(indexInLine);
+
+			if (preMove.getLineNumber() == postMove.getLineNumber())
+				moveCaretTo(postMove, false);
+			else
+				moveCaretToEndOfLine(false);
+
+			return true;
+		}
+	}
+	if ((k.isKeyCode('c') || k.isKeyCode('C')) && k.getModifiers().isCommandDown())
+	{
+		if (highlightedSelection.size() == 0)
+		{
+			auto prePos = getCaretPos();
+			moveCaretToStartOfLine(false);
+
+			moveCaretDown(true);
+			copyToClipboard();
+
+			moveCaretTo(prePos, false);
+
+			return true;
+		}
+	}
 
     
 
