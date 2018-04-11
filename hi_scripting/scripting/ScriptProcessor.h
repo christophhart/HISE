@@ -493,8 +493,6 @@ public:
 		contentPropertyDocument = nullptr;
 	}
 
-	CodeDocument* createAndUpdateJsonDoc();
-
 	void createUICopyFromDesktop();
 
 	void setDeviceTypeForInterface(int newDevice);

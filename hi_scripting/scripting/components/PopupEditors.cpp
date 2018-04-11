@@ -47,7 +47,6 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileT
 	addAndMakeVisible(editor = new JavascriptCodeEditor(externalFile->getFileDocument(), tokeniser, s, snippetId));
 
 	addButtonAndCompileLabel();
-	
 }
 
 PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s, const Identifier &callback_) :
@@ -55,26 +54,8 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s, const Identifier 
 	callback(callback_),
 	tokeniser(new JavascriptTokeniser())
 {
-	static const Identifier jsonId("JsonData");
-
-	if (callback == jsonId)
-	{
-		addAndMakeVisible(editor = new JavascriptCodeEditor(*sp->createAndUpdateJsonDoc(), tokeniser, s, callback));
-	}
-	else
-	{
-		addAndMakeVisible(editor = new JavascriptCodeEditor(*sp->getSnippet(callback_), tokeniser, s, callback));
-	}
-
-	
-
+	addAndMakeVisible(editor = new JavascriptCodeEditor(*sp->getSnippet(callback_), tokeniser, s, callback));
 	addButtonAndCompileLabel();
-
-	if (callback == jsonId)
-	{
-		compileButton->setButtonText("Apply Changes");
-	}
-
 }
 
 void PopupIncludeEditor::addButtonAndCompileLabel()
@@ -94,8 +75,6 @@ void PopupIncludeEditor::addButtonAndCompileLabel()
 
 PopupIncludeEditor::~PopupIncludeEditor()
 {
-	
-
 	editor = nullptr;
 	resultLabel = nullptr;
 
@@ -171,51 +150,12 @@ void PopupIncludeEditor::compileInternal()
 		externalFile->getFileDocument().setSavePoint();
 	}
 
-	if (callback == Identifier("JsonData") &&
-		PresetHandler::showYesNoWindow("Apply raw UI JSON change", "You've changed the global JSON object via the code editor. Do you want to apply these changes?\nAny other changes you've made since then will be discarded!", PresetHandler::IconType::Question))
-	{
-		var newData;
-
-		Result r = JSON::parse(editor->getDocument().getAllContent().fromFirstOccurrenceOf("[", true, true), newData);
-
-		if (r.wasOk() && newData.isArray())
-		{
-			editor = nullptr;
-
-			auto v = ValueTreeConverters::convertDynamicObjectToContentProperties(newData);
-
-			sp->clearContentPropertiesDoc();
-			sp->getContent()->createComponentsFromValueTree(v);
-
-			auto b = sp->getContent()->getScriptProcessor()->getMainController_()->getScriptComponentEditBroadcaster();
-
-			b->clearSelection(sendNotification);
-
-			auto panel = findParentComponentOfClass<CodeEditorPanel>();
-
-			panel->setContentWithUndo(dynamic_cast<Processor*>(sp), 0);
-
-			return;
-		}
-		else
-		{
-			lastCompileOk = false;
-			resultLabel->setText(r.getErrorMessage());
-			resultLabel->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white);
-			resultLabel->setColour(TextEditor::ColourIds::textColourId, Colours::white);
-			startTimer(200);
-			return;
-		}
-	}
-	
 	sp->compileScript();
 	
 	lastCompileOk = sp->wasLastCompileOK();
 	resultLabel->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white);
 	resultLabel->setColour(TextEditor::ColourIds::textColourId, Colours::white);
 	startTimer(200);
-
-	
 }
 
 } // namespace hise

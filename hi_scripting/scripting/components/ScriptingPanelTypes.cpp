@@ -57,18 +57,9 @@ Component* CodeEditorPanel::createContentComponent(int index)
 
 	const bool isCallback = index < p->getNumSnippets();
 
-	const bool isJSONData = index == (numSnippets + numFiles);
-
 	if (isCallback)
 	{
 		auto pe = new PopupIncludeEditor(p, p->getSnippet(index)->getCallbackName());
-		pe->addMouseListener(this, true);
-		getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
-		return pe;
-	}
-	else if (isJSONData)
-	{
-		auto pe = new PopupIncludeEditor(p, Identifier("JsonData"));
 		pe->addMouseListener(this, true);
 		getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
 		return pe;
@@ -176,8 +167,6 @@ void CodeEditorPanel::fillIndexList(StringArray& indexList)
 		{
 			indexList.add(p->getWatchedFile(i).getFileName());
 		}
-
-		indexList.add("UI JSON Data");
 	}
 }
 
