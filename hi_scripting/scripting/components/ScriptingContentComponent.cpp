@@ -57,6 +57,8 @@ ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_
 
 	setInterceptsMouseClicks(false, true);
 
+	p->addDeleteListener(this);
+
 	p->addChangeListener(this);
 	p->getMainController()->addScriptListener(this, true);
 }
@@ -66,20 +68,21 @@ ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_
 
 ScriptContentComponent::~ScriptContentComponent()
 {
-	processor->getScriptingContent()->removeRebuildListener(this);
-
 	if (contentData.get() != nullptr)
 	{
 		for (int i = 0; i < contentData->getNumComponents(); i++)
 		{
 			contentData->getComponent(i)->removeChangeListener(this);
 		}
+
+		contentData->removeRebuildListener(this);
 	}
 
 	if (p.get() != nullptr)
 	{
 		p->getMainController()->removeScriptListener(this);
 		p->removeChangeListener(this);
+		p->removeDeleteListener(this);
 	};
 }
 
@@ -87,6 +90,9 @@ ScriptContentComponent::~ScriptContentComponent()
 
 void ScriptContentComponent::refreshMacroIndexes()
 {
+	if (p == nullptr)
+		return;
+
 	MacroControlBroadcaster *mcb = p->getMainController()->getMacroManager().getMacroChain();
 
 	for(int i = 0; i < componentWrappers.size(); i++)
@@ -189,6 +195,7 @@ void ScriptContentComponent::changeListenerCallback(SafeChangeBroadcaster *b)
 	else if (auto sc = dynamic_cast<ScriptingApi::Content::ScriptComponent*>(b))
 	{
 		auto index = contentData->getComponentIndex(sc->name);
+
 		componentWrappers[index]->updateValue(sc->getValue());
 	}
 	else
@@ -436,6 +443,16 @@ void ScriptContentComponent::addMouseListenersForComponentWrappers()
     }
 }
 
+void ScriptContentComponent::deleteAllScriptComponents()
+{
+	for (auto w : componentWrappers)
+	{
+		w->getScriptComponent()->removeChangeListener(this);
+	}
+
+	componentWrappers.clear();
+}
+
 void ScriptContentComponent::refreshContentButton()
 {
 #if USE_BACKEND
@@ -454,10 +471,16 @@ bool ScriptContentComponent::keyPressed(const KeyPress &/*key*/)
 	return false;
 }
 
+void ScriptContentComponent::processorDeleted(Processor* /*deletedProcessor*/)
+{
+	contentData->resetContentProperties();
+	deleteAllScriptComponents();
+}
+
 void ScriptContentComponent::paint(Graphics &g)
 {
 #if USE_BACKEND
-	if(dynamic_cast<ScriptingEditor*>(getParentComponent()) != nullptr)
+	if (dynamic_cast<ScriptingEditor*>(getParentComponent()) != nullptr)
 	{
 		g.fillAll(Colours::white.withAlpha(0.05f));
 		g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.1f), 0.0f, 0.0f,
