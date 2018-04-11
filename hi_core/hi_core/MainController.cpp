@@ -206,6 +206,8 @@ void MainController::loadPresetInternal(const ValueTree& v)
 {
 	try
 	{
+		getSampleManager().setPreloadFlag();
+
 		ModulatorSynthChain *synthChain = getMainSynthChain();
 
 #if USE_BACKEND
@@ -256,7 +258,14 @@ void MainController::loadPresetInternal(const ValueTree& v)
 
 		changed = false;
 
-		synthChain->sendRebuildMessage(true);
+		auto f = [](Processor* synthChain)
+		{
+			synthChain->sendRebuildMessage(true);
+			return true;
+		};
+
+		killAndCallOnMessageThread(f);
+		
 
 		getSampleManager().preloadEverything();
 

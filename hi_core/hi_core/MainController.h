@@ -142,6 +142,8 @@ public:
 
 		bool isUsingHddMode() const noexcept{ return hddMode; };
 
+		bool isPreloading() const noexcept { return preloadFlag; };
+
 		bool shouldSkipPreloading() const { return skipPreloading; };
 
 		/** If you load multiple samplemaps at once (eg. at startup), call this and it will coallescate the preloading. */

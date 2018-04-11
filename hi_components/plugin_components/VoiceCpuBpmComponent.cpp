@@ -39,6 +39,8 @@ VoiceCpuBpmComponent::VoiceCpuBpmComponent(MainController *mc_)
 		mainControllers.add(mc_);
 
 		mc_->getSampleManager().addPreloadListener(this);
+
+		preloadActive = mc_->getSampleManager().isPreloading();
 	}
 		
 
