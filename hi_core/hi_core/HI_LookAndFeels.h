@@ -1492,13 +1492,17 @@ private:
     static const int balanceKnob_pngSize;
 };
 
-/** A simple interface class. Give it a String and get a path back. */
-class PathFactory
-{
-public:
-
-	virtual Path createPath(const String& id) const = 0;
-};
+        /** A simple interface class. Give it a String and get a path back. */
+        class PathFactory
+        {
+        public:
+            
+            PathFactory() {};
+            
+            virtual ~PathFactory() {};
+            
+            virtual Path createPath(const String& id) const = 0;
+        };
 
 
 class ChainBarPathFactory : public PathFactory

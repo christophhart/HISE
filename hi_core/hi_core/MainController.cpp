@@ -672,8 +672,6 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
         
         synthChain->renderNextBlockWithModulators(thisMultiChannelBuffer, masterEventBuffer);
         
-        auto& matrix = synthChain->getMatrix();
-        
         buffer.clear();
         
 		// Just use the first two channels. You need to route back all your send channels to the first stereo pair.

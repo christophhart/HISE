@@ -427,7 +427,7 @@ void FileChangeListener::addFileContentToValueTree(ValueTree externalScriptFiles
 	// Wow, much cross-platform, very OSX, totally Windows
 	fileName = fileName.replace("\\", "/");
 
-	File globalScriptFolder = PresetHandler::getGlobalScriptFolder();
+	File globalScriptFolder = PresetHandler::getGlobalScriptFolder(chainToExport);
 
 	if (globalScriptFolder.isDirectory() && scriptFile.isAChildOf(globalScriptFolder))
 	{
@@ -456,7 +456,8 @@ mainController(mc),
 scriptEngine(new HiseJavascriptEngine(this)),
 lastCompileWasOK(false),
 currentCompileThread(nullptr),
-lastResult(Result::ok())
+lastResult(Result::ok()),
+callStackEnabled(mc->isCallStackEnabled())
 {
 	allInterfaceData = ValueTree("UIData");
 	auto defaultContent = ValueTree("ContentProperties");

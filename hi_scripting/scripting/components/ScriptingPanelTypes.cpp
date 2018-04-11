@@ -939,7 +939,7 @@ void ScriptContentPanel::Editor::Actions::distribute(Editor* editor, bool isVert
 {
 	auto b = editor->getScriptComponentEditBroadcaster();
 
-	b->getUndoManager().beginNewTransaction("Distribute " + isVertical ? "vertically" : "horizontally");
+	b->getUndoManager().beginNewTransaction(String("Distribute ") + String(isVertical ? "vertically" : "horizontally"));
 
 	auto selection = b->getSelection();
 

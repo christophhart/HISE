@@ -636,8 +636,6 @@ void AboutPagePanel::rebuildText()
 	const String version = ProjectHandler::Frontend::getVersionString();
 	
 #else
-	auto& handler = GET_PROJECT_HANDLER(getMainController()->getMainSynthChain());
-
 	const auto& data = dynamic_cast<GlobalSettingManager*>(getMainController())->getSettingsObject();
 
 	const String projectName = data.getSetting(HiseSettings::Project::Name);

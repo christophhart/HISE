@@ -50,6 +50,8 @@ public:
 			parent(parent_)
 		{}
 
+        virtual ~ImageProvider() {};
+        
 		/** Overwrite this method and return an image for the given URL.
 		*
 		*	The default function just returns a placeholder.
@@ -423,6 +425,8 @@ public:
 			Rectangle<int> r( cBounds.getRight() - 16, cBounds.getY() - 16, 16, 16 );
 			setBounds(r);
 		}
+        default:
+                break;
 		}
 	}
 

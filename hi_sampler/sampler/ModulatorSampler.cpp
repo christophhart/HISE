@@ -621,7 +621,7 @@ double ModulatorSampler::getDiskUsage()
 	{
 		if (auto v = getVoice(i))
 		{
-			diskUsage += static_cast<ModulatorSamplerVoice*>(getVoice(i))->getDiskUsage();
+			diskUsage += static_cast<ModulatorSamplerVoice*>(v)->getDiskUsage();
 		}
 	}
 

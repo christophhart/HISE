@@ -561,7 +561,7 @@ juce::Result SampleMapToWavetableConverter::calculateHarmonicMap()
 
 			m.pitchDeviations[partIndex] = pitchDelta;
 
-			if (abs(pitchDelta) > 100.0)
+            if (std::abs(pitchDelta) > 100.0)
 			{
 				thisPitch = lastPitch;
 
