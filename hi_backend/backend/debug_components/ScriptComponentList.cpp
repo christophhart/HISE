@@ -564,13 +564,14 @@ void ScriptComponentList::resetRootItem()
 	{
 		tree->restoreOpennessState(*openState, false);
 
-		auto tmp = tree->getViewport();
+		Component::SafePointer<Viewport> tmp = tree->getViewport();
 		
 		int s = scrollY;
 
 		auto f = [tmp, s]()
 		{
-			tmp->setViewPosition(0, s);
+			if(tmp.getComponent() != nullptr)
+				const_cast<Viewport*>(tmp.getComponent())->setViewPosition(0, s);
 		};
 
 		new DelayedFunctionCaller(f, 30);
