@@ -117,9 +117,9 @@ void ScriptWatchTable::rebuildLines()
 	{
 		HiseJavascriptEngine *engine = dynamic_cast<JavascriptProcessor*>(processor.get())->getScriptEngine();
 
-		const int numRows = engine->getNumDebugObjects();
+		ScopedLock sl(engine->getDebugLock());
 
-		for (int i = 0; i < numRows; i++)
+		for (int i = 0; i < engine->getNumDebugObjects(); i++)
 		{
 			allVariableLines.add(engine->getDebugInformation(i)->createTextArray());
 		}

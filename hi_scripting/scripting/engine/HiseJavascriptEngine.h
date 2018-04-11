@@ -193,6 +193,8 @@ public:
 
 	void setCallStackEnabled(bool shouldBeEnabled);
 
+	CriticalSection& getDebugLock() const;
+
 	void registerApiClass(ApiClass *apiClass);
 	bool isApiClassRegistered(const String& className);
 

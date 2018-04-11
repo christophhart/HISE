@@ -734,6 +734,8 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 		}
 		catch (Breakpoint& bp)
 		{
+			ScopedLock sl(getDebugLock());
+
 			if(bp.localScope == nullptr)
 				bp.localScope = c->createDynamicObjectForBreakpoint().getDynamicObject();
 
