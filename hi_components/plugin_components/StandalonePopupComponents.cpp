@@ -311,7 +311,7 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 				bufferSelector->addItem(String(bufferSizes[i]) + String(" Samples"), i + 1);
 			}
 
-            outputSelector->addItemList(getChannelPairs(currentDevice), 1);
+            outputSelector->addItemList(HiseSettings::ConversionHelpers::getChannelPairs(currentDevice), 1);
             const int thisOutputName = (currentDevice->getActiveOutputChannels().getHighestBit() - 1) / 2;
             outputSelector->setSelectedItemIndex(thisOutputName, dontSendNotification);
             
@@ -472,46 +472,6 @@ void CustomSettingsWindow::flipEnablement(AudioDeviceManager* manager, const int
 	config.useDefaultOutputChannels = false;
 
 	manager->setAudioDeviceSetup(config, true);
-}
-
-String CustomSettingsWindow::getNameForChannelPair(const String& name1, const String& name2)
-{
-	String commonBit;
-
-	for (int j = 0; j < name1.length(); ++j)
-		if (name1.substring(0, j).equalsIgnoreCase(name2.substring(0, j)))
-			commonBit = name1.substring(0, j);
-
-	// Make sure we only split the name at a space, because otherwise, things
-	// like "input 11" + "input 12" would become "input 11 + 2"
-	while (commonBit.isNotEmpty() && !CharacterFunctions::isWhitespace(commonBit.getLastCharacter()))
-		commonBit = commonBit.dropLastCharacters(1);
-
-	return name1.trim() + " + " + name2.substring(commonBit.length()).trim();
-}
-
-StringArray CustomSettingsWindow::getChannelPairs(AudioIODevice* currentDevice)
-{
-	if (currentDevice != nullptr)
-	{
-		StringArray items = currentDevice->getOutputChannelNames();
-
-		StringArray pairs;
-
-		for (int i = 0; i < items.size(); i += 2)
-		{
-			const String& name = items[i];
-
-			if (i + 1 >= items.size())
-				pairs.add(name.trim());
-			else
-				pairs.add(getNameForChannelPair(name, items[i + 1]));
-		}
-
-		return pairs;
-	}
-
-	return StringArray();
 }
 
 void CustomSettingsWindow::comboBoxChanged(ComboBox* comboBoxThatHasChanged)

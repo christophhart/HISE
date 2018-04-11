@@ -1,0 +1,227 @@
+/*  ===========================================================================
+*
+*   This file is part of HISE.
+*   Copyright 2016 Christoph Hart
+*
+*   HISE is free software: you can redistribute it and/or modify
+*   it under the terms of the GNU General Public License as published by
+*   the Free Software Foundation, either version 3 of the License, or
+*   (at your option) any later version.
+*
+*   HISE is distributed in the hope that it will be useful,
+*   but WITHOUT ANY WARRANTY; without even the implied warranty of
+*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*   GNU General Public License for more details.
+*
+*   You should have received a copy of the GNU General Public License
+*   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
+*
+*   Commercial licenses for using HISE in an closed source project are
+*   available on request. Please visit the project's website to get more
+*   information about commercial licensing:
+*
+*   http://www.hise.audio/
+*
+*   HISE is based on the JUCE library,
+*   which must be separately licensed for closed source applications:
+*
+*   http://www.juce.com
+*
+*   ===========================================================================
+*/
+
+
+#ifndef HISESETTINGS_H_INCLUDED
+#define HISESETTINGS_H_INCLUDED
+
+namespace hise {
+using namespace juce;
+
+
+#define DECLARE_ID(name)      const Identifier name (#name)
+
+namespace HiseSettings {
+
+namespace SettingFiles
+{
+DECLARE_ID(ProjectSettings);
+DECLARE_ID(UserSettings);
+DECLARE_ID(CompilerSettings);
+DECLARE_ID(GeneralSettings);
+DECLARE_ID(AudioSettings);
+DECLARE_ID(MidiSettings);
+DECLARE_ID(ScriptingSettings);
+DECLARE_ID(OtherSettings);
+
+Array<Identifier> getAllIds();
+
+}
+
+namespace Project
+{
+DECLARE_ID(Name);
+DECLARE_ID(Version);
+DECLARE_ID(Description);
+DECLARE_ID(BundleIdentifier);
+DECLARE_ID(PluginCode);
+DECLARE_ID(EmbedAudioFiles);
+DECLARE_ID(AdditionalDspLibraries);
+DECLARE_ID(OSXStaticLibs);
+DECLARE_ID(WindowsStaticLibFolder);
+DECLARE_ID(ExtraDefinitionsWindows);
+DECLARE_ID(ExtraDefinitionsOSX);
+DECLARE_ID(ExtraDefinitionsIOS);
+DECLARE_ID(AppGroupID);
+
+Array<Identifier> getAllIds();
+
+} // Project
+
+namespace Compiler
+{
+DECLARE_ID(HisePath);
+DECLARE_ID(VisualStudioVersion);
+DECLARE_ID(UseIPP);
+
+Array<Identifier> getAllIds();
+
+} // Compiler
+
+namespace User
+{
+DECLARE_ID(Company);
+DECLARE_ID(CompanyCode);
+DECLARE_ID(CompanyURL);
+DECLARE_ID(CompanyCopyright);
+DECLARE_ID(TeamDevelopmentID);
+
+Array<Identifier> getAllIds();
+
+} // User
+
+namespace Scripting
+{
+DECLARE_ID(EnableCallstack);
+DECLARE_ID(GlobalScriptPath);
+DECLARE_ID(CompileTimeout);
+DECLARE_ID(CodeFontSize);
+DECLARE_ID(EnableDebugMode);
+
+Array<Identifier> getAllIds();
+
+} // Scripting
+
+namespace Other
+{
+DECLARE_ID(EnableAutosave);
+DECLARE_ID(AutosaveInterval);
+
+Array<Identifier> getAllIds();
+
+} // Other
+
+namespace Audio
+{
+DECLARE_ID(Driver);
+DECLARE_ID(Device);
+DECLARE_ID(Output);
+DECLARE_ID(Samplerate);
+DECLARE_ID(BufferSize);
+
+Array<Identifier> getAllIds();
+
+} // Audio
+
+namespace Midi
+{
+DECLARE_ID(MidiInput);
+DECLARE_ID(MidiChannels);
+
+Array<Identifier> getAllIds();
+
+} // Midi
+
+
+
+
+
+
+struct Data: public SafeChangeBroadcaster
+{
+	Data(MainController* mc_);
+
+	File getFileForSetting(const Identifier& id) const;
+
+	void loadDataFromFiles();
+	void refreshProjectData();
+	void loadSettingsFromFile(const Identifier& id);
+
+	var getSetting(const Identifier& id) const;
+
+	void initialiseAudioDriverData(bool forceReload = false);
+
+	StringArray getOptionsFor(const Identifier& id);
+
+	static bool isFileId(const Identifier& id);
+
+	static bool isToggleListId(const Identifier& id);
+
+	MainController* getMainController() { return mc; }
+	const MainController* getMainController() const { return mc; }
+
+	var getDefaultSetting(const Identifier& id);
+
+	ValueTree data;
+
+	static Result checkInput(const Identifier& id, const var& newValue);
+
+	void settingWasChanged(const Identifier& id, const var& newValue);
+
+private:
+
+
+	struct TestFunctions
+	{
+
+		static bool isValidNumberBetween(var value, Range<float> range);
+
+	};
+
+
+	void addSetting(ValueTree& v, const Identifier& id);
+	void addMissingSettings(ValueTree& v, const Identifier &id);
+
+	AudioDeviceManager* getDeviceManager();
+
+	MainController* mc;
+
+};
+
+
+
+#undef DECLARE_ID
+
+
+struct ConversionHelpers
+{
+	static ValueTree loadValueTreeFromFile(const File& f, const Identifier& settingid);
+	static ValueTree loadValueTreeFromXml(XmlElement* xml, const Identifier& settingId);
+	static XmlElement* getConvertedXml(const ValueTree& v);
+	static Array<int> getBufferSizesForDevice(AudioIODevice* currentDevice);
+	static Array<double> getSampleRates(AudioIODevice* currentDevice);
+
+	static StringArray getChannelPairs(AudioIODevice* currentDevice);
+
+	static String getNameForChannelPair(const String& name1, const String& name2);
+
+	static String getCurrentOutputName(AudioIODevice* currentDevice);
+
+	static StringArray getChannelList();
+};
+
+} // SettingIds
+
+
+}
+
+#endif

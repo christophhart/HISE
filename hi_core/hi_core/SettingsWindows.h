@@ -36,177 +36,6 @@
 
 namespace hise { using namespace juce;
 
-#define DECLARE_ID(name)      const Identifier name (#name)
-
-namespace HiseSettings {
-
-namespace SettingFiles
-{
-DECLARE_ID(ProjectSettings);
-DECLARE_ID(UserSettings);
-DECLARE_ID(CompilerSettings);
-DECLARE_ID(GeneralSettings);
-DECLARE_ID(AudioSettings);
-DECLARE_ID(MidiSettings);
-DECLARE_ID(ScriptingSettings);
-DECLARE_ID(OtherSettings);
-
-}
-
-namespace Project
-{
-DECLARE_ID(Name);
-DECLARE_ID(Version);
-DECLARE_ID(Description);
-DECLARE_ID(BundleIdentifier);
-DECLARE_ID(PluginCode);
-DECLARE_ID(EmbedAudioFiles);
-DECLARE_ID(AdditionalDspLibraries);
-DECLARE_ID(OSXStaticLibs);
-DECLARE_ID(WindowsStaticLibFolder);
-DECLARE_ID(ExtraDefinitionsWindows);
-DECLARE_ID(ExtraDefinitionsOSX);
-DECLARE_ID(ExtraDefinitionsIOS);
-DECLARE_ID(AppGroupID);
-
-} // Project
-
-namespace Compiler
-{
-DECLARE_ID(HisePath);
-DECLARE_ID(VisualStudioVersion);
-DECLARE_ID(UseIPP);
-
-} // Compiler
-
-namespace User
-{
-DECLARE_ID(Company);
-DECLARE_ID(CompanyCode);
-DECLARE_ID(CompanyURL);
-DECLARE_ID(CompanyCopyright);
-DECLARE_ID(TeamDevelopmentID);
-
-} // User
-
-namespace Scripting
-{
-DECLARE_ID(EnableCallstack);
-DECLARE_ID(GlobalScriptPath);
-DECLARE_ID(CompileTimeout);
-DECLARE_ID(CodeFontSize);
-DECLARE_ID(EnableDebugMode);
-}
-
-namespace Other
-{
-DECLARE_ID(EnableAutosave);
-DECLARE_ID(AutosaveInterval);
-}
-
-namespace Audio
-{
-DECLARE_ID(Driver);
-DECLARE_ID(Device);
-DECLARE_ID(Output);
-DECLARE_ID(Samplerate);
-DECLARE_ID(BufferSize);
-}
-
-namespace Midi
-{
-DECLARE_ID(MidiInput);
-DECLARE_ID(MidiChannels);
-}
-
-
-struct ConversionHelpers
-{
-	static ValueTree loadValueTreeFromFile(const File& f, const Identifier& settingid);
-
-	static ValueTree loadValueTreeFromXml(XmlElement* xml, const Identifier& settingId);
-
-	static XmlElement* getConvertedXml(const ValueTree& v);
-
-	static Array<int> getBufferSizesForDevice(AudioIODevice* currentDevice);
-
-	static Array<double> getSampleRates(AudioIODevice* currentDevice);
-
-	static StringArray getChannelList();
-};
-
-
-struct Data
-{
-	Data(MainController* mc_);
-
-	File getFileForSetting(const Identifier& id) const;
-
-	void loadDataFromFiles();
-	void refreshProjectData();
-	void loadSettingsFromFile(const Identifier& id);
-	
-	var getSetting(const Identifier& id) const
-	{
-		for (const auto& c : data)
-		{
-			auto prop = c.getChildWithName(id);
-
-			static const Identifier va("value");
-
-			if (prop.isValid())
-			{
-				auto value = prop.getProperty(va);
-
-				if (value == "Yes")
-					return var(true);
-
-				if (value == "No")
-					return var(false);
-
-				return value;
-			}
-		}
-
-		return var();
-	}
-
-	void initialiseAudioDriverData(bool forceReload=false);
-
-	StringArray getOptionsFor(const Identifier& id);
-
-	static bool isFileId(const Identifier& id);
-
-	MainController* getMainController() { return mc; }
-	const MainController* getMainController() const { return mc; }
-
-	var getDefaultSetting(const Identifier& id);
-
-	ValueTree data;
-
-private:
-
-	
-
-	void addSetting(ValueTree& v, const Identifier& id);
-
-	
-
-	void addMissingSettings(ValueTree& v, const Identifier &id);
-
-	
-
-	MainController* mc;
-	
-};
-
-
-
-#undef DECLARE_ID
-
-
-} // SettingIds
-
 
 
 /** Contains all Setting windows that can popup and edit a specified XML file. */
@@ -214,7 +43,8 @@ struct SettingWindows: public Component,
 		public ButtonListener,
 		public QuasiModalComponent,
 		public TextEditor::Listener,
-		private ValueTree::Listener
+		private ValueTree::Listener,
+		private SafeChangeListener
 {
 public:
 
@@ -246,43 +76,15 @@ public:
 		fuzzySearchBox.grabKeyboardFocus();
 	}
 
-	
-
-	
-	
-
 private:
 
-	struct Refresher : public AsyncUpdater
+	void changeListenerCallback(SafeChangeBroadcaster* /*b*/)
 	{
-		Refresher(SettingWindows* p_) :
-			p(p_)
-		{}
-
-		void handleAsyncUpdate() override
-		{
-			if (p != nullptr)
-			{
-				p->setContent(p->currentList);
-			}
-		}
-
-		Component::SafePointer<SettingWindows> p;
-	};
-
-	Refresher refresher;
-
-	struct TestFunctions
-	{
-		static bool isValidNumberBetween(var value, Range<float> range);
-	};
-
-	Result checkInput(const Identifier& id, const var& newValue);
+		setContent(currentList);
+	}
 
 	void valueTreePropertyChanged(ValueTree& treeWhosePropertyHasChanged,
 		const Identifier& property);
-
-	void settingWasChanged(const Identifier& id, const var& newValue);
 
 	void valueTreeChildAdded(ValueTree& , ValueTree& ) override;;
 
@@ -292,39 +94,16 @@ private:
 
 	void valueTreeParentChanged(ValueTree& ) override {}
 
-	struct FileBasedValueTree
-	{
-		FileBasedValueTree(Identifier s_, File f_, SettingWindows* p_) :
-			s(s_),
-			f(f_),
-			p(p_)
-		{};
+	void fillPropertyPanel(const Identifier& s, PropertyPanel& panel, const String& searchText);
 
-		void fillPropertyPanel(PropertyPanel& panel, const String& searchText);
+	void addProperty(ValueTree& c, Array<PropertyComponent*>& props);
 
-		void addProperty(ValueTree& c, Array<PropertyComponent*>& props);
+	String getSettingNameToDisplay(const Identifier& s) const;
 
-		String getId() const;
+	ValueTree getValueTree(const Identifier& s) const;
 
-		ValueTree getValueTree() const
-		{
-			return p->dataObject.data.getChildWithName(s);
-		}
+	void save(const Identifier& s);
 
-		void save();
-
-		Identifier s;
-		
-		File f;
-		SettingWindows* p;
-
-		BlackTextButtonLookAndFeel blaf;
-
-	};
-
-	FileBasedValueTree* createFileBasedValueTreeObject(Identifier s);
-
-	OwnedArray<FileBasedValueTree> settings;
 
 	class TabButtonLookAndFeel : public LookAndFeel_V3
 	{
@@ -336,6 +115,7 @@ private:
 	TabButtonLookAndFeel tblaf;
 
 	AlertWindowLookAndFeel alaf;
+	BlackTextButtonLookAndFeel blaf;
 
 	class Content;
 	void setContent(SettingList s);

@@ -267,10 +267,6 @@ public:
 
 	static void flipEnablement(AudioDeviceManager* manager, const int row);
 
-	static String getNameForChannelPair(const String& name1, const String& name2);
-
-	static StringArray getChannelPairs(AudioIODevice* currentDevice);
-
 	void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override;
 
 	void paint(Graphics& g) override;
