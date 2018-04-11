@@ -298,6 +298,13 @@ void MainController::compileAllScripts()
 {
 	Processor::Iterator<JavascriptProcessor> it(getMainSynthChain());
 
+	auto& set = globalVariableObject->getProperties();
+
+	for (int i = 0; i < set.size(); i++)
+	{
+		set.set(set.getName(i), var());
+	}
+
 	JavascriptProcessor *sp;
 		
 	while((sp = it.getNextProcessor()) != nullptr)
