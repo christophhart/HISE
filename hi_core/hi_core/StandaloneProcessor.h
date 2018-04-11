@@ -90,14 +90,14 @@ public:
 
 	HiseSettings::Data& getSettingsObject()
 	{ 
-		jassert(data != nullptr);
-		return *data; 
+		jassert(dataObject != nullptr);
+		return *dataObject;
 	}
 
 	const HiseSettings::Data& getSettingsObject() const 
 	{
-		jassert(data != nullptr);
-		return *data; 
+		jassert(dataObject != nullptr);
+		return *dataObject;
 	}
 
 	static File getSettingDirectory();
@@ -106,7 +106,7 @@ public:
 
 	void initData(MainController* mc)
 	{
-		data = new HiseSettings::Data(mc);
+		dataObject = new HiseSettings::Data(mc);
 	}
 
 	void saveSettingsAsXml();
@@ -127,7 +127,7 @@ public:
 
 private:
 
-	ScopedPointer<HiseSettings::Data> data;
+	ScopedPointer<HiseSettings::Data> dataObject;
 
 	double scaleFactor = 1.0;
 
@@ -193,7 +193,7 @@ public:
 		deviceManager->setCurrentAudioDeviceType(deviceName, true);
 	}
 
-	
+	void resetToDefault();
 
 	void setOutputChannelName(const int channelIndex)
 	{
@@ -227,6 +227,8 @@ public:
 
 	static void updateMidiToggleList(MainController* mc, ToggleButtonList* listToUpdate);
 
+	/** Returns the state of each available MIDI input. */
+	BigInteger getMidiInputState() const;
 	
 	static XmlElement *getSettings();
 

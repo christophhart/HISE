@@ -1014,23 +1014,24 @@ void ProjectHandler::createNewProject(File &workingDirectory, Component* mainEdi
 	setWorkingProject(workingDirectory, mainEditor);
 }
 
-void ProjectHandler::setWorkingProject(const File &workingDirectory, Component* mainEditor)
+juce::Result ProjectHandler::setWorkingProject(const File &workingDirectory, Component* mainEditor)
 {
 	MessageManagerLock mm;
 
-	if (workingDirectory == currentWorkDirectory) return;
+	if (!workingDirectory.exists()) return Result::fail(workingDirectory.getFullPathName() + " is not a valid folder");;
+
+	if (workingDirectory == currentWorkDirectory) return Result::ok();
 
 	if (!isValidProjectFolder(workingDirectory))
 	{
-		jassertfalse;
-		return;
+		return Result::fail(workingDirectory.getFullPathName() + "is not a valid project folder");	
 	}
 
 	currentWorkDirectory = workingDirectory;
 
-	if (!workingDirectory.exists()) return;
+	
 
-	checkSettingsFile(mainEditor);
+
 	checkSubDirectories();
 
 	jassert(currentWorkDirectory.exists() && currentWorkDirectory.isDirectory());
@@ -1075,6 +1076,8 @@ void ProjectHandler::setWorkingProject(const File &workingDirectory, Component* 
 		else
 			listeners.remove(i--);
 	}
+
+	return Result::ok();
 }
 
 void ProjectHandler::restoreWorkingProjects()
@@ -1104,6 +1107,9 @@ void ProjectHandler::restoreWorkingProjects()
 
 bool ProjectHandler::isValidProjectFolder(const File &file) const
 {
+	if (!anySubdirectoryExists(file))
+		return false;
+
 	if (file == File()) return true;
 
 	const bool isDirectory = file.exists() && file.isDirectory();
@@ -1208,12 +1214,11 @@ File ProjectHandler::checkSubDirectory(SubDirectories dir)
 	}
 }
 
-void ProjectHandler::checkSettingsFile(Component* mainEditor/*=nullptr*/)
+bool ProjectHandler::anySubdirectoryExists(const File& possibleProjectFolder) const
 {
-	if (!getWorkDirectory().getChildFile("project_info.xml").existsAsFile())
-	{
-		setProjectSettings(mainEditor);
-	}
+	return	possibleProjectFolder.getChildFile("Scripts").isDirectory() ||
+			possibleProjectFolder.getChildFile("SampleMaps").isDirectory() ||
+			possibleProjectFolder.getChildFile("XmlPresetBackups").isDirectory();
 
 }
 
@@ -1555,7 +1560,11 @@ void ProjectHandler::createLinkFileInFolder(const File& source, const File& targ
 
 void ProjectHandler::setProjectSettings(Component *mainEditor)
 {
+	ignoreUnused(mainEditor);
+
+#if USE_BACKEND
 	BackendCommandTarget::Actions::showFileProjectSettings(mainEditor->findParentComponentOfClass<BackendRootWindow>());
+#endif
 }
 
 
@@ -2347,21 +2356,11 @@ XmlElement * PresetHandler::buildFactory(FactoryType *t, const String &factoryNa
 	return xml;
 }
 
-File PresetHandler::getGlobalScriptFolder()
+juce::File PresetHandler::getGlobalScriptFolder(Processor* p)
 {
-	File globalScriptFolder = File(getDataFolder()).getChildFile("scripts");
+	auto f = dynamic_cast<GlobalSettingManager*>(p->getMainController())->getSettingsObject().getSetting(HiseSettings::Scripting::GlobalScriptPath);
 
-    const File link = ProjectHandler::getLinkFile(globalScriptFolder);
-    
-	if (link.existsAsFile())
-	{
-		File linkTarget = File(link.loadFileAsString());
-
-		if (linkTarget.isDirectory())
-			globalScriptFolder = linkTarget;
-	}
-
-	return globalScriptFolder;
+	return File(f.toString());
 }
 
 AudioFormatReader * PresetHandler::getReaderForFile(const File &file)

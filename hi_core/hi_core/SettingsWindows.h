@@ -46,7 +46,11 @@ DECLARE_ID(ProjectSettings);
 DECLARE_ID(UserSettings);
 DECLARE_ID(CompilerSettings);
 DECLARE_ID(GeneralSettings);
-DECLARE_ID(DeviceSettings);
+DECLARE_ID(AudioSettings);
+DECLARE_ID(MidiSettings);
+DECLARE_ID(ScriptingSettings);
+DECLARE_ID(OtherSettings);
+
 }
 
 namespace Project
@@ -63,7 +67,7 @@ DECLARE_ID(WindowsStaticLibFolder);
 DECLARE_ID(ExtraDefinitionsWindows);
 DECLARE_ID(ExtraDefinitionsOSX);
 DECLARE_ID(ExtraDefinitionsIOS);
-DECLARE_ID(AppGroupId);
+DECLARE_ID(AppGroupID);
 
 } // Project
 
@@ -85,6 +89,52 @@ DECLARE_ID(TeamDevelopmentID);
 
 } // User
 
+namespace Scripting
+{
+DECLARE_ID(EnableCallstack);
+DECLARE_ID(GlobalScriptPath);
+DECLARE_ID(CompileTimeout);
+DECLARE_ID(CodeFontSize);
+DECLARE_ID(EnableDebugMode);
+}
+
+namespace Other
+{
+DECLARE_ID(EnableAutosave);
+DECLARE_ID(AutosaveInterval);
+}
+
+namespace Audio
+{
+DECLARE_ID(Driver);
+DECLARE_ID(Device);
+DECLARE_ID(Output);
+DECLARE_ID(Samplerate);
+DECLARE_ID(BufferSize);
+}
+
+namespace Midi
+{
+DECLARE_ID(MidiInput);
+DECLARE_ID(MidiChannels);
+}
+
+
+struct ConversionHelpers
+{
+	static ValueTree loadValueTreeFromFile(const File& f, const Identifier& settingid);
+
+	static ValueTree loadValueTreeFromXml(XmlElement* xml, const Identifier& settingId);
+
+	static XmlElement* getConvertedXml(const ValueTree& v);
+
+	static Array<int> getBufferSizesForDevice(AudioIODevice* currentDevice);
+
+	static Array<double> getSampleRates(AudioIODevice* currentDevice);
+
+	static StringArray getChannelList();
+};
+
 
 struct Data
 {
@@ -96,36 +146,58 @@ struct Data
 	void refreshProjectData();
 	void loadSettingsFromFile(const Identifier& id);
 	
-	ValueTree getTreeForSettings(const Identifier& id)
-	{
-		auto v = data.getChildWithName(id);
-
-		return v;
-	}
-
 	var getSetting(const Identifier& id) const
 	{
 		for (const auto& c : data)
-			if (c.hasProperty(id))
-				return c.getProperty(id);
+		{
+			auto prop = c.getChildWithName(id);
+
+			static const Identifier va("value");
+
+			if (prop.isValid())
+			{
+				auto value = prop.getProperty(va);
+
+				if (value == "Yes")
+					return var(true);
+
+				if (value == "No")
+					return var(false);
+
+				return value;
+			}
+		}
 
 		return var();
 	}
 
-	static StringArray getOptionsFor(const Identifier& id);
+	void initialiseAudioDriverData(bool forceReload=false);
+
+	StringArray getOptionsFor(const Identifier& id);
 
 	static bool isFileId(const Identifier& id);
 
+	MainController* getMainController() { return mc; }
+	const MainController* getMainController() const { return mc; }
+
+	var getDefaultSetting(const Identifier& id);
+
+	ValueTree data;
+
 private:
 
-	static void addSetting(ValueTree& v, const Identifier& id, const String& defaultValue = String());
+	
+
+	void addSetting(ValueTree& v, const Identifier& id);
 
 	
 
 	void addMissingSettings(ValueTree& v, const Identifier &id);
 
+	
+
 	MainController* mc;
-	ValueTree data;
+	
 };
 
 
@@ -138,141 +210,156 @@ private:
 
 
 /** Contains all Setting windows that can popup and edit a specified XML file. */
-struct SettingWindows
-{
-	
-	
-
-	/** Use this helper function to get the actual settings.
-	*
-	*	In order to be of any usage, you must use the appropriate Attributes enum values of each subclass
-	*
-	*/
-	static String getSettingValue(int attributeIndex, ProjectHandler *handler = nullptr);
-
-	static void checkAllSettings(ProjectHandler *handler);
-
-	class NewSettingWindows : public Component,
+struct SettingWindows: public Component,
 		public ButtonListener,
 		public QuasiModalComponent,
-		public TextEditor::Listener
+		public TextEditor::Listener,
+		private ValueTree::Listener
+{
+public:
+
+	enum ColourValues
 	{
-	public:
+		bgColour = 0xFF444444,
+		barColour = 0xFF2B2B2B,
+		tabBgColour = 0xFF333333,
 
-		enum ColourValues
-		{
-			bgColour = 0xFF444444,
-			barColour = 0xFF2B2B2B,
-			tabBgColour = 0xFF333333,
-			
-			overColour = 0xFF464646
-		};
-
-		using SettingList = Array<Identifier>;
-
-		NewSettingWindows(HiseSettings::Data& data);
-
-		~NewSettingWindows();
-
-		void buttonClicked(Button* b) override
-		{
-			if (b == &allSettings) setContent({ HiseSettings::SettingFiles::ProjectSettings, HiseSettings::SettingFiles::UserSettings, HiseSettings::SettingFiles::CompilerSettings});
-			if (b == &projectSettings) setContent({ HiseSettings::SettingFiles::ProjectSettings, HiseSettings::SettingFiles::UserSettings });
-			if (b == &globalSettings) setContent({ HiseSettings::SettingFiles::CompilerSettings });
-			if (b == &applyButton)
-			{
-				saveOnDestroy = true;
-				destroy();
-			}
-			if (b == &cancelButton) destroy();
-		}
-
-		void resized() override;
-
-		void paint(Graphics& g) override;
-
-		void textEditorTextChanged(TextEditor&) override;
-
-		void activateSearchBox()
-		{
-			fuzzySearchBox.grabKeyboardFocus();
-		}
-
-
-	private:
-
-		struct FileBasedValueTree
-		{
-			FileBasedValueTree(Identifier s_, ValueTree v_, File f_) :
-				s(s_),
-				v(v_),
-				f(f_)
-			{};
-
-			void fillPropertyPanel(PropertyPanel& panel, const String& searchText);
-
-			void addProperty(ValueTree& c, Array<PropertyComponent*>& props);
-
-			String getId() const;
-
-
-			void save();
-
-			Identifier s;
-			ValueTree v;
-			File f;
-
-			BlackTextButtonLookAndFeel blaf;
-
-		};
-
-        FileBasedValueTree* getProperlyFormattedValueTree(Identifier s);
-		
-		OwnedArray<FileBasedValueTree> settings;
-
-		class TabButtonLookAndFeel : public LookAndFeel_V3
-		{
-			void drawToggleButton(Graphics& g, ToggleButton& b, bool isMouseOverButton, bool isButtonDown) override;
-		};
-
-		HiseSettings::Data& dataObject;
-
-		TabButtonLookAndFeel tblaf;
-
-		AlertWindowLookAndFeel alaf;
-
-		class Content; 
-		void setContent(SettingList s);
-
-		ProjectHandler* handler;
-
-		ToggleButton projectSettings;
-		ToggleButton globalSettings;
-		ToggleButton allSettings;
-
-		TextButton applyButton;
-		TextButton cancelButton;
-
-		ScopedPointer<Content> currentContent;
-
-		SettingList currentList;
-
-		TextEditor fuzzySearchBox;
-
-		bool saveOnDestroy = false;
-
+		overColour = 0xFF464646
 	};
 
+	using SettingList = Array<Identifier>;
+
+	SettingWindows(HiseSettings::Data& data);
+
+	~SettingWindows();
+
+	void buttonClicked(Button* b) override;
+
+	void resized() override;
+
+	void paint(Graphics& g) override;
+
+	void textEditorTextChanged(TextEditor&) override;
+
+	void activateSearchBox()
+	{
+		fuzzySearchBox.grabKeyboardFocus();
+	}
+
+	
+
+	
 	
 
 private:
 
-	
+	struct Refresher : public AsyncUpdater
+	{
+		Refresher(SettingWindows* p_) :
+			p(p_)
+		{}
 
-	
+		void handleAsyncUpdate() override
+		{
+			if (p != nullptr)
+			{
+				p->setContent(p->currentList);
+			}
+		}
 
-public:
+		Component::SafePointer<SettingWindows> p;
+	};
 
+	Refresher refresher;
+
+	struct TestFunctions
+	{
+		static bool isValidNumberBetween(var value, Range<float> range);
+	};
+
+	Result checkInput(const Identifier& id, const var& newValue);
+
+	void valueTreePropertyChanged(ValueTree& treeWhosePropertyHasChanged,
+		const Identifier& property);
+
+	void settingWasChanged(const Identifier& id, const var& newValue);
+
+	void valueTreeChildAdded(ValueTree& , ValueTree& ) override;;
+
+	void valueTreeChildRemoved(ValueTree& , ValueTree& , int ) override {};
+
+	void valueTreeChildOrderChanged(ValueTree& ,int , int ) override {};
+
+	void valueTreeParentChanged(ValueTree& ) override {}
+
+	struct FileBasedValueTree
+	{
+		FileBasedValueTree(Identifier s_, File f_, SettingWindows* p_) :
+			s(s_),
+			f(f_),
+			p(p_)
+		{};
+
+		void fillPropertyPanel(PropertyPanel& panel, const String& searchText);
+
+		void addProperty(ValueTree& c, Array<PropertyComponent*>& props);
+
+		String getId() const;
+
+		ValueTree getValueTree() const
+		{
+			return p->dataObject.data.getChildWithName(s);
+		}
+
+		void save();
+
+		Identifier s;
+		
+		File f;
+		SettingWindows* p;
+
+		BlackTextButtonLookAndFeel blaf;
+
+	};
+
+	FileBasedValueTree* createFileBasedValueTreeObject(Identifier s);
+
+	OwnedArray<FileBasedValueTree> settings;
+
+	class TabButtonLookAndFeel : public LookAndFeel_V3
+	{
+		void drawToggleButton(Graphics& g, ToggleButton& b, bool isMouseOverButton, bool isButtonDown) override;
+	};
+
+	HiseSettings::Data& dataObject;
+
+	TabButtonLookAndFeel tblaf;
+
+	AlertWindowLookAndFeel alaf;
+
+	class Content;
+	void setContent(SettingList s);
+
+	ProjectHandler* handler;
+
+	ToggleButton projectSettings;
+	ToggleButton developmentSettings;
+	ToggleButton audioSettings;
+	ToggleButton allSettings;
+
+	TextButton applyButton;
+	TextButton cancelButton;
+	TextButton undoButton;
+
+	ScopedPointer<Content> currentContent;
+
+	SettingList currentList;
+
+	TextEditor fuzzySearchBox;
+
+	bool saveOnDestroy = false;
+
+	UndoManager undoManager;
 	
 };
 

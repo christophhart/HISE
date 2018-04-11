@@ -148,7 +148,6 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsConvertSfzToSampleMaps,
 		MenuToolsRemoveAllSampleMaps,
 		MenuToolsUnloadAllAudioFiles,
-		MenuToolsEnableAutoSaving,
 		MenuToolsRecordOneSecond,
 		MenuToolsEnableDebugLogging,
 		MenuToolsImportArchivedSamples,
@@ -430,7 +429,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isRedirected(ProjectHandler::SubDirectories::Samples), 'X', false);
         break;
 	case MenuToolsRedirectScriptFolder:
-		setCommandTarget(result, "Redirect script folder", true, !PresetHandler::getGlobalScriptFolder().isAChildOf(File(PresetHandler::getDataFolder())), 'X', false);
+		setCommandTarget(result, "Redirect script folder", true, false, 'X', false);
 		break;
 	case MenuToolsForcePoolSearch:
 		setCommandTarget(result, "Force duplicate search in pool when loading samples", true, bpe->getBackendProcessor()->getSampleManager().getModulatorSamplerSoundPool()->isPoolSearchForced(), 'X', false);
@@ -452,9 +451,6 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuToolsUnloadAllAudioFiles:
 		setCommandTarget(result, "Unload all audio files", true, false, 'X', false);
-		break;
-	case MenuToolsEnableAutoSaving:
-		setCommandTarget(result, "Enable Autosaving", true, bpe->owner->getAutoSaver().isAutoSaving(), 'X', false);
 		break;
 	case MenuToolsEnableDebugLogging:
 		setCommandTarget(result, "Enable Debug Logger", true, bpe->owner->getDebugLogger().isLogging(), 'X', false);
@@ -622,7 +618,6 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsCreateDummyLicenseFile: Actions::createDummyLicenseFile(bpe); return true;
 	case MenuToolsCheckAllSampleMaps:	Actions::checkAllSamplemaps(bpe); return true;
 	case MenuToolsImportArchivedSamples: Actions::importArchivedSamples(bpe); return true;
-	case MenuToolsEnableAutoSaving:		bpe->owner->getAutoSaver().toggleAutoSaving(); updateCommands(); return true;
 	case MenuToolsRecordOneSecond:		bpe->owner->getDebugLogger().startRecording(); return true;
 	case MenuToolsEnableDebugLogging:	bpe->owner->getDebugLogger().toggleLogging(), updateCommands(); return true;
     case MenuViewFullscreen:            Actions::toggleFullscreen(bpe); updateCommands(); return true;
@@ -672,8 +667,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		p.addSectionHeader("Project Management");
 		ADD_ALL_PLATFORMS(MenuProjectNew);
 		ADD_DESKTOP_ONLY(MenuProjectLoad);
-		ADD_DESKTOP_ONLY(MenuCloseProject);
-
+		
 		ADD_DESKTOP_ONLY(MenuProjectShowInFinder);
 		
 
@@ -818,13 +812,9 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_ALL_PLATFORMS(MenuToolsRecompile);
 		ADD_ALL_PLATFORMS(MenuToolsCheckDuplicate);
 		ADD_ALL_PLATFORMS(MenuToolsClearConsole);
-		ADD_DESKTOP_ONLY(MenuToolsEnableCallStack);
 		ADD_DESKTOP_ONLY(MenuToolsCheckCyclicReferences);
 		ADD_DESKTOP_ONLY(MenuToolsRecompileScriptsOnReload);
-		ADD_DESKTOP_ONLY(MenuToolsSetCompileTimeOut);
-		ADD_DESKTOP_ONLY(MenuToolsUseBackgroundThreadForCompile);
 		ADD_DESKTOP_ONLY(MenuToolsCreateExternalScriptFile);
-		ADD_DESKTOP_ONLY(MenuToolsRedirectScriptFolder);
 		ADD_DESKTOP_ONLY(MenuToolsValidateUserPresets);
 		
 		p.addSeparator();
@@ -859,8 +849,6 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsConvertSfzToSampleMaps);
 		ADD_DESKTOP_ONLY(MenuToolsRemoveAllSampleMaps);
 		ADD_DESKTOP_ONLY(MenuToolsUnloadAllAudioFiles);
-		ADD_DESKTOP_ONLY(MenuToolsEnableAutoSaving);
-		ADD_DESKTOP_ONLY(MenuToolsEnableDebugLogging);
 		ADD_DESKTOP_ONLY(MenuToolsRecordOneSecond);
 		p.addSeparator();
 		p.addSectionHeader("License Management");
@@ -888,10 +876,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuViewAddInterfacePreview);
 		ADD_DESKTOP_ONLY(MenuViewFullscreen);
 		ADD_DESKTOP_ONLY(MenuViewEnableOpenGL);
-        p.addSeparator();
-        ADD_ALL_PLATFORMS(MenuViewIncreaseCodeFontSize);
-        ADD_ALL_PLATFORMS(MenuViewDecreaseCodeFontSize);
-		
+        
 		break;
 		}
 	case BackendCommandTarget::HelpMenu:
@@ -962,7 +947,13 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int topLevelMenuInde
 
 			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(file, bpe);
             
+			bpe->getBackendProcessor()->getSettingsObject().refreshProjectData();
+
+			
+
             menuItemsChanged();
+
+			Actions::loadFirstXmlAfterProjectSwitch(bpe);
 #endif
 		}
 	}
@@ -1366,7 +1357,7 @@ void BackendCommandTarget::Actions::updateSampleMapIds(BackendRootWindow * bpe)
 
 void BackendCommandTarget::Actions::toggleCallStackEnabled(BackendRootWindow * bpe)
 {
-	bpe->getBackendProcessor()->setCallStackEnabled(!bpe->getBackendProcessor()->isCallStackEnabled());
+	bpe->getBackendProcessor()->updateCallstackSettingForExistingScriptProcessors();
 }
 
 void BackendCommandTarget::Actions::testPlugin(const String& pluginToLoad)
@@ -1642,28 +1633,9 @@ void BackendCommandTarget::Actions::deleteMissingSamples(BackendRootWindow *bpe)
 	bpe->getBackendProcessor()->getSampleManager().getModulatorSamplerSoundPool()->deleteMissingSamples();
 }
 
-void BackendCommandTarget::Actions::setCompileTimeOut(BackendRootWindow * bpe)
+void BackendCommandTarget::Actions::setCompileTimeOut(BackendRootWindow * /*bpe*/)
 {
-	AlertWindowLookAndFeel alaf;
-
-	AlertWindow newTime("Enter new compile time out duration", "Current time out: " + String(bpe->getBackendProcessor()->getCompileTimeOut(),1) + " seconds.", AlertWindow::QuestionIcon, bpe);
-
-	newTime.setLookAndFeel(&alaf);
-
-	newTime.addTextEditor("time", String(bpe->getBackendProcessor()->getCompileTimeOut(), 1), "", false);
-	
-	newTime.addButton("OK", 1, KeyPress(KeyPress::returnKey));
-	newTime.addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
-
-	if (newTime.runModalLoop())
-	{
-		double value = newTime.getTextEditor("time")->getText().getDoubleValue();
-
-		if (value != 0.0)
-		{
-			bpe->getBackendProcessor()->setCompileTimeOut(value);
-		}
-	}
+	jassertfalse;
 }
 
 void BackendCommandTarget::Actions::toggleUseBackgroundThreadsForCompiling(BackendRootWindow * bpe)
@@ -1828,6 +1800,8 @@ void BackendCommandTarget::Actions::loadProject(BackendRootWindow *bpe)
     
     if (!shouldDiscard) return;
     
+	
+
 #if HISE_IOS
 
 	Array<File> fileList;
@@ -1846,13 +1820,47 @@ void BackendCommandTarget::Actions::loadProject(BackendRootWindow *bpe)
 
 	if (fc.browseForDirectory())
 	{
+		
+
 		File f = fc.getResult();
 
-		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(f, bpe);
+		auto handler = GET_PROJECT_HANDLER(bpe->getMainSynthChain());
 
-		bpe->getBackendProcessor()->createUserPresetData();
+		auto r = handler.setWorkingProject(f, bpe);
+
+		if (r.failed())
+		{
+			PresetHandler::showMessageWindow("Error loading project", r.getErrorMessage(), PresetHandler::IconType::Error);
+		}
+		else
+		{
+			bpe->getBackendProcessor()->getSettingsObject().refreshProjectData();
+			bpe->getBackendProcessor()->clearPreset();
+			bpe->getBackendProcessor()->createUserPresetData();
+
+			loadFirstXmlAfterProjectSwitch(bpe);
+		}
+			
+
+		
 	}
 #endif
+}
+
+void BackendCommandTarget::Actions::loadFirstXmlAfterProjectSwitch(BackendRootWindow * bpe)
+{
+	auto handler = GET_PROJECT_HANDLER(bpe->getMainSynthChain());
+
+	auto presets = handler.getSubDirectory(ProjectHandler::SubDirectories::XMLPresetBackups);
+
+	Array<File> files;
+
+	presets.findChildFiles(files, File::findFiles, false, "*.xml");
+
+	if (files.size() > 0 && PresetHandler::showYesNoWindow("Load first XML in project?", "Do you want to load " + files[0].getFileName()))
+	{
+		BackendCommandTarget::Actions::openFileFromXml(bpe, files[0]);
+	}
 }
 
 void BackendCommandTarget::Actions::closeProject(BackendRootWindow *bpe)
@@ -1911,7 +1919,7 @@ void BackendCommandTarget::Actions::showFileProjectSettings(BackendRootWindow * 
 {
 	//SettingWindows::ProjectSettingWindow *window = new SettingWindows::ProjectSettingWindow(&GET_PROJECT_HANDLER(bpe->getMainSynthChain()));
 
-	auto window = new SettingWindows::NewSettingWindows(bpe->getBackendProcessor()->getSettingsObject());
+	auto window = new SettingWindows(bpe->getBackendProcessor()->getSettingsObject());
 
 
 	window->setModalBaseWindowComponent(bpe);
@@ -1919,7 +1927,7 @@ void BackendCommandTarget::Actions::showFileProjectSettings(BackendRootWindow * 
 	window->activateSearchBox();
 }
 
-void BackendCommandTarget::Actions::showFileUserSettings(BackendRootWindow * bpe)
+void BackendCommandTarget::Actions::showFileUserSettings(BackendRootWindow * /*bpe*/)
 {
 	jassertfalse;
 }
@@ -1929,9 +1937,9 @@ void BackendCommandTarget::Actions::showFileCompilerSettings(BackendRootWindow *
 	jassertfalse;
 }
 
-void BackendCommandTarget::Actions::checkSettingSanity(BackendRootWindow * bpe)
+void BackendCommandTarget::Actions::checkSettingSanity(BackendRootWindow * /*bpe*/)
 {
-	SettingWindows::checkAllSettings(&GET_PROJECT_HANDLER(bpe->getMainSynthChain()));
+	jassertfalse;
 }
 
 void BackendCommandTarget::Actions::togglePluginPopupWindow(BackendRootWindow * bpe)
@@ -1950,20 +1958,9 @@ void BackendCommandTarget::Actions::togglePluginPopupWindow(BackendRootWindow * 
 	}
 }
                     
-void BackendCommandTarget::Actions::changeCodeFontSize(BackendRootWindow *bpe, bool increase)
+void BackendCommandTarget::Actions::changeCodeFontSize(BackendRootWindow *, bool /*increase*/)
 {
-    float currentFontSize = bpe->getMainSynthChain()->getMainController()->getGlobalCodeFontSize();
-    
-    if(increase)
-    {
-        currentFontSize = jmin<float>(28.0f, currentFontSize + 1.0f);
-    }
-    else
-    {
-        currentFontSize = jmax<float>(10.0f, currentFontSize - 1.0f);
-    }
-    
-    bpe->getMainSynthChain()->getMainController()->setGlobalCodeFontSize(currentFontSize);
+	jassertfalse;
 }
 
 void BackendCommandTarget::Actions::createRSAKeys(BackendRootWindow * bpe)

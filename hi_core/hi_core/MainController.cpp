@@ -67,8 +67,7 @@ MainController::MainController():
 	debugLogger(this),
 	//presetLoadRampFlag(OldUserPresetHandler::Active),
 	suspendIndex(0),
-	controlUndoManager(new UndoManager()),
-    globalCodeFontSize(17.0f)
+	controlUndoManager(new UndoManager())
 {
 	BACKEND_ONLY(popupConsole = nullptr);
 	BACKEND_ONLY(usePopupConsole = false);
@@ -1063,6 +1062,11 @@ bool MainController::checkAndResetMidiInputFlag()
 	midiInputFlag = false;
 
 	return returnValue;
+}
+
+float MainController::getGlobalCodeFontSize() const
+{
+	return (float)dynamic_cast<const GlobalSettingManager*>(this)->getSettingsObject().getSetting(HiseSettings::Scripting::CodeFontSize);
 }
 
 void MainController::loadUserPresetAsync(const ValueTree& v)

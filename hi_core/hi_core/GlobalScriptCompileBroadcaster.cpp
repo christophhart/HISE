@@ -33,7 +33,6 @@
 namespace hise { using namespace juce;
 
 GlobalScriptCompileBroadcaster::GlobalScriptCompileBroadcaster() :
-	timeOut(5.0),
 	useBackgroundCompiling(false),
 	enableGlobalRecompile(true),
 	globalEditBroadcaster(new ScriptComponentEditBroadcaster())
@@ -72,9 +71,20 @@ void GlobalScriptCompileBroadcaster::sendScriptCompileMessage(JavascriptProcesso
 	}
 }
 
-void GlobalScriptCompileBroadcaster::setCallStackEnabled(bool shouldBeEnabled)
+double GlobalScriptCompileBroadcaster::getCompileTimeOut() const noexcept
 {
-	enableCallStack = shouldBeEnabled;
+	return (double)dynamic_cast<const GlobalSettingManager*>(this)->getSettingsObject().getSetting(HiseSettings::Scripting::CompileTimeout);
+
+}
+
+bool GlobalScriptCompileBroadcaster::isCallStackEnabled() const noexcept
+{
+	return (bool)dynamic_cast<const GlobalSettingManager*>(this)->getSettingsObject().getSetting(HiseSettings::Scripting::EnableCallstack);
+}
+
+void GlobalScriptCompileBroadcaster::updateCallstackSettingForExistingScriptProcessors()
+{
+	auto shouldBeEnabled = isCallStackEnabled();
 
 	ModulatorSynthChain *mainChain = dynamic_cast<MainController*>(this)->getMainSynthChain();
 

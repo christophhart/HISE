@@ -87,37 +87,7 @@ public:
 
 	
 
-	void setStateInformation(const void *data,int sizeInBytes) override
-	{
-
-		auto f = [data, sizeInBytes](Processor* p)
-		{
-			ValueTree v = ValueTree::readFromData(data, sizeInBytes);
-
-			String fileName = v.getProperty("ProjectRootFolder", String());
-
-			if (fileName.isNotEmpty())
-			{
-				File root(fileName);
-				if (root.exists() && root.isDirectory())
-				{
-					GET_PROJECT_HANDLER(p).setWorkingProject(root, nullptr);
-				}
-			}
-
-			p->getMainController()->loadPresetFromValueTree(v);
-
-			auto bp = dynamic_cast<BackendProcessor*>(p->getMainController());
-
-			bp->editorInformation = JSON::parse(v.getProperty("InterfaceData", ""));
-
-			return true;
-		};
-
-		getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
-		
-		
-	}
+	void setStateInformation(const void *data,int sizeInBytes) override;
 
 	void processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages);
 
@@ -182,6 +152,8 @@ public:
 
 	void setEditorData(var editorState);
 private:
+
+	MemoryBlock tempLoadingData;
 
 	friend class BackendProcessorEditor;
 	friend class BackendCommandTarget;

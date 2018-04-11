@@ -137,6 +137,21 @@ double ScopedGlitchDetector::getAllowedPercentageForLocation(int locationId)
 
 
 
+int AutoSaver::getIntervalInMinutes() const
+{
+	auto value = (int)dynamic_cast<const GlobalSettingManager*>(mc)->getSettingsObject().getSetting(HiseSettings::Other::AutosaveInterval);
+
+	if (value >= 1  && value <= 30)
+		return value;
+
+	return 5;
+}
+
+bool AutoSaver::isAutoSaving() const
+{
+	return dynamic_cast<const GlobalSettingManager*>(mc)->getSettingsObject().getSetting(HiseSettings::Other::EnableAutosave);
+}
+
 void AutoSaver::timerCallback()
 {
 #if USE_BACKEND

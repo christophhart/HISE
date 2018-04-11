@@ -297,6 +297,9 @@ public:
 		static void toggleCompileScriptsOnPresetLoad(BackendRootWindow * bpe);
 		static void createNewProject(BackendRootWindow *bpe);
 		static void loadProject(BackendRootWindow *bpe);
+
+		static void loadFirstXmlAfterProjectSwitch(BackendRootWindow * bpe);
+
 		static void closeProject(BackendRootWindow *bpe);
 		static void showProjectInFinder(BackendRootWindow *bpe);
 		static void saveUserPreset(BackendRootWindow *bpe);

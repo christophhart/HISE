@@ -103,6 +103,8 @@ unlockCounter(0)
 
     HiseDeviceSimulator::init(wrapperType);
     
+	GlobalSettingManager::initData(this);
+
 #if USE_COPY_PROTECTION
 
 	if (!unlocker.loadKeyFile())

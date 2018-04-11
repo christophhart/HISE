@@ -876,13 +876,9 @@ public:
     bool isChanged() const { return changed; }
     void setChanged(bool shouldBeChanged=true) { changed = shouldBeChanged; }
     
-    float getGlobalCodeFontSize() const {return globalCodeFontSize; };
+    float getGlobalCodeFontSize() const;;
     
-    void setGlobalCodeFontSize(float newFontSize)
-    {
-        globalCodeFontSize = newFontSize;
-        codeFontChangeNotificator.sendSynchronousChangeMessage();
-    };
+    
     
     SafeChangeBroadcaster &getFontSizeChangeBroadcaster() { return codeFontChangeNotificator; };
     
@@ -1231,8 +1227,6 @@ private:
     std::atomic<float> usagePercent;
 
 	bool enablePluginParameterUpdate;
-
-    float globalCodeFontSize;
 
     double globalPitchFactor;
     

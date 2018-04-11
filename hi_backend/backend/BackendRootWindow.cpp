@@ -384,18 +384,7 @@ void BackendRootWindow::resized()
 
 void BackendRootWindow::showSettingsWindow()
 {
-	jassert(owner->deviceManager != nullptr);
-
-	if (owner->deviceManager != nullptr && currentDialog == nullptr)
-	{
-		addAndMakeVisible(currentDialog = new AudioDeviceDialog(owner));
-
-		currentDialog->centreWithSize(700, 500);
-	}
-	else
-	{
-		currentDialog = nullptr;
-	}
+	BackendCommandTarget::Actions::showFileProjectSettings(this);
 }
 
 void BackendRootWindow::timerCallback()

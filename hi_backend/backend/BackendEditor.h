@@ -113,8 +113,7 @@ public:
 		auto obj =  FloatingTileContent::toDynamicObject();
 
 		storePropertyInObject(obj, MainPanelProperties::ScrollPosition, viewport->viewport->getViewPosition().getY(), 0);
-		storePropertyInObject(obj, MainPanelProperties::Autosaving, owner->getAutoSaver().isAutoSaving(), true);
-		storePropertyInObject(obj, MainPanelProperties::GlobalCodeFontSize, owner->getGlobalCodeFontSize());
+		
 
 		return obj;
 	}
@@ -125,14 +124,9 @@ public:
 
 		owner->setScrollY(getPropertyWithDefault(obj, MainPanelProperties::ScrollPosition));
 
-		const bool wasAutoSaving = getPropertyWithDefault(obj, MainPanelProperties::Autosaving);
+		
 
-		if (wasAutoSaving)
-			owner->getAutoSaver().enableAutoSaving();
-		else
-			owner->getAutoSaver().disableAutoSaving();
-
-		owner->setGlobalCodeFontSize(getPropertyWithDefault(obj, MainPanelProperties::GlobalCodeFontSize));
+		
 	}
 
 	int getNumDefaultableProperties() const override

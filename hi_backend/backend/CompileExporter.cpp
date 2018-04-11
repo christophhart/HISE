@@ -33,7 +33,7 @@
 namespace hise { using namespace juce;
 
 #define GET_SETTING(id) dataObject.getSetting(id).toString()
-
+#define IS_SETTING_TRUE(id) (bool)dataObject.getSetting(id) == true
 
 
 void loadOtherReferencedImages(ModulatorSynthChain* chainToExport)
@@ -531,13 +531,11 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 		if (createPlugin)
 		{
 			result = createPluginDataHeaderFile(solutionDirectory, publicKey, BuildOptionHelpers::isIOS(option));
-
 			if (result != ErrorCodes::OK) return result;
 		}
 		else
 		{
 			result = createStandaloneAppHeaderFile(solutionDirectory, uniqueId, version, publicKey);
-
 			if (result != ErrorCodes::OK) return result;
 		}
 
@@ -565,7 +563,12 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 		if (embedFiles)
 		{
-			if (GET_SETTING(HiseSettings::Project::EmbedAudioFiles) == "No")
+			if (IS_SETTING_TRUE(HiseSettings::Project::EmbedAudioFiles))
+			{
+				writeValueTreeToTemporaryFile(exportReferencedAudioFiles(), directoryPath, "impulses");
+				writeValueTreeToTemporaryFile(exportReferencedImageFiles(), directoryPath, "images");
+			}
+			else
 			{
 				File appFolder = ProjectHandler::Frontend::getAppDataDirectory(chainToExport).getChildFile("AudioResources.dat");
 				PresetHandler::writeValueTreeAsFile(exportReferencedAudioFiles(), appFolder.getFullPathName());
@@ -573,15 +576,9 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 				File imageFolder = ProjectHandler::Frontend::getAppDataDirectory(chainToExport).getChildFile("ImageResources.dat");
 				PresetHandler::writeValueTreeAsFile(exportReferencedImageFiles(), imageFolder.getFullPathName());
 			}
-			else
-			{
-				writeValueTreeToTemporaryFile(exportReferencedAudioFiles(), directoryPath, "impulses");
-				writeValueTreeToTemporaryFile(exportReferencedImageFiles(), directoryPath, "images");
-			}
 		}
 
 		String presetDataString("PresetData");
-
 		String sourceDirectory = solutionDirectory + "/Source";
 
 		CppBuilder::exportValueTreeAsCpp(directoryPath, sourceDirectory, presetDataString);
@@ -589,13 +586,11 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 		if (createPlugin)
 		{
 			result = createPluginProjucerFile(type, option, chainToExport);
-
 			if (result != ErrorCodes::OK) return result;
 		}
 		else
 		{
 			result = createStandaloneAppProjucerFile(option);
-
 			if (result != ErrorCodes::OK) return result;
 		}
 
@@ -1180,22 +1175,20 @@ CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(const St
 	HeaderHelpers::addStaticDspFactoryRegistration(pluginDataHeaderFile, this);
 	HeaderHelpers::addCopyProtectionHeaderLines(publicKey, pluginDataHeaderFile);
 
-	if (GET_SETTING(HiseSettings::Project::EmbedAudioFiles) == "No")
-	{
-		pluginDataHeaderFile << "AudioProcessor* JUCE_CALLTYPE createPluginFilter() { CREATE_PLUGIN(nullptr, nullptr); }\n";
-		pluginDataHeaderFile << "\n";
-	}
-	else
+	if (IS_SETTING_TRUE(HiseSettings::Project::EmbedAudioFiles))
 	{
 		pluginDataHeaderFile << "AudioProcessor* JUCE_CALLTYPE createPluginFilter() { CREATE_PLUGIN_WITH_AUDIO_FILES(nullptr, nullptr); }\n";
 		pluginDataHeaderFile << "\n";
 	}
+	else
+	{
+		pluginDataHeaderFile << "AudioProcessor* JUCE_CALLTYPE createPluginFilter() { CREATE_PLUGIN(nullptr, nullptr); }\n";
+		pluginDataHeaderFile << "\n";
+	}
 
-    
     if(iOSAUv3)
     {
         pluginDataHeaderFile << "AudioProcessor* hise::StandaloneProcessor::createProcessor() { CREATE_PLUGIN(deviceManager, callback); }\n\n";
-        
         pluginDataHeaderFile << "START_JUCE_APPLICATION(hise::FrontendStandaloneApplication)\n\n";
     }
     else
@@ -1392,7 +1385,7 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 		REPLACE_WILDCARD_WITH_STRING("%IOS_AUDIO_FOLDER%", audioFolder.getFullPathName());
 		REPLACE_WILDCARD_WITH_STRING("%IOS_SAMPLEMAP_FOLDER%", sampleMapFolder.getFullPathName());
 
-		const String appGroupId = GET_SETTING(HiseSettings::Project::AppGroupId);
+		const String appGroupId = GET_SETTING(HiseSettings::Project::AppGroupID);
         
         REPLACE_WILDCARD_WITH_STRING("%USE_APP_GROUPS%", appGroupId.isEmpty() ? "0" : "1");
         REPLACE_WILDCARD_WITH_STRING("%APP_GROUP_ID%",  appGroupId);
@@ -1502,8 +1495,6 @@ hise::CompileExporter::CompileExporter::ErrorCodes CompileExporter::createStanda
 
 void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter* exporter, String& templateProject)
 {
-	ModulatorSynthChain* chainToExport = exporter->chainToExport;
-
 	const File jucePath = exporter->hisePath.getChildFile("JUCE/modules");
 
 	REPLACE_WILDCARD_WITH_STRING("%HISE_PATH%", exporter->hisePath.getFullPathName());
@@ -1531,8 +1522,6 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 
 void CompileExporter::ProjectTemplateHelpers::handleCompanyInfo(CompileExporter* exporter, String& templateProject)
 {
-	ModulatorSynthChain* chainToExport = exporter->chainToExport;
-
 	REPLACE_WILDCARD_WITH_STRING("%COMPANY%", exporter->dataObject.getSetting(HiseSettings::User::Company).toString());
 	REPLACE_WILDCARD_WITH_STRING("%MC%", exporter->dataObject.getSetting(HiseSettings::User::CompanyCode).toString());
 	REPLACE_WILDCARD_WITH_STRING("%COMPANY_WEBSITE%", exporter->dataObject.getSetting(HiseSettings::User::CompanyURL).toString());
@@ -1645,7 +1634,9 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 	}
 
 #if JUCE_MAC
-    const String additionalStaticLibs = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::OSXStaticLibs, &GET_PROJECT_HANDLER(chainToExport));
+    
+    
+    const String additionalStaticLibs = exporter->GET_SETTING(HiseSettings::Project::OSXStaticLibs);
     templateProject = templateProject.replace("%OSX_STATIC_LIBS%", additionalStaticLibs);
 #else
 
@@ -2284,13 +2275,11 @@ void CompileExporter::HeaderHelpers::addCustomToolbarRegistration(CompileExporte
 
 void CompileExporter::HeaderHelpers::addProjectInfoLines(CompileExporter* exporter, String& pluginDataHeaderFile)
 {
-	ModulatorSynthChain* chainToExport = exporter->chainToExport;
-
 	const String companyName = exporter->GET_SETTING(HiseSettings::User::Company);
 	const String companyWebsiteName = exporter->GET_SETTING(HiseSettings::User::CompanyURL);
 	const String projectName = exporter->GET_SETTING(HiseSettings::Project::Name);
 	const String versionString = exporter->GET_SETTING(HiseSettings::Project::Version);
-	const String appGroupString = exporter->GET_SETTING(HiseSettings::Project::AppGroupId);
+	const String appGroupString = exporter->GET_SETTING(HiseSettings::Project::AppGroupID);
 
 	pluginDataHeaderFile << "String hise::ProjectHandler::Frontend::getProjectName() { return \"" << projectName << "\"; };\n";
 	pluginDataHeaderFile << "String hise::ProjectHandler::Frontend::getCompanyName() { return \"" << companyName << "\"; };\n";

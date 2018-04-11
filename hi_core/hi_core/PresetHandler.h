@@ -151,7 +151,7 @@ public:
 
 	void createNewProject(File &workingDirectory, Component* mainEditor);
 
-	void setWorkingProject(const File &workingDirectory, Component* mainEditor);
+	Result setWorkingProject(const File &workingDirectory, Component* mainEditor);
 
 	static const StringArray &getRecentWorkDirectories() { return recentWorkDirectories; }
 
@@ -325,7 +325,7 @@ private:
 	void checkSubDirectories();
 
 	File checkSubDirectory(SubDirectories dir);
-	void checkSettingsFile(Component* mainEditor=nullptr);
+	bool anySubdirectoryExists(const File& possibleProjectFolder) const;
 
 private:
 
@@ -705,7 +705,7 @@ public:
 		
 	}
     
-	static File getGlobalScriptFolder();
+	static File getGlobalScriptFolder(Processor* p);
 
     static AudioFormatReader *getReaderForFile(const File &file);
     

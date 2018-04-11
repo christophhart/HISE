@@ -52,7 +52,7 @@ public:
 		virtual void periodicCheckCallback(ToggleButtonList* list) = 0;
 	};
 
-	ToggleButtonList(StringArray& names, Listener* listener_);
+	ToggleButtonList(const StringArray& names, Listener* listener_);
 
 	~ToggleButtonList()
 	{

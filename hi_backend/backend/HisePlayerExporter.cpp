@@ -44,8 +44,6 @@ void HisePlayerExporter::run()
 {
 	ValueTree metadata("Info");
 
-	ProjectHandler* handler = &GET_PROJECT_HANDLER(chainToExport);
-
 	metadata.setProperty(Identifier("Name"), GET_SETTING(HiseSettings::Project::Name), nullptr);
 	metadata.setProperty(Identifier("Version"), GET_SETTING(HiseSettings::Project::Version), nullptr);
 	metadata.setProperty(Identifier("Company"), GET_SETTING(HiseSettings::User::Company), nullptr);

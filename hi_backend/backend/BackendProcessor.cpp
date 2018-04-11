@@ -49,11 +49,15 @@ viewUndoManager(new UndoManager())
 
 	getMacroManager().setMacroChain(synthChain);
 
+	
+
 	handleEditorData(false);
 
 	restoreGlobalSettings(this);
 
 	initData(this);
+
+	getAutoSaver().updateAutosaving();
 
 
 	createUserPresetData();
@@ -105,6 +109,50 @@ void BackendProcessor::getStateInformation(MemoryBlock &destData)
 	v.setProperty("InterfaceData", JSON::toString(editorInformation, true), nullptr);
 
 	v.writeToStream(output);
+}
+
+void BackendProcessor::setStateInformation(const void *data, int sizeInBytes)
+{
+	tempLoadingData.setSize(sizeInBytes);
+
+	tempLoadingData.copyFrom(data, 0, sizeInBytes);
+
+	
+
+	auto f = [](Processor* p)
+	{
+		auto bp = dynamic_cast<BackendProcessor*>(p->getMainController());
+
+		auto& tmp = bp->tempLoadingData;
+
+		ValueTree v = ValueTree::readFromData(tmp.getData(), tmp.getSize());
+
+		String fileName = v.getProperty("ProjectRootFolder", String());
+
+		if (fileName.isNotEmpty())
+		{
+			File root(fileName);
+			if (root.exists() && root.isDirectory())
+			{
+				GET_PROJECT_HANDLER(p).setWorkingProject(root, nullptr);
+
+				bp->getSettingsObject().refreshProjectData();
+
+			}
+		}
+
+		p->getMainController()->loadPresetFromValueTree(v);
+
+		
+
+		bp->editorInformation = JSON::parse(v.getProperty("InterfaceData", ""));
+
+		tmp.reset();
+
+		return true;
+	};
+
+	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
 }
 
 AudioProcessorEditor* BackendProcessor::createEditor()

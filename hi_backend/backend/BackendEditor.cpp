@@ -799,13 +799,8 @@ void MainTopBar::popupChanged(Component* newComponent)
 
 void MainTopBar::paint(Graphics& g)
 {
-	//g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId));
-
-	
-
 	Colour c1 = JUCE_LIVE_CONSTANT_OFF(Colour(0xFF424242));
 	Colour c2 = JUCE_LIVE_CONSTANT_OFF(Colour(0xFF404040));
-
 
 	g.setGradientFill(ColourGradient(c1, 0.0f, 0.0f, c2, 0.0f, (float)getHeight(), false));
 	g.fillAll();
@@ -814,14 +809,6 @@ void MainTopBar::paint(Graphics& g)
 	g.setFont(GLOBAL_BOLD_FONT());
 	g.drawText("Frontend Panels", frontendArea.withTrimmedBottom(11), Justification::centredBottom);
 	g.drawText("Workspaces", workspaceArea.withTrimmedBottom(11), Justification::centredBottom);
-
-#if 0
-	g.setColour(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
-	g.drawVerticalLine(frontendArea.getRight() + 20, 0.0f, (float)getHeight());
-	g.drawVerticalLine(workspaceArea.getX() - 20, 0.0f, (float)getHeight());
-	g.drawVerticalLine(workspaceArea.getRight() + (frontendArea.getX() - workspaceArea.getRight())/2, 0.0f, (float)getHeight());
-#endif
-	
 }
 
 void MainTopBar::buttonClicked(Button* b)
@@ -877,22 +864,8 @@ void MainTopBar::resized()
 	
 	x = layoutButton->getX() - 28 - 8;
 	
-#if IS_STANDALONE_APP 
-
 	settingsButton->setBounds(x, centerY, 28, 28);
 	peakMeter->setBounds(voiceCpuBpmComponent->getRight() - 2, centerY + 4, settingsButton->getX() - voiceCpuBpmComponent->getRight(), 24);
-
-#else
-
-	settingsButton->setVisible(false);
-	peakMeter->setBounds(voiceCpuBpmComponent->getRight() + 2, centerY + 4, layoutButton->getX() - voiceCpuBpmComponent->getRight() - 4, 24);
-
-#endif
-
-	
-	
-	
-
 
 	const int rightX = settingsArea.getX() - 4;
 
@@ -1001,22 +974,14 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 	}
 	case PopupType::Settings:
 	{
-		auto ft = new FloatingTile(mc, nullptr);
+		c = nullptr;
 
-		ft->setContent(FloatingPanelTemplates::createSettingsWindow(mc));
-
-		
-		c = ft;
-
-		c->setName("Settings");
-
-#if IS_STANDALONE_APP
-		c->setSize(380, 640);
-#else
-		c->setSize(380, 440);
-#endif
+		BackendCommandTarget::Actions::showFileProjectSettings(GET_BACKEND_ROOT_WINDOW(this));
 
 		button = settingsButton;
+
+		settingsButton->setToggleState(!settingsButton->getToggleState(), dontSendNotification);
+
 		break;
 	}
 	case PopupType::PluginPreview:
