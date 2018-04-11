@@ -1029,9 +1029,6 @@ juce::Result ProjectHandler::setWorkingProject(const File &workingDirectory, Com
 
 	currentWorkDirectory = workingDirectory;
 
-	
-
-
 	checkSubDirectories();
 
 	jassert(currentWorkDirectory.exists() && currentWorkDirectory.isDirectory());
