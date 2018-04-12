@@ -614,6 +614,9 @@ void ConvolutionEffect::LoadingThread::reloadInternal()
 	const auto offset = parent.getRange().getStart();
 	const auto irLength = parent.getRange().getLength();
 
+	if (irLength > 44100 * 20)
+		jassertfalse;
+
 	auto l = copyBuffer.getReadPointer(0, offset);
 	auto r = copyBuffer.getReadPointer(1, offset);
 
