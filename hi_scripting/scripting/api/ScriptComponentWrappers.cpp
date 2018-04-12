@@ -1537,12 +1537,12 @@ void ScriptCreatedComponentWrappers::SliderPackWrapper::updateRange(SliderPackDa
 	double max = GET_SCRIPT_PROPERTY(max);
 	double stepSize = ssp->getScriptObjectProperty(ScriptingApi::Content::ScriptSliderPack::Properties::StepSize);
 
-
-	data->setRange(min, max, stepSize);
-
-	SliderPack *sp = dynamic_cast<SliderPack*>(component.get());
-
-	sp->updateSliders();
+	if (!ssp->getConnectedProcessor())
+	{
+		data->setRange(min, max, stepSize);
+		SliderPack *sp = dynamic_cast<SliderPack*>(component.get());
+		sp->updateSliders();
+	}
 }
 
 void ScriptCreatedComponentWrappers::SliderPackWrapper::updateValue(var newValue)
