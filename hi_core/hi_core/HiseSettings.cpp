@@ -528,8 +528,8 @@ void HiseSettings::Data::addMissingSettings(ValueTree& v, const Identifier &id)
 	else if (id == SettingFiles::ScriptingSettings) ids = Scripting::getAllIds();
 	else if (id == SettingFiles::OtherSettings)		ids = Other::getAllIds();
 
-	for (const auto& id : ids)
-		addSetting(v, id);
+	for (const auto& id_ : ids)
+		addSetting(v, id_);
 }
 
 juce::AudioDeviceManager* HiseSettings::Data::getDeviceManager()
@@ -539,6 +539,8 @@ juce::AudioDeviceManager* HiseSettings::Data::getDeviceManager()
 
 void HiseSettings::Data::initialiseAudioDriverData(bool forceReload/*=false*/)
 {
+	ignoreUnused(forceReload);
+
 #if IS_STANDALONE_APP
 	static const Identifier va("value");
 
@@ -804,9 +806,9 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 		s.setBit(index, true);
 
 		auto intValue = s.toInteger();
-		auto data = mc->getMainSynthChain()->getActiveChannelData();
+		auto channelData = mc->getMainSynthChain()->getActiveChannelData();
 
-		data->restoreFromData(intValue);
+		channelData->restoreFromData(intValue);
 	}
 }
 

@@ -1014,7 +1014,7 @@ void ProjectHandler::createNewProject(File &workingDirectory, Component* mainEdi
 	setWorkingProject(workingDirectory, mainEditor);
 }
 
-juce::Result ProjectHandler::setWorkingProject(const File &workingDirectory, Component* mainEditor)
+juce::Result ProjectHandler::setWorkingProject(const File &workingDirectory, Component* /*mainEditor*/)
 {
 	MessageManagerLock mm;
 

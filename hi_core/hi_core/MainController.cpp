@@ -631,11 +631,10 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	{
 		hostIsPlaying = lastPosInfo.isPlaying;
 
-#if FRONTEND_IS_PLUGIN
-		masterEventBuffer.addEvent(HiseEvent(hostIsPlaying ? HiseEvent::Type::NoteOn :
+		FX_ONLY(masterEventBuffer.addEvent(HiseEvent(hostIsPlaying ? HiseEvent::Type::NoteOn :
 															 HiseEvent::Type::NoteOff, 
-											 60, 127, 1));
-#endif
+											 60, 127, 1));)
+
 	}
 
 	if (bpmFromHost == 0.0)
@@ -748,31 +747,9 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		for (int i = 0; i < matrix.getNumSourceChannels(); i++)
 		{
 			if (replaceBufferContent)
-			{
 				FloatVectorOperations::copy(buffer.getWritePointer(i), thisMultiChannelBuffer.getReadPointer(i), bufferSize.get());
-			}
 			else
-			{
 				FloatVectorOperations::add(buffer.getWritePointer(i), thisMultiChannelBuffer.getReadPointer(i), bufferSize.get());
-			}
-
-
-#if 0
-			const int destinationChannel = matrix.getConnectionForSourceChannel(i);
-
-
-			if (destinationChannel == -1)
-				continue;
-
-			if (replaceBufferContent)
-			{
-				FloatVectorOperations::copy(buffer.getWritePointer(destinationChannel), thisMultiChannelBuffer.getReadPointer(i), bufferSize.get());
-			}
-			else
-			{
-				FloatVectorOperations::add(buffer.getWritePointer(destinationChannel), thisMultiChannelBuffer.getReadPointer(i), bufferSize.get());
-			}
-#endif
 		}
 	}
 

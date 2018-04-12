@@ -303,7 +303,8 @@ void AudioSampleProcessor::setLoopFromMetadata(const File& f)
 
 	String loopEnabled;
 	
-	int loopStart, loopEnd;
+	int loopStart = 0;
+	int loopEnd = 0;
 
 	if (format == "AIFF")
 	{

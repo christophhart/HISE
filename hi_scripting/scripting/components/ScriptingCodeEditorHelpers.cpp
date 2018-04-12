@@ -408,7 +408,7 @@ public:
 
 	OwnedArray<TableEntry> entries;
 
-	void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override
+	void comboBoxChanged(ComboBox* /*comboBoxThatHasChanged*/) override
 	{
 		rebuildLines();
 	}

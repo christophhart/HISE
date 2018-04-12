@@ -361,11 +361,11 @@ public:
 
 		void buttonClicked(Button* ) override
 		{
-			FileChooser fc("Select Folder");
+			FileChooser fileChooser("Select Folder");
 
-			if (fc.browseForDirectory())
+			if (fileChooser.browseForDirectory())
 			{
-				parent.v = fc.getResult().getFullPathName();
+				parent.v = fileChooser.getResult().getFullPathName();
 			}
 		}
 
