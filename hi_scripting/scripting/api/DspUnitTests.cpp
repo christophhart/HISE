@@ -55,7 +55,95 @@ public:
 		testVariantBufferWithCorruptValues();
 
 		testDspInstances();
+
+		testCircularBuffers();
 	}
+
+	void testCircularBuffers()
+	{
+		beginTest("Testing circular audio buffers");
+
+		int numSamples = r.nextInt({ 258, 512 });
+
+		AudioSampleBuffer input(1, numSamples);
+
+		fillFloatArrayWithRandomNumbers(input.getWritePointer(0), numSamples);
+
+		AudioSampleBuffer output(1, numSamples);
+
+		CircularAudioSampleBuffer b(1, 1024);
+
+		expectEquals<int>(b.getNumAvailableSamples(), 0, "Num Samples available");
+
+		b.writeSamples(input, 0, numSamples);
+
+		expectEquals<int>(b.getNumAvailableSamples(), numSamples, "Num Samples available");
+
+		b.readSamples(output, 0, numSamples);
+		
+		expectEquals<int>(b.getNumAvailableSamples(), 0, "Num Samples available");
+		expect(checkBuffersEqual(input, output), "Basic Read/Write operation");
+
+		
+
+
+		beginTest("Testing MIDI circular Buffers");
+
+		CircularAudioSampleBuffer mb(1, 1024);
+
+		testMidiWrite(mb, 1000, 600);
+		testMidiWrite(mb, 1000, 600);
+
+		
+		testMidiWrite(mb, r.nextInt({ 0, 512 }));
+		testMidiWrite(mb, r.nextInt({ 0, 512 }));
+		testMidiWrite(mb, r.nextInt({ 0, 512 }));
+		testMidiWrite(mb, r.nextInt({ 0, 512 }));
+		testMidiWrite(mb, r.nextInt({ 0, 512 }));
+		testMidiWrite(mb, r.nextInt({ 0, 512 }));
+
+
+	}
+
+	void testMidiWrite(CircularAudioSampleBuffer& mb, int numThisTime, int timeStamp=-1)
+	{
+
+		MidiBuffer mInput;
+		MidiBuffer mOutput;
+
+		
+		if(timeStamp == -1)
+			timeStamp = r.nextInt({ 0, numThisTime });
+
+		const int noteNumber = r.nextInt({ 0, 127 });
+
+		String s;
+
+		s << "Buffersize: " << numThisTime << ", Timestamp: " << timeStamp << ", NoteNumber: " << noteNumber;
+
+		logMessage(s);
+
+		mInput.addEvent(MidiMessage::noteOn(1, noteNumber, 1.0f), timeStamp);
+
+		mb.writeMidiEvents(mInput, 0, numThisTime);
+
+		mb.readMidiEvents(mOutput, 0, numThisTime);
+
+		MidiBuffer::Iterator iter(mOutput);
+
+		MidiMessage m;
+		int pos;
+
+		iter.getNextEvent(m, pos);
+
+		jassert(timeStamp == pos);
+
+		expect(m.getNoteNumber() == noteNumber, "Wrong event.");
+		expectEquals<int>(pos, timeStamp, "Wrong timestamp.");
+		expect(mb.getNumMidiEvents() == 0, "Buffer should be empty. Size: " + String(mb.getNumMidiEvents()));
+	}
+
+	
 
 	void testVariantBuffer()
 	{
@@ -196,6 +284,25 @@ public:
 		}
 	}
 
+	bool checkBuffersEqual(const AudioSampleBuffer& first, const AudioSampleBuffer& second)
+	{
+		if (first.getNumSamples() != second.getNumSamples())
+			return false;
+
+		auto r1 = first.getReadPointer(0);
+		auto r2 = second.getReadPointer(0);
+
+		for (int i = 0; i < first.getNumSamples(); i++)
+		{
+			if (fabsf(*r2 - *r1) > 0.0001f)
+				return false;
+
+			r1++;
+			r2++;
+		}
+
+		return true;
+	}
 
 
 	Random r;

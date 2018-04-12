@@ -507,62 +507,342 @@ bool DelayedRenderer::shouldDelayRendering() const
 	return pimpl->shouldDelayRendering();
 }
 
+CircularAudioSampleBuffer::CircularAudioSampleBuffer(int numChannels_, int numSamples) :
+	internalBuffer(numChannels_, numSamples),
+	numChannels(numChannels_),
+	size(numSamples)
+{
+	internalBuffer.clear();
+	internalMidiBuffer.ensureSize(1024);
+}
+
+bool CircularAudioSampleBuffer::writeSamples(const AudioSampleBuffer& source, int offsetInSource, int numSamples)
+{
+	jassert(source.getNumChannels() == internalBuffer.getNumChannels());
+
+	const bool needsWrapping = writeIndex + numSamples > size;
+
+	if (needsWrapping)
+	{
+		const int numSamplesBeforeWrap = size - writeIndex;
+
+		if (numSamplesBeforeWrap > 0)
+		{
+			for (int i = 0; i < numChannels; i++)
+			{
+				auto w = internalBuffer.getWritePointer(i, writeIndex);
+				auto r = source.getReadPointer(i, offsetInSource);
+
+				FloatVectorOperations::copy(w, r, numSamplesBeforeWrap);
+			}
+		}
+
+		const int numSamplesAfterWrap = numSamples - numSamplesBeforeWrap;
+
+		if (numSamplesAfterWrap > 0)
+		{
+			for (int i = 0; i < numChannels; i++)
+			{
+				auto w = internalBuffer.getWritePointer(i, 0);
+				auto r = source.getReadPointer(i, offsetInSource + numSamplesBeforeWrap);
+
+				FloatVectorOperations::copy(w, r, numSamplesAfterWrap);
+			}
+
+			
+		}
+
+		writeIndex = numSamplesAfterWrap;
+	}
+	else
+	{
+		for (int i = 0; i < numChannels; i++)
+		{
+			auto w = internalBuffer.getWritePointer(i, writeIndex);
+			auto r = source.getReadPointer(i, offsetInSource);
+
+			FloatVectorOperations::copy(w, r, numSamples);
+		}
+
+		writeIndex += numSamples;
+	}
+
+	numAvailable += numSamples;
+
+	const bool ok = numAvailable <= size;
+	jassert(ok);
+	return ok;
+}
+
+bool CircularAudioSampleBuffer::readSamples(AudioSampleBuffer& destination, int offsetInDestination, int numSamples)
+{
+	jassert(destination.getNumChannels() == internalBuffer.getNumChannels());
+
+	numAvailable -= numSamples;
+
+	jassert(numAvailable >= 0);
+
+	const bool needsWrapping = readIndex + numSamples > size;
+
+	if (needsWrapping)
+	{
+		const int numSamplesBeforeWrap = size - readIndex;
+
+		if (numSamplesBeforeWrap > 0)
+		{
+			for (int i = 0; i < numChannels; i++)
+			{
+				auto r = internalBuffer.getReadPointer(i, readIndex);
+				auto w = destination.getWritePointer(i, offsetInDestination);
+
+				FloatVectorOperations::copy(w, r, numSamplesBeforeWrap);
+			}
+		}
+
+		const int numSamplesAfterWrap = numSamples - numSamplesBeforeWrap;
+
+		if (numSamplesAfterWrap > 0)
+		{
+			for (int i = 0; i < numChannels; i++)
+			{
+				auto r = internalBuffer.getReadPointer(i, 0);
+				auto w = destination.getWritePointer(i, offsetInDestination + numSamplesBeforeWrap);
+
+				FloatVectorOperations::copy(w, r, numSamplesAfterWrap);
+			}
+		}
+
+		readIndex = numSamplesAfterWrap;
+	}
+	else
+	{
+		for (int i = 0; i < numChannels; i++)
+		{
+			auto r = internalBuffer.getReadPointer(i, readIndex);
+			auto w = destination.getWritePointer(i, offsetInDestination);
+
+			FloatVectorOperations::copy(w, r, numSamples);
+		}
+
+		readIndex += numSamples;
+	}
+
+	const bool ok = numAvailable >= 0;
+	jassert(ok);
+	return ok;
+}
+
+bool CircularAudioSampleBuffer::writeMidiEvents(const MidiBuffer& source, int offsetInSource, int numSamples)
+{
+	const bool needsWrapping = midiWriteIndex + numSamples > size;
+
+	if (source.isEmpty())
+	{
+		midiWriteIndex = (midiWriteIndex + numSamples) % size;
+		return numAvailable <= size;
+	}
+	
+	if (needsWrapping)
+	{
+		const int numSamplesBeforeWrap = size - midiWriteIndex;
+
+		if (numSamplesBeforeWrap > 0)
+		{
+			internalMidiBuffer.clear(midiWriteIndex, numSamplesBeforeWrap);
+			internalMidiBuffer.addEvents(source, offsetInSource, numSamplesBeforeWrap, midiWriteIndex);
+		}
+
+		const int numSamplesAfterWrap = numSamples - numSamplesBeforeWrap;
+		const int offsetAfterWrap = offsetInSource + numSamplesBeforeWrap;
+
+		if (numSamplesAfterWrap > 0)
+		{
+			internalMidiBuffer.clear(0, numSamplesAfterWrap);
+			internalMidiBuffer.addEvents(source, offsetAfterWrap, numSamplesAfterWrap, -offsetAfterWrap);
+		}
+
+		midiWriteIndex = numSamplesAfterWrap;
+	}
+	else
+	{
+		internalMidiBuffer.clear(midiWriteIndex, numSamples);
+		internalMidiBuffer.addEvents(source, offsetInSource, numSamples, midiWriteIndex);
+
+		midiWriteIndex += numSamples;
+	}
+
+	const bool ok = numAvailable <= size;
+	jassert(ok);
+	return ok;
+}
+
+bool CircularAudioSampleBuffer::readMidiEvents(MidiBuffer& destination, int offsetInDestination, int numSamples)
+{
+	const bool needsWrapping = midiReadIndex + numSamples > size;
+
+	jassert(destination.isEmpty());
+
+	if (needsWrapping)
+	{
+		const int numSamplesBeforeWrap = size - midiReadIndex;
+		const int numSamplesAfterWrap = numSamples - numSamplesBeforeWrap;
+		const int offsetAfterWrap = offsetInDestination + numSamplesBeforeWrap;
+		const int offsetBeforeWrap = offsetInDestination - midiReadIndex;
+
+		if (numSamplesAfterWrap > 0)
+		{
+			destination.addEvents(internalMidiBuffer, 0, numSamplesAfterWrap, offsetAfterWrap);
+			internalMidiBuffer.clear(0, numSamplesAfterWrap);
+		}
+
+
+		if (numSamplesBeforeWrap > 0)
+		{
+			destination.addEvents(internalMidiBuffer, midiReadIndex, numSamplesBeforeWrap, offsetBeforeWrap);
+			internalMidiBuffer.clear(midiReadIndex, numSamplesBeforeWrap);
+		}
+		
+		
+		midiReadIndex = numSamplesAfterWrap;
+	}
+	else
+	{
+		destination.addEvents(internalMidiBuffer, midiReadIndex, numSamples, offsetInDestination - midiReadIndex);
+		internalMidiBuffer.clear(midiReadIndex, numSamples);
+
+		midiReadIndex += numSamples;
+	}
+
+	const bool ok = numAvailable >= 0;
+	jassert(ok);
+	return ok;
+}
+
 void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
 	if (shouldDelayRendering())
 	{
+	
+		const bool ok = circularInputBuffer.writeSamples(buffer, 0, buffer.getNumSamples());
+
+		jassert(ok);
+
+		INSTRUMENT_ONLY(circularInputBuffer.writeMidiEvents(midiMessages, 0, buffer.getNumSamples()));
+		INSTRUMENT_ONLY(buffer.clear());
+
+		while (circularInputBuffer.getNumAvailableSamples() >= fullBlockSize)
+		{
+			delayedMidiBuffer.clear();
+
+			circularInputBuffer.readSamples(processBuffer, 0, fullBlockSize);
+
+			INSTRUMENT_ONLY(circularInputBuffer.readMidiEvents(delayedMidiBuffer, 0, fullBlockSize));
+			
+			mc->processBlockCommon(processBuffer, delayedMidiBuffer);
+
+			circularOutputBuffer.writeSamples(processBuffer, 0, fullBlockSize);
+		}
+
+		circularOutputBuffer.readSamples(buffer, 0, buffer.getNumSamples());
+
+#if 0
 		const int thisNumSamples = buffer.getNumSamples();
 		const int blockSize = writeBuffer->getNumSamples();
-		const bool bufferOverflow = sampleIndex + thisNumSamples >= blockSize;
+		
+		//String s;
+		//s << "thisNumSamples: " << thisNumSamples << ", sampleIndex: " << sampleIndex;
+		//DBG(s);
 
-		if (bufferOverflow)
+
+		int numSamplesTodo = thisNumSamples;
+
+		while (numSamplesTodo > 0)
 		{
-			const int remainingSamples = blockSize - sampleIndex;
+			jassert(sampleIndexInternal < blockSize);
+			jassert(sampleIndexInternal >= 0);
+			jassert(sampleIndexExternal < thisNumSamples);
+			jassert(sampleIndexExternal >= 0);
+
+			const bool wrapInternalBuffer = (sampleIndexInternal + numSamplesTodo) >= blockSize;
+
+			if (wrapInternalBuffer)
+			{
+				
+
+				const int numSamplesToCopyBeforeProcessing = jmin<int>(thisNumSamples - sampleIndexExternal, numSamplesTodo - sampleIndexInternal, blockSize - sampleIndexInternal);
+
+				if (numSamplesToCopyBeforeProcessing > 0)
+				{
 
 #if FRONTEND_IS_PLUGIN
-			FloatVectorOperations::copy(writeBuffer->getWritePointer(0, sampleIndex), buffer.getReadPointer(0, 0), remainingSamples);
-			FloatVectorOperations::copy(writeBuffer->getWritePointer(1, sampleIndex), buffer.getReadPointer(1, 0), remainingSamples);
+					FloatVectorOperations::copy(writeBuffer->getWritePointer(0, sampleIndexInternal), buffer.getReadPointer(0, sampleIndexExternal), numSamplesToCopyBeforeProcessing);
+					FloatVectorOperations::copy(writeBuffer->getWritePointer(1, sampleIndexInternal), buffer.getReadPointer(1, sampleIndexExternal), numSamplesToCopyBeforeProcessing);
 #else
-			delayedMidiBuffer.addEvents(midiMessages, 0, remainingSamples, sampleIndex);
+					delayedMidiBuffer.addEvents(midiMessages, 0, numSamplesToCopyBeforeProcessing, sampleIndexInternal);
 #endif
 
-			FloatVectorOperations::copy(buffer.getWritePointer(0, 0), readBuffer->getReadPointer(0, sampleIndex), remainingSamples);
-			FloatVectorOperations::copy(buffer.getWritePointer(1, 0), readBuffer->getReadPointer(1, sampleIndex), remainingSamples);
-			
+					FloatVectorOperations::copy(buffer.getWritePointer(0, sampleIndexExternal), readBuffer->getReadPointer(0, sampleIndexInternal), numSamplesToCopyBeforeProcessing);
+					FloatVectorOperations::copy(buffer.getWritePointer(1, sampleIndexExternal), readBuffer->getReadPointer(1, sampleIndexInternal), numSamplesToCopyBeforeProcessing);
+					
+				}
 
-			mc->processBlockCommon(*writeBuffer, delayedMidiBuffer);
+				sampleIndexExternal += numSamplesToCopyBeforeProcessing;
 
-			AudioSampleBuffer* temp = readBuffer;
-			readBuffer = writeBuffer;
-			writeBuffer = temp;
-			delayedMidiBuffer.clear();
-			sampleIndex = 0;
+				
 
-			const int samplesAfterWrap = thisNumSamples - remainingSamples;
+				jassert(sampleIndexExternal + numSamplesToCopyBeforeProcessing == thisNumSamples);
 
-			if (samplesAfterWrap > 0)
+				mc->processBlockCommon(*writeBuffer, delayedMidiBuffer);
+
+				AudioSampleBuffer* temp = readBuffer;
+				readBuffer = writeBuffer;
+				writeBuffer = temp;
+				delayedMidiBuffer.clear();
+				sampleIndexInternal = 0;
+
+				const int numSamplesToCopyAfterProcessing = jmin<int>(blockSize- indexInOutputBuffer, numSamplesTodo- indexInOutputBuffer);
+
+				numSamplesTodo -= remainingSamples;
+
+				if (numSamplesToCopyAfterProcessing > 0)
+				{
+					FloatVectorOperations::copy(buffer.getWritePointer(0, indexInOutputBuffer), readBuffer->getReadPointer(0, 0), numSamplesToCopyAfterProcessing);
+					FloatVectorOperations::copy(buffer.getWritePointer(1, indexInOutputBuffer), readBuffer->getReadPointer(1, 0), numSamplesToCopyAfterProcessing);
+					numSamplesTodo -= numSamplesToCopyAfterProcessing;
+				}
+
+				
+
+				sampleIndexInternal = (sampleIndexInternal + numSamplesToCopyAfterProcessing) % blockSize;
+
+				
+			}
+			else
 			{
-				FloatVectorOperations::copy(buffer.getWritePointer(0, remainingSamples), readBuffer->getReadPointer(0, 0), samplesAfterWrap);
-				FloatVectorOperations::copy(buffer.getWritePointer(1, remainingSamples), readBuffer->getReadPointer(1, 0), samplesAfterWrap);
+
+				int numToCopy = jmin<int>(blockSize - sampleIndexInternal, numSamplesTodo);
+
+				jassert(numToCopy > 0);
+
+#if FRONTEND_IS_PLUGIN
+				FloatVectorOperations::copy(writeBuffer->getWritePointer(0, sampleIndexInternal), buffer.getReadPointer(0, 0), numToCopy);
+				FloatVectorOperations::copy(writeBuffer->getWritePointer(1, sampleIndexInternal), buffer.getReadPointer(1, 0), numToCopy);
+#else
+				delayedMidiBuffer.addEvents(midiMessages, 0, numToCopy, sampleIndexInternal);
+#endif
+
+				FloatVectorOperations::copy(buffer.getWritePointer(0, 0), readBuffer->getReadPointer(0, sampleIndexInternal), numToCopy);
+				FloatVectorOperations::copy(buffer.getWritePointer(1, 0), readBuffer->getReadPointer(1, sampleIndexInternal), numToCopy);
+				numSamplesTodo -= numToCopy;
+
+				sampleIndexInternal = (sampleIndexInternal + numToCopy) % blockSize;
 			}
 
-			sampleIndex += samplesAfterWrap;
-		}
-		else
-		{
+			
 
-#if FRONTEND_IS_PLUGIN
-			FloatVectorOperations::copy(writeBuffer->getWritePointer(0, sampleIndex), buffer.getReadPointer(0, 0), thisNumSamples);
-			FloatVectorOperations::copy(writeBuffer->getWritePointer(1, sampleIndex), buffer.getReadPointer(1, 0), thisNumSamples);
-#else
-			delayedMidiBuffer.addEvents(midiMessages, 0, thisNumSamples, sampleIndex);
+			}
 #endif
 
-			FloatVectorOperations::copy(buffer.getWritePointer(0, 0), readBuffer->getReadPointer(0, sampleIndex), thisNumSamples);
-			FloatVectorOperations::copy(buffer.getWritePointer(1, 0), readBuffer->getReadPointer(1, sampleIndex), thisNumSamples);
-			
-			sampleIndex += thisNumSamples;
-		}
 	}
 	else
 	{
@@ -574,28 +854,33 @@ void DelayedRenderer::prepareToPlayWrapped(double sampleRate, int samplesPerBloc
 {
 	if (shouldDelayRendering())
 	{
+		if (samplesPerBlock > lastBlockSize)
+		{
+			lastBlockSize = samplesPerBlock;
+
 #if FRONTEND_IS_PLUGIN
-		fullBlockSize = samplesPerBlock;
+			fullBlockSize = samplesPerBlock;
 #else
-		fullBlockSize = jmin<int>(256, samplesPerBlock);
+			fullBlockSize = jmin<int>(256, samplesPerBlock);
 #endif
 
-		b1.setSize(2, fullBlockSize);
-		b2.setSize(2, fullBlockSize);
+			circularInputBuffer = CircularAudioSampleBuffer(2, 3 * samplesPerBlock);
 
-		b1.clear();
-		b2.clear();
 
-		delayedMidiBuffer.ensureSize(1024);
 
-		readBuffer = &b1;
-		writeBuffer = &b2;
+			circularOutputBuffer = CircularAudioSampleBuffer(2, 3 * samplesPerBlock);
 
-		sampleIndex = 0;
+			circularOutputBuffer.setReadDelta(fullBlockSize);
 
-		dynamic_cast<AudioProcessor*>(mc)->setLatencySamples(fullBlockSize);
+			processBuffer.setSize(2, fullBlockSize);
 
-		mc->prepareToPlay(sampleRate, fullBlockSize);
+			delayedMidiBuffer.ensureSize(1024);
+
+			dynamic_cast<AudioProcessor*>(mc)->setLatencySamples(fullBlockSize);
+
+			mc->prepareToPlay(sampleRate, fullBlockSize);
+		}
+
 	}
 	else
 	{
