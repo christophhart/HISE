@@ -84,6 +84,7 @@ struct TestGlobalNamespace
 #include "ExternalFilePool.h"
 #include "Markdown.h"
 #include "BackgroundThreads.h"
+#include "HiseSettings.h"
 #include "SettingsWindows.h"
 
 #include "PresetHandler.h"

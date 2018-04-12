@@ -291,8 +291,10 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 
 			renderedCodePreview = editor->createComponentSnapshot(editor->getLocalBounds());
 
+			renderedCodePreview = renderedCodePreview.getClippedImage({ 0, 0, renderedCodePreview.getWidth(), renderedCodePreview.getHeight() - 22 });
+
 			lastWidth = width;
-			lastHeight = (float)editor->getHeight() + 20.0f;
+			lastHeight = (float)renderedCodePreview.getHeight() + 3.0f;
 
 			return lastHeight;
 		}
@@ -630,16 +632,10 @@ void MarkdownParser::parse()
 void MarkdownParser::parseLine()
 {
 	resetForNewLine();
-
 	currentColour = textColour.withAlpha(0.8f);
-
 	parseText(); 
-	
 	elements.add(new TextBlock(this, currentlyParsedBlock));
 }
-
-
-
 
 void MarkdownParser::resetForNewLine()
 {
@@ -752,6 +748,8 @@ void MarkdownParser::parseText()
 			auto u = currentFont.isUnderlined();
 
 			currentFont = isCode ? codeFont : normalFont;
+
+			currentColour = isCode ? textColour : textColour.withAlpha(0.8f);
 
 			currentFont.setHeight(size);
 			currentFont.setBold(b);

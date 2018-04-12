@@ -170,7 +170,7 @@ int ScriptingEditor::getBodyHeight() const
 		if(auto viewport = findParentComponentOfClass<Viewport>())
 			return viewport->getHeight() - 36;
 
-		if (auto popup = findParentComponentOfClass<FloatingTilePopup>())
+		if (findParentComponentOfClass<FloatingTilePopup>() != nullptr)
 			return 500;
 	}
 

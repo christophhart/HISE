@@ -121,10 +121,6 @@ public:
 		*/
 		const ValueTree getLoadedSampleMap(const String &fileName) const;
 
-		bool shouldUseRelativePathToProjectFolder() const { return useRelativePathsToProjectFolder; }
-
-		void setShouldUseRelativePathToProjectFolder(bool shouldUse) { useRelativePathsToProjectFolder = shouldUse; }
-
 		/** Returns the impulse response pool. */
 		const AudioSampleBufferPool *getAudioSampleBufferPool() const {	return globalAudioSampleBufferPool; };
 
@@ -141,6 +137,8 @@ public:
 		const ProjectHandler &getProjectHandler() const { return projectHandler; }
 
 		bool isUsingHddMode() const noexcept{ return hddMode; };
+
+		bool isPreloading() const noexcept { return preloadFlag; };
 
 		bool shouldSkipPreloading() const { return skipPreloading; };
 
@@ -216,7 +214,6 @@ public:
 		ScopedPointer<SampleThreadPool> samplerLoaderThreadPool;
 
 		bool hddMode = false;
-		bool useRelativePathsToProjectFolder;
 		bool skipPreloading = false;
 
 		PreloadJob internalPreloadJob;
@@ -876,13 +873,9 @@ public:
     bool isChanged() const { return changed; }
     void setChanged(bool shouldBeChanged=true) { changed = shouldBeChanged; }
     
-    float getGlobalCodeFontSize() const {return globalCodeFontSize; };
+    float getGlobalCodeFontSize() const;;
     
-    void setGlobalCodeFontSize(float newFontSize)
-    {
-        globalCodeFontSize = newFontSize;
-        codeFontChangeNotificator.sendSynchronousChangeMessage();
-    };
+    
     
     SafeChangeBroadcaster &getFontSizeChangeBroadcaster() { return codeFontChangeNotificator; };
     
@@ -1231,8 +1224,6 @@ private:
     std::atomic<float> usagePercent;
 
 	bool enablePluginParameterUpdate;
-
-    float globalCodeFontSize;
 
     double globalPitchFactor;
     

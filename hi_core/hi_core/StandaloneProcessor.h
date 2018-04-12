@@ -88,11 +88,26 @@ public:
 		listeners.removeAllInstancesOf(listenerToRemove);
 	}
 
-	
+	HiseSettings::Data& getSettingsObject()
+	{ 
+		jassert(dataObject != nullptr);
+		return *dataObject;
+	}
+
+	const HiseSettings::Data& getSettingsObject() const 
+	{
+		jassert(dataObject != nullptr);
+		return *dataObject;
+	}
 
 	static File getSettingDirectory();
 
 	static void restoreGlobalSettings(MainController* mc);
+
+	void initData(MainController* mc)
+	{
+		dataObject = new HiseSettings::Data(mc);
+	}
 
 	void saveSettingsAsXml();
 
@@ -111,6 +126,8 @@ public:
 	bool useOpenGL = false;
 
 private:
+
+	ScopedPointer<HiseSettings::Data> dataObject;
 
 	double scaleFactor = 1.0;
 
@@ -176,7 +193,7 @@ public:
 		deviceManager->setCurrentAudioDeviceType(deviceName, true);
 	}
 
-	
+	void resetToDefault();
 
 	void setOutputChannelName(const int channelIndex)
 	{
@@ -210,6 +227,8 @@ public:
 
 	static void updateMidiToggleList(MainController* mc, ToggleButtonList* listToUpdate);
 
+	/** Returns the state of each available MIDI input. */
+	BigInteger getMidiInputState() const;
 	
 	static XmlElement *getSettings();
 

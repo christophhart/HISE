@@ -52,7 +52,7 @@ public:
 		virtual void periodicCheckCallback(ToggleButtonList* list) = 0;
 	};
 
-	ToggleButtonList(StringArray& names, Listener* listener_);
+	ToggleButtonList(const StringArray& names, Listener* listener_);
 
 	~ToggleButtonList()
 	{
@@ -266,10 +266,6 @@ public:
 	void buttonClicked(Button* /*b*/) override;
 
 	static void flipEnablement(AudioDeviceManager* manager, const int row);
-
-	static String getNameForChannelPair(const String& name1, const String& name2);
-
-	static StringArray getChannelPairs(AudioIODevice* currentDevice);
 
 	void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override;
 

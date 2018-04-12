@@ -403,15 +403,15 @@ class DummyUnlocker : public OnlineUnlockStatus
 {
 public:
 
-	DummyUnlocker(ProjectHandler *handler_) :
-		handler(handler_)
+	DummyUnlocker(MainController *mc_) :
+		mc(mc_)
 	{
 
 	}
 
 	String getProductID() override
 	{
-		return SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, handler);
+		return dynamic_cast<GlobalSettingManager*>(mc)->getSettingsObject().getSetting(HiseSettings::Project::Name).toString();
 	}
 
 	bool doesProductIDMatch(const String & 	returnedIDFromServer)
@@ -424,7 +424,7 @@ public:
 
 private:
 
-	ProjectHandler *handler;
+	MainController* mc;
 
 
 };

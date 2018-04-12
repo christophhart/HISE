@@ -136,10 +136,9 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsResolveMissingSamples,
 		MenuToolsDeleteMissingSamples,
 		MenuToolsCheckAllSampleMaps,
-		MenuToolsUseRelativePaths,
 		MenuToolsCollectExternalFiles,
 		MenuToolsCheckUnusedImages,
-        MenuToolsRedirectSampleFolder,
+        
 		MenuToolsRedirectScriptFolder,
 		MenuToolsForcePoolSearch,
 		MenuToolsConvertSampleMapToWavetableBanks,
@@ -148,7 +147,6 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsConvertSfzToSampleMaps,
 		MenuToolsRemoveAllSampleMaps,
 		MenuToolsUnloadAllAudioFiles,
-		MenuToolsEnableAutoSaving,
 		MenuToolsRecordOneSecond,
 		MenuToolsEnableDebugLogging,
 		MenuToolsImportArchivedSamples,
@@ -410,9 +408,6 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsResolveMissingSamples:
 		setCommandTarget(result, "Resolve missing samples", true, false, 'X', false);
 		break;
-	case MenuToolsUseRelativePaths:
-		setCommandTarget(result, "Use relative paths to project folder", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), bpe->getBackendProcessor()->getSampleManager().shouldUseRelativePathToProjectFolder(), 'X', false);
-		break;
 	case MenuToolsCheckAllSampleMaps:
 		setCommandTarget(result, "Check all sample maps", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
 		break;
@@ -425,12 +420,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsCheckUnusedImages:
 		setCommandTarget(result, "Check for unreferenced images", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
 		break;
-    case MenuToolsRedirectSampleFolder:
-		setCommandTarget(result, "Redirect sample folder", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(),
-			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isRedirected(ProjectHandler::SubDirectories::Samples), 'X', false);
-        break;
+    
 	case MenuToolsRedirectScriptFolder:
-		setCommandTarget(result, "Redirect script folder", true, !PresetHandler::getGlobalScriptFolder().isAChildOf(File(PresetHandler::getDataFolder())), 'X', false);
+		setCommandTarget(result, "Redirect script folder", true, false, 'X', false);
 		break;
 	case MenuToolsForcePoolSearch:
 		setCommandTarget(result, "Force duplicate search in pool when loading samples", true, bpe->getBackendProcessor()->getSampleManager().getModulatorSamplerSoundPool()->isPoolSearchForced(), 'X', false);
@@ -452,9 +444,6 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuToolsUnloadAllAudioFiles:
 		setCommandTarget(result, "Unload all audio files", true, false, 'X', false);
-		break;
-	case MenuToolsEnableAutoSaving:
-		setCommandTarget(result, "Enable Autosaving", true, bpe->owner->getAutoSaver().isAutoSaving(), 'X', false);
 		break;
 	case MenuToolsEnableDebugLogging:
 		setCommandTarget(result, "Enable Debug Logger", true, bpe->owner->getDebugLogger().isLogging(), 'X', false);
@@ -605,11 +594,9 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsValidateUserPresets:	Actions::validateUserPresets(bpe); return true;
 	case MenuToolsDeleteMissingSamples: Actions::deleteMissingSamples(bpe); return true;
 	case MenuToolsResolveMissingSamples:Actions::resolveMissingSamples(bpe); return true;
-	case MenuToolsUseRelativePaths:		Actions::toggleRelativePath(bpe); updateCommands();  return true;
 	case MenuToolsCollectExternalFiles:	Actions::collectExternalFiles(bpe); return true;
 	case MenuToolsCreateUIDataFromDesktop: Actions::createUIDataFromDesktop(bpe); updateCommands(); return true;
 	case MenuToolsCheckUnusedImages:	Actions::checkUnusedImages(bpe); return true;
-    case MenuToolsRedirectSampleFolder: Actions::redirectSampleFolder(bpe->getMainSynthChain()); updateCommands(); return true;
 	case MenuToolsRedirectScriptFolder: Actions::redirectScriptFolder(bpe); updateCommands(); return true;
 	case MenuToolsForcePoolSearch:		Actions::toggleForcePoolSearch(bpe); updateCommands(); return true;
 	case MenuToolsConvertSampleMapToWavetableBanks:	Actions::convertSampleMapToWavetableBanks(bpe); return true;
@@ -622,7 +609,6 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsCreateDummyLicenseFile: Actions::createDummyLicenseFile(bpe); return true;
 	case MenuToolsCheckAllSampleMaps:	Actions::checkAllSamplemaps(bpe); return true;
 	case MenuToolsImportArchivedSamples: Actions::importArchivedSamples(bpe); return true;
-	case MenuToolsEnableAutoSaving:		bpe->owner->getAutoSaver().toggleAutoSaving(); updateCommands(); return true;
 	case MenuToolsRecordOneSecond:		bpe->owner->getDebugLogger().startRecording(); return true;
 	case MenuToolsEnableDebugLogging:	bpe->owner->getDebugLogger().toggleLogging(), updateCommands(); return true;
     case MenuViewFullscreen:            Actions::toggleFullscreen(bpe); updateCommands(); return true;
@@ -672,8 +658,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		p.addSectionHeader("Project Management");
 		ADD_ALL_PLATFORMS(MenuProjectNew);
 		ADD_DESKTOP_ONLY(MenuProjectLoad);
-		ADD_DESKTOP_ONLY(MenuCloseProject);
-
+		
 		ADD_DESKTOP_ONLY(MenuProjectShowInFinder);
 		
 
@@ -763,10 +748,6 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_ALL_PLATFORMS(MenuReplaceWithClipboardContent);
 		
 		
-        ProjectHandler *handler = &GET_PROJECT_HANDLER(bpe->getMainSynthChain());
-        
-        
-		
 
 
 #if HISE_IOS
@@ -818,17 +799,13 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 	case BackendCommandTarget::ToolsMenu:
 	{
 		p.addSectionHeader("Scripting Tools");
-		ADD_ALL_PLATFORMS(MenuToolsCreateInterface);
+		
 		ADD_ALL_PLATFORMS(MenuToolsRecompile);
 		ADD_ALL_PLATFORMS(MenuToolsCheckDuplicate);
 		ADD_ALL_PLATFORMS(MenuToolsClearConsole);
-		ADD_DESKTOP_ONLY(MenuToolsEnableCallStack);
 		ADD_DESKTOP_ONLY(MenuToolsCheckCyclicReferences);
-		ADD_DESKTOP_ONLY(MenuToolsRecompileScriptsOnReload);
-		ADD_DESKTOP_ONLY(MenuToolsSetCompileTimeOut);
-		ADD_DESKTOP_ONLY(MenuToolsUseBackgroundThreadForCompile);
+		
 		ADD_DESKTOP_ONLY(MenuToolsCreateExternalScriptFile);
-		ADD_DESKTOP_ONLY(MenuToolsRedirectScriptFolder);
 		ADD_DESKTOP_ONLY(MenuToolsValidateUserPresets);
 		
 		p.addSeparator();
@@ -850,12 +827,10 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		
 		ADD_DESKTOP_ONLY(MenuToolsResolveMissingSamples);
 		ADD_DESKTOP_ONLY(MenuToolsDeleteMissingSamples);
-		ADD_DESKTOP_ONLY(MenuToolsUseRelativePaths);
 		ADD_DESKTOP_ONLY(MenuToolsCheckAllSampleMaps);
 		ADD_DESKTOP_ONLY(MenuToolsImportArchivedSamples);
 		ADD_DESKTOP_ONLY(MenuToolsCollectExternalFiles);
 		ADD_DESKTOP_ONLY(MenuToolsCheckUnusedImages);
-		ADD_DESKTOP_ONLY(MenuToolsRedirectSampleFolder);
 		ADD_DESKTOP_ONLY(MenuToolsForcePoolSearch);
 		ADD_DESKTOP_ONLY(MenuToolsConvertSampleMapToWavetableBanks);
 		ADD_DESKTOP_ONLY(MenuToolsConvertAllSamplesToMonolith);
@@ -863,8 +838,6 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsConvertSfzToSampleMaps);
 		ADD_DESKTOP_ONLY(MenuToolsRemoveAllSampleMaps);
 		ADD_DESKTOP_ONLY(MenuToolsUnloadAllAudioFiles);
-		ADD_DESKTOP_ONLY(MenuToolsEnableAutoSaving);
-		ADD_DESKTOP_ONLY(MenuToolsEnableDebugLogging);
 		ADD_DESKTOP_ONLY(MenuToolsRecordOneSecond);
 		p.addSeparator();
 		p.addSectionHeader("License Management");
@@ -892,10 +865,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuViewAddInterfacePreview);
 		ADD_DESKTOP_ONLY(MenuViewFullscreen);
 		ADD_DESKTOP_ONLY(MenuViewEnableOpenGL);
-        p.addSeparator();
-        ADD_ALL_PLATFORMS(MenuViewIncreaseCodeFontSize);
-        ADD_ALL_PLATFORMS(MenuViewDecreaseCodeFontSize);
-		
+        
 		break;
 		}
 	case BackendCommandTarget::HelpMenu:
@@ -966,7 +936,13 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int topLevelMenuInde
 
 			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(file, bpe);
             
+			bpe->getBackendProcessor()->getSettingsObject().refreshProjectData();
+
+			
+
             menuItemsChanged();
+
+			Actions::loadFirstXmlAfterProjectSwitch(bpe);
 #endif
 		}
 	}
@@ -1180,7 +1156,7 @@ void BackendCommandTarget::Actions::createUserInterface(BackendRootWindow * /*bp
 
 void BackendCommandTarget::Actions::checkUnusedImages(BackendRootWindow * bpe)
 {
-	auto handler = GET_PROJECT_HANDLER(bpe->getMainSynthChain());
+	auto& handler = GET_PROJECT_HANDLER(bpe->getMainSynthChain());
 
 	auto imageDirectory = handler.getSubDirectory(ProjectHandler::SubDirectories::Images);
 	
@@ -1370,7 +1346,7 @@ void BackendCommandTarget::Actions::updateSampleMapIds(BackendRootWindow * bpe)
 
 void BackendCommandTarget::Actions::toggleCallStackEnabled(BackendRootWindow * bpe)
 {
-	bpe->getBackendProcessor()->setCallStackEnabled(!bpe->getBackendProcessor()->isCallStackEnabled());
+	bpe->getBackendProcessor()->updateCallstackSettingForExistingScriptProcessors();
 }
 
 void BackendCommandTarget::Actions::testPlugin(const String& pluginToLoad)
@@ -1646,28 +1622,9 @@ void BackendCommandTarget::Actions::deleteMissingSamples(BackendRootWindow *bpe)
 	bpe->getBackendProcessor()->getSampleManager().getModulatorSamplerSoundPool()->deleteMissingSamples();
 }
 
-void BackendCommandTarget::Actions::setCompileTimeOut(BackendRootWindow * bpe)
+void BackendCommandTarget::Actions::setCompileTimeOut(BackendRootWindow * /*bpe*/)
 {
-	AlertWindowLookAndFeel alaf;
-
-	AlertWindow newTime("Enter new compile time out duration", "Current time out: " + String(bpe->getBackendProcessor()->getCompileTimeOut(),1) + " seconds.", AlertWindow::QuestionIcon, bpe);
-
-	newTime.setLookAndFeel(&alaf);
-
-	newTime.addTextEditor("time", String(bpe->getBackendProcessor()->getCompileTimeOut(), 1), "", false);
-	
-	newTime.addButton("OK", 1, KeyPress(KeyPress::returnKey));
-	newTime.addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
-
-	if (newTime.runModalLoop())
-	{
-		double value = newTime.getTextEditor("time")->getText().getDoubleValue();
-
-		if (value != 0.0)
-		{
-			bpe->getBackendProcessor()->setCompileTimeOut(value);
-		}
-	}
+	jassertfalse;
 }
 
 void BackendCommandTarget::Actions::toggleUseBackgroundThreadsForCompiling(BackendRootWindow * bpe)
@@ -1682,14 +1639,6 @@ void BackendCommandTarget::Actions::toggleCompileScriptsOnPresetLoad(BackendRoot
 	const bool lastState = bpe->getBackendProcessor()->isCompilingAllScriptsOnPresetLoad();
 
 	bpe->getBackendProcessor()->setEnableCompileAllScriptsOnPresetLoad(!lastState);
-}
-
-
-void BackendCommandTarget::Actions::toggleRelativePath(BackendRootWindow * bpe)
-{
-	const bool state = bpe->getBackendProcessor()->getSampleManager().shouldUseRelativePathToProjectFolder();
-
-	bpe->getBackendProcessor()->getSampleManager().setShouldUseRelativePathToProjectFolder(!state);
 }
 
 
@@ -1832,6 +1781,8 @@ void BackendCommandTarget::Actions::loadProject(BackendRootWindow *bpe)
     
     if (!shouldDiscard) return;
     
+	
+
 #if HISE_IOS
 
 	Array<File> fileList;
@@ -1850,13 +1801,47 @@ void BackendCommandTarget::Actions::loadProject(BackendRootWindow *bpe)
 
 	if (fc.browseForDirectory())
 	{
+		
+
 		File f = fc.getResult();
 
-		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(f, bpe);
+		auto& handler = GET_PROJECT_HANDLER(bpe->getMainSynthChain());
 
-		bpe->getBackendProcessor()->createUserPresetData();
+		auto r = handler.setWorkingProject(f, bpe);
+
+		if (r.failed())
+		{
+			PresetHandler::showMessageWindow("Error loading project", r.getErrorMessage(), PresetHandler::IconType::Error);
+		}
+		else
+		{
+			bpe->getBackendProcessor()->getSettingsObject().refreshProjectData();
+			bpe->getBackendProcessor()->clearPreset();
+			bpe->getBackendProcessor()->createUserPresetData();
+
+			loadFirstXmlAfterProjectSwitch(bpe);
+		}
+			
+
+		
 	}
 #endif
+}
+
+void BackendCommandTarget::Actions::loadFirstXmlAfterProjectSwitch(BackendRootWindow * bpe)
+{
+	auto& handler = GET_PROJECT_HANDLER(bpe->getMainSynthChain());
+
+	auto presets = handler.getSubDirectory(ProjectHandler::SubDirectories::XMLPresetBackups);
+
+	Array<File> files;
+
+	presets.findChildFiles(files, File::findFiles, false, "*.xml");
+
+	if (files.size() > 0 && PresetHandler::showYesNoWindow("Load first XML in project?", "Do you want to load " + files[0].getFileName()))
+	{
+		BackendCommandTarget::Actions::openFileFromXml(bpe, files[0]);
+	}
 }
 
 void BackendCommandTarget::Actions::closeProject(BackendRootWindow *bpe)
@@ -1894,18 +1879,6 @@ void BackendCommandTarget::Actions::loadUserPreset(BackendRootWindow *bpe, const
 	UserPresetHelpers::loadUserPreset(bpe->getMainSynthChain(), fileToLoad);
 }
 
-void BackendCommandTarget::Actions::redirectSampleFolder(Processor *processorForTheProjectHandler)
-{
-    FileChooser fc("Redirect sample folder to the following location");
-    
-    if (fc.browseForDirectory())
-    {
-        File f = fc.getResult();
-        
-		GET_PROJECT_HANDLER(processorForTheProjectHandler).createLinkFile(ProjectHandler::SubDirectories::Samples, f);
-    }
-}
-
 void BackendCommandTarget::Actions::showFilePresetSettings(BackendRootWindow * /*bpe*/)
 {
 	
@@ -1915,7 +1888,7 @@ void BackendCommandTarget::Actions::showFileProjectSettings(BackendRootWindow * 
 {
 	//SettingWindows::ProjectSettingWindow *window = new SettingWindows::ProjectSettingWindow(&GET_PROJECT_HANDLER(bpe->getMainSynthChain()));
 
-	auto window = new SettingWindows::NewSettingWindows(&GET_PROJECT_HANDLER(bpe->getMainSynthChain()));
+	auto window = new SettingWindows(bpe->getBackendProcessor()->getSettingsObject());
 
 
 	window->setModalBaseWindowComponent(bpe);
@@ -1923,23 +1896,19 @@ void BackendCommandTarget::Actions::showFileProjectSettings(BackendRootWindow * 
 	window->activateSearchBox();
 }
 
-void BackendCommandTarget::Actions::showFileUserSettings(BackendRootWindow * bpe)
+void BackendCommandTarget::Actions::showFileUserSettings(BackendRootWindow * /*bpe*/)
 {
-	SettingWindows::UserSettingWindow *window = new SettingWindows::UserSettingWindow(&GET_PROJECT_HANDLER(bpe->getMainSynthChain()));
-
-	window->setModalBaseWindowComponent(bpe);
+	jassertfalse;
 }
 
-void BackendCommandTarget::Actions::showFileCompilerSettings(BackendRootWindow * bpe)
+void BackendCommandTarget::Actions::showFileCompilerSettings(BackendRootWindow * /*bpe*/)
 {
-	SettingWindows::CompilerSettingWindow *window = new SettingWindows::CompilerSettingWindow();
-
-	window->setModalBaseWindowComponent(bpe);
+	jassertfalse;
 }
 
-void BackendCommandTarget::Actions::checkSettingSanity(BackendRootWindow * bpe)
+void BackendCommandTarget::Actions::checkSettingSanity(BackendRootWindow * /*bpe*/)
 {
-	SettingWindows::checkAllSettings(&GET_PROJECT_HANDLER(bpe->getMainSynthChain()));
+	jassertfalse;
 }
 
 void BackendCommandTarget::Actions::togglePluginPopupWindow(BackendRootWindow * bpe)
@@ -1958,20 +1927,9 @@ void BackendCommandTarget::Actions::togglePluginPopupWindow(BackendRootWindow * 
 	}
 }
                     
-void BackendCommandTarget::Actions::changeCodeFontSize(BackendRootWindow *bpe, bool increase)
+void BackendCommandTarget::Actions::changeCodeFontSize(BackendRootWindow *, bool /*increase*/)
 {
-    float currentFontSize = bpe->getMainSynthChain()->getMainController()->getGlobalCodeFontSize();
-    
-    if(increase)
-    {
-        currentFontSize = jmin<float>(28.0f, currentFontSize + 1.0f);
-    }
-    else
-    {
-        currentFontSize = jmax<float>(10.0f, currentFontSize - 1.0f);
-    }
-    
-    bpe->getMainSynthChain()->getMainController()->setGlobalCodeFontSize(currentFontSize);
+	jassertfalse;
 }
 
 void BackendCommandTarget::Actions::createRSAKeys(BackendRootWindow * bpe)
@@ -1990,9 +1948,10 @@ void BackendCommandTarget::Actions::createDummyLicenseFile(BackendRootWindow * b
 		return;
 	}
 
-	const String appName = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, handler);
+	auto& dataObject = bpe->getBackendProcessor()->getSettingsObject();
 
-	const String version = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, handler);
+	const auto appName = dataObject.getSetting(HiseSettings::Project::Name).toString();
+	const auto version = dataObject.getSetting(HiseSettings::Project::Version).toString();
 
 	if (appName.isEmpty() || version.isEmpty())
 	{
@@ -2357,16 +2316,18 @@ void BackendCommandTarget::Actions::createUIDataFromDesktop(BackendRootWindow * 
 	}
 }
 
-#define REPLACE_WILDCARD(wildcard, settingId) (templateProject = templateProject.replace(wildcard, SettingWindows::getSettingValue((int)settingId, &GET_PROJECT_HANDLER(mc->getMainSynthChain()))))
+#define REPLACE_WILDCARD(wildcard, x) templateProject = templateProject.replace(wildcard, data.getSetting(x).toString())
 #define REPLACE_WILDCARD_WITH_STRING(wildcard, s) (templateProject = templateProject.replace(wildcard, s))
 
 juce::String BackendCommandTarget::Actions::createWindowsInstallerTemplate(MainController* mc, bool includeAAX)
 {
 	String templateProject(winInstallerTemplate);
 	
-	REPLACE_WILDCARD("%PRODUCT%", SettingWindows::ProjectSettingWindow::Attributes::Name);
-	REPLACE_WILDCARD("%VERSION%", SettingWindows::ProjectSettingWindow::Attributes::Version);
-	REPLACE_WILDCARD("%COMPANY%", SettingWindows::UserSettingWindow::Attributes::Company);
+	auto& data = dynamic_cast<GlobalSettingManager*>(mc)->getSettingsObject();
+
+	REPLACE_WILDCARD("%PRODUCT%", HiseSettings::Project::Name);
+	REPLACE_WILDCARD("%VERSION%", HiseSettings::Project::Version);
+	REPLACE_WILDCARD("%COMPANY%", HiseSettings::User::Company);
 
 	REPLACE_WILDCARD_WITH_STRING("%AAXONLY%", includeAAX ? "" : ";");
 

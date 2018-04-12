@@ -384,18 +384,7 @@ void BackendRootWindow::resized()
 
 void BackendRootWindow::showSettingsWindow()
 {
-	jassert(owner->deviceManager != nullptr);
-
-	if (owner->deviceManager != nullptr && currentDialog == nullptr)
-	{
-		addAndMakeVisible(currentDialog = new AudioDeviceDialog(owner));
-
-		currentDialog->centreWithSize(700, 500);
-	}
-	else
-	{
-		currentDialog = nullptr;
-	}
+	BackendCommandTarget::Actions::showFileProjectSettings(this);
 }
 
 void BackendRootWindow::timerCallback()
@@ -412,9 +401,11 @@ void BackendRootWindow::timerCallback()
 
 void BackendRootWindow::resetInterface()
 {
-	resetOnClose = true;
-
-	PresetHandler::showMessageWindow("Workspace Layout Reset", "Close and open this instance to reset the interface", PresetHandler::IconType::Info);
+	if (PresetHandler::showYesNoWindow("Reset Interface", "The interface layout will be cleared on the next launch"))
+	{
+		resetOnClose = true;
+		PresetHandler::showMessageWindow("Workspace Layout Reset", "Close and open this instance to reset the interface", PresetHandler::IconType::Info);
+	}
 }
 
 void BackendRootWindow::loadNewContainer(ValueTree & v)

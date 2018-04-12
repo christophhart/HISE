@@ -924,6 +924,10 @@ void HiseJavascriptEngine::checkValidParameter(int index, const var& valueToTest
 #endif
 }
 
+juce::CriticalSection& HiseJavascriptEngine::getDebugLock() const
+{
+	return root->hiseSpecialData.getDebugLock();
+}
 
 HiseJavascriptEngine::RootObject::Callback::Callback(const Identifier &id, int numArgs_, double bufferTime_) :
 callbackName(id),

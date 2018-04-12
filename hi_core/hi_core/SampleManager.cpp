@@ -50,9 +50,10 @@ MainController::SampleManager::SampleManager(MainController *mc_) :
 	globalAudioSampleBufferPool(new AudioSampleBufferPool(mc_)),
 	globalImagePool(new ImagePool(mc_)),
 	sampleClipboard(ValueTree("clipboard")),
-	useRelativePathsToProjectFolder(true),
 	internalPreloadJob(mc_),
-	preloadListenerUpdater(this)
+	preloadListenerUpdater(this),
+	preloadFlag(false)
+
 {
 
 }

@@ -85,7 +85,8 @@ class ScriptContentComponent: public Component,
 							  public SafeChangeListener,
 							  public GlobalScriptCompileListener,
 							  public ScriptingApi::Content::RebuildListener,
-							  public AsyncValueTreePropertyListener
+							  public AsyncValueTreePropertyListener,
+							  public Processor::DeleteListener
 {
 public:
 
@@ -127,6 +128,10 @@ public:
 		return dynamic_cast<JavascriptProcessor*>(processor);
 	}
 
+	void processorDeleted(Processor* /*deletedProcessor*/) override;
+
+	void updateChildEditorList(bool /*forceUpdate*/) override {};
+
 	void paint(Graphics &g) override;
 
     void paintOverChildren(Graphics& g) override
@@ -162,10 +167,7 @@ public:
 
     void addMouseListenersForComponentWrappers();
 	
-	void deleteAllScriptComponents()
-	{
-		componentWrappers.clear();
-	};
+	void deleteAllScriptComponents();;
 
 	void refreshContentButton();
 

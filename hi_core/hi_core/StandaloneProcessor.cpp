@@ -68,6 +68,19 @@ void AudioProcessorDriver::saveDeviceSettingsAsXml()
 	}
 }
 
+void AudioProcessorDriver::resetToDefault()
+{
+	auto prevState = getMidiInputState();
+	auto names = MidiInput::getDevices();
+
+	deviceManager->initialiseWithDefaultDevices(0, 2);
+
+	for (int i = 0; i < prevState.getHighestBit() + 1; i++)
+	{
+		deviceManager->setMidiInputEnabled(names[i], prevState[i]);
+	}
+}
+
 void GlobalSettingManager::setDiskMode(int mode)
 {
 	diskMode = mode;
@@ -167,7 +180,9 @@ void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 	{
 		String errorMessage = deviceManager->initialise(0, 2, deviceData, true);
 
-		if (errorMessage.isNotEmpty())
+		
+
+		if (errorMessage.isNotEmpty() || deviceManager->getCurrentAudioDevice() == nullptr)
 		{
 			logger.logMessage("Error initialising with stored settings: " + errorMessage);
 
@@ -209,6 +224,8 @@ void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 
 	deviceManager->addAudioCallback(callback);
 	deviceManager->addMidiInputCallback(String(), callback);
+
+	getSettingsObject().initialiseAudioDriverData();
 }
 
 void GlobalSettingManager::setGlobalScaleFactor(double newScaleFactor, NotificationType notifyListeners/*=dontSendNotification*/)
@@ -238,32 +255,39 @@ void GlobalSettingManager::setUseOpenGLRenderer(bool shouldUseOpenGL)
 void AudioProcessorDriver::updateMidiToggleList(MainController* mc, ToggleButtonList* listToUpdate)
 {
 #if USE_BACKEND || IS_STANDALONE_APP
-	ScopedPointer<XmlElement> midiSourceXml = dynamic_cast<AudioProcessorDriver*>(mc)->deviceManager->createStateXml();
 
-	StringArray midiInputs = MidiInput::getDevices();
+	auto state = dynamic_cast<AudioProcessorDriver*>(mc)->getMidiInputState();
 
-	if (midiSourceXml != nullptr)
+	int numBits = state.getHighestBit()+1;
+
+	for (int i = 0; i < numBits; i++)
 	{
-		for (int i = 0; i < midiSourceXml->getNumChildElements(); i++)
-		{
-			if (midiSourceXml->getChildElement(i)->hasTagName("MIDIINPUT"))
-			{
-				const String activeInputName = midiSourceXml->getChildElement(i)->getStringAttribute("name");
-
-				const int activeInputIndex = midiInputs.indexOf(activeInputName);
-
-				if (activeInputIndex != -1)
-				{
-					listToUpdate->setValue(activeInputIndex, true, dontSendNotification);
-				}
-			}
-		}
+		listToUpdate->setValue(i, state[i], dontSendNotification);
 	}
+
 #else
 	ignoreUnused(mc, listToUpdate);
 #endif
 }
 
+
+juce::BigInteger AudioProcessorDriver::getMidiInputState() const
+{
+	BigInteger state = 0;
+
+	
+
+	StringArray midiInputs = MidiInput::getDevices();
+
+	for (int i = 0; i < midiInputs.size(); i++)
+	{
+		if (deviceManager->isMidiInputEnabled(midiInputs[i]))
+			state.setBit(i, true);
+	}
+
+
+	return state;
+}
 
 GlobalSettingManager::GlobalSettingManager()
 {

@@ -152,14 +152,13 @@ public:
 	void setShouldUseBackgroundThreadForCompiling(bool shouldBeEnabled) noexcept{ useBackgroundCompiling = shouldBeEnabled; }
 	bool isUsingBackgroundThreadForCompiling() const noexcept{ return useBackgroundCompiling; }
 
-	void setCompileTimeOut(double newTimeOut) noexcept{ timeOut = newTimeOut; }
-	double getCompileTimeOut() const noexcept{ return timeOut; }
+	double getCompileTimeOut() const noexcept;
 
 	void setEnableCompileAllScriptsOnPresetLoad(bool shouldBeEnabled) noexcept{ enableGlobalRecompile = shouldBeEnabled; };
 	bool isCompilingAllScriptsOnPresetLoad() const noexcept{ return enableGlobalRecompile; };
 
-	bool isCallStackEnabled() const noexcept { return enableCallStack; };
-	void setCallStackEnabled(bool shouldBeEnabled);
+	bool isCallStackEnabled() const noexcept;;
+	void updateCallstackSettingForExistingScriptProcessors();
 
 
 	void fillExternalFileList(Array<File> &files, StringArray &processors);
@@ -201,13 +200,8 @@ private:
 	bool useBackgroundCompiling;
 	bool enableGlobalRecompile;
 
-	bool enableCallStack = false;
-
-	double timeOut;
-
 	ValueTree externalScripts;
 
-    
     DynamicObject::Ptr dummyLibraryLoader; // prevents the SharedResourcePointer from deleting the handler
     
 	ReferenceCountedArray<ExternalScriptFile> includedFiles;

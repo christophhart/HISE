@@ -32,728 +32,12 @@
 
 namespace hise { using namespace juce;
 
-#define P(p) if(prop == p) \
-        { s << "### " << String(p) << "\n";
-#define D(x) s << x << "\n";
-#define P_() return s; } 
 
-struct SettingDescription
-{
-    
-    
-    static void addChildElement(XmlElement &element, const String& attributeName, const String &childValue, const String &description)
-    {
-        XmlElement *child = new XmlElement(attributeName);
-        child->setAttribute("value", childValue);
-        child->setAttribute("type", "TEXT");
-        child->setAttribute("description", description);
-        
-        element.addChildElement(child);
-    }
-    
-    static void addChildElementWithOptions(XmlElement &element, const String& attributeName, const String &childValue, const String &description, const String &optionsAsLines)
-    {
-        XmlElement *child = new XmlElement(attributeName);
-        child->setAttribute("value", childValue);
-        child->setAttribute("type", "LIST");
-        child->setAttribute("description", description);
-        child->setAttribute("options", optionsAsLines);
-        
-        element.addChildElement(child);
-    }
-    
-    static void addFileAsChildElement(XmlElement &element, const String& attributeName, const String &childValue, const String &description)
-    {
-        XmlElement *child = new XmlElement(attributeName);
-        child->setAttribute("value", childValue);
-        child->setAttribute("type", "FILE");
-        child->setAttribute("description", description);
-        
-        element.addChildElement(child);
-    }
-    
-    static ValueTree createNewValueTree(SettingWindows::Settings s, ProjectHandler* handler)
-    {
-        switch(s)
-        {
-            case SettingWindows::Settings::Project:
-            {
-                ScopedPointer<XmlElement> xml = new XmlElement("ProjectSettings");
-                
-                addChildElement(*xml, "Name", handler->getWorkDirectory().getFileName(), "Project Name");
-                addChildElement(*xml, "Version", "0.1.0", "Project version");
-                addChildElement(*xml, "Description", "", "Project description");
-                addChildElement(*xml, "BundleIdentifier", "com.myCompany.product", "Bundle Identifier(eg.com.myCompany.bundle)");
-                addChildElement(*xml, "PluginCode", "Abcd", "a 4 character ID code(eg. 'Abcd')");
-                addChildElementWithOptions(*xml, "EmbedAudioFiles", "No", "Embed Audio files in plugin", "Yes\nNo");
-                addChildElement(*xml, "AdditionalDspLibraries", "", "comma separated list of all static dsp factory classes");
-                addChildElement(*xml, "WindowsStaticLibFolder", "", "Windows static library folder");
-                addChildElement(*xml, "OSXStaticLibs", "", "Additional static libs (OSX only)");
-                addChildElement(*xml, "ExtraDefinitionsWindows", "", "Extra preprocessor definitions for Windows");
-                addChildElement(*xml, "ExtraDefinitionsOSX", "", "Extra preprocessor definitions for OSX");
-                addChildElement(*xml, "ExtraDefinitionsIOS", "", "Extra preprocessor definitions for IOS");
-                addChildElement(*xml, "AppGroupId", "", "App Group ID (use this for shared resources on iOS");
-                
-                return ValueTree::fromXml(*xml);
-                
-            }
-            case SettingWindows::Settings::User:
-            {
-                ScopedPointer<XmlElement> xml = new XmlElement("UserSettings");
-                
-                addChildElement(*xml, "Company", "My Company", "Company Name");
-                addChildElement(*xml, "CompanyCode", "Abcd", "Company Code (4 characters, first must be uppercase)");
-                addChildElement(*xml, "CompanyCopyright", "(c)2017, Company", "Company Copyright");
-                addChildElement(*xml, "CompanyURL", "http://yourcompany.com", "Company Website");
-                addChildElement(*xml, "TeamDevelopmentId", "", "Apple Distribution ID");
-                
-                return ValueTree::fromXml(*xml);
-            }
-            case SettingWindows::Settings::Compiler:
-            {
-                ScopedPointer<XmlElement> xml = new XmlElement("CompilerSettings");
-                
-                addFileAsChildElement(*xml, "HisePath", "", "Path to HISE modules");
-                addChildElementWithOptions(*xml, "VisualStudioVersion", "Visual Studio 2017", "Installed VisualStudio version", "Visual Studio 2015\nVisual Studio 2017");
-                addChildElementWithOptions(*xml, "UseIPP", "Yes", "Use IPP", "Yes\nNo");
-
-                return ValueTree::fromXml(*xml);
-            }
-        }
-        
-        return {};
-    }
-    
-	static String getDescription(const String& prop)
-	{
-		String s;
-
-		P("Name");
-		D("The name of the project. This will be also the name of the plugin binaries");
-		P_();
-
-		P("Version");
-		D("The version number of the project. Try using semantic versioning (`1.0.0`) for this.  ");
-		D("The version number will be used to handle the user preset backward compatibility.");
-		D("> Be aware that some hosts (eg. Logic) are very picky when they detect different plugin binaries with the same version.");
-		P_();
-
-		P("Bundle Identifier");
-		D("This is a unique identifier used by Apple OS to identify the app. It must be formatted as reverse domain like this:");
-		D("> `com.your-company.product`");
-		P_();
-
-		P("Plugin Code");
-		D("The code used to identify the plugins. This has to be four characters with the first one being uppercase like this:");
-		D("> `Abcd`");
-		P_();
-
-		P("Embed Audio Files");
-		D("If this is **enabled**, it will embed all audio files (impulse responses & loops) **as well as images** into the plugin.");
-		D("This will not affect samples - they will always be streamed.  ");
-		D("If it's **disabled**, it will use the resource files found in the app data directory and you need to make sure that your installer");
-		D("copies them to the right location:");
-		D("> **Windows:** `%APPDATA%\\Company\\Product\\`");
-		D("> **macOS:** `~/Library/Application Support/Company/Product/`");
-		D("Normally you would try to embed them into the binary, however if you have a lot of images and audio files (> 50MB)");
-		D("the compiler will crash with an **out of heap space** error, so in this case you're better off not embedding them.");
-		P_();
-
-		P("Additional Dsp Libraries");
-		D("If you have written custom DSP objects that you want to embed statically, you have to supply the class names of each DspModule class here");
-		P_();
-
-		P("Windows Static Lib Folder");
-		D("If you need to link a static library on Windows, supply the absolute path to the folder here. Unfortunately, relative paths do not work well with the VS Linker");
-		P_();
-
-		P("OSXStatic Libs");
-		D("If you need to link a static library on macOS, supply the path to the .a library file here.");
-		P_();
-
-		P("Extra Definitions Windows");
-		D("This field can be used to add preprocessor definitions. Use it to tailor the compile options for HISE for the project.");
-		D("#### Examples");
-		D("```javascript");
-		D("ENABLE_ALL_PEAK_METERS=0");
-		D("NUM_POLYPHONIC_VOICES=100");
-		D("```");
-		P_();
-			
-		P("Extra Definitions OSX");
-		D("This field can be used to add preprocessor definitions. Use it to tailor the compile options for HISE for the project.");
-		D("#### Examples");
-		D("```javascript");
-		D("ENABLE_ALL_PEAK_METERS=0");
-		D("NUM_POLYPHONIC_VOICES=100");
-		D("```");
-		P_();
-
-		P("Extra Definitions IOS");
-		D("This field can be used to add preprocessor definitions. Use it to tailor the compile options for HISE for the project.");
-		D("#### Examples");
-		D("```javascript");
-		D("ENABLE_ALL_PEAK_METERS=0");
-		D("NUM_POLYPHONIC_VOICES=100");
-		D("```");
-		P_();
-	
-		P("App Group ID");
-		D("If you're compiling an iOS app, you need to add an App Group to your Apple ID for this project and supply the name here.");
-		D("App Group IDs must have reverse-domain format and start with group, like:");
-		D("> `group.company.product`");
-		P_();
-
-		P("Company");
-		D("Your company name. This will be used for the path to the app data directory so make sure you don't use weird characters here");
-		P_();
-
-		P("Company Code");
-		D("The unique code to identify your company. This must be 4 characters with the first one being uppercase like this:");
-		D("> `Abcd`");
-		P_();
-
-		
-		P("Team Development ID");
-		D("If you have a Apple Developer Account, enter the Developer ID here in order to code sign your app / plugin after compilation");
-		P_();
-
-		P("Visual Studio Version");
-		D("Set the VS version that you've installed. Make sure you always use the latest one, since I need to regularly deprecate the oldest version");
-		P_();
-
-		P("Use IPP");
-		D("If enabled, HISE uses the FFT routines from the Intel Performance Primitive library (which can be downloaded for free) in order");
-		D("to speed up the convolution reverb");
-		D("> If you use the convolution reverb in your project, this is almost mandatory, but there are a few other places that benefit from having this library");
-		P_();
-
-		return s;
-
-	};
-};
-
-#undef P
-#undef D
-#undef P_
-
-
-#define GET_VALUE_FROM_XML(attribute) xmlSettings.getChildByName(getAttributeNameForSetting((int)attribute))->getStringAttribute("value");
-
-void SettingWindows::BaseSettingsWindow::run()
-{
-	for (int i = 0; i < settings->getNumChildElements(); i++)
-	{
-		const String widgetName = settings->getChildElement(i)->getTagName();
-
-		if (TextEditor *ed = getTextEditor(widgetName))
-		{
-			settings->getChildElement(i)->setAttribute("value", ed->getText());
-		}
-		else if (ComboBox *cb = getComboBoxComponent(widgetName))
-		{
-			settings->getChildElement(i)->setAttribute("value", cb->getText());
-		}
-		else if (FilenameComponent *fc = getFileNameComponent(widgetName))
-		{
-			settings->getChildElement(i)->setAttribute("value", fc->getCurrentFile().getFullPathName());
-		}
-		else
-		{
-			jassertfalse;
-		}
-	}
-
-	settingsFile.replaceWithText(settings->createDocument(""));
-}
-
-void SettingWindows::BaseSettingsWindow::threadFinished()
-{
-	const String sanityCheckResult = sanityCheck(*settings);
-
-	if (sanityCheckResult.isNotEmpty())
-	{
-		PresetHandler::showMessageWindow("Warning", sanityCheckResult, PresetHandler::IconType::Warning);
-	}
-}
-
-void SettingWindows::BaseSettingsWindow::resultButtonClicked(const String &name)
-{
-	if (name == "Reveal")
-	{
-		settingsFile.revealToUser();
-	}
-}
-
-String SettingWindows::BaseSettingsWindow::getNameForValueType(ValueTypes t)
-{
-	switch (t)
-	{
-	case SettingWindows::BaseSettingsWindow::ValueTypes::Text: return "TEXT";
-		break;
-	case SettingWindows::BaseSettingsWindow::ValueTypes::List: return "LIST";
-		break;
-	case SettingWindows::BaseSettingsWindow::ValueTypes::File: return "FILE";
-		break;
-	case SettingWindows::BaseSettingsWindow::ValueTypes::numValueTypes:
-		break;
-	default:
-		break;
-	}
-
-	return "INVALID";
-}
-
-SettingWindows::BaseSettingsWindow::ValueTypes SettingWindows::BaseSettingsWindow::getValueType(XmlElement *xml)
-{
-	const String attributeValue = xml->getStringAttribute("type");
-
-	for (int i = 0; i < (int)ValueTypes::numValueTypes; i++)
-	{
-		if (getNameForValueType((ValueTypes)i) == attributeValue)
-		{
-			return (ValueTypes)i;
-		}
-	}
-
-	jassertfalse;
-	return ValueTypes::numValueTypes;
-}
-
-void SettingWindows::BaseSettingsWindow::addChildElement(XmlElement &element, int attributeIndex, const String &childValue, const String &description) const
-{
-	XmlElement *child = new XmlElement(getAttributeName(attributeIndex));
-	child->setAttribute("value", childValue);
-	child->setAttribute("type", getNameForValueType(ValueTypes::Text));
-	child->setAttribute("description", description);
-
-	element.addChildElement(child);
-}
-
-void SettingWindows::BaseSettingsWindow::addChildElementWithOptions(XmlElement &element, int attributeIndex, const String &childValue, const String &description, const String &optionsAsLines) const
-{
-	XmlElement *child = new XmlElement(getAttributeName(attributeIndex));
-	child->setAttribute("value", childValue);
-	child->setAttribute("type", getNameForValueType(ValueTypes::List));
-	child->setAttribute("description", description);
-	child->setAttribute("options", optionsAsLines);
-
-	element.addChildElement(child);
-}
-
-void SettingWindows::BaseSettingsWindow::addFileAsChildElement(XmlElement &element, int attributeIndex, const String &childValue, const String &description) const
-{
-	XmlElement *child = new XmlElement(getAttributeName(attributeIndex));
-	child->setAttribute("value", childValue);
-	child->setAttribute("type", getNameForValueType(ValueTypes::File));
-	child->setAttribute("description", description);
-
-	element.addChildElement(child);
-}
-
-void SettingWindows::BaseSettingsWindow::setSettingsFile()
-{
-	settingsFile = getFile();
-
-	if (settingsFile.existsAsFile())
-	{
-		settings = XmlDocument::parse(settingsFile);
-	}
-	else
-	{
-		settingsFile.create();
-	}
-
-	ScopedPointer<XmlElement> compare = createNewSettingsFile();
-
-	if (settings == nullptr)
-	{
-		settings = createNewSettingsFile();
-	}
-	else if (compare->getNumChildElements() != settings->getNumChildElements())
-	{
-		// Somehow the loaded XML file has not the correct structure.
-		jassertfalse;
-
-		if (compare->getNumChildElements() > settings->getNumChildElements())
-		{
-			for (int i = 0; i < compare->getNumChildElements(); i++)
-			{
-				if (settings->getChildByName(compare->getChildElement(i)->getTagName()) == nullptr)
-				{
-					settings->addChildElement(XmlDocument::parse(compare->getChildElement(i)->createDocument("")));
-				}
-			}
-		}
-	}
-
-	for (int i = 0; i < settings->getNumChildElements(); i++)
-	{
-		ValueTypes type = getValueType(settings->getChildElement(i));
-
-        auto settingsChild = settings->getChildElement(i);
-
-        const String tag = settingsChild->getTagName();
-
-        auto templateChild = compare->getChildByName(tag);
-
-        if (templateChild != nullptr)
-        {
-            const String value = settings->getChildElement(i)->getStringAttribute("value");
-            const String description = settings->getChildElement(i)->getStringAttribute("description");
-
-            if (type == ValueTypes::List)
-            {
-                const StringArray options = StringArray::fromLines(templateChild->getStringAttribute("options"));
-                const int index = options.indexOf(value);
-
-                addComboBox(tag, options, description);
-                getComboBoxComponent(tag)->setSelectedItemIndex(index);
-            }
-            else if (type == ValueTypes::Text)
-            {
-                addTextEditor(tag, value, description);
-
-
-            }
-            else if (type == ValueTypes::File)
-            {
-                fileComponents.add(new FilenameComponent(tag, value, true, true, false, "", "", description));
-
-                fileComponents.getLast()->setSize(400, 24);
-
-                addCustomComponent(fileComponents.getLast());
-            }
-        }
-        else
-            jassertfalse;
-	}
-
-	addButton("OK", 1, KeyPress(KeyPress::returnKey));
-	addButton("Reveal", 2);
-	addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
-}
-
-File SettingWindows::ProjectSettingWindow::getFile() const
-{
-	return SettingWindows::getFileForSettingsWindow(Settings::Project, handler);
-}
-
-String SettingWindows::ProjectSettingWindow::getAttributeName(int attribute) const
-{
-	return getAttributeNameForSetting(attribute);
-}
-
-String SettingWindows::ProjectSettingWindow::getAttributeNameForSetting(int attribute)
-{
-	switch ((Attributes)attribute)
-	{
-	case SettingWindows::ProjectSettingWindow::Attributes::Name:			 return "Name";
-	case SettingWindows::ProjectSettingWindow::Attributes::Version:			 return "Version";
-	case SettingWindows::ProjectSettingWindow::Attributes::Description:		 return "Description";
-
-	case SettingWindows::ProjectSettingWindow::Attributes::BundleIdentifier: return "BundleIdentifier";
-	case SettingWindows::ProjectSettingWindow::Attributes::PluginCode:		 return "PluginCode";
-	case SettingWindows::ProjectSettingWindow::Attributes::EmbedAudioFiles:	 return "EmbedAudioFiles";
-	case SettingWindows::ProjectSettingWindow::Attributes::AdditionalDspLibraries:	return "AdditionalDspLibraries";
-	case SettingWindows::ProjectSettingWindow::Attributes::OSXStaticLibs:   return "OSXStaticLibs";
-	case SettingWindows::ProjectSettingWindow::Attributes::WindowsStaticLibFolder: return "WindowsStaticLibFolder";
-	case SettingWindows::ProjectSettingWindow::Attributes::ExtraDefinitionsOSX: return "ExtraDefinitionsOSX";
-	case SettingWindows::ProjectSettingWindow::Attributes::ExtraDefinitionsWindows: return "ExtraDefinitionsWindows";
-	case SettingWindows::ProjectSettingWindow::Attributes::ExtraDefinitionsIOS: return "ExtraDefinitionsIOS";
-    case Attributes::AppGroupId: return "AppGroupID";
-	case SettingWindows::ProjectSettingWindow::Attributes::numAttributes:
-	default: return "";
-	}
-}
-
-XmlElement * SettingWindows::ProjectSettingWindow::createNewSettingsFile() const
-{
-	XmlElement *xml = new XmlElement("ProjectSettings");
-
-	addChildElement(*xml, (int)Attributes::Name, handler->getWorkDirectory().getFileName(), "Project Name");
-	addChildElement(*xml, (int)Attributes::Version, "0.1.0", "Project version");
-	addChildElement(*xml, (int)Attributes::Description, "", "Project description");
-	addChildElement(*xml, (int)Attributes::BundleIdentifier, "com.myCompany.product", "Bundle Identifier(eg.com.myCompany.bundle)");
-	addChildElement(*xml, (int)Attributes::PluginCode, "Abcd", "a 4 character ID code(eg. 'Abcd')");
-	addChildElementWithOptions(*xml, (int)Attributes::EmbedAudioFiles, "No", "Embed Audio files in plugin", "Yes\nNo");
-	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::AdditionalDspLibraries, "", "comma separated list of all static dsp factory classes");
-	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::WindowsStaticLibFolder, "", "Windows static library folder");
-	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::OSXStaticLibs, "", "Additional static libs (OSX only)");
-	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::ExtraDefinitionsWindows, "", "Extra preprocessor definitions for Windows");
-	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::ExtraDefinitionsOSX, "", "Extra preprocessor definitions for OSX");
-	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::ExtraDefinitionsIOS, "", "Extra preprocessor definitions for IOS");
-    addChildElement(*xml, (int)Attributes::AppGroupId, "", "App Group ID (use this for shared resources on iOS");
-    
-	return xml;
-}
-
-
-
-String SettingWindows::ProjectSettingWindow::sanityCheck(const XmlElement& xmlSettings)
-{
-	const String version = GET_VALUE_FROM_XML(ProjectSettingWindow::Attributes::Version);
-
-	SemanticVersionChecker versionChecker(version, version);
-
-	if (!versionChecker.newVersionNumberIsValid())
-	{
-		return "The version number is not a valid semantic version number. Use something like 1.0.0.\n " \
-			   "This is required for the user presets to detect whether it should ask for updating the presets after a version bump.";
-	};
-
-	const String pluginCode = GET_VALUE_FROM_XML(ProjectSettingWindow::Attributes::PluginCode);
-	const String codeWildcard = "[A-Z][a-z][a-z][a-z]";
-
-	if (!RegexFunctions::matchesWildcard(codeWildcard, pluginCode))
-	{
-		return "The plugin code doesn't match the required formula. Use something like 'Abcd'\n" \
-			   "This is required for exported AU plugins to pass the AU validation.";
-	};
-
-	const String projectName = GET_VALUE_FROM_XML(ProjectSettingWindow::Attributes::Name);
-
-	if (!projectName.containsOnly("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890 _-"))
-	{
-		return "Illegal Project name\n" \
-			   "The Project name must not contain exotic characters";
-	}
-
-	return String();
-}
-
-File SettingWindows::CompilerSettingWindow::getFile() const
-{
-	return SettingWindows::getFileForSettingsWindow(Settings::Compiler);
-}
-
-String SettingWindows::CompilerSettingWindow::getAttributeName(int attribute) const
-{
-	return getAttributeNameForSetting(attribute);
-}
-
-String SettingWindows::CompilerSettingWindow::getAttributeNameForSetting(int attribute)
-{
-	switch ((Attributes)attribute)
-	{
-	case Attributes::HisePath: return "HisePath";
-	case Attributes::VisualStudioVersion: return "VisualStudioVersion";
-	case Attributes::UseIPP: return "UseIPP";
-	case Attributes::numCompilerSettingAttributes: return "";
-	default: return "";
-	}
-}
-
-XmlElement * SettingWindows::CompilerSettingWindow::createNewSettingsFile() const
-{
-	XmlElement *xml = new XmlElement("CompilerSettings");
-
-	addFileAsChildElement(*xml, (int)Attributes::HisePath, "", "Path to HISE modules");
-	addChildElementWithOptions(*xml, (int)Attributes::VisualStudioVersion, "Visual Studio 2017", "Installed VisualStudio version", "Visual Studio 2015\nVisual Studio 2017");
-	addChildElementWithOptions(*xml, (int)Attributes::UseIPP, "Yes", "Use IPP", "Yes\nNo");
-
-	return xml;
-}
-
-
-File SettingWindows::UserSettingWindow::getFile() const
-{
-	return SettingWindows::getFileForSettingsWindow(Settings::User, handler);
-}
-
-String SettingWindows::UserSettingWindow::getAttributeName(int attribute) const
-{
-	return getAttributeNameForSetting(attribute);
-}
-
-String SettingWindows::UserSettingWindow::getAttributeNameForSetting(int attribute)
-{
-	switch ((Attributes)attribute)
-	{
-	case Company: return "Company";
-	case CompanyCode: return "CompanyCode";
-	case CompanyURL: return "CompanyURL";
-    case CompanyCopyright:  return "CompanyCopyright";
-    case TeamDevelopmentId: return "TeamDevelopmentID";
-	default: return "";
-	}
-}
-
-XmlElement * SettingWindows::UserSettingWindow::createNewSettingsFile() const
-{
-	XmlElement *xml = new XmlElement("UserSettings");
-
-	addChildElement(*xml, (int)Attributes::Company, "My Company", "Company Name");
-	addChildElement(*xml, (int)Attributes::CompanyCode, "Abcd", "Company Code (4 characters, first must be uppercase)");
-    addChildElement(*xml, (int)Attributes::CompanyCopyright, "(c)2017, Company", "Company Copyright");
-	addChildElement(*xml, (int)Attributes::CompanyURL, "http://yourcompany.com", "Company Website");
-    addChildElement(*xml, (int)Attributes::TeamDevelopmentId, "", "Apple Distribution ID");
-
-	return xml;
-}
-
-String SettingWindows::getSettingValue(int attributeIndex, ProjectHandler *handler)
-{
-	Settings s;
-	File f;
-	String name;
-
-	if (attributeIndex < (int)ProjectSettingWindow::Attributes::numAttributes)
-	{
-		s = Settings::Project;
-		f = getFileForSettingsWindow(s, handler);
-		name = ProjectSettingWindow::getAttributeNameForSetting(attributeIndex);
-	}
-	else if (attributeIndex < (int)CompilerSettingWindow::Attributes::numCompilerSettingAttributes)
-	{
-		s = Settings::Compiler;
-		f = getFileForSettingsWindow(s);
-		name = CompilerSettingWindow::getAttributeNameForSetting(attributeIndex);
-	}
-	else if (attributeIndex < (int)UserSettingWindow::Attributes::numUserSettingAttributes)
-	{
-		s = Settings::User;
-		f = getFileForSettingsWindow(s, handler);
-		name = UserSettingWindow::getAttributeNameForSetting(attributeIndex);
-	}
-	else
-	{
-		// You need to supply a valid enum!
-		jassertfalse;
-		return "";
-	}
-
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
-
-	if (xml != nullptr)
-	{
-		XmlElement *child = xml->getChildByName(name);
-		if (child != nullptr)
-		{
-			String valueText = child->getStringAttribute("value");
-
-			return valueText;
-		}
-		else
-		{
-			jassertfalse;
-			return "";
-		}
-	}
-	else
-	{
-		// The setting file couldn't be parsed...s
-#if USE_BACKEND
-		jassert(CompileExporter::isExportingFromCommandLine());
-#endif
-		return "";
-	}
-}
-
-void SettingWindows::checkAllSettings(ProjectHandler *handler)
-{
-	StringArray missingNames;
-
-	bool missingProjectSettings = false;
-	bool missingCompilerSettings = false;
-	bool missingUserSettings = false;
-
-	int i = 0;
-
-	while (i < (int)ProjectSettingWindow::Attributes::numAttributes)
-	{
-		if (getSettingValue(i, handler).isEmpty())
-		{
-			missingProjectSettings = true;
-			missingNames.add(ProjectSettingWindow::getAttributeNameForSetting(i));
-		}
-
-		i++;
-	}
-
-	while (i < (int)CompilerSettingWindow::Attributes::numCompilerSettingAttributes)
-	{
-		if (getSettingValue(i, handler).isEmpty())
-		{
-			missingCompilerSettings = true;
-			missingNames.add(CompilerSettingWindow::getAttributeNameForSetting(i));
-		}
-
-		i++;
-
-	}
-
-	while (i < (int)UserSettingWindow::Attributes::numUserSettingAttributes)
-	{
-		if (getSettingValue(i).isEmpty())
-		{
-
-			missingUserSettings = true;
-			missingNames.add(UserSettingWindow::getAttributeNameForSetting(i));
-		}
-
-		i++;
-	}
-
-	if (missingNames.size() != 0)
-	{
-		if (PresetHandler::showYesNoWindow("Missing settings found", "Missing Settings:\n\n" + missingNames.joinIntoString("\n") + "\n\nPress OK to open setting windows", PresetHandler::IconType::Warning))
-		{
-			if (missingProjectSettings)
-			{
-
-			}
-
-			if (missingCompilerSettings)
-			{
-
-			}
-
-			if (missingUserSettings)
-			{
-
-			}
-		}
-	}
-}
-
-File SettingWindows::getFileForSettingsWindow(Settings s, ProjectHandler *handler)
-{
-	switch (s)
-	{
-	case SettingWindows::Settings::Project:
-		if (handler != nullptr) return handler->getWorkDirectory().getChildFile("project_info.xml");
-
-		// You must specify the project handler for this directory!
-		jassertfalse;
-		return File();
-		break;
-	case SettingWindows::Settings::User:
-		if (handler != nullptr) return handler->getWorkDirectory().getChildFile("user_info.xml");
-		break;
-	case SettingWindows::Settings::Compiler: return File(PresetHandler::getDataFolder()).getChildFile("compilerSettings.xml");
-		break;
-	case SettingWindows::Settings::Audio:	 return File(PresetHandler::getDataFolder()).getChildFile("DeviceSettings.xml");
-	case SettingWindows::Settings::Global:	 return File(PresetHandler::getDataFolder()).getChildFile("GeneralSettings.xml");
-	case SettingWindows::Settings::numSettings:
-		break;
-	default:
-		break;
-	}
-
-	return File();
-}
-
-#undef GET_VALUE_FROM_XML
-
-
-
-
-class SettingWindows::NewSettingWindows::Content : public Component
+class SettingWindows::Content : public Component
 {
 public:
 
-	Content(NewSettingWindows* parent)
+	Content()
 	{
 		addAndMakeVisible(&properties);
 		properties.setLookAndFeel(&pplaf);
@@ -761,12 +45,6 @@ public:
 		pplaf.setFontForAll(GLOBAL_BOLD_FONT());
 		pplaf.setLabelWidth(190);
 
-		setSearchText("");
-	}
-
-	void setSearchText(const String& searchText)
-	{
-		properties.clear();
 	}
 
 	void resized() override
@@ -780,21 +58,31 @@ public:
 
 };
 
-SettingWindows::NewSettingWindows::NewSettingWindows(ProjectHandler* handler_) :
-	handler(handler_),
+SettingWindows::SettingWindows(HiseSettings::Data& dataObject_) :
+	dataObject(dataObject_),
 	projectSettings("Project"),
-	globalSettings("Global"),
+	developmentSettings("Development"),
+	audioSettings("Audio & Midi"),
 	allSettings("All"),
 	applyButton("Save"),
-	cancelButton("Cancel")
+	cancelButton("Cancel"),
+	undoButton("Undo")
 {
+	dataObject.addChangeListener(this);
+
 	addAndMakeVisible(&projectSettings);
 	projectSettings.addListener(this);
 	projectSettings.setLookAndFeel(&tblaf);
 
-	addAndMakeVisible(&globalSettings);
-	globalSettings.addListener(this);
-	globalSettings.setLookAndFeel(&tblaf);
+	addAndMakeVisible(&developmentSettings);
+	developmentSettings.addListener(this);
+	developmentSettings.setLookAndFeel(&tblaf);
+
+#if IS_STANDALONE_APP
+	addAndMakeVisible(&audioSettings);
+	audioSettings.addListener(this);
+	audioSettings.setLookAndFeel(&tblaf);
+#endif
 
 	addAndMakeVisible(&allSettings);
 	allSettings.addListener(this);
@@ -810,11 +98,17 @@ SettingWindows::NewSettingWindows::NewSettingWindows(ProjectHandler* handler_) :
 	cancelButton.setLookAndFeel(&alaf);
 	cancelButton.addShortcut(KeyPress(KeyPress::escapeKey));
 
+	addAndMakeVisible(&undoButton);
+	undoButton.addListener(this);
+	undoButton.setLookAndFeel(&alaf);
+	undoButton.addShortcut(KeyPress('z', ModifierKeys::commandModifier, 'Z'));
+
 	projectSettings.setRadioGroupId(1, dontSendNotification);
 	allSettings.setRadioGroupId(1, dontSendNotification);
-	globalSettings.setRadioGroupId(1, dontSendNotification);
+	developmentSettings.setRadioGroupId(1, dontSendNotification);
+	audioSettings.setRadioGroupId(1, dontSendNotification);
 
-	addAndMakeVisible(currentContent = new Content(this));
+	addAndMakeVisible(currentContent = new Content());
 
 	
 
@@ -825,60 +119,53 @@ SettingWindows::NewSettingWindows::NewSettingWindows(ProjectHandler* handler_) :
 	fuzzySearchBox.setSelectAllWhenFocused(true);
 	fuzzySearchBox.setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
 
-	settings.add(getProperlyFormattedValueTree(Settings::Project));
-	settings.add(getProperlyFormattedValueTree(Settings::User));
-	settings.add(getProperlyFormattedValueTree(Settings::Compiler));
-
 	
+	dataObject.data.addListener(this);
 
 	setSize(800, 650);
 
 	allSettings.setToggleState(true, sendNotificationSync);
 }
 
-SettingWindows::NewSettingWindows::~NewSettingWindows()
+SettingWindows::~SettingWindows()
 {
+	dataObject.data.removeListener(this);
+	dataObject.removeChangeListener(this);
+
 	if (saveOnDestroy)
 	{
-		for (auto& s : settings)
-		{
-			s->save();
-		}
+		for (auto id : HiseSettings::SettingFiles::getAllIds())
+			save(id);
 	}
-}
-
-String getUncamelcasedId(const Identifier& id)
-{
-	auto n = id.toString();
-
-	String pretty;
-
-	auto ptr = n.getCharPointer();
-
-	bool lastWasUppercase = true;
-
-	while (!ptr.isEmpty())
+	else
 	{
-		if (ptr.isUpperCase() && !lastWasUppercase)
-		{
-			pretty << " ";
-		}
-		
-		lastWasUppercase = ptr.isUpperCase();
-
-		pretty << ptr.getAddress()[0];
-
-		ptr++;
+		while (undoManager.canUndo())
+			undoManager.undo();
 	}
-
-	return pretty;
 }
 
+void SettingWindows::buttonClicked(Button* b)
+{
+	if (b == &allSettings)		   setContent(  HiseSettings::SettingFiles::getAllIds());
+	if (b == &projectSettings)	   setContent({ HiseSettings::SettingFiles::ProjectSettings, 
+												HiseSettings::SettingFiles::UserSettings });
+	if (b == &developmentSettings) setContent({	HiseSettings::SettingFiles::CompilerSettings, 
+												HiseSettings::SettingFiles::ScriptingSettings, 
+												HiseSettings::SettingFiles::OtherSettings});
+	if (b == &audioSettings)	   setContent({ HiseSettings::SettingFiles::AudioSettings,
+												HiseSettings::SettingFiles::MidiSettings});
+	
+	if (b == &applyButton)
+	{
+		saveOnDestroy = true;
+		destroy();
+	}
+	if (b == &cancelButton) destroy();
 
+	if (b == &undoButton) undoManager.undo();
+}
 
-
-
-void SettingWindows::NewSettingWindows::resized()
+void SettingWindows::resized()
 {
 	auto area = getLocalBounds().reduced(1);
 
@@ -891,84 +178,57 @@ void SettingWindows::NewSettingWindows::resized()
 
 	auto bottom = area.removeFromBottom(80);
 
-	bottom = bottom.withSizeKeepingCentre(200, 40);
+	bottom = bottom.withSizeKeepingCentre(240, 40);
 
-	applyButton.setBounds(bottom.removeFromLeft(100).reduced(5));
-	cancelButton.setBounds(bottom.removeFromLeft(100).reduced(5));
+	applyButton.setBounds(bottom.removeFromLeft(80).reduced(5));
+	cancelButton.setBounds(bottom.removeFromLeft(80).reduced(5));
+	undoButton.setBounds(bottom.removeFromLeft(80).reduced(5));
 
 	auto left = area.removeFromLeft(120);
 
-	
 	allSettings.setBounds(left.removeFromTop(40));
 	projectSettings.setBounds(left.removeFromTop(40));
-	globalSettings.setBounds(left.removeFromTop(40));
-	
+	developmentSettings.setBounds(left.removeFromTop(40));
+	audioSettings.setBounds(left.removeFromTop(40));
 
 	currentContent->setBounds(area.reduced(10));
-	
 }
 
 
-void SettingWindows::NewSettingWindows::paint(Graphics& g)
+void SettingWindows::paint(Graphics& g)
 {
-	g.fillAll(Colour(bgColour));
+	g.fillAll(Colour((uint32)bgColour));
 
 	auto area = getLocalBounds().reduced(1);
-
-	
-	
-
 	auto top = area.removeFromTop(50);
-
 	auto searchBar = area.removeFromTop(32);
 	auto s_ = searchBar.removeFromBottom(4);
 	auto shadow = FLOAT_RECTANGLE(s_);
 
-
 	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF333333)));
-
 	g.fillRect(searchBar);
-
 	g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.2f), 0.0f, shadow.getY(), Colours::transparentBlack, 0.0f, shadow.getBottom(), false));
-
 	g.fillRect(shadow);
-
-	g.setColour(Colour(tabBgColour));
-
+	g.setColour(Colour((uint32)tabBgColour));
 	g.fillRect(top);
-
 	g.setFont(GLOBAL_BOLD_FONT().withHeight(18.0f));
-
 	g.setColour(Colours::white);
 	g.drawText("Settings", FLOAT_RECTANGLE(top), Justification::centred);
 
 	auto bottom = area.removeFromBottom(80);
-
-
-
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(tabBgColour)));
-
-
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour((uint32)tabBgColour)));
 	g.fillRect(bottom);
 
 	auto s_2 = bottom.removeFromTop(4);
-
 	auto shadow2 = FLOAT_RECTANGLE(s_2);
 
 	g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.2f), 0.0f, shadow2.getY(), Colours::transparentBlack, 0.0f, shadow2.getBottom(), false));
-
 	g.fillRect(shadow2);
-
 
 	auto left = area.removeFromLeft(120);
 
-	g.setGradientFill(ColourGradient(Colour(tabBgColour), 0.0f, 0.0f, Colour(0xFF222222), 0.0f, (float)getHeight(), false));
-
-
+	g.setGradientFill(ColourGradient(Colour((uint32)tabBgColour), 0.0f, 0.0f, Colour(0xFF222222), 0.0f, (float)getHeight(), false));
 	g.fillRect(left);
-
-	
-
 	g.setColour(Colours::white.withAlpha(0.6f));
 
 	static const unsigned char searchIcon[] = { 110, 109, 0, 0, 144, 68, 0, 0, 48, 68, 98, 7, 31, 145, 68, 198, 170, 109, 68, 78, 223, 103, 68, 148, 132, 146, 68, 85, 107, 42, 68, 146, 2, 144, 68, 98, 54, 145, 219, 67, 43, 90, 143, 68, 66, 59, 103, 67, 117, 24, 100, 68, 78, 46, 128, 67, 210, 164, 39, 68, 98, 93, 50, 134, 67, 113, 58, 216, 67, 120, 192, 249, 67, 83, 151,
@@ -984,54 +244,41 @@ void SettingWindows::NewSettingWindows::paint(Graphics& g)
 	path.scaleToFit((float)searchBar.getX()+4.0f, (float)searchBar.getY() + 4.0f, 20.0f, 20.0f, true);
 
 	g.fillPath(path);
-
 	g.setColour(Colour(0xFF666666));
 	g.drawRect(getLocalBounds(), 1);
-
 }
 
-void SettingWindows::NewSettingWindows::textEditorTextChanged(TextEditor&)
+void SettingWindows::textEditorTextChanged(TextEditor&)
 {
 	setContent(currentList);
 }
 
-void SettingWindows::NewSettingWindows::setContent(SettingList list)
+void SettingWindows::setContent(SettingList list)
 {
 	currentContent->properties.clear();
 
 	currentList = list;
 
-	for (auto vt : settings)
-	{
-		if (list.contains(vt->s))
-		{
-			vt->fillPropertyPanel(currentContent->properties, fuzzySearchBox.getText().toLowerCase());
-		}
-	}
+	for (auto vt : currentList)
+		fillPropertyPanel(vt, currentContent->properties, fuzzySearchBox.getText().toLowerCase());
 	
 	resized();
 }
 
-void SettingWindows::NewSettingWindows::TabButtonLookAndFeel::drawToggleButton(Graphics& g, ToggleButton& b, bool isMouseOverButton, bool isButtonDown)
+void SettingWindows::TabButtonLookAndFeel::drawToggleButton(Graphics& g, ToggleButton& b, bool isMouseOverButton, bool isButtonDown)
 {
-	
 	auto bounds = b.getLocalBounds();
-
-	
-
 	auto s_ = bounds.removeFromBottom(3);
-
 	auto shadow = FLOAT_RECTANGLE(s_);
 
 	if (b.getToggleState())
 	{
-		g.setColour(Colour(ColourValues::bgColour));
+		g.setColour(Colour((uint32)ColourValues::bgColour));
 		g.fillRect(bounds);
 		g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.2f), 0.0f, shadow.getY(), Colours::transparentBlack, 0.0f, shadow.getBottom(), false));
 		g.fillRect(shadow);
 	}
-		
-
+	
 	if (isButtonDown)
 	{
 		g.setColour(Colours::white.withAlpha(0.05f));
@@ -1043,35 +290,203 @@ void SettingWindows::NewSettingWindows::TabButtonLookAndFeel::drawToggleButton(G
 	g.drawText(b.getButtonText(), bounds.reduced(5), Justification::centredRight);
 
 	g.setColour(Colours::black.withAlpha(0.1f));
-	g.drawHorizontalLine(b.getBottom()-3, b.getX(), b.getRight());
+	g.drawHorizontalLine(b.getBottom()-3, (float)b.getX(), (float)b.getRight());
 }
 
-void SettingWindows::NewSettingWindows::FileBasedValueTree::fillPropertyPanel(PropertyPanel& panel, const String& searchText)
+class ToggleButtonListPropertyComponent : public PropertyComponent,
+										  public ToggleButtonList::Listener
+{
+public:
+
+	ToggleButtonListPropertyComponent(const String& name, Value v_, const StringArray& names_) :
+		PropertyComponent(name),
+		v(v_),
+		names(names_),
+		l(names_, this)
+	{
+		values = BigInteger((int64)v_.getValue());
+
+		addAndMakeVisible(&l);
+		setPreferredHeight(l.getHeight());
+	};
+
+	void refresh() override
+	{
+		auto v_ = (int64)v.getValue();
+
+		values = BigInteger(v_);
+
+		for (int i = 0; i < names.size(); i++)
+			l.setValue(i, values[i], dontSendNotification);
+	}
+
+	void periodicCheckCallback(ToggleButtonList* /*list*/) override {}
+
+	void toggleButtonWasClicked(ToggleButtonList* /*list*/, int index, bool value) override
+	{
+		values.setBit(index, value);
+		v = values.toInt64();
+	}
+
+	BigInteger values;
+
+	ToggleButtonList l;
+	Value v;
+	StringArray names;
+};
+
+class FileNameValuePropertyComponent : public PropertyComponent
+{
+public:
+
+	struct MyFunkyFilenameComponent : public Component,
+									  public ButtonListener,
+									  public TextEditor::Listener
+	{
+		MyFunkyFilenameComponent(FileNameValuePropertyComponent& p) :
+			parent(p),
+			browseButton("Browse")
+		{
+			addAndMakeVisible(&editor);
+			editor.addListener(this);
+			editor.setFont(GLOBAL_BOLD_FONT());
+			editor.setSelectAllWhenFocused(true);
+
+			editor.setTextToShowWhenEmpty("No folder selected", Colours::grey);
+
+			addAndMakeVisible(&browseButton);
+			browseButton.addListener(this);
+			browseButton.setLookAndFeel(&alaf);
+		}
+
+		void buttonClicked(Button* ) override
+		{
+			FileChooser fileChooser("Select Folder");
+
+			if (fileChooser.browseForDirectory())
+			{
+				parent.v = fileChooser.getResult().getFullPathName();
+			}
+		}
+
+		void textEditorReturnKeyPressed(TextEditor&) override
+		{
+			updateFromTextEditor();
+		}
+
+		void updateFromTextEditor()
+		{
+			auto t = editor.getText();
+
+			if (t.isEmpty() || (File::isAbsolutePath(t) && File(t).isDirectory()))
+			{
+				parent.v = editor.getText();
+			}
+			else
+				PresetHandler::showMessageWindow("No valid path", "You have to enter a valid folder path", PresetHandler::IconType::Warning);
+
+			
+		}
+
+		void textEditorFocusLost(TextEditor&) override
+		{
+			updateFromTextEditor();
+		}
+
+		void textEditorTextChanged(TextEditor&) override
+		{
+			
+		}
+
+		void resized() override
+		{
+			auto area = getLocalBounds();
+
+			browseButton.setBounds(area.removeFromRight(60));
+			area.removeFromRight(5);
+			editor.setBounds(area);
+		}
+
+		FileNameValuePropertyComponent& parent;
+
+		AlertWindowLookAndFeel alaf;
+		TextEditor editor;
+		TextButton browseButton;
+	};
+
+	FileNameValuePropertyComponent(const String& name, File initialFile, Value v_) :
+		PropertyComponent(name),
+		fc(*this),
+		v(v_)
+	{
+		addAndMakeVisible(fc);
+	}
+
+	void refresh() override
+	{
+		fc.editor.setText(v.getValue().toString(), dontSendNotification);
+	}
+
+	
+
+	MyFunkyFilenameComponent fc;
+	Value v;
+};
+
+void SettingWindows::valueTreePropertyChanged(ValueTree& treeWhosePropertyHasChanged, const Identifier& p)
+{
+	const Identifier va("value");
+	auto id = treeWhosePropertyHasChanged.getType();
+	auto value = treeWhosePropertyHasChanged.getProperty("value");
+
+	jassert(p == va);
+
+	auto result = HiseSettings::Data::checkInput(id, value);
+
+	if (result.wasOk())
+	{
+		dataObject.settingWasChanged(id, value);
+	}
+	else
+	{
+		if(PresetHandler::showYesNoWindow("Wrong input", result.getErrorMessage() + "\nPress OK to load the default value."))
+		{
+			treeWhosePropertyHasChanged.setProperty(va, dataObject.getDefaultSetting(id), nullptr);
+		}
+	}
+}
+
+void SettingWindows::valueTreeChildAdded(ValueTree&, ValueTree&)
+{
+ 	dataObject.sendChangeMessage();
+}
+
+void SettingWindows::fillPropertyPanel(const Identifier& s, PropertyPanel& panel, const String& searchText)
 {
 	Array<PropertyComponent*> props;
 
-
-
-	for (auto c : v)
+	for (auto c : getValueTree(s))
 	{
-
-
 		auto searchString = c.getProperty("description").toString() + " " + c.getType().toString();
 		searchString = searchString.toLowerCase();
 
+#if USE_BACKEND
 		if (searchText.isEmpty() || FuzzySearcher::fitsSearch(searchText, searchString, 0.2))
 		{
 			addProperty(c, props);
 		}
+#else
+		addProperty(c, props);
+#endif
 	}
 
 	if (props.size() > 0)
 	{
-		panel.addSection(getId(), props);
+		panel.addSection(getSettingNameToDisplay(s), props);
 
-		for (auto p : props)
+		for (auto pr : props)
 		{
-			auto n = p->getName();
+			auto n = pr->getName().removeCharacters(" ");
 
 			auto help = SettingDescription::getDescription(n);
 
@@ -1080,32 +495,34 @@ void SettingWindows::NewSettingWindows::FileBasedValueTree::fillPropertyPanel(Pr
 				MarkdownHelpButton* helpButton = new MarkdownHelpButton();
 				helpButton->setFontSize(15.0f);
 				helpButton->setHelpText(help);
-				helpButton->attachTo(p, MarkdownHelpButton::OverlayLeft);
+				helpButton->attachTo(pr, MarkdownHelpButton::OverlayLeft);
 			}
 		}
 	}
 }
 
-void SettingWindows::NewSettingWindows::FileBasedValueTree::addProperty(ValueTree& c, Array<PropertyComponent*>& props)
+void SettingWindows::addProperty(ValueTree& c, Array<PropertyComponent*>& props)
 {
-	auto value = c.getPropertyAsValue("value", nullptr);
-
+	auto value = c.getPropertyAsValue("value", &undoManager);
 	auto type = c.getProperty("type").toString();
-
 	auto name = getUncamelcasedId(c.getType());
+	auto id = c.getType();
 
+	auto items = dataObject.getOptionsFor(id);
 
-
-
-	if (type == "TEXT")
+	if (HiseSettings::Data::isFileId(id))
 	{
-		props.add(new TextPropertyComponent(value, name, 1024, name.contains("Extra")));
+		auto fpc = new FileNameValuePropertyComponent(name, File(value.toString()), value);
+		props.add(fpc);
 	}
-	else if (type == "LIST")
+	else if (HiseSettings::Data::isToggleListId(id))
 	{
-		auto items = c.getProperty("options").toString();
-
-		if (items == "Yes\nNo")
+		auto tblpc = new ToggleButtonListPropertyComponent(name, value, items);
+		props.add(tblpc);
+	}
+	else if (items.size() > 0)
+	{
+		if (items[0] == "Yes")
 		{
 			auto bpc = new BooleanPropertyComponent(value, name, "Enabled");
 
@@ -1118,55 +535,219 @@ void SettingWindows::NewSettingWindows::FileBasedValueTree::addProperty(ValueTre
 		}
 		else
 		{
-			StringArray choices = StringArray::fromLines(items);
-
 			Array<var> choiceValues;
 
-			for (auto s : choices)
-				choiceValues.add(s);
+			for (auto cv : items)
+				choiceValues.add(cv);
 
-			props.add(new ChoicePropertyComponent(value, name, choices, choiceValues));
+			props.add(new ChoicePropertyComponent(value, name, items, choiceValues));
 		}
 	}
-
-	
-
-
+	else
+	{
+		props.add(new TextPropertyComponent(value, name, 1024, name.contains("Extra")));
+	}
 }
 
-juce::String SettingWindows::NewSettingWindows::FileBasedValueTree::getId() const
+juce::String SettingWindows::getSettingNameToDisplay(const Identifier& s) const
 {
-	return getUncamelcasedId(v.getType());
+	return getUncamelcasedId(getValueTree(s).getType());
 }
 
-SettingWindows::NewSettingWindows::FileBasedValueTree* SettingWindows::NewSettingWindows::getProperlyFormattedValueTree(Settings s)
+juce::ValueTree SettingWindows::getValueTree(const Identifier& s) const
 {
-    auto f = getFileForSettingsWindow(s, handler);
-    
-    ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
-                
-    if (xml != nullptr)
-    {
-        return new FileBasedValueTree(s, ValueTree::fromXml(*xml), f);
-    }
-    
-    return new  FileBasedValueTree( s, SettingDescription::createNewValueTree(s, handler) , f );
+	return dataObject.data.getChildWithName(s);
 }
-            
-void SettingWindows::NewSettingWindows::FileBasedValueTree::save()
+
+void SettingWindows::save(const Identifier& s)
 {
-	for (auto c : v)
+	// This will be saved by the audio device manager
+	if (s == HiseSettings::SettingFiles::MidiSettings || s == HiseSettings::SettingFiles::AudioSettings || s == HiseSettings::SettingFiles::GeneralSettings)
+		return;
+
+	for (auto c : getValueTree(s))
 	{
 		if (c.getProperty("options").toString() == "Yes&#10;No")
+			c.setProperty("value", c.getProperty("value") ? "Yes" : "No", nullptr);
+	}
+
+	ScopedPointer<XmlElement> xml = HiseSettings::ConversionHelpers::getConvertedXml(getValueTree(s));
+
+	auto f = dataObject.getFileForSetting(s);
+
+	xml->writeToFile(f, "");
+}
+
+
+
+void addChildWithValue(ValueTree& v, const Identifier& id, const var& newValue)
+{
+	static const Identifier va("value");
+	ValueTree c(id);
+	c.setProperty(va, newValue, nullptr);
+	v.addChild(c, -1, nullptr);
+}
+
+juce::ValueTree HiseSettings::ConversionHelpers::loadValueTreeFromFile(const File& f, const Identifier& settingId)
+{
+	ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+
+	if (xml != nullptr)
+	{
+		return loadValueTreeFromXml(xml, settingId);
+	}
+
+	return ValueTree();
+}
+
+juce::ValueTree HiseSettings::ConversionHelpers::loadValueTreeFromXml(XmlElement* xml, const Identifier& settingId)
+{
+	ValueTree v = ValueTree::fromXml(*xml);
+
+
+	static const Identifier audioDeviceId("DEVICESETUP");
+
+	if (v.getType() == audioDeviceId)
+	{
+		ValueTree v2(settingId);
+
+
+		if (settingId == SettingFiles::AudioSettings)
 		{
-			c.setProperty("value", c.getProperty("value")? "Yes" : "No", nullptr);
+#if IS_STANDALONE_APP
+			addChildWithValue(v2, HiseSettings::Audio::Driver, xml->getStringAttribute("deviceType"));
+			addChildWithValue(v2, HiseSettings::Audio::Device, xml->getStringAttribute("audioOutputDeviceName"));
+			addChildWithValue(v2, HiseSettings::Audio::Samplerate, xml->getStringAttribute("audioDeviceRate"));
+			addChildWithValue(v2, HiseSettings::Audio::BufferSize, xml->getStringAttribute("bufferSize", "512"));
+#endif
+
+			return v2;
+		}
+		else if (settingId == SettingFiles::MidiSettings)
+		{
+			StringArray active;
+
+			for (int i = 0; i < xml->getNumChildElements(); i++)
+			{
+				if (xml->getChildElement(i)->hasTagName("MIDIINPUT"))
+				{
+					active.add(xml->getChildElement(i)->getStringAttribute("name"));
+				}
+			}
+
+			StringArray allInputs = MidiInput::getDevices();
+
+			BigInteger values;
+
+			for (auto input : active)
+			{
+				int index = allInputs.indexOf(input);
+
+				if (index != -1)
+					values.setBit(index, true);
+			}
+
+#if IS_STANDALONE_APP
+			addChildWithValue(v2, Midi::MidiInput, values.toInt64());
+#endif
+
+			return v2;
 		}
 	}
 
-	ScopedPointer<XmlElement> xml = v.createXml();
+	return v;
+}
 
 
-	xml->writeToFile(f, "");
+
+juce::XmlElement* HiseSettings::ConversionHelpers::getConvertedXml(const ValueTree& v)
+{
+	ValueTree copy = v.createCopy();
+
+	if (copy.getType() == SettingFiles::ProjectSettings)
+	{
+		auto c = v.getChildWithName(Project::RedirectSampleFolder);
+		copy.removeChild(c, nullptr);
+	}
+
+
+	return copy.createXml();
+}
+
+Array<int> HiseSettings::ConversionHelpers::getBufferSizesForDevice(AudioIODevice* currentDevice)
+{
+	if (currentDevice == nullptr)
+		return {};
+
+	auto bufferSizes = currentDevice->getAvailableBufferSizes();
+
+	if (bufferSizes.size() > 7)
+	{
+		Array<int> powerOfTwoBufferSizes;
+		powerOfTwoBufferSizes.ensureStorageAllocated(6);
+		if (bufferSizes.contains(64)) powerOfTwoBufferSizes.add(64);
+		if (bufferSizes.contains(128)) powerOfTwoBufferSizes.add(128);
+		if (bufferSizes.contains(256)) powerOfTwoBufferSizes.add(256);
+		if (bufferSizes.contains(512)) powerOfTwoBufferSizes.add(512);
+		if (bufferSizes.contains(1024)) powerOfTwoBufferSizes.add(1024);
+
+		if (powerOfTwoBufferSizes.size() > 2)
+			bufferSizes.swapWith(powerOfTwoBufferSizes);
+	}
+
+	auto currentSize = currentDevice->getCurrentBufferSizeSamples();
+
+	bufferSizes.addIfNotAlreadyThere(currentSize);
+
+	int defaultBufferSize = currentDevice->getDefaultBufferSize();
+
+	bufferSizes.addIfNotAlreadyThere(defaultBufferSize);
+
+	bufferSizes.sort();
+
+	return bufferSizes;
+}
+
+Array<double> HiseSettings::ConversionHelpers::getSampleRates(AudioIODevice* currentDevice)
+{
+
+#if HISE_IOS
+
+	Array<double> samplerates;
+
+	samplerates.add(44100.0);
+	samplerates.add(48000.0);
+
+#else
+
+	if (currentDevice == nullptr)
+		return {};
+
+	Array<double> allSamplerates = currentDevice->getAvailableSampleRates();
+	Array<double> samplerates;
+
+	if (allSamplerates.contains(44100.0)) samplerates.add(44100.0);
+	if (allSamplerates.contains(48000.0)) samplerates.add(48000.0);
+	if (allSamplerates.contains(88200.0)) samplerates.add(88200.0);
+	if (allSamplerates.contains(96000.0)) samplerates.add(96000.0);
+	if (allSamplerates.contains(176400.0)) samplerates.add(176400.0);
+	if (allSamplerates.contains(192000.0)) samplerates.add(192000.0);
+
+#endif
+
+	return samplerates;
+
+}
+
+juce::StringArray HiseSettings::ConversionHelpers::getChannelList()
+{
+	StringArray sa;
+
+	sa.add("All channels");
+	for (int i = 0; i < 16; i++)
+		sa.add("Channel " + String(i + 1));
+
+	return sa;
 }
 
 } // namespace hise

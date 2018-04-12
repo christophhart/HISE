@@ -212,7 +212,7 @@ void ScriptComponentEditPanel::fillPanel()
 		colourIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::itemColour2));
 		colourIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::textColour));
 		
-		if (auto ft = dynamic_cast<ScriptingApi::Content::ScriptFloatingTile*>(sc))
+		if (dynamic_cast<ScriptingApi::Content::ScriptFloatingTile*>(sc) != nullptr)
 		{
 			colourIds.add(sc->getIdFor(ScriptingApi::Content::ScriptFloatingTile::Properties::itemColour3));
 		}

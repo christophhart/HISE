@@ -271,6 +271,56 @@ private:
 
 };
 
+class CircularAudioSampleBuffer
+{
+public:
+
+	CircularAudioSampleBuffer() :
+		internalBuffer(1, 0)
+	{};
+
+	CircularAudioSampleBuffer(int numChannels_, int numSamples);;
+
+	bool writeSamples(const AudioSampleBuffer& source, int offsetInSource, int numSamples);
+
+	bool writeMidiEvents(const MidiBuffer& source, int offsetInSource, int numSamples);
+
+
+	bool readSamples(AudioSampleBuffer& destination, int offsetInDestination, int numSamples);
+
+	bool readMidiEvents(MidiBuffer& destination, int offsetInDestination, int numSamples);
+
+	void setReadDelta(int numSamplesBetweenReadWrite)
+	{
+		writeIndex = readIndex + numSamplesBetweenReadWrite;
+		numAvailable += numSamplesBetweenReadWrite;
+	}
+
+	int getNumAvailableSamples() const
+	{
+		return numAvailable;
+	};
+
+	int getNumMidiEvents() const { return internalMidiBuffer.getNumEvents(); }
+
+private:
+
+	AudioSampleBuffer internalBuffer;
+	MidiBuffer internalMidiBuffer;
+	int size;
+
+	int numAvailable = 0;
+
+	int numChannels;
+	int readIndex = 0;
+	int writeIndex = 0;
+
+	int midiReadIndex = 0;
+	int midiWriteIndex = 0;
+
+};
+
+
 
 /** This introduces an artificial delay of max 256 samples and calls the internal processing loop with a fixed number of samples.
 *
@@ -307,11 +357,20 @@ private:
 	AudioSampleBuffer* readBuffer = nullptr;
 	AudioSampleBuffer* writeBuffer = nullptr;
 
+	CircularAudioSampleBuffer circularInputBuffer;
+	CircularAudioSampleBuffer circularOutputBuffer;
+	
+	int lastBlockSize = 0;
+
+	AudioSampleBuffer processBuffer;
+	MidiBuffer delayedMidiBuffer;
+
 	int fullBlockSize;
 
-	int sampleIndex;
+	int sampleIndexInternal = 0;
+	int sampleIndexExternal = 0;
 
-	MidiBuffer delayedMidiBuffer;
+	
 };
 
 } // namespace hise

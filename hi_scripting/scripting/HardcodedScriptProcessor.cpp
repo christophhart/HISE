@@ -119,6 +119,7 @@ void HardcodedScriptProcessor::processHiseEvent(HiseEvent &m)
 		case HiseEvent::Type::VolumeFade:
 		case HiseEvent::Type::PitchFade:
 		case HiseEvent::Type::numTypes:
+        case HiseEvent::Type::ProgramChange:
 			break;
 		}
 	}

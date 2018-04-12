@@ -301,7 +301,10 @@ void AudioSampleProcessor::setLoopFromMetadata(const File& f)
     
 	const String format = metadata.getValue("MetaDataSource", "");
 
-	String loopEnabled, loopStart, loopEnd;
+	String loopEnabled;
+	
+	int loopStart = 0;
+	int loopEnd = 0;
 
 	if (format == "AIFF")
 	{
@@ -323,25 +326,29 @@ void AudioSampleProcessor::setLoopFromMetadata(const File& f)
 			if (metadata.getValue(idTag, "-2").getIntValue() == loopStartId)
 			{
 				loopStartIndex = i;
-				loopStart = metadata.getValue("Cue" + String(i) + "Offset", "");
+				loopStart = getConstrainedLoopValue(metadata.getValue("Cue" + String(i) + "Offset", ""));
 			}
 			else if (metadata.getValue(idTag, "-2").getIntValue() == loopEndId)
 			{
 				loopEndIndex = i;
-				loopEnd = metadata.getValue("Cue" + String(i) + "Offset", "");
+				loopEnd = getConstrainedLoopValue(metadata.getValue("Cue" + String(i) + "Offset", ""));
 			}
 		}
+
+		if (loopStart == loopEnd)
+			loopEnabled = "";
 	}
 	else if (format == "WAV")
 	{
-		loopStart = metadata.getValue("Loop0Start", "");
-		loopEnd = metadata.getValue("Loop0End", "");
-		loopEnabled = (loopStart.isNotEmpty() && loopStart != "0" && loopEnd.isNotEmpty() && loopEnd != "0") ? "1" : "";
+		loopStart = getConstrainedLoopValue(metadata.getValue("Loop0Start", ""));
+		loopEnd = getConstrainedLoopValue(metadata.getValue("Loop0End", ""));
+
+		loopEnabled = (loopStart != loopEnd && loopEnd != 0) ? "1" : "";
 	}
 
 	if (loopEnabled.isNotEmpty())
 	{
-		loopRange = Range<int>(loopStart.getIntValue(), loopEnd.getIntValue() + 1); // add 1 because of the offset
+		loopRange = Range<int>(loopStart, loopEnd + 1); // add 1 because of the offset
 		sampleRange.setEnd(loopRange.getEnd());
 		setUseLoop(true);
 	}
@@ -361,6 +368,11 @@ sampleRateOfLoadedFile(-1.0)
 	jassert(p != nullptr);
 
 	mc = p->getMainController();
+}
+
+int AudioSampleProcessor::getConstrainedLoopValue(String metadata)
+{
+	return jlimit<int>(sampleRange.getStart(), sampleRange.getEnd(), metadata.getIntValue());
 }
 
 } // namespace hise

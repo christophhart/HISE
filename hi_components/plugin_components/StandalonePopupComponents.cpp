@@ -32,7 +32,7 @@
 
 namespace hise { using namespace juce;
 
-ToggleButtonList::ToggleButtonList(StringArray& names, Listener* listener_) :
+ToggleButtonList::ToggleButtonList(const StringArray& names, Listener* listener_) :
 	listener(listener_)
 {
 	setLookAndFeel(&btblaf);
@@ -304,29 +304,14 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
                 deviceSelector->setSelectedItemIndex(thisDevice, dontSendNotification);
             }
             
-            Array<int> bufferSizes = currentDevice->getAvailableBufferSizes();
+			auto bufferSizes = HiseSettings::ConversionHelpers::getBufferSizesForDevice(currentDevice);
             
-            if (bufferSizes.size() > 7)
-            {
-                Array<int> powerOfTwoBufferSizes;
-                powerOfTwoBufferSizes.ensureStorageAllocated(6);
-                if (bufferSizes.contains(64)) powerOfTwoBufferSizes.add(64);
-                if (bufferSizes.contains(128)) powerOfTwoBufferSizes.add(128);
-                if (bufferSizes.contains(256)) powerOfTwoBufferSizes.add(256);
-                if (bufferSizes.contains(512)) powerOfTwoBufferSizes.add(512);
-                if (bufferSizes.contains(1024)) powerOfTwoBufferSizes.add(1024);
-                
-                if (powerOfTwoBufferSizes.size() > 2)
-                    bufferSizes.swapWith(powerOfTwoBufferSizes);
-            }
-            
-            int defaultBufferSize = currentDevice->getDefaultBufferSize();
-            
-            bufferSizes.addIfNotAlreadyThere(defaultBufferSize);
-            
-            bufferSizes.sort();
-            
-            outputSelector->addItemList(getChannelPairs(currentDevice), 1);
+			for (int i = 0; i < bufferSizes.size(); i++)
+			{
+				bufferSelector->addItem(String(bufferSizes[i]) + String(" Samples"), i + 1);
+			}
+
+            outputSelector->addItemList(HiseSettings::ConversionHelpers::getChannelPairs(currentDevice), 1);
             const int thisOutputName = (currentDevice->getActiveOutputChannels().getHighestBit() - 1) / 2;
             outputSelector->setSelectedItemIndex(thisOutputName, dontSendNotification);
             
@@ -341,38 +326,12 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
             }
             
             
-            for (int i = 0; i < bufferSizes.size(); i++)
-            {
-                bufferSelector->addItem(String(bufferSizes[i]) + String(" Samples"), i + 1);
-            }
-            
             const int thisBufferSize = currentDevice->getCurrentBufferSizeSamples();
             
             bufferSelector->setSelectedItemIndex(bufferSizes.indexOf(thisBufferSize), dontSendNotification);
             
-#if HISE_IOS
-            
-            Array<double> samplerates;
-            
-            samplerates.add(44100.0);
-            samplerates.add(48000.0);
-            
-#else
+			auto samplerates = HiseSettings::ConversionHelpers::getSampleRates(currentDevice);
 
-            Array<double> allSamplerates = currentDevice->getAvailableSampleRates();
-            Array<double> samplerates;
-            
-            if (allSamplerates.contains(44100.0)) samplerates.add(44100.0);
-            if (allSamplerates.contains(48000.0)) samplerates.add(48000.0);
-            if (allSamplerates.contains(88200.0)) samplerates.add(88200.0);
-            if (allSamplerates.contains(96000.0)) samplerates.add(96000.0);
-            if (allSamplerates.contains(176400.0)) samplerates.add(176400.0);
-            if (allSamplerates.contains(192000.0)) samplerates.add(192000.0);
-
-			
-            
-#endif
-            
             for (int i = 0; i < samplerates.size(); i++)
             {
                 sampleRateSelector->addItem(String(samplerates[i], 0), i + 1);
@@ -513,46 +472,6 @@ void CustomSettingsWindow::flipEnablement(AudioDeviceManager* manager, const int
 	config.useDefaultOutputChannels = false;
 
 	manager->setAudioDeviceSetup(config, true);
-}
-
-String CustomSettingsWindow::getNameForChannelPair(const String& name1, const String& name2)
-{
-	String commonBit;
-
-	for (int j = 0; j < name1.length(); ++j)
-		if (name1.substring(0, j).equalsIgnoreCase(name2.substring(0, j)))
-			commonBit = name1.substring(0, j);
-
-	// Make sure we only split the name at a space, because otherwise, things
-	// like "input 11" + "input 12" would become "input 11 + 2"
-	while (commonBit.isNotEmpty() && !CharacterFunctions::isWhitespace(commonBit.getLastCharacter()))
-		commonBit = commonBit.dropLastCharacters(1);
-
-	return name1.trim() + " + " + name2.substring(commonBit.length()).trim();
-}
-
-StringArray CustomSettingsWindow::getChannelPairs(AudioIODevice* currentDevice)
-{
-	if (currentDevice != nullptr)
-	{
-		StringArray items = currentDevice->getOutputChannelNames();
-
-		StringArray pairs;
-
-		for (int i = 0; i < items.size(); i += 2)
-		{
-			const String& name = items[i];
-
-			if (i + 1 >= items.size())
-				pairs.add(name.trim());
-			else
-				pairs.add(getNameForChannelPair(name, items[i + 1]));
-		}
-
-		return pairs;
-	}
-
-	return StringArray();
 }
 
 void CustomSettingsWindow::comboBoxChanged(ComboBox* comboBoxThatHasChanged)

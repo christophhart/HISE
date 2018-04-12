@@ -151,7 +151,7 @@ public:
 
 	void createNewProject(File &workingDirectory, Component* mainEditor);
 
-	void setWorkingProject(const File &workingDirectory, Component* mainEditor);
+	Result setWorkingProject(const File &workingDirectory, Component* mainEditor);
 
 	static const StringArray &getRecentWorkDirectories() { return recentWorkDirectories; }
 
@@ -238,7 +238,7 @@ public:
 		*	- user presets (in the UserPresets subfolder)
 		*	- license key file
 		*/
-		static File getAppDataDirectory(ProjectHandler *handler=nullptr);
+		static File getAppDataDirectory(ModulatorSynthChain *chain=nullptr);
 
 		static File getLicenseKey();
 
@@ -325,7 +325,7 @@ private:
 	void checkSubDirectories();
 
 	File checkSubDirectory(SubDirectories dir);
-	void checkSettingsFile(Component* mainEditor=nullptr);
+	bool anySubdirectoryExists(const File& possibleProjectFolder) const;
 
 private:
 
@@ -338,6 +338,8 @@ private:
 	static StringArray recentWorkDirectories;
 
 	Component::SafePointer<Component> window;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ProjectHandler);
 };
 
 
@@ -705,7 +707,7 @@ public:
 		
 	}
     
-	static File getGlobalScriptFolder();
+	static File getGlobalScriptFolder(Processor* p);
 
     static AudioFormatReader *getReaderForFile(const File &file);
     

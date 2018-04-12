@@ -248,11 +248,11 @@ public:
 
 	String getTextForName() const override { return id.toString(); }
 
-	String getTextForDataType() const override { return getVarType(obj->getProperty(id)); }
+	String getTextForDataType() const override { return obj != nullptr ? getVarType(obj->getProperty(id)) : "dangling"; }
 
-	String getTextForValue() const override { return getVarValue(obj->getProperty(id)); }
+	String getTextForValue() const override { return obj != nullptr ? getVarValue(obj->getProperty(id)) : ""; }
 
-	const var getVariantCopy() const override { return obj->getProperty(id); };
+	const var getVariantCopy() const override { return obj != nullptr ? obj->getProperty(id) : var(); };
 
 	AttributedString getDescription() const override;;
 

@@ -227,6 +227,7 @@ Colour AudioAnalyserComponent::getColourForAnalyser(ColourId id)
 		case hise::AudioAnalyserComponent::bgColour: return panel->findPanelColour(FloatingTileContent::PanelColourId::bgColour);
 		case hise::AudioAnalyserComponent::fillColour: return panel->findPanelColour(FloatingTileContent::PanelColourId::itemColour1);
 		case hise::AudioAnalyserComponent::lineColour: return panel->findPanelColour(FloatingTileContent::PanelColourId::itemColour2);
+            default: break;
 		}
 	}
 	else
@@ -236,6 +237,7 @@ Colour AudioAnalyserComponent::getColourForAnalyser(ColourId id)
 		case hise::AudioAnalyserComponent::bgColour: return Colour(0xFF333333);
 		case hise::AudioAnalyserComponent::fillColour: return Colour(0xFF888888);
 		case hise::AudioAnalyserComponent::lineColour: return Colour(0xFF555555);
+            default: break;
 		}
 	}
 

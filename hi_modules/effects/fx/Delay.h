@@ -131,7 +131,7 @@ public:
 
 	void calcDelayTimes()
 	{
-		const bool wrongDomain = tempoSync && syncTimeLeft >= TempoSyncer::Tempo::numTempos || syncTimeRight >= TempoSyncer::Tempo::numTempos;
+		const bool wrongDomain = tempoSync && (syncTimeLeft >= TempoSyncer::Tempo::numTempos || syncTimeRight >= TempoSyncer::Tempo::numTempos);
 
 		if (wrongDomain)
 		{

@@ -350,7 +350,7 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 {
 #if USE_BACKEND
 
-	const String version = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(chain));
+	const String version = dynamic_cast<GlobalSettingManager*>(chain->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Version);
 
 	SemanticVersionChecker versionChecker(version, version);
 
@@ -587,7 +587,7 @@ bool UserPresetHelpers::checkVersionNumber(ModulatorSynthChain* chain, XmlElemen
 String UserPresetHelpers::getCurrentVersionNumber(ModulatorSynthChain* chain)
 {
 #if USE_BACKEND
-	return SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(chain));
+	return dynamic_cast<GlobalSettingManager*>(chain->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Version);
 #else
 	ignoreUnused(chain);
 	return ProjectHandler::Frontend::getVersionString();
@@ -1014,23 +1014,21 @@ void ProjectHandler::createNewProject(File &workingDirectory, Component* mainEdi
 	setWorkingProject(workingDirectory, mainEditor);
 }
 
-void ProjectHandler::setWorkingProject(const File &workingDirectory, Component* mainEditor)
+juce::Result ProjectHandler::setWorkingProject(const File &workingDirectory, Component* /*mainEditor*/)
 {
 	MessageManagerLock mm;
 
-	if (workingDirectory == currentWorkDirectory) return;
+	if (!workingDirectory.exists()) return Result::fail(workingDirectory.getFullPathName() + " is not a valid folder");;
+
+	if (workingDirectory == currentWorkDirectory) return Result::ok();
 
 	if (!isValidProjectFolder(workingDirectory))
 	{
-		jassertfalse;
-		return;
+		return Result::fail(workingDirectory.getFullPathName() + "is not a valid project folder");	
 	}
 
 	currentWorkDirectory = workingDirectory;
 
-	if (!workingDirectory.exists()) return;
-
-	checkSettingsFile(mainEditor);
 	checkSubDirectories();
 
 	jassert(currentWorkDirectory.exists() && currentWorkDirectory.isDirectory());
@@ -1075,6 +1073,8 @@ void ProjectHandler::setWorkingProject(const File &workingDirectory, Component* 
 		else
 			listeners.remove(i--);
 	}
+
+	return Result::ok();
 }
 
 void ProjectHandler::restoreWorkingProjects()
@@ -1104,6 +1104,9 @@ void ProjectHandler::restoreWorkingProjects()
 
 bool ProjectHandler::isValidProjectFolder(const File &file) const
 {
+	if (!anySubdirectoryExists(file))
+		return false;
+
 	if (file == File()) return true;
 
 	const bool isDirectory = file.exists() && file.isDirectory();
@@ -1208,12 +1211,11 @@ File ProjectHandler::checkSubDirectory(SubDirectories dir)
 	}
 }
 
-void ProjectHandler::checkSettingsFile(Component* mainEditor/*=nullptr*/)
+bool ProjectHandler::anySubdirectoryExists(const File& possibleProjectFolder) const
 {
-	if (!getWorkDirectory().getChildFile("project_info.xml").existsAsFile())
-	{
-		setProjectSettings(mainEditor);
-	}
+	return	possibleProjectFolder.getChildFile("Scripts").isDirectory() ||
+			possibleProjectFolder.getChildFile("SampleMaps").isDirectory() ||
+			possibleProjectFolder.getChildFile("XmlPresetBackups").isDirectory();
 
 }
 
@@ -1555,18 +1557,11 @@ void ProjectHandler::createLinkFileInFolder(const File& source, const File& targ
 
 void ProjectHandler::setProjectSettings(Component *mainEditor)
 {
-	SettingWindows::ProjectSettingWindow *w = new SettingWindows::ProjectSettingWindow(this);
+	ignoreUnused(mainEditor);
 
-	window = w;
-
-	if (mainEditor == nullptr)
-	{
-		w->showOnDesktop();
-	}
-	else
-	{
-		w->setModalBaseWindowComponent(mainEditor);
-	}
+#if USE_BACKEND
+	BackendCommandTarget::Actions::showFileProjectSettings(mainEditor->findParentComponentOfClass<BackendRootWindow>());
+#endif
 }
 
 
@@ -1695,7 +1690,7 @@ File ProjectHandler::Frontend::getSampleLocationForCompiledPlugin()
 #endif
 }
 
-File ProjectHandler::Frontend::getAppDataDirectory(ProjectHandler *handler/*=nullptr*/)
+juce::File ProjectHandler::Frontend::getAppDataDirectory(ModulatorSynthChain *chain/*=nullptr*/)
 {
 
     const File::SpecialLocationType appDataDirectoryToUse = File::userApplicationDataDirectory;
@@ -1703,7 +1698,7 @@ File ProjectHandler::Frontend::getAppDataDirectory(ProjectHandler *handler/*=nul
 
 #if USE_FRONTEND
     
-	ignoreUnused(handler);
+	ignoreUnused(chain);
 
 #if JUCE_IOS
     
@@ -1739,10 +1734,10 @@ File ProjectHandler::Frontend::getAppDataDirectory(ProjectHandler *handler/*=nul
 #endif
 #else // BACKEND
 
-	jassert(handler != nullptr);
+	jassert(chain != nullptr);
 
-	const String company = SettingWindows::getSettingValue((int)SettingWindows::UserSettingWindow::Attributes::Company, handler);
-	const String product = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, handler);
+	auto company = dynamic_cast<GlobalSettingManager*>(chain->getMainController())->getSettingsObject().getSetting(HiseSettings::User::Company).toString();
+	auto product = dynamic_cast<GlobalSettingManager*>(chain->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Name).toString();
 
 #if JUCE_MAC
 	return File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/" + company + "/" + product);
@@ -2358,21 +2353,11 @@ XmlElement * PresetHandler::buildFactory(FactoryType *t, const String &factoryNa
 	return xml;
 }
 
-File PresetHandler::getGlobalScriptFolder()
+juce::File PresetHandler::getGlobalScriptFolder(Processor* p)
 {
-	File globalScriptFolder = File(getDataFolder()).getChildFile("scripts");
+	auto f = dynamic_cast<GlobalSettingManager*>(p->getMainController())->getSettingsObject().getSetting(HiseSettings::Scripting::GlobalScriptPath);
 
-    const File link = ProjectHandler::getLinkFile(globalScriptFolder);
-    
-	if (link.existsAsFile())
-	{
-		File linkTarget = File(link.loadFileAsString());
-
-		if (linkTarget.isDirectory())
-			globalScriptFolder = linkTarget;
-	}
-
-	return globalScriptFolder;
+	return File(f.toString());
 }
 
 AudioFormatReader * PresetHandler::getReaderForFile(const File &file)

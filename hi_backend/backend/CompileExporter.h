@@ -44,6 +44,8 @@ public:
 
 	ModulatorSynthChain* chainToExport;
 
+	HiseSettings::Data& dataObject;
+
 protected:
 
 	ValueTree exportReferencedImageFiles();
@@ -52,7 +54,7 @@ protected:
 	ValueTree exportUserPresetFiles();
 	ValueTree exportPresetFile();
 	
-	BaseExporter(ModulatorSynthChain* chainToExport_) : chainToExport(chainToExport_) {}
+	BaseExporter(ModulatorSynthChain* chainToExport_);
 	
 private:
 
@@ -199,9 +201,9 @@ private:
 
 	struct HelperClasses
 	{
-		static String getFileNameForCompiledPlugin(ModulatorSynthChain* chain, BuildOption option);
+		static String getFileNameForCompiledPlugin(const HiseSettings::Data& dataObject, ModulatorSynthChain* chain, BuildOption option);
 
-		static bool isUsingVisualStudio2015();
+		static bool isUsingVisualStudio2015(const HiseSettings::Data& dataObject);
 
 		static ErrorCodes saveProjucerFile(String templateProject, CompileExporter* exporter);
 	};
@@ -230,7 +232,7 @@ private:
 	{
 		static void handleCompilerInfo(CompileExporter* exporter, String& templateProject);
 		static void handleCompanyInfo(CompileExporter* exporter, String& templateProject);
-		static void handleVisualStudioVersion(String& templateProject);
+		static void handleVisualStudioVersion(const HiseSettings::Data& dataObject, String& templateProject);
 		static void handleAdditionalSourceCode(CompileExporter* exporter, String &templateProject, BuildOption option);
 		static void handleCopyProtectionInfo(CompileExporter* exporter, String &templateProject, BuildOption option);
 		static String getTargetFamilyString(BuildOption option);

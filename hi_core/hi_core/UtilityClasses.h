@@ -921,7 +921,7 @@ private:
 
 class MainController;
 
-class AutoSaver : public Timer
+class AutoSaver : private Timer
 {
 public:
 
@@ -931,12 +931,24 @@ public:
 		mc(mc_),
 		currentAutoSaveIndex(0)
 	{
-		enableAutoSaving();
+		
 	};
+
+	
+
+	void updateAutosaving()
+	{
+		if (isAutoSaving()) enableAutoSaving();
+		else disableAutoSaving();
+	}
+
+private:
+
+	int getIntervalInMinutes() const;
 
 	void enableAutoSaving()
 	{
-		startTimer(1000 * 60 * 5); // autosave all 5 minutes
+		startTimer(1000 * 60 * getIntervalInMinutes()); // autosave all 5 minutes
 	}
 
 	void disableAutoSaving()
@@ -944,20 +956,9 @@ public:
 		stopTimer();
 	}
 
-	bool isAutoSaving() const
-	{
-		return isTimerRunning();
-	}
+	bool isAutoSaving() const;
 
 	void timerCallback() override;
-
-	void toggleAutoSaving()
-	{
-		if (isAutoSaving()) disableAutoSaving();
-		else enableAutoSaving();
-	}
-
-private:
 
 	File getAutoSaveFile();
 

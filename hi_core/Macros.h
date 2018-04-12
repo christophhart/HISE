@@ -78,6 +78,14 @@ namespace hise { using namespace juce;
 #define FRONTEND_ONLY(x) x
 #endif
 
+#if FRONTEND_IS_PLUGIN
+#define FX_ONLY(x) x
+#define INSTRUMENT_ONLY(x) 
+#else
+#define FX_ONLY(x)
+#define INSTRUMENT_ONLY(x) x
+#endif
+
 #if USE_BACKEND
 #define SET_CHANGED_FROM_PARENT_EDITOR() if(ProcessorEditor *editor = findParentComponentOfClass<ProcessorEditor>()) PresetHandler::setChanged(editor->getProcessor());
 #else

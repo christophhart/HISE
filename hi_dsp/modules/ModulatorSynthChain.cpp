@@ -156,11 +156,6 @@ ValueTree ModulatorSynthChain::exportAsValueTree() const
 	{
 		v.setProperty("packageName", packageName, nullptr);
 
-
-
-#if USE_BACKEND
-		ViewManager::saveViewsToValueTree(v);
-#endif
 		MacroControlBroadcaster::saveMacrosToValueTree(v);
 
 		v.addChild(getMainController()->getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree(), -1, nullptr);
@@ -321,11 +316,6 @@ void ModulatorSynthChain::restoreFromValueTree(const ValueTree &v)
 	packageName = v.getProperty("packageName", "");
 
 	ModulatorSynth::restoreFromValueTree(v);
-
-
-#if USE_BACKEND
-	ViewManager::restoreViewsFromValueTree(v);
-#endif
 
 	ValueTree autoData = v.getChildWithName("MidiAutomation");
 

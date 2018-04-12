@@ -1557,8 +1557,6 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 				updateMaxArea();
 
 
-				auto r = currentlyDisplayedSound->getPropertyRange(ModulatorSamplerSound::SampleStart);
-
 				Array<var> values;
 				StringArray choices;
 

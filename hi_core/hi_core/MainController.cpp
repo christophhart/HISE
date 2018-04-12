@@ -67,8 +67,7 @@ MainController::MainController():
 	debugLogger(this),
 	//presetLoadRampFlag(OldUserPresetHandler::Active),
 	suspendIndex(0),
-	controlUndoManager(new UndoManager()),
-    globalCodeFontSize(17.0f)
+	controlUndoManager(new UndoManager())
 {
 	BACKEND_ONLY(popupConsole = nullptr);
 	BACKEND_ONLY(usePopupConsole = false);
@@ -207,6 +206,8 @@ void MainController::loadPresetInternal(const ValueTree& v)
 {
 	try
 	{
+		getSampleManager().setPreloadFlag();
+
 		ModulatorSynthChain *synthChain = getMainSynthChain();
 
 #if USE_BACKEND
@@ -257,7 +258,14 @@ void MainController::loadPresetInternal(const ValueTree& v)
 
 		changed = false;
 
-		synthChain->sendRebuildMessage(true);
+		auto f = [](Processor* synthChain)
+		{
+			synthChain->sendRebuildMessage(true);
+			return true;
+		};
+
+		killAndCallOnMessageThread(f);
+		
 
 		getSampleManager().preloadEverything();
 
@@ -289,6 +297,13 @@ void MainController::startCpuBenchmark(int bufferSize_)
 void MainController::compileAllScripts()
 {
 	Processor::Iterator<JavascriptProcessor> it(getMainSynthChain());
+
+	auto& set = globalVariableObject->getProperties();
+
+	for (int i = 0; i < set.size(); i++)
+	{
+		set.set(set.getName(i), var());
+	}
 
 	JavascriptProcessor *sp;
 		
@@ -616,11 +631,10 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	{
 		hostIsPlaying = lastPosInfo.isPlaying;
 
-#if FRONTEND_IS_PLUGIN
-		masterEventBuffer.addEvent(HiseEvent(hostIsPlaying ? HiseEvent::Type::NoteOn :
+		FX_ONLY(masterEventBuffer.addEvent(HiseEvent(hostIsPlaying ? HiseEvent::Type::NoteOn :
 															 HiseEvent::Type::NoteOff, 
-											 60, 127, 1));
-#endif
+											 60, 127, 1));)
+
 	}
 
 	if (bpmFromHost == 0.0)
@@ -672,8 +686,6 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
         FloatVectorOperations::copy(thisMultiChannelBuffer.getWritePointer(1), buffer.getReadPointer(1), bufferSize.get());
         
         synthChain->renderNextBlockWithModulators(thisMultiChannelBuffer, masterEventBuffer);
-        
-        auto& matrix = synthChain->getMatrix();
         
         buffer.clear();
         
@@ -735,31 +747,9 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		for (int i = 0; i < matrix.getNumSourceChannels(); i++)
 		{
 			if (replaceBufferContent)
-			{
 				FloatVectorOperations::copy(buffer.getWritePointer(i), thisMultiChannelBuffer.getReadPointer(i), bufferSize.get());
-			}
 			else
-			{
 				FloatVectorOperations::add(buffer.getWritePointer(i), thisMultiChannelBuffer.getReadPointer(i), bufferSize.get());
-			}
-
-
-#if 0
-			const int destinationChannel = matrix.getConnectionForSourceChannel(i);
-
-
-			if (destinationChannel == -1)
-				continue;
-
-			if (replaceBufferContent)
-			{
-				FloatVectorOperations::copy(buffer.getWritePointer(destinationChannel), thisMultiChannelBuffer.getReadPointer(i), bufferSize.get());
-			}
-			else
-			{
-				FloatVectorOperations::add(buffer.getWritePointer(destinationChannel), thisMultiChannelBuffer.getReadPointer(i), bufferSize.get());
-			}
-#endif
 		}
 	}
 
@@ -1063,6 +1053,11 @@ bool MainController::checkAndResetMidiInputFlag()
 	midiInputFlag = false;
 
 	return returnValue;
+}
+
+float MainController::getGlobalCodeFontSize() const
+{
+	return (float)dynamic_cast<const GlobalSettingManager*>(this)->getSettingsObject().getSetting(HiseSettings::Scripting::CodeFontSize);
 }
 
 void MainController::loadUserPresetAsync(const ValueTree& v)
