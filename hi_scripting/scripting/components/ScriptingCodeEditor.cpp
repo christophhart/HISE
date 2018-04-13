@@ -1128,7 +1128,7 @@ bool JavascriptCodeEditor::keyPressed(const KeyPress& k)
     }
 	if ((k.isKeyCode('x') || k.isKeyCode('X')) && k.getModifiers().isCommandDown())
 	{
-		if (highlightedSelection.size() == 0)
+		if (getHighlightedRegion().isEmpty())
 		{
 			auto indexInLine = getCaretPos().getIndexInLine();
 			moveCaretToStartOfLine(false);
@@ -1150,7 +1150,7 @@ bool JavascriptCodeEditor::keyPressed(const KeyPress& k)
 	}
 	if ((k.isKeyCode('c') || k.isKeyCode('C')) && k.getModifiers().isCommandDown())
 	{
-		if (highlightedSelection.size() == 0)
+		if (getHighlightedRegion().isEmpty())
 		{
 			auto prePos = getCaretPos();
 			moveCaretToStartOfLine(false);
@@ -1164,12 +1164,8 @@ bool JavascriptCodeEditor::keyPressed(const KeyPress& k)
 		}
 	}
 
-    
-
 	return CodeEditorComponent::keyPressed(k);
 }
-
-
 
 void JavascriptCodeEditor::handleReturnKey()
 {
