@@ -35,6 +35,8 @@
 
 namespace hise { using namespace juce;
 
+
+
 /** @brief A pretty common envelope type with 5 states. @ingroup modulatorTypes
 
 ### AHDSR Envelope
@@ -74,6 +76,7 @@ public:
 		Release,	 ///< the release time in milliseconds
 		AttackCurve, ///< the attack curve (0.0 = concave, 1.0 = convex)
 		DecayCurve, ///< the release curve (and the decayCurve)
+		EcoMode,	 ///< uses 16x downsampling and linear interpolation for calculating the envelope curve
 		numTotalParameters
 	};
 
@@ -123,6 +126,19 @@ public:
 
 	float getDefaultValue(int parameterIndex) const override;
 	void setInternalAttribute (int parameter_index, float newValue) override;;
+
+	void setDownsampleFactor(float newValue)
+	{
+		ScopedLock sl(getMainController()->getLock());
+
+		downsampleFactor = jlimit<float>(1.0f, 128.0f, roundFloatToInt(newValue));
+		ecoMode = downsampleFactor > 1.5f;
+		setAttackRate(attack);
+		setDecayRate(decay);
+		setReleaseRate(release);
+		setSustainLevel(sustain);
+	}
+
 	float getAttribute(int parameter_index) const override;;
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
@@ -173,6 +189,8 @@ public:
 		int holdCounter;
 		float current_value;
 
+		int leftOverSamplesFromLastBuffer = 0;
+
 		/** The ratio in which the attack time is altered. This is calculated by the internal ModulatorChain attackChain*/
 		float modValues[numInternalChains];
 
@@ -197,6 +215,10 @@ public:
 	void calculateCoefficients(float timeInMilliSeconds, float base, float maximum, float &stateBase, float &stateCoeff) const;
 
 private:
+
+	int downsampleFactor = 1;
+
+	float getSampleRateForCurrentMode() const;
 
 	void setAttackRate(float rate);
 	void setDecayRate(float rate);
@@ -237,6 +259,8 @@ private:
 	float release;
 	float releaseCoef;
 	float releaseBase;
+
+	bool ecoMode = false;
 
 	AhdsrEnvelopeState *state;
 

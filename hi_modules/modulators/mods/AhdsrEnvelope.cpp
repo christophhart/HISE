@@ -32,6 +32,8 @@
 
 namespace hise { using namespace juce;
 
+#define AHDSR_DOWNSAMPLE_FACTOR 4
+
 Processor * AhdsrEnvelope::getChildProcessor(int processorIndex)
 {
 	jassert(processorIndex < internalChains.size());
@@ -63,6 +65,7 @@ AhdsrEnvelope::AhdsrEnvelope(MainController *mc, const String &id, int voiceAmou
 	parameterNames.add("Release");
 	parameterNames.add("AttackCurve");
 	parameterNames.add("DecayCurve");
+	parameterNames.add("EcoMode");
 
 	editorStateIdentifiers.add("AttackTimeChainShown");
 	editorStateIdentifiers.add("AttackLevelChainShown");
@@ -105,6 +108,7 @@ void AhdsrEnvelope::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(Decay, "Decay");
 	loadAttribute(Sustain, "Sustain");
 	loadAttribute(Release, "Release");
+	loadAttribute(EcoMode, "EcoMode");
 }
 
 ValueTree AhdsrEnvelope::exportAsValueTree() const
@@ -119,8 +123,17 @@ ValueTree AhdsrEnvelope::exportAsValueTree() const
 	saveAttribute(Decay, "Decay");
 	saveAttribute(Sustain, "Sustain");
 	saveAttribute(Release, "Release");
-	
+	saveAttribute(EcoMode, "EcoMode");
+
 	return v;
+}
+
+float AhdsrEnvelope::getSampleRateForCurrentMode() const
+{
+	auto sr = getSampleRate();
+	if (ecoMode) sr *= (1.0 / (double)downsampleFactor);
+
+	return (float)sr;
 }
 
 void AhdsrEnvelope::setAttackRate(float rate) {
@@ -130,7 +143,7 @@ void AhdsrEnvelope::setAttackRate(float rate) {
 void AhdsrEnvelope::setHoldTime(float holdTimeMs) {
 	hold = holdTimeMs;
 
-	holdTimeSamples = holdTimeMs * ((float)getSampleRate() / 1000.0f);
+	holdTimeSamples = holdTimeMs * ((float)getSampleRateForCurrentMode() / 1000.0f);
 }
 
 void AhdsrEnvelope::setDecayRate(float rate)
@@ -227,6 +240,7 @@ void AhdsrEnvelope::startVoice(int voiceIndex)
 		state->current_state = AhdsrEnvelopeState::ATTACK;
 
 		state->current_value = 0.0f;
+		state->leftOverSamplesFromLastBuffer = 0;
 
 		state->lastSustainValue = sustain * state->modValues[SustainLevelChain];
 	}
@@ -292,23 +306,53 @@ void AhdsrEnvelope::calculateBlock(int startSample, int numSamples)
 	}
 	else
 	{
-		while (numSamples >= 4)
+		if (ecoMode)
 		{
-			for (int i = 0; i < 4; i++)
+			if (state->leftOverSamplesFromLastBuffer)
+			{
+				int numThisTime = jmin<int>(numSamples, state->leftOverSamplesFromLastBuffer);
+
+				FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), state->current_value, numThisTime);
+				startSample += numThisTime;
+				numSamples -= numThisTime;
+				state->leftOverSamplesFromLastBuffer -= numThisTime;
+			}
+
+			while (numSamples >= downsampleFactor)
+			{
+				auto value = calculateNewValue();
+
+				
+
+				FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), value, downsampleFactor);
+
+				numSamples -= downsampleFactor;
+				startSample += downsampleFactor;
+			}
+
+			if (numSamples > 0)
+			{
+				auto value = calculateNewValue();
+
+				FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), value, numSamples);
+
+				state->leftOverSamplesFromLastBuffer = downsampleFactor - numSamples;
+				startSample += numSamples;
+				
+				jassert(state->leftOverSamplesFromLastBuffer > 0);
+			}
+		}
+		else
+		{
+			while (numSamples > 0)
 			{
 				internalBuffer.setSample(0, startSample, calculateNewValue());
 				++startSample;
+				numSamples--;
 			}
-
-			numSamples -= 4;
 		}
 
-		while (numSamples > 0)
-		{
-			internalBuffer.setSample(0, startSample, calculateNewValue());
-			++startSample;
-			numSamples--;
-		}
+		
 	}
 
 #if ENABLE_ALL_PEAK_METERS
@@ -357,6 +401,7 @@ float AhdsrEnvelope::getDefaultValue(int parameterIndex) const
 	case Release:		return 20.0f;
 	case AttackCurve:	return 1.0f;
 	case DecayCurve:	return 1.0f;
+	case EcoMode:		return 1.0f;
 	default:		jassertfalse; return -1;
 	}
 }
@@ -379,6 +424,9 @@ void AhdsrEnvelope::setInternalAttribute(int parameterIndex, float newValue)
 	case Release:		setReleaseRate(newValue); break;
 	case AttackCurve:	setAttackCurve(newValue); break;
 	case DecayCurve:	setDecayCurve(newValue); break;
+	case EcoMode:		setDownsampleFactor(newValue);
+
+						break;
 	default:			jassertfalse;
 	}
 }
@@ -400,6 +448,7 @@ float AhdsrEnvelope::getAttribute(int parameterIndex) const
 	case Release:		return release;
 	case AttackCurve:	return attackCurve;
 	case DecayCurve:	return decayCurve;
+	case EcoMode:		return (float)downsampleFactor;
 	default:		jassertfalse; return -1;
 	}
 }
@@ -426,7 +475,7 @@ bool AhdsrEnvelope::isPlaying(int voiceIndex) const
 
 void AhdsrEnvelope::calculateCoefficients(float timeInMilliSeconds, float base, float maximum, float &stateBase, float &stateCoeff) const
 {
-	const float t = (timeInMilliSeconds / 1000.0f) * (float)getSampleRate();
+	const float t = (timeInMilliSeconds / 1000.0f) * (float)getSampleRateForCurrentMode();
 	const float exp1 = (powf(base, 1.0f / t));
 	const float invertedBase = 1.0f / (base - 1.0f);
 
@@ -611,7 +660,7 @@ ProcessorEditorBody * AhdsrEnvelope::createEditor(ProcessorEditor* parentEditor)
 
 float AhdsrEnvelope::calcCoef(float rate, float targetRatio) const
 {
-	const float factor = (float)getSampleRate() * 0.001f;
+	const float factor = (float)getSampleRateForCurrentMode() * 0.001f;
 
 	rate *= factor;
 	return expf(-logf((1.0f + targetRatio) / targetRatio) / rate);
