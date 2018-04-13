@@ -840,7 +840,7 @@ mc(mc_)
 	saveButton->addListener(this);
 	saveButton->setLookAndFeel(&blaf);
 	
-	addAndMakeVisible(manageButton = new TextButton("More"));
+    addAndMakeVisible(manageButton = new TextButton(HiseDeviceSimulator::isMobileDevice() ? "Sync" : "More"));
 	manageButton->addListener(this);
 	manageButton->setLookAndFeel(&blaf);
 
@@ -1288,21 +1288,32 @@ void MultiColumnPresetBrowser::buttonClicked(Button* b)
 			numIDs
 		};
 
-		p.addItem(ShowPresetFolder, "Show Preset Folder");
-		//p.addItem(ClearFavorites, "Clear Favorites");
-		p.addSeparator();
 
 		const bool categoryMode = currentCategoryFile.isDirectory();
 
 		const String destination = categoryMode ? ("presets in " + currentCategoryFile.getFileNameWithoutExtension()) : ("all presets");
 
-		if (HiseDeviceSimulator::isMobileDevice())
+        if(HiseDeviceSimulator::isMobileDevice() && !categoryMode)
+        {
+            p.addItem(numIDs, "You have to select a category for import / export", false, false);
+            
+        }
+		else if (HiseDeviceSimulator::isMobileDevice())
 		{
 			p.addItem(ImportPresetsFromClipboard, "Import " + destination + " from Clipboard");
 			p.addItem(ExportPresetsToClipboard, "Export " + destination + " to Clipboard");
 		}
 		else
 		{
+            p.addItem(ShowPresetFolder, "Show Preset Folder");
+            //p.addItem(ClearFavorites, "Clear Favorites");
+            p.addSeparator();
+            
+            p.addItem(ImportPresetsFromClipboard, "Import " + destination + " from Clipboard");
+            p.addItem(ExportPresetsToClipboard, "Export " + destination + " to Clipboard");
+            
+            p.addSeparator();
+            
 			p.addItem(ImportPresetsFromFile, "Import " + destination + " from Collection");
 			p.addItem(ExportPresetsToFile, "Export " + destination + " as Collection");
 		}

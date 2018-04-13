@@ -512,7 +512,7 @@ var PresetBrowserPanel::getDefaultProperty(int index) const
 		return FloatingTileContent::getDefaultProperty(index);
 
 #if HISE_IOS
-	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowFolderButton, false);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowFolderButton, true);
 #else
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowFolderButton, true);
 #endif
