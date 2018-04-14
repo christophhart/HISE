@@ -869,10 +869,15 @@ juce::String HiseSettings::ConversionHelpers::getNameForChannelPair(const String
 
 juce::String HiseSettings::ConversionHelpers::getCurrentOutputName(AudioIODevice* currentDevice)
 {
-	auto list = getChannelPairs(currentDevice);
-	const int thisOutputName = (currentDevice->getActiveOutputChannels().getHighestBit() - 1) / 2;
+	if(currentDevice != nullptr)
+	{
+		auto list = getChannelPairs(currentDevice);
+		const int thisOutputName = (currentDevice->getActiveOutputChannels().getHighestBit() - 1) / 2;
 
-	return list[thisOutputName];
+		return list[thisOutputName];
+	}
+
+	return "";
 }
 
 }

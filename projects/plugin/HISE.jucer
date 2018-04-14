@@ -246,7 +246,8 @@
     </VS2017>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="">
       <CONFIGURATIONS>
-        <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="HISE" defines="USE_IPP=0"/>
+        <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="HISE" defines="USE_IPP=0"
+                       binaryPath="~/.vst"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="HISE"
                        defines="USE_IPP=0"/>
       </CONFIGURATIONS>
