@@ -55,8 +55,9 @@ ML("| `useUndoManager` | Boolean | false | If enabled, value changes can be undo
 ML("| `macroControl` | Number(1 - 8) | -1 | Connect this control to a macro control slot. |");
 ML("| `saveInPreset` | Boolean | Depends on the type | If true, this control will be saved in a user preset as well as restored on recompilation.If false, controls will not be stored in the preset and their control callback will not be fired after compilation.This is a very important property and you definitely need to know when to use it. |");
 ML("| `isPluginParameter` | Boolean | false | If enabled, it exposes this control to a DAW for host automation. |");
-ML("| `pluginParameterName` | String | Empty | If this control is a plugin parameter, it will use this name for displaying in the host.| ");
-ML("| `processorId` | Module ID | Empty | The module that is controlled by this control |");
+ML("| `pluginParameterName` | String | Empty | If this control is a plugin parameter, it will use this name for displaying in the host. |");
+ML("| `isMetaParameter` | Boolean | false | If this control is a plugin parameter and causes other parameters to change their values (eg. a sync button that changes the values of the delay time knob), you'll have to set this to true in order to be fully standard compliant (Logic is known to cause issues when this isn't handled properly). |");
+ML("| `processorId` | Module ID | Empty | The module that is controlled by this control. |");
 ML("| `parameterId` | Parameter ID | Empty | the parameter ID of the module specified above that should be controlled.Use these two properties in order to hook up the control to a single parameter using the exact same range you specified below.As soon as you need something more complex, you need to use the scripting callbacks for it. |");
 ML("| `x`, `y`, `width`, `height` | Number | Various | The absolute pixel position / size of the control.You can use the sliders to change them relatively or just input a number into the text field to set all selected controls to the same value. |");
 ML("| `bgColour`, `itemColour`, `itemColour2`, `textColour` | String or hex number | Various | the colours for the given control.How these colours are used differs between the control types, but in most cases, `bgColour` is the background colour and `textColour` is used for rendering the text, otherwise it would be a bit weird. |");
@@ -191,6 +192,7 @@ void ScriptComponentEditPanel::fillPanel()
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::saveInPreset));
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::isPluginParameter));
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::pluginParameterName));
+        parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::isMetaParameter));
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::processorId));
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::parameterId));
 

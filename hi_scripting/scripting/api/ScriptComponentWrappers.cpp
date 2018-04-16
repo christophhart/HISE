@@ -1829,6 +1829,8 @@ void ScriptedControlAudioParameter::setControlledScriptComponent(ScriptingApi::C
 
 		range = NormalisableRange<float>(min, max);
 
+        isMeta = sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::isMetaParameter);
+        
 		switch (type)
 		{
 		case ScriptedControlAudioParameter::Type::Slider:
@@ -1854,7 +1856,8 @@ void ScriptedControlAudioParameter::setControlledScriptComponent(ScriptingApi::C
 		}
 		case ScriptedControlAudioParameter::Type::Button:
 			range.interval = 1.0f;
-            isMeta = (int)c->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::radioGroup) != 0;
+            if((int)c->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::radioGroup) != 0)
+                isMeta = true;
 			break;
 		case ScriptedControlAudioParameter::Type::ComboBox:
 			range.interval = 1.0f;
