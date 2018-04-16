@@ -1854,6 +1854,7 @@ void ScriptedControlAudioParameter::setControlledScriptComponent(ScriptingApi::C
 		}
 		case ScriptedControlAudioParameter::Type::Button:
 			range.interval = 1.0f;
+            isMeta = (int)c->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::radioGroup) != 0;
 			break;
 		case ScriptedControlAudioParameter::Type::ComboBox:
 			range.interval = 1.0f;
@@ -2021,6 +2022,17 @@ int ScriptedControlAudioParameter::getNumSteps() const
 	return parentProcessor->getDefaultNumParameterSteps();
 }
 
+bool ScriptedControlAudioParameter::isMetaParameter() const
+{
+    if(type == ScriptedControlAudioParameter::Type::Button)
+    {
+        return isMeta;
+    }
+    
+    return false;
+        
+}
+    
 void ScriptedControlAudioParameter::setParameterNotifyingHost(int index, float newValue)
 {
 	ScopedValueSetter<bool> setter(dynamic_cast<MainController*>(parentProcessor)->getPluginParameterUpdateState(), false, true);

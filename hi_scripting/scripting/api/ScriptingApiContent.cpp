@@ -1026,6 +1026,19 @@ void ScriptingApi::Content::ScriptSlider::setScriptObjectPropertyWithChangeMessa
 		setMidPoint(newValue);
 		return;
 	}
+    else if (id == getIdFor(defaultValue))
+    {
+        float v = (float)jlimit((double)getScriptObjectProperty(ScriptComponent::Properties::min),
+                                (double)getScriptObjectProperty(ScriptComponent::Properties::max),
+                                (double)newValue);
+        
+        v = FloatSanitizers::sanitizeFloatNumber(v);
+        
+        setScriptObjectProperty(defaultValue, var(v));
+        
+        
+        return;
+    }
 	else if (id == getIdFor(filmstripImage))
 	{
 		jassert(isCorrectlyInitialised(id));
