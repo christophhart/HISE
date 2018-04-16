@@ -1829,7 +1829,7 @@ void ScriptedControlAudioParameter::setControlledScriptComponent(ScriptingApi::C
 
 		range = NormalisableRange<float>(min, max);
 
-        isMeta = sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::isMetaParameter);
+        isMeta = c->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::isMetaParameter);
         
 		switch (type)
 		{
