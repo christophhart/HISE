@@ -1036,7 +1036,7 @@ CompileExporter::ErrorCodes CompileExporter::compileSolution(BuildOption buildOp
 	String permissionCommand = "chmod +x \"" + batchFile.getFullPathName() + "\"";
     system(permissionCommand.getCharPointer());
 
-	batchFile.revealToUser();
+	batchFile.getParentDirectory().revealToUser();
 
 #else
     
