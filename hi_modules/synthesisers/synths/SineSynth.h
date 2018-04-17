@@ -98,7 +98,8 @@ private:
 
 };
 
-class SineSynth: public ModulatorSynth
+class SineSynth: public ModulatorSynth,
+				 public WaveformComponent::Broadcaster
 {
 public:
 
@@ -214,6 +215,7 @@ public:
 		case FineFreqRatio:			fineRatio = newValue; break;
 		case SaturationAmount:		saturationAmount = newValue; 
 									saturator.setSaturationAmount(newValue); 
+									triggerWaveformUpdate();
 									return; // skip the calculation of the pitch ratio
 		default:					jassertfalse;
 									break;
@@ -246,6 +248,13 @@ public:
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
 
 	float const * getSaturatedTableValues();
+
+	void getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue) override
+	{
+		*tableValues = getSaturatedTableValues();
+		numValues = 128;
+		normalizeValue = 1.0f;
+	}
 
 private:
 

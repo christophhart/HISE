@@ -65,6 +65,30 @@ WavetableSynth::WavetableSynth(MainController *mc, const String &id, int numVoic
 	}
 }
 
+void WavetableSynth::getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue)
+{
+	WavetableSynthVoice *wavetableVoice = dynamic_cast<WavetableSynthVoice*>(getLastStartedVoice());
+
+	if (wavetableVoice != nullptr)
+	{
+		WavetableSound *wavetableSound = dynamic_cast<WavetableSound*>(wavetableVoice->getCurrentlyPlayingSound().get());
+
+		if (wavetableSound != nullptr)
+		{
+			const int tableIndex = wavetableVoice->getCurrentTableIndex();
+			*tableValues = wavetableSound->getWaveTableData(tableIndex);
+			numValues = wavetableSound->getTableSize();
+			normalizeValue = 1.0f / wavetableSound->getMaxLevel();
+		}
+	}
+	else
+	{
+		*tableValues = nullptr;
+		numValues = 0;
+		normalizeValue = 1.0f;
+	}
+}
+
 ProcessorEditorBody* WavetableSynth::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
@@ -271,6 +295,11 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 
 	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
 	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
+
+	if (getOwnerSynth()->getLastStartedVoice() == this)
+	{
+		static_cast<WavetableSynth*>(getOwnerSynth())->triggerWaveformUpdate();
+	}
 }
 
 const float *WavetableSynthVoice::getTableModulationValues(int startSample, int numSamples)

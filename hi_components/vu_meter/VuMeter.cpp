@@ -211,8 +211,6 @@ void VuMeter::drawStereoMeter(Graphics &g)
 			colours[ledColour].withAlpha(0.05f),
 			0.0f, h, false));
 
-
-
 		g.fillRect(2.0f, 2.0f, w / 2.0f - 3.0f, h - 4.0f);
 		g.fillRect(w / 2.0f + 1, 2.0f, w / 2.0f - 3.0f, h - 4.0f);
 
@@ -241,65 +239,5 @@ void VuMeter::drawStereoMeter(Graphics &g)
 	}
 }
 
-void WaveformComponent::paint(Graphics &g)
-{
-	Path path;
-
-	switch (type)
-	{
-	case Sine:
-	{
-		static const unsigned char pathData[] = { 110, 109, 0, 0, 37, 67, 92, 46, 171, 67, 98, 0, 0, 37, 67, 92, 46, 171, 67, 0, 0, 42, 67, 92, 174, 163, 67, 0, 0, 47, 67, 92, 174, 163, 67, 98, 0, 0, 52, 67, 92, 174, 163, 67, 0, 0, 57, 67, 92, 46, 171, 67, 0, 0, 57, 67, 92, 46, 171, 67, 98, 0, 0, 57, 67, 92, 46, 171, 67, 0, 0, 62, 67, 92, 174, 178, 67, 0, 0, 67, 67, 92, 174, 178, 67,
-			98, 0, 0, 72, 67, 92, 174, 178, 67, 0, 0, 77, 67, 92, 46, 171, 67, 0, 0, 77, 67, 92, 46, 171, 67, 99, 101, 0, 0 };
-
-		path.loadPathFromData(pathData, sizeof(pathData));
-
-		break;
-	}
-	case Triangle:
-	{
-		static const unsigned char pathData[] = { 110, 109, 0, 0, 32, 67, 92, 46, 186, 67, 108, 0, 0, 42, 67, 92, 174, 178, 67, 108, 0, 0, 52, 67, 92, 46, 186, 67, 108, 0, 0, 62, 67, 92, 174, 193, 67, 108, 0, 0, 72, 67, 92, 46, 186, 67, 99, 101, 0, 0 };
-
-		path.loadPathFromData(pathData, sizeof(pathData));
-
-		break;
-
-	}
-	case Saw:
-	{
-		static const unsigned char pathData[] = { 110, 109, 0, 0, 37, 67, 92, 174, 203, 67, 108, 0, 0, 37, 67, 92, 46, 196, 67, 108, 0, 0, 57, 67, 92, 174, 203, 67, 108, 0, 0, 77, 67, 92, 46, 211, 67, 108, 0, 0, 77, 67, 92, 174, 203, 67, 99, 101, 0, 0 };
-
-		path.loadPathFromData(pathData, sizeof(pathData));
-
-		break;
-
-	}
-	case Square:
-	{
-		static const unsigned char pathData[] = { 110, 109, 0, 0, 37, 67, 92, 174, 223, 67, 108, 0, 0, 37, 67, 92, 46, 216, 67, 108, 0, 0, 57, 67, 92, 46, 216, 67, 108, 0, 0, 57, 67, 92, 174, 223, 67, 108, 0, 0, 57, 67, 92, 46, 231, 67, 108, 0, 0, 77, 67, 92, 46, 231, 67, 108, 0, 0, 77, 67, 92, 174, 223, 67, 99, 101, 0, 0 };
-
-		path.loadPathFromData(pathData, sizeof(pathData));
-		break;
-
-	}
-	case Noise:
-	{
-		static const unsigned char pathData[] = { 110, 109, 0, 0, 92, 67, 92, 46, 211, 67, 108, 0, 0, 92, 67, 92, 174, 203, 67, 108, 0, 0, 97, 67, 92, 174, 203, 67, 108, 0, 0, 97, 67, 92, 46, 216, 67, 108, 0, 0, 102, 67, 92, 46, 216, 67, 108, 0, 0, 102, 67, 92, 174, 213, 67, 108, 0, 0, 107, 67, 92, 174, 213, 67, 108, 0, 0, 107, 67, 92, 46, 206, 67, 108, 0, 0, 112, 67, 92, 46, 206,
-			67, 108, 0, 0, 112, 67, 92, 46, 216, 67, 108, 0, 0, 117, 67, 92, 46, 216, 67, 108, 0, 0, 117, 67, 92, 174, 208, 67, 108, 0, 0, 122, 67, 92, 174, 208, 67, 108, 0, 0, 122, 67, 92, 46, 206, 67, 108, 0, 0, 127, 67, 92, 46, 206, 67, 108, 0, 0, 127, 67, 92, 174, 218, 67, 108, 0, 0, 130, 67, 92, 174, 218, 67, 108, 0, 0, 130, 67, 92, 46,
-			211, 67, 99, 101, 0, 0 };
-
-		path.loadPathFromData(pathData, sizeof(pathData));
-		break;
-
-	}
-	case Custom:
-	case numWaveformTypes: break;
-
-	}
-
-	path.scaleToFit(2.0f, 2.0f, (float)getWidth() - 4.0f, (float)getHeight() - 4.0f, false);
-
-	KnobLookAndFeel::fillPathHiStyle(g, path, getWidth(), getHeight());
-}
 
 } // namespace hise

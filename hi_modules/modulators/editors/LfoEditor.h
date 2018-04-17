@@ -57,7 +57,7 @@ public:
 
 		auto type = (int)getProcessor()->getAttribute(LfoModulator::WaveFormType);
 
-		waveformDisplay->setType(type);
+		
 
 		tempoSyncButton->updateValue();
 		retriggerButton->updateValue();
@@ -89,6 +89,7 @@ public:
 			refreshBodySize();
 			resized();
 		}
+
 	};
 
 	void timerCallback() override

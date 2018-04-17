@@ -37,11 +37,104 @@ namespace hise {
 using namespace juce;
 
 
-class WavetableDisplayComponent : public Component,
-	public Timer
+class WaveformComponent : public Component,
+						  public Timer
 {
 public:
 
+	enum InterpolationMode
+	{
+		Truncate,
+		LinearInterpolation,
+		numInterpolationModes
+	};
+
+	using ScaleFunction = std::function<float(float)>;
+
+	static float identity(float input) { return input; }
+
+	enum WaveformType
+	{
+		Sine = 1,
+		Triangle,
+		Saw,
+		Square,
+		Noise,
+		numWaveformTypes
+	};
+
+	class Broadcaster
+	{
+		class Updater : public Timer
+		{
+		public:
+
+			Updater(Broadcaster& p) :
+				parent(p)
+			{
+				startTimer(30);
+			}
+
+			void timerCallback() override
+			{
+				if (changeFlag)
+				{
+					changeFlag = false;
+
+					parent.updateData();
+				}
+			}
+
+			std::atomic<bool> changeFlag;
+
+			Broadcaster& parent;
+		};
+
+
+	public:
+
+		Broadcaster():
+			updater(*this)
+		{}
+
+		virtual ~Broadcaster() {};
+
+		
+		void triggerWaveformUpdate() { updater.changeFlag = true; };
+
+		void addWaveformListener(WaveformComponent* listener)
+		{
+			listeners.addIfNotAlreadyThere(listener);
+		}
+
+		void removeWaveformListener(WaveformComponent* listener)
+		{
+			listeners.removeAllInstancesOf(listener);
+		
+		}
+
+		void updateData();
+
+
+		ScaleFunction scaleFunction = identity;
+
+		InterpolationMode interpolationMode = LinearInterpolation;
+
+		virtual void getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue) = 0;
+
+		virtual int getNumWaveformDisplays() const { return 1; }
+
+	protected:
+
+	private:
+
+		Updater updater;
+		Array<Component::SafePointer<WaveformComponent>> listeners;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Broadcaster)
+	};
+
+	
 	enum ColourIds
 	{
 		bgColour = 1024,
@@ -50,9 +143,9 @@ public:
 		numColourIds
 	};
 
-	WavetableDisplayComponent(ModulatorSynth *synth_);
+	WaveformComponent(Processor *p, int index=0);
 
-	bool isDisplayForWavetableSynth() const;;
+	~WaveformComponent();
 
 	void setUseFlatDesign(bool shouldUseFlatDesign)
 	{
@@ -64,11 +157,16 @@ public:
 
 	void paint(Graphics &g);
 
+	void resized() override
+	{
+		rebuildPath();
+	}
+	
 	class Panel : public PanelWithProcessorConnection
 	{
 	public:
 
-		SET_PANEL_NAME("WavetablePreview");
+		SET_PANEL_NAME("Waveform");
 
 		Panel(FloatingTile* parent) :
 			PanelWithProcessorConnection(parent)
@@ -85,11 +183,29 @@ public:
 		void fillModuleList(StringArray& moduleList) override;
 	};
 
+protected:
+
+	void setTableValues(const float* values, int numValues, float normalizeValue_);
+
+	
+
 private:
 
+	int index = 0;
+
+	friend class Broadcaster;
+
+	static Path getPathForBasicWaveform(WaveformType t);
+
+	void rebuildPath();
+
+	Path p;
+	
 	bool useFlatDesign = false;
 
-	ModulatorSynth *synth;
+	WeakReference<Processor> processor;
+
+	
 
 	float const *tableValues;
 
@@ -125,7 +241,7 @@ protected:
 		updateGraphics();
 	}
 
-		SampleMapToWavetableConverter& parent;
+	SampleMapToWavetableConverter& parent;
 };
 
 

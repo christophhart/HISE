@@ -101,7 +101,7 @@ SineSynthBody::SineSynthBody (ProcessorEditor *p)
     saturationSlider->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
     saturationSlider->addListener (this);
 
-    addAndMakeVisible (waveDisplay = new WavetableDisplayComponent (dynamic_cast<ModulatorSynth*>(getProcessor())));
+    addAndMakeVisible (waveDisplay = new WaveformComponent (getProcessor()));
     waveDisplay->setName ("Waveform");
 
     addAndMakeVisible (label = new Label ("new label",
@@ -338,6 +338,8 @@ void SineSynthBody::updateGui()
 
 	fadeTimeEditor->setText(String((int)getProcessor()->getAttribute(ModulatorSynth::KillFadeTime)), dontSendNotification);
 	voiceAmountEditor->setText(String((int)getProcessor()->getAttribute(ModulatorSynth::VoiceLimit)), dontSendNotification);
+
+	
 }
 
 
@@ -403,7 +405,7 @@ BEGIN_JUCER_METADATA
           textBoxEditable="1" textBoxWidth="40" textBoxHeight="20" skewFactor="1"/>
   <GENERICCOMPONENT name="Waveform" id="59804142ae01ca30" memberName="waveDisplay"
                     virtualName="WavetableDisplayComponent" explicitFocusOrder="0"
-                    pos="149Rc 19 136 56" class="Component" params="dynamic_cast&lt;ModulatorSynth*&gt;(getProcessor())"/>
+                    pos="149Rc 19 136 56" class="Component" params="getProcessor()"/>
   <LABEL name="new label" id="bd1d8d6ad6d04bdc" memberName="label" virtualName=""
          explicitFocusOrder="0" pos="0Cc 80 128 40" textCol="52ffffff"
          edTextCol="ff000000" edBkgCol="0" labelText="SINE WAVE" editableSingleClick="0"

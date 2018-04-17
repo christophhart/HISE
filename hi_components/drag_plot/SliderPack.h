@@ -97,6 +97,19 @@ public:
 		sendAllocationFreeChangeMessage();
 	}
 
+	const float* getCachedData()
+	{
+		int size = getNumSliders();
+		cachedData.buffer.setSize(1, size);
+
+		for (int i = 0; i < size; i++)
+		{
+			cachedData.setSample(i, getValue(i));
+		}
+
+		return cachedData.buffer.getReadPointer(0);
+	}
+
 	var getDataArray() const { return values; }
 
 	void setFlashActive(bool shouldBeShown) { flashActive = shouldBeShown; };
@@ -157,6 +170,8 @@ private:
 	bool flashActive;
 	bool showValueOverlay;
 
+	VariantBuffer cachedData;
+	
 	WeakReference<SliderPackData>::Master masterReference;
 
 	friend class WeakReference < SliderPackData > ;

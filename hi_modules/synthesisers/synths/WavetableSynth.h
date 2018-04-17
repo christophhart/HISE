@@ -221,7 +221,8 @@ private:
 
 
 class WavetableSynth: public ModulatorSynth,
-					  public SliderPackProcessor
+					  public SliderPackProcessor,
+					  public WaveformComponent::Broadcaster
 {
 public:
 
@@ -280,6 +281,8 @@ public:
 	{
 		return pack;
 	}
+
+	void getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue) override;
 
 	float getGainValueFromTable(float level)
 	{
@@ -521,6 +524,8 @@ public:
 
 
 private:
+
+	
 
 	int currentBankIndex = 0;
 

@@ -111,56 +111,6 @@ private:
 
 };
 
-
-
-class WaveformComponent: public Component
-{
-public:
-
-	enum WaveformType
-	{
-		Sine = 1,
-		Triangle,
-		Saw,
-		Square,
-		Noise,
-		Custom,
-		numWaveformTypes
-	};
-
-	WaveformComponent():
-		type(Sine)
-	{};
-
-	void mouseDown(const MouseEvent &)
-	{
-		if (selector != nullptr)
-		{
-			selector->showPopup();
-		}
-	}
-
-	void setSelector(ComboBox *b)
-	{
-		selector = b;
-	}
-
-	void paint(Graphics &g);
-
-	void setType(int t)
-	{
-		type = (WaveformType)t;
-		repaint();
-	}
-
-private:
-
-	WaveformType type;
-
-	Component::SafePointer<ComboBox> selector;
-
-};
-
 } // namespace hise
 
 #endif  // VUMETER_H_INCLUDED

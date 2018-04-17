@@ -34,7 +34,7 @@ WavetableBody::WavetableBody (ProcessorEditor *p)
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
 
-    addAndMakeVisible (waveTableDisplay = new WavetableDisplayComponent (dynamic_cast<WavetableSynth*>(getProcessor())));
+    addAndMakeVisible (waveTableDisplay = new WaveformComponent (dynamic_cast<WavetableSynth*>(getProcessor())));
     waveTableDisplay->setName ("new component");
 
     addAndMakeVisible (fadeTimeLabel = new Label ("new label",

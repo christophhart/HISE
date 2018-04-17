@@ -77,9 +77,6 @@ public:
 
 		mixSlider->setEnabled(getProcessor()->getChildProcessor(WaveSynth::MixModulation)->getNumChildProcessors() == 0);
 
-		refreshWaveform(waveformDisplay, ((int)getProcessor()->getAttribute(WaveSynth::WaveForm1)));
-		refreshWaveform(waveformDisplay2, ((int)getProcessor()->getAttribute(WaveSynth::WaveForm2)));
-
 		if (!enableSecond)
 		{
 			mixSlider->setEnabled(false);
@@ -107,22 +104,7 @@ public:
 		return h;
 	}
 	
-	void refreshWaveform(WaveformComponent* component, int type)
-	{
-		if (type < WaveformComponent::WaveformType::Custom)
-		{
-			component->setType(type);
-			return;
-		}
-		
-		switch (type)
-		{
-		case WaveSynth::AdditionalWaveformTypes::Square2: component->setType(WaveformComponent::Square); break;
-		case WaveSynth::AdditionalWaveformTypes::Triangle2: component->setType(WaveformComponent::Triangle); break;
-		case WaveSynth::AdditionalWaveformTypes::Trapezoid1: component->setType(WaveformComponent::Saw); break;
-		case WaveSynth::AdditionalWaveformTypes::Trapezoid2: component->setType(WaveformComponent::Saw); break;
-		}
-	}
+	
 
     //[/UserMethods]
 

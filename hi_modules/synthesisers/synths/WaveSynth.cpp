@@ -54,6 +54,8 @@ WaveSynth::WaveSynth(MainController *mc, const String &id, int numVoices) :
     mixBuffer(1, 0),
 	mixChain(new ModulatorChain(mc, "Mix Modulation", 1, Modulation::GainMode, this))
 {
+	scaleFunction = [](float input) { return input * 2.0f - 1.0f; };
+
 	parameterNames.add("OctaveTranspose1");
 	parameterNames.add("WaveForm1");
 	parameterNames.add("Detune1");
@@ -66,6 +68,8 @@ WaveSynth::WaveSynth(MainController *mc, const String &id, int numVoices) :
 	parameterNames.add("EnableSecondOscillator");
 	parameterNames.add("PulseWidth1");
 	parameterNames.add("PulseWidth2");
+
+	WaveformLookupTables::init();
 
 	editorStateIdentifiers.add("MixChainShown");
 
@@ -165,6 +169,39 @@ float WaveSynth::getDefaultValue(int parameterIndex) const
 	case PulseWidth2:			return 0.5f;
 	default:					jassertfalse; return -1.0f;
 	}
+}
+
+void WaveSynth::getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue)
+{
+	auto type = displayIndex == 1 ? waveForm2 : waveForm1;
+
+	switch (type)
+	{
+	case hise::WaveformComponent::Sine:
+		*tableValues = WaveformLookupTables::sineTable;
+		break;
+	case hise::WaveformComponent::Triangle:
+	case AdditionalWaveformTypes::Triangle2:
+		*tableValues = WaveformLookupTables::triangleTable;
+		break;
+	case hise::WaveformComponent::Saw:
+	case AdditionalWaveformTypes::Trapezoid1:
+	case AdditionalWaveformTypes::Trapezoid2:
+		*tableValues = WaveformLookupTables::sawTable;
+		break;
+	case hise::WaveformComponent::Square:
+	case WaveSynth::AdditionalWaveformTypes::Square2:
+		*tableValues = WaveformLookupTables::squareTable;
+		break;
+	case hise::WaveformComponent::Noise:
+		*tableValues = WaveformLookupTables::randomTable;
+		break;
+	default:
+		break;
+	}
+
+	numValues = SAMPLE_LOOKUP_TABLE_SIZE;
+	normalizeValue = 1.0f;
 }
 
 float WaveSynth::getAttribute(int parameterIndex) const
@@ -320,6 +357,8 @@ void WaveSynth::refreshWaveForm(bool left)
 	{
 		static_cast<WaveSynthVoice*>(getVoice(i))->setWaveForm(left ? waveForm1 : waveForm2, left);
 	}
+
+	triggerWaveformUpdate();
 }
 
 void WaveSynth::refreshPulseWidth(bool left)
@@ -521,8 +560,6 @@ void WaveSynthVoice::setOctaveTransposeFactor(double newFactor, bool leftFactor)
 
 void WaveSynthVoice::setWaveForm(WaveformComponent::WaveformType type, bool left)
 {
-#if USE_MARTIN_FINKE_POLY_BLEP_ALGORITHM
-
 	switch ((int)type)
 	{
 	case hise::WaveformComponent::Sine: 
@@ -547,21 +584,8 @@ void WaveSynthVoice::setWaveForm(WaveformComponent::WaveformType type, bool left
 		break;
 	}
 
-#else
-	switch (type)
-	{
-	case WaveformComponent::Saw:	left ? (getLeftSample = &getSaw) :
-		(getRightSample = &getSaw); break;
-	case WaveformComponent::Sine:	left ? (getLeftSample = &getSine) :
-		(getRightSample = &getSine); break;
-	case WaveformComponent::Triangle:	left ? (getLeftSample = &getTriangle) :
-		(getRightSample = &getTriangle); break;
-	case WaveformComponent::Noise:	left ? (getLeftSample = &getNoise) :
-		(getRightSample = &getNoise); break;
-	default:						left ? (getLeftSample = &getPulse) :
-		(getRightSample = &getPulse); break;
-	}
-#endif
+	
+
 }
 
 void WaveSynthVoice::setPulseWidth(double pulseWidth, bool left)

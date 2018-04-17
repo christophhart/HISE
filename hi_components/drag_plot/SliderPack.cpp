@@ -37,7 +37,8 @@ stepSize(0.1),
 nextIndexToDisplay(-1),
 showValueOverlay(true),
 flashActive(true),
-undoManager(undoManager_)
+undoManager(undoManager_),
+cachedData(0)
 {
     enableAllocationFreeMessages(50);
     

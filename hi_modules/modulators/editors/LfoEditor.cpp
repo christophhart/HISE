@@ -76,7 +76,7 @@ LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
 	waveFormSelector->addItem (TRANS("Steps"), 7);
     waveFormSelector->addListener (this);
 
-    addAndMakeVisible (waveformDisplay = new WaveformComponent());
+    addAndMakeVisible (waveformDisplay = new WaveformComponent(getProcessor()));
     waveformDisplay->setName ("new component");
 
     addAndMakeVisible (tempoSyncButton = new HiToggleButton ("Tempo Sync"));
@@ -109,7 +109,7 @@ LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
 
     //[UserPreSize]
 
-	waveformDisplay->setSelector(waveFormSelector);
+	
 
 	waveFormSelector->setup(getProcessor(), LfoModulator::WaveFormType, "Waveform");
 
@@ -276,7 +276,7 @@ void LfoEditorBody::comboBoxChanged (ComboBox* comboBoxThatHasChanged)
     {
         //[UserComboBoxCode_waveFormSelector] -- add your combo box handling code here..
 
-		waveformDisplay->setType(waveFormSelector->getSelectedId());
+		
 
 		const bool newTableUsed = waveFormSelector->getSelectedId() == LfoModulator::Custom;
 		const bool newStepsUsed = waveFormSelector->getSelectedId() == LfoModulator::Steps;
@@ -375,7 +375,7 @@ BEGIN_JUCER_METADATA
             textWhenNonSelected="Select Waveform" textWhenNoItems="(no choices)"/>
   <GENERICCOMPONENT name="new component" id="5bdd135efdbc6b85" memberName="waveformDisplay"
                     virtualName="" explicitFocusOrder="0" pos="59 17 128 48" class="WaveformComponent"
-                    params=""/>
+                    params="getProcessor()"/>
   <TOGGLEBUTTON name="Tempo Sync" id="e77edc03c117de85" memberName="tempoSyncButton"
                 virtualName="HiToggleButton" explicitFocusOrder="0" pos="-73Cr 68 128 32"
                 tooltip="Enables sync to Host Tempo" txtcol="ffffffff" buttonText="Tempo Sync"

@@ -58,7 +58,7 @@ WaveSynthBody::WaveSynthBody (ProcessorEditor *p)
     waveFormSelector->addSeparator();
     waveFormSelector->addListener (this);
 
-    addAndMakeVisible (waveformDisplay = new WaveformComponent());
+    addAndMakeVisible (waveformDisplay = new WaveformComponent(getProcessor(), 0));
     waveformDisplay->setName ("new component");
 
     addAndMakeVisible (fadeTimeLabel = new Label ("new label",
@@ -127,7 +127,7 @@ WaveSynthBody::WaveSynthBody (ProcessorEditor *p)
     waveFormSelector2->addSeparator();
     waveFormSelector2->addListener (this);
 
-    addAndMakeVisible (waveformDisplay2 = new WaveformComponent());
+    addAndMakeVisible (waveformDisplay2 = new WaveformComponent(getProcessor(), 1));
     waveformDisplay2->setName ("new component");
 
     addAndMakeVisible (mixSlider = new HiSlider ("Mix"));
@@ -183,9 +183,6 @@ WaveSynthBody::WaveSynthBody (ProcessorEditor *p)
 
 	waveFormSelector->setup(getProcessor(), WaveSynth::SpecialParameters::WaveForm1, "Waveform 1");
 	waveFormSelector2->setup(getProcessor(), WaveSynth::SpecialParameters::WaveForm2, "Waveform 2");
-
-	waveformDisplay->setSelector(waveFormSelector);
-	waveformDisplay2->setSelector(waveFormSelector2);
 
 	octaveSlider->setup(getProcessor(), WaveSynth::SpecialParameters::OctaveTranspose1, "Octave 1");
 	octaveSlider->setMode(HiSlider::Discrete, -5.0, 5.0);
@@ -380,13 +377,13 @@ void WaveSynthBody::comboBoxChanged (ComboBox* comboBoxThatHasChanged)
     if (comboBoxThatHasChanged == waveFormSelector)
     {
         //[UserComboBoxCode_waveFormSelector] -- add your combo box handling code here..
-		waveformDisplay->setType(waveFormSelector->getSelectedId());
+		
         //[/UserComboBoxCode_waveFormSelector]
     }
     else if (comboBoxThatHasChanged == waveFormSelector2)
     {
         //[UserComboBoxCode_waveFormSelector2] -- add your combo box handling code here..
-		waveformDisplay2->setType(waveFormSelector2->getSelectedId());
+		
         //[/UserComboBoxCode_waveFormSelector2]
     }
 
@@ -485,7 +482,7 @@ BEGIN_JUCER_METADATA
             textWhenNonSelected="Select Waveform" textWhenNoItems="(no choices)"/>
   <GENERICCOMPONENT name="new component" id="5bdd135efdbc6b85" memberName="waveformDisplay"
                     virtualName="" explicitFocusOrder="0" pos="26 15 128 48" class="WaveformComponent"
-                    params=""/>
+                    params="getProcessor(), 0"/>
   <LABEL name="new label" id="f18e00eab8404cdf" memberName="fadeTimeLabel"
          virtualName="" explicitFocusOrder="0" pos="7C 61 79 24" textCol="ffffffff"
          edTextCol="ff000000" edBkgCol="0" labelText="Fade Time" editableSingleClick="0"
@@ -520,7 +517,7 @@ BEGIN_JUCER_METADATA
             textWhenNonSelected="Select Waveform" textWhenNoItems="(no choices)"/>
   <GENERICCOMPONENT name="new component" id="82267d619093f456" memberName="waveformDisplay2"
                     virtualName="" explicitFocusOrder="0" pos="26Rr 15 128 48" class="WaveformComponent"
-                    params=""/>
+                    params="getProcessor(), 1"/>
   <SLIDER name="Mix" id="3ef4da35a0bb5ce1" memberName="mixSlider" virtualName="HiSlider"
           explicitFocusOrder="0" pos="0Cc 13 128 48" min="0" max="100"
           int="1" style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"

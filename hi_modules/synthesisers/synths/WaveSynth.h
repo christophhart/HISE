@@ -185,7 +185,8 @@ private:
 	};
 };
 
-class WaveSynth: public ModulatorSynth
+class WaveSynth: public ModulatorSynth,
+				 public WaveformComponent::Broadcaster
 {
 public:
 
@@ -198,7 +199,7 @@ public:
 
 	enum AdditionalWaveformTypes
 	{
-		Triangle2 = WaveformComponent::WaveformType::Custom,
+		Triangle2 = WaveformComponent::WaveformType::numWaveformTypes,
 		Square2,
 		Trapezoid1,
 		Trapezoid2,
@@ -245,6 +246,9 @@ public:
 	
 	float getDefaultValue(int parameterIndex) const override;;
 
+	void getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue) override;
+
+	int getNumWaveformDisplays() const override { return 2; }
 
 	float getAttribute(int parameterIndex) const override;;
 

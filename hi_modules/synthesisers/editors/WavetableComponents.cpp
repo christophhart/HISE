@@ -35,57 +35,38 @@ using namespace juce;
 
 
 
-WavetableDisplayComponent::WavetableDisplayComponent(ModulatorSynth *synth_) :
-	synth(synth_),
+WaveformComponent::WaveformComponent(Processor* p, int index_) :
+	processor(p),
 	tableLength(0),
-	tableValues(nullptr)
+	tableValues(nullptr),
+	index(index_)
 {
 	setColour(bgColour, Colours::transparentBlack);
 	setColour(lineColour, Colours::white);
 	setColour(fillColour, Colours::white.withAlpha(0.5f));
 
-	if (isDisplayForWavetableSynth()) startTimer(50);
-	else setBufferedToImage(true);
-}
-
-bool WavetableDisplayComponent::isDisplayForWavetableSynth() const
-{
-	return dynamic_cast<WavetableSynth*>(synth) != nullptr;
-}
-
-void WavetableDisplayComponent::paint(Graphics &g)
-{
-	Path p;
-
-	float w = (float)getWidth();
-	float h = (float)getHeight();
-
-	p.startNewSubPath(0.0, h / 2.0f);
-
-	const float cycle = tableLength / w;
-
-	if (tableValues != nullptr)
+	if (p != nullptr)
 	{
-
-		for (int i = 0; i < getWidth(); i++)
-		{
-			const float tableIndex = ((float)i * cycle);
-
-			const int x1 = (int)tableIndex;
-			const int x2 = (x1 + 1) % tableLength;
-			const float alpha = tableIndex - (float)x1;
-
-			const float value = Interpolator::interpolateLinear(tableValues[x1], tableValues[x2], alpha);
-
-			jassert(tableIndex < tableLength);
-
-			p.lineTo((float)i, value * -(h - 2) / 2 + h / 2);
-		}
+		dynamic_cast<Broadcaster*>(p)->addWaveformListener(this);
+		dynamic_cast<Broadcaster*>(p)->getWaveformTableValues(index, &tableValues, tableLength, normalizeValue);
 	}
+	
+	setBufferedToImage(true);
+}
 
-	p.lineTo(w, h / 2.0f);
+WaveformComponent::~WaveformComponent()
+{
+	if (processor.get() != nullptr)
+	{
+		dynamic_cast<Broadcaster*>(processor.get())->removeWaveformListener(this);
+	}
+		
+}
 
-	p.closeSubPath();
+void WaveformComponent::paint(Graphics &g)
+{
+	auto w = (float)getWidth();
+	auto h = (float)getHeight();
 
 	if (useFlatDesign)
 	{
@@ -104,14 +85,141 @@ void WavetableDisplayComponent::paint(Graphics &g)
 	}
 }
 
-juce::Identifier WavetableDisplayComponent::Panel::getProcessorTypeId() const
+juce::Path WaveformComponent::getPathForBasicWaveform(WaveformType t)
+{
+	Path path;
+
+	switch (t)
+	{
+	case Sine:
+	{
+		static const unsigned char pathData[] = { 110, 109, 0, 0, 37, 67, 92, 46, 171, 67, 98, 0, 0, 37, 67, 92, 46, 171, 67, 0, 0, 42, 67, 92, 174, 163, 67, 0, 0, 47, 67, 92, 174, 163, 67, 98, 0, 0, 52, 67, 92, 174, 163, 67, 0, 0, 57, 67, 92, 46, 171, 67, 0, 0, 57, 67, 92, 46, 171, 67, 98, 0, 0, 57, 67, 92, 46, 171, 67, 0, 0, 62, 67, 92, 174, 178, 67, 0, 0, 67, 67, 92, 174, 178, 67,
+			98, 0, 0, 72, 67, 92, 174, 178, 67, 0, 0, 77, 67, 92, 46, 171, 67, 0, 0, 77, 67, 92, 46, 171, 67, 99, 101, 0, 0 };
+
+		path.loadPathFromData(pathData, sizeof(pathData));
+
+		break;
+	}
+	case Triangle:
+	{
+		static const unsigned char pathData[] = { 110, 109, 0, 0, 32, 67, 92, 46, 186, 67, 108, 0, 0, 42, 67, 92, 174, 178, 67, 108, 0, 0, 52, 67, 92, 46, 186, 67, 108, 0, 0, 62, 67, 92, 174, 193, 67, 108, 0, 0, 72, 67, 92, 46, 186, 67, 99, 101, 0, 0 };
+
+		path.loadPathFromData(pathData, sizeof(pathData));
+
+		break;
+
+	}
+	case Saw:
+	{
+		static const unsigned char pathData[] = { 110, 109, 0, 0, 37, 67, 92, 174, 203, 67, 108, 0, 0, 37, 67, 92, 46, 196, 67, 108, 0, 0, 57, 67, 92, 174, 203, 67, 108, 0, 0, 77, 67, 92, 46, 211, 67, 108, 0, 0, 77, 67, 92, 174, 203, 67, 99, 101, 0, 0 };
+
+		path.loadPathFromData(pathData, sizeof(pathData));
+
+		break;
+
+	}
+	case Square:
+	{
+		static const unsigned char pathData[] = { 110, 109, 0, 0, 37, 67, 92, 174, 223, 67, 108, 0, 0, 37, 67, 92, 46, 216, 67, 108, 0, 0, 57, 67, 92, 46, 216, 67, 108, 0, 0, 57, 67, 92, 174, 223, 67, 108, 0, 0, 57, 67, 92, 46, 231, 67, 108, 0, 0, 77, 67, 92, 46, 231, 67, 108, 0, 0, 77, 67, 92, 174, 223, 67, 99, 101, 0, 0 };
+
+		path.loadPathFromData(pathData, sizeof(pathData));
+		break;
+
+	}
+	case Noise:
+	{
+		static const unsigned char pathData[] = { 110, 109, 0, 0, 92, 67, 92, 46, 211, 67, 108, 0, 0, 92, 67, 92, 174, 203, 67, 108, 0, 0, 97, 67, 92, 174, 203, 67, 108, 0, 0, 97, 67, 92, 46, 216, 67, 108, 0, 0, 102, 67, 92, 46, 216, 67, 108, 0, 0, 102, 67, 92, 174, 213, 67, 108, 0, 0, 107, 67, 92, 174, 213, 67, 108, 0, 0, 107, 67, 92, 46, 206, 67, 108, 0, 0, 112, 67, 92, 46, 206,
+			67, 108, 0, 0, 112, 67, 92, 46, 216, 67, 108, 0, 0, 117, 67, 92, 46, 216, 67, 108, 0, 0, 117, 67, 92, 174, 208, 67, 108, 0, 0, 122, 67, 92, 174, 208, 67, 108, 0, 0, 122, 67, 92, 46, 206, 67, 108, 0, 0, 127, 67, 92, 46, 206, 67, 108, 0, 0, 127, 67, 92, 174, 218, 67, 108, 0, 0, 130, 67, 92, 174, 218, 67, 108, 0, 0, 130, 67, 92, 46,
+			211, 67, 99, 101, 0, 0 };
+
+		path.loadPathFromData(pathData, sizeof(pathData));
+		break;
+
+	}
+	
+	}
+
+	return path;
+}
+
+void WaveformComponent::setTableValues(const float* values, int numValues, float normalizeValue_)
+{
+	tableValues = values;
+	tableLength = numValues;
+	normalizeValue = normalizeValue_;
+}
+
+void WaveformComponent::rebuildPath()
+{
+	auto broadcaster = dynamic_cast<Broadcaster*>(processor.get());
+
+	p.clear();
+
+	if (broadcaster == nullptr)
+		return;
+
+	if (tableLength == 0)
+	{
+		repaint();
+		return;
+	}
+		
+
+	float w = (float)getWidth();
+	float h = (float)getHeight();
+
+	p.startNewSubPath(0.0, h / 2.0f);
+
+	const float cycle = tableLength / w;
+
+	if (tableValues != nullptr && tableLength > 0)
+	{
+
+		for (int i = 0; i < getWidth(); i++)
+		{
+			const float tableIndex = ((float)i * cycle);
+
+			float value;
+
+			if (broadcaster->interpolationMode == LinearInterpolation)
+			{
+				const int x1 = (int)tableIndex;
+				const int x2 = (x1 + 1) % tableLength;
+				const float alpha = tableIndex - (float)x1;
+
+				value = Interpolator::interpolateLinear(tableValues[x1], tableValues[x2], alpha);
+			}
+			else
+			{
+				value = tableValues[(int)tableIndex];
+			}
+			
+			value = broadcaster->scaleFunction(value);
+			
+			jassert(tableIndex < tableLength);
+
+			p.lineTo((float)i, value * -(h - 2) / 2 + h / 2);
+		}
+	}
+
+	p.lineTo(w, h / 2.0f);
+
+	p.closeSubPath();
+
+	repaint();
+}
+
+juce::Identifier WaveformComponent::Panel::getProcessorTypeId() const
 {
 	return WavetableSynth::getClassType();
 }
 
-Component* WavetableDisplayComponent::Panel::createContentComponent(int /*index*/)
+Component* WaveformComponent::Panel::createContentComponent(int index)
 {
-	auto c = new WavetableDisplayComponent(dynamic_cast<WavetableSynth*>(getProcessor()));
+	if (index == -1)
+		index = 0;
+
+	auto c = new WaveformComponent(getProcessor(), index);
 
 	c->setUseFlatDesign(true);
 	c->setColour(bgColour, findPanelColour(FloatingTileContent::PanelColourId::bgColour));
@@ -121,14 +229,15 @@ Component* WavetableDisplayComponent::Panel::createContentComponent(int /*index*
 	return c;
 }
 
-void WavetableDisplayComponent::Panel::fillModuleList(StringArray& moduleList)
+void WaveformComponent::Panel::fillModuleList(StringArray& moduleList)
 {
 	fillModuleListWithType<WavetableSynth>(moduleList);
 }
 
 
-void WavetableDisplayComponent::timerCallback()
+void WaveformComponent::timerCallback()
 {
+#if 0
 	ModulatorSynthVoice *voice = dynamic_cast<ModulatorSynthVoice*>(synth->getLastStartedVoice());
 
 	if (voice == nullptr) return;
@@ -163,7 +272,7 @@ void WavetableDisplayComponent::timerCallback()
 		tableValues = nullptr;
 		repaint();
 	}
-
+#endif
 
 
 }
@@ -389,5 +498,27 @@ SampleMapToWavetableConverter::SampleMapPreview::Sample::Sample(const ValueTree&
 }
 
 #endif
+
+void WaveformComponent::Broadcaster::updateData()
+{
+	for (int i = 0; i < getNumWaveformDisplays(); i++)
+	{
+		float const* values = nullptr;
+		int numValues = 0;
+		float normalizeFactor = 1.0f;
+
+		getWaveformTableValues(i, &values, numValues, normalizeFactor);
+
+		for (auto l : listeners)
+		{
+			if (l.getComponent() != nullptr && l->index == i)
+			{
+				l->setTableValues(values, numValues, normalizeFactor);
+				l->rebuildPath();
+			}
+		}
+	}
+
+}
 
 }

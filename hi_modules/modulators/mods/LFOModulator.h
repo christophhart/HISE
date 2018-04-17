@@ -35,6 +35,22 @@
 
 namespace hise { using namespace juce;
 
+
+struct WaveformLookupTables
+{
+	static void init();
+
+	static bool initialised;
+
+	static float sineTable[SAMPLE_LOOKUP_TABLE_SIZE];
+	static float triangleTable[SAMPLE_LOOKUP_TABLE_SIZE];
+	static float sawTable[SAMPLE_LOOKUP_TABLE_SIZE];
+	static float squareTable[SAMPLE_LOOKUP_TABLE_SIZE];
+	static float randomTable[SAMPLE_LOOKUP_TABLE_SIZE];
+
+
+};
+
 /** A Lfo Modulator modulates the signal with a low frequency
 *
 *	@ingroup modulatorTypes
@@ -45,7 +61,8 @@ namespace hise { using namespace juce;
 class LfoModulator: public TimeVariantModulator,
 					public TempoListener,
 					public LookupTableProcessor,
-					public SliderPackProcessor
+					public SliderPackProcessor,
+					public WaveformComponent::Broadcaster
 {
 public:
 
@@ -174,6 +191,8 @@ public:
 	float getAttribute (int parameter_index) const override;
 	void setInternalAttribute (int parameter_index, float newValue) override;
 
+	void getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue) override;
+
 	/** Updates the tempo. */
 	void tempoChanged(double /*newTempo*/) override
 	{
@@ -185,7 +204,7 @@ public:
 	void handleHiseEvent(const HiseEvent &m) override;
 
 	/** sets up the smoothing filter. */
-	virtual void prepareToPlay(double sampleRate, int samplesPerBlock) override;
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 
 	void calculateBlock(int startSample, int numSamples) override
 	{
@@ -241,7 +260,26 @@ public:
 		return customTable;
 	};
 
+	
 private:
+
+	class WaveformUpdater: public SafeChangeListener
+	{
+	public:
+
+		WaveformUpdater(LfoModulator& p) :
+			parent(p)
+		{};
+
+		void changeListenerCallback(SafeChangeBroadcaster *b) override
+		{
+			parent.triggerWaveformUpdate();
+		}
+
+		LfoModulator& parent;
+	};
+
+	WaveformUpdater updater;
 
 	/** Calculates the oscillator value of the LFO
 	*	Don't use this for GUI stuff, since it advances the LFO
@@ -252,17 +290,18 @@ private:
 	{
 		switch(currentWaveform)
 		{
-		case Sine:		currentTable = sineTable; break;
-		case Triangle:	currentTable = triangleTable; break;
-		case Saw:		currentTable = sawTable; break;
-		case Square:	currentTable = squareTable; break;
+		case Sine:		currentTable = WaveformLookupTables::sineTable; break;
+		case Triangle:	currentTable = WaveformLookupTables::triangleTable; break;
+		case Saw:		currentTable = WaveformLookupTables::sawTable; break;
+		case Square:	currentTable = WaveformLookupTables::squareTable; break;
 		case Random:	currentTable = nullptr; break;
 		case Custom:	currentTable = customTable->getReadPointer(); break;
-		default:		currentTable = sineTable; break;
+		default:		currentTable = WaveformLookupTables::sineTable; break;
 			
 
 		}
 
+		triggerWaveformUpdate();
 	}
 
 
@@ -322,23 +361,8 @@ private:
 
 	void calcAngleDelta();;
 
-	static void initSampleTables()
-	{
-		const float max = (float)SAMPLE_LOOKUP_TABLE_SIZE;
-		const float half = SAMPLE_LOOKUP_TABLE_SIZE / 2;
 
-		for(int i = 0; i < SAMPLE_LOOKUP_TABLE_SIZE; i++)
-		{
-			sineTable[i] = 0.5f *cosf(i * float_Pi / half) + 0.5f;
 
-			triangleTable[i] = i >= half ? (float)(2.0 * i) / max -1.0f:
-										  (float)( - 2.0 * i) / max + 1.0f;
-
-			sawTable[i] = (float)(1.0f * i) / max;
-
-			squareTable[i] = i >= half ? 0.0f : 1.0f;
-		}
-	}
 
 	AudioSampleBuffer intensityBuffer;
 
@@ -350,10 +374,8 @@ private:
 
 	float intensityModulationValue;
 
-	static float sineTable[SAMPLE_LOOKUP_TABLE_SIZE];
-	static float triangleTable[SAMPLE_LOOKUP_TABLE_SIZE];
-	static float sawTable[SAMPLE_LOOKUP_TABLE_SIZE];
-	static float squareTable[SAMPLE_LOOKUP_TABLE_SIZE];
+	
+
 	ScopedPointer<SampleLookupTable> customTable;
 
 	ScopedPointer<SliderPackData> data;

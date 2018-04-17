@@ -23,7 +23,7 @@
 //[Headers]     -- You can add your own extra header files here --
 namespace hise { using namespace juce;
 
-class WavetableDisplayComponent;
+class WaveformComponent;
 
 //[/Headers]
 
@@ -80,7 +80,7 @@ private:
     ScopedPointer<HiSlider> semiToneSlider;
     ScopedPointer<HiToggleButton> musicalRatio;
     ScopedPointer<HiSlider> saturationSlider;
-    ScopedPointer<WavetableDisplayComponent> waveDisplay;
+    ScopedPointer<WaveformComponent> waveDisplay;
     ScopedPointer<Label> label;
 
 

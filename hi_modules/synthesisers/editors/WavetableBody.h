@@ -84,7 +84,7 @@ private:
     //[/UserVariables]
 
     //==============================================================================
-    ScopedPointer<WavetableDisplayComponent> waveTableDisplay;
+    ScopedPointer<WaveformComponent> waveTableDisplay;
     ScopedPointer<Label> fadeTimeLabel;
     ScopedPointer<Label> voiceAmountLabel;
     ScopedPointer<Label> voiceAmountEditor;

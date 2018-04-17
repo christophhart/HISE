@@ -60,9 +60,11 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	legato(getDefaultValue(Legato) >= 0.5f),
 	loopEnabled(getDefaultValue(LoopEnabled) >= 0.5f),
 	tempoSync(getDefaultValue(TempoSync) >= 0.5f),
-	smoothingTime(getDefaultValue(SmoothingTime))
+	smoothingTime(getDefaultValue(SmoothingTime)),
+	updater(*this)
 {
 	
+	scaleFunction = [](float input) { return input * 2.0f - 1.0f; };
 
 	editorStateIdentifiers.add("IntensityChainShown");
 	editorStateIdentifiers.add("FrequencyChainShown");
@@ -87,11 +89,14 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	frequencyChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
 	intensityChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
 
-	initSampleTables();
+	WaveformLookupTables::init();
 
 	setCurrentWaveform();
 
 	CHECK_COPY_AND_RETURN_10(this);
+
+	customTable->addChangeListener(&updater);
+	data->addChangeListener(&updater);
 
 	setTargetRatioA(0.3f);
 	
@@ -99,6 +104,10 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 
 LfoModulator::~LfoModulator()
 {
+	customTable->removeAllChangeListeners();
+	data->removeAllChangeListeners();
+	customTable = nullptr;
+
 	getMainController()->removeTempoListener(this);
 };
 
@@ -243,6 +252,33 @@ void LfoModulator::setInternalAttribute (int parameter_index, float newValue)
 	}
 };
 
+
+void LfoModulator::getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue)
+{
+	if (currentWaveform == Random)
+	{
+		*tableValues = WaveformLookupTables::randomTable;
+		numValues = SAMPLE_LOOKUP_TABLE_SIZE;
+		normalizeValue = 1.0f;
+		interpolationMode = WaveformComponent::Truncate;
+	}
+	else if (currentWaveform == Steps)
+	{
+		*tableValues = data->getCachedData();
+		numValues = data->getNumSliders();
+		normalizeValue = 1.0f;
+
+		interpolationMode = WaveformComponent::Truncate;
+	}
+	else 
+	{
+		*tableValues = currentTable;
+		numValues = SAMPLE_LOOKUP_TABLE_SIZE;
+		normalizeValue = 1.0f;
+
+		interpolationMode = WaveformComponent::LinearInterpolation;
+	}
+}
 
 float LfoModulator::calculateNewValue ()
 {
@@ -434,9 +470,44 @@ void LfoModulator::calcAngleDelta()
 	angleDelta = cyclesPerSample * (double)SAMPLE_LOOKUP_TABLE_SIZE;
 }
 
-float LfoModulator::sineTable[SAMPLE_LOOKUP_TABLE_SIZE];
-float LfoModulator::triangleTable[SAMPLE_LOOKUP_TABLE_SIZE];
-float LfoModulator::sawTable[SAMPLE_LOOKUP_TABLE_SIZE];
-float LfoModulator::squareTable[SAMPLE_LOOKUP_TABLE_SIZE];
+float WaveformLookupTables::sineTable[SAMPLE_LOOKUP_TABLE_SIZE];
+float WaveformLookupTables::triangleTable[SAMPLE_LOOKUP_TABLE_SIZE];
+float WaveformLookupTables::sawTable[SAMPLE_LOOKUP_TABLE_SIZE];
+float WaveformLookupTables::squareTable[SAMPLE_LOOKUP_TABLE_SIZE];
+float WaveformLookupTables::randomTable[SAMPLE_LOOKUP_TABLE_SIZE];
+bool WaveformLookupTables::initialised = false;
+
+void WaveformLookupTables::init()
+{
+	if (initialised)
+		return;
+
+	const float max = (float)SAMPLE_LOOKUP_TABLE_SIZE;
+	const float half = SAMPLE_LOOKUP_TABLE_SIZE / 2;
+
+	juce::Random r;
+
+	float lastRandomValue = r.nextFloat();
+
+	for (int i = 0; i < SAMPLE_LOOKUP_TABLE_SIZE; i++)
+	{
+		sineTable[i] = 0.5f *cosf(i * float_Pi / half) + 0.5f;
+
+		triangleTable[i] = i >= half ? (float)(2.0 * i) / max - 1.0f :
+			(float)(-2.0 * i) / max + 1.0f;
+
+		sawTable[i] = (float)(1.0f * i) / max;
+
+		squareTable[i] = i >= half ? 0.0f : 1.0f;
+
+		if (i % 32 == 0)
+			lastRandomValue = r.nextFloat();
+
+		randomTable[i] = lastRandomValue;
+
+	}
+
+	initialised = true;
+}
 
 } // namespace hise
