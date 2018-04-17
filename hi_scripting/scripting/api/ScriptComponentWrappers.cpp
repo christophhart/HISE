@@ -1829,6 +1829,8 @@ void ScriptedControlAudioParameter::setControlledScriptComponent(ScriptingApi::C
 
 		range = NormalisableRange<float>(min, max);
 
+        isMeta = c->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::isMetaParameter);
+        
 		switch (type)
 		{
 		case ScriptedControlAudioParameter::Type::Slider:
@@ -1854,6 +1856,8 @@ void ScriptedControlAudioParameter::setControlledScriptComponent(ScriptingApi::C
 		}
 		case ScriptedControlAudioParameter::Type::Button:
 			range.interval = 1.0f;
+            if((int)c->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::radioGroup) != 0)
+                isMeta = true;
 			break;
 		case ScriptedControlAudioParameter::Type::ComboBox:
 			range.interval = 1.0f;
@@ -2021,6 +2025,17 @@ int ScriptedControlAudioParameter::getNumSteps() const
 	return parentProcessor->getDefaultNumParameterSteps();
 }
 
+bool ScriptedControlAudioParameter::isMetaParameter() const
+{
+    if(type == ScriptedControlAudioParameter::Type::Button)
+    {
+        return isMeta;
+    }
+    
+    return false;
+        
+}
+    
 void ScriptedControlAudioParameter::setParameterNotifyingHost(int index, float newValue)
 {
 	ScopedValueSetter<bool> setter(dynamic_cast<MainController*>(parentProcessor)->getPluginParameterUpdateState(), false, true);

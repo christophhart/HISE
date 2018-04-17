@@ -625,6 +625,8 @@ juce::ValueTree HiseSettings::ConversionHelpers::loadValueTreeFromXml(XmlElement
 		}
 		else if (settingId == SettingFiles::MidiSettings)
 		{
+#if IS_STANDALONE_APP
+
 			StringArray active;
 
 			for (int i = 0; i < xml->getNumChildElements(); i++)
@@ -634,6 +636,8 @@ juce::ValueTree HiseSettings::ConversionHelpers::loadValueTreeFromXml(XmlElement
 					active.add(xml->getChildElement(i)->getStringAttribute("name"));
 				}
 			}
+
+
 
 			StringArray allInputs = MidiInput::getDevices();
 
@@ -647,7 +651,7 @@ juce::ValueTree HiseSettings::ConversionHelpers::loadValueTreeFromXml(XmlElement
 					values.setBit(index, true);
 			}
 
-#if IS_STANDALONE_APP
+
 			addChildWithValue(v2, Midi::MidiInput, values.toInt64());
 #endif
 

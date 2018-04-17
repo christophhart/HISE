@@ -267,6 +267,7 @@ public:
 			saveInPreset,
 			isPluginParameter,
 			pluginParameterName,
+            isMetaParameter,
 			useUndoManager,
 			parentComponent,
 			processorId,

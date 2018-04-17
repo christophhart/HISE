@@ -72,6 +72,9 @@ public:
 	void setParameterNotifyingHost(int index, float newValue);
 	bool isAutomatable() const override { return true; };
 
+    
+    bool isMetaParameter() const override;
+    
 	static Type getType(ScriptingApi::Content::ScriptComponent *component);
 
 	static String getNameForComponent(ScriptingApi::Content::ScriptComponent *component)
@@ -99,7 +102,8 @@ private:
 	int componentIndex;
 	String suffix;
 	StringArray itemList;
-
+    bool isMeta = false;
+    
 	float lastValue = -1.0f;
 	bool lastValueInitialised = false;
 
