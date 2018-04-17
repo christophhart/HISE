@@ -622,7 +622,7 @@ void ConvolutionEffect::LoadingThread::reloadInternal()
 
 	auto resampleRatio = parent.getResampleFactor();
 
-	int resampledLength = roundDoubleToInt((double)irLength / resampleRatio);
+	int resampledLength = roundDoubleToInt((double)irLength * resampleRatio);
 
 	AudioSampleBuffer scratchBuffer(2, resampledLength);
 
@@ -636,9 +636,9 @@ void ConvolutionEffect::LoadingThread::reloadInternal()
 	if (resampleRatio != 1.0)
 	{
 		LagrangeInterpolator resampler;
-		resampler.process(resampleRatio, l, scratchBuffer.getWritePointer(0), resampledLength);
+		resampler.process(1.0 / resampleRatio, l, scratchBuffer.getWritePointer(0), resampledLength);
 		resampler.reset();
-		resampler.process(resampleRatio, r, scratchBuffer.getWritePointer(1), resampledLength);
+		resampler.process(1.0 / resampleRatio, r, scratchBuffer.getWritePointer(1), resampledLength);
 	}
 	else
 	{
