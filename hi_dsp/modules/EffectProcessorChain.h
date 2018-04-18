@@ -376,7 +376,8 @@ public:
 		slotFX,
 		emptyFX,
 		dynamics,
-		analyser
+		analyser,
+		shapeFX
 	};
 
 	EffectProcessorChainFactoryType(int numVoices_, Processor *ownerProcessor):

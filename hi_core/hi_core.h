@@ -65,6 +65,7 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
 #include "../JUCE/modules/juce_product_unlocking/juce_product_unlocking.h"
 #include "../JUCE/modules/juce_opengl/juce_opengl.h"
+#include "../JUCE/modules/juce_dsp/juce_dsp.h"
 #include "../hi_streaming/hi_streaming.h"
 
 

@@ -131,7 +131,7 @@ public:
 	{
 		ScopedLock sl(getMainController()->getLock());
 
-		downsampleFactor = jlimit<float>(1.0f, 128.0f, roundFloatToInt(newValue));
+		downsampleFactor = jlimit(1, 128, roundFloatToInt(newValue));
 		ecoMode = downsampleFactor > 1.5f;
 		setAttackRate(attack);
 		setDecayRate(decay);

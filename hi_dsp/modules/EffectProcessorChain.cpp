@@ -83,6 +83,7 @@ void EffectProcessorChainFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(EmptyFX);
 	ADD_NAME_TO_TYPELIST(DynamicsEffect);
 	ADD_NAME_TO_TYPELIST(AnalyserEffect);
+	ADD_NAME_TO_TYPELIST(ShapeFX);
 };
 
 Processor* EffectProcessorChainFactoryType::createProcessor	(int typeIndex, const String &id)
@@ -114,6 +115,7 @@ Processor* EffectProcessorChainFactoryType::createProcessor	(int typeIndex, cons
 	case emptyFX:						return new EmptyFX(m, id);
 	case dynamics:						return new DynamicsEffect(m, id);
 	case analyser:						return new AnalyserEffect(m, id);
+	case shapeFX:						return new ShapeFX(m, id);
 	default:					jassertfalse; return nullptr;
 	}
 };

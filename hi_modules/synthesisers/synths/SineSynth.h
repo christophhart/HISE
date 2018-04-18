@@ -249,7 +249,7 @@ public:
 
 	float const * getSaturatedTableValues();
 
-	void getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue) override
+	void getWaveformTableValues(int /*displayIndex*/, float const** tableValues, int& numValues, float& normalizeValue) override
 	{
 		*tableValues = getSaturatedTableValues();
 		numValues = 128;
