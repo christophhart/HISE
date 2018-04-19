@@ -35,6 +35,7 @@ using namespace juce;
                                                                     //[/Comments]
 */
 class ShapeFXEditor  : public ProcessorEditorBody,
+                       public Timer,
                        public Slider::Listener,
                        public ComboBox::Listener,
                        public Button::Listener
@@ -47,6 +48,15 @@ public:
     //==============================================================================
     //[UserMethods]     -- You can add your own custom methods in this section.
 
+	void timerCallback() override
+	{
+		// Returns a rectangle because of lazyness
+		auto values = dynamic_cast<ShapeFX*>(getProcessor())->getPeakValues();
+
+		inMeter->setPeak(values.getX(), values.getY());
+		outMeter->setPeak(values.getWidth(), values.getHeight());
+	}
+
 	void updateGui() override
 	{
 		biasLeft->updateValue();
@@ -55,13 +65,30 @@ public:
 		highPass->updateValue();
 		gainSlider->updateValue();
 		reduceSlider->updateValue();
-		driveSlider->updateValue();
+		lowPass->updateValue();
 		mixSlider->updateValue();
 		oversampling->updateValue();
 		autoGain->updateValue();
+		limitButton->updateValue();
+
+		table->setVisible((int)getProcessor()->getAttribute(ShapeFX::SpecialParameters::Mode) == (int)ShapeFX::ShapeMode::Curve);
+		editor->setVisible((int)getProcessor()->getAttribute(ShapeFX::SpecialParameters::Mode) == (int)ShapeFX::ShapeMode::Function);
+
+		refreshBodySize();
 	}
 
-	int getBodyHeight() const override { return h; }
+	int getBodyHeight() const override { return (table->isVisible() || editor->isVisible()) ? 600 : 330; }
+
+	bool keyPressed(const KeyPress& key) override
+	{
+		if (key.isKeyCode(KeyPress::F5Key))
+		{
+			dynamic_cast<ShapeFX*>(getProcessor())->compileScript();
+			return true;
+		}
+
+		return false;
+	}
 
     //[/UserMethods]
 
@@ -76,6 +103,8 @@ public:
 private:
     //[UserVariables]   -- You can add your own custom variables in this section.
 	int h;
+
+	ScopedPointer<JavascriptTokeniser> tokeniser;
     //[/UserVariables]
 
     //==============================================================================
@@ -88,11 +117,13 @@ private:
     ScopedPointer<HiSlider> highPass;
     ScopedPointer<HiSlider> gainSlider;
     ScopedPointer<HiSlider> reduceSlider;
-    ScopedPointer<HiSlider> driveSlider;
     ScopedPointer<HiSlider> mixSlider;
     ScopedPointer<HiComboBox> oversampling;
     ScopedPointer<HiToggleButton> autoGain;
-    ScopedPointer<Label> function;
+    ScopedPointer<HiSlider> lowPass;
+    ScopedPointer<TableEditor> table;
+    ScopedPointer<JavascriptCodeEditor> editor;
+    ScopedPointer<HiToggleButton> limitButton;
 
 
     //==============================================================================

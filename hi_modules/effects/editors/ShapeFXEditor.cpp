@@ -33,6 +33,10 @@ ShapeFXEditor::ShapeFXEditor (ProcessorEditor* p)
     : ProcessorEditorBody(p)
 {
     //[Constructor_pre] You can add your own custom stuff here..
+	auto sfx = dynamic_cast<ShapeFX*>(getProcessor());
+
+	tokeniser = new JavascriptTokeniser();
+
     //[/Constructor_pre]
 
     addAndMakeVisible (shapeDisplay = new WaveformComponent (dynamic_cast<ShapeFX*>(getProcessor())));
@@ -108,16 +112,6 @@ ShapeFXEditor::ShapeFXEditor (ProcessorEditor* p)
     reduceSlider->addListener (this);
     reduceSlider->setSkewFactor (0.3);
 
-    addAndMakeVisible (driveSlider = new HiSlider ("Decay"));
-    driveSlider->setRange (1, 20000, 1);
-    driveSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
-    driveSlider->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
-    driveSlider->setColour (Slider::backgroundColourId, Colour (0x00000000));
-    driveSlider->setColour (Slider::thumbColourId, Colour (0x80666666));
-    driveSlider->setColour (Slider::textBoxTextColourId, Colours::white);
-    driveSlider->addListener (this);
-    driveSlider->setSkewFactor (0.3);
-
     addAndMakeVisible (mixSlider = new HiSlider ("Mix"));
     mixSlider->setRange (1, 20000, 1);
     mixSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
@@ -131,41 +125,56 @@ ShapeFXEditor::ShapeFXEditor (ProcessorEditor* p)
     addAndMakeVisible (oversampling = new HiComboBox ("new combo box"));
     oversampling->setEditableText (false);
     oversampling->setJustificationType (Justification::centredLeft);
-    oversampling->setTextWhenNothingSelected (TRANS("Filter mode"));
+    oversampling->setTextWhenNothingSelected (TRANS("Oversampling"));
     oversampling->setTextWhenNoChoicesAvailable (TRANS("(no choices)"));
     oversampling->addItem (TRANS("1x"), 1);
     oversampling->addItem (TRANS("2x"), 2);
-    oversampling->addItem (TRANS("4x"), 4);
-    oversampling->addItem (TRANS("8x"), 8);
-    oversampling->addItem (TRANS("16x"), 16);
+    oversampling->addItem (TRANS("4x"), 3);
+    oversampling->addItem (TRANS("8x"), 4);
+    oversampling->addItem (TRANS("16x"), 5);
     oversampling->addListener (this);
 
     addAndMakeVisible (autoGain = new HiToggleButton ("Auto Gain"));
-    autoGain->setButtonText (TRANS("Process Input"));
+    autoGain->setButtonText (TRANS("Autogain"));
     autoGain->addListener (this);
     autoGain->setColour (ToggleButton::textColourId, Colours::white);
 
-    addAndMakeVisible (function = new Label ("new label",
-                                             TRANS("label text")));
-    function->setFont (Font (15.00f, Font::plain).withTypefaceStyle ("Regular"));
-    function->setJustificationType (Justification::centredLeft);
-    function->setEditable (false, false, false);
-    function->setColour (Label::backgroundColourId, Colour (0x6e202020));
-    function->setColour (TextEditor::textColourId, Colours::black);
-    function->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
+    addAndMakeVisible (lowPass = new HiSlider ("High Pass"));
+    lowPass->setRange (1, 20000, 1);
+    lowPass->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
+    lowPass->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
+    lowPass->setColour (Slider::backgroundColourId, Colour (0x00000000));
+    lowPass->setColour (Slider::thumbColourId, Colour (0x80666666));
+    lowPass->setColour (Slider::textBoxTextColourId, Colours::white);
+    lowPass->addListener (this);
+    lowPass->setSkewFactor (0.3);
+
+    addAndMakeVisible (table = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), static_cast<ShapeFX*>(getProcessor())->getTable(0)));
+    table->setName ("new component");
+
+    addAndMakeVisible (editor = new JavascriptCodeEditor (*sfx->getSnippet(0), tokeniser, sfx, "shape"));
+    editor->setName ("new component");
+
+    addAndMakeVisible (limitButton = new HiToggleButton ("Auto Gain"));
+    limitButton->setButtonText (TRANS("Limit Input"));
+    limitButton->addListener (this);
+    limitButton->setColour (ToggleButton::textColourId, Colours::white);
 
 
     //[UserPreSize]
 
+	START_TIMER();
+
 	oversampling->setup(getProcessor(), ShapeFX::SpecialParameters::Oversampling, "Oversampling");
 	mixSlider->setup(getProcessor(), ShapeFX::SpecialParameters::Mix, "Mix");
 	mixSlider->setMode(HiSlider::NormalizedPercentage);
-	
+
 	autoGain->setup(getProcessor(), ShapeFX::SpecialParameters::Autogain, "Autogain");
 
 
-	driveSlider->setup(getProcessor(), ShapeFX::SpecialParameters::Drive, "Drive");
-	driveSlider->setMode(HiSlider::NormalizedPercentage);
+
+	//driveSlider->setup(getProcessor(), ShapeFX::SpecialParameters::Drive, "Drive");
+	//driveSlider->setMode(HiSlider::NormalizedPercentage);
 
 	reduceSlider->setup(getProcessor(), ShapeFX::SpecialParameters::Reduce, "Reduce");
 	reduceSlider->setMode(HiSlider::Discrete, 0.0, 14.0, 7, 1.0);
@@ -177,20 +186,31 @@ ShapeFXEditor::ShapeFXEditor (ProcessorEditor* p)
 	highPass->setup(getProcessor(), ShapeFX::SpecialParameters::HighPass, "High Pass");
 	highPass->setMode(HiSlider::Frequency, 20.0, 200.0, 50.0, 1.0);
 
+	lowPass->setup(getProcessor(), ShapeFX::SpecialParameters::LowPass, "Low Pass");
+	lowPass->setMode(HiSlider::Frequency, 200.0, 20000.0, 1500.0, 1.0);
+
 	modeSelector->setup(getProcessor(), ShapeFX::SpecialParameters::Mode , "Mode");
-	
-	biasLeft->setup(getProcessor(), ShapeFX::SpecialParameters::BiasLeft, "Oversampling");
+
+	biasLeft->setup(getProcessor(), ShapeFX::SpecialParameters::BiasLeft, "Bias Left");
 	biasLeft->setMode(HiSlider::NormalizedPercentage);
 
-	biasRight->setup(getProcessor(), ShapeFX::SpecialParameters::BiasRight, "Oversampling");
+	biasRight->setup(getProcessor(), ShapeFX::SpecialParameters::BiasRight, "Bias Right");
 	biasRight->setMode(HiSlider::NormalizedPercentage);
 
 	inMeter->setType(VuMeter::Type::StereoVertical);
 	outMeter->setType(VuMeter::Type::StereoVertical);
 
+	inMeter->setColour(VuMeter::backgroundColour, Colour(0xFF333333));
+	inMeter->setColour(VuMeter::ledColour, Colours::lightgrey);
+	inMeter->setColour(VuMeter::outlineColour, Colour(0x45FFFFFF));
+
+	outMeter->setColour(VuMeter::backgroundColour, Colour(0xFF333333));
+	outMeter->setColour(VuMeter::ledColour, Colours::lightgrey);
+	outMeter->setColour(VuMeter::outlineColour, Colour(0x45FFFFFF));
+
     //[/UserPreSize]
 
-    setSize (800, 400);
+    setSize (800, 600);
 
 
     //[Constructor] You can add your own custom stuff here..
@@ -212,11 +232,13 @@ ShapeFXEditor::~ShapeFXEditor()
     highPass = nullptr;
     gainSlider = nullptr;
     reduceSlider = nullptr;
-    driveSlider = nullptr;
     mixSlider = nullptr;
     oversampling = nullptr;
     autoGain = nullptr;
-    function = nullptr;
+    lowPass = nullptr;
+    table = nullptr;
+    editor = nullptr;
+    limitButton = nullptr;
 
 
     //[Destructor]. You can add your own custom destruction code here..
@@ -266,16 +288,18 @@ void ShapeFXEditor::resized()
     biasLeft->setBounds ((getWidth() / 2) + -264 - (128 / 2), 56, 128, 48);
     outMeter->setBounds ((getWidth() / 2) + 160 - (20 / 2), 48, 20, 256);
     inMeter->setBounds ((getWidth() / 2) + -158 - (20 / 2), 48, 20, 256);
-    modeSelector->setBounds ((getWidth() / 2) + 11 - (128 / 2), 322, 128, 24);
-    biasRight->setBounds (((getWidth() / 2) + -264 - (128 / 2)) + 0, 128, 128, 48);
-    highPass->setBounds (((getWidth() / 2) + -264 - (128 / 2)) + 0, 200, 128, 48);
-    gainSlider->setBounds ((getWidth() / 2) + 266 - (128 / 2), 59, 128, 48);
-    reduceSlider->setBounds (((getWidth() / 2) + -264 - (128 / 2)) + 530, 131, 128, 48);
-    driveSlider->setBounds (((getWidth() / 2) + -264 - (128 / 2)) + 530, 203, 128, 48);
-    mixSlider->setBounds ((getWidth() / 2) + 272 - (128 / 2), 328, 128, 48);
-    oversampling->setBounds ((getWidth() / 2) + -248 - (128 / 2), 344, 128, 24);
-    autoGain->setBounds (((getWidth() / 2) + 266 - (128 / 2)) + 128 / 2 + 6 - (128 / 2), 264, 128, 32);
-    function->setBounds ((getWidth() / 2) + -128, 352, 256, 24);
+    modeSelector->setBounds ((getWidth() / 2) + -104 - (128 / 2), 16, 128, 24);
+    biasRight->setBounds (((getWidth() / 2) + -264 - (128 / 2)) + 0, 120, 128, 48);
+    highPass->setBounds (((getWidth() / 2) + -264 - (128 / 2)) + 0, 248, 128, 48);
+    gainSlider->setBounds ((getWidth() / 2) + 264 - (128 / 2), 48, 128, 48);
+    reduceSlider->setBounds (((getWidth() / 2) + -264 - (128 / 2)) + 528, 112, 128, 48);
+    mixSlider->setBounds ((getWidth() / 2) + 272 - (128 / 2), 256, 128, 48);
+    oversampling->setBounds ((getWidth() / 2) + 64 - (128 / 2), 16, 128, 24);
+    autoGain->setBounds (((getWidth() / 2) + 264 - (128 / 2)) + 128 / 2 + 8 - (128 / 2), 177, 128, 32);
+    lowPass->setBounds (((getWidth() / 2) + -264 - (128 / 2)) + 0, 184, 128, 48);
+    table->setBounds ((getWidth() / 2) + -2 - ((getWidth() - 109) / 2), 319, getWidth() - 109, 257);
+    editor->setBounds ((getWidth() / 2) + 2 - ((getWidth() - 109) / 2), 320, getWidth() - 109, 257);
+    limitButton->setBounds (((getWidth() / 2) + 264 - (128 / 2)) + 128 / 2 + 8 - (128 / 2), 224, 128, 32);
     //[UserResized] Add your own custom resize handling here..
     //[/UserResized]
 }
@@ -310,15 +334,15 @@ void ShapeFXEditor::sliderValueChanged (Slider* sliderThatWasMoved)
         //[UserSliderCode_reduceSlider] -- add your slider handling code here..
         //[/UserSliderCode_reduceSlider]
     }
-    else if (sliderThatWasMoved == driveSlider)
-    {
-        //[UserSliderCode_driveSlider] -- add your slider handling code here..
-        //[/UserSliderCode_driveSlider]
-    }
     else if (sliderThatWasMoved == mixSlider)
     {
         //[UserSliderCode_mixSlider] -- add your slider handling code here..
         //[/UserSliderCode_mixSlider]
+    }
+    else if (sliderThatWasMoved == lowPass)
+    {
+        //[UserSliderCode_lowPass] -- add your slider handling code here..
+        //[/UserSliderCode_lowPass]
     }
 
     //[UsersliderValueChanged_Post]
@@ -355,6 +379,11 @@ void ShapeFXEditor::buttonClicked (Button* buttonThatWasClicked)
         //[UserButtonCode_autoGain] -- add your button handler code here..
         //[/UserButtonCode_autoGain]
     }
+    else if (buttonThatWasClicked == limitButton)
+    {
+        //[UserButtonCode_limitButton] -- add your button handler code here..
+        //[/UserButtonCode_limitButton]
+    }
 
     //[UserbuttonClicked_Post]
     //[/UserbuttonClicked_Post]
@@ -376,10 +405,10 @@ void ShapeFXEditor::buttonClicked (Button* buttonThatWasClicked)
 BEGIN_JUCER_METADATA
 
 <JUCER_COMPONENT documentType="Component" className="ShapeFXEditor" componentName=""
-                 parentClasses="public ProcessorEditorBody" constructorParams="ProcessorEditor* p"
+                 parentClasses="public ProcessorEditorBody, public Timer" constructorParams="ProcessorEditor* p"
                  variableInitialisers="ProcessorEditorBody(p)&#10;" snapPixels="8"
                  snapActive="1" snapShown="1" overlayOpacity="0.330" fixedSize="1"
-                 initialWidth="800" initialHeight="400">
+                 initialWidth="800" initialHeight="600">
   <BACKGROUND backgroundColour="323e44">
     <ROUNDRECT pos="-0.5Cc 6 84M 12M" cornerSize="6" fill="solid: 30000000"
                hasStroke="1" stroke="2, mitered, butt" strokeColour="solid: 25ffffff"/>
@@ -403,59 +432,63 @@ BEGIN_JUCER_METADATA
                     virtualName="" explicitFocusOrder="0" pos="-158Cc 48 20 256"
                     class="VuMeter" params=""/>
   <COMBOBOX name="new combo box" id="f9053c2b9246bbfc" memberName="modeSelector"
-            virtualName="HiComboBox" explicitFocusOrder="0" pos="11Cc 322 128 24"
+            virtualName="HiComboBox" explicitFocusOrder="0" pos="-104Cc 16 128 24"
             posRelativeX="3b242d8d6cab6cc3" editable="0" layout="33" items="Linear&#10;Atan&#10;Tanh&#10;Square&#10;Square Root&#10;Curve&#10;Function"
             textWhenNonSelected="Filter mode" textWhenNoItems="(no choices)"/>
   <SLIDER name="Bias Right" id="5fbcc7b448500dac" memberName="biasRight"
-          virtualName="HiSlider" explicitFocusOrder="0" pos="0 128 128 48"
+          virtualName="HiSlider" explicitFocusOrder="0" pos="0 120 128 48"
           posRelativeX="a7c54198d4a84cc" bkgcol="0" thumbcol="80666666"
           textboxtext="ffffffff" min="1" max="20000" int="1" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="0" textBoxWidth="80"
           textBoxHeight="20" skewFactor="0.2999999999999999889" needsCallback="1"/>
   <SLIDER name="High Pass" id="95de38dc8041d32c" memberName="highPass"
-          virtualName="HiSlider" explicitFocusOrder="0" pos="0 200 128 48"
+          virtualName="HiSlider" explicitFocusOrder="0" pos="0 248 128 48"
           posRelativeX="a7c54198d4a84cc" bkgcol="0" thumbcol="80666666"
           textboxtext="ffffffff" min="1" max="20000" int="1" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="0" textBoxWidth="80"
           textBoxHeight="20" skewFactor="0.2999999999999999889" needsCallback="1"/>
   <SLIDER name="Gain" id="905c9d3b1d279d06" memberName="gainSlider" virtualName="HiSlider"
-          explicitFocusOrder="0" pos="266Cc 59 128 48" posRelativeX="557420bb82cec3a9"
+          explicitFocusOrder="0" pos="264Cc 48 128 48" posRelativeX="557420bb82cec3a9"
           bkgcol="0" thumbcol="80666666" textboxtext="ffffffff" min="1"
           max="20000" int="1" style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
           textBoxEditable="0" textBoxWidth="80" textBoxHeight="20" skewFactor="0.2999999999999999889"
           needsCallback="1"/>
   <SLIDER name="Reduce" id="62246e674bc79ce8" memberName="reduceSlider"
-          virtualName="HiSlider" explicitFocusOrder="0" pos="530 131 128 48"
+          virtualName="HiSlider" explicitFocusOrder="0" pos="528 112 128 48"
           posRelativeX="a7c54198d4a84cc" bkgcol="0" thumbcol="80666666"
           textboxtext="ffffffff" min="1" max="20000" int="1" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="0" textBoxWidth="80"
           textBoxHeight="20" skewFactor="0.2999999999999999889" needsCallback="1"/>
-  <SLIDER name="Decay" id="e98d3699d52355c3" memberName="driveSlider" virtualName="HiSlider"
-          explicitFocusOrder="0" pos="530 203 128 48" posRelativeX="a7c54198d4a84cc"
-          bkgcol="0" thumbcol="80666666" textboxtext="ffffffff" min="1"
-          max="20000" int="1" style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
-          textBoxEditable="0" textBoxWidth="80" textBoxHeight="20" skewFactor="0.2999999999999999889"
-          needsCallback="1"/>
   <SLIDER name="Mix" id="27eb3f7c71cca4dc" memberName="mixSlider" virtualName="HiSlider"
-          explicitFocusOrder="0" pos="272Cc 328 128 48" posRelativeX="557420bb82cec3a9"
+          explicitFocusOrder="0" pos="272Cc 256 128 48" posRelativeX="557420bb82cec3a9"
           bkgcol="0" thumbcol="80666666" textboxtext="ffffffff" min="1"
           max="20000" int="1" style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
           textBoxEditable="0" textBoxWidth="80" textBoxHeight="20" skewFactor="0.2999999999999999889"
           needsCallback="1"/>
   <COMBOBOX name="new combo box" id="c2dee3e04a7ede9b" memberName="oversampling"
-            virtualName="HiComboBox" explicitFocusOrder="0" pos="-248Cc 344 128 24"
+            virtualName="HiComboBox" explicitFocusOrder="0" pos="64Cc 16 128 24"
             posRelativeX="3b242d8d6cab6cc3" editable="0" layout="33" items="1x&#10;2x&#10;4x&#10;8x&#10;16x"
-            textWhenNonSelected="Filter mode" textWhenNoItems="(no choices)"/>
+            textWhenNonSelected="Oversampling" textWhenNoItems="(no choices)"/>
   <TOGGLEBUTTON name="Auto Gain" id="e6345feaa3cb5bea" memberName="autoGain"
-                virtualName="HiToggleButton" explicitFocusOrder="0" pos="6Cc 264 128 32"
-                posRelativeX="905c9d3b1d279d06" txtcol="ffffffff" buttonText="Process Input"
+                virtualName="HiToggleButton" explicitFocusOrder="0" pos="8Cc 177 128 32"
+                posRelativeX="905c9d3b1d279d06" txtcol="ffffffff" buttonText="Autogain"
                 connectedEdges="0" needsCallback="1" radioGroupId="0" state="0"/>
-  <LABEL name="new label" id="9c84db62b14f70cd" memberName="function"
-         virtualName="" explicitFocusOrder="0" pos="-128C 352 256 24"
-         bkgCol="6e202020" edTextCol="ff000000" edBkgCol="0" labelText="label text"
-         editableSingleClick="0" editableDoubleClick="0" focusDiscardsChanges="0"
-         fontname="Default font" fontsize="15" kerning="0" bold="0" italic="0"
-         justification="33"/>
+  <SLIDER name="High Pass" id="bb6d2cf7c7745092" memberName="lowPass" virtualName="HiSlider"
+          explicitFocusOrder="0" pos="0 184 128 48" posRelativeX="a7c54198d4a84cc"
+          bkgcol="0" thumbcol="80666666" textboxtext="ffffffff" min="1"
+          max="20000" int="1" style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
+          textBoxEditable="0" textBoxWidth="80" textBoxHeight="20" skewFactor="0.2999999999999999889"
+          needsCallback="1"/>
+  <GENERICCOMPONENT name="new component" id="e2252e55bedecdc5" memberName="table"
+                    virtualName="" explicitFocusOrder="0" pos="-1.5Cc 319 109M 257"
+                    class="TableEditor" params="getProcessor()-&gt;getMainController()-&gt;getControlUndoManager(), static_cast&lt;ShapeFX*&gt;(getProcessor())-&gt;getTable(0)"/>
+  <GENERICCOMPONENT name="new component" id="ed787baea400e650" memberName="editor"
+                    virtualName="" explicitFocusOrder="0" pos="1.5Cc 320 109M 257"
+                    class="JavascriptCodeEditor" params="*sfx-&gt;getSnippet(0), tokeniser, sfx, &quot;shape&quot;"/>
+  <TOGGLEBUTTON name="Auto Gain" id="71e2a24e9e8fdf6b" memberName="limitButton"
+                virtualName="HiToggleButton" explicitFocusOrder="0" pos="8Cc 224 128 32"
+                posRelativeX="905c9d3b1d279d06" txtcol="ffffffff" buttonText="Limit Input"
+                connectedEdges="0" needsCallback="1" radioGroupId="0" state="0"/>
 </JUCER_COMPONENT>
 
 END_JUCER_METADATA
