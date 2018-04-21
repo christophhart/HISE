@@ -90,43 +90,43 @@ void ScriptEditHandler::createNewComponent(Widgets componentType, int x, int y)
 	switch (componentType)
 	{
 	case hise::ScriptEditHandler::Widgets::Knob: 
-		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptSlider>(id, x, y, 128, 48);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptSlider>(id, x, y);
 		break;
 	case hise::ScriptEditHandler::Widgets::Button:
-		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptButton>(id, x, y, 128, 28);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptButton>(id, x, y);
 		break;
 	case hise::ScriptEditHandler::Widgets::Table:
-		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptTable>(id, x, y, 100, 50);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptTable>(id, x, y);
 		break;
 	case hise::ScriptEditHandler::Widgets::ComboBox:
-		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptComboBox>(id, x, y, 128, 32);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptComboBox>(id, x, y);
 		break;
 	case hise::ScriptEditHandler::Widgets::Label:
-		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptLabel>(id, x, y, 128, 28);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptLabel>(id, x, y);
 		break;
 	case hise::ScriptEditHandler::Widgets::Image:
-		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptImage>(id, x, y, 50, 50);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptImage>(id, x, y);
 		break;
 	case hise::ScriptEditHandler::Widgets::Viewport:
-		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptedViewport>(id, x, y, 200, 100);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptedViewport>(id, x, y);
 		break;
 	case hise::ScriptEditHandler::Widgets::Plotter:
-		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptedPlotter>(id, x, y, 100, 50);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptedPlotter>(id, x, y);
 		break;
 	case hise::ScriptEditHandler::Widgets::ModulatorMeter:
-		newComponent = content->createNewComponent<ScriptingApi::Content::ModulatorMeter>(id, x, y, 100, 50);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ModulatorMeter>(id, x, y);
 		break;
 	case hise::ScriptEditHandler::Widgets::Panel:
-		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptPanel>(id, x, y, 100, 50);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptPanel>(id, x, y);
 		break;
 	case hise::ScriptEditHandler::Widgets::AudioWaveform:
-		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptAudioWaveform>(id, x, y, 200, 100);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptAudioWaveform>(id, x, y);
 		break;
 	case hise::ScriptEditHandler::Widgets::SliderPack:
-		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptSliderPack>(id, x, y, 200, 100);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptSliderPack>(id, x, y);
 		break;
 	case hise::ScriptEditHandler::Widgets::FloatingTile:
-		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptFloatingTile>(id, x, y, 200, 100);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptFloatingTile>(id, x, y);
 		break;
 	case hise::ScriptEditHandler::Widgets::duplicateWidget:
 		jassertfalse;

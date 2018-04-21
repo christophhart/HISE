@@ -825,6 +825,8 @@ void JavascriptProcessor::saveScript(ValueTree &v) const
 	v.setProperty("Script", x, nullptr);
 }
 
+
+
 void JavascriptProcessor::restoreScript(const ValueTree &v)
 {
 	String x = v.getProperty("Script", String());
@@ -842,6 +844,8 @@ void JavascriptProcessor::restoreScript(const ValueTree &v)
 
 		auto copy = contentPropertyChild.createCopy();
 
+		ScriptingApi::Content::Helpers::sanitizeNumberProperties(copy);
+
 		copy.setProperty(deviceType, deviceName, nullptr);
 
 		allInterfaceData.addChild(copy, -1, nullptr);
@@ -851,6 +855,9 @@ void JavascriptProcessor::restoreScript(const ValueTree &v)
 	if (uiData.isValid())
 	{
 		allInterfaceData = uiData;
+
+		ScriptingApi::Content::Helpers::sanitizeNumberProperties(allInterfaceData);
+
 		auto deviceIndex = (int)HiseDeviceSimulator::getDeviceType();
 
 		setDeviceTypeForInterface(deviceIndex);

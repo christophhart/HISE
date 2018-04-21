@@ -539,6 +539,9 @@ public:
 			}
 		}
 
+		static Array<Identifier> numberPropertyIds;
+		static bool numbersInitialised;
+
 	protected:
 
 		bool isCorrectlyInitialised(int p) const
@@ -1817,22 +1820,23 @@ public:
 		static void recompileAndSearchForPropertyChange(ScriptComponent * sc, const Identifier& id);
 		static ScriptComponent * createComponentFromValueTree(Content* c, const ValueTree& v);
 		static bool hasLocation(ScriptComponent* sc);
+		static void sanitizeNumberProperties(juce::ValueTree copy);
 	};
 
-	template <class SubType> SubType* createNewComponent(const Identifier& id, int x, int y, int w, int h)
+	template <class SubType> SubType* createNewComponent(const Identifier& id, int x, int y)
 	{
 		static const Identifier xId("x");
 		static const Identifier yId("y");
-		static const Identifier wId("width");
-		static const Identifier hId("height");
+		//static const Identifier wId("width");
+		//static const Identifier hId("height");
 
 		ValueTree newData("Component");
 		newData.setProperty("type", SubType::getStaticObjectName().toString(), nullptr);
 		newData.setProperty("id", id.toString(), nullptr);
 		newData.setProperty(xId, x, nullptr);
 		newData.setProperty(yId, y, nullptr);
-		newData.setProperty(wId, w, nullptr);
-		newData.setProperty(hId, h, nullptr);
+		//newData.setProperty(wId, w, nullptr);
+		//newData.setProperty(hId, h, nullptr);
 
 #if JUCE_WINDOWS && USE_BACKEND
 		auto undoManager = &getScriptProcessor()->getMainController_()->getScriptComponentEditBroadcaster()->getUndoManager();
@@ -1846,7 +1850,7 @@ public:
 			contentPropertyData.addChild(newData, -1, undoManager);
 		}
 		
-		SubType* newComponent = new SubType(getScriptProcessor(), this, id, x, y, w, h);
+		SubType* newComponent = new SubType(getScriptProcessor(), this, id, x, y, 0, 0);
 
 
 
@@ -1894,6 +1898,8 @@ public:
     
 private:
 
+	static void initNumberProperties();
+
     bool isRebuilding = false;
     
 	UpdateDispatcher updateDispatcher;
@@ -1908,7 +1914,42 @@ private:
 
 	var templateFunctions;
 
-	template<class Subtype> Subtype *addComponent(Identifier name, int x, int y, int width = -1, int height = -1);
+	template<class Subtype> Subtype* addComponent(Identifier name, int x, int y)
+	{
+		if (!allowGuiCreation)
+		{
+			reportScriptError("Tried to add a component after onInit()");
+			return nullptr;
+		}
+
+		if (auto sc = getComponentWithName(name))
+		{
+
+			sc->handleScriptPropertyChange("x");
+			sc->handleScriptPropertyChange("y");
+			sc->setScriptObjectProperty(ScriptComponent::Properties::x, x);
+			sc->setScriptObjectProperty(ScriptComponent::Properties::y, y);
+			return dynamic_cast<Subtype*>(sc);
+		}
+
+		ValueTree newChild("Component");
+		newChild.setProperty("type", Subtype::getStaticObjectName().toString(), nullptr);
+		newChild.setProperty("id", name.toString(), nullptr);
+		newChild.setProperty("x", x, nullptr);
+		newChild.setProperty("y", y, nullptr);
+		contentPropertyData.addChild(newChild, -1, nullptr);
+
+		Subtype *t = new Subtype(getScriptProcessor(), this, name, x, y, 0, 0);
+
+		components.add(t);
+
+		var savedValue = getScriptProcessor()->getSavedValue(name);
+
+		if (!savedValue.isUndefined())
+			components.getLast()->value = savedValue;
+
+		return t;
+	}
 
 	void rebuildComponentListFromValueTree();
 
