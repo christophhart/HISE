@@ -214,25 +214,8 @@ public:
 
 	Rectangle<float> getPeakValues() const { return { inPeakValueL, inPeakValueR, outPeakValueL, outPeakValueR }; }
 
-	void updateOversampling()
-	{
-		ScopedLock sl(oversamplerLock);
-
-		auto factor = roundDoubleToInt(log2((double)oversampleFactor));
-
-		oversampler = new Oversampler(2, factor, Oversampler::FilterType::filterHalfBandPolyphaseIIR, false);
-
-		if(getBlockSize() > 0)
-			oversampler->initProcessing(getBlockSize());
-
-		int latency = roundFloatToInt(oversampler->getLatencyInSamples());
-
-		if(getSampleRate() > 0.0)
-			bitCrushSmoother.reset(getSampleRate() * oversampleFactor, 0.04);
-
-		lDelay.setDelayTimeSamples(latency);
-		rDelay.setDelayTimeSamples(latency);
-	}
+	void updateOversampling();
+	
 
 	void updateFilter(bool updateLowPass);
 

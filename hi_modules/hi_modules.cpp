@@ -121,7 +121,7 @@ namespace wdl
 #include "effects/fx/AudioProcessorWrapper.cpp"
 #include "effects/fx/SlotFX.cpp"
 #include "effects/fx/Analyser.cpp"
-#include "effects/fx/Waveshapers.cpp"
+#include "effects/fx/WaveShapers.cpp"
 #include "effects/fx/ShapeFX.cpp"
 
 #if USE_BACKEND

@@ -1943,13 +1943,13 @@ private:
 
 		components.add(t);
 
-		var savedValue = getScriptProcessor()->getSavedValue(name);
+		restoreSavedValue(name);
 
-		if (!savedValue.isUndefined())
-			components.getLast()->value = savedValue;
-
+		
 		return t;
 	}
+
+	void restoreSavedValue(const Identifier& id);
 
 	void rebuildComponentListFromValueTree();
 

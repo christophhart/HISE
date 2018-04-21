@@ -437,6 +437,26 @@ void ShapeFX::updateMode()
 	}	
 }
 
+void ShapeFX::updateOversampling()
+{
+	ScopedLock sl(oversamplerLock);
+
+	auto factor = roundDoubleToInt(log2((double)oversampleFactor));
+
+	oversampler = new Oversampler(2, factor, Oversampler::FilterType::filterHalfBandPolyphaseIIR, false);
+
+	if(getBlockSize() > 0)
+		oversampler->initProcessing(getBlockSize());
+
+	int latency = roundFloatToInt(oversampler->getLatencyInSamples());
+
+	if(getSampleRate() > 0.0)
+		bitCrushSmoother.reset(getSampleRate() * oversampleFactor, 0.04);
+
+	lDelay.setDelayTimeSamples(latency);
+	rDelay.setDelayTimeSamples(latency);
+}
+
 void ShapeFX::updateGain()
 {
 	if (mode == Saturate)

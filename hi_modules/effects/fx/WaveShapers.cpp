@@ -30,6 +30,7 @@
 *   ===========================================================================
 */
 
+#include <math.h>
 
 namespace hise {
 using namespace juce;
@@ -40,12 +41,12 @@ using namespace juce;
 struct ShapeFX::ShapeFunctions
 {
 	struct Linear { static float shape(float input) { return input; }; };
-	struct Atan { static float shape(float input) { return std::atanf(input); }; };
+	struct Atan { static float shape(float input) { return atanf(input); }; };
 	struct Tanh { static float shape(float input) { return std::tanh(input); }; };
 
 	struct Sin { static float shape(float input) { return sinf(input); }; };
 	struct Asinh { static float shape(float input) { return std::asinh(input); }; };
-	struct TanCos { static float shape(float input) { return std::atanf(2.0f * input) * cosf(input / 2.0f); } };
+	struct TanCos { static float shape(float input) { return atanf(2.0f * input) * cosf(input / 2.0f); } };
 
 #define POW_3(x) x * x * x
 #define POW_5(x) x * x * x * x * x

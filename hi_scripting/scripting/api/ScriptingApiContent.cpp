@@ -4102,6 +4102,14 @@ void ScriptingApi::Content::addComponentsFromValueTree(const ValueTree& v)
 	}
 }
 
+void ScriptingApi::Content::restoreSavedValue(const Identifier& name)
+{
+	var savedValue = getScriptProcessor()->getSavedValue(name);
+
+	if (!savedValue.isUndefined())
+		components.getLast()->value = savedValue;
+}
+
 ValueTree findChildRecursive(const ValueTree& v, const var& n)
 {
 	String na = n.toString();
