@@ -491,6 +491,7 @@ NoMidiInputConstrainer::NoMidiInputConstrainer()
     ADD_NAME_TO_TYPELIST(PolyFilterEffect);
     ADD_NAME_TO_TYPELIST(HarmonicFilter);
     ADD_NAME_TO_TYPELIST(StereoEffect);
+    ADD_NAME_TO_TYPELIST(PolyshapeFX);
 
 	forbiddenModulators.addArray(typeNames);
 

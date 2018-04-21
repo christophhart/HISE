@@ -71,8 +71,10 @@ public:
 		autoGain->updateValue();
 		limitButton->updateValue();
 
-		table->setVisible((int)getProcessor()->getAttribute(ShapeFX::SpecialParameters::Mode) == (int)ShapeFX::ShapeMode::Curve);
-		editor->setVisible((int)getProcessor()->getAttribute(ShapeFX::SpecialParameters::Mode) == (int)ShapeFX::ShapeMode::Function);
+		auto m = (ShapeFX::ShapeMode)(int)getProcessor()->getAttribute(ShapeFX::SpecialParameters::Mode);
+
+		table->setVisible(m == ShapeFX::Curve);
+		editor->setVisible(m == ShapeFX::Script || m == ShapeFX::CachedScript);
 
 		refreshBodySize();
 	}

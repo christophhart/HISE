@@ -43,6 +43,7 @@ ShapeFXEditor::ShapeFXEditor (ProcessorEditor* p)
     shapeDisplay->setName ("WavetableDisplayComponent");
 
     addAndMakeVisible (biasLeft = new HiSlider ("Bias Left"));
+    biasLeft->setTooltip (TRANS("The DC offset for the left channel"));
     biasLeft->setRange (1, 20000, 1);
     biasLeft->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     biasLeft->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
@@ -59,20 +60,24 @@ ShapeFXEditor::ShapeFXEditor (ProcessorEditor* p)
     inMeter->setName ("new component");
 
     addAndMakeVisible (modeSelector = new HiComboBox ("new combo box"));
+    modeSelector->setTooltip (TRANS("Choose the waveshape function."));
     modeSelector->setEditableText (false);
     modeSelector->setJustificationType (Justification::centredLeft);
-    modeSelector->setTextWhenNothingSelected (TRANS("Filter mode"));
+    modeSelector->setTextWhenNothingSelected (TRANS("Function"));
     modeSelector->setTextWhenNoChoicesAvailable (TRANS("(no choices)"));
     modeSelector->addItem (TRANS("Linear"), 1);
     modeSelector->addItem (TRANS("Atan"), 2);
     modeSelector->addItem (TRANS("Tanh"), 3);
-    modeSelector->addItem (TRANS("Square"), 4);
-    modeSelector->addItem (TRANS("Square Root"), 5);
-    modeSelector->addItem (TRANS("Curve"), 6);
-    modeSelector->addItem (TRANS("Function"), 7);
+    modeSelector->addItem (TRANS("Saturate"), 4);
+    modeSelector->addItem (TRANS("Square"), 5);
+    modeSelector->addItem (TRANS("Square Root"), 6);
+    modeSelector->addItem (TRANS("Curve"), 7);
+    modeSelector->addItem (TRANS("Script"), 8);
+    modeSelector->addItem (TRANS("Cached Script"), 9);
     modeSelector->addListener (this);
 
     addAndMakeVisible (biasRight = new HiSlider ("Bias Right"));
+    biasRight->setTooltip (TRANS("The DC offset for the right channel"));
     biasRight->setRange (1, 20000, 1);
     biasRight->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     biasRight->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
@@ -83,6 +88,7 @@ ShapeFXEditor::ShapeFXEditor (ProcessorEditor* p)
     biasRight->setSkewFactor (0.3);
 
     addAndMakeVisible (highPass = new HiSlider ("High Pass"));
+    highPass->setTooltip (TRANS("Applies a high pass before the shaper"));
     highPass->setRange (1, 20000, 1);
     highPass->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     highPass->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
@@ -103,6 +109,7 @@ ShapeFXEditor::ShapeFXEditor (ProcessorEditor* p)
     gainSlider->setSkewFactor (0.3);
 
     addAndMakeVisible (reduceSlider = new HiSlider ("Reduce"));
+    reduceSlider->setTooltip (TRANS("Applies a bit reduction effect"));
     reduceSlider->setRange (1, 20000, 1);
     reduceSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     reduceSlider->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
@@ -123,6 +130,7 @@ ShapeFXEditor::ShapeFXEditor (ProcessorEditor* p)
     mixSlider->setSkewFactor (0.3);
 
     addAndMakeVisible (oversampling = new HiComboBox ("new combo box"));
+    oversampling->setTooltip (TRANS("Set the oversampling factor"));
     oversampling->setEditableText (false);
     oversampling->setJustificationType (Justification::centredLeft);
     oversampling->setTextWhenNothingSelected (TRANS("Oversampling"));
@@ -135,11 +143,13 @@ ShapeFXEditor::ShapeFXEditor (ProcessorEditor* p)
     oversampling->addListener (this);
 
     addAndMakeVisible (autoGain = new HiToggleButton ("Auto Gain"));
+    autoGain->setTooltip (TRANS("Automatically turns down the volume depending on the gain factor"));
     autoGain->setButtonText (TRANS("Autogain"));
     autoGain->addListener (this);
     autoGain->setColour (ToggleButton::textColourId, Colours::white);
 
     addAndMakeVisible (lowPass = new HiSlider ("High Pass"));
+    lowPass->setTooltip (TRANS("Applies a Low Pass before the shaper"));
     lowPass->setRange (1, 20000, 1);
     lowPass->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     lowPass->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
@@ -156,6 +166,7 @@ ShapeFXEditor::ShapeFXEditor (ProcessorEditor* p)
     editor->setName ("new component");
 
     addAndMakeVisible (limitButton = new HiToggleButton ("Auto Gain"));
+    limitButton->setTooltip (TRANS("Apply a soft limiter before the input to avoid hard clipping"));
     limitButton->setButtonText (TRANS("Limit Input"));
     limitButton->addListener (this);
     limitButton->setColour (ToggleButton::textColourId, Colours::white);
@@ -184,7 +195,7 @@ ShapeFXEditor::ShapeFXEditor (ProcessorEditor* p)
 	gainSlider->setMode(HiSlider::Decibel, 0.0, 60.0, 24.0, 0.1);
 
 	highPass->setup(getProcessor(), ShapeFX::SpecialParameters::HighPass, "High Pass");
-	highPass->setMode(HiSlider::Frequency, 20.0, 200.0, 50.0, 1.0);
+	highPass->setMode(HiSlider::Frequency, 20.0, 8000.0, 200.0, 1.0);
 
 	lowPass->setup(getProcessor(), ShapeFX::SpecialParameters::LowPass, "Low Pass");
 	lowPass->setMode(HiSlider::Frequency, 200.0, 20000.0, 1500.0, 1.0);
@@ -192,10 +203,12 @@ ShapeFXEditor::ShapeFXEditor (ProcessorEditor* p)
 	modeSelector->setup(getProcessor(), ShapeFX::SpecialParameters::Mode , "Mode");
 
 	biasLeft->setup(getProcessor(), ShapeFX::SpecialParameters::BiasLeft, "Bias Left");
-	biasLeft->setMode(HiSlider::NormalizedPercentage);
+	biasLeft->setMode(HiSlider::Linear, -1.0, 1.0, 0.0, 0.01);
 
 	biasRight->setup(getProcessor(), ShapeFX::SpecialParameters::BiasRight, "Bias Right");
-	biasRight->setMode(HiSlider::NormalizedPercentage);
+	biasRight->setMode(HiSlider::Linear, -1.0, 1.0, 0.0, 0.01);
+
+	limitButton->setup(getProcessor(), ShapeFX::SpecialParameters::LimitInput, "Limit Input");
 
 	inMeter->setType(VuMeter::Type::StereoVertical);
 	outMeter->setType(VuMeter::Type::StereoVertical);
@@ -207,6 +220,18 @@ ShapeFXEditor::ShapeFXEditor (ProcessorEditor* p)
 	outMeter->setColour(VuMeter::backgroundColour, Colour(0xFF333333));
 	outMeter->setColour(VuMeter::ledColour, Colours::lightgrey);
 	outMeter->setColour(VuMeter::outlineColour, Colour(0x45FFFFFF));
+
+	modeSelector->clear(dontSendNotification);
+
+	auto sa = sfx->getShapeNames();
+
+	for (int i = 0; i < sa.size(); i++)
+	{
+		if (sa[i] != "unused")
+		{
+			modeSelector->addItem(sa[i], i);
+		}
+	}
 
     //[/UserPreSize]
 
@@ -421,10 +446,10 @@ BEGIN_JUCER_METADATA
                     params="dynamic_cast&lt;ShapeFX*&gt;(getProcessor())"/>
   <SLIDER name="Bias Left" id="a7c54198d4a84cc" memberName="biasLeft" virtualName="HiSlider"
           explicitFocusOrder="0" pos="-264Cc 56 128 48" posRelativeX="557420bb82cec3a9"
-          bkgcol="0" thumbcol="80666666" textboxtext="ffffffff" min="1"
-          max="20000" int="1" style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
-          textBoxEditable="0" textBoxWidth="80" textBoxHeight="20" skewFactor="0.2999999999999999889"
-          needsCallback="1"/>
+          tooltip="The DC offset for the left channel" bkgcol="0" thumbcol="80666666"
+          textboxtext="ffffffff" min="1" max="20000" int="1" style="RotaryHorizontalVerticalDrag"
+          textBoxPos="TextBoxRight" textBoxEditable="0" textBoxWidth="80"
+          textBoxHeight="20" skewFactor="0.2999999999999999889" needsCallback="1"/>
   <GENERICCOMPONENT name="new component" id="124338752f9a014" memberName="outMeter"
                     virtualName="" explicitFocusOrder="0" pos="160Cc 48 20 256" class="VuMeter"
                     params=""/>
@@ -433,20 +458,23 @@ BEGIN_JUCER_METADATA
                     class="VuMeter" params=""/>
   <COMBOBOX name="new combo box" id="f9053c2b9246bbfc" memberName="modeSelector"
             virtualName="HiComboBox" explicitFocusOrder="0" pos="-104Cc 16 128 24"
-            posRelativeX="3b242d8d6cab6cc3" editable="0" layout="33" items="Linear&#10;Atan&#10;Tanh&#10;Square&#10;Square Root&#10;Curve&#10;Function"
-            textWhenNonSelected="Filter mode" textWhenNoItems="(no choices)"/>
+            posRelativeX="3b242d8d6cab6cc3" tooltip="Choose the waveshape function."
+            editable="0" layout="33" items="Linear&#10;Atan&#10;Tanh&#10;Saturate&#10;Square&#10;Square Root&#10;Curve&#10;Script&#10;Cached Script"
+            textWhenNonSelected="Function" textWhenNoItems="(no choices)"/>
   <SLIDER name="Bias Right" id="5fbcc7b448500dac" memberName="biasRight"
           virtualName="HiSlider" explicitFocusOrder="0" pos="0 120 128 48"
-          posRelativeX="a7c54198d4a84cc" bkgcol="0" thumbcol="80666666"
-          textboxtext="ffffffff" min="1" max="20000" int="1" style="RotaryHorizontalVerticalDrag"
-          textBoxPos="TextBoxRight" textBoxEditable="0" textBoxWidth="80"
-          textBoxHeight="20" skewFactor="0.2999999999999999889" needsCallback="1"/>
+          posRelativeX="a7c54198d4a84cc" tooltip="The DC offset for the right channel"
+          bkgcol="0" thumbcol="80666666" textboxtext="ffffffff" min="1"
+          max="20000" int="1" style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
+          textBoxEditable="0" textBoxWidth="80" textBoxHeight="20" skewFactor="0.2999999999999999889"
+          needsCallback="1"/>
   <SLIDER name="High Pass" id="95de38dc8041d32c" memberName="highPass"
           virtualName="HiSlider" explicitFocusOrder="0" pos="0 248 128 48"
-          posRelativeX="a7c54198d4a84cc" bkgcol="0" thumbcol="80666666"
-          textboxtext="ffffffff" min="1" max="20000" int="1" style="RotaryHorizontalVerticalDrag"
-          textBoxPos="TextBoxRight" textBoxEditable="0" textBoxWidth="80"
-          textBoxHeight="20" skewFactor="0.2999999999999999889" needsCallback="1"/>
+          posRelativeX="a7c54198d4a84cc" tooltip="Applies a high pass before the shaper"
+          bkgcol="0" thumbcol="80666666" textboxtext="ffffffff" min="1"
+          max="20000" int="1" style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
+          textBoxEditable="0" textBoxWidth="80" textBoxHeight="20" skewFactor="0.2999999999999999889"
+          needsCallback="1"/>
   <SLIDER name="Gain" id="905c9d3b1d279d06" memberName="gainSlider" virtualName="HiSlider"
           explicitFocusOrder="0" pos="264Cc 48 128 48" posRelativeX="557420bb82cec3a9"
           bkgcol="0" thumbcol="80666666" textboxtext="ffffffff" min="1"
@@ -455,10 +483,11 @@ BEGIN_JUCER_METADATA
           needsCallback="1"/>
   <SLIDER name="Reduce" id="62246e674bc79ce8" memberName="reduceSlider"
           virtualName="HiSlider" explicitFocusOrder="0" pos="528 112 128 48"
-          posRelativeX="a7c54198d4a84cc" bkgcol="0" thumbcol="80666666"
-          textboxtext="ffffffff" min="1" max="20000" int="1" style="RotaryHorizontalVerticalDrag"
-          textBoxPos="TextBoxRight" textBoxEditable="0" textBoxWidth="80"
-          textBoxHeight="20" skewFactor="0.2999999999999999889" needsCallback="1"/>
+          posRelativeX="a7c54198d4a84cc" tooltip="Applies a bit reduction effect"
+          bkgcol="0" thumbcol="80666666" textboxtext="ffffffff" min="1"
+          max="20000" int="1" style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
+          textBoxEditable="0" textBoxWidth="80" textBoxHeight="20" skewFactor="0.2999999999999999889"
+          needsCallback="1"/>
   <SLIDER name="Mix" id="27eb3f7c71cca4dc" memberName="mixSlider" virtualName="HiSlider"
           explicitFocusOrder="0" pos="272Cc 256 128 48" posRelativeX="557420bb82cec3a9"
           bkgcol="0" thumbcol="80666666" textboxtext="ffffffff" min="1"
@@ -467,18 +496,20 @@ BEGIN_JUCER_METADATA
           needsCallback="1"/>
   <COMBOBOX name="new combo box" id="c2dee3e04a7ede9b" memberName="oversampling"
             virtualName="HiComboBox" explicitFocusOrder="0" pos="64Cc 16 128 24"
-            posRelativeX="3b242d8d6cab6cc3" editable="0" layout="33" items="1x&#10;2x&#10;4x&#10;8x&#10;16x"
+            posRelativeX="3b242d8d6cab6cc3" tooltip="Set the oversampling factor"
+            editable="0" layout="33" items="1x&#10;2x&#10;4x&#10;8x&#10;16x"
             textWhenNonSelected="Oversampling" textWhenNoItems="(no choices)"/>
   <TOGGLEBUTTON name="Auto Gain" id="e6345feaa3cb5bea" memberName="autoGain"
                 virtualName="HiToggleButton" explicitFocusOrder="0" pos="8Cc 177 128 32"
-                posRelativeX="905c9d3b1d279d06" txtcol="ffffffff" buttonText="Autogain"
-                connectedEdges="0" needsCallback="1" radioGroupId="0" state="0"/>
+                posRelativeX="905c9d3b1d279d06" tooltip="Automatically turns down the volume depending on the gain factor"
+                txtcol="ffffffff" buttonText="Autogain" connectedEdges="0" needsCallback="1"
+                radioGroupId="0" state="0"/>
   <SLIDER name="High Pass" id="bb6d2cf7c7745092" memberName="lowPass" virtualName="HiSlider"
           explicitFocusOrder="0" pos="0 184 128 48" posRelativeX="a7c54198d4a84cc"
-          bkgcol="0" thumbcol="80666666" textboxtext="ffffffff" min="1"
-          max="20000" int="1" style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
-          textBoxEditable="0" textBoxWidth="80" textBoxHeight="20" skewFactor="0.2999999999999999889"
-          needsCallback="1"/>
+          tooltip="Applies a Low Pass before the shaper" bkgcol="0" thumbcol="80666666"
+          textboxtext="ffffffff" min="1" max="20000" int="1" style="RotaryHorizontalVerticalDrag"
+          textBoxPos="TextBoxRight" textBoxEditable="0" textBoxWidth="80"
+          textBoxHeight="20" skewFactor="0.2999999999999999889" needsCallback="1"/>
   <GENERICCOMPONENT name="new component" id="e2252e55bedecdc5" memberName="table"
                     virtualName="" explicitFocusOrder="0" pos="-1.5Cc 319 109M 257"
                     class="TableEditor" params="getProcessor()-&gt;getMainController()-&gt;getControlUndoManager(), static_cast&lt;ShapeFX*&gt;(getProcessor())-&gt;getTable(0)"/>
@@ -487,8 +518,9 @@ BEGIN_JUCER_METADATA
                     class="JavascriptCodeEditor" params="*sfx-&gt;getSnippet(0), tokeniser, sfx, &quot;shape&quot;"/>
   <TOGGLEBUTTON name="Auto Gain" id="71e2a24e9e8fdf6b" memberName="limitButton"
                 virtualName="HiToggleButton" explicitFocusOrder="0" pos="8Cc 224 128 32"
-                posRelativeX="905c9d3b1d279d06" txtcol="ffffffff" buttonText="Limit Input"
-                connectedEdges="0" needsCallback="1" radioGroupId="0" state="0"/>
+                posRelativeX="905c9d3b1d279d06" tooltip="Apply a soft limiter before the input to avoid hard clipping"
+                txtcol="ffffffff" buttonText="Limit Input" connectedEdges="0"
+                needsCallback="1" radioGroupId="0" state="0"/>
 </JUCER_COMPONENT>
 
 END_JUCER_METADATA

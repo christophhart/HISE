@@ -377,7 +377,8 @@ public:
 		emptyFX,
 		dynamics,
 		analyser,
-		shapeFX
+		shapeFX,
+		polyshapeFx
 	};
 
 	EffectProcessorChainFactoryType(int numVoices_, Processor *ownerProcessor):

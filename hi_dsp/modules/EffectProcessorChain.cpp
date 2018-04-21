@@ -84,6 +84,7 @@ void EffectProcessorChainFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(DynamicsEffect);
 	ADD_NAME_TO_TYPELIST(AnalyserEffect);
 	ADD_NAME_TO_TYPELIST(ShapeFX);
+	ADD_NAME_TO_TYPELIST(PolyshapeFX);
 };
 
 Processor* EffectProcessorChainFactoryType::createProcessor	(int typeIndex, const String &id)
@@ -116,6 +117,7 @@ Processor* EffectProcessorChainFactoryType::createProcessor	(int typeIndex, cons
 	case dynamics:						return new DynamicsEffect(m, id);
 	case analyser:						return new AnalyserEffect(m, id);
 	case shapeFX:						return new ShapeFX(m, id);
+	case polyshapeFx:					return new PolyshapeFX(m, id, numVoices);
 	default:					jassertfalse; return nullptr;
 	}
 };

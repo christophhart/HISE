@@ -37,6 +37,35 @@ namespace hise {
 using namespace juce;
 
 
+class LowpassSmoothedValue
+{
+public:
+
+	void processBlock(float* l, float* r, int numSamples)
+	{
+		for (int i = 0; i < numSamples; i++)
+		{
+			const float smoothedValue = s.smooth(targetValue);
+			l[i] *= smoothedValue;
+			r[i] *= smoothedValue;
+		}
+	}
+
+	void prepareToPlay(double sampleRate, double smoothTimeSeconds)
+	{
+		s.prepareToPlay(sampleRate);
+		s.setSmoothingTime((float)smoothTimeSeconds * 1000.0f);
+	};
+
+	void setTargetValue(float newTargetValue)
+	{
+		targetValue = FloatSanitizers::sanitizeFloatNumber(newTargetValue);
+	}
+
+	Smoother s;
+	float targetValue = 1.0f;
+};
+
 /** A general purpose waveshaper effect. */
 class ShapeFX : public MasterEffectProcessor,
 				public WaveformComponent::Broadcaster,
@@ -46,64 +75,74 @@ class ShapeFX : public MasterEffectProcessor,
 {
 public:
 
-	using Oversampler = juce::dsp::Oversampling<float>;
+	
+	
 
+	using Oversampler = juce::dsp::Oversampling<float>;
+	using ShapeFunction = std::function<float(float)>;
 
 	enum ShapeMode
 	{
 		Linear=1,
 		Atan,
 		Tanh,
+		Sin,
+		Asinh,
+		Saturate,
 		Square,
 		SquareRoot,
-		Curve,
-		Function,
+		TanCos,
+		Chebichev1,
+		Chebichev2,
+		Chebichev3,
+		Curve=32,
+		AsymetricalCurve,
+		CachedScript,
+		Script,
 		numModes
 	};
 
-	struct ShapeFunctions
+	struct ShapeFunctions;
+	
+
+	class ShaperBase
 	{
-		static float linear(float input) { return input; };
-		static float atan(float input) { return std::atanf(input); };
-		static float tanh(float input) { return std::tanh(input); };
-		static float square(float input) 
-		{ 
-			auto sign = (0.f < input) - (input < 0.0f);
+	public:
 
-			return jlimit<float>(-1.0f, 1.0f, (float)sign * input * input); 
-		};
-		static float squareRoot(float input)
-		{ 
-			auto v = fabsf(input);
-			auto sign = (0.f < input) - (input < 0.0f);
+		ShaperBase() {};
 
-			return (float)sign * sqrtf(v); 
-		};
-		static float symetricLookup(const float* table, float normalizedIndex)
-		{
-			auto sign = (0.f < normalizedIndex) - (normalizedIndex < 0.0f);
-			auto v = jlimit<float>(0.0f, 1.0f, fabsf(normalizedIndex)) * ((float)SAMPLE_LOOKUP_TABLE_SIZE - 1.0f);
-			
-			const float i1 = floor(v);
-			const float i2 = jmin<float>((float)SAMPLE_LOOKUP_TABLE_SIZE - 1.0f, i1 + 1.0f);
-			
-			const float delta = v - i1;
+	public:
 
-			return (float)sign * Interpolator::interpolateLinear(table[(int)i1], table[(int)i2], delta);
-		}
+		virtual ~ShaperBase() {};
 
-		static float asymetricLookup(const float* table, float normalizedIndex)
-		{
-			auto v = jlimit<float>(0.0, 511.0f, (normalizedIndex + 1.0f) / 2.0f * (float)SAMPLE_LOOKUP_TABLE_SIZE);
-
-			const float i1 = floor(v);
-			const float i2 = jmin<float>((float)SAMPLE_LOOKUP_TABLE_SIZE - 1.0f, i1 + 1.0f);
-
-			const float delta = v - i1;
-
-			return Interpolator::interpolateLinear(table[(int)i1], table[(int)i2], delta);
-		}
+		virtual void processBlock(float* l, float* r, int numSamples) = 0;
+		
+		virtual float getSingleValue(float input) = 0;
 	};
+
+	template <class ShapeFunction> class FuncShaper : public ShaperBase
+	{
+	public:
+
+		FuncShaper(): ShaperBase() {};
+
+		void processBlock(float* l, float* r, int numSamples) override
+		{
+			for (int i = 0; i < numSamples; i++)
+			{
+				l[i] = ShapeFunction::shape(l[i]);
+				r[i] = ShapeFunction::shape(r[i]);
+			}
+		}
+
+		float getSingleValue(float input) { return ShapeFunction::shape(input); };
+	};
+
+	class InternalSaturator;
+	class TableShaper;
+	
+	class CachedScriptShaper;
+	class ScriptShaper;
 
 	enum SpecialParameters
 	{
@@ -133,6 +172,7 @@ public:
 	void setInternalAttribute(int parameterIndex, float newValue) override;
 	float getAttribute(int parameterIndex) const override;
 	float getDefaultValue(int parameterIndex) const override;
+	int getNumScriptParameters() const override { return numParameters; }
 
 	ValueTree exportAsValueTree() const override;
 	void restoreFromValueTree(const ValueTree &v) override;
@@ -142,7 +182,7 @@ public:
 	int getNumInternalChains() const override { return 0; };
 	int getNumChildProcessors() const override { return 0; };
 
-	Table* getTable(int /*tableIndex*/) const override { return table; }
+	Table* getTable(int /*tableIndex*/) const override;
 	
 	int getNumTables() const override { return 1; }
 
@@ -184,6 +224,14 @@ public:
 
 		if(getBlockSize() > 0)
 			oversampler->initProcessing(getBlockSize());
+
+		int latency = roundFloatToInt(oversampler->getLatencyInSamples());
+
+		if(getSampleRate() > 0.0)
+			bitCrushSmoother.reset(getSampleRate() * oversampleFactor, 0.04);
+
+		lDelay.setDelayTimeSamples(latency);
+		rDelay.setDelayTimeSamples(latency);
 	}
 
 	void updateFilter(bool updateLowPass);
@@ -192,13 +240,32 @@ public:
 
 	void updateGain();
 
+	void updateGainSmoothers();
+
 	void getWaveformTableValues(int /*displayIndex*/, float const** tableValues, int& numValues, float& normalizeValue) override;
 
 	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples);
 
 	virtual int getControlCallbackIndex() const { return 0; };
 
-	private:
+	const StringArray& getShapeNames() const { return shapeNames; };
+	static void generateRampForDisplayValue(float* data, float gainToUse);
+	
+	
+
+private:
+	
+
+	TableShaper * getTableShaper();
+	const TableShaper * getTableShaper() const;
+
+	void processBitcrushedValues(float* l, float* r, int numSamples);
+
+
+	OwnedArray<ShaperBase> shapers;
+	StringArray shapeNames;
+
+	void initShapers();
 
 	struct TableUpdater : public SafeChangeListener
 	{
@@ -213,17 +280,27 @@ public:
 			parent.getTable(0)->removeChangeListener(this);
 		}
 
-		void changeListenerCallback(SafeChangeBroadcaster *b) override
+		void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override
 		{
-			parent.updateMode();
+			parent.recalculateDisplayTable();
 		}
 
 		ShapeFX& parent;
 	};
 
-	float getCurveValue(float input);
+	void rebuildScriptedTable();
+
+	void recalculateDisplayTable();
+
+	
+
+	
 
 	CriticalSection oversamplerLock;
+
+	SpinLock scriptLock;
+
+	Result shapeResult;
 
 	ScopedPointer<Oversampler> oversampler;
 	
@@ -231,23 +308,30 @@ public:
 
 	bool autogain;
 
-	float biasLeft, biasRight, drive, lowpass, highpass, reduce, mix, gain;
+	float biasLeft, biasRight, drive, lowpass, highpass, reduce, mix, gain, autogainValue;
 
 	int oversampleFactor = 1;
 
 	float displayTable[SAMPLE_LOOKUP_TABLE_SIZE];
+	
+	float graphNormalizeValue = 0.0f;
 
-	LinearSmoothedValue<float> lgain;
-	LinearSmoothedValue<float> rgain;
+	DelayLine lDelay;
+	DelayLine rDelay;
 
-	LinearSmoothedValue<float> lgain_inv;
-	LinearSmoothedValue<float> rgain_inv;
+	LowpassSmoothedValue gainer;
+	LowpassSmoothedValue autogainer;
+
+	
 
 	LinearSmoothedValue<float> mixSmootherL;
 	LinearSmoothedValue<float> mixSmoother_invL;
 
 	LinearSmoothedValue<float> mixSmootherR;
 	LinearSmoothedValue<float> mixSmoother_invR;
+
+
+	LinearSmoothedValue<float> bitCrushSmoother;
 
 	AudioSampleBuffer dryBuffer;
 
@@ -269,13 +353,144 @@ public:
 
 	chunkware_simple::SimpleLimit limiter;
 
-	ScopedPointer<SampleLookupTable> table;
+	
+
+	ScopedPointer<SafeChangeBroadcaster> tableBroadcaster;
 
 	ScopedPointer<TableUpdater> tableUpdater;
 
 	ScopedPointer<SnippetDocument> functionCode;
 
 	void updateMix();
+};
+
+
+/** A polyphonic waveshaper
+*	@ingroup effectTypes
+*
+*/
+class PolyshapeFX : public VoiceEffectProcessor,
+					public WaveformComponent::Broadcaster,
+					public LookupTableProcessor
+{
+public:
+
+	class PolytableShaper;
+	class PolytableAsymetricalShaper;
+
+	SET_PROCESSOR_NAME("PolyshapeFX", "Polyshape FX");
+
+	enum InternalChains
+	{
+		DriveModulation = 0,
+		numInternalChains
+	};
+
+	/** The parameters */
+	enum SpecialParameters
+	{
+		Drive = VoiceEffectProcessor::numParameters,
+		Mode,
+		Oversampling,
+		Bias,
+		numParameters
+	};
+
+	enum EditorStates
+	{
+		DriveModulationShown = Processor::numEditorStates,
+		numEditorStates
+	};
+
+	PolyshapeFX(MainController *mc, const String &uid, int numVoices);;
+
+	~PolyshapeFX();
+
+	float getAttribute(int parameterIndex) const override;
+	void setInternalAttribute(int parameterIndex, float newValue) override;;
+	float getDefaultValue(int parameterIndex) const override;;
+
+	void restoreFromValueTree(const ValueTree &v) override;;
+	ValueTree exportAsValueTree() const override;
+
+	void renderNextBlock(AudioSampleBuffer &/*buffer*/, int /*startSample*/, int /*numSamples*/) override
+	{
+
+	}
+
+	bool hasTail() const override { return false; };
+
+	Processor *getChildProcessor(int /*processorIndex*/) override { return driveChain; };
+	const Processor *getChildProcessor(int /*processorIndex*/) const override { return driveChain; };
+	int getNumChildProcessors() const override { return numInternalChains; };
+	int getNumInternalChains() const override { return numInternalChains; };
+
+	Table* getTable(int tableIndex) const override;
+
+	int getNumTables() const override { return 2; }
+
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
+
+	AudioSampleBuffer &getBufferForChain(int /*index*/) override;
+
+	void preVoiceRendering(int voiceIndex, int startSample, int numSamples);
+
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
+
+	void applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) override;
+
+	const StringArray& getShapeNames() const { return shapeNames; }
+
+	void getWaveformTableValues(int /*displayIndex*/, float const** tableValues, int& numValues, float& normalizeValue) override;
+
+	void recalculateDisplayTable();
+
+private:
+
+	class TableUpdater : public SafeChangeListener
+	{
+	public:
+		TableUpdater(PolyshapeFX& parent_) :
+			parent(parent_)
+		{
+			parent.getTable(0)->addChangeListener(this);
+			parent.getTable(1)->addChangeListener(this);
+		}
+
+		void changeListenerCallback(SafeChangeBroadcaster*) override
+		{
+			parent.recalculateDisplayTable();
+		}
+
+		~TableUpdater()
+		{
+			parent.getTable(0)->removeChangeListener(this);
+			parent.getTable(1)->removeChangeListener(this);
+		}
+
+		PolyshapeFX& parent;
+	};
+
+	void initShapers();
+
+	StringArray shapeNames;
+
+	OwnedArray<ShapeFX::ShaperBase> shapers;
+	OwnedArray<ShapeFX::Oversampler> oversamplers;
+	float drive = 1.0f;
+	int mode = ShapeFX::ShapeMode::Linear;
+	bool oversampling = false;
+	ScopedPointer<ModulatorChain> driveChain;
+	AudioSampleBuffer driveBuffer;
+
+	OwnedArray<SimpleOnePole> dcRemovers;
+
+	ScopedPointer<TableUpdater> tableUpdater;
+
+	float bias = 0.0f;
+
+	float displayTable[SAMPLE_LOOKUP_TABLE_SIZE];
+	float unusedTable[SAMPLE_LOOKUP_TABLE_SIZE];
 };
 
 

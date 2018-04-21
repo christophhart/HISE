@@ -138,6 +138,7 @@ private:
 		{
 			DEACTIVATE(PolyFilterEffect);
 			DEACTIVATE(MonoFilterEffect);
+            DEACTIVATE(PolyshapeFX);
 			DEACTIVATE(HarmonicFilter);
 			DEACTIVATE(HarmonicMonophonicFilter);
 			DEACTIVATE(StereoEffect);
