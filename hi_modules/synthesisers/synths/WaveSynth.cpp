@@ -173,7 +173,7 @@ float WaveSynth::getDefaultValue(int parameterIndex) const
 
 void WaveSynth::getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue)
 {
-	auto type = displayIndex == 1 ? waveForm2 : waveForm1;
+	auto type = (int)(displayIndex == 1 ? waveForm2 : waveForm1);
 
 	switch (type)
 	{

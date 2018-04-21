@@ -271,7 +271,7 @@ private:
 			parent(p)
 		{};
 
-		void changeListenerCallback(SafeChangeBroadcaster *b) override
+		void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override
 		{
 			parent.triggerWaveformUpdate();
 		}

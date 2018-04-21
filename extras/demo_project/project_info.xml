@@ -15,4 +15,6 @@
   <ExtraDefinitionsWindows value="" type="TEXT" description="Extra preprocessor definitions for Windows"/>
   <ExtraDefinitionsOSX value="" type="TEXT" description="Extra preprocessor definitions for OSX"/>
   <ExtraDefinitionsIOS value="" type="TEXT" description="Extra preprocessor definitions for IOS"/>
+  <AppGroupID value=""/>
+  <RedirectSampleFolder value=""/>
 </ProjectSettings>

@@ -209,6 +209,32 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 		thisAsProcessor->sendChangeMessage();
 }
 
+void countChildren(const ValueTree& t, int& numChildren)
+{
+	numChildren++;
+
+	for (auto child : t)
+	{
+		countChildren(child, numChildren);
+	}
+}
+
+
+int ProcessorWithScriptingContent::getNumScriptParameters() const
+{
+	if (content != nullptr)
+	{
+		auto c = content->getContentProperties();
+		int numChildren = -1; // the root tree doesn't count
+
+		countChildren(c, numChildren);
+
+		return numChildren;
+	}
+	else
+		return 0;
+}
+
 void ProcessorWithScriptingContent::restoreContent(const ValueTree &restoredState)
 {
 	restoredContentValues = restoredState.getChildWithName("Content");
@@ -799,6 +825,8 @@ void JavascriptProcessor::saveScript(ValueTree &v) const
 	v.setProperty("Script", x, nullptr);
 }
 
+
+
 void JavascriptProcessor::restoreScript(const ValueTree &v)
 {
 	String x = v.getProperty("Script", String());
@@ -816,6 +844,8 @@ void JavascriptProcessor::restoreScript(const ValueTree &v)
 
 		auto copy = contentPropertyChild.createCopy();
 
+		ScriptingApi::Content::Helpers::sanitizeNumberProperties(copy);
+
 		copy.setProperty(deviceType, deviceName, nullptr);
 
 		allInterfaceData.addChild(copy, -1, nullptr);
@@ -825,6 +855,9 @@ void JavascriptProcessor::restoreScript(const ValueTree &v)
 	if (uiData.isValid())
 	{
 		allInterfaceData = uiData;
+
+		ScriptingApi::Content::Helpers::sanitizeNumberProperties(allInterfaceData);
+
 		auto deviceIndex = (int)HiseDeviceSimulator::getDeviceType();
 
 		setDeviceTypeForInterface(deviceIndex);

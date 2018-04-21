@@ -65,7 +65,7 @@ WavetableSynth::WavetableSynth(MainController *mc, const String &id, int numVoic
 	}
 }
 
-void WavetableSynth::getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue)
+void WavetableSynth::getWaveformTableValues(int /*displayIndex*/, float const** tableValues, int& numValues, float& normalizeValue)
 {
 	WavetableSynthVoice *wavetableVoice = dynamic_cast<WavetableSynthVoice*>(getLastStartedVoice());
 

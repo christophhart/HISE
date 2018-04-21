@@ -4,7 +4,7 @@
               bundleIdentifier="com.hartinstruments.HISEStandalone" includeBinaryInAppConfig="1"
               jucerVersion="5.2.0" companyName="Hart Instruments" companyWebsite="http://hise.audio"
               companyCopyright="Hart Instruments" displaySplashScreen="0" reportAppUsage="0"
-              splashScreenColour="Dark" cppLanguageStandard="11">
+              splashScreenColour="Dark" cppLanguageStandard="14">
   <MAINGROUP id="yomWt4" name="HISE Standalone">
     <GROUP id="{577963C7-1A49-BB2A-D701-52DC7A5895F7}" name="Source">
       <FILE id="ho3qQy" name="logo_new.png" compile="0" resource="1" file="../../hi_core/hi_images/logo_new.png"/>
@@ -81,6 +81,7 @@
         <MODULEPATH id="hi_dsp" path="../../"/>
         <MODULEPATH id="hi_streaming" path="../../"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="landscape" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
@@ -120,6 +121,7 @@
         <MODULEPATH id="hi_dsp" path="../../"/>
         <MODULEPATH id="hi_streaming" path="../../"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
     <VS2015 targetFolder="Builds/VisualStudio2015" smallIcon="ho3qQy" bigIcon="ho3qQy"
@@ -172,6 +174,7 @@
         <MODULEPATH id="hi_dsp" path="../../"/>
         <MODULEPATH id="hi_streaming" path="../../"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </VS2015>
     <VS2017 targetFolder="Builds/VisualStudio2017" smallIcon="ho3qQy" bigIcon="ho3qQy"
@@ -229,6 +232,7 @@
         <MODULEPATH id="hi_dsp" path="../../"/>
         <MODULEPATH id="hi_streaming" path="../../"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </VS2017>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=0" smallIcon="bfBEgJ"
@@ -264,6 +268,7 @@
         <MODULEPATH id="hi_dsp" path="../../"/>
         <MODULEPATH id="hi_streaming" path="../../"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
@@ -286,6 +291,7 @@
     <MODULES id="juce_core" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_cryptography" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_data_structures" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="juce_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULES id="juce_events" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_graphics" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_gui_basics" showAllCode="1" useLocalCopy="0"/>

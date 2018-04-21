@@ -12,7 +12,7 @@
               companyName="Hart Instruments" companyWebsite="http://hise.audio"
               pluginIsMidiEffectPlugin="0" buildAUv3="0" companyCopyright="Hart Instruments"
               displaySplashScreen="0" reportAppUsage="0" splashScreenColour="Dark"
-              buildStandalone="0" enableIAA="0" cppLanguageStandard="11">
+              buildStandalone="0" enableIAA="0" cppLanguageStandard="14">
   <MAINGROUP id="VUOG93" name="HISE">
     <GROUP id="{665762C7-5461-7343-9D6B-1FFA3A6308C3}" name="Source">
       <FILE id="PpFbAI" name="balanceKnob_200.png" compile="0" resource="1"
@@ -103,6 +103,7 @@
         <MODULEPATH id="hi_dsp" path="../../"/>
         <MODULEPATH id="hi_streaming" path="../../../HISE modules"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <VS2015 targetFolder="Builds/VisualStudio2015" vstFolder="c:\SDKs\vstsdk2.4"
@@ -171,6 +172,7 @@
         <MODULEPATH id="hi_dsp" path="../../"/>
         <MODULEPATH id="hi_streaming" path="../../../HISE modules"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </VS2015>
     <VS2017 targetFolder="Builds/VisualStudio2017" vstFolder="c:\SDKs\vstsdk2.4"
@@ -242,6 +244,7 @@
         <MODULEPATH id="hi_dsp" path="../../"/>
         <MODULEPATH id="hi_streaming" path="../../../HISE modules"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </VS2017>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="">
@@ -277,6 +280,7 @@
         <MODULEPATH id="hi_dsp" path="../../"/>
         <MODULEPATH id="hi_streaming" path="../../../HISE modules"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
@@ -300,6 +304,7 @@
     <MODULES id="juce_core" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_cryptography" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_data_structures" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="juce_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULES id="juce_events" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_graphics" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_gui_basics" showAllCode="1" useLocalCopy="0"/>
@@ -317,7 +322,9 @@
                USE_HARD_CLIPPER="enabled" USE_IPP="enabled" USE_VDSP_FFT="disabled"
                ENABLE_SCRIPTING_BREAKPOINTS="enabled" HLAC_MEASURE_DECODING_PERFORMANCE="disabled"
                HLAC_DEBUG_LOG="disabled" HLAC_INCLUDE_TEST_SUITE="disabled"
-               STANDALONE_STREAMING="disabled"/>
+               STANDALONE_STREAMING="disabled" JUCE_ASSERTION_FIRFILTER="disabled"
+               JUCE_DSP_USE_INTEL_MKL="disabled" JUCE_DSP_USE_SHARED_FFTW="disabled"
+               JUCE_DSP_USE_STATIC_FFTW="disabled"/>
   <LIVE_SETTINGS>
     <OSX/>
   </LIVE_SETTINGS>

@@ -158,8 +158,10 @@ END_JUCE_MODULE_DECLARATION
 #include "effects/fx/Dynamics.h"
 #include "effects/fx/Saturator.h"
 #include "effects/fx/AudioProcessorWrapper.h"
-#include "effects/fx/SlotFX.h"
 #include "effects/fx/Analyser.h"
+#include "effects/fx/ShapeFX.h"
+#include "effects/fx/SlotFX.h"
+
 
 #if USE_BACKEND
 
@@ -179,7 +181,8 @@ END_JUCE_MODULE_DECLARATION
 #include "effects/editors/RouteFXEditor.h"
 #include "effects/editors/SaturationEditor.h"
 #include "effects/editors/DynamicsEditor.h"
-
+#include "effects/editors/ShapeFXEditor.h"
+#include "effects/editors/PolyShapeFXEditor.h"
 #include "effects/editors/SlotFXEditor.h"
 #include "effects/editors/AnalyserEditor.h"
 

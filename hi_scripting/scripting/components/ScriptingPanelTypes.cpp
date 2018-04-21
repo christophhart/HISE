@@ -52,9 +52,6 @@ Component* CodeEditorPanel::createContentComponent(int index)
 {
 	auto p = dynamic_cast<JavascriptProcessor*>(getProcessor());
 
-	const int numSnippets = p->getNumSnippets();
-	const int numFiles = p->getNumWatchedFiles();
-
 	const bool isCallback = index < p->getNumSnippets();
 
 	if (isCallback)

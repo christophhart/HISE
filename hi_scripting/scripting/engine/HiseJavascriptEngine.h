@@ -161,7 +161,7 @@ public:
 
 	var executeCallback(int callbackIndex, Result *result);
 
-	inline void setCallbackParameter(int callbackIndex, int parameterIndex, var newValue);
+	void setCallbackParameter(int callbackIndex, int parameterIndex, var newValue);
 
 	DebugInformation*getDebugInformation(int index);
 

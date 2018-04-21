@@ -435,6 +435,8 @@ public:
 
 void SettingWindows::valueTreePropertyChanged(ValueTree& treeWhosePropertyHasChanged, const Identifier& p)
 {
+	ignoreUnused(p);
+
 	const Identifier va("value");
 	auto id = treeWhosePropertyHasChanged.getType();
 	auto value = treeWhosePropertyHasChanged.getProperty("value");
@@ -463,6 +465,8 @@ void SettingWindows::valueTreeChildAdded(ValueTree&, ValueTree&)
 
 void SettingWindows::fillPropertyPanel(const Identifier& s, PropertyPanel& panel, const String& searchText)
 {
+	ignoreUnused(searchText);
+
 	Array<PropertyComponent*> props;
 
 	for (auto c : getValueTree(s))

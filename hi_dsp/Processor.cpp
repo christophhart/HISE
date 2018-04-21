@@ -135,31 +135,12 @@ const Identifier Processor::getIdentifierForParameterIndex(int parameterIndex) c
 	}
 }
 
-void countChildren(const ValueTree& t, int& numChildren)
-{
-	numChildren++;
-
-	for (auto child : t)
-	{
-		countChildren(child, numChildren);
-	}
-}
 
 int Processor::getNumParameters() const
 {
 	if (auto pwsc = dynamic_cast<const ProcessorWithScriptingContent*>(this))
 	{
-		if (auto content = pwsc->getScriptingContent())
-		{
-			auto c = content->getContentProperties();
-			int numChildren = -1; // the root tree doesn't count
-
-			countChildren(c, numChildren);
-
-			return numChildren;
-		}
-		else
-			return 0;
+		return pwsc->getNumScriptParameters();
 	}
 	else
 		return parameterNames.size();

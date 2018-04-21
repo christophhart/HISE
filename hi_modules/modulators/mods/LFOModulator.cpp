@@ -253,7 +253,7 @@ void LfoModulator::setInternalAttribute (int parameter_index, float newValue)
 };
 
 
-void LfoModulator::getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue)
+void LfoModulator::getWaveformTableValues(int /*displayIndex*/, float const** tableValues, int& numValues, float& normalizeValue)
 {
 	if (currentWaveform == Random)
 	{

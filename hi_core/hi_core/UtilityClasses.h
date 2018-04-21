@@ -614,16 +614,15 @@ public:
 		setSaturationAmount(0.0f);
 	};
 
-	inline float getSaturatedSample(float inputSample)
+	inline float getSaturatedSample(float inputSample) const
 	{
 		return (1.0f + k) * inputSample / (1.0f + k * fabsf(inputSample));
 	}
 
 	void setSaturationAmount(float newSaturationAmount)
 	{
-		saturationAmount = newSaturationAmount;
-		if (saturationAmount == 1.0f) saturationAmount = 0.999f;
-
+		saturationAmount = jmin(newSaturationAmount, 0.999f);
+		
 		k = 2 * saturationAmount / (1.0f - saturationAmount);
 	}
 

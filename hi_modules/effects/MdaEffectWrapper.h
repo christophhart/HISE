@@ -93,7 +93,7 @@ public:
 	{
 		for(int i = 0; i < effect->getNumParameters(); i++)
 		{
-			char *name2;
+			char *name2 = nullptr;
 
 			effect->getParameterName(i, name2);
 

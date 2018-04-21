@@ -59,49 +59,77 @@ public:
 		fadeTimeSamples = newFadeTimeInSamples;
 	}
 
+	void processBlock(float* data, int numValues)
+	{
+		SpinLock::ScopedLockType sl(processLock);
+
+		if (fadeCounter < 0)
+		{
+			for (int i = 0; i < numValues; i++)
+			{
+				processSampleWithoutFade(data[i]);
+			}
+		}
+		else
+		{
+			for (int i = 0; i < numValues; i++)
+			{
+				if (fadeCounter < 0)	processSampleWithoutFade(data[i]);
+				else					processSampleWithFade(data[i]);
+			}
+		}
+		
+	}
+
 	float getDelayedValue(float inputValue)
 	{
 		SpinLock::ScopedLockType sl(processLock);
 
-		delayBuffer[writeIndex++] = inputValue;
+		if (fadeCounter < 0)	processSampleWithoutFade(inputValue);
+		else					processSampleWithFade(inputValue);
 
-		if (fadeCounter < 0)
-		{
-			const float returnValue = delayBuffer[readIndex++];
-
-			readIndex &= DELAY_BUFFER_MASK;
-			writeIndex &= DELAY_BUFFER_MASK;
-			return returnValue;
-		}
-		else
-		{
-			const float oldValue = delayBuffer[oldReadIndex++];
-			const float newValue = delayBuffer[readIndex++];
-
-			const float mix = (float)fadeCounter / (float)fadeTimeSamples;
-
-			const float returnValue = newValue * mix + oldValue * (1.0f - mix);
-
-			oldReadIndex &= DELAY_BUFFER_MASK;
-			readIndex &= DELAY_BUFFER_MASK;
-			writeIndex &= DELAY_BUFFER_MASK;
-
-			fadeCounter++;
-
-			if (fadeCounter >= fadeTimeSamples)
-			{
-				fadeCounter = -1;
-				if (lastIgnoredDelayTime != 0)
-				{
-					setInternalDelayTime(lastIgnoredDelayTime);
-				}
-			}
-
-			return returnValue;
-		}
+		return inputValue;
 	}
 
 private:
+
+	void processSampleWithFade(float& f)
+	{
+		delayBuffer[writeIndex++] = f;
+
+		const float oldValue = delayBuffer[oldReadIndex++];
+		const float newValue = delayBuffer[readIndex++];
+
+		const float mix = (float)fadeCounter / (float)fadeTimeSamples;
+
+		f = newValue * mix + oldValue * (1.0f - mix);
+
+		oldReadIndex &= DELAY_BUFFER_MASK;
+		readIndex &= DELAY_BUFFER_MASK;
+		writeIndex &= DELAY_BUFFER_MASK;
+
+		fadeCounter++;
+
+		if (fadeCounter >= fadeTimeSamples)
+		{
+			fadeCounter = -1;
+			if (lastIgnoredDelayTime != 0)
+			{
+				setInternalDelayTime(lastIgnoredDelayTime);
+			}
+		}
+	}
+
+
+	void processSampleWithoutFade(float& f)
+	{
+		delayBuffer[writeIndex++] = f;
+
+		f = delayBuffer[readIndex++];
+
+		readIndex &= DELAY_BUFFER_MASK;
+		writeIndex &= DELAY_BUFFER_MASK;
+	}
 
 	void setInternalDelayTime(int delayInSamples)
 	{

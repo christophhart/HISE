@@ -136,6 +136,7 @@ juce::Path WaveformComponent::getPathForBasicWaveform(WaveformType t)
 		break;
 
 	}
+    default: break;
 	
 	}
 
@@ -196,6 +197,8 @@ void WaveformComponent::rebuildPath()
 			
 			value = broadcaster->scaleFunction(value);
 			
+			value *= normalizeValue;
+
 			jassert(tableIndex < tableLength);
 
 			p.lineTo((float)i, value * -(h - 2) / 2 + h / 2);

@@ -1457,9 +1457,11 @@ hise::CompileExporter::CompileExporter::ErrorCodes CompileExporter::createStanda
 {
 	String templateProject = String(projectStandaloneTemplate_jucer);
 
-	REPLACE_WILDCARD("%NAME%", GET_SETTING(HiseSettings::Project::Name));
-	REPLACE_WILDCARD("%VERSION%", GET_SETTING(HiseSettings::Project::Version));
-	REPLACE_WILDCARD("%BUNDLE_ID%", GET_SETTING(HiseSettings::Project::BundleIdentifier));
+	auto name = GET_SETTING(HiseSettings::Project::Name);
+
+	REPLACE_WILDCARD("%NAME%", HiseSettings::Project::Name);
+	REPLACE_WILDCARD("%VERSION%", HiseSettings::Project::Version);
+	REPLACE_WILDCARD("%BUNDLE_ID%", HiseSettings::Project::BundleIdentifier);
 
 	const File asioPath = hisePath.getChildFile("tools/SDK/ASIOSDK2.3/common");
 
