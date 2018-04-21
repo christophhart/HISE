@@ -405,10 +405,12 @@ struct CmplxSIMDOps<std::complex<Scalar>>
 
 } // namespace dsp
 
+#if !JUCE_LINUX
 // Extend some common used global functions to SIMDRegister types
-template <typename Type>
+//template <typename Type>
 inline dsp::SIMDRegister<Type> JUCE_VECTOR_CALLTYPE jmin (dsp::SIMDRegister<Type> a, dsp::SIMDRegister<Type> b) { return dsp::SIMDRegister<Type>::min (a, b); }
-template <typename Type>
+//template <typename Type>
 inline dsp::SIMDRegister<Type> JUCE_VECTOR_CALLTYPE jmax (dsp::SIMDRegister<Type> a, dsp::SIMDRegister<Type> b) { return dsp::SIMDRegister<Type>::max (a, b); }
+#endif
 
 } // namespace juce
