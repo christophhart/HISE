@@ -209,6 +209,32 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 		thisAsProcessor->sendChangeMessage();
 }
 
+void countChildren(const ValueTree& t, int& numChildren)
+{
+	numChildren++;
+
+	for (auto child : t)
+	{
+		countChildren(child, numChildren);
+	}
+}
+
+
+int ProcessorWithScriptingContent::getNumScriptParameters() const
+{
+	if (content != nullptr)
+	{
+		auto c = content->getContentProperties();
+		int numChildren = -1; // the root tree doesn't count
+
+		countChildren(c, numChildren);
+
+		return numChildren;
+	}
+	else
+		return 0;
+}
+
 void ProcessorWithScriptingContent::restoreContent(const ValueTree &restoredState)
 {
 	restoredContentValues = restoredState.getChildWithName("Content");

@@ -86,6 +86,8 @@ public:
 
 	virtual int getControlCallbackIndex() const = 0;
 
+	virtual int getNumScriptParameters() const;
+
 	var getSavedValue(Identifier name)
 	{
 		return restoredContentValues.getChildWithName(name).getProperty("value", var::undefined());

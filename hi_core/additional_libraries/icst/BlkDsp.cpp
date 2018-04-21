@@ -7215,7 +7215,7 @@ int VectorFunctions::getsize(char* filename)
 	if (filename[0] == 0) return -1;
 	if ((file = fopen(filename,"rb")) == NULL) return -1;
 	if (fseek(file, 0, SEEK_END) != 0) return -1;
-	count = ftell(file);
+	count = (int)ftell(file);
 	fclose(file);
 	if (count < 0) {return -1;} else {return count/sizeof(float);}
 }

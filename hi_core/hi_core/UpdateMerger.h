@@ -219,8 +219,8 @@ public:
 
 		currentValue = a0 * newValue - b0 * prevValue;
 
-		jassert(currentValue > -1000.0f);
-		jassert(currentValue < 1000.0f);
+		jassert(currentValue >= -1100.0f);
+		jassert(currentValue <= 1100.0f);
 
 		prevValue = currentValue;
 

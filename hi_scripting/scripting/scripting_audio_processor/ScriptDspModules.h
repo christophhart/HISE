@@ -1639,6 +1639,7 @@ public:
 			case Parameters::Q: return (float)q;
 			case Parameters::Gain:		return (float)gain;
 			case Parameters::Mode:		return (float)(int)m;
+            default: break;
 			}
 
 			return -1;
@@ -1719,6 +1720,7 @@ public:
 			case Mode::LowShelf: coefficients = IIRCoefficients::makeLowShelf(sampleRate, frequency, q, (float)gain); break;
 			case Mode::HighShelf: coefficients = IIRCoefficients::makeHighShelf(sampleRate, frequency, q, (float)gain); break;
 			case Mode::Peak:      coefficients = IIRCoefficients::makePeakFilter(sampleRate, frequency, q, (float)gain); break;
+            default: break;
 			}
 
 			leftFilter.setCoefficients(coefficients);
