@@ -5,4 +5,5 @@
   <CompanyCode value="Hain" type="TEXT" description="Company Code (4 characters, first must be uppercase)"/>
   <CompanyURL value="http://hise.audio" type="TEXT" description="Company Website"/>
   <CompanyCopyright value="&#169;2017, Company" type="TEXT" description="Company Copyright"/>
+  <TeamDevelopmentID value=""/>
 </UserSettings>
