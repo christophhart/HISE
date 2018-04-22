@@ -32,6 +32,12 @@
 
 namespace hise { using namespace juce;
 
+ProcessorWithScriptingContent::~ProcessorWithScriptingContent()
+{
+	if (content != nullptr)
+		content->cleanJavascriptObjects();
+}
+
 void ProcessorWithScriptingContent::setControlValue(int index, float newValue)
 {
 	jassert(content.get() != nullptr);

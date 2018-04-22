@@ -59,7 +59,7 @@ public:
 		numEditorStates
 	};
 
-	virtual ~ProcessorWithScriptingContent() {};
+	virtual ~ProcessorWithScriptingContent();;
 
 	void setAllowObjectConstruction(bool shouldBeAllowed)
 	{

@@ -115,6 +115,7 @@ public:
 	~ScriptComponentEditBroadcaster()
 	{
 		clearSelection(dontSendNotification);
+		manager.clearUndoHistory();
 	}
 
 	class Iterator

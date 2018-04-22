@@ -154,6 +154,8 @@ void MainController::clearPreset()
 
 	jassert(!getMainSynthChain()->areVoicesActive());
 
+	getScriptComponentEditBroadcaster()->getUndoManager().clearUndoHistory();
+
 	getMainSynthChain()->reset();
 
 	globalVariableObject->clear();

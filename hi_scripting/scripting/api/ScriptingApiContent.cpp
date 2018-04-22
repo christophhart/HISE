@@ -2448,10 +2448,7 @@ ScriptingApi::Content::ScriptPanel::~ScriptPanel()
 	paintRoutine = var();
 
     
-	if (HiseJavascriptEngine::isJavascriptFunction(loadRoutine))
-	{
-		 getScriptProcessor()->getMainController_()->getSampleManager().removePreloadListener(this);
-	}
+	getScriptProcessor()->getMainController_()->getSampleManager().removePreloadListener(this);
 
     loadedImages.clear();
     

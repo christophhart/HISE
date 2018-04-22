@@ -111,12 +111,12 @@ void MainController::SampleManager::setDiskMode(DiskMode mode) noexcept
 
 void MainController::SampleManager::PreloadListenerUpdater::handleAsyncUpdate()
 {
-	for (auto p : manager->preloadListeners)
+	for (int i = 0; i < manager->preloadListeners.size(); i++)
 	{
-		if (p != nullptr)
-		{
-			p->preloadStateChanged(manager->preloadFlag.load());
-		}
+		auto l = manager->preloadListeners[i].get();
+
+		if(l != nullptr)
+			l->preloadStateChanged(manager->preloadFlag.load());
 	}
 }
 
