@@ -312,7 +312,8 @@ class SamplerSoundMap: public Component,
 					   public ChangeListener,
 					   public LassoSource<WeakReference<SampleComponent>>,
 					   public SettableTooltipClient,
-					   public Timer
+					   public Timer,
+					   public MainController::SampleManager::PreloadListener
 {
 public:
 	
@@ -335,10 +336,7 @@ public:
 
 	SamplerSoundMap(ModulatorSampler *ownerSampler_);
 
-	~SamplerSoundMap()
-	{
-		sampleComponents.clear();
-	};
+	~SamplerSoundMap();;
 
 	void timerCallback() override
 	{
@@ -355,6 +353,8 @@ public:
 
         stopTimer();
 	}
+
+	void preloadStateChanged(bool isPreloading) override;
 
 	void modifierKeysChanged(const ModifierKeys &modifiers) override;
 
@@ -432,6 +432,8 @@ public:
 	const ModulatorSampler* getSampler() const { return ownerSampler; }
 
 private:
+
+	bool isPreloading = false;
 
 	/** A POD object containing data for a dragged sound. */
 	struct DragData
@@ -514,17 +516,20 @@ private:
 */
 class SamplerSoundTable    : public Component,
                              public TableListBoxModel,
-							 public SamplerSubEditor
+							 public SamplerSubEditor,
+							 public MainController::SampleManager::PreloadListener
 {
 public:
 	SamplerSoundTable(ModulatorSampler *ownerSampler_, SampleEditHandler* handler);
-
+	~SamplerSoundTable();
 	void refreshList();
 
     int getNumRows() override;
 
 	bool broadcasterIsSelection(ChangeBroadcaster *b) const;
 
+
+	void preloadStateChanged(bool isPreloading) override;
 	
     void paintRowBackground (Graphics& g, int rowNumber, int /*width*/, int /*height*/, bool rowIsSelected) override;
 
@@ -541,10 +546,13 @@ public:
 
 	void updateInterface() override
 	{
-		refreshList();
+		if(!isPreloading)
+			refreshList();
 	}
 
 private:
+
+	bool isPreloading = false;
 
 	ModulatorSampler *ownerSampler;
 	

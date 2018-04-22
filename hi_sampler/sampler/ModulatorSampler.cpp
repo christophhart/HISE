@@ -1299,6 +1299,11 @@ bool ModulatorSampler::preloadAllSamples()
 
 	ModulatorSampler::SoundIterator sIter(this);
 
+	const int numToLoad = jmax<int>(1, sounds.size() * getNumMicPositions());
+	int currentIndex = 0;
+
+	auto& progress = getMainController()->getSampleManager().getPreloadProgress();
+
 	while (auto sound = sIter.getNextSound())
 	{
 		sound->checkFileReference();
@@ -1306,6 +1311,8 @@ bool ModulatorSampler::preloadAllSamples()
 		if (getNumMicPositions() == 1)
 		{
 			auto s = sound->getReferenceToSound();
+
+			progress = (double)currentIndex++ / (double)numToLoad;
 
 			if (!preloadSample(s, preloadSizeToUse))
 				return false;
@@ -1316,7 +1323,9 @@ bool ModulatorSampler::preloadAllSamples()
 			{
 				const bool isEnabled = getChannelData(j).enabled;
 
-				StreamingSamplerSound *s = sound->getReferenceToSound(j);
+				auto s = sound->getReferenceToSound(j);
+
+				progress = (double)currentIndex++ / (double)numToLoad;
 
 				if (s != nullptr)
 				{

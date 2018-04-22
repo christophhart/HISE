@@ -163,6 +163,8 @@ public:
 		*/
 		CriticalSection& getSamplerSoundLock() { return samplerSoundLock; }
 
+		double& getPreloadProgress();
+
 	private:
 
 		CriticalSection samplerSoundLock;
@@ -194,10 +196,12 @@ public:
 			PreloadJob(MainController* mc);
 			JobStatus runJob() override;
 
+
+			double progress = 0.0;
 		private:
 
 			MainController* mc = nullptr;
-			double progress = 0.0;
+			
 		};
 
 		CriticalSection preloadLock;

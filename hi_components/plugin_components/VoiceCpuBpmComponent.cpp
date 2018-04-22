@@ -139,45 +139,51 @@ void VoiceCpuBpmComponent::buttonClicked(Button *)
 
 void VoiceCpuBpmComponent::timerCallback()
 {
-	cpuSlider->setColour(VuMeter::backgroundColour, findColour(Slider::backgroundColourId));
-	voiceLabel->setColour(Label::ColourIds::backgroundColourId, findColour(Slider::backgroundColourId));
-	
-	double totalUsage = 0.0;
-	int totalVoiceAmount = 0;
-
-	for (int i = 0; i < mainControllers.size(); i++)
+	if (preloadActive)
 	{
-		if (mainControllers[i].get() == nullptr)
+		repaint();
+	}
+	else
+	{
+		cpuSlider->setColour(VuMeter::backgroundColour, findColour(Slider::backgroundColourId));
+		voiceLabel->setColour(Label::ColourIds::backgroundColourId, findColour(Slider::backgroundColourId));
+
+		double totalUsage = 0.0;
+		int totalVoiceAmount = 0;
+
+		for (int i = 0; i < mainControllers.size(); i++)
 		{
-			mainControllers.remove(i--);
-			continue;
-		}	
+			if (mainControllers[i].get() == nullptr)
+			{
+				mainControllers.remove(i--);
+				continue;
+			}
 
-		totalUsage += mainControllers[i]->getCpuUsage() / 100.0f;
-		totalVoiceAmount += mainControllers[i]->getNumActiveVoices();
+			totalUsage += mainControllers[i]->getCpuUsage() / 100.0f;
+			totalVoiceAmount += mainControllers[i]->getNumActiveVoices();
+		}
+
+		cpuSlider->setPeak(((float)totalUsage));
+		voiceLabel->setText(String(totalVoiceAmount), dontSendNotification);
+
+		if (mainControllers.size() != 0)
+		{
+			MainController* mc = mainControllers.getFirst();
+
+			bpmLabel->setText(String(mc->getBpm(), 0), dontSendNotification);
+
+			bpmLabel->setText(String(mc->getBpm(), 0), dontSendNotification);
+
+			const bool midiFlag = mc->checkAndResetMidiInputFlag();
+
+			Colour c = midiFlag ? Colour(SIGNAL_COLOUR) : Colours::white.withAlpha(0.6f);
+
+			midiButton->setColours(c, c, c);
+			midiButton->repaint();
+		}
+
+		repaint();
 	}
-
-	cpuSlider->setPeak(((float)totalUsage));
-	voiceLabel->setText(String(totalVoiceAmount), dontSendNotification);
-
-	if (mainControllers.size() != 0)
-	{
-		MainController* mc = mainControllers.getFirst();
-
-		bpmLabel->setText(String(mc->getBpm(), 0), dontSendNotification);
-
-        bpmLabel->setText(String(mc->getBpm(), 0), dontSendNotification);
-        
-		const bool midiFlag = mc->checkAndResetMidiInputFlag();
-
-		Colour c = midiFlag ? Colour(SIGNAL_COLOUR) : Colours::white.withAlpha(0.6f);
-
-		midiButton->setColours(c, c, c);
-		midiButton->repaint();
-	}
-
-
-	repaint();
 }
 
 void VoiceCpuBpmComponent::resized()
@@ -236,7 +242,11 @@ void VoiceCpuBpmComponent::paintOverChildren(Graphics& g)
 		g.setColour(Colours::white.withAlpha(0.7f));
 		g.setFont(GLOBAL_FONT());
 
-		g.drawText("Preloading...", getLocalBounds(), Justification::centred);
+		const auto progress = mainControllers.getFirst()->getSampleManager().getPreloadProgress();
+		const auto percent = roundDoubleToInt(progress*100.0);
+
+		g.drawText("Preloading: " + String(percent) + "%", getLocalBounds(), Justification::centred);
+
 	}
 	else
 	{
@@ -265,6 +275,14 @@ void VoiceCpuBpmComponent::paintOverChildren(Graphics& g)
 void VoiceCpuBpmComponent::preloadStateChanged(bool isPreloading)
 {
 	preloadActive = isPreloading;
+
+	if (preloadActive)
+	{
+		startTimer(30);
+	}
+	else
+		startTimer(300);
+
 	repaint();
 }
 

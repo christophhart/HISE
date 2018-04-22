@@ -219,6 +219,7 @@ SamplerSoundMap::SamplerSoundMap(ModulatorSampler *ownerSampler_):
 	selectedSounds(new SelectedItemSet<WeakReference<SampleComponent>>()),
 	sampleLasso(new LassoComponent<WeakReference<SampleComponent>>())
 {
+	ownerSampler->getMainController()->getSampleManager().addPreloadListener(this);
 
     sampleLasso->setColour(LassoComponent<SampleComponent>::ColourIds::lassoFillColourId, Colours::white.withAlpha(0.1f));
     sampleLasso->setColour(LassoComponent<SampleComponent>::ColourIds::lassoOutlineColourId, Colour(SIGNAL_COLOUR));
@@ -238,6 +239,14 @@ SamplerSoundMap::SamplerSoundMap(ModulatorSampler *ownerSampler_):
 	setOpaque(true);
 
 };
+
+SamplerSoundMap::~SamplerSoundMap()
+{
+	if(ownerSampler != nullptr)
+		ownerSampler->getMainController()->getSampleManager().removePreloadListener(this);
+
+	sampleComponents.clear();
+}
 
 void SamplerSoundMap::changeListenerCallback(ChangeBroadcaster *b)
 {
@@ -378,6 +387,16 @@ void SamplerSoundMap::endSampleDragging(bool copyDraggedSounds)
 	sampleDraggingEnabled = false;
 }
 
+void SamplerSoundMap::preloadStateChanged(bool isPreloading_)
+{
+	isPreloading = isPreloading_;
+
+	if (!isPreloading)
+		updateSoundData();
+
+	repaint();
+}
+
 void SamplerSoundMap::modifierKeysChanged(const ModifierKeys &modifiers)
 {
 	if(modifiers.isAltDown() && selectedSounds->getNumSelected() != 0)
@@ -497,48 +516,58 @@ void SamplerSoundMap::paint(Graphics &g)
 
 void SamplerSoundMap::paintOverChildren(Graphics &g)
 {
-    const float noteWidth = (float)getWidth() / 128.0f;
-    const float velocityHeight = (float)getHeight() / 128.0f;
-    
-    for(int i = 0; i < 127; i++)
-    {
-        if(pressedKeys[i] != 0)
-        {
-            float x = (float)i*noteWidth;
-            float w = noteWidth;
-            float y = (float)(getHeight() - (pressedKeys[i] * velocityHeight) - 2.0f);
-            float h = 4.0f;
-            
-            g.setColour(Colour(SIGNAL_COLOUR));
-            g.fillRect(x, y, w, h);
-        }
-    }
-
-	if(sampleDraggingEnabled)
+	if (isPreloading)
 	{
-        
-        
-		for(int i = 0; i < dragStartData.size(); i++)
+		g.fillAll(Colour(0xAA222222));
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.setColour(Colours::white);
+		g.drawText("Preloading", FLOAT_RECTANGLE(getLocalBounds()), Justification::centred);
+	}
+	else
+	{
+		const float noteWidth = (float)getWidth() / 128.0f;
+		const float velocityHeight = (float)getHeight() / 128.0f;
+
+		for (int i = 0; i < 127; i++)
 		{
-			DragData d = dragStartData[i];
+			if (pressedKeys[i] != 0)
+			{
+				float x = (float)i*noteWidth;
+				float w = noteWidth;
+				float y = (float)(getHeight() - (pressedKeys[i] * velocityHeight) - 2.0f);
+				float h = 4.0f;
 
-			const int x = (int)((d.lowKey + currentDragDeltaX) * noteWidth);
-			const int w = (int)((1 + d.hiKey - d.lowKey) * noteWidth);
+				g.setColour(Colour(SIGNAL_COLOUR));
+				g.fillRect(x, y, w, h);
+			}
+		}
 
-			const int y = (int)(getHeight() - (d.hiVel + currentDragDeltaY) * velocityHeight);
-			const int h = (int)((127.0f - (float)(d.loVel + currentDragDeltaY)) * velocityHeight) - y;
+		if (sampleDraggingEnabled)
+		{
 
-			//const int y = (int)(getHeight() - (float)d.sound->getProperty(ModulatorSamplerSound::VeloHigh) * velocityHeight);
-			//const int h = (int)((127.0f - (float)d.sound->getProperty(ModulatorSamplerSound::VeloLow)) * velocityHeight) - y;
 
-			g.setColour(Colours::blue.withAlpha(0.4f));
+			for (int i = 0; i < dragStartData.size(); i++)
+			{
+				DragData d = dragStartData[i];
 
-			g.drawRect(x,y,w,h, 1);
+				const int x = (int)((d.lowKey + currentDragDeltaX) * noteWidth);
+				const int w = (int)((1 + d.hiKey - d.lowKey) * noteWidth);
 
-			g.setColour(Colours::blue.withAlpha(0.2f));
+				const int y = (int)(getHeight() - (d.hiVel + currentDragDeltaY) * velocityHeight);
+				const int h = (int)((127.0f - (float)(d.loVel + currentDragDeltaY)) * velocityHeight) - y;
 
-			g.fillRect(x,y,w,h);
+				//const int y = (int)(getHeight() - (float)d.sound->getProperty(ModulatorSamplerSound::VeloHigh) * velocityHeight);
+				//const int h = (int)((127.0f - (float)d.sound->getProperty(ModulatorSamplerSound::VeloLow)) * velocityHeight) - y;
 
+				g.setColour(Colours::blue.withAlpha(0.4f));
+
+				g.drawRect(x, y, w, h, 1);
+
+				g.setColour(Colours::blue.withAlpha(0.2f));
+
+				g.fillRect(x, y, w, h);
+
+			}
 		}
 	}
 }
@@ -631,6 +660,9 @@ void SamplerSoundMap::updateSampleComponents()
 
 void SamplerSoundMap::updateSoundData()
 {
+	if (isPreloading)
+		return;
+
 	if(newSamplesDetected())
 	{
 		sampleComponents.clear();
@@ -1071,6 +1103,7 @@ SamplerSoundTable::SamplerSoundTable(ModulatorSampler *ownerSampler_, SampleEdit
 	ownerSampler(ownerSampler_),
 	internalSelection(false)
 {
+	ownerSampler->getMainController()->getSampleManager().addPreloadListener(this);
 
     // Create our table component and add it to this component..
     addAndMakeVisible (table);
@@ -1108,8 +1141,16 @@ SamplerSoundTable::SamplerSoundTable(ModulatorSampler *ownerSampler_, SampleEdit
 	refreshList();
 }
 
+SamplerSoundTable::~SamplerSoundTable()
+{
+	ownerSampler->getMainController()->getSampleManager().removePreloadListener(this);
+}
+
 void SamplerSoundTable::refreshList()
 {
+	if (isPreloading)
+		return;
+
 	sortedSoundList.clear();
 
 	ModulatorSampler::SoundIterator sIter(ownerSampler, false);
@@ -1133,6 +1174,14 @@ bool SamplerSoundTable::broadcasterIsSelection(ChangeBroadcaster *b) const
 }
 
 	
+void SamplerSoundTable::preloadStateChanged(bool isPreloading_)
+{
+	isPreloading = isPreloading_;
+
+	if (!isPreloading)
+		refreshList();
+}
+
 void SamplerSoundTable::paintRowBackground (Graphics& g, int rowNumber, int width, int height, bool rowIsSelected)
 {
 	if(rowNumber % 2) g.fillAll(Colours::white.withAlpha(0.05f));

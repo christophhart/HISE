@@ -155,6 +155,7 @@ void MainController::SampleManager::clearPreloadFlag()
 
 	jassert(preloadFlag);
 
+	internalPreloadJob.progress = 0.0;
 	preloadFlag = false;
 	preloadListenerUpdater.triggerAsyncUpdate();
 

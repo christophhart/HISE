@@ -1147,6 +1147,11 @@ void MainController::SampleManager::preloadEverything()
 }
 
 
+double& MainController::SampleManager::getPreloadProgress()
+{
+	return internalPreloadJob.progress;
+}
+
 void MainController::CodeHandler::setMainConsole(Console* console)
 {
 	mainConsole = dynamic_cast<Component*>(console);
