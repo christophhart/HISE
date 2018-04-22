@@ -438,6 +438,9 @@ public:
         /** Sets a attribute to the given value. */
         void setAttribute(int index, var newValue);
         
+		/** Disables dynamic resizing when a sample map is loaded. */
+		void setUseStaticMatrix(bool shouldUseStaticMatrix);
+
 		// ============================================================================================================
 
 		struct Wrapper;

@@ -240,15 +240,18 @@ void ModulatorSampler::setNumChannels(int numNewChannels)
 
 	numChannels = jmin<int>(NUM_MAX_CHANNELS/2, numNewChannels);
 
-	getMatrix().setNumSourceChannels(numChannels * 2);
+	if (!useStaticMatrix)
+	{
+		getMatrix().setNumSourceChannels(numChannels * 2);
 
-	if (getMatrix().getNumDestinationChannels() == 2)
-	{
-		getMatrix().loadPreset(RoutableProcessor::Presets::AllChannelsToStereo);
-	}
-	else
-	{
-		getMatrix().loadPreset(RoutableProcessor::Presets::AllChannels);
+		if (getMatrix().getNumDestinationChannels() == 2)
+		{
+			getMatrix().loadPreset(RoutableProcessor::Presets::AllChannelsToStereo);
+		}
+		else
+		{
+			getMatrix().loadPreset(RoutableProcessor::Presets::AllChannels);
+		}
 	}
 
 	const int prevVoiceAmount = voiceAmount;

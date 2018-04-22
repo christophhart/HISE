@@ -1486,6 +1486,7 @@ sampler(sampler_)
 	ADD_API_METHOD_0(getSampleMapList);
     ADD_API_METHOD_1(getAttribute);
     ADD_API_METHOD_2(setAttribute);
+	ADD_API_METHOD_1(setUseStaticMatrix);
 
 	for (int i = 1; i < ModulatorSamplerSound::numProperties; i++)
 	{
@@ -1883,6 +1884,19 @@ void ScriptingApi::Sampler::setAttribute(int index, var newValue)
     }
     
     s->setAttribute(index, newValue, sendNotification);
+}
+
+void ScriptingApi::Sampler::setUseStaticMatrix(bool shouldUseStaticMatrix)
+{
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("setAttribute() only works with Samplers.");
+		RETURN_VOID_IF_NO_THROW()
+	}
+
+	s->setUseStaticMatrix(shouldUseStaticMatrix);
 }
 
 // ====================================================================================================== Synth functions

@@ -550,6 +550,11 @@ public:
 
     void setSoundPropertyAsyncForAllSamples(int index, int newValue);
 
+	void setUseStaticMatrix(bool shouldUseStaticMatrix)
+	{
+		useStaticMatrix = shouldUseStaticMatrix;
+	}
+
 private:
 
 	bool isOnSampleLoadingThread() const
@@ -662,6 +667,9 @@ private:
 
 	int preloadSize;
 	int bufferSize;
+
+
+	bool useStaticMatrix = false;
 
 	int64 memoryUsage;
 
