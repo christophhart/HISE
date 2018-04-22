@@ -1160,7 +1160,8 @@ int ModulatorSamplerSoundPool::getSoundIndexFromPool(int64 hashCode, int64 other
 
 	for (int i = 0; i < pool.size(); i++)
 	{
-		StreamingSamplerSound::Ptr s = pool[i];
+		StreamingSamplerSound::Ptr s = pool[i].get();
+		
 		if (s == nullptr)
 			return -1;
 
