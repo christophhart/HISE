@@ -950,6 +950,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_2(Engine, doubleToString);
 	API_METHOD_WRAPPER_0(Engine, getOS);
 	API_METHOD_WRAPPER_0(Engine, isPlugin);
+	API_METHOD_WRAPPER_0(Engine, getPreloadProgress);
 	API_METHOD_WRAPPER_0(Engine, getDeviceType);
 	API_METHOD_WRAPPER_0(Engine, getDeviceResolution);
 	API_METHOD_WRAPPER_0(Engine, getZoomLevel);
@@ -1010,6 +1011,7 @@ ApiClass(0)
 	ADD_API_METHOD_0(getDeviceType);
 	ADD_API_METHOD_0(getDeviceResolution);
 	ADD_API_METHOD_0(isPlugin);
+	ADD_API_METHOD_0(getPreloadProgress);
 	ADD_API_METHOD_0(getZoomLevel);
 	ADD_API_METHOD_0(getVersion);
 	ADD_API_METHOD_0(getFilterModeList);
@@ -1150,6 +1152,11 @@ bool ScriptingApi::Engine::isPlugin() const
 	return true;
 #endif
 #endif
+}
+
+double ScriptingApi::Engine::getPreloadProgress()
+{
+	return getScriptProcessor()->getMainController_()->getSampleManager().getPreloadProgress();
 }
 
 var ScriptingApi::Engine::getZoomLevel() const
@@ -1459,6 +1466,7 @@ struct ScriptingApi::Sampler::Wrapper
     API_METHOD_WRAPPER_0(Sampler, getCurrentSampleMapId);
     API_VOID_METHOD_WRAPPER_2(Sampler, setAttribute);
     API_METHOD_WRAPPER_1(Sampler, getAttribute);
+	API_VOID_METHOD_WRAPPER_1(Sampler, setUseStaticMatrix);
 };
 
 

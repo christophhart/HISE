@@ -298,6 +298,9 @@ public:
 		/** Returns true if running as VST / AU / AAX plugin. */
 		bool isPlugin() const;
 
+		/** Returns the preload progress from 0.0 to 1.0. Use this to display some kind of loading icon. */
+		double getPreloadProgress();
+
 		/** Returns the current Zoom Level. */
 		var getZoomLevel() const;
 
