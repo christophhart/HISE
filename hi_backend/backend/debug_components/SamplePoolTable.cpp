@@ -168,7 +168,6 @@ void SamplePoolTable::mouseDown(const MouseEvent &e)
 	switch (result)
 	{
 	case ResolveMissingSamples:	pool->resolveMissingSamples(this); break;
-	case DeleteMissingSamples:	pool->deleteMissingSamples(); break;
 	}
 
 

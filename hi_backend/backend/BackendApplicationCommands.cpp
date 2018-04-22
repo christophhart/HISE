@@ -237,13 +237,13 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Open Archive", true, false, 'X', false);
 		break;
 	case MenuSaveFile:
-		setCommandTarget(result, "Save Archive", true, false, 'X', false);
+		setCommandTarget(result, "Save Archive", true, false, 'S');
 		break;
 	case MenuSaveFileAs:
 		setCommandTarget(result, "Save As Archive", true, false, 'X', false);
 		break;
 	case MenuSaveFileAsXmlBackup:
-		setCommandTarget(result, "Save as XML", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'S');
+		setCommandTarget(result, "Save as XML", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
 		break;
 	case MenuOpenXmlBackup:
 		setCommandTarget(result, "Open XML", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'O');
@@ -592,7 +592,6 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsCreateExternalScriptFile:	Actions::createExternalScriptFile(bpe); updateCommands(); return true;
     case MenuToolsCheckDuplicate:       Actions::checkDuplicateIds(bpe); return true;
 	case MenuToolsValidateUserPresets:	Actions::validateUserPresets(bpe); return true;
-	case MenuToolsDeleteMissingSamples: Actions::deleteMissingSamples(bpe); return true;
 	case MenuToolsResolveMissingSamples:Actions::resolveMissingSamples(bpe); return true;
 	case MenuToolsCollectExternalFiles:	Actions::collectExternalFiles(bpe); return true;
 	case MenuToolsCreateUIDataFromDesktop: Actions::createUIDataFromDesktop(bpe); updateCommands(); return true;
@@ -1615,11 +1614,6 @@ void BackendCommandTarget::Actions::plotModulator(CopyPasteTarget *currentCopyPa
 void BackendCommandTarget::Actions::resolveMissingSamples(BackendRootWindow *bpe)
 {
 	bpe->getBackendProcessor()->getSampleManager().getModulatorSamplerSoundPool()->resolveMissingSamples(bpe);
-}
-
-void BackendCommandTarget::Actions::deleteMissingSamples(BackendRootWindow *bpe)
-{
-	bpe->getBackendProcessor()->getSampleManager().getModulatorSamplerSoundPool()->deleteMissingSamples();
 }
 
 void BackendCommandTarget::Actions::setCompileTimeOut(BackendRootWindow * /*bpe*/)

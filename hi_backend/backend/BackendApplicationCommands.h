@@ -290,7 +290,6 @@ public:
 		static void setColumns(BackendRootWindow * bpe, BackendCommandTarget* target, ColumnMode columns);
 		static void plotModulator(CopyPasteTarget *currentCopyPasteTarget);
 		static void resolveMissingSamples(BackendRootWindow *bpe);
-		static void deleteMissingSamples(BackendRootWindow *bpe);
 		static void setCompileTimeOut(BackendRootWindow * bpe);
 		static void toggleUseBackgroundThreadsForCompiling(BackendRootWindow * bpe);
 		static void toggleCompileScriptsOnPresetLoad(BackendRootWindow * bpe);
