@@ -1239,7 +1239,7 @@ ModulatorSamplerSound * ModulatorSamplerSoundPool::addSoundWithMultiMic(const Va
 
 	for (int i = 0; i < soundDescription.getNumChildren(); i++)
 	{
-		String fileNameWildcard = soundDescription.getProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName));
+		String fileNameWildcard = soundDescription.getChild(i).getProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName));
 		String fileName = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getFilePath(fileNameWildcard, ProjectHandler::SubDirectories::Samples);
 
 
