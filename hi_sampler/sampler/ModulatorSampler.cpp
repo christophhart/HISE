@@ -549,13 +549,7 @@ void ModulatorSampler::deleteSound(ModulatorSamplerSound *s)
 
 	const int deletedIndex = s->getProperty(ModulatorSamplerSound::ID);
 
-	{
-		SynthesiserSound::Ptr refPointer = s;
-
-		sounds.removeObject(s);
-
-		getMainController()->getSampleManager().getModulatorSamplerSoundPool()->deleteSound(static_cast<ModulatorSamplerSound*>(refPointer.get()));
-	}
+	sounds.removeObject(s);
 
 	refreshMemoryUsage();
 
@@ -581,13 +575,10 @@ void ModulatorSampler::deleteAllSounds()
 	if(getNumSounds() != 0)
 	{
 		clearSounds();
+
+		getMainController()->getSampleManager().getModulatorSamplerSoundPool()->clearUnreferencedMonoliths();
 	}
 	
-
-	
-	getMainController()->getSampleManager().getModulatorSamplerSoundPool()->clearUnreferencedSamples();
-	getMainController()->getSampleManager().getModulatorSamplerSoundPool()->clearUnreferencedMonoliths();
-
 	refreshMemoryUsage();
 	sendChangeMessage();
 }

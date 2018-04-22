@@ -36,8 +36,9 @@
 namespace hise { using namespace juce;
 
 typedef ReferenceCountedArray<StreamingSamplerSound> StreamingSamplerSoundArray;
+typedef Array<WeakReference<StreamingSamplerSound>> WeakStreamingSamplerSoundArray;
 
-#define FOR_EVERY_SOUND(x) {for (int i = 0; i < soundList.size(); i++) if(soundList[i].get() != nullptr) soundList[i]->x;}
+#define FOR_EVERY_SOUND(x) {for (int i = 0; i < soundArray.size(); i++) if(soundArray[i].get() != nullptr) soundArray[i]->x;}
 
 // ====================================================================================================================
 
@@ -246,7 +247,7 @@ public:
 
 	// ====================================================================================================================
 
-	void loadData(int preloadSize) { wrappedSound->setPreloadSize(preloadSize, true); };
+	
 
 	/** Returns the id.
 	*
@@ -271,7 +272,7 @@ public:
 	double getPropertyPitch() const noexcept;;
 
 	/** returns the sample rate of the sound (!= the sample rate of the current audio settings) */
-	double getSampleRate() const noexcept{ return wrappedSound->getSampleRate(); };
+	double getSampleRate() const { return firstSound->getSampleRate(); };
 
 	/** returns the root note. */
 	int getRootNote() const noexcept{ return rootNote; };
@@ -291,8 +292,8 @@ public:
 
 	// ====================================================================================================================
 
-	StreamingSamplerSound *getReferenceToSound() const { return wrappedSound.getObject(); };
-	StreamingSamplerSound *getReferenceToSound(int multiMicIndex) const { return isMultiMicSound ? soundList[multiMicIndex].get() : wrappedSound.getObject(); };
+	StreamingSamplerSound::Ptr getReferenceToSound() const { return firstSound.get(); };
+	StreamingSamplerSound::Ptr getReferenceToSound(int multiMicIndex) const { return soundArray[multiMicIndex]; };
 
 	// ====================================================================================================================
 
@@ -345,7 +346,16 @@ public:
 	bool isPurged() const noexcept{ return purged; };
 	void setPurged(bool shouldBePurged);
 	void checkFileReference();
-	bool isMissing() const noexcept{ return wrappedSound.get() ? wrappedSound->isMissing() : true; };
+	bool isMissing() const noexcept
+	{
+		for (auto s : soundArray)
+		{
+			if (s == nullptr || s->isMissing())
+				return true;
+		}
+
+		return false;
+	};
 
 	// ====================================================================================================================
 
@@ -397,7 +407,7 @@ private:
 
 	friend class MultimicMergeDialogWindow;
 	
-	const CriticalSection& getLock() const { return wrappedSound.get()->getSampleLock(); };
+	const CriticalSection& getLock() const { return firstSound.get()->getSampleLock(); };
 	
 	CriticalSection exportLock;
 	
@@ -408,9 +418,8 @@ private:
 	bool allFilesExist;
 	const bool isMultiMicSound;
 
-	StreamingSamplerSoundArray wrappedSounds;
-	StreamingSamplerSound::Ptr wrappedSound;
-	Array<WeakReference<StreamingSamplerSound>> soundList;
+	StreamingSamplerSoundArray soundArray;
+	WeakReference<StreamingSamplerSound> firstSound;
 
 	int upperVeloXFadeValue;
 	int lowerVeloXFadeValue;
@@ -480,9 +489,7 @@ public:
 	*/
 	ModulatorSamplerSound *addSound(const ValueTree &soundDescription, int index, bool forceReuse = false);;
 
-	/** Decreases the reference count of the wrapped sound in the pool and deletes it if no references are left. */
-	void deleteSound(ModulatorSamplerSound *soundToDelete);;
-
+	
 	bool loadMonolithicData(const ValueTree &sampleMap, const Array<File>& monolithicFiles, OwnedArray<ModulatorSamplerSound> &sounds);
 
     void setUpdatePool(bool shouldBeUpdated)
@@ -497,9 +504,7 @@ public:
 
 	// ================================================================================================================
 
-	void clearUnreferencedSamples();
-	void getMissingSamples(Array<StreamingSamplerSound*> &missingSounds) const;
-	void deleteMissingSamples();;
+	void getMissingSamples(StreamingSamplerSoundArray &missingSounds) const;
 	void resolveMissingSamples(Component *childComponentOfMainEditor);
 
 	// ================================================================================================================
@@ -539,9 +544,43 @@ public:
 
 	void clearUnreferencedMonoliths();
 
+	void clearUnreferencedSamples();
+
 private:
 
+	void clearUnreferencedSamplesInternal();
+
+	struct AsyncCleaner : public Timer
+	{
+		AsyncCleaner(ModulatorSamplerSoundPool& parent_) :
+			parent(parent_)
+		{
+			flag = false;
+			startTimer(300);
+		};
+
+		void triggerAsyncUpdate()
+		{
+			flag = true;
+		}
+
+		void timerCallback() override
+		{
+			if (flag)
+			{
+				parent.clearUnreferencedSamplesInternal();
+				flag = false;
+			}
+		}
+
+		ModulatorSamplerSoundPool& parent;
+
+		std::atomic<bool> flag;
+	};
+
 	// ================================================================================================================
+
+	AsyncCleaner asyncCleaner;
 
 	ReferenceCountedArray<MonolithInfoToUse> loadedMonoliths;
 
@@ -557,7 +596,7 @@ private:
 
 	MainController *mc;
 
-	ReferenceCountedArray<StreamingSamplerSound> pool;
+	WeakStreamingSamplerSoundArray pool;
 
 	bool isCurrentlyLoading;
 	bool forcePoolSearch;

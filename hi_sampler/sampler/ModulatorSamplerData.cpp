@@ -156,7 +156,7 @@ SampleMap::FileList SampleMap::createFileList()
 		{
 			for (int i = 0; i < sound->getNumMultiMicSamples(); i++)
 			{
-				StreamingSamplerSound* sample = sound->getReferenceToSound(i);
+				auto sample = sound->getReferenceToSound(i);
 
 				File file = sample->getFileName(true);
 

@@ -906,7 +906,7 @@ void SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(SampleEd
 		{
 			for (int i = 0; i < s->getNumMultiMicSamples(); i++)
 			{
-				StreamingSamplerSound * single = s->getReferenceToSound(i);
+				auto single = s->getReferenceToSound(i);
 				MappingData newData((int)s->getProperty(ModulatorSamplerSound::RootNote),
 					(int)s->getProperty(ModulatorSamplerSound::KeyLow),
 					(int)s->getProperty(ModulatorSamplerSound::KeyHigh),

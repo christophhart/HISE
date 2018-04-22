@@ -50,7 +50,7 @@ void ModulatorSamplerVoice::startNote(int midiNoteNumber,
 	velocityXFadeValue = currentlyPlayingSamplerSound->getGainValueForVelocityXFade((int)(velocity * 127.0f));
 	const bool samePitch = !static_cast<ModulatorSampler*>(getOwnerSynth())->isPitchTrackingEnabled();
 
-	StreamingSamplerSound *sound = currentlyPlayingSamplerSound->getReferenceToSound();
+	auto sound = currentlyPlayingSamplerSound->getReferenceToSound();
 
 	int sampleStartModulationDelta;
 
@@ -321,7 +321,7 @@ void MultiMicModulatorSamplerVoice::startNote(int midiNoteNumber, float velocity
     
 	for (int i = 0; i < wrappedVoices.size(); i++)
 	{
-		StreamingSamplerSound *sound = currentlyPlayingSamplerSound->getReferenceToSound(i);
+		auto sound = currentlyPlayingSamplerSound->getReferenceToSound(i);
 
 		if (sound == nullptr)
 		{

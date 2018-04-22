@@ -35,7 +35,7 @@ namespace hise { using namespace juce;
 ModulatorSamplerSound::ModulatorSamplerSound(MainController* mc, StreamingSamplerSound *sound, int index_):
 	ControlledObject(mc),
 index(index_),
-wrappedSound(sound),
+firstSound(sound),
 gain(1.0f),
 isMultiMicSound(false),
 centPitch(0),
@@ -50,18 +50,17 @@ pan(0),
 purged(false),
 purgeChannels(0)
 {
-	soundList.add(wrappedSound.get());
-
-	
+	soundArray.add(firstSound.get());
 
 	setProperty(Pan, 0, dontSendNotification);
 }
 
 
-ModulatorSamplerSound::ModulatorSamplerSound(MainController* mc, StreamingSamplerSoundArray &soundArray, int index_):
+ModulatorSamplerSound::ModulatorSamplerSound(MainController* mc, StreamingSamplerSoundArray &soundArray_, int index_):
 	ControlledObject(mc),
 index(index_),
-wrappedSound(soundArray.getFirst()),
+soundArray(soundArray_),
+firstSound(soundArray_.getFirst()),
 isMultiMicSound(true),
 gain(1.0f),
 centPitch(0),
@@ -76,21 +75,18 @@ pan(0),
 purged(false),
 purgeChannels(0)
 {
-	soundList.add(wrappedSound.get());
-
-	for (int i = 1; i < soundArray.size(); i++)
-	{
-		wrappedSounds.add(soundArray[i]);
-		soundList.add(soundArray[i].get());
-	}
-
+	
 	
 	setProperty(Pan, 0, dontSendNotification);
 }
 
 ModulatorSamplerSound::~ModulatorSamplerSound()
 {
-	soundList.clear();
+	getMainController()->getSampleManager().getModulatorSamplerSoundPool()->clearUnreferencedSamples();
+
+	firstSound = nullptr;
+	soundArray.clear();
+	
 	removeAllChangeListeners();
 }
 
@@ -131,6 +127,11 @@ bool ModulatorSamplerSound::isAsyncProperty(Property p)
 
 Range<int> ModulatorSamplerSound::getPropertyRange(Property p) const
 {
+	auto s = soundArray.getFirst();
+
+	if (s == nullptr)
+		return {};
+
 	switch (p)
 	{
 	case ID:			return Range<int>(0, INT_MAX);
@@ -145,15 +146,15 @@ Range<int> ModulatorSamplerSound::getPropertyRange(Property p) const
 	case Normalized:	return Range<int>(0, 1);
 	case RRGroup:		return Range<int>(1, maxRRGroup);
 	case Pitch:			return Range<int>(-100, 100);
-	case SampleStart:	return wrappedSound->isLoopEnabled() ? Range<int>(0, jmin<int>((int)wrappedSound->getLoopStart() - (int)wrappedSound->getLoopCrossfade(), (int)(wrappedSound->getSampleEnd() - (int)wrappedSound->getSampleStartModulation()))) :
-		Range<int>(0, (int)wrappedSound->getSampleEnd() - (int)wrappedSound->getSampleStartModulation());
+	case SampleStart:	return firstSound->isLoopEnabled() ? Range<int>(0, jmin<int>((int)firstSound->getLoopStart() - (int)firstSound->getLoopCrossfade(), (int)(firstSound->getSampleEnd() - (int)firstSound->getSampleStartModulation()))) :
+		Range<int>(0, (int)firstSound->getSampleEnd() - (int)firstSound->getSampleStartModulation());
 	case SampleEnd:		{
-		const int sampleStartMinimum = (int)(wrappedSound->getSampleStart() + wrappedSound->getSampleStartModulation());
-		const int upperLimit = (int)wrappedSound->getLengthInSamples();
+		const int sampleStartMinimum = (int)(firstSound->getSampleStart() + firstSound->getSampleStartModulation());
+		const int upperLimit = (int)firstSound->getLengthInSamples();
 
-		if (wrappedSound->isLoopEnabled())
+		if (firstSound->isLoopEnabled())
 		{
-			const int lowerLimit = jmax<int>(sampleStartMinimum, (int)wrappedSound->getLoopEnd());
+			const int lowerLimit = jmax<int>(sampleStartMinimum, (int)firstSound->getLoopEnd());
 			return Range<int>(lowerLimit, upperLimit);
 
 		}
@@ -164,11 +165,11 @@ Range<int> ModulatorSamplerSound::getPropertyRange(Property p) const
 
 		}
 	}
-	case SampleStartMod:return Range<int>(0, (int)wrappedSound->getSampleLength());
+	case SampleStartMod:return Range<int>(0, (int)firstSound->getSampleLength());
 	case LoopEnabled:	return Range<int>(0, 1);
-	case LoopStart:		return Range<int>((int)wrappedSound->getSampleStart() + (int)wrappedSound->getLoopCrossfade(), (int)wrappedSound->getLoopEnd() - (int)wrappedSound->getLoopCrossfade());
-	case LoopEnd:		return Range<int>((int)wrappedSound->getLoopStart() + (int)wrappedSound->getLoopCrossfade(), (int)wrappedSound->getSampleEnd());
-	case LoopXFade:		return Range<int>(0, jmin<int>((int)(wrappedSound->getLoopStart() - wrappedSound->getSampleStart()), (int)wrappedSound->getLoopLength()));
+	case LoopStart:		return Range<int>((int)firstSound->getSampleStart() + (int)firstSound->getLoopCrossfade(), (int)firstSound->getLoopEnd() - (int)firstSound->getLoopCrossfade());
+	case LoopEnd:		return Range<int>((int)firstSound->getLoopStart() + (int)firstSound->getLoopCrossfade(), (int)firstSound->getSampleEnd());
+	case LoopXFade:		return Range<int>(0, jmin<int>((int)(firstSound->getLoopStart() - firstSound->getSampleStart()), (int)firstSound->getLoopLength()));
 	case UpperVelocityXFade: return Range < int >(0, (int)getProperty(VeloHigh) - ((int)getProperty(VeloLow) + lowerVeloXFadeValue));
 	case LowerVelocityXFade: return Range < int >(0, (int)getProperty(VeloHigh) - upperVeloXFadeValue - (int)getProperty(VeloLow));
 	case SampleState:	return Range<int>(0, (int)StreamingSamplerSound::numSampleStates - 1);
@@ -178,10 +179,15 @@ Range<int> ModulatorSamplerSound::getPropertyRange(Property p) const
 
 String ModulatorSamplerSound::getPropertyAsString(Property p) const
 {
+	auto s = soundArray.getFirst();
+
+	if (s == nullptr)
+		return {};
+
 	switch (p)
 	{
 	case ID:			return String(index);
-	case FileName:		return wrappedSound->getFileName(false);
+	case FileName:		return firstSound->getFileName(false);
 	case RootNote:		return MidiMessage::getMidiNoteName(rootNote, true, true, 3);
 	case KeyHigh:		return MidiMessage::getMidiNoteName(midiNotes.getHighestBit(), true, true, 3);
 	case KeyLow:		return MidiMessage::getMidiNoteName(midiNotes.findNextSetBit(0), true, true, 3);
@@ -192,26 +198,31 @@ String ModulatorSamplerSound::getPropertyAsString(Property p) const
 	case Pan:			return BalanceCalculator::getBalanceAsString(pan);
 	case Normalized:	return isNormalized ? "Enabled" : "Disabled";
 	case Pitch:			return String(centPitch, 0) + " ct";
-	case SampleStart:	return String(wrappedSound->getSampleStart());
-	case SampleEnd:		return String(wrappedSound->getSampleEnd());
-	case SampleStartMod:return String(wrappedSound->getSampleStartModulation());
-	case LoopEnabled:	return wrappedSound->isLoopEnabled() ? "Enabled" : "Disabled";
-	case LoopStart:		return String(wrappedSound->getLoopStart());
-	case LoopEnd:		return String(wrappedSound->getLoopEnd());
-	case LoopXFade:		return String(wrappedSound->getLoopCrossfade());
+	case SampleStart:	return String(firstSound->getSampleStart());
+	case SampleEnd:		return String(firstSound->getSampleEnd());
+	case SampleStartMod:return String(firstSound->getSampleStartModulation());
+	case LoopEnabled:	return firstSound->isLoopEnabled() ? "Enabled" : "Disabled";
+	case LoopStart:		return String(firstSound->getLoopStart());
+	case LoopEnd:		return String(firstSound->getLoopEnd());
+	case LoopXFade:		return String(firstSound->getLoopCrossfade());
 	case UpperVelocityXFade: return String(upperVeloXFadeValue);
 	case LowerVelocityXFade: return String(lowerVeloXFadeValue);
-	case SampleState:	return wrappedSound->getSampleStateAsString();
+	case SampleState:	return firstSound->getSampleStateAsString();
 	default:			jassertfalse; return String();
 	}
 }
 
 var ModulatorSamplerSound::getProperty(Property p) const
 {
+	auto s = soundArray.getFirst();
+
+	if (s == nullptr)
+		return {};
+
 	switch (p)
 	{
 	case ID:			return var(index);
-	case FileName:		return var(wrappedSound->getFileName(true));
+	case FileName:		return var(firstSound->getFileName(true));
 	case RootNote:		return var(rootNote);
 	case KeyHigh:		return var(midiNotes.getHighestBit());
 	case KeyLow:		return var(midiNotes.findNextSetBit(0));
@@ -222,13 +233,13 @@ var ModulatorSamplerSound::getProperty(Property p) const
 	case Pan:			return var(pan);
 	case Normalized:	return var(isNormalized);
 	case Pitch:			return var(centPitch);
-	case SampleStart:	return var(wrappedSound->getSampleStart());
-	case SampleEnd:		return var(wrappedSound->getSampleEnd());
-	case SampleStartMod:return var(wrappedSound->getSampleStartModulation());
-	case LoopEnabled:	return var(wrappedSound->isLoopEnabled());
-	case LoopStart:		return var(wrappedSound->getLoopStart());
-	case LoopEnd:		return var(wrappedSound->getLoopEnd());
-	case LoopXFade:		return var(wrappedSound->getLoopCrossfade());
+	case SampleStart:	return var(firstSound->getSampleStart());
+	case SampleEnd:		return var(firstSound->getSampleEnd());
+	case SampleStartMod:return var(firstSound->getSampleStartModulation());
+	case LoopEnabled:	return var(firstSound->isLoopEnabled());
+	case LoopStart:		return var(firstSound->getLoopStart());
+	case LoopEnd:		return var(firstSound->getLoopEnd());
+	case LoopXFade:		return var(firstSound->getLoopCrossfade());
 	case UpperVelocityXFade: return var(upperVeloXFadeValue);
 	case LowerVelocityXFade: return var(lowerVeloXFadeValue);
 	case SampleState:	return var(isPurged());
@@ -285,7 +296,7 @@ void ModulatorSamplerSound::toggleBoolProperty(ModulatorSamplerSound::Property p
 	}
 	case LoopEnabled:
 	{
-		const bool wasEnabled = wrappedSound->isLoopEnabled();
+		const bool wasEnabled = firstSound->isLoopEnabled();
 		FOR_EVERY_SOUND(setLoopEnabled(!wasEnabled)); break;
 	}
 		
@@ -311,21 +322,21 @@ ValueTree ModulatorSamplerSound::exportAsValueTree() const
 	{
 		v.removeProperty(getPropertyName(FileName), nullptr);
 
-		for (int i = 0; i < soundList.size(); i++)
+		for (auto s: soundArray)
 		{
 			ValueTree fileChild("file");
-			fileChild.setProperty("FileName", soundList[i]->getFileName(true), nullptr);
+			fileChild.setProperty("FileName", s->getFileName(true), nullptr);
 			v.addChild(fileChild, -1, nullptr);
 		}
 	}
 
 	v.setProperty("NormalizedPeak", normalizedPeak, nullptr);
 
-    if(wrappedSound.get()->isMonolithic())
+    if(firstSound.get()->isMonolithic())
     {
-        const int64 offset = wrappedSound->getMonolithOffset();
-        const int64 length = wrappedSound->getMonolithLength();
-        const double sampleRate = wrappedSound->getMonolithSampleRate();
+        const int64 offset = firstSound->getMonolithOffset();
+        const int64 length = firstSound->getMonolithLength();
+        const double sampleRate = firstSound->getMonolithSampleRate();
         
         v.setProperty("MonolithOffset", offset, nullptr);
         v.setProperty("MonolithLength", length, nullptr);
@@ -333,7 +344,7 @@ ValueTree ModulatorSamplerSound::exportAsValueTree() const
     }
     
     
-	v.setProperty("Duplicate", wrappedSound->getReferenceCount() >= 3, nullptr);
+	v.setProperty("Duplicate", firstSound->getReferenceCount() >= 3, nullptr);
 
 	return v;
 }
@@ -435,9 +446,9 @@ void ModulatorSamplerSound::calculateNormalizedPeak(bool forceScan /*= false*/)
 	{
 		float highestPeak = 0.0f;
 
-		for (int i = 0; i < soundList.size(); i++)
+		for (auto s: soundArray)
 		{
-			highestPeak = jmax<float>(highestPeak, soundList[i]->calculatePeakValue());
+			highestPeak = jmax<float>(highestPeak, s->calculatePeakValue());
 		}
 
 		if (highestPeak != 0.0f)
@@ -477,9 +488,9 @@ void ModulatorSamplerSound::checkFileReference()
 
 	FOR_EVERY_SOUND(checkFileReference())
 
-	for (int i = 0; i < soundList.size(); i++)
+	for (auto s: soundArray)
 	{
-		if (soundList[i]->isMissing())
+		if (s->isMissing())
 		{
 			allFilesExist = false;
 			break;
@@ -514,7 +525,7 @@ float ModulatorSamplerSound::getGainValueForVelocityXFade(int velocity)
 	}
 }
 
-int ModulatorSamplerSound::getNumMultiMicSamples() const noexcept { return soundList.size(); }
+int ModulatorSamplerSound::getNumMultiMicSamples() const noexcept { return soundArray.size(); }
 
 bool ModulatorSamplerSound::isChannelPurged(int channelIndex) const { return purgeChannels[channelIndex]; }
 
@@ -523,14 +534,18 @@ void ModulatorSamplerSound::setChannelPurged(int channelIndex, bool shouldBePurg
 	if (purged) return;
 
 	purgeChannels.setBit(channelIndex, shouldBePurged);
-	soundList[channelIndex]->setPurged(shouldBePurged);
+
+	if (auto s = soundArray[channelIndex])
+	{
+		s->setPurged(shouldBePurged);
+	}
 }
 
 bool ModulatorSamplerSound::preloadBufferIsNonZero() const noexcept
 {
-	for (int i = 0; i < soundList.size(); i++)
+	for (auto s: soundArray)
 	{
-		if (!soundList[i]->isPurged() && soundList[i]->getPreloadBuffer().getNumSamples() != 0)
+		if (!s->isPurged() && s->getPreloadBuffer().getNumSamples() != 0)
 		{
 			return true;
 		}
@@ -706,7 +721,8 @@ mainAudioProcessor(nullptr),
 updatePool(true),
 searchPool(true),
 forcePoolSearch(false),
-isCurrentlyLoading(false)
+isCurrentlyLoading(false),
+asyncCleaner(*this)
 {
 	
 }
@@ -728,27 +744,6 @@ ModulatorSamplerSound * ModulatorSamplerSoundPool::addSound(const ValueTree &sou
 	}
 }
 
-void ModulatorSamplerSoundPool::deleteSound(ModulatorSamplerSound *soundToDelete)
-{
-	for (int i = 0; i < soundToDelete->getNumMultiMicSamples(); i++)
-	{
-		StreamingSamplerSound *sound = soundToDelete->getReferenceToSound(i);
-
-		jassert(sound != nullptr);
-
-
-
-		if (sound->getReferenceCount() == 2) // one for the array and two for the Synthesiser::Ptr from &delete()
-		{
-			pool.removeObject(sound);
-		}
-	}
-
-
-
-	if(updatePool) sendChangeMessage();
-}
-
 
 
 bool ModulatorSamplerSoundPool::loadMonolithicData(const ValueTree &sampleMap, const Array<File>& monolithicFiles, OwnedArray<ModulatorSamplerSound> &sounds)
@@ -756,7 +751,7 @@ bool ModulatorSamplerSoundPool::loadMonolithicData(const ValueTree &sampleMap, c
 	jassert(!mc->getMainSynthChain()->areVoicesActive());
 
 	clearUnreferencedMonoliths();
-
+	
 	loadedMonoliths.add(new MonolithInfoToUse(monolithicFiles));
 
 	MonolithInfoToUse* hmaf = loadedMonoliths.getLast();
@@ -802,53 +797,51 @@ bool ModulatorSamplerSoundPool::loadMonolithicData(const ValueTree &sampleMap, c
 
 			sounds.add(new ModulatorSamplerSound(mc, multiMicArray, i));
 		}
-
-		
 	}
-
 
 	sendChangeMessage();
 
 	return true;
 }
 
+
 void ModulatorSamplerSoundPool::clearUnreferencedSamples()
 {
-	if (pool.size() > 0)
-	{
-		for (int i = 0; i < pool.size(); i++)
-		{
-			if (pool[i]->getReferenceCount() == 2)
-			{
-				pool.remove(i--);
-			}
-		}
-
-		sendChangeMessage();
-	}
+	asyncCleaner.triggerAsyncUpdate();
 }
+
+void ModulatorSamplerSoundPool::clearUnreferencedSamplesInternal()
+{
+	WeakStreamingSamplerSoundArray currentList;
+	currentList.ensureStorageAllocated(pool.size());
+
+	for (int i = 0; i < pool.size(); i++)
+	{
+		if (pool[i].get() != nullptr)
+		{
+			currentList.add(pool[i]);
+		}
+	}
+
+	pool.swapWith(currentList);
+	if (updatePool) sendChangeMessage();
+}
+
+
 
 int ModulatorSamplerSoundPool::getNumSoundsInPool() const noexcept
 {
 	return pool.size();
 }
 
-void ModulatorSamplerSoundPool::getMissingSamples(Array<StreamingSamplerSound*> &missingSounds) const
+void ModulatorSamplerSoundPool::getMissingSamples(StreamingSamplerSoundArray &missingSounds) const
 {
-	for (int i = 0; i < pool.size(); i++)
+	for (auto s: pool)
 	{
-		if (pool[i]->isMissing())
+		if (s != nullptr && s->isMissing())
 		{
-			missingSounds.add(pool[i]);
+			missingSounds.add(s);
 		}
-	}
-}
-
-void ModulatorSamplerSoundPool::deleteMissingSamples()
-{
-	if (PresetHandler::showYesNoWindow("Delete missing samples", "Do you really want to delete the missing samples?"))
-	{
-
 	}
 }
 
@@ -875,8 +868,7 @@ public:
 		pool->getMissingSamples(missingSounds);
 
 		if (missingSounds.size() == 0)
-		{
-			
+		{	
 			addBasicComponents(false);
 		}
 		else
@@ -935,12 +927,11 @@ public:
             
 			for (int i = 0; i < missingSounds.size(); i++)
 			{
-				
 				if (threadShouldExit()) return;
 
                 setProgress(double(i) / numMissingSoundsDouble);
 
-				StreamingSamplerSound *sound = missingSounds[i];
+				auto sound = missingSounds[i];
 
 				String newFileName = sound->getFileName(true).replace(search, replace, true);
 
@@ -951,8 +942,7 @@ public:
 					sound->replaceFileReference(newFileNameSanitized);
 
 					foundThisTime++;
-					missingSounds.remove(i);
-					i--;
+					missingSounds.remove(i--);
 				}
 			}
 		}
@@ -1046,7 +1036,7 @@ public:
 
 private:
 
-	Array<StreamingSamplerSound*> missingSounds;
+	StreamingSamplerSoundArray missingSounds;
 
     ScopedPointer<HorizontalSpacer> spacer;
     
@@ -1094,12 +1084,18 @@ StringArray ModulatorSamplerSoundPool::getFileNameList() const
 
 size_t ModulatorSamplerSoundPool::getMemoryUsageForAllSamples() const noexcept
 {
+	if (mc->getSampleManager().isPreloading()) return 0;
+
+	ScopedLock sl(mc->getSampleManager().getSamplerSoundLock());
+
 	size_t memoryUsage = 0;
 
-	for (int i = 0; i < pool.size(); i++)
+	for (auto s : pool)
 	{
-		if(auto s = pool[i])
-			memoryUsage += s->getActualPreloadSize();
+		if (s == nullptr)
+			continue;
+
+		memoryUsage += s->getActualPreloadSize();
 	}
 
 	return memoryUsage;
@@ -1111,21 +1107,19 @@ String ModulatorSamplerSoundPool::getTextForPoolTable(int columnId, int indexInP
 {
 #if USE_BACKEND
 
-	if (indexInPool < pool.size())
+	if (auto s = pool[indexInPool])
 	{
 		switch (columnId)
 		{
-		case SamplePoolTable::FileName:	return pool[indexInPool]->getFileName();
-		case SamplePoolTable::Memory:	return String((int)(pool[indexInPool]->getActualPreloadSize() / 1024)) + " kB";
-		case SamplePoolTable::State:	return String(pool[indexInPool]->getSampleStateAsString());
-		case SamplePoolTable::References:	return String(pool[indexInPool]->getReferenceCount() - 2);
+		case SamplePoolTable::FileName:	return s->getFileName();
+		case SamplePoolTable::Memory:	return String((int)(s->getActualPreloadSize() / 1024)) + " kB";
+		case SamplePoolTable::State:	return String(s->getSampleStateAsString());
+		case SamplePoolTable::References:	return String(s->getReferenceCount());
 		default:						jassertfalse; return "";
 		}
 	}
 	else
 	{
-		jassertfalse;
-
 		return "Invalid Index";
 
 	}
@@ -1152,9 +1146,9 @@ void ModulatorSamplerSoundPool::decreaseNumOpenFileHandles()
 
 bool ModulatorSamplerSoundPool::isFileBeingUsed(int poolIndex)
 {
-	if (poolIndex < pool.size())
+	if (auto s = pool[poolIndex])
 	{
-		return pool[poolIndex]->isOpened();
+		return s->isOpened();
 	}
 
 	return false;
@@ -1166,9 +1160,13 @@ int ModulatorSamplerSoundPool::getSoundIndexFromPool(int64 hashCode, int64 other
 
 	for (int i = 0; i < pool.size(); i++)
 	{
-		if (pool[i]->getHashCode() == hashCode) return i;
+		StreamingSamplerSound::Ptr s = pool[i];
+		if (s == nullptr)
+			return -1;
 
-		if (otherPossibleHashCode != -1 && pool[i]->getHashCode() == otherPossibleHashCode)
+		if (s->getHashCode() == hashCode) return i;
+
+		if (otherPossibleHashCode != -1 && s->getHashCode() == otherPossibleHashCode)
 			return i;
 	}
 
@@ -1223,9 +1221,9 @@ ModulatorSamplerSound * ModulatorSamplerSoundPool::addSoundWithSingleMic(const V
             }
         }
         
-		StreamingSamplerSound *s = new StreamingSamplerSound(fileName, this);
+		StreamingSamplerSound::Ptr s = new StreamingSamplerSound(fileName, this);
 
-		pool.add(s);
+		pool.add(s.get());
 
 		if(updatePool) sendChangeMessage();
 
@@ -1275,19 +1273,19 @@ ModulatorSamplerSound * ModulatorSamplerSoundPool::addSoundWithMultiMic(const Va
                 }
 				else
 				{
-					StreamingSamplerSound *s = new StreamingSamplerSound(fileName, this);
+					StreamingSamplerSound::Ptr s = new StreamingSamplerSound(fileName, this);
 
 					multiMicArray.add(s);
-					pool.add(s);
+					pool.add(s.get());
 					continue;
 				}
             }
 			else
 			{
-				StreamingSamplerSound *s = new StreamingSamplerSound(fileName, this);
+				StreamingSamplerSound::Ptr s = new StreamingSamplerSound(fileName, this);
 
 				multiMicArray.add(s);
-				pool.add(s);
+				pool.add(s.get());
 			}
 		}
 	}
@@ -1312,7 +1310,7 @@ void ModulatorSamplerSoundPool::clearUnreferencedMonoliths()
 		}
 	}
 
-	sendChangeMessage();
+	if(updatePool) sendChangeMessage();
 }
 
 #define SET_IF_NOT_ZERO(field, x) if ((int)sound->getProperty(x) != 0) field = (int)sound->getProperty(x);
