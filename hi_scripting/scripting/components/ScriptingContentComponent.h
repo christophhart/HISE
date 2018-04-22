@@ -125,7 +125,7 @@ public:
 	/** Returns the ScriptBaseProcessor associated with this Component. If it is not a ScriptProcessor or was deleted, it returns nullptr. */
 	const JavascriptProcessor *getScriptProcessor() const
 	{
-		return dynamic_cast<JavascriptProcessor*>(processor);
+		return dynamic_cast<JavascriptProcessor*>(p.get());
 	}
 
 	void processorDeleted(Processor* /*deletedProcessor*/) override;
