@@ -1683,6 +1683,7 @@ void ScriptingApi::Sampler::setSoundProperty(int soundIndex, int propertyIndex, 
 	else
 	{
 		reportScriptError("no sound with index " + String(soundIndex));
+        RETURN_VOID_IF_NO_THROW()
 	}
 }
 
@@ -1690,16 +1691,22 @@ void ScriptingApi::Sampler::purgeMicPosition(String micName, bool shouldBePurged
 {
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
+    if(micName.isEmpty())
+    {
+        reportScriptError("Mic position name must not be empty.");
+        RETURN_VOID_IF_NO_THROW()
+    }
+    
 	if (s == nullptr)
 	{
 		reportScriptError("purgeMicPosition() only works with Samplers.");
-		return;
+		RETURN_VOID_IF_NO_THROW()
 	}
 
-	if (s->getNumMicPositions() == 1)
+	if (!s->isUsingStaticMatrix() && s->getNumMicPositions() == 1)
 	{
 		reportScriptError("purgeMicPosition() only works with multi mic Samplers.");
-		return;
+		RETURN_VOID_IF_NO_THROW()
 	}
 
 	for (int i = 0; i < s->getNumMicPositions(); i++)
@@ -1713,6 +1720,7 @@ void ScriptingApi::Sampler::purgeMicPosition(String micName, bool shouldBePurged
 	}
 
 	reportScriptError("Channel not found. Use getMicPositionName()");
+    RETURN_VOID_IF_NO_THROW()
 }
 
 String ScriptingApi::Sampler::getMicPositionName(int channelIndex)
@@ -1725,7 +1733,7 @@ String ScriptingApi::Sampler::getMicPositionName(int channelIndex)
 		RETURN_IF_NO_THROW("")
 	}
 
-	if (s->getNumMicPositions() == 1)
+	if (!s->isUsingStaticMatrix() && s->getNumMicPositions() == 1)
 	{
 		reportScriptError("getMicPositionName() only works with multi mic Samplers.");
 		RETURN_IF_NO_THROW("")

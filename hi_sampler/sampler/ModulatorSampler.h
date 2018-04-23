@@ -554,6 +554,8 @@ public:
 	{
 		useStaticMatrix = shouldUseStaticMatrix;
 	}
+    
+    bool isUsingStaticMatrix() const noexcept { return useStaticMatrix; };
 
 private:
 
