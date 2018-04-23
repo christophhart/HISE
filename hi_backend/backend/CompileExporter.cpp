@@ -1969,6 +1969,9 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 	ADD_LINE("set build_path=" << buildPath);
 	ADD_LINE("set msbuild=" << msbuildPath);
 	ADD_LINE("set vs_args=" << vsArgs);
+#if JUCE_64BIT
+    ADD_LINE("set PreferredToolArchitecture=x64");
+#endif
 
 	if (HelperClasses::isUsingVisualStudio2015(exporter->dataObject))
 	{
