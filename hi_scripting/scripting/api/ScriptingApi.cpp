@@ -1709,6 +1709,8 @@ void ScriptingApi::Sampler::purgeMicPosition(String micName, bool shouldBePurged
 		RETURN_VOID_IF_NO_THROW()
 	}
 
+#error "This should cause an error..."
+    
 	for (int i = 0; i < s->getNumMicPositions(); i++)
 	{
 		if (micName == s->getChannelData(i).suffix)
