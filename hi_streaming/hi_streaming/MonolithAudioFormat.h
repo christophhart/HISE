@@ -419,7 +419,14 @@ public:
 			const int64 start = info->start;
 			const int64 length = info->length;
 
-			return new hlac::HlacSubSectionReader(memoryReaders[channelIndex], start, length);
+            if(memoryReaders[channelIndex] != nullptr)
+            {
+                return new hlac::HlacSubSectionReader(memoryReaders[channelIndex], start, length);
+            }
+            else
+                return nullptr;
+            
+			
 		}
 
 		return nullptr;

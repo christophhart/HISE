@@ -172,6 +172,14 @@ void HlacMonolithInfo::fillMetadataInfo(const ValueTree& sampleMap)
 
 		const int bytesPerFrame = sizeof(int16) * dummyReader.numChannels;
 		FileInputStream fis(monolithicFiles[i]);
+        
+        if(fis.getTotalLength() == 0)
+        {
+            jassertfalse;
+            throw StreamingSamplerSound::LoadingError(monolithicFiles[i].getFileName(), "File is corrupt");
+        }
+        
+        
 		dummyReader.lengthInSamples = (fis.getTotalLength() - 1) / bytesPerFrame;
 
 		ScopedPointer<MemoryMappedAudioFormatReader> reader = hlaf.createMemoryMappedReader(monolithicFiles[i]);
