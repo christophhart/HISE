@@ -82,6 +82,7 @@ public:
 	{
 		IIRCoefficients c = dynamic_cast<FilterEffect*>(getProcessor())->getCurrentCoefficients();
 
+#if 0
 		for(int i = 0; i < 5; i++)
 		{
 
@@ -91,6 +92,7 @@ public:
 				return;
 			}
 		}
+#endif
 
 		if(!sameCoefficients(c, currentCoefficients))
 		{

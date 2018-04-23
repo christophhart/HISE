@@ -87,6 +87,7 @@ public:
 			{
 				IIRCoefficients c = filter->getCurrentCoefficients();
 
+#if 0
 				for (int i = 0; i < 5; i++)
 				{
 					if (c.coefficients[i] == 0.0) // Replace with safe check function!
@@ -94,6 +95,7 @@ public:
 						return;
 					}
 				}
+#endif
 
 				if (!sameCoefficients(c, currentCoefficients))
 				{

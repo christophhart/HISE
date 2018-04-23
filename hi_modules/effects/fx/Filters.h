@@ -1239,19 +1239,24 @@ public:
 	{
 		switch (mode)
 		{
-		case MonoFilterEffect::OnePoleLowPass:  return IIRCoefficients::makeLowPass(getSampleRate(), freq);
-		case MonoFilterEffect::OnePoleHighPass:  return IIRCoefficients::makeHighPass(getSampleRate(), freq);
-		case MonoFilterEffect::LowPass:			return IIRCoefficients::makeLowPass(getSampleRate(), freq);
-		case MonoFilterEffect::HighPass:		return IIRCoefficients::makeHighPass(getSampleRate(), freq);
-		case MonoFilterEffect::LowShelf:		return IIRCoefficients::makeLowShelf(getSampleRate(), freq, q, currentGain);
-		case MonoFilterEffect::HighShelf:		return IIRCoefficients::makeHighShelf(getSampleRate(), freq, q, currentGain);
-		case MonoFilterEffect::Peak:			return IIRCoefficients::makePeakFilter(getSampleRate(), freq, q, currentGain);
-		case MonoFilterEffect::ResoLow:			return makeResoLowPass(getSampleRate(), freq, q);
-		case MonoFilterEffect::StateVariableLP: return makeResoLowPass(getSampleRate(), freq, q);
-		case MonoFilterEffect::StateVariableHP: return IIRCoefficients::makeHighPass(getSampleRate(), freq);
-		case MonoFilterEffect::LadderFourPoleLP: return makeResoLowPass(getSampleRate(), freq, q);
-		case MonoFilterEffect::LadderFourPoleHP: return IIRCoefficients::makeHighPass(getSampleRate(), freq);
-		case MonoFilterEffect::MoogLP:			return makeResoLowPass(getSampleRate(), freq, q);
+		case MonoFilterEffect::OnePoleLowPass:  return IIRCoefficients::makeLowPass(getSampleRate(), currentFreq);
+		case MonoFilterEffect::OnePoleHighPass:  return IIRCoefficients::makeHighPass(getSampleRate(), currentFreq);
+		case MonoFilterEffect::LowPass:			return IIRCoefficients::makeLowPass(getSampleRate(), currentFreq);
+		case MonoFilterEffect::HighPass:		return IIRCoefficients::makeHighPass(getSampleRate(), currentFreq, q);
+		case MonoFilterEffect::LowShelf:		return IIRCoefficients::makeLowShelf(getSampleRate(), currentFreq, q, currentGain);
+		case MonoFilterEffect::HighShelf:		return IIRCoefficients::makeHighShelf(getSampleRate(), currentFreq, q, currentGain);
+		case MonoFilterEffect::Peak:			return IIRCoefficients::makePeakFilter(getSampleRate(), currentFreq, q, currentGain);
+		case MonoFilterEffect::ResoLow:			return makeResoLowPass(getSampleRate(), currentFreq, q);
+		case MonoFilterEffect::StateVariableLP: return makeResoLowPass(getSampleRate(), currentFreq, q);
+		case MonoFilterEffect::StateVariableHP: return IIRCoefficients::makeHighPass(getSampleRate(), currentFreq, q);
+		case MonoFilterEffect::LadderFourPoleLP: return makeResoLowPass(getSampleRate(), currentFreq, 2.0*q);
+		case MonoFilterEffect::LadderFourPoleHP: return IIRCoefficients::makeHighPass(getSampleRate(), currentFreq, 2.0*q);
+		case MonoFilterEffect::MoogLP:			return makeResoLowPass(getSampleRate(), currentFreq, q);
+        case MonoFilterEffect::StateVariablePeak:       return IIRCoefficients::makePeakFilter(getSampleRate(), currentFreq, q, currentGain);
+        case MonoFilterEffect::StateVariableNotch:      return IIRCoefficients::makeNotchFilter(getSampleRate(), currentFreq, q);
+        case MonoFilterEffect::StateVariableBandPass:   return IIRCoefficients::makeBandPass(getSampleRate(), currentFreq, q);
+        case MonoFilterEffect::Allpass:                 return IIRCoefficients::makeAllPass(getSampleRate(), currentFreq, q);
+        case MonoFilterEffect::RingMod:                 return IIRCoefficients::makeAllPass(getSampleRate(), currentFreq, q);
 		default:								return IIRCoefficients();
 		}
 	}
