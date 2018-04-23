@@ -35,15 +35,15 @@
 
 namespace hise { using namespace juce;
 
-class BaseHarmonicFilter
+class BaseHarmonicFilter: public SliderPackProcessor
 {
 public:
 
     virtual ~BaseHarmonicFilter() {};
     
-	virtual SliderPackData *getSliderPackData(int i) = 0;
 	virtual void setCrossfadeValue(double normalizedCrossfadeValue) = 0;
 
+    int getNumSliderPacks() const override { return 3; }
 };
 
  
@@ -124,7 +124,9 @@ public:
 	
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 	
+    
 	SliderPackData *getSliderPackData(int i) override;
+    const SliderPackData *getSliderPackData(int i) const override;
 	void setCrossfadeValue(double normalizedCrossfadeValue) override;
 
 private:
@@ -222,7 +224,9 @@ public:
 	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples) override;
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
-	SliderPackData *getSliderPackData(int i);
+	SliderPackData *getSliderPackData(int i) override;
+    const SliderPackData *getSliderPackData(int i) const override;
+    
 	void setCrossfadeValue(double normalizedCrossfadeValue);
 
 private:

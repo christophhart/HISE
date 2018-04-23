@@ -42,7 +42,10 @@ currentCrossfadeValue(0.5f),
 semiToneTranspose(0),
 timeVariantFreqModulatorBuffer(1, 0)
 {
-	
+    parameterNames.add("NumFilterBands");
+    parameterNames.add("QFactor");
+    parameterNames.add("Crossfade");
+    parameterNames.add("SemiToneTranspose");
 
 	editorStateIdentifiers.add("XFadeChainShown");
 
@@ -276,12 +279,20 @@ SliderPackData * HarmonicFilter::getSliderPackData(int i)
 	case SliderPacks::B:	return dataB;
 	case SliderPacks::Mix:	return dataMix;
 	default:				return nullptr;
-
-
-
 	}
 }
 
+const SliderPackData * HarmonicFilter::getSliderPackData(int i) const
+{
+    switch (i)
+    {
+        case SliderPacks::A:	return dataA;
+        case SliderPacks::B:	return dataB;
+        case SliderPacks::Mix:	return dataMix;
+        default:				return nullptr;
+    }
+}
+    
 void HarmonicFilter::setCrossfadeValue(double normalizedCrossfadeValue)
 {
 	currentCrossfadeValue = (float)normalizedCrossfadeValue;
@@ -334,6 +345,11 @@ timeVariantFreqModulatorBuffer(1, 0)
 {
 	editorStateIdentifiers.add("XFadeChainShown");
 
+    parameterNames.add("NumFilterBands");
+    parameterNames.add("QFactor");
+    parameterNames.add("Crossfade");
+    parameterNames.add("SemiToneTranspose");
+    
 	dataA = new SliderPackData(mc->getControlUndoManager());
 	dataB = new SliderPackData(mc->getControlUndoManager());
 	dataMix = new SliderPackData(mc->getControlUndoManager());
@@ -550,12 +566,20 @@ SliderPackData * HarmonicMonophonicFilter::getSliderPackData(int i)
 	case SliderPacks::B:	return dataB;
 	case SliderPacks::Mix:	return dataMix;
 	default:				return nullptr;
-
-
-
 	}
 }
 
+const SliderPackData * HarmonicMonophonicFilter::getSliderPackData(int i) const
+{
+    switch (i)
+    {
+        case SliderPacks::A:	return dataA;
+        case SliderPacks::B:	return dataB;
+        case SliderPacks::Mix:	return dataMix;
+        default:				return nullptr;
+    }
+}
+    
 void HarmonicMonophonicFilter::setCrossfadeValue(double normalizedCrossfadeValue)
 {
 	currentCrossfadeValue = (float)normalizedCrossfadeValue;
