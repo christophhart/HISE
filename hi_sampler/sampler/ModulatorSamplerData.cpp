@@ -891,6 +891,18 @@ void MonolithExporter::threadFinished()
 	else
 	{
 		PresetHandler::showMessageWindow("Exporting successful", "All samples were successfully written as monolithic file.", PresetHandler::IconType::Info);
+
+		if (sampleMapFile.existsAsFile())
+		{
+			auto tmp = sampleMapFile;
+			auto func = [tmp](Processor* p)
+			{
+				static_cast<ModulatorSampler*>(p)->loadSampleMapSync(tmp); return true;
+			};
+
+			sampleMap->getSampler()->killAllVoicesAndCall(func);
+		}
+
 	}
 }
 
