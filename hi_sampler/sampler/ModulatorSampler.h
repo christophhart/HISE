@@ -479,9 +479,11 @@ public:
 	{
 		if (channelIndex >= NUM_MIC_POSITIONS || channelIndex < 0) return;
 
-		channelData[channelIndex].enabled = channelIsEnabled;
-
-		asyncPurger.triggerAsyncUpdate(); // will call refreshChannelsForSound asynchronously
+        if(channelData[channelIndex].enabled != channelIsEnabled)
+        {
+            channelData[channelIndex].enabled = channelIsEnabled;
+            asyncPurger.triggerAsyncUpdate(); // will call refreshChannelsForSound asynchronously
+        }
 	}
 
 	void refreshChannelsForSounds()
