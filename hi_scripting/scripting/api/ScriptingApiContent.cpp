@@ -1704,7 +1704,7 @@ struct ScriptingApi::Content::ScriptTable::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptTable, connectToOtherTable);
 };
 
-ScriptingApi::Content::ScriptTable::ScriptTable(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier name, int x, int y, int , int height) :
+ScriptingApi::Content::ScriptTable::ScriptTable(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier name, int x, int y, int , int ) :
 ScriptComponent(base, name),
 ownedTable(new MidiTable()),
 useOtherTable(false),
@@ -1909,7 +1909,7 @@ struct ScriptingApi::Content::ScriptSliderPack::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptSliderPack, referToData);
 };
 
-ScriptingApi::Content::ScriptSliderPack::ScriptSliderPack(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier name_, int x, int y, int width, int height) :
+ScriptingApi::Content::ScriptSliderPack::ScriptSliderPack(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier name_, int x, int y, int , int ) :
 ScriptComponent(base, name_),
 packData(new SliderPackData(base->getMainController_()->getControlUndoManager())),
 existingData(nullptr)
@@ -2193,7 +2193,7 @@ struct ScriptingApi::Content::ScriptImage::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptImage, setAlpha);
 };
 
-ScriptingApi::Content::ScriptImage::ScriptImage(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier imageName, int x, int y, int width, int height) :
+ScriptingApi::Content::ScriptImage::ScriptImage(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier imageName, int x, int y, int , int ) :
 ScriptComponent(base, imageName),
 image(nullptr)
 {
@@ -2370,7 +2370,7 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, closeAsPopup);
 };
 
-ScriptingApi::Content::ScriptPanel::ScriptPanel(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier panelName, int x, int y, int width, int height) :
+ScriptingApi::Content::ScriptPanel::ScriptPanel(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier panelName, int x, int y, int , int ) :
 ScriptComponent(base, panelName, 1),
 graphics(new ScriptingObjects::GraphicsObject(base, this)),
 repainter(this),
@@ -2894,7 +2894,7 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptedViewport::createC
 	return new ScriptCreatedComponentWrappers::ViewportWrapper(content, this, index);
 }
 
-ScriptingApi::Content::ScriptedViewport::ScriptedViewport(ProcessorWithScriptingContent* base, Content* /*parentContent*/, Identifier viewportName, int x, int y, int width, int height):
+ScriptingApi::Content::ScriptedViewport::ScriptedViewport(ProcessorWithScriptingContent* base, Content* /*parentContent*/, Identifier viewportName, int x, int y, int , int ):
 	ScriptComponent(base, viewportName)
 {
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::macroControl));
@@ -3113,7 +3113,7 @@ StringArray ScriptingApi::Content::ModulatorMeter::getOptionsFor(const Identifie
 };
 
 
-ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier waveformName, int x, int y, int width, int height) :
+ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier waveformName, int x, int y, int , int ) :
 ScriptComponent(base, waveformName)
 {
 	ADD_SCRIPT_PROPERTY(i01, "itemColour3"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ColourPickerSelector);
@@ -3234,7 +3234,7 @@ struct ScriptingApi::Content::ScriptFloatingTile::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptFloatingTile, setContentData);
 };
 
-ScriptingApi::Content::ScriptFloatingTile::ScriptFloatingTile(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier panelName, int x, int y, int width, int height) :
+ScriptingApi::Content::ScriptFloatingTile::ScriptFloatingTile(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier panelName, int x, int y, int , int ) :
 	ScriptComponent(base, panelName)
 {
 	
@@ -4099,9 +4099,9 @@ void ScriptingApi::Content::addComponentsFromValueTree(const ValueTree& v)
 	}
 }
 
-void ScriptingApi::Content::restoreSavedValue(const Identifier& name)
+void ScriptingApi::Content::restoreSavedValue(const Identifier& controlId)
 {
-	var savedValue = getScriptProcessor()->getSavedValue(name);
+	var savedValue = getScriptProcessor()->getSavedValue(controlId);
 
 	if (!savedValue.isUndefined())
 		components.getLast()->value = savedValue;

@@ -40,15 +40,16 @@ Array<juce::Identifier> HiseSettings::SettingFiles::getAllIds()
 {
 	Array<Identifier> ids;
 
+#if USE_BACKEND
 	ids.add(ProjectSettings);
 	ids.add(UserSettings);
 	ids.add(CompilerSettings);
 	ids.add(GeneralSettings);
 	ids.add(ScriptingSettings);
+#endif
 	ids.add(OtherSettings);
 	ids.add(AudioSettings);
 	ids.add(MidiSettings);
-
 
 	return ids;
 }
