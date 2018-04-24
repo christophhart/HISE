@@ -126,6 +126,11 @@ void HlacMonolithInfo::fillMetadataInfo(const ValueTree& sampleMap)
 	{
 		ValueTree sample = sampleMap.getChild(i);
 
+		if (!sample.hasProperty("MonolithLength") || !sample.hasProperty("MonolithOffset"))
+		{
+			throw StreamingSamplerSound::LoadingError(sample.getProperty("FileName").toString(), "\nhas no monolith metadata (probably an export error)");
+		}
+
 		if (numChannels == 1)
 		{
 			SampleInfo info;
@@ -134,6 +139,8 @@ void HlacMonolithInfo::fillMetadataInfo(const ValueTree& sampleMap)
 			info.length = sample.getProperty("MonolithLength");
 			info.sampleRate = sample.getProperty("SampleRate");
 			info.fileName = sample.getProperty("FileName");
+
+			
 
 			multiChannelSampleInformation[0].push_back(info);
 		}
