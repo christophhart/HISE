@@ -34,23 +34,41 @@
 
 namespace hise { using namespace juce;
 
+String getArrayTextForVar(const var& value)
+{
+	if (auto ar = value.getArray())
+	{
+		auto& arrayToStringify = *ar;
+		String output;
+		output << "[";
+		const int maxSize = jmin<int>(4, arrayToStringify.size());
+
+		for (int i = 0; i < maxSize - 1; i++)
+		{
+			output << getArrayTextForVar(arrayToStringify[i]) << ", ";
+		}
+
+		output << getArrayTextForVar(arrayToStringify[maxSize - 1]);
+
+		if (maxSize != arrayToStringify.size())
+			output << ", (...)]";
+		else
+			output << "]";
+
+		return output;
+	}
+    else if(auto debugObject = dynamic_cast<DebugableObject*>(value.getObject()))
+    {
+        return debugObject->getDebugName();
+    }
+    
+    return value.toString();
+}
+    
 String DebugInformation::varArrayToString(const Array<var> &arrayToStringify)
 {
-	String output;
-	output << "[";
-	const int maxSize = jmin<int>(4, arrayToStringify.size());
-
-	for (int i = 0; i < maxSize - 1; i++)
-		output << arrayToStringify[i].toString() << ", ";
-
-	output << arrayToStringify[maxSize - 1].toString();
-
-	if (maxSize != arrayToStringify.size())
-		output << ", (...)]";
-	else
-		output << "]";
-
-	return output;
+	var ar(arrayToStringify);
+	return getArrayTextForVar(ar);
 }
 
 StringArray DebugInformation::createTextArray()
@@ -177,15 +195,58 @@ void DebugableObject::Helpers::showProcessorEditorPopup(const MouseEvent& e, Com
 void DebugableObject::Helpers::showJSONEditorForObject(const MouseEvent& e, Component* table, var object, const String& id)
 {
 #if USE_BACKEND
-	JSONEditor* jsonEditor = new JSONEditor(object);
 
-	jsonEditor->setName((object.isArray() ? "Show Array: " : "Show Object: ") + id);
+	auto cleanedObject = getCleanedObjectForJSONDisplay(object);
+
+	JSONEditor* jsonEditor = new JSONEditor(cleanedObject);
+
+	jsonEditor->setName((cleanedObject.isArray() ? "Show Array: " : "Show Object: ") + id);
 	jsonEditor->setSize(500, 500);
 
 	GET_BACKEND_ROOT_WINDOW(table)->getRootFloatingTile()->showComponentInRootPopup(jsonEditor, table, Point<int>(table->getWidth() / 2, e.getMouseDownY() + 40));
 #else
 	ignoreUnused(e, table, object, id);
 #endif
+}
+
+
+var DebugableObject::Helpers::getCleanedObjectForJSONDisplay(const var& object)
+{
+	if (auto obj = object.getDynamicObject())
+	{
+		var copy = var(new DynamicObject());
+
+		auto source = obj->getProperties();
+		auto& destination = copy.getDynamicObject()->getProperties();
+
+		for (int i = 0; i < source.size(); i++)
+		{
+			destination.set(source.getName(i), getCleanedObjectForJSONDisplay(source.getValueAt(i)));
+		}
+
+		return copy;
+	}
+	else if (auto ar = object.getArray())
+	{
+		auto& source = *ar;
+
+		Array<var> destination;
+
+		for (const auto& v : source)
+		{
+			destination.add(getCleanedObjectForJSONDisplay(v));
+		}
+
+		return var(destination);
+	}
+	else if (auto debugObject = dynamic_cast<DebugableObject*>(object.getObject()))
+	{
+		return var(debugObject->getDebugName());
+	}
+	else
+		return object;
+	
+
 }
 
 DebugInformation* DebugableObject::Helpers::getDebugInformation(HiseJavascriptEngine* engine, DebugableObject* object)

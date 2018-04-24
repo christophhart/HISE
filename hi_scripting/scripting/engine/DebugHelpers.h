@@ -95,6 +95,10 @@ public:
 
 		static void showJSONEditorForObject(const MouseEvent& e, Component* table, var object, const String& id);
 
+		static var getCleanedVar(const var& value);
+
+		static var getCleanedObjectForJSONDisplay(const var& object);
+
 		static DebugInformation* getDebugInformation(HiseJavascriptEngine* engine, DebugableObject* object);
 
 		static DebugInformation* getDebugInformation(HiseJavascriptEngine* engine, const var& v);
