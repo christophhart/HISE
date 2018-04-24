@@ -1127,13 +1127,12 @@ void SampleEditHandler::SampleEditingActions::automapUsingMetadata(ModulatorSamp
 		sounds = handler->getSelection().getItemArray();
 	}
 
-	ModulatorSampler::SoundIterator sIter(sampler);
+	ModulatorSampler::SoundIterator sIter(sampler, false);
 
 	while (auto sound = sIter.getNextSound())
 	{
 		sounds.add(sound.get());
 	}
-
 
 	AudioFormatManager *afm = &(sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->afm);
 
