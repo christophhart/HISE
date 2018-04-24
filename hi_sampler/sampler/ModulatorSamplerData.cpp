@@ -519,12 +519,25 @@ void SampleMap::loadSamplesFromMonolith(const ValueTree &v)
 
 		pool->loadMonolithicData(v, monolithFiles, newSounds);
 
-		for (int i = 0; i < v.getNumChildren(); i++)
+		if (newSounds.size() == v.getNumChildren())
 		{
-			newSounds[i]->restoreFromValueTree(v.getChild(i));
+			for (int i = 0; i < newSounds.size(); i++)
+			{
+				newSounds[i]->restoreFromValueTree(v.getChild(i));
+			}
+
+			sampler->addSamplerSounds(newSounds);
 		}
+		else
+		{
+
+#if USE_FRONTEND
+			sampler->deleteAllSounds();
+#endif
+			return;
+		}
+
 		
-		sampler->addSamplerSounds(newSounds);
 
 	}
     

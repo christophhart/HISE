@@ -771,6 +771,8 @@ bool ModulatorSamplerSoundPool::loadMonolithicData(const ValueTree &sampleMap, c
 #else
 		debugError(mc->getMainSynthChain(), x);
 #endif
+
+		return false;
 	}
 
 	for (int i = 0; i < sampleMap.getNumChildren(); i++)
