@@ -109,6 +109,13 @@
  #define JUCE_USE_XCURSOR 1
 #endif
 
+/** Config: JUCE_HEADLESS_PLUGIN_CLIENT
+    Enables a headless build of a VST plugin for embedded Linux.
+*/
+#ifndef JUCE_HEADLESS_PLUGIN_CLIENT
+ #define JUCE_HEADLESS_PLUGIN_CLIENT 0
+#endif
+
 //==============================================================================
 namespace juce
 {
