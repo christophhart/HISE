@@ -1,0 +1,852 @@
+From 8b6f0c0db37d1a907e1f0da78796e499ce522d0c Mon Sep 17 00:00:00 2001
+From: stez-mind <stefano.zambon@mindmusiclabs.com>
+Date: Thu, 9 Nov 2017 10:08:21 +0000
+Subject: [PATCH] Added option for building headless Linux plugin clients.
+
+Activate it by defining JUCE_HEADLESS_PLUGIN_CLIENT. X11 and related
+dependencies (xinerama, xext) are not needed for the build.
+
+WIP: at the moment this is not integrated with the Projucer, so it
+breaks building a Linux plugin with GUI display. Temporary workaround is
+readding "x11 xinerama xext" to linuxPackages in juce_gui_basics module
+definition.
+---
+ .../VST/juce_VST_Wrapper.cpp                       |   8 +-
+ modules/juce_graphics/juce_graphics.h              |   2 +-
+ modules/juce_gui_basics/juce_gui_basics.cpp        |  85 ++---
+ modules/juce_gui_basics/juce_gui_basics.h          |   8 +-
+ .../native/juce_linux_headless_Clipboard.cpp       |  39 +++
+ .../native/juce_linux_headless_FileChooser.cpp     |  42 +++
+ .../native/juce_linux_headless_Windowing.cpp       | 380 +++++++++++++++++++++
+ .../native/juce_linux_headless_X_keysymdef.h       |  81 +++++
+ .../embedding/juce_XEmbedComponent.h               |   2 +-
+ modules/juce_gui_extra/juce_gui_extra.cpp          |   6 +-
+ .../misc/juce_SystemTrayIconComponent.cpp          |   2 +-
+ .../misc/juce_SystemTrayIconComponent.h            |   2 +-
+ 12 files changed, 609 insertions(+), 48 deletions(-)
+ create mode 100644 modules/juce_gui_basics/native/juce_linux_headless_Clipboard.cpp
+ create mode 100644 modules/juce_gui_basics/native/juce_linux_headless_FileChooser.cpp
+ create mode 100644 modules/juce_gui_basics/native/juce_linux_headless_Windowing.cpp
+ create mode 100644 modules/juce_gui_basics/native/juce_linux_headless_X_keysymdef.h
+
+diff --git a/modules/juce_audio_plugin_client/VST/juce_VST_Wrapper.cpp b/modules/juce_audio_plugin_client/VST/juce_VST_Wrapper.cpp
+index b0ee785e63..efba8f1fbd 100644
+--- a/modules/juce_audio_plugin_client/VST/juce_VST_Wrapper.cpp
++++ b/modules/juce_audio_plugin_client/VST/juce_VST_Wrapper.cpp
+@@ -184,7 +184,9 @@ struct SharedMessageThread  : public Thread
+ 
+         MessageManager::getInstance()->setCurrentThreadAsMessageThread();
+ 
++        #if ! JUCE_HEADLESS_PLUGIN_CLIENT
+         ScopedXDisplay xDisplay;
++        #endif
+ 
+         while ((! threadShouldExit()) && MessageManager::getInstance()->runDispatchLoopUntil (250))
+         {}
+@@ -1222,9 +1224,11 @@ class JuceVSTWrapper  : public AudioProcessorListener,
+             addToDesktop (0, args.ptr);
+             hostWindow = (HWND) args.ptr;
+            #elif JUCE_LINUX
++            #if ! JUCE_HEADLESS_PLUGIN_CLIENT
+             addToDesktop (0, args.ptr);
+             hostWindow = (Window) args.ptr;
+             XReparentWindow (display.display, (Window) getWindowHandle(), hostWindow, 0, 0);
++            #endif
+            #else
+             hostWindow = attachComponentToWindowRefVST (this, args.ptr, wrapper.useNSView);
+            #endif
+@@ -1308,7 +1312,7 @@ class JuceVSTWrapper  : public AudioProcessorListener,
+ 
+                    #if ! JUCE_LINUX // setSize() on linux causes renoise and energyxt to fail.
+                     setSize (pos.getWidth(), pos.getHeight());
+-                   #else
++                   #elif ! JUCE_HEADLESS_PLUGIN_CLIENT
+                     XResizeWindow (display.display, (Window) getWindowHandle(), pos.getWidth(), pos.getHeight());
+                    #endif
+ 
+@@ -1430,7 +1434,9 @@ class JuceVSTWrapper  : public AudioProcessorListener,
+        #if JUCE_MAC
+         void* hostWindow = {};
+        #elif JUCE_LINUX
++        #if ! JUCE_HEADLESS_PLUGIN_CLIENT
+         ScopedXDisplay display;
++        #endif
+         Window hostWindow = {};
+        #else
+         HWND hostWindow = {};
+diff --git a/modules/juce_graphics/juce_graphics.h b/modules/juce_graphics/juce_graphics.h
+index 6953c238e7..8cb667b931 100644
+--- a/modules/juce_graphics/juce_graphics.h
++++ b/modules/juce_graphics/juce_graphics.h
+@@ -44,7 +44,7 @@
+   dependencies:     juce_events
+   OSXFrameworks:    Cocoa QuartzCore
+   iOSFrameworks:    CoreGraphics CoreImage CoreText QuartzCore
+-  linuxPackages:    x11 xinerama xext freetype2
++  linuxPackages:    freetype2
+ 
+  END_JUCE_MODULE_DECLARATION
+ 
+diff --git a/modules/juce_gui_basics/juce_gui_basics.cpp b/modules/juce_gui_basics/juce_gui_basics.cpp
+index dbc7ee8c21..2d4bbc28d4 100644
+--- a/modules/juce_gui_basics/juce_gui_basics.cpp
++++ b/modules/juce_gui_basics/juce_gui_basics.cpp
+@@ -92,45 +92,48 @@
+ 
+ //==============================================================================
+ #elif JUCE_LINUX
+- #include <X11/Xlib.h>
+- #include <X11/Xatom.h>
+- #include <X11/Xresource.h>
+- #include <X11/Xutil.h>
+- #include <X11/Xmd.h>
+- #include <X11/keysym.h>
+- #include <X11/XKBlib.h>
+- #include <X11/cursorfont.h>
+- #include <unistd.h>
+-
+- #if JUCE_USE_XRANDR
+-  /* If you're trying to use Xrandr, you'll need to install the "libxrandr-dev" package..  */
+-  #include <X11/extensions/Xrandr.h>
+- #endif
++#include <unistd.h>
++ #if JUCE_HEADLESS_PLUGIN_CLIENT
++  #include "native/juce_linux_headless_X_keysymdef.h"
++ #else
++  #include <X11/Xlib.h>
++  #include <X11/Xatom.h>
++  #include <X11/Xresource.h>
++  #include <X11/Xutil.h>
++  #include <X11/Xmd.h>
++  #include <X11/keysym.h>
++  #include <X11/XKBlib.h>
++  #include <X11/cursorfont.h>
++  #if JUCE_USE_XRANDR
++   /* If you're trying to use Xrandr, you'll need to install the "libxrandr-dev" package..  */
++   #include <X11/extensions/Xrandr.h>
++  #endif
+ 
+- #if JUCE_USE_XINERAMA
+-  /* If you're trying to use Xinerama, you'll need to install the "libxinerama-dev" package..  */
+-  #include <X11/extensions/Xinerama.h>
+- #endif
++  #if JUCE_USE_XINERAMA
++   /* If you're trying to use Xinerama, you'll need to install the "libxinerama-dev" package..  */
++   #include <X11/extensions/Xinerama.h>
++  #endif
+ 
+- #if JUCE_USE_XSHM
+-  #include <X11/extensions/XShm.h>
+-  #include <sys/shm.h>
+-  #include <sys/ipc.h>
+- #endif
++  #if JUCE_USE_XSHM
++   #include <X11/extensions/XShm.h>
++   #include <sys/shm.h>
++   #include <sys/ipc.h>
++  #endif
+ 
+- #if JUCE_USE_XRENDER
+-  // If you're missing these headers, try installing the libxrender-dev and libxcomposite-dev
+-  #include <X11/extensions/Xrender.h>
+-  #include <X11/extensions/Xcomposite.h>
+- #endif
++  #if JUCE_USE_XRENDER
++   // If you're missing these headers, try installing the libxrender-dev and libxcomposite-dev
++   #include <X11/extensions/Xrender.h>
++   #include <X11/extensions/Xcomposite.h>
++  #endif
+ 
+- #if JUCE_USE_XCURSOR
+-  // If you're missing this header, try installing the libxcursor-dev package
+-  #include <X11/Xcursor/Xcursor.h>
+- #endif
++  #if JUCE_USE_XCURSOR
++   // If you're missing this header, try installing the libxcursor-dev package
++   #include <X11/Xcursor/Xcursor.h>
++  #endif
+ 
+- #undef SIZEOF
+- #undef KeyPress
++  #undef SIZEOF
++  #undef KeyPress
++ #endif
+ #endif
+ 
+ #include <map>
+@@ -306,10 +309,16 @@ namespace juce
+  #include "native/juce_win32_FileChooser.cpp"
+ 
+ #elif JUCE_LINUX
+- #include "native/juce_linux_X11.cpp"
+- #include "native/juce_linux_X11_Clipboard.cpp"
+- #include "native/juce_linux_X11_Windowing.cpp"
+- #include "native/juce_linux_FileChooser.cpp"
++ #if JUCE_HEADLESS_PLUGIN_CLIENT
++  #include "native/juce_linux_headless_Windowing.cpp"
++  #include "native/juce_linux_headless_Clipboard.cpp"
++  #include "native/juce_linux_headless_FileChooser.cpp"
++ #else
++  #include "native/juce_linux_X11.cpp"
++  #include "native/juce_linux_X11_Clipboard.cpp"
++  #include "native/juce_linux_X11_Windowing.cpp"
++  #include "native/juce_linux_FileChooser.cpp"
++ #endif
+ 
+ #elif JUCE_ANDROID
+  #include "native/juce_android_Windowing.cpp"
+diff --git a/modules/juce_gui_basics/juce_gui_basics.h b/modules/juce_gui_basics/juce_gui_basics.h
+index c5483f5fd7..dd07d66ed1 100644
+--- a/modules/juce_gui_basics/juce_gui_basics.h
++++ b/modules/juce_gui_basics/juce_gui_basics.h
+@@ -44,7 +44,7 @@
+   dependencies:     juce_events juce_graphics juce_data_structures
+   OSXFrameworks:    Cocoa Carbon QuartzCore
+   iOSFrameworks:    UIKit
+-  linuxPackages:    x11 xinerama xext
++  linuxPackages:
+ 
+  END_JUCE_MODULE_DECLARATION
+ 
+@@ -292,7 +292,11 @@ namespace juce
+ #include "mouse/juce_LassoComponent.h"
+ 
+ #if JUCE_LINUX
+- #include "native/juce_linux_X11.h"
++ #if ! JUCE_HEADLESS_PLUGIN_CLIENT
++  #include "native/juce_linux_X11.h"
++ #else
++  #include "native/juce_linux_headless_X_keysymdef.h"
++ #endif
+ #endif
+ 
+ // these classes are C++11-only
+diff --git a/modules/juce_gui_basics/native/juce_linux_headless_Clipboard.cpp b/modules/juce_gui_basics/native/juce_linux_headless_Clipboard.cpp
+new file mode 100644
+index 0000000000..5c0431a6d9
+--- /dev/null
++++ b/modules/juce_gui_basics/native/juce_linux_headless_Clipboard.cpp
+@@ -0,0 +1,39 @@
++/*
++  ==============================================================================
++
++   This file is part of the JUCE library.
++   Copyright (c) 2017 - ROLI Ltd.
++
++   JUCE is an open source library subject to commercial or open-source
++   licensing.
++
++   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
++   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
++   27th April 2017).
++
++   End User License Agreement: www.juce.com/juce-5-licence
++   Privacy Policy: www.juce.com/juce-5-privacy-policy
++
++   Or: You may also use this code under the terms of the GPL v3 (see
++   www.gnu.org/licenses).
++
++   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
++   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
++   DISCLAIMED.
++
++  ==============================================================================
++*/
++
++namespace juce
++{
++
++//==============================================================================
++void SystemClipboard::copyTextToClipboard (const String& /* clipText */) {}
++
++String SystemClipboard::getTextFromClipboard()
++{
++    String content;
++    return content;
++}
++
++} // namespace juce
+diff --git a/modules/juce_gui_basics/native/juce_linux_headless_FileChooser.cpp b/modules/juce_gui_basics/native/juce_linux_headless_FileChooser.cpp
+new file mode 100644
+index 0000000000..638c05d83b
+--- /dev/null
++++ b/modules/juce_gui_basics/native/juce_linux_headless_FileChooser.cpp
+@@ -0,0 +1,42 @@
++/*
++  ==============================================================================
++
++   This file is part of the JUCE library.
++   Copyright (c) 2017 - ROLI Ltd.
++
++   JUCE is an open source library subject to commercial or open-source
++   licensing.
++
++   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
++   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
++   27th April 2017).
++
++   End User License Agreement: www.juce.com/juce-5-licence
++   Privacy Policy: www.juce.com/juce-5-privacy-policy
++
++   Or: You may also use this code under the terms of the GPL v3 (see
++   www.gnu.org/licenses).
++
++   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
++   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
++   DISCLAIMED.
++
++  ==============================================================================
++*/
++
++namespace juce
++{
++
++bool FileChooser::isPlatformDialogAvailable()
++{
++    return false;
++}
++
++void FileChooser::showPlatformDialog (Array<File>& /* results */,
++                                      const String& /* title */, const File& /* file */, const String& /* filters */,
++                                      bool /* isDirectory */, bool /* selectsFiles */,
++                                      bool /* isSave */, bool /* warnAboutOverwritingExistingFiles */,
++                                      bool /*treatFilePackagesAsDirs*/,
++                                      bool /* selectMultipleFiles */, FilePreviewComponent*) {}
++
++} // namespace juce
+diff --git a/modules/juce_gui_basics/native/juce_linux_headless_Windowing.cpp b/modules/juce_gui_basics/native/juce_linux_headless_Windowing.cpp
+new file mode 100644
+index 0000000000..cdd571dacc
+--- /dev/null
++++ b/modules/juce_gui_basics/native/juce_linux_headless_Windowing.cpp
+@@ -0,0 +1,380 @@
++/*
++  ==============================================================================
++
++   This file is part of the JUCE library.
++   Copyright (c) 2017 - ROLI Ltd.
++
++   JUCE is an open source library subject to commercial or open-source
++   licensing.
++
++   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
++   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
++   27th April 2017).
++
++   End User License Agreement: www.juce.com/juce-5-licence
++   Privacy Policy: www.juce.com/juce-5-privacy-policy
++
++   Or: You may also use this code under the terms of the GPL v3 (see
++   www.gnu.org/licenses).
++
++   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
++   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
++   DISCLAIMED.
++
++  ==============================================================================
++*/
++
++
++namespace juce
++{
++
++#if JUCE_DEBUG && ! defined (JUCE_DEBUG_XERRORS)
++ #define JUCE_DEBUG_XERRORS 1
++#endif
++
++//==============================================================================
++
++namespace Keys
++{
++    enum MouseButtons
++    {
++        NoButton = 0,
++        LeftButton = 1,
++        MiddleButton = 2,
++        RightButton = 3,
++        WheelUp = 4,
++        WheelDown = 5
++    };
++
++    static int AltMask = 0;
++    static int NumLockMask = 0;
++    static bool numLock = false;
++    static bool capsLock = false;
++    static char keyStates [32];
++    static const int extendedKeyModifier = 0x10000000;
++}
++
++bool KeyPress::isKeyCurrentlyDown (const int /* keyCode */)
++{
++    return false;
++}
++
++const int KeyPress::spaceKey                = XK_space & 0xff;
++const int KeyPress::returnKey               = XK_Return & 0xff;
++const int KeyPress::escapeKey               = XK_Escape & 0xff;
++const int KeyPress::backspaceKey            = XK_BackSpace & 0xff;
++const int KeyPress::leftKey                 = (XK_Left & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::rightKey                = (XK_Right & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::upKey                   = (XK_Up & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::downKey                 = (XK_Down & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::pageUpKey               = (XK_Page_Up & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::pageDownKey             = (XK_Page_Down & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::endKey                  = (XK_End & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::homeKey                 = (XK_Home & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::insertKey               = (XK_Insert & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::deleteKey               = (XK_Delete & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::tabKey                  = XK_Tab & 0xff;
++const int KeyPress::F1Key                   = (XK_F1 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F2Key                   = (XK_F2 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F3Key                   = (XK_F3 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F4Key                   = (XK_F4 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F5Key                   = (XK_F5 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F6Key                   = (XK_F6 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F7Key                   = (XK_F7 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F8Key                   = (XK_F8 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F9Key                   = (XK_F9 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F10Key                  = (XK_F10 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F11Key                  = (XK_F11 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F12Key                  = (XK_F12 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F13Key                  = (XK_F13 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F14Key                  = (XK_F14 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F15Key                  = (XK_F15 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F16Key                  = (XK_F16 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F17Key                  = (XK_F17 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F18Key                  = (XK_F18 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F19Key                  = (XK_F19 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F20Key                  = (XK_F20 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F21Key                  = (XK_F21 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F22Key                  = (XK_F22 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F23Key                  = (XK_F23 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F24Key                  = (XK_F24 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F25Key                  = (XK_F25 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F26Key                  = (XK_F26 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F27Key                  = (XK_F27 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F28Key                  = (XK_F28 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F29Key                  = (XK_F29 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F30Key                  = (XK_F30 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F31Key                  = (XK_F31 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F32Key                  = (XK_F32 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F33Key                  = (XK_F33 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F34Key                  = (XK_F34 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::F35Key                  = (XK_F35 & 0xff) | Keys::extendedKeyModifier;
++
++const int KeyPress::numberPad0              = (XK_KP_0 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::numberPad1              = (XK_KP_1 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::numberPad2              = (XK_KP_2 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::numberPad3              = (XK_KP_3 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::numberPad4              = (XK_KP_4 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::numberPad5              = (XK_KP_5 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::numberPad6              = (XK_KP_6 & 0xff) | Keys::extendedKeyModifier;
++const int KeyPress::numberPad7              = (XK_KP_7 & 0xff)| Keys::extendedKeyModifier;
++const int KeyPress::numberPad8              = (XK_KP_8 & 0xff)| Keys::extendedKeyModifier;
++const int KeyPress::numberPad9              = (XK_KP_9 & 0xff)| Keys::extendedKeyModifier;
++const int KeyPress::numberPadAdd            = (XK_KP_Add & 0xff)| Keys::extendedKeyModifier;
++const int KeyPress::numberPadSubtract       = (XK_KP_Subtract & 0xff)| Keys::extendedKeyModifier;
++const int KeyPress::numberPadMultiply       = (XK_KP_Multiply & 0xff)| Keys::extendedKeyModifier;
++const int KeyPress::numberPadDivide         = (XK_KP_Divide & 0xff)| Keys::extendedKeyModifier;
++const int KeyPress::numberPadSeparator      = (XK_KP_Separator & 0xff)| Keys::extendedKeyModifier;
++const int KeyPress::numberPadDecimalPoint   = (XK_KP_Decimal & 0xff)| Keys::extendedKeyModifier;
++const int KeyPress::numberPadEquals         = (XK_KP_Equal & 0xff)| Keys::extendedKeyModifier;
++const int KeyPress::numberPadDelete         = (XK_KP_Delete & 0xff)| Keys::extendedKeyModifier;
++const int KeyPress::playKey                 = ((int) 0xffeeff00) | Keys::extendedKeyModifier;
++const int KeyPress::stopKey                 = ((int) 0xffeeff01) | Keys::extendedKeyModifier;
++const int KeyPress::fastForwardKey          = ((int) 0xffeeff02) | Keys::extendedKeyModifier;
++const int KeyPress::rewindKey               = ((int) 0xffeeff03) | Keys::extendedKeyModifier;
++
++bool juce_areThereAnyAlwaysOnTopWindows()
++{
++    return false;
++}
++
++//==============================================================================
++
++class LinuxComponentPeer  : public ComponentPeer
++{
++public:
++    LinuxComponentPeer (Component& comp, const int windowStyleFlags, void* /* parentToAddTo */)
++        : ComponentPeer (comp, windowStyleFlags) {}
++
++    ~LinuxComponentPeer() {}
++
++    //==============================================================================
++    void* getNativeHandle() const override
++    {
++        return nullptr;
++    }
++
++    void setVisible (bool /* shouldBeVisible */) override {}
++
++    void setTitle (const String& /* title */) override {}
++
++    void setBounds (const Rectangle<int>& /* newBounds */, bool /* isNowFullScreen */) override {}
++
++    Rectangle<int> getBounds() const override
++    {
++        Rectangle<int> bounds;
++        return bounds;
++    }
++
++    Point<float> localToGlobal (Point<float> relativePosition) override
++    {
++        return relativePosition;
++    }
++
++    Point<float> globalToLocal (Point<float> screenPosition) override
++    {
++        return screenPosition;
++    }
++
++    void setAlpha (float /* newAlpha */) override {}
++
++    void setMinimised (bool /* shouldBeMinimised */) override {}
++
++    bool isMinimised() const override
++    {
++        return false;
++    }
++
++    void setFullScreen (const bool /* shouldBeFullScreen */) override {}
++
++    bool isFullScreen() const override
++    {
++        return false;
++    }
++
++    bool contains (Point<int> /* localPos */, bool /* trueIfInAChildWindow */) const override
++    {
++        return false;
++    }
++
++    BorderSize<int> getFrameSize() const override
++    {
++        return {};
++    }
++
++    bool setAlwaysOnTop (bool /* alwaysOnTop */) override
++    {
++        return false;
++    }
++
++    void toFront (bool /* makeActive */) override {}
++
++    void toBehind (ComponentPeer* /* other */) override {}
++
++    bool isFocused() const override
++    {
++        return false;
++    }
++
++    void grabFocus() override {}
++
++    void textInputRequired (Point<int>, TextInputTarget&) override {}
++
++    void repaint (const Rectangle<int>& /* area */) override {}
++
++    void performAnyPendingRepaintsNow() override {}
++
++    void setIcon (const Image& /* newIcon */) override {}
++
++    StringArray getAvailableRenderingEngines() override
++    {
++        return StringArray ("Null Renderer");
++    }
++
++    //==============================================================================
++    static ModifierKeys currentModifiers;
++    static bool isActiveApplication;
++
++private:
++    static Point<int> lastMousePos;
++
++    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LinuxComponentPeer)
++};
++
++ModifierKeys LinuxComponentPeer::currentModifiers;
++bool LinuxComponentPeer::isActiveApplication = false;
++Point<int> LinuxComponentPeer::lastMousePos;
++
++//==============================================================================
++JUCE_API bool JUCE_CALLTYPE Process::isForegroundProcess()
++{
++    return LinuxComponentPeer::isActiveApplication;
++}
++
++// N/A on Linux as far as I know.
++JUCE_API void JUCE_CALLTYPE Process::makeForegroundProcess() {}
++JUCE_API void JUCE_CALLTYPE Process::hide() {}
++
++//==============================================================================
++void ModifierKeys::updateCurrentModifiers() noexcept
++{
++    currentModifiers = LinuxComponentPeer::currentModifiers;
++}
++
++ModifierKeys ModifierKeys::getCurrentModifiersRealtime() noexcept
++{
++    return LinuxComponentPeer::currentModifiers;
++}
++
++
++//==============================================================================
++void Desktop::setKioskComponent (Component* /* comp */, bool /* enableOrDisable */, bool /* allowMenusAndBars */) {}
++
++void Desktop::allowedOrientationsChanged() {}
++
++//==============================================================================
++ComponentPeer* Component::createNewPeer (int styleFlags, void* nativeWindowToAttachTo)
++{
++    return new LinuxComponentPeer (*this, styleFlags, nativeWindowToAttachTo);
++}
++
++//==============================================================================
++void Desktop::Displays::findDisplays (float /* masterScale */) {}
++
++bool MouseInputSource::SourceList::canUseTouch()
++{
++    return false;
++}
++
++bool Desktop::canUseSemiTransparentWindows() noexcept
++{
++    return false;
++}
++
++Point<float> MouseInputSource::getCurrentRawMousePosition()
++{
++    return Point<float> (0.0f, 0.0f);
++}
++
++void MouseInputSource::setRawMousePosition (Point<float> /* newPosition */) {}
++
++double Desktop::getDefaultMasterScale()
++{
++    return 1.0;
++}
++
++void Desktop::setScreenSaverEnabled (const bool /* isEnabled */) {}
++
++bool Desktop::isScreenSaverEnabled()
++{
++    return false;
++}
++
++Image juce_createIconForFile (const File& /* file */)
++{
++    return {};
++}
++
++void LookAndFeel::playAlertSound() {}
++
++#if JUCE_MODAL_LOOPS_PERMITTED
++void JUCE_CALLTYPE NativeMessageBox::showMessageBox (AlertWindow::AlertIconType /* iconType */,
++                                                     const String& /* title */, const String& /* message */,
++                                                     Component* /* associatedComponent */) {}
++#endif
++
++void JUCE_CALLTYPE NativeMessageBox::showMessageBoxAsync (AlertWindow::AlertIconType /* iconType */,
++                                                          const String& /* title */, const String& /* message */,
++                                                          Component* /* associatedComponent */,
++                                                          ModalComponentManager::Callback* /* callback */) {}
++
++bool JUCE_CALLTYPE NativeMessageBox::showOkCancelBox (AlertWindow::AlertIconType /* iconType */,
++                                                      const String& /* title */, const String& /* message */,
++                                                      Component* /* associatedComponent */,
++                                                      ModalComponentManager::Callback* /* callback */)
++{
++    return false;
++}
++
++int JUCE_CALLTYPE NativeMessageBox::showYesNoCancelBox (AlertWindow::AlertIconType /* iconType */,
++                                                        const String& /* title */, const String& /* message */,
++                                                        Component* /* associatedComponent */,
++                                                        ModalComponentManager::Callback* /* callback */)
++{
++    return 0;
++}
++
++int JUCE_CALLTYPE NativeMessageBox::showYesNoBox (AlertWindow::AlertIconType /* iconType */,
++                                                  const String& /* title */, const String& /* message */,
++                                                  Component* /* associatedComponent */,
++                                                  ModalComponentManager::Callback* /* callback */)
++{
++    return 0;
++}
++
++void* CustomMouseCursorInfo::create() const
++{
++    return nullptr;
++}
++
++void MouseCursor::deleteMouseCursor (void* const /* cursorHandle */, const bool) {}
++
++void* MouseCursor::createStandardMouseCursor (MouseCursor::StandardCursorType /* type */)
++{
++    return nullptr;
++}
++
++void MouseCursor::showInWindow (ComponentPeer* /* peer */) const {}
++
++bool DragAndDropContainer::performExternalDragDropOfFiles (const StringArray& /* files */, const bool /* canMoveFiles */,
++                                                           Component* /* sourceComp */)
++{
++    return false;
++}
++
++bool DragAndDropContainer::performExternalDragDropOfText (const String& /* text */, Component* /* sourceComp */)
++{
++    return false;
++}
++
++} // namespace juce
+diff --git a/modules/juce_gui_basics/native/juce_linux_headless_X_keysymdef.h b/modules/juce_gui_basics/native/juce_linux_headless_X_keysymdef.h
+new file mode 100644
+index 0000000000..8f30405d62
+--- /dev/null
++++ b/modules/juce_gui_basics/native/juce_linux_headless_X_keysymdef.h
+@@ -0,0 +1,81 @@
++// Subset of symbols defined in <X11/keysymdef.h>
++// TODO: no need to use these macros here, everything can be safely put into juce namespace
++
++#define XK_space                         0x0020  /* U+0020 SPACE */
++#define XK_Return                        0xff0d  /* Return, enter */
++#define XK_Escape                        0xff1b
++#define XK_Tab                           0xff09
++#define XK_BackSpace                     0xff08  /* Back space, back char */
++#define XK_Left                          0xff51  /* Move left, left arrow */
++#define XK_Up                            0xff52  /* Move up, up arrow */
++#define XK_Right                         0xff53  /* Move right, right arrow */
++#define XK_Down                          0xff54  /* Move down, down arrow */
++#define XK_Page_Up                       0xff55
++#define XK_Page_Down                     0xff56
++#define XK_End                           0xff57  /* EOL */
++#define XK_Home                          0xff50
++#define XK_Insert                        0xff63  /* Insert, insert here */
++#define XK_Delete                        0xffff  /* Delete, rubout */
++#define XK_F1                            0xffbe
++#define XK_F2                            0xffbf
++#define XK_F3                            0xffc0
++#define XK_F4                            0xffc1
++#define XK_F5                            0xffc2
++#define XK_F6                            0xffc3
++#define XK_F7                            0xffc4
++#define XK_F8                            0xffc5
++#define XK_F9                            0xffc6
++#define XK_F9                            0xffc6
++#define XK_F10                           0xffc7
++#define XK_F11                           0xffc8
++#define XK_F12                           0xffc9
++#define XK_F13                           0xffca
++#define XK_F14                           0xffcb
++#define XK_F15                           0xffcc
++#define XK_F16                           0xffcd
++#define XK_F17                           0xffce
++#define XK_F18                           0xffcf
++#define XK_F19                           0xffd0
++#define XK_F20                           0xffd1
++#define XK_F21                           0xffd2
++#define XK_F22                           0xffd3
++#define XK_F23                           0xffd4
++#define XK_F24                           0xffd5
++#define XK_F25                           0xffd6
++#define XK_F26                           0xffd7
++#define XK_F27                           0xffd8
++#define XK_F28                           0xffd9
++#define XK_F29                           0xffda
++#define XK_F30                           0xffdb
++#define XK_F31                           0xffdc
++#define XK_F32                           0xffdd
++#define XK_F33                           0xffde
++#define XK_F34                           0xffdf
++#define XK_F35                           0xffe0
++#define XK_KP_0                          0xffb0
++#define XK_KP_1                          0xffb1
++#define XK_KP_2                          0xffb2
++#define XK_KP_3                          0xffb3
++#define XK_KP_4                          0xffb4
++#define XK_KP_5                          0xffb5
++#define XK_KP_6                          0xffb6
++#define XK_KP_7                          0xffb7
++#define XK_KP_8                          0xffb8
++#define XK_KP_9                          0xffb9
++#define XK_KP_Add                        0xffab
++#define XK_KP_Subtract                   0xffad
++#define XK_KP_Multiply                   0xffaa
++#define XK_KP_Divide                     0xffaf
++#define XK_KP_Separator                  0xffac  /* Separator, often comma */
++#define XK_KP_Decimal                    0xffae
++#define XK_KP_Equal                      0xffbd  /* Equals */
++#define XK_KP_Delete                     0xff9f
++#define XK_ISO_Left_Tab                  0xfe20
++#define XK_KP_Add                        0xffab
++#define XK_KP_Subtract                   0xffad
++#define XK_KP_Divide                     0xffaf
++#define XK_KP_Multiply                   0xffaa
++#define XK_KP_Enter                      0xff8d  /* Enter */
++#define XK_KP_Insert                     0xff9e
++#define XK_Delete                        0xffff  /* Delete, rubout */
++#define XK_KP_Delete                     0xff9f
+diff --git a/modules/juce_gui_extra/embedding/juce_XEmbedComponent.h b/modules/juce_gui_extra/embedding/juce_XEmbedComponent.h
+index e3935e451c..8db2d4d9eb 100644
+--- a/modules/juce_gui_extra/embedding/juce_XEmbedComponent.h
++++ b/modules/juce_gui_extra/embedding/juce_XEmbedComponent.h
+@@ -32,7 +32,7 @@ bool juce_handleXEmbedEvent (ComponentPeer*, void*);
+ /** @internal */
+ unsigned long juce_getCurrentFocusWindow (ComponentPeer*);
+ 
+-#if JUCE_LINUX || DOXYGEN
++#if (JUCE_LINUX && ! JUCE_HEADLESS_PLUGIN_CLIENT) || DOXYGEN
+ 
+ //==============================================================================
+ /**
+diff --git a/modules/juce_gui_extra/juce_gui_extra.cpp b/modules/juce_gui_extra/juce_gui_extra.cpp
+index 70e8e349f3..1ccb1d3806 100644
+--- a/modules/juce_gui_extra/juce_gui_extra.cpp
++++ b/modules/juce_gui_extra/juce_gui_extra.cpp
+@@ -83,7 +83,7 @@
+  #endif
+ 
+ //==============================================================================
+-#elif JUCE_LINUX
++#elif JUCE_LINUX && ! JUCE_HEADLESS_PLUGIN_CLIENT
+  #include <X11/Xlib.h>
+  #include <X11/Xatom.h>
+  #include <X11/Xutil.h>
+@@ -154,8 +154,8 @@
+  #include "native/juce_win32_SystemTrayIcon.cpp"
+ 
+ //==============================================================================
+-#elif JUCE_LINUX
+-  #include "native/juce_linux_XEmbedComponent.cpp"
++#elif JUCE_LINUX && ! JUCE_HEADLESS_PLUGIN_CLIENT
++ #include "native/juce_linux_XEmbedComponent.cpp"
+  #if JUCE_WEB_BROWSER
+   #include "native/juce_linux_X11_WebBrowserComponent.cpp"
+  #endif
+diff --git a/modules/juce_gui_extra/misc/juce_SystemTrayIconComponent.cpp b/modules/juce_gui_extra/misc/juce_SystemTrayIconComponent.cpp
+index 72c6c983fc..8d1aa2527e 100644
+--- a/modules/juce_gui_extra/misc/juce_SystemTrayIconComponent.cpp
++++ b/modules/juce_gui_extra/misc/juce_SystemTrayIconComponent.cpp
+@@ -27,7 +27,7 @@
+ namespace juce
+ {
+ 
+-#if JUCE_WINDOWS || JUCE_LINUX || JUCE_MAC
++#if JUCE_WINDOWS || (JUCE_LINUX && ! JUCE_HEADLESS_PLUGIN_CLIENT) || JUCE_MAC
+ 
+ SystemTrayIconComponent::SystemTrayIconComponent()
+ {
+diff --git a/modules/juce_gui_extra/misc/juce_SystemTrayIconComponent.h b/modules/juce_gui_extra/misc/juce_SystemTrayIconComponent.h
+index 6dd877ddd2..2960ead838 100644
+--- a/modules/juce_gui_extra/misc/juce_SystemTrayIconComponent.h
++++ b/modules/juce_gui_extra/misc/juce_SystemTrayIconComponent.h
+@@ -27,7 +27,7 @@
+ namespace juce
+ {
+ 
+-#if JUCE_WINDOWS || JUCE_LINUX || JUCE_MAC || DOXYGEN
++#if JUCE_WINDOWS || (JUCE_LINUX && ! JUCE_HEADLESS_PLUGIN_CLIENT) || JUCE_MAC || DOXYGEN
+ 
+ 
+ //==============================================================================
