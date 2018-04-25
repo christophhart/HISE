@@ -130,7 +130,7 @@ public:
 		static bool isStandalone(BuildOption option) { return (option & 0x0100) != 0; }
 		static bool isInstrument(BuildOption option) { return (option & 0x0200) != 0; }
 		static bool isEffect(BuildOption option) { return (option & 0x0400) != 0; }
-		static bool isHeadlessLinuxPlugin(BuildOption option) { return isAAX(option); /* just reuse the AAX flag on Linux...*/ };
+		static bool isHeadlessLinuxPlugin(BuildOption option) { return isLinux(option) && (option & 0x0080) != 0; };
 		static void runUnitTests();
 	};
 

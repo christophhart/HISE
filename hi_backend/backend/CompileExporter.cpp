@@ -740,6 +740,7 @@ bool CompileExporter::checkSanity(BuildOption option)
     }
 #endif
 
+#if !JUCE_LINUX
     if(BuildOptionHelpers::isAAX(option))
     {
         const File aaxSDK = hiseDirectory.getChildFile("tools/SDK/AAX/Libs");
@@ -750,6 +751,7 @@ bool CompileExporter::checkSanity(BuildOption option)
             return false;
         }
     }
+#endif
     
     if(!isExportingFromCommandLine() && PresetHandler::showYesNoWindow("Check Sample references", "Do you want to validate all sample references"))
     {
@@ -1401,8 +1403,12 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 		REPLACE_WILDCARD_WITH_STRING("%BUILD_AUV3%", "0");
 
 		const bool buildAU = BuildOptionHelpers::isAU(option);
-		const bool buildVST = BuildOptionHelpers::isVST(option);
+		const bool buildVST = BuildOptionHelpers::isVST(option) || BuildOptionHelpers::isHeadlessLinuxPlugin(option);
+#if JUCE_LINUX
+		const bool buildAAX = false;
+#else
 		const bool buildAAX = BuildOptionHelpers::isAAX(option);
+#endif
 
 		REPLACE_WILDCARD_WITH_STRING("%BUILD_AU%", buildAU ? "1" : "0");
 		REPLACE_WILDCARD_WITH_STRING("%BUILD_VST%", buildVST ? "1" : "0");
@@ -1449,13 +1455,23 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 	}
 
 	// Add the linux GUI packages for non headless plugin builds to the projucer exporter...
-	if (BuildOptionHelpers::isLinux(option) && !BuildOptionHelpers::isHeadlessLinuxPlugin(option))
+	if (BuildOptionHelpers::isLinux(option))
 	{
-		REPLACE_WILDCARD_WITH_STRING("%LINUX_GUI_LIBS%", "x11 xinerama xext");
+		if(BuildOptionHelpers::isHeadlessLinuxPlugin(option))
+		{
+			REPLACE_WILDCARD_WITH_STRING("%LINUX_GUI_LIBS%", "");
+			REPLACE_WILDCARD_WITH_STRING("%JUCE_HEADLESS_PLUGIN_CLIENT%", "enabled");
+		}
+		else
+		{
+			REPLACE_WILDCARD_WITH_STRING("%LINUX_GUI_LIBS%", "x11 xinerama xext");
+			REPLACE_WILDCARD_WITH_STRING("%JUCE_HEADLESS_PLUGIN_CLIENT%", "disabled");
+		}
 	}
 	else
 	{
 		REPLACE_WILDCARD_WITH_STRING("%LINUX_GUI_LIBS%", "");
+		REPLACE_WILDCARD_WITH_STRING("%JUCE_HEADLESS_PLUGIN_CLIENT%", "disabled");
 	}
 
 	ProjectTemplateHelpers::handleCompilerInfo(this, templateProject);
