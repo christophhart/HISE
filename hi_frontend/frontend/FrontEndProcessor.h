@@ -346,7 +346,9 @@ public:
 		ScopedPointer<AudioProcessorEditor> editor;
 		ScopedPointer<StandaloneProcessor> standaloneProcessor;
         
+		#if 0
 		ScopedPointer<OpenGLContext> context;
+		#endif
         
 	};
 
