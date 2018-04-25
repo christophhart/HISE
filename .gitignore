@@ -1,4 +1,6 @@
 .*
+*.o
+*.d
 !/.gitignore
 !/.travis.yml
 !/.vscode/*
