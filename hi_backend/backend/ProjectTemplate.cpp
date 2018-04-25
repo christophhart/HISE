@@ -202,7 +202,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "        <MODULEPATH id=\"hi_streaming\" path=\"%HISE_PATH%\"/>\r\n"
 "      </MODULEPATHS>\r\n"
 "    </XCODE_IPHONE>\r\n"
-"    <LINUX_MAKE targetFolder=\"Builds/LinuxMakefile\">\r\n"
+"    <LINUX_MAKE targetFolder=\"Builds/LinuxMakefile\" linuxExtraPkgConfig=\"%LINUX_GUI_LIBS%\">\r\n"
 "      <CONFIGURATIONS>\r\n"
 "        <CONFIGURATION name=\"Debug\" isDebug=\"1\" optimisation=\"1\" linkTimeOptimisation=\"0\"\r\n"
 "                       targetName=\"%NAME%\" binaryPath=\"~/.vst/\" defines=\"USE_IPP=0\"/>\r\n"

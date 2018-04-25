@@ -100,6 +100,8 @@ public:
 		AAXWindowsx64 = 0x1282,
 		AAXWindowsx86x64 = 0x1284,
 		AAXmacOS = 0x2284,
+		HeadlessLinuxVST = 0x0484,
+		HeadlessLinuxVSTi = 0x0284,
 		StandaloneWindowsx86 = 0x1101,
 		StandaloneWindowsx64 = 0x1102,
 		StandaloneWindowsx64x86 = 0x1104,
@@ -128,6 +130,7 @@ public:
 		static bool isStandalone(BuildOption option) { return (option & 0x0100) != 0; }
 		static bool isInstrument(BuildOption option) { return (option & 0x0200) != 0; }
 		static bool isEffect(BuildOption option) { return (option & 0x0400) != 0; }
+		static bool isHeadlessLinuxPlugin(BuildOption option) { return isAAX(option); /* just reuse the AAX flag on Linux...*/ };
 		static void runUnitTests();
 	};
 

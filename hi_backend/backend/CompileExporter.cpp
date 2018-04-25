@@ -818,9 +818,12 @@ CompileExporter::BuildOption CompileExporter::showCompilePopup(TargetTypes type)
 	{
 	case CompileExporter::TargetTypes::InstrumentPlugin:
 		b->addItem("VSTi", BuildOption::VSTiLinux);
+		b->addItem("Headless VSTi", BuildOption::HeadlessLinuxVSTi);
+		
 		break;
 	case CompileExporter::TargetTypes::EffectPlugin:
 		b->addItem("VST", BuildOption::VSTLinux);
+		b->addItem("Headless VST", BuildOption::HeadlessLinuxVST);
 		break;
 	case CompileExporter::TargetTypes::StandaloneApplication:
 		b->addItem("Standalone Linux", BuildOption::StandaloneLinux);
@@ -1443,6 +1446,16 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 			REPLACE_WILDCARD_WITH_STRING("%AAX_DEBUG_LIB%", String());
 			REPLACE_WILDCARD_WITH_STRING("%AAX_IDENTIFIER%", String());
 		}
+	}
+
+	// Add the linux GUI packages for non headless plugin builds to the projucer exporter...
+	if (BuildOptionHelpers::isLinux(option) && !BuildOptionHelpers::isHeadlessLinuxPlugin(option))
+	{
+		REPLACE_WILDCARD_WITH_STRING("%LINUX_GUI_LIBS%", "x11 xinerama xext");
+	}
+	else
+	{
+		REPLACE_WILDCARD_WITH_STRING("%LINUX_GUI_LIBS%", "");
 	}
 
 	ProjectTemplateHelpers::handleCompilerInfo(this, templateProject);
