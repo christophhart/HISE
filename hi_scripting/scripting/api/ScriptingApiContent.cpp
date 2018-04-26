@@ -4016,12 +4016,8 @@ void ScriptingApi::Content::rebuildComponentListFromValueTree()
         return;
     
     ScopedValueSetter<bool> rebuildLimiter(isRebuilding, true);
-	NamedValueSet values;
 
-	for (auto c : components)
-	{
-		values.set(c->name, c->getValue());
-	}
+	ValueTree currentState = exportAsValueTree();
 
 	components.clear();
 
@@ -4029,14 +4025,8 @@ void ScriptingApi::Content::rebuildComponentListFromValueTree()
 
 	addComponentsFromValueTree(contentPropertyData);
 
-	for (int i = 0; i < values.size(); i++)
-	{
-		auto sc = getComponentWithName(values.getName(i));
+	restoreFromValueTree(currentState);
 
-		if (sc != nullptr)
-			sc->value = values.getValueAt(i);
-	}
-	
 	sendRebuildMessage();
 
 	auto p = dynamic_cast<Processor*>(getScriptProcessor());
@@ -4116,7 +4106,9 @@ void ScriptingApi::Content::restoreSavedValue(const Identifier& controlId)
 	var savedValue = getScriptProcessor()->getSavedValue(controlId);
 
 	if (!savedValue.isUndefined())
-		components.getLast()->value = savedValue;
+	{
+		components.getLast()->setValue(savedValue);
+	}
 }
 
 ValueTree findChildRecursive(const ValueTree& v, const var& n)
