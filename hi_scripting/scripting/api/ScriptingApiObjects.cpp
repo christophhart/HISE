@@ -2029,10 +2029,10 @@ ScriptingObjects::GraphicsObject::~GraphicsObject()
 	g = nullptr;
 }
 
-void ScriptingObjects::GraphicsObject::fillAll(int colour)
+void ScriptingObjects::GraphicsObject::fillAll(var colour)
 {
 	initGraphics();
-	Colour c((uint32)colour);
+	Colour c = ScriptingApi::Content::Helpers::getCleanedObjectColour(colour);
 
 	g->fillAll(c);
 
@@ -2099,10 +2099,10 @@ void ScriptingObjects::GraphicsObject::drawLine(float x1, float x2, float y1, fl
 	g->drawLine(SANITIZED(x1), SANITIZED(y1), SANITIZED(x2), SANITIZED(y2), SANITIZED(lineThickness));
 }
 
-void ScriptingObjects::GraphicsObject::setColour(int colour)
+void ScriptingObjects::GraphicsObject::setColour(var colour)
 {
 	
-	currentColour = Colour((uint32)colour);
+	currentColour = ScriptingApi::Content::Helpers::getCleanedObjectColour(colour);
 	g->setColour(currentColour);
 
 	useGradient = false;
@@ -2157,8 +2157,11 @@ void ScriptingObjects::GraphicsObject::setGradientFill(var gradientData)
 
 		if (gradientData.getArray()->size() == 6)
 		{
-			currentGradient = ColourGradient(Colour((uint32)(int64)data->getUnchecked(0)), (float)data->getUnchecked(1), (float)data->getUnchecked(2),
-					 					       Colour((uint32)(int64)data->getUnchecked(3)), (float)data->getUnchecked(4), (float)data->getUnchecked(5), false);
+			auto c1 = ScriptingApi::Content::Helpers::getCleanedObjectColour(data->getUnchecked(0));
+			auto c2 = ScriptingApi::Content::Helpers::getCleanedObjectColour(data->getUnchecked(3));
+
+			currentGradient = ColourGradient(c1, (float)data->getUnchecked(1), (float)data->getUnchecked(2),
+					 					     c2, (float)data->getUnchecked(4), (float)data->getUnchecked(5), false);
 
 			useGradient = true;
 
@@ -2216,13 +2219,13 @@ void ScriptingObjects::GraphicsObject::drawImage(String imageName, var area, int
 	};
 }
 
-void ScriptingObjects::GraphicsObject::drawDropShadow(var area, int colour, int radius)
+void ScriptingObjects::GraphicsObject::drawDropShadow(var area, var colour, int radius)
 {
 	initGraphics();
 
 	DropShadow shadow;
 
-	shadow.colour = Colour((uint32)colour);
+	shadow.colour = ScriptingApi::Content::Helpers::getCleanedObjectColour(colour);
 	shadow.radius = radius;
 
 	auto r = getIntRectangleFromVar(area);
@@ -2263,13 +2266,13 @@ void ScriptingObjects::GraphicsObject::fillTriangle(var area, float angle)
 	g->fillPath(p);
 }
 
-void ScriptingObjects::GraphicsObject::addDropShadowFromAlpha(int colour, int radius)
+void ScriptingObjects::GraphicsObject::addDropShadowFromAlpha(var colour, int radius)
 {
 	initGraphics();
 
 	DropShadow shadow;
 
-	shadow.colour = Colour((uint32)colour);
+	shadow.colour = ScriptingApi::Content::Helpers::getCleanedObjectColour(colour);
 	shadow.radius = radius;
 
     Graphics g2(*imageToDraw);

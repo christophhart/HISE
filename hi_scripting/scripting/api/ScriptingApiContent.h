@@ -1794,7 +1794,7 @@ public:
 
 		static void duplicateSelection(Content* c, ReferenceCountedArray<ScriptComponent> selection, int deltaX, int deltaY, UndoManager* undoManager);
 
-		
+		static Colour getCleanedObjectColour(const var& value);
 
 		static void setComponentValueTreeFromJSON(Content* c, const Identifier& id, const var& data, UndoManager* undoManager);
 

@@ -37,7 +37,10 @@ namespace hise { using namespace juce;
 
 #define GET_SCRIPT_PROPERTY(id) (getContent()->getComponent(getIndex())->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::id))
 
-#define GET_OBJECT_COLOUR(id) (Colour((uint32)(int64)GET_SCRIPT_PROPERTY(id)))
+
+
+
+#define GET_OBJECT_COLOUR(id) (ScriptingApi::Content::Helpers::getCleanedObjectColour(GET_SCRIPT_PROPERTY(id)))
 
 
 Array<Identifier> ScriptComponentPropertyTypeSelector::toggleProperties = Array<Identifier>();

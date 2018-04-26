@@ -1012,7 +1012,7 @@ public:
 		// ============================================================================================================ API Methods
 
 		/** Fills the whole area with the given colour. */
-		void fillAll(int colour);
+		void fillAll(var colour);
 
 		/** Fills a rectangle with the given colour. */
 		void fillRect(var area);
@@ -1036,7 +1036,7 @@ public:
 		void drawLine(float x1, float x2, float y1, float y2, float lineThickness);
 
 		/** Sets the current colour. */
-		void setColour(int colour);
+		void setColour(var colour);
 
 		/** Sets the current font. */
 		void setFont(String fontName, float fontSize);
@@ -1060,7 +1060,7 @@ public:
 		void drawImage(String imageName, var area, int xOffset, int yOffset);
 
 		/** Draws a drop shadow around a rectangle. */
-		void drawDropShadow(var area, int colour, int radius);
+		void drawDropShadow(var area, var colour, int radius);
 
 		/** Draws a triangle rotated by the angle in radians. */
 		void drawTriangle(var area, float angle, float lineThickness);
@@ -1069,7 +1069,7 @@ public:
 		void fillTriangle(var area, float angle);
 
 		/** Adds a drop shadow based on the alpha values of the current image. */
-		void addDropShadowFromAlpha(int colour, int radius);
+		void addDropShadowFromAlpha(var colour, int radius);
 
 		/** Fills a Path. */
 		void fillPath(var path, var area);
