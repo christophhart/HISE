@@ -479,7 +479,7 @@ public:
 
         bool isConnectedToMacroControll() const noexcept
         {
-            return !macroRecursionProtection && connectedMacroIndex != -1;
+            return !macroRecursionProtection && connectedMacroIndex >= 0;
         }
         
         void setMacroRecursionProtection(bool shouldBeEnabled)
