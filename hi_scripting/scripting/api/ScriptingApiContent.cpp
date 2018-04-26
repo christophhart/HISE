@@ -157,12 +157,15 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_SCRIPT_PROPERTY(iId4, "isPluginParameter"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(pId, "pluginParameterName");
     ADD_SCRIPT_PROPERTY(pId76, "isMetaParameter");  ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(pId72, "linkedTo")			ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(uId, "useUndoManager");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(pId2, "parentComponent");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(pId3, "processorId");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(pId4, "parameterId");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 
-	deactivatedProperties.add(getIdFor(isPluginParameter));
+	handleDefaultDeactivatedProperties();
+
+	
 
 	
 
@@ -182,6 +185,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	setDefaultValue(Properties::isPluginParameter, false);
 	setDefaultValue(Properties::pluginParameterName, "");
     setDefaultValue(Properties::isMetaParameter, false);
+	setDefaultValue(Properties::linkedTo, "");
 	setDefaultValue(Properties::useUndoManager, false);
 	setDefaultValue(Properties::parentComponent, "");
 	setDefaultValue(Properties::processorId, "");
@@ -248,6 +252,30 @@ StringArray ScriptingApi::Content::ScriptComponent::getOptionsFor(const Identifi
 	else if (id == getIdFor(parameterId) && connectedProcessor.get() != nullptr)
 	{
 		return ProcessorHelpers::getListOfAllParametersForProcessor(connectedProcessor.get());
+	}
+	else if (id == getIdFor(linkedTo))
+	{
+		auto c = parent;
+
+		StringArray sa;
+
+		sa.add("");
+
+		for (int i = 0; i < c->getNumComponents(); i++)
+		{
+			auto sc = c->getComponent(i);
+
+			if(sc->getObjectName() != getObjectName())
+				continue;
+
+			// Only allow connection to controls above
+			if (sc == this)
+				break;
+
+			sa.add(sc->getName().toString());
+		}
+
+		return sa;
 	}
 
 	return StringArray();
@@ -349,6 +377,39 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 
 		addToMacroControl(index);
 	}
+	else if (id == getIdFor(linkedTo))
+	{
+		if (newValue.toString().isEmpty())
+		{
+			if (linkedComponent.get() != nullptr)
+				linkedComponent->removeLinkedTarget(this);
+
+			linkedComponent = nullptr;
+		}
+		else
+		{
+			auto c = parent;
+
+			linkedComponent = c->getComponentWithName(Identifier(newValue).toString());
+			linkedComponent->addLinkedTarget(this);
+		}
+
+		Array<PropertyWithValue> vArray;
+		vArray.add({ Properties::min});
+		vArray.add({ Properties::max}),
+		vArray.add({ Properties::saveInPreset, false });
+		vArray.add({ Properties::macroControl, -1 });
+		vArray.add({ Properties::isPluginParameter, false });
+		vArray.add({ Properties::pluginParameterName, "" });
+		vArray.add({ Properties::isMetaParameter, false });
+		vArray.add({ Properties::processorId, "" });
+		vArray.add({ Properties::parameterId, "" });
+		
+		updatePropertiesAfterLink(vArray, notifyEditor);
+
+		if (linkedComponent != nullptr)
+			setValue(linkedComponent->getValue());
+	}
 	else if (id == getIdFor(parentComponent))
 	{
 		auto pName = newValue.toString();
@@ -391,34 +452,6 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 				root.addChild(propertyTree, -1, nullptr);
 			}
 		}
-
-
-#if 0
-		auto c = getScriptProcessor()->getScriptingContent();
-
-		if (newValue.toString().isEmpty())
-		{
-			parentComponentIndex = -1;
-
-		}
-		else
-		{
-			parentComponentIndex = c->getComponentIndex(Identifier(newValue.toString()));
-
-			if (parentComponentIndex != -1)
-			{
-				if (!c->getComponent(parentComponentIndex)->addChildComponent(this))
-				{
-					// something went wrong...
-					parentComponentIndex = -1;
-				}
-			}
-			else
-			{
-				reportScriptError("parent component " + newValue.toString() + " not found.");
-			}
-		}
-#endif
 	}
 	else if (id == getIdFor(x) || id == getIdFor(y) || id == getIdFor(width) ||
 		id == getIdFor(height) || id == getIdFor(visible) || id == getIdFor(enabled))
@@ -570,6 +603,14 @@ void ScriptingApi::Content::ScriptComponent::setValue(var controlValue)
 	if (parent->allowGuiCreation)
 	{
 		skipRestoring = true;
+	}
+
+	for (auto t : linkedComponentTargets)
+	{
+		if (t != nullptr)
+		{
+			t->setValue(controlValue);
+		}
 	}
 
     SEND_MESSAGE(this);
@@ -773,32 +814,6 @@ void ScriptingApi::Content::ScriptComponent::updateContentPropertyInternal(int p
 void ScriptingApi::Content::ScriptComponent::updateContentPropertyInternal(const Identifier& propId, const var& newValue)
 {
 	setScriptObjectPropertyWithChangeMessage(propId, newValue);
-
-#if 0
-	if (dynamic_cast<JavascriptProcessor*>(getProcessor()) != nullptr)
-	{
-		auto componentId = getName();
-		auto cTree = parent->getContentProperties();
-
-		auto child = parent->getValueTreeForComponent(getName());
-
-		if (child.isValid())
-		{
-			child.setProperty(propId, newValue, nullptr);
-		}
-		else
-		{
-			if (PresetHandler::showYesNoWindow("Delete Component", "The component no longer exists. Do you want to rebuild the interface?"))
-			{
-				parent->resetContentProperties();
-				return;
-			}
-		}
-			
-
-		setScriptObjectPropertyWithChangeMessage(propId, newValue);
-	}
-#endif
 }
 
 void ScriptingApi::Content::ScriptComponent::setScriptObjectProperty(int p, var newValue, NotificationType notifyListeners/*=dontSendNotification*/)
@@ -910,6 +925,38 @@ const ScriptingApi::Content::ScriptComponent* ScriptingApi::Content::ScriptCompo
 	return parent->getComponentWithName(id);
 }
 
+ScriptingApi::Content::ScriptComponent::~ScriptComponent()
+{
+	if (linkedComponent != nullptr)
+		linkedComponent->removeLinkedTarget(this);
+}
+
+void ScriptingApi::Content::ScriptComponent::handleDefaultDeactivatedProperties()
+{
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(isPluginParameter));
+}
+
+void ScriptingApi::Content::ScriptComponent::updatePropertiesAfterLink(const Array<PropertyWithValue>& idList, NotificationType notifyEditor)
+{
+	if (auto lc = getLinkedComponent())
+	{
+		for (const auto& v : idList)
+		{
+			setScriptObjectPropertyWithChangeMessage(getIdFor(v.id), v.value.isUndefined() ? lc->getScriptObjectProperty(v.id) : v.value, notifyEditor);
+			deactivatedProperties.addIfNotAlreadyThere(getIdFor(v.id));
+		}
+	}
+	else
+	{
+		for (const auto& v : idList)
+		{
+			deactivatedProperties.removeAllInstancesOf(getIdFor(v.id));
+		}
+
+		handleDefaultDeactivatedProperties();
+	}
+}
+
 struct ScriptingApi::Content::ScriptSlider::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(ScriptSlider, setMidPoint);
@@ -948,7 +995,8 @@ maximum(1.0f)
 	ADD_SCRIPT_PROPERTY(i13, "showValuePopup"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(i14, "showTextBox"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
-	deactivatedProperties.removeAllInstancesOf(getIdFor(isPluginParameter));
+
+	
 
 #if 0
 	componentProperties->setProperty(getIdFor(Mode), 0);
@@ -1001,6 +1049,7 @@ maximum(1.0f)
 	initInternalPropertyFromValueTreeOrDefault(ScriptComponent::max);
 	initInternalPropertyFromValueTreeOrDefault(Properties::suffix);
 	initInternalPropertyFromValueTreeOrDefault(Properties::filmstripImage);
+	initInternalPropertyFromValueTreeOrDefault(ScriptComponent::linkedTo);
 
 	ADD_API_METHOD_1(setMidPoint);
 	ADD_API_METHOD_3(setRange);
@@ -1063,6 +1112,22 @@ void ScriptingApi::Content::ScriptSlider::setScriptObjectPropertyWithChangeMessa
         
         return;
     }
+	else if (id == getIdFor(ScriptComponent::linkedTo))
+	{
+		ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
+
+		Array<PropertyWithValue> vArray;
+
+		vArray.add({ Properties::Mode });
+		vArray.add({ Properties::middlePosition });
+		vArray.add({ Properties::stepSize });
+		vArray.add({ ScriptComponent::min });
+		vArray.add({ ScriptComponent::max });
+		vArray.add({ Properties::suffix });
+		vArray.add({ Properties::defaultValue });
+
+		updatePropertiesAfterLink(vArray, notifyEditor);
+	}
 	else if (id == getIdFor(filmstripImage))
 	{
 		jassert(isCorrectlyInitialised(id));
@@ -1398,6 +1463,10 @@ void ScriptingApi::Content::ScriptSlider::setMode(String mode)
 	}
 }
 
+void ScriptingApi::Content::ScriptSlider::handleDefaultDeactivatedProperties()
+{
+	deactivatedProperties.removeAllInstancesOf(getIdFor(isPluginParameter));
+}
 
 struct ScriptingApi::Content::ScriptButton::Wrapper
 {
@@ -1415,10 +1484,7 @@ image(nullptr)
 	ADD_NUMBER_PROPERTY(i05, "radioGroup");
 	ADD_SCRIPT_PROPERTY(i04, "isMomentary");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::textColour));
-	deactivatedProperties.removeAllInstancesOf(getIdFor(ScriptComponent::Properties::isPluginParameter));
+	handleDefaultDeactivatedProperties();
 
 	setDefaultValue(ScriptComponent::Properties::x, x);
 	setDefaultValue(ScriptComponent::Properties::y, y);
@@ -1516,6 +1582,13 @@ void ScriptingApi::Content::ScriptButton::setPopupData(var jsonData, var positio
 	}
 }
 
+void ScriptingApi::Content::ScriptButton::handleDefaultDeactivatedProperties()
+{
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::max));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::min));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::textColour));
+	deactivatedProperties.removeAllInstancesOf(getIdFor(ScriptComponent::Properties::isPluginParameter));
+}
 
 
 struct ScriptingApi::Content::ScriptLabel::Wrapper
@@ -1548,8 +1621,7 @@ ScriptComponent(base, name)
 	setDefaultValue(Editable, true);
 	setDefaultValue(Multiline, false);
 
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
+	handleDefaultDeactivatedProperties();
 
 	initInternalPropertyFromValueTreeOrDefault(ScriptComponent::Properties::text);
 
@@ -1607,6 +1679,14 @@ Justification ScriptingApi::Content::ScriptLabel::getJustification()
 	return ApiHelpers::getJustification(justAsString);
 }
 
+void ScriptingApi::Content::ScriptLabel::handleDefaultDeactivatedProperties()
+{
+
+
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::min));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::max));
+}
+
 struct ScriptingApi::Content::ScriptComboBox::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(ScriptComboBox, addItem);
@@ -1617,14 +1697,7 @@ ScriptingApi::Content::ScriptComboBox::ScriptComboBox(ProcessorWithScriptingCont
 ScriptComponent(base, name)
 {
 	propertyIds.add(Identifier("items"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::MultilineSelector);
-	propertyIds.add(Identifier("isPluginParameter")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::height));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
-
-	deactivatedProperties.removeAllInstancesOf(getIdFor(ScriptComponent::Properties::isPluginParameter));
-
+	
 	priorityProperties.add(getIdFor(Items));
 
 	setDefaultValue(ScriptComponent::Properties::x, x);
@@ -1633,8 +1706,8 @@ ScriptComponent(base, name)
 	setDefaultValue(ScriptComponent::Properties::height, 32);
 	setDefaultValue(Items, "");
 	setDefaultValue(ScriptComponent::min, 1.0f);
-	setDefaultValue(isPluginParameter, false);
-
+	
+	handleDefaultDeactivatedProperties();
 	initInternalPropertyFromValueTreeOrDefault(Items);
 
 	ADD_API_METHOD_1(addItem);
@@ -1679,6 +1752,14 @@ void ScriptingApi::Content::ScriptComboBox::setScriptObjectPropertyWithChangeMes
 		setScriptObjectProperty(Items, newValue);
 		setScriptObjectProperty(max, getItemList().size());
 	}
+	else if (id == getIdFor(ScriptComponent::linkedTo))
+	{
+		ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
+
+		Array<PropertyWithValue> vArray;
+		vArray.add({ Properties::Items });
+		updatePropertiesAfterLink(vArray, notifyEditor);
+	}
 
 	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 }
@@ -1698,6 +1779,13 @@ StringArray ScriptingApi::Content::ScriptComboBox::getItemList() const
 	return sa;
 }
 
+void ScriptingApi::Content::ScriptComboBox::handleDefaultDeactivatedProperties()
+{
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::max));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::min));
+	deactivatedProperties.removeAllInstancesOf(getIdFor(ScriptComponent::Properties::isPluginParameter));
+}
+
 struct ScriptingApi::Content::ScriptTable::Wrapper
 {
 	API_METHOD_WRAPPER_1(ScriptTable, getTableValue);
@@ -1711,19 +1799,9 @@ useOtherTable(false),
 connectedProcessor(nullptr),
 lookupTableIndex(-1)
 {
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::textColour));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::macroControl));
-	deactivatedProperties.add(getIdFor(parameterId));
-
+	
 	propertyIds.add("tableIndex");
 	propertyIds.add("customColours"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-
-#if 0
-	componentProperties->setProperty(getIdFor(ProcessorId), 0);
-	componentProperties->setProperty(getIdFor(TableIndex), 0);
-#endif
 
 	setDefaultValue(ScriptComponent::Properties::x, x);
 	setDefaultValue(ScriptComponent::Properties::y, y);
@@ -1732,6 +1810,8 @@ lookupTableIndex(-1)
 	setDefaultValue(ScriptTable::Properties::TableIndex, 0);
 	setDefaultValue(ScriptTable::Properties::customColours, 0);
 
+	handleDefaultDeactivatedProperties();
+	
 	initInternalPropertyFromValueTreeOrDefault(ScriptComponent::Properties::processorId);
 	
 	initInternalPropertyFromValueTreeOrDefault(Properties::TableIndex);
@@ -1825,7 +1905,7 @@ void ScriptingApi::Content::ScriptTable::setScriptObjectPropertyWithChangeMessag
 		// don't do anything if you try to connect a table to a parameter...
 		return;
 	}
-
+	
 	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 }
 
@@ -1900,6 +1980,18 @@ const Table * ScriptingApi::Content::ScriptTable::getTable() const
 	return useOtherTable ? referencedTable.get() : ownedTable;
 }
 
+void ScriptingApi::Content::ScriptTable::handleDefaultDeactivatedProperties()
+{
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::max));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::min));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::textColour));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::macroControl));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(parameterId));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(pluginParameterName));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(isMetaParameter));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(linkedTo));
+}
+
 struct ScriptingApi::Content::ScriptSliderPack::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptSliderPack, setSliderAtIndex);
@@ -1914,15 +2006,13 @@ ScriptComponent(base, name_),
 packData(new SliderPackData(base->getMainController_()->getControlUndoManager())),
 existingData(nullptr)
 {
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::macroControl));
+	
 
 	ADD_NUMBER_PROPERTY(i00, "sliderAmount");		ADD_AS_SLIDER_TYPE(0, 128, 1);
 	ADD_NUMBER_PROPERTY(i01, "stepSize");
 	ADD_SCRIPT_PROPERTY(i02, "flashActive");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i03, "showValueOverlay");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i05, "SliderPackIndex");     
-
-	deactivatedProperties.add(getIdFor(parameterId));
 
 	packData->setNumSliders(16);
 
@@ -1945,6 +2035,8 @@ existingData(nullptr)
 
 	setDefaultValue(SliderAmount, 16);
 	setDefaultValue(StepSize, 0.01);
+
+	handleDefaultDeactivatedProperties();
 
 	initInternalPropertyFromValueTreeOrDefault(SliderAmount);
 	initInternalPropertyFromValueTreeOrDefault(min);
@@ -2124,7 +2216,6 @@ void ScriptingApi::Content::ScriptSliderPack::setScriptObjectPropertyWithChangeM
 		connectToOtherSliderPack(otherPackId);
 	}
 	
-
 	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 }
 
@@ -2187,6 +2278,16 @@ void ScriptingApi::Content::ScriptSliderPack::referToData(var sliderPackData)
 		reportScriptError("not a valid SliderPackData object");
 }
 
+void ScriptingApi::Content::ScriptSliderPack::handleDefaultDeactivatedProperties()
+{
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::macroControl));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(parameterId));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(linkedTo));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(isMetaParameter));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(isPluginParameter));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(pluginParameterName));
+}
+
 struct ScriptingApi::Content::ScriptImage::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptImage, setImageFile);
@@ -2197,14 +2298,6 @@ ScriptingApi::Content::ScriptImage::ScriptImage(ProcessorWithScriptingContent *b
 ScriptComponent(base, imageName),
 image(nullptr)
 {
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::bgColour));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::itemColour));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::itemColour2));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::textColour));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::macroControl));
-
 	ADD_NUMBER_PROPERTY(i00, "alpha");				ADD_AS_SLIDER_TYPE(0.0, 1.0, 0.01);
 	ADD_SCRIPT_PROPERTY(i01, "fileName");			ADD_TO_TYPE_SELECTOR(SelectorTypes::FileSelector);
 	ADD_NUMBER_PROPERTY(i02, "offset");
@@ -2227,6 +2320,8 @@ image(nullptr)
 	setDefaultValue(AllowCallbacks, false);
 	setDefaultValue(PopupMenuItems, "");
 	setDefaultValue(PopupOnRightClick, true);
+
+	handleDefaultDeactivatedProperties();
 
 	initInternalPropertyFromValueTreeOrDefault(FileName);
 	
@@ -2350,6 +2445,18 @@ void ScriptingApi::Content::ScriptImage::setAlpha(float newAlphaValue)
 	setScriptObjectPropertyWithChangeMessage(getIdFor(Alpha), newAlphaValue);
 }
 
+void ScriptingApi::Content::ScriptImage::handleDefaultDeactivatedProperties()
+{
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::bgColour));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::itemColour));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::itemColour2));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::max));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::min));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::textColour));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::macroControl));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(linkedTo));
+}
+
 struct ScriptingApi::Content::ScriptPanel::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, repaint);
@@ -2418,6 +2525,8 @@ timerRoutine(var())
 	setDefaultValue(holdIsRightClick, true);
 	setDefaultValue(isPopupPanel, false);
 	
+	handleDefaultDeactivatedProperties();
+
 	addConstant("data", new DynamicObject());
 
 	//initInternalPropertyFromValueTreeOrDefault(visible);
@@ -2622,6 +2731,7 @@ void ScriptingApi::Content::ScriptPanel::preloadStateInternal(bool isPreloading)
 		}
 	}
 }
+
 
 
 void ScriptingApi::Content::ScriptPanel::setMouseCallback(var mouseCallbackFunction)
@@ -2892,6 +3002,12 @@ void ScriptingApi::Content::ScriptPanel::repaintThisAndAllChildren()
 		childPanel->repaint();
 }
 
+void ScriptingApi::Content::ScriptPanel::handleDefaultDeactivatedProperties()
+{
+	ScriptComponent::handleDefaultDeactivatedProperties();
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(linkedTo));
+}
+
 void ScriptingApi::Content::ScriptPanel::AsyncControlCallbackSender::handleAsyncUpdate()
 {
 	if (parent.get() != nullptr)
@@ -2933,11 +3049,11 @@ ScriptingApi::Content::ScriptedViewport::ScriptedViewport(ProcessorWithScripting
 	setDefaultValue(FontName, "Arial");
 	setDefaultValue(Alignment, "centred");
 
+	handleDefaultDeactivatedProperties();
+
 	initInternalPropertyFromValueTreeOrDefault(Items);
 
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::height));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
+	
 
 }
 
@@ -2951,6 +3067,15 @@ void ScriptingApi::Content::ScriptedViewport::setScriptObjectPropertyWithChangeM
 		{
 			currentItems = StringArray::fromLines(newValue.toString());
 		}
+	}
+	else if (id == getIdFor(linkedTo))
+	{
+		ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
+
+		Array<PropertyWithValue> vArray;
+		vArray.add({ Items });
+		vArray.add({ useList });
+		updatePropertiesAfterLink(vArray, notifyEditor);
 	}
 
 	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
@@ -2986,6 +3111,14 @@ Justification ScriptingApi::Content::ScriptedViewport::getJustification()
 {
 	auto justAsString = getScriptObjectProperty(Alignment);
 	return ApiHelpers::getJustification(justAsString);
+}
+
+void ScriptingApi::Content::ScriptedViewport::handleDefaultDeactivatedProperties()
+{
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::height));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::max));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::min));
+
 }
 
 struct ScriptingApi::Content::ScriptedPlotter::Wrapper
@@ -3133,11 +3266,7 @@ ScriptComponent(base, waveformName)
 	ADD_SCRIPT_PROPERTY(i03, "showLines"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i04, "showFileName"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 		
-	deactivatedProperties.add(getIdFor(text));
-	deactivatedProperties.add(getIdFor(min));
-	deactivatedProperties.add(getIdFor(max));
-	deactivatedProperties.add(getIdFor(macroControl));
-	deactivatedProperties.add(getIdFor(parameterId));
+	
 
 	setDefaultValue(ScriptComponent::Properties::x, x);
 	setDefaultValue(ScriptComponent::Properties::y, y);
@@ -3153,6 +3282,7 @@ ScriptComponent(base, waveformName)
 	setDefaultValue(Properties::showLines, false);
 	setDefaultValue(Properties::showFileName, true);
 
+	handleDefaultDeactivatedProperties();
 
 #if 0
 	setMethod("connectToAudioSampleProcessor", Wrapper::connectToAudioSampleProcessor);
@@ -3239,6 +3369,19 @@ ModulatorSampler* ScriptingApi::Content::ScriptAudioWaveform::getSampler()
 	return dynamic_cast<ModulatorSampler*>(getConnectedProcessor());
 }
 
+void ScriptingApi::Content::ScriptAudioWaveform::handleDefaultDeactivatedProperties()
+{
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(text));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(min));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(max));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(macroControl));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(parameterId));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(pluginParameterName));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(isMetaParameter));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(linkedTo));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::useUndoManager));
+}
+
 // ====================================================================================================== ScriptFloatingTile functions
 
 struct ScriptingApi::Content::ScriptFloatingTile::Wrapper
@@ -3259,18 +3402,6 @@ ScriptingApi::Content::ScriptFloatingTile::ScriptFloatingTile(ProcessorWithScrip
 
 	priorityProperties.add(getIdFor(ContentType));
 
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::saveInPreset));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::macroControl));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::isPluginParameter));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::pluginParameterName));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::text));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::tooltip));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::useUndoManager));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::processorId));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::parameterId));
-	
 	setDefaultValue(Properties::itemColour3, 0);
 	setDefaultValue(ScriptComponent::Properties::x, x);
 	setDefaultValue(ScriptComponent::Properties::y, y);
@@ -3283,6 +3414,8 @@ ScriptingApi::Content::ScriptFloatingTile::ScriptFloatingTile(ProcessorWithScrip
 	setDefaultValue(Properties::Font, "Default");
 	setDefaultValue(Properties::FontSize, 14.0);
 	setDefaultValue(Properties::Data, "{\n}");
+
+	handleDefaultDeactivatedProperties();
 
 	ADD_API_METHOD_1(setContentData);
 }
@@ -3411,6 +3544,23 @@ void ScriptingApi::Content::ScriptFloatingTile::setScriptObjectPropertyWithChang
 	}
 
 	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
+}
+
+void ScriptingApi::Content::ScriptFloatingTile::handleDefaultDeactivatedProperties()
+{
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::saveInPreset));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::macroControl));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::isPluginParameter));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::min));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::max));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::pluginParameterName));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::text));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::tooltip));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::useUndoManager));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::processorId));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::parameterId));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::isMetaParameter));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::linkedTo));
 }
 
 // ====================================================================================================== Content functions

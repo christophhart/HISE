@@ -46,6 +46,11 @@ void ProcessorWithScriptingContent::setControlValue(int index, float newValue)
 	{
 		ScriptingApi::Content::ScriptComponent *c = content->getComponent(index);
 
+		if (auto lc = c->getLinkedComponent())
+		{
+			c = lc;
+		}
+
 		if (c != nullptr)
 		{
 			c->setValue(newValue);

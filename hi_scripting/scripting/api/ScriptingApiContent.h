@@ -245,6 +245,12 @@ public:
 	{
 		using Ptr = ReferenceCountedObjectPtr<ScriptComponent>;
 
+		struct PropertyWithValue
+		{
+			int id;
+			var value;
+		};
+
 		// ============================================================================================================
 
 		enum Properties
@@ -268,6 +274,7 @@ public:
 			isPluginParameter,
 			pluginParameterName,
             isMetaParameter,
+			linkedTo,
 			useUndoManager,
 			parentComponent,
 			processorId,
@@ -279,10 +286,7 @@ public:
 
 		ScriptComponent(ProcessorWithScriptingContent* base, Identifier name_, int numConstants = 0);
 
-		virtual ~ScriptComponent() 
-		{
-			
-		};
+		virtual ~ScriptComponent();
 
 		virtual StringArray getOptionsFor(const Identifier &id);
 		virtual ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) = 0;
@@ -319,6 +323,8 @@ public:
 		virtual bool isAutomatable() const { return false; }
 
 		virtual bool isClickable() const { return getScriptObjectProperty(enabled); };
+
+		virtual void handleDefaultDeactivatedProperties();
 
 		const Identifier getIdFor(int p) const;
 		int getNumIds() const;
@@ -542,6 +548,9 @@ public:
 		static Array<Identifier> numberPropertyIds;
 		static bool numbersInitialised;
 
+		ScriptComponent* getLinkedComponent() { return linkedComponent.get(); }
+		const ScriptComponent* getLinkedComponent() const { return linkedComponent.get(); }
+
 	protected:
 
 		bool isCorrectlyInitialised(int p) const
@@ -560,6 +569,17 @@ public:
 
 		void setDefaultValue(int p, const var &defaultValue);
 		
+		void addLinkedTarget(ScriptComponent* newTarget)
+		{
+			linkedComponentTargets.addIfNotAlreadyThere(newTarget);
+		}
+
+		void removeLinkedTarget(ScriptComponent* targetToRemove)
+		{
+			linkedComponentTargets.removeObject(targetToRemove);
+		}
+
+		void updatePropertiesAfterLink(const Array<PropertyWithValue>& idList, NotificationType notifyEditor);
 
 		Array<Identifier> propertyIds;
 		Array<Identifier> deactivatedProperties;
@@ -579,6 +599,10 @@ public:
 		Identifier searchedProperty;
 
 		BigInteger initialisedProperties;
+
+		ScriptComponent::Ptr linkedComponent;
+
+		ReferenceCountedArray<ScriptComponent> linkedComponentTargets;
 
 		var customControlCallback;
 
@@ -632,6 +656,8 @@ public:
 		StringArray getOptionsFor(const Identifier &id) override;
 		ValueTree exportAsValueTree() const override;
 		void restoreFromValueTree(const ValueTree &v) override;
+
+		void handleDefaultDeactivatedProperties() override;
 
 		// ======================================================================================================== API Methods
 
@@ -712,6 +738,8 @@ public:
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification) override;
 		StringArray getOptionsFor(const Identifier &id) override;
 
+		void handleDefaultDeactivatedProperties() override;
+
 		// ======================================================================================================== API Methods
 
 		/** Sets a FloatingTile that is used as popup. */
@@ -752,7 +780,6 @@ public:
 		enum Properties
 		{
 			Items = ScriptComponent::numProperties,
-			isPluginParameter,
 			numProperties
 		};
 
@@ -768,6 +795,8 @@ public:
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification);
 		StringArray getItemList() const;
+
+		void handleDefaultDeactivatedProperties();
 
 		// ======================================================================================================== API Methods
 
@@ -857,6 +886,8 @@ public:
 
 		}
 
+		void handleDefaultDeactivatedProperties() override;
+
 		bool isClickable() const override
 		{
 			return getScriptObjectProperty(Editable) && ScriptComponent::isClickable();
@@ -897,6 +928,7 @@ public:
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification) override;
 		StringArray getOptionsFor(const Identifier &id) override;
+		void handleDefaultDeactivatedProperties() override;
 
 		ValueTree exportAsValueTree() const override;
 		void restoreFromValueTree(const ValueTree &v) override;
@@ -963,7 +995,8 @@ public:
 		ValueTree exportAsValueTree() const override;
 		void restoreFromValueTree(const ValueTree &v) override;
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification) override;
-		
+		void handleDefaultDeactivatedProperties() override;
+
 		void setValue(var newValue) override;
 
 		var getValue() const override;
@@ -1039,6 +1072,7 @@ public:
 		StringArray getOptionsFor(const Identifier &id) override;
 		StringArray getItemList() const;
 		const Image getImage() const;
+		void handleDefaultDeactivatedProperties() override;
 
 		void setScriptProcessor(ProcessorWithScriptingContent *sb);
 
@@ -1127,6 +1161,8 @@ public:
 		bool updateCyclicReferenceList(ThreadData& data, const Identifier& id) override;
 
 		void prepareCycleReferenceCheck() override;
+
+		void handleDefaultDeactivatedProperties() override;
 
 		// ======================================================================================================== API Methods
 
@@ -1420,6 +1456,8 @@ public:
 
 		const StringArray& getItemList() const { return currentItems; }
 
+		void handleDefaultDeactivatedProperties() override;
+
 	private:
 
 		StringArray currentItems;
@@ -1522,6 +1560,7 @@ public:
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */) override;
+		void handleDefaultDeactivatedProperties() override;
 
 		StringArray getOptionsFor(const Identifier &id) override;
 		ValueTree exportAsValueTree() const override;
@@ -1574,6 +1613,8 @@ public:
 		ValueTree exportAsValueTree() const override;
 		void restoreFromValueTree(const ValueTree &v) override;
 		
+		void handleDefaultDeactivatedProperties() override;
+
 		void setValue(var newValue) override
 		{
 			value = newValue;
