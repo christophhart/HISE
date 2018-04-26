@@ -406,7 +406,7 @@ void ShapeFX::recalculateDisplayTable()
 	generateRampForDisplayValue(displayTable, gain);
 
 
-	shapers[mode]->processBlock(displayTable, displayTable, SAMPLE_LOOKUP_TABLE_SIZE);
+	shapers[mode]->processBlock(displayTable, unusedTable, SAMPLE_LOOKUP_TABLE_SIZE);
 
 	graphNormalizeValue = autogainValue;
 	triggerWaveformUpdate();

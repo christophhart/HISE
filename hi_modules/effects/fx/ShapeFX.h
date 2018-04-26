@@ -296,6 +296,7 @@ private:
 	int oversampleFactor = 1;
 
 	float displayTable[SAMPLE_LOOKUP_TABLE_SIZE];
+	float unusedTable[SAMPLE_LOOKUP_TABLE_SIZE];
 	
 	float graphNormalizeValue = 0.0f;
 
