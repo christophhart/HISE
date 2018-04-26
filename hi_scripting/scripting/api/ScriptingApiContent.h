@@ -1113,6 +1113,8 @@ public:
 
 		void preloadStateChanged(bool isPreloading) override;
 
+		void preloadStateInternal(bool isPreloading);
+
 		void preRecompileCallback() override
 		{
 			stopTimer();
@@ -1300,6 +1302,35 @@ public:
 			ProcessorWithScriptingContent* p;
 		};
 
+		struct AsyncPreloadStateHandler : private AsyncUpdater
+		{
+			AsyncPreloadStateHandler(ScriptPanel& parent_):
+				parent(parent_),
+				stateChanges(512)
+			{}
+
+			void handleAsyncUpdate()
+			{
+				bool state;
+
+				while (stateChanges.pop(state))
+				{
+					parent.preloadStateInternal(state);
+				}
+			}
+
+			void addStateChange(bool newState)
+			{
+				stateChanges.push(std::move(newState));
+
+				triggerAsyncUpdate();
+			}
+
+			LockfreeQueue<bool> stateChanges;
+
+			ScriptPanel& parent;
+		};
+
 		struct AsyncRepainter : public UpdateDispatcher::Listener //public Timer
 		{
 			AsyncRepainter(ScriptPanel* parent_) :
@@ -1312,26 +1343,10 @@ public:
                 
             }
             
-#if 0
-            void triggerAsyncUpdate()
-            {
-                if(!isTimerRunning()) startTimer(30);
-            }
-
-            
-            void timerCallback() override
-            {
-                handleAsyncUpdate();
-                stopTimer();
-            }
-#endif
-            
 			void handleAsyncUpdate()
 			{
 				if (parent.get() != nullptr)
-				{
 					parent->internalRepaint();
-				}
 			}
 
 			WeakReference<ScriptPanel> parent;
@@ -1370,7 +1385,7 @@ public:
         
 		AsyncControlCallbackSender controlSender;
 
-
+		AsyncPreloadStateHandler preloadStateHandler;
 		
 		// ========================================================================================================
 	};

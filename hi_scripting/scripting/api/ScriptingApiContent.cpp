@@ -2376,6 +2376,7 @@ graphics(new ScriptingObjects::GraphicsObject(base, this)),
 repainter(this),
 repaintNotifier(this),
 controlSender(this, base),
+preloadStateHandler(*this),
 loadRoutine(var()),
 paintRoutine(var()),
 mouseRoutine(var()),
@@ -2590,6 +2591,17 @@ void ScriptingApi::Content::ScriptPanel::preloadStateChanged(bool isPreloading)
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(loadRoutine))
 	{
+		preloadStateHandler.addStateChange(isPreloading);
+	}
+}
+
+
+void ScriptingApi::Content::ScriptPanel::preloadStateInternal(bool isPreloading)
+{
+	if (HiseJavascriptEngine::isJavascriptFunction(loadRoutine))
+	{
+		jassert(MessageManager::getInstance()->isThisTheMessageThread());
+
 		var thisObject(this);
 		var b(isPreloading);
 		var::NativeFunctionArgs args(thisObject, &b, 1);
