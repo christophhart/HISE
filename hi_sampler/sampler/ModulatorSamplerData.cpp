@@ -390,16 +390,17 @@ void SampleMap::loadSamplesFromDirectory(const ValueTree &v)
     
     micPositions.removeEmptyStrings(true);
     
-    if (micPositions.size() != 0)
+    if(!sampler->isUsingStaticMatrix())
     {
-        sampler->setNumMicPositions(micPositions);
+        if (micPositions.size() != 0)
+        {
+            sampler->setNumMicPositions(micPositions);
+        }
+        else
+        {
+            sampler->setNumChannels(numChannels);
+        }
     }
-    else
-    {
-        sampler->setNumChannels(numChannels);
-    }
-    
-    
     
     sampler->setShouldUpdateUI(false);
     ModulatorSamplerSoundPool *pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();

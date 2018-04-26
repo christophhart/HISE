@@ -149,7 +149,8 @@ public:
 		OneShot,
 		CrossfadeGroups, 
 		Purged, 
-		Reversed, 
+		Reversed,
+        UseStaticMatrix,
 		numModulatorSamplerParameters
 	};
 

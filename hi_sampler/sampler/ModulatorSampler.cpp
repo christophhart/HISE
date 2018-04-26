@@ -82,6 +82,9 @@ SET_DOCUMENTATION(ModulatorSampler)
 	ADD_PARAMETER_DOC(Reversed, 
 		"If this is true, the samples will be fully loaded into preload buffer and reversed");
 
+    ADD_PARAMETER_DOC(UseStaticMatrix,
+        "If this is true, then the routing matrix will not be resized when you load a sample map with another mic position amount.");
+    
 	ADD_CHAIN_DOC(SampleStartModulation, "Sample Start", 
 		"Allows modification of the sample start if the sound allows this. The modulation range is depending on the *SampleStartMod* value of each sample.");
 
@@ -137,6 +140,7 @@ samplePropertyUpdater(this)
 	parameterNames.add("CrossfadeGroups");
 	parameterNames.add("Purged");
 	parameterNames.add("Reversed");
+    parameterNames.add("UseStaticMatrix");
 
 	editorStateIdentifiers.add("SampleStartChainShown");
 	editorStateIdentifiers.add("SettingsShown");
@@ -301,6 +305,7 @@ void ModulatorSampler::refreshCrossfadeTables()
 void ModulatorSampler::restoreFromValueTree(const ValueTree &v)
 {
 	loadAttribute(PreloadSize, "PreloadSize");
+    loadAttribute(UseStaticMatrix, "UseStaticMatrix");
 	
 	setInternalAttribute(BufferSize, v.getProperty("BufferSize", 4096));
 
@@ -360,6 +365,7 @@ ValueTree ModulatorSampler::exportAsValueTree() const
 	saveAttribute(Purged, "Purged");
 	saveAttribute(Reversed, "Reversed");
 	v.setProperty("NumChannels", numChannels, nullptr);
+    saveAttribute(UseStaticMatrix, "UseStaticMatrix");
 
 	ValueTree channels("channels");
 
@@ -400,6 +406,7 @@ float ModulatorSampler::getAttribute(int parameterIndex) const
 	case CrossfadeGroups:	return crossfadeGroups ? 1.0f : 0.0f;
 	case Purged:			return purged ? 1.0f : 0.0f;
 	case Reversed:			return reversed ? 1.0f : 0.0f;
+    case UseStaticMatrix:   return useStaticMatrix ? 1.0f : 0.0f;
 	default:				jassertfalse; return -1.0f;
 	}
 }
@@ -424,11 +431,12 @@ void ModulatorSampler::setInternalAttribute(int parameterIndex, float newValue)
 	case VoiceAmount:		setVoiceAmount((int)newValue); break;
 	case RRGroupAmount:		setRRGroupAmount((int)newValue); refreshCrossfadeTables(); break;
 	case SamplerRepeatMode: repeatMode = (RepeatMode)(int)newValue; break;
-	case PitchTracking:		pitchTrackingEnabled = newValue == 1.0f; break;
-	case OneShot:			oneShotEnabled = newValue == 1.0f; break;
+	case PitchTracking:		pitchTrackingEnabled = newValue > 0.5f; break;
+	case OneShot:			oneShotEnabled = newValue > 0.5f; break;
 	case Reversed:			setReversed(newValue > 0.5f); break;
-	case CrossfadeGroups:	crossfadeGroups = newValue == 1.0f; refreshCrossfadeTables(); break;
-	case Purged:			purgeAllSamples(newValue == 1.0f); break;
+	case CrossfadeGroups:	crossfadeGroups = newValue > 0.5f; refreshCrossfadeTables(); break;
+	case Purged:			purgeAllSamples(newValue > 0.5f); break;
+	case UseStaticMatrix:   setUseStaticMatrix(newValue > 0.5f); break;
 	default:				jassertfalse; break;
 	}
 }
