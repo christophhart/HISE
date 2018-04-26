@@ -1826,11 +1826,9 @@ void BackendCommandTarget::Actions::loadFirstXmlAfterProjectSwitch(BackendRootWi
 {
 	auto& handler = GET_PROJECT_HANDLER(bpe->getMainSynthChain());
 
-	auto presets = handler.getSubDirectory(ProjectHandler::SubDirectories::XMLPresetBackups);
-
 	Array<File> files;
 
-	presets.findChildFiles(files, File::findFiles, false, "*.xml");
+	handler.getFileList(files, ProjectHandler::SubDirectories::XMLPresetBackups, "*.xml", true);
 
 	if (files.size() > 0 && PresetHandler::showYesNoWindow("Load first XML in project?", "Do you want to load " + files[0].getFileName()))
 	{
