@@ -121,6 +121,7 @@ void JavascriptCodeEditor::AutoCompletePopup::createApiRows(const ValueTree &api
 
 		RowInfo *row = new RowInfo();
 		row->codeToInsert = className;
+		row->classId = classTree.getType();
 		row->name = className;
 		row->type = (int)RowInfo::Type::ApiMethod;
 
@@ -166,6 +167,7 @@ void JavascriptCodeEditor::AutoCompletePopup::createObjectPropertyRows(const Val
 
 					const ValueTree methodTree = documentedMethods.getChildWithProperty(name, id.toString());
 
+					info->classId = csoName;
 					info->description = ApiHelpers::createAttributedStringFromApi(methodTree, objectId.toString(), false, Colours::black);
 					info->codeToInsert = ApiHelpers::createCodeToInsert(methodTree, objectId.toString());
 					info->name = info->codeToInsert;
@@ -183,6 +185,7 @@ void JavascriptCodeEditor::AutoCompletePopup::createObjectPropertyRows(const Val
 				const Identifier id = cso->getProperties().getName(i);
 				RowInfo *info = new RowInfo();
 
+				info->classId = csoName;
 				info->name = objectId.toString() + "." + cso->getProperties().getName(i).toString();
 				info->codeToInsert = info->name;
 				info->typeName = DebugInformation::getVarType(prop);
@@ -211,6 +214,7 @@ void JavascriptCodeEditor::AutoCompletePopup::createObjectPropertyRows(const Val
 
 				const ValueTree methodTree = documentedMethods.getChildWithProperty(name, id.toString());
 
+				info->classId = cowName;
 				info->description = ApiHelpers::createAttributedStringFromApi(methodTree, objectId.toString(), false, Colours::black);
 				info->codeToInsert = ApiHelpers::createCodeToInsert(methodTree, objectId.toString());
 
@@ -247,6 +251,7 @@ void JavascriptCodeEditor::AutoCompletePopup::createObjectPropertyRows(const Val
 
 				var value = cow->getConstantValue(cow->getConstantIndex(id));
 
+				info->classId = cowName;
 				info->name = objectId.toString() + "." + id.toString();
 				info->codeToInsert = info->name;
 				info->type = (int)DebugInformation::Type::Constant;
@@ -266,6 +271,7 @@ void JavascriptCodeEditor::AutoCompletePopup::createObjectPropertyRows(const Val
 				RowInfo *info = new RowInfo();
 
 				info->name = objectId.toString() + "." + obj->getProperties().getName(i).toString();
+				info->classId = "Object";
 				info->codeToInsert = info->name;
 				info->typeName = DebugInformation::getVarType(prop);
 				info->value = prop.toString();
@@ -282,6 +288,7 @@ void JavascriptCodeEditor::AutoCompletePopup::createObjectPropertyRows(const Val
 
 				info->name = dbg->getTextForName();
 				info->codeToInsert = info->name;
+				info->classId = "namespace";
 				info->typeName = dbg->getTextForDataType();
 				info->type = dbg->getType();
 				info->value = dbg->getTextForValue();
@@ -329,6 +336,7 @@ void JavascriptCodeEditor::AutoCompletePopup::addCustomEntries(const Identifier 
 		{
 			RowInfo *info = new RowInfo();
 
+			info->classId = objectId;
 			info->name = objectId.toString() + "." + eventProperties[i];
 			info->codeToInsert = info->name;
 			info->typeName = "int";
@@ -352,6 +360,7 @@ void JavascriptCodeEditor::AutoCompletePopup::addApiConstants(const ApiClass* ap
 
 		RowInfo *info = new RowInfo();
 
+		info->classId = objectId;
 		info->name = objectId.toString() + "." + constants[i].toString();
 		info->codeToInsert = info->name;
 		info->typeName = DebugInformation::getVarType(prop);
@@ -371,6 +380,7 @@ void JavascriptCodeEditor::AutoCompletePopup::addApiMethods(const ValueTree &cla
 		ValueTree methodTree = classTree.getChild(j);
 
 		RowInfo *row = new RowInfo();
+		row->classId = objectId;
 		row->description = ApiHelpers::createAttributedStringFromApi(methodTree, objectId.toString(), false, Colours::black);
 		row->codeToInsert = ApiHelpers::createCodeToInsert(methodTree, objectId.toString());
 		row->name = row->codeToInsert;
@@ -514,7 +524,12 @@ void JavascriptCodeEditor::AutoCompletePopup::selectRowInfo(int rowIndex)
 
 	currentlySelectedBox = rowIndex;
 
-	auto name = visibleInfo[rowIndex]->name;
+	auto thisRow = visibleInfo[rowIndex];
+
+	if (thisRow == nullptr)
+		return;
+
+	auto name = thisRow->name;
 
 	auto c_n = name.upToFirstOccurrenceOf(".", false, false);
 
@@ -526,7 +541,7 @@ void JavascriptCodeEditor::AutoCompletePopup::selectRowInfo(int rowIndex)
 
 	auto methodName = m_n.isNotEmpty() ? Identifier(m_n) : Identifier();
 
-	auto extendedHelp = ExtendedApiDocumentation::getMarkdownText(className, methodName);
+	auto extendedHelp = ExtendedApiDocumentation::getMarkdownText(thisRow->classId, methodName);
 
 	hasExtendedHelp = extendedHelp.isNotEmpty();
 

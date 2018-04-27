@@ -155,7 +155,14 @@ private:
 
 		String createMarkdownText() const override;
 
+		void addSubClass(Identifier subClassId)
+		{
+			subClassIds.add(subClassId);
+		}
+
 	private:
+
+		Array<Identifier> subClassIds;
 
 		friend class ExtendedApiDocumentation;
 

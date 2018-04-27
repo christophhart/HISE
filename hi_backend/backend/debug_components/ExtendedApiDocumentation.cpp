@@ -38,6 +38,7 @@ using namespace juce;
 // Define Macros =================================================================================================================================
 
 #define CLASS(Name) c = addClass(#Name);
+#define SUBCLASS(Name) c->addSubClass(#Name);
 #define METHOD(Name) m = c->addMethod(#Name);
 #define DESCRIPTION(descriptionString) m->addDescriptionLine(descriptionString); 
 #define PARAMETER(type, id, description) m->addParameter<type>(id, description);
@@ -75,6 +76,29 @@ void ExtendedApiDocumentation::init()
 	RETURN(double, "The time in samples");
 
 	// ==========================================================================================================================================
+
+	CLASS(ScriptComponent);
+	SUBCLASS(ScriptSlider);
+	SUBCLASS(ScriptButton);
+	SUBCLASS(ScriptComboBox);
+	SUBCLASS(ScriptPanel);
+	SUBCLASS(ScriptLabel);
+	SUBCLASS(ScriptFloatingTile);
+	SUBCLASS(ScriptedViewport);
+	SUBCLASS(ScriptImage);
+	SUBCLASS(ScriptTable);
+	SUBCLASS(ScriptAudioWaveform);
+	SUBCLASS(ScriptSliderPack);
+	
+	METHOD(changed);
+	DESCRIPTION("This method triggers the control callback of the control.");
+	DESCRIPTION("The execution will be asynchronous, so it's safe to call it within performance critical callbacks.");
+	DESCRIPTION("> There is an inbuild recursion loop protection which prevents recursive calls to this method.");
+	CODE("// this only changes the internal value.");
+	CODE("Knob.setValue(12);");
+	CODE("// the control callback will be called with 12");
+	CODE("Knob.changed();")
+	CODE("")
 }
 
 // Undefine macros ==============================================================================================================================

@@ -238,7 +238,7 @@ juce::String ExtendedApiDocumentation::getMarkdownText(const Identifier& classNa
 {
 	for (auto& c : classes)
 	{
-		if (c.id == className)
+		if (c.id == className || c.subClassIds.contains(className))
 		{
 			for (auto& m : c.methods)
 			{

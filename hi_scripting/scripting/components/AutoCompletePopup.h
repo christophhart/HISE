@@ -120,6 +120,7 @@ private:
 
 		AttributedString description;
 		String codeToInsert, name, typeName, value;
+		Identifier classId;
 		int type;
 	};
 
