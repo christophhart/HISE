@@ -117,6 +117,7 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, addToMacroControl);
 	API_METHOD_WRAPPER_0(ScriptComponent, getWidth);
 	API_METHOD_WRAPPER_0(ScriptComponent, getHeight);
+	API_VOID_METHOD_WRAPPER_0(ScriptComponent, changed);
     API_METHOD_WRAPPER_0(ScriptComponent, getGlobalPositionX);
     API_METHOD_WRAPPER_0(ScriptComponent, getGlobalPositionY);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setControlCallback);
@@ -129,10 +130,11 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ConstScriptingObject(base, numConstants),
 	name(name_),
 	parent(base->getScriptingContent()),
+	controlSender(this, base),
 	propertyTree(parent->getValueTreeForComponent(name)),
 	value(0.0),
 	skipRestoring(false),
-	changed(false),
+	hasChanged(false),
 	customControlCallback(var())
 {
 	jassert(propertyTree.isValid());
@@ -205,6 +207,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_API_METHOD_1(addToMacroControl);
 	ADD_API_METHOD_0(getWidth);
 	ADD_API_METHOD_0(getHeight);
+	ADD_API_METHOD_0(changed);
 	ADD_API_METHOD_0(getGlobalPositionX);
 	ADD_API_METHOD_0(getGlobalPositionY);
 	ADD_API_METHOD_1(setControlCallback);
@@ -562,13 +565,41 @@ void ScriptingApi::Content::ScriptComponent::set(String propertyName, var newVal
 	if (!defaultValues.contains(propertyId))
 	{
 		reportScriptError("the property does not exist");
-		return;
+		RETURN_VOID_IF_NO_THROW();
 	}
 
 	setScriptObjectPropertyWithChangeMessage(propertyId, newValue, parent->allowGuiCreation ? dontSendNotification : sendNotification);
 }
 
+void ScriptingApi::Content::ScriptComponent::changed()
+{
+	if (!parent->asyncFunctionsAllowed())
+		return;
 
+	auto t = Time::getMillisecondCounter();
+	
+	auto delta = t - lastExecutedCallbackTime;
+
+	if (delta < 5)
+	{
+		reportScriptError("Recursive call to changed() for " + getName().toString());
+	}
+
+	lastExecutedCallbackTime = t;
+
+	controlSender.triggerAsyncUpdate();
+	
+	if(auto sp = dynamic_cast<ScriptPanel*>(this))
+		sp->repaint();
+}
+
+void ScriptingApi::Content::ScriptComponent::AsyncControlCallbackSender::handleAsyncUpdate()
+{
+	if (parent != nullptr)
+	{
+		p->controlCallback(parent, parent->getValue());
+	}
+}
 
 void ScriptingApi::Content::ScriptComponent::setValue(var controlValue)
 {
@@ -2474,7 +2505,6 @@ ScriptComponent(base, panelName, 1),
 graphics(new ScriptingObjects::GraphicsObject(base, this)),
 repainter(this),
 repaintNotifier(this),
-controlSender(this, base),
 preloadStateHandler(*this),
 loadRoutine(var()),
 paintRoutine(var()),
@@ -2530,7 +2560,6 @@ timerRoutine(var())
 	ADD_API_METHOD_1(setMouseCallback);
 	ADD_API_METHOD_1(setLoadingCallback);
 	ADD_API_METHOD_1(setTimerCallback);
-	ADD_API_METHOD_0(changed);
 	ADD_API_METHOD_1(startTimer);
 	ADD_API_METHOD_0(stopTimer);
 	ADD_API_METHOD_2(loadImage);
@@ -2801,14 +2830,7 @@ void ScriptingApi::Content::ScriptPanel::timerCallback()
 	}
 }
 
-void ScriptingApi::Content::ScriptPanel::changed()
-{
-	if (!parent->asyncFunctionsAllowed())
-		return;
 
-	controlSender.triggerAsyncUpdate();
-	repaint();
-}
 
 void ScriptingApi::Content::ScriptPanel::loadImage(String imageName, String prettyName)
 {
@@ -3000,13 +3022,7 @@ void ScriptingApi::Content::ScriptPanel::handleDefaultDeactivatedProperties()
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(linkedTo));
 }
 
-void ScriptingApi::Content::ScriptPanel::AsyncControlCallbackSender::handleAsyncUpdate()
-{
-	if (parent.get() != nullptr)
-	{
-		p->controlCallback(parent, parent->getValue());
-	}
-}
+
 
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptedViewport::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -3615,10 +3631,13 @@ ScriptingApi::Content::~Content()
 {
 	updateWatcher = nullptr;
 
+	removeAllScriptComponents();
+
 	contentPropertyData = ValueTree();
 
 	masterReference.clear();
-	components.clear();
+	
+	
 }
 
 ScriptingApi::Content::ScriptComponent * ScriptingApi::Content::getComponentWithName(const Identifier &componentName)
@@ -4145,8 +4164,8 @@ void ScriptingApi::Content::cleanJavascriptObjects()
 
 	for (int i = 0; i < components.size(); i++)
 	{
+		components[i]->cancelChangedControlCallback();
 		components[i]->setControlCallback(var());
-		
 		components[i]->cleanScriptChangedPropertyIds();
 
 		if (auto p = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(components[i].get()))
@@ -4163,6 +4182,16 @@ void ScriptingApi::Content::cleanJavascriptObjects()
 			p->setLoadingCallback(var());
 		}
 	}
+
+	
+}
+
+
+void ScriptingApi::Content::removeAllScriptComponents()
+{
+	cleanJavascriptObjects();
+
+	components.clear();
 }
 
 void ScriptingApi::Content::rebuildComponentListFromValueTree()
@@ -4174,7 +4203,7 @@ void ScriptingApi::Content::rebuildComponentListFromValueTree()
 
 	ValueTree currentState = exportAsValueTree();
 
-	components.clear();
+	removeAllScriptComponents();
 
 	components.ensureStorageAllocated(contentPropertyData.getNumChildren());
 
@@ -4202,7 +4231,7 @@ Result ScriptingApi::Content::createComponentsFromValueTree(const ValueTree& new
 
 	updateWatcher = new ValueTreeUpdateWatcher(contentPropertyData, this);
 
-	components.clear();
+	removeAllScriptComponents();
 
 	Identifier errorId;
 

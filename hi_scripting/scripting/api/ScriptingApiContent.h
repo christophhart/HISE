@@ -303,7 +303,10 @@ public:
 
 		const ScriptComponent* getParentScriptComponent() const;
 
-		virtual void preRecompileCallback() {};
+		virtual void preRecompileCallback() 
+		{
+			controlSender.cancelPendingUpdate();
+		};
 
 		virtual ValueTree exportAsValueTree() const override;;
 		virtual void restoreFromValueTree(const ValueTree &v) override;;
@@ -464,11 +467,14 @@ public:
 		/** Pass a inline function for a custom callback event. */
 		void setControlCallback(var controlFunction);
 
+		/** Call this to indicate that the value has changed (the onControl callback will be executed. */
+		void changed();
+
 		// End of API Methods ============================================================================================
 
 		
-		void setChanged(bool isChanged = true) noexcept{ changed = isChanged; }
-		bool isChanged() const noexcept{ return changed; };
+		void setChanged(bool isChanged = true) noexcept{ hasChanged = isChanged; }
+		bool isChanged() const noexcept{ return hasChanged; };
 
 		var value;
 		Identifier name;
@@ -551,6 +557,11 @@ public:
 		ScriptComponent* getLinkedComponent() { return linkedComponent.get(); }
 		const ScriptComponent* getLinkedComponent() const { return linkedComponent.get(); }
 
+		void cancelChangedControlCallback()
+		{
+			controlSender.cancelPendingUpdate();
+		}
+
 	protected:
 
 		bool isCorrectlyInitialised(int p) const
@@ -589,6 +600,18 @@ public:
 
 	private:
 
+        struct AsyncControlCallbackSender : public AsyncUpdater
+        {
+            AsyncControlCallbackSender(ScriptComponent* parent_, ProcessorWithScriptingContent* p_) : parent(parent_), p(p_) {};
+            
+            void handleAsyncUpdate();
+            
+            ScriptComponent* parent;
+            ProcessorWithScriptingContent* p;
+        };
+        
+		AsyncControlCallbackSender controlSender;
+
 		bool isPositionProperty(Identifier id) const;
 
 		ValueTree propertyTree;
@@ -607,13 +630,15 @@ public:
 		var customControlCallback;
 
 		NamedValueSet defaultValues;
-		bool changed;
+		bool hasChanged;
 
 		WeakReference<Processor> connectedProcessor;
 		int connectedParameterIndex = -1;
 
         int connectedMacroIndex = -1;
         bool macroRecursionProtection = false;
+
+		uint32 lastExecutedCallbackTime = 0;
         
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptComponent);
 	};
@@ -1151,11 +1176,12 @@ public:
 
 		void preRecompileCallback() override
 		{
+			ScriptComponent::preRecompileCallback();
 			stopTimer();
 			repaintNotifier.removeAllChangeListeners();
-			controlSender.cancelPendingUpdate();
+			
 			repainter.cancelPendingUpdate();
-			//repainter.stopTimer();
+			
 		}
 
 		bool updateCyclicReferenceList(ThreadData& data, const Identifier& id) override;
@@ -1186,9 +1212,6 @@ public:
 
 		/** Disables the paint routine and just uses the given (clipped) image. */
 		void setImage(String imageName, int xOffset, int yOffset);
-
-		/** Call this to indicate that the value has changed (the onControl callback will be executed. */
-		void changed();
 
 		/** Loads a image which can be drawn with the paint function later on. */
 		void loadImage(String imageName, String prettyName);
@@ -1257,12 +1280,8 @@ public:
 
 		void cancelPendingFunctions() override
 		{
-			//cancelAll = true;
-
 			stopTimer();
-			//repainter.stopTimer();
 			repaintNotifier.removeAllChangeListeners();
-			controlSender.cancelPendingUpdate();
 		}
 
 		Rectangle<int> getPopupSize() const { return popupBounds; }
@@ -1328,15 +1347,7 @@ public:
 		
 		void internalRepaint(bool forceRepaint=false);
 
-		struct AsyncControlCallbackSender : public AsyncUpdater
-		{
-			AsyncControlCallbackSender(ScriptPanel* parent_, ProcessorWithScriptingContent* p_) : parent(parent_), p(p_) {};
-
-			void handleAsyncUpdate();
-
-			WeakReference<ScriptPanel> parent;
-			ProcessorWithScriptingContent* p;
-		};
+		
 
 		struct AsyncPreloadStateHandler : private AsyncUpdater
 		{
@@ -1419,7 +1430,7 @@ public:
         
         RepaintNotifier repaintNotifier;
         
-		AsyncControlCallbackSender controlSender;
+		
 
 		AsyncPreloadStateHandler preloadStateHandler;
 		
@@ -1777,6 +1788,8 @@ public:
 	}
 
 	void cleanJavascriptObjects();
+
+	void removeAllScriptComponents();
 
 	UpdateDispatcher* getUpdateDispatcher() { return &updateDispatcher; }
 

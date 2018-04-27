@@ -35,7 +35,10 @@ namespace hise { using namespace juce;
 ProcessorWithScriptingContent::~ProcessorWithScriptingContent()
 {
 	if (content != nullptr)
-		content->cleanJavascriptObjects();
+	{
+		content->removeAllScriptComponents();
+	}
+	
 }
 
 void ProcessorWithScriptingContent::setControlValue(int index, float newValue)
