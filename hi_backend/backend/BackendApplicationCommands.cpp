@@ -1765,7 +1765,9 @@ void BackendCommandTarget::Actions::createNewProject(BackendRootWindow *bpe)
 
 		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).createNewProject(f, bpe);
 
+		bpe->getBackendProcessor()->clearPreset();
 		bpe->getBackendProcessor()->createUserPresetData();
+		bpe->getBackendProcessor()->getSettingsObject().refreshProjectData();
 	}
 }
 
