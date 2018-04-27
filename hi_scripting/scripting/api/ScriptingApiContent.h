@@ -1877,6 +1877,7 @@ public:
 		static ScriptComponent * createComponentFromValueTree(Content* c, const ValueTree& v);
 		static bool hasLocation(ScriptComponent* sc);
 		static void sanitizeNumberProperties(juce::ValueTree copy);
+		static var getCleanedComponentValue(const var& data);
 	};
 
 	template <class SubType> SubType* createNewComponent(const Identifier& id, int x, int y)
