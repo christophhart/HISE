@@ -4075,6 +4075,12 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const ValueTree &preset
 			{
 				getScriptProcessor()->controlCallback(components[i], v);
 			}
+            else if (auto ssp = dynamic_cast<ScriptingApi::Content::ScriptSliderPack*>(components[i].get()))
+            {
+                // This must be restored again from the ValueTree in order to maintain the correct value
+                ssp->restoreFromValueTree(presetChild);
+                getScriptProcessor()->controlCallback(ssp, ssp->getValue());
+            }
 			else if (v.isObject())
 			{
 				getScriptProcessor()->controlCallback(components[i], v);
