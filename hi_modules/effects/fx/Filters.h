@@ -1233,32 +1233,37 @@ public:
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 	
-	static IIRCoefficients makeResoLowPass(double sampleRate, double cutoff, double q);;
+	static IIRCoefficients makeResoLowPass(double sampleRate, double cutoff, double q);
+
+	static IIRCoefficients getDisplayCoefficients(FilterMode m, double frequency, double q, float gain, double samplerate)
+	{
+		switch (m)
+		{
+		case MonoFilterEffect::OnePoleLowPass:  return IIRCoefficients::makeLowPass(samplerate, frequency);
+		case MonoFilterEffect::OnePoleHighPass:  return IIRCoefficients::makeHighPass(samplerate, frequency);
+		case MonoFilterEffect::LowPass:			return IIRCoefficients::makeLowPass(samplerate, frequency);
+		case MonoFilterEffect::HighPass:		return IIRCoefficients::makeHighPass(samplerate, frequency, q);
+		case MonoFilterEffect::LowShelf:		return IIRCoefficients::makeLowShelf(samplerate, frequency, q, gain);
+		case MonoFilterEffect::HighShelf:		return IIRCoefficients::makeHighShelf(samplerate, frequency, q, gain);
+		case MonoFilterEffect::Peak:			return IIRCoefficients::makePeakFilter(samplerate, frequency, q, gain);
+		case MonoFilterEffect::ResoLow:			return makeResoLowPass(samplerate, frequency, q);
+		case MonoFilterEffect::StateVariableLP: return makeResoLowPass(samplerate, frequency, q);
+		case MonoFilterEffect::StateVariableHP: return IIRCoefficients::makeHighPass(samplerate, frequency, q);
+		case MonoFilterEffect::LadderFourPoleLP: return makeResoLowPass(samplerate, frequency, 2.0*q);
+		case MonoFilterEffect::LadderFourPoleHP: return IIRCoefficients::makeHighPass(samplerate, frequency, 2.0*q);
+		case MonoFilterEffect::MoogLP:			return makeResoLowPass(samplerate, frequency, q);
+		case MonoFilterEffect::StateVariablePeak:       return IIRCoefficients::makePeakFilter(samplerate, frequency, q, gain);
+		case MonoFilterEffect::StateVariableNotch:      return IIRCoefficients::makeNotchFilter(samplerate, frequency, q);
+		case MonoFilterEffect::StateVariableBandPass:   return IIRCoefficients::makeBandPass(samplerate, frequency, q);
+		case MonoFilterEffect::Allpass:                 return IIRCoefficients::makeAllPass(samplerate, frequency, q);
+		case MonoFilterEffect::RingMod:                 return IIRCoefficients::makeAllPass(samplerate, frequency, q);
+		default:								return IIRCoefficients();
+		}
+	}
 
 	IIRCoefficients getCurrentCoefficients() const override
 	{
-		switch (mode)
-		{
-		case MonoFilterEffect::OnePoleLowPass:  return IIRCoefficients::makeLowPass(getSampleRate(), currentFreq);
-		case MonoFilterEffect::OnePoleHighPass:  return IIRCoefficients::makeHighPass(getSampleRate(), currentFreq);
-		case MonoFilterEffect::LowPass:			return IIRCoefficients::makeLowPass(getSampleRate(), currentFreq);
-		case MonoFilterEffect::HighPass:		return IIRCoefficients::makeHighPass(getSampleRate(), currentFreq, q);
-		case MonoFilterEffect::LowShelf:		return IIRCoefficients::makeLowShelf(getSampleRate(), currentFreq, q, currentGain);
-		case MonoFilterEffect::HighShelf:		return IIRCoefficients::makeHighShelf(getSampleRate(), currentFreq, q, currentGain);
-		case MonoFilterEffect::Peak:			return IIRCoefficients::makePeakFilter(getSampleRate(), currentFreq, q, currentGain);
-		case MonoFilterEffect::ResoLow:			return makeResoLowPass(getSampleRate(), currentFreq, q);
-		case MonoFilterEffect::StateVariableLP: return makeResoLowPass(getSampleRate(), currentFreq, q);
-		case MonoFilterEffect::StateVariableHP: return IIRCoefficients::makeHighPass(getSampleRate(), currentFreq, q);
-		case MonoFilterEffect::LadderFourPoleLP: return makeResoLowPass(getSampleRate(), currentFreq, 2.0*q);
-		case MonoFilterEffect::LadderFourPoleHP: return IIRCoefficients::makeHighPass(getSampleRate(), currentFreq, 2.0*q);
-		case MonoFilterEffect::MoogLP:			return makeResoLowPass(getSampleRate(), currentFreq, q);
-        case MonoFilterEffect::StateVariablePeak:       return IIRCoefficients::makePeakFilter(getSampleRate(), currentFreq, q, currentGain);
-        case MonoFilterEffect::StateVariableNotch:      return IIRCoefficients::makeNotchFilter(getSampleRate(), currentFreq, q);
-        case MonoFilterEffect::StateVariableBandPass:   return IIRCoefficients::makeBandPass(getSampleRate(), currentFreq, q);
-        case MonoFilterEffect::Allpass:                 return IIRCoefficients::makeAllPass(getSampleRate(), currentFreq, q);
-        case MonoFilterEffect::RingMod:                 return IIRCoefficients::makeAllPass(getSampleRate(), currentFreq, q);
-		default:								return IIRCoefficients();
-		}
+		return getDisplayCoefficients(mode, currentFreq, q, currentGain, getSampleRate());
 	}
 
 private:
@@ -1360,7 +1365,7 @@ public:
 	
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
-	IIRCoefficients getCurrentCoefficients() const override {return voiceFilters[0]->getCurrentCoefficients();};
+	IIRCoefficients getCurrentCoefficients() const override;;
 
 private:
 

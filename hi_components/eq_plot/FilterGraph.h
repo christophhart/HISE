@@ -97,7 +97,8 @@ public:
 
     void setNumHorizontalLines (int newValue);
     void setFreqRange (float newLowFreq, float newHighFreq);
-    
+	void setBypassed(bool shouldBeBypassed);;
+
     void setFilterGain (int filterNum, double gain);
     void setFilter (int filterNum, double sampleRate, double frequency, FilterType filterType);
     void setEqBand (int filterNum, double sampleRate, double frequency, double Q, float gain, BandType eqType);
@@ -237,6 +238,7 @@ private:
     
     Path gridPath, tracePath;
     
+	bool bypassed = false;
 	bool showLines = true;
 	bool useFlatDesign = false;
 	

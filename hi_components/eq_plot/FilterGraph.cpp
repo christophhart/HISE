@@ -74,6 +74,8 @@ public:
 		return fid;
 	}
 
+	
+
 	void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override
 	{
 		updateCoefficients();
@@ -85,17 +87,9 @@ public:
 		{
 			if (auto filterGraph = getContent<FilterGraph>())
 			{
-				IIRCoefficients c = filter->getCurrentCoefficients();
+				filterGraph->setBypassed(getProcessor()->isBypassed());
 
-#if 0
-				for (int i = 0; i < 5; i++)
-				{
-					if (c.coefficients[i] == 0.0) // Replace with safe check function!
-					{
-						return;
-					}
-				}
-#endif
+				IIRCoefficients c = filter->getCurrentCoefficients();
 
 				if (!sameCoefficients(c, currentCoefficients))
 				{
@@ -258,7 +252,7 @@ void FilterGraph::refreshFilterPath()
     
 	float scaleFactor = (((height / 2) - (height - 5) / (numHorizontalLines + 1) - 2.5f) / maxdB);
 	
-	if(numFilters == 0)
+	if(numFilters == 0 || bypassed)
 	{
 		clearFilterPath();
 	}
@@ -449,6 +443,15 @@ void FilterGraph::setFreqRange (float newLowFreq, float newHighFreq)
     lowFreq = fabs (newLowFreq + 0.1f);
     highFreq = fabs (newHighFreq);
     repaint();
+}
+
+
+void FilterGraph::setBypassed(bool shouldBeBypassed)
+{
+	if (shouldBeBypassed != bypassed)
+	{
+		bypassed = shouldBeBypassed; repaint();
+	}
 }
 
 void FilterGraph::setFilterGain (int filterNum, double gain)

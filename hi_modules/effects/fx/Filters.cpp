@@ -546,12 +546,28 @@ ProcessorEditorBody *PolyFilterEffect::createEditor(ProcessorEditor *parentEdito
 #endif
 }
 
+juce::IIRCoefficients PolyFilterEffect::getCurrentCoefficients() const
+{
+	auto ownerSynth = dynamic_cast<const ModulatorSynth*>(ProcessorHelpers::findParentProcessor(this, true));
+
+	auto v = ownerSynth->getLastStartedVoice();
+
+	if (v != nullptr && ownerSynth->getNumActiveVoices() != 0)
+	{
+		auto index = v->getVoiceIndex();
+		auto filter = voiceFilters[index];
+
+		if (filter != nullptr)
+			return voiceFilters[index]->getCurrentCoefficients();
+	}
+	
+	return MonoFilterEffect::getDisplayCoefficients(mode, freq, q, gain, getSampleRate());
+}
+
 void PolyFilterEffect::preVoiceRendering(int voiceIndex, int startSample, int numSamples)
 {
 	calculateChain(PolyFilterEffect::FrequencyChain, voiceIndex, startSample, numSamples);
-
 	calculateChain(PolyFilterEffect::GainChain, voiceIndex, startSample, numSamples);
-
 	calculateChain(PolyFilterEffect::BipolarFrequencyChain, voiceIndex, startSample, numSamples);
 
 	voiceFilters[voiceIndex]->q = q;
