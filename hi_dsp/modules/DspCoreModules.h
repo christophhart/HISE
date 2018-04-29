@@ -91,6 +91,17 @@ public:
 		return inputValue;
 	}
 
+
+	void clear()
+	{
+		memset(delayBuffer, 0, sizeof(float) * currentDelayTime);
+
+		writeIndex = currentDelayTime;
+		readIndex = 0;
+
+	}
+
+
 private:
 
 	void processSampleWithFade(float& f)
