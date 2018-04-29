@@ -139,11 +139,14 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 		}
 		else if (index == -3) // bypassed
 		{
-			component->getConnectedProcessor()->setBypassed(v > 0.5f);
+			component->getConnectedProcessor()->setBypassed(v > 0.5f, sendNotification);
+			BACKEND_ONLY(component->getConnectedProcessor()->sendChangeMessage());
 		}
 		else if (index == -4) // enabled
 		{
-			component->getConnectedProcessor()->setBypassed(v < 0.5f);
+			component->getConnectedProcessor()->setBypassed(v < 0.5f, sendNotification);
+			BACKEND_ONLY(component->getConnectedProcessor()->sendChangeMessage());
+
 		}
 		else
 		{
