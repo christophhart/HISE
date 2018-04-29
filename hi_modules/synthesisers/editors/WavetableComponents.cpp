@@ -47,8 +47,17 @@ WaveformComponent::WaveformComponent(Processor* p, int index_) :
 
 	if (p != nullptr)
 	{
-		dynamic_cast<Broadcaster*>(p)->addWaveformListener(this);
-		dynamic_cast<Broadcaster*>(p)->getWaveformTableValues(index, &tableValues, tableLength, normalizeValue);
+		p->addChangeListener(this);
+
+		if (auto b = dynamic_cast<Broadcaster*>(p))
+		{
+			b->addWaveformListener(this);
+			b->getWaveformTableValues(index, &tableValues, tableLength, normalizeValue);
+		}
+		else
+			jassertfalse; // You have to subclass the processor...
+
+		
 	}
 	
 	setBufferedToImage(true);
@@ -59,6 +68,7 @@ WaveformComponent::~WaveformComponent()
 	if (processor.get() != nullptr)
 	{
 		dynamic_cast<Broadcaster*>(processor.get())->removeWaveformListener(this);
+		processor->removeChangeListener(this);
 	}
 		
 }
@@ -152,6 +162,13 @@ void WaveformComponent::setTableValues(const float* values, int numValues, float
 
 void WaveformComponent::rebuildPath()
 {
+	if (bypassed)
+	{
+		p.clear();
+		repaint();
+		return;
+	}
+
 	auto broadcaster = dynamic_cast<Broadcaster*>(processor.get());
 
 	p.clear();
@@ -235,49 +252,6 @@ Component* WaveformComponent::Panel::createContentComponent(int index)
 void WaveformComponent::Panel::fillModuleList(StringArray& moduleList)
 {
 	fillModuleListWithType<WavetableSynth>(moduleList);
-}
-
-
-void WaveformComponent::timerCallback()
-{
-#if 0
-	ModulatorSynthVoice *voice = dynamic_cast<ModulatorSynthVoice*>(synth->getLastStartedVoice());
-
-	if (voice == nullptr) return;
-
-	ModulatorSynthSound *sound = dynamic_cast<ModulatorSynthSound*>(voice->getCurrentlyPlayingSound().get());
-
-	if (dynamic_cast<WavetableSound*>(sound) != nullptr)
-	{
-		WavetableSound *wavetableSound = dynamic_cast<WavetableSound*>(sound);
-		WavetableSynthVoice *wavetableVoice = dynamic_cast<WavetableSynthVoice*>(voice);
-
-		const int tableIndex = wavetableVoice->getCurrentTableIndex();
-		tableValues = wavetableSound->getWaveTableData(tableIndex);
-		tableLength = wavetableSound->getTableSize();
-
-
-
-		normalizeValue = 1.0f / wavetableSound->getMaxLevel();
-
-		repaint();
-	}
-	else if (!isDisplayForWavetableSynth())
-	{
-		tableValues = dynamic_cast<SineSynth*>(synth)->getSaturatedTableValues();
-		tableLength = 128;
-		normalizeValue = 1.0f;
-
-		repaint();
-	}
-	else
-	{
-		tableValues = nullptr;
-		repaint();
-	}
-#endif
-
-
 }
 
 
