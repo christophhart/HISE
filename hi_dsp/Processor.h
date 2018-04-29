@@ -781,7 +781,7 @@ public:
 	*
 	*	If you want to use this feature (this lets you access Parameters with the script, you should add the parameter name
 	*	for each parameter in your subtype constructor. */
-	const Identifier getIdentifierForParameterIndex(int parameterIndex) const;;
+	virtual Identifier getIdentifierForParameterIndex(int parameterIndex) const;;
 
 	/** This returns the number of (named) parameters. */
 	int getNumParameters() const;; 

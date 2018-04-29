@@ -205,6 +205,11 @@ public:
 	/** When the startNote function is called, a previously calculated value (by the handleMidiMessage function) is stored using the supplied voice index. */
 	virtual void startVoice(int voiceIndex) override;;
 
+	Identifier getIdentifierForParameterIndex(int parameterIndex) const override
+	{
+		return getContentParameterIdentifier(parameterIndex);
+	}
+
 	SnippetDocument *getSnippet(int c) override;
 	const SnippetDocument *getSnippet(int c) const override;
 	int getNumSnippets() const override { return numCallbacks; }
@@ -272,6 +277,11 @@ public:
 
 	ValueTree exportAsValueTree() const override { ValueTree v = TimeVariantModulator::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
 	void restoreFromValueTree(const ValueTree &v) override { TimeVariantModulator::restoreFromValueTree(v); restoreScript(v); restoreContent(v); }
+
+	Identifier getIdentifierForParameterIndex(int parameterIndex) const override
+	{
+		return getContentParameterIdentifier(parameterIndex);
+	}
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
@@ -361,6 +371,11 @@ public:
 
 	ValueTree exportAsValueTree() const override { ValueTree v = EnvelopeModulator::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
 	void restoreFromValueTree(const ValueTree &v) override { EnvelopeModulator::restoreFromValueTree(v); restoreScript(v); restoreContent(v); }
+
+	Identifier getIdentifierForParameterIndex(int parameterIndex) const override
+	{
+		return getContentParameterIdentifier(parameterIndex);
+	}
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
@@ -472,6 +487,11 @@ public:
 
 	void restoreFromValueTree(const ValueTree &v) override { ModulatorSynth::restoreFromValueTree(v); restoreScript(v); restoreContent(v); };
 	ValueTree exportAsValueTree() const override { ValueTree v = ModulatorSynth::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
+
+	Identifier getIdentifierForParameterIndex(int parameterIndex) const override
+	{
+		return getContentParameterIdentifier(parameterIndex);
+	}
 
 	int getNumChildProcessors() const override { return numInternalChains; };
 	int getNumInternalChains() const override { return numInternalChains; };
@@ -587,6 +607,11 @@ public:
 
 	ValueTree exportAsValueTree() const override { ValueTree v = MasterEffectProcessor::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
 	void restoreFromValueTree(const ValueTree &v) override { MasterEffectProcessor::restoreFromValueTree(v); restoreScript(v); restoreContent(v); }
+
+	Identifier getIdentifierForParameterIndex(int parameterIndex) const override
+	{
+		return getContentParameterIdentifier(parameterIndex);
+	}
 
 	int getControlCallbackIndex() const override { return (int)Callback::onControl; };
 

@@ -177,6 +177,12 @@ public:
 	ValueTree exportAsValueTree() const override;
 	void restoreFromValueTree(const ValueTree &v) override;
 
+	Identifier getIdentifierForParameterIndex(int parameterIndex) const override
+	{
+		// Don't use the content controls for the parameters here...
+		return Processor::getIdentifierForParameterIndex(parameterIndex);
+	}
+
 	bool hasTail() const override { return false; };
 
 	int getNumInternalChains() const override { return 0; };

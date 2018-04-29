@@ -105,34 +105,11 @@ void Processor::setConstrainerForAllInternalChains(BaseConstrainer *constrainer)
 	}
 }
 
-const Identifier Processor::getIdentifierForParameterIndex(int parameterIndex) const
+Identifier Processor::getIdentifierForParameterIndex(int parameterIndex) const
 {
-	if (auto pwsc = dynamic_cast<const ProcessorWithScriptingContent*>(this))
-	{
-		if (auto content = pwsc->getScriptingContent())
-		{
-			if (auto sc = content->getComponent(parameterIndex))
-			{
-				return sc->name.toString();
-			}
-            
-            auto child = content->getContentProperties().getChild(parameterIndex);
-            
-            if(child.isValid())
-                return Identifier(child.getProperty("id").toString());
-            
+	if (parameterIndex > parameterNames.size()) return Identifier();
 
-			return Identifier();
-		}
-		else
-			return Identifier();
-	}
-	else
-	{
-		if (parameterIndex > parameterNames.size()) return Identifier();
-
-		return parameterNames[parameterIndex];
-	}
+	return parameterNames[parameterIndex];
 }
 
 

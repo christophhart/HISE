@@ -78,6 +78,19 @@ public:
 		return content.get();
 	}
 
+	Identifier getContentParameterIdentifier(int parameterIndex) const
+	{
+		if (auto sc = content->getComponent(parameterIndex))
+			return sc->name.toString();
+
+		auto child = content->getContentProperties().getChild(parameterIndex);
+
+		if (child.isValid())
+			return Identifier(child.getProperty("id").toString());
+
+		return Identifier();
+	}
+
 	void setControlValue(int index, float newValue);
 
 	float getControlValue(int index) const;
@@ -168,6 +181,11 @@ public:
 
 
 	int getControlCallbackIndex() const override { return onControl; };
+
+	Identifier getIdentifierForParameterIndex(int parameterIndex) const override
+	{
+		return getContentParameterIdentifier(parameterIndex);
+	}
 
 protected:
 
