@@ -930,7 +930,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_2(Engine, showErrorMessage);
 	API_VOID_METHOD_WRAPPER_1(Engine, showMessage);
 	API_VOID_METHOD_WRAPPER_1(Engine, setLowestKeyToDisplay);
-
+    API_VOID_METHOD_WRAPPER_1(Engine, openWebsite);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadNextUserPreset);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadPreviousUserPreset);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadUserPreset);
@@ -992,6 +992,7 @@ ApiClass(0)
 	ADD_API_METHOD_2(showErrorMessage);
 	ADD_API_METHOD_1(showMessage);
 	ADD_API_METHOD_1(setLowestKeyToDisplay);
+    ADD_API_METHOD_1(openWebsite);
 	ADD_API_METHOD_1(loadNextUserPreset);
 	ADD_API_METHOD_1(loadPreviousUserPreset);
 	ADD_API_METHOD_0(getCurrentUserPresetName);
@@ -1244,6 +1245,31 @@ void ScriptingApi::Engine::showMessage(String message)
 double ScriptingApi::Engine::getMilliSecondsForTempo(int tempoIndex) const { return (double)TempoSyncer::getTempoInMilliSeconds(getHostBpm(), (TempoSyncer::Tempo)tempoIndex); }
 
 
+void ScriptingApi::Engine::openWebsite(String url)
+{
+    URL u(url);
+    
+    if (u.isWellFormed())
+    {
+        auto& tmp = u;
+        
+        auto f = [tmp]()
+        {
+            tmp.launchInDefaultBrowser();
+        };
+        
+        new DelayedFunctionCaller(f, 300);
+        
+        
+    }
+    else
+    {
+        reportScriptError("not a valid URL");
+    }
+    
+    
+}
+    
 void ScriptingApi::Engine::loadNextUserPreset(bool stayInDirectory)
 {
 	getProcessor()->getMainController()->getUserPresetHandler().incPreset(true, stayInDirectory);

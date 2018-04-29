@@ -250,9 +250,12 @@ public:
 		/** Returns the millisecond value for the supplied tempo (HINT: Use "TempoSync" mode from Slider!) */
 		double getMilliSecondsForTempo(int tempoIndex) const;;
 
+        /** launches the given URL in the system's web browser. */
+        void openWebsite(String url);
+        
 		/** Loads the next user preset. */
 		void loadNextUserPreset(bool stayInDirectory);
-
+        
 		/** Loads the previous user preset. */
 		void loadPreviousUserPreset(bool stayInDirectory);
 
