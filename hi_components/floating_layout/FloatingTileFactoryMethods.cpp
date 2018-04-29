@@ -610,6 +610,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(fm, PopupMenuOptions::MidiSourceList, "Midi Source List");
 			addToPopupMenu(fm, PopupMenuOptions::MidiChannelList, "Midi Channel List");
 			addToPopupMenu(fm, PopupMenuOptions::TooltipPanel, "Tooltip Bar");
+			addToPopupMenu(fm, PopupMenuOptions::MidiLearnPanel, "MIDI Learn Panel");
 			addToPopupMenu(fm, PopupMenuOptions::SampleMapBrowser, "Sample Map Browser");
 			addToPopupMenu(fm, PopupMenuOptions::AudioAnalyser, "Audio Analyser");
 
