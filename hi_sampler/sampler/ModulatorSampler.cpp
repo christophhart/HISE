@@ -923,13 +923,10 @@ void ModulatorSampler::addSamplerSounds(OwnedArray<ModulatorSamplerSound>& monol
 	{
 		ModulatorSamplerSound* newSound = monolithicSounds.removeAndReturn(0);
 
-		
-
 		sounds.add(newSound);
 
 		newSound->setPurged(purged);
 		newSound->setMaxRRGroupIndex(rrGroupAmount);
-
 		newSound->setUndoManager(getMainController()->getControlUndoManager());
 		newSound->addChangeListener(sampleMap);
 	}
@@ -1101,6 +1098,9 @@ void ModulatorSampler::clearSampleMap()
 
 	ScopedLock sl(getMainController()->getSampleManager().getSamplerSoundLock());
 
+    if(sampleMap == nullptr)
+        return;
+    
 	sampleMap->saveIfNeeded();
 
 	deleteAllSounds();

@@ -202,8 +202,11 @@ void SampleMap::clear()
     sampleMapId = Identifier();
     changed = false;
     
-    sampler->sendChangeMessage();
-    sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();    
+    if(sampler != nullptr)
+    {
+        sampler->sendChangeMessage();
+        sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
+    }
 }
 
 void SampleMap::restoreFromValueTree(const ValueTree &v)
