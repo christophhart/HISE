@@ -401,6 +401,15 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 
 		ValueTree autoData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree();
 
+		auto container = ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(chain);
+
+		ValueTree modulationData;
+
+		if (container != nullptr)
+		{
+			modulationData = container->exportModulatedParameters();
+		}
+
 		while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
 		{
 			if (!sp->isFront()) continue;
@@ -414,6 +423,9 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 			preset.setProperty("Version", getCurrentVersionNumber(chain), nullptr);
 			preset.addChild(v, -1, nullptr);
 			preset.addChild(autoData, -1, nullptr);
+
+			if (modulationData.isValid())
+				preset.addChild(modulationData, -1, nullptr);
 
 			ScopedPointer<XmlElement> xml = preset.createXml();
 

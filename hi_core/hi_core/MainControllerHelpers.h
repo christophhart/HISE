@@ -135,7 +135,7 @@ public:
 
 	
 
-	struct AutomationData
+	struct AutomationData: public RestorableObject
 	{
 		AutomationData();
 
@@ -143,6 +143,11 @@ public:
 
 		bool operator==(const AutomationData& other) const;
 
+		void restoreFromValueTree(const ValueTree &v) override;
+
+		ValueTree exportAsValueTree() const override;
+
+		MainController* mc = nullptr;
 		WeakReference<Processor> processor;
 		int attribute;
 		NormalisableRange<double> parameterRange;

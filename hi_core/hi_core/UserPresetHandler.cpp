@@ -143,6 +143,18 @@ void MainController::UserPresetHandler::loadUserPresetInternal(const ValueTree& 
 	if (autoData.isValid())
 		mc->getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(autoData);
 
+	ValueTree modulationData = userPresetToLoad.getChildWithName("ModulatedParameters");
+
+	if (modulationData.isValid())
+	{
+		auto container = ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(mc->getMainSynthChain());
+
+		if (container != nullptr)
+		{
+			container->restoreModulatedParameters(modulationData);
+		}
+	}
+
 	auto f = [this]()->void
 	{
 		for (auto l : this->listeners)

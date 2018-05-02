@@ -88,34 +88,67 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 
 	MidiControllerAutomationHandler *handler = getProcessor()->getMainController()->getMacroManager().getMidiControlAutomationHandler();
 
+	auto mods = ProcessorHelpers::getListOfAllGlobalModulators(getProcessor()->getMainController()->getMainSynthChain());
+
 	const int midiController = handler->getMidiControllerNumber(processor, parameter);
 	const bool learningActive = handler->isLearningActive(processor, parameter);
+
+	enum Commands
+	{
+		Learn = 1,
+		Remove,
+		GlobalModAddOffset=100,
+		GlobalModRemoveOffset=200,
+		numCommands
+	};
 
 	PopupLookAndFeel plaf;
 	PopupMenu m;
 
 	m.setLookAndFeel(&plaf);
 
-	m.addItem(1, "Learn MIDI CC", true, learningActive);
+	m.addItem(Learn, "Learn MIDI CC", true, learningActive);
 	
 	if (midiController != -1)
 	{
-		m.addItem(2, "Remove CC " + String(midiController));
+		m.addItem(Remove, "Remove CC " + String(midiController));
 	}
 	
+	auto container = ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(getProcessor()->getMainController()->getMainSynthChain());
+
+	if (!mods.isEmpty())
+	{
+		jassert(container != nullptr);
+
+		PopupMenu modSubMenu;
+
+		auto currentlyControllingMod = container->getModulatorForControlledParameter(processor, parameter);
+
+		for (int i = 0; i < mods.size(); i++)
+		{
+			auto m_ = mods[i].get();
+			if (m_ == nullptr)
+				continue;
+
+			modSubMenu.addItem(i + GlobalModAddOffset, m_->getId(), true, currentlyControllingMod == m_);
+		}
+
+		m.addSubMenu("Add Modulation", modSubMenu);
+	}
+
+	NormalisableRange<double> rangeWithSkew = getRange();
+
+	if (HiSlider *slider = dynamic_cast<HiSlider*>(this))
+	{
+		rangeWithSkew.skew = slider->getSkewFactor();
+	}
+
 	const int result = m.show();
 
-	if (result == 1)
+	if (result == Learn)
 	{
 		if (!learningActive)
 		{
-			NormalisableRange<double> rangeWithSkew = getRange();
-
-			if (HiSlider *slider = dynamic_cast<HiSlider*>(this))
-			{
-				rangeWithSkew.skew = slider->getSkewFactor();
-			}
-
 			handler->addMidiControlledParameter(processor, parameter, rangeWithSkew, getMacroIndex());
 		}
 		else
@@ -123,9 +156,25 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 			handler->deactivateMidiLearning();
 		}
 	}
-	else if (result == 2)
+	else if (result == Remove)
 	{
 		handler->removeMidiControlledParameter(processor, parameter, sendNotification);
+	}
+	else if (result >= GlobalModAddOffset)
+	{
+		auto mod = mods[result - GlobalModAddOffset];
+
+		auto currentMod = container->getModulatorForControlledParameter(processor, parameter);
+
+		if (currentMod != nullptr)
+		{
+			container->removeModulatorControlledParameter(currentMod, processor, parameter);
+		}
+
+		if (currentMod != mod)
+		{
+			container->addModulatorControlledParameter(mod, processor, parameter, rangeWithSkew, getMacroIndex());	
+		}
 	}
 }
 
