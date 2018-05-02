@@ -71,6 +71,7 @@ ShapeFX::ShapeFX(MainController *mc, const String &uid):
 	tableBroadcaster->enableAllocationFreeMessages(50);
 
 	memset(displayTable, 0, sizeof(float)*SAMPLE_LOOKUP_TABLE_SIZE);
+    memset(unusedTable, 0, sizeof(float)*SAMPLE_LOOKUP_TABLE_SIZE);
 	
 	parameterNames.add("BiasLeft");
 	parameterNames.add("BiasRight");
@@ -600,6 +601,8 @@ PolyshapeFX::PolyshapeFX(MainController *mc, const String &uid, int numVoices):
 
 	initShapers();
 
+    memset(unusedTable, 0, sizeof(float)*SAMPLE_LOOKUP_TABLE_SIZE);
+    
 	tableUpdater = new TableUpdater(*this);
 
 	parameterNames.add("Drive");
