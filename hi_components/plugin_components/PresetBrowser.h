@@ -1025,7 +1025,7 @@ public:
 				//s = s.replaceCharacters("šŠŸ", "oaueee");
 
 
-				s = s.removeCharacters(" \t!+");
+				s = s.removeCharacters(" \t!+&");
 
 				if (Identifier::isValidIdentifier(s))
 				{
