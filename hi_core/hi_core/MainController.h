@@ -96,6 +96,8 @@ public:
 
 		SampleManager(MainController *mc);
 
+		~SampleManager();
+
 		void setLoadedSampleMaps(ValueTree &v) { sampleMaps = v; };
 
 		/** returns a pointer to the thread pool that streams the samples from disk. */
@@ -165,6 +167,7 @@ public:
 
 		double& getPreloadProgress();
 
+		void cancelAllJobs();
 	private:
 
 		CriticalSection samplerSoundLock;
@@ -203,8 +206,6 @@ public:
 			MainController* mc = nullptr;
 			
 		};
-
-		CriticalSection preloadLock;
 
 		ProjectHandler projectHandler;
 

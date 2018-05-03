@@ -91,7 +91,12 @@ public:
 
 	~FrontendProcessor()
 	{
+		getSampleManager().cancelAllJobs();
+
 		setEnabledMidiChannels(synthChain->getActiveChannelData()->exportData());
+
+		ScopedLock sl(getLock());
+		ScopedLock sl2(getSampleManager().getSamplerSoundLock());
 
 		clearPreset();
 

@@ -102,6 +102,9 @@ MainController::MainController():
 
 MainController::~MainController()
 {
+
+
+	sampleManager = nullptr;
 	Logger::setCurrentLogger(nullptr);
 	logger = nullptr;
 	masterReference.clear();
@@ -1117,6 +1120,17 @@ void MainController::updateMultiChannelBuffer(int numNewChannels)
 	ProcessorHelpers::increaseBufferIfNeeded(multiChannelBuffer, bufferSize.get());
 }
 
+MainController::SampleManager::~SampleManager()
+{
+	preloadListeners.clear();
+
+	internalPreloadJob.signalJobShouldExit();
+
+	const bool ok = samplerLoaderThreadPool->stopThread(2000);
+	
+	samplerLoaderThreadPool = nullptr;
+}
+
 void MainController::SampleManager::setShouldSkipPreloading(bool skip)
 {
 	skipPreloading = skip;
@@ -1152,6 +1166,17 @@ void MainController::SampleManager::preloadEverything()
 double& MainController::SampleManager::getPreloadProgress()
 {
 	return internalPreloadJob.progress;
+}
+
+void MainController::SampleManager::cancelAllJobs()
+{
+	ScopedLock sl(getSamplerSoundLock());
+
+	internalPreloadJob.signalJobShouldExit();
+	samplerLoaderThreadPool->stopThread(2000);
+
+	
+
 }
 
 void MainController::CodeHandler::setMainConsole(Console* console)

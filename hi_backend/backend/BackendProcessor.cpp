@@ -49,8 +49,6 @@ viewUndoManager(new UndoManager())
 
 	getMacroManager().setMacroChain(synthChain);
 
-	
-
 	handleEditorData(false);
 
 	restoreGlobalSettings(this);
@@ -66,6 +64,11 @@ viewUndoManager(new UndoManager())
 
 BackendProcessor::~BackendProcessor()
 {
+	getSampleManager().cancelAllJobs();
+
+	ScopedLock sl(getLock());
+	ScopedLock sl2(getSampleManager().getSamplerSoundLock());
+
 	clearPreset();
 
 	synthChain = nullptr;

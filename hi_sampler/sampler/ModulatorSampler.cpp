@@ -1306,8 +1306,13 @@ bool ModulatorSampler::preloadAllSamples()
 
 	auto& progress = getMainController()->getSampleManager().getPreloadProgress();
 
+	auto threadPool = getMainController()->getSampleManager().getGlobalSampleThreadPool();
+
 	while (auto sound = sIter.getNextSound())
 	{
+		if (threadPool->threadShouldExit())
+			return false;
+
 		sound->checkFileReference();
 
 		if (getNumMicPositions() == 1)

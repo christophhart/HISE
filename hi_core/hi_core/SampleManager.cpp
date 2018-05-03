@@ -139,6 +139,9 @@ SampleThreadPool::Job::JobStatus MainController::SampleManager::PreloadJob::runJ
 
 	while (pendingFunctions.pop(c))
 	{
+		if (shouldExit())
+			return SampleThreadPool::Job::jobHasFinished;
+
 		if (!c.call())
 			break;
 	}
