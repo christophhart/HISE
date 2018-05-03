@@ -124,6 +124,7 @@ void GlobalModulatorContainer::preStartVoice(int voiceIndex, int noteNumber)
 		if (data[i]->getType() == GlobalModulator::VoiceStart)
 		{
 			data[i]->saveValuesToBuffer(0, 0, voiceIndex, noteNumber);
+			data[i]->handleVoiceStartControlledParameters(noteNumber);
 		}
 	}
 }
@@ -137,6 +138,7 @@ void GlobalModulatorContainer::postVoiceRendering(int startSample, int numThisTi
 		if (data[i]->getType() == GlobalModulator::TimeVariant)
 		{
 			data[i]->saveValuesToBuffer(startSample, numThisTime, 0);
+			data[i]->handleTimeVariantControlledParameters(startSample, numThisTime);
 		}
 	}
 }
@@ -148,6 +150,83 @@ void GlobalModulatorContainer::prepareToPlay(double newSampleRate, int samplesPe
 	for (int i = 0; i < data.size(); i++)
 	{
 		data[i]->prepareToPlay(newSampleRate, samplesPerBlock);
+	}
+}
+
+void GlobalModulatorContainer::addModulatorControlledParameter(const Processor* modulationSource, Processor* processor, int parameterIndex, NormalisableRange<double> range, int macroIndex)
+{
+	for (auto d : data)
+	{
+		if (d->getProcessor() == modulationSource)
+		{
+			auto newConnection = d->addConnectedParameter(processor, parameterIndex, range);
+
+			allParameters.add(newConnection);
+
+			return;
+		}
+	}
+}
+
+void GlobalModulatorContainer::removeModulatorControlledParameter(const Processor* modulationSource, Processor* processor, int parameterIndex)
+{
+	for(auto pc: allParameters)
+		
+
+	for (auto d : data)
+	{
+		if (d->getProcessor() == modulationSource)
+		{
+			d->removeConnectedParameter(processor, parameterIndex);
+			return;
+		}
+	}
+}
+
+bool GlobalModulatorContainer::isModulatorControlledParameter(Processor* processor, int parameterIndex) const
+{
+	return getModulatorForControlledParameter(processor, parameterIndex) != nullptr;
+}
+
+const hise::Processor* GlobalModulatorContainer::getModulatorForControlledParameter(Processor* processor, int parameterIndex) const
+{
+	for (auto d : data)
+	{
+		if (auto pc = d->getParameterConnection(processor, parameterIndex))
+			return d->getProcessor();
+	}
+
+	return nullptr;
+}
+
+juce::ValueTree GlobalModulatorContainer::exportModulatedParameters() const
+{
+	ValueTree v("ModulatedParameters");
+
+	for (auto d : data)
+	{
+		auto tree = d->exportAllConnectedParameters();
+
+		if (tree.isValid())
+			v.addChild(tree, -1, nullptr);
+	}
+
+	return v;
+}
+
+void GlobalModulatorContainer::restoreModulatedParameters(const ValueTree& v)
+{
+	for (const auto& c : v)
+	{
+		auto pId = c.getProperty("id");
+
+		for (auto d : data)
+		{
+			if (pId == d->getProcessor()->getId())
+			{
+				d->restoreParameterConnections(c);
+			}
+		}
 	}
 }
 
@@ -248,7 +327,7 @@ void GlobalModulatorData::saveValuesToBuffer(int startIndex, int numSamples, int
 	}
 }
 
-const float * GlobalModulatorData::getModulationValues(int startIndex, int /*voiceIndex*/)
+const float * GlobalModulatorData::getModulationValues(int startIndex, int /*voiceIndex*/) const
 {
 	switch (type)
 	{
@@ -264,6 +343,52 @@ const float * GlobalModulatorData::getModulationValues(int startIndex, int /*voi
 float GlobalModulatorData::getConstantVoiceValue(int noteNumber)
 {
 	return constantVoiceValues[noteNumber];
+}
+
+void GlobalModulatorData::handleVoiceStartControlledParameters(int noteNumber)
+{
+	if (connectedParameters.size() != 0)
+	{
+		auto normalizedValue = getConstantVoiceValue(noteNumber);
+
+		for (auto pc : connectedParameters)
+		{
+			if (auto processor = pc->processor)
+			{
+				auto value = pc->parameterRange.convertFrom0to1(normalizedValue);
+
+				if (pc->lastValue != value)
+				{
+					processor->setAttribute(pc->attribute, value, sendNotification);
+					pc->lastValue = value;
+				}
+			}
+		}
+	}
+
+	
+
+
+}
+
+void GlobalModulatorData::handleTimeVariantControlledParameters(int startSample, int numThisTime) const
+{
+	if (connectedParameters.size() > 0)
+	{
+		auto modData = getModulationValues(startSample);
+
+		auto maxValue = FloatVectorOperations::findMaximum(modData, numThisTime);
+
+		for (auto pc : connectedParameters)
+		{
+			if (auto processor = pc->processor)
+			{
+				auto value = pc->parameterRange.convertFrom0to1(maxValue);
+
+				processor->setAttribute(pc->attribute, value, sendNotification);
+			}
+		}
+	}
 }
 
 } // namespace hise

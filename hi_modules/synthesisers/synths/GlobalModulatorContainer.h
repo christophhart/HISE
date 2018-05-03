@@ -69,7 +69,7 @@ public:
 	void prepareToPlay(double sampleRate, int blockSize);
 
 	void saveValuesToBuffer(int startIndex, int numSamples, int voiceIndex = 0, int noteNumber=-1);
-	const float *getModulationValues(int startIndex, int voiceIndex = 0);
+	const float *getModulationValues(int startIndex, int voiceIndex = 0) const;
 	float getConstantVoiceValue(int noteNumber);
 
 	const Processor *getProcessor() const { return modulator.get(); }
@@ -83,8 +83,108 @@ public:
 
 	GlobalModulator::ModulatorType getType() const noexcept{ return type; }
 
+	void handleVoiceStartControlledParameters(int noteNumber);
+
+	struct ParameterConnection: public MidiControllerAutomationHandler::AutomationData
+	{
+		ParameterConnection(Processor* p, int parameterIndex_, const NormalisableRange<double>& range_) :
+			AutomationData()
+		{
+			attribute = parameterIndex_;
+			processor = p;
+			parameterRange = range_;
+			fullRange = range_;
+		};
+
+		ValueTree exportAsValueTree() const override
+		{
+			ValueTree av = AutomationData::exportAsValueTree();
+
+			av.removeProperty("Controller", nullptr);
+
+			ValueTree v("ParameterConnection");
+
+			v.copyPropertiesFrom(av, nullptr);
+
+			return v;
+		}
+
+		void restoreFromValueTree(const ValueTree &v) override
+		{
+			AutomationData::restoreFromValueTree(v);
+		}
+
+		float lastValue = 0.0f;
+        
+        JUCE_DECLARE_WEAK_REFERENCEABLE(ParameterConnection);
+	};
+
+	ParameterConnection* getParameterConnection(Processor* p, int parameterIndex)
+	{
+		for (auto pc : connectedParameters)
+		{
+			if (pc->attribute == parameterIndex && pc->processor == p)
+				return pc;
+		}
+
+		return nullptr;
+	}
+
+	ParameterConnection* addConnectedParameter(Processor* p, int parameterIndex, NormalisableRange<double> normalisableRange)
+	{
+		auto newConnection = new ParameterConnection(p, parameterIndex, normalisableRange);
+		connectedParameters.addIfNotAlreadyThere(newConnection);
+		return connectedParameters.getLast();
+	}
+
+	void removeConnectedParameter(Processor* p, int parameterIndex)
+	{
+		for (auto c : connectedParameters)
+		{
+			if (c->processor.get() == p && c->attribute == parameterIndex)
+			{
+				connectedParameters.removeObject(c, true);
+				return;
+			}
+		}
+	}
+
+	ValueTree exportAllConnectedParameters() const
+	{
+		if (connectedParameters.size() == 0)
+			return {};
+
+		auto pId = getProcessor()->getId();
+
+		ValueTree v("Modulator");
+		v.setProperty("id", pId, nullptr);
+
+		for (auto pc : connectedParameters)
+		{
+			auto child = pc->exportAsValueTree();
+			v.addChild(child, -1, nullptr);
+		}
+
+		return v;
+	}
+
+	void restoreParameterConnections(const ValueTree& v)
+	{
+		connectedParameters.clear();
+
+		for (const auto& c : v)
+		{
+			auto p = new ParameterConnection(nullptr, -1, {});
+			p->restoreFromValueTree(c);
+			connectedParameters.add(p);
+		}
+	}
+
+	void handleTimeVariantControlledParameters(int startSample, int numThisTime) const;
 private:
 
+	OwnedArray<ParameterConnection> connectedParameters;
+	
 	WeakReference<Processor> modulator;
 	GlobalModulator::ModulatorType type;
 
@@ -124,9 +224,26 @@ public:
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 
+	void addModulatorControlledParameter(const Processor* modulationSource, Processor* processor, int parameterIndex, NormalisableRange<double> range, int macroIndex);
+	void removeModulatorControlledParameter(const Processor* modulationSource, Processor* processor, int parameterIndex);
+	bool isModulatorControlledParameter(Processor* processor, int parameterIndex) const;
+	
+	const Processor* getModulatorForControlledParameter(Processor* processor, int parameterIndex) const;
+
+	int getNumControlledParameters() const
+	{
+
+	}
+
+	ValueTree exportModulatedParameters() const;
+
+	void restoreModulatedParameters(const ValueTree& v);
+
 private:
 
 	friend class GlobalModulatorContainerVoice;
+
+	Array<WeakReference<GlobalModulatorData::ParameterConnection>> allParameters;
 
 	void refreshList();
 

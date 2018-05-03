@@ -164,7 +164,8 @@ attribute(-1),
 parameterRange(NormalisableRange<double>()),
 fullRange(NormalisableRange<double>()),
 macroIndex(-1),
-used(false)
+used(false),
+inverted(false)
 {
 
 }
@@ -183,10 +184,95 @@ void MidiControllerAutomationHandler::AutomationData::clear()
 	used = false;
 }
 
+
+
 bool MidiControllerAutomationHandler::AutomationData::operator==(const AutomationData& other) const
 {
 	return other.processor == processor && other.attribute == attribute;
 }
+
+void MidiControllerAutomationHandler::AutomationData::restoreFromValueTree(const ValueTree &v)
+{
+	ccNumber = v.getProperty("Controller", 1);;
+	processor = ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), v.getProperty("Processor"));
+	macroIndex = v.getProperty("MacroIndex");
+
+	auto attributeString = v.getProperty("Attribute", attribute).toString();
+
+	const bool isParameterId = attributeString.containsAnyOf("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
+
+	// The parameter was stored correctly as ID
+	if (isParameterId && processor.get() != nullptr)
+	{
+		const Identifier pId(attributeString);
+
+		for (int j = 0; j < processor->getNumParameters(); j++)
+		{
+			if (processor->getIdentifierForParameterIndex(j) == pId)
+			{
+				attribute = j;
+				break;
+			}
+		}
+	}
+	else
+	{
+		// This tries to obtain the correct id.
+		auto presetVersion = v.getRoot().getProperty("Version").toString();
+
+		const Identifier pId = UserPresetHelpers::getAutomationIndexFromOldVersion(presetVersion, attributeString.getIntValue());
+
+		if (pId.isNull())
+		{
+			attribute = attributeString.getIntValue();
+		}
+		else
+		{
+			for (int j = 0; j < processor->getNumParameters(); j++)
+			{
+				if (processor->getIdentifierForParameterIndex(j) == pId)
+				{
+					attribute = j;
+					break;
+				}
+			}
+		}
+	}
+
+	double start = v.getProperty("Start");
+	double end = v.getProperty("End");
+	double skew = v.getProperty("Skew", parameterRange.skew);
+	double interval = v.getProperty("Interval", parameterRange.interval);
+
+	auto fullStart = v.getProperty("FullStart", start);
+	auto fullEnd = v.getProperty("FullEnd", end);
+
+	parameterRange = NormalisableRange<double>(start, end, interval, skew);
+	fullRange = NormalisableRange<double>(fullStart, fullEnd, interval, skew);
+
+	used = true;
+	inverted = v.getProperty("Inverted", false);
+}
+
+juce::ValueTree MidiControllerAutomationHandler::AutomationData::exportAsValueTree() const
+{
+	ValueTree cc("Controller");
+
+	cc.setProperty("Controller", ccNumber, nullptr);
+	cc.setProperty("Processor", processor->getId(), nullptr);
+	cc.setProperty("MacroIndex", macroIndex, nullptr);
+	cc.setProperty("Start", parameterRange.start, nullptr);
+	cc.setProperty("End", parameterRange.end, nullptr);
+	cc.setProperty("FullStart", fullRange.start, nullptr);
+	cc.setProperty("FullEnd", fullRange.end, nullptr);
+	cc.setProperty("Skew", parameterRange.skew, nullptr);
+	cc.setProperty("Interval", parameterRange.interval, nullptr);
+	cc.setProperty("Attribute", processor->getIdentifierForParameterIndex(attribute).toString(), nullptr);
+	cc.setProperty("Inverted", inverted, nullptr);
+
+	return cc;
+}
+
 
 ValueTree MidiControllerAutomationHandler::exportAsValueTree() const
 {
@@ -198,19 +284,7 @@ ValueTree MidiControllerAutomationHandler::exportAsValueTree() const
 		{
 			if (a.used && a.processor != nullptr)
 			{
-				ValueTree cc("Controller");
-
-				cc.setProperty("Controller", i, nullptr);
-				cc.setProperty("Processor", a.processor->getId(), nullptr);
-				cc.setProperty("MacroIndex", a.macroIndex, nullptr);
-				cc.setProperty("Start", a.parameterRange.start, nullptr);
-				cc.setProperty("End", a.parameterRange.end, nullptr);
-				cc.setProperty("FullStart", a.fullRange.start, nullptr);
-				cc.setProperty("FullEnd", a.fullRange.end, nullptr);
-				cc.setProperty("Skew", a.parameterRange.skew, nullptr);
-				cc.setProperty("Interval", a.parameterRange.interval, nullptr);
-				cc.setProperty("Attribute", a.processor->getIdentifierForParameterIndex(a.attribute).toString(), nullptr);
-				cc.setProperty("Inverted", a.inverted, nullptr);
+				auto cc = a.exportAsValueTree();
 				v.addChild(cc, -1, nullptr);
 			}
 		}
@@ -234,66 +308,9 @@ void MidiControllerAutomationHandler::restoreFromValueTree(const ValueTree &v)
 		auto& aArray = automationData[controller];
 
 		AutomationData a;
+		a.mc = mc;
 
-		a.ccNumber = controller;
-		a.processor = ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), cc.getProperty("Processor"));
-		a.macroIndex = cc.getProperty("MacroIndex");
-
-		auto attributeString = cc.getProperty("Attribute", a.attribute).toString();
-
-		const bool isParameterId = attributeString.containsAnyOf("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
-		
-		// The parameter was stored correctly as ID
-		if (isParameterId && a.processor.get() != nullptr)
-		{
-			const Identifier pId(attributeString);
-
-			for (int j = 0; j < a.processor->getNumParameters(); j++)
-			{
-				if (a.processor->getIdentifierForParameterIndex(j) == pId)
-				{
-					a.attribute = j;
-					break;
-				}
-			}
-		}
-		else
-		{
-			// This tries to obtain the correct id.
-			auto presetVersion = v.getRoot().getProperty("Version").toString();
-
-			const Identifier pId = UserPresetHelpers::getAutomationIndexFromOldVersion(presetVersion, attributeString.getIntValue());
-
-			if (pId.isNull())
-			{
-				a.attribute = attributeString.getIntValue();
-			}
-			else
-			{
-				for (int j = 0; j < a.processor->getNumParameters(); j++)
-				{
-					if (a.processor->getIdentifierForParameterIndex(j) == pId)
-					{
-						a.attribute = j;
-						break;
-					}
-				}
-			}
-		}
-
-		double start = cc.getProperty("Start");
-		double end = cc.getProperty("End");
-		double skew = cc.getProperty("Skew", a.parameterRange.skew);
-		double interval = cc.getProperty("Interval", a.parameterRange.interval);
-
-		auto fullStart = cc.getProperty("FullStart", start);
-		auto fullEnd = cc.getProperty("FullEnd", end);
-
-		a.parameterRange = NormalisableRange<double>(start, end, interval, skew);
-		a.fullRange = NormalisableRange<double>(fullStart, fullEnd, interval, skew);
-		
-		a.used = true;
-		a.inverted = cc.getProperty("Inverted", false);
+		a.restoreFromValueTree(cc);
 
 		aArray.addIfNotAlreadyThere(a);
 	}

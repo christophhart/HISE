@@ -246,6 +246,25 @@ Processor *ProcessorHelpers::getFirstProcessorWithName(const Processor *root, co
 	return nullptr;
 }
 
+
+Array<WeakReference<Processor>> ProcessorHelpers::getListOfAllGlobalModulators(const Processor* rootProcessor)
+{
+	Array<WeakReference<Processor>> mods;
+
+	// Only checks the first global modulator container, should be enough...
+	if (auto container = getFirstProcessorWithType<GlobalModulatorContainer>(rootProcessor))
+	{
+		auto chain = container->getChildProcessor(ModulatorSynth::GainModulation);
+
+		for (int i = 0; i < chain->getNumChildProcessors(); i++)
+		{
+			mods.add(chain->getChildProcessor(i));
+		}
+	}
+
+	return mods;
+}
+
 const Processor *ProcessorHelpers::findParentProcessor(const Processor *childProcessor, bool getParentSynth)
 {
 	return const_cast<const Processor*>(findParentProcessor(const_cast<Processor*>(childProcessor), getParentSynth));

@@ -963,6 +963,8 @@ public:
 	*/
 	static Processor *getFirstProcessorWithName(const Processor *rootProcessor, const String &name);
 
+	static Array<WeakReference<Processor>> getListOfAllGlobalModulators(const Processor* rootProcessor);
+
 	template <class ProcessorType> static int getAmountOf(const Processor *rootProcessor, const Processor *upTochildProcessor = nullptr);
 
 	template <class ProcessorType> static StringArray getAllIdsForType(const Processor *rootProcessor)
