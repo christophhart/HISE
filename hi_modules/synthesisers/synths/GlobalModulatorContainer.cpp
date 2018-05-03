@@ -188,7 +188,7 @@ bool GlobalModulatorContainer::isModulatorControlledParameter(Processor* process
 	return getModulatorForControlledParameter(processor, parameterIndex) != nullptr;
 }
 
-const hise::Processor* GlobalModulatorContainer::getModulatorForControlledParameter(Processor* processor, int parameterIndex) const
+const hise::Processor* GlobalModulatorContainer::getModulatorForControlledParameter(const Processor* processor, int parameterIndex) const
 {
 	for (auto d : data)
 	{

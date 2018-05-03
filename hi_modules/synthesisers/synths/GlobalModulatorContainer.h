@@ -119,7 +119,7 @@ public:
         JUCE_DECLARE_WEAK_REFERENCEABLE(ParameterConnection);
 	};
 
-	ParameterConnection* getParameterConnection(Processor* p, int parameterIndex)
+	ParameterConnection* getParameterConnection(const Processor* p, int parameterIndex)
 	{
 		for (auto pc : connectedParameters)
 		{
@@ -228,7 +228,7 @@ public:
 	void removeModulatorControlledParameter(const Processor* modulationSource, Processor* processor, int parameterIndex);
 	bool isModulatorControlledParameter(Processor* processor, int parameterIndex) const;
 	
-	const Processor* getModulatorForControlledParameter(Processor* processor, int parameterIndex) const;
+	const Processor* getModulatorForControlledParameter(const Processor* processor, int parameterIndex) const;
 
 	int getNumControlledParameters() const
 	{

@@ -198,6 +198,19 @@ void MacroControlledObject::setAttributeWithUndo(float newValue, bool useCustomO
 	}
 }
 
+bool MacroControlledObject::isConnectedToModulator() const
+{
+	auto chain = getProcessor()->getMainController()->getMainSynthChain();
+
+	if (auto container = ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(chain))
+	{
+		return container->getModulatorForControlledParameter(getProcessor(), parameter) != nullptr;
+	}
+
+	return false;
+	
+}
+
 bool  MacroControlledObject::isLocked()
 {
 	if (!macroControlledComponentEnabled) return true;
@@ -378,8 +391,12 @@ void HiSlider::mouseDown(const MouseEvent &e)
 			PresetHandler::setChanged(getProcessor());
 
 			checkLearnMode();
-			Slider::mouseDown(e);
-			startTouch(e.getMouseDownPosition());
+
+			if (!isConnectedToModulator())
+			{
+				Slider::mouseDown(e);
+				startTouch(e.getMouseDownPosition());
+			}
 		}
 		
 	}

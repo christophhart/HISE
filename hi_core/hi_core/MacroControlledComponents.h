@@ -195,6 +195,8 @@ public:
 		return midiLearnEnabled;
 	}
 
+	bool isConnectedToModulator() const;
+
 	void setUseUndoManagerForEvents(bool shouldUseUndo) { useUndoManagerForEvents = shouldUseUndo; }
 
 	/** Initializes the control widget.
