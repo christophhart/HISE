@@ -227,13 +227,14 @@ void ModulatorSynth::synthTimerCallback(uint8 index)
 
 		const double uptime = getMainController()->getUptime();
 
-		uint16 offsetInBuffer = (uint16)((nextTimerCallbackTimes[index] - uptime) * getSampleRate());
+		// this has to be a uint32 because otherwise it could wrap around the uint16 max sample offset for bigger timer callbacks
+		uint32 offsetInBuffer = (uint32)((nextTimerCallbackTimes[index] - uptime) * getSampleRate());
 
 		while (synthTimerIntervals[index] > 0.0 && offsetInBuffer < getBlockSize())
 		{
-			eventBuffer.addEvent(HiseEvent::createTimerEvent(index, offsetInBuffer));
+			eventBuffer.addEvent(HiseEvent::createTimerEvent(index, (uint16)offsetInBuffer));
 			nextTimerCallbackTimes[index].store(nextTimerCallbackTimes[index].load() + synthTimerIntervals[index].load());
-			offsetInBuffer = (uint16)((nextTimerCallbackTimes[index] - uptime) * getSampleRate());
+			offsetInBuffer = (uint32)((nextTimerCallbackTimes[index] - uptime) * getSampleRate());
 		}
 	}
 	else jassertfalse;
