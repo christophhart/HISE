@@ -2292,7 +2292,7 @@ int ScriptingApi::Synth::addMessageFromHolder(var messageHolder)
 void ScriptingApi::Synth::startTimer(double intervalInSeconds)
 {
 #if ENABLE_SCRIPTING_SAFE_CHECKS
-	if(intervalInSeconds < 0.04)
+	if(intervalInSeconds < 0.004)
 	{
 		reportScriptError("Go easy on the timer!");
 		return;
