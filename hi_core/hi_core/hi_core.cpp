@@ -61,8 +61,10 @@
 
 #if USE_IPP
 #include "IppFFT.cpp"
+
 #endif
 
+#include "AES.cpp"
 #include "UtilityClasses.cpp"
 #include "DebugLogger.cpp"
 #include "ThreadWithQuasiModalProgressWindow.cpp"

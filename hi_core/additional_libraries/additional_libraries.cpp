@@ -70,7 +70,10 @@ extern "C"
 }
 #endif
 
-
 #if JUCE_MSVC
 #pragma warning (pop)
 #endif
+
+
+#include "tiny_aes/aes.c"
+

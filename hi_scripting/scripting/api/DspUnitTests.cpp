@@ -612,8 +612,46 @@ private:
 
 static CustomContainerTest unorderedStackTest;
 
+class AESTest: public UnitTest
+{
+public:
 
+	AESTest() :
+	UnitTest("Testing AES decryption / encryption")
+	{
+		
+		
+		
 
+		
+
+	};
+
+	void runTest() override
+	{
+		testString();
+	}
+
+	void testString()
+	{
+		beginTest("Testing AES String encryption");
+
+		auto key = AES::createKey();
+		
+		AES aes(key);
+
+		String text = "This is unencrypted text";
+
+		String cText = aes.encrypt(text);
+
+		String result = aes.decrypt(cText);
+
+		expectEquals<String>(text, result);
+	}
+
+};
+
+static AESTest aesTest;
 
 
 #endif

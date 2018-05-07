@@ -299,9 +299,11 @@ For all defined variables:
 #include "LibConfig.h"
 #include "Macros.h"
 
+#include "additional_libraries/additional_libraries.h"
+
 #include "hi_core/hi_core.h" // has its own namespace definition
 
-#include "additional_libraries/additional_libraries.h"
+
 
 
 

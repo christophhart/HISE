@@ -30,78 +30,41 @@
 *   ===========================================================================
 */
 
-#ifndef ADDITIONAL_LIBRARIES_H_INCLUDED
-#define ADDITIONAL_LIBRARIES_H_INCLUDED
+#ifndef AES_H_INCLUDED
+#define AES_H_INCLUDED
 
-/** The ICST DSP library v1.2.
-*
-*	Released under the 2-clause BSD license. Copyright (c) 2008-2010, Zurich
-*   University of the Arts, Beat Frei. All rights reserved.
-*
-*/
+namespace hise {
+using namespace juce;
 
-#ifndef DONT_INCLUDE_HEADERS_IN_CPP
-#define DONT_INCLUDE_HEADERS_IN_CPP 1
-#endif
-
-#if USE_IPP
-#define ICSTLIB_USE_IPP 1
-#endif
-
-namespace hise
+class AES
 {
-	class IppFFT;
-}
+public:
 
-#include "icst/MathDefs.h"
-#include "icst/Common.h"  	
+	AES(const String& keyToUse);
 
+	~AES();
 
-namespace icstdsp
-{
-	using namespace juce;
+	void encrypt(MemoryBlock& mb);
 
-	#include "icst/fftooura.h"	
-	#include "icst/BlkDsp.h"	
-	#include "icst/AudioAnalysis.h"
-	#include "icst/AudioSynth.h"
-	#include "icst/Neuro.h"
-	#include "icst/SpecMath.h"
-}
+	String encrypt(const String& stringToEncode);
 
+	void decrypt(MemoryBlock& mb);
 
-#include "fft_convolver/Utilities.h"
-#include "fft_convolver/AudioFFT.h"
-#include "fft_convolver/FFTConvolver.h"
-#include "fft_convolver/TwoStageFFTConvolver.h"
+	String decrypt(const String& stringToDecode);
 
-#include "tiny_aes/aes.hpp"
+	static String createKey();
 
+private:
+
+	void prepare();
+
+	AES_ctx context;
+	uint8 key[16];
+	Array<uint8_t> iv;
+
+};
 
 
-#if JUCE_MSVC
-#pragma warning (push)
-#pragma warning (disable: 4244 4127 4267)
-#endif
-
-#if JUCE_IOS
-#else
-extern "C"
-{
-#include "kiss_fft/kiss_fft.h"
-#include "kiss_fft/kiss_fftr.h"
-    
 }
 
 #endif
-
-
-#if JUCE_MSVC
-#pragma warning (pop)
-
-#endif
-
-
-
-
-#endif  // ADDITIONAL_LIBRARIES_H_INCLUDED
