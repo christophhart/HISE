@@ -194,7 +194,8 @@ void Oscilloscope::drawOscilloscope(Graphics &g, const AudioSampleBuffer &b)
 {
 	AudioSampleBuffer b2(2, b.getNumSamples());
 
-	auto data = b2.getWritePointer(0);
+	auto dataL = b2.getWritePointer(0);
+    auto dataR = b2.getWritePointer(1);
 	int size = b.getNumSamples();
 
 	auto readIndex = getAnalyser()->getCurrentReadIndex();
@@ -202,13 +203,14 @@ void Oscilloscope::drawOscilloscope(Graphics &g, const AudioSampleBuffer &b)
 	int numBeforeWrap = size - readIndex;
 	int numAfterWrap = size - numBeforeWrap;
 
-	FloatVectorOperations::copy(data, b.getReadPointer(0, readIndex), numBeforeWrap);
-	FloatVectorOperations::copy(data + numBeforeWrap, b.getReadPointer(0, 0), numAfterWrap);
+	FloatVectorOperations::copy(dataL, b.getReadPointer(0, readIndex), numBeforeWrap);
+	FloatVectorOperations::copy(dataL + numBeforeWrap, b.getReadPointer(0, 0), numAfterWrap);
 
+    FloatVectorOperations::copy(dataR, b.getReadPointer(1, readIndex), numBeforeWrap);
+    FloatVectorOperations::copy(dataR + numBeforeWrap, b.getReadPointer(1, 0), numAfterWrap);
 
-    
-    drawPath(data, b.getNumSamples(), getWidth(), lPath);
-    drawPath(data, b.getNumSamples(), getWidth(), rPath);
+    drawPath(dataL, b.getNumSamples(), getWidth(), lPath);
+    drawPath(dataR, b.getNumSamples(), getWidth(), rPath);
     
 	lPath.scaleToFit(0.0f, 0.0f, (float)getWidth(), (float)(getHeight()/2), false);
 	rPath.scaleToFit(0.0f, (float)(getHeight()/2), (float)getWidth(), (float)(getHeight()/2), false);
