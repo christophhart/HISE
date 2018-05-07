@@ -80,18 +80,39 @@ void TableEditor::refreshGraph()
 	repaint();
 }
 
+int TableEditor::snapXValueToGrid(int x) const
+{
+	if (snapValues.size() == 0)
+		return x;
+
+	auto normalizedX = (float)x / (float)getWidth();
+
+	auto snapRangeHalfWidth = 10.0f / (float)getWidth();
+
+	for (int i = 1; i < snapValues.size() - 1; i++)
+	{
+		auto snapValue = (float)snapValues[i];
+		auto snapRange = Range<float>(snapValue - snapRangeHalfWidth, snapValue + snapRangeHalfWidth);
+
+		if (snapRange.contains(normalizedX))
+			return (int)(snapValue * (float)getWidth());
+	}
+
+	return x;
+}
+
 void TableEditor::mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &wheel)
 {
 	MouseEvent parentEvent = e.getEventRelativeTo(this);
 	int x = parentEvent.getMouseDownPosition().getX();
 	int y = parentEvent.getMouseDownPosition().getY();
 
-	DragPoint *dp = getPointUnder(x,y);
+	DragPoint *dp = getNextPointFor(x);
 
 	int thisIndex = drag_points.indexOf(dp);
 
 #if USE_BACKEND
-	const bool useEvent = dp != nullptr && e.mods.isCtrlDown();
+	const bool useEvent = dp != nullptr && (e.mods.isCtrlDown() || findParentComponentOfClass<ProcessorEditorContainer>() == nullptr);
 #else
 	const bool useEvent = dp != nullptr;
 #endif
@@ -116,7 +137,7 @@ void TableEditor::mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &w
 
 void TableEditor::updateCurve(int x, int y, float newCurveValue, bool useUndoManager)
 {
-	auto dp = getPointUnder(x, y);
+	auto dp = getNextPointFor(x);
 
 	if (dp == nullptr)
 		return;
@@ -133,6 +154,8 @@ void TableEditor::updateCurve(int x, int y, float newCurveValue, bool useUndoMan
 	}
 }
 
+
+
 void TableEditor::addDragPoint(int x, int y, float curve, bool isStart/*=false*/, bool isEnd/*=false*/, bool useUndoManager/*=false*/)
 {
 	if (useUndoManager && undoManager != nullptr)
@@ -148,7 +171,13 @@ void TableEditor::addDragPoint(int x, int y, float curve, bool isStart/*=false*/
 		dp->setTableEditorSize(getWidth(), getHeight());
 		dp->setPos(Point<int>(x, y));
 		addAndMakeVisible(dp);
-		this->drag_points.add(dp);
+
+		DragPointComparator comparator;
+
+		drag_points.addSorted(comparator, dp);
+
+		
+
 		if (!(isEnd || isStart)) currently_dragged_point = nullptr; // fix #59
 	}
 }
@@ -380,6 +409,8 @@ void TableEditor::mouseDown(const MouseEvent &e)
 			if (undoManager != nullptr)
 				undoManager->beginNewTransaction("Add graph point");
 
+			x = snapXValueToGrid(x);
+
 			addDragPoint(x, y, 0.5f, false, false, true);
 		}
 	}
@@ -496,6 +527,8 @@ void TableEditor::mouseDrag(const MouseEvent &e)
 
 	x = jmax(x, 1);
 	y = jmax(y, 0);
+
+	x = snapXValueToGrid(x);
 
 	auto index = drag_points.indexOf(currently_dragged_point);
 

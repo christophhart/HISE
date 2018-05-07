@@ -275,8 +275,17 @@ public:
 	void setFlashActive(bool setFlashActive);
 	void setShowValueOverlay(bool shouldShowValueOverlay);
 	void setStepSize(double stepSize);
+    
+    void setSliderWidths(const Array<var>& newWidths)
+    {
+        sliderWidths = newWidths;
+        resized();
+    }
+    
 private:
 
+	int getSliderIndexForMouseEvent(const MouseEvent& e);
+    
 	SliderPackData dummyData;
 
 	Array<WeakReference<Listener>> listeners;
@@ -287,6 +296,8 @@ private:
 
 	Array<float> displayAlphas;
 
+    Array<var> sliderWidths;
+    
 	Line<float> rightClickLine;
 
 	bool currentlyDragged;

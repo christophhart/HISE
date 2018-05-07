@@ -920,6 +920,7 @@ void ScriptCreatedComponentWrappers::TableWrapper::updateComponent(int propertyI
 {
 	ScriptCreatedComponentWrapper::updateComponent(propertyIndex, newValue);
 	
+	ScriptingApi::Content::ScriptTable *st = dynamic_cast<ScriptingApi::Content::ScriptTable*>(getScriptComponent());
 	TableEditor *t = dynamic_cast<TableEditor*>(component.get());
 	
 	switch (propertyIndex)
@@ -931,6 +932,7 @@ void ScriptCreatedComponentWrappers::TableWrapper::updateComponent(int propertyI
 		PROPERTY_CASE::ScriptComponent::processorId:
 		PROPERTY_CASE::ScriptTable::Properties::TableIndex : updateConnectedTable(t); break;
 		PROPERTY_CASE::ScriptTable::Properties::customColours: t->setUseFlatDesign(newValue); break;
+		PROPERTY_CASE::ScriptComponent::parameterId: t->setSnapValues(st->snapValues); break;
 	default:
 		break;
 	}
@@ -941,6 +943,8 @@ void ScriptCreatedComponentWrappers::TableWrapper::updateConnectedTable(TableEdi
 	ScriptingApi::Content::ScriptTable *st = dynamic_cast<ScriptingApi::Content::ScriptTable*>(getScriptComponent());
 	LookupTableProcessor *ltp = st->getTableProcessor();
 	t->connectToLookupTableProcessor(dynamic_cast<Processor*>(ltp));
+
+	t->setSnapValues(st->snapValues);
 
 	Table *oldTable = t->getEditedTable();
 	Table *newTable = st->getTable();
@@ -1489,6 +1493,8 @@ ScriptCreatedComponentWrapper(content, index)
 	sp->addListener(this);
 	sp->setName(pack->name.toString());
 
+	sp->setSliderWidths(pack->widthArray);
+
 	component = sp;
 
 	initAllProperties();
@@ -1555,6 +1561,8 @@ void ScriptCreatedComponentWrappers::SliderPackWrapper::updateValue(var newValue
 
 	jassert(ssp->getSliderPackData() == sp->getData());
 
+    sp->setSliderWidths(ssp->widthArray);
+    
 	if (sp->getNumSliders() != ssp->getSliderPackData()->getNumSliders())
 	{
 		if (ssp->getNumSliders() > 0)

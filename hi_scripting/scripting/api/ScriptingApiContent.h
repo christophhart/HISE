@@ -970,11 +970,17 @@ public:
 		/** Connects the table to an existing Processor. */
 		void connectToOtherTable(const String &id, int index);
 
+		/** Makes the table snap to the given x positions (from 0.0 to 1.0). */
+		void setSnapValues(var snapValueArray);
+
 		// ========================================================================================================
 
 		struct Wrapper;
 
 		LookupTableProcessor::TableChangeBroadcaster broadcaster;
+
+		var snapValues;
+
 
 	private:
 
@@ -984,7 +990,6 @@ public:
 		WeakReference<Processor> connectedProcessor;
 
 		
-
 		bool useOtherTable;
 		int lookupTableIndex;
 
@@ -1047,14 +1052,21 @@ public:
 		/** Returns the number of sliders. */
 		int getNumSliders() const;
 
+        /** Sets a non-uniform width per slider using an array in the form [0.0, ... a[i], ... 1.0]. */
+        void setWidthArray(var normalizedWidths);
+        
 		// ========================================================================================================
 
 		struct Wrapper;
 
+        Array<var> widthArray;
+        
 	private:
 
 		void connectToOtherSliderPack(const String &otherPackId);
 
+        
+        
 		String otherPackId;
 		int otherPackIndex = 0;
 

@@ -251,12 +251,30 @@ void SliderPack::resized()
 {
 	int w = getWidth();
 
-	float widthPerSlider = w / (float)data->getNumSliders();
-
-	for (int i = 0; i < sliders.size(); i++)
-	{
-		sliders[i]->setBounds((int)(i * widthPerSlider), 0, (int)widthPerSlider, getHeight());
-	}
+    if(sliderWidths.isEmpty() || getNumSliders() != (sliderWidths.size() + 1))
+    {
+        float widthPerSlider = w / (float)data->getNumSliders();
+        
+        for (int i = 0; i < sliders.size(); i++)
+        {
+            sliders[i]->setBounds((int)(i * widthPerSlider), 0, (int)widthPerSlider, getHeight());
+        }
+    }
+    else
+    {
+        int x = 0;
+        auto totalWidth = (double)w;
+        
+        for(int i = 0; i < sliders.size(); i++)
+        {
+            auto normalizedWidth = (double)sliderWidths[i+1] - (double)sliderWidths[i];
+            
+            auto sliderWidth = jmax(5, roundDoubleToInt(normalizedWidth * totalWidth));
+            
+            sliders[i]->setBounds(x, 0, sliderWidth, getHeight());
+            x += sliderWidth;
+        }
+    }
 }
 
 void SliderPack::changeListenerCallback(SafeChangeBroadcaster *)
@@ -328,7 +346,7 @@ void SliderPack::mouseDown(const MouseEvent &e)
 	{
 		data->startDrag();
 
-		int sliderIndex = (int)((float)x / (float)getWidth() * sliders.size());
+		int sliderIndex = getSliderIndexForMouseEvent(e);
 
 		setDisplayedIndex(sliderIndex);
 
@@ -384,7 +402,7 @@ void SliderPack::mouseDrag(const MouseEvent &e)
 			if (x < 0) x = 0;
 		}
 		
-		int sliderIndex = (int)((float)x / (float)getWidth() * sliders.size());
+		int sliderIndex = getSliderIndexForMouseEvent(e);
 
 		if (sliderIndex < 0) sliderIndex = 0;
 		if (sliderIndex >= sliders.size()) sliderIndex = sliders.size() - 1;
@@ -684,6 +702,33 @@ void SliderPack::setStepSize(double stepSize)
 	if (data != nullptr)
 	{
 		data->setRange(data->getRange().getStart(), data->getRange().getEnd(), stepSize);
+	}
+}
+
+
+int SliderPack::getSliderIndexForMouseEvent(const MouseEvent& e)
+{
+	int x = e.getEventRelativeTo(this).getPosition().getX();
+
+	auto w = (float)getWidth();
+
+	float xNormalized = jlimit<float>(0.0f, 0.999f, (float)x / w);
+
+	if (sliderWidths.size() == 0)
+	{
+		return (int)(xNormalized * (float)sliders.size());
+	}
+	else
+	{
+		for (int i = 0; i < sliderWidths.size()-1; i++)
+		{
+			float nextValue = (float)sliderWidths[i+1];
+			
+			if (xNormalized <= nextValue)
+				return i;
+		}
+
+		return 0;
 	}
 }
 

@@ -207,7 +207,11 @@ void KnobLookAndFeel::drawHiBackground(Graphics &g, int x, int y, int width, int
     Colours::white.withAlpha(0.3f);
     
     g.setColour (outlineColour);
-    g.drawRect((float)x, (float)y, (float)width, (float)height, 1.0f);
+    
+    if(width > 0 && height > 0)
+    {
+        g.drawRect((float)x, (float)y, (float)width, (float)height, 1.0f);
+    }
 }
 
 void KnobLookAndFeel::drawComboBox(Graphics &g, int width, int height, bool isButtonDown, int /*buttonX*/, int /*buttonY*/, int /*buttonW*/, int /*buttonH*/, ComboBox &c)

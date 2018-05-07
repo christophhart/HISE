@@ -1813,6 +1813,7 @@ struct ScriptingApi::Content::ScriptTable::Wrapper
 {
 	API_METHOD_WRAPPER_1(ScriptTable, getTableValue);
 	API_VOID_METHOD_WRAPPER_2(ScriptTable, connectToOtherTable);
+	API_VOID_METHOD_WRAPPER_1(ScriptTable, setSnapValues);
 };
 
 ScriptingApi::Content::ScriptTable::ScriptTable(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier name, int x, int y, int , int ) :
@@ -1841,6 +1842,7 @@ lookupTableIndex(-1)
 
 	ADD_API_METHOD_1(getTableValue);
 	ADD_API_METHOD_2(connectToOtherTable);
+	ADD_API_METHOD_1(setSnapValues);
 }
 
 ScriptingApi::Content::ScriptTable::~ScriptTable()
@@ -1966,6 +1968,18 @@ void ScriptingApi::Content::ScriptTable::connectToOtherTable(const String &other
     reportScriptError(otherTableId + " was not found.");
 }
 
+
+void ScriptingApi::Content::ScriptTable::setSnapValues(var snapValueArray)
+{
+	if (!snapValueArray.isArray())
+		reportScriptError("You must call setSnapValues with an array");
+
+	snapValues = snapValueArray;
+
+	// rather ugly hack, makes the wrapper update the snap values
+	setScriptObjectPropertyWithChangeMessage(getIdFor(parameterId), getScriptObjectProperty(parameterId), sendNotification);
+}
+
 LookupTableProcessor * ScriptingApi::Content::ScriptTable::getTableProcessor() const
 {
 	return dynamic_cast<LookupTableProcessor*>(connectedProcessor.get());
@@ -2015,6 +2029,7 @@ void ScriptingApi::Content::ScriptTable::handleDefaultDeactivatedProperties()
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(linkedTo));
 }
 
+
 struct ScriptingApi::Content::ScriptSliderPack::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptSliderPack, setSliderAtIndex);
@@ -2022,6 +2037,7 @@ struct ScriptingApi::Content::ScriptSliderPack::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptSliderPack, setAllValues);
 	API_METHOD_WRAPPER_0(ScriptSliderPack, getNumSliders);
 	API_VOID_METHOD_WRAPPER_1(ScriptSliderPack, referToData);
+    API_VOID_METHOD_WRAPPER_1(ScriptSliderPack, setWidthArray);
 };
 
 ScriptingApi::Content::ScriptSliderPack::ScriptSliderPack(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier name_, int x, int y, int , int ) :
@@ -2075,6 +2091,7 @@ existingData(nullptr)
 	ADD_API_METHOD_1(setAllValues);
 	ADD_API_METHOD_0(getNumSliders);
 	ADD_API_METHOD_1(referToData);
+    ADD_API_METHOD_1(setWidthArray);
 }
 
 ScriptingApi::Content::ScriptSliderPack::~ScriptSliderPack()
@@ -2301,6 +2318,24 @@ void ScriptingApi::Content::ScriptSliderPack::referToData(var sliderPackData)
 		reportScriptError("not a valid SliderPackData object");
 }
 
+void ScriptingApi::Content::ScriptSliderPack::setWidthArray(var normalizedWidths)
+{
+    if(getNumSliders() != normalizedWidths.size() + 1)
+    {
+        reportScriptError("Width array length must be numSliders + 1");
+    }
+    
+    if(auto ar = normalizedWidths.getArray())
+    {
+        widthArray = *ar;
+        sendChangeMessage();
+    }
+    
+    
+    
+    
+}
+    
 void ScriptingApi::Content::ScriptSliderPack::handleDefaultDeactivatedProperties()
 {
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::macroControl));

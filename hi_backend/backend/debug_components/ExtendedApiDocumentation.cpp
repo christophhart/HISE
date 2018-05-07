@@ -99,6 +99,34 @@ void ExtendedApiDocumentation::init()
 	CODE("// the control callback will be called with 12");
 	CODE("Knob.changed();")
 	CODE("")
+	
+	CLASS(ScriptSliderPack);
+	METHOD(setWidthArray);
+	PARAMETER(Array<var>, "number array", "the normalized widths for each slider");
+	DESCRIPTION("Makes the slider pack use non-uniform widths for the sliders.");
+	DESCRIPTION("The parameter must be an array starting with `0.0` and ending with `1.0`.");
+	DESCRIPTION("It will use these values for calculating the width");
+	DESCRIPTION("> The size of the array must be one element bigger than the number of sliders in the SliderPack.");
+	CODE("// This array sets a slider pack with 3 sliders");
+	CODE("   to use the widths 25%, 50%, 25%:");
+	CODE("const var a = [0, 0.25, 0.75, 1.0]");
+	CODE("SliderPack.setSliderWidths(a);");
+	
+	
+	CLASS(ScriptTable);
+	METHOD(setSnapValues);
+	PARAMETER(Array<var>, "number array", "the normalized widths for the snap positions");
+	DESCRIPTION("Makes the table snap to the given x positions (from 0.0 to 1.0).");
+	DESCRIPTION("The parameter must be an array starting with `0.0` and ending with `1.0`.");
+	DESCRIPTION("When dragging / adding points, it will snap the x-position to these values (using a +-10px snap range).");
+	DESCRIPTION("The array must start with `0.0` and end with `1.0`, however it won't snap to these values.");
+	DESCRIPTION("> The size of the array must be one element bigger than the number of sliders in the SliderPack.");
+	CODE("// This array snaps the points to 25% and 75%:");
+	CODE("const var a = [0, 0.25, 0.75, 1.0]");
+	CODE("SliderPack.setSliderWidths(a);");
+	
+	/**  */
+	
 }
 
 // Undefine macros ==============================================================================================================================

@@ -407,6 +407,19 @@ public:
 		repaint();
 	}
 
+	void setSnapValues(var snapArray)
+	{
+		if (auto ar = snapArray.getArray())
+		{
+			snapValues.clear();
+
+			for (const auto& v : *ar)
+			{
+				snapValues.add((float)v);
+			}
+		}
+	}
+
 	/** A left mouse click creates a new DragPoint or selects the DragPoint under the mouse which can be dragged.
 	*	
 	*	A right mouse click on a point deletes it.
@@ -653,6 +666,8 @@ private:
 		};
 	};
 
+	
+
 	// Returns the DragPoint at the position x,y
 	TableEditor::DragPoint * getPointUnder(int x, int y)
 	{
@@ -665,6 +680,24 @@ private:
 
 		return nullptr;
 	};
+
+	TableEditor::DragPoint* getNextPointFor(int x) const
+	{
+		for (int i = 0; i < drag_points.size() - 1; i++)
+		{
+			auto dp = drag_points[i];
+
+			auto next = drag_points[i + 1];
+
+			if (x >= dp->getX() && x <= next->getX())
+			{
+				return next;
+			}
+		}
+
+		return nullptr;
+	}
+
 
 	// Adds a new DragPoint and selects it.
 	void addDragPoint(int x, int y, float curve, bool isStart=false, bool isEnd=false, bool useUndoManager=false);
@@ -699,6 +732,8 @@ private:
 			if(editedTable.get() != nullptr) editedTable->fillLookUpTable();
 		}
 	};
+
+	int snapXValueToGrid(int x) const;
 
 	Image snapshot;
 	bool needsRepaint;
@@ -790,6 +825,8 @@ private:
 	ScopedPointer<TouchOverlay> touchOverlay;
 
 	bool flatDesign = false;
+
+	Array<float> snapValues;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TableEditor)
