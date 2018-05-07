@@ -667,11 +667,15 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioWaveformWrapper)
 	private:
 
+        void updateSampleIndex(ScriptingApi::Content::ScriptAudioWaveform *waveform, AudioDisplayComponent* asb, int newValue);
+        
 		class SamplerListener;
 
 		ScopedPointer<SamplerListener> samplerListener;
 
 		void updateColours(AudioDisplayComponent* asb);
+        
+        int lastIndex = -1;
 	};
 
 	class FloatingTileWrapper : public ScriptCreatedComponentWrapper

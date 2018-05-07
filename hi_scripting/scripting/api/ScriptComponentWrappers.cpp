@@ -1605,8 +1605,16 @@ public:
 		s->removeChangeListener(this);
 	}
 
+    void setActive(bool shouldBeActive)
+    {
+        active = shouldBeActive;
+    }
+    
 	void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override
 	{
+        if(!active)
+            return;
+        
 		if (auto v = s->getLastStartedVoice())
 		{
 			auto thisSound = v->getCurrentlyPlayingSound();
@@ -1621,6 +1629,7 @@ public:
 	}
 
 
+    bool active = true;
 	ModulatorSampler* s;
 	Component::SafePointer<SamplerSoundWaveform> waveform;
 	SynthesiserSound::Ptr lastSound;
@@ -1693,6 +1702,7 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateComponent(int p
 			PROPERTY_CASE::ScriptComponent::bgColour :
 			PROPERTY_CASE::ScriptComponent::textColour : updateColours(adc); break;
 			PROPERTY_CASE::ScriptAudioWaveform::Properties::showLines: adc->getThumbnail()->setDrawHorizontalLines((bool)newValue); break;
+            PROPERTY_CASE::ScriptAudioWaveform::Properties::sampleIndex: updateSampleIndex(form, adc, newValue); break;
 		}
 
 		if (auto asb = dynamic_cast<AudioSampleBufferComponent*>(component.get()))
@@ -1712,6 +1722,28 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateComponent(int p
 	
 }
 
+void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateSampleIndex(ScriptingApi::Content::ScriptAudioWaveform *form, AudioDisplayComponent* asb, int newValue)
+{
+    if (auto s = form->getSampler())
+    {
+        if(auto ssw = dynamic_cast<SamplerSoundWaveform*>(asb))
+        {
+            if(samplerListener != nullptr)
+            {
+                samplerListener->setActive(newValue == -1);
+            }
+            
+            
+            
+            if(newValue != -1 && lastIndex != newValue)
+            {
+                ssw->setSoundToDisplay(dynamic_cast<ModulatorSamplerSound*>(s->getSound(newValue)), 0);
+                lastIndex = newValue;
+            }
+        }
+    }
+}
+    
 void ScriptCreatedComponentWrappers::AudioWaveformWrapper::rangeChanged(AudioDisplayComponent *broadcaster, int changedArea)
 {
 

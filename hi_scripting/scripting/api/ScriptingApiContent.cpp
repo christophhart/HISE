@@ -3308,9 +3308,8 @@ ScriptComponent(base, waveformName)
 	ADD_SCRIPT_PROPERTY(i02, "opaque"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i03, "showLines"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i04, "showFileName"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-		
-	
-
+    ADD_SCRIPT_PROPERTY(i05, "sampleIndex");
+    
 	setDefaultValue(ScriptComponent::Properties::x, x);
 	setDefaultValue(ScriptComponent::Properties::y, y);
 	setDefaultValue(ScriptComponent::Properties::width, 200);
@@ -3324,12 +3323,9 @@ ScriptComponent(base, waveformName)
 	setDefaultValue(Properties::opaque, true);
 	setDefaultValue(Properties::showLines, false);
 	setDefaultValue(Properties::showFileName, true);
+    setDefaultValue(Properties::sampleIndex, -1);
 
 	handleDefaultDeactivatedProperties();
-
-#if 0
-	setMethod("connectToAudioSampleProcessor", Wrapper::connectToAudioSampleProcessor);
-#endif
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptAudioWaveform::createComponentWrapper(ScriptContentComponent *content, int index)

@@ -108,6 +108,8 @@ bypassState(false)
 
 ModulatorSynth::~ModulatorSynth()
 {
+	deleteAllVoices();
+	
 	midiProcessorChain = nullptr;
 	gainChain = nullptr;
 	pitchChain = nullptr;
@@ -230,7 +232,7 @@ void ModulatorSynth::synthTimerCallback(uint8 index)
 		// this has to be a uint32 because otherwise it could wrap around the uint16 max sample offset for bigger timer callbacks
 		uint32 offsetInBuffer = (uint32)((nextTimerCallbackTimes[index] - uptime) * getSampleRate());
 
-		while (synthTimerIntervals[index] > 0.0 && offsetInBuffer < getBlockSize())
+		while (synthTimerIntervals[index] > 0.0 && offsetInBuffer < (uint32)getBlockSize())
 		{
 			eventBuffer.addEvent(HiseEvent::createTimerEvent(index, (uint16)offsetInBuffer));
 			nextTimerCallbackTimes[index].store(nextTimerCallbackTimes[index].load() + synthTimerIntervals[index].load());
@@ -1192,6 +1194,7 @@ void ModulatorSynth::deleteAllVoices()
 {
 	ScopedLock sl(lock);
 	activeVoices.clear();
+	lastStartedVoice = nullptr;
 	clearVoices();
 }
 
@@ -1204,6 +1207,7 @@ void ModulatorSynth::resetAllVoices()
 		static_cast<ModulatorSynthVoice*>(getVoice(i))->resetVoice();
 	}
 
+	lastStartedVoice = nullptr;
 	activeVoices.clear();
 }
 

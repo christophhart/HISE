@@ -43,7 +43,7 @@ SamplerSoundWaveform::SamplerSoundWaveform(const ModulatorSampler *ownerSampler)
 	areas.add(new SampleArea(LoopArea, this));
 	areas.add(new SampleArea(LoopCrossfadeArea, this));
 
-	setColour(Slider::backgroundColourId, Colour(0xFF383838));
+    setColour(AudioDisplayComponent::ColourIds::bgColour, Colour(0xFF383838));
 
 	addAndMakeVisible(areas[PlayArea]);
 	areas[PlayArea]->addAndMakeVisible(areas[SampleStartArea]);
@@ -148,7 +148,7 @@ double SamplerSoundWaveform::getSampleRate() const
 
 void AudioDisplayComponent::drawPlaybackBar(Graphics &g)
 {
-	if(playBackPosition >= 0.0 && getSampleArea(0)->getWidth() != 0)
+	if(playBackPosition > 0.0 && getSampleArea(0)->getWidth() != 0)
 	{
 
 		NormalisableRange<double> range((double)getSampleArea(0)->getX(), (double)getSampleArea(0)->getRight());
@@ -172,7 +172,7 @@ void AudioDisplayComponent::paint(Graphics &g)
 	//ProcessorEditorLookAndFeel::drawNoiseBackground(g, getLocalBounds(), Colours::darkgrey);
 
 	g.setColour(Colours::lightgrey.withAlpha(0.1f));
-	g.drawRect(getLocalBounds(), 1);
+	//g.drawRect(getLocalBounds(), 1);
 
 	if (preview->getTotalLength() == 0.0) return;
 
@@ -213,8 +213,9 @@ void SamplerSoundWaveform::drawSampleStartBar(Graphics &g)
 
 void SamplerSoundWaveform::paint(Graphics &g)
 {
-	g.fillAll(findColour(Slider::backgroundColourId));
-
+    auto bgColour = findColour(AudioDisplayComponent::ColourIds::bgColour);
+    g.fillAll(bgColour);
+    
 	AudioDisplayComponent::paint(g);
 
 	if(getTotalSampleAmount() == 0) return;
@@ -728,17 +729,15 @@ void AudioSampleBufferComponent::paintOverChildren(Graphics& g)
 	g.setFont(f);
 
 
+    static const String text = "Drop audio file or Right click to open browser";
+    
+    const int w = f.getStringWidth(text) + 20;
 
-	if (buffer == nullptr || buffer->getNumSamples() == 0)
+	if (getWidth() > (w+10) && (buffer == nullptr || buffer->getNumSamples() == 0))
 	{
-
-
-
 		g.setColour(Colours::white.withAlpha(0.3f));
 
-		const String text = "Drop audio file or Right click to open browser";
-
-		const int w = f.getStringWidth(text) + 20;
+		
 		g.setColour(Colours::black.withAlpha(0.5f));
 		Rectangle<int> r((getWidth() - w) / 2, (getHeight() - 20) / 2, w, 20);
 		g.fillRect(r);

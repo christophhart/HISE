@@ -1568,6 +1568,7 @@ public:
 			opaque,
 			showLines,
 			showFileName,
+            sampleIndex,
 			numProperties
 		};
 
