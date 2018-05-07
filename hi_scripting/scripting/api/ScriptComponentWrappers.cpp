@@ -222,7 +222,7 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateSliderRange(ScriptingA
 
 	if (sc->m == HiSlider::Mode::TempoSync)
 	{
-		s->setMode(HiSlider::Mode::TempoSync);
+		s->setMode(HiSlider::Mode::TempoSync, min, max, min + (max-min)/2, 1);
 		return;
 	}
 
