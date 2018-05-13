@@ -52,6 +52,10 @@ public:
 
 	String decrypt(const String& stringToDecode);
 
+	void decrypt(AudioSampleBuffer& b);
+
+	void encrypt(AudioSampleBuffer& b);
+
 	static String createKey();
 
 private:
