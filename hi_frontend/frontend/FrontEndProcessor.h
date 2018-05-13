@@ -120,7 +120,7 @@ public:
 
 	void loadSamplesAfterRegistration()
     {
-#if USE_COPY_PROTECTION || USE_TURBO_ACTIVATE
+#if USE_COPY_PROTECTION
         keyFileCorrectlyLoaded = unlocker.isUnlocked();
 #else
         keyFileCorrectlyLoaded = true;
@@ -228,11 +228,6 @@ public:
 	Unlocker unlocker;
 #endif
 
-#if USE_TURBO_ACTIVATE
-	TurboActivateUnlocker unlocker;
-#endif
-
-	
 private:
 
 	void loadImages(ValueTree *imageData);

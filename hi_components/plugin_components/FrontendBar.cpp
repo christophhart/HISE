@@ -42,15 +42,10 @@ DeactiveOverlay::DeactiveOverlay() :
 	descriptionLabel->setEditable(false, false, false);
 	descriptionLabel->setJustificationType(Justification::centredTop);
 
-#if USE_TURBO_ACTIVATE
-	addAndMakeVisible(resolveLicenseButton = new TextButton("Register Product Key"));
-	addAndMakeVisible(registerProductButton = new TextButton("Request offline activation file"));
-	addAndMakeVisible(useActivationResponseButton = new TextButton("Activate with activation response file"));
-#else
+
 	addAndMakeVisible(resolveLicenseButton = new TextButton("Use License File"));
 	addAndMakeVisible(registerProductButton = new TextButton("Activate this computer"));
 	addAndMakeVisible(useActivationResponseButton = new TextButton("Activate with activation response file"));
-#endif
 	addAndMakeVisible(resolveSamplesButton = new TextButton("Choose Sample Folder"));
 
 	addAndMakeVisible(installSampleButton = new TextButton("Install Samples"));
@@ -77,37 +72,7 @@ void DeactiveOverlay::buttonClicked(Button *b)
 	if (b == resolveLicenseButton)
 	{
 #if USE_COPY_PROTECTION
-
-
-
 		Unlocker::resolveLicenseFile(this);
-
-#elif USE_TURBO_ACTIVATE
-
-		const String key = PresetHandler::getCustomName("Product Key", "Enter the product key that you've received along with the download link\nIt should have this format: XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX");
-
-		TurboActivateUnlocker *ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
-
-		setCustomMessage("Waiting for activation");
-		setState(DeactiveOverlay::State::CustomErrorMessage, true);
-
-		ul->activateWithKey(key.getCharPointer());
-
-		setState(DeactiveOverlay::CustomErrorMessage, false);
-		setCustomMessage(String());
-
-		setState(DeactiveOverlay::State::CopyProtectionError, !ul->isUnlocked());
-
-		if (ul->isUnlocked())
-		{
-			PresetHandler::showMessageWindow("Registration successful", "The software is now unlocked and ready to use.");
-
-			FrontendProcessor* fp = dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor());
-
-			fp->updateUnlockedSuspendStatus();
-
-			fp->loadSamplesAfterRegistration();
-		}
 #endif
 	}
 	else if (b == installSampleButton)
@@ -170,69 +135,7 @@ void DeactiveOverlay::buttonClicked(Button *b)
 	else if (b == registerProductButton)
 	{
 #if USE_COPY_PROTECTION
-
 		Unlocker::showActivationWindow(this);
-
-
-#elif USE_TURBO_ACTIVATE
-
-		FileChooser fc("Save activation request file", File::getSpecialLocation(File::SpecialLocationType::userDesktopDirectory), "*.xml", true);
-
-		if (fc.browseForFileToSave(true))
-		{
-			File f = fc.getResult();
-
-#if JUCE_WINDOWS
-			TurboActivateCharPointerType path = f.getFullPathName().toUTF16().getAddress();
-#else
-			TurboActivateCharPointerType path = f.getFullPathName().toUTF8().getAddress();
-#endif
-
-			FrontendProcessor* fp = dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor());
-			TurboActivateUnlocker* ul = &fp->unlocker;
-
-			ul->writeActivationFile(ul->getProductKey().c_str(), path);
-
-			PresetHandler::showMessageWindow("Activation file created", "Use this file to activate this machine on a computer with internet connection", PresetHandler::IconType::Info);
-		}
-
-#endif
-	}
-	else if (b == useActivationResponseButton)
-	{
-#if USE_TURBO_ACTIVATE
-		FileChooser fc("Load activation response file", File::getSpecialLocation(File::SpecialLocationType::userDesktopDirectory), "*.xml", true);
-
-		if (fc.browseForFileToOpen())
-		{
-			File f = fc.getResult();
-
-#if JUCE_WINDOWS
-			TurboActivateCharPointerType path = f.getFullPathName().toUTF16().getAddress();
-#else
-			TurboActivateCharPointerType path = f.getFullPathName().toUTF8().getAddress();
-#endif
-
-			FrontendProcessor* fp = dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor());
-			TurboActivateUnlocker* ul = &fp->unlocker;
-
-			setCustomMessage("Waiting for activation");
-			setState(DeactiveOverlay::State::CustomErrorMessage, true);
-
-			ul->activateWithFile(path);
-
-			setState(DeactiveOverlay::CustomErrorMessage, false);
-			setCustomMessage(String());
-
-			setState(DeactiveOverlay::State::CopyProtectionError, !ul->isUnlocked());
-
-			if (ul->isUnlocked())
-			{
-				PresetHandler::showMessageWindow("Registration successful", "The software is now unlocked and ready to use.");
-				fp->loadSamplesAfterRegistration();
-			}
-
-		}
 #endif
 	}
 	else if (b == ignoreButton)
@@ -297,7 +200,6 @@ String DeactiveOverlay::getTextForError(State s) const
 		return "";
 #endif
 	}
-
 	case DeactiveOverlay::ProductNotMatching:
 		return "The license key is invalid (wrong plugin name / version).\nClick below to locate the correct license key for this plugin / version";
 		break;
@@ -310,15 +212,6 @@ String DeactiveOverlay::getTextForError(State s) const
 	case DeactiveOverlay::EmailNotMatching:
 		return "The email name is invalid.\nThis means usually a corrupt or rogued license key file. Please contact support to get a new license key.";
 		break;
-	case DeactiveOverlay::CopyProtectionError:
-	{
-#if USE_TURBO_ACTIVATE
-		auto ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
-		return ul->getErrorMessage();
-#else
-		return "";
-#endif
-	}
 	case DeactiveOverlay::LicenseInvalid:
 	{
 #if USE_COPY_PROTECTION
@@ -441,41 +334,7 @@ void DeactiveOverlay::resized()
 		resolveLicenseButton->setTopLeftPosition(registerProductButton->getX(),
 			registerProductButton->getY() + 40);
 	}
-	else if (currentState[CopyProtectionError])
-	{
-		resolveLicenseButton->setVisible(true);
-
-		resolveSamplesButton->setVisible(false);
-        installSampleButton->setVisible(false);
-		ignoreButton->setVisible(false);
-
-		String text = getTextForError(DeactiveOverlay::State::CopyProtectionError);
-
-		if (text == "Connection to the server failed.")
-		{
-			registerProductButton->setVisible(true);
-			resolveLicenseButton->setVisible(false);
-			useActivationResponseButton->setVisible(true);
-
-			registerProductButton->centreWithSize(200, 32);
-			useActivationResponseButton->centreWithSize(200, 32);
-
-			useActivationResponseButton->setTopLeftPosition(registerProductButton->getX(), registerProductButton->getY() + 40);
-
-		}
-		else
-		{
-			registerProductButton->setVisible(false);
-			resolveLicenseButton->centreWithSize(200, 32);
-		}
-
-		if (text.contains("TurboActivate.dat"))
-		{
-			resolveLicenseButton->setVisible(false);
-			registerProductButton->setVisible(false);
-		}
-	}
-
+	
 	if (currentState[CriticalCustomErrorMessage])
 	{
 		resolveLicenseButton->setVisible(false);

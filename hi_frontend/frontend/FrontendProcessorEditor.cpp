@@ -83,18 +83,10 @@ AudioProcessorEditor(fp)
     
     
 #if USE_COPY_PROTECTION
-
 	if (!fp->unlocker.isUnlocked())
-	{
 		deactiveOverlay->checkLicense();
-	}
 
 	deactiveOverlay->setState(DeactiveOverlay::LicenseInvalid, !fp->unlocker.isUnlocked());
-
-#elif USE_TURBO_ACTIVATE
-
-	deactiveOverlay->setState(DeactiveOverlay::State::CopyProtectionError, !fp->unlocker.isUnlocked());
-
 #endif
     
 	container->addAndMakeVisible(loaderOverlay = new ThreadWithQuasiModalProgressWindow::Overlay());

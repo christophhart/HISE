@@ -59,7 +59,6 @@ public:
 		MachineNumbersNotMatching,
 		LicenseExpired,
 		LicenseInvalid,
-		CopyProtectionError,
 		CriticalCustomErrorMessage,
 		SamplesNotInstalled,
 		SamplesNotFound,
@@ -122,7 +121,6 @@ private:
 	ScopedPointer<TextButton> installSampleButton;
 	ScopedPointer<TextButton> resolveSamplesButton;
 	ScopedPointer<TextButton> registerProductButton;
-	ScopedPointer<TextButton> useActivationResponseButton;
 	ScopedPointer<TextButton> ignoreButton;
 
 	BigInteger currentState;

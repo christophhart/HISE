@@ -34,7 +34,7 @@ namespace hise { using namespace juce;
 
 void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
-#if USE_COPY_PROTECTION || USE_TURBO_ACTIVATE
+#if USE_COPY_PROTECTION
 	if (!keyFileCorrectlyLoaded)
 		return;
 
@@ -75,15 +75,6 @@ void FrontendProcessor::handleControllersForMacroKnobs(const MidiBuffer &midiMes
 
 }
 
-#if JUCE_WINDOWS
-#define TURBOACTIVATE_FILE_PATH FrontendHandler::getAppDataDirectory().getFullPathName().toUTF16().getAddress()
-#else
-#if ENABLE_APPLE_SANDBOX
-#define TURBOACTIVATE_FILE_PATH FrontendHandler::getAppDataDirectory().getChildFile("Resources/").getFullPathName().toUTF8().getAddress()
-#else
-#define TURBOACTIVATE_FILE_PATH FrontendHandler::getAppDataDirectory().getFullPathName().toUTF8().getAddress()
-#endif
-#endif
 
 FrontendProcessor::FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, ValueTree *imageData_/*=nullptr*/, ValueTree *impulseData/*=nullptr*/, ValueTree *externalFiles/*=nullptr*/, ValueTree *) :
 MainController(),
@@ -92,12 +83,7 @@ AudioProcessorDriver(manager, callback_),
 synthChain(new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES)),
 keyFileCorrectlyLoaded(true),
 currentlyLoadedProgram(0),
-#if USE_TURBO_ACTIVATE
-unlockCounter(0),
-unlocker(TURBOACTIVATE_FILE_PATH)
-#else
 unlockCounter(0)
-#endif
 {
 	LOG_START("Checking license");
 
@@ -106,16 +92,8 @@ unlockCounter(0)
 	GlobalSettingManager::initData(this);
 
 #if USE_COPY_PROTECTION
-
 	if (!unlocker.loadKeyFile())
-	{
 		keyFileCorrectlyLoaded = false;
-	}
-	
-#elif USE_TURBO_ACTIVATE
-	
-	keyFileCorrectlyLoaded = unlocker.isUnlocked();
-
 #endif
     
 	LOG_START("Load images");
@@ -308,12 +286,8 @@ FrontendStandaloneApplication::AudioWrapper::AudioWrapper()
 {
 #if USE_SPLASH_SCREEN
 
-    
-
     Image imgiPhone = ImageCache::getFromMemory(BinaryData::SplashScreeniPhone_png, BinaryData::SplashScreeniPhone_pngSize);
-
 	Image imgiPad = ImageCache::getFromMemory(BinaryData::SplashScreen_png, BinaryData::SplashScreen_pngSize);
-
 
     const bool isIPhone = SystemStats::getDeviceDescription() == "iPhone";
     
@@ -330,18 +304,9 @@ FrontendStandaloneApplication::AudioWrapper::AudioWrapper()
 	auto userHeight = Desktop::getInstance().getDisplays().getMainDisplay().userArea.getHeight();
 
 	if (userHeight < 768)
-	{
 		setSize(870, 653);
-	}
 	else
-	{
 		setSize(1024, 768);
-	}
-	
-
-	
-
-    
 #endif
     
 	startTimer(100);
