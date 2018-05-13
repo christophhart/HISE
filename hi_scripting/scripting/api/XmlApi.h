@@ -6,7 +6,7 @@
 namespace XmlApi
 {
     extern const char*  apivaluetree_dat;
-    const int           apivaluetree_datSize = 97919;
+    const int           apivaluetree_datSize = 99343;
 
 }
 

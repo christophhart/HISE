@@ -409,6 +409,7 @@ public:
 
 			String getEncodedLocation(Processor* p) const
 			{
+#if USE_BACKEND
 				String l;
 
 				l << p->getId() << "|";
@@ -422,6 +423,9 @@ public:
 				l << "|" << String(lineNumber) << "|" << String(columnNumber);
 
 				return "{" + Base64::toBase64(l) + "}";
+#else
+				return {};
+#endif
 			}
 
 			String toString(Processor* p) const

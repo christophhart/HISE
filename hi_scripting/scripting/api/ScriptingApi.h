@@ -238,6 +238,9 @@ public:
 		/** Sets a key of the global keyboard to the specified colour (using the form 0x00FF00 for eg. of the key to the specified colour. */
 		void setKeyColour(int keyNumber, int colourAsHex);
 		
+		/** Creates a reference to the expansion handler. */
+		var getExpansionHandler();
+
 		/** Changes the lowest visible key on the on screen keyboard. */
 		void setLowestKeyToDisplay(int keyNumber);
 

@@ -942,6 +942,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, createTimerObject);
 	API_METHOD_WRAPPER_0(Engine, createMessageHolder);
 	API_METHOD_WRAPPER_0(Engine, getPlayHead);
+	API_METHOD_WRAPPER_0(Engine, getExpansionHandler);
 	API_VOID_METHOD_WRAPPER_2(Engine, dumpAsJSON);
 	API_METHOD_WRAPPER_1(Engine, loadFromJSON);
 	API_VOID_METHOD_WRAPPER_1(Engine, setCompileProgress);
@@ -993,6 +994,7 @@ ApiClass(0)
 	ADD_API_METHOD_1(showMessage);
 	ADD_API_METHOD_1(setLowestKeyToDisplay);
     ADD_API_METHOD_1(openWebsite);
+	ADD_API_METHOD_0(getExpansionHandler);
 	ADD_API_METHOD_1(loadNextUserPreset);
 	ADD_API_METHOD_1(loadPreviousUserPreset);
 	ADD_API_METHOD_0(getCurrentUserPresetName);
@@ -1210,6 +1212,12 @@ int ScriptingApi::Engine::getMidiNoteFromName(String midiNoteName) const
 
 
 void ScriptingApi::Engine::setKeyColour(int keyNumber, int colourAsHex) { getProcessor()->getMainController()->setKeyboardCoulour(keyNumber, Colour(colourAsHex));}
+
+var ScriptingApi::Engine::getExpansionHandler()
+{
+	return new ScriptingObjects::ExpansionHandlerObject(getScriptProcessor());
+}
+
 void ScriptingApi::Engine::setLowestKeyToDisplay(int keyNumber) { getProcessor()->getMainController()->setLowestKeyToDisplay(keyNumber); }
 
 void ScriptingApi::Engine::showErrorMessage(String message, bool isCritical)

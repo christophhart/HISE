@@ -481,22 +481,7 @@ namespace EditorIcons
 
 
 
-juce::Path HiseShapeButton::Factory::createPath(const String& id) const
-{
-	if (id == "Edit")	return ColumnIcons::getPath(OverlayIcons::penShape, sizeof(OverlayIcons::penShape));
-	if (id == "EditOff")return ColumnIcons::getPath(OverlayIcons::lockShape, sizeof(OverlayIcons::lockShape));
-	if (id == "Cancel") return ColumnIcons::getPath(EditorIcons::cancelIcon, sizeof(EditorIcons::cancelIcon));
-	if (id == "Undo")	return ColumnIcons::getPath(EditorIcons::undoIcon, sizeof(EditorIcons::undoIcon));
-	if (id == "Redo")	return ColumnIcons::getPath(EditorIcons::redoIcon, sizeof(EditorIcons::redoIcon));
-	if (id == "Rebuild")return ColumnIcons::getPath(ColumnIcons::moveIcon, sizeof(ColumnIcons::moveIcon));
 
-	if (id == "Vertical Align") return ColumnIcons::getPath(ColumnIcons::verticalAlign, sizeof(ColumnIcons::verticalAlign));
-	if (id == "Horizontal Align") return ColumnIcons::getPath(ColumnIcons::horizontalAlign, sizeof(ColumnIcons::horizontalAlign));
-	if (id == "Vertical Distribute") return ColumnIcons::getPath(ColumnIcons::verticalDistribute, sizeof(ColumnIcons::verticalDistribute));
-	if (id == "Horizontal Distribute") return ColumnIcons::getPath(ColumnIcons::horizontalDistribute, sizeof(ColumnIcons::horizontalDistribute));
-
-	return Path();
-}
 
 MARKDOWN_CHAPTER(InterfaceDesignerHelp)
 START_MARKDOWN(Help)
@@ -566,14 +551,16 @@ ScriptContentPanel::Editor::Editor(Processor* p):
 	zoomSelector->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::transparentBlack);
 	zoomSelector->setColour(MacroControlledObject::HiBackgroundColours::textColour, Colours::white.withAlpha(0.8f));
 
-	addAndMakeVisible(editSelector = new HiseShapeButton("Edit", this, "EditOff"));
-	addAndMakeVisible(cancelButton = new HiseShapeButton("Cancel", this));
+	Factory f;
 
-	addAndMakeVisible(undoButton = new HiseShapeButton("Undo", this));
+	addAndMakeVisible(editSelector = new HiseShapeButton("Edit", this, f, "EditOff"));
+	addAndMakeVisible(cancelButton = new HiseShapeButton("Cancel", this, f));
+
+	addAndMakeVisible(undoButton = new HiseShapeButton("Undo", this, f));
 	undoButton->setTooltip("Undo last item change");
 
-	addAndMakeVisible(redoButton = new HiseShapeButton("Redo", this));
-	addAndMakeVisible(rebuildButton = new HiseShapeButton("Rebuild", this));
+	addAndMakeVisible(redoButton = new HiseShapeButton("Redo", this, f));
+	addAndMakeVisible(rebuildButton = new HiseShapeButton("Rebuild", this, f));
 
 	addAndMakeVisible(viewport = new Viewport());
 
@@ -587,19 +574,19 @@ ScriptContentPanel::Editor::Editor(Processor* p):
 	redoButton->setTooltip("Redo last item change");
 	rebuildButton->setTooltip("Rebuild Interface (F5)");
 
-	addAndMakeVisible(verticalAlignButton = new HiseShapeButton("Vertical Align", this));
+	addAndMakeVisible(verticalAlignButton = new HiseShapeButton("Vertical Align", this, f));
 	verticalAlignButton->setTooltip("Align the selection vertically on the left edge");
-	addAndMakeVisible(horizontalAlignButton = new HiseShapeButton("Horizontal Align", this));
+	addAndMakeVisible(horizontalAlignButton = new HiseShapeButton("Horizontal Align", this, f));
 	horizontalAlignButton->setTooltip("Align the selection horizontally on the top edge");
-	addAndMakeVisible(verticalDistributeButton = new HiseShapeButton("Vertical Distribute", this));
+	addAndMakeVisible(verticalDistributeButton = new HiseShapeButton("Vertical Distribute", this, f));
 	verticalDistributeButton->setTooltip("Distribute the selection vertically with equal space");
-	addAndMakeVisible(horizontalDistributeButton = new HiseShapeButton("Horizontal Distribute", this));
+	addAndMakeVisible(horizontalDistributeButton = new HiseShapeButton("Horizontal Distribute", this, f));
 	horizontalDistributeButton->setTooltip("Distribute the selection horizontally with equal space");
 
 	addAndMakeVisible(helpButton = new MarkdownHelpButton());
 	helpButton->setPopupWidth(600);
 	
-	helpButton->setHelpText<MarkdownParser::PathProvider<HiseShapeButton::Factory>>(InterfaceDesignerHelp::Help());
+	helpButton->setHelpText<MarkdownParser::PathProvider<Factory>>(InterfaceDesignerHelp::Help());
 
 	setWantsKeyboardFocus(true);
 
@@ -1034,26 +1021,21 @@ Component* ScriptWatchTablePanel::createContentComponent(int /*index*/)
 	return swt;
 }
 
-void ConnectorHelpers::tut(PanelWithProcessorConnection* connector, const Identifier &idToSearch)
+juce::Path ScriptContentPanel::Factory::createPath(const String& id) const
 {
-    auto parentContainer = connector->getParentShell()->getParentContainer();
-    
-	if (parentContainer != nullptr)
-	{
-		FloatingTile::Iterator<PanelWithProcessorConnection> iter(parentContainer->getParentShell());
+	if (id == "Edit")	return ColumnIcons::getPath(OverlayIcons::penShape, sizeof(OverlayIcons::penShape));
+	if (id == "EditOff")return ColumnIcons::getPath(OverlayIcons::lockShape, sizeof(OverlayIcons::lockShape));
+	if (id == "Cancel") return ColumnIcons::getPath(EditorIcons::cancelIcon, sizeof(EditorIcons::cancelIcon));
+	if (id == "Undo")	return ColumnIcons::getPath(EditorIcons::undoIcon, sizeof(EditorIcons::undoIcon));
+	if (id == "Redo")	return ColumnIcons::getPath(EditorIcons::redoIcon, sizeof(EditorIcons::redoIcon));
+	if (id == "Rebuild")return ColumnIcons::getPath(ColumnIcons::moveIcon, sizeof(ColumnIcons::moveIcon));
 
-		while (auto p = iter.getNextPanel())
-		{
-			if (p == connector)
-				continue;
+	if (id == "Vertical Align") return ColumnIcons::getPath(ColumnIcons::verticalAlign, sizeof(ColumnIcons::verticalAlign));
+	if (id == "Horizontal Align") return ColumnIcons::getPath(ColumnIcons::horizontalAlign, sizeof(ColumnIcons::horizontalAlign));
+	if (id == "Vertical Distribute") return ColumnIcons::getPath(ColumnIcons::verticalDistribute, sizeof(ColumnIcons::verticalDistribute));
+	if (id == "Horizontal Distribute") return ColumnIcons::getPath(ColumnIcons::horizontalDistribute, sizeof(ColumnIcons::horizontalDistribute));
 
-			if (p->getProcessorTypeId() != idToSearch)
-				continue;
-
-			p->setContentWithUndo(connector->getProcessor(), 0);
-		}
-	}
+	return Path();
 }
-
 
 } // namespace hise
