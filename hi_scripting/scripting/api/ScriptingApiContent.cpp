@@ -985,7 +985,7 @@ ScriptingApi::Content::ScriptSlider::ScriptSlider(ProcessorWithScriptingContent 
 ScriptComponent(base, name_),
 styleId(Slider::SliderStyle::RotaryHorizontalVerticalDrag),
 m(HiSlider::Mode::Linear),
-image(nullptr),
+image(new PoolEntry<Image>()),
 minimum(0.0f),
 maximum(1.0f)
 {
@@ -1079,7 +1079,7 @@ maximum(1.0f)
 
 ScriptingApi::Content::ScriptSlider::~ScriptSlider()
 {
-	image = Image();
+	image = nullptr;
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptSlider::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -1146,7 +1146,7 @@ void ScriptingApi::Content::ScriptSlider::setScriptObjectPropertyWithChangeMessa
 		if (newValue == "Use default skin" || newValue == "")
 		{
 			setScriptObjectProperty(filmstripImage, "Use default skin");
-			image = Image();
+			image = new PoolEntry<Image>();
 		}
 		else
 		{
@@ -1498,7 +1498,7 @@ image(nullptr)
 
 ScriptingApi::Content::ScriptButton::~ScriptButton()
 {
-	
+	image = nullptr;
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptButton::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -1515,7 +1515,7 @@ void ScriptingApi::Content::ScriptButton::setScriptObjectPropertyWithChangeMessa
 		if (newValue == "Use default skin" || newValue == "")
 		{
 			setScriptObjectProperty(filmstripImage, "");
-			image = Image();
+			image = new PoolEntry<Image>();
 		}
 		else
 		{
@@ -2344,7 +2344,7 @@ image(nullptr)
 
 ScriptingApi::Content::ScriptImage::~ScriptImage()
 {
-	image = Image();
+	image = nullptr;
 };
 
 
@@ -2394,7 +2394,7 @@ void ScriptingApi::Content::ScriptImage::setImageFile(const String &absoluteFile
 	if (absoluteFileName.isEmpty())
 	{
 		setScriptObjectProperty(FileName, absoluteFileName, sendNotification);
-		image = PoolHelpers::getEmptyImage(getScriptObjectProperty(width), getScriptObjectProperty(height));
+		image = nullptr;
 		return;
 	}
 
@@ -2413,11 +2413,9 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptImage::createCompon
 
 const Image ScriptingApi::Content::ScriptImage::getImage() const
 {
-	
-
-	return image.isNull() ? PoolHelpers::getEmptyImage(getScriptObjectProperty(ScriptComponent::Properties::width),
+	return image == nullptr ? PoolHelpers::getEmptyImage(getScriptObjectProperty(ScriptComponent::Properties::width),
 													 getScriptObjectProperty(ScriptComponent::Properties::height)) : 
-							image;
+							  image->data;
 }
 
 StringArray ScriptingApi::Content::ScriptImage::getItemList() const
@@ -2810,17 +2808,17 @@ void ScriptingApi::Content::ScriptPanel::timerCallback()
 
 void ScriptingApi::Content::ScriptPanel::loadImage(String imageName, String prettyName)
 {
-	for (size_t i = 0; i < loadedImages.size(); i++)
+	PoolReference ref(getProcessor()->getMainController(), imageName, ProjectHandler::SubDirectories::Images);
+
+	for (const auto& img : loadedImages)
 	{
-		if (std::get<(int)NamedImageEntries::FileName>(loadedImages[i]) == imageName) return;
+		if (img.image->ref == ref)
+			return;
 	}
 
-	PoolReference ref(getProcessor()->getMainController(), imageName, ProjectHandler::SubDirectories::Images);
-	const Image newImage = getProcessor()->getMainController()->getExpansionHandler().loadImageReference(ref);
-
-	if (newImage.isValid())
+	if (auto newImage = getProcessor()->getMainController()->getExpansionHandler().loadImageReference(ref))
 	{
-		loadedImages.push_back(NamedImage(newImage, prettyName, imageName));
+		loadedImages.add({ newImage, prettyName });
 	}
 	else
 	{

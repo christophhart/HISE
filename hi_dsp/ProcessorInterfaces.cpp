@@ -188,12 +188,12 @@ name(n)
 
 AudioSampleProcessor::~AudioSampleProcessor()
 {
-	
+	data = nullptr;
 }
 
 void AudioSampleProcessor::saveToValueTree(ValueTree &v) const
 {
-	const String fileName = loadedFileName.getReferenceString();
+	const String fileName = data->ref.getReferenceString();
 
 	v.setProperty("FileName", fileName, nullptr);
 
@@ -239,7 +239,10 @@ sampleRateOfLoadedFile(-1.0)
 	jassert(p != nullptr);
 
 	mc = p->getMainController();
+	data = new PoolEntry<AudioSampleBuffer>(PoolReference());
 }
+
+
 
 int AudioSampleProcessor::getConstrainedLoopValue(String metadata)
 {

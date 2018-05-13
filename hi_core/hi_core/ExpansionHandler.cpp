@@ -183,7 +183,7 @@ bool ExpansionHandler::setCurrentExpansion(const String& expansionName)
 	return false;
 }
 
-juce::AudioSampleBuffer ExpansionHandler::loadAudioFileReference(const PoolReference& sampleId)
+PoolEntry<AudioSampleBuffer>::Ptr ExpansionHandler::loadAudioFileReference(const PoolReference& sampleId)
 {
 	AudioSampleBufferPool* pool = nullptr;
 	getPoolForReferenceString(sampleId, &pool);
@@ -203,7 +203,7 @@ const var ExpansionHandler::getMetadata(const PoolReference& sampleId)
 	return pool->getAdditionalData(sampleId);
 }
 
-juce::Image ExpansionHandler::loadImageReference(const PoolReference& imageId)
+PoolEntry<Image>::Ptr ExpansionHandler::loadImageReference(const PoolReference& imageId)
 {
 	ImagePool* pool = nullptr;
 	getPoolForReferenceString(imageId, &pool);
@@ -312,14 +312,14 @@ var Expansion::getFileListInternal(ProjectHandler::SubDirectories type, const St
 
 
 
-juce::AudioSampleBuffer Expansion::loadAudioFile(const PoolReference& audioFileId)
+PooledAudioFile Expansion::loadAudioFile(const PoolReference& audioFileId)
 {
 	jassert(Helpers::getExpansionIdFromReference(audioFileId.getReferenceString()).isNotEmpty());
 
 	return pool->getAudioSampleBufferPool().loadFromReference(audioFileId);
 }
 
-juce::Image Expansion::loadImageFile(const PoolReference& imageId)
+PooledImage Expansion::loadImageFile(const PoolReference& imageId)
 {
 	jassert(Helpers::getExpansionIdFromReference(imageId.getReferenceString()).isNotEmpty());
 

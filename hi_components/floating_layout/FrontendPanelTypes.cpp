@@ -139,7 +139,7 @@ void ActivityLedPanel::paint(Graphics &g)
 	if (showMidiLabel)
 		g.drawText("MIDI", 0, 0, 100, getHeight(), Justification::centredLeft, false);
 
-	g.drawImageWithin(isOn ? on : off, showMidiLabel ? 38 : 2, 2, 24, getHeight(), RectanglePlacement::centred);
+	g.drawImageWithin(isOn ? on->data : off->data, showMidiLabel ? 38 : 2, 2, 24, getHeight(), RectanglePlacement::centred);
 }
 
 void ActivityLedPanel::setOn(bool shouldBeOn)
@@ -605,7 +605,7 @@ void AboutPagePanel::paint(Graphics& g)
 
 	if (useCustomImage)
 	{
-		g.drawImageWithin(bgImage, 0, 0, getWidth(), getHeight(), RectanglePlacement::centred);
+		g.drawImageWithin(bgImage->data, 0, 0, getWidth(), getHeight(), RectanglePlacement::centred);
 	}
 
 	Rectangle<float> r({ 0.0f, 0.0f, (float)getWidth(), (float)getHeight() });

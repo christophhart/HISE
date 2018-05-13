@@ -134,6 +134,26 @@ void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, in
 	ImageCache::addImageToCache(data, hashCode);
 }
 
+size_t PoolHelpers::getDataSize(const Image& img)
+{
+	return img.getWidth() * img.getHeight() * 4;
+}
+
+size_t PoolHelpers::getDataSize(const AudioSampleBuffer& buffer)
+{
+	return buffer.getNumChannels() * buffer.getNumSamples() * sizeof(float);
+}
+
+bool PoolHelpers::isValid(const AudioSampleBuffer& buffer)
+{
+	return buffer.getNumChannels() != 0 && buffer.getNumSamples() != 0;
+}
+
+bool PoolHelpers::isValid(const Image& image)
+{
+	return image.isValid();
+}
+
 juce::Image PoolHelpers::getEmptyImage(int width, int height)
 {
 	Image i(Image::PixelFormat::ARGB, width, height, true);

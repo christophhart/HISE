@@ -49,19 +49,21 @@ void loadOtherReferencedImages(ModulatorSynthChain* chainToExport)
 
 	auto pool = mc->getCurrentImagePool(true);
 
+	ReferenceCountedArray<PoolEntry<Image>> images;
+
 	for (int i = 0; i < 12; i++)
 	{
 		PoolReference upRef(mc, "{PROJECT_FOLDER}keyboard/up_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
 
 		jassert(upRef.isValid());
 
-		pool->loadFromReference(upRef);
+		images.add(pool->loadFromReference(upRef));
 		
 		PoolReference downRef(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
 
 		jassert(downRef.isValid());
 
-		pool->loadFromReference(downRef);
+		images.add(pool->loadFromReference(downRef));
 	}
 
 	const bool hasAboutPageImage = handler.getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("about.png").existsAsFile();
@@ -70,7 +72,7 @@ void loadOtherReferencedImages(ModulatorSynthChain* chainToExport)
 	{
 		PoolReference aboutRef(mc, "{PROJECT_FOLDER}about.png", ProjectHandler::SubDirectories::Images);
 
-		pool->loadFromReference(aboutRef);
+		images.add(pool->loadFromReference(aboutRef));
 	}
 }
 
@@ -100,6 +102,8 @@ ValueTree BaseExporter::exportReferencedAudioFiles()
 
 	AudioSampleBufferPool *samplePool = chainToExport->getMainController()->getCurrentAudioSampleBufferPool(true);
 
+	ReferenceCountedArray<PoolEntry<AudioSampleBuffer>> soundList;
+
 	while (iter.next())
 	{
 #if JUCE_WINDOWS
@@ -111,7 +115,7 @@ ValueTree BaseExporter::exportReferencedAudioFiles()
 
 		PoolReference ref(chainToExport->getMainController(), iter.getFile().getFullPathName(), ProjectHandler::SubDirectories::AudioFiles);
 
-		samplePool->loadFromReference(ref);
+		soundList.add(samplePool->loadFromReference(ref));
 	}
 
 	return samplePool->exportAsValueTree();

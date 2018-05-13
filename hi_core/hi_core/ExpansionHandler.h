@@ -85,9 +85,9 @@ public:
 
 	var getImageList();
 
-	AudioSampleBuffer loadAudioFile(const PoolReference& audioFileId);
+	PooledAudioFile loadAudioFile(const PoolReference& audioFileId);
 
-	Image loadImageFile(const PoolReference& imageId);
+	PooledImage loadImageFile(const PoolReference& imageId);
 
 	String getSampleMapReference(const String& sampleMapId);
 
@@ -260,7 +260,7 @@ public:
 		listeners.removeAllInstancesOf(l);
 	}
 
-	AudioSampleBuffer loadAudioFileReference(const PoolReference& sampleId);
+	PooledAudioFile loadAudioFileReference(const PoolReference& sampleId);
 
 	double getSampleRateForFileReference(const PoolReference& sampleId);
 
@@ -268,7 +268,7 @@ public:
 
 
 
-	Image loadImageReference(const PoolReference& imageId);
+	PooledImage loadImageReference(const PoolReference& imageId);
 
 	bool isActive() const { return currentExpansion != nullptr; }
 

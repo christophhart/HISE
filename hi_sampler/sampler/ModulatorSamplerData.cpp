@@ -168,14 +168,6 @@ ValueTree SampleMap::exportAsValueTree() const
 	return data;
 }
 
-void SampleMap::replaceFileReferences(ValueTree &soundTree) const
-{
-#if USE_BACKEND
-	const String reference = GET_PROJECT_HANDLER(sampler).getFileReference(soundTree.getProperty("FileName", String()), ProjectHandler::SubDirectories::Samples);
-	soundTree.setProperty("FileName", reference, nullptr);
-#endif
-}
-
 void SampleMap::save()
 {
 	data.setProperty("ID", sampleMapId.toString(), nullptr);
@@ -453,10 +445,6 @@ void SampleMap::addSound(ModulatorSamplerSound* newSound)
 	sampler->sendChangeMessage();
 }
 
-void SampleMap::replaceReferencesWithGlobalFolder()
-{
-	
-}
 
 juce::String SampleMap::checkReferences(MainController* mc, ValueTree& v, const File& sampleRootFolder, Array<File>& sampleList)
 {

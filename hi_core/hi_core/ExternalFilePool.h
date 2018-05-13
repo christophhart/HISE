@@ -54,6 +54,13 @@ struct PoolHelpers
 	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, AudioSampleBuffer& data, var& additionalData);
 	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, Image& data, var& additionalData);
 
+	static size_t getDataSize(const AudioSampleBuffer& buffer);
+
+	static size_t getDataSize(const Image& img);
+
+	static bool isValid(const AudioSampleBuffer& buffer);
+	static bool isValid(const Image& buffer);
+
 	static Image getEmptyImage(int width, int height);
 
 	struct Reference
@@ -112,11 +119,33 @@ class PoolCollection;
 
 using PoolReference = PoolHelpers::Reference;
 
+
+
 class PoolBase : public RestorableObject,
-				 public ControlledObject,
-				 public SafeChangeBroadcaster
+				 public ControlledObject
 {
 public:
+
+	enum EventType
+	{
+		Added,
+		Removed,
+		Changed,
+		numEventTypes
+	};
+
+	class Listener
+	{
+	public:
+
+		virtual ~Listener() {};
+
+		virtual void poolEntryAdded() = 0;
+		virtual void poolEntryRemoved() = 0;
+		virtual void poolEntryChanged(int indexInPool) = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener)
+	};
 
 	ValueTree exportAsValueTree() const override
 	{
@@ -142,13 +171,38 @@ public:
 			restoreItemFromValueTree(child);
 		}
 
-		notifyTable();
+		notifyTable(Added);
 	}
 
-	void notifyTable()
+	void notifyTable(EventType t, NotificationType notify=sendNotificationAsync, int index=-1)
 	{
-		BACKEND_ONLY(sendChangeMessage());
+		lastType = t;
+		lastEventIndex = index;
+
+
+		auto& tmp = listeners;
+
+		auto f = [t, index, tmp]()
+		{
+			
+		};
+
+		if (notify == sendNotificationAsync)
+			notifier.triggerAsyncUpdate();
+		else
+			notifier.handleAsyncUpdate();
 	}
+
+	void addListener(Listener* l)
+	{
+		listeners.addIfNotAlreadyThere(l);
+	}
+
+	void removeListener(Listener* l)
+	{
+		listeners.removeAllInstancesOf(l);
+	}
+
 
 	virtual int getNumLoadedFiles() const = 0;
 	virtual PoolReference getReference(int index) const = 0;
@@ -164,38 +218,104 @@ protected:
 	virtual Identifier getFileTypeName() const = 0;
 
 	PoolBase(MainController* mc):
-	ControlledObject(mc)
+	  ControlledObject(mc),
+	  notifier(*this)
 	{
 
 	}
 
 private:
 
-	
+	struct Notifier: public AsyncUpdater
+	{
+		Notifier(PoolBase& parent_) :
+			parent(parent_)
+		{};
+
+		~Notifier()
+		{
+			cancelPendingUpdate();
+		}
+
+		void handleAsyncUpdate() override
+		{
+			for (auto l : parent.listeners)
+			{
+				if (l != nullptr)
+				{
+					switch (parent.lastType)
+					{
+					case Added: l->poolEntryAdded(); break;
+					case Removed: l->poolEntryRemoved(); break;
+					case Changed: l->poolEntryChanged(parent.lastEventIndex); break;
+					default:
+						break;
+					}
+				}
+			}
+		}
+
+
+		PoolBase& parent;
+
+	};
+
+	Notifier notifier;
+
+	EventType lastType;
+	int lastEventIndex = -1;
+
+	Array<WeakReference<Listener>> listeners;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PoolBase)
 };
 
-    template <class DataType> class PoolEntry: public ReferenceCountedObject
-    {
-    public:
-        
-        using Ptr = ReferenceCountedObjectPtr<PoolEntry>;
-        
-        PoolEntry(PoolReference& r) :
-        ref(r),
-        data(DataType())
-        {};
-        
-        bool operator ==(const PoolEntry& other) const
-        {
-            return other.ref == ref;
-        }
-        
-        PoolReference ref;
-        DataType data;
-        var additionalData;
-    };
+template <class DataType> class PoolEntry : public ReferenceCountedObject
+{
+public:
+
+	using Ptr = ReferenceCountedObjectPtr<PoolEntry>;
+
+	PoolEntry(PoolReference& r) :
+		ref(r),
+		data(DataType())
+	{};
+
+	PoolEntry() :
+		ref(PoolReference()),
+		data(DataType())
+	{};
+
+	bool operator ==(const PoolEntry& other) const
+	{
+		return other.ref == ref;
+	}
+
+	explicit operator bool() const { return ref.isValid() && PoolHelpers::isValid(data); };
+
+	StringArray getTextData() const
+	{
+		StringArray sa;
+
+		sa.add(ref.getReferenceString());
+		auto dataSize = PoolHelpers::getDataSize(data);
+
+		String s = String((float)dataSize / 1024.0f, 1) + " kB";
+
+		sa.add(s);
+
+		sa.add(String(getReferenceCount() - 1));
+
+		return sa;
+	}
+
+	PoolReference ref;
+	DataType data;
+	var additionalData;
+};
+
+using PooledImage = PoolEntry<Image>::Ptr;
+using PooledAudioFile = PoolEntry<AudioSampleBuffer>::Ptr;
 
 template <class DataType> class SharedPoolBase : public PoolBase
 {
@@ -231,6 +351,7 @@ public:
 	void clearData() override
 	{
 		pool.clear();
+		notifyTable(Removed);
 	}
 
 	bool contains(int64 hashCode) const
@@ -265,12 +386,8 @@ public:
 
 	StringArray getTextDataForId(int index) const override
 	{
-		jassertfalse;
-
-#if 0
 		if (auto entry = pool[index])
 			return entry.get()->getTextData();
-#endif
 
 		return {};
 	}
@@ -285,24 +402,28 @@ public:
 		return sa;
 	}
 
-	DataType loadFromReference(PoolReference r)
+	PoolEntry<DataType>* loadFromReference(PoolReference r)
 	{
 		for (auto d : pool)
 		{
 			if (d->ref == r)
-				return d->data;
+			{
+				notifyTable(PoolBase::Changed, sendNotificationAsync, pool.indexOf(d));
+				return d;
+			}
+				
 		}
 
-		auto ne = new PoolEntry<DataType>(r);
+		PoolEntry<DataType>::Ptr ne = new PoolEntry<DataType>(r);
 		auto inputStream = r.createInputStream();
 
 		PoolHelpers::loadData(afm, inputStream, r.getHashCode(), ne->data, ne->additionalData);
 
 		pool.add(ne);
 
-		notifyTable();
+		notifyTable(PoolBase::Added);
 
-		return ne->data;
+		return ne;
 	}
 
 private:

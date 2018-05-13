@@ -197,12 +197,12 @@ public:
 		return sampleRange; 
 	};
 
-	int getTotalLength() const { return sampleBuffer.getNumSamples(); };
+	int getTotalLength() const { return data->data.getNumSamples(); };
 
 	/** Returns a const pointer to the audio sample buffer.
 	*
 	*	The pointer references a object from a AudioSamplePool and should be valid as long as the pool is not cleared. */
-	const AudioSampleBuffer *getBuffer() { return &sampleBuffer; };
+	const AudioSampleBuffer *getBuffer() { return &data->data; };
 
 	void setLoopFromMetadata(const var& md);
 
@@ -227,48 +227,7 @@ public:
 	*	It is possible that the file does not exist on your system:
 	*	If you restore a pool completely from a ValueTree, it still uses the absolute filename as identification.
 	*/
-	String getFileName() const { return loadedFileName.getReferenceString(); };
-
-	/** This callback sets the loaded file.
-	*
-	*	The AudioSampleBuffer should not change anything, but only send a message to the AudioSampleProcessor.
-	*	This is where the actual reloading happens.
-	*/
-
-#if 0
-	void changeListenerCallback(SafeChangeBroadcaster *b) override
-	{
-		auto thisAsProcessor = dynamic_cast<Processor*>(this);
-
-		auto& tmp = loadedFileName;
-
-		auto f = [b, tmp](Processor* p)
-		{
-			AudioSampleBufferComponent *bc = dynamic_cast<AudioSampleBufferComponent*>(b);
-
-			if (bc != nullptr)
-			{
-				auto asp = dynamic_cast<AudioSampleProcessor*>(p);
-
-				asp->setLoadedFile(bc->getCurrentlyLoadedFileName(), true);
-
-				auto df = [bc, asp, tmp]()
-				{
-					bc->setAudioSampleBuffer(asp->getBuffer(), tmp);
-				};
-
-				new DelayedFunctionCaller(df, 200);
-
-				p->sendChangeMessage();
-			}
-			else jassertfalse;
-
-			return true;
-		};
-
-		thisAsProcessor->getMainController()->getKillStateHandler().killVoicesAndCall(thisAsProcessor, f, MainController::KillStateHandler::SampleLoadingThread);
-	}
-#endif
+	String getFileName() const { return data->ref.getReferenceString(); };
 
 	/** Overwrite this method and do whatever needs to be done when the selected range changes. */
 	virtual void rangeUpdated() {};
@@ -308,13 +267,14 @@ protected:
 	/** Call this constructor within your subclass constructor. */
 	AudioSampleProcessor(Processor *p);;
 
-	PoolReference loadedFileName;
+	PoolEntry<AudioSampleBuffer>::Ptr data;
+
 	Range<int> sampleRange;
 	int length;
 
 	Range<int> loopRange;
 
-	const AudioSampleBuffer *getSampleBuffer() const { return &sampleBuffer; };
+	const AudioSampleBuffer *getSampleBuffer() const { return &data->data; };
 
 	double sampleRateOfLoadedFile;
 
@@ -327,7 +287,7 @@ private:
 
 	// ================================================================================================================
 
-	AudioSampleBuffer sampleBuffer;
+	
 	MainController *mc;
 
 	// ================================================================================================================

@@ -601,14 +601,13 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 
 	PoolReference newRef(dynamic_cast<Processor*>(this)->getMainController(), fileName, ProjectHandler::SubDirectories::AudioFiles);
 
-	if (loadedFileName != newRef && !newRef.isValid())
+	if (data->ref != newRef && !newRef.isValid())
 	{
-		loadedFileName = newRef;
+		data = new PoolEntry<AudioSampleBuffer>(PoolReference());
 
 		length = 0;
 		sampleRateOfLoadedFile = -1.0;
-		sampleBuffer.setSize(0, 0);
-
+		
 		setRange(Range<int>(0, 0));
 
 		// A AudioSampleProcessor must also be derived from Processor!
@@ -622,28 +621,24 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 		newFileLoaded();
 	}
 
-	if(loadedFileName != newRef && loadThisFile && newRef.isValid())
+	if(data->ref != newRef && loadThisFile && newRef.isValid())
 	{
 		ScopedLock sl(getFileLock());
 
-		loadedFileName = newRef;
-
 		auto& handler = mc->getExpansionHandler();
 
-		sampleBuffer = handler.loadAudioFileReference(loadedFileName);
+		data = handler.loadAudioFileReference(newRef);
 
-		auto md = handler.getMetadata(loadedFileName);
+		sampleRateOfLoadedFile = data->additionalData.getProperty(MetadataIDs::SampleRate, 0.0);
 
-		sampleRateOfLoadedFile = md.getProperty(MetadataIDs::SampleRate, 0.0);
-
-		setRange(Range<int>(0, sampleBuffer.getNumSamples()));
+		setRange(Range<int>(0, getTotalLength()));
 
 		// A AudioSampleProcessor must also be derived from Processor!
 		jassert(dynamic_cast<Processor*>(this) != nullptr);
 		
 		dynamic_cast<Processor*>(this)->sendChangeMessage();
 
-		setLoopFromMetadata(md);
+		setLoopFromMetadata(data->additionalData);
 
 		newFileLoaded();
 	}
@@ -656,7 +651,7 @@ void AudioSampleProcessor::setRange(Range<int> newSampleRange)
 		ScopedLock sl(getFileLock());
 
 		sampleRange = newSampleRange;
-		sampleRange.setEnd(jmin<int>(sampleBuffer.getNumSamples(), sampleRange.getEnd()));
+		sampleRange.setEnd(jmin<int>(getTotalLength(), sampleRange.getEnd()));
 		length = sampleRange.getLength();
 
 		if (loopRange.getEnd() < sampleRange.getEnd())

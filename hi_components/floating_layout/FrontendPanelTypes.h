@@ -77,8 +77,8 @@ private:
 
 	bool isOn = false;
 
-	Image on;
-	Image off;
+	PooledImage on;
+	PooledImage off;
 };
 
 /** The base class for every panel.
@@ -509,7 +509,7 @@ public:
 
 private:
 
-	Image bgImage;
+	PoolEntry<Image>::Ptr bgImage;
 
 	AttributedString text;
 

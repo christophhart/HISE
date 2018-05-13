@@ -124,7 +124,7 @@ struct PoolTableHelpers
 template <class DataType> class ExternalFileTableBase: public Component,
 							 public ControlledObject,
                              public TableListBoxModel,
-							 public SafeChangeListener,
+							 public PoolBase::Listener,
 							 public DragAndDropContainer,
 							 public ExpansionHandler::Listener
 {
@@ -134,7 +134,6 @@ public:
 	{
 		FileName = 1,
 		Memory,
-		Type,
 		References,
 		numColumns
 	};
@@ -173,8 +172,7 @@ public:
 
 		table.getHeader().addColumn("File Name", FileName, 60);
 		table.getHeader().addColumn("Size", Memory, 50);
-		table.getHeader().addColumn("Type", Type, 50);
-		table.getHeader().addColumn("# Ref", References, 40);
+		table.getHeader().addColumn("References", References, 50);
 		
 		updatePool();
 
@@ -184,7 +182,7 @@ public:
 	{
 		getMainController()->getExpansionHandler().removeListener(this);
 
-		pool->removeChangeListener(this);
+		pool->removeListener(this);
 	}
 
 	void expansionPackLoaded(Expansion* currentExpansion) override
@@ -198,14 +196,15 @@ public:
 	{
 		if (pool != nullptr)
 		{
-			pool->removeChangeListener(this);
-			
-			pool = getMainController()->getExpansionHandler().template getCurrentPool<DataType>();
-
-			pool->addChangeListener(this);
-
-			table.updateContent();
+			pool->removeListener(this);
 		}
+
+		pool = getMainController()->getExpansionHandler().template getCurrentPool<DataType>();
+
+		pool->addListener(this);
+
+		table.updateContent();
+		
 	}
 
 	static Identifier getGenericPanelId()
@@ -215,16 +214,26 @@ public:
 		return Identifier(ProjectHandler::getIdentifier(type) + "PoolTable");
 	}
 
-	void changeListenerCallback(SafeChangeBroadcaster *) override
+	void poolEntryAdded() override
+	{
+		poolEntryRemoved();
+	}
+
+	void poolEntryRemoved() override
 	{
 		setName(getHeadline());
 		table.updateContent();
-		if(getParentComponent() != nullptr) getParentComponent()->repaint();
+		if (getParentComponent() != nullptr) getParentComponent()->repaint();
+	}
+
+	void poolEntryChanged(int /*indexInPool*/)
+	{
+		poolEntryRemoved();
 	}
 
 	int getNumRows() override
 	{
-		return pool->getNumLoadedFiles();
+		return pool != nullptr ? pool->getNumLoadedFiles() : 0;
 	}
 
 	void paintRowBackground(Graphics& g, int rowNumber, int, int, bool rowIsSelected) override
@@ -255,6 +264,9 @@ public:
 
 	String getHeadline() const
 	{
+		if (pool == nullptr)
+			return {};
+
 		String x;
 
 		const int numSamples = pool->getNumLoadedFiles();
@@ -275,6 +287,9 @@ public:
 
 	void cellDoubleClicked(int rowNumber, int columnId, const MouseEvent&)
 	{
+		if (pool == nullptr)
+			return;
+
 		auto mc = pool->getMainController();
 
 		if (auto editor = mc->getLastActiveEditor())
@@ -290,6 +305,8 @@ public:
 
 	String getTextForTableCell(int rowNumber, int columnNumber)
 	{
+		if (pool == nullptr)
+			return {};
 
 		StringArray info = pool->getTextDataForId(rowNumber);
 
@@ -297,11 +314,15 @@ public:
 		{
 			return info[columnNumber - 1];
 		}
-		else return String();
+		else
+			return {};
 	}
 
 	var getDragSourceDescription(const SparseSet< int > &set) override
 	{
+		if (pool == nullptr)
+			return {};
+
 		var id;
 
 		if(set.getNumRanges() > 0)

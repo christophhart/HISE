@@ -45,7 +45,6 @@ DeactiveOverlay::DeactiveOverlay() :
 
 	addAndMakeVisible(resolveLicenseButton = new TextButton("Use License File"));
 	addAndMakeVisible(registerProductButton = new TextButton("Activate this computer"));
-	addAndMakeVisible(useActivationResponseButton = new TextButton("Activate with activation response file"));
 	addAndMakeVisible(resolveSamplesButton = new TextButton("Choose Sample Folder"));
 
 	addAndMakeVisible(installSampleButton = new TextButton("Install Samples"));
@@ -55,14 +54,12 @@ DeactiveOverlay::DeactiveOverlay() :
 	resolveLicenseButton->setLookAndFeel(&alaf);
 	resolveSamplesButton->setLookAndFeel(&alaf);
 	registerProductButton->setLookAndFeel(&alaf);
-	useActivationResponseButton->setLookAndFeel(&alaf);
 	ignoreButton->setLookAndFeel(&alaf);
 	installSampleButton->setLookAndFeel(&alaf);
 
 	resolveLicenseButton->addListener(this);
 	resolveSamplesButton->addListener(this);
 	registerProductButton->addListener(this);
-	useActivationResponseButton->addListener(this);
 	ignoreButton->addListener(this);
 	installSampleButton->addListener(this);
 }
@@ -248,7 +245,6 @@ String DeactiveOverlay::getTextForError(State s) const
 
 void DeactiveOverlay::resized()
 {
-	useActivationResponseButton->setVisible(false);
 	installSampleButton->setVisible(false);
 	
 

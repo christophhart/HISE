@@ -722,12 +722,12 @@ public:
 
 		HiSlider::Mode m = HiSlider::Mode::Linear;
 		Slider::SliderStyle styleId;
-		Image getImage() const { return image; };
+		Image getImage() const { return image != nullptr ? image->data : Image(); };
 
 	private:
 
 		double minimum, maximum;
-		Image image;
+		PooledImage image;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptSlider)
 	};
@@ -757,7 +757,7 @@ public:
 		Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		bool isAutomatable() const override { return true; }
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
-		const Image getImage() const { return image; };
+		const Image getImage() const { return image != nullptr ? image->data : Image(); };
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification) override;
 		StringArray getOptionsFor(const Identifier &id) override;
 
@@ -790,7 +790,7 @@ public:
 
 		var popupData;
 
-		Image image;
+		PooledImage image;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptButton)
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptButton)
@@ -1129,7 +1129,7 @@ public:
 
 	private:
 
-		Image image;
+		PooledImage image;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptImage);
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptImage);
@@ -1302,10 +1302,10 @@ public:
 
 		Image getLoadedImage(const String &prettyName) const
 		{
-			for (size_t i = 0; i < loadedImages.size(); i++)
+			for (const auto& img : loadedImages)
 			{
-				if (std::get<(int)NamedImageEntries::PrettyName>(loadedImages[i]) == prettyName)
-					return std::get<(int)NamedImageEntries::Image>(loadedImages[i]);
+				if (img.prettyName == prettyName)
+					return img.image->data;
 			}
 
 			return Image();
@@ -1424,16 +1424,14 @@ public:
 
 		Image paintCanvas;
 
-		enum class NamedImageEntries
+		struct NamedImage
 		{
-			Image=0,
-			PrettyName,
-			FileName
+			PooledImage image;
+			String prettyName;
 		};
 
-		using NamedImage =	std::tuple < const Image, String, String > ;
 		
-		std::vector<NamedImage> loadedImages;
+		Array<NamedImage> loadedImages;
 
 
 		AsyncRepainter repainter;
