@@ -906,7 +906,7 @@ public:
 
 		setSampleMap(sampler->getSampleMap());
 
-        auto sampleMapFolder = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+		auto sampleMapFolder = sampler->getSampleEditHandler()->getCurrentSampleMapDirectory();
         
         sampleMapFile = sampleMapFolder.getChildFile(sampleMapId + ".xml");
         

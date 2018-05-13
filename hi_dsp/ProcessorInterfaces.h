@@ -137,51 +137,6 @@ private:
 };
 
 
-/** A Processor that uses an external file for something. 
-*	@ingroup processor_interfaces
-*
-*	Whenever you need to use a external file (eg. an audio file or an image), subclass your Processor from this class.
-*	It will handle all file management issues:
-*
-*	1. In Backend mode, it will resolve the project path.
-*	2. In Frontend mode, it will retrieve the file content from the embedded data.
-*/
-class ExternalFileProcessor
-{
-public:
-
-	// ================================================================================================================
-
-	virtual ~ExternalFileProcessor() {};
-
-	/** Call this to get the file for the string.
-	*
-	*	Whenever you want to read a file, use this method instead of the direct File constructor, so it will parse a global file expression to the local global folder.
-	*/
-	File getFile(const String &fileNameOrReference, PresetPlayerHandler::FolderType type = PresetPlayerHandler::GlobalSampleDirectory);
-
-	bool isReference(const String &fileNameOrReference);
-
-	/** Overwrite this method and replace all internal references with a global file expression (use getGlobalReferenceForFile())
-	*
-	*	You don't need to reload the data, it will be loaded from the global folder the next time you load the patch.
-	*/
-	virtual void replaceReferencesWithGlobalFolder() = 0;
-
-	/** This will return a expression which can be stored instead of the actual filename. If you load the file using the getFile() method, it will look in the global sample folder. */
-	String getGlobalReferenceForFile(const String &file, PresetPlayerHandler::FolderType type = PresetPlayerHandler::GlobalSampleDirectory);
-
-private:
-
-	File getFileForGlobalReference(const String &reference, PresetPlayerHandler::FolderType type = PresetPlayerHandler::GlobalSampleDirectory);
-
-	// ================================================================================================================
-};
-
-
-
-
-
 
 /** A Processor that uses an audio sample.
 *	@ingroup processor_interfaces

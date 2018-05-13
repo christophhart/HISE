@@ -364,18 +364,23 @@ HiseSettings::Data::Data(MainController* mc_) :
 juce::File HiseSettings::Data::getFileForSetting(const Identifier& id) const
 {
 	auto handler = &GET_PROJECT_HANDLER(mc->getMainSynthChain());
-	auto appDataFolder = File(PresetHandler::getDataFolder());
+	auto appDataFolder = NativeFileHandler::getAppDataDirectory();
 
-	if		(id == SettingFiles::ProjectSettings)	return handler->getWorkDirectory().getChildFile("project_info.xml");
-	else if (id == SettingFiles::UserSettings)		return handler->getWorkDirectory().getChildFile("user_info.xml");
-	else if (id == SettingFiles::CompilerSettings)	return appDataFolder.getChildFile("compilerSettings.xml");
-	else if (id == SettingFiles::AudioSettings)		return appDataFolder.getChildFile("DeviceSettings.xml");
+	if (id == SettingFiles::AudioSettings)		return appDataFolder.getChildFile("DeviceSettings.xml");
 	else if (id == SettingFiles::MidiSettings)		return appDataFolder.getChildFile("DeviceSettings.xml");
 	else if (id == SettingFiles::GeneralSettings)	return appDataFolder.getChildFile("GeneralSettings.xml");
+
+#if USE_BACKEND
+	if (id == SettingFiles::ProjectSettings)	return handler->getWorkDirectory().getChildFile("project_info.xml");
+	else if (id == SettingFiles::UserSettings)		return handler->getWorkDirectory().getChildFile("user_info.xml");
+	else if (id == SettingFiles::CompilerSettings)	return appDataFolder.getChildFile("compilerSettings.xml");
 	else if (id == SettingFiles::ScriptingSettings)	return appDataFolder.getChildFile("ScriptSettings.xml");
 	else if (id == SettingFiles::OtherSettings)		return appDataFolder.getChildFile("OtherSettings.xml");
 
 	jassertfalse;
+
+#endif
+	
 	return File();
 }
 
@@ -578,14 +583,13 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id)
 
 	if (id == Project::Name)
 	{
-		
-		return handler.getWorkDirectory().getFileName();
+		BACKEND_ONLY(return handler.getWorkDirectory().getFileName());
 	}
 	else if (id == Project::Version)			    return "1.0.0";
 	else if (id == Project::BundleIdentifier)	    return "com.myCompany.product";
 	else if (id == Project::PluginCode)			    return "Abcd";
 	else if (id == Project::EmbedAudioFiles)		return "Yes";
-	else if (id == Project::RedirectSampleFolder)	return handler.isRedirected(ProjectHandler::SubDirectories::Samples) ? handler.getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName() : "";
+	else if (id == Project::RedirectSampleFolder)	BACKEND_ONLY(return handler.isRedirected(ProjectHandler::SubDirectories::Samples) ? handler.getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName() : "");
 	else if (id == Other::EnableAutosave)			return "Yes";
 	else if (id == Other::AutosaveInterval)			return 5;
 	else if (id == Scripting::CodeFontSize)			return 17.0;
@@ -599,7 +603,9 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id)
 	else if (id == User::Company)					return "My Company";
 	else if (id == Scripting::GlobalScriptPath)		
 	{
-		File scriptFolder = File(PresetHandler::getDataFolder()).getChildFile("scripts");
+		FRONTEND_ONLY(jassertfalse);
+
+		File scriptFolder = File(NativeFileHandler::getAppDataDirectory()).getChildFile("scripts");
 		if (!scriptFolder.isDirectory())
 			scriptFolder.createDirectory();
 
@@ -707,14 +713,14 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 {
 	if (id == Project::RedirectSampleFolder)
 	{
+#if USE_BACKEND
 		auto& handler = GET_PROJECT_HANDLER(mc->getMainSynthChain());
-
 
 		if (File::isAbsolutePath(newValue.toString()))
 			handler.createLinkFile(ProjectHandler::SubDirectories::Samples, File(newValue.toString()));
 		else
 			ProjectHandler::getLinkFile(handler.getWorkDirectory().getChildFile("Samples")).deleteFile();
-	
+#endif
 	}
 
 	if (id == Scripting::EnableCallstack)

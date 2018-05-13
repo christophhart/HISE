@@ -16,7 +16,7 @@ void StartupLogger::init()
 #if USE_BACKEND
 	log("Startup Log for HISE");
 #else
-	getLogFile().replaceWithText("Startup Log for " + ProjectHandler::Frontend::getProjectName() + "\n====================================\n");
+	getLogFile().replaceWithText("Startup Log for " + FrontendHandler::getProjectName() + "\n====================================\n");
 #endif
 }
 
@@ -974,15 +974,7 @@ File DebugLogger::getLogFile()
 File DebugLogger::getLogFolder()
 {
     
-#if USE_BACKEND
-
-	File f = File(PresetHandler::getDataFolder()).getChildFile("Logs/");
-
-#else
-
-	File f = ProjectHandler::Frontend::getAppDataDirectory().getChildFile("Logs/");
-
-#endif
+	File f = NativeFileHandler::getAppDataDirectory().getChildFile("Logs/");
 
 	if (!f.isDirectory())
 		f.createDirectory();
@@ -1001,8 +993,8 @@ String DebugLogger::getHeader()
 	header << "Version: **" << ProjectInfo::versionString << "**  " << nl;
 #else
 
-	header << "Product: **" << ProjectHandler::Frontend::getCompanyName() << " - " << ProjectHandler::Frontend::getProjectName() << "**  " << nl;
-	header << "Version: **" << ProjectHandler::Frontend::getVersionString() << "**  " << nl;
+	header << "Product: **" << FrontendHandler::getCompanyName() << " - " << FrontendHandler::getProjectName() << "**  " << nl;
+	header << "Version: **" << FrontendHandler::getVersionString() << "**  " << nl;
 
 #endif
 

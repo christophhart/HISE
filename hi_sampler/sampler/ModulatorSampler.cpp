@@ -187,14 +187,6 @@ ModulatorSampler::~ModulatorSampler()
 	deleteAllSounds();
 }
 
-bool ModulatorSampler::useGlobalFolderForSaving() const { return useGlobalFolder; }
-
-void ModulatorSampler::replaceReferencesWithGlobalFolder()
-{
-	// Do nothing more, the rest will be managed by the samplemap...
-	setUseGlobalFolderForSaving();
-}
-
 int ModulatorSampler::getRRGroupsForMessage(int noteNumber, int velocity)
 {
 	return roundRobinMap.getRRGroupsForMessage(noteNumber, velocity);

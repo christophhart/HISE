@@ -117,32 +117,24 @@ public:
 	{
 		const int w = image.getBounds().getWidth();
 
-
 		g.drawImageAt(image, 0, 0);
 
-		if(number == 0) return;
+		if(number == 0) 
+			return;
 
 		Rectangle<float> rect = Rectangle<float>((float)w-offset-size, offset, size, size);
-
 		DropShadow d;
 
 		d.colour = c.withAlpha(0.3f);
 		d.radius = (int)offset*2;
 		d.offset = Point<int>();
-
 		d.drawForRectangle(g, Rectangle<int>((int)rect.getX(), (int)rect.getY(), (int)rect.getWidth(), (int)rect.getHeight()));
 
 		g.setColour(Colours::black.withAlpha(0.3f));
-
 		g.setColour(Colours::white.withAlpha(0.7f));
-
 		g.drawRoundedRectangle(rect.reduced(1.0f), 4.0f, 1.0f);
-	
 		g.setFont(GLOBAL_BOLD_FONT());
-
 		g.drawText(String(number), rect, Justification::centred, false);
-
-
 	};
  	
 	void setNumber(int newNumber)
@@ -1492,17 +1484,17 @@ private:
     static const int balanceKnob_pngSize;
 };
 
-        /** A simple interface class. Give it a String and get a path back. */
-        class PathFactory
-        {
-        public:
+/** A simple interface class. Give it a String and get a path back. */
+class PathFactory
+{
+public:
             
-            PathFactory() {};
+    PathFactory() {};
             
-            virtual ~PathFactory() {};
+    virtual ~PathFactory() {};
             
-            virtual Path createPath(const String& id) const = 0;
-        };
+    virtual Path createPath(const String& id) const = 0;
+};
 
 
 class ChainBarPathFactory : public PathFactory

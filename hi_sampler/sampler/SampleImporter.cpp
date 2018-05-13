@@ -259,10 +259,8 @@ void SampleImporter::loadAudioFilesUsingDropPoint(Component* /*childComponentOfM
 		createSoundAndAddToSampler(sampler, data);		
 	}
 
-	ThumbnailHandler::saveNewThumbNails(sampler, fileNames);
-
 	sampler->refreshPreloadSizes();
-	sampler->refreshMemoryUsage();
+	
 
 	
 }
@@ -334,8 +332,6 @@ void SampleImporter::loadAudioFilesUsingPitchDetection(Component* /*childCompone
 
 		createSoundAndAddToSampler(sampler, data);
 	}
-
-	ThumbnailHandler::saveNewThumbNails(sampler, fileNames);
 
 	sampler->refreshPreloadSizes();
 	sampler->refreshMemoryUsage();

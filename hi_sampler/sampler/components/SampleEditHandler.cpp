@@ -141,6 +141,11 @@ void SampleEditHandler::changeProperty(ModulatorSamplerSound *s, ModulatorSample
 	s->setPropertyWithUndo(p, v + delta);
 }
 
+juce::File SampleEditHandler::getCurrentSampleMapDirectory() const
+{
+	return sampler->getMainController()->getCurrentFileHandler().getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+}
+
 void SampleEditHandler::SampleEditingActions::createMultimicSampleMap(SampleEditHandler* handler)
 {
 	const String multimicTokens = PresetHandler::getCustomName("Multimic Tokens", "Enter a semicolon separated list of all mic position tokens starting with the existing mic position");
@@ -191,7 +196,7 @@ void SampleEditHandler::SampleEditingActions::createMultimicSampleMap(SampleEdit
 
 		PresetHandler::showMessageWindow("Merge successful", "Press OK to choose a location for the multimic sample map");
 
-		auto sampleMapDirectory = GET_PROJECT_HANDLER(handler->getSampler()).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+		auto sampleMapDirectory = handler->getCurrentSampleMapDirectory();
 
 		FileChooser fc("Save multimic Samplemap", sampleMapDirectory, "*.xml", true);
 

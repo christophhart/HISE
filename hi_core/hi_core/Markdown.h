@@ -325,6 +325,79 @@ private:
 	void parseComment();
 };
 
+class HiseShapeButton : public ShapeButton
+{
+public:
+
+	
+	HiseShapeButton(const String& name, ButtonListener* listener, PathFactory& factory, const String& offName = String()) :
+		ShapeButton(name, Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white)
+	{
+		onShape = factory.createPath(name);
+
+		if (offName.isEmpty())
+			offShape = onShape;
+		else
+			offShape = factory.createPath(offName);
+
+		if (listener != nullptr)
+			addListener(listener);
+
+		refreshShape();
+		refreshButtonColours();
+	}
+
+
+	void refreshButtonColours()
+	{
+		if (getToggleState())
+		{
+			setColours(Colour(SIGNAL_COLOUR).withAlpha(0.8f), Colour(SIGNAL_COLOUR), Colour(SIGNAL_COLOUR));
+		}
+		else
+		{
+			setColours(Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white);
+		}
+	}
+
+	bool operator==(const String& id) const
+	{
+		return getName() == id;
+	}
+
+	void refreshShape()
+	{
+		if (getToggleState())
+		{
+			setShape(onShape, false, true, true);
+		}
+		else
+			setShape(offShape, false, true, true);
+	}
+
+	void refresh()
+	{
+		refreshShape();
+		refreshButtonColours();
+	}
+
+	void toggle()
+	{
+		setToggleState(!getToggleState(), dontSendNotification);
+
+		refresh();
+	}
+
+	void setShapes(Path newOnShape, Path newOffShape)
+	{
+		onShape = newOnShape;
+		offShape = newOffShape;
+	}
+
+	Path onShape;
+	Path offShape;
+};
+
 
 class MarkdownHelpButton : public ShapeButton,
 						   public ButtonListener,

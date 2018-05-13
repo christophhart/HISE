@@ -63,68 +63,6 @@ void LookupTableProcessor::sendTableIndexChangeMessage(bool sendSynchronous, Tab
     else tableChangeBroadcaster.sendAllocationFreeChangeMessage();
 }
 
-
-File ExternalFileProcessor::getFileForGlobalReference(const String &reference, PresetPlayerHandler::FolderType type)
-{
-	jassert(reference.contains("{GLOBAL_FOLDER}"));
-
-	String packageName = dynamic_cast<Processor*>(this)->getMainController()->getMainSynthChain()->getPackageName();
-
-	if (packageName.isEmpty())
-	{
-		PresetHandler::showMessageWindow("Package Name not set", "Press OK to enter the package name", PresetHandler::IconType::Info);
-		packageName = PresetHandler::getCustomName("Package Name");
-
-		dynamic_cast<Processor*>(this)->getMainController()->getMainSynthChain()->setPackageName(packageName);
-
-	}
-
-	return File(PresetPlayerHandler::getSpecialFolder(type, packageName) + reference.fromFirstOccurrenceOf("{GLOBAL_FOLDER}", false, false));
-}
-
-File ExternalFileProcessor::getFile(const String &fileNameOrReference, PresetPlayerHandler::FolderType type)
-{
-	if (isReference(fileNameOrReference))
-	{
-		File f = getFileForGlobalReference(fileNameOrReference, type);
-
-		jassert(f.existsAsFile());
-
-		return f;
-	}
-	else
-	{
-		File f(fileNameOrReference);
-
-		jassert(f.existsAsFile());
-
-		return f;
-	}
-}
-
-bool ExternalFileProcessor::isReference(const String &fileNameOrReference)
-{
-	return fileNameOrReference.contains("{GLOBAL_FOLDER}");
-}
-
-String ExternalFileProcessor::getGlobalReferenceForFile(const String &file, PresetPlayerHandler::FolderType /*type*/ /*= PresetPlayerHandler::GlobalSampleDirectory*/)
-{
-	if (isReference(file))
-	{
-		return file;
-	}
-	else
-	{
-		File f(file);
-
-		jassert(f.existsAsFile());
-
-		return "{GLOBAL_FOLDER}/" + f.getFileName();
-	}
-
-}
-
-
 FactoryType::FactoryType(Processor *owner_) :
 owner(owner_),
 baseClassCalled(false),

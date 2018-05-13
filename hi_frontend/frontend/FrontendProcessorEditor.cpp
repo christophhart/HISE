@@ -63,9 +63,9 @@ AudioProcessorEditor(fp)
 
     if(searchSamples)
     {
-        deactiveOverlay->setState(DeactiveOverlay::SamplesNotInstalled, !ProjectHandler::Frontend::checkSamplesCorrectlyInstalled());
+        deactiveOverlay->setState(DeactiveOverlay::SamplesNotInstalled, !FrontendHandler::checkSamplesCorrectlyInstalled());
         
-        deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, !fp->areSamplesLoadedCorrectly());
+        deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, !GET_PROJECT_HANDLER(fp->getMainSynthChain()).areSamplesLoadedCorrectly());
     }
     else
     {

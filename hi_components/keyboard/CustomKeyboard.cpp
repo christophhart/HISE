@@ -177,9 +177,13 @@ void CustomKeyboard::setUseCustomGraphics(bool shouldUseCustomGraphics)
 	if (!useCustomGraphics)
 		return;
 
+	auto& handler = mc->getExpansionHandler();
+
 	for (int i = 0; i < 12; i++)
 	{
-		upImages[i] = ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}keyboard/up_" + String(i) + ".png");
+		PoolReference upRef(mc, "{PROJECT_FOLDER}keyboard/up_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
+
+		upImages[i] = handler.loadImageReference(upRef);
 
 		if (upImages[i].isNull())
 		{
@@ -188,7 +192,9 @@ void CustomKeyboard::setUseCustomGraphics(bool shouldUseCustomGraphics)
 			break;
 		}
 
-		downImages[i] = ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png");
+		PoolReference downRef(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
+
+		downImages[i] = handler.loadImageReference(downRef);
 
 		if (downImages[i].isNull())
 		{

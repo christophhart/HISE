@@ -78,9 +78,7 @@ private:
 */
 class FrontendProcessor: public PluginParameterAudioProcessor,
 						 public AudioProcessorDriver,
-						 public MainController,
-						 public FrontendDataHolder,
-						 public FrontendSampleManager
+						 public MainController
 {
 public:
 	FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, ValueTree *imageData_ = nullptr, ValueTree *impulseData = nullptr, ValueTree *externalScriptData = nullptr, ValueTree *userPresets = nullptr);
@@ -91,6 +89,8 @@ public:
 
 	~FrontendProcessor()
 	{
+		storeAllSamplesFound(GET_PROJECT_HANDLER(getMainSynthChain()).areSamplesLoadedCorrectly());
+
 		getSampleManager().cancelAllJobs();
 
 		setEnabledMidiChannels(synthChain->getActiveChannelData()->exportData());
@@ -102,12 +102,12 @@ public:
 
 		synthChain = nullptr;
 
-		storeAllSamplesFound(areSamplesLoadedCorrectly());
+		
 
 	};
 
 	bool shouldLoadSamplesAfterSetup() {
-		return areSamplesLoadedCorrectly() && keyFileCorrectlyLoaded;
+		return GET_PROJECT_HANDLER(getMainSynthChain()).areSamplesLoadedCorrectly() && keyFileCorrectlyLoaded;
 	}
 
 	void updateUnlockedSuspendStatus()
@@ -126,7 +126,7 @@ public:
         keyFileCorrectlyLoaded = true;
 #endif
         
-        loadSamplesAfterSetup();
+        GET_PROJECT_HANDLER(getMainSynthChain()).loadSamplesAfterSetup();
     }
 
 	void getStateInformation	(MemoryBlock &destData) override
@@ -189,28 +189,7 @@ public:
 		
 	};
 
-    void createSampleMapValueTreeFromPreset(ValueTree& treeToSearch)
-    {
-        static const Identifier sm("samplemap");
-        
-        for(int i = 0; i < treeToSearch.getNumChildren(); i++)
-        {
-            ValueTree child = treeToSearch.getChild(i);
-            
-            if(child.hasType(sm))
-            {
-                treeToSearch.removeChild(child, nullptr);
-                
-                sampleMaps.addChild(child, -1, nullptr);
-                
-                i--;
-            }
-            else
-            {
-                createSampleMapValueTreeFromPreset(child);
-            }
-        }
-    };
+    
     
 	void handleControllersForMacroKnobs(const MidiBuffer &midiMessages);
  
@@ -243,8 +222,6 @@ public:
 		//return currentlyLoadedProgram;
 	}
 
-	File getSampleLocation() const override { return ProjectHandler::Frontend::getSampleLocationForCompiledPlugin(); }
-
 	void setCurrentProgram(int index) override;
 	
 #if USE_COPY_PROTECTION
@@ -255,14 +232,7 @@ public:
 	TurboActivateUnlocker unlocker;
 #endif
 
-	const ValueTree getValueTree(ProjectHandler::SubDirectories type) const override
-	{
-		if (type == ProjectHandler::SubDirectories::SampleMaps) return sampleMaps;
-		else if (type == ProjectHandler::SubDirectories::UserPresets) return presets;
-		else return ValueTree();
-	}
-
-
+	
 private:
 
 	void loadImages(ValueTree *imageData);
@@ -276,17 +246,12 @@ private:
 
 	int numParameters;
 
-	const ValueTree presets;
-
-	ValueTree sampleMaps;
-
+	
 	AudioPlayHead::CurrentPositionInfo lastPosInfo;
 
 	friend class FrontendProcessorEditor;
 
 	ScopedPointer<ModulatorSynthChain> synthChain;
-
-	ScopedPointer<AudioSampleBufferPool> audioSampleBufferPool;
 
 	int currentlyLoadedProgram;
 	

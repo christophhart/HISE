@@ -46,12 +46,14 @@ void PopupLabel::showPopup()
 
 void PopupLabel::mouseDown(const MouseEvent &)
 {
+#if USE_BACKEND
     ProcessorEditor *pEditor = findParentComponentOfClass<ProcessorEditor>();
     
     if(pEditor != nullptr)
     {
         PresetHandler::setChanged(pEditor->getProcessor());
     }
+#endif
     
 	if(isEnabled())
 	{

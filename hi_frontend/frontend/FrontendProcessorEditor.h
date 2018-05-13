@@ -86,7 +86,7 @@ public:
 		{
 			auto fp = dynamic_cast<FrontendProcessor*>(getAudioProcessor());
 			
-			fp->setAllSampleReferencesCorrect();
+			GET_PROJECT_HANDLER(fp->getMainSynthChain()).setAllSampleReferencesCorrect();
 			fp->loadSamplesAfterRegistration();
 		}
 			

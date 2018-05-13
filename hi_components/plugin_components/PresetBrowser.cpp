@@ -784,7 +784,7 @@ mc(mc_)
     
     try
     {
-        rootFile = ProjectHandler::Frontend::getUserPresetDirectory();
+        rootFile = FrontendHandler::getUserPresetDirectory();
     }
     catch(String& s)
     {

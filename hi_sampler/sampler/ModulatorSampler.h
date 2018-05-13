@@ -56,7 +56,6 @@ class SampleEditHandler;
 *	- supported file format is stereo wave.
 */
 class ModulatorSampler: public ModulatorSynth,
-						public ExternalFileProcessor,
 						public LookupTableProcessor
 {
 public:
@@ -358,10 +357,6 @@ public:
 	const SampleEditHandler* getSampleEditHandler() const { return sampleEditHandler; }
 #endif
 
-	bool useGlobalFolderForSaving() const;
-	void setUseGlobalFolderForSaving() { useGlobalFolder = true; };
-	void replaceReferencesWithGlobalFolder() override;
-
 	struct SamplerDisplayValues : public Processor::DisplayValues
 	{
 		SamplerDisplayValues() : currentSamplePos(0.0)
@@ -652,7 +647,6 @@ private:
 
 	bool reversed = false;
 
-	bool useGlobalFolder;
 	bool pitchTrackingEnabled;
 	bool oneShotEnabled;
 	bool crossfadeGroups;

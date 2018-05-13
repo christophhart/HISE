@@ -656,7 +656,7 @@ void AudioSampleBufferComponent::loadFile(const File& f)
 #if USE_BACKEND
 		String fileName = f.getFullPathName();
 #else
-		auto fileName = ProjectHandler::Frontend::getRelativePathForAdditionalAudioFile(f);
+		auto fileName = FrontendHandler::getRelativePathForAdditionalAudioFile(f);
 #endif
 
 		buffer = nullptr;
@@ -689,7 +689,7 @@ void AudioSampleBufferComponent::mouseDown(const MouseEvent &e)
 		
 #else
 	
-		File searchDirectory = ProjectHandler::Frontend::getAdditionalAudioFilesDirectory();
+		File searchDirectory = FrontendHandler::getAdditionalAudioFilesDirectory();
 
 #endif
 

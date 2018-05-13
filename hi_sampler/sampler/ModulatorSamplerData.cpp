@@ -35,96 +35,6 @@ namespace hise { using namespace juce;
 
 
 
-ThumbnailHandler::ThumbnailHandler(const File &directoryToLoad, const StringArray &fileNames, ModulatorSampler *s) :
-ThreadWithQuasiModalProgressWindow("Generating Audio Thumbnails for " + String(fileNames.size()) + " files.", true, true, s->getMainController()),
-fileNamesToLoad(fileNames),
-directory(directoryToLoad),
-sampler(s),
-addThumbNailsToExistingCache(true)
-{
-	getAlertWindow()->setLookAndFeel(&laf);
-}
-
-ThumbnailHandler::ThumbnailHandler(const File &directoryToLoad, ModulatorSampler *s) :
-ThreadWithQuasiModalProgressWindow("Generating Audio Thumbnails for directory " + directoryToLoad.getFullPathName(), true, true, s->getMainController()),
-directory(directoryToLoad),
-sampler(s),
-addThumbNailsToExistingCache(false)
-{
-	getAlertWindow()->setLookAndFeel(&laf);
-}
-
-File ThumbnailHandler::getThumbnailFile(ModulatorSampler *sampler)
-{
-	return GET_PROJECT_HANDLER(sampler).getWorkDirectory().getChildFile("thumbnails.dat");
-}
-
-void ThumbnailHandler::loadThumbnailsIntoSampler(ModulatorSampler *sampler)
-{
-    File thumbnailFile = getThumbnailFile(sampler);
-    
-	sampler->loadCacheFromFile(thumbnailFile);
-}
-
-void ThumbnailHandler::saveNewThumbNails(ModulatorSampler *sampler, const StringArray &newAudioFiles)
-{
-	File directory = GET_PROJECT_HANDLER(sampler).getWorkDirectory();
-	
-	new ThumbnailHandler(directory, newAudioFiles, sampler);
-}
-
-void ThumbnailHandler::run()
-{
-	AudioFormatManager &afm = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->afm;
-
-	AudioThumbnailCache *cacheToUse = nullptr;
-
-	if(addThumbNailsToExistingCache)
-	{
-		cacheToUse = &sampler->getCache();
-
-		const int numSamplesToCache = fileNamesToLoad.size();
-
-		jassert(numSamplesToCache > 0);
-
-		for(int i = 0; i < numSamplesToCache; i++)
-		{
-			if(threadShouldExit()) return;
-			
-			setProgress((double)i / (double)numSamplesToCache);
-
-			saveThumbnail(cacheToUse, afm, File(fileNamesToLoad[i]));
-		}
-	}
-	else
-	{
-		const int numSamplesToCache = directory.getNumberOfChildFiles(File::TypesOfFileToFind::findFiles, "*.wav");
-		writeCache = new AudioThumbnailCache(numSamplesToCache);
-
-		cacheToUse = writeCache;
-
-		DirectoryIterator iterator(directory, false, "*.wav", File::TypesOfFileToFind::findFiles);
-
-		while(iterator.next())
-		{
-			if(threadShouldExit()) return;
-
-			setProgress(iterator.getEstimatedProgress());
-
-			saveThumbnail(writeCache, afm, iterator.getFile());
-
-		}		
-	}
-
-	File outputFile = getThumbnailFile(sampler);
-    
-    FileOutputStream outputStream(outputFile);
-
-	cacheToUse->writeToStream(outputStream);
-
-	sampler->loadCacheFromFile(outputFile);
-};
-
 
 SampleMap::SampleMap(ModulatorSampler *sampler_):
 	sampler(sampler_),
@@ -290,11 +200,6 @@ ValueTree SampleMap::exportAsValueTree() const
 	return v;
 }
 
-void SampleMap::replaceFileReferences(ValueTree &soundTree) const
-{
-	const String reference = GET_PROJECT_HANDLER(sampler).getFileReference(soundTree.getProperty("FileName", String()), ProjectHandler::SubDirectories::Samples);
-	soundTree.setProperty("FileName", reference, nullptr);
-}
 
 void SampleMap::save()
 {

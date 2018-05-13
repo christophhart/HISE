@@ -301,8 +301,8 @@ Component* FloatingPanelTemplates::createHiseLayout(FloatingTile* rootTile)
 
 
 
-	File scriptJSON = File(PresetHandler::getDataFolder()).getChildFile("Workspaces/ScriptingWorkspace.json");
-	File sampleJSON = File(PresetHandler::getDataFolder()).getChildFile("Workspaces/SamplerWorkspace.json");
+	File scriptJSON = ProjectHandler::getAppDataDirectory().getChildFile("Workspaces/ScriptingWorkspace.json");
+	File sampleJSON = ProjectHandler::getAppDataDirectory().getChildFile("Workspaces/SamplerWorkspace.json");
 
 	var scriptData = JSON::parse(scriptJSON.loadFileAsString());
 	var sampleData = JSON::parse(sampleJSON.loadFileAsString());

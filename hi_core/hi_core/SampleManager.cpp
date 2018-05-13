@@ -47,8 +47,6 @@ MainController::SampleManager::SampleManager(MainController *mc_) :
 	samplerLoaderThreadPool(new SampleThreadPool()),
 	projectHandler(mc_),
 	globalSamplerSoundPool(new ModulatorSamplerSoundPool(mc)),
-	globalAudioSampleBufferPool(new AudioSampleBufferPool(mc_)),
-	globalImagePool(new ImagePool(mc_)),
 	sampleClipboard(ValueTree("clipboard")),
 	internalPreloadJob(mc_),
 	preloadListenerUpdater(this),
