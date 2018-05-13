@@ -171,6 +171,7 @@ void AutoSaver::timerCallback()
 
 File AutoSaver::getAutoSaveFile()
 {
+#if USE_BACKEND
 	Processor *mainSynthChain = mc->getMainSynthChain();
 
 	File presetDirectory = GET_PROJECT_HANDLER(mainSynthChain).getSubDirectory(ProjectHandler::SubDirectories::Presets);
@@ -198,6 +199,9 @@ File AutoSaver::getAutoSaveFile()
 	{
 		return File();
 	}
+#else
+	return File();
+#endif
 }
 
 #if USE_VDSP_FFT

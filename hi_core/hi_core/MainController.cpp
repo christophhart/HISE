@@ -65,6 +65,8 @@ MainController::MainController():
 	processorChangeHandler(this),
 	killStateHandler(this),
 	debugLogger(this),
+	expansionHandler(this),
+	
 	//presetLoadRampFlag(OldUserPresetHandler::Active),
 	suspendIndex(0),
 	controlUndoManager(new UndoManager())
@@ -172,9 +174,8 @@ void MainController::clearPreset()
     
 	clearIncludedFiles();
 
-	getSampleManager().getImagePool()->clearData();
-	getSampleManager().getAudioSampleBufferPool()->clearData();
-
+	getCurrentFileHandler(true).pool->clear();
+	getExpansionHandler().clearPools();
 
     changed = false;
 }
@@ -250,8 +251,6 @@ void MainController::loadPresetInternal(const ValueTree& v)
 
 		synthChain->loadMacrosFromValueTree(v);
 
-
-		getSampleManager().getAudioSampleBufferPool()->clearData();
 
 #if USE_BACKEND
 		Processor::Iterator<ModulatorSynth> iter(synthChain, false);
@@ -388,20 +387,6 @@ void MainController::killAndCallOnLoadingThread(const ProcessorFunction& f)
 int MainController::getNumActiveVoices() const
 {
 	return getMainSynthChain()->getNumActiveVoices();
-}
-
-void MainController::replaceReferencesToGlobalFolder()
-{
-	ModulatorSynthChain *root = getMainSynthChain();
-
-	Processor::Iterator<ExternalFileProcessor> it(root);
-
-	ExternalFileProcessor *p = nullptr;
-
-	while ((p = it.getNextProcessor()) != nullptr)
-	{
-		p->replaceReferencesWithGlobalFolder();
-	}
 }
 
 void MainController::beginParameterChangeGesture(int index)			{ dynamic_cast<PluginParameterAudioProcessor*>(this)->beginParameterChangeGesture(index); }
@@ -1130,6 +1115,8 @@ MainController::SampleManager::~SampleManager()
 	
 	samplerLoaderThreadPool = nullptr;
 }
+
+
 
 void MainController::SampleManager::setShouldSkipPreloading(bool skip)
 {
