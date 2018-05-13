@@ -352,7 +352,7 @@ public:
 	
 	const CriticalSection& getExportLock() const { return exportLock; }
 
-#if USE_BACKEND
+#if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING
 	SampleEditHandler* getSampleEditHandler() { return sampleEditHandler; }
 	const SampleEditHandler* getSampleEditHandler() const { return sampleEditHandler; }
 #endif
@@ -688,7 +688,7 @@ private:
 	ScopedPointer<ModulatorChain> crossFadeChain;
 	ScopedPointer<AudioThumbnailCache> soundCache;
 	
-#if USE_BACKEND
+#if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING
 	ScopedPointer<SampleEditHandler> sampleEditHandler;
 #endif
 

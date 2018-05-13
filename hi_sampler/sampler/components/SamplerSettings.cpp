@@ -764,7 +764,9 @@ void SamplerSettings::labelTextChanged (Label* labelThatHasChanged)
 			crossfadeEditor->setEditedTable(nullptr);
 		}
 
-		findParentComponentOfClass<ProcessorEditorBody>()->refreshBodySize();
+
+		BACKEND_ONLY(findParentComponentOfClass<ProcessorEditorBody>()->refreshBodySize());
+
 
 
         //[/UserLabelCode_crossfadeGroupEditor]

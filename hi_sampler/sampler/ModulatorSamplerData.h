@@ -283,7 +283,7 @@ private:
 
 };
 
-
+#if HI_ENABLE_EXPANSION_EDITING
 class MonolithExporter : public DialogWindowWithBackgroundThread,
 						 public AudioFormatWriter
 {
@@ -291,14 +291,7 @@ public:
 
 	MonolithExporter(SampleMap* sampleMap_);
 
-	MonolithExporter(const String &name, ModulatorSynthChain* chain) :
-		DialogWindowWithBackgroundThread(name),
-		AudioFormatWriter(nullptr, "", 0.0, 0, 1),
-		sampleMapDirectory(GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps)),
-		monolithDirectory(GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::Samples)),
-		sampleMap(nullptr)
-	{
-	}
+	MonolithExporter(const String &name, ModulatorSynthChain* chain);
 
 	~MonolithExporter()
 	{
@@ -358,6 +351,7 @@ private:
 
 	String error;
 };
+#endif
 
 } // namespace hise
 #endif  // MODULATORSAMPLERDATA_H_INCLUDED

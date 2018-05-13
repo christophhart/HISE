@@ -308,10 +308,10 @@ void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo
 		result.setActive(zoomFactor != 1.0f);
 		break;
 	case ToggleVerticalSize:result.setInfo("Toggle Vertical Size", "Toggle vertical size", "Zooming", 0);
-		result.setActive(dynamic_cast<SamplerBody*>(getParentComponent()) != nullptr);
+		BACKEND_ONLY(result.setActive(dynamic_cast<SamplerBody*>(getParentComponent()) != nullptr));
 		break;
 	case PopOutMap:			result.setInfo("Show Map Editor in popup", "Show Map Editor in popup", "Zooming", 0);
-		result.setActive(dynamic_cast<SamplerBody*>(getParentComponent()) != nullptr);
+		BACKEND_ONLY(result.setActive(dynamic_cast<SamplerBody*>(getParentComponent()) != nullptr));
 		break;
 	case NewSampleMap:		result.setInfo("New SampleMap", "Create a new SampleMap", "SampleMap Handling", 0);
 		result.addDefaultKeypress('n', ModifierKeys::commandModifier);
@@ -457,56 +457,18 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 		return true;
 	}
 								
-	case LoadSampleMap:		{
-							FileChooser f("Load new samplemap", GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps), "*.xml;*.m5p");
-							if(f.browseForFileToOpen())
-							{
-								auto tmp = f.getResult();
-								auto func = [tmp](Processor* p)
-								{
-									static_cast<ModulatorSampler*>(p)->loadSampleMapSync(tmp); return true;
-								};
-
-								sampler->killAllVoicesAndCall(func);
-								
-							}
-							return true;
-							}
+	case LoadSampleMap:				loadSampleMap(); return true;
 	case SaveSampleMap:				sampler->saveSampleMap(); return true;
 	case SaveSampleMapAsXml:		sampler->saveSampleMapAs(); return true;
-	case SaveSampleMapAsMonolith:	sampler->saveSampleMapAsMonolith(GET_BACKEND_ROOT_WINDOW(this)); return true;
-	case ImportSfz:			{
-							FileChooser f("Import sfz", GET_PROJECT_HANDLER(sampler).getWorkDirectory(), "*.sfz");
+	case SaveSampleMapAsMonolith:	sampler->saveSampleMapAsMonolith(this); return true;
+	case ImportSfz:					importSfz(); return true;
 
-
-
-							if(f.browseForFileToOpen())
-							{
-								try
-								{
-									//sampler->setBypassed(true);
-
-									sampler->clearSampleMap();
-
-
-									SfzImporter sfz(sampler, f.getResult());
-									sfz.importSfzFile();
-
-									//sampler->setBypassed(false);
-								}
-								catch(SfzImporter::SfzParsingError error)
-								{
-									debugError(sampler, error.getErrorMessage());
-								}
-							}
-							return true;
-							}
 	case ImportFiles:		{
 
                             AudioFormatManager afm;
                             afm.registerBasicFormats();
 
-                            FileChooser f("Load new samples", GET_PROJECT_HANDLER(sampler).getWorkDirectory(), afm.getWildcardForAllFormats(), true);
+                            FileChooser f("Load new samples", GET_PROJECT_HANDLER(sampler).getRootFolder(), afm.getWildcardForAllFormats(), true);
 							if(f.browseForMultipleFilesToOpen())
 							{
 								StringArray fileNames;
@@ -556,6 +518,46 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 }
 
 
+
+void SampleMapEditor::importSfz()
+{
+	FileChooser f("Import sfz", GET_PROJECT_HANDLER(sampler).getRootFolder(), "*.sfz");
+
+	if (f.browseForFileToOpen())
+	{
+		try
+		{
+			sampler->clearSampleMap();
+
+			SfzImporter sfz(sampler, f.getResult());
+			sfz.importSfzFile();
+		}
+		catch (SfzImporter::SfzParsingError error)
+		{
+			debugError(sampler, error.getErrorMessage());
+		}
+	}
+}
+
+void SampleMapEditor::loadSampleMap()
+{
+
+
+	auto rootFile = sampler->getSampleEditHandler()->getCurrentSampleMapDirectory();
+
+	FileChooser f("Load new samplemap", rootFile, "*.xml");
+	if (f.browseForFileToOpen())
+	{
+		auto tmp = f.getResult();
+		auto func = [tmp](Processor* p)
+		{
+			static_cast<ModulatorSampler*>(p)->loadSampleMapSync(tmp); return true;
+		};
+
+		sampler->killAllVoicesAndCall(func);
+
+	}
+}
 
 void SampleMapEditor::refreshRootNotes()
 {
@@ -667,7 +669,7 @@ void SampleMapEditor::toggleVerticalSize()
 	viewport->setViewPositionProportionately(midPoint, 0);
 
 
-	body->refreshBodySize();
+	BACKEND_ONLY(body->refreshBodySize());
 }
 
 //[/MiscUserCode]

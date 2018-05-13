@@ -35,8 +35,11 @@
 #include "FloatingTileFactoryMethods.cpp"
 #include "PanelWithProcessorConnection.cpp"
 
-#if USE_BACKEND
+#if HI_ENABLE_EXPANSION_EDITING
 #include "SamplerPanelTypes.cpp"
+#endif
+
+#if USE_BACKEND
 #include "BackendPanelTypes.cpp"
 #endif
 

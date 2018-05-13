@@ -668,10 +668,11 @@ int RoundRobinMap::getRRGroupsForMessage(int noteNumber, int velocity)
 	
 }
 
+#if HI_ENABLE_EXPANSION_EDITING
 MonolithExporter::MonolithExporter(SampleMap* sampleMap_) :
 	DialogWindowWithBackgroundThread("Exporting samples as monolith"),
 	AudioFormatWriter(nullptr, "", 0.0, 0, 1),
-	sampleMapDirectory(GET_PROJECT_HANDLER(sampleMap_->getSampler()).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps)),
+	sampleMapDirectory(sampleMap_->getSampler()->getSampleEditHandler()->getCurrentSampleMapDirectory()),
 	monolithDirectory(GET_PROJECT_HANDLER(sampleMap_->getSampler()).getSubDirectory(ProjectHandler::SubDirectories::Samples))
 {
 	setSampleMap(sampleMap_);
@@ -713,6 +714,25 @@ MonolithExporter::MonolithExporter(SampleMap* sampleMap_) :
 
 	addBasicComponents(true);
 }
+
+
+MonolithExporter::MonolithExporter(const String &name, ModulatorSynthChain* chain) :
+	DialogWindowWithBackgroundThread(name),
+	AudioFormatWriter(nullptr, "", 0.0, 0, 1),
+	
+	monolithDirectory(GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::Samples)),
+	sampleMap(nullptr)
+{
+	if (auto firstSampler = ProcessorHelpers::getFirstProcessorWithType<ModulatorSampler>(chain))
+	{
+		sampleMapDirectory = firstSampler->getSampleEditHandler()->getCurrentSampleMapDirectory();
+	}
+	else
+	{
+		sampleMapDirectory = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+	}
+}
+
 
 void MonolithExporter::run()
 {
@@ -934,5 +954,6 @@ void MonolithExporter::updateSampleMap()
 		}
 	}
 }
+#endif
 
 } // namespace hise

@@ -97,7 +97,8 @@ var PanelWithProcessorConnection::toDynamicObject() const
 
 	storePropertyInObject(obj, SpecialPanelIds::ProcessorId, getConnectedProcessor() != nullptr ? getConnectedProcessor()->getId() : "");
 	storePropertyInObject(obj, SpecialPanelIds::Index, currentIndex);
-
+	storePropertyInObject(obj, SpecialPanelIds::Index, currentIndex);
+	
 	return obj;
 }
 
@@ -424,4 +425,25 @@ bool PanelWithProcessorConnection::ProcessorConnection::undo()
 	return false;
 }
 
+void PanelWithProcessorConnection::setContentForIdentifier(Identifier idToSearch)
+    {
+        auto parentContainer = getParentShell()->getParentContainer();
+        
+        if (parentContainer != nullptr)
+        {
+            FloatingTile::Iterator<PanelWithProcessorConnection> iter(parentContainer->getParentShell());
+            
+            while (auto p = iter.getNextPanel())
+            {
+                if (p == this)
+                    continue;
+                
+                if (p->getProcessorTypeId() != idToSearch)
+                    continue;
+                
+                p->setContentWithUndo(getProcessor(), 0);
+            }
+        }
+    }
+    
 } // namespace hise

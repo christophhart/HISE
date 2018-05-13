@@ -224,12 +224,14 @@ void ValueSettingComponent::buttonClicked (Button* buttonThatWasClicked)
 
 void ValueSettingComponent::mouseDown(const MouseEvent &e)
 {
+#if USE_BACKEND
     ProcessorEditor *editor = findParentComponentOfClass<ProcessorEditor>();
     
     if(editor != nullptr)
     {
         PresetHandler::setChanged(editor->getProcessor());
     }
+#endif
     
     if(currentSelection.size() != 0 && e.mods.isRightButtonDown())
     {

@@ -46,7 +46,15 @@ AudioProcessorEditor(fp)
 
 	LOG_START("Creating Root Panel");
 
+#if HI_ENABLE_EXPANSION_EDITING
+
+
+	ExpansionHandler::Helpers::createFrontendLayoutWithExpansionEditing(rootTile);
+
+#else
+
 	rootTile->setNewContent("InterfacePanel");
+#endif
     
 	fp->addOverlayListener(this);
 	
@@ -100,9 +108,17 @@ AudioProcessorEditor(fp)
 
 	auto jsp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(fp);
     
+
+
     if(jsp != nullptr)
     {
-        setSize(jsp->getScriptingContent()->getContentWidth(), jsp->getScriptingContent()->getContentHeight());
+#if HI_ENABLE_EXPANSION_EDITING
+		int heightOfContent = jsp->getScriptingContent()->getContentHeight() + 50;
+#else
+		int heightOfContent = jsp->getScriptingContent()->getContentHeight();
+#endif
+
+        setSize(jsp->getScriptingContent()->getContentWidth(), heightOfContent);
 
     }
     
