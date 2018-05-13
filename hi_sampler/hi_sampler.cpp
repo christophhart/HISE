@@ -43,8 +43,7 @@
 #include "sampler/ModulatorSamplerVoice.cpp"
 #include "sampler/ModulatorSampler.cpp"
 
-#if USE_BACKEND
-
+#if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING
 #include "sampler/SampleImporter.cpp"
 #include "sampler/SfzImporter.cpp"
 #include "sampler/MachFiveImporter.cpp"
@@ -62,8 +61,13 @@
 #include "sampler/components/SampleMapEditor.cpp"
 #include "sampler/components/SamplerTable.cpp"
 #include "sampler/components/SampleEditHandler.cpp"
-#include "sampler/components/SamplerBody.cpp"
 #include "sampler/components/SampleEditingActions.cpp"
+#endif
+
+#if USE_BACKEND
+
+#include "sampler/components/SamplerBody.cpp"
+
 
 #endif
 
