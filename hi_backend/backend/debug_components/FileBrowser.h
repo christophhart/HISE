@@ -72,7 +72,8 @@ class FileBrowser : public Component,
 					public DragAndDropContainer,
 					public ApplicationCommandTarget,
 					public TextEditor::Listener,
-					public ProjectHandler::Listener
+					public ProjectHandler::Listener,
+					public ExpansionHandler::Listener
 {
 public:
 
@@ -127,6 +128,13 @@ public:
 	};
 
 	void projectChanged(const File& newRootDirectory) override;
+
+	void expansionPackCreated(Expansion* newExpansion) override
+	{
+		expansionPackLoaded(newExpansion);
+	}
+
+	void expansionPackLoaded(Expansion* currentExpansion) override;
 
 	void goToDirectory(const File &newRoot, bool useUndoManager=true);
 
