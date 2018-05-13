@@ -38,78 +38,12 @@ namespace hise { using namespace juce;
 class ModulatorSampler;
 class ModulatorSamplerSound;
 
-/** Handles all thumbnail related stuff
-*	@ingroup sampler
-*
-*	Simply call loadThumbNails whenever you change the directory and it takes care of everything.
-*/
-class ThumbnailHandler: public ThreadWithQuasiModalProgressWindow
+
+
+struct SampleMapData
 {
-public:
-
-	/** This loads the thumbnails into the sampler.
-	*
-	*	It looks for a previously saved file and creates a new file if nothing is found.
-	*/
-	static void loadThumbnails(ModulatorSampler* /*sampler*/, const File &/*directory*/)
-	{
-		
-	}
-
-	static void saveNewThumbNails(ModulatorSampler *sampler, const StringArray &newAudioFiles);
-
-private:
-
-	ThumbnailHandler(const File &directoryToLoad, ModulatorSampler *s);;
-
-	ThumbnailHandler(const File &directoryToLoad, const StringArray &fileNames, ModulatorSampler *s);
-
-	static File getThumbnailFile(ModulatorSampler *sampler);;
-
-	static void loadThumbnailsIntoSampler(ModulatorSampler *sampler );
-
-	/** This generates a thumbnail file in the specified directory and loads it into the sampler. */
-	static void generateThumbnailData(ModulatorSampler *sampler, const File &directoryToLoad)
-	{
-		new ThumbnailHandler(directoryToLoad, sampler);
-	}
-
-	void saveThumbnail(AudioThumbnailCache *cache, AudioFormatManager &afm, const File &file)
-	{
-		AudioThumbnail thumb(256, afm, *cache);
-		ScopedPointer<AudioFormatReader> afr = afm.createReaderFor(new FileInputStream(file));
-		
-        if(afr != nullptr)
-        {
-            AudioSampleBuffer buffer(afr->numChannels, (int)afr->lengthInSamples);
-            
-            thumb.reset(afr->numChannels, afr->sampleRate, afr->lengthInSamples);
-            afr->read(&buffer, 0, (int)afr->lengthInSamples, 0, true, true);
-            thumb.addBlock(0, buffer, 0, buffer.getNumSamples());
-            cache->storeThumb(thumb, file.hashCode64());
-        }
-        else
-        {
-            jassertfalse;
-        }
-        
-	}
-
-	void run() override;
-
-	const bool addThumbNailsToExistingCache;
-
-	ScopedPointer<AudioThumbnailCache> writeCache;
-
-	AlertWindowLookAndFeel laf;
-
-	File directory;
-
-	StringArray fileNamesToLoad;
-
-	ModulatorSampler *sampler;
+	ValueTree data;
 };
-
 
 /** A SampleMap is a data structure that encapsulates all data loaded into an ModulatorSampler. 
 *	@ingroup sampler
@@ -227,20 +161,25 @@ public:
 
     void setId(Identifier newIdentifier)
     {
-        sampleMapId = newIdentifier;
+        sampleMapId = newIdentifier.toString();
+		data.setProperty("ID", sampleMapId.toString(), nullptr);
     }
     
     Identifier getId() const { return sampleMapId; };
     
-	static String checkReferences(ValueTree& v, const File& sampleRootFolder, Array<File>& sampleList);
+	static String checkReferences(MainController* mc, ValueTree& v, const File& sampleRootFolder, Array<File>& sampleList);
+
+	void addSound(ModulatorSamplerSound* newSound);
 
 private:
 
+	ValueTree data;
+
 	void resolveMissingFiles(ValueTree &treeToUse);
 
-	void loadSamplesFromDirectory(const ValueTree &v);
+	void loadSamplesFromDirectory();
 
-	void loadSamplesFromMonolith(const ValueTree &v);
+	void loadSamplesFromMonolith();
 
 	ModulatorSampler *sampler;
 

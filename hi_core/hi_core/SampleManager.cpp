@@ -67,7 +67,7 @@ void MainController::SampleManager::copySamplesToClipboard(void* soundsToCopy_)
 	{
 		if (soundsToCopy[i].get() != nullptr)
 		{
-			ValueTree soundTree = soundsToCopy[i]->exportAsValueTree();
+			ValueTree soundTree = soundsToCopy[i]->getData();
 
 			static Identifier duplicate("Duplicate");
 			soundTree.setProperty(duplicate, true, nullptr);

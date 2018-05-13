@@ -275,13 +275,7 @@ public:
 	void resetNoteDisplay(int noteNumber);
 	void resetNotes();
 
-	/** Adds a sound to the sampler.
-	*
-	*	
-	*/
-	ModulatorSamplerSound* addSamplerSound(const ValueTree &description, int index, bool forceReuse=false);
-
-	void addSamplerSounds(OwnedArray<ModulatorSamplerSound>& monolithicSounds);
+	
 
 	void renderNextBlockWithModulators(AudioSampleBuffer& outputAudio, const HiseEventBuffer& inputMidi) override
 	{
@@ -497,7 +491,7 @@ public:
 		}
 
 		refreshPreloadSizes();
-		refreshMemoryUsage();
+		
 	}
 	
 	void setPreloadMultiplier(int newPreloadScaleFactor)

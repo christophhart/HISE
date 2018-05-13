@@ -872,59 +872,6 @@ void ModulatorSampler::resetNotes()
 	}
 }
 
-ModulatorSamplerSound* ModulatorSampler::addSamplerSound(const ValueTree &description, int index, bool forceReuse/*=false*/)
-{
-	//ScopedLock sl(getMainController()->getLock());
-	checkAndLogIsSoftBypassed(DebugLogger::Location::AddOneSample);
-
-	jassert(sounds.size() == index);
-
-	ModulatorSamplerSoundPool *pool = getMainController()->getSampleManager().getModulatorSamplerSoundPool();
-    ModulatorSamplerSound *newSound = pool->addSound(description, index, description.hasProperty("mono_sample_start") || forceReuse);
-
-	if (newSound != nullptr)
-	{
-		newSound->restoreFromValueTree(description);
-
-		sounds.add(newSound);
-		newSound->setUndoManager(getMainController()->getControlUndoManager());
-		newSound->addChangeListener(sampleMap);
-		newSound->setMaxRRGroupIndex(rrGroupAmount);
-
-		sendChangeMessage();
-
-		
-	}
-
-	return newSound;
-	
-}
-
-
-void ModulatorSampler::addSamplerSounds(OwnedArray<ModulatorSamplerSound>& monolithicSounds)
-{
-	//ScopedLock sl(getMainController()->getLock());
-	checkAndLogIsSoftBypassed(DebugLogger::Location::AddMultipleSamples);
-
-	jassert(sounds.size() == 0);
-
-	const int numNewSounds = monolithicSounds.size();
-
-	for (int i = 0; i < numNewSounds; i++)
-	{
-		ModulatorSamplerSound* newSound = monolithicSounds.removeAndReturn(0);
-
-		sounds.add(newSound);
-
-		newSound->setPurged(purged);
-		newSound->setMaxRRGroupIndex(rrGroupAmount);
-		newSound->setUndoManager(getMainController()->getControlUndoManager());
-		newSound->addChangeListener(sampleMap);
-	}
-
-	sendChangeMessage();
-}
-
 SampleThreadPool * ModulatorSampler::getBackgroundThreadPool()
 {
 	return getMainController()->getSampleManager().getGlobalSampleThreadPool();

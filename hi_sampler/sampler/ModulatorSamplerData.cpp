@@ -37,11 +37,10 @@ namespace hise { using namespace juce;
 
 
 SampleMap::SampleMap(ModulatorSampler *sampler_):
-	sampler(sampler_),
-	fileOnDisk(File()),
-	changed(false),
-	mode(Undefined)
+	sampler(sampler_)
 {
+	clear();
+
 	// You have to clear the sound array before you set a new SampleMap!
 	jassert(sampler->getNumSounds() == 0);
 }
@@ -107,6 +106,8 @@ void SampleMap::changeListenerCallback(SafeChangeBroadcaster *)
 
 void SampleMap::clear()
 {
+	data = ValueTree("sampleMap");
+
     mode = Undefined;
     fileOnDisk = File();
     sampleMapId = Identifier();
@@ -123,6 +124,8 @@ void SampleMap::restoreFromValueTree(const ValueTree &v)
 {
 	ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
 
+	data = v;
+
 	mode = (SaveMode)(int)v.getProperty("SaveMode");
 
 	const String sampleMapName = v.getProperty("ID");
@@ -134,12 +137,12 @@ void SampleMap::restoreFromValueTree(const ValueTree &v)
 
 	if(mode == Monolith)
 	{
-		loadSamplesFromMonolith(v);
+		loadSamplesFromMonolith();
 	}
 
 	else
 	{
-		loadSamplesFromDirectory(v);
+		loadSamplesFromDirectory();
 	}
 
 	if(!sampler->isRoundRobinEnabled()) sampler->refreshRRMap();
@@ -162,16 +165,25 @@ void SampleMap::saveIfNeeded()
 
 ValueTree SampleMap::exportAsValueTree() const
 {
-	// The file must be set before exporting the samplemap!
-	//jassert(!saveRelativePaths && fileOnDisk != File());
+	return data;
+}
 
-	ValueTree v("samplemap");
+void SampleMap::replaceFileReferences(ValueTree &soundTree) const
+{
+#if USE_BACKEND
+	const String reference = GET_PROJECT_HANDLER(sampler).getFileReference(soundTree.getProperty("FileName", String()), ProjectHandler::SubDirectories::Samples);
+	soundTree.setProperty("FileName", reference, nullptr);
+#endif
+}
 
-    v.setProperty("ID", sampleMapId.toString(), nullptr);
-	v.setProperty("SaveMode", mode, nullptr);
-	v.setProperty("RRGroupAmount", sampler->getAttribute(ModulatorSampler::Parameters::RRGroupAmount), nullptr);
-	v.setProperty("MicPositions", sampler->getStringForMicPositions(), nullptr);
+void SampleMap::save()
+{
+	data.setProperty("ID", sampleMapId.toString(), nullptr);
+	data.setProperty("SaveMode", mode, nullptr);
+	data.setProperty("RRGroupAmount", sampler->getAttribute(ModulatorSampler::Parameters::RRGroupAmount), nullptr);
+	data.setProperty("MicPositions", sampler->getStringForMicPositions(), nullptr);
 
+#if 0
 	StringArray absoluteFileNames;
 
 	ModulatorSampler::SoundIterator sIter(sampler);
@@ -198,12 +210,34 @@ ValueTree SampleMap::exportAsValueTree() const
 	}
 
 	return v;
-}
+#endif
 
 
-void SampleMap::save()
-{
-	File rootDirectory = GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#if HI_ENABLE_EXPANSION_EDITING
+	auto rootDirectory = sampler->getSampleEditHandler()->getCurrentSampleMapDirectory();
+
+	
 
 	File fileToUse;
 
@@ -241,11 +275,13 @@ void SampleMap::save()
 
 		changed = false;
 	}
+#endif
 }
 
 
 void SampleMap::saveAsMonolith(Component* mainEditor)
 {
+#if HI_ENABLE_EXPANSION_EDITING
 	mode = SaveMode::Monolith;
 
 	auto m = new MonolithExporter(this);
@@ -253,48 +289,31 @@ void SampleMap::saveAsMonolith(Component* mainEditor)
 	m->setModalBaseWindowComponent(mainEditor);
 
 	changed = false;
+#endif
 }
 
-void SampleMap::loadSamplesFromDirectory(const ValueTree &v)
+void SampleMap::loadSamplesFromDirectory()
 {
-	jassert(!v.hasProperty("Monolithic"));
+	jassert(!data.hasProperty("Monolithic"));
 
-	String fileName = v.getProperty("FileName", String());
+	String fileName = data.getProperty("FileName", String());
 
 	const ValueTree *treeToUse;
 
 	ValueTree globalTree;
 	ValueTree absoluteTree;
 
-	if ((bool)v.getProperty("UseGlobalFolder", false) == true)
-	{
-		globalTree = v.createCopy();
+	if (fileName.isNotEmpty()) fileOnDisk = File(fileName);
 
-		for (int i = 0; i < globalTree.getNumChildren(); i++)
-		{
-			const String sampleFileName = v.getChild(i).getProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName), String());
+	mode = (SaveMode)(int)data.getProperty("SaveMode", (int)Undefined);
 
-			jassert(sampler->isReference(sampleFileName));
-
-			globalTree.getChild(i).setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName), sampler->getFile(sampleFileName, PresetPlayerHandler::StreamedSampleFolder).getFullPathName(), nullptr);
-		}
-
-		treeToUse = &globalTree;
-	}
-	else
-	{
-		if (fileName.isNotEmpty()) fileOnDisk = File(fileName);
-
-		mode = (SaveMode)(int)v.getProperty("SaveMode", (int)Undefined);
-
-		treeToUse = &v;
-	}
+	treeToUse = &data;
 
 	sampler->deleteAllSounds();
 
-	int numChannels = jmax<int>(1, v.getChild(0).getNumChildren());
+	int numChannels = jmax<int>(1, data.getChild(0).getNumChildren());
 	
-    StringArray micPositions = StringArray::fromTokens(v.getProperty("MicPositions").toString(), ";", "");
+    StringArray micPositions = StringArray::fromTokens(data.getProperty("MicPositions").toString(), ";", "");
     
     micPositions.removeEmptyStrings(true);
     
@@ -317,11 +336,11 @@ void SampleMap::loadSamplesFromDirectory(const ValueTree &v)
 	{
 		ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
 
-		for (int i = 0; i < treeToUse->getNumChildren(); i++)
+		for (const auto& sampleData: data)
 		{
 			try
 			{
-				sampler->addSamplerSound(treeToUse->getChild(i), i);
+				sampler->addSound(new ModulatorSamplerSound(sampler->getMainController(), sampleData, nullptr));
 			}
 			catch (StreamingSamplerSound::LoadingError l)
 			{
@@ -348,40 +367,25 @@ void SampleMap::loadSamplesFromDirectory(const ValueTree &v)
 	sampler->setShouldUpdateUI(true);
 	sampler->sendChangeMessage();
 
-	if(fileOnDisk != File() && (treeToUse->getNumChildren() != 0))
-	{
-		String firstFileName = treeToUse->getChild(0).getProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName), String());
-
-		File sampleDirectory = File(GET_PROJECT_HANDLER(sampler).getFilePath(firstFileName, ProjectHandler::SubDirectories::Samples)).getParentDirectory();
-
-		jassert(sampleDirectory.isDirectory());
-
-		ThumbnailHandler::loadThumbnails(sampler, sampleDirectory);
-	}
 }
 
-void SampleMap::loadSamplesFromMonolith(const ValueTree &v)
+void SampleMap::loadSamplesFromMonolith()
 {
-#if USE_BACKEND
 	File monolithDirectory = GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::Samples);
-
-#else    
-	File monolithDirectory = dynamic_cast<FrontendDataHolder*>(sampler->getMainController())->getSampleLocation();
-#endif
 
 	if (!monolithDirectory.isDirectory())
 	{
 		sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage,
 			"The sample directory does not exist");
-#if USE_FRONTEND
-		sampler->deleteAllSounds();
-#endif
+
+		FRONTEND_ONLY(sampler->deleteAllSounds());
+
 		return;
 	}
 
 	Array<File> monolithFiles;
 	
-    int numChannels = jmax<int>(1, v.getChild(0).getNumChildren());
+    int numChannels = jmax<int>(1, data.getChild(0).getNumChildren());
     
 	for (int i = 0; i < numChannels; i++)
 	{
@@ -397,9 +401,9 @@ void SampleMap::loadSamplesFromMonolith(const ValueTree &v)
 
             sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage,
                                                              "The sample " + f.getFileName() + " wasn't found");
-#if USE_FRONTEND
-            sampler->deleteAllSounds();
-#endif
+
+			FRONTEND_ONLY(sampler->deleteAllSounds());
+
             return;
         }
 	}
@@ -409,7 +413,7 @@ void SampleMap::loadSamplesFromMonolith(const ValueTree &v)
 
 		sampler->deleteAllSounds();
 
-		StringArray micPositions = StringArray::fromTokens(v.getProperty("MicPositions").toString(), ";", "");
+		StringArray micPositions = StringArray::fromTokens(data.getProperty("MicPositions").toString(), ";", "");
 
 		micPositions.removeEmptyStrings(true);
 
@@ -424,32 +428,29 @@ void SampleMap::loadSamplesFromMonolith(const ValueTree &v)
 
 		ModulatorSamplerSoundPool* pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
 
-		OwnedArray<ModulatorSamplerSound> newSounds;
+		auto hmaf = pool->loadMonolithicData(data, monolithFiles);
 
-		pool->loadMonolithicData(v, monolithFiles, newSounds);
-
-		if (newSounds.size() == v.getNumChildren())
-		{
-			for (int i = 0; i < newSounds.size(); i++)
-			{
-				newSounds[i]->restoreFromValueTree(v.getChild(i));
-			}
-
-			sampler->addSamplerSounds(newSounds);
-		}
-		else
+		for (auto sample : data)
 		{
 
-#if USE_FRONTEND
-			sampler->deleteAllSounds();
-#endif
-			return;
+
+			sampler->addSound(new ModulatorSamplerSound(sampler->getMainController(), sample, hmaf));
 		}
 
-		
-
+		pool->sendChangeMessage();
 	}
     
+}
+
+void SampleMap::addSound(ModulatorSamplerSound* newSound)
+{
+	sampler->addSound(newSound);
+
+	data.addChild(newSound->getData(), -1, nullptr);
+
+	ModulatorSamplerSoundPool* pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
+	pool->sendChangeMessage();
+	sampler->sendChangeMessage();
 }
 
 void SampleMap::replaceReferencesWithGlobalFolder()
@@ -457,7 +458,7 @@ void SampleMap::replaceReferencesWithGlobalFolder()
 	
 }
 
-String SampleMap::checkReferences(ValueTree& v, const File& sampleRootFolder, Array<File>& sampleList)
+juce::String SampleMap::checkReferences(MainController* mc, ValueTree& v, const File& sampleRootFolder, Array<File>& sampleList)
 {
 	if (v.getNumChildren() == 0)
 		return String();
@@ -489,25 +490,21 @@ String SampleMap::checkReferences(ValueTree& v, const File& sampleRootFolder, Ar
 	}
 	else
 	{
-		static const String wc("{PROJECT_FOLDER}");
-
 		if (numChannels == 1)
 		{
 			for (int i = 0; i < v.getNumChildren(); i++)
 			{
 				ValueTree sample = v.getChild(i);
 
-				const String fileReference = sample.getProperty("FileName");
+				PoolReference ref(mc, sample.getProperty("FileName"), ProjectHandler::SubDirectories::Samples);
 
-				if (!fileReference.startsWith(wc))
+				if (ref.isAbsoluteFile())
 				{
-					PresetHandler::showMessageWindow("Absolute File path detected", "The sample " + fileReference + " is a absolute path which will not be resolved when using the library on another system", PresetHandler::IconType::Error);
-					return fileReference;
+					PresetHandler::showMessageWindow("Absolute File path detected", "The sample " + ref.getReferenceString() + " is a absolute path which will not be resolved when using the library on another system", PresetHandler::IconType::Error);
+					return ref.getReferenceString();
 				}
 
-				const String strippedFileReference = fileReference.fromFirstOccurrenceOf(wc, false, false);
-
-				File sampleLocation = sampleRootFolder.getChildFile(strippedFileReference);
+				File sampleLocation = ref.getFile();
 
 				if (!sampleList.contains(sampleLocation))
 				{
@@ -523,17 +520,15 @@ String SampleMap::checkReferences(ValueTree& v, const File& sampleRootFolder, Ar
 
 				for (int j = 0; j < sample.getNumChildren(); j++)
 				{
-					const String fileReference = sample.getChild(j).getProperty("FileName");
+					PoolReference ref(mc, sample.getChild(j).getProperty("FileName"), ProjectHandler::SubDirectories::Samples);
 
-					if (!fileReference.startsWith(wc))
+					if (ref.isAbsoluteFile())
 					{
-						PresetHandler::showMessageWindow("Absolute File path detected", "The sample " + fileReference + " is a absolute path which will not be resolved when using the library on another system", PresetHandler::IconType::Error);
-						return fileReference;
+						PresetHandler::showMessageWindow("Absolute File path detected", "The sample " + ref.getReferenceString() + " is a absolute path which will not be resolved when using the library on another system", PresetHandler::IconType::Error);
+						return ref.getReferenceString();
 					}
 
-					const String strippedFileReference = fileReference.fromFirstOccurrenceOf(wc, false, false);
-
-					File sampleLocation = sampleRootFolder.getChildFile(strippedFileReference);
+					File sampleLocation = ref.getFile();
 
 					if (!sampleList.contains(sampleLocation))
 					{
@@ -546,6 +541,8 @@ String SampleMap::checkReferences(ValueTree& v, const File& sampleRootFolder, Ar
 
 	return String();
 }
+
+
 
 void SampleMap::load(const File &f)
 {
@@ -602,19 +599,20 @@ void SampleMap::load(const File &f)
 
 	static const Identifier sm("samplemap");
 
-	ValueTree v = ValueTree::fromXml(*xml);
+	data = ValueTree::fromXml(*xml);
 
 #if USE_BACKEND
-	if (v.getType() != sm)
+	if (data.getType() != sm)
 	{
-		PresetHandler::showMessageWindow("Invalid Samplemap", "The XML you tried to load is not a valid samplemap. Detected Type: " + v.getType().toString(), PresetHandler::IconType::Error);
+		PresetHandler::showMessageWindow("Invalid Samplemap", "The XML you tried to load is not a valid samplemap. Detected Type: " + data.getType().toString(), PresetHandler::IconType::Error);
+		clear();
 		return;
 	}
 #endif
         
-    v.setProperty("FileName", fileToUse.getFullPathName(), nullptr);
+    data.setProperty("FileName", fileToUse.getFullPathName(), nullptr);
 
-	restoreFromValueTree(v);
+	restoreFromValueTree(data);
 
 	changed = false;
 }

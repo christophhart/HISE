@@ -68,12 +68,12 @@ void SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(SampleEdit
 
 	for (int i = 0; i < sounds.size(); i++)
 	{
-		ValueTree v = sounds[i].get()->exportAsValueTree();
+		auto v = sounds[i].get()->getData();
 		const int index = s->getNumSounds();
 
-		newSelectedIndexes.add(index);
+		s->addSound(new ModulatorSamplerSound(s->getMainController(), v, nullptr));
 
-		s->addSamplerSound(v, index, true);
+		newSelectedIndexes.add(index);
 	}
     
     s->refreshPreloadSizes();
@@ -226,7 +226,9 @@ void SampleEditHandler::SampleEditingActions::pasteSelectedSounds(SampleEditHand
 		{
 			const int index = s->getNumSounds();
 
-			auto newSound = s->addSamplerSound(v.getChild(i), index);
+			ModulatorSamplerSound::Ptr newSound = new ModulatorSamplerSound(s->getMainController(), v.getChild(i), nullptr);
+
+			s->addSound(newSound.get());
 
 			handler->getSelection().addToSelection(newSound);
 		}
@@ -385,6 +387,7 @@ public:
 		ExistingMultimicSamples,
 		SampleCollectionNotSameSize,
 		FaultySample,
+		NoMonolithAllowed,
 		TooMuchChannels
 	};
 
@@ -415,6 +418,7 @@ public:
 			modes.add("Mapping and filename");
 			addComboBox("mode", modes, "Select detection mode");
 
+			
 			addBasicComponents(true);
 
 			rebuildTokenList();
@@ -431,6 +435,7 @@ public:
 
 	void run() override
 	{
+		
 		if (errorStatus != Error::OK)
 		{
 			PresetHandler::showMessageWindow("Error", errorMessage + ".\nPress OK to quit merging", PresetHandler::IconType::Error);
@@ -447,32 +452,39 @@ public:
 
 		ModulatorSampler *sampler = handler->getSampler();
 
-		sampler->setBypassed(true);
+		auto sampleMapId = sampler->getSampleMap()->getId();
+		auto file = PoolReference(sampler->getMainController(), sampler->getSampleMap()->getFile().getFullPathName(), ProjectHandler::SubDirectories::SampleMaps);
 
-		ScopedLock sl(sampler->getMainController()->getLock());
-
-		sampler->clearSounds();
-
-		sampler->setNumMicPositions(channelNames);
+		ValueTree newSampleMap("samplemap");
+		newSampleMap.setProperty("ID", sampleMapId.toString(), nullptr);
+		
+		newSampleMap.setProperty("SaveMode", 0, nullptr);
+		newSampleMap.setProperty("FileName", file.getReferenceString(), nullptr);
+		newSampleMap.setProperty("MicPositions", channelNames.joinIntoString(";"), nullptr);
+		newSampleMap.setProperty("RRGroupAmount", (int)sampler->getAttribute(ModulatorSampler::RRGroupAmount), nullptr);
 
 		for (int i = 0; i < collections.size(); i++)
 		{
 			MultiMicCollection * c = collections[i];
 
-			ModulatorSamplerSound * s = new ModulatorSamplerSound(sampler->getMainController(), c->soundList, i);
+			auto pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
+			
+			auto tree = c->createSampleValueTree();
 
-			s->setMappingData(c->mappingData);
-
-			sampler->addSound(s);
-
-			s->setUndoManager(sampler->getUndoManager());
-			s->addChangeListener(sampler->getSampleMap());
+			newSampleMap.addChild(tree, -1, nullptr);
 		}
 
-		sampler->setBypassed(false);
+		collections.clear();
 
+		auto f = [newSampleMap](Processor* p)
+		{
+			dynamic_cast<ModulatorSampler*>(p)->loadSampleMapSync(newSampleMap);
 
-		sampler->sendChangeMessage();
+			return true;
+		};
+
+		sampler->getMainController()->getKillStateHandler().killVoicesAndCall(sampler, f, MainController::KillStateHandler::SampleLoadingThread);
+
 	}
 
 	void threadFinished() override
@@ -500,16 +512,20 @@ private:
 
 	struct MultiMicCollection
 	{
-		MultiMicCollection(ModulatorSamplerSound *firstSound, const String &fileNameWithoutToken_):
-			mappingData((int)firstSound->getProperty(ModulatorSamplerSound::RootNote),
-						(int)firstSound->getProperty(ModulatorSamplerSound::KeyLow),
-						(int)firstSound->getProperty(ModulatorSamplerSound::KeyHigh),
-						(int)firstSound->getProperty(ModulatorSamplerSound::VeloLow),
-						(int)firstSound->getProperty(ModulatorSamplerSound::VeloHigh),
-						(int)firstSound->getProperty(ModulatorSamplerSound::RRGroup)),
+		MultiMicCollection(ModulatorSamplerSound *firstSound, const String &fileNameWithoutToken_) :
+			data(firstSound->getData().createCopy()),
 			fileNameWithoutToken(fileNameWithoutToken_)
 		{
-			soundList.add(firstSound->getReferenceToSound());
+			
+			references.add(firstSound->createPoolReference());
+
+			sampleList.add(firstSound->getReferenceToSound());
+		}
+
+		void add(ModulatorSamplerSound* otherSound)
+		{
+			references.add(otherSound->createPoolReference());
+			sampleList.add(otherSound->getReferenceToSound());
 		}
 
 		bool fits(ModulatorSamplerSound *otherSound, const String &otherFileNameWithoutToken, DetectionMode mode) const
@@ -534,6 +550,49 @@ private:
 			return false;
 		}
 
+		ValueTree createSampleValueTree()
+		{
+			data.removeProperty("FileName", nullptr);
+
+			for (const auto& ref : references)
+			{
+				ValueTree fileChild("file");
+				fileChild.setProperty("FileName", ref.getReferenceString(), nullptr);
+				data.addChild(fileChild, -1, nullptr);
+			}
+
+			return data;
+		}
+
+		bool checkSampleSize() const
+		{
+			int lastLength = -1;
+
+			for (const auto s : sampleList)
+			{
+				int thisLength = s->getSampleLength();
+
+				if (lastLength != -1 && thisLength != lastLength)
+					return false;
+
+				lastLength = thisLength;
+			}
+
+			return true;
+		}
+
+		String getDisplayString(int index=0) const
+		{
+			return references[index].getReferenceString();
+		}
+
+		int size() const
+		{
+			jassert(references.size() == sampleList.size());
+
+			return references.size();
+		}
+
 	private:
 
 		bool appliesToFileName(const String &otherFileNameWithoutToken) const
@@ -543,20 +602,26 @@ private:
 
 		bool appliesToCollection(ModulatorSamplerSound *otherSound) const
 		{
-			return  mappingData.rootNote == (int)otherSound->getProperty(ModulatorSamplerSound::RootNote) &&
-				    mappingData.loKey == (int)otherSound->getProperty(ModulatorSamplerSound::KeyLow) &&
-				    mappingData.hiKey == (int)otherSound->getProperty(ModulatorSamplerSound::KeyHigh) &&
-					mappingData.loVel == (int)otherSound->getProperty(ModulatorSamplerSound::VeloLow) &&
-					mappingData.hiVel == (int)otherSound->getProperty(ModulatorSamplerSound::VeloHigh) &&
-					mappingData.rrGroup == (int)otherSound->getProperty(ModulatorSamplerSound::RRGroup);
+			return  data[SampleIds::RootNote] == otherSound->getProperty(ModulatorSamplerSound::RootNote) &&
+				    data[SampleIds::LoKey] == otherSound->getProperty(ModulatorSamplerSound::KeyLow) &&
+				    data[SampleIds::HiKey] == otherSound->getProperty(ModulatorSamplerSound::KeyHigh) &&
+					data[SampleIds::LoVel] == otherSound->getProperty(ModulatorSamplerSound::VeloLow) &&
+					data[SampleIds::HiVel] == otherSound->getProperty(ModulatorSamplerSound::VeloHigh) &&
+					data[SampleIds::RRGroup] == otherSound->getProperty(ModulatorSamplerSound::RRGroup);
 		}
+
+		ValueTree data;
+
+		Array<PoolReference> references;
+
+		StreamingSamplerSoundArray sampleList;
 
 	public:
 
 		// ============================================================================================================
 
-		StreamingSamplerSoundArray soundList;
-		MappingData mappingData;
+		
+
 		const String fileNameWithoutToken;
 
 		// ============================================================================================================
@@ -635,8 +700,6 @@ private:
 
 					MultiMicCollection *newCollection = new MultiMicCollection(sound, thisFileNameWithoutToken);
 
-					newCollection->mappingData.fillOtherProperties(sound);
-
 					collections.add(newCollection);
 				}
 			}
@@ -667,10 +730,7 @@ private:
 					{
 						if (collections[i]->fits(sound, thisFileNameWithoutToken, mode))
 						{
-							collections[i]->soundList.add(sound->getReferenceToSound());
-
-							collections[i]->mappingData.fillOtherProperties(sound);
-
+							collections[i]->add(sound);
 							break;
 						}
 					}
@@ -726,7 +786,7 @@ private:
 		{
 			setProgress((double)i / double(collections.size()));
 
-			auto collectionChannelAmount = collections[i]->soundList.size();
+			auto collectionChannelAmount = collections[i]->size();
 
 			maxChannelAmount = jmax<int>(maxChannelAmount, collectionChannelAmount);
 
@@ -738,9 +798,9 @@ private:
 				{
 					bool found = false;
 
-					for (int j = 0; j < collections[i]->soundList.size(); j++)
+					for (int j = 0; j < collections[i]->size(); j++)
 					{			
-						if (collections[i]->soundList[j]->getFileName(false).contains(channelNames[channelIndex]))
+						if (collections[i]->getDisplayString(j).contains(channelNames[channelIndex]))
 						{
 							found = true;
 							break;
@@ -757,8 +817,8 @@ private:
 				String faultyChannel = channelNames[faultyIndex];
 
 				errorStatus = Error::SampleCollectionNotSameSize;
-				errorMessage = (collections[i]->soundList.size() != 0) ?
-					String(String(numPerCollection - collections[i]->soundList.size()) + " missing channel(s) - " + faultyChannel + " at Sample " + String(i) + ": " + collections[i]->soundList[0]->getFileName(false)) :
+				errorMessage = (collections[i]->size() != 0) ?
+					String(String(numPerCollection - collections[i]->size()) + " missing channel(s) - " + faultyChannel + " at Sample " + String(i) + ": " + collections[i]->getDisplayString()) :
 					String("Sample Nr. " + String(i) + "has no channels");
 				return false;
 
@@ -768,8 +828,8 @@ private:
 			if (!checkSampleSize(collections[i]))
 			{
 				errorStatus = Error::UnequalLength;
-				errorMessage = (collections[i]->soundList.size() != 0) ? 
-							   String("Unequal length at Sample " + String(i) + ": " + collections[i]->soundList[0]->getFileName(false)) :
+				errorMessage = (collections[i]->size() != 0) ? 
+					String("Unequal length at Sample " + String(i) + ": " + collections[i]->getDisplayString()) :
 							   String("Unequal length at Sample Nr. " + String(i));
 				return false;
 			}
@@ -791,16 +851,15 @@ private:
 		{
 		case MultimicMergeDialogWindow::Error::OK:
 			return "OK.";
-			break;
 		case MultimicMergeDialogWindow::Error::UnequalLength:
 			return errorMessage;
-			break;
 		case MultimicMergeDialogWindow::Error::UnselectedSamples:
 			return "You have to select all samples for the merge.";
-			break;
 		case MultimicMergeDialogWindow::Error::ExistingMultimicSamples:
 			return "There are already multimic samples in this sampler. Extract them back to single mics and remerge them.";
-			break;
+		case MultimicMergeDialogWindow::Error::NoMonolithAllowed:
+			return "You can't merge monolith samples";
+			
 		case Error::SampleCollectionNotSameSize:
 			return errorMessage;
 		case Error::TooMuchChannels:
@@ -814,22 +873,23 @@ private:
 
 	bool checkSampleSize(MultiMicCollection *collection)
 	{
-		StreamingSamplerSound *firstSound = collection->soundList.getFirst();
+		return collection->checkSampleSize();
+	}
 
-		const int length = firstSound->getSampleLength();
-
-		for (int i = 0; i < collection->soundList.size(); i++)
-		{
-			const int thisLength = collection->soundList[i]->getSampleLength();
-
-			if (thisLength != length) return false;
-		}
-
-		return true;
+	bool checkNoMonolith()
+	{
+		return !handler->getSampler()->getSampleMap()->isMonolith();
 	}
 
 	bool sanityCheck()
 	{
+		if (!checkNoMonolith())
+		{
+			errorStatus = Error::NoMonolithAllowed;
+
+			return false;
+		}
+
 		if (!checkAllSelected())
 		{
 			errorStatus = Error::UnselectedSamples;
@@ -890,6 +950,9 @@ void SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(SampleEd
 {
 	if (PresetHandler::showYesNoWindow("Extract Multimics to Single mics", "Do you really want to extract the multimics to single samples?"))
 	{
+		throw std::logic_error("not implemented");
+
+#if 0
 		handler->getSelection().deselectAll();
 
 		ModulatorSampler *sampler = handler->sampler;
@@ -943,8 +1006,10 @@ void SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(SampleEd
 		}
 
 		sampler->setBypassed(false);
-
 		sampler->sendChangeMessage();
+#endif
+
+		
 	}
 }
 

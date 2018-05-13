@@ -113,22 +113,32 @@ bool SampleImporter::createSoundAndAddToSampler(ModulatorSampler *sampler, const
 
 	String allowedWildcards = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->afm.getWildcardForAllFormats();
 
-	for (int i = 0; i < basicData.fileNames.size(); i++)
+	if (basicData.fileNames.size() == 1)
 	{
-		File f(basicData.fileNames[i]);
+		SET(ModulatorSamplerSound::FileName, basicData.fileNames[0]);
+	}
+	else
+	{
+		for (int i = 0; i < basicData.fileNames.size(); i++)
+		{
+			File f(basicData.fileNames[i]);
 
-		jassert(allowedWildcards.containsIgnoreCase(f.getFileExtension()));
+			jassert(allowedWildcards.containsIgnoreCase(f.getFileExtension()));
 
-		ValueTree fileChild("file");
+			ValueTree fileChild("file");
 
-		fileChild.setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName), basicData.fileNames[i], nullptr);
+			fileChild.setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName), basicData.fileNames[i], nullptr);
 
-		v.addChild(fileChild, -1, nullptr);
+			v.addChild(fileChild, -1, nullptr);
+		}
 	}
 
 	try
 	{
-		sampler->addSamplerSound(v, basicData.index);
+		ModulatorSamplerSound::Ptr newSound = new ModulatorSamplerSound(sampler->getMainController(), v, nullptr);
+
+		sampler->getSampleMap()->addSound(newSound);
+
 	}
 	catch(StreamingSamplerSound::LoadingError l)
 	{
@@ -198,18 +208,14 @@ void SampleImporter::importNewAudioFiles(Component *childComponentOfMainEditor, 
 
 		if (fid->useMetadata())
 		{
-			SamplerBody* body = childComponentOfMainEditor->findParentComponentOfClass<SamplerBody>();
-
-			if (body != nullptr)
-			{
-				SampleEditHandler::SampleEditingActions::automapUsingMetadata(sampler);
-			}
+			SampleEditHandler::SampleEditingActions::automapUsingMetadata(sampler);
 		}
 	}
 }
 
 void SampleImporter::loadAudioFilesUsingDropPoint(Component* /*childComponentOfMainEditor*/, ModulatorSampler *sampler, const StringArray &fileNames, BigInteger rootNotes)
 {
+	
 	ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
 
 	const int startIndex = sampler->getNumSounds();
