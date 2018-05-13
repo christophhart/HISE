@@ -125,6 +125,19 @@ void ExtendedApiDocumentation::init()
 	CODE("const var a = [0, 0.25, 0.75, 1.0]");
 	CODE("SliderPack.setSliderWidths(a);");
 	
+    
+    CLASS(Synth)
+    METHOD(playNoteWithStartOffset)
+    PARAMETER(int, "channel", "The MIDI channel (starting with 1)");
+    PARAMETER(int, "number", "The MIDI note number from 0 to 127");
+    PARAMETER(int, "velocity", "The MIDI velocity from 0 to 127");
+    PARAMETER(int, "offset", "The offset in samples");
+    DESCRIPTION("Plays a note with a given offset. In order to make this work, your sound generator needs to support");
+    DESCRIPTION("the offset, so if you try to play a sample which has no sample start modulation, it won't have any effect");
+    DESCRIPTION("> Due to the internal event data system, the value is limited to 65536, which is a little bit more than one second. This might become a problem for some use cases");
+    
+    
+    
 	/**  */
 	
 }
