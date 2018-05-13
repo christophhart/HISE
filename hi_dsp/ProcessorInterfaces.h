@@ -155,7 +155,7 @@ private:
 *	3. Add the AudioSampleBuffer as ChangeListener (and remove it in the destructor!)
 *	4. Add an AreaListener to the AudioSampleBufferComponent and call setRange() and setLoadedFile in the rangeChanged() callback
 */
-class AudioSampleProcessor : public ExternalFileProcessor
+class AudioSampleProcessor
 {
 public:
 
@@ -176,16 +176,11 @@ public:
 
 	// ================================================================================================================
 
-	void replaceReferencesWithGlobalFolder() override;
-
 	/** Call this method within your exportAsValueTree method to store the sample settings. */
 	void saveToValueTree(ValueTree &v) const;;
 
 	/** Call this method within your restoreFromValueTree() method to load the sample settings. */
 	void restoreFromValueTree(const ValueTree &v);
-
-	/** Returns the global thumbnail cache. Use this whenever you need a AudioSampleBufferComponent. */
-	AudioThumbnailCache &getCache() { return *mc->getSampleManager().getAudioSampleBufferPool()->getCache(); };
 
 	/** This loads the file from disk (or from the pool, if existing and loadThisFile is false. */
 	void setLoadedFile(const String &fileName, bool loadThisFile = false, bool forceReload = false);
@@ -209,7 +204,7 @@ public:
 	*	The pointer references a object from a AudioSamplePool and should be valid as long as the pool is not cleared. */
 	const AudioSampleBuffer *getBuffer() { return &sampleBuffer; };
 
-	void setLoopFromMetadata(const File& f);
+	void setLoopFromMetadata(const var& md);
 
 	void setUseLoop(bool shouldUseLoop)
 	{
@@ -232,7 +227,7 @@ public:
 	*	It is possible that the file does not exist on your system:
 	*	If you restore a pool completely from a ValueTree, it still uses the absolute filename as identification.
 	*/
-	String getFileName() const { return loadedFileName; };
+	String getFileName() const { return loadedFileName.getReferenceString(); };
 
 	/** This callback sets the loaded file.
 	*
@@ -313,7 +308,7 @@ protected:
 	/** Call this constructor within your subclass constructor. */
 	AudioSampleProcessor(Processor *p);;
 
-	String loadedFileName;
+	PoolReference loadedFileName;
 	Range<int> sampleRange;
 	int length;
 

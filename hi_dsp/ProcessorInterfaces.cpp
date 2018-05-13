@@ -195,7 +195,7 @@ void AudioSampleProcessor::saveToValueTree(ValueTree &v) const
 {
 	const Processor *thisAsProcessor = dynamic_cast<const Processor*>(this);
 
-	const String fileName = GET_PROJECT_HANDLER(const_cast<Processor*>(thisAsProcessor)).getFileReference(loadedFileName, ProjectHandler::SubDirectories::AudioFiles);
+	const String fileName = loadedFileName.getReferenceString();
 
 	v.setProperty("FileName", fileName, nullptr);
 
@@ -210,13 +210,7 @@ void AudioSampleProcessor::restoreFromValueTree(const ValueTree &v)
 {
 	const String savedFileName = v.getProperty("FileName", "");
 
-#if USE_BACKEND
-	String name = GET_PROJECT_HANDLER(dynamic_cast<Processor*>(this)).getFilePath(savedFileName, ProjectHandler::SubDirectories::AudioFiles);
-#elif USE_FRONTEND
-	String name = ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(savedFileName);
-#endif
-
-	setLoadedFile(name, true);
+	setLoadedFile(savedFileName, true);
 
 	Range<int> range = Range<int>(v.getProperty("min", 0), v.getProperty("max", 0));
 
@@ -224,69 +218,11 @@ void AudioSampleProcessor::restoreFromValueTree(const ValueTree &v)
 }
 
 
-void AudioSampleProcessor::setLoopFromMetadata(const File& f)
+void AudioSampleProcessor::setLoopFromMetadata(const var& metadata)
 {
-	auto afm = &dynamic_cast<Processor*>(this)->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->afm;
-
-	ScopedPointer<AudioFormatReader> reader = afm->createReaderFor(f);
-
-    
-    if(reader == nullptr)
-        return;
-    
-	auto metadata = reader->metadataValues;
-
-    
-	const String format = metadata.getValue("MetaDataSource", "");
-
-	String loopEnabled;
-	
-	int loopStart = 0;
-	int loopEnd = 0;
-
-	if (format == "AIFF")
+	if (metadata.getProperty(MetadataIDs::LoopEnabled, false))
 	{
-		
-		loopEnabled = metadata.getValue("Loop0Type", "");
-
-		const int loopStartId = metadata.getValue("Loop0StartIdentifier", "-1").getIntValue();
-		const int loopEndId = metadata.getValue("Loop0EndIdentifier", "-1").getIntValue();
-
-		int loopStartIndex = -1;
-		int loopEndIndex = -1;
-
-		const int numCuePoints = metadata.getValue("NumCuePoints", "0").getIntValue();
-
-		for (int i = 0; i < numCuePoints; i++)
-		{
-			const String idTag = "CueLabel" + String(i) + "Identifier";
-
-			if (metadata.getValue(idTag, "-2").getIntValue() == loopStartId)
-			{
-				loopStartIndex = i;
-				loopStart = getConstrainedLoopValue(metadata.getValue("Cue" + String(i) + "Offset", ""));
-			}
-			else if (metadata.getValue(idTag, "-2").getIntValue() == loopEndId)
-			{
-				loopEndIndex = i;
-				loopEnd = getConstrainedLoopValue(metadata.getValue("Cue" + String(i) + "Offset", ""));
-			}
-		}
-
-		if (loopStart == loopEnd)
-			loopEnabled = "";
-	}
-	else if (format == "WAV")
-	{
-		loopStart = getConstrainedLoopValue(metadata.getValue("Loop0Start", ""));
-		loopEnd = getConstrainedLoopValue(metadata.getValue("Loop0End", ""));
-
-		loopEnabled = (loopStart != loopEnd && loopEnd != 0) ? "1" : "";
-	}
-
-	if (loopEnabled.isNotEmpty())
-	{
-		loopRange = Range<int>(loopStart, loopEnd + 1); // add 1 because of the offset
+		loopRange = Range<int>((int)metadata.getProperty(MetadataIDs::LoopStart, 0), (int)metadata.getProperty(MetadataIDs::LoopEnd, 0) + 1); // add 1 because of the offset
 		sampleRange.setEnd(loopRange.getEnd());
 		setUseLoop(true);
 	}
@@ -295,7 +231,6 @@ void AudioSampleProcessor::setLoopFromMetadata(const File& f)
 		loopRange = {};
 		setUseLoop(false);
 	}
-		
 }
 
 AudioSampleProcessor::AudioSampleProcessor(Processor *p) :
