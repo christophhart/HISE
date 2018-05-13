@@ -588,7 +588,6 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsEnableCallStack:		Actions::toggleCallStackEnabled(bpe); updateCommands(); return true;
 	case MenuToolsCheckCyclicReferences:Actions::checkCyclicReferences(bpe); return true;
 	case MenuToolsRecompileScriptsOnReload: Actions::toggleCompileScriptsOnPresetLoad(bpe); updateCommands(); return true;
-	case MenuToolsCreateToolbarPropertyDefinition:	Actions::createDefaultToolbarJSON(bpe); return true;
 	case MenuToolsCreateExternalScriptFile:	Actions::createExternalScriptFile(bpe); updateCommands(); return true;
     case MenuToolsCheckDuplicate:       Actions::checkDuplicateIds(bpe); return true;
 	case MenuToolsValidateUserPresets:	Actions::validateUserPresets(bpe); return true;
@@ -1981,24 +1980,6 @@ void BackendCommandTarget::Actions::createDummyLicenseFile(BackendRootWindow * b
 #endif
 
 	PresetHandler::showMessageWindow("License File created", message, PresetHandler::IconType::Info);
-}
-
-void BackendCommandTarget::Actions::createDefaultToolbarJSON(BackendRootWindow * bpe)
-{
-	String json = DefaultFrontendBar::createJSONString(bpe->getBackendProcessor()->getToolbarPropertiesObject());
-
-	String clipboard = "var toolbarData = ";
-	
-	clipboard << json;
-
-	clipboard << ";\n\nContent.setToolbarProperties(toolbarData);";
-
-	SystemClipboard::copyTextToClipboard(clipboard);
-
-	PresetHandler::showMessageWindow("JSON Data copied to clipboard", 
-		"The current toolbar properties are copied into the clipboard.\nPaste it into any script and change the data", 
-		PresetHandler::IconType::Info);
-
 }
 
 void BackendCommandTarget::Actions::toggleForcePoolSearch(BackendRootWindow * bpe)

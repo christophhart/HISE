@@ -3823,18 +3823,9 @@ void ScriptingApi::Content::makeFullScreenInterface()
 	dynamic_cast<JavascriptMidiProcessor*>(getProcessor())->addToFront(true);
 }
 
-void ScriptingApi::Content::setToolbarProperties(const var &toolbarProperties)
+void ScriptingApi::Content::setToolbarProperties(const var &/*toolbarProperties*/)
 {
-	NamedValueSet *newSet = &toolbarProperties.getDynamicObject()->getProperties();
-
-	NamedValueSet *set = &getProcessor()->getMainController()->getToolbarPropertiesObject()->getProperties();
-
-	set->clear();
-
-	for (int i = 0; i < newSet->size(); i++)
-	{
-		set->set(newSet->getName(i), newSet->getValueAt(i));
-	}
+	reportScriptError("2017...");
 }
 
 

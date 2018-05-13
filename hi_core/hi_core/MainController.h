@@ -864,8 +864,6 @@ public:
 
 	DynamicObject *getHostInfoObject() { return hostInfo.get(); }
 
-	DynamicObject *getToolbarPropertiesObject() { return toolbarProperties.get(); };
-
 	/** this must be overwritten by the derived class and return the master synth chain. */
 	virtual ModulatorSynthChain *getMainSynthChain() = 0;
 
@@ -1206,8 +1204,7 @@ private:
 
 	DynamicObject::Ptr globalVariableObject;
 	DynamicObject::Ptr hostInfo;
-	DynamicObject::Ptr toolbarProperties;
-
+	
 	ReadWriteLock compileLock;
 
 	ScopedPointer<SampleManager> sampleManager;

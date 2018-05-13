@@ -84,8 +84,6 @@ MainController::MainController():
 	globalVariableArray.insertMultiple(0, var::undefined(), NUM_GLOBAL_VARIABLES);
 	globalVariableObject = new DynamicObject();
 
-	toolbarProperties = DefaultFrontendBar::createDefaultProperties();
-
 	hostInfo = new DynamicObject();
     
 #if HI_RUN_UNIT_TESTS
@@ -164,8 +162,6 @@ void MainController::clearPreset()
 	getMainSynthChain()->reset();
 
 	globalVariableObject->clear();
-
-	toolbarProperties = DefaultFrontendBar::createDefaultProperties();
 
 	for (int i = 0; i < 127; i++)
 	{

@@ -315,7 +315,6 @@ public:
 		static void changeCodeFontSize(BackendRootWindow *bpe, bool increase);
 		static void createRSAKeys(BackendRootWindow * bpe);
 		static void createDummyLicenseFile(BackendRootWindow * bpe);
-		static void createDefaultToolbarJSON(BackendRootWindow * bpe);
 		static void toggleForcePoolSearch(BackendRootWindow * bpe);
 		static void archiveProject(BackendRootWindow * bpe);
 		static void downloadNewProject(BackendRootWindow * bpe);

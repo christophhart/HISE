@@ -49,8 +49,7 @@ public:
 	void closeButtonPressed() override;;
 
 
-	class Content : public Component,
-		public ComponentWithKeyboard
+	class Content : public Component
 	{
 	public:
 
@@ -65,12 +64,6 @@ public:
 
 		void resized() override;
 
-		KeyboardFocusTraverser *createFocusTraverser() override { return new MidiKeyboardFocusTraverser(); }
-
-		Component *getKeyboard() const override { return keyboard; };
-
-		
-
 	private:
 
 		class ScriptDeleteListener;
@@ -78,11 +71,10 @@ public:
 		ScopedPointer<ScriptDeleteListener> deleteListener;
 
 		Component::SafePointer<BackendProcessorEditor> editor;
-		ScopedPointer<DefaultFrontendBar> frontendBar;
+		
 		ScopedPointer<ScriptContentComponent> content;
 		JavascriptMidiProcessor* scriptProcessor = nullptr;
 		ModulatorSynthChain *mainSynthChain;
-		ScopedPointer<CustomKeyboard> keyboard;
 	};
 
 
