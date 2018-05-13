@@ -94,9 +94,6 @@ public:
 	/** Checks if the samplemap was changed and deletes it. */
 	void saveIfNeeded();
 
-	/** writes all loaded samples into the '/samples' subdirectory. */
-	void saveAllSoundsToSubdirectory();
-	
 	void changeListenerCallback(SafeChangeBroadcaster *b);
 
 	/** Checks if any ModulatorSamplerSound was changed since the last save. 
@@ -133,8 +130,6 @@ public:
 	*/
 	ValueTree exportAsValueTree() const override;	
 
-	void replaceFileReferences(ValueTree &soundTree) const;
-
 	/** Saves all data with the mode depending on the file extension. */
 	void save();
 
@@ -144,22 +139,12 @@ public:
 
 	bool isMonolith() const noexcept { return mode == SaveMode::Monolith; };
 
-	/** returns the default sample directory (the sample map directory + '/samples'. */
-	String getSampleDirectory() const
-	{
-		if(fileOnDisk == File()) return String();
-
-		return fileOnDisk.getParentDirectory().getFullPathName() + "/samples/";
-	};
-
 	/** Clears the sample map. */
     void clear();
 	
 	ModulatorSampler* getSampler() const { return sampler; }
 	
-	void replaceReferencesWithGlobalFolder();
-
-    void setId(Identifier newIdentifier)
+	void setId(Identifier newIdentifier)
     {
         sampleMapId = newIdentifier.toString();
 		data.setProperty("ID", sampleMapId.toString(), nullptr);

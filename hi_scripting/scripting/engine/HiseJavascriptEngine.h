@@ -409,6 +409,8 @@ public:
 
 			String getEncodedLocation(Processor* p) const
 			{
+				ignoreUnused(p);
+
 #if USE_BACKEND
 				String l;
 

@@ -193,8 +193,6 @@ AudioSampleProcessor::~AudioSampleProcessor()
 
 void AudioSampleProcessor::saveToValueTree(ValueTree &v) const
 {
-	const Processor *thisAsProcessor = dynamic_cast<const Processor*>(this);
-
 	const String fileName = loadedFileName.getReferenceString();
 
 	v.setProperty("FileName", fileName, nullptr);
