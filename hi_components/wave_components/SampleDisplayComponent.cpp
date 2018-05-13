@@ -753,9 +753,9 @@ void AudioSampleBufferComponent::paintOverChildren(Graphics& g)
 
 	if (showFileName && fileNameToShow.isNotEmpty())
 	{
-		const int w = f.getStringWidth(fileNameToShow) + 20;
+		const int w2 = f.getStringWidth(fileNameToShow) + 20;
 		g.setColour(Colours::black.withAlpha(0.5f));
-		Rectangle<int> r(getWidth() - w - 5, 5, w, 20);
+		Rectangle<int> r(getWidth() - w2 - 5, 5, w2, 20);
 		g.fillRect(r);
 		g.setColour(Colours::white.withAlpha(0.2f));
 		g.drawRect(r, 1);
