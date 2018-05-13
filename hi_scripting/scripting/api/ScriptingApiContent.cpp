@@ -2774,29 +2774,35 @@ void ScriptingApi::Content::ScriptPanel::timerCallback()
 		return;
 	}
 	
-	ScopedReadLock sl(dynamic_cast<Processor*>(getScriptProcessor())->getMainController()->getCompileLock());
+	auto& readWriteLock = dynamic_cast<Processor*>(getScriptProcessor())->getMainController()->getCompileLock();
 
-	if (HiseJavascriptEngine::isJavascriptFunction(timerRoutine))
+	
+	if (readWriteLock.tryEnterRead())
 	{
-		auto engine = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine();
-
-		if (engine == nullptr)
-			return;
-
-		var thisObject(this);
-		var::NativeFunctionArgs args(thisObject, nullptr, 0);
-
-		Result r = Result::ok();
-
-        
-
-        engine->maximumExecutionTime = RelativeTime(0.5);
-		engine->callExternalFunction(timerRoutine, args, &r);
-
-		if (r.failed())
+		if (HiseJavascriptEngine::isJavascriptFunction(timerRoutine))
 		{
-			debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
+			auto engine = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine();
+
+			if (engine == nullptr)
+				return;
+
+			var thisObject(this);
+			var::NativeFunctionArgs args(thisObject, nullptr, 0);
+
+			Result r = Result::ok();
+
+
+
+			engine->maximumExecutionTime = RelativeTime(0.5);
+			engine->callExternalFunction(timerRoutine, args, &r);
+
+			if (r.failed())
+			{
+				debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
+			}
 		}
+
+		readWriteLock.exitRead();
 	}
 }
 
