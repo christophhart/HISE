@@ -1274,7 +1274,7 @@ void ScriptCreatedComponentWrappers::ImageWrapper::updateComponent()
 	else
 	{
 		ic->setBounds(si->getPosition());
-		ic->setImage(ImagePool::getEmptyImage(ic->getWidth(), ic->getHeight()));
+		ic->setImage(PoolHelpers::getEmptyImage(ic->getWidth(), ic->getHeight()));
 	}
 
 	contentComponent->repaint();

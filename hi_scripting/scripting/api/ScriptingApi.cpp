@@ -1177,7 +1177,7 @@ String ScriptingApi::Engine::getVersion()
 #if USE_BACKEND
 	return dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Name);
 #else
-	return ProjectHandler::Frontend::getVersionString();
+	return FrontendHandler::getVersionString();
 #endif
 
 
@@ -1303,7 +1303,7 @@ void ScriptingApi::Engine::loadUserPreset(const String& relativePath)
 #if USE_BACKEND
 	File userPresetRoot = GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
 #else
-	File userPresetRoot = ProjectHandler::Frontend::getUserPresetDirectory();
+	File userPresetRoot = FrontendHandler::getUserPresetDirectory();
 #endif
 
 	auto userPreset = userPresetRoot.getChildFile(relativePath + ".preset");
@@ -1323,7 +1323,7 @@ var ScriptingApi::Engine::getUserPresetList() const
 #if USE_BACKEND
 	File userPresetRoot = GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
 #else
-	File userPresetRoot = ProjectHandler::Frontend::getUserPresetDirectory();
+	File userPresetRoot = FrontendHandler::getUserPresetDirectory();
 #endif
 
 	Array<File> presets;
@@ -1863,10 +1863,10 @@ var ScriptingApi::Sampler::getSampleMapList() const
     
     
 #if HISE_IOS
-    File rootDir = ProjectHandler::Frontend::getResourcesFolder().getChildFile("SampleMaps");
+    File rootDir = FrontendHandler::getResourcesFolder().getChildFile("SampleMaps");
 #else
     
-	File rootDir = ProjectHandler::Frontend::getAppDataDirectory().getChildFile("SampleMaps");
+	File rootDir = FrontendHandler::getAppDataDirectory().getChildFile("SampleMaps");
 #endif
 
 	// This must be taken care of during installation
@@ -1895,7 +1895,7 @@ var ScriptingApi::Sampler::getSampleMapList() const
 
 #else
 
-	ValueTree v = dynamic_cast<const FrontendDataHolder*>(getProcessor()->getMainController())->getValueTree(ProjectHandler::SubDirectories::SampleMaps);
+	ValueTree v = getProcessor()->getMainController()->getSampleManager().getProjectHandler().getValueTree(ProjectHandler::SubDirectories::SampleMaps);
 
 	static const Identifier id("ID");
 

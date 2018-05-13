@@ -282,8 +282,6 @@ public:
 			numProperties
 		};
 
-		File getExternalFile(var newValue);
-
 		ScriptComponent(ProcessorWithScriptingContent* base, Identifier name_, int numConstants = 0);
 
 		virtual ~ScriptComponent();

@@ -1631,13 +1631,7 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setFile(String fileName)
 
 		ScopedLock sl(asp->getFileLock());
 
-#if USE_FRONTEND
-
-		const String nameInPool = fileName.fromFirstOccurrenceOf("}", false, false);
-		asp->setLoadedFile(nameInPool, true);
-#else
-		asp->setLoadedFile(GET_PROJECT_HANDLER(dynamic_cast<Processor*>(audioSampleProcessor.get())).getFilePath(fileName, ProjectHandler::SubDirectories::AudioFiles), true);
-#endif
+		asp->setLoadedFile(fileName, true);
 	}
 }
 
