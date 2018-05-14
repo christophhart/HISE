@@ -414,7 +414,7 @@ public:
 				
 		}
 
-		PoolEntry<DataType>::Ptr ne = new PoolEntry<DataType>(r);
+		ReferenceCountedObjectPtr<PoolEntry<DataType>> ne = new PoolEntry<DataType>(r);
 		auto inputStream = r.createInputStream();
 
 		PoolHelpers::loadData(afm, inputStream, r.getHashCode(), ne->data, ne->additionalData);

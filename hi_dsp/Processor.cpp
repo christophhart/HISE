@@ -603,7 +603,7 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 
 	if (data->ref != newRef && !newRef.isValid())
 	{
-		data = new PoolEntry<AudioSampleBuffer>(PoolReference());
+		data = new PoolEntry<AudioSampleBuffer>();
 
 		length = 0;
 		sampleRateOfLoadedFile = -1.0;

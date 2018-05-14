@@ -239,7 +239,7 @@ sampleRateOfLoadedFile(-1.0)
 	jassert(p != nullptr);
 
 	mc = p->getMainController();
-	data = new PoolEntry<AudioSampleBuffer>(PoolReference());
+	data = new PoolEntry<AudioSampleBuffer>();
 }
 
 
