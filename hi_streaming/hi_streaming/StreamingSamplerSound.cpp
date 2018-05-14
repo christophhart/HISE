@@ -195,35 +195,25 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 		}
 	}
 
-	if (loopEnabled && (loopEnd - loopStart > 0) && sampleLength < internalPreloadSize)
+	if (loopEnabled && (loopEnd - loopStart > 0) && loopEnd < internalPreloadSize)
 	{
+		entireSampleLoaded = false;
 		int samplesToFill = internalPreloadSize;
-		int offsetInPreloadBuffer = 0;
-
-		fileReader.readFromDisk(preloadBuffer, 0, sampleLength, sampleStart + monolithOffset, true);
-
+		
+		fileReader.readFromDisk(preloadBuffer, 0, loopEnd, sampleStart + monolithOffset, true);
 		const int samplesPerFillOp = (loopEnd - loopStart);
 
-		if (samplesPerFillOp > 0)
+		int numTodo = internalPreloadSize - loopEnd;
+
+		int pos = loopEnd;
+
+		while (numTodo > 0)
 		{
-			offsetInPreloadBuffer += sampleLength;
-			samplesToFill -= sampleLength;
+			int numThisTime = jmin<int>(numTodo, samplesPerFillOp);
 
-			while (samplesToFill > 0)
-			{
-				const int samplesThisTime = jmin<int>(samplesToFill, samplesPerFillOp);
-
-				fileReader.readFromDisk(preloadBuffer, offsetInPreloadBuffer, samplesThisTime, loopStart, true);
-
-				offsetInPreloadBuffer += samplesThisTime;
-				samplesToFill -= samplesThisTime;
-			}
-
-			jassert(samplesToFill == 0);
-		}
-		else
-		{
-			jassertfalse;
+			hlac::HiseSampleBuffer::copy(preloadBuffer, preloadBuffer, pos, loopStart, numThisTime);
+			numTodo -= numThisTime;
+			pos += numThisTime;
 		}
 	}
 	else
@@ -433,13 +423,19 @@ void StreamingSamplerSound::loopChanged()
 {
 	ScopedLock sl(getSampleLock());
 
+	loopStart = jmax<int>(loopStart, sampleStart);
+	loopEnd = jmin<int>(loopEnd, sampleEnd);
+	loopLength = jmax<int>(0, loopEnd - loopStart);
+
 	if (loopEnabled)
 	{
-		loopStart = jmax<int>(loopStart, sampleStart);
-		loopEnd = jmin<int>(loopEnd, sampleEnd);
-		loopLength = jmax<int>(0, loopEnd - loopStart);
-
-		if (loopLength < 8192)
+		if (loopEnd < preloadBuffer.getNumSamples())
+		{
+			useSmallLoopBuffer = false;
+			smallLoopBuffer.setSize(1, 0);
+			setPreloadSize(preloadSize, true);
+		}
+		else if (loopLength < 8192)
 		{
 			useSmallLoopBuffer = true;
 
@@ -490,6 +486,15 @@ void StreamingSamplerSound::loopChanged()
 			hlac::HiseSampleBuffer::add(loopBuffer, tempBuffer, 0, 0, crossfadeLength);
 
 			fileReader.closeFileHandles();
+		}
+	}
+	else
+	{
+		if (loopEnd < internalPreloadSize)
+		{
+			useSmallLoopBuffer = false;
+			smallLoopBuffer.setSize(1, 0);
+			setPreloadSize(preloadSize, true);
 		}
 	}
 }
