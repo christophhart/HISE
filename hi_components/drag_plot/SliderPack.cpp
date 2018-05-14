@@ -251,7 +251,7 @@ void SliderPack::resized()
 {
 	int w = getWidth();
 
-    if(sliderWidths.isEmpty() || getNumSliders() != (sliderWidths.size() + 1))
+    if(sliderWidths.isEmpty() || getNumSliders()+1 != (sliderWidths.size()))
     {
         float widthPerSlider = w / (float)data->getNumSliders();
         

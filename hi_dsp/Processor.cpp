@@ -595,26 +595,19 @@ int ProcessorHelpers::getParameterIndexFromProcessor(Processor* p, const Identif
 	return -1;
 }
 
-void AudioSampleProcessor::replaceReferencesWithGlobalFolder()
-{
-	if (!isReference(loadedFileName))
-	{
-		loadedFileName = getGlobalReferenceForFile(loadedFileName);
-	}
-}
-
 void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFile/*=false*/, bool forceReload/*=false*/)
 {
 	ignoreUnused(forceReload);
 
-	if (loadedFileName != fileName && fileName.isEmpty())
+	PoolReference newRef(dynamic_cast<Processor*>(this)->getMainController(), fileName, ProjectHandler::SubDirectories::AudioFiles);
+
+	if (data->ref != newRef && !newRef.isValid())
 	{
-		loadedFileName = fileName;
+		data = new PoolEntry<AudioSampleBuffer>(PoolReference());
 
 		length = 0;
 		sampleRateOfLoadedFile = -1.0;
-		sampleBuffer.setSize(0, 0);
-
+		
 		setRange(Range<int>(0, 0));
 
 		// A AudioSampleProcessor must also be derived from Processor!
@@ -622,54 +615,30 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 
 		dynamic_cast<Processor*>(this)->sendChangeMessage();
 
-		if (loadedFileName.isNotEmpty())
-		{
-			auto f = mc->getSampleManager().getAudioSampleBufferPool()->getFileFromFileNameString(loadedFileName);
-			setLoopFromMetadata(f);
-		}
-		else
-		{
-			loopRange = {};
-			setUseLoop(false);
-		}
-		
+		loopRange = {};
+		setUseLoop(false);
 
 		newFileLoaded();
-
-		
 	}
 
-	if(loadedFileName != fileName && loadThisFile && fileName.isNotEmpty())
+	if(data->ref != newRef && loadThisFile && newRef.isValid())
 	{
 		ScopedLock sl(getFileLock());
 
-		loadedFileName = fileName;
+		auto& handler = mc->getExpansionHandler();
 
-#if USE_FRONTEND
+		data = handler.loadAudioFileReference(newRef);
 
-		sampleBuffer = mc->getSampleManager().getAudioSampleBufferPool()->loadFileIntoPool(fileName);
+		sampleRateOfLoadedFile = data->additionalData.getProperty(MetadataIDs::SampleRate, 0.0);
 
-		Identifier fileId = mc->getSampleManager().getAudioSampleBufferPool()->getIdForFileName(fileName);
-
-#else
-
-		File actualFile = getFile(loadedFileName, PresetPlayerHandler::AudioFiles);
-		Identifier fileId = mc->getSampleManager().getAudioSampleBufferPool()->getIdForFileName(actualFile.getFullPathName());
-		sampleBuffer = mc->getSampleManager().getAudioSampleBufferPool()->loadFileIntoPool(actualFile.getFullPathName());
-
-#endif
-
-		sampleRateOfLoadedFile = mc->getSampleManager().getAudioSampleBufferPool()->getSampleRateForFile(fileId);
-
-		setRange(Range<int>(0, sampleBuffer.getNumSamples()));
+		setRange(Range<int>(0, getTotalLength()));
 
 		// A AudioSampleProcessor must also be derived from Processor!
 		jassert(dynamic_cast<Processor*>(this) != nullptr);
 		
 		dynamic_cast<Processor*>(this)->sendChangeMessage();
 
-		auto f = mc->getSampleManager().getAudioSampleBufferPool()->getFileFromFileNameString(loadedFileName);
-		setLoopFromMetadata(f);
+		setLoopFromMetadata(data->additionalData);
 
 		newFileLoaded();
 	}
@@ -682,7 +651,7 @@ void AudioSampleProcessor::setRange(Range<int> newSampleRange)
 		ScopedLock sl(getFileLock());
 
 		sampleRange = newSampleRange;
-		sampleRange.setEnd(jmin<int>(sampleBuffer.getNumSamples(), sampleRange.getEnd()));
+		sampleRange.setEnd(jmin<int>(getTotalLength(), sampleRange.getEnd()));
 		length = sampleRange.getLength();
 
 		if (loopRange.getEnd() < sampleRange.getEnd())

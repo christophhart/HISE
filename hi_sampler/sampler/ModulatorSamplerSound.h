@@ -45,16 +45,11 @@ typedef Array<WeakReference<StreamingSamplerSound>> WeakStreamingSamplerSoundArr
 /** A simple POD structure for basic mapping data. This is used to convert between multimic / single samples. */
 struct MappingData
 {
-	MappingData(int r, int lk, int hk, int lv, int hv, int rr) :
-		rootNote(r),
-		loKey(lk),
-		hiKey(hk),
-		loVel(lv),
-		hiVel(hv),
-		rrGroup(rr)
-	{};
+	MappingData(int r, int lk, int hk, int lv, int hv, int rr);;
 
 	MappingData() {};
+
+	ValueTree data;
 
 	/** This fills the information from the given sound. 
 	*
@@ -63,37 +58,69 @@ struct MappingData
 	*/
 	void fillOtherProperties(ModulatorSamplerSound* sound);
 
-	int rootNote;
-	int loKey;
-	int hiKey;
-	int loVel;
-	int hiVel;
-	int rrGroup;
-
-	int volume = 0;
-	int pan = 0;
-	int pitch = 0;
-
-	int sampleStart = 0;
-	int sampleEnd = 0;
-	int loopEnabled = 0;
-	int loopStart = 0;
-	int loopEnd = 0;
-	int loopXFade = 0;
-	int sampleStartMod = 0;
+	CachedValue<int> rootNote;
+	CachedValue<int> loKey;
+	CachedValue<int> hiKey;
+	CachedValue<int> loVel;
+	CachedValue<int> hiVel;
+	CachedValue<int> rrGroup;
+	
+	CachedValue<int> volume;
+	CachedValue<int> pan;
+	CachedValue<int> pitch;
+	
+	CachedValue<int> sampleStart;
+	CachedValue<int> sampleEnd;
+	CachedValue<int> loopEnabled;
+	CachedValue<int> loopStart;
+	CachedValue<int> loopEnd;
+	CachedValue<int> loopXFade;
+	CachedValue<int> sampleStartMod;
 
 };
 
 // ====================================================================================================================
+
+#define DECLARE_ID(x) const Identifier x(#x);
+
+namespace SampleIds
+{
+DECLARE_ID(ID);
+DECLARE_ID(FileName);
+DECLARE_ID(RootNote);
+DECLARE_ID(HiKey);
+DECLARE_ID(LoKey);
+DECLARE_ID(LoVel);
+DECLARE_ID(HiVel);
+DECLARE_ID(RRGroup);
+DECLARE_ID(Volume);
+DECLARE_ID(Pan);
+DECLARE_ID(Normalized);
+DECLARE_ID(Pitch);
+DECLARE_ID(SampleStart);
+DECLARE_ID(SampleEnd);
+DECLARE_ID(SampleStartMod);
+DECLARE_ID(LoopStart);
+DECLARE_ID(LoopEnd);
+DECLARE_ID(LoopXFade);
+DECLARE_ID(LoopEnabled);
+DECLARE_ID(LowerVelocityXFade);
+DECLARE_ID(UpperVelocityXFade);
+DECLARE_ID(SampleState);
+DECLARE_ID(Reversed);
+}
+
+
+
+#undef DECLARE_ID
 
 /** A ModulatorSamplerSound is a wrapper around a StreamingSamplerSound that allows modulation of parameters.
 *	@ingroup sampler
 *
 *	It also contains methods that extend the properties of a StreamingSamplerSound. */
 class ModulatorSamplerSound : public ModulatorSynthSound,
-	public SafeChangeBroadcaster,
-	public RestorableObject,
-	public ControlledObject
+							  public SafeChangeBroadcaster,
+							  public ControlledObject
 {
 public:
 
@@ -126,17 +153,24 @@ public:
 		LowerVelocityXFade, ///< the length of the velocity crossfade (0 if there is no crossfade). If the crossfade starts at the bottom, it will have negative values.
 		UpperVelocityXFade, ///< the length of the velocity crossfade (0 if there is no crossfade). If the crossfade starts at the bottom, it will have negative values.
 		SampleState, ///< this property allows to set the state of samples between 'Normal', 'Disabled' and 'Purged'
+		Reversed,
 		numProperties
 	};
 
 	// ====================================================================================================================
 
+	ModulatorSamplerSound(MainController*, const ValueTree& v, HlacMonolithInfo* monolithData=nullptr);
+
+#if 0
 	/** Creates a ModulatorSamplerSound.
 	*	You only have to supply the index and the fileName, the rest is supposed to be restored with restoreFromValueTree(). */
 	ModulatorSamplerSound(MainController* mc, StreamingSamplerSound *sound, int index_);
-	~ModulatorSamplerSound();
+	
 
 	ModulatorSamplerSound(MainController* mc, StreamingSamplerSoundArray &soundArray, int index_);
+#endif
+
+	~ModulatorSamplerSound();
 
 	// ====================================================================================================================
 
@@ -204,11 +238,13 @@ public:
 
 	// ====================================================================================================================
 
+#if 0
 	/** Exports all properties (excluding the ID) as value tree. */
 	ValueTree exportAsValueTree() const override;;
 
 	/** restores all properties (excluding filename and ID) from the value tree. */
 	void restoreFromValueTree(const ValueTree &v) override;
+#endif
 
 	// ====================================================================================================================
 
@@ -295,6 +331,16 @@ public:
 	StreamingSamplerSound::Ptr getReferenceToSound() const { return firstSound.get(); };
 	StreamingSamplerSound::Ptr getReferenceToSound(int multiMicIndex) const { return soundArray[multiMicIndex]; };
 
+	PoolReference createPoolReference() const
+	{
+		return PoolReference(getMainController(), getProperty(ModulatorSamplerSound::FileName).toString(), ProjectHandler::SubDirectories::Samples);
+	}
+
+	PoolReference createPoolReference(int multiMicIndex) const
+	{
+		return PoolReference(getMainController(), getReferenceToSound(multiMicIndex)->getFileName(true), ProjectHandler::SubDirectories::Samples);
+	}
+
 	// ====================================================================================================================
 
 	/** This sets the MIDI related properties without undo / range checks. */
@@ -361,7 +407,15 @@ public:
 
 	static void selectSoundsBasedOnRegex(const String &regexWildcard, ModulatorSampler *sampler, SelectedItemSet<ModulatorSamplerSound::Ptr> &set);
 
+
+	ValueTree getData() const { return data; }
+
+
 private:
+
+	void loadSampleFromValueTree(const ValueTree& sampleData, HlacMonolithInfo* hmaf);
+
+	ValueTree data;
 
 	void setPropertyInternal(Property p, int newValue);
 
@@ -409,34 +463,53 @@ private:
 	
 	const CriticalSection& getLock() const { return firstSound.get()->getSampleLock(); };
 	
+	UndoManager *undoManager;
+
 	CriticalSection exportLock;
 	
 	float normalizedPeak;
 	bool isNormalized;
-	bool purged;
-	bool reversed = false;
+	CachedValue<bool> purged;
+	CachedValue<bool> reversed;
 	bool allFilesExist;
 	const bool isMultiMicSound;
 
 	StreamingSamplerSoundArray soundArray;
 	WeakReference<StreamingSamplerSound> firstSound;
 
-	int upperVeloXFadeValue;
-	int lowerVeloXFadeValue;
+	CachedValue<int> upperVeloXFadeValue;
+	CachedValue<int> lowerVeloXFadeValue;
+	CachedValue<int> rrGroup;
+	CachedValue<int> rootNote;
+	CachedValue<int> pan;
+	CachedValue<int> keyHigh;
+	CachedValue<int> keyLow;
+	CachedValue<int> veloLow;
+	CachedValue<int> veloHigh;
 
-	UndoManager *undoManager;
-	int rootNote;
+	CachedValue<int> sampleStart;
+	CachedValue<int> sampleEnd;
+	CachedValue<int> sampleStartMod;
+	CachedValue<int> loopStart;
+	CachedValue<int> loopEnd;
+	CachedValue<bool> loopEnabled;
+	CachedValue<int> loopXFade;
+
+
 	BigInteger velocityRange;
 	BigInteger midiNotes;
+
 	int index;
 
 	int maxRRGroup;
-	int rrGroup;
+	
 
-	Atomic<float> gain;
+	std::atomic<float> gain;
+
+	
 	double centPitch;
     std::atomic<double> pitchFactor;
-	int pan;
+	
 
 	float leftBalanceGain;
 	float rightBalanceGain;
@@ -473,24 +546,20 @@ public:
 
 	// ================================================================================================================
 
+	struct PoolEntry
+	{
+		PoolReference r;
+		WeakReference<StreamingSamplerSound> sound;
+
+		StreamingSamplerSound* get() const { return sound.get(); }
+	};
+
+
 	/** call this with any processor to enable console output. */
 	void setDebugProcessor(Processor *p);;
 
-	/** looks in the global sample pool if the file is already loaded and returns a new ModulatorSamplerSound.
-	*
-	*	If a copy of a existing sound is found, the following Properties will be shared among all sound instances:
-	*
-	*	- sample start / end
-	*	- loop settings
-	*	- sample start modulation
-	*
-	*	This is necessary because they affect the memory usage of the sound.
-	*	All other properties (mapping properties and volume / pitch settings) will be unique.
-	*/
-	ModulatorSamplerSound *addSound(const ValueTree &soundDescription, int index, bool forceReuse = false);;
-
 	
-	bool loadMonolithicData(const ValueTree &sampleMap, const Array<File>& monolithicFiles, OwnedArray<ModulatorSamplerSound> &sounds);
+	HlacMonolithInfo::Ptr loadMonolithicData(const ValueTree &sampleMap, const Array<File>& monolithicFiles);
 
     void setUpdatePool(bool shouldBeUpdated)
     {
@@ -546,7 +615,13 @@ public:
 
 	void clearUnreferencedSamples();
 
+	StreamingSamplerSound* getSampleFromPool(PoolReference r) const;
+
+	void addSound(const PoolEntry& newPoolEntry);
+
 private:
+
+	
 
 	void clearUnreferencedSamplesInternal();
 
@@ -584,27 +659,23 @@ private:
 
 	ReferenceCountedArray<MonolithInfoToUse> loadedMonoliths;
 
-	int getSoundIndexFromPool(int64 hashCode, int64 otherPossibleHashCode);
+	int getSoundIndexFromPool(int64 hashCode);
 
-	ModulatorSamplerSound *addSoundWithSingleMic(const ValueTree &soundDescription, int index, bool forceReuse = false);
-	ModulatorSamplerSound *addSoundWithMultiMic(const ValueTree &soundDescription, int index, bool forceReuse = false);
-	
 	// ================================================================================================================
 
+	
 	AudioProcessor *mainAudioProcessor;
 	Processor *debugProcessor;
 
 	MainController *mc;
 
-	WeakStreamingSamplerSoundArray pool;
+	Array<PoolEntry> pool;
 
 	bool isCurrentlyLoading;
 	bool forcePoolSearch;
     bool updatePool;
 	bool searchPool;
     
-	
-
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModulatorSamplerSoundPool)
 };
 

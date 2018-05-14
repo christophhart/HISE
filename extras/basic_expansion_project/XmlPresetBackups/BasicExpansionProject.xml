@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Processor Type="SynthChain" ID="BasicExpansionProject" Bypassed="0" Gain="1"
+           Balance="0" VoiceLimit="256" KillFadeTime="20" IconColour="0"
+           packageName="" BuildVersion="650">
+  <ChildProcessors>
+    <Processor Type="MidiProcessorChain" ID="Midi Processor" Bypassed="0">
+      <ChildProcessors>
+        <Processor Type="ScriptProcessor" ID="Interface" Bypassed="0">
+          <ChildProcessors/>
+          <Content>
+            <Control type="ScriptComboBox" id="SampleMapLoader" value="1"/>
+            <Control type="ScriptedViewport" id="ExpansionList" value="1"/>
+            <Control type="ScriptAudioWaveform" id="AudioWaveform1" value="0" rangeStart="0"
+                     rangeEnd="0" fileName="{EXP::Backend Expansion Vol}Close.wav"/>
+            <Control type="ScriptComboBox" id="AudioFileLoader" value="2"/>
+          </Content>
+          <UIData>
+            <ContentProperties DeviceType="Desktop">
+              <Component type="ScriptPanel" id="bgImage" x="0" y="-1" width="1024" height="768"/>
+              <Component type="ScriptFloatingTile" id="FloatingTile1" x="186" y="648"
+                         width="692" height="82" bgColour="0" itemColour="4294951115"
+                         itemColour2="4294951115" textColour="4294951115" ContentType="Keyboard"
+                         Data="{&#13;&#10;  &quot;KeyWidth&quot;: 14,&#13;&#10;  &quot;DisplayOctaveNumber&quot;: false,&#13;&#10;  &quot;LowKey&quot;: 9,&#13;&#10;  &quot;HiKey&quot;: 127,&#13;&#10;  &quot;CustomGraphics&quot;: false,&#13;&#10;  &quot;DefaultAppearance&quot;: true,&#13;&#10;  &quot;BlackKeyRatio&quot;: 0.69999998807907104492,&#13;&#10;  &quot;ToggleMode&quot;: false,&#13;&#10;  &quot;MidiChannel&quot;: 1&#13;&#10;}"/>
+              <Component type="ScriptComboBox" id="SampleMapLoader" x="186" y="614" width="688"
+                         items="&#10;Empty&#10;Backend Expansion Vol::First Snare" max="2"/>
+              <Component type="ScriptFloatingTile" id="FloatingTile4" x="186" y="448"
+                         bgColour="4281545523" itemColour="4287137928" itemColour2="4282664004"
+                         textColour="4294951115" ContentType="AudioAnalyser" Data="{&#13;&#10;  &quot;ProcessorId&quot;: &quot;Analyser&quot;,&#13;&#10;  &quot;Index&quot;: 1&#13;&#10;}"
+                         height="150" width="690"/>
+              <Component type="ScriptButton" id="ExpansionBrowserButton" x="23" y="23"
+                         text="Show Expansions" isMomentary="1" saveInPreset="0"/>
+              <Component type="ScriptPanel" id="ExpansionPopup" x="17" y="67" width="389"
+                         height="290" isPopupPanel="1">
+                <Component type="ScriptedViewport" id="ExpansionList" x="23" y="33" useList="1"
+                           width="341" height="221" items="No Expansion&#10;Backend Expansion Vol"
+                           bgColour="16777215" itemColour="4285295724" itemColour2="4227858431"
+                           parentComponent="ExpansionPopup"/>
+              </Component>
+              <Component type="ScriptAudioWaveform" id="AudioWaveform1" x="219" y="228"
+                         processorId="Audio Loop Player" width="590"/>
+              <Component type="ScriptComboBox" id="AudioFileLoader" x="220" y="185" items="Empty&#10;Backend Expansion Vol::Close.wav&#10;Backend Expansion Vol::LexiconImpulse.wav&#10;Backend Expansion Vol::organ.wav"
+                         max="4"/>
+            </ContentProperties>
+          </UIData>
+        </Processor>
+      </ChildProcessors>
+    </Processor>
+    <Processor Type="ModulatorChain" ID="GainModulation" Bypassed="0" Intensity="1">
+      <ChildProcessors/>
+    </Processor>
+    <Processor Type="ModulatorChain" ID="PitchModulation" Bypassed="1" Intensity="0">
+      <ChildProcessors/>
+    </Processor>
+    <Processor Type="EffectChain" ID="FX" Bypassed="0">
+      <ChildProcessors>
+        <Processor Type="Analyser" ID="Analyser" Bypassed="0" BufferSize="16384"
+                   PreviewType="3">
+          <ChildProcessors/>
+          <RoutingMatrix NumSourceChannels="2" Channel0="0" Send0="-1" Channel1="1" Send1="-1"/>
+        </Processor>
+      </ChildProcessors>
+    </Processor>
+    <Processor Type="StreamingSampler" ID="S1" Bypassed="0" Gain="1" Balance="0"
+               VoiceLimit="256" KillFadeTime="20" IconColour="0" PreloadSize="8192"
+               BufferSize="4096" VoiceAmount="256" SamplerRepeatMode="-842150464"
+               RRGroupAmount="1" PitchTracking="1" OneShot="0" CrossfadeGroups="0"
+               Purged="0" Reversed="0" NumChannels="1" UseStaticMatrix="0" Group0Table="24...............vO...f+....9C...vO"
+               Group1Table="24...............vO...f+....9C...vO" Group2Table="24...............vO...f+....9C...vO"
+               Group3Table="24...............vO...f+....9C...vO" Group4Table="24...............vO...f+....9C...vO"
+               Group5Table="24...............vO...f+....9C...vO" Group6Table="24...............vO...f+....9C...vO"
+               Group7Table="24...............vO...f+....9C...vO" SampleMap="">
+      <ChildProcessors>
+        <Processor Type="MidiProcessorChain" ID="Midi Processor" Bypassed="0">
+          <ChildProcessors/>
+        </Processor>
+        <Processor Type="ModulatorChain" ID="GainModulation" Bypassed="0" Intensity="1">
+          <ChildProcessors>
+            <Processor Type="SimpleEnvelope" ID="DefaultEnvelope" Bypassed="0" Monophonic="0"
+                       Retrigger="1" Intensity="1" Attack="5" Release="10" LinearMode="1">
+              <ChildProcessors>
+                <Processor Type="ModulatorChain" ID="Attack Time Modulation" Bypassed="0"
+                           Intensity="1">
+                  <ChildProcessors/>
+                </Processor>
+              </ChildProcessors>
+            </Processor>
+          </ChildProcessors>
+        </Processor>
+        <Processor Type="ModulatorChain" ID="PitchModulation" Bypassed="0" Intensity="0">
+          <ChildProcessors/>
+        </Processor>
+        <Processor Type="EffectChain" ID="FX" Bypassed="0">
+          <ChildProcessors/>
+        </Processor>
+        <Processor Type="ModulatorChain" ID="Sample Start" Bypassed="0" Intensity="1">
+          <ChildProcessors/>
+        </Processor>
+        <Processor Type="ModulatorChain" ID="Group Fade" Bypassed="0" Intensity="1">
+          <ChildProcessors/>
+        </Processor>
+      </ChildProcessors>
+      <RoutingMatrix NumSourceChannels="2" Channel0="0" Send0="-1" Channel1="1" Send1="-1"/>
+      <channels>
+        <channelData enabled="1" level="0" suffix=""/>
+      </channels>
+      <samplemap ID="../../../SampleMaps/Empty" SaveMode="1" RRGroupAmount="1"
+                 MicPositions=";"/>
+    </Processor>
+    <Processor Type="AudioLooper" ID="Audio Loop Player" Bypassed="0" Gain="0.25"
+               Balance="0" VoiceLimit="256" KillFadeTime="20" IconColour="0"
+               SyncMode="1" PitchTracking="0" LoopEnabled="0" RootNote="64"
+               SampleStartMod="0" Reversed="0" FileName="{EXP::Backend Expansion Vol}Close.wav"
+               min="0" max="0" loopStart="0" loopEnd="0">
+      <ChildProcessors>
+        <Processor Type="MidiProcessorChain" ID="Midi Processor" Bypassed="0">
+          <ChildProcessors/>
+        </Processor>
+        <Processor Type="ModulatorChain" ID="GainModulation" Bypassed="0" Intensity="1">
+          <ChildProcessors>
+            <Processor Type="SimpleEnvelope" ID="DefaultEnvelope" Bypassed="0" Monophonic="0"
+                       Retrigger="1" Intensity="1" Attack="5" Release="10" LinearMode="1">
+              <ChildProcessors>
+                <Processor Type="ModulatorChain" ID="Attack Time Modulation" Bypassed="0"
+                           Intensity="1">
+                  <ChildProcessors/>
+                </Processor>
+              </ChildProcessors>
+            </Processor>
+          </ChildProcessors>
+        </Processor>
+        <Processor Type="ModulatorChain" ID="PitchModulation" Bypassed="0" Intensity="0">
+          <ChildProcessors/>
+        </Processor>
+        <Processor Type="EffectChain" ID="FX" Bypassed="0">
+          <ChildProcessors/>
+        </Processor>
+      </ChildProcessors>
+      <RoutingMatrix NumSourceChannels="2" Channel0="0" Send0="-1" Channel1="1" Send1="-1"/>
+    </Processor>
+  </ChildProcessors>
+  <RoutingMatrix NumSourceChannels="2" Channel0="0" Send0="-1" Channel1="1" Send1="-1"/>
+  <macro_controls>
+    <macro name="Macro 1" value="0" midi_cc="-1"/>
+    <macro name="Macro 2" value="0" midi_cc="-1"/>
+    <macro name="Macro 3" value="0" midi_cc="-1"/>
+    <macro name="Macro 4" value="0" midi_cc="-1"/>
+    <macro name="Macro 5" value="0" midi_cc="-1"/>
+    <macro name="Macro 6" value="0" midi_cc="-1"/>
+    <macro name="Macro 7" value="0" midi_cc="-1"/>
+    <macro name="Macro 8" value="0" midi_cc="-1"/>
+  </macro_controls>
+  <MidiAutomation/>
+</Processor>

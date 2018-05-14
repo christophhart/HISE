@@ -100,38 +100,104 @@ private:
 
 class ModulatorSynthChain;
 
+class PoolCollection;
+
+class FileHandlerBase: public ControlledObject
+{
+public:
+
+	enum SubDirectories
+	{
+		AudioFiles,
+		Images,
+		SampleMaps,
+		UserPresets,
+		Samples,
+		Scripts,
+		Binaries,
+		Presets,
+		XMLPresetBackups,
+		AdditionalSourceCode,
+		numSubDirectories
+	};
+
+	virtual ~FileHandlerBase();
+
+	virtual File getSubDirectory(SubDirectories dir) const;
+
+	static String getIdentifier(SubDirectories dir);
+
+	static SubDirectories getSubDirectoryForIdentifier(Identifier id);
+
+
+
+	/** creates a absolute path from the pathToFile and the specified sub directory. */
+	String getFilePath(const String &pathToFile, SubDirectories subDir) const;
+
+	/** Creates a reference string that can be used to obtain the file in the project directory.
+	*
+	*	If the file is not in
+	*/
+
+	const String getFileReference(const String &absoluteFileName, SubDirectories dir) const;
+
+	void getFileList(Array<File> &filesInDirectory, SubDirectories dir, const String &wildcard, bool sortByTime = false, bool searchInSubfolders = false);
+
+	/** checks if this is a absolute path (including absolute win paths on OSX and absolute OSX paths on windows); */
+	static bool isAbsolutePathCrossPlatform(const String &pathName);
+
+	static File getLinkFile(const File &subDirectory);
+
+	/** Creates a platform dependant file in the subdirectory that redirects to another location.
+	*
+	*	This is mainly used for storing audio samples at another location to keep the project folder size small.
+	*/
+
+	void createLinkFile(SubDirectories dir, const File &relocation);
+
+	static void createLinkFileInFolder(const File& source, const File& target);
+
+	virtual File getRootFolder() const = 0;
+
+protected:
+
+	friend class MainController;
+	friend class ExpansionHandler;
+
+	FileHandlerBase(MainController* mc_);;
+
+
+
+
+	struct FolderReference
+	{
+		SubDirectories directoryType = numSubDirectories;
+		bool isReference = false;
+		File file;
+	};
+
+	ScopedPointer<PoolCollection> pool;
+
+	Array<FolderReference> subDirectories;
+};
+
 
 /** The class that wraps all file resolving issues.
 *
 *	It assumes a working directory and supplies correct paths for all OSes relative to the project root folder.
 *
 */
-class ProjectHandler
+class ProjectHandler: public FileHandlerBase
 {
 public:
 
 	ProjectHandler(MainController* mc_):
-		mc(mc_)
+		FileHandlerBase(mc_)
 	{
 #if USE_BACKEND
 		restoreWorkingProjects();
 #endif
 	}
-
-	enum class SubDirectories
-	{
-		Scripts = 0,
-		Binaries,
-		Presets,
-		UserPresets,
-		XMLPresetBackups,
-		Samples,
-		Images,
-		AudioFiles,
-		SampleMaps,
-		AdditionalSourceCode,
-		numSubDirectories
-	};
 
 	struct Listener
 	{
@@ -155,44 +221,31 @@ public:
 
 	static const StringArray &getRecentWorkDirectories() { return recentWorkDirectories; }
 
-	/** Returns the subdirectory. */
-	File getSubDirectory(SubDirectories dir) const;
+	File getRootFolder() const override { return getWorkDirectory(); }
 
-	/** Returns the current work directory. */
 	File getWorkDirectory() const;
 
 	/** Checks if a directory is redirected. */
-    bool isRedirected(SubDirectories dir) const;
-    
+
+	bool isRedirected(ProjectHandler::SubDirectories dir) const
+	{
+		return subDirectories[(int)dir].isReference;
+	}
+
 	/** Checks if the ProjectHandler is active (if a directory is set). */
 	bool isActive() const;
 	
-	/** creates a absolute path from the pathToFile and the specified sub directory. */
-	String getFilePath(const String &pathToFile, SubDirectories subDir) const;
 	
-	/** Creates a reference string that can be used to obtain the file in the project directory. 
-	*
-	*	If the file is not in 
-	*/
-	const String getFileReference(const String &absoluteFileName, SubDirectories dir) const;
 
-	/** Creates a platform dependant file in the subdirectory that redirects to another location.
-	*
-	*	This is mainly used for storing audio samples at another location to keep the project folder size small.
-	*/
-	void createLinkFile(SubDirectories dir, const File &relocation);
+	
 
-	static void createLinkFileInFolder(const File& source, const File& target);
-
+	
 	/** */
 	void setProjectSettings(Component *mainEditor=nullptr);
 
-	static String getIdentifier(SubDirectories dir);
-
-	static SubDirectories getSubDirectoryForIdentifier(Identifier id);
-
 	/** Fills the given array with the contents of the specified directory. If 'sortByTime' is true, the most recent files will be the first items in the list. */
-	void getFileList(Array<File> &filesInDirectory, SubDirectories dir, const String &wildcard, bool sortByTime = false, bool searchInSubfolders=false);
+
+	
 
 	void createRSAKey() const;
 
@@ -214,113 +267,19 @@ public:
 		listeners.removeAllInstancesOf(listenerToRemove);
 	}
 
-    /** checks if this is a absolute path (including absolute win paths on OSX and absolute OSX paths on windows); */
-    static bool isAbsolutePathCrossPlatform(const String &pathName)
-    {
-        const bool isAbsoluteWindowsPath = pathName.containsChar(':');
-        const bool isAbsoluteOSXPath = pathName.startsWithChar('/');
-        
-        return isAbsoluteWindowsPath || isAbsoluteOSXPath || File::isAbsolutePath(pathName);
-    }
-    
-	class Frontend
-	{
-	public:
+   
+	static File getAppDataDirectory();
+	
 
-		static File getSampleLocationForCompiledPlugin();
-
-		/** This returns the app data directory, which must be created by the installer of your product.
-		*
-		*	On OSX this will be ("Users/Library/Application Support/Company/Product/") and on Windows ("Users/AppData/Local/Company/Product").
-		*
-		*	This directory will be used for:
-		*	- sample location folder (using a LinkOS file)
-		*	- user presets (in the UserPresets subfolder)
-		*	- license key file
-		*/
-		static File getAppDataDirectory(ModulatorSynthChain *chain=nullptr);
-
-		static File getLicenseKey();
-
-		static String getLicenseKeyExtension();
-
-		static String getSanitiziedFileNameForPoolReference(const String &absoluteFileName);
-		
-		static void setSampleLocation(const File &newLocation);
-
-		static File getSampleLinkFile();
-
-		static File getUserPresetDirectory();
-		
-		static File getAdditionalAudioFilesDirectory();
-
-		static String getRelativePathForAdditionalAudioFile(const File& audioFile);
-
-		static File getAudioFileForRelativePath(const String& relativePath);
-
-		static String getProjectName();
-		static String getCompanyName();
-		static String getCompanyWebsiteName();
-		static String getVersionString();
-        static String getAppGroupId();
-        
-		static String checkSampleReferences(const ValueTree &sampleMaps, bool returnTrueIfOneSampleFound);
-
-		/** on IOS this returns the folder where all the resources (samples, images, etc) are found.
-		*	It uses a shared folder for both the AUv3 and Standalone version in order to avoid duplicating the data. */
-		static File getResourcesFolder();
-
-		static const bool checkSamplesCorrectlyInstalled();
-	};
-
-	static File getLinkFile(const File &subDirectory);
-    
 private:
 
 
-	struct FolderReference
-	{
-		FolderReference(SubDirectories d, bool r, File f) :
-			directoryType(d),
-			isReference(r),
-			file(f)
-		{};
-
-		FolderReference() :
-			directoryType(SubDirectories::numSubDirectories),
-			isReference(false),
-			file(File())
-		{};
-
-		FolderReference(const FolderReference& other) noexcept:
-		    directoryType(other.directoryType),
-			isReference(other.isReference),
-			file(other.file)
-		{
-		}
-
-		FolderReference& operator= (FolderReference other) noexcept
-		{
-			directoryType = other.directoryType;
-			file = other.file;
-			isReference = other.isReference;
-			return *this;
-		}
-
-		SubDirectories directoryType;
-		bool isReference;
-		File file;
-	};
 
 	void restoreWorkingProjects();
 
-	
-
 	bool isValidProjectFolder(const File &file) const;
 
-	Array<FolderReference> subDirectories;
 	
-    
 	
 	void checkSubDirectories();
 
@@ -331,8 +290,6 @@ private:
 
 	Array<WeakReference<Listener>> listeners;
 
-	MainController* mc;
-
 	File currentWorkDirectory;
 	
 	static StringArray recentWorkDirectories;
@@ -342,56 +299,161 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ProjectHandler);
 };
 
-
-
-/** This base class handles the data logic for different targets.
-*
-*	Subclasses need to override the methods and return a valid ValueTree containing the data typically found in the project's folder subdirectory
-*/
-class FrontendDataHolder
+class FrontendHandler : public FileHandlerBase
 {
 public:
 
-	virtual ~FrontendDataHolder() {};
+	FrontendHandler(MainController* mc):
+		FileHandlerBase(mc)
+	{
+		
+	}
 
-	/** Override this method and supply the given data as ValueTree. */
-	virtual const ValueTree getValueTree(ProjectHandler::SubDirectories type) const = 0;
 
-	/** returns the sample map with the given ID. This is just a shortcut function. */
-	const ValueTree getSampleMap(const String& sampleMapId) const { return getValueTree(ProjectHandler::SubDirectories::SampleMaps).getChildWithProperty("ID", sampleMapId); }
 
-	/** Overwrite this and return the location of the samples. */
-	virtual File getSampleLocation() const = 0;
-};
+	File getRootFolder() const override;
 
-/** This base class handles missing samples. */
-class FrontendSampleManager
-{
-public:
+	File getSubDirectory(SubDirectories directory) const override;
 
-	virtual ~FrontendSampleManager() {};
+	static File getSampleLocationForCompiledPlugin();
+
+
+
+	static File getLicenseKey();
+
+	static String getLicenseKeyExtension();
+
+	static void setSampleLocation(const File &newLocation);
+
+	static File getSampleLinkFile();
+
+	static File getUserPresetDirectory();
+
+	static File getAdditionalAudioFilesDirectory();
+
+	static String getRelativePathForAdditionalAudioFile(const File& audioFile);
+
+	static File getAudioFileForRelativePath(const String& relativePath);
+
+	static String getProjectName();
+	static String getCompanyName();
+	static String getCompanyWebsiteName();
+	static String getVersionString();
+	static String getAppGroupId();
+
+	static String checkSampleReferences(MainController* mc, const ValueTree &sampleMaps, bool returnTrueIfOneSampleFound);
+
+	/** on IOS this returns the folder where all the resources (samples, images, etc) are found.
+	*	It uses a shared folder for both the AUv3 and Standalone version in order to avoid duplicating the data. */
+	static File getResourcesFolder();
+
+	static const bool checkSamplesCorrectlyInstalled();
+
+	/** This returns the app data directory, which must be created by the installer of your product.
+	*
+	*	On OSX this will be ("Users/Library/Application Support/Company/Product/") and on Windows ("Users/AppData/Local/Company/Product").
+	*
+	*	This directory will be used for:
+	*	- sample location folder (using a LinkOS file)
+	*	- user presets (in the UserPresets subfolder)
+	*	- license key file
+	*/
+	static File getAppDataDirectory();
+
+	void setValueTree(SubDirectories type, ValueTree tree)
+	{
+		if (type == SampleMaps)
+			sampleMaps = tree;
+
+		if (type == UserPresets)
+			presets = tree;
+	}
+
+	ValueTree getValueTree(SubDirectories type) const
+	{
+		if (type == SampleMaps)
+			return sampleMaps;
+
+		if (type == UserPresets)
+			return presets;
+
+		return ValueTree();
+	}
+
+	const ValueTree getSampleMap(const String& sampleMapId) const
+	{
+		return getValueTree(SampleMaps).getChildWithProperty("ID", sampleMapId);
+	}
+
+	void createSampleMapValueTreeFromPreset(ValueTree treeToSearch)
+	{
+		if (sampleMaps.getNumChildren() != 0)
+			return;
+
+		static const Identifier sm("samplemap");
+
+		for (int i = 0; i < treeToSearch.getNumChildren(); i++)
+		{
+			ValueTree child = treeToSearch.getChild(i);
+
+			if (child.hasType(sm))
+			{
+				treeToSearch.removeChild(child, nullptr);
+
+				sampleMaps.addChild(child, -1, nullptr);
+
+				i--;
+			}
+			else
+			{
+				createSampleMapValueTreeFromPreset(child);
+			}
+		}
+	};
+
+	bool shouldLoadSamplesAfterSetup() const { return samplesCorrectlyLoaded; };
 
 	void loadSamplesAfterSetup();
 
-	virtual bool shouldLoadSamplesAfterSetup() const { return samplesCorrectlyLoaded; };
+	void setAllSampleReferencesCorrect()
+	{
+		samplesCorrectlyLoaded = true;
+	}
 
 	bool areSamplesLoadedCorrectly() const { return samplesCorrectlyLoaded; }
 
+	bool areSampleReferencesCorrect() const
+	{
+		return samplesCorrectlyLoaded;
+	}
 
-	void setAllSampleReferencesCorrect();
+
 
 	void checkAllSampleReferences();
-	bool areSampleReferencesCorrect() const;
+
+
 
 private:
 
 #if HISE_IOS
 	bool samplesCorrectlyLoaded = true;
 #else
-    bool samplesCorrectlyLoaded = true;
+	bool samplesCorrectlyLoaded = true;
 #endif
 
+	ValueTree sampleMaps;
+	ValueTree presets;
+
+	File root;
+
+	
 };
+
+#if USE_BACKEND
+using NativeFileHandler = ProjectHandler;
+#else
+using NativeFileHandler = FrontendHandler;
+#endif
 
 
 class UserPresetData
@@ -714,89 +776,8 @@ public:
     static AudioFormatReader *getReaderForInputStream(InputStream *stream);
 
 	
-	/** This looks in the application settings directory for a file called libraryName.library and creates it if it doesn't exist. */
-	static File getSampleDataSettingsFile(const String &libraryName)
-	{
-		File settingsFolder = File(getDataFolder());
-
-		if(!settingsFolder.exists()) settingsFolder.createDirectory();
-
-		File settings = settingsFolder.getFullPathName() + "/" + libraryName + ".library";
-
-		if(!settings.exists())
-		{
-			settings.create();
-		}
-
-		return settings;
-	}
-
 	
-    static String getSettingsValue(const String &settingId)
-    {
-        ScopedPointer<XmlElement> xml = XmlDocument::parse(File(getDataFolder()).getChildFile("settings.xml"));
-        
-        if(xml != nullptr)
-        {
-            XmlElement *setting = xml->getChildByName(settingId);
-            
-            if(setting != nullptr) return setting->getStringAttribute("value");
-            else return String();
-        }
     
-        jassertfalse;
-        return String();
-    }
-    
-    static void setSettingsValue(const String &settingId, const String &value)
-    {
-        File f = File(getDataFolder()).getChildFile("settings.xml");
-        
-        ScopedPointer<XmlElement> xml;
-        
-        if(!f.existsAsFile())
-        {
-            xml = new XmlElement("Settings");
-            f.create();
-        }
-        else
-        {
-            xml = XmlDocument::parse(f);
-        }
-        
-        jassert(xml != nullptr);
-        
-        if(xml != nullptr)
-        {
-            if(xml->getChildByName(settingId) != nullptr)
-            {
-                xml->getChildByName(settingId)->setAttribute("value", value);
-            
-            }
-            else
-            {
-            
-                XmlElement *setting = new XmlElement(settingId);
-            
-                setting->setAttribute("value", value);
-            
-                xml->addChildElement(setting);
-            }
-            String newContent = xml->createDocument("");
-            
-            f.replaceWithText(newContent);
-            
-            return;
-        }
-        
-        jassertfalse;
-        return;
-    }
-    
-	static String getGlobalSampleFolder();
-
-    static String getDataFolder();
-
 	static ValueTree loadValueTreeFromData(const void* data, size_t size, bool wasCompressed)
 	{
 		if (wasCompressed)
@@ -886,31 +867,6 @@ private:
 
 };
 
-/** A handler class for all stuff related to HISE Player.
-*
-*	This is a seperate class in order to keep the codebase clean.
-*/
-class PresetPlayerHandler
-{
-public:
-
-	enum FolderType
-	{
-		GlobalSampleDirectory = 0,
-		PackageDirectory,
-		StreamedSampleFolder,
-		ImageResources,
-		AudioFiles
-	};
-
-	/** This returns the folder for the package structure. */
-	static String getSpecialFolder(FolderType type, const String &packageName = String(), bool ignoreNonExistingDirectory=false);
-
-	static void checkAndCreatePackage(const String &packageName);
-
-	static void addInstrumentToPackageXml(const String &instrumentFileName, const String &packageName);
-
-};
 
 } // namespace hise
 

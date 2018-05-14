@@ -475,7 +475,7 @@ public:
 
 	StringArray getWavetableList() const
 	{
-		auto dir = GET_PROJECT_HANDLER(this).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles);
+		auto dir = getMainController()->getCurrentFileHandler().getSubDirectory(ProjectHandler::SubDirectories::AudioFiles);
 
 		Array<File> wavetables;
 		dir.findChildFiles(wavetables, File::findFiles, true, "*.hwt");
@@ -501,7 +501,7 @@ public:
 			clearSounds();
 		}
 
-		auto dir = GET_PROJECT_HANDLER(this).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles);
+		auto dir = getMainController()->getCurrentFileHandler().getSubDirectory(ProjectHandler::SubDirectories::AudioFiles);
 
 		Array<File> wavetables;
 

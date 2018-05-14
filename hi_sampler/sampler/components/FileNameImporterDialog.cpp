@@ -172,7 +172,7 @@ FileNameImporterDialog::FileNameImporterDialog (ModulatorSampler *sampler_, cons
 
     //[Constructor] You can add your own custom stuff here..
 
-	File recentSettingsFile = File(PresetHandler::getDataFolder()).getChildFile("FileNameParserSettings.xml");
+	File recentSettingsFile = NativeFileHandler::getAppDataDirectory().getChildFile("FileNameParserSettings.xml");
 
 	if (recentSettingsFile.existsAsFile())
 	{
@@ -190,7 +190,7 @@ FileNameImporterDialog::~FileNameImporterDialog()
 {
     //[Destructor_pre]. You can add your own custom destruction code here..
 
-	File recentSettingsFile = File(PresetHandler::getDataFolder()).getChildFile("FileNameParserSettings.xml");
+	File recentSettingsFile = NativeFileHandler::getAppDataDirectory().getChildFile("FileNameParserSettings.xml");
 
 	ScopedPointer<XmlElement> settings = saveAsXml();
 

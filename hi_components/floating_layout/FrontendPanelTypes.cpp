@@ -90,13 +90,15 @@ void ActivityLedPanel::fromDynamicObject(const var& object)
 
 	onName = getPropertyWithDefault(object, (int)SpecialPanelIds::OnImage);
 
+	auto& handler = getMainController()->getExpansionHandler();
+
 	if (onName.isNotEmpty())
-		on = ImagePool::loadImageFromReference(getMainController(), onName);
+		on = handler.loadImageReference(PoolReference(getMainController(), onName, ProjectHandler::SubDirectories::Images));
 
 	offName = getPropertyWithDefault(object, (int)SpecialPanelIds::OffImage);
 
 	if (offName.isNotEmpty())
-		off = ImagePool::loadImageFromReference(getMainController(), offName);
+		on = handler.loadImageReference(PoolReference(getMainController(), offName, ProjectHandler::SubDirectories::Images));
 }
 
 
@@ -137,7 +139,7 @@ void ActivityLedPanel::paint(Graphics &g)
 	if (showMidiLabel)
 		g.drawText("MIDI", 0, 0, 100, getHeight(), Justification::centredLeft, false);
 
-	g.drawImageWithin(isOn ? on : off, showMidiLabel ? 38 : 2, 2, 24, getHeight(), RectanglePlacement::centred);
+	g.drawImageWithin(isOn ? on->data : off->data, showMidiLabel ? 38 : 2, 2, 24, getHeight(), RectanglePlacement::centred);
 }
 
 void ActivityLedPanel::setOn(bool shouldBeOn)
@@ -603,7 +605,7 @@ void AboutPagePanel::paint(Graphics& g)
 
 	if (useCustomImage)
 	{
-		g.drawImageWithin(bgImage, 0, 0, getWidth(), getHeight(), RectanglePlacement::centred);
+		g.drawImageWithin(bgImage->data, 0, 0, getWidth(), getHeight(), RectanglePlacement::centred);
 	}
 
 	Rectangle<float> r({ 0.0f, 0.0f, (float)getWidth(), (float)getHeight() });
@@ -622,18 +624,19 @@ void AboutPagePanel::rebuildText()
 
 	if (useCustomImage)
 	{
-		bgImage = ImagePool::loadImageFromReference(getMainController(), "{PROJECT_FOLDER}about.png");
+		auto& handler = getMainController()->getExpansionHandler();
+		bgImage = handler.loadImageReference(PoolReference(getMainController(), "{PROJECT_FOLDER}about.png", ProjectHandler::SubDirectories::Images));
 	}
 	
 
 #if USE_FRONTEND
-	const String projectName = ProjectHandler::Frontend::getProjectName();
+	const String projectName = FrontendHandler::getProjectName();
 
 #if USE_COPY_PROTECTION
 	const String licencee = dynamic_cast<FrontendProcessor*>(getMainController())->unlocker.getEmailAdress();
 #endif
 
-	const String version = ProjectHandler::Frontend::getVersionString();
+	const String version = FrontendHandler::getVersionString();
 	
 #else
 	const auto& data = dynamic_cast<GlobalSettingManager*>(getMainController())->getSettingsObject();

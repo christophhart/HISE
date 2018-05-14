@@ -124,7 +124,7 @@ ValueTree externalFiles = hise::PresetHandler::loadValueTreeFromData(PresetData:
     hise::UserPresetHelpers::extractUserPresets(PresetData::userPresets, PresetData::userPresetsSize);\
 	hise::AudioProcessorDriver::restoreSettings(fp);\
 	hise::GlobalSettingManager::restoreGlobalSettings(fp); \
-	fp->loadSamplesAfterSetup();\
+	GET_PROJECT_HANDLER(fp->getMainSynthChain()).loadSamplesAfterSetup();\
 	return fp;\
 }
 #endif

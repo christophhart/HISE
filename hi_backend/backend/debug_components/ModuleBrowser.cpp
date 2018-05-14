@@ -153,7 +153,7 @@ void ModuleBrowser::ModuleItem::setParameters(const ValueTree &v)
 
 ModuleBrowser::ModuleCollection::ModuleCollection(Types t)
 {
-	File f(PresetHandler::getDataFolder() + "/moduleEnums.xml");
+	File f = NativeFileHandler::getAppDataDirectory().getChildFile("/moduleEnums.xml");
 
 	jassert(f.existsAsFile());
 

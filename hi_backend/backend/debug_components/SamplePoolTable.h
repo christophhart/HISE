@@ -98,13 +98,35 @@ private:
 
 class MainController;
 
+struct PoolTableHelpers
+{
+	template <class DataType> void doubleClickCallback(MainController* mc, const SharedPoolBase<DataType>& pool, int rowNumber)
+	{
+		
+
+		
+
+		if (auto editor = mc->getLastActiveEditor())
+		{
+			auto fileName = pool->getFileNameForId(pool->getIdForIndex(rowNumber));
+			auto ref = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getFileReference(fileName, ProjectHandler::SubDirectories::AudioFiles);
+
+			editor->insertTextAtCaret(ref);
+		}
+	}
+
+	
+};
+
 /** A table component containing all samples of a ModulatorSampler.
 *	@ingroup components
 */
-class ExternalFileTableBase      : public Component,
+template <class DataType> class ExternalFileTableBase: public Component,
+							 public ControlledObject,
                              public TableListBoxModel,
-							 public SafeChangeListener,
-							 public DragAndDropContainer
+							 public PoolBase::Listener,
+							 public DragAndDropContainer,
+							 public ExpansionHandler::Listener
 {
 public:
 
@@ -112,54 +134,202 @@ public:
 	{
 		FileName = 1,
 		Memory,
-		Type,
 		References,
 		numColumns
 	};
 
-	ExternalFileTableBase(SharedPoolBase *pool) ;
+	// ========================================================================================================= ExternalFileTable
+	ExternalFileTableBase(BackendRootWindow* rootWindow) :
+		ControlledObject(rootWindow->getMainController()),
+		font(GLOBAL_FONT()),
+		selectedRow(-1)
+	{
+		getMainController()->getExpansionHandler().addListener(this);
 
-	~ExternalFileTableBase();
+		setName(getHeadline());
+
+		// Create our table component and add it to this component..
+		addAndMakeVisible(table);
+		table.setModel(this);
+
+		
+
+		laf = new TableHeaderLookAndFeel();
+
+		table.getHeader().setLookAndFeel(laf);
+
+		table.getHeader().setSize(getWidth(), 22);
+
+		// give it a border
+		table.setColour(ListBox::outlineColourId, Colours::grey);
+		table.setColour(ListBox::backgroundColourId, HiseColourScheme::getColour(HiseColourScheme::ColourIds::DebugAreaBackgroundColourId));
+
+		table.setOutlineThickness(0);
+
+		table.getViewport()->setScrollBarsShown(true, false, false, false);
+
+		//table.getHeader().setInterceptsMouseClicks(false, false);
+
+		table.getHeader().addColumn("File Name", FileName, 60);
+		table.getHeader().addColumn("Size", Memory, 50);
+		table.getHeader().addColumn("References", References, 50);
+		
+		updatePool();
+
+	}
+
+	~ExternalFileTableBase()
+	{
+		getMainController()->getExpansionHandler().removeListener(this);
+
+		pool->removeListener(this);
+	}
+
+	void expansionPackLoaded(Expansion* currentExpansion) override
+	{
+		updatePool();
+	}
 
 	
-	void changeListenerCallback(SafeChangeBroadcaster *) override
+
+	void updatePool()
+	{
+		if (pool != nullptr)
+		{
+			pool->removeListener(this);
+		}
+
+		pool = getMainController()->getExpansionHandler().template getCurrentPool<DataType>();
+
+		pool->addListener(this);
+
+		table.updateContent();
+		
+	}
+
+	static Identifier getGenericPanelId()
+	{
+		auto type = PoolHelpers::getSubDirectoryType(DataType());
+		
+		return Identifier(ProjectHandler::getIdentifier(type) + "PoolTable");
+	}
+
+	void poolEntryAdded() override
+	{
+		poolEntryRemoved();
+	}
+
+	void poolEntryRemoved() override
 	{
 		setName(getHeadline());
 		table.updateContent();
-		if(getParentComponent() != nullptr) getParentComponent()->repaint();
+		if (getParentComponent() != nullptr) getParentComponent()->repaint();
 	}
 
-    int getNumRows() override;
+	void poolEntryChanged(int /*indexInPool*/)
+	{
+		poolEntryRemoved();
+	}
 
-    void paintRowBackground (Graphics& g, int rowNumber, int /*width*/, int /*height*/, bool rowIsSelected) override;
+	int getNumRows() override
+	{
+		return pool != nullptr ? pool->getNumLoadedFiles() : 0;
+	}
 
-	void selectedRowsChanged(int /*lastRowSelected*/) override;
+	void paintRowBackground(Graphics& g, int rowNumber, int, int, bool rowIsSelected) override
+	{
+		if (rowNumber % 2) g.fillAll(Colours::white.withAlpha(0.05f));
 
-    void paintCell (Graphics& g, int rowNumber, int columnId,
-                    int width, int height, bool /*rowIsSelected*/) override;
-    
-	String getHeadline() const;
+		if (rowIsSelected)
+			g.fillAll(Colour(0x44000000));
+	}
 
-    void resized() override;
+	void selectedRowsChanged(int i) override
+	{
+		selectedRow = i;
+	}
 
-	
+	void paintCell(Graphics& g, int rowNumber, int columnId, int width, int height, bool) override
+	{
+		g.setColour(Colours::white.withAlpha(.8f));
+		g.setFont(font);
 
-	String getTextForTableCell(int rowNumber, int columnNumber);
+		String text = getTextForTableCell(rowNumber, columnId);
+
+		g.drawText(text, 2, 0, width - 4, height, Justification::centredLeft, true);
+
+		//g.setColour (Colours::black.withAlpha (0.2f));
+		//g.fillRect (width - 1, 0, 1, height);
+	}
+
+	String getHeadline() const
+	{
+		if (pool == nullptr)
+			return {};
+
+		String x;
+
+		const int numSamples = pool->getNumLoadedFiles();
+
+		x << "External Files: " << String(numSamples) << " " << pool->getFileTypeName().toString();
+
+		return x;
+	}
+
+	void resized() override
+	{
+		table.setBounds(getLocalBounds());
+
+		table.getHeader().setColumnWidth(FileName, getWidth() - 200);
+		table.getHeader().setColumnWidth(Memory, 100);
+		table.getHeader().setColumnWidth(References, 100);
+	}
+
+	void cellDoubleClicked(int rowNumber, int columnId, const MouseEvent&)
+	{
+		if (pool == nullptr)
+			return;
+
+		auto mc = pool->getMainController();
+
+		if (auto editor = mc->getLastActiveEditor())
+		{
+			auto ref = pool->getReference(rowNumber);
+
+			if (ref.isValid())
+			{
+				editor->insertTextAtCaret(ref.getReferenceString());
+			}
+		}
+	}
+
+	String getTextForTableCell(int rowNumber, int columnNumber)
+	{
+		if (pool == nullptr)
+			return {};
+
+		StringArray info = pool->getTextDataForId(rowNumber);
+
+		if ((columnNumber - 1) < info.size())
+		{
+			return info[columnNumber - 1];
+		}
+		else
+			return {};
+	}
 
 	var getDragSourceDescription(const SparseSet< int > &set) override
 	{
+		if (pool == nullptr)
+			return {};
+
 		var id;
 
 		if(set.getNumRanges() > 0)
 		{
 			const int index = set[0];
 
-			Identifier name = pool->getIdForIndex(index);
-
-			String x = pool->getFileNameForId(name);
-
-			id = x;
-			
+			id = pool->getReference(index).getReferenceString();
 		}
 
 		return id;
@@ -167,7 +337,9 @@ public:
 
 protected:
 
-	SharedPoolBase *pool;
+
+
+	WeakReference<SharedPoolBase<DataType>> pool;
 
 private:
     TableListBox table;     // the table component itself
@@ -177,9 +349,6 @@ private:
 
 	var currentlyDraggedId;
 
-	
-
-	
 	ScopedPointer<TableHeaderLookAndFeel> laf;
 	PopupLookAndFeel plaf;
 
@@ -190,32 +359,8 @@ private:
 
 struct PoolTableSubTypes
 {
-	struct AudioFilePoolTable : public ExternalFileTableBase
-	{
-	public:
-
-		AudioFilePoolTable(BackendRootWindow* rootWindow);
-
-		void cellClicked(int /*rowNumber*/, int /*columnId*/, const MouseEvent&)
-		{
-
-		}
-
-		virtual void cellDoubleClicked(int rowNumber, int columnId, const MouseEvent&);
-
-		SET_GENERIC_PANEL_ID("AudioFilePoolTable");
-	};
-
-	struct ImageFilePoolTable : public ExternalFileTableBase
-	{
-	public:
-
-		ImageFilePoolTable(BackendRootWindow* rootWindow);
-
-		virtual void cellDoubleClicked(int rowNumber, int columnId, const MouseEvent&);
-
-		SET_GENERIC_PANEL_ID("ImagePoolTable");
-	};
+	using AudioFilePoolTable = ExternalFileTableBase<AudioSampleBuffer>;
+	using ImageFilePoolTable = ExternalFileTableBase<Image>;
 };
 
 

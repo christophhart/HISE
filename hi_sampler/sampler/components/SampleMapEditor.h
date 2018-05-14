@@ -141,6 +141,10 @@ public:
 
 	bool perform (const InvocationInfo &info) override;
 
+	void importSfz();
+
+	void loadSampleMap();
+
 	void soundsSelected(const SampleSelection &selectedSounds) override
 	{
 		selectionIsNotEmpty = selectedSounds.size() != 0;

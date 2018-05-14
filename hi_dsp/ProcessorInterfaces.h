@@ -137,51 +137,6 @@ private:
 };
 
 
-/** A Processor that uses an external file for something. 
-*	@ingroup processor_interfaces
-*
-*	Whenever you need to use a external file (eg. an audio file or an image), subclass your Processor from this class.
-*	It will handle all file management issues:
-*
-*	1. In Backend mode, it will resolve the project path.
-*	2. In Frontend mode, it will retrieve the file content from the embedded data.
-*/
-class ExternalFileProcessor
-{
-public:
-
-	// ================================================================================================================
-
-	virtual ~ExternalFileProcessor() {};
-
-	/** Call this to get the file for the string.
-	*
-	*	Whenever you want to read a file, use this method instead of the direct File constructor, so it will parse a global file expression to the local global folder.
-	*/
-	File getFile(const String &fileNameOrReference, PresetPlayerHandler::FolderType type = PresetPlayerHandler::GlobalSampleDirectory);
-
-	bool isReference(const String &fileNameOrReference);
-
-	/** Overwrite this method and replace all internal references with a global file expression (use getGlobalReferenceForFile())
-	*
-	*	You don't need to reload the data, it will be loaded from the global folder the next time you load the patch.
-	*/
-	virtual void replaceReferencesWithGlobalFolder() = 0;
-
-	/** This will return a expression which can be stored instead of the actual filename. If you load the file using the getFile() method, it will look in the global sample folder. */
-	String getGlobalReferenceForFile(const String &file, PresetPlayerHandler::FolderType type = PresetPlayerHandler::GlobalSampleDirectory);
-
-private:
-
-	File getFileForGlobalReference(const String &reference, PresetPlayerHandler::FolderType type = PresetPlayerHandler::GlobalSampleDirectory);
-
-	// ================================================================================================================
-};
-
-
-
-
-
 
 /** A Processor that uses an audio sample.
 *	@ingroup processor_interfaces
@@ -200,7 +155,7 @@ private:
 *	3. Add the AudioSampleBuffer as ChangeListener (and remove it in the destructor!)
 *	4. Add an AreaListener to the AudioSampleBufferComponent and call setRange() and setLoadedFile in the rangeChanged() callback
 */
-class AudioSampleProcessor : public ExternalFileProcessor
+class AudioSampleProcessor
 {
 public:
 
@@ -221,16 +176,11 @@ public:
 
 	// ================================================================================================================
 
-	void replaceReferencesWithGlobalFolder() override;
-
 	/** Call this method within your exportAsValueTree method to store the sample settings. */
 	void saveToValueTree(ValueTree &v) const;;
 
 	/** Call this method within your restoreFromValueTree() method to load the sample settings. */
 	void restoreFromValueTree(const ValueTree &v);
-
-	/** Returns the global thumbnail cache. Use this whenever you need a AudioSampleBufferComponent. */
-	AudioThumbnailCache &getCache() { return *mc->getSampleManager().getAudioSampleBufferPool()->getCache(); };
 
 	/** This loads the file from disk (or from the pool, if existing and loadThisFile is false. */
 	void setLoadedFile(const String &fileName, bool loadThisFile = false, bool forceReload = false);
@@ -247,14 +197,14 @@ public:
 		return sampleRange; 
 	};
 
-	int getTotalLength() const { return sampleBuffer.getNumSamples(); };
+	int getTotalLength() const { return data->data.getNumSamples(); };
 
 	/** Returns a const pointer to the audio sample buffer.
 	*
 	*	The pointer references a object from a AudioSamplePool and should be valid as long as the pool is not cleared. */
-	const AudioSampleBuffer *getBuffer() { return &sampleBuffer; };
+	const AudioSampleBuffer *getBuffer() { return &data->data; };
 
-	void setLoopFromMetadata(const File& f);
+	void setLoopFromMetadata(const var& md);
 
 	void setUseLoop(bool shouldUseLoop)
 	{
@@ -277,48 +227,7 @@ public:
 	*	It is possible that the file does not exist on your system:
 	*	If you restore a pool completely from a ValueTree, it still uses the absolute filename as identification.
 	*/
-	String getFileName() const { return loadedFileName; };
-
-	/** This callback sets the loaded file.
-	*
-	*	The AudioSampleBuffer should not change anything, but only send a message to the AudioSampleProcessor.
-	*	This is where the actual reloading happens.
-	*/
-
-#if 0
-	void changeListenerCallback(SafeChangeBroadcaster *b) override
-	{
-		auto thisAsProcessor = dynamic_cast<Processor*>(this);
-
-		auto& tmp = loadedFileName;
-
-		auto f = [b, tmp](Processor* p)
-		{
-			AudioSampleBufferComponent *bc = dynamic_cast<AudioSampleBufferComponent*>(b);
-
-			if (bc != nullptr)
-			{
-				auto asp = dynamic_cast<AudioSampleProcessor*>(p);
-
-				asp->setLoadedFile(bc->getCurrentlyLoadedFileName(), true);
-
-				auto df = [bc, asp, tmp]()
-				{
-					bc->setAudioSampleBuffer(asp->getBuffer(), tmp);
-				};
-
-				new DelayedFunctionCaller(df, 200);
-
-				p->sendChangeMessage();
-			}
-			else jassertfalse;
-
-			return true;
-		};
-
-		thisAsProcessor->getMainController()->getKillStateHandler().killVoicesAndCall(thisAsProcessor, f, MainController::KillStateHandler::SampleLoadingThread);
-	}
-#endif
+	String getFileName() const { return data->ref.getReferenceString(); };
 
 	/** Overwrite this method and do whatever needs to be done when the selected range changes. */
 	virtual void rangeUpdated() {};
@@ -358,13 +267,14 @@ protected:
 	/** Call this constructor within your subclass constructor. */
 	AudioSampleProcessor(Processor *p);;
 
-	String loadedFileName;
+	PoolEntry<AudioSampleBuffer>::Ptr data;
+
 	Range<int> sampleRange;
 	int length;
 
 	Range<int> loopRange;
 
-	const AudioSampleBuffer *getSampleBuffer() const { return &sampleBuffer; };
+	const AudioSampleBuffer *getSampleBuffer() const { return &data->data; };
 
 	double sampleRateOfLoadedFile;
 
@@ -377,7 +287,7 @@ private:
 
 	// ================================================================================================================
 
-	AudioSampleBuffer sampleBuffer;
+	
 	MainController *mc;
 
 	// ================================================================================================================

@@ -519,8 +519,8 @@ File getDefaultSampleDestination()
 
 #if USE_FRONTEND
 
-	const String product = ProjectHandler::Frontend::getProjectName();
-	const String company = ProjectHandler::Frontend::getCompanyName();
+	const String product = FrontendHandler::getProjectName();
+	const String company = FrontendHandler::getCompanyName();
 
 	const String path = company + "/" + product + "/Samples";
 
@@ -707,7 +707,7 @@ void SampleDataImporter::run()
 	
 	auto sampleLocation = sampleDirectory->getCurrentFile();
 
-	ProjectHandler::Frontend::setSampleLocation(sampleLocation);
+	FrontendHandler::setSampleLocation(sampleLocation);
 
 	
 #endif
@@ -764,7 +764,7 @@ String SampleDataImporter::getProjectName() const
 #if USE_BACKEND
 	return dynamic_cast<GlobalSettingManager*>(synthChain->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Name);
 #else
-	return ProjectHandler::Frontend::getProjectName();
+	return FrontendHandler::getProjectName();
 #endif
 }
 
@@ -773,7 +773,7 @@ String SampleDataImporter::getCompanyName() const
 #if USE_BACKEND
 	return dynamic_cast<GlobalSettingManager*>(synthChain->getMainController())->getSettingsObject().getSetting(HiseSettings::User::Company);
 #else
-	return ProjectHandler::Frontend::getCompanyName();
+	return FrontendHandler::getCompanyName();
 #endif
 }
 
@@ -786,7 +786,7 @@ String SampleDataImporter::getProjectVersion() const
 	// TODO: change this later...
 	return "1.0.0";
 
-	//return ProjectHandler::Frontend::getVersionString();
+	//return FrontendHandler::getVersionString();
 #endif
 }
 

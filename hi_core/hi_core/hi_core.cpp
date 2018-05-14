@@ -71,6 +71,7 @@
 #include "HI_LookAndFeels.cpp"
 #include "Tables.cpp"
 #include "ExternalFilePool.cpp"
+#include "Expansionhandler.cpp"
 #include "GlobalScriptCompileBroadcaster.cpp"
 #include "MainControllerHelpers.cpp"
 #include "MainController.cpp"

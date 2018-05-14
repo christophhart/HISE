@@ -110,7 +110,6 @@ pitchTrackingEnabled(true),
 oneShotEnabled(false),
 crossfadeGroups(false),
 crossfadeBuffer(1, 0),
-useGlobalFolder(false),
 purged(false),
 reversed(false),
 numChannels(1),
@@ -119,7 +118,7 @@ samplePreloadPending(false),
 temporaryVoiceBuffer(true, 2, 0),
 samplePropertyUpdater(this)
 {
-#if USE_BACKEND
+#if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING
 	sampleEditHandler = new SampleEditHandler(this);
 #endif
 
@@ -185,14 +184,6 @@ ModulatorSampler::~ModulatorSampler()
 {
 	sampleMap = nullptr;
 	deleteAllSounds();
-}
-
-bool ModulatorSampler::useGlobalFolderForSaving() const { return useGlobalFolder; }
-
-void ModulatorSampler::replaceReferencesWithGlobalFolder()
-{
-	// Do nothing more, the rest will be managed by the samplemap...
-	setUseGlobalFolderForSaving();
 }
 
 int ModulatorSampler::getRRGroupsForMessage(int noteNumber, int velocity)
@@ -881,59 +872,6 @@ void ModulatorSampler::resetNotes()
 	}
 }
 
-ModulatorSamplerSound* ModulatorSampler::addSamplerSound(const ValueTree &description, int index, bool forceReuse/*=false*/)
-{
-	//ScopedLock sl(getMainController()->getLock());
-	checkAndLogIsSoftBypassed(DebugLogger::Location::AddOneSample);
-
-	jassert(sounds.size() == index);
-
-	ModulatorSamplerSoundPool *pool = getMainController()->getSampleManager().getModulatorSamplerSoundPool();
-    ModulatorSamplerSound *newSound = pool->addSound(description, index, description.hasProperty("mono_sample_start") || forceReuse);
-
-	if (newSound != nullptr)
-	{
-		newSound->restoreFromValueTree(description);
-
-		sounds.add(newSound);
-		newSound->setUndoManager(getMainController()->getControlUndoManager());
-		newSound->addChangeListener(sampleMap);
-		newSound->setMaxRRGroupIndex(rrGroupAmount);
-
-		sendChangeMessage();
-
-		
-	}
-
-	return newSound;
-	
-}
-
-
-void ModulatorSampler::addSamplerSounds(OwnedArray<ModulatorSamplerSound>& monolithicSounds)
-{
-	//ScopedLock sl(getMainController()->getLock());
-	checkAndLogIsSoftBypassed(DebugLogger::Location::AddMultipleSamples);
-
-	jassert(sounds.size() == 0);
-
-	const int numNewSounds = monolithicSounds.size();
-
-	for (int i = 0; i < numNewSounds; i++)
-	{
-		ModulatorSamplerSound* newSound = monolithicSounds.removeAndReturn(0);
-
-		sounds.add(newSound);
-
-		newSound->setPurged(purged);
-		newSound->setMaxRRGroupIndex(rrGroupAmount);
-		newSound->setUndoManager(getMainController()->getControlUndoManager());
-		newSound->addChangeListener(sampleMap);
-	}
-
-	sendChangeMessage();
-}
-
 SampleThreadPool * ModulatorSampler::getBackgroundThreadPool()
 {
 	return getMainController()->getSampleManager().getGlobalSampleThreadPool();
@@ -1151,78 +1089,115 @@ void ModulatorSampler::loadSampleMapFromId(const String& sampleMapId)
 
 	//ScopedLock sl(getMainController()->getLock());
 
+	if (auto expansion = getMainController()->getExpansionHandler().getExpansionForWildcardReference(sampleMapId))
+	{
+		try
+		{
+			auto v = expansion->getSampleMap(sampleMapId);
+
+			if (v.isValid())
+			{
+				static const Identifier unused = Identifier("unused");
+				const Identifier oldId = getSampleMap()->getId();
+				const Identifier newId = Identifier(v.getProperty("ID", "unused").toString());
+
+				if (newId != unused && newId != oldId)
+				{
+					loadSampleMapSync(v);
+				}
+			}
+			else
+			{
+				Logger::writeToLog("!Error when loading sample map: " + sampleMapId);
+				return;
+			}
+		}
+		catch (String &errorMessage)
+		{
+			Logger::writeToLog(errorMessage);
+			return;
+		}
+
+		
+	}
+	else
+	{
+
+
+
 #if USE_BACKEND || DONT_EMBED_FILES_IN_FRONTEND
 
 #if USE_BACKEND
-	File f = GET_PROJECT_HANDLER(this).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps).getChildFile(sampleMapId + ".xml");
+		File f = GET_PROJECT_HANDLER(this).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps).getChildFile(sampleMapId + ".xml");
 #else
-    
+
 #if HISE_IOS
-    File f = ProjectHandler::Frontend::getResourcesFolder().getChildFile("SampleMaps/").getChildFile(sampleMapId + ".xml");
-#else
-    
-	File f = ProjectHandler::Frontend::getAppDataDirectory().getChildFile("SampleMaps/").getChildFile(sampleMapId + ".xml");
-#endif
-
-	jassert(f.existsAsFile());
-#endif
-
-	if (!f.existsAsFile())
-	{
-		Logger::writeToLog("!Samplemap " + f.getFileName() + " not found.");
-		return;
-	}
-
-	XmlDocument doc(f);
-
-	ScopedPointer<XmlElement> xml = doc.getDocumentElement();
-
-	if (xml != nullptr)
-	{
-		ValueTree v = ValueTree::fromXml(*xml);
-
-		static const Identifier unused = Identifier("unused");
-
-		const Identifier oldId = getSampleMap()->getId();
-		const Identifier newId = Identifier(v.getProperty("ID", "unused").toString());
-
-		if (newId != unused && newId != oldId)
-		{
-			loadSampleMapSync(v);
-			sendChangeMessage();
-			getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
-		}
-
-	}
-	else
-	{
-		Logger::writeToLog("!Error when loading sample map: " + doc.getLastParseError());
-		return;
-	}
-
+		File f = FrontendHandler::getResourcesFolder().getChildFile("SampleMaps/").getChildFile(sampleMapId + ".xml");
 #else
 
-	ValueTree v = dynamic_cast<FrontendDataHolder*>(getMainController())->getSampleMap(sampleMapId);
+		File f = FrontendHandler::getAppDataDirectory().getChildFile("SampleMaps/").getChildFile(sampleMapId + ".xml");
+#endif
 
-	if (v.isValid())
-	{
-		static const Identifier unused = Identifier("unused");
-		const Identifier oldId = getSampleMap()->getId();
-		const Identifier newId = Identifier(v.getProperty("ID", "unused").toString());
+		jassert(f.existsAsFile());
+#endif
 
-		if (newId != unused && newId != oldId)
+		if (!f.existsAsFile())
 		{
-			loadSampleMapSync(v);
+			Logger::writeToLog("!Samplemap " + f.getFileName() + " not found.");
+			return;
 		}
-	}
-	else
-	{
-		Logger::writeToLog("!Error when loading sample map: " + sampleMapId);
-		return;
-	}
+
+		XmlDocument doc(f);
+
+		ScopedPointer<XmlElement> xml = doc.getDocumentElement();
+
+		if (xml != nullptr)
+		{
+			ValueTree v = ValueTree::fromXml(*xml);
+
+			static const Identifier unused = Identifier("unused");
+
+			const Identifier oldId = getSampleMap()->getId();
+			const Identifier newId = Identifier(v.getProperty("ID", "unused").toString());
+
+			if (newId != unused && newId != oldId)
+			{
+				loadSampleMapSync(v);
+				sendChangeMessage();
+				getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
+			}
+
+		}
+		else
+		{
+			Logger::writeToLog("!Error when loading sample map: " + doc.getLastParseError());
+			return;
+		}
+
+#else
+
+		ValueTree v = getMainController()->getSampleManager().getProjectHandler().getSampleMap(sampleMapId);
+
+		if (v.isValid())
+		{
+			static const Identifier unused = Identifier("unused");
+			const Identifier oldId = getSampleMap()->getId();
+			const Identifier newId = Identifier(v.getProperty("ID", "unused").toString());
+
+			if (newId != unused && newId != oldId)
+			{
+				loadSampleMapSync(v);
+			}
+		}
+		else
+		{
+			Logger::writeToLog("!Error when loading sample map: " + sampleMapId);
+			return;
+		}
 
 #endif
 
+	}
 
 	int maxGroup = 1;
 

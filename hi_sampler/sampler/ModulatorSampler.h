@@ -56,7 +56,6 @@ class SampleEditHandler;
 *	- supported file format is stereo wave.
 */
 class ModulatorSampler: public ModulatorSynth,
-						public ExternalFileProcessor,
 						public LookupTableProcessor
 {
 public:
@@ -276,13 +275,7 @@ public:
 	void resetNoteDisplay(int noteNumber);
 	void resetNotes();
 
-	/** Adds a sound to the sampler.
-	*
-	*	
-	*/
-	ModulatorSamplerSound* addSamplerSound(const ValueTree &description, int index, bool forceReuse=false);
-
-	void addSamplerSounds(OwnedArray<ModulatorSamplerSound>& monolithicSounds);
+	
 
 	void renderNextBlockWithModulators(AudioSampleBuffer& outputAudio, const HiseEventBuffer& inputMidi) override
 	{
@@ -353,14 +346,10 @@ public:
 	
 	const CriticalSection& getExportLock() const { return exportLock; }
 
-#if USE_BACKEND
+#if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING
 	SampleEditHandler* getSampleEditHandler() { return sampleEditHandler; }
 	const SampleEditHandler* getSampleEditHandler() const { return sampleEditHandler; }
 #endif
-
-	bool useGlobalFolderForSaving() const;
-	void setUseGlobalFolderForSaving() { useGlobalFolder = true; };
-	void replaceReferencesWithGlobalFolder() override;
 
 	struct SamplerDisplayValues : public Processor::DisplayValues
 	{
@@ -502,7 +491,7 @@ public:
 		}
 
 		refreshPreloadSizes();
-		refreshMemoryUsage();
+		
 	}
 	
 	void setPreloadMultiplier(int newPreloadScaleFactor)
@@ -652,7 +641,6 @@ private:
 
 	bool reversed = false;
 
-	bool useGlobalFolder;
 	bool pitchTrackingEnabled;
 	bool oneShotEnabled;
 	bool crossfadeGroups;
@@ -694,7 +682,7 @@ private:
 	ScopedPointer<ModulatorChain> crossFadeChain;
 	ScopedPointer<AudioThumbnailCache> soundCache;
 	
-#if USE_BACKEND
+#if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING
 	ScopedPointer<SampleEditHandler> sampleEditHandler;
 #endif
 

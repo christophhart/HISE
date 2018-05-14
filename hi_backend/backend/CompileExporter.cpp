@@ -47,20 +47,32 @@ void loadOtherReferencedImages(ModulatorSynthChain* chainToExport)
 	if (!hasCustomSkin)
 		return;
 
+	auto pool = mc->getCurrentImagePool(true);
+
+	ReferenceCountedArray<PoolEntry<Image>> images;
+
 	for (int i = 0; i < 12; i++)
 	{
-		auto img = ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}keyboard/up_" + String(i) + ".png");
-		jassert(img.isValid());
-		auto img2 = ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png");
-		jassert(img2.isValid());
+		PoolReference upRef(mc, "{PROJECT_FOLDER}keyboard/up_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
+
+		jassert(upRef.isValid());
+
+		images.add(pool->loadFromReference(upRef));
+		
+		PoolReference downRef(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
+
+		jassert(downRef.isValid());
+
+		images.add(pool->loadFromReference(downRef));
 	}
 
 	const bool hasAboutPageImage = handler.getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("about.png").existsAsFile();
 
 	if (hasAboutPageImage)
 	{
-		// make sure it's loaded
-		ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}about.png");
+		PoolReference aboutRef(mc, "{PROJECT_FOLDER}about.png", ProjectHandler::SubDirectories::Images);
+
+		images.add(pool->loadFromReference(aboutRef));
 	}
 }
 
@@ -71,7 +83,7 @@ ValueTree BaseExporter::exportReferencedImageFiles()
 
 	loadOtherReferencedImages(chainToExport);
 
-	ImagePool *imagePool = chainToExport->getMainController()->getSampleManager().getImagePool();
+	ImagePool *imagePool = chainToExport->getMainController()->getCurrentImagePool(true);
 
 	
 
@@ -88,7 +100,9 @@ ValueTree BaseExporter::exportReferencedAudioFiles()
 
 	DirectoryIterator iter(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles), false);
 
-	AudioSampleBufferPool *samplePool = chainToExport->getMainController()->getSampleManager().getAudioSampleBufferPool();
+	AudioSampleBufferPool *samplePool = chainToExport->getMainController()->getCurrentAudioSampleBufferPool(true);
+
+	ReferenceCountedArray<PoolEntry<AudioSampleBuffer>> soundList;
 
 	while (iter.next())
 	{
@@ -99,7 +113,9 @@ ValueTree BaseExporter::exportReferencedAudioFiles()
 
 #endif
 
-		samplePool->loadFileIntoPool(iter.getFile().getFullPathName());
+		PoolReference ref(chainToExport->getMainController(), iter.getFile().getFullPathName(), ProjectHandler::SubDirectories::AudioFiles);
+
+		soundList.add(samplePool->loadFromReference(ref));
 	}
 
 	return samplePool->exportAsValueTree();
@@ -570,10 +586,10 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 			}
 			else
 			{
-				File appFolder = ProjectHandler::Frontend::getAppDataDirectory(chainToExport).getChildFile("AudioResources.dat");
+				File appFolder = GET_PROJECT_HANDLER(chainToExport).getRootFolder().getChildFile("AudioResources.dat");
 				PresetHandler::writeValueTreeAsFile(exportReferencedAudioFiles(), appFolder.getFullPathName());
 
-				File imageFolder = ProjectHandler::Frontend::getAppDataDirectory(chainToExport).getChildFile("ImageResources.dat");
+				File imageFolder = GET_PROJECT_HANDLER(chainToExport).getRootFolder().getChildFile("ImageResources.dat");
 				PresetHandler::writeValueTreeAsFile(exportReferencedImageFiles(), imageFolder.getFullPathName());
 			}
 		}
@@ -618,7 +634,7 @@ String checkSampleReferences(ModulatorSynthChain* chainToExport)
         
         auto v = map->exportAsValueTree();
         
-        const String faulty = map->checkReferences(v, sampleFolder, sampleFiles);
+        const String faulty = map->checkReferences(sampler->getMainController(), v, sampleFolder, sampleFiles);
         
         if(faulty.isNotEmpty())
             return faulty;
@@ -2286,12 +2302,12 @@ void CompileExporter::HeaderHelpers::addProjectInfoLines(CompileExporter* export
 	const String versionString = exporter->GET_SETTING(HiseSettings::Project::Version);
 	const String appGroupString = exporter->GET_SETTING(HiseSettings::Project::AppGroupID);
 
-	pluginDataHeaderFile << "String hise::ProjectHandler::Frontend::getProjectName() { return \"" << projectName << "\"; };\n";
-	pluginDataHeaderFile << "String hise::ProjectHandler::Frontend::getCompanyName() { return \"" << companyName << "\"; };\n";
-	pluginDataHeaderFile << "String hise::ProjectHandler::Frontend::getCompanyWebsiteName() { return \"" << companyWebsiteName << "\"; };\n";
-	pluginDataHeaderFile << "String hise::ProjectHandler::Frontend::getVersionString() { return \"" << versionString << "\"; };\n";
+	pluginDataHeaderFile << "String hise::FrontendHandler::getProjectName() { return \"" << projectName << "\"; };\n";
+	pluginDataHeaderFile << "String hise::FrontendHandler::getCompanyName() { return \"" << companyName << "\"; };\n";
+	pluginDataHeaderFile << "String hise::FrontendHandler::getCompanyWebsiteName() { return \"" << companyWebsiteName << "\"; };\n";
+	pluginDataHeaderFile << "String hise::FrontendHandler::getVersionString() { return \"" << versionString << "\"; };\n";
     
-    pluginDataHeaderFile << "String hise::ProjectHandler::Frontend::getAppGroupId() { return \"" << appGroupString << "\"; };\n";
+    pluginDataHeaderFile << "String hise::FrontendHandler::getAppGroupId() { return \"" << appGroupString << "\"; };\n";
     
 }
 

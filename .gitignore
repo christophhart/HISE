@@ -45,3 +45,4 @@ tools/auto_build/Output/
 tools/streaming_api/html/
 tools/auto_build/install_script.iss
 projects/standalone/JuceLibraryCode/
+extras/basic_expansion_project/Binaries/

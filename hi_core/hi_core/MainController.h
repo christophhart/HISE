@@ -123,20 +123,11 @@ public:
 		*/
 		const ValueTree getLoadedSampleMap(const String &fileName) const;
 
-		/** Returns the impulse response pool. */
-		const AudioSampleBufferPool *getAudioSampleBufferPool() const {	return globalAudioSampleBufferPool; };
-
-		/** Returns the impulse response pool. */
-		AudioSampleBufferPool *getAudioSampleBufferPool() {	return globalAudioSampleBufferPool; };
-
-		ImagePool *getImagePool() {return globalImagePool;};
-		const ImagePool *getImagePool() const {return globalImagePool;};
-
-		ProjectHandler &getProjectHandler() { return projectHandler; }
+		NativeFileHandler &getProjectHandler() { return projectHandler; }
 
 		void setDiskMode(DiskMode mode) noexcept;
 
-		const ProjectHandler &getProjectHandler() const { return projectHandler; }
+		const NativeFileHandler &getProjectHandler() const { return projectHandler; }
 
 		bool isUsingHddMode() const noexcept{ return hddMode; };
 
@@ -189,8 +180,6 @@ public:
 
 		PreloadListenerUpdater preloadListenerUpdater;
 
-		
-
 		struct PreloadJob : public SampleThreadPoolJob
 		{
 		public:
@@ -207,14 +196,15 @@ public:
 			
 		};
 
-		ProjectHandler projectHandler;
+
+		NativeFileHandler projectHandler;
+
 
 		MainController* mc;
 
 		ValueTree sampleClipboard;
 		ValueTree sampleMaps;
-		ScopedPointer<AudioSampleBufferPool> globalAudioSampleBufferPool;
-		ScopedPointer<ImagePool> globalImagePool;
+
 		ScopedPointer<ModulatorSamplerSoundPool> globalSamplerSoundPool;
 		ScopedPointer<SampleThreadPool> samplerLoaderThreadPool;
 
@@ -711,6 +701,52 @@ public:
 	GlobalAsyncModuleHandler& getGlobalAsyncModuleHandler() { return globalAsyncModuleHandler; }
 	const GlobalAsyncModuleHandler& getGlobalAsyncModuleHandler() const { return globalAsyncModuleHandler; }
 
+	ExpansionHandler& getExpansionHandler() { return expansionHandler; }
+	const ExpansionHandler& getExpansionHandler() const { return expansionHandler; }
+
+	const FileHandlerBase& getCurrentFileHandler(bool forceDefault=false) const
+	{
+		if (forceDefault)
+			return getSampleManager().getProjectHandler();
+
+		if (auto e = getExpansionHandler().getCurrentExpansion())
+			return *e;
+
+		return getSampleManager().getProjectHandler();
+	}
+
+	FileHandlerBase& getCurrentFileHandler(bool forceDefault=false)
+	{
+		if(forceDefault)
+			return getSampleManager().getProjectHandler();
+
+		if (auto e = getExpansionHandler().getCurrentExpansion())
+			return *e;
+
+		return getSampleManager().getProjectHandler();
+	}
+
+	
+	const AudioSampleBufferPool *getCurrentAudioSampleBufferPool(bool forceDefault=false) const 
+	{ 
+		return &getCurrentFileHandler(forceDefault).pool->getAudioSampleBufferPool(); 
+	};
+
+	AudioSampleBufferPool *getCurrentAudioSampleBufferPool(bool forceDefault = false)
+	{
+		return &getCurrentFileHandler(forceDefault).pool->getAudioSampleBufferPool();
+	};
+
+	const ImagePool *getCurrentImagePool(bool forceDefault = false) const
+	{
+		return &getCurrentFileHandler(forceDefault).pool->getImagePool();
+	};
+
+	ImagePool *getCurrentImagePool(bool forceDefault = false)
+	{
+		return &getCurrentFileHandler(forceDefault).pool->getImagePool();
+	};
+
 	KillStateHandler& getKillStateHandler() { return killStateHandler; };
 	const KillStateHandler& getKillStateHandler() const { return killStateHandler; };
 #if USE_BACKEND
@@ -828,8 +864,6 @@ public:
 
 	DynamicObject *getHostInfoObject() { return hostInfo.get(); }
 
-	DynamicObject *getToolbarPropertiesObject() { return toolbarProperties.get(); };
-
 	/** this must be overwritten by the derived class and return the master synth chain. */
 	virtual ModulatorSynthChain *getMainSynthChain() = 0;
 
@@ -840,8 +874,6 @@ public:
 
 	/** Returns the amount of playing voices. */
 	int getNumActiveVoices() const;;
-
-	void replaceReferencesToGlobalFolder();
 
 	void setLastActiveEditor(CodeEditorComponent *editor, CodeDocument::Position position)
 	{
@@ -1141,6 +1173,7 @@ private:
 	UserPresetHandler userPresetHandler;
 	ProcessorChangeHandler processorChangeHandler;
 	GlobalAsyncModuleHandler globalAsyncModuleHandler;
+	
 
 	ScopedPointer<UserPresetData> userPresetData;
 
@@ -1171,11 +1204,13 @@ private:
 
 	DynamicObject::Ptr globalVariableObject;
 	DynamicObject::Ptr hostInfo;
-	DynamicObject::Ptr toolbarProperties;
-
+	
 	ReadWriteLock compileLock;
 
 	ScopedPointer<SampleManager> sampleManager;
+
+	ExpansionHandler expansionHandler;
+
 	MacroManager macroManager;
 
 	KillStateHandler killStateHandler;

@@ -119,6 +119,9 @@ public:
 
 	~UpdateDispatcher()
 	{
+		MessageManagerLock mm;
+
+		cancelPendingUpdate();
 		masterReference.clear();
 	}
 
@@ -324,7 +327,67 @@ private:
 };
 
 
+/** A base class for all objects that can be saved as value tree.
+*	@ingroup core
+*/
+class RestorableObject
+{
+public:
 
+	virtual ~RestorableObject() {};
+
+	/** Overwrite this method and return a representation of the object as ValueTree.
+	*
+	*	It's best practice to only store variables that are not internal (eg. states ...)
+	*/
+	virtual ValueTree exportAsValueTree() const = 0;
+
+	/** Overwrite this method and restore the properties of this object using the referenced ValueTree.
+	*/
+	virtual void restoreFromValueTree(const ValueTree &previouslyExportedState) = 0;
+};
+
+class MainController;
+
+/** A base class for all objects that need access to a MainController.
+*	@ingroup core
+*
+*	If you want to have access to the main controller object, derive the class from this object and pass a pointer to the MainController
+*	instance in the constructor.
+*/
+class ControlledObject
+{
+public:
+
+	/** Creates a new ControlledObject. The MainController must be supplied. */
+	ControlledObject(MainController *m);
+
+	virtual ~ControlledObject();
+
+	/** Provides read-only access to the main controller. */
+	const MainController *getMainController() const noexcept
+	{
+		jassert(controller != nullptr);
+		return controller;
+	};
+
+	/** Provides write access to the main controller. Use this if you want to make changes. */
+	MainController *getMainController() noexcept
+	{
+		jassert(controller != nullptr);
+		return controller;
+	}
+
+private:
+
+	friend class WeakReference<ControlledObject>;
+	WeakReference<ControlledObject>::Master masterReference;
+
+	MainController* const controller;
+
+	friend class MainController;
+	friend class ProcessorFactory;
+};
 
 /** A small helper class that detects a timeout.
 *

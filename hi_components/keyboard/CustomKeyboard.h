@@ -162,8 +162,8 @@ protected:
 
 private:
 
-	Image upImages[12];
-	Image downImages[12];
+	ReferenceCountedArray<PoolEntry<Image>> upImages;
+	ReferenceCountedArray<PoolEntry<Image>> downImages;
 
 	MainController* mc;
 

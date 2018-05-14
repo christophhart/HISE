@@ -177,20 +177,26 @@ void CustomKeyboard::setUseCustomGraphics(bool shouldUseCustomGraphics)
 	if (!useCustomGraphics)
 		return;
 
+	auto& handler = mc->getExpansionHandler();
+
 	for (int i = 0; i < 12; i++)
 	{
-		upImages[i] = ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}keyboard/up_" + String(i) + ".png");
+		PoolReference upRef(mc, "{PROJECT_FOLDER}keyboard/up_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
 
-		if (upImages[i].isNull())
+		upImages[i] = handler.loadImageReference(upRef);
+
+		if (upImages[i]->data.isNull())
 		{
 			jassertfalse;
 			useCustomGraphics = false;
 			break;
 		}
 
-		downImages[i] = ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png");
+		PoolReference downRef(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
 
-		if (downImages[i].isNull())
+		downImages[i] = handler.loadImageReference(downRef);
+
+		if (downImages[i]->data.isNull())
 		{
 			jassertfalse;
 			useCustomGraphics = false;
@@ -211,7 +217,7 @@ void CustomKeyboard::drawWhiteNote(int midiNoteNumber, Graphics &g, int x, int y
         
 		const int index = midiNoteNumber % 12;
 
-		Image keyImage = isDown ? downImages[index] : upImages[index];
+		Image keyImage = isDown ? downImages[index]->data : upImages[index]->data;
 
 		g.drawImage(keyImage,
 			x, y, w, h,
@@ -243,7 +249,7 @@ void CustomKeyboard::drawBlackNote(int midiNoteNumber, Graphics &g, int x, int y
         
 		const int index = midiNoteNumber % 12;
 
-		Image keyImage = isDown ? downImages[index] : upImages[index];
+		Image& keyImage = isDown ? downImages[index]->data : upImages[index]->data;
 
 		g.drawImage(keyImage,
 			x, y, w, h,

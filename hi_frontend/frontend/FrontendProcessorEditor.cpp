@@ -46,7 +46,15 @@ AudioProcessorEditor(fp)
 
 	LOG_START("Creating Root Panel");
 
+#if HI_ENABLE_EXPANSION_EDITING
+
+
+	ExpansionHandler::Helpers::createFrontendLayoutWithExpansionEditing(rootTile);
+
+#else
+
 	rootTile->setNewContent("InterfacePanel");
+#endif
     
 	fp->addOverlayListener(this);
 	
@@ -63,9 +71,9 @@ AudioProcessorEditor(fp)
 
     if(searchSamples)
     {
-        deactiveOverlay->setState(DeactiveOverlay::SamplesNotInstalled, !ProjectHandler::Frontend::checkSamplesCorrectlyInstalled());
+        deactiveOverlay->setState(DeactiveOverlay::SamplesNotInstalled, !FrontendHandler::checkSamplesCorrectlyInstalled());
         
-        deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, !fp->areSamplesLoadedCorrectly());
+        deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, !GET_PROJECT_HANDLER(fp->getMainSynthChain()).areSamplesLoadedCorrectly());
     }
     else
     {
@@ -75,18 +83,10 @@ AudioProcessorEditor(fp)
     
     
 #if USE_COPY_PROTECTION
-
 	if (!fp->unlocker.isUnlocked())
-	{
 		deactiveOverlay->checkLicense();
-	}
 
 	deactiveOverlay->setState(DeactiveOverlay::LicenseInvalid, !fp->unlocker.isUnlocked());
-
-#elif USE_TURBO_ACTIVATE
-
-	deactiveOverlay->setState(DeactiveOverlay::State::CopyProtectionError, !fp->unlocker.isUnlocked());
-
 #endif
     
 	container->addAndMakeVisible(loaderOverlay = new ThreadWithQuasiModalProgressWindow::Overlay());
@@ -100,9 +100,17 @@ AudioProcessorEditor(fp)
 
 	auto jsp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(fp);
     
+
+
     if(jsp != nullptr)
     {
-        setSize(jsp->getScriptingContent()->getContentWidth(), jsp->getScriptingContent()->getContentHeight());
+#if HI_ENABLE_EXPANSION_EDITING
+		int heightOfContent = jsp->getScriptingContent()->getContentHeight() + 50;
+#else
+		int heightOfContent = jsp->getScriptingContent()->getContentHeight();
+#endif
+
+        setSize(jsp->getScriptingContent()->getContentWidth(), heightOfContent);
 
     }
     

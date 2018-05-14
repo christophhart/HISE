@@ -362,56 +362,6 @@ StringArray JavascriptMidiProcessor::getImageFileNames() const
 	return fileNames;
 }
 
-void JavascriptMidiProcessor::replaceReferencesWithGlobalFolder()
-{
-	String script;
-
-	mergeCallbacksToScript(script);
-
-	const StringArray allLines = StringArray::fromLines(script);
-
-	StringArray newLines;
-
-	for (int i = 0; i < allLines.size(); i++)
-	{
-		String line = allLines[i];
-
-		if (line.contains("\"fileName\""))
-		{
-			String fileName = line.fromFirstOccurrenceOf("\"fileName\"", false, false);
-			fileName = fileName.fromFirstOccurrenceOf("\"", false, false);
-			fileName = fileName.upToFirstOccurrenceOf("\"", false, false);
-
-			if (fileName.isNotEmpty()) line = line.replace(fileName, getGlobalReferenceForFile(fileName));
-		}
-
-		else if (line.contains("\"filmstripImage\"") && !line.contains("Use default skin"))
-		{
-			String fileName = line.fromFirstOccurrenceOf("\"filmstripImage\"", false, false);
-			fileName = fileName.fromFirstOccurrenceOf("\"", false, false);
-			fileName = fileName.upToFirstOccurrenceOf("\"", false, false);
-
-			if (fileName.isNotEmpty()) line = line.replace(fileName, getGlobalReferenceForFile(fileName));
-		}
-		else if (line.contains(".setImageFile("))
-		{
-			String fileName = line.fromFirstOccurrenceOf(".setImageFile(", false, false);
-			fileName = fileName.fromFirstOccurrenceOf("\"", false, false);
-			fileName = fileName.upToFirstOccurrenceOf("\"", false, false);
-
-			line = line.replace(fileName, getGlobalReferenceForFile(fileName));
-		}
-
-		newLines.add(line);
-	}
-
-	String newCode = newLines.joinIntoString("\n");
-
-	parseSnippetsFromString(newCode);
-
-	compileScript();
-}
-
 
 void JavascriptMidiProcessor::handleAsyncUpdate()
 {

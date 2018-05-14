@@ -588,7 +588,6 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsEnableCallStack:		Actions::toggleCallStackEnabled(bpe); updateCommands(); return true;
 	case MenuToolsCheckCyclicReferences:Actions::checkCyclicReferences(bpe); return true;
 	case MenuToolsRecompileScriptsOnReload: Actions::toggleCompileScriptsOnPresetLoad(bpe); updateCommands(); return true;
-	case MenuToolsCreateToolbarPropertyDefinition:	Actions::createDefaultToolbarJSON(bpe); return true;
 	case MenuToolsCreateExternalScriptFile:	Actions::createExternalScriptFile(bpe); updateCommands(); return true;
     case MenuToolsCheckDuplicate:       Actions::checkDuplicateIds(bpe); return true;
 	case MenuToolsValidateUserPresets:	Actions::validateUserPresets(bpe); return true;
@@ -945,16 +944,6 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int topLevelMenuInde
 #endif
 		}
 	}
-    else if (menuItemID >= MenuFileUserPresetMenuOffset && menuItemID < ((int)MenuFileUserPresetMenuOffset+50))
-    {
-        const int index = menuItemID - MenuFileUserPresetMenuOffset;
-        
-        Array<File> userPresetFiles;
-		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getFileList(userPresetFiles, ProjectHandler::SubDirectories::UserPresets, "*.preset");
-
-        File presetToLoad = userPresetFiles[index];
-		Actions::loadUserPreset(bpe, presetToLoad);
-    }
     else if (menuItemID >= MenuFileXmlBackupMenuOffset && menuItemID < ((int)MenuFileXmlBackupMenuOffset+50))
     {
         const bool shouldDiscard = !bpe->getBackendProcessor()->isChanged() || PresetHandler::showYesNoWindow("Discard the current preset?", "The current preset will be discarded", PresetHandler::IconType::Question);
@@ -1165,22 +1154,19 @@ void BackendCommandTarget::Actions::checkUnusedImages(BackendRootWindow * bpe)
 
 	Array<File> referencedFiles;
 
-	auto imagePool = bpe->getBackendProcessor()->getSampleManager().getImagePool();
+	auto imagePool = bpe->getBackendProcessor()->getCurrentImagePool(true);
 
-	auto list = imagePool->getFileNameList();
-
-	for (int i = 0; i < list.size(); i++)
+	for (int i = 0; i < allFiles.size(); i++)
 	{
-		auto f = File(list[i]);
+		auto f = File(allFiles[i]);
 
 		jassert(f.existsAsFile());
 
-		auto indexInAllFiles = allFiles.indexOf(f);
-
-		allFiles.remove(indexInAllFiles);
+		if (imagePool->contains(f.hashCode64()))
+		{
+			allFiles.remove(i--);
+		}
 	}
-
-	
 
 	for (int i = 0; i < allFiles.size(); i++)
 	{
@@ -1426,7 +1412,7 @@ void BackendCommandTarget::Actions::redirectScriptFolder(BackendRootWindow * /*b
 	{
 		File f = fc.getResult();
 
-		ProjectHandler::createLinkFileInFolder(File(PresetHandler::getDataFolder()).getChildFile("scripts"), f);
+		ProjectHandler::createLinkFileInFolder(ProjectHandler::getAppDataDirectory().getChildFile("scripts"), f);
 	}
 }
 
@@ -1979,7 +1965,7 @@ void BackendCommandTarget::Actions::createDummyLicenseFile(BackendRootWindow * b
 	}
 
 	String keyContent = KeyGeneration::generateKeyFile(productName, dummyEmail, userName, ids.joinIntoString("\n"), privateKey);
-	File key = handler->getWorkDirectory().getChildFile(productName + ProjectHandler::Frontend::getLicenseKeyExtension());
+	File key = handler->getWorkDirectory().getChildFile(productName + FrontendHandler::getLicenseKeyExtension());
 
 	key.replaceWithText(keyContent);
 
@@ -1994,24 +1980,6 @@ void BackendCommandTarget::Actions::createDummyLicenseFile(BackendRootWindow * b
 #endif
 
 	PresetHandler::showMessageWindow("License File created", message, PresetHandler::IconType::Info);
-}
-
-void BackendCommandTarget::Actions::createDefaultToolbarJSON(BackendRootWindow * bpe)
-{
-	String json = DefaultFrontendBar::createJSONString(bpe->getBackendProcessor()->getToolbarPropertiesObject());
-
-	String clipboard = "var toolbarData = ";
-	
-	clipboard << json;
-
-	clipboard << ";\n\nContent.setToolbarProperties(toolbarData);";
-
-	SystemClipboard::copyTextToClipboard(clipboard);
-
-	PresetHandler::showMessageWindow("JSON Data copied to clipboard", 
-		"The current toolbar properties are copied into the clipboard.\nPaste it into any script and change the data", 
-		PresetHandler::IconType::Info);
-
 }
 
 void BackendCommandTarget::Actions::toggleForcePoolSearch(BackendRootWindow * bpe)

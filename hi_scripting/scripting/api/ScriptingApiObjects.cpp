@@ -1631,13 +1631,7 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setFile(String fileName)
 
 		ScopedLock sl(asp->getFileLock());
 
-#if USE_FRONTEND
-
-		const String nameInPool = fileName.fromFirstOccurrenceOf("}", false, false);
-		asp->setLoadedFile(nameInPool, true);
-#else
-		asp->setLoadedFile(GET_PROJECT_HANDLER(dynamic_cast<Processor*>(audioSampleProcessor.get())).getFilePath(fileName, ProjectHandler::SubDirectories::AudioFiles), true);
-#endif
+		asp->setLoadedFile(fileName, true);
 	}
 }
 
@@ -2598,6 +2592,170 @@ hise::Modulator* ApiHelpers::ModuleHandler::addAndConnectToGlobalModulator(Chain
 	}
 	else
 		throw String("The modulator you passed in is not a global modulator. You must specify a modulator in a Global Modulator Container");
+}
+
+struct ScriptingObjects::ExpansionObject::Wrapper
+{
+	API_METHOD_WRAPPER_0(ExpansionObject, getSampleMapList);
+	API_METHOD_WRAPPER_0(ExpansionObject, getAudioFileList);
+	API_METHOD_WRAPPER_0(ExpansionObject, getImageFilelist);
+	API_METHOD_WRAPPER_1(ExpansionObject, getReferenceString);
+};
+
+ScriptingObjects::ExpansionObject::ExpansionObject(ProcessorWithScriptingContent* p, Expansion* expansion) :
+	ConstScriptingObject(p, 5),
+	data(expansion)
+{
+	addConstant("Name", expansion->name.get());
+	addConstant("Version", expansion->version.get());
+	addConstant("ProjectName", expansion->projectName.get());
+	addConstant("ProjectVersion", expansion->projectVersion.get());
+	addConstant("Encrypted", expansion->isEncrypted);
+
+	ADD_API_METHOD_0(getSampleMapList);
+	ADD_API_METHOD_0(getAudioFileList);
+	ADD_API_METHOD_0(getImageFilelist);
+	ADD_API_METHOD_1(getReferenceString);
+}
+
+var ScriptingObjects::ExpansionObject::getSampleMapList()
+{
+	if (objectExists())
+	{
+		return data->getSampleMapList();
+	}
+
+	return var();
+}
+
+
+var ScriptingObjects::ExpansionObject::getAudioFileList()
+{
+	if (objectExists())
+	{
+		return data->getAudioFileList();
+	}
+
+	return var();
+}
+
+var ScriptingObjects::ExpansionObject::getImageFilelist()
+{
+	if (objectExists())
+	{
+		return data->getImageList();
+	}
+
+	return var();
+}
+
+var ScriptingObjects::ExpansionObject::getReferenceString(var relativeFilePath)
+{
+	if (objectExists())
+	{
+		String s;
+
+		s << "{EXP::" << data->name << "}" << relativeFilePath.toString();
+
+		return var(s);
+	}
+
+	return var();
+}
+
+struct ScriptingObjects::ExpansionHandlerObject::Wrapper
+{
+	API_METHOD_WRAPPER_0(ExpansionHandlerObject, getExpansionList);
+	API_METHOD_WRAPPER_0(ExpansionHandlerObject, getCurrentExpansion);
+	API_VOID_METHOD_WRAPPER_1(ExpansionHandlerObject, setLoadingCallback);
+	API_METHOD_WRAPPER_1(ExpansionHandlerObject, loadExpansion);
+};
+
+ScriptingObjects::ExpansionHandlerObject::ExpansionHandlerObject(ProcessorWithScriptingContent* p) :
+	ConstScriptingObject(p, 0),
+	handler(p->getMainController_()->getExpansionHandler())
+{
+	handler.addListener(this);
+
+	ADD_API_METHOD_0(getExpansionList);
+	ADD_API_METHOD_0(getCurrentExpansion);
+	ADD_API_METHOD_1(setLoadingCallback);
+	ADD_API_METHOD_1(loadExpansion);
+}
+
+ScriptingObjects::ExpansionHandlerObject::~ExpansionHandlerObject()
+{
+	handler.removeListener(this);
+}
+
+void ScriptingObjects::ExpansionHandlerObject::expansionPackLoaded(Expansion* currentExpansion)
+{
+	if (HiseJavascriptEngine::isJavascriptFunction(loadingCallback))
+	{
+		var expansionArg;
+
+		if (currentExpansion != nullptr)
+		{
+			auto e = new ExpansionObject(getScriptProcessor(), currentExpansion);
+			expansionArg = var(e);
+		}
+		
+		var thisObject(this);
+		var::NativeFunctionArgs args(thisObject, &expansionArg, 1);
+
+		Result r = Result::ok();
+
+		auto engine = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine();
+
+		if (engine != nullptr)
+		{
+			engine->maximumExecutionTime = RelativeTime(2.0);
+			engine->callExternalFunction(loadingCallback, args, &r);
+
+			if (r.failed())
+				debugError(getProcessor(), r.getErrorMessage());
+		}
+	}
+}
+
+var ScriptingObjects::ExpansionHandlerObject::getExpansionList()
+{
+	Array<var> list;
+
+	for (int i = 0; i < handler.getNumExpansions(); i++)
+	{
+		auto newObject = new ExpansionObject(getScriptProcessor(), handler.getExpansion(i));
+
+		list.add(var(newObject));
+	}
+
+	return var(list);
+}
+
+var ScriptingObjects::ExpansionHandlerObject::getCurrentExpansion()
+{
+	if (auto e = handler.getCurrentExpansion())
+	{
+		auto newObject = new ExpansionObject(getScriptProcessor(), e);
+
+		return var(newObject);
+	}
+
+	return var();
+}
+
+
+void ScriptingObjects::ExpansionHandlerObject::setLoadingCallback(var f)
+{
+	if (HiseJavascriptEngine::isJavascriptFunction(f))
+	{
+		loadingCallback = f;
+	}
+}
+
+bool ScriptingObjects::ExpansionHandlerObject::loadExpansion(const String expansionName)
+{
+	return handler.setCurrentExpansion(expansionName);
 }
 
 } // namespace hise

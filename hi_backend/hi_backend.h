@@ -58,18 +58,7 @@ END_JUCE_MODULE_DECLARATION
 
 #include "backend/BackendBinaryData.h"
 
-#include "backend/debug_components/SamplePoolTable.h"
-#include "backend/debug_components/MacroEditTable.h"
-#include "backend/debug_components/ScriptWatchTable.h"
-#include "backend/debug_components/ScriptComponentEditPanel.h"
-#include "backend/debug_components/ScriptComponentPropertyPanels.h"
-#include "backend/debug_components/ProcessorCollection.h"
-#include "backend/debug_components/ApiBrowser.h"
-#include "backend/debug_components/ScriptComponentList.h"
-#include "backend/debug_components/ModuleBrowser.h"
-#include "backend/debug_components/PatchBrowser.h"
-#include "backend/debug_components/FileBrowser.h"
-#include "backend/debug_components/DebugArea.h"
+
 
 #include "backend/BackendProcessor.h"
 #include "backend/BackendComponents.h"
@@ -82,6 +71,18 @@ END_JUCE_MODULE_DECLARATION
 #include "backend/CompileExporter.h"
 #include "backend/HisePlayerExporter.h"
 
+#include "backend/debug_components/SamplePoolTable.h"
+#include "backend/debug_components/MacroEditTable.h"
+#include "backend/debug_components/ScriptWatchTable.h"
+#include "backend/debug_components/ScriptComponentEditPanel.h"
+#include "backend/debug_components/ScriptComponentPropertyPanels.h"
+#include "backend/debug_components/ProcessorCollection.h"
+#include "backend/debug_components/ApiBrowser.h"
+#include "backend/debug_components/ScriptComponentList.h"
+#include "backend/debug_components/ModuleBrowser.h"
+#include "backend/debug_components/PatchBrowser.h"
+#include "backend/debug_components/FileBrowser.h"
+#include "backend/debug_components/DebugArea.h"
 
 
 

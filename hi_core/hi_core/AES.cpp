@@ -65,6 +65,8 @@ String AES::encrypt(const String& stringToEncode)
 	return decrypt(stringToEncode);
 }
 
+
+
 void AES::decrypt(MemoryBlock& mb)
 {
 	prepare();
@@ -75,20 +77,42 @@ String AES::decrypt(const String& stringToDecode)
 {
 	prepare();
 
+	MemoryBlock mb;
 	
-	auto length = stringToDecode.getNumBytesAsUTF8();
+	String r;
 
-	HeapBlock<char> data;
+	r.append(stringToDecode, stringToDecode.length());
 
-	data.allocate(length+1, true);
+	auto s = r.toUTF16();
 
-	memcpy(data, stringToDecode.toRawUTF8(), length+1);
+	
 
-	AES_CTR_xcrypt_buffer(&context, (uint8_t*)data.getData(), length);
 
-	String r(CharPointer_UTF8(data.getData()));
+	auto length = CharPointer_UTF16::getBytesRequiredFor(s);
 
-	return r;
+
+	AES_CTR_xcrypt_buffer(&context, (uint8_t*)s.getAddress(), length);
+
+	return String(s);
+}
+
+void AES::encrypt(AudioSampleBuffer& b)
+{
+	decrypt(b);
+}
+
+void AES::decrypt(AudioSampleBuffer& b)
+{
+	prepare();
+
+	for (int i = 0; i < b.getNumChannels(); i++)
+	{
+		auto d = reinterpret_cast<uint8_t*>(b.getWritePointer(0));
+
+		auto size = b.getNumSamples() * sizeof(float);
+
+		AES_CTR_xcrypt_buffer(&context, d, size);
+	}
 }
 
 juce::String AES::createKey()

@@ -181,6 +181,7 @@ public:
 	}
 
 
+    void setContentForIdentifier(Identifier idToSearch);
 
 	virtual Component* createContentComponent(int index) = 0;
 
@@ -226,6 +227,8 @@ private:
 
 	bool listInitialised = false;
 
+	
+
 	ScopedPointer<ComboBox> connectionSelector;
 	ScopedPointer<ComboBox> indexSelector;
 
@@ -239,7 +242,67 @@ private:
 	ScopedPointer<Component> content;
 };
 
+template <class ProcessorType> class GlobalConnectorPanel : public PanelWithProcessorConnection
+{
+public:
 
+
+	GlobalConnectorPanel(FloatingTile* parent) :
+		PanelWithProcessorConnection(parent)
+	{
+
+	}
+
+	Identifier getIdentifierForBaseClass() const override
+	{
+		return GlobalConnectorPanel<ProcessorType>::getPanelId();
+	}
+
+	static Identifier getPanelId()
+	{
+		String n;
+
+		n << "GlobalConnector" << ProcessorType::getConnectorId().toString();
+
+		return Identifier(n);
+	}
+
+	int getFixedHeight() const override { return 18; }
+
+	Identifier getProcessorTypeId() const override
+	{
+		RETURN_STATIC_IDENTIFIER("Skip");
+	}
+
+	bool showTitleInPresentationMode() const override
+	{
+		return false;
+	}
+
+	bool hasSubIndex() const override { return false; }
+
+	Component* createContentComponent(int /*index*/) override
+	{
+		return new Component();
+	}
+
+    void contentChanged() override
+    {
+        Identifier idToSearch = ProcessorType::getConnectorId();
+        
+        setContentForIdentifier(idToSearch);
+    }
+    
+
+
+	void fillModuleList(StringArray& moduleList) override
+	{
+		fillModuleListWithType<ProcessorType>(moduleList);
+	};
+
+private:
+
+};
 
 } // namespace hise
 

@@ -176,6 +176,8 @@ private:
 	Array<WeakReference<Listener>> selectionListeners;
 
 	ModulatorSampler* sampler;
+public:
+	File getCurrentSampleMapDirectory() const;
 };
 
 

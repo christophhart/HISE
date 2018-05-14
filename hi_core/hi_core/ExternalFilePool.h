@@ -35,201 +35,538 @@
 
 namespace hise { using namespace juce;
 
-class ProjectHandler;
-
-
-/** A base class for all objects that can be saved as value tree. 
-*	@ingroup core
-*/
-class RestorableObject
+namespace MetadataIDs
 {
-public:
-    
-    virtual ~RestorableObject() {};
+const Identifier SampleRate("SampleRate");
+const Identifier LoopEnabled("LoopEnabled");
+const Identifier LoopStart("LoopStart");
+const Identifier LoopEnd("LoopEnd");
+}
 
-	/** Overwrite this method and return a representation of the object as ValueTree.
-	*
-	*	It's best practice to only store variables that are not internal (eg. states ...)
-	*/
-	virtual ValueTree exportAsValueTree() const = 0;
+struct PoolHelpers
+{
+	
 
-	/** Overwrite this method and restore the properties of this object using the referenced ValueTree.
-	*/
-	virtual void restoreFromValueTree(const ValueTree &previouslyExportedState) = 0;
+	// Using an empty parameter to get the correct Subdirectory type
+	static ProjectHandler::SubDirectories getSubDirectoryType(const AudioSampleBuffer& emptyData);
+	static ProjectHandler::SubDirectories getSubDirectoryType(const Image& emptyImage);
+
+	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, AudioSampleBuffer& data, var& additionalData);
+	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, Image& data, var& additionalData);
+
+	static size_t getDataSize(const AudioSampleBuffer& buffer);
+
+	static size_t getDataSize(const Image& img);
+
+	static bool isValid(const AudioSampleBuffer& buffer);
+	static bool isValid(const Image& buffer);
+
+	static Image getEmptyImage(int width, int height);
+
+	struct Reference
+	{
+		enum Mode
+		{
+			Invalid,
+			AbsolutePath,
+			ExpansionPath,
+			ProjectPath,
+			EmbeddedResource,
+			numModes_
+		};
+
+		Reference();
+
+		Reference(const MainController* mc, const String& referenceStringOrFile, ProjectHandler::SubDirectories directoryType);
+		Reference(MemoryBlock& mb, const String& referenceString, ProjectHandler::SubDirectories directoryType);
+
+		bool operator ==(const Reference& other) const;
+		bool operator !=(const Reference& other) const;
+
+		Mode getMode() const { return m; }
+		String getReferenceString() const;
+		Identifier getId() const;
+		File getFile() const;
+		bool isRelativeReference() const;
+		bool isAbsoluteFile() const;
+		bool isEmbeddedReference() const;;
+		InputStream* createInputStream();
+		int64 getHashCode() const;
+		bool isValid() const;
+		ProjectHandler::SubDirectories getFileType() const;
+
+	private:
+
+		void parseReferenceString(const MainController* mc, const String& input);
+
+		String reference;
+		File f;
+		Identifier id;
+		Mode m;
+
+		int64 hashCode;
+
+		void* memoryLocation;
+		size_t memorySize;
+
+		ProjectHandler::SubDirectories directoryType;
+	};
+
 };
 
 
-class SharedPoolBase : public RestorableObject,
-					   public SafeChangeBroadcaster
+class PoolCollection;
+
+using PoolReference = PoolHelpers::Reference;
+
+
+
+class PoolBase : public RestorableObject,
+				 public ControlledObject
 {
 public:
 
-	SharedPoolBase(MainController* mc_) :
-		mc(mc_)
-	{};
+	enum EventType
+	{
+		Added,
+		Removed,
+		Changed,
+		numEventTypes
+	};
+
+	class Listener
+	{
+	public:
+
+		virtual ~Listener() {};
+
+		virtual void poolEntryAdded() = 0;
+		virtual void poolEntryRemoved() = 0;
+		virtual void poolEntryChanged(int indexInPool) = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener)
+	};
+
+	ValueTree exportAsValueTree() const override
+	{
+		ValueTree v(getFileTypeName());
+
+		for (int i = 0; i < getNumLoadedFiles(); i++)
+		{
+			ValueTree child("PoolData");
+			storeItemInValueTree(child, i);
+			v.addChild(child, -1, nullptr);
+		}
+
+		return v;
+	}
+
+	void restoreFromValueTree(const ValueTree &v) override
+	{
+		clearData();
+
+		for (int i = 0; i < v.getNumChildren(); i++)
+		{
+			ValueTree child = v.getChild(i);
+			restoreItemFromValueTree(child);
+		}
+
+		notifyTable(Added);
+	}
+
+	void notifyTable(EventType t, NotificationType notify=sendNotificationAsync, int index=-1)
+	{
+		lastType = t;
+		lastEventIndex = index;
 
 
-	virtual ~SharedPoolBase() {};
+		auto& tmp = listeners;
 
-	virtual Identifier getFileTypeName() const = 0;
+		auto f = [t, index, tmp]()
+		{
+			
+		};
+
+		if (notify == sendNotificationAsync)
+			notifier.triggerAsyncUpdate();
+		else
+			notifier.handleAsyncUpdate();
+	}
+
+	void addListener(Listener* l)
+	{
+		listeners.addIfNotAlreadyThere(l);
+	}
+
+	void removeListener(Listener* l)
+	{
+		listeners.removeAllInstancesOf(l);
+	}
+
 
 	virtual int getNumLoadedFiles() const = 0;
-
-	virtual void storeItemInValueTree(ValueTree& childItem, int index) const = 0;
-	virtual void restoreItemFromValueTree(ValueTree& childItem) = 0;
-
+	virtual PoolReference getReference(int index) const = 0;
 	virtual void clearData() = 0;
-
-	virtual Identifier getIdForIndex(int index) const = 0;
-	
-	virtual String getFileNameForId(Identifier identifier) const = 0;
-
+	virtual var getAdditionalData(PoolReference r) const = 0;
 	virtual StringArray getTextDataForId(int index) const = 0;
-
-	void notifyTable();
-
-	File getFileFromFileNameString(const String& fileName);
-
-	Identifier getIdForFileName(const String &absoluteFileName) const;
-
-	ValueTree exportAsValueTree() const override;
-	void restoreFromValueTree(const ValueTree &v) override;
-
-	ProjectHandler& getProjectHandler();
-
-	const ProjectHandler& getProjectHandler() const;
 
 protected:
 
-	template <class DataType> struct PoolEntry
+	virtual void storeItemInValueTree(ValueTree& child, int index) const = 0;
+	virtual void restoreItemFromValueTree(ValueTree& child) = 0;
+
+	virtual Identifier getFileTypeName() const = 0;
+
+	PoolBase(MainController* mc):
+	  ControlledObject(mc),
+	  notifier(*this)
 	{
-		PoolEntry() :
-			fileName(String()),
-			id(Identifier()),
-			data(DataType())
+
+	}
+
+private:
+
+	struct Notifier: public AsyncUpdater
+	{
+		Notifier(PoolBase& parent_) :
+			parent(parent_)
 		{};
 
-		PoolEntry(const Identifier& id_) :
-			id(id_),
-			data(DataType())
-		{}
-
-		StringArray getTextData(const Identifier& typeName) const
+		~Notifier()
 		{
-			StringArray info;
-			info.add(id.toString());
-			info.add("100kB"); // because no one cares actually.
-			info.add(typeName.toString());
-			info.add("1");
-
-			return info;
+			cancelPendingUpdate();
 		}
 
-		bool operator==(const PoolEntry& other) const
+		void handleAsyncUpdate() override
 		{
-			return this->id == other.id;
-		};
+			for (auto l : parent.listeners)
+			{
+				if (l != nullptr)
+				{
+					switch (parent.lastType)
+					{
+					case Added: l->poolEntryAdded(); break;
+					case Removed: l->poolEntryRemoved(); break;
+					case Changed: l->poolEntryChanged(parent.lastEventIndex); break;
+					default:
+						break;
+					}
+				}
+			}
+		}
 
-		Identifier id;
-		String fileName;
-		DataType data;
-		var additionalData;
+
+		PoolBase& parent;
+
 	};
 
-	MainController* mc;
+	Notifier notifier;
+
+	EventType lastType;
+	int lastEventIndex = -1;
+
+	Array<WeakReference<Listener>> listeners;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PoolBase)
+};
+
+template <class DataType> class PoolEntry : public ReferenceCountedObject
+{
+public:
+
+	using Ptr = ReferenceCountedObjectPtr<PoolEntry>;
+
+	PoolEntry(PoolReference& r) :
+		ref(r),
+		data(DataType())
+	{};
+
+	PoolEntry() :
+		ref(PoolReference()),
+		data(DataType())
+	{};
+
+	bool operator ==(const PoolEntry& other) const
+	{
+		return other.ref == ref;
+	}
+
+	explicit operator bool() const { return ref.isValid() && PoolHelpers::isValid(data); };
+
+	StringArray getTextData() const
+	{
+		StringArray sa;
+
+		sa.add(ref.getReferenceString());
+		auto dataSize = PoolHelpers::getDataSize(data);
+
+		String s = String((float)dataSize / 1024.0f, 1) + " kB";
+
+		sa.add(s);
+
+		sa.add(String(getReferenceCount() - 1));
+
+		return sa;
+	}
+
+	PoolReference ref;
+	DataType data;
+	var additionalData;
+};
+
+using PooledImage = PoolEntry<Image>::Ptr;
+using PooledAudioFile = PoolEntry<AudioSampleBuffer>::Ptr;
+
+template <class DataType> class SharedPoolBase : public PoolBase
+{
+public:
+
+    
+
+	SharedPoolBase(MainController* mc_) :
+		PoolBase(mc_),
+		type(PoolHelpers::getSubDirectoryType(DataType()))
+	{
+		if (type == FileHandlerBase::SubDirectories::AudioFiles)
+		{
+			afm.registerBasicFormats();
+			afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
+		}
+
+	};
+
+
+	~SharedPoolBase() {};
+
+	Identifier getFileTypeName() const override
+	{
+		return ProjectHandler::getIdentifier(type);
+	}
+
+	int getNumLoadedFiles() const override
+	{
+		return pool.size();
+	}
+
+	void clearData() override
+	{
+		pool.clear();
+		notifyTable(Removed);
+	}
+
+	bool contains(int64 hashCode) const
+	{
+		for (auto d : pool)
+		{
+			if (d->ref.getHashCode() == hashCode)
+				return true;
+		}
+
+		return false;
+	}
+
+	PoolReference getReference(int index) const override
+	{
+		if (auto entry = pool[index])
+			return entry.get()->ref;
+
+		return PoolReference();
+	}
+
+	var getAdditionalData(PoolReference r) const override
+	{
+		for (auto d : pool)
+		{
+			if (d->ref == r)
+				return d->additionalData;
+		}
+
+		return {};
+	}
+
+	StringArray getTextDataForId(int index) const override
+	{
+		if (auto entry = pool[index])
+			return entry.get()->getTextData();
+
+		return {};
+	}
+
+	StringArray getIdList() const
+	{
+		StringArray sa;
+
+		for (auto d : pool)
+			sa.add(d->ref.getReferenceString());
+
+		return sa;
+	}
+
+	PoolEntry<DataType>* loadFromReference(PoolReference r)
+	{
+		for (auto d : pool)
+		{
+			if (d->ref == r)
+			{
+				notifyTable(PoolBase::Changed, sendNotificationAsync, pool.indexOf(d));
+				return d;
+			}
+				
+		}
+
+		PoolEntry<DataType>::Ptr ne = new PoolEntry<DataType>(r);
+		auto inputStream = r.createInputStream();
+
+		PoolHelpers::loadData(afm, inputStream, r.getHashCode(), ne->data, ne->additionalData);
+
+		pool.add(ne);
+
+		notifyTable(PoolBase::Added);
+
+		return ne;
+	}
+
+private:
+
+	ReferenceCountedArray<PoolEntry<DataType>> pool;
+
+	void storeItemInValueTree(ValueTree& child, int index) const
+	{
+		if (auto entry = pool[index].get())
+		{
+			child.setProperty("ID", entry->ref.getReferenceString(), nullptr);
+
+			ScopedPointer<InputStream> inputStream = entry->ref.createInputStream();
+
+			MemoryBlock mb = MemoryBlock();
+			MemoryOutputStream out(mb, false);
+			out.writeFromInputStream(*inputStream, inputStream->getTotalLength());
+
+			child.setProperty("Data", var(mb.getData(), mb.getSize()), nullptr);
+		}
+	}
+
+	void restoreItemFromValueTree(ValueTree& child)
+	{
+		String r = child.getProperty("ID", String()).toString();
+
+		var x = child.getProperty("Data", var::undefined());
+		auto mb = x.getBinaryData();
+
+		jassert(mb != nullptr);
+
+		PoolReference ref(*mb, r, type);
+
+		loadFromReference(ref);
+	}
+
+	ProjectHandler::SubDirectories type;
+
+	AudioFormatManager afm;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SharedPoolBase<DataType>);
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SharedPoolBase)
 };
 
+using AudioSampleBufferPool = SharedPoolBase<AudioSampleBuffer>;
+using ImagePool = SharedPoolBase<Image>;
 
-/** A pool for audio samples
-*
-*	This is used to embed impulse responses into the binary file and load it from there instead of having the impulse file as seperate audio file.
-*	In order to use it, create a object, call loadExternalFilesFromValueTree() and the convolution effect checks automatically if it should load the file from disk or from the pool.
-*/
-class AudioSampleBufferPool : public SharedPoolBase
+class PoolCollection: public ControlledObject
 {
 public:
 
-	typedef SharedPoolBase::PoolEntry<AudioSampleBuffer> BufferEntry;
-
-	AudioSampleBufferPool(MainController* mc);;
-	~AudioSampleBufferPool();
-
-	Identifier getFileTypeName() const override;
-
-	int getNumLoadedFiles() const override
+	PoolCollection(MainController* mc):
+		ControlledObject(mc)
 	{
-		return loadedSamples.size();
+		for (int i = 0; i < (int)ProjectHandler::SubDirectories::numSubDirectories; i++)
+		{
+			switch ((ProjectHandler::SubDirectories)i)
+			{
+			case ProjectHandler::SubDirectories::AudioFiles:
+				dataPools[i] = new AudioSampleBufferPool(mc);
+				break;
+			case ProjectHandler::SubDirectories::Images:
+				dataPools[i] = new ImagePool(mc);
+				break;
+			default:
+				dataPools[i] = nullptr;
+			}
+		}
+	};
+
+	~PoolCollection()
+	{
+		for (int i = 0; i < (int)ProjectHandler::SubDirectories::numSubDirectories; i++)
+		{
+			if (dataPools[i] != nullptr)
+			{
+				delete dataPools[i];
+				dataPools[i] = nullptr;
+			}
+		}
 	}
 
-	Identifier getIdForIndex(int index) const override;
+	void clear()
+	{
+		for (int i = 0; i < (int)ProjectHandler::SubDirectories::numSubDirectories; i++)
+		{
+			if (dataPools[i] != nullptr)
+			{
+				dataPools[i]->clearData();
+			}
+		}
+	}
 
-	String getFileNameForId(Identifier identifier) const override;
-	StringArray getTextDataForId(int index) const;
+	template<class DataType> SharedPoolBase<DataType>* getPool()
+	{
+		auto type = PoolHelpers::getSubDirectoryType(DataType());
 
-	void clearData() override;
+		jassert(dataPools[type] != nullptr);
 
-	void storeItemInValueTree(ValueTree& child, int i) const override;
-	void restoreItemFromValueTree(ValueTree& child) override;
+		return static_cast<SharedPoolBase<DataType>*>(dataPools[type]);
+	}
 
-	AudioThumbnailCache *getCache() { return cache; }
+	template<class DataType> const SharedPoolBase<DataType>* getPool() const
+	{
+		auto type = PoolHelpers::getSubDirectoryType(DataType());
 
-	AudioSampleBuffer loadFileIntoPool(const String& fileName);
+		jassert(dataPools[type] != nullptr);
 
-	double getSampleRateForFile(const Identifier& id);
+		return static_cast<SharedPoolBase<DataType>*>(dataPools[type]);
+	}
 
-private:
 
-	ScopedPointer<AudioThumbnailCache> cache;
+	const AudioSampleBufferPool& getAudioSampleBufferPool() const
+	{
+		return *getPool<AudioSampleBuffer>();
+	}
 
-	void loadFromStream(BufferEntry& ne, InputStream* ownedStream);
+	AudioSampleBufferPool& getAudioSampleBufferPool()
+	{
+		return *getPool<AudioSampleBuffer>();
+	}
+
+	const ImagePool& getImagePool() const
+	{
+		return *getPool<Image>();
+	}
+
+	ImagePool& getImagePool()
+	{
+		return *getPool<Image>();
+	}
 
 	AudioFormatManager afm;
 
-	Array<BufferEntry> loadedSamples;
+private:
 
+	PoolBase * dataPools[(int)ProjectHandler::SubDirectories::numSubDirectories];
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(PoolCollection);
 };
 
 
-
-/** A pool for images. */
-class ImagePool: public SharedPoolBase
-{
-public:
-
-	typedef SharedPoolBase::PoolEntry<Image> ImageEntry;
-
-	ImagePool(MainController* mc_);;
-
-	~ImagePool();
-
-	int getNumLoadedFiles() const override;
-	Identifier getIdForIndex(int index) const override;
-	String getFileNameForId(Identifier identifier) const override;
-	void clearData() override;
-	StringArray getTextDataForId(int index) const;
-
-	void storeItemInValueTree(ValueTree& child, int i) const override;
-	void restoreItemFromValueTree(ValueTree& child) override;
-
-	Identifier getFileTypeName() const override;
-	static Identifier getStaticIdentifier() { RETURN_STATIC_IDENTIFIER("ImagePool") };
-	size_t getFileSize(const Image *image) const;
-
-	StringArray getFileNameList() const;
-
-	Image loadFileIntoPool(const String& fileName);
-
-	static Image getEmptyImage(int width, int height);
-	static Image loadImageFromReference(MainController* mc, const String referenceToImage);
-
-protected:
-
-	
-
-	Array<ImageEntry> loadedImages;
-};
 
 } // namespace hise
 

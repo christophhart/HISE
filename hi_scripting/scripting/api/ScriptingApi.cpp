@@ -942,6 +942,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, createTimerObject);
 	API_METHOD_WRAPPER_0(Engine, createMessageHolder);
 	API_METHOD_WRAPPER_0(Engine, getPlayHead);
+	API_METHOD_WRAPPER_0(Engine, getExpansionHandler);
 	API_VOID_METHOD_WRAPPER_2(Engine, dumpAsJSON);
 	API_METHOD_WRAPPER_1(Engine, loadFromJSON);
 	API_VOID_METHOD_WRAPPER_1(Engine, setCompileProgress);
@@ -993,6 +994,7 @@ ApiClass(0)
 	ADD_API_METHOD_1(showMessage);
 	ADD_API_METHOD_1(setLowestKeyToDisplay);
     ADD_API_METHOD_1(openWebsite);
+	ADD_API_METHOD_0(getExpansionHandler);
 	ADD_API_METHOD_1(loadNextUserPreset);
 	ADD_API_METHOD_1(loadPreviousUserPreset);
 	ADD_API_METHOD_0(getCurrentUserPresetName);
@@ -1175,7 +1177,7 @@ String ScriptingApi::Engine::getVersion()
 #if USE_BACKEND
 	return dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Name);
 #else
-	return ProjectHandler::Frontend::getVersionString();
+	return FrontendHandler::getVersionString();
 #endif
 
 
@@ -1210,6 +1212,12 @@ int ScriptingApi::Engine::getMidiNoteFromName(String midiNoteName) const
 
 
 void ScriptingApi::Engine::setKeyColour(int keyNumber, int colourAsHex) { getProcessor()->getMainController()->setKeyboardCoulour(keyNumber, Colour(colourAsHex));}
+
+var ScriptingApi::Engine::getExpansionHandler()
+{
+	return new ScriptingObjects::ExpansionHandlerObject(getScriptProcessor());
+}
+
 void ScriptingApi::Engine::setLowestKeyToDisplay(int keyNumber) { getProcessor()->getMainController()->setLowestKeyToDisplay(keyNumber); }
 
 void ScriptingApi::Engine::showErrorMessage(String message, bool isCritical)
@@ -1295,7 +1303,7 @@ void ScriptingApi::Engine::loadUserPreset(const String& relativePath)
 #if USE_BACKEND
 	File userPresetRoot = GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
 #else
-	File userPresetRoot = ProjectHandler::Frontend::getUserPresetDirectory();
+	File userPresetRoot = FrontendHandler::getUserPresetDirectory();
 #endif
 
 	auto userPreset = userPresetRoot.getChildFile(relativePath + ".preset");
@@ -1315,7 +1323,7 @@ var ScriptingApi::Engine::getUserPresetList() const
 #if USE_BACKEND
 	File userPresetRoot = GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
 #else
-	File userPresetRoot = ProjectHandler::Frontend::getUserPresetDirectory();
+	File userPresetRoot = FrontendHandler::getUserPresetDirectory();
 #endif
 
 	Array<File> presets;
@@ -1855,10 +1863,10 @@ var ScriptingApi::Sampler::getSampleMapList() const
     
     
 #if HISE_IOS
-    File rootDir = ProjectHandler::Frontend::getResourcesFolder().getChildFile("SampleMaps");
+    File rootDir = FrontendHandler::getResourcesFolder().getChildFile("SampleMaps");
 #else
     
-	File rootDir = ProjectHandler::Frontend::getAppDataDirectory().getChildFile("SampleMaps");
+	File rootDir = FrontendHandler::getAppDataDirectory().getChildFile("SampleMaps");
 #endif
 
 	// This must be taken care of during installation
@@ -1887,7 +1895,7 @@ var ScriptingApi::Sampler::getSampleMapList() const
 
 #else
 
-	ValueTree v = dynamic_cast<const FrontendDataHolder*>(getProcessor()->getMainController())->getValueTree(ProjectHandler::SubDirectories::SampleMaps);
+	ValueTree v = getProcessor()->getMainController()->getSampleManager().getProjectHandler().getValueTree(ProjectHandler::SubDirectories::SampleMaps);
 
 	static const Identifier id("ID");
 

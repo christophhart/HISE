@@ -82,18 +82,24 @@ struct TestGlobalNamespace
 #include "Popup.h"
 #include "Tables.h"
 #include "UpdateMerger.h"
-#include "ExternalFilePool.h"
 #include "Markdown.h"
 #include "BackgroundThreads.h"
 #include "HiseSettings.h"
 #include "SettingsWindows.h"
 
 #include "PresetHandler.h"
+
+#include "ExternalFilePool.h"
+
+
+#include "ExpansionHandler.h"
 #include "GlobalScriptCompileBroadcaster.h"
 #include "MainControllerHelpers.h"
 #include "MainController.h"
 #include "SampleExporter.h"
 #include "Console.h"
+
+
 
 #include "JavascriptTokeniser.h"
 #include "JavascriptTokeniserFunctions.h"

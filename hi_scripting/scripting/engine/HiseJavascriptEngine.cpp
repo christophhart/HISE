@@ -310,6 +310,7 @@ void HiseJavascriptEngine::RootObject::CodeLocation::throwError(const String& me
 
 void DebugableObject::Helpers::gotoLocation(ModulatorSynthChain* mainSynthChain, const String& line)
 {
+#if USE_BACKEND
 	const String reg = ".*(\\{[^\\s]+\\}).*";
 
 	StringArray matches = RegexFunctions::getFirstMatch(reg, line);
@@ -329,7 +330,7 @@ void DebugableObject::Helpers::gotoLocation(ModulatorSynthChain* mainSynthChain,
 		{
 			loc.fileName = fileReference;
 		}
-		else
+		else if (fileReference.isNotEmpty())
 		{
 			loc.fileName = GET_PROJECT_HANDLER(mainSynthChain).getFilePath(fileReference, ProjectHandler::SubDirectories::Scripts);
 		}
@@ -345,8 +346,7 @@ void DebugableObject::Helpers::gotoLocation(ModulatorSynthChain* mainSynthChain,
 			PresetHandler::showMessageWindow("Can't find location", "The location is not valid", PresetHandler::IconType::Error);
 		}
 	}
-
-	
+#endif
 }
 
 struct HiseJavascriptEngine::RootObject::CallStackEntry

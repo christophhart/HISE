@@ -52,7 +52,6 @@ namespace hise { using namespace juce;
 class JavascriptMidiProcessor : public ScriptBaseMidiProcessor,
 								public JavascriptProcessor,
 								public Timer,
-								public ExternalFileProcessor,
 								public AsyncUpdater
 {
 public:
@@ -78,8 +77,6 @@ public:
 	ValueTree exportAsValueTree() const override;;
 	void restoreFromValueTree(const ValueTree &v) override;
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
-
-	void replaceReferencesWithGlobalFolder() override;
 
 	SnippetDocument *getSnippet(int c) override;
 	const SnippetDocument *getSnippet(int c) const override;

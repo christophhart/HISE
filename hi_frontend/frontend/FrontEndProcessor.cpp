@@ -34,7 +34,7 @@ namespace hise { using namespace juce;
 
 void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
-#if USE_COPY_PROTECTION || USE_TURBO_ACTIVATE
+#if USE_COPY_PROTECTION
 	if (!keyFileCorrectlyLoaded)
 		return;
 
@@ -75,29 +75,15 @@ void FrontendProcessor::handleControllersForMacroKnobs(const MidiBuffer &midiMes
 
 }
 
-#if JUCE_WINDOWS
-#define TURBOACTIVATE_FILE_PATH ProjectHandler::Frontend::getAppDataDirectory().getFullPathName().toUTF16().getAddress()
-#else
-#if ENABLE_APPLE_SANDBOX
-#define TURBOACTIVATE_FILE_PATH ProjectHandler::Frontend::getAppDataDirectory().getChildFile("Resources/").getFullPathName().toUTF8().getAddress()
-#else
-#define TURBOACTIVATE_FILE_PATH ProjectHandler::Frontend::getAppDataDirectory().getFullPathName().toUTF8().getAddress()
-#endif
-#endif
 
 FrontendProcessor::FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, ValueTree *imageData_/*=nullptr*/, ValueTree *impulseData/*=nullptr*/, ValueTree *externalFiles/*=nullptr*/, ValueTree *) :
 MainController(),
-PluginParameterAudioProcessor(ProjectHandler::Frontend::getProjectName()),
+PluginParameterAudioProcessor(FrontendHandler::getProjectName()),
 AudioProcessorDriver(manager, callback_),
 synthChain(new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES)),
 keyFileCorrectlyLoaded(true),
 currentlyLoadedProgram(0),
-#if USE_TURBO_ACTIVATE
-unlockCounter(0),
-unlocker(TURBOACTIVATE_FILE_PATH)
-#else
 unlockCounter(0)
-#endif
 {
 	LOG_START("Checking license");
 
@@ -106,16 +92,8 @@ unlockCounter(0)
 	GlobalSettingManager::initData(this);
 
 #if USE_COPY_PROTECTION
-
 	if (!unlocker.loadKeyFile())
-	{
 		keyFileCorrectlyLoaded = false;
-	}
-	
-#elif USE_TURBO_ACTIVATE
-	
-	keyFileCorrectlyLoaded = unlocker.isUnlocked();
-
 #endif
     
 	LOG_START("Load images");
@@ -127,16 +105,17 @@ unlockCounter(0)
 		setExternalScriptData(externalFiles->getChildWithName("ExternalScripts"));
 		restoreCustomFontValueTree(externalFiles->getChildWithName("CustomFonts"));
 
-		sampleMaps = externalFiles->getChildWithName("SampleMaps");
+		getSampleManager().getProjectHandler().setValueTree(FileHandlerBase::SampleMaps, externalFiles->getChildWithName("SampleMaps"));
 	}
     
 	if (impulseData != nullptr)
 	{
-		getSampleManager().getAudioSampleBufferPool()->restoreFromValueTree(*impulseData);
+		getCurrentAudioSampleBufferPool(true)->restoreFromValueTree(*impulseData);
 	}
 	else
 	{
-		File audioResourceFile(ProjectHandler::Frontend::getAppDataDirectory().getChildFile("AudioResources.dat"));
+		
+		File audioResourceFile(getSampleManager().getProjectHandler().getRootFolder().getChildFile("AudioResources.dat"));
 
 		if (audioResourceFile.existsAsFile())
 		{
@@ -148,7 +127,7 @@ unlockCounter(0)
 
 			if (impulseDataFile.isValid())
 			{
-				getSampleManager().getAudioSampleBufferPool()->restoreFromValueTree(impulseDataFile);
+				getCurrentAudioSampleBufferPool(true)->restoreFromValueTree(impulseDataFile);
 			}
 		}
 	}
@@ -192,10 +171,7 @@ unlockCounter(0)
 		}
 
 #if !DONT_EMBED_FILES_IN_FRONTEND
-		if (sampleMaps.getNumChildren() == 0)
-		{
-			createSampleMapValueTreeFromPreset(synthData);
-		}
+		getSampleManager().getProjectHandler().createSampleMapValueTreeFromPreset(synthData);
 #endif
 
 		createUserPresetData();
@@ -208,7 +184,7 @@ unlockCounter(0)
 
 const String FrontendProcessor::getName(void) const
 {
-	return ProjectHandler::Frontend::getProjectName();
+	return FrontendHandler::getProjectName();
 }
 
 void FrontendProcessor::prepareToPlay(double newSampleRate, int samplesPerBlock)
@@ -238,7 +214,7 @@ void FrontendProcessor::loadImages(ValueTree *imageData)
     
 	if (imageData == nullptr)
 	{
-		File imageResources = ProjectHandler::Frontend::getAppDataDirectory().getChildFile("ImageResources.dat");
+		File imageResources = getSampleManager().getProjectHandler().getRootFolder().getChildFile("ImageResources.dat");
 
 		if (imageResources.existsAsFile())
 		{
@@ -247,7 +223,7 @@ void FrontendProcessor::loadImages(ValueTree *imageData)
 			auto t = ValueTree::readFromStream(fis);
 
 			if (t.isValid())
-				getSampleManager().getImagePool()->restoreFromValueTree(t);
+				getCurrentImagePool(true)->restoreFromValueTree(t);
 			else
 				sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, "The image resources are corrupt. Contact support");
 		}
@@ -256,7 +232,7 @@ void FrontendProcessor::loadImages(ValueTree *imageData)
 	}
 	else
 	{
-		getSampleManager().getImagePool()->restoreFromValueTree(*imageData);
+		getCurrentImagePool(true)->restoreFromValueTree(*imageData);
 	}
 }
 
@@ -310,12 +286,8 @@ FrontendStandaloneApplication::AudioWrapper::AudioWrapper()
 {
 #if USE_SPLASH_SCREEN
 
-    
-
     Image imgiPhone = ImageCache::getFromMemory(BinaryData::SplashScreeniPhone_png, BinaryData::SplashScreeniPhone_pngSize);
-
 	Image imgiPad = ImageCache::getFromMemory(BinaryData::SplashScreen_png, BinaryData::SplashScreen_pngSize);
-
 
     const bool isIPhone = SystemStats::getDeviceDescription() == "iPhone";
     
@@ -332,18 +304,9 @@ FrontendStandaloneApplication::AudioWrapper::AudioWrapper()
 	auto userHeight = Desktop::getInstance().getDisplays().getMainDisplay().userArea.getHeight();
 
 	if (userHeight < 768)
-	{
 		setSize(870, 653);
-	}
 	else
-	{
 		setSize(1024, 768);
-	}
-	
-
-	
-
-    
 #endif
     
 	startTimer(100);

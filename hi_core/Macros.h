@@ -70,6 +70,17 @@ namespace hise { using namespace juce;
 #define RETURN_VOID_IF_NO_THROW()
 #endif
 
+
+#if USE_BACKEND
+#ifndef HI_ENABLE_EXPANSION_EDITING
+#define HI_ENABLE_EXPANSION_EDITING 1
+#endif
+#else
+#ifndef HI_ENABLE_EXPANSION_EDITING
+#define HI_ENABLE_EXPANSION_EDITING 0
+#endif
+#endif
+
 #if USE_BACKEND
 #define BACKEND_ONLY(x) x 
 #define FRONTEND_ONLY(x)
@@ -77,6 +88,8 @@ namespace hise { using namespace juce;
 #define BACKEND_ONLY(x)
 #define FRONTEND_ONLY(x) x
 #endif
+
+
 
 #if FRONTEND_IS_PLUGIN
 #define FX_ONLY(x) x
@@ -315,7 +328,10 @@ private:
 #define BACKEND_ICON_COLOUR_ON 0xCCFFFFFF
 #define BACKEND_ICON_COLOUR_OFF 0xFF333333
 
+
+#ifndef SIGNAL_COLOUR
 #define SIGNAL_COLOUR 0xFF90FFB1
+#endif
 
 #define DEBUG_BG_COLOUR 0xff636363
 

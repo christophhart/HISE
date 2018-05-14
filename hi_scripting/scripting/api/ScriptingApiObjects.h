@@ -1116,6 +1116,81 @@ public:
 
 		// ============================================================================================================
 	};
+
+	class ExpansionObject : public ConstScriptingObject,
+							public DebugableObject
+	{
+	public:
+
+		ExpansionObject(ProcessorWithScriptingContent* p, Expansion* expansion);
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Expansion"); }
+
+		virtual bool objectDeleted() const { return data.get() == nullptr; }
+		virtual bool objectExists() const { return data.get() != nullptr; }
+
+		String getDebugName() const override { return data != nullptr ? data->name.get() : "Deleted"; }
+		String getDebugValue() const override { return data != nullptr ? data->name.get() : "Deleted"; }
+
+		/** Returns a list of all samplemaps in this expansion pack. */
+		var getSampleMapList();
+
+		/** Returns a list of all audio files in this expansion pack. */
+		var getAudioFileList();
+
+		/** Returns a list of all image files in this expansion pack. */
+		var getImageFilelist();
+
+		/** Returns a reference string that can be used to load expansion pack data. */
+		var getReferenceString(var relativeFilePath);
+
+	private:
+
+		struct Wrapper;
+
+		WeakReference<Expansion> data;
+	};
+
+	class ExpansionHandlerObject : public ConstScriptingObject,
+								   public ExpansionHandler::Listener
+	{
+	public:
+
+		ExpansionHandlerObject(ProcessorWithScriptingContent* p);
+
+		~ExpansionHandlerObject();
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("ExpansionHandler"); }
+
+		void expansionPackLoaded(Expansion* currentExpansion) override;
+
+		void expansionPackCreated(Expansion* exp) { expansionPackLoaded(exp); };
+
+		/** Returns a list of expansion objects. */
+		var getExpansionList();
+
+		/** Returns a reference to the currently loaded expansion or undefined. */
+		var getCurrentExpansion();
+
+		/** Sets a function that will be executed when a new expansion will be loaded. */
+		void setLoadingCallback(var function);
+
+		/** Loads the expansion with the given name. Returns false, if expansion can't be loaded. */
+		bool loadExpansion(const String expansionName);
+
+
+	private:
+
+
+
+		var loadingCallback;
+
+		struct Wrapper;
+
+		ExpansionHandler& handler;
+
+	};
+
 };
 
 

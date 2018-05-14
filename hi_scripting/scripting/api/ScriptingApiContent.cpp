@@ -738,18 +738,6 @@ void ScriptingApi::Content::ScriptComponent::setTooltip(const String &newTooltip
 	setScriptObjectProperty(Properties::tooltip, newTooltip);
 }
 
-File ScriptingApi::Content::ScriptComponent::getExternalFile(var newValue)
-{
-	if (GET_PROJECT_HANDLER(getProcessor()).isActive())
-	{
-		return GET_PROJECT_HANDLER(getProcessor()).getFilePath(newValue, ProjectHandler::SubDirectories::Images);
-	}
-	else
-	{
-		return dynamic_cast<ExternalFileProcessor*>(getScriptProcessor())->getFile(newValue, PresetPlayerHandler::ImageResources);
-	}
-}
-
 var ScriptingApi::Content::ScriptComponent::getWidth() const
 {
 	return (int)getScriptObjectProperty(Properties::width);
@@ -997,7 +985,7 @@ ScriptingApi::Content::ScriptSlider::ScriptSlider(ProcessorWithScriptingContent 
 ScriptComponent(base, name_),
 styleId(Slider::SliderStyle::RotaryHorizontalVerticalDrag),
 m(HiSlider::Mode::Linear),
-image(nullptr),
+image(new PoolEntry<Image>()),
 minimum(0.0f),
 maximum(1.0f)
 {
@@ -1091,7 +1079,7 @@ maximum(1.0f)
 
 ScriptingApi::Content::ScriptSlider::~ScriptSlider()
 {
-	image = Image();
+	image = nullptr;
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptSlider::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -1155,34 +1143,17 @@ void ScriptingApi::Content::ScriptSlider::setScriptObjectPropertyWithChangeMessa
 	{
 		jassert(isCorrectlyInitialised(id));
 
-		ImagePool *pool = getProcessor()->getMainController()->getSampleManager().getImagePool();
-
 		if (newValue == "Use default skin" || newValue == "")
 		{
 			setScriptObjectProperty(filmstripImage, "Use default skin");
-			image = Image();
+			image = new PoolEntry<Image>();
 		}
 		else
 		{
 			setScriptObjectProperty(filmstripImage, newValue);
 
-
-#if USE_FRONTEND
-
-			String poolName = ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(newValue);
-
-			image = pool->loadFileIntoPool(poolName);
-
-			jassert(image.isValid());
-
-#else
-
-
-			File actualFile = getExternalFile(newValue);
-
-			image = pool->loadFileIntoPool(actualFile.getFullPathName());
-
-#endif
+			PoolReference ref(getProcessor()->getMainController(), newValue.toString(), ProjectHandler::SubDirectories::Images);
+			image = getProcessor()->getMainController()->getExpansionHandler().loadImageReference(ref);
 		}
 	}
 
@@ -1241,7 +1212,7 @@ StringArray ScriptingApi::Content::ScriptSlider::getOptionsFor(const Identifier 
 	case filmstripImage:
 		sa.add("Load new File");
 		sa.add("Use default skin");
-		sa.addArray(getProcessor()->getMainController()->getSampleManager().getImagePool()->getFileNameList());
+		sa.addArray(getProcessor()->getMainController()->getCurrentImagePool()->getIdList());
 		break;
 	case dragDirection:
 		sa.add("Diagonal");
@@ -1527,7 +1498,7 @@ image(nullptr)
 
 ScriptingApi::Content::ScriptButton::~ScriptButton()
 {
-	
+	image = nullptr;
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptButton::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -1541,33 +1512,17 @@ void ScriptingApi::Content::ScriptButton::setScriptObjectPropertyWithChangeMessa
 	{
 		jassert(isCorrectlyInitialised(id));
 
-		ImagePool *pool = getProcessor()->getMainController()->getSampleManager().getImagePool();
-
 		if (newValue == "Use default skin" || newValue == "")
 		{
 			setScriptObjectProperty(filmstripImage, "");
-			image = Image();
+			image = new PoolEntry<Image>();
 		}
 		else
 		{
 			setScriptObjectProperty(filmstripImage, newValue);
 
-#if USE_FRONTEND
-
-			String poolName = ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(newValue);
-
-			image = pool->loadFileIntoPool(poolName);
-
-			jassert(image.isValid());
-
-#else
-
-
-			File actualFile = getExternalFile(newValue);
-
-			image = pool->loadFileIntoPool(actualFile.getFullPathName());
-
-#endif
+			PoolReference ref(getProcessor()->getMainController(), newValue.toString(), ProjectHandler::SubDirectories::Images);
+			image = getProcessor()->getMainController()->getExpansionHandler().loadImageReference(ref);
 		}
 	}
 
@@ -1583,7 +1538,7 @@ StringArray ScriptingApi::Content::ScriptButton::getOptionsFor(const Identifier 
 		sa.add("Load new File");
 
 		sa.add("Use default skin");
-		sa.addArray(getProcessor()->getMainController()->getSampleManager().getImagePool()->getFileNameList());
+		sa.addArray(getProcessor()->getMainController()->getCurrentImagePool()->getIdList());
 
 		return sa;
 	}
@@ -2320,7 +2275,7 @@ void ScriptingApi::Content::ScriptSliderPack::referToData(var sliderPackData)
 
 void ScriptingApi::Content::ScriptSliderPack::setWidthArray(var normalizedWidths)
 {
-    if(getNumSliders() != normalizedWidths.size() + 1)
+    if(getNumSliders() + 1  != normalizedWidths.size())
     {
         reportScriptError("Width array length must be numSliders + 1");
     }
@@ -2389,7 +2344,7 @@ image(nullptr)
 
 ScriptingApi::Content::ScriptImage::~ScriptImage()
 {
-	image = Image();
+	image = nullptr;
 };
 
 
@@ -2401,7 +2356,7 @@ StringArray ScriptingApi::Content::ScriptImage::getOptionsFor(const Identifier &
 
 		sa.add("Load new File");
 
-		sa.addArray(getProcessor()->getMainController()->getSampleManager().getImagePool()->getFileNameList());
+		sa.addArray(getProcessor()->getMainController()->getCurrentImagePool()->getIdList());
 
 		return sa;
 	}
@@ -2439,34 +2394,14 @@ void ScriptingApi::Content::ScriptImage::setImageFile(const String &absoluteFile
 	if (absoluteFileName.isEmpty())
 	{
 		setScriptObjectProperty(FileName, absoluteFileName, sendNotification);
+		image = nullptr;
 		return;
 	}
 
-	ImagePool *pool = getProcessor()->getMainController()->getSampleManager().getImagePool();
-
 	setScriptObjectProperty(FileName, absoluteFileName, sendNotification);
 
-#if USE_FRONTEND
-
-	String poolName = ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(absoluteFileName);
-
-	image = pool->loadFileIntoPool(poolName);
-
-	jassert(image.isValid());
-
-#else
-
-	File actualFile = getExternalFile(absoluteFileName);
-
-	image = pool->loadFileIntoPool(actualFile.getFullPathName());
-
-#endif
-
-	if (image.isValid())
-	{
-		//setScriptObjectProperty(ScriptComponent::width, image.getWidth(), dontSendNotification);
-		//setScriptObjectProperty(ScriptComponent::height, image.getHeight(), sendNotification);
-	}
+	PoolReference ref(getProcessor()->getMainController(), absoluteFileName, ProjectHandler::SubDirectories::Images);
+	image = getProcessor()->getMainController()->getExpansionHandler().loadImageReference(ref);
 };
 
 
@@ -2478,11 +2413,9 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptImage::createCompon
 
 const Image ScriptingApi::Content::ScriptImage::getImage() const
 {
-	
-
-	return image.isNull() ? ImagePool::getEmptyImage(getScriptObjectProperty(ScriptComponent::Properties::width),
+	return image == nullptr ? PoolHelpers::getEmptyImage(getScriptObjectProperty(ScriptComponent::Properties::width),
 													 getScriptObjectProperty(ScriptComponent::Properties::height)) : 
-							image;
+							  image->data;
 }
 
 StringArray ScriptingApi::Content::ScriptImage::getItemList() const
@@ -2839,29 +2772,35 @@ void ScriptingApi::Content::ScriptPanel::timerCallback()
 		return;
 	}
 	
-	ScopedReadLock sl(dynamic_cast<Processor*>(getScriptProcessor())->getMainController()->getCompileLock());
+	auto& readWriteLock = dynamic_cast<Processor*>(getScriptProcessor())->getMainController()->getCompileLock();
 
-	if (HiseJavascriptEngine::isJavascriptFunction(timerRoutine))
+	
+	if (readWriteLock.tryEnterRead())
 	{
-		auto engine = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine();
-
-		if (engine == nullptr)
-			return;
-
-		var thisObject(this);
-		var::NativeFunctionArgs args(thisObject, nullptr, 0);
-
-		Result r = Result::ok();
-
-        
-
-        engine->maximumExecutionTime = RelativeTime(0.5);
-		engine->callExternalFunction(timerRoutine, args, &r);
-
-		if (r.failed())
+		if (HiseJavascriptEngine::isJavascriptFunction(timerRoutine))
 		{
-			debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
+			auto engine = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine();
+
+			if (engine == nullptr)
+				return;
+
+			var thisObject(this);
+			var::NativeFunctionArgs args(thisObject, nullptr, 0);
+
+			Result r = Result::ok();
+
+
+
+			engine->maximumExecutionTime = RelativeTime(0.5);
+			engine->callExternalFunction(timerRoutine, args, &r);
+
+			if (r.failed())
+			{
+				debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
+			}
 		}
+
+		readWriteLock.exitRead();
 	}
 }
 
@@ -2869,36 +2808,21 @@ void ScriptingApi::Content::ScriptPanel::timerCallback()
 
 void ScriptingApi::Content::ScriptPanel::loadImage(String imageName, String prettyName)
 {
-	for (size_t i = 0; i < loadedImages.size(); i++)
+	PoolReference ref(getProcessor()->getMainController(), imageName, ProjectHandler::SubDirectories::Images);
+
+	for (const auto& img : loadedImages)
 	{
-		if (std::get<(int)NamedImageEntries::FileName>(loadedImages[i]) == imageName) return;
+		if (img.image->ref == ref)
+			return;
 	}
 
-	ImagePool *pool = getProcessor()->getMainController()->getSampleManager().getImagePool();
-
-#if USE_FRONTEND
-
-	String poolName = ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(imageName);
-
-	const Image newImage = pool->loadFileIntoPool(poolName);
-
-	jassert(newImage.isValid());
-
-#else
-
-	File actualFile = getExternalFile(imageName);
-
-	const Image newImage = pool->loadFileIntoPool(actualFile.getFullPathName());
-
-#endif
-
-	if (newImage.isValid())
+	if (auto newImage = getProcessor()->getMainController()->getExpansionHandler().loadImageReference(ref))
 	{
-		loadedImages.push_back(NamedImage(newImage, prettyName, imageName));
+		loadedImages.add({ newImage, prettyName });
 	}
 	else
 	{
-		BACKEND_ONLY(reportScriptError("Image " + actualFile.getFullPathName() + " not found. "));
+		BACKEND_ONLY(reportScriptError("Image " + imageName + " not found. "));
 	}
 }
 
@@ -3897,18 +3821,9 @@ void ScriptingApi::Content::makeFullScreenInterface()
 	dynamic_cast<JavascriptMidiProcessor*>(getProcessor())->addToFront(true);
 }
 
-void ScriptingApi::Content::setToolbarProperties(const var &toolbarProperties)
+void ScriptingApi::Content::setToolbarProperties(const var &/*toolbarProperties*/)
 {
-	NamedValueSet *newSet = &toolbarProperties.getDynamicObject()->getProperties();
-
-	NamedValueSet *set = &getProcessor()->getMainController()->getToolbarPropertiesObject()->getProperties();
-
-	set->clear();
-
-	for (int i = 0; i < newSet->size(); i++)
-	{
-		set->set(newSet->getName(i), newSet->getValueAt(i));
-	}
+	reportScriptError("2017...");
 }
 
 
@@ -3990,7 +3905,7 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const String &fileName)
 
 	CHECK_COPY_AND_RETURN_23(getProcessor());
 
-	const ValueTree parent = dynamic_cast<FrontendDataHolder*>(getProcessor()->getMainController())->getValueTree(ProjectHandler::SubDirectories::UserPresets);
+	const ValueTree parent = getProcessor()->getMainController()->getSampleManager().getProjectHandler().getValueTree(ProjectHandler::SubDirectories::UserPresets);
 
 	ValueTree v;
 

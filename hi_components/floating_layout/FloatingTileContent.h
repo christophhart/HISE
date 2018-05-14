@@ -453,6 +453,7 @@ public:
 			ApiCollection,
 			ScriptWatchTable,
 			ScriptComponentEditPanel,
+			ExpansionEditBar,
 			ModuleBrowser,
 			PatchBrowser,
 			FileBrowser,

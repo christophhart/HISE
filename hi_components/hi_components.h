@@ -94,4 +94,6 @@ END_JUCE_MODULE_DECLARATION
 #include "floating_layout/FloatingLayout.h"
 #include "plugin_components/PanelTypes.h"
 
+#include "hi_expansion/ExpansionFloatingTiles.h"
+
 #endif  // HI_COMPONENTS_H_INCLUDED

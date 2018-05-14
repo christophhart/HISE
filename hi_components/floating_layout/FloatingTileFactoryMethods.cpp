@@ -42,7 +42,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<FloatingTabComponent>(PopupMenuOptions::Tabs);
 	registerType<Note>(PopupMenuOptions::Note);
 
-	
+	registerType<ExpansionEditBar>(PopupMenuOptions::ExpansionEditBar);
 
 #if USE_BACKEND
 	registerType<GenericPanel<MacroComponent>>(PopupMenuOptions::MacroControls);
@@ -80,17 +80,22 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 
 	//MidiSourceList
 
-#if USE_BACKEND
 	registerType<GlobalConnectorPanel<ModulatorSampler>>(PopupMenuOptions::SampleConnector);
+
+#if HI_ENABLE_EXPANSION_EDITING
+
 	registerType<SampleEditorPanel>(PopupMenuOptions::SampleEditor);
 	registerType<SampleMapEditorPanel>(PopupMenuOptions::SampleMapEditor);
+
+#endif
+
+#if USE_BACKEND
+	
 	registerType<SamplerTablePanel>(PopupMenuOptions::SamplerTable);
 	registerType<GlobalConnectorPanel<JavascriptProcessor>>(PopupMenuOptions::ScriptConnectorPanel);
 	registerType<CodeEditorPanel>(PopupMenuOptions::ScriptEditor);
 	registerType<ScriptContentPanel>(PopupMenuOptions::ScriptContent);
 #endif
-
-	
 
 	registerType<TableEditorPanel>(PopupMenuOptions::TablePanel);
 	registerType<SliderPackPanel>(PopupMenuOptions::SliderPackPanel);
@@ -465,6 +470,7 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 
 	}
 	break;
+	case FloatingTileContent::Factory::PopupMenuOptions::ExpansionEditBar:
 	case FloatingTileContent::Factory::PopupMenuOptions::FileBrowser:
 	{
 		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::fileBrowser, sizeof(BackendBinaryData::ToolbarIcons::fileBrowser)));
