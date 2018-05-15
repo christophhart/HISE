@@ -173,4 +173,27 @@ void SamplePoolTable::mouseDown(const MouseEvent &e)
 
 };
 
+void PoolTableHelpers::handleRightClick(const MouseEvent& e, PooledAudioFile data)
+{
+	
+}
+
+void PoolTableHelpers::handleRightClick(const MouseEvent& e, PooledImage data)
+{
+	if (data)
+	{
+		auto img = data ? *data.getData() : Image();
+
+		ScopedPointer<ImageComponent> ipc = new ImageComponent();
+
+		ipc->setImage(img);
+		ipc->setSize(img.getWidth(), img.getHeight());
+
+		auto bounds = Rectangle<int>(e.getScreenPosition(), e.getScreenPosition());
+
+		CallOutBox& cb = CallOutBox::launchAsynchronously(ipc.release(), bounds, nullptr);
+			
+	}
+}
+
 } // namespace hise

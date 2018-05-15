@@ -722,7 +722,7 @@ public:
 
 		HiSlider::Mode m = HiSlider::Mode::Linear;
 		Slider::SliderStyle styleId;
-		Image getImage() const { return image != nullptr ? image->data : Image(); };
+		Image getImage() const { return image ? *image.getData() : Image(); };
 
 	private:
 
@@ -757,7 +757,7 @@ public:
 		Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		bool isAutomatable() const override { return true; }
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
-		const Image getImage() const { return image != nullptr ? image->data : Image(); };
+		const Image getImage() const { return image ? *image.getData() : Image(); };
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification) override;
 		StringArray getOptionsFor(const Identifier &id) override;
 
@@ -1305,7 +1305,7 @@ public:
 			for (const auto& img : loadedImages)
 			{
 				if (img.prettyName == prettyName)
-					return img.image->data;
+					return img.image ? *img.image.getData() : Image();
 			}
 
 			return Image();

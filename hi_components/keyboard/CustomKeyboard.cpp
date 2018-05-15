@@ -185,7 +185,7 @@ void CustomKeyboard::setUseCustomGraphics(bool shouldUseCustomGraphics)
 
 		upImages[i] = handler.loadImageReference(upRef);
 
-		if (upImages[i]->data.isNull())
+		if (!upImages[i])
 		{
 			jassertfalse;
 			useCustomGraphics = false;
@@ -196,7 +196,7 @@ void CustomKeyboard::setUseCustomGraphics(bool shouldUseCustomGraphics)
 
 		downImages[i] = handler.loadImageReference(downRef);
 
-		if (downImages[i]->data.isNull())
+		if (!downImages[i])
 		{
 			jassertfalse;
 			useCustomGraphics = false;
@@ -217,11 +217,15 @@ void CustomKeyboard::drawWhiteNote(int midiNoteNumber, Graphics &g, int x, int y
         
 		const int index = midiNoteNumber % 12;
 
-		Image keyImage = isDown ? downImages[index]->data : upImages[index]->data;
+		if (auto keyImage = isDown ? downImages[index].getData() : upImages[index].getData())
+		{
+			g.drawImage(*keyImage,
+				x, y, w, h,
+				0, 0, keyImage->getWidth(), keyImage->getHeight());
+		}
 
-		g.drawImage(keyImage,
-			x, y, w, h,
-			0, 0, keyImage.getWidth(), keyImage.getHeight());
+
+		
 
 	}
 	else
@@ -249,11 +253,14 @@ void CustomKeyboard::drawBlackNote(int midiNoteNumber, Graphics &g, int x, int y
         
 		const int index = midiNoteNumber % 12;
 
-		Image& keyImage = isDown ? downImages[index]->data : upImages[index]->data;
+		if (auto keyImage = isDown ? downImages[index].getData() : upImages[index].getData())
+		{
+			g.drawImage(*keyImage,
+				x, y, w, h,
+				0, 0, keyImage->getWidth(), keyImage->getHeight());
+		}
 
-		g.drawImage(keyImage,
-			x, y, w, h,
-			0, 0, keyImage.getWidth(), keyImage.getHeight());
+		
 	}
 	else
 	{

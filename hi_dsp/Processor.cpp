@@ -601,9 +601,9 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 
 	PoolReference newRef(dynamic_cast<Processor*>(this)->getMainController(), fileName, ProjectHandler::SubDirectories::AudioFiles);
 
-	if (data->ref != newRef && !newRef.isValid())
+	if (data.getRef() != newRef && !newRef.isValid())
 	{
-		data = new PoolEntry<AudioSampleBuffer>();
+		data.clear();
 
 		length = 0;
 		sampleRateOfLoadedFile = -1.0;
@@ -621,15 +621,16 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 		newFileLoaded();
 	}
 
-	if(data->ref != newRef && loadThisFile && newRef.isValid())
+	if(data.getRef() != newRef && loadThisFile && newRef.isValid())
 	{
 		ScopedLock sl(getFileLock());
 
 		auto& handler = mc->getExpansionHandler();
+		auto pool = mc->getCurrentAudioSampleBufferPool();
+		
+		data = pool->loadFromReference(newRef, PoolHelpers::LoadAndCacheWeak);
 
-		data = handler.loadAudioFileReference(newRef);
-
-		sampleRateOfLoadedFile = data->additionalData.getProperty(MetadataIDs::SampleRate, 0.0);
+		sampleRateOfLoadedFile = data.getAdditionalData().getProperty(MetadataIDs::SampleRate, 0.0);
 
 		setRange(Range<int>(0, getTotalLength()));
 
@@ -638,7 +639,7 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 		
 		dynamic_cast<Processor*>(this)->sendChangeMessage();
 
-		setLoopFromMetadata(data->additionalData);
+		setLoopFromMetadata(data.getAdditionalData());
 
 		newFileLoaded();
 	}

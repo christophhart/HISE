@@ -45,7 +45,37 @@ const Identifier LoopEnd("LoopEnd");
 
 struct PoolHelpers
 {
-	
+	enum LoadingType
+	{
+		LoadAndCacheWeak = 0,
+		LoadAndCacheStrong,
+		ForceReloadWeak,
+		ForceReloadStrong,
+		SkipPoolSearchWeak,
+		SkipPoolSearchStrong,
+		CreateUnpooled,
+		DontCreateNewEntry,
+		numLoadingTypes
+	};
+
+	static bool isStrong(LoadingType t)
+	{
+		return t == LoadAndCacheStrong || t == ForceReloadStrong || t == SkipPoolSearchStrong || t == CreateUnpooled;
+	}
+
+	static bool shouldSearchInPool(LoadingType t)
+	{
+		return t == LoadAndCacheStrong || 
+			   t == LoadAndCacheWeak || 
+			   t == ForceReloadStrong || 
+			   t == ForceReloadWeak || 
+			   t == DontCreateNewEntry;
+	}
+
+	static bool shouldForceReload(LoadingType t)
+	{
+		return t == ForceReloadStrong || t == ForceReloadWeak;
+	}
 
 	// Using an empty parameter to get the correct Subdirectory type
 	static ProjectHandler::SubDirectories getSubDirectoryType(const AudioSampleBuffer& emptyData);
@@ -54,12 +84,12 @@ struct PoolHelpers
 	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, AudioSampleBuffer& data, var& additionalData);
 	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, Image& data, var& additionalData);
 
-	static size_t getDataSize(const AudioSampleBuffer& buffer);
+	static size_t getDataSize(const AudioSampleBuffer* buffer);
 
-	static size_t getDataSize(const Image& img);
+	static size_t getDataSize(const Image* img);
 
-	static bool isValid(const AudioSampleBuffer& buffer);
-	static bool isValid(const Image& buffer);
+	static bool isValid(const AudioSampleBuffer* buffer);
+	static bool isValid(const Image* buffer);
 
 	static Image getEmptyImage(int width, int height);
 
@@ -90,7 +120,7 @@ struct PoolHelpers
 		bool isRelativeReference() const;
 		bool isAbsoluteFile() const;
 		bool isEmbeddedReference() const;;
-		InputStream* createInputStream();
+	 	InputStream* createInputStream() const;
 		int64 getHashCode() const;
 		bool isValid() const;
 		ProjectHandler::SubDirectories getFileType() const;
@@ -125,6 +155,8 @@ class PoolBase : public RestorableObject,
 				 public ControlledObject
 {
 public:
+
+	
 
 	enum EventType
 	{
@@ -203,6 +235,7 @@ public:
 		listeners.removeAllInstancesOf(l);
 	}
 
+	
 
 	virtual int getNumLoadedFiles() const = 0;
 	virtual PoolReference getReference(int index) const = 0;
@@ -270,11 +303,10 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PoolBase)
 };
 
+
 template <class DataType> class PoolEntry : public ReferenceCountedObject
 {
 public:
-
-	using Ptr = ReferenceCountedObjectPtr<PoolEntry>;
 
 	PoolEntry(PoolReference& r) :
 		ref(r),
@@ -286,6 +318,10 @@ public:
 		data(DataType())
 	{};
 
+	~PoolEntry()
+	{
+	}
+
 	bool operator ==(const PoolEntry& other) const
 	{
 		return other.ref == ref;
@@ -293,35 +329,128 @@ public:
 
 	explicit operator bool() const { return ref.isValid() && PoolHelpers::isValid(data); };
 
-	StringArray getTextData() const
-	{
-		StringArray sa;
-
-		sa.add(ref.getReferenceString());
-		auto dataSize = PoolHelpers::getDataSize(data);
-
-		String s = String((float)dataSize / 1024.0f, 1) + " kB";
-
-		sa.add(s);
-
-		sa.add(String(getReferenceCount() - 1));
-
-		return sa;
-	}
-
 	PoolReference ref;
 	DataType data;
 	var additionalData;
+	
+	JUCE_DECLARE_WEAK_REFERENCEABLE(PoolEntry<DataType>);
 };
 
-using PooledImage = PoolEntry<Image>::Ptr;
-using PooledAudioFile = PoolEntry<AudioSampleBuffer>::Ptr;
+
+
+
 
 template <class DataType> class SharedPoolBase : public PoolBase
 {
 public:
 
-    
+	using PoolItem = PoolEntry<DataType>;
+
+	class ManagedPtr
+	{
+	public:
+
+		ManagedPtr(SharedPoolBase<DataType>* pool_, PoolItem* object, bool refCounted) :
+			pool(pool_),
+			isRefCounted(refCounted),
+			weak(refCounted ? nullptr : object),
+			strong(refCounted ? object : nullptr)
+		{
+			
+		}
+
+		ManagedPtr() :
+			pool(nullptr),
+			weak(nullptr),
+			strong(nullptr),
+			isRefCounted(true)
+		{
+
+		}
+
+		ManagedPtr& operator= (const ManagedPtr& other)
+		{
+			if(isRefCounted)
+				clear();
+
+			pool = other.pool;
+			weak = other.weak;
+			strong = other.strong;
+			isRefCounted = other.isRefCounted;
+
+			return *this;
+		}
+
+		bool operator==(const ManagedPtr& other) const
+		{
+			return getRef() == other.getRef();
+		}
+
+		explicit operator bool() const { return get() != nullptr;};
+
+		PoolItem* get() { return isRefCounted ? strong.get() : weak.get(); };
+		const PoolItem* get() const { return isRefCounted ? strong.get() : weak.get(); };
+
+		operator PoolItem*() const noexcept { return get(); }
+
+		PoolItem* operator->() noexcept { return get(); }
+
+		const PoolItem* operator->() const noexcept { return get(); }
+
+		~ManagedPtr()
+		{
+			weak = nullptr;
+
+			if (isRefCounted)
+				clear();
+		}
+
+		StringArray getTextData() const
+		{
+			StringArray sa;
+
+			if (*this)
+			{
+				sa.add(getRef().getReferenceString());
+				auto dataSize = PoolHelpers::getDataSize(getData());
+
+				String s = String((float)dataSize / 1024.0f, 1) + " kB";
+
+				sa.add(s);
+				sa.add(String(get()->getReferenceCount()));
+			}
+
+			return sa;
+		}
+
+		const DataType* getData() const { return *this ? &get()->data : nullptr; };
+		DataType* getData() { return *this ? &get()->data : nullptr; };
+		
+		PoolReference getRef() const { return *this ? get()->ref : PoolReference(); };
+
+		var getAdditionalData() const { return *this ? get()->additionalData : var(); }
+
+		void clear()
+		{
+			jassert(isRefCounted);
+			
+			if(*this)
+				pool->releaseIfUnused(*this);
+		}
+
+		void clearStrongReference()
+		{
+			strong = nullptr;
+		}
+
+	private:
+
+		bool isRefCounted;
+
+		WeakReference<SharedPoolBase<DataType>> pool;
+		ReferenceCountedObjectPtr<PoolEntry<DataType>> strong;
+		WeakReference<PoolEntry<DataType>> weak;
+	};
 
 	SharedPoolBase(MainController* mc_) :
 		PoolBase(mc_),
@@ -356,9 +485,9 @@ public:
 
 	bool contains(int64 hashCode) const
 	{
-		for (auto d : pool)
+		for (const auto& d : pool)
 		{
-			if (d->ref.getHashCode() == hashCode)
+			if (d.getRef().getHashCode() == hashCode)
 				return true;
 		}
 
@@ -367,18 +496,18 @@ public:
 
 	PoolReference getReference(int index) const override
 	{
-		if (auto entry = pool[index])
-			return entry.get()->ref;
+		if (const auto& entry = pool[index])
+			return entry.getRef();
 
 		return PoolReference();
 	}
 
 	var getAdditionalData(PoolReference r) const override
 	{
-		for (auto d : pool)
+		for (const auto& d : pool)
 		{
-			if (d->ref == r)
-				return d->additionalData;
+			if (d.getRef() == r)
+				return d.getAdditionalData();
 		}
 
 		return {};
@@ -386,8 +515,8 @@ public:
 
 	StringArray getTextDataForId(int index) const override
 	{
-		if (auto entry = pool[index])
-			return entry.get()->getTextData();
+		if (const auto& entry = pool[index])
+			return entry.getTextData();
 
 		return {};
 	}
@@ -396,47 +525,104 @@ public:
 	{
 		StringArray sa;
 
-		for (auto d : pool)
-			sa.add(d->ref.getReferenceString());
+		for (const auto& d : pool)
+			sa.add(d.getRef().getReferenceString());
 
 		return sa;
 	}
 
-	PoolEntry<DataType>* loadFromReference(PoolReference r)
+	void releaseIfUnused(ManagedPtr& mptr)
 	{
-		for (auto d : pool)
+		jassert(mptr);
+		jassert(mptr.getRef().isValid());
+
+		for (const auto& d : pool)
 		{
-			if (d->ref == r)
+			if (d == mptr)
 			{
-				notifyTable(PoolBase::Changed, sendNotificationAsync, pool.indexOf(d));
-				return d;
+				int i = pool.indexOf(d);
+
+				mptr.clearStrongReference();
+
+				if (d.get() == nullptr)
+				{
+					pool.remove(&d);
+					notifyTable(PoolBase::EventType::Removed, sendNotificationAsync, i);
+				}
+				else
+				{
+					notifyTable(PoolBase::EventType::Changed, sendNotificationAsync, i);
+				}
+
+				return;
 			}
-				
+		}
+	}
+
+	ManagedPtr loadFromReference(PoolReference r, PoolHelpers::LoadingType loadingType=PoolHelpers::LoadAndCacheStrong)
+	{
+		if (loadingType == PoolHelpers::CreateUnpooled)
+		{
+			ReferenceCountedObjectPtr<PoolItem> ne = new PoolItem(r);
+
+			auto inputStream = r.createInputStream();
+			PoolHelpers::loadData(afm, inputStream, r.getHashCode(), ne->data, ne->additionalData);
+			return ManagedPtr(this, ne, true);
 		}
 
-		ReferenceCountedObjectPtr<PoolEntry<DataType>> ne = new PoolEntry<DataType>(r);
-		auto inputStream = r.createInputStream();
+		if (PoolHelpers::shouldSearchInPool(loadingType))
+		{
+			for (auto& d : pool)
+			{
+				if (d.getRef() == r)
+				{
+					jassert(d);
 
+					notifyTable(PoolBase::Changed, sendNotificationAsync, pool.indexOf(d));
+
+					if (PoolHelpers::shouldForceReload(loadingType))
+					{
+						auto inputStream = r.createInputStream();
+						PoolHelpers::loadData(afm, inputStream, r.getHashCode(), *d.getData() , d.getAdditionalData());
+					}
+
+					return ManagedPtr(this, d.get(), true);
+				}
+			}
+		}
+
+		if (loadingType == PoolHelpers::DontCreateNewEntry)
+		{
+			jassertfalse;
+			return ManagedPtr();
+		}
+
+		ReferenceCountedObjectPtr<PoolItem> ne = new PoolItem(r);
+		
+		auto inputStream = r.createInputStream();
 		PoolHelpers::loadData(afm, inputStream, r.getHashCode(), ne->data, ne->additionalData);
 
-		pool.add(ne);
+
+		pool.add(ManagedPtr(this, ne.getObject(), PoolHelpers::isStrong(loadingType)));
 
 		notifyTable(PoolBase::Added);
 
-		return ne;
+		return ManagedPtr(this, ne.getObject(), true);
 	}
 
 private:
 
-	ReferenceCountedArray<PoolEntry<DataType>> pool;
+	DataType empty;
+
+	Array<ManagedPtr> pool;
 
 	void storeItemInValueTree(ValueTree& child, int index) const
 	{
-		if (auto entry = pool[index].get())
+		if (const auto& entry = pool[index])
 		{
-			child.setProperty("ID", entry->ref.getReferenceString(), nullptr);
+			child.setProperty("ID", entry.getRef().getReferenceString(), nullptr);
 
-			ScopedPointer<InputStream> inputStream = entry->ref.createInputStream();
+			ScopedPointer<InputStream> inputStream = entry.getRef().createInputStream();
 
 			MemoryBlock mb = MemoryBlock();
 			MemoryOutputStream out(mb, false);
@@ -471,6 +657,9 @@ private:
 
 using AudioSampleBufferPool = SharedPoolBase<AudioSampleBuffer>;
 using ImagePool = SharedPoolBase<Image>;
+using PooledAudioFile = AudioSampleBufferPool::ManagedPtr;
+using PooledImage = ImagePool::ManagedPtr;
+
 
 class PoolCollection: public ControlledObject
 {
@@ -559,7 +748,11 @@ public:
 
 	AudioFormatManager afm;
 
+	
+
 private:
+
+	
 
 	PoolBase * dataPools[(int)ProjectHandler::SubDirectories::numSubDirectories];
 

@@ -134,24 +134,24 @@ void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, in
 	ImageCache::addImageToCache(data, hashCode);
 }
 
-size_t PoolHelpers::getDataSize(const Image& img)
+size_t PoolHelpers::getDataSize(const Image* img)
 {
-	return img.getWidth() * img.getHeight() * 4;
+	return img ? img->getWidth() * img->getHeight() * 4 : 0;
 }
 
-size_t PoolHelpers::getDataSize(const AudioSampleBuffer& buffer)
+size_t PoolHelpers::getDataSize(const AudioSampleBuffer* buffer)
 {
-	return buffer.getNumChannels() * buffer.getNumSamples() * sizeof(float);
+	return buffer ? buffer->getNumChannels() * buffer->getNumSamples() * sizeof(float) : 0;
 }
 
-bool PoolHelpers::isValid(const AudioSampleBuffer& buffer)
+bool PoolHelpers::isValid(const AudioSampleBuffer* buffer)
 {
-	return buffer.getNumChannels() != 0 && buffer.getNumSamples() != 0;
+	return buffer ? buffer->getNumChannels() != 0 && buffer->getNumSamples() != 0 : false;
 }
 
-bool PoolHelpers::isValid(const Image& image)
+bool PoolHelpers::isValid(const Image* image)
 {
-	return image.isValid();
+	return image ? image->isValid() : false;
 }
 
 juce::Image PoolHelpers::getEmptyImage(int width, int height)
@@ -245,7 +245,7 @@ bool PoolHelpers::Reference::operator!=(const Reference& other) const
 
 
 
-juce::InputStream* PoolHelpers::Reference::createInputStream()
+juce::InputStream* PoolHelpers::Reference::createInputStream() const
 {
 	switch (m)
 	{

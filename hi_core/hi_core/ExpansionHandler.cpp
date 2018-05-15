@@ -183,7 +183,7 @@ bool ExpansionHandler::setCurrentExpansion(const String& expansionName)
 	return false;
 }
 
-PoolEntry<AudioSampleBuffer>::Ptr ExpansionHandler::loadAudioFileReference(const PoolReference& sampleId)
+PooledAudioFile ExpansionHandler::loadAudioFileReference(const PoolReference& sampleId)
 {
 	AudioSampleBufferPool* pool = nullptr;
 	getPoolForReferenceString(sampleId, &pool);
@@ -203,7 +203,7 @@ const var ExpansionHandler::getMetadata(const PoolReference& sampleId)
 	return pool->getAdditionalData(sampleId);
 }
 
-PoolEntry<Image>::Ptr ExpansionHandler::loadImageReference(const PoolReference& imageId)
+PooledImage ExpansionHandler::loadImageReference(const PoolReference& imageId)
 {
 	ImagePool* pool = nullptr;
 	getPoolForReferenceString(imageId, &pool);

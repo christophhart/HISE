@@ -985,7 +985,6 @@ ScriptingApi::Content::ScriptSlider::ScriptSlider(ProcessorWithScriptingContent 
 ScriptComponent(base, name_),
 styleId(Slider::SliderStyle::RotaryHorizontalVerticalDrag),
 m(HiSlider::Mode::Linear),
-image(new PoolEntry<Image>()),
 minimum(0.0f),
 maximum(1.0f)
 {
@@ -1079,7 +1078,7 @@ maximum(1.0f)
 
 ScriptingApi::Content::ScriptSlider::~ScriptSlider()
 {
-	image = nullptr;
+	image.clear();
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptSlider::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -1146,13 +1145,15 @@ void ScriptingApi::Content::ScriptSlider::setScriptObjectPropertyWithChangeMessa
 		if (newValue == "Use default skin" || newValue == "")
 		{
 			setScriptObjectProperty(filmstripImage, "Use default skin");
-			image = new PoolEntry<Image>();
+
+			image.clear();
 		}
 		else
 		{
 			setScriptObjectProperty(filmstripImage, newValue);
 
 			PoolReference ref(getProcessor()->getMainController(), newValue.toString(), ProjectHandler::SubDirectories::Images);
+
 			image = getProcessor()->getMainController()->getExpansionHandler().loadImageReference(ref);
 		}
 	}
@@ -1468,8 +1469,7 @@ struct ScriptingApi::Content::ScriptButton::Wrapper
 };
 
 ScriptingApi::Content::ScriptButton::ScriptButton(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier name, int x, int y, int, int) :
-ScriptComponent(base, name),
-image(nullptr)
+ScriptComponent(base, name)
 {
 	ADD_SCRIPT_PROPERTY(i00, "filmstripImage");	ADD_TO_TYPE_SELECTOR(SelectorTypes::FileSelector);
 	ADD_NUMBER_PROPERTY(i01, "numStrips");		
@@ -1498,7 +1498,7 @@ image(nullptr)
 
 ScriptingApi::Content::ScriptButton::~ScriptButton()
 {
-	image = nullptr;
+	image.clear();
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptButton::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -1515,13 +1515,14 @@ void ScriptingApi::Content::ScriptButton::setScriptObjectPropertyWithChangeMessa
 		if (newValue == "Use default skin" || newValue == "")
 		{
 			setScriptObjectProperty(filmstripImage, "");
-			image = new PoolEntry<Image>();
+			image.clear();
 		}
 		else
 		{
 			setScriptObjectProperty(filmstripImage, newValue);
 
 			PoolReference ref(getProcessor()->getMainController(), newValue.toString(), ProjectHandler::SubDirectories::Images);
+
 			image = getProcessor()->getMainController()->getExpansionHandler().loadImageReference(ref);
 		}
 	}
@@ -2308,8 +2309,7 @@ struct ScriptingApi::Content::ScriptImage::Wrapper
 };
 
 ScriptingApi::Content::ScriptImage::ScriptImage(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier imageName, int x, int y, int , int ) :
-ScriptComponent(base, imageName),
-image(nullptr)
+ScriptComponent(base, imageName)
 {
 	ADD_NUMBER_PROPERTY(i00, "alpha");				ADD_AS_SLIDER_TYPE(0.0, 1.0, 0.01);
 	ADD_SCRIPT_PROPERTY(i01, "fileName");			ADD_TO_TYPE_SELECTOR(SelectorTypes::FileSelector);
@@ -2344,7 +2344,7 @@ image(nullptr)
 
 ScriptingApi::Content::ScriptImage::~ScriptImage()
 {
-	image = nullptr;
+	image.clear();
 };
 
 
@@ -2394,13 +2394,14 @@ void ScriptingApi::Content::ScriptImage::setImageFile(const String &absoluteFile
 	if (absoluteFileName.isEmpty())
 	{
 		setScriptObjectProperty(FileName, absoluteFileName, sendNotification);
-		image = nullptr;
+		image.clear();
 		return;
 	}
 
 	setScriptObjectProperty(FileName, absoluteFileName, sendNotification);
 
 	PoolReference ref(getProcessor()->getMainController(), absoluteFileName, ProjectHandler::SubDirectories::Images);
+	image.clear();
 	image = getProcessor()->getMainController()->getExpansionHandler().loadImageReference(ref);
 };
 
@@ -2413,9 +2414,10 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptImage::createCompon
 
 const Image ScriptingApi::Content::ScriptImage::getImage() const
 {
-	return image == nullptr ? PoolHelpers::getEmptyImage(getScriptObjectProperty(ScriptComponent::Properties::width),
-													 getScriptObjectProperty(ScriptComponent::Properties::height)) : 
-							  image->data;
+	return image ? *image.getData() :
+		PoolHelpers::getEmptyImage(getScriptObjectProperty(ScriptComponent::Properties::width),
+			getScriptObjectProperty(ScriptComponent::Properties::height));
+							  
 }
 
 StringArray ScriptingApi::Content::ScriptImage::getItemList() const
@@ -2812,7 +2814,7 @@ void ScriptingApi::Content::ScriptPanel::loadImage(String imageName, String pret
 
 	for (const auto& img : loadedImages)
 	{
-		if (img.image->ref == ref)
+		if (img.image.getRef() == ref)
 			return;
 	}
 

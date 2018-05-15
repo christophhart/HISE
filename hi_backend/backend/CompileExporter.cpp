@@ -49,7 +49,7 @@ void loadOtherReferencedImages(ModulatorSynthChain* chainToExport)
 
 	auto pool = mc->getCurrentImagePool(true);
 
-	ReferenceCountedArray<PoolEntry<Image>> images;
+	Array<PooledImage> images;
 
 	for (int i = 0; i < 12; i++)
 	{
@@ -102,7 +102,7 @@ ValueTree BaseExporter::exportReferencedAudioFiles()
 
 	AudioSampleBufferPool *samplePool = chainToExport->getMainController()->getCurrentAudioSampleBufferPool(true);
 
-	ReferenceCountedArray<PoolEntry<AudioSampleBuffer>> soundList;
+	Array<PooledAudioFile> soundList;
 
 	while (iter.next())
 	{

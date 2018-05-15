@@ -115,6 +115,9 @@ struct PoolTableHelpers
 		}
 	}
 
+	static void handleRightClick(const MouseEvent& e, PooledAudioFile data);
+
+	static void handleRightClick(const MouseEvent& e, PooledImage data);
 	
 };
 
@@ -300,6 +303,16 @@ public:
 			{
 				editor->insertTextAtCaret(ref.getReferenceString());
 			}
+		}
+	}
+
+	void cellClicked(int rowNumber, int columnId, const MouseEvent& e) override
+	{
+		if (e.mods.isRightButtonDown())
+		{
+			auto ref = pool.get()->getReference(rowNumber);
+
+			PoolTableHelpers::handleRightClick(e, pool.get()->loadFromReference(ref, PoolHelpers::DontCreateNewEntry));
 		}
 	}
 

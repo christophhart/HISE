@@ -710,22 +710,22 @@ public:
 			}
 
 			preview->setBuffer(lVar, rVar);
-
-#if 0
-			preview->reset(b->getNumChannels(), 44100.0, 0);
-			preview->addBlock(0, *b, 0, b->getNumSamples());
-
-			preview->reset(buffer->getNumChannels(), 44100.0, 0);
-			preview->addBlock(0, *buffer, 0, buffer->getNumSamples());
-#endif
-		
-			updateRanges();
-
-			setCurrentArea(getSampleArea(0));
-
-			if(notifyListeners)
-				sendAreaChangedMessage();
 		}
+		else
+		{
+			currentFileName = {};
+
+			buffer = nullptr;
+
+			preview->clear();
+		}
+
+		updateRanges();
+
+		setCurrentArea(getSampleArea(0));
+
+		if (notifyListeners)
+			sendAreaChangedMessage();
 	}
 
 	void changeListenerCallback(SafeChangeBroadcaster *b) override;
