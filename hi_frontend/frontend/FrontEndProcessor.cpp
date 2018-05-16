@@ -171,7 +171,18 @@ unlockCounter(0)
 		}
 
 #if !DONT_EMBED_FILES_IN_FRONTEND
-		getSampleManager().getProjectHandler().createSampleMapValueTreeFromPreset(synthData);
+		auto maps = getSampleManager().getProjectHandler().getValueTree(FileHandlerBase::SampleMaps);
+
+		for (const auto& sm : maps)
+		{
+			auto id = sm.getProperty("ID").toString();
+
+			getCurrentSampleMapPool(true)->createAsEmbeddedReference(id, sm);
+		}
+
+		
+
+
 #endif
 
 		createUserPresetData();

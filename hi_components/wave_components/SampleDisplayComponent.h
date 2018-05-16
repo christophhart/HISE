@@ -51,6 +51,37 @@ class HiseAudioThumbnail: public Component,
 {
 public:
 
+	static Image createPreview(const AudioSampleBuffer* buffer, int width)
+	{
+		jassert(buffer != nullptr);
+
+		HiseAudioThumbnail thumbnail;
+
+		thumbnail.setSize(width, 150);
+
+		auto data = const_cast<float**>(buffer->getArrayOfReadPointers());
+
+		VariantBuffer::Ptr l = new VariantBuffer(data[0], buffer->getNumSamples());
+
+		var lVar = var(l);
+		var rVar;
+
+		thumbnail.lBuffer = var(l);
+
+		if (data[1] != nullptr)
+		{
+			VariantBuffer::Ptr r = new VariantBuffer(data[1], buffer->getNumSamples());
+			thumbnail.rBuffer = var(r);
+		}
+
+		thumbnail.setDrawHorizontalLines(true);
+
+		thumbnail.loadingThread.run();
+
+		return thumbnail.createComponentSnapshot(thumbnail.getLocalBounds());
+	}
+
+
 	HiseAudioThumbnail();;
 
 	~HiseAudioThumbnail();
@@ -640,6 +671,7 @@ class AudioSampleBufferComponent: public AudioDisplayComponent,
 								  public FileDragAndDropTarget,
 								  public SafeChangeBroadcaster,
 								  public SafeChangeListener,
+								  public DragAndDropTarget,
 								  public Timer
 {
 public:
@@ -648,6 +680,32 @@ public:
 	{
 		PlayArea = 0,
 		numAreas
+	};
+
+	bool isInterestedInDragSource(const SourceDetails& dragSourceDetails) override
+	{
+		PoolReference ref(dragSourceDetails.description);
+
+		return ref && ref.getFileType() == FileHandlerBase::SubDirectories::AudioFiles;
+	};
+
+	void itemDragEnter(const SourceDetails& dragSourceDetails) override
+	{
+		over = isInterestedInDragSource(dragSourceDetails);
+		repaint();
+	};
+
+	void itemDragExit(const SourceDetails& /*dragSourceDetails*/) override
+	{
+		over = false;
+		repaint();
+	};
+
+	void itemDropped(const SourceDetails& dragSourceDetails) override
+	{
+		PoolReference ref(dragSourceDetails.description);
+
+		poolItemWasDropped(ref);
 	};
 
 	bool isInterestedInFileDrag (const StringArray &files) override
@@ -681,6 +739,8 @@ public:
 		if (connectedProcessor)
 			setPlaybackPosition(connectedProcessor->getInputValue());
 	}
+
+	void poolItemWasDropped(PoolReference ref);
 
 	void loadFile(const File& f);
 
@@ -792,7 +852,11 @@ public:
 		}
 	}
 
+	
+
 private:
+
+	bool over = false;
 
 	bool showLoop = false;
 	bool showFileName = true;

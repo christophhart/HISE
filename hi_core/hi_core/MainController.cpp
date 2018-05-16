@@ -33,7 +33,9 @@
 namespace hise { using namespace juce;
 
 MainController::MainController():
+	
 	sampleManager(new SampleManager(this)),
+	expansionHandler(this),
 	allNotesOffFlag(false),
 	bufferSize(-1),
 	sampleRate(-1.0),
@@ -65,7 +67,7 @@ MainController::MainController():
 	processorChangeHandler(this),
 	killStateHandler(this),
 	debugLogger(this),
-	expansionHandler(this),
+
 	
 	//presetLoadRampFlag(OldUserPresetHandler::Active),
 	suspendIndex(0),
@@ -102,8 +104,6 @@ MainController::MainController():
 
 MainController::~MainController()
 {
-
-
 	sampleManager = nullptr;
 	Logger::setCurrentLogger(nullptr);
 	logger = nullptr;
@@ -169,9 +169,6 @@ void MainController::clearPreset()
 	}
     
 	clearIncludedFiles();
-
-	getCurrentFileHandler(true).pool->clear();
-	getExpansionHandler().clearPools();
 
     changed = false;
 }

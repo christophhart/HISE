@@ -52,7 +52,8 @@ class BackendRootWindow : public AudioProcessorEditor,
 						  public Timer,
 						  public ComponentWithKeyboard,
 						  public ModalBaseWindow,
-						  public ComponentWithBackendConnection
+						  public ComponentWithBackendConnection,
+						  public DragAndDropContainer
 {
 public:
 

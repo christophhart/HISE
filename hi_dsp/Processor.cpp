@@ -603,6 +603,13 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 
 	if (data.getRef() != newRef && !newRef.isValid())
 	{
+		if (currentPool != nullptr)
+		{
+			currentPool->removeListener(this);
+			currentPool = nullptr;
+		}
+			
+
 		data.clear();
 
 		length = 0;
@@ -625,10 +632,10 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 	{
 		ScopedLock sl(getFileLock());
 
-		auto& handler = mc->getExpansionHandler();
-		auto pool = mc->getCurrentAudioSampleBufferPool();
+		currentPool = mc->getCurrentAudioSampleBufferPool();
 		
-		data = pool->loadFromReference(newRef, PoolHelpers::LoadAndCacheWeak);
+		data = currentPool->loadFromReference(newRef, PoolHelpers::LoadAndCacheWeak);
+		currentPool->addListener(this);
 
 		sampleRateOfLoadedFile = data.getAdditionalData().getProperty(MetadataIDs::SampleRate, 0.0);
 

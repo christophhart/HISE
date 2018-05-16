@@ -51,7 +51,12 @@ ProjectHandler::SubDirectories PoolHelpers::getSubDirectoryType(const Image& emp
 
 
 
-void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, AudioSampleBuffer& data, var& additionalData)
+hise::ProjectHandler::SubDirectories PoolHelpers::getSubDirectoryType(const ValueTree& emptyTree)
+{
+	return ProjectHandler::SubDirectories::SampleMaps;
+}
+
+void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, AudioSampleBuffer& data, var* additionalData)
 {
 	ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(ownedStream);
 
@@ -61,6 +66,9 @@ void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, in
 		reader->read(&data, 0, (int)reader->lengthInSamples, 0, true, true);
 
 		DynamicObject::Ptr meta = new DynamicObject();
+		
+		if (additionalData->isObject())
+			meta = additionalData->getDynamicObject();
 
 		meta->setProperty(MetadataIDs::SampleRate, reader->sampleRate);
 		meta->setProperty(MetadataIDs::LoopEnabled, false);
@@ -122,16 +130,71 @@ void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, in
 			meta->setProperty(MetadataIDs::LoopEnabled, loopEnabled);
 		}
 
-		additionalData = var(meta);
+		*additionalData = var(meta);
 	}
 }
 
-void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, Image& data, var& additionalData)
+void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, Image& data, var* additionalData)
 {
 	ScopedPointer<InputStream> inputStream = ownedStream;
 
 	data = ImageFileFormat::loadFrom(*inputStream);
 	ImageCache::addImageToCache(data, hashCode);
+
+	
+
+}
+
+void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, ValueTree& data, var* additionalData)
+{
+	ScopedPointer<InputStream> inputStream = ownedStream;
+
+	if (auto fis = dynamic_cast<FileInputStream*>(inputStream.get()))
+	{
+		if (ScopedPointer<XmlElement> xml = XmlDocument::parse(fis->getFile()))
+		{
+			data = ValueTree::fromXml(*xml);
+		}
+	}
+	else
+	{
+		data = ValueTree::readFromStream(*inputStream);
+	}
+
+	
+}
+
+void PoolHelpers::fillMetadata(AudioSampleBuffer& data, var* additionalData)
+{
+
+}
+
+void PoolHelpers::fillMetadata(Image& data, var* additionalData)
+{
+	DynamicObject::Ptr meta = new DynamicObject();
+
+	if (additionalData->isObject())
+		meta = additionalData->getDynamicObject();
+
+	meta->setProperty("Size", String(data.getWidth()) + " px x " + String(data.getHeight()) + " px");
+
+	*additionalData = var(meta);
+}
+
+void PoolHelpers::fillMetadata(ValueTree& data, var* additionalData)
+{
+	DynamicObject::Ptr meta = new DynamicObject();
+
+	if (additionalData->isObject())
+		meta = additionalData->getDynamicObject();
+
+	meta->setProperty("ID", data.getProperty("ID"));
+	meta->setProperty("Round Robin Groups", data.getProperty("RRGroupAmount"));
+	meta->setProperty("Sample Mode", (int)data.getProperty("SaveMode") == (int)SampleMap::SaveMode::Monolith ? "Monolith" : "Single files");
+	meta->setProperty("Mic Positions", data.getProperty("MicPositions"));
+	meta->setProperty("Samples", data.getNumChildren());
+
+	*additionalData = var(meta);
 }
 
 size_t PoolHelpers::getDataSize(const Image* img)
@@ -144,6 +207,11 @@ size_t PoolHelpers::getDataSize(const AudioSampleBuffer* buffer)
 	return buffer ? buffer->getNumChannels() * buffer->getNumSamples() * sizeof(float) : 0;
 }
 
+size_t PoolHelpers::getDataSize(const ValueTree* v)
+{
+	return v->getNumChildren();
+}
+
 bool PoolHelpers::isValid(const AudioSampleBuffer* buffer)
 {
 	return buffer ? buffer->getNumChannels() != 0 && buffer->getNumSamples() != 0 : false;
@@ -152,6 +220,11 @@ bool PoolHelpers::isValid(const AudioSampleBuffer* buffer)
 bool PoolHelpers::isValid(const Image* image)
 {
 	return image ? image->isValid() : false;
+}
+
+bool PoolHelpers::isValid(const ValueTree* v)
+{
+	return v ? v->isValid() : false;
 }
 
 juce::Image PoolHelpers::getEmptyImage(int width, int height)
@@ -198,6 +271,11 @@ PoolHelpers::Reference::Reference():
 	m(Mode::Invalid)
 {
 
+}
+
+PoolHelpers::Reference::Reference(const var& dragDescription)
+{
+	parseDragDescription(dragDescription);
 }
 
 juce::String PoolHelpers::Reference::getReferenceString() const
@@ -252,15 +330,27 @@ juce::InputStream* PoolHelpers::Reference::createInputStream() const
 	case Mode::AbsolutePath:
 	case Mode::ExpansionPath:
 	case Mode::ProjectPath:
-		return new FileInputStream(f);
+	{
+		ScopedPointer<FileInputStream> fis = new FileInputStream(f);
+		if (fis->openedOk())
+		{
+			return fis.release();
+		}
+
+		return nullptr;
+	}
 	case Mode::EmbeddedResource:
 		BACKEND_ONLY(jassertfalse);
 		return new MemoryInputStream(memoryLocation, memorySize, false);
+	case Mode::LinkToEmbeddedResource:
+		jassertfalse;
 	case Mode::numModes_:
 		break;
 	default:
 		break;
 	}
+
+	return nullptr;
 }
 
 juce::int64 PoolHelpers::Reference::getHashCode() const
@@ -270,12 +360,47 @@ juce::int64 PoolHelpers::Reference::getHashCode() const
 
 bool PoolHelpers::Reference::isValid() const
 {
+	if (m == AbsolutePath)
+		return f.existsAsFile();
+
 	return m != Invalid;
 }
 
 hise::ProjectHandler::SubDirectories PoolHelpers::Reference::getFileType() const
 {
 	return directoryType;
+}
+
+var PoolHelpers::Reference::createDragDescription() const
+{
+	DynamicObject::Ptr obj = new DynamicObject();
+	obj->setProperty("HashCode", hashCode);
+	obj->setProperty("Mode", (int)m);
+	obj->setProperty("Reference", reference);
+	obj->setProperty("Type", directoryType);
+	obj->setProperty("File", f.getFullPathName());
+
+	return var(obj);
+}
+
+void PoolHelpers::Reference::parseDragDescription(const var& v)
+{
+	if (auto obj = v.getDynamicObject())
+	{
+		hashCode = obj->getProperty("HashCode");
+		m = (Mode)(int)obj->getProperty("Mode");
+		reference = obj->getProperty("Reference").toString();
+		directoryType = (FileHandlerBase::SubDirectories)(int)obj->getProperty("Type");
+		f = File(obj->getProperty("File").toString());
+	}
+	else
+	{
+		jassertfalse;
+		m = Invalid;
+		reference = "";
+		f = File();
+		return;
+	}
 }
 
 void PoolHelpers::Reference::parseReferenceString(const MainController* mc, const String& input)
@@ -321,7 +446,12 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 			auto relativePath = f.getRelativePathFrom(projectFolder).replace("\\", "/");
 			auto subDirectoryName = ProjectHandler::getIdentifier(directoryType);
 			relativePath = relativePath.fromFirstOccurrenceOf(subDirectoryName, false, false);
-			reference = projectFolderWildcard + relativePath;
+
+			if (directoryType == FileHandlerBase::SampleMaps)
+				reference = relativePath.upToLastOccurrenceOf(".xml", false, false);
+			else
+				reference = projectFolderWildcard + relativePath;
+			
 			return;
 		}
 #endif
@@ -333,7 +463,7 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 		return;
 	}
 
-	if (input.startsWith(projectFolderWildcard))
+	if (input.startsWith(projectFolderWildcard) || directoryType == FileHandlerBase::SampleMaps)
 	{
 		reference = input;
 
@@ -342,6 +472,10 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 
 
 		auto relativePath = input.replace("\\", "/").replace(projectFolderWildcard, "");
+
+		if (directoryType == FileHandlerBase::SampleMaps)
+			relativePath.append(".xml", 5);
+
 		auto& projectHandler = mc->getSampleManager().getProjectHandler();
 
 		f = projectHandler.getSubDirectory(directoryType).getChildFile(relativePath);
@@ -349,7 +483,7 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
         
         if(directoryType != FileHandlerBase::Samples)
         {
-            m = EmbeddedResource;
+            m = LinkToEmbeddedResource;
         }
         else
         {
@@ -357,13 +491,12 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
             
             
             auto relativePath = input.replace("\\", "/").replace(projectFolderWildcard, "");
+
             auto& projectHandler = mc->getSampleManager().getProjectHandler();
             
             f = projectHandler.getSubDirectory(directoryType).getChildFile(relativePath);
         }
         
-		
-
 		// An embedded resource must be created using an memory input stream...
 		
 

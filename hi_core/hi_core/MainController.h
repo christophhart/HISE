@@ -747,6 +747,16 @@ public:
 		return &getCurrentFileHandler(forceDefault).pool->getImagePool();
 	};
 
+	SampleMapPool* getCurrentSampleMapPool(bool forceDefault = false)
+	{
+		return &getCurrentFileHandler(forceDefault).pool->getSampleMapPool();
+	}
+
+	const SampleMapPool* getCurrentSampleMapPool(bool forceDefault = false) const
+	{
+		return &getCurrentFileHandler(forceDefault).pool->getSampleMapPool();
+	}
+
 	KillStateHandler& getKillStateHandler() { return killStateHandler; };
 	const KillStateHandler& getKillStateHandler() const { return killStateHandler; };
 #if USE_BACKEND
@@ -1207,9 +1217,11 @@ private:
 	
 	ReadWriteLock compileLock;
 
-	ScopedPointer<SampleManager> sampleManager;
+	
 
+	ScopedPointer<SampleManager> sampleManager;
 	ExpansionHandler expansionHandler;
+	
 
 	MacroManager macroManager;
 

@@ -141,7 +141,7 @@ public:
 
 	const String getFileReference(const String &absoluteFileName, SubDirectories dir) const;
 
-	void getFileList(Array<File> &filesInDirectory, SubDirectories dir, const String &wildcard, bool sortByTime = false, bool searchInSubfolders = false);
+	Array<File> getFileList(SubDirectories dir, bool sortByTime = false, bool searchInSubfolders = false) const;
 
 	/** checks if this is a absolute path (including absolute win paths on OSX and absolute OSX paths on windows); */
 	static bool isAbsolutePathCrossPlatform(const String &pathName);
@@ -158,6 +158,8 @@ public:
 	static void createLinkFileInFolder(const File& source, const File& target);
 
 	virtual File getRootFolder() const = 0;
+
+	static String getWildcardForFiles(SubDirectories directory);
 
 protected:
 

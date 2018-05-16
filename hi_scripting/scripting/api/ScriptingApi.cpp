@@ -1831,7 +1831,9 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 
 	if (s != nullptr)
 	{
-		s->loadSampleMapFromIdAsync(fileName);
+		PoolReference ref(s->getMainController(), fileName, FileHandlerBase::SampleMaps);
+
+		s->loadSampleMap(ref, true);
 	}
 }
 

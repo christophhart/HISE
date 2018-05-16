@@ -155,7 +155,7 @@ private:
 *	3. Add the AudioSampleBuffer as ChangeListener (and remove it in the destructor!)
 *	4. Add an AreaListener to the AudioSampleBufferComponent and call setRange() and setLoadedFile in the rangeChanged() callback
 */
-class AudioSampleProcessor
+class AudioSampleProcessor: public PoolBase::Listener
 {
 public:
 
@@ -196,6 +196,8 @@ public:
 	{ 
 		return sampleRange; 
 	};
+
+	void poolEntryReloaded(PoolReference referenceThatWasChanged) override;
 
 	int getTotalLength() const { return data ? data.getData()->getNumSamples() : 0; };
 
@@ -265,7 +267,7 @@ public:
 protected:
 
 	/** Call this constructor within your subclass constructor. */
-	AudioSampleProcessor(Processor *p);;
+	AudioSampleProcessor(Processor *p);
 
 	PooledAudioFile data;
 
@@ -279,6 +281,8 @@ protected:
 	double sampleRateOfLoadedFile;
 
 	bool useLoop = false;
+
+	WeakReference<AudioSampleBufferPool> currentPool;
 
 private:
 

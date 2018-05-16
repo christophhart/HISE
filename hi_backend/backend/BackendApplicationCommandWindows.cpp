@@ -612,7 +612,7 @@ public:
 
         if(auto s = ProcessorHelpers::getFirstProcessorWithType<ModulatorSampler>(chain))
         {
-            auto sampleMapTree = s->getSampleMap()->exportAsValueTree();
+            auto sampleMapTree = s->getSampleMap()->getValueTree();
             
             converter->parseSampleMap(sampleMapTree);
             converter->refreshCurrentWavetable(getProgressCounter());

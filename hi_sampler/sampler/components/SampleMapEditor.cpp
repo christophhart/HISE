@@ -548,14 +548,9 @@ void SampleMapEditor::loadSampleMap()
 	FileChooser f("Load new samplemap", rootFile, "*.xml");
 	if (f.browseForFileToOpen())
 	{
-		auto tmp = f.getResult();
-		auto func = [tmp](Processor* p)
-		{
-			static_cast<ModulatorSampler*>(p)->loadSampleMapSync(tmp); return true;
-		};
+		PoolReference ref(sampler->getMainController(), f.getResult().getFullPathName(), FileHandlerBase::SampleMaps);
 
-		sampler->killAllVoicesAndCall(func);
-
+		sampler->loadSampleMap(ref, true);
 	}
 }
 

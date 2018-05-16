@@ -571,6 +571,30 @@ void SamplerSoundMap::paintOverChildren(Graphics &g)
 
 			}
 		}
+		else
+		{
+			if (!ownerSampler->getSampleMap()->getReference())
+			{
+				Font f = GLOBAL_BOLD_FONT();
+
+				g.setFont(f);
+
+
+				static const String text = "Drop samples or Right click to open browser";
+
+				const int w = f.getStringWidth(text) + 20;
+
+				g.setColour(Colours::white.withAlpha(0.3f));
+
+				g.setColour(Colours::black.withAlpha(0.5f));
+				Rectangle<int> r((getWidth() - w) / 2, (getHeight() - 20) / 2, w, 20);
+				g.fillRect(r);
+				g.setColour(Colours::white.withAlpha(0.5f));
+				g.drawRect(r, 1);
+
+				g.drawText(text, getLocalBounds(), Justification::centred);
+			}
+		}
 	}
 }
 

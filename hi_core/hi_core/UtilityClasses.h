@@ -119,8 +119,6 @@ public:
 
 	~UpdateDispatcher()
 	{
-		MessageManagerLock mm;
-
 		cancelPendingUpdate();
 		masterReference.clear();
 	}

@@ -53,7 +53,7 @@ MainController::SampleManager::SampleManager(MainController *mc_) :
 	preloadFlag(false)
 
 {
-
+	
 }
 
 

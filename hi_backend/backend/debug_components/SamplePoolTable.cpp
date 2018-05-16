@@ -173,27 +173,77 @@ void SamplePoolTable::mouseDown(const MouseEvent &e)
 
 };
 
-void PoolTableHelpers::handleRightClick(const MouseEvent& e, PooledAudioFile data)
+juce::Image PoolTableHelpers::getPreviewImage(const AudioSampleBuffer* buffer, float width)
 {
-	
+	if (buffer == nullptr)
+		return PoolHelpers::getEmptyImage((int)width, 150);
+
+	return HiseAudioThumbnail::createPreview(buffer, (int)width);
 }
 
-void PoolTableHelpers::handleRightClick(const MouseEvent& e, PooledImage data)
+juce::Image PoolTableHelpers::getPreviewImage(const Image* img, float width)
 {
-	if (data)
+	if (img == nullptr)
+		return PoolHelpers::getEmptyImage((int)width, 150);
+
+	auto ratio = (float)img->getWidth() / (float)img->getHeight();
+
+	if (img->getWidth() > width)
 	{
-		auto img = data ? *data.getData() : Image();
-
-		ScopedPointer<ImageComponent> ipc = new ImageComponent();
-
-		ipc->setImage(img);
-		ipc->setSize(img.getWidth(), img.getHeight());
-
-		auto bounds = Rectangle<int>(e.getScreenPosition(), e.getScreenPosition());
-
-		CallOutBox& cb = CallOutBox::launchAsynchronously(ipc.release(), bounds, nullptr);
-			
+		return img->rescaled((int)width, (int)(width / ratio));
 	}
+	else
+	{
+		if (img->getHeight() < 1600)
+		{
+			int heightToUse = jmin<int>(500, img->getHeight());
+
+			return img->rescaled((int)((float)heightToUse * ratio), heightToUse);
+		}
+		else
+		{
+			// most likely a filmstrip, so crop it to show the first two strips...
+			return img->getClippedImage({ 0, 0, img->getWidth(), img->getWidth() * 2 });
+
+		}
+	}
+}
+
+juce::Image PoolTableHelpers::getPreviewImage(const ValueTree* v, float width)
+{
+	if (v == nullptr)
+		return PoolHelpers::getEmptyImage((int)width, 150);
+	
+	Array<Rectangle<int>> zones;
+
+	auto totalArea = Rectangle<int>(0, 0, (int)width, 128);
+
+	for (const auto& data : *v)
+	{
+		auto d = StreamingHelpers::getBasicMappingDataFromSample(data);
+
+		int x = jmap((int)d.lowKey, 0, 128, 0, totalArea.getWidth());
+		int w = jmap((int)(1 + d.highKey - d.lowKey), 0, 128, 0, totalArea.getWidth());
+		int y = jmap((int)d.highVelocity, 128, 0, 0, totalArea.getHeight());
+		int h = jmap((int)(1 + d.highVelocity - d.lowVelocity), 0, 128, 0, totalArea.getHeight() - 1);
+
+		zones.add({ x, y, w, h });
+	}
+
+	Image img(Image::ARGB, (int)width, 128, true);
+
+	Graphics g(img);
+
+	g.setColour(Colours::white.withAlpha(0.2f));
+	g.drawRect(totalArea, 1);
+
+	for (auto z : zones)
+	{
+		g.fillRect(z);
+		g.drawRect(z);
+	}
+
+	return img;
 }
 
 } // namespace hise

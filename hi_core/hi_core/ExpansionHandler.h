@@ -270,6 +270,8 @@ public:
 
 	PooledImage loadImageReference(const PoolReference& imageId);
 
+	PooledSampleMap loadSampleMap(const PoolReference& sampleMapId);
+
 	bool isActive() const { return currentExpansion != nullptr; }
 
 

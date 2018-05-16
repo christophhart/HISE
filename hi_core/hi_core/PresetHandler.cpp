@@ -272,11 +272,11 @@ void UserPresetData::refreshPresetFileList()
 {
 #if USE_BACKEND
 
-	Array<File> fileList;
+	
 
 	ProjectHandler *handler = &GET_PROJECT_HANDLER(mc->getMainSynthChain());
 
-	handler->getFileList(fileList, ProjectHandler::SubDirectories::UserPresets, "*.preset", false, true);
+	Array<File> fileList = handler->getFileList(ProjectHandler::SubDirectories::UserPresets, false, true);
 
 	factoryPresetCategories.clear();
 	userPresets->presets.clear();
@@ -2519,8 +2519,12 @@ const juce::String FileHandlerBase::getFileReference(const String &absoluteFileN
 	return ref.getReferenceString();
 }
 
-void FileHandlerBase::getFileList(Array<File> &filesInDirectory, SubDirectories dir, const String &wildcard, bool sortByTime /*= false*/, bool searchInSubfolders /*= false*/)
+Array<File> FileHandlerBase::getFileList(SubDirectories dir, bool sortByTime /*= false*/, bool searchInSubfolders /*= false*/) const
 {
+	Array<File> filesInDirectory;
+
+	auto wildcard = getWildcardForFiles(dir);
+
 	File presetDir = getSubDirectory(dir);
 
 	filesInDirectory.clear();
@@ -2543,9 +2547,10 @@ void FileHandlerBase::getFileList(Array<File> &filesInDirectory, SubDirectories 
 	if (sortByTime)
 	{
 		FileModificationComparator comparator;
-
 		filesInDirectory.sort(comparator, false);
 	}
+
+	return filesInDirectory;
 }
 
 bool FileHandlerBase::isAbsolutePathCrossPlatform(const String &pathName)
@@ -2592,6 +2597,25 @@ void FileHandlerBase::createLinkFileInFolder(const File& source, const File& tar
 	linkFile.create();
 
 	linkFile.replaceWithText(target.getFullPathName());
+}
+
+juce::String FileHandlerBase::getWildcardForFiles(SubDirectories directory)
+{
+	switch (directory)
+	{
+	case hise::FileHandlerBase::Samples:
+	case hise::FileHandlerBase::AudioFiles:				return "*.wav;*.aif;*.aiff;*.hlac;*.flac;*.WAV;*.AIF;*.AIFF;*.HLAC;*.FLAC";
+	case hise::FileHandlerBase::Images:					return "*.jpg;*.png;*.PNG;*.JPG";
+	case hise::FileHandlerBase::SampleMaps:				return "*.xml";
+	case hise::FileHandlerBase::UserPresets:			return "*.preset";
+	case hise::FileHandlerBase::Scripts:				return "*.js";
+	case hise::FileHandlerBase::Presets:				return "*.hip";
+	case hise::FileHandlerBase::XMLPresetBackups:		return "*.xml";
+	case hise::FileHandlerBase::Binaries:				
+	case hise::FileHandlerBase::AdditionalSourceCode:
+	case hise::FileHandlerBase::numSubDirectories:		
+	default:											return "*.*";
+	}
 }
 
 FileHandlerBase::FileHandlerBase(MainController* mc_) :

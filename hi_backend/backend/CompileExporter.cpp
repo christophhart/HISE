@@ -57,13 +57,13 @@ void loadOtherReferencedImages(ModulatorSynthChain* chainToExport)
 
 		jassert(upRef.isValid());
 
-		images.add(pool->loadFromReference(upRef));
+		images.add(pool->loadFromReference(upRef, PoolHelpers::LoadAndCacheWeak));
 		
 		PoolReference downRef(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
 
 		jassert(downRef.isValid());
 
-		images.add(pool->loadFromReference(downRef));
+		images.add(pool->loadFromReference(downRef, PoolHelpers::LoadAndCacheWeak));
 	}
 
 	const bool hasAboutPageImage = handler.getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("about.png").existsAsFile();
@@ -72,7 +72,7 @@ void loadOtherReferencedImages(ModulatorSynthChain* chainToExport)
 	{
 		PoolReference aboutRef(mc, "{PROJECT_FOLDER}about.png", ProjectHandler::SubDirectories::Images);
 
-		images.add(pool->loadFromReference(aboutRef));
+		images.add(pool->loadFromReference(aboutRef, PoolHelpers::LoadAndCacheWeak));
 	}
 }
 
@@ -115,7 +115,7 @@ ValueTree BaseExporter::exportReferencedAudioFiles()
 
 		PoolReference ref(chainToExport->getMainController(), iter.getFile().getFullPathName(), ProjectHandler::SubDirectories::AudioFiles);
 
-		soundList.add(samplePool->loadFromReference(ref));
+		soundList.add(samplePool->loadFromReference(ref, PoolHelpers::LoadAndCacheWeak));
 	}
 
 	return samplePool->exportAsValueTree();
@@ -628,18 +628,32 @@ String checkSampleReferences(ModulatorSynthChain* chainToExport)
     
     sampleFolder.findChildFiles(sampleFiles, File::findFiles, true);
     
-    while(ModulatorSampler* sampler = iter.getNextProcessor())
-    {
-        auto map = sampler->getSampleMap();
-        
-        auto v = map->exportAsValueTree();
-        
-        const String faulty = map->checkReferences(sampler->getMainController(), v, sampleFolder, sampleFiles);
-        
-        if(faulty.isNotEmpty())
-            return faulty;
-    }
-    
+	Array<File> sampleMapFiles;
+
+	auto sampleMapRoot = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+
+	sampleMapRoot.findChildFiles(sampleMapFiles, File::findFiles, true, "*.xml");
+
+	Array<PooledSampleMap> maps;
+
+	for (const auto& f : sampleMapFiles)
+	{
+		PoolReference ref(chainToExport->getMainController(), f.getFullPathName(), FileHandlerBase::SampleMaps);
+
+		maps.add(chainToExport->getMainController()->getCurrentSampleMapPool(true)->loadFromReference(ref, PoolHelpers::LoadAndCacheStrong));
+	}
+
+	for (auto d : maps)
+	{
+		if (auto v = d.getData())
+		{
+			const String faulty = SampleMap::checkReferences(chainToExport->getMainController(), *v, sampleFolder, sampleFiles);
+
+			if (faulty.isNotEmpty())
+				return faulty;
+		}
+	}
+ 
     return String();
 }
 

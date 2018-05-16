@@ -53,8 +53,8 @@ struct SampleMapData
 *	It supports two saving modes (monolithic and file-system based).
 *	It only accesses the sampler data when saved or loaded, and uses a ChangeListener to check if a sound has changed.
 */
-class SampleMap: public RestorableObject,
-				 public SafeChangeListener
+class SampleMap: public SafeChangeListener,
+				 public PoolBase::Listener
 {
 public:
 
@@ -109,26 +109,9 @@ public:
 	/** Returns the file on the disk. */
 	File getFile() const {return fileOnDisk;};
 
-	/** loads a XML file from disk. 
-	*
-	*	It parses the file and calls restoreFromValue().
-	*/
-	void load(const File &f);
+	void load(const PoolReference& reference);
 
-	/** Restores the samplemap from the ValueTree.
-	*
-	*	If the files are saved in relative mode, the references are replaced
-	*	using the parent directory of the sample map before they are loaded.
-	*	If the files are saved as monolith, it assumes the files are already loaded and simply adds references to this samplemap.
-	*/
-	void restoreFromValueTree(const ValueTree &v) override;
 	
-	/** Exports the SampleMap as ValueTree.
-	*
-	*	If the relative mode is enabled, it writes the files to the subdirectory '/samples',
-	*	if they don't exist yet.
-	*/
-	ValueTree exportAsValueTree() const override;	
 
 	/** Saves all data with the mode depending on the file extension. */
 	void save();
@@ -156,11 +139,35 @@ public:
 
 	void addSound(ModulatorSamplerSound* newSound);
 
+	/** Exports the SampleMap as ValueTree.
+	*
+	*	If the relative mode is enabled, it writes the files to the subdirectory '/samples',
+	*	if they don't exist yet.
+	*/
+	const ValueTree getValueTree() const;
+
+	PoolReference getReference() const
+	{
+		return sampleMapData.getRef();
+	}
+
+	void poolEntryReloaded(PoolReference referenceThatWasChanged) override;
+
+
+
 private:
 
-	ValueTree data;
+	/** Restores the samplemap from the ValueTree.
+	*
+	*	If the files are saved in relative mode, the references are replaced
+	*	using the parent directory of the sample map before they are loaded.
+	*	If the files are saved as monolith, it assumes the files are already loaded and simply adds references to this samplemap.
+	*/
+	void parseValueTree(const ValueTree &v);
 
-	void resolveMissingFiles(ValueTree &treeToUse);
+	PooledSampleMap sampleMapData;
+
+	ValueTree data;
 
 	void loadSamplesFromDirectory();
 
@@ -173,6 +180,8 @@ private:
 	File fileOnDisk;
 	bool changed;
 	bool monolith;
+
+	WeakReference<SampleMapPool> currentPool;
 
     Identifier sampleMapId;
     

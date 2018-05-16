@@ -316,10 +316,16 @@ public:
 	SampleMap *getSampleMap() {	return sampleMap; };
 	void clearSampleMap();
 	
+	void loadSampleMap(PoolReference ref, bool loadAsynchronous=false);
+
+	void updateRRGroupAmountAfterMapLoad();
+
+#if 0
 	void loadSampleMapSync(const File &f);
 	void loadSampleMapSync(const ValueTree &valueTreeData);
 	void loadSampleMapFromIdAsync(const String& sampleMapId);
 	void loadSampleMapFromId(const String& sampleMapId);
+#endif
 
 	/** This function will be called on a background thread and preloads all samples. */
 	bool preloadAllSamples();

@@ -434,6 +434,10 @@ void SfzImporter::importSfzFile()
 
 	}
 
+
+	// TODO SAMPLEMAP
+
+#if 0
 	int groupAmount = 0;
 
 	for (int i = 0; i < groupSelectors.size(); i++)
@@ -449,6 +453,7 @@ void SfzImporter::importSfzFile()
 
 	sampler->refreshPreloadSizes();
 	sampler->refreshMemoryUsage();
+#endif
 };
 
 } // namespace hise
