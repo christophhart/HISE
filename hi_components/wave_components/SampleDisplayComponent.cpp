@@ -649,6 +649,15 @@ void AudioSampleBufferComponent::changeListenerCallback(SafeChangeBroadcaster *b
 }
 
 
+void AudioSampleBufferComponent::poolItemWasDropped(PoolReference ref)
+{
+	if (auto asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get()))
+	{
+		buffer = nullptr;
+		asp->setLoadedFile(ref.getReferenceString(), true);
+	}
+}
+
 void AudioSampleBufferComponent::loadFile(const File& f)
 {
 	if (auto asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get()))
@@ -718,6 +727,11 @@ void AudioSampleBufferComponent::paint(Graphics &g)
 	bgColour = findColour(AudioDisplayComponent::ColourIds::bgColour);
 	g.fillAll(bgColour);
 
+	if (over)
+	{
+		g.setColour(Colours::white.withAlpha(0.2f));
+		g.drawRect(getLocalBounds(), 2);
+	}
 }
 
 

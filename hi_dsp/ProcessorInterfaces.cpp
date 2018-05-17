@@ -188,12 +188,13 @@ name(n)
 
 AudioSampleProcessor::~AudioSampleProcessor()
 {
-	data = nullptr;
+	if (currentPool != nullptr)
+		currentPool->removeListener(this);
 }
 
 void AudioSampleProcessor::saveToValueTree(ValueTree &v) const
 {
-	const String fileName = data->ref.getReferenceString();
+	const String fileName = data.getRef().getReferenceString();
 
 	v.setProperty("FileName", fileName, nullptr);
 
@@ -215,6 +216,15 @@ void AudioSampleProcessor::restoreFromValueTree(const ValueTree &v)
 	setRange(range);
 }
 
+
+void AudioSampleProcessor::poolEntryReloaded(PoolReference referenceThatWasChanged)
+{
+	if (data.getRef() == referenceThatWasChanged)
+	{
+		setLoadedFile("", true, true);
+		setLoadedFile(referenceThatWasChanged.getReferenceString(), true, true);
+	}
+}
 
 void AudioSampleProcessor::setLoopFromMetadata(const var& metadata)
 {
@@ -239,7 +249,8 @@ sampleRateOfLoadedFile(-1.0)
 	jassert(p != nullptr);
 
 	mc = p->getMainController();
-	data = new PoolEntry<AudioSampleBuffer>();
+	
+	currentPool = mc->getCurrentAudioSampleBufferPool();
 }
 
 

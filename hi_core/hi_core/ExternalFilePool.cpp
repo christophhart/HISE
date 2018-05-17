@@ -51,7 +51,12 @@ ProjectHandler::SubDirectories PoolHelpers::getSubDirectoryType(const Image& emp
 
 
 
-void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, AudioSampleBuffer& data, var& additionalData)
+hise::ProjectHandler::SubDirectories PoolHelpers::getSubDirectoryType(const ValueTree& emptyTree)
+{
+	return ProjectHandler::SubDirectories::SampleMaps;
+}
+
+void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, AudioSampleBuffer& data, var* additionalData)
 {
 	ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(ownedStream);
 
@@ -61,6 +66,9 @@ void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, in
 		reader->read(&data, 0, (int)reader->lengthInSamples, 0, true, true);
 
 		DynamicObject::Ptr meta = new DynamicObject();
+		
+		if (additionalData->isObject())
+			meta = additionalData->getDynamicObject();
 
 		meta->setProperty(MetadataIDs::SampleRate, reader->sampleRate);
 		meta->setProperty(MetadataIDs::LoopEnabled, false);
@@ -122,36 +130,100 @@ void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, in
 			meta->setProperty(MetadataIDs::LoopEnabled, loopEnabled);
 		}
 
-		additionalData = var(meta);
+		*additionalData = var(meta);
 	}
 }
 
-void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, Image& data, var& additionalData)
+void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, Image& data, var* additionalData)
 {
 	ScopedPointer<InputStream> inputStream = ownedStream;
 
 	data = ImageFileFormat::loadFrom(*inputStream);
 	ImageCache::addImageToCache(data, hashCode);
+
+	fillMetadata(data, additionalData);
 }
 
-size_t PoolHelpers::getDataSize(const Image& img)
+void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, ValueTree& data, var* additionalData)
 {
-	return img.getWidth() * img.getHeight() * 4;
+	ScopedPointer<InputStream> inputStream = ownedStream;
+
+	if (auto fis = dynamic_cast<FileInputStream*>(inputStream.get()))
+	{
+		if (ScopedPointer<XmlElement> xml = XmlDocument::parse(fis->getFile()))
+		{
+			data = ValueTree::fromXml(*xml);
+		}
+	}
+	else
+	{
+		data = ValueTree::readFromStream(*inputStream);
+	}
+
+	fillMetadata(data, additionalData);
 }
 
-size_t PoolHelpers::getDataSize(const AudioSampleBuffer& buffer)
+void PoolHelpers::fillMetadata(AudioSampleBuffer& data, var* additionalData)
 {
-	return buffer.getNumChannels() * buffer.getNumSamples() * sizeof(float);
+
 }
 
-bool PoolHelpers::isValid(const AudioSampleBuffer& buffer)
+void PoolHelpers::fillMetadata(Image& data, var* additionalData)
 {
-	return buffer.getNumChannels() != 0 && buffer.getNumSamples() != 0;
+	DynamicObject::Ptr meta = new DynamicObject();
+
+	if (additionalData->isObject())
+		meta = additionalData->getDynamicObject();
+
+	meta->setProperty("Size", String(data.getWidth()) + " px x " + String(data.getHeight()) + " px");
+
+	*additionalData = var(meta);
 }
 
-bool PoolHelpers::isValid(const Image& image)
+void PoolHelpers::fillMetadata(ValueTree& data, var* additionalData)
 {
-	return image.isValid();
+	DynamicObject::Ptr meta = new DynamicObject();
+
+	if (additionalData->isObject())
+		meta = additionalData->getDynamicObject();
+
+	meta->setProperty("ID", data.getProperty("ID"));
+	meta->setProperty("Round Robin Groups", data.getProperty("RRGroupAmount"));
+	meta->setProperty("Sample Mode", (int)data.getProperty("SaveMode") == (int)SampleMap::SaveMode::Monolith ? "Monolith" : "Single files");
+	meta->setProperty("Mic Positions", data.getProperty("MicPositions"));
+	meta->setProperty("Samples", data.getNumChildren());
+
+	*additionalData = var(meta);
+}
+
+size_t PoolHelpers::getDataSize(const Image* img)
+{
+	return img ? img->getWidth() * img->getHeight() * 4 : 0;
+}
+
+size_t PoolHelpers::getDataSize(const AudioSampleBuffer* buffer)
+{
+	return buffer ? buffer->getNumChannels() * buffer->getNumSamples() * sizeof(float) : 0;
+}
+
+size_t PoolHelpers::getDataSize(const ValueTree* v)
+{
+	return v->getNumChildren();
+}
+
+bool PoolHelpers::isValid(const AudioSampleBuffer* buffer)
+{
+	return buffer ? buffer->getNumChannels() != 0 && buffer->getNumSamples() != 0 : false;
+}
+
+bool PoolHelpers::isValid(const Image* image)
+{
+	return image ? image->isValid() : false;
+}
+
+bool PoolHelpers::isValid(const ValueTree* v)
+{
+	return v ? v->isValid() : false;
 }
 
 juce::Image PoolHelpers::getEmptyImage(int width, int height)
@@ -182,22 +254,25 @@ PoolHelpers::Reference::Reference(const MainController* mc, const String& refere
 	hashCode = reference.hashCode64();
 }
 
-PoolHelpers::Reference::Reference(MemoryBlock& mb, const String& referenceString, ProjectHandler::SubDirectories directoryType_)
-{
-	m = EmbeddedResource;
-
-	memoryLocation = mb.getData();
-	memorySize = mb.getSize();
-
-	reference = referenceString;
-	directoryType = directoryType_;
-	hashCode = reference.hashCode64();
-}
 
 PoolHelpers::Reference::Reference():
 	m(Mode::Invalid)
 {
 
+}
+
+PoolHelpers::Reference::Reference(const var& dragDescription)
+{
+	parseDragDescription(dragDescription);
+}
+
+PoolHelpers::Reference::Reference(PoolBase* pool_, const String& embeddedReference, FileHandlerBase::SubDirectories type):
+	pool(pool_),
+	directoryType(type)
+{
+	reference = embeddedReference;
+	hashCode = reference.hashCode64();
+	m = EmbeddedResource;
 }
 
 juce::String PoolHelpers::Reference::getReferenceString() const
@@ -245,22 +320,33 @@ bool PoolHelpers::Reference::operator!=(const Reference& other) const
 
 
 
-juce::InputStream* PoolHelpers::Reference::createInputStream()
+juce::InputStream* PoolHelpers::Reference::createInputStream() const
 {
 	switch (m)
 	{
 	case Mode::AbsolutePath:
 	case Mode::ExpansionPath:
 	case Mode::ProjectPath:
-		return new FileInputStream(f);
+	{
+		ScopedPointer<FileInputStream> fis = new FileInputStream(f);
+		if (fis->openedOk())
+		{
+			return fis.release();
+		}
+
+		return nullptr;
+	}
 	case Mode::EmbeddedResource:
-		BACKEND_ONLY(jassertfalse);
-		return new MemoryInputStream(memoryLocation, memorySize, false);
+		return pool->getDataProvider()->createInputStream(reference);
+	case Mode::LinkToEmbeddedResource:
+		jassertfalse;
 	case Mode::numModes_:
 		break;
 	default:
 		break;
 	}
+
+	return nullptr;
 }
 
 juce::int64 PoolHelpers::Reference::getHashCode() const
@@ -270,12 +356,47 @@ juce::int64 PoolHelpers::Reference::getHashCode() const
 
 bool PoolHelpers::Reference::isValid() const
 {
+	if (m == AbsolutePath)
+		return f.existsAsFile();
+
 	return m != Invalid;
 }
 
 hise::ProjectHandler::SubDirectories PoolHelpers::Reference::getFileType() const
 {
 	return directoryType;
+}
+
+var PoolHelpers::Reference::createDragDescription() const
+{
+	DynamicObject::Ptr obj = new DynamicObject();
+	obj->setProperty("HashCode", hashCode);
+	obj->setProperty("Mode", (int)m);
+	obj->setProperty("Reference", reference);
+	obj->setProperty("Type", directoryType);
+	obj->setProperty("File", f.getFullPathName());
+
+	return var(obj);
+}
+
+void PoolHelpers::Reference::parseDragDescription(const var& v)
+{
+	if (auto obj = v.getDynamicObject())
+	{
+		hashCode = obj->getProperty("HashCode");
+		m = (Mode)(int)obj->getProperty("Mode");
+		reference = obj->getProperty("Reference").toString();
+		directoryType = (FileHandlerBase::SubDirectories)(int)obj->getProperty("Type");
+		f = File(obj->getProperty("File").toString());
+	}
+	else
+	{
+		jassertfalse;
+		m = Invalid;
+		reference = "";
+		f = File();
+		return;
+	}
 }
 
 void PoolHelpers::Reference::parseReferenceString(const MainController* mc, const String& input)
@@ -321,7 +442,12 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 			auto relativePath = f.getRelativePathFrom(projectFolder).replace("\\", "/");
 			auto subDirectoryName = ProjectHandler::getIdentifier(directoryType);
 			relativePath = relativePath.fromFirstOccurrenceOf(subDirectoryName, false, false);
-			reference = projectFolderWildcard + relativePath;
+
+			if (directoryType == FileHandlerBase::SampleMaps)
+				reference = relativePath.upToLastOccurrenceOf(".xml", false, false);
+			else
+				reference = projectFolderWildcard + relativePath;
+			
 			return;
 		}
 #endif
@@ -333,7 +459,7 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 		return;
 	}
 
-	if (input.startsWith(projectFolderWildcard))
+	if (input.startsWith(projectFolderWildcard) || directoryType == FileHandlerBase::SampleMaps)
 	{
 		reference = input;
 
@@ -342,6 +468,10 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 
 
 		auto relativePath = input.replace("\\", "/").replace(projectFolderWildcard, "");
+
+		if (directoryType == FileHandlerBase::SampleMaps)
+			relativePath.append(".xml", 5);
+
 		auto& projectHandler = mc->getSampleManager().getProjectHandler();
 
 		f = projectHandler.getSubDirectory(directoryType).getChildFile(relativePath);
@@ -357,13 +487,12 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
             
             
             auto relativePath = input.replace("\\", "/").replace(projectFolderWildcard, "");
+
             auto& projectHandler = mc->getSampleManager().getProjectHandler();
             
             f = projectHandler.getSubDirectory(directoryType).getChildFile(relativePath);
         }
         
-		
-
 		// An embedded resource must be created using an memory input stream...
 		
 
@@ -381,5 +510,207 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 	}
 }
 
+
+bool PoolBase::DataProvider::isEmbeddedResource(PoolReference r)
+{
+	return r.isEmbeddedReference() || hashCodes.contains(r.getHashCode());
+}
+
+hise::PoolReference PoolBase::DataProvider::getEmbeddedReference(PoolReference other)
+{
+	return PoolReference(pool, other.getReferenceString(), other.getFileType());
+}
+
+juce::Result PoolBase::DataProvider::restorePool(InputStream* ownedInputStream)
+{
+	pool->clearData();
+
+	input = ownedInputStream;
+	int64 metadataSize = input->readInt64();
+
+	MemoryBlock metadataBlock;
+
+	input->readIntoMemoryBlock(metadataBlock, metadataSize);
+
+	jassert(metadataBlock.getSize() == metadataSize);
+
+	metadata = ValueTree::readFromData(metadataBlock.getData(), metadataSize);
+
+	jassert(metadata.isValid());
+	jassert(metadata.getType() == Identifier("PoolData"));
+
+	for (const auto& item : metadata)
+	{
+		hashCodes.add(item.getProperty("HashCode"));
+	}
+
+	metadataOffset = input->getPosition();
+
+	return Result::ok();
+}
+
+juce::MemoryInputStream* PoolBase::DataProvider::createInputStream(const String& referenceString)
+{
+	if (metadata.isValid())
+	{
+		auto item = metadata.getChildWithProperty("ID", referenceString);
+
+		if (item.isValid())
+		{
+			auto offset = (int64)item.getProperty("ChunkStart");
+			auto end = (int64)item.getProperty("ChunkEnd");
+
+			if (input != nullptr)
+			{
+				input->setPosition(offset + metadataOffset);
+
+				MemoryBlock mb;
+
+				input->readIntoMemoryBlock(mb, offset - end);
+
+				return new MemoryInputStream(mb, true);
+			}
+		}
+	}
+	else
+	{
+		jassertfalse;
+		return nullptr;
+	}
+}
+
+juce::Result PoolBase::DataProvider::writePool(OutputStream* ownedOutputStream)
+{
+	ScopedPointer<OutputStream> output = ownedOutputStream;
+
+	
+	MemoryOutputStream dataOutputStream;
+
+	metadata = ValueTree("PoolData");
+
+	for (int i = 0; i < pool->getNumLoadedFiles(); i++)
+	{
+		auto ref = pool->getReference(i);
+		auto additionalData = pool->getAdditionalData(ref);
+
+		ValueTree child = ValueTreeConverters::convertDynamicObjectToValueTree(additionalData, "Item");
+
+		child.setProperty("ID", ref.getReferenceString(), nullptr);
+		child.setProperty("HashCode", ref.getHashCode(), nullptr);
+
+		MemoryOutputStream itemData;
+
+		pool->writeItemToOutput(itemData, ref);
+
+		child.setProperty("ChunkStart", dataOutputStream.getPosition(), nullptr);
+		dataOutputStream.write(itemData.getData(), itemData.getDataSize());
+		child.setProperty("ChunkEnd", dataOutputStream.getPosition(), nullptr);
+
+		metadata.addChild(child, -1, nullptr);
+	}
+
+	MemoryOutputStream metadataOutputStream;
+
+	metadata.writeToStream(metadataOutputStream);
+
+	int64 size = (int64)metadataOutputStream.getDataSize();
+
+	output->writeInt64(size);
+	output->write(metadataOutputStream.getData(), metadataOutputStream.getDataSize());
+	output->write(dataOutputStream.getData(), dataOutputStream.getDataSize());
+
+	output->flush();
+
+	return Result::ok();
+}
+
+var PoolBase::DataProvider::createAdditionalData(PoolReference r)
+{
+	auto item = metadata.getChildWithProperty("ID", r.getReferenceString());
+
+	if (item.isValid())
+	{
+		var data = ValueTreeConverters::convertValueTreeToDynamicObject(item);
+		
+		if (auto obj = data.getDynamicObject())
+		{
+			obj->removeProperty("ID");
+			obj->removeProperty("HashCode");
+		}
+
+		return data;
+	}
+}
+
+Array<hise::PoolReference> PoolBase::DataProvider::getListOfAllEmbeddedReferences() const
+{
+	Array<PoolReference> references;
+
+	for (const auto& c : metadata)
+	{
+		auto rString = c.getProperty("ID").toString();
+
+		references.add(PoolReference(pool, rString, pool->getFileType()));
+	}
+
+	return references;
+}
+
+void PoolBase::DataProvider::Compressor::write(OutputStream& output, const ValueTree& data) const
+{
+	GZIPCompressorOutputStream zipper(&output, 9);
+	data.writeToStream(zipper);
+	zipper.flush();
+}
+
+void PoolBase::DataProvider::Compressor::write(OutputStream& output, const Image& data) const
+{
+	PNGImageFormat format;
+	format.writeImageToStream(data, output);
+}
+
+void PoolBase::DataProvider::Compressor::write(OutputStream& output, const AudioSampleBuffer& data) const
+{
+	FlacAudioFormat format;
+
+	MemoryOutputStream* tempStream = new MemoryOutputStream();
+
+	if (ScopedPointer<AudioFormatWriter> writer = format.createWriterFor(tempStream, 44100.0, data.getNumChannels(), 24, StringPairArray(), 9))
+	{
+		writer->writeFromAudioSampleBuffer(data, 0, data.getNumSamples());
+
+		output.write(tempStream->getData(), tempStream->getDataSize());
+		writer = nullptr;
+	}
+}
+
+void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, ValueTree* data) const
+{
+	ScopedPointer<MemoryInputStream> input = mis;
+
+	*data = ValueTree::readFromGZIPData(mis->getData(), mis->getDataSize());
+
+	input = nullptr;
+}
+
+void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, Image* data) const
+{
+	ScopedPointer<MemoryInputStream> input = mis;
+
+	PNGImageFormat format;
+	*data = format.decodeImage(*mis);
+}
+
+void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, AudioSampleBuffer* data) const
+{
+	FlacAudioFormat format;
+
+	if (ScopedPointer<AudioFormatReader> reader = format.createReaderFor(mis, false))
+	{
+		*data = AudioSampleBuffer(reader->numChannels, reader->lengthInSamples);
+		reader->read(data, 0, reader->lengthInSamples, 0, true, true);
+	}
+		
+}
 
 } // namespace hise

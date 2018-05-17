@@ -148,6 +148,7 @@ juce::File SampleEditHandler::getCurrentSampleMapDirectory() const
 
 void SampleEditHandler::SampleEditingActions::createMultimicSampleMap(SampleEditHandler* handler)
 {
+	
 	const String multimicTokens = PresetHandler::getCustomName("Multimic Tokens", "Enter a semicolon separated list of all mic position tokens starting with the existing mic position");
 
 	auto list = StringArray::fromTokens(multimicTokens, ";", "\"");
@@ -164,7 +165,7 @@ void SampleEditHandler::SampleEditingActions::createMultimicSampleMap(SampleEdit
 
 	if (PresetHandler::showYesNoWindow("Confirm multimic tokens", "You have specified these tokens:" + listString + "\nPress OK to create a multimic samplemap with these mic positions"))
 	{
-		ValueTree v = handler->getSampler()->getSampleMap()->exportAsValueTree();
+		auto v = handler->getSampler()->getSampleMap()->getValueTree();
 
 		for (int i = 0; i < v.getNumChildren(); i++)
 		{
@@ -194,6 +195,12 @@ void SampleEditHandler::SampleEditingActions::createMultimicSampleMap(SampleEdit
 			}
 		}
 
+		auto ref = handler->getSampler()->getSampleMap()->getReference();
+		
+		handler->getSampler()->getMainController()->getCurrentSampleMapPool()->sendPoolChangeMessage(PoolBase::Reloaded, sendNotificationAsync, ref);
+
+
+#if 0
 		PresetHandler::showMessageWindow("Merge successful", "Press OK to choose a location for the multimic sample map");
 
 		auto sampleMapDirectory = handler->getCurrentSampleMapDirectory();
@@ -213,6 +220,9 @@ void SampleEditHandler::SampleEditingActions::createMultimicSampleMap(SampleEdit
 			ScopedPointer<XmlElement> xml = v.createXml();
 			f.replaceWithText(xml->createDocument(""));
 		}
+#endif
+		
 	}
+
 }
 } // namespace hise

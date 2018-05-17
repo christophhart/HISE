@@ -100,23 +100,31 @@ class MainController;
 
 struct PoolTableHelpers
 {
-	template <class DataType> void doubleClickCallback(MainController* mc, const SharedPoolBase<DataType>& pool, int rowNumber)
+	class Factory : public PathFactory
 	{
-		
-
-		
-
-		if (auto editor = mc->getLastActiveEditor())
+		Path createPath(const String& name) const override
 		{
-			auto fileName = pool->getFileNameForId(pool->getIdForIndex(rowNumber));
-			auto ref = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getFileReference(fileName, ProjectHandler::SubDirectories::AudioFiles);
-
-			editor->insertTextAtCaret(ref);
+			if (name == "Preview")
+			{
+				Path p;
+				p.loadPathFromData(HiBinaryData::FrontendBinaryData::infoButtonShape, sizeof(HiBinaryData::FrontendBinaryData::infoButtonShape));
+				return p;
+			}
+			else if (name == "Reload")
+			{
+				return ColumnIcons::getPath(ColumnIcons::moveIcon, sizeof(ColumnIcons::moveIcon));
+			}
 		}
-	}
+	};
 
-	
+	static Image getPreviewImage(const AudioSampleBuffer* buffer, float width);
+	static Image getPreviewImage(const Image* img, float width);
+	static Image getPreviewImage(const ValueTree* v, float width);
 };
+
+
+
+
 
 /** A table component containing all samples of a ModulatorSampler.
 *	@ingroup components
@@ -126,6 +134,7 @@ template <class DataType> class ExternalFileTableBase: public Component,
                              public TableListBoxModel,
 							 public PoolBase::Listener,
 							 public DragAndDropContainer,
+							 public ButtonListener,
 							 public ExpansionHandler::Listener
 {
 public:
@@ -138,21 +147,139 @@ public:
 		numColumns
 	};
 
+	class CustomSnapshotTableListBox : public TableListBox
+	{
+	public:
+
+		CustomSnapshotTableListBox(ExternalFileTableBase& parent_) :
+			parent(parent_)
+		{}
+
+		Image createSnapshotOfRows(const SparseSet<int>& rows, int& imageX, int& imageY) override
+		{
+			imageX = 256;
+			imageY = 128;
+
+			if (auto ref = parent.pool->getReference(rows.getTotalRange().getStart()))
+			{
+				auto m = parent.pool->getWeakReferenceToItem(ref);
+
+				return PoolTableHelpers::getPreviewImage(m.getData(), 256);
+			}
+			else
+			{
+				jassertfalse;
+				return PoolHelpers::getEmptyImage(imageX, imageY);
+			}
+			
+
+			
+		}
+
+		ExternalFileTableBase& parent;
+	};
+
+	class PreviewComponent: public Component
+	{
+	public:
+
+		class TypedImageProvider : public MarkdownParser::ImageProvider
+		{
+		public:
+
+			TypedImageProvider(MarkdownParser* parent, PoolEntry<DataType>* d) :
+				ImageProvider(parent),
+				data(d)
+			{};
+
+			Image getImage(const String& imageURL, float width) override
+			{
+				if (data == nullptr)
+					return Image();
+
+				return PoolTableHelpers::getPreviewImage(&data->data, width);
+			}
+
+		private:
+
+			WeakReference<PoolEntry<DataType>> data;
+		};
+
+		PreviewComponent(PoolEntry<DataType>* d) :
+			data(d),
+			p(getMarkdownDescription())
+		{
+			p.setDefaultTextSize(14.0f);
+			p.setTextColour(Colours::white);
+
+			auto ip = new TypedImageProvider(&p, data.get());
+
+			p.setImageProvider(ip);
+
+			p.parse();
+
+			setSize(320, (int)p.getHeightForWidth(300.0f) + 20);
+		}
+
+		void paint(Graphics& g) override
+		{
+			p.draw(g, FLOAT_RECTANGLE(getLocalBounds().reduced(10)));
+		}
+
+		String getMarkdownDescription()
+		{
+			if (data == nullptr)
+				return {};
+
+			String s;
+
+			String nl = "  \n";
+
+			s << "### File" << nl;
+			s << "**File:** " << data->ref.getFile().getFullPathName() << nl;
+			s << "**Reference:** `" << data->ref.getReferenceString() << "`" << nl;
+			s << "**Hashcode:** " << data->ref.getHashCode() << nl;
+
+			var metadata = data->additionalData;
+
+			if (auto md = metadata.getDynamicObject())
+			{
+				s << "### Metadata" << nl;
+
+				for (const auto& v : md->getProperties())
+				{
+					s << "**" << v.name.toString() << "**: " << v.value.toString() << nl;
+				}
+			}
+
+			s << "### Preview" << nl;
+
+			s << "![preview](preview)" << nl;
+
+			return s;
+		}
+
+		WeakReference < PoolEntry<DataType>> data;
+		MarkdownParser p;
+		
+	};
+
 	// ========================================================================================================= ExternalFileTable
 	ExternalFileTableBase(BackendRootWindow* rootWindow) :
 		ControlledObject(rootWindow->getMainController()),
+		table(*this),
 		font(GLOBAL_FONT()),
-		selectedRow(-1)
+		selectedRow(-1),
+		previewButton("Preview", this, factory),
+		reloadButton("Reload", this, factory)
 	{
-		getMainController()->getExpansionHandler().addListener(this);
+		addAndMakeVisible(&previewButton);
 
-		setName(getHeadline());
+		getMainController()->getExpansionHandler().addListener(this);
 
 		// Create our table component and add it to this component..
 		addAndMakeVisible(table);
 		table.setModel(this);
-
-		
 
 		laf = new TableHeaderLookAndFeel();
 
@@ -175,7 +302,6 @@ public:
 		table.getHeader().addColumn("References", References, 50);
 		
 		updatePool();
-
 	}
 
 	~ExternalFileTableBase()
@@ -190,8 +316,6 @@ public:
 		updatePool();
 	}
 
-	
-
 	void updatePool()
 	{
 		if (pool != nullptr)
@@ -200,18 +324,22 @@ public:
 		}
 
 		pool = getMainController()->getExpansionHandler().template getCurrentPool<DataType>();
-
 		pool->addListener(this);
 
 		table.updateContent();
 		
 	}
 
+	void buttonClicked(Button* b) override
+	{
+
+	}
+
 	static Identifier getGenericPanelId()
 	{
-		auto type = PoolHelpers::getSubDirectoryType(DataType());
-		
-		return Identifier(ProjectHandler::getIdentifier(type) + "PoolTable");
+		DataType* d = nullptr;
+
+		return PoolHelpers::getPrettyName(d);
 	}
 
 	void poolEntryAdded() override
@@ -221,12 +349,11 @@ public:
 
 	void poolEntryRemoved() override
 	{
-		setName(getHeadline());
 		table.updateContent();
-		if (getParentComponent() != nullptr) getParentComponent()->repaint();
+		repaint();
 	}
 
-	void poolEntryChanged(int /*indexInPool*/)
+	void poolEntryChanged(PoolReference referenceThatWasChanged)
 	{
 		poolEntryRemoved();
 	}
@@ -262,27 +389,28 @@ public:
 		//g.fillRect (width - 1, 0, 1, height);
 	}
 
-	String getHeadline() const
-	{
-		if (pool == nullptr)
-			return {};
-
-		String x;
-
-		const int numSamples = pool->getNumLoadedFiles();
-
-		x << "External Files: " << String(numSamples) << " " << pool->getFileTypeName().toString();
-
-		return x;
-	}
-
 	void resized() override
 	{
-		table.setBounds(getLocalBounds());
+		auto area = getLocalBounds();
 
-		table.getHeader().setColumnWidth(FileName, getWidth() - 200);
-		table.getHeader().setColumnWidth(Memory, 100);
-		table.getHeader().setColumnWidth(References, 100);
+		auto top = area.removeFromTop(32).reduced(4);
+
+		previewButton.setBounds(top.removeFromRight(28));
+		reloadButton.setBounds(top.removeFromRight(28));
+		
+		table.setBounds(area);
+
+		table.getHeader().setColumnWidth(FileName, getWidth() - 100);
+		table.getHeader().setColumnWidth(Memory, 50);
+		table.getHeader().setColumnWidth(References, 50);
+	}
+
+	void paint(Graphics& g)
+	{
+		g.setColour(Colours::white.withAlpha(0.7f));
+		g.setFont(GLOBAL_BOLD_FONT());
+		auto top = getLocalBounds().removeFromTop(32).reduced(4);
+		g.drawText(pool->getStatistics(), top, Justification::left);
 	}
 
 	void cellDoubleClicked(int rowNumber, int columnId, const MouseEvent&)
@@ -301,6 +429,79 @@ public:
 				editor->insertTextAtCaret(ref.getReferenceString());
 			}
 		}
+	}
+
+	void cellClicked(int rowNumber, int columnId, const MouseEvent& e) override
+	{
+		if (e.mods.isRightButtonDown())
+		{
+			enum class MenuItems
+			{
+				Properties=1,
+				ShowInFolder,
+				LoadAllData,
+				ReloadFromDisk,
+				numMenuItems
+			};
+
+			PopupMenu m;
+			m.setLookAndFeel(&plaf);
+
+			m.addItem((int)MenuItems::Properties, "Properties");
+
+#if JUCE_WINDOWS
+			m.addItem((int)MenuItems::ShowInFolder, "Show in Explorer");
+#else
+			m.addItem((int)MenuItems::ShowInFolder, "Show in Finder");
+#endif
+
+			m.addItem((int)MenuItems::ReloadFromDisk, "Reload File");
+
+			DataType* d = nullptr;
+
+			m.addItem((int)MenuItems::LoadAllData, "Load all " + PoolHelpers::getPrettyName(d) + " into pool");
+
+			MenuItems result = (MenuItems)m.show();
+
+			switch (result)
+			{
+			case MenuItems::Properties:
+			{
+				auto ref = pool.get()->getReference(rowNumber);
+				auto m = pool.get()->getWeakReferenceToItem(ref);
+				auto pc = new PreviewComponent(m.get());
+				auto b = table.getRowPosition(rowNumber, true);
+				auto b2 = table.getScreenPosition();
+				Rectangle<int> b3({ b.getX() + b2.getX(), b.getY() + b2.getY(), b.getWidth(), b.getHeight() });
+
+				CallOutBox::launchAsynchronously(pc, b3, nullptr);
+				break;
+			}
+			case MenuItems::LoadAllData:
+			{
+				pool->loadAllFilesFromProjectFolder();
+				break;
+			}
+			case MenuItems::ShowInFolder:
+			{
+				auto ref = pool.get()->getReference(rowNumber);
+				ref.getFile().revealToUser();
+				break;
+			}
+			case MenuItems::ReloadFromDisk:
+			{
+				auto ref = pool.get()->getReference(rowNumber);
+
+				pool->loadFromReference(ref, PoolHelpers::ForceReloadWeak);
+
+			}
+			case MenuItems::numMenuItems:
+			default:
+				break;
+			}
+		}
+
+		
 	}
 
 	String getTextForTableCell(int rowNumber, int columnNumber)
@@ -323,26 +524,36 @@ public:
 		if (pool == nullptr)
 			return {};
 
-		var id;
-
 		if(set.getNumRanges() > 0)
 		{
-			const int index = set[0];
+			int index = set.getTotalRange().getStart();
 
-			id = pool->getReference(index).getReferenceString();
+			return pool->getReference(index).createDragDescription();
 		}
 
-		return id;
+		return var();
 	};
 
 protected:
 
-
-
+	
 	WeakReference<SharedPoolBase<DataType>> pool;
 
+	
+
 private:
-    TableListBox table;     // the table component itself
+
+	PopupLookAndFeel plaf;
+
+	CustomSnapshotTableListBox table;     // the table component itself
+
+	PoolTableHelpers::Factory factory;
+
+	HiseShapeButton reloadButton;
+	HiseShapeButton previewButton;
+
+
+    
     Font font;
 
 	int selectedRow;
@@ -350,7 +561,6 @@ private:
 	var currentlyDraggedId;
 
 	ScopedPointer<TableHeaderLookAndFeel> laf;
-	PopupLookAndFeel plaf;
 
     int numRows;            // The number of rows of data we've got
 
@@ -361,6 +571,7 @@ struct PoolTableSubTypes
 {
 	using AudioFilePoolTable = ExternalFileTableBase<AudioSampleBuffer>;
 	using ImageFilePoolTable = ExternalFileTableBase<Image>;
+	using SampleMapPoolTable = ExternalFileTableBase<ValueTree>;
 };
 
 

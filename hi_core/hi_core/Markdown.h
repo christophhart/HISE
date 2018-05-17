@@ -121,6 +121,11 @@ public:
 		imageProvider = new ProviderType(this);
 	};
 
+	template <class ProviderType> void setImageProvider(ProviderType* newProvider)
+	{
+		imageProvider = newProvider;
+	};
+
 	void parse();
 
 	void setDefaultTextSize(float fontSize)

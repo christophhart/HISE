@@ -183,11 +183,11 @@ bool ExpansionHandler::setCurrentExpansion(const String& expansionName)
 	return false;
 }
 
-PoolEntry<AudioSampleBuffer>::Ptr ExpansionHandler::loadAudioFileReference(const PoolReference& sampleId)
+PooledAudioFile ExpansionHandler::loadAudioFileReference(const PoolReference& sampleId)
 {
 	AudioSampleBufferPool* pool = nullptr;
 	getPoolForReferenceString(sampleId, &pool);
-	return pool->loadFromReference(sampleId);
+	return pool->loadFromReference(sampleId, PoolHelpers::LoadAndCacheWeak);
 }
 
 double ExpansionHandler::getSampleRateForFileReference(const PoolReference& sampleId)
@@ -203,11 +203,18 @@ const var ExpansionHandler::getMetadata(const PoolReference& sampleId)
 	return pool->getAdditionalData(sampleId);
 }
 
-PoolEntry<Image>::Ptr ExpansionHandler::loadImageReference(const PoolReference& imageId)
+PooledImage ExpansionHandler::loadImageReference(const PoolReference& imageId)
 {
 	ImagePool* pool = nullptr;
 	getPoolForReferenceString(imageId, &pool);
-	return pool->loadFromReference(imageId);
+	return pool->loadFromReference(imageId, PoolHelpers::LoadAndCacheWeak);
+}
+
+hise::PooledSampleMap ExpansionHandler::loadSampleMap(const PoolReference& sampleMapId)
+{
+	SampleMapPool* pool = nullptr;
+	getPoolForReferenceString(sampleMapId, &pool);
+	return pool->loadFromReference(sampleMapId, PoolHelpers::LoadAndCacheWeak);
 }
 
 hise::Expansion* ExpansionHandler::getExpansionForWildcardReference(const String& poolReferenceString) const
@@ -316,14 +323,14 @@ PooledAudioFile Expansion::loadAudioFile(const PoolReference& audioFileId)
 {
 	jassert(Helpers::getExpansionIdFromReference(audioFileId.getReferenceString()).isNotEmpty());
 
-	return pool->getAudioSampleBufferPool().loadFromReference(audioFileId);
+	return pool->getAudioSampleBufferPool().loadFromReference(audioFileId, PoolHelpers::LoadAndCacheWeak);
 }
 
 PooledImage Expansion::loadImageFile(const PoolReference& imageId)
 {
 	jassert(Helpers::getExpansionIdFromReference(imageId.getReferenceString()).isNotEmpty());
 
-	return pool->getImagePool().loadFromReference(imageId);
+	return pool->getImagePool().loadFromReference(imageId, PoolHelpers::LoadAndCacheWeak);
 }
 
 juce::String Expansion::getSampleMapReference(const String& sampleMapId)

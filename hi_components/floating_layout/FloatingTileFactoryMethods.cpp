@@ -54,6 +54,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<GenericPanel<SamplePoolTable>>(PopupMenuOptions::SamplePoolTable);
 	registerType<GenericPanel<PoolTableSubTypes::ImageFilePoolTable>>(PopupMenuOptions::ImageTable);
 	registerType<GenericPanel<PoolTableSubTypes::AudioFilePoolTable>>(PopupMenuOptions::AudioFileTable);
+	registerType<GenericPanel<PoolTableSubTypes::SampleMapPoolTable>>(PopupMenuOptions::SampleMapPoolTable);
 	registerType<MainTopBar>(PopupMenuOptions::MenuCommandOffset);
 	registerType<BackendProcessorEditor>(PopupMenuOptions::MenuCommandOffset);
 	registerType<ScriptWatchTablePanel>(PopupMenuOptions::ScriptWatchTable);
@@ -606,6 +607,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(m, PopupMenuOptions::Note, "Note");
 			addToPopupMenu(m, PopupMenuOptions::AudioFileTable, "Audio File Pool Table");
 			addToPopupMenu(m, PopupMenuOptions::ImageTable, "Image Pool Table");
+			addToPopupMenu(m, PopupMenuOptions::SampleMapPoolTable, "SampleMap Pool Table");
 
 			PopupMenu fm;
 
@@ -702,6 +704,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::SampleMapBrowser:	parent->setNewContent(GET_PANEL_NAME(SampleMapBrowser)); break;
 	case PopupMenuOptions::AboutPage:			parent->setNewContent(GET_PANEL_NAME(AboutPagePanel)); break;
 	case PopupMenuOptions::AudioFileTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<PoolTableSubTypes::AudioFilePoolTable>)); break;
+	case PopupMenuOptions::SampleMapPoolTable:  parent->setNewContent(GET_PANEL_NAME(GenericPanel<PoolTableSubTypes::SampleMapPoolTable>)); break;
 	case PopupMenuOptions::ImageTable:			parent->setNewContent(GET_PANEL_NAME(GenericPanel<PoolTableSubTypes::ImageFilePoolTable>)); break;
 	case PopupMenuOptions::ScriptWatchTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ScriptWatchTable>)); break;
 	case PopupMenuOptions::toggleGlobalLayoutMode:    parent->getRootFloatingTile()->setLayoutModeEnabled(!parent->isLayoutModeEnabled()); break;

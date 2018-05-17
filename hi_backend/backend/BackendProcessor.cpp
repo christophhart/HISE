@@ -38,6 +38,8 @@ AudioProcessorDriver(deviceManager_, callback_),
 viewUndoManager(new UndoManager())
 {
 	
+	
+
 	ExtendedApiDocumentation::init();
 
     synthChain = new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES, viewUndoManager);
@@ -59,12 +61,31 @@ viewUndoManager(new UndoManager())
 
 
 	createUserPresetData();
+
+	clearPreset();
+
+	getSampleManager().getProjectHandler().addListener(this);
+
+	auto tmp = getCurrentSampleMapPool(true);
+
+	auto f = [tmp](Processor* )
+	{
+		tmp->loadAllFilesFromProjectFolder();
+		return true;
+	};
+
+	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
+
+
+	
 }
 
 
 BackendProcessor::~BackendProcessor()
 {
 	getSampleManager().cancelAllJobs();
+
+	getSampleManager().getProjectHandler().removeListener(this);
 
 	ScopedLock sl(getLock());
 	ScopedLock sl2(getSampleManager().getSamplerSoundLock());
@@ -77,6 +98,22 @@ BackendProcessor::~BackendProcessor()
 }
 
 
+
+void BackendProcessor::projectChanged(const File& /*newRootDirectory*/)
+{
+	getExpansionHandler().setCurrentExpansion("");
+	getExpansionHandler().getCurrentPoolCollection()->clear();
+
+	auto tmp = getCurrentSampleMapPool(true);
+
+	auto f = [tmp](Processor*)
+	{
+		tmp->loadAllFilesFromProjectFolder();
+		return true;
+	};
+
+	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
+}
 
 void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {

@@ -106,6 +106,7 @@ void SampleMap::changeListenerCallback(SafeChangeBroadcaster *)
 
 void SampleMap::clear()
 {
+	sampleMapData.clear();
 	data = ValueTree("sampleMap");
 
     mode = Undefined;
@@ -113,6 +114,11 @@ void SampleMap::clear()
     sampleMapId = Identifier();
     changed = false;
     
+	if (currentPool != nullptr)
+		currentPool->removeListener(this);
+
+	currentPool = nullptr;
+
     if(sampler != nullptr)
     {
         sampler->sendChangeMessage();
@@ -120,7 +126,7 @@ void SampleMap::clear()
     }
 }
 
-void SampleMap::restoreFromValueTree(const ValueTree &v)
+void SampleMap::parseValueTree(const ValueTree &v)
 {
 	ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
 
@@ -145,6 +151,7 @@ void SampleMap::restoreFromValueTree(const ValueTree &v)
 		loadSamplesFromDirectory();
 	}
 
+	sampler->updateRRGroupAmountAfterMapLoad();
 	if(!sampler->isRoundRobinEnabled()) sampler->refreshRRMap();
 	sampler->refreshPreloadSizes();
 	sampler->refreshMemoryUsage();
@@ -163,9 +170,18 @@ void SampleMap::saveIfNeeded()
 	}
 }
 
-ValueTree SampleMap::exportAsValueTree() const
+const ValueTree SampleMap::getValueTree() const
 {
 	return data;
+}
+
+void SampleMap::poolEntryReloaded(PoolReference referenceThatWasChanged)
+{
+	if (getReference() == referenceThatWasChanged)
+	{
+		clear();
+		getSampler()->loadSampleMap(referenceThatWasChanged, true);
+	}
 }
 
 void SampleMap::save()
@@ -174,57 +190,6 @@ void SampleMap::save()
 	data.setProperty("SaveMode", mode, nullptr);
 	data.setProperty("RRGroupAmount", sampler->getAttribute(ModulatorSampler::Parameters::RRGroupAmount), nullptr);
 	data.setProperty("MicPositions", sampler->getStringForMicPositions(), nullptr);
-
-#if 0
-	StringArray absoluteFileNames;
-
-	ModulatorSampler::SoundIterator sIter(sampler);
-
-	while (auto sound = sIter.getNextSound())
-	{
-		ValueTree soundTree = sound->exportAsValueTree();
-
-		if (soundTree.getNumChildren() != 0)
-		{
-			for (int j = 0; j < soundTree.getNumChildren(); j++)
-			{
-				ValueTree child = soundTree.getChild(j);
-
-				replaceFileReferences(child);
-			}
-		}
-		else
-		{
-			replaceFileReferences(soundTree);
-		}
-
-		v.addChild(soundTree, -1, nullptr);
-	}
-
-	return v;
-#endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #if HI_ENABLE_EXPANSION_EDITING
 	auto rootDirectory = sampler->getSampleEditHandler()->getCurrentSampleMapDirectory();
@@ -261,8 +226,7 @@ void SampleMap::save()
 
 		f.deleteFile();
 
-		ValueTree v = exportAsValueTree();
-		ScopedPointer<XmlElement> xml = v.createXml();
+		ScopedPointer<XmlElement> xml = data.createXml();
 		xml->writeToFile(f, "");
 
 		changed = false;
@@ -531,78 +495,24 @@ juce::String SampleMap::checkReferences(MainController* mc, ValueTree& v, const 
 }
 
 
-
-void SampleMap::load(const File &f)
+void SampleMap::load(const PoolReference& reference)
 {
-#if USE_BACKEND
-	if (f.hasFileExtension(".m5p"))
+	clear();
+
+	currentPool = getSampler()->getMainController()->getCurrentSampleMapPool();
+
+	sampleMapData = currentPool->loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
+	currentPool->addListener(this);
+
+
+	if (sampleMapData)
 	{
-		StringArray layerNames = MachFiveImporter::getLayerNames(f);
-
-		if (layerNames.size() != 0)
-		{
-			ValueTree sampleMap = MachFiveImporter::getSampleMapValueTree(f, layerNames[0]);
-
-			if (sampleMap.isValid())
-			{
-				restoreFromValueTree(sampleMap);
-				changed = false;
-				return;
-			}
-		}
+		data = *sampleMapData.getData();
+		parseValueTree(data);
+		changed = false;
 	}
-#endif
-
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
-
-	File fileToUse = f;
-
-	if(xml == nullptr)
-	{
-		if(NativeMessageBox::showOkCancelBox(AlertWindow::WarningIcon, "Missing Samplemap", "The samplemap " + f.getFullPathName() + " wasn't found. Click OK to search or Cancel to skip loading"))
-		{
-			FileChooser fc("Resolve SampleMap reference", f, "*.xml");
-
-			if(fc.browseForFileToOpen())
-			{
-				fileToUse = fc.getResult();
-				xml = XmlDocument::parse(fileToUse);
-			}
-			else
-			{
-				debugError(sampler, "Error loading " + f.getFullPathName());
-				return;
-			}
-		}
-		else
-		{
-			debugError(sampler, "Error loading " + f.getFullPathName());
-			return;
-		}
-
-
-	}
-
-	jassert(xml != nullptr);
-
-	static const Identifier sm("samplemap");
-
-	data = ValueTree::fromXml(*xml);
-
-#if USE_BACKEND
-	if (data.getType() != sm)
-	{
-		PresetHandler::showMessageWindow("Invalid Samplemap", "The XML you tried to load is not a valid samplemap. Detected Type: " + data.getType().toString(), PresetHandler::IconType::Error);
-		clear();
-		return;
-	}
-#endif
-        
-    data.setProperty("FileName", fileToUse.getFullPathName(), nullptr);
-
-	restoreFromValueTree(data);
-
-	changed = false;
+	else
+		jassertfalse;
 }
 
 RoundRobinMap::RoundRobinMap()
@@ -757,7 +667,7 @@ void MonolithExporter::exportCurrentSampleMap(bool overwriteExistingData, bool e
 	
 	
 
-	v = sampleMap->exportAsValueTree();
+	v = sampleMap->getValueTree();
 	numSamples = v.getNumChildren();
 	numChannels = jmax<int>(1, v.getChild(0).getNumChildren());
 
@@ -809,13 +719,11 @@ void MonolithExporter::threadFinished()
 
 		if (sampleMapFile.existsAsFile())
 		{
-			auto tmp = sampleMapFile;
-			auto func = [tmp](Processor* p)
-			{
-				static_cast<ModulatorSampler*>(p)->loadSampleMapSync(tmp); return true;
-			};
+			PoolReference ref(sampleMap->getSampler()->getMainController(), sampleMapFile.getFullPathName(), FileHandlerBase::SampleMaps);
 
-			sampleMap->getSampler()->killAllVoicesAndCall(func);
+			auto tmp = sampleMapFile;
+
+			sampleMap->getSampler()->loadSampleMap(ref, true);
 		}
 
 	}

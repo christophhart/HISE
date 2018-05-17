@@ -155,7 +155,7 @@ private:
 *	3. Add the AudioSampleBuffer as ChangeListener (and remove it in the destructor!)
 *	4. Add an AreaListener to the AudioSampleBufferComponent and call setRange() and setLoadedFile in the rangeChanged() callback
 */
-class AudioSampleProcessor
+class AudioSampleProcessor: public PoolBase::Listener
 {
 public:
 
@@ -197,12 +197,14 @@ public:
 		return sampleRange; 
 	};
 
-	int getTotalLength() const { return data->data.getNumSamples(); };
+	void poolEntryReloaded(PoolReference referenceThatWasChanged) override;
+
+	int getTotalLength() const { return data ? data.getData()->getNumSamples() : 0; };
 
 	/** Returns a const pointer to the audio sample buffer.
 	*
 	*	The pointer references a object from a AudioSamplePool and should be valid as long as the pool is not cleared. */
-	const AudioSampleBuffer *getBuffer() { return &data->data; };
+	const AudioSampleBuffer *getBuffer() { return data.getData(); };
 
 	void setLoopFromMetadata(const var& md);
 
@@ -227,7 +229,7 @@ public:
 	*	It is possible that the file does not exist on your system:
 	*	If you restore a pool completely from a ValueTree, it still uses the absolute filename as identification.
 	*/
-	String getFileName() const { return data->ref.getReferenceString(); };
+	String getFileName() const { return data.getRef().getReferenceString(); };
 
 	/** Overwrite this method and do whatever needs to be done when the selected range changes. */
 	virtual void rangeUpdated() {};
@@ -265,20 +267,22 @@ public:
 protected:
 
 	/** Call this constructor within your subclass constructor. */
-	AudioSampleProcessor(Processor *p);;
+	AudioSampleProcessor(Processor *p);
 
-	PoolEntry<AudioSampleBuffer>::Ptr data;
+	PooledAudioFile data;
 
 	Range<int> sampleRange;
 	int length;
 
 	Range<int> loopRange;
 
-	const AudioSampleBuffer *getSampleBuffer() const { return &data->data; };
+	const AudioSampleBuffer *getSampleBuffer() const { return data.getData(); };
 
 	double sampleRateOfLoadedFile;
 
 	bool useLoop = false;
+
+	WeakReference<AudioSampleBufferPool> currentPool;
 
 private:
 

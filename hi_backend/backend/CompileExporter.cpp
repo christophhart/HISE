@@ -49,7 +49,7 @@ void loadOtherReferencedImages(ModulatorSynthChain* chainToExport)
 
 	auto pool = mc->getCurrentImagePool(true);
 
-	ReferenceCountedArray<PoolEntry<Image>> images;
+	Array<PooledImage> images;
 
 	for (int i = 0; i < 12; i++)
 	{
@@ -57,13 +57,13 @@ void loadOtherReferencedImages(ModulatorSynthChain* chainToExport)
 
 		jassert(upRef.isValid());
 
-		images.add(pool->loadFromReference(upRef));
+		images.add(pool->loadFromReference(upRef, PoolHelpers::LoadAndCacheWeak));
 		
 		PoolReference downRef(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
 
 		jassert(downRef.isValid());
 
-		images.add(pool->loadFromReference(downRef));
+		images.add(pool->loadFromReference(downRef, PoolHelpers::LoadAndCacheWeak));
 	}
 
 	const bool hasAboutPageImage = handler.getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("about.png").existsAsFile();
@@ -72,55 +72,8 @@ void loadOtherReferencedImages(ModulatorSynthChain* chainToExport)
 	{
 		PoolReference aboutRef(mc, "{PROJECT_FOLDER}about.png", ProjectHandler::SubDirectories::Images);
 
-		images.add(pool->loadFromReference(aboutRef));
+		images.add(pool->loadFromReference(aboutRef, PoolHelpers::LoadAndCacheWeak));
 	}
-}
-
-ValueTree BaseExporter::exportReferencedImageFiles()
-{
-	// Export the interface
-
-
-	loadOtherReferencedImages(chainToExport);
-
-	ImagePool *imagePool = chainToExport->getMainController()->getCurrentImagePool(true);
-
-	
-
-	ValueTree imageTree = imagePool->exportAsValueTree();
-
-	return imageTree;
-
-	
-}
-
-ValueTree BaseExporter::exportReferencedAudioFiles()
-{
-	// Search for impulse responses
-
-	DirectoryIterator iter(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles), false);
-
-	AudioSampleBufferPool *samplePool = chainToExport->getMainController()->getCurrentAudioSampleBufferPool(true);
-
-	ReferenceCountedArray<PoolEntry<AudioSampleBuffer>> soundList;
-
-	while (iter.next())
-	{
-#if JUCE_WINDOWS
-
-		// Skip OSX hidden files on windows...
-		if (iter.getFile().getFileName().startsWith(".")) continue;
-
-#endif
-
-		PoolReference ref(chainToExport->getMainController(), iter.getFile().getFullPathName(), ProjectHandler::SubDirectories::AudioFiles);
-
-		soundList.add(samplePool->loadFromReference(ref));
-	}
-
-	return samplePool->exportAsValueTree();
-
-	
 }
 
 ValueTree BaseExporter::exportUserPresetFiles()
@@ -183,15 +136,7 @@ ValueTree BaseExporter::exportEmbeddedFiles(bool includeSampleMaps)
 	externalFiles.addChild(externalScriptFiles, -1, nullptr);
 	externalFiles.addChild(customFonts, -1, nullptr);
 
-	if (includeSampleMaps)
-	{
-		ValueTree sampleMaps = collectAllSampleMapsInDirectory();
-		externalFiles.addChild(sampleMaps, -1, nullptr);
-	}
-
 	return externalFiles;
-
-	
 }
 
 ValueTree BaseExporter::exportPresetFile()
@@ -577,21 +522,29 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 		// Always embed scripts and fonts, but don't embed samplemaps
 		writeValueTreeToTemporaryFile(exportEmbeddedFiles(embedFiles && type != TargetTypes::EffectPlugin), directoryPath, "externalFiles", true);
 
+		
+
 		if (embedFiles)
 		{
+			File imageOutputFile, sampleOutputFile, samplemapFile;
+
+			samplemapFile = File(directoryPath + "/samplemaps");
+
 			if (IS_SETTING_TRUE(HiseSettings::Project::EmbedAudioFiles))
 			{
-				writeValueTreeToTemporaryFile(exportReferencedAudioFiles(), directoryPath, "impulses");
-				writeValueTreeToTemporaryFile(exportReferencedImageFiles(), directoryPath, "images");
+				imageOutputFile = File(directoryPath + "/images");
+				sampleOutputFile = File(directoryPath + "/impulses");
+				
 			}
 			else
 			{
-				File appFolder = GET_PROJECT_HANDLER(chainToExport).getRootFolder().getChildFile("AudioResources.dat");
-				PresetHandler::writeValueTreeAsFile(exportReferencedAudioFiles(), appFolder.getFullPathName());
-
-				File imageFolder = GET_PROJECT_HANDLER(chainToExport).getRootFolder().getChildFile("ImageResources.dat");
-				PresetHandler::writeValueTreeAsFile(exportReferencedImageFiles(), imageFolder.getFullPathName());
+				imageOutputFile = GET_PROJECT_HANDLER(chainToExport).getRootFolder().getChildFile("ImageResources.dat");
+				sampleOutputFile = GET_PROJECT_HANDLER(chainToExport).getRootFolder().getChildFile("AudioResources.dat");
 			}
+
+			chainToExport->getMainController()->getCurrentAudioSampleBufferPool(true)->getDataProvider()->writePool(new FileOutputStream(sampleOutputFile));
+			chainToExport->getMainController()->getCurrentImagePool(true)->getDataProvider()->writePool(new FileOutputStream(imageOutputFile));
+			chainToExport->getMainController()->getCurrentSampleMapPool(true)->getDataProvider()->writePool(new FileOutputStream(samplemapFile));
 		}
 
 		String presetDataString("PresetData");
@@ -628,18 +581,32 @@ String checkSampleReferences(ModulatorSynthChain* chainToExport)
     
     sampleFolder.findChildFiles(sampleFiles, File::findFiles, true);
     
-    while(ModulatorSampler* sampler = iter.getNextProcessor())
-    {
-        auto map = sampler->getSampleMap();
-        
-        auto v = map->exportAsValueTree();
-        
-        const String faulty = map->checkReferences(sampler->getMainController(), v, sampleFolder, sampleFiles);
-        
-        if(faulty.isNotEmpty())
-            return faulty;
-    }
-    
+	Array<File> sampleMapFiles;
+
+	auto sampleMapRoot = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+
+	sampleMapRoot.findChildFiles(sampleMapFiles, File::findFiles, true, "*.xml");
+
+	Array<PooledSampleMap> maps;
+
+	for (const auto& f : sampleMapFiles)
+	{
+		PoolReference ref(chainToExport->getMainController(), f.getFullPathName(), FileHandlerBase::SampleMaps);
+
+		maps.add(chainToExport->getMainController()->getCurrentSampleMapPool(true)->loadFromReference(ref, PoolHelpers::LoadAndCacheStrong));
+	}
+
+	for (auto d : maps)
+	{
+		if (auto v = d.getData())
+		{
+			const String faulty = SampleMap::checkReferences(chainToExport->getMainController(), *v, sampleFolder, sampleFiles);
+
+			if (faulty.isNotEmpty())
+				return faulty;
+		}
+	}
+ 
     return String();
 }
 

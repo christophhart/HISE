@@ -509,7 +509,7 @@ public:
 
 private:
 
-	PoolEntry<Image>::Ptr bgImage;
+	PooledImage bgImage;
 
 	AttributedString text;
 

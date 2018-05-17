@@ -452,6 +452,9 @@ public:
 
 		ModulatorSampler *sampler = handler->getSampler();
 
+
+		// TODO SAMPLEMAP
+#if 0
 		auto sampleMapId = sampler->getSampleMap()->getId();
 		auto file = PoolReference(sampler->getMainController(), sampler->getSampleMap()->getFile().getFullPathName(), ProjectHandler::SubDirectories::SampleMaps);
 
@@ -483,7 +486,9 @@ public:
 			return true;
 		};
 
+
 		sampler->getMainController()->getKillStateHandler().killVoicesAndCall(sampler, f, MainController::KillStateHandler::SampleLoadingThread);
+#endif
 
 	}
 

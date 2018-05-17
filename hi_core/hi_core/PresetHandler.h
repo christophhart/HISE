@@ -141,7 +141,7 @@ public:
 
 	const String getFileReference(const String &absoluteFileName, SubDirectories dir) const;
 
-	void getFileList(Array<File> &filesInDirectory, SubDirectories dir, const String &wildcard, bool sortByTime = false, bool searchInSubfolders = false);
+	Array<File> getFileList(SubDirectories dir, bool sortByTime = false, bool searchInSubfolders = false) const;
 
 	/** checks if this is a absolute path (including absolute win paths on OSX and absolute OSX paths on windows); */
 	static bool isAbsolutePathCrossPlatform(const String &pathName);
@@ -158,6 +158,8 @@ public:
 	static void createLinkFileInFolder(const File& source, const File& target);
 
 	virtual File getRootFolder() const = 0;
+
+	static String getWildcardForFiles(SubDirectories directory);
 
 protected:
 
@@ -341,7 +343,7 @@ public:
 	static String getVersionString();
 	static String getAppGroupId();
 
-	static String checkSampleReferences(MainController* mc, const ValueTree &sampleMaps, bool returnTrueIfOneSampleFound);
+	static String checkSampleReferences(MainController* mc, bool returnTrueIfOneSampleFound);
 
 	/** on IOS this returns the folder where all the resources (samples, images, etc) are found.
 	*	It uses a shared folder for both the AUv3 and Standalone version in order to avoid duplicating the data. */
@@ -362,8 +364,7 @@ public:
 
 	void setValueTree(SubDirectories type, ValueTree tree)
 	{
-		if (type == SampleMaps)
-			sampleMaps = tree;
+		jassert(type == UserPresets);
 
 		if (type == UserPresets)
 			presets = tree;
@@ -371,45 +372,13 @@ public:
 
 	ValueTree getValueTree(SubDirectories type) const
 	{
-		if (type == SampleMaps)
-			return sampleMaps;
+		jassert(type == UserPresets);
 
 		if (type == UserPresets)
 			return presets;
 
 		return ValueTree();
 	}
-
-	const ValueTree getSampleMap(const String& sampleMapId) const
-	{
-		return getValueTree(SampleMaps).getChildWithProperty("ID", sampleMapId);
-	}
-
-	void createSampleMapValueTreeFromPreset(ValueTree treeToSearch)
-	{
-		if (sampleMaps.getNumChildren() != 0)
-			return;
-
-		static const Identifier sm("samplemap");
-
-		for (int i = 0; i < treeToSearch.getNumChildren(); i++)
-		{
-			ValueTree child = treeToSearch.getChild(i);
-
-			if (child.hasType(sm))
-			{
-				treeToSearch.removeChild(child, nullptr);
-
-				sampleMaps.addChild(child, -1, nullptr);
-
-				i--;
-			}
-			else
-			{
-				createSampleMapValueTreeFromPreset(child);
-			}
-		}
-	};
 
 	bool shouldLoadSamplesAfterSetup() const { return samplesCorrectlyLoaded; };
 
@@ -427,11 +396,7 @@ public:
 		return samplesCorrectlyLoaded;
 	}
 
-
-
 	void checkAllSampleReferences();
-
-
 
 private:
 
@@ -441,12 +406,9 @@ private:
 	bool samplesCorrectlyLoaded = true;
 #endif
 
-	ValueTree sampleMaps;
 	ValueTree presets;
 
 	File root;
-
-	
 };
 
 #if USE_BACKEND

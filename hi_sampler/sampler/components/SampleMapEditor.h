@@ -185,27 +185,34 @@ public:
 
 	void itemDragEnter(const SourceDetails& dragSourceDetails)
 	{
-		String firstName = dragSourceDetails.description.toString().upToFirstOccurrenceOf(";", false, true);
-
-		File f(firstName);
-
-		if (f.isDirectory())
+		if (auto ref = PoolReference(dragSourceDetails.description))
 		{
-			filesInFolder.clear();
 
-			StringArray directories = StringArray::fromTokens(dragSourceDetails.description.toString(), ";", "");
+		}
+		else
+		{
+			String firstName = dragSourceDetails.description.toString().upToFirstOccurrenceOf(";", false, true);
 
-			for (int i = 0; i < directories.size(); i++)
+			File f(firstName);
+
+			if (f.isDirectory())
 			{
-				File dir(directories[i]);
+				filesInFolder.clear();
 
-				if (!dir.isDirectory()) continue;
+				StringArray directories = StringArray::fromTokens(dragSourceDetails.description.toString(), ";", "");
 
-				DirectoryIterator iter(dir, true, "*.wav;*.aif;*.mp3;*.aiff;", File::TypesOfFileToFind::findFiles);
-
-				while (iter.next())
+				for (int i = 0; i < directories.size(); i++)
 				{
-					filesInFolder.add(iter.getFile().getFullPathName());
+					File dir(directories[i]);
+
+					if (!dir.isDirectory()) continue;
+
+					DirectoryIterator iter(dir, true, "*.wav;*.aif;*.mp3;*.aiff;", File::TypesOfFileToFind::findFiles);
+
+					while (iter.next())
+					{
+						filesInFolder.add(iter.getFile().getFullPathName());
+					}
 				}
 			}
 		}
@@ -226,19 +233,32 @@ public:
 
 			return f.isDirectory() || AudioSampleBufferComponent::isAudioFile(firstName) || f.hasFileExtension("xml");
 		}
+		else
+		{
+			PoolReference ref(dragSourceDetails.description);
 
-		return false;
+			return ref && ref.getFileType() == FileHandlerBase::SubDirectories::SampleMaps;
+		}
+		
 	}
 
-	void 	itemDropped(const SourceDetails &dragSourceDetails) override
+	
+	void itemDropped(const SourceDetails &dragSourceDetails) override
 	{
-		if (filesInFolder.size() != 0)
+		if (auto ref = PoolReference(dragSourceDetails.description))
 		{
-			filesDropped(filesInFolder, dragSourceDetails.localPosition.getX(), dragSourceDetails.localPosition.getY());
+			sampler->loadSampleMap(ref, true);
 		}
 		else
 		{
-			filesDropped(StringArray::fromTokens(dragSourceDetails.description.toString(), ";", ""), dragSourceDetails.localPosition.getX(), dragSourceDetails.localPosition.getY());
+			if (filesInFolder.size() != 0)
+			{
+				filesDropped(filesInFolder, dragSourceDetails.localPosition.getX(), dragSourceDetails.localPosition.getY());
+			}
+			else
+			{
+				filesDropped(StringArray::fromTokens(dragSourceDetails.description.toString(), ";", ""), dragSourceDetails.localPosition.getX(), dragSourceDetails.localPosition.getY());
+			}
 		}
 	}
 
@@ -260,6 +280,11 @@ public:
 
 	void itemDragMove(const SourceDetails &dragSourceDetails) override
 	{
+		if (auto ref = PoolReference(dragSourceDetails.description))
+		{
+			return;
+		}
+
 		if (filesInFolder.size() != 0)
 		{
 			fileDragMove(filesInFolder, dragSourceDetails.localPosition.getX(), dragSourceDetails.localPosition.getY());
@@ -311,7 +336,9 @@ public:
 
 		if (f.getFileExtension() == ".xml")
 		{
-			sampler->loadSampleMapSync(f);
+			PoolReference ref(sampler->getMainController(), f.getFullPathName(), FileHandlerBase::SampleMaps);
+
+			sampler->loadSampleMap(ref);
 		}
 		else if (f.getFileExtension() == ".sfz")
 		{

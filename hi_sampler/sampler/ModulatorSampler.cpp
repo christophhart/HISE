@@ -328,7 +328,25 @@ void ModulatorSampler::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(SamplerRepeatMode, "SamplerRepeatMode");
 	loadAttribute(Purged, "Purged");
 
-	killAllVoicesAndCall([v](Processor* p) { static_cast<ModulatorSampler*>(p)->loadSampleMapSync(v.getChildWithName("samplemap")); return true; });
+	
+
+	auto savedMap = v.getChildWithName("samplemap");
+
+	if (savedMap.isValid())
+	{
+		//getMainController()->getCurrentAudioSampleBufferPool(true)->lo
+
+		jassertfalse;
+
+		// Leave this for backwards compatibility
+		//killAllVoicesAndCall([v](Processor* p) { static_cast<ModulatorSampler*>(p)->loadSampleMapSync(v.getChildWithName("samplemap")); return true; });
+	}
+	else
+	{
+		PoolReference ref(getMainController(), v.getProperty("SampleMapID").toString(), FileHandlerBase::SampleMaps);
+
+		loadSampleMap(ref, true);
+	}
 
     loadAttribute(CrossfadeGroups, "CrossfadeGroups");
     loadAttribute(RRGroupAmount, "RRGroupAmount");
@@ -374,9 +392,10 @@ ValueTree ModulatorSampler::exportAsValueTree() const
 		saveTable(crossfadeTables[i], "Group" + String(i) + "Table");
 	}
 
-	v.addChild(sampleMap->exportAsValueTree(), -1, nullptr);
+	v.setProperty("SampleMapID", sampleMap->getReference().getReferenceString(), nullptr);
 
-	v.setProperty("SampleMap", sampleMap->getFile().getFullPathName(), nullptr);
+	
+	
 
 	return v;
 }
@@ -1046,9 +1065,48 @@ void ModulatorSampler::clearSampleMap()
 }
 
 
+void ModulatorSampler::loadSampleMap(PoolReference ref, bool loadAsynchronous/*=false*/)
+{
+	if (getSampleMap()->getReference() == ref)
+		return;
+
+	auto f = [ref](Processor* p)
+	{
+		dynamic_cast<ModulatorSampler*>(p)->getSampleMap()->load(ref);
+
+		
+
+		return true;
+	};
+
+	if (loadAsynchronous)
+		killAllVoicesAndCall(f);
+	else
+		f(this);
+}
+
+void ModulatorSampler::updateRRGroupAmountAfterMapLoad()
+{
+	int maxGroup = 1;
+
+	ModulatorSampler::SoundIterator sIter(this);
+
+	while (auto sound = sIter.getNextSound())
+	{
+		maxGroup = jmax<int>(maxGroup, sound->getProperty(ModulatorSamplerSound::RRGroup));
+	}
+
+	setAttribute(ModulatorSampler::RRGroupAmount, (float)maxGroup, sendNotification);
+
+	samplePropertyUpdater.handlePendingChanges();
+}
+
+#if 0
 void ModulatorSampler::loadSampleMapSync(const File &f)
 {
 	jassert(isOnSampleLoadingThread());
+
+	PoolReference ref(getMainController(), f.getFullPathName(), FileHandlerBase::SampleMaps);
 
 	clearSampleMap();
 	getSampleMap()->load(f);
@@ -1057,6 +1115,10 @@ void ModulatorSampler::loadSampleMapSync(const File &f)
 void ModulatorSampler::loadSampleMapSync(const ValueTree &valueTreeData)
 {
 	jassert(isOnSampleLoadingThread());
+
+	jassertfalse;
+
+	PoolReference(getMainController())
 
 	clearSampleMap();
 	getSampleMap()->restoreFromValueTree(valueTreeData);
@@ -1214,6 +1276,7 @@ void ModulatorSampler::loadSampleMapFromId(const String& sampleMapId)
 
 	samplePropertyUpdater.handlePendingChanges();
 }
+#endif
 
 void ModulatorSampler::saveSampleMap() const
 {

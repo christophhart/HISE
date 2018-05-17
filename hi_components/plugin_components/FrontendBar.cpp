@@ -109,9 +109,9 @@ void DeactiveOverlay::buttonClicked(Button *b)
 
 			if (directorySelected)
 			{
+#if USE_FRONTEND
 				auto& handler = dynamic_cast<MainController*>(findParentComponentOfClass<AudioProcessorEditor>()->getAudioProcessor())->getSampleManager().getProjectHandler();
 
-#if USE_FRONTEND
 				handler.checkAllSampleReferences();
 
 				if (handler.areSampleReferencesCorrect())
@@ -148,6 +148,8 @@ void DeactiveOverlay::buttonClicked(Button *b)
 		else if (currentState[SamplesNotFound])
 		{
 			auto& handler = dynamic_cast<MainController*>(findParentComponentOfClass<AudioProcessorEditor>()->getAudioProcessor())->getSampleManager().getProjectHandler();
+
+			ignoreUnused(handler);
 
 			// Allows partial sample loading the next time
 			FRONTEND_ONLY(handler.setAllSampleReferencesCorrect());

@@ -367,6 +367,8 @@ void DebugLogger::logEvents(const HiseEventBuffer& masterBuffer)
 
 void DebugLogger::logMessage(const String& errorMessage)
 {
+	DBG(errorMessage);
+
 	ScopedLock sl(messageLock);
 
 	StringMessage m(messageIndex++, callbackIndex, errorMessage, getCurrentTimeStamp());

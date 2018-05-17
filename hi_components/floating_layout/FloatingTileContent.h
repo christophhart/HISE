@@ -460,6 +460,7 @@ public:
 			ImageTable,
 			AudioFileTable,
 			SamplePoolTable,
+			SampleMapPoolTable,
 			PopoutButton,
 			PerformanceStatistics,
 			ActivityLed,

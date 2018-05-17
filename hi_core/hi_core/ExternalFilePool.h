@@ -43,23 +43,66 @@ const Identifier LoopStart("LoopStart");
 const Identifier LoopEnd("LoopEnd");
 }
 
+class PoolBase;
+
 struct PoolHelpers
 {
-	
+	enum LoadingType
+	{
+		LoadAndCacheWeak = 0,
+		LoadAndCacheStrong,
+		ForceReloadWeak,
+		ForceReloadStrong,
+		SkipPoolSearchWeak,
+		SkipPoolSearchStrong,
+		DontCreateNewEntry,
+		numLoadingTypes
+	};
+
+	static bool isStrong(LoadingType t)
+	{
+		return t == LoadAndCacheStrong || t == ForceReloadStrong || t == SkipPoolSearchStrong;
+	}
+
+	static bool shouldSearchInPool(LoadingType t)
+	{
+		return t == LoadAndCacheStrong || 
+			   t == LoadAndCacheWeak || 
+			   t == ForceReloadStrong || 
+			   t == ForceReloadWeak || 
+			   t == DontCreateNewEntry;
+	}
+
+	static bool shouldForceReload(LoadingType t)
+	{
+		return t == ForceReloadStrong || t == ForceReloadWeak;
+	}
 
 	// Using an empty parameter to get the correct Subdirectory type
 	static ProjectHandler::SubDirectories getSubDirectoryType(const AudioSampleBuffer& emptyData);
 	static ProjectHandler::SubDirectories getSubDirectoryType(const Image& emptyImage);
+	static ProjectHandler::SubDirectories getSubDirectoryType(const ValueTree& emptyTree);
 
-	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, AudioSampleBuffer& data, var& additionalData);
-	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, Image& data, var& additionalData);
+	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, AudioSampleBuffer& data, var* additionalData);
+	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, Image& data, var* additionalData);
+	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, ValueTree& data, var* additionalData);
 
-	static size_t getDataSize(const AudioSampleBuffer& buffer);
+	static void fillMetadata(AudioSampleBuffer& data, var* additionalData);
+	static void fillMetadata(Image& data, var* additionalData);
+	static void fillMetadata(ValueTree& data, var* additionalData);
 
-	static size_t getDataSize(const Image& img);
+	static size_t getDataSize(const AudioSampleBuffer* buffer);
 
-	static bool isValid(const AudioSampleBuffer& buffer);
-	static bool isValid(const Image& buffer);
+	static size_t getDataSize(const Image* img);
+	static size_t getDataSize(const ValueTree* img);
+
+	static bool isValid(const AudioSampleBuffer* buffer);
+	static bool isValid(const Image* buffer);
+	static bool isValid(const ValueTree* buffer);
+
+	static Identifier getPrettyName(const AudioSampleBuffer* /*buffer*/) { RETURN_STATIC_IDENTIFIER("AudioFilePool"); }
+	static Identifier getPrettyName(const Image* /*img*/) { RETURN_STATIC_IDENTIFIER("ImagePool"); }
+	static Identifier getPrettyName(const ValueTree* /*img*/) { RETURN_STATIC_IDENTIFIER("SampleMapPool"); }
 
 	static Image getEmptyImage(int width, int height);
 
@@ -72,13 +115,25 @@ struct PoolHelpers
 			ExpansionPath,
 			ProjectPath,
 			EmbeddedResource,
+			LinkToEmbeddedResource,
 			numModes_
 		};
 
 		Reference();
 
+		/** Creates a reference using the given string. */
 		Reference(const MainController* mc, const String& referenceStringOrFile, ProjectHandler::SubDirectories directoryType);
-		Reference(MemoryBlock& mb, const String& referenceString, ProjectHandler::SubDirectories directoryType);
+
+		/** Creates a reference from a drag description. */
+		Reference(const var& dragDescription);
+
+		/** Creates a reference from an embedded resource. */
+		Reference(PoolBase* pool, const String& embeddedReference, ProjectHandler::SubDirectories directoryType);
+
+		explicit operator bool() const
+		{
+			return isValid();
+		}
 
 		bool operator ==(const Reference& other) const;
 		bool operator !=(const Reference& other) const;
@@ -90,12 +145,16 @@ struct PoolHelpers
 		bool isRelativeReference() const;
 		bool isAbsoluteFile() const;
 		bool isEmbeddedReference() const;;
-		InputStream* createInputStream();
+	 	InputStream* createInputStream() const;
 		int64 getHashCode() const;
 		bool isValid() const;
 		ProjectHandler::SubDirectories getFileType() const;
 
+		var createDragDescription() const;
+
 	private:
+
+		void parseDragDescription(const var& v);
 
 		void parseReferenceString(const MainController* mc, const String& input);
 
@@ -106,8 +165,8 @@ struct PoolHelpers
 
 		int64 hashCode;
 
-		void* memoryLocation;
-		size_t memorySize;
+		PoolBase* pool;
+
 
 		ProjectHandler::SubDirectories directoryType;
 	};
@@ -121,8 +180,7 @@ using PoolReference = PoolHelpers::Reference;
 
 
 
-class PoolBase : public RestorableObject,
-				 public ControlledObject
+class PoolBase : public ControlledObject
 {
 public:
 
@@ -131,7 +189,84 @@ public:
 		Added,
 		Removed,
 		Changed,
+		Reloaded,
 		numEventTypes
+	};
+
+	struct ScopedNotificationDelayer
+	{
+		ScopedNotificationDelayer(PoolBase& parent_, EventType type):
+			parent(parent_),
+			t(type)
+		{
+			parent.skipNotification = true;
+		}
+
+		~ScopedNotificationDelayer()
+		{
+			parent.skipNotification = false;
+			parent.sendPoolChangeMessage(t, sendNotificationAsync);
+		}
+
+		EventType t;
+		PoolBase& parent;
+	};
+
+	class DataProvider
+	{
+	public:
+
+		class Compressor
+		{
+		public:
+
+			virtual ~Compressor() {};
+
+			virtual void write(OutputStream& output, const ValueTree& data) const;
+			virtual void write(OutputStream& output, const Image& data) const;
+			virtual void write(OutputStream& output, const AudioSampleBuffer& data) const;
+
+			virtual void create(MemoryInputStream* mis, ValueTree* data) const;
+			virtual void create(MemoryInputStream* mis, Image* data) const;
+			virtual void create(MemoryInputStream* mis, AudioSampleBuffer* data) const;
+		};
+
+		DataProvider(PoolBase* pool_) :
+			pool(pool_),
+			metadataOffset(-1),
+			compressor(new Compressor())
+		{}
+
+		virtual ~DataProvider() {}
+
+		bool isEmbeddedResource(PoolReference r);
+
+		PoolReference getEmbeddedReference(PoolReference other);
+
+		virtual Result restorePool(InputStream* ownedInputStream);
+
+		MemoryInputStream* createInputStream(const String& referenceString);
+
+		virtual Result writePool(OutputStream* ownedOutputStream);
+
+		var createAdditionalData(PoolReference r);
+
+		const Compressor* getCompressor() const { return compressor; };
+
+		void setCompressor(Compressor* newCompressor) { compressor = newCompressor; };
+
+		Array<PoolReference> getListOfAllEmbeddedReferences() const;
+
+	private:
+
+		ValueTree metadata;
+		int64 metadataOffset;
+
+		PoolBase* pool = nullptr;
+		ScopedPointer<InputStream> input;
+		Array<int64> hashCodes;
+
+		ScopedPointer<Compressor> compressor;
 	};
 
 	class Listener
@@ -140,52 +275,22 @@ public:
 
 		virtual ~Listener() {};
 
-		virtual void poolEntryAdded() = 0;
-		virtual void poolEntryRemoved() = 0;
-		virtual void poolEntryChanged(int indexInPool) = 0;
+		virtual void poolEntryAdded() {};
+		virtual void poolEntryRemoved() {};
+		virtual void poolEntryChanged(PoolReference referenceThatWasChanged) {};
+
+		virtual void poolEntryReloaded(PoolReference referenceThatWasChanged) {};
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener)
 	};
 
-	ValueTree exportAsValueTree() const override
+	void sendPoolChangeMessage(EventType t, NotificationType notify=sendNotificationAsync, PoolReference r=PoolReference())
 	{
-		ValueTree v(getFileTypeName());
+		if (skipNotification && notify == sendNotificationAsync)
+			return;
 
-		for (int i = 0; i < getNumLoadedFiles(); i++)
-		{
-			ValueTree child("PoolData");
-			storeItemInValueTree(child, i);
-			v.addChild(child, -1, nullptr);
-		}
-
-		return v;
-	}
-
-	void restoreFromValueTree(const ValueTree &v) override
-	{
-		clearData();
-
-		for (int i = 0; i < v.getNumChildren(); i++)
-		{
-			ValueTree child = v.getChild(i);
-			restoreItemFromValueTree(child);
-		}
-
-		notifyTable(Added);
-	}
-
-	void notifyTable(EventType t, NotificationType notify=sendNotificationAsync, int index=-1)
-	{
 		lastType = t;
-		lastEventIndex = index;
-
-
-		auto& tmp = listeners;
-
-		auto f = [t, index, tmp]()
-		{
-			
-		};
+		lastReference = r;
 
 		if (notify == sendNotificationAsync)
 			notifier.triggerAsyncUpdate();
@@ -203,6 +308,10 @@ public:
 		listeners.removeAllInstancesOf(l);
 	}
 
+	void setDataProvider(DataProvider* newDataProvider)
+	{
+		dataProvider = newDataProvider;
+	}
 
 	virtual int getNumLoadedFiles() const = 0;
 	virtual PoolReference getReference(int index) const = 0;
@@ -210,19 +319,34 @@ public:
 	virtual var getAdditionalData(PoolReference r) const = 0;
 	virtual StringArray getTextDataForId(int index) const = 0;
 
-protected:
+	virtual void writeItemToOutput(OutputStream& output, PoolReference r) = 0;
+	
 
-	virtual void storeItemInValueTree(ValueTree& child, int index) const = 0;
-	virtual void restoreItemFromValueTree(ValueTree& child) = 0;
+	DataProvider* getDataProvider() { return dataProvider; };
+	const DataProvider* getDataProvider() const { return dataProvider; };
+
+	FileHandlerBase::SubDirectories getFileType() const
+	{
+		return type;
+	}
+
+protected:
 
 	virtual Identifier getFileTypeName() const = 0;
 
 	PoolBase(MainController* mc):
 	  ControlledObject(mc),
-	  notifier(*this)
+	  notifier(*this),
+      type(FileHandlerBase::SubDirectories::numSubDirectories),
+	  dataProvider(new DataProvider(this))
+
 	{
 
 	}
+
+	
+
+	FileHandlerBase::SubDirectories type;
 
 private:
 
@@ -247,7 +371,8 @@ private:
 					{
 					case Added: l->poolEntryAdded(); break;
 					case Removed: l->poolEntryRemoved(); break;
-					case Changed: l->poolEntryChanged(parent.lastEventIndex); break;
+					case Changed: l->poolEntryChanged(parent.lastReference); break;
+					case Reloaded: l->poolEntryReloaded(parent.lastReference); break;
 					default:
 						break;
 					}
@@ -262,19 +387,24 @@ private:
 
 	Notifier notifier;
 
+	bool skipNotification = false;
+
 	EventType lastType;
-	int lastEventIndex = -1;
+	PoolReference lastReference;
 
 	Array<WeakReference<Listener>> listeners;
+
+	ScopedPointer<DataProvider> dataProvider;
+
+	
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PoolBase)
 };
 
+
 template <class DataType> class PoolEntry : public ReferenceCountedObject
 {
 public:
-
-	using Ptr = ReferenceCountedObjectPtr<PoolEntry>;
 
 	PoolEntry(PoolReference& r) :
 		ref(r),
@@ -286,6 +416,10 @@ public:
 		data(DataType())
 	{};
 
+	~PoolEntry()
+	{
+	}
+
 	bool operator ==(const PoolEntry& other) const
 	{
 		return other.ref == ref;
@@ -293,40 +427,141 @@ public:
 
 	explicit operator bool() const { return ref.isValid() && PoolHelpers::isValid(data); };
 
-	StringArray getTextData() const
-	{
-		StringArray sa;
-
-		sa.add(ref.getReferenceString());
-		auto dataSize = PoolHelpers::getDataSize(data);
-
-		String s = String((float)dataSize / 1024.0f, 1) + " kB";
-
-		sa.add(s);
-
-		sa.add(String(getReferenceCount() - 1));
-
-		return sa;
-	}
-
 	PoolReference ref;
 	DataType data;
 	var additionalData;
+	
+	JUCE_DECLARE_WEAK_REFERENCEABLE(PoolEntry<DataType>);
 };
 
-using PooledImage = PoolEntry<Image>::Ptr;
-using PooledAudioFile = PoolEntry<AudioSampleBuffer>::Ptr;
+
+
+
+
 
 template <class DataType> class SharedPoolBase : public PoolBase
 {
 public:
 
-    
+	
+
+	using PoolItem = PoolEntry<DataType>;
+
+	class ManagedPtr
+	{
+	public:
+
+		ManagedPtr(SharedPoolBase<DataType>* pool_, PoolItem* object, bool refCounted) :
+			pool(pool_),
+			isRefCounted(refCounted),
+			weak(refCounted ? nullptr : object),
+			strong(refCounted ? object : nullptr)
+		{
+			
+		}
+
+		ManagedPtr() :
+			pool(nullptr),
+			weak(nullptr),
+			strong(nullptr),
+			isRefCounted(true)
+		{
+
+		}
+
+		ManagedPtr& operator= (const ManagedPtr& other)
+		{
+			if(isRefCounted)
+				clear();
+
+			pool = other.pool;
+			weak = other.weak;
+			strong = other.strong;
+			isRefCounted = other.isRefCounted;
+
+			return *this;
+		}
+
+		bool operator==(const ManagedPtr& other) const
+		{
+			return getRef() == other.getRef();
+		}
+
+		explicit operator bool() const { return get() != nullptr;};
+
+		PoolItem* get() { return isRefCounted ? strong.get() : weak.get(); };
+		const PoolItem* get() const { return isRefCounted ? strong.get() : weak.get(); };
+
+		operator PoolItem*() const noexcept { return get(); }
+
+		PoolItem* operator->() noexcept { return get(); }
+
+		const PoolItem* operator->() const noexcept { return get(); }
+
+		~ManagedPtr()
+		{
+			weak = nullptr;
+
+			if (isRefCounted)
+				clear();
+		}
+
+		StringArray getTextData() const
+		{
+			StringArray sa;
+
+			if (*this)
+			{
+				sa.add(getRef().getReferenceString());
+				auto dataSize = PoolHelpers::getDataSize(getData());
+
+				String s = String((float)dataSize / 1024.0f, 1) + " kB";
+
+				sa.add(s);
+				sa.add(String(get()->getReferenceCount()));
+			}
+
+			return sa;
+		}
+
+		const DataType* getData() const { return *this ? &get()->data : nullptr; };
+		DataType* getData() { return *this ? &get()->data : nullptr; };
+		
+		PoolReference getRef() const { return *this ? get()->ref : PoolReference(); };
+
+		var getAdditionalData() const { return *this ? get()->additionalData : var(); }
+
+		void clear()
+		{
+			if (!getRef())
+				return;
+
+			jassert(isRefCounted);
+			
+			if(*this)
+				pool->releaseIfUnused(*this);
+		}
+
+		void clearStrongReference()
+		{
+			strong = nullptr;
+			isRefCounted = false;
+		}
+
+	private:
+
+		bool isRefCounted;
+
+		WeakReference<SharedPoolBase<DataType>> pool;
+		ReferenceCountedObjectPtr<PoolEntry<DataType>> strong;
+		WeakReference<PoolEntry<DataType>> weak;
+	};
 
 	SharedPoolBase(MainController* mc_) :
-		PoolBase(mc_),
-		type(PoolHelpers::getSubDirectoryType(DataType()))
+      PoolBase(mc_)
 	{
+        type = PoolHelpers::getSubDirectoryType(empty);
+        
 		if (type == FileHandlerBase::SubDirectories::AudioFiles)
 		{
 			afm.registerBasicFormats();
@@ -336,7 +571,10 @@ public:
 	};
 
 
-	~SharedPoolBase() {};
+	~SharedPoolBase()
+	{
+		clearData();
+	};
 
 	Identifier getFileTypeName() const override
 	{
@@ -345,20 +583,24 @@ public:
 
 	int getNumLoadedFiles() const override
 	{
-		return pool.size();
+		return weakPool.size();
 	}
 
 	void clearData() override
 	{
-		pool.clear();
-		notifyTable(Removed);
+		ScopedNotificationDelayer snd(*this, EventType::Removed);
+
+		refCountedPool.clear();
+
+		weakPool.clear();
+		sendPoolChangeMessage(Removed);
 	}
 
 	bool contains(int64 hashCode) const
 	{
-		for (auto d : pool)
+		for (int i = 0; i < getNumLoadedFiles(); i++)
 		{
-			if (d->ref.getHashCode() == hashCode)
+			if (weakPool.getReference(i).getRef().getHashCode() == hashCode)
 				return true;
 		}
 
@@ -367,98 +609,267 @@ public:
 
 	PoolReference getReference(int index) const override
 	{
-		if (auto entry = pool[index])
-			return entry.get()->ref;
+		if (index >= 0 && index < getNumLoadedFiles())
+			return weakPool.getReference(index).getRef();
 
 		return PoolReference();
 	}
 
+	int indexOf(PoolReference ref) const
+	{
+		for (int i = 0; i < getNumLoadedFiles(); i++)
+		{
+			if (weakPool.getReference(i).getRef() == ref)
+				return i;
+		}
+
+		return -1;
+	}
+
 	var getAdditionalData(PoolReference r) const override
 	{
-		for (auto d : pool)
-		{
-			if (d->ref == r)
-				return d->additionalData;
-		}
+		auto i = indexOf(r);
+
+		if (i >= 0)
+			return weakPool.getReference(i).getAdditionalData();
 
 		return {};
 	}
 
+	Array<PoolReference> getListOfAllReferences(bool includeEmbeddedButUnloadedReferences) const
+	{
+		Array<PoolReference> references;
+
+		for (int i = 0; i < getNumLoadedFiles(); i++)
+			references.add(getReference(i));
+
+		if (includeEmbeddedButUnloadedReferences)
+		{
+			auto additionalRefs = getDataProvider()->getListOfAllEmbeddedReferences();
+
+			for (const auto& r : additionalRefs)
+				references.addIfNotAlreadyThere(r);
+		}
+
+		return references;
+	}
+
 	StringArray getTextDataForId(int index) const override
 	{
-		if (auto entry = pool[index])
-			return entry.get()->getTextData();
+		if (index >= 0 && index < getNumLoadedFiles())
+			return weakPool.getReference(index).getTextData();
 
 		return {};
+	}
+
+	void loadAllFilesFromDataProvider()
+	{
+		ScopedNotificationDelayer snd(*this, EventType::Added);
+
+		auto refList = getDataProvider()->getListOfAllEmbeddedReferences();
+
+		for (auto r : refList)
+			loadFromReference(r, PoolHelpers::LoadAndCacheStrong);
+	}
+
+	void loadAllFilesFromProjectFolder()
+	{
+		ScopedNotificationDelayer snd(*this, EventType::Added);
+
+		auto fileList = getMainController()->getCurrentFileHandler().getFileList(type, false, true);
+
+		for (auto f : fileList)
+		{
+			PoolReference ref(getMainController(), f.getFullPathName(), type);
+
+			loadFromReference(ref, PoolHelpers::LoadAndCacheStrong);
+		}
+	}
+
+	String getStatistics() const
+	{
+		String s;
+
+		s << "Size: " << weakPool.size();
+
+		size_t dataSize = 0;
+
+		for (const auto& d : weakPool)
+		{
+			if (d)
+				dataSize += PoolHelpers::getDataSize(d.getData());
+		}
+
+		s << " (" << String(dataSize / 1024.0f / 1024.0f, 2) << " MB)";
+
+		return s;
 	}
 
 	StringArray getIdList() const
 	{
 		StringArray sa;
 
-		for (auto d : pool)
-			sa.add(d->ref.getReferenceString());
+		for (const auto& d : weakPool)
+			sa.add(d.getRef().getReferenceString());
 
 		return sa;
 	}
 
-	PoolEntry<DataType>* loadFromReference(PoolReference r)
+	void releaseIfUnused(ManagedPtr& mptr)
 	{
-		for (auto d : pool)
+		jassert(mptr);
+		jassert(mptr.getRef().isValid());
+
+		PoolReference r(mptr.getRef());
+
+		for (int i = 0; i < weakPool.size(); i++)
 		{
-			if (d->ref == r)
+			if (weakPool.getReference(i) == mptr)
 			{
-				notifyTable(PoolBase::Changed, sendNotificationAsync, pool.indexOf(d));
-				return d;
+				mptr.clearStrongReference();
+
+				if (weakPool.getReference(i).get() == nullptr)
+				{
+					weakPool.remove(i--);
+					sendPoolChangeMessage(PoolBase::EventType::Removed, sendNotificationAsync, r);
+				}
+				else
+					sendPoolChangeMessage(PoolBase::EventType::Changed, sendNotificationAsync, r);
+
+				return;
 			}
-				
+		}
+	}
+
+	void writeItemToOutput(OutputStream& output, PoolReference r)
+	{
+		auto d = getWeakReferenceToItem(r);
+
+		if(d)
+			getDataProvider()->getCompressor()->write(output, *d.getData());
+	}
+
+	ManagedPtr getWeakReferenceToItem(PoolReference r)
+	{
+		auto index = indexOf(r);
+
+		if (index != -1)
+			return ManagedPtr(this, weakPool.getReference(index).get(), false);
+
+		jassertfalse;
+		return ManagedPtr();
+	}
+
+	ManagedPtr createAsEmbeddedReference(PoolReference r, DataType t)
+	{
+		ReferenceCountedObjectPtr<PoolItem> ne = new PoolItem(r);
+
+		ne->data = t;
+
+		PoolHelpers::fillMetadata(ne->data, &ne->additionalData);
+
+		refCountedPool.add(ManagedPtr(this, ne.getObject(), true));
+		weakPool.add(ManagedPtr(this, ne.getObject(), false));
+
+		return ManagedPtr(this, ne.getObject(), true);
+	}
+
+	ManagedPtr loadFromReference(PoolReference r, PoolHelpers::LoadingType loadingType)
+	{
+		if (getDataProvider()->isEmbeddedResource(r))
+			r = getDataProvider()->getEmbeddedReference(r);
+
+		if (PoolHelpers::shouldSearchInPool(loadingType))
+		{
+			int index = indexOf(r);
+
+			if (index != -1)
+			{
+				auto& d = weakPool.getReference(index);
+
+				jassert(d);
+
+				if (PoolHelpers::shouldForceReload(loadingType))
+				{
+					jassert(!r.isEmbeddedReference());
+
+					if (auto inputStream = r.createInputStream())
+					{
+                        auto ad = d.getAdditionalData();
+                        jassert(ad.isObject());
+                        
+						PoolHelpers::loadData(afm, inputStream, r.getHashCode(), *d.getData(), &ad);
+						sendPoolChangeMessage(PoolBase::Reloaded, sendNotificationSync, r);
+						return ManagedPtr(this, d.get(), true);
+					}
+					else
+					{
+						getMainController()->getDebugLogger().logMessage(r.getReferenceString() + " wasn't found.");
+
+						jassertfalse; // This shouldn't happen...
+						return ManagedPtr();
+					}
+				}
+				else
+				{
+					sendPoolChangeMessage(PoolBase::Changed, sendNotificationAsync, r);
+					return ManagedPtr(this, d.get(), true);
+				}
+			}
 		}
 
-		ReferenceCountedObjectPtr<PoolEntry<DataType>> ne = new PoolEntry<DataType>(r);
-		auto inputStream = r.createInputStream();
+		if (loadingType == PoolHelpers::DontCreateNewEntry)
+		{
+			jassertfalse;
+			return ManagedPtr();
+		}
 
-		PoolHelpers::loadData(afm, inputStream, r.getHashCode(), ne->data, ne->additionalData);
+		ReferenceCountedObjectPtr<PoolItem> ne = new PoolItem(r);
+		
+		if (r.isEmbeddedReference())
+		{
+			MemoryInputStream* mis = getDataProvider()->createInputStream(r.getReferenceString());
 
-		pool.add(ne);
+			getDataProvider()->getCompressor()->create(mis, &ne->data);
 
-		notifyTable(PoolBase::Added);
+			ne->additionalData = getDataProvider()->createAdditionalData(r);
 
-		return ne;
+			weakPool.add(ManagedPtr(this, ne.getObject(), false));
+			refCountedPool.add(ManagedPtr(this, ne.getObject(), true));
+
+			sendPoolChangeMessage(PoolBase::Added);
+
+			return ManagedPtr(this, ne.getObject(), true);
+		}
+		else
+		{
+			if (auto inputStream = r.createInputStream())
+			{
+				PoolHelpers::loadData(afm, inputStream, r.getHashCode(), ne->data, &ne->additionalData);
+				weakPool.add(ManagedPtr(this, ne.getObject(), false));
+
+				if (PoolHelpers::isStrong(loadingType))
+					refCountedPool.add(ManagedPtr(this, ne.getObject(), true));
+				
+				sendPoolChangeMessage(PoolBase::Added);
+
+				return ManagedPtr(this, ne.getObject(), true);
+			}
+			else
+			{
+				getMainController()->getDebugLogger().logMessage(r.getReferenceString() + " wasn't found.");
+				return ManagedPtr();
+			}
+		}
 	}
 
 private:
 
-	ReferenceCountedArray<PoolEntry<DataType>> pool;
+	DataType empty;
 
-	void storeItemInValueTree(ValueTree& child, int index) const
-	{
-		if (auto entry = pool[index].get())
-		{
-			child.setProperty("ID", entry->ref.getReferenceString(), nullptr);
+	Array<ManagedPtr> weakPool;
+	Array<ManagedPtr> refCountedPool;
 
-			ScopedPointer<InputStream> inputStream = entry->ref.createInputStream();
-
-			MemoryBlock mb = MemoryBlock();
-			MemoryOutputStream out(mb, false);
-			out.writeFromInputStream(*inputStream, inputStream->getTotalLength());
-
-			child.setProperty("Data", var(mb.getData(), mb.getSize()), nullptr);
-		}
-	}
-
-	void restoreItemFromValueTree(ValueTree& child)
-	{
-		String r = child.getProperty("ID", String()).toString();
-
-		var x = child.getProperty("Data", var::undefined());
-		auto mb = x.getBinaryData();
-
-		jassert(mb != nullptr);
-
-		PoolReference ref(*mb, r, type);
-
-		loadFromReference(ref);
-	}
 
 	ProjectHandler::SubDirectories type;
 
@@ -471,6 +882,11 @@ private:
 
 using AudioSampleBufferPool = SharedPoolBase<AudioSampleBuffer>;
 using ImagePool = SharedPoolBase<Image>;
+using PooledAudioFile = AudioSampleBufferPool::ManagedPtr;
+using PooledImage = ImagePool::ManagedPtr;
+
+using SampleMapPool = SharedPoolBase<ValueTree>;
+using PooledSampleMap = SampleMapPool::ManagedPtr;
 
 class PoolCollection: public ControlledObject
 {
@@ -489,10 +905,15 @@ public:
 			case ProjectHandler::SubDirectories::Images:
 				dataPools[i] = new ImagePool(mc);
 				break;
+			case ProjectHandler::SubDirectories::SampleMaps:
+				dataPools[i] = new SampleMapPool(mc);
+				
+				break;
 			default:
 				dataPools[i] = nullptr;
 			}
 		}
+
 	};
 
 	~PoolCollection()
@@ -557,13 +978,55 @@ public:
 		return *getPool<Image>();
 	}
 
+	const SampleMapPool& getSampleMapPool() const
+	{
+		return *getPool<ValueTree>();
+	}
+
+	SampleMapPool& getSampleMapPool()
+	{
+		return *getPool<ValueTree>();
+	}
+
 	AudioFormatManager afm;
 
+	
+
 private:
+
+	
 
 	PoolBase * dataPools[(int)ProjectHandler::SubDirectories::numSubDirectories];
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(PoolCollection);
+};
+
+template <class DataType> class PoolDropTarget : public DragAndDropTarget
+{
+protected:
+
+	PoolDropTarget(MainController* mc_):
+		mc(mc_),
+		type(PoolHelpers::getSubDirectoryType(DataType()))
+	{
+	}
+
+public:
+
+	/** Overwrite this method and load the given reference. */
+	virtual void poolItemWasDropped(PoolReference ref) = 0;
+
+	bool hasHoveringPoolItem() const { return over; };
+
+private:
+
+	
+
+	MainController * mc;
+
+	FileHandlerBase::SubDirectories type;
+
+	bool over = false;
 };
 
 

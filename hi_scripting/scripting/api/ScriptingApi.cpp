@@ -1831,7 +1831,9 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 
 	if (s != nullptr)
 	{
-		s->loadSampleMapFromIdAsync(fileName);
+		PoolReference ref(s->getMainController(), fileName, FileHandlerBase::SampleMaps);
+
+		s->loadSampleMap(ref, true);
 	}
 }
 
@@ -1855,60 +1857,15 @@ var ScriptingApi::Sampler::getSampleMapList() const
 {
 	Array<var> sampleMapNames;
 
-#if USE_BACKEND || DONT_EMBED_FILES_IN_FRONTEND
+	auto pool = getProcessor()->getMainController()->getCurrentSampleMapPool();
+	auto references = pool->getListOfAllReferences(true);
 
-#if USE_BACKEND
-	File rootDir = GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
-#else
-    
-    
-#if HISE_IOS
-    File rootDir = FrontendHandler::getResourcesFolder().getChildFile("SampleMaps");
-#else
-    
-	File rootDir = FrontendHandler::getAppDataDirectory().getChildFile("SampleMaps");
-#endif
+	sampleMapNames.ensureStorageAllocated(references.size());
 
-	// This must be taken care of during installation
-	jassert(rootDir.isDirectory());
+	for (auto r : references)
+		sampleMapNames.add(r.getReferenceString());
 
-#endif
-
-	Array<File> childFiles;
-
-	rootDir.findChildFiles(childFiles, File::findFiles, true, "*.xml");
-
-	childFiles.sort();
-
-	for (int i = 0; i < childFiles.size(); i++)
-	{
-		auto n = childFiles[i].getRelativePathFrom(rootDir).upToFirstOccurrenceOf(".xml", false, true);
-
-		n = n.replace(File::getSeparatorString(), "/");
-
-		sampleMapNames.add(n);
-
-		//sampleMapNames.add(childFiles[i].getFileNameWithoutExtension());
-	}
-
-	
-
-#else
-
-	ValueTree v = getProcessor()->getMainController()->getSampleManager().getProjectHandler().getValueTree(ProjectHandler::SubDirectories::SampleMaps);
-
-	static const Identifier id("ID");
-
-	for (int i = 0; i < v.getNumChildren(); i++)
-	{
-		sampleMapNames.add(v.getChild(i).getProperty(id));
-	}
-
-	
-
-#endif
-
-	return var(sampleMapNames);
+	return sampleMapNames;
 }
 
 var ScriptingApi::Sampler::getAttribute(int index) const

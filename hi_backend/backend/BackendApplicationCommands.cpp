@@ -709,9 +709,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_ALL_PLATFORMS(MenuSaveFileAsXmlBackup);
 
 		PopupMenu xmlBackups;
-		Array<File> xmlBackupFiles;
-
-		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getFileList(xmlBackupFiles, ProjectHandler::SubDirectories::XMLPresetBackups, "*.xml");
+		Array<File> xmlBackupFiles = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getFileList(ProjectHandler::SubDirectories::XMLPresetBackups);
 
 		for (int i = 0; i < xmlBackupFiles.size(); i++)
 		{
@@ -730,7 +728,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 
 		if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
 		{
-			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getFileList(recentFileList, ProjectHandler::SubDirectories::Presets, "*.hip", true);
+			recentFileList = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getFileList(ProjectHandler::SubDirectories::Presets, true);
 
 			for (int i = 0; i < recentFileList.size(); i++)
 			{
@@ -952,9 +950,7 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int topLevelMenuInde
         
         const int index = menuItemID - MenuFileXmlBackupMenuOffset;
         
-        Array<File> xmlFileList;
-        
-		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getFileList(xmlFileList, ProjectHandler::SubDirectories::XMLPresetBackups, "*.xml");
+        Array<File> xmlFileList = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getFileList(ProjectHandler::SubDirectories::XMLPresetBackups);
         
 		File presetToLoad = xmlFileList[index];
             
@@ -1814,9 +1810,7 @@ void BackendCommandTarget::Actions::loadFirstXmlAfterProjectSwitch(BackendRootWi
 {
 	auto& handler = GET_PROJECT_HANDLER(bpe->getMainSynthChain());
 
-	Array<File> files;
-
-	handler.getFileList(files, ProjectHandler::SubDirectories::XMLPresetBackups, "*.xml", true);
+	Array<File> files = handler.getFileList(ProjectHandler::SubDirectories::XMLPresetBackups, true);
 
 	if (files.size() > 0 && PresetHandler::showYesNoWindow("Load first XML in project?", "Do you want to load " + files[0].getFileName()))
 	{
@@ -2173,7 +2167,7 @@ void BackendCommandTarget::Actions::convertSfzFilesToSampleMaps(BackendRootWindo
 				const String id = f.getFileNameWithoutExtension();
 
 				sampler->getSampleMap()->setId(f.getFileNameWithoutExtension());
-				ValueTree sampleMap = sampler->getSampleMap()->exportAsValueTree();
+				auto sampleMap = sampler->getSampleMap()->getValueTree();
 
 				File sampleMapFile = GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps).getChildFile(id + ".xml");
 
