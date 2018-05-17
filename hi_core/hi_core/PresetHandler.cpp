@@ -1408,7 +1408,7 @@ juce::File ProjectHandler::getAppDataDirectory()
 	return f.getFullPathName();
 }
 
-juce::String FrontendHandler::checkSampleReferences(MainController* mc, const ValueTree &sampleMaps, bool returnTrueIfOneSampleFound)
+juce::String FrontendHandler::checkSampleReferences(MainController* mc, bool returnTrueIfOneSampleFound)
 {
 	Array<File> sampleList;
 
@@ -1423,25 +1423,33 @@ juce::String FrontendHandler::checkSampleReferences(MainController* mc, const Va
 
     int numCorrectSampleMaps = 0;
     
-	for (int i = 0; i < sampleMaps.getNumChildren(); i++)
+	auto pool = mc->getCurrentSampleMapPool(true);
+
+	Array<PooledSampleMap> sampleMaps;
+
+	pool->loadAllFilesFromDataProvider();
+
+	for (int i = 0; i < pool->getNumLoadedFiles(); i++)
 	{
-        
-        
-		ValueTree child = sampleMaps.getChild(i);
-		
-        const String thisFalseName = SampleMap::checkReferences(mc, child, sampleLocation, sampleList);
+		if (auto item = pool->getWeakReferenceToItem(pool->getReference(i)))
+		{
+			auto sampleMap = *item.getData();
 
-        if(thisFalseName.isNotEmpty())
-        {
-            falseName = thisFalseName;
-        }
-        else
-        {
-            numCorrectSampleMaps++;
-        }
-    }
+			const String thisFalseName = SampleMap::checkReferences(mc, sampleMap, sampleLocation, sampleList);
 
-    if(returnTrueIfOneSampleFound)
+			if (thisFalseName.isNotEmpty())
+			{
+				falseName = thisFalseName;
+			}
+			else
+			{
+				numCorrectSampleMaps++;
+			}
+		}
+
+	}
+
+	if(returnTrueIfOneSampleFound)
     {
         if(numCorrectSampleMaps != 0)
         {
@@ -1626,9 +1634,7 @@ void FrontendHandler::checkAllSampleReferences()
 	samplesCorrectlyLoaded = true;
 
 #else
-	ValueTree sampleMapTree = getValueTree(ProjectHandler::SubDirectories::SampleMaps);
-
-	const String missingSampleName = checkSampleReferences(getMainController(), sampleMapTree, true);
+	const String missingSampleName = checkSampleReferences(getMainController(), true);
 
 	samplesCorrectlyLoaded = missingSampleName.isEmpty();
 

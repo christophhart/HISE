@@ -48,8 +48,6 @@ public:
 
 protected:
 
-	ValueTree exportReferencedImageFiles();
-	ValueTree exportReferencedAudioFiles();
 	ValueTree exportEmbeddedFiles(bool includeSampleMaps);
 	ValueTree exportUserPresetFiles();
 	ValueTree exportPresetFile();

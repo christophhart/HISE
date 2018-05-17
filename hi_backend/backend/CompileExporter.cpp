@@ -76,53 +76,6 @@ void loadOtherReferencedImages(ModulatorSynthChain* chainToExport)
 	}
 }
 
-ValueTree BaseExporter::exportReferencedImageFiles()
-{
-	// Export the interface
-
-
-	loadOtherReferencedImages(chainToExport);
-
-	ImagePool *imagePool = chainToExport->getMainController()->getCurrentImagePool(true);
-
-	
-
-	ValueTree imageTree = imagePool->exportAsValueTree();
-
-	return imageTree;
-
-	
-}
-
-ValueTree BaseExporter::exportReferencedAudioFiles()
-{
-	// Search for impulse responses
-
-	DirectoryIterator iter(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles), false);
-
-	AudioSampleBufferPool *samplePool = chainToExport->getMainController()->getCurrentAudioSampleBufferPool(true);
-
-	Array<PooledAudioFile> soundList;
-
-	while (iter.next())
-	{
-#if JUCE_WINDOWS
-
-		// Skip OSX hidden files on windows...
-		if (iter.getFile().getFileName().startsWith(".")) continue;
-
-#endif
-
-		PoolReference ref(chainToExport->getMainController(), iter.getFile().getFullPathName(), ProjectHandler::SubDirectories::AudioFiles);
-
-		soundList.add(samplePool->loadFromReference(ref, PoolHelpers::LoadAndCacheWeak));
-	}
-
-	return samplePool->exportAsValueTree();
-
-	
-}
-
 ValueTree BaseExporter::exportUserPresetFiles()
 {
 	File presetDirectory = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
@@ -183,15 +136,7 @@ ValueTree BaseExporter::exportEmbeddedFiles(bool includeSampleMaps)
 	externalFiles.addChild(externalScriptFiles, -1, nullptr);
 	externalFiles.addChild(customFonts, -1, nullptr);
 
-	if (includeSampleMaps)
-	{
-		ValueTree sampleMaps = collectAllSampleMapsInDirectory();
-		externalFiles.addChild(sampleMaps, -1, nullptr);
-	}
-
 	return externalFiles;
-
-	
 }
 
 ValueTree BaseExporter::exportPresetFile()
@@ -577,21 +522,29 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 		// Always embed scripts and fonts, but don't embed samplemaps
 		writeValueTreeToTemporaryFile(exportEmbeddedFiles(embedFiles && type != TargetTypes::EffectPlugin), directoryPath, "externalFiles", true);
 
+		
+
 		if (embedFiles)
 		{
+			File imageOutputFile, sampleOutputFile, samplemapFile;
+
+			samplemapFile = File(directoryPath + "/samplemaps");
+
 			if (IS_SETTING_TRUE(HiseSettings::Project::EmbedAudioFiles))
 			{
-				writeValueTreeToTemporaryFile(exportReferencedAudioFiles(), directoryPath, "impulses");
-				writeValueTreeToTemporaryFile(exportReferencedImageFiles(), directoryPath, "images");
+				imageOutputFile = File(directoryPath + "/images");
+				sampleOutputFile = File(directoryPath + "/impulses");
+				
 			}
 			else
 			{
-				File appFolder = GET_PROJECT_HANDLER(chainToExport).getRootFolder().getChildFile("AudioResources.dat");
-				PresetHandler::writeValueTreeAsFile(exportReferencedAudioFiles(), appFolder.getFullPathName());
-
-				File imageFolder = GET_PROJECT_HANDLER(chainToExport).getRootFolder().getChildFile("ImageResources.dat");
-				PresetHandler::writeValueTreeAsFile(exportReferencedImageFiles(), imageFolder.getFullPathName());
+				imageOutputFile = GET_PROJECT_HANDLER(chainToExport).getRootFolder().getChildFile("ImageResources.dat");
+				sampleOutputFile = GET_PROJECT_HANDLER(chainToExport).getRootFolder().getChildFile("AudioResources.dat");
 			}
+
+			chainToExport->getMainController()->getCurrentAudioSampleBufferPool(true)->getDataProvider()->writePool(new FileOutputStream(sampleOutputFile));
+			chainToExport->getMainController()->getCurrentImagePool(true)->getDataProvider()->writePool(new FileOutputStream(imageOutputFile));
+			chainToExport->getMainController()->getCurrentSampleMapPool(true)->getDataProvider()->writePool(new FileOutputStream(samplemapFile));
 		}
 
 		String presetDataString("PresetData");

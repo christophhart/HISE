@@ -141,8 +141,7 @@ void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, in
 	data = ImageFileFormat::loadFrom(*inputStream);
 	ImageCache::addImageToCache(data, hashCode);
 
-	
-
+	fillMetadata(data, additionalData);
 }
 
 void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, ValueTree& data, var* additionalData)
@@ -161,7 +160,7 @@ void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, in
 		data = ValueTree::readFromStream(*inputStream);
 	}
 
-	
+	fillMetadata(data, additionalData);
 }
 
 void PoolHelpers::fillMetadata(AudioSampleBuffer& data, var* additionalData)
@@ -255,17 +254,6 @@ PoolHelpers::Reference::Reference(const MainController* mc, const String& refere
 	hashCode = reference.hashCode64();
 }
 
-PoolHelpers::Reference::Reference(MemoryBlock& mb, const String& referenceString, ProjectHandler::SubDirectories directoryType_)
-{
-	m = EmbeddedResource;
-
-	memoryLocation = mb.getData();
-	memorySize = mb.getSize();
-
-	reference = referenceString;
-	directoryType = directoryType_;
-	hashCode = reference.hashCode64();
-}
 
 PoolHelpers::Reference::Reference():
 	m(Mode::Invalid)
@@ -276,6 +264,15 @@ PoolHelpers::Reference::Reference():
 PoolHelpers::Reference::Reference(const var& dragDescription)
 {
 	parseDragDescription(dragDescription);
+}
+
+PoolHelpers::Reference::Reference(PoolBase* pool_, const String& embeddedReference, FileHandlerBase::SubDirectories type):
+	pool(pool_),
+	directoryType(type)
+{
+	reference = embeddedReference;
+	hashCode = reference.hashCode64();
+	m = EmbeddedResource;
 }
 
 juce::String PoolHelpers::Reference::getReferenceString() const
@@ -340,8 +337,7 @@ juce::InputStream* PoolHelpers::Reference::createInputStream() const
 		return nullptr;
 	}
 	case Mode::EmbeddedResource:
-		BACKEND_ONLY(jassertfalse);
-		return new MemoryInputStream(memoryLocation, memorySize, false);
+		return pool->getDataProvider()->createInputStream(reference);
 	case Mode::LinkToEmbeddedResource:
 		jassertfalse;
 	case Mode::numModes_:
@@ -483,7 +479,7 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
         
         if(directoryType != FileHandlerBase::Samples)
         {
-            m = LinkToEmbeddedResource;
+            m = EmbeddedResource;
         }
         else
         {
@@ -514,5 +510,207 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 	}
 }
 
+
+bool PoolBase::DataProvider::isEmbeddedResource(PoolReference r)
+{
+	return r.isEmbeddedReference() || hashCodes.contains(r.getHashCode());
+}
+
+hise::PoolReference PoolBase::DataProvider::getEmbeddedReference(PoolReference other)
+{
+	return PoolReference(pool, other.getReferenceString(), other.getFileType());
+}
+
+juce::Result PoolBase::DataProvider::restorePool(InputStream* ownedInputStream)
+{
+	pool->clearData();
+
+	input = ownedInputStream;
+	int64 metadataSize = input->readInt64();
+
+	MemoryBlock metadataBlock;
+
+	input->readIntoMemoryBlock(metadataBlock, metadataSize);
+
+	jassert(metadataBlock.getSize() == metadataSize);
+
+	metadata = ValueTree::readFromData(metadataBlock.getData(), metadataSize);
+
+	jassert(metadata.isValid());
+	jassert(metadata.getType() == Identifier("PoolData"));
+
+	for (const auto& item : metadata)
+	{
+		hashCodes.add(item.getProperty("HashCode"));
+	}
+
+	metadataOffset = input->getPosition();
+
+	return Result::ok();
+}
+
+juce::MemoryInputStream* PoolBase::DataProvider::createInputStream(const String& referenceString)
+{
+	if (metadata.isValid())
+	{
+		auto item = metadata.getChildWithProperty("ID", referenceString);
+
+		if (item.isValid())
+		{
+			auto offset = (int64)item.getProperty("ChunkStart");
+			auto end = (int64)item.getProperty("ChunkEnd");
+
+			if (input != nullptr)
+			{
+				input->setPosition(offset + metadataOffset);
+
+				MemoryBlock mb;
+
+				input->readIntoMemoryBlock(mb, offset - end);
+
+				return new MemoryInputStream(mb, true);
+			}
+		}
+	}
+	else
+	{
+		jassertfalse;
+		return nullptr;
+	}
+}
+
+juce::Result PoolBase::DataProvider::writePool(OutputStream* ownedOutputStream)
+{
+	ScopedPointer<OutputStream> output = ownedOutputStream;
+
+	
+	MemoryOutputStream dataOutputStream;
+
+	metadata = ValueTree("PoolData");
+
+	for (int i = 0; i < pool->getNumLoadedFiles(); i++)
+	{
+		auto ref = pool->getReference(i);
+		auto additionalData = pool->getAdditionalData(ref);
+
+		ValueTree child = ValueTreeConverters::convertDynamicObjectToValueTree(additionalData, "Item");
+
+		child.setProperty("ID", ref.getReferenceString(), nullptr);
+		child.setProperty("HashCode", ref.getHashCode(), nullptr);
+
+		MemoryOutputStream itemData;
+
+		pool->writeItemToOutput(itemData, ref);
+
+		child.setProperty("ChunkStart", dataOutputStream.getPosition(), nullptr);
+		dataOutputStream.write(itemData.getData(), itemData.getDataSize());
+		child.setProperty("ChunkEnd", dataOutputStream.getPosition(), nullptr);
+
+		metadata.addChild(child, -1, nullptr);
+	}
+
+	MemoryOutputStream metadataOutputStream;
+
+	metadata.writeToStream(metadataOutputStream);
+
+	int64 size = (int64)metadataOutputStream.getDataSize();
+
+	output->writeInt64(size);
+	output->write(metadataOutputStream.getData(), metadataOutputStream.getDataSize());
+	output->write(dataOutputStream.getData(), dataOutputStream.getDataSize());
+
+	output->flush();
+
+	return Result::ok();
+}
+
+var PoolBase::DataProvider::createAdditionalData(PoolReference r)
+{
+	auto item = metadata.getChildWithProperty("ID", r.getReferenceString());
+
+	if (item.isValid())
+	{
+		var data = ValueTreeConverters::convertValueTreeToDynamicObject(item);
+		
+		if (auto obj = data.getDynamicObject())
+		{
+			obj->removeProperty("ID");
+			obj->removeProperty("HashCode");
+		}
+
+		return data;
+	}
+}
+
+Array<hise::PoolReference> PoolBase::DataProvider::getListOfAllEmbeddedReferences() const
+{
+	Array<PoolReference> references;
+
+	for (const auto& c : metadata)
+	{
+		auto rString = c.getProperty("ID").toString();
+
+		references.add(PoolReference(pool, rString, pool->getFileType()));
+	}
+
+	return references;
+}
+
+void PoolBase::DataProvider::Compressor::write(OutputStream& output, const ValueTree& data) const
+{
+	GZIPCompressorOutputStream zipper(&output, 9);
+	data.writeToStream(zipper);
+	zipper.flush();
+}
+
+void PoolBase::DataProvider::Compressor::write(OutputStream& output, const Image& data) const
+{
+	PNGImageFormat format;
+	format.writeImageToStream(data, output);
+}
+
+void PoolBase::DataProvider::Compressor::write(OutputStream& output, const AudioSampleBuffer& data) const
+{
+	FlacAudioFormat format;
+
+	MemoryOutputStream* tempStream = new MemoryOutputStream();
+
+	if (ScopedPointer<AudioFormatWriter> writer = format.createWriterFor(tempStream, 44100.0, data.getNumChannels(), 24, StringPairArray(), 9))
+	{
+		writer->writeFromAudioSampleBuffer(data, 0, data.getNumSamples());
+
+		output.write(tempStream->getData(), tempStream->getDataSize());
+		writer = nullptr;
+	}
+}
+
+void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, ValueTree* data) const
+{
+	ScopedPointer<MemoryInputStream> input = mis;
+
+	*data = ValueTree::readFromGZIPData(mis->getData(), mis->getDataSize());
+
+	input = nullptr;
+}
+
+void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, Image* data) const
+{
+	ScopedPointer<MemoryInputStream> input = mis;
+
+	PNGImageFormat format;
+	*data = format.decodeImage(*mis);
+}
+
+void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, AudioSampleBuffer* data) const
+{
+	FlacAudioFormat format;
+
+	if (ScopedPointer<AudioFormatReader> reader = format.createReaderFor(mis, false))
+	{
+		*data = AudioSampleBuffer(reader->numChannels, reader->lengthInSamples);
+		reader->read(data, 0, reader->lengthInSamples, 0, true, true);
+	}
+		
+}
 
 } // namespace hise

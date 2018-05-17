@@ -81,7 +81,7 @@ class FrontendProcessor: public PluginParameterAudioProcessor,
 						 public MainController
 {
 public:
-	FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, ValueTree *imageData_ = nullptr, ValueTree *impulseData = nullptr, ValueTree *externalScriptData = nullptr, ValueTree *userPresets = nullptr);
+	FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, MemoryInputStream *imageData_ = nullptr, MemoryInputStream *impulseData = nullptr, MemoryInputStream* sampleMapData = nullptr, ValueTree *externalScriptData = nullptr, ValueTree *userPresets = nullptr);
 
 	const String getName(void) const override;
 
@@ -230,8 +230,6 @@ public:
 
 private:
 
-	void loadImages(ValueTree *imageData);
-	
 	friend class FrontendProcessorEditor;
 	friend class DefaultFrontendBar;
 

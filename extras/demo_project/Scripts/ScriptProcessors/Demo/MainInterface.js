@@ -13,21 +13,6 @@ Content.setPropertiesFromJSON("bgImage", {
 });
 // [/JSON bgImage]
 
-var toolbarData = {
-  "height": 32,
-  "overlaying": false,
-  "bgColour": 267386880,
-  "cpuTempoVoicesShown": true,
-  "presetShown": false,
-  "tooltipBarShown": true,
-  "keyboard": true,
-  "knobsShown": true,
-  "knobFilmStrip": "",
-  "knobNumFilmStrips": 0,
-  "outputMeterShown": true
-};
-
-Content.setToolbarProperties(toolbarData);
 
 // Tell the engine to use this script as main interface
 Content.makeFrontInterface(bgImage.get("width"), bgImage.get("height"));
@@ -96,6 +81,8 @@ Content.setPropertiesFromJSON("irSlider", {
 const var SampleMapSelector = Content.addComboBox("SampleMapSelector", 283, 405);
 
 const var DemoSampler = Synth.getSampler("DemoSampler");
+
+SampleMapSelector.set("items", "");
 
 const var x = Sampler.getSampleMapList();
 for(sampleMap in x) SampleMapSelector.addItem(sampleMap);

@@ -38,4 +38,3 @@
 
 #include "frontend/FrontEndProcessor.cpp"
 #include "frontend/FrontendProcessorEditor.cpp"
-

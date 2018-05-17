@@ -76,7 +76,7 @@ void FrontendProcessor::handleControllersForMacroKnobs(const MidiBuffer &midiMes
 }
 
 
-FrontendProcessor::FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, ValueTree *imageData_/*=nullptr*/, ValueTree *impulseData/*=nullptr*/, ValueTree *externalFiles/*=nullptr*/, ValueTree *) :
+FrontendProcessor::FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, MemoryInputStream *imageData/*=nullptr*/, MemoryInputStream *impulseData/*=nullptr*/, MemoryInputStream* sampleMapData, ValueTree *externalFiles/*=nullptr*/, ValueTree *) :
 MainController(),
 PluginParameterAudioProcessor(FrontendHandler::getProjectName()),
 AudioProcessorDriver(manager, callback_),
@@ -98,40 +98,38 @@ unlockCounter(0)
     
 	LOG_START("Load images");
 
-	loadImages(imageData_);
+	if(imageData)
+		getCurrentImagePool(true)->getDataProvider()->restorePool(imageData);
+	else
+	{
+		File imageResourceFile(getSampleManager().getProjectHandler().getRootFolder().getChildFile("ImageResources.dat"));
 
+		if (imageResourceFile.existsAsFile())
+		{
+			FileInputStream* fis = new FileInputStream(imageResourceFile);
+
+			LOG_START("Load impulses");
+
+			getCurrentAudioSampleBufferPool(true)->getDataProvider()->restorePool(fis);
+		}
+	}
+
+	if (impulseData)
+		getCurrentAudioSampleBufferPool(true)->getDataProvider()->restorePool(impulseData);
+	else
+	{
+		
+	}
+	
+	getCurrentSampleMapPool(true)->getDataProvider()->restorePool(sampleMapData);
+	
 	if (externalFiles != nullptr)
 	{
 		setExternalScriptData(externalFiles->getChildWithName("ExternalScripts"));
 		restoreCustomFontValueTree(externalFiles->getChildWithName("CustomFonts"));
 
-		getSampleManager().getProjectHandler().setValueTree(FileHandlerBase::SampleMaps, externalFiles->getChildWithName("SampleMaps"));
 	}
     
-	if (impulseData != nullptr)
-	{
-		getCurrentAudioSampleBufferPool(true)->restoreFromValueTree(*impulseData);
-	}
-	else
-	{
-		
-		File audioResourceFile(getSampleManager().getProjectHandler().getRootFolder().getChildFile("AudioResources.dat"));
-
-		if (audioResourceFile.existsAsFile())
-		{
-			FileInputStream fis(audioResourceFile);
-
-			LOG_START("Load impulses");
-
-			ValueTree impulseDataFile = ValueTree::readFromStream(fis);
-
-			if (impulseDataFile.isValid())
-			{
-				getCurrentAudioSampleBufferPool(true)->restoreFromValueTree(impulseDataFile);
-			}
-		}
-	}
-
 	numParameters = 0;
 
 	getMacroManager().setMacroChain(synthChain);
@@ -170,21 +168,6 @@ unlockCounter(0)
 			synthChain->prepareToPlay(getSampleRate(), getBlockSize());
 		}
 
-#if !DONT_EMBED_FILES_IN_FRONTEND
-		auto maps = getSampleManager().getProjectHandler().getValueTree(FileHandlerBase::SampleMaps);
-
-		for (const auto& sm : maps)
-		{
-			auto id = sm.getProperty("ID").toString();
-
-			getCurrentSampleMapPool(true)->createAsEmbeddedReference(id, sm);
-		}
-
-		
-
-
-#endif
-
 		createUserPresetData();
 	}
 
@@ -213,38 +196,6 @@ AudioProcessorEditor* FrontendProcessor::createEditor()
 void FrontendProcessor::setCurrentProgram(int /*index*/)
 {
 	return;
-}
-
-void FrontendProcessor::loadImages(ValueTree *imageData)
-{
-#if HISE_IOS
-    
-    // The images are loaded from actual files here...
-    return;
-#endif
-    
-	if (imageData == nullptr)
-	{
-		File imageResources = getSampleManager().getProjectHandler().getRootFolder().getChildFile("ImageResources.dat");
-
-		if (imageResources.existsAsFile())
-		{
-			FileInputStream fis(imageResources);
-
-			auto t = ValueTree::readFromStream(fis);
-
-			if (t.isValid())
-				getCurrentImagePool(true)->restoreFromValueTree(t);
-			else
-				sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, "The image resources are corrupt. Contact support");
-		}
-		else
-			sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, "The image resources can't be located. Contact support");
-	}
-	else
-	{
-		getCurrentImagePool(true)->restoreFromValueTree(*imageData);
-	}
 }
 
 const String FrontendStandaloneApplication::getApplicationName()

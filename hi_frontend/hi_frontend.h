@@ -109,24 +109,25 @@ ValueTree externalFiles = hise::PresetHandler::loadValueTreeFromData(PresetData:
 	return fp;\
 }
 
-#define CREATE_PLUGIN_WITH_AUDIO_FILES(deviceManager, callback) {\
-    LOG_START("Loading embedded instrument data")\
-    ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
-	LOG_START("Loading embedded image data")\
-	ValueTree imageData = hise::PresetHandler::loadValueTreeFromData(PresetData::images, PresetData::imagesSize, false);\
-	LOG_START("Loading embedded impulse responses")\
-	ValueTree impulseData = hise::PresetHandler::loadValueTreeFromData(PresetData::impulses, PresetData::impulsesSize, false); \
+
+
+#define CREATE_PLUGIN_WITH_AUDIO_FILES(deviceManager, callback) { LOG_START("Loading embedded instrument data");\
+	ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
+	LOG_START("Loading embedded image data");\
+	MemoryInputStream* imageData = new MemoryInputStream(PresetData::images, PresetData::imagesSize, false);\
+	LOG_START("Loading embedded impulse responses");\
+	MemoryInputStream* impulseData = new MemoryInputStream(PresetData::impulses, PresetData::impulsesSize, false);\
+	MemoryInputStream* sampleMapData = new MemoryInputStream(PresetData::samplemaps, PresetData::samplemapsSize, false);;\
 	LOG_START("Loading embedded other data")\
 	ValueTree externalFiles = hise::PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
-	\
 	LOG_START("Creating Frontend Processor")\
-	auto fp = new hise::FrontendProcessor(presetData, deviceManager, callback, &imageData, &impulseData, &externalFiles, nullptr); \
-    hise::UserPresetHelpers::extractUserPresets(PresetData::userPresets, PresetData::userPresetsSize);\
+	auto fp = new hise::FrontendProcessor(presetData, deviceManager, callback, imageData, impulseData, sampleMapData, &externalFiles, nullptr);\
+	hise::UserPresetHelpers::extractUserPresets(PresetData::userPresets, PresetData::userPresetsSize);\
 	hise::AudioProcessorDriver::restoreSettings(fp);\
-	hise::GlobalSettingManager::restoreGlobalSettings(fp); \
-	GET_PROJECT_HANDLER(fp->getMainSynthChain()).loadSamplesAfterSetup();\
-	return fp;\
-}
+	hise::GlobalSettingManager::restoreGlobalSettings(fp);\
+	GET_PROJECT_HANDLER(fp->getMainSynthChain()).loadSamplesAfterSetup(); \
+	return fp; }
+    
 #endif
 
 
