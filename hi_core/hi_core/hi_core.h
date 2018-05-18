@@ -63,7 +63,6 @@ struct TestGlobalNamespace
 
 #include "CustomDataContainers.h"
 
-#include "AES.h"
 
 /** @defgroup processor_interfaces Processor Interface Classes
 *	Interface classes that enhance the functionality of a processor.
