@@ -53,28 +53,30 @@ static const char * sfz_opcodeNames[SfzImporter::numSupportedOpcodes] =
 		"key"
 };
 
-ModulatorSamplerSound::Property SfzImporter::getSamplerProperty(Opcode opcode)
+Identifier SfzImporter::getSamplerProperty(Opcode opcode)
 {
 	switch(opcode)
 	{
-	case sample:			return ModulatorSamplerSound::Property::FileName;
-	case lokey:				return ModulatorSamplerSound::Property::KeyLow;
-	case hikey:				return ModulatorSamplerSound::Property::KeyHigh;
-	case lovel:				return ModulatorSamplerSound::Property::VeloLow;
-	case hivel:				return ModulatorSamplerSound::Property::VeloHigh;
-	case offset:			return ModulatorSamplerSound::Property::SampleStart;
-	case end:				return ModulatorSamplerSound::Property::SampleEnd;
-	case loop_mode:			return ModulatorSamplerSound::Property::LoopEnabled;
-	case loopstart:			return ModulatorSamplerSound::Property::LoopStart;
-	case loopend:			return ModulatorSamplerSound::Property::LoopEnd;
-	case tune:				return ModulatorSamplerSound::Property::Pitch;
-	case pitch_keycenter:	return ModulatorSamplerSound::Property::RootNote;
-	case volume:			return ModulatorSamplerSound::Property::Volume;
-	case group_volume:		return ModulatorSamplerSound::Property::numProperties; // increases the Volume Property.
-	case pan:				return ModulatorSamplerSound::Property::Pan;
-    case numSupportedOpcodes: jassertfalse; return ModulatorSamplerSound::numProperties;
-	default:				jassertfalse; return ModulatorSamplerSound::numProperties;
+	case sample:			return SampleIds::FileName;
+	case lokey:				return SampleIds::LoKey;
+	case hikey:				return SampleIds::HiKey;
+	case lovel:				return SampleIds::LoVel;
+	case hivel:				return SampleIds::HiVel;
+	case offset:			return SampleIds::SampleStart;
+	case end:				return SampleIds::SampleEnd;
+	case loop_mode:			return SampleIds::LoopEnabled;
+	case loopstart:			return SampleIds::LoopStart;
+	case loopend:			return SampleIds::LoopEnd;
+	case tune:				return SampleIds::Pitch;
+	case pitch_keycenter:	return SampleIds::Root;
+	case volume:			return SampleIds::Volume;
+	case group_volume:		return SampleIds::Volume; // increases the Volume Property.
+	case pan:				return SampleIds::Pan;
+    case numSupportedOpcodes: jassertfalse; 
+	default:				jassertfalse; 
 	};
+
+	return {};
 }
 
 int getNoteNumberFromNameOrNumber(const String &data)
@@ -380,10 +382,10 @@ void SfzImporter::importSfzFile()
 
 			id++;
 
-			sample.setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::ID), id, nullptr);
+			sample.setProperty(SampleIds::ID, id, nullptr);
 
-			sample.setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::VeloLow), 0, nullptr);
-			sample.setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::VeloHigh), 127, nullptr);
+			sample.setProperty(SampleIds::LoVel, 0, nullptr);
+			sample.setProperty(SampleIds::HiVel, 127, nullptr);
 
 			for(int k = 0; k < Opcode::numSupportedOpcodes; k++)
 			{
@@ -395,20 +397,18 @@ void SfzImporter::importSfzFile()
 				{
 					if (k == Opcode::key)
 					{
-						sample.setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::RootNote), region->opcodes[opcode], nullptr);
-						sample.setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::KeyLow), region->opcodes[opcode], nullptr);
-						sample.setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::KeyHigh), region->opcodes[opcode], nullptr);
+						sample.setProperty(SampleIds::Root, region->opcodes[opcode], nullptr);
+						sample.setProperty(SampleIds::LoKey, region->opcodes[opcode], nullptr);
+						sample.setProperty(SampleIds::HiKey, region->opcodes[opcode], nullptr);
 
 						continue;
 					}
 					
-					ModulatorSamplerSound::Property p = getSamplerProperty((Opcode)k);
-
-					if (p != ModulatorSamplerSound::numProperties)
-					{
-						sample.setProperty(ModulatorSamplerSound::getPropertyName(p), region->opcodes[opcode], nullptr);
-					}
 					
+
+					auto p = getSamplerProperty((Opcode)k);
+
+					sample.setProperty(p, region->opcodes[opcode], nullptr);
 				}
 			}
 
@@ -416,18 +416,18 @@ void SfzImporter::importSfzFile()
 
 			if ( !region->opcodes[groupVolumeOpcode].isUndefined() )
 			{
-				int zoneValue = sample.getProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::Volume), var(0));
+				int zoneValue = sample.getProperty(SampleIds::Volume, var(0));
 
 				int groupValue = region->opcodes[groupVolumeOpcode];
 
 				int combinedLevel = zoneValue + groupValue;
 
-				sample.setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::Volume), combinedLevel, nullptr);
+				sample.setProperty(SampleIds::Volume, combinedLevel, nullptr);
 
 			}
 
 			// Add the group properties
-			sample.setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::RRGroup), rrGroup, nullptr);
+			sample.setProperty(SampleIds::RRGroup, rrGroup, nullptr);
 
 			v.addChild(sample, -1, nullptr);
 		}

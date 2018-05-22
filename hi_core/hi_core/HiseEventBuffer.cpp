@@ -48,8 +48,7 @@ HiseEvent::HiseEvent(const MidiMessage& message)
 	else
 	{
 		type = Type::Empty;
-		// unsupported Message type, add another...
-		jassertfalse;
+		// unsupported Message type, add another...		jassertfalse;
 	}
 	
 	number = data[1];

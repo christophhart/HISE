@@ -57,26 +57,6 @@ struct MappingData
 	*	per mic position.
 	*/
 	void fillOtherProperties(ModulatorSamplerSound* sound);
-
-	CachedValue<int> rootNote;
-	CachedValue<int> loKey;
-	CachedValue<int> hiKey;
-	CachedValue<int> loVel;
-	CachedValue<int> hiVel;
-	CachedValue<int> rrGroup;
-	
-	CachedValue<int> volume;
-	CachedValue<int> pan;
-	CachedValue<int> pitch;
-	
-	CachedValue<int> sampleStart;
-	CachedValue<int> sampleEnd;
-	CachedValue<int> loopEnabled;
-	CachedValue<int> loopStart;
-	CachedValue<int> loopEnd;
-	CachedValue<int> loopXFade;
-	CachedValue<int> sampleStartMod;
-
 };
 
 // ====================================================================================================================
@@ -87,7 +67,7 @@ namespace SampleIds
 {
 DECLARE_ID(ID);
 DECLARE_ID(FileName);
-DECLARE_ID(RootNote);
+DECLARE_ID(Root);
 DECLARE_ID(HiKey);
 DECLARE_ID(LoKey);
 DECLARE_ID(LoVel);
@@ -108,6 +88,19 @@ DECLARE_ID(LowerVelocityXFade);
 DECLARE_ID(UpperVelocityXFade);
 DECLARE_ID(SampleState);
 DECLARE_ID(Reversed);
+
+	static bool isMapProperty(const Identifier& id)
+	{
+		return id == Root || id == HiKey || id == LoKey || id == HiVel || id == LoVel || id == RRGroup;
+	}
+
+	static bool isAudioProperty(const Identifier& id)
+	{
+		return id == SampleStart || id == SampleEnd || id == SampleStartMod || id == LoopEnabled ||
+			id == LoopStart || id == LoopEnd || id == LoopXFade;
+	}
+
+	const int numProperties = 23;
 }
 
 
@@ -119,25 +112,29 @@ DECLARE_ID(Reversed);
 *
 *	It also contains methods that extend the properties of a StreamingSamplerSound. */
 class ModulatorSamplerSound : public ModulatorSynthSound,
-							  public SafeChangeBroadcaster,
 							  public ControlledObject
 {
 public:
 
+	
+
 	using Ptr = ReferenceCountedObjectPtr<ModulatorSamplerSound>;
+
+	
 
 	// ====================================================================================================================
 
+	
 	/** The extended properties of the ModulatorSamplerSound */
 	enum Property
 	{
 		ID = 1, ///< a unique ID which corresponds to the number in the sound array
 		FileName, ///< the complete filename of the audio file
 		RootNote, ///< the root note
-		KeyHigh, ///< the highest mapped key
-		KeyLow, ///< the lowest mapped key
-		VeloLow, ///< the lowest mapped velocity
-		VeloHigh, ///< the highest mapped velocity
+		HiKey, ///< the highest mapped key
+		LoKey, ///< the lowest mapped key
+		LoVel, ///< the lowest mapped velocity
+		HiVel, ///< the highest mapped velocity
 		RRGroup, ///< the group index for round robin / random group start behaviour
 		Volume, ///< the gain in decibels. It is converted to a gain value internally
 		Pan,
@@ -157,18 +154,10 @@ public:
 		numProperties
 	};
 
+	
 	// ====================================================================================================================
 
-	ModulatorSamplerSound(MainController*, const ValueTree& v, HlacMonolithInfo* monolithData=nullptr);
-
-#if 0
-	/** Creates a ModulatorSamplerSound.
-	*	You only have to supply the index and the fileName, the rest is supposed to be restored with restoreFromValueTree(). */
-	ModulatorSamplerSound(MainController* mc, StreamingSamplerSound *sound, int index_);
-	
-
-	ModulatorSamplerSound(MainController* mc, StreamingSamplerSoundArray &soundArray, int index_);
-#endif
+	ModulatorSamplerSound(SampleMap* parent, const ValueTree& d, HlacMonolithInfo* monolithData=nullptr);
 
 	~ModulatorSamplerSound();
 
@@ -178,10 +167,8 @@ public:
 	*
 	*	This is used to display the name in the user interface and for the tag name within the XML samplemap,
 	*	so you must return a valid tag name here. */
-	static String getPropertyName(Property p);
-
 	/** Returns true if the property should be changed asynchronously when all voices are killed. */
-	static bool isAsyncProperty(Property p);
+	static bool isAsyncProperty(const Identifier& id);
 
 	/** Returns the min and max values for the Property.
 	*
@@ -202,28 +189,14 @@ public:
 	*	- Loop End:				(LoopStart + Crossfade) -> SampleEnd
 	*	- Loop Xfade:			0 -> (LoopStart - SampleStart) or LoopLength
 	*/
-	Range<int> getPropertyRange(Property p) const;;
+	Range<int> getPropertyRange(const Identifier& p) const;;
 
 	/** Returns a string version of the Property.
 	*
 	*	This is used for displaying a nicer value than the raw data value (eg. note names, or milliseconds).
 	*	Do not use the return value for further processing, use getProperty() instead.
 	*/
-	String getPropertyAsString(Property p) const;;
-
-	/** Returns the property as var object.
-	*
-	*	Use this method if you want to have access to the actual data.
-	*	Internal methods of ModulatorSamplerSound access the member variables directly for more speed.
-	*/
-	var getProperty(Property p) const;
-
-	/** Change a property. It also sends a change message to all registered listeners.
-	*
-	*	Calling this method directly can't be undone. If you want undo behaviour,
-	*	call setPropertyWithUndo() instead.
-	*/
-	void setProperty(Property p, int newValue, NotificationType notifyEditor=sendNotification);
+	String getPropertyAsString(const Identifier& id) const;;
 
 	/** Toggles the boolean properties.
 	*
@@ -232,44 +205,30 @@ public:
 	*	- Normalized
 	*	- LoopEnabled
 	*/
-	void toggleBoolProperty(ModulatorSamplerSound::Property p, NotificationType notifyEditor=sendNotification);;
+	void toggleBoolProperty(const Identifier& id);
 
-	var operator[] (Property p) { return getProperty(p); }
-
-	// ====================================================================================================================
-
-#if 0
-	/** Exports all properties (excluding the ID) as value tree. */
-	ValueTree exportAsValueTree() const override;;
-
-	/** restores all properties (excluding filename and ID) from the value tree. */
-	void restoreFromValueTree(const ValueTree &v) override;
-#endif
+	var operator[] (const Identifier& id) const { return getSampleProperty(id); }
 
 	// ====================================================================================================================
-
-	/** set the UndoManager that is used to save calls to setPropertyWithUndo(). */
-	void setUndoManager(UndoManager *newUndoManager) { undoManager = newUndoManager; };
 
 	/** Call this whenever you want to start a new series of property modifications. */
-	void startPropertyChange(Property p, int newValue);
+	void startPropertyChange(const Identifier& id, int newValue);
 
 	void startPropertyChange() { if (undoManager != nullptr) undoManager->beginNewTransaction(); }
+
+	void startPropertyChange(const String& name)
+	{
+		undoManager->beginNewTransaction(name);
+	}
 
 	/** Call this whenever you finish a series of property modifications.
 	*
 	*	It will group all actions since startPropertyChange and saves it to the UndoManager list
 	*	with a description "CHANGING PROPERTY FROM X TO Y"
 	*/
-	void endPropertyChange(Property p, int startValue, int endValue);
+	void endPropertyChange(const Identifier& id, int startValue, int endValue);
 
 	void endPropertyChange(const String &actionName);
-
-	/** Call this method whenever you want to change a property with undo.
-	*
-	*	If you didn't supply an UndoManager, it will simply call setProperty().
-	*/
-	void setPropertyWithUndo(Property p, var newValue);
 
 	// ====================================================================================================================
 
@@ -288,13 +247,11 @@ public:
 	/** Returns the id.
 	*
 	*	Can also be achieved by getProperty(ID), but this is more convenient. */
-	int getId() const { return index; };
+	int getId() const { return data.getParent().indexOf(data); };
 
 	Range<int> getNoteRange() const;
 	Range<int> getVelocityRange() const;
 
-    void setNewIndex(int newIndex) noexcept { index = newIndex; };
-    
 	/** Returns the gain value of the sound.
 	*
 	*	Unlike getProperty(Volume), it returns a value from 0.0 to 1.0, so use this for internal stuff
@@ -312,6 +269,12 @@ public:
 
 	/** returns the root note. */
 	int getRootNote() const noexcept{ return rootNote; };
+
+	void initPreloadBuffer(int preloadSize)
+	{
+		FOR_EVERY_SOUND(checkFileReference());
+		FOR_EVERY_SOUND(setPreloadSize(preloadSize, true));
+	}
 
 	// ====================================================================================================================
 
@@ -333,7 +296,7 @@ public:
 
 	PoolReference createPoolReference() const
 	{
-		return PoolReference(getMainController(), getProperty(ModulatorSamplerSound::FileName).toString(), ProjectHandler::SubDirectories::Samples);
+		return PoolReference(getMainController(), getSampleProperty(SampleIds::FileName).toString(), ProjectHandler::SubDirectories::Samples);
 	}
 
 	PoolReference createPoolReference(int multiMicIndex) const
@@ -364,15 +327,7 @@ public:
 	/** Returns the calculated (equal power) pan value for either the left or the right channel. */
 	float getBalance(bool getRightChannelGain) const;;
 
-	void setReversed(bool shouldBeReversed)
-	{
-		if (reversed != shouldBeReversed)
-		{
-			reversed = shouldBeReversed;
-
-			FOR_EVERY_SOUND(setReversed(reversed));
-		}
-	}
+	void setReversed(bool shouldBeReversed);
 
 	// ====================================================================================================================
 
@@ -410,52 +365,25 @@ public:
 
 	ValueTree getData() const { return data; }
 
+	void updateInternalData(const Identifier& id, const var& newValue);
+
+	void updateAsyncInternalData(const Identifier& id, int newValue);
+
+	var getDefaultValue(const Identifier& id) const;
+
+	void setSampleProperty(const Identifier& id, const var& newValue, bool useUndo=true);
+
+	var getSampleProperty(const Identifier& id) const;
+
+	
 
 private:
 
 	void loadSampleFromValueTree(const ValueTree& sampleData, HlacMonolithInfo* hmaf);
 
+	WeakReference<SampleMap> parentMap;
 	ValueTree data;
-
-	void setPropertyInternal(Property p, int newValue);
-
-	void setPreloadPropertyInternal(Property y, int newValue);
-
-	// ================================================================================================================
-
-	/** A PropertyChange is a undoable modification of one of the properties of the sound */
-	class PropertyChange : public UndoableAction
-	{
-	public:
-
-		/** Creates a new property change. It stores the current value as last value for the UndoManager.
-		*
-		*	@param p the Property that is supposed to be changed
-		*	@param newValue the new value.
-		*/
-		PropertyChange(ModulatorSamplerSound *soundToChange, Property p, var newValue);
-
-		/** executes the modification. */
-		bool perform() override;;
-
-		/** reverts the modification. */
-		bool undo() override;;
-
-	private:
-
-		// ============================================================================================================
-
-		WeakReference<ControlledObject> sound;
-
-		Property changedProperty;
-
-		var currentValue;
-		var lastValue;
-
-		// ============================================================================================================
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PropertyChange)
-	};
+	UndoManager *undoManager;
 
 	// ================================================================================================================
 
@@ -463,64 +391,52 @@ private:
 	
 	const CriticalSection& getLock() const { return firstSound.get()->getSampleLock(); };
 	
-	UndoManager *undoManager;
+	
 
 	CriticalSection exportLock;
 	
-	float normalizedPeak;
-	bool isNormalized;
-	CachedValue<bool> purged;
-	CachedValue<bool> reversed;
-	bool allFilesExist;
-	const bool isMultiMicSound;
-
-	StreamingSamplerSoundArray soundArray;
-	WeakReference<StreamingSamplerSound> firstSound;
-
-	CachedValue<int> upperVeloXFadeValue;
-	CachedValue<int> lowerVeloXFadeValue;
-	CachedValue<int> rrGroup;
-	CachedValue<int> rootNote;
-	CachedValue<int> pan;
-	CachedValue<int> keyHigh;
-	CachedValue<int> keyLow;
-	CachedValue<int> veloLow;
-	CachedValue<int> veloHigh;
-
-	CachedValue<int> sampleStart;
-	CachedValue<int> sampleEnd;
-	CachedValue<int> sampleStartMod;
-	CachedValue<int> loopStart;
-	CachedValue<int> loopEnd;
-	CachedValue<bool> loopEnabled;
-	CachedValue<int> loopXFade;
-
-
+	float normalizedPeak = 1.0f;
+	bool isNormalized = false;
+	bool purged = false;
+	bool reversed = false;
+	int upperVeloXFadeValue = 0;
+	int lowerVeloXFadeValue = 0;
+	int rrGroup = 1;
+	int rootNote;
+	int maxRRGroup;
 	BigInteger velocityRange;
 	BigInteger midiNotes;
 
-	int index;
-
-	int maxRRGroup;
-	
-
 	std::atomic<float> gain;
-
-	
-	double centPitch;
-    std::atomic<double> pitchFactor;
-	
+	std::atomic<double> pitchFactor;
 
 	float leftBalanceGain;
 	float rightBalanceGain;
 
 	BigInteger purgeChannels;
 
+	bool allFilesExist;
+	const bool isMultiMicSound;
+
+
+	StreamingSamplerSoundArray soundArray;
+	WeakReference<StreamingSamplerSound> firstSound;
+
+	
+
+	
+
 	bool enableAsyncPropertyChange = true;
 
 	// ================================================================================================================
 
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ModulatorSamplerSound)
+
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModulatorSamplerSound)
+
+	public:
+
+	using WeakPtr = WeakReference<ModulatorSamplerSound>;
 };
 
 typedef Array<ModulatorSamplerSound::Ptr> SampleSelection;
@@ -618,6 +534,8 @@ public:
 	StreamingSamplerSound* getSampleFromPool(PoolReference r) const;
 
 	void addSound(const PoolEntry& newPoolEntry);
+
+	HlacMonolithInfo* getMonolith(const Identifier& id);
 
 private:
 

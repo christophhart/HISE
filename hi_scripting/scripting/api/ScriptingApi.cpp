@@ -1505,7 +1505,7 @@ struct ScriptingApi::Sampler::Wrapper
 
 
 ScriptingApi::Sampler::Sampler(ProcessorWithScriptingContent *p, ModulatorSampler *sampler_) :
-ConstScriptingObject(p, ModulatorSamplerSound::Property::numProperties),
+ConstScriptingObject(p, SampleIds::numProperties),
 sampler(sampler_)
 {
 	ADD_API_METHOD_1(enableRoundRobin);
@@ -1530,9 +1530,33 @@ sampler(sampler_)
     ADD_API_METHOD_2(setAttribute);
 	ADD_API_METHOD_1(setUseStaticMatrix);
 
-	for (int i = 1; i < ModulatorSamplerSound::numProperties; i++)
+	sampleIds.add(SampleIds::ID);
+	sampleIds.add(SampleIds::FileName);
+	sampleIds.add(SampleIds::Root);
+	sampleIds.add(SampleIds::HiKey);
+	sampleIds.add(SampleIds::LoKey);
+	sampleIds.add(SampleIds::LoVel);
+	sampleIds.add(SampleIds::HiVel);
+	sampleIds.add(SampleIds::RRGroup);
+	sampleIds.add(SampleIds::Volume);
+	sampleIds.add(SampleIds::Pan);
+	sampleIds.add(SampleIds::Normalized);
+	sampleIds.add(SampleIds::Pitch);
+	sampleIds.add(SampleIds::SampleStart);
+	sampleIds.add(SampleIds::SampleEnd);
+	sampleIds.add(SampleIds::SampleStartMod);
+	sampleIds.add(SampleIds::LoopStart);
+	sampleIds.add(SampleIds::LoopEnd);
+	sampleIds.add(SampleIds::LoopXFade);
+	sampleIds.add(SampleIds::LoopEnabled);
+	sampleIds.add(SampleIds::LowerVelocityXFade);
+	sampleIds.add(SampleIds::UpperVelocityXFade);
+	sampleIds.add(SampleIds::SampleState);
+	sampleIds.add(SampleIds::Reversed);
+
+	for (int i = 1; i < sampleIds.size(); i++)
 	{
-		addConstant(ModulatorSamplerSound::getPropertyName((ModulatorSamplerSound::Property)i), i);
+		addConstant(sampleIds[i].toString(), (int)i);
 	}
 }
 
@@ -1650,13 +1674,15 @@ void ScriptingApi::Sampler::setSoundPropertyForSelection(int propertyId, var new
 
 	auto sounds = soundSelection.getItemArray();
 
+	auto id = sampleIds[propertyId];
+
 	const int numSelected = sounds.size();
 
 	for (int i = 0; i < numSelected; i++)
 	{
 		if (sounds[i].get() != nullptr)
 		{
-			s->setSoundPropertyAsync(sounds[i], (int)propertyId, (int)newValue);
+			sounds[i]->setSampleProperty(id, newValue, false);
 		}
 	}
 }
@@ -1671,7 +1697,13 @@ void ScriptingApi::Sampler::setSoundPropertyForAllSamples(int propertyIndex, var
 		return;
 	}
 
-	s->setSoundPropertyAsyncForAllSamples(propertyIndex, newValue);
+	auto id = sampleIds[propertyIndex];
+
+	for (int i = 0; i < s->getNumSounds(); i++)
+	{
+		if (auto sound = s->getSampleMap()->getSound(i))
+			sound->setSampleProperty(id, newValue, false);
+	}
 }
 
 var ScriptingApi::Sampler::getSoundProperty(int propertyIndex, int soundIndex)
@@ -1684,18 +1716,16 @@ var ScriptingApi::Sampler::getSoundProperty(int propertyIndex, int soundIndex)
 		RETURN_IF_NO_THROW(var())
 	}
 
-	ModulatorSamplerSound *sound = soundSelection.getSelectedItem(soundIndex);
-
-	if (sound != nullptr)
+	if (auto sound = s->getSampleMap()->getSound(soundIndex))
 	{
-		return sound->getProperty((ModulatorSamplerSound::Property)propertyIndex);
+		auto id = sampleIds[propertyIndex];
+		return sound->getSampleProperty(id);
 	}
 	else
 	{
 		reportScriptError("no sound with index " + String(soundIndex));
 		RETURN_IF_NO_THROW(var())
 	}
-
 }
 
 void ScriptingApi::Sampler::setSoundProperty(int soundIndex, int propertyIndex, var newValue)
@@ -1708,11 +1738,10 @@ void ScriptingApi::Sampler::setSoundProperty(int soundIndex, int propertyIndex, 
 		RETURN_VOID_IF_NO_THROW()
 	}
 
-	ModulatorSamplerSound *sound = soundSelection.getSelectedItem(soundIndex);
-
-	if (sound != nullptr)
+	if (auto sound = soundSelection.getSelectedItem(soundIndex).get())
 	{
-		s->setSoundPropertyAsync(sound, (int)propertyIndex, (int)newValue);
+		auto id = sampleIds[propertyIndex];
+		sound->setSampleProperty(id, newValue, false);
 	}
 	else
 	{

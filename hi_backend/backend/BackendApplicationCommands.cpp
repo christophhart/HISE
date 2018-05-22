@@ -1396,7 +1396,7 @@ void BackendCommandTarget::Actions::removeAllSampleMaps(BackendRootWindow * bpe)
 		Processor::Iterator<ModulatorSampler> iter(bpe->getMainSynthChain(), false);
 
 		while (auto sampler = iter.getNextProcessor())
-			sampler->clearSampleMap();
+			sampler->clearSampleMap(sendNotificationAsync);
 	}
 }
 

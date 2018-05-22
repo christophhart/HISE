@@ -75,7 +75,8 @@ private:
 */
 class SamplerTable  : public Component,
                       public SamplerSubEditor,
-                      public LabelListener
+                      public LabelListener,
+					  public SampleMap::Listener
 {
 public:
     //==============================================================================
@@ -99,9 +100,27 @@ public:
 		repaint();
 	}
 
-	void updateInterface() override
+	void sampleAmountChanged() override
 	{
 		refreshList();
+	}
+
+	void samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& /*newValue*/) override
+	{
+		auto index = s->getId();
+
+		if(SampleIds::isMapProperty(id))
+			table->refreshPropertyForRow(index, id);
+	}
+
+	void sampleMapWasChanged(PoolReference newSampleMap) override
+	{
+		refreshList();
+	}
+
+	void updateInterface() override
+	{
+		//refreshList();
 	}
 
     //[/UserMethods]

@@ -34,24 +34,25 @@ namespace hise { using namespace juce;
 
 void SampleEditHandler::SampleEditingActions::deleteSelectedSounds(SampleEditHandler *handler)
 {
-	auto f = [handler](Processor* )
+	
+	auto soundsToBeDeleted = handler->getSelection().getItemArray();
+
+	
+
+	const int numToBeDeleted = soundsToBeDeleted.size();
+
+	handler->getSampler()->getUndoManager()->beginNewTransaction("Delete samples");
+
+	for (int i = 0; i < soundsToBeDeleted.size(); i++)
 	{
-		auto soundsToBeDeleted = handler->getSelection().getItemArray();
-
-		const int numToBeDeleted = soundsToBeDeleted.size();
-
-		for (int i = 0; i < numToBeDeleted; i++)
+		if (soundsToBeDeleted[i].get() != nullptr)
 		{
-			if (soundsToBeDeleted[i].get() != nullptr) handler->sampler->deleteSound(soundsToBeDeleted[i].get());
+			handler->sampler->getSampleMap()->removeSound(soundsToBeDeleted[i].get());
 		}
+	}
 
-		handler->getSelection().deselectAll();
-		handler->getSelection().dispatchPendingMessages();
-
-		return true;
-	};
-
-	handler->sampler->getMainController()->getKillStateHandler().killVoicesAndCall(handler->sampler, f, MainController::KillStateHandler::TargetThread::MessageThread);
+	handler->getSelection().deselectAll();
+	handler->getSelection().dispatchPendingMessages();
 }
 
 void SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(SampleEditHandler *handler)
@@ -71,7 +72,7 @@ void SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(SampleEdit
 		auto v = sounds[i].get()->getData();
 		const int index = s->getNumSounds();
 
-		s->addSound(new ModulatorSamplerSound(s->getMainController(), v, nullptr));
+		s->getSampleMap()->addSound(v.createCopy());
 
 		newSelectedIndexes.add(index);
 	}
@@ -110,7 +111,7 @@ void SampleEditHandler::SampleEditingActions::removeDuplicateSounds(SampleEditHa
 			{
 				ModulatorSamplerSound *sound = soundsInSampler[i].get();
 
-				String fileName = sound->getProperty(ModulatorSamplerSound::FileName);
+				String fileName = sound->getSampleProperty(SampleIds::FileName);
 
 				if (fileNames.contains(fileName))
 				{
@@ -129,7 +130,7 @@ void SampleEditHandler::SampleEditingActions::removeDuplicateSounds(SampleEditHa
 
 		for (int i = 0; i < soundsToDelete.size(); i++)
 		{
-			handler->sampler->deleteSound(soundsToDelete[i]);
+			handler->getSampler()->getSampleMap()->removeSound(soundsToDelete[i]);
 		}
 
 		if (numDeleted != 0)
@@ -162,8 +163,8 @@ void SampleEditHandler::SampleEditingActions::automapVelocity(SampleEditHandler 
 
 	for (int i = 0; i < sounds.size(); i++)
 	{
-		lowerLimit = jmin(lowerLimit, (int)sounds[i]->getProperty(ModulatorSamplerSound::VeloLow));
-		upperLimit = jmax(upperLimit, (int)sounds[i]->getProperty(ModulatorSamplerSound::VeloHigh));
+		lowerLimit = jmin(lowerLimit, (int)sounds[i]->getSampleProperty(SampleIds::LoVel));
+		upperLimit = jmax(upperLimit, (int)sounds[i]->getSampleProperty(SampleIds::HiVel));
 	}
 
 	Array<ModulatorSamplerSound*> sortedList;
@@ -222,15 +223,16 @@ void SampleEditHandler::SampleEditingActions::pasteSelectedSounds(SampleEditHand
 	{
 		ScopedLock sl(s->getMainController()->getSampleManager().getSamplerSoundLock());
 
+
 		for (int i = 0; i < v.getNumChildren(); i++)
 		{
 			const int index = s->getNumSounds();
 
-			ModulatorSamplerSound::Ptr newSound = new ModulatorSamplerSound(s->getMainController(), v.getChild(i), nullptr);
+			s->getSampleMap()->addSound(v.getChild(i));
 
-			s->addSound(newSound.get());
+			auto newSound = s->getSound(index);
 
-			handler->getSelection().addToSelection(newSound);
+			handler->getSelection().addToSelection(dynamic_cast<ModulatorSamplerSound*>(newSound));
 		}
 	}
 
@@ -245,8 +247,8 @@ void SampleEditHandler::SampleEditingActions::refreshCrossfades(SampleEditHandle
 
 	for (int i = 0; i < sounds.size(); i++)
 	{
-		sounds[i]->setProperty(ModulatorSamplerSound::UpperVelocityXFade, 0);
-		sounds[i]->setProperty(ModulatorSamplerSound::LowerVelocityXFade, 0);
+		sounds[i]->setSampleProperty(SampleIds::UpperVelocityXFade, 0);
+		sounds[i]->setSampleProperty(SampleIds::LowerVelocityXFade, 0);
 	}
 
 	for (int i = 0; i < sounds.size(); i++)
@@ -257,7 +259,7 @@ void SampleEditHandler::SampleEditingActions::refreshCrossfades(SampleEditHandle
 
 		Range<int> referenceVelocityRange = referenceSound->getVelocityRange();
 
-		const int referenceGroup = referenceSound->getProperty(ModulatorSamplerSound::RRGroup);
+		const int referenceGroup = referenceSound->getSampleProperty(SampleIds::RRGroup);
 
 		for (int j = 0; j < sounds.size(); j++)
 		{
@@ -266,7 +268,7 @@ void SampleEditHandler::SampleEditingActions::refreshCrossfades(SampleEditHandle
 
 			if (thisSound == referenceSound) continue;
 
-			const int thisGroup = thisSound->getProperty(ModulatorSamplerSound::RRGroup);
+			const int thisGroup = thisSound->getSampleProperty(SampleIds::RRGroup);
 
 			if (thisGroup != referenceGroup) continue;
 
@@ -345,8 +347,8 @@ public:
 
 			setProgress((double)i / (double)soundList.size());
 
-			showStatusMessage("Normalizing " + soundList[i]->getProperty(ModulatorSamplerSound::FileName).toString());
-			soundList[i].get()->toggleBoolProperty(ModulatorSamplerSound::Normalized, dontSendNotification);
+			showStatusMessage("Normalizing " + soundList[i]->getSampleProperty(SampleIds::FileName).toString());
+			soundList[i].get()->toggleBoolProperty(SampleIds::Normalized);
 		};
 	}
 
@@ -607,12 +609,12 @@ private:
 
 		bool appliesToCollection(ModulatorSamplerSound *otherSound) const
 		{
-			return  data[SampleIds::RootNote] == otherSound->getProperty(ModulatorSamplerSound::RootNote) &&
-				    data[SampleIds::LoKey] == otherSound->getProperty(ModulatorSamplerSound::KeyLow) &&
-				    data[SampleIds::HiKey] == otherSound->getProperty(ModulatorSamplerSound::KeyHigh) &&
-					data[SampleIds::LoVel] == otherSound->getProperty(ModulatorSamplerSound::VeloLow) &&
-					data[SampleIds::HiVel] == otherSound->getProperty(ModulatorSamplerSound::VeloHigh) &&
-					data[SampleIds::RRGroup] == otherSound->getProperty(ModulatorSamplerSound::RRGroup);
+			return  data[SampleIds::Root] == otherSound->getSampleProperty(SampleIds::Root) &&
+				    data[SampleIds::LoKey] == otherSound->getSampleProperty(SampleIds::LoKey) &&
+				    data[SampleIds::HiKey] == otherSound->getSampleProperty(SampleIds::HiKey) &&
+					data[SampleIds::LoVel] == otherSound->getSampleProperty(SampleIds::LoVel) &&
+					data[SampleIds::HiVel] == otherSound->getSampleProperty(SampleIds::HiVel) &&
+					data[SampleIds::RRGroup] == otherSound->getSampleProperty(SampleIds::RRGroup);
 		}
 
 		ValueTree data;
@@ -975,12 +977,12 @@ void SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(SampleEd
 			for (int i = 0; i < s->getNumMultiMicSamples(); i++)
 			{
 				auto single = s->getReferenceToSound(i);
-				MappingData newData((int)s->getProperty(ModulatorSamplerSound::RootNote),
-					(int)s->getProperty(ModulatorSamplerSound::KeyLow),
-					(int)s->getProperty(ModulatorSamplerSound::KeyHigh),
-					(int)s->getProperty(ModulatorSamplerSound::VeloLow),
-					(int)s->getProperty(ModulatorSamplerSound::VeloHigh),
-					(int)s->getProperty(ModulatorSamplerSound::RRGroup));
+				MappingData newData((int)s->getSampleProperty(SampleIds::RootNote),
+					(int)s->getSampleProperty(SampleIds::LoKey),
+					(int)s->getSampleProperty(SampleIds::HiKey),
+					(int)s->getSampleProperty(SampleIds::LoVel),
+					(int)s->getSampleProperty(SampleIds::HiVel),
+					(int)s->getSampleProperty(SampleIds::RRGroup));
 
 				singleList.add(single);
 				singleData.add(newData);
@@ -1018,7 +1020,7 @@ void SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(SampleEd
 	}
 }
 
-#define SET_PROPERTY_FROM_METADATA_STRING(string, prop) if (string.isNotEmpty()) sound->setProperty(prop, string.getIntValue(), sendNotification);
+#define SET_PROPERTY_FROM_METADATA_STRING(string, prop) if (string.isNotEmpty()) sound->setSampleProperty(prop, string.getIntValue());
 
 bool setSoundPropertiesFromMetadata(ModulatorSamplerSound *sound, const StringPairArray &metadata, bool readOnly=false)
 {
@@ -1119,19 +1121,19 @@ bool setSoundPropertiesFromMetadata(ModulatorSamplerSound *sound, const StringPa
 
 	if (!readOnly)
 	{
-		SET_PROPERTY_FROM_METADATA_STRING(lowVel, ModulatorSamplerSound::VeloLow);
-		SET_PROPERTY_FROM_METADATA_STRING(hiVel, ModulatorSamplerSound::VeloHigh);
-		SET_PROPERTY_FROM_METADATA_STRING(loKey, ModulatorSamplerSound::KeyLow);
-		SET_PROPERTY_FROM_METADATA_STRING(hiKey, ModulatorSamplerSound::KeyHigh);
-		SET_PROPERTY_FROM_METADATA_STRING(root, ModulatorSamplerSound::RootNote);
-		SET_PROPERTY_FROM_METADATA_STRING(start, ModulatorSamplerSound::SampleStart);
-		SET_PROPERTY_FROM_METADATA_STRING(end, ModulatorSamplerSound::SampleEnd);
-		SET_PROPERTY_FROM_METADATA_STRING(loopEnabled, ModulatorSamplerSound::LoopEnabled);
-		SET_PROPERTY_FROM_METADATA_STRING(loopStart, ModulatorSamplerSound::LoopStart);
-		SET_PROPERTY_FROM_METADATA_STRING(loopEnd, ModulatorSamplerSound::LoopEnd);
-	}
+		sound->startPropertyChange("Applying metadata");
 
-	
+		SET_PROPERTY_FROM_METADATA_STRING(lowVel, SampleIds::LoVel);
+		SET_PROPERTY_FROM_METADATA_STRING(hiVel, SampleIds::HiVel);
+		SET_PROPERTY_FROM_METADATA_STRING(loKey, SampleIds::LoKey);
+		SET_PROPERTY_FROM_METADATA_STRING(hiKey, SampleIds::HiKey);
+		SET_PROPERTY_FROM_METADATA_STRING(root, SampleIds::Root);
+		SET_PROPERTY_FROM_METADATA_STRING(start, SampleIds::SampleStart);
+		SET_PROPERTY_FROM_METADATA_STRING(end, SampleIds::SampleEnd);
+		SET_PROPERTY_FROM_METADATA_STRING(loopEnabled, SampleIds::LoopEnabled);
+		SET_PROPERTY_FROM_METADATA_STRING(loopStart, SampleIds::LoopStart);
+		SET_PROPERTY_FROM_METADATA_STRING(loopEnd, SampleIds::LoopEnd);
+	}
 
 	return 	lowVel != "" ||
 		hiVel != "" ||
@@ -1168,7 +1170,7 @@ bool SampleEditHandler::SampleEditingActions::metadataWasFound(ModulatorSampler*
 	for (int i = 0; i < sounds.size(); i++)
 	{
 
-		File f = File(sounds[i].get()->getProperty(ModulatorSamplerSound::FileName).toString());
+		File f = File(sounds[i].get()->getSampleProperty(SampleIds::FileName).toString());
 
 		ScopedPointer<AudioFormatReader> reader = afm->createReaderFor(f);
 
@@ -1211,7 +1213,9 @@ void SampleEditHandler::SampleEditingActions::automapUsingMetadata(ModulatorSamp
 	for (int i = 0; i < sounds.size(); i++)
 	{
 	
-		File f = File(sounds[i].get()->getProperty(ModulatorSamplerSound::FileName).toString());
+		PoolReference ref(sampler->getMainController(), sounds[i].get()->getSampleProperty(SampleIds::FileName).toString(), FileHandlerBase::Samples);
+
+		File f = ref.getFile();
 
 		ScopedPointer<AudioFormatReader> reader = afm->createReaderFor(f);
 
@@ -1480,7 +1484,7 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 
 		void calculateNewSampleStartForPreview()
 		{
-			auto offset = 0;// (int)currentlyDisplayedSound->getProperty(ModulatorSamplerSound::SampleStart);
+			auto offset = 0;// (int)currentlyDisplayedSound->getSampleProperty(SampleIds::SampleStart);
 
 			auto newSampleStart = SampleStartTrimmer::calculateSampleTrimOffset(offset, analyseBuffer, handler->getSampler(), threshhold.getValue(), shouldSnapToZero());
 
@@ -1635,7 +1639,7 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 					auto currentSound = handler->getSelection().getSelectedItem(i);
 					if (currentSound != nullptr)
 					{
-						choices.add(currentSound->getPropertyAsString(ModulatorSamplerSound::Property::FileName));
+						choices.add(currentSound->getPropertyAsString(SampleIds::FileName));
 					}
 					else
 					{
@@ -1731,7 +1735,7 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 			firstPreview->getSampleArea(SamplerSoundWaveform::LoopArea)->setAreaEnabled(false);
 
 			auto start = 0;
-			auto end = (int)currentlyDisplayedSound->getProperty(ModulatorSamplerSound::SampleEnd);
+			auto end = (int)currentlyDisplayedSound->getSampleProperty(SampleIds::SampleEnd);
 
 			previewRange = { start, end };
 
@@ -1858,8 +1862,8 @@ private:
 			{
 				if (t.s.get() != nullptr)
 				{
-					t.s->setPropertyWithUndo(ModulatorSamplerSound::SampleStart, t.trimStart);
-					t.s->setPropertyWithUndo(ModulatorSamplerSound::SampleEnd, t.trimEnd);
+					t.s->setSampleProperty(SampleIds::SampleStart, t.trimStart);
+					t.s->setSampleProperty(SampleIds::SampleEnd, t.trimEnd);
 				}
 			}
 
@@ -1885,12 +1889,9 @@ private:
 
 		ModulatorSampler *sampler = handler->getSampler();
 
-
-		
-
 		if (auto s = sounds.getFirst())
 		{
-			s->startPropertyChange(ModulatorSamplerSound::SampleStart, 0);
+			s->startPropertyChange("Trim SampleStart");
 		}
 
 		numSamples = sounds.size();
@@ -1903,7 +1904,7 @@ private:
 
 				AudioSampleBuffer analyseBuffer = getBufferForAnalysis(sound, multiMicIndex);
 
-				auto startOffset = 0;// sound->getProperty(ModulatorSamplerSound::SampleStart);
+				auto startOffset = 0;// sound->getSampleProperty(SampleIds::SampleStart);
 
 				auto endOffset = sound->getReferenceToSound()->getLengthInSamples();
 				
@@ -1930,11 +1931,6 @@ private:
 					trimActions.add({ sound, trimStart, trimEnd});
 			}
 		}
-
-		if (auto s = sounds.getFirst())
-		{
-			s->sendChangeMessage();
-		};
 	}
 
 	

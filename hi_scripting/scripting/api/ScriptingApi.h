@@ -458,6 +458,8 @@ public:
 
 		WeakReference<Processor> sampler;
 		SelectedItemSet<ModulatorSamplerSound::Ptr> soundSelection;
+
+		Array<Identifier> sampleIds;
 	};
 	
 

@@ -54,9 +54,28 @@ struct SampleMapData
 *	It only accesses the sampler data when saved or loaded, and uses a ChangeListener to check if a sound has changed.
 */
 class SampleMap: public SafeChangeListener,
-				 public PoolBase::Listener
+				 public PoolBase::Listener,
+				 public ValueTree::Listener
 {
 public:
+
+
+	class Listener
+	{
+	public:
+
+		virtual ~Listener() {};
+
+		virtual void sampleMapWasChanged(PoolReference newSampleMap) = 0;
+
+		virtual void samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& newValue) = 0;
+
+		virtual void sampleAmountChanged() = 0;
+
+	private:
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+	};
 
 	/** A SamplerMap can be saved in multiple modes. */
 	enum SaveMode
@@ -106,12 +125,9 @@ public:
 		return false; //fileOnDisk == File() || changed;
 	}
 
-	/** Returns the file on the disk. */
-	File getFile() const {return fileOnDisk;};
-
 	void load(const PoolReference& reference);
 
-	
+	void loadUnsavedValueTree(const ValueTree& v);
 
 	/** Saves all data with the mode depending on the file extension. */
 	void save();
@@ -123,7 +139,7 @@ public:
 	bool isMonolith() const noexcept { return mode == SaveMode::Monolith; };
 
 	/** Clears the sample map. */
-    void clear();
+    void clear(NotificationType n);
 	
 	ModulatorSampler* getSampler() const { return sampler; }
 	
@@ -137,7 +153,9 @@ public:
     
 	static String checkReferences(MainController* mc, ValueTree& v, const File& sampleRootFolder, Array<File>& sampleList);
 
-	void addSound(ModulatorSamplerSound* newSound);
+	void addSound(ValueTree& newSoundData);
+
+	void removeSound(ModulatorSamplerSound* s);
 
 	/** Exports the SampleMap as ValueTree.
 	*
@@ -153,9 +171,151 @@ public:
 
 	void poolEntryReloaded(PoolReference referenceThatWasChanged) override;
 
+	bool isUsingUnsavedValueTree() const
+	{
+		return !sampleMapData && data.getNumChildren() != 0;
+	}
 
+	void addListener(Listener* l)
+	{
+		listeners.addIfNotAlreadyThere(l);
+	}
+
+	void removeListener(Listener* l)
+	{
+		listeners.removeAllInstancesOf(l);
+	}
+
+	void sendSampleMapChangeMessage(NotificationType n=sendNotificationAsync)
+	{
+		notifier.sendMapChangeMessage(n);
+	}
+
+	void valueTreePropertyChanged(ValueTree& /*treeWhosePropertyHasChanged*/,
+		const Identifier& /*property*/);
+
+	void valueTreeChildAdded(ValueTree& parentTree,
+		ValueTree& childWhichHasBeenAdded) override;;
+
+	void valueTreeChildRemoved(ValueTree& parentTree,
+		ValueTree& childWhichHasBeenRemoved,
+		int indexFromWhichChildWasRemoved) override;;
+
+	void valueTreeChildOrderChanged(ValueTree& /*parentTreeWhoseChildrenHaveMoved*/,
+		int /*oldIndex*/, int /*newIndex*/) override {};
+
+	void valueTreeParentChanged(ValueTree& /*treeWhoseParentHasChanged*/) override {};
+
+	void valueTreeRedirected(ValueTree& /*treeWhichHasBeenChanged*/) override {};
+
+	ModulatorSamplerSound* getSound(int index);
+	const ModulatorSamplerSound* getSound(int index) const;
+
+	int getNumRRGroups() const;
 
 private:
+
+	void setCurrentMonolith();
+
+	struct Notifier : private Timer,
+					  private AsyncUpdater
+	{
+		struct AsyncPropertyChange
+		{
+			AsyncPropertyChange(ModulatorSamplerSound* sound, const Identifier& id, const var& newValue);
+
+			bool operator==(const Identifier& id_) const
+			{
+				return id == id_;
+			}
+
+			Array<SynthesiserSound::Ptr> selection;
+			Array<var> values;
+
+			Identifier id;
+
+			void addPropertyChange(ModulatorSamplerSound* sound, const var& newValue);
+			
+		};
+
+		struct PropertyChange
+		{
+			bool operator==(int indexToCompare) const
+			{
+				return indexToCompare == index;
+			}
+
+			void set(const Identifier& id, const var& newValue)
+			{
+				propertyChanges.set(id, newValue);
+			}
+
+			
+
+			int index;
+
+			NamedValueSet propertyChanges;
+		};
+
+		Notifier(SampleMap& parent_):
+			parent(parent_)
+		{}
+
+		void sendMapChangeMessage(NotificationType n)
+		{
+			sampleAmountWasChanged = false;
+			mapWasChanged = true;
+
+			if (n == sendNotificationAsync)
+				triggerLightWeightUpdate();
+			else
+				handleLightweightPropertyChanges();
+		}
+
+		void addPropertyChange(int index, const Identifier& id, const var& newValue);
+
+		void sendSampleAmountChangeMessage(NotificationType n)
+		{
+			sampleAmountWasChanged = true;
+
+			if (n == sendNotificationAsync)
+				triggerLightWeightUpdate();
+			else
+				handleLightweightPropertyChanges();
+		}
+
+	private:
+
+		void handleHeavyweightPropertyChanges();
+
+		void handleLightweightPropertyChanges();
+
+		void triggerHeavyweightUpdate()
+		{
+			startTimer(100);
+		}
+
+		void triggerLightWeightUpdate()
+		{
+			triggerAsyncUpdate();
+		}
+
+		void handleAsyncUpdate();
+		
+
+		void timerCallback() override;
+
+
+		Array<PropertyChange> pendingChanges;
+
+		Array<AsyncPropertyChange> asyncPendingChanges;
+
+		bool mapWasChanged = false;
+		bool sampleAmountWasChanged = false;
+		SampleMap& parent;
+	};
+
+	Notifier notifier;
 
 	/** Restores the samplemap from the ValueTree.
 	*
@@ -169,22 +329,25 @@ private:
 
 	ValueTree data;
 
-	void loadSamplesFromDirectory();
-
-	void loadSamplesFromMonolith();
+	void setNewValueTree(const ValueTree& v);
 
 	ModulatorSampler *sampler;
 
 	SaveMode mode;
 
-	File fileOnDisk;
 	bool changed;
 	bool monolith;
 
 	WeakReference<SampleMapPool> currentPool;
 
+	Array<WeakReference<Listener>> listeners;
+
+	HlacMonolithInfo::Ptr currentMonolith;
+
     Identifier sampleMapId;
     
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SampleMap);
+
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SampleMap)
 		
 };

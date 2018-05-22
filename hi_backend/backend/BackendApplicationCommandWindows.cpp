@@ -892,7 +892,7 @@ public:
 
 		{
 			ScopedLock sl(sampler->getExportLock());
-			sampler->clearSampleMap();
+			sampler->clearSampleMap(dontSendNotification);
 			SampleImporter::loadAudioFilesRaw(bpe, sampler, fileNames);
 		}
 

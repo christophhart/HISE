@@ -115,8 +115,7 @@ reversed(false),
 numChannels(1),
 deactivateUIUpdate(false),
 samplePreloadPending(false),
-temporaryVoiceBuffer(true, 2, 0),
-samplePropertyUpdater(this)
+temporaryVoiceBuffer(true, 2, 0)
 {
 #if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING
 	sampleEditHandler = new SampleEditHandler(this);
@@ -328,18 +327,11 @@ void ModulatorSampler::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(SamplerRepeatMode, "SamplerRepeatMode");
 	loadAttribute(Purged, "Purged");
 
-	
-
 	auto savedMap = v.getChildWithName("samplemap");
 
 	if (savedMap.isValid())
 	{
-		//getMainController()->getCurrentAudioSampleBufferPool(true)->lo
-
-		jassertfalse;
-
-		// Leave this for backwards compatibility
-		//killAllVoicesAndCall([v](Processor* p) { static_cast<ModulatorSampler*>(p)->loadSampleMapSync(v.getChildWithName("samplemap")); return true; });
+		loadEmbeddedValueTree(savedMap, true);
 	}
 	else
 	{
@@ -392,7 +384,19 @@ ValueTree ModulatorSampler::exportAsValueTree() const
 		saveTable(crossfadeTables[i], "Group" + String(i) + "Table");
 	}
 
-	v.setProperty("SampleMapID", sampleMap->getReference().getReferenceString(), nullptr);
+	if (sampleMap->isUsingUnsavedValueTree())
+	{
+		debugError(const_cast<ModulatorSampler*>(this), "Saving embedded samplemaps is bad practice. Save the samplemap to a file instead.");
+
+		v.addChild(sampleMap->getValueTree(), -1, nullptr);
+
+	}
+	else
+	{
+		v.setProperty("SampleMapID", sampleMap->getReference().getReferenceString(), nullptr);
+	}
+
+	
 
 	
 	
@@ -515,17 +519,6 @@ ProcessorEditorBody* ModulatorSampler::createEditor(ProcessorEditor *parentEdito
 #endif
 }
 
-var ModulatorSampler::getPropertyForSound(int soundIndex, ModulatorSamplerSound::Property p)
-{
-	SynthesiserSound * s = sounds[soundIndex];
-
-	ModulatorSamplerSound *sound = static_cast<ModulatorSamplerSound*>(s);
-
-	if (p == ModulatorSamplerSound::ID) return String(soundIndex);
-
-	else return sound->getProperty(p);
-}
-
 void ModulatorSampler::loadCacheFromFile(File &f)
 {
 	FileInputStream fis(f);
@@ -546,17 +539,15 @@ void ModulatorSampler::refreshStreamingBuffers()
 	}
 }
 
-void ModulatorSampler::deleteSound(ModulatorSamplerSound *s)
+void ModulatorSampler::deleteSound(int index)
 {
-	//ScopedLock sl(getMainController()->getLock());
-
 	ScopedLock sl(getMainController()->getSampleManager().getSamplerSoundLock());
+
+	auto s = getSound(index);
 
 	jassert(getMainController()->getKillStateHandler().voicesAreKilled());
 
 	checkAndLogIsSoftBypassed(DebugLogger::Location::DeleteOneSample);
-
-	
 
 	for (int i = 0; i < voices.size(); i++)
 	{
@@ -566,24 +557,24 @@ void ModulatorSampler::deleteSound(ModulatorSamplerSound *s)
 		}
 	}
 
-	s->removeAllChangeListeners();
-
-	const int deletedIndex = s->getProperty(ModulatorSamplerSound::ID);
-
-	sounds.removeObject(s);
+	removeSound(index);
 
 	refreshMemoryUsage();
 
-    for(int i = deletedIndex; i < getNumSounds(); i++)
-    {
-        static_cast<ModulatorSamplerSound*>(sounds[i].get())->setNewIndex(i);
-    }
-    
 	sendChangeMessage();
+
+	//ScopedLock sl(getMainController()->getLock());
+
+	
+
+	
 }
 
 void ModulatorSampler::deleteAllSounds()
 {
+	if (getNumSounds() == 0)
+		return;
+
 	ScopedLock sl(getMainController()->getSampleManager().getSamplerSoundLock());
 
 	jassert(getMainController()->getKillStateHandler().voicesAreKilled());
@@ -756,72 +747,6 @@ void ModulatorSampler::killAllVoicesAndCall(const ProcessorFunction& f)
 	}
 }
 
-void ModulatorSampler::setSoundPropertyAsync(ModulatorSamplerSound* s, int index, int newValue)
-{
-    samplePropertyUpdater.addNewPropertyChange(s, index, newValue, false);
-}
-
-void ModulatorSampler::setSoundPropertyAsyncForAllSamples(int index, int newValue)
-{
-    samplePropertyUpdater.addNewPropertyChange(nullptr, index, newValue, true);
-}
-
-void ModulatorSampler::SamplePropertyUpdater::handlePendingChanges()
-{
-    Array<PropertyChange> thisTime;
-
-	{
-		ScopedLock sl(arrayLock);
-		thisTime.swapWith(pendingChanges);
-	}
-
-	for (auto c : thisTime)
-	{
-		if (c.allSamples)
-		{
-			jassert(c.sound == nullptr);
-
-			ModulatorSampler::SoundIterator iter(sampler, false);
-
-			while (auto s = iter.getNextSound())
-			{
-				s->setProperty(ModulatorSamplerSound::Property(c.index), c.newValue, dontSendNotification);
-			}
-		}
-		else
-		{
-			if (c.sound != nullptr)
-			{
-				dynamic_cast<ModulatorSamplerSound*>(c.sound.get())->setProperty(ModulatorSamplerSound::Property(c.index),
-				                                                                 c.newValue, dontSendNotification);
-			}
-		}
-	}
-
-	stopTimer();
-}
-
-void ModulatorSampler::SamplePropertyUpdater::addNewPropertyChange(ModulatorSamplerSound* sound, int index,
-                                                                   int newValue, bool allSamples)
-{
-	ScopedLock sl(arrayLock);
-
-	for (auto& c : pendingChanges)
-	{
-		if (c.sound == sound && c.index == index && c.allSamples == allSamples)
-		{
-			c.newValue = newValue;
-			return;
-		}
-	}
-
-	pendingChanges.add(PropertyChange(sound, index, newValue, allSamples));
-
-	if (!sampler->sampleMapLoadingPending)
-	{
-		startTimer(200);
-	}
-}
 
 void ModulatorSampler::AsyncPurger::timerCallback()
 {
@@ -1049,7 +974,7 @@ void ModulatorSampler::calculateCrossfadeModulationValuesForVoice(int voiceIndex
 	}
 }
 
-void ModulatorSampler::clearSampleMap()
+void ModulatorSampler::clearSampleMap(NotificationType n)
 {
 	jassert(isOnSampleLoadingThread());
 
@@ -1061,7 +986,7 @@ void ModulatorSampler::clearSampleMap()
 	sampleMap->saveIfNeeded();
 
 	deleteAllSounds();
-	sampleMap->clear();
+	sampleMap->clear(n);
 }
 
 
@@ -1073,9 +998,6 @@ void ModulatorSampler::loadSampleMap(PoolReference ref, bool loadAsynchronous/*=
 	auto f = [ref](Processor* p)
 	{
 		dynamic_cast<ModulatorSampler*>(p)->getSampleMap()->load(ref);
-
-		
-
 		return true;
 	};
 
@@ -1083,6 +1005,24 @@ void ModulatorSampler::loadSampleMap(PoolReference ref, bool loadAsynchronous/*=
 		killAllVoicesAndCall(f);
 	else
 		f(this);
+}
+
+void ModulatorSampler::loadEmbeddedValueTree(const ValueTree& v, bool loadAsynchronous /*= false*/)
+{
+	debugError(this, "Loading embedded samplemaps is bad practice. Save the samplemap to a file instead.");
+
+	auto f = [v](Processor* p)
+	{
+		dynamic_cast<ModulatorSampler*>(p)->getSampleMap()->loadUnsavedValueTree(v);
+		return true;
+	};
+
+	if (loadAsynchronous)
+		killAllVoicesAndCall(f);
+	else
+		f(this);
+
+
 }
 
 void ModulatorSampler::updateRRGroupAmountAfterMapLoad()
@@ -1093,206 +1033,16 @@ void ModulatorSampler::updateRRGroupAmountAfterMapLoad()
 
 	while (auto sound = sIter.getNextSound())
 	{
-		maxGroup = jmax<int>(maxGroup, sound->getProperty(ModulatorSamplerSound::RRGroup));
+		maxGroup = jmax<int>(maxGroup, sound->getSampleProperty(SampleIds::RRGroup));
 	}
 
 	setAttribute(ModulatorSampler::RRGroupAmount, (float)maxGroup, sendNotification);
 
-	samplePropertyUpdater.handlePendingChanges();
 }
-
-#if 0
-void ModulatorSampler::loadSampleMapSync(const File &f)
-{
-	jassert(isOnSampleLoadingThread());
-
-	PoolReference ref(getMainController(), f.getFullPathName(), FileHandlerBase::SampleMaps);
-
-	clearSampleMap();
-	getSampleMap()->load(f);
-}
-
-void ModulatorSampler::loadSampleMapSync(const ValueTree &valueTreeData)
-{
-	jassert(isOnSampleLoadingThread());
-
-	jassertfalse;
-
-	PoolReference(getMainController())
-
-	clearSampleMap();
-	getSampleMap()->restoreFromValueTree(valueTreeData);
-}
-
-
-
-void ModulatorSampler::loadSampleMapFromIdAsync(const String& sampleMapId)
-{
-	if (getSampleMap()->getId().toString() == sampleMapId)
-		return;
-
-    
-	getMainController()->getDebugLogger().logMessage("**Loading samplemap** " + sampleMapId);
-    
-	sampleMapLoadingPending = true;
-
-	auto f = [sampleMapId](Processor* p)
-	{ 
-		dynamic_cast<ModulatorSampler*>(p)->loadSampleMapFromId(sampleMapId);
-		return true; 
-	};
-
-	killAllVoicesAndCall(f);
-}
-
-void ModulatorSampler::loadSampleMapFromId(const String& sampleMapId)
-{
-	jassert(isOnSampleLoadingThread());
-
-	//ScopedLock sl(getMainController()->getLock());
-
-	if (auto expansion = getMainController()->getExpansionHandler().getExpansionForWildcardReference(sampleMapId))
-	{
-		try
-		{
-			auto v = expansion->getSampleMap(sampleMapId);
-
-			if (v.isValid())
-			{
-				static const Identifier unused = Identifier("unused");
-				const Identifier oldId = getSampleMap()->getId();
-				const Identifier newId = Identifier(v.getProperty("ID", "unused").toString());
-
-				if (newId != unused && newId != oldId)
-				{
-					loadSampleMapSync(v);
-				}
-			}
-			else
-			{
-				Logger::writeToLog("!Error when loading sample map: " + sampleMapId);
-				return;
-			}
-		}
-		catch (String &errorMessage)
-		{
-			Logger::writeToLog(errorMessage);
-			return;
-		}
-
-		
-	}
-	else
-	{
-
-
-
-#if USE_BACKEND || DONT_EMBED_FILES_IN_FRONTEND
-
-#if USE_BACKEND
-		File f = GET_PROJECT_HANDLER(this).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps).getChildFile(sampleMapId + ".xml");
-#else
-
-#if HISE_IOS
-		File f = FrontendHandler::getResourcesFolder().getChildFile("SampleMaps/").getChildFile(sampleMapId + ".xml");
-#else
-
-		File f = FrontendHandler::getAppDataDirectory().getChildFile("SampleMaps/").getChildFile(sampleMapId + ".xml");
-#endif
-
-		jassert(f.existsAsFile());
-#endif
-
-		if (!f.existsAsFile())
-		{
-			Logger::writeToLog("!Samplemap " + f.getFileName() + " not found.");
-			return;
-		}
-
-		XmlDocument doc(f);
-
-		ScopedPointer<XmlElement> xml = doc.getDocumentElement();
-
-		if (xml != nullptr)
-		{
-			ValueTree v = ValueTree::fromXml(*xml);
-
-			static const Identifier unused = Identifier("unused");
-
-			const Identifier oldId = getSampleMap()->getId();
-			const Identifier newId = Identifier(v.getProperty("ID", "unused").toString());
-
-			if (newId != unused && newId != oldId)
-			{
-				loadSampleMapSync(v);
-				sendChangeMessage();
-				getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
-			}
-
-		}
-		else
-		{
-			Logger::writeToLog("!Error when loading sample map: " + doc.getLastParseError());
-			return;
-		}
-
-#else
-
-		ValueTree v = getMainController()->getSampleManager().getProjectHandler().getSampleMap(sampleMapId);
-
-		if (v.isValid())
-		{
-			static const Identifier unused = Identifier("unused");
-			const Identifier oldId = getSampleMap()->getId();
-			const Identifier newId = Identifier(v.getProperty("ID", "unused").toString());
-
-			if (newId != unused && newId != oldId)
-			{
-				loadSampleMapSync(v);
-			}
-		}
-		else
-		{
-			Logger::writeToLog("!Error when loading sample map: " + sampleMapId);
-			return;
-		}
-
-#endif
-
-	}
-
-	int maxGroup = 1;
-
-	ModulatorSampler::SoundIterator sIter(this);
-
-	while (auto sound = sIter.getNextSound())
-	{
-		maxGroup = jmax<int>(maxGroup, sound->getProperty(ModulatorSamplerSound::RRGroup));
-	}
-
-	setAttribute(ModulatorSampler::RRGroupAmount, (float)maxGroup, sendNotification);
-
-	sampleMapLoadingPending = false;
-
-	samplePropertyUpdater.handlePendingChanges();
-}
-#endif
 
 void ModulatorSampler::saveSampleMap() const
 {
 	sampleMap->save();
-}
-
-void ModulatorSampler::saveSampleMapAs()
-{
-	auto newName = PresetHandler::getCustomName("SampleMap");
-	
-	if (newName.isNotEmpty())
-	{
-		sampleMap->setId(newName);
-		sampleMap->save();
-	}
-	
 }
 
 void ModulatorSampler::saveSampleMapAsMonolith(Component* mainEditor) const

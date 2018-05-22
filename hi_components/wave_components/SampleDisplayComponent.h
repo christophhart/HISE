@@ -582,8 +582,7 @@ private:
 *	It uses a timer to display the current playbar.
 */
 class SamplerSoundWaveform: public AudioDisplayComponent,
-							public Timer,
-                            public SafeChangeListener
+							public Timer
 {
 public:
 
@@ -608,12 +607,6 @@ public:
 	/** used to display the playing positions / sample start position. */
 	void timerCallback() override;
 
-	
-    void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override
-    {
-        updateRanges(nullptr);
-    }
-    
 	/** draws a vertical ruler at the position where the sample was recently started. */
 	void drawSampleStartBar(Graphics &g);
 
@@ -625,6 +618,8 @@ public:
 	*	If you only want to refresh the sample area (while dragging), use refreshSampleAreaBounds() instead.
 	*/
 	void updateRanges(SampleArea *areaToSkip=nullptr) override;
+
+	void updateRange(AreaTypes area, bool refreshBounds);
 
 	double getSampleRate() const override;
 

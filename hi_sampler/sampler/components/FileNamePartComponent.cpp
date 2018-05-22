@@ -165,7 +165,7 @@ FileNamePartComponent::FileNamePartComponent (const String &token)
     propertyLabel->addOption("LowVelocity", "The lower velocity limit.");
     propertyLabel->addOption("HighVelocity", "The upper velocity limit.");
     
-	propertyLabel->addOption("Single Key", "maps the value to RootNote, KeyLow and KeyHigh.");
+	propertyLabel->addOption("Single Key", "maps the value to RootNote, LoKey and HiKey.");
 	propertyLabel->addOption("RR Group", "Puts the sound into the specified group.");
 	propertyLabel->addOption("Ignore", "Do nothing with this token (default). Use this for every token that does not contain special information");
 

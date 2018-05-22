@@ -37,9 +37,10 @@ namespace hise { using namespace juce;
 
 
 SampleMap::SampleMap(ModulatorSampler *sampler_):
-	sampler(sampler_)
+	sampler(sampler_),
+	notifier(*this)
 {
-	clear();
+	clear(dontSendNotification);
 
 	// You have to clear the sound array before you set a new SampleMap!
 	jassert(sampler->getNumSounds() == 0);
@@ -101,19 +102,22 @@ void SampleMap::changeListenerCallback(SafeChangeBroadcaster *)
 {
 	if(changed==false) sampler->sendChangeMessage();
 	changed = true;
-		
 };
 
-void SampleMap::clear()
+void SampleMap::clear(NotificationType n)
 {
+	
 	sampleMapData.clear();
-	data = ValueTree("sampleMap");
+	
+	setNewValueTree(ValueTree("sampleMap"));
 
     mode = Undefined;
-    fileOnDisk = File();
+    
     sampleMapId = Identifier();
     changed = false;
     
+	sampleMapData = PooledSampleMap();
+
 	if (currentPool != nullptr)
 		currentPool->removeListener(this);
 
@@ -124,36 +128,130 @@ void SampleMap::clear()
         sampler->sendChangeMessage();
         sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
     }
+
+	if (n != dontSendNotification)
+		sendSampleMapChangeMessage(n);
+}
+
+void SampleMap::setCurrentMonolith()
+{
+	if (isMonolith())
+	{
+		ModulatorSamplerSoundPool* pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
+
+		if (auto existingInfo = pool->getMonolith(sampleMapId))
+		{
+			currentMonolith = existingInfo;
+
+			jassert(*currentMonolith == sampleMapId);
+		}
+		else
+		{
+			File monolithDirectory = GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::Samples);
+
+			if (!monolithDirectory.isDirectory())
+			{
+				sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage,
+					"The sample directory does not exist");
+
+				FRONTEND_ONLY(sampler->deleteAllSounds());
+
+				return;
+			}
+
+			Array<File> monolithFiles;
+
+			int numChannels = jmax<int>(1, data.getChild(0).getNumChildren());
+
+			for (int i = 0; i < numChannels; i++)
+			{
+				auto path = sampleMapId.toString().replace("/", "_");
+
+				File f = monolithDirectory.getChildFile(path + ".ch" + String(i + 1));
+				if (f.existsAsFile())
+				{
+					monolithFiles.add(f);
+				}
+				else
+				{
+
+					sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage,
+						"The sample " + f.getFileName() + " wasn't found");
+
+					FRONTEND_ONLY(sampler->deleteAllSounds());
+
+					return;
+				}
+			}
+
+			if (!monolithFiles.isEmpty())
+			{
+				StringArray micPositions = StringArray::fromTokens(data.getProperty("MicPositions").toString(), ";", "");
+
+				micPositions.removeEmptyStrings(true);
+
+				if (micPositions.size() == numChannels)
+				{
+					sampler->setNumMicPositions(micPositions);
+				}
+				else
+				{
+					sampler->setNumChannels(1);
+				}
+
+				currentMonolith = pool->loadMonolithicData(data, monolithFiles);
+
+				if(currentMonolith)
+					jassert(*currentMonolith == sampleMapId);
+			}
+		}
+	}
 }
 
 void SampleMap::parseValueTree(const ValueTree &v)
 {
 	ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
 
-	data = v;
-
+	setNewValueTree(v);
+	
 	mode = (SaveMode)(int)v.getProperty("SaveMode");
 
 	const String sampleMapName = v.getProperty("ID");
 	sampleMapId = sampleMapName.isEmpty() ? Identifier::null : Identifier(sampleMapName);
-    
+
+	setCurrentMonolith();
+
 	const int newRoundRobinAmount = v.getProperty("RRGroupAmount", 1);
 
 	sampler->setRRGroupAmount(newRoundRobinAmount);
 
-	if(mode == Monolith)
+	int numChannels = jmax<int>(1, data.getChild(0).getNumChildren());
+
+	StringArray micPositions = StringArray::fromTokens(data.getProperty("MicPositions").toString(), ";", "");
+
+	micPositions.removeEmptyStrings(true);
+
+	if (!sampler->isUsingStaticMatrix())
 	{
-		loadSamplesFromMonolith();
+		if (micPositions.size() != 0)
+		{
+			sampler->setNumMicPositions(micPositions);
+		}
+		else
+		{
+			sampler->setNumChannels(numChannels);
+		}
 	}
 
-	else
+
+	for (auto c : data)
 	{
-		loadSamplesFromDirectory();
+		valueTreeChildAdded(data, c);
 	}
 
 	sampler->updateRRGroupAmountAfterMapLoad();
 	if(!sampler->isRoundRobinEnabled()) sampler->refreshRRMap();
-	sampler->refreshPreloadSizes();
+	
 	sampler->refreshMemoryUsage();
 	
 };
@@ -179,58 +277,153 @@ void SampleMap::poolEntryReloaded(PoolReference referenceThatWasChanged)
 {
 	if (getReference() == referenceThatWasChanged)
 	{
-		clear();
+		clear(dontSendNotification);
 		getSampler()->loadSampleMap(referenceThatWasChanged, true);
 	}
 }
 
+
+
+hise::ModulatorSamplerSound* SampleMap::getSound(int index)
+{
+	auto s = sampler->getSound(index);
+
+	if (s != nullptr)
+		return static_cast<ModulatorSamplerSound*>(s);
+
+	return nullptr;
+}
+
+const hise::ModulatorSamplerSound* SampleMap::getSound(int index) const
+{
+	auto s = sampler->getSound(index);
+
+	if (s != nullptr)
+		return static_cast<ModulatorSamplerSound*>(s);
+
+	return nullptr;
+}
+
+int SampleMap::getNumRRGroups() const
+{
+	return getSampler()->getAttribute(ModulatorSampler::RRGroupAmount);
+}
+
+void SampleMap::valueTreePropertyChanged(ValueTree& treeWhosePropertyHasChanged, const Identifier& property)
+{
+	auto i = data.indexOf(treeWhosePropertyHasChanged);
+
+	if (i != -1)
+	{
+		notifier.addPropertyChange(i, property, treeWhosePropertyHasChanged.getProperty(property));
+	}
+}
+
+void SampleMap::valueTreeChildAdded(ValueTree& parentTree, ValueTree& childWhichHasBeenAdded)
+{
+	jassert(parentTree == data);
+
+	auto f = [childWhichHasBeenAdded](Processor* p)
+	{
+		if (auto s = dynamic_cast<ModulatorSampler*>(p))
+		{
+			auto map = s->getSampleMap();
+
+			auto newSound = new ModulatorSamplerSound(map, childWhichHasBeenAdded, map->currentMonolith);
+			s->addSound(newSound);
+			dynamic_cast<ModulatorSamplerSound*>(newSound)->initPreloadBuffer(s->getAttribute(ModulatorSampler::PreloadSize));
+
+			ModulatorSamplerSoundPool* pool = s->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
+			pool->sendChangeMessage();
+			s->sendChangeMessage();
+
+			s->getSampleMap()->notifier.sendSampleAmountChangeMessage(sendNotificationAsync);
+
+			return true;
+		}
+
+		return false;
+	};
+
+	getSampler()->killAllVoicesAndCall(f);	
+}
+
+void SampleMap::valueTreeChildRemoved(ValueTree& parentTree, ValueTree& childWhichHasBeenRemoved, int indexFromWhichChildWasRemoved)
+{
+	auto f = [indexFromWhichChildWasRemoved](Processor* p)
+	{
+		if (auto sampler = dynamic_cast<ModulatorSampler*>(p))
+		{
+			sampler->deleteSound(indexFromWhichChildWasRemoved);
+			sampler->getSampleMap()->notifier.sendSampleAmountChangeMessage(sendNotificationAsync);
+		}
+
+		return true;
+	};
+	
+	sampler->killAllVoicesAndCall(f);
+}
+
 void SampleMap::save()
 {
+#if HI_ENABLE_EXPANSION_EDITING
+	auto rootDirectory = sampler->getSampleEditHandler()->getCurrentSampleMapDirectory();
+
 	data.setProperty("ID", sampleMapId.toString(), nullptr);
 	data.setProperty("SaveMode", mode, nullptr);
 	data.setProperty("RRGroupAmount", sampler->getAttribute(ModulatorSampler::Parameters::RRGroupAmount), nullptr);
 	data.setProperty("MicPositions", sampler->getStringForMicPositions(), nullptr);
-
-#if HI_ENABLE_EXPANSION_EDITING
-	auto rootDirectory = sampler->getSampleEditHandler()->getCurrentSampleMapDirectory();
-
 	
+	File f;
 
-	File fileToUse;
-
-	if (sampleMapId.isValid())
+	if (isUsingUnsavedValueTree())
 	{
-		auto path = sampleMapId.toString() + ".xml";
+		FileChooser fc("Save SampleMap As", rootDirectory, "*.xml", true);
 
-		fileToUse = rootDirectory.getChildFile(path);
+		if (fc.browseForFileToSave(true))
+		{
+			f = fc.getResult();
+
+			if (!f.isAChildOf(rootDirectory))
+			{
+				PresetHandler::showMessageWindow("Invalid Path", "You need to store the samplemap in the samplemap directory", PresetHandler::IconType::Error);
+				return;
+			}
+		}
 	}
 	else
 	{
-		fileToUse = rootDirectory;
+		f = sampleMapData.getRef().getFile();
+
+		jassert(f.existsAsFile());
+
+		if (!PresetHandler::showYesNoWindow("Overwrite SampleMap", "Press OK to overwrite the current samplemap or cancel to select another file"))
+		{
+
+			FileChooser fc("Save SampleMap As", f, "*.xml", true);
+
+			if (fc.browseForFileToSave(true))
+			{
+				f = fc.getResult();
+			}
+			else
+				return;
+			
+		}
 	}
 
-	FileChooser fc("Save SampleMap", fileToUse, "*.xml", true);
+	ScopedPointer<XmlElement> xml = data.createXml();
+	f.replaceWithText(xml->createDocument(""));
 
-	if (fc.browseForFileToSave(true))
-	{
-		File f = fc.getResult();
+	PoolReference ref(getSampler()->getMainController(), f.getFullPathName(), FileHandlerBase::SubDirectories::SampleMaps);
 
-		auto name = f.getRelativePathFrom(rootDirectory).upToFirstOccurrenceOf(".xml", false, true);
+	auto pool = getSampler()->getMainController()->getCurrentSampleMapPool();
+	auto reloadedMap = pool->loadFromReference(ref, PoolHelpers::LoadingType::ForceReloadStrong);
+	getSampler()->loadSampleMap(reloadedMap.getRef(), true);
 
-		name = name.replace(File::getSeparatorString(), "/");
+	
+	
 
-		sampleMapId = Identifier(name);
-
-		if(mode != SaveMode::Monolith)
-			mode = SaveMode::MultipleFiles;
-
-		f.deleteFile();
-
-		ScopedPointer<XmlElement> xml = data.createXml();
-		xml->writeToFile(f, "");
-
-		changed = false;
-	}
 #endif
 }
 
@@ -248,167 +441,29 @@ void SampleMap::saveAsMonolith(Component* mainEditor)
 #endif
 }
 
-void SampleMap::loadSamplesFromDirectory()
+void SampleMap::setNewValueTree(const ValueTree& v)
 {
-	jassert(!data.hasProperty("Monolithic"));
+	
 
-	String fileName = data.getProperty("FileName", String());
-
-	const ValueTree *treeToUse;
-
-	ValueTree globalTree;
-	ValueTree absoluteTree;
-
-	if (fileName.isNotEmpty()) fileOnDisk = File(fileName);
-
-	mode = (SaveMode)(int)data.getProperty("SaveMode", (int)Undefined);
-
-	treeToUse = &data;
-
+	data.removeListener(this);
+	
 	sampler->deleteAllSounds();
+	notifier.sendSampleAmountChangeMessage(sendNotificationAsync);
 
-	int numChannels = jmax<int>(1, data.getChild(0).getNumChildren());
-	
-    StringArray micPositions = StringArray::fromTokens(data.getProperty("MicPositions").toString(), ";", "");
-    
-    micPositions.removeEmptyStrings(true);
-    
-    if(!sampler->isUsingStaticMatrix())
-    {
-        if (micPositions.size() != 0)
-        {
-            sampler->setNumMicPositions(micPositions);
-        }
-        else
-        {
-            sampler->setNumChannels(numChannels);
-        }
-    }
-    
-    sampler->setShouldUpdateUI(false);
-    ModulatorSamplerSoundPool *pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
-    pool->setUpdatePool(false);
-    
-	{
-		ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
-
-		for (const auto& sampleData: data)
-		{
-			try
-			{
-				sampler->addSound(new ModulatorSamplerSound(sampler->getMainController(), sampleData, nullptr));
-			}
-			catch (StreamingSamplerSound::LoadingError l)
-			{
-				String x;
-				x << "Error at preloading sample " << l.fileName << ": " << l.errorDescription;
-				sampler->getMainController()->getDebugLogger().logMessage(x);
-
-#if USE_FRONTEND
-				sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage, x);
-#else
-				debugError(sampler, x);
-#endif
-
-				return;
-			}
-
-		}
-	}
-
-	
-
-    pool->setUpdatePool(true);
-    pool->sendChangeMessage();
-	sampler->setShouldUpdateUI(true);
-	sampler->sendChangeMessage();
-
+	data = v;
+	data.addListener(this);
 }
 
-void SampleMap::loadSamplesFromMonolith()
+void SampleMap::addSound(ValueTree& newSoundData)
 {
-	File monolithDirectory = GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::Samples);
-
-	if (!monolithDirectory.isDirectory())
-	{
-		sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage,
-			"The sample directory does not exist");
-
-		FRONTEND_ONLY(sampler->deleteAllSounds());
-
-		return;
-	}
-
-	Array<File> monolithFiles;
-	
-    int numChannels = jmax<int>(1, data.getChild(0).getNumChildren());
-    
-	for (int i = 0; i < numChannels; i++)
-	{
-		auto path = sampleMapId.toString().replace("/", "_");
-
-		File f = monolithDirectory.getChildFile(path + ".ch" + String(i+1));
-		if (f.existsAsFile())
-        {
-             monolithFiles.add(f);
-        }
-        else
-        {
-
-            sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage,
-                                                             "The sample " + f.getFileName() + " wasn't found");
-
-			FRONTEND_ONLY(sampler->deleteAllSounds());
-
-            return;
-        }
-	}
-
-	if (!monolithFiles.isEmpty())
-	{
-
-		sampler->deleteAllSounds();
-
-		StringArray micPositions = StringArray::fromTokens(data.getProperty("MicPositions").toString(), ";", "");
-
-		micPositions.removeEmptyStrings(true);
-
-		if (micPositions.size() == numChannels)
-		{
-			sampler->setNumMicPositions(micPositions);
-		}
-		else
-		{
-			sampler->setNumChannels(1);
-		}
-
-		ModulatorSamplerSoundPool* pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
-
-		auto hmaf = pool->loadMonolithicData(data, monolithFiles);
-
-		for (auto sample : data)
-		{
-
-
-			sampler->addSound(new ModulatorSamplerSound(sampler->getMainController(), sample, hmaf));
-		}
-
-		pool->sendChangeMessage();
-	}
-    
+	data.addChild(newSoundData, -1, sampler->getUndoManager());
 }
 
-void SampleMap::addSound(ModulatorSamplerSound* newSound)
+
+void SampleMap::removeSound(ModulatorSamplerSound* s)
 {
-	sampler->addSound(newSound);
-
-	data.addChild(newSound->getData(), -1, nullptr);
-
-	ModulatorSamplerSoundPool* pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
-	pool->sendChangeMessage();
-	sampler->sendChangeMessage();
+	data.removeChild(s->getData(), getSampler()->getUndoManager());
 }
-
 
 juce::String SampleMap::checkReferences(MainController* mc, ValueTree& v, const File& sampleRootFolder, Array<File>& sampleList)
 {
@@ -497,22 +552,37 @@ juce::String SampleMap::checkReferences(MainController* mc, ValueTree& v, const 
 
 void SampleMap::load(const PoolReference& reference)
 {
-	clear();
+	clear(dontSendNotification);
 
 	currentPool = getSampler()->getMainController()->getCurrentSampleMapPool();
-
 	sampleMapData = currentPool->loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
 	currentPool->addListener(this);
 
-
 	if (sampleMapData)
 	{
-		data = *sampleMapData.getData();
-		parseValueTree(data);
+		
+		parseValueTree(*sampleMapData.getData());
 		changed = false;
 	}
 	else
 		jassertfalse;
+
+	sendSampleMapChangeMessage();
+}
+
+void SampleMap::loadUnsavedValueTree(const ValueTree& v)
+{
+	clear(dontSendNotification);
+
+	parseValueTree(v);
+
+	currentPool = nullptr;
+	sampleMapData = PooledSampleMap();
+	
+	parseValueTree(data);
+	changed = false;
+
+	sendSampleMapChangeMessage();
 }
 
 RoundRobinMap::RoundRobinMap()
@@ -849,5 +919,173 @@ void MonolithExporter::updateSampleMap()
 	}
 }
 #endif
+
+void SampleMap::Notifier::addPropertyChange(int index, const Identifier& id, const var& newValue)
+{
+	if (auto sound = parent.getSound(index))
+	{
+		if (!ModulatorSamplerSound::isAsyncProperty(id))
+		{
+			sound->updateInternalData(id, newValue);
+		}
+		else
+		{
+			bool found = false;
+
+			for (auto& s : asyncPendingChanges)
+			{
+				if (s == id)
+				{
+					s.addPropertyChange(sound, newValue);
+					found = true;
+					break;
+				}
+			}
+
+			if (!found)
+			{
+				asyncPendingChanges.add(AsyncPropertyChange(sound, id, newValue));
+			}
+
+			startTimer(100);
+		}
+
+		
+
+		bool found = false;
+
+		for (auto& p : pendingChanges)
+		{
+			if (p == index)
+			{
+				p.set(id, newValue);
+				found = true;
+				break;
+			}
+		}
+
+		if (!found)
+		{
+			PropertyChange newChange;
+			newChange.index = index;
+			newChange.set(id, newValue);
+
+			pendingChanges.add(newChange);
+		}
+			
+		triggerAsyncUpdate();
+	}
+}
+
+void SampleMap::Notifier::handleHeavyweightPropertyChanges()
+{
+	Array<AsyncPropertyChange> newChanges;
+
+	newChanges.swapWith(asyncPendingChanges);
+
+	auto f = [newChanges](Processor* p)
+	{
+		for (const auto& c : newChanges)
+		{
+			jassert(c.selection.size() == c.values.size());
+
+			for (int i = 0; i < c.selection.size(); i++)
+			{
+				if (c.selection[i] != nullptr)
+				{
+					static_cast<ModulatorSamplerSound*>(c.selection[i].get())->updateAsyncInternalData(c.id, c.values[i]);
+				}
+			}
+		}
+
+		return true;
+	};
+
+	parent.sampler->killAllVoicesAndCall(f);
+}
+
+void SampleMap::Notifier::handleLightweightPropertyChanges()
+{
+	if (mapWasChanged)
+	{
+		auto r = parent.sampleMapData.getRef();
+
+		for (auto l : parent.listeners)
+		{
+			if (auto l_ = l.get())
+			{
+				l_->sampleMapWasChanged(r);
+			}
+		}
+
+		mapWasChanged = false;
+		sampleAmountWasChanged = false;
+	}
+	else if (sampleAmountWasChanged)
+	{
+		for (auto l : parent.listeners)
+		{
+			l->sampleAmountChanged();
+		}
+
+		sampleAmountWasChanged = false;
+	}
+	else
+	{
+		Array<PropertyChange> thisChanges;
+
+		thisChanges.swapWith(pendingChanges);
+
+		for (auto c : thisChanges)
+		{
+			if (auto sound = parent.getSound(c.index))
+			{
+				for (auto l : parent.listeners)
+				{
+					if (l)
+					{
+						for (const auto& prop : c.propertyChanges)
+							l->samplePropertyWasChanged(sound, prop.name, prop.value);
+					}
+				}
+			}
+		}
+	}
+}
+
+void SampleMap::Notifier::handleAsyncUpdate()
+{
+	handleLightweightPropertyChanges();
+}
+
+void SampleMap::Notifier::timerCallback()
+{
+	handleHeavyweightPropertyChanges();
+
+	
+
+	stopTimer();
+}
+
+SampleMap::Notifier::AsyncPropertyChange::AsyncPropertyChange(ModulatorSamplerSound* sound, const Identifier& id_, const var& newValue):
+	id(id_)
+{
+	addPropertyChange(sound, newValue);
+}
+
+void SampleMap::Notifier::AsyncPropertyChange::addPropertyChange(ModulatorSamplerSound* sound, const var& newValue)
+{
+	int index = selection.indexOf(sound);
+
+	if (index == -1)
+	{
+		selection.add(sound);
+		values.add(newValue);
+	}
+	else
+	{
+		values.set(index, newValue);
+	}
+}
 
 } // namespace hise

@@ -49,15 +49,15 @@ void SampleEditHandler::moveSamples(SamplerSoundMap::Neighbour direction)
 
 			if (direction == SamplerSoundMap::Right)
 			{
-				changeProperty(sound, ModulatorSamplerSound::KeyHigh, 1);
-				changeProperty(sound, ModulatorSamplerSound::KeyLow, 1);
-				changeProperty(sound, ModulatorSamplerSound::RootNote, 1);
+				changeProperty(sound, SampleIds::HiKey, 1);
+				changeProperty(sound, SampleIds::LoKey, 1);
+				changeProperty(sound, SampleIds::Root, 1);
 			}
 			else
 			{
-				changeProperty(sound, ModulatorSamplerSound::KeyLow, -1);
-				changeProperty(sound, ModulatorSamplerSound::KeyHigh, -1);
-				changeProperty(sound, ModulatorSamplerSound::RootNote, -1);
+				changeProperty(sound, SampleIds::LoKey, -1);
+				changeProperty(sound, SampleIds::HiKey, -1);
+				changeProperty(sound, SampleIds::Root, -1);
 			}
 		}
 		break;
@@ -69,8 +69,8 @@ void SampleEditHandler::moveSamples(SamplerSoundMap::Neighbour direction)
 		{
 			ModulatorSamplerSound *sound = selectedSamplerSounds.getSelectedItem(i);
 
-			changeProperty(sound, ModulatorSamplerSound::VeloHigh, direction == SamplerSoundMap::Up ? 1 : -1);
-			changeProperty(sound, ModulatorSamplerSound::VeloLow, direction == SamplerSoundMap::Up ? 1 : -1);
+			changeProperty(sound, SampleIds::HiVel, direction == SamplerSoundMap::Up ? 1 : -1);
+			changeProperty(sound, SampleIds::LoVel, direction == SamplerSoundMap::Up ? 1 : -1);
 		}
 		break;
 	}
@@ -134,11 +134,11 @@ bool SampleEditHandler::newKeysPressed(const uint8 *currentNotes)
 	return false;
 }
 
-void SampleEditHandler::changeProperty(ModulatorSamplerSound *s, ModulatorSamplerSound::Property p, int delta)
+void SampleEditHandler::changeProperty(ModulatorSamplerSound *s, const Identifier& p, int delta)
 {
-	const int v = s->getProperty(p);
+	const int v = s->getSampleProperty(p);
 
-	s->setPropertyWithUndo(p, v + delta);
+	s->setSampleProperty(p, v + delta);
 }
 
 juce::File SampleEditHandler::getCurrentSampleMapDirectory() const

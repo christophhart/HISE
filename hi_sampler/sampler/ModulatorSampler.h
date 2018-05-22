@@ -207,8 +207,6 @@ public:
 
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
 
-	/** returns the ModulatorSamplerSound::Property for the given index. */
-	var getPropertyForSound(int soundIndex, ModulatorSamplerSound::Property p);
 
 	/** returns the thumbnailCache for the sampler. */
 	AudioThumbnailCache &getCache() const noexcept { return *soundCache; };
@@ -221,7 +219,7 @@ public:
 	*
 	*	It removes the sound from the sampler and if no reference is left in the global sample pool deletes the sample and frees the storage.
 	*/
-	void deleteSound(ModulatorSamplerSound *s);
+	void deleteSound(int index);
 
 	/** Deletes all sounds. Call this instead of clearSounds(). */
 	void deleteAllSounds();
@@ -314,9 +312,11 @@ public:
 	UndoManager *getUndoManager() {	return getMainController()->getControlUndoManager();	};
 
 	SampleMap *getSampleMap() {	return sampleMap; };
-	void clearSampleMap();
+	void clearSampleMap(NotificationType n);
 	
 	void loadSampleMap(PoolReference ref, bool loadAsynchronous=false);
+
+	void loadEmbeddedValueTree(const ValueTree& v, bool loadAsynchronous = false);
 
 	void updateRRGroupAmountAfterMapLoad();
 
@@ -333,8 +333,6 @@ public:
 	bool preloadSample(StreamingSamplerSound * s, const int preloadSizeToUse);
 
 	void saveSampleMap() const;
-
-	void saveSampleMapAs();
 
 	void saveSampleMapAsMonolith (Component* mainEditor) const;
 
@@ -544,10 +542,6 @@ public:
 
 	void killAllVoicesAndCall(const ProcessorFunction& f);
 
-    void setSoundPropertyAsync(ModulatorSamplerSound* s, int index, int newValue);
-
-    void setSoundPropertyAsyncForAllSamples(int index, int newValue);
-
 	void setUseStaticMatrix(bool shouldUseStaticMatrix)
 	{
 		useStaticMatrix = shouldUseStaticMatrix;
@@ -567,47 +561,6 @@ private:
 		return getMainController()->getKillStateHandler().voicesAreKilled();
 	}
 
-	struct SamplePropertyUpdater: public Timer
-	{
-		SamplePropertyUpdater(ModulatorSampler* s):
-			sampler(s)
-		{
-
-		};
-
-		struct PropertyChange
-		{
-			PropertyChange(ModulatorSamplerSound* s, int i, var n, bool a) :
-				sound(s),
-				index(i),
-				newValue(n),
-				allSamples(a)
-			{};
-
-			ModulatorSamplerSound::Ptr sound;
-			int index;
-			int newValue;
-			bool allSamples;
-		};
-
-		void timerCallback() override
-		{
-			if (!sampler->sampleMapLoadingPending)
-			{
-				handlePendingChanges();
-			}
-		}
-
-		void handlePendingChanges();
-
-		void addNewPropertyChange(ModulatorSamplerSound* sound, int index, int newValue, bool allSamples);
-
-		CriticalSection arrayLock;
-
-		ModulatorSampler* sampler;
-
-		Array<PropertyChange> pendingChanges;
-	};
 	
 
 
@@ -629,9 +582,7 @@ private:
 		ModulatorSampler *sampler;
 	};
 
-	SamplePropertyUpdater samplePropertyUpdater;
-    
-
+	
     /** Sets the streaming buffer and preload buffer sizes. */
     void setPreloadSize(int newPreloadSize);
     

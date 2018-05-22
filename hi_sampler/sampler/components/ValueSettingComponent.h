@@ -37,12 +37,10 @@
                                                                     //[/Comments]
 */
 class ValueSettingComponent  : public Component,
-                               public SafeChangeListener,
-							   public SafeChangeBroadcaster,
+                               public SafeChangeBroadcaster,
                                public SliderListener,
                                public LabelListener,
-                               public ButtonListener,
-							   public Timer
+                               public ButtonListener
 {
 public:
     //==============================================================================
@@ -56,26 +54,12 @@ public:
 
 	void sliderValueChanged(Slider *s)
 	{
-        bool changed = setSamplePropertyValue((int)s->getValue(), false);
+        setSamplePropertyValue((int)s->getValue(), false);
 
-        
-        if(changed)
-        {
-            sendChangeMessage();
-            
-            updateValue();
-        }
+		updateValue();
     };
     
-    bool isFileAccessingProperty() const
-    {
-        return soundProperty == ModulatorSamplerSound::SampleStart ||
-               soundProperty == ModulatorSamplerSound::LoopXFade ||
-               soundProperty == ModulatorSamplerSound::LoopStart;
-
-    }
-    
-    bool setSamplePropertyValue(int value, bool forceChange)
+    bool setSamplePropertyValue(int value, bool /*forceChange*/)
     {
         const int delta = (int)value - sliderStartValue;
         
@@ -85,17 +69,14 @@ public:
         {
             const int newValue = dragStartValues[i] + delta;
             
-            if(forceChange || !isFileAccessingProperty())
-            {
-                const int low = currentSelection[i]->getPropertyRange(soundProperty).getStart();
-                const int high = currentSelection[i]->getPropertyRange(soundProperty).getEnd();
-                
-                const int clippedValue = jlimit(low, high, newValue);
-                
-                currentSelection[i]->setPropertyWithUndo(soundProperty, clippedValue);
-                
-                changed = true;
-            }
+			const int low = currentSelection[i]->getPropertyRange(soundProperty).getStart();
+			const int high = currentSelection[i]->getPropertyRange(soundProperty).getEnd();
+
+			const int clippedValue = jlimit(low, high, newValue);
+
+			currentSelection[i]->setSampleProperty(soundProperty, clippedValue);
+
+			changed = true;
         };
         
         return changed;
@@ -107,85 +88,55 @@ public:
 
 		sliderStartValue = (int)s->getValue();
 
-		for(int i = 0; i < currentSelection.size(); i++)
+		for (int i = 0; i < currentSelection.size(); i++)
 		{
-			dragStartValues.add(currentSelection[i]->getProperty(soundProperty));
+			dragStartValues.add(currentSelection[i]->getSampleProperty(soundProperty));
 		}
 
 		if(currentSelection.size() != 0)
 		{
-			currentSelection[0]->startPropertyChange(soundProperty, dragStartValues[0]);
+			currentSelection[0]->startPropertyChange(soundProperty.toString());
 		};
 	};
 
-	void sliderDragEnded(Slider *s)
-	{
-		if (currentSelection.size() != 0)
-		{
-            if(isFileAccessingProperty())
-            {
-                setSamplePropertyValue((int)s->getValue(), true);
-                sendChangeMessage();
-            }
-            
-			currentSelection[0]->endPropertyChange(soundProperty, sliderStartValue, (int)s->getValue());
-            
-            
-		}
-	};
+	
 
-	void setPropertyType(ModulatorSamplerSound::Property p)
+	void setPropertyType(const Identifier& p)
 	{
 		soundProperty = p;
-		descriptionLabel->setText(ModulatorSamplerSound::getPropertyName(p), dontSendNotification);
+		descriptionLabel->setText(p.toString(), dontSendNotification);
 
-		descriptionLabel->setTooltip(ModulatorSamplerSound::getPropertyName(p));
+		descriptionLabel->setTooltip(p.toString());
 
 	}
 
 	void setCurrentSelection(const SampleSelection &newSelection)
 	{
-		for(int i = 0; i < currentSelection.size(); i++)
-		{
-			if(currentSelection[i] != nullptr)
-			{
-				currentSelection[i]->removeChangeListener(this);
-			}
-		}
+		
 
 		currentSelection.clear();
 		currentSelection.addArray(newSelection);
 
-		for(int i = 0; i < currentSelection.size(); i++)
-		{
-			if (auto s = currentSelection[i].get())
-			{
-				s->addChangeListener(this);
-			}
-		}
-
+		
 
 		if(newSelection.size() != 0 && currentSlider.getComponent() != nullptr)
 		{
-			currentSlider->setValue(newSelection[0]->getProperty(soundProperty));
+			currentSlider->setValue(newSelection[0]->getSampleProperty(soundProperty));
 			currentSlider->setEnabled(true);
 		}
 
 		updateValue();
 	};
 
-	void changeListenerCallback(SafeChangeBroadcaster *)
-	{
-		updateValue();
-	}
+	
 
-	void setPropertyForAllSelectedSounds(ModulatorSamplerSound::Property p, int newValue);;
+	void setPropertyForAllSelectedSounds(const Identifier& p, int newValue);;
 
-	void changePropertyForAllSelectedSounds(ModulatorSamplerSound::Property p, int delta)
+	void changePropertyForAllSelectedSounds(const Identifier& p, int delta)
 	{
 		for(int i = 0;i < currentSelection.size(); i++)
 		{
-			const int currentValue = currentSelection[i]->getProperty(p);
+			const int currentValue = currentSelection[i]->getSampleProperty(p);
 
 			const int newValue = currentValue + delta;
 
@@ -194,7 +145,7 @@ public:
 
 			const int clippedValue = jlimit(low, high, newValue);
 
-			currentSelection[i]->setPropertyWithUndo(p, clippedValue);
+			currentSelection[i]->setSampleProperty(p, clippedValue);
 		};
 
 		sendChangeMessage();
@@ -219,7 +170,7 @@ public:
 
 			for(int i = 0; i < currentSelection.size(); i++)
 			{
-				int newValue = currentSelection[i]->getProperty(soundProperty);
+				int newValue = currentSelection[i]->getSampleProperty(soundProperty);
 
 				min = jmin(newValue, min);
 				max = jmax(newValue, max);
@@ -247,21 +198,7 @@ public:
 		valueLabel->setColour(Label::ColourIds::textWhenEditingColourId, t);
 	};
 
-	void timerCallback()
-	{
-		if (currentSlider.getComponent() == nullptr)
-		{
-			if (isFileAccessingProperty())
-			{
-				for (int i = 0; i < currentSelection.size(); i++)
-				{
-					currentSelection[i].get()->closeFileHandle();
-				}
-			}
-
-			stopTimer();
-		}
-	}
+	
 
     //[/UserMethods]
 
@@ -270,12 +207,10 @@ public:
     void labelTextChanged (Label* labelThatHasChanged);
     void buttonClicked (Button* buttonThatWasClicked);
 
-
-
 private:
     //[UserVariables]   -- You can add your own custom variables in this section.
 
-	ModulatorSamplerSound::Property soundProperty;
+	Identifier soundProperty;
 
 	LookAndFeel_V3 laf;
 

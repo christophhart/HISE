@@ -163,7 +163,7 @@ private:
 
 	bool newKeysPressed(const uint8 *currentNotes);
 
-	void changeProperty(ModulatorSamplerSound *s, ModulatorSamplerSound::Property p, int delta);;
+	void changeProperty(ModulatorSamplerSound *s, const Identifier& p, int delta);;
 
 	int rrIndex = -1;
 

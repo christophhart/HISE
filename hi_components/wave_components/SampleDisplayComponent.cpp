@@ -72,9 +72,7 @@ SamplerSoundWaveform::SamplerSoundWaveform(const ModulatorSampler *ownerSampler)
 
 SamplerSoundWaveform::~SamplerSoundWaveform()
 {
-    if(currentSound.get() != nullptr)
-        currentSound->removeChangeListener(this);
-	
+    
 }
 
 
@@ -103,37 +101,64 @@ void SamplerSoundWaveform::updateRanges(SampleArea *areaToSkip)
 {
 	if(currentSound != nullptr)
 	{
-		areas[PlayArea]->setSampleRange(Range<int>(currentSound->getProperty(ModulatorSamplerSound::SampleStart),
-											  currentSound->getProperty(ModulatorSamplerSound::SampleEnd)));
-
-		
-		areas[PlayArea]->setAllowedPixelRanges(currentSound->getPropertyRange(ModulatorSamplerSound::SampleStart),
-											   currentSound->getPropertyRange(ModulatorSamplerSound::SampleEnd));
-
-
-
-		areas[LoopArea]->setVisible(currentSound->getProperty(ModulatorSamplerSound::LoopEnabled));
-
-		areas[LoopArea]->setSampleRange(Range<int>(currentSound->getProperty(ModulatorSamplerSound::LoopStart),
-								  currentSound->getProperty(ModulatorSamplerSound::LoopEnd)));
-
-		areas[LoopArea]->setAllowedPixelRanges(currentSound->getPropertyRange(ModulatorSamplerSound::LoopStart),
-											   currentSound->getPropertyRange(ModulatorSamplerSound::LoopEnd));
-
-		const int64 start = (int64)currentSound->getProperty(ModulatorSamplerSound::LoopStart) - (int64)currentSound->getProperty(ModulatorSamplerSound::LoopXFade);
-		
-		areas[LoopCrossfadeArea]->setSampleRange(Range<int>((int)start, currentSound->getProperty(ModulatorSamplerSound::LoopStart)));
-
-		areas[SampleStartArea]->setSampleRange(Range<int>(currentSound->getProperty(ModulatorSamplerSound::SampleStart), (int)currentSound->getProperty(ModulatorSamplerSound::SampleStart) + (int)currentSound->getProperty(ModulatorSamplerSound::SampleStartMod)));
-
-		areas[SampleStartArea]->setAllowedPixelRanges(currentSound->getPropertyRange(ModulatorSamplerSound::SampleStart),
-			currentSound->getPropertyRange(ModulatorSamplerSound::SampleStartMod));
-
+		updateRange(PlayArea, false);
+		updateRange(SampleStartArea, false);
+		updateRange(LoopArea, false);
+		updateRange(LoopCrossfadeArea, true);
+	}
+	else
+	{
+		refreshSampleAreaBounds(areaToSkip);
 	}
 
-	refreshSampleAreaBounds(areaToSkip);
+	
+}
 
-	//AudioDisplayComponent::updateRanges(skipArea);
+void SamplerSoundWaveform::updateRange(AreaTypes a, bool refreshBounds)
+{
+	auto area = areas[a];
+
+	switch (a)
+	{
+	case hise::SamplerSoundWaveform::PlayArea:
+		area->setSampleRange(Range<int>(currentSound->getSampleProperty(SampleIds::SampleStart),
+			currentSound->getSampleProperty(SampleIds::SampleEnd)));
+
+		area->setAllowedPixelRanges(currentSound->getPropertyRange(SampleIds::SampleStart),
+			currentSound->getPropertyRange(SampleIds::SampleEnd));
+		break;
+	case hise::SamplerSoundWaveform::SampleStartArea:
+	{
+		area->setSampleRange(Range<int>(currentSound->getSampleProperty(SampleIds::SampleStart), (int)currentSound->getSampleProperty(SampleIds::SampleStart) + (int)currentSound->getSampleProperty(SampleIds::SampleStartMod)));
+		area->setAllowedPixelRanges(currentSound->getPropertyRange(SampleIds::SampleStart),
+			currentSound->getPropertyRange(SampleIds::SampleStartMod));
+		break;
+	}
+	case hise::SamplerSoundWaveform::LoopArea:
+	{
+		area->setVisible(currentSound->getSampleProperty(SampleIds::LoopEnabled));
+		area->setSampleRange(Range<int>(currentSound->getSampleProperty(SampleIds::LoopStart),
+			currentSound->getSampleProperty(SampleIds::LoopEnd)));
+
+		area->setAllowedPixelRanges(currentSound->getPropertyRange(SampleIds::LoopStart),
+			currentSound->getPropertyRange(SampleIds::LoopEnd));
+		break;
+	}
+	case hise::SamplerSoundWaveform::LoopCrossfadeArea:
+	{
+		const int64 start = (int64)currentSound->getSampleProperty(SampleIds::LoopStart) - (int64)currentSound->getSampleProperty(SampleIds::LoopXFade);
+
+		area->setSampleRange(Range<int>((int)start, currentSound->getSampleProperty(SampleIds::LoopStart)));
+		break;
+	}
+	case hise::SamplerSoundWaveform::numAreas:
+		break;
+	default:
+		break;
+	}
+
+	if (refreshBounds)
+		refreshSampleAreaBounds(nullptr);
 }
 
 void SamplerSoundWaveform::toggleRangeEnabled(AreaTypes type)
@@ -251,10 +276,7 @@ void SamplerSoundWaveform::resized()
 
 void SamplerSoundWaveform::setSoundToDisplay(const ModulatorSamplerSound *s, int multiMicIndex/*=0*/)
 {
-    if(currentSound.get() != nullptr)
-        currentSound->removeChangeListener(this);
-    
-	if(s != nullptr && !s->isMissing() && !s->isPurged())
+    if(s != nullptr && !s->isMissing() && !s->isPurged())
 	{
 		currentSound = const_cast<ModulatorSamplerSound*>(s);
 
@@ -286,10 +308,6 @@ void SamplerSoundWaveform::setSoundToDisplay(const ModulatorSamplerSound *s, int
 		}
 		else jassertfalse;
 		
-
-        if(currentSound.get() != nullptr)
-            currentSound->addChangeListener(this);
-
 	}
 	else
 	{
