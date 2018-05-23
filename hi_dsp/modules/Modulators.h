@@ -962,7 +962,8 @@ class EnvelopeModulatorFactoryType: public FactoryType
 		ahdsrEnvelope,
 		tableEnvelope,
 		ccEnvelope,
-		scriptEnvelope
+		scriptEnvelope,
+		mpeModulator
 	};
 
 public:

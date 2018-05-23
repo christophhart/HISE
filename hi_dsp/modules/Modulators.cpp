@@ -348,6 +348,7 @@ Processor *EnvelopeModulatorFactoryType::createProcessor(int typeIndex, const St
 	case tableEnvelope:		return new TableEnvelope(m, id, numVoices, mode);
 	case ccEnvelope:		return new CCEnvelope(m, id, numVoices, mode);
 	case scriptEnvelope:	return new JavascriptEnvelopeModulator(m, id, numVoices, mode);
+	case mpeModulator:		return new MPEModulator(m, id, numVoices, mode);
 	default: jassertfalse;	return nullptr;
 
 	}

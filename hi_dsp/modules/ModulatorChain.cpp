@@ -575,6 +575,7 @@ void EnvelopeModulatorFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(TableEnvelope);
 	ADD_NAME_TO_TYPELIST(CCEnvelope);
 	ADD_NAME_TO_TYPELIST(JavascriptEnvelopeModulator);
+	ADD_NAME_TO_TYPELIST(MPEModulator);
 }
 
 

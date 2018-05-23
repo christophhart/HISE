@@ -88,6 +88,8 @@ END_JUCE_MODULE_DECLARATION
 #include "modulators/mods/CCEnvelope.h"
 #include "modulators/mods/CCDucker.h"
 #include "modulators/mods/GainMatcher.h"
+#include "modulators/mods/MPEModulators.h"
+
 
 #if USE_BACKEND
 
@@ -109,6 +111,7 @@ END_JUCE_MODULE_DECLARATION
 #include "modulators/editors/ArrayModulatorEditor.h"
 #include "modulators/editors/GlobalModulatorEditor.h"
 #include "modulators/editors/GainMatcherEditor.h"
+#include "modulators/editors/MPEModulatorEditors.h"
 
 #endif
 

@@ -51,6 +51,7 @@ namespace wdl
 #include "modulators/mods/CCEnvelope.cpp"
 #include "modulators/mods/CCDucker.cpp"
 #include "modulators/mods/GainMatcher.cpp"
+#include "modulators/mods/MPEModulators.cpp"
 
 #if USE_BACKEND
 
@@ -72,6 +73,7 @@ namespace wdl
 #include "modulators/editors/ArrayModulatorEditor.cpp"
 #include "modulators/editors/GlobalModulatorEditor.cpp"
 #include "modulators/editors/GainMatcherEditor.cpp"
+#include "modulators/editors/MPEModulatorEditors.cpp"
 
 #endif
 
