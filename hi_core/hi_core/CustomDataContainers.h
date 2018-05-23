@@ -164,6 +164,20 @@ public:
 		return (int)position;
 	}
 
+	inline ElementType* begin() const noexcept
+	{
+		ElementType* d = const_cast<ElementType*>(data);
+
+		return d;
+	}
+
+	inline ElementType* end() const noexcept
+	{
+		ElementType* d = const_cast<ElementType*>(data);
+
+		return d + position;
+	}
+
 private:
 
 	ElementType data[UNORDERED_STACK_SIZE];

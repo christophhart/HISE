@@ -227,6 +227,28 @@ public:
 		return currentValue;
 	};
 
+	void fillBufferWithSmoothedValue(float targetValue, float* data, int numSamples)
+	{
+		const bool smoothThisBuffer = active && (fabsf(targetValue - currentValue) > 0.001f);
+
+		if (!smoothThisBuffer)
+		{
+			currentValue = targetValue;
+			FloatVectorOperations::fill(data, targetValue, numSamples);
+			return;
+		}
+
+		SpinLock::ScopedLockType sl(spinLock);
+
+		for (int i = 0; i < numSamples; i++)
+		{
+			currentValue = a0 * targetValue - b0 * prevValue;
+
+			prevValue = currentValue;
+			data[i] = currentValue;
+		}
+	}
+
 	void smoothBuffer(float* data, int numSamples)
 	{
 		if (!active) return;
@@ -245,6 +267,12 @@ public:
 	{
 		return smoothTime;
 	};
+
+	void resetToValue(float targetValue)
+	{
+		currentValue = targetValue;
+		prevValue = targetValue;
+	}
 
 	/** Sets the smoothing time in seconds. 
 	*

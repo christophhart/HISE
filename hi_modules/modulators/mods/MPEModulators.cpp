@@ -102,7 +102,32 @@ void MPEModulator::startVoice(int voiceIndex)
 {
 	EnvelopeModulator::startVoice(voiceIndex);
 
-	getState(voiceIndex)->midiChannel = unsavedChannel;
+	if (auto s = getState(voiceIndex))
+	{
+		s->midiChannel = unsavedChannel;
+
+		switch (g)
+		{
+		case Press:		s->targetValue = 0.0f; break;
+		case Slide:		s->targetValue = 0.5f; break;
+		case Glide:		s->targetValue = 0.5f; break;
+		case Stroke:	s->targetValue = 0.0f; break;
+		case Lift:		s->targetValue = getMode() == Modulation::GainMode ? 0.0f : 0.5f; break;
+		default:
+			break;
+		}
+
+		s->targetValue = table->getInterpolatedValue(s->targetValue * (float)SAMPLE_LOOKUP_TABLE_SIZE);
+
+		s->smoother.resetToValue(s->targetValue);
+
+		if (g == Stroke)
+		{
+			s->targetValue = unsavedStrokeValue;
+		}
+
+		activeStates.insert(s);
+	}
 }
 
 void MPEModulator::stopVoice(int voiceIndex)
@@ -116,6 +141,8 @@ void MPEModulator::reset(int voiceIndex)
 
 	if (auto s = getState(voiceIndex))
 	{
+		activeStates.remove(s);
+
 		s->smoother.setDefaultValue(0.0f);
 		s->midiChannel = -1;
 	}
@@ -147,17 +174,12 @@ void MPEModulator::calculateBlock(int startSample, int numSamples)
 	{
 		auto w = internalBuffer.getWritePointer(0, startSample);
 
-		for (int i = 0; i < numSamples; i++)
-		{
-			w[i] = s->smoother.smooth(s->targetValue);
-		}
+		s->smoother.fillBufferWithSmoothedValue(s->targetValue, w, numSamples);
 
 		if (polyManager.getLastStartedVoice() == voiceIndex)
 		{
 			setOutputValue(w[0]);
 		}
-
-		
 	}
 }
 
@@ -165,79 +187,72 @@ void MPEModulator::handleHiseEvent(const HiseEvent& m)
 {
 	EnvelopeModulator::handleHiseEvent(m);
 
+	float inputValue;
+
 	if (m.isNoteOn())
 	{
 		unsavedChannel = m.getChannel();
-	}
-	else if (m.isChannelPressure() && g == Press)
-	{
-		auto c = m.getChannel();
 
-		float targetValue = (float)m.getNoteNumber() / 127.0f;
+		if (g == Stroke)
+		{
+			inputValue = (float)m.getVelocity() / 127.0f;
 
-		sendTableIndexChangeMessage(false, table, targetValue);
+			inputValue = jlimit(0.0f, 1.0f, inputValue);
 
-		targetValue = table->getInterpolatedValue(targetValue * (float)SAMPLE_LOOKUP_TABLE_SIZE);
+			const float targetValue = table->getInterpolatedValue(inputValue * (float)SAMPLE_LOOKUP_TABLE_SIZE);
 
+			sendTableIndexChangeMessage(false, table, inputValue);
+
+			unsavedStrokeValue = targetValue;
+		}
 		
-
-		for (int i = 0; i < states.size(); i++)
-		{
-			if (auto s = getState(i))
-			{
-				if (s->midiChannel == c)
-				{
-					s->targetValue = targetValue;
-				}
-			}	
-		}
+		return;
 	}
-	else if (m.isControllerOfType(74) && g == Timbre)
+	else if (g == Press && m.isChannelPressure())
 	{
-		auto c = m.getChannel();
+		inputValue = (float)m.getNoteNumber() / 127.0f;
+	}
+	else if (g == Slide && m.isControllerOfType(74))
+	{
+		inputValue = (float)m.getControllerValue() / 127.0f;
+	}
+	else if (g == Glide && m.isPitchWheel())
+	{
+		inputValue = ((float)m.getPitchWheelValue() - 8192.0f) / 2048.0f;
+		inputValue = 0.5f * inputValue + 0.5;
+	}
+	else if (g == Lift && m.isNoteOff())
+	{
+		inputValue = (float)m.getVelocity() / 127.0f;
+	}
+	else
+	{
+		return;
+	}
 
-		float targetValue = (float)m.getChannelPressureValue() / 127.0f;
+	auto c = m.getChannel();
 
-		sendTableIndexChangeMessage(false, table, targetValue);
+	inputValue = jlimit(0.0f, 1.0f, inputValue);
 
-		targetValue = table->getInterpolatedValue(targetValue * (float)SAMPLE_LOOKUP_TABLE_SIZE);
+	const float targetValue = table->getInterpolatedValue(inputValue * (float)SAMPLE_LOOKUP_TABLE_SIZE);
 
-		for (int i = 0; i < states.size(); i++)
+	bool found = false;
+
+	for (auto s : activeStates)
+	{
+		if (s->midiChannel == c)
 		{
-			if (auto s = getState(i))
+			s->targetValue = inputValue;
+
+			if (!found && s->index == polyManager.getLastStartedVoice())
 			{
-				if (s->midiChannel == c)
-				{
-					s->targetValue = targetValue;
-				}
+				sendTableIndexChangeMessage(false, table, inputValue);
+				found = true;
 			}
 		}
+			
 	}
-	else if (m.isPitchWheel() && g == Glide)
-	{
-		auto c = m.getChannel();
 
-		float targetValue = ((float)m.getPitchWheelValue() - 8192.0f) / 2048.0f;
-		targetValue = 0.5f * targetValue + 0.5;
-
-		DBG(targetValue);
-
-		sendTableIndexChangeMessage(false, table, targetValue);
-
-		targetValue = table->getInterpolatedValue(targetValue * (float)SAMPLE_LOOKUP_TABLE_SIZE);
-
-		for (int i = 0; i < states.size(); i++)
-		{
-			if (auto s = getState(i))
-			{
-				if (s->midiChannel == c)
-				{
-					s->targetValue = targetValue;
-				}
-			}
-		}
-
-	}
 }
 
 hise::ProcessorEditorBody * MPEModulator::createEditor(ProcessorEditor *parentEditor)

@@ -47,8 +47,10 @@ public:
 	enum Gesture
 	{
 		Press = 1,
-		Timbre,
+		Slide,
 		Glide,
+		Stroke,
+		Lift,
 		numGestures
 	};
 
@@ -95,7 +97,9 @@ public:
 
 		MPEState(int voiceIndex) :
 			ModulatorState(voiceIndex)
-		{};
+		{
+			smoother.setDefaultValue(0.0f);
+		};
 
 		Smoother smoother;
 		int midiChannel = -1;
@@ -109,6 +113,8 @@ public:
 
 private:
 
+	UnorderedStack<MPEState*> activeStates;
+
 	void updateSmoothingTime(float newTime)
 	{
 		if (newTime != smoothingTime)
@@ -121,8 +127,9 @@ private:
 	}
 
 	int unsavedChannel = -1;
+	float unsavedStrokeValue = 0.0f;
 
-	float smoothingTime = 0.0f;
+	float smoothingTime = 200.0f;
 
 	MPEState * getState(int voiceIndex);
 	const MPEState * getState(int voiceIndex) const;

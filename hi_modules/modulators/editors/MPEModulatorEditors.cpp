@@ -42,12 +42,15 @@ MPEModulatorEditor::MPEModulatorEditor(ProcessorEditor* parent) :
 	addAndMakeVisible(typeSelector = new HiComboBox("Type"));
 	addAndMakeVisible(smoothingTime = new HiSlider("SmoothingTime"));
 
+
 	tableEditor->connectToLookupTableProcessor(getProcessor());
 
 	typeSelector->setup(getProcessor(), MPEModulator::SpecialParameters::GestureCC, "Gesture Type");
 	typeSelector->addItem("Press", MPEModulator::Gesture::Press);
-	typeSelector->addItem("Timbre", MPEModulator::Gesture::Timbre);
+	typeSelector->addItem("Slide", MPEModulator::Gesture::Slide);
 	typeSelector->addItem("Glide", MPEModulator::Gesture::Glide);
+	typeSelector->addItem("Stroke", MPEModulator::Gesture::Stroke);
+	typeSelector->addItem("Lift", MPEModulator::Gesture::Lift);
 
 	smoothingTime->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
 	smoothingTime->setTextBoxStyle(Slider::TextBoxRight, true, 80, 20);
