@@ -143,6 +143,206 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MPEModulator)
 };
 
+class MPEPanel : public Component,
+				 public MidiKeyboardStateListener,
+				 public Timer,
+				 public ButtonListener,
+				 public KeyboardBase
+{
+public:
+
+	enum ColourIds
+	{
+		bgColour,
+		waveColour,
+		keyOnColour,
+		dragColour,
+		numColoursIds
+	};
+
+	MPEPanel(MidiKeyboardState& state_):
+		state(state_),
+		pendingMessages(1024)
+	{
+		state.addListener(this);
+		startTimer(30);
+
+		setColour(bgColour, Colours::black);
+		setColour(waveColour, Colours::white.withAlpha(0.5f));
+		setColour(keyOnColour, Colours::white);
+		setColour(dragColour, Colour(SIGNAL_COLOUR));
+	}
+
+	~MPEPanel()
+	{
+		state.removeListener(this);
+	}
+
+	void timerCallback() override;
+
+	void handleNoteOn(MidiKeyboardState* /*source*/,
+		int midiChannel, int midiNoteNumber, float velocity);
+
+	void handleNoteOff(MidiKeyboardState* /*source*/,
+		int midiChannel, int midiNoteNumber, float velocity);
+
+	void handleMessage(const MidiMessage& m) override;
+
+	void mouseDown(const MouseEvent& e) override;
+
+	void mouseUp(const MouseEvent& e) override;
+
+	void mouseDrag(const MouseEvent& event) override
+	{
+		for (auto& s : pressedNotes)
+			s.updateNote(*this, event);
+
+		repaint();
+	}
+
+	void paint(Graphics& g) override;
+
+	Rectangle<float> getPositionForNote(int noteNumber) const;
+
+	int getNoteForPosition(Point<int> pos) const
+	{
+		return lowKey + int((float)pos.getX() / getWidthForNote());
+	}
+
+	float getWidthForNote() const
+	{
+		return (float)getWidth() / 24.0f;
+	}
+
+	void buttonClicked(Button* b) override
+	{
+		if (b == &octaveUp)
+		{
+			lowKey = jmin<int>(108, lowKey + 12);
+		}
+		else
+		{
+			lowKey = jmax<int>(0, lowKey - 12);
+		}
+
+		repaint();
+	}
+
+	bool isMPEKeyboard() const override { return true; }
+
+	bool isUsingCustomGraphics() const noexcept override { return false; };
+	void setUseCustomGraphics(bool shouldUseCustomGraphics) override {};
+
+	void setShowOctaveNumber(bool shouldDisplayOctaveNumber) override { }
+	bool isShowingOctaveNumbers() const override { return false; }
+
+	void setLowestKeyBase(int lowKey_) override { lowKey = lowKey_; }
+
+	int getKeyWidthBase() const override { return (int)getWidthForNote(); };
+	void setKeyWidthBase(float w) override {  }
+
+	int getRangeStartBase() const override { return lowKey; };
+	int getRangeEndBase() const override { return lowKey+24; };
+
+	int getMidiChannelBase() const override { return -1; }
+	void setMidiChannelBase(int newChannel) override {  }
+
+	void setRangeBase(int min, int max) override { lowKey = min; }
+
+
+	void setBlackNoteLengthProportionBase(float ratio) override {  }
+	double getBlackNoteLengthProportionBase() const override { return 0.5; }
+
+	bool isToggleModeEnabled() const override { return false; };
+	void setEnableToggleMode(bool /*shouldBeEnabled*/) override {  }
+
+private:
+
+	hise::LockfreeQueue<MidiMessage> pendingMessages;
+
+	struct Note
+	{
+		static Note fromMouseEvent(const MPEPanel& p, const MouseEvent& e, int channelIndex);
+
+		static Note fromMidiMessage(const MPEPanel& p, const MidiMessage& m);
+
+		bool operator ==(const Note& other)  const
+		{
+			return assignedMidiChannel == other.assignedMidiChannel;
+		}
+
+		bool operator !=(const Note& other)  const
+		{
+			return assignedMidiChannel != other.assignedMidiChannel;
+		}
+
+		bool operator ==(const MidiMessage& m) const
+		{
+			return assignedMidiChannel == m.getChannel();
+		}
+
+		bool operator ==(const MouseEvent& e) const
+		{
+			return fingerIndex == e.source.getIndex();
+		}
+
+		bool operator !=(const MidiMessage& m) const
+		{
+			return assignedMidiChannel != m.getChannel();
+		}
+
+		bool operator !=(const MouseEvent& e) const
+		{
+			return fingerIndex != e.source.getIndex();
+		}
+
+		void updateNote(const MPEPanel& p, const MidiMessage& m);
+
+		void updateNote(const MPEPanel& p, const MouseEvent& e);
+
+		void draw(const MPEPanel& p, Graphics& g) const;
+
+		bool isVisible(const MPEPanel& p) const
+		{
+			return !p.getPositionForNote(noteNumber).isEmpty();
+		}
+
+		void sendNoteOn(MidiKeyboardState& state) const
+		{
+			state.noteOn(assignedMidiChannel, noteNumber, (float)strokeValue / 127.0f);
+		}
+
+		void sendNoteOff(MidiKeyboardState& state) const
+		{
+			state.noteOff(assignedMidiChannel, noteNumber, (float)liftValue / 127.0f);
+		}
+
+	private:
+
+		bool isArtificial;
+		int fingerIndex;
+		int assignedMidiChannel;
+		int noteNumber;
+
+		int glideValue;
+		int slideValue;
+		int strokeValue;
+		int liftValue;
+		int pressureValue;
+		Point<int> startPoint;
+		Point<int> dragPoint;
+
+	};
+
+	TextButton octaveUp;
+	TextButton octaveDown;
+
+	UnorderedStack<Note> pressedNotes;
+	int nextChannelIndex = 1;
+	MidiKeyboardState& state;
+	int lowKey = 36;
+};
+
 
 
 }

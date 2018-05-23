@@ -50,7 +50,7 @@ public:
 
 	int getBodyHeight() const override
 	{
-		return 200;
+		return 300;
 	}
 
 	void resized() override;
@@ -62,6 +62,7 @@ private:
 	ScopedPointer<TableEditor> tableEditor;
 	ScopedPointer<HiComboBox> typeSelector;
 	ScopedPointer<HiSlider> smoothingTime;
+	ScopedPointer<MPEPanel> mpePanel;
 };
 
 

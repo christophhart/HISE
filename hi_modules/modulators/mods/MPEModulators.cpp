@@ -287,5 +287,263 @@ const hise::MPEModulator::MPEState * MPEModulator::getState(int voiceIndex) cons
 	return nullptr;
 }
 
+void MPEPanel::timerCallback()
+{
+	if (!pendingMessages.isEmpty())
+	{
+		MidiMessage m;
+
+		while (pendingMessages.pop(m))
+		{
+			DBG(m.getDescription());
+
+			if (m.isNoteOn())
+			{
+				pressedNotes.insert(Note::fromMidiMessage(*this, m));
+			}
+			else if (m.isNoteOff())
+			{
+				for (int i = 0; i < pressedNotes.size(); i++)
+				{
+					if (pressedNotes[i] == m)
+						pressedNotes.removeElement(i--);
+				}
+			}
+			else
+			{
+				for (auto& n : pressedNotes)
+					n.updateNote(*this, m);
+			}
+
+		}
+
+		repaint();
+	}
+}
+
+void MPEPanel::handleNoteOn(MidiKeyboardState* /*source*/, int midiChannel, int midiNoteNumber, float velocity)
+{
+	auto m = MidiMessage::noteOn(midiChannel, midiNoteNumber, velocity);
+
+	pendingMessages.push(std::move(m));
+}
+
+void MPEPanel::handleNoteOff(MidiKeyboardState* /*source*/, int midiChannel, int midiNoteNumber, float velocity)
+{
+	auto m = MidiMessage::noteOff(midiChannel, midiNoteNumber, velocity);
+
+	pendingMessages.push(std::move(m));
+}
+
+void MPEPanel::handleMessage(const MidiMessage& m)
+{
+	MidiMessage copy(m);
+
+	pendingMessages.push(std::move(copy));
+}
+
+void MPEPanel::mouseDown(const MouseEvent& e)
+{
+	auto n = Note::fromMouseEvent(*this, e, nextChannelIndex);
+	n.sendNoteOn(state);
+
+	pressedNotes.insert(n);
+
+	nextChannelIndex++;
+
+	if (nextChannelIndex > 15)
+		nextChannelIndex = 1;
+
+	repaint();
+}
+
+void MPEPanel::mouseUp(const MouseEvent& e)
+{
+	for (int i = 0; i < pressedNotes.size(); i++)
+	{
+		if (pressedNotes[i] == e)
+		{
+			pressedNotes[i].sendNoteOff(state);
+			pressedNotes.removeElement(i--);
+			break;
+		}
+
+	}
+
+	repaint();
+}
+
+void MPEPanel::paint(Graphics& g)
+{
+	Colour c1 = findColour(bgColour).withMultipliedAlpha(1.1f);
+	Colour c2 = findColour(bgColour).withMultipliedAlpha(0.9f);
+
+	g.setGradientFill(ColourGradient(c1, 0.0f, 0.0f, c2, 0.0f, (float)getHeight(), false));
+	g.fillAll();
+
+	static const int whiteWave[24] = { 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0,
+										0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0 };
+
+	for (int i = 0; i < 24; i++)
+	{
+		auto l = getPositionForNote(lowKey + i);
+
+		const float radius = getWidthForNote() * 0.2f;
+
+		if (whiteWave[i] == 1)
+		{
+			g.setColour(findColour(waveColour));
+			g.drawLine(l.getCentreX(), radius, l.getCentreX(), l.getHeight()-2.0f*radius, 4.0f);
+		}
+		else if (whiteWave[i] == 0)
+		{
+			l.reduce(4, 3);
+
+			g.setColour(findColour(waveColour).withMultipliedAlpha(0.1f));
+			g.fillRoundedRectangle(l, radius);
+		}
+	}
+
+	for (const auto& n : pressedNotes)
+		n.draw(*this, g);
+}
+
+juce::Rectangle<float> MPEPanel::getPositionForNote(int noteNumber) const
+{
+	int normalised = noteNumber - lowKey;
+	float widthPerWave = getWidthForNote();
+
+	if (normalised > 24 || normalised < 0)
+		return {};
+
+	static const int whiteWave[24] = { 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0,
+		0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0 };
+
+	return { normalised * widthPerWave, 0.0f, widthPerWave, whiteWave[normalised] ? (float)getHeight()*0.5f : (float)getHeight() };
+}
+
+hise::MPEPanel::Note MPEPanel::Note::fromMouseEvent(const MPEPanel& p, const MouseEvent& e, int channelIndex)
+{
+	Note n;
+
+	n.isArtificial = true;
+	n.fingerIndex = e.source.getIndex();
+	n.assignedMidiChannel = channelIndex;
+	n.noteNumber = p.getNoteForPosition(e.getMouseDownPosition());
+	n.glideValue = 64;
+	n.slideValue = 8192;
+	n.strokeValue = 127;
+	n.liftValue = 127;
+	n.pressureValue = 0;
+
+	n.startPoint = { (int)p.getPositionForNote(n.noteNumber).getCentreX(), e.getMouseDownY() };
+
+
+	n.dragPoint = n.startPoint;
+
+	return n;
+}
+
+hise::MPEPanel::Note MPEPanel::Note::fromMidiMessage(const MPEPanel& p, const MidiMessage& m)
+{
+	Note n;
+
+	n.isArtificial = false;
+	n.fingerIndex = -1;
+	n.assignedMidiChannel = m.getChannel();
+	n.noteNumber = m.getNoteNumber();
+	n.strokeValue = m.getVelocity();
+	n.slideValue = 8192;
+	n.liftValue = 0;
+	n.glideValue = 64;
+	n.pressureValue = 0;
+
+	auto sp = p.getPositionForNote(n.noteNumber).getCentre();
+
+
+	n.startPoint = { (int)sp.getX(), (int)sp.getY() };
+	n.dragPoint = n.startPoint;
+
+	return n;
+}
+
+void MPEPanel::Note::updateNote(const MPEPanel& p, const MouseEvent& e)
+{
+	if (*this != e)
+		return;
+
+	dragPoint = e.getPosition();
+
+	float pitchBendValue = (float)e.getDistanceFromDragStartX() / p.getWidthForNote();
+	slideValue = jlimit<int>(0, 8192*2, 8192 + (int)(pitchBendValue / 24.0f * 4096.0f));
+	float normalisedGlide = -0.5f * (float)e.getDistanceFromDragStartY() / (float)p.getHeight();
+	glideValue = jlimit<int>(0, 127, 64 + roundFloatToInt(normalisedGlide * 127.0f));
+
+	p.state.injectMessage(MidiMessage::pitchWheel(assignedMidiChannel, slideValue));
+	p.state.injectMessage(MidiMessage::controllerEvent(assignedMidiChannel, 74, glideValue));
+}
+
+void MPEPanel::Note::updateNote(const MPEPanel& p, const MidiMessage& m)
+{
+	if (*this != m)
+		return;
+
+	if (m.isPitchWheel())
+	{
+		slideValue = m.getPitchWheelValue();
+
+		float normalisedSlideValue = (float)(slideValue - 8192) / 4096.0f;
+
+		float slideOctaveValue = normalisedSlideValue * 24.0f;
+		float slideDistance = slideOctaveValue * p.getWidthForNote();
+
+		dragPoint.setX(startPoint.getX() + slideDistance);
+
+	}
+		
+	else if (m.isChannelPressure())
+		pressureValue = m.getChannelPressureValue();
+	else if (m.isControllerOfType(74))
+	{
+		glideValue = m.getControllerValue();
+
+		auto distance = (float)(glideValue-64) / 32.0f;
+
+		dragPoint.setY(startPoint.getY() - distance * startPoint.getY());
+	}
+		
+	else if (m.isNoteOff())
+		liftValue = m.getVelocity();
+}
+
+void MPEPanel::Note::draw(const MPEPanel& p, Graphics& g) const
+{
+	if (!isVisible(p))
+		return;
+
+	auto area = p.getPositionForNote(noteNumber);
+
+	g.setColour(p.findColour(keyOnColour).withAlpha((float)pressureValue / 127.0f));
+
+	area.reduce(4.0f, 3.0f);
+
+	auto radius = p.getWidthForNote() * 0.2f;
+
+	g.fillRoundedRectangle(area, radius);
+
+	g.setColour(p.findColour(dragColour));
+
+	auto l = Line<int>(startPoint, dragPoint);
+
+	g.drawLine((float)l.getStartX(), (float)l.getStartY(), (float)l.getEndX(), (float)l.getEndY(), 2.0f);
+
+	Rectangle<float> r((float)dragPoint.getX(), (float)dragPoint.getY(), 0.0f, 0.0f);
+	r = r.withSizeKeepingCentre(10, 10);
+
+	g.setColour(Colours::white.withAlpha((float)strokeValue / 127.0f));
+
+	g.drawEllipse(r, 2.0f);
+}
+
 }
 

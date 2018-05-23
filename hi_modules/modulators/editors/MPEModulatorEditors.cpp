@@ -56,17 +56,29 @@ MPEModulatorEditor::MPEModulatorEditor(ProcessorEditor* parent) :
 	smoothingTime->setTextBoxStyle(Slider::TextBoxRight, true, 80, 20);
 	smoothingTime->setup(getProcessor(), MPEModulator::SpecialParameters::SmoothingTime, "Smoothing Time");
 	smoothingTime->setMode(HiSlider::Time, 0.0, 2000.0, 100.0, 0.1);
+
+	addAndMakeVisible(mpePanel = new MPEPanel(getProcessor()->getMainController()->getKeyboardState()));
+
+	mpePanel->setColour(MPEPanel::ColourIds::bgColour, Colour(0x11000000));
 }
 
 void MPEModulatorEditor::resized()
 {
 	auto area = getLocalBounds();
 
-	area = area.withSizeKeepingCentre(600, area.getHeight() - 12);
+	area = area.withSizeKeepingCentre(650, area.getHeight() - 12);
 
 	area = area.reduced(8);
 
-	tableEditor->setBounds(area.removeFromLeft(450));
+	auto keyboardArea = area.removeFromBottom(80);
+
+	
+
+	auto tablePanel = area.removeFromLeft(450);
+
+	mpePanel->setBounds(keyboardArea.removeFromBottom(72));
+
+	tableEditor->setBounds(tablePanel);
 
 	area.removeFromTop(50);
 
@@ -78,19 +90,17 @@ void MPEModulatorEditor::paint(Graphics& g)
 {
 	auto area = getLocalBounds();
 
-	area = area.withSizeKeepingCentre(600, area.getHeight() - 12);
+	area = area.withSizeKeepingCentre(650, area.getHeight() - 12);
 
 	g.setColour(Colour(0x30000000));
 	g.fillRoundedRectangle(FLOAT_RECTANGLE(area), 3.0f);
 	g.setColour(Colours::white);
 
-	area.reduce(4, 4);
+	area.reduce(8, 8);
 	area.removeFromLeft(450);
 
 	g.setFont(GLOBAL_BOLD_FONT().withHeight(24.0f));
 	g.drawText("MPE", area, Justification::topRight);
-
-
 }
 
 }

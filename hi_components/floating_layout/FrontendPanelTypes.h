@@ -155,6 +155,7 @@ public:
 		DisplayOctaveNumber, ///< set this to true to add octave numbers at each C note.
 		ToggleMode, ///< if activated, then the notes will be held until clicked again
 		MidiChannel, ///< which MIDI channel to use (1-16)
+		MPEKeyboard,
 		numProperyIds
 	};
 
@@ -164,7 +165,7 @@ public:
 	~MidiKeyboardPanel();
 
 	bool showTitleInPresentationMode() const override;
-	CustomKeyboard* getKeyboard() const override;
+	Component* getKeyboard() const override;
 
 	int getNumDefaultableProperties() const override;
 	var toDynamicObject() const override;
@@ -180,7 +181,7 @@ public:
 private:
 
 	bool defaultAppearance = true;
-	ScopedPointer<CustomKeyboard> keyboard;
+	ScopedPointer<KeyboardBase> keyboard;
 };
 
 /** Type-ID: `Note`.
