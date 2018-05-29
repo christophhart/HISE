@@ -937,6 +937,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getUserPresetList);
 	API_METHOD_WRAPPER_0(Engine, getCurrentUserPresetName);
 	API_VOID_METHOD_WRAPPER_1(Engine, saveUserPreset);
+	API_METHOD_WRAPPER_0(Engine, isMpeEnabled);
 	API_METHOD_WRAPPER_0(Engine, createSliderPackData);
 	API_METHOD_WRAPPER_0(Engine, createMidiList);
 	API_METHOD_WRAPPER_0(Engine, createTimerObject);
@@ -999,6 +1000,7 @@ ApiClass(0)
 	ADD_API_METHOD_1(saveUserPreset);
 	ADD_API_METHOD_1(loadUserPreset);
 	ADD_API_METHOD_0(getUserPresetList);
+	ADD_API_METHOD_0(isMpeEnabled);
 	ADD_API_METHOD_0(createMidiList);
 	ADD_API_METHOD_0(getPlayHead);
 	ADD_API_METHOD_2(dumpAsJSON);
@@ -1278,6 +1280,11 @@ void ScriptingApi::Engine::loadNextUserPreset(bool stayInDirectory)
 void ScriptingApi::Engine::loadPreviousUserPreset(bool stayInDirectory)
 {
 	getProcessor()->getMainController()->getUserPresetHandler().incPreset(false, stayInDirectory);
+}
+
+bool ScriptingApi::Engine::isMpeEnabled() const
+{
+	return getScriptProcessor()->getMainController_()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().isMpeEnabled();
 }
 
 String ScriptingApi::Engine::getCurrentUserPresetName()
