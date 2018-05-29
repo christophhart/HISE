@@ -42,7 +42,8 @@ namespace hise { using namespace juce;
 *	It uses a simple low pass filter to smooth value changes.  
 */
 class PitchwheelModulator: public TimeVariantModulator,
-						   public LookupTableProcessor
+						   public LookupTableProcessor,
+						   public MidiControllerAutomationHandler::MPEData::Listener
 {
 public:
 
@@ -85,6 +86,17 @@ public:
 
 	};
 
+	void mpeModeChanged(bool isEnabled) override 
+	{
+		mpeEnabled = isEnabled;
+	}
+
+	void mpeDataReloaded() override {}
+
+	void mpeModulatorAssigned(MPEModulator* /*m*/, bool /*wasAssigned*/) override
+	{
+		
+	}
 	
 
 	/** Returns a new editor */
@@ -148,6 +160,8 @@ public:
 	};
 
 private:
+
+	bool mpeEnabled = false;
 
 	/** Returns a smoothed value of the current control value. 
 	*	Don't use this for GUI stuff, since it advances the smoothing! 

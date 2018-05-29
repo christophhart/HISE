@@ -49,10 +49,12 @@ PitchwheelModulator::PitchwheelModulator(MainController *mc, const String &id, M
 	parameterNames.add("UseTable");
 	parameterNames.add("SmoothTime");
 
+	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().addListener(this);
 };
 
 PitchwheelModulator::~PitchwheelModulator()
 {
+	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().removeListener(this);
 };
 
 ProcessorEditorBody *PitchwheelModulator::createEditor(ProcessorEditor *parentEditor)
@@ -122,7 +124,9 @@ float PitchwheelModulator::calculateNewValue ()
 	/** sets the new target value if the controller number matches. */
 void PitchwheelModulator::handleHiseEvent (const HiseEvent &m)
 {
-	
+	if (mpeEnabled && m.getChannel() != 1)
+		return;
+
 	if(m.isPitchWheel())
 	{
 		inputValue = m.getPitchWheelValue() / 16383.0f;
