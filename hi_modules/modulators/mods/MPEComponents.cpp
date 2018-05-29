@@ -34,6 +34,89 @@
 namespace hise {
 using namespace juce;
 
+MARKDOWN_CHAPTER(MpeHelp)
+START_MARKDOWN(Help);
+ML("# How to use MPE");
+ML("MPE (MIDI Polyphonic Expression) is an extension of the old MIDI standard which allows polyphonic modulation of notes.");
+ML("");
+ML("## Summary");
+ML("If MPE is enabled, the MPE-capable MIDI hardware will assign each note a dedicated MIDI channel cycling from 2-16 (there are other MPE modes called Zones, but they aren't supported in HISE).");
+ML("It will then transmit this data on the respective MIDI channel:");
+ML("");
+ML("| Icon | Name | MIDI message | Description |");
+ML("| - | --- | ---- | ---------- |");
+ML("| ![](Slide) | Slide | Pitchbend | A horizontal movement on the MIDI controller |");
+ML("| ![](Glide) | Glide | CC #74 | A vertical movement on the MIDI controller |");
+ML("| ![](Press) | Press | Aftertouch | the force that is applied to the note |");
+ML("| ![](Stroke) | Stroke | Velocity | the velocity that you hit the note |");
+ML("| ![](Lift) | Lift | Release Velocity | the pressure level when the note is released |");
+ML("");
+ML("These 5 gesture types are transmitted and can be interpreted by a MPE Modulator, which is an envelope modulator. It will automatically detect the MIDI channel and assign each MIDI message to the respective voices.");
+ML("");
+ML("## How to use MPE modulators in your instrument");
+ML("");
+ML("The idea behind the MPE system in HISE is that you **add MPE modulators into every slot that you want to control via MPE**. Then you use this panel to assign and enable each modulator. Don't worry about performance, if the MPE modulators are bypassed, they don't waste (hardly) any CPU cycles. This panel is a floating tile and is supposed to be embedded in your compiled plugin to give the end user the possibility to thorougly tweak and control the MPE mappings. All MPE mappings are stored in a user preset (similar to the MIDI Learn settings) so this can be used as part of the preset design.");
+ML(">There is a global **MPE Enabled** state which can be used to toggle *all* MPE modulators at once.");
+ML("");
+ML("## The MPE Modulator table");
+ML("");
+ML("Below you see a list of all enabled MPE connections. You can set these attributes for each connection:");
+ML("");
+ML("| Column | Description |");
+ML("| -- | ----------- |");
+ML("| **Target**| The modulator name. It will \"uncamelcase\" the modulator ID and remove a trailing \"MPE\", so `SustainGainModMPE` will become `Sustain Gain Mod`. |");
+ML("| **Meter** | The current modulation value. |");
+ML("| **Gesture** | The type of gesture that controls this modulator: Slide, Glide, Press, Stroke or Lift |");
+ML("| **Mode** | By default, the MPE modulation is polyphonic, but you might want to use a monophonic mode (Legato or Retrigger) if the modulation target is not polyphonic itself (eg. when modulating a master effect) or if you want this particular behaviour. | ");
+ML("| **Intensity** | This controls the amount of modulation that is applied to the signal. Normally the range is from 0 to 100%, but when the modulation target is pitch, you can control the pitch amount in semitones. |");
+ML("| **Curve** | a preview of the modulator's curve that can be edited by clicking on the row. |");
+ML("| **Smoothing** | this applies a low pass to the modulation signal to smooth out the edges. |");
+ML("| **Default** | The default value that the modulation value will be set to when the voice is started. |");
+ML("If you click on a row, it will open a editor for the curve as well as a plotter that shows the last seconds of the modulation signal so you get a visual feedback of how the modulator works. You can right click on the plotter to change the speed / freeze the current state.");
+ML("You can press Escape to close the editors and delete to remove the current connection.");
+ML("");
+ML("## Advanced Tricks");
+ML("#### Assign UI sliders to MPE modulators");
+ML("A common practice in plugins is to have a right-click context menu with a MIDI learn / assign to controller function. This can be also used for adding / removing MPE connections using a simple trick:");
+ML("> If a sliders name (= the `text` property) matches the modulator ID (minus a MPE-suffix), the MPE modulator can be added / removed in the slider's context menu.");
+ML("So if we have a slider / knob on our interface that has the name `SustainVolume`, all we need to do is to add a MPE modulator in the gain chain and name it `SustainVolumeMPE`. You can of course add this modulator to the cutoff modulation of a filter, but that would be misleading; the only connection they have is this name and it's your responsibility to match their functionality.");
+ML("");
+ML("#### Use a MPE modulator as additional envelope");
+ML("By setting the default value to 1.0 and the smoothing to a bigger value, the MPE modulator will have some sort of \"attack\", which can be used as additional envelope.");
+ML("");
+ML("#### Add MPE support for scripts");
+ML("The inbuilt script processors in HISE support the MPE protocol, but if you have custom MIDI scripts, changes are big that you have to modify them in order to make them work with MPE enabled.");
+ML("");
+ML("In 99% of all cases, you just need to store the MIDI channel along with the MIDI note and process that information:");
+ML("");
+ML("```javascript");
+ML("// BEFORE");
+ML("local lastNote = Message.getNoteNumber();");
+ML("Synth.addNoteOn(1, lastNote, 127, 0);");
+ML("");
+ML("// AFTER");
+ML("local lastNote = Message.getNoteNumber();");
+ML("local lastChannel = Message.getChannel();");
+ML("Synth.addNoteOn(lastChannel, lastNote, 127, 0);");
+ML("```");
+ML("");
+ML("You can use the API call `Engine.isMpeEnabled()` to find out whether you need to bother about this at all. The most recommended way is to branch using this method and put your original code into the `false` branch like this:");
+ML("");
+ML("```javascript");
+ML("if(Engine.isMpeEnabled())");
+ML("{");
+ML("	local lastNote = Message.getNoteNumber();");
+ML("	local lastChannel = Message.getChannel();");
+ML("	Synth.addNoteOn(lastChannel, lastNote, 127, 0);");
+ML("}");
+ML("else");
+ML("{");
+ML("	local lastNote = Message.getNoteNumber();");
+ML("	Synth.addNoteOn(1, lastNote, 127, 0);");
+ML("}");
+ML("```");
+END_MARKDOWN()
+END_MARKDOWN_CHAPTER()
 
 juce::Path MPEPanel::Factory::createPath(const String& id) const
 {
@@ -289,6 +372,19 @@ MPEPanel::MPEPanel(FloatingTile* parent) :
 
 	addAndMakeVisible(currentTable);
 	addAndMakeVisible(listbox);
+
+	
+
+#if USE_BACKEND
+
+	helpButton = new MarkdownHelpButton();
+
+	helpButton->attachTo(&enableMPEButton, MarkdownHelpButton::OverlayRight);
+
+	helpButton->setHelpText<MarkdownParser::PathProvider<Factory>>(MpeHelp::Help());
+	helpButton->setPopupWidth(600);
+#endif
+	
 
 	updateTableColours();
 

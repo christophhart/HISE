@@ -262,6 +262,9 @@ public:
 		/** Loads the previous user preset. */
 		void loadPreviousUserPreset(bool stayInDirectory);
 
+		/** Checks if the global MPE mode is enabled. */
+		bool isMpeEnabled() const;
+
 		/** Returns the currently loaded user preset (without extension). */
 		String getCurrentUserPresetName();
 

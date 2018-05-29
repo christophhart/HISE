@@ -222,8 +222,13 @@ private:
 	Notifier notifier;
 	Model m;
 
+	
+
 	ListBox listbox;
 	TextButton enableMPEButton;
+
+	ScopedPointer<MarkdownHelpButton> helpButton;
+
 	TableEditor currentTable;
 	ScopedPointer<Plotter> currentPlotter;
 
