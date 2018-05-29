@@ -455,7 +455,7 @@ void ScriptComponentEditPanel::copyAction()
 
 		var newData(newObject);
 
-		auto clipboardContent = JSON::toString(newData, false);
+		auto clipboardContent = JSON::toString(newData, false, DOUBLE_TO_STRING_DIGITS);
 		SystemClipboard::copyTextToClipboard(clipboardContent);
 
 		debugToConsole(mc->getMainSynthChain(), "The following properties were copied to the clipboard:\n" + prop);
