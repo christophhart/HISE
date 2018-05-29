@@ -97,11 +97,23 @@ void ModulatorChain::handleHiseEvent(const HiseEvent &m)
 {
 	EnvelopeModulator::handleHiseEvent(m);
 
-	for(int i = 0; i < voiceStartModulators.size(); i++) voiceStartModulators[i]->handleHiseEvent(m);
+	for (int i = 0; i < voiceStartModulators.size(); i++)
+	{
+		if (!voiceStartModulators[i]->isBypassed())
+			voiceStartModulators[i]->handleHiseEvent(m);
+	}
 
-	for(int i = 0; i < envelopeModulators.size(); i++) envelopeModulators[i]->handleHiseEvent(m);
+	for (int i = 0; i < envelopeModulators.size(); i++)
+	{
+		if (!envelopeModulators[i]->isBypassed())
+			envelopeModulators[i]->handleHiseEvent(m);
+	}
 
-	for(int i = 0; i < variantModulators.size(); i++) variantModulators[i]->handleHiseEvent(m);
+	for(int i = 0; i < variantModulators.size(); i++)
+	{
+		if (!variantModulators[i]->isBypassed())
+			variantModulators[i]->handleHiseEvent(m);
+	}
 };
 
 
@@ -161,12 +173,20 @@ void ModulatorChain::startVoice(int voiceIndex)
 
 	polyManager.setLastStartedVoice(voiceIndex);
 
-	for (int i = 0; i < voiceStartModulators.size(); i++) voiceStartModulators[i]->startVoice(voiceIndex);
+	for (int i = 0; i < voiceStartModulators.size(); i++)
+	{
+		if (!voiceStartModulators[i]->isBypassed())
+			voiceStartModulators[i]->startVoice(voiceIndex);
+	}
 
 	for (int i = 0; i < envelopeModulators.size(); i++)
 	{
-		envelopeModulators[i]->startVoice(voiceIndex);
-		envelopeModulators[i]->polyManager.setLastStartedVoice(voiceIndex);
+		if (!envelopeModulators[i]->isBypassed())
+		{
+			envelopeModulators[i]->startVoice(voiceIndex);
+			envelopeModulators[i]->polyManager.setLastStartedVoice(voiceIndex);
+		}
+		
 	}
 
 	const float startValue = getConstantVoiceValue(voiceIndex);
