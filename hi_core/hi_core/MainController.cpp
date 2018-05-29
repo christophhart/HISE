@@ -437,22 +437,6 @@ CustomKeyboardState & MainController::getKeyboardState()
 void MainController::setLowestKeyToDisplay(int lowestKeyToDisplay)
 {
 	keyboardState.setLowestKeyToDisplay(lowestKeyToDisplay);
-}
-
-void MainController::addPlottedModulator(Modulator *m)
-{
-	if(plotter.getComponent() != nullptr)
-	{
-		plotter->addPlottedModulator(m);
-	}
-};
-
-void MainController::removePlottedModulator(Modulator *m)
-{
-	if(plotter.getComponent() != nullptr)
-	{
-		plotter->removePlottedModulator(m);
-	}
 };
 
 float MainController::getVoiceAmountMultiplier() const

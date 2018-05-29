@@ -68,7 +68,7 @@ public:
 		intensity(m == GainMode ? 1.0f : 0.0f), 
 		modulationMode(m), 
 		bipolar(m == PitchMode) {};
-    virtual ~Modulation() {};
+    virtual ~Modulation();;
 
 	virtual Processor *getProcessor() = 0;
 
@@ -178,11 +178,28 @@ public:
 		}
 	};
 
+	public:
+
+
+	void setPlotter(Plotter *targetPlotter);
+
+	bool isPlotted() const;
+
+	void pushPlotterValues(const AudioSampleBuffer& b, int startSample, int numSamples);
+
+	virtual bool shouldUpdatePlotter() const { return true; };
+
 protected:
 
 	const Mode modulationMode;
 
+	
+
 private:
+
+	
+
+	Component::SafePointer<Plotter> attachedPlotter;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Modulation)
 
@@ -246,17 +263,7 @@ public:
 
 	virtual Colour getColour() const override { return colour; };
 
-	/** @brief enables the plotting of time variant modulators in the plotter popup.
-
-		If a valid Plotter object is set, the modulator sends his results to the plotter.
-	*/
-	void setPlotter(Plotter *targetPlotter);
 	
-	bool isPlotted() const;
-
-	/** Adds a value to the plotter. It is okay to do this on a sample level, the Plotter automatically interpolates it.
-	*/
-	void addValueToPlotter(float v) const;
 
 	UpdateMerger editorUpdater;
 
@@ -267,7 +274,7 @@ private:
 
 	Colour colour;
 
-	Component::SafePointer<Plotter> attachedPlotter;
+	
 	
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Modulator)
 	
@@ -324,15 +331,6 @@ protected:
 	/** Creates the internal buffer with double the size of the expected buffer block size.
     */
 	virtual void prepareToModulate(double /*sampleRate*/, int samplesPerBlock);;
-
-	/** Picks 4 values out of the processed buffer and sends it to the plotter. 
-	*
-	*	This is called after the internal buffer has been filled with the Modulation values. 
-	*/
-	virtual void updatePlotter(const AudioSampleBuffer &processedBuffer, int startSample, int numSamples) = 0;
-	
-	/** Overwrite this method to determine whether the modulation values should be sent to the Gui. */
-	virtual bool shouldUpdatePlotter() const = 0;
 
 	/** Checks if the prepareToPlay method has been called. */
 	virtual bool isInitialized();
@@ -634,25 +632,7 @@ protected:
 
 	Processor *getProcessor() override { return this; };
 
-	bool shouldUpdatePlotter() const override {return ENABLE_PLOTTER == 1;};
-
-	void updatePlotter(const AudioSampleBuffer &processedBuffer, int startSample, int numSamples) override
-	{
-		jassert(isOnAir());
-
-		const float plot1 = processedBuffer.getSample(0, startSample );
-		const float plot2 = processedBuffer.getSample(0, startSample + numSamples / 4);
-		const float plot3 = processedBuffer.getSample(0, startSample + numSamples / 2);
-		const float plot4 = processedBuffer.getSample(0, startSample + (3 * numSamples) / 4);
-
-		addValueToPlotter(plot1);
-		addValueToPlotter(plot2);
-		addValueToPlotter(plot3);
-		addValueToPlotter(plot4);
-	};
-
-
-
+	
 };
 
 
@@ -826,28 +806,15 @@ public:
 		numPressedKeys = jmax<int>(0, numPressedKeys - 1);
 	}
 
+	bool shouldUpdatePlotter() const override
+	{
+		return isMonophonic || polyManager.getLastStartedVoice() == polyManager.getCurrentVoice();
+	}
+
 protected:
 
 	int getNumPressedKeys() const { return numPressedKeys; }
 
-	virtual bool shouldUpdatePlotter() const override {return isMonophonic || polyManager.getCurrentVoice() == polyManager.getLastStartedVoice(); };
-
-
-	virtual void updatePlotter(const AudioSampleBuffer &processedBuffer, int startSample, int numSamples) override
-	{
-		jassert(isOnAir());
-
-		const float plot1 = processedBuffer.getSample(0, startSample );
-		const float plot2 = processedBuffer.getSample(0, startSample + numSamples / 4);
-		const float plot3 = processedBuffer.getSample(0, startSample + numSamples / 2);
-		const float plot4 = processedBuffer.getSample(0, startSample + (3 * numSamples) / 4);
-
-		addValueToPlotter(plot1);
-		addValueToPlotter(plot2);
-		addValueToPlotter(plot3);
-		addValueToPlotter(plot4);
-		
-	};
 
 	EnvelopeModulator(MainController *mc, const String &id, int voiceAmount_, Modulation::Mode m);
 

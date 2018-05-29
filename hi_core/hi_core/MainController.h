@@ -797,9 +797,6 @@ public:
 
 	void setLowestKeyToDisplay(int lowestKeyToDisplay);
 
-	void addPlottedModulator(Modulator *m);
-	void removePlottedModulator(Modulator *m);
-	
 	float getVoiceAmountMultiplier() const;
 
 	void rebuildVoiceLimits();
