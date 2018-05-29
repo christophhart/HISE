@@ -33,6 +33,7 @@ public:
 		return wrappedEffect;
 	};
 
+	
 
 	const Processor *getChildProcessor(int /*processorIndex*/) const override
 	{
@@ -80,6 +81,8 @@ public:
 		wrappedEffect->prepareToPlay(sampleRate, samplesPerBlock); 
 	}
 	
+	void handleHiseEvent(const HiseEvent &m) override;
+
 	void renderWholeBuffer(AudioSampleBuffer &buffer) override;
 
 	void applyEffect(AudioSampleBuffer &/*b*/, int /*startSample*/, int /*numSamples*/) override 

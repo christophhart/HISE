@@ -498,8 +498,6 @@ void MPEPanel::paint(Graphics& g)
 
 		if (!empty)
 		{
-			const int buttonWidth = listbox.getRowHeight();
-
 			Rectangle<int> rectangles[9] = { tableHeader.removeFromLeft(100),
 				tableHeader.removeFromLeft(80),
 				tableHeader.removeFromLeft(80),
@@ -1047,9 +1045,6 @@ void MPEPanel::Model::Row::changeListenerCallback(SafeChangeBroadcaster* /*b*/)
 void MPEPanel::Model::Row::paint(Graphics& g)
 {
 	auto ar = getLocalBounds();
-
-	const int margin = 2;
-
 	ar = ar.removeFromLeft(100);
 
 	if (mod)

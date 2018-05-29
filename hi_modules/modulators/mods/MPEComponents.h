@@ -46,7 +46,7 @@ public:
 
 	enum Properties
 	{
-		ShowTable = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		ShowTable = (int)FloatingTileContent::PanelPropertyId::numPropertyIds,
 		ShowPlotte
 	};
 

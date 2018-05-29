@@ -36,6 +36,14 @@ ProcessorEditorBody * SlotFX::createEditor(ProcessorEditor *parentEditor)
 	
 }
 
+void SlotFX::handleHiseEvent(const HiseEvent &m)
+{
+	if (auto w = wrappedEffect.get())
+	{
+		w->handleHiseEvent(m);
+	}
+}
+
 void SlotFX::renderWholeBuffer(AudioSampleBuffer &buffer)
 {
 	
