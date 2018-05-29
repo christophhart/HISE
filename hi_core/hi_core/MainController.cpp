@@ -157,6 +157,8 @@ void MainController::clearPreset()
 
 	jassert(!getMainSynthChain()->areVoicesActive());
 
+	getMacroManager().getMidiControlAutomationHandler()->getMPEData().clear();
+
 	getScriptComponentEditBroadcaster()->getUndoManager().clearUndoHistory();
 
 	getMainSynthChain()->reset();

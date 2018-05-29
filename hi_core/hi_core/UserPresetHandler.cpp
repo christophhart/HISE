@@ -155,6 +155,17 @@ void MainController::UserPresetHandler::loadUserPresetInternal(const ValueTree& 
 		}
 	}
 
+	auto mpeData = userPresetToLoad.getChildWithName("MPEData");
+
+	if (mpeData.isValid())
+	{
+		mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().restoreFromValueTree(mpeData);
+	}
+	else
+	{
+		mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().reset();
+	}
+
 	auto f = [this]()->void
 	{
 		for (auto l : this->listeners)
