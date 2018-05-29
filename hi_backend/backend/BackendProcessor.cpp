@@ -109,7 +109,7 @@ void BackendProcessor::getStateInformation(MemoryBlock &destData)
 		root->saveInterfaceData();
 	}
 
-	v.setProperty("InterfaceData", JSON::toString(editorInformation, true), nullptr);
+	v.setProperty("InterfaceData", JSON::toString(editorInformation, true, DOUBLE_TO_STRING_DIGITS), nullptr);
 
 	v.writeToStream(output);
 }

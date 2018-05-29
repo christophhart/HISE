@@ -493,7 +493,7 @@ HiCodeEditorPropertyComponent::HiCodeEditorPropertyComponent(const Identifier& i
 
 	JSONEditor::F5Callback cb = [b, id](const var& newValue)
 	{
-		b->setScriptComponentPropertyForSelection(id, JSON::toString(newValue, dontSendNotification), sendNotification);
+		b->setScriptComponentPropertyForSelection(id, JSON::toString(newValue, dontSendNotification, DOUBLE_TO_STRING_DIGITS), sendNotification);
 	};
 
 	editor->setCallback(cb);

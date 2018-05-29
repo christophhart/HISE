@@ -82,6 +82,8 @@ void Plotter::paint (Graphics& g)
 		float thisValue = FloatVectorOperations::findMaximum(displayBuffer.getReadPointer(0, samplePos), numToSearch);
 
 		thisValue = jlimit<float>(0.0f, 1.0f, thisValue);
+
+		FloatSanitizers::sanitizeFloatNumber(thisValue);
 		drawPath.lineTo((float)i, (float)getHeight() - thisValue * (float)getHeight());
 	}
     

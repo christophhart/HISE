@@ -99,7 +99,7 @@ private:
 		bool operator==(const NoteWithChannel& other) const noexcept { return noteNumber == other.noteNumber; }
 		bool operator!=(const NoteWithChannel& other) const noexcept { return noteNumber != other.noteNumber; }
 
-		NoteWithChannel operator+(int8 delta) const noexcept { return { noteNumber + delta, channel }; };
+		NoteWithChannel operator+(int8 delta) const noexcept { return { static_cast<int8>(noteNumber + delta), channel }; };
 		NoteWithChannel operator+=(int8 delta) noexcept { noteNumber += delta; return *this; };
 	};
 

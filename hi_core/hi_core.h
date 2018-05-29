@@ -57,6 +57,11 @@ END_JUCE_MODULE_DECLARATION
 
 #include "AppConfig.h"
 
+#ifndef DOUBLE_TO_STRING_DIGITS
+#define DOUBLE_TO_STRING_DIGITS 8
+#endif
+
+
 #include "../JUCE/modules/juce_core/juce_core.h"
 #include "../JUCE/modules/juce_audio_basics/juce_audio_basics.h"
 #include "../JUCE/modules/juce_gui_basics/juce_gui_basics.h"

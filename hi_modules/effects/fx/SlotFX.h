@@ -33,6 +33,7 @@ public:
 		return wrappedEffect;
 	};
 
+	
 
 	const Processor *getChildProcessor(int /*processorIndex*/) const override
 	{
@@ -80,6 +81,14 @@ public:
 		wrappedEffect->prepareToPlay(sampleRate, samplesPerBlock); 
 	}
 	
+	void handleHiseEvent(const HiseEvent &m) override;
+
+	void startMonophonicVoice() override;
+
+	void stopMonophonicVoice() override;
+
+	void resetMonophonicVoice();
+
 	void renderWholeBuffer(AudioSampleBuffer &buffer) override;
 
 	void applyEffect(AudioSampleBuffer &/*b*/, int /*startSample*/, int /*numSamples*/) override 
@@ -89,8 +98,6 @@ public:
 
 	void reset()
 	{
-		isClear = true;
-		
 		setEffect(EmptyFX::getClassType().toString(), true);
 	}
 
@@ -101,11 +108,17 @@ public:
 
 		int tempIndex = currentIndex;
 
+		
+
 		currentIndex = otherSlot->currentIndex;
 		otherSlot->currentIndex = tempIndex;
 
 		{
 			ScopedLock sl(getMainController()->getLock());
+
+			bool tempClear = isClear;
+			isClear = otherSlot->isClear;
+			otherSlot->isClear = tempClear;
 
 			wrappedEffect = oe;
 			otherSlot->wrappedEffect = te;

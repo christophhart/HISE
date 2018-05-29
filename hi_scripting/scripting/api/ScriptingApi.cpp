@@ -1383,7 +1383,7 @@ void ScriptingApi::Engine::dumpAsJSON(var object, String fileName)
 	else
 		f = File(GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets).getChildFile(fileName));
 
-	f.replaceWithText(JSON::toString(object, false));
+	f.replaceWithText(JSON::toString(object, false, DOUBLE_TO_STRING_DIGITS));
 	
 }
 

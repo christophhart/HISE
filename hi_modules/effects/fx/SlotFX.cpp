@@ -36,13 +36,70 @@ ProcessorEditorBody * SlotFX::createEditor(ProcessorEditor *parentEditor)
 	
 }
 
-void SlotFX::renderWholeBuffer(AudioSampleBuffer &buffer)
+void SlotFX::handleHiseEvent(const HiseEvent &m)
 {
-	
+	if (isClear)
+		return;
 
 	if (auto w = wrappedEffect.get())
 	{
-		if (dynamic_cast<EmptyFX*>(w) == nullptr && !w->isBypassed())
+		if (!w->isBypassed())
+		{
+			w->handleHiseEvent(m);
+		}
+	}
+}
+
+void SlotFX::startMonophonicVoice()
+{
+	if (isClear)
+		return;
+
+	if (auto w = wrappedEffect.get())
+	{
+		if (!w->isBypassed())
+		{
+			w->startMonophonicVoice();
+		}
+	}
+}
+
+void SlotFX::stopMonophonicVoice()
+{
+	if (isClear)
+		return;
+
+	if (auto w = wrappedEffect.get())
+	{
+		if (!w->isBypassed())
+		{
+			w->stopMonophonicVoice();
+		}
+	}
+}
+
+void SlotFX::resetMonophonicVoice()
+{
+	if (isClear)
+		return;
+
+	if (auto w = wrappedEffect.get())
+	{
+		if (!w->isBypassed())
+		{
+			w->resetMonophonicVoice();
+		}
+	}
+}
+
+void SlotFX::renderWholeBuffer(AudioSampleBuffer &buffer)
+{
+	if (isClear)
+		return;
+
+	if (auto w = wrappedEffect.get())
+	{
+		if (!w->isBypassed())
 		{
 			wrappedEffect->renderAllChains(0, buffer.getNumSamples());
 			wrappedEffect->renderWholeBuffer(buffer);
@@ -112,6 +169,12 @@ bool SlotFX::setEffect(const String& typeName, bool synchronously)
 
 		auto p = dynamic_cast<MasterEffectProcessor*>(f->createProcessor(f->getProcessorTypeIndex(typeName), typeName));
 
+		if (p == nullptr)
+		{
+			reset();
+			return true;
+		}
+
 		if (p != nullptr && getSampleRate() > 0)
 			p->prepareToPlay(getSampleRate(), getBlockSize());
 
@@ -136,7 +199,12 @@ bool SlotFX::setEffect(const String& typeName, bool synchronously)
 			wrappedEffect = p;
             
             hasScriptFX = thisIsScriptFX;
+
+			isClear = wrappedEffect == nullptr || dynamic_cast<EmptyFX*>(wrappedEffect.get()) != nullptr;
 		}
+
+		
+		
 
 		if (synchronously)
 			sendRebuildMessage(true);
@@ -146,6 +214,7 @@ bool SlotFX::setEffect(const String& typeName, bool synchronously)
 	else
 	{
 		jassertfalse;
+		reset();
 		return false;
 	}
 }
