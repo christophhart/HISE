@@ -35,6 +35,7 @@ namespace hise { using namespace juce;
 
 MidiControllerAutomationHandler::MidiControllerAutomationHandler(MainController *mc_) :
 anyUsed(false),
+mpeData(mc_),
 mc(mc_)
 {
 	tempBuffer.ensureSize(2048);
@@ -272,6 +273,312 @@ juce::ValueTree MidiControllerAutomationHandler::AutomationData::exportAsValueTr
 
 	return cc;
 }
+
+
+struct MidiControllerAutomationHandler::MPEData::Data: public Processor::DeleteListener
+{
+	Data(MPEData& parent_) :
+		Processor::DeleteListener(),
+		parent(parent_)
+	{};
+
+	void add(MPEModulator* m)
+	{
+		m->addDeleteListener(this);
+		connections.addIfNotAlreadyThere(m);
+	}
+
+	void remove(MPEModulator* m)
+	{
+		m->removeDeleteListener(this);
+		connections.removeAllInstancesOf(m);
+	}
+
+	void processorDeleted(Processor* deletedProcessor) override
+	{
+		if (auto m = dynamic_cast<MPEModulator*>(deletedProcessor))
+		{
+			connections.removeAllInstancesOf(m);
+
+			for (auto l : parent.listeners)
+			{
+				l->mpeModulatorAssigned(m, false);
+			}
+		}
+		else
+			jassertfalse;
+	}
+
+	void clear()
+	{
+		for (auto c : connections)
+		{
+			if (c)
+			{
+				c->removeDeleteListener(this);
+				c->setBypassed(true);
+				c->sendChangeMessage();
+			}
+			else
+				jassertfalse;
+		}
+
+		connections.clear();
+	}
+
+	void updateChildEditorList(bool /*forceUpdate*/) override {};
+
+	MPEData& parent;
+	Array<WeakReference<MPEModulator>> connections;
+};
+
+MidiControllerAutomationHandler::MPEData::MPEData(MainController* mc) :
+	ControlledObject(mc),
+	data(new Data(*this)),
+	asyncRestorer(*this)
+{
+
+}
+
+
+MidiControllerAutomationHandler::MPEData::~MPEData()
+{
+	jassert(listeners.size() == 0);
+	data = nullptr;
+}
+
+void MidiControllerAutomationHandler::MPEData::AsyncRestorer::handleAsyncUpdate()
+{
+	parent.clear();
+
+	static const Identifier id("ID");
+
+	parent.setMpeMode(data.getProperty("Enabled", false));
+
+	for (auto d : data)
+	{
+		jassert(d.hasType("Processor"));
+
+		d.setProperty("Type", "MPEModulator", nullptr);
+		
+		d.setProperty("Intensity", 1.0f, nullptr);
+
+		ValueTree dummyChild("ChildProcessors");
+
+		d.addChild(dummyChild, -1, nullptr);
+
+		String id_ = d.getProperty(id).toString();
+
+		if (auto mod = parent.findMPEModulator(id_))
+		{
+			mod->restoreFromValueTree(d);
+
+			parent.addConnection(mod, dontSendNotification);
+		}
+	}
+
+	for (auto l : parent.listeners)
+	{
+		if (l)
+		{
+			l->mpeDataReloaded();
+		}
+	}
+}
+
+
+
+void MidiControllerAutomationHandler::MPEData::restoreFromValueTree(const ValueTree &v)
+{
+	asyncRestorer.restore(v);
+}
+
+juce::ValueTree MidiControllerAutomationHandler::MPEData::exportAsValueTree() const
+{
+	ValueTree connectionData("MPEData");
+
+	connectionData.setProperty("Enabled", mpeEnabled, nullptr);
+
+	static const Identifier t("Type");
+	static const Identifier i_("Intensity");
+	
+
+	for (auto mod : data->connections)
+	{
+		if (mod.get() != nullptr)
+		{
+			auto child = mod->exportAsValueTree();
+			child.removeChild(0, nullptr);
+			child.removeChild(0, nullptr);
+			jassert(child.getNumChildren() == 0);
+			child.removeProperty(t, nullptr);
+			child.removeProperty(i_, nullptr);
+			
+			
+			connectionData.addChild(child, -1, nullptr);
+		}
+	}
+
+	return connectionData;
+}
+
+void MidiControllerAutomationHandler::MPEData::addConnection(MPEModulator* mod, NotificationType notifyListeners/*=sendNotification*/)
+{
+	if (!data->connections.contains(mod))
+	{
+		data->add(mod);
+
+		if (notifyListeners == sendNotification)
+		{
+			mod->mpeModulatorAssigned(mod, true);
+
+			for (auto l : listeners)
+			{
+				if (l == mod)
+					continue;
+
+				if (l)
+				{
+					l->mpeModulatorAssigned(mod, true);
+				}
+			}
+		}
+	}
+}
+
+void MidiControllerAutomationHandler::MPEData::removeConnection(MPEModulator* mod, NotificationType notifyListeners/*=sendNotification*/)
+{
+	if (data->connections.contains(mod))
+	{
+		data->remove(mod);
+
+		mod->mpeModulatorAssigned(mod, false);
+
+		if (notifyListeners == sendNotification)
+		{
+			for (auto l : listeners)
+			{
+				if (l == mod)
+					continue;
+
+				if (l)
+				{
+					l->mpeModulatorAssigned(mod, false);
+				}
+			}
+		}
+	}
+	else if (mod != nullptr)
+	{
+		sendAmountChangeMessage();
+	}
+}
+
+MPEModulator* MidiControllerAutomationHandler::MPEData::getModulator(int index) const
+{
+	return data->connections[index].get();
+}
+
+MPEModulator* MidiControllerAutomationHandler::MPEData::findMPEModulator(const String& modName) const
+{
+	return dynamic_cast<MPEModulator*>(ProcessorHelpers::getFirstProcessorWithName(getMainController()->getMainSynthChain(), modName));
+}
+
+juce::StringArray MidiControllerAutomationHandler::MPEData::getListOfUnconnectedModulators(bool prettyName) const
+{
+	Processor::Iterator<MPEModulator> iter(getMainController()->getMainSynthChain(), false);
+
+	StringArray sa;
+
+	while (auto m = iter.getNextProcessor())
+	{
+		if (!data->connections.contains(m))
+			sa.add(m->getId());
+	}
+
+	if (prettyName)
+	{
+		for (auto& s : sa)
+		{
+			s = getPrettyName(s);
+		}
+	}
+
+	return sa;
+}
+
+juce::String MidiControllerAutomationHandler::MPEData::getPrettyName(const String& id)
+{
+	auto n = id.replace("MPE", "");
+	String pretty;
+	auto ptr = n.getCharPointer();
+	bool lastWasUppercase = true;
+
+	while (!ptr.isEmpty())
+	{
+		if (ptr.isUpperCase() && !lastWasUppercase)
+			pretty << " ";
+
+		lastWasUppercase = ptr.isUpperCase();
+		pretty << ptr.getAddress()[0];
+		ptr++;
+	}
+
+	return pretty;
+}
+
+void MidiControllerAutomationHandler::MPEData::clear()
+{
+	data->clear();
+
+	Processor::Iterator<MPEModulator> iter(getMainController()->getMainSynthChain());
+
+	while (auto m = iter.getNextProcessor())
+	{
+		m->resetToDefault();
+	}
+	
+}
+
+void MidiControllerAutomationHandler::MPEData::reset()
+{
+	clear();
+	mpeEnabled = false;
+
+	for (auto l : listeners)
+	{
+		l->mpeModeChanged(mpeEnabled);
+	}
+}
+
+int MidiControllerAutomationHandler::MPEData::size() const
+{
+	return data->connections.size();
+}
+
+void MidiControllerAutomationHandler::MPEData::setMpeMode(bool shouldBeOn)
+{
+	
+
+	
+
+	getMainController()->getKeyboardState().injectMessage(MidiMessage::controllerEvent(1, 74, 64));
+	getMainController()->getKeyboardState().injectMessage(MidiMessage::pitchWheel(1, 8192));
+	getMainController()->allNotesOff();
+
+	mpeEnabled = shouldBeOn;
+
+	for (auto l : listeners)
+	{
+		l->mpeModeChanged(mpeEnabled);
+	}
+}
+
+bool MidiControllerAutomationHandler::MPEData::contains(MPEModulator* mod) const
+{
+	return data->connections.contains(mod);
+}
+
 
 
 ValueTree MidiControllerAutomationHandler::exportAsValueTree() const
