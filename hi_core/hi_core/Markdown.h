@@ -336,6 +336,7 @@ public:
 	{
 		Overlay,
 		OverlayLeft,
+		OverlayRight,
 		TopRight,
 		Left,
 		numAttachmentTypes
@@ -410,6 +411,14 @@ public:
 		case OverlayLeft:
 		{
 			auto square = cBounds.removeFromLeft(20);
+
+			setBounds(square.withSizeKeepingCentre(16, 16));
+
+			break;
+		}
+		case OverlayRight:
+		{
+			auto square = cBounds.removeFromRight(20);
 
 			setBounds(square.withSizeKeepingCentre(16, 16));
 
