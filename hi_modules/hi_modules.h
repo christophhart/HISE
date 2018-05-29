@@ -89,6 +89,7 @@ END_JUCE_MODULE_DECLARATION
 #include "modulators/mods/CCDucker.h"
 #include "modulators/mods/GainMatcher.h"
 #include "modulators/mods/MPEModulators.h"
+#include "modulators/mods/MPEComponents.h"
 
 
 #if USE_BACKEND

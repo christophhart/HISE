@@ -160,14 +160,18 @@ MidiKeyboardPanel::MidiKeyboardPanel(FloatingTile* parent) :
 
 	keyboard->setLowestKeyBase(12);
 
-	setDefaultPanelColour(PanelColourId::bgColour, Colours::black);
+	setDefaultPanelColour(PanelColourId::bgColour, Colours::transparentBlack);
 	setDefaultPanelColour(PanelColourId::itemColour1, Colours::white.withAlpha(0.1f));
 	setDefaultPanelColour(PanelColourId::itemColour2, Colours::white);
 	setDefaultPanelColour(PanelColourId::itemColour3, Colour(SIGNAL_COLOUR));
+
+	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().addListener(this);
 }
 
 MidiKeyboardPanel::~MidiKeyboardPanel()
 {
+	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().removeListener(this);
+
 	keyboard = nullptr;
 }
 
@@ -179,6 +183,17 @@ bool MidiKeyboardPanel::showTitleInPresentationMode() const
 Component* MidiKeyboardPanel::getKeyboard() const
 {
 	return keyboard->asComponent();
+}
+
+void MidiKeyboardPanel::mpeModeChanged(bool isEnabled)
+{
+	mpeModeEnabled = isEnabled;
+
+	if (cachedData.isObject())
+	{
+		restoreInternal(cachedData);
+		resized();
+	}
 }
 
 int MidiKeyboardPanel::getNumDefaultableProperties() const
@@ -200,7 +215,7 @@ var MidiKeyboardPanel::toDynamicObject() const
 	storePropertyInObject(obj, SpecialPanelIds::BlackKeyRatio, keyboard->getBlackNoteLengthProportionBase());
 	storePropertyInObject(obj, SpecialPanelIds::ToggleMode, keyboard->isToggleModeEnabled());
 	storePropertyInObject(obj, SpecialPanelIds::MidiChannel, keyboard->getMidiChannelBase());
-	storePropertyInObject(obj, SpecialPanelIds::MPEKeyboard, keyboard->isMPEKeyboard());
+	storePropertyInObject(obj, SpecialPanelIds::MPEKeyboard, shouldBeMpeKeyboard);
 
 	return obj;
 }
@@ -209,12 +224,21 @@ void MidiKeyboardPanel::fromDynamicObject(const var& object)
 {
 	FloatingTileContent::fromDynamicObject(object);
 
-	const bool shouldBeMPEKeyboard = getPropertyWithDefault(object, SpecialPanelIds::MPEKeyboard);
+	cachedData = object;
 
-	if (keyboard->isMPEKeyboard() != shouldBeMPEKeyboard)
+	restoreInternal(object);
+}
+
+void MidiKeyboardPanel::restoreInternal(const var& object)
+{
+	shouldBeMpeKeyboard = getPropertyWithDefault(object, SpecialPanelIds::MPEKeyboard);
+
+	const bool isReallyMpeKeyboard = shouldBeMpeKeyboard && mpeModeEnabled;
+
+	if (keyboard->isMPEKeyboard() != isReallyMpeKeyboard)
 	{
-		if (shouldBeMPEKeyboard)
-			keyboard = new MPEPanel(getMainController()->getKeyboardState());
+		if (isReallyMpeKeyboard)
+			keyboard = new hise::MPEKeyboard(getMainController()->getKeyboardState());
 		else
 			keyboard = new CustomKeyboard(getMainController());
 
@@ -240,14 +264,11 @@ void MidiKeyboardPanel::fromDynamicObject(const var& object)
 
 	if (keyboard->isMPEKeyboard())
 	{
-		keyboard->asComponent()->setColour(MPEPanel::ColourIds::bgColour, findPanelColour(PanelColourId::bgColour));
-		keyboard->asComponent()->setColour(MPEPanel::ColourIds::waveColour , findPanelColour(PanelColourId::itemColour1));
-		keyboard->asComponent()->setColour(MPEPanel::ColourIds::keyOnColour , findPanelColour(PanelColourId::itemColour2));
-		keyboard->asComponent()->setColour(MPEPanel::ColourIds::dragColour, findPanelColour(PanelColourId::itemColour3));
+		keyboard->asComponent()->setColour(hise::MPEKeyboard::ColourIds::bgColour, findPanelColour(PanelColourId::bgColour));
+		keyboard->asComponent()->setColour(hise::MPEKeyboard::ColourIds::waveColour, findPanelColour(PanelColourId::itemColour1));
+		keyboard->asComponent()->setColour(hise::MPEKeyboard::ColourIds::keyOnColour, findPanelColour(PanelColourId::itemColour2));
+		keyboard->asComponent()->setColour(hise::MPEKeyboard::ColourIds::dragColour, findPanelColour(PanelColourId::itemColour3));
 	}
-
-	
-
 }
 
 Identifier MidiKeyboardPanel::getDefaultablePropertyId(int index) const
@@ -314,6 +335,8 @@ int MidiKeyboardPanel::getFixedHeight() const
 {
 	return defaultAppearance ? 72 : FloatingTileContent::getFixedHeight();
 }
+
+
 
 
 Note::Note(FloatingTile* parent) :

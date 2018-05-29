@@ -92,7 +92,7 @@ public:
 	Component* asComponent() { return dynamic_cast<Component*>(this); }
 	const Component* asComponent() const { return dynamic_cast<const Component*>(this); }
 
-	virtual int getKeyWidthBase() const = 0;
+	virtual float getKeyWidthBase() const = 0;
 	virtual bool isShowingOctaveNumbers() const = 0;
 	virtual int getRangeStartBase() const = 0;
 	virtual int getRangeEndBase() const = 0;
@@ -106,10 +106,10 @@ public:
 	virtual void setRangeBase(int min, int max) = 0;
 	virtual void setKeyWidthBase(float w) = 0;
 
-	virtual void setShowOctaveNumber(bool shouldShow) {};
-	virtual void setBlackNoteLengthProportionBase(float ratio) {};
-	virtual void setEnableToggleMode(bool isOn) {};
-	virtual void setMidiChannelBase(int midiChannel) = 0;
+	virtual void setShowOctaveNumber(bool /*shouldShow*/) {};
+	virtual void setBlackNoteLengthProportionBase(float /*ratio*/) {};
+	virtual void setEnableToggleMode(bool /*isOn*/) {};
+	virtual void setMidiChannelBase(int /*midiChannel*/) = 0;
 
 	virtual ~KeyboardBase() {};
 };
@@ -170,9 +170,9 @@ public:
 	void setShowOctaveNumber(bool shouldDisplayOctaveNumber) override { displayOctaveNumber = shouldDisplayOctaveNumber; }
 	bool isShowingOctaveNumbers() const override { return displayOctaveNumber; }
 
-	void setLowestKeyBase(int lowKey) override { setLowestVisibleKey(lowKey); }
+	void setLowestKeyBase(int lowKey_) override { setLowestVisibleKey(lowKey_); }
 
-	int getKeyWidthBase() const override { return getKeyWidth(); };
+	float getKeyWidthBase() const override { return getKeyWidth(); };
 	void setKeyWidthBase(float w) override { setKeyWidth(w); }
 
 	int getRangeStartBase() const override { return lowKey; };

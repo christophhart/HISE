@@ -57,9 +57,9 @@ MPEModulatorEditor::MPEModulatorEditor(ProcessorEditor* parent) :
 	smoothingTime->setup(getProcessor(), MPEModulator::SpecialParameters::SmoothingTime, "Smoothing Time");
 	smoothingTime->setMode(HiSlider::Time, 0.0, 2000.0, 100.0, 0.1);
 
-	addAndMakeVisible(mpePanel = new MPEPanel(getProcessor()->getMainController()->getKeyboardState()));
+	addAndMakeVisible(mpePanel = new MPEKeyboard(getProcessor()->getMainController()->getKeyboardState()));
 
-	mpePanel->setColour(MPEPanel::ColourIds::bgColour, Colour(0x11000000));
+	mpePanel->setColour(MPEKeyboard::ColourIds::bgColour, Colour(0x11000000));
 }
 
 void MPEModulatorEditor::resized()

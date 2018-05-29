@@ -140,7 +140,8 @@ to the **Images** subfolder of your project and set `CustomGraphics` to true. Th
 */
 class MidiKeyboardPanel : public FloatingTileContent,
 	public Component,
-	public ComponentWithKeyboard
+	public ComponentWithKeyboard,
+	public MidiControllerAutomationHandler::MPEData::Listener
 {
 public:
 
@@ -167,6 +168,12 @@ public:
 	bool showTitleInPresentationMode() const override;
 	Component* getKeyboard() const override;
 
+	void mpeModeChanged(bool isEnabled) override;
+
+	void mpeModulatorAssigned(MPEModulator* /*m*/, bool /*wasAssigned*/) override {};
+
+	void mpeDataReloaded() override {};
+
 	int getNumDefaultableProperties() const override;
 	var toDynamicObject() const override;
 	void fromDynamicObject(const var& object) override;
@@ -180,8 +187,18 @@ public:
 
 private:
 
+	void restoreInternal(const var& data);
+
+	var cachedData;
+
+	bool mpeModeEnabled = false;
+
+	bool shouldBeMpeKeyboard = false;
+
 	bool defaultAppearance = true;
 	ScopedPointer<KeyboardBase> keyboard;
+
+	
 };
 
 /** Type-ID: `Note`.

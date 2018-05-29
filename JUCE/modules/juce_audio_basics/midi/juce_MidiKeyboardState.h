@@ -64,7 +64,7 @@ public:
     virtual void handleNoteOff (MidiKeyboardState* source,
                                 int midiChannel, int midiNoteNumber, float velocity) = 0;
 
-	virtual void handleMessage(const MidiMessage& m) {};
+	virtual void handleMessage(const MidiMessage& /*m*/) {};
 };
 
 

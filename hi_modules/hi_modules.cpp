@@ -52,6 +52,7 @@ namespace wdl
 #include "modulators/mods/CCDucker.cpp"
 #include "modulators/mods/GainMatcher.cpp"
 #include "modulators/mods/MPEModulators.cpp"
+#include "modulators/mods/MPEComponents.cpp"
 
 #if USE_BACKEND
 

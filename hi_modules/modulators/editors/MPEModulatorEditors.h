@@ -62,7 +62,7 @@ private:
 	ScopedPointer<TableEditor> tableEditor;
 	ScopedPointer<HiComboBox> typeSelector;
 	ScopedPointer<HiSlider> smoothingTime;
-	ScopedPointer<MPEPanel> mpePanel;
+	ScopedPointer<MPEKeyboard> mpePanel;
 };
 
 
