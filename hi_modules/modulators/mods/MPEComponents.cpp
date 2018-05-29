@@ -1266,14 +1266,12 @@ void MPEKeyboard::Note::updateNote(const MPEKeyboard& p, const MidiMessage& m)
 	if (m.isPitchWheel())
 	{
 		slideValue = m.getPitchWheelValue();
-
 		float normalisedSlideValue = (float)(slideValue - 8192) / 4096.0f;
-
 		float slideOctaveValue = normalisedSlideValue * 24.0f;
 		float slideDistance = slideOctaveValue * p.getWidthForNote();
+		auto newX = (float)startPoint.getX() + slideDistance;
 
-		dragPoint.setX((float)startPoint.getX() + slideDistance);
-
+		dragPoint.setX((int)newX);
 	}
 
 	else if (m.isChannelPressure())
@@ -1283,7 +1281,6 @@ void MPEKeyboard::Note::updateNote(const MPEKeyboard& p, const MidiMessage& m)
 		glideValue = m.getControllerValue();
 
 		auto distance = (float)(glideValue - 64) / 32.0f;
-
 		auto newY = (float)startPoint.getY() - distance * (float)startPoint.getY();
 
 		dragPoint.setY((int)newY);
