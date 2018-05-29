@@ -284,40 +284,9 @@ private:
 
 	BigInteger activeVoices;
 
-	// Saves 4 values of the envelope modulation result for later
-	void saveEnvelopeValueForPlotter(const AudioSampleBuffer &processedBuffer, int startSample, int numSamples)
-	{
-		envelopeOutputValue1 = processedBuffer.getSample(0, startSample );
-		envelopeOutputValue2 = processedBuffer.getSample(0, startSample + numSamples / 4);
-		envelopeOutputValue3 = processedBuffer.getSample(0, startSample + numSamples / 2);
-		envelopeOutputValue4 = processedBuffer.getSample(0, startSample + (3 * numSamples) / 4);
+	
 
-		
-	};
-
-	// Sends 4 values of the supplied buffer to the plotter
-	virtual void updatePlotter(const AudioSampleBuffer &processedBuffer, int startSample, int numSamples) override
-	{
-		const float plot1 = processedBuffer.getSample(0, startSample ) * envelopeOutputValue1;
-		const float plot2 = processedBuffer.getSample(0, startSample + numSamples / 4) * envelopeOutputValue2;
-		const float plot3 = processedBuffer.getSample(0, startSample + numSamples / 2) * envelopeOutputValue3;
-		const float plot4 = processedBuffer.getSample(0, startSample + (3 * numSamples) / 4) * envelopeOutputValue4; 
-
-		envelopeOutputValue1 = 0.0f;
-		envelopeOutputValue2 = 0.0f;
-		envelopeOutputValue3 = 0.0f;
-		envelopeOutputValue4 = 0.0f;
-
-		addValueToPlotter(plot1);
-		addValueToPlotter(plot2);
-		addValueToPlotter(plot3);
-		addValueToPlotter(plot4);
-		
-		// Set the output value if the chain is not only a voice start chain!
-		if(!isVoiceStartChain) 
-			setOutputValue(plot1);
-
-	};
+	
 
 	CriticalSection lock;
 

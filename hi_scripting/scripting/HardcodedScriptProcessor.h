@@ -196,20 +196,20 @@ public:
 		lastNote = -1;
 		lastEventId = -1;
 		possibleRetriggerNote = -1;		
+		possibleRetriggerChannel = -1;
 		lastVelo = 0;
 	}
 
 	void onNoteOn() override
 	{
-		Message.ignoreEvent(true);
-		
-		int newID = Synth.playNote(Message.getNoteNumber(), Message.getVelocity());
+		int newID = Message.makeArtificial();
 
 		if(lastNote != -1)
 		{
 			Synth.noteOffByEventId(lastEventId);
 		
 			possibleRetriggerNote = lastNote;
+			possibleRetriggerChannel = lastChannel;
 		}
 	
 		
@@ -217,11 +217,12 @@ public:
 
 		lastNote = Message.getNoteNumber();
 		lastVelo = Message.getVelocity();
+		lastChannel = Message.getChannel();
 	};
 
 	void onNoteOff() override
 	{
-		if (Message.getNoteNumber() == lastNote)
+		if (Message.getNoteNumber() == lastNote && Message.getChannel() == lastChannel)
 		{
 			Message.ignoreEvent(true);
 			Synth.noteOffByEventId(lastEventId);
@@ -229,19 +230,24 @@ public:
 
 		int number = Message.getNoteNumber();
 	
-		if(number == possibleRetriggerNote)
+		int channel = Message.getChannel();
+
+		if(number == possibleRetriggerNote && channel == possibleRetriggerChannel)
 		{
 			possibleRetriggerNote = -1;
+			possibleRetriggerChannel = -1;
 		}
 	
 		if(number == lastNote)
 		{
-			if(possibleRetriggerNote != -1)
+			if(possibleRetriggerNote != -1 && possibleRetriggerChannel != -1)
 			{
-				lastEventId = Synth.playNote(possibleRetriggerNote, lastVelo);
-			
+				lastEventId = Synth.addNoteOn(possibleRetriggerChannel, possibleRetriggerNote, lastVelo, 0);
+
 				lastNote = possibleRetriggerNote;
+				lastChannel = possibleRetriggerChannel;
 				possibleRetriggerNote = -1;
+				possibleRetriggerChannel = -1;
 			}
 			else
 			{
@@ -254,10 +260,12 @@ public:
 
 	
 	
-private:
+private:	
 
 	int lastNote;
 	int lastEventId;
+	int lastChannel;
+	int possibleRetriggerChannel;
 	int possibleRetriggerNote;
 	int lastVelo;
 
@@ -310,7 +318,8 @@ private:
 };
 
 /** allows release trigger functionality with a time variant decrease of the velocity. @ingroup midiTypes */
-class ReleaseTriggerScriptProcessor: public HardcodedScriptProcessor
+class ReleaseTriggerScriptProcessor: public HardcodedScriptProcessor,
+									 public MidiControllerAutomationHandler::MPEData::Listener
 {
 public:
 
@@ -319,8 +328,21 @@ public:
 	ReleaseTriggerScriptProcessor(MainController *mc, const String &id, ModulatorSynth *ms):
 		HardcodedScriptProcessor(mc, id, ms)
 	{
-		onInit();	
+		onInit();
+
+		getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().addListener(this);
 	};
+
+	~ReleaseTriggerScriptProcessor()
+	{
+		getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().removeListener(this);
+	}
+
+	void mpeModeChanged(bool isEnabled) override { mpeEnabled = isEnabled; };
+
+	void mpeDataReloaded() override {};
+
+	void mpeModulatorAssigned(MPEModulator* /*m*/, bool /*wasAssigned*/) override {};
 
 	void onInit() override
 	{
@@ -389,7 +411,9 @@ public:
 	
 		auto onEvent = messageHolders[noteNumber]->getMessageCopy();
 
-		const int v = (int)((float)onEvent.getVelocity() * attenuationLevel);
+		auto velocityToUse = mpeEnabled ? Message.getVelocity() : onEvent.getVelocity();
+
+		const int v = (int)((float)velocityToUse * attenuationLevel);
 
 		//const int v = (int)(velocityValues[noteNumber] * attenuationLevel);
 
@@ -422,6 +446,8 @@ public:
 	};
 	
 private:
+
+	bool mpeEnabled = false;
 
 	ReferenceCountedArray<ScriptingObjects::ScriptingMessageHolder> messageHolders;
 

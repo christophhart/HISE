@@ -1216,10 +1216,7 @@ ScriptCreatedComponentWrapper(content, index)
 
 	pl->setName(p->name.toString());
 
-	for (int i = 0; i < p->mods.size(); i++)
-	{
-		pl->addPlottedModulator(p->mods[i]);
-	}
+	
 
 	component = pl;
 }

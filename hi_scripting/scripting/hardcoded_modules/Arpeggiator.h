@@ -40,11 +40,18 @@ namespace hise { using namespace juce;
 *	This code is based on a script by Elan Hickler
 */
 class Arpeggiator : public HardcodedScriptProcessor,
-	public SliderPackProcessor
+	public SliderPackProcessor,
+	public MidiControllerAutomationHandler::MPEData::Listener
 {
 public:
 
 	Arpeggiator(MainController *mc, const String &id, ModulatorSynth *ms);;
+
+	~Arpeggiator();
+
+	void mpeDataReloaded() override {};
+	void mpeModeChanged(bool isEnabled) override { mpeMode = isEnabled; reset(true, true); }
+	void mpeModulatorAssigned(MPEModulator* /*m*/, bool /*wasAssigned*/) override {};
 
 	SET_PROCESSOR_NAME("Arpeggiator", "Arpeggiator");
 
@@ -64,20 +71,69 @@ public:
 
 	void onControl(ScriptingApi::Content::ScriptComponent *c, var value) override;
 
+	void onController() override;
+
 	void onTimer(int /*offsetInBuffer*/);
 
 	void playNote();;
 
 private:
 
+	int sendNoteOn();
+
+	bool mpeMode = false;
+
 	int channelFilter = 0;
 
 	double timeInterval = 1.0;
 	
-	Array<int> userHeldKeysArray;
-	Array<int> userHeldKeysArraySorted;
+	struct NoteWithChannel
+	{
+		int8 noteNumber;
+		int8 channel;
+
+		bool operator<(const NoteWithChannel& other) const noexcept { return noteNumber < other.noteNumber; }
+		bool operator<=(const NoteWithChannel& other) const noexcept { return noteNumber <= other.noteNumber; }
+		bool operator>=(const NoteWithChannel& other) const noexcept { return noteNumber >= other.noteNumber; }
+		bool operator>(const NoteWithChannel& other) const noexcept { return noteNumber > other.noteNumber; }
+		bool operator==(const NoteWithChannel& other) const noexcept { return noteNumber == other.noteNumber; }
+		bool operator!=(const NoteWithChannel& other) const noexcept { return noteNumber != other.noteNumber; }
+
+		NoteWithChannel operator+(int8 delta) const noexcept { return { noteNumber + delta, channel }; };
+		NoteWithChannel operator+=(int8 delta) noexcept { noteNumber += delta; return *this; };
+	};
+
+	
+
+	Array<NoteWithChannel> userHeldKeysArray;
+	Array<NoteWithChannel> userHeldKeysArraySorted;
+	Array<NoteWithChannel> MidiSequenceArray;
+	Array<NoteWithChannel> MidiSequenceArraySorted;
+
 	Array<int> currentlyPlayingEventIds;
-	Array<int> sequence;
+	
+	struct MPEValues
+	{
+		MPEValues()
+		{
+			for (int i = 0; i < 16; i++)
+			{
+				pressValues[i] = 0;
+				strokeValues[i] = 0;
+				slideValues[i] = 64;
+				glideValues[i] = 8192;
+				liftValues[i] = 0;
+			}
+		}
+
+		int8 pressValues[16];
+		int8 strokeValues[16];
+		int8 slideValues[16];
+		int16 glideValues[16];
+		int8 liftValues[16];
+	};
+
+	MPEValues mpeValues;
 
 	double internalBPM = 150.0;
 	double BPM = 60.0;
@@ -89,9 +145,10 @@ private:
 
 	// gui objects and sequence arrays
 	
-	Array<int> MidiSequenceArray;
-	Array<int> MidiSequenceArraySorted;
 	
+	
+	
+
 	// direction stuff
 	bool do_use_step_semitone_offsets = true;
 	
@@ -117,7 +174,7 @@ private:
 	int lastEventId = 0;
 	int curHeldNoteIdx = 0;
 	int curMasterStep = 0;
-	int currentNote = -1;
+	NoteWithChannel currentNote = { -1, -1 };
 	int currentVelocity = 0;
 	int currentStep = 0;
 	int currentNoteLengthInSamples = 0;
@@ -139,9 +196,11 @@ private:
 
 	void calcTimeInterval();;
 
-	void addUserHeldKey(int notenumber);;
+	void addUserHeldKey(const NoteWithChannel& note);
 
-	void remUserHeldKey(int notenumber);;
+	void remUserHeldKey(const NoteWithChannel& note);
+
+	void clearUserHeldKeys();
 
 	void reset(bool do_all_notes_off, bool do_stop);;
 

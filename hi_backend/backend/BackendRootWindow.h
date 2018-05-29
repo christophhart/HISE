@@ -103,7 +103,7 @@ public:
 
 	void resetInterface();
 
-	CustomKeyboard* getKeyboard() const override
+	Component* getKeyboard() const override
 	{
 		if (floatingRoot == nullptr)
 			return nullptr;

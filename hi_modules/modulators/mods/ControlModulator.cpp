@@ -60,10 +60,13 @@ ControlModulator::ControlModulator(MainController *mc, const String &id, Modulat
 	parameterNames.add("ControllerNumber");
 	parameterNames.add("SmoothTime");
 	parameterNames.add("DefaultValue");
+
+	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().addListener(this);
 };
 
 ControlModulator::~ControlModulator()
 {
+	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().removeListener(this);
 };
 
 void ControlModulator::restoreFromValueTree(const ValueTree &v)
@@ -231,6 +234,9 @@ float ControlModulator::calculateNewValue()
 	/** sets the new target value if the controller number matches. */
 void ControlModulator::handleHiseEvent(const HiseEvent &m)
 {
+	if (mpeEnabled && m.getChannel() != 1)
+		return;
+
 	if (m.isNoteOff())
 	{
 		polyValues[m.getNoteNumber()] = -1.0f;

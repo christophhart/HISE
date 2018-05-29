@@ -497,9 +497,9 @@ public:
 	{
 		auto p = new Plotter();
 
-		auto mod = dynamic_cast<Modulator*>(getConnectedProcessor());
+		auto mod = dynamic_cast<Modulation*>(getConnectedProcessor());
 
-		p->addPlottedModulator(mod);
+		mod->setPlotter(p);
 
 		return p;
 	}

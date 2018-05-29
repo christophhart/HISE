@@ -54,11 +54,13 @@ void LookupTableProcessor::removeTableChangeListener(SafeChangeListener *listene
 
 void LookupTableProcessor::sendTableIndexChangeMessage(bool sendSynchronous, Table *table, float tableIndex)
 {
-	ScopedLock sl(tableChangeBroadcaster.lock);
+	{
+		SpinLock::ScopedLockType sl(tableChangeBroadcaster.lock);
 
-	tableChangeBroadcaster.table = table;
-	tableChangeBroadcaster.tableIndex = tableIndex;
-
+		tableChangeBroadcaster.table = table;
+		tableChangeBroadcaster.tableIndex = tableIndex;
+	}
+	
 	if (sendSynchronous) tableChangeBroadcaster.sendSynchronousChangeMessage();
     else tableChangeBroadcaster.sendAllocationFreeChangeMessage();
 }

@@ -33,276 +33,147 @@
 namespace hise { using namespace juce;
 
 //==============================================================================
-Plotter::Plotter() :
-freeModePlotterQueue(nullptr),
-freeMode(false)
+Plotter::Plotter()
 {
-	setName("Modulator Data Plotter: Idle");
+	setName("Plotter");
 
 	setColour(backgroundColour, Colours::transparentBlack);
 
 	setColour(pathColour, Colour(0x88ffffff));
-	setColour(pathColour2, Colour(0x11ffffff));
+	setColour(pathColour2, Colour(0x44ffffff));
 
-	resetPlotter();
 
-    // In your constructor, you should add any child components, and
-    // initialise any special settings that your component needs.
-
-	addAndMakeVisible (speedSlider = new Slider ("new slider"));
-    speedSlider->setRange (10, 1024, 0);
-    speedSlider->setSliderStyle (Slider::LinearBar);
-	speedSlider->setTextBoxStyle (Slider::NoTextBox, false, 80, 20);
-    speedSlider->addListener (this);
-	speedSlider->setVisible(false);
-
+	displayBuffer.setSize(1, 44100);
+	
+    
 	setSize(380, 200);
+
+	startTimer(30);
 
 }
 
 Plotter::~Plotter()
 {
-	speedSlider = nullptr;
+	
 	
 };
-
-void Plotter::addPlottedModulator(Modulator *m)
-{
-	modQueue.add(new PlotterQueue(m));
-
-	m->setPlotter(this);
-
-	if(getParentComponent() != nullptr) getParentComponent()->repaint();
-}
-
-void Plotter::removePlottedModulator(Modulator *m)
-{
-	m->setPlotter(nullptr);
-	m->sendChangeMessage();
-
-	for(int i = 0; i < modQueue.size(); i++)
-	{
-		if(modQueue[i]->attachedMod == m) 
-		{
-			modQueue.remove(i);
-			break;
-		}
-	}
-
-	
-
-	if(modQueue.size() == 0)
-	{
-		setName("Modulator Data Plotter: Idle");
-		
-	}
-	else
-	{
-		setName("Modulator Data Plotter: " + modQueue.getLast()->attachedMod->getId());
-	}
-}
-
-void Plotter::handleAsyncUpdate()
-{
-	for (int i = 0; i < currentQueuePosition; i++)
-	{
-		currentRingBufferPosition = (currentRingBufferPosition + 1) % 1024;
-
-		float value = 0.0f;
-
-		if (freeMode)
-		{
-			value = freeModePlotterQueue.data[i];
-		}
-		else
-		{
-			for (int j = 0; j < modQueue.size(); j++)
-			{
-				value += modQueue[j]->data[i];
-			}
-		}
-
-		internalBuffer[currentRingBufferPosition] = value;
-
-	}
-
-	currentQueuePosition = 0;
-
-	if (freeMode)
-	{
-		freeModePlotterQueue.pos = 0;
-	}
-	else
-	{
-		for (int i = 0; i < modQueue.size(); i++)
-		{
-			modQueue.getUnchecked(i)->pos = 0;
-		}
-	}
-	
-	repaint();
-};
-
-void Plotter::addValue(const Modulator *m, float addedValue)
-{
-
-	for(int i = 0; i < modQueue.size(); i++)
-	{
-		if(modQueue[i]->attachedMod == m)
-		{
-			modQueue[i]->addValue(addedValue);
-
-			if(i == modQueue.size() -1) 
-			{
-				currentQueuePosition++;
-				triggerAsyncUpdate();
-			}
-
-		}
-		
-	}	
-};
-
-void Plotter::addValue(float addedValue)
-{
-	freeModePlotterQueue.addValue(addedValue);
-	freeModePlotterQueue.addValue(addedValue);
-	currentQueuePosition++;
-	currentQueuePosition++;
-	freeModePlotterQueue.addValue(addedValue);
-	freeModePlotterQueue.addValue(addedValue);
-	currentQueuePosition++;
-	currentQueuePosition++;
-	triggerAsyncUpdate();
-}
 
 void Plotter::paint (Graphics& g)
 {
+	Colour background = findColour(backgroundColour);
 
-	if (freeMode)
-	{
-		g.fillAll(Colour(0xFF161616));
-	}
-	else
-	{
-		Colour background = findColour(backgroundColour);
-
-		if (!background.isTransparent()) g.fillAll((modQueue.size() == 0 || freeMode) ? background.withAlpha(0.7f) : background);
-	}
+	if (!background.isTransparent())
+		g.fillAll(background);
 
 	Path drawPath;
 
-	const float factor = 1024.0f / (float)getWidth();
+	const float samplesPerPixel = (float)displayBuffer.getNumSamples() / (float)getWidth();
 
 	drawPath.startNewSubPath(0.0f, (float)getHeight());
-	for(int i = 0; i< 1024; i++)
+
+	int samplePos = 0;
+
+	for(int i = 0; i< getWidth(); i+=2)
 	{
-		int pos = (i + currentRingBufferPosition) % 1024;
+		samplePos = roundDoubleToInt(i * samplesPerPixel);
+		samplePos = (position + samplePos) % displayBuffer.getNumSamples();
 
-		const float thisValue = jlimit<float>(0.0f, 1.0f, internalBuffer[pos]);
+		int numToSearch = jmin<int>(roundFloatToInt(samplesPerPixel*2), displayBuffer.getNumSamples() - samplePos);
+		float thisValue = FloatVectorOperations::findMaximum(displayBuffer.getReadPointer(0, samplePos), numToSearch);
 
-		drawPath.lineTo(i/factor, getHeight() - thisValue * getHeight());
+		thisValue = jlimit<float>(0.0f, 1.0f, thisValue);
+		drawPath.lineTo((float)i, (float)getHeight() - thisValue * (float)getHeight());
 	}
     
 	drawPath.lineTo((float)getWidth(), (float)getHeight());
+	drawPath.closeSubPath();
 
-	if (freeMode)
-	{
-		g.setColour(Colours::red.withBrightness(0.6f));
-			
-		g.fillPath(drawPath);
-	}
-	else
-	{
-		//KnobLookAndFeel::fillPathHiStyle(g, drawPath, getWidth(), getHeight(), false);
-
-		g.setGradientFill(ColourGradient(findColour(pathColour),
+	g.setGradientFill(ColourGradient(findColour(pathColour),
 			0.0f, 0.0f,
 			findColour(pathColour2),
 			0.0f, (float)getHeight(),
 			false));
 
-		g.fillPath(drawPath);
-
-		//DropShadow d(Colours::white.withAlpha(drawBorders ? 0.2f : 0.1f), 5, Point<int>());
-
-		//d.drawForPath(g, p);
-	}
-
-	
-
-	
-	
+	g.fillPath(drawPath);
 }
 
 void Plotter::resized()
 {
-	
-
-	//if(getWidth() != ) setSize(512, getHeight());
-	// It must be 512 pixels wide to make it work correctly...
-	//jassert(getWidth() == 512);
-	
-	speedSlider->setBounds(0, getHeight() - 16, getWidth(), 16);
-    
-}
-
-void Plotter::resetPlotter()
-{
-	//cancelPendingUpdate();
-	currentQueuePosition = 0;
-	currentRingBufferPosition = 0;
-		
-	smoothedValue = 0.0f;
-	smoothIndex = 0;
-	smoothLimit = 2;
-
-	for(int i = 0; i<1024; i++) internalBuffer[i] = 0.0f;
-	
-	
-	for(int j = 0; j < modQueue.size(); j++)
-	{
-		modQueue[j]->reset();
-	}
-
-	repaint();
 };
 
-void Plotter::mouseDown(const MouseEvent &e)
+
+
+void Plotter::addValues(const AudioSampleBuffer& b, int startSample, int numSamples)
 {
-	if (e.mods.isRightButtonDown() && dynamic_cast<ScriptContentComponent*>(getParentComponent()) == nullptr)
+	SpinLock::ScopedLockType sl(swapLock);
+
+	const bool wrap = position + numSamples > displayBuffer.getNumSamples();
+
+	if (wrap)
 	{
-		PopupLookAndFeel plaf;
-		PopupMenu m;
-		m.setLookAndFeel(&plaf);
+		const int numBeforeWrap = displayBuffer.getNumSamples() - position;
 
-		enum 
-		{
-			RemovePlotter = 1
-		};
+		FloatVectorOperations::copy(displayBuffer.getWritePointer(0, position), b.getReadPointer(0, startSample), numBeforeWrap);
 
-		m.addItem(RemovePlotter, "Remove Modulator From Plotter", modQueue.size() != 0);
+		const int numAfterWrap = numSamples - numBeforeWrap;
 
-		const int result = m.show();
+		position = 0;
 
-		if (result == RemovePlotter)
-		{
-			
-			while (modQueue.size() != 0)
-			{
-				removePlottedModulator(modQueue[0]->attachedMod.get());
-			}
-		}
+		FloatVectorOperations::copy(displayBuffer.getWritePointer(0, position), b.getReadPointer(0, startSample + numBeforeWrap), numAfterWrap);
+
+	}
+	else
+	{
+		FloatVectorOperations::copy(displayBuffer.getWritePointer(0, position), b.getReadPointer(0, startSample), numSamples);
+
+		position += numSamples;
 	}
 }
 
-void Plotter::setFreeMode(bool shouldUseFreeMode)
+void Plotter::timerCallback()
 {
-	freeMode = shouldUseFreeMode;
+	repaint();
+}
 
-	setOpaque(shouldUseFreeMode);
+void Plotter::mouseDown(const MouseEvent& /*m*/)
+{
+	PopupLookAndFeel plaf;
+	PopupMenu menu;
+	menu.setLookAndFeel(&plaf);
 
-	freeModePlotterQueue = PlotterQueue(nullptr);
+
+	menu.addItem(1024, "Freeze", true, !active);
+	menu.addItem(1, "1 Second", true, displayBuffer.getNumSamples() == 44100);
+	menu.addItem(2, "2 Seconds", true, displayBuffer.getNumSamples() == 2*44100);
+	menu.addItem(4, "4 Seconds", true, displayBuffer.getNumSamples() == 4*44100);
+
+	int result = menu.show();
+
+	if (result == 1024)
+	{
+		if (active)
+		{
+			active = false;
+			stopTimer();
+		}
+		else
+		{
+			active = true;
+			startTimer(30);
+		}
+	}
+	else if (result > 0)
+	{
+		AudioSampleBuffer newDisplayBuffer(1, result * 44100);
+		newDisplayBuffer.clear();
+
+		{
+			SpinLock::ScopedLockType sl(swapLock);
+			position = 0;
+			displayBuffer.setSize(1, result * 44100);
+			displayBuffer.clear();
+		}
+	}
 }
 
 } // namespace hise

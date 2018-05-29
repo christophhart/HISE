@@ -179,6 +179,13 @@ class LinuxFontHandler
 #define END_MARKDOWN() return content; };
 #define END_MARKDOWN_CHAPTER() }
 
+
+#define HI_DECLARE_LISTENER_METHODS(x) public: \
+	void addListener(x* l) { listeners.addIfNotAlreadyThere(l); }\
+    void removeListener(x* l) { listeners.removeAllInstancesOf(l); }\
+	private:\
+	Array<WeakReference<x>> listeners;
+
 #define RETURN_STATIC_IDENTIFIER(name) static const Identifier id(name); return id;
 
 

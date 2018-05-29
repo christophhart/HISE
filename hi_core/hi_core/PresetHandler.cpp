@@ -401,6 +401,10 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 
 		ValueTree autoData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree();
 
+		ValueTree mpeData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().exportAsValueTree();
+
+
+
 		auto container = ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(chain);
 
 		ValueTree modulationData;
@@ -423,6 +427,7 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 			preset.setProperty("Version", getCurrentVersionNumber(chain), nullptr);
 			preset.addChild(v, -1, nullptr);
 			preset.addChild(autoData, -1, nullptr);
+			preset.addChild(mpeData, -1, nullptr);
 
 			if (modulationData.isValid())
 				preset.addChild(modulationData, -1, nullptr);

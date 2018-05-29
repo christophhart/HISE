@@ -609,7 +609,7 @@ var ScriptingApi::Message::getControllerValue() const
 int ScriptingApi::Message::getVelocity() const
 {
 #if ENABLE_SCRIPTING_SAFE_CHECKS
-	if(constMessageHolder == nullptr || (!constMessageHolder->isNoteOn()))
+	if(constMessageHolder == nullptr || (!constMessageHolder->isNoteOnOrOff()))
 	{
 		reportIllegalCall("getVelocity()", "onNoteOn");
 		RETURN_IF_NO_THROW(-1)

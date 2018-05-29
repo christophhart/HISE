@@ -32,6 +32,11 @@
 
 namespace hise { using namespace juce;
 
+Modulation::~Modulation()
+{
+	attachedPlotter = nullptr;
+}
+
 float Modulation::calcIntensityValue(float calculatedModulationValue) const noexcept
 {
 	switch (modulationMode)
@@ -106,19 +111,33 @@ float Modulation::getDisplayIntensity() const noexcept
 	}
 }
 
+void Modulation::setPlotter(Plotter *targetPlotter)
+{
+	attachedPlotter = targetPlotter;
+}
+
+bool Modulation::isPlotted() const
+{
+	return attachedPlotter.getComponent() != nullptr;
+}
+
+void Modulation::pushPlotterValues(const AudioSampleBuffer& b, int startSample, int numSamples)
+{
+	if (attachedPlotter.getComponent() != nullptr && shouldUpdatePlotter())
+	{
+		attachedPlotter.getComponent()->addValues(b, startSample, numSamples);
+	}
+}
+
 Modulator::Modulator(MainController *mc, const String &id_) :
 	Processor(mc, id_),
-	attachedPlotter(nullptr),
 	colour(Colour(0x00000000))
 {		
 };
 
 Modulator::~Modulator()
 {
-	if (attachedPlotter != nullptr)
-	{
-		attachedPlotter->removePlottedModulator(this);
-	}
+	
 
 	masterReference.clear();
 }
@@ -132,26 +151,7 @@ void Modulator::setColour(Colour c)
 	{
 		dynamic_cast<Modulator*>(getChildProcessor(i))->setColour(c.withMultipliedAlpha(0.8f));
 	}
-}
-
-void Modulator::setPlotter(Plotter *targetPlotter)
-{
-	attachedPlotter = targetPlotter;
-	
-};
-
-bool Modulator::isPlotted() const 
-{
-	return attachedPlotter.getComponent() != nullptr; 
-};
-
-void Modulator::addValueToPlotter(float v) const
-{
-	if(attachedPlotter.getComponent() != nullptr) 
-	{
-		attachedPlotter.getComponent()->addValue(this, v);
-	}
-};
+};;;
 
 void TimeModulation::renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples)
 {
@@ -161,9 +161,11 @@ void TimeModulation::renderNextBlock(AudioSampleBuffer &buffer, int startSample,
 
 	calculateBlock(startSample, numSamples);
 
-	if (shouldUpdatePlotter()) updatePlotter(internalBuffer, startIndex, samplesToCopy);
-
 	lastConstantValue = internalBuffer.getSample(0, 0);
+
+	
+
+	pushPlotterValues(internalBuffer, startSample, numSamples);
 
 	applyTimeModulation(buffer, startIndex, samplesToCopy);
 }
@@ -348,6 +350,7 @@ Processor *EnvelopeModulatorFactoryType::createProcessor(int typeIndex, const St
 	case tableEnvelope:		return new TableEnvelope(m, id, numVoices, mode);
 	case ccEnvelope:		return new CCEnvelope(m, id, numVoices, mode);
 	case scriptEnvelope:	return new JavascriptEnvelopeModulator(m, id, numVoices, mode);
+	case mpeModulator:		return new MPEModulator(m, id, numVoices, mode);
 	default: jassertfalse;	return nullptr;
 
 	}

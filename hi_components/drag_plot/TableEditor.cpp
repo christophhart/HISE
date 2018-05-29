@@ -323,7 +323,7 @@ void TableEditor::resized()
 
 		ruler->setBounds(0, 0, getWidth(), getHeight());
 
-		if (getHeight() > 0)
+		if (getHeight() > 0 && getWidth() > 0)
 		{
 			snapshot = Image(Image::ARGB, getWidth(), getHeight(), true);
 
@@ -355,6 +355,11 @@ void TableEditor::changeListenerCallback(SafeChangeBroadcaster *b)
 void TableEditor::connectToLookupTableProcessor(Processor *p)
 {
 	if (p == connectedProcessor) return;
+
+	if (auto ltp = dynamic_cast<LookupTableProcessor*>(connectedProcessor.get()))
+	{
+		ltp->removeTableChangeListener(this);
+	}
 
 	if (p == nullptr)
 	{

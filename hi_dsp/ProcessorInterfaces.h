@@ -53,7 +53,7 @@ public:
             enableAllocationFreeMessages(50);
         }
         
-		CriticalSection lock;
+		SpinLock lock;
 
 		WeakReference<Table> table;
 		float tableIndex;
