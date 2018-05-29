@@ -921,7 +921,7 @@ void ProcessorEditorHeader::update()
 		const double intensity = m->getDisplayIntensity();
 		intensitySlider->setValue(intensity, dontSendNotification);
 
-		Modulator *mod = dynamic_cast<Modulator*>(p);
+		auto mod = dynamic_cast<Modulation*>(p);
 
 		plotButton->setToggleState(mod->isPlotted(), dontSendNotification);
 

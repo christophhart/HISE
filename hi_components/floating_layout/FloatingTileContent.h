@@ -472,6 +472,7 @@ public:
 			SampleMapBrowser,
 			WavetablePreview,
 			FilterGraphPanel,
+			MPEPanel,
 			Matrix2x2,
 			ThreeColumns,
 			ThreeRows,

@@ -160,6 +160,7 @@ ValueTree ModulatorSynthChain::exportAsValueTree() const
 
 		v.addChild(getMainController()->getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree(), -1, nullptr);
 
+		v.addChild(getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().exportAsValueTree(), -1, nullptr);
 	}
 	return v;
 }
@@ -320,9 +321,14 @@ void ModulatorSynthChain::restoreFromValueTree(const ValueTree &v)
 	ValueTree autoData = v.getChildWithName("MidiAutomation");
 
 	if (autoData.isValid())
-	{
 		getMainController()->getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(autoData);
-	}
+
+	ValueTree mpeData = v.getChildWithName("MPEData");
+
+	if (mpeData.isValid())
+		getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().restoreFromValueTree(mpeData);
+	else
+		getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().reset();
 }
 
 void ModulatorSynthChain::reset()

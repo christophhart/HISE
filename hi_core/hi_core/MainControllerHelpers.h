@@ -99,6 +99,9 @@ private:
 	friend class ProcessorFactory;
 };
 
+
+class MPEModulator;
+
 #define HI_NUM_MIDI_AUTOMATION_SLOTS 8
 
 /** This handles the MIDI automation for the frontend plugin.
@@ -133,6 +136,129 @@ public:
 	/** The main routine. Call this for every MidiBuffer you want to process and it handles both setting parameters as well as MIDI learning. */
 	void handleParameterData(MidiBuffer &b);
 
+		
+	class MPEData : public ControlledObject,
+		public RestorableObject
+	{
+	public:
+		MPEData(MainController* mc);;
+
+		~MPEData();
+
+		struct Listener
+		{
+		public:
+			virtual ~Listener() {};
+
+			virtual void mpeModeChanged(bool isEnabled) = 0;
+
+			virtual void mpeModulatorAssigned(MPEModulator* m, bool wasAssigned) = 0;
+
+			virtual void mpeDataReloaded() = 0;
+
+			virtual void mpeModulatorAmountChanged() {};
+
+		private:
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+		};
+
+		void restoreFromValueTree(const ValueTree &previouslyExportedState) override;
+
+		ValueTree exportAsValueTree() const override;
+
+		void addConnection(MPEModulator* mod, NotificationType notifyListeners=sendNotification);
+
+		void removeConnection(MPEModulator* mod, NotificationType notifyListeners=sendNotification);
+
+		MPEModulator* getModulator(int index) const;
+
+		MPEModulator* findMPEModulator(const String& name) const;
+
+		StringArray getListOfUnconnectedModulators(bool prettyName) const;
+
+		static String getPrettyName(const String& id);
+
+		void reset();
+
+		void clear();
+
+		int size() const;
+
+		void setMpeMode(bool shouldBeOn);
+
+		bool isMpeEnabled() const { return mpeEnabled; }
+
+		bool contains(MPEModulator* mod) const;
+
+		void addListener(Listener* l)
+		{
+			listeners.addIfNotAlreadyThere(l);
+
+			// Fire this once to setup the correct state
+			l->mpeModeChanged(mpeEnabled);
+		}
+
+		void removeListener(Listener* l)
+		{
+			listeners.removeAllInstancesOf(l);
+		}
+
+		void sendAmountChangeMessage()
+		{
+			for (auto l : listeners)
+			{
+				if (l)
+					l->mpeModulatorAmountChanged();
+			}
+		}
+
+	private:
+
+		struct AsyncRestorer : private AsyncUpdater
+		{
+		public:
+
+			AsyncRestorer(MPEData& parent_) :
+				parent(parent_)
+			{};
+
+			void restore(const ValueTree& v)
+			{
+				data = v;
+				triggerAsyncUpdate();
+			}
+
+		private:
+
+			void handleAsyncUpdate() override;;
+
+			
+
+			ValueTree data;
+
+			MPEData& parent;
+		};
+
+		AsyncRestorer asyncRestorer;
+		
+
+		bool mpeEnabled = false;
+
+		struct Data;
+
+		struct Connection;
+
+		ScopedPointer<Data> data;
+
+		Array<WeakReference<Listener>> listeners;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MPEData)
+
+		
+public:
+	
+	};
 	
 
 	struct AutomationData: public RestorableObject
@@ -162,6 +288,10 @@ public:
 	/** Returns a copy of the automation data for the given index. */
 	AutomationData getDataFromIndex(int index) const;
 
+	MPEData& getMPEData() { return mpeData; }
+
+	const MPEData& getMPEData() const { return mpeData; }
+
 	int getNumActiveConnections() const;
 	bool setNewRangeForParameter(int index, NormalisableRange<double> range);
 	bool setParameterInverted(int index, bool value);
@@ -169,11 +299,15 @@ private:
 
 	// ========================================================================================================
 
+	MainController *mc;
 	
 
 	CriticalSection lock;
 
-	MainController *mc;
+	
+
+	MPEData mpeData;
+
 	bool anyUsed;
 	MidiBuffer tempBuffer;
 

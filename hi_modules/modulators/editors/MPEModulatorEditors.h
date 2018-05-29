@@ -30,64 +30,44 @@
 *   ===========================================================================
 */
 
-#ifndef PLOTTER_H_INCLUDED
-#define PLOTTER_H_INCLUDED
+#ifndef MPE_MODULATOR_EDITORS_H_INCLUDED
+#define MPE_MODULATOR_EDITORS_H_INCLUDED
 
-namespace hise { using namespace juce;
-
-class ProcessorEditorHeader;
-class Modulator;
-class ScriptContentComponent;
+namespace hise {
+using namespace juce;
 
 
-//==============================================================================
-/** A plotter component that displays the Modulator value
-*	@ingroup debugComponents
-*
-*	You can add values with addValue(). This should be periodic 
-*	(either within the audio callback or with a designated timer in your Editor, as
-*	the plotter only writes something if new data is added.
-*/
-class Plotter    : public Component,
-				   public SettableTooltipClient,
-				   public Timer
+class MPEModulatorEditor : public ProcessorEditorBody
 {
 public:
-	Plotter();
-    ~Plotter();
+	MPEModulatorEditor(ProcessorEditor* parent);
 
-	enum ColourIds
+	void updateGui() override
 	{
-		backgroundColour = 0x100,
-		outlineColour = 0x10,
-		pathColour = 0x001,
-		pathColour2
-	};
+		typeSelector->updateValue();
+		smoothingTime->updateValue();
+		defaultValue->updateValue();
+	}
 
+	int getBodyHeight() const override
+	{
+		return 300;
+	}
 
-    void paint (Graphics&) override;
-    void resized() override;
+	void resized() override;
 
-	void addValues(const AudioSampleBuffer& b, int startSample, int numSamples);
-
-	void timerCallback() override;
-
-	void mouseDown(const MouseEvent& m) override;
+	void paint(Graphics& g) override;
 
 private:
 
-	bool active = true;
-
-	SpinLock swapLock;
-
-	AudioSampleBuffer displayBuffer;
-	int position = 0;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Plotter)
+	ScopedPointer<TableEditor> tableEditor;
+	ScopedPointer<HiComboBox> typeSelector;
+	ScopedPointer<HiSlider> smoothingTime;
+	ScopedPointer<HiSlider> defaultValue;
+	ScopedPointer<MPEKeyboard> mpePanel;
 };
 
 
-} // namespace hise
+}
 
-#endif  // PLOTTER_H_INCLUDED
-
+#endif

@@ -351,7 +351,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
             
             if(editor != nullptr)
             {
-                Modulator *mod = dynamic_cast<Modulator*>(editor->getProcessor());
+                auto mod = dynamic_cast<Modulation*>(editor->getProcessor());
                 
                 if(mod != nullptr)
                 {
@@ -1596,18 +1596,7 @@ void BackendCommandTarget::Actions::plotModulator(CopyPasteTarget *currentCopyPa
                                                                          
     if(editor != nullptr)
     {
-        Modulator *mod = dynamic_cast<Modulator*>(editor->getProcessor());
-        if(mod != nullptr)
-        {
-            if(mod->isPlotted())
-            {
-                mod->getMainController()->removePlottedModulator(mod);
-            }
-            else
-            {
-                mod->getMainController()->addPlottedModulator(mod);
-            }
-        }
+        
     }
 }
 

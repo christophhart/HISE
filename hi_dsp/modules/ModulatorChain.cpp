@@ -97,11 +97,23 @@ void ModulatorChain::handleHiseEvent(const HiseEvent &m)
 {
 	EnvelopeModulator::handleHiseEvent(m);
 
-	for(int i = 0; i < voiceStartModulators.size(); i++) voiceStartModulators[i]->handleHiseEvent(m);
+	for (int i = 0; i < voiceStartModulators.size(); i++)
+	{
+		if (!voiceStartModulators[i]->isBypassed())
+			voiceStartModulators[i]->handleHiseEvent(m);
+	}
 
-	for(int i = 0; i < envelopeModulators.size(); i++) envelopeModulators[i]->handleHiseEvent(m);
+	for (int i = 0; i < envelopeModulators.size(); i++)
+	{
+		if (!envelopeModulators[i]->isBypassed())
+			envelopeModulators[i]->handleHiseEvent(m);
+	}
 
-	for(int i = 0; i < variantModulators.size(); i++) variantModulators[i]->handleHiseEvent(m);
+	for(int i = 0; i < variantModulators.size(); i++)
+	{
+		if (!variantModulators[i]->isBypassed())
+			variantModulators[i]->handleHiseEvent(m);
+	}
 };
 
 
@@ -161,12 +173,20 @@ void ModulatorChain::startVoice(int voiceIndex)
 
 	polyManager.setLastStartedVoice(voiceIndex);
 
-	for (int i = 0; i < voiceStartModulators.size(); i++) voiceStartModulators[i]->startVoice(voiceIndex);
+	for (int i = 0; i < voiceStartModulators.size(); i++)
+	{
+		if (!voiceStartModulators[i]->isBypassed())
+			voiceStartModulators[i]->startVoice(voiceIndex);
+	}
 
 	for (int i = 0; i < envelopeModulators.size(); i++)
 	{
-		envelopeModulators[i]->startVoice(voiceIndex);
-		envelopeModulators[i]->polyManager.setLastStartedVoice(voiceIndex);
+		if (!envelopeModulators[i]->isBypassed())
+		{
+			envelopeModulators[i]->startVoice(voiceIndex);
+			envelopeModulators[i]->polyManager.setLastStartedVoice(voiceIndex);
+		}
+		
 	}
 
 	const float startValue = getConstantVoiceValue(voiceIndex);
@@ -474,12 +494,10 @@ void ModulatorChain::renderVoice(int voiceIndex, int startSample, int numSamples
 	// Copy the result to the voice buffer
 	FloatVectorOperations::copy(internalVoiceBuffer.getWritePointer(voiceIndex, startIndex), internalBuffer.getReadPointer(0, startIndex), sampleAmount);
 
-#if ENABLE_PLOTTER
 	if(voiceIndex == polyManager.getLastStartedVoice())
-	{
-		saveEnvelopeValueForPlotter(internalBuffer, startIndex, sampleAmount);
-	}
-#elif ENABLE_ALL_PEAK_METERS
+		pushPlotterValues(internalBuffer, startSample, sampleAmount);
+
+#if ENABLE_ALL_PEAK_METERS
 	if (voiceIndex == polyManager.getLastStartedVoice())
 	{
 		envelopeOutputValue1 = internalBuffer.getSample(0, startIndex);
@@ -514,9 +532,7 @@ void ModulatorChain::renderNextBlock(AudioSampleBuffer& buffer, int startSample,
 			m->renderNextBlock(internalBuffer, startSample, numSamples);
 		}
 
-#if ENABLE_PLOTTER
-		updatePlotter(internalBuffer, startSample, numSamples);
-#elif ENABLE_ALL_PEAK_METERS
+#if ENABLE_ALL_PEAK_METERS
 		if (!isVoiceStartChain)
 			setOutputValue(internalBuffer.getSample(0, startSample) * envelopeOutputValue1);
 #endif
@@ -575,6 +591,7 @@ void EnvelopeModulatorFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(TableEnvelope);
 	ADD_NAME_TO_TYPELIST(CCEnvelope);
 	ADD_NAME_TO_TYPELIST(JavascriptEnvelopeModulator);
+	ADD_NAME_TO_TYPELIST(MPEModulator);
 }
 
 

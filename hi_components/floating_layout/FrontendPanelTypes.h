@@ -140,7 +140,8 @@ to the **Images** subfolder of your project and set `CustomGraphics` to true. Th
 */
 class MidiKeyboardPanel : public FloatingTileContent,
 	public Component,
-	public ComponentWithKeyboard
+	public ComponentWithKeyboard,
+	public MidiControllerAutomationHandler::MPEData::Listener
 {
 public:
 
@@ -155,6 +156,7 @@ public:
 		DisplayOctaveNumber, ///< set this to true to add octave numbers at each C note.
 		ToggleMode, ///< if activated, then the notes will be held until clicked again
 		MidiChannel, ///< which MIDI channel to use (1-16)
+		MPEKeyboard,
 		numProperyIds
 	};
 
@@ -164,7 +166,13 @@ public:
 	~MidiKeyboardPanel();
 
 	bool showTitleInPresentationMode() const override;
-	CustomKeyboard* getKeyboard() const override;
+	Component* getKeyboard() const override;
+
+	void mpeModeChanged(bool isEnabled) override;
+
+	void mpeModulatorAssigned(MPEModulator* /*m*/, bool /*wasAssigned*/) override {};
+
+	void mpeDataReloaded() override {};
 
 	int getNumDefaultableProperties() const override;
 	var toDynamicObject() const override;
@@ -179,8 +187,18 @@ public:
 
 private:
 
+	void restoreInternal(const var& data);
+
+	var cachedData;
+
+	bool mpeModeEnabled = false;
+
+	bool shouldBeMpeKeyboard = false;
+
 	bool defaultAppearance = true;
-	ScopedPointer<CustomKeyboard> keyboard;
+	ScopedPointer<KeyboardBase> keyboard;
+
+	
 };
 
 /** Type-ID: `Note`.

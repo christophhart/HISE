@@ -154,13 +154,24 @@ MidiKeyboardPanel::MidiKeyboardPanel(FloatingTile* parent) :
 
 	setInterceptsMouseClicks(false, true);
 
-	addAndMakeVisible(keyboard = new CustomKeyboard(parent->getMainController()));
+	keyboard = new CustomKeyboard(parent->getMainController());
 
-	keyboard->setLowestVisibleKey(12);
+	addAndMakeVisible(keyboard->asComponent());
+
+	keyboard->setLowestKeyBase(12);
+
+	setDefaultPanelColour(PanelColourId::bgColour, Colours::transparentBlack);
+	setDefaultPanelColour(PanelColourId::itemColour1, Colours::white.withAlpha(0.1f));
+	setDefaultPanelColour(PanelColourId::itemColour2, Colours::white);
+	setDefaultPanelColour(PanelColourId::itemColour3, Colour(SIGNAL_COLOUR));
+
+	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().addListener(this);
 }
 
 MidiKeyboardPanel::~MidiKeyboardPanel()
 {
+	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().removeListener(this);
+
 	keyboard = nullptr;
 }
 
@@ -169,9 +180,20 @@ bool MidiKeyboardPanel::showTitleInPresentationMode() const
 	return false;
 }
 
-CustomKeyboard* MidiKeyboardPanel::getKeyboard() const
+Component* MidiKeyboardPanel::getKeyboard() const
 {
-	return keyboard;
+	return keyboard->asComponent();
+}
+
+void MidiKeyboardPanel::mpeModeChanged(bool isEnabled)
+{
+	mpeModeEnabled = isEnabled;
+
+	if (cachedData.isObject())
+	{
+		restoreInternal(cachedData);
+		resized();
+	}
 }
 
 int MidiKeyboardPanel::getNumDefaultableProperties() const
@@ -183,16 +205,17 @@ var MidiKeyboardPanel::toDynamicObject() const
 {
 	var obj = FloatingTileContent::toDynamicObject();
 
-	storePropertyInObject(obj, SpecialPanelIds::KeyWidth, keyboard->getKeyWidth());
+	storePropertyInObject(obj, SpecialPanelIds::KeyWidth, keyboard->getKeyWidthBase());
 
 	storePropertyInObject(obj, SpecialPanelIds::DisplayOctaveNumber, keyboard->isShowingOctaveNumbers());
-	storePropertyInObject(obj, SpecialPanelIds::LowKey, keyboard->getRangeStart());
-	storePropertyInObject(obj, SpecialPanelIds::HiKey, keyboard->getRangeEnd());
+	storePropertyInObject(obj, SpecialPanelIds::LowKey, keyboard->getRangeStartBase());
+	storePropertyInObject(obj, SpecialPanelIds::HiKey, keyboard->getRangeEndBase());
 	storePropertyInObject(obj, SpecialPanelIds::CustomGraphics, keyboard->isUsingCustomGraphics());
 	storePropertyInObject(obj, SpecialPanelIds::DefaultAppearance, defaultAppearance);
-	storePropertyInObject(obj, SpecialPanelIds::BlackKeyRatio, keyboard->getBlackNoteLengthProportion());
+	storePropertyInObject(obj, SpecialPanelIds::BlackKeyRatio, keyboard->getBlackNoteLengthProportionBase());
 	storePropertyInObject(obj, SpecialPanelIds::ToggleMode, keyboard->isToggleModeEnabled());
-	storePropertyInObject(obj, SpecialPanelIds::MidiChannel, keyboard->getMidiChannel());
+	storePropertyInObject(obj, SpecialPanelIds::MidiChannel, keyboard->getMidiChannelBase());
+	storePropertyInObject(obj, SpecialPanelIds::MPEKeyboard, shouldBeMpeKeyboard);
 
 	return obj;
 }
@@ -201,22 +224,51 @@ void MidiKeyboardPanel::fromDynamicObject(const var& object)
 {
 	FloatingTileContent::fromDynamicObject(object);
 
+	cachedData = object;
+
+	restoreInternal(object);
+}
+
+void MidiKeyboardPanel::restoreInternal(const var& object)
+{
+	shouldBeMpeKeyboard = getPropertyWithDefault(object, SpecialPanelIds::MPEKeyboard);
+
+	const bool isReallyMpeKeyboard = shouldBeMpeKeyboard && mpeModeEnabled;
+
+	if (keyboard->isMPEKeyboard() != isReallyMpeKeyboard)
+	{
+		if (isReallyMpeKeyboard)
+			keyboard = new hise::MPEKeyboard(getMainController()->getKeyboardState());
+		else
+			keyboard = new CustomKeyboard(getMainController());
+
+		addAndMakeVisible(keyboard->asComponent());
+	}
+
 	keyboard->setUseCustomGraphics(getPropertyWithDefault(object, SpecialPanelIds::CustomGraphics));
 
-	keyboard->setRange(getPropertyWithDefault(object, SpecialPanelIds::LowKey),
+	keyboard->setRangeBase(getPropertyWithDefault(object, SpecialPanelIds::LowKey),
 		getPropertyWithDefault(object, SpecialPanelIds::HiKey));
 
-	keyboard->setKeyWidth(getPropertyWithDefault(object, SpecialPanelIds::KeyWidth));
+	keyboard->setKeyWidthBase(getPropertyWithDefault(object, SpecialPanelIds::KeyWidth));
 
 	defaultAppearance = getPropertyWithDefault(object, SpecialPanelIds::DefaultAppearance);
 
 	keyboard->setShowOctaveNumber(getPropertyWithDefault(object, SpecialPanelIds::DisplayOctaveNumber));
 
-	keyboard->setBlackNoteLengthProportion(getPropertyWithDefault(object, SpecialPanelIds::BlackKeyRatio));
+	keyboard->setBlackNoteLengthProportionBase(getPropertyWithDefault(object, SpecialPanelIds::BlackKeyRatio));
 
 	keyboard->setEnableToggleMode(getPropertyWithDefault(object, SpecialPanelIds::ToggleMode));
 
-	keyboard->setMidiChannel(getPropertyWithDefault(object, SpecialPanelIds::MidiChannel));
+	keyboard->setMidiChannelBase(getPropertyWithDefault(object, SpecialPanelIds::MidiChannel));
+
+	if (keyboard->isMPEKeyboard())
+	{
+		keyboard->asComponent()->setColour(hise::MPEKeyboard::ColourIds::bgColour, findPanelColour(PanelColourId::bgColour));
+		keyboard->asComponent()->setColour(hise::MPEKeyboard::ColourIds::waveColour, findPanelColour(PanelColourId::itemColour1));
+		keyboard->asComponent()->setColour(hise::MPEKeyboard::ColourIds::keyOnColour, findPanelColour(PanelColourId::itemColour2));
+		keyboard->asComponent()->setColour(hise::MPEKeyboard::ColourIds::dragColour, findPanelColour(PanelColourId::itemColour3));
+	}
 }
 
 Identifier MidiKeyboardPanel::getDefaultablePropertyId(int index) const
@@ -233,6 +285,7 @@ Identifier MidiKeyboardPanel::getDefaultablePropertyId(int index) const
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::DisplayOctaveNumber, "DisplayOctaveNumber");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ToggleMode, "ToggleMode");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::MidiChannel, "MidiChannel");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::MPEKeyboard, "MPEKeyboard");
 	
 	jassertfalse;
 	return{};
@@ -252,6 +305,7 @@ var MidiKeyboardPanel::getDefaultProperty(int index) const
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::DisplayOctaveNumber, false);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ToggleMode, false);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::MidiChannel, 1);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::MPEKeyboard, false);
 
 	jassertfalse;
 	return{};
@@ -265,15 +319,15 @@ void MidiKeyboardPanel::paint(Graphics& g)
 
 void MidiKeyboardPanel::resized()
 {
-	if (defaultAppearance)
+	if (!keyboard->isMPEKeyboard() && defaultAppearance)
 	{
 		int width = jmin<int>(getWidth(), CONTAINER_WIDTH);
 
-		keyboard->setBounds((getWidth() - width) / 2, 0, width, 72);
+		keyboard->asComponent()->setBounds((getWidth() - width) / 2, 0, width, 72);
 	}
 	else
 	{
-		keyboard->setBounds(0, 0, getWidth(), getHeight());
+		keyboard->asComponent()->setBounds(0, 0, getWidth(), getHeight());
 	}
 }
 
@@ -281,6 +335,8 @@ int MidiKeyboardPanel::getFixedHeight() const
 {
 	return defaultAppearance ? 72 : FloatingTileContent::getFixedHeight();
 }
+
+
 
 
 Note::Note(FloatingTile* parent) :

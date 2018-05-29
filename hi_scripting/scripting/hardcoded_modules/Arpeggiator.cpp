@@ -40,6 +40,13 @@ Arpeggiator::Arpeggiator(MainController *mc, const String &id, ModulatorSynth *m
 	ValueTreeUpdateWatcher::ScopedDelayer sd(content->getUpdateWatcher());
 
 	onInit();
+
+	mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().addListener(this);
+}
+
+Arpeggiator::~Arpeggiator()
+{
+	mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().removeListener(this);
 }
 
 int Arpeggiator::getNumSliderPacks()
@@ -301,7 +308,16 @@ void Arpeggiator::onInit()
 
 void Arpeggiator::onNoteOn()
 {
-	if (channelFilter > 0 && Message.getChannel() != channelFilter)
+	int channel = Message.getChannel();
+
+	if (mpeMode)
+	{
+		mpeValues.glideValues[channel] = 8192;
+		mpeValues.pressValues[channel] = 0;
+		mpeValues.slideValues[channel] = 64;
+	}
+
+	if (channelFilter > 0 && channel != channelFilter)
 		return;
 
 	if (bypassButton->getValue())
@@ -311,7 +327,7 @@ void Arpeggiator::onNoteOn()
 
 	minNoteLenSamples = (int)(Engine.getSampleRate() / 80.0);
 
-	addUserHeldKey(Message.getNoteNumber());
+	addUserHeldKey({(int8)Message.getNoteNumber(), (int8)Message.getChannel()});
 
 	// do not call playNote() if timer is already running
 	if (!is_playing)
@@ -328,7 +344,7 @@ void Arpeggiator::onNoteOff()
 
 	Message.ignoreEvent(true);
 
-	remUserHeldKey(Message.getNoteNumber());
+	remUserHeldKey({ (int8)Message.getNoteNumber(), (int8)Message.getChannel() });
 
 	if (!keys_are_held())
 	{
@@ -354,16 +370,13 @@ void Arpeggiator::onControl(ScriptingApi::Content::ScriptComponent *c, var value
 	{
 		if ((double)value > 0.5)
 		{
-			userHeldKeysArray.clearQuick();
-			userHeldKeysArraySorted.clearQuick();
-
+			clearUserHeldKeys();
 			reset(true, true);
 		}
 	}
 	else if (c == resetButton)
 	{
-		userHeldKeysArray.clearQuick();
-		userHeldKeysArraySorted.clearQuick();
+		clearUserHeldKeys();
 		reset(true, true);
 	}
 	else if (c == sequenceComboBox)
@@ -381,6 +394,22 @@ void Arpeggiator::onControl(ScriptingApi::Content::ScriptComponent *c, var value
 		reset(true, false);
 
 		midiChannel = jmax<int>(1, (int)value);
+	}
+}
+
+void Arpeggiator::onController()
+{
+	if (mpeMode)
+	{
+		const auto& m = *getCurrentHiseEvent();
+
+		auto c = m.getChannel();
+
+		if (m.isNoteOn())					mpeValues.strokeValues[c] = (int8)m.getVelocity();
+		else if (m.isChannelPressure())		mpeValues.pressValues[c] = (int8)m.getNoteNumber();
+		else if (m.isControllerOfType(74))	mpeValues.slideValues[c] = (int8)m.getControllerValue();
+		else if (m.isPitchWheel())			mpeValues.glideValues[c] = (int16)m.getPitchWheelValue();
+		else if (m.isNoteOff())				mpeValues.liftValues[c] = (int8)m.getVelocity();
 	}
 }
 
@@ -417,12 +446,13 @@ void Arpeggiator::playNote()
 
 	auto octaveAmount = abs(octaveRaw) + 1;
 
+
 	for (int i = 0; i < octaveAmount; i++)
 	{
 		for (int j = 0; j < userHeldKeysArray.size(); j++)
 		{
-			MidiSequenceArray.addIfNotAlreadyThere(userHeldKeysArray[j] + octaveSign * i * 12);
-			MidiSequenceArraySorted.addIfNotAlreadyThere(userHeldKeysArraySorted[j] + octaveSign * i * 12);
+			MidiSequenceArray.addIfNotAlreadyThere(userHeldKeysArray[j] + (int8)(octaveSign * i * 12));
+			MidiSequenceArraySorted.addIfNotAlreadyThere(userHeldKeysArraySorted[j] + (int8)(octaveSign * i * 12));
 		}
 	}
 
@@ -485,7 +515,7 @@ void Arpeggiator::playNote()
 	
 
 	// add semitone offset if enabled
-	if (do_use_step_semitone_offsets) currentNote += (int)semiToneSliderPack->getSliderValueAt(currentStep);
+	if (do_use_step_semitone_offsets) currentNote += (int8)semiToneSliderPack->getSliderValueAt(currentStep);
 
 	// get step velocity
 	currentVelocity = (int)velocitySliderPack->getSliderValueAt(currentStep);
@@ -515,9 +545,7 @@ void Arpeggiator::playNote()
 
 		last_step_was_tied = false;
 
-		int shuffleTimeStamp = (currentStep % 2 != 0) ? (int)(0.8 * (double)currentNoteLengthInSamples * (double)shuffleSlider->getValue()) : 0;
-
-		const int onId = Synth.addNoteOn(midiChannel, currentNote, currentVelocity, shuffleTimeStamp);
+		const int onId = sendNoteOn();
 
 		// add a little bit of time to the note off for a tied step to engage the synth's legato features
 		// only do it if next step is not going to be skipped
@@ -536,9 +564,8 @@ void Arpeggiator::playNote()
 		// if last step was not tied, add new note
 		if (!last_step_was_tied && !curr_step_is_skip())
 		{
-			int shuffleTimeStamp = (currentStep % 2 != 0) ? (int)(0.8 * (double)currentNoteLengthInSamples * (double)shuffleSlider->getValue()) : 0;
+			const int onId = sendNoteOn();
 
-			const int onId = Synth.addNoteOn(midiChannel, currentNote, currentVelocity, shuffleTimeStamp);
 			currentlyPlayingEventIds.add(onId);
 		}
 
@@ -595,6 +622,38 @@ void Arpeggiator::playNote()
 	if ((int)stepReset->getValue() > 0) ++curMasterStep;
 }
 
+int Arpeggiator::sendNoteOn()
+{
+	const int shuffleTimeStamp = (currentStep % 2 != 0) ? (int)(0.8 * (double)currentNoteLengthInSamples * (double)shuffleSlider->getValue()) : 0;
+
+	const int eventId = Synth.addNoteOn(mpeMode ? currentNote.channel : midiChannel, currentNote.noteNumber, currentVelocity, shuffleTimeStamp);
+
+	if (mpeMode)
+	{
+		auto& ce = *getCurrentHiseEvent();
+
+		uint16 timestamp = ce.getTimeStamp() + (uint16)shuffleTimeStamp;
+
+		auto c = currentNote.channel;
+
+		HiseEvent pressValue(HiseEvent::Type::Aftertouch, mpeValues.pressValues[c], 0, c);
+		HiseEvent slideValue(HiseEvent::Type::Controller, 74, mpeValues.slideValues[c], c);
+		HiseEvent glideValue(HiseEvent::Type::PitchBend, 0, 0, c);
+		glideValue.setPitchWheelValue(mpeValues.glideValues[c]);
+
+		
+		slideValue.setTimeStamp(timestamp);
+		glideValue.setTimeStamp(timestamp);
+		pressValue.setTimeStamp(timestamp);
+
+		addHiseEventToBuffer(slideValue);
+		addHiseEventToBuffer(glideValue);
+		addHiseEventToBuffer(pressValue);
+	}
+
+	return eventId;
+}
+
 
 
 
@@ -632,20 +691,26 @@ void Arpeggiator::calcTimeInterval()
 	timeInterval = jmax<double>(minTimerTime, t);
 }
 
-void Arpeggiator::addUserHeldKey(int notenumber)
+void Arpeggiator::addUserHeldKey(const NoteWithChannel& note)
 {
-	if (userHeldKeysArray.contains(notenumber))
+	if (userHeldKeysArray.contains(note))
 		return;
 
-	userHeldKeysArray.add(notenumber);
-	userHeldKeysArraySorted.add(notenumber);
+	userHeldKeysArray.add(note);
+	userHeldKeysArraySorted.add(note);
 	userHeldKeysArraySorted.sort();
 }
 
-void Arpeggiator::remUserHeldKey(int notenumber)
+void Arpeggiator::remUserHeldKey(const NoteWithChannel& note)
 {
-	userHeldKeysArray.removeFirstMatchingValue(notenumber);
-	userHeldKeysArraySorted.removeFirstMatchingValue(notenumber);
+	userHeldKeysArray.removeFirstMatchingValue(note);
+	userHeldKeysArraySorted.removeFirstMatchingValue(note);
+}
+
+void Arpeggiator::clearUserHeldKeys()
+{
+	userHeldKeysArray.clearQuick();
+	userHeldKeysArraySorted.clearQuick();
 }
 
 void Arpeggiator::reset(bool do_all_notes_off, bool do_stop)

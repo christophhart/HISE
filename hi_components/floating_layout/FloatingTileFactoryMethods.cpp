@@ -121,6 +121,7 @@ void FloatingTileContent::Factory::registerFrontendPanelTypes()
 	registerType<AudioAnalyserComponent::Panel>(PopupMenuOptions::AudioAnalyser);
 	registerType<WaveformComponent::Panel>(PopupMenuOptions::WavetablePreview);
 	registerType<FilterGraph::Panel>(PopupMenuOptions::FilterGraphPanel);
+	registerType<MPEPanel>(PopupMenuOptions::MPEPanel);
 }
 
 
@@ -613,6 +614,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(fm, PopupMenuOptions::MidiLearnPanel, "MIDI Learn Panel");
 			addToPopupMenu(fm, PopupMenuOptions::SampleMapBrowser, "Sample Map Browser");
 			addToPopupMenu(fm, PopupMenuOptions::AudioAnalyser, "Audio Analyser");
+			addToPopupMenu(fm, PopupMenuOptions::MPEPanel, "MPE Panel");
 
 			m.addSubMenu("Frontend Panels", fm);
 
@@ -669,6 +671,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::SamplerTable:		parent->setNewContent(GET_PANEL_NAME(SamplerTablePanel)); break;
 	case PopupMenuOptions::WavetablePreview:	parent->setNewContent(GET_PANEL_NAME(WaveformComponent::Panel)); break;
 	case PopupMenuOptions::FilterGraphPanel:	parent->setNewContent(GET_PANEL_NAME(FilterGraph::Panel)); break;
+	case PopupMenuOptions::MPEPanel:			parent->setNewContent(GET_PANEL_NAME(MPEPanel)); break;
 	case PopupMenuOptions::ScriptEditor:		parent->setNewContent(GET_PANEL_NAME(CodeEditorPanel)); break;
 	case PopupMenuOptions::ScriptContent:		parent->setNewContent(GET_PANEL_NAME(ScriptContentPanel)); break;
 	case PopupMenuOptions::ScriptComponentList: parent->setNewContent(GET_PANEL_NAME(ScriptComponentList::Panel)); break;

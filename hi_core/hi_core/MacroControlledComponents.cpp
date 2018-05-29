@@ -97,6 +97,8 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 	{
 		Learn = 1,
 		Remove,
+		AddMPE,
+		RemoveMPE,
 		GlobalModAddOffset=100,
 		GlobalModRemoveOffset=200,
 		numCommands
@@ -109,6 +111,24 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 
 	m.addItem(Learn, "Learn MIDI CC", true, learningActive);
 	
+	auto& data = getProcessor()->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData();
+
+	const String possibleName = dynamic_cast<Component*>(this)->getName() + "MPE";
+
+	auto possibleConnection = dynamic_cast<MPEModulator*>(ProcessorHelpers::getFirstProcessorWithName(getProcessor()->getMainController()->getMainSynthChain(), possibleName));
+
+	if (data.isMpeEnabled() && possibleConnection != nullptr)
+	{
+		const bool active = !data.getListOfUnconnectedModulators(false).contains(possibleName);
+
+		if (active)
+		{
+			m.addItem(RemoveMPE, "Remove MPE Gesture");
+		}
+		else
+			m.addItem(AddMPE, "Add MPE Gesture");
+	}
+
 	if (midiController != -1)
 	{
 		m.addItem(Remove, "Remove CC " + String(midiController));
@@ -160,6 +180,14 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 	{
 		handler->removeMidiControlledParameter(processor, parameter, sendNotification);
 	}
+	else if (result == AddMPE)
+	{
+		data.addConnection(possibleConnection);
+	}
+	else if (result == RemoveMPE)
+	{
+		data.removeConnection(possibleConnection);
+	}
 	else if (result >= GlobalModAddOffset)
 	{
 		auto mod = mods[result - GlobalModAddOffset];
@@ -176,6 +204,7 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 			container->addModulatorControlledParameter(mod, processor, parameter, rangeWithSkew, getMacroIndex());	
 		}
 	}
+	
 }
 
 void MacroControlledObject::setAttributeWithUndo(float newValue, bool useCustomOldValue/*=false*/, float customOldValue/*=-1.0f*/)
