@@ -44,6 +44,138 @@ namespace hise { using namespace juce;
 #endif
 
 
+template <typename ElementType, class Sorter = DefaultElementComparator<ElementType>> class OrderedStack
+{
+public:
+
+	OrderedStack()
+	{
+		clear();
+	}
+
+	void push(const ElementType& p)
+	{
+		if (pointer < 128)
+		{
+			data[pointer] = p;
+			pointer++;
+		}
+		else
+			jassertfalse; // full
+
+
+	}
+
+	bool isEmpty() const { return pointer == 0; }
+
+	ElementType pop()
+	{
+		if (isEmpty())
+		{
+			jassertfalse;
+			return ElementType();
+		}
+
+		pointer--;
+
+		return data[pointer];
+	}
+
+	int indexOf(const ElementType& type) const
+	{
+		for (int i = 0; i < pointer; i++)
+		{
+			if (data[i] == type)
+				return i;
+		}
+
+		return -1;
+	}
+
+	bool contains(const ElementType& element) const
+	{
+		return indexOf(element) != -1;
+	}
+
+	bool removeElement(const ElementType& type)
+	{
+		auto indexToRemove = indexOf(type);
+
+		if (indexToRemove == -1)
+			return false;
+
+		return remove(indexToRemove);
+	}
+
+	void clear()
+	{
+		for (int i = 0; i < 128; i++)
+		{
+			data[i] = ElementType();
+		}
+
+		pointer = 0;
+	}
+
+	ElementType getLast() const noexcept
+	{
+		if (isEmpty())
+			return ElementType();
+
+		return data[pointer - 1];
+	}
+
+	void addSorted(const ElementType& t)
+	{
+		for (int i = 0; i < pointer; i++)
+		{
+			if (data[i] > t)
+				insert(t, i);
+		}
+	}
+
+	void insert(const ElementType& t, int index)
+	{
+		for (int i = pointer - 1; i > index; i--)
+		{
+			data[i - 1] = data[i];
+		}
+
+		data[index] = t;
+		pointer++;
+	}
+
+	bool remove(int index)
+	{
+		if (isEmpty())
+			return false;
+
+		if (index < pointer)
+		{
+			for (int i = index; i < pointer; i++)
+			{
+				data[i] = data[i + 1];
+			}
+
+			pointer--;
+
+			data[pointer] = ElementType();
+
+			return true;
+		}
+
+		return false;
+	}
+
+	int size() const noexcept { return pointer; }
+
+private:
+
+	int pointer = 0;
+	ElementType data[128];
+};
+
+
 /** A container that has a unsorted but packed list of elements.
 *
 *	Features:

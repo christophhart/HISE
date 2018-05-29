@@ -51,9 +51,7 @@ HiseEvent::HiseEvent(const MidiMessage& message)
 		// unsupported Message type, add another...
 
 		
-
-		DBG(message.getDescription());
-		jassertfalse;
+ 		jassertfalse;
 	}
 	
 	number = data[1];
