@@ -277,7 +277,7 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 
 			ScopedPointer<CodeEditorComponent> editor = new CodeEditorComponent(*doc, tok);
 
-			editor->setSize((int)width, editor->getLineHeight() * numLines + 25);
+			
 
 			editor->setColour(CodeEditorComponent::backgroundColourId, Colour(0xff262626));
 			editor->setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFCCCCCC));
@@ -286,8 +286,9 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 			editor->setColour(CodeEditorComponent::ColourIds::highlightColourId, Colour(0xff666666));
 			editor->setColour(CaretComponent::ColourIds::caretColourId, Colour(0xFFDDDDDD));
 			editor->setColour(ScrollBar::ColourIds::thumbColourId, Colour(0x3dffffff));
-
 			editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(17.0f));
+			
+			editor->setSize((int)width, editor->getLineHeight() * numLines + 25);
 
 			renderedCodePreview = editor->createComponentSnapshot(editor->getLocalBounds());
 
