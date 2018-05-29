@@ -46,6 +46,7 @@ public:
 	{
 		typeSelector->updateValue();
 		smoothingTime->updateValue();
+		defaultValue->updateValue();
 	}
 
 	int getBodyHeight() const override
@@ -62,6 +63,7 @@ private:
 	ScopedPointer<TableEditor> tableEditor;
 	ScopedPointer<HiComboBox> typeSelector;
 	ScopedPointer<HiSlider> smoothingTime;
+	ScopedPointer<HiSlider> defaultValue;
 	ScopedPointer<MPEKeyboard> mpePanel;
 };
 

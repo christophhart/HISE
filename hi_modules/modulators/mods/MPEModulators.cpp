@@ -36,47 +36,211 @@ namespace hise {
 using namespace juce;
 
 
-MPEModulator::MPEModulator(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m):
+MPEModulator::MPEModulator(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m) :
 	EnvelopeModulator(mc, id, voiceAmount, m),
 	Modulation(m),
-	table(new SampleLookupTable())
+	table(new SampleLookupTable()),
+	monoState(-1),
+	g((Gesture)(int)getDefaultValue(GestureCC)),
+	smoothedIntensity(getIntensity())
 {
+	setAttribute(DefaultValue, getDefaultValue(DefaultValue), dontSendNotification);
+
+	parameterNames.add("GestureCC");
+	parameterNames.add("SmoothingTime");
+	parameterNames.add("DefaultValue");
+	parameterNames.add("SmoothedIntensity");
+
+	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().sendAmountChangeMessage();
+
+	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().addListener(this);
+
 	for (int i = 0; i < polyManager.getVoiceAmount(); i++) states.add(createSubclassedState(i));
 }
 
 MPEModulator::~MPEModulator()
 {
+	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().removeListener(this);
+	
+	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().removeConnection(this);
+}
+
+void MPEModulator::mpeModeChanged(bool isEnabled)
+{
+	const bool isConnected = getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().contains(this);
+
+	isActive = isEnabled;
+
+	for (int i = 0; i < states.size(); i++)
+	{
+		reset(i);
+	}
+
+	const bool shouldBeBypassed = !isActive || !isConnected;
+
+	setBypassed(shouldBeBypassed);
+
+	sendChangeMessage();
+
+	
 
 }
 
-void MPEModulator::setInternalAttribute(int parameter_index, float newValue)
+void MPEModulator::mpeModulatorAssigned(MPEModulator* m, bool wasAssigned)
 {
-	if (parameter_index == SpecialParameters::GestureCC)
+	if (m == this)
+	{
+		const bool shouldBeBypassed = !isActive || !wasAssigned;
+
+		setBypassed(shouldBeBypassed, sendNotification);
+		sendChangeMessage();
+	}
+}
+
+void MPEModulator::mpeDataReloaded()
+{
+	
+}
+
+void MPEModulator::setInternalAttribute(int parameterIndex, float newValue)
+{
+	if (parameterIndex < EnvelopeModulator::Parameters::numParameters)
+	{
+		EnvelopeModulator::setInternalAttribute(parameterIndex, newValue);
+	}
+
+	if (parameterIndex == EnvelopeModulator::Parameters::Monophonic)
+	{
+		monophonicVoiceCounter = 0;
+
+		activeStates.clear();
+
+		if (isMonophonic)
+		{
+			activeStates.insert(&monoState);
+			mpeValues.reset();
+		}
+
+		for (int i = 0; i < states.size(); i++)
+			reset(i);
+	}
+	else if (parameterIndex == SpecialParameters::GestureCC)
+	{
 		g = (Gesture)(int)newValue;
-	if (parameter_index == SpecialParameters::SmoothingTime)
+
+		for (int i = 0; i < states.size(); i++)
+			reset(i);
+
+		setAttribute(DefaultValue, getDefaultValue(DefaultValue), dontSendNotification);
+
+		mpeValues.reset();
+
+	}
+	else if (parameterIndex == SpecialParameters::SmoothingTime)
+	{
 		updateSmoothingTime(newValue);
+	}
+	else if (parameterIndex == SpecialParameters::DefaultValue)
+	{
+		if (getMode() == Modulation::GainMode)
+			defaultValue = jlimit<float>(0.0f, 1.0f, newValue);
+		else
+			defaultValue = jlimit<float>(0.0f, 1.0f, newValue / 24.0f + 0.5f);
+
+	}
+	else if (parameterIndex == SpecialParameters::SmoothedIntensity)
+	{
+		smoothedIntensity = getMode() == Modulation::GainMode ? newValue : newValue / 12.0f;
+		setIntensity(smoothedIntensity);
+	}
+		
 }
 
 float MPEModulator::getDefaultValue(int parameterIndex) const
 {
-	if (parameterIndex == SpecialParameters::GestureCC)
+	if (parameterIndex < EnvelopeModulator::Parameters::numParameters)
 	{
-		return (float)(int)Gesture::Press;
+		return EnvelopeModulator::getDefaultValue(parameterIndex);
 	}
-	if (parameterIndex == SpecialParameters::SmoothingTime)
-		return 200.0f;
 
+	else if (parameterIndex == SpecialParameters::GestureCC)
+	{
+		return (float)(int)(getMode() == Modulation::GainMode ? Gesture::Press : Gesture::Glide);
+	}
+	else if (parameterIndex == SpecialParameters::SmoothingTime)
+	{
+		return 200.0f;
+	}
+	else if (parameterIndex == SpecialParameters::DefaultValue)
+	{
+		if (getMode() == Modulation::PitchMode)
+			return 0.0f;
+
+		switch (g)
+		{
+		case Press: return 0.0f;
+		case Slide: return 0.5f;
+		case Glide: return 0.5f;
+		case Stroke: return 0.0f;
+		case Lift: return 0.0f;
+		case numGestures: return 0.0f;
+		}
+	}
+	else if (parameterIndex == SpecialParameters::SmoothedIntensity)
+	{
+		return getMode() == Modulation::GainMode ? 1.0f : 0.0f;
+	}
+		
+
+	return 0.0f;
 }
 
-float MPEModulator::getAttribute(int parameter_index) const
+void MPEModulator::resetToDefault()
 {
-	if (parameter_index == SpecialParameters::GestureCC)
+	g = (Gesture)(int)getDefaultValue(SpecialParameters::GestureCC);
+	
+	
+	setAttribute(DefaultValue, getDefaultValue(DefaultValue), dontSendNotification);
+
+	updateSmoothingTime(getDefaultValue(SpecialParameters::SmoothingTime));
+	smoothedIntensity = getDefaultValue(SpecialParameters::SmoothedIntensity);
+	setIntensity(smoothedIntensity);
+	table->reset();
+	table->sendChangeMessage();
+	sendTableIndexChangeMessage(false, table, 0);
+	sendChangeMessage();
+}
+
+float MPEModulator::getAttribute(int parameterIndex) const
+{
+	if (parameterIndex < EnvelopeModulator::Parameters::numParameters)
+	{
+		return EnvelopeModulator::getAttribute(parameterIndex);
+	}
+
+	if (parameterIndex == SpecialParameters::GestureCC)
 	{
 		return (float)(int)g;
 	}
-	if (parameter_index == SpecialParameters::SmoothingTime)
+	else if (parameterIndex == SpecialParameters::SmoothingTime)
 		return smoothingTime;
+	else if (parameterIndex == DefaultValue)
+	{
+		if (getMode() == Modulation::GainMode)
+			return defaultValue;
+		else
+			return (defaultValue - 0.5f) * 24.0f;
+	}
+	else if (parameterIndex == SpecialParameters::SmoothedIntensity)
+	{
+		return getMode() == Modulation::GainMode ? smoothedIntensity : smoothedIntensity * 12.0f;
+	}
+		
+
+	return 0.0f;
 }
+
+
 
 void MPEModulator::restoreFromValueTree(const ValueTree &v)
 {
@@ -84,6 +248,8 @@ void MPEModulator::restoreFromValueTree(const ValueTree &v)
 
 	loadAttribute(GestureCC, "GestureCC");
 	loadAttribute(SmoothingTime, "SmoothingTime");
+	loadAttribute(DefaultValue, "DefaultValue");
+	loadAttribute(SmoothedIntensity, "SmoothedIntensity");
 	loadTable(table, "Table");
 }
 
@@ -93,6 +259,8 @@ juce::ValueTree MPEModulator::exportAsValueTree() const
 
 	saveAttribute(GestureCC, "GestureCC");
 	saveAttribute(SmoothingTime, "SmoothingTime");
+	saveAttribute(DefaultValue, "DefaultValue");
+	saveAttribute(SmoothedIntensity, "SmoothedIntensity");
 	saveTable(table, "Table");
 
 	return v;
@@ -104,47 +272,103 @@ void MPEModulator::startVoice(int voiceIndex)
 
 	if (auto s = getState(voiceIndex))
 	{
-		s->midiChannel = unsavedChannel;
+		float startValue = defaultValue;
+		if (g == Press)
+			startValue *= unsavedStrokeValue;
 
-		switch (g)
+		if (isMonophonic)
 		{
-		case Press:		s->targetValue = 0.0f; break;
-		case Slide:		s->targetValue = 0.5f; break;
-		case Glide:		s->targetValue = 0.5f; break;
-		case Stroke:	s->targetValue = 0.0f; break;
-		case Lift:		s->targetValue = getMode() == Modulation::GainMode ? 0.0f : 0.5f; break;
-		default:
-			break;
+			s->midiChannel = unsavedChannel;
+
+			if (monophonicVoiceCounter > 0)
+			{
+				if (shouldRetrigger)
+				{
+					monoState.smoother.setDefaultValue(startValue);
+					monoState.smoother.resetToValue(startValue, 5.0f);
+				}
+			}
+			else
+			{
+				monoState.isPressed = true;
+				monoState.smoother.setDefaultValue(startValue);
+				monoState.smoother.resetToValue(startValue);
+
+				if (g == Stroke)
+					monoState.targetValue = unsavedStrokeValue;
+
+			}
+
+			monophonicVoiceCounter++;
+		}
+		else
+		{
+			s->midiChannel = unsavedChannel;
+			s->isPressed = true;
+			s->smoother.setDefaultValue(startValue);
+			s->smoother.resetToValue(startValue);
+
+			if (g == Stroke)
+				s->targetValue = unsavedStrokeValue;
+
+			else if (g == Press)
+				s->targetValue = startValue;
+
+			//s->targetValue = g == Stroke ? unsavedStrokeValue : defaultValue;
+
+			activeStates.insert(s);
 		}
 
-		s->targetValue = table->getInterpolatedValue(s->targetValue * (float)SAMPLE_LOOKUP_TABLE_SIZE);
-
-		s->smoother.resetToValue(s->targetValue);
-
-		if (g == Stroke)
-		{
-			s->targetValue = unsavedStrokeValue;
-		}
-
-		activeStates.insert(s);
+		
 	}
 }
 
 void MPEModulator::stopVoice(int voiceIndex)
 {
 	EnvelopeModulator::stopVoice(voiceIndex);
+
+	if (isMonophonic)
+	{
+	}
+	else
+	{
+		if (auto s = getState(voiceIndex))
+			s->isPressed = false;
+	}
+
+	
 }
 
 void MPEModulator::reset(int voiceIndex)
 {
 	EnvelopeModulator::reset(voiceIndex);
 
-	if (auto s = getState(voiceIndex))
+	if (isMonophonic)
 	{
-		activeStates.remove(s);
+		monophonicVoiceCounter = jmax<int>(0, monophonicVoiceCounter - 1);
 
-		s->smoother.setDefaultValue(0.0f);
-		s->midiChannel = -1;
+		if (monophonicVoiceCounter == 0)
+		{
+			monoState.targetValue = defaultValue;
+			
+			monoState.isPressed = false;
+
+			mpeValues.reset();
+		}
+			
+	}
+	else
+	{
+		if (auto s = getState(voiceIndex))
+		{
+			activeStates.remove(s);
+
+			s->smoother.setDefaultValue(defaultValue);
+			s->smoother.resetToValue(defaultValue);
+			s->targetValue = defaultValue;
+			s->midiChannel = -1;
+			s->isPressed = false;
+		}
 	}
 }
 
@@ -157,6 +381,9 @@ void MPEModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	EnvelopeModulator::prepareToPlay(sampleRate, samplesPerBlock);
 
+	monoState.smoother.prepareToPlay(sampleRate);
+	monoState.smoother.setSmoothingTime(smoothingTime);
+	
 	for (auto s_ : states)
 	{
 		auto s = static_cast<MPEState*>(s_);
@@ -176,7 +403,7 @@ void MPEModulator::calculateBlock(int startSample, int numSamples)
 
 		s->smoother.fillBufferWithSmoothedValue(s->targetValue, w, numSamples);
 
-		if (polyManager.getLastStartedVoice() == voiceIndex)
+		if (isMonophonic || polyManager.getLastStartedVoice() == voiceIndex)
 		{
 			setOutputValue(w[0]);
 		}
@@ -187,66 +414,80 @@ void MPEModulator::handleHiseEvent(const HiseEvent& m)
 {
 	EnvelopeModulator::handleHiseEvent(m);
 
-	float inputValue;
+	auto c = m.getChannel();
+
+	float midiValue;
 
 	if (m.isNoteOn())
 	{
-		unsavedChannel = m.getChannel();
+		unsavedChannel = c;
+
+		midiValue = (float)m.getVelocity() / 127.0f;
+		midiValue = jlimit(0.0f, 1.0f, midiValue);
 
 		if (g == Stroke)
 		{
-			inputValue = (float)m.getVelocity() / 127.0f;
-
-			inputValue = jlimit(0.0f, 1.0f, inputValue);
-
-			const float targetValue = table->getInterpolatedValue(inputValue * (float)SAMPLE_LOOKUP_TABLE_SIZE);
-
-			sendTableIndexChangeMessage(false, table, inputValue);
-
+			const float targetValue = table->getInterpolatedValue(midiValue * (float)SAMPLE_LOOKUP_TABLE_SIZE);
+			sendTableIndexChangeMessage(false, table, midiValue);
 			unsavedStrokeValue = targetValue;
+		}
+		else
+		{
+			unsavedStrokeValue = midiValue;
 		}
 		
 		return;
 	}
-	else if (g == Press && m.isChannelPressure())
+	
+	if (g == Press && m.isChannelPressure())
 	{
-		inputValue = (float)m.getNoteNumber() / 127.0f;
+		midiValue = (float)m.getNoteNumber() / 127.0f;
 	}
 	else if (g == Slide && m.isControllerOfType(74))
 	{
-		inputValue = (float)m.getControllerValue() / 127.0f;
+		midiValue = (float)m.getControllerValue() / 127.0f;
 	}
 	else if (g == Glide && m.isPitchWheel())
 	{
-		inputValue = ((float)m.getPitchWheelValue() - 8192.0f) / 2048.0f;
-		inputValue = 0.5f * inputValue + 0.5;
+		midiValue = ((float)m.getPitchWheelValue() - 8192.0f) / 2048.0f;
+		midiValue = 0.5f * midiValue + 0.5f;
+
 	}
 	else if (g == Lift && m.isNoteOff())
 	{
-		inputValue = (float)m.getVelocity() / 127.0f;
+		midiValue = (float)m.getVelocity() / 127.0f;
 	}
 	else
 	{
 		return;
 	}
 
-	auto c = m.getChannel();
+	
 
-	inputValue = jlimit(0.0f, 1.0f, inputValue);
+	midiValue = jlimit(0.0f, 1.0f, midiValue);
 
-	const float targetValue = table->getInterpolatedValue(inputValue * (float)SAMPLE_LOOKUP_TABLE_SIZE);
+	if (isMonophonic)
+	{
+		midiValue = mpeValues.storeAndGetMaxValue(g, c, midiValue);
+	}
+
+	const float targetValue = table->getInterpolatedValue(midiValue * (float)SAMPLE_LOOKUP_TABLE_SIZE);
 
 	bool found = false;
 
 	for (auto s : activeStates)
 	{
-		if (s->midiChannel == c)
-		{
-			s->targetValue = inputValue;
+		const bool midiChannelMatches = isMonophonic || s->midiChannel == c;
 
-			if (!found && s->index == polyManager.getLastStartedVoice())
+		if (s->isPressed && midiChannelMatches)
+		{
+			s->targetValue = targetValue;
+
+			const bool voiceIndexMatches = isMonophonic || s->index == polyManager.getLastStartedVoice();
+
+			if (!found && voiceIndexMatches)
 			{
-				sendTableIndexChangeMessage(false, table, inputValue);
+				sendTableIndexChangeMessage(false, table, midiValue);
 				found = true;
 			}
 		}
@@ -271,8 +512,22 @@ hise::ProcessorEditorBody * MPEModulator::createEditor(ProcessorEditor *parentEd
 #endif
 }
 
+void MPEModulator::updateSmoothingTime(float newTime)
+{
+	if (newTime != smoothingTime)
+	{
+		smoothingTime = newTime;
+
+		for (int i = 0; i < states.size(); i++)
+			getState(i)->smoother.setSmoothingTime(smoothingTime);
+	}
+}
+
 hise::MPEModulator::MPEState * MPEModulator::getState(int voiceIndex)
 {
+	if (isMonophonic)
+		return &monoState;
+
 	if (auto s = states[voiceIndex])
 		return static_cast<MPEState*>(s);
 
@@ -281,268 +536,71 @@ hise::MPEModulator::MPEState * MPEModulator::getState(int voiceIndex)
 
 const hise::MPEModulator::MPEState * MPEModulator::getState(int voiceIndex) const
 {
+	if (isMonophonic)
+		return &monoState;
+
 	if (auto s = states[voiceIndex])
 		return static_cast<MPEState*>(s);
 
 	return nullptr;
 }
 
-void MPEPanel::timerCallback()
+
+
+
+
+
+
+void MPEModulator::MPEValues::reset()
 {
-	if (!pendingMessages.isEmpty())
+	for (int i = 0; i < 16; i++)
 	{
-		MidiMessage m;
+		pressValues[i] = 0.0f;
+		strokeValues[i] = 0.f;
+		slideValues[i] = 0.0f;
+		glideValues[i] = 0.5f;
+		liftValues[i] = 0.0f;
+	}
+}
 
-		while (pendingMessages.pop(m))
+float MPEModulator::MPEValues::storeAndGetMaxValue(Gesture g, int channel, float value)
+{
+	switch (g)
+	{
+	case Press:	pressValues[channel - 1] = value; return FloatVectorOperations::findMaximum(pressValues, 16);
+	case Slide:	slideValues[channel - 1] = value; return FloatVectorOperations::findMaximum(slideValues, 16);
+	case hise::MPEModulator::Glide:
+	{
+		glideValues[channel - 1] = value;
+
+		int absIndex = -1;
+		float maxAbsValue = 0.0f;
+
+		for (int i = 0; i < 16; i++)
 		{
-			DBG(m.getDescription());
+			const float distance = fabsf(glideValues[i] - 0.5f);
 
-			if (m.isNoteOn())
+			if (distance >= maxAbsValue)
 			{
-				pressedNotes.insert(Note::fromMidiMessage(*this, m));
+				maxAbsValue = distance;
+				absIndex = i;
 			}
-			else if (m.isNoteOff())
-			{
-				for (int i = 0; i < pressedNotes.size(); i++)
-				{
-					if (pressedNotes[i] == m)
-						pressedNotes.removeElement(i--);
-				}
-			}
-			else
-			{
-				for (auto& n : pressedNotes)
-					n.updateNote(*this, m);
-			}
-
 		}
 
-		repaint();
-	}
-}
-
-void MPEPanel::handleNoteOn(MidiKeyboardState* /*source*/, int midiChannel, int midiNoteNumber, float velocity)
-{
-	auto m = MidiMessage::noteOn(midiChannel, midiNoteNumber, velocity);
-
-	pendingMessages.push(std::move(m));
-}
-
-void MPEPanel::handleNoteOff(MidiKeyboardState* /*source*/, int midiChannel, int midiNoteNumber, float velocity)
-{
-	auto m = MidiMessage::noteOff(midiChannel, midiNoteNumber, velocity);
-
-	pendingMessages.push(std::move(m));
-}
-
-void MPEPanel::handleMessage(const MidiMessage& m)
-{
-	MidiMessage copy(m);
-
-	pendingMessages.push(std::move(copy));
-}
-
-void MPEPanel::mouseDown(const MouseEvent& e)
-{
-	auto n = Note::fromMouseEvent(*this, e, nextChannelIndex);
-	n.sendNoteOn(state);
-
-	pressedNotes.insert(n);
-
-	nextChannelIndex++;
-
-	if (nextChannelIndex > 15)
-		nextChannelIndex = 1;
-
-	repaint();
-}
-
-void MPEPanel::mouseUp(const MouseEvent& e)
-{
-	for (int i = 0; i < pressedNotes.size(); i++)
-	{
-		if (pressedNotes[i] == e)
-		{
-			pressedNotes[i].sendNoteOff(state);
-			pressedNotes.removeElement(i--);
-			break;
-		}
-
+		return glideValues[absIndex];
 	}
 
-	repaint();
-}
-
-void MPEPanel::paint(Graphics& g)
-{
-	Colour c1 = findColour(bgColour).withMultipliedAlpha(1.1f);
-	Colour c2 = findColour(bgColour).withMultipliedAlpha(0.9f);
-
-	g.setGradientFill(ColourGradient(c1, 0.0f, 0.0f, c2, 0.0f, (float)getHeight(), false));
-	g.fillAll();
-
-	static const int whiteWave[24] = { 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0,
-										0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0 };
-
-	for (int i = 0; i < 24; i++)
-	{
-		auto l = getPositionForNote(lowKey + i);
-
-		const float radius = getWidthForNote() * 0.2f;
-
-		if (whiteWave[i] == 1)
-		{
-			g.setColour(findColour(waveColour));
-			g.drawLine(l.getCentreX(), radius, l.getCentreX(), l.getHeight()-2.0f*radius, 4.0f);
-		}
-		else if (whiteWave[i] == 0)
-		{
-			l.reduce(4, 3);
-
-			g.setColour(findColour(waveColour).withMultipliedAlpha(0.1f));
-			g.fillRoundedRectangle(l, radius);
-		}
+	case hise::MPEModulator::Stroke:
+		break;
+	case hise::MPEModulator::Lift:
+		break;
+	case hise::MPEModulator::numGestures:
+		break;
+	default:
+		break;
 	}
 
-	for (const auto& n : pressedNotes)
-		n.draw(*this, g);
-}
-
-juce::Rectangle<float> MPEPanel::getPositionForNote(int noteNumber) const
-{
-	int normalised = noteNumber - lowKey;
-	float widthPerWave = getWidthForNote();
-
-	if (normalised > 24 || normalised < 0)
-		return {};
-
-	static const int whiteWave[24] = { 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0,
-		0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0 };
-
-	return { normalised * widthPerWave, 0.0f, widthPerWave, whiteWave[normalised] ? (float)getHeight()*0.5f : (float)getHeight() };
-}
-
-hise::MPEPanel::Note MPEPanel::Note::fromMouseEvent(const MPEPanel& p, const MouseEvent& e, int channelIndex)
-{
-	Note n;
-
-	n.isArtificial = true;
-	n.fingerIndex = e.source.getIndex();
-	n.assignedMidiChannel = channelIndex;
-	n.noteNumber = p.getNoteForPosition(e.getMouseDownPosition());
-	n.glideValue = 64;
-	n.slideValue = 8192;
-	n.strokeValue = 127;
-	n.liftValue = 127;
-	n.pressureValue = 0;
-
-	n.startPoint = { (int)p.getPositionForNote(n.noteNumber).getCentreX(), e.getMouseDownY() };
-
-
-	n.dragPoint = n.startPoint;
-
-	return n;
-}
-
-hise::MPEPanel::Note MPEPanel::Note::fromMidiMessage(const MPEPanel& p, const MidiMessage& m)
-{
-	Note n;
-
-	n.isArtificial = false;
-	n.fingerIndex = -1;
-	n.assignedMidiChannel = m.getChannel();
-	n.noteNumber = m.getNoteNumber();
-	n.strokeValue = m.getVelocity();
-	n.slideValue = 8192;
-	n.liftValue = 0;
-	n.glideValue = 64;
-	n.pressureValue = 0;
-
-	auto sp = p.getPositionForNote(n.noteNumber).getCentre();
-
-
-	n.startPoint = { (int)sp.getX(), (int)sp.getY() };
-	n.dragPoint = n.startPoint;
-
-	return n;
-}
-
-void MPEPanel::Note::updateNote(const MPEPanel& p, const MouseEvent& e)
-{
-	if (*this != e)
-		return;
-
-	dragPoint = e.getPosition();
-
-	float pitchBendValue = (float)e.getDistanceFromDragStartX() / p.getWidthForNote();
-	slideValue = jlimit<int>(0, 8192*2, 8192 + (int)(pitchBendValue / 24.0f * 4096.0f));
-	float normalisedGlide = -0.5f * (float)e.getDistanceFromDragStartY() / (float)p.getHeight();
-	glideValue = jlimit<int>(0, 127, 64 + roundFloatToInt(normalisedGlide * 127.0f));
-
-	p.state.injectMessage(MidiMessage::pitchWheel(assignedMidiChannel, slideValue));
-	p.state.injectMessage(MidiMessage::controllerEvent(assignedMidiChannel, 74, glideValue));
-}
-
-void MPEPanel::Note::updateNote(const MPEPanel& p, const MidiMessage& m)
-{
-	if (*this != m)
-		return;
-
-	if (m.isPitchWheel())
-	{
-		slideValue = m.getPitchWheelValue();
-
-		float normalisedSlideValue = (float)(slideValue - 8192) / 4096.0f;
-
-		float slideOctaveValue = normalisedSlideValue * 24.0f;
-		float slideDistance = slideOctaveValue * p.getWidthForNote();
-
-		dragPoint.setX(startPoint.getX() + slideDistance);
-
-	}
-		
-	else if (m.isChannelPressure())
-		pressureValue = m.getChannelPressureValue();
-	else if (m.isControllerOfType(74))
-	{
-		glideValue = m.getControllerValue();
-
-		auto distance = (float)(glideValue-64) / 32.0f;
-
-		dragPoint.setY(startPoint.getY() - distance * startPoint.getY());
-	}
-		
-	else if (m.isNoteOff())
-		liftValue = m.getVelocity();
-}
-
-void MPEPanel::Note::draw(const MPEPanel& p, Graphics& g) const
-{
-	if (!isVisible(p))
-		return;
-
-	auto area = p.getPositionForNote(noteNumber);
-
-	g.setColour(p.findColour(keyOnColour).withAlpha((float)pressureValue / 127.0f));
-
-	area.reduce(4.0f, 3.0f);
-
-	auto radius = p.getWidthForNote() * 0.2f;
-
-	g.fillRoundedRectangle(area, radius);
-
-	g.setColour(p.findColour(dragColour));
-
-	auto l = Line<int>(startPoint, dragPoint);
-
-	g.drawLine((float)l.getStartX(), (float)l.getStartY(), (float)l.getEndX(), (float)l.getEndY(), 2.0f);
-
-	Rectangle<float> r((float)dragPoint.getX(), (float)dragPoint.getY(), 0.0f, 0.0f);
-	r = r.withSizeKeepingCentre(10, 10);
-
-	g.setColour(Colours::white.withAlpha((float)strokeValue / 127.0f));
-
-	g.drawEllipse(r, 2.0f);
+	return 1.0f;
 }
 
 }

@@ -41,6 +41,7 @@ MPEModulatorEditor::MPEModulatorEditor(ProcessorEditor* parent) :
 	addAndMakeVisible(tableEditor = new TableEditor(getProcessor()->getMainController()->getControlUndoManager(), dynamic_cast<LookupTableProcessor*>(getProcessor())->getTable(0)));
 	addAndMakeVisible(typeSelector = new HiComboBox("Type"));
 	addAndMakeVisible(smoothingTime = new HiSlider("SmoothingTime"));
+	addAndMakeVisible(defaultValue = new HiSlider("DefaultValue"));
 
 
 	tableEditor->connectToLookupTableProcessor(getProcessor());
@@ -54,8 +55,23 @@ MPEModulatorEditor::MPEModulatorEditor(ProcessorEditor* parent) :
 
 	smoothingTime->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
 	smoothingTime->setTextBoxStyle(Slider::TextBoxRight, true, 80, 20);
-	smoothingTime->setup(getProcessor(), MPEModulator::SpecialParameters::SmoothingTime, "Smoothing Time");
+	smoothingTime->setup(getProcessor(), MPEModulator::SpecialParameters::SmoothingTime, "Smoothing");
 	smoothingTime->setMode(HiSlider::Time, 0.0, 2000.0, 100.0, 0.1);
+
+	defaultValue->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
+	defaultValue->setTextBoxStyle(Slider::TextBoxRight, true, 80, 20);
+	defaultValue->setup(getProcessor(), MPEModulator::SpecialParameters::DefaultValue, "Default");
+	defaultValue->setMode(HiSlider::NormalizedPercentage);
+
+	if (dynamic_cast<MPEModulator*>(getProcessor())->getMode() == Modulation::GainMode)
+	{
+		defaultValue->setMode(HiSlider::NormalizedPercentage);
+	}
+	else
+	{
+		defaultValue->setMode(HiSlider::Linear, -12.0, 12.0, 0.0, 0.01);
+		defaultValue->setTextValueSuffix(" st.");
+	}
 
 	addAndMakeVisible(mpePanel = new MPEKeyboard(getProcessor()->getMainController()->getKeyboardState()));
 
@@ -72,18 +88,21 @@ void MPEModulatorEditor::resized()
 
 	auto keyboardArea = area.removeFromBottom(80);
 
-	
+	auto sidePanel = area.removeFromRight(128 + 12);
 
-	auto tablePanel = area.removeFromLeft(450);
+	sidePanel.removeFromTop(30);
+	typeSelector->setBounds(sidePanel.removeFromTop(40).reduced(6));
+	smoothingTime->setBounds(sidePanel.removeFromTop(60).reduced(6));
+	defaultValue->setBounds(sidePanel.removeFromTop(60).reduced(6));
+
 
 	mpePanel->setBounds(keyboardArea.removeFromBottom(72));
 
-	tableEditor->setBounds(tablePanel);
+	tableEditor->setBounds(area);
 
-	area.removeFromTop(50);
+	
 
-	typeSelector->setBounds(area.removeFromTop(40).reduced(6));
-	smoothingTime->setBounds(area.removeFromTop(60).reduced(6));
+	
 }
 
 void MPEModulatorEditor::paint(Graphics& g)

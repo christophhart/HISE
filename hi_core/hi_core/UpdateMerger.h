@@ -191,6 +191,60 @@ private:
 };
 
 
+/** A Ramper applies linear ramping to a value.
+*	@ingroup utility
+*
+*/
+class Ramper
+{
+public:
+
+	Ramper() :
+		targetValue(0.0f),
+		stepDelta(0.0f),
+		stepAmount(-1)
+	{};
+
+	/** Sets the step amount that the ramper will use. You can overwrite this value by supplying a step number in setTarget. */
+	void setStepAmount(int newStepAmount) { stepAmount = newStepAmount; };
+
+	/** sets the new target and recalculates the step size using either the supplied step number or the step amount previously set by setStepAmount(). */
+	void setTarget(float currentValue, float newTarget, int numberOfSteps = -1)
+	{
+		if (numberOfSteps != -1) stepDelta = (newTarget - currentValue) / numberOfSteps;
+		else if (stepAmount != -1) stepDelta = (newTarget - currentValue) / stepAmount;
+		else jassertfalse; // Either the step amount should be set, or a new step amount should be supplied
+
+		targetValue = newTarget;
+		busy = true;
+	};
+
+	/** Sets the ramper value and the target to the new value and stops ramping. */
+	void setValue(float newValue)
+	{
+		targetValue = newValue;
+		stepDelta = 0.0f;
+		busy = false;
+	};
+
+	/** ramps the supplied value and returns true if the targetValue is reached. */
+	inline bool ramp(float &valueToChange)
+	{
+		valueToChange += stepDelta;
+		busy = fabs(targetValue - valueToChange) > 0.001f;
+		return busy;
+	};
+
+	bool isBusy() const { return busy; }
+
+private:
+
+	bool busy = false;
+	float targetValue, stepDelta;
+	int stepAmount;
+
+};
+
 
 /** A lowpass filter that can be used to smooth parameter changes.
 *	@ingroup utility
@@ -229,7 +283,7 @@ public:
 
 	void fillBufferWithSmoothedValue(float targetValue, float* data, int numSamples)
 	{
-		const bool smoothThisBuffer = active && (fabsf(targetValue - currentValue) > 0.001f);
+		const bool smoothThisBuffer = resetRamper.isBusy() || (active && (fabsf(targetValue - currentValue) > 0.001f));
 
 		if (!smoothThisBuffer)
 		{
@@ -240,7 +294,19 @@ public:
 
 		SpinLock::ScopedLockType sl(spinLock);
 
-		for (int i = 0; i < numSamples; i++)
+		int startSample = 0;
+
+		while (resetRamper.isBusy() && startSample < numSamples)
+		{
+			resetRamper.ramp(currentValue);
+			prevValue = currentValue;
+
+			data[startSample] = currentValue;
+
+			startSample++;
+		}
+
+		for (int i = startSample; i < numSamples; i++)
 		{
 			currentValue = a0 * targetValue - b0 * prevValue;
 
@@ -255,6 +321,8 @@ public:
 
 		jassert(sampleRate > 0.0);
 
+		
+
 		for (int i = 0; i < numSamples; i++)
 		{
 			currentValue = a0 * data[i] - b0 * prevValue;
@@ -268,10 +336,19 @@ public:
 		return smoothTime;
 	};
 
-	void resetToValue(float targetValue)
+	void resetToValue(float targetValue, float ramptimeMilliseconds=0.0f)
 	{
-		currentValue = targetValue;
-		prevValue = targetValue;
+		if (ramptimeMilliseconds > 0.0f)
+		{
+			auto rampLengthSamples = roundFloatToInt(ramptimeMilliseconds / 1000.0f * sampleRate);
+
+			resetRamper.setTarget(currentValue, targetValue, rampLengthSamples);
+		}
+		else
+		{
+			currentValue = targetValue;
+			resetRamper.setValue(targetValue);
+		}
 	}
 
 	/** Sets the smoothing time in seconds. 
@@ -301,6 +378,8 @@ public:
 	{
 		sampleRate = (float)sampleRate_;
 
+		
+
 		setSmoothingTime(smoothTime);
 	};
 
@@ -316,6 +395,8 @@ public:
     }
     
 private:
+
+	Ramper resetRamper;
 
 	SpinLock spinLock;
 
@@ -333,59 +414,6 @@ private:
 	float prevValue;
 };
 
-
-/** A Ramper applies linear ramping to a value.
-*	@ingroup utility
-*
-*/
-class Ramper
-{
-public:
-
-	Ramper():
-		targetValue(0.0f),
-		stepDelta(0.0f),
-		stepAmount(-1)
-	{};
-
-	/** Sets the step amount that the ramper will use. You can overwrite this value by supplying a step number in setTarget. */
-	void setStepAmount(int newStepAmount) { stepAmount = newStepAmount; };
-
-	/** sets the new target and recalculates the step size using either the supplied step number or the step amount previously set by setStepAmount(). */
-	void setTarget(float currentValue, float newTarget, int numberOfSteps=-1)
-	{
-		if(numberOfSteps != -1) stepDelta = (newTarget - currentValue) / numberOfSteps;
-		else if (stepAmount != -1) stepDelta = (newTarget - currentValue) / stepAmount;
-		else jassertfalse; // Either the step amount should be set, or a new step amount should be supplied
-
-		targetValue = newTarget;
-		busy = true;
-	};
-
-	/** Sets the ramper value and the target to the new value and stops ramping. */
-	void setValue(float newValue)
-	{
-		targetValue = newValue;
-		stepDelta = 0.0f;
-		busy = false;
-	};
-
-	/** ramps the supplied value and returns true if the targetValue is reached. */
-	inline bool ramp(float &valueToChange) 
-	{
-		valueToChange += stepDelta;
-		busy = fabs(targetValue - valueToChange) > 0.001f;
-		return busy;
-	};
-
-	bool isBusy() const { return busy; }
-private:
-
-	bool busy = false;
-	float targetValue, stepDelta;
-	int stepAmount;
-
-};
 
 } // namespace hise
 
