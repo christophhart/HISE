@@ -538,7 +538,7 @@ String ScriptingApi::Content::ScriptComponent::getScriptObjectPropertiesAsJSON()
 {
 	auto v = getNonDefaultScriptObjectProperties();
 
-	return JSON::toString(v, false);
+	return JSON::toString(v, false, DOUBLE_TO_STRING_DIGITS);
 }
 
 bool ScriptingApi::Content::ScriptComponent::isPropertyDeactivated(Identifier &id) const
@@ -3467,7 +3467,7 @@ void ScriptingApi::Content::ScriptFloatingTile::setScriptObjectPropertyWithChang
 			specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::Type));
 
 			setScriptObjectProperty(ContentType, newValue, sendNotification);
-			setScriptObjectProperty(Data, JSON::toString(specialData), sendNotification);
+			setScriptObjectProperty(Data, JSON::toString(specialData, false, DOUBLE_TO_STRING_DIGITS), sendNotification);
 			return;
 		}
 	}

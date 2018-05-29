@@ -123,7 +123,7 @@ public:
 
 		tokeniser = new JavascriptTokeniser();
 		doc = new CodeDocument();
-		doc->replaceAllContent(JSON::toString(editedObject->toDynamicObject()));
+		doc->replaceAllContent(JSON::toString(editedObject->toDynamicObject(), false, DOUBLE_TO_STRING_DIGITS));
 		doc->setSavePoint();
 		doc->clearUndoHistory();
 
@@ -147,7 +147,7 @@ public:
 
 	JSONEditor(var object)
 	{
-		auto s = JSON::toString(object, false);
+		auto s = JSON::toString(object, false, DOUBLE_TO_STRING_DIGITS);
 
 		tokeniser = new JavascriptTokeniser();
 		doc = new CodeDocument();
@@ -239,7 +239,7 @@ public:
 	void setDataToEdit(var newData)
 	{
 		doc->clearUndoHistory();
-		doc->replaceAllContent(JSON::toString(newData));
+		doc->replaceAllContent(JSON::toString(newData, false, DOUBLE_TO_STRING_DIGITS));
 	}
 
 	void replace();
