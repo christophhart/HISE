@@ -213,8 +213,8 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateSensitivity(ScriptingA
 
 void ScriptCreatedComponentWrappers::SliderWrapper::updateSliderRange(ScriptingApi::Content::ScriptSlider* sc, HiSlider * s)
 {
-	const double min = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::min);
-	const double max = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::max);
+    double min = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::min);
+    double max = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::max);
 	const double stepsize = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::stepSize);
 	const double middlePos = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::middlePosition);
 
@@ -222,6 +222,9 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateSliderRange(ScriptingA
 
 	if (sc->m == HiSlider::Mode::TempoSync)
 	{
+        min = jmax(min, 0.0);
+        max = jmin(max, (double)((int)TempoSyncer::Tempo::numTempos-1));
+        
 		s->setMode(HiSlider::Mode::TempoSync, min, max, min + (max-min)/2, 1);
 		return;
 	}

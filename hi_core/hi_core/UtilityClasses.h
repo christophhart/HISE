@@ -720,10 +720,10 @@ public:
 	}
 
 	/** Returns the name of the tempo with the index 't'. */
-	static const String & getTempoName(int t)
+	static String getTempoName(int t)
 	{
 		jassert(t < numTempos);
-		return tempoNames[t];
+        return t < numTempos ? tempoNames[t] : "Invalid";
 	};
 
 	/** Returns the next Tempo index for the given time. 
@@ -755,7 +755,18 @@ public:
 	}
 
 	/** Returns the index of the tempo with the name 't'. */
-	static Tempo getTempoIndex(const String &t) { return (Tempo)tempoNames.indexOf(t); };
+	static Tempo getTempoIndex(const String &t)
+    {
+        int index = tempoNames.indexOf(t);
+        
+        if(index != -1)
+            return (Tempo)index;
+        else
+        {
+            jassertfalse;
+            return Tempo::Quarter;
+        }
+    };
 
 	/** Fills the internal arrays. Call this on application start. */
 	static void initTempoData()
@@ -783,7 +794,11 @@ public:
 
 private:
 
-	static float getTempoFactor(Tempo t) { return tempoFactors[(int)t]; };
+	static float getTempoFactor(Tempo t)
+    {
+        jassert(t < numTempos);
+        return t < numTempos ? tempoFactors[(int)t] : tempoFactors[(int)Tempo::Quarter];
+    };
 
 	static StringArray tempoNames;
 	static float tempoFactors[numTempos];
