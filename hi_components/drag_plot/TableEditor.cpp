@@ -53,7 +53,8 @@ TableEditor::TableEditor(UndoManager* undoManager_, Table *tableToBeEdited):
 	setColour(ColourIds::fillColour, Colours::white.withAlpha(0.2f));
 	setColour(ColourIds::lineColour, Colours::white);
 
-	if(editedTable.get() != nullptr) editedTable->addChangeListener(this);
+	if(editedTable.get() != nullptr)
+        editedTable->addChangeListener(this);
 }
 
 TableEditor::~TableEditor()
