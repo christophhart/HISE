@@ -294,6 +294,8 @@ void ShapeFX::prepareToPlay(double sampleRate, int samplesPerBlock)
 	lDcRemover.setCoefficients(dcCoeffs);
 	rDcRemover.setCoefficients(dcCoeffs);
 
+	
+
 	limiter.setSampleRate(sampleRate);
 	limiter.setAttack(0.03);
 	limiter.setRelease(100.0);
@@ -591,12 +593,16 @@ void ShapeFX::updateMix()
 PolyshapeFX::PolyshapeFX(MainController *mc, const String &uid, int numVoices):
 	VoiceEffectProcessor(mc, uid, numVoices),
 	driveChain(new ModulatorChain(mc, "Drive Modulation", numVoices, Modulation::Mode::GainMode, this)),
-	driveBuffer(1, 0)
+	driveBuffer(1, 0),
+	polyUpdater(*this)
 {
+	
+
 	for (int i = 0; i < numVoices; i++)
 	{
 		oversamplers.add(new ShapeFX::Oversampler(2, 2, ShapeFX::Oversampler::FilterType::filterHalfBandPolyphaseIIR, false));
 		dcRemovers.add(new SimpleOnePole());
+		driveSmoothers[i] = LinearSmoothedValue<float>(1.0f);
 	}
 
 	initShapers();
@@ -722,6 +728,11 @@ void PolyshapeFX::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	VoiceEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
+	for (int i = 0; i < NUM_POLYPHONIC_VOICES; i++)
+	{
+		driveSmoothers[i].reset(sampleRate, 0.05);
+	}
+
 	for (auto os : oversamplers)
 	{
 		os->initProcessing(samplesPerBlock);
@@ -740,7 +751,17 @@ void PolyshapeFX::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 void PolyshapeFX::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples)
 {
+	
+
 	float* driveValues = getCurrentModulationValues(DriveModulation, voiceIndex, startSample);
+
+	if (voiceIndex >= NUM_POLYPHONIC_VOICES)
+		return;
+
+	auto& smoother = driveSmoothers[voiceIndex];
+	
+	smoother.setValue(drive - 1.0f);
+
 
 	float* l = b.getWritePointer(0, startSample);
 	float* r = b.getWritePointer(1, startSample);
@@ -749,26 +770,22 @@ void PolyshapeFX::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSam
 	{
 		for (int i = 0; i < numSamples; i++)
 		{
-			l[i] = (l[i]) * (1.0f + driveValues[i] * (drive-1.0f)) + bias;
-			r[i] = (r[i]) * (1.0f + driveValues[i] * (drive-1.0f)) + bias;
+			const float driveValue = smoother.getNextValue();
 
-
+			l[i] = (l[i]) * (1.0f + driveValues[i] * (driveValue)) + bias;
+			r[i] = (r[i]) * (1.0f + driveValues[i] * (driveValue)) + bias;
 		}
 	}
 	else
 	{
 		for (int i = 0; i < numSamples; i++)
 		{
-			l[i] = (l[i] + bias) * (1.0f + driveValues[i] * (drive - 1.0f));
-			r[i] = (r[i] + bias) * (1.0f + driveValues[i] * (drive - 1.0f));
+			const float driveValue = smoother.getNextValue();
 
-
+			l[i] = (l[i] + bias) * (1.0f + driveValues[i] * (driveValue));
+			r[i] = (r[i] + bias) * (1.0f + driveValues[i] * (driveValue));
 		}
 	}
-
-	
-
-	
 
 	if (oversampling)
 	{
@@ -793,10 +810,18 @@ void PolyshapeFX::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSam
 
 	if (bias != 0.0f)
 		dcRemovers[voiceIndex]->processSamples(b, startSample, numSamples);
+
 }
 
 void PolyshapeFX::getWaveformTableValues(int /*displayIndex*/, float const** tableValues, int& numValues, float& normalizeValue)
 {
+	const float driveValue = driveChain->getOutputValue() * drive;
+
+	displayPeak = driveValue;
+
+	ShapeFX::generateRampForDisplayValue(displayTable, 1.0f + displayPeak);
+	shapers[mode]->processBlock(displayTable, unusedTable, SAMPLE_LOOKUP_TABLE_SIZE);
+
 	*tableValues = displayTable;
 	numValues = SAMPLE_LOOKUP_TABLE_SIZE;
 	normalizeValue = 1.0f;
@@ -804,10 +829,9 @@ void PolyshapeFX::getWaveformTableValues(int /*displayIndex*/, float const** tab
 
 void PolyshapeFX::recalculateDisplayTable()
 {
-	ShapeFX::generateRampForDisplayValue(displayTable, drive);
-
-	shapers[mode]->processBlock(displayTable, unusedTable, SAMPLE_LOOKUP_TABLE_SIZE);
-	triggerWaveformUpdate();
+	
 }
+
+
 
 }
