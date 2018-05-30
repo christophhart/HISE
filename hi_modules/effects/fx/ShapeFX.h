@@ -244,6 +244,7 @@ public:
 
 private:
 	
+	
 
 	TableShaper * getTableShaper();
 	const TableShaper * getTableShaper() const;
@@ -289,6 +290,7 @@ private:
 
 	SpinLock scriptLock;
 
+	
 	Result shapeResult;
 
 	ScopedPointer<Oversampler> oversampler;
@@ -437,6 +439,24 @@ public:
 
 private:
 
+	struct PolyUpdater : public Timer
+	{
+		PolyUpdater(PolyshapeFX& parent_) :
+			parent(parent_)
+		{
+			startTimer(50);
+		};
+
+		void timerCallback() override
+		{
+			parent.triggerWaveformUpdate();
+		}
+
+		PolyshapeFX& parent;
+	};
+
+	void updateSmoothedGainers();
+
 	class TableUpdater : public SafeChangeListener
 	{
 	public:
@@ -468,6 +488,9 @@ private:
 	OwnedArray<ShapeFX::ShaperBase> shapers;
 	OwnedArray<ShapeFX::Oversampler> oversamplers;
 	float drive = 1.0f;
+
+	Array<LinearSmoothedValue<float>> driveSmoothers;
+
 	int mode = ShapeFX::ShapeMode::Linear;
 	bool oversampling = false;
 	ScopedPointer<ModulatorChain> driveChain;
@@ -476,6 +499,10 @@ private:
 	OwnedArray<SimpleOnePole> dcRemovers;
 
 	ScopedPointer<TableUpdater> tableUpdater;
+
+	float displayPeak = 0.0f;
+
+	PolyUpdater polyUpdater;
 
 	float bias = 0.0f;
 
