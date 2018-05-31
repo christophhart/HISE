@@ -566,104 +566,107 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	thisAsProcessor->getMainController()->getScriptComponentEditBroadcaster()->clearSelection(sendNotification);
 
-    ScopedLock callbackLock(thisAsProcessor->isOnAir() ? mainController->getLock() : thisAsProcessor->getDummyLockWhenNotOnAir());
-
-    
-	ScopedWriteLock sl(mainController->getCompileLock());
-    
-
-	scriptEngine->clearDebugInformation();
-
-	content->beginInitialization();
-
-	setupApi();
-
-	content = thisAsScriptBaseProcessor->getScriptingContent();
-
-	
-    scriptEngine->setIsInitialising(true);
-    
-	if(cycleReferenceCheckEnabled)
-		scriptEngine->setUseCycleReferenceCheckForNextCompilation();
-
-	thisAsScriptBaseProcessor->allowObjectConstructors = true;
-
-	const static Identifier onInit("onInit");
-
-	for (int i = 0; i < getNumSnippets(); i++)
 	{
-		getSnippet(i)->checkIfScriptActive();
 
-		if (!getSnippet(i)->isSnippetEmpty())
+		ScopedLock callbackLock(thisAsProcessor->isOnAir() ? mainController->getLock() : thisAsProcessor->getDummyLockWhenNotOnAir());
+
+
+		ScopedWriteLock sl(mainController->getCompileLock());
+
+
+		scriptEngine->clearDebugInformation();
+
+		content->beginInitialization();
+
+		setupApi();
+
+		content = thisAsScriptBaseProcessor->getScriptingContent();
+
+
+		scriptEngine->setIsInitialising(true);
+
+		if (cycleReferenceCheckEnabled)
+			scriptEngine->setUseCycleReferenceCheckForNextCompilation();
+
+		thisAsScriptBaseProcessor->allowObjectConstructors = true;
+
+		const static Identifier onInit("onInit");
+
+		for (int i = 0; i < getNumSnippets(); i++)
 		{
-			const Identifier callbackId = getSnippet(i)->getCallbackName();
+			getSnippet(i)->checkIfScriptActive();
+
+			if (!getSnippet(i)->isSnippetEmpty())
+			{
+				const Identifier callbackId = getSnippet(i)->getCallbackName();
 
 #if ENABLE_SCRIPTING_BREAKPOINTS
-			Array<HiseJavascriptEngine::Breakpoint> breakpointsForCallback;
+				Array<HiseJavascriptEngine::Breakpoint> breakpointsForCallback;
 
-			for (int k = 0; k < breakpoints.size(); k++)
-			{
-				if (breakpoints[k].snippetId == callbackId || breakpoints[k].snippetId.toString().startsWith("File_"))
-					breakpointsForCallback.add(breakpoints[k]);
-			}
+				for (int k = 0; k < breakpoints.size(); k++)
+				{
+					if (breakpoints[k].snippetId == callbackId || breakpoints[k].snippetId.toString().startsWith("File_"))
+						breakpointsForCallback.add(breakpoints[k]);
+				}
 
-			if (!breakpointsForCallback.isEmpty())
-				scriptEngine->setBreakpoints(breakpointsForCallback);
+				if (!breakpointsForCallback.isEmpty())
+					scriptEngine->setBreakpoints(breakpointsForCallback);
 
 
 #endif
 
-			lastResult = scriptEngine->execute(getSnippet(i)->getSnippetAsFunction(), callbackId == onInit);
+				lastResult = scriptEngine->execute(getSnippet(i)->getSnippetAsFunction(), callbackId == onInit);
 
-			if (!lastResult.wasOk())
-			{
-				debugError(thisAsProcessor, lastResult.getErrorMessage());
-
-				content->endInitialization();
-                scriptEngine->setIsInitialising(false);
-				thisAsScriptBaseProcessor->allowObjectConstructors = false;
-
-				// Check the rest of the snippets or they will be deleted on failed compile...
-				for (int j = i; j < getNumSnippets(); j++)
+				if (!lastResult.wasOk())
 				{
-					getSnippet(j)->checkIfScriptActive();
+					debugError(thisAsProcessor, lastResult.getErrorMessage());
+
+					content->endInitialization();
+					scriptEngine->setIsInitialising(false);
+					thisAsScriptBaseProcessor->allowObjectConstructors = false;
+
+					// Check the rest of the snippets or they will be deleted on failed compile...
+					for (int j = i; j < getNumSnippets(); j++)
+					{
+						getSnippet(j)->checkIfScriptActive();
+					}
+
+					lastCompileWasOK = false;
+
+					scriptEngine->rebuildDebugInformation();
+					return SnippetResult(lastResult, i);
+
 				}
-
-				lastCompileWasOK = false;
-
-				scriptEngine->rebuildDebugInformation();
-				return SnippetResult(lastResult, i);
-
 			}
 		}
+
+		scriptEngine->rebuildDebugInformation();
+
+		try
+		{
+			content->restoreAllControlsFromPreset(thisAsScriptBaseProcessor->restoredContentValues);
+		}
+		catch (String& s)
+		{
+			debugError(thisAsProcessor, "Error at content restoring: " + s);
+		}
+
+		useStoredContentData = false; // From now on it's normal;
+
+		content->endInitialization();
+
+		scriptEngine->setIsInitialising(false);
+
+		thisAsScriptBaseProcessor->allowObjectConstructors = false;
+
+		lastCompileWasOK = true;
+
+		if (thisAsProcessor->getMainController()->getScriptComponentEditBroadcaster()->isBeingEdited(thisAsProcessor))
+		{
+			debugToConsole(thisAsProcessor, "Compiled OK");
+		}
+
 	}
-
-	scriptEngine->rebuildDebugInformation();
-
-	try
-	{
-		content->restoreAllControlsFromPreset(thisAsScriptBaseProcessor->restoredContentValues);
-	}
-	catch (String& s)
-	{
-		debugError(thisAsProcessor, "Error at content restoring: " + s);
-	}
-	
-	useStoredContentData = false; // From now on it's normal;
-
-	content->endInitialization();
-
-    scriptEngine->setIsInitialising(false);
-    
-	thisAsScriptBaseProcessor->allowObjectConstructors = false;
-
-	lastCompileWasOK = true;
-
-	if (thisAsProcessor->getMainController()->getScriptComponentEditBroadcaster()->isBeingEdited(thisAsProcessor))
-	{
-		debugToConsole(thisAsProcessor, "Compiled OK");
-	}
-	
 
 	postCompileCallback();
 
