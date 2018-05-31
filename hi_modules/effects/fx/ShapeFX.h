@@ -135,6 +135,9 @@ public:
 			}
 		}
 
+		
+
+
 		float getSingleValue(float input) { return ShapeFunction::shape(input); };
 	};
 
@@ -437,6 +440,8 @@ public:
 
 	void recalculateDisplayTable();
 
+	void startVoice(int voiceIndex, int noteNumber) override;
+
 private:
 
 	struct PolyUpdater : public Timer
@@ -446,6 +451,11 @@ private:
 		{
 			startTimer(50);
 		};
+
+		~PolyUpdater()
+		{
+			stopTimer();
+		}
 
 		void timerCallback() override
 		{
@@ -483,13 +493,15 @@ private:
 
 	void initShapers();
 
+	PolyUpdater polyUpdater;
+
 	StringArray shapeNames;
 
 	OwnedArray<ShapeFX::ShaperBase> shapers;
 	OwnedArray<ShapeFX::Oversampler> oversamplers;
 	float drive = 1.0f;
 
-	Array<LinearSmoothedValue<float>> driveSmoothers;
+	LinearSmoothedValue<float> driveSmoothers[NUM_POLYPHONIC_VOICES];
 
 	int mode = ShapeFX::ShapeMode::Linear;
 	bool oversampling = false;
@@ -502,7 +514,7 @@ private:
 
 	float displayPeak = 0.0f;
 
-	PolyUpdater polyUpdater;
+	
 
 	float bias = 0.0f;
 

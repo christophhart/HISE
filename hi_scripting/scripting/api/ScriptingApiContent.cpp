@@ -1985,6 +1985,14 @@ void ScriptingApi::Content::ScriptTable::handleDefaultDeactivatedProperties()
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(linkedTo));
 }
 
+void ScriptingApi::Content::ScriptTable::resetValueToDefault()
+{
+	if (auto t = getTable())
+	{
+		t->reset();
+		t->sendChangeMessage();
+	}
+}
 
 struct ScriptingApi::Content::ScriptSliderPack::Wrapper
 {
@@ -4013,44 +4021,52 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const ValueTree &preset
 
 		auto presetChild = preset.getChildWithProperty(id_, components[i]->getName().toString());
 
+		var v;
+
 		if (presetChild.isValid())
 		{
 			static const Identifier value_("value");
 
-			auto v = Helpers::getCleanedComponentValue(presetChild.getProperty(value_));
+			v = Helpers::getCleanedComponentValue(presetChild.getProperty(value_));
 
-			if (dynamic_cast<ScriptingApi::Content::ScriptLabel*>(components[i].get()) != nullptr)
-			{
-				getScriptProcessor()->controlCallback(components[i], v);
-			}
-            else if (auto ssp = dynamic_cast<ScriptingApi::Content::ScriptSliderPack*>(components[i].get()))
-            {
-                // This must be restored again from the ValueTree in order to maintain the correct value
-                ssp->restoreFromValueTree(presetChild);
-                getScriptProcessor()->controlCallback(ssp, ssp->getValue());
-            }
-			else if (v.isObject())
-			{
-				getScriptProcessor()->controlCallback(components[i], v);
-			}
-			else
-			{
-				getProcessor()->setAttribute(i, (float)v, sendNotification);
-			}
-
-			const String macroName = components[i]->getScriptObjectProperty(ScriptComponent::macroControl).toString();
-
-			const int macroIndex = macroNames.indexOf(macroName) - 1;
-
-			if (macroIndex >= 0)
-			{
-				NormalisableRange<float> range(components[i]->getScriptObjectProperty(ScriptComponent::min), components[i]->getScriptObjectProperty(ScriptComponent::max));
-
-				getProcessor()->getMainController()->getMacroManager().getMacroChain()->setMacroControl(macroIndex, range.convertTo0to1(components[i]->getValue()) * 127.0f, sendNotification);
-			}
+		}
+		else
+		{
+			components[i]->resetValueToDefault();
+			v = components[i]->getValue();
 		}
 
-		
+		if (dynamic_cast<ScriptingApi::Content::ScriptLabel*>(components[i].get()) != nullptr)
+		{
+			getScriptProcessor()->controlCallback(components[i], v);
+		}
+        else if (auto ssp = dynamic_cast<ScriptingApi::Content::ScriptSliderPack*>(components[i].get()))
+        {
+            // This must be restored again from the ValueTree in order to maintain the correct value
+            if(presetChild.isValid())
+				ssp->restoreFromValueTree(presetChild);
+
+            getScriptProcessor()->controlCallback(ssp, ssp->getValue());
+        }
+		else if (v.isObject())
+		{
+			getScriptProcessor()->controlCallback(components[i], v);
+		}
+		else
+		{
+			getProcessor()->setAttribute(i, (float)v, sendNotification);
+		}
+
+		const String macroName = components[i]->getScriptObjectProperty(ScriptComponent::macroControl).toString();
+
+		const int macroIndex = macroNames.indexOf(macroName) - 1;
+
+		if (macroIndex >= 0)
+		{
+			NormalisableRange<float> range(components[i]->getScriptObjectProperty(ScriptComponent::min), components[i]->getScriptObjectProperty(ScriptComponent::max));
+
+			getProcessor()->getMainController()->getMacroManager().getMacroChain()->setMacroControl(macroIndex, range.convertTo0to1(components[i]->getValue()) * 127.0f, sendNotification);
+		}
 	}
 }
 
@@ -4076,20 +4092,22 @@ void ScriptingApi::Content::restoreFromValueTree(const ValueTree &v)
 {
 	jassert(v.getType().toString() == "Content");
 
+	static const Identifier id_("id");
+
 	for (int i = 0; i < components.size(); i++)
 	{
 		if (!components[i]->getScriptObjectProperty(ScriptComponent::Properties::saveInPreset)) continue;
 
-		ValueTree child = v.getChildWithProperty("id", components[i]->name.toString());
-
-		const String childTypeString = child.getProperty("type");
-
-		if (childTypeString.isEmpty()) continue;
-
-		Identifier childType(childTypeString);
+		ValueTree child = v.getChildWithProperty(id_, components[i]->name.toString());
 
 		if (child.isValid())
 		{
+			const String childTypeString = child.getProperty("type");
+
+			if (childTypeString.isEmpty()) continue;
+
+			Identifier childType(childTypeString);
+
 			components[i]->restoreFromValueTree(child);
 
 			if (childType != components[i]->getObjectName())
@@ -4097,6 +4115,12 @@ void ScriptingApi::Content::restoreFromValueTree(const ValueTree &v)
 				debugError(dynamic_cast<Processor*>(getScriptProcessor()), "Type mismatch in preset");
 			}
 		}
+		else
+		{
+			components[i]->resetValueToDefault();
+		}
+
+		
 	}
 };
 

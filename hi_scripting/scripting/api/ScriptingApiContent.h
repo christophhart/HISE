@@ -318,6 +318,11 @@ public:
 		void assign(const int index, var newValue) override;
 		int getCachedIndex(const var &indexExpression) const override;
 
+		virtual void resetValueToDefault()
+		{
+			setValue(0);
+		}
+
 		void setScriptObjectProperty(int p, var newValue, NotificationType notifyListeners = dontSendNotification);
 
 		virtual void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification);
@@ -680,6 +685,11 @@ public:
 		ValueTree exportAsValueTree() const override;
 		void restoreFromValueTree(const ValueTree &v) override;
 
+		void resetValueToDefault() override
+		{
+			setValue(getScriptObjectProperty(Properties::defaultValue));
+		}
+
 		void handleDefaultDeactivatedProperties() override;
 
 		// ======================================================================================================== API Methods
@@ -819,6 +829,11 @@ public:
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification);
 		StringArray getItemList() const;
 
+		void resetValueToDefault() override
+		{
+			setValue(1);
+		}
+
 		void handleDefaultDeactivatedProperties();
 
 		// ======================================================================================================== API Methods
@@ -897,6 +912,11 @@ public:
 			}
 		}
 
+		void resetValueToDefault() override
+		{
+			setValue("");
+		}
+
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification)
 		{
 			if (id == getIdFor((int)ScriptComponent::Properties::text))
@@ -955,6 +975,8 @@ public:
 
 		ValueTree exportAsValueTree() const override;
 		void restoreFromValueTree(const ValueTree &v) override;
+
+		void resetValueToDefault() override;
 
 		Table *getTable();
 		const Table *getTable() const;
@@ -1026,6 +1048,11 @@ public:
 		void handleDefaultDeactivatedProperties() override;
 
 		void setValue(var newValue) override;
+
+		void resetValueToDefault() override
+		{
+			setAllValues(0.0);
+		}
 
 		var getValue() const override;
 
@@ -1472,10 +1499,13 @@ public:
 
 		StringArray getOptionsFor(const Identifier &id) override;
 		Justification getJustification();
-
 		const StringArray& getItemList() const { return currentItems; }
 
 		void handleDefaultDeactivatedProperties() override;
+		void resetValueToDefault() override
+		{
+			setValue(0);
+		}
 
 	private:
 
@@ -1581,6 +1611,14 @@ public:
 
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */) override;
 		void handleDefaultDeactivatedProperties() override;
+
+		void resetValueToDefault() override
+		{
+			if (auto a = getAudioProcessor())
+			{
+				a->setLoadedFile("", true, true);
+			}
+		}
 
 		StringArray getOptionsFor(const Identifier &id) override;
 		ValueTree exportAsValueTree() const override;
