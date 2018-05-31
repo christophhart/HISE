@@ -76,6 +76,16 @@ public:
         }
     }
 
+	/** Set a new target value without ramping.
+	@param newValue New target value
+	*/
+	void setValueWithoutSmoothing(FloatType newValue) noexcept
+	{
+		target = newValue;
+		currentValue = target;
+		countdown = 0;
+	}
+
     //==============================================================================
     /** Compute the next value.
         @returns Smoothed value
