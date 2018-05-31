@@ -602,7 +602,7 @@ PolyshapeFX::PolyshapeFX(MainController *mc, const String &uid, int numVoices):
 	{
 		oversamplers.add(new ShapeFX::Oversampler(2, 2, ShapeFX::Oversampler::FilterType::filterHalfBandPolyphaseIIR, false));
 		dcRemovers.add(new SimpleOnePole());
-		driveSmoothers[i] = LinearSmoothedValue<float>(1.0f);
+		driveSmoothers[i] = LinearSmoothedValue<float>(0.0f);
 	}
 
 	initShapers();
@@ -758,32 +758,38 @@ void PolyshapeFX::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSam
 	if (voiceIndex >= NUM_POLYPHONIC_VOICES)
 		return;
 
-	auto& smoother = driveSmoothers[voiceIndex];
+	auto smoother = &driveSmoothers[voiceIndex];
 	
-	smoother.setValue(drive - 1.0f);
+	smoother->setValue(drive - 1.0f);
 
+	smoother->applyGain(driveValues, numSamples);
+
+	FloatVectorOperations::add(driveValues, 1.0f, numSamples);
 
 	float* l = b.getWritePointer(0, startSample);
 	float* r = b.getWritePointer(1, startSample);
 
 	if (mode == ShapeFX::ShapeMode::Sin || mode == ShapeFX::ShapeMode::TanCos)
 	{
-		for (int i = 0; i < numSamples; i++)
+		if (bias != 0.0f)
 		{
-			const float driveValue = smoother.getNextValue();
-
-			l[i] = (l[i]) * (1.0f + driveValues[i] * (driveValue)) + bias;
-			r[i] = (r[i]) * (1.0f + driveValues[i] * (driveValue)) + bias;
+			FloatVectorOperations::multiply(l, driveValues, numSamples);
+			FloatVectorOperations::add(l, bias, numSamples);
+			FloatVectorOperations::multiply(r, driveValues, numSamples);
+			FloatVectorOperations::add(r, bias, numSamples);
+		}
+		else
+		{
+			FloatVectorOperations::multiply(l, driveValues, numSamples);
+			FloatVectorOperations::multiply(r, driveValues, numSamples);
 		}
 	}
 	else
 	{
 		for (int i = 0; i < numSamples; i++)
 		{
-			const float driveValue = smoother.getNextValue();
-
-			l[i] = (l[i] + bias) * (1.0f + driveValues[i] * (driveValue));
-			r[i] = (r[i] + bias) * (1.0f + driveValues[i] * (driveValue));
+			l[i] = (l[i] + bias) * (1.0f + driveValues[i]);
+			r[i] = (r[i] + bias) * (1.0f + driveValues[i]);
 		}
 	}
 
@@ -808,23 +814,47 @@ void PolyshapeFX::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSam
 		shapers[mode]->processBlock(l, r, numSamples);
 	}
 
-	if (bias != 0.0f)
+	const float attenuation = 0.03162f;
+
+	for (int i = 0; i < numSamples; i++)
+	{
+		l[i] /= (attenuation * driveValues[i] + 1.0f);
+		r[i] /= (attenuation * driveValues[i] + 1.0f);
+	}
+
+	if (bias != 0.0f || mode == ShapeFX::ShapeMode::AsymetricalCurve)
 		dcRemovers[voiceIndex]->processSamples(b, startSample, numSamples);
 
 }
 
 void PolyshapeFX::getWaveformTableValues(int /*displayIndex*/, float const** tableValues, int& numValues, float& normalizeValue)
 {
-	const float driveValue = driveChain->getOutputValue() * drive;
+	const float driveValue = 1.0f + (driveChain->getOutputValue() * (drive-1.0f));
+
+
+
 
 	displayPeak = driveValue;
 
-	ShapeFX::generateRampForDisplayValue(displayTable, 1.0f + displayPeak);
-	shapers[mode]->processBlock(displayTable, unusedTable, SAMPLE_LOOKUP_TABLE_SIZE);
+	ShapeFX::generateRampForDisplayValue(displayTable, displayPeak);
+
+	if (auto s = shapers[mode])
+	{
+		shapers[mode]->processBlock(displayTable, unusedTable, SAMPLE_LOOKUP_TABLE_SIZE);
+	}
 
 	*tableValues = displayTable;
 	numValues = SAMPLE_LOOKUP_TABLE_SIZE;
-	normalizeValue = 1.0f;
+
+	switch (mode)
+	{
+	case ShapeFX::ShapeMode::Atan:				normalizeValue = 1.0f / std::atanf(displayPeak); break;
+	case ShapeFX::ShapeMode::Asinh:				normalizeValue = 1.0f / std::asinhf(displayPeak); break;
+	case ShapeFX::ShapeMode::AsymetricalCurve:	normalizeValue = 1.0f; break;
+	default:									normalizeValue = 1.0f;	break;
+	}
+
+	
 }
 
 void PolyshapeFX::recalculateDisplayTable()
@@ -833,5 +863,13 @@ void PolyshapeFX::recalculateDisplayTable()
 }
 
 
+
+void PolyshapeFX::startVoice(int voiceIndex, int noteNumber)
+{
+	VoiceEffectProcessor::startVoice(voiceIndex, noteNumber);
+
+	driveSmoothers[voiceIndex].setValueWithoutSmoothing(drive-1.0f);
+
+}
 
 }
