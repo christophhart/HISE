@@ -123,13 +123,13 @@ public:
 
 	void calculateNoFMBlock(int startSample, int numSamples);
 
-	void calculateNoFMVoiceInternal(ModulatorSynth* childSynth, int unisonoIndex, int startSample, int numSamples, const float * voicePitchValues);
+	void calculateNoFMVoiceInternal(ModulatorSynth* childSynth, int unisonoIndex, int startSample, int numSamples, const float * voicePitchValues, bool& isFirst);
 
 	void calculateDetuneMultipliers(int childVoiceIndex);
 
 	void calculateFMBlock(ModulatorSynthGroup * group, int startSample, int numSamples);
 
-	void calculateFMCarrierInternal(ModulatorSynthGroup * group, int childVoiceIndex, int startSample, int numSamples, const float * voicePitchValues);
+	void calculateFMCarrierInternal(ModulatorSynthGroup * group, int childVoiceIndex, int startSample, int numSamples, const float * voicePitchValues, bool& isFirst);
 
 	int getChildVoiceAmount() const;
 
