@@ -248,7 +248,7 @@ public:
 		struct PropertyWithValue
 		{
 			int id;
-			var value;
+			var value = var::undefined();
 		};
 
 		// ============================================================================================================
@@ -592,10 +592,12 @@ public:
 
 		void removeLinkedTarget(ScriptComponent* targetToRemove)
 		{
-			linkedComponentTargets.removeObject(targetToRemove);
+			linkedComponentTargets.removeAllInstancesOf(targetToRemove);
 		}
 
-		void updatePropertiesAfterLink(const Array<PropertyWithValue>& idList, NotificationType notifyEditor);
+		void updatePropertiesAfterLink(NotificationType notifyEditor);
+
+		virtual Array<PropertyWithValue> getLinkProperties() const;
 
 		Array<Identifier> propertyIds;
 		Array<Identifier> deactivatedProperties;
@@ -628,9 +630,9 @@ public:
 
 		BigInteger initialisedProperties;
 
-		ScriptComponent::Ptr linkedComponent;
+        WeakReference<ScriptComponent> linkedComponent;
 
-		ReferenceCountedArray<ScriptComponent> linkedComponentTargets;
+		Array<WeakReference<ScriptComponent>> linkedComponentTargets;
 
 		var customControlCallback;
 
@@ -644,6 +646,8 @@ public:
         bool macroRecursionProtection = false;
 
 		uint32 lastExecutedCallbackTime = 0;
+        
+        JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptComponent);
         
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptComponent);
 	};
@@ -693,6 +697,8 @@ public:
 		}
 
 		void handleDefaultDeactivatedProperties() override;
+
+		Array<PropertyWithValue> getLinkProperties() const override;
 
 		// ======================================================================================================== API Methods
 
@@ -837,6 +843,8 @@ public:
 		}
 
 		void handleDefaultDeactivatedProperties();
+
+		Array<PropertyWithValue> getLinkProperties() const override;
 
 		// ======================================================================================================== API Methods
 
@@ -1510,6 +1518,8 @@ public:
 		{
 			setValue(0);
 		}
+
+		Array<PropertyWithValue> getLinkProperties() const override;
 
 	private:
 

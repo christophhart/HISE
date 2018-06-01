@@ -238,7 +238,18 @@ void ScriptComponentEditBroadcaster::setScriptComponentPropertyForSelection(cons
 	while (auto sc = iter.getNextScriptComponent())
 		thisSelection.add(sc);
 
-	manager.perform(new PropertyChange(this, thisSelection, propertyId, newValue, notifyListeners));
+    try
+    {
+        manager.perform(new PropertyChange(this, thisSelection, propertyId, newValue, notifyListeners));
+    }
+    catch(String& s)
+    {
+        if(currentlyEditedProcessor.get())
+        {
+            debugError(currentlyEditedProcessor, s);
+        }
+    }
+	
 
 	
 }
