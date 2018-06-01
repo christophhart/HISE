@@ -190,6 +190,8 @@ private:
     ScopedPointer<ModulatorChain> widthChain;
 	ScopedPointer<ModulatorChain> balanceChain;
 
+	LinearSmoothedValue<float> smoothedGainL;
+	LinearSmoothedValue<float> smoothedGainR;
 	Smoother smoother;
 	Smoother balanceSmoother;
 
