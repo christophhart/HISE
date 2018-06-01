@@ -791,6 +791,21 @@ AttributedString DynamicObjectDebugInformation::getDescription() const
 	return AttributedString();
 }
 
+void ScriptingObject::logErrorAndContinue(const String &errorMessage) const
+{
+#if USE_BACKEND
+    
+    auto mc = getScriptProcessor()->getMainController_();
+    auto chain = const_cast<ModulatorSynthChain*>(mc->getMainSynthChain());
+    
+    debugError(chain, errorMessage);
+    
+#else
+    ignoreUnused(errorMessage);
+    DBG(errorMessage);
+#endif
+}
+    
 void ScriptingObject::reportScriptError(const String &errorMessage) const
 {
 #if USE_BACKEND

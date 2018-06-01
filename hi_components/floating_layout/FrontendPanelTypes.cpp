@@ -192,15 +192,23 @@ Component* MidiKeyboardPanel::getKeyboard() const
 	return keyboard->asComponent();
 }
 
+
+void MidiKeyboardPanel::Updater::handleAsyncUpdate()
+{
+	if (parent.cachedData.isObject())
+	{
+		parent.restoreInternal(parent.cachedData);
+		parent.resized();
+	}
+}
+
+
+
 void MidiKeyboardPanel::mpeModeChanged(bool isEnabled)
 {
 	mpeModeEnabled = isEnabled;
 
-	if (cachedData.isObject())
-	{
-		restoreInternal(cachedData);
-		resized();
-	}
+	updater.triggerAsyncUpdate();
 }
 
 int MidiKeyboardPanel::getNumDefaultableProperties() const
