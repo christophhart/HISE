@@ -265,8 +265,10 @@ void ScriptComponentListItem::refreshScriptDefinedState()
 
 		repaintItem();
 	}
-	catch (String& /*errorMessage*/)
+	catch (String& errorMessage)
 	{
+        DBG(errorMessage);
+        ignoreUnused(errorMessage);
 		jassertfalse;
 	}
 

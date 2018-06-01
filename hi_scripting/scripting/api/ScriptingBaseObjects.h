@@ -80,6 +80,8 @@ protected:
 	/** \internal Prints a specially formatted message if the function is not allowed to be called in this callback. */
 	void reportIllegalCall(const String &callName, const String &allowedCallback) const;
 	
+    void logErrorAndContinue(const String& errorMessage) const;
+    
 private:
 
 	ProcessorWithScriptingContent* processor;	
