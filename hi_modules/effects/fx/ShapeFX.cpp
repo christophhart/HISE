@@ -442,22 +442,26 @@ void ShapeFX::updateMode()
 
 void ShapeFX::updateOversampling()
 {
-	ScopedLock sl(oversamplerLock);
-
 	auto factor = roundDoubleToInt(log2((double)oversampleFactor));
 
-	oversampler = new Oversampler(2, factor, Oversampler::FilterType::filterHalfBandPolyphaseIIR, false);
+	ScopedPointer<Oversampler> newOverSampler = new Oversampler(2, factor, Oversampler::FilterType::filterHalfBandPolyphaseIIR, false);
 
-	if(getBlockSize() > 0)
-		oversampler->initProcessing(getBlockSize());
+	if (getBlockSize() > 0)
+		newOverSampler->initProcessing(getBlockSize());
 
-	int latency = roundFloatToInt(oversampler->getLatencyInSamples());
-
-	if(getSampleRate() > 0.0)
-		bitCrushSmoother.reset(getSampleRate() * oversampleFactor, 0.04);
+	int latency = roundFloatToInt(newOverSampler->getLatencyInSamples());
 
 	lDelay.setDelayTimeSamples(latency);
 	rDelay.setDelayTimeSamples(latency);
+
+	{
+		SpinLock::ScopedLockType sl(oversamplerLock);
+
+		oversampler.swapWith(newOverSampler);
+
+		if (getSampleRate() > 0.0)
+			bitCrushSmoother.reset(getSampleRate() * oversampleFactor, 0.04);
+	}
 }
 
 void ShapeFX::updateGain()
@@ -546,24 +550,36 @@ void ShapeFX::applyEffect(AudioSampleBuffer &b, int startSample, int numSamples)
 		}
 	}
 
-	dsp::AudioBlock<float> block(b, startSample);
-	ScopedLock sl(oversamplerLock);
-	dsp::AudioBlock<float> oversampledData = oversampler->processSamplesUp(block);
-	auto numOversampled = (int)oversampledData.getNumSamples();
-
-	float* o_l = oversampledData.getChannelPointer(0);
-	float* o_r = oversampledData.getChannelPointer(1);
-
-	shapers[mode]->processBlock(o_l, o_r, numOversampled);
-	processBitcrushedValues(o_l, o_r, numOversampled);
-	oversampler->processSamplesDown(block);
-
-	if (oversampler->getLatencyInSamples() > 0.0f)
+	if (oversampleFactor != 1)
 	{
-		lDelay.processBlock(dryL, numSamples);
-		rDelay.processBlock(dryR, numSamples);
+		dsp::AudioBlock<float> block(b, startSample);
+		
+		SpinLock::ScopedLockType sl(oversamplerLock);
+		dsp::AudioBlock<float> oversampledData = oversampler->processSamplesUp(block);
+		auto numOversampled = (int)oversampledData.getNumSamples();
+
+		float* data_l = oversampledData.getChannelPointer(0);
+		float* data_r = oversampledData.getChannelPointer(1);
+
+		shapers[mode]->processBlock(data_l, data_r, numOversampled);
+		processBitcrushedValues(data_l, data_r, numOversampled);
+		oversampler->processSamplesDown(block);
+
+		if (oversampler->getLatencyInSamples() > 0.0f)
+		{
+			lDelay.processBlock(dryL, numSamples);
+			rDelay.processBlock(dryR, numSamples);
+		}
+	}
+	else
+	{
+		SpinLock::ScopedLockType sl(oversamplerLock);
+
+		shapers[mode]->processBlock(wetL, wetR, numSamples);
+		processBitcrushedValues(wetL, wetR, numSamples);
 	}
 
+	
 	lDcRemover.processSamples(wetL, numSamples);
 	rDcRemover.processSamples(wetR, numSamples);
 
