@@ -187,6 +187,18 @@ public:
 
 private:
 
+	struct Updater : public AsyncUpdater
+	{
+		Updater(MidiKeyboardPanel& parent_) : parent(parent_)
+		{}
+
+		void handleAsyncUpdate() override;
+
+		MidiKeyboardPanel& parent;
+	};
+
+	Updater updater = *this;
+
 	void restoreInternal(const var& data);
 
 	var cachedData;
