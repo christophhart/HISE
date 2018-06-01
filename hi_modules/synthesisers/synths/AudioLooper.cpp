@@ -137,6 +137,9 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 
 	auto loopOffset = jmax<int>(0, loopStart - offset);
 
+	bool resetAfterBlock = false;
+	bool checkReset = !looper->isUsingLoop();
+
 	while (--numSamples >= 0)
 	{
 		int uptime = (int)voiceUptime;
@@ -147,11 +150,12 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 		//const int samplePos = (int)voiceUptime % looper->length + looper->sampleRange.getStart();
 		//const int nextSamplePos = ((int)voiceUptime + 1) % looper->length + looper->sampleRange.getStart();
 
-        if(!looper->isUsingLoop() && uptime > looper->length)
+        if(checkReset && (uptime+1) > looper->length)
         {
-			voiceBuffer.clear(startSample, numSamples);
-			resetVoice();
-            return;
+			voiceBuffer.clear(startSample, numSamples+1);
+
+			resetAfterBlock = true;
+			break;
         }
         
 		const double alpha = fmod(voiceUptime, 1.0);
@@ -195,6 +199,9 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 		//const float inputValue = (float)((int)voiceUptime % looper->length) / (float)looper->length;
 		looper->setInputValue((float)samplePos / (float)actualLength, dontSendNotification);
 	}
+
+	if (resetAfterBlock)
+		resetVoice();
 }
 
 void AudioLooperVoice::resetVoice()
