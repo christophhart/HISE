@@ -484,18 +484,17 @@ void ModulatorChain::renderVoice(int voiceIndex, int startSample, int numSamples
 			m->polyManager.clearCurrentVoice();
 		}
 
+		if (getMode() != Modulation::PitchMode)
+			FloatVectorOperations::clip(internalBuffer.getWritePointer(0, startIndex), internalBuffer.getReadPointer(0, startIndex), (getMode() == Modulation::GainMode ? 0.0f : -1.0f), 1.0f, sampleAmount);
+
+		if (voiceIndex == polyManager.getLastStartedVoice())
+			pushPlotterValues(internalBuffer, startSample, sampleAmount);
 	}
 
 	CHECK_AND_LOG_BUFFER_DATA_WITH_ID(parentProcessor, chainIdentifier, DebugLogger::Location::ModulatorChainVoiceRendering, internalBuffer.getReadPointer(0, startIndex), true, sampleAmount);
 
-	if(getMode() != Modulation::PitchMode)
-		FloatVectorOperations::clip(internalBuffer.getWritePointer(0, startIndex), internalBuffer.getReadPointer(0, startIndex), (getMode() == Modulation::GainMode ? 0.0f : -1.0f), 1.0f, sampleAmount);
-
 	// Copy the result to the voice buffer
 	FloatVectorOperations::copy(internalVoiceBuffer.getWritePointer(voiceIndex, startIndex), internalBuffer.getReadPointer(0, startIndex), sampleAmount);
-
-	if(voiceIndex == polyManager.getLastStartedVoice())
-		pushPlotterValues(internalBuffer, startSample, sampleAmount);
 
 #if ENABLE_ALL_PEAK_METERS
 	if (voiceIndex == polyManager.getLastStartedVoice())

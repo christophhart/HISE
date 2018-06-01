@@ -62,6 +62,8 @@ int SliderPackData::getNumSliders() const { return values.size(); };
 
 void SliderPackData::setValue(int sliderIndex, float value, NotificationType notifySliderPack/*=dontSendNotification*/, bool useUndoManager)
 {
+	ScopedReadLock sl(arrayLock);
+
 	if (sliderIndex >= 0 && sliderIndex < getNumSliders())
 	{
 		if (useUndoManager && undoManager != nullptr)
@@ -81,6 +83,8 @@ void SliderPackData::setValue(int sliderIndex, float value, NotificationType not
 
 float SliderPackData::getValue(int index) const
 {
+	ScopedReadLock sl(arrayLock);
+
 	if (index >= 0 && index < getNumSliders())
 	{
 		return values[index];
@@ -92,6 +96,8 @@ float SliderPackData::getValue(int index) const
 
 void SliderPackData::setFromFloatArray(const Array<float> &valueArray)
 {
+	ScopedReadLock sl(arrayLock);
+
 	for (int i = 0; i < valueArray.size(); i++)
 	{
 		if (i < getNumSliders())
@@ -140,12 +146,18 @@ void SliderPackData::fromBase64(const String &encodedValues)
 
 	Array<float> newData((float*)mb.getData(), (int)(mb.getSize() / sizeof(float)));
 
-	values = Array<var>();
+	var newArray = Array<var>();
+
+	
 
 	for (int i = 0; i < newData.size(); i++)
 	{
-		values.append(newData[i]);
+		newArray.append(newData[i]);
 	}
+
+	ScopedWriteLock sl(arrayLock);
+	values.swapWith(newArray);
+
 }
 
 void SliderPackData::setNewUndoAction() const
@@ -156,8 +168,26 @@ void SliderPackData::setNewUndoAction() const
 
 void SliderPackData::setNumSliders(int numSliders)
 {
-	values.resize(numSliders);
+	int delta = numSliders - values.size();
 
+	if (delta > 0)
+	{
+		ScopedWriteLock sl(arrayLock);
+
+		for (int i = 0; i < delta; i++)
+		{
+			values.append(var(0.0f));
+		}
+	}
+	else if (delta < 0)
+	{
+		ScopedWriteLock sl(arrayLock);
+
+		if (auto ar = values.getArray())
+		{
+			ar->removeRange(numSliders, delta);
+		}
+	}
 	sendChangeMessage();
 }
 

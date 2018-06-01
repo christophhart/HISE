@@ -86,8 +86,11 @@ public:
 
 	void swapData(Array<var> &otherData)
 	{
-		values = var(otherData);
-
+		{
+			ScopedWriteLock sl(arrayLock);
+			values = var(otherData);
+		}
+		
 		sendChangeMessage();
 	}
 
@@ -164,6 +167,10 @@ private:
 		float oldValue, newValue;
 		NotificationType n;
 	};
+
+	
+
+	ReadWriteLock arrayLock;
 
 	UndoManager* undoManager;
 

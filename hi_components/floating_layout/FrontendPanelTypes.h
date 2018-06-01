@@ -197,7 +197,7 @@ private:
 		MidiKeyboardPanel& parent;
 	};
 
-	Updater updater = *this;
+	Updater updater;
 
 	void restoreInternal(const var& data);
 

@@ -155,7 +155,8 @@ void ActivityLedPanel::setOn(bool shouldBeOn)
 
 
 MidiKeyboardPanel::MidiKeyboardPanel(FloatingTile* parent) :
-	FloatingTileContent(parent)
+	FloatingTileContent(parent),
+	updater(*this)
 {
 	setDefaultPanelColour(PanelColourId::bgColour, Colours::transparentBlack);
 

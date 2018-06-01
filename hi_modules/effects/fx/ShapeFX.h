@@ -285,15 +285,8 @@ private:
 
 	void recalculateDisplayTable();
 
-	
+	SpinLock oversamplerLock;
 
-	
-
-	CriticalSection oversamplerLock;
-
-	SpinLock scriptLock;
-
-	
 	Result shapeResult;
 
 	ScopedPointer<Oversampler> oversampler;
@@ -316,8 +309,6 @@ private:
 
 	LowpassSmoothedValue gainer;
 	LowpassSmoothedValue autogainer;
-
-	
 
 	LinearSmoothedValue<float> mixSmootherL;
 	LinearSmoothedValue<float> mixSmoother_invL;

@@ -900,7 +900,9 @@ void HiseAudioThumbnail::LoadingThread::run()
 
 	float width = (float)bounds.getWidth();
 
-	if (auto l = lb.getBuffer())
+	VariantBuffer::Ptr l = lb.getBuffer();
+
+	if (l)
 	{
 		if (l->size != 0)
 		{
@@ -910,6 +912,8 @@ void HiseAudioThumbnail::LoadingThread::run()
 			calculatePath(lPath, width, data, numSamples);
 		}
 	}
+
+	VariantBuffer::Ptr r = rb.getBuffer();
 
 	if (auto r = rb.getBuffer())
 	{

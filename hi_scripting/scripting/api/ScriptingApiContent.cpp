@@ -3446,6 +3446,8 @@ void ScriptingApi::Content::ScriptFloatingTile::setScriptObjectPropertyWithChang
 {
 	if (id == getIdFor(ContentType))
 	{
+		MessageManagerLock mm;
+
 		FloatingTile ft(getScriptProcessor()->getMainController_(), nullptr);
 
 		ft.setNewContent(newValue.toString());
