@@ -150,7 +150,7 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 		//const int samplePos = (int)voiceUptime % looper->length + looper->sampleRange.getStart();
 		//const int nextSamplePos = ((int)voiceUptime + 1) % looper->length + looper->sampleRange.getStart();
 
-        if(checkReset && (uptime+1) > looper->length)
+        if(checkReset && (uptime+2) > looper->length)
         {
 			voiceBuffer.clear(startSample, numSamples+1);
 

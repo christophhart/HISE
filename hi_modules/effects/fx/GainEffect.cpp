@@ -44,8 +44,9 @@ balance(0.0f),
 gainBuffer(1, 0),
 delayBuffer(1, 0),
 widthBuffer(1, 0),
-balanceBuffer(1, 0)
-
+balanceBuffer(1, 0),
+smoothedGainL(1.0f),
+smoothedGainR(1.0f)
 {
 	
 	smoother.setSmoothingTime(0.2f);
@@ -70,7 +71,10 @@ void GainEffect::setInternalAttribute(int parameterIndex, float newValue)
 {
 	switch (parameterIndex)
 	{
-	case Gain:							gain = Decibels::decibelsToGain(newValue); break;
+	case Gain:							gain = Decibels::decibelsToGain(newValue); 
+										smoothedGainL.setValue(gain);
+										smoothedGainR.setValue(gain);
+										break;
     case Delay:                         setDelayTime(newValue); break;
     case Width:                         msDecoder.setWidth(newValue/100.0f); break;
 	case Balance:						balance = newValue; break;
@@ -144,45 +148,20 @@ void GainEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int num
 		rightDelay.setDelayTimeSeconds(thisDelayTime / 1000.0f);
 	}
 
-	while (numSamples > 0)
+
+	if (delay != 0)
 	{
-		const float smoothedGain = smoother.smooth(gain);
+		leftDelay.processBlock(l, numSamples);
+		smoothedGainL.applyGain(l, numSamples);
 
-		if (delay != 0)
-		{
-			l[0] = leftDelay.getDelayedValue(smoothedGain * l[0]);
-			r[0] = rightDelay.getDelayedValue(smoothedGain * r[0]);
-
-			l[1] = leftDelay.getDelayedValue(smoothedGain * l[1]);
-			r[1] = rightDelay.getDelayedValue(smoothedGain * r[1]);
-
-			l[2] = leftDelay.getDelayedValue(smoothedGain * l[2]);
-			r[2] = rightDelay.getDelayedValue(smoothedGain * r[2]);
-
-			l[3] = leftDelay.getDelayedValue(smoothedGain * l[3]);
-			r[3] = rightDelay.getDelayedValue(smoothedGain * r[3]);
-		}
-		else
-		{
-			l[0] = smoothedGain * l[0];
-			r[0] = smoothedGain * r[0];
-
-			l[1] = smoothedGain * l[1];
-			r[1] = smoothedGain * r[1];
-
-			l[2] = smoothedGain * l[2];
-			r[2] = smoothedGain * r[2];
-
-			l[3] = smoothedGain * l[3];
-			r[3] = smoothedGain * r[3];
-		}
-
-		l += 4;
-		r += 4;
-
-		numSamples -= 4;
+		rightDelay.processBlock(r, numSamples);
+		smoothedGainR.applyGain(r, numSamples);
 	}
-
+	else
+	{
+		smoothedGainL.applyGain(l, numSamples);
+		smoothedGainR.applyGain(r, numSamples);
+	}
 
 	if (msDecoder.getWidth() != 1.0f)
 	{
@@ -262,6 +241,9 @@ void GainEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
         
 		smoother.prepareToPlay(sampleRate);
 		smoother.setSmoothingTime(4.0);
+
+		smoothedGainL.reset(44100, 0.2);
+		smoothedGainR.reset(44100, 0.2);
 
 		balanceSmoother.prepareToPlay(sampleRate / (double)samplesPerBlock);
 		balanceSmoother.setSmoothingTime(1000.0f);
