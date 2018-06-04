@@ -471,7 +471,7 @@ void ScriptComponentEditPanel::pasteAction()
 
 	auto result = JSON::parse(clipboardContent, parsedJson);
 
-	if (result.wasOk())
+	if (result.wasOk() && parsedJson.getDynamicObject() != nullptr)
 	{
 		auto set = parsedJson.getDynamicObject()->getProperties();
 

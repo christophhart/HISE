@@ -196,7 +196,13 @@ void ScriptContentComponent::changeListenerCallback(SafeChangeBroadcaster *b)
 	{
 		auto index = contentData->getComponentIndex(sc->name);
 
-		componentWrappers[index]->updateValue(sc->getValue());
+		if (index == -1)
+			return;
+
+		if (auto w = componentWrappers[index])
+		{
+			w->updateValue(sc->getValue());
+		}
 	}
 	else
 	{
