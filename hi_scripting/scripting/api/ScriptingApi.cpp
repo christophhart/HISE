@@ -968,7 +968,8 @@ struct ScriptingApi::Engine::Wrapper
 
 ScriptingApi::Engine::Engine(ProcessorWithScriptingContent *p) :
 ScriptingObject(p),
-ApiClass(0)
+ApiClass(0),
+parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 {
 	ADD_API_METHOD_0(allNotesOff);
 	ADD_API_METHOD_0(getUptime);
@@ -1080,11 +1081,9 @@ double ScriptingApi::Engine::getSamplesForMilliSeconds(double milliSeconds) cons
 
 double ScriptingApi::Engine::getUptime() const		 
 {
-	const ScriptBaseMidiProcessor* jmp = dynamic_cast<const ScriptBaseMidiProcessor*>(getProcessor());
-
-	if (jmp != nullptr && jmp->getCurrentHiseEvent() != nullptr)
+	if (parentMidiProcessor != nullptr && parentMidiProcessor->getCurrentHiseEvent() != nullptr)
 	{
-		return jmp->getMainController()->getUptime() + jmp->getCurrentHiseEvent()->getTimeStamp() / getSampleRate();
+		return parentMidiProcessor->getMainController()->getUptime() + parentMidiProcessor->getCurrentHiseEvent()->getTimeStamp() / getSampleRate();
 	}
 
 	return getProcessor()->getMainController()->getUptime(); 
@@ -2013,7 +2012,9 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	owner(ownerSynth),
 	numPressedKeys(0),
 	keyDown(0),
-	sustainState(false)
+	sustainState(false),
+	parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p)),
+	jp(dynamic_cast<JavascriptMidiProcessor*>(p))
 {
 	jassert(owner != nullptr);
 
@@ -2100,6 +2101,9 @@ void ScriptingApi::Synth::noteOffByEventId(int eventId)
 
 void ScriptingApi::Synth::noteOffDelayedByEventId(int eventId, int timestamp)
 {
+	if (parentMidiProcessor == nullptr)
+		reportScriptError("Can't call this outside of MIDI script processors");
+
 	const HiseEvent e = getProcessor()->getMainController()->getEventHandler().popNoteOnFromEventId((uint16)eventId);
 
 	if (!e.isEmpty())
@@ -2110,7 +2114,7 @@ void ScriptingApi::Synth::noteOffDelayedByEventId(int eventId, int timestamp)
 			reportScriptError("Hell breaks loose if you kill real events artificially!");
 		}
 #endif
-		const HiseEvent* current = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor())->getCurrentHiseEvent();
+		const HiseEvent* current = parentMidiProcessor->getCurrentHiseEvent();
 
 		if (current != nullptr)
 		{
@@ -2123,12 +2127,7 @@ void ScriptingApi::Synth::noteOffDelayedByEventId(int eventId, int timestamp)
 
 		if (e.isArtificial()) noteOff.setArtificial();
 
-		ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor());
-
-		if (sp != nullptr)
-		{
-			sp->addHiseEventToBuffer(noteOff);
-		}
+		parentMidiProcessor->addHiseEventToBuffer(noteOff);
 	}
 	else
 	{
@@ -2171,7 +2170,7 @@ int ScriptingApi::Synth::playNoteWithStartOffset(int channel, int number, int ve
 
 void ScriptingApi::Synth::addVolumeFade(int eventId, int fadeTimeMilliseconds, int targetVolume)
 {
-	if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getScriptProcessor()))
+	if (parentMidiProcessor != nullptr)
 	{
 		if (eventId > 0)
 		{
@@ -2179,12 +2178,12 @@ void ScriptingApi::Synth::addVolumeFade(int eventId, int fadeTimeMilliseconds, i
 			{
 				HiseEvent e = HiseEvent::createVolumeFade((uint16)eventId, fadeTimeMilliseconds, (uint8)targetVolume);
 
-				if (const HiseEvent* current = sp->getCurrentHiseEvent())
+				if (const HiseEvent* current = parentMidiProcessor->getCurrentHiseEvent())
 				{
 					e.setTimeStamp(current->getTimeStamp());
 				}
 
-				sp->addHiseEventToBuffer(e);
+				parentMidiProcessor->addHiseEventToBuffer(e);
                 
                 if(targetVolume == -100)
                 {
@@ -2202,7 +2201,7 @@ void ScriptingApi::Synth::addVolumeFade(int eventId, int fadeTimeMilliseconds, i
                         
                         uint16 timestamp = timeStampOffset;
                         
-                        const HiseEvent* current = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor())->getCurrentHiseEvent();
+                        const HiseEvent* current = parentMidiProcessor->getCurrentHiseEvent();
                         
                         if (current != nullptr)
                         {
@@ -2214,8 +2213,7 @@ void ScriptingApi::Synth::addVolumeFade(int eventId, int fadeTimeMilliseconds, i
                         noteOff.setTimeStamp(timestamp);
                         noteOff.setArtificial();
                         
-                        if (sp != nullptr)
-                            sp->addHiseEventToBuffer(noteOff);
+                        parentMidiProcessor->addHiseEventToBuffer(noteOff);
                         
                     }
                     else
@@ -2234,7 +2232,7 @@ void ScriptingApi::Synth::addVolumeFade(int eventId, int fadeTimeMilliseconds, i
 
 void ScriptingApi::Synth::addPitchFade(int eventId, int fadeTimeMilliseconds, int targetCoarsePitch, int targetFinePitch)
 {
-	if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getScriptProcessor()))
+	if (parentMidiProcessor != nullptr)
 	{
 		if (eventId > 0)
 		{
@@ -2242,10 +2240,10 @@ void ScriptingApi::Synth::addPitchFade(int eventId, int fadeTimeMilliseconds, in
 			{
 				HiseEvent e = HiseEvent::createPitchFade((uint16)eventId, fadeTimeMilliseconds, (uint8)targetCoarsePitch, (uint8)targetFinePitch);
 				
-				if(sp->getCurrentHiseEvent())
-					e.setTimeStamp(sp->getCurrentHiseEvent()->getTimeStamp());
+				if(auto ce = parentMidiProcessor->getCurrentHiseEvent())
+					e.setTimeStamp(ce->getTimeStamp());
 
-				sp->addHiseEventToBuffer(e);
+				parentMidiProcessor->addHiseEventToBuffer(e);
 			}
 			else reportScriptError("Fade time must be positive");
 		}
@@ -2256,7 +2254,7 @@ void ScriptingApi::Synth::addPitchFade(int eventId, int fadeTimeMilliseconds, in
 
 int ScriptingApi::Synth::addMessageFromHolder(var messageHolder)
 {
-	if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getScriptProcessor()))
+	if (parentMidiProcessor != nullptr)
 	{
 		ScriptingObjects::ScriptingMessageHolder* m = dynamic_cast<ScriptingObjects::ScriptingMessageHolder*>(messageHolder.getObject());
 
@@ -2270,20 +2268,20 @@ int ScriptingApi::Synth::addMessageFromHolder(var messageHolder)
 
 				if (e.isNoteOn())
 				{
-					sp->getMainController()->getEventHandler().pushArtificialNoteOn(e);
-					sp->addHiseEventToBuffer(e);
+					parentMidiProcessor->getMainController()->getEventHandler().pushArtificialNoteOn(e);
+					parentMidiProcessor->addHiseEventToBuffer(e);
 					return e.getEventId();
 				}
 				else if (e.isNoteOff())
 				{
-					e.setEventId(sp->getMainController()->getEventHandler().getEventIdForNoteOff(e));
+					e.setEventId(parentMidiProcessor->getMainController()->getEventHandler().getEventIdForNoteOff(e));
 
-					sp->addHiseEventToBuffer(e);
+					parentMidiProcessor->addHiseEventToBuffer(e);
 					return e.getTimeStamp();
 				}
 				else
 				{
-					sp->addHiseEventToBuffer(e);
+					parentMidiProcessor->addHiseEventToBuffer(e);
 					return 0;
 				}
 			}
@@ -2307,21 +2305,22 @@ void ScriptingApi::Synth::startTimer(double intervalInSeconds)
 #endif
 
 	
-	auto p = dynamic_cast<ScriptBaseMidiProcessor*>(getScriptProcessor());
+	
 
-	auto jmp = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor());
+	
 
-	if (p == nullptr) return;
+	if (parentMidiProcessor == nullptr)
+		reportScriptError("Timers only work in MIDI processors!");
 
-	if(jmp != nullptr && jmp->isDeferred())
+	if(jp != nullptr && jp->isDeferred())
 	{
-		owner->stopSynthTimer(p->getIndexInChain());
-		jmp->startTimer((int)(intervalInSeconds * 1000));
-		p->setIndexInChain(-1);
+		owner->stopSynthTimer(parentMidiProcessor->getIndexInChain());
+		jp->startTimer((int)(intervalInSeconds * 1000));
+		parentMidiProcessor->setIndexInChain(-1);
 	}
 	else
 	{
-		int freeTimerSlot = p->getIndexInChain() != -1 ? p->getIndexInChain() : owner->getFreeTimerSlot();
+		int freeTimerSlot = parentMidiProcessor->getIndexInChain() != -1 ? parentMidiProcessor->getIndexInChain() : owner->getFreeTimerSlot();
 
 		if (freeTimerSlot == -1)
 		{
@@ -2329,9 +2328,9 @@ void ScriptingApi::Synth::startTimer(double intervalInSeconds)
 			return;
 		}
 
-		p->setIndexInChain(freeTimerSlot);
+		parentMidiProcessor->setIndexInChain(freeTimerSlot);
 
-		auto* e = p->getCurrentHiseEvent();
+		auto* e = parentMidiProcessor->getCurrentHiseEvent();
 
 		int timestamp = 0;
 
@@ -2340,63 +2339,61 @@ void ScriptingApi::Synth::startTimer(double intervalInSeconds)
 			timestamp = e->getTimeStamp();
 		}
 
-		owner->startSynthTimer(p->getIndexInChain(), intervalInSeconds, timestamp);
+		owner->startSynthTimer(parentMidiProcessor->getIndexInChain(), intervalInSeconds, timestamp);
 	}
 }
 
 void ScriptingApi::Synth::stopTimer()
 {
-	auto p = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor());
-	auto sbmp = static_cast<ScriptBaseMidiProcessor*>(getScriptProcessor());
-
-
-	if(p != nullptr && p->isDeferred())
+	if(jp != nullptr && jp->isDeferred())
 	{
-		owner->stopSynthTimer(p->getIndexInChain());
-		p->stopTimer();
+		owner->stopSynthTimer(jp->getIndexInChain());
+		jp->stopTimer();
 	}
 	else
 	{
-		if(sbmp != nullptr) owner->stopSynthTimer(sbmp->getIndexInChain());
+		if(parentMidiProcessor != nullptr) owner->stopSynthTimer(parentMidiProcessor->getIndexInChain());
 
-		sbmp->setIndexInChain(-1);
+		parentMidiProcessor->setIndexInChain(-1);
 	}
 }
 
 bool ScriptingApi::Synth::isTimerRunning() const
 {
-	const JavascriptMidiProcessor *p = dynamic_cast<const JavascriptMidiProcessor*>(getScriptProcessor());
+	
 
-	if (p != nullptr && p->isDeferred())
+	if (jp != nullptr && jp->isDeferred())
 	{
-		return p->isTimerRunning();
+		return jp->isTimerRunning();
 
 	}
 	else
 	{
-		if (p != nullptr) return owner->getTimerInterval(p->getIndexInChain()) != 0.0;
+		if (parentMidiProcessor != nullptr) 
+			return owner->getTimerInterval(parentMidiProcessor->getIndexInChain()) != 0.0;
 		else return false;
 	}
 }
 
 double ScriptingApi::Synth::getTimerInterval() const
 {
-	const JavascriptMidiProcessor *p = dynamic_cast<const JavascriptMidiProcessor*>(getScriptProcessor());
+	
 
-	if (p != nullptr && p->isDeferred())
+	if (jp != nullptr && jp->isDeferred())
 	{
-		return (double)p->getTimerInterval() / 1000.0;
+		return (double)jp->getTimerInterval() / 1000.0;
 	}
 	else
 	{
-		if (p != nullptr) return owner->getTimerInterval(p->getIndexInChain());
+		if (parentMidiProcessor != nullptr) 
+			return owner->getTimerInterval(parentMidiProcessor->getIndexInChain());
 		else return 0.0;
 	}
 }
 
 void ScriptingApi::Synth::sendController(int controllerNumber, int controllerValue)
 {
-	if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getScriptProcessor()))
+	if (parentMidiProcessor != nullptr)
 	{
 		if (controllerNumber > 0)
 		{
@@ -2415,12 +2412,12 @@ void ScriptingApi::Synth::sendController(int controllerNumber, int controllerVal
                 }
                 
 				
-				if (const HiseEvent* current = sp->getCurrentHiseEvent())
+				if (const HiseEvent* current = parentMidiProcessor->getCurrentHiseEvent())
 				{
 					e.setTimeStamp(current->getTimeStamp());
 				}
 
-				sp->addHiseEventToBuffer(e);
+				parentMidiProcessor->addHiseEventToBuffer(e);
 			}
 			else reportScriptError("CC value must be positive");
 		}
@@ -2766,13 +2763,13 @@ int ScriptingApi::Synth::internalAddNoteOn(int channel, int noteNumber, int velo
 			{
 				if (timeStampSamples >= 0)
 				{
-					if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getScriptProcessor()))
+					if (parentMidiProcessor != nullptr)
 					{
 						HiseEvent m = HiseEvent(HiseEvent::Type::NoteOn, (uint8)noteNumber, (uint8)velocity, (uint8)channel);
 
-						if (sp->getCurrentHiseEvent() != nullptr)
+						if (auto ce = parentMidiProcessor->getCurrentHiseEvent())
 						{
-							m.setTimeStamp((uint16)sp->getCurrentHiseEvent()->getTimeStamp() + (uint16)timeStampSamples);
+							m.setTimeStamp((uint16)ce->getTimeStamp() + (uint16)timeStampSamples);
 						}
 						else
 						{
@@ -2786,8 +2783,8 @@ int ScriptingApi::Synth::internalAddNoteOn(int channel, int noteNumber, int velo
 
 						m.setArtificial();
 
-						sp->getMainController()->getEventHandler().pushArtificialNoteOn(m);
-						sp->addHiseEventToBuffer(m);
+						parentMidiProcessor->getMainController()->getEventHandler().pushArtificialNoteOn(m);
+						parentMidiProcessor->addHiseEventToBuffer(m);
 
 						return m.getEventId();
 					}
@@ -2817,15 +2814,15 @@ void ScriptingApi::Synth::addNoteOff(int channel, int noteNumber, int timeStampS
 		{
 			if (timeStampSamples >= 0)
 			{
-				if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor()))
+				if (parentMidiProcessor != nullptr)
 				{
 					timeStampSamples = jmax<int>(1, timeStampSamples);
 
 					HiseEvent m = HiseEvent(HiseEvent::Type::NoteOff, (uint8)noteNumber, 127, (uint8)channel);
 
-					if (sp->getCurrentHiseEvent() != nullptr)
+					if (auto ce = parentMidiProcessor->getCurrentHiseEvent())
 					{
-						m.setTimeStamp((uint16)sp->getCurrentHiseEvent()->getTimeStamp() + (uint16)timeStampSamples);
+						m.setTimeStamp((uint16)ce->getTimeStamp() + (uint16)timeStampSamples);
 					}
 					else
 					{
@@ -2834,11 +2831,11 @@ void ScriptingApi::Synth::addNoteOff(int channel, int noteNumber, int timeStampS
 
 					m.setArtificial();
 
-					const uint16 eventId = sp->getMainController()->getEventHandler().getEventIdForNoteOff(m);
+					const uint16 eventId = parentMidiProcessor->getMainController()->getEventHandler().getEventIdForNoteOff(m);
 
 					m.setEventId(eventId);
 
-					sp->addHiseEventToBuffer(m);
+					parentMidiProcessor->addHiseEventToBuffer(m);
 
 				}
 			}
@@ -2859,13 +2856,13 @@ void ScriptingApi::Synth::addController(int channel, int number, int value, int 
 			{
 				if (timeStampSamples >= 0)
 				{
-					if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor()))
+					if (parentMidiProcessor != nullptr)
 					{
 						HiseEvent m = HiseEvent(HiseEvent::Type::Controller, (uint8)number, (uint8)value, (uint8)channel);
 						
-						if (sp->getCurrentHiseEvent() != nullptr)
+						if (auto ce = parentMidiProcessor->getCurrentHiseEvent())
 						{
-							m.setTimeStamp((uint16)sp->getCurrentHiseEvent()->getTimeStamp() + (uint16)timeStampSamples);
+							m.setTimeStamp((uint16)ce->getTimeStamp() + (uint16)timeStampSamples);
 						}
 						else
 						{
@@ -2874,7 +2871,7 @@ void ScriptingApi::Synth::addController(int channel, int number, int value, int 
 
 						m.setArtificial();
 
-						sp->addHiseEventToBuffer(m);
+						parentMidiProcessor->addHiseEventToBuffer(m);
 					}
 					
 				}
