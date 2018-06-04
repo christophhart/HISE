@@ -167,7 +167,7 @@ void ModulatorSynthGroupVoice::calculateBlock(int startSample, int numSamples)
 	ScopedLock sl(ownerSynth->getSynthLock());
 
 	// Clear the buffer, since all child voices are added to this so it must be empty.
-	voiceBuffer.clear();
+	//voiceBuffer.clear();
 
 	ModulatorSynthGroup *group = static_cast<ModulatorSynthGroup*>(getOwnerSynth());
 
@@ -201,6 +201,8 @@ void ModulatorSynthGroupVoice::calculateNoFMBlock(int startSample, int numSample
 {
 	const float *voicePitchValues = getVoicePitchValues();
 
+	bool isFirst = true;
+
 	for (int i = 0; i < numUnisonoVoices; i++)
 	{
 		const int unisonoVoiceIndex = voiceIndex*numUnisonoVoices + i;
@@ -208,24 +210,22 @@ void ModulatorSynthGroupVoice::calculateNoFMBlock(int startSample, int numSample
 		Iterator iter(this);
 
 		while (auto childSynth = iter.getNextActiveChildSynth())
-			calculateNoFMVoiceInternal(childSynth, unisonoVoiceIndex, startSample, numSamples, voicePitchValues);
+			calculateNoFMVoiceInternal(childSynth, unisonoVoiceIndex, startSample, numSamples, voicePitchValues, isFirst);
 	}
 }
 
 
-void ModulatorSynthGroupVoice::calculateNoFMVoiceInternal(ModulatorSynth * childSynth, int childVoiceIndex, int startSample, int numSamples, const float * voicePitchValues)
+void ModulatorSynthGroupVoice::calculateNoFMVoiceInternal(ModulatorSynth* childSynth, int unisonoIndex, int startSample, int numSamples, const float * voicePitchValues, bool& isFirst)
 {
 	if (childSynth->isSoftBypassed())
 		return;
 
-	if (childVoiceIndex >= NUM_POLYPHONIC_VOICES)
+	if (unisonoIndex >= NUM_POLYPHONIC_VOICES)
 		return;
 
-	
+	calculateDetuneMultipliers(unisonoIndex);
 
-	calculateDetuneMultipliers(childVoiceIndex);
-
-	auto& childContainer = getChildContainer(childVoiceIndex);
+	auto& childContainer = getChildContainer(unisonoIndex);
 
 	const float gain = childSynth->getGain();
 	const float g_left = detuneValues.getGainFactor(false) * gain * childSynth->getBalance(false);
@@ -264,18 +264,37 @@ void ModulatorSynthGroupVoice::calculateNoFMVoiceInternal(ModulatorSynth * child
 			FloatVectorOperations::add(scratch, childVoice->getVoiceValues(1, startSample), numSamples);
 			FloatVectorOperations::multiply(scratch, 0.5f, numSamples);
 
-			voiceBuffer.addFrom(0, startSample, scratch, numSamples, g_left);
-			voiceBuffer.addFrom(1, startSample, scratch, numSamples, g_right);
+			if (isFirst)
+			{
+				voiceBuffer.copyFrom(0, startSample, scratch, numSamples, g_left);
+				voiceBuffer.copyFrom(1, startSample, scratch, numSamples, g_right);
+				isFirst = false;
+			}
+			else
+			{
+				voiceBuffer.addFrom(0, startSample, scratch, numSamples, g_left);
+				voiceBuffer.addFrom(1, startSample, scratch, numSamples, g_right);
+			}
+			
 		}
 		else
 		{
-			voiceBuffer.addFrom(0, startSample, childVoice->getVoiceValues(0, startSample), numSamples, g_left);
-			voiceBuffer.addFrom(1, startSample, childVoice->getVoiceValues(1, startSample), numSamples, g_right);
+			if (isFirst)
+			{
+				voiceBuffer.copyFrom(0, startSample, childVoice->getVoiceValues(0, startSample), numSamples, g_left);
+				voiceBuffer.copyFrom(1, startSample, childVoice->getVoiceValues(1, startSample), numSamples, g_right);
+				isFirst = false;
+			}
+			else
+			{
+				voiceBuffer.addFrom(0, startSample, childVoice->getVoiceValues(0, startSample), numSamples, g_left);
+				voiceBuffer.addFrom(1, startSample, childVoice->getVoiceValues(1, startSample), numSamples, g_right);
+			}
 		}
 
 		if (childVoice->getCurrentlyPlayingSound() == nullptr)
 		{
-			resetInternal(childSynth, childVoiceIndex);
+			resetInternal(childSynth, unisonoIndex);
 			return;
 		}
 			
@@ -363,15 +382,17 @@ void ModulatorSynthGroupVoice::calculateFMBlock(ModulatorSynthGroup * group, int
 
 	// Calculate the carrier voice
 
+	bool isFirst = true;
+
 	for (int i = 0; i < numUnisonoVoices; i++)
 	{
 		const int unisonoVoiceIndex = voiceIndex*numUnisonoVoices + i;
-		calculateFMCarrierInternal(group, unisonoVoiceIndex, startSample, numSamples, voicePitchValues);
+		calculateFMCarrierInternal(group, unisonoVoiceIndex, startSample, numSamples, voicePitchValues, isFirst);
 	}
 }
 
 
-void ModulatorSynthGroupVoice::calculateFMCarrierInternal(ModulatorSynthGroup * group, int childVoiceIndex, int startSample, int numSamples, const float * voicePitchValues)
+void ModulatorSynthGroupVoice::calculateFMCarrierInternal(ModulatorSynthGroup * group, int childVoiceIndex, int startSample, int numSamples, const float * voicePitchValues, bool& isFirst)
 {
 	if (childVoiceIndex >= NUM_POLYPHONIC_VOICES)
 		return;
@@ -437,13 +458,36 @@ void ModulatorSynthGroupVoice::calculateFMCarrierInternal(ModulatorSynthGroup * 
 			FloatVectorOperations::add(scratch, carrierVoice->getVoiceValues(1, startSample), numSamples);
 			FloatVectorOperations::multiply(scratch, 0.5f, numSamples);
 
-			voiceBuffer.addFrom(0, startSample, scratch, numSamples, g_left);
-			voiceBuffer.addFrom(1, startSample, scratch, numSamples, g_right);
+			if (isFirst)
+			{
+				voiceBuffer.copyFrom(0, startSample, scratch, numSamples, g_left);
+				voiceBuffer.copyFrom(1, startSample, scratch, numSamples, g_right);
+
+				isFirst = false;
+			}
+			else
+			{
+				voiceBuffer.addFrom(0, startSample, scratch, numSamples, g_left);
+				voiceBuffer.addFrom(1, startSample, scratch, numSamples, g_right);
+			}
+			
 		}
 		else
 		{
-			voiceBuffer.addFrom(0, startSample, carrierVoice->getVoiceValues(0, startSample), numSamples, g_left);
-			voiceBuffer.addFrom(1, startSample, carrierVoice->getVoiceValues(1, startSample), numSamples, g_right);
+			if (isFirst)
+			{
+				voiceBuffer.copyFrom(0, startSample, carrierVoice->getVoiceValues(0, startSample), numSamples, g_left);
+				voiceBuffer.copyFrom(1, startSample, carrierVoice->getVoiceValues(1, startSample), numSamples, g_right);
+
+				isFirst = false;
+			}
+			else
+			{
+				voiceBuffer.addFrom(0, startSample, carrierVoice->getVoiceValues(0, startSample), numSamples, g_left);
+				voiceBuffer.addFrom(1, startSample, carrierVoice->getVoiceValues(1, startSample), numSamples, g_right);
+			}
+
+			
 		}
 
 
