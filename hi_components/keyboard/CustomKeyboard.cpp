@@ -97,7 +97,7 @@ CustomKeyboard::CustomKeyboard(MainController* mc_) :
 	state(&mc_->getKeyboardState()),
 	mc(mc_),
     narrowKeys(true),
-    lowKey(36)
+    lowKey(12)
 {
 	state->addChangeListener(this);
    

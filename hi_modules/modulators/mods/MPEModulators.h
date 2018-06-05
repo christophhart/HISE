@@ -117,6 +117,8 @@ public:
 		float targetValue = 0.0f;
 		
 		bool isPressed = false;
+
+		bool isRingingOff = false;
 	};
 
 	ModulatorState *createSubclassedState(int voiceIndex) const override { return new MPEState(voiceIndex); };

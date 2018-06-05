@@ -136,7 +136,7 @@ void EffectProcessorChain::EffectChainHandler::add(Processor *newProcessor, Proc
 	newProcessor->setConstrainerForAllInternalChains(chain->getFactoryType()->getConstrainer());
 
 	if (chain->getSampleRate() > 0.0 && newProcessor != nullptr)
-		newProcessor->prepareToPlay(chain->getSampleRate(), chain->getBlockSize());
+		newProcessor->prepareToPlay(chain->getSampleRate(), chain->getLargestBlockSize());
 	else
 	{
 		debugError(chain, "Trying to add a processor to a uninitialized effect chain (internal engine error).");

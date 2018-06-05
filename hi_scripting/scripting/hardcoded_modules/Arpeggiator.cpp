@@ -164,7 +164,8 @@ void Arpeggiator::onInit()
 	parameterNames.add("OctaveRange");
 
 	shuffleSlider = Content.addKnob("Shuffle", 150, 445);
-	
+	shuffleSlider->set("mode", "NormalizedPercentage");
+
 	parameterNames.add("Shuffle");
 
 	currentStepSlider = Content.addKnob("CurrentValue", 160, 400);
@@ -190,27 +191,33 @@ void Arpeggiator::onInit()
 	bg->set("height", 422);
 
 	semiToneSliderPack = Content.addSliderPack("SemiToneSliderPack", 160, 30);
-	
+	semiToneSliderPack->getSliderPackData()->setDefaultValue(0.0);
+
 	semiToneSliderPack->set("width", 512);
 	semiToneSliderPack->set("min", -24);
 	semiToneSliderPack->set("max", 24);
 	semiToneSliderPack->set("sliderAmount", 4);
 	semiToneSliderPack->set("stepSize", 1);
 	
+
 	velocitySliderPack = Content.addSliderPack("VelocitySliderPack", 160, 160);
-	
+	velocitySliderPack->getSliderPackData()->setDefaultValue(127.0);
+
 	velocitySliderPack->set("width", 512);
 	velocitySliderPack->set("min", 1);
 	velocitySliderPack->set("max", 127);
 	velocitySliderPack->set("sliderAmount", 4);
 	velocitySliderPack->set("stepSize", "1");
 	
-	lengthSliderPack = Content.addSliderPack("LengthSliderPack", 160, 290);
 	
+	lengthSliderPack = Content.addSliderPack("LengthSliderPack", 160, 290);
+	lengthSliderPack->getSliderPackData()->setDefaultValue(75.0);
+
 	lengthSliderPack->set("width", 512);
 	lengthSliderPack->set("max", 100);
 	lengthSliderPack->set("sliderAmount", 4);
 	lengthSliderPack->set("stepSize", "1");
+	
 	
 	
 	inputMidiChannel = Content.addComboBox("ChannelSelector", 300, 445);
@@ -535,9 +542,11 @@ void Arpeggiator::playNote()
 		{
 			for (int i = 0; i < currentlyPlayingEventIds.size(); ++i)
 			{
-				Synth.noteOffDelayedByEventId(currentlyPlayingEventIds[i], minNoteLenSamples);
+				auto eventId = currentlyPlayingEventIds[i];
 
-				//Synth.addNoteOff(midiChannel, currentlyPlayingEventIds[i], minNoteLenSamples);
+
+				sendNoteOff(eventId);
+
 			}
 
 			currentlyPlayingEventIds.clearQuick();
@@ -622,17 +631,24 @@ void Arpeggiator::playNote()
 	if ((int)stepReset->getValue() > 0) ++curMasterStep;
 }
 
-int Arpeggiator::sendNoteOn()
+void Arpeggiator::sendNoteOff(int eventId)
 {
 	const int shuffleTimeStamp = (currentStep % 2 != 0) ? (int)(0.8 * (double)currentNoteLengthInSamples * (double)shuffleSlider->getValue()) : 0;
 
-	const int eventId = Synth.addNoteOn(mpeMode ? currentNote.channel : midiChannel, currentNote.noteNumber, currentVelocity, shuffleTimeStamp);
+	Synth.noteOffDelayedByEventId(eventId, minNoteLenSamples);
+}
+
+int Arpeggiator::sendNoteOn()
+{
+	//const int shuffleTimeStamp = (currentStep % 2 != 0) ? (int)(0.8 * (double)currentNoteLengthInSamples * (double)shuffleSlider->getValue()) : 0;
+
+	const int eventId = Synth.addNoteOn(mpeMode ? currentNote.channel : midiChannel, currentNote.noteNumber, currentVelocity, 0);
 
 	if (mpeMode)
 	{
 		auto& ce = *getCurrentHiseEvent();
 
-		uint16 timestamp = ce.getTimeStamp() + (uint16)shuffleTimeStamp;
+		auto timestamp = (int)ce.getTimeStamp();// +shuffleTimeStamp;
 
 		auto c = currentNote.channel;
 
@@ -740,6 +756,18 @@ void Arpeggiator::reset(bool do_all_notes_off, bool do_stop)
 
 	last_step_was_tied = false;
 
+}
+
+void Arpeggiator::start()
+{
+	auto shuffleAmount = 0.5 * (double)shuffleSlider->getValue();
+
+	auto shuffleFactor = shuffleNextNote ? (1.0 - shuffleAmount) : (1.0 + shuffleAmount);
+
+	shuffleNextNote = !shuffleNextNote;
+
+	Synth.startTimer(timeInterval * shuffleFactor);
+	is_playing = true;
 }
 
 } // namespace hise

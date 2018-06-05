@@ -221,7 +221,7 @@ int ModulatorSynth::getFreeTimerSlot()
 	return -1;
 }
 
-void ModulatorSynth::synthTimerCallback(uint8 index)
+void ModulatorSynth::synthTimerCallback(uint8 index, int numSamplesThisBlock)
 {
 	if (index >= 0)
 	{
@@ -232,11 +232,16 @@ void ModulatorSynth::synthTimerCallback(uint8 index)
 		// this has to be a uint32 because otherwise it could wrap around the uint16 max sample offset for bigger timer callbacks
 		uint32 offsetInBuffer = (uint32)((nextTimerCallbackTimes[index] - uptime) * getSampleRate());
 
-		while (synthTimerIntervals[index] > 0.0 && offsetInBuffer < (uint32)getBlockSize())
+		const uint32 delta = offsetInBuffer % 8;
+		uint32 rasteredOffset = offsetInBuffer - delta;
+
+		while (synthTimerIntervals[index] > 0.0 && rasteredOffset < (uint32)numSamplesThisBlock)
 		{
-			eventBuffer.addEvent(HiseEvent::createTimerEvent(index, (uint16)offsetInBuffer));
+			eventBuffer.addEvent(HiseEvent::createTimerEvent(index, (uint16)rasteredOffset));
 			nextTimerCallbackTimes[index].store(nextTimerCallbackTimes[index].load() + synthTimerIntervals[index].load());
 			offsetInBuffer = (uint32)((nextTimerCallbackTimes[index] - uptime) * getSampleRate());
+			const uint32 delta = offsetInBuffer % 8;
+			rasteredOffset = offsetInBuffer - delta;
 		}
 	}
 	else jassertfalse;
@@ -244,7 +249,7 @@ void ModulatorSynth::synthTimerCallback(uint8 index)
 
 void ModulatorSynth::startSynthTimer(int index, double interval, int timeStamp)
 {
-	if (interval < 0.04)
+	if (interval < 0.004)
 	{
 		nextTimerCallbackTimes[index] = 0.0;
 		jassertfalse;
@@ -315,14 +320,14 @@ void ModulatorSynth::processHiseEventBuffer(const HiseEventBuffer &inputBuffer, 
 {
 	eventBuffer.copyFrom(inputBuffer);
 
-	if (checkTimerCallback(0)) synthTimerCallback(0);
-	if (checkTimerCallback(1)) synthTimerCallback(1);
-	if (checkTimerCallback(2)) synthTimerCallback(2);
-	if (checkTimerCallback(3)) synthTimerCallback(3);
+	if (checkTimerCallback(0, numSamples)) synthTimerCallback(0, numSamples);
+	if (checkTimerCallback(1, numSamples)) synthTimerCallback(1, numSamples);
+	if (checkTimerCallback(2, numSamples)) synthTimerCallback(2, numSamples);
+	if (checkTimerCallback(3, numSamples)) synthTimerCallback(3, numSamples);
 
 	if (getMainController()->getMainSynthChain() == this)
 	{
-		handleHostInfoHiseEvents();
+		handleHostInfoHiseEvents(numSamples);
 	}
 
 	midiProcessorChain->renderNextHiseEventBuffer(eventBuffer, numSamples);
@@ -349,7 +354,7 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 
     ADD_GLITCH_DETECTOR(this, DebugLogger::Location::SynthRendering);
     
-	int numSamples = getBlockSize(); //outputBuffer.getNumSamples();
+	int numSamples = outputBuffer.getNumSamples();
 
 	const int numSamplesFixed = numSamples;
 
@@ -574,7 +579,7 @@ void ModulatorSynth::handleHiseEvent(const HiseEvent& m)
 	}
 }
 
-void ModulatorSynth::handleHostInfoHiseEvents()
+void ModulatorSynth::handleHostInfoHiseEvents(int numSamples)
 {
 	int ppqTimeStamp = -1;
 
@@ -588,7 +593,7 @@ void ModulatorSynth::handleHostInfoHiseEvents()
 	{
 		double ppq = getMainController()->getHostInfoObject()->getProperty(ppqPosition);
 
-		const double bufferAsMilliseconds = getBlockSize() / getSampleRate();
+		const double bufferAsMilliseconds = (double)numSamples / getSampleRate();
 		const double bufferAsPPQ = bufferAsMilliseconds * (getMainController()->getBpm() / 60.0);
 		const double ppqAtEndOfBuffer = ppq + bufferAsPPQ;
 
@@ -603,7 +608,7 @@ void ModulatorSynth::handleHostInfoHiseEvents()
 			const double remainingTime = (60.0 / getMainController()->getBpm()) * remaining;
 			const double remainingSamples = getSampleRate() * remainingTime;
 
-			if (remainingSamples < getBlockSize())
+			if (remainingSamples < numSamples)
 			{
 				ppqTimeStamp = (int)remainingSamples;
 			}
@@ -625,7 +630,7 @@ void ModulatorSynth::handleHostInfoHiseEvents()
 		HiseEvent pos = HiseEvent(HiseEvent::Type::SongPosition, 0, 0);
 
 		pos.setSongPositionValue(ppqTimeStamp);
-		pos.setTimeStamp((uint16)ppqTimeStamp);
+		pos.setTimeStamp(ppqTimeStamp);
 
 		eventBuffer.addEvent(pos);
 	}
@@ -752,7 +757,7 @@ void ModulatorSynth::numSourceChannelsChanged()
 
 	if (internalBuffer.getNumSamples() != 0)
 	{
-		jassert(getBlockSize() > 0);
+		jassert(getLargestBlockSize() > 0);
 		internalBuffer.setSize(getMatrix().getNumSourceChannels(), internalBuffer.getNumSamples());
 	}
 
@@ -831,6 +836,8 @@ void ModulatorSynth::noteOn(const HiseEvent &m)
     
     jassert(m.isNoteOn());
 
+	const bool retriggerWithDifferentChannels = getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().isMpeEnabled();
+
 	const int midiChannel = m.getChannel();
 	const int midiNoteNumber = m.getNoteNumber();
 	const int transposedMidiNoteNumber = midiNoteNumber + m.getTransposeAmount();
@@ -859,7 +866,8 @@ void ModulatorSynth::noteOn(const HiseEvent &m)
 				}
 
                 else if (voice->getCurrentlyPlayingNote() == midiNoteNumber // Use the untransposed number for detecting repeated notes
-                     && voice->isPlayingChannel (midiChannel) && !(voice->getCurrentHiseEvent() == m))
+                     && (retriggerWithDifferentChannels || voice->isPlayingChannel (midiChannel)) 
+					 && !(voice->getCurrentHiseEvent() == m))
 				{
 					handleRetriggeredNote(voice);
 				}

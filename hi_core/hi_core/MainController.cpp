@@ -35,7 +35,8 @@ namespace hise { using namespace juce;
 MainController::MainController():
 	sampleManager(new SampleManager(this)),
 	allNotesOffFlag(false),
-	bufferSize(-1),
+	maxBufferSize(-1),
+	cpuBufferSize(0),
 	sampleRate(-1.0),
 	temp_usage(0.0f),
 	uptime(0.0),
@@ -247,7 +248,7 @@ void MainController::loadPresetInternal(const ValueTree& v)
 		{
 			LOG_START("Initialising audio callback");
 
-			synthChain->prepareToPlay(sampleRate, bufferSize.get());
+			synthChain->prepareToPlay(sampleRate, maxBufferSize.get());
 		}
 
 		synthChain->loadMacrosFromValueTree(v);
@@ -299,7 +300,7 @@ void MainController::loadPresetInternal(const ValueTree& v)
 
 void MainController::startCpuBenchmark(int bufferSize_)
 {
-	bufferSize.set(bufferSize_);
+	cpuBufferSize.set(bufferSize_);
 	temp_usage = (Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks()));
 }
 
@@ -358,7 +359,7 @@ void MainController::allNotesOff(bool resetSoftBypassState/*=false*/)
 
 void MainController::stopCpuBenchmark()
 {
-	const float thisUsage = 100.0f * (float)((Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks()) - temp_usage) * sampleRate / bufferSize.get());
+	const float thisUsage = 100.0f * (float)((Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks()) - temp_usage) * sampleRate / cpuBufferSize.get());
 	
 	const float lastUsage = usagePercent.load();
 	
@@ -556,9 +557,9 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 {
 	ADD_GLITCH_DETECTOR(getMainSynthChain(), DebugLogger::Location::MainRenderCallback);
     
-	
+	numSamplesThisBlock = buffer.getNumSamples();
 
-	getDebugLogger().checkAudioCallbackProperties(thisAsProcessor->getSampleRate(), buffer.getNumSamples());
+	getDebugLogger().checkAudioCallbackProperties(thisAsProcessor->getSampleRate(), numSamplesThisBlock);
 
 	ScopedNoDenormals snd;
 
@@ -576,18 +577,11 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	ModulatorSynthChain *synthChain = getMainSynthChain();
 
-	if (buffer.getNumSamples() != bufferSize.get())
-	{
-		//debugError(synthChain, "Block size mismatch (old: " + String(bufferSize.get()) + ", new: " + String(buffer.getNumSamples()));
-		prepareToPlay(sampleRate, buffer.getNumSamples());
-	}
+	jassert(maxBufferSize.get() >= numSamplesThisBlock);
 
 #if !FRONTEND_IS_PLUGIN
     
-	keyboardState.processNextMidiBuffer(midiMessages, 0, buffer.getNumSamples(), true);
-
-
-
+	keyboardState.processNextMidiBuffer(midiMessages, 0, numSamplesThisBlock, true);
 
 	getMacroManager().getMidiControlAutomationHandler()->handleParameterData(midiMessages); // TODO_BUFFER: Move this after the next line...
 
@@ -644,10 +638,8 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	
 #endif
 
-	
-
 #if ENABLE_CPU_MEASUREMENT
-	startCpuBenchmark(buffer.getNumSamples());
+	startCpuBenchmark(numSamplesThisBlock);
 #endif
 
 #if !FRONTEND_IS_PLUGIN
@@ -671,20 +663,20 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
     
     if(isUsingMultiChannel)
     {
-        AudioSampleBuffer thisMultiChannelBuffer(multiChannelBuffer.getArrayOfWritePointers(), multiChannelBuffer.getNumChannels(), 0, bufferSize.get());
+        AudioSampleBuffer thisMultiChannelBuffer(multiChannelBuffer.getArrayOfWritePointers(), multiChannelBuffer.getNumChannels(), 0, numSamplesThisBlock);
         
         thisMultiChannelBuffer.clear();
         
-        FloatVectorOperations::copy(thisMultiChannelBuffer.getWritePointer(0), buffer.getReadPointer(0), bufferSize.get());
-        FloatVectorOperations::copy(thisMultiChannelBuffer.getWritePointer(1), buffer.getReadPointer(1), bufferSize.get());
+        FloatVectorOperations::copy(thisMultiChannelBuffer.getWritePointer(0), buffer.getReadPointer(0), numSamplesThisBlock);
+        FloatVectorOperations::copy(thisMultiChannelBuffer.getWritePointer(1), buffer.getReadPointer(1), numSamplesThisBlock);
         
         synthChain->renderNextBlockWithModulators(thisMultiChannelBuffer, masterEventBuffer);
         
         buffer.clear();
         
 		// Just use the first two channels. You need to route back all your send channels to the first stereo pair.
-		FloatVectorOperations::add(buffer.getWritePointer(0), thisMultiChannelBuffer.getReadPointer(0), bufferSize.get());
-		FloatVectorOperations::add(buffer.getWritePointer(1), thisMultiChannelBuffer.getReadPointer(1), bufferSize.get());
+		FloatVectorOperations::add(buffer.getWritePointer(0), thisMultiChannelBuffer.getReadPointer(0), numSamplesThisBlock);
+		FloatVectorOperations::add(buffer.getWritePointer(1), thisMultiChannelBuffer.getReadPointer(1), numSamplesThisBlock);
     }
     else
     {
@@ -695,13 +687,13 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 #else
 
 
-	AudioSampleBuffer thisMultiChannelBuffer(multiChannelBuffer.getArrayOfWritePointers(), multiChannelBuffer.getNumChannels(), 0, bufferSize.get());
+	AudioSampleBuffer thisMultiChannelBuffer(multiChannelBuffer.getArrayOfWritePointers(), multiChannelBuffer.getNumChannels(), 0, numSamplesThisBlock);
 
 	thisMultiChannelBuffer.clear();
 
 	if (previewBufferIndex != -1)
 	{
-		int numToPlay = jmin<int>(bufferSize.get(), previewBuffer.getNumSamples() - previewBufferIndex);
+		int numToPlay = jmin<int>(numSamplesThisBlock, previewBuffer.getNumSamples() - previewBufferIndex);
 
 		FloatVectorOperations::copy(multiChannelBuffer.getWritePointer(0, 0), previewBuffer.getReadPointer(0, previewBufferIndex), numToPlay);
 		FloatVectorOperations::copy(multiChannelBuffer.getWritePointer(1, 0), previewBuffer.getReadPointer(1, previewBufferIndex), numToPlay);
@@ -724,13 +716,13 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	{
 		if (replaceBufferContent)
 		{
-			FloatVectorOperations::copy(buffer.getWritePointer(0), thisMultiChannelBuffer.getReadPointer(0), bufferSize.get());
-			FloatVectorOperations::copy(buffer.getWritePointer(1), thisMultiChannelBuffer.getReadPointer(1), bufferSize.get());
+			FloatVectorOperations::copy(buffer.getWritePointer(0), thisMultiChannelBuffer.getReadPointer(0), numSamplesThisBlock);
+			FloatVectorOperations::copy(buffer.getWritePointer(1), thisMultiChannelBuffer.getReadPointer(1), numSamplesThisBlock);
 		}
 		else
 		{
-			FloatVectorOperations::add(buffer.getWritePointer(0), thisMultiChannelBuffer.getReadPointer(0), bufferSize.get());
-			FloatVectorOperations::add(buffer.getWritePointer(1), thisMultiChannelBuffer.getReadPointer(1), bufferSize.get());
+			FloatVectorOperations::add(buffer.getWritePointer(0), thisMultiChannelBuffer.getReadPointer(0), numSamplesThisBlock);
+			FloatVectorOperations::add(buffer.getWritePointer(1), thisMultiChannelBuffer.getReadPointer(1), numSamplesThisBlock);
 		}
 	}
 	else
@@ -740,9 +732,9 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		for (int i = 0; i < matrix.getNumSourceChannels(); i++)
 		{
 			if (replaceBufferContent)
-				FloatVectorOperations::copy(buffer.getWritePointer(i), thisMultiChannelBuffer.getReadPointer(i), bufferSize.get());
+				FloatVectorOperations::copy(buffer.getWritePointer(i), thisMultiChannelBuffer.getReadPointer(i), numSamplesThisBlock);
 			else
-				FloatVectorOperations::add(buffer.getWritePointer(i), thisMultiChannelBuffer.getReadPointer(i), bufferSize.get());
+				FloatVectorOperations::add(buffer.getWritePointer(i), thisMultiChannelBuffer.getReadPointer(i), numSamplesThisBlock);
 		}
 	}
 
@@ -753,7 +745,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	if (HiseDeviceSimulator::isMobileDevice())
 	{
 		for (int i = 0; i < buffer.getNumChannels(); i++)
-			FloatVectorOperations::clip(buffer.getWritePointer(i, 0), buffer.getReadPointer(i, 0), -1.0f, 1.0f, buffer.getNumSamples());
+			FloatVectorOperations::clip(buffer.getWritePointer(i, 0), buffer.getReadPointer(i, 0), -1.0f, 1.0f, numSamplesThisBlock);
 	}
 #endif
 
@@ -767,7 +759,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
     if(sampleRate > 0.0)
     {
-        uptime += double(buffer.getNumSamples()) / sampleRate;
+        uptime += double(numSamplesThisBlock) / sampleRate;
     }
 
 #if USE_BACKEND
@@ -782,13 +774,13 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 {
     LOG_START("Preparing playback");
     
-	bufferSize = samplesPerBlock;
+	maxBufferSize = samplesPerBlock;
 	sampleRate = sampleRate_;
  
 	// Prevent high buffer sizes from blowing up the 350MB limitation...
 	if (HiseDeviceSimulator::isAUv3())
 	{
-		bufferSize = jmin<int>(samplesPerBlock, 1024);
+		maxBufferSize = jmin<int>(samplesPerBlock, 1024);
 	}
 
     thisAsProcessor = dynamic_cast<AudioProcessor*>(this);
@@ -818,7 +810,7 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
     
 #endif
 
-    getMainSynthChain()->prepareToPlay(sampleRate, bufferSize.get());
+    getMainSynthChain()->prepareToPlay(sampleRate, maxBufferSize.get());
 
 	getMainSynthChain()->setIsOnAir(true);
 }
@@ -959,6 +951,13 @@ void MainController::loadTypeFace(const String& fileName, const void* fontData, 
 
 
 	customTypeFaceData.addChild(v, -1, nullptr);
+}
+
+int MainController::getBufferSizeForCurrentBlock() const noexcept
+{
+	jassert(getKillStateHandler().getCurrentThread() == KillStateHandler::AudioThread);
+
+	return numSamplesThisBlock;
 }
 
 ValueTree MainController::exportCustomFontsAsValueTree() const
@@ -1103,7 +1102,7 @@ void MainController::updateMultiChannelBuffer(int numNewChannels)
 	// Updates the channel amount
 	multiChannelBuffer.setSize(numNewChannels, multiChannelBuffer.getNumSamples());
 
-	ProcessorHelpers::increaseBufferIfNeeded(multiChannelBuffer, bufferSize.get());
+	ProcessorHelpers::increaseBufferIfNeeded(multiChannelBuffer, maxBufferSize.get());
 }
 
 MainController::SampleManager::~SampleManager()

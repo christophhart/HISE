@@ -199,10 +199,6 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 
 	ADD_GLITCH_DETECTOR(this, DebugLogger::Location::SynthChainRendering);
 
-	ScopedLock sl(getSynthLock());
-
-	
-
 	if (getMainController()->getMainSynthChain() == this && !activeChannels.areAllChannelsEnabled())
 	{
 		HiseEventBuffer::Iterator it(inputMidiBuffer);
@@ -217,7 +213,7 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 		}
 	}
 
-	const int numSamples = getBlockSize();//buffer.getNumSamples();
+	const int numSamples = buffer.getNumSamples();
 
 	jassert(numSamples <= buffer.getNumSamples());
 
@@ -532,7 +528,7 @@ void ModulatorSynthChain::ModulatorSynthChainHandler::add(Processor *newProcesso
 	ms->getMatrix().setNumDestinationChannels(synth->getMatrix().getNumSourceChannels());
 	ms->getMatrix().setTargetProcessor(synth);
 
-	ms->prepareToPlay(synth->getSampleRate(), synth->getBlockSize());
+	ms->prepareToPlay(synth->getSampleRate(), synth->getLargestBlockSize());
 
 	{
 		MainController::ScopedSuspender ss(synth->getMainController());

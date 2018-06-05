@@ -294,7 +294,7 @@ ModulatorSamplerVoice(ownerSynth)
 	for (int i = 0; i < numMultiMics; i++)
 	{
 		wrappedVoices.add(new StreamingSamplerVoice(getOwnerSynth()->getMainController()->getSampleManager().getGlobalSampleThreadPool()));
-		wrappedVoices.getLast()->prepareToPlay(getOwnerSynth()->getSampleRate(), getOwnerSynth()->getBlockSize());
+		wrappedVoices.getLast()->prepareToPlay(getOwnerSynth()->getSampleRate(), getOwnerSynth()->getLargestBlockSize());
 		wrappedVoices.getLast()->setLoaderBufferSize((int)getOwnerSynth()->getAttribute(ModulatorSampler::BufferSize));
 		wrappedVoices.getLast()->setTemporaryVoiceBuffer(static_cast<ModulatorSampler*>(ownerSynth)->getTemporaryVoiceBuffer());
 		wrappedVoices.getLast()->setDebugLogger(&ownerSynth->getMainController()->getDebugLogger());

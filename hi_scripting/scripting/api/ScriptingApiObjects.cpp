@@ -2455,7 +2455,7 @@ int ScriptingObjects::ScriptingMessageHolder::getFineDetune() const { return (in
 void ScriptingObjects::ScriptingMessageHolder::setGain(int gainInDecibels) { e.setGain(gainInDecibels); }
 int ScriptingObjects::ScriptingMessageHolder::getGain() const { return (int)e.getGain(); }
 int ScriptingObjects::ScriptingMessageHolder::getTimestamp() const { return (int)e.getTimeStamp(); }
-void ScriptingObjects::ScriptingMessageHolder::setTimestamp(int timestampSamples) { e.setTimeStamp((uint16)timestampSamples);}
+void ScriptingObjects::ScriptingMessageHolder::setTimestamp(int timestampSamples) { e.setTimeStamp(timestampSamples);}
 void ScriptingObjects::ScriptingMessageHolder::addToTimestamp(int deltaSamples) { e.addToTimeStamp((int16)deltaSamples); }
 
 String ScriptingObjects::ScriptingMessageHolder::dump() const

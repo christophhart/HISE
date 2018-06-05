@@ -272,6 +272,8 @@ void MPEModulator::startVoice(int voiceIndex)
 
 	if (auto s = getState(voiceIndex))
 	{
+		s->isRingingOff = false;
+
 		float startValue = defaultValue;
 		if (g == Press)
 			startValue *= unsavedStrokeValue;
@@ -333,10 +335,11 @@ void MPEModulator::stopVoice(int voiceIndex)
 	else
 	{
 		if (auto s = getState(voiceIndex))
+		{
 			s->isPressed = false;
+			s->isRingingOff = s->targetValue == 0.0f;
+		}
 	}
-
-	
 }
 
 void MPEModulator::reset(int voiceIndex)
@@ -372,8 +375,18 @@ void MPEModulator::reset(int voiceIndex)
 	}
 }
 
-bool MPEModulator::isPlaying(int /*voiceIndex*/) const
+bool MPEModulator::isPlaying(int voiceIndex) const
 {
+	if (isMonophonic || (getIntensity() < 1.0f))
+	{
+		return true;
+	}
+	else if(auto s = getState(voiceIndex))
+	{
+		if (s->isRingingOff && !s->smoother.isSmoothingActive())
+			return false;
+	}
+
 	return true;
 }
 

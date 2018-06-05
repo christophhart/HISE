@@ -462,7 +462,7 @@ void UserPresetHelpers::loadUserPreset(ModulatorSynthChain *chain, const File &f
     {
 		if (!checkVersionNumber(chain, *xml))
 		{
-            addMissingControlsToUserPreset(chain, fileToLoad);
+            
             updateVersionNumber(chain, fileToLoad);
             
             xml = XmlDocument::parse(fileToLoad);
@@ -485,71 +485,6 @@ void UserPresetHelpers::loadUserPreset(ModulatorSynthChain* chain, const ValueTr
 {
 	chain->getMainController()->loadUserPresetAsync(parent);
 
-}
-
-int UserPresetHelpers::addMissingControlsToUserPreset(ModulatorSynthChain* chain, const File& fileToUpdate)
-{
-	static const Identifier type("type");
-	static const Identifier id("id");
-	static const Identifier value("value");
-
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(fileToUpdate);
-
-	int numAddedControls = 0;
-
-	if (xml != nullptr)
-	{
-		ValueTree thisPreset = ValueTree::fromXml(*xml);
-		ValueTree contentData = thisPreset.getChild(0);
-		jassert(contentData.hasType("Content"));
-		const String interfaceId = contentData.getProperty("Processor").toString();
-		auto pwsc = dynamic_cast<ProcessorWithScriptingContent*>(ProcessorHelpers::getFirstProcessorWithName(chain, interfaceId));
-
-		if (pwsc == nullptr)
-		{
-			PresetHandler::showMessageWindow("Invalid User Preset", "The user preset " + fileToUpdate.getFileNameWithoutExtension() + " is not associated with the current instrument", PresetHandler::IconType::Error);
-			return -1;
-		}
-
-		auto content = pwsc->getScriptingContent();
-
-		for (int i = 0; i < content->getNumComponents(); i++)
-		{
-			auto control = content->getComponent(i);
-			bool isPresetControl = (int)control->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::saveInPreset) > 0;
-
-			if (!isPresetControl)
-				continue;
-
-			ValueTree controlData = control->exportAsValueTree();
-			ValueTree existingControlData = contentData.getChildWithProperty(id, controlData.getProperty(id));
-
-			if (existingControlData.isValid())
-			{
-				continue;
-			}
-
-			numAddedControls++;
-
-			var defaultValue = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(control) ?
-				control->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::defaultValue) :
-				var(0.0f);
-
-			controlData.setProperty(value, defaultValue, nullptr);
-			contentData.addChild(controlData, -1, nullptr);
-		}
-
-		if (numAddedControls != 0)
-		{
-			xml = thisPreset.createXml();
-
-			fileToUpdate.replaceWithText(xml->createDocument(""));
-		}
-
-		return numAddedControls;
-	}
-
-	return -1;
 }
 
 #if !USE_MIDI_AUTOMATION_MIGRATION

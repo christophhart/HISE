@@ -671,7 +671,7 @@ void ConvolutionEffect::LoadingThread::reloadInternal()
 	}
 
 
-	const auto headSize = nextPowerOfTwo(parent.getBlockSize());
+	const auto headSize = nextPowerOfTwo(parent.getLargestBlockSize());
 	const auto fullTailLength = nextPowerOfTwo(resampledLength - headSize);
 
 	ScopedLock sl(parent.getImpulseLock());

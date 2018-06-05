@@ -77,7 +77,11 @@ public:
 
 	void playNote();;
 
+	
+
 private:
+
+	void sendNoteOff(int eventId);
 
 	int sendNoteOn();
 
@@ -190,6 +194,8 @@ private:
 	bool dir_needs_change = false;
 	int curTiedNote = -1;
 
+	bool shuffleNextNote = false;
+
 	Random r;
 
 	void changeDirection();;
@@ -204,16 +210,13 @@ private:
 
 	void reset(bool do_all_notes_off, bool do_stop);;
 
-	void start()
-	{
-		Synth.startTimer(timeInterval);
-		is_playing = true;
-	};
+	void start();;
 
 	void stop()
 	{
 		Synth.stopTimer();
 		is_playing = false;
+		shuffleNextNote = false;
 	};
 
 	bool keys_are_held()

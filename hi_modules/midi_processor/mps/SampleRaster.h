@@ -56,7 +56,7 @@ public:
 	void setRaster(int newStepSize) noexcept
 	{
 		jassert(isPowerOfTwo(newStepSize));
-		jassert(stepSize < getBlockSize());
+		jassert(stepSize < getLargestBlockSize());
 		stepSize = newStepSize;
 	};
 
@@ -72,7 +72,7 @@ protected:
 	void processHiseEvent(HiseEvent& m) override
 	{
 		const int t = (int)m.getTimeStamp();
-		m.setTimeStamp((uint16)roundToRaster(t));
+		m.setTimeStamp(roundToRaster(t));
 	};
 
 private:
