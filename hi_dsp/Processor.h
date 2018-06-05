@@ -188,7 +188,7 @@ public:
 		bypassed(false),
 		visible(true),
 		samplerate(-1.0),
-		blockSize(-1),
+		largestBlockSize(-1),
 		inputValue(0.0f),
 		outputValue(0.0f),
 		editorState(0),
@@ -485,16 +485,16 @@ public:
 	virtual void prepareToPlay(double sampleRate_, int samplesPerBlock_)
 	{
 		samplerate = sampleRate_;
-		blockSize = samplesPerBlock_;
+		largestBlockSize = samplesPerBlock_;
 	}
 
 	/** Returns the sample rate. */
 	double getSampleRate() const { return samplerate; };
 
 	/** Returns the block size. */
-	int getBlockSize() const
+	int getLargestBlockSize() const
     {   
-        return blockSize;
+        return largestBlockSize;
     };
 
 	
@@ -931,7 +931,8 @@ private:
 	bool visible;
 
 	double samplerate;
-	int blockSize;
+
+	int largestBlockSize;
 
 	OwnedArray<Chain> chains;
 

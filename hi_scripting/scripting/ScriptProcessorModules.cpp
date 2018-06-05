@@ -586,7 +586,7 @@ void JavascriptMasterEffect::registerApiClasses()
 
 void JavascriptMasterEffect::postCompileCallback()
 {
-	prepareToPlay(getSampleRate(), getBlockSize());
+	prepareToPlay(getSampleRate(), getLargestBlockSize());
 }
 
 
@@ -1023,7 +1023,7 @@ void JavascriptTimeVariantModulator::registerApiClasses()
 
 void JavascriptTimeVariantModulator::postCompileCallback()
 {
-	prepareToPlay(getSampleRate(), getBlockSize());
+	prepareToPlay(getSampleRate(), getLargestBlockSize());
 }
 
 
@@ -1293,7 +1293,7 @@ void JavascriptEnvelopeModulator::registerApiClasses()
 
 void JavascriptEnvelopeModulator::postCompileCallback()
 {
-	prepareToPlay(getSampleRate(), getBlockSize());
+	prepareToPlay(getSampleRate(), getLargestBlockSize());
 }
 
 class JavascriptModulatorSynth::Sound : public ModulatorSynthSound
@@ -1632,7 +1632,7 @@ void JavascriptModulatorSynth::registerApiClasses()
 
 void JavascriptModulatorSynth::postCompileCallback()
 {
-	prepareToPlay(getSampleRate(), getBlockSize());
+	prepareToPlay(getSampleRate(), getLargestBlockSize());
 }
 
 ProcessorEditorBody* JavascriptModulatorSynth::createEditor(ProcessorEditor *parentEditor)

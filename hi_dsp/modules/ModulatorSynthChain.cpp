@@ -532,7 +532,7 @@ void ModulatorSynthChain::ModulatorSynthChainHandler::add(Processor *newProcesso
 	ms->getMatrix().setNumDestinationChannels(synth->getMatrix().getNumSourceChannels());
 	ms->getMatrix().setTargetProcessor(synth);
 
-	ms->prepareToPlay(synth->getSampleRate(), synth->getBlockSize());
+	ms->prepareToPlay(synth->getSampleRate(), synth->getLargestBlockSize());
 
 	{
 		MainController::ScopedSuspender ss(synth->getMainController());

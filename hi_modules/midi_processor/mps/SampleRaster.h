@@ -56,7 +56,7 @@ public:
 	void setRaster(int newStepSize) noexcept
 	{
 		jassert(isPowerOfTwo(newStepSize));
-		jassert(stepSize < getBlockSize());
+		jassert(stepSize < getLargestBlockSize());
 		stepSize = newStepSize;
 	};
 

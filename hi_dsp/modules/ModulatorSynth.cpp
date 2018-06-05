@@ -752,7 +752,7 @@ void ModulatorSynth::numSourceChannelsChanged()
 
 	if (internalBuffer.getNumSamples() != 0)
 	{
-		jassert(getBlockSize() > 0);
+		jassert(getLargestBlockSize() > 0);
 		internalBuffer.setSize(getMatrix().getNumSourceChannels(), internalBuffer.getNumSamples());
 	}
 

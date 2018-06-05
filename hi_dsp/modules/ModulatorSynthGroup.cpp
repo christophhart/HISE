@@ -1266,7 +1266,7 @@ void ModulatorSynthGroup::ModulatorSynthGroupHandler::add(Processor *newProcesso
 
 	m->enablePitchModulation(true);
 	m->setGroup(group);
-	m->prepareToPlay(group->getSampleRate(), group->getBlockSize());
+	m->prepareToPlay(group->getSampleRate(), group->getLargestBlockSize());
 
 
 	{

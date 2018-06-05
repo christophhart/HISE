@@ -642,7 +642,7 @@ void ModulatorSampler::refreshMemoryUsage()
 	{
 		temporaryVoiceBuffer = hlac::HiseSampleBuffer(temporaryBufferShouldBeFloatingPoint, 2, 0);
 
-		StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, getBlockSize());
+		StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, getLargestBlockSize());
 
 		for (auto i = 0; i < getNumVoices(); i++)
 		{
@@ -723,7 +723,7 @@ void ModulatorSampler::setVoiceAmountInternal()
 
 			if (Processor::getSampleRate() != -1.0)
 			{
-				static_cast<ModulatorSamplerVoice*>(getVoice(i))->prepareToPlay(Processor::getSampleRate(), getBlockSize());
+				static_cast<ModulatorSamplerVoice*>(getVoice(i))->prepareToPlay(Processor::getSampleRate(), getLargestBlockSize());
 			}
 		};
 	}

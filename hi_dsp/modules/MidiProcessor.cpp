@@ -248,7 +248,7 @@ void MidiProcessorChain::MidiProcessorChainHandler::add(Processor *newProcessor,
 
 	const int index = siblingToInsertBefore == nullptr ? -1 : chain->processors.indexOf(dynamic_cast<MidiProcessor*>(siblingToInsertBefore));
 
-    newProcessor->prepareToPlay(chain->getSampleRate(), chain->getBlockSize());
+    newProcessor->prepareToPlay(chain->getSampleRate(), chain->getLargestBlockSize());
     
     newProcessor->setIsOnAir(true);
     

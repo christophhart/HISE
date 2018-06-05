@@ -80,7 +80,7 @@ ScopedGlitchDetector::~ScopedGlitchDetector()
 		const double stopTime = Time::getMillisecondCounterHiRes();
 		const double interval = (stopTime - startTime);
 
-		const double bufferMs = 1000.0 * (double)p->getBlockSize() / p->getSampleRate();
+		const double bufferMs = 1000.0 * (double)p->getLargestBlockSize() / p->getSampleRate();
 
 		locationTimeSum[location] += interval;
 		locationIndex[location]++;
