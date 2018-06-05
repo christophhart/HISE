@@ -121,6 +121,11 @@ public:
 	bool isFlashActive() const { return flashActive; }
 	bool isValueOverlayShown() const { return showValueOverlay; }
 
+	void setDefaultValue(double newDefaultValue)
+	{
+		defaultValue = var(newDefaultValue);
+	}
+
 	void setUndoManager(UndoManager* managerToUse)
 	{
 		undoManager = managerToUse;
@@ -190,6 +195,8 @@ private:
 	double stepSize;
 
 	var values;
+
+	var defaultValue;
 
 	//Array<float> values;
 };
