@@ -500,11 +500,7 @@ public:
 
 	static void loadUserPreset(ModulatorSynthChain* chain, const ValueTree &v);
     
-	static int addMissingControlsToUserPreset(ModulatorSynthChain* chain, const File& fileToUpdate);
-
-
 	static Identifier getAutomationIndexFromOldVersion(const String& oldVersion, int oldIndex);
-
 
 	static bool updateVersionNumber(ModulatorSynthChain* chain, const File& fileToUpdate);
 
