@@ -94,18 +94,7 @@ void MidiProcessorChain::addArtificialEvent(const HiseEvent& m)
 {
 	const int timeStamp = (int)m.getTimeStamp();
 
-	//jassert(m.isArtificial());
-
-	const int thisBlockSize = dynamic_cast<AudioProcessor*>(getMainController())->getBlockSize();
-
-	if (timeStamp > thisBlockSize)
-	{
-		futureEventBuffer.addEvent(m);
-	}
-	else
-	{
-		artificialEvents.addEvent(m);
-	}
+	artificialEvents.addEvent(m);
 }
 
 void MidiProcessorChain::renderNextHiseEventBuffer(HiseEventBuffer &buffer, int numSamples)
@@ -120,21 +109,18 @@ void MidiProcessorChain::renderNextHiseEventBuffer(HiseEventBuffer &buffer, int 
 	if (buffer.isEmpty() && futureEventBuffer.isEmpty() && artificialEvents.isEmpty()) return;
 
 	HiseEventBuffer::Iterator it(buffer);
+	
 
 	while (HiseEvent* e = it.getNextEventPointer(true, false))
 	{
 		processHiseEvent(*e);
 	}
 
-	buffer.addEvents(artificialEvents);
-	artificialEvents.clear();
+	artificialEvents.moveEventsBelow(buffer, numSamples);
 
-
-	futureEventBuffer.subtractFromTimeStamps(numSamples);
-	futureEventBuffer.moveEventsBelow(buffer, numSamples);
-
-
-	buffer.moveEventsAbove(futureEventBuffer, numSamples);
+	artificialEvents.subtractFromTimeStamps(numSamples);
+	
+	buffer.moveEventsAbove(artificialEvents, numSamples);
 }
 
 MidiProcessorFactoryType::MidiProcessorFactoryType(Processor *p) :

@@ -484,8 +484,15 @@ public:
 	void addEvents(const MidiBuffer& otherBuffer);
 
 	void addEvents(const HiseEventBuffer &otherBuffer);
+	void addEvents(const HiseEventBuffer& otherBuffer, uint16 maxTimestamp);
 
+
+	bool timeStampsAreSorted() const;
 	
+	uint16 getMinTimeStamp() const;
+
+	uint16 getMaxTimeStamp() const;
+
 	struct CopyHelpers
 	{
 		static void copyEvents(HiseEvent* destination, const HiseEvent* source, int numElements)

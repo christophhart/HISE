@@ -278,6 +278,53 @@ void HiseEventBuffer::addEvents(const HiseEventBuffer &otherBuffer)
 	}
 }
 
+void HiseEventBuffer::addEvents(const HiseEventBuffer& otherBuffer, uint16 maxTimestamp)
+{
+	jassert(timeStampsAreSorted());
+	jassert(otherBuffer.timeStampsAreSorted());
+
+
+}
+
+bool HiseEventBuffer::timeStampsAreSorted() const
+{
+	if (numUsed == 0) return true;
+
+	uint16 timeStamp = 0;
+
+	for (int i = 0; i < numUsed; i++)
+	{
+		auto thisStamp = buffer[i].getTimeStamp();
+
+		if (thisStamp < timeStamp)
+			return false;
+
+		timeStamp = thisStamp;
+	}
+
+	return true;
+}
+
+uint16 HiseEventBuffer::getMinTimeStamp() const
+{
+	jassert(timeStampsAreSorted());
+
+	if (numUsed == 0)
+		return 0;
+
+	return buffer[0].getTimeStamp();
+}
+
+uint16 HiseEventBuffer::getMaxTimeStamp() const
+{
+	jassert(timeStampsAreSorted());
+
+	if (numUsed == 0)
+		return 0;
+
+	return buffer[numUsed - 1].getTimeStamp();
+}
+
 HiseEvent HiseEventBuffer::getEvent(int index) const
 {
 	if (index >= 0 && index < HISE_EVENT_BUFFER_SIZE)
@@ -292,10 +339,16 @@ void HiseEventBuffer::subtractFromTimeStamps(int delta)
 {
 	if (numUsed == 0) return;
 
+	jassert(getMinTimeStamp() >= delta);
+
+	jassert(timeStampsAreSorted());
+
 	for (int i = 0; i < numUsed; i++)
 	{
 		buffer[i].addToTimeStamp((int16)-delta);
 	}
+
+	jassert(timeStampsAreSorted());
 }
 
 void HiseEventBuffer::moveEventsBelow(HiseEventBuffer& targetBuffer, int highestTimestamp)
@@ -305,6 +358,9 @@ void HiseEventBuffer::moveEventsBelow(HiseEventBuffer& targetBuffer, int highest
 	HiseEventBuffer::Iterator iter(*this);
 
 	int numCopied = 0;
+
+	jassert(targetBuffer.timeStampsAreSorted());
+	jassert(timeStampsAreSorted());
 
 	while (HiseEvent* e = iter.getNextEventPointer())
 	{
@@ -327,6 +383,9 @@ void HiseEventBuffer::moveEventsBelow(HiseEventBuffer& targetBuffer, int highest
 	HiseEvent::clear(buffer + numRemaining, numCopied);
 
 	numUsed = numRemaining;
+
+	jassert(targetBuffer.timeStampsAreSorted());
+	jassert(timeStampsAreSorted());
 }
 
 void HiseEventBuffer::moveEventsAbove(HiseEventBuffer& targetBuffer, int lowestTimestamp)
