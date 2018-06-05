@@ -361,7 +361,7 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 
     if(newValue.isObject())
     {
-        reportScriptError("You must specify the unique component name, not the object itself");
+        logErrorAndContinue("You must specify the unique component name, not the object itself");
     }
     
 	if (id == getIdFor(macroControl))
@@ -386,21 +386,14 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 			auto c = parent;
 
 			linkedComponent = c->getComponentWithName(Identifier(newValue).toString());
-			linkedComponent->addLinkedTarget(this);
+
+			if (linkedComponent)
+				linkedComponent->addLinkedTarget(this);
+			else
+				logErrorAndContinue("Component with name " + newValue.toString() + " wasn't found");
 		}
 
-		Array<PropertyWithValue> vArray;
-		vArray.add({ Properties::min});
-		vArray.add({ Properties::max}),
-		vArray.add({ Properties::saveInPreset, false });
-		vArray.add({ Properties::macroControl, -1 });
-		vArray.add({ Properties::isPluginParameter, false });
-		vArray.add({ Properties::pluginParameterName, "" });
-		vArray.add({ Properties::isMetaParameter, false });
-		vArray.add({ Properties::processorId, "" });
-		vArray.add({ Properties::parameterId, "" });
-		
-		updatePropertiesAfterLink(vArray, notifyEditor);
+		updatePropertiesAfterLink(notifyEditor);
 
 		if (linkedComponent != nullptr)
 			setValue(linkedComponent->getValue());
@@ -564,7 +557,7 @@ void ScriptingApi::Content::ScriptComponent::set(String propertyName, var newVal
 
 	if (!defaultValues.contains(propertyId))
 	{
-		reportScriptError("the property does not exist");
+		logErrorAndContinue("the property does not exist");
 		RETURN_VOID_IF_NO_THROW();
 	}
 
@@ -736,6 +729,18 @@ void ScriptingApi::Content::ScriptComponent::showControl(bool shouldBeVisible)
 void ScriptingApi::Content::ScriptComponent::setTooltip(const String &newTooltip)
 {
 	setScriptObjectProperty(Properties::tooltip, newTooltip);
+}
+
+File ScriptingApi::Content::ScriptComponent::getExternalFile(var newValue)
+{
+	if (GET_PROJECT_HANDLER(getProcessor()).isActive())
+	{
+		return GET_PROJECT_HANDLER(getProcessor()).getFilePath(newValue, ProjectHandler::SubDirectories::Images);
+	}
+	else
+	{
+		return dynamic_cast<ExternalFileProcessor*>(getScriptProcessor())->getFile(newValue, PresetPlayerHandler::ImageResources);
+	}
 }
 
 var ScriptingApi::Content::ScriptComponent::getWidth() const
@@ -947,14 +952,30 @@ void ScriptingApi::Content::ScriptComponent::handleDefaultDeactivatedProperties(
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(isPluginParameter));
 }
 
-void ScriptingApi::Content::ScriptComponent::updatePropertiesAfterLink(const Array<PropertyWithValue>& idList, NotificationType notifyEditor)
+void ScriptingApi::Content::ScriptComponent::updatePropertiesAfterLink(NotificationType notifyEditor)
 {
+	auto idList = getLinkProperties();
+
 	if (auto lc = getLinkedComponent())
 	{
+		DynamicObject::Ptr obj = new DynamicObject();
+
 		for (const auto& v : idList)
 		{
-			setScriptObjectPropertyWithChangeMessage(getIdFor(v.id), v.value.isUndefined() ? lc->getScriptObjectProperty(v.id) : v.value, notifyEditor);
-			deactivatedProperties.addIfNotAlreadyThere(getIdFor(v.id));
+			auto id = getIdFor(v.id);
+			var linkedValue = v.value.isUndefined() ? lc->getScriptObjectProperty(id) : v.value;
+
+			obj->setProperty(id, linkedValue);
+		}
+
+		var obj_(obj);
+
+		setPropertiesFromJSON(obj_);
+
+		for (const auto& v : idList)
+		{
+			auto id = getIdFor(v.id);
+			deactivatedProperties.addIfNotAlreadyThere(id);
 		}
 	}
 	else
@@ -966,6 +987,22 @@ void ScriptingApi::Content::ScriptComponent::updatePropertiesAfterLink(const Arr
 
 		handleDefaultDeactivatedProperties();
 	}
+}
+
+juce::Array<hise::ScriptingApi::Content::ScriptComponent::PropertyWithValue> ScriptingApi::Content::ScriptComponent::getLinkProperties() const
+{
+	Array<PropertyWithValue> vArray;
+	vArray.add({ Properties::min });
+	vArray.add({ Properties::max }),
+		vArray.add({ Properties::saveInPreset, false });
+	vArray.add({ Properties::macroControl, -1 });
+	vArray.add({ Properties::isPluginParameter, false });
+	vArray.add({ Properties::pluginParameterName, "" });
+	vArray.add({ Properties::isMetaParameter, false });
+	vArray.add({ Properties::processorId, "" });
+	vArray.add({ Properties::parameterId, "" });
+
+	return vArray;
 }
 
 struct ScriptingApi::Content::ScriptSlider::Wrapper
@@ -1095,12 +1132,14 @@ void ScriptingApi::Content::ScriptSlider::setScriptObjectPropertyWithChangeMessa
 		jassert(isCorrectlyInitialised(id));
 
 		setMode(newValue.toString());
+		return;
 	}
 	else if (id == propertyIds[Style])
 	{
 		jassert(isCorrectlyInitialised(id));
 
 		setStyle(newValue);
+		return;
 	}
 	else if (id == getIdFor(middlePosition))
 	{
@@ -1122,26 +1161,14 @@ void ScriptingApi::Content::ScriptSlider::setScriptObjectPropertyWithChangeMessa
         
         return;
     }
-	else if (id == getIdFor(ScriptComponent::linkedTo))
-	{
-		ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 
-		Array<PropertyWithValue> vArray;
 
-		vArray.add({ Properties::Mode });
-		vArray.add({ Properties::middlePosition });
-		vArray.add({ Properties::stepSize });
-		vArray.add({ ScriptComponent::min });
-		vArray.add({ ScriptComponent::max });
-		vArray.add({ Properties::suffix });
-		vArray.add({ Properties::defaultValue });
 
-		updatePropertiesAfterLink(vArray, notifyEditor);
-	}
 	else if (id == getIdFor(filmstripImage))
 	{
 		jassert(isCorrectlyInitialised(id));
 
+		
 		if (newValue == "Use default skin" || newValue == "")
 		{
 			setScriptObjectProperty(filmstripImage, "Use default skin");
@@ -1156,6 +1183,8 @@ void ScriptingApi::Content::ScriptSlider::setScriptObjectPropertyWithChangeMessa
 
 			image = getProcessor()->getMainController()->getExpansionHandler().loadImageReference(ref);
 		}
+
+		return;
 	}
 
 	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
@@ -1273,7 +1302,7 @@ void ScriptingApi::Content::ScriptSlider::setMinValue(double min) noexcept
 	}
 	else
 	{
-		reportScriptError("setMinValue() can only be called on sliders in 'Range' mode.");
+		logErrorAndContinue("setMinValue() can only be called on sliders in 'Range' mode.");
 	}
 }
 
@@ -1286,7 +1315,7 @@ void ScriptingApi::Content::ScriptSlider::setMaxValue(double max) noexcept
 	}
 	else
 	{
-		reportScriptError("setMaxValue() can only be called on sliders in 'Range' mode.");
+		logErrorAndContinue("setMaxValue() can only be called on sliders in 'Range' mode.");
 	}
 }
 
@@ -1299,7 +1328,7 @@ double ScriptingApi::Content::ScriptSlider::getMinValue() const
 	}
 	else
 	{
-		reportScriptError("getMinValue() can only be called on sliders in 'Range' mode.");
+		logErrorAndContinue("getMinValue() can only be called on sliders in 'Range' mode.");
 		RETURN_IF_NO_THROW(0.0)
 	}
 }
@@ -1312,7 +1341,7 @@ double ScriptingApi::Content::ScriptSlider::getMaxValue() const
 	}
 	else
 	{
-		reportScriptError("getMaxValue() can only be called on sliders in 'Range' mode.");
+		logErrorAndContinue("getMaxValue() can only be called on sliders in 'Range' mode.");
 		RETURN_IF_NO_THROW(1.0)
 	}
 }
@@ -1325,7 +1354,7 @@ bool ScriptingApi::Content::ScriptSlider::contains(double valueToCheck)
 	}
 	else
 	{
-		reportScriptError("contains() can only be called on sliders in 'Range' mode.");
+		logErrorAndContinue("contains() can only be called on sliders in 'Range' mode.");
 		RETURN_IF_NO_THROW(false)
 	}
 }
@@ -1360,7 +1389,7 @@ void ScriptingApi::Content::ScriptSlider::setValueNormalized(double normalizedVa
 
 		errorMessage << "Slider range of " << getName().toString() << " is illegal: min: " << minValue << ", max: " << maxValue << ", middlePoint: " << midPoint << ", step: " << step;
 
-		reportScriptError(errorMessage);
+		logErrorAndContinue(errorMessage);
 #endif
 	}
 }
@@ -1394,7 +1423,7 @@ double ScriptingApi::Content::ScriptSlider::getValueNormalized() const
 
 		errorMessage << "Slider range of " << getName().toString() << " is illegal: min: " << minValue << ", max: " << maxValue << ", middlePoint: " << midPoint << ", step: " << step;
 
-		reportScriptError(errorMessage);
+		logErrorAndContinue(errorMessage);
 #endif
 
 		return 0.0;
@@ -1416,7 +1445,8 @@ void ScriptingApi::Content::ScriptSlider::setMode(String mode)
 
 	if (index == -1)
 	{
-		reportScriptError("invalid slider mode: " + mode);
+        m = HiSlider::Mode::Linear;
+		//logErrorAndContinue("invalid slider mode: " + mode);
 		return;
 	}
 
@@ -1461,6 +1491,19 @@ void ScriptingApi::Content::ScriptSlider::setMode(String mode)
 void ScriptingApi::Content::ScriptSlider::handleDefaultDeactivatedProperties()
 {
 	deactivatedProperties.removeAllInstancesOf(getIdFor(isPluginParameter));
+}
+
+juce::Array<hise::ScriptingApi::Content::ScriptComponent::PropertyWithValue> ScriptingApi::Content::ScriptSlider::getLinkProperties() const
+{
+	auto idList = ScriptComponent::getLinkProperties();
+
+	idList.insert(0, { Properties::Mode });
+	idList.add({ Properties::middlePosition });
+	idList.add({ Properties::stepSize });
+	idList.add({ Properties::suffix });
+	idList.add({ Properties::defaultValue });
+
+	return idList;
 }
 
 struct ScriptingApi::Content::ScriptButton::Wrapper
@@ -1731,14 +1774,7 @@ void ScriptingApi::Content::ScriptComboBox::setScriptObjectPropertyWithChangeMes
 		setScriptObjectProperty(Items, newValue);
 		setScriptObjectProperty(max, getItemList().size());
 	}
-	else if (id == getIdFor(ScriptComponent::linkedTo))
-	{
-		ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 
-		Array<PropertyWithValue> vArray;
-		vArray.add({ Properties::Items });
-		updatePropertiesAfterLink(vArray, notifyEditor);
-	}
 
 	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 }
@@ -1763,6 +1799,15 @@ void ScriptingApi::Content::ScriptComboBox::handleDefaultDeactivatedProperties()
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::max));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::min));
 	deactivatedProperties.removeAllInstancesOf(getIdFor(ScriptComponent::Properties::isPluginParameter));
+}
+
+juce::Array<hise::ScriptingApi::Content::ScriptComponent::PropertyWithValue> ScriptingApi::Content::ScriptComboBox::getLinkProperties() const
+{
+	auto vArray = ScriptComponent::getLinkProperties();
+
+	vArray.add({ Properties::Items });
+
+	return vArray;
 }
 
 struct ScriptingApi::Content::ScriptTable::Wrapper
@@ -1835,7 +1880,7 @@ float ScriptingApi::Content::ScriptTable::getTableValue(int inputValue)
 		}
 		else
 		{
-			reportScriptError("Connected Table was not found!");
+			logErrorAndContinue("Connected Table was not found!");
 			RETURN_IF_NO_THROW(-1.0f)
 		}
 	}
@@ -1921,7 +1966,7 @@ void ScriptingApi::Content::ScriptTable::connectToOtherTable(const String &other
 	useOtherTable = false;
 	referencedTable = nullptr;
 
-    reportScriptError(otherTableId + " was not found.");
+    logErrorAndContinue(otherTableId + " was not found.");
 }
 
 
@@ -2129,7 +2174,7 @@ void ScriptingApi::Content::ScriptSliderPack::connectToOtherSliderPack(const Str
 
 	existingData = nullptr;
 
-    reportScriptError(newPackId + " was not found.");
+    logErrorAndContinue(newPackId + " was not found.");
 }
 
 StringArray ScriptingApi::Content::ScriptSliderPack::getOptionsFor(const Identifier &id)
@@ -2262,7 +2307,7 @@ void ScriptingApi::Content::ScriptSliderPack::setValue(var newValue)
 	}
 	else
 	{
-		reportScriptError("You must call setValue() with an array for Slider Packs");
+		logErrorAndContinue("You must call setValue() with an array for Slider Packs");
 	}
 }
 
@@ -2279,14 +2324,14 @@ void ScriptingApi::Content::ScriptSliderPack::referToData(var sliderPackData)
 		existingData->sendChangeMessage();
 	}
 	else
-		reportScriptError("not a valid SliderPackData object");
+		logErrorAndContinue("not a valid SliderPackData object");
 }
 
 void ScriptingApi::Content::ScriptSliderPack::setWidthArray(var normalizedWidths)
 {
-    if(getNumSliders() + 1  != normalizedWidths.size())
+    if(getNumSliders() != normalizedWidths.size() + 1)
     {
-        reportScriptError("Width array length must be numSliders + 1");
+        logErrorAndContinue("Width array length must be numSliders + 1");
     }
     
     if(auto ar = normalizedWidths.getArray())
@@ -2408,6 +2453,7 @@ void ScriptingApi::Content::ScriptImage::setImageFile(const String &absoluteFile
 
 	setScriptObjectProperty(FileName, absoluteFileName, sendNotification);
 
+
 	PoolReference ref(getProcessor()->getMainController(), absoluteFileName, ProjectHandler::SubDirectories::Images);
 	image.clear();
 	image = getProcessor()->getMainController()->getExpansionHandler().loadImageReference(ref);
@@ -2425,7 +2471,7 @@ const Image ScriptingApi::Content::ScriptImage::getImage() const
 	return image ? *image.getData() :
 		PoolHelpers::getEmptyImage(getScriptObjectProperty(ScriptComponent::Properties::width),
 			getScriptObjectProperty(ScriptComponent::Properties::height));
-							  
+
 }
 
 StringArray ScriptingApi::Content::ScriptImage::getItemList() const
@@ -2784,7 +2830,7 @@ void ScriptingApi::Content::ScriptPanel::timerCallback()
 	
 	auto& readWriteLock = dynamic_cast<Processor*>(getScriptProcessor())->getMainController()->getCompileLock();
 
-	
+
 	if (readWriteLock.tryEnterRead())
 	{
 		if (HiseJavascriptEngine::isJavascriptFunction(timerRoutine))
@@ -2806,6 +2852,7 @@ void ScriptingApi::Content::ScriptPanel::timerCallback()
 
 			if (r.failed())
 			{
+
 				debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
 			}
 		}
@@ -2818,7 +2865,7 @@ void ScriptingApi::Content::ScriptPanel::timerCallback()
 
 void ScriptingApi::Content::ScriptPanel::loadImage(String imageName, String prettyName)
 {
-	PoolReference ref(getProcessor()->getMainController(), imageName, ProjectHandler::SubDirectories::Images);
+PoolReference ref(getProcessor()->getMainController(), imageName, ProjectHandler::SubDirectories::Images);
 
 	for (const auto& img : loadedImages)
 	{
@@ -2928,7 +2975,7 @@ void ScriptingApi::Content::ScriptPanel::setImage(String imageName, int xOffset,
 	}
 	else
 	{
-		reportScriptError("Can't offset both dimensions. Either x or y must be 0");
+		logErrorAndContinue("Can't offset both dimensions. Either x or y must be 0");
 	}
 
 	repaintNotifier.sendSynchronousChangeMessage();
@@ -3045,15 +3092,7 @@ void ScriptingApi::Content::ScriptedViewport::setScriptObjectPropertyWithChangeM
 			currentItems = StringArray::fromLines(newValue.toString());
 		}
 	}
-	else if (id == getIdFor(linkedTo))
-	{
-		ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 
-		Array<PropertyWithValue> vArray;
-		vArray.add({ Items });
-		vArray.add({ useList });
-		updatePropertiesAfterLink(vArray, notifyEditor);
-	}
 
 	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 }
@@ -3096,6 +3135,16 @@ void ScriptingApi::Content::ScriptedViewport::handleDefaultDeactivatedProperties
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::max));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::min));
 
+}
+
+juce::Array<hise::ScriptingApi::Content::ScriptComponent::PropertyWithValue> ScriptingApi::Content::ScriptedViewport::getLinkProperties() const
+{
+	auto vArray = ScriptComponent::getLinkProperties();
+
+	vArray.add({ Items });
+	vArray.add({ useList });
+
+	return vArray;
 }
 
 struct ScriptingApi::Content::ScriptedPlotter::Wrapper
@@ -3141,7 +3190,7 @@ void ScriptingApi::Content::ScriptedPlotter::addModulatorToPlotter(String proces
 		}
 	}
 
-	reportScriptError(String(modulatorName) + " was not found");
+	logErrorAndContinue(String(modulatorName) + " was not found");
 
 }
 
@@ -3744,7 +3793,7 @@ var ScriptingApi::Content::getComponent(var componentName)
 			return var(components[i]);
 	}
 
-	reportScriptError("Component with name " + componentName.toString() + " wasn't found.");
+	logErrorAndContinue("Component with name " + componentName.toString() + " wasn't found.");
 
 	RETURN_IF_NO_THROW(var());
 }
@@ -3833,7 +3882,7 @@ void ScriptingApi::Content::makeFullScreenInterface()
 	dynamic_cast<JavascriptMidiProcessor*>(getProcessor())->addToFront(true);
 }
 
-void ScriptingApi::Content::setToolbarProperties(const var &/*toolbarProperties*/)
+void ScriptingApi::Content::setToolbarProperties(const var &toolbarProperties)
 {
 	reportScriptError("2017...");
 }
