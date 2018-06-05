@@ -710,6 +710,7 @@ ModulatorSynthGroup::ModulatorSynthGroup(MainController *mc, const String &id, i
 	parameterNames.add("UnisonoDetune");
 	parameterNames.add("UnisonoSpread");
 	parameterNames.add("ForceMono");
+	parameterNames.add("KillSecondVoices");
 
 	allowStates.clear();
 
@@ -795,6 +796,7 @@ void ModulatorSynthGroup::setInternalAttribute(int index, float newValue)
 	case UnisonoDetune:		 setUnisonoDetuneAmount(newValue); break;
 	case UnisonoSpread:		 setUnisonoSpreadAmount(newValue); break;
 	case ForceMono:			 forceMono = newValue > 0.5f; break;
+	case KillSecondVoices:	 killSecondVoice = newValue > 0.5f; break;
 	default:				 jassertfalse;
 	}
 }
@@ -815,6 +817,7 @@ float ModulatorSynthGroup::getAttribute(int index) const
 	case UnisonoDetune:		 return (float)unisonoDetuneAmount;
 	case UnisonoSpread:		 return unisonoSpreadAmount;
 	case ForceMono:			 return forceMono ? 1.0f : 0.0f;
+	case KillSecondVoices:	 return killSecondVoice ? 1.0f : 0.0f;
 	default:				 jassertfalse; return -1.0f;
 	}
 }
@@ -836,6 +839,7 @@ float ModulatorSynthGroup::getDefaultValue(int parameterIndex) const
 	case UnisonoDetune:		 return 0.0f;
 	case UnisonoSpread:		 return 1.0f;
 	case ForceMono:		 return 0.0f;
+	case KillSecondVoices:	return 0.0f;
 	default:			 jassertfalse; return -1.0f;
 	}
 }
@@ -1070,13 +1074,29 @@ void ModulatorSynthGroup::postVoiceRendering(int startSample, int numThisTime)
 
 void ModulatorSynthGroup::handleRetriggeredNote(ModulatorSynthVoice *voice)
 {
-	if (carrierIsSampler)
+	if (killSecondVoice)
 	{
-		getFMCarrier()->handleRetriggeredNote(voice);
+		int noteNumber = voice->getCurrentlyPlayingNote();
+		auto uptime = voice->getVoiceUptime();
+
+		for (int i = 0; i < activeVoices.size(); i++)
+		{
+			auto v = activeVoices[i];
+			auto thisNumber = v->getCurrentlyPlayingNote();
+			auto thisUptime = v->getVoiceUptime();
+
+			if (noteNumber == thisNumber && thisUptime < uptime)
+			{
+				v->killVoice();
+			}
+		}
 	}
 	else
 	{
-		ModulatorSynth::handleRetriggeredNote(voice);
+		if (carrierIsSampler)
+			getFMCarrier()->handleRetriggeredNote(voice);
+		else
+			ModulatorSynth::handleRetriggeredNote(voice);
 	}
 }
 
@@ -1157,6 +1177,7 @@ void ModulatorSynthGroup::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(UnisonoVoiceAmount, "UnisonoVoiceAmount");
 	loadAttribute(UnisonoDetune, "UnisonoDetune");
 	loadAttribute(UnisonoSpread, "UnisonoSpread");
+	loadAttribute(KillSecondVoices, "KillSecondVoices");
 
 }
 
@@ -1170,6 +1191,7 @@ ValueTree ModulatorSynthGroup::exportAsValueTree() const
 	saveAttribute(UnisonoVoiceAmount, "UnisonoVoiceAmount");
 	saveAttribute(UnisonoDetune, "UnisonoDetune");
 	saveAttribute(UnisonoSpread, "UnisonoSpread");
+	saveAttribute(KillSecondVoices, "KillSecondVoices");
 
 	return v;
 }

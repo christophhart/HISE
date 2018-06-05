@@ -1011,9 +1011,27 @@ void ModulatorSampler::handleRetriggeredNote(ModulatorSynthVoice *voice)
 	switch (repeatMode)
 	{
 	case RepeatMode::DoNothing:		return;
-	case RepeatMode::KillNote:		voice->killVoice();
-	case RepeatMode::NoteOff:		voice->stopNote(1.0f, true);
+	case RepeatMode::KillNote:		voice->killVoice(); break;
+	case RepeatMode::NoteOff:		voice->stopNote(1.0f, true); break;
+	case RepeatMode::KillSecondOldestNote:
+	{
+		int noteNumber = voice->getCurrentlyPlayingNote();
+		auto uptime = voice->getVoiceUptime();
 
+		for (int i = 0; i < activeVoices.size(); i++)
+		{
+			auto v = activeVoices[i];
+			auto thisNumber = v->getCurrentlyPlayingNote();
+			auto thisUptime = v->getVoiceUptime();
+
+			if (noteNumber == thisNumber && thisUptime < uptime)
+			{
+				v->killVoice();
+			}
+		}
+
+		break;
+	}
 	}
 }
 

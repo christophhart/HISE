@@ -434,7 +434,7 @@ protected:
 	// Used to display the playing position
 	ModulatorSynthVoice *lastStartedVoice;
 
-	
+	VoiceStack activeVoices;
 
 private:
 
@@ -443,7 +443,7 @@ private:
 
 	// ===================================================================================================================
 
-	VoiceStack activeVoices;
+	
 
 	Colour iconColour;
 

@@ -159,7 +159,9 @@ public:
 	{
 		KillNote = 0, ///< kills the note (using the supplied fade time)
 		NoteOff, ///< triggers a note off event before starting the note
-		DoNothing ///< do nothin (a new voice is started and the old keeps ringing).
+		DoNothing, ///< do nothin (a new voice is started and the old keeps ringing).
+		KillSecondOldestNote, // allow one note to retrigger, but then kill the notes
+		KillThirdOldestNote
 	};
 
 	/** Additional modulator chains. */

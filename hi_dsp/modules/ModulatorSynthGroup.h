@@ -268,6 +268,7 @@ public:
 		UnisonoDetune,
 		UnisonoSpread,
 		ForceMono,
+		KillSecondVoices,
 		numSynthGroupParameters
 	};
 
@@ -430,7 +431,6 @@ public:
 	private:
 
 		ModulatorSynthGroup *group;
-
 	};
 
 	String getFMState() const { return getFMStateString(); };
@@ -451,7 +451,6 @@ public:
 		return detuneChain->getVoiceValues(voiceIndex) + startSample;
 	}
 
-
 	const float* calculateSpreadModulationValuesForVoice(int voiceIndex, int startSample, int numSamples)
 	{
 		spreadChain->renderVoice(voiceIndex, startSample, numSamples);
@@ -462,7 +461,6 @@ public:
 
 		return spreadChain->getVoiceValues(voiceIndex) + startSample;
 	}
-
 	
 private:
 
@@ -492,6 +490,8 @@ private:
 	int unisonoVoiceLimit;
 	double unisonoDetuneAmount;
 	float unisonoSpreadAmount;
+
+	bool killSecondVoice = true;
 
 	ModulatorSynthGroupHandler handler;
 	int numVoices;
