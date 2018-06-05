@@ -2200,21 +2200,7 @@ void BackendCommandTarget::Actions::validateUserPresets(BackendRootWindow * bpe)
 		int numChangedPresets = 0;
 		int maxNumChangedControls = 0;
 
-		for (auto f : userPresets)
-		{
-			const int numControlsForThisFile = UserPresetHelpers::addMissingControlsToUserPreset(mc->getMainSynthChain(), f);
-
-			if (numControlsForThisFile == -1)
-			{
-				PresetHandler::showMessageWindow("Error at validating", "Aborting...", PresetHandler::IconType::Error);
-			}
-
-			if (numControlsForThisFile > 0)
-			{
-				maxNumChangedControls = jmax<int>(maxNumChangedControls, numControlsForThisFile);
-				numChangedPresets++;
-			}
-		}
+		
 
 		if (numChangedPresets != 0)
 			PresetHandler::showMessageWindow("Presets changed", String(numChangedPresets) + " user presets were modified and up to " + String(maxNumChangedControls) + " controls were added.", PresetHandler::IconType::Info);

@@ -643,7 +643,7 @@ void ModulatorSampler::refreshMemoryUsage()
 	{
 		temporaryVoiceBuffer = hlac::HiseSampleBuffer(temporaryBufferShouldBeFloatingPoint, 2, 0);
 
-		StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, getBlockSize());
+		StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, getLargestBlockSize());
 
 		for (auto i = 0; i < getNumVoices(); i++)
 		{
@@ -724,7 +724,7 @@ void ModulatorSampler::setVoiceAmountInternal()
 
 			if (Processor::getSampleRate() != -1.0)
 			{
-				static_cast<ModulatorSamplerVoice*>(getVoice(i))->prepareToPlay(Processor::getSampleRate(), getBlockSize());
+				static_cast<ModulatorSamplerVoice*>(getVoice(i))->prepareToPlay(Processor::getSampleRate(), getLargestBlockSize());
 			}
 		};
 	}
@@ -893,9 +893,27 @@ void ModulatorSampler::handleRetriggeredNote(ModulatorSynthVoice *voice)
 	switch (repeatMode)
 	{
 	case RepeatMode::DoNothing:		return;
-	case RepeatMode::KillNote:		voice->killVoice();
-	case RepeatMode::NoteOff:		voice->stopNote(1.0f, true);
+	case RepeatMode::KillNote:		voice->killVoice(); break;
+	case RepeatMode::NoteOff:		voice->stopNote(1.0f, true); break;
+	case RepeatMode::KillSecondOldestNote:
+	{
+		int noteNumber = voice->getCurrentlyPlayingNote();
+		auto uptime = voice->getVoiceUptime();
 
+		for (int i = 0; i < activeVoices.size(); i++)
+		{
+			auto v = activeVoices[i];
+			auto thisNumber = v->getCurrentlyPlayingNote();
+			auto thisUptime = v->getVoiceUptime();
+
+			if (noteNumber == thisNumber && thisUptime < uptime)
+			{
+				v->killVoice();
+			}
+		}
+
+		break;
+	}
 	}
 }
 

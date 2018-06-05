@@ -421,6 +421,7 @@ SamplerSettings::SamplerSettings (ModulatorSampler *s)
 	retriggerEditor->addOption("Kill Note");
 	retriggerEditor->addOption("Note off");
 	retriggerEditor->addOption("Do nothing");
+	retriggerEditor->addOption("Kill Duplicate");
 
 	retriggerEditor->addListener(this);
 

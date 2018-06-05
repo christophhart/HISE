@@ -184,8 +184,8 @@ public:
 	// ========================================================================================================================== MIDI Message methods
 
 	uint16 getTimeStamp() const noexcept{ return timeStamp; };
-	void setTimeStamp(uint16 newTimestamp) noexcept{ timeStamp = (uint16)newTimestamp; };
-	void addToTimeStamp(int16 delta) noexcept{ timeStamp += delta; };
+	void setTimeStamp(int newTimestamp) noexcept;;
+	void addToTimeStamp(int16 delta) noexcept;
 
 	int getChannel() const noexcept{ return (int)channel; };
 	void setChannel(int newChannelNumber) noexcept{ channel = (uint8)newChannelNumber; };
@@ -484,8 +484,15 @@ public:
 	void addEvents(const MidiBuffer& otherBuffer);
 
 	void addEvents(const HiseEventBuffer &otherBuffer);
+	void addEvents(const HiseEventBuffer& otherBuffer, uint16 maxTimestamp);
 
+
+	bool timeStampsAreSorted() const;
 	
+	uint16 getMinTimeStamp() const;
+
+	uint16 getMaxTimeStamp() const;
+
 	struct CopyHelpers
 	{
 		static void copyEvents(HiseEvent* destination, const HiseEvent* source, int numElements)

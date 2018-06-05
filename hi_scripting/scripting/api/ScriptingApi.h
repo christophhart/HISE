@@ -36,6 +36,8 @@
 namespace hise { using namespace juce;
 
 
+class ScriptBaseMidiProcessor;
+class JavascriptMidiProcessor;
 
 /** This class wraps all available functions for the scripting engine provided by a ScriptProcessor.
 *	@ingroup scripting
@@ -371,6 +373,8 @@ public:
 
 		struct Wrapper;
 
+		ScriptBaseMidiProcessor* parentMidiProcessor;
+
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Engine);
 	};
 
@@ -680,6 +684,9 @@ public:
 		ApiHelpers::ModuleHandler moduleHandler;
 
 		SelectedItemSet<WeakReference<ModulatorSamplerSound>> soundSelection;
+
+		ScriptBaseMidiProcessor* parentMidiProcessor = nullptr;
+		JavascriptMidiProcessor* jp = nullptr;
 
 		bool sustainState;
 

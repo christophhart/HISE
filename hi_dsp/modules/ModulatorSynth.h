@@ -132,7 +132,7 @@ public:
 	// ===================================================================================================================
 
 	int getFreeTimerSlot();
-	void synthTimerCallback(uint8 index);
+	void synthTimerCallback(uint8 index, int numSamplesThisBlock);
 	void startSynthTimer(int index, double interval, int timeStamp);
 	void stopSynthTimer(int index);
 	double getTimerInterval(int index) const noexcept;
@@ -189,7 +189,7 @@ public:
 	//void handleHiseEvent(const HiseEvent &m) final override;
 
 	void handleHiseEvent(const HiseEvent& e);
-	void handleHostInfoHiseEvents();
+	void handleHostInfoHiseEvents(int numSamples);
 	void handleVolumeFade(int eventId, int fadeTimeMilliseconds, float gain);
 	void handlePitchFade(uint16 eventId, int fadeTimeMilliseconds, double pitchFactor);
 
@@ -419,13 +419,13 @@ public:
 
 protected:
 
-	bool checkTimerCallback(int timerIndex) const noexcept
+	bool checkTimerCallback(int timerIndex, int numSamplesThisBlock) const noexcept
 	{
 		if (nextTimerCallbackTimes[timerIndex] == 0.0)
 			return false;
 
 		auto uptime = getMainController()->getUptime();
-		auto timeThisBlock = (double)getBlockSize() / getSampleRate();
+		auto timeThisBlock = (double)numSamplesThisBlock / getSampleRate();
 
 		Range<double> rangeThisBlock(uptime, uptime + timeThisBlock);
 		return rangeThisBlock.contains(nextTimerCallbackTimes[timerIndex]);
@@ -434,7 +434,7 @@ protected:
 	// Used to display the playing position
 	ModulatorSynthVoice *lastStartedVoice;
 
-	
+	VoiceStack activeVoices;
 
 private:
 
@@ -443,7 +443,7 @@ private:
 
 	// ===================================================================================================================
 
-	VoiceStack activeVoices;
+	
 
 	Colour iconColour;
 

@@ -757,7 +757,7 @@ void JavascriptProcessor::registerCallbacks()
 {
 	const Processor* p = dynamic_cast<Processor*>(this);
 
-	const double bufferTime = (double)p->getBlockSize() / p->getSampleRate() * 1000.0;
+	const double bufferTime = (double)p->getLargestBlockSize() / p->getSampleRate() * 1000.0;
 
 	for (int i = 0; i < getNumSnippets(); i++)
 	{

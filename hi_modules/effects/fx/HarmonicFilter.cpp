@@ -152,7 +152,7 @@ void HarmonicFilter::setNumFilterBands(int newFilterBandIndex)
 
 		if (getSampleRate() > 0)
 		{
-			poly->prepareToPlay(getSampleRate(), getBlockSize());
+			poly->prepareToPlay(getSampleRate(), getLargestBlockSize());
 		}
 
 		for (int j = 0; j < numVoices; j++)
@@ -453,7 +453,7 @@ void HarmonicMonophonicFilter::setNumFilterBands(int newFilterBandIndex)
 
 		if (getSampleRate() > 0)
 		{
-			mono->prepareToPlay(getSampleRate(), getBlockSize());
+			mono->prepareToPlay(getSampleRate(), getLargestBlockSize());
 		}
 
 		mono->setUseFixedFrequency(true);

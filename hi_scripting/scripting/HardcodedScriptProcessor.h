@@ -421,7 +421,7 @@ public:
 		{
 			onEvent.setVelocity((uint8)v);
 			onEvent.ignoreEvent(false);
-			onEvent.setTimeStamp((uint16)Message.getTimestamp());
+			onEvent.setTimeStamp((int)Message.getTimestamp());
 			
 
 			currentMessageHolder->setMessage(onEvent);

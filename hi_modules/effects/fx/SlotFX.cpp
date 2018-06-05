@@ -176,7 +176,7 @@ bool SlotFX::setEffect(const String& typeName, bool synchronously)
 		}
 
 		if (p != nullptr && getSampleRate() > 0)
-			p->prepareToPlay(getSampleRate(), getBlockSize());
+			p->prepareToPlay(getSampleRate(), getLargestBlockSize());
 
         bool thisIsScriptFX = false;
         

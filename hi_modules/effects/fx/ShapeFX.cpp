@@ -446,8 +446,8 @@ void ShapeFX::updateOversampling()
 
 	ScopedPointer<Oversampler> newOverSampler = new Oversampler(2, factor, Oversampler::FilterType::filterHalfBandPolyphaseIIR, false);
 
-	if (getBlockSize() > 0)
-		newOverSampler->initProcessing(getBlockSize());
+	if (getLargestBlockSize() > 0)
+		newOverSampler->initProcessing(getLargestBlockSize());
 
 	int latency = roundFloatToInt(newOverSampler->getLatencyInSamples());
 

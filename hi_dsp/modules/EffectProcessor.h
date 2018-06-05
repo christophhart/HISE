@@ -338,9 +338,9 @@ public:
 
 			float *samples[2] = { leftChannel, rightChannel };
 
-			const int samplesToUse = getBlockSize();
+			const int samplesToUse = buffer.getNumSamples();
 
-			AudioSampleBuffer stereoBuffer(samples, 2, buffer.getNumSamples());
+			AudioSampleBuffer stereoBuffer(samples, 2, samplesToUse);
 
 			applyEffect(stereoBuffer, 0, samplesToUse);
 

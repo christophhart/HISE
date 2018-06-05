@@ -299,7 +299,7 @@ valuesForCurrentBuffer(1, 0)
 		jassertfalse;
 	}
 
-	if (modulator->getSampleRate() > 0) prepareToPlay(modulator->getSampleRate(), modulator->getBlockSize());
+	if (modulator->getSampleRate() > 0) prepareToPlay(modulator->getSampleRate(), modulator->getLargestBlockSize());
 
 }
 

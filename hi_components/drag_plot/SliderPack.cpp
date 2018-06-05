@@ -38,7 +38,8 @@ nextIndexToDisplay(-1),
 showValueOverlay(true),
 flashActive(true),
 undoManager(undoManager_),
-cachedData(0)
+cachedData(0),
+defaultValue(var(1.0))
 {
     enableAllocationFreeMessages(50);
     
@@ -168,26 +169,29 @@ void SliderPackData::setNewUndoAction() const
 
 void SliderPackData::setNumSliders(int numSliders)
 {
-	int delta = numSliders - values.size();
+	int numToCopy = jmin<int>(numSliders, values.size());
 
-	if (delta > 0)
+	Array<var> newValues;
+
+	for (int i = 0; i < numSliders; i++)
+	{
+		if (i < numToCopy)
+			newValues.add(values[i]);
+		else
+			newValues.add(defaultValue);
+	}
+
+	if(auto ar = values.getArray())
 	{
 		ScopedWriteLock sl(arrayLock);
-
-		for (int i = 0; i < delta; i++)
-		{
-			values.append(var(0.0f));
-		}
+		ar->swapWith(newValues);
 	}
-	else if (delta < 0)
+	else
 	{
 		ScopedWriteLock sl(arrayLock);
-
-		if (auto ar = values.getArray())
-		{
-			ar->removeRange(numSliders, delta);
-		}
+		values = var(newValues);
 	}
+
 	sendChangeMessage();
 }
 
