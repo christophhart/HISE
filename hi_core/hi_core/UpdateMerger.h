@@ -281,18 +281,26 @@ public:
 		return currentValue;
 	};
 
+	bool isSmoothingActive() const
+	{
+		return smoothingActive;
+	}
+
 	void fillBufferWithSmoothedValue(float targetValue, float* data, int numSamples)
 	{
 		const bool smoothThisBuffer = resetRamper.isBusy() || (active && (fabsf(targetValue - currentValue) > 0.001f));
 
 		if (!smoothThisBuffer)
 		{
+			smoothingActive = false;
 			currentValue = targetValue;
 			FloatVectorOperations::fill(data, targetValue, numSamples);
 			return;
 		}
 
 		SpinLock::ScopedLockType sl(spinLock);
+
+		smoothingActive = true;
 
 		int startSample = 0;
 
@@ -403,6 +411,8 @@ private:
 	JUCE_LEAK_DETECTOR(Smoother)
 
 	bool active;
+
+	bool smoothingActive = false;
 
 	float sampleRate;
 
