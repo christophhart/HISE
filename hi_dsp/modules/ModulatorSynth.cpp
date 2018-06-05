@@ -232,11 +232,16 @@ void ModulatorSynth::synthTimerCallback(uint8 index)
 		// this has to be a uint32 because otherwise it could wrap around the uint16 max sample offset for bigger timer callbacks
 		uint32 offsetInBuffer = (uint32)((nextTimerCallbackTimes[index] - uptime) * getSampleRate());
 
-		while (synthTimerIntervals[index] > 0.0 && offsetInBuffer < (uint32)getBlockSize())
+		const uint32 delta = offsetInBuffer % 8;
+		uint32 rasteredOffset = offsetInBuffer - delta;
+
+		while (synthTimerIntervals[index] > 0.0 && rasteredOffset < (uint32)numSamplesThisBlock)
 		{
-			eventBuffer.addEvent(HiseEvent::createTimerEvent(index, (uint16)offsetInBuffer));
+			eventBuffer.addEvent(HiseEvent::createTimerEvent(index, (uint16)rasteredOffset));
 			nextTimerCallbackTimes[index].store(nextTimerCallbackTimes[index].load() + synthTimerIntervals[index].load());
 			offsetInBuffer = (uint32)((nextTimerCallbackTimes[index] - uptime) * getSampleRate());
+			const uint32 delta = offsetInBuffer % 8;
+			rasteredOffset = offsetInBuffer - delta;
 		}
 	}
 	else jassertfalse;
@@ -625,7 +630,7 @@ void ModulatorSynth::handleHostInfoHiseEvents()
 		HiseEvent pos = HiseEvent(HiseEvent::Type::SongPosition, 0, 0);
 
 		pos.setSongPositionValue(ppqTimeStamp);
-		pos.setTimeStamp((uint16)ppqTimeStamp);
+		pos.setTimeStamp(ppqTimeStamp);
 
 		eventBuffer.addEvent(pos);
 	}

@@ -48,10 +48,10 @@ HiseEvent::HiseEvent(const MidiMessage& message)
 	else
 	{
 		type = Type::Empty;
-		// unsupported Message type, add another...
-
-		
- 		jassertfalse;
+		number = 0;
+		value = 0;
+		channel = 0;
+		return;
 	}
 	
 	number = data[1];
@@ -129,6 +129,29 @@ HiseEvent HiseEvent::createTimerEvent(uint8 timerIndex, uint16 offset)
 	return e;
 }
 
+void HiseEvent::setTimeStamp(int newTimestamp) noexcept
+{
+	timeStamp = static_cast<uint16>(jlimit<int>(0, UINT16_MAX, newTimestamp));
+}
+
+void HiseEvent::addToTimeStamp(int16 delta) noexcept
+{
+	if (delta < 0)
+	{
+		int v = (int)timeStamp + delta;
+		jassert(v >= 0);
+
+		timeStamp = (uint16)jmax<int>(0, v);
+	}
+	else
+	{
+		int v = (int)timeStamp + delta;
+		jassert(v < UINT16_MAX);
+
+		timeStamp = (uint16)jmin<int>(UINT16_MAX, v);
+	}
+}
+
 int HiseEvent::getPitchWheelValue() const noexcept
 {
 	return number | (value << 7);
@@ -203,7 +226,7 @@ void HiseEventBuffer::addEvent(const HiseEvent& hiseEvent)
 void HiseEventBuffer::addEvent(const MidiMessage& midiMessage, int sampleNumber)
 {
 	HiseEvent e(midiMessage);
-	e.setTimeStamp((uint16)sampleNumber);
+	e.setTimeStamp(sampleNumber);
 
 	addEvent(e);
 }
@@ -229,7 +252,7 @@ void HiseEventBuffer::addEvents(const MidiBuffer& otherBuffer)
 
 		e.swapWith(buffer[index]);
 
-		buffer[index].setTimeStamp((uint16)samplePos);
+		buffer[index].setTimeStamp(samplePos);
 
 		numUsed++;
 

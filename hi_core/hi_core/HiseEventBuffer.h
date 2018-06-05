@@ -184,8 +184,8 @@ public:
 	// ========================================================================================================================== MIDI Message methods
 
 	uint16 getTimeStamp() const noexcept{ return timeStamp; };
-	void setTimeStamp(uint16 newTimestamp) noexcept{ timeStamp = (uint16)newTimestamp; };
-	void addToTimeStamp(int16 delta) noexcept{ timeStamp += delta; };
+	void setTimeStamp(int newTimestamp) noexcept;;
+	void addToTimeStamp(int16 delta) noexcept;
 
 	int getChannel() const noexcept{ return (int)channel; };
 	void setChannel(int newChannelNumber) noexcept{ channel = (uint8)newChannelNumber; };

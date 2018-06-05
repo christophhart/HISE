@@ -632,7 +632,7 @@ int Arpeggiator::sendNoteOn()
 	{
 		auto& ce = *getCurrentHiseEvent();
 
-		uint16 timestamp = ce.getTimeStamp() + (uint16)shuffleTimeStamp;
+		auto timestamp = (int)ce.getTimeStamp();// +shuffleTimeStamp;
 
 		auto c = currentNote.channel;
 

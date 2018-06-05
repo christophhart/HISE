@@ -2123,7 +2123,7 @@ void ScriptingApi::Synth::noteOffDelayedByEventId(int eventId, int timestamp)
 
 		HiseEvent noteOff(HiseEvent::Type::NoteOff, (uint8)e.getNoteNumber(), 1, (uint8)e.getChannel());
 		noteOff.setEventId((uint16)eventId);
-		noteOff.setTimeStamp((uint16)timestamp);
+		noteOff.setTimeStamp(timestamp);
 
 		if (e.isArtificial()) noteOff.setArtificial();
 
@@ -2180,7 +2180,7 @@ void ScriptingApi::Synth::addVolumeFade(int eventId, int fadeTimeMilliseconds, i
 
 				if (const HiseEvent* current = parentMidiProcessor->getCurrentHiseEvent())
 				{
-					e.setTimeStamp(current->getTimeStamp());
+					e.setTimeStamp((int)current->getTimeStamp());
 				}
 
 				parentMidiProcessor->addHiseEventToBuffer(e);
@@ -2241,7 +2241,7 @@ void ScriptingApi::Synth::addPitchFade(int eventId, int fadeTimeMilliseconds, in
 				HiseEvent e = HiseEvent::createPitchFade((uint16)eventId, fadeTimeMilliseconds, (uint8)targetCoarsePitch, (uint8)targetFinePitch);
 				
 				if(auto ce = parentMidiProcessor->getCurrentHiseEvent())
-					e.setTimeStamp(ce->getTimeStamp());
+					e.setTimeStamp((int)ce->getTimeStamp());
 
 				parentMidiProcessor->addHiseEventToBuffer(e);
 			}
@@ -2414,7 +2414,7 @@ void ScriptingApi::Synth::sendController(int controllerNumber, int controllerVal
 				
 				if (const HiseEvent* current = parentMidiProcessor->getCurrentHiseEvent())
 				{
-					e.setTimeStamp(current->getTimeStamp());
+					e.setTimeStamp((int)current->getTimeStamp());
 				}
 
 				parentMidiProcessor->addHiseEventToBuffer(e);
@@ -2769,11 +2769,11 @@ int ScriptingApi::Synth::internalAddNoteOn(int channel, int noteNumber, int velo
 
 						if (auto ce = parentMidiProcessor->getCurrentHiseEvent())
 						{
-							m.setTimeStamp((uint16)ce->getTimeStamp() + (uint16)timeStampSamples);
+							m.setTimeStamp((int)ce->getTimeStamp() + timeStampSamples);
 						}
 						else
 						{
-							m.setTimeStamp((uint16)timeStampSamples);
+							m.setTimeStamp(timeStampSamples);
 						}
 
 						if (startOffset > UINT16_MAX)
@@ -2822,11 +2822,11 @@ void ScriptingApi::Synth::addNoteOff(int channel, int noteNumber, int timeStampS
 
 					if (auto ce = parentMidiProcessor->getCurrentHiseEvent())
 					{
-						m.setTimeStamp((uint16)ce->getTimeStamp() + (uint16)timeStampSamples);
+						m.setTimeStamp((int)ce->getTimeStamp() + timeStampSamples);
 					}
 					else
 					{
-						m.setTimeStamp((uint16)timeStampSamples);
+						m.setTimeStamp(timeStampSamples);
 					}
 
 					m.setArtificial();
@@ -2862,11 +2862,11 @@ void ScriptingApi::Synth::addController(int channel, int number, int value, int 
 						
 						if (auto ce = parentMidiProcessor->getCurrentHiseEvent())
 						{
-							m.setTimeStamp((uint16)ce->getTimeStamp() + (uint16)timeStampSamples);
+							m.setTimeStamp((int)ce->getTimeStamp() + timeStampSamples);
 						}
 						else
 						{
-							m.setTimeStamp((uint16)timeStampSamples);
+							m.setTimeStamp(timeStampSamples);
 						}
 
 						m.setArtificial();
