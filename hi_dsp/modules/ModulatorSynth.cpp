@@ -836,6 +836,8 @@ void ModulatorSynth::noteOn(const HiseEvent &m)
     
     jassert(m.isNoteOn());
 
+	const bool retriggerWithDifferentChannels = getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().isMpeEnabled();
+
 	const int midiChannel = m.getChannel();
 	const int midiNoteNumber = m.getNoteNumber();
 	const int transposedMidiNoteNumber = midiNoteNumber + m.getTransposeAmount();
@@ -864,7 +866,8 @@ void ModulatorSynth::noteOn(const HiseEvent &m)
 				}
 
                 else if (voice->getCurrentlyPlayingNote() == midiNoteNumber // Use the untransposed number for detecting repeated notes
-                     && voice->isPlayingChannel (midiChannel) && !(voice->getCurrentHiseEvent() == m))
+                     && (retriggerWithDifferentChannels || voice->isPlayingChannel (midiChannel)) 
+					 && !(voice->getCurrentHiseEvent() == m))
 				{
 					handleRetriggeredNote(voice);
 				}
