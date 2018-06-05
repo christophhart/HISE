@@ -189,8 +189,6 @@ public:
 
 		PreloadListenerUpdater preloadListenerUpdater;
 
-		
-
 		struct PreloadJob : public SampleThreadPoolJob
 		{
 		public:
@@ -863,6 +861,7 @@ public:
 
 	void loadTypeFace(const String& fileName, const void* fontData, size_t fontDataSize, const String& fontId=String());
 
+	int getBufferSizeForCurrentBlock() const noexcept;
 	
 	void fillWithCustomFonts(StringArray &fontList);
 	juce::Typeface* getFont(const String &fontName) const;
@@ -1179,7 +1178,11 @@ private:
 
 	Component::SafePointer<Plotter> plotter;
 
-	Atomic<int> bufferSize;
+	Atomic<int> maxBufferSize;
+
+	Atomic<int> cpuBufferSize;
+
+	int numSamplesThisBlock = 0;
 
 	Atomic<int> presetLoadRampFlag;
 
@@ -1237,6 +1240,8 @@ private:
 	Atomic<int> voiceAmount;
 	bool allNotesOffFlag;
     
+	
+
     bool changed;
     
     bool midiInputFlag;

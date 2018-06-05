@@ -221,7 +221,7 @@ int ModulatorSynth::getFreeTimerSlot()
 	return -1;
 }
 
-void ModulatorSynth::synthTimerCallback(uint8 index)
+void ModulatorSynth::synthTimerCallback(uint8 index, int numSamplesThisBlock)
 {
 	if (index >= 0)
 	{
@@ -249,7 +249,7 @@ void ModulatorSynth::synthTimerCallback(uint8 index)
 
 void ModulatorSynth::startSynthTimer(int index, double interval, int timeStamp)
 {
-	if (interval < 0.04)
+	if (interval < 0.004)
 	{
 		nextTimerCallbackTimes[index] = 0.0;
 		jassertfalse;
@@ -320,14 +320,14 @@ void ModulatorSynth::processHiseEventBuffer(const HiseEventBuffer &inputBuffer, 
 {
 	eventBuffer.copyFrom(inputBuffer);
 
-	if (checkTimerCallback(0)) synthTimerCallback(0);
-	if (checkTimerCallback(1)) synthTimerCallback(1);
-	if (checkTimerCallback(2)) synthTimerCallback(2);
-	if (checkTimerCallback(3)) synthTimerCallback(3);
+	if (checkTimerCallback(0, numSamples)) synthTimerCallback(0, numSamples);
+	if (checkTimerCallback(1, numSamples)) synthTimerCallback(1, numSamples);
+	if (checkTimerCallback(2, numSamples)) synthTimerCallback(2, numSamples);
+	if (checkTimerCallback(3, numSamples)) synthTimerCallback(3, numSamples);
 
 	if (getMainController()->getMainSynthChain() == this)
 	{
-		handleHostInfoHiseEvents();
+		handleHostInfoHiseEvents(numSamples);
 	}
 
 	midiProcessorChain->renderNextHiseEventBuffer(eventBuffer, numSamples);
@@ -354,7 +354,7 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 
     ADD_GLITCH_DETECTOR(this, DebugLogger::Location::SynthRendering);
     
-	int numSamples = getBlockSize(); //outputBuffer.getNumSamples();
+	int numSamples = outputBuffer.getNumSamples();
 
 	const int numSamplesFixed = numSamples;
 
@@ -579,7 +579,7 @@ void ModulatorSynth::handleHiseEvent(const HiseEvent& m)
 	}
 }
 
-void ModulatorSynth::handleHostInfoHiseEvents()
+void ModulatorSynth::handleHostInfoHiseEvents(int numSamples)
 {
 	int ppqTimeStamp = -1;
 
@@ -593,7 +593,7 @@ void ModulatorSynth::handleHostInfoHiseEvents()
 	{
 		double ppq = getMainController()->getHostInfoObject()->getProperty(ppqPosition);
 
-		const double bufferAsMilliseconds = getBlockSize() / getSampleRate();
+		const double bufferAsMilliseconds = (double)numSamples / getSampleRate();
 		const double bufferAsPPQ = bufferAsMilliseconds * (getMainController()->getBpm() / 60.0);
 		const double ppqAtEndOfBuffer = ppq + bufferAsPPQ;
 
@@ -608,7 +608,7 @@ void ModulatorSynth::handleHostInfoHiseEvents()
 			const double remainingTime = (60.0 / getMainController()->getBpm()) * remaining;
 			const double remainingSamples = getSampleRate() * remainingTime;
 
-			if (remainingSamples < getBlockSize())
+			if (remainingSamples < numSamples)
 			{
 				ppqTimeStamp = (int)remainingSamples;
 			}
