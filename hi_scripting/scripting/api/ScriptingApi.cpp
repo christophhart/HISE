@@ -1895,10 +1895,16 @@ var ScriptingApi::Sampler::getSampleMapList() const
 	auto pool = getProcessor()->getMainController()->getCurrentSampleMapPool();
 	auto references = pool->getListOfAllReferences(true);
 
+	PoolReference::Comparator comparator;
+
+	references.sort(comparator);
+
 	sampleMapNames.ensureStorageAllocated(references.size());
 
 	for (auto r : references)
 		sampleMapNames.add(r.getReferenceString());
+
+	
 
 	return sampleMapNames;
 }

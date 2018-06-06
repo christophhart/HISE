@@ -183,7 +183,7 @@ void CustomKeyboard::setUseCustomGraphics(bool shouldUseCustomGraphics)
 	{
 		PoolReference upRef(mc, "{PROJECT_FOLDER}keyboard/up_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
 
-		upImages[i] = handler.loadImageReference(upRef);
+		upImages.set(i, handler.loadImageReference(upRef));
 
 		if (!upImages[i])
 		{
@@ -194,7 +194,7 @@ void CustomKeyboard::setUseCustomGraphics(bool shouldUseCustomGraphics)
 
 		PoolReference downRef(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
 
-		downImages[i] = handler.loadImageReference(downRef);
+		downImages.set(i, handler.loadImageReference(downRef));
 
 		if (!downImages[i])
 		{

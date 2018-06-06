@@ -108,6 +108,14 @@ struct PoolHelpers
 
 	struct Reference
 	{
+		struct Comparator
+		{
+			int compareElements(const Reference& first, const Reference& second)
+			{
+				return first.reference.compare(second.reference);
+			}
+		};
+
 		enum Mode
 		{
 			Invalid,

@@ -306,7 +306,7 @@ const hise::ModulatorSamplerSound* SampleMap::getSound(int index) const
 
 int SampleMap::getNumRRGroups() const
 {
-	return getSampler()->getAttribute(ModulatorSampler::RRGroupAmount);
+	return (int)getSampler()->getAttribute(ModulatorSampler::RRGroupAmount);
 }
 
 void SampleMap::valueTreePropertyChanged(ValueTree& treeWhosePropertyHasChanged, const Identifier& property)
@@ -348,7 +348,7 @@ void SampleMap::valueTreeChildAdded(ValueTree& parentTree, ValueTree& childWhich
 	getSampler()->killAllVoicesAndCall(f);	
 }
 
-void SampleMap::valueTreeChildRemoved(ValueTree& parentTree, ValueTree& childWhichHasBeenRemoved, int indexFromWhichChildWasRemoved)
+void SampleMap::valueTreeChildRemoved(ValueTree& /*parentTree*/, ValueTree& /*childWhichHasBeenRemoved*/, int indexFromWhichChildWasRemoved)
 {
 	auto f = [indexFromWhichChildWasRemoved](Processor* p)
 	{

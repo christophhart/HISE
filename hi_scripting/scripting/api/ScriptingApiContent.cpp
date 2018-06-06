@@ -731,18 +731,6 @@ void ScriptingApi::Content::ScriptComponent::setTooltip(const String &newTooltip
 	setScriptObjectProperty(Properties::tooltip, newTooltip);
 }
 
-File ScriptingApi::Content::ScriptComponent::getExternalFile(var newValue)
-{
-	if (GET_PROJECT_HANDLER(getProcessor()).isActive())
-	{
-		return GET_PROJECT_HANDLER(getProcessor()).getFilePath(newValue, ProjectHandler::SubDirectories::Images);
-	}
-	else
-	{
-		return dynamic_cast<ExternalFileProcessor*>(getScriptProcessor())->getFile(newValue, PresetPlayerHandler::ImageResources);
-	}
-}
-
 var ScriptingApi::Content::ScriptComponent::getWidth() const
 {
 	return (int)getScriptObjectProperty(Properties::width);
