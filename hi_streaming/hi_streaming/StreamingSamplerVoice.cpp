@@ -139,6 +139,7 @@ void SampleLoader::reset()
 		{
 			currentSound->decreaseVoiceCount();
 			clearLoader();
+			
 		}
 		else
 		{
@@ -158,7 +159,7 @@ void SampleLoader::clearLoader()
 {
 	sound = nullptr;
 	diskUsage = 0.0f;
-	cancelled = false;
+	cancelled = true;
 }
 
 double SampleLoader::getDiskUsage() noexcept
@@ -302,6 +303,8 @@ int SampleLoader::getNumSamplesForStreamingBuffers() const
 
 bool SampleLoader::requestNewData()
 {
+	cancelled = false;
+
 #if KILL_VOICES_WHEN_STREAMING_IS_BLOCKED
 	if (this->isQueued())
 	{
@@ -327,7 +330,6 @@ SampleThreadPoolJob::JobStatus SampleLoader::runJob()
 {
 	if (cancelled)
 	{
-		cancelled = false;
 		return SampleThreadPoolJob::jobHasFinished;
 	}
 
