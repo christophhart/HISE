@@ -268,7 +268,7 @@ public:
 
 
 
-	PooledImage loadImageReference(const PoolReference& imageId);
+	PooledImage loadImageReference(const PoolReference& imageId, PoolHelpers::LoadingType loadingType = PoolHelpers::LoadAndCacheWeak);
 
 	PooledSampleMap loadSampleMap(const PoolReference& sampleMapId);
 

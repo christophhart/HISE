@@ -230,9 +230,9 @@ public:
 
 			virtual ~Compressor() {};
 
-			virtual void write(OutputStream& output, const ValueTree& data) const;
-			virtual void write(OutputStream& output, const Image& data) const;
-			virtual void write(OutputStream& output, const AudioSampleBuffer& data) const;
+			virtual void write(OutputStream& output, const ValueTree& data, const File& originalFile) const;
+			virtual void write(OutputStream& output, const Image& data, const File& originalFile) const;
+			virtual void write(OutputStream& output, const AudioSampleBuffer& data, const File& originalFile) const;
 
 			virtual void create(MemoryInputStream* mis, ValueTree* data) const;
 			virtual void create(MemoryInputStream* mis, Image* data) const;
@@ -754,7 +754,7 @@ public:
 		auto d = getWeakReferenceToItem(r);
 
 		if(d)
-			getDataProvider()->getCompressor()->write(output, *d.getData());
+			getDataProvider()->getCompressor()->write(output, *d.getData(), d.getRef().getFile());
 	}
 
 	ManagedPtr getWeakReferenceToItem(PoolReference r)
@@ -836,18 +836,26 @@ public:
 		
 		if (r.isEmbeddedReference())
 		{
-			MemoryInputStream* mis = getDataProvider()->createInputStream(r.getReferenceString());
+			if (auto mis = getDataProvider()->createInputStream(r.getReferenceString()))
+			{
+				getDataProvider()->getCompressor()->create(mis, &ne->data);
 
-			getDataProvider()->getCompressor()->create(mis, &ne->data);
+				ne->additionalData = getDataProvider()->createAdditionalData(r);
 
-			ne->additionalData = getDataProvider()->createAdditionalData(r);
+				weakPool.add(ManagedPtr(this, ne.getObject(), false));
+				refCountedPool.add(ManagedPtr(this, ne.getObject(), true));
 
-			weakPool.add(ManagedPtr(this, ne.getObject(), false));
-			refCountedPool.add(ManagedPtr(this, ne.getObject(), true));
+				sendPoolChangeMessage(PoolBase::Added);
 
-			sendPoolChangeMessage(PoolBase::Added);
-
-			return ManagedPtr(this, ne.getObject(), true);
+				return ManagedPtr(this, ne.getObject(), true);
+			}
+			else
+			{
+				jassertfalse;
+				getMainController()->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage,
+					"The file " + r.getReferenceString() + " is not embedded correctly.");
+				return ManagedPtr();
+			}
 		}
 		else
 		{

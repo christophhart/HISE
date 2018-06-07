@@ -89,6 +89,8 @@ class ExpansionPathFactory : public PathFactory
 
 			return path;
 		}
+
+		return path;
 	};
 
 

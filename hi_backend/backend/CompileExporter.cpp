@@ -57,13 +57,13 @@ void loadOtherReferencedImages(ModulatorSynthChain* chainToExport)
 
 		jassert(upRef.isValid());
 
-		images.add(pool->loadFromReference(upRef, PoolHelpers::LoadAndCacheWeak));
+		images.add(pool->loadFromReference(upRef, PoolHelpers::LoadAndCacheStrong));
 		
 		PoolReference downRef(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
 
 		jassert(downRef.isValid());
 
-		images.add(pool->loadFromReference(downRef, PoolHelpers::LoadAndCacheWeak));
+		images.add(pool->loadFromReference(downRef, PoolHelpers::LoadAndCacheStrong));
 	}
 
 	const bool hasAboutPageImage = handler.getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("about.png").existsAsFile();
@@ -72,7 +72,7 @@ void loadOtherReferencedImages(ModulatorSynthChain* chainToExport)
 	{
 		PoolReference aboutRef(mc, "{PROJECT_FOLDER}about.png", ProjectHandler::SubDirectories::Images);
 
-		images.add(pool->loadFromReference(aboutRef, PoolHelpers::LoadAndCacheWeak));
+		images.add(pool->loadFromReference(aboutRef, PoolHelpers::LoadAndCacheStrong));
 	}
 }
 
@@ -541,6 +541,12 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 				imageOutputFile = GET_PROJECT_HANDLER(chainToExport).getRootFolder().getChildFile("ImageResources.dat");
 				sampleOutputFile = GET_PROJECT_HANDLER(chainToExport).getRootFolder().getChildFile("AudioResources.dat");
 			}
+
+			loadOtherReferencedImages(chainToExport);
+
+			sampleOutputFile.deleteFile();
+			imageOutputFile.deleteFile();
+			samplemapFile.deleteFile();
 
 			chainToExport->getMainController()->getCurrentAudioSampleBufferPool(true)->getDataProvider()->writePool(new FileOutputStream(sampleOutputFile));
 			chainToExport->getMainController()->getCurrentImagePool(true)->getDataProvider()->writePool(new FileOutputStream(imageOutputFile));

@@ -758,7 +758,7 @@ public:
 		{
 			FileOutputStream fos(file);
 
-			GZIPCompressorOutputStream gzos(&fos, 1, false);
+			GZIPCompressorOutputStream gzos(&fos, 9, false);
 
 			MemoryOutputStream mos;
 

@@ -203,11 +203,11 @@ const var ExpansionHandler::getMetadata(const PoolReference& sampleId)
 	return pool->getAdditionalData(sampleId);
 }
 
-PooledImage ExpansionHandler::loadImageReference(const PoolReference& imageId)
+hise::PooledImage ExpansionHandler::loadImageReference(const PoolReference& imageId, PoolHelpers::LoadingType loadingType /*= PoolHelpers::LoadAndCacheWeak*/)
 {
 	ImagePool* pool = nullptr;
 	getPoolForReferenceString(imageId, &pool);
-	return pool->loadFromReference(imageId, PoolHelpers::LoadAndCacheWeak);
+	return pool->loadFromReference(imageId, loadingType);
 }
 
 hise::PooledSampleMap ExpansionHandler::loadSampleMap(const PoolReference& sampleMapId)

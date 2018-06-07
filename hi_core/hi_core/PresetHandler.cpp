@@ -1474,6 +1474,9 @@ juce::File FrontendHandler::getSubDirectory(SubDirectories directory) const
 	default:
 		break;
 	}
+
+	jassertfalse;
+	return File();
 }
 
 File FrontendHandler::getSampleLocationForCompiledPlugin()

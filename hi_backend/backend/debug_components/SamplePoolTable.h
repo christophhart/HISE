@@ -114,6 +114,8 @@ struct PoolTableHelpers
 			{
 				return ColumnIcons::getPath(ColumnIcons::moveIcon, sizeof(ColumnIcons::moveIcon));
 			}
+
+			return Path();
 		}
 	};
 

@@ -571,6 +571,9 @@ juce::MemoryInputStream* PoolBase::DataProvider::createInputStream(const String&
 				return new MemoryInputStream(mb, true);
 			}
 		}
+
+		jassertfalse;
+		return nullptr;
 	}
 	else
 	{
@@ -595,12 +598,19 @@ juce::Result PoolBase::DataProvider::writePool(OutputStream* ownedOutputStream)
 
 		ValueTree child = ValueTreeConverters::convertDynamicObjectToValueTree(additionalData, "Item");
 
+		const String message = "Writing " + ref.getReferenceString() + " ... " + String(dataOutputStream.getPosition() / 1024) + " kB";
+
+		if(auto l = Logger::getCurrentLogger())
+			l->writeToLog(message);
+
 		child.setProperty("ID", ref.getReferenceString(), nullptr);
 		child.setProperty("HashCode", ref.getHashCode(), nullptr);
 
 		MemoryOutputStream itemData;
 
 		pool->writeItemToOutput(itemData, ref);
+
+		DBG(message);
 
 		child.setProperty("ChunkStart", dataOutputStream.getPosition(), nullptr);
 		dataOutputStream.write(itemData.getData(), itemData.getDataSize());
@@ -640,6 +650,8 @@ var PoolBase::DataProvider::createAdditionalData(PoolReference r)
 
 		return data;
 	}
+
+	return var();
 }
 
 Array<hise::PoolReference> PoolBase::DataProvider::getListOfAllEmbeddedReferences() const
@@ -656,20 +668,38 @@ Array<hise::PoolReference> PoolBase::DataProvider::getListOfAllEmbeddedReference
 	return references;
 }
 
-void PoolBase::DataProvider::Compressor::write(OutputStream& output, const ValueTree& data) const
+void PoolBase::DataProvider::Compressor::write(OutputStream& output, const ValueTree& data, const File& originalFile) const
 {
 	GZIPCompressorOutputStream zipper(&output, 9);
 	data.writeToStream(zipper);
 	zipper.flush();
 }
 
-void PoolBase::DataProvider::Compressor::write(OutputStream& output, const Image& data) const
+void PoolBase::DataProvider::Compressor::write(OutputStream& output, const Image& data, const File& originalFile) const
 {
+	const bool isValidImage = ImageFileFormat::loadFrom(originalFile).isValid();
+
+	FileInputStream fis(originalFile);
+
+	auto originalFileSize = fis.getTotalLength();
+
+	MemoryOutputStream newlyCompressedImage;
+
 	PNGImageFormat format;
-	format.writeImageToStream(data, output);
+	format.writeImageToStream(data, newlyCompressedImage);
+	auto newSize = newlyCompressedImage.getDataSize();
+
+	if (isValidImage && originalFileSize < newSize)
+	{
+		output.writeFromInputStream(fis, fis.getTotalLength());
+	}
+	else
+	{
+		output.write(newlyCompressedImage.getData(), newlyCompressedImage.getDataSize());
+	}
 }
 
-void PoolBase::DataProvider::Compressor::write(OutputStream& output, const AudioSampleBuffer& data) const
+void PoolBase::DataProvider::Compressor::write(OutputStream& output, const AudioSampleBuffer& data, const File& originalFile) const
 {
 	FlacAudioFormat format;
 
