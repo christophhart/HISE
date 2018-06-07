@@ -113,7 +113,7 @@ class UpdateDispatcher : public AsyncUpdater
 public:
 
 	UpdateDispatcher() :
-		pendingListeners(1024),
+		pendingListeners(8192),
 		pendingFunctions(1024)
 	{};
 

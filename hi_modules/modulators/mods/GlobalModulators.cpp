@@ -54,6 +54,8 @@ useTable(false)
 
 GlobalModulator::~GlobalModulator()
 {
+    DBG("GlobalModulator Destructor");
+    
 	table = nullptr;
 
 	
@@ -182,7 +184,7 @@ void GlobalModulator::loadFromValueTree(const ValueTree &v)
 
 void GlobalModulator::removeFromAllContainers()
 {
-	ModulatorSynthChain *chain = dynamic_cast<Processor*>(this)->getMainController()->getMainSynthChain();
+    ModulatorSynthChain *chain = dynamic_cast<Processor*>(this)->getMainController()->getMainSynthChain();
 
 	if (chain != nullptr)
 	{
@@ -195,9 +197,7 @@ void GlobalModulator::removeFromAllContainers()
 			c->removeChangeListenerFromHandler(this);
 		}
 
-	}
-
-	
+	}	
 }
 
 GlobalVoiceStartModulator::GlobalVoiceStartModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m) :
@@ -295,6 +295,7 @@ GlobalStaticTimeVariantModulator::GlobalStaticTimeVariantModulator(MainControlle
 
 GlobalStaticTimeVariantModulator::~GlobalStaticTimeVariantModulator()
 {
+    DBG("GlobalStaticTimeVariantModulator Destructor");
 	removeFromAllContainers();
 }
 

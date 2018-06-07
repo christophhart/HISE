@@ -589,7 +589,7 @@ void MPEPanel::setCurrentMod(MPEModulator* newMod)
 
 void MPEPanel::mpeModeChanged(bool isEnabled)
 {
-	enableMPEButton.setToggleState(isEnabled, dontSendNotification);
+    notifier.isEnabled = isEnabled;
 	notifier.refresh();
 }
 
@@ -632,6 +632,7 @@ void MPEPanel::Notifier::timerCallback()
 {
 	if (refreshPanel)
 	{
+        parent.enableMPEButton.setToggleState(isEnabled, dontSendNotification);
 		parent.setCurrentMod(nullptr);
 		parent.listbox.deselectAllRows();
 		parent.listbox.updateContent();

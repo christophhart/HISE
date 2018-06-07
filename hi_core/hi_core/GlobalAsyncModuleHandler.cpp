@@ -93,7 +93,7 @@ void MainController::GlobalAsyncModuleHandler::removeAsync(Processor* p, Compone
 
 		auto c = dynamic_cast<Chain*>(ProcessorHelpers::findParentProcessor(p, false));
 
-		jassert(c != nullptr);
+		//jassert(c != nullptr);
 
 		if (c == nullptr)
 			return true;

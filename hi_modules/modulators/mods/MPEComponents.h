@@ -129,6 +129,8 @@ private:
 			refreshPanel = true;
 		}
 
+        bool isEnabled = false;
+        
 	private:
 
 		MPEPanel & parent;

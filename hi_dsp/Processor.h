@@ -212,9 +212,13 @@ public:
 	/** Overwrite this if you need custom destruction behaviour. */
 	virtual ~Processor()
 	{
+        DBG("Processor Destructor");
+        
 		getMainController()->getMacroManager().removeMacroControlsFor(this);
-		masterReference.clear();
-		removeAllChangeListeners();	
+		
+		removeAllChangeListeners();
+        
+        masterReference.clear();
 	};
 
 	/** Overwrite this enum and add new parameters. This is used by the set- / getAttribute methods. */
@@ -722,7 +726,7 @@ public:
 
 		void addProcessor(Processor *p)
 		{
-			jassert(p != nullptr);
+			//jassert(p != nullptr);
 
 			if(dynamic_cast<SubTypeProcessor*>(p) != nullptr)
 			{
