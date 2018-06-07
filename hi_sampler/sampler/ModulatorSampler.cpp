@@ -918,6 +918,7 @@ void ModulatorSampler::handleRetriggeredNote(ModulatorSynthVoice *voice)
 		}
 		break;
 	}
+    default: jassertfalse; break;
 	}
 }
 

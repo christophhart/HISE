@@ -97,6 +97,7 @@ void FrontendProcessor::restorePool(InputStream* inputStream, FileHandlerBase::S
         case FileHandlerBase::Images: getCurrentImagePool(true)->getDataProvider()->restorePool(streamToUse); break;
         case FileHandlerBase::AudioFiles: getCurrentAudioSampleBufferPool(true)->getDataProvider()->restorePool(streamToUse); break;
         case FileHandlerBase::SampleMaps: getCurrentSampleMapPool(true)->getDataProvider()->restorePool(streamToUse); break;
+        default: jassertfalse; break;
     }
 }
 
