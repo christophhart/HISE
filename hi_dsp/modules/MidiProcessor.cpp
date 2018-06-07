@@ -92,8 +92,6 @@ ProcessorEditorBody *MidiProcessorChain::createEditor(ProcessorEditor *parentEdi
 
 void MidiProcessorChain::addArtificialEvent(const HiseEvent& m)
 {
-	const int timeStamp = (int)m.getTimeStamp();
-
 	artificialEvents.addEvent(m);
 }
 

@@ -230,10 +230,6 @@ public:
 	
 	const Processor* getModulatorForControlledParameter(const Processor* processor, int parameterIndex) const;
 
-	int getNumControlledParameters() const
-	{
-
-	}
 
 	ValueTree exportModulatedParameters() const;
 

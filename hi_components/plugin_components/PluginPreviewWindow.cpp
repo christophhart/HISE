@@ -132,8 +132,6 @@ mainSynthChain(editor->getMainSynthChain())
 		jassertfalse;
 	}
 
-	
-	const int xDelta = 2;
 
 	setSize(content->getContentWidth(), content->getContentHeight());
     

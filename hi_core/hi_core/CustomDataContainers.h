@@ -281,7 +281,7 @@ public:
 	void shrink(int newSize)
 	{
 		jassert(newSize > 0);
-		position = jmin<int>(position, newSize);
+		position = jmin<size_t>(position, (size_t)newSize);
 	}
 
     void clear()

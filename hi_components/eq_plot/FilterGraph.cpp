@@ -123,7 +123,7 @@ public:
 
 			c->setOpaque(c->findColour(bgColour).isOpaque());
 
-			if (auto f = dynamic_cast<FilterEffect*>(p))
+			if (dynamic_cast<FilterEffect*>(p) != nullptr)
 			{
 				c->addFilter(FilterType::LowPass);
 				startTimer(30);

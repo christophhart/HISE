@@ -301,8 +301,6 @@ private:
 		auto type = PoolHelpers::getSubDirectoryType(DataType());
 
 		jassert(p.getFileType() == type);
-
-		Expansion* e = (getNumExpansions() == 0 ? nullptr : getExpansionForWildcardReference(p.getReferenceString()));
 		
         PoolCollection* poolCollection = getCurrentPoolCollection();
 

@@ -902,8 +902,6 @@ bool ModulatorSynth::handleVoiceLimit(int numSoundsToBeStarted)
 		soundsToBeStarted.shrink(numSoundsToBeStarted);
 	}
 
-	int overflowProtection = 0;
-
 	bool killedSomething = false;
 
 	while (numFreeVoices <= numSoundsToBeStarted)
