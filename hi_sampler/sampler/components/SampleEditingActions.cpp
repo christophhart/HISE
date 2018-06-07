@@ -72,7 +72,9 @@ void SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(SampleEdit
 		auto v = sounds[i].get()->getData();
 		const int index = s->getNumSounds();
 
-		s->getSampleMap()->addSound(v.createCopy());
+        auto copy = v.createCopy();
+        
+		s->getSampleMap()->addSound(copy);
 
 		newSelectedIndexes.add(index);
 	}
@@ -228,7 +230,9 @@ void SampleEditHandler::SampleEditingActions::pasteSelectedSounds(SampleEditHand
 		{
 			const int index = s->getNumSounds();
 
-			s->getSampleMap()->addSound(v.getChild(i));
+            auto child = v.getChild(i);
+            
+			s->getSampleMap()->addSound(child);
 
 			auto newSound = s->getSound(index);
 

@@ -84,7 +84,28 @@ AudioProcessor* createPlugin(ValueTree &presetData, ValueTree &imageData, ValueT
 
 #define USER_PRESET_OFFSET 8192
 
-#if DONT_EMBED_FILES_IN_FRONTEND
+
+
+#if HISE_IOS
+
+
+
+#define CREATE_PLUGIN(deviceManager, callback) { LOG_START("Loading embedded instrument data");\
+    ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
+    LOG_START("Loading embedded other data")\
+    ValueTree externalFiles = hise::PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
+    LOG_START("Creating Frontend Processor")\
+    auto fp = new hise::FrontendProcessor(presetData, deviceManager, callback, nullptr, nullptr, nullptr, &externalFiles, nullptr);\
+        hise::UserPresetHelpers::extractUserPresets(PresetData::userPresets, PresetData::userPresetsSize);\
+    hise::AudioProcessorDriver::restoreSettings(fp);\
+    hise::GlobalSettingManager::restoreGlobalSettings(fp);\
+    GET_PROJECT_HANDLER(fp->getMainSynthChain()).loadSamplesAfterSetup(); \
+    return fp; }
+
+#define CREATE_PLUGIN_WITH_AUDIO_FILES CREATE_PLUGIN // same same
+
+
+#elif DONT_EMBED_FILES_IN_FRONTEND
 
 #define CREATE_PLUGIN(deviceManager, callback) {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
 ValueTree externalFiles = hise::PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
@@ -99,6 +120,7 @@ ValueTree externalFiles = hise::PresetHandler::loadValueTreeFromData(PresetData:
 #define CREATE_PLUGIN_WITH_AUDIO_FILES CREATE_PLUGIN // same same
 
 #else
+
 #define CREATE_PLUGIN(deviceManager, callback) {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
 	ValueTree externalFiles = hise::PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
 	\

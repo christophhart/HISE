@@ -320,6 +320,7 @@ public:
 	static File getSampleLocationForCompiledPlugin();
 
 
+    File getEmbeddedResourceDirectory() const;
 
 	static File getLicenseKey();
 

@@ -1450,6 +1450,16 @@ juce::File FrontendHandler::getRootFolder() const
 	return getAppDataDirectory();
 }
 
+juce::File FrontendHandler::getEmbeddedResourceDirectory() const
+{
+#if HISE_IOS
+    return getResourcesFolder().getChildFile("Resources");
+#else
+    return getRootFolder();
+#endif
+    
+}
+    
 juce::File FrontendHandler::getSubDirectory(SubDirectories directory) const
 {
 	switch (directory)

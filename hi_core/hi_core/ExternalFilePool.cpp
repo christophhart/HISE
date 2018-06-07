@@ -244,7 +244,10 @@ juce::Image PoolHelpers::getEmptyImage(int width, int height)
 	return i;
 }
 
-
+void PoolHelpers::sendErrorMessage(MainController* mc, const String& errorMessage)
+{
+    mc->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, errorMessage);
+}
 
 PoolHelpers::Reference::Reference(const MainController* mc, const String& referenceString, ProjectHandler::SubDirectories directoryType_) :
 	directoryType(directoryType_)

@@ -552,6 +552,25 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 			chainToExport->getMainController()->getCurrentImagePool(true)->getDataProvider()->writePool(new FileOutputStream(imageOutputFile));
 			chainToExport->getMainController()->getCurrentSampleMapPool(true)->getDataProvider()->writePool(new FileOutputStream(samplemapFile));
 		}
+		else if (BuildOptionHelpers::isIOS(option))
+		{
+			auto resourceFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("Resources");
+
+			if (!resourceFolder.isDirectory())
+				resourceFolder.createDirectory();
+
+			File sampleOutputFile = resourceFolder.getChildFile("AudioResources.dat");
+			File imageOutputFile = resourceFolder.getChildFile("ImageResources.dat");
+			File samplemapFile = resourceFolder.getChildFile("SampleMapResources.dat");
+
+			sampleOutputFile.deleteFile();
+			imageOutputFile.deleteFile();
+			samplemapFile.deleteFile();
+			
+			chainToExport->getMainController()->getCurrentAudioSampleBufferPool(true)->getDataProvider()->writePool(new FileOutputStream(sampleOutputFile));
+			chainToExport->getMainController()->getCurrentImagePool(true)->getDataProvider()->writePool(new FileOutputStream(imageOutputFile));
+			chainToExport->getMainController()->getCurrentSampleMapPool(true)->getDataProvider()->writePool(new FileOutputStream(samplemapFile));
+		}
 
 		String presetDataString("PresetData");
 		String sourceDirectory = solutionDirectory + "/Source";

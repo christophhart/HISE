@@ -78,6 +78,8 @@ struct PoolHelpers
 		return t == ForceReloadStrong || t == ForceReloadWeak;
 	}
 
+    static void sendErrorMessage(MainController* mc, const String& errorMessage);
+    
 	// Using an empty parameter to get the correct Subdirectory type
 	static ProjectHandler::SubDirectories getSubDirectoryType(const AudioSampleBuffer& emptyData);
 	static ProjectHandler::SubDirectories getSubDirectoryType(const Image& emptyImage);
@@ -852,8 +854,9 @@ public:
 			else
 			{
 				jassertfalse;
-				getMainController()->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage,
-					"The file " + r.getReferenceString() + " is not embedded correctly.");
+                
+                PoolHelpers::sendErrorMessage(getMainController(), "The file " + r.getReferenceString() + " is not embedded correctly.");
+                
 				return ManagedPtr();
 			}
 		}

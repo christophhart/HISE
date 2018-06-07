@@ -75,6 +75,30 @@ void FrontendProcessor::handleControllersForMacroKnobs(const MidiBuffer &midiMes
 
 }
 
+    
+    
+void FrontendProcessor::restorePool(InputStream* inputStream, FileHandlerBase::SubDirectories directory, const String& fileNameToLook)
+{
+    ScopedPointer<FileInputStream> fis;
+    InputStream* streamToUse = inputStream;
+        
+    if(streamToUse == nullptr)
+    {
+        auto resourceFile = getSampleManager().getProjectHandler().getEmbeddedResourceDirectory().getChildFile(fileNameToLook);
+            
+        fis = new FileInputStream(resourceFile);
+        streamToUse = fis;
+    }
+    
+    jassert(streamToUse != nullptr);
+    
+    switch(directory)
+    {
+        case FileHandlerBase::Images: getCurrentImagePool(true)->getDataProvider()->restorePool(streamToUse); break;
+        case FileHandlerBase::AudioFiles: getCurrentAudioSampleBufferPool(true)->getDataProvider()->restorePool(streamToUse); break;
+        case FileHandlerBase::SampleMaps: getCurrentSampleMapPool(true)->getDataProvider()->restorePool(streamToUse); break;
+    }
+}
 
 FrontendProcessor::FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, MemoryInputStream *imageData/*=nullptr*/, MemoryInputStream *impulseData/*=nullptr*/, MemoryInputStream* sampleMapData, ValueTree *externalFiles/*=nullptr*/, ValueTree *) :
 MainController(),
@@ -98,11 +122,20 @@ unlockCounter(0)
     
 	LOG_START("Load images");
 
+    restorePool(imageData, FileHandlerBase::Images, "ImageResources.dat");
+    
+   	LOG_START("Load embedded audio files");
+    restorePool(impulseData, FileHandlerBase::AudioFiles, "AudioResources.dat");
+    
+  	LOG_START("Load samplemaps");
+    restorePool(sampleMapData, FileHandlerBase::SampleMaps, "SampleMapResources.dat");
+    
+#if 0
 	if(imageData)
 		getCurrentImagePool(true)->getDataProvider()->restorePool(imageData);
 	else
 	{
-		File imageResourceFile(getSampleManager().getProjectHandler().getRootFolder().getChildFile("ImageResources.dat"));
+		File imageResourceFile(getSampleManager().getProjectHandler().getEmbeddedResourceDirectory().getChildFile("ImageResources.dat"));
 
 		if (imageResourceFile.existsAsFile())
 		{
@@ -110,8 +143,12 @@ unlockCounter(0)
 
 			LOG_START("Load impulses");
 
-			getCurrentAudioSampleBufferPool(true)->getDataProvider()->restorePool(fis);
+			getCurrentImagePool(true)->getDataProvider()->restorePool(fis);
 		}
+        else
+        {
+            jassertfalse;
+        }
 	}
 
 	if (impulseData)
@@ -122,7 +159,8 @@ unlockCounter(0)
 	}
 	
 	getCurrentSampleMapPool(true)->getDataProvider()->restorePool(sampleMapData);
-	
+#endif
+    
 	if (externalFiles != nullptr)
 	{
 		setExternalScriptData(externalFiles->getChildWithName("ExternalScripts"));
