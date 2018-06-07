@@ -463,12 +463,9 @@ void Arpeggiator::playNote()
 		}
 	}
 
-	
-	
-
 	if (randomOrder)
 	{
-		int newIndex = r.nextInt(MidiSequenceArraySorted.size());
+		int newIndex = MidiSequenceArraySorted.size() == 0 ? 0 : r.nextInt(MidiSequenceArraySorted.size());
 
 		while (curHeldNoteIdx == newIndex && MidiSequenceArraySorted.size() > 2)
 			newIndex = r.nextInt(MidiSequenceArraySorted.size());
