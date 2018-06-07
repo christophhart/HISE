@@ -123,8 +123,8 @@ void ShapeFX::setInternalAttribute(int parameterIndex, float newValue)
 	{
 	case BiasLeft: biasLeft = newValue; break;
 	case BiasRight: biasRight = newValue; break;
-	case HighPass: highpass = newValue; updateFilter(false); break;
-	case LowPass: lowpass = newValue; updateFilter(true); break;
+	case HighPass: highpass = jmax<float>(20.0f, newValue); updateFilter(false); break;
+	case LowPass: lowpass = jmax<float>(20.0f, newValue); updateFilter(true); break;
 	case Mode: mode = (ShapeMode)(int)newValue; updateMode(); break;
 	case Oversampling: oversampleFactor = (int)newValue; updateOversampling(); break;
 	case Gain: gain = Decibels::decibelsToGain(newValue); updateMode(); break;
