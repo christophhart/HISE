@@ -1983,7 +1983,7 @@ public:
 
 		components.add(newComponent);
 
-		sendRebuildMessage();
+		asyncRebuildBroadcaster.notify();
 
 		return newComponent;
 	}
@@ -2024,6 +2024,34 @@ public:
     }
     
 private:
+
+	struct AsyncRebuildMessageBroadcaster : public AsyncUpdater
+	{
+		AsyncRebuildMessageBroadcaster(Content& parent_) :
+			parent(parent_)
+		{};
+
+		~AsyncRebuildMessageBroadcaster()
+		{
+			cancelPendingUpdate();
+		}
+
+		Content& parent;
+
+		void notify()
+		{
+			triggerAsyncUpdate();
+		}
+
+	private:
+
+		void handleAsyncUpdate() override
+		{
+			parent.sendRebuildMessage();
+		}
+	};
+
+	
 
 	static void initNumberProperties();
 
@@ -2097,6 +2125,8 @@ private:
 	Colour colour;
 	String name;
 	String tooltip;
+
+	AsyncRebuildMessageBroadcaster asyncRebuildBroadcaster;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Content);
 

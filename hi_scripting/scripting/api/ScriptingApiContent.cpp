@@ -3580,6 +3580,7 @@ void ScriptingApi::Content::ScriptFloatingTile::handleDefaultDeactivatedProperti
 
 ScriptingApi::Content::Content(ProcessorWithScriptingContent *p) :
 ScriptingObject(p),
+asyncRebuildBroadcaster(*this),
 height(50),
 width(-1),
 name(String()),
@@ -3633,6 +3634,8 @@ colour(Colour(0xff777777))
 
 ScriptingApi::Content::~Content()
 {
+	asyncRebuildBroadcaster.cancelPendingUpdate();
+
 	updateWatcher = nullptr;
 
 	removeAllScriptComponents();
@@ -4228,7 +4231,7 @@ void ScriptingApi::Content::rebuildComponentListFromValueTree()
 
 	restoreFromValueTree(currentState);
 
-	sendRebuildMessage();
+	asyncRebuildBroadcaster.notify();
 
 	auto p = dynamic_cast<Processor*>(getScriptProcessor());
 
