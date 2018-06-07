@@ -87,7 +87,7 @@ void FrontendProcessor::restorePool(InputStream* inputStream, FileHandlerBase::S
         auto resourceFile = getSampleManager().getProjectHandler().getEmbeddedResourceDirectory().getChildFile(fileNameToLook);
             
         fis = new FileInputStream(resourceFile);
-        streamToUse = fis;
+        streamToUse = fis.release();
     }
     
     jassert(streamToUse != nullptr);

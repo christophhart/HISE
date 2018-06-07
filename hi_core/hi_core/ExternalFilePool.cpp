@@ -563,7 +563,7 @@ juce::MemoryInputStream* PoolBase::DataProvider::createInputStream(const String&
 			auto offset = (int64)item.getProperty("ChunkStart");
 			auto end = (int64)item.getProperty("ChunkEnd");
 
-			if (input != nullptr)
+			if (input != nullptr && (input->getTotalLength() > offset + metadataOffset))
 			{
 				input->setPosition(offset + metadataOffset);
 

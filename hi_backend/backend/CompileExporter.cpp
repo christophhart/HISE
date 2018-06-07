@@ -554,7 +554,9 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 		}
 		else if (BuildOptionHelpers::isIOS(option))
 		{
-			auto resourceFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("Resources");
+            loadOtherReferencedImages(chainToExport);
+            
+			auto resourceFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("EmbeddedResources");
 
 			if (!resourceFolder.isDirectory())
 				resourceFolder.createDirectory();

@@ -1453,7 +1453,7 @@ juce::File FrontendHandler::getRootFolder() const
 juce::File FrontendHandler::getEmbeddedResourceDirectory() const
 {
 #if HISE_IOS
-    return getResourcesFolder().getChildFile("Resources");
+    return getResourcesFolder().getChildFile("EmbeddedResources");
 #else
     return getRootFolder();
 #endif
