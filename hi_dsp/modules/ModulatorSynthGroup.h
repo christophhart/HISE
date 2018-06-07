@@ -117,6 +117,8 @@ public:
 
 	void checkRelease();
 
+	void resetVoice() override;
+
 	void resetInternal(ModulatorSynth * childSynth, int childVoiceIndex);
 
 	void calculateBlock(int startSample, int numSamples) override;
@@ -132,6 +134,8 @@ public:
 	void calculateFMCarrierInternal(ModulatorSynthGroup * group, int childVoiceIndex, int startSample, int numSamples, const float * voicePitchValues, bool& isFirst);
 
 	int getChildVoiceAmount() const;
+
+	
 
 private:
 
@@ -380,12 +384,18 @@ public:
 	/** Clears the internal buffers of the childs and the group itself. */
 	void initRenderCallback() override;;
 
+	int collectSoundsToBeStarted(const HiseEvent& m) override;
+
+
+
 	void preStartVoice(int voiceIndex, int noteNumber) override;;
 
 	void preVoiceRendering(int startSample, int numThisTime) override;;
 	void postVoiceRendering(int startSample, int numThisTime) override;;
 
 	void handleRetriggeredNote(ModulatorSynthVoice *voice) override;
+
+	bool handleVoiceLimit(int numVoicesToClear) override;
 
 	void killAllVoices() override;
 
@@ -464,6 +474,19 @@ public:
 	
 private:
 
+	struct SynthVoiceAmount
+	{
+		bool operator ==(const SynthVoiceAmount& other) const
+		{
+			return other.s == s;
+		}
+
+		ModulatorSynth* s = nullptr;
+		int numVoicesNeeded = 0;
+	};
+
+	UnorderedStack<SynthVoiceAmount> synthVoiceAmounts;
+
 	friend class ChildSynthIterator;
 	friend class ModulatorSynthGroupVoice;
 
@@ -487,7 +510,7 @@ private:
 	bool carrierIsSampler = false;
 
 	int unisonoVoiceAmount;
-	int unisonoVoiceLimit;
+	
 	double unisonoDetuneAmount;
 	float unisonoSpreadAmount;
 

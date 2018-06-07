@@ -44,10 +44,7 @@ class ModulatorSynthVoice;
 typedef HiseEventBuffer EVENT_BUFFER_TO_USE;
 
 
-class VoiceStack : public UnorderedStack<ModulatorSynthVoice*>
-{
-
-};
+using VoiceStack = UnorderedStack<ModulatorSynthVoice*>;
 
 /** A ModulatorSynth is a synthesiser with a ModulatorChain for volume and pitch that allows
 *	modulation of these parameters.
@@ -161,6 +158,8 @@ public:
 	/** This method is called to actually render all voices. It operates on the internal buffer of the ModulatorSynth. */
 	void renderVoice(int startSample, int numThisTime);
 
+	void clearPendingRemoveVoices();
+
 	/** This method is called to handle all modulatorchains after the voice rendering and handles the GUI metering. It assumes stereo mode.
 	*
 	*	The rendered buffer is supplied as reference to be able to apply changes here after all voices are rendered (eg. gain).
@@ -229,7 +228,7 @@ public:
 	void killAllVoicesWithNoteNumber(int noteNumber);
 
 	/** Kills the voice that is playing for the longest time. */
-	void killLastVoice();
+	int killLastVoice(bool allowTailOff=true);
 
 	
 
@@ -264,6 +263,9 @@ public:
 	void noteOn(const HiseEvent &m);
 
 	void noteOn(int midiChannel, int midiNoteNumber, float velocity) final override;
+
+	/** This method should go through all sounds that are playable and fill the soundsToBeStarted array. */
+	virtual int collectSoundsToBeStarted(const HiseEvent &m);
 
 
 	virtual void noteOff(const HiseEvent &m);
@@ -396,6 +398,13 @@ public:
 
 	ModulatorSynthVoice* getFreeVoice(SynthesiserSound* s, int midiChannel, int midiNoteNumber);
 
+	SynthesiserVoice* findVoiceToSteal(SynthesiserSound* soundToPlay, int midiChannel, int midiNoteNumber) const override;
+
+
+	int getNumFreeVoices() const;
+
+	virtual bool handleVoiceLimit(int numSoundsToBeStarted);
+
 	HiseEventBuffer eventBuffer;
 	AudioSampleBuffer internalBuffer;
 
@@ -415,9 +424,21 @@ public:
 
 	void setSoftBypass(bool shouldBeBypassed);
 
+	VoiceStack activeVoices;
 	
+	void flagVoiceAsRemoved(ModulatorSynthVoice* v);
+
+	UnorderedStack<ModulatorSynthSound*> soundsToBeStarted;
+
+private:
+
+	VoiceStack pendingRemoveVoices;
 
 protected:
+
+	
+
+	
 
 	bool checkTimerCallback(int timerIndex, int numSamplesThisBlock) const noexcept
 	{
@@ -434,11 +455,21 @@ protected:
 	// Used to display the playing position
 	ModulatorSynthVoice *lastStartedVoice;
 
-	VoiceStack activeVoices;
+
+#if JUCE_DEBUG
+	// Makes sure that everything matches...
+	HiseEvent eventForSoundCollection;
+#endif
 
 private:
 
+
+	int numActiveVoices;
+
 	
+
+	// kills or resets all voices that have the same start event. */
+	int killVoiceAndSiblings(ModulatorSynthVoice* v, bool allowTailOff);
 
 
 	// ===================================================================================================================
@@ -763,8 +794,11 @@ public:
 		scriptPitchActive = true;
 	}
 
+	
+
 protected:
 
+	
 
 	/** Returns the ModulatorSynth instance that this voice belongs to.
 	*

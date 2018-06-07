@@ -83,12 +83,26 @@ void ModulatorSynthGroupVoice::startNote(int midiNoteNumber, float velocity, Syn
 	// The uptime is not used, but it must be > 0, or the voice is not rendered.
 	uptimeDelta = 1.0;
 
-	useFMForVoice = static_cast<ModulatorSynthGroup*>(getOwnerSynth())->fmIsCorrectlySetup();
+	auto group = static_cast<ModulatorSynthGroup*>(getOwnerSynth());
+
+	useFMForVoice = group->fmIsCorrectlySetup();
 
 	handleActiveStateForChildSynths();
 
 	numUnisonoVoices = (int)getOwnerSynth()->getAttribute(ModulatorSynthGroup::SpecialParameters::UnisonoVoiceAmount);
 	
+#if JUCE_DEBUG
+
+	Iterator iter(this);
+
+	auto numVoicesInGroup = group->getNumVoices();
+
+	while (auto s = iter.getNextActiveChildSynth())
+	{
+		jassert(numVoicesInGroup == s->getNumVoices());
+	}
+
+#endif
 
 
 	auto mod = getFMModulator();
@@ -121,11 +135,37 @@ ModulatorSynthVoice* ModulatorSynthGroupVoice::startNoteInternal(ModulatorSynth*
 	if (childVoiceIndex >= NUM_POLYPHONIC_VOICES)
 		return nullptr;
 
-	ModulatorSynthSound *soundToPlay = nullptr;
-
-
 	midiNoteNumber += transposeAmount;
 
+	auto group = static_cast<ModulatorSynthGroup*>(getOwnerSynth());
+
+
+	for (auto s : childSynth->soundsToBeStarted)
+	{
+		if (auto childVoice = childSynth->getFreeVoice(s, 1, midiNoteNumber))
+		{
+			childVoice->setStartUptime(childSynth->getMainController()->getUptime());
+			childVoice->setCurrentHiseEvent(getCurrentHiseEvent());
+
+			if (numUnisonoVoices != 1)
+			{
+				childVoice->addToStartOffset((uint16)startOffsetRandomizer.nextInt(441));
+			}
+
+			childSynth->preStartVoice(childVoice->getVoiceIndex(), midiNoteNumber);
+			childSynth->startVoiceWithHiseEvent(childVoice, s, getCurrentHiseEvent());
+
+			getChildContainer(childVoiceIndex).addVoice(childVoice);
+		}
+		else
+		{
+			// this shouldn't happen, the synth group must kill enough voices for all child synths
+			jassertfalse;
+			group->resetAllVoices();
+		}
+	}
+
+#if 0
 	for (int j = 0; j < childSynth->getNumSounds(); j++)
 	{
 		ModulatorSynthSound *s = static_cast<ModulatorSynthSound*>(childSynth->getSound(j));
@@ -154,20 +194,26 @@ ModulatorSynthVoice* ModulatorSynthGroupVoice::startNoteInternal(ModulatorSynth*
 				
 				getChildContainer(childVoiceIndex).addVoice(childVoice);
 			}
+			else
+			{
+				// this shouldn't happen, the synth group must kill enough voices for all child synths
+				jassertfalse;
+				getOwnerSynth()->resetAllVoices();
+			}
 		}
 	}
+#endif
 
 	
 	return nullptr;
 }
-
 
 void ModulatorSynthGroupVoice::calculateBlock(int startSample, int numSamples)
 {
 	ScopedLock sl(ownerSynth->getSynthLock());
 
 	// Clear the buffer, since all child voices are added to this so it must be empty.
-	//voiceBuffer.clear();
+	voiceBuffer.clear();
 
 	ModulatorSynthGroup *group = static_cast<ModulatorSynthGroup*>(getOwnerSynth());
 
@@ -300,6 +346,8 @@ void ModulatorSynthGroupVoice::calculateNoFMVoiceInternal(ModulatorSynth* childS
 			
 	}
 
+	childSynth->clearPendingRemoveVoices();
+
 	childSynth->setPeakValues(gain, gain);
 }
 
@@ -380,6 +428,8 @@ void ModulatorSynthGroupVoice::calculateFMBlock(ModulatorSynthGroup * group, int
 
 	modSynth->setPeakValues(peak, peak);
 
+	modSynth->clearPendingRemoveVoices();
+
 	// Calculate the carrier voice
 
 	bool isFirst = true;
@@ -389,6 +439,9 @@ void ModulatorSynthGroupVoice::calculateFMBlock(ModulatorSynthGroup * group, int
 		const int unisonoVoiceIndex = voiceIndex*numUnisonoVoices + i;
 		calculateFMCarrierInternal(group, unisonoVoiceIndex, startSample, numSamples, voicePitchValues, isFirst);
 	}
+
+	
+	
 }
 
 
@@ -504,7 +557,7 @@ void ModulatorSynthGroupVoice::calculateFMCarrierInternal(ModulatorSynthGroup * 
 
 	}
 
-	
+	carrierSynth->clearPendingRemoveVoices();
 }
 
 
@@ -617,44 +670,34 @@ void ModulatorSynthGroupVoice::checkRelease()
 	if (killThisVoice && (killFadeLevel < 0.001f))
 	{
 		resetVoice();
-
-		if (auto mod = getFMModulator())
-			resetInternal(mod, voiceIndex);
-
-		for (int i = 0; i < numUnisonoVoices; i++)
-		{
-			const int unisonoVoiceIndex = voiceIndex*numUnisonoVoices + i;
-
-			Iterator iter(this);
-
-			while (auto childSynth = iter.getNextActiveChildSynth())
-				resetInternal(childSynth, unisonoVoiceIndex);
-		}
-
-		return;
 	}
 
 	if (!ownerGainChain->isPlaying(voiceIndex))
 	{
 		resetVoice();
-
-		if (auto mod = getFMModulator())
-			resetInternal(mod, voiceIndex);
-
-		for (int i = 0; i < numUnisonoVoices; i++)
-		{
-			const int unisonoVoiceIndex = voiceIndex*numUnisonoVoices + i;
-
-			Iterator iter(this);
-
-			while (auto childSynth = iter.getNextActiveChildSynth())
-				resetInternal(childSynth, unisonoVoiceIndex);
-		}
 	}
 }
 
 
 
+
+void ModulatorSynthGroupVoice::resetVoice()
+{
+	ModulatorSynthVoice::resetVoice();
+
+	if (auto mod = getFMModulator())
+		resetInternal(mod, voiceIndex);
+
+	for (int i = 0; i < numUnisonoVoices; i++)
+	{
+		const int unisonoVoiceIndex = voiceIndex * numUnisonoVoices + i;
+
+		Iterator iter(this);
+
+		while (auto childSynth = iter.getNextActiveChildSynth())
+			resetInternal(childSynth, unisonoVoiceIndex);
+	}
+}
 
 void ModulatorSynthGroupVoice::resetInternal(ModulatorSynth * childSynth, int childVoiceIndex)
 {
@@ -715,7 +758,12 @@ ModulatorSynthGroup::ModulatorSynthGroup(MainController *mc, const String &id, i
 	allowStates.clear();
 
 	for (int i = 0; i < numVoices; i++) addVoice(new ModulatorSynthGroupVoice(this));
-	addSound(new ModulatorSynthGroupSound());
+	
+	auto sound = new ModulatorSynthGroupSound();
+
+	addSound(sound);
+
+	soundsToBeStarted.insert(sound);
 };
 
 
@@ -924,7 +972,7 @@ void ModulatorSynthGroup::setUnisonoVoiceAmount(int newVoiceAmount)
 {
 	unisonoVoiceAmount = jmax<int>(1, newVoiceAmount);
 
-	unisonoVoiceLimit = NUM_POLYPHONIC_VOICES / unisonoVoiceAmount;
+	const int unisonoVoiceLimit = NUM_POLYPHONIC_VOICES / unisonoVoiceAmount;
 
 	setVoiceLimit(unisonoVoiceLimit);
 }
@@ -1015,6 +1063,26 @@ void ModulatorSynthGroup::initRenderCallback()
 }
 
 
+int ModulatorSynthGroup::collectSoundsToBeStarted(const HiseEvent& m)
+{
+	ChildSynthIterator iter(this);
+	ModulatorSynth* child = nullptr;
+
+	synthVoiceAmounts.clearQuick();
+
+#if JUCE_DEBUG
+	eventForSoundCollection = m;
+#endif
+
+	while (iter.getNextAllowedChild(child))
+	{
+		int numVoicesForChild = child->collectSoundsToBeStarted(m);
+		synthVoiceAmounts.insertWithoutSearch({ child, numVoicesForChild });
+	}
+
+	return 1;
+}
+
 void ModulatorSynthGroup::preStartVoice(int voiceIndex, int noteNumber)
 {
 	ModulatorSynth::preStartVoice(voiceIndex, noteNumber);
@@ -1079,9 +1147,8 @@ void ModulatorSynthGroup::handleRetriggeredNote(ModulatorSynthVoice *voice)
 		int noteNumber = voice->getCurrentlyPlayingNote();
 		auto uptime = voice->getVoiceUptime();
 
-		for (int i = 0; i < activeVoices.size(); i++)
+		for (auto v: activeVoices)
 		{
-			auto v = activeVoices[i];
 			auto thisNumber = v->getCurrentlyPlayingNote();
 			auto thisUptime = v->getVoiceUptime();
 
@@ -1098,6 +1165,65 @@ void ModulatorSynthGroup::handleRetriggeredNote(ModulatorSynthVoice *voice)
 		else
 			ModulatorSynth::handleRetriggeredNote(voice);
 	}
+}
+
+bool ModulatorSynthGroup::handleVoiceLimit(int numVoicesToClear)
+{
+	jassert(numVoicesToClear == 1);
+
+	bool killedSomeVoices = ModulatorSynth::handleVoiceLimit(numVoicesToClear);
+
+	
+	if (killedSomeVoices)
+	{
+		// If this happens, the group already has killed a few voices and should be ready to roll...
+		return true;
+	}
+	else
+	{
+		// We still need to make room in each child synth for the new voice starts...
+		for (auto cva : synthVoiceAmounts)
+		{
+			const int numVoicesNeededInChild = cva.numVoicesNeeded * unisonoVoiceAmount;
+
+			int numFreeChildVoices = cva.s->getNumFreeVoices();
+
+
+			while (numFreeChildVoices <= numVoicesNeededInChild)
+			{
+				const bool forceKill = numFreeChildVoices == 0;
+				const auto killedThisTime = killLastVoice(!forceKill);
+
+				if (killedThisTime != 0)
+				{
+					killedSomeVoices = true;
+				}
+				else
+				{
+					jassertfalse;
+					break;
+				}
+
+				numFreeChildVoices += killedThisTime;
+			}
+
+			
+#if 0
+			auto freeVoicesInChild = cva.s->getNumFreeVoices();
+
+			if (freeVoicesInChild <= cva.numVoicesNeeded * unisonoVoiceAmount)
+			{
+				const bool forceKill = freeVoicesInChild == 0;
+				killLastVoice(!forceKill);
+				killedSomeVoices = true;
+			}
+#endif
+		}
+	}
+
+	
+
+	return killedSomeVoices;
 }
 
 void ModulatorSynthGroup::killAllVoices()

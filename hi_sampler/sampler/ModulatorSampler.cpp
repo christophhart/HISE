@@ -683,7 +683,11 @@ void ModulatorSampler::refreshMemoryUsage()
 
 void ModulatorSampler::setVoiceAmount(int newVoiceAmount)
 {
-	
+	if (auto group = getGroup())
+	{
+		// Don't allow the sampler to have another voice amount than it's parent group.
+		newVoiceAmount = group->getNumVoices();
+	}
 
 	if (newVoiceAmount != voiceAmount)
 	{
@@ -890,6 +894,8 @@ bool ModulatorSampler::soundCanBePlayed(ModulatorSynthSound *sound, int midiChan
 
 void ModulatorSampler::handleRetriggeredNote(ModulatorSynthVoice *voice)
 {
+	jassert(getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::AudioThread);
+
 	switch (repeatMode)
 	{
 	case RepeatMode::DoNothing:		return;
@@ -900,9 +906,8 @@ void ModulatorSampler::handleRetriggeredNote(ModulatorSynthVoice *voice)
 		int noteNumber = voice->getCurrentlyPlayingNote();
 		auto uptime = voice->getVoiceUptime();
 
-		for (int i = 0; i < activeVoices.size(); i++)
+		for (auto v : activeVoices)
 		{
-			auto v = activeVoices[i];
 			auto thisNumber = v->getCurrentlyPlayingNote();
 			auto thisUptime = v->getVoiceUptime();
 
@@ -911,7 +916,6 @@ void ModulatorSampler::handleRetriggeredNote(ModulatorSynthVoice *voice)
 				v->killVoice();
 			}
 		}
-
 		break;
 	}
 	}

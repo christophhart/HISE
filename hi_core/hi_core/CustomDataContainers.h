@@ -227,6 +227,16 @@ public:
 			position++;
 	}
 
+	void insertWithoutSearch(const ElementType& elementTypeToInsert)
+	{
+		jassert(!contains(elementTypeToInsert));
+
+		data[position] = elementTypeToInsert;
+
+		if (position < UNORDERED_STACK_SIZE)
+			position++;
+	}
+
 	/** Removes the given element and puts the last element into its slot. */
 
 	void remove(const ElementType& elementTypeToRemove)
@@ -268,12 +278,23 @@ public:
 		return false;
 	}
 
+	void shrink(int newSize)
+	{
+		jassert(newSize > 0);
+		position = jmin<int>(position, newSize);
+	}
+
     void clear()
     {
         memset(data, 0, sizeof(ElementType) * position);
-        position = 0;
+		clearQuick();
     }
     
+	void clearQuick()
+	{
+		position = 0;
+	}
+
 	ElementType operator[](int index) const
 	{
 		if (index < position)
@@ -315,6 +336,8 @@ private:
 	ElementType data[UNORDERED_STACK_SIZE];
 
 	size_t position;
+
+	JUCE_DECLARE_NON_COPYABLE(UnorderedStack)
 };
 
 #if JUCE_32BIT
