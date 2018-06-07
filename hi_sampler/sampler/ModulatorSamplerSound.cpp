@@ -127,7 +127,7 @@ ModulatorSamplerSound::~ModulatorSamplerSound()
 
 bool ModulatorSamplerSound::isAsyncProperty(const Identifier& id)
 {
-	return id == SampleIds::SampleStart || id == SampleIds::SampleEnd || id == SampleIds::LoopStart ||
+	return id == SampleIds::SampleStart || id == SampleIds::SampleEnd || id == SampleIds::LoopStart || id == SampleIds::LoopEnabled ||
 		id == SampleIds::SampleStartMod || id == SampleIds::LoopEnd || id == SampleIds::LoopXFade || id == SampleIds::SampleState;
 }
 

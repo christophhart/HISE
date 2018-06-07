@@ -272,7 +272,8 @@ public:
 
 	void initPreloadBuffer(int preloadSize)
 	{
-		FOR_EVERY_SOUND(checkFileReference());
+		checkFileReference();
+
 		FOR_EVERY_SOUND(setPreloadSize(preloadSize, true));
 	}
 

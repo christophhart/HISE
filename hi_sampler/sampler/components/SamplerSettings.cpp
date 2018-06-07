@@ -665,7 +665,7 @@ void SamplerSettings::labelTextChanged (Label* labelThatHasChanged)
 
 		if(value > 0)
 		{
-			value = jmin(128, value);
+			value = jmin(NUM_POLYPHONIC_VOICES, value);
 
 			sampler->setAttribute(ModulatorSampler::VoiceAmount, (float)value, dontSendNotification);
 		}
@@ -680,7 +680,7 @@ void SamplerSettings::labelTextChanged (Label* labelThatHasChanged)
 
 		if(value > 0)
 		{
-			value = jmin(128, value);
+			value = jmin(NUM_POLYPHONIC_VOICES, value);
 
 			sampler->setAttribute(ModulatorSynth::VoiceLimit, (float)value, dontSendNotification);
 		}

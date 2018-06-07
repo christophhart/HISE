@@ -902,6 +902,10 @@ void SampleMapEditor::updateSampleMapSelector(bool rebuild)
 		auto pool = sampler->getMainController()->getCurrentSampleMapPool();
 		auto ref = pool->getListOfAllReferences(true);
 
+		PoolReference::Comparator comp;
+
+		ref.sort(comp, true);
+
 		int i = 1;
 
 		for (auto r : ref)
