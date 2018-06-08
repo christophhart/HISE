@@ -625,7 +625,7 @@ public:
 
 				String code = "Content.makeFrontInterface(" + String(getWidth()) + ", " + String(getHeight()) + ");";
 
-				jsp->getSnippet(0)->replaceAllContent(code);
+				jsp->getSnippet(0)->replaceContentAsync(code);
 				jsp->compileScript();
 
 				midiChain->getHandler()->add(s, nullptr);

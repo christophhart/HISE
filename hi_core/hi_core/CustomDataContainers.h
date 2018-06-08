@@ -426,13 +426,6 @@ public:
 		return (int)queue.size_approx();
 	}
 
-	void swap(LockfreeQueue<ElementType>& otherQueue)
-	{
-		moodycamel::ReaderWriterQueue<ElementType> t = queue;
-		queue = otherQueue.queue;
-		otherQueue.queue = t;
-	}
-
 private:
 
 	moodycamel::ReaderWriterQueue<ElementType> queue;
