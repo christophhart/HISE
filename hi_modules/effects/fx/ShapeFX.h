@@ -36,6 +36,12 @@
 namespace hise {
 using namespace juce;
 
+// Set this to 1 to enable the shape FX module to be a workbench for finding cool waveshaping functions
+// This is disabled by default to prevent glitches with it being a script processor when it doesn't need to be in 99% of all cases
+#ifndef HI_USE_SHAPE_FX_SCRIPTING
+#define HI_USE_SHAPE_FX_SCRIPTING 0
+#endif
+
 
 class LowpassSmoothedValue
 {
@@ -69,9 +75,14 @@ public:
 /** A general purpose waveshaper effect. */
 class ShapeFX : public MasterEffectProcessor,
 				public WaveformComponent::Broadcaster,
+#if HI_USE_SHAPE_FX_SCRIPTING
 				public LookupTableProcessor,
 				public JavascriptProcessor,
 				public ProcessorWithScriptingContent
+#else
+				public LookupTableProcessor
+#endif
+
 {
 public:
 
@@ -175,7 +186,22 @@ public:
 	void setInternalAttribute(int parameterIndex, float newValue) override;
 	float getAttribute(int parameterIndex) const override;
 	float getDefaultValue(int parameterIndex) const override;
+
+#if HI_USE_SHAPE_FX_SCRIPTING
 	int getNumScriptParameters() const override { return numParameters; }
+
+	void postCompileCallback() override
+	{
+		debugToConsole(this, "Update shape function");
+		updateMode();
+	}
+
+	SnippetDocument *getSnippet(int /*c*/) { return functionCode; }
+	const SnippetDocument *getSnippet(int /*c*/) const { return functionCode; }
+	int getNumSnippets() const { return 1; }
+
+	void registerApiClasses() override;
+#endif
 
 	ValueTree exportAsValueTree() const override;
 	void restoreFromValueTree(const ValueTree &v) override;
@@ -205,19 +231,11 @@ public:
 		return nullptr;
 	};
 
-	void postCompileCallback() override
-	{
-		debugToConsole(this, "Update shape function");
-		updateMode();
-	}
+	
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
-	SnippetDocument *getSnippet(int /*c*/) { return functionCode; }
-	const SnippetDocument *getSnippet(int /*c*/) const { return functionCode; }
-	int getNumSnippets() const { return 1; }
-
-	void registerApiClasses() override;
+	
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock);
 
@@ -281,14 +299,15 @@ private:
 		ShapeFX& parent;
 	};
 
+#if HI_USE_SHAPE_FX_SCRIPTING
 	void rebuildScriptedTable();
+	Result shapeResult;
+	ScopedPointer<SnippetDocument> functionCode;
+#endif
 
 	void recalculateDisplayTable();
 
 	SpinLock oversamplerLock;
-
-	Result shapeResult;
-
 	ScopedPointer<Oversampler> oversampler;
 	
 	ShapeMode mode;
@@ -315,8 +334,6 @@ private:
 
 	LinearSmoothedValue<float> mixSmootherR;
 	LinearSmoothedValue<float> mixSmoother_invR;
-
-
 	LinearSmoothedValue<float> bitCrushSmoother;
 
 	AudioSampleBuffer dryBuffer;
@@ -339,13 +356,8 @@ private:
 
 	chunkware_simple::SimpleLimit limiter;
 
-	
-
 	ScopedPointer<SafeChangeBroadcaster> tableBroadcaster;
-
 	ScopedPointer<TableUpdater> tableUpdater;
-
-	ScopedPointer<SnippetDocument> functionCode;
 
 	void updateMix();
 };

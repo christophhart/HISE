@@ -219,6 +219,7 @@ private:
 
 };
 
+#if HI_USE_SHAPE_FX_SCRIPTING
 class ShapeFX::ScriptShaper : public ShapeFX::ShaperBase
 {
 public:
@@ -274,6 +275,7 @@ private:
 		return value;
 	}
 };
+
 
 class ShapeFX::CachedScriptShaper : public ShapeFX::ShaperBase
 {
@@ -354,6 +356,7 @@ private:
 	SpinLock tableLock;
 	Result shapeResult;
 };
+#endif
 
 class ShapeFX::InternalSaturator : public ShapeFX::ShaperBase
 {
@@ -406,11 +409,14 @@ void ShapeFX::initShapers()
 	REGISTER_BASIC_SHAPE_FUNCTION(Square);
 	REGISTER_BASIC_SHAPE_FUNCTION(SquareRoot);
 	REGISTER_SHAPER_CLASS(Curve, TableShaper);
+
+#if HI_USE_SHAPE_FX_SCRIPTING
 	REGISTER_SHAPER_CLASS(CachedScript, CachedScriptShaper);
 	REGISTER_SHAPER_CLASS(Script, ScriptShaper);
 
 	static_cast<ScriptShaper*>(shapers[Script])->parent = this;
 	static_cast<CachedScriptShaper*>(shapers[CachedScript])->parent = this;
+#endif
 };
 
 void PolyshapeFX::initShapers()

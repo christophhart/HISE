@@ -36,8 +36,10 @@ using namespace juce;
 
 ShapeFX::ShapeFX(MainController *mc, const String &uid):
 	MasterEffectProcessor(mc, uid),
+#if HI_USE_SHAPE_FX_SCRIPTING
 	JavascriptProcessor(mc),
 	ProcessorWithScriptingContent(mc),
+#endif
 	biasLeft(getDefaultValue(BiasLeft)),
 	biasRight(getDefaultValue(BiasRight)),
 	gain(1.0f),
@@ -50,12 +52,17 @@ ShapeFX::ShapeFX(MainController *mc, const String &uid):
 	highpass(getDefaultValue(HighPass)),
 	lowpass(getDefaultValue(LowPass)),
 	tableBroadcaster(new SafeChangeBroadcaster()),
+#if HI_USE_SHAPE_FX_SCRIPTING
 	functionCode(new SnippetDocument("shape", "input")),
-	dryBuffer(2, 0),
-	shapeResult(Result::ok())
+	shapeResult(Result::ok()),
+#endif
+	dryBuffer(2, 0)
 {
-	initContent();
+	
 	initShapers();
+
+#if HI_USE_SHAPE_FX_SCRIPTING
+	initContent();
 
 	String s;
 	s << "function shape(input)\n";
@@ -64,6 +71,7 @@ ShapeFX::ShapeFX(MainController *mc, const String &uid):
 	s << "}\n";
 
 	functionCode->replaceAllContent(s);
+#endif
 
 	tableUpdater = new TableUpdater(*this);
 
@@ -86,7 +94,9 @@ ShapeFX::ShapeFX(MainController *mc, const String &uid):
 	parameterNames.add("Drive");
 	parameterNames.add("Mix");
 
+#if HI_USE_SHAPE_FX_SCRIPTING
 	setupApi();
+#endif
 
 	updateMode();
 	updateOversampling();
@@ -102,6 +112,7 @@ ShapeFX::~ShapeFX()
 	tableBroadcaster = nullptr;
 	tableUpdater = nullptr;
 
+#if HI_USE_SHAPE_FX_SCRIPTING
 	cleanupEngine();
 	clearExternalWindows();
 
@@ -109,11 +120,12 @@ ShapeFX::~ShapeFX()
 
 	functionCode = nullptr;
 	
-#if USE_BACKEND
+#if USE_BACKEND 
 	if (consoleEnabled)
 	{
 		getMainController()->setWatchedScriptProcessor(nullptr, nullptr);
 	}
+#endif
 #endif
 }
 
@@ -181,8 +193,10 @@ juce::ValueTree ShapeFX::exportAsValueTree() const
 {
 	ValueTree v = MasterEffectProcessor::exportAsValueTree();
 
+#if HI_USE_SHAPE_FX_SCRIPTING
 	saveScript(v);
 	saveContent(v);
+#endif
 
 	saveTable(getTable(0), "Curve");
 	
@@ -207,8 +221,10 @@ void ShapeFX::restoreFromValueTree(const ValueTree &v)
 {
 	MasterEffectProcessor::restoreFromValueTree(v);
 
+#if HI_USE_SHAPE_FX_SCRIPTING
 	restoreScript(v);
 	restoreContent(v);
+#endif
 
 	loadTable(getTable(0), "Curve");
 	
@@ -247,15 +263,17 @@ hise::ProcessorEditorBody * ShapeFX::createEditor(ProcessorEditor *parentEditor)
 #endif
 }
 
-
+#if HI_USE_SHAPE_FX_SCRIPTING
 void ShapeFX::registerApiClasses()
 {
+
 	content = new ScriptingApi::Content(this);
 	auto engineObject = new ScriptingApi::Engine(this);
 	
 	scriptEngine->registerApiClass(engineObject);
 	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
 }
+#endif
 
 void ShapeFX::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
@@ -353,6 +371,7 @@ void ShapeFX::processBitcrushedValues(float* l, float* r, int numSamples)
 	}
 }
 
+#if HI_USE_SHAPE_FX_SCRIPTING
 void ShapeFX::rebuildScriptedTable()
 {
 	float sum = 0.0f;
@@ -400,6 +419,7 @@ void ShapeFX::rebuildScriptedTable()
 	graphNormalizeValue = autogainValue;
 	triggerWaveformUpdate();
 }
+#endif
 
 void ShapeFX::recalculateDisplayTable()
 {
@@ -431,7 +451,14 @@ void ShapeFX::updateMode()
 {
 	if (mode == Script || mode == CachedScript)
 	{	
+#if HI_USE_SHAPE_FX_SCRIPTING
 		rebuildScriptedTable();
+#else
+		// You somehow managed to set the mode to Script without having this enabled...
+		jassertfalse;
+		mode = Linear;
+		updateGain();
+#endif
 	}
 	else
 	{
