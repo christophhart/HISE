@@ -49,7 +49,8 @@ mod(m)
 ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_) :
 	AsyncValueTreePropertyListener(p_->getScriptingContent()->getContentProperties(), p_->getScriptingContent()->getUpdateDispatcher()),
 	processor(p_),
-	p(dynamic_cast<Processor*>(p_))
+	p(dynamic_cast<Processor*>(p_)),
+	contentRebuildNotifier(*this)
 {
 	processor->getScriptingContent()->addRebuildListener(this);
 
@@ -378,13 +379,13 @@ void ScriptContentComponent::scriptWasCompiled(JavascriptProcessor *jp)
 {
 	if (jp == getScriptProcessor())
 	{
-		setNewContent(processor->getScriptingContent());
+		contentRebuildNotifier.notify(processor->getScriptingContent());
 	}
 }
 
 void ScriptContentComponent::contentWasRebuilt()
 {
-	setNewContent(processor->getScriptingContent());
+	contentRebuildNotifier.notify(processor->getScriptingContent());
 }
 
 

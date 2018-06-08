@@ -216,6 +216,33 @@ public:
 
 private:
 
+	struct ContentRebuildNotifier : private AsyncUpdater
+	{
+		ContentRebuildNotifier(ScriptContentComponent& parent_) :
+			parent(parent_)
+		{};
+
+		void notify(ScriptingApi::Content* newContent)
+		{
+			content = newContent;
+			triggerAsyncUpdate();
+		}
+
+	private:
+
+		void handleAsyncUpdate() override
+		{
+			if (content != nullptr)
+				parent.setNewContent(content);
+		}
+
+		WeakReference<ScriptingApi::Content> content;
+
+		ScriptContentComponent& parent;
+	};
+
+	ContentRebuildNotifier contentRebuildNotifier;
+
     bool isRebuilding = false;
 
 	friend class ScriptCreatedComponentWrapper;
