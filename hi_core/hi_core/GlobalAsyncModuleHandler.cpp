@@ -50,21 +50,30 @@ MainController::GlobalAsyncModuleHandler::JobData::JobData() :
 
 }
 
-void MainController::GlobalAsyncModuleHandler::JobData::doit()
+bool MainController::GlobalAsyncModuleHandler::JobData::doit()
 {
-	if (what == What::Add)
+	if (auto lock = PresetLoadLock(parent->getMainController()))
 	{
-		if (parent.get() != nullptr)
-			parent->sendRebuildMessage(true);
+		if (what == What::Add)
+		{
+			if (parent.get() != nullptr)
+				parent->sendRebuildMessage(true);
+		}
+		else
+		{
+			processorToDelete->sendDeleteMessage();
+
+			if (parent.get() != nullptr)
+				parent->sendRebuildMessage(true);
+
+			delete processorToDelete;
+		}
+
+		return true;
 	}
 	else
 	{
-		processorToDelete->sendDeleteMessage();
-
-		if (parent.get() != nullptr)
-			parent->sendRebuildMessage(true);
-
-		delete processorToDelete;
+		return false;
 	}
 }
 
@@ -80,8 +89,42 @@ void MainController::GlobalAsyncModuleHandler::handleAsyncUpdate()
 	JobData d;
 
 	while (pendingJobs.pop(d))
-		d.doit();
+	{
+		if (!d.doit())
+		{
+			lockedJobs.push(std::move(d));
+		}
+	}
+
+	if (!lockedJobs.isEmpty())
+		startTimer(200);
 }
+
+void MainController::GlobalAsyncModuleHandler::timerCallback()
+{
+	JobData d;
+
+	LockfreeQueue<JobData> unfinishedJobs;
+
+	while (lockedJobs.pop(d))
+	{
+		if (!d.doit())
+		{
+			unfinishedJobs.push(std::move(d));
+		}
+	}
+
+	while (unfinishedJobs.pop(d))
+	{
+		lockedJobs.push(std::move(d));
+	}
+	
+	if (lockedJobs.isEmpty())
+	{
+		stopTimer();
+	}
+}
+
 
 
 void MainController::GlobalAsyncModuleHandler::removeAsync(Processor* p, Component* /*rootWindow*/)

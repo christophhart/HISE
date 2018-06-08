@@ -2647,74 +2647,85 @@ void ScriptingApi::Content::ScriptPanel::setPaintRoutine(var paintFunction)
 
 void ScriptingApi::Content::ScriptPanel::internalRepaint(bool forceRepaint/*=false*/)
 {
-	const bool parentHasMovedOn = !parent->hasComponent(this);
+	auto mc = dynamic_cast<Processor*>(getScriptProcessor())->getMainController();
 
-	if (parentHasMovedOn || !parent->asyncFunctionsAllowed())
+	if (auto lock = PresetLoadLock(mc))
 	{
-		return;
-	}
+		const bool parentHasMovedOn = !parent->hasComponent(this);
 
-	ScopedReadLock sl(dynamic_cast<Processor*>(getScriptProcessor())->getMainController()->getCompileLock());
-
-	if (!usesClippedFixedImage)
-	{
-		HiseJavascriptEngine* engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
-
-		if (engine == nullptr)
-			return;
-
-		auto imageBounds = getBoundsForImage();
-
-		int canvasWidth = imageBounds.getWidth();
-		int canvasHeight = imageBounds.getHeight();
-
-		if ((!forceRepaint && !isShowing()) || canvasWidth <= 0 || canvasHeight <= 0)
+		if (parentHasMovedOn || !parent->asyncFunctionsAllowed())
 		{
-			paintCanvas = Image();
-
 			return;
 		}
 
-		if (paintCanvas.getWidth() != canvasWidth ||
-			paintCanvas.getHeight() != canvasHeight)
+		ScopedReadLock sl(dynamic_cast<Processor*>(getScriptProcessor())->getMainController()->getCompileLock());
+
+		if (!usesClippedFixedImage)
 		{
-			paintCanvas = Image(Image::PixelFormat::ARGB, canvasWidth, canvasHeight, !getScriptObjectProperty(Properties::opaque));
+			HiseJavascriptEngine* engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
+
+			if (engine == nullptr)
+				return;
+
+			auto imageBounds = getBoundsForImage();
+
+			int canvasWidth = imageBounds.getWidth();
+			int canvasHeight = imageBounds.getHeight();
+
+			if ((!forceRepaint && !isShowing()) || canvasWidth <= 0 || canvasHeight <= 0)
+			{
+				paintCanvas = Image();
+
+				return;
+			}
+
+			if (paintCanvas.getWidth() != canvasWidth ||
+				paintCanvas.getHeight() != canvasHeight)
+			{
+				paintCanvas = Image(Image::PixelFormat::ARGB, canvasWidth, canvasHeight, !getScriptObjectProperty(Properties::opaque));
+			}
+			else if (!getScriptObjectProperty(Properties::opaque))
+			{
+				paintCanvas.clear(Rectangle<int>(0, 0, canvasWidth, canvasHeight));
+			}
+
+			Graphics g(paintCanvas);
+
+			g.addTransform(AffineTransform::scale((float)getScaleFactorForCanvas()));
+
+			var thisObject(this);
+			var arguments = var(graphics);
+			var::NativeFunctionArgs args(thisObject, &arguments, 1);
+
+			graphics->setGraphics(&g, &paintCanvas);
+
+			Result r = Result::ok();
+
+			if (!engine->isInitialising())
+			{
+				engine->maximumExecutionTime = RelativeTime(0.2);
+			}
+
+			engine->callExternalFunction(paintRoutine, args, &r);
+
+			if (r.failed())
+			{
+				debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
+			}
+
+			graphics->setGraphics(nullptr, nullptr);
+
+			sendChangeMessage();
+
+			repaintNotifier.sendSynchronousChangeMessage();
 		}
-		else if (!getScriptObjectProperty(Properties::opaque))
-		{
-			paintCanvas.clear(Rectangle<int>(0, 0, canvasWidth, canvasHeight));
-		}
-
-		Graphics g(paintCanvas);
-
-		g.addTransform(AffineTransform::scale((float)getScaleFactorForCanvas()));
-
-		var thisObject(this);
-		var arguments = var(graphics);
-		var::NativeFunctionArgs args(thisObject, &arguments, 1);
-
-		graphics->setGraphics(&g, &paintCanvas);
-
-		Result r = Result::ok();
-
-        if(!engine->isInitialising())
-        {
-            engine->maximumExecutionTime = RelativeTime(0.2);
-        }
-        
-		engine->callExternalFunction(paintRoutine, args, &r);
-
-		if (r.failed())
-		{
-			debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
-		}
-
-		graphics->setGraphics(nullptr, nullptr);
-
-		sendChangeMessage();
-
-		repaintNotifier.sendSynchronousChangeMessage();
 	}
+	else
+	{
+		jassertfalse;
+	}
+
+	
 
 	//SEND_MESSAGE(this);
 }
@@ -2809,44 +2820,49 @@ void ScriptingApi::Content::ScriptPanel::setTimerCallback(var timerCallback_)
 
 void ScriptingApi::Content::ScriptPanel::timerCallback()
 {
-	const bool parentHasMovedOn = !parent->hasComponent(this);
+	auto mc = dynamic_cast<Processor*>(getScriptProcessor())->getMainController();
 
-	if (parentHasMovedOn || !parent->asyncFunctionsAllowed())
-	{
+	if (mc == nullptr)
 		return;
-	}
-	
-	auto& readWriteLock = dynamic_cast<Processor*>(getScriptProcessor())->getMainController()->getCompileLock();
 
-
-	if (readWriteLock.tryEnterRead())
+	if (auto lock = PresetLoadLock(mc))
 	{
-		if (HiseJavascriptEngine::isJavascriptFunction(timerRoutine))
+		const bool parentHasMovedOn = !parent->hasComponent(this);
+
+		if (parentHasMovedOn || !parent->asyncFunctionsAllowed())
 		{
-			auto engine = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine();
-
-			if (engine == nullptr)
-				return;
-
-			var thisObject(this);
-			var::NativeFunctionArgs args(thisObject, nullptr, 0);
-
-			Result r = Result::ok();
-
-
-
-			engine->maximumExecutionTime = RelativeTime(0.5);
-			engine->callExternalFunction(timerRoutine, args, &r);
-
-			if (r.failed())
-			{
-
-				debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
-			}
+			return;
 		}
 
-		readWriteLock.exitRead();
-	}
+		auto& readWriteLock = mc->getCompileLock();
+
+		if (readWriteLock.tryEnterRead())
+		{
+			if (HiseJavascriptEngine::isJavascriptFunction(timerRoutine))
+			{
+				auto engine = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine();
+
+				if (engine == nullptr)
+					return;
+
+				var thisObject(this);
+				var::NativeFunctionArgs args(thisObject, nullptr, 0);
+
+				Result r = Result::ok();
+
+				engine->maximumExecutionTime = RelativeTime(0.5);
+				engine->callExternalFunction(timerRoutine, args, &r);
+
+				if (r.failed())
+				{
+
+					debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
+				}
+			}
+
+			readWriteLock.exitRead();
+		}
+	}	
 }
 
 
@@ -3581,6 +3597,7 @@ void ScriptingApi::Content::ScriptFloatingTile::handleDefaultDeactivatedProperti
 ScriptingApi::Content::Content(ProcessorWithScriptingContent *p) :
 ScriptingObject(p),
 asyncRebuildBroadcaster(*this),
+updateDispatcher(p->getMainController_()),
 height(50),
 width(-1),
 name(String()),

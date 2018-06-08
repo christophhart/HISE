@@ -347,42 +347,48 @@ MidiControllerAutomationHandler::MPEData::~MPEData()
 	data = nullptr;
 }
 
-void MidiControllerAutomationHandler::MPEData::AsyncRestorer::handleAsyncUpdate()
+void MidiControllerAutomationHandler::MPEData::AsyncRestorer::timerCallback()
 {
-	parent.clear();
-
-	static const Identifier id("ID");
-
-	parent.setMpeMode(data.getProperty("Enabled", false));
-
-	for (auto d : data)
+	if (auto l = PresetLoadLock(parent.getMainController()))
 	{
-		jassert(d.hasType("Processor"));
+		parent.clear();
 
-		d.setProperty("Type", "MPEModulator", nullptr);
-		
-		d.setProperty("Intensity", 1.0f, nullptr);
+		static const Identifier id("ID");
 
-		ValueTree dummyChild("ChildProcessors");
+		parent.setMpeMode(data.getProperty("Enabled", false));
 
-		d.addChild(dummyChild, -1, nullptr);
-
-		String id_ = d.getProperty(id).toString();
-
-		if (auto mod = parent.findMPEModulator(id_))
+		for (auto d : data)
 		{
-			mod->restoreFromValueTree(d);
+			jassert(d.hasType("Processor"));
 
-			parent.addConnection(mod, dontSendNotification);
+			d.setProperty("Type", "MPEModulator", nullptr);
+
+			d.setProperty("Intensity", 1.0f, nullptr);
+
+			ValueTree dummyChild("ChildProcessors");
+
+			d.addChild(dummyChild, -1, nullptr);
+
+			String id_ = d.getProperty(id).toString();
+
+			if (auto mod = parent.findMPEModulator(id_))
+			{
+				mod->restoreFromValueTree(d);
+
+				parent.addConnection(mod, dontSendNotification);
+			}
 		}
-	}
 
-	for (auto l : parent.listeners)
-	{
-		if (l)
+		for (auto l : parent.listeners)
 		{
-			l->mpeDataReloaded();
+			if (l)
+			{
+				l->mpeDataReloaded();
+			}
 		}
+
+		dirty = false;
+		stopTimer();
 	}
 }
 

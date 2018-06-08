@@ -108,11 +108,13 @@ private:
 *	Another nice feature is that you can use the same mechanism to call a function asynchronously by passing
 *	a lambda to callFunctionAsynchronously.
 */
-class UpdateDispatcher : public AsyncUpdater
+class UpdateDispatcher : public AsyncUpdater,
+						 private Timer
 {
 public:
 
-	UpdateDispatcher() :
+	UpdateDispatcher(MainController* mc_) :
+		mc(mc_),
 		pendingListeners(8192),
 		pendingFunctions(1024)
 	{};
@@ -200,39 +202,19 @@ public:
 
 private:
 
+	void timerCallback() override;
+	void handleAsyncUpdate() override;
+
+	void handlePendingListeners();
+
 	friend class WeakReference<UpdateDispatcher>;
 	WeakReference<UpdateDispatcher>::Master masterReference;
 
-	void handleAsyncUpdate() override
-	{
-		WeakReference<Listener> l;
-
-		while (pendingListeners.pop(l))
-		{
-			if (l != nullptr)
-			{
-				if (cancelledListeners.contains(l))
-				{
-					l->pending = false;
-					cancelledListeners.removeAllInstancesOf(l);
-					continue;
-				}
-					
-
-				l->handleAsyncUpdate();
-				l->pending = false;
-			}
-		}
-
-		Func f;
-
-		while (pendingFunctions.pop(f))
-		{
-			f();
-		}
-	}
+	
 
 	friend class Listener;
+
+	MainController* mc;
 
 	Array<WeakReference<Listener>> cancelledListeners;
 

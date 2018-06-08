@@ -812,4 +812,54 @@ bool SafeFunctionCall::call()
 	return false;
 }
 
+void UpdateDispatcher::timerCallback()
+{
+	if (auto l = PresetLoadLock(mc))
+	{
+		handlePendingListeners();
+		stopTimer();
+	}
+}
+
+void UpdateDispatcher::handleAsyncUpdate()
+{
+	if (auto l = PresetLoadLock(mc))
+	{
+		handlePendingListeners();
+	}
+	else
+	{
+		startTimer(300);
+	}
+}
+
+void UpdateDispatcher::handlePendingListeners()
+{
+	WeakReference<Listener> l;
+
+	while (pendingListeners.pop(l))
+	{
+		if (l != nullptr)
+		{
+			if (cancelledListeners.contains(l))
+			{
+				l->pending = false;
+				cancelledListeners.removeAllInstancesOf(l);
+				continue;
+			}
+
+
+			l->handleAsyncUpdate();
+			l->pending = false;
+		}
+	}
+
+	Func f;
+
+	while (pendingFunctions.pop(f))
+	{
+		f();
+	}
+}
+
 } // namespace hise

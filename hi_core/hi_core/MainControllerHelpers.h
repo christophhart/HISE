@@ -172,7 +172,7 @@ public:
 
 	private:
 
-		struct AsyncRestorer : private AsyncUpdater
+		struct AsyncRestorer : private Timer
 		{
 		public:
 
@@ -183,14 +183,15 @@ public:
 			void restore(const ValueTree& v)
 			{
 				data = v;
-				triggerAsyncUpdate();
+				dirty = true;
+				startTimer(50);
 			}
 
 		private:
 
-			void handleAsyncUpdate() override;;
+			void timerCallback() override;
 
-			
+			bool dirty = false;
 
 			ValueTree data;
 

@@ -35,30 +35,46 @@ namespace hise { using namespace juce;
 MainController::UserPresetHandler::UserPresetHandler(MainController* mc_) :
 	mc(mc_),
 	presetLoadDelayer(*this),
-	presetLoadLock(MainController::KillStateHandler::numTargetThreads)
+	presetLoadLock(MainController::KillStateHandler::Free)
 {
 
 }
 
 
 
-MainController::UserPresetHandler::LoadLock::LoadLock(MainController* mc) :
+MainController::UserPresetHandler::LoadLock::LoadLock(const MainController* mc) :
 	parent(mc->getUserPresetHandler())
 {
 	auto currentThread = mc->getKillStateHandler().getCurrentThread();
 
-	int freeThread = (int)MainController::KillStateHandler::numTargetThreads;
+	// This mechanism is not suitable for the audio thread, so don't try calling it here...
+	jassert(currentThread != MainController::KillStateHandler::AudioThread);
+
+	int freeThread = (int)MainController::KillStateHandler::Free;
 
 	sameThreadHoldsLock = parent.presetLoadLock.load() == (int)currentThread;
 
 	if(!sameThreadHoldsLock)
 		holdsLock = parent.presetLoadLock.compare_exchange_strong(freeThread, (int)currentThread);
+
+	if (sameThreadHoldsLock)
+		DBG("Reentrant Preset Lock in " + String((currentThread == MainController::KillStateHandler::MessageThread ? "Message Thread" : "Sample Loading Thread")));
+	else if (holdsLock)
+		DBG("Preset Lock acquired by " + String((currentThread == MainController::KillStateHandler::MessageThread ? "Message Thread" : "Sample Loading Thread")));
+	else
+		DBG("Preset Lock was denied for " + String((currentThread == MainController::KillStateHandler::MessageThread ? "Message Thread" : "Sample Loading Thread")));
+
 }
 
 MainController::UserPresetHandler::LoadLock::~LoadLock()
 {
 	if (holdsLock)
-		parent.presetLoadLock.store(false);
+	{
+		jassert(parent.presetLoadLock != MainController::KillStateHandler::TargetThread::Free);
+		
+		DBG("Preset Lock was released by " + String((parent.presetLoadLock == MainController::KillStateHandler::MessageThread ? "Message Thread" : "Sample Loading Thread")));
+		parent.presetLoadLock.store((int)MainController::KillStateHandler::TargetThread::Free);
+	}
 }
 
 void MainController::UserPresetHandler::loadUserPreset(const ValueTree& v)

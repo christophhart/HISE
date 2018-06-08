@@ -641,34 +641,51 @@ public:
 		*/
 		Iterator(Processor *root_, bool useHierarchy=false):
 			hierarchyUsed(useHierarchy),
-			index(0)
+			index(0),
+			presetLoadLock(root_->getMainController())
 		{
-			if(useHierarchy)
+			if (presetLoadLock)
 			{
-				internalHierarchyLevel = 0;
-				addProcessorWithHierarchy(root_);
+				if (useHierarchy)
+				{
+					internalHierarchyLevel = 0;
+					addProcessorWithHierarchy(root_);
 
+				}
+				else
+				{
+					addProcessor(root_);
+				}
 			}
 			else
 			{
-				addProcessor(root_);
+				jassertfalse;
 			}
 		};
 
 		Iterator(const Processor *root_, bool useHierarchy = false) :
 			hierarchyUsed(useHierarchy),
-			index(0)
+			index(0),
+			presetLoadLock(root_->getMainController())
 		{
-			if (useHierarchy)
+			if (presetLoadLock)
 			{
-				internalHierarchyLevel = 0;
-				addProcessorWithHierarchy(const_cast<Processor*>(root_));
+				if (useHierarchy)
+				{
+					internalHierarchyLevel = 0;
+					addProcessorWithHierarchy(const_cast<Processor*>(root_));
 
+				}
+				else
+				{
+					addProcessor(const_cast<Processor*>(root_));
+				}
 			}
 			else
 			{
-				addProcessor(const_cast<Processor*>(root_));
+				jassertfalse;
 			}
+			
 		};
 
 		/** returns the next processor. 
@@ -767,6 +784,8 @@ public:
 
 			}
 		};
+
+		PresetLoadLock presetLoadLock;
 
 		const bool hierarchyUsed;
 
