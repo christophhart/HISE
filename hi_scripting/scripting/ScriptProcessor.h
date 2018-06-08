@@ -320,7 +320,59 @@ public:
 		/** Returns the number of arguments specified in the constructor. */
 		int getNumArgs() const { return numArgs; }
 
+		void replaceContentAsync(String s)
+		{
+			// Makes sure that this won't be accessed during replacement...
+			
+			SpinLock::ScopedLockType sl(pendingLock);
+			pendingNewContent.swapWith(s);
+			notifier.notify();
+		}
+
+		
+
 	private:
+
+		/** This is necessary in order to avoid sending change messages to its Listeners
+		*
+		*	while compiling on another thread...
+		*/
+		struct Notifier: private AsyncUpdater
+		{
+			Notifier(SnippetDocument& parent_):
+				parent(parent_)
+			{
+
+			}
+
+			void notify()
+			{
+				triggerAsyncUpdate();
+			}
+
+		private:
+
+			void handleAsyncUpdate() override
+			{
+				String text;
+				
+				{
+					SpinLock::ScopedLockType sl(parent.pendingLock);
+					parent.pendingNewContent.swapWith(text);
+				}
+
+				parent.replaceAllContent(text);
+				parent.pendingNewContent = String();
+			}
+
+			SnippetDocument& parent;
+		};
+
+		SpinLock pendingLock;
+
+		String pendingNewContent;
+
+		Notifier notifier;
 
 		Identifier callbackName;
 		

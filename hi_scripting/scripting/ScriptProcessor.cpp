@@ -1185,10 +1185,8 @@ bool JavascriptProcessor::parseSnippetsFromString(const String &x, bool clearUnd
 
 		String code = codeToCut.fromLastOccurrenceOf(filter, true, false);
 
-		
+		s->replaceContentAsync(code);
 
-		s->replaceAllContent(code);
-        
 		codeToCut = codeToCut.upToLastOccurrenceOf(filter, false, false);
         
         if(clearUndoHistory)
@@ -1197,7 +1195,7 @@ bool JavascriptProcessor::parseSnippetsFromString(const String &x, bool clearUnd
         }
 	}
 
-	getSnippet(0)->replaceAllContent(codeToCut);
+	getSnippet(0)->replaceContentAsync(codeToCut);
 
 	debugToConsole(dynamic_cast<Processor*>(this), "All callbacks sucessfuly parsed");
 
@@ -1225,7 +1223,8 @@ void JavascriptProcessor::compileScriptWithCycleReferenceCheckEnabled()
 JavascriptProcessor::SnippetDocument::SnippetDocument(const Identifier &callbackName_, const String &parameters_) :
 CodeDocument(),
 isActive(false),
-callbackName(callbackName_)
+callbackName(callbackName_),
+notifier(*this)
 {
 	parameters = StringArray::fromTokens(parameters_, " ", "");
 	numArgs = parameters.size();
@@ -1266,7 +1265,10 @@ void JavascriptProcessor::SnippetDocument::checkIfScriptActive()
 
 String JavascriptProcessor::SnippetDocument::getSnippetAsFunction() const
 {
+	SpinLock::ScopedLockType sl(pendingLock);
+
 	if (isSnippetEmpty()) return emptyText;
+	else if (pendingNewContent.isNotEmpty()) return pendingNewContent;
 	else				  return getAllContent();
 }
 
