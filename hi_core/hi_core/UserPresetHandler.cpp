@@ -32,6 +32,35 @@
 
 namespace hise { using namespace juce;
 
+MainController::UserPresetHandler::UserPresetHandler(MainController* mc_) :
+	mc(mc_),
+	presetLoadDelayer(*this),
+	presetLoadLock(MainController::KillStateHandler::numTargetThreads)
+{
+
+}
+
+
+
+MainController::UserPresetHandler::LoadLock::LoadLock(MainController* mc) :
+	parent(mc->getUserPresetHandler())
+{
+	auto currentThread = mc->getKillStateHandler().getCurrentThread();
+
+	int freeThread = (int)MainController::KillStateHandler::numTargetThreads;
+
+	sameThreadHoldsLock = parent.presetLoadLock.load() == (int)currentThread;
+
+	if(!sameThreadHoldsLock)
+		holdsLock = parent.presetLoadLock.compare_exchange_strong(freeThread, (int)currentThread);
+}
+
+MainController::UserPresetHandler::LoadLock::~LoadLock()
+{
+	if (holdsLock)
+		parent.presetLoadLock.store(false);
+}
+
 void MainController::UserPresetHandler::loadUserPreset(const ValueTree& v)
 {
 	auto f = [this, v](Processor*) {loadUserPresetInternal(v); return true; };
@@ -102,83 +131,89 @@ void MainController::UserPresetHandler::saveUserPresetInternal(const String& nam
 
 void MainController::UserPresetHandler::loadUserPresetInternal(const ValueTree& userPresetToLoad)
 {
-
+	if (auto s = LoadLock(mc))
+	{
 #if USE_BACKEND
-	if (!GET_PROJECT_HANDLER(mc->getMainSynthChain()).isActive()) return;
+		if (!GET_PROJECT_HANDLER(mc->getMainSynthChain()).isActive()) return;
 #endif
 
-	jassert(userPresetToLoad.isValid());
+		jassert(userPresetToLoad.isValid());
+		jassert(!mc->getMainSynthChain()->areVoicesActive());
 
-	jassert(!mc->getMainSynthChain()->areVoicesActive());
+		Processor::Iterator<JavascriptMidiProcessor> iter(mc->getMainSynthChain());
 
-	Processor::Iterator<JavascriptMidiProcessor> iter(mc->getMainSynthChain());
+		mc->getSampleManager().setShouldSkipPreloading(true);
 
-	mc->getSampleManager().setShouldSkipPreloading(true);
-
-	while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
-	{
-		if (!sp->isFront()) continue;
-
-		ValueTree v;
-
-		for (int i = 0; i < userPresetToLoad.getNumChildren(); i++)
+		while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
 		{
-			if (userPresetToLoad.getChild(i).getProperty("Processor") == sp->getId())
+			if (!sp->isFront()) continue;
+
+			ValueTree v;
+
+			for (int i = 0; i < userPresetToLoad.getNumChildren(); i++)
 			{
-				v = userPresetToLoad.getChild(i);
-				break;
+				if (userPresetToLoad.getChild(i).getProperty("Processor") == sp->getId())
+				{
+					v = userPresetToLoad.getChild(i);
+					break;
+				}
+			}
+
+			if (v.isValid())
+			{
+				sp->getScriptingContent()->restoreAllControlsFromPreset(v);
 			}
 		}
 
-		if (v.isValid())
+		mc->getSampleManager().preloadEverything();
+
+		ValueTree autoData = userPresetToLoad.getChildWithName("MidiAutomation");
+
+		if (autoData.isValid())
+			mc->getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(autoData);
+
+		ValueTree modulationData = userPresetToLoad.getChildWithName("ModulatedParameters");
+
+		if (modulationData.isValid())
 		{
-			sp->getScriptingContent()->restoreAllControlsFromPreset(v);
+			auto container = ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(mc->getMainSynthChain());
+
+			if (container != nullptr)
+			{
+				container->restoreModulatedParameters(modulationData);
+			}
 		}
-	}
 
-	mc->getSampleManager().preloadEverything();
+		auto mpeData = userPresetToLoad.getChildWithName("MPEData");
 
-	ValueTree autoData = userPresetToLoad.getChildWithName("MidiAutomation");
-
-	if (autoData.isValid())
-		mc->getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(autoData);
-
-	ValueTree modulationData = userPresetToLoad.getChildWithName("ModulatedParameters");
-
-	if (modulationData.isValid())
-	{
-		auto container = ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(mc->getMainSynthChain());
-
-		if (container != nullptr)
+		if (mpeData.isValid())
 		{
-			container->restoreModulatedParameters(modulationData);
+			mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().restoreFromValueTree(mpeData);
 		}
-	}
+		else
+		{
+			mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().reset();
+		}
 
-	auto mpeData = userPresetToLoad.getChildWithName("MPEData");
+		auto f = [this]()->void
+		{
+			for (auto l : this->listeners)
+			{
+				if (l != nullptr)
+					l->presetChanged(currentlyLoadedFile);
+			}
+		};
 
-	if (mpeData.isValid())
-	{
-		mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().restoreFromValueTree(mpeData);
+		new DelayedFunctionCaller(f, 400);
+
+		mc->allNotesOff(true);
 	}
 	else
 	{
-		mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().reset();
+		jassertfalse;
+		presetLoadDelayer.retryLoading(userPresetToLoad);
 	}
 
-	auto f = [this]()->void
-	{
-		for (auto l : this->listeners)
-		{
-			if (l != nullptr)
-				l->presetChanged(currentlyLoadedFile);
-		}
-	};
-
-	new DelayedFunctionCaller(f, 400);
-
-
-	mc->allNotesOff(true);
 }
 
 

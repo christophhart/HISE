@@ -548,20 +548,34 @@ ProcessorEditorBody *PolyFilterEffect::createEditor(ProcessorEditor *parentEdito
 
 juce::IIRCoefficients PolyFilterEffect::getCurrentCoefficients() const
 {
-	auto ownerSynth = dynamic_cast<const ModulatorSynth*>(ProcessorHelpers::findParentProcessor(this, true));
-
-	auto v = ownerSynth->getLastStartedVoice();
-
-	if (v != nullptr && ownerSynth->getNumActiveVoices() != 0)
+	if (ownerSynthForCoefficients == nullptr)
 	{
-		auto index = v->getVoiceIndex();
-		auto filter = voiceFilters[index];
-
-		if (filter != nullptr)
-			return voiceFilters[index]->getCurrentCoefficients();
+		ownerSynthForCoefficients = const_cast<Processor*>(ProcessorHelpers::findParentProcessor(this, true));
 	}
+
+	if (auto ownerSynth = dynamic_cast<const ModulatorSynth*>(ownerSynthForCoefficients.get()))
+	{
+		auto v = ownerSynth->getLastStartedVoice();
+
+		if (v != nullptr && ownerSynth->getNumActiveVoices() != 0)
+		{
+			auto index = v->getVoiceIndex();
+			auto filter = voiceFilters[index];
+
+			if (filter != nullptr)
+				return voiceFilters[index]->getCurrentCoefficients();
+		}
+
+		return MonoFilterEffect::getDisplayCoefficients(mode, freq, q, gain, getSampleRate());
+	}
+	else
+	{
+		return MonoFilterEffect::getDisplayCoefficients(mode, freq, q, gain, getSampleRate());
+	}
+
+
+
 	
-	return MonoFilterEffect::getDisplayCoefficients(mode, freq, q, gain, getSampleRate());
 }
 
 void PolyFilterEffect::preVoiceRendering(int voiceIndex, int startSample, int numSamples)

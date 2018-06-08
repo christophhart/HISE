@@ -345,9 +345,7 @@ public:
 			WeakReference<Listener>::Master masterReference;
 		};
 
-		UserPresetHandler(MainController* mc_) :
-			mc(mc_)
-		{};
+		UserPresetHandler(MainController* mc_);;
 
 		void incPreset(bool next, bool stayInSameDirectory);
 		void loadUserPreset(const ValueTree& v);
@@ -362,7 +360,53 @@ public:
 		void addListener(Listener* listener);
 		void removeListener(Listener* listener);
 
+		struct LoadLock
+		{
+			LoadLock(MainController* mc);
+
+			explicit operator bool() const
+			{
+				return holdsLock || sameThreadHoldsLock;
+			}
+
+			~LoadLock();
+
+			UserPresetHandler& parent;
+
+			bool holdsLock = false;
+			bool sameThreadHoldsLock = false;
+		};
+
 	private:
+
+		struct PresetLoadDelayer : private Timer
+		{
+			PresetLoadDelayer(UserPresetHandler& parent_):
+				parent(parent_)
+			{}
+
+			void retryLoading(const ValueTree& presetToReload)
+			{
+				treeToBeReloaded = presetToReload;
+				startTimer(50);
+			}
+			
+		private:
+
+			void timerCallback() override
+			{
+				// Don't use the internal method so that it gets called on the loading thread
+				parent.loadUserPreset(treeToBeReloaded);
+				stopTimer();
+			}
+
+			UserPresetHandler& parent;
+			ValueTree treeToBeReloaded;
+		};
+
+		PresetLoadDelayer presetLoadDelayer;
+
+		std::atomic<int> presetLoadLock;
 
 		void loadUserPresetInternal(const ValueTree& v);
 		void saveUserPresetInternal(const String& name=String());
@@ -1305,6 +1349,8 @@ private:
 public:
 	void updateMultiChannelBuffer(int numNewChannels);
 };
+
+using PresetLoadLock = MainController::UserPresetHandler::LoadLock;
 
 } // namespace hise
 

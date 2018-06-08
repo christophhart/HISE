@@ -632,13 +632,16 @@ void MPEPanel::Notifier::timerCallback()
 {
 	if (refreshPanel)
 	{
-        parent.enableMPEButton.setToggleState(isEnabled, dontSendNotification);
-		parent.setCurrentMod(nullptr);
-		parent.listbox.deselectAllRows();
-		parent.listbox.updateContent();
-		parent.repaint();
-		parent.resized();
-		refreshPanel = false;
+		if (auto l = PresetLoadLock(parent.getMainController()))
+		{
+			parent.enableMPEButton.setToggleState(isEnabled, dontSendNotification);
+			parent.setCurrentMod(nullptr);
+			parent.listbox.deselectAllRows();
+			parent.listbox.updateContent();
+			parent.repaint();
+			parent.resized();
+			refreshPanel = false;
+		}
 	}
 }
 

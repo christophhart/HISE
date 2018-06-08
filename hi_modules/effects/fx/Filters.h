@@ -1392,6 +1392,8 @@ private:
 	AudioSampleBuffer timeVariantGainModulatorBuffer;
 	AudioSampleBuffer timeVariantBipolarFreqModulatorBuffer;
 
+	mutable WeakReference<Processor> ownerSynthForCoefficients;
+
 };
 
 

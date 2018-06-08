@@ -483,7 +483,12 @@ void ProcessorEditorHeader::resized()
 
 	int x = 8;
 
-	const bool isInEffectSlot = dynamic_cast<SlotFX*>(ProcessorHelpers::findParentProcessor(getProcessor(), false)) != nullptr;
+	if (parentProcessor == nullptr)
+	{
+		parentProcessor = ProcessorHelpers::findParentProcessor(getProcessor(), false);
+	}
+
+	const bool isInEffectSlot = dynamic_cast<SlotFX*>(parentProcessor.get()) != nullptr;
     
 	const bool isInternalChain = isHeaderOfChain() && !isHeaderOfModulatorSynth();
 

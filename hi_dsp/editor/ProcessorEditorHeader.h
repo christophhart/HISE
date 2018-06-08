@@ -154,6 +154,8 @@ private:
 
 	BiPolarSliderLookAndFeel bpslaf;
 
+	WeakReference<Processor> parentProcessor;
+
     //==============================================================================
 
 	ScopedPointer<Slider> balanceSlider;
