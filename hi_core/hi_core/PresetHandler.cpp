@@ -460,15 +460,7 @@ void UserPresetHelpers::loadUserPreset(ModulatorSynthChain *chain, const File &f
     
     if(xml != nullptr)
     {
-		if (!checkVersionNumber(chain, *xml))
-		{
-            
-            updateVersionNumber(chain, fileToLoad);
-            
-            xml = XmlDocument::parse(fileToLoad);
-		}
-
-        ValueTree parent = ValueTree::fromXml(*xml);
+		ValueTree parent = ValueTree::fromXml(*xml);
         
 		chain->getMainController()->getDebugLogger().logMessage("### Loading user preset " + fileToLoad.getFileNameWithoutExtension() + "\n");
 
