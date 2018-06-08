@@ -154,26 +154,35 @@ void MainController::loadPresetFromFile(const File &f, Component* /*mainEditor*/
 
 void MainController::clearPreset()
 {
-	ScopedLock sl(getLock());
-
-	jassert(!getMainSynthChain()->areVoicesActive());
-
-	getMacroManager().getMidiControlAutomationHandler()->getMPEData().clear();
-
-	getScriptComponentEditBroadcaster()->getUndoManager().clearUndoHistory();
-
-	getMainSynthChain()->reset();
-
-	globalVariableObject->clear();
-
-	for (int i = 0; i < 127; i++)
+	if (auto l = PresetLoadLock(this))
 	{
-		setKeyboardCoulour(i, Colours::transparentBlack);
-	}
-    
-	clearIncludedFiles();
+		ScopedLock sl(getLock());
 
-    changed = false;
+		jassert(!getMainSynthChain()->areVoicesActive());
+
+		getMacroManager().getMidiControlAutomationHandler()->getMPEData().clear();
+
+		getScriptComponentEditBroadcaster()->getUndoManager().clearUndoHistory();
+
+		getMainSynthChain()->reset();
+
+		globalVariableObject->clear();
+
+		for (int i = 0; i < 127; i++)
+		{
+			setKeyboardCoulour(i, Colours::transparentBlack);
+		}
+
+		clearIncludedFiles();
+
+		changed = false;
+	}
+	else
+	{
+		jassertfalse;
+	}
+
+	
 }
 
 void MainController::loadPresetFromValueTree(const ValueTree &v, Component* /*mainEditor*/)
@@ -206,84 +215,92 @@ void MainController::loadPresetFromValueTree(const ValueTree &v, Component* /*ma
 
 void MainController::loadPresetInternal(const ValueTree& v)
 {
-	try
+	if (auto l = PresetLoadLock(this))
 	{
-		getSampleManager().setPreloadFlag();
+		try
+		{
+			getSampleManager().setPreloadFlag();
 
-		ModulatorSynthChain *synthChain = getMainSynthChain();
+			ModulatorSynthChain *synthChain = getMainSynthChain();
 
 #if USE_BACKEND
-        const bool isCommandLine = CompileExporter::isExportingFromCommandLine();
-        const bool isSampleLoadingThread = killStateHandler.getCurrentThread() == KillStateHandler::SampleLoadingThread;
-        
-		jassert(isCommandLine || isSampleLoadingThread);
-        ignoreUnused(isCommandLine, isSampleLoadingThread);
-#endif
-        
-		jassert(!synthChain->areVoicesActive());
+			const bool isCommandLine = CompileExporter::isExportingFromCommandLine();
+			const bool isSampleLoadingThread = killStateHandler.getCurrentThread() == KillStateHandler::SampleLoadingThread;
 
-		clearPreset();
-
-		getSampleManager().setShouldSkipPreloading(true);
-
-		// Reset the sample rate so that prepareToPlay does not get called in restoreFromValueTree
-		// synthChain->setCurrentPlaybackSampleRate(-1.0);
-		synthChain->setId(v.getProperty("ID", "MainSynthChain"));
-
-		skipCompilingAtPresetLoad = true;
-
-		synthChain->restoreFromValueTree(v);
-
-		skipCompilingAtPresetLoad = false;
-
-		synthChain->compileAllScripts();
-
-		if (sampleRate > 0.0)
-		{
-			LOG_START("Initialising audio callback");
-
-			synthChain->prepareToPlay(sampleRate, maxBufferSize.get());
-		}
-
-		synthChain->loadMacrosFromValueTree(v);
-
-
-#if USE_BACKEND
-		Processor::Iterator<ModulatorSynth> iter(synthChain, false);
-
-		while (ModulatorSynth *synth = iter.getNextProcessor())
-		{
-			synth->setEditorState(Processor::EditorState::Folded, true);
-		}
-
-		changed = false;
-
-		auto f = [](Processor* synthChain)
-		{
-			synthChain->sendRebuildMessage(true);
-			return true;
-		};
-
-		killAndCallOnMessageThread(f);
-		
-
-		getSampleManager().preloadEverything();
-
+			jassert(isCommandLine || isSampleLoadingThread);
+			ignoreUnused(isCommandLine, isSampleLoadingThread);
 #endif
 
-		allNotesOff(true);
-	}
-	catch (String& errorMessage)
-	{
-		ignoreUnused(errorMessage);
+			jassert(!synthChain->areVoicesActive());
+
+			clearPreset();
+
+			getSampleManager().setShouldSkipPreloading(true);
+
+			// Reset the sample rate so that prepareToPlay does not get called in restoreFromValueTree
+			// synthChain->setCurrentPlaybackSampleRate(-1.0);
+			synthChain->setId(v.getProperty("ID", "MainSynthChain"));
+
+			skipCompilingAtPresetLoad = true;
+
+			synthChain->restoreFromValueTree(v);
+
+			skipCompilingAtPresetLoad = false;
+
+			synthChain->compileAllScripts();
+
+			if (sampleRate > 0.0)
+			{
+				LOG_START("Initialising audio callback");
+
+				synthChain->prepareToPlay(sampleRate, maxBufferSize.get());
+			}
+
+			synthChain->loadMacrosFromValueTree(v);
+
 
 #if USE_BACKEND
-		writeToConsole(errorMessage, 1, getMainSynthChain());
+			Processor::Iterator<ModulatorSynth> iter(synthChain, false);
+
+			while (ModulatorSynth *synth = iter.getNextProcessor())
+			{
+				synth->setEditorState(Processor::EditorState::Folded, true);
+			}
+
+			changed = false;
+
+			auto f = [](Processor* synthChain)
+			{
+				synthChain->sendRebuildMessage(true);
+				return true;
+			};
+
+			killAndCallOnMessageThread(f);
+
+
+			getSampleManager().preloadEverything();
+
+#endif
+
+			allNotesOff(true);
+		}
+		catch (String& errorMessage)
+		{
+			ignoreUnused(errorMessage);
+
+#if USE_BACKEND
+			writeToConsole(errorMessage, 1, getMainSynthChain());
 #else
-		DBG(errorMessage);
+			DBG(errorMessage);
 #endif
+		}
+	}
+	else
+	{
+		jassertfalse;
 	}
 
+	
 	
 }
 
@@ -1149,5 +1166,10 @@ void MainController::CodeHandler::setMainConsole(Console* console)
 	mainConsole = dynamic_cast<Component*>(console);
 }
 
+
+bool MainController::UserPresetHandler::isIdle() const
+{
+	return presetLoadLock == MainController::KillStateHandler::Free;
+}
 
 } // namespace hise

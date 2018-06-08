@@ -360,9 +360,30 @@ public:
 		void addListener(Listener* listener);
 		void removeListener(Listener* listener);
 
+		/** This is a reentrant, thread safe lock that regulates access to the preset loading.
+		*
+		*	Whenever you need to make sure that the current operation is not intermitted by a preset load,
+		*	create one of these and hold it as long as you need your operation to work.
+		*
+		*	This doesn't lock at all, instead it tells the user preset handler to just retry loading the preset after a 
+		*	short while.
+		*
+		*	Make sure you don't hold it for too long or the UX will get laggy. Also you can check if the lock was acquired like this:
+		*
+		*		if(auto pl = PresetLoadLock(mc))
+		*		{
+		*			// do something that shouldn't be disturbed by loading a preset
+		*		}
+		*		else
+		*		{
+		*			// It will currently load a preset, so you need to reschedule this task
+		*		}
+		*
+		*	
+		*/
 		struct LoadLock
 		{
-			LoadLock(MainController* mc);
+			LoadLock(const MainController* mc);
 
 			explicit operator bool() const
 			{
@@ -371,11 +392,13 @@ public:
 
 			~LoadLock();
 
-			UserPresetHandler& parent;
+			const UserPresetHandler& parent;
 
 			bool holdsLock = false;
 			bool sameThreadHoldsLock = false;
 		};
+
+		bool isIdle() const;
 
 	private:
 
@@ -406,7 +429,7 @@ public:
 
 		PresetLoadDelayer presetLoadDelayer;
 
-		std::atomic<int> presetLoadLock;
+		mutable std::atomic<int> presetLoadLock;
 
 		void loadUserPresetInternal(const ValueTree& v);
 		void saveUserPresetInternal(const String& name=String());
@@ -418,10 +441,12 @@ public:
 		MainController* mc;
 	};
 
-	struct GlobalAsyncModuleHandler: public AsyncUpdater
+	struct GlobalAsyncModuleHandler: public AsyncUpdater,
+									 public Timer
 	{
 		GlobalAsyncModuleHandler() :
-			pendingJobs(1024)
+			pendingJobs(1024),
+			lockedJobs(4096)
 		{};
 
 		struct JobData
@@ -442,7 +467,7 @@ public:
 
 			What what; // what
 
-			void doit();
+			bool doit();
 		};
 
 		void removeAsync(Processor* p, Component* rootWindow);
@@ -453,7 +478,10 @@ public:
 
 		void handleAsyncUpdate() override;
 
+		void timerCallback() override;
+
 		LockfreeQueue<JobData> pendingJobs;
+		LockfreeQueue<JobData> lockedJobs;
 	};
 
 	class ProcessorChangeHandler : public AsyncUpdater
@@ -613,7 +641,8 @@ public:
 			MessageThread = 0,
 			SampleLoadingThread,
 			AudioThread,
-			numTargetThreads
+			numTargetThreads,
+			Free // This is just to indicate there's no thread in use
 		};
 
 		KillStateHandler(MainController* mc);
