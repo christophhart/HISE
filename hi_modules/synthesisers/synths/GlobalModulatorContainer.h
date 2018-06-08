@@ -194,9 +194,16 @@ private:
 };
 
 class GlobalModulatorContainer : public ModulatorSynth,
-								 public SafeChangeListener
+								 public Chain::Handler::Listener
 {
 public:
+
+	struct ModulatorListListener
+	{
+		virtual void listWasChanged() = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+	};
 
 	SET_PROCESSOR_NAME("GlobalModulatorContainer", "Global Modulator Container");
 
@@ -206,6 +213,10 @@ public:
     
 	GlobalModulatorContainer(MainController *mc, const String &id, int numVoices);;
 
+	~GlobalModulatorContainer();
+
+	void processorChanged(EventType t, Processor* p) override { refreshList(); }
+
 	void restoreFromValueTree(const ValueTree &v) override;
 
 	const float *getModulationValuesForModulator(Processor *p, int startIndex, int voiceIndex = 0);
@@ -214,8 +225,6 @@ public:
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
 
 	void changeListenerCallback(SafeChangeBroadcaster *) { refreshList(); }
-	void addChangeListenerToHandler(SafeChangeListener *listener);
-	void removeChangeListenerFromHandler(SafeChangeListener *listener);
 
 	void preStartVoice(int voiceIndex, int noteNumber);
 	void postVoiceRendering(int startSample, int numThisTime);
@@ -237,6 +246,8 @@ public:
 
 private:
 
+	Array<WeakReference<ModulatorListListener>> modListeners;
+
 	friend class GlobalModulatorContainerVoice;
 
 	Array<WeakReference<GlobalModulatorData::ParameterConnection>> allParameters;
@@ -244,6 +255,8 @@ private:
 	void refreshList();
 
 	OwnedArray<GlobalModulatorData> data;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(GlobalModulatorContainer);
 };
 
 

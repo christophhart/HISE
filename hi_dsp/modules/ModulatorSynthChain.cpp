@@ -536,21 +536,18 @@ void ModulatorSynthChain::ModulatorSynthChainHandler::add(Processor *newProcesso
 		synth->synths.insert(index, ms);
 	}
 
-	sendChangeMessage();
+	notifyListeners(Listener::ProcessorAdded, newProcessor);
 }
 
 void ModulatorSynthChain::ModulatorSynthChainHandler::remove(Processor *processorToBeRemoved, bool removeSynth)
 {
-	{
-		auto& tmp = synth;
+	notifyListeners(Listener::ProcessorDeleted, processorToBeRemoved);
 
-		auto f = [tmp, removeSynth](Processor* p) { tmp->synths.removeObject(dynamic_cast<ModulatorSynth*>(p), removeSynth); return true; };
+	auto& tmp = synth;
 
-		synth->getMainController()->getKillStateHandler().killVoicesAndCall(processorToBeRemoved, f, MainController::KillStateHandler::TargetThread::MessageThread);
-		
-	}
+	auto f = [tmp, removeSynth](Processor* p) { tmp->synths.removeObject(dynamic_cast<ModulatorSynth*>(p), removeSynth); return true; };
 
-	sendChangeMessage();
+	synth->getMainController()->getKillStateHandler().killVoicesAndCall(processorToBeRemoved, f, MainController::KillStateHandler::TargetThread::MessageThread);
 }
 
 Processor * ModulatorSynthChain::ModulatorSynthChainHandler::getProcessor(int processorIndex)
@@ -570,11 +567,11 @@ int ModulatorSynthChain::ModulatorSynthChainHandler::getNumProcessors() const
 
 void ModulatorSynthChain::ModulatorSynthChainHandler::clear()
 {
+	notifyListeners(Listener::Cleared, nullptr);
+
 	ScopedLock sl(synth->getMainController()->getLock());
 
 	synth->synths.clear();
-
-	sendChangeMessage();
 }
 
 } // namespace hise

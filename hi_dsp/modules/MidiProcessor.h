@@ -233,6 +233,8 @@ public:
 
 		void remove(Processor *processorToBeRemoved, bool deleteMp=true)
 		{
+			notifyListeners(Listener::ProcessorDeleted, processorToBeRemoved);
+
 			ScopedLock sl(chain->getMainController()->getLock());
 
 			jassert(dynamic_cast<MidiProcessor*>(processorToBeRemoved) != nullptr);
@@ -245,7 +247,7 @@ public:
 				}
 			}
 
-			sendChangeMessage();
+			
 		};
 
 		const Processor *getProcessor(int processorIndex) const override
@@ -265,9 +267,8 @@ public:
 
 		void clear()
 		{
+			notifyListeners(Listener::Cleared, nullptr);
 			chain->processors.clear();
-
-			sendChangeMessage();
 		}
 
 	private:

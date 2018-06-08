@@ -212,6 +212,8 @@ public:
 
 		void remove(Processor *processorToBeRemoved, bool removeEffect=true) override
 		{
+			notifyListeners(Listener::ProcessorDeleted, processorToBeRemoved);
+
 			ScopedLock sl(chain->getMainController()->getLock());
 
 			jassert(dynamic_cast<EffectProcessor*>(processorToBeRemoved) != nullptr);
@@ -224,8 +226,6 @@ public:
 			else jassertfalse;
 
 			jassert(chain->allEffects.size() == (chain->masterEffects.size() + chain->voiceEffects.size() + chain->monoEffects.size()));
-
-			sendChangeMessage();
 		}
 
 		void moveProcessor(Processor *processorInChain, int delta)
@@ -312,12 +312,12 @@ public:
 
 		void clear() override
 		{
+			notifyListeners(Listener::Cleared, nullptr);
+
 			chain->voiceEffects.clear();
 			chain->masterEffects.clear();
 			chain->monoEffects.clear();
 			chain->allEffects.clear();
-
-			sendChangeMessage();
 		}
 
 	private:

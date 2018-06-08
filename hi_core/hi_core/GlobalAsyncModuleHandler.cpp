@@ -86,25 +86,34 @@ void MainController::GlobalAsyncModuleHandler::handleAsyncUpdate()
 
 void MainController::GlobalAsyncModuleHandler::removeAsync(Processor* p, Component* /*rootWindow*/)
 {
-	auto f = [](Processor* p)
+	if (auto parent = ProcessorHelpers::findParentProcessor(p, false))
 	{
-		if (p == nullptr)
+		WeakReference<Processor> processorToDelete = p;
+
+		auto f = [processorToDelete](Processor* p)
+		{
+			if (processorToDelete == nullptr)
+				return true;
+
+			auto c = dynamic_cast<Chain*>(p);
+
+			jassert(c != nullptr);
+
+			if (c == nullptr)
+				return true;
+
+			c->getHandler()->remove(processorToDelete, false);
+			p->getMainController()->getGlobalAsyncModuleHandler().addPendingUIJob(p, processorToDelete, JobData::What::Delete);
+
 			return true;
+		};
 
-		auto c = dynamic_cast<Chain*>(ProcessorHelpers::findParentProcessor(p, false));
+		p->getMainController()->getKillStateHandler().killVoicesAndCall(parent, f, KillStateHandler::SampleLoadingThread);
+	}
 
-		//jassert(c != nullptr);
+	
 
-		if (c == nullptr)
-			return true;
-
-		c->getHandler()->remove(p, false);
-		p->getMainController()->getGlobalAsyncModuleHandler().addPendingUIJob(dynamic_cast<Processor*>(c), p, JobData::What::Delete);
-
-		return true;
-	};
-
-	p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, KillStateHandler::SampleLoadingThread);
+	
 }
 
 void MainController::GlobalAsyncModuleHandler::addAsync(Chain* c, Processor* p, Component* /*rootWindow*/, const String& /*type*/, const String& /*id*/, int index)

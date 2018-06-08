@@ -726,7 +726,7 @@ public:
 
 		void addProcessor(Processor *p)
 		{
-			//jassert(p != nullptr);
+			jassert(p != nullptr);
 
 			if(dynamic_cast<SubTypeProcessor*>(p) != nullptr)
 			{

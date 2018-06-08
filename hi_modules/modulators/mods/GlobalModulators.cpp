@@ -43,23 +43,26 @@ useTable(false)
 
 	Processor::Iterator<GlobalModulatorContainer> iter(chain, false);
 
-	GlobalModulatorContainer *c;
-
-	while ((c = iter.getNextProcessor()) != nullptr)
+	while (auto c = iter.getNextProcessor())
 	{
-		c->addChangeListenerToHandler(this);
+		c->gainChain->getHandler()->addListener(this);
+		watchedContainers.add(c);
 	}
-
 }
 
 GlobalModulator::~GlobalModulator()
 {
-    DBG("GlobalModulator Destructor");
-    
+	DBG("GlobalModulator Destructor");
+
+	for (auto c : watchedContainers)
+	{
+		if (c != nullptr)
+		{
+			c->gainChain->getHandler()->removeListener(this);
+		}
+	}
+
 	table = nullptr;
-
-	
-
 }
 
 Modulator * GlobalModulator::getOriginalModulator()
@@ -80,6 +83,12 @@ GlobalModulatorContainer * GlobalModulator::getConnectedContainer()
 const GlobalModulatorContainer * GlobalModulator::getConnectedContainer() const
 {
 	return dynamic_cast<const GlobalModulatorContainer*>(connectedContainer.get());
+}
+
+void GlobalModulator::processorChanged(EventType /*t*/, Processor* /*p*/)
+{
+	// Just send a regular update message to update the GUI
+	dynamic_cast<Processor*>(this)->sendChangeMessage();
 }
 
 StringArray GlobalModulator::getListOfAllModulatorsWithType()
@@ -182,24 +191,6 @@ void GlobalModulator::loadFromValueTree(const ValueTree &v)
 	connectToGlobalModulator(v.getProperty("Connection"));
 }
 
-void GlobalModulator::removeFromAllContainers()
-{
-    ModulatorSynthChain *chain = dynamic_cast<Processor*>(this)->getMainController()->getMainSynthChain();
-
-	if (chain != nullptr)
-	{
-		Processor::Iterator<GlobalModulatorContainer> iter(chain, false);
-
-		GlobalModulatorContainer *c;
-
-		while ((c = iter.getNextProcessor()) != nullptr)
-		{
-			c->removeChangeListenerFromHandler(this);
-		}
-
-	}	
-}
-
 GlobalVoiceStartModulator::GlobalVoiceStartModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m) :
 VoiceStartModulator(mc, id, numVoices, m),
 Modulation(m),
@@ -211,7 +202,7 @@ GlobalModulator(mc)
 
 GlobalVoiceStartModulator::~GlobalVoiceStartModulator()
 {
-	removeFromAllContainers();
+	
 }
 
 void GlobalVoiceStartModulator::restoreFromValueTree(const ValueTree &v)
@@ -295,8 +286,6 @@ GlobalStaticTimeVariantModulator::GlobalStaticTimeVariantModulator(MainControlle
 
 GlobalStaticTimeVariantModulator::~GlobalStaticTimeVariantModulator()
 {
-    DBG("GlobalStaticTimeVariantModulator Destructor");
-	removeFromAllContainers();
 }
 
 void GlobalStaticTimeVariantModulator::restoreFromValueTree(const ValueTree &v)

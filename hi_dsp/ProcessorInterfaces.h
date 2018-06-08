@@ -318,9 +318,25 @@ public:
 	*
 	*	Subclass this, put it in your subclassed Chain and return a member object of the chain in Chain::getHandler().
 	*/
-	class Handler : public SafeChangeBroadcaster
+	class Handler
 	{
 	public:
+
+		struct Listener
+		{
+			enum EventType
+			{
+				ProcessorAdded,
+				ProcessorDeleted,
+				ProcessorOrderChanged,
+				Cleared,
+				numEventTypes
+			};
+
+			virtual void processorChanged(EventType t, Processor* p) = 0;
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+		};
 
 		// ================================================================================================================
 
@@ -346,6 +362,28 @@ public:
 		/** Deletes all Processors in the Chain. */
 		virtual void clear() = 0;
 
+		void addListener(Listener* l)
+		{
+			listeners.addIfNotAlreadyThere(l);
+		}
+
+		void removeListener(Listener* l)
+		{
+			listeners.removeAllInstancesOf(l);
+		}
+
+		void notifyListeners(Listener::EventType t, Processor* p)
+		{
+			for (auto l : listeners)
+			{
+				if (l != nullptr)
+					l->processorChanged(t, p);
+			}
+		}
+
+	private:
+
+		Array<WeakReference<Listener>> listeners;
 	};
 
 	// ===================================================================================================================

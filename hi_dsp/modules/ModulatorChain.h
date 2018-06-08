@@ -263,12 +263,12 @@ public:
 
 		void clear() override
 		{
+			notifyListeners(Listener::Cleared, nullptr);
+
 			chain->envelopeModulators.clear();
 			chain->variantModulators.clear();
 			chain->voiceStartModulators.clear();
 			chain->allModulators.clear();
-
-			sendChangeMessage();
 		}
 
 	private:

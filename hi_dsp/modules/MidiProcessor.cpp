@@ -224,26 +224,28 @@ bool MidiProcessorFactoryType::allowType(const Identifier &typeName) const
 
 void MidiProcessorChain::MidiProcessorChainHandler::add(Processor *newProcessor, Processor *siblingToInsertBefore)
 {
-	ScopedLock sl(chain->getMainController()->getLock());
+	{
+		ScopedLock sl(chain->getMainController()->getLock());
 
-	MidiProcessor *m = dynamic_cast<MidiProcessor*>(newProcessor);
+		MidiProcessor *m = dynamic_cast<MidiProcessor*>(newProcessor);
 
-	jassert(m != nullptr);
+		jassert(m != nullptr);
 
-	const int index = siblingToInsertBefore == nullptr ? -1 : chain->processors.indexOf(dynamic_cast<MidiProcessor*>(siblingToInsertBefore));
+		const int index = siblingToInsertBefore == nullptr ? -1 : chain->processors.indexOf(dynamic_cast<MidiProcessor*>(siblingToInsertBefore));
 
-    newProcessor->prepareToPlay(chain->getSampleRate(), chain->getLargestBlockSize());
-    
-    newProcessor->setIsOnAir(true);
-    
-	chain->processors.insert(index, m);
+		newProcessor->prepareToPlay(chain->getSampleRate(), chain->getLargestBlockSize());
 
-	if (JavascriptMidiProcessor* sp = dynamic_cast<JavascriptMidiProcessor*>(newProcessor))
-	{	
-		sp->compileScript();
+		newProcessor->setIsOnAir(true);
+
+		chain->processors.insert(index, m);
+
+		if (JavascriptMidiProcessor* sp = dynamic_cast<JavascriptMidiProcessor*>(newProcessor))
+		{
+			sp->compileScript();
+		}
 	}
-
-	sendChangeMessage();
+	
+	notifyListeners(Listener::ProcessorAdded, newProcessor);
 }
 
 } // namespace hise

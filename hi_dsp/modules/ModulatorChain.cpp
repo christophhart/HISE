@@ -329,11 +329,13 @@ void ModulatorChain::ModulatorChainHandler::add(Processor *newProcessor, Process
 
 	dynamic_cast<AudioProcessor*>(chain->getMainController())->suspendProcessing(false);
 
-	sendChangeMessage();
+	notifyListeners(Listener::ProcessorAdded, newProcessor);
 }
 
 void ModulatorChain::ModulatorChainHandler::deleteModulator(Modulator *modulatorToBeDeleted, bool deleteMod)
 {
+	notifyListeners(Listener::ProcessorDeleted, modulatorToBeDeleted);
+
 	for(int i = 0; i < getNumModulators(); ++i)
 	{
 		if(chain->allModulators[i] == modulatorToBeDeleted) chain->allModulators.remove(i);
@@ -355,12 +357,13 @@ void ModulatorChain::ModulatorChainHandler::deleteModulator(Modulator *modulator
 	};
 
 	jassert(chain->checkModulatorStructure());
-	chain->sendChangeMessage();
 };
 
 
 void ModulatorChain::ModulatorChainHandler::remove(Processor *processorToBeRemoved, bool deleteMod)
 {
+	notifyListeners(Listener::ProcessorDeleted, processorToBeRemoved);
+
 	ScopedLock sl(chain->getMainController()->getLock());
 
 	jassert(dynamic_cast<Modulator*>(processorToBeRemoved) != nullptr);
@@ -371,8 +374,6 @@ void ModulatorChain::ModulatorChainHandler::remove(Processor *processorToBeRemov
 	{
 		dynamic_cast<ModulatorSynth*>(chain->getParentProcessor())->enablePitchModulation(false);
 	}
-
-	sendChangeMessage();
 }
 
 bool ModulatorChain::isPlaying(int voiceIndex) const

@@ -45,9 +45,15 @@ ModulatorSynth(mc, id, numVoices)
 	gainChain->getFactoryType()->setConstrainer(new NoGlobalsConstrainer());
 	gainChain->setId("Global Modulators");
 
-	gainChain->getHandler()->addChangeListener(this);
+	gainChain->getHandler()->addListener(this);
+}
 
-	
+GlobalModulatorContainer::~GlobalModulatorContainer()
+{
+	gainChain->getHandler()->removeListener(this);
+
+	data.clear();
+	allParameters.clear();
 }
 
 void GlobalModulatorContainer::restoreFromValueTree(const ValueTree &v)
@@ -103,16 +109,6 @@ ProcessorEditorBody* GlobalModulatorContainer::createEditor(ProcessorEditor *par
 	jassertfalse;
 	return nullptr;
 #endif
-}
-
-void GlobalModulatorContainer::addChangeListenerToHandler(SafeChangeListener *listener)
-{
-	gainChain->getHandler()->addChangeListener(listener);
-}
-
-void GlobalModulatorContainer::removeChangeListenerFromHandler(SafeChangeListener *listener)
-{
-	gainChain->getHandler()->removeChangeListener(listener);
 }
 
 void GlobalModulatorContainer::preStartVoice(int voiceIndex, int noteNumber)

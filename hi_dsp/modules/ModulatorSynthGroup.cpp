@@ -1441,28 +1441,25 @@ void ModulatorSynthGroup::ModulatorSynthGroupHandler::add(Processor *newProcesso
 
 	group->sendChangeMessage();
 
-	sendChangeMessage();
+	notifyListeners(Listener::ProcessorAdded, newProcessor);
 }
 
 
 void ModulatorSynthGroup::ModulatorSynthGroupHandler::remove(Processor *processorToBeRemoved, bool removeSynth)
 {
+	notifyListeners(Listener::ProcessorDeleted, processorToBeRemoved);
+
+	MainController::ScopedSuspender ss(group->getMainController(), MainController::ScopedSuspender::LockType::Lock);
+
+	ModulatorSynth *m = dynamic_cast<ModulatorSynth*>(processorToBeRemoved);
+
+	for (int i = 0; i < group->getNumVoices(); i++)
 	{
-		MainController::ScopedSuspender ss(group->getMainController(), MainController::ScopedSuspender::LockType::Lock);
-
-		ModulatorSynth *m = dynamic_cast<ModulatorSynth*>(processorToBeRemoved);
-
-		for (int i = 0; i < group->getNumVoices(); i++)
-		{
-			static_cast<ModulatorSynthGroupVoice*>(group->getVoice(i))->removeChildSynth(m);
-		}
-
-		group->synths.removeObject(m, removeSynth);
-
-		group->checkFmState();
+		static_cast<ModulatorSynthGroupVoice*>(group->getVoice(i))->removeChildSynth(m);
 	}
 
-	sendChangeMessage();
+	group->synths.removeObject(m, removeSynth);
+	group->checkFmState();
 }
 
 
@@ -1486,9 +1483,9 @@ int ModulatorSynthGroup::ModulatorSynthGroupHandler::getNumProcessors() const
 
 void ModulatorSynthGroup::ModulatorSynthGroupHandler::clear()
 {
-	group->synths.clear();
+	notifyListeners(Listener::Cleared, nullptr);
 
-	sendChangeMessage();
+	group->synths.clear();
 }
 
 ModulatorSynthGroup::ChildSynthIterator::ChildSynthIterator(ModulatorSynthGroup *groupToBeIterated, Mode iteratorMode /*= SkipUnallowedSynths*/) :

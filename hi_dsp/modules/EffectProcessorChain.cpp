@@ -191,7 +191,7 @@ void EffectProcessorChain::EffectChainHandler::add(Processor *newProcessor, Proc
 		sp->compileScript();
 	}
 
-	sendChangeMessage();
+	notifyListeners(Listener::ProcessorAdded, newProcessor);
 }
 
 
