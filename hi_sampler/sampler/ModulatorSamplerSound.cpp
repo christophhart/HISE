@@ -118,7 +118,7 @@ ModulatorSamplerSound::ModulatorSamplerSound(SampleMap* parent, const ValueTree&
 }
 
 ModulatorSamplerSound::~ModulatorSamplerSound()
-{
+{    
 	getMainController()->getSampleManager().getModulatorSamplerSoundPool()->clearUnreferencedSamples();
 
 	firstSound = nullptr;

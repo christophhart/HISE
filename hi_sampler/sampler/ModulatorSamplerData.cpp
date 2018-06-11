@@ -1053,18 +1053,23 @@ void SampleMap::Notifier::handleLightweightPropertyChanges()
 	}
 }
 
+
+    
 void SampleMap::Notifier::handleAsyncUpdate()
 {
-	handleLightweightPropertyChanges();
+    if(auto lock = PresetLoadLock(parent.sampler->getMainController()))
+    {
+        handleLightweightPropertyChanges();
+    }
 }
 
 void SampleMap::Notifier::timerCallback()
 {
-	handleHeavyweightPropertyChanges();
-
-	
-
-	stopTimer();
+    if(auto lock = PresetLoadLock(parent.sampler->getMainController()))
+    {
+        handleHeavyweightPropertyChanges();
+        stopTimer();
+    }
 }
 
 SampleMap::Notifier::AsyncPropertyChange::AsyncPropertyChange(ModulatorSamplerSound* sound, const Identifier& id_, const var& newValue):

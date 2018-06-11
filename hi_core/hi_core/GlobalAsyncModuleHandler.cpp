@@ -52,7 +52,19 @@ MainController::GlobalAsyncModuleHandler::JobData::JobData() :
 
 bool MainController::GlobalAsyncModuleHandler::JobData::doit()
 {
-	if (auto lock = PresetLoadLock(parent->getMainController()))
+    // Use the parent for starters
+    Processor* pToUse = parent.get();
+    
+    if(pToUse == nullptr)
+        pToUse = processorToDelete.get();
+    
+    if(pToUse == nullptr)
+        pToUse = processorToAdd.get();
+    
+    if(pToUse == nullptr)
+        return true;
+    
+	if (auto lock = PresetLoadLock(pToUse->getMainController()))
 	{
 		if (what == What::Add)
 		{
@@ -104,7 +116,7 @@ void MainController::GlobalAsyncModuleHandler::timerCallback()
 {
 	JobData d;
 
-	LockfreeQueue<JobData> unfinishedJobs;
+	LockfreeQueue<JobData> unfinishedJobs(1024);
 
 	while (lockedJobs.pop(d))
 	{

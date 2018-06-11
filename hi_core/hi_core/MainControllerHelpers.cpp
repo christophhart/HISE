@@ -553,7 +553,10 @@ void MidiControllerAutomationHandler::MPEData::reset()
 
 	for (auto l : listeners)
 	{
-		l->mpeModeChanged(mpeEnabled);
+        if(l != nullptr)
+            l->mpeModeChanged(mpeEnabled);
+        else
+            jassertfalse;
 	}
 }
 

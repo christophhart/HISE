@@ -358,7 +358,7 @@ void MainController::allNotesOff(bool resetSoftBypassState/*=false*/)
 			return true;
 		};
 
-		getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::TargetThread::MessageThread);
+		getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::TargetThread::SampleLoadingThread);
 	}
 	else
 	{

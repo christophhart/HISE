@@ -226,7 +226,7 @@ void MainController::UserPresetHandler::loadUserPresetInternal(const ValueTree& 
 	}
 	else
 	{
-		jassertfalse;
+        mc->getDebugLogger().logMessage("Retry Loading of preset");
 		presetLoadDelayer.retryLoading(userPresetToLoad);
 	}
 

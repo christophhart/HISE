@@ -1254,9 +1254,12 @@ void JavascriptProcessor::SnippetDocument::checkIfScriptActive()
 {
 	isActive = true;
 
-	if (!getAllContent().containsNonWhitespaceChars()) isActive = false;
+    
+    auto text = getSnippetAsFunction();
+    
+	if (!text.containsNonWhitespaceChars()) isActive = false;
 
-	String trimmedText = getAllContent().removeCharacters(" \t\n\r");
+	String trimmedText = text.removeCharacters(" \t\n\r");
 
 	String trimmedEmptyText = emptyText.removeCharacters(" \t\n\r");
 

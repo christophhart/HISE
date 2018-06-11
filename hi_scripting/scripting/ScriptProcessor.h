@@ -305,6 +305,13 @@ public:
 		*/
 		SnippetDocument(const Identifier &callbackName_, const String &parameters=String());
 
+        ~SnippetDocument()
+        {
+            SpinLock::ScopedLockType sl(pendingLock);
+            notifier.cancelPendingUpdate();
+            pendingNewContent = {};
+        }
+        
 		/** Returns the name of the SnippetDocument. */
 		const Identifier &getCallbackName() const { return callbackName; };
 
@@ -322,11 +329,18 @@ public:
 
 		void replaceContentAsync(String s)
 		{
+            
+#if USE_FRONTEND
+            // Not important when using compiled plugins because there will be no editor component
+            // being resized...
+            replaceAllContent(s);
+#else
 			// Makes sure that this won't be accessed during replacement...
 			
 			SpinLock::ScopedLockType sl(pendingLock);
 			pendingNewContent.swapWith(s);
 			notifier.notify();
+#endif
 		}
 
 		
@@ -337,7 +351,7 @@ public:
 		*
 		*	while compiling on another thread...
 		*/
-		struct Notifier: private AsyncUpdater
+		struct Notifier: public AsyncUpdater
 		{
 			Notifier(SnippetDocument& parent_):
 				parent(parent_)
@@ -370,9 +384,8 @@ public:
 
 		SpinLock pendingLock;
 
+        Notifier notifier;
 		String pendingNewContent;
-
-		Notifier notifier;
 
 		Identifier callbackName;
 		

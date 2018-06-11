@@ -212,9 +212,7 @@ public:
 	/** Overwrite this if you need custom destruction behaviour. */
 	virtual ~Processor()
 	{
-        DBG("Processor Destructor");
-        
-		getMainController()->getMacroManager().removeMacroControlsFor(this);
+        getMainController()->getMacroManager().removeMacroControlsFor(this);
 		
 		removeAllChangeListeners();
         
