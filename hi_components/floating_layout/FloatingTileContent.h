@@ -473,6 +473,7 @@ public:
 			AboutPage,
 			SampleMapBrowser,
 			WavetablePreview,
+			AHDSRGraph,
 			FilterGraphPanel,
 			MPEPanel,
 			Matrix2x2,

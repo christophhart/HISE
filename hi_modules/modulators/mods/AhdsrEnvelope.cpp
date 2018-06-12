@@ -182,6 +182,11 @@ void AhdsrEnvelope::setTargetRatioDR(float targetRatio) {
 
 void AhdsrEnvelope::startVoice(int voiceIndex)
 {
+#if ENABLE_ALL_PEAK_METERS
+	stateInfo.state = AhdsrEnvelopeState::ATTACK;
+	stateInfo.changeTime = getMainController()->getUptime();
+#endif
+
 	if (isMonophonic)
 	{
 		state = static_cast<AhdsrEnvelopeState*>(monophonicState.get());
@@ -356,7 +361,20 @@ void AhdsrEnvelope::calculateBlock(int startSample, int numSamples)
 	}
 
 #if ENABLE_ALL_PEAK_METERS
-	if (isMonophonic || polyManager.getCurrentVoice() == polyManager.getLastStartedVoice()) setOutputValue(internalBuffer.getSample(0, startSample-1));
+
+	const bool isActiveVoice = polyManager.getCurrentVoice() == polyManager.getLastStartedVoice();
+
+	if (isMonophonic || isActiveVoice)
+	{
+		setOutputValue(internalBuffer.getSample(0, startSample - 1));
+
+		if (state->current_state != stateInfo.state)
+		{
+			stateInfo.state = state->current_state;
+			stateInfo.changeTime = getMainController()->getUptime();
+		}
+	}
+
 #endif
 }
 
@@ -364,11 +382,18 @@ void AhdsrEnvelope::reset(int voiceIndex)
 {
 	if (isMonophonic)
 	{
+		stateInfo.state = AhdsrEnvelopeState::IDLE;
 		return;
 	}
 	else
 	{
 		EnvelopeModulator::reset(voiceIndex);
+
+#if ENABLE_ALL_PEAK_METERS
+		if (voiceIndex == polyManager.getLastStartedVoice())
+			stateInfo.state = AhdsrEnvelopeState::IDLE;
+#endif
+
 
 		state = static_cast<AhdsrEnvelopeState*>(states[voiceIndex]);
 		state->current_state = AhdsrEnvelopeState::IDLE;
@@ -737,6 +762,251 @@ void AhdsrEnvelope::AhdsrEnvelopeState::setReleaseRate(float rate)
 		releaseCoef = envelope->releaseCoef;
 		releaseBase = envelope->releaseBase;
 	}
+}
+
+
+
+AhdsrGraph::AhdsrGraph(Processor *p) :
+	processor(p)
+{
+	setBufferedToImage(true);
+	startTimer(50);
+
+	setColour(lineColour, Colours::lightgrey.withAlpha(0.3f));
+}
+
+AhdsrGraph::~AhdsrGraph()
+{
+	
+}
+
+void AhdsrGraph::paint(Graphics &g)
+{
+	if (flatDesign)
+	{
+		g.setColour(findColour(bgColour));
+		g.fillAll();
+		g.setColour(findColour(fillColour));
+		g.fillPath(envelopePath);
+		g.setColour(findColour(lineColour));
+		g.strokePath(envelopePath, PathStrokeType(1.0f));
+		g.setColour(findColour(outlineColour));
+		g.drawRect(getLocalBounds(), 1);
+	}
+	else
+	{
+		KnobLookAndFeel::fillPathHiStyle(g, envelopePath, getWidth(), getHeight());
+
+		g.setColour(findColour(lineColour));
+
+		
+		g.strokePath(envelopePath, PathStrokeType(1.0f));
+		g.setColour(Colours::lightgrey.withAlpha(0.1f));
+		g.drawRect(getLocalBounds(), 1);
+	}
+
+	g.setColour(Colours::white.withAlpha(0.1f));
+
+	float xPos = 0.0f;
+
+	float tToUse = 1.0f;
+
+	Path* pToUse = nullptr;
+
+	switch (lastState.state)
+	{
+	case AhdsrEnvelope::AhdsrEnvelopeState::ATTACK: pToUse = &attackPath; tToUse = attack; break;
+	case AhdsrEnvelope::AhdsrEnvelopeState::HOLD: pToUse = &holdPath; tToUse = hold; break;
+	case AhdsrEnvelope::AhdsrEnvelopeState::DECAY: pToUse = &decayPath; tToUse = 0.5f * decay; break;
+	case AhdsrEnvelope::AhdsrEnvelopeState::SUSTAIN: pToUse = &decayPath; 
+													 tToUse = 0.001f; // nasty hack to make the bar stick at the end...
+													 break;
+	case AhdsrEnvelope::AhdsrEnvelopeState::RELEASE: pToUse = &releasePath; tToUse = 0.8f * release; break;
+	default:
+		break;
+	}
+
+	if (pToUse != nullptr)
+	{
+		g.fillPath(*pToUse);
+		
+		auto bounds = pToUse->getBounds();
+		auto duration = (float)(processor->getMainController()->getUptime() - lastState.changeTime) * 1000.0f;
+		
+		auto normalizedDuration = 0.0f;
+
+		if (tToUse != 0.0f)
+			normalizedDuration = jlimit<float>(0.01f, 1.0f, duration / tToUse);
+
+		xPos = bounds.getX() + normalizedDuration * bounds.getWidth();
+
+		const float margin = 3.0f;
+
+		auto l = Line<float>(xPos, 0.0f, xPos, (float)getHeight()-1.0f - margin);
+
+		auto clippedLine = envelopePath.getClippedLine(l, false);
+
+		if (clippedLine.getLength() == 0.0f)
+			return;
+
+		auto circle = Rectangle<float>(clippedLine.getStart(), clippedLine.getStart()).withSizeKeepingCentre(6.0f, 6.0f);
+		
+		g.setColour(findColour(lineColour).withAlpha(1.0f));
+
+		g.fillRoundedRectangle(circle, 2.0f);
+	}
+}
+
+void AhdsrGraph::setUseFlatDesign(bool shouldUseFlatDesign)
+{
+	flatDesign = shouldUseFlatDesign;
+	repaint();
+}
+
+void AhdsrGraph::timerCallback()
+{
+	float this_attack = processor->getAttribute(AhdsrEnvelope::Attack);
+	float this_attackLevel = processor->getAttribute(AhdsrEnvelope::AttackLevel);
+	float this_hold = processor->getAttribute(AhdsrEnvelope::Hold);
+	float this_decay = processor->getAttribute(AhdsrEnvelope::Decay);
+	float this_sustain = processor->getAttribute(AhdsrEnvelope::Sustain);
+	float this_release = processor->getAttribute(AhdsrEnvelope::Release);
+	float this_attackCurve = processor->getAttribute(AhdsrEnvelope::AttackCurve);
+	lastState = dynamic_cast<AhdsrEnvelope*>(processor.get())->getStateInfo();
+
+	if (this_attack != attack ||
+		this_attackCurve != attackCurve ||
+		this_attackLevel != attackLevel ||
+		this_decay != decay ||
+		this_sustain != sustain ||
+		this_hold != hold ||
+		this_release != release)
+	{
+		attack = this_attack;
+		attackLevel = this_attackLevel;
+		hold = this_hold;
+		decay = this_decay;
+		sustain = this_sustain;
+		release = this_release;
+		attackCurve = this_attackCurve;
+
+		rebuildGraph();
+	}
+
+	repaint();
+}
+
+void AhdsrGraph::rebuildGraph()
+{
+	float aln = pow((1.0f - (attackLevel + 100.0f) / 100.0f), 0.4f);
+	const float sn = pow((1.0f - (sustain + 100.0f) / 100.0f), 0.4f);
+
+	const float margin = 3.0f;
+
+	aln = sn < aln ? sn : aln;
+
+	const float width = (float)getWidth() - 2.0f*margin;
+	const float height = (float)getHeight() - 2.0f*margin;
+
+	const float an = pow((attack / 20000.0f), 0.2f) * (0.2f * width);
+	const float hn = pow((hold / 20000.0f), 0.2f) * (0.2f * width);
+	const float dn = pow((decay / 20000.0f), 0.2f) * (0.2f * width);
+	const float rn = pow((release / 20000.0f), 0.2f) * (0.2f * width);
+
+	float x = margin;
+	float lastX = x;
+
+	envelopePath.clear();
+
+	attackPath.clear();
+	decayPath.clear();
+	holdPath.clear();
+	releasePath.clear();
+
+	envelopePath.startNewSubPath(x, margin + height);
+	attackPath.startNewSubPath(x, margin + height);
+
+	// Attack Curve
+
+	lastX = x;
+	x += an;
+
+	const float controlY = margin + aln * height + attackCurve * (height - aln * height);
+
+	envelopePath.quadraticTo((lastX + x) / 2, controlY, x, margin + aln * height);
+	
+	attackPath.quadraticTo((lastX + x) / 2, controlY, x, margin + aln * height);
+	attackPath.lineTo(x, margin + height);
+	attackPath.closeSubPath();
+
+	holdPath.startNewSubPath(x, margin + height);
+	holdPath.lineTo(x, margin + aln*height);
+
+	x += hn;
+
+	envelopePath.lineTo(x, margin + aln * height);
+	holdPath.lineTo(x, margin + aln*height);
+	holdPath.lineTo(x, margin + height);
+	holdPath.closeSubPath();
+	
+	decayPath.startNewSubPath(x, margin + height);
+	decayPath.lineTo(x, margin + aln*height);
+
+	lastX = x;
+	x = jmin<float>(x + (dn*4), 0.8f * width);
+
+	envelopePath.quadraticTo(lastX, margin + sn * height, x, margin + sn * height);
+	decayPath.quadraticTo(lastX, margin + sn * height, x, margin + sn * height);
+
+	x = 0.8f * width;
+
+	envelopePath.lineTo(x, margin + sn*height);
+	decayPath.lineTo(x, margin + sn*height);
+
+	decayPath.lineTo(x, margin + height);
+	decayPath.closeSubPath();
+
+	releasePath.startNewSubPath(x, margin + height);
+	releasePath.lineTo(x, margin + sn*height);
+
+	lastX = x;
+	x += rn;
+
+	envelopePath.quadraticTo(lastX, margin + height, x, margin + height);
+	releasePath.quadraticTo(lastX, margin + height, x, margin + height);
+
+	releasePath.closeSubPath();
+	envelopePath.closeSubPath();
+}
+
+AhdsrGraph::Panel::Panel(FloatingTile* parent) :
+	PanelWithProcessorConnection(parent)
+{
+	setDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour, Colours::transparentBlack);
+	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::white.withAlpha(0.1f));
+	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour2, Colours::white.withAlpha(0.5f));
+	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour3, Colours::white.withAlpha(0.05f));
+}
+
+juce::Component* AhdsrGraph::Panel::createContentComponent(int /*index*/)
+{
+	auto g = new AhdsrGraph(getProcessor());
+	g->setUseFlatDesign(true);
+
+	g->setColour(bgColour, findPanelColour(FloatingTileContent::PanelColourId::bgColour));
+	g->setColour(fillColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour1));
+	g->setColour(lineColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour2));
+	g->setColour(outlineColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour3));
+
+	if (g->findColour(bgColour).isOpaque())
+		g->setOpaque(true);
+
+	return g;
+}
+
+void AhdsrGraph::Panel::fillModuleList(StringArray& moduleList)
+{
+	fillModuleListWithType<AhdsrEnvelope>(moduleList);
 }
 
 } // namespace hise

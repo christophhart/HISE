@@ -214,7 +214,25 @@ public:
 
 	void calculateCoefficients(float timeInMilliSeconds, float base, float maximum, float &stateBase, float &stateCoeff) const;
 
+	struct StateInfo
+	{
+		bool operator ==(const StateInfo& other) const
+		{
+			return other.state == state;
+		};
+
+		AhdsrEnvelopeState::EnvelopeState state = AhdsrEnvelopeState::IDLE;
+		double changeTime = 0.0;
+	};
+
+	StateInfo getStateInfo() const
+	{
+		return stateInfo;
+	};
+
 private:
+
+	StateInfo stateInfo;
 
 	int downsampleFactor = 1;
 
@@ -271,7 +289,66 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AhdsrEnvelope)
 };
 
+class AhdsrGraph : public Component,
+				   public Timer
+{
+public:
 
+	enum ColourIds
+	{
+		bgColour,
+		fillColour,
+		lineColour,
+		outlineColour,
+		numColourIds
+	};
+
+	AhdsrGraph(Processor *p);
+
+	~AhdsrGraph();
+
+	void paint(Graphics &g);
+	void setUseFlatDesign(bool shouldUseFlatDesign);
+
+	void timerCallback() override;
+
+	void rebuildGraph();
+
+	class Panel : public PanelWithProcessorConnection
+	{
+	public:
+
+		SET_PANEL_NAME("AHDSRGraph");
+
+		Panel(FloatingTile* parent);
+
+		Identifier getProcessorTypeId() const override { return AhdsrEnvelope::getClassType(); }
+		Component* createContentComponent(int /*index*/) override;
+		void fillModuleList(StringArray& moduleList) override;
+	};
+
+private:
+
+	AhdsrEnvelope::StateInfo lastState;
+
+	bool flatDesign = false;
+
+	WeakReference<Processor> processor;
+
+	float attack = 0.0f;
+	float attackLevel = 0.0f;
+	float hold = 0.0f;
+	float decay = 0.0f;
+	float sustain = 0.f;
+	float release = 0.f;
+	float attackCurve = 0.f;
+
+	Path envelopePath;
+	Path attackPath;
+	Path holdPath;
+	Path decayPath;
+	Path releasePath;
+};
 
 } // namespace hise
 
