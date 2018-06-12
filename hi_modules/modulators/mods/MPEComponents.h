@@ -353,17 +353,42 @@ private:
 
 		bool operator ==(const Note& other)  const
 		{
-			return assignedMidiChannel == other.assignedMidiChannel;
+            if(noteNumber != other.noteNumber)
+                return false;
+            
+            if(other.fingerIndex == -1 || fingerIndex == -1)
+            {
+                return assignedMidiChannel == other.assignedMidiChannel;
+            }
+            else
+            {
+                return fingerIndex == other.fingerIndex &&
+                         assignedMidiChannel == other.assignedMidiChannel;
+            }
 		}
 
 		bool operator !=(const Note& other)  const
 		{
-			return assignedMidiChannel != other.assignedMidiChannel;
+            if(noteNumber != other.noteNumber)
+                return true;
+            
+            if(other.fingerIndex == -1 && fingerIndex == -1)
+            {
+                return assignedMidiChannel != other.assignedMidiChannel;
+            }
+            else
+            {
+                return fingerIndex != other.fingerIndex &&
+                       assignedMidiChannel != other.assignedMidiChannel;
+            }
+            
+			
 		}
 
 		bool operator ==(const MidiMessage& m) const
 		{
-			return assignedMidiChannel == m.getChannel();
+			return m.getNoteNumber() == noteNumber &&
+                   assignedMidiChannel == m.getChannel();
 		}
 
 		bool operator ==(const MouseEvent& e) const

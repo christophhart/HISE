@@ -1195,9 +1195,10 @@ void MPEKeyboard::handleMessage(const MidiMessage& m)
 void MPEKeyboard::mouseDown(const MouseEvent& e)
 {
 	auto n = Note::fromMouseEvent(*this, e, nextChannelIndex);
+    
+    pressedNotes.insert(n);
+    
 	n.sendNoteOn(state);
-
-	pressedNotes.insert(n);
 
 	nextChannelIndex++;
 
@@ -1209,17 +1210,32 @@ void MPEKeyboard::mouseDown(const MouseEvent& e)
 
 void MPEKeyboard::mouseUp(const MouseEvent& e)
 {
+    bool found = false;
+    
 	for (int i = 0; i < pressedNotes.size(); i++)
 	{
 		if (pressedNotes[i] == e)
 		{
 			pressedNotes[i].sendNoteOff(state);
 			pressedNotes.removeElement(i--);
+            found = true;
 			break;
 		}
-
 	}
-
+    
+    if(!found)
+    {
+        DBG("Kill all voices to be sure");
+        
+        for(int i = 0; i < pressedNotes.size(); i++)
+        {
+            pressedNotes[i].sendNoteOff(state);
+        }
+        
+        pressedNotes.clear();
+    }
+    
+    
 	repaint();
 }
 
@@ -1310,6 +1326,7 @@ hise::MPEKeyboard::Note MPEKeyboard::Note::fromMouseEvent(const MPEKeyboard& p, 
 
 	n.startPoint = { (int)p.getPositionForNote(n.noteNumber).getCentreX(), e.getMouseDownY() };
 
+    DBG("Finger: " + String(n.fingerIndex));
 
 	n.dragPoint = n.startPoint;
 
