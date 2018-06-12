@@ -273,7 +273,7 @@ struct ScriptingObjects::ScriptingModulator::Wrapper
 	API_METHOD_WRAPPER_3(ScriptingModulator, addGlobalModulator);
 	API_METHOD_WRAPPER_3(ScriptingModulator, addStaticGlobalModulator);
 	API_METHOD_WRAPPER_0(ScriptingModulator, asTableProcessor);
-
+	API_METHOD_WRAPPER_0(ScriptingModulator, getId);
 };
 
 ScriptingObjects::ScriptingModulator::ScriptingModulator(ProcessorWithScriptingContent *p, Modulator *m_) :
@@ -300,6 +300,7 @@ moduleHandler(m_)
 		setName("Invalid Modulator");
 	}
 
+	ADD_API_METHOD_0(getId);
 	ADD_API_METHOD_2(setAttribute);
 	ADD_API_METHOD_1(setBypassed);
 	ADD_API_METHOD_0(isBypassed);
@@ -362,6 +363,14 @@ void ScriptingObjects::ScriptingModulator::assign(const int index, var newValue)
 var ScriptingObjects::ScriptingModulator::getAssignedValue(int /*index*/) const
 {
 	return 1.0; // Todo...
+}
+
+String ScriptingObjects::ScriptingModulator::getId() const
+{
+	if (checkValidObject())
+		return mod->getId();
+
+	return String();
 }
 
 void ScriptingObjects::ScriptingModulator::setAttribute(int index, float value)
@@ -660,6 +669,7 @@ struct ScriptingObjects::ScriptingEffect::Wrapper
 	API_METHOD_WRAPPER_3(ScriptingEffect, addGlobalModulator);
 	API_METHOD_WRAPPER_1(ScriptingEffect, getModulatorChain);
 	API_METHOD_WRAPPER_3(ScriptingEffect, addStaticGlobalModulator);
+	API_METHOD_WRAPPER_0(ScriptingEffect, getId);
 };
 
 ScriptingObjects::ScriptingEffect::ScriptingEffect(ProcessorWithScriptingContent *p, EffectProcessor *fx) :
@@ -683,6 +693,7 @@ moduleHandler(fx)
 		setName("Invalid Effect");
 	}
 
+	ADD_API_METHOD_0(getId);
 	ADD_API_METHOD_2(setAttribute);
 	ADD_API_METHOD_1(setBypassed);
     ADD_API_METHOD_1(getAttribute);
@@ -703,6 +714,14 @@ moduleHandler(fx)
 void ScriptingObjects::ScriptingEffect::rightClickCallback(const MouseEvent& e, Component* t)
 {
 	Helpers::showProcessorEditorPopup(e, t, effect.get());
+}
+
+juce::String ScriptingObjects::ScriptingEffect::getId() const
+{
+	if (checkValidObject())
+		return effect->getId();
+
+	return String();
 }
 
 void ScriptingObjects::ScriptingEffect::setAttribute(int parameterIndex, float newValue)
@@ -1141,6 +1160,7 @@ struct ScriptingObjects::ScriptingSynth::Wrapper
 	API_METHOD_WRAPPER_3(ScriptingSynth, addStaticGlobalModulator);
 	API_METHOD_WRAPPER_0(ScriptingSynth, asSampler);
 	API_METHOD_WRAPPER_0(ScriptingSynth, getRoutingMatrix);
+	API_METHOD_WRAPPER_0(ScriptingSynth, getId);
 };
 
 ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *p, ModulatorSynth *synth_) :
@@ -1164,6 +1184,7 @@ ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *
 		setName("Invalid Effect");
 	}
 
+	ADD_API_METHOD_0(getId);
 	ADD_API_METHOD_2(setAttribute);
     ADD_API_METHOD_1(getAttribute);
 	ADD_API_METHOD_1(setBypassed);
@@ -1184,6 +1205,14 @@ ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *
 void ScriptingObjects::ScriptingSynth::rightClickCallback(const MouseEvent& e, Component* t)
 {
 	Helpers::showProcessorEditorPopup(e, t, synth);
+}
+
+String ScriptingObjects::ScriptingSynth::getId() const
+{
+	if (checkValidObject())
+		return synth->getId();
+
+	return String();
 }
 
 void ScriptingObjects::ScriptingSynth::setAttribute(int parameterIndex, float newValue)
@@ -1395,7 +1424,7 @@ struct ScriptingObjects::ScriptingMidiProcessor::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptingMidiProcessor, restoreState);
 	API_VOID_METHOD_WRAPPER_1(ScriptingMidiProcessor, restoreScriptControls);
 	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, exportScriptControls);
-	
+	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, getId);
 	
 };
 
@@ -1424,6 +1453,7 @@ mp(mp_)
 	ADD_API_METHOD_1(setBypassed);
 	ADD_API_METHOD_0(exportState);
 	ADD_API_METHOD_1(restoreState);
+	ADD_API_METHOD_0(getId);
 	ADD_API_METHOD_1(restoreScriptControls);
 	ADD_API_METHOD_0(exportScriptControls);
 	ADD_API_METHOD_0(getNumAttributes);
@@ -1457,6 +1487,14 @@ void ScriptingObjects::ScriptingMidiProcessor::assign(const int index, var newVa
 var ScriptingObjects::ScriptingMidiProcessor::getAssignedValue(int /*index*/) const
 {
 	return 1.0; // Todo...
+}
+
+String ScriptingObjects::ScriptingMidiProcessor::getId() const
+{
+	if (checkValidObject())
+		return mp->getId();
+
+	return String();
 }
 
 void ScriptingObjects::ScriptingMidiProcessor::setAttribute(int index, float value)

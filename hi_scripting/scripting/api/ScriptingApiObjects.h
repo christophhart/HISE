@@ -361,6 +361,9 @@ public:
 		/** Checks if the Object exists and prints a error message on the console if not. */
 		bool exists() { return checkValidObject(); };
 
+		/** Returns the ID of the modulator. */
+		String getId() const;
+
 		/** Sets the attribute of the Modulator. You can look up the specific parameter indexes in the manual. */
 		void setAttribute(int index, float value);
 
@@ -412,6 +415,8 @@ public:
         /** Returns the Modulator chain with the given index. */
         var getModulatorChain(var chainIndex);
         
+		
+
 		// ============================================================================================================
 
 		struct Wrapper;
@@ -472,6 +477,9 @@ public:
 
 		/** Checks if the Object exists and prints a error message on the console if not. */
 		bool exists() { return checkValidObject(); };
+
+		/** Returns the ID of the effect. */
+		String getId() const;
 
 		/** Changes one of the Parameter. Look in the manual for the index numbers of each effect. */
 		void setAttribute(int parameterIndex, float newValue);
@@ -659,6 +667,9 @@ public:
 		/** Checks if the Object exists and prints a error message on the console if not. */
 		bool exists() { return checkValidObject(); };
 
+		/** Returns the ID of the synth. */
+		String getId() const;
+
 		/** Changes one of the Parameter. Look in the manual for the index numbers of each effect. */
 		void setAttribute(int parameterIndex, float newValue);;
 
@@ -746,6 +757,9 @@ public:
 
 		/** Checks if the Object exists and prints a error message on the console if not. */
 		bool exists() { return checkValidObject(); };
+
+		/** Returns the ID of the MIDI Processor. */
+		String getId() const;
 
 		/** Sets the attribute of the MidiProcessor. If it is a script, then the index of the component is used. */
 		void setAttribute(int index, float value);
