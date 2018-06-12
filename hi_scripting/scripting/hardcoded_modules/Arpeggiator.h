@@ -81,6 +81,8 @@ public:
 
 private:
 
+	bool killIncomingNotes = true;
+
 	void sendNoteOff(int eventId);
 
 	int sendNoteOn();

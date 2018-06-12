@@ -330,7 +330,8 @@ void Arpeggiator::onNoteOn()
 	if (bypassButton->getValue())
 		return;
 
-	Message.ignoreEvent(true);
+	if(killIncomingNotes)
+		Message.ignoreEvent(true);
 
 	minNoteLenSamples = (int)(Engine.getSampleRate() / 80.0);
 
@@ -349,7 +350,8 @@ void Arpeggiator::onNoteOff()
 	if (bypassButton->getValue())
 		return;
 
-	Message.ignoreEvent(true);
+	if(killIncomingNotes)
+		Message.ignoreEvent(true);
 
 	remUserHeldKey({ (int8)Message.getNoteNumber(), (int8)Message.getChannel() });
 
@@ -395,12 +397,17 @@ void Arpeggiator::onControl(ScriptingApi::Content::ScriptComponent *c, var value
 		reset(true, false);
 
 		channelFilter = (int)value - 1;
+
+		killIncomingNotes = channelFilter == 0 || midiChannel == channelFilter;
+
 	}
 	else if (c == outputMidiChannel)
 	{
 		reset(true, false);
 
 		midiChannel = jmax<int>(1, (int)value);
+
+		killIncomingNotes = midiChannel == 0 || midiChannel == channelFilter;
 	}
 }
 
