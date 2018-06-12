@@ -200,6 +200,21 @@ private:
 
 	Random r;
 
+	bool shouldFilterMessage(int channel)
+	{
+		if (mpeMode)
+		{
+			if (channel == 1)
+				return false;
+
+			return channel < mpeStart || channel > mpeEnd;
+		}
+		else
+		{
+			return channelFilter > 0 && channel != channelFilter;
+		}
+	}
+
 	void changeDirection();;
 
 	void calcTimeInterval();;
@@ -300,6 +315,11 @@ private:
 	ScriptSlider shuffleSlider;
 	ScriptComboBox inputMidiChannel;
 	ScriptComboBox outputMidiChannel;
+	ScriptComboBox mpeStartChannel;
+	ScriptComboBox mpeEndChannel;
+
+	int mpeStart = 2;
+	int mpeEnd = 16;
 };
 
 

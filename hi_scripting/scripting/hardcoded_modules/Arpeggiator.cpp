@@ -220,7 +220,7 @@ void Arpeggiator::onInit()
 	
 	
 	
-	inputMidiChannel = Content.addComboBox("ChannelSelector", 300, 445);
+	inputMidiChannel = Content.addComboBox("ChannelSelector", 300, 440);
 	inputMidiChannel->set("text", "MIDI Channel");
 	inputMidiChannel->addItem("All Channels");
 	inputMidiChannel->addItem("Channel 1");
@@ -240,7 +240,7 @@ void Arpeggiator::onInit()
 	inputMidiChannel->addItem("Channel 15");
 	inputMidiChannel->addItem("Channel 16");
 
-	outputMidiChannel = Content.addComboBox("OutputChannelSelector", 450, 445);
+	outputMidiChannel = Content.addComboBox("OutputChannelSelector", 300, 440 + 35);
 	outputMidiChannel->set("text", "MIDI Channel");
 	outputMidiChannel->addItem("All Channels");
 	outputMidiChannel->addItem("Channel 1");
@@ -259,6 +259,44 @@ void Arpeggiator::onInit()
 	outputMidiChannel->addItem("Channel 14");
 	outputMidiChannel->addItem("Channel 15");
 	outputMidiChannel->addItem("Channel 16");
+
+	mpeStartChannel = Content.addComboBox("MPEStartChannel", 450, 440);
+	mpeStartChannel->set("text", "MPE Start Channel");
+	mpeStartChannel->addItem("Inactive");
+	mpeStartChannel->addItem("Channel 2");
+	mpeStartChannel->addItem("Channel 3");
+	mpeStartChannel->addItem("Channel 4");
+	mpeStartChannel->addItem("Channel 5");
+	mpeStartChannel->addItem("Channel 6");
+	mpeStartChannel->addItem("Channel 7");
+	mpeStartChannel->addItem("Channel 8");
+	mpeStartChannel->addItem("Channel 9");
+	mpeStartChannel->addItem("Channel 10");
+	mpeStartChannel->addItem("Channel 11");
+	mpeStartChannel->addItem("Channel 12");
+	mpeStartChannel->addItem("Channel 13");
+	mpeStartChannel->addItem("Channel 14");
+	mpeStartChannel->addItem("Channel 15");
+	mpeStartChannel->addItem("Channel 16");
+
+	mpeEndChannel = Content.addComboBox("MPEEndChannel", 450, 440 + 35);
+	mpeEndChannel->set("text", "MPE End Channel");
+	mpeEndChannel->addItem("Inactive");
+	mpeEndChannel->addItem("Channel 2");
+	mpeEndChannel->addItem("Channel 3");
+	mpeEndChannel->addItem("Channel 4");
+	mpeEndChannel->addItem("Channel 5");
+	mpeEndChannel->addItem("Channel 6");
+	mpeEndChannel->addItem("Channel 7");
+	mpeEndChannel->addItem("Channel 8");
+	mpeEndChannel->addItem("Channel 9");
+	mpeEndChannel->addItem("Channel 10");
+	mpeEndChannel->addItem("Channel 11");
+	mpeEndChannel->addItem("Channel 12");
+	mpeEndChannel->addItem("Channel 13");
+	mpeEndChannel->addItem("Channel 14");
+	mpeEndChannel->addItem("Channel 15");
+	mpeEndChannel->addItem("Channel 16");
 
 	auto noteLabel = Content.addLabel("NoteLabel", 160, 11);
 	
@@ -305,6 +343,8 @@ void Arpeggiator::onInit()
 	octaveSlider->setValue(0);
 	inputMidiChannel->setValue(1);
 	outputMidiChannel->setValue(1);
+	mpeStartChannel->setValue(2);
+	mpeEndChannel->setValue(16);
 
 	velocitySliderPack->setAllValues(127);
 	lengthSliderPack->setAllValues(75);
@@ -315,7 +355,13 @@ void Arpeggiator::onInit()
 
 void Arpeggiator::onNoteOn()
 {
+	if (bypassButton->getValue())
+		return;
+
 	int channel = Message.getChannel();
+
+	if (shouldFilterMessage(channel))
+		return;
 
 	if (mpeMode)
 	{
@@ -324,13 +370,7 @@ void Arpeggiator::onNoteOn()
 		mpeValues.slideValues[channel] = 64;
 	}
 
-	if (channelFilter > 0 && channel != channelFilter)
-		return;
-
-	if (bypassButton->getValue())
-		return;
-
-	if(killIncomingNotes)
+	if(killIncomingNotes || mpeMode)
 		Message.ignoreEvent(true);
 
 	minNoteLenSamples = (int)(Engine.getSampleRate() / 80.0);
@@ -344,16 +384,18 @@ void Arpeggiator::onNoteOn()
 
 void Arpeggiator::onNoteOff()
 {
-	if (channelFilter > 0 && Message.getChannel() != channelFilter)
+	auto channel = Message.getChannel();
+
+	if (shouldFilterMessage(channel))
 		return;
 
 	if (bypassButton->getValue())
 		return;
 
-	if(killIncomingNotes)
+	if(killIncomingNotes || mpeMode)
 		Message.ignoreEvent(true);
 
-	remUserHeldKey({ (int8)Message.getNoteNumber(), (int8)Message.getChannel() });
+	remUserHeldKey({ (int8)Message.getNoteNumber(), (int8)channel });
 
 	if (!keys_are_held())
 	{
@@ -409,10 +451,24 @@ void Arpeggiator::onControl(ScriptingApi::Content::ScriptComponent *c, var value
 
 		killIncomingNotes = midiChannel == 0 || midiChannel == channelFilter;
 	}
+	else if (c == mpeStartChannel || c == mpeEndChannel)
+	{
+		mpeStart = (int)mpeStartChannel->getValue();
+		mpeEnd = (int)mpeEndChannel->getValue();
+
+		if (mpeStart == 1 || mpeEnd == 1)
+		{
+			mpeStart = 2;
+			mpeEnd = 16;
+		}
+	}
 }
 
 void Arpeggiator::onController()
 {
+	if (bypassButton->getValue())
+		return;
+
 	if (mpeMode)
 	{
 		const auto& m = *getCurrentHiseEvent();
