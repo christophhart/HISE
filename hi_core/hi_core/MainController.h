@@ -1168,6 +1168,8 @@ protected:
 			masterEventBuffer.clear();
 			masterEventBuffer.addEvent(HiseEvent(HiseEvent::Type::AllNotesOff, 0, 0, 1));
 
+			keyboardState.allNotesOff(0);
+
 			allNotesOffFlag = false;
 		}
 	};
