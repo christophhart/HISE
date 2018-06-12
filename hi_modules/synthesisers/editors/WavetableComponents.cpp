@@ -246,6 +246,9 @@ Component* WaveformComponent::Panel::createContentComponent(int index)
 	c->setColour(fillColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour1));
 	c->setColour(lineColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour2));
 
+	if (c->findColour(bgColour).isOpaque())
+		c->setOpaque(true);
+
 	return c;
 }
 
