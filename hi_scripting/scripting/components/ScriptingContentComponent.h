@@ -225,7 +225,11 @@ private:
 		void notify(ScriptingApi::Content* newContent)
 		{
 			content = newContent;
-			triggerAsyncUpdate();
+
+			if (MessageManager::getInstance()->isThisTheMessageThread())
+				handleAsyncUpdate();
+			else
+				triggerAsyncUpdate();
 		}
 
 	private:

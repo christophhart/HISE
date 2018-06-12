@@ -652,8 +652,12 @@ public:
                 
                 editorOfParent->getChainBar()->refreshPanel();
                 editorOfParent->sendResizedMessage();
-                editorOfChain->changeListenerCallback(editorOfChain->getProcessor());
-                editorOfChain->childEditorAmountChanged();
+                
+                if(editorOfChain != nullptr)
+                {
+                    editorOfChain->changeListenerCallback(editorOfChain->getProcessor());
+                    editorOfChain->childEditorAmountChanged();
+                }
 			}
 		}
 

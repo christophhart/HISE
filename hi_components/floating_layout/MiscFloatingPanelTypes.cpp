@@ -353,6 +353,8 @@ InterfaceContentPanel::~InterfaceContentPanel()
 {
 	dynamic_cast<GlobalSettingManager*>(getMainController())->removeScaleFactorListener(this);
 	getMainController()->removeScriptListener(this);
+
+	content = nullptr;
 }
 
 void InterfaceContentPanel::paint(Graphics& g)

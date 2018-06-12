@@ -85,6 +85,8 @@ ScriptContentComponent::~ScriptContentComponent()
 		p->removeChangeListener(this);
 		p->removeDeleteListener(this);
 	};
+
+	componentWrappers.clear();
 }
 
 

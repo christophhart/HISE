@@ -2040,7 +2040,12 @@ private:
 
 		void notify()
 		{
-			triggerAsyncUpdate();
+			if (MessageManager::getInstance()->isThisTheMessageThread())
+			{
+				handleAsyncUpdate();
+			}
+			else
+				triggerAsyncUpdate();
 		}
 
 	private:
