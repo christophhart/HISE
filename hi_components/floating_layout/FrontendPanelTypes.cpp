@@ -156,7 +156,8 @@ void ActivityLedPanel::setOn(bool shouldBeOn)
 
 MidiKeyboardPanel::MidiKeyboardPanel(FloatingTile* parent) :
 	FloatingTileContent(parent),
-	updater(*this)
+	updater(*this),
+	mpeZone({2, 16})
 {
 	setDefaultPanelColour(PanelColourId::bgColour, Colours::transparentBlack);
 
@@ -232,6 +233,8 @@ var MidiKeyboardPanel::toDynamicObject() const
 	storePropertyInObject(obj, SpecialPanelIds::ToggleMode, keyboard->isToggleModeEnabled());
 	storePropertyInObject(obj, SpecialPanelIds::MidiChannel, keyboard->getMidiChannelBase());
 	storePropertyInObject(obj, SpecialPanelIds::MPEKeyboard, shouldBeMpeKeyboard);
+	storePropertyInObject(obj, SpecialPanelIds::MPEStartChannel, mpeZone.getStart());
+	storePropertyInObject(obj, SpecialPanelIds::MPEEndChannel, mpeZone.getEnd());
 
 	return obj;
 }
@@ -271,12 +274,14 @@ void MidiKeyboardPanel::restoreInternal(const var& object)
 	defaultAppearance = getPropertyWithDefault(object, SpecialPanelIds::DefaultAppearance);
 
 	keyboard->setShowOctaveNumber(getPropertyWithDefault(object, SpecialPanelIds::DisplayOctaveNumber));
-
 	keyboard->setBlackNoteLengthProportionBase(getPropertyWithDefault(object, SpecialPanelIds::BlackKeyRatio));
-
 	keyboard->setEnableToggleMode(getPropertyWithDefault(object, SpecialPanelIds::ToggleMode));
-
 	keyboard->setMidiChannelBase(getPropertyWithDefault(object, SpecialPanelIds::MidiChannel));
+
+	auto startChannel = (int)getPropertyWithDefault(object, SpecialPanelIds::MPEStartChannel);
+	auto endChannel = (int)getPropertyWithDefault(object, SpecialPanelIds::MPEEndChannel);
+
+	mpeZone = { startChannel, endChannel };
 
 	if (keyboard->isMPEKeyboard())
 	{
@@ -284,6 +289,8 @@ void MidiKeyboardPanel::restoreInternal(const var& object)
 		keyboard->asComponent()->setColour(hise::MPEKeyboard::ColourIds::waveColour, findPanelColour(PanelColourId::itemColour1));
 		keyboard->asComponent()->setColour(hise::MPEKeyboard::ColourIds::keyOnColour, findPanelColour(PanelColourId::itemColour2));
 		keyboard->asComponent()->setColour(hise::MPEKeyboard::ColourIds::dragColour, findPanelColour(PanelColourId::itemColour3));
+		
+		dynamic_cast<hise::MPEKeyboard*>(keyboard.get())->setChannelRange(mpeZone);
 	}
 }
 
@@ -302,6 +309,8 @@ Identifier MidiKeyboardPanel::getDefaultablePropertyId(int index) const
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ToggleMode, "ToggleMode");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::MidiChannel, "MidiChannel");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::MPEKeyboard, "MPEKeyboard");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::MPEStartChannel, "MPEStartChannel");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::MPEEndChannel, "MPEEndChannel");
 	
 	jassertfalse;
 	return{};
@@ -322,6 +331,8 @@ var MidiKeyboardPanel::getDefaultProperty(int index) const
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ToggleMode, false);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::MidiChannel, 1);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::MPEKeyboard, false);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::MPEStartChannel, 2);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::MPEEndChannel, 16);
 
 	jassertfalse;
 	return{};

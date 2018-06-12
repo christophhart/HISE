@@ -157,6 +157,8 @@ public:
 		ToggleMode, ///< if activated, then the notes will be held until clicked again
 		MidiChannel, ///< which MIDI channel to use (1-16)
 		MPEKeyboard,
+		MPEStartChannel,
+		MPEEndChannel,
 		numProperyIds
 	};
 
@@ -210,7 +212,7 @@ private:
 	bool defaultAppearance = true;
 	ScopedPointer<KeyboardBase> keyboard;
 
-	
+	Range<int> mpeZone;
 };
 
 /** Type-ID: `Note`.

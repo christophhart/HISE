@@ -179,7 +179,13 @@ public:
 	int getRangeEndBase() const override { return hiKey; };
 
 	int getMidiChannelBase() const override { return getMidiChannel(); }
-	void setMidiChannelBase(int newChannel) override { return setMidiChannel(newChannel); }
+	void setMidiChannelBase(int newChannel) override 
+	{ 
+		setMidiChannel(newChannel); 
+		BigInteger mask = 0;
+		mask.setBit(newChannel-1, true);
+		setMidiChannelsToDisplay(mask.toInteger());
+	}
 
 	int getLowKey() const { return lowKey; }
 	int getHiKey() const { return hiKey; }

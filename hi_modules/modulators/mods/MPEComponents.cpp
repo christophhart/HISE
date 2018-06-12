@@ -1145,6 +1145,9 @@ void MPEKeyboard::timerCallback()
 
 		while (pendingMessages.pop(m))
 		{
+			if (!appliesToRange(m))
+				continue;
+
 			if (m.isNoteOn())
 			{
 				pressedNotes.insert(Note::fromMidiMessage(*this, m));
@@ -1162,7 +1165,6 @@ void MPEKeyboard::timerCallback()
 				for (auto& n : pressedNotes)
 					n.updateNote(*this, m);
 			}
-
 		}
 
 		repaint();
@@ -1199,8 +1201,8 @@ void MPEKeyboard::mouseDown(const MouseEvent& e)
 
 	nextChannelIndex++;
 
-	if (nextChannelIndex > 15)
-		nextChannelIndex = 1;
+	if (nextChannelIndex > channelRange.getEnd())
+		nextChannelIndex = channelRange.getStart();
 
 	repaint();
 }
@@ -1392,7 +1394,7 @@ void MPEKeyboard::Note::draw(const MPEKeyboard& p, Graphics& g) const
 
 	auto area = p.getPositionForNote(noteNumber);
 
-	g.setColour(p.findColour(keyOnColour).withAlpha((float)pressureValue / 127.0f));
+	g.setColour(p.findColour(keyOnColour).withAlpha(0.1f + 0.9f * ((float)pressureValue / 127.0f)));
 
 	area.reduce(4.0f, 3.0f);
 	auto radius = p.getWidthForNote() * 0.2f;

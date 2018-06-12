@@ -314,12 +314,32 @@ public:
 
 	void setRangeBase(int min, int /*max*/) override { lowKey = min; }
 
-
 	void setBlackNoteLengthProportionBase(float /*ratio*/) override {  }
 	double getBlackNoteLengthProportionBase() const override { return 0.5; }
 
 	bool isToggleModeEnabled() const override { return false; };
 	void setEnableToggleMode(bool /*shouldBeEnabled*/) override {  }
+
+	void setChannelRange(Range<int> newChannelRange)
+	{
+		channelRange = newChannelRange;
+		nextChannelIndex = channelRange.getStart();
+	}
+
+
+	bool appliesToRange(const MidiMessage& m) const
+	{
+		auto c = m.getChannel();
+
+		if (channelRange.contains(c))
+			return true;
+
+		if (channelRange.getEnd() == c)
+			return true;
+
+		return false;
+	}
+
 
 private:
 
@@ -398,6 +418,8 @@ private:
 		Point<int> dragPoint;
 
 	};
+
+	Range<int> channelRange;
 
 	TextButton octaveUp;
 	TextButton octaveDown;
