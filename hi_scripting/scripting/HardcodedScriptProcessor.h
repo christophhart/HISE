@@ -586,7 +586,8 @@ private:
 	
 };
 
-class ChannelFilterScriptProcessor : public HardcodedScriptProcessor
+class ChannelFilterScriptProcessor : public HardcodedScriptProcessor,
+	public MidiControllerAutomationHandler::MPEData::Listener
 {
 public:
 
@@ -596,7 +597,14 @@ public:
 		HardcodedScriptProcessor(mc, id, ms)
 	{
 		onInit();
+
+		mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().addListener(this);
 	};
+
+	~ChannelFilterScriptProcessor()
+	{
+		getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().removeListener(this);
+	}
 
 	void onInit() override
 	{
@@ -606,44 +614,113 @@ public:
 		channelNumber->set("text", "MIDI Channel");
 		channelNumber->setRange(1, 16, 1);
 
+		mpeStartChannel = Content.addKnob("mpeStart", 150, 0);
+		mpeStartChannel->set("width", 170);
+		mpeStartChannel->set("text", "MPE Start Channel");
+		mpeStartChannel->setRange(2, 16, 1);
+
+		mpeEndChannel = Content.addKnob("mpeEnd", 150 + 190, 0);
+		mpeEndChannel->set("width", 170);
+		mpeEndChannel->set("text", "MPE End Channel");
+		mpeEndChannel->setRange(2, 16, 1);
+		mpeEndChannel->setValue(16);
+
 		channel = 1;
+		mpeRange = 0;
+
+		mpeRange.setRange(1, 15, true);
 	}
+
+	void mpeModeChanged(bool isEnabled) override
+	{
+		mpeEnabled = isEnabled;
+	}
+
+	void mpeDataReloaded() override {};
+
+	void mpeModulatorAmountChanged() override {};
+
+	void mpeModulatorAssigned(MPEModulator* /*m*/, bool /*wasAssigned*/) override {};
 
 	void onNoteOn() override
 	{
-		if (Message.getChannel() != channel)
+		if (mpeEnabled)
 		{
-			Message.ignoreEvent(true);
+			if (!mpeRange[Message.getChannel()-1])
+				Message.ignoreEvent(true);
+		}
+		else
+		{
+			if (Message.getChannel() != channel)
+			{
+				Message.ignoreEvent(true);
+			}
 		}
 	};
 
 	void onNoteOff() override
 	{
-		if (Message.getChannel() != channel)
+		if (mpeEnabled)
 		{
-			Message.ignoreEvent(true);
+			if (!mpeRange[Message.getChannel()-1])
+				Message.ignoreEvent(true);
 		}
+		else
+		{
+			if (Message.getChannel() != channel)
+			{
+				Message.ignoreEvent(true);
+			}
+		}
+		
 	};
 
 	void onController() override
 	{
-		if (Message.getChannel() != channel)
+		if (mpeEnabled)
 		{
-			Message.ignoreEvent(true);
+			if (!mpeRange[Message.getChannel()-1])
+				Message.ignoreEvent(true);
 		}
+		else
+		{
+			if (Message.getChannel() != channel)
+			{
+				Message.ignoreEvent(true);
+			}
+		}
+		
 	};
 
-	void onControl(ScriptingApi::Content::ScriptComponent *, var value) override
+	void onControl(ScriptingApi::Content::ScriptComponent *c, var value) override
 	{
-		channel = value;
+		if (c == channelNumber)
+		{
+			channel = value;
+		}
+		else
+		{
+			auto startValue = (int)mpeStartChannel->getValue()-1;
+			auto endValue = (int)mpeEndChannel->getValue()-1;
+
+			mpeRange.clear();
+			mpeRange.setRange(startValue, (endValue - startValue) + 1, true);
+			
+			// Always allow stuff on the master channel
+			mpeRange.setBit(0, true);
+		}
 	};
 
 private:
 
 	ScriptingApi::Content::ScriptSlider *channelNumber;
-	
-	int channel;
+	ScriptingApi::Content::ScriptSlider *mpeStartChannel;
+	ScriptingApi::Content::ScriptSlider *mpeEndChannel;
 
+	bool mpeEnabled = false;
+
+	int channel;
+	BigInteger mpeRange;
 };
 
 class ChannelSetterScriptProcessor : public HardcodedScriptProcessor
