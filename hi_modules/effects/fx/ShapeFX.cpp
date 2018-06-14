@@ -637,14 +637,14 @@ PolyshapeFX::PolyshapeFX(MainController *mc, const String &uid, int numVoices):
 	VoiceEffectProcessor(mc, uid, numVoices),
 	driveChain(new ModulatorChain(mc, "Drive Modulation", numVoices, Modulation::Mode::GainMode, this)),
 	driveBuffer(1, 0),
-	polyUpdater(*this)
+	polyUpdater(*this),
+	dcRemovers(numVoices)
 {
 	
 
 	for (int i = 0; i < numVoices; i++)
 	{
 		oversamplers.add(new ShapeFX::Oversampler(2, 2, ShapeFX::Oversampler::FilterType::filterHalfBandPolyphaseIIR, false));
-		dcRemovers.add(new SimpleOnePole());
 		driveSmoothers[i] = LinearSmoothedValue<float>(0.0f);
 	}
 
@@ -666,7 +666,7 @@ PolyshapeFX::~PolyshapeFX()
 {
 	tableUpdater = nullptr;
 	shapers.clear();
-	dcRemovers.clear();
+	
 	oversamplers.clear();
 }
 
@@ -782,13 +782,13 @@ void PolyshapeFX::prepareToPlay(double sampleRate, int samplesPerBlock)
 		os->reset();
 	}
 
-	for (auto dc : dcRemovers)
+	for (auto& dc : dcRemovers)
 	{
-		dc->setSampleRate(sampleRate);
-		dc->setType(SimpleOnePole::FilterType::HP);
-		dc->setFrequency(20.0);
-		dc->setNumChannels(2);
-		dc->reset();
+		dc.setFrequency(20.0);
+		dc.setSampleRate(sampleRate);
+		dc.setType(SimpleOnePole::FilterType::HP);
+		dc.setNumChannels(2);
+		dc.reset();
 	}
 }
 
@@ -796,15 +796,20 @@ void PolyshapeFX::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSam
 {
 	
 
-	float* driveValues = getCurrentModulationValues(DriveModulation, voiceIndex, startSample);
-
 	if (voiceIndex >= NUM_POLYPHONIC_VOICES)
 		return;
 
+	float* driveValues = getCurrentModulationValues(DriveModulation, voiceIndex, startSample);
+
+	if (driveValues == nullptr)
+	{
+		driveValues = static_cast<float*>(alloca(sizeof(float) * numSamples));
+		FloatVectorOperations::fill(driveValues, 1.0f, numSamples);
+	}
+		
 	auto smoother = &driveSmoothers[voiceIndex];
 	
 	smoother->setValue(drive - 1.0f);
-
 	smoother->applyGain(driveValues, numSamples);
 
 	FloatVectorOperations::add(driveValues, 1.0f, numSamples);
@@ -866,7 +871,11 @@ void PolyshapeFX::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSam
 	}
 
 	if (bias != 0.0f || mode == ShapeFX::ShapeMode::AsymetricalCurve)
-		dcRemovers[voiceIndex]->processSamples(b, startSample, numSamples);
+	{
+		FilterHelpers::RenderData r(b, startSample, numSamples);
+		dcRemovers[voiceIndex].render(r);
+	}
+		
 
 }
 

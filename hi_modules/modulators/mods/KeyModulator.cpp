@@ -39,6 +39,8 @@ KeyModulator::KeyModulator(MainController *mc, const String &id, int numVoices, 
 		keyTable(new DiscreteTable()),
 		midiTable(new MidiTable())
 {
+	midiTable->setXTextConverter(Modulation::getDomainAsMidiNote);
+
 	parameterNames.add("KeyMode");
 	parameterNames.add("NumberMode");
 };

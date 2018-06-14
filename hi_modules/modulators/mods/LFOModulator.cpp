@@ -99,7 +99,34 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	data->addChangeListener(&updater);
 
 	setTargetRatioA(0.3f);
-	
+
+	WeakReference<Processor> t = this;
+
+	auto f = [t](float input)
+	{
+		if (t != nullptr)
+		{
+			const bool isSynced = t->getAttribute(LfoModulator::Parameters::TempoSync);
+
+			if (isSynced)
+			{
+				auto freq = (int)t->getAttribute(LfoModulator::Parameters::Frequency);
+
+				return Table::getDefaultTextValue(input) + " of " + TempoSyncer::getTempoName(freq);
+			}
+			else
+			{
+				float freq = t->getAttribute(LfoModulator::Parameters::Frequency);
+				float time = 1.0f / freq;
+
+				return String(roundFloatToInt(input * time*1000.0f)) + " ms";
+			}
+		}
+
+		return String();
+	};
+
+	customTable->setXTextConverter(f);
 };
 
 LfoModulator::~LfoModulator()

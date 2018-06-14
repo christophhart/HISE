@@ -130,30 +130,38 @@ public:
 	{
 	public:
 
-		ValuePopup(Component* c_):
-			c(c_)
+		ValuePopup(ScriptCreatedComponentWrapper& p):
+			parent(p)
 		{
+			f = GLOBAL_BOLD_FONT();
+
+			itemColour = Colour(0xaa222222);
+			itemColour2 = Colour(0xaa222222);
+
+			textColour = Colours::white;
+
 			updateText();
 			startTimer(30);
 		}
 
+		void setFont(Font newFont)
+		{
+			f = newFont;
+		}
+
 		void updateText()
 		{
-			if (auto slider = dynamic_cast<Slider*>(c.getComponent()))
+			auto thisText = parent.getTextForValuePopup();
+
+			if (thisText != currentText)
 			{
-				auto oldText = currentText;
+				currentText = thisText;
 
-				currentText = slider->getTextFromValue(slider->getValue());
+				int newWidth = f.getStringWidth(currentText) + 20;
 
-				if (currentText != oldText)
-				{
-					auto f = GLOBAL_BOLD_FONT();
-					int newWidth = f.getStringWidth(currentText) + 20;
+				setSize(newWidth, 20);
 
-					setSize(newWidth, 20);
-
-					repaint();
-				}
+				repaint();
 			}
 		}
 
@@ -173,12 +181,10 @@ public:
 			g.setColour(bgColour);
 			g.drawRoundedRectangle(ar, 2.0f, 2.0f);
 
-			if (dynamic_cast<Slider*>(c.getComponent()) != nullptr)
-			{
-				g.setFont(GLOBAL_BOLD_FONT());
-				g.setColour(textColour);
-				g.drawText(currentText, getLocalBounds(), Justification::centred);
-			}
+			g.setFont(f);
+			g.setColour(textColour);
+			g.drawText(currentText, getLocalBounds(), Justification::centred);
+			
 		}
 
 		Colour bgColour;
@@ -188,11 +194,13 @@ public:
 
 		String currentText;
 
-		Component::SafePointer<Component> c;
+		Font f;
+
+		ScriptCreatedComponentWrapper& parent;
 	};
 
 	/** Don't forget to deregister the listener here. */
-	virtual ~ScriptCreatedComponentWrapper() {};
+	virtual ~ScriptCreatedComponentWrapper();;
 
 	/** Overwrite this method and update the component. */
 	virtual void updateComponent() = 0;
@@ -207,6 +215,8 @@ public:
 	void changed(var newValue);
 
 	Component *getComponent() { return component; }
+
+	const Component *getComponent() const { return component; }
 
 	virtual void asyncValueTreePropertyChanged(ValueTree& v, const Identifier& id)
 	{
@@ -225,6 +235,13 @@ public:
 		return scriptComponent;
 	};
 
+	const ScriptingApi::Content::ScriptComponent *getScriptComponent() const
+	{
+		return scriptComponent;
+	};
+
+	ScopedPointer<ValuePopup> currentPopup;
+
 protected:
 
 	/** You need to do this tasks in your constructor:
@@ -240,7 +257,17 @@ protected:
 
 	void initAllProperties();
 
+	void showValuePopup();
 
+	void updatePopupPosition();
+
+	virtual Point<int> getValuePopupPosition(Rectangle<int> componentBounds) const { return Point<int>(); }
+
+	virtual String getTextForValuePopup()
+	{
+		jassertfalse;
+		return ""; 
+	};
 
 	/** the component that will be owned by this wrapper. */
 	ScopedPointer<Component> component;
@@ -248,7 +275,44 @@ protected:
 	/** the parent component. */
 	ScriptContentComponent *contentComponent;
 
+	void closeValuePopupAfterDelay();
+
 private:
+
+	struct ValuePopupHandler : public Timer
+	{
+		ValuePopupHandler(ScriptCreatedComponentWrapper& p):
+			parent(p)
+		{
+
+		}
+
+		void timerCallback() override
+		{
+			if (auto c = parent.getComponent())
+			{
+				Desktop::getInstance().getAnimator().fadeOut(parent.currentPopup, 200);
+
+				auto parentTile = c->findParentComponentOfClass<FloatingTile>(); // always in a tile...
+
+				if (parentTile == nullptr)
+				{
+					// Ouch...
+					jassertfalse;
+					return;
+				}
+
+				parentTile->removeChildComponent(parent.currentPopup);
+				parent.currentPopup = nullptr;
+
+				stopTimer();
+			}
+		}
+
+		ScriptCreatedComponentWrapper& parent;
+	};
+
+	ValuePopupHandler valuePopupHandler;
 
 	ScriptingApi::Content::ScriptComponent::Ptr scriptComponent;
 
@@ -362,8 +426,7 @@ class ScriptCreatedComponentWrappers
 public:
 
 	class SliderWrapper: public ScriptCreatedComponentWrapper,
-						 public SliderListener,
-						 public Timer
+						 public SliderListener
 	{
 	public:
 		SliderWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptSlider *scriptSlider, int index);
@@ -381,13 +444,15 @@ public:
 
 		void sliderDragEnded(Slider* s) override;
 
-		void timerCallback() override;
-
-		ScopedPointer<ValuePopup> currentPopup;
-
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SliderWrapper);
 
+		Point<int> getValuePopupPosition(Rectangle<int> componentBounds) const;
+
+		String getTextForValuePopup() override;
+
 	private:
+
+		
 
 		void updateFilmstrip();
 		void updateColours(HiSlider * s);
@@ -470,7 +535,9 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ComboBoxWrapper)
 	};
 
-	class TableWrapper : public ScriptCreatedComponentWrapper
+	class TableWrapper : public ScriptCreatedComponentWrapper,
+						 public TableEditor::Listener
+		
 	{
 	public:
 
@@ -483,8 +550,20 @@ public:
 		void updateComponent(int index, var newValue) override;
 
 		void updateConnectedTable(TableEditor * t);
-
 		
+		void pointDragStarted(Point<int> position, int index, float value) override;
+		void pointDragEnded() override;
+		void pointDragged(Point<int> position, int index, float value) override;
+		void curveChanged(Point<int> position, float curveValue) override;
+
+		Point<int> getValuePopupPosition(Rectangle<int> componentBounds) const override;
+
+		String getTextForValuePopup() override { return popupText; }
+
+	private:
+
+		String popupText;
+		Point<int> localPopupPosition;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TableWrapper)
 	};

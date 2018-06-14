@@ -40,10 +40,20 @@ float Interpolator::interpolateLinear(const float lowValue, const float highValu
 	return invDelta * lowValue + delta * highValue;
 };
 
-Table::Table()
+Table::Table():
+	xConverter(getDefaultTextValue),
+	yConverter(getDefaultTextValue)
 {
+	
     graphPoints.add(GraphPoint(0.0, 0.0, 0.5));
     graphPoints.add(GraphPoint(1.0, 1.0, 0.5));
+}
+
+Table::~Table()
+{
+	
+
+	masterReference.clear();
 }
 
 void Table::setGraphPoints(const Array<GraphPoint> &newGraphPoints, int numPoints)

@@ -511,7 +511,7 @@ private:
 	ScopedPointer<ModulatorChain> driveChain;
 	AudioSampleBuffer driveBuffer;
 
-	OwnedArray<SimpleOnePole> dcRemovers;
+	FixedVoiceAmountArray<SimpleOnePole> dcRemovers;
 
 	ScopedPointer<TableUpdater> tableUpdater;
 

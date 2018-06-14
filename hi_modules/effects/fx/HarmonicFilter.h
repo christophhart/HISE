@@ -35,6 +35,235 @@
 
 namespace hise { using namespace juce;
 
+#define NUM_MAX_FILTER_BANDS 16
+
+class PeakFilterBand
+{
+	using FloatType = float;
+
+#if USE_SSE
+	using SSEType = dsp::SIMDRegister<FloatType>;
+#else
+	using SSEType = FloatType;
+#endif
+
+	struct State
+	{
+		State()
+		{
+			setGain(0.0);
+		}
+
+		SSEType _a1, _a2, _a3;
+		SSEType _m1;
+
+		FloatType _A;
+		FloatType _ASqrt;
+
+		SSEType _ic1eq;
+		SSEType _ic2eq;
+		
+
+		FloatType g;
+		FloatType k;
+		FloatType q;
+
+		FloatType gain;
+
+		bool dirty = false;
+
+		bool compareAndSet(FloatType& old, FloatType newValue)
+		{
+			bool equal = old != newValue;
+			old = newValue;
+			return equal;
+		}
+
+		void setGain(FloatType gainDb)
+		{
+			dirty = compareAndSet(gain, gainDb);
+
+			if (dirty)
+			{
+				_A = pow((FloatType)10.0, gainDb / (FloatType)40.0);
+				_ASqrt = sqrt(_A);
+
+				updateGainInternal();
+			}
+		}
+
+#if USE_SSE
+
+		void process(SSEType& input)
+		{
+			const auto _v3 = input - _ic2eq;
+			const auto _v1 = _v3 * _a2 + _ic1eq*_a1;
+			const auto _v2 = _v3*_a3 + _ic1eq*_a2 + _ic2eq;
+
+			_ic1eq = _v1 * 2.0 - _ic1eq;
+			_ic2eq = _v2 * 2.0 - _ic2eq;
+
+			input += _v1 * _m1;
+		}
+#else
+		void process(FloatType& left, FloatType& right)
+		{
+			const FloatType _v3 = left - _ic2eq;
+			const FloatType _v1 = _a1 * _ic1eq + _a2 * _v3;
+			const FloatType _v2 = _ic2eq + _a2 * _ic1eq + _a3 * _v3;
+
+			_ic1eq = 2 * _v1 - _ic1eq;
+			_ic2eq = 2 * _v2 - _ic2eq;
+
+			left += _m1 * _v1;
+			right = left;
+		}
+
+#endif
+
+
+		void reset()
+		{
+			_ic1eq = _ic2eq = 0.0;
+		}
+
+		void calculateFrequency(FloatType frequency, FloatType q_, FloatType sampleRate)
+		{
+			g = tan((frequency / sampleRate) * double_Pi);
+			q = q_;
+
+			updateGainInternal();
+		}
+
+	private:
+
+		void updateGainInternal()
+		{
+			k = 1.f / (q*_A);
+
+			_a1 = 1 / (1 + g * (g + k));
+			_a2 = _a1 * g;
+			_a3 = _a2 * g;
+			_m1 = k * (_A*_A - 1);
+		}
+	};
+
+public:
+
+	PeakFilterBand():
+		numBands(NUM_MAX_FILTER_BANDS),
+		numBandsToUse(NUM_MAX_FILTER_BANDS)
+	{
+		q = 1.0;
+		reset();
+	}
+
+	void setNumBands(int newNumBands)
+	{
+		numBands = jlimit<int>(1, NUM_MAX_FILTER_BANDS, newNumBands);
+		numBandsToUse = numBands;
+		reset();
+	}
+
+	int numBands;
+	int numBandsToUse;
+	double q;
+
+	void updateBaseFrequency(double newBaseFrequency)
+	{
+		baseFrequency = newBaseFrequency;
+		auto limit = (sampleRate * 0.4);
+
+		auto bandsUntilLimit = jlimit<int>(1, NUM_MAX_FILTER_BANDS, roundDoubleToInt(limit / baseFrequency));
+
+		numBandsToUse = jmin<int>(numBands, bandsUntilLimit);
+
+		double freqToUse = baseFrequency;
+
+		for (int i = 0; i < numBandsToUse; i++)
+		{
+			states[i].calculateFrequency(freqToUse, q, sampleRate);
+			freqToUse += baseFrequency;
+		}
+	}
+
+	void setQ(double newQ)
+	{
+		q = newQ;
+	}
+
+	void reset()
+	{
+		for (auto& s : *this)
+			s.reset();
+	}
+
+	
+
+	void updateBand(int bandIndex, float newGain)
+	{
+		if (bandIndex < numBandsToUse)
+		{
+			states[bandIndex].setGain((FloatType)newGain);
+		}
+	}
+
+	void processSamples(AudioSampleBuffer& buffer, int startSample, int numSamples)
+	{
+		auto l = buffer.getWritePointer(0, startSample);
+		auto r = buffer.getWritePointer(1, startSample);
+
+		for (int i = 0; i < numSamples; i++)
+		{
+#if USE_SSE
+			SSEType d = { (FloatType)*l, (FloatType)*r };
+
+			for (auto& s : *this)
+				s.process(d);
+
+			*l++ = (float)d[0];
+			*r++ = (float)d[1];
+#else
+
+			for (auto& s : *this)
+			{
+				s.process(*l, *r);
+			}
+
+			l++;
+			r++;
+#endif
+		}
+	}
+
+	inline State* begin() const noexcept
+	{
+		State* d = const_cast<State*>(states);
+		return d;
+	}
+
+	inline State* end() const noexcept
+	{
+		State* d = const_cast<State*>(states);
+		return d + numBandsToUse;
+	}
+
+	void setSampleRate(double sr)
+	{
+		sampleRate = sr;
+	}
+
+private:
+
+	double sampleRate;
+
+	double baseFrequency;
+
+	State states[NUM_MAX_FILTER_BANDS];
+
+	JUCE_DECLARE_NON_COPYABLE(PeakFilterBand);
+};
+
 class BaseHarmonicFilter: public SliderPackProcessor
 {
 public:
@@ -137,13 +366,15 @@ private:
 	float currentCrossfadeValue;
 	int semiToneTranspose;
 	const int numVoices;
-	float q;
+	double q;
+	int numBands;
 
 	ScopedPointer<SliderPackData> dataA;
 	ScopedPointer<SliderPackData> dataB;
 	ScopedPointer<SliderPackData> dataMix;
 
-	OwnedArray<PolyFilterEffect> harmonicFilters;
+	FixedVoiceAmountArray<PeakFilterBand> filterBanks;
+
 	ScopedPointer<ModulatorChain> xFadeChain;
 	AudioSampleBuffer timeVariantFreqModulatorBuffer;
 };
@@ -236,13 +467,15 @@ private:
 	int filterBandIndex;
 	float currentCrossfadeValue;
 	int semiToneTranspose;
-	float q;
+	int numBands;
+	double q;
 
 	ScopedPointer<SliderPackData> dataA;
 	ScopedPointer<SliderPackData> dataB;
 	ScopedPointer<SliderPackData> dataMix;
 
-	OwnedArray<MonoFilterEffect> harmonicFilters;
+	PeakFilterBand filterBank;
+	
 	ScopedPointer<ModulatorChain> xFadeChain;
 	AudioSampleBuffer timeVariantFreqModulatorBuffer;
 };

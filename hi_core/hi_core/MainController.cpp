@@ -74,6 +74,8 @@ MainController::MainController():
 	suspendIndex(0),
 	controlUndoManager(new UndoManager())
 {
+	globalFont = GLOBAL_FONT();
+
 	BACKEND_ONLY(popupConsole = nullptr);
 	BACKEND_ONLY(usePopupConsole = false);
 
@@ -880,6 +882,9 @@ juce::Typeface* MainController::getFont(const String &fontName) const
 
 Font MainController::getFontFromString(const String& fontName, float fontSize) const
 {
+	if (fontName == "Default")
+		return globalFont;
+
 	const Identifier id(fontName);
 
 	for (auto& tf : customTypeFaces)
@@ -914,6 +919,16 @@ Font MainController::getFontFromString(const String& fontName, float fontSize) c
 	return currentFont;
 }
 
+
+void MainController::setGlobalFont(const String& fontName)
+{
+	if (fontName.isEmpty())
+		globalFont = GLOBAL_FONT();
+	else 
+		globalFont = getFontFromString(fontName, 14.0f);
+
+	mainLookAndFeel->setComboBoxFont(globalFont);
+}
 
 void MainController::fillWithCustomFonts(StringArray &fontList)
 {

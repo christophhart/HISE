@@ -157,19 +157,33 @@ void StereoEffect::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSa
 {
 	if (balanceChain->shouldBeProcessed(true) || balanceChain->shouldBeProcessed(false))
 	{
-		float* panValues = getCurrentModulationValues(BalanceChain, voiceIndex, startSample);
-
-		float* outL = b.getWritePointer(0, startSample);
-		float* outR = b.getWritePointer(1, startSample);
-
-		const float normalizedPan = (pan - 0.5f) * 400.0f;
-
-		while (--numSamples >= 0)
+		if (auto panValues = getCurrentModulationValues(BalanceChain, voiceIndex, startSample))
 		{
-			const float scaledPanValue = (*panValues++ - 0.5f) * normalizedPan;
+			float* outL = b.getWritePointer(0, startSample);
+			float* outR = b.getWritePointer(1, startSample);
 
-			*outL++ *= BalanceCalculator::getGainFactorForBalance(scaledPanValue, true);
-			*outR++ *= BalanceCalculator::getGainFactorForBalance(scaledPanValue, false);
+			const float normalizedPan = (pan - 0.5f) * 400.0f;
+
+			while (--numSamples >= 0)
+			{
+				const float scaledPanValue = (*panValues++ - 0.5f) * normalizedPan;
+
+				*outL++ *= BalanceCalculator::getGainFactorForBalance(scaledPanValue, true);
+				*outR++ *= BalanceCalculator::getGainFactorForBalance(scaledPanValue, false);
+			}
+		}
+		else
+		{
+			float* outL = b.getWritePointer(0, startSample);
+			float* outR = b.getWritePointer(1, startSample);
+
+			const float normalizedPan = (pan - 0.5f) * 200.0f;
+
+			float gainL = BalanceCalculator::getGainFactorForBalance(normalizedPan, true);
+			float gainR = BalanceCalculator::getGainFactorForBalance(normalizedPan, false);
+
+			FloatVectorOperations::multiply(outL, gainL, numSamples);
+			FloatVectorOperations::multiply(outR, gainR, numSamples);
 		}
 	}
 }

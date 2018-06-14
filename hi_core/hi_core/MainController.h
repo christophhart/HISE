@@ -987,6 +987,10 @@ public:
 
 	Font getFontFromString(const String& fontName, float fontSize) const;
 
+	void setGlobalFont(const String& fontName);
+
+	
+
     bool checkAndResetMidiInputFlag();
     bool isChanged() const { return changed; }
     void setChanged(bool shouldBeChanged=true) { changed = shouldBeChanged; }
@@ -1315,6 +1319,8 @@ private:
 	ScopedPointer<ApplicationCommandManager> mainCommandManager;
 
 	ScopedPointer<KnobLookAndFeel> mainLookAndFeel;
+
+	Font globalFont;
 
 	Component::SafePointer<CodeEditorComponent> lastActiveEditor;
 	int lastCharacterPositionOfSelectedEditor;

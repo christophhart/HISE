@@ -59,21 +59,21 @@ public:
 		gainSlider->updateValue();
 		qSlider->updateValue();
 
-		MonoFilterEffect::FilterMode m = (MonoFilterEffect::FilterMode)(int)(getProcessor()->getAttribute(MonoFilterEffect::Mode));
+		FilterBank::FilterMode m = (FilterBank::FilterMode)(int)(getProcessor()->getAttribute(MonoFilterEffect::Mode));
 
 		switch (m)
 		{
-		case MonoFilterEffect::OnePoleHighPass:	qSlider->setEnabled(false); gainSlider->setEnabled(false); break;
-		case MonoFilterEffect::OnePoleLowPass:	qSlider->setEnabled(false); gainSlider->setEnabled(false); break;
-		case MonoFilterEffect::LowPass:			qSlider->setEnabled(false); gainSlider->setEnabled(false); break;
-		case MonoFilterEffect::HighPass:		qSlider->setEnabled(false); gainSlider->setEnabled(false); break;
-		case MonoFilterEffect::LowShelf:		qSlider->setEnabled(true); gainSlider->setEnabled(true); break;
-		case MonoFilterEffect::HighShelf:		qSlider->setEnabled(true); gainSlider->setEnabled(true); break;
-		case MonoFilterEffect::Peak:			qSlider->setEnabled(true); gainSlider->setEnabled(true); break;
-		case MonoFilterEffect::ResoLow:			qSlider->setEnabled(true); gainSlider->setEnabled(false); break;
-		case MonoFilterEffect::StateVariableLP: qSlider->setEnabled(true); gainSlider->setEnabled(false); break;
-		case MonoFilterEffect::StateVariableHP: qSlider->setEnabled(true); gainSlider->setEnabled(false); break;
-		case MonoFilterEffect::MoogLP:			qSlider->setEnabled(true); gainSlider->setEnabled(false); break;
+		case FilterBank::OnePoleHighPass:	qSlider->setEnabled(false); gainSlider->setEnabled(false); break;
+		case FilterBank::OnePoleLowPass:	qSlider->setEnabled(false); gainSlider->setEnabled(false); break;
+		case FilterBank::LowPass:			qSlider->setEnabled(false); gainSlider->setEnabled(false); break;
+		case FilterBank::HighPass:		qSlider->setEnabled(false); gainSlider->setEnabled(false); break;
+		case FilterBank::LowShelf:		qSlider->setEnabled(true); gainSlider->setEnabled(true); break;
+		case FilterBank::HighShelf:		qSlider->setEnabled(true); gainSlider->setEnabled(true); break;
+		case FilterBank::Peak:			qSlider->setEnabled(true); gainSlider->setEnabled(true); break;
+		case FilterBank::ResoLow:			qSlider->setEnabled(true); gainSlider->setEnabled(false); break;
+		case FilterBank::StateVariableLP: qSlider->setEnabled(true); gainSlider->setEnabled(false); break;
+		case FilterBank::StateVariableHP: qSlider->setEnabled(true); gainSlider->setEnabled(false); break;
+		case FilterBank::MoogLP:			qSlider->setEnabled(true); gainSlider->setEnabled(false); break;
 		default:								break;
 		}
 	};

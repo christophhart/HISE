@@ -206,6 +206,11 @@ public:
 	*/
 	void renderAllModulatorsAsMonophonic(AudioSampleBuffer &buffer, int startSample, int numSamples);
 
+	void setTableValueConverter(const Table::ValueTextConverter& converter)
+	{
+		handler.tableValueConverter = converter;
+	};
+
 	/** This class handles the Modulators within the specified ModulatorChain.
 	*
 	*	You can get the handler for each Modulator with ModulatorChain::getHandler().
@@ -216,7 +221,7 @@ public:
 	public:
 
 		/** Creates a Chain::Handler. */
-		ModulatorChainHandler(ModulatorChain *handledChain) : chain(handledChain) {};
+		ModulatorChainHandler(ModulatorChain *handledChain);;
 
 		~ModulatorChainHandler() {};
 
@@ -271,7 +276,12 @@ public:
 			chain->allModulators.clear();
 		}
 
+		
+		Table::ValueTextConverter tableValueConverter;
+
 	private:
+
+		
 
 		ModulatorChain *chain;
 

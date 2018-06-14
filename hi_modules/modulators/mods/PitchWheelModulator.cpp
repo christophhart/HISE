@@ -45,6 +45,8 @@ PitchwheelModulator::PitchwheelModulator(MainController *mc, const String &id, M
 {
 	this->enableConsoleOutput(false);
 	
+	table->setXTextConverter(Modulation::getDomainAsPitchBendRange);
+
 	parameterNames.add("Inverted");
 	parameterNames.add("UseTable");
 	parameterNames.add("SmoothTime");

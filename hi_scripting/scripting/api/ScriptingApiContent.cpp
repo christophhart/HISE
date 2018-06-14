@@ -128,6 +128,7 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 
 ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingContent* base, Identifier name_, int numConstants /*= 0*/) :
 	ConstScriptingObject(base, numConstants),
+	UpdateDispatcher::Listener(base->getScriptingContent()->getUpdateDispatcher()),
 	name(name_),
 	parent(base->getScriptingContent()),
 	controlSender(this, base),
@@ -629,7 +630,7 @@ void ScriptingApi::Content::ScriptComponent::setValue(var controlValue)
 		}
 	}
 
-    SEND_MESSAGE(this);
+	triggerAsyncUpdate();
 };
 
 void ScriptingApi::Content::ScriptComponent::setColour(int colourId, int colourAs32bitHex)
@@ -1286,7 +1287,7 @@ void ScriptingApi::Content::ScriptSlider::setMinValue(double min) noexcept
 	if (styleId == Slider::TwoValueHorizontal)
 	{
 		minimum = min;
-		sendChangeMessage();
+		triggerAsyncUpdate();
 	}
 	else
 	{
@@ -1299,7 +1300,7 @@ void ScriptingApi::Content::ScriptSlider::setMaxValue(double max) noexcept
 	if (styleId == Slider::TwoValueHorizontal)
 	{
 		maximum = max;
-		sendChangeMessage();
+		triggerAsyncUpdate();
 	}
 	else
 	{
@@ -2291,7 +2292,7 @@ void ScriptingApi::Content::ScriptSliderPack::setValue(var newValue)
 	{
 		getSliderPackData()->swapData(*array);
 		
-		SEND_MESSAGE(this);
+		triggerAsyncUpdate();
 	}
 	else
 	{
@@ -2510,6 +2511,7 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
     API_VOID_METHOD_WRAPPER_3(ScriptPanel, setValueWithUndo);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, showAsPopup);
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, closeAsPopup);
+	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setIsModalPopup);
 };
 
 ScriptingApi::Content::ScriptPanel::ScriptPanel(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier panelName, int x, int y, int , int ) :
@@ -2580,6 +2582,7 @@ timerRoutine(var())
     ADD_API_METHOD_3(setValueWithUndo);
 	ADD_API_METHOD_1(showAsPopup);
 	ADD_API_METHOD_0(closeAsPopup);
+	ADD_API_METHOD_1(setIsModalPopup);
 }
 
 ScriptingApi::Content::ScriptPanel::~ScriptPanel()
@@ -3015,7 +3018,7 @@ void ScriptingApi::Content::ScriptPanel::showAsPopup(bool closeOtherPopups)
 
 	repaintThisAndAllChildren();
 
-	sendChangeMessage();
+	triggerAsyncUpdate();
 }
 
 void ScriptingApi::Content::ScriptPanel::closeAsPopup()
@@ -3024,7 +3027,7 @@ void ScriptingApi::Content::ScriptPanel::closeAsPopup()
 
 	repaintThisAndAllChildren();
 
-	sendChangeMessage();
+	triggerAsyncUpdate();
 }
 
 void ScriptingApi::Content::ScriptPanel::repaintThisAndAllChildren()
@@ -3042,7 +3045,54 @@ void ScriptingApi::Content::ScriptPanel::handleDefaultDeactivatedProperties()
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(linkedTo));
 }
 
+void ScriptingApi::Content::ScriptPanel::showAsModalPopup()
+{
+	shownAsPopup = true;
 
+	parent->addPanelPopup(this, true);
+
+	repaintThisAndAllChildren();
+}
+
+void ScriptingApi::Content::ScriptPanel::AsyncPreloadStateHandler::handleAsyncUpdate()
+{
+	if (!(startFlag || endFlag))
+		return;
+
+	if (auto lock = PresetLoadLock(parent.getScriptProcessor()->getMainController_()))
+	{
+		if (startFlag)
+		{
+			parent.preloadStateInternal(true);
+			startFlag = false;
+		}
+		if (endFlag)
+		{
+			parent.preloadStateInternal(false);
+			endFlag = false;
+		}
+	}
+	else
+	{
+		startTimer(300);
+	}
+}
+
+void ScriptingApi::Content::ScriptPanel::AsyncPreloadStateHandler::addStateChange(bool newState)
+{
+	if (newState)
+		startFlag = true;
+	else
+		endFlag = true;
+
+	triggerAsyncUpdate();
+}
+
+void ScriptingApi::Content::ScriptPanel::AsyncPreloadStateHandler::timerCallback()
+{
+	stopTimer();
+	handleAsyncUpdate();
+}
 
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptedViewport::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -3354,7 +3404,7 @@ void ScriptingApi::Content::ScriptAudioWaveform::restoreFromValueTree(const Valu
 			getAudioProcessor()->setRange(range);
 
 			//WHYTHEFUCK
-			sendChangeMessage();
+			triggerAsyncUpdate();
 		}
 	}
 }

@@ -169,17 +169,23 @@ protected:
 
 	float getCurrentModulationValue(int chainIndex, int voiceIndex, int samplePosition)
 	{
-		return static_cast<ModulatorChain*>(getChildProcessor(chainIndex))->getVoiceValues(voiceIndex)[samplePosition];
+		auto modChain = static_cast<ModulatorChain*>(getChildProcessor(chainIndex));
+		return modChain->getNumChildProcessors() == 0 ? 1.0f : modChain->getVoiceValues(voiceIndex)[samplePosition];
 	}
 
 	float* getCurrentModulationValues(int chainIndex, int voiceIndex, int startSample)
 	{
-		return static_cast<ModulatorChain*>(getChildProcessor(chainIndex))->getVoiceValues(voiceIndex) + startSample;
+		auto modChain = static_cast<ModulatorChain*>(getChildProcessor(chainIndex));
+
+		return modChain->getNumChildProcessors() == 0 ? nullptr : modChain->getVoiceValues(voiceIndex) + startSample;
 	}
 
 	void calculateChain(int chainIndex, int voiceIndex, int startSample, int numSamples)
 	{
 		ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(chainIndex));
+
+		if (mc->getNumChildProcessors() == 0)
+			return;
 
 		jassert(mc != nullptr);
 
@@ -191,7 +197,6 @@ protected:
 
 		// Offset of startSamples, since getVoiceValues() returns the whole buffer
 		FloatVectorOperations::multiply(modValues + startSample, timeVariantModValues, numSamples);
-
 	};
 
 

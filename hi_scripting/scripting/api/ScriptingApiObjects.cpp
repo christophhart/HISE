@@ -917,11 +917,11 @@ var ScriptingObjects::ScriptingEffect::addStaticGlobalModulator(var chainIndex, 
 }
 
 ScriptingObjects::ScriptingEffect::FilterModeObject::FilterModeObject(const ProcessorWithScriptingContent* p) :
-	ConstScriptingObject(const_cast<ProcessorWithScriptingContent*>(p), (int)MonoFilterEffect::FilterMode::numFilterModes)
+	ConstScriptingObject(const_cast<ProcessorWithScriptingContent*>(p), (int)FilterBank::FilterMode::numFilterModes)
 {
 	
 
-#define ADD_FILTER_CONSTANT(x) addConstant(#x, (int)MonoFilterEffect::FilterMode::x)
+#define ADD_FILTER_CONSTANT(x) addConstant(#x, (int)FilterBank::FilterMode::x)
 
 	ADD_FILTER_CONSTANT(LowPass);
 	ADD_FILTER_CONSTANT(HighPass);

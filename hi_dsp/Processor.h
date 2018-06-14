@@ -183,6 +183,7 @@ public:
 	/**	Creates a new Processor with the given Identifier. */
 	Processor(MainController *m, const String &id_):
 		ControlledObject(m),
+		rebuildDelayer(*this),
 		id(id_),
 		consoleEnabled(false),
 		bypassed(false),
@@ -863,15 +864,7 @@ public:
 
 	void sendRebuildMessage(bool forceUpdate=false)
 	{
-		int numListeners = deleteListeners.size();
-
-		for (int i = 0; i < numListeners; i++)
-		{
-			if (deleteListeners[i].get() != nullptr)
-			{
-				deleteListeners[i]->updateChildEditorList(forceUpdate);
-			}
-		}
+		rebuildDelayer.sendRebuildMessage(forceUpdate);
 	}
 
 protected:
@@ -926,6 +919,59 @@ protected:
 	
 
 private:
+
+	struct RebuildDelayer : private Timer
+	{
+		RebuildDelayer(Processor& p):
+			parent(p)
+		{
+
+		}
+
+		~RebuildDelayer()
+		{
+			stopTimer();
+		}
+
+		void sendRebuildMessage(bool shouldForceUpdate)
+		{
+			forceUpdate = shouldForceUpdate;
+			sendInternal();
+		}
+		
+	private:
+
+		void sendInternal()
+		{
+			if (auto lock = PresetLoadLock(parent.getMainController()))
+			{
+				stopTimer();
+
+				int numListeners = parent.deleteListeners.size();
+
+				for (auto l: parent.deleteListeners)
+				{
+					if(l.get() != nullptr)
+						l->updateChildEditorList(forceUpdate);
+				}
+			}
+			else
+			{
+				startTimer(300);
+			}
+		}
+
+		void timerCallback()
+		{
+			sendInternal();
+		}
+		
+		bool forceUpdate = false;
+
+		Processor& parent;
+	};
+
+	RebuildDelayer rebuildDelayer;
 
 	Array<WeakReference<DeleteListener>> deleteListeners;
 

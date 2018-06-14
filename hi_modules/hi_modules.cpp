@@ -105,6 +105,8 @@ namespace wdl
 #include "effects/MdaEffectWrapper.cpp"
 
 #include "effects/fx/RouteFX.cpp"
+#include "effects/fx/FilterTypes.cpp"
+#include "effects/fx/FilterHelpers.cpp"
 #include "effects/fx/Filters.cpp"
 #include "effects/fx/HarmonicFilter.cpp"
 #include "effects/fx/CurveEq.cpp"
