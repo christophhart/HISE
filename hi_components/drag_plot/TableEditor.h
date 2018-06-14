@@ -748,6 +748,8 @@ private:
 
 	MidiTable dummyTable;
 
+	Font fontToUse;
+
 	WeakReference<Processor> connectedProcessor;
 
 	class TableAction : public UndoableAction

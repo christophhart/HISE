@@ -125,6 +125,12 @@ public:
 		masterReference.clear();
 	}
 
+	/** This class contains the sender logic of the UpdateDispatcher scheme.
+	*
+	*	In order to use it, subclass your object from this, register the parent UpdateDispatcher in 
+	*	the constructor, and then use triggerAsyncUpdate() just like you would do with a normal AsyncUpdater
+	*
+	*/
 	class Listener
 	{
 	public:

@@ -963,6 +963,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, getMasterPeakLevel);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadFont);
 	API_VOID_METHOD_WRAPPER_2(Engine, loadFontAs);
+	API_VOID_METHOD_WRAPPER_1(Engine, setGlobalFont);
 	API_VOID_METHOD_WRAPPER_0(Engine, undo);
 	API_VOID_METHOD_WRAPPER_0(Engine, redo);
 };
@@ -1028,6 +1029,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(createSliderPackData);
 	ADD_API_METHOD_1(loadFont);
 	ADD_API_METHOD_2(loadFontAs);
+	ADD_API_METHOD_1(setGlobalFont);
 	ADD_API_METHOD_0(undo);
 	ADD_API_METHOD_0(redo);
 }
@@ -1075,6 +1077,11 @@ void ScriptingApi::Engine::loadFontAs(String fileName, String fontId)
 	ignoreUnused(fileName);
 
 #endif
+}
+
+void ScriptingApi::Engine::setGlobalFont(String fontName)
+{
+	getProcessor()->getMainController()->setGlobalFont(fontName);
 }
 
 double ScriptingApi::Engine::getSampleRate() const { return const_cast<MainController*>(getProcessor()->getMainController())->getMainSynthChain()->getSampleRate(); }

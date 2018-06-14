@@ -201,6 +201,9 @@ public:
 		/** Loads the font from the given file in the image folder and registers it under the fontId. This is platform agnostic. */
 		void loadFontAs(String fileName, String fontId);
 
+		/** Sets the font that will be used as default font for various things. */
+		void setGlobalFont(String fontName);
+
 		/** Returns the current sample rate. */
 		double getSampleRate() const;
 

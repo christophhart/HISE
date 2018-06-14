@@ -48,9 +48,10 @@ mod(m)
 
 ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_) :
 	AsyncValueTreePropertyListener(p_->getScriptingContent()->getContentProperties(), p_->getScriptingContent()->getUpdateDispatcher()),
+	contentRebuildNotifier(*this),
+	modalOverlay(*this),
 	processor(p_),
-	p(dynamic_cast<Processor*>(p_)),
-	contentRebuildNotifier(*this)
+	p(dynamic_cast<Processor*>(p_))
 {
 	processor->getScriptingContent()->addRebuildListener(this);
 
@@ -62,10 +63,9 @@ ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_
 
 	p->addChangeListener(this);
 	p->getMainController()->addScriptListener(this, true);
+
+	addChildComponent(modalOverlay);
 }
-
-
-
 
 ScriptContentComponent::~ScriptContentComponent()
 {
@@ -361,6 +361,8 @@ void ScriptContentComponent::updateComponentParent(ScriptCreatedComponentWrapper
 
 void ScriptContentComponent::resized()
 {
+	modalOverlay.setBounds(getLocalBounds());
+
 	if (!contentValid())
 	{
 		return;
@@ -375,6 +377,16 @@ void ScriptContentComponent::resized()
 			c->setBounds(contentData->components[i]->getPosition());
 		}
 	}
+}
+
+void ScriptContentComponent::setModalPopup(ScriptCreatedComponentWrapper* wrapper, bool shouldShow)
+{
+	if (shouldShow)
+	{
+		modalOverlay.showFor(wrapper);
+	}
+	else
+		modalOverlay.closeModalPopup();
 }
 
 void ScriptContentComponent::scriptWasCompiled(JavascriptProcessor *jp)

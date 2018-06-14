@@ -239,9 +239,10 @@ public:
 
 	struct ScriptComponent : public RestorableObject,
 		public ConstScriptingObject,
-		public SafeChangeBroadcaster,
 		public AssignableObject,
-		public DebugableObject
+		public DebugableObject,
+		public SafeChangeBroadcaster,
+		public UpdateDispatcher::Listener
 	{
 		using Ptr = ReferenceCountedObjectPtr<ScriptComponent>;
 
@@ -289,6 +290,10 @@ public:
 		virtual StringArray getOptionsFor(const Identifier &id);
 		virtual ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) = 0;
 
+		void handleAsyncUpdate() override
+		{
+			sendSynchronousChangeMessage();
+		}
 
 		Identifier getName() const;
 		Identifier getObjectName() const override;
@@ -916,7 +921,7 @@ public:
 			if (newValue.isString())
 			{
 				setScriptObjectProperty(ScriptComponent::Properties::text, newValue);
-				sendChangeMessage();
+				triggerAsyncUpdate();
 			}
 		}
 
@@ -1277,7 +1282,15 @@ public:
 		/** Closes the popup manually. */
 		void closeAsPopup();
 
+		/** If this is set to true, the popup will be modal with a dark background that can be clicked to close. */
+		void setIsModalPopup(bool shouldBeModal)
+		{
+			isModalPopup = shouldBeModal;
+		}
+
 		// ========================================================================================================
+
+		void showAsModalPopup();
 
 		void forcedRepaint()
 		{
@@ -1311,6 +1324,11 @@ public:
 		Image getImage() const
 		{
 			return paintCanvas;
+		}
+
+		bool isModal() const
+		{
+			return isModalPopup;
 		}
 
 		bool isUsingCustomPaintRoutine() const { return HiseJavascriptEngine::isJavascriptFunction(paintRoutine); }
@@ -1376,7 +1394,7 @@ public:
 		
 
 		bool shownAsPopup = false;
-
+		bool isModalPopup = false;
 
 
 		double getScaleFactorForCanvas() const;
@@ -1394,33 +1412,29 @@ public:
 
 		
 
-		struct AsyncPreloadStateHandler : private AsyncUpdater
+		struct AsyncPreloadStateHandler : private AsyncUpdater,
+										  private Timer
 		{
 			AsyncPreloadStateHandler(ScriptPanel& parent_):
-				parent(parent_),
-				stateChanges(512)
+				parent(parent_)
 			{}
 
-			void handleAsyncUpdate()
-			{
-				bool state;
+			void handleAsyncUpdate();
 
-				while (stateChanges.pop(state))
-				{
-					parent.preloadStateInternal(state);
-				}
-			}
 
-			void addStateChange(bool newState)
-			{
-				stateChanges.push(std::move(newState));
 
-				triggerAsyncUpdate();
-			}
+			void addStateChange(bool newState);
 
-			LockfreeQueue<bool> stateChanges;
+		private:
+
+			bool startFlag = false;
+			bool endFlag = false;
+
+			void timerCallback() override;
+
 
 			ScriptPanel& parent;
+
 		};
 
 		struct AsyncRepainter : public UpdateDispatcher::Listener //public Timer
@@ -1701,7 +1715,7 @@ public:
 		void setContentData(var data)
 		{
 			jsonData = data;
-			sendChangeMessage();
+			triggerAsyncUpdate();
 		}
 
 		// ========================================================================================================

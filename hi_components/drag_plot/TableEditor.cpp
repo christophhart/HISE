@@ -372,6 +372,10 @@ void TableEditor::connectToLookupTableProcessor(Processor *p)
 	if (LookupTableProcessor * ltp = dynamic_cast<LookupTableProcessor*>(p))
 	{
 		connectedProcessor = p;
+
+
+		fontToUse = p->getMainController()->getFontFromString("Default", 14.0f);
+
 		ltp->addTableChangeListener(this);
 	}
 }

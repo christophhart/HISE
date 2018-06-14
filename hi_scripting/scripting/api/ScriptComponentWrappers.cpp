@@ -53,6 +53,11 @@ Array<Identifier> ScriptComponentPropertyTypeSelector::codeProperties = Array<Id
 Array<ScriptComponentPropertyTypeSelector::SliderRange> ScriptComponentPropertyTypeSelector::sliderRanges = Array<ScriptComponentPropertyTypeSelector::SliderRange>();
 
 
+ScriptCreatedComponentWrapper::~ScriptCreatedComponentWrapper()
+{
+	currentPopup = nullptr;
+}
+
 void ScriptCreatedComponentWrapper::updateComponent(int propertyIndex, var newValue)
 {
 	if (propertyIndex >= ScriptingApi::Content::ScriptComponent::Properties::numProperties)
@@ -88,6 +93,7 @@ void ScriptCreatedComponentWrapper::valueTreeParentChanged(ValueTree& /*v*/)
 
 ScriptCreatedComponentWrapper::ScriptCreatedComponentWrapper(ScriptContentComponent *content, int index_) :
 	AsyncValueTreePropertyListener(content->contentData->getComponent(index_)->getPropertyValueTree(), content->contentData->getUpdateDispatcher()),
+	valuePopupHandler(*this),
 	contentComponent(content),
 	index(index_)
 {
@@ -118,6 +124,8 @@ void ScriptCreatedComponentWrapper::initAllProperties()
 		updateComponent(i, v);
 	}
 }
+
+
 
 ScriptCreatedComponentWrappers::SliderWrapper::SliderWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptSlider *sc, int index) :
 ScriptCreatedComponentWrapper(content, index)
@@ -413,7 +421,90 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateTooltip(Slider * s)
 	}
 }
 
+void ScriptCreatedComponentWrapper::showValuePopup()
+{
+	auto c = getComponent();
+
+	auto parentTile = c->findParentComponentOfClass<FloatingTile>(); // always in a tile...
+
+	if (parentTile == nullptr)
+	{
+		// Ouch...
+		jassertfalse;
+		return;
+	}
+
+	parentTile->addAndMakeVisible(currentPopup = new ValuePopup(*this));
+
+	currentPopup->setFont(parentTile->getMainController()->getFontFromString("Default", 14.0f));
+
+	
+
+	currentPopup->setAlwaysOnTop(true);
+	
+	updatePopupPosition();
+}
+
+void ScriptCreatedComponentWrapper::updatePopupPosition()
+{
+	if (currentPopup != nullptr)
+	{
+		auto c = getComponent();
+
+		auto parentTile = c->findParentComponentOfClass<FloatingTile>(); // always in a tile...
+
+		if (parentTile == nullptr)
+		{
+			// Ouch...
+			jassertfalse;
+			return;
+		}
+
+		auto l = parentTile->getLocalArea(c, c->getLocalBounds());
+		currentPopup->setCentrePosition(getValuePopupPosition(l));
+	}
+}
+
+void ScriptCreatedComponentWrapper::closeValuePopupAfterDelay()
+{
+	valuePopupHandler.startTimer(200);
+}
+
 void ScriptCreatedComponentWrappers::SliderWrapper::sliderDragStarted(Slider* s)
+{
+	auto direction = getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::showValuePopup).toString();
+
+	if (direction == "No")
+		return;
+
+	if (auto c = getComponent())
+	{
+		showValuePopup();
+
+		if (s->getSliderStyle() == Slider::LinearBar ||
+			s->getSliderStyle() == Slider::LinearBarVertical)
+		{
+			currentPopup->itemColour = Colour(0xFF222222);
+			currentPopup->itemColour2 = Colour(0xFF111111);
+			currentPopup->textColour = Colour(0xFFCCCCCC);
+			currentPopup->bgColour = Colour(0xFFCCCCCC);
+		}
+		else
+		{
+			currentPopup->itemColour = GET_OBJECT_COLOUR(itemColour);
+			currentPopup->itemColour2 = GET_OBJECT_COLOUR(itemColour2);
+			currentPopup->textColour = GET_OBJECT_COLOUR(textColour);
+			currentPopup->bgColour = GET_OBJECT_COLOUR(bgColour);
+		}
+	}
+}
+
+void ScriptCreatedComponentWrappers::SliderWrapper::sliderDragEnded(Slider* /*s*/)
+{
+	closeValuePopupAfterDelay();
+}
+
+juce::Point<int> ScriptCreatedComponentWrappers::SliderWrapper::getValuePopupPosition(Rectangle<int> l) const
 {
 	enum Direction
 	{
@@ -424,6 +515,8 @@ void ScriptCreatedComponentWrappers::SliderWrapper::sliderDragStarted(Slider* s)
 		Right,
 		numDirections
 	};
+
+	auto s = dynamic_cast<const Slider*>(getComponent());
 
 	Direction d = numDirections;
 
@@ -440,120 +533,69 @@ void ScriptCreatedComponentWrappers::SliderWrapper::sliderDragStarted(Slider* s)
 		jassert(d != numDirections);
 	}
 
-	if (d == No)
-		return;
+	jassert(d != No);
+	
+	int x = 0;
+	int y = 0;
 
-	if (auto c = getComponent())
+	switch (d)
 	{
-		auto parentTile = c->findParentComponentOfClass<FloatingTile>(); // always in a tile...
+	case Above:
+	{
+		int xP = l.getCentreX();
+		int wP = currentPopup->getWidth();
+		x = xP - wP / 2;
 
-		if (parentTile == nullptr)
+		y = l.getY() - 25;
+		break;
+	}
+	case numDirections:
+	case Below:
+	{
+		int xP = l.getCentreX();
+		int wP = currentPopup->getWidth();
+		x = xP - wP / 2;
+
+		y = l.getBottom();
+
+		if (s != nullptr &&
+			(s->getSliderStyle() == Slider::LinearBar ||
+			 s->getSliderStyle() == Slider::LinearBarVertical))
 		{
-			// Ouch...
-			jassertfalse;
-			return;
-		}
-
-		parentTile->addAndMakeVisible(currentPopup = new ValuePopup(c));
-
-		
-
-		auto l = parentTile->getLocalArea(c, c->getLocalBounds());
-
-		int x = 0;
-		int y = 0;
-
-		switch (d)
-		{
-		case Above:
-		{
-			int xP = l.getCentreX();
-			int wP = currentPopup->getWidth();
-			x = xP - wP / 2;
-
-			y = l.getY() - 25;
-			break;
-		}
-		case numDirections:
-		case Below:
-		{
-			int xP = l.getCentreX();
-			int wP = currentPopup->getWidth();
-			x = xP - wP / 2;
-			
-			y = l.getBottom();
-			break;
+			y += 10;
 		}
 			
-		case Left:
-		{
-			x = l.getX() - currentPopup->getWidth() - 10;
-			y = l.getCentreY() - currentPopup->getHeight() / 2;
-			break;
-		}
-		case Right:
-		{
-			x = l.getRight() + 10;
-			y = l.getCentreY() - currentPopup->getHeight() / 2;
-			break;
-		}
-		default:
-			break;
-		}
 
-		if (s->getSliderStyle() == Slider::LinearBar ||
-			s->getSliderStyle() == Slider::LinearBarVertical)
-		{
-			currentPopup->itemColour = Colour(0xFF222222);
-			currentPopup->itemColour2 = Colour(0xFF111111);
-			currentPopup->textColour = Colour(0xFFCCCCCC);
-			currentPopup->bgColour = Colour(0xFFCCCCCC);
-
-			if (d == Below)
-				y += 10;
-		}
-		else
-		{
-			currentPopup->itemColour = GET_OBJECT_COLOUR(itemColour);
-			currentPopup->itemColour2 = GET_OBJECT_COLOUR(itemColour2);
-			currentPopup->textColour = GET_OBJECT_COLOUR(textColour);
-			currentPopup->bgColour = GET_OBJECT_COLOUR(bgColour);
-		}
-
-
-		currentPopup->setAlwaysOnTop(true);
-
-		
-
-		currentPopup->setTopLeftPosition(x, y);
+		break;
 	}
-}
 
-void ScriptCreatedComponentWrappers::SliderWrapper::sliderDragEnded(Slider* /*s*/)
-{
-	startTimer(200);
-}
-
-void ScriptCreatedComponentWrappers::SliderWrapper::timerCallback()
-{
-	if (auto c = getComponent())
+	case Left:
 	{
-		Desktop::getInstance().getAnimator().fadeOut(currentPopup, 200);
-
-		auto parentTile = c->findParentComponentOfClass<FloatingTile>(); // always in a tile...
-
-		if (parentTile == nullptr)
-		{
-			// Ouch...
-			jassertfalse;
-			return;
-		}
-
-		parentTile->removeChildComponent(currentPopup);
-		currentPopup = nullptr;
-
-		stopTimer();
+		x = l.getX() - currentPopup->getWidth() - 10;
+		y = l.getCentreY() - currentPopup->getHeight() / 2;
+		break;
 	}
+	case Right:
+	{
+		x = l.getRight() + 10;
+		y = l.getCentreY() - currentPopup->getHeight() / 2;
+		break;
+	}
+	default:
+		break;
+	}
+
+	return { x, y };
+}
+
+juce::String ScriptCreatedComponentWrappers::SliderWrapper::getTextForValuePopup()
+{
+	if (auto slider = dynamic_cast<Slider*>(getComponent()))
+	{
+		return slider->getTextFromValue(slider->getValue());;
+	}
+	
+	return "";
 }
 
 ScriptCreatedComponentWrappers::ComboBoxWrapper::ComboBoxWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptComboBox *scriptComboBox, int index) :
@@ -891,7 +933,7 @@ ScriptCreatedComponentWrapper(content, index)
 
 	component = t;
 	
-	
+	t->addListener(this);
 
 	updateConnectedTable(t);
 
@@ -905,6 +947,7 @@ ScriptCreatedComponentWrappers::TableWrapper::~TableWrapper()
 		if (auto te = dynamic_cast<TableEditor*>(component.get()))
 		{
 			table->broadcaster.removeChangeListener(te);
+			te->removeListener(this);
 		}
 	}
 }
@@ -953,6 +996,43 @@ void ScriptCreatedComponentWrappers::TableWrapper::updateConnectedTable(TableEdi
 	Table *newTable = st->getTable();
 
 	if (oldTable != newTable) t->setEditedTable(newTable);
+}
+
+void ScriptCreatedComponentWrappers::TableWrapper::pointDragStarted(Point<int> position, int index, float value)
+{
+	localPopupPosition = position.withY(position.getY() - 20);;
+
+	popupText = String(index) + " | " + String(roundFloatToInt(value*100.0f)) + "%";
+
+	showValuePopup();
+}
+
+void ScriptCreatedComponentWrappers::TableWrapper::pointDragEnded()
+{
+	closeValuePopupAfterDelay();
+}
+
+void ScriptCreatedComponentWrappers::TableWrapper::pointDragged(Point<int> position, int index, float value)
+{
+	popupText = String(index) + " | " + String(roundFloatToInt(value*100.0f)) + "%";
+
+	localPopupPosition = position.withY(position.getY() - 20);;
+	updatePopupPosition();
+}
+
+void ScriptCreatedComponentWrappers::TableWrapper::curveChanged(Point<int> position, float curveValue)
+{
+	localPopupPosition = position;
+
+	popupText = String(roundFloatToInt(curveValue * 100.0f)) + "%";
+
+	showValuePopup();
+	closeValuePopupAfterDelay();
+}
+
+juce::Point<int> ScriptCreatedComponentWrappers::TableWrapper::getValuePopupPosition(Rectangle<int> l) const
+{
+	return { l.getX() + localPopupPosition.getX(), l.getY() + localPopupPosition.getY() };
 }
 
 ScriptCreatedComponentWrappers::ModulatorMeterWrapper::ModulatorMeterWrapper(ScriptContentComponent *content, ScriptingApi::Content::ModulatorMeter *m, int index) :
@@ -1128,6 +1208,8 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::updateItems(ScriptingApi::
 		}
 
 		listBox->updateContent();
+
+		//updateValue(getScriptComponent()->getValue());
 	}
 }
 
@@ -1447,8 +1529,15 @@ void ScriptCreatedComponentWrappers::PanelWrapper::updateValue(var newValue)
 	BorderPanel *bpc = dynamic_cast<BorderPanel*>(component.get());
 	auto sc = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
 
-	bpc->setVisible(sc->isShowing(true));
-	bpc->repaint();
+	if (sc->isModal())
+	{
+		contentComponent->setModalPopup(this, sc->isShowing(true));
+	}
+	else
+	{
+		bpc->setVisible(sc->isShowing(true));
+		bpc->repaint();
+	}
 }
 
 void ScriptCreatedComponentWrappers::PanelWrapper::mouseCallback(const var &mouseInformation)

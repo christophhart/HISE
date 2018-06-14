@@ -86,7 +86,7 @@ class ScriptContentComponent: public Component,
 							  public GlobalScriptCompileListener,
 							  public ScriptingApi::Content::RebuildListener,
 							  public AsyncValueTreePropertyListener,
-							  public Processor::DeleteListener
+							  public Processor::DeleteListener							
 {
 public:
 
@@ -212,9 +212,84 @@ public:
 
 	void resized();
 
-	
+	void setModalPopup(ScriptCreatedComponentWrapper* wrapper, bool shouldShow);
 
 private:
+
+	class ModalOverlay : public Component
+	{
+	public:
+
+		ModalOverlay(ScriptContentComponent& p) :
+			parent(p)
+		{
+			setInterceptsMouseClicks(true, true);
+		}
+
+		void togglePopup(ScriptCreatedComponentWrapper* panelWrapper)
+		{
+			auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(panelWrapper->getScriptComponent());
+
+			if (currentPopup != panel)
+			{
+				showFor(panelWrapper);
+			}
+			else
+			{
+				closeModalPopup();
+			}
+		}
+
+		void showFor(ScriptCreatedComponentWrapper* panelWrapper)
+		{
+			auto newPanel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(panelWrapper->getScriptComponent());;
+
+			if (newPanel != currentPopup)
+			{
+				currentPopup = newPanel;
+				currentPopup->showAsModalPopup();
+
+				currentPopupComponent = panelWrapper->getComponent();
+
+				setVisible(true);
+				toFront(false);
+				currentPopupComponent->setVisible(true);
+				currentPopupComponent->toFront(false);
+			}
+			
+		}
+
+		void mouseDown(const MouseEvent& event) override
+		{
+			closeModalPopup();
+		}
+
+		void closeModalPopup()
+		{
+			if (currentPopup != nullptr)
+			{
+				currentPopup->closeAsPopup();
+				setVisible(false);
+
+				currentPopupComponent->setVisible(false);
+				currentPopupComponent = nullptr;
+
+				currentPopup = nullptr;
+			}
+		}
+
+		void paint(Graphics& g) override
+		{
+			g.fillAll(Colour(0x99000000));
+		}
+
+	private:
+
+		WeakReference<ScriptingApi::Content::ScriptPanel> currentPopup;
+		Component::SafePointer<Component> currentPopupComponent;
+
+		ScriptContentComponent& parent;
+	};
 
 	struct ContentRebuildNotifier : private AsyncUpdater
 	{
@@ -245,6 +320,7 @@ private:
 		ScriptContentComponent& parent;
 	};
 
+	ModalOverlay modalOverlay;
 	ContentRebuildNotifier contentRebuildNotifier;
 
     bool isRebuilding = false;

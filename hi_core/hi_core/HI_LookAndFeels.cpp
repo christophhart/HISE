@@ -344,6 +344,8 @@ KnobLookAndFeel::KnobLookAndFeel()
 	setColour(PopupMenu::ColourIds::textColourId, bright);
 	setColour(PopupMenu::ColourIds::highlightedBackgroundColourId, bright);
 	setColour(PopupMenu::ColourIds::highlightedTextColourId, dark);
+
+	comboBoxFont = GLOBAL_FONT();
 }
 
 

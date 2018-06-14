@@ -1195,12 +1195,24 @@ public:
 		return label;
 	}
 
-#if 0
+
 	Font getPopupMenuFont () override
 	{
-		return GLOBAL_FONT();
+		if (HiseDeviceSimulator::isMobileDevice())
+		{
+			return comboBoxFont.withHeight(24.0f);
+		}
+		else
+		{
+#if USE_BACKEND
+			return comboBoxFont.withHeight(15.0f);
+#else
+			return comboBoxFont.withHeight(16.0f);
+#endif
+		}
 	};
 
+#if 0
 	void drawPopupMenuBackground (Graphics& g, int width, int height) override
 	{
 		g.setColour( (findColour (PopupMenu::backgroundColourId)));
@@ -1219,11 +1231,16 @@ public:
 
 	void 	drawComboBox (Graphics &g, int width, int height, bool isButtonDown, int /*buttonX*/, int /*buttonY*/, int /*buttonW*/, int /*buttonH*/, ComboBox &c) override;
  
+	void setComboBoxFont(Font f)
+	{
+		comboBoxFont = f;
+	}
+
 	Font 	getComboBoxFont (ComboBox &) override
 	{
 		
 
-		return GLOBAL_FONT();
+		return comboBoxFont;
 	}
 
 	void 	positionComboBoxText (ComboBox &c, Label &labelToPosition) override
@@ -1364,6 +1381,8 @@ public:
 
 private:
     
+	Font comboBoxFont;
+
     Image cachedImage_smalliKnob_png;
 	Image cachedImage_knobRing_png;
 	Image cachedImage_toggle_png;

@@ -57,12 +57,14 @@ MainController::UserPresetHandler::LoadLock::LoadLock(const MainController* mc) 
 	if(!sameThreadHoldsLock)
 		holdsLock = parent.presetLoadLock.compare_exchange_strong(freeThread, (int)currentThread);
 
+#if 0
 	if (sameThreadHoldsLock)
 		DBG("Reentrant Preset Lock in " + String((currentThread == MainController::KillStateHandler::MessageThread ? "Message Thread" : "Sample Loading Thread")));
 	else if (holdsLock)
 		DBG("Preset Lock acquired by " + String((currentThread == MainController::KillStateHandler::MessageThread ? "Message Thread" : "Sample Loading Thread")));
 	else
 		DBG("Preset Lock was denied for " + String((currentThread == MainController::KillStateHandler::MessageThread ? "Message Thread" : "Sample Loading Thread")));
+#endif
 
 }
 
@@ -72,7 +74,9 @@ MainController::UserPresetHandler::LoadLock::~LoadLock()
 	{
 		jassert(parent.presetLoadLock != MainController::KillStateHandler::TargetThread::Free);
 		
+#if 0
 		DBG("Preset Lock was released by " + String((parent.presetLoadLock == MainController::KillStateHandler::MessageThread ? "Message Thread" : "Sample Loading Thread")));
+#endif
 		parent.presetLoadLock.store((int)MainController::KillStateHandler::TargetThread::Free);
 	}
 }
