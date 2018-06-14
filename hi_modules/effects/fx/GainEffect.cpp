@@ -64,9 +64,21 @@ smoothedGainR(1.0f)
 	gainChain->setFactoryType(new TimeVariantModulatorFactoryType(Modulation::GainMode, this));
     widthChain->setFactoryType(new TimeVariantModulatorFactoryType(Modulation::GainMode, this));
     delayChain->setFactoryType(new TimeVariantModulatorFactoryType(Modulation::GainMode, this));
+    
+    gainChain->getHandler()->addListener(this);
+    widthChain->getHandler()->addListener(this);
+    delayChain->getHandler()->addListener(this);
 
 }
 
+GainEffect::~GainEffect()
+{
+    gainChain->getHandler()->removeListener(this);
+    widthChain->getHandler()->removeListener(this);
+    delayChain->getHandler()->removeListener(this);
+    
+}
+    
 void GainEffect::setInternalAttribute(int parameterIndex, float newValue)
 {
 	switch (parameterIndex)

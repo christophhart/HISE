@@ -211,7 +211,8 @@ private:
 *	Derive all effects that are processed on the whole buffer from this class. For polyphonic effects, use VoiceEffectProcessor as baseclass.
 */
 class MasterEffectProcessor: public EffectProcessor,
-							 public RoutableProcessor
+							 public RoutableProcessor,
+                             public Chain::Handler::Listener
 {
 public:
 	MasterEffectProcessor(MainController *mc, const String &uid): EffectProcessor(mc, uid)
@@ -221,6 +222,33 @@ public:
 		getMatrix().setNumAllowedConnections(2);
 	};
 
+    void processorChanged(EventType t, Processor* p) override
+    {
+        if(t == EventType::ProcessorAdded)
+        {
+            chainsAreEmpty = false;
+            return;
+        }
+        
+        for(int i = 0; i < getNumInternalChains(); i++)
+        {
+            auto c = dynamic_cast<Chain*>(getChildProcessor(i));
+            
+            if(c->getHandler()->getNumProcessors() == 1 &&
+               c->getHandler()->getProcessor(0) == p)
+                continue;
+            
+            
+            if(c->getHandler()->getNumProcessors() != 0)
+            {
+                chainsAreEmpty = false;
+                return;
+            }
+        }
+        
+        chainsAreEmpty = true;
+    }
+    
 	virtual ~MasterEffectProcessor() {};
 
 	Path getSpecialSymbol() const override
@@ -235,14 +263,18 @@ public:
 	/** Renders all chains (envelopes & voicestart are rendered monophonically. */
 	void renderAllChains(int startSample, int numSamples)
 	{
+        if(chainsAreEmpty)
+            return;
+        
 		for(int i = 0; i < getNumInternalChains(); i++)
 		{
 			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
+            
 			jassert(mc != nullptr);
-			mc->renderVoice(0, startSample, numSamples);
-
-			mc->renderNextBlock(getBufferForChain(i), startSample, numSamples);
-
+            
+            mc->renderVoice(0, startSample, numSamples);
+            mc->renderNextBlock(getBufferForChain(i), startSample, numSamples);
+            
 			FloatVectorOperations::multiply(getBufferForChain(i).getWritePointer(0, startSample), mc->getVoiceValues(0), numSamples);
 		}
 	}
@@ -366,6 +398,10 @@ public:
 			}
 		}
 	};
+    
+private:
+    
+    bool chainsAreEmpty = false;
 };
 
 /** A EffectProcessor which allows monophonic modulation of its parameters.

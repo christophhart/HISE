@@ -333,6 +333,8 @@ public:
 				numEventTypes
 			};
 
+            virtual ~Listener() {};
+            
 			virtual void processorChanged(EventType t, Processor* p) = 0;
 
 			JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
