@@ -204,7 +204,21 @@ public:
 	/** Returns a const pointer to the audio sample buffer.
 	*
 	*	The pointer references a object from a AudioSamplePool and should be valid as long as the pool is not cleared. */
-	const AudioSampleBuffer *getBuffer() { return data.getData(); };
+	const AudioSampleBuffer *getBuffer() 
+	{
+		if(data)
+			return data.getData(); 
+
+		return &fallback;
+	};
+
+	const AudioSampleBuffer *getSampleBuffer() const 
+	{ 
+		if (data)
+			return data.getData();
+
+		return &fallback;
+	};
 
 	void setLoopFromMetadata(const var& md);
 
@@ -276,7 +290,7 @@ protected:
 
 	Range<int> loopRange;
 
-	const AudioSampleBuffer *getSampleBuffer() const { return data.getData(); };
+	
 
 	double sampleRateOfLoadedFile;
 
@@ -285,6 +299,8 @@ protected:
 	WeakReference<AudioSampleBufferPool> currentPool;
 
 private:
+
+	AudioSampleBuffer fallback;
 
 	int getConstrainedLoopValue(String metadata);
 	

@@ -1751,7 +1751,10 @@ var ScriptingApi::Sampler::getSoundProperty(int propertyIndex, int soundIndex)
             RETURN_IF_NO_THROW(var())
         }
     }
-	
+	else
+	{
+		return var();
+	}
 }
 
 void ScriptingApi::Sampler::setSoundProperty(int soundIndex, int propertyIndex, var newValue)
@@ -1883,7 +1886,8 @@ void ScriptingApi::Sampler::refreshInterface()
 
 void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 {
-    if(fileName.isEmpty()) return;
+	if (fileName.isEmpty())
+		reportScriptError("Trying to load a empty sample map...");
     
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
