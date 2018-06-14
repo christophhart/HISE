@@ -346,6 +346,65 @@ private:
 
 
 
+
+
+
+
+/** A simple container holding NUM_POLYPHONIC_VOICES elements of the given ObjectType
+*
+*	In order to make this work, the ObjectType must have a standard constructor.
+*/
+template <class ObjectType> class FixedVoiceAmountArray
+{
+public:
+	explicit FixedVoiceAmountArray(int numInArray):
+		numUsed(jlimit<int>(0, NUM_POLYPHONIC_VOICES, numInArray))
+	{}
+
+	inline ObjectType& operator[](int index) const
+	{
+		if (isPositiveAndBelow(index, numUsed))
+		{
+			auto r = const_cast<ObjectType*>(data + index);
+			return *r;
+		}
+		else
+		{
+			jassertfalse;
+			auto r = const_cast<ObjectType*>(&fallback);
+			return *r;
+		}
+	}
+
+	FixedVoiceAmountArray(FixedVoiceAmountArray&& other) :
+		numUsed(other.numUsed)
+	{
+		
+	}
+
+	int size() const noexcept { return numUsed; };
+
+	inline ObjectType* begin() const noexcept
+	{
+		ObjectType* d = const_cast<ObjectType*>(data);
+		return d;
+	}
+
+	inline ObjectType* end() const noexcept
+	{
+		ObjectType* d = const_cast<ObjectType*>(data);
+		return d + numUsed;
+	}
+
+private:
+
+	const size_t numUsed;
+
+	ObjectType data[NUM_POLYPHONIC_VOICES];
+	ObjectType fallback;
+};
+
+
 /** A wrapper around moodycamels ReaderWriterQueue with more JUCE like interface and some assertions. */
 template <class ElementType> class LockfreeQueue
 {

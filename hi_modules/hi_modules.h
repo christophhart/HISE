@@ -145,6 +145,8 @@ END_JUCE_MODULE_DECLARATION
 #include "effects/MdaEffectWrapper.h"
 
 #include "effects/fx/RouteFX.h"
+#include "effects/fx/FilterTypes.h"
+#include "effects/fx/FilterHelpers.h"
 #include "effects/fx/Filters.h"
 #include "effects/fx/HarmonicFilter.h"
 #include "effects/fx/CurveEq.h"

@@ -40,7 +40,8 @@ xFadeChain(new ModulatorChain(mc, "X-Fade Modulation", numVoices_, Modulation::G
 filterBandIndex(OneBand),
 currentCrossfadeValue(0.5f),
 semiToneTranspose(0),
-timeVariantFreqModulatorBuffer(1, 0)
+timeVariantFreqModulatorBuffer(1, 0),
+filterBanks(numVoices_)
 {
     parameterNames.add("NumFilterBands");
     parameterNames.add("QFactor");
@@ -120,48 +121,24 @@ void HarmonicFilter::setQ(float newQ)
 {
 	q = newQ;
 
-	for (int i = 0; i < harmonicFilters.size(); i++)
+	for (auto& filterBank : filterBanks)
 	{
-		for (int j = 0; j < harmonicFilters[i]->voiceFilters.size(); j++)
-		{
-			harmonicFilters[i]->voiceFilters[j]->setAttribute(MonoFilterEffect::Q, newQ, dontSendNotification);
-			if(getSampleRate() > 0.0) harmonicFilters[i]->voiceFilters[j]->calcCoefficients();
-		}
+		filterBank.setQ(newQ);
 	}
 }
 
 void HarmonicFilter::setNumFilterBands(int newFilterBandIndex)
 {
-	const int numBands = getNumBandForFilterBandIndex((FilterBandNumbers)newFilterBandIndex);
+	numBands = getNumBandForFilterBandIndex((FilterBandNumbers)newFilterBandIndex);
 
 	filterBandIndex = newFilterBandIndex;
-
-	harmonicFilters.clear();
 
 	dataA->setNumSliders(numBands);
 	dataB->setNumSliders(numBands);
 	dataMix->setNumSliders(numBands);
 
-	for (int i = 0; i < numBands; i++)
-	{
-		PolyFilterEffect *poly = new PolyFilterEffect(getMainController(), String(i), numVoices);
-
-		poly->setAttribute(MonoFilterEffect::Q, q, dontSendNotification);
-		poly->setAttribute(MonoFilterEffect::Mode, MonoFilterEffect::FilterMode::Peak, dontSendNotification);
-		poly->setAttribute(MonoFilterEffect::Gain, 0.0f, dontSendNotification);
-
-		if (getSampleRate() > 0)
-		{
-			poly->prepareToPlay(getSampleRate(), getLargestBlockSize());
-		}
-
-		for (int j = 0; j < numVoices; j++)
-		{
-			poly->voiceFilters[j]->setUseFixedFrequency(true);
-		}
-
-		harmonicFilters.add(poly);
-	}
+	for (auto& filterBank : filterBanks)
+		filterBank.setNumBands(numBands);
 }
 
 void HarmonicFilter::setSemitoneTranspose(float newValue)
@@ -175,9 +152,9 @@ void HarmonicFilter::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 	ProcessorHelpers::increaseBufferIfNeeded(timeVariantFreqModulatorBuffer, samplesPerBlock);
 
-	for (int i = 0; i < harmonicFilters.size(); i++)
+	for (auto& filterBank : filterBanks)
 	{
-		harmonicFilters[i]->prepareToPlay(sampleRate, samplesPerBlock);
+		filterBank.setSampleRate(sampleRate);
 	}
 }
 
@@ -192,31 +169,8 @@ void HarmonicFilter::startVoice(int voiceIndex, int noteNumber)
 
 	const float freq = (float)MidiMessage::getMidiNoteInHertz(noteNumber + semiToneTranspose);
 
-	for (int i = 0; i < harmonicFilters.size(); i++)
-	{
-		const float freqForThisHarmonic = freq * (float)(i + 1);
-
-		if (freqForThisHarmonic >(getSampleRate() * 0.4)) // Spare frequencies above Nyquist
-		{
-			MonoFilterEffect *filter = harmonicFilters[i]->voiceFilters[voiceIndex];
-
-			filter->currentFilter->reset();
-			
-			harmonicFilters[i]->voiceFilters[voiceIndex]->setBypassed(true);
-		}
-		else
-		{
-			harmonicFilters[i]->voiceFilters[voiceIndex]->setBypassed(false);
-
-			harmonicFilters[i]->voiceFilters[voiceIndex]->setAttribute(MonoFilterEffect::Frequency, freqForThisHarmonic, dontSendNotification);
-
-			// harmonicFilters[i]->startVoice(voiceIndex, noteNumber); // Don't need the modulator chains
-			
-			MonoFilterEffect *filter = harmonicFilters[i]->voiceFilters[voiceIndex];
-
-			filter->currentFilter->reset();
-		}
-	}
+	filterBanks[voiceIndex].reset();
+	filterBanks[voiceIndex].updateBaseFrequency(freq);
 }
 
 void HarmonicFilter::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples)
@@ -238,25 +192,16 @@ void HarmonicFilter::applyEffect(int voiceIndex, AudioSampleBuffer &b, int start
 		xModValue = currentCrossfadeValue;
 	}
 
-	for (int i = 0; i < harmonicFilters.size(); i++)
-	{
-		//const float gainValue = dataMix->getValue(i);
+	auto& filterBank = filterBanks[voiceIndex];
 
+	for (int i = 0; i < numBands; i++)
+	{
 		const float gainValue = Interpolator::interpolateLinear(dataA->getValue(i), dataB->getValue(i), (float)xModValue);
 
-		if (gainValue == 0.0f || harmonicFilters[i]->voiceFilters[voiceIndex]->isBypassed())
-		{
-			continue;
-		}
-		else
-		{
-			harmonicFilters[i]->voiceFilters[voiceIndex]->setAttribute(MonoFilterEffect::Gain, gainValue, dontSendNotification);
-			//harmonicFilters[i]->voiceFilters[voiceIndex]->calcCoefficients();
-			harmonicFilters[i]->voiceFilters[voiceIndex]->applyEffect(b, startSample, numSamples);
-		}
-
-
+		filterBank.updateBand(i, gainValue);
 	}
+
+	filterBank.processSamples(b, startSample, numSamples);
 }
 
 ProcessorEditorBody * HarmonicFilter::createEditor(ProcessorEditor *parentEditor)
@@ -341,7 +286,8 @@ xFadeChain(new ModulatorChain(mc, "X-Fade Modulation", 1, Modulation::GainMode, 
 filterBandIndex(OneBand),
 currentCrossfadeValue(0.5f),
 semiToneTranspose(0),
-timeVariantFreqModulatorBuffer(1, 0)
+timeVariantFreqModulatorBuffer(1, 0),
+filterBank()
 {
 	editorStateIdentifiers.add("XFadeChainShown");
 
@@ -361,8 +307,6 @@ timeVariantFreqModulatorBuffer(1, 0)
 	setNumFilterBands(filterBandIndex);
 
 	setQ(q);
-    
-    
 }
 
 void HarmonicMonophonicFilter::setInternalAttribute(int parameterIndex, float newValue)
@@ -421,46 +365,20 @@ void HarmonicMonophonicFilter::restoreFromValueTree(const ValueTree &v)
 
 void HarmonicMonophonicFilter::setQ(float newQ)
 {
+	filterBank.setQ(newQ);
 	q = newQ;
-
-	for (int i = 0; i < harmonicFilters.size(); i++)
-	{
-		harmonicFilters[i]->setAttribute(MonoFilterEffect::Q, newQ, dontSendNotification);
-
-		if (getSampleRate() > 0.0) harmonicFilters[i]->calcCoefficients();
-	}
 }
 
 void HarmonicMonophonicFilter::setNumFilterBands(int newFilterBandIndex)
 {
-	const int numBands = getNumBandForFilterBandIndex((FilterBandNumbers)newFilterBandIndex);
+	numBands = getNumBandForFilterBandIndex((FilterBandNumbers)newFilterBandIndex);
 
 	filterBandIndex = newFilterBandIndex;
-
-	harmonicFilters.clear();
 
 	dataA->setNumSliders(numBands);
 	dataB->setNumSliders(numBands);
 	dataMix->setNumSliders(numBands);
-
-	for (int i = 0; i < numBands; i++)
-	{
-		MonoFilterEffect *mono = new MonoFilterEffect(getMainController(), String(i));
-
-		mono->setAttribute(MonoFilterEffect::Q, q, dontSendNotification);
-		mono->setAttribute(MonoFilterEffect::Mode, MonoFilterEffect::FilterMode::Peak, dontSendNotification);
-		mono->setAttribute(MonoFilterEffect::Gain, 0.0f, dontSendNotification);
-
-		if (getSampleRate() > 0)
-		{
-			mono->prepareToPlay(getSampleRate(), getLargestBlockSize());
-		}
-
-		mono->setUseFixedFrequency(true);
-		mono->setUseInternalChains(false);
-		
-		harmonicFilters.add(mono);
-	}
+	filterBank.setNumBands(numBands);
 }
 
 void HarmonicMonophonicFilter::setSemitoneTranspose(float newValue)
@@ -472,10 +390,7 @@ void HarmonicMonophonicFilter::prepareToPlay(double sampleRate, int samplesPerBl
 {
 	MonophonicEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
-	for (int i = 0; i < harmonicFilters.size(); i++)
-	{
-		harmonicFilters[i]->prepareToPlay(sampleRate, samplesPerBlock);
-	}
+	filterBank.setSampleRate(sampleRate);
 }
 void HarmonicMonophonicFilter::startMonophonicVoice(int noteNumber)
 {
@@ -483,37 +398,13 @@ void HarmonicMonophonicFilter::startMonophonicVoice(int noteNumber)
 
 	const float freq = (float)MidiMessage::getMidiNoteInHertz(noteNumber + semiToneTranspose);
 
-	for (int i = 0; i < harmonicFilters.size(); i++)
-	{
-		const float freqForThisHarmonic = freq * (float)(i + 1);
-
-		if (freqForThisHarmonic >(getSampleRate() * 0.4)) // Spare frequencies above Nyquist
-		{
-			MonoFilterEffect *filter = harmonicFilters[i];
-
-			filter->currentFilter->reset();
-
-			filter->setBypassed(true);
-		}
-		else
-		{
-			MonoFilterEffect *filter = harmonicFilters[i];
-
-			filter->setBypassed(false);
-
-			filter->setAttribute(MonoFilterEffect::Frequency, freqForThisHarmonic, dontSendNotification);
-
-			filter->currentFilter->reset();
-		}
-
-	}
+	filterBank.reset();
+	filterBank.updateBaseFrequency(freq);
 }
 
 void HarmonicMonophonicFilter::applyEffect(AudioSampleBuffer &b, int startSample, int numSamples)
 {
 	double xModValue;
-
-	
 
 	if (xFadeChain->getHandler()->getNumProcessors() > 0)
 	{
@@ -530,20 +421,14 @@ void HarmonicMonophonicFilter::applyEffect(AudioSampleBuffer &b, int startSample
 		xModValue = currentCrossfadeValue;
 	}
 
-	for (int i = 0; i < harmonicFilters.size(); i++)
+	for (int i = 0; i < numBands; i++)
 	{
 		const float gainValue = Interpolator::interpolateLinear(dataA->getValue(i), dataB->getValue(i), (float)xModValue);
 
-		if (gainValue == 0.0f || harmonicFilters[i]->isBypassed())
-		{
-			continue;
-		}
-		else
-		{
-			harmonicFilters[i]->setAttribute(MonoFilterEffect::Gain, gainValue, dontSendNotification);
-			harmonicFilters[i]->applyEffect(b, startSample, numSamples);
-		}
+		filterBank.updateBand(i, gainValue);
 	}
+
+	filterBank.processSamples(b, startSample, numSamples);
 }
 
 ProcessorEditorBody * HarmonicMonophonicFilter::createEditor(ProcessorEditor *parentEditor)
