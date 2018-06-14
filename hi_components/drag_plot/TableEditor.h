@@ -321,6 +321,31 @@ class TableEditor : public Component,
 {
 public:
 
+	/** This listener can be used to react on user interaction to display stuff.
+	*
+	*	It shouldn't be used for any kind of serious data processing though...
+	*/
+	struct Listener
+	{
+		virtual ~Listener() {};
+
+		/** Will be called when the user starts dragging a point. */
+		virtual void pointDragStarted(Point<int> position, int index, float value) = 0;
+
+		/** Will be called when the user stops dragging a point. */
+		virtual void pointDragEnded() = 0;
+
+		/** Called while the point is being dragged. */
+		virtual void pointDragged(Point<int> position, int index, float value) = 0;
+
+		/** Called when the user changes a curve. The position will be the middle between the points. */
+		virtual void curveChanged(Point<int> position, float curveValue) = 0;
+
+	private:
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+	};
+
 	enum ColourIds
 	{
 		bgColour = 1024,
@@ -346,6 +371,8 @@ public:
 	explicit TableEditor(UndoManager* undoManager, Table *tableToBeEdited=nullptr);
 
 	~TableEditor();
+
+
 
 	void paint(Graphics&) override;
 
@@ -487,6 +514,16 @@ public:
 	void paintOverChildren(Graphics& g)
 	{
 		CopyPasteTarget::paintOutlineIfSelected(g);
+	}
+
+	void addListener(Listener* l)
+	{
+		listeners.addIfNotAlreadyThere(l);
+	}
+
+	void removeListener(Listener* l)
+	{
+		listeners.removeAllInstancesOf(l);
 	}
 
 private:
@@ -829,6 +866,8 @@ private:
 	bool flatDesign = false;
 
 	Array<float> snapValues;
+
+	Array<WeakReference<Listener>> listeners;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TableEditor)

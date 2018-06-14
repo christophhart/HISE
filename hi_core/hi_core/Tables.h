@@ -46,6 +46,10 @@ class Table: public SafeChangeBroadcaster
 {
 public:
 
+	static String getDefaultTextValue(float input) { return String(roundFloatToInt(input * 100.0f)) + "%"; };
+
+	using ValueTextConverter = std::function<String(float)>;
+
 	/** A Table can use two data types. */
 	enum DataType
 	{
@@ -56,7 +60,7 @@ public:
 	/** Creates a new table of the specified type. */
 	Table();
 
-	virtual ~Table() { masterReference.clear();	};
+	virtual ~Table();;
 
 	/** Overwrite this and return the table size. */
 	virtual int getTableSize() const = 0;
@@ -175,8 +179,38 @@ public:
 		return lock;
 	};
 
-		/** Overwrite this and return a pointer to the data array. */
+	/** Overwrite this and return a pointer to the data array. */
 	virtual float *getWritePointer() = 0;
+
+	/** This returns a String that can be used for displaying purposes.
+	*
+	*	You can supply a lambda for the conversion using setTextConverter().
+	*/
+	String getXValueText(float value)
+	{
+		if (xConverter)
+			return xConverter(value);
+		else
+			return String(value, 2);
+	}
+
+	String getYValueText(float value)
+	{
+		if (yConverter)
+			return yConverter(value);
+		else
+			return String(value, 2);
+	}
+
+	void setXTextConverter(const ValueTextConverter& converter)
+	{
+		xConverter = converter;
+	}
+
+	void setYTextConverter(const ValueTextConverter& converter)
+	{
+		yConverter = converter;
+	}
 
 private:
 
@@ -199,6 +233,9 @@ private:
 	CriticalSection lock;
 
 	Array<GraphPoint> graphPoints;
+
+	ValueTextConverter xConverter;
+	ValueTextConverter yConverter;
 };
 
 

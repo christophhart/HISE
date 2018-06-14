@@ -52,6 +52,33 @@ TableEnvelope::TableEnvelope(MainController *mc, const String &id, int voiceAmou
 
 	monophonicState = createSubclassedState(-1);
 
+	WeakReference<Processor> t = this;
+
+	auto attackConverter = [t](float input)
+	{
+		if (t != nullptr)
+		{
+			auto time = t->getAttribute(TableEnvelope::SpecialParameters::Attack);
+			return String(roundFloatToInt(input * time)) + " ms";
+		}
+
+		return String();
+	};
+
+	auto releaseConverter = [t](float input)
+	{
+		if (t != nullptr)
+		{
+			auto time = t->getAttribute(TableEnvelope::SpecialParameters::Release);
+			return String(roundFloatToInt(input * time)) + " ms";
+		}
+
+		return String();
+	};
+
+	attackTable->setXTextConverter(attackConverter);
+	releaseTable->setXTextConverter(releaseConverter);
+
 	attackChain->setIsVoiceStartChain(true);
 	releaseChain->setIsVoiceStartChain(true);
 

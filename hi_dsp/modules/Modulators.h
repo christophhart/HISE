@@ -52,6 +52,27 @@ class Modulation
 {
 public:
 
+	static String getDomainAsMidiRange(float input)
+	{
+		return String(roundFloatToInt(input*127.0f));
+	};
+
+	static String getDomainAsPitchBendRange(float input)
+	{
+		auto v = jmap<float>(input, -8192.0f, 8192.0f);
+		return String(roundFloatToInt(v));
+	};
+
+	static String getDomainAsMidiNote(float input)
+	{
+		return MidiMessage::getMidiNoteName(roundFloatToInt(input*127.0f), true, true, 3);
+	};
+
+	static String getValueAsDecibel(float input)
+	{
+		return String(Decibels::gainToDecibels(input), 1) + " dB";
+	};
+
 	/** There are two modes that Modulation can work: GainMode and PitchMode */
 	enum Mode
 	{

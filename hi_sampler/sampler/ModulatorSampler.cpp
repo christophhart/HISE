@@ -170,6 +170,7 @@ temporaryVoiceBuffer(true, 2, 0)
 	for (int i = 0; i < 8; i++)
 	{
 		crossfadeTables.add(new SampleLookupTable());
+		crossfadeTables.getLast()->setYTextConverter(Modulation::getValueAsDecibel);
 	}
 
 	getMatrix().setAllowResizing(true);

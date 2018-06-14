@@ -63,6 +63,8 @@ public:
         decibelMode(false),
 		velocityTable(new MidiTable())
 	{ 
+		velocityTable->setXTextConverter(Modulation::getDomainAsMidiRange);
+
 		parameterNames.add("Inverted");
 		parameterNames.add("UseTable");
         parameterNames.add("DecibelMode");

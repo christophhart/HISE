@@ -46,6 +46,8 @@ MPEModulator::MPEModulator(MainController *mc, const String &id, int voiceAmount
 {
 	setAttribute(DefaultValue, getDefaultValue(DefaultValue), dontSendNotification);
 
+	table->setXTextConverter(Modulation::getDomainAsMidiRange);
+
 	parameterNames.add("GestureCC");
 	parameterNames.add("SmoothingTime");
 	parameterNames.add("DefaultValue");
@@ -127,6 +129,8 @@ void MPEModulator::setInternalAttribute(int parameterIndex, float newValue)
 	else if (parameterIndex == SpecialParameters::GestureCC)
 	{
 		g = (Gesture)(int)newValue;
+
+		table->setXTextConverter(g == Slide ? Modulation::getDomainAsPitchBendRange : Modulation::getDomainAsMidiRange);
 
 		for (int i = 0; i < states.size(); i++)
 			reset(i);

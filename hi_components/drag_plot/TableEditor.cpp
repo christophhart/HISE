@@ -48,6 +48,7 @@ TableEditor::TableEditor(UndoManager* undoManager_, Table *tableToBeEdited):
 
 	addAndMakeVisible(ruler = new Ruler());
 
+	fontToUse = GLOBAL_BOLD_FONT();
 	
 	setColour(ColourIds::bgColour, Colours::transparentBlack);
 	setColour(ColourIds::fillColour, Colours::white.withAlpha(0.2f));
@@ -112,6 +113,12 @@ void TableEditor::mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &w
 
 	int thisIndex = drag_points.indexOf(dp);
 
+	int prevIndex = thisIndex - 1;
+
+	DragPoint* pp = drag_points[prevIndex];
+
+	
+
 #if USE_BACKEND
 	const bool useEvent = dp != nullptr && (e.mods.isCtrlDown() || findParentComponentOfClass<ProcessorEditorContainer>() == nullptr);
 #else
@@ -130,6 +137,24 @@ void TableEditor::mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &w
 
 		if (editedTable.get() != nullptr)
 			editedTable->sendSynchronousChangeMessage();
+
+		if (pp != nullptr)
+		{
+			auto curveValue = dp->getCurve();
+
+			auto l = Rectangle<int>(pp->getPos(), dp->getPos());
+			auto middle = l.getCentre();
+
+			for (auto l : listeners)
+			{
+				if (l.get() != nullptr)
+				{
+					l->curveChanged(middle, curveValue);
+				}
+			}
+			
+		}
+
 	}
 
 	else getParentComponent()->mouseWheelMove(e, wheel);
@@ -244,38 +269,29 @@ void TableEditor::paint (Graphics& g)
     
     
 #if !HISE_IOS
-    if (currently_dragged_point != nullptr)
+    if (currently_dragged_point != nullptr && (findParentComponentOfClass<ScriptContentComponent>() == nullptr))
     {
         int index = drag_points.indexOf(currently_dragged_point);
         
         DragPoint *dp = currently_dragged_point;
         
-        g.setFont(GLOBAL_MONOSPACE_FONT());
+        g.setFont(fontToUse);
         
-        float domainValue = dp->getGraphPoint().x;
-        String domainString;
+        auto xName = editedTable->getXValueText(dp->getGraphPoint().x);
+		auto yName = editedTable->getYValueText(dp->getGraphPoint().y);
+
         
-        if (currentType == DomainType::originalSize)
-        {
-            domainValue = domainValue * (this->editedTable->getTableSize() - 1);
-            domainString = String((int)domainValue);
-        }
-        else if (currentType == DomainType::scaled)
-        {
-            jassert(!domainRange.isEmpty());
-            domainValue = domainValue * domainRange.getLength() + domainRange.getStart();
-            domainString = String((int)domainValue);
-        }
-        else
-        {
-            domainString = String(domainValue, 2);
-        }
+		String text = xName + " | " + yName;
         
-        String text = String("#") + String(index) + ": " + domainString + ", " + String(dp->getGraphPoint().y, 2);
+		int boxWidth = fontToUse.getStringWidth(text) + 10;
+		int boxHeight = fontToUse.getHeight() + 10;
         
-        
+		int x_ = jlimit<int>(0, getWidth() - boxWidth, dp->getPos().x - boxWidth / 2);
+		int y_ = jlimit<int>(0, getHeight() - boxHeight, dp->getPos().y - 20);
+
         g.setColour(Colour(0xBBffffff));
-        juce::Rectangle<int> textBox(dp->getPos().x > getWidth() - 80 ? getWidth() - 80 : dp->getPos().x, dp->getPos().y > getHeight() - 12 ? getHeight() - 12 : dp->getPos().y, 80, 12);
+
+        juce::Rectangle<int> textBox(x_, y_, boxWidth, boxHeight);
         
         g.fillRect(textBox);
         g.setColour(Colour(0xDD000000));
@@ -395,6 +411,8 @@ void TableEditor::mouseDown(const MouseEvent &e)
     
 	grabCopyAndPasteFocus();
 
+	
+
 	MouseEvent parentEvent = e.getEventRelativeTo(this);
 	int x = parentEvent.getMouseDownPosition().getX();
 	int y = parentEvent.getMouseDownPosition().getY();
@@ -413,6 +431,16 @@ void TableEditor::mouseDown(const MouseEvent &e)
 			currently_dragged_point = dp;
 
 			showTouchOverlay();
+
+			auto x = roundFloatToInt(dp->getGraphPoint().x * (float)(this->editedTable->getTableSize() - 1));
+
+			for (auto l : listeners)
+			{
+				if (l.get() != nullptr)
+				{
+					l->pointDragStarted(dp->getPosition(), x,  dp->getGraphPoint().y);
+				}
+			}
 		}
 		else
 		{
@@ -422,6 +450,8 @@ void TableEditor::mouseDown(const MouseEvent &e)
 			x = snapXValueToGrid(x);
 
 			addDragPoint(x, y, 0.5f, false, false, true);
+
+			
 		}
 	}
 	else
@@ -517,6 +547,14 @@ void TableEditor::mouseUp(const MouseEvent &)
 
 	if(editedTable.get() != nullptr) editedTable->sendSynchronousChangeMessage();
 	
+	for (auto l : listeners)
+	{
+		if (l.get() != nullptr)
+		{
+			l->pointDragEnded();
+		}
+	}
+
 	needsRepaint = true;
 	repaint();
 }
@@ -544,7 +582,15 @@ void TableEditor::mouseDrag(const MouseEvent &e)
 
 	changePointPosition(index, x, y, true);
 
+	auto x_ = roundFloatToInt(currently_dragged_point->getGraphPoint().x * (float)(this->editedTable->getTableSize() - 1));
 
+	for (auto l : listeners)
+	{
+		if (l.get() != nullptr)
+		{
+			l->pointDragged(currently_dragged_point->getPosition(), x_, currently_dragged_point->getGraphPoint().y);
+		}
+	}
 };
 
 void TableEditor::showTouchOverlay()

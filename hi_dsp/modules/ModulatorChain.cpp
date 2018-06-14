@@ -257,6 +257,16 @@ void ModulatorChain::setIsVoiceStartChain(bool isVoiceStartChain_)
 	}
 }
 
+ModulatorChain::ModulatorChainHandler::ModulatorChainHandler(ModulatorChain *handledChain) : 
+	chain(handledChain),
+	tableValueConverter(Table::getDefaultTextValue)
+{
+	
+	
+
+	
+}
+
 void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator, Processor *siblingToInsertBefore)
 {
 	newModulator->setColour(chain->getColour());
@@ -302,6 +312,33 @@ void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator
 		if (JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(newModulator))
 		{
 			sp->compileScript();
+		}
+	}
+
+	if (auto ltp = dynamic_cast<LookupTableProcessor*>(newModulator))
+	{
+		WeakReference<Modulator> mod = newModulator;
+
+		auto& cf = tableValueConverter;
+
+		auto f = [mod, cf](float input)
+		{
+			if (mod.get() != nullptr)
+			{
+				auto intensity = dynamic_cast<Modulation*>(mod.get())->getIntensity();
+
+				auto v = jmap<float>(input, 1.0f - intensity, 1.0f);
+
+				return cf(v);
+			}
+
+			return String();
+		};
+
+		for (int i = 0; i < ltp->getNumTables(); i++)
+		{
+			auto table = ltp->getTable(i);
+			table->setYTextConverter(f);
 		}
 	}
 

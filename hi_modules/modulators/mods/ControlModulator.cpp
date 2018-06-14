@@ -50,6 +50,8 @@ ControlModulator::ControlModulator(MainController *mc, const String &id, Modulat
 	
 	table->setLengthInSamples(512);
 	
+	table->setXTextConverter(Modulation::getDomainAsMidiRange);
+
 	for (int i = 0; i < 128; i++)
 	{
 		polyValues[i] = -1.0;
