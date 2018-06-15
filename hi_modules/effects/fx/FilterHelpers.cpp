@@ -268,7 +268,7 @@ void FilterBank::reset()
 
 juce::IIRCoefficients FilterBank::getCurrentCoefficients() const noexcept
 {
-	return FilterEffect::getDisplayCoefficients(mode, frequency, q, gain, sampleRate);
+	return FilterEffect::getDisplayCoefficients(mode, frequency * freqModValue, q, gain * gainModValue, sampleRate);
 }
 
 void FilterBank::setQ(double newQ)
