@@ -32,6 +32,13 @@ NamedValueSet::NamedValueSet (const NamedValueSet& other)
 {
 }
 
+#if JUCE_COMPILER_SUPPORTS_INITIALIZER_LISTS
+NamedValueSet::NamedValueSet(const std::initializer_list<NamedValue>& items) noexcept
+	: values(items)
+{}
+#endif
+
+
 NamedValueSet& NamedValueSet::operator= (const NamedValueSet& other)
 {
     clear();
