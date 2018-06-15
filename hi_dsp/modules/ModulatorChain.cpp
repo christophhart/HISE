@@ -61,7 +61,14 @@ Chain::Handler *ModulatorChain::getHandler() {return &handler;};
 
 bool ModulatorChain::shouldBeProcessed(bool checkPolyphonicModulators) const
 { 
+ 	return !isBypassed() && (checkPolyphonicModulators || handler.hasActiveMonoModulators()) ||
+							(!checkPolyphonicModulators || handler.hasActivePolyModulators());
+
+#if 0
 	if (isBypassed())
+		return false;
+
+	if (!handler.isActive())
 		return false;
 
 	if (checkPolyphonicModulators)
@@ -84,6 +91,7 @@ bool ModulatorChain::shouldBeProcessed(bool checkPolyphonicModulators) const
 
 		return false;
 	}
+#endif
 };
 
 void ModulatorChain::reset(int voiceIndex)
@@ -267,6 +275,23 @@ ModulatorChain::ModulatorChainHandler::ModulatorChainHandler(ModulatorChain *han
 	
 }
 
+void ModulatorChain::ModulatorChainHandler::bypassStateChanged(Processor* p, bool bypassState)
+{
+	jassert(dynamic_cast<Modulator*>(p) != nullptr);
+
+	if (bypassState)
+	{
+		if (dynamic_cast<VoiceModulation*>(p) != nullptr)
+			activePoly = true;
+		else
+			activeMono = true;
+	}
+	else
+	{
+		checkActiveState();
+	}
+}
+
 void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator, Processor *siblingToInsertBefore)
 {
 	newModulator->setColour(chain->getColour());
@@ -277,6 +302,8 @@ void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator
 	}
 
 	newModulator->setConstrainerForAllInternalChains(chain->getFactoryType()->getConstrainer());
+
+	newModulator->addBypassListener(this);
 
 	if (chain->isInitialized())
 		newModulator->prepareToPlay(chain->getSampleRate(), chain->blockSize);
@@ -292,20 +319,28 @@ void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator
 		{
 			VoiceStartModulator *m = static_cast<VoiceStartModulator*>(newModulator);
 			chain->voiceStartModulators.add(m);
+
+			activePoly = true;
 		}
 		else if (dynamic_cast<EnvelopeModulator*>(newModulator) != nullptr)
 		{
 			EnvelopeModulator *m = static_cast<EnvelopeModulator*>(newModulator);
 			chain->envelopeModulators.add(m);
+
+			activePoly = true;
 		}
 		else if (dynamic_cast<TimeVariantModulator*>(newModulator) != nullptr)
 		{
 			TimeVariantModulator *m = static_cast<TimeVariantModulator*>(newModulator);
 			chain->variantModulators.add(m);
+
+			activeMono = true;
 		}
 		else jassertfalse;
 
 		chain->allModulators.insert(index, newModulator);
+
+		
 
 		jassert(chain->checkModulatorStructure());
 
@@ -387,6 +422,8 @@ void ModulatorChain::ModulatorChainHandler::deleteModulator(Modulator *modulator
 {
 	notifyListeners(Listener::ProcessorDeleted, modulatorToBeDeleted);
 
+	modulatorToBeDeleted->removeBypassListener(this);
+
 	for(int i = 0; i < getNumModulators(); ++i)
 	{
 		if(chain->allModulators[i] == modulatorToBeDeleted) chain->allModulators.remove(i);
@@ -408,6 +445,8 @@ void ModulatorChain::ModulatorChainHandler::deleteModulator(Modulator *modulator
 	};
 
 	jassert(chain->checkModulatorStructure());
+
+	checkActiveState();
 };
 
 
@@ -425,6 +464,45 @@ void ModulatorChain::ModulatorChainHandler::remove(Processor *processorToBeRemov
 	{
 		dynamic_cast<ModulatorSynth*>(chain->getParentProcessor())->enablePitchModulation(false);
 	}
+}
+
+void ModulatorChain::ModulatorChainHandler::checkActiveState()
+{
+	bool newActivePoly = false;
+	bool newActiveMono = false;
+
+	for (auto mod: chain->variantModulators)
+	{
+		if (!mod->isBypassed())
+		{
+			newActiveMono = true;
+			break;
+		}	
+	}
+
+	for (auto mod : chain->envelopeModulators)
+	{
+		if (!mod->isBypassed())
+		{
+			newActivePoly = true;
+			break;
+		}
+	}
+
+	if (!newActivePoly)
+	{
+		for (auto mod : chain->voiceStartModulators)
+		{
+			if (!mod->isBypassed())
+			{
+				newActivePoly = true;
+				break;
+			}
+		}
+	}
+
+	activeMono = newActiveMono;
+	activePoly = newActivePoly;
 }
 
 bool ModulatorChain::isPlaying(int voiceIndex) const

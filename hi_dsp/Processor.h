@@ -477,6 +477,10 @@ public:
 		bypassed = shouldBeBypassed; 
 		currentValues.clear();
 
+		for (auto l : bypassListeners)
+			if (l)
+				l->bypassStateChanged(this, bypassed);
+
 		if (notifyChangeHandler)
 			getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::ProcessorBypassed, false);
 	};
@@ -623,6 +627,15 @@ public:
 	};
 
 	DisplayValues getDisplayValues() const { return currentValues;};
+
+	struct BypassListener
+	{
+		virtual ~BypassListener() {};
+
+		virtual void bypassStateChanged(Processor* p, bool bypassState) = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(BypassListener)
+	};
 
 	/** A iterator over all child processors. 
 	*
@@ -862,6 +875,16 @@ public:
 		}
 	}
 
+	void addBypassListener(BypassListener* l)
+	{
+		bypassListeners.addIfNotAlreadyThere(l);
+	}
+
+	void removeBypassListener(BypassListener* l)
+	{
+		bypassListeners.removeAllInstancesOf(l);
+	}
+
 	void sendRebuildMessage(bool forceUpdate=false)
 	{
 		rebuildDelayer.sendRebuildMessage(forceUpdate);
@@ -974,6 +997,8 @@ private:
 	RebuildDelayer rebuildDelayer;
 
 	Array<WeakReference<DeleteListener>> deleteListeners;
+
+	Array<WeakReference<BypassListener>> bypassListeners;
 
 	CriticalSection dummyLock;
 

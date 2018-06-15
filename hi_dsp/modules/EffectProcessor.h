@@ -184,7 +184,7 @@ protected:
 	{
 		ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(chainIndex));
 
-		if (mc->getNumChildProcessors() == 0)
+		if (!mc->shouldBeProcessed(true) && !mc->shouldBeProcessed(false))
 			return;
 
 		jassert(mc != nullptr);

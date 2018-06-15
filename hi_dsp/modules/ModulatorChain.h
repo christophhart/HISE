@@ -216,7 +216,8 @@ public:
 	*	You can get the handler for each Modulator with ModulatorChain::getHandler().
 	*
 	*/
-	class ModulatorChainHandler : public Chain::Handler
+	class ModulatorChainHandler : public Chain::Handler,
+								  public Processor::BypassListener
 	{
 	public:
 
@@ -224,6 +225,8 @@ public:
 		ModulatorChainHandler(ModulatorChain *handledChain);;
 
 		~ModulatorChainHandler() {};
+
+		void bypassStateChanged(Processor* p, bool bypassState) override;
 
 		/** adds a Modulator to the chain.
 		*
@@ -279,9 +282,15 @@ public:
 		
 		Table::ValueTextConverter tableValueConverter;
 
+		bool hasActivePolyModulators() const noexcept { return activePoly; };
+		bool hasActiveMonoModulators() const noexcept { return activeMono; };
+
 	private:
 
-		
+		void checkActiveState();
+
+		bool activePoly = false;
+		bool activeMono = false;
 
 		ModulatorChain *chain;
 
