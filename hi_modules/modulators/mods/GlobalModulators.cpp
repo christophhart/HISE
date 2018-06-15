@@ -155,6 +155,16 @@ void GlobalModulator::connectToGlobalModulator(const String &itemEntry)
 				connectedContainer = c;
 
 				originalModulator = ProcessorHelpers::getFirstProcessorWithName(c, modulatorId);
+
+				if (auto ltp = dynamic_cast<LookupTableProcessor*>(originalModulator.get()))
+				{
+					auto converter = getTable(0)->getYTextConverter();
+
+					for (int i = 0; i < ltp->getNumTables(); i++)
+					{
+						ltp->getTable(0)->setYTextConverter(converter);
+					}
+				}
 			}
 
 		}

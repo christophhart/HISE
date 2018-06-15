@@ -212,6 +212,11 @@ public:
 		yConverter = converter;
 	}
 
+	ValueTextConverter getYTextConverter()
+	{
+		return yConverter;
+	}
+
 private:
 
 	class GraphPointComparator

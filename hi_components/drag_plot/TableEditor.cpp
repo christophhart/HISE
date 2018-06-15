@@ -563,6 +563,9 @@ void TableEditor::mouseDrag(const MouseEvent &e)
 {
 	if (!isEnabled()) return;
 
+	if (currently_dragged_point == nullptr)
+		return;
+
 	MouseEvent parentEvent = e.getEventRelativeTo(this);
 
 	int x = parentEvent.getDistanceFromDragStartX() + parentEvent.getMouseDownPosition().getX();
