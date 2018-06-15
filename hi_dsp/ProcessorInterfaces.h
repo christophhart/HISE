@@ -44,6 +44,46 @@ class LookupTableProcessor
 {
 public:
 
+	struct ProcessorValueConverter
+	{
+		ProcessorValueConverter() :
+			converter(Table::getDefaultTextValue),
+			processor(nullptr)
+		{};
+
+		ProcessorValueConverter(const Table::ValueTextConverter& c, Processor* p) :
+			converter(c),
+			processor(p)
+		{};
+
+		ProcessorValueConverter(Processor* p) :
+			converter(Table::getDefaultTextValue),
+			processor(p)
+		{};
+
+
+		bool operator==(const ProcessorValueConverter& other) const
+		{
+			return other.processor == processor;
+		}
+
+		explicit operator bool() const
+		{
+			return processor != nullptr;
+		}
+
+		String getDefaultTextValue(float input)
+		{
+			if (processor.get())
+				return converter(input);
+			else
+				return Table::getDefaultTextValue(input);
+		}
+
+		Table::ValueTextConverter converter;
+		WeakReference<Processor> processor;
+	};
+
 	// ================================================================================================================
 
 	struct TableChangeBroadcaster : public SafeChangeBroadcaster
@@ -94,7 +134,55 @@ public:
 	*/
 	void sendTableIndexChangeMessage(bool sendSynchronous, Table *table, float tableIndex);
 
+	void addYValueConverter(const Table::ValueTextConverter& converter, Processor* p)
+	{
+		if (p == dynamic_cast<Processor*>(this))
+			defaultYConverter = converter;
+		else
+		{
+			for (int i = 0; i < yConverters.size(); i++)
+			{
+				auto* thisP = yConverters[i].processor.get();
+
+				if (thisP == nullptr || thisP == p)
+					yConverters.remove(i--);
+			}
+
+			yConverters.add({ converter, p });
+		}
+
+		updateYConverters();
+	}
+
+	void refreshYConvertersAfterRemoval()
+	{
+		for (int i = 0; i < yConverters.size(); i++)
+		{
+			auto* thisP = yConverters[i].processor.get();
+
+			if (thisP == nullptr)
+				yConverters.remove(i--);
+		}
+
+		updateYConverters();
+	}
+
+protected:
+
+	Table::ValueTextConverter defaultYConverter = Table::getDefaultTextValue;
+
 private:
+
+	void updateYConverters()
+	{
+		const auto& cToUse = yConverters.size() == 1 ? yConverters[0].converter : defaultYConverter;
+
+		for (int i = 0; i < getNumTables(); i++)
+			getTable(i)->setYTextConverterRaw(cToUse);
+	}
+
+	Array<ProcessorValueConverter> yConverters;
+	
 
 	TableChangeBroadcaster tableChangeBroadcaster;
 
@@ -278,6 +366,9 @@ public:
 		return loopRange;
 	}
 
+	
+
+	
 protected:
 
 	/** Call this constructor within your subclass constructor. */
@@ -299,6 +390,8 @@ protected:
 	WeakReference<AudioSampleBufferPool> currentPool;
 
 private:
+
+	
 
 	AudioSampleBuffer fallback;
 

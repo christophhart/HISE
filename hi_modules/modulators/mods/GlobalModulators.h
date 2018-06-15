@@ -59,18 +59,12 @@ public:
 		numTypes
 	};
 
-	
-
 	virtual ModulatorType getModulatorType() const = 0;
-
 	virtual ~GlobalModulator();
 
 	Table *getTable(int /*tableIndex*/) const override { return table; }
-
 	Modulator *getOriginalModulator();
-
 	const Modulator *getOriginalModulator() const;
-
 	GlobalModulatorContainer *getConnectedContainer();
 
 	void processorChanged(EventType t, Processor* p) override;
@@ -86,7 +80,6 @@ public:
 	static String getItemEntryFor(const GlobalModulatorContainer *c, const Processor *p);
 
 	void saveToValueTree(ValueTree &v) const;
-
 	void loadFromValueTree(const ValueTree &v);
 
 protected:

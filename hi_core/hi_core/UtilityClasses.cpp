@@ -787,7 +787,7 @@ String BalanceCalculator::getBalanceAsString(int balanceValue)
 {
 	if (balanceValue == 0) return "C";
 
-	else return String(balanceValue) + (balanceValue > 0 ? "R" : "L");
+	else return String(abs(balanceValue)) + (balanceValue > 0 ? " R" : " L");
 }
 
 SafeFunctionCall::SafeFunctionCall(Processor* p_, const ProcessorFunction& f_) :

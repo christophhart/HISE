@@ -51,17 +51,30 @@ filterCollection(1)
 		if (t != nullptr)
 		{
 			auto freq = t->getAttribute(MonoFilterEffect::Parameters::Frequency);
-
 			auto v = jmap<float>(input , 20.0f, freq);
-			return String(roundFloatToInt(v)) + " Hz";
+			return HiSlider::getFrequencyString(v);
 		}
 
-		return String();
+		return Table::getDefaultTextValue(input);
 	};
 
 	freqChain->setTableValueConverter(f);
 	bipolarFreqChain->setTableValueConverter(f);
-	gainChain->setTableValueConverter(getTableValueAsGain);
+
+
+	auto fg = [t](float input)
+	{
+		if (t != nullptr)
+		{
+			auto g = t->getAttribute(MonoFilterEffect::Parameters::Gain);
+			auto v = (input - 0.5f) * 2.0f * g;
+			return String(v, 1) + " dB";
+		}
+
+		return Table::getDefaultTextValue(input);
+	};
+
+	gainChain->setTableValueConverter(fg);
 
 	editorStateIdentifiers.add("FrequencyChainShown");
 	editorStateIdentifiers.add("GainChainShown");
@@ -280,23 +293,34 @@ voiceFilters(numVoices)
 		if (t != nullptr)
 		{
 			auto freq = t->getAttribute(MonoFilterEffect::Parameters::Frequency);
-
 			auto v = jmap<float>(input, 20.0f, freq);
-			return String(roundFloatToInt(v)) + " Hz";
+			return HiSlider::getFrequencyString(v);
 		}
 
-		return String();
+		return Table::getDefaultTextValue(input);
 	};
 
 	freqChain->setTableValueConverter(f);
 	bipolarFreqChain->setTableValueConverter(f);
-	gainChain->setTableValueConverter(getTableValueAsGain);
+
+
+	auto fg = [t](float input)
+	{
+		if (t != nullptr)
+		{
+			auto g = t->getAttribute(MonoFilterEffect::Parameters::Gain);
+			auto v = (input - 0.5f) * 2.0f * g;
+			return String(v, 1) + " dB";
+		}
+
+		return Table::getDefaultTextValue(input);
+	};
+
+	gainChain->setTableValueConverter(fg);
 
 	editorStateIdentifiers.add("FrequencyChainShown");
 	editorStateIdentifiers.add("GainChainShown");
 	editorStateIdentifiers.add("BipolarFreqChainShown");
-
-	
     
     parameterNames.add("Gain");
     parameterNames.add("Frequency");

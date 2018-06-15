@@ -62,6 +62,23 @@ StereoEffect::StereoEffect(MainController *mc, const String &uid, int numVoices)
 	parameterNames.add("Pan");
 	parameterNames.add("Width");
 
+	auto tmp = WeakReference<Processor>(this);
+
+	auto f = [tmp](float input)
+	{
+		if (tmp.get() != nullptr)
+		{
+			auto normalized = (input - 0.5f) * 2.0f;
+			auto v = tmp->getAttribute(StereoEffect::Pan) * normalized;
+
+			return BalanceCalculator::getBalanceAsString(roundFloatToInt(v));
+		}
+
+		return Table::getDefaultTextValue(input);
+	};
+
+	balanceChain->setTableValueConverter(f);
+
 	editorStateIdentifiers.add("PanChainShown");
 }
 
@@ -89,7 +106,7 @@ float StereoEffect::getDefaultValue(int parameterIndex) const
 {
 	switch (parameterIndex)
 	{
-	case Pan:							return 1.0f;
+	case Pan:							return 0.0f;
 	case Width:							return 100.0f;
 	default:							jassertfalse; return 1.0f;
 	}

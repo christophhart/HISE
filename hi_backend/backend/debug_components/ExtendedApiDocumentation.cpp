@@ -77,6 +77,22 @@ void ExtendedApiDocumentation::init()
 
 	// ==========================================================================================================================================
 
+	CLASS(Content);
+	METHOD(setValuePopupData);
+	PARAMETER(DynamicObject, "JSON Object", "a JSON containing the properties");
+	DESCRIPTION("Customizes the appearance of the Value popups used in Sliders, Tables & SliderPacks.");
+	CODE(R"({)");
+	CODE(R"(  "fontName": "Comic Sans MS",)");
+	CODE(R"(  "fontSize": 18,)");
+	CODE(R"(  "borderSize":)");
+	CODE(R"(  "borderRadius":)");
+	CODE(R"(  "margin": 10,)");
+	CODE(R"(  "bgColour": 0xFFFF0000,)");
+	CODE(R"(  "itemColour": 0xFF00FF00,)");
+	CODE(R"(  "itemColour2": 0xFF0000FF,)");
+	CODE(R"(  "textColour": 0xFF00FFFF)");
+	CODE(R"(};)");
+
 	CLASS(ScriptComponent);
 	SUBCLASS(ScriptSlider);
 	SUBCLASS(ScriptButton);

@@ -52,14 +52,27 @@ useTable(false)
 
 GlobalModulator::~GlobalModulator()
 {
-	DBG("GlobalModulator Destructor");
-
 	for (auto c : watchedContainers)
 	{
 		if (c != nullptr)
 		{
 			c->gainChain->getHandler()->removeListener(this);
 		}
+	}
+
+	if (auto oltp = dynamic_cast<LookupTableProcessor*>(getOriginalModulator()))
+	{
+		WeakReference<Processor> target = getOriginalModulator();
+
+		auto f = [target]()
+		{
+			if (auto ltp = dynamic_cast<LookupTableProcessor*>(target.get()))
+			{
+				ltp->refreshYConvertersAfterRemoval();
+			}
+		};
+
+		new DelayedFunctionCaller(f, 300);
 	}
 
 	table = nullptr;
@@ -158,15 +171,9 @@ void GlobalModulator::connectToGlobalModulator(const String &itemEntry)
 
 				if (auto ltp = dynamic_cast<LookupTableProcessor*>(originalModulator.get()))
 				{
-					auto converter = getTable(0)->getYTextConverter();
-
-					for (int i = 0; i < ltp->getNumTables(); i++)
-					{
-						ltp->getTable(0)->setYTextConverter(converter);
-					}
+					ltp->addYValueConverter(defaultYConverter, dynamic_cast<Processor*>(this));
 				}
 			}
-
 		}
 
 		jassert(isConnected());

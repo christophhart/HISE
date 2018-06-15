@@ -207,7 +207,7 @@ public:
 		xConverter = converter;
 	}
 
-	void setYTextConverter(const ValueTextConverter& converter)
+	void setYTextConverterRaw(const ValueTextConverter& converter)
 	{
 		yConverter = converter;
 	}

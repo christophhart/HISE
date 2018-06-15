@@ -315,31 +315,45 @@ void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator
 		}
 	}
 
+	
+
 	if (auto ltp = dynamic_cast<LookupTableProcessor*>(newModulator))
 	{
 		WeakReference<Modulator> mod = newModulator;
 
 		auto& cf = tableValueConverter;
 
-		auto f = [mod, cf](float input)
+		auto isPitch = chain->getMode() == Modulation::PitchMode;
+
+		auto f = [mod, cf, isPitch](float input)
 		{
 			if (mod.get() != nullptr)
 			{
-				auto intensity = dynamic_cast<Modulation*>(mod.get())->getIntensity();
+				auto modulation = dynamic_cast<Modulation*>(mod.get());
+				auto intensity = modulation->getIntensity();
 
-				auto v = jmap<float>(input, 1.0f - intensity, 1.0f);
+				if (isPitch)
+				{
+					float normalizedInput;
 
-				return cf(v);
+					if (modulation->isBipolar())
+						normalizedInput = (input-0.5f) * intensity * 2.0f;
+					else
+						normalizedInput = (input) * intensity;
+
+					return String(normalizedInput * 12.0f, 1) + " st";
+				}
+				else
+				{
+					auto v = jmap<float>(input, 1.0f - intensity, 1.0f);
+					return cf(v);
+				}
 			}
 
-			return String();
+			return Table::getDefaultTextValue(input);
 		};
 
-		for (int i = 0; i < ltp->getNumTables(); i++)
-		{
-			auto table = ltp->getTable(i);
-			table->setYTextConverter(f);
-		}
+		ltp->addYValueConverter(f, newModulator);
 	}
 
 	chain->sendChangeMessage();

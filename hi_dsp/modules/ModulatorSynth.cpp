@@ -102,9 +102,6 @@ bypassState(false)
 
 	gainChain->setTableValueConverter(Modulation::getValueAsDecibel);
 
-
-	
-
 	disableChain(GainModulation, false);
 	disableChain(PitchModulation, false);
 	disableChain(MidiProcessor, false);

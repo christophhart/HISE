@@ -64,10 +64,73 @@ smoothedGainR(1.0f)
 	gainChain->setFactoryType(new TimeVariantModulatorFactoryType(Modulation::GainMode, this));
     widthChain->setFactoryType(new TimeVariantModulatorFactoryType(Modulation::GainMode, this));
     delayChain->setFactoryType(new TimeVariantModulatorFactoryType(Modulation::GainMode, this));
+	balanceChain->setFactoryType(new TimeVariantModulatorFactoryType(Modulation::GainMode, this));
     
     gainChain->getHandler()->addListener(this);
     widthChain->getHandler()->addListener(this);
     delayChain->getHandler()->addListener(this);
+	balanceChain->getHandler()->addListener(this);
+
+	auto tmp = WeakReference<Processor>(this);
+
+	auto balanceConverter = [tmp](float input)
+	{
+		if (tmp.get() != nullptr)
+		{
+			auto normalized = (input - 0.5f) * 2.0f;
+			auto v = tmp->getAttribute(GainEffect::Parameters::Balance) * normalized;
+
+			return BalanceCalculator::getBalanceAsString(roundFloatToInt(v));
+		}
+
+		return Table::getDefaultTextValue(input);
+	};
+
+	balanceChain->setTableValueConverter(balanceConverter);
+
+	auto widthConverter = [tmp](float input)
+	{
+		if (tmp)
+		{
+			auto v = tmp->getAttribute(GainEffect::Parameters::Width) / 100.0f;
+			const float thisWidth = (v - 1.0f) * input + 1.0f;
+			return String(roundFloatToInt(thisWidth*100.0f)) + "%";
+		}
+
+		return Table::getDefaultTextValue(input);
+	};
+
+	widthChain->setTableValueConverter(widthConverter);
+
+	auto gainConverter = [tmp](float input)
+	{
+		if (tmp)
+		{
+			auto v = Decibels::decibelsToGain(tmp->getAttribute(GainEffect::Parameters::Gain));
+			auto dbValue = Decibels::gainToDecibels(v * input);
+			return String(dbValue, 1) + " dB";
+		}
+
+		return Table::getDefaultTextValue(input);
+	};
+
+	gainChain->setTableValueConverter(gainConverter);
+
+	auto delayConverter = [tmp](float input)
+	{
+		if (tmp)
+		{
+			auto v = Decibels::decibelsToGain(tmp->getAttribute(GainEffect::Parameters::Delay));
+			auto dbValue = Decibels::gainToDecibels(v * input);
+			return String(roundFloatToInt(v)) + " ms";
+		}
+
+		return Table::getDefaultTextValue(input);
+	};
+
+	delayChain->setTableValueConverter(delayConverter);
+
+
 
 }
 
@@ -76,7 +139,7 @@ GainEffect::~GainEffect()
     gainChain->getHandler()->removeListener(this);
     widthChain->getHandler()->removeListener(this);
     delayChain->getHandler()->removeListener(this);
-    
+	balanceChain->getHandler()->removeListener(this);
 }
     
 void GainEffect::setInternalAttribute(int parameterIndex, float newValue)

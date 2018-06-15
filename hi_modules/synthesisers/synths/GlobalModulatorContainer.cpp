@@ -45,6 +45,14 @@ ModulatorSynth(mc, id, numVoices)
 	gainChain->getFactoryType()->setConstrainer(new NoGlobalsConstrainer());
 	gainChain->setId("Global Modulators");
 
+
+	auto f = [](float input)
+	{
+		return "Not assigned";
+	};
+
+	gainChain->setTableValueConverter(f);
+
 	gainChain->getHandler()->addListener(this);
 }
 
