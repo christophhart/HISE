@@ -264,6 +264,8 @@ void ModulatorSynth::startSynthTimer(int index, double interval, int timeStamp)
 
 	if (index >= 0)
 	{
+        anyTimerActive = true;
+        
 		synthTimerIntervals[index] = interval;
 
 		const double thisUptime = getMainController()->getUptime();

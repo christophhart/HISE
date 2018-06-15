@@ -442,6 +442,9 @@ protected:
 
 	bool checkTimerCallback(int timerIndex, int numSamplesThisBlock) const noexcept
 	{
+        if(!anyTimerActive)
+            return false;
+        
 		if (nextTimerCallbackTimes[timerIndex] == 0.0)
 			return false;
 
@@ -511,6 +514,8 @@ private:
 
 	std::atomic<bool> bypassState;
 
+    bool anyTimerActive = false;
+    
 	// ===================================================================================================================
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModulatorSynth)

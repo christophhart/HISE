@@ -117,8 +117,7 @@ public:
 
 	GainEffect(MainController *mc, const String &uid);;
 
-	~GainEffect()
-	{};
+    ~GainEffect();
 
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
 	float getAttribute(int parameterIndex) const override;;

@@ -200,6 +200,8 @@ public:
 
 	struct ModulatorListListener
 	{
+        virtual ~ModulatorListListener() {};
+        
 		virtual void listWasChanged() = 0;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);

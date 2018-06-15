@@ -81,6 +81,20 @@ public:
 	void renderPoly(FilterHelpers::RenderData& r);
 	void renderMono(FilterHelpers::RenderData& r);
 
+    void setDisplayModValues(int voiceIndex, float freqModValue_, float gainModValue_)
+    {
+        if(voiceIndex != displayVoiceIndex)
+            return;
+        
+        freqModValue = freqModValue_;
+        gainModValue = gainModValue_;
+    }
+    
+    void setDisplayVoiceIndex(int v) const
+    {
+        displayVoiceIndex = v;
+    }
+    
 	void reset(int voiceIndex);
 	void reset();
 
@@ -261,6 +275,10 @@ private:
 	float gain = 1.0f;
 	double q = 1.0;
 	
+    float freqModValue = 1.0f;
+    float gainModValue = 1.0f;
+    mutable int displayVoiceIndex = -1;
+    
 	double sampleRate = 44100.0;
 
 	const int numVoices;

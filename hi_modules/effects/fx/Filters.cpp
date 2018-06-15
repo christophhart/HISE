@@ -189,6 +189,8 @@ void MonoFilterEffect::processBlockPartial(AudioSampleBuffer &buffer, int startS
 	r.freqModValue += (double)bipolarIntensity * bipolarFMod;
 	r.gainModValue = (double)getCurrentModulationValue(GainChain, 0, startSample);
 
+    filterCollection.setDisplayModValues(-1, r.freqModValue, r.gainModValue);
+    
 	filterCollection.renderMono(r);
 }
 
@@ -453,6 +455,8 @@ juce::IIRCoefficients PolyFilterEffect::getCurrentCoefficients() const
 		{
 			auto index = v->getVoiceIndex();
 
+            voiceFilters.setDisplayVoiceIndex(index);
+            
 			return voiceFilters.getCurrentCoefficients();
 		}
 
@@ -480,6 +484,8 @@ void PolyFilterEffect::applyEffect(int voiceIndex, AudioSampleBuffer &b, int sta
 	r.freqModValue += (double)(bipolarIntensity * bipolarFMod);
 	r.gainModValue = getCurrentModulationValue(GainChain, voiceIndex, startSample);
 
+    voiceFilters.setDisplayModValues(voiceIndex, r.freqModValue, r.gainModValue);
+    
 	voiceFilters.renderPoly(r);
 }
 
