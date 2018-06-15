@@ -436,6 +436,8 @@ void ScriptCreatedComponentWrapper::showValuePopup()
 
 	parentTile->addAndMakeVisible(currentPopup = new ValuePopup(*this));
 
+	
+
 	currentPopup->setFont(parentTile->getMainController()->getFontFromString("Default", 14.0f));
 
 	
@@ -998,13 +1000,21 @@ void ScriptCreatedComponentWrappers::TableWrapper::updateConnectedTable(TableEdi
 	if (oldTable != newTable) t->setEditedTable(newTable);
 }
 
-void ScriptCreatedComponentWrappers::TableWrapper::pointDragStarted(Point<int> position, int index, float value)
+void ScriptCreatedComponentWrappers::TableWrapper::pointDragStarted(Point<int> position, float index, float value)
 {
 	localPopupPosition = position.withY(position.getY() - 20);;
 
 	popupText = String(index) + " | " + String(roundFloatToInt(value*100.0f)) + "%";
 
-	showValuePopup();
+	if (auto st = dynamic_cast<ScriptingApi::Content::ScriptTable*>(getScriptComponent()))
+	{
+		auto xName = st->getTable()->getXValueText(index);
+		auto yName = st->getTable()->getYValueText(value);
+
+		popupText = xName + " | " + yName;
+
+		showValuePopup();
+	}
 }
 
 void ScriptCreatedComponentWrappers::TableWrapper::pointDragEnded()
@@ -1012,9 +1022,17 @@ void ScriptCreatedComponentWrappers::TableWrapper::pointDragEnded()
 	closeValuePopupAfterDelay();
 }
 
-void ScriptCreatedComponentWrappers::TableWrapper::pointDragged(Point<int> position, int index, float value)
+void ScriptCreatedComponentWrappers::TableWrapper::pointDragged(Point<int> position, float index, float value)
 {
-	popupText = String(index) + " | " + String(roundFloatToInt(value*100.0f)) + "%";
+	if (auto st = dynamic_cast<ScriptingApi::Content::ScriptTable*>(getScriptComponent()))
+	{
+		auto xName = st->getTable()->getXValueText(index);
+		auto yName = st->getTable()->getYValueText(value);
+
+		popupText = xName + " | " + yName;
+
+		showValuePopup();
+	}
 
 	localPopupPosition = position.withY(position.getY() - 20);;
 	updatePopupPosition();
@@ -2229,5 +2247,54 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::ColumnListBoxModel::return
 	parent->changed(row);
 }
 
+
+void ScriptCreatedComponentWrapper::ValuePopup::updateText()
+{
+	auto thisText = parent.getTextForValuePopup();
+
+	Properties::Ptr p = parent.contentComponent->getValuePopupProperties();
+
+	if (p != nullptr && thisText != currentText)
+	{
+		currentText = thisText;
+
+		int margin = p->getLayoutData().margin;
+
+		int newWidth = p->getFont().getStringWidth(currentText) + 2 * margin + 5;
+
+		setSize(newWidth, (int)p->getFont().getHeight() + 2*margin);
+
+
+		repaint();
+	}
+}
+
+void ScriptCreatedComponentWrapper::ValuePopup::paint(Graphics& g)
+{
+	Properties::Ptr p = parent.contentComponent->getValuePopupProperties();
+
+	
+
+	if (p != nullptr)
+	{
+		auto l = p->getLayoutData();
+
+		auto ar = FLOAT_RECTANGLE(getLocalBounds()).reduced(l.lineThickness * 0.5f);
+
+		g.setGradientFill(ColourGradient(p->getColour(Properties::itemColour), 0.0f, 0.0f, 
+										 p->getColour(Properties::itemColour2), 0.0f, (float)getHeight(), false));
+
+		g.fillRoundedRectangle(ar, l.radius);
+
+		g.setColour(p->getColour(Properties::bgColour));
+		g.drawRoundedRectangle(ar, l.radius, l.lineThickness);
+
+		g.setFont(p->getFont());
+		g.setColour(p->getColour(Properties::textColour));
+		g.drawText(currentText, getLocalBounds(), Justification::centred);
+	}
+
+	
+}
 
 } // namespace hise

@@ -1797,6 +1797,9 @@ public:
 	/** Restore the widget from a JSON object. */
 	void setPropertiesFromJSON(const Identifier &name, const var &jsonData);
 
+	/** sets the data for the value popups. */
+	void setValuePopupData(var jsonData);
+
 	/** Creates a Path that can be drawn to a ScriptPanel. */
 	var createPath();
 
@@ -1891,6 +1894,8 @@ public:
 	{
 		return contentPropertyData;
 	}
+
+	var getValuePopupProperties() const { return valuePopupData; };
 
 	ValueTree getValueTreeForComponent(const Identifier& id);
 
@@ -2037,6 +2042,8 @@ public:
         }
     }
     
+	
+
 private:
 
 	struct AsyncRebuildMessageBroadcaster : public AsyncUpdater
@@ -2087,6 +2094,7 @@ private:
 	Array<WeakReference<RebuildListener>> rebuildListeners;
 
 	var templateFunctions;
+	var valuePopupData;
 
 	template<class Subtype> Subtype* addComponent(Identifier name, int x, int y)
 	{
@@ -2144,6 +2152,8 @@ private:
 	Colour colour;
 	String name;
 	String tooltip;
+
+	
 
 	AsyncRebuildMessageBroadcaster asyncRebuildBroadcaster;
 

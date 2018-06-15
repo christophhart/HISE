@@ -3691,6 +3691,7 @@ colour(Colour(0xff777777))
 	setMethod("setName", Wrapper::setName);
 	setMethod("getComponent", Wrapper::getComponent);
 	setMethod("setPropertiesFromJSON", Wrapper::setPropertiesFromJSON);
+	setMethod("setValuePopupData", Wrapper::setValuePopupData);
 	setMethod("storeAllControlsAsPreset", Wrapper::storeAllControlsAsPreset);
 	setMethod("restoreAllControlsFromPreset", Wrapper::restoreAllControlsFromPreset);
 	setMethod("setUseHighResolutionForPanels", Wrapper::setUseHighResolutionForPanels);
@@ -4439,6 +4440,10 @@ void ScriptingApi::Content::sendRebuildMessage()
 	b->clearSelection();
 }
 
+void ScriptingApi::Content::setValuePopupData(var jsonData)
+{
+	valuePopupData = jsonData;
+}
 
 #undef ADD_TO_TYPE_SELECTOR
 #undef ADD_AS_SLIDER_TYPE

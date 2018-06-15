@@ -330,13 +330,13 @@ public:
 		virtual ~Listener() {};
 
 		/** Will be called when the user starts dragging a point. */
-		virtual void pointDragStarted(Point<int> position, int index, float value) = 0;
+		virtual void pointDragStarted(Point<int> position, float index, float value) = 0;
 
 		/** Will be called when the user stops dragging a point. */
 		virtual void pointDragEnded() = 0;
 
 		/** Called while the point is being dragged. */
-		virtual void pointDragged(Point<int> position, int index, float value) = 0;
+		virtual void pointDragged(Point<int> position, float index, float value) = 0;
 
 		/** Called when the user changes a curve. The position will be the middle between the points. */
 		virtual void curveChanged(Point<int> position, float curveValue) = 0;

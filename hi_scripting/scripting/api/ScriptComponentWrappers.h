@@ -130,15 +130,96 @@ public:
 	{
 	public:
 
+		class Properties : public ObjectWithDefaultProperties,
+						   public ControlledObject,
+						   public ReferenceCountedObject
+		{
+		public:
+
+			typedef ReferenceCountedObjectPtr<Properties> Ptr ;
+
+			struct LayoutData
+			{
+				float radius;
+				float lineThickness;
+				float margin;
+			};
+
+			enum ID
+			{
+				fontName,
+				fontSize,
+				borderSize,
+				borderRadius,
+				margin,
+				bgColour,
+				itemColour,
+				itemColour2,
+				textColour,
+				numIds
+			};
+
+			Properties(MainController* mc, const var& data):
+				ControlledObject(mc)
+			{
+
+				setDefaultValues({
+					{"fontName", "Default"},
+					{"fontSize", 14.0},
+					{"borderSize", 2.0 },
+					{"borderRadius", 2.0},
+					{"margin", 3.0},
+					{"bgColour", 0xFFFFFFFF},
+					{"itemColour", 0xaa222222 },
+					{"itemColour2", 0xaa222222 },
+					{"textColour", 0xFFFFFFFF}
+				});
+
+				setValueList({ fName, fSize, bSize_, bRadius, mrgin, bg, item, item2, text });
+				fromDynamicObject(data);
+			}
+
+			void fromDynamicObject(const var& data) override
+			{
+				ObjectWithDefaultProperties::fromDynamicObject(data);
+				f = getMainController()->getFontFromString(fName.toString(), fSize.getValue());
+			}
+
+			Colour getColour(ID id)
+			{
+				switch (id)
+				{
+				case bgColour: return Colour((int64)bg.getValue());
+				case itemColour: return Colour((int64)item.getValue());
+				case itemColour2: return Colour((int64)item2.getValue());
+				case textColour: return Colour((int64)text.getValue());
+				}
+					
+				jassertfalse;
+				return Colours::transparentBlack;
+			}
+
+			Font getFont() const { return f; }
+
+			LayoutData getLayoutData() const { return { bRadius.getValue(), bSize_.getValue(), mrgin.getValue() }; }
+
+			
+
+		private:
+
+			Font f;
+			Value fName, fSize, bSize_, bRadius, mrgin, bg, item, item2, text;
+
+			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Properties);
+		};
+
 		ValuePopup(ScriptCreatedComponentWrapper& p):
-			parent(p)
+			parent(p),
+			shadow({ Colours::black, 10,{ 0, 0 } })
 		{
 			f = GLOBAL_BOLD_FONT();
 
-			itemColour = Colour(0xaa222222);
-			itemColour2 = Colour(0xaa222222);
-
-			textColour = Colours::white;
+			shadow.setOwner(this);
 
 			updateText();
 			startTimer(30);
@@ -149,43 +230,14 @@ public:
 			f = newFont;
 		}
 
-		void updateText()
-		{
-			auto thisText = parent.getTextForValuePopup();
-
-			if (thisText != currentText)
-			{
-				currentText = thisText;
-
-				int newWidth = f.getStringWidth(currentText) + 20;
-
-				setSize(newWidth, 20);
-
-				repaint();
-			}
-		}
+		void updateText();
 
 		void timerCallback() override
 		{
 			updateText();
 		}
 
-		void paint(Graphics& g) override
-		{
-			
-			auto ar = Rectangle<float>(1.0f, 1.0f, (float)getWidth()-2.0f, (float)getHeight()-2.0f);
-
-			g.setGradientFill(ColourGradient(itemColour, 0.0f, 0.0f, itemColour2, 0.0f, (float)getHeight(), false));
-			g.fillRoundedRectangle(ar, 2.0f);
-
-			g.setColour(bgColour);
-			g.drawRoundedRectangle(ar, 2.0f, 2.0f);
-
-			g.setFont(f);
-			g.setColour(textColour);
-			g.drawText(currentText, getLocalBounds(), Justification::centred);
-			
-		}
+		void paint(Graphics& g) override;
 
 		Colour bgColour;
 		Colour itemColour;
@@ -197,6 +249,8 @@ public:
 		Font f;
 
 		ScriptCreatedComponentWrapper& parent;
+
+		DropShadower shadow;
 	};
 
 	/** Don't forget to deregister the listener here. */
@@ -551,9 +605,9 @@ public:
 
 		void updateConnectedTable(TableEditor * t);
 		
-		void pointDragStarted(Point<int> position, int index, float value) override;
+		void pointDragStarted(Point<int> position, float index, float value) override;
 		void pointDragEnded() override;
-		void pointDragged(Point<int> position, int index, float value) override;
+		void pointDragged(Point<int> position, float index, float value) override;
 		void curveChanged(Point<int> position, float curveValue) override;
 
 		Point<int> getValuePopupPosition(Rectangle<int> componentBounds) const override;

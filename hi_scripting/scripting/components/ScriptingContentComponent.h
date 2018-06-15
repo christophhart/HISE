@@ -214,6 +214,11 @@ public:
 
 	void setModalPopup(ScriptCreatedComponentWrapper* wrapper, bool shouldShow);
 
+	ScriptCreatedComponentWrapper::ValuePopup::Properties* getValuePopupProperties() const
+	{
+		return valuePopupProperties.get();
+	}
+
 private:
 
 	class ModalOverlay : public Component
@@ -334,6 +339,7 @@ private:
 	WeakReference<Processor> p;
 
 	OwnedArray<ScriptCreatedComponentWrapper> componentWrappers;
+	ScriptCreatedComponentWrapper::ValuePopup::Properties::Ptr valuePopupProperties;
 };
 
 

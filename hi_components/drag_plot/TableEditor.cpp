@@ -411,8 +411,6 @@ void TableEditor::mouseDown(const MouseEvent &e)
     
 	grabCopyAndPasteFocus();
 
-	
-
 	MouseEvent parentEvent = e.getEventRelativeTo(this);
 	int x = parentEvent.getMouseDownPosition().getX();
 	int y = parentEvent.getMouseDownPosition().getY();
@@ -432,13 +430,11 @@ void TableEditor::mouseDown(const MouseEvent &e)
 
 			showTouchOverlay();
 
-			auto x = roundFloatToInt(dp->getGraphPoint().x * (float)(this->editedTable->getTableSize() - 1));
-
 			for (auto l : listeners)
 			{
 				if (l.get() != nullptr)
 				{
-					l->pointDragStarted(dp->getPosition(), x,  dp->getGraphPoint().y);
+					l->pointDragStarted(dp->getPosition(), dp->getGraphPoint().x,  dp->getGraphPoint().y);
 				}
 			}
 		}
@@ -585,13 +581,11 @@ void TableEditor::mouseDrag(const MouseEvent &e)
 
 	changePointPosition(index, x, y, true);
 
-	auto x_ = roundFloatToInt(currently_dragged_point->getGraphPoint().x * (float)(this->editedTable->getTableSize() - 1));
-
 	for (auto l : listeners)
 	{
 		if (l.get() != nullptr)
 		{
-			l->pointDragged(currently_dragged_point->getPosition(), x_, currently_dragged_point->getGraphPoint().y);
+			l->pointDragged(currently_dragged_point->getPosition(), currently_dragged_point->getGraphPoint().x, currently_dragged_point->getGraphPoint().y);
 		}
 	}
 };

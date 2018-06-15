@@ -412,6 +412,8 @@ void ScriptContentComponent::setNewContent(ScriptingApi::Content *c)
 
 	deleteAllScriptComponents();
 
+	valuePopupProperties = new ScriptCreatedComponentWrapper::ValuePopup::Properties(p->getMainController(), c->getValuePopupProperties());
+
 	for (int i = 0; i < contentData->components.size(); i++)
 	{
 		auto sc = contentData->components[i].get();
