@@ -135,9 +135,6 @@ void TableEditor::mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &w
 		
 		updateCurve(x, y, wheel.deltaY, true);
 
-		if (editedTable.get() != nullptr)
-			editedTable->sendSynchronousChangeMessage();
-
 		if (pp != nullptr)
 		{
 			auto curveValue = dp->getCurve();
@@ -154,6 +151,9 @@ void TableEditor::mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &w
 			}
 			
 		}
+        
+        if (editedTable.get() != nullptr)
+            editedTable->sendSynchronousChangeMessage();
 
 	}
 
