@@ -870,7 +870,9 @@ public:
 		const String slash = "/";
 #endif
 
-		const String sampleMapId = sampleDirectory.getRelativePathFrom(sampleFolder).replace(slash, "_");
+		const String sampleMapPath = sampleDirectory.getRelativePathFrom(sampleFolder);
+
+		const String sampleMapId = sampleMapPath.replace(slash, "_");
 
 		
 
@@ -908,8 +910,17 @@ public:
 
 		auto sampleMapFolder = sampler->getSampleEditHandler()->getCurrentSampleMapDirectory();
         
-        sampleMapFile = sampleMapFolder.getChildFile(sampleMapId + ".xml");
+		sampleMapFile = sampleMapFolder.getChildFile(sampleMapPath + ".xml");
+
+        //sampleMapFile = sampleMapFolder.getChildFile(sampleMapId + ".xml");
         
+		auto& lock = sampler->getMainController()->getSampleManager().getSamplerSoundLock();
+
+		while (!lock.tryEnter())
+			Thread::sleep(500);
+
+		lock.exit();
+
 		exportCurrentSampleMap(overwriteExistingData, exportSamples, exportSampleMap);
 	}
 

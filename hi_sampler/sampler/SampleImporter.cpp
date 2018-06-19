@@ -427,9 +427,9 @@ void SampleImporter::loadAudioFilesUsingPitchDetection(Component* /*childCompone
 
 void SampleImporter::loadAudioFilesRaw(Component* /*childComponentOfMainEditor*/, ModulatorSampler* sampler, const StringArray& fileNames)
 {
-	const int startIndex = sampler->getNumSounds();
+	MessageManagerLock mm;
 
-	ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
+	const int startIndex = sampler->getNumSounds();
 
 	for (int i = 0; i < fileNames.size(); i++)
 	{
@@ -449,8 +449,8 @@ void SampleImporter::loadAudioFilesRaw(Component* /*childComponentOfMainEditor*/
 		createSoundAndAddToSampler(sampler, data);
 	}
 
-	//sampler->refreshPreloadSizes();
-	//sampler->refreshMemoryUsage();
+	sampler->refreshPreloadSizes();
+	sampler->refreshMemoryUsage();
 
 }
 
