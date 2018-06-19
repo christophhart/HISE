@@ -577,10 +577,17 @@ SampleDataImporter::SampleDataImporter(ModalBaseWindow* mbw) :
 		sampleDestination = fc2.getResult();
 	}
 
+#else
+
+	File archiveFile;
+
+#endif
 
 	targetFile = new FilenameComponent("Sample Archive Location", archiveFile, true, false, false, "*.hr1", "", "Choose the Sample Archive");
 	targetFile->setSize(300, 24);
 	addCustomComponent(targetFile);
+
+#if USE_FRONTEND
 
 	sampleDirectory = new FilenameComponent("Sample Folder", sampleDestination, true, true, true, "", "", "Choose the Sample location folder");
 
