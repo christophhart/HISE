@@ -286,7 +286,7 @@ private:
 *	- cache line friendly (the data is aligned)
 *
 */
-template <typename ElementType> class UnorderedStack
+template <typename ElementType, int SIZE=UNORDERED_STACK_SIZE> class UnorderedStack
 {
 public:
 
@@ -296,7 +296,7 @@ public:
 	{
 		position = 0;
 
-		for (int i = 0; i < UNORDERED_STACK_SIZE; i++)
+		for (int i = 0; i < SIZE; i++)
 		{
 			data[i] = ElementType();
 		}
@@ -321,8 +321,7 @@ public:
 
 		data[position] = elementTypeToInsert;
 
-		if (position < UNORDERED_STACK_SIZE)
-			position++;
+		position = jmin<int>(position + 1, SIZE - 1);
 	}
 
 	void insertWithoutSearch(const ElementType& elementTypeToInsert)
@@ -331,8 +330,7 @@ public:
 
 		data[position] = elementTypeToInsert;
 
-		if (position < UNORDERED_STACK_SIZE)
-			position++;
+		position = jmin<int>(position + 1, SIZE - 1);
 	}
 
 	/** Removes the given element and puts the last element into its slot. */
@@ -359,7 +357,7 @@ public:
 	{
 		if (index < position)
 		{
-			--position;
+			position = jmax<int>(0, position-1);
 			data[index] = data[position];
 			data[position] = ElementType();
 		}
@@ -379,7 +377,7 @@ public:
 	void shrink(int newSize)
 	{
 		jassert(newSize > 0);
-		position = jmin<size_t>(position, (size_t)newSize);
+		position = jlimit<size_t>(0, position, (size_t)newSize);
 	}
 
     void clear()
@@ -431,9 +429,9 @@ public:
 
 private:
 
-	ElementType data[UNORDERED_STACK_SIZE];
+	ElementType data[SIZE];
 
-	size_t position;
+	int position;
 
 	JUCE_DECLARE_NON_COPYABLE(UnorderedStack)
 };
