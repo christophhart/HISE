@@ -33,6 +33,8 @@
 #ifndef HI_EFFECT_PROCESSOR_H_INCLUDED
 #define HI_EFFECT_PROCESSOR_H_INCLUDED
 
+#include <array>
+
 namespace hise { using namespace juce;
 
 #define EFFECT_PROCESSOR_COLOUR 0xff3a6666
@@ -45,18 +47,20 @@ class EffectProcessor: public Processor
 {
 public:
 
-	EffectProcessor(MainController *mc, const String &uid): 
-		Processor(mc, uid),	
+	EffectProcessor(MainController *mc, const String &uid, int numVoices): 
+		Processor(mc, uid, numVoices),	
 		isTailing(false),
 		useStepSize(true),
 		tailCheck(2, 0),
 		emptyBuffer(1, 0) 
-	{};
+	{
+		
+	};
 
 	virtual ~EffectProcessor() {};
 
 	/** You have to override this method, since almost every effect needs the samplerate anyway. */
-	virtual void prepareToPlay(double sampleRate, int samplesPerBlock)
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override
 	{
 		Processor::prepareToPlay(sampleRate, samplesPerBlock);
 
@@ -65,22 +69,8 @@ public:
 			ProcessorHelpers::increaseBufferIfNeeded(tailCheck, samplesPerBlock);	
 		}
 
-		for(int i = 0; i < getNumChildProcessors(); i++)
-		{
-			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
-			jassert(mc != nullptr);
-			if(mc != nullptr)
-            {
-                mc->prepareToPlay(sampleRate, samplesPerBlock);
-
-				ProcessorHelpers::increaseBufferIfNeeded(getBufferForChain(i), samplesPerBlock);
-            }
-            else
-            {
-                jassertfalse;
-            }
-		}
-
+		for (auto& mc : modChains)
+			mc.prepareToPlay(sampleRate, samplesPerBlock);
 	};
 
 	Colour getColour() const override 
@@ -99,19 +89,11 @@ public:
 
 	virtual void handleHiseEvent(const HiseEvent &m)
 	{
-		for(int i = 0; i < getNumInternalChains(); i++)
-		{
-			static_cast<ModulatorChain*>(getChildProcessor(i))->handleHiseEvent(m);
-		}
+		for (auto& mc : modChains)
+			mc.getChain()->handleHiseEvent(m);
 	};
 
 protected:
-
-	/** Overwrite this method and return a reference to an internal buffer.
-	*
-	*	This is used to store the precalculated modulation values from preRenderCallback()
-	*/
-	virtual AudioSampleBuffer &getBufferForChain(int /*chainIndex*/) { return emptyBuffer; };
 
 	/** Takes a copy of the buffer before it is processed to check if a tail was added after processing. */
 	void saveBufferForTailCheck(AudioSampleBuffer &b, int startSample, int numSamples)
@@ -167,42 +149,59 @@ protected:
 
 	void useStepSizeCalculation(bool shouldBeUsed) {useStepSize = shouldBeUsed; };
 
-	float getCurrentModulationValue(int chainIndex, int voiceIndex, int samplePosition)
+	float getConstantModulationValueForChain(ModulatorChain* modChain, int voiceIndex, int samplePosition)
 	{
-		auto modChain = static_cast<ModulatorChain*>(getChildProcessor(chainIndex));
-		return modChain->getNumChildProcessors() == 0 ? 1.0f : modChain->getVoiceValues(voiceIndex)[samplePosition];
+		jassertfalse;
+		return modChain->shouldBeProcessedAtAll() ? modChain->getVoiceValues(voiceIndex)[samplePosition] : 1.0f;
+
 	}
 
-	float* getCurrentModulationValues(int chainIndex, int voiceIndex, int startSample)
+	float* getTimeModulationValuesForChain(ModulatorChain* modChain, int voiceIndex, int startSample)
 	{
-		auto modChain = static_cast<ModulatorChain*>(getChildProcessor(chainIndex));
-
-		return modChain->getNumChildProcessors() == 0 ? nullptr : modChain->getVoiceValues(voiceIndex) + startSample;
+		return modChain->hasTimeModulationMods() ? modChain->getVoiceValues(voiceIndex) + startSample : nullptr;
 	}
 
-	void calculateChain(int chainIndex, int voiceIndex, int startSample, int numSamples)
+	void calculateChain(ModulatorChain::ModChainWithBuffer& mb, int voiceIndex, int startSample, int numSamples)
 	{
-		ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(chainIndex));
+		jassertfalse;
 
-		if (!mc->shouldBeProcessed(true) && !mc->shouldBeProcessed(false))
+		auto modChain = mb.getChain();
+		auto& modBuffer = mb.b;
+
+		if (!modChain->shouldBeProcessedAtAll())
 			return;
 
-		jassert(mc != nullptr);
+		float *modValues = modChain->getVoiceValues(voiceIndex);
 
-		mc->renderVoice(voiceIndex, startSample, numSamples);
+		bool usePoly = false;
 
-		float *modValues = mc->getVoiceValues(voiceIndex);
+		if (modChain->hasActivePolyMods())
+		{
+			usePoly = true;
+			modChain->renderVoice(voiceIndex, startSample, numSamples);
+		}
+		
+		if (modChain->hasActiveTimeVariantMods())
+		{
+			const float *timeVariantModValues = modBuffer.getReadPointer(0, startSample);
 
-		const float *timeVariantModValues = getBufferForChain(chainIndex).getReadPointer(0, startSample);
-
-		// Offset of startSamples, since getVoiceValues() returns the whole buffer
-		FloatVectorOperations::multiply(modValues + startSample, timeVariantModValues, numSamples);
+			if (usePoly)
+			{
+				// Offset of startSamples, since getVoiceValues() returns the whole buffer
+				FloatVectorOperations::multiply(modValues + startSample, timeVariantModValues, numSamples);
+			}
+			else
+			{
+				FloatVectorOperations::copy(modValues + startSample, timeVariantModValues, numSamples);
+			}
+		}
 	};
 
+	ModulatorChain::Collection modChains;
 
 private:
-	AudioSampleBuffer tailCheck;
 
+	AudioSampleBuffer tailCheck;
 	AudioSampleBuffer emptyBuffer;
 
 	bool isTailing;
@@ -220,7 +219,7 @@ class MasterEffectProcessor: public EffectProcessor,
                              public Chain::Handler::Listener
 {
 public:
-	MasterEffectProcessor(MainController *mc, const String &uid): EffectProcessor(mc, uid)
+	MasterEffectProcessor(MainController *mc, const String &uid): EffectProcessor(mc, uid, 1)
 	{
 		getMatrix().init();
 		getMatrix().setOnlyEnablingAllowed(true);
@@ -271,16 +270,14 @@ public:
         if(chainsAreEmpty)
             return;
         
-		for(int i = 0; i < getNumInternalChains(); i++)
+		for (auto& mb : modChains)
 		{
-			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
-            
-			jassert(mc != nullptr);
-            
-            mc->renderVoice(0, startSample, numSamples);
-            mc->renderNextBlock(getBufferForChain(i), startSample, numSamples);
-            
-			FloatVectorOperations::multiply(getBufferForChain(i).getWritePointer(0, startSample), mc->getVoiceValues(0), numSamples);
+			auto mc = mb.getChain();
+
+			mc->renderVoice(0, startSample, numSamples);
+			mc->renderNextBlock(mb.b, startSample, numSamples);
+
+			FloatVectorOperations::multiply(mb.b.getWritePointer(0, startSample), mc->getVoiceValues(0), numSamples);
 		}
 	}
 
@@ -318,23 +315,16 @@ public:
 
 	virtual void startMonophonicVoice()
 	{
-		for(int i = 0; i < getNumInternalChains(); i++)
-		{
-			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
-			jassert(mc != nullptr);
-			mc->startVoice(0);
-		}
+		for (auto& mb : modChains)
+			mb.getChain()->startVoice(0);
 	}
 	
 	virtual void stopMonophonicVoice()
 	{
-		for(int i = 0; i < getNumInternalChains(); i++)
-		{
-			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
-			jassert(mc != nullptr);
-			mc->stopVoice(0);
-		}
+		for (auto& mb : modChains)
+			mb.getChain()->stopVoice(0);
 	}
+
 
 	virtual void resetMonophonicVoice()
 	{
@@ -353,7 +343,7 @@ public:
 	virtual void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples) = 0;
 
 	/** This only renders the modulatorChains. */
-	virtual void renderNextBlock(AudioSampleBuffer &/*buffer*/, int startSample, int numSamples) final override
+	void renderNextBlock(AudioSampleBuffer &/*buffer*/, int startSample, int numSamples) final override
 	{
 		jassert(isOnAir());
 
@@ -430,7 +420,7 @@ class MonophonicEffectProcessor: public EffectProcessor
 {
 public:
 
-	MonophonicEffectProcessor(MainController *mc, const String &uid): EffectProcessor(mc, uid) {};
+	MonophonicEffectProcessor(MainController *mc, const String &uid): EffectProcessor(mc, uid, 1) {};
 	
 	virtual ~MonophonicEffectProcessor() {};
 
@@ -446,13 +436,14 @@ public:
 	/** Renders all chains (envelopes & voicestart are rendered monophonically. */
 	void renderAllChains(int startSample, int numSamples)
 	{
-		for(int i = 0; i < getNumInternalChains(); i++)
+		for (auto& mb : modChains)
 		{
-			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
-			mc->renderVoice(0, startSample, numSamples);
-			mc->renderNextBlock(getBufferForChain(i), startSample, numSamples);
+			auto mc = mb.getChain();
 
-			FloatVectorOperations::multiply(getBufferForChain(i).getWritePointer(0, startSample), mc->getVoiceValues(0), numSamples);
+			mc->renderVoice(0, startSample, numSamples);
+			mc->renderNextBlock(mb.b, startSample, numSamples);
+
+			FloatVectorOperations::multiply(mb.b.getWritePointer(0, startSample), mc->getVoiceValues(0), numSamples);
 		}
 	}
 
@@ -460,27 +451,14 @@ public:
 	{
 		ignoreUnused(noteNumber);
 
-		for(int i = 0; i < getNumInternalChains(); i++)
-		{
-			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
-			jassert(mc != nullptr);
-			mc->startVoice(0);
-		}
+		for (auto& mb : modChains)
+			mb.getChain()->startVoice(0);
 	}
 	
-	const float *getModulationValuesForStepsizeCalculation(int chainIndex, int /*voiceIndex*/) override
-	{
-		return getBufferForChain(chainIndex).getReadPointer(0);
-	}
-
 	virtual void stopMonophonicVoice()
 	{
-		for(int i = 0; i < getNumInternalChains(); i++)
-		{
-			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
-			jassert(mc != nullptr);
-			mc->stopVoice(0);
-		}
+		for (auto& mb : modChains)
+			mb.getChain()->stopVoice(0);
 	}
 
 	virtual void resetMonophonicVoice() {}
@@ -535,64 +513,21 @@ class VoiceEffectProcessor: public EffectProcessor
 public:
 
 	VoiceEffectProcessor(MainController *mc, const String &uid, int numVoices_): 
-		EffectProcessor(mc, uid),
-		numVoices(numVoices_)
+		EffectProcessor(mc, uid, numVoices_)
 	{};
-
-	
 
 	virtual ~VoiceEffectProcessor() {};
 
-	Path getSpecialSymbol() const override
-	{
-		Path path;
-
-		static const unsigned char pathData[] = { 110,109,0,0,2,67,92,174,213,67,98,0,0,2,67,211,15,215,67,217,133,255,66,92,46,216,67,0,0,250,66,92,46,216,67,98,39,122,244,66,92,46,216,67,0,0,240,66,211,15,215,67,0,0,240,66,92,174,213,67,98,0,0,240,66,230,76,212,67,39,122,244,66,92,46,211,67,0,0,250,
-		66,92,46,211,67,98,217,133,255,66,92,46,211,67,0,0,2,67,230,76,212,67,0,0,2,67,92,174,213,67,99,109,0,0,230,66,92,174,213,67,98,0,0,230,66,211,15,215,67,217,133,225,66,92,46,216,67,0,0,220,66,92,46,216,67,98,39,122,214,66,92,46,216,67,0,0,210,66,211,
-		15,215,67,0,0,210,66,92,174,213,67,98,0,0,210,66,230,76,212,67,39,122,214,66,92,46,211,67,0,0,220,66,92,46,211,67,98,217,133,225,66,92,46,211,67,0,0,230,66,230,76,212,67,0,0,230,66,92,174,213,67,99,109,0,0,200,66,92,174,213,67,98,0,0,200,66,211,15,215,
-		67,217,133,195,66,92,46,216,67,0,0,190,66,92,46,216,67,98,39,122,184,66,92,46,216,67,0,0,180,66,211,15,215,67,0,0,180,66,92,174,213,67,98,0,0,180,66,230,76,212,67,39,122,184,66,92,46,211,67,0,0,190,66,92,46,211,67,98,217,133,195,66,92,46,211,67,0,0,200,
-		66,230,76,212,67,0,0,200,66,92,174,213,67,99,109,0,0,2,67,92,46,206,67,98,0,0,2,67,211,143,207,67,217,133,255,66,92,174,208,67,0,0,250,66,92,174,208,67,98,39,122,244,66,92,174,208,67,0,0,240,66,211,143,207,67,0,0,240,66,92,46,206,67,98,0,0,240,66,230,
-		204,204,67,39,122,244,66,92,174,203,67,0,0,250,66,92,174,203,67,98,217,133,255,66,92,174,203,67,0,0,2,67,230,204,204,67,0,0,2,67,92,46,206,67,99,109,0,0,230,66,92,46,206,67,98,0,0,230,66,211,143,207,67,217,133,225,66,92,174,208,67,0,0,220,66,92,174,208,
-		67,98,39,122,214,66,92,174,208,67,0,0,210,66,211,143,207,67,0,0,210,66,92,46,206,67,98,0,0,210,66,230,204,204,67,39,122,214,66,92,174,203,67,0,0,220,66,92,174,203,67,98,217,133,225,66,92,174,203,67,0,0,230,66,230,204,204,67,0,0,230,66,92,46,206,67,99,
-		109,0,0,200,66,92,46,206,67,98,0,0,200,66,211,143,207,67,217,133,195,66,92,174,208,67,0,0,190,66,92,174,208,67,98,39,122,184,66,92,174,208,67,0,0,180,66,211,143,207,67,0,0,180,66,92,46,206,67,98,0,0,180,66,230,204,204,67,39,122,184,66,92,174,203,67,0,
-		0,190,66,92,174,203,67,98,217,133,195,66,92,174,203,67,0,0,200,66,230,204,204,67,0,0,200,66,92,46,206,67,99,109,0,0,2,67,92,174,198,67,98,0,0,2,67,211,15,200,67,217,133,255,66,92,46,201,67,0,0,250,66,92,46,201,67,98,39,122,244,66,92,46,201,67,0,0,240,
-		66,211,15,200,67,0,0,240,66,92,174,198,67,98,0,0,240,66,230,76,197,67,39,122,244,66,92,46,196,67,0,0,250,66,92,46,196,67,98,217,133,255,66,92,46,196,67,0,0,2,67,230,76,197,67,0,0,2,67,92,174,198,67,99,109,0,0,230,66,92,174,198,67,98,0,0,230,66,211,15,
-		200,67,217,133,225,66,92,46,201,67,0,0,220,66,92,46,201,67,98,39,122,214,66,92,46,201,67,0,0,210,66,211,15,200,67,0,0,210,66,92,174,198,67,98,0,0,210,66,230,76,197,67,39,122,214,66,92,46,196,67,0,0,220,66,92,46,196,67,98,217,133,225,66,92,46,196,67,0,
-		0,230,66,230,76,197,67,0,0,230,66,92,174,198,67,99,109,0,0,200,66,92,174,198,67,98,0,0,200,66,211,15,200,67,217,133,195,66,92,46,201,67,0,0,190,66,92,46,201,67,98,39,122,184,66,92,46,201,67,0,0,180,66,211,15,200,67,0,0,180,66,92,174,198,67,98,0,0,180,
-		66,230,76,197,67,39,122,184,66,92,46,196,67,0,0,190,66,92,46,196,67,98,217,133,195,66,92,46,196,67,0,0,200,66,230,76,197,67,0,0,200,66,92,174,198,67,99,101,0,0 };
-
-		path.loadPathFromData (pathData, sizeof (pathData));
-
-		return path;
-
-	}
-
+	Path getSpecialSymbol() const override;
 
 	/** This is called before every voice is processed. Use this to calculate all non polyphonic modulators in your subclasses chains! */
 	virtual void preRenderCallback(int startSample, int numSamples)
 	{
-		for(int i = 0; i < getNumInternalChains(); i++)
-		{
-			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
-			mc->renderNextBlock(getBufferForChain(i), startSample, numSamples);
-		}
+		for (auto& mb : modChains)
+			mb.calculateMonophonicModulationValues(startSample, numSamples);
 	}
 
-	const float *getModulationValuesForStepsizeCalculation(int chainIndex, int voiceIndex) override
-	{
-		ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(chainIndex));
-		jassert(mc != nullptr);
-		return mc->getVoiceValues(voiceIndex);
-	}
-
-	virtual void prepareToPlay(double sampleRate, int samplesPerBlock)
-	{
-		EffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
-
-		
-	}
-
-		/** A wrapper function around the actual processing.
+	/** A wrapper function around the actual processing.
 	*
 	*	You can assume that all internal chains are processed and the numSample amount is set according to the stepsize calculated with
 	*	calculateStepSize().
@@ -601,7 +536,11 @@ public:
 	*/
 	virtual void applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSample) = 0;
 
-	virtual void preVoiceRendering(int voiceIndex, int startSample, int numSamples) = 0;
+	void preVoiceRendering(int voiceIndex, int startSample, int numSamples)
+	{
+		for (auto& mb : modChains)
+			mb.calculateModulationValuesForCurrentVoice(voiceIndex, startSample, numSamples);
+	}
 
 	/** renders a voice and applies the effect on the voice. */
 	virtual void renderVoice(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples)
@@ -637,55 +576,27 @@ public:
 
 	virtual void startVoice(int voiceIndex, int /*noteNumber*/)
 	{
-		for(int i = 0; i < getNumInternalChains(); i++)
-		{
-			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
-			jassert(mc != nullptr);
-			mc->startVoice(voiceIndex);
-		}
+		for (auto& mb : modChains)
+			mb.startVoice(voiceIndex);
 	}
 
 	virtual void stopVoice(int voiceIndex)
 	{
-		for(int i = 0; i < getNumInternalChains(); i++)
-		{
-			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
-			jassert(mc != nullptr);
-			mc->stopVoice(voiceIndex);
-		}
-
+		for (auto& mb : modChains)
+			mb.stopVoice(voiceIndex);
 	}
 
 	virtual void reset(int voiceIndex)
 	{
-		for(int i = 0; i < getNumInternalChains(); i++)
-		{
-			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
-			jassert(mc != nullptr);
-			mc->reset(voiceIndex);
-		}
+		for (auto& mb : modChains)
+			mb.reset(voiceIndex);
 	}
 
 	virtual void handleHiseEvent(const HiseEvent &m)
 	{
-		for (int i = 0; i < getNumInternalChains(); i++)
-		{
-			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
-			jassert(mc != nullptr);
-			mc->handleHiseEvent(m);
-		}
+		for (auto& mb : modChains)
+			mb.handleHiseEvent(m);
 	};
-
-
-protected:
-
-
-
-private:
-
-	
-
-	int numVoices;
 };
 
 } // namespace hise

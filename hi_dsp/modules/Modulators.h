@@ -259,7 +259,7 @@ public:
 	// Constructors / Destructor
 
 	/**	Creates a new modulator with the given Identifier. */
-	Modulator(MainController *m, const String &id);
+	Modulator(MainController *m, const String &id, int numVoices);
 	virtual ~Modulator();;
 
 
@@ -342,6 +342,11 @@ public:
 		return lastConstantValue;
 	}
 
+	void setScratchBuffer(float* scratchBuffer, int numSamples)
+	{
+		internalBuffer.setDataToReferTo(&scratchBuffer, 1, numSamples);
+	}
+
 protected:
 
 	TimeModulation(Modulation::Mode m):
@@ -364,14 +369,14 @@ protected:
 	*	@param fixedIntensity the intensity of the modulator. Normally you will pass the subclasses getIntensity() here.
 	*	@param intensityValues a pointer to the precalculated intensity array. It changes the array, so don't use it afterwards!
 	*/
-	void applyGainModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, float *intensityValues, int numValues) const noexcept;;
+	void applyGainModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, const float *intensityValues, int numValues) const noexcept;;
 
 	/** A vectorized version of the calcIntensityValue() and applyModulationValue() for Pitch modulation with varying intensities. 
 	*
 	*	@param fixedIntensity the intensity of the modulator. Normally you will pass the subclasses getIntensity() here.
 	*	@param intensityValues a pointer to the precalculated intensity array. It changes the array, so don't use it afterwards!
 	*/
-	void applyPitchModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, float *intensityValues, int numValues) const noexcept;;
+	void applyPitchModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, const float *intensityValues, int numValues) const noexcept;;
 
 	/** a vectorized version of the calcIntensityValue() and applyModulationValue() for Pitch modulation with a fixed intensity value.
 	*
@@ -385,6 +390,8 @@ protected:
 	AudioSampleBuffer internalBuffer;
 
 private:
+
+	mutable LinearSmoothedValue<float> smoothedIntensity;
 
 	float lastConstantValue = 1.0f;
 
@@ -407,7 +414,7 @@ public:
 	/** Implement the stopVoice logic here. */
 	virtual void stopVoice(int voiceIndex) = 0;	
 
-	void allNotesOff();
+	virtual void allNotesOff();
 
 	/** If you subclass a Modulator from this class, it can handle multiple voices. */
 	class PolyphonyManager
@@ -438,7 +445,7 @@ public:
 		/** Call this when you finished the processing to clear the current voice. */
 		void clearCurrentVoice() noexcept
 		{
-			jassert(currentVoice != -1);
+			//jassert(currentVoice != -1);
 			currentVoice = -1;
 		};
 
@@ -627,7 +634,7 @@ protected:
 	
 
 	TimeVariantModulator(MainController *mc, const String &id, Modulation::Mode m):
-		Modulator(mc, id),
+		Modulator(mc, id, 1),
 		TimeModulation(m),
 		Modulation(m)
 	{};
@@ -750,8 +757,10 @@ public:
 	{
 		switch (parameterIndex)
 		{
-		case Parameters::Monophonic: isMonophonic = newValue > 0.5f;
-		case Parameters::Retrigger:  shouldRetrigger = newValue > 0.5f;
+		case Parameters::Monophonic: isMonophonic = newValue > 0.5f; 
+									 sendSynchronousBypassChangeMessage();
+									 break;
+		case Parameters::Retrigger:  shouldRetrigger = newValue > 0.5f; break;
 		default:
 			break;
 		}
@@ -886,7 +895,11 @@ private:
 
 };
 
+/** This class only exists for the Iterator. */
+class MonophonicEnvelope: public EnvelopeModulator
+{
 
+};
 
 
 

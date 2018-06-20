@@ -332,11 +332,10 @@ public:
 	void restoreFromValueTree(const ValueTree &v) override;;
 
 	int getNumInternalChains() const override { return numInternalChains; };
-	Processor *getChildProcessor(int /*processorIndex*/) override { return xFadeChain; };
-	const Processor *getChildProcessor(int /*processorIndex*/) const override { return xFadeChain; };
+	Processor *getChildProcessor(int /*processorIndex*/) override { return modChains[XFadeChain].getChain(); };
+	const Processor *getChildProcessor(int /*processorIndex*/) const override { return modChains[XFadeChain].getChain(); };
 	int getNumChildProcessors() const override { return 1; };
-	AudioSampleBuffer & getBufferForChain(int /*index*/) override { return timeVariantFreqModulatorBuffer; };
-
+	
 	void setQ(float newQ);
 	void setNumFilterBands(int numBands);
 	void setSemitoneTranspose(float newValue);
@@ -345,11 +344,9 @@ public:
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;;
 	void renderNextBlock(AudioSampleBuffer &/*b*/, int /*startSample*/, int /*numSample*/) {}
 	/** Calculates the frequency chain and sets the q to the current value. */
-	void preVoiceRendering(int voiceIndex, int startSample, int numSamples);
 	/** Resets the filter state if a new voice is started. */
 	void startVoice(int voiceIndex, int noteNumber) override;
 	void applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) override;
-
 	
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 	
@@ -374,9 +371,6 @@ private:
 	ScopedPointer<SliderPackData> dataMix;
 
 	FixedVoiceAmountArray<PeakFilterBand> filterBanks;
-
-	ScopedPointer<ModulatorChain> xFadeChain;
-	AudioSampleBuffer timeVariantFreqModulatorBuffer;
 };
 
 
@@ -437,11 +431,10 @@ public:
 	void restoreFromValueTree(const ValueTree &v) override;;
 
 	int getNumInternalChains() const override { return numInternalChains; };
-	Processor *getChildProcessor(int /*processorIndex*/) override { return xFadeChain; };
-	const Processor *getChildProcessor(int /*processorIndex*/) const override { return xFadeChain; };
+	Processor *getChildProcessor(int /*processorIndex*/) override { return modChains[XFadeChain].getChain(); };
+	const Processor *getChildProcessor(int /*processorIndex*/) const override { return modChains[XFadeChain].getChain(); };
 	int getNumChildProcessors() const override { return 1; };
-	AudioSampleBuffer & getBufferForChain(int /*index*/) override { return timeVariantFreqModulatorBuffer; };
-
+	
 	void setQ(float newQ);
 	void setNumFilterBands(int numBands);
 	void setSemitoneTranspose(float newValue);
@@ -475,9 +468,6 @@ private:
 	ScopedPointer<SliderPackData> dataMix;
 
 	PeakFilterBand filterBank;
-	
-	ScopedPointer<ModulatorChain> xFadeChain;
-	AudioSampleBuffer timeVariantFreqModulatorBuffer;
 };
 
 

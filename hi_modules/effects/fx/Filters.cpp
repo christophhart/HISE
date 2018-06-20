@@ -197,10 +197,10 @@ void MonoFilterEffect::processBlockPartial(AudioSampleBuffer &buffer, int startS
 {
 	FilterHelpers::RenderData r(buffer, startSample, numSamples);
 
-	r.freqModValue = (double)getCurrentModulationValue(FrequencyChain, 0, startSample);
-	auto bipolarFMod = getCurrentModulationValue(BipolarFrequencyChain, 0, startSample);
+	r.freqModValue = (double)getConstantModulationValueForChain(freqChain, 0, startSample);
+	auto bipolarFMod = getConstantModulationValueForChain(bipolarFreqChain, 0, startSample);
 	r.freqModValue += (double)bipolarIntensity * bipolarFMod;
-	r.gainModValue = (double)getCurrentModulationValue(GainChain, 0, startSample);
+	r.gainModValue = (double)getConstantModulationValueForChain(gainChain, 0, startSample);
 
     filterCollection.setDisplayModValues(-1, r.freqModValue, r.gainModValue);
     
@@ -277,15 +277,15 @@ ProcessorEditorBody *MonoFilterEffect::createEditor(ProcessorEditor *parentEdito
 }
 
 PolyFilterEffect::PolyFilterEffect(MainController *mc, const String &uid, int numVoices) :
-VoiceEffectProcessor(mc, uid, numVoices),
-freqChain(new ModulatorChain(mc, "Frequency Modulation", numVoices, Modulation::GainMode, this)),
-gainChain(new ModulatorChain(mc, "Gain Modulation", numVoices, Modulation::GainMode, this)),
-bipolarFreqChain(new ModulatorChain(mc, "Bipolar Freq Modulation", numVoices, Modulation::GainMode, this)),
-timeVariantFreqModulatorBuffer(1, 0),
-timeVariantGainModulatorBuffer(1, 0),
-timeVariantBipolarFreqModulatorBuffer(1, 0),
-voiceFilters(numVoices)
+	VoiceEffectProcessor(mc, uid, numVoices),
+	voiceFilters(numVoices)
 {
+	modChains.reserve(numInternalChains);
+
+	modChains += {this, "Frequency Modulation"};
+	modChains += {this, "Gain Modulation"};
+	modChains += {this, "Bipolar Freq Modulation"};
+
 	WeakReference<Processor> t = this;
 
 	auto f = [t](float input)
@@ -300,8 +300,8 @@ voiceFilters(numVoices)
 		return Table::getDefaultTextValue(input);
 	};
 
-	freqChain->setTableValueConverter(f);
-	bipolarFreqChain->setTableValueConverter(f);
+	modChains[FrequencyChain].getChain()->setTableValueConverter(f);
+	modChains[BipolarFrequencyChain].getChain()->setTableValueConverter(f);
 
 
 	auto fg = [t](float input)
@@ -316,7 +316,7 @@ voiceFilters(numVoices)
 		return Table::getDefaultTextValue(input);
 	};
 
-	gainChain->setTableValueConverter(fg);
+	modChains[GainChain].getChain()->setTableValueConverter(fg);
 
 	editorStateIdentifiers.add("FrequencyChainShown");
 	editorStateIdentifiers.add("GainChainShown");
@@ -404,41 +404,12 @@ ValueTree PolyFilterEffect::exportAsValueTree() const
 
 Processor * PolyFilterEffect::getChildProcessor(int processorIndex)
 {
-	switch (processorIndex)
-	{
-	case FrequencyChain: return freqChain;
-	case GainChain: return gainChain;
-	case BipolarFrequencyChain: return bipolarFreqChain;
-	}
-
-	jassertfalse;
-	return nullptr;
+	return modChains[processorIndex].getChain();
 }
 
 const Processor * PolyFilterEffect::getChildProcessor(int processorIndex) const
 {
-	switch (processorIndex)
-	{
-	case FrequencyChain: return freqChain;
-	case GainChain: return gainChain;
-	case BipolarFrequencyChain: return bipolarFreqChain;
-	}
-
-	jassertfalse;
-	return nullptr;
-}
-
-AudioSampleBuffer & PolyFilterEffect::getBufferForChain(int index)
-{
-	switch (index)
-	{
-	case FrequencyChain: return timeVariantFreqModulatorBuffer;
-	case GainChain: return timeVariantGainModulatorBuffer;
-	case BipolarFrequencyChain: return timeVariantBipolarFreqModulatorBuffer;
-	}
-
-	jassertfalse;
-	return timeVariantFreqModulatorBuffer;
+	return modChains[processorIndex].getChain();
 }
 
 void PolyFilterEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
@@ -492,24 +463,18 @@ juce::IIRCoefficients PolyFilterEffect::getCurrentCoefficients() const
 	}
 }
 
-void PolyFilterEffect::preVoiceRendering(int voiceIndex, int startSample, int numSamples)
-{
-	calculateChain(PolyFilterEffect::FrequencyChain, voiceIndex, startSample, numSamples);
-	calculateChain(PolyFilterEffect::GainChain, voiceIndex, startSample, numSamples);
-	calculateChain(PolyFilterEffect::BipolarFrequencyChain, voiceIndex, startSample, numSamples);
-}
-
 void PolyFilterEffect::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples)
 {
 	FilterHelpers::RenderData r(b, startSample, numSamples);
 	r.voiceIndex = voiceIndex;
-	r.freqModValue = (double)getCurrentModulationValue(FrequencyChain, voiceIndex, startSample);
-	auto bipolarFMod = getCurrentModulationValue(BipolarFrequencyChain, voiceIndex, startSample);
+
+	r.freqModValue = modChains[FrequencyChain].getOneModulationValue(startSample);
+
+	auto bipolarFMod = modChains[BipolarFrequencyChain].getOneModulationValue(startSample);
 	r.freqModValue += (double)(bipolarIntensity * bipolarFMod);
-	r.gainModValue = getCurrentModulationValue(GainChain, voiceIndex, startSample);
+	r.gainModValue = modChains[GainChain].getOneModulationValue(startSample);
 
     voiceFilters.setDisplayModValues(voiceIndex, r.freqModValue, r.gainModValue);
-    
 	voiceFilters.renderPoly(r);
 }
 

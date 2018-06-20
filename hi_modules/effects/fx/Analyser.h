@@ -136,11 +136,6 @@ public:
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
-	void prepareToPlay(double sampleRate, int samplesPerBlock)
-	{
-		MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
-	}
-
 	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples)
 	{
 

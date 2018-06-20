@@ -158,6 +158,8 @@ public:
 	/** This method is called to actually render all voices. It operates on the internal buffer of the ModulatorSynth. */
 	void renderVoice(int startSample, int numThisTime);
 
+	void calculateModulationValuesForVoice(ModulatorSynthVoice * v, int startSample, int numThisTime);;
+
 	void clearPendingRemoveVoices();
 
 	/** This method is called to handle all modulatorchains after the voice rendering and handles the GUI metering. It assumes stereo mode.
@@ -215,9 +217,7 @@ public:
 
 	// ===================================================================================================================
 
-	void enablePitchModulation(bool shouldBeEnabled);
-	bool isPitchModulationActive() const noexcept;
-
+	
 	// ===================================================================================================================
 
 	/** Kills the note with the specified note number. 
@@ -321,6 +321,10 @@ public:
 		group = parent;
 		disableChain(MidiProcessor, true);
 		disableChain(EffectChain, true);
+
+		// This will get lost otherwise
+		modChains[GainModulation-1].setIncludeMonophonicValuesInVoiceRendering(true);
+
 	};
 
 	/** Returns the ModulatorSynthGroup that this ModulatorSynth belongs to. */
@@ -373,7 +377,18 @@ public:
 	/** Calculates the voice values with the GainModulationChain and returns a read pointer to the values. */
 	const float *calculateGainValuesForVoice(int voiceIndex, float scriptGainValue, int startSample, int numSamples)
 	{
-		gainChain->renderVoice(voiceIndex, startSample, numSamples);
+		jassertfalse;
+
+		if (!gainChain->shouldBeProcessedAtAll())
+		{
+			auto gainData = gainChain->getVoiceValues(voiceIndex);
+			FloatVectorOperations::fill(gainData + startSample, 1.0f, numSamples);
+			return gainData;
+		}
+
+		if(gainChain->hasActivePolyMods())
+			gainChain->renderVoice(voiceIndex, startSample, numSamples);
+
 		float *gainData = gainChain->getVoiceValues(voiceIndex);
 		if (scriptGainValue != 1.0f) FloatVectorOperations::multiply(gainData + startSample, scriptGainValue, numSamples);
 
@@ -383,18 +398,87 @@ public:
 	/** calculates the voice pitch values. You can get the values with getPitchValues for voice. */
 	void calculatePitchValuesForVoice(int voiceIndex, float scriptPitchValue, int startSample, int numSamples)
 	{
-        pitchChain->renderVoice(voiceIndex, startSample, numSamples);
+		jassertfalse;
+		modChains[PitchModulation - 1].calculateModulationValuesForCurrentVoice(voiceIndex, startSample, numSamples);
+
+#if 0
+
 		float *voicePitchValues = pitchChain->getVoiceValues(voiceIndex);
-		const float *timeVariantPitchValues = getConstantPitchValues();
-		FloatVectorOperations::multiply(voicePitchValues, timeVariantPitchValues, startSample + numSamples);
-		if (scriptPitchValue != 1.0f) FloatVectorOperations::multiply(voicePitchValues, scriptPitchValue, startSample + numSamples);
+
+		if (pitchChain->hasActivePolyMods())
+		{
+			pitchChain->renderVoice(voiceIndex, startSample, numSamples);
+		}
+		else
+			FloatVectorOperations::fill(voicePitchValues, 1.0f, startSample + numSamples);
+
+		if (pitchChain->hasActiveTimeVariantMods())
+		{
+			
+
+			const float *timeVariantPitchValues = getConstantPitchValues();
+			FloatVectorOperations::multiply(voicePitchValues, timeVariantPitchValues, startSample + numSamples);
+		}
+
+		if (scriptPitchValue != 1.0f) 
+			FloatVectorOperations::multiply(voicePitchValues, scriptPitchValue, startSample + numSamples);
+#endif
 	}
 
 	/** Returns a read pointer to the calculated pitch values. */
-	const float *getPitchValuesForVoice(int voiceIndex) const { return pitchChain->getVoiceValues(voiceIndex);};
+	float *getPitchValuesForVoice() const 
+	{
+		if (useScratchBufferForArtificialPitch)
+			return modChains[PitchModulation - 1].getScratchBuffer();
+		
+		auto p = modChains[PitchModulation - 1].getWritePointerForVoiceValues(0);
+
+		if (p != nullptr)
+			return p;
+
+#if 0
+		if (numStaticValuesToGenerate > 0)
+		{
+			p = modChains[PitchModulation - 1].getScratchBuffer();
+			FloatVectorOperations::fill(p, 1.0f, numStaticValuesToGenerate);
+			return p;
+		}
+#endif
+
+		return nullptr;
+	};
+
+	void overwritePitchValues(const float* data, int startSample, int numSamples)
+	{
+		useScratchBufferForArtificialPitch = true;
+
+		auto destination = modChains[PitchModulation - 1].getScratchBuffer();
+
+		FloatVectorOperations::copy(destination + startSample, data + startSample, numSamples);
+	}
+
+	const float* getVoiceGainValues() const
+	{
+		return modChains[GainModulation - 1].getReadPointerForVoiceValues(0);
+	}
+
+	float getConstantPitchModValue() const
+	{
+		return modChains[PitchModulation - 1].getConstantModulationValue();
+	}
+
+
+	float getConstantVoicePitchModulationValueDeleteSoon() const
+	{
+		// Is applied to uptimeDelta already...
+		jassertfalse;
+
+		return 1.0f;
+	}
+
 
 	/** Returns a read pointer to the calculated pitch values. Used by Synthgroups to render their pitch values on the voice value. */
-	float *getPitchValuesForVoice(int voiceIndex) { return pitchChain->getVoiceValues(voiceIndex);};
+	//float *getPitchValuesForVoice(int voiceIndex) { return pitchChain->getVoiceValues(voiceIndex);};
 
 	ModulatorSynthVoice* getFreeVoice(SynthesiserSound* s, int midiChannel, int midiNoteNumber);
 
@@ -405,6 +489,12 @@ public:
 
 	virtual bool handleVoiceLimit(int numSoundsToBeStarted);
 
+protected:
+
+	ModulatorChain::Collection modChains;
+
+public:
+
 	HiseEventBuffer eventBuffer;
 	AudioSampleBuffer internalBuffer;
 
@@ -413,8 +503,10 @@ public:
 	AudioSampleBuffer pitchBuffer;
 	AudioSampleBuffer gainBuffer;
 
-	ScopedPointer<ModulatorChain> gainChain;
-	ScopedPointer<ModulatorChain> pitchChain;
+	ModulatorChain* gainChain = nullptr;
+	ModulatorChain* pitchChain = nullptr;
+
+	
 	ScopedPointer<MidiProcessorChain> midiProcessorChain;
 	ScopedPointer<EffectProcessorChain> effectChain;
 
@@ -467,6 +559,7 @@ protected:
 private:
 
 
+
 	int numActiveVoices;
 
 	
@@ -488,6 +581,11 @@ private:
 	int voiceLimit;
 	int internalVoiceLimit;
 
+	// If this is true, the script fade things have changed the pitch modulation data
+	// and it must be used.
+	bool useScratchBufferForArtificialPitch = false;
+
+	
 
 	bool shouldKillRetriggeredNote = true;
 
@@ -498,7 +596,6 @@ private:
 
 	bool midiInputFlag;
 	bool wasPlayingInLastBuffer;
-	bool pitchModulationActive;
 
 	std::atomic<float> gain;
 
@@ -509,8 +606,6 @@ private:
 	std::atomic<float> vuValue;
 
 	std::atomic<float> killFadeTime;
-	
-	
 
 	std::atomic<bool> bypassState;
 
@@ -540,7 +635,6 @@ public:
 		SynthesiserVoice(),
 		ownerSynth(ownerSynth_),
 		voiceIndex(ownerSynth_->getNumVoices()),
-		pitchModulationActive(ownerSynth_->isPitchModulationActive()),
 		voiceUptime(0.0),
 		voiceBuffer(2, 0),
 		uptimeDelta(0.0),
@@ -564,39 +658,30 @@ public:
 	
 	void calculateVoicePitchValues(int startSample, int numSamples)
 	{
+		jassertfalse;
+		// #WILLKILL
 		getOwnerSynth()->calculatePitchValuesForVoice(voiceIndex, (float)scriptPitchValue, startSample, numSamples);
-
-		if (pitchFader.isSmoothing())
-		{
-			float* pitchValues = getVoicePitchValues() + startSample;
-
-			float eventPitchFactorFloat = (float)eventPitchFactor;
-
-			while (--numSamples >= 0)
-			{
-				eventPitchFactor = pitchFader.getNextValue();
-				*pitchValues++ *= eventPitchFactorFloat;
-			}
-		}
-		else if (scriptPitchActive)
-		{
-			float* pitchValues = getVoicePitchValues() + startSample;
-
-			FloatVectorOperations::multiply(pitchValues, (float)eventPitchFactor, numSamples);
-		}
 	}
 
+	bool isPitchFadeActive() const noexcept
+	{
+		return pitchFader.isSmoothing();
+	}
+
+	void applyScriptPitchFactors(float* voicePitchModulationData, int numSamples)
+	{
+		jassert(pitchFader.isSmoothing());
+
+		float eventPitchFactorFloat = (float)eventPitchFactor;
+
+		while (--numSamples >= 0)
+		{
+			eventPitchFactor = pitchFader.getNextValue();
+			*voicePitchModulationData++ *= eventPitchFactorFloat;
+		}
+	}
 	
-
-	float *getVoicePitchValues() 
-	{
-		return isPitchModulationActive() ? getOwnerSynth()->getPitchValuesForVoice(voiceIndex) : nullptr;
-	}
-
-	const float *getVoiceGainValues(int startSample, int numSamples)
-	{
-		return getOwnerSynth()->calculateGainValuesForVoice(voiceIndex, scriptGainValue, startSample, numSamples);
-	}
+	
 
 	/** This only checks if the sound is valid, but you can override this with the desired behaviour. */
 	virtual bool canPlaySound(SynthesiserSound *s) override
@@ -625,6 +710,7 @@ public:
 		isTailing = false;
 		voiceUptime = 0.0;
 		uptimeDelta = 0.0;
+		startUptimeDelta = 0.0;
         isActive = true;
 	}
    
@@ -686,8 +772,6 @@ public:
 
 	void applyKillFadeout(int startSample, int numSamples)
 	{
-		
-
 		while(--numSamples >= 0)
 		{
 			killFadeLevel *= killFadeFactor;
@@ -696,9 +780,6 @@ public:
 			{
 				voiceBuffer.getWritePointer(i)[startSample] *= killFadeLevel;
 			}
-
-			//l[startSample] *= killFadeLevel;
-			//r[startSample] *= killFadeLevel;
 
 			startSample++;
 		}
@@ -752,9 +833,12 @@ public:
 
 	void setStartUptime(double newUptime) noexcept { startUptime = newUptime; }
 
-	void enablePitchModulation(bool shouldBeEnabled) noexcept{ pitchModulationActive = shouldBeEnabled; }
-
-	bool isPitchModulationActive() const noexcept{ return pitchModulationActive || scriptPitchActive; }
+	bool isPitchModulationActive() const noexcept
+	{
+		jassertfalse;
+		// #WILLKILL
+		return false;
+	}
 
 	void setScriptGainValue(float newGainValue) { scriptGainValue = newGainValue; }
 	void setScriptPitchValue(float newPitchValue) { scriptPitchValue = newPitchValue; }
@@ -767,12 +851,11 @@ public:
 		if (fadeTimeSeconds == 0.0)
 		{
 			eventGainFactor = targetVolume;
+			gainFader.setValueWithoutSmoothing(targetVolume);
 		}
 		else
 		{
-			gainFader.setValue(eventGainFactor);
-			gainFader.reset(getSampleRate(), fadeTimeSeconds);
-			gainFader.setValue(targetVolume);
+			gainFader.setValueAndRampTime(targetVolume, getSampleRate(), fadeTimeSeconds);
 		}
 	}
 
@@ -780,30 +863,32 @@ public:
 	{
 		if (fadeTimeSeconds == 0.0)
 		{
-			scriptPitchActive = true;
 			eventPitchFactor = targetPitch;
+			pitchFader.setValueWithoutSmoothing(eventPitchFactor);
 		}
 		else
 		{
-			scriptPitchActive = true;
-			pitchFader.setValue(eventPitchFactor);
-			pitchFader.reset(getSampleRate(), fadeTimeSeconds);
-			pitchFader.setValue(targetPitch);
+			pitchFader.setValueAndRampTime(targetPitch, getSampleRate(), fadeTimeSeconds);
 		}
 	}
 
-	/** Just multiplies the existing pitch factor. */
-	void setUnisonoDetuneAmount(float detuneAmount)
+	
+	void saveStartUptimeDelta()
 	{
-		eventPitchFactor *= detuneAmount;
-		scriptPitchActive = true;
+		startUptimeDelta = uptimeDelta;
 	}
 
-	
+	void setUptimeDeltaValueForBlock()
+	{
+		uptimeDelta = startUptimeDelta * (isPitchFadeActive() ? 1.0 : eventPitchFactor);
+	}
+
+	void applyConstantPitchFactor(double pitchFactorToAdd)
+	{
+		uptimeDelta *= pitchFactorToAdd;
+	}
 
 protected:
-
-	
 
 	/** Returns the ModulatorSynth instance that this voice belongs to.
 	*
@@ -817,6 +902,8 @@ protected:
 	*	The unit can change from Synth to synth (eg. angle vs. sample position ), so it must be calculated for each subclass in its startNote function. 
 	*/
 	double uptimeDelta = 0.0;
+
+	double startUptimeDelta = 0.0;
 
 	/** The total voice uptime. If you want to stop the rendering, set this to 0.0. */
 	double voiceUptime;
@@ -837,13 +924,12 @@ protected:
     
 private:
 
+	
+
 	HiseEvent currentHiseEvent;
 
 	LinearSmoothedValue<double> pitchFader;
 	LinearSmoothedValue<float> gainFader;
-
-	bool pitchModulationActive = false;
-	bool scriptPitchActive = false;
 
 	friend class ModulatorSynthGroupVoice;
 
@@ -851,14 +937,10 @@ private:
 
 	bool isTailing;
 
-    
-    
 	float killFadeLevel;
 	float killFadeFactor;
 	
 	double startUptime;
-
-	
 
 	ModulatorSynth* const ownerSynth;
 

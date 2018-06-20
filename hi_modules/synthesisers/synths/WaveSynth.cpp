@@ -330,7 +330,8 @@ void WaveSynth::prepareToPlay(double newSampleRate, int samplesPerBlock)
 
 void WaveSynth::preHiseEventCallback(const HiseEvent &m)
 {
-	mixChain->handleHiseEvent(m);
+	if(mixChain->shouldBeProcessedAtAll())
+		mixChain->handleHiseEvent(m);
 
 	ModulatorSynth::preHiseEventCallback(m);
 }
@@ -420,6 +421,8 @@ void WaveSynthVoice::startNote(int midiNoteNumber, float /*velocity*/, Synthesis
 
 #if USE_MARTIN_FINKE_POLY_BLEP_ALGORITHM
 
+	uptimeDelta = 1.0;
+
 	leftGenerator.setFrequency(cyclesPerSecond * octaveTransposeFactor1);
 
 	if(enableSecondOsc)
@@ -448,9 +451,7 @@ void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 	const int startIndex = startSample;
 	const int samplesToCopy = numSamples;
 
-	const float *voicePitchValues = getVoicePitchValues();
-
-	const float *modValues = getVoiceGainValues(startSample, numSamples);
+	const float *voicePitchValues = getOwnerSynth()->getPitchValuesForVoice();
 
 	float *outL = voiceBuffer.getWritePointer(0, startSample);
 	float *outR = voiceBuffer.getWritePointer(1, startSample);
@@ -461,6 +462,9 @@ void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 	{
 		if (enableSecondOsc)
 		{
+			leftGenerator.setFreqModulationValue(uptimeDelta);
+			rightGenerator.setFreqModulationValue(uptimeDelta);
+
 			while (--numSamples >= 0)
 			{
 				*outL++ = leftGenerator.getAndInc();
@@ -469,6 +473,8 @@ void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 		}
 		else
 		{
+			leftGenerator.setFreqModulationValue(uptimeDelta);
+
 			while (--numSamples >= 0)
 			{
 				*outL = leftGenerator.getAndInc();
@@ -484,10 +490,10 @@ void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 		{
 			while (--numSamples >= 0)
 			{
-				leftGenerator.setFreqModulationValue(*voicePitchValues);
+				leftGenerator.setFreqModulationValue(*voicePitchValues * uptimeDelta);
 				*outL++ = leftGenerator.getAndInc();
 
-				rightGenerator.setFreqModulationValue(*voicePitchValues);
+				rightGenerator.setFreqModulationValue(*voicePitchValues * uptimeDelta);
 				*outR++ = rightGenerator.getAndInc();
 				
 				voicePitchValues++;
@@ -497,8 +503,9 @@ void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 		{
 			while (--numSamples >= 0)
 			{
-				leftGenerator.setFreqModulationValue(*voicePitchValues++);
-				
+				leftGenerator.setFreqModulationValue(*voicePitchValues * uptimeDelta);
+				voicePitchValues++;
+
 				*outL = leftGenerator.getAndInc();
 				*outR++ = *outL++;
 			}
@@ -546,8 +553,11 @@ void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 
 	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
 
-	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
-	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
+	if (auto modValues = getOwnerSynth()->getVoiceGainValues())
+	{
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
+	}
 }
 
 void WaveSynthVoice::setOctaveTransposeFactor(double newFactor, bool leftFactor)

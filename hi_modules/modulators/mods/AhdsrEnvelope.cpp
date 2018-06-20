@@ -37,13 +37,13 @@ namespace hise { using namespace juce;
 Processor * AhdsrEnvelope::getChildProcessor(int processorIndex)
 {
 	jassert(processorIndex < internalChains.size());
-	return internalChains[processorIndex];
+	return internalChains[processorIndex].getChain();
 }
 
 const Processor * AhdsrEnvelope::getChildProcessor(int processorIndex) const
 {
 	jassert(processorIndex < internalChains.size());
-	return internalChains[processorIndex];
+	return internalChains[processorIndex].getChain();
 }
 
 AhdsrEnvelope::AhdsrEnvelope(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m) :
@@ -77,16 +77,13 @@ AhdsrEnvelope::AhdsrEnvelope(MainController *mc, const String &id, int voiceAmou
 
 	monophonicState = createSubclassedState(-1);
 
-	internalChains.add(new ModulatorChain(mc, "Attack Time", voiceAmount, ModulatorChain::GainMode, this));
-	internalChains.add(new ModulatorChain(mc, "Attack Level", voiceAmount, ModulatorChain::GainMode, this));
-	internalChains.add(new ModulatorChain(mc, "Decay Time", voiceAmount, ModulatorChain::GainMode, this));
-	internalChains.add(new ModulatorChain(mc, "Sustain Level", voiceAmount, ModulatorChain::GainMode, this));
-	internalChains.add(new ModulatorChain(mc, "Release Time", voiceAmount, ModulatorChain::GainMode, this));
+	internalChains.reserve(numInternalChains);
 
-	for(int i = 0; i < internalChains.size(); i++)
-	{
-		internalChains[i]->setIsVoiceStartChain(true);
-	};
+	internalChains += {this, "Attack Time", ModulatorChain::ModulationType::VoiceStartOnly };
+	internalChains += {this, "Attack Level", ModulatorChain::ModulationType::VoiceStartOnly };
+	internalChains += {this, "Decay Time", ModulatorChain::ModulationType::VoiceStartOnly };
+	internalChains += {this, "Sustain Level", ModulatorChain::ModulationType::VoiceStartOnly };
+	internalChains += {this, "Release Time", ModulatorChain::ModulationType::VoiceStartOnly };
 
     setTargetRatioDR(0.0001f);
 
@@ -197,11 +194,15 @@ void AhdsrEnvelope::startVoice(int voiceIndex)
 
 		if (restartEnvelope)
 		{
-			for (int i = 0; i < numInternalChains; i++)
-			{
-				internalChains[i]->startVoice(voiceIndex);
-				state->modValues[i] = jmax(0.0f, internalChains[i]->getConstantVoiceValue(voiceIndex));
-			}
+			
+			for (auto& mb : internalChains)
+				mb.startVoice(voiceIndex);
+			
+			state->modValues[AttackTimeChain] = internalChains[AttackTimeChain].getChain()->getConstantVoiceValue(voiceIndex);
+			state->modValues[AttackLevelChain] = internalChains[AttackLevelChain].getChain()->getConstantVoiceValue(voiceIndex);
+			state->modValues[DecayTimeChain] = internalChains[DecayTimeChain].getChain()->getConstantVoiceValue(voiceIndex);
+			state->modValues[SustainLevelChain] = internalChains[SustainLevelChain].getChain()->getConstantVoiceValue(voiceIndex);
+			state->modValues[ReleaseTimeChain] = internalChains[ReleaseTimeChain].getChain()->getConstantVoiceValue(voiceIndex);
 
 			// Don't reset the envelope for tailing releases
 			if (shouldRetrigger)
@@ -231,11 +232,14 @@ void AhdsrEnvelope::startVoice(int voiceIndex)
 			reset(voiceIndex);
 		}
 
-		for (int i = 0; i < numInternalChains; i++)
-		{
-			internalChains[i]->startVoice(voiceIndex);
-			state->modValues[i] = jmax(0.0f, internalChains[i]->getConstantVoiceValue(voiceIndex));
-		}
+		for (auto& mb : internalChains)
+			mb.startVoice(voiceIndex);
+
+		state->modValues[AttackTimeChain] = internalChains[AttackTimeChain].getChain()->getConstantVoiceValue(voiceIndex);
+		state->modValues[AttackLevelChain] = internalChains[AttackLevelChain].getChain()->getConstantVoiceValue(voiceIndex);
+		state->modValues[DecayTimeChain] = internalChains[DecayTimeChain].getChain()->getConstantVoiceValue(voiceIndex);
+		state->modValues[SustainLevelChain] = internalChains[SustainLevelChain].getChain()->getConstantVoiceValue(voiceIndex);
+		state->modValues[ReleaseTimeChain] = internalChains[ReleaseTimeChain].getChain()->getConstantVoiceValue(voiceIndex);
 
 		state->attackLevel = attackLevel * state->modValues[AttackLevelChain];
 		state->setAttackRate(attack);
@@ -403,10 +407,8 @@ void AhdsrEnvelope::reset(int voiceIndex)
 
 void AhdsrEnvelope::handleHiseEvent(const HiseEvent &e)
 {
-	for(int i = 0; i < numInternalChains; i++)
-	{
-		internalChains[i]->handleHiseEvent(e);
-	}
+	for (auto& mb : internalChains)
+		mb.handleHiseEvent(e);
 };
 
 float AhdsrEnvelope::getDefaultValue(int parameterIndex) const
@@ -482,12 +484,13 @@ void AhdsrEnvelope::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	EnvelopeModulator::prepareToPlay(sampleRate, samplesPerBlock);
 
+	for (auto& mb : internalChains)
+		mb.prepareToPlay(sampleRate, samplesPerBlock);
+
 	setAttackRate(attack);
 	setDecayRate(decay);
 	setReleaseRate(release);
 	setSustainLevel(sustain);
-	
-
 }
 
 bool AhdsrEnvelope::isPlaying(int voiceIndex) const

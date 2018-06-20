@@ -176,12 +176,9 @@ public:
 	int getNumChildProcessors() const override { return numInternalChains; };
 	Processor *getChildProcessor(int processorIndex) override;;
 	const Processor *getChildProcessor(int processorIndex) const override;;
-	AudioSampleBuffer & getBufferForChain(int index);;
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;;
 	void renderNextBlock(AudioSampleBuffer &/*b*/, int /*startSample*/, int /*numSample*/) { }
-	/** Calculates the frequency chain and sets the q to the current value. */
-	void preVoiceRendering(int voiceIndex, int startSample, int numSamples);
 	void applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) override;
 	/** Resets the filter state if a new voice is started. */
 	void startVoice(int voiceIndex, int noteNumber) override;
@@ -198,14 +195,6 @@ private:
 	float bipolarIntensity = 0.0f;
 
 	FilterBank voiceFilters;
-
-	ScopedPointer<ModulatorChain> freqChain;
-	ScopedPointer<ModulatorChain> gainChain;
-	ScopedPointer<ModulatorChain> bipolarFreqChain;
-
-	AudioSampleBuffer timeVariantFreqModulatorBuffer;
-	AudioSampleBuffer timeVariantGainModulatorBuffer;
-	AudioSampleBuffer timeVariantBipolarFreqModulatorBuffer;
 
 	mutable WeakReference<Processor> ownerSynthForCoefficients;
 };

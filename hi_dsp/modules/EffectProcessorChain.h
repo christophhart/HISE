@@ -99,8 +99,6 @@ public:
 
 	void applyEffect(int /*voiceIndex*/, AudioSampleBuffer &/*b*/, int /*startSample*/, int /*numSamples*/) override {};
 
-	void preVoiceRendering(int /*voiceIndex*/, int /*startSample*/, int /*numSamples*/) override {};
-
 	void renderVoice(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) override 
 	{ 
 		if(isBypassed()) return;

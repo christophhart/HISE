@@ -74,6 +74,8 @@ ModulatorSynthChain::ModulatorSynthChain(MainController *mc, const String &id, i
 
 ModulatorSynthChain::~ModulatorSynthChain()
 {
+	modChains.clear();
+
 	getHandler()->clear();
 
 	effectChain = nullptr;

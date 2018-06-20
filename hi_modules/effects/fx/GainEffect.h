@@ -125,18 +125,6 @@ public:
 	void restoreFromValueTree(const ValueTree &v) override;;
 	ValueTree exportAsValueTree() const override;
 
-	AudioSampleBuffer &getBufferForChain(int index) override
-	{
-		switch (index)
-		{
-		case GainChain: return gainBuffer;
-		case DelayChain: return delayBuffer;
-		case WidthChain: return widthBuffer;
-		case BalanceChain: return balanceBuffer;
-		default: jassertfalse; return gainBuffer;
-		}
-	}
-	
 	bool hasTail() const override { return false; };
 
 	Processor *getChildProcessor(int processorIndex) override

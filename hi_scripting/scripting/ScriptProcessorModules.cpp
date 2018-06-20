@@ -1303,8 +1303,8 @@ public:
 		const int startIndex = startSample;
 		const int samplesToCopy = numSamples;
 
-		const float *voicePitchValues = getVoicePitchValues();
-		const float *modValues = getVoiceGainValues(startSample, numSamples);
+		const float *voicePitchValues = getOwnerSynth()->getPitchValuesForVoice();
+		const float *modValues = getOwnerSynth()->getVoiceGainValues();
 
 		float *leftValues = voiceBuffer.getWritePointer(0, startSample);
 		float *rightValues = voiceBuffer.getWritePointer(1, startSample);

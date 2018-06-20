@@ -98,8 +98,6 @@ ModulatorSynth(mc, id, numVoices),
 preloadSize(PRELOAD_SIZE),
 asyncPurger(this),
 soundCache(new AudioThumbnailCache(512)),
-sampleStartChain(new ModulatorChain(mc, "Sample Start", numVoices, Modulation::GainMode, this)),
-crossFadeChain(new ModulatorChain(mc, "Group Fade", numVoices, Modulation::GainMode, this)),
 sampleMap(new SampleMap(this)),
 rrGroupAmount(1),
 bufferSize(4096),
@@ -121,8 +119,14 @@ temporaryVoiceBuffer(true, 2, 0)
 	sampleEditHandler = new SampleEditHandler(this);
 #endif
 
-	
-	
+	modChains += {this, "Sample Start", ModulatorChain::ModulationType::VoiceStartOnly, Modulation::GainMode};
+	modChains += {this, "Group Fade"};
+
+	modChains[Chains::XFade].setAllowModificationOfVoiceValues(true);
+	modChains[Chains::XFade].setUseConstantValueForBuffer(false);
+
+	sampleStartChain = modChains[Chains::SampleStart].getChain();
+	crossFadeChain = modChains[Chains::XFade].getChain();
 
 	setGain(1.0);
 
@@ -153,13 +157,8 @@ temporaryVoiceBuffer(true, 2, 0)
 	setEditorState(EditorStates::MapPanelShown, true);
 	setEditorState(EditorStates::BigSampleMap, true);
 
-	sampleStartChain->setFactoryType(new VoiceStartModulatorFactoryType(numVoices, Modulation::GainMode, sampleStartChain));
-
-    
-    
-    
+	
 	sampleStartChain->setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff5e8127)));
-
 	crossFadeChain->setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff884b29)));
 
 	for (int i = 0; i < 127; i++) samplerDisplayValues.currentNotes[i] = 0;
@@ -174,9 +173,6 @@ temporaryVoiceBuffer(true, 2, 0)
 	}
 
 	getMatrix().setAllowResizing(true);
-
-    
-    
 }
 
 
@@ -229,8 +225,6 @@ void ModulatorSampler::setReversed(bool shouldBeReversed)
 
 void ModulatorSampler::setNumChannels(int numNewChannels)
 {
-
-
 	jassert(numNewChannels <= (NUM_MAX_CHANNELS / 2));
 
 	numChannels = jmin<int>(NUM_MAX_CHANNELS/2, numNewChannels);
@@ -496,12 +490,7 @@ void ModulatorSampler::prepareToPlay(double newSampleRate, int samplesPerBlock)
 
 	if (newSampleRate != -1.0)
 	{
-		ProcessorHelpers::increaseBufferIfNeeded(crossfadeBuffer, samplesPerBlock);
-
 		StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, samplesPerBlock);
-
-		sampleStartChain->prepareToPlay(newSampleRate, samplesPerBlock);
-		crossFadeChain->prepareToPlay(newSampleRate, samplesPerBlock);
 	}
 }
 
@@ -842,13 +831,14 @@ void ModulatorSampler::preStartVoice(int voiceIndex, int noteNumber)
 {
 	ModulatorSynth::preStartVoice(voiceIndex, noteNumber);
 
-	const bool useSampleStartChain = sampleStartChain->getNumChildProcessors() != 0;
+	const bool useSampleStartChain = sampleStartChain->shouldBeProcessedAtAll();
 
 	float sampleStartModValue;
 
+	sampleStartModValue = modChains[Chains::SampleStart].getConstantModulationValue();
+
 	if (useSampleStartChain)
 	{
-		sampleStartChain->startVoice(voiceIndex);
 		sampleStartModValue = sampleStartChain->getConstantVoiceValue(voiceIndex);
 
 		// The display value can already be determined here.
@@ -861,19 +851,7 @@ void ModulatorSampler::preStartVoice(int voiceIndex, int noteNumber)
 		samplerDisplayValues.currentSampleStartPos = 0.0f;
 	}
 
-	crossFadeChain->startVoice(voiceIndex);
-
 	static_cast<ModulatorSamplerVoice*>(getLastStartedVoice())->setSampleStartModValue(sampleStartModValue);
-}
-
-void ModulatorSampler::preVoiceRendering(int startSample, int numThisTime)
-{
-	ModulatorSynth::preVoiceRendering(startSample, numThisTime);
-
-	if (crossfadeGroups)
-	{
-		crossFadeChain->renderNextBlock(crossfadeBuffer, startSample, numThisTime);
-	}
 }
 
 bool ModulatorSampler::soundCanBePlayed(ModulatorSynthSound *sound, int midiChannel, int midiNoteNumber, float velocity)
@@ -933,13 +911,8 @@ void ModulatorSampler::noteOff(const HiseEvent &m)
 
 void ModulatorSampler::preHiseEventCallback(const HiseEvent &m)
 {
-	crossFadeChain->handleHiseEvent(m);
-
 	if (m.isNoteOnOrOff())
 	{
-		sampleStartChain->handleHiseEvent(m);
-		
-
 		if (m.isNoteOn())
 		{
 			if (useRoundRobinCycleLogic)
@@ -966,7 +939,6 @@ void ModulatorSampler::preHiseEventCallback(const HiseEvent &m)
 	if (!m.isNoteOff() || !oneShotEnabled)
 	{
 		ModulatorSynth::preHiseEventCallback(m);
-
 	}
 }
 
@@ -974,6 +946,7 @@ void ModulatorSampler::calculateCrossfadeModulationValuesForVoice(int voiceIndex
 {
 	if (groupIndex > 8) return;
 
+#if 0
 	crossFadeChain->renderVoice(voiceIndex, startSample, numSamples);
 
 	float *crossFadeValues = crossFadeChain->getVoiceValues(voiceIndex);
@@ -996,6 +969,43 @@ void ModulatorSampler::calculateCrossfadeModulationValuesForVoice(int voiceIndex
 
 		crossFadeValues[i + startSample] = tableValue;
 	}
+#endif
+
+	if (auto xFadeValuesForVoice = modChains[Chains::XFade].getWritePointerForVoiceValues(startSample))
+	{
+		SampleLookupTable *table = crossfadeTables[groupIndex];
+
+		auto firstValue = CONSTRAIN_TO_0_1(xFadeValuesForVoice[0]);
+		auto lastValue = CONSTRAIN_TO_0_1(xFadeValuesForVoice[numSamples - 1]);
+
+		firstValue = table->getInterpolatedValue((double)firstValue * (double)SAMPLE_LOOKUP_TABLE_SIZE);
+		lastValue = table->getInterpolatedValue((double)lastValue * (double)SAMPLE_LOOKUP_TABLE_SIZE);
+
+		const float delta = (lastValue - firstValue) / (float)numSamples;
+
+		float value = firstValue;
+
+		for (int i = 0; i < numSamples; i++)
+		{
+			xFadeValuesForVoice[i] = value;
+			value += delta;
+		}
+
+		if (isLastStartedVoice(static_cast<ModulatorSynthVoice*>(getVoice(voiceIndex))) && numSamples > 0)
+		{
+			setCrossfadeTableValue(firstValue);
+		}
+	}
+}
+
+const float * ModulatorSampler::getCrossfadeModValues(int voiceIndex) const
+{
+	return crossfadeGroups ? modChains[Chains::XFade].getReadPointerForVoiceValues(0) : nullptr;
+}
+
+float ModulatorSampler::getConstantCrossFadeModulationValue(int groupIndex) const noexcept
+{
+	return crossfadeGroups ? modChains[Chains::XFade].getConstantModulationValue() : 1.0f;
 }
 
 void ModulatorSampler::clearSampleMap(NotificationType n)

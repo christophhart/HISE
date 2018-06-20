@@ -72,11 +72,6 @@ public:
 	float getAttribute(int parameterIndex) const override;
 	float getDefaultValue(int parameterIndex) const override;
 
-	AudioSampleBuffer &getBufferForChain(int /*index*/) override
-	{
-		return saturationBuffer;
-	}
-
 	void restoreFromValueTree(const ValueTree &v) override;;
 	ValueTree exportAsValueTree() const override;
 

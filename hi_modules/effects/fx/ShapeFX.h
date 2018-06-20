@@ -418,8 +418,8 @@ public:
 
 	bool hasTail() const override { return false; };
 
-	Processor *getChildProcessor(int /*processorIndex*/) override { return driveChain; };
-	const Processor *getChildProcessor(int /*processorIndex*/) const override { return driveChain; };
+	Processor *getChildProcessor(int /*processorIndex*/) override { return modChains[DriveModulation].getChain(); };
+	const Processor *getChildProcessor(int /*processorIndex*/) const override { return modChains[DriveModulation].getChain(); };
 	int getNumChildProcessors() const override { return numInternalChains; };
 	int getNumInternalChains() const override { return numInternalChains; };
 
@@ -429,12 +429,7 @@ public:
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
-	AudioSampleBuffer &getBufferForChain(int /*index*/) override;
-
-	void preVoiceRendering(int voiceIndex, int startSample, int numSamples);
-
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
-
 	void applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) override;
 
 	const StringArray& getShapeNames() const { return shapeNames; }
@@ -508,8 +503,6 @@ private:
 
 	int mode = ShapeFX::ShapeMode::Linear;
 	bool oversampling = false;
-	ScopedPointer<ModulatorChain> driveChain;
-	AudioSampleBuffer driveBuffer;
 
 	FixedVoiceAmountArray<SimpleOnePole> dcRemovers;
 

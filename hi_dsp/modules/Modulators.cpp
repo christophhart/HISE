@@ -129,8 +129,8 @@ void Modulation::pushPlotterValues(const AudioSampleBuffer& b, int startSample, 
 	}
 }
 
-Modulator::Modulator(MainController *mc, const String &id_) :
-	Processor(mc, id_),
+Modulator::Modulator(MainController *mc, const String &id_, int numVoices) :
+	Processor(mc, id_, numVoices),
 	colour(Colour(0x00000000))
 {		
 };
@@ -189,8 +189,6 @@ const float * TimeModulation::getCalculatedValues(int /*voiceIndex*/)
 
 void TimeModulation::prepareToModulate(double /*sampleRate*/, int samplesPerBlock)
 {
-	ProcessorHelpers::increaseBufferIfNeeded(internalBuffer, samplesPerBlock);
-
 	jassert(isInitialized());
 }
 
@@ -200,19 +198,34 @@ void TimeModulation::applyGainModulation(float *calculatedModulationValues, floa
 {
 	const float a = 1.0f - fixedIntensity;
 
-	FloatVectorOperations::multiply(calculatedModulationValues, fixedIntensity, numValues);
-	FloatVectorOperations::add(calculatedModulationValues, a, numValues);
-	FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
+	while (--numValues >= 0)
+	{
+		*destinationValues++ = *calculatedModulationValues++ * fixedIntensity + a;
+	}
+
+	//FloatVectorOperations::multiply(calculatedModulationValues, fixedIntensity, numValues);
+	//FloatVectorOperations::add(calculatedModulationValues, a, numValues);
+	//FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
 }
 
-void TimeModulation::applyGainModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, float *intensityValues, int numValues) const noexcept
+void TimeModulation::applyGainModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, const float *intensityValues, int numValues) const noexcept
 {
+	while (--numValues >= 0)
+	{
+		const float intensityValue = fixedIntensity * *intensityValues++;
+		const float invIntensity = 1.0f - intensityValue;
+
+		*destinationValues++ = *calculatedModulationValues++ * intensityValue + invIntensity;
+	}
+	
+	/*
 	FloatVectorOperations::multiply(intensityValues, fixedIntensity, numValues);
 	FloatVectorOperations::multiply(calculatedModulationValues, intensityValues, numValues);
 	FloatVectorOperations::multiply(intensityValues, -1.0f, numValues);
 	FloatVectorOperations::add(intensityValues, 1.0f, numValues);
 	FloatVectorOperations::add(calculatedModulationValues, intensityValues, numValues);
 	FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
+	*/
 }
 
 void TimeModulation::applyPitchModulation(float* calculatedModulationValues, float *destinationValues, float fixedIntensity, int numValues) const noexcept
@@ -221,9 +234,15 @@ void TimeModulation::applyPitchModulation(float* calculatedModulationValues, flo
 
 	if (isBipolar())
 	{
-		FloatVectorOperations::multiply(calculatedModulationValues, 2.0f, numValues);
-		FloatVectorOperations::add(calculatedModulationValues, -1.0f, numValues);
-		FloatVectorOperations::multiply(calculatedModulationValues, fixedIntensity, numValues);
+		while (--numValues >= 0)
+		{
+			const float bipolarModValue = *calculatedModulationValues * 2.0f - 1.0f;
+			*calculatedModulationValues++ = bipolarModValue * fixedIntensity;
+		}
+
+		//FloatVectorOperations::multiply(calculatedModulationValues, 2.0f, numValues);
+		//FloatVectorOperations::add(calculatedModulationValues, -1.0f, numValues);
+		//FloatVectorOperations::multiply(calculatedModulationValues, fixedIntensity, numValues);
 
 		// modvalues (-1 ... -intensity ... 0 ... +intensity ... 1)
 	}
@@ -246,21 +265,34 @@ void TimeModulation::applyPitchModulation(float* calculatedModulationValues, flo
 #endif
 }
 
-void TimeModulation::applyPitchModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, float *intensityValues, int numValues) const noexcept
+void TimeModulation::applyPitchModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, const float *intensityValues, int numValues) const noexcept
 {
 	// input: modValues (0 ... 1), intensity (-1 ... 1), intensityValues (0.5 ... 2.0)
 
 	if (isBipolar())
 	{
-		FloatVectorOperations::multiply(intensityValues, fixedIntensity, numValues);
-		FloatVectorOperations::multiply(calculatedModulationValues, 2.0f, numValues);
-		FloatVectorOperations::add(calculatedModulationValues, -1.0f, numValues);
-		FloatVectorOperations::multiply(calculatedModulationValues, intensityValues, numValues);
+		while (--numValues >= 0)
+		{
+			const float intensityValue = *intensityValues++ * fixedIntensity;
+			const float bipolarModValue = 2.0f * *calculatedModulationValues - 1.0f;
+			*calculatedModulationValues++ = bipolarModValue * intensityValue;
+		}
+
+		//FloatVectorOperations::multiply(intensityValues, fixedIntensity, numValues);
+		//FloatVectorOperations::multiply(calculatedModulationValues, 2.0f, numValues);
+		//FloatVectorOperations::add(calculatedModulationValues, -1.0f, numValues);
+		//FloatVectorOperations::multiply(calculatedModulationValues, intensityValues, numValues);
 	}
 	else
 	{
-		FloatVectorOperations::multiply(intensityValues, fixedIntensity, numValues);
-		FloatVectorOperations::multiply(calculatedModulationValues, intensityValues, numValues);
+		while (--numValues >= 0)
+		{
+			const float intensityValue = *intensityValues++ * fixedIntensity;
+			*calculatedModulationValues++ *= intensityValue;
+		}
+
+		//FloatVectorOperations::multiply(intensityValues, fixedIntensity, numValues);
+		//FloatVectorOperations::multiply(calculatedModulationValues, intensityValues, numValues);
 	}
 
 	Modulation::PitchConverters::normalisedRangeToPitchFactor(calculatedModulationValues, numValues);
@@ -283,7 +315,7 @@ void TimeModulation::initializeBuffer(AudioSampleBuffer &bufferToBeInitialized, 
 
 VoiceStartModulator::VoiceStartModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m) :
 		VoiceModulation(numVoices, m),
-		Modulator(mc, id),
+		Modulator(mc, id, numVoices),
 		Modulation(m),
 		unsavedValue(1.0f)
 {
@@ -291,7 +323,7 @@ VoiceStartModulator::VoiceStartModulator(MainController *mc, const String &id, i
 };
 
 EnvelopeModulator::EnvelopeModulator(MainController *mc, const String &id, int voiceAmount_, Modulation::Mode m):
-	Modulator(mc, id),
+	Modulator(mc, id, voiceAmount_),
 	Modulation(m),
 	TimeModulation(m),
 	VoiceModulation(voiceAmount_, m)
@@ -358,7 +390,8 @@ Processor *EnvelopeModulatorFactoryType::createProcessor(int typeIndex, const St
 
 void VoiceModulation::allNotesOff()
 {
-	for (int i = 0; i < polyManager.getVoiceAmount(); i++) stopVoice(i);
+	for (int i = 0; i < polyManager.getVoiceAmount(); i++) 
+		stopVoice(i);
 }
 
 void VoiceModulation::PolyphonyManager::setCurrentVoice(int newCurrentVoice) noexcept

@@ -79,8 +79,6 @@ public:
 	int getNumInternalChains() const override { return numInternalChains; };
     Processor *getChildProcessor(int /*processorIndex*/) override { return phaseModulationChain; };
     const Processor *getChildProcessor(int /*processorIndex*/) const override { return phaseModulationChain; };
-    
-	AudioSampleBuffer &getBufferForChain(int /*index*/) override { return phaseModulationBuffer; };
 
     ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
     

@@ -47,10 +47,6 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	keysPressed(0),
 	intensityModulationValue(1.0f),
 	frequencyModulationValue(1.0f),
-	frequencyChain(new ModulatorChain(mc, "LFO Frequency Mod", 1, Modulation::GainMode, this)),
-	intensityChain(new ModulatorChain(mc, "LFO Intensity Mod", 1, Modulation::GainMode, this)),
-    intensityBuffer(1, 0),
-    frequencyBuffer(1, 0),
 	customTable(new SampleLookupTable()),
 	data(new SliderPackData(mc->getControlUndoManager())),
 	currentWaveform((Waveform)(int)getDefaultValue(WaveFormType)),
@@ -63,7 +59,14 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	smoothingTime(getDefaultValue(SmoothingTime)),
 	updater(*this)
 {
+	modChains.reserve(2);
 	
+	modChains += {this, "LFO Intensity Mod"};
+	modChains += {this, "LFO Frequency Mod"};
+
+	intensityChain = modChains[IntensityChain].getChain();
+	frequencyChain = modChains[FrequencyChain].getChain();
+
 	scaleFunction = [](float input) { return input * 2.0f - 1.0f; };
 
 	editorStateIdentifiers.add("IntensityChainShown");
@@ -131,6 +134,11 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 
 LfoModulator::~LfoModulator()
 {
+	intensityChain = nullptr;
+	frequencyChain = nullptr;
+
+	modChains.clear();
+
 	customTable->removeAllChangeListeners();
 	data->removeAllChangeListeners();
 	customTable = nullptr;
@@ -138,6 +146,46 @@ LfoModulator::~LfoModulator()
 	getMainController()->removeTempoListener(this);
 };
 
+
+void LfoModulator::restoreFromValueTree(const ValueTree &v)
+{
+	TimeVariantModulator::restoreFromValueTree(v);
+
+	loadAttribute(TempoSync, "TempoSync");
+
+	loadAttribute(Frequency, "Frequency");
+	loadAttribute(FadeIn, "FadeIn");
+	loadAttribute(WaveFormType, "WaveformType");
+	loadAttribute(Legato, "Legato");
+
+	loadAttribute(SmoothingTime, "SmoothingTime");
+
+	if (v.hasProperty("LoopEnabled"))
+		loadAttribute(LoopEnabled, "LoopEnabled");
+
+	loadTable(customTable, "CustomWaveform");
+
+	data->fromBase64(v.getProperty("StepData"));
+}
+
+juce::ValueTree LfoModulator::exportAsValueTree() const
+{
+	ValueTree v = TimeVariantModulator::exportAsValueTree();
+
+	saveAttribute(Frequency, "Frequency");
+	saveAttribute(FadeIn, "FadeIn");
+	saveAttribute(WaveFormType, "WaveformType");
+	saveAttribute(Legato, "Legato");
+	saveAttribute(TempoSync, "TempoSync");
+	saveAttribute(SmoothingTime, "SmoothingTime");
+	saveAttribute(LoopEnabled, "LoopEnabled");
+
+	saveTable(customTable, "CustomWaveform");
+
+	v.setProperty("StepData", data->toBase64(), nullptr);
+
+	return v;
+}
 
 ProcessorEditorBody *LfoModulator::createEditor(ProcessorEditor *parentEditor)
 {
@@ -216,22 +264,32 @@ void LfoModulator::applyTimeModulation(AudioSampleBuffer &buffer, int startIndex
 	float *dest = buffer.getWritePointer(0, startIndex);
 	float *mod = internalBuffer.getWritePointer(0, startIndex);
 
-	intensityChain->renderAllModulatorsAsMonophonic(intensityBuffer, startIndex, samplesToCopy);
+	float intensityToUse = getIntensity();
 	
-	frequencyChain->renderAllModulatorsAsMonophonic(frequencyBuffer, startIndex, samplesToCopy);
-
-	if(frequencyUpdater.shouldUpdate(samplesToCopy))
+	for (auto& mb : modChains)
 	{
-		frequencyModulationValue = frequencyBuffer.getReadPointer(0, startIndex)[0];
+		mb.calculateMonophonicModulationValues(startIndex, samplesToCopy);
+		mb.calculateModulationValuesForCurrentVoice(0, startIndex, samplesToCopy);
+	}
+	
+	if (frequencyUpdater.shouldUpdate(samplesToCopy))
+	{
+		frequencyModulationValue = modChains[FrequencyChain].getOneModulationValue(startIndex);
 		calcAngleDelta();
 	}
+	
+	intensityToUse *= modChains[IntensityChain].getConstantModulationValue();
 
-	float *intens = intensityBuffer.getWritePointer(0, startIndex);
-	//FloatVectorOperations::multiply(intens, getIntensity(), samplesToCopy);
-
-	if(getMode() == GainMode)		TimeModulation::applyGainModulation( mod, dest, getIntensity(), intens, samplesToCopy);
-	else if(getMode() == PitchMode) TimeModulation::applyPitchModulation(mod, dest, getIntensity(), intens, samplesToCopy);
-
+	if (auto intensityModValues = modChains[IntensityChain].getReadPointerForVoiceValues(startIndex))
+	{
+		if (getMode() == GainMode)		 TimeModulation::applyGainModulation(mod, dest, intensityToUse, intensityModValues, samplesToCopy);
+		else if (getMode() == PitchMode) TimeModulation::applyPitchModulation(mod, dest, intensityToUse, intensityModValues, samplesToCopy);
+	}
+	else
+	{
+		if (getMode() == GainMode)		 TimeModulation::applyGainModulation(mod, dest, intensityToUse, samplesToCopy);
+		else if (getMode() == PitchMode) TimeModulation::applyPitchModulation(mod, dest, intensityToUse, samplesToCopy);
+	}
 };
 
 void LfoModulator::setInternalAttribute (int parameter_index, float newValue)
@@ -406,11 +464,8 @@ void LfoModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 	{
 		CHECK_COPY_AND_RETURN_5(this);
 
-		ProcessorHelpers::increaseBufferIfNeeded(intensityBuffer, samplesPerBlock);
-		ProcessorHelpers::increaseBufferIfNeeded(frequencyBuffer, samplesPerBlock);
-
-		intensityChain->prepareToPlay(sampleRate, samplesPerBlock);
-		frequencyChain->prepareToPlay(sampleRate, samplesPerBlock);
+		for (auto& mb : modChains)
+			mb.prepareToPlay(sampleRate, samplesPerBlock);
 
 		setAttackRate(attack);
 
@@ -428,10 +483,43 @@ void LfoModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 	intensityInterpolator.setStepAmount(samplesPerBlock);
 };
 
+void LfoModulator::calculateBlock(int startSample, int numSamples)
+{
+#if ENABLE_ALL_PEAK_METERS
+	if (--numSamples >= 0)
+	{
+		const float value = calculateNewValue();
+		internalBuffer.setSample(0, startSample, value);
+		++startSample;
+		setOutputValue(value);
+	}
+#endif
+
+	while (--numSamples >= 0)
+	{
+		internalBuffer.setSample(0, startSample, calculateNewValue());
+		++startSample;
+	}
+
+	const float newInputValue = ((int)(uptime) % SAMPLE_LOOKUP_TABLE_SIZE) / (float)SAMPLE_LOOKUP_TABLE_SIZE;
+
+	if (inputMerger.shouldUpdate() && currentWaveform == Custom)
+	{
+		const bool isLooped = (loopEnabled || uptime < (double)SAMPLE_LOOKUP_TABLE_SIZE);
+
+		if (isLooped)
+		{
+			sendTableIndexChangeMessage(false, customTable, newInputValue);
+		}
+		else
+			sendTableIndexChangeMessage(false, customTable, 1.0f);
+	}
+}
+
 void LfoModulator::handleHiseEvent(const HiseEvent &m)
 {
-	intensityChain->handleHiseEvent(m);
-	frequencyChain->handleHiseEvent(m);
+	for (auto& mb : modChains)
+		mb.handleHiseEvent(m);
 
 	if (m.isAllNotesOff())
 	{
@@ -453,12 +541,11 @@ void LfoModulator::handleHiseEvent(const HiseEvent &m)
 				lastSwapIndex = -1;
 			}
 
-			
-			intensityChain->startVoice(0);
-			//intensityInterpolator.setValue(intensityChain->getConstantVoiceValue(0));
-			frequencyChain->startVoice(0);
+			for (auto& mb : modChains)
+				mb.startVoice(0);
+
 			resetFadeIn();
-			frequencyModulationValue = frequencyChain->getConstantVoiceValue(0);
+			frequencyModulationValue = modChains[FrequencyChain].getConstantModulationValue();
 			calcAngleDelta();
 		}
 
@@ -474,12 +561,13 @@ void LfoModulator::handleHiseEvent(const HiseEvent &m)
 
 		if(legato == false || keysPressed == 0)
 		{
-			intensityChain->stopVoice(0);
-			frequencyChain->stopVoice(0);
+			if(intensityChain->hasVoiceModulators())
+				intensityChain->stopVoice(0);
+
+			if(frequencyChain->hasVoiceModulators())
+				frequencyChain->stopVoice(0);
 		}
-
 	}
-
 }
 
 

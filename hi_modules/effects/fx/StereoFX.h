@@ -89,7 +89,6 @@ public:
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
 	float getDefaultValue(int parameterIndex) const override;;
 	
-
 	void restoreFromValueTree(const ValueTree &v) override;;
 	ValueTree exportAsValueTree() const override;
 
@@ -97,16 +96,12 @@ public:
 
 	bool hasTail() const override { return false; };
 
-	Processor *getChildProcessor(int /*processorIndex*/) override { return balanceChain; };
-	const Processor *getChildProcessor(int /*processorIndex*/) const override { return balanceChain; };
-	int getNumChildProcessors() const override { return numInternalChains; };
-	int getNumInternalChains() const override { return numInternalChains; };
+	Processor *getChildProcessor(int processorIndex) override { return modChains[processorIndex].getChain(); };
+	const Processor *getChildProcessor(int processorIndex) const override { return modChains[processorIndex].getChain(); };
+	int getNumChildProcessors() const override { return modChains.size(); };
+	int getNumInternalChains() const override { return modChains.size(); };
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
-
-	AudioSampleBuffer &getBufferForChain(int /*index*/) override;
-
-	void preVoiceRendering(int voiceIndex, int startSample, int numSamples);
 
 	void applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) override;
 
@@ -116,10 +111,6 @@ private:
     
 	float pan;
 	float width;
-	
-	ScopedPointer<ModulatorChain> balanceChain;
-
-	AudioSampleBuffer panBuffer;
 };
 
 

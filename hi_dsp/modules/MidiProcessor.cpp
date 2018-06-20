@@ -33,7 +33,7 @@
 namespace hise { using namespace juce;
 
 MidiProcessor::MidiProcessor(MainController *mc, const String &id):
-		Processor(mc, id),
+		Processor(mc, id, 1),
 		processThisMessage(true),
 		ownerSynth(nullptr),
 		numThisTime(0)

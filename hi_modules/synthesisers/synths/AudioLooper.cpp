@@ -99,9 +99,9 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 	const int startIndex = startSample;
 	const int samplesToCopy = numSamples;
 
-	const float *voicePitchValues = getVoicePitchValues();
+	const float *voicePitchValues = getOwnerSynth()->getPitchValuesForVoice();
 
-	const float *modValues = getVoiceGainValues(startSample, numSamples);
+	
 
 	AudioLooper *looper = static_cast<AudioLooper*>(getOwnerSynth());
 
@@ -187,8 +187,11 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 
 	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
 
-	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
-	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
+	if (auto modValues = getOwnerSynth()->getVoiceGainValues())
+	{
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
+	}
 
 	if (isLastVoice && looper->length != 0 && looper->inputMerger.shouldUpdate())
 	{

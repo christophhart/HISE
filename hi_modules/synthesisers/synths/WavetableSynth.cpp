@@ -125,8 +125,8 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 	const int startIndex = startSample;
 	const int samplesToCopy = numSamples;
 
-	const float *voicePitchValues = getVoicePitchValues();
-	const float *modValues = getVoiceGainValues(startSample, numSamples);
+	const float *voicePitchValues = getOwnerSynth()->getPitchValuesForVoice();
+		
 	const float *tableValues = getTableModulationValues(startSample, numSamples);
 
 	if (hqMode)
@@ -293,13 +293,14 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 
 	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
 
-	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
-	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
+	if (auto modValues = getOwnerSynth()->getVoiceGainValues())
+	{
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
+	}
 
 	if (getOwnerSynth()->getLastStartedVoice() == this)
-	{
 		static_cast<WavetableSynth*>(getOwnerSynth())->triggerWaveformUpdate();
-	}
 }
 
 const float *WavetableSynthVoice::getTableModulationValues(int startSample, int numSamples)

@@ -127,6 +127,8 @@ public:
 
 	void calculateNoFMVoiceInternal(ModulatorSynth* childSynth, int unisonoIndex, int startSample, int numSamples, const float * voicePitchValues, bool& isFirst);
 
+	void calculatePitchValuesForChildVoice(ModulatorSynth* childSynth, ModulatorSynthVoice * childVoice, int startSample, int numSamples, const float * voicePitchValues);
+
 	void calculateDetuneMultipliers(int childVoiceIndex);
 
 	void calculateFMBlock(ModulatorSynthGroup * group, int startSample, int numSamples);
@@ -263,6 +265,12 @@ class ModulatorSynthGroup : public ModulatorSynth,
 {
 public:
 
+	enum ModChains
+	{
+		Detune = 2,
+		Spread
+	};
+
 	enum SpecialParameters
 	{
 		EnableFM = ModulatorSynth::numModulatorSynthParameters,
@@ -386,9 +394,15 @@ public:
 
 	int collectSoundsToBeStarted(const HiseEvent& m) override;
 
+	float getDetuneModValue(int startSample) const
+	{
+		return modChains[ModChains::Detune].getOneModulationValue(startSample);
+	}
 
-
-	void preStartVoice(int voiceIndex, int noteNumber) override;;
+	float getSpreadModValue(int startSample) const noexcept
+	{
+		return modChains[ModChains::Spread].getOneModulationValue(startSample);
+	}
 
 	void preVoiceRendering(int startSample, int numThisTime) override;;
 	void postVoiceRendering(int startSample, int numThisTime) override;;
@@ -452,6 +466,7 @@ public:
 
 	const float* calculateDetuneModulationValuesForVoice(int voiceIndex, int startSample, int numSamples)
 	{
+		jassertfalse;
 		detuneChain->renderVoice(voiceIndex, startSample, numSamples);
 		float *detuneValues = detuneChain->getVoiceValues(voiceIndex);
 		const float* timeVariantDetuneValues = detuneBuffer.getReadPointer(0);
@@ -463,6 +478,7 @@ public:
 
 	const float* calculateSpreadModulationValuesForVoice(int voiceIndex, int startSample, int numSamples)
 	{
+		jassertfalse;
 		spreadChain->renderVoice(voiceIndex, startSample, numSamples);
 		float *spreadValues = spreadChain->getVoiceValues(voiceIndex);
 		const float* timeVariantSpreadValues = spreadBuffer.getReadPointer(0);
@@ -490,8 +506,8 @@ private:
 	friend class ChildSynthIterator;
 	friend class ModulatorSynthGroupVoice;
 
-	ScopedPointer<ModulatorChain> detuneChain;
-	ScopedPointer<ModulatorChain> spreadChain;
+	ModulatorChain* detuneChain = nullptr;
+	ModulatorChain* spreadChain = nullptr;
 
 	// the precalculated modvalues for LFOs & stuff
 	AudioSampleBuffer modSynthGainValues;

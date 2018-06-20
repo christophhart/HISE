@@ -635,12 +635,10 @@ void ShapeFX::updateMix()
 
 PolyshapeFX::PolyshapeFX(MainController *mc, const String &uid, int numVoices):
 	VoiceEffectProcessor(mc, uid, numVoices),
-	driveChain(new ModulatorChain(mc, "Drive Modulation", numVoices, Modulation::Mode::GainMode, this)),
-	driveBuffer(1, 0),
 	polyUpdater(*this),
 	dcRemovers(numVoices)
 {
-	
+	modChains += { this, "Drive Modulation" };
 
 	for (int i = 0; i < numVoices; i++)
 	{
@@ -757,19 +755,13 @@ hise::ProcessorEditorBody * PolyshapeFX::createEditor(ProcessorEditor *parentEdi
 #endif
 }
 
-juce::AudioSampleBuffer & PolyshapeFX::getBufferForChain(int /*index*/)
-{
-	return driveBuffer;
-}
-
-void PolyshapeFX::preVoiceRendering(int voiceIndex, int startSample, int numSamples)
-{
-	calculateChain(DriveModulation, voiceIndex, startSample, numSamples);
-}
 
 void PolyshapeFX::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	VoiceEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
+
+	for (auto&mb : modChains)
+		mb.prepareToPlay(sampleRate, samplesPerBlock);
 
 	for (int i = 0; i < NUM_POLYPHONIC_VOICES; i++)
 	{
@@ -794,25 +786,32 @@ void PolyshapeFX::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 void PolyshapeFX::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples)
 {
-	
+	auto& driveChain = modChains[DriveModulation];
 
 	if (voiceIndex >= NUM_POLYPHONIC_VOICES)
 		return;
 
-	float* driveValues = getCurrentModulationValues(DriveModulation, voiceIndex, startSample);
+	auto driveValues = driveChain.getReadPointerForVoiceValues(startSample);
+
+	auto scratch = (float*)alloca(sizeof(float)*numSamples);
+
 
 	if (driveValues == nullptr)
 	{
-		driveValues = static_cast<float*>(alloca(sizeof(float) * numSamples));
-		FloatVectorOperations::fill(driveValues, 1.0f, numSamples);
+		auto constantValue = driveChain.getConstantModulationValue();
+		FloatVectorOperations::fill(scratch, constantValue, numSamples);
+	}
+	else
+	{
+		FloatVectorOperations::copy(scratch, driveValues, numSamples);
 	}
 		
 	auto smoother = &driveSmoothers[voiceIndex];
 	
 	smoother->setValue(drive - 1.0f);
-	smoother->applyGain(driveValues, numSamples);
+	smoother->applyGain(scratch, numSamples);
 
-	FloatVectorOperations::add(driveValues, 1.0f, numSamples);
+	FloatVectorOperations::add(scratch, 1.0f, numSamples);
 
 	float* l = b.getWritePointer(0, startSample);
 	float* r = b.getWritePointer(1, startSample);
@@ -821,23 +820,23 @@ void PolyshapeFX::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSam
 	{
 		if (bias != 0.0f)
 		{
-			FloatVectorOperations::multiply(l, driveValues, numSamples);
+			FloatVectorOperations::multiply(l, scratch, numSamples);
 			FloatVectorOperations::add(l, bias, numSamples);
-			FloatVectorOperations::multiply(r, driveValues, numSamples);
+			FloatVectorOperations::multiply(r, scratch, numSamples);
 			FloatVectorOperations::add(r, bias, numSamples);
 		}
 		else
 		{
-			FloatVectorOperations::multiply(l, driveValues, numSamples);
-			FloatVectorOperations::multiply(r, driveValues, numSamples);
+			FloatVectorOperations::multiply(l, scratch, numSamples);
+			FloatVectorOperations::multiply(r, scratch, numSamples);
 		}
 	}
 	else
 	{
 		for (int i = 0; i < numSamples; i++)
 		{
-			l[i] = (l[i] + bias) * (1.0f + driveValues[i]);
-			r[i] = (r[i] + bias) * (1.0f + driveValues[i]);
+			l[i] = (l[i] + bias) * (1.0f + scratch[i]);
+			r[i] = (r[i] + bias) * (1.0f + scratch[i]);
 		}
 	}
 
@@ -866,8 +865,8 @@ void PolyshapeFX::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSam
 
 	for (int i = 0; i < numSamples; i++)
 	{
-		l[i] /= (attenuation * driveValues[i] + 1.0f);
-		r[i] /= (attenuation * driveValues[i] + 1.0f);
+		l[i] /= (attenuation * scratch[i] + 1.0f);
+		r[i] /= (attenuation * scratch[i] + 1.0f);
 	}
 
 	if (bias != 0.0f || mode == ShapeFX::ShapeMode::AsymetricalCurve)
@@ -881,10 +880,7 @@ void PolyshapeFX::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSam
 
 void PolyshapeFX::getWaveformTableValues(int /*displayIndex*/, float const** tableValues, int& numValues, float& normalizeValue)
 {
-	const float driveValue = 1.0f + (driveChain->getOutputValue() * (drive-1.0f));
-
-
-
+	const float driveValue = 1.0f + (modChains[DriveModulation].getChain()->getOutputValue() * (drive-1.0f));
 
 	displayPeak = driveValue;
 
@@ -905,8 +901,6 @@ void PolyshapeFX::getWaveformTableValues(int /*displayIndex*/, float const** tab
 	case ShapeFX::ShapeMode::AsymetricalCurve:	normalizeValue = 1.0f; break;
 	default:									normalizeValue = 1.0f;	break;
 	}
-
-	
 }
 
 void PolyshapeFX::recalculateDisplayTable()

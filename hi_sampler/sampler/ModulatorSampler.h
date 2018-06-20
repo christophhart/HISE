@@ -163,6 +163,12 @@ public:
 		KillThirdOldestNote
 	};
 
+	enum Chains
+	{
+		SampleStart = 2,
+		XFade
+	};
+
 	/** Additional modulator chains. */
 	enum InternalChains
 	{
@@ -296,7 +302,6 @@ public:
 	void setShouldUpdateUI(bool shouldUpdate) noexcept{ deactivateUIUpdate = !shouldUpdate; };
 
 	void preStartVoice(int voiceIndex, int noteNumber) override;
-	void preVoiceRendering(int startSample, int numThisTime) override;
 	void soundsChanged() {};
 	bool soundCanBePlayed(ModulatorSynthSound *sound, int midiChannel, int midiNoteNumber, float velocity) override;;
 	void handleRetriggeredNote(ModulatorSynthVoice *voice) override;
@@ -309,7 +314,9 @@ public:
 	Table *getTable(int tableIndex) const override { return tableIndex < crossfadeTables.size() ? crossfadeTables[tableIndex] : nullptr; }
 
 	void calculateCrossfadeModulationValuesForVoice(int voiceIndex, int startSample, int numSamples, int groupIndex);
-	const float *getCrossfadeModValues(int voiceIndex) const {	return crossFadeChain->getVoiceValues(voiceIndex);	}
+	const float *getCrossfadeModValues(int voiceIndex) const;
+
+	float getConstantCrossFadeModulationValue(int groupIndex) const noexcept;
 
 	UndoManager *getUndoManager() {	return getMainController()->getControlUndoManager();	};
 
@@ -637,8 +644,8 @@ private:
 	int numChannels;
 
 	ScopedPointer<SampleMap> sampleMap;
-	ScopedPointer<ModulatorChain> sampleStartChain;
-	ScopedPointer<ModulatorChain> crossFadeChain;
+	ModulatorChain* sampleStartChain = nullptr;
+	ModulatorChain* crossFadeChain = nullptr;
 	ScopedPointer<AudioThumbnailCache> soundCache;
 	
 #if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING

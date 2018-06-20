@@ -35,6 +35,10 @@ namespace hise { using namespace juce;
 GlobalModulatorContainer::GlobalModulatorContainer(MainController *mc, const String &id, int numVoices) :
 ModulatorSynth(mc, id, numVoices)
 {
+	gainChain = modChains[0].getChain();
+
+	modChains[1].getChain()->setBypassed(true);
+
 	for (int i = 0; i < numVoices; i++) addVoice(new GlobalModulatorContainerVoice(this));
 	addSound(new GlobalModulatorContainerSound());
 
@@ -78,27 +82,21 @@ float GlobalModulatorContainer::getVoiceStartValueFor(const Processor * /*voiceS
 
 const float * GlobalModulatorContainer::getModulationValuesForModulator(Processor *p, int startIndex, int voiceIndex /*= 0*/)
 {
-	for (int i = 0; i < data.size(); i++)
+	for (auto& tv : timeVariantData)
 	{
-		if (data[i]->getProcessor() == p)
-		{
-			return data[i]->getModulationValues(startIndex, voiceIndex);
-		}
+		if (tv.getModulator() == p)
+			return tv.getReadPointer(startIndex);
 	}
-
-	jassertfalse;
 
 	return nullptr;
 }
 
 float GlobalModulatorContainer::getConstantVoiceValue(Processor *p, int noteNumber)
 {
-	for (int i = 0; i < data.size(); i++)
+	for (auto& vd : voiceStartData)
 	{
-		if (data[i]->getProcessor() == p)
-		{
-			return data[i]->getConstantVoiceValue(noteNumber);
-		}
+		if (vd.getModulator() == p)
+			return vd.getConstantVoiceValue(noteNumber);
 	}
 
 	jassertfalse;
@@ -123,26 +121,34 @@ void GlobalModulatorContainer::preStartVoice(int voiceIndex, int noteNumber)
 {
 	ModulatorSynth::preStartVoice(voiceIndex, noteNumber);
 
-	for (int i = 0; i < data.size(); i++)
+	for (auto& vd : voiceStartData)
 	{
-		if (data[i]->getType() == GlobalModulator::VoiceStart)
-		{
-			data[i]->saveValuesToBuffer(0, 0, voiceIndex, noteNumber);
-			data[i]->handleVoiceStartControlledParameters(noteNumber);
-		}
+		vd.saveValue(noteNumber, voiceIndex);
 	}
 }
 
-void GlobalModulatorContainer::postVoiceRendering(int startSample, int numThisTime)
+void GlobalModulatorContainer::preVoiceRendering(int startSample, int numThisTime)
 {
-	gainChain->renderNextBlock(gainBuffer, startSample, numThisTime);
+	ModulatorChain::Iterator<TimeVariantModulator> iter(gainChain);
 
-	for (int i = 0; i < data.size(); i++)
+	AudioSampleBuffer monoModValues(&gainChain->newFunkyBuffer.monoValues, 1, startSample + numThisTime);
+		
+	for (auto& tv : timeVariantData)
 	{
-		if (data[i]->getType() == GlobalModulator::TimeVariant)
+		if (auto mod = tv.getModulator())
 		{
-			data[i]->saveValuesToBuffer(startSample, numThisTime, 0);
-			data[i]->handleTimeVariantControlledParameters(startSample, numThisTime);
+			if (!mod->isBypassed())
+			{
+				mod->setScratchBuffer(gainChain->newFunkyBuffer.scratchBuffer, startSample + numThisTime);
+				mod->renderNextBlock(monoModValues, startSample, numThisTime);
+
+				tv.saveValues(gainChain->newFunkyBuffer.scratchBuffer, startSample, numThisTime);
+			}
+			else
+			{
+				tv.clear();
+			}
+			
 		}
 	}
 }
@@ -150,6 +156,9 @@ void GlobalModulatorContainer::postVoiceRendering(int startSample, int numThisTi
 void GlobalModulatorContainer::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
 	ModulatorSynth::prepareToPlay(newSampleRate, samplesPerBlock);
+
+	for (auto& d : timeVariantData)
+		d.prepareToPlay(samplesPerBlock);
 
 	for (int i = 0; i < data.size(); i++)
 	{
@@ -238,23 +247,21 @@ void GlobalModulatorContainer::refreshList()
 {
 	// Delete all old datas
 
-	for (int i = 0; i < data.size(); i++)
-	{
-		if (data[i]->getProcessor() == nullptr)
-		{
-			data.remove(i--);
-		}
-	}
+	voiceStartData.clearQuick();
+	
+	ModulatorChain::Iterator<VoiceStartModulator> iter(gainChain);
 
-	for (int i = 0; i < gainChain->getHandler()->getNumProcessors(); i++)
-	{
-		if (i >= data.size() || gainChain->getHandler()->getProcessor(i) != data[i]->getProcessor())
-		{
-			data.insert(i, new GlobalModulatorData(gainChain->getHandler()->getProcessor(i)));
-		}
-	}
+	while (auto mod = iter.next())
+		voiceStartData.add(VoiceStartData(mod));
 
-	jassert(data.size() == gainChain->getHandler()->getNumProcessors());
+	timeVariantData.clearQuick();
+
+	ModulatorChain::Iterator<TimeVariantModulator> iter2(gainChain);
+
+	while (auto mod = iter2.next())
+	{
+		timeVariantData.add(TimeVariantData(mod, getLargestBlockSize()));
+	}
 }
 
 void GlobalModulatorContainerVoice::startNote(int midiNoteNumber, float /*velocity*/, SynthesiserSound*, int /*currentPitchWheelPosition*/)

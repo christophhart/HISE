@@ -72,6 +72,8 @@ public:
 
 	~LfoModulator();
 
+	
+
 	enum Waveform
 	{
 		Sine = 1,
@@ -114,45 +116,9 @@ public:
 
 	int getNumInternalChains() const override {return numInternalChains;};
 
-	void restoreFromValueTree(const ValueTree &v) override
-	{
-		TimeVariantModulator::restoreFromValueTree(v);
+	void restoreFromValueTree(const ValueTree &v) override;;
 
-		loadAttribute(TempoSync, "TempoSync");
-
-		loadAttribute(Frequency, "Frequency");
-		loadAttribute(FadeIn, "FadeIn");
-		loadAttribute(WaveFormType, "WaveformType");
-		loadAttribute(Legato, "Legato");
-		
-		loadAttribute(SmoothingTime, "SmoothingTime");
-		
-		if(v.hasProperty("LoopEnabled"))
-			loadAttribute(LoopEnabled, "LoopEnabled");
-
-		loadTable(customTable, "CustomWaveform");
-
-		data->fromBase64(v.getProperty("StepData"));
-	};
-
-	ValueTree exportAsValueTree() const override
-	{
-		ValueTree v = TimeVariantModulator::exportAsValueTree();
-
-		saveAttribute(Frequency, "Frequency");
-		saveAttribute(FadeIn, "FadeIn");
-		saveAttribute(WaveFormType, "WaveformType");
-		saveAttribute(Legato, "Legato");
-		saveAttribute(TempoSync, "TempoSync");
-		saveAttribute(SmoothingTime, "SmoothingTime");
-		saveAttribute(LoopEnabled, "LoopEnabled");
-
-		saveTable(customTable, "CustomWaveform");
-		
-		v.setProperty("StepData", data->toBase64(), nullptr);
-
-		return v;
-	}
+	ValueTree exportAsValueTree() const override;
 
 	int getNumChildProcessors() const override
 	{
@@ -206,38 +172,7 @@ public:
 	/** sets up the smoothing filter. */
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 
-	void calculateBlock(int startSample, int numSamples) override
-	{
-#if ENABLE_ALL_PEAK_METERS
-		if(--numSamples >= 0)
-		{
-			const float value = calculateNewValue();
-			internalBuffer.setSample(0, startSample, value);
-			++startSample;
-			setOutputValue(value); 
-		}
-#endif
-
-		while(--numSamples >= 0)
-		{
-			internalBuffer.setSample(0, startSample, calculateNewValue());
-			++startSample;
-		}
-
-		const float newInputValue = ((int)(uptime) % SAMPLE_LOOKUP_TABLE_SIZE) / (float)SAMPLE_LOOKUP_TABLE_SIZE;
-
-		if (inputMerger.shouldUpdate() && currentWaveform == Custom)
-		{
-			const bool isLooped = (loopEnabled || uptime < (double)SAMPLE_LOOKUP_TABLE_SIZE);
-
-			if (isLooped)
-			{
-				sendTableIndexChangeMessage(false, customTable, newInputValue);
-			}
-			else
-				sendTableIndexChangeMessage(false, customTable, 1.0f);
-		}
-	};
+	void calculateBlock(int startSample, int numSamples) override;;
 
 	/** This overwrites the TimeModulation callback to render the intensity chain. */
 	virtual void applyTimeModulation(AudioSampleBuffer &b, int startSamples, int numSamples) override;
@@ -361,20 +296,16 @@ private:
 
 	void calcAngleDelta();;
 
+	ModulatorChain::Collection modChains;
 
 
+	//AudioSampleBuffer intensityBuffer;
 
-	AudioSampleBuffer intensityBuffer;
-
-	AudioSampleBuffer frequencyBuffer;
-
-	
+	//AudioSampleBuffer frequencyBuffer;
 
 	float voiceIntensityValue;
 
 	float intensityModulationValue;
-
-	
 
 	ScopedPointer<SampleLookupTable> customTable;
 
@@ -415,8 +346,8 @@ private:
 	float targetRatioA;
 	float attackValue;
 
-	ScopedPointer<ModulatorChain> intensityChain;
-	ScopedPointer<ModulatorChain> frequencyChain;
+	ModulatorChain* intensityChain;
+	ModulatorChain* frequencyChain;
 
 	Waveform currentWaveform;
 

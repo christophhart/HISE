@@ -71,8 +71,6 @@ public:
 		const int startIndex = startSample;
 		const int samplesToCopy = numSamples;
 
-		const float *modValues = getVoiceGainValues(startSample, numSamples);
-
 		while (--numSamples >= 0)
         {
 			const float currentSample = getNextValue();
@@ -88,8 +86,13 @@ public:
 
 		getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
 
-		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
-		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
+		if (auto modValues = getOwnerSynth()->getVoiceGainValues())
+		{
+			FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
+			FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
+		}
+		else
+			jassertfalse;
 	};
 
 private:
@@ -112,6 +115,8 @@ public:
 	{
 		for(int i = 0; i < numVoices; i++) addVoice(new NoiseVoice(this));
 		addSound (new NoiseSound());	
+
+		modChains[PitchModulation - 1].getChain()->setBypassed(true);
 	};
 
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;

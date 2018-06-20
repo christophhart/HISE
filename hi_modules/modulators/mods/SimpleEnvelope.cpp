@@ -86,10 +86,7 @@ SimpleEnvelope::SimpleEnvelope(MainController *mc, const String &id, int voiceAm
 	attackChain = new ModulatorChain(mc, "Attack Time Modulation", voiceAmount, ModulatorChain::GainMode, this);
 
 	attackChain->setIsVoiceStartChain(true);
-
 	attackChain->setColour(Colours::red);
-
-
 };
 
 SimpleEnvelope::~SimpleEnvelope()
@@ -180,7 +177,8 @@ void SimpleEnvelope::startVoice(int voiceIndex)
 		{
 			auto monoState = static_cast<SimpleEnvelopeState*>(monophonicState.get());
 
-			attackChain->startVoice(voiceIndex);
+			if(attackChain->hasVoiceModulators())
+				attackChain->startVoice(voiceIndex);
 
 			if (linearMode)
 				monoState->attackDelta = this->calcCoefficient(attack * attackChain->getConstantVoiceValue(voiceIndex));
@@ -205,12 +203,18 @@ void SimpleEnvelope::startVoice(int voiceIndex)
 		if (thisState->current_state != SimpleEnvelopeState::IDLE)
 			reset(voiceIndex);
 
-		attackChain->startVoice(voiceIndex);
+		float attackModValue = 1.0f;
 
+		if (attackChain->hasVoiceModulators())
+		{
+			attackChain->startVoice(voiceIndex);
+			attackModValue = attackChain->getConstantVoiceValue(voiceIndex);
+		}
+		
 		if (linearMode)
-			thisState->attackDelta = this->calcCoefficient(attack * attackChain->getConstantVoiceValue(voiceIndex));
+			thisState->attackDelta = this->calcCoefficient(attack * attackModValue);
 		else
-			setAttackRate(attack * attackChain->getConstantVoiceValue(voiceIndex), thisState);
+			setAttackRate(attack * attackModValue, thisState);
 
 		thisState->current_state = SimpleEnvelopeState::ATTACK;
 	}
@@ -327,7 +331,8 @@ void SimpleEnvelope::handleHiseEvent(const HiseEvent &m)
 {
 	EnvelopeModulator::handleHiseEvent(m);
 
-	attackChain->handleHiseEvent(m);
+	if(attackChain->shouldBeProcessedAtAll())
+		attackChain->handleHiseEvent(m);
 };
 
 void SimpleEnvelope::prepareToPlay(double sampleRate, int samplesPerBlock)

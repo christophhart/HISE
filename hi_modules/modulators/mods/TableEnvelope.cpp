@@ -134,8 +134,11 @@ void TableEnvelope::startVoice(int voiceIndex)
 		{
 			auto monoState = static_cast<TableEnvelopeState*>(monophonicState.get());
 
-			attackChain->startVoice(voiceIndex);
-			releaseChain->startVoice(voiceIndex);
+			if(attackChain->shouldBeProcessedAtAll())
+				attackChain->startVoice(voiceIndex);
+
+			if(releaseChain->shouldBeProcessedAtAll())
+				releaseChain->startVoice(voiceIndex);
 
 			monoState->attackModValue = 1.0f / jmax<float>(0.001f, attackChain->getConstantVoiceValue(voiceIndex));
 			monoState->releaseModValue = 1.0f / jmax<float>(0.001f, attackChain->getConstantVoiceValue(voiceIndex));
@@ -157,8 +160,11 @@ void TableEnvelope::startVoice(int voiceIndex)
 	{
 		auto state = static_cast<TableEnvelopeState*>(states[voiceIndex]);
 
-		attackChain->startVoice(voiceIndex);
-		releaseChain->startVoice(voiceIndex);
+		if(attackChain->shouldBeProcessedAtAll())
+			attackChain->startVoice(voiceIndex);
+
+		if(releaseChain->shouldBeProcessedAtAll())
+			releaseChain->startVoice(voiceIndex);
 
 		state->attackModValue = 1.0f / jmax<float>(0.001f, attackChain->getConstantVoiceValue(voiceIndex));
 		state->releaseModValue = 1.0f / jmax<float>(0.001f, releaseChain->getConstantVoiceValue(voiceIndex));
@@ -267,8 +273,11 @@ void TableEnvelope::reset(int voiceIndex)
 
 void TableEnvelope::handleHiseEvent(const HiseEvent& m)
 {
-	attackChain->handleHiseEvent(m);
-	releaseChain->handleHiseEvent(m);
+	if(attackChain->shouldBeProcessedAtAll())
+		attackChain->handleHiseEvent(m);
+
+	if(releaseChain->shouldBeProcessedAtAll())
+		releaseChain->handleHiseEvent(m);
 };
 
 float TableEnvelope::calculateNewValue()

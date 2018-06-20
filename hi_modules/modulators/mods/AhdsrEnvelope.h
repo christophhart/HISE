@@ -284,7 +284,7 @@ private:
 
 	float release_delta;
 
-	OwnedArray<ModulatorChain> internalChains;
+	ModulatorChain::Collection internalChains;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AhdsrEnvelope)
 };
