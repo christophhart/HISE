@@ -294,6 +294,10 @@ void FilterBank::setGain(float newGain)
 
 juce::IIRCoefficients FilterEffect::getDisplayCoefficients(FilterBank::FilterMode m, double frequency, double q, float gain, double samplerate)
 {
+	frequency = jlimit<double>(20.0, samplerate / 2.0, frequency);
+	gain = jlimit<float>(0.01, 32, gain);
+	q = jlimit<double>(0.3, 8.0, q);
+
 	switch (m)
 	{
 	case FilterBank::OnePoleLowPass:		return IIRCoefficients::makeLowPass(samplerate, frequency);
