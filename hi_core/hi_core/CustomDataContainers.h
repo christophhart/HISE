@@ -44,6 +44,104 @@ namespace hise { using namespace juce;
 #endif
 
 
+template <class ElementType> class FixedAlignedHeapArray
+{
+public:
+
+	FixedAlignedHeapArray():
+		length(0)
+	{}
+
+	void operator+=(const ElementType& newElement)
+	{
+		if (length + 1 > allocated)
+		{
+			// Try to avoid reallocating when adding multiple elements...
+			//jassert(length == 0);
+
+			HeapBlock<ElementType> newData;
+
+			int newLength = length + 1;
+
+			newData.malloc(newLength);
+
+			auto newPtr = newData.get();
+
+			for (int i = 0; i < length; i++)
+				new (newPtr++) ElementType(data[i]);
+
+			new (newPtr++) ElementType(newElement);
+
+			clear();
+
+			length = newLength;
+			data.swapWith(newData);
+		}
+		else
+		{
+			auto ptr = data.get() + length;
+
+			new (ptr) ElementType(newElement);
+			length++;
+		}
+	}
+
+	~FixedAlignedHeapArray()
+	{
+		clear();
+	}
+
+	inline ElementType* begin() const noexcept
+	{
+		return const_cast<ElementType*>(data.get());
+	}
+
+	inline ElementType* end() const noexcept
+	{
+		return const_cast<ElementType*>(data.get()) + length;
+	}
+
+	inline ElementType& operator[](int index) const noexcept
+	{
+		// If it won't be catched during development, you're out of luck...
+		jassert(index < length);
+		return data[index];
+	}
+
+	int size() const noexcept { return length; };
+
+	void reserve(int elements)
+	{
+		// You must call this before anything else...
+		jassert(length == 0);
+
+		allocated = elements;
+		data.allocate(elements, true);
+	}
+
+	void clear()
+	{
+		for (int i = 0; i < length; i++)
+		{
+			data[i].~ElementType();
+		}
+
+		data.free();
+		length = 0;
+	}
+
+private:
+
+	
+
+	int length;
+	int allocated = 0;
+
+	HeapBlock<ElementType> data;
+};
+
+
+
 template <typename ElementType, class Sorter = DefaultElementComparator<ElementType>> class OrderedStack
 {
 public:
