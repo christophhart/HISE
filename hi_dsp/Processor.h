@@ -181,34 +181,7 @@ class Processor: public SafeChangeBroadcaster,
 public:
 
 	/**	Creates a new Processor with the given Identifier. */
-	Processor(MainController *m, const String &id_):
-		ControlledObject(m),
-		rebuildDelayer(*this),
-		id(id_),
-		consoleEnabled(false),
-		bypassed(false),
-		visible(true),
-		samplerate(-1.0),
-		largestBlockSize(-1),
-		inputValue(0.0f),
-		outputValue(0.0f),
-		editorState(0),
-		symbol(Path())
-	{
-		editorStateIdentifiers.add("Folded");
-		editorStateIdentifiers.add("BodyShown");
-		editorStateIdentifiers.add("Visible");
-		editorStateIdentifiers.add("Solo");
-		
-		setEditorState(Processor::BodyShown, true, dontSendNotification);
-		setEditorState(Processor::Visible, true, dontSendNotification);
-		setEditorState(Processor::Solo, false, dontSendNotification);
-
-		if (Identifier::isValidIdentifier(id))
-		{
-			idAsIdentifier = Identifier(id);
-		}
-	};
+	Processor(MainController *m, const String &id_, int numVoices);;
 
 	/** Overwrite this if you need custom destruction behaviour. */
 	virtual ~Processor()
@@ -434,6 +407,9 @@ public:
 		return Colours::grey;
 	};
 
+	/** getNumVoices() is occupied by the Synthesiser class, d'oh! */
+	int getVoiceAmount() const noexcept { return numVoices; };
+
 	/** Returns the unique id of the Processor instance (!= the Processor name). 
 	*
 	*	It must be a valid Identifier (so no whitespace and weird characters).
@@ -477,9 +453,7 @@ public:
 		bypassed = shouldBeBypassed; 
 		currentValues.clear();
 
-		for (auto l : bypassListeners)
-			if (l)
-				l->bypassStateChanged(this, bypassed);
+		sendSynchronousBypassChangeMessage();
 
 		if (notifyChangeHandler)
 			getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::ProcessorBypassed, false);
@@ -487,6 +461,13 @@ public:
 
 	/** Returns true if the processor is bypassed. For checking the bypass state of ModulatorSynths, better use isSoftBypassed(). */
 	bool isBypassed() const noexcept { return bypassed; };
+
+	void sendSynchronousBypassChangeMessage()
+	{
+		for (auto l : bypassListeners)
+			if (l)
+				l->bypassStateChanged(this, bypassed);
+	}
 
 	/** Sets the sample rate and the block size. */
 	virtual void prepareToPlay(double sampleRate_, int samplesPerBlock_)
@@ -1015,6 +996,7 @@ private:
 
 	NamedValueSet editorStateValueSet;
 	
+	const int numVoices;
 
 	float inputValue;
 	double outputValue;

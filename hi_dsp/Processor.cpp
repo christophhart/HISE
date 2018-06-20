@@ -42,6 +42,36 @@ void Processor::debugProcessor(const String &t)
 
 #endif
 
+Processor::Processor(MainController *m, const String &id_, int numVoices_) :
+	ControlledObject(m),
+	rebuildDelayer(*this),
+	id(id_),
+	consoleEnabled(false),
+	bypassed(false),
+	visible(true),
+	samplerate(-1.0),
+	largestBlockSize(-1),
+	inputValue(0.0f),
+	outputValue(0.0f),
+	editorState(0),
+	numVoices(numVoices_),
+	symbol(Path())
+{
+	editorStateIdentifiers.add("Folded");
+	editorStateIdentifiers.add("BodyShown");
+	editorStateIdentifiers.add("Visible");
+	editorStateIdentifiers.add("Solo");
+
+	setEditorState(Processor::BodyShown, true, dontSendNotification);
+	setEditorState(Processor::Visible, true, dontSendNotification);
+	setEditorState(Processor::Solo, false, dontSendNotification);
+
+	if (Identifier::isValidIdentifier(id))
+	{
+		idAsIdentifier = Identifier(id);
+	}
+}
+
 void Processor::restoreFromValueTree(const ValueTree &previouslyExportedProcessorState)
 {
 
