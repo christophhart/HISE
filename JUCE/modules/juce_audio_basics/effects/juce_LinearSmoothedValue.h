@@ -58,6 +58,41 @@ public:
         countdown = 0;
     }
 
+	void setValueAndRampTime(FloatType newValue, double sampleRate, double rampLengthInSeconds) noexcept
+	{
+		if (target != newValue)
+		{
+			target = newValue;
+
+			jassert(sampleRate > 0 && rampLengthInSeconds >= 0);
+			stepsToTarget = (int)std::floor(rampLengthInSeconds * sampleRate);
+			countdown = stepsToTarget;
+
+			if (countdown <= 0)
+				currentValue = target;
+			else
+				step = (target - currentValue) / (FloatType)countdown;
+		}
+		else // might be possible that it still wants the same target but at a different speed
+		{
+			jassert(sampleRate > 0 && rampLengthInSeconds >= 0);
+			const auto thisStepsToTarget = (int)std::floor(rampLengthInSeconds * sampleRate);
+
+			if (stepsToTarget != thisStepsToTarget)
+			{
+				// Readjust the ramp speed
+				stepsToTarget = thisStepsToTarget;
+				countdown = stepsToTarget;
+
+				if (countdown <= 0)
+					currentValue = target;
+				else
+					step = (target - currentValue) / (FloatType)countdown;
+			}
+
+		}
+	}
+
     //==============================================================================
     /** Set a new target value.
         @param newValue New target value
