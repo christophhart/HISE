@@ -215,41 +215,7 @@ float AudioFileEnvelope::getAttribute(int parameter_index) const
 	default:						jassertfalse;
 									return -1.0f;
 	}
-};
-
-
-void AudioFileEnvelope::applyTimeModulation(AudioSampleBuffer &buffer, int startIndex, int samplesToCopy)
-{
-	float *dest = buffer.getWritePointer(0, startIndex);
-	float *mod = internalBuffer.getWritePointer(0, startIndex);
-
-	intensityChain->renderAllModulatorsAsMonophonic(intensityBuffer, startIndex, samplesToCopy);
-	
-	frequencyChain->renderAllModulatorsAsMonophonic(frequencyBuffer, startIndex, samplesToCopy);
-
-	if(frequencyUpdater.shouldUpdate(samplesToCopy))
-	{
-		frequencyModulationValue = frequencyBuffer.getReadPointer(0, startIndex)[0];
-		
-	}
-
-	float *intens = intensityBuffer.getWritePointer(0, startIndex);
-	FloatVectorOperations::multiply(intens, getIntensity(), samplesToCopy);
-
-	if(getMode() == GainMode)		TimeModulation::applyGainModulation( mod, dest, getIntensity(), intens, samplesToCopy);
-	else if(getMode() == PitchMode) TimeModulation::applyPitchModulation(mod, dest, getIntensity(), intens, samplesToCopy);
-
-};
-
-float AudioFileEnvelope::getIntensity() const noexcept
-{
-	switch (getMode())
-	{
-	case Modulation::GainMode:		return intensityModulationValue * Modulation::getIntensity();
-	case Modulation::PitchMode:		return (Modulation::getIntensity() - 1.0f)*intensityModulationValue + 1.0f;
-	default:						jassertfalse; return -1.0f;
-	}
-}
+};;
 
 void AudioFileEnvelope::setInternalAttribute(int parameter_index, float newValue)
 {

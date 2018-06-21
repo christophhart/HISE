@@ -105,7 +105,7 @@ void Plotter::resized()
 
 
 
-void Plotter::addValues(const AudioSampleBuffer& b, int startSample, int numSamples)
+void Plotter::addValues(const float* buffer, int startSample, int numSamples)
 {
 	SpinLock::ScopedLockType sl(swapLock);
 
@@ -115,18 +115,18 @@ void Plotter::addValues(const AudioSampleBuffer& b, int startSample, int numSamp
 	{
 		const int numBeforeWrap = displayBuffer.getNumSamples() - position;
 
-		FloatVectorOperations::copy(displayBuffer.getWritePointer(0, position), b.getReadPointer(0, startSample), numBeforeWrap);
+		FloatVectorOperations::copy(displayBuffer.getWritePointer(0, position), buffer + startSample, numBeforeWrap);
 
 		const int numAfterWrap = numSamples - numBeforeWrap;
 
 		position = 0;
 
-		FloatVectorOperations::copy(displayBuffer.getWritePointer(0, position), b.getReadPointer(0, startSample + numBeforeWrap), numAfterWrap);
+		FloatVectorOperations::copy(displayBuffer.getWritePointer(0, position), buffer + startSample + numBeforeWrap, numAfterWrap);
 
 	}
 	else
 	{
-		FloatVectorOperations::copy(displayBuffer.getWritePointer(0, position), b.getReadPointer(0, startSample), numSamples);
+		FloatVectorOperations::copy(displayBuffer.getWritePointer(0, position), buffer + startSample, numSamples);
 
 		position += numSamples;
 	}

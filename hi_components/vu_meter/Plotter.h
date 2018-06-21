@@ -68,7 +68,7 @@ public:
     void paint (Graphics&) override;
     void resized() override;
 
-	void addValues(const AudioSampleBuffer& b, int startSample, int numSamples);
+	void addValues(const float* buffer, int startSample, int numSamples);
 
 	void timerCallback() override;
 

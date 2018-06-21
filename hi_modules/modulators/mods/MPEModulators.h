@@ -112,7 +112,8 @@ public:
 			smoother.setDefaultValue(0.0f);
 		};
 
-		Smoother smoother;
+		DownsampledSmoother<32> smoother;
+
 		int midiChannel = -1;
 		float targetValue = 0.0f;
 		

@@ -254,7 +254,6 @@ public:
 
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
 
-	void postVoiceRendering(int startSample, int numSamples) override;;
 
 	void prepareToPlay(double newSampleRate, int samplesPerBlock) override;
 

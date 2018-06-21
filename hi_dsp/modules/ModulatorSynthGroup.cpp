@@ -1120,21 +1120,6 @@ void ModulatorSynthGroup::preVoiceRendering(int startSample, int numThisTime)
 }
 
 
-void ModulatorSynthGroup::postVoiceRendering(int startSample, int numThisTime)
-{
-	ChildSynthIterator iterator(this, ChildSynthIterator::IterateAllSynths);
-	ModulatorSynth *childSynth;
-
-	while (iterator.getNextAllowedChild(childSynth))
-	{
-		childSynth->postVoiceRendering(startSample, numThisTime);
-	}
-
-	// Apply the gain after the rendering of the child synths...
-	ModulatorSynth::postVoiceRendering(startSample, numThisTime);
-}
-
-
 void ModulatorSynthGroup::handleRetriggeredNote(ModulatorSynthVoice *voice)
 {
 	if (killSecondVoice)

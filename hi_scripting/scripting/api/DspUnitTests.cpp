@@ -38,6 +38,52 @@
 
 using namespace hise;
 
+
+template <int RampLength> class AlignedSSERamper
+{
+	
+	AlignedSSERamper(float* data_):
+		data(data_)
+	{
+		jassert(dsp::SIMDRegister<float>::isSIMDAligned(data));
+	}
+
+	void ramp(float startValue, float endValue)
+	{
+		constexpr float ratio = 1.0f / (float)RampLength;
+		const float delta1 = (endValue - startValue)*ratio;
+		
+		constexpr int numSSE = dsp::SIMDRegister<float>::SIMDRegisterSize / sizeof(float);
+		constexpr int numLoop = RampLength / numSSE;
+
+		__m128 delta = { delta1, delta1*2.0f, delta1*3.0f, delta1*4.0f };
+		__m128 step = _mm_set1_ps(delta1 * 4.0f);
+
+		int i = 0;
+
+		for (int i = 0, i < numLoop; i++)
+		{
+			auto d = _mm_load_ps(data);
+
+			auto thisStep = _mm_mul_ps(step, _mm_set1_ps((float)i));
+
+
+				_mm_add_ps(d, step);
+			_mm
+
+				data += numSSE;
+		}
+
+		while (--numLoop >= 0)
+		{
+			
+		}
+	}
+
+
+	float* data;
+};
+
 class DspUnitTests : public UnitTest
 {
 public:
@@ -370,9 +416,97 @@ public:
 		testingUnorderedStack();
 
 		testingLockFreeQueue();
+
+		testBlockDivider();
 	}
 
+	
+
 private:
+
+	void testBlockDivider()
+	{
+		beginTest("Testing Block Divider");
+		using SSEType = dsp::SIMDRegister<float>;
+
+		int blockSize = 67;
+
+		int numBlocks = 5;
+
+		int totalLength = blockSize * numBlocks;
+
+		ModulatorChain::Buffer totalData;
+		totalData.setMaxSize(totalLength);
+
+		ModulatorChain::Buffer blockData;
+		blockData.setMaxSize(blockSize);
+
+		auto data = blockData.scratchBuffer;
+
+		FloatVectorOperations::fill(data, 0.5f, totalLength);
+
+		auto startData = totalData.scratchBuffer;
+		int startLength = totalLength;
+
+		int counter = 0;
+		
+		constexpr int DividerBlockSize = 32;
+
+		BlockDivider<DividerBlockSize> divider;
+
+		int numProcessed = 0;
+		int blockOffset = 0;
+
+		while (totalLength > 0)
+		{
+			data = blockData.scratchBuffer;
+			FloatVectorOperations::fill(data, 0.5, blockSize);
+			
+			counter = blockSize;
+
+			while (counter > 0)
+			{
+				bool newBlock;
+				int subBlockSize = divider.cutBlock(counter, newBlock, data);
+
+				if (subBlockSize == 0)
+				{
+					expect(SSEType::isSIMDAligned(data));
+
+					FloatVectorOperations::fill(data, 0.0f, DividerBlockSize);
+					data[0] = 1.0f;
+
+					numProcessed += DividerBlockSize;
+
+					data += DividerBlockSize;
+				}
+				else
+				{
+					FloatVectorOperations::fill(data, 0.0f, subBlockSize);
+
+					if (newBlock)
+						data[0] = 1.0f;
+
+					data += subBlockSize;
+					numProcessed += subBlockSize;
+				}
+			}
+
+			totalLength -= blockSize;
+			FloatVectorOperations::copy(startData + blockOffset, blockData.scratchBuffer, blockSize);
+			blockOffset += blockSize;
+		}
+
+		for (int i = 0; i < startLength; i++)
+		{
+			const float expected = i % DividerBlockSize == 0 ? 1.0f : 0.0f;
+
+			expectEquals<float>(startData[i], expected, "Position: " + String(i));
+		}
+
+		blockData.clear();
+		totalData.clear();
+	}
 
 	void testingUnorderedStack()
 	{
@@ -612,46 +746,6 @@ private:
 
 static CustomContainerTest unorderedStackTest;
 
-class AESTest: public UnitTest
-{
-public:
-
-	AESTest() :
-	UnitTest("Testing AES decryption / encryption")
-	{
-		
-		
-		
-
-		
-
-	};
-
-	void runTest() override
-	{
-		testString();
-	}
-
-	void testString()
-	{
-		beginTest("Testing AES String encryption");
-
-		auto key = AES::createKey();
-		
-		AES aes(key);
-
-		String text = "This is unencrypted text";
-
-		String cText = aes.encrypt(text);
-
-		String result = aes.decrypt(cText);
-
-		expectEquals<String>(text, result);
-	}
-
-};
-
-static AESTest aesTest;
 
 
 #endif

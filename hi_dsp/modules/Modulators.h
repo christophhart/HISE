@@ -134,7 +134,7 @@ public:
 	*		};
 	*
 	*/
-	virtual float getIntensity() const noexcept;;
+	float getIntensity() const noexcept;;
 
 	/** Returns the actual intensity of the Modulation. Use this for GUI displays, since getIntensity() could be overwritten and behave funky. */
 	float getDisplayIntensity() const noexcept;;
@@ -206,7 +206,7 @@ public:
 
 	bool isPlotted() const;
 
-	void pushPlotterValues(const AudioSampleBuffer& b, int startSample, int numSamples);
+	void pushPlotterValues(const float* b, int startSample, int numSamples);
 
 	virtual bool shouldUpdatePlotter() const { return true; };
 
@@ -214,18 +214,16 @@ protected:
 
 	const Mode modulationMode;
 
-	
+	LinearSmoothedValue<float> smoothedIntensity;
 
 private:
-
-	
 
 	Component::SafePointer<Plotter> attachedPlotter;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Modulation)
 
 	float intensity;
-	
+
 	bool bipolar;
 };
 
@@ -323,7 +321,7 @@ public:
 	*	@param numSamples the amount of samples that are processed (numSamples = buffersize - startSample)
 	*
 	*/
-	virtual void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples);;
+	void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples);
 
 	/** This calculates the time modulated values and stores them in the internal buffer. 
 	*/
@@ -333,14 +331,12 @@ public:
 	*
 	*	By default, it applies one intensity value to all calculated values, but you can override it if your Modulator has a internal Chain for the intensity.
 	*/
-	virtual void applyTimeModulation(AudioSampleBuffer &buffer, int startIndex, int samplesToCopy);;
+	void applyTimeModulation(float* destinationBuffer, int startIndex, int samplesToCopy);
+
+	
 
 	/** Returns a read pointer to the calculated values. This is used by the global modulator system. */
 	virtual const float *getCalculatedValues(int /*voiceIndex*/);
-
-	float getLastConstantValue() const {
-		return lastConstantValue;
-	}
 
 	void setScratchBuffer(float* scratchBuffer, int numSamples)
 	{
@@ -384,14 +380,20 @@ protected:
 	*/
 	void applyPitchModulation(float* calculatedModulationValues, float *destinationValues, float fixedIntensity, int numValues) const noexcept;;
 
+	void applyIntensityForGainValues(float* calculatedModulationValues, float fixedIntensity, int numValues) const;
+
+	void applyIntensityForPitchValues(float* calculatedModulationValues, float fixedIntensity, int numValues) const;
+
+	void applyIntensityForGainValues(float* calculatedModulationValues, float fixedIntensity, const float* intensityValues, int numValues) const;
+
+	void applyIntensityForPitchValues(float* calculatedModulationValues, float fixedIntensity, const float* intensityValues, int numValuse) const;
+
 	// Prepares the buffer for the processing. The buffer is cleared and filled with 1.0.
 	static void initializeBuffer(AudioSampleBuffer &bufferToBeInitialized, int startSample, int numSamples);;
 
 	AudioSampleBuffer internalBuffer;
 
 private:
-
-	mutable LinearSmoothedValue<float> smoothedIntensity;
 
 	float lastConstantValue = 1.0f;
 
@@ -629,6 +631,14 @@ public:
 		return getSymbolPath();
 	};
 
+	void render(float* monoModulationValues, float* scratchBuffer, int startSample, int numSamples)
+	{
+		setScratchBuffer(scratchBuffer, startSample + numSamples);
+		calculateBlock(startSample, numSamples);
+		pushPlotterValues(scratchBuffer, startSample, numSamples);
+		applyTimeModulation(monoModulationValues, startSample, numSamples);
+	}
+
 protected:
 
 	
@@ -637,7 +647,9 @@ protected:
 		Modulator(mc, id, 1),
 		TimeModulation(m),
 		Modulation(m)
-	{};
+	{
+		smoothedIntensity.setValueWithoutSmoothing(0);
+	};
 
 	
 
@@ -658,8 +670,13 @@ protected:
 		setIntensity(v.getProperty("Intensity", 1.0f));
 	}
 
+	
+
 	Processor *getProcessor() override { return this; };
 
+private:
+
+	
 	
 };
 
@@ -822,6 +839,9 @@ public:
 	{
 		Processor::prepareToPlay(sampleRate, samplesPerBlock);
 		TimeModulation::prepareToModulate(sampleRate, samplesPerBlock);
+		
+		// Deactivate smoothing for envelopes
+		smoothedIntensity.reset(sampleRate, 0.0);
 	}
 
 	bool isInMonophonicMode() const { return isMonophonic; }
@@ -839,6 +859,17 @@ public:
 	bool shouldUpdatePlotter() const override
 	{
 		return isMonophonic || polyManager.getLastStartedVoice() == polyManager.getCurrentVoice();
+	}
+
+	void render(int voiceIndex, float* voiceBuffer, float* scratchBuffer, int startSample, int numSamples)
+	{
+		polyManager.setCurrentVoice(voiceIndex);
+
+		setScratchBuffer(scratchBuffer, startSample + numSamples);
+		calculateBlock(startSample, numSamples);
+		applyTimeModulation(voiceBuffer, startSample, numSamples);
+
+		polyManager.clearCurrentVoice();
 	}
 
 protected:

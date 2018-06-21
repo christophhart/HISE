@@ -482,8 +482,6 @@ void ModulatorSynth::preVoiceRendering(int startSample, int numThisTime)
 {
 	for (auto& mb : modChains)
 		mb.calculateMonophonicModulationValues(startSample, numThisTime);
-
-	if (!isChainDisabled(EffectChain)) effectChain->preRenderCallback(startSample, numThisTime);
 }
 
 void ModulatorSynth::renderVoice(int startSample, int numThisTime)
@@ -1596,7 +1594,7 @@ void ModulatorSynth::setVoiceLimit(int newVoiceLimit)
 
 	voiceLimit = jlimit<int>(2, NUM_POLYPHONIC_VOICES, newVoiceLimit);
 
-	internalVoiceLimit = (int)(getMainController()->getVoiceAmountMultiplier() * (float)voiceLimit);
+	internalVoiceLimit = jmax<int>(2, (int)(getMainController()->getVoiceAmountMultiplier() * (float)voiceLimit));
 }
 
 void ModulatorSynth::setKillFadeOutTime(double fadeTimeMilliSeconds)

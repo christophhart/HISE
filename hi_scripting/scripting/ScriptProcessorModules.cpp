@@ -1476,8 +1476,6 @@ void JavascriptModulatorSynth::preVoiceRendering(int startSample, int numThisTim
 	scriptChain2->renderNextBlock(scriptChain2Buffer, startSample, numThisTime);
 
 	ModulatorSynth::preVoiceRendering(startSample, numThisTime);
-
-	if (!isChainDisabled(EffectChain)) effectChain->preRenderCallback(startSample, numThisTime);
 }
 
 void JavascriptModulatorSynth::calculateScriptChainValuesForVoice(int voiceIndex, int startSample, int numSamples)

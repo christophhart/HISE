@@ -166,7 +166,7 @@ public:
 	*
 	*	The rendered buffer is supplied as reference to be able to apply changes here after all voices are rendered (eg. gain).
 	*/
-	virtual void postVoiceRendering(int startSample, int numThisTime);;
+	void postVoiceRendering(int startSample, int numThisTime);;
 
 	// ===================================================================================================================
 

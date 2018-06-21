@@ -137,6 +137,8 @@ public:
 				parent)),
 			b(1, 0)
 		{
+			FloatVectorOperations::fill(currentConstantVoiceValues, 1.0f, NUM_POLYPHONIC_VOICES);
+
 			if (t == Type::VoiceStartOnly)
 				c->setIsVoiceStartChain(true);
 		};
@@ -178,6 +180,9 @@ public:
 		{
 			if (c->hasVoiceModulators())
 				c->startVoice(voiceIndex);
+
+			lastConstantVoiceValue = c->getConstantVoiceValue(voiceIndex);
+			currentConstantVoiceValues[voiceIndex] = lastConstantVoiceValue;
 		}
 
 		void calculateMonophonicModulationValues(int startSample, int numSamples);
@@ -224,7 +229,9 @@ public:
 		bool voiceValuesReadOnly = true;
 		bool useConstantValueForBuffer = true;
 
-		float currentConstantVoiceValue = 1.0f;
+		float currentConstantVoiceValues[NUM_POLYPHONIC_VOICES];
+		float lastConstantVoiceValue = 1.0f;
+
 		float const* currentVoiceData = nullptr;
 
 		ScopedPointer<ModulatorChain> c;
@@ -242,6 +249,7 @@ public:
 			includeMonophonicValues = other.includeMonophonicValues;
 			voiceValuesReadOnly = other.voiceValuesReadOnly;
 			useConstantValueForBuffer = other.useConstantValueForBuffer;
+			FloatVectorOperations::fill(currentConstantVoiceValues, 1.0f, NUM_POLYPHONIC_VOICES);
 		}
 
 		ModChainWithBuffer& operator=(const ModChainWithBuffer& other) = delete;
@@ -436,7 +444,7 @@ public:
 	*
 	*	@param buffer the buffer that will be filled with the values of the timevariant modulation result.
 	*/
-	void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples) override;
+	void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples);
 
 	void newRenderMonophonicValues(int startSample, int numSamples);
 
@@ -450,6 +458,7 @@ public:
 	float *getVoiceValues(int voiceIndex) noexcept
 	{
 		jassertfalse;
+		// #WILLKILL
 		return nullptr;
 	};
 
@@ -457,6 +466,7 @@ public:
 	const float *getVoiceValues(int voiceIndex) const noexcept
 	{
 		jassertfalse;
+		// #WILLKILL
 		return nullptr;
 	}
 

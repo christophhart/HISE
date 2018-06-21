@@ -607,47 +607,66 @@ ProcessorEditorBody *ModulatorChain::createEditor(ProcessorEditor *parentEditor)
 
 void ModulatorChain::ModChainWithBuffer::calculateModulationValuesForCurrentVoice(int voiceIndex, int startSample, int numSamples)
 {
+	jassert(voiceIndex >= 0);
+
 	const bool useMonophonicData = includeMonophonicValues && c->hasMonophonicTimeModulationMods();
 
-	auto voiceData = c->newFunkyBuffer.voiceValues + startSample;
-	const auto monoData = c->newFunkyBuffer.monoValues + startSample;
+	auto voiceData = c->newFunkyBuffer.voiceValues;
+	const auto monoData = c->newFunkyBuffer.monoValues;
 
 	if (c->hasActivePolyMods())
 	{
-		currentConstantVoiceValue = c->getConstantVoiceValue(voiceIndex);
+		float thisConstantValue = useConstantValueForBuffer ? c->getConstantVoiceValue(voiceIndex) : 1.0f;
+		
+		const bool smoothConstantValue = useConstantValueForBuffer && 
+										 (std::fabsf(currentConstantVoiceValues[voiceIndex] - thisConstantValue) > 0.01f);
+		
+		
 
 		if (c->hasActivePolyEnvelopes())
 		{
-			FloatVectorOperations::fill(voiceData, useConstantValueForBuffer ? currentConstantVoiceValue : 1.0f, numSamples);
+			if (smoothConstantValue)
+			{
+				const float start = currentConstantVoiceValues[voiceIndex];
+				const float delta = (thisConstantValue - start) / (float)numSamples;
+				int numLoop = numSamples;
+				float value = start;
+				float* loop_ptr = voiceData + startSample;
+
+				while (--numLoop >= 0)
+				{
+					*loop_ptr++ = value;
+					value += delta;
+				}
+			}
+			else
+			{
+				FloatVectorOperations::fill(voiceData + startSample, thisConstantValue, numSamples);
+			}
 
 			Iterator<EnvelopeModulator> iter(c);
 
-			AudioSampleBuffer voiceBuffer(&c->newFunkyBuffer.voiceValues, 1, numSamples + startSample);
-
 			while (auto mod = iter.next())
 			{
-				mod->polyManager.setCurrentVoice(voiceIndex);
-				mod->setScratchBuffer(c->newFunkyBuffer.scratchBuffer, startSample + numSamples);
-				mod->renderNextBlock(voiceBuffer, startSample, numSamples);
-				mod->polyManager.clearCurrentVoice();
+				mod->render(voiceIndex, voiceData, c->newFunkyBuffer.scratchBuffer, startSample, numSamples);
 			}
 
 			if (useMonophonicData)
-				FloatVectorOperations::multiply(voiceData, monoData, numSamples);
+				FloatVectorOperations::multiply(voiceData + startSample, monoData + startSample, numSamples);
 			
-			currentVoiceData = voiceData - startSample;
+			currentVoiceData = voiceData;
 		}
 		else if (useMonophonicData)
 		{
 			if (useConstantValueForBuffer || !voiceValuesReadOnly)
 			{
-				FloatVectorOperations::fill(voiceData, useConstantValueForBuffer ? currentConstantVoiceValue : 1.0f, numSamples);
-				FloatVectorOperations::multiply(voiceData, monoData, numSamples);
-				currentVoiceData = voiceData - startSample;
+				FloatVectorOperations::fill(voiceData+startSample, thisConstantValue, numSamples);
+				FloatVectorOperations::multiply(voiceData+startSample, monoData + startSample, numSamples);
+				currentVoiceData = voiceData;
 			}
 			else
 			{
-				currentVoiceData = monoData - startSample;
+				currentVoiceData = monoData;
 			}
 		}
 		else
@@ -655,24 +674,31 @@ void ModulatorChain::ModChainWithBuffer::calculateModulationValuesForCurrentVoic
 			// Set it to nullptr, and let the module use the constant value instead...
 			currentVoiceData = nullptr;
 		}
+
+		currentConstantVoiceValues[voiceIndex] = thisConstantValue;
+		lastConstantVoiceValue = thisConstantValue;
 	}
 	else if (useMonophonicData)
 	{
-		currentConstantVoiceValue = 1.0f;
+		currentConstantVoiceValues[voiceIndex] = 1.0f;
+		lastConstantVoiceValue = 1.0f;
 
 		if (voiceValuesReadOnly)
-			currentVoiceData = monoData - startSample;
+			currentVoiceData = monoData;
 		else
 		{
-			FloatVectorOperations::copy(voiceData, monoData, numSamples);
-			currentVoiceData = voiceData - startSample;
+			FloatVectorOperations::copy(voiceData + startSample, monoData + startSample, numSamples);
+			currentVoiceData = voiceData;
 		}
 	}
 	else
 	{
 		currentVoiceData = nullptr;
-		currentConstantVoiceValue = 1.0f;
+		currentConstantVoiceValues[voiceIndex] = 1.0f;
+		lastConstantVoiceValue = 1.0f;
 	}
+
+	
 }
 
 void ModulatorChain::ModChainWithBuffer::applyMonophonicModulationValues(AudioSampleBuffer& b, int startSample, int numSamples)
@@ -708,12 +734,12 @@ const float* ModulatorChain::ModChainWithBuffer::getMonophonicModulationValues(i
 
 float ModulatorChain::ModChainWithBuffer::getConstantModulationValue() const
 {
-	return currentConstantVoiceValue;
+	return lastConstantVoiceValue;
 }
 
 float ModulatorChain::ModChainWithBuffer::getOneModulationValue(int startSample) const
 {
-	return currentVoiceData != nullptr ? currentVoiceData[startSample] : currentConstantVoiceValue;
+	return currentVoiceData != nullptr ? currentVoiceData[startSample] : lastConstantVoiceValue;
 }
 
 float* ModulatorChain::ModChainWithBuffer::getScratchBuffer()
@@ -724,6 +750,7 @@ float* ModulatorChain::ModChainWithBuffer::getScratchBuffer()
 void ModulatorChain::renderVoice(int voiceIndex, int startSample, int numSamples)
 {
 	jassertfalse;
+	// #WILLKILL
 	return;
 
     ADD_GLITCH_DETECTOR(parentProcessor, DebugLogger::Location::ModulatorChainVoiceRendering);
@@ -788,7 +815,7 @@ void ModulatorChain::renderVoice(int voiceIndex, int startSample, int numSamples
 			FloatVectorOperations::clip(internalBuffer.getWritePointer(0, startIndex), internalBuffer.getReadPointer(0, startIndex), (getMode() == Modulation::GainMode ? 0.0f : -1.0f), 1.0f, sampleAmount);
 
 		if (voiceIndex == polyManager.getLastStartedVoice())
-			pushPlotterValues(internalBuffer, startSample, sampleAmount);
+			pushPlotterValues(internalBuffer.getReadPointer(0, 0), startSample, sampleAmount);
 	}
 
 	CHECK_AND_LOG_BUFFER_DATA_WITH_ID(parentProcessor, chainIdentifier, DebugLogger::Location::ModulatorChainVoiceRendering, internalBuffer.getReadPointer(0, startIndex), true, sampleAmount);
@@ -806,6 +833,9 @@ void ModulatorChain::renderVoice(int voiceIndex, int startSample, int numSamples
 
 void ModulatorChain::renderNextBlock(AudioSampleBuffer& buffer, int startSample, int numSamples)
 {
+	jassertfalse;
+	// #WILLKILL
+
 	const int startIndex = startSample;
 	const int sampleAmount = numSamples;
 
@@ -854,16 +884,14 @@ void ModulatorChain::newRenderMonophonicValues(int startSample, int numSamples)
 
 		while (auto mod = iter.next())
 		{
-			mod->setScratchBuffer(newFunkyBuffer.scratchBuffer, startSample + numSamples);
-			mod->renderNextBlock(monoModValues, startSample, numSamples);
+			mod->render(newFunkyBuffer.monoValues, newFunkyBuffer.scratchBuffer, startSample, numSamples);
 		}
 
 		Iterator<MonophonicEnvelope> iter2(this);
 
 		while (auto mod = iter2.next())
 		{
-			mod->setScratchBuffer(newFunkyBuffer.scratchBuffer, startSample + numSamples);
-			mod->renderNextBlock(monoModValues, startSample, numSamples);
+			mod->render(0, newFunkyBuffer.monoValues, newFunkyBuffer.scratchBuffer, startSample, numSamples);
 		}
 	}
 }

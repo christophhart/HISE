@@ -140,6 +140,9 @@ void GlobalModulatorContainer::preVoiceRendering(int startSample, int numThisTim
 			if (!mod->isBypassed())
 			{
 				mod->setScratchBuffer(gainChain->newFunkyBuffer.scratchBuffer, startSample + numThisTime);
+
+
+
 				mod->renderNextBlock(monoModValues, startSample, numThisTime);
 
 				tv.saveValues(gainChain->newFunkyBuffer.scratchBuffer, startSample, numThisTime);

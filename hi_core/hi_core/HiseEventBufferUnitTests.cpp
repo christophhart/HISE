@@ -806,6 +806,7 @@ public:
 	CustomValueTreeUnitTests() :
 		UnitTest("Testing custom ValueTree classes"),
 		t("Test"),
+		dispatcher(nullptr),
 		vlt(t, &dispatcher, *this)
 	{}
 

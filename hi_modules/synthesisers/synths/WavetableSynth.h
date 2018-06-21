@@ -403,8 +403,6 @@ public:
 		tableIndexChain->renderNextBlock(tableBuffer, startSample, numThisTime);
 
 		ModulatorSynth::preVoiceRendering(startSample, numThisTime);
-
-		if( !isChainDisabled(EffectChain)) effectChain->preRenderCallback(startSample, numThisTime);
 	};
 
 	void calculateTableModulationValuesForVoice(int voiceIndex, int startSample, int numSamples)

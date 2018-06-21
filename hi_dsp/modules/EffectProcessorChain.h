@@ -91,12 +91,6 @@ public:
 		FOR_ALL_EFFECTS(handleHiseEvent(m)); 
 	};
 
-	void preRenderCallback(int startSample, int numSamples) override
-	{
-		if(isBypassed()) return;
-		FOR_EACH_VOICE_EFFECT(preRenderCallback(startSample, numSamples));
-	}
-
 	void applyEffect(int /*voiceIndex*/, AudioSampleBuffer &/*b*/, int /*startSample*/, int /*numSamples*/) override {};
 
 	void renderVoice(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) override 

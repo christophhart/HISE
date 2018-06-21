@@ -66,6 +66,10 @@ void Modulation::applyModulationValue(float calculatedModulationValue, float &de
 void Modulation::setIntensity(float newIntensity) noexcept
 {
 	intensity = newIntensity;
+
+	
+
+	smoothedIntensity.setValue(newIntensity);
 }
 
 void Modulation::setIntensityFromSlider(float sliderValue) noexcept
@@ -121,7 +125,7 @@ bool Modulation::isPlotted() const
 	return attachedPlotter.getComponent() != nullptr;
 }
 
-void Modulation::pushPlotterValues(const AudioSampleBuffer& b, int startSample, int numSamples)
+void Modulation::pushPlotterValues(const float* b, int startSample, int numSamples)
 {
 	if (attachedPlotter.getComponent() != nullptr && shouldUpdatePlotter())
 	{
@@ -155,6 +159,10 @@ void Modulator::setColour(Colour c)
 
 void TimeModulation::renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples)
 {
+	jassertfalse;
+	// #WILLKILL
+
+
 	// Save the values for later
 	const int startIndex = startSample;
 	const int samplesToCopy = numSamples;
@@ -165,21 +173,44 @@ void TimeModulation::renderNextBlock(AudioSampleBuffer &buffer, int startSample,
 
 	
 
-	pushPlotterValues(internalBuffer, startSample, numSamples);
+	//pushPlotterValues(internalBuffer, startSample, numSamples);
 
-	applyTimeModulation(buffer, startIndex, samplesToCopy);
+	applyTimeModulation(buffer.getWritePointer(0, 0), startIndex, samplesToCopy);
 }
 
-void TimeModulation::applyTimeModulation(AudioSampleBuffer &buffer, int startIndex, int samplesToCopy)
+void TimeModulation::applyTimeModulation(float* destinationBuffer, int startIndex, int samplesToCopy)
 {
-	float *dest = buffer.getWritePointer(0, startIndex);
+	float *dest = destinationBuffer + startIndex;
 	float *mod = internalBuffer.getWritePointer(0, startIndex);
 
-	switch (modulationMode)
+	if (smoothedIntensity.isSmoothing())
 	{
-	case GainMode: applyGainModulation(mod, dest, getIntensity(), samplesToCopy); break;
-	case PitchMode: applyPitchModulation(mod, dest, getIntensity(), samplesToCopy); break;
+		float* smoothedIntensityValues = (float*)alloca(sizeof(float) * samplesToCopy);
+
+		int numLoop = samplesToCopy;
+		float* loopPtr = smoothedIntensityValues;
+
+		while (--numLoop >= 0)
+		{
+			*loopPtr++ = smoothedIntensity.getNextValue();
+		}
+
+		switch (modulationMode)
+		{
+		case GainMode: applyGainModulation(mod, dest, 1.0f, smoothedIntensityValues, samplesToCopy); break;
+		case PitchMode: applyPitchModulation(mod, dest, 1.0f, smoothedIntensityValues, samplesToCopy); break;
+		}
 	}
+	else
+	{
+		switch (modulationMode)
+		{
+		case GainMode: applyGainModulation(mod, dest, getIntensity(), samplesToCopy); break;
+		case PitchMode: applyPitchModulation(mod, dest, getIntensity(), samplesToCopy); break;
+		}
+	}
+
+	
 }
 
 const float * TimeModulation::getCalculatedValues(int /*voiceIndex*/)
@@ -187,9 +218,11 @@ const float * TimeModulation::getCalculatedValues(int /*voiceIndex*/)
 	return internalBuffer.getReadPointer(0);
 }
 
-void TimeModulation::prepareToModulate(double /*sampleRate*/, int samplesPerBlock)
+void TimeModulation::prepareToModulate(double sampleRate, int samplesPerBlock)
 {
+	smoothedIntensity.setValueAndRampTime(getIntensity(), sampleRate, 0.1);
 	jassert(isInitialized());
+	
 }
 
 bool TimeModulation::isInitialized() { return getProcessor()->getSampleRate() != -1.0f; };
@@ -200,7 +233,7 @@ void TimeModulation::applyGainModulation(float *calculatedModulationValues, floa
 
 	while (--numValues >= 0)
 	{
-		*destinationValues++ = *calculatedModulationValues++ * fixedIntensity + a;
+		*destinationValues++ *= *calculatedModulationValues++ * fixedIntensity + a;
 	}
 
 	//FloatVectorOperations::multiply(calculatedModulationValues, fixedIntensity, numValues);
@@ -210,13 +243,63 @@ void TimeModulation::applyGainModulation(float *calculatedModulationValues, floa
 
 void TimeModulation::applyGainModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, const float *intensityValues, int numValues) const noexcept
 {
+#if JUCE_WINDOWS
+
+	// somehow the MSVC2017 compiler fails to optimize this to SSE instructions...
+
+	using SSEType = dsp::SIMDRegister<float>;
+
+	constexpr int sseSize = SSEType::SIMDRegisterSize;
+	int numUnaligned = SSEType::getNextSIMDAlignedPtr(calculatedModulationValues) - calculatedModulationValues;
+
+	while (--numUnaligned >= 0)
+	{
+		const float intensityValue = fixedIntensity * *intensityValues++;
+		const float invIntensity = 1.0f - intensityValue;
+
+		*destinationValues++ *= *calculatedModulationValues++ * intensityValue + invIntensity;
+	}
+
+	while (numValues > sseSize)
+	{
+		jassert(SSEType::isSIMDAligned(calculatedModulationValues));
+		jassert(SSEType::isSIMDAligned(destinationValues));
+
+		auto iv_ = _mm_load_ps(intensityValues);
+		iv_ = _mm_mul_ps(iv_, _mm_set1_ps(fixedIntensity));
+		auto inv_iv_ = _mm_sub_ps(_mm_set1_ps(1.0f), iv_);
+
+		auto dv_ = _mm_load_ps(destinationValues);
+		_mm_mul_ps(dv_, iv_);
+		
+		_mm_add_ps(dv_, inv_iv_);
+		_mm_store_ps(destinationValues, dv_);
+
+		destinationValues += sseSize;
+		calculatedModulationValues += sseSize;
+		numValues -= sseSize;
+	}
+
 	while (--numValues >= 0)
 	{
 		const float intensityValue = fixedIntensity * *intensityValues++;
 		const float invIntensity = 1.0f - intensityValue;
 
-		*destinationValues++ = *calculatedModulationValues++ * intensityValue + invIntensity;
+		*destinationValues++ *= *calculatedModulationValues++ * intensityValue + invIntensity;
 	}
+
+#else
+
+	// Who's a good boy? Clang's a good boy...
+
+	while (--numValues >= 0)
+	{
+		const float intensityValue = fixedIntensity * *intensityValues++;
+		const float invIntensity = 1.0f - intensityValue;
+
+		*destinationValues++ *= *calculatedModulationValues++ * intensityValue + invIntensity;
+	}
+#endif
 	
 	/*
 	FloatVectorOperations::multiply(intensityValues, fixedIntensity, numValues);
@@ -232,12 +315,59 @@ void TimeModulation::applyPitchModulation(float* calculatedModulationValues, flo
 {
 	// input: modValues (0 ... 1), intensity (-1...1)
 
+	applyIntensityForPitchValues(calculatedModulationValues, fixedIntensity, numValues);
+	
+	FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
+
+#if 0
+	const float a = fixedIntensity - 1.0f;
+
+	FloatVectorOperations::multiply(calculatedModulationValues, a, numValues);
+	FloatVectorOperations::add(calculatedModulationValues, 1.0f, numValues);
+	FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
+#endif
+}
+
+void TimeModulation::applyPitchModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, const float *intensityValues, int numValues) const noexcept
+{
+	applyIntensityForPitchValues(calculatedModulationValues, fixedIntensity, intensityValues, numValues);
+
+	FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
+}
+
+
+void TimeModulation::applyIntensityForGainValues(float* calculatedModulationValues, float fixedIntensity, int numValues) const
+{
+	const float a = 1.0f - fixedIntensity;
+
+	while (--numValues >= 0)
+	{
+		*calculatedModulationValues++ = *calculatedModulationValues * fixedIntensity + a;
+	}
+}
+
+
+void TimeModulation::applyIntensityForGainValues(float* calculatedModulationValues, float fixedIntensity, const float* intensityValues, int numValues) const
+{
+	while (--numValues >= 0)
+	{
+		const float intensityValue = fixedIntensity * *intensityValues++;
+		const float invIntensity = 1.0f - intensityValue;
+		*calculatedModulationValues++ = intensityValue * *calculatedModulationValues + invIntensity;
+	}
+}
+
+void TimeModulation::applyIntensityForPitchValues(float* calculatedModulationValues, float fixedIntensity, int numValues) const
+{
+	float* modValues = calculatedModulationValues;
+	int numLoop = numValues;
+
 	if (isBipolar())
 	{
-		while (--numValues >= 0)
+		while (--numLoop >= 0)
 		{
-			const float bipolarModValue = *calculatedModulationValues * 2.0f - 1.0f;
-			*calculatedModulationValues++ = bipolarModValue * fixedIntensity;
+			const float bipolarModValue = *modValues * 2.0f - 1.0f;
+			*modValues++ = bipolarModValue * fixedIntensity;
 		}
 
 		//FloatVectorOperations::multiply(calculatedModulationValues, 2.0f, numValues);
@@ -254,28 +384,23 @@ void TimeModulation::applyPitchModulation(float* calculatedModulationValues, flo
 	}
 
 	Modulation::PitchConverters::normalisedRangeToPitchFactor(calculatedModulationValues, numValues);
-	FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
-
-#if 0
-	const float a = fixedIntensity - 1.0f;
-
-	FloatVectorOperations::multiply(calculatedModulationValues, a, numValues);
-	FloatVectorOperations::add(calculatedModulationValues, 1.0f, numValues);
-	FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
-#endif
 }
 
-void TimeModulation::applyPitchModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, const float *intensityValues, int numValues) const noexcept
+
+void TimeModulation::applyIntensityForPitchValues(float* calculatedModulationValues, float fixedIntensity, const float* intensityValues, int numValues) const
 {
+	float* modValues = calculatedModulationValues;
+	int numLoop = numValues;
+
 	// input: modValues (0 ... 1), intensity (-1 ... 1), intensityValues (0.5 ... 2.0)
 
 	if (isBipolar())
 	{
-		while (--numValues >= 0)
+		while (--numLoop >= 0)
 		{
 			const float intensityValue = *intensityValues++ * fixedIntensity;
-			const float bipolarModValue = 2.0f * *calculatedModulationValues - 1.0f;
-			*calculatedModulationValues++ = bipolarModValue * intensityValue;
+			const float bipolarModValue = 2.0f * *modValues - 1.0f;
+			*modValues++ = bipolarModValue * intensityValue;
 		}
 
 		//FloatVectorOperations::multiply(intensityValues, fixedIntensity, numValues);
@@ -288,7 +413,7 @@ void TimeModulation::applyPitchModulation(float *calculatedModulationValues, flo
 		while (--numValues >= 0)
 		{
 			const float intensityValue = *intensityValues++ * fixedIntensity;
-			*calculatedModulationValues++ *= intensityValue;
+			*modValues++ *= intensityValue;
 		}
 
 		//FloatVectorOperations::multiply(intensityValues, fixedIntensity, numValues);
@@ -296,7 +421,6 @@ void TimeModulation::applyPitchModulation(float *calculatedModulationValues, flo
 	}
 
 	Modulation::PitchConverters::normalisedRangeToPitchFactor(calculatedModulationValues, numValues);
-	FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
 }
 
 void TimeModulation::initializeBuffer(AudioSampleBuffer &bufferToBeInitialized, int startSample, int numSamples)

@@ -256,41 +256,7 @@ float LfoModulator::getAttribute(int parameter_index) const
 		return -1.0f;
 	}
 
-};
-
-
-void LfoModulator::applyTimeModulation(AudioSampleBuffer &buffer, int startIndex, int samplesToCopy)
-{
-	float *dest = buffer.getWritePointer(0, startIndex);
-	float *mod = internalBuffer.getWritePointer(0, startIndex);
-
-	float intensityToUse = getIntensity();
-	
-	for (auto& mb : modChains)
-	{
-		mb.calculateMonophonicModulationValues(startIndex, samplesToCopy);
-		mb.calculateModulationValuesForCurrentVoice(0, startIndex, samplesToCopy);
-	}
-	
-	if (frequencyUpdater.shouldUpdate(samplesToCopy))
-	{
-		frequencyModulationValue = modChains[FrequencyChain].getOneModulationValue(startIndex);
-		calcAngleDelta();
-	}
-	
-	intensityToUse *= modChains[IntensityChain].getConstantModulationValue();
-
-	if (auto intensityModValues = modChains[IntensityChain].getReadPointerForVoiceValues(startIndex))
-	{
-		if (getMode() == GainMode)		 TimeModulation::applyGainModulation(mod, dest, intensityToUse, intensityModValues, samplesToCopy);
-		else if (getMode() == PitchMode) TimeModulation::applyPitchModulation(mod, dest, intensityToUse, intensityModValues, samplesToCopy);
-	}
-	else
-	{
-		if (getMode() == GainMode)		 TimeModulation::applyGainModulation(mod, dest, intensityToUse, samplesToCopy);
-		else if (getMode() == PitchMode) TimeModulation::applyPitchModulation(mod, dest, intensityToUse, samplesToCopy);
-	}
-};
+};;
 
 void LfoModulator::setInternalAttribute (int parameter_index, float newValue)
 {
@@ -470,11 +436,13 @@ void LfoModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 		setAttackRate(attack);
 
 		calcAngleDelta();
-		smoother.prepareToPlay(sampleRate);
+		smoother.prepareToPlay(sampleRate / LFO_DOWNSAMPLING_FACTOR);
 		
 		smoother.setSmoothingTime(smoothingTime);
 
 		inputMerger.setManualCountLimit(10);
+
+		valueUpdater.setManualCountLimit(LFO_DOWNSAMPLING_FACTOR);
 
 		randomGenerator.setSeedRandomly();
 	}
@@ -485,22 +453,39 @@ void LfoModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 void LfoModulator::calculateBlock(int startSample, int numSamples)
 {
-#if ENABLE_ALL_PEAK_METERS
-	if (--numSamples >= 0)
+	const int startIndex = startSample;
+	const int numValues = numSamples;
+
+	auto* data = internalBuffer.getWritePointer(0, startSample);
+
+	while (numSamples > 0)
 	{
-		const float value = calculateNewValue();
-		internalBuffer.setSample(0, startSample, value);
-		++startSample;
-		setOutputValue(value);
+		const int numThisTime = jmin<int>(numSamples, LFO_DOWNSAMPLING_FACTOR);
+
+		if (valueUpdater.shouldUpdate(numThisTime))
+		{
+			const float targetValue = calculateNewValue();
+
+			float delta = (targetValue - rampValue) / (float)LFO_DOWNSAMPLING_FACTOR;
+
+			int numLoop = numThisTime;
+
+			while (--numLoop >= 0)
+			{
+				*data++ = rampValue;
+				rampValue += delta;
+			}
+		}
+
+		numSamples -= numThisTime;
 	}
+
+
+#if ENABLE_ALL_PEAK_METERS
+	setOutputValue(rampValue);
 #endif
 
-	while (--numSamples >= 0)
-	{
-		internalBuffer.setSample(0, startSample, calculateNewValue());
-		++startSample;
-	}
-
+	
 	const float newInputValue = ((int)(uptime) % SAMPLE_LOOKUP_TABLE_SIZE) / (float)SAMPLE_LOOKUP_TABLE_SIZE;
 
 	if (inputMerger.shouldUpdate() && currentWaveform == Custom)
@@ -513,6 +498,33 @@ void LfoModulator::calculateBlock(int startSample, int numSamples)
 		}
 		else
 			sendTableIndexChangeMessage(false, customTable, 1.0f);
+	}
+
+	float *mod = internalBuffer.getWritePointer(0, startIndex);
+
+	for (auto& mb : modChains)
+	{
+		mb.calculateMonophonicModulationValues(startIndex, numValues);
+		mb.calculateModulationValuesForCurrentVoice(0, startIndex, numValues);
+	}
+
+	if (frequencyUpdater.shouldUpdate(numValues))
+	{
+		frequencyModulationValue = modChains[FrequencyChain].getOneModulationValue(startIndex);
+		calcAngleDelta();
+	}
+
+	const float intensityToUse = modChains[IntensityChain].getConstantModulationValue();
+
+	if (auto intensityModValues = modChains[IntensityChain].getReadPointerForVoiceValues(startIndex))
+	{
+		if (getMode() == GainMode)		 TimeModulation::applyIntensityForGainValues(mod, intensityToUse, intensityModValues, numValues);
+		else if (getMode() == PitchMode) TimeModulation::applyIntensityForPitchValues(mod, intensityToUse, intensityModValues, numValues);
+	}
+	else
+	{
+		if (getMode() == GainMode)		 TimeModulation::applyIntensityForGainValues(mod, intensityToUse, numValues);
+		else if (getMode() == PitchMode) TimeModulation::applyIntensityForPitchValues(mod, intensityToUse, numValues);
 	}
 }
 
@@ -582,7 +594,7 @@ void LfoModulator::calcAngleDelta()
 	const float cyclesPerSecond = frequencyToUse * frequencyModulationValue;
 	const double cyclesPerSample = (double)cyclesPerSecond / sr;
 
-	angleDelta = cyclesPerSample * (double)SAMPLE_LOOKUP_TABLE_SIZE;
+	angleDelta = cyclesPerSample * (double)(SAMPLE_LOOKUP_TABLE_SIZE * LFO_DOWNSAMPLING_FACTOR);
 }
 
 float WaveformLookupTables::sineTable[SAMPLE_LOOKUP_TABLE_SIZE];

@@ -51,6 +51,8 @@ struct WaveformLookupTables
 
 };
 
+#define LFO_DOWNSAMPLING_FACTOR 32
+
 /** A Lfo Modulator modulates the signal with a low frequency
 *
 *	@ingroup modulatorTypes
@@ -174,21 +176,6 @@ public:
 
 	void calculateBlock(int startSample, int numSamples) override;;
 
-	/** This overwrites the TimeModulation callback to render the intensity chain. */
-	virtual void applyTimeModulation(AudioSampleBuffer &b, int startSamples, int numSamples) override;
-
-
-	/** Returns the modulated intensity value. */
-	virtual float getIntensity() const noexcept
-	{
-		switch(getMode())
-		{
-			case Modulation::GainMode:		return intensityModulationValue * Modulation::getIntensity();
-			case Modulation::PitchMode:		return (Modulation::getIntensity() - 1.0f)*intensityModulationValue + 1.0f;
-			default:						jassertfalse; return -1.0f;
-		}		
-	};
-
 	/** Returns the table that is used for the LFO waveform. */
 	Table *getTable(int=0) const override 
 	{
@@ -254,6 +241,8 @@ private:
 		const float factor = (float)getSampleRate() * 0.001f;
 
 		rate *= factor;
+
+		rate /= (float)LFO_DOWNSAMPLING_FACTOR;
 
 		float returnValue = expf(-logf((1.0f + targetRatio) / targetRatio) / rate);
 
@@ -321,9 +310,13 @@ private:
 
 	Ramper intensityInterpolator;
 
-	UpdateMerger frequencyUpdater;
+	ExecutionLimiter<DummyCriticalSection> frequencyUpdater;
+	ExecutionLimiter<DummyCriticalSection> valueUpdater;
+
+	float rampValue = 1.0f;
 
 	float frequencyModulationValue;
+
 
 	float frequency;
 

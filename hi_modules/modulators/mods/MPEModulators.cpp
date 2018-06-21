@@ -418,6 +418,8 @@ void MPEModulator::calculateBlock(int startSample, int numSamples)
 	{
 		auto w = internalBuffer.getWritePointer(0, startSample);
 
+		jassert(dsp::SIMDRegister<float>::isSIMDAligned(w));
+
 		s->smoother.fillBufferWithSmoothedValue(s->targetValue, w, numSamples);
 
 		if (isMonophonic || polyManager.getLastStartedVoice() == voiceIndex)

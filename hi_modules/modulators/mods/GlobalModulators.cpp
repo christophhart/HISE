@@ -354,7 +354,9 @@ float GlobalStaticTimeVariantModulator::calculateVoiceStartValue(const HiseEvent
 {
 	if (isConnected())
 	{
-		float globalValue = static_cast<TimeVariantModulator*>(getOriginalModulator())->getLastConstantValue();
+		jassertfalse;
+		// #WILLKILL
+		float globalValue = 1.0f; // static_cast<TimeVariantModulator*>(getOriginalModulator())->getLastConstantValue();
 
 		if (useTable)
 		{

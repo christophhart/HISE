@@ -18,6 +18,8 @@
 
 // (You can add your own code in this section, and the Projucer will not overwrite it)
 
+#define HI_RUN_UNIT_TESTS 1
+
 // [END_USER_CODE_SECTION]
 
 /*

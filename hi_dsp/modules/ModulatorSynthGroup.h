@@ -405,7 +405,6 @@ public:
 	}
 
 	void preVoiceRendering(int startSample, int numThisTime) override;;
-	void postVoiceRendering(int startSample, int numThisTime) override;;
 
 	void handleRetriggeredNote(ModulatorSynthVoice *voice) override;
 
