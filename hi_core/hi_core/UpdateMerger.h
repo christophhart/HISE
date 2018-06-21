@@ -35,6 +35,82 @@
 
 namespace hise { using namespace juce;
 
+
+template <int RampLength> class AlignedSSERamper
+{
+public:
+
+	AlignedSSERamper(float* data_) :
+		data(data_)
+	{
+		jassert(dsp::SIMDRegister<float>::isSIMDAligned(data));
+	}
+
+	void rampWithMultiply(float startValue, float endValue)
+	{
+		constexpr float ratio = 1.0f / (float)RampLength;
+		const float deltaWhole = (endValue - startValue);
+		const float delta1 = deltaWhole * ratio;
+
+		constexpr int numSSE = dsp::SIMDRegister<float>::SIMDRegisterSize / sizeof(float);
+		constexpr int numLoop = RampLength / numSSE;
+
+		auto deltaConstant = _mm_set1_ps(delta1);
+		auto step = _mm_mul_ps(deltaConstant, _mm_set1_ps(4.0f));
+
+		constexpr float r_[4] = { 1.0f, 2.0f, 3.0f, 4.0f };
+
+		auto r = _mm_load_ps(r_);
+
+		auto deltaRamp = _mm_mul_ps(deltaConstant, r);
+
+		int i = 0;
+
+		for (int i = 0; i < numLoop; i++)
+		{
+			auto d = _mm_load_ps(data);
+
+			d = _mm_mul_ps(deltaRamp, d);
+			_mm_store_ps(data, d);
+			data += numSSE;
+
+			deltaRamp = _mm_add_ps(deltaRamp, step);
+		}
+	}
+
+	void ramp(float startValue, float endValue)
+	{
+		constexpr float ratio = 1.0f / (float)RampLength;
+		const float deltaWhole = (endValue - startValue);
+		const float delta1 = deltaWhole * ratio;
+
+		constexpr int numSSE = dsp::SIMDRegister<float>::SIMDRegisterSize / sizeof(float);
+		constexpr int numLoop = RampLength / numSSE;
+
+		auto deltaConstant = _mm_set1_ps(delta1);
+		auto step = _mm_mul_ps(deltaConstant, _mm_set1_ps(4.0f));
+
+		constexpr float r_[4] = { 1.0f, 2.0f, 3.0f, 4.0f };
+
+		auto r = _mm_load_ps(r_);
+
+		auto deltaRamp = _mm_mul_ps(deltaConstant, r);
+
+		int i = 0;
+
+		for (int i = 0; i < numLoop; i++)
+		{
+			_mm_store_ps(data, deltaRamp);
+			deltaRamp = _mm_add_ps(deltaRamp, step);
+			data += numSSE;
+		}
+	}
+
+private:
+
+	float* data;
+};
+
 /** This class divides a block into fixed chunks of data.
 *
 *	It can be used to divide a block of audio data into smaller chunks
@@ -394,28 +470,26 @@ public:
 			startSample++;
 		}
 
-#if 0
 		while (numSamples > 0)
 		{
-			if (blockDivider.cutBlock(numSamples))
+			bool calculateNew;
+
+			int subBlock = blockDivider.cutBlock(numSamples, calculateNew, data);
+
+			if (calculateNew)
 			{
 				currentValue = a0 * targetValue - b0 * prevValue;
 				prevValue = currentValue;
 				downsampledTargetValue = currentValue;
+			}
 
-				constexpr float ratio = 1.0f / (float)DownsamplingFactor;
-				using SSEType = dsp::SIMDRegister<float>;
-				jassert(SSEType::getNextSIMDAlignedPtr(data) == data);
+			if (subBlock == 0)
+			{
+				AlignedSSERamper<DownsamplingFactor> ramper(data);
+				ramper.ramp(downsampledRampValue, downsampledTargetValue);
+				downsampledRampValue = downsampledTargetValue;
+				data += DownsamplingFactor;
 
-				currentRampDelta = (downsampledTargetValue - downsampledRampValue) * ratio;
-				int numLoop = DownsamplingFactor;
-
-				while (--numLoop >= 0)
-				{
-
-					downsampledRampValue += currentRampDelta;
-					*data++ = downsampledRampValue;
-				}
 			}
 			else
 			{
@@ -426,7 +500,6 @@ public:
 				}
 			}
 		}
-#endif
 
 #if 0
 		for (int i = startSample; i < numSamples; i++)
@@ -527,6 +600,8 @@ private:
 	float currentRampDelta = 0.0f;
 
 	Ramper resetRamper;
+
+	BlockDivider<DownsamplingFactor> blockDivider;
 
 	SpinLock spinLock;
 

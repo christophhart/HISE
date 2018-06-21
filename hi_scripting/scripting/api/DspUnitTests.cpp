@@ -35,54 +35,11 @@
 #if HI_RUN_UNIT_TESTS
 
 #include  "JuceHeader.h"
+#include <ipp.h>
 
 using namespace hise;
 
 
-template <int RampLength> class AlignedSSERamper
-{
-	
-	AlignedSSERamper(float* data_):
-		data(data_)
-	{
-		jassert(dsp::SIMDRegister<float>::isSIMDAligned(data));
-	}
-
-	void ramp(float startValue, float endValue)
-	{
-		constexpr float ratio = 1.0f / (float)RampLength;
-		const float delta1 = (endValue - startValue)*ratio;
-		
-		constexpr int numSSE = dsp::SIMDRegister<float>::SIMDRegisterSize / sizeof(float);
-		constexpr int numLoop = RampLength / numSSE;
-
-		__m128 delta = { delta1, delta1*2.0f, delta1*3.0f, delta1*4.0f };
-		__m128 step = _mm_set1_ps(delta1 * 4.0f);
-
-		int i = 0;
-
-		for (int i = 0, i < numLoop; i++)
-		{
-			auto d = _mm_load_ps(data);
-
-			auto thisStep = _mm_mul_ps(step, _mm_set1_ps((float)i));
-
-
-				_mm_add_ps(d, step);
-			_mm
-
-				data += numSSE;
-		}
-
-		while (--numLoop >= 0)
-		{
-			
-		}
-	}
-
-
-	float* data;
-};
 
 class DspUnitTests : public UnitTest
 {
@@ -417,7 +374,7 @@ public:
 
 		testingLockFreeQueue();
 
-		testBlockDivider();
+		//testBlockDivider();
 	}
 
 	
@@ -426,6 +383,9 @@ private:
 
 	void testBlockDivider()
 	{
+
+		
+
 		beginTest("Testing Block Divider");
 		using SSEType = dsp::SIMDRegister<float>;
 
@@ -442,6 +402,13 @@ private:
 		blockData.setMaxSize(blockSize);
 
 		auto data = blockData.scratchBuffer;
+
+		FloatVectorOperations::fill(data, 1.0f, blockSize);
+
+		AlignedSSERamper<32> ramper(data);
+
+
+		ramper.ramp(0.0f, 1.0f);
 
 		FloatVectorOperations::fill(data, 0.5f, totalLength);
 
