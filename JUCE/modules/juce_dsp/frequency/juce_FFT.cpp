@@ -41,8 +41,9 @@ struct FFT::Engine
 {
     Engine (int priorityToUse) : enginePriority (priorityToUse)
     {
-        EnginePriorityComparator comparator;
-        getEngines().addSorted (comparator, this);
+        auto& list = getEngines();
+        list.add (this);
+        std::sort (list.begin(), list.end(), [] (Engine* a, Engine* b) { return b->enginePriority < a->enginePriority; });
     }
 
     virtual ~Engine() {}
@@ -61,15 +62,6 @@ struct FFT::Engine
     }
 
 private:
-    struct EnginePriorityComparator
-    {
-        static int compareElements (Engine* first, Engine* second) noexcept
-        {
-            // sort in reverse order
-            return DefaultElementComparator<int>::compareElements (second->enginePriority, first->enginePriority);
-        }
-    };
-
     static Array<Engine*>& getEngines()
     {
         static Array<Engine*> engines;
@@ -100,8 +92,8 @@ struct FFTFallback  : public FFT::Instance
 
     FFTFallback (int order)
     {
-        configForward = new FFTConfig (1 << order, false);
-        configInverse = new FFTConfig (1 << order, true);
+        configForward.reset (new FFTConfig (1 << order, false));
+        configInverse.reset (new FFTConfig (1 << order, true));
 
         size = 1 << order;
     }
@@ -174,10 +166,7 @@ struct FFTFallback  : public FFT::Instance
     void performRealOnlyForwardTransform (Complex<float>* scratch, float* d) const noexcept
     {
         for (int i = 0; i < size; ++i)
-        {
-            scratch[i].real (d[i]);
-            scratch[i].imag (0);
-        }
+            scratch[i] = { d[i], 0 };
 
         perform (scratch, reinterpret_cast<Complex<float>*> (d), false);
     }
@@ -204,34 +193,34 @@ struct FFTFallback  : public FFT::Instance
         FFTConfig (int sizeOfFFT, bool isInverse)
             : fftSize (sizeOfFFT), inverse (isInverse), twiddleTable ((size_t) sizeOfFFT)
         {
-            const double inverseFactor = (inverse ? 2.0 : -2.0) * double_Pi / (double) fftSize;
+            auto inverseFactor = (inverse ? 2.0 : -2.0) * MathConstants<double>::pi / (double) fftSize;
 
             if (fftSize <= 4)
             {
                 for (int i = 0; i < fftSize; ++i)
                 {
-                    const double phase = i * inverseFactor;
+                    auto phase = i * inverseFactor;
 
-                    twiddleTable[i].real ((float) std::cos (phase));
-                    twiddleTable[i].imag ((float) std::sin (phase));
+                    twiddleTable[i] = { (float) std::cos (phase),
+                                        (float) std::sin (phase) };
                 }
             }
             else
             {
                 for (int i = 0; i < fftSize / 4; ++i)
                 {
-                    const double phase = i * inverseFactor;
+                    auto phase = i * inverseFactor;
 
-                    twiddleTable[i].real ((float) std::cos (phase));
-                    twiddleTable[i].imag ((float) std::sin (phase));
+                    twiddleTable[i] = { (float) std::cos (phase),
+                                        (float) std::sin (phase) };
                 }
 
                 for (int i = fftSize / 4; i < fftSize / 2; ++i)
                 {
-                    const int index = i - fftSize / 4;
+                    auto other = twiddleTable[i - fftSize / 4];
 
-                    twiddleTable[i].real (inverse ? -twiddleTable[index].imag() : twiddleTable[index].imag());
-                    twiddleTable[i].imag (inverse ? twiddleTable[index].real() : -twiddleTable[index].real());
+                    twiddleTable[i] = { inverse ? -other.imag() :  other.imag(),
+                                        inverse ?  other.real() : -other.real() };
                 }
 
                 twiddleTable[fftSize / 2].real (-1.0f);
@@ -239,12 +228,12 @@ struct FFTFallback  : public FFT::Instance
 
                 for (int i = fftSize / 2; i < fftSize; ++i)
                 {
-                    const int index = fftSize / 2 - (i - fftSize / 2);
+                    auto index = fftSize / 2 - (i - fftSize / 2);
                     twiddleTable[i] = conj(twiddleTable[index]);
                 }
             }
 
-            const int root = (int) std::sqrt ((double) fftSize);
+            auto root = (int) std::sqrt ((double) fftSize);
             int divisor = 4, n = fftSize;
 
             for (int i = 0; i < numElementsInArray (factors); ++i)
@@ -403,17 +392,19 @@ struct FFTFallback  : public FFT::Instance
 
                 if (inverse)
                 {
-                    data[length].real (s5.real() - s4.imag());
-                    data[length].imag (s5.imag() + s4.real());
-                    data[lengthX3].real (s5.real() + s4.imag());
-                    data[lengthX3].imag (s5.imag() - s4.real());
+                    data[length] = { s5.real() - s4.imag(),
+                                     s5.imag() + s4.real() };
+
+                    data[lengthX3] = { s5.real() + s4.imag(),
+                                       s5.imag() - s4.real() };
                 }
                 else
                 {
-                    data[length].real (s5.real() + s4.imag());
-                    data[length].imag (s5.imag() - s4.real());
-                    data[lengthX3].real (s5.real() - s4.imag());
-                    data[lengthX3].imag (s5.imag() + s4.real());
+                    data[length] = { s5.real() + s4.imag(),
+                                     s5.imag() - s4.real() };
+
+                    data[lengthX3] = { s5.real() - s4.imag(),
+                                       s5.imag() + s4.real() };
                 }
 
                 ++data;
@@ -425,7 +416,7 @@ struct FFTFallback  : public FFT::Instance
 
     //==============================================================================
     SpinLock processLock;
-    ScopedPointer<FFTConfig> configForward, configInverse;
+    std::unique_ptr<FFTConfig> configForward, configInverse;
     int size;
 };
 
@@ -446,7 +437,7 @@ struct AppleFFT  : public FFT::Instance
     AppleFFT (int orderToUse)
         : order (static_cast<vDSP_Length> (orderToUse)),
           fftSetup (vDSP_create_fftsetup (order, 2)),
-          forwardNormalisation (.5f),
+          forwardNormalisation (0.5f),
           inverseNormalisation (1.0f / static_cast<float> (1 << order))
     {}
 
@@ -609,14 +600,14 @@ struct FFTWImpl  : public FFT::Instance
 
       #if ! JUCE_DSP_USE_STATIC_FFTW
        #if JUCE_MAC
-        const char* libsuffix = "dylib";
+        auto libName = "libfftw3f.dylib";
        #elif JUCE_WINDOWS
-        const char* libsuffix = "dll";
+        auto libName = "libfftw3f.dll";
        #else
-        const char* libsuffix = "so";
+        auto libName = "libfftw3f.so";
        #endif
 
-        if (lib.open (String ("libfftw3f.") + libsuffix))
+        if (lib.open (libName))
       #endif
         {
             Symbols symbols;
