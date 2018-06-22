@@ -93,12 +93,21 @@ public:
 		}
 	}
 
+	
+
     //==============================================================================
     /** Set a new target value.
         @param newValue New target value
     */
-    void setValue (FloatType newValue) noexcept
+    void setValue (FloatType newValue, bool force=false) noexcept
     {
+		if (force)
+		{
+			setValueWithoutSmoothing(newValue);
+			return;
+		}
+			
+
         if (target != newValue)
         {
             target = newValue;

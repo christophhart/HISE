@@ -341,6 +341,17 @@ struct MathConstants
 
     /** A predfined value for Euler's number */
     static const FloatType euler;
+
+
+	/** A predefined value for Pi / 2 */
+	static constexpr FloatType halfPi = static_cast<FloatType> (3.141592653589793238L / 2);
+
+	/** A predefined value for 2 * Pi */
+	static constexpr FloatType twoPi = static_cast<FloatType> (2 * 3.141592653589793238L);
+
+	/** A predefined value for sqrt(2) */
+	static constexpr FloatType sqrt2 = static_cast<FloatType> (1.4142135623730950488L);
+
 };
 
 template <typename FloatType>
