@@ -58,6 +58,8 @@ MPEModulator::MPEModulator(MainController *mc, const String &id, int voiceAmount
 	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().addListener(this);
 
 	for (int i = 0; i < polyManager.getVoiceAmount(); i++) states.add(createSubclassedState(i));
+
+	updateSmoothingTime(getDefaultValue(SpecialParameters::SmoothingTime));
 }
 
 MPEModulator::~MPEModulator()
@@ -83,9 +85,6 @@ void MPEModulator::mpeModeChanged(bool isEnabled)
 	setBypassed(shouldBeBypassed);
 
 	sendChangeMessage();
-
-	
-
 }
 
 void MPEModulator::mpeModulatorAssigned(MPEModulator* m, bool wasAssigned)
@@ -203,7 +202,6 @@ void MPEModulator::resetToDefault()
 {
 	g = (Gesture)(int)getDefaultValue(SpecialParameters::GestureCC);
 	
-	
 	setAttribute(DefaultValue, getDefaultValue(DefaultValue), dontSendNotification);
 
 	updateSmoothingTime(getDefaultValue(SpecialParameters::SmoothingTime));
@@ -279,6 +277,7 @@ void MPEModulator::startVoice(int voiceIndex)
 		s->isRingingOff = false;
 
 		float startValue = defaultValue;
+
 		if (g == Press)
 			startValue *= unsavedStrokeValue;
 
@@ -290,18 +289,23 @@ void MPEModulator::startVoice(int voiceIndex)
 			{
 				if (shouldRetrigger)
 				{
-					monoState.smoother.setDefaultValue(startValue);
-					monoState.smoother.resetToValue(startValue, 5.0f);
+					monoState.startVoice(startValue, startValue);
+
+					//monoState.smoother.setDefaultValue(startValue);
+					//monoState.smoother.resetToValue(startValue, 5.0f);
 				}
 			}
 			else
 			{
 				monoState.isPressed = true;
-				monoState.smoother.setDefaultValue(startValue);
-				monoState.smoother.resetToValue(startValue);
 
-				if (g == Stroke)
-					monoState.targetValue = unsavedStrokeValue;
+				monoState.startVoice(startValue, g == Stroke ? unsavedStrokeValue : startValue);
+
+				//monoState.smoother.setDefaultValue(startValue);
+				//monoState.smoother.resetToValue(startValue);
+
+				//if (g == Stroke)
+				//	monoState.targetValue = unsavedStrokeValue;
 
 			}
 
@@ -311,14 +315,23 @@ void MPEModulator::startVoice(int voiceIndex)
 		{
 			s->midiChannel = unsavedChannel;
 			s->isPressed = true;
+
+			s->startVoice(startValue, g == Stroke ? unsavedStrokeValue : startValue);
+
+#if 0
 			s->smoother.setDefaultValue(startValue);
 			s->smoother.resetToValue(startValue);
 
 			if (g == Stroke)
+			{
 				s->targetValue = unsavedStrokeValue;
+				s->currentRampValue = unsavedStrokeValue;
+			}
+				
 
 			else if (g == Press)
 				s->targetValue = startValue;
+#endif
 
 			//s->targetValue = g == Stroke ? unsavedStrokeValue : defaultValue;
 
@@ -340,8 +353,7 @@ void MPEModulator::stopVoice(int voiceIndex)
 	{
 		if (auto s = getState(voiceIndex))
 		{
-			s->isPressed = false;
-			s->isRingingOff = s->targetValue == 0.0f;
+			s->stopVoice();
 		}
 	}
 }
@@ -356,9 +368,7 @@ void MPEModulator::reset(int voiceIndex)
 
 		if (monophonicVoiceCounter == 0)
 		{
-			monoState.targetValue = defaultValue;
-			
-			monoState.isPressed = false;
+			monoState.reset();
 
 			mpeValues.reset();
 		}
@@ -370,9 +380,6 @@ void MPEModulator::reset(int voiceIndex)
 		{
 			activeStates.remove(s);
 
-			s->smoother.setDefaultValue(defaultValue);
-			s->smoother.resetToValue(defaultValue);
-			s->targetValue = defaultValue;
 			s->midiChannel = -1;
 			s->isPressed = false;
 		}
@@ -387,8 +394,7 @@ bool MPEModulator::isPlaying(int voiceIndex) const
 	}
 	else if(auto s = getState(voiceIndex))
 	{
-		if (s->isRingingOff && !s->smoother.isSmoothingActive())
-			return false;
+		return s->isPlaying();
 	}
 
 	return true;
@@ -398,17 +404,55 @@ void MPEModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	EnvelopeModulator::prepareToPlay(sampleRate, samplesPerBlock);
 
-	monoState.smoother.prepareToPlay(sampleRate);
-	monoState.smoother.setSmoothingTime(smoothingTime);
+	monoState.prepareToPlay(sampleRate);
 	
 	for (auto s_ : states)
 	{
 		auto s = static_cast<MPEState*>(s_);
-		
-		s->smoother.prepareToPlay(sampleRate);
-		s->smoother.setSmoothingTime(smoothingTime);
+		s->prepareToPlay(sampleRate / LFO_DOWNSAMPLING_FACTOR);
 	}
 }
+
+
+void MPEModulator::MPEState::process(float* data, int numSamples)
+{
+	jassert(dsp::SIMDRegister<float>::isSIMDAligned(data));
+
+	while (numSamples > 0)
+	{
+		bool calculateNew;
+		int subBlockSize = blockDivider.cutBlock(numSamples, calculateNew, data);
+
+		const float* d = data;
+
+		if (calculateNew)
+		{
+			currentRampTarget = smoother.smooth(targetValue);
+			constexpr float ratio = 1.0f / (float)LFO_DOWNSAMPLING_FACTOR;
+
+			currentRampDelta = (currentRampTarget - currentRampValue) * ratio;
+
+		}
+
+		if (subBlockSize == 0)
+		{
+			AlignedSSERamper<LFO_DOWNSAMPLING_FACTOR> ramper(data);
+			ramper.ramp(currentRampValue, currentRampDelta);
+
+			data += LFO_DOWNSAMPLING_FACTOR;
+			currentRampValue = currentRampTarget;
+		}
+		else
+		{
+			FallbackRamper ramper(data, subBlockSize);
+			ramper.ramp(currentRampValue, currentRampTarget);
+			data += subBlockSize;
+			currentRampValue += subBlockSize * currentRampDelta;
+		}
+	}
+}
+
+
 
 void MPEModulator::calculateBlock(int startSample, int numSamples)
 {
@@ -418,9 +462,7 @@ void MPEModulator::calculateBlock(int startSample, int numSamples)
 	{
 		auto w = internalBuffer.getWritePointer(0, startSample);
 
-		jassert(dsp::SIMDRegister<float>::isSIMDAligned(w));
-
-		s->smoother.fillBufferWithSmoothedValue(s->targetValue, w, numSamples);
+		s->process(w, numSamples);
 
 		if (isMonophonic || polyManager.getLastStartedVoice() == voiceIndex)
 		{
@@ -500,7 +542,9 @@ void MPEModulator::handleHiseEvent(const HiseEvent& m)
 
 		if (s->isPressed && midiChannelMatches)
 		{
-			s->targetValue = targetValue;
+			s->setTargetValue(targetValue);
+
+			
 
 			const bool voiceIndexMatches = isMonophonic || s->index == polyManager.getLastStartedVoice();
 
@@ -538,7 +582,7 @@ void MPEModulator::updateSmoothingTime(float newTime)
 		smoothingTime = newTime;
 
 		for (int i = 0; i < states.size(); i++)
-			getState(i)->smoother.setSmoothingTime(smoothingTime);
+			getState(i)->setSmoothingTime(smoothingTime);
 	}
 }
 

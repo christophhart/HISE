@@ -112,14 +112,68 @@ public:
 			smoother.setDefaultValue(0.0f);
 		};
 
-		DownsampledSmoother<32> smoother;
-
 		int midiChannel = -1;
+		bool isPressed = false;
+		bool isRingingOff = false;
+
+		void startVoice(float initialValue, float targetValue_)
+		{
+			smoother.resetToValue(initialValue);
+			currentRampValue = initialValue;
+			currentRampTarget = targetValue_;
+			targetValue = targetValue_;
+			blockDivider.reset();
+		}
+
+		void stopVoice()
+		{
+			isPressed = false;
+			isRingingOff = targetValue == 0.0f;
+		}
+
+		void reset()
+		{
+			targetValue = -1.0f;
+			isPressed = false;
+		}
+
+		bool isPlaying() const noexcept
+		{
+			if (isRingingOff && currentRampValue == 0)
+				return false;
+
+			return true;
+		}
+
+		void setTargetValue(float newTargetValue)
+		{
+			targetValue = newTargetValue;
+		}
+
+		void process(float* data, int numSamples);
+		
+		void setSmoothingTime(float smoothingTime)
+		{
+			smoother.setSmoothingTime(smoothingTime);
+		}
+
+		void prepareToPlay(double sampleRate)
+		{
+			smoother.prepareToPlay(sampleRate);
+		}
+
+	private:
+
+		Smoother smoother;
+		BlockDivider<LFO_DOWNSAMPLING_FACTOR> blockDivider;
+
 		float targetValue = 0.0f;
 		
-		bool isPressed = false;
+		float currentRampValue = 0.0f;
+		float currentRampTarget = 0.0f;
+		float currentRampDelta = 0.0f;
+		
 
-		bool isRingingOff = false;
 	};
 
 	ModulatorState *createSubclassedState(int voiceIndex) const override { return new MPEState(voiceIndex); };
@@ -155,13 +209,14 @@ private:
 	int monophonicVoiceCounter = 0;
 
 	int midiChannelForMonophonicMode = 1;
+	
 
 	UnorderedStack<MPEState*> activeStates;
 
 	int unsavedChannel = -1;
 	float unsavedStrokeValue = 0.0f;
 	float defaultValue = 0.0f;
-	float smoothingTime = 200.0f;
+	float smoothingTime = -1.0f;
 
 	int ccNumber = 0;
 	Gesture g;

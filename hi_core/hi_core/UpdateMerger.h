@@ -35,6 +35,32 @@
 
 namespace hise { using namespace juce;
 
+class FallbackRamper
+{
+public:
+
+	FallbackRamper(float* data, int numValues_):
+		d(data),
+		numValues(numValues_)
+	{};
+
+	void ramp(float startValue, float delta1)
+	{
+		float value = startValue;
+
+		while (--numValues >= 0)
+		{
+			*d++ = value;
+			value += delta1;
+		}
+	}
+
+private:
+
+	float* d;
+	int numValues;
+
+};
 
 template <int RampLength> class AlignedSSERamper
 {
@@ -46,6 +72,7 @@ public:
 		jassert(dsp::SIMDRegister<float>::isSIMDAligned(data));
 	}
 
+#if 0
 	void rampWithMultiply(float startValue, float endValue)
 	{
 		constexpr float ratio = 1.0f / (float)RampLength;
@@ -77,31 +104,27 @@ public:
 			deltaRamp = _mm_add_ps(deltaRamp, step);
 		}
 	}
+#endif
 
-	void ramp(float startValue, float endValue)
+	void ramp(float startValue, float delta1)
 	{
-		constexpr float ratio = 1.0f / (float)RampLength;
-		const float deltaWhole = (endValue - startValue);
-		const float delta1 = deltaWhole * ratio;
+		using SSEType = dsp::SIMDRegister<float>;
 
-		constexpr int numSSE = dsp::SIMDRegister<float>::SIMDRegisterSize / sizeof(float);
+		constexpr int numSSE = SSEType::SIMDRegisterSize / sizeof(float);
 		constexpr int numLoop = RampLength / numSSE;
 
-		auto deltaConstant = _mm_set1_ps(delta1);
-		auto step = _mm_mul_ps(deltaConstant, _mm_set1_ps(4.0f));
-
-		constexpr float r_[4] = { 1.0f, 2.0f, 3.0f, 4.0f };
-
-		auto r = _mm_load_ps(r_);
-
-		auto deltaRamp = _mm_mul_ps(deltaConstant, r);
-
+		SSEType deltaConstant(delta1);
+		SSEType step = deltaConstant * 4.0f;
+		SSEType r({ 1.0f, 2.0f, 3.0f, 4.0f });
+		SSEType deltaRamp = deltaConstant * r;
+		deltaRamp += startValue;
+		
 		int i = 0;
 
 		for (int i = 0; i < numLoop; i++)
 		{
-			_mm_store_ps(data, deltaRamp);
-			deltaRamp = _mm_add_ps(deltaRamp, step);
+			deltaRamp.copyToRawArray(data);
+			deltaRamp += step;
 			data += numSSE;
 		}
 	}
@@ -168,6 +191,14 @@ public:
 				return SkipAmount;
 			}	
 		}
+
+		jassertfalse;
+		return loopCounter;
+	}
+
+	void reset()
+	{
+		counter = 0;
 	}
 
 private:
@@ -446,19 +477,24 @@ public:
 
 		const bool smoothThisBuffer = resetRamper.isBusy() || (active && (fabsf(targetValue - currentValue) > 0.001f));
 
+#if 0
 		if (!smoothThisBuffer)
 		{
 			smoothingActive = false;
 			currentValue = targetValue;
+			downsampledRampValue = targetValue;
 			FloatVectorOperations::fill(data, targetValue, numSamples);
 			return;
 		}
+#endif
 
 		SpinLock::ScopedLockType sl(spinLock);
 
 		smoothingActive = true;
 
 		int startSample = 0;
+
+		const float* startData = data;
 
 		while (resetRamper.isBusy() && startSample < numSamples)
 		{
@@ -489,7 +525,6 @@ public:
 				ramper.ramp(downsampledRampValue, downsampledTargetValue);
 				downsampledRampValue = downsampledTargetValue;
 				data += DownsamplingFactor;
-
 			}
 			else
 			{
@@ -547,6 +582,7 @@ public:
 			downsampledRampValue = targetValue;
 			downsampledTargetValue = targetValue;
 			resetRamper.setValue(targetValue);
+			prevValue = currentValue;
 		}
 	}
 
