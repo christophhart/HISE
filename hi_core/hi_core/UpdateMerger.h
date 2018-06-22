@@ -44,7 +44,7 @@ public:
 		numValues(numValues_)
 	{};
 
-	void ramp(float startValue, float delta1)
+	float ramp(float startValue, float delta1)
 	{
 		float value = startValue;
 
@@ -53,6 +53,8 @@ public:
 			*d++ = value;
 			value += delta1;
 		}
+
+		return value;
 	}
 
 private:
@@ -115,7 +117,7 @@ public:
 
 		SSEType deltaConstant(delta1);
 		SSEType step = deltaConstant * 4.0f;
-		SSEType r({ 1.0f, 2.0f, 3.0f, 4.0f });
+		SSEType r({ 0.0f, 1.0f, 2.0f, 3.0f });
 		SSEType deltaRamp = deltaConstant * r;
 		deltaRamp += startValue;
 		
@@ -132,6 +134,40 @@ public:
 private:
 
 	float* data;
+};
+
+#define USE_BLOCK_DIVIDER_STATISTICS 1
+
+struct BlockDividerStatistics
+{
+public:
+
+	static void resetStatistics()
+	{
+		numAlignedCalls = 0;
+		numOddCalls = 0;
+	}
+
+	static void incCounter(bool aligned)
+	{
+#if USE_BLOCK_DIVIDER_STATISTICS
+		aligned ? numAlignedCalls++ : numOddCalls++;
+#endif
+	}
+
+	static int getAlignedCallPercentage()
+	{
+		const int total = numAlignedCalls + numOddCalls;
+		auto p = total != 0 ? ((double)numAlignedCalls / (double)total) : 0.0;
+		return roundDoubleToInt(p * 100.0);
+	}
+
+
+
+private:
+
+	static int numAlignedCalls;
+	static int numOddCalls;
 };
 
 /** This class divides a block into fixed chunks of data.
@@ -152,44 +188,46 @@ public:
 	*/
 	int cutBlock(int& loopCounter, bool& newBlock, FloatType* pointerToCheck)
 	{
+		if (counter != 0)
+		{
+			newBlock = false;
+			const int numToCutThisTime = jmin<int>(loopCounter, SkipAmount - counter);
+
+			counter = (counter + numToCutThisTime) % SkipAmount;
+			loopCounter -= numToCutThisTime;
+
+			BlockDividerStatistics::incCounter(false);
+
+			return numToCutThisTime;
+		}
+
 		if (loopCounter < SkipAmount)
 		{
-			newBlock = counter == 0;
+			jassert(counter == 0);
+
+			newBlock = true;
 			counter += loopCounter;
 
 			const int returnValue = loopCounter;
 			loopCounter = 0;
 
+			BlockDividerStatistics::incCounter(false);
+
 			return returnValue;
 		}
-
-		if (counter != 0)
-		{
-			newBlock = false;
-			const int numToCutThisTime = SkipAmount - counter;
-
-			counter = 0;
-			loopCounter -= numToCutThisTime;
-			return numToCutThisTime;
-		}
-
-		if (loopCounter >= SkipAmount)
+		else
 		{
 			jassert(counter == 0);
 			
 			newBlock = true;
 
-			if (dsp::SIMDRegister<FloatType>::isSIMDAligned(pointerToCheck))
-			{
-				loopCounter -= SkipAmount;
-				return 0;
-			}
-			else
-			{
-				// If the pointer is not aligned, return the full skip amount for manual processing.
-				loopCounter -= SkipAmount;
-				return SkipAmount;
-			}	
+			const bool aligned = dsp::SIMDRegister<FloatType>::isSIMDAligned(pointerToCheck);
+
+			BlockDividerStatistics::incCounter(aligned);
+
+			loopCounter -= SkipAmount;
+
+			return (1-(int)aligned) * SkipAmount;
 		}
 
 		jassertfalse;

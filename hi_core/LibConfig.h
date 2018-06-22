@@ -61,6 +61,11 @@
 #define HISE_SMOOTH_FIRST_MOD_BUFFER 0
 #endif
 
+
+#ifndef HISE_EVENT_RASTER
+#define HISE_EVENT_RASTER 32
+#endif
+
 namespace hise { using namespace juce;
 
 #if ENABLE_STARTUP_LOG

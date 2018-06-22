@@ -47,4 +47,42 @@ ProcessorEditorBody* NoiseSynth::createEditor(ProcessorEditor *parentEditor)
 #endif
 }
 
+#define USE_DC_FOR_DEBUGGING 1
+
+void NoiseVoice::calculateBlock(int startSample, int numSamples)
+{
+	const int startIndex = startSample;
+	const int samplesToCopy = numSamples;
+
+#if USE_DC_FOR_DEBUGGING
+
+	FloatVectorOperations::fill(voiceBuffer.getWritePointer(0, startSample), 1.0f, samplesToCopy);
+	FloatVectorOperations::fill(voiceBuffer.getWritePointer(1, startSample), 1.0f, samplesToCopy);
+
+#else
+	while (--numSamples >= 0)
+	{
+		const float currentSample = getNextValue();
+
+		// Stereo mode assumed
+		voiceBuffer.setSample(0, startSample, currentSample);
+		voiceBuffer.setSample(1, startSample, currentSample);
+
+		voiceUptime++;
+
+		++startSample;
+	}
+#endif
+
+	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
+
+	if (auto modValues = getOwnerSynth()->getVoiceGainValues())
+	{
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
+	}
+	else
+		jassertfalse;
+}
+
 } // namespace hise

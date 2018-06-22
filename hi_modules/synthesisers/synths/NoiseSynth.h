@@ -66,34 +66,7 @@ public:
         uptimeDelta = 1.0;
     }
 
-	void calculateBlock(int startSample, int numSamples) override
-	{
-		const int startIndex = startSample;
-		const int samplesToCopy = numSamples;
-
-		while (--numSamples >= 0)
-        {
-			const float currentSample = getNextValue();
-
-			// Stereo mode assumed
-			voiceBuffer.setSample (0, startSample, currentSample);
-			voiceBuffer.setSample (1, startSample, currentSample);
-
-			voiceUptime++;
-
-            ++startSample;    
-        }
-
-		getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
-
-		if (auto modValues = getOwnerSynth()->getVoiceGainValues())
-		{
-			FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
-			FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
-		}
-		else
-			jassertfalse;
-	};
+	void calculateBlock(int startSample, int numSamples) override;;
 
 private:
 

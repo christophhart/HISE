@@ -32,6 +32,9 @@
 
 namespace hise { using namespace juce;
 
+int BlockDividerStatistics::numAlignedCalls = 0;
+int BlockDividerStatistics::numOddCalls = 0;
+
 
 #if  JUCE_MAC
 

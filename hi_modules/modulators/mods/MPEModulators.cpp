@@ -409,7 +409,7 @@ void MPEModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 	for (auto s_ : states)
 	{
 		auto s = static_cast<MPEState*>(s_);
-		s->prepareToPlay(sampleRate / LFO_DOWNSAMPLING_FACTOR);
+		s->prepareToPlay(sampleRate / HISE_EVENT_RASTER);
 	}
 }
 
@@ -428,26 +428,24 @@ void MPEModulator::MPEState::process(float* data, int numSamples)
 		if (calculateNew)
 		{
 			currentRampTarget = smoother.smooth(targetValue);
-			constexpr float ratio = 1.0f / (float)LFO_DOWNSAMPLING_FACTOR;
+			constexpr float ratio = 1.0f / (float)HISE_EVENT_RASTER;
 
 			currentRampDelta = (currentRampTarget - currentRampValue) * ratio;
-
 		}
 
 		if (subBlockSize == 0)
 		{
-			AlignedSSERamper<LFO_DOWNSAMPLING_FACTOR> ramper(data);
+			AlignedSSERamper<HISE_EVENT_RASTER> ramper(data);
 			ramper.ramp(currentRampValue, currentRampDelta);
 
-			data += LFO_DOWNSAMPLING_FACTOR;
+			data += HISE_EVENT_RASTER;
 			currentRampValue = currentRampTarget;
 		}
 		else
 		{
 			FallbackRamper ramper(data, subBlockSize);
-			ramper.ramp(currentRampValue, currentRampTarget);
+			currentRampValue = ramper.ramp(currentRampValue, currentRampDelta);
 			data += subBlockSize;
-			currentRampValue += subBlockSize * currentRampDelta;
 		}
 	}
 }
@@ -522,8 +520,6 @@ void MPEModulator::handleHiseEvent(const HiseEvent& m)
 	{
 		return;
 	}
-
-	
 
 	midiValue = jlimit(0.0f, 1.0f, midiValue);
 

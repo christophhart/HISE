@@ -374,105 +374,242 @@ public:
 
 		testingLockFreeQueue();
 
-		//testBlockDivider();
+		testBlockDivider<32>(64, 32, 1);
+		testBlockDivider<32>(96, 0, 0);
+		testBlockDivider<32>(256, 4, 32);
+		testBlockDivider<16>(17, 4, 1);
+		testBlockDivider<64>(64, 4, 1);
+		testBlockDivider<16>(53, 12, 1);
+		testBlockDivider<32>(512, 13, 8);
+
+		testBlockDividedRamping<32>(512, 0, 0);
+		testBlockDividedRamping<32>(512, 4, 32);
+		testBlockDividedRamping<32>(512, 17, 8);
+		testBlockDividedRamping<32>(256, 18, 8);
+		testBlockDividedRamping<32>(74, 16, 1);
+
 	}
 
 	
 
 private:
 
-	void testBlockDivider()
+	template <int RampLength> void testBlockDividedRamping(int averageBlockSize, int maxVariationFactor, int variationSize)
 	{
+		beginTest("Testing Rampers with length " + String(RampLength) + ", average block size " + String(averageBlockSize) + " and variation " + String(maxVariationFactor) + "*" + String(variationSize));
 
-		
+		Random r;
 
-		beginTest("Testing Block Divider");
-		using SSEType = dsp::SIMDRegister<float>;
+		const int totalLength = averageBlockSize * r.nextInt({ 8, 20 });
 
-		int blockSize = 67;
+		int numSamples = totalLength;
 
-		int numBlocks = 5;
+		ModulatorChain::Buffer b;
+		b.setMaxSize(totalLength);
 
-		int totalLength = blockSize * numBlocks;
+		auto data = b.scratchBuffer;
 
-		ModulatorChain::Buffer totalData;
-		totalData.setMaxSize(totalLength);
+		BlockDivider<RampLength> blockDivider;
 
-		ModulatorChain::Buffer blockData;
-		blockData.setMaxSize(blockSize);
-
-		auto data = blockData.scratchBuffer;
-
-		FloatVectorOperations::fill(data, 1.0f, blockSize);
-
-		AlignedSSERamper<32> ramper(data);
-
-
-		ramper.ramp(0.0f, 1.0f);
-
-		FloatVectorOperations::fill(data, 0.5f, totalLength);
-
-		auto startData = totalData.scratchBuffer;
-		int startLength = totalLength;
-
-		int counter = 0;
-		
-		constexpr int DividerBlockSize = 32;
-
-		BlockDivider<DividerBlockSize> divider;
+		float value = 2.0f;
+		float delta = 1.0f / (float)numSamples;
 
 		int numProcessed = 0;
-		int blockOffset = 0;
 
-		while (totalLength > 0)
+		BlockDividerStatistics::resetStatistics();
+
+		while (numSamples > 0)
 		{
-			data = blockData.scratchBuffer;
-			FloatVectorOperations::fill(data, 0.5, blockSize);
-			
-			counter = blockSize;
+			int thisBlockSize = averageBlockSize;
 
-			while (counter > 0)
+			if (maxVariationFactor > 0)
+			{
+				thisBlockSize -= r.nextInt({ 0, maxVariationFactor }) *variationSize;
+			}
+
+			thisBlockSize = jlimit<int>(0, numSamples, thisBlockSize);
+
+			const int numThisBlockConst = thisBlockSize;
+
+			// Reset it here to get rid of rounding errors...
+			value = 2.0f + numProcessed / (float)totalLength;
+
+			while (thisBlockSize > 0)
 			{
 				bool newBlock;
-				int subBlockSize = divider.cutBlock(counter, newBlock, data);
+				int blockSize = blockDivider.cutBlock(thisBlockSize, newBlock, data);
 
-				if (subBlockSize == 0)
+				if (blockSize == 0)
 				{
-					expect(SSEType::isSIMDAligned(data));
-
-					FloatVectorOperations::fill(data, 0.0f, DividerBlockSize);
-					data[0] = 1.0f;
-
-					numProcessed += DividerBlockSize;
-
-					data += DividerBlockSize;
+					AlignedSSERamper<RampLength> ramper(data);
+					ramper.ramp(value, delta);
+					value += delta * (float)RampLength;
+					data += RampLength;
+					numProcessed += RampLength;
 				}
 				else
 				{
-					FloatVectorOperations::fill(data, 0.0f, subBlockSize);
-
-					if (newBlock)
-						data[0] = 1.0f;
-
-					data += subBlockSize;
-					numProcessed += subBlockSize;
+					FallbackRamper ramper(data, blockSize);
+					value = ramper.ramp(value, delta);
+					data += blockSize;
+					numProcessed += blockSize;
 				}
 			}
 
-			totalLength -= blockSize;
-			FloatVectorOperations::copy(startData + blockOffset, blockData.scratchBuffer, blockSize);
-			blockOffset += blockSize;
+			numSamples -= numThisBlockConst;
+			
 		}
 
-		for (int i = 0; i < startLength; i++)
+		expectEquals<int>(numProcessed, totalLength, "NumProcessed");
+
+		int alignedCallPercentage = BlockDividerStatistics::getAlignedCallPercentage();
+
+		if (averageBlockSize % RampLength == 0 && (variationSize % RampLength == 0))
 		{
-			const float expected = i % DividerBlockSize == 0 ? 1.0f : 0.0f;
-
-			expectEquals<float>(startData[i], expected, "Position: " + String(i));
+			expect(alignedCallPercentage == 100, "All calls must be aligned");
+		}
+		else
+		{
+			logMessage("Aligned call percentage: " + String(alignedCallPercentage) + "%");
 		}
 
-		blockData.clear();
-		totalData.clear();
+
+		auto check = b.scratchBuffer;
+
+		for (int i = 0; i < totalLength; i++)
+		{
+			float expected = 2.0f + (float)i / (float)totalLength;
+			float value = check[i];
+
+			float delta = Decibels::gainToDecibels(fabsf(expected - value));
+
+			expect(delta < -96.0f, "Value at " + String(i) + "Expected" + String(expected) + ", Actual: " + String(value));
+		};
+
+	}
+
+	template <int RampLength> void testBlockDivider(int averageBlockSize, int maxVariationFactor, int variationSize)
+	{
+		beginTest("Testing Block Divider with average block size " + String(averageBlockSize) + " and variation " + String(maxVariationFactor) + "*" + String(variationSize));
+		
+		try
+		{
+			using SSEType = dsp::SIMDRegister<float>;
+
+			Random r;
+
+			int numBlocks = r.nextInt({ 8, 32 });
+
+			int totalLength = averageBlockSize * numBlocks;
+
+			ModulatorChain::Buffer totalData;
+			totalData.setMaxSize(totalLength);
+
+			ModulatorChain::Buffer blockData;
+			blockData.setMaxSize(averageBlockSize);
+
+			auto data = blockData.scratchBuffer;
+
+			FloatVectorOperations::fill(data, 1.0f, averageBlockSize);
+
+			auto startData = totalData.scratchBuffer;
+			int startLength = totalLength;
+
+			FloatVectorOperations::fill(startData, 0.5f, totalLength);
+
+			int counter = 0;
+
+			BlockDivider<RampLength> divider;
+
+			int numProcessed = 0;
+			int blockOffset = 0;
+
+			
+
+			BlockDividerStatistics::resetStatistics();
+
+			while (totalLength > 0)
+			{
+				int thisBlockSize = averageBlockSize;
+
+				if (maxVariationFactor > 0)
+					thisBlockSize = averageBlockSize - r.nextInt({ 0, maxVariationFactor }) * variationSize;
+				else
+					thisBlockSize = averageBlockSize;
+
+				thisBlockSize = jmin<int>(thisBlockSize, totalLength);
+
+				data = blockData.scratchBuffer;
+				FloatVectorOperations::fill(data, 0.5, thisBlockSize);
+
+				counter = thisBlockSize;
+
+				while (counter > 0)
+				{
+					bool newBlock;
+					int subBlockSize = divider.cutBlock(counter, newBlock, data);
+
+					if (subBlockSize == 0)
+					{
+						expect(SSEType::isSIMDAligned(data), "Pointer alignment");
+
+						FloatVectorOperations::fill(data, 0.0f, RampLength);
+						data[0] = 1.0f;
+
+						numProcessed += RampLength;
+
+						data += RampLength;
+					}
+					else
+					{
+						FloatVectorOperations::fill(data, 0.0f, subBlockSize);
+
+						if (newBlock)
+							data[0] = 1.0f;
+
+						data += subBlockSize;
+						numProcessed += subBlockSize;
+					}
+				}
+
+				totalLength -= thisBlockSize;
+				FloatVectorOperations::copy(startData + blockOffset, blockData.scratchBuffer, thisBlockSize);
+				blockOffset += thisBlockSize;
+			}
+
+			expectEquals<int>(numProcessed, startLength, "NumProcessed");
+
+			
+
+			for (int i = 0; i < startLength; i++)
+			{
+				const float expected = i % RampLength == 0 ? 1.0f : 0.0f;
+
+				expectEquals<float>(startData[i], expected, "Position: " + String(i));
+			}
+
+			int alignedCallPercentage = BlockDividerStatistics::getAlignedCallPercentage();
+
+			if (averageBlockSize % RampLength == 0 && (variationSize % RampLength == 0))
+			{
+				expect(alignedCallPercentage == 100, "All calls must be aligned");
+			}
+			else
+			{
+				logMessage("Aligned call percentage: " + String(alignedCallPercentage) + "%");
+			}
+
+
+			blockData.clear();
+			totalData.clear();
+		}
+		catch (String& m)
+		{
+			
+			DBG(m);
+			jassertfalse;
+		}
+
 	}
 
 	void testingUnorderedStack()

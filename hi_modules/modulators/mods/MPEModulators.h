@@ -118,9 +118,13 @@ public:
 
 		void startVoice(float initialValue, float targetValue_)
 		{
-			smoother.resetToValue(initialValue);
-			currentRampValue = initialValue;
-			currentRampTarget = targetValue_;
+			const bool useSmoother = smoother.getSmoothingTime() > 0.0f;
+
+			smoother.setDefaultValue(initialValue);
+
+			currentRampValue = useSmoother ? initialValue : targetValue_;
+			currentRampTarget = -1.0f;
+			currentRampDelta = -1.0f;
 			targetValue = targetValue_;
 			blockDivider.reset();
 		}
@@ -165,7 +169,7 @@ public:
 	private:
 
 		Smoother smoother;
-		BlockDivider<LFO_DOWNSAMPLING_FACTOR> blockDivider;
+		BlockDivider<HISE_EVENT_RASTER> blockDivider;
 
 		float targetValue = 0.0f;
 		
@@ -173,7 +177,8 @@ public:
 		float currentRampTarget = 0.0f;
 		float currentRampDelta = 0.0f;
 		
-
+		int numCalls = 0;
+		int sumCalls = 0;
 	};
 
 	ModulatorState *createSubclassedState(int voiceIndex) const override { return new MPEState(voiceIndex); };
@@ -223,6 +228,8 @@ private:
 	float smoothedIntensity;
 
 	ScopedPointer<SampleLookupTable> table;
+
+	
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MPEModulator);
 

@@ -245,7 +245,7 @@ void ModulatorSynth::synthTimerCallback(uint8 index, int numSamplesThisBlock)
 		// this has to be a uint32 because otherwise it could wrap around the uint16 max sample offset for bigger timer callbacks
 		uint32 offsetInBuffer = (uint32)((nextTimerCallbackTimes[index] - uptime) * getSampleRate());
 
-		const uint32 delta = offsetInBuffer % 8;
+		const uint32 delta = offsetInBuffer % HISE_EVENT_RASTER;
 		uint32 rasteredOffset = offsetInBuffer - delta;
 
 		while (synthTimerIntervals[index] > 0.0 && rasteredOffset < (uint32)numSamplesThisBlock)
@@ -253,7 +253,7 @@ void ModulatorSynth::synthTimerCallback(uint8 index, int numSamplesThisBlock)
 			eventBuffer.addEvent(HiseEvent::createTimerEvent(index, (uint16)rasteredOffset));
 			nextTimerCallbackTimes[index].store(nextTimerCallbackTimes[index].load() + synthTimerIntervals[index].load());
 			offsetInBuffer = (uint32)((nextTimerCallbackTimes[index] - uptime) * getSampleRate());
-			const uint32 delta = offsetInBuffer % 8;
+			const uint32 delta = offsetInBuffer % HISE_EVENT_RASTER;
 			rasteredOffset = offsetInBuffer - delta;
 		}
 	}
@@ -335,6 +335,8 @@ void ModulatorSynth::processHiseEventBuffer(const HiseEventBuffer &inputBuffer, 
 {
 	eventBuffer.copyFrom(inputBuffer);
 
+	
+
 	if (checkTimerCallback(0, numSamples)) synthTimerCallback(0, numSamples);
 	if (checkTimerCallback(1, numSamples)) synthTimerCallback(1, numSamples);
 	if (checkTimerCallback(2, numSamples)) synthTimerCallback(2, numSamples);
@@ -346,6 +348,8 @@ void ModulatorSynth::processHiseEventBuffer(const HiseEventBuffer &inputBuffer, 
 	}
 
 	midiProcessorChain->renderNextHiseEventBuffer(eventBuffer, numSamples);
+
+	eventBuffer.alignEventsToRaster<HISE_EVENT_RASTER>(numSamples);
 }
 
 void ModulatorSynth::addProcessorsWhenEmpty()
@@ -386,10 +390,14 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 	
 	midiInputFlag = !eventBuffer.isEmpty();
 
+	
+
 	HiseEventBuffer::Iterator eventIterator(eventBuffer);
 
 	HiseEvent m;
 	int midiEventPos;
+
+
 
 	while (numSamples > 0)
 	{
@@ -402,6 +410,29 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 			break;
 		}
 
+		const int samplesToNextMidiMessage = midiEventPos - startSample;
+
+		jassert(startSample % HISE_EVENT_RASTER == 0);
+		jassert(midiEventPos % HISE_EVENT_RASTER == 0);
+		jassert(samplesToNextMidiMessage % HISE_EVENT_RASTER == 0);
+
+		if (samplesToNextMidiMessage > 0)
+		{
+			preVoiceRendering(startSample, samplesToNextMidiMessage);
+			renderVoice(startSample, samplesToNextMidiMessage);
+			postVoiceRendering(startSample, samplesToNextMidiMessage);
+			
+		}
+
+		handleHiseEvent(m);
+
+		startSample += samplesToNextMidiMessage;
+		numSamples -= samplesToNextMidiMessage;
+
+		
+
+		
+#if 0
 		const int samplesToNextMidiMessage = midiEventPos - startSample;
 		const int delta = (samplesToNextMidiMessage % 8);
 		const int rastered = samplesToNextMidiMessage - delta;
@@ -428,6 +459,7 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 		handleHiseEvent(m);
 		startSample += rastered;
 		numSamples -= rastered;
+#endif
 	}
 
 	while (eventIterator.getNextEvent(m, midiEventPos, true, false))
