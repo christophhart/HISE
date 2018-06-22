@@ -57,7 +57,10 @@ public:
 		
 	};
 
-	virtual ~EffectProcessor() {};
+	virtual ~EffectProcessor()
+	{
+		modChains.clear();
+	};
 
 	/** You have to override this method, since almost every effect needs the samplerate anyway. */
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override
@@ -539,7 +542,10 @@ public:
 	void preVoiceRendering(int voiceIndex, int startSample, int numSamples)
 	{
 		for (auto& mb : modChains)
+		{
 			mb.calculateModulationValuesForCurrentVoice(voiceIndex, startSample, numSamples);
+		}
+			
 	}
 
 	/** renders a voice and applies the effect on the voice. */

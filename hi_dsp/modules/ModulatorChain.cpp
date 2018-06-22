@@ -381,6 +381,8 @@ void ModulatorChain::ModulatorChainHandler::bypassStateChanged(Processor* p, boo
 	}
 
 	checkActiveState();
+
+	notifyPostEventListeners(Chain::Handler::Listener::EventType::ProcessorOrderChanged, p);
 }
 
 void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator, Processor *siblingToInsertBefore)
@@ -502,6 +504,7 @@ void ModulatorChain::ModulatorChainHandler::add(Processor *newProcessor, Process
 	dynamic_cast<AudioProcessor*>(chain->getMainController())->suspendProcessing(false);
 
 	notifyListeners(Listener::ProcessorAdded, newProcessor);
+	notifyPostEventListeners(Listener::ProcessorAdded, newProcessor);
 }
 
 void ModulatorChain::ModulatorChainHandler::deleteModulator(Modulator *modulatorToBeDeleted, bool deleteMod)
@@ -556,6 +559,8 @@ void ModulatorChain::ModulatorChainHandler::remove(Processor *processorToBeRemov
 
 	jassert(dynamic_cast<Modulator*>(processorToBeRemoved) != nullptr);
 	deleteModulator(dynamic_cast<Modulator*>(processorToBeRemoved), deleteMod);
+
+	notifyPostEventListeners(Listener::ProcessorDeleted, nullptr);
 }
 
 void ModulatorChain::ModulatorChainHandler::checkActiveState()

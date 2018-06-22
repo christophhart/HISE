@@ -231,9 +231,41 @@ void TimeModulation::applyGainModulation(float *calculatedModulationValues, floa
 {
 	const float a = 1.0f - fixedIntensity;
 
-	while (--numValues >= 0)
+	constexpr int BlockSize = 32;
+
+	BlockDivider<BlockSize> divider;
+
+	using SSEType = dsp::SIMDRegister<float>;
+
+	jassert(SSEType::isSIMDAligned(calculatedModulationValues) == SSEType::isSIMDAligned(destinationValues));
+
+	float rampValue = *calculatedModulationValues * fixedIntensity + a;
+
+	while (numValues > 0)
 	{
-		*destinationValues++ *= *calculatedModulationValues++ * fixedIntensity + a;
+		bool calculateNew;
+		int subBlockSize = divider.cutBlock(numValues, calculateNew, calculatedModulationValues);
+
+		if (subBlockSize == 0)
+		{
+			calculatedModulationValues += BlockSize;
+			const float end = *(calculatedModulationValues-1) * fixedIntensity + a;
+			constexpr float ratio = 1.0f / (float)BlockSize;
+			const float delta1 = (end - rampValue) * ratio;
+
+			AlignedSSERamper<BlockSize> ramper(destinationValues);
+			ramper.ramp(rampValue, delta1);
+
+			rampValue = end;
+			destinationValues += BlockSize;
+		}
+		else
+		{
+			while (--subBlockSize >= 0)
+			{
+				*destinationValues++ *= *calculatedModulationValues++ * fixedIntensity + a;
+			}
+		}
 	}
 
 	//FloatVectorOperations::multiply(calculatedModulationValues, fixedIntensity, numValues);
@@ -243,72 +275,57 @@ void TimeModulation::applyGainModulation(float *calculatedModulationValues, floa
 
 void TimeModulation::applyGainModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, const float *intensityValues, int numValues) const noexcept
 {
-#if JUCE_WINDOWS
+	const float a = 1.0f - fixedIntensity;
 
-	// somehow the MSVC2017 compiler fails to optimize this to SSE instructions...
+	constexpr int BlockSize = 32;
+
+	BlockDivider<BlockSize> divider;
 
 	using SSEType = dsp::SIMDRegister<float>;
 
-	constexpr int sseSize = SSEType::SIMDRegisterSize;
-	int numUnaligned = SSEType::getNextSIMDAlignedPtr(calculatedModulationValues) - calculatedModulationValues;
+	jassert(SSEType::isSIMDAligned(calculatedModulationValues) == SSEType::isSIMDAligned(destinationValues) == SSEType::isSIMDAligned(intensityValues));
 
-	while (--numUnaligned >= 0)
+	float intensityRampValue = fixedIntensity * *intensityValues;
+	float invIntensityRampValue = 1.0f - intensityRampValue;
+
+	float rampValue = *calculatedModulationValues * intensityRampValue + invIntensityRampValue;
+
+	while (numValues > 0)
 	{
-		const float intensityValue = fixedIntensity * *intensityValues++;
-		const float invIntensity = 1.0f - intensityValue;
+		bool calculateNew;
+		int subBlockSize = divider.cutBlock(numValues, calculateNew, calculatedModulationValues);
 
-		*destinationValues++ *= *calculatedModulationValues++ * intensityValue + invIntensity;
+		if (subBlockSize == 0)
+		{
+			calculatedModulationValues += BlockSize;
+			intensityValues += BlockSize;
+
+			intensityRampValue = fixedIntensity * *(intensityValues-1);
+			invIntensityRampValue = 1.0f - intensityRampValue;
+
+
+			const float end = *(calculatedModulationValues-1) * intensityRampValue + invIntensityRampValue;
+
+			constexpr float ratio = 1.0f / (float)BlockSize;
+			const float delta1 = (end - rampValue) * ratio;
+
+			AlignedSSERamper<BlockSize> ramper(destinationValues);
+			ramper.ramp(rampValue, delta1);
+
+			rampValue = end;
+			destinationValues += BlockSize;
+		}
+		else
+		{
+			while (--subBlockSize >= 0)
+			{
+				const float intensityValue = fixedIntensity * *intensityValues++;
+				const float invIntensity = 1.0f - intensityValue;
+
+				*destinationValues++ *= *calculatedModulationValues++ * intensityValue + invIntensity;
+			}
+		}
 	}
-
-	while (numValues > sseSize)
-	{
-		jassert(SSEType::isSIMDAligned(calculatedModulationValues));
-		jassert(SSEType::isSIMDAligned(destinationValues));
-
-		auto iv_ = _mm_load_ps(intensityValues);
-		iv_ = _mm_mul_ps(iv_, _mm_set1_ps(fixedIntensity));
-		auto inv_iv_ = _mm_sub_ps(_mm_set1_ps(1.0f), iv_);
-
-		auto dv_ = _mm_load_ps(destinationValues);
-		_mm_mul_ps(dv_, iv_);
-		
-		_mm_add_ps(dv_, inv_iv_);
-		_mm_store_ps(destinationValues, dv_);
-
-		destinationValues += sseSize;
-		calculatedModulationValues += sseSize;
-		numValues -= sseSize;
-	}
-
-	while (--numValues >= 0)
-	{
-		const float intensityValue = fixedIntensity * *intensityValues++;
-		const float invIntensity = 1.0f - intensityValue;
-
-		*destinationValues++ *= *calculatedModulationValues++ * intensityValue + invIntensity;
-	}
-
-#else
-
-	// Who's a good boy? Clang's a good boy...
-
-	while (--numValues >= 0)
-	{
-		const float intensityValue = fixedIntensity * *intensityValues++;
-		const float invIntensity = 1.0f - intensityValue;
-
-		*destinationValues++ *= *calculatedModulationValues++ * intensityValue + invIntensity;
-	}
-#endif
-	
-	/*
-	FloatVectorOperations::multiply(intensityValues, fixedIntensity, numValues);
-	FloatVectorOperations::multiply(calculatedModulationValues, intensityValues, numValues);
-	FloatVectorOperations::multiply(intensityValues, -1.0f, numValues);
-	FloatVectorOperations::add(intensityValues, 1.0f, numValues);
-	FloatVectorOperations::add(calculatedModulationValues, intensityValues, numValues);
-	FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
-	*/
 }
 
 void TimeModulation::applyPitchModulation(float* calculatedModulationValues, float *destinationValues, float fixedIntensity, int numValues) const noexcept

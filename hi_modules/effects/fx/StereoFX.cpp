@@ -135,10 +135,13 @@ void StereoEffect::renderNextBlock(AudioSampleBuffer &buffer, int startSample, i
 	float *l = buffer.getWritePointer(0, 0);
 	float *r = buffer.getWritePointer(1, 0);
 
-	while (--numSamples >= 0)
+	if (msDecoder.getWidth() != 1.0f)
 	{
-		msDecoder.calculateStereoValues(l[startSample], r[startSample]);
-		startSample++;
+		while (--numSamples >= 0)
+		{
+			msDecoder.calculateStereoValues(l[startSample], r[startSample]);
+			startSample++;
+		}
 	}
 }
 
@@ -162,6 +165,9 @@ ProcessorEditorBody *StereoEffect::createEditor(ProcessorEditor *parentEditor)
 void StereoEffect::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples)
 {
 	auto& balanceChain = modChains[BalanceChain];
+
+	if (!balanceChain.getChain()->shouldBeProcessedAtAll())
+		return;
 
 	if (auto panValues = balanceChain.getReadPointerForVoiceValues(startSample))
 	{

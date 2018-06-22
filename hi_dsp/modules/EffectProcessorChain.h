@@ -102,6 +102,11 @@ public:
 		FOR_EACH_VOICE_EFFECT(renderVoice(voiceIndex, b, startSample, numSamples)); 
 	};
 
+	void preRenderCallback(int startSample, int numSamples) override
+	{
+		FOR_EACH_VOICE_EFFECT(preRenderCallback(startSample, numSamples));
+	}
+
 	void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples) override
 	{
 		if(isBypassed()) return;

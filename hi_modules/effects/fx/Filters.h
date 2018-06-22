@@ -141,7 +141,8 @@ private:
 
 
 class PolyFilterEffect: public VoiceEffectProcessor,
-						public FilterEffect
+						public FilterEffect,
+						public ModulatorChain::Handler::Listener
 {
 public:
 
@@ -165,6 +166,10 @@ public:
 
 	PolyFilterEffect(MainController *mc, const String &uid, int numVoices);;
 
+	~PolyFilterEffect();
+
+	void processorChanged(EventType t, Processor* p) override;
+
 	float getAttribute(int parameterIndex) const override;;
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
 	float getDefaultValue(int parameterIndex) const override;
@@ -178,10 +183,12 @@ public:
 	const Processor *getChildProcessor(int processorIndex) const override;;
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;;
-	void renderNextBlock(AudioSampleBuffer &/*b*/, int /*startSample*/, int /*numSample*/) { }
+	void renderNextBlock(AudioSampleBuffer &/*b*/, int /*startSample*/, int /*numSample*/);
 	void applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) override;
 	/** Resets the filter state if a new voice is started. */
 	void startVoice(int voiceIndex, int noteNumber) override;
+	void reset(int voiceIndex) override;
+
 	bool hasTail() const override { return true; };
 	
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
@@ -190,11 +197,29 @@ public:
 
 private:
 
+	int numActiveVoices = 0;
+
+	bool blockIsActive = false;
+
+
+
+	BlockDivider<64> monoDivider;
+
+	bool polyMode = false;
+
+	FilterBank::FilterMode mode;
+	float frequency;
+	float q;
+	float gain;
+
+	bool hasPolyMods() const noexcept;
+
 	bool changeFlag;
 
 	float bipolarIntensity = 0.0f;
 
 	FilterBank voiceFilters;
+	FilterBank monoFilters;
 
 	mutable WeakReference<Processor> ownerSynthForCoefficients;
 };

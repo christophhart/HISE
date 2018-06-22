@@ -483,6 +483,16 @@ public:
 			listeners.removeAllInstancesOf(l);
 		}
 
+		void addPostEventListener(Listener* l)
+		{
+			postEventlisteners.addIfNotAlreadyThere(l);
+		}
+
+		void removePostEventListener(Listener* l)
+		{
+			postEventlisteners.removeAllInstancesOf(l);
+		}
+
 		void notifyListeners(Listener::EventType t, Processor* p)
 		{
 			for (auto l : listeners)
@@ -492,9 +502,19 @@ public:
 			}
 		}
 
+		void notifyPostEventListeners(Listener::EventType t, Processor* p)
+		{
+			for (auto l : postEventlisteners)
+			{
+				if (l != nullptr)
+					l->processorChanged(t, p);
+			}
+		}
+
 	private:
 
 		Array<WeakReference<Listener>> listeners;
+		Array<WeakReference<Listener>> postEventlisteners;
 	};
 
 	// ===================================================================================================================

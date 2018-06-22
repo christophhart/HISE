@@ -514,6 +514,8 @@ void ModulatorSynth::preVoiceRendering(int startSample, int numThisTime)
 {
 	for (auto& mb : modChains)
 		mb.calculateMonophonicModulationValues(startSample, numThisTime);
+
+	effectChain->preRenderCallback(startSample, numThisTime);
 }
 
 void ModulatorSynth::renderVoice(int startSample, int numThisTime)
