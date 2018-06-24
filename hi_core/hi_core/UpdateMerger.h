@@ -117,7 +117,13 @@ public:
 
 		SSEType deltaConstant(delta1);
 		SSEType step = deltaConstant * 4.0f;
-		SSEType r({ 0.0f, 1.0f, 2.0f, 3.0f });
+        
+#if JUCE_WINDOWS
+		SSEType r = SSEType::fromNative({ 0.0f, 1.0f, 2.0f, 3.0f });
+#else
+        SSEType r = SSEType::fromNative({0.0f, 1.0f, 2.0f, 3.0f});
+#endif
+        
 		SSEType deltaRamp = deltaConstant * r;
 		deltaRamp += startValue;
 		
@@ -274,7 +280,7 @@ public:
 	/** sets a manual skip number. Use this if you don't need the fancy block -> frame conversion. */
 	void setManualCountLimit(int skipAmount)
 	{
-		Locktype::ScopedLockType sl(processLock);
+		typename Locktype::ScopedLockType sl(processLock);
 
 		countLimit = skipAmount;
 
@@ -291,7 +297,7 @@ public:
 		jassert(countLimit > 0);
 		if(++updateCounter == countLimit)
 		{
-			Locktype::ScopedLockType sl(processLock);
+			typename Locktype::ScopedLockType sl(processLock);
 			updateCounter = 0;
 			return true;
 		};
@@ -316,7 +322,7 @@ public:
 
 		if(updateCounter >= countLimit)
 		{
-			Locktype::ScopedLockType sl(processLock);
+			typename Locktype::ScopedLockType sl(processLock);
 
 			updateCounter = updateCounter % countLimit;
 			return true;
@@ -475,10 +481,20 @@ public:
 		sampleRate(-1.0f),
         smoothTime(0.0f)
 	{ 
-		a0 = b0 = x = currentValue = prevValue = 0.0f;
+		a0 = b0 = currentValue = prevValue = 0.0f;
 		
 	};
 
+    forcedinline float smoothRaw(float a0newValue) noexcept
+    {
+        prevValue *= minusb0;
+        prevValue += a0newValue;
+        return prevValue;
+    }
+    
+    float getA0() const noexcept { return a0; }
+    
+    
 	/** smooth the next sample. */
 	float smooth(float newValue)
 	{
@@ -640,9 +656,10 @@ public:
 		{
 			const float freq = 1000.0f / newSmoothTime;
 
-			x = expf(-2.0f * float_Pi * freq / sampleRate);
+			const float x = expf(-2.0f * float_Pi * freq / sampleRate);
 			a0 = 1.0f - x;
 			b0 = -x;
+            minusb0 = x;
 		}
 	};
 
@@ -689,10 +706,12 @@ private:
 
 	float smoothTime;
 
-	float a0, b0, x;
-
-	float currentValue;
-	float prevValue;
+    float a0;
+    float b0;
+    
+    float currentValue;
+    float prevValue;
+    float minusb0;
 };
 
 using Smoother = DownsampledSmoother<1>;

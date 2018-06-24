@@ -122,10 +122,14 @@ public:
 
 			smoother.setDefaultValue(initialValue);
 
+            const float a0 = smoother.getA0();
+            
 			currentRampValue = useSmoother ? initialValue : targetValue_;
 			currentRampTarget = -1.0f;
 			currentRampDelta = -1.0f;
-			targetValue = targetValue_;
+            
+            
+			targetValue = targetValue_ * a0;
 			blockDivider.reset();
 		}
 
@@ -151,7 +155,8 @@ public:
 
 		void setTargetValue(float newTargetValue)
 		{
-			targetValue = newTargetValue;
+            const float a0 = smoother.getA0();
+			targetValue = newTargetValue * a0;
 		}
 
 		void process(float* data, int numSamples);

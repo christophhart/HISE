@@ -61,6 +61,7 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_core/juce_core.h"
 #include "../JUCE/modules/juce_audio_basics/juce_audio_basics.h"
 #include "../JUCE/modules/juce_data_structures/juce_data_structures.h"
+#include "../JUCE/modules/juce_dsp/juce_dsp.h"
 #include "../hi_lac/hi_lac.h"
 
 

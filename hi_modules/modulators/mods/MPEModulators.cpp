@@ -427,7 +427,7 @@ void MPEModulator::MPEState::process(float* data, int numSamples)
 
 		if (calculateNew)
 		{
-			currentRampTarget = smoother.smooth(targetValue);
+			currentRampTarget = smoother.smoothRaw(targetValue);
 			constexpr float ratio = 1.0f / (float)HISE_EVENT_RASTER;
 
 			currentRampDelta = (currentRampTarget - currentRampValue) * ratio;
