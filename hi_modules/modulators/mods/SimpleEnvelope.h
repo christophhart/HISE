@@ -100,7 +100,7 @@ public:
 	Processor *getChildProcessor(int ) override { return attackChain; };
 	const Processor *getChildProcessor(int ) const override  { return attackChain; };
 
-	void startVoice(int voiceIndex) override;
+	float startVoice(int voiceIndex) override;
 	void stopVoice(int voiceIndex) override;
 	void reset(int voiceIndex) override;
 	bool isPlaying(int voiceIndex) const override;
@@ -164,7 +164,7 @@ private:
 	
 	The calculation is linear and not logarithmic, so it may be sounding cheep
 	*/
-	float calculateNewValue ();
+	float calculateNewValue(int voiceIndex);
 	float calculateNewExpValue();
 
 	float inputValue;

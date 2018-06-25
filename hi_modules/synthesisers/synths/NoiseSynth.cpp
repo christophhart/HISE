@@ -57,15 +57,13 @@ void NoiseVoice::calculateBlock(int startSample, int numSamples)
 #if USE_DC_FOR_DEBUGGING
 
 	FloatVectorOperations::fill(voiceBuffer.getWritePointer(0, startSample), 1.0f, samplesToCopy);
-	FloatVectorOperations::fill(voiceBuffer.getWritePointer(1, startSample), 1.0f, samplesToCopy);
-
+	
 #else
 	while (--numSamples >= 0)
 	{
 		const float currentSample = getNextValue();
 
 		// Stereo mode assumed
-		voiceBuffer.setSample(0, startSample, currentSample);
 		voiceBuffer.setSample(1, startSample, currentSample);
 
 		voiceUptime++;
@@ -79,10 +77,15 @@ void NoiseVoice::calculateBlock(int startSample, int numSamples)
 	if (auto modValues = getOwnerSynth()->getVoiceGainValues())
 	{
 		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
-		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
 	}
 	else
-		jassertfalse;
+	{
+		float gainValue = getOwnerSynth()->getConstantGainModValue();
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), gainValue, samplesToCopy);
+	}
+
+	FloatVectorOperations::copy(voiceBuffer.getWritePointer(1, startIndex), voiceBuffer.getReadPointer(0, startIndex), samplesToCopy);
+		
 }
 
 } // namespace hise

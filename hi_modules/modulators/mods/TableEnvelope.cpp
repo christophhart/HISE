@@ -121,7 +121,7 @@ ValueTree TableEnvelope::exportAsValueTree() const
 	return v;
 }
 
-void TableEnvelope::startVoice(int voiceIndex)
+float TableEnvelope::startVoice(int voiceIndex)
 {
 	if (isMonophonic)
 	{
@@ -181,6 +181,8 @@ void TableEnvelope::startVoice(int voiceIndex)
 			state->current_state = TableEnvelopeState::ATTACK;
 		}
 	}
+
+	return calculateNewValue(voiceIndex);
 }
 
 void TableEnvelope::stopVoice(int voiceIndex)
@@ -216,7 +218,7 @@ void TableEnvelope::calculateBlock(int startSample, int numSamples)
 
 	if (--numSamples >= 0)
 	{
-		const float value = calculateNewValue();
+		const float value = calculateNewValue(voiceIndex);
 		internalBuffer.setSample(0, startSample, value);
 		++startSample;
 		if (isMonophonic || voiceIndex == polyManager.getLastStartedVoice())
@@ -245,7 +247,7 @@ void TableEnvelope::calculateBlock(int startSample, int numSamples)
 
 	while (--numSamples >= 0)
 	{
-		internalBuffer.setSample(0, startSample, calculateNewValue());
+		internalBuffer.setSample(0, startSample, calculateNewValue(voiceIndex));
 		++startSample;
 	}
 }
@@ -280,10 +282,8 @@ void TableEnvelope::handleHiseEvent(const HiseEvent& m)
 		releaseChain->handleHiseEvent(m);
 };
 
-float TableEnvelope::calculateNewValue()
+float TableEnvelope::calculateNewValue(float voiceIndex)
 {
-	const int voiceIndex = isMonophonic ? -1 : polyManager.getCurrentVoice();
-
 	jassert(voiceIndex < states.size());
 
 	TableEnvelopeState *state = static_cast<TableEnvelopeState*>(isMonophonic ? monophonicState.get() : states[voiceIndex]);
@@ -307,8 +307,8 @@ float TableEnvelope::calculateNewValue()
 			}
 			else
 			{
-			state->current_state = TableEnvelopeState::SUSTAIN;
-			
+				state->current_state = TableEnvelopeState::SUSTAIN;
+				state->current_value = 1.0f;
 			}
 		}
 		break;

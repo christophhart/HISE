@@ -200,7 +200,7 @@ public:
 	virtual void handleHiseEvent(const HiseEvent &m) override;
 
 	/** When the startNote function is called, a previously calculated value (by the handleMidiMessage function) is stored using the supplied voice index. */
-	virtual void startVoice(int voiceIndex) override;;
+	virtual float startVoice(int voiceIndex) override;;
 
 	Identifier getIdentifierForParameterIndex(int parameterIndex) const override
 	{
@@ -380,7 +380,7 @@ public:
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 	void calculateBlock(int startSample, int numSamples) override;;
 
-	void startVoice(int voiceIndex) override;
+	float startVoice(int voiceIndex) override;
 	void stopVoice(int voiceIndex) override;
 	void reset(int voiceIndex) override;
 	bool isPlaying(int voiceIndex) const override;

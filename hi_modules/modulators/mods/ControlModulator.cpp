@@ -181,7 +181,7 @@ void ControlModulator::setInternalAttribute (int parameter_index, float newValue
 void ControlModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	TimeVariantModulator::prepareToPlay(sampleRate, samplesPerBlock);
-	smoother.prepareToPlay(getSampleRate());
+	smoother.prepareToPlay(getControlRate());
 
 	if (sampleRate != -1.0) setInternalAttribute(SmoothTime, smoothTime);
 }

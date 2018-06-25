@@ -349,12 +349,12 @@ void AudioFileEnvelope::prepareToPlay(double sampleRate, int samplesPerBlock)
 		intensityChain->prepareToPlay(sampleRate, samplesPerBlock);
 		frequencyChain->prepareToPlay(sampleRate, samplesPerBlock);
 		
-		smoother.prepareToPlay(sampleRate);
+		smoother.prepareToPlay(getControlRate());
 		smoother.setSmoothingTime(smoothingTime);
 
 		inputMerger.setManualCountLimit(5);
 
-		attackReleaseEnvelopeFollower.setSampleRate(sampleRate);
+		attackReleaseEnvelopeFollower.setSampleRate(getControlRate());
 
 		resampleFactor = getSampleRateForLoadedFile() / sampleRate;
 

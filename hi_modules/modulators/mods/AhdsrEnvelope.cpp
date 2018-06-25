@@ -127,7 +127,7 @@ ValueTree AhdsrEnvelope::exportAsValueTree() const
 
 float AhdsrEnvelope::getSampleRateForCurrentMode() const
 {
-	auto sr = getSampleRate();
+	auto sr = getControlRate();
 	if (ecoMode) sr *= (1.0 / (double)downsampleFactor);
 
 	return (float)sr;
@@ -177,7 +177,7 @@ void AhdsrEnvelope::setTargetRatioDR(float targetRatio) {
     releaseBase = -targetRatioDR * (1.0f - releaseCoef);
 }
 
-void AhdsrEnvelope::startVoice(int voiceIndex)
+float AhdsrEnvelope::startVoice(int voiceIndex)
 {
 #if ENABLE_ALL_PEAK_METERS
 	stateInfo.state = AhdsrEnvelopeState::ATTACK;
@@ -253,6 +253,8 @@ void AhdsrEnvelope::startVoice(int voiceIndex)
 
 		state->lastSustainValue = sustain * state->modValues[SustainLevelChain];
 	}
+
+	return calculateNewValue(voiceIndex);
 }
 
 void AhdsrEnvelope::stopVoice(int voiceIndex)
@@ -329,7 +331,7 @@ void AhdsrEnvelope::calculateBlock(int startSample, int numSamples)
 
 			while (numSamples >= downsampleFactor)
 			{
-				auto value = calculateNewValue();
+				auto value = calculateNewValue(voiceIndex);
 
 				
 
@@ -341,7 +343,7 @@ void AhdsrEnvelope::calculateBlock(int startSample, int numSamples)
 
 			if (numSamples > 0)
 			{
-				auto value = calculateNewValue();
+				auto value = calculateNewValue(voiceIndex);
 
 				FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), value, numSamples);
 
@@ -355,7 +357,7 @@ void AhdsrEnvelope::calculateBlock(int startSample, int numSamples)
 		{
 			while (numSamples > 0)
 			{
-				internalBuffer.setSample(0, startSample, calculateNewValue());
+				internalBuffer.setSample(0, startSample, calculateNewValue(voiceIndex));
 				++startSample;
 				numSamples--;
 			}
@@ -511,7 +513,7 @@ void AhdsrEnvelope::calculateCoefficients(float timeInMilliSeconds, float base, 
 	stateBase = (exp1 *invertedBase - invertedBase) * maximum;
 }
 
-float AhdsrEnvelope::calculateNewValue()
+float AhdsrEnvelope::calculateNewValue(int voiceIndex)
 {
     const float thisSustain = sustain * state->modValues[SustainLevelChain];
     

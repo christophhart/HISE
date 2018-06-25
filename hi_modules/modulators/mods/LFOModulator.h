@@ -238,11 +238,9 @@ private:
 
 	float calcCoef(float rate, float targetRatio) const
 	{
-		const float factor = (float)getSampleRate() * 0.001f;
+		const float factor = (float)getControlRate() * 0.001f;
 
 		rate *= factor;
-
-		rate /= (float)LFO_DOWNSAMPLING_FACTOR;
 
 		float returnValue = expf(-logf((1.0f + targetRatio) / targetRatio) / rate);
 

@@ -111,7 +111,7 @@ public:
 	int getNumChildProcessors() const override { return numInternalChains; };
 	int getNumInternalChains() const override {return numInternalChains;};
 
-	void startVoice(int voiceIndex) override;	
+	float startVoice(int voiceIndex) override;	
 	void stopVoice(int voiceIndex) override;
 	void reset(int voiceIndex) override;;
 
@@ -248,7 +248,7 @@ private:
 
 	float calcCoef(float rate, float targetRatio) const;
 
-	float calculateNewValue ();
+	float calculateNewValue(int voiceIndex);
 	
 	void setAttackCurve(float newValue);
 	void setDecayCurve(float newValue);

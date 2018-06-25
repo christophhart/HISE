@@ -106,6 +106,8 @@ void SineSynthVoice::calculateBlock(int startSample, int numSamples)
 	float saturation = static_cast<SineSynth*>(getOwnerSynth())->saturationAmount;
 	float *leftValues = voiceBuffer.getWritePointer(0, startSample);
 	
+	
+
 	if (auto voicePitchValues = getOwnerSynth()->getPitchValuesForVoice())
 	{
 		voicePitchValues += startSample;
@@ -196,17 +198,24 @@ void SineSynthVoice::calculateBlock(int startSample, int numSamples)
 		}
 	}
 
+	if (auto modValues = getOwnerSynth()->getVoiceGainValues())
+	{
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
+	}
+	else
+	{
+		const float gainValue = getOwnerSynth()->getConstantGainModValue();
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), gainValue, samplesToCopy);
+	}
+		
+
 	FloatVectorOperations::copy(voiceBuffer.getWritePointer(1, startIndex), voiceBuffer.getReadPointer(0, startIndex), samplesToCopy);
 
 	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
 
-	if (auto modValues = getOwnerSynth()->getVoiceGainValues())
-	{
-		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
-		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
-	}
-	else
-		jassert(getOwnerSynth()->isInGroup());
+	
+	
+		
 }
 
 } // namespace hise

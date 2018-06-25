@@ -90,7 +90,7 @@ public:
 	Processor *getChildProcessor(int) override { return nullptr; };
 	const Processor *getChildProcessor(int) const override { return nullptr; };
 
-	void startVoice(int voiceIndex) override;
+	float startVoice(int voiceIndex) override;
 	void stopVoice(int voiceIndex) override;
 	void reset(int voiceIndex) override;
 	bool isPlaying(int voiceIndex) const override;
@@ -130,7 +130,7 @@ public:
             
             
 			targetValue = targetValue_ * a0;
-			blockDivider.reset();
+			//blockDivider.reset();
 		}
 
 		void stopVoice()
@@ -174,8 +174,7 @@ public:
 	private:
 
 		Smoother smoother;
-		BlockDivider<HISE_EVENT_RASTER> blockDivider;
-
+		
 		float targetValue = 0.0f;
 		
 		float currentRampValue = 0.0f;

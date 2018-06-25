@@ -154,7 +154,7 @@ public:
 	virtual void prepareToPlay(double sampleRate, int samplesPerBlock) override
 	{
 		TimeVariantModulator::prepareToPlay(sampleRate, samplesPerBlock);
-		smoother.prepareToPlay(getSampleRate());
+		smoother.prepareToPlay(getControlRate());
 
 		if(sampleRate != -1.0) setInternalAttribute(SmoothTime, smoothTime);
 	};

@@ -268,7 +268,7 @@ juce::ValueTree MPEModulator::exportAsValueTree() const
 	return v;
 }
 
-void MPEModulator::startVoice(int voiceIndex)
+float MPEModulator::startVoice(int voiceIndex)
 {
 	EnvelopeModulator::startVoice(voiceIndex);
 
@@ -310,6 +310,8 @@ void MPEModulator::startVoice(int voiceIndex)
 			}
 
 			monophonicVoiceCounter++;
+
+			
 		}
 		else
 		{
@@ -338,8 +340,10 @@ void MPEModulator::startVoice(int voiceIndex)
 			activeStates.insert(s);
 		}
 
-		
+		return startValue;
 	}
+
+	return 0.0f;
 }
 
 void MPEModulator::stopVoice(int voiceIndex)
@@ -404,20 +408,24 @@ void MPEModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	EnvelopeModulator::prepareToPlay(sampleRate, samplesPerBlock);
 
-	monoState.prepareToPlay(sampleRate);
+	monoState.prepareToPlay(getControlRate());
 	
 	for (auto s_ : states)
 	{
 		auto s = static_cast<MPEState*>(s_);
-		s->prepareToPlay(sampleRate / HISE_EVENT_RASTER);
+		s->prepareToPlay(getControlRate());
 	}
 }
 
 
 void MPEModulator::MPEState::process(float* data, int numSamples)
 {
-	jassert(dsp::SIMDRegister<float>::isSIMDAligned(data));
+	while (--numSamples >= 0)
+	{
+		*data++ = smoother.smoothRaw(targetValue);
+	}
 
+#if 0
 	while (numSamples > 0)
 	{
 		bool calculateNew;
@@ -448,6 +456,7 @@ void MPEModulator::MPEState::process(float* data, int numSamples)
 			data += subBlockSize;
 		}
 	}
+#endif
 }
 
 

@@ -705,7 +705,7 @@ void JavascriptVoiceStartModulator::handleHiseEvent(const HiseEvent& m)
 	}
 }
 
-void JavascriptVoiceStartModulator::startVoice(int voiceIndex)
+float JavascriptVoiceStartModulator::startVoice(int voiceIndex)
 {
 	if (!onVoiceStartCallback->isSnippetEmpty())
 	{
@@ -717,7 +717,7 @@ void JavascriptVoiceStartModulator::startVoice(int voiceIndex)
 		unsavedValue = (float)scriptEngine->executeCallback(onVoiceStart, &lastResult);
 	}
 
-	VoiceStartModulator::startVoice(voiceIndex);
+	return VoiceStartModulator::startVoice(voiceIndex);
 }
 
 
@@ -1127,7 +1127,7 @@ void JavascriptEnvelopeModulator::calculateBlock(int startSample, int numSamples
 
 }
 
-void JavascriptEnvelopeModulator::startVoice(int voiceIndex)
+float JavascriptEnvelopeModulator::startVoice(int voiceIndex)
 {
 	ScriptEnvelopeState* state = static_cast<ScriptEnvelopeState*>(states[voiceIndex]);
 
@@ -1140,7 +1140,7 @@ void JavascriptEnvelopeModulator::startVoice(int voiceIndex)
 		ScopedReadLock sl(mainController->getCompileLock());
 
 		scriptEngine->setCallbackParameter(onStartVoice, 0, voiceIndex);
-		scriptEngine->executeCallback(onStartVoice, &lastResult);
+		return (float)scriptEngine->executeCallback(onStartVoice, &lastResult);
 	}
 }
 

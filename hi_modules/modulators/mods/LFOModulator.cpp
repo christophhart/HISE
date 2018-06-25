@@ -81,7 +81,7 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	parameterNames.add(Identifier("NumSteps"));
 	parameterNames.add(Identifier("LoopEnabled"));
 
-	frequencyUpdater.setManualCountLimit(4096);
+	frequencyUpdater.setManualCountLimit(4096/HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR);
 
 	randomGenerator.setSeedRandomly();
 
@@ -436,7 +436,7 @@ void LfoModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 		setAttackRate(attack);
 
 		calcAngleDelta();
-		smoother.prepareToPlay(sampleRate / LFO_DOWNSAMPLING_FACTOR);
+		smoother.prepareToPlay(getControlRate());
 		
 		smoother.setSmoothingTime(smoothingTime);
 
@@ -453,11 +453,28 @@ void LfoModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 void LfoModulator::calculateBlock(int startSample, int numSamples)
 {
+	
 	const int startIndex = startSample;
 	const int numValues = numSamples;
 
 	auto* data = internalBuffer.getWritePointer(0, startSample);
 
+	if (--numSamples >= 0)
+	{
+		const float value = calculateNewValue();
+
+#if ENABLE_ALL_PEAK_METERS
+		setOutputValue(value);
+#endif
+		*data++ = value;
+	}
+
+	while (--numSamples >= 0)
+	{
+		*data++ = calculateNewValue();
+	}
+
+#if 0
 	while (numSamples > 0)
 	{
 		const int numThisTime = jmin<int>(numSamples, LFO_DOWNSAMPLING_FACTOR);
@@ -479,10 +496,6 @@ void LfoModulator::calculateBlock(int startSample, int numSamples)
 
 		numSamples -= numThisTime;
 	}
-
-
-#if ENABLE_ALL_PEAK_METERS
-	setOutputValue(rampValue);
 #endif
 
 	
@@ -502,10 +515,13 @@ void LfoModulator::calculateBlock(int startSample, int numSamples)
 
 	float *mod = internalBuffer.getWritePointer(0, startIndex);
 
+	const int pseudoOffset = startIndex * HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+	const int pseudoSize = numValues * HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+
 	for (auto& mb : modChains)
 	{
-		mb.calculateMonophonicModulationValues(startIndex, numValues);
-		mb.calculateModulationValuesForCurrentVoice(0, startIndex, numValues);
+		mb.calculateMonophonicModulationValues(pseudoOffset, pseudoSize);
+		mb.calculateModulationValuesForCurrentVoice(0, pseudoOffset, pseudoSize);
 	}
 
 	if (frequencyUpdater.shouldUpdate(numValues))
@@ -514,17 +530,18 @@ void LfoModulator::calculateBlock(int startSample, int numSamples)
 		calcAngleDelta();
 	}
 
-	const float intensityToUse = modChains[IntensityChain].getConstantModulationValue();
+	
+	
 
 	if (auto intensityModValues = modChains[IntensityChain].getReadPointerForVoiceValues(startIndex))
 	{
-		if (getMode() == GainMode)		 TimeModulation::applyIntensityForGainValues(mod, intensityToUse, intensityModValues, numValues);
-		else if (getMode() == PitchMode) TimeModulation::applyIntensityForPitchValues(mod, intensityToUse, intensityModValues, numValues);
+		applyIntensityForGainValues(mod, 1.0f, intensityModValues, numValues);
 	}
 	else
 	{
-		if (getMode() == GainMode)		 TimeModulation::applyIntensityForGainValues(mod, intensityToUse, numValues);
-		else if (getMode() == PitchMode) TimeModulation::applyIntensityForPitchValues(mod, intensityToUse, numValues);
+		const float intensityToUse = modChains[IntensityChain].getConstantModulationValue();
+
+		applyIntensityForGainValues(mod, intensityToUse, numValues);
 	}
 }
 
@@ -586,7 +603,7 @@ void LfoModulator::handleHiseEvent(const HiseEvent &m)
 
 void LfoModulator::calcAngleDelta()
 {
-	const double sr = getSampleRate();
+	const double sr = getControlRate();
 
 	const float frequencyToUse = tempoSync ? TempoSyncer::getTempoInHertz(getMainController()->getBpm(), currentTempo) :
 		frequency;
@@ -594,7 +611,7 @@ void LfoModulator::calcAngleDelta()
 	const float cyclesPerSecond = frequencyToUse * frequencyModulationValue;
 	const double cyclesPerSample = (double)cyclesPerSecond / sr;
 
-	angleDelta = cyclesPerSample * (double)(SAMPLE_LOOKUP_TABLE_SIZE * LFO_DOWNSAMPLING_FACTOR);
+	angleDelta = cyclesPerSample * (double)(SAMPLE_LOOKUP_TABLE_SIZE);
 }
 
 float WaveformLookupTables::sineTable[SAMPLE_LOOKUP_TABLE_SIZE];
