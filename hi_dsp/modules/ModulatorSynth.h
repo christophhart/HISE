@@ -197,6 +197,8 @@ public:
 	virtual void preHiseEventCallback(const HiseEvent &e);
 	virtual void preStartVoice(int voiceIndex, int noteNumber);
 
+	void preStopVoice(int voiceIndex);
+
 	/** This sets up the synth and the ModulatorChains. 
 	*
 	*	Call this instead of Synthesiser::setCurrentPlaybackSampleRate(). 
@@ -465,6 +467,11 @@ public:
 	float getConstantPitchModValue() const
 	{
 		return modChains[PitchModulation - 1].getConstantModulationValue();
+	}
+
+	float getConstantGainModValue() const
+	{
+		return modChains[GainModulation - 1].getConstantModulationValue();
 	}
 
 

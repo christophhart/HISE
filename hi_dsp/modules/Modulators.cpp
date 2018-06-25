@@ -220,7 +220,11 @@ const float * TimeModulation::getCalculatedValues(int /*voiceIndex*/)
 
 void TimeModulation::prepareToModulate(double sampleRate, int samplesPerBlock)
 {
-	smoothedIntensity.setValueAndRampTime(getIntensity(), sampleRate, 0.1);
+	constexpr double ratio = 1.0 / (double)HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+
+	controlRate = sampleRate * ratio;
+
+	smoothedIntensity.setValueAndRampTime(getIntensity(), controlRate, 0.1);
 	jassert(isInitialized());
 	
 }
@@ -231,6 +235,7 @@ void TimeModulation::applyGainModulation(float *calculatedModulationValues, floa
 {
 	const float a = 1.0f - fixedIntensity;
 
+#if 0
 	constexpr int BlockSize = 32;
 
 	BlockDivider<BlockSize> divider;
@@ -267,10 +272,11 @@ void TimeModulation::applyGainModulation(float *calculatedModulationValues, floa
 			}
 		}
 	}
+#endif
 
-	//FloatVectorOperations::multiply(calculatedModulationValues, fixedIntensity, numValues);
-	//FloatVectorOperations::add(calculatedModulationValues, a, numValues);
-	//FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
+	FloatVectorOperations::multiply(calculatedModulationValues, fixedIntensity, numValues);
+	FloatVectorOperations::add(calculatedModulationValues, a, numValues);
+	FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
 }
 
 void TimeModulation::applyGainModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, const float *intensityValues, int numValues) const noexcept
@@ -334,6 +340,8 @@ void TimeModulation::applyPitchModulation(float* calculatedModulationValues, flo
 
 	applyIntensityForPitchValues(calculatedModulationValues, fixedIntensity, numValues);
 	
+	Modulation::PitchConverters::normalisedRangeToPitchFactor(calculatedModulationValues, numValues);
+
 	FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
 
 #if 0
@@ -349,7 +357,11 @@ void TimeModulation::applyPitchModulation(float *calculatedModulationValues, flo
 {
 	applyIntensityForPitchValues(calculatedModulationValues, fixedIntensity, intensityValues, numValues);
 
+	Modulation::PitchConverters::normalisedRangeToPitchFactor(calculatedModulationValues, numValues);
+
 	FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
+
+	
 }
 
 
@@ -400,7 +412,7 @@ void TimeModulation::applyIntensityForPitchValues(float* calculatedModulationVal
 		// modValues ( 0 ... +-intensity ... 1 )
 	}
 
-	Modulation::PitchConverters::normalisedRangeToPitchFactor(calculatedModulationValues, numValues);
+	
 }
 
 
@@ -437,7 +449,7 @@ void TimeModulation::applyIntensityForPitchValues(float* calculatedModulationVal
 		//FloatVectorOperations::multiply(calculatedModulationValues, intensityValues, numValues);
 	}
 
-	Modulation::PitchConverters::normalisedRangeToPitchFactor(calculatedModulationValues, numValues);
+	
 }
 
 void TimeModulation::initializeBuffer(AudioSampleBuffer &bufferToBeInitialized, int startSample, int numSamples)

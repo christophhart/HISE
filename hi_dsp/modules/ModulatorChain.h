@@ -138,6 +138,9 @@ public:
 			b(1, 0)
 		{
 			FloatVectorOperations::fill(currentConstantVoiceValues, 1.0f, NUM_POLYPHONIC_VOICES);
+			FloatVectorOperations::fill(lastExpandedValues, 1.0f, NUM_POLYPHONIC_VOICES);
+
+			debugMode = c->getMode();
 
 			if (t == Type::VoiceStartOnly)
 				c->setIsVoiceStartChain(true);
@@ -166,8 +169,11 @@ public:
 
 		void reset(int voiceIndex)
 		{
-			if(c->hasActiveEnvelopesAtAll())
+			if (c->hasActiveEnvelopesAtAll())
+			{
 				c->reset(voiceIndex);
+				lastExpandedValues[voiceIndex] = 0.0f;
+			}
 		}
 
 		void stopVoice(int voiceIndex)
@@ -178,11 +184,29 @@ public:
 
 		void startVoice(int voiceIndex)
 		{
-			if (c->hasVoiceModulators())
-				c->startVoice(voiceIndex);
+			float firstDynamicValue = 1.0f;
 
-			lastConstantVoiceValue = c->getConstantVoiceValue(voiceIndex);
-			currentConstantVoiceValues[voiceIndex] = lastConstantVoiceValue;
+			if (includeMonophonicValues && c->hasMonophonicTimeModulationMods())
+			{
+				firstDynamicValue *= *getMonophonicModulationValues(0);
+			}
+
+			
+
+			if (c->hasVoiceModulators())
+			{
+				firstDynamicValue *= c->startVoice(voiceIndex);
+			}
+			else
+			{
+				firstDynamicValue = 0.0f;
+			}
+
+			setConstantVoiceValueInternal(voiceIndex, c->getConstantVoiceValue(voiceIndex));
+
+			lastExpandedValues[voiceIndex] = firstDynamicValue;
+
+			
 		}
 
 		void calculateMonophonicModulationValues(int startSample, int numSamples);
@@ -218,21 +242,46 @@ public:
 			includeMonophonicValues = shouldInclude;
 		}
 
-		void setUseConstantValueForBuffer(bool shouldUseConstantValue)
+		
+
+		void expandVoiceValuesToAudioRate(int voiceIndex, int startSample, int numSamples);
+
+		void expandMonophonicValuesToAudioRate(int startSample, int numSamples);
+
+		void setLastExpandedValue(int voiceIndex, float value) noexcept
 		{
-			useConstantValueForBuffer = shouldUseConstantValue;
+			if(voiceIndex >= 0 && voiceIndex < NUM_POLYPHONIC_VOICES)
+				lastExpandedValues[voiceIndex] = value;
 		}
 
+		
 	private:
+
+		Modulation::Mode debugMode;
+
+		void setConstantVoiceValueInternal(int voiceIndex, float newValue)
+		{
+			lastConstantVoiceValue = newValue;
+			currentConstantVoiceValues[voiceIndex] = newValue;
+			currentConstantValue = newValue;
+		}
+
+		float constantRepresentationOfDynamicBuffer = 1.0f;
 
 		bool includeMonophonicValues = true;
 		bool voiceValuesReadOnly = true;
-		bool useConstantValueForBuffer = true;
+		
+		float currentConstantValue = 1.0f;
 
-		float currentConstantVoiceValues[NUM_POLYPHONIC_VOICES];
 		float lastConstantVoiceValue = 1.0f;
+		float currentConstantVoiceValues[NUM_POLYPHONIC_VOICES];
+		float lastExpandedValues[NUM_POLYPHONIC_VOICES];
+		
+		float lastExpandedMonophonicValue = 0.0f;
+		
 
 		float const* currentVoiceData = nullptr;
+
 
 		ScopedPointer<ModulatorChain> c;
 
@@ -248,8 +297,9 @@ public:
 			b = std::move(mutableOther->b);
 			includeMonophonicValues = other.includeMonophonicValues;
 			voiceValuesReadOnly = other.voiceValuesReadOnly;
-			useConstantValueForBuffer = other.useConstantValueForBuffer;
+			debugMode = other.debugMode;
 			FloatVectorOperations::fill(currentConstantVoiceValues, 1.0f, NUM_POLYPHONIC_VOICES);
+			FloatVectorOperations::fill(lastExpandedValues, 1.0f, NUM_POLYPHONIC_VOICES);
 		}
 
 		ModChainWithBuffer& operator=(const ModChainWithBuffer& other) = delete;
@@ -405,7 +455,7 @@ public:
 	bool isPlaying(int voiceIndex) const override;
 
 	/** Calls the start voice function for all voice start modulators and envelope modulators and sends a display message. */
-	void startVoice(int voiceIndex) override;;
+	float startVoice(int voiceIndex) override;;
 
 	
 

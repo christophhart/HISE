@@ -66,6 +66,10 @@
 #define HISE_EVENT_RASTER 32
 #endif
 
+#ifndef HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR
+#define HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR 32
+#endif
+
 namespace hise { using namespace juce;
 
 #if ENABLE_STARTUP_LOG

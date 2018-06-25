@@ -81,7 +81,7 @@ bypassState(false)
 	
 	modChains[GainModulation - 1].setIncludeMonophonicValuesInVoiceRendering(false);
 	modChains[PitchModulation - 1].setAllowModificationOfVoiceValues(true);
-	modChains[PitchModulation - 1].setUseConstantValueForBuffer(false);
+	
 
 	setVoiceLimit(numVoices);
 
@@ -529,6 +529,7 @@ void ModulatorSynth::renderVoice(int startSample, int numThisTime)
 		jassert(!v->isInactive());
 
 		calculateModulationValuesForVoice(v, startSample, numThisTime);
+
 		v->renderNextBlock(internalBuffer, startSample, numThisTime);
 	}
 
@@ -546,6 +547,11 @@ void ModulatorSynth::calculateModulationValuesForVoice(ModulatorSynthVoice * v, 
 		mb.calculateModulationValuesForCurrentVoice(index, startSample, numThisTime);
 
 	v->setUptimeDeltaValueForBlock();
+
+	
+
+	modChains[GainModulation - 1].expandVoiceValuesToAudioRate(index, startSample, numThisTime);
+	modChains[PitchModulation - 1].expandVoiceValuesToAudioRate(index, startSample, numThisTime);
 
 	v->applyConstantPitchFactor(getConstantPitchModValue());
 
@@ -580,6 +586,7 @@ void ModulatorSynth::clearPendingRemoveVoices()
 
 void ModulatorSynth::postVoiceRendering(int startSample, int numThisTime)
 {
+	modChains[GainModulation - 1].expandMonophonicValuesToAudioRate(startSample, numThisTime);
 	auto monoValues = modChains[GainModulation - 1].getMonophonicModulationValues(startSample);
 
 	if (monoValues != nullptr)
@@ -816,6 +823,14 @@ void ModulatorSynth::preStartVoice(int voiceIndex, int noteNumber)
 	
 
 	effectChain->startVoice(voiceIndex, noteNumber);
+}
+
+void ModulatorSynth::preStopVoice(int voiceIndex)
+{
+	for (auto& mb : modChains)
+		mb.stopVoice(voiceIndex);
+
+	effectChain->stopVoice(voiceIndex);
 }
 
 void ModulatorSynth::prepareToPlay(double newSampleRate, int samplesPerBlock)
@@ -1267,13 +1282,7 @@ void ModulatorSynthVoice::stopNote(float, bool)
 
 	isTailing = true;
 
-	if(c->hasVoiceModulators())
-		c->stopVoice(voiceIndex);
-
-	if(p->hasVoiceModulators())
-		p->stopVoice(voiceIndex);
-
-	e->stopVoice(voiceIndex);
+	os->preStopVoice(voiceIndex);
 
 	checkRelease();
 };

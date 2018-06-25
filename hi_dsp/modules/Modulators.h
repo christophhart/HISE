@@ -393,7 +393,11 @@ protected:
 
 	AudioSampleBuffer internalBuffer;
 
+	double getControlRate() const noexcept { return controlRate; };
+
 private:
+
+	double controlRate = 0.0;
 
 	float lastConstantValue = 1.0f;
 
@@ -411,7 +415,7 @@ public:
     virtual ~VoiceModulation() {};
 
 	/** Implement the startVoice logic here. */
-	virtual void startVoice(int voiceIndex) = 0;
+	virtual float startVoice(int voiceIndex) = 0;
 
 	/** Implement the stopVoice logic here. */
 	virtual void stopVoice(int voiceIndex) = 0;	
@@ -496,7 +500,7 @@ public:
 	VoiceStartModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m);
 	
 	/** When the startNote function is called, a previously calculated value (by the handleMidiMessage function) is stored using the supplied voice index. */
-	virtual void startVoice(int voiceIndex) override
+	virtual float startVoice(int voiceIndex) override
 	{
 		jassert(isOnAir());
 
@@ -505,6 +509,8 @@ public:
 #if ENABLE_ALL_PEAK_METERS
 		setOutputValue(unsavedValue);
 #endif
+
+		return unsavedValue;
 	};
 
 	static Path getSymbolPath()
@@ -846,9 +852,10 @@ public:
 
 	bool isInMonophonicMode() const { return isMonophonic; }
 
-	void startVoice(int /*voiceIndex*/) override
+	float startVoice(int /*voiceIndex*/) override
 	{
 		numPressedKeys++;
+		return 1.0f;
 	}
 
 	void stopVoice(int /*voiceIndex*/) override
