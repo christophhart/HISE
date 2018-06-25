@@ -472,7 +472,7 @@ void PolyFilterEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 void PolyFilterEffect::renderNextBlock(AudioSampleBuffer &b, int startSample, int numSamples)
 {
-	if (hasPolyMods())
+	if (hasPolyMods() || !blockIsActive)
 		return;
 
 	const bool muteNextBlock = numActiveVoices == 0;
@@ -488,28 +488,23 @@ void PolyFilterEffect::renderNextBlock(AudioSampleBuffer &b, int startSample, in
 			subBlockSize = 64;
 		}
 
-		if (blockIsActive)
-		{
-			FilterHelpers::RenderData r(b, startSample, subBlockSize);
-			r.voiceIndex = -1;
+		FilterHelpers::RenderData r(b, startSample, subBlockSize);
+		r.voiceIndex = -1;
 
-			r.freqModValue = modChains[FrequencyChain].getOneModulationValue(startSample);
+		r.freqModValue = modChains[FrequencyChain].getOneModulationValue(startSample);
 
-			auto bipolarFMod = modChains[BipolarFrequencyChain].getOneModulationValue(startSample);
-			r.freqModValue += (double)(bipolarIntensity * bipolarFMod);
-			r.gainModValue = modChains[GainChain].getOneModulationValue(startSample);
+		auto bipolarFMod = modChains[BipolarFrequencyChain].getOneModulationValue(startSample);
+		r.freqModValue += (double)(bipolarIntensity * bipolarFMod);
+		r.gainModValue = modChains[GainChain].getOneModulationValue(startSample);
 
-			monoFilters.setDisplayModValues(-1, r.freqModValue, r.gainModValue);
-			monoFilters.renderMono(r);
-
-			// This trick lets the first block after a mute through to catch the filter trail (important for high resonance filters).
-			blockIsActive = !muteNextBlock;
-		}
-
-		
+		monoFilters.setDisplayModValues(-1, r.freqModValue, r.gainModValue);
+		monoFilters.renderMono(r);
 		
 		startSample += subBlockSize;
 	}
+
+	if (muteNextBlock)
+		blockIsActive = false;
 }
 
 ProcessorEditorBody *PolyFilterEffect::createEditor(ProcessorEditor *parentEditor)
@@ -585,6 +580,9 @@ void PolyFilterEffect::startVoice(int voiceIndex, int noteNumber)
 
 	voiceFilters.reset(voiceIndex);
 
+	if (!polyMode && numActiveVoices == 0)
+		monoFilters.reset();
+	
 	blockIsActive = true;
 	numActiveVoices++;
 }
