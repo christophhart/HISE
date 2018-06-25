@@ -313,10 +313,12 @@ public:
 	bool isUsingCrossfadeGroups() const { return crossfadeGroups; }
 	Table *getTable(int tableIndex) const override { return tableIndex < crossfadeTables.size() ? crossfadeTables[tableIndex] : nullptr; }
 
-	void calculateCrossfadeModulationValuesForVoice(int voiceIndex, int startSample, int numSamples, int groupIndex);
+	float* calculateCrossfadeModulationValuesForVoice(int voiceIndex, int startSample, int numSamples, int groupIndex);
 	const float *getCrossfadeModValues(int voiceIndex) const;
 
 	float getConstantCrossFadeModulationValue(int groupIndex) const noexcept;
+
+	float getCrossfadeValue(int groupIndex, float inputValue) const;
 
 	UndoManager *getUndoManager() {	return getMainController()->getControlUndoManager();	};
 
@@ -639,6 +641,7 @@ private:
 	hlac::HiseSampleBuffer temporaryVoiceBuffer;
 
 	float groupGainValues[8];
+	float currentCrossfadeValue;
 
 	ChannelData channelData[NUM_MIC_POSITIONS];
 	int numChannels;

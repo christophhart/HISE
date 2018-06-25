@@ -82,7 +82,6 @@ void ModulatorSamplerVoice::startNote(int midiNoteNumber,
     isActive = true;
 
 	jassert(uptimeDelta < MAX_SAMPLER_PITCH);
-	
 }
 
 void ModulatorSamplerVoice::stopNote(float velocity, bool allowTailoff)
@@ -140,25 +139,32 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesInBlock);
 		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesInBlock);
 	}
-	else
-		jassert(getOwnerSynth()->isInGroup());
-
-	const float crossfadeConstantGain = getConstantCrossfadeModulationValue();
-	const float propertyGain = currentlyPlayingSamplerSound->getPropertyVolume();
-	const float normalizationGain = currentlyPlayingSamplerSound->getNormalizedPeak();
-	const float lGain = currentlyPlayingSamplerSound->getBalance(false);
-	const float rGain = currentlyPlayingSamplerSound->getBalance(true);
-	const float totalL = propertyGain * normalizationGain * lGain * velocityXFadeValue * crossfadeConstantGain;
-	const float totalR = propertyGain * normalizationGain * rGain * velocityXFadeValue * crossfadeConstantGain;
-
-	if (totalL != 1.0f) FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), totalL, samplesInBlock);
-	if (totalR != 1.0f) FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), totalR, samplesInBlock);
 
 	if (auto crossFadeValues = getCrossfadeModulationValues(startSample, numSamples))
 	{
 		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), crossFadeValues + startIndex, samplesInBlock);
 		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), crossFadeValues + startIndex, samplesInBlock);
+
+		jassert(getConstantCrossfadeModulationValue() == 1.0f);
 	}
+	
+	float totalGain = getOwnerSynth()->getConstantGainModValue();
+	
+	float thisCrossfadeGain = getConstantCrossfadeModulationValue();
+
+	totalGain *= thisCrossfadeGain;
+
+	totalGain *= currentlyPlayingSamplerSound->getPropertyVolume();
+	totalGain *= currentlyPlayingSamplerSound->getNormalizedPeak();
+	totalGain *= velocityXFadeValue;
+	
+	const float lGain = totalGain * currentlyPlayingSamplerSound->getBalance(false);
+	const float rGain = totalGain * currentlyPlayingSamplerSound->getBalance(true);
+	
+	if (lGain != 1.0f) FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), lGain, samplesInBlock);
+	if (rGain != 1.0f) FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), rGain, samplesInBlock);
+
+	
 
 #if USE_BACKEND
 	if (sampler->isLastStartedVoice(this))
@@ -261,9 +267,10 @@ float ModulatorSamplerVoice::getConstantCrossfadeModulationValue() const noexcep
 
 const float * ModulatorSamplerVoice::getCrossfadeModulationValues(int startSample, int numSamples)
 {
-	sampler->calculateCrossfadeModulationValuesForVoice(voiceIndex, startSample, numSamples, currentlyPlayingSamplerSound->getRRGroup() - 1);
+	if (!sampler->isUsingCrossfadeGroups())
+		return nullptr;
 
-	return sampler->getCrossfadeModValues(voiceIndex);
+	return sampler->calculateCrossfadeModulationValuesForVoice(voiceIndex, startSample, numSamples, currentlyPlayingSamplerSound->getRRGroup() - 1);
 }
 
 void ModulatorSamplerVoice::resetVoice()
