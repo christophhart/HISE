@@ -111,6 +111,7 @@ crossfadeBuffer(1, 0),
 purged(false),
 reversed(false),
 numChannels(1),
+repeatMode(RepeatMode::KillSecondOldestNote),
 deactivateUIUpdate(false),
 samplePreloadPending(false),
 temporaryVoiceBuffer(true, 2, 0)

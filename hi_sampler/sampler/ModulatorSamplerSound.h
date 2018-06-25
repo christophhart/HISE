@@ -411,8 +411,8 @@ private:
 	std::atomic<float> gain;
 	std::atomic<double> pitchFactor;
 
-	float leftBalanceGain;
-	float rightBalanceGain;
+	float leftBalanceGain = 1.0f;
+	float rightBalanceGain = 1.0f;
 
 	BigInteger purgeChannels;
 
