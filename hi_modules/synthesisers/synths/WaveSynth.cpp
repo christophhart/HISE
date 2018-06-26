@@ -50,10 +50,15 @@ WaveSynth::WaveSynth(MainController *mc, const String &id, int numVoices) :
 	pulseWidth2(getDefaultValue(PulseWidth2)),
 	waveForm1(WaveformComponent::Saw),
 	waveForm2(WaveformComponent::Saw),
-    tempBuffer(2, 0),
-    mixBuffer(1, 0),
-	mixChain(new ModulatorChain(mc, "Mix Modulation", 1, Modulation::GainMode, this))
+    tempBuffer(2, 0)
 {
+	modChains += { this, "Mix Modulation"};
+
+	modChains[ChainIndex::MixChain].setAllowModificationOfVoiceValues(true);
+	modChains[ChainIndex::MixChain].setExpandToAudioRate(true);
+
+	mixChain = modChains[ChainIndex::MixChain].getChain();
+
 	scaleFunction = [](float input) { return input * 2.0f - 1.0f; };
 
 	parameterNames.add("OctaveTranspose1");
@@ -272,18 +277,7 @@ void WaveSynth::prepareToPlay(double newSampleRate, int samplesPerBlock)
 	if (newSampleRate != -1.0)
 	{
 		ProcessorHelpers::increaseBufferIfNeeded(tempBuffer, samplesPerBlock);
-		ProcessorHelpers::increaseBufferIfNeeded(mixBuffer, samplesPerBlock);
-
-		mixChain->prepareToPlay(newSampleRate, samplesPerBlock);
 	}
-}
-
-void WaveSynth::preHiseEventCallback(const HiseEvent &m)
-{
-	if(mixChain->shouldBeProcessedAtAll())
-		mixChain->handleHiseEvent(m);
-
-	ModulatorSynth::preHiseEventCallback(m);
 }
 
 ProcessorEditorBody* WaveSynth::createEditor(ProcessorEditor *parentEditor)
@@ -503,65 +497,67 @@ void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 
 	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
 
-	if (auto modValues = getOwnerSynth()->getVoiceGainValues())
-	{
-		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
-		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
-	}
-
+	applyGainModulation(startIndex, samplesToCopy, false);
 
 	
 
 	if (enableSecondOsc)
 	{
-		jassertfalse;
-#if 0
-		const float *leftSamples = internalBuffer.getReadPointer(0, startSample);
-		const float *rightSamples = internalBuffer.getReadPointer(1, startSample);
+		auto leftSamples = voiceBuffer.getWritePointer(0, startIndex);
+		auto rightSamples = voiceBuffer.getWritePointer(1, startIndex);
+
+		auto wavesynth = static_cast<WaveSynth*>(getOwnerSynth());
+
+		auto& tempBuffer = wavesynth->getTempBufferForMixCalculation();
 
 		// Copy all samples to the temporary buffer which contains the separated generators
-		FloatVectorOperations::copy(tempBuffer.getWritePointer(0, startSample), leftSamples, numSamples);
-		FloatVectorOperations::copy(tempBuffer.getWritePointer(1, startSample), rightSamples, numSamples);
+		FloatVectorOperations::copy(tempBuffer.getWritePointer(0, startIndex), leftSamples, samplesToCopy);
+		FloatVectorOperations::copy(tempBuffer.getWritePointer(1, startIndex), rightSamples, samplesToCopy);
 
-		const bool useMixBuffer = mixChain->getNumChildProcessors() != 0;
-
-		if (useMixBuffer) mixChain->renderAllModulatorsAsMonophonic(mixBuffer, startSample, numSamples);
-
-		if (useMixBuffer)
+		if (auto modValues = wavesynth->getMixModulationValues(startIndex))
 		{
-
 			// Multiply the left generator with the mix modulation values
-			FloatVectorOperations::multiply(tempBuffer.getWritePointer(0, startSample), mixBuffer.getReadPointer(0, startSample), numSamples);
+			FloatVectorOperations::multiply(tempBuffer.getWritePointer(1, startIndex), modValues, samplesToCopy);
 
 			// Invert the mix modulation values
-			FloatVectorOperations::multiply(mixBuffer.getWritePointer(0, startSample), -1.0f, numSamples);
-			FloatVectorOperations::add(mixBuffer.getWritePointer(0, startSample), 1.0f, numSamples);
+			FloatVectorOperations::multiply(modValues, -1.0f, samplesToCopy);
+			FloatVectorOperations::add(modValues, 1.0f, samplesToCopy);
 
 			// Multiply the right generator with the inverted mix values
-			FloatVectorOperations::multiply(tempBuffer.getWritePointer(1, startSample), mixBuffer.getReadPointer(0, startSample), numSamples);
+			FloatVectorOperations::multiply(tempBuffer.getWritePointer(0, startIndex), modValues, samplesToCopy);
 		}
 		else
 		{
-			FloatVectorOperations::multiply(tempBuffer.getWritePointer(0, startSample), 1.0f - mix, numSamples);
-			FloatVectorOperations::multiply(tempBuffer.getWritePointer(1, startSample), mix, numSamples);
+			float modValue = wavesynth->getConstantMixValue();
+
+			// Multiply the left generator with the mix modulation values
+			FloatVectorOperations::multiply(tempBuffer.getWritePointer(1, startIndex), modValue, samplesToCopy);
+
+			// Multiply the right generator with the inverted mix values
+			FloatVectorOperations::multiply(tempBuffer.getWritePointer(0, startIndex), 1.0f - modValue, samplesToCopy);
 		}
 
-		const float balance1Left = BalanceCalculator::getGainFactorForBalance(pan1, true);
-		const float balance1Right = BalanceCalculator::getGainFactorForBalance(pan1, false);
+		const float balance1Left = wavesynth->getBalanceValue(true, true);
+		const float balance1Right = wavesynth->getBalanceValue(true, false);
 
-		FloatVectorOperations::copyWithMultiply(internalBuffer.getWritePointer(0, startSample), tempBuffer.getReadPointer(0, startSample), balance1Left, numSamples);
-		FloatVectorOperations::copyWithMultiply(internalBuffer.getWritePointer(1, startSample), tempBuffer.getReadPointer(0, startSample), balance1Right, numSamples);
+		FloatVectorOperations::copyWithMultiply(leftSamples, tempBuffer.getReadPointer(0, startIndex), balance1Left, samplesToCopy);
+		FloatVectorOperations::copyWithMultiply(rightSamples, tempBuffer.getReadPointer(0, startIndex), balance1Right, samplesToCopy);
 
-		const float balance2Left = BalanceCalculator::getGainFactorForBalance(pan2, true);
-		const float balance2Right = BalanceCalculator::getGainFactorForBalance(pan2, false);
+		const float balance2Left = wavesynth->getBalanceValue(false, true);
+		const float balance2Right = wavesynth->getBalanceValue(false, false);
 
-		FloatVectorOperations::addWithMultiply(internalBuffer.getWritePointer(0, startSample), tempBuffer.getReadPointer(1, startSample), balance2Left, numSamples);
-		FloatVectorOperations::addWithMultiply(internalBuffer.getWritePointer(1, startSample), tempBuffer.getReadPointer(1, startSample), balance2Right, numSamples);
-
-#endif
+		FloatVectorOperations::addWithMultiply(leftSamples, tempBuffer.getReadPointer(1, startIndex), balance2Left, samplesToCopy);
+		FloatVectorOperations::addWithMultiply(rightSamples, tempBuffer.getReadPointer(1, startIndex), balance2Right, samplesToCopy);
 	}
-
 }
+
+
+float WaveSynth::getBalanceValue(bool usePan1, bool isLeft) const noexcept
+{
+	return BalanceCalculator::getGainFactorForBalance(usePan1 ? pan1 : pan2, isLeft);
+}
+
+
 
 void WaveSynthVoice::setOctaveTransposeFactor(double newFactor, bool leftFactor)
 {
