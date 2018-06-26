@@ -175,6 +175,24 @@ public:
 		*/
 		float* getWritePointerForVoiceValues(int startSample);
 
+		/** If you're doing custom processing, use this method to get the pointer to the unexpanded values for the startSample offset.
+		*
+		*	Then, do your processing, and expand the values. Don't forget to store the ramp value after doing so:
+		*
+		*		auto modData = getWritePointerForVoiceValues(256);
+		*
+		*		// Process here...
+		*
+		*		expandValuesToAudioRate(voiceIndex, 256, 128);
+		*		
+		*		setCurrentRampValueForVoice(voiceIndex, lastComputedValue);
+		*
+		*		// Use these values as actual modulation data:
+		*		auto realModData = getReadPointerForVoice(256);
+		*
+		*/
+		float* getWritePointerForManualExpansion(int startSample);
+
 		/** Returns the constant modulation value for the current sub block. 
 		*
 		*	Even if the dynamic data is quasi-constant, it will detect it and set this value to the current dynamic value.
@@ -232,6 +250,8 @@ public:
 
 		bool monoExpandChecker = false;
 		bool polyExpandChecker = false;
+
+		bool manualExpansionPending = false;
 
 		void setConstantVoiceValueInternal(int voiceIndex, float newValue)
 		{

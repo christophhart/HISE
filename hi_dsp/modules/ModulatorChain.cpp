@@ -497,6 +497,21 @@ float* ModulatorChain::ModChainWithBuffer::getWritePointerForVoiceValues(int sta
 	return currentVoiceData != nullptr ? const_cast<float*>(currentVoiceData) + startSample : nullptr;
 }
 
+float* ModulatorChain::ModChainWithBuffer::getWritePointerForManualExpansion(int startSample)
+{
+	// You have already expanded the values...
+	jassert(currentVoiceData != nullptr || !polyExpandChecker);
+
+	// Have you already downsampled the startOffsetValue? If not, this is really bad...
+	jassert(startSample % HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR == 0);
+
+	int startSample_cr = startSample / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+
+	manualExpansionPending = true;
+
+	return currentVoiceData != nullptr ? const_cast<float*>(currentVoiceData) + startSample_cr : nullptr;
+}
+
 const float* ModulatorChain::ModChainWithBuffer::getMonophonicModulationValues(int startSample) const
 {
 	// If you include the monophonic modulation values in the voice modulation, there's no need for this method

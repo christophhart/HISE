@@ -946,34 +946,9 @@ float* ModulatorSampler::calculateCrossfadeModulationValuesForVoice(int voiceInd
 {
 	if (groupIndex > 8) return nullptr;
 
-#if 0
-	crossFadeChain->renderVoice(voiceIndex, startSample, numSamples);
-
-	float *crossFadeValues = crossFadeChain->getVoiceValues(voiceIndex);
-
-	const float* timeVariantCrossFadeValues = crossfadeBuffer.getReadPointer(0);
-
-	FloatVectorOperations::multiply(crossFadeValues, timeVariantCrossFadeValues, startSample + numSamples);
-
-	if (isLastStartedVoice(static_cast<ModulatorSynthVoice*>(getVoice(voiceIndex))) && numSamples > 0)
-	{
-		setCrossfadeTableValue(crossFadeValues[startSample]);
-	}
-
-	SampleLookupTable *table = crossfadeTables[groupIndex];
-
-	for (int i = 0; i < numSamples; i++)
-	{
-		const float value = CONSTRAIN_TO_0_1(crossFadeValues[i + startSample]);
-		const float tableValue = table->getInterpolatedValue((double)value * (double)SAMPLE_LOOKUP_TABLE_SIZE);
-
-		crossFadeValues[i + startSample] = tableValue;
-	}
-#endif
-
 	const int startSample_cr = startSample / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
 
-	if (auto compressedValues = modChains[Chains::XFade].getWritePointerForVoiceValues(startSample_cr))
+	if (auto compressedValues = modChains[Chains::XFade].getWritePointerForManualExpansion(startSample))
 	{
 		int numSamples_cr = numSamples / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
 
@@ -982,7 +957,8 @@ float* ModulatorSampler::calculateCrossfadeModulationValuesForVoice(int voiceInd
 
 		if (fabsf(firstValue - lastValue) < 0.001f)
 		{
-			currentCrossfadeValue = getCrossfadeValue(groupIndex, firstValue);
+			float modValue = firstValue;
+			currentCrossfadeValue = getCrossfadeValue(groupIndex, modValue);
 			modChains[Chains::XFade].setCurrentRampValueForVoice(voiceIndex, currentCrossfadeValue);
 			return nullptr;
 		}
@@ -991,7 +967,6 @@ float* ModulatorSampler::calculateCrossfadeModulationValuesForVoice(int voiceInd
 			while (--numSamples_cr >= 0)
 			{
 				float value = *compressedValues;
-				
 				*compressedValues++ = getCrossfadeValue(groupIndex, value);
 			}
 
@@ -1021,47 +996,6 @@ float* ModulatorSampler::calculateCrossfadeModulationValuesForVoice(int voiceInd
 		modChains[Chains::XFade].setCurrentRampValueForVoice(voiceIndex, currentCrossfadeValue);
 		return nullptr;
 	}
-
-#if 0
-	modChains[Chains::XFade].expandVoiceValuesToAudioRate(voiceIndex, startSample, numSamples);
-
-	if (auto xFadeValuesForVoice = modChains[Chains::XFade].getWritePointerForVoiceValues(startSample))
-	{
-		SampleLookupTable *table = crossfadeTables[groupIndex];
-
-		auto firstValue = xFadeValuesForVoice[0];
-		auto lastValue = xFadeValuesForVoice[numSamples - 1];
-
-		firstValue = getCrossfadeValue(groupIndex, firstValue);
-		lastValue = getCrossfadeValue(groupIndex, lastValue);
-
-		firstValue = table->getInterpolatedValue((double)firstValue * (double)SAMPLE_LOOKUP_TABLE_SIZE);
-		lastValue = table->getInterpolatedValue((double)lastValue * (double)SAMPLE_LOOKUP_TABLE_SIZE);
-
-		if (isLastStartedVoice(static_cast<ModulatorSynthVoice*>(getVoice(voiceIndex))) && numSamples > 0)
-		{
-			setCrossfadeTableValue(firstValue);
-		}
-
-		const float delta = (lastValue - firstValue) / (float)numSamples;
-		
-		float value = firstValue;
-		
-		for (int i = 0; i < numSamples; i++)
-		{
-			xFadeValuesForVoice[i] = value;
-			value += delta;
-		}
-		
-		currentCrossfadeValue = 1.0f;
-	}
-	else
-	{
-		auto modValue = modChains[Chains::XFade].getConstantModulationValue();
-		currentCrossfadeValue = getCrossfadeValue(groupIndex, modValue);
-	}
-#endif
-
 }
 
 const float * ModulatorSampler::getCrossfadeModValues(int voiceIndex) const
