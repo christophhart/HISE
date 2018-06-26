@@ -205,7 +205,7 @@ float AhdsrEnvelope::startVoice(int voiceIndex)
 			state->modValues[ReleaseTimeChain] = internalChains[ReleaseTimeChain].getChain()->getConstantVoiceValue(voiceIndex);
 
 			// Don't reset the envelope for tailing releases
-			if (shouldRetrigger)
+			if (shouldRetrigger && state->current_state != AhdsrEnvelopeState::IDLE)
 			{
 				state->current_state = AhdsrEnvelopeState::RETRIGGER;
 			}

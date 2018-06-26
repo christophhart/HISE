@@ -238,6 +238,7 @@ void ModulatorChain::ModChainWithBuffer::resetVoice(int voiceIndex)
 	{
 		c->reset(voiceIndex);
 		currentRampValues[voiceIndex] = 0.0f;
+		currentMonophonicRampValue = 0.0f;
 	}
 }
 
@@ -269,6 +270,9 @@ void ModulatorChain::ModChainWithBuffer::startVoice(int voiceIndex)
 	setConstantVoiceValueInternal(voiceIndex, c->getConstantVoiceValue(voiceIndex));
 
 	currentRampValues[voiceIndex] = firstDynamicValue;
+
+	
+	//currentMonophonicRampValue = firstDynamicValue;
 }
 
 
@@ -739,9 +743,9 @@ float ModulatorChain::startVoice(int voiceIndex)
 
 		while (auto mod = iter3.next())
 		{
-			const auto modValue = mod->startVoice(voiceIndex);
-			const auto intensityModValue = mod->calcGainIntensityValue(modValue);
-			envelopeStartValue *= intensityModValue;
+			// Don't use the start value for monophonic envelopes...
+			mod->startVoice(voiceIndex);
+			
 			mod->polyManager.setLastStartedVoice(voiceIndex);
 		}
 
