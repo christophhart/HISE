@@ -76,7 +76,6 @@ MdaDegradeEffect::MdaDegradeEffect(MainController *mc, const String &id):
 
 	editorStateIdentifiers.add("DryWetChainShown");
 
-	useStepSizeCalculation(false);
 	effect = new mdaDegrade();
 };
 

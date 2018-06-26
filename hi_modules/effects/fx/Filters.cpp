@@ -195,6 +195,8 @@ void MonoFilterEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 void MonoFilterEffect::processBlockPartial(AudioSampleBuffer &buffer, int startSample, int numSamples)
 {
+
+#if 0
 	FilterHelpers::RenderData r(buffer, startSample, numSamples);
 
 	r.freqModValue = (double)getConstantModulationValueForChain(freqChain, 0, startSample);
@@ -205,6 +207,7 @@ void MonoFilterEffect::processBlockPartial(AudioSampleBuffer &buffer, int startS
     filterCollection.setDisplayModValues(-1, r.freqModValue, r.gainModValue);
     
 	filterCollection.renderMono(r);
+#endif
 }
 
 void MonoFilterEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples)

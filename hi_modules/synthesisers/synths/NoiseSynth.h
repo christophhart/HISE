@@ -89,7 +89,7 @@ public:
 		for(int i = 0; i < numVoices; i++) addVoice(new NoiseVoice(this));
 		addSound (new NoiseSound());	
 
-		modChains[PitchModulation - 1].getChain()->setBypassed(true);
+		modChains[BasicChains::PitchChain].getChain()->setBypassed(true);
 	};
 
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;

@@ -66,11 +66,6 @@ smoothedGainR(1.0f)
     delayChain->setFactoryType(new TimeVariantModulatorFactoryType(Modulation::GainMode, this));
 	balanceChain->setFactoryType(new TimeVariantModulatorFactoryType(Modulation::GainMode, this));
     
-    gainChain->getHandler()->addListener(this);
-    widthChain->getHandler()->addListener(this);
-    delayChain->getHandler()->addListener(this);
-	balanceChain->getHandler()->addListener(this);
-
 	auto tmp = WeakReference<Processor>(this);
 
 	auto balanceConverter = [tmp](float input)
@@ -136,10 +131,7 @@ smoothedGainR(1.0f)
 
 GainEffect::~GainEffect()
 {
-    gainChain->getHandler()->removeListener(this);
-    widthChain->getHandler()->removeListener(this);
-    delayChain->getHandler()->removeListener(this);
-	balanceChain->getHandler()->removeListener(this);
+    
 }
     
 void GainEffect::setInternalAttribute(int parameterIndex, float newValue)
