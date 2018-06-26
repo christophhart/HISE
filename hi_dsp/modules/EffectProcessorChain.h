@@ -47,7 +47,7 @@ namespace hise { using namespace juce;
 *
 *	It renders MasterEffectProcessor objects and VoiceEffectProcessorObjects seperately.
 */
-class EffectProcessorChain: public VoiceEffectProcessor,
+class EffectProcessorChain: public Processor,
 							public Chain
 {
 public:
@@ -64,8 +64,6 @@ public:
 
 	const Processor *getParentProcessor() const override { return parentProcessor; };
 
-	
-
 	FactoryType *getFactoryType() const override {return effectChainFactory;};
 
 	Colour getColour() const { return Colour(0xff3a6666);};
@@ -81,19 +79,16 @@ public:
 		// Skip the effectProcessor's prepareToPlay since it assumes all child processors are ModulatorChains
 		Processor::prepareToPlay(sampleRate, samplesPerBlock);
 
-
-		for(int i = 0; i < allEffects.size(); i++) allEffects[i]->prepareToPlay(sampleRate, samplesPerBlock);
+		FOR_ALL_EFFECTS(prepareToPlay(sampleRate, samplesPerBlock));
 	};
 
-	void handleHiseEvent(const HiseEvent &m) override
+	void handleHiseEvent(const HiseEvent &m)
 	{	
 		if(isBypassed()) return;
 		FOR_ALL_EFFECTS(handleHiseEvent(m)); 
 	};
 
-	void applyEffect(int /*voiceIndex*/, AudioSampleBuffer &/*b*/, int /*startSample*/, int /*numSamples*/) override {};
-
-	void renderVoice(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) override 
+	void renderVoice(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) 
 	{ 
 		if(isBypassed()) return;
 
@@ -102,21 +97,20 @@ public:
 		FOR_EACH_VOICE_EFFECT(renderVoice(voiceIndex, b, startSample, numSamples)); 
 	};
 
-	void preRenderCallback(int startSample, int numSamples) override
+	void preRenderCallback(int startSample, int numSamples)
 	{
 		FOR_EACH_VOICE_EFFECT(preRenderCallback(startSample, numSamples));
 	}
 
-	void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples) override
+	void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples)
 	{
 		if(isBypassed()) return;
 
 		FOR_ALL_EFFECTS(renderNextBlock(buffer, startSample, numSamples));
 
-
 	};
 
-	bool hasTail() const override
+	bool hasTail() const
 	{
 		for(int i = 0; i < allEffects.size(); i++)
 		{
@@ -126,7 +120,7 @@ public:
 		return false;
 	};
 
-	bool isTailingOff() const override
+	bool isTailingOff() const 
 	{
 		for(int i = 0; i < allEffects.size(); i++)
 		{
@@ -151,13 +145,7 @@ public:
 
 	}
 
-	AudioSampleBuffer & getBufferForChain(int /*index*/)
-	{
-		jassertfalse;
-		return emptyBuffer;
-	};
-
-	void startVoice(int voiceIndex, int noteNumber) override 
+	void startVoice(int voiceIndex, int noteNumber) 
 	{
 		if(isBypassed()) return;
 		FOR_EACH_VOICE_EFFECT(startVoice(voiceIndex, noteNumber)); 
@@ -165,7 +153,7 @@ public:
 		FOR_EACH_MASTER_EFFECT(startMonophonicVoice());
 	};
 
-	void stopVoice(int voiceIndex) override 
+	void stopVoice(int voiceIndex) 
 	{
 		if(isBypassed()) return;
 		FOR_EACH_VOICE_EFFECT(stopVoice(voiceIndex));	
@@ -327,9 +315,6 @@ public:
 	};
 
 private:
-
-	// This is used for getBufferForChain
-	AudioSampleBuffer emptyBuffer;
 
 	EffectChainHandler handler;
 

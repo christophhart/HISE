@@ -33,7 +33,7 @@
 namespace hise { using namespace juce;
 
 EffectProcessorChain::EffectProcessorChain(Processor *parentProcessor_, const String &id, int numVoices) :
-		VoiceEffectProcessor(parentProcessor_->getMainController(), id, numVoices),
+		Processor(parentProcessor_->getMainController(), id, numVoices),
 		handler(this),
 		parentProcessor(parentProcessor_)
 {

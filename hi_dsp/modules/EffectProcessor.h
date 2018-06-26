@@ -50,9 +50,7 @@ public:
 	EffectProcessor(MainController *mc, const String &uid, int numVoices): 
 		Processor(mc, uid, numVoices),	
 		isTailing(false),
-		useStepSize(true),
-		tailCheck(2, 0),
-		emptyBuffer(1, 0) 
+		tailCheck(2, 0)
 	{
 		
 	};
@@ -62,12 +60,28 @@ public:
 		modChains.clear();
 	};
 
+	/** Renders all chains (envelopes & voicestart are rendered monophonically. */
+	void renderAllChains(int startSample, int numSamples)
+	{
+		for (auto& mb : modChains)
+		{
+			if (!mb.getChain()->shouldBeProcessedAtAll())
+				continue;
+
+			mb.calculateMonophonicModulationValues(startSample, numSamples);
+			mb.calculateModulationValuesForCurrentVoice(0, startSample, numSamples);
+
+			if (mb.isAudioRateModulation())
+				mb.expandVoiceValuesToAudioRate(0, startSample, numSamples);
+		}
+	}
+
 	/** You have to override this method, since almost every effect needs the samplerate anyway. */
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override
 	{
 		Processor::prepareToPlay(sampleRate, samplesPerBlock);
 
-		if (samplesPerBlock > 0)
+		if (samplesPerBlock > 0 && hasTail())
 		{
 			ProcessorHelpers::increaseBufferIfNeeded(tailCheck, samplesPerBlock);	
 		}
@@ -93,7 +107,7 @@ public:
 	virtual void handleHiseEvent(const HiseEvent &m)
 	{
 		for (auto& mc : modChains)
-			mc.getChain()->handleHiseEvent(m);
+			mc.handleHiseEvent(m);
 	};
 
 protected:
@@ -108,108 +122,13 @@ protected:
 	/** If your effect produces a tail, you have to call this method after your processing. */
 	void checkTailing(AudioSampleBuffer &b, int startSample, int numSamples);
 
-	virtual const float *getModulationValuesForStepsizeCalculation(int /*chainIndex*/, int /*voiceIndex*/) { jassertfalse; return nullptr; };
-
-	/** Searches the modulation buffer for the minima and maxima and returns a power of two number according to the dynamic.
-	*
-	*	This can be used to check if there is some action in the modulation that needs splitting of processing to avoid parameter jumps without having to
-	*	calculate each sample.
-	*/
-	int calculateStepSize(int /*voiceIndex*/, int numSamples)
-	{
-		if(!useStepSize) return numSamples;
-
-		return 64;
-
-#if 0
-		int stepSize = numSamples;
-
-		for(int i = 0; i < getNumChildProcessors(); ++i)
-		{
-			int thisStepSize = numSamples;
-
-			const float *modulationData = getModulationValuesForStepsizeCalculation(i, voiceIndex);
-
-            float delta = FloatVectorOperations::findMinAndMax(modulationData, numSamples).getLength();
-            
-
-            const int factor = numSamples / 256;
-            
-            if(factor != 0) delta /= (float)factor;
-		
-			if      (delta <= 0.002f) thisStepSize = numSamples;
-			else if (delta <= 0.005f) thisStepSize = 64;
-			else if (delta <= 0.01f)  thisStepSize = 32;
-			else                      thisStepSize = 16;
-			
-			stepSize = jmin(stepSize, thisStepSize);
-
-		}
-
-		return stepSize;
-#endif
-	}
-
-	void useStepSizeCalculation(bool shouldBeUsed) {useStepSize = shouldBeUsed; };
-
-	float getConstantModulationValueForChain(ModulatorChain* modChain, int voiceIndex, int samplePosition)
-	{
-		jassertfalse;
-		return modChain->shouldBeProcessedAtAll() ? modChain->getVoiceValues(voiceIndex)[samplePosition] : 1.0f;
-
-	}
-
-	float* getTimeModulationValuesForChain(ModulatorChain* modChain, int voiceIndex, int startSample)
-	{
-		return modChain->hasTimeModulationMods() ? modChain->getVoiceValues(voiceIndex) + startSample : nullptr;
-	}
-
-	void calculateChain(ModulatorChain::ModChainWithBuffer& mb, int voiceIndex, int startSample, int numSamples)
-	{
-		jassertfalse;
-
-		auto modChain = mb.getChain();
-		auto& modBuffer = mb.b;
-
-		if (!modChain->shouldBeProcessedAtAll())
-			return;
-
-		float *modValues = modChain->getVoiceValues(voiceIndex);
-
-		bool usePoly = false;
-
-		if (modChain->hasActivePolyMods())
-		{
-			usePoly = true;
-			modChain->renderVoice(voiceIndex, startSample, numSamples);
-		}
-		
-		if (modChain->hasActiveTimeVariantMods())
-		{
-			const float *timeVariantModValues = modBuffer.getReadPointer(0, startSample);
-
-			if (usePoly)
-			{
-				// Offset of startSamples, since getVoiceValues() returns the whole buffer
-				FloatVectorOperations::multiply(modValues + startSample, timeVariantModValues, numSamples);
-			}
-			else
-			{
-				FloatVectorOperations::copy(modValues + startSample, timeVariantModValues, numSamples);
-			}
-		}
-	};
-
 	ModulatorChain::Collection modChains;
 
 private:
 
 	AudioSampleBuffer tailCheck;
-	AudioSampleBuffer emptyBuffer;
 
-	bool isTailing;
-
-	bool useStepSize;
+	bool isTailing = false;
 };
 
 /** A MasterEffectProcessor renders a effect on a block of audio samples. 
@@ -218,8 +137,7 @@ private:
 *	Derive all effects that are processed on the whole buffer from this class. For polyphonic effects, use VoiceEffectProcessor as baseclass.
 */
 class MasterEffectProcessor: public EffectProcessor,
-							 public RoutableProcessor,
-                             public Chain::Handler::Listener
+							 public RoutableProcessor
 {
 public:
 	MasterEffectProcessor(MainController *mc, const String &uid): EffectProcessor(mc, uid, 1)
@@ -229,33 +147,6 @@ public:
 		getMatrix().setNumAllowedConnections(2);
 	};
 
-    void processorChanged(EventType t, Processor* p) override
-    {
-        if(t == EventType::ProcessorAdded)
-        {
-            chainsAreEmpty = false;
-            return;
-        }
-        
-        for(int i = 0; i < getNumInternalChains(); i++)
-        {
-            auto c = dynamic_cast<Chain*>(getChildProcessor(i));
-            
-            if(c->getHandler()->getNumProcessors() == 1 &&
-               c->getHandler()->getProcessor(0) == p)
-                continue;
-            
-            
-            if(c->getHandler()->getNumProcessors() != 0)
-            {
-                chainsAreEmpty = false;
-                return;
-            }
-        }
-        
-        chainsAreEmpty = true;
-    }
-    
 	virtual ~MasterEffectProcessor() {};
 
 	Path getSpecialSymbol() const override
@@ -267,22 +158,7 @@ public:
 		return path;
 	}
 
-	/** Renders all chains (envelopes & voicestart are rendered monophonically. */
-	void renderAllChains(int startSample, int numSamples)
-	{
-        if(chainsAreEmpty)
-            return;
-        
-		for (auto& mb : modChains)
-		{
-			auto mc = mb.getChain();
-
-			mc->renderVoice(0, startSample, numSamples);
-			mc->renderNextBlock(mb.b, startSample, numSamples);
-
-			FloatVectorOperations::multiply(mb.b.getWritePointer(0, startSample), mc->getVoiceValues(0), numSamples);
-		}
-	}
+	
 
 	ValueTree exportAsValueTree() const override
 	{
@@ -302,8 +178,6 @@ public:
 		{
 			getMatrix().restoreFromValueTree(r);
 		}
-
-		
 	}
 
 
@@ -319,19 +193,20 @@ public:
 	virtual void startMonophonicVoice()
 	{
 		for (auto& mb : modChains)
-			mb.getChain()->startVoice(0);
+			mb.startVoice(0);
 	}
 	
 	virtual void stopMonophonicVoice()
 	{
 		for (auto& mb : modChains)
-			mb.getChain()->stopVoice(0);
+			mb.stopVoice(0);
 	}
 
 
 	virtual void resetMonophonicVoice()
 	{
-		
+		for (auto& mb : modChains)
+			mb.resetVoice(0);
 	}
 
 	/** A wrapper function around the actual processing.
@@ -397,9 +272,6 @@ public:
 		}
 	};
     
-private:
-    
-    bool chainsAreEmpty = false;
 };
 
 /** A EffectProcessor which allows monophonic modulation of its parameters.
@@ -436,35 +308,25 @@ public:
 		return path;
 	}
 
-	/** Renders all chains (envelopes & voicestart are rendered monophonically. */
-	void renderAllChains(int startSample, int numSamples)
-	{
-		for (auto& mb : modChains)
-		{
-			auto mc = mb.getChain();
-
-			mc->renderVoice(0, startSample, numSamples);
-			mc->renderNextBlock(mb.b, startSample, numSamples);
-
-			FloatVectorOperations::multiply(mb.b.getWritePointer(0, startSample), mc->getVoiceValues(0), numSamples);
-		}
-	}
-
 	virtual void startMonophonicVoice(int noteNumber=-1)
 	{
 		ignoreUnused(noteNumber);
 
 		for (auto& mb : modChains)
-			mb.getChain()->startVoice(0);
+			mb.startVoice(0);
 	}
 	
 	virtual void stopMonophonicVoice()
 	{
 		for (auto& mb : modChains)
-			mb.getChain()->stopVoice(0);
+			mb.stopVoice(0);
 	}
 
-	virtual void resetMonophonicVoice() {}
+	virtual void resetMonophonicVoice() 
+	{
+		for (auto& mb : modChains)
+			mb.resetVoice(0);
+	}
 
 	/** A wrapper function around the actual processing.
 	*
@@ -484,7 +346,7 @@ public:
 
 		renderAllChains(startSample, numSamples);
 
-		const int stepSize = calculateStepSize(0, numSamples);
+		constexpr int stepSize = 64;
 
 		while(numSamples >= stepSize)
 		{
@@ -544,8 +406,9 @@ public:
 		for (auto& mb : modChains)
 		{
 			mb.calculateModulationValuesForCurrentVoice(voiceIndex, startSample, numSamples);
+			if (mb.isAudioRateModulation())
+				mb.expandVoiceValuesToAudioRate(voiceIndex, startSample, numSamples);
 		}
-			
 	}
 
 	/** renders a voice and applies the effect on the voice. */
@@ -560,7 +423,7 @@ public:
 
 		preVoiceRendering(voiceIndex, startSample, numSamples);
 
-		const int stepSize = calculateStepSize(voiceIndex, numSamples);
+		constexpr int stepSize = 64;
 
 		while(numSamples >= stepSize)
 		{
@@ -595,10 +458,10 @@ public:
 	virtual void reset(int voiceIndex)
 	{
 		for (auto& mb : modChains)
-			mb.reset(voiceIndex);
+			mb.resetVoice(voiceIndex);
 	}
 
-	virtual void handleHiseEvent(const HiseEvent &m)
+	void handleHiseEvent(const HiseEvent &m) final override
 	{
 		for (auto& mb : modChains)
 			mb.handleHiseEvent(m);
