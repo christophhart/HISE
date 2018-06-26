@@ -94,6 +94,10 @@ private:
 
 		float getNextSample(float input, float modValue);;
 
+		void setConstDelay(float modValue);
+
+		float getNextSample(float input);
+
 	private:
 
 		class AllpassDelay
@@ -135,19 +139,16 @@ private:
 		float currentValue;
 	};
 
-	void updateFrequencies()
-	{
-		phaserLeft.setRange(freq1, freq2);
-		phaserRight.setRange(freq1, freq2);
-	}
+	void updateFrequencies();
 
 	float freq1, freq2;
 	float feedback;
 	float mix;
 
-	ScopedPointer<ModulatorChain> phaseModulationChain;
+	LinearSmoothedValue<float> freq1Smoothed;
+	LinearSmoothedValue<float> freq2Smoothed;
 
-	AudioSampleBuffer phaseModulationBuffer;
+	ModulatorChain* phaseModulationChain;
 
 	PhaseModulator phaserLeft;
 	PhaseModulator phaserRight;
