@@ -172,21 +172,16 @@ private:
     float delay;
 	float balance;
 
-	ScopedPointer<ModulatorChain> gainChain;
-    ScopedPointer<ModulatorChain> delayChain;
-    ScopedPointer<ModulatorChain> widthChain;
-	ScopedPointer<ModulatorChain> balanceChain;
+	ModulatorChain* gainChain;
+    ModulatorChain* delayChain;
+    ModulatorChain* widthChain;
+	ModulatorChain* balanceChain;
 
 	LinearSmoothedValue<float> smoothedGainL;
 	LinearSmoothedValue<float> smoothedGainR;
 	Smoother smoother;
 	Smoother balanceSmoother;
 
-	AudioSampleBuffer gainBuffer;
-    AudioSampleBuffer delayBuffer;
-    AudioSampleBuffer widthBuffer;
-	AudioSampleBuffer balanceBuffer;
-    
     MidSideDecoder msDecoder;
     
     DelayLine leftDelay;

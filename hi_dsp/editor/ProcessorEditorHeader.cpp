@@ -382,7 +382,8 @@ bool ProcessorEditorHeader::isHeaderOfModulatorSynth() const {return dynamic_cas
 
 bool ProcessorEditorHeader::isHeaderOfMidiProcessor() const	{ return dynamic_cast<const MidiProcessor*>(getProcessor()) != nullptr; };
 
-bool ProcessorEditorHeader::isHeaderOfEffectProcessor() const		{ return dynamic_cast<const EffectProcessor*>(getProcessor()) != nullptr;	};
+bool ProcessorEditorHeader::isHeaderOfEffectProcessor() const		{ return dynamic_cast<const EffectProcessor*>(getProcessor()) != nullptr ||
+																	         dynamic_cast<const EffectProcessorChain*>(getProcessor()) != nullptr;	};
 
 bool ProcessorEditorHeader::hasWorkspaceButton() const 
 { 
