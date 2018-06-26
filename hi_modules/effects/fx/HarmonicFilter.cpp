@@ -168,18 +168,12 @@ void HarmonicFilter::startVoice(int voiceIndex, int noteNumber)
 
 void HarmonicFilter::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples)
 {
-    float xModValue;
-	auto xFadeChain = modChains[XFadeChain].getChain();
+	const bool useModulation = modChains[XFadeChain].getChain()->shouldBeProcessedAtAll();
 
-	if (xFadeChain->shouldBeProcessedAtAll())
-	{
-		xModValue = getConstantModulationValueForChain(xFadeChain, voiceIndex, startSample);
-
-		if (voiceIndex == xFadeChain->polyManager.getLastStartedVoice())
-			setCrossfadeValue(xModValue);
-	}
-	else
-		xModValue = currentCrossfadeValue;
+	const float xModValue = useModulation ? modChains[XFadeChain].getOneModulationValue(startSample) : currentCrossfadeValue;
+	
+	if (voiceIndex == modChains[XFadeChain].getChain()->polyManager.getLastStartedVoice())
+		setCrossfadeValue(xModValue);
 
 	auto& filterBank = filterBanks[voiceIndex];
 
@@ -392,28 +386,12 @@ void HarmonicMonophonicFilter::startMonophonicVoice(int noteNumber)
 
 void HarmonicMonophonicFilter::applyEffect(AudioSampleBuffer &b, int startSample, int numSamples)
 {
-	double xModValue;
+	const bool useModulation = modChains[XFadeChain].getChain()->shouldBeProcessedAtAll();
 
-	auto xFadeChain = modChains[XFadeChain].getChain();
+	const float xModValue = useModulation ? modChains[XFadeChain].getOneModulationValue(startSample) : currentCrossfadeValue;
 
-	auto f = getConstantModulationValueForChain(xFadeChain, 0, startSample);
-
-	if (xFadeChain->shouldBeProcessedAtAll())
-	{
-		// BETTER!!
-		xFadeChain->renderAllModulatorsAsMonophonic(modChains[XFadeChain].b, startSample, numSamples);
-
-		xModValue = modChains[XFadeChain].b.getSample(0, startSample);
-
-		//xModValue = (double)getCurrentModulationValue(XFadeChain, 0, startSample);
-
-		setCrossfadeValue(xModValue);
-	}
-	else
-	{
-		xModValue = currentCrossfadeValue;
-	}
-
+	setCrossfadeValue(xModValue);
+	
 	for (int i = 0; i < numBands; i++)
 	{
 		const float gainValue = Interpolator::interpolateLinear(dataA->getValue(i), dataB->getValue(i), (float)xModValue);
