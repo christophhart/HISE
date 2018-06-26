@@ -167,8 +167,6 @@ public:
 		return currentTableIndex;
 	};
 
-	void stopNote(float velocity, bool allowTailoff) override;
-
 	void setHqMode(bool useHqMode)
 	{
 		hqMode = useHqMode;
@@ -238,6 +236,13 @@ public:
 		HqMode = ModulatorSynth::numModulatorSynthParameters,
 		LoadedBankIndex,
 		numSpecialParameters
+	};
+
+	enum ChainIndex
+	{
+		Gain = 0,
+		Pitch = 1,
+		TableIndex = 2
 	};
 
 	enum InternalChains
@@ -356,15 +361,10 @@ public:
 		}
 	};
 
-
 	void prepareToPlay(double newSampleRate, int samplesPerBlock) override
 	{
 		if(newSampleRate > -1.0)
 		{
-			ProcessorHelpers::increaseBufferIfNeeded(tableBuffer, samplesPerBlock);
-
-			tableIndexChain->prepareToPlay(newSampleRate, samplesPerBlock);
-
 			for(int i = 0; i < sounds.size(); i++)
 			{
 				static_cast<WavetableSound*>(getSound(i))->calculatePitchRatio(newSampleRate);
@@ -381,48 +381,16 @@ public:
 		return morphSmoothing;
 	}
 
-	
-	void preHiseEventCallback(const HiseEvent &m) override
-	{
-		tableIndexChain->handleHiseEvent(m);
-
-		ModulatorSynth::preHiseEventCallback(m);
-	}
-
-	void preStartVoice(int voiceIndex, int noteNumber) override
-	{
-		ModulatorSynth::preStartVoice(voiceIndex, noteNumber);
-
-		tableIndexChain->startVoice(voiceIndex);
-
-	};
-
-	/** This method is called to handle all modulatorchains just before the voice rendering. */
-	void preVoiceRendering(int startSample, int numThisTime) override
-	{
-		tableIndexChain->renderNextBlock(tableBuffer, startSample, numThisTime);
-
-		ModulatorSynth::preVoiceRendering(startSample, numThisTime);
-	};
-
-	void calculateTableModulationValuesForVoice(int voiceIndex, int startSample, int numSamples)
-	{
-		tableIndexChain->renderVoice(voiceIndex, startSample, numSamples);
-
-		float *tableValues = tableIndexChain->getVoiceValues(voiceIndex);
-
-		const float* timeVariantTableValues = tableBuffer.getReadPointer(0);
-
-		FloatVectorOperations::multiply(tableValues, timeVariantTableValues, startSample + numSamples);
-
-
-
-	}
-
 	const float *getTableModValues(int voiceIndex) const
 	{
-		return tableIndexChain->getVoiceValues(voiceIndex);
+		return modChains[ChainIndex::TableIndex].getReadPointerForVoiceValues(0);
 	}
+
+	float getConstantTableModValue() const noexcept
+	{
+		return modChains[ChainIndex::TableIndex].getConstantModulationValue();
+	}
+
 
 	float getAttribute(int parameterIndex) const override 
 	{
@@ -531,11 +499,10 @@ private:
 	
 	bool hqMode;
 
-	ScopedPointer<ModulatorChain> tableIndexChain;
+	ModulatorChain* tableIndexChain;
 
 	int morphSmoothing;
 
-	AudioSampleBuffer tableBuffer;
 
 };
 
