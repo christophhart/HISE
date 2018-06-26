@@ -103,6 +103,12 @@ public:
 		Bar = -2
 	};
 
+	enum BasicChains
+	{
+		GainChain = 0,
+		PitchChain = 1
+	};
+
 	// ===================================================================================================================
 
 	ModulatorSynth(MainController *mc, const String &id, int numVoices);
@@ -325,7 +331,7 @@ public:
 		disableChain(EffectChain, true);
 
 		// This will get lost otherwise
-		modChains[GainModulation-1].setIncludeMonophonicValuesInVoiceRendering(true);
+		modChains[BasicChains::GainChain].setIncludeMonophonicValuesInVoiceRendering(true);
 
 	};
 
@@ -376,102 +382,38 @@ public:
 	/** specifies the behaviour when a note is started that is already ringing. By default, it is killed, but you can overwrite it to make something else. */
 	virtual void handleRetriggeredNote(ModulatorSynthVoice *voice);
 
-	/** Calculates the voice values with the GainModulationChain and returns a read pointer to the values. */
-	const float *calculateGainValuesForVoice(int voiceIndex, float scriptGainValue, int startSample, int numSamples)
-	{
-		jassertfalse;
-
-		if (!gainChain->shouldBeProcessedAtAll())
-		{
-			auto gainData = gainChain->getVoiceValues(voiceIndex);
-			FloatVectorOperations::fill(gainData + startSample, 1.0f, numSamples);
-			return gainData;
-		}
-
-		if(gainChain->hasActivePolyMods())
-			gainChain->renderVoice(voiceIndex, startSample, numSamples);
-
-		float *gainData = gainChain->getVoiceValues(voiceIndex);
-		if (scriptGainValue != 1.0f) FloatVectorOperations::multiply(gainData + startSample, scriptGainValue, numSamples);
-
-		return gainData;
-	};
-
-	/** calculates the voice pitch values. You can get the values with getPitchValues for voice. */
-	void calculatePitchValuesForVoice(int voiceIndex, float scriptPitchValue, int startSample, int numSamples)
-	{
-		jassertfalse;
-		modChains[PitchModulation - 1].calculateModulationValuesForCurrentVoice(voiceIndex, startSample, numSamples);
-
-#if 0
-
-		float *voicePitchValues = pitchChain->getVoiceValues(voiceIndex);
-
-		if (pitchChain->hasActivePolyMods())
-		{
-			pitchChain->renderVoice(voiceIndex, startSample, numSamples);
-		}
-		else
-			FloatVectorOperations::fill(voicePitchValues, 1.0f, startSample + numSamples);
-
-		if (pitchChain->hasActiveTimeVariantMods())
-		{
-			
-
-			const float *timeVariantPitchValues = getConstantPitchValues();
-			FloatVectorOperations::multiply(voicePitchValues, timeVariantPitchValues, startSample + numSamples);
-		}
-
-		if (scriptPitchValue != 1.0f) 
-			FloatVectorOperations::multiply(voicePitchValues, scriptPitchValue, startSample + numSamples);
-#endif
-	}
-
+	
 	/** Returns a read pointer to the calculated pitch values. */
 	float *getPitchValuesForVoice() const 
 	{
 		if (useScratchBufferForArtificialPitch)
-			return modChains[PitchModulation - 1].getScratchBuffer();
+			return modChains[BasicChains::PitchChain].getScratchBuffer();
 		
-		auto p = modChains[PitchModulation - 1].getWritePointerForVoiceValues(0);
-
-		if (p != nullptr)
-			return p;
-
-#if 0
-		if (numStaticValuesToGenerate > 0)
-		{
-			p = modChains[PitchModulation - 1].getScratchBuffer();
-			FloatVectorOperations::fill(p, 1.0f, numStaticValuesToGenerate);
-			return p;
-		}
-#endif
-
-		return nullptr;
+		return modChains[BasicChains::PitchChain].getWritePointerForVoiceValues(0);
 	};
 
 	void overwritePitchValues(const float* data, int startSample, int numSamples)
 	{
 		useScratchBufferForArtificialPitch = true;
 
-		auto destination = modChains[PitchModulation - 1].getScratchBuffer();
+		auto destination = modChains[BasicChains::PitchChain].getScratchBuffer();
 
 		FloatVectorOperations::copy(destination + startSample, data + startSample, numSamples);
 	}
 
 	const float* getVoiceGainValues() const
 	{
-		return modChains[GainModulation - 1].getReadPointerForVoiceValues(0);
+		return modChains[BasicChains::GainChain].getReadPointerForVoiceValues(0);
 	}
 
 	float getConstantPitchModValue() const
 	{
-		return modChains[PitchModulation - 1].getConstantModulationValue();
+		return modChains[BasicChains::PitchChain].getConstantModulationValue();
 	}
 
 	float getConstantGainModValue() const
 	{
-		return modChains[GainModulation - 1].getConstantModulationValue();
+		return modChains[BasicChains::GainChain].getConstantModulationValue();
 	}
 
 
@@ -663,13 +605,6 @@ public:
 
 	virtual void calculateBlock(int startSample, int numSamples) = 0;
 	
-	void calculateVoicePitchValues(int startSample, int numSamples)
-	{
-		jassertfalse;
-		// #WILLKILL
-		getOwnerSynth()->calculatePitchValuesForVoice(voiceIndex, (float)scriptPitchValue, startSample, numSamples);
-	}
-
 	bool isPitchFadeActive() const noexcept
 	{
 		return pitchFader.isSmoothing();
@@ -840,13 +775,6 @@ public:
 
 	void setStartUptime(double newUptime) noexcept { startUptime = newUptime; }
 
-	bool isPitchModulationActive() const noexcept
-	{
-		jassertfalse;
-		// #WILLKILL
-		return false;
-	}
-
 	void setScriptGainValue(float newGainValue) { scriptGainValue = newGainValue; }
 	void setScriptPitchValue(float newPitchValue) { scriptPitchValue = newPitchValue; }
 
@@ -894,6 +822,8 @@ public:
 	{
 		uptimeDelta *= pitchFactorToAdd;
 	}
+
+	void applyGainModulation(int startSample, int numSamples, bool copyLeftChannel);
 
 protected:
 

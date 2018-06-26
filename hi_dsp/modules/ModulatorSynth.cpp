@@ -76,12 +76,15 @@ bypassState(false)
 	modChains += { this, "PitchModulation", ModulatorChain::ModulationType::Normal, Modulation::Mode::PitchMode};
 
 	
-	gainChain = modChains[GainModulation-1].getChain();
-	pitchChain = modChains[PitchModulation-1].getChain();
+	gainChain = modChains[BasicChains::GainChain].getChain();
+	pitchChain = modChains[BasicChains::PitchChain].getChain();
 	
-	modChains[GainModulation - 1].setIncludeMonophonicValuesInVoiceRendering(false);
-	modChains[PitchModulation - 1].setAllowModificationOfVoiceValues(true);
+	modChains[BasicChains::GainChain].setIncludeMonophonicValuesInVoiceRendering(false);
+	modChains[BasicChains::PitchChain].setAllowModificationOfVoiceValues(true);
 	
+	modChains[BasicChains::GainChain].setExpandToAudioRate(true);
+	modChains[BasicChains::PitchChain].setExpandToAudioRate(true);
+
 
 	setVoiceLimit(numVoices);
 
@@ -541,17 +544,14 @@ void ModulatorSynth::calculateModulationValuesForVoice(ModulatorSynthVoice * v, 
 {
 	auto index = v->getVoiceIndex();
 
-	
-
 	for (auto& mb : modChains)
+	{
 		mb.calculateModulationValuesForCurrentVoice(index, startSample, numThisTime);
-
+		if (mb.isAudioRateModulation())
+			mb.expandVoiceValuesToAudioRate(index, startSample, numThisTime);
+	}
+		
 	v->setUptimeDeltaValueForBlock();
-
-	
-
-	modChains[GainModulation - 1].expandVoiceValuesToAudioRate(index, startSample, numThisTime);
-	modChains[PitchModulation - 1].expandVoiceValuesToAudioRate(index, startSample, numThisTime);
 
 	v->applyConstantPitchFactor(getConstantPitchModValue());
 
@@ -559,12 +559,12 @@ void ModulatorSynth::calculateModulationValuesForVoice(ModulatorSynthVoice * v, 
 
 	if (v->isPitchFadeActive())
 	{
-		auto bufferToUse = modChains[PitchModulation - 1].getWritePointerForVoiceValues(0);
+		auto bufferToUse = modChains[BasicChains::PitchChain].getWritePointerForVoiceValues(0);
 		bool useScratchBuffer = false;
 
 		if (bufferToUse == nullptr)
 		{
-			bufferToUse = modChains[PitchModulation - 1].getScratchBuffer();
+			bufferToUse = modChains[BasicChains::PitchChain].getScratchBuffer();
 			FloatVectorOperations::fill(bufferToUse + startSample, 1.0f, numThisTime);
 			useScratchBufferForArtificialPitch = true;
 		}
@@ -586,8 +586,8 @@ void ModulatorSynth::clearPendingRemoveVoices()
 
 void ModulatorSynth::postVoiceRendering(int startSample, int numThisTime)
 {
-	modChains[GainModulation - 1].expandMonophonicValuesToAudioRate(startSample, numThisTime);
-	auto monoValues = modChains[GainModulation - 1].getMonophonicModulationValues(startSample);
+	modChains[BasicChains::GainChain].expandMonophonicValuesToAudioRate(startSample, numThisTime);
+	auto monoValues = modChains[BasicChains::GainChain].getMonophonicModulationValues(startSample);
 
 	if (monoValues != nullptr)
 	{
@@ -1266,6 +1266,44 @@ void ModulatorSynthVoice::checkRelease()
 int ModulatorSynthVoice::getVoiceIndex() const
 {
 	return voiceIndex;
+}
+
+void ModulatorSynthVoice::applyGainModulation(int startSample, int numSamples, bool copyLeftChannel)
+{
+	if (copyLeftChannel)
+	{
+		if (auto modValues = getOwnerSynth()->getVoiceGainValues())
+		{
+			FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startSample), modValues + startSample, numSamples);
+		}
+		else
+		{
+			const float gainMod = getOwnerSynth()->getConstantGainModValue();
+
+			if(gainMod != 1.0f)
+				FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startSample), modValues + startSample, numSamples);
+		}
+
+		FloatVectorOperations::copy(voiceBuffer.getWritePointer(1, startSample), voiceBuffer.getReadPointer(0, startSample), numSamples);
+	}
+	else
+	{
+		if (auto modValues = getOwnerSynth()->getVoiceGainValues())
+		{
+			FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startSample), modValues + startSample, numSamples);
+			FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startSample), modValues + startSample, numSamples);
+		}
+		else
+		{
+			const float gainMod = getOwnerSynth()->getConstantGainModValue();
+
+			if (gainMod != 1.0f)
+			{
+				FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startSample), gainMod, numSamples);
+				FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startSample), gainMod, numSamples);
+			}
+		}
+	}
 }
 
 void ModulatorSynthVoice::stopNote(float, bool)

@@ -463,30 +463,6 @@ public:
 
 	bool fmIsCorrectlySetup() const { return fmCorrectlySetup; };
 
-	const float* calculateDetuneModulationValuesForVoice(int voiceIndex, int startSample, int numSamples)
-	{
-		jassertfalse;
-		detuneChain->renderVoice(voiceIndex, startSample, numSamples);
-		float *detuneValues = detuneChain->getVoiceValues(voiceIndex);
-		const float* timeVariantDetuneValues = detuneBuffer.getReadPointer(0);
-
-		FloatVectorOperations::multiply(detuneValues + startSample, timeVariantDetuneValues + startSample, numSamples);
-
-		return detuneChain->getVoiceValues(voiceIndex) + startSample;
-	}
-
-	const float* calculateSpreadModulationValuesForVoice(int voiceIndex, int startSample, int numSamples)
-	{
-		jassertfalse;
-		spreadChain->renderVoice(voiceIndex, startSample, numSamples);
-		float *spreadValues = spreadChain->getVoiceValues(voiceIndex);
-		const float* timeVariantSpreadValues = spreadBuffer.getReadPointer(0);
-
-		FloatVectorOperations::multiply(spreadValues + startSample, timeVariantSpreadValues + startSample, numSamples);
-
-		return spreadChain->getVoiceValues(voiceIndex) + startSample;
-	}
-	
 private:
 
 	struct SynthVoiceAmount
