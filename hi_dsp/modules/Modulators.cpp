@@ -157,27 +157,6 @@ void Modulator::setColour(Colour c)
 	}
 };;;
 
-void TimeModulation::renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples)
-{
-	jassertfalse;
-	// #WILLKILL
-
-
-	// Save the values for later
-	const int startIndex = startSample;
-	const int samplesToCopy = numSamples;
-
-	calculateBlock(startSample, numSamples);
-
-	lastConstantValue = internalBuffer.getSample(0, 0);
-
-	
-
-	//pushPlotterValues(internalBuffer, startSample, numSamples);
-
-	applyTimeModulation(buffer.getWritePointer(0, 0), startIndex, samplesToCopy);
-}
-
 void TimeModulation::applyTimeModulation(float* destinationBuffer, int startIndex, int samplesToCopy)
 {
 	float *dest = destinationBuffer + startIndex;
@@ -450,16 +429,6 @@ void TimeModulation::applyIntensityForPitchValues(float* calculatedModulationVal
 	}
 
 	
-}
-
-void TimeModulation::initializeBuffer(AudioSampleBuffer &bufferToBeInitialized, int startSample, int numSamples)
-{
-	jassert(bufferToBeInitialized.getNumChannels() == 1);
-	jassert(bufferToBeInitialized.getNumSamples() >= startSample + numSamples);
-
-	float *writePointer = bufferToBeInitialized.getWritePointer(0, startSample);
-
-	FloatVectorOperations::fill(writePointer, 1.0f, numSamples);
 }
 
 #pragma warning( push )

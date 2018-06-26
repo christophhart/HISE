@@ -1470,34 +1470,6 @@ void JavascriptModulatorSynth::preStartVoice(int voiceIndex, int noteNumber)
 	scriptChain2->startVoice(voiceIndex);
 }
 
-void JavascriptModulatorSynth::preVoiceRendering(int startSample, int numThisTime)
-{
-	scriptChain1->renderNextBlock(scriptChain1Buffer, startSample, numThisTime);
-	scriptChain2->renderNextBlock(scriptChain2Buffer, startSample, numThisTime);
-
-	ModulatorSynth::preVoiceRendering(startSample, numThisTime);
-}
-
-void JavascriptModulatorSynth::calculateScriptChainValuesForVoice(int voiceIndex, int startSample, int numSamples)
-{
-	scriptChain1->renderVoice(voiceIndex, startSample, numSamples);
-	scriptChain2->renderVoice(voiceIndex, startSample, numSamples);
-
-	float *scriptChain1Values = scriptChain1->getVoiceValues(voiceIndex);
-	float *scriptChain2Values = scriptChain2->getVoiceValues(voiceIndex);
-
-	const float* timeVariantScriptChain1Values = scriptChain1Buffer.getReadPointer(0);
-	const float* timeVariantScriptChain2Values = scriptChain2Buffer.getReadPointer(0);
-
-	FloatVectorOperations::multiply(scriptChain1Values, timeVariantScriptChain1Values, startSample + numSamples);
-	FloatVectorOperations::multiply(scriptChain2Values, timeVariantScriptChain2Values, startSample + numSamples);
-}
-
-const float * JavascriptModulatorSynth::getScriptChainValues(int chainIndex, int voiceIndex) const
-{
-	return chainIndex == 0 ? scriptChain1->getVoiceValues(voiceIndex) : scriptChain2->getVoiceValues(voiceIndex);
-}
-
 float JavascriptModulatorSynth::getAttribute(int parameterIndex) const
 {
 	if (parameterIndex < ModulatorSynth::numModulatorSynthParameters) return ModulatorSynth::getAttribute(parameterIndex);

@@ -983,7 +983,7 @@ float* ModulatorSampler::calculateCrossfadeModulationValuesForVoice(int voiceInd
 		if (fabsf(firstValue - lastValue) < 0.001f)
 		{
 			currentCrossfadeValue = getCrossfadeValue(groupIndex, firstValue);
-			modChains[Chains::XFade].setLastExpandedValue(voiceIndex, currentCrossfadeValue);
+			modChains[Chains::XFade].setCurrentRampValueForVoice(voiceIndex, currentCrossfadeValue);
 			return nullptr;
 		}
 		else
@@ -1009,7 +1009,7 @@ float* ModulatorSampler::calculateCrossfadeModulationValuesForVoice(int voiceInd
 			{
 				float modValue = modChains[Chains::XFade].getConstantModulationValue();
 				currentCrossfadeValue = getCrossfadeValue(groupIndex, modValue);
-				modChains[Chains::XFade].setLastExpandedValue(voiceIndex, currentCrossfadeValue);
+				modChains[Chains::XFade].setCurrentRampValueForVoice(voiceIndex, currentCrossfadeValue);
 				return return_ptr;
 			}
 		}
@@ -1018,7 +1018,7 @@ float* ModulatorSampler::calculateCrossfadeModulationValuesForVoice(int voiceInd
 	{
 		float modValue = modChains[Chains::XFade].getConstantModulationValue();
 		currentCrossfadeValue = getCrossfadeValue(groupIndex, modValue);
-		modChains[Chains::XFade].setLastExpandedValue(voiceIndex, currentCrossfadeValue);
+		modChains[Chains::XFade].setCurrentRampValueForVoice(voiceIndex, currentCrossfadeValue);
 		return nullptr;
 	}
 

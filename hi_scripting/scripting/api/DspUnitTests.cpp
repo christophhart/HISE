@@ -404,7 +404,7 @@ private:
 
 		int numSamples = totalLength;
 
-		ModulatorChain::Buffer b;
+		ModulatorChain::ModChainWithBuffer::Buffer b;
 		b.setMaxSize(totalLength);
 
 		auto data = b.scratchBuffer;
@@ -502,10 +502,10 @@ private:
 
 			int totalLength = averageBlockSize * numBlocks;
 
-			ModulatorChain::Buffer totalData;
+			ModulatorChain::ModChainWithBuffer::Buffer totalData;
 			totalData.setMaxSize(totalLength);
 
-			ModulatorChain::Buffer blockData;
+			ModulatorChain::ModChainWithBuffer::Buffer blockData;
 			blockData.setMaxSize(averageBlockSize);
 
 			auto data = blockData.scratchBuffer;

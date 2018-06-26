@@ -499,8 +499,6 @@ public:
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 	void preHiseEventCallback(const HiseEvent &m) override;
 	void preStartVoice(int voiceIndex, int noteNumber) override;;
-	void preVoiceRendering(int startSample, int numThisTime);;
-
 	float getAttribute(int parameterIndex) const override;;
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
 
@@ -516,9 +514,6 @@ public:
 	void postCompileCallback() override;
 
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
-
-	void calculateScriptChainValuesForVoice(int voiceIndex, int startSample, int numSamples);
-	const float *getScriptChainValues(int chainIndex, int voiceIndex) const;
 
 private:
 

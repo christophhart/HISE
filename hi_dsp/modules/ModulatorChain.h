@@ -68,58 +68,37 @@ class ModulatorChain: public Chain,
 {
 public:
 
-	class Buffer
-	{
-	public:
-
-		void setMaxSize(int maxSamplesPerBlock_)
-		{
-			int requiredSize = (dsp::SIMDRegister<float>::SIMDRegisterSize + maxSamplesPerBlock_) * 3;
-
-			if (requiredSize > allocated)
-			{
-				maxSamplesPerBlock = maxSamplesPerBlock_;
-				data.realloc(requiredSize, sizeof(float));
-				data.clear(requiredSize);
-			}
-
-			updatePointers();
-		}
-
-		// this array contains the actual modulation values that can be used by external processors;
-		float* voiceValues = nullptr;
-
-		// this array contains the monophonic modulation values that will be applied to each voice
-		float* monoValues = nullptr;
-
-		// this array contains the current voice's modulation values
-		float* scratchBuffer = nullptr;
-
-		void clear()
-		{
-			voiceValues = nullptr;
-			monoValues = nullptr;
-			scratchBuffer = nullptr;
-			data.free();
-		}
-
-	private:
-
-		void updatePointers()
-		{
-			voiceValues = dsp::SIMDRegister<float>::getNextSIMDAlignedPtr(data);
-			monoValues = dsp::SIMDRegister<float>::getNextSIMDAlignedPtr(voiceValues + maxSamplesPerBlock);
-			scratchBuffer = dsp::SIMDRegister<float>::getNextSIMDAlignedPtr(monoValues + maxSamplesPerBlock);
-		}
-		
-		HeapBlock<float> data;
-		int allocated = 0;
-		int maxSamplesPerBlock = 0;
-	};
-
 	class ModChainWithBuffer
 	{
 	public:
+		class Buffer
+		{
+		public:
+
+			Buffer() {};
+
+			void setMaxSize(int maxSamplesPerBlock_);
+
+			// this array contains the actual modulation values that can be used by external processors;
+			float* voiceValues = nullptr;
+
+			// this array contains the monophonic modulation values that will be applied to each voice
+			float* monoValues = nullptr;
+
+			// this array contains the current voice's modulation values
+			float* scratchBuffer = nullptr;
+
+			void clear();
+
+		private:
+
+			void updatePointers();
+
+			HeapBlock<float> data;
+			int allocated = 0;
+			int maxSamplesPerBlock = 0;
+		};
+
 		enum class Type
 		{
 			Normal,
@@ -127,137 +106,132 @@ public:
 			numTypes
 		};
 
-		using List = std::initializer_list<ModChainWithBuffer>;
+		ModChainWithBuffer(Processor* parent, const String& id, Type t=Type::Normal, Mode m = Mode::GainMode);;
 
-		ModChainWithBuffer(Processor* parent, const String& id, Type t=Type::Normal, Mode m = Mode::GainMode) :
-			c(new ModulatorChain(parent->getMainController(),
-				id,
-				parent->getVoiceAmount(),
-				m,
-				parent)),
-			b(1, 0)
-		{
-			FloatVectorOperations::fill(currentConstantVoiceValues, 1.0f, NUM_POLYPHONIC_VOICES);
-			FloatVectorOperations::fill(lastExpandedValues, 1.0f, NUM_POLYPHONIC_VOICES);
+		~ModChainWithBuffer();
 
-			debugMode = c->getMode();
+		/** Sets up the modulator chain and the buffer if it's not a voice start only chain. */
+		void prepareToPlay(double sampleRate, int samplesPerBlock);
 
-			if (t == Type::VoiceStartOnly)
-				c->setIsVoiceStartChain(true);
-		};
-
-		~ModChainWithBuffer()
-		{
-			c = nullptr;
-		}
-
-		void prepareToPlay(double sampleRate, int samplesPerBlock)
-		{
-			c->prepareToPlay(sampleRate, samplesPerBlock);
-
-			ProcessorHelpers::increaseBufferIfNeeded(b, samplesPerBlock);
-		}
-
-		AudioSampleBuffer b;
+		/** Returns the modulator chain. Try to avoid this method when possible. */
 		ModulatorChain* getChain() noexcept { return c.get(); };
 
-		void handleHiseEvent(const HiseEvent& m)
-		{
-			if (c->shouldBeProcessedAtAll())
-				c->handleHiseEvent(m);
-		}
+		/** Calls the chain method. Use this instead the direct call. */
+		void resetVoice(int voiceIndex);
 
-		void reset(int voiceIndex)
-		{
-			if (c->hasActiveEnvelopesAtAll())
-			{
-				c->reset(voiceIndex);
-				lastExpandedValues[voiceIndex] = 0.0f;
-			}
-		}
+		/** Calls the chain method. Use this instead the direct call. */
+		void stopVoice(int voiceIndex);
 
-		void stopVoice(int voiceIndex)
-		{
-			if (c->hasVoiceModulators())
-				c->stopVoice(voiceIndex);
-		}
+		/** Calls the chain method. Use this instead the direct call. */
+		void startVoice(int voiceIndex);
 
-		void startVoice(int voiceIndex)
-		{
-			float firstDynamicValue = 1.0f;
+		/** Calls the chain method. Use this instead the direct call. */
+		void handleHiseEvent(const HiseEvent& m);
 
-			if (includeMonophonicValues && c->hasMonophonicTimeModulationMods())
-			{
-				firstDynamicValue *= *getMonophonicModulationValues(0);
-			}
-
-			
-
-			if (c->hasVoiceModulators())
-			{
-				firstDynamicValue *= c->startVoice(voiceIndex);
-			}
-			else
-			{
-				firstDynamicValue = 0.0f;
-			}
-
-			setConstantVoiceValueInternal(voiceIndex, c->getConstantVoiceValue(voiceIndex));
-
-			lastExpandedValues[voiceIndex] = firstDynamicValue;
-
-			
-		}
-
+		/** Call this to calculate the monophonic values. 
+		*
+		*	Normally you don't need to use this method, as the synth / effect will take care of that
+		*/
 		void calculateMonophonicModulationValues(int startSample, int numSamples);
-		
+
+		/** Call this to calculate the monophonic values.
+		*
+		*	Normally you don't need to use this method, as the synth / effect will take care of that.
+		*
+		*	The startSample / numSample arguments passed in here are supposed to be at audio rate and will
+		*	be converted to control rate internally.
+		*
+		*	Make sure you've expanded the values before using them.
+		*/
 		void calculateModulationValuesForCurrentVoice(int voiceIndex, int startSample, int numSamples);
 
+		/** This multiplies the modulation values with the given AudioSampleBuffer. 
+		*
+		*	Make sure you've expanded the values before using this.
+		*/
 		void applyMonophonicModulationValues(AudioSampleBuffer& b, int startSample, int numSamples);
 
-		const float* getReadPointerForVoiceValues(int startSample) const;
-
+		/** Returns a read pointer to the monophonic modulation values or nullptr, if there is no active monophonic modulation.
+		*
+		*	You can only call this method if you didn't use them already in the voice modulation.
+		*/
 		const float* getMonophonicModulationValues(int startSample) const;
 
+		/** Returns a read pointer to the current voice modulation value.
+		*
+		*	If the voice modulation is constant for the current sub-block, or there are no polyphonic modulators,
+		*	it will return nullptr. In this case, use getConstantModulationValue() and adapt your processing logic accordingly.
+		*
+		*/
+		const float* getReadPointerForVoiceValues(int startSample) const;
+
+		/** Returns a read pointer to the current voice modulation value.
+		*
+		*	If the voice modulation is constant for the current sub-block, or there are no polyphonic modulators,
+		*	it will return nullptr. In this case, use getConstantModulationValue() and adapt your processing logic accordingly.
+		*
+		*	The data can be overwritten, which is required if you need to further process these values, but if you don't need this,
+		*	use the getReadPointerForVoiceValue() method.
+		*/
 		float* getWritePointerForVoiceValues(int startSample);
 
+		/** Returns the constant modulation value for the current sub block. 
+		*
+		*	Even if the dynamic data is quasi-constant, it will detect it and set this value to the current dynamic value.
+		*/
 		float getConstantModulationValue() const;
 
 		/** Returns the first value in the modulation data or the constant value. */
 		float getOneModulationValue(int startSample) const;
 
+		/** Returns the scratch buffer. The scratch buffer is a aligned float array that's most likely in the cache,
+		*   but using this is rather hacky, so don't use it if there's another option. 
+		*/
 		float* getScratchBuffer();
 
-		/** Setting this to true will allow write access to the current modulation values..
+		/** Setting this to true will allow write access to the current modulation values. Default is read-only.
 		*
 		*	It comes with a tiny overhead because the monophonic values have to be copied to the voice buffer so it's disabled by default.
+		*	If you intend to call getWritePointerForVoiceValues(), you need to set this to true before. */
+		void setAllowModificationOfVoiceValues(bool mightBeOverwritten);
+
+		/** This makes the voice modulation include the monophonic data. Default is enabled.
+		*
+		*	In most cases, you want the monophonic modulation to be part of the voice modulation.
 		*/
-		void setAllowModificationOfVoiceValues(bool mightBeOverwritten)
-		{
-			voiceValuesReadOnly = !mightBeOverwritten;
-		}
+		void setIncludeMonophonicValuesInVoiceRendering(bool shouldInclude);
 
-		void setIncludeMonophonicValuesInVoiceRendering(bool shouldInclude)
-		{
-			includeMonophonicValues = shouldInclude;
-		}
-
-		
+		/** This automatically expands the control rate values to audio rate after calculation. Default is disabled.
+		*
+		*	If you intend to use the modulation values at audio rate, you need to enable this or manually call the expandXXX() methods.
+		*	If you just want one modulation value or do custom processing before expanding, leave this at false.
+		*/
+		void setExpandToAudioRate(bool shouldExpandAfterRendering);
 
 		void expandVoiceValuesToAudioRate(int voiceIndex, int startSample, int numSamples);
 
 		void expandMonophonicValuesToAudioRate(int startSample, int numSamples);
 
-		void setLastExpandedValue(int voiceIndex, float value) noexcept
-		{
-			if(voiceIndex >= 0 && voiceIndex < NUM_POLYPHONIC_VOICES)
-				lastExpandedValues[voiceIndex] = value;
-		}
+		/** If you're doing the expansion manually, you can update the current ramp value with this method. */
+		void setCurrentRampValueForVoice(int voiceIndex, float value) noexcept;
 
-		
+		bool isAudioRateModulation() const noexcept { return options.expandToAudioRate; }
+
+		struct Options
+		{
+			bool expandToAudioRate = false;
+			bool includeMonophonicValues = true;
+			bool voiceValuesReadOnly = true;
+		};
+
 	private:
 
-		Modulation::Mode debugMode;
+		Type type;
+
+		Buffer modBuffer;
+
+		bool monoExpandChecker = false;
+		bool polyExpandChecker = false;
 
 		void setConstantVoiceValueInternal(int voiceIndex, float newValue)
 		{
@@ -266,42 +240,22 @@ public:
 			currentConstantValue = newValue;
 		}
 
-		float constantRepresentationOfDynamicBuffer = 1.0f;
-
-		bool includeMonophonicValues = true;
-		bool voiceValuesReadOnly = true;
+		Options options;
 		
 		float currentConstantValue = 1.0f;
 
 		float lastConstantVoiceValue = 1.0f;
 		float currentConstantVoiceValues[NUM_POLYPHONIC_VOICES];
-		float lastExpandedValues[NUM_POLYPHONIC_VOICES];
+		float currentRampValues[NUM_POLYPHONIC_VOICES];
 		
-		float lastExpandedMonophonicValue = 0.0f;
-		
-
+		float currentMonophonicRampValue = 0.0f;
 		float const* currentVoiceData = nullptr;
-
 
 		ScopedPointer<ModulatorChain> c;
 
 		friend class FixedAlignedHeapArray<ModChainWithBuffer>;
 
-		ModChainWithBuffer(const ModChainWithBuffer& other)
-		{
-			// Not the nicest way, but we now that it's only called once from the 
-			// FixedArray constructor
-			auto mutableOther = const_cast<ModChainWithBuffer*>(&other);
-
-			c.swapWith(mutableOther->c);
-			b = std::move(mutableOther->b);
-			includeMonophonicValues = other.includeMonophonicValues;
-			voiceValuesReadOnly = other.voiceValuesReadOnly;
-			debugMode = other.debugMode;
-			FloatVectorOperations::fill(currentConstantVoiceValues, 1.0f, NUM_POLYPHONIC_VOICES);
-			FloatVectorOperations::fill(lastExpandedValues, 1.0f, NUM_POLYPHONIC_VOICES);
-		}
-
+		ModChainWithBuffer(const ModChainWithBuffer& other);
 		ModChainWithBuffer& operator=(const ModChainWithBuffer& other) = delete;
 
 		JUCE_LEAK_DETECTOR(ModChainWithBuffer);
@@ -309,61 +263,7 @@ public:
 
 	using ModulationType = ModChainWithBuffer::Type;
 	using Collection = FixedAlignedHeapArray<ModChainWithBuffer>;
-	using ItemList = std::initializer_list<ModChainWithBuffer>;
-
-	template <class ModulatorSubType> struct Iterator
-	{
-		Iterator(const ModulatorChain* modChain):
-			chain(modChain)
-		{
-			ModulatorSubType* dummy = nullptr;
-
-			init(dummy);
-		}
-
-		ModulatorSubType* next()
-		{
-			return (start != ende) ? *start++ : nullptr;
-		}
-
-	private:
-
-		void init(VoiceStartModulator* v)
-		{
-			start = static_cast<ModulatorSubType**>(chain->handler.activeVoiceStartList.begin());
-			ende = static_cast<ModulatorSubType**>(chain->handler.activeVoiceStartList.end());
-		}
-
-		void init(TimeVariantModulator* v)
-		{
-			start = static_cast<ModulatorSubType**>(chain->handler.activeTimeVariantsList.begin());
-			ende = static_cast<ModulatorSubType**>(chain->handler.activeTimeVariantsList.end());
-		}
-
-		void init(EnvelopeModulator* m)
-		{
-			start = static_cast<ModulatorSubType**>(chain->handler.activeEnvelopesList.begin());
-			ende = static_cast<ModulatorSubType**>(chain->handler.activeEnvelopesList.end());
-		}
-
-		void init(MonophonicEnvelope* m)
-		{
-			start = static_cast<ModulatorSubType**>(chain->handler.activeMonophonicEnvelopesList.begin());
-			ende = static_cast<ModulatorSubType**>(chain->handler.activeMonophonicEnvelopesList.end());
-		}
-
-		void init(Modulator* a)
-		{
-			start = static_cast<ModulatorSubType**>(chain->handler.activeAllList.begin());
-			ende = static_cast<ModulatorSubType**>(chain->handler.activeAllList.end());
-		}
-
-		const ModulatorChain* chain;
-
-		ModulatorSubType ** start;
-		ModulatorSubType ** ende;
-	};
-
+	
 	SET_PROCESSOR_NAME("ModulatorChain", "Modulator Chain")
 
 	class ModulatorChainHandler;
@@ -374,7 +274,7 @@ public:
 	~ModulatorChain();;
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
-
+	
 	/** Returns the handler that is used to add / delete Modulators in the chain. Use this if you want to change the modulator. */
 	Chain::Handler *getHandler() override;
 
@@ -403,7 +303,6 @@ public:
 
 	/** Sets the sample rate for all modulators in the chain and initialized the UpdateMerger. */
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
-	
 	
 	bool hasActivePolyMods() const noexcept;
 	bool hasActiveVoiceStartMods() const noexcept;
@@ -457,8 +356,6 @@ public:
 	/** Calls the start voice function for all voice start modulators and envelope modulators and sends a display message. */
 	float startVoice(int voiceIndex) override;;
 
-	
-
 	/** Calls the stopVoice function for all envelope modulators. */
 	void stopVoice(int voiceIndex) override;
 
@@ -466,27 +363,10 @@ public:
 
 	float getAttribute(int) const override { jassertfalse; return -1.0; }; // nothing to do here!
 
-	
-
 	ModulatorState *createSubclassedState(int) const override { jassertfalse; return nullptr; }; // a chain itself has no states!
-
-	/** Call this function if you want to process each sample at one time. This is useful for internal ModulatorChains.
-	*
-	*	You have to set the voiceIndex with polyMangager.setCurrentVoice() and clear it afterwards!
-	*/
-	float calculateNewValue();
 
 	/** If you want the chain to only process voice start modulators, set this to true. */
 	void setIsVoiceStartChain(bool isVoiceStartChain_);
-
-//private: // THESE METHODS SHOULD NOT BE CALLED DIRECTLY BUT THROUGH THE MORE VERBOSE NON-VIRTUAL METHODS
-
-	/** This renders all modulators as they were monophonic. This is useful for ModulatorChains that are not interested in polyphony (eg internal chains of non-polyphonic Modulators, but want to process polyphonic modulators.
-	*
-	*	The best thing is to use this method after / or before all voices are rendered.
-	*/
-	void renderAllModulatorsAsMonophonic(AudioSampleBuffer &buffer, int startSample, int numSamples);
-
 
 	/** This overrides the TimeVariant::renderNextBlock method and only calculates the TimeVariant modulators.
 	*
@@ -494,31 +374,7 @@ public:
 	*
 	*	@param buffer the buffer that will be filled with the values of the timevariant modulation result.
 	*/
-	void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples);
-
 	void newRenderMonophonicValues(int startSample, int numSamples);
-
-	/** Iterates all VoiceStartModulators and EnvelopeModulators and stores their values in the internal voice buffer.
-	*
-	*	You can use getVoiceValues() to retrieve these values at a later time.
-	*/
-	void renderVoice(int voiceIndex, int startSample, int numSamples);
-
-	/** Returns a read pointer to the calculated voice values. The array size is supposed to be the size of the internal buffer. */
-	float *getVoiceValues(int voiceIndex) noexcept
-	{
-		jassertfalse;
-		// #WILLKILL
-		return nullptr;
-	};
-
-	/** Returns a write pointer to the calculated voice values. You can change them and the array size should be known. */
-	const float *getVoiceValues(int voiceIndex) const noexcept
-	{
-		jassertfalse;
-		// #WILLKILL
-		return nullptr;
-	}
 
 	/** Does nothing (the complete renderNextBlock method is overwritten. */
 	void calculateBlock(int /*startSample*/, int /*numSamples*/) override
@@ -529,7 +385,6 @@ public:
 	float getConstantVoiceValue(int voiceIndex) const;
 
 public:
-
 
 	void setTableValueConverter(const Table::ValueTextConverter& converter)
 	{
@@ -634,8 +489,6 @@ public:
 		bool anyActive = false;
 
 		ModulatorChain *chain;
-
-		
 	};
 
 private:
@@ -669,11 +522,7 @@ private:
 
 	float voiceOutputValue;
 
-	Buffer newFunkyBuffer;
-
-
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModulatorChain)
-
 };
 
 /**	Allows creation of TimeVariantModulators.

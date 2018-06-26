@@ -311,17 +311,6 @@ public:
     
     virtual ~TimeModulation() {};
 
-	/** This renders the next chunk of samples. It repeatedly calls calculateNewValue() until the buffer is filled.
-	*
-	*	
-	*
-	*	@param buffer the AudioSampleBuffer that the function operates on.
-	*	@param startSample the start index within the buffer. If you need to change only a part of the buffer
-	*					   (eg. if a voice starts in the middle), use this parameter
-	*	@param numSamples the amount of samples that are processed (numSamples = buffersize - startSample)
-	*
-	*/
-	void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples);
 
 	/** This calculates the time modulated values and stores them in the internal buffer. 
 	*/
@@ -347,7 +336,7 @@ protected:
 
 	TimeModulation(Modulation::Mode m):
 		Modulation(m),
-		internalBuffer(1, 0)
+		internalBuffer(0, 0)
 	{};
 
 	/** Creates the internal buffer with double the size of the expected buffer block size.
@@ -388,8 +377,19 @@ protected:
 
 	void applyIntensityForPitchValues(float* calculatedModulationValues, float fixedIntensity, const float* intensityValues, int numValuse) const;
 
+#if 0
 	// Prepares the buffer for the processing. The buffer is cleared and filled with 1.0.
-	static void initializeBuffer(AudioSampleBuffer &bufferToBeInitialized, int startSample, int numSamples);;
+
+	static void initializeBuffer(AudioSampleBuffer &bufferToBeInitialized, int startSample, int numSamples);
+	{
+		jassert(bufferToBeInitialized.getNumChannels() == 1);
+		jassert(bufferToBeInitialized.getNumSamples() >= startSample + numSamples);
+
+		float *writePointer = bufferToBeInitialized.getWritePointer(0, startSample);
+
+		FloatVectorOperations::fill(writePointer, 1.0f, numSamples);
+	}
+#endif
 
 	AudioSampleBuffer internalBuffer;
 
