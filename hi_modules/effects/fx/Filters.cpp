@@ -475,8 +475,6 @@ void PolyFilterEffect::renderNextBlock(AudioSampleBuffer &b, int startSample, in
 	if (hasPolyMods() || !blockIsActive)
 		return;
 
-	const bool muteNextBlock = numActiveVoices == 0;
-	
 	while (numSamples > 0)
 	{
 		bool calculateNew;
@@ -503,8 +501,13 @@ void PolyFilterEffect::renderNextBlock(AudioSampleBuffer &b, int startSample, in
 		startSample += subBlockSize;
 	}
 
-	if (muteNextBlock)
+	polyWatchdog--;
+
+	if (polyWatchdog <= 0)
+	{
+		polyWatchdog = 0;
 		blockIsActive = false;
+	}
 }
 
 ProcessorEditorBody *PolyFilterEffect::createEditor(ProcessorEditor *parentEditor)
@@ -559,7 +562,10 @@ bool PolyFilterEffect::hasPolyMods() const noexcept
 void PolyFilterEffect::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples)
 {
 	if (!hasPolyMods())
+	{
+		polyWatchdog = 32;
 		return;
+	}
 
 	FilterHelpers::RenderData r(b, startSample, numSamples);
 	r.voiceIndex = voiceIndex;
@@ -580,16 +586,14 @@ void PolyFilterEffect::startVoice(int voiceIndex, int noteNumber)
 
 	voiceFilters.reset(voiceIndex);
 
-	if (!polyMode && numActiveVoices == 0)
+	if (!polyMode && !blockIsActive)
+	{
+		
 		monoFilters.reset();
+		polyWatchdog = 32;
+	}
 	
 	blockIsActive = true;
-	numActiveVoices++;
-}
-
-void PolyFilterEffect::reset(int voiceIndex)
-{
-	numActiveVoices = jmax<int>(0, numActiveVoices - 1);
 }
 
 void StaticBiquadSubType::updateCoefficients(double sampleRate, double frequency, double q, double gain)

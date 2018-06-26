@@ -187,20 +187,20 @@ public:
 	void applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) override;
 	/** Resets the filter state if a new voice is started. */
 	void startVoice(int voiceIndex, int noteNumber) override;
-	void reset(int voiceIndex) override;
-
 	bool hasTail() const override { return true; };
 	
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	IIRCoefficients getCurrentCoefficients() const override;;
 
+	bool hasPolyMods() const noexcept;
+
 private:
 
-	int numActiveVoices = 0;
+	
 
 	bool blockIsActive = false;
-
+	int polyWatchdog = 0;
 
 
 	BlockDivider<64> monoDivider;
@@ -212,7 +212,7 @@ private:
 	float q;
 	float gain;
 
-	bool hasPolyMods() const noexcept;
+	
 
 	bool changeFlag;
 

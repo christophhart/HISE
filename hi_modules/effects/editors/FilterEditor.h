@@ -78,33 +78,9 @@ public:
 		}
 	};
 
-	void timerCallback() override
-	{
-		IIRCoefficients c = dynamic_cast<FilterEffect*>(getProcessor())->getCurrentCoefficients();
+	void timerCallback() override;
 
-#if 0
-		for(int i = 0; i < 5; i++)
-		{
-
-			if(c.coefficients[i] == 0.0) // Replace with safe check function!
-			{
-				
-				return;
-			}
-		}
-#endif
-
-		if(!sameCoefficients(c, currentCoefficients))
-		{
-			currentCoefficients = c;
-
-			filterGraph->setCoefficients(0, getProcessor()->getSampleRate(), dynamic_cast<FilterEffect*>(getProcessor())->getCurrentCoefficients());
-		}
-
-		freqSlider->setDisplayValue(getProcessor()->getChildProcessor(MonoFilterEffect::FrequencyChain)->getOutputValue());
-		bipolarFreqSlider->setDisplayValue(getProcessor()->getChildProcessor(MonoFilterEffect::BipolarFrequencyChain)->getOutputValue());
-
-	}
+	void updateNameLabel(bool forceUpdate=false);
 
 	bool sameCoefficients(IIRCoefficients c1, IIRCoefficients c2)
 	{
@@ -136,6 +112,8 @@ private:
     //[UserVariables]   -- You can add your own custom variables in this section.
 
 	int h;
+
+	bool isPoly = true;
 
 	IIRCoefficients currentCoefficients;
 
