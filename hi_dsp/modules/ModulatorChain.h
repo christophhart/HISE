@@ -244,6 +244,8 @@ public:
 
 	private:
 
+		void setDisplayValueInternal(int voiceIndex, int startSample, int numSamples);
+
 		Type type;
 
 		Buffer modBuffer;
@@ -264,6 +266,7 @@ public:
 		
 		float currentConstantValue = 1.0f;
 
+		float currentMonoValue = 1.0f;
 		float lastConstantVoiceValue = 1.0f;
 		float currentConstantVoiceValues[NUM_POLYPHONIC_VOICES];
 		float currentRampValues[NUM_POLYPHONIC_VOICES];
@@ -382,6 +385,8 @@ public:
 	void setInternalAttribute(int, float) override { jassertfalse; }; // nothing to do here!
 
 	float getAttribute(int) const override { jassertfalse; return -1.0; }; // nothing to do here!
+
+	float getCurrentMonophonicStartValue() const noexcept { return monophonicStartValue; }
 
 	ModulatorState *createSubclassedState(int) const override { jassertfalse; return nullptr; }; // a chain itself has no states!
 
@@ -537,6 +542,7 @@ private:
 	Identifier chainIdentifier;
 
 	float lastVoiceValues[NUM_POLYPHONIC_VOICES];
+	float monophonicStartValue = 1.0f;
 
 	bool isVoiceStartChain;
 

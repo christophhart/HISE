@@ -179,6 +179,25 @@ void ModulatorChain::ModChainWithBuffer::Buffer::updatePointers()
 	scratchBuffer = dsp::SIMDRegister<float>::getNextSIMDAlignedPtr(monoValues + maxSamplesPerBlock);
 }
 
+void ModulatorChain::ModChainWithBuffer::setDisplayValueInternal(int voiceIndex, int startSample, int numSamples)
+{
+	if (c->polyManager.getLastStartedVoice() == voiceIndex)
+	{
+		float displayValue;
+
+		if (currentVoiceData == nullptr)
+			displayValue = getConstantModulationValue();
+		else
+			displayValue = currentVoiceData[startSample];
+
+
+		c->setOutputValue(displayValue);
+
+		if(currentVoiceData != nullptr)
+			c->pushPlotterValues(currentVoiceData, startSample, numSamples);
+	}
+}
+
 ModulatorChain::ModChainWithBuffer::ModChainWithBuffer(Processor* parent, const String& id, Type t/*=Type::Normal*/, Mode m /*= Mode::GainMode*/) :
 	c(new ModulatorChain(parent->getMainController(),
 		id,
@@ -254,20 +273,19 @@ void ModulatorChain::ModChainWithBuffer::startVoice(int voiceIndex)
 
 	if (options.includeMonophonicValues && c->hasMonophonicTimeModulationMods())
 	{
-		// Just use any of those values, it shouldn't make a huge difference
-		firstDynamicValue *= *modBuffer.monoValues;
+		firstDynamicValue *= currentMonophonicRampValue;
 	}
 
 	if (c->hasVoiceModulators())
 	{
 		firstDynamicValue *= c->startVoice(voiceIndex);
 	}
-	else
-	{
-		firstDynamicValue = 0.0f;
-	}
+	
+	firstDynamicValue *= c->getCurrentMonophonicStartValue();
 
 	setConstantVoiceValueInternal(voiceIndex, c->getConstantVoiceValue(voiceIndex));
+
+	
 
 	currentRampValues[voiceIndex] = firstDynamicValue;
 
@@ -353,6 +371,8 @@ void ModulatorChain::ModChainWithBuffer::calculateMonophonicModulationValues(int
 			mod->render(0, modBuffer.monoValues, modBuffer.scratchBuffer, startSample_cr, numSamples_cr);
 		}
 
+		currentMonoValue = modBuffer.monoValues[startSample_cr];
+
 		monoExpandChecker = false;
 	}
 }
@@ -362,6 +382,8 @@ void ModulatorChain::ModChainWithBuffer::calculateMonophonicModulationValues(int
 void ModulatorChain::ModChainWithBuffer::calculateModulationValuesForCurrentVoice(int voiceIndex, int startSample, int numSamples)
 {
 	jassert(voiceIndex >= 0);
+
+	c->polyManager.setCurrentVoice(voiceIndex);
 
 	const bool useMonophonicData = options.includeMonophonicValues && c->hasMonophonicTimeModulationMods();
 
@@ -418,6 +440,7 @@ void ModulatorChain::ModChainWithBuffer::calculateModulationValuesForCurrentVoic
 				FloatVectorOperations::multiply(voiceData + startSample_cr, monoData + startSample_cr, numSamples_cr);
 
 			currentVoiceData = voiceData;
+			
 
 #if JUCE_DEBUG
 			polyExpandChecker = false;
@@ -460,6 +483,10 @@ void ModulatorChain::ModChainWithBuffer::calculateModulationValuesForCurrentVoic
 
 		setConstantVoiceValueInternal(voiceIndex, 1.0f);
 	}
+
+	setDisplayValueInternal(voiceIndex, startSample_cr, numSamples_cr);
+
+	c->polyManager.clearCurrentVoice();
 }
 
 void ModulatorChain::ModChainWithBuffer::applyMonophonicModulationValues(AudioSampleBuffer& b, int startSample, int numSamples)
@@ -740,6 +767,8 @@ float ModulatorChain::startVoice(int voiceIndex)
 
 	setOutputValue(startValue);
 
+	monophonicStartValue = 1.0f;
+
 	if (getMode() == GainMode)
 	{
 		float envelopeStartValue = startValue;
@@ -759,8 +788,11 @@ float ModulatorChain::startVoice(int voiceIndex)
 		while (auto mod = iter3.next())
 		{
 			// Don't use the start value for monophonic envelopes...
-			mod->startVoice(voiceIndex);
-			
+			const auto modValue = mod->startVoice(voiceIndex);
+			const auto intensityModValue = mod->calcGainIntensityValue(modValue);
+
+			monophonicStartValue *= intensityModValue;
+
 			mod->polyManager.setLastStartedVoice(voiceIndex);
 		}
 
@@ -795,7 +827,7 @@ float ModulatorChain::startVoice(int voiceIndex)
 				modValue = 2.0f * modValue - 1.0f;
 
 			const float intensityModValue = mod->calcPitchIntensityValue(modValue);
-			envelopeStartValue += intensityModValue;
+			monophonicStartValue += intensityModValue;
 
 			mod->polyManager.setLastStartedVoice(voiceIndex);
 		}
@@ -1032,6 +1064,8 @@ void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator
 				auto modulation = dynamic_cast<Modulation*>(mod.get());
 				auto intensity = modulation->getIntensity();
 
+				auto modValue = modulation->calcIntensityValue(input);
+
 				if (isPitch)
 				{
 					float normalizedInput;
@@ -1041,10 +1075,12 @@ void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator
 					else
 						normalizedInput = (input) * intensity;
 
-					return String(normalizedInput * 12.0f, 1) + " st";
+					return cf(normalizedInput);
 				}
 				else
 				{
+					
+
 					auto v = jmap<float>(input, 1.0f - intensity, 1.0f);
 					return cf(v);
 				}

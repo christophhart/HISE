@@ -193,15 +193,6 @@ void ControlModulator::calculateBlock(int startSample, int numSamples)
 
 	if (smoothThisBlock)
 	{
-		if (--numSamples >= 0)
-		{
-			currentValue = smoother.smooth(targetValue);
-
-			internalBuffer.setSample(0, startSample, currentValue);
-			++startSample;
-
-		}
-
 		while (--numSamples >= 0)
 		{
 			currentValue = smoother.smooth(targetValue);
@@ -220,8 +211,6 @@ void ControlModulator::calculateBlock(int startSample, int numSamples)
         lastInputValue = inputValue;
         sendTableIndexChangeMessage(false, table, inputValue);
     }
-
-	setOutputValue(currentValue);
 }
 
 float ControlModulator::calculateNewValue()

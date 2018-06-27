@@ -367,20 +367,16 @@ void AhdsrEnvelope::calculateBlock(int startSample, int numSamples)
 	}
 
 #if ENABLE_ALL_PEAK_METERS
-
 	const bool isActiveVoice = polyManager.getCurrentVoice() == polyManager.getLastStartedVoice();
 
 	if (isMonophonic || isActiveVoice)
 	{
-		setOutputValue(internalBuffer.getSample(0, startSample - 1));
-
 		if (state->current_state != stateInfo.state)
 		{
 			stateInfo.state = state->current_state;
 			stateInfo.changeTime = getMainController()->getUptime();
 		}
 	}
-
 #endif
 }
 

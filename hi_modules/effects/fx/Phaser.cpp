@@ -173,7 +173,6 @@ void PhaseFX::applyEffect(AudioSampleBuffer &buffer, int startSample, int numSam
 
 			l++;
 			r++;
-			modValues++;
 		}
 	}
 }

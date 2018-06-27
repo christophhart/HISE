@@ -459,46 +459,11 @@ void LfoModulator::calculateBlock(int startSample, int numSamples)
 
 	auto* data = internalBuffer.getWritePointer(0, startSample);
 
-	if (--numSamples >= 0)
-	{
-		const float value = calculateNewValue();
-
-#if ENABLE_ALL_PEAK_METERS
-		setOutputValue(value);
-#endif
-		*data++ = value;
-	}
-
 	while (--numSamples >= 0)
 	{
 		*data++ = calculateNewValue();
 	}
 
-#if 0
-	while (numSamples > 0)
-	{
-		const int numThisTime = jmin<int>(numSamples, LFO_DOWNSAMPLING_FACTOR);
-
-		if (valueUpdater.shouldUpdate(numThisTime))
-		{
-			const float targetValue = calculateNewValue();
-
-			float delta = (targetValue - rampValue) / (float)LFO_DOWNSAMPLING_FACTOR;
-
-			int numLoop = numThisTime;
-
-			while (--numLoop >= 0)
-			{
-				*data++ = rampValue;
-				rampValue += delta;
-			}
-		}
-
-		numSamples -= numThisTime;
-	}
-#endif
-
-	
 	const float newInputValue = ((int)(uptime) % SAMPLE_LOOKUP_TABLE_SIZE) / (float)SAMPLE_LOOKUP_TABLE_SIZE;
 
 	if (inputMerger.shouldUpdate() && currentWaveform == Custom)

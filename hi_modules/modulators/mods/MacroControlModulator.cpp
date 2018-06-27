@@ -184,16 +184,6 @@ void MacroModulator::calculateBlock(int startSample, int numSamples)
 
 	if (smoothThisBlock)
 	{
-		if (--numSamples >= 0)
-		{
-			currentValue = smoother.smooth(targetValue);
-
-			internalBuffer.setSample(0, startSample, currentValue);
-			++startSample;
-
-
-		}
-
 		while (--numSamples >= 0)
 		{
 			currentValue = smoother.smooth(targetValue);
@@ -208,7 +198,6 @@ void MacroModulator::calculateBlock(int startSample, int numSamples)
 		FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), currentValue, numSamples);
 	}
 
-	setOutputValue(currentValue);
 }
 
 ProcessorEditorBody *MacroModulator::createEditor(ProcessorEditor *parentEditor)

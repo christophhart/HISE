@@ -286,12 +286,10 @@ void SimpleEnvelope::calculateBlock(int startSample, int numSamples)
 	if (state->current_state == SimpleEnvelopeState::SUSTAIN)
 	{
 		FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), 1.0f, numSamples);
-		setOutputValue(1.0f);
 	}
 	else if (state->current_state == SimpleEnvelopeState::IDLE)
 	{
 		FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), 0.0f, numSamples);
-		setOutputValue(0.0f);
 	}
 	else
 	{
@@ -308,11 +306,7 @@ void SimpleEnvelope::calculateBlock(int startSample, int numSamples)
 			while (--numSamples >= 0)
 				*out++ = calculateNewExpValue();
 		}
-
-		if (isMonophonic || polyManager.getCurrentVoice() == polyManager.getLastStartedVoice()) setOutputValue(internalBuffer.getSample(0, 0));
 	}
-
-	
 }
 
 void SimpleEnvelope::handleHiseEvent(const HiseEvent &m)

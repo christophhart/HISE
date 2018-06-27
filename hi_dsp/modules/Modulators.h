@@ -641,8 +641,16 @@ public:
 	{
 		setScratchBuffer(scratchBuffer, startSample + numSamples);
 		calculateBlock(startSample, numSamples);
-		pushPlotterValues(scratchBuffer, startSample, numSamples);
+
 		applyTimeModulation(monoModulationValues, startSample, numSamples);
+
+#if ENABLE_ALL_PEAK_METERS
+		const float displayValue = monoModulationValues[startSample];
+
+		pushPlotterValues(monoModulationValues, startSample, numSamples);
+
+		setOutputValue(displayValue);
+#endif
 	}
 
 protected:
@@ -875,6 +883,16 @@ public:
 		setScratchBuffer(scratchBuffer, startSample + numSamples);
 		calculateBlock(startSample, numSamples);
 		applyTimeModulation(voiceBuffer, startSample, numSamples);
+
+#if ENABLE_ALL_PEAK_METERS
+		if (isMonophonic || polyManager.getLastStartedVoice() == voiceIndex)
+		{
+			const float displayValue = voiceBuffer[startSample];
+			setOutputValue(displayValue);
+
+			pushPlotterValues(voiceBuffer, startSample, numSamples);
+		}
+#endif
 
 		polyManager.clearCurrentVoice();
 	}

@@ -240,8 +240,6 @@ void TableEnvelope::calculateBlock(int startSample, int numSamples)
 
 				sendTableIndexChangeMessage(false, tableToUse, indexValue);
 			}
-
-			setOutputValue(value);
 		}
 	}
 
