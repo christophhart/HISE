@@ -112,6 +112,8 @@ bypassState(false)
 	pitchChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
 
 	gainChain->setTableValueConverter(Modulation::getValueAsDecibel);
+	pitchChain->setTableValueConverter(Modulation::getValueAsSemitone);
+
 
 	disableChain(GainModulation, false);
 	disableChain(PitchModulation, false);

@@ -73,6 +73,11 @@ public:
 		return String(Decibels::gainToDecibels(input), 1) + " dB";
 	};
 
+	static String getValueAsSemitone(float input)
+	{
+		return String(input*12.0f, 2) + " st";
+	}
+
 	/** There are two modes that Modulation can work: GainMode and PitchMode */
 	enum Mode
 	{
@@ -82,7 +87,7 @@ public:
 		*
 		*	The range is supposed to be -1.0 ... 1.0 and must be converted using convertToFreqRatio directly before using it.
 		**/
-		PitchMode 
+		PitchMode
 	};
 
 	Modulation(Mode m): 
@@ -150,6 +155,12 @@ public:
 		static inline float normalisedRangeToPitchFactor(float range)
 		{
 			return std::exp2(range);
+		}
+
+		/** [0.5 ... 2.0] => [-1 ... 1] */
+		static inline float pitchFactorToNormalisedRange(float pitchFactor)
+		{
+			return std::log2(pitchFactor);
 		}
 
 		static inline float octaveRangeToPitchFactor(float octaveValue)

@@ -118,6 +118,16 @@ float Modulation::getDisplayIntensity() const noexcept
 void Modulation::setPlotter(Plotter *targetPlotter)
 {
 	attachedPlotter = targetPlotter;
+
+	if (attachedPlotter != nullptr)
+	{
+		attachedPlotter->setPitchMode(getMode() == Modulation::PitchMode);
+		
+		if (auto modChain = dynamic_cast<ModulatorChain*>(ProcessorHelpers::findParentProcessor(dynamic_cast<Modulator*>(this), false)))
+		{
+			attachedPlotter->setYConverter(modChain->getTableValueConverter());
+		}
+	}
 }
 
 bool Modulation::isPlotted() const
@@ -129,7 +139,7 @@ void Modulation::pushPlotterValues(const float* b, int startSample, int numSampl
 {
 	if (attachedPlotter.getComponent() != nullptr && shouldUpdatePlotter())
 	{
-		attachedPlotter.getComponent()->addValues(b, startSample, numSamples);
+		attachedPlotter.getComponent()->pushLockFree(b, startSample, numSamples);
 	}
 }
 

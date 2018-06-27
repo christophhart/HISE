@@ -40,6 +40,7 @@ class Modulator;
 class ScriptContentComponent;
 
 
+
 //==============================================================================
 /** A plotter component that displays the Modulator value
 *	@ingroup debugComponents
@@ -61,24 +62,56 @@ public:
 		backgroundColour = 0x100,
 		outlineColour = 0x10,
 		pathColour = 0x001,
-		pathColour2
+		pathColour2,
+		textColour
 	};
 
 
     void paint (Graphics&) override;
     void resized() override;
 
-	void addValues(const float* buffer, int startSample, int numSamples);
+	void pushLockFree(const float* buffer, int startSample, int numSamples);
 
 	void timerCallback() override;
 
 	void mouseDown(const MouseEvent& m) override;
 
+	void mouseMove(const MouseEvent& m) override;
+
+	void mouseExit(const MouseEvent& m) override;
+
+	void setPitchMode(bool shouldBePitchMode)
+	{
+		pitchMode = shouldBePitchMode;
+	}
+
+	void setYConverter(const Table::ValueTextConverter& newYConverter)
+	{
+		yConverter = newYConverter;
+	}
+
 private:
 
-	bool active = true;
+	void rebuildPath();
 
-	SpinLock swapLock;
+	Path drawPath;
+
+	Point<int> popupPosition;
+	bool stickPopup = false;
+
+	Table::ValueTextConverter yConverter;
+
+	bool pitchMode = false;
+
+	void popLockFree(float* destination, int numSamples);
+
+
+	void addValues(const float* buffer, int startSample, int numSamples);
+
+	AbstractFifo abstractFifo;
+	float tempBuffer[8192];
+
+	bool active = true;
 
 	AudioSampleBuffer displayBuffer;
 	int position = 0;

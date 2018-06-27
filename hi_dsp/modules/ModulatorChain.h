@@ -409,6 +409,11 @@ public:
 	/** Iterates all voice start modulators and returns the value either between 0.0 and 1.0 (GainMode) or -1.0 ... 1.0 (Pitch Mode). */
 	float getConstantVoiceValue(int voiceIndex) const;
 
+	Table::ValueTextConverter getTableValueConverter() const
+	{
+		return handler.tableValueConverter;
+	}
+
 public:
 
 	void setTableValueConverter(const Table::ValueTextConverter& converter)
