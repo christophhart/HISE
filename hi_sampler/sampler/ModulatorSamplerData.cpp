@@ -780,7 +780,7 @@ void MonolithExporter::writeSampleMapFile(bool /*overwriteExistingFile*/)
 {
 	ScopedPointer<XmlElement> xml = v.createXml();
 
-	jassert(sampleMapFile.getParentDirectory().createDirectory());
+	sampleMapFile.getParentDirectory().createDirectory();
 
 	xml->writeToFile(sampleMapFile, "");
 }
@@ -863,6 +863,9 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 		{
 			setProgress((double)i / (double)numSamples);
 
+            if(threadShouldExit())
+                return;
+            
 			ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(channelList->getUnchecked(i));
 
 			if (reader != nullptr)

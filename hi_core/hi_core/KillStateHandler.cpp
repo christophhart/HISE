@@ -338,8 +338,6 @@ MainController::KillStateHandler::TargetThread MainController::KillStateHandler:
 {
 	jassert(threadIds[(int)TargetThread::SampleLoadingThread] != nullptr);
 
-	
-
 	auto threadId = Thread::getCurrentThreadId();
 
 	if(audioThreads.contains(threadId))
@@ -352,8 +350,6 @@ MainController::KillStateHandler::TargetThread MainController::KillStateHandler:
 		if (mm->isThisTheMessageThread())
 			return MessageThread;
 	}
-
-	jassertfalse;
 
 	return MessageThread;
 }
