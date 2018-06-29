@@ -792,7 +792,7 @@ void ModulatorSynth::startVoiceWithHiseEvent(ModulatorSynthVoice* voice, Synthes
 {
 	jassert(!getMainController()->getKillStateHandler().voiceStartIsDisabled());
 
-	if (!isInGroup() && !gainChain->hasActivePolyEnvelopes())
+	if (shouldHaveEnvelope && !gainChain->hasActivePolyEnvelopes())
 	{
 		debugError(this, "You need at least one envelope in the gain chain");
 		return;
@@ -869,6 +869,8 @@ void ModulatorSynth::prepareToPlay(double newSampleRate, int samplesPerBlock)
 		effectChain->prepareToPlay(newSampleRate, samplesPerBlock);
 
 		setKillFadeOutTime(killFadeTime);
+
+		updateShouldHaveEnvelope();
 	}
 }
 

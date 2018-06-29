@@ -35,9 +35,12 @@ namespace hise { using namespace juce;
 GlobalModulatorContainer::GlobalModulatorContainer(MainController *mc, const String &id, int numVoices) :
 ModulatorSynth(mc, id, numVoices)
 {
-	gainChain = modChains[0].getChain();
+	gainChain = modChains[BasicChains::GainChain].getChain();
 
-	modChains[1].getChain()->setBypassed(true);
+	// Do not expand the values, but leave them compressed for the receivers to expand them...
+	modChains[BasicChains::GainChain].setExpandToAudioRate(false);
+
+	
 
 	for (int i = 0; i < numVoices; i++) addVoice(new GlobalModulatorContainerVoice(this));
 	addSound(new GlobalModulatorContainerSound());
@@ -48,7 +51,6 @@ ModulatorSynth(mc, id, numVoices)
 	gainChain->setColour(Colour(0xFF88A3A8));
 	gainChain->getFactoryType()->setConstrainer(new NoGlobalsConstrainer());
 	gainChain->setId("Global Modulators");
-
 
 	auto f = [](float input)
 	{
@@ -129,29 +131,25 @@ void GlobalModulatorContainer::preStartVoice(int voiceIndex, int noteNumber)
 
 void GlobalModulatorContainer::preVoiceRendering(int startSample, int numThisTime)
 {
-	ModulatorChain::Iterator<TimeVariantModulator> iter(gainChain);
+	int startSample_cr = startSample / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+	int numSamples_cr = numThisTime / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+	
+	auto scratchBuffer = modChains[GainChain].getScratchBuffer();
 
-	AudioSampleBuffer monoModValues(&gainChain->newFunkyBuffer.monoValues, 1, startSample + numThisTime);
-		
 	for (auto& tv : timeVariantData)
 	{
 		if (auto mod = tv.getModulator())
 		{
 			if (!mod->isBypassed())
 			{
-				mod->setScratchBuffer(gainChain->newFunkyBuffer.scratchBuffer, startSample + numThisTime);
-
-
-
-				mod->renderNextBlock(monoModValues, startSample, numThisTime);
-
-				tv.saveValues(gainChain->newFunkyBuffer.scratchBuffer, startSample, numThisTime);
+				mod->setScratchBuffer(scratchBuffer, startSample_cr + numSamples_cr);
+				mod->render(scratchBuffer, scratchBuffer, startSample_cr, numSamples_cr);
+				tv.saveValues(scratchBuffer, startSample_cr, numSamples_cr);
 			}
 			else
 			{
 				tv.clear();
 			}
-			
 		}
 	}
 }
@@ -252,18 +250,19 @@ void GlobalModulatorContainer::refreshList()
 
 	voiceStartData.clearQuick();
 	
-	ModulatorChain::Iterator<VoiceStartModulator> iter(gainChain);
+	auto handler = dynamic_cast<ModulatorChain::ModulatorChainHandler*>(gainChain->getHandler());
 
-	while (auto mod = iter.next())
+	for (auto& mod : handler->activeVoiceStartList)
+	{
 		voiceStartData.add(VoiceStartData(mod));
+	}
 
 	timeVariantData.clearQuick();
 
-	ModulatorChain::Iterator<TimeVariantModulator> iter2(gainChain);
-
-	while (auto mod = iter2.next())
+	for (auto& mod : handler->activeTimeVariantsList)
 	{
 		timeVariantData.add(TimeVariantData(mod, getLargestBlockSize()));
+		mod->deactivateIntensitySmoothing();
 	}
 }
 

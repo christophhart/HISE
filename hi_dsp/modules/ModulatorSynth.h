@@ -507,6 +507,20 @@ protected:
 
 private:
 
+	void updateShouldHaveEnvelope()
+	{
+		shouldHaveEnvelope = false;
+		
+		if (isInGroup())
+			shouldHaveEnvelope = false;
+		else if (ProcessorHelpers::is<GlobalModulatorContainer>(this))
+			shouldHaveEnvelope = false;
+		else 
+			shouldHaveEnvelope = true;
+	}
+
+	bool shouldHaveEnvelope = true;
+
 
 
 	int numActiveVoices;
