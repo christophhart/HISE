@@ -331,6 +331,13 @@ void LfoModulator::getWaveformTableValues(int /*displayIndex*/, float const** ta
 	}
 }
 
+void LfoModulator::setBypassed(bool shouldBeBypassed, NotificationType notifyChangeHandler/* =dontSendNotification */) noexcept
+{
+	keysPressed = 0;
+
+	TimeVariantModulator::setBypassed(shouldBeBypassed, notifyChangeHandler);
+}
+
 float LfoModulator::calculateNewValue ()
 {
 	//const float newValue = (cosf (uptime)) * 0.5f + 0.5f;	
@@ -340,13 +347,21 @@ float LfoModulator::calculateNewValue ()
 	const int firstIndex = index & (SAMPLE_LOOKUP_TABLE_SIZE - 1);
 	const int nextIndex = (index +1) & (SAMPLE_LOOKUP_TABLE_SIZE - 1);
 
+	constexpr double ratio = 1.0 / (double)(SAMPLE_LOOKUP_TABLE_SIZE);
+
+	const int thisCycleIndex = (int)floor((uptime + angleDelta) * ratio);
+	
+	const bool wrap = thisCycleIndex != lastCycleIndex;
+
+	lastCycleIndex = thisCycleIndex;
+
 	float newValue;
 
 	if(currentWaveform == Waveform::Random)
 	{
 		jassert(currentTable == nullptr);
 
-		if(nextIndex - firstIndex != 1)
+		if(wrap)
 		{
 			currentRandomValue = randomGenerator.nextFloat();
 		}
@@ -356,31 +371,40 @@ float LfoModulator::calculateNewValue ()
 	}
 	else if (currentWaveform == Waveform::Steps)
 	{
-
-		if (lastSwapIndex != index && nextIndex - firstIndex != 1)
+		if (wrap)
 		{
-			lastSwapIndex = index;
-
-			if (!loopEnabled && (currentSliderIndex+1) == data->getNumSliders())
+			if (!loopEnabled && (currentSliderIndex + 1) == data->getNumSliders())
 			{
 				if (loopEndValue == -1.0f)
 					loopEndValue = 1.0f - data->getValue(data->getNumSliders() - 1);
 
 				currentSliderValue = loopEndValue;
+				newValue = loopEndValue;
 			}
 			else
 			{
-				currentSliderIndex = (currentSliderIndex + 1) % data->getNumSliders();
+				currentSliderIndex = thisCycleIndex % data->getNumSliders();
+
+				const float thisSliderValue = 1.0f - data->getValue(currentSliderIndex);
 
 				data->setDisplayedIndex(currentSliderIndex);
 
-				currentSliderValue = 1.0f - data->getValue(currentSliderIndex);
+				float v1 = thisSliderValue;
+				float v2 = currentSliderValue;
+
+				// Just ramp over two values
+				const float alpha = 0.5f;
+				const float invAlpha = 0.5f;
+
+				newValue = (invAlpha * v1 + alpha * v2);
+
+				currentSliderValue = thisSliderValue;
 			}
-
-			
 		}
-
-		newValue = currentSliderValue;
+		else
+		{
+			newValue = currentSliderValue;
+		}
 	}
 	else
 	{
@@ -491,14 +515,14 @@ void LfoModulator::calculateBlock(int startSample, int numSamples)
 
 	if (frequencyUpdater.shouldUpdate(numValues))
 	{
-		frequencyModulationValue = modChains[FrequencyChain].getOneModulationValue(startIndex);
+		frequencyModulationValue = modChains[FrequencyChain].getOneModulationValue(pseudoOffset);
 		calcAngleDelta();
 	}
 
 	
 	
 
-	if (auto intensityModValues = modChains[IntensityChain].getReadPointerForVoiceValues(startIndex))
+	if (auto intensityModValues = modChains[IntensityChain].getWritePointerForManualExpansion(pseudoOffset))
 	{
 		applyIntensityForGainValues(mod, 1.0f, intensityModValues, numValues);
 	}
@@ -524,7 +548,8 @@ void LfoModulator::handleHiseEvent(const HiseEvent &m)
 		if(legato == false || keysPressed == 0)
 		{
 			uptime = 0.0;
-			
+			lastCycleIndex = 0;
+
 			loopEndValue = -1.0f;
 
 			if (currentWaveform == Steps)

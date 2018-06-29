@@ -32,6 +32,10 @@
 
 namespace hise { using namespace juce;
 
+#if HI_RUN_UNIT_TESTS
+bool MainController::unitTestMode = false;
+#endif
+
 MainController::MainController():
 	
 	sampleManager(new SampleManager(this)),
@@ -68,8 +72,6 @@ MainController::MainController():
 	processorChangeHandler(this),
 	killStateHandler(this),
 	debugLogger(this),
-
-	
 	//presetLoadRampFlag(OldUserPresetHandler::Active),
 	suspendIndex(0),
 	controlUndoManager(new UndoManager())
@@ -91,17 +93,6 @@ MainController::MainController():
 
 	hostInfo = new DynamicObject();
     
-#if HI_RUN_UNIT_TESTS
-
-	UnitTestRunner runner;
-
-	runner.setAssertOnFailure(false);
-
-	runner.runAllTests();
-
-	
-
-#endif
 };
 
 
@@ -343,6 +334,12 @@ void MainController::compileAllScripts()
 
 void MainController::allNotesOff(bool resetSoftBypassState/*=false*/)
 {
+#if HI_RUN_UNIT_TESTS
+	// Skip the all notes off command for the unit test mode
+	if (sampleRate == -1.0)
+		return;
+#endif
+
 	if (resetSoftBypassState)
 	{
 		auto f = [](Processor* p)
@@ -782,7 +779,7 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 
     thisAsProcessor = dynamic_cast<AudioProcessor*>(this);
     
-#if ENABLE_CONSOLE_OUTPUT
+#if ENABLE_CONSOLE_OUTPUT && !HI_RUN_UNIT_TESTS
 	if (logger == nullptr)
 	{
 		logger = new ConsoleLogger(getMainSynthChain());

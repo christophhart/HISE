@@ -459,25 +459,28 @@ int CompressionHelpers::getByteAmountForDifferential(AudioBufferInt16& b)
 }
 
 
-void CompressionHelpers::dump(const AudioBufferInt16& b)
+void CompressionHelpers::dump(const AudioBufferInt16& b, String fileName)
 {
 	AudioSampleBuffer fb = b.getFloatBuffer();
 
-	dump(fb);
+	dump(fb, fileName);
 }
 
 
-void CompressionHelpers::dump(const AudioSampleBuffer& b)
+void CompressionHelpers::dump(const AudioSampleBuffer& b, String fileName)
 {
 	WavAudioFormat afm;
     
+	if (fileName.isEmpty())
+		fileName = "dump.wav";
+
 #if JUCE_WINDOWS
-	File dumpFile("D:\\compressionTest\\dump.wav");
+	File dumpFile = File("D:\\").getChildFile(fileName);
 #else
-    File dumpFile("/Volumes/Shared/compressionTest/dump.wav");
+	File dumpFile = File("/Volumes/Shared/").getChildFile(fileName);
 #endif
 
-
+	dumpFile.deleteFile();
 
 	FileOutputStream* fis = new FileOutputStream(dumpFile.getNonexistentSibling());
 	StringPairArray metadata;

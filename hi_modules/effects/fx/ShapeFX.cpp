@@ -639,6 +639,7 @@ PolyshapeFX::PolyshapeFX(MainController *mc, const String &uid, int numVoices):
 	dcRemovers(numVoices)
 {
 	modChains += { this, "Drive Modulation" };
+	modChains[InternalChains::DriveModulation].setExpandToAudioRate(true);
 
 	for (int i = 0; i < numVoices; i++)
 	{
@@ -791,24 +792,23 @@ void PolyshapeFX::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSam
 	if (voiceIndex >= NUM_POLYPHONIC_VOICES)
 		return;
 
-	auto driveValues = driveChain.getReadPointerForVoiceValues(startSample);
+	
+	auto scratch = driveChain.getScratchBuffer();
 
-	auto scratch = (float*)alloca(sizeof(float)*numSamples);
+	auto smoother = &driveSmoothers[voiceIndex];
 
+	smoother->setValue(drive - 1.0f);
 
-	if (driveValues == nullptr)
+	if (auto compressedDriveValues = driveChain.getReadPointerForVoiceValues(startSample))
+	{
+		FloatVectorOperations::copy(scratch, compressedDriveValues, numSamples);
+	}
+	else
 	{
 		auto constantValue = driveChain.getConstantModulationValue();
 		FloatVectorOperations::fill(scratch, constantValue, numSamples);
 	}
-	else
-	{
-		FloatVectorOperations::copy(scratch, driveValues, numSamples);
-	}
-		
-	auto smoother = &driveSmoothers[voiceIndex];
-	
-	smoother->setValue(drive - 1.0f);
+
 	smoother->applyGain(scratch, numSamples);
 
 	FloatVectorOperations::add(scratch, 1.0f, numSamples);

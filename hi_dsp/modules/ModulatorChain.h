@@ -244,6 +244,8 @@ public:
 
 	private:
 
+		void applyMonophonicValuesToVoiceInternal(float* voiceBuffer, float* monoBuffer, int numSamples);
+
 		void setDisplayValueInternal(int voiceIndex, int startSample, int numSamples);
 
 		Type type;
@@ -412,6 +414,13 @@ public:
 	Table::ValueTextConverter getTableValueConverter() const
 	{
 		return handler.tableValueConverter;
+	}
+
+	void applyMonoOnOutputValue(float monoValue)
+	{
+#if ENABLE_ALL_PEAK_METERS
+		setOutputValue(getOutputValue() * monoValue);
+#endif
 	}
 
 public:

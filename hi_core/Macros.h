@@ -111,6 +111,12 @@ namespace hise { using namespace juce;
 #define LOG_SYNTH_EVENT(x)
 #endif
 
+#if HI_RUN_UNIT_TESTS
+#define jassert_skip_unit_test(x)
+#else
+#define jassert_skip_unit_test(x) jassert(x)
+#endif
+
 
 #if JUCE_WINDOWS || JUCE_MAC || JUCE_IOS
 

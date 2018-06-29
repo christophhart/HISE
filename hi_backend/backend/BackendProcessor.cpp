@@ -37,47 +37,46 @@ MainController(),
 AudioProcessorDriver(deviceManager_, callback_),
 viewUndoManager(new UndoManager())
 {
-	
-	
-
 	ExtendedApiDocumentation::init();
 
     synthChain = new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES, viewUndoManager);
-
     
 	synthChain->addProcessorsWhenEmpty();
 
 	getSampleManager().getModulatorSamplerSoundPool()->setDebugProcessor(synthChain);
-
 	getMacroManager().setMacroChain(synthChain);
 
-	handleEditorData(false);
-
-	restoreGlobalSettings(this);
+	if (!inUnitTestMode())
+	{
+		handleEditorData(false);
+		restoreGlobalSettings(this);
+	}
 
 	initData(this);
 
-	getAutoSaver().updateAutosaving();
-
-
-	createUserPresetData();
-
-	clearPreset();
-
-	getSampleManager().getProjectHandler().addListener(this);
-
-	auto tmp = getCurrentSampleMapPool(true);
-
-	auto f = [tmp](Processor* )
+	if (!inUnitTestMode())
 	{
-		tmp->loadAllFilesFromProjectFolder();
-		return true;
-	};
-
-	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
-
+		getAutoSaver().updateAutosaving();
+		createUserPresetData();
+	}
 
 	
+	clearPreset();
+	getSampleManager().getProjectHandler().addListener(this);
+
+
+	if (!inUnitTestMode())
+	{
+		auto tmp = getCurrentSampleMapPool(true);
+
+		auto f = [tmp](Processor*)
+		{
+			tmp->loadAllFilesFromProjectFolder();
+			return true;
+		};
+
+		getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
+	}
 }
 
 

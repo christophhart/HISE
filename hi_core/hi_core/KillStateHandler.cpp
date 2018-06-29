@@ -198,6 +198,13 @@ void MainController::KillStateHandler::handleKillState()
 
 void MainController::KillStateHandler::killVoicesAndCall(Processor* p, const ProcessorFunction& functionToExecuteWhenKilled, MainController::KillStateHandler::TargetThread targetThread)
 {
+	if (inUnitTestMode())
+	{
+		// Just call it synchronously, there's no multithreading in the unit test suite...
+		functionToExecuteWhenKilled(p);
+		return;
+	}
+
 	if (voicesAreKilled())
 	{
 		auto currentThreadId = getCurrentThread();
@@ -237,6 +244,10 @@ void MainController::KillStateHandler::killVoicesAndCall(Processor* p, const Pro
 
 bool MainController::KillStateHandler::voiceStartIsDisabled() const
 {
+#if HI_RUN_UNIT_TESTS
+	return false;
+#endif
+
 	return disableVoiceStartsThisCallback;
 }
 

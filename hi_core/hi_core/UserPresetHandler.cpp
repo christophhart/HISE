@@ -47,8 +47,10 @@ MainController::UserPresetHandler::LoadLock::LoadLock(const MainController* mc) 
 {
 	auto currentThread = mc->getKillStateHandler().getCurrentThread();
 
+#if !HI_RUN_UNIT_TESTS
 	// This mechanism is not suitable for the audio thread, so don't try calling it here...
 	jassert(currentThread != MainController::KillStateHandler::AudioThread);
+#endif
 
 	int freeThread = (int)MainController::KillStateHandler::Free;
 

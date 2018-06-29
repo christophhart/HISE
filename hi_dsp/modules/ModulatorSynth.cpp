@@ -591,9 +591,11 @@ void ModulatorSynth::postVoiceRendering(int startSample, int numThisTime)
 	modChains[BasicChains::GainChain].expandMonophonicValuesToAudioRate(startSample, numThisTime);
 	auto monoValues = modChains[BasicChains::GainChain].getMonophonicModulationValues(startSample);
 
-	if (monoValues != nullptr)
+	if (monoValues != nullptr && numThisTime > 0)
 	{
 		CHECK_AND_LOG_BUFFER_DATA_WITH_ID(this, getIDAsIdentifier(), DebugLogger::Location::SynthPostVoiceRenderingGainMod, gainBuffer.getReadPointer(0, startSample), true, numThisTime);
+
+		gainChain->applyMonoOnOutputValue(monoValues[0]);
 
 		// Apply all gain modulators to the rendered voices
 		for (int i = 0; i < internalBuffer.getNumChannels(); i++)

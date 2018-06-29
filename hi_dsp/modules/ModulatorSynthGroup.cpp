@@ -233,6 +233,13 @@ void ModulatorSynthGroupVoice::calculateBlock(int startSample, int numSamples)
 		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startSample), modValues + startSample, numSamples);
 		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startSample), modValues + startSample, numSamples);
 	}
+	else
+	{
+		float constantGain = getOwnerSynth()->getConstantGainModValue();
+
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startSample), constantGain, numSamples);
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startSample), constantGain, numSamples);
+	}
 };
 
 
@@ -1306,7 +1313,7 @@ void ModulatorSynthGroup::checkFMStateInternally()
 {
 	auto offset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
 
-	jassert(!areVoicesActive());
+	jassert_skip_unit_test(!areVoicesActive());
 
 	if (fmEnabled)
 	{

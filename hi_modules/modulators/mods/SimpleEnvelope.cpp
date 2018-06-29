@@ -177,13 +177,20 @@ float SimpleEnvelope::startVoice(int voiceIndex)
 		{
 			state = static_cast<SimpleEnvelopeState*>(monophonicState.get());
 
-			if(attackChain->hasVoiceModulators())
+			float attackModValue = 1.0f;
+
+			if (attackChain->hasVoiceModulators())
+			{
 				attackChain->startVoice(voiceIndex);
+				attackModValue = attackChain->getConstantVoiceValue(voiceIndex);
+			}
+
+			const float thisAttackTime = attack * attackModValue;
 
 			if (linearMode)
-				state->attackDelta = this->calcCoefficient(attack * attackChain->getConstantVoiceValue(voiceIndex));
+				state->attackDelta = this->calcCoefficient(thisAttackTime);
 			else
-				setAttackRate(attack * attackChain->getConstantVoiceValue(voiceIndex), state);
+				setAttackRate(thisAttackTime, state);
 
 			// Don't reset the envelope for tailing releases
 			if (shouldRetrigger)
@@ -194,7 +201,11 @@ float SimpleEnvelope::startVoice(int voiceIndex)
 			{
 				state->current_state = SimpleEnvelopeState::ATTACK;
 			}
+
+			return thisAttackTime > 0.0f ? 0.0f : 1.0f;
 		}
+
+		return state->current_value;
 	}
 	else
 	{
@@ -211,15 +222,17 @@ float SimpleEnvelope::startVoice(int voiceIndex)
 			attackModValue = attackChain->getConstantVoiceValue(voiceIndex);
 		}
 		
+		const float thisAttackTime = attack * attackModValue;
+
 		if (linearMode)
-			state->attackDelta = this->calcCoefficient(attack * attackModValue);
+			state->attackDelta = this->calcCoefficient(thisAttackTime);
 		else
-			setAttackRate(attack * attackModValue, state);
+			setAttackRate(thisAttackTime, state);
 
 		state->current_state = SimpleEnvelopeState::ATTACK;
-	}
 
-	return calculateNewValue(voiceIndex);
+		return thisAttackTime > 0.0f ? 0.0f : 1.0f;
+	}
 }
 
 void SimpleEnvelope::stopVoice(int voiceIndex)
@@ -349,7 +362,7 @@ float SimpleEnvelope::calcCoefficient(float time, float targetRatio/*=1.0f*/) co
 
 	if (linearMode)
 	{
-		return 1.0f / ((time / 1000.0f) * samplerate);
+		return 1.0f / ((time / 1000.0f) * (samplerate));
 	}
 	else
 	{

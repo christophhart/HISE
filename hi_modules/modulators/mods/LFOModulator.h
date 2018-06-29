@@ -161,6 +161,8 @@ public:
 
 	void getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue) override;
 
+	void setBypassed(bool shouldBeBypassed, NotificationType notifyChangeHandler=dontSendNotification) noexcept override;
+
 	/** Updates the tempo. */
 	void tempoChanged(double /*newTempo*/) override
 	{
@@ -351,6 +353,9 @@ private:
 	bool legato;
 
 	bool tempoSync;
+
+	int lastCycleIndex = 0;
+	int lastIndex = 0;
 
 	TempoSyncer::Tempo currentTempo;
 };

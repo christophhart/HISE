@@ -309,13 +309,715 @@ public:
 
 
 	Random r;
-	
-
-
 };
 
 static DspUnitTests dspUnitTest;
 
+constexpr int sampleRate = 44100;
+
+class ModulationTests : public UnitTest
+{
+public:
+
+	using ScopedProcessor = ScopedPointer<BackendProcessor>;
+
+	ModulationTests() :
+		UnitTest("Modulation Tests")
+	{
+
+	}
+
+	void runTest() override
+	{
+		runBasicTest();
+	}
+
+private:
+
+	
+
+	void runBasicTest()
+	{
+		ScopedValueSetter<bool> s(MainController::unitTestMode, true);
+
+		testSimpleEnvelopeWithoutAttack(true);
+		testSimpleEnvelopeWithoutAttack(false);
+
+		testSimpleEnvelopeWithAttack(false);
+		testSimpleEnvelopeWithAttack(true);
+
+		testAhdsrSustain(true);
+		testAhdsrSustain(false);
+
+		testConstantModulator(false);
+		testConstantModulator(true);
+
+		testLFOSeq(false);
+		testLFOSeq(true);
+
+		testModulatorCombo(false);
+		testModulatorCombo(true);
+
+		testSynthGroup();
+
+		testGlobalModulators(false);
+	}
+
+	void testGlobalModulators(bool useGroup)
+	{
+		beginTestWithOptionalGroup("Testing simple envelope without attack", useGroup);
+
+		// Init
+		ScopedProcessor bp = Helpers::createWithOptionalGroup(NoiseSynth::DiracTrain, useGroup);
+
+		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Attack, 0.0f);
+		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Release, 0.0f);
+
+		// Setup
+
+		Helpers::addGlobalContainer(bp, useGroup);
+		
+		auto sender = Helpers::addVoiceModulator<GlobalModulatorContainer, VelocityModulator>(bp, ModulatorSynth::GainModulation);
+		auto receiver = Helpers::addVoiceModulatorToOptionalGroup<GlobalVoiceStartModulator>(bp, ModulatorSynth::GainModulation);
+
+		receiver->connectToGlobalModulator("Container:" + sender->getId());
+
+		expect(receiver->isConnected(), "Connection failed");
+
+		// Process
+
+		auto testData = Helpers::createTestDataWithOneSecondNote();
+		Helpers::process(bp, testData, 512);
+
+		// Tests
+
+		
+		Helpers::copyToClipboard(bp);
+
+		bp = nullptr;
+	}
+
+	void testSynthGroup()
+	{
+		beginTest("Testing SynthGroup modulators");
+
+		// Init
+		ScopedProcessor bp = Helpers::createAndInitialiseProcessorWithGroup(NoiseSynth::DiracTrain);
+		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Attack, 0.0f);
+		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Release, 0.0f);
+
+		// Setup
+
+		auto group = ProcessorHelpers::getFirstProcessorWithType<ModulatorSynthGroup>(bp->getMainSynthChain());
+		group->setAttribute(ModulatorSynthGroup::SpecialParameters::UnisonoVoiceAmount, 2.0f, dontSendNotification);
+		group->setAttribute(ModulatorSynthGroup::SpecialParameters::UnisonoDetune, 6.0f, dontSendNotification);
+
+		auto constantPitch = Helpers::addVoiceModulator<ModulatorSynthGroup, ConstantModulator>(bp, ModulatorSynth::PitchModulation);
+
+		const float pf = 1.5f;
+
+		auto npf = Modulation::PitchConverters::pitchFactorToNormalisedRange(pf);
+
+		constantPitch->setIntensity(npf);
+
+		// Process
+
+		const int offset = 128;
+
+		auto testData = Helpers::createTestDataWithOneSecondNote(offset);
+		Helpers::process(bp, testData, 512);
+
+		// Test
+
+		expect(testData.isWithinErrorRange(offset, -1.0f, 0), "First sample left");
+		expect(testData.isWithinErrorRange(offset, -1.0f, 1), "First sample right");
+
+		float pitchFactorRight = pf * sqrtf(2.0f); // 6 semitones down
+		float pitchFactorLeft = 0.5f * pitchFactorRight;
+
+		const int leftNextDirac = offset + roundDoubleToInt(ceil(256.0 / pitchFactorLeft));
+		const int rightNextDirac = offset + roundDoubleToInt(ceil(256.0 / pitchFactorRight));
+
+		expect(testData.isWithinErrorRange(leftNextDirac - 1, 0.0f, 0), "leftNextDirac - 1");
+		expect(testData.isWithinErrorRange(leftNextDirac - 1, 0.0f, 1), "leftNextDirac - 1");
+
+		expect(testData.isWithinErrorRange(leftNextDirac, 1.0f, 0), "leftNextDirac + 1");
+		expect(testData.isWithinErrorRange(leftNextDirac, 1.0f, 1), "leftNextDirac - 1");
+
+		expect(testData.isWithinErrorRange(leftNextDirac + 1, 0.0f, 0), "leftNextDirac + 1");
+		expect(testData.isWithinErrorRange(leftNextDirac + 1, 0.0f, 1), "leftNextDirac - 1");
+
+		Helpers::dump(testData.audioBuffer, "DiracsTest.wav");
+
+	}
+
+	void testModulatorCombo(bool useGroup)
+	{
+		beginTestWithOptionalGroup("Test modulator combination", useGroup);
+
+		// Init
+
+		ScopedProcessor bp = Helpers::createWithOptionalGroup(NoiseSynth::DC, useGroup);
+
+		// Setup
+
+
+		const int attackSamples = 2048;
+		const float attackMs = (float)attackSamples / (float)sampleRate * 1000.0f;
+
+		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Attack, attackMs);
+		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Release, 20.0f);
+		auto constantMod = Helpers::addVoiceModulatorToOptionalGroup<ConstantModulator>(bp, ModulatorSynth::GainModulation);
+		const float cModValue = 0.3f;
+
+		constantMod->setIntensity(cModValue);
+
+		auto lfoMod = Helpers::addTimeModulatorToOptionalGroup<LfoModulator>(bp, ModulatorSynth::GainModulation);
+		Helpers::setLfoToDefaultSquare(lfoMod);
+		const float lfoModValue = 0.25f;
+
+		lfoMod->setIntensity(lfoModValue);
+		
+		const float gainFactorWhenLFO = (1.0f - cModValue) * (1.0f - lfoModValue);
+		const float gainFactorWhenNoLFO = (1.0f - cModValue);
+
+		// Process
+
+		auto testData = Helpers::createTestDataWithOneSecondNote();
+		Helpers::process(bp, testData, 512);
+
+		// Test
+
+		expect(testData.isWithinErrorRange(0, 0.0f), "First sample");
+
+		float halfEnvelopeSample = 0.5f;
+		int halfEnvelopeIndex = attackSamples / 2;
+
+		expect(testData.isWithinErrorRange(halfEnvelopeIndex, halfEnvelopeSample * gainFactorWhenNoLFO), "Half Envelope");
+
+		float fullEnvelopeSample = 1.0f;
+
+		expect(testData.isWithinErrorRange(attackSamples, fullEnvelopeSample * gainFactorWhenNoLFO), "Full Envelope");
+
+		const int sampleIndexWhenNoLFO = 2205;
+		const int sampleIndexWhenLFO = 8802;
+
+		expect(testData.isWithinErrorRange(sampleIndexWhenLFO, fullEnvelopeSample * gainFactorWhenLFO), "LFO On");
+		expect(testData.isWithinErrorRange(sampleIndexWhenNoLFO, fullEnvelopeSample * gainFactorWhenNoLFO), "LFO Off");
+
+	}
+
+	void testSimpleEnvelopeWithoutAttack(bool useGroup)
+	{
+		beginTestWithOptionalGroup("Testing simple envelope without attack", useGroup);
+
+		// Init
+		ScopedProcessor bp = Helpers::createWithOptionalGroup(NoiseSynth::DiracTrain, useGroup);
+
+		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Attack, 0.0f);
+		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Release, 0.0f);
+
+		// Setup
+
+		// Process
+
+		auto testData = Helpers::createTestDataWithOneSecondNote();
+		Helpers::process(bp, testData, 512);
+
+		// Tests
+
+		expectEquals<float>(testData.audioBuffer.getSample(0, 0), -1.0f, "First Dirac doesn't match");
+		expectEquals<float>(testData.audioBuffer.getSample(0, 256), 1.0f, "Second Dirac doesn't match");
+
+		double rasterValue = sampleRate / (double)HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+
+		int rasteredTimestamp = roundDoubleToInt(rasterValue) * HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+
+		auto diracBeforeNoteOff = (int)(floor((double)rasteredTimestamp / 256.0) * 256.0);
+		auto diracAfterNoteOff = (int)(ceil((double)rasteredTimestamp / 256.0) * 256.0);
+
+		expectEquals<float>(testData.audioBuffer.getSample(0, diracBeforeNoteOff), 1.0f, "Dirac before note off");
+		expectEquals<float>(testData.audioBuffer.getSample(0, diracAfterNoteOff), 0.0f, "Dirac after note off");
+
+		bp = nullptr;
+	}
+
+
+	void testSimpleEnvelopeWithAttack(bool useGroup)
+	{
+		beginTestWithOptionalGroup("Testing simple envelope without attack", useGroup);
+
+		ScopedProcessor bp = Helpers::createWithOptionalGroup(NoiseSynth::DC, useGroup);
+
+		auto testData = Helpers::createTestDataWithOneSecondNote();
+
+		float attackSamples = 512;
+		float attackMs = (float)attackSamples / (float)sampleRate * 1000.0f;
+
+		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Attack, attackMs);
+		Helpers::process(bp, testData, 512);
+
+		expectEquals<float>(testData.audioBuffer.getSample(0, 0), 0, "First Dirac doesn't match");
+		expectEquals<float>(testData.audioBuffer.getSample(0, attackSamples/2), 0.5f, "First Dirac doesn't match");
+		expectEquals<float>(testData.audioBuffer.getSample(0, attackSamples), 1.0f, "First Dirac doesn't match");
+	}
+
+	void testConstantModulator(bool useGroup)
+	{
+		beginTestWithOptionalGroup("Testing constant modulator", useGroup);
+
+		// Init
+
+		ScopedProcessor bp = Helpers::createWithOptionalGroup(NoiseSynth::DiracTrain, useGroup);
+
+		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Attack, 0.0f);
+		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Release, 0.0f);
+
+		// Setup
+
+		// Gain Mod -> 0.5
+		// Pan Mod -> 25 R
+		// Pitch Mod -1 octave => 512 Dirac
+
+		const float balance = 0.25f;
+		const float gain = 0.5f;
+
+		auto constantGainMod = Helpers::addVoiceModulatorToOptionalGroup<ConstantModulator>(bp, ModulatorSynth::GainModulation);
+		auto constantPitchMod = Helpers::addVoiceModulatorToOptionalGroup<ConstantModulator>(bp, ModulatorSynth::PitchModulation);
+
+		auto stereoEffect = Helpers::addVoiceEffectToOptionalGroup<StereoEffect>(bp);
+		stereoEffect->setAttribute(StereoEffect::Pan, 100.0f, dontSendNotification);
+		
+		auto constantPanMod = Helpers::addVoiceModulator<StereoEffect, ConstantModulator>(bp, StereoEffect::BalanceChain);
+
+		constantGainMod->setIntensity(gain);
+		constantPitchMod->setIntensityFromSlider(-12.0f);
+		constantPanMod->setIntensity(balance);
+
+		// Process
+
+		auto testData = Helpers::createTestDataWithOneSecondNote();
+		Helpers::process(bp, testData, 512);
+
+		// Test
+
+		auto expectedFirstValue = -1.0f;
+		auto gain_l = BalanceCalculator::getGainFactorForBalance(balance * 100, true) * gain;
+		auto gain_r = BalanceCalculator::getGainFactorForBalance(balance * 100, false) * gain;
+
+		expectResult(testData.isWithinErrorRange(0, expectedFirstValue * gain_l, 0), "Gain + Pan");
+		expectResult(testData.isWithinErrorRange(0, expectedFirstValue * gain_r, 1), "Gain + Pan");
+
+		auto expectedHalfValue = 0.0f;
+
+		expectResult(testData.isWithinErrorRange(256, expectedHalfValue, 0), "Test pitch");
+		expectResult(testData.isWithinErrorRange(256, expectedHalfValue, 1), "Test pitch");
+
+		auto expectedFullValue = 1.0f;
+
+		expectResult(testData.isWithinErrorRange(512, expectedFullValue * gain_l, 0), "Test pitch");
+		expectResult(testData.isWithinErrorRange(512, expectedFullValue * gain_r, 1), "Test pitch");
+	}
+
+	void testAhdsrSustain(bool useGroup)
+	{
+		beginTestWithOptionalGroup("Testing AHDSR envelope sustain value", useGroup);
+
+		ScopedProcessor bp = Helpers::createWithOptionalGroup(NoiseSynth::DC, useGroup);
+
+		Helpers::get<SimpleEnvelope>(bp)->setBypassed(true);
+
+		auto ahdsr = Helpers::addVoiceModulatorToOptionalGroup<AhdsrEnvelope>(bp, ModulatorSynth::GainModulation);
+
+		const float sustainLevel = 0.25f;
+
+		Helpers::setAttribute<AhdsrEnvelope>(bp, AhdsrEnvelope::Attack, 0.0f);
+		Helpers::setAttribute<AhdsrEnvelope>(bp, AhdsrEnvelope::Hold, 0.0f);
+		Helpers::setAttribute<AhdsrEnvelope>(bp, AhdsrEnvelope::Decay, 100.0f);
+		Helpers::setAttribute<AhdsrEnvelope>(bp, AhdsrEnvelope::Sustain, Decibels::gainToDecibels(sustainLevel));
+
+		auto testData = Helpers::createTestDataWithOneSecondNote();
+
+		Helpers::process(bp, testData, 512);
+
+		expectResult(testData.isWithinErrorRange(22050, sustainLevel), "Sustain value");
+	}
+
+	void testLFOSeq(bool useGroup)
+	{
+		beginTestWithOptionalGroup("Testing LFO Seq", useGroup);
+
+		// Init
+		ScopedProcessor bp = Helpers::createWithOptionalGroup(NoiseSynth::DC, useGroup);
+
+		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Attack, 0.0f);
+		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Release, 0.0f);
+
+		// Setup
+
+		auto squareLFO = Helpers::addTimeModulatorToOptionalGroup<LfoModulator>(bp, ModulatorSynth::GainModulation);
+		auto seqLFO = Helpers::addTimeModulatorToOptionalGroup<LfoModulator>(bp, ModulatorSynth::GainModulation);
+
+		squareLFO->setAttribute(LfoModulator::Parameters::TempoSync, 1.0f, dontSendNotification);
+		seqLFO->setAttribute(LfoModulator::Parameters::TempoSync, 1.0f, dontSendNotification);
+		squareLFO->setAttribute(LfoModulator::Frequency, (float)(int)TempoSyncer::Eighth, dontSendNotification);
+		seqLFO->setAttribute(LfoModulator::Frequency, (float)(int)TempoSyncer::Sixteenth, dontSendNotification);
+
+		squareLFO->setAttribute(LfoModulator::SmoothingTime, 0.0f, dontSendNotification);
+		seqLFO->setAttribute(LfoModulator::SmoothingTime, 0.0f, dontSendNotification);
+
+		squareLFO->setAttribute(LfoModulator::WaveFormType, LfoModulator::Waveform::Square, dontSendNotification);
+		seqLFO->setAttribute(LfoModulator::WaveFormType, LfoModulator::Waveform::Steps, dontSendNotification);
+
+		squareLFO->setAttribute(LfoModulator::Parameters::FadeIn, 0.0f, dontSendNotification);
+		seqLFO->setAttribute(LfoModulator::Parameters::FadeIn, 0.0f, dontSendNotification);
+
+		seqLFO->getSliderPackData(0)->setNumSliders(2);
+		seqLFO->getSliderPackData(0)->setValue(1, 0.0f, dontSendNotification);
+
+		// Process
+		squareLFO->setBypassed(true);
+		seqLFO->setBypassed(false);
+
+		auto seqData = Helpers::createTestDataWithOneSecondNote(56);
+		Helpers::process(bp, seqData, 512);
+
+		squareLFO->setBypassed(false);
+		seqLFO->setBypassed(true);
+
+		auto squareData = Helpers::createTestDataWithOneSecondNote(56);
+		Helpers::process(bp, squareData, 512);
+		// Tests
+
+		expectResult(seqData.matches(squareData, this, -3.0f), "Step doesn't match Square");
+
+		bp = nullptr;
+	}
+
+	void expectResult(Result r, String errorMessage)
+	{
+		expect(r.wasOk(), errorMessage + " - " + r.getErrorMessage());
+	}
+
+	void beginTestWithOptionalGroup(const String& testName, bool useGroup)
+	{
+		beginTest(testName + String(useGroup ? " in group" : ""));
+	}
+
+	struct Helpers
+	{
+		static void copyToClipboard(BackendProcessor* bp)
+		{
+			BackendCommandTarget::Actions::exportFileAsSnippet(bp);
+		}
+
+		template <class ProcessorType> static ProcessorType* get(BackendProcessor* bp)
+		{
+			return ProcessorHelpers::getFirstProcessorWithType<ProcessorType>(bp->getMainSynthChain());
+		}
+
+		template <class ProcessorType> static void reset(BackendProcessor* bp)
+		{
+			auto p = get<ProcessorType>(bp);
+
+			auto numParameters = p->getNumParameters();
+
+			for (int i = 0; i < numParameters; i++)
+			{
+				p->setAttribute(i, p->getDefaultValue(i), dontSendNotification);
+			}
+
+		}
+
+		template <class ProcessorType> static ProcessorType* addVoiceModulatorToOptionalGroup(BackendProcessor* bp, int chainToInsert)
+		{
+			bool isGroup = ProcessorHelpers::is<ModulatorSynthGroup>(bp->getMainSynthChain()->getHandler()->getProcessor(0));
+
+			if (isGroup)
+				return addVoiceModulator<ModulatorSynthGroup, ProcessorType>(bp, chainToInsert);
+			else
+				return addVoiceModulator<NoiseSynth, ProcessorType>(bp, chainToInsert);
+		}
+
+		static void setLfoToDefaultSquare(LfoModulator* lfo)
+		{
+			lfo->setAttribute(LfoModulator::TempoSync, true, dontSendNotification);
+			lfo->setAttribute(LfoModulator::WaveFormType, LfoModulator::Square, dontSendNotification);
+			lfo->setAttribute(LfoModulator::Frequency, TempoSyncer::Eighth, dontSendNotification);
+			lfo->setAttribute(LfoModulator::FadeIn, 0.0f, dontSendNotification);
+			lfo->setAttribute(LfoModulator::SmoothingTime, 0.0f, dontSendNotification);
+		}
+
+		template <class ParentType, class ProcessorType> static ProcessorType* addVoiceModulator(BackendProcessor* bp, int chainToInsert)
+		{
+			auto modChain = dynamic_cast<ModulatorChain*>(get<ParentType>(bp)->getChildProcessor(chainToInsert));
+
+			Random r;
+			auto id = String(r.nextInt());
+
+			auto newMod = new ProcessorType(bp, id, NUM_POLYPHONIC_VOICES, modChain->getMode());
+
+			modChain->getHandler()->add(newMod, nullptr);
+
+			return newMod;
+		}
+
+		static ModulatorSynth* getMainSynth(BackendProcessor* bp, bool useGroup)
+		{
+			if (useGroup)
+			{
+				return dynamic_cast<ModulatorSynth*>(ProcessorHelpers::getFirstProcessorWithType<ModulatorSynthGroup>(bp->getMainSynthChain()));
+			}
+			else
+			{
+				return dynamic_cast<ModulatorSynth*>(ProcessorHelpers::getFirstProcessorWithType<NoiseSynth>(bp->getMainSynthChain()));
+			}
+		}
+
+		static void addGlobalContainer(BackendProcessor* bp, bool useGroup)
+		{
+			auto mainSynth = Helpers::getMainSynth(bp, useGroup);
+
+			auto container = new GlobalModulatorContainer(bp, "Container", NUM_POLYPHONIC_VOICES);
+
+			bp->getMainSynthChain()->getHandler()->add(container, mainSynth);
+		}
+
+		template <class ProcessorType> static ProcessorType* addTimeModulatorToOptionalGroup(BackendProcessor* bp, int chainToInsert)
+		{
+			bool isGroup = ProcessorHelpers::is<ModulatorSynthGroup>(bp->getMainSynthChain()->getHandler()->getProcessor(0));
+
+			if (isGroup)
+				return addTimeModulator<ModulatorSynthGroup, ProcessorType>(bp, chainToInsert);
+			else
+				return addTimeModulator<NoiseSynth, ProcessorType>(bp, chainToInsert);
+		}
+
+		template <class ParentType, class ProcessorType> static ProcessorType* addTimeModulator(BackendProcessor* bp, int chainToInsert)
+		{
+			auto modChain = dynamic_cast<ModulatorChain*>(get<ParentType>(bp)->getChildProcessor(chainToInsert));
+
+			Random r;
+			auto id = String(r.nextInt());
+
+			auto newMod = new ProcessorType(bp, id, modChain->getMode());
+
+			modChain->getHandler()->add(newMod, nullptr);
+
+			return newMod;
+		}
+
+		template <class ProcessorType> static ProcessorType* addVoiceEffectToOptionalGroup(BackendProcessor* bp)
+		{
+			bool isGroup = ProcessorHelpers::is<ModulatorSynthGroup>(bp->getMainSynthChain()->getHandler()->getProcessor(0));
+
+			if (isGroup)
+				return addVoiceEffect<ModulatorSynthGroup, ProcessorType>(bp);
+			else
+				return addVoiceEffect<NoiseSynth, ProcessorType>(bp);
+		}
+
+		template <class ParentType, class ProcessorType> static ProcessorType* addVoiceEffect(BackendProcessor* bp)
+		{
+			auto fxChain = dynamic_cast<EffectProcessorChain*>(get<ParentType>(bp)->getChildProcessor(ModulatorSynth::EffectChain));
+
+			Random r;
+			auto id = String(r.nextInt());
+
+			auto newEffect = new ProcessorType(bp, id, NUM_POLYPHONIC_VOICES);
+	
+			fxChain->getHandler()->add(newEffect, nullptr);
+
+			return newEffect;
+		}
+
+		template <class ProcessorType> static void setAttribute(BackendProcessor* bp, int index, float value)
+		{
+			auto p = get<ProcessorType>(bp);
+
+			p->setAttribute(index, value, dontSendNotification);
+		}
+
+
+		struct TestData
+		{
+			float getSample(int sampleIndex) const
+			{
+				return audioBuffer.getSample(0, sampleIndex);
+			}
+
+			float getSample(int channelIndex, int sampleIndex) const
+			{
+				return audioBuffer.getSample(channelIndex, sampleIndex);
+			}
+
+			Result matches(const TestData& otherData, UnitTest* test, float errorLevelDecibels)
+			{
+				if (audioBuffer.getNumSamples() != otherData.audioBuffer.getNumSamples())
+					return Result::fail("Size mismatch");
+
+				int size = audioBuffer.getNumSamples();
+
+				float maxError = -100.0f;
+
+				for (int i = 0; i < size; i++)
+				{
+					auto otherL = otherData.getSample(0, i);
+					auto otherR = otherData.getSample(1, i);
+					
+					maxError = jmax<float>(maxError, getError(getSample(0, i), otherL));
+					maxError = jmax<float>(maxError, getError(getSample(1, i), otherR));
+
+					auto rl = isWithinErrorRange(i, otherL, 0, errorLevelDecibels);
+					auto rr = isWithinErrorRange(i, otherR, 1, errorLevelDecibels);
+					
+					if (rl.failed())
+					{
+						test->logMessage("Error at sample " + String(i));
+
+						dump(audioBuffer, "dumpExpected.wav");
+						dump(otherData.audioBuffer, "dumpActual.wav");
+						return rl;
+					}
+						
+
+					if (rr.failed())
+					{
+						test->logMessage("Error at sample " + String(i));
+
+						dump(audioBuffer, "dumpExpected.wav");
+						dump(otherData.audioBuffer, "dumpActual.wav");
+						return rr;
+					}
+						
+				}
+
+				test->logMessage("Max error: " + String(maxError, 1) + " dB");
+
+				return Result::ok();
+			}
+
+			static float getError(float firstSample, float secondSample)
+			{
+				auto diff = fabsf(firstSample - secondSample);
+
+				auto error = Decibels::gainToDecibels(diff);
+
+				return error;
+			}
+
+			Result isWithinErrorRange(int sampleIndex, float expected, int channelIndex = 0, float errorInDecibels=-60.0f) const
+			{
+				auto actual = audioBuffer.getSample(channelIndex, sampleIndex);
+
+				auto error = getError(expected, actual);
+
+				if (error > errorInDecibels)
+				{
+					return Result::fail("Error: " + String(error, 1) + " dB");
+				}
+				
+				return Result::ok();
+				
+			}
+
+			MidiBuffer midiBuffer;
+			AudioSampleBuffer audioBuffer;
+		};
+
+		static BackendProcessor* createWithOptionalGroup(NoiseSynth::TestSignal signalType, bool useGroup)
+		{
+			if (useGroup)
+				return createAndInitialiseProcessorWithGroup(signalType);
+			else
+				return createAndInitialiseProcessor(signalType);
+		}
+
+
+		static BackendProcessor* createAndInitialiseProcessorWithGroup(NoiseSynth::TestSignal signalType)
+		{
+			ScopedPointer<BackendProcessor> bp = new BackendProcessor(nullptr, nullptr);
+			ScopedPointer<ModulatorSynthGroup> gr = new ModulatorSynthGroup(bp, "Group", NUM_POLYPHONIC_VOICES);
+			ScopedPointer<NoiseSynth> noiseSynth = new NoiseSynth(bp, "TestProcessor", NUM_POLYPHONIC_VOICES);
+
+			noiseSynth->setAttribute(ModulatorSynth::Parameters::Gain, 1.0f, dontSendNotification);
+			noiseSynth->setTestSignal(signalType);
+
+			gr->getHandler()->add(noiseSynth.release(), nullptr);
+			gr->addProcessorsWhenEmpty();
+			gr->setAttribute(ModulatorSynth::Parameters::Gain, 1.0f, dontSendNotification);
+
+			bp->getMainSynthChain()->getHandler()->add(gr.release(), nullptr);
+
+			return bp.release();
+		}
+
+		static BackendProcessor* createAndInitialiseProcessor(NoiseSynth::TestSignal signalType)
+		{
+			ScopedPointer<BackendProcessor> bp = new BackendProcessor(nullptr, nullptr);
+
+			ScopedPointer<NoiseSynth> noiseSynth = new NoiseSynth(bp, "TestProcessor", NUM_POLYPHONIC_VOICES);
+
+			noiseSynth->addProcessorsWhenEmpty();
+			noiseSynth->setAttribute(ModulatorSynth::Parameters::Gain, 1.0f, dontSendNotification);
+			noiseSynth->setTestSignal(signalType);
+
+			bp->getMainSynthChain()->getHandler()->add(noiseSynth.release(), nullptr);
+
+
+			return bp.release();
+		}
+
+		static TestData createTestDataWithOneSecondNote(int startOffset = 0)
+		{
+			TestData d;
+
+			d.audioBuffer.setSize(2, sampleRate * 2);
+			d.audioBuffer.clear();
+			d.midiBuffer.addEvent(MidiMessage::noteOn(1, 64, 1.0f), startOffset);
+			d.midiBuffer.addEvent(MidiMessage::noteOff(1, 64), sampleRate);
+
+			return d;
+		}
+
+		static void process(BackendProcessor* bp, TestData& data, int blockSize)
+		{
+			bp->prepareToPlay((double)sampleRate, blockSize);
+
+			int numSamplesTotal = data.audioBuffer.getNumSamples();
+
+			int offset = 0;
+
+			while (numSamplesTotal > 0)
+			{
+				int numThisTime = jmin<int>(numSamplesTotal, blockSize);
+
+				auto l = data.audioBuffer.getWritePointer(0, offset);
+				auto r = data.audioBuffer.getWritePointer(1, offset);
+
+				float* d[2] = { l, r };
+
+				AudioSampleBuffer subAudio(d, 2, numThisTime);
+				MidiBuffer subMidi;
+				subMidi.addEvents(data.midiBuffer, offset, numThisTime, -offset);
+
+				bp->processBlock(subAudio, subMidi);
+				numSamplesTotal -= numThisTime;
+				offset += numThisTime;
+			}
+		}
+
+		static void dump(const AudioSampleBuffer& b, const String& fileName)
+		{
+			hlac::CompressionHelpers::dump(b, fileName);
+		}
+
+	};
+
+};
+
+
+static ModulationTests modulationTests;
 
 class CustomContainerTest : public UnitTest
 {

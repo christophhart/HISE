@@ -623,7 +623,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuExportFileAsPlugin:        exporter.exportMainSynthChainAsInstrument(); return true;
 	case MenuExportFileAsEffectPlugin:	exporter.exportMainSynthChainAsFX(); return true;
 	case MenuExportFileAsStandaloneApp: exporter.exportMainSynthChainAsStandaloneApp(); return true;
-    case MenuExportFileAsSnippet:       Actions::exportFileAsSnippet(bpe); return true;
+    case MenuExportFileAsSnippet:       Actions::exportFileAsSnippet(bpe->getBackendProcessor()); return true;
 	case MenuExportFileAsPlayerLibrary: Actions::exportMainSynthChainAsPlayerLibrary(bpe); return true;
 	case MenuExportSampleDataForInstaller: Actions::exportSampleDataForInstaller(bpe); return true;
     case MenuAddView:                   Actions::addView(bpe); updateCommands();return true;
@@ -1615,9 +1615,9 @@ void BackendCommandTarget::Actions::collectExternalFiles(BackendRootWindow * bpe
 }
 
 
-void BackendCommandTarget::Actions::exportFileAsSnippet(BackendRootWindow* bpe)
+void BackendCommandTarget::Actions::exportFileAsSnippet(BackendProcessor* bp)
 {
-	ValueTree v = bpe->getMainSynthChain()->exportAsValueTree();
+	ValueTree v = bp->getMainSynthChain()->exportAsValueTree();
 
 	MemoryOutputStream mos;
 
@@ -1634,7 +1634,11 @@ void BackendCommandTarget::Actions::exportFileAsSnippet(BackendRootWindow* bpe)
 
 	SystemClipboard::copyTextToClipboard(data);
 
-	PresetHandler::showMessageWindow("Preset copied as compressed snippet", "You can paste the clipboard content to share this preset", PresetHandler::IconType::Info);
+	if (!MainController::inUnitTestMode())
+	{
+		PresetHandler::showMessageWindow("Preset copied as compressed snippet", "You can paste the clipboard content to share this preset", PresetHandler::IconType::Info);
+	}
+	
 }
 
 void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)

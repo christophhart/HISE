@@ -64,16 +64,25 @@ public:
         voiceUptime = 0.0;
         
         uptimeDelta = 1.0;
+#if HI_RUN_UNIT_TEST
+		lastUptime = -1.0;
+#endif
     }
 
 	void calculateBlock(int startSample, int numSamples) override;;
 
 private:
 
+#if HI_RUN_UNIT_TESTS
+	double lastUptime = 0.0;
+#endif
+
 	inline float getNextValue() const
 	{
 		return 2.0f * ((float)(rand()) / (float)(RAND_MAX)) - 1.0f;
 	};
+
+	
 
 };
 
@@ -81,18 +90,40 @@ class NoiseSynth: public ModulatorSynth
 {
 public:
 
-	SET_PROCESSOR_NAME("Noise", "Noise Generator")
-
-	NoiseSynth(MainController *mc, const String &id, int numVoices):
-		ModulatorSynth(mc, id, numVoices)
+	enum TestSignal
 	{
-		for(int i = 0; i < numVoices; i++) addVoice(new NoiseVoice(this));
-		addSound (new NoiseSound());	
-
-		modChains[BasicChains::PitchChain].getChain()->setBypassed(true);
+		Normal,
+		DC,
+		Ramp,
+		DiracTrain,
+		Square,
+		numTestSignals
 	};
 
+	SET_PROCESSOR_NAME("Noise", "Noise Generator")
+
+	NoiseSynth(MainController *mc, const String &id, int numVoices);
+
+	void setTestSignal(TestSignal newSignalType)
+	{
+#if !HI_RUN_UNIT_TESTS
+		jassertfalse;
+#endif
+
+		signalType = newSignalType;
+
+	}
+
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
+
+	TestSignal getTestSignal() const noexcept
+	{
+		return signalType;
+	}
+
+private:
+
+	TestSignal signalType = Normal;;
 };
 
 } // namespace hise

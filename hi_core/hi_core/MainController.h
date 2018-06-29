@@ -47,6 +47,19 @@ class MainController: public GlobalScriptCompileBroadcaster,
 {
 public:
 
+#if HI_RUN_UNIT_TESTS
+	// You can set this bool globally and it will skip some annoying things like restoring the pool or spawning threads
+	// when a BackendProcessor is created for testing purposes...
+	static bool unitTestMode;
+
+	static bool inUnitTestMode() { return unitTestMode; }
+
+#else
+
+	static bool inUnitTestMode() { return false; }
+
+#endif
+
 	/** Contains all methods related to sample management. */
 	class SampleManager
 	{
