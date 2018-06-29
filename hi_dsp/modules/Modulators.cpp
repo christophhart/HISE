@@ -43,6 +43,7 @@ float Modulation::calcIntensityValue(float calculatedModulationValue) const noex
 	{
 	case PitchMode: return calcPitchIntensityValue(calculatedModulationValue);
 	case GainMode: return calcGainIntensityValue(calculatedModulationValue);
+	case PanMode:	return calcPanIntensityValue(calculatedModulationValue);
 	default: jassertfalse; return -1.0f;
 	}
 }
@@ -54,6 +55,11 @@ float Modulation::calcGainIntensityValue(float calculatedModulationValue) const 
 }
 
 float Modulation::calcPitchIntensityValue(float calculatedModulationValue) const noexcept
+{
+	return getIntensity() * calculatedModulationValue;
+}
+
+float Modulation::calcPanIntensityValue(float calculatedModulationValue) const noexcept
 {
 	return getIntensity() * calculatedModulationValue;
 }
@@ -74,16 +80,11 @@ void Modulation::setIntensity(float newIntensity) noexcept
 
 void Modulation::setIntensityFromSlider(float sliderValue) noexcept
 {
-	if (modulationMode == GainMode)
+	switch (modulationMode)
 	{
-		setIntensity(sliderValue);
-
-	}
-	else
-	{
-		const float thisIntensity = PitchConverters::octaveRangeToSignedNormalisedRange(sliderValue);
-
-		setIntensity(thisIntensity);
+	case GainMode:	setIntensity(sliderValue); break;
+	case PitchMode:	setIntensity(PitchConverters::octaveRangeToSignedNormalisedRange(sliderValue)); break;
+	case PanMode:	setIntensity(sliderValue / 100.0); break;
 	}
 }
 
@@ -94,9 +95,16 @@ bool Modulation::isBipolar() const noexcept
 
 void Modulation::setIsBipolar(bool shouldBeBiPolar) noexcept
 {
-	jassert(modulationMode == PitchMode);
+	jassert(modulationMode == PitchMode || modulationMode == PanMode);
 
 	bipolar = shouldBeBiPolar;
+}
+
+float Modulation::getInitialValue() const noexcept
+{
+	// Pitch mode is converted to 0.5...2.0 so it's still 1.0f;
+
+	return getMode() == PanMode ? 0.0f : 1.0f;
 }
 
 float Modulation::getIntensity() const noexcept
@@ -111,6 +119,7 @@ float Modulation::getDisplayIntensity() const noexcept
 	{
 	case GainMode:			return intensity;
 	case PitchMode:			return intensity * 12.0f; // return (log(intensity) / log(2.0f)) * 12.0f;
+	case PanMode:			return intensity * 100.0f;
 	default:				jassertfalse; return 0.0f;
 	}
 }
@@ -121,9 +130,14 @@ void Modulation::setPlotter(Plotter *targetPlotter)
 
 	if (attachedPlotter != nullptr)
 	{
-		attachedPlotter->setPitchMode(getMode() == Modulation::PitchMode);
+		attachedPlotter->setMode(getMode());
 		
-		if (auto modChain = dynamic_cast<ModulatorChain*>(ProcessorHelpers::findParentProcessor(dynamic_cast<Modulator*>(this), false)))
+		auto modChain = dynamic_cast<ModulatorChain*>(this);
+
+		if (modChain == nullptr)
+			modChain = dynamic_cast<ModulatorChain*>(ProcessorHelpers::findParentProcessor(dynamic_cast<Modulator*>(this), false));
+
+		if (modChain != nullptr)
 		{
 			attachedPlotter->setYConverter(modChain->getTableValueConverter());
 		}
@@ -188,14 +202,16 @@ void TimeModulation::applyTimeModulation(float* destinationBuffer, int startInde
 		{
 		case GainMode: applyGainModulation(mod, dest, 1.0f, smoothedIntensityValues, samplesToCopy); break;
 		case PitchMode: applyPitchModulation(mod, dest, 1.0f, smoothedIntensityValues, samplesToCopy); break;
+		case PanMode:	applyPanModulation(mod, dest, 1.0f, smoothedIntensityValues, samplesToCopy); break;
 		}
 	}
 	else
 	{
 		switch (modulationMode)
 		{
-		case GainMode: applyGainModulation(mod, dest, getIntensity(), samplesToCopy); break;
+		case GainMode:	applyGainModulation(mod, dest, getIntensity(), samplesToCopy); break;
 		case PitchMode: applyPitchModulation(mod, dest, getIntensity(), samplesToCopy); break;
+		case PanMode:	applyPanModulation(mod, dest, getIntensity(), samplesToCopy); break;
 		}
 	}
 
@@ -213,7 +229,8 @@ void TimeModulation::prepareToModulate(double sampleRate, int samplesPerBlock)
 
 	controlRate = sampleRate * ratio;
 
-	smoothedIntensity.setValueAndRampTime(getIntensity(), controlRate, 0.1);
+	smoothedIntensity.setValueAndRampTime(getIntensity(), controlRate, 0.05);
+
 	jassert(isInitialized());
 	
 }
@@ -270,6 +287,16 @@ void TimeModulation::applyGainModulation(float *calculatedModulationValues, floa
 
 void TimeModulation::applyGainModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, const float *intensityValues, int numValues) const noexcept
 {
+	while (--numValues >= 0)
+	{
+		const float intensityValue = fixedIntensity * *intensityValues++;
+		const float a = 1.0f - intensityValue;
+
+		*destinationValues++ *= (a + intensityValue * *calculatedModulationValues++);
+	}
+
+
+#if 0
 	const float a = 1.0f - fixedIntensity;
 
 	constexpr int BlockSize = 32;
@@ -321,6 +348,7 @@ void TimeModulation::applyGainModulation(float *calculatedModulationValues, floa
 			}
 		}
 	}
+#endif
 }
 
 void TimeModulation::applyPitchModulation(float* calculatedModulationValues, float *destinationValues, float fixedIntensity, int numValues) const noexcept
@@ -439,6 +467,57 @@ void TimeModulation::applyIntensityForPitchValues(float* calculatedModulationVal
 	}
 
 	
+}
+
+
+void TimeModulation::applyPanModulation(float * calculatedModValues, float * destinationValues, float fixedIntensity, float* intensityValues, int numValues) const noexcept
+{
+	// input: modValues (0 ... 1), intensity (-1 ... 1), intensityValues (0.0 ... 1.0)
+
+	if (isBipolar())
+	{
+		while (--numValues >= 0)
+		{
+
+			const float bipolarModValue = 2.0f * *calculatedModValues++ - 1.0f;
+			*destinationValues++ += bipolarModValue * fixedIntensity * *intensityValues++;
+		}
+	}
+	else
+	{
+		while (--numValues >= 0)
+		{
+			const float modValue = fixedIntensity * *intensityValues++ * *calculatedModValues++;
+			*destinationValues++ += modValue;
+		}
+	}
+
+	
+
+}
+
+void TimeModulation::applyPanModulation(float * calculatedModValues, float * destinationValues, float fixedIntensity, int numValues) const noexcept
+{
+	// input: modValues (0 ... 1), intensity (-1 ... 1)
+	// output: 0 -> 0.5
+
+	if (isBipolar())
+	{
+		while (--numValues >= 0)
+		{
+			
+			const float bipolarModValue = 2.0f * *calculatedModValues++ - 1.0f;
+			*destinationValues++ += bipolarModValue * fixedIntensity;
+		}
+	}
+	else
+	{
+		while (--numValues >= 0)
+		{
+			const float modValue = *calculatedModValues++ * fixedIntensity;
+			*destinationValues++ += modValue;
+		}
+	}
 }
 
 #pragma warning( push )

@@ -179,6 +179,19 @@ void ModulatorChain::ModChainWithBuffer::Buffer::updatePointers()
 	scratchBuffer = dsp::SIMDRegister<float>::getNextSIMDAlignedPtr(monoValues + maxSamplesPerBlock);
 }
 
+void ModulatorChain::ModChainWithBuffer::applyMonophonicValuesToVoiceInternal(float* voiceBuffer, float* monoBuffer, int numSamples)
+{
+	if (c->getMode() == Modulation::PanMode)
+	{
+		FloatVectorOperations::add(voiceBuffer, monoBuffer, numSamples);
+	}
+	else
+	{
+		FloatVectorOperations::multiply(voiceBuffer, monoBuffer, numSamples);
+	}
+}
+
+
 void ModulatorChain::ModChainWithBuffer::setDisplayValueInternal(int voiceIndex, int startSample, int numSamples)
 {
 	if (c->polyManager.getLastStartedVoice() == voiceIndex)
@@ -189,6 +202,11 @@ void ModulatorChain::ModChainWithBuffer::setDisplayValueInternal(int voiceIndex,
 			displayValue = getConstantModulationValue();
 		else
 			displayValue = currentVoiceData[startSample];
+
+		if (c->getMode() == Modulation::PanMode)
+		{
+			displayValue = displayValue * 0.5f + 0.5f;
+		}
 
 
 		c->setOutputValue(displayValue);
@@ -356,8 +374,8 @@ void ModulatorChain::ModChainWithBuffer::calculateMonophonicModulationValues(int
 		jassert(c->getSampleRate() > 0);
 
 		ModIterator<TimeVariantModulator> iter(c);
-
-		FloatVectorOperations::fill(modBuffer.monoValues + startSample_cr, 1.0f, numSamples_cr);
+		
+		FloatVectorOperations::fill(modBuffer.monoValues + startSample_cr, c->getInitialValue(), numSamples_cr);
 
 		while (auto mod = iter.next())
 		{
@@ -437,18 +455,21 @@ void ModulatorChain::ModChainWithBuffer::calculateModulationValuesForCurrentVoic
 			}
 
 			if (useMonophonicData)
-				FloatVectorOperations::multiply(voiceData + startSample_cr, monoData + startSample_cr, numSamples_cr);
+			{
+				applyMonophonicValuesToVoiceInternal(voiceData + startSample_cr, monoData + startSample_cr, numSamples_cr);
+			}
 
 			currentVoiceData = voiceData;
 			
-
 #if JUCE_DEBUG
 			polyExpandChecker = false;
 #endif
 		}
 		else if (useMonophonicData)
 		{
-			FloatVectorOperations::multiply(voiceData + startSample_cr, monoData + startSample_cr, numSamples_cr);
+			applyMonophonicValuesToVoiceInternal(voiceData + startSample_cr, monoData + startSample_cr, numSamples_cr);
+
+			
 			currentVoiceData = voiceData;
 
 #if JUCE_DEBUG
@@ -463,7 +484,7 @@ void ModulatorChain::ModChainWithBuffer::calculateModulationValuesForCurrentVoic
 	}
 	else if (useMonophonicData)
 	{
-		setConstantVoiceValueInternal(voiceIndex, 1.0f);
+		setConstantVoiceValueInternal(voiceIndex, c->getInitialValue());
 
 		if (options.voiceValuesReadOnly)
 			currentVoiceData = monoData;
@@ -711,15 +732,17 @@ void ModulatorChain::allNotesOff()
 float ModulatorChain::getConstantVoiceValue(int voiceIndex) const
 {
 	if (!hasActiveVoiceStartMods())
-		return 1.0f;
+		return getInitialValue();
 
-	if (getMode() == Modulation::GainMode)
+	auto m = getMode();
+
+	if(m == Modulation::GainMode)
 	{
 		float value = 1.0f;
 
 		ModIterator<VoiceStartModulator> iter(this);
 
-		while(auto mod = iter.next())
+		while (auto mod = iter.next())
 		{
 			const auto modValue = mod->getVoiceStartValue(voiceIndex);
 			const auto intensityModValue = mod->calcGainIntensityValue(modValue);
@@ -734,7 +757,7 @@ float ModulatorChain::getConstantVoiceValue(int voiceIndex) const
 
 		ModIterator<VoiceStartModulator> iter(this);
 
-		while(auto mod = iter.next())
+		while (auto mod = iter.next())
 		{
 			float modValue = mod->getVoiceStartValue(voiceIndex);
 
@@ -745,7 +768,7 @@ float ModulatorChain::getConstantVoiceValue(int voiceIndex) const
 			value += intensityModValue;
 		}
 
-		return Modulation::PitchConverters::normalisedRangeToPitchFactor(value);
+		return m == Mode::PanMode ? value : Modulation::PitchConverters::normalisedRangeToPitchFactor(value);
 	}
 };
 
@@ -769,7 +792,9 @@ float ModulatorChain::startVoice(int voiceIndex)
 
 	monophonicStartValue = 1.0f;
 
-	if (getMode() == GainMode)
+	auto m = getMode();
+
+	if (m == GainMode)
 	{
 		float envelopeStartValue = startValue;
 
@@ -798,7 +823,7 @@ float ModulatorChain::startVoice(int voiceIndex)
 
 		return envelopeStartValue;
 	}
-	else // Pitch Mode
+	else // Pitch / Pan Mode
 	{
 		float envelopeStartValue = 0.0f;
 
@@ -832,7 +857,7 @@ float ModulatorChain::startVoice(int voiceIndex)
 			mod->polyManager.setLastStartedVoice(voiceIndex);
 		}
 
-		return Modulation::PitchConverters::normalisedRangeToPitchFactor(envelopeStartValue);
+		return m == PanMode ? envelopeStartValue : Modulation::PitchConverters::normalisedRangeToPitchFactor(envelopeStartValue);
 	}
 }
 
@@ -1055,9 +1080,9 @@ void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator
 
 		auto& cf = tableValueConverter;
 
-		auto isPitch = chain->getMode() == Modulation::PitchMode;
+		auto isBipolarModulation = chain->getMode() == Modulation::PitchMode || chain->getMode() == Modulation::PanMode;
 
-		auto f = [mod, cf, isPitch](float input)
+		auto f = [mod, cf, isBipolarModulation](float input)
 		{
 			if (mod.get() != nullptr)
 			{
@@ -1066,7 +1091,7 @@ void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator
 
 				auto modValue = modulation->calcIntensityValue(input);
 
-				if (isPitch)
+				if (isBipolarModulation)
 				{
 					float normalizedInput;
 
@@ -1079,8 +1104,6 @@ void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator
 				}
 				else
 				{
-					
-
 					auto v = jmap<float>(input, 1.0f - intensity, 1.0f);
 					return cf(v);
 				}

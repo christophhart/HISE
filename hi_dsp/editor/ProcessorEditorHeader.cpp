@@ -267,7 +267,15 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 			intensitySlider->setTextBoxIsEditable(true);
 			bipolarModButton->setVisible(!isHeaderOfChain());
 			bipolarModButton->addListener(this);
-		};
+		}
+		else if (getModulatorMode() == Modulation::PanMode)
+		{
+			intensitySlider->setRange(-100.0, 100.0, 1);
+			intensitySlider->setTextValueSuffix("%");
+			intensitySlider->setTextBoxIsEditable(true);
+			bipolarModButton->setVisible(!isHeaderOfChain());
+			bipolarModButton->addListener(this);
+		}
 
 		intensitySlider->setTooltip("Set the intensity of the modulation. 0 = no effect, 1 = full range modulation.");
 

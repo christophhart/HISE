@@ -145,15 +145,22 @@ void MPEModulator::setInternalAttribute(int parameterIndex, float newValue)
 	}
 	else if (parameterIndex == SpecialParameters::DefaultValue)
 	{
-		if (getMode() == Modulation::GainMode)
-			defaultValue = jlimit<float>(0.0f, 1.0f, newValue);
-		else
-			defaultValue = jlimit<float>(0.0f, 1.0f, newValue / 24.0f + 0.5f);
-
+		switch (getMode())
+		{
+		case Modulation::GainMode:	defaultValue = jlimit<float>(0.0f, 1.0f, newValue); break;
+		case Modulation::PitchMode: defaultValue = jlimit<float>(0.0f, 1.0f, newValue / 24.0f + 0.5f); break;
+		case Modulation::PanMode:	defaultValue = jlimit<float>(0.0f, 1.0f, newValue / 200.0f + 0.5f); break;
+		}
 	}
 	else if (parameterIndex == SpecialParameters::SmoothedIntensity)
 	{
-		smoothedIntensity = getMode() == Modulation::GainMode ? newValue : newValue / 12.0f;
+		switch (getMode())
+		{
+			case Modulation::GainMode:	smoothedIntensity = newValue; break;
+			case Modulation::PitchMode:	smoothedIntensity = newValue / 12.0f; break;
+			case Modulation::PanMode:	smoothedIntensity = newValue / 100.0f; break;
+		}
+
 		setIntensity(smoothedIntensity);
 	}
 		
@@ -228,16 +235,23 @@ float MPEModulator::getAttribute(int parameterIndex) const
 		return smoothingTime;
 	else if (parameterIndex == DefaultValue)
 	{
-		if (getMode() == Modulation::GainMode)
-			return defaultValue;
-		else
-			return (defaultValue - 0.5f) * 24.0f;
+		switch (getMode())
+		{
+		case Modulation::GainMode:	return defaultValue;
+		case Modulation::PitchMode:	return (defaultValue - 0.5f) * 24.0f;
+		case Modulation::PanMode:	return (defaultValue - 0.5f) * 200.0f;
+		}
+
 	}
 	else if (parameterIndex == SpecialParameters::SmoothedIntensity)
 	{
-		return getMode() == Modulation::GainMode ? smoothedIntensity : smoothedIntensity * 12.0f;
+		switch (getMode())
+		{
+		case Modulation::GainMode:	return smoothedIntensity;
+		case Modulation::PitchMode:	return smoothedIntensity * 12.0f;
+		case Modulation::PanMode:	return smoothedIntensity * 100.0f;
+		}
 	}
-		
 
 	return 0.0f;
 }
@@ -422,8 +436,11 @@ void MPEModulator::MPEState::process(float* data, int numSamples)
 {
 	while (--numSamples >= 0)
 	{
-		*data++ = smoother.smoothRaw(targetValue);
+		currentRampValue = smoother.smoothRaw(targetValue);
+		*data++ = currentRampValue;
 	}
+
+	
 
 #if 0
 	while (numSamples > 0)

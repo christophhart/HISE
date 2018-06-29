@@ -500,12 +500,12 @@ void MPEPanel::paint(Graphics& g)
 		{
 			Rectangle<int> rectangles[9] = { tableHeader.removeFromLeft(100),
 				tableHeader.removeFromLeft(80),
-				tableHeader.removeFromLeft(80),
-				tableHeader.removeFromLeft(100),
 				tableHeader.removeFromLeft(100),
 				tableHeader.removeFromLeft(50),
 				tableHeader.removeFromLeft(100),
 				tableHeader.removeFromLeft(100),
+				tableHeader.removeFromLeft(100),
+				tableHeader.removeFromLeft(80),
 				tableHeader };
 
 			g.setColour(laf.fillColour.withAlpha(0.1f));
@@ -521,13 +521,16 @@ void MPEPanel::paint(Graphics& g)
 
 
 			g.drawText("Target", rectangles[0], Justification::centred);
-			g.drawText("Meter", rectangles[1], Justification::centred);
-			g.drawText("Gesture", rectangles[2], Justification::centred);
-			g.drawText("Mode", rectangles[3], Justification::centred);
+			
+			g.drawText("Gesture", rectangles[1], Justification::centred);
+			
+			g.drawText("Mode", rectangles[2], Justification::centred);
+			
+			g.drawText("Curve", rectangles[3], Justification::centred);
 			g.drawText("Intensity", rectangles[4], Justification::centred);
-			g.drawText("Curve", rectangles[5], Justification::centred);
-			g.drawText("Smoothing", rectangles[6], Justification::centred);
-			g.drawText("Default", rectangles[7], Justification::centred);
+			g.drawText("Smoothing", rectangles[5], Justification::centred);
+			g.drawText("Default", rectangles[6], Justification::centred);
+			g.drawText("Meter", rectangles[7], Justification::centred);
 		}
 		else
 		{
@@ -574,12 +577,15 @@ void MPEPanel::setCurrentMod(MPEModulator* newMod)
 			addAndMakeVisible(currentPlotter = new Plotter());
 
 			newMod->setPlotter(currentPlotter);
+
+			currentPlotter->setFont(getFont());
+
+			currentPlotter->setColour(Plotter::ColourIds::textColour, laf.textColour);
 			currentPlotter->setColour(Plotter::ColourIds::pathColour, laf.fillColour.withMultipliedAlpha(1.05f));
 			currentPlotter->setColour(Plotter::ColourIds::pathColour2, laf.fillColour);
 			currentPlotter->setColour(Plotter::ColourIds::backgroundColour, laf.fillColour.withAlpha(0.05f));
 			currentTable.setColour(TableEditor::ColourIds::bgColour, laf.fillColour.withAlpha(0.05f));
 		}
-
 
 		currentTable.connectToLookupTableProcessor(newMod);
 
@@ -880,6 +886,12 @@ MPEPanel::Model::Row::Row(MPEModulator* mod_, LookAndFeel& laf_) :
 	modeSelector.addItem("Legato", 2);
 	modeSelector.addItem("Retrigger", 3);
 
+	if (mod->getMode() == Modulation::PanMode)
+	{
+		modeSelector.addItem("Polyphonic Bipolar", 4);
+		modeSelector.addItem("Legato Bipolar", 5);
+		modeSelector.addItem("Retrigger Bipolar", 6);
+	}
 
 
 	MPEPanel::Factory f;
@@ -887,7 +899,6 @@ MPEPanel::Model::Row::Row(MPEModulator* mod_, LookAndFeel& laf_) :
 	deleteButton.setShape(f.createPath("Delete"), false, true, false);
 
 	deleteButton.addListener(this);
-
 
 	selector.setup(mod, MPEModulator::SpecialParameters::GestureCC, "Gesture");
 
@@ -903,18 +914,16 @@ MPEPanel::Model::Row::Row(MPEModulator* mod_, LookAndFeel& laf_) :
 	defaultValue.setup(mod, MPEModulator::SpecialParameters::DefaultValue, "Default");
 	defaultValue.setMode(HiSlider::NormalizedPercentage);
 
-
-
-
-
 	intensity.setup(mod, MPEModulator::SpecialParameters::SmoothedIntensity, "Intensity");
 
-	if (mod->getMode() == Modulation::GainMode)
+	auto mode = mod->getMode();
+
+	if (mode == Modulation::GainMode)
 	{
 		intensity.setMode(HiSlider::NormalizedPercentage);
 		defaultValue.setMode(HiSlider::NormalizedPercentage);
 	}
-	else
+	else if (mode == Modulation::PitchMode)
 	{
 		intensity.setMode(HiSlider::Linear, -12.0, 12.0, 0.0, 0.01);
 		intensity.setTextValueSuffix(" st.");
@@ -922,7 +931,11 @@ MPEPanel::Model::Row::Row(MPEModulator* mod_, LookAndFeel& laf_) :
 		defaultValue.setMode(HiSlider::Linear, -12.0, 12.0, 0.0, 0.01);
 		defaultValue.setTextValueSuffix(" st.");
 	}
-
+	else if (mode == Modulation::PanMode)
+	{
+		intensity.setMode(HiSlider::Pan);
+		defaultValue.setMode(HiSlider::Pan);
+	}
 
 	smoothingTime.setColour(Slider::textBoxOutlineColourId, Colours::transparentBlack);
 	intensity.setColour(Slider::textBoxOutlineColourId, Colours::transparentBlack);
@@ -999,14 +1012,15 @@ void MPEPanel::Model::Row::resized()
 
 	ar.removeFromLeft(100);
 
-	output.setBounds(ar.removeFromLeft(80).reduced(margin));
+	
 	selector.setBounds(ar.removeFromLeft(80));
 	modeSelector.setBounds(ar.removeFromLeft(100).reduced(margin));
-	intensity.setBounds(ar.removeFromLeft(100).reduced(margin));
 	curvePreview.setBounds(ar.removeFromLeft(50).reduced(margin));
+	intensity.setBounds(ar.removeFromLeft(100).reduced(margin));
+	
 	smoothingTime.setBounds(ar.removeFromLeft(100).reduced(margin));
 	defaultValue.setBounds(ar.removeFromLeft(100).reduced(margin));
-
+	output.setBounds(ar.removeFromLeft(80).reduced(margin));
 	deleteButton.setBounds(ar.removeFromRight(buttonWidth).reduced(margin + 6));
 }
 
@@ -1025,8 +1039,15 @@ void MPEPanel::Model::Row::updateEnableState()
 
 		const bool isMonophonic = mod->getAttribute(EnvelopeModulator::Monophonic) > 0.5f;
 		const bool shouldRetrigger = mod->getAttribute(EnvelopeModulator::Retrigger) > 0.5f;
+		const bool isBipolarPan = mod->isBipolar() && mod->getMode() == Modulation::PanMode;
 
-		modeSelector.setSelectedId(isMonophonic ? (shouldRetrigger ? 3 : 2) : 1, dontSendNotification);
+		int valueToUse = isMonophonic ? (shouldRetrigger ? 3 : 2) : 1;
+
+		if (isBipolarPan)
+			valueToUse += 3;
+
+
+		modeSelector.setSelectedId(valueToUse, dontSendNotification);
 
 		intensity.setEnabled(enabled);
 		smoothingTime.setEnabled(enabled);
@@ -1080,18 +1101,23 @@ void MPEPanel::Model::Row::buttonClicked(Button* b)
 
 void MPEPanel::Model::Row::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 {
-	auto result = comboBoxThatHasChanged->getSelectedId();
+	auto result = comboBoxThatHasChanged->getSelectedId() - 1;
 
-	if (result == 1)
+	const bool shouldBeBipolar = result >= 3;
+	result = result % 3;
+
+	mod->setIsBipolar(shouldBeBipolar);
+
+	if (result == 0)
 	{
 		mod->setAttribute(EnvelopeModulator::Parameters::Monophonic, false, sendNotification);
 	}
-	else if (result == 2)
+	else if (result == 1)
 	{
 		mod->setAttribute(EnvelopeModulator::Parameters::Monophonic, true, dontSendNotification);
 		mod->setAttribute(EnvelopeModulator::Parameters::Retrigger, false, sendNotification);
 	}
-	else if (result == 3)
+	else if (result == 2)
 	{
 		mod->setAttribute(EnvelopeModulator::Parameters::Monophonic, true, dontSendNotification);
 		mod->setAttribute(EnvelopeModulator::Parameters::Retrigger, true, sendNotification);

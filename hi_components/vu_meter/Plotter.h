@@ -80,10 +80,16 @@ public:
 
 	void mouseExit(const MouseEvent& m) override;
 
-	void setPitchMode(bool shouldBePitchMode)
+	void setMode(Modulation::Mode m)
 	{
-		pitchMode = shouldBePitchMode;
+		currentMode = m;
 	}
+	
+	void setFont(Font& f)
+	{
+
+	}
+
 
 	void setYConverter(const Table::ValueTextConverter& newYConverter)
 	{
@@ -91,6 +97,8 @@ public:
 	}
 
 private:
+
+	Font font;
 
 	void rebuildPath();
 
@@ -101,7 +109,7 @@ private:
 
 	Table::ValueTextConverter yConverter;
 
-	bool pitchMode = false;
+	Modulation::Mode currentMode;
 
 	void popLockFree(float* destination, int numSamples);
 

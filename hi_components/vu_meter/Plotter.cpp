@@ -40,6 +40,8 @@ Plotter::Plotter():
 	yConverter(Table::getDefaultTextValue)
 {
 
+	setFont(GLOBAL_BOLD_FONT());
+
 	memset(tempBuffer, 0, sizeof(float) * 8192);
 
 	setName("Plotter");
@@ -66,7 +68,7 @@ Plotter::~Plotter()
 	
 };
 
-float getAverage(const float* data, int numSamples, bool pitchMode)
+float getAverage(const float* data, int numSamples, Modulation::Mode m)
 {
 	if (numSamples == 0)
 		return 0.0f;
@@ -80,9 +82,13 @@ float getAverage(const float* data, int numSamples, bool pitchMode)
 
 	float thisValue = sum / (float)numSamples;
 
-	if (pitchMode)
+	if (m == Modulation::PitchMode)
 	{
 		thisValue = Modulation::PitchConverters::pitchFactorToNormalisedRange(thisValue);
+		thisValue = (thisValue + 1.0f) / 2.0f;
+	}
+	else if (m == Modulation::PanMode)
+	{
 		thisValue = (thisValue + 1.0f) / 2.0f;
 	}
 
@@ -103,14 +109,21 @@ void Plotter::paint (Graphics& g)
 
 	auto topText = yConverter(1.0f);
 
-	auto bottomText = yConverter(pitchMode ? -1.0f : 0.0f);
+	float bottomValue = 0.0f;
 
-	g.setFont(GLOBAL_BOLD_FONT());
+	if (currentMode == Modulation::PitchMode || currentMode == Modulation::PanMode)
+	{
+		bottomValue = -1.0f;
+	}
+
+	auto bottomText = yConverter(bottomValue);
+
+	g.setFont(font);
 
 	g.drawText(topText, getLocalBounds(), Justification::topRight);
 	g.drawText(bottomText, getLocalBounds(), Justification::bottomRight);
 
-	if (pitchMode)
+	if (currentMode != Modulation::GainMode)
 	{
 		g.drawHorizontalLine(getHeight() / 2, 0.0f, (float)getWidth());
 	}
@@ -125,11 +138,11 @@ void Plotter::paint (Graphics& g)
 
 	if (!popupPosition.isOrigin())
 	{
-		Font f = GLOBAL_BOLD_FONT();
+		Font f = font;
 
 		float yValue = (float)popupPosition.getY() / (float)getHeight();
 
-		if (pitchMode)
+		if (currentMode != Modulation::GainMode)
 			yValue = jmap(yValue, 0.0f, 1.0f, 1.0f, -1.0f);
 		else
 			yValue = jmap(yValue, 0.0f, 1.0f, 1.0f, 0.0f);
@@ -205,7 +218,7 @@ void Plotter::rebuildPath()
 
 		int numToSearch = jmin<int>(roundFloatToInt(samplesPerPixel * 2), displayBuffer.getNumSamples() - samplePos);
 
-		float thisValue = getAverage(displayBuffer.getReadPointer(0, samplePos), numToSearch, pitchMode);
+		float thisValue = getAverage(displayBuffer.getReadPointer(0, samplePos), numToSearch, currentMode);
 
 		drawPath.lineTo((float)i, (float)getHeight() - thisValue * (float)getHeight());
 	}
@@ -241,18 +254,21 @@ void Plotter::addValues(const float* buffer, int startSample, int numSamples)
 	{
 		const int numBeforeWrap = displayBuffer.getNumSamples() - position;
 
-		FloatVectorOperations::copy(displayBuffer.getWritePointer(0, position), buffer + startSample, numBeforeWrap);
+		if(numBeforeWrap > 0)
+			FloatVectorOperations::copy(displayBuffer.getWritePointer(0, position), buffer + startSample, numBeforeWrap);
 
 		const int numAfterWrap = numSamples - numBeforeWrap;
 
 		position = 0;
 
-		FloatVectorOperations::copy(displayBuffer.getWritePointer(0, position), buffer + startSample + numBeforeWrap, numAfterWrap);
+		if(numAfterWrap > 0)
+			FloatVectorOperations::copy(displayBuffer.getWritePointer(0, position), buffer + startSample + numBeforeWrap, numAfterWrap);
 
 	}
 	else
 	{
-		FloatVectorOperations::copy(displayBuffer.getWritePointer(0, position), buffer + startSample, numSamples);
+		if(numSamples > 0)
+			FloatVectorOperations::copy(displayBuffer.getWritePointer(0, position), buffer + startSample, numSamples);
 
 		position += numSamples;
 	}

@@ -57,7 +57,8 @@ StereoEffect::StereoEffect(MainController *mc, const String &uid, int numVoices)
 	pan(getDefaultValue(Pan)),
 	width(getDefaultValue(Width))
 {
-	modChains += {this, "Pan Modulation"};
+	modChains += {this, "Pan Modulation", ModulatorChain::ModulationType::Normal, Modulation::PanMode};
+	modChains[InternalChains::BalanceChain].setExpandToAudioRate(true);
 
 	parameterNames.add("Pan");
 	parameterNames.add("Width");
@@ -68,8 +69,7 @@ StereoEffect::StereoEffect(MainController *mc, const String &uid, int numVoices)
 	{
 		if (tmp.get() != nullptr)
 		{
-			auto normalized = (input - 0.5f) * 2.0f;
-			auto v = tmp->getAttribute(StereoEffect::Pan) * normalized;
+			auto v = -1.0f * tmp->getAttribute(StereoEffect::Pan) * input;
 
 			return BalanceCalculator::getBalanceAsString(roundFloatToInt(v));
 		}
@@ -174,11 +174,11 @@ void StereoEffect::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSa
 		float* outL = b.getWritePointer(0, startSample);
 		float* outR = b.getWritePointer(1, startSample);
 
-		const float normalizedPan = (pan - 0.5f) * 400.0f;
+		const float normalizedPan = (pan - 0.5f) * 200.0f;
 
 		while (--numSamples >= 0)
 		{
-			const float scaledPanValue = (*panValues++ - 0.5f) * normalizedPan;
+			const float scaledPanValue = *panValues++ * normalizedPan;
 
 			*outL++ *= BalanceCalculator::getGainFactorForBalance(scaledPanValue, true);
 			*outR++ *= BalanceCalculator::getGainFactorForBalance(scaledPanValue, false);
@@ -191,8 +191,8 @@ void StereoEffect::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSa
 		float* outL = b.getWritePointer(0, startSample);
 		float* outR = b.getWritePointer(1, startSample);
 
-		const float normalizedPan = (pan - 0.5f) * 400.0f;
-		const float scaledPanValue = (modValue - 0.5f) * normalizedPan;
+		const float normalizedPan = (pan - 0.5f) * 200.0f;
+		const float scaledPanValue = (modValue) * normalizedPan;
 
 		float gainL = BalanceCalculator::getGainFactorForBalance(scaledPanValue, true);
 		float gainR = BalanceCalculator::getGainFactorForBalance(scaledPanValue, false);

@@ -87,7 +87,9 @@ public:
 		*
 		*	The range is supposed to be -1.0 ... 1.0 and must be converted using convertToFreqRatio directly before using it.
 		**/
-		PitchMode
+		PitchMode,
+		/** Range is -1.0 ... 1.0 */
+		PanMode
 	};
 
 	Modulation(Mode m): 
@@ -112,6 +114,8 @@ public:
 
 	inline float calcPitchIntensityValue(float calculatedModulationValue) const noexcept;
 
+	inline float calcPanIntensityValue(float calculatedModulationValue) const noexcept;
+
 	/** This applies the previously calculated value to the supplied destination value depending on the modulation mode (adding or multiplying). */
 	void applyModulationValue(float calculatedModulationValue, float &destinationValue) const noexcept;;
 
@@ -127,6 +131,8 @@ public:
 	bool isBipolar() const noexcept;;
 
 	void setIsBipolar(bool shouldBeBiPolar) noexcept;;
+
+	float getInitialValue() const noexcept;
 
 	/** Returns the intensity. This is used by the modulator chain to either multiply or add the outcome of the Modulation. 
 	*
@@ -220,6 +226,11 @@ public:
 	void pushPlotterValues(const float* b, int startSample, int numSamples);
 
 	virtual bool shouldUpdatePlotter() const { return true; };
+
+	void deactivateIntensitySmoothing()
+	{
+		smoothedIntensity.reset(44100.0, 0.0);
+	}
 
 protected:
 
@@ -380,6 +391,9 @@ protected:
 	*/
 	void applyPitchModulation(float* calculatedModulationValues, float *destinationValues, float fixedIntensity, int numValues) const noexcept;;
 
+	void applyPanModulation(float * calculatedModValues, float * destinationValues, float fixedIntensity, float* intensityValues, int numValues) const noexcept;
+	void applyPanModulation(float * calculatedModValues, float * destinationValues, float fixedIntensity, int numValues) const noexcept;
+
 	void applyIntensityForGainValues(float* calculatedModulationValues, float fixedIntensity, int numValues) const;
 
 	void applyIntensityForPitchValues(float* calculatedModulationValues, float fixedIntensity, int numValues) const;
@@ -412,6 +426,7 @@ private:
 
 	float lastConstantValue = 1.0f;
 
+	
 };
 
 
@@ -654,15 +669,20 @@ public:
 		calculateBlock(startSample, numSamples);
 
 		applyTimeModulation(monoModulationValues, startSample, numSamples);
+		lastConstantValue = monoModulationValues[startSample];
 
 #if ENABLE_ALL_PEAK_METERS
-		const float displayValue = monoModulationValues[startSample];
+		const float displayValue = lastConstantValue;
 
 		pushPlotterValues(monoModulationValues, startSample, numSamples);
 
 		setOutputValue(displayValue);
 #endif
+		
+
 	}
+
+	float getLastConstantValue() const noexcept { return lastConstantValue; }
 
 protected:
 
@@ -673,6 +693,7 @@ protected:
 		TimeModulation(m),
 		Modulation(m)
 	{
+		lastConstantValue = getInitialValue();
 		smoothedIntensity.setValueWithoutSmoothing(0);
 	};
 
@@ -699,10 +720,14 @@ protected:
 
 	Processor *getProcessor() override { return this; };
 
+	
+
 private:
 
 	
 	
+	float lastConstantValue = 1.0f;
+
 };
 
 
