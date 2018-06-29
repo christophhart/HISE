@@ -547,6 +547,7 @@ static SSEFloat getSSEFloatRegister(const int16* d)
 
 template <typename SignalType, bool isFloat> void interpolateStereoSamples(const SignalType* inL, const SignalType* inR, const float* pitchData, float* outL, float* outR, int startSample, double indexInBuffer, double uptimeDelta, int numSamples)
 {
+#if 0
 	constexpr float gainFactor = isFloat ? 1.0f : (1.0f / (float)INT16_MAX);
 
 	using SSEFloat = dsp::SIMDRegister<float>;
@@ -675,6 +676,58 @@ template <typename SignalType, bool isFloat> void interpolateStereoSamples(const
 			numSamples--;
 		}
 	}
+#else
+	constexpr float gainFactor = isFloat ? 1.0f : (1.0f / (float)INT16_MAX);
+
+	if (pitchData != nullptr)
+	{
+		pitchData += startSample;
+
+		float indexInBufferFloat = (float)indexInBuffer;
+
+		for (int i = 0; i < numSamples; i++)
+		{
+			const int pos = int(indexInBufferFloat);
+			const float alpha = indexInBufferFloat - (float)pos;
+			const float invAlpha = 1.0f - alpha;
+
+			float l = ((float)inL[pos] * invAlpha + (float)inL[pos + 1] * alpha);
+			float r = ((float)inR[pos] * invAlpha + (float)inR[pos + 1] * alpha);
+
+			outL[i] = l * gainFactor;
+			outR[i] = r * gainFactor;
+
+			jassert(*pitchData <= (float)MAX_SAMPLER_PITCH);
+
+			indexInBufferFloat += pitchData[i];
+		}
+	}
+	else
+	{
+
+		float indexInBufferFloat = (float)indexInBuffer;
+		const float uptimeDeltaFloat = (float)uptimeDelta;
+
+		while (numSamples > 0)
+		{
+			const int pos = int(indexInBufferFloat);
+			const float alpha = indexInBufferFloat - (float)pos;
+			const float invAlpha = 1.0f - alpha;
+
+			float l = ((float)inL[pos] * invAlpha + (float)inL[pos + 1] * alpha);
+			float r = ((float)inR[pos] * invAlpha + (float)inR[pos + 1] * alpha);
+
+			*outL++ = l * gainFactor;
+			*outR++ = r * gainFactor;
+
+			indexInBufferFloat += uptimeDeltaFloat;
+
+			numSamples--;
+		}
+	}
+
+
+#endif
 }
 
 
