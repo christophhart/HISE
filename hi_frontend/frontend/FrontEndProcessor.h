@@ -98,6 +98,8 @@ public:
 		ScopedLock sl(getLock());
 		ScopedLock sl2(getSampleManager().getSamplerSoundLock());
 
+		deletePendingFlag = true;
+
 		clearPreset();
 
 		synthChain = nullptr;

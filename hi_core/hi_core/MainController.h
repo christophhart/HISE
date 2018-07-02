@@ -1063,10 +1063,16 @@ public:
 		skipCompilingAtPresetLoad = shouldSkip;
 	}
 
-	bool shouldSkipCompiling() const
+	bool shouldSkipCompiling() const noexcept
 	{
 		return skipCompilingAtPresetLoad;
 	}
+
+	bool isBeingDeleted() const noexcept
+	{
+		return deletePendingFlag;
+	}
+
 
 	void loadUserPresetAsync(const ValueTree& v);
 
@@ -1172,6 +1178,7 @@ private: // Never call this directly, but wrap it through DelayedRenderer...
 
 protected:
 
+	bool deletePendingFlag = false;
 
 	/** sets the new BPM and sends a message to all registered tempo listeners if the tempo changed. */
 	void setBpm(double bpm_);
