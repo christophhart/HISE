@@ -125,7 +125,7 @@ void FilterBank::setMode(FilterMode newMode)
 
 void FilterBank::setType(FilterHelpers::FilterSubType newType, int filterSubType)
 {
-	if (type == newType)
+	if (type == newType && subType == filterSubType)
 		return;
 
 	ScopedPointer<InternalBankBase> newObject;
@@ -172,6 +172,7 @@ void FilterBank::setType(FilterHelpers::FilterSubType newType, int filterSubType
 	{
 		SpinLock::ScopedLockType sl(lock);
 		type = newType;
+		subType = filterSubType;
 		object.swapWith(newObject);
 	}
 

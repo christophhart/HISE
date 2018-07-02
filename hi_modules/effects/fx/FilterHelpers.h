@@ -284,6 +284,7 @@ private:
 	const int numVoices;
 
 	FilterHelpers::FilterSubType type;
+	int subType = -1;
 	ScopedPointer<InternalBankBase> object = nullptr;
 };
 
