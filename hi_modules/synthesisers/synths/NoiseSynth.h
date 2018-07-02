@@ -64,7 +64,7 @@ public:
         voiceUptime = 0.0;
         
         uptimeDelta = 1.0;
-#if HI_RUN_UNIT_TEST
+#if HI_RUN_UNIT_TESTS
 		lastUptime = -1.0;
 #endif
     }

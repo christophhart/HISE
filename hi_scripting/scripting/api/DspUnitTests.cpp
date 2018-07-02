@@ -340,8 +340,7 @@ private:
 	{
 		ScopedValueSetter<bool> s(MainController::unitTestMode, true);
 
-		testSimpleEnvelopeWithoutAttack(false);
-
+		
 		testResuming(false);
 		testResuming(true);
 
@@ -493,12 +492,21 @@ private:
 		group->setAttribute(ModulatorSynthGroup::SpecialParameters::UnisonoVoiceAmount, 2.0f, dontSendNotification);
 		group->setAttribute(ModulatorSynthGroup::SpecialParameters::UnisonoDetune, 6.0f, dontSendNotification);
 
+		auto sineSynth = new SineSynth(bp, "FM", NUM_POLYPHONIC_VOICES);
+		sineSynth->setAttribute(ModulatorSynth::Gain, 0.0f, dontSendNotification);
+
+		group->getHandler()->add(sineSynth, nullptr);
+
+		group->setAttribute(ModulatorSynthGroup::SpecialParameters::EnableFM, false, dontSendNotification);
+		group->setAttribute(ModulatorSynthGroup::SpecialParameters::CarrierIndex, 1, dontSendNotification);
+		group->setAttribute(ModulatorSynthGroup::SpecialParameters::ModulatorIndex, 2, dontSendNotification);
+
+		
+
 		auto constantPitch = Helpers::addVoiceModulator<ModulatorSynthGroup, ConstantModulator>(bp, ModulatorSynth::PitchModulation);
 
 		const float pf = 1.5f;
-
 		auto npf = Modulation::PitchConverters::pitchFactorToNormalisedRange(pf);
-
 		constantPitch->setIntensity(npf);
 
 		// Process
@@ -507,6 +515,12 @@ private:
 
 		auto testData = Helpers::createTestDataWithOneSecondNote(offset);
 		Helpers::process(bp, testData, 512);
+
+		group->setAttribute(ModulatorSynthGroup::SpecialParameters::EnableFM, true, dontSendNotification);
+		expect(group->fmIsCorrectlySetup(), "FM not Working");
+		
+		auto testData2 = Helpers::createTestDataWithOneSecondNote(offset);
+		Helpers::process(bp, testData2, 512);
 
 		// Test
 
@@ -527,6 +541,10 @@ private:
 
 		expect(testData.isWithinErrorRange(leftNextDirac + 1, 0.0f, 0), "leftNextDirac + 1");
 		expect(testData.isWithinErrorRange(leftNextDirac + 1, 0.0f, 1), "leftNextDirac - 1");
+
+		expect(testData == testData2, "Detune for FM");
+
+		bp = nullptr;
 	}
 
 	void testModulatorCombo(bool useGroup)
@@ -979,9 +997,6 @@ private:
 				{
 					error = jmax(error, fabsf(getSample(0, i) - other.getSample(0, i)));
 					error = jmax(error, fabsf(getSample(1, i) - other.getSample(1, i)));
-
-					
-
 				}
 
 				const float errorDb = Decibels::gainToDecibels(error);
