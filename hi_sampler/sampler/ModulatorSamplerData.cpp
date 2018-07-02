@@ -505,11 +505,22 @@ juce::String SampleMap::checkReferences(MainController* mc, ValueTree& v, const 
 
 				PoolReference ref(mc, sample.getProperty("FileName"), ProjectHandler::SubDirectories::Samples);
 
+#if USE_BACKEND
 				if (ref.isAbsoluteFile())
 				{
 					PresetHandler::showMessageWindow("Absolute File path detected", "The sample " + ref.getReferenceString() + " is a absolute path which will not be resolved when using the library on another system", PresetHandler::IconType::Error);
 					return ref.getReferenceString();
 				}
+#else
+				if (ref.isAbsoluteFile())
+				{
+					// You have managed to get an absolute file path in your plugin. This will prevent execution on other computers than your own, 
+					// but apart from that restriction, everything is fine...
+					jassertfalse;
+					return ref.getReferenceString();
+				}
+#endif
+
 
 				File sampleLocation = ref.getFile();
 
