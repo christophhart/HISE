@@ -223,6 +223,12 @@ const float * TimeModulation::getCalculatedValues(int /*voiceIndex*/)
 	return internalBuffer.getReadPointer(0);
 }
 
+TimeModulation::TimeModulation(Modulation::Mode m) :
+	Modulation(m),
+	internalBuffer(0, 0)
+{
+}
+
 void TimeModulation::prepareToModulate(double sampleRate, int samplesPerBlock)
 {
 	constexpr double ratio = 1.0 / (double)HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;

@@ -142,9 +142,12 @@ void GlobalModulatorContainer::preVoiceRendering(int startSample, int numThisTim
 		{
 			if (!mod->isBypassed())
 			{
+				auto modBuffer = tv.initialiseBuffer(startSample_cr, numSamples_cr);
+
 				mod->setScratchBuffer(scratchBuffer, startSample_cr + numSamples_cr);
-				mod->render(scratchBuffer, scratchBuffer, startSample_cr, numSamples_cr);
-				tv.saveValues(scratchBuffer, startSample_cr, numSamples_cr);
+				mod->render(modBuffer, scratchBuffer, startSample_cr, numSamples_cr);
+
+				int x = 5;
 			}
 			else
 			{
@@ -262,7 +265,7 @@ void GlobalModulatorContainer::refreshList()
 	for (auto& mod : handler->activeTimeVariantsList)
 	{
 		timeVariantData.add(TimeVariantData(mod, getLargestBlockSize()));
-		mod->deactivateIntensitySmoothing();
+		//mod->deactivateIntensitySmoothing();
 	}
 }
 

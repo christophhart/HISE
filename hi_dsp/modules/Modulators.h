@@ -356,10 +356,7 @@ public:
 
 protected:
 
-	TimeModulation(Modulation::Mode m):
-		Modulation(m),
-		internalBuffer(0, 0)
-	{};
+	TimeModulation(Modulation::Mode m);;
 
 	/** Creates the internal buffer with double the size of the expected buffer block size.
     */
@@ -665,6 +662,9 @@ public:
 
 	void render(float* monoModulationValues, float* scratchBuffer, int startSample, int numSamples)
 	{
+		// applyTimeModulation will not work correctly if it's going to be calculated in place...
+		jassert(monoModulationValues != scratchBuffer);
+
 		setScratchBuffer(scratchBuffer, startSample + numSamples);
 		calculateBlock(startSample, numSamples);
 

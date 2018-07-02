@@ -138,6 +138,7 @@ public:
 
 	void saveValues(const float* data, int startSample, int numSamples)
 	{
+		jassertfalse;
 		auto dest = savedValuesForBlock.getWritePointer(0, startSample);
 		FloatVectorOperations::copy(dest, data + startSample, numSamples);
 		isClear = false;
@@ -146,6 +147,14 @@ public:
 	const float* getReadPointer(int startSample) const
 	{
 		return savedValuesForBlock.getReadPointer(0, startSample);
+	}
+
+	float* initialiseBuffer(int startSample, int numSamples)
+	{
+		auto wp = savedValuesForBlock.getWritePointer(0, 0);
+		FloatVectorOperations::fill(wp + startSample, 1.0f, numSamples);
+		isClear = false;
+		return wp;
 	}
 
 	void clear()
