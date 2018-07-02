@@ -54,8 +54,7 @@ float MidSideDecoder::getWidth() const noexcept
 
 StereoEffect::StereoEffect(MainController *mc, const String &uid, int numVoices) :
 	VoiceEffectProcessor(mc, uid, numVoices),
-	pan(getDefaultValue(Pan)),
-	width(getDefaultValue(Width))
+	pan(getDefaultValue(Pan)/100.0f)
 {
 	modChains += {this, "Pan Modulation", ModulatorChain::ModulationType::Normal, Modulation::PanMode};
 	modChains[InternalChains::BalanceChain].setExpandToAudioRate(true);
@@ -106,7 +105,7 @@ float StereoEffect::getDefaultValue(int parameterIndex) const
 {
 	switch (parameterIndex)
 	{
-	case Pan:							return 0.0f;
+	case Pan:							return 100.0f;
 	case Width:							return 100.0f;
 	default:							jassertfalse; return 1.0f;
 	}

@@ -110,7 +110,6 @@ private:
     MidSideDecoder msDecoder;
     
 	float pan;
-	float width;
 };
 
 

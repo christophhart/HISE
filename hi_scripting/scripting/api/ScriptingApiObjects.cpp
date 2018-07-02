@@ -448,19 +448,29 @@ void ScriptingObjects::ScriptingModulator::setIntensity(float newIntensity)
 {
 	if (checkValidObject())
 	{
-		if (m->getMode() == Modulation::GainMode)
+		auto mode = m->getMode();
+
+		if (mode == Modulation::GainMode)
 		{
 			const float value = jlimit<float>(0.0f, 1.0f, newIntensity);
 			m->setIntensity(value);
 
 			mod.get()->sendChangeMessage();
 		}
-		else
+		else if(mode == Modulation::PitchMode)
 		{
 			const float value = jlimit<float>(-12.0f, 12.0f, newIntensity);
 			const float pitchFactor = value / 12.0f;
 
 			m->setIntensity(pitchFactor);
+
+			mod.get()->sendChangeMessage();
+		}
+		else
+		{
+			const float value = jlimit<float>(-1.0f, 1.0f, newIntensity);
+
+			m->setIntensity(value);
 
 			mod.get()->sendChangeMessage();
 		}
@@ -473,16 +483,14 @@ float ScriptingObjects::ScriptingModulator::getIntensity() const
 {
 	if (checkValidObject())
 	{
-		if (m->getMode() == Modulation::GainMode)
-		{
-			return dynamic_cast<const Modulation*>(mod.get())->getIntensity();
-		}
-		else
+		if (m->getMode() == Modulation::PitchMode)
 		{
 			return dynamic_cast<const Modulation*>(mod.get())->getIntensity() * 12.0f;
 		}
-
-		
+		else
+		{
+			return dynamic_cast<const Modulation*>(mod.get())->getIntensity();
+		}
 	}
 
 	return 0.0f;
