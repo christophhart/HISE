@@ -142,6 +142,8 @@ void TableEditor::mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &w
 			auto l = Rectangle<int>(pp->getPos(), dp->getPos());
 			auto middle = l.getCentre();
 
+			ScopedLock sl(listeners.getLock());
+
 			for (auto l : listeners)
 			{
 				if (l.get() != nullptr)
@@ -430,6 +432,8 @@ void TableEditor::mouseDown(const MouseEvent &e)
 
 			showTouchOverlay();
 
+			ScopedLock sl(listeners.getLock());
+
 			for (auto l : listeners)
 			{
 				if (l.get() != nullptr)
@@ -543,6 +547,13 @@ void TableEditor::mouseUp(const MouseEvent &)
 
 	if(editedTable.get() != nullptr) editedTable->sendSynchronousChangeMessage();
 	
+	
+
+	needsRepaint = true;
+	repaint();
+
+	ScopedLock sl(listeners.getLock());
+
 	for (auto l : listeners)
 	{
 		if (l.get() != nullptr)
@@ -550,9 +561,6 @@ void TableEditor::mouseUp(const MouseEvent &)
 			l->pointDragEnded();
 		}
 	}
-
-	needsRepaint = true;
-	repaint();
 }
 
 void TableEditor::mouseDrag(const MouseEvent &e)
@@ -580,6 +588,8 @@ void TableEditor::mouseDrag(const MouseEvent &e)
 	auto index = drag_points.indexOf(currently_dragged_point);
 
 	changePointPosition(index, x, y, true);
+
+	ScopedLock sl(listeners.getLock());
 
 	for (auto l : listeners)
 	{

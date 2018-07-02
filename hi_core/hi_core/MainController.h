@@ -447,7 +447,7 @@ public:
 		void loadUserPresetInternal(const ValueTree& v);
 		void saveUserPresetInternal(const String& name=String());
 
-		Array<WeakReference<Listener>> listeners;
+		Array<WeakReference<Listener>, CriticalSection> listeners;
 
 		File currentlyLoadedFile;
 
@@ -553,13 +553,18 @@ public:
 			if (tempProcessor == nullptr)
 				return;
 
-			for (int i = 0; i < listeners.size(); i++)
 			{
-				if (listeners[i].get() != nullptr)
-					listeners[i]->moduleListChanged(tempProcessor, tempType);
-				else
-					listeners.remove(i--);
+				ScopedLock sl(listeners.getLock());
+
+				for (int i = 0; i < listeners.size(); i++)
+				{
+					if (listeners[i].get() != nullptr)
+						listeners[i]->moduleListChanged(tempProcessor, tempType);
+					else
+						listeners.remove(i--);
+				}
 			}
+			
 
 			tempProcessor = nullptr;
 			tempType = EventType::numEventTypes;
@@ -582,7 +587,7 @@ public:
 		Processor* tempProcessor = nullptr;
 		EventType tempType = EventType::numEventTypes;
 
-		Array<WeakReference<Listener>> listeners;
+		Array<WeakReference<Listener>, CriticalSection> listeners;
 	};
 
 	class CodeHandler: public AsyncUpdater

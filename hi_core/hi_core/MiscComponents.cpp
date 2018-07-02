@@ -513,6 +513,8 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
 
 void MouseCallbackComponent::sendToListeners(var clickInformation)
 {
+	ScopedLock sl(listenerList.getLock());
+
 	for (int i = 0; i < listenerList.size(); i++)
 	{
 		if (listenerList[i].get() != nullptr)

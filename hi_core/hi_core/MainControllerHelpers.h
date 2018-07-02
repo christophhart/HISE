@@ -163,6 +163,8 @@ public:
 
 		void sendAmountChangeMessage()
 		{
+			ScopedLock sl(listeners.getLock());
+
 			for (auto l : listeners)
 			{
 				if (l)
@@ -209,7 +211,7 @@ public:
 
 		ScopedPointer<Data> data;
 
-		Array<WeakReference<Listener>> listeners;
+		Array<WeakReference<Listener>, CriticalSection> listeners;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MPEData)
 
@@ -308,7 +310,7 @@ public:
 
 	void addOverlayListener(Listener *listener)
 	{
-		listeners.add(listener);
+		listeners.addIfNotAlreadyThere(listener);
 	}
 
 	void removeOverlayListener(Listener* listener)
@@ -326,6 +328,8 @@ private:
 
 		void handleAsyncUpdate() override
 		{
+			ScopedLock sl(parent->listeners.getLock());
+
 			for (int i = 0; i < parent->listeners.size(); i++)
 			{
 				if (parent->listeners[i].get() != nullptr)
@@ -348,7 +352,7 @@ private:
 
 	InternalAsyncUpdater internalUpdater;
 
-	Array<WeakReference<Listener>> listeners;
+	Array<WeakReference<Listener>, CriticalSection> listeners;
 };
 
 

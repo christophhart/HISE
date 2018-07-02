@@ -300,6 +300,8 @@ struct MidiControllerAutomationHandler::MPEData::Data: public Processor::DeleteL
 		{
 			connections.removeAllInstancesOf(m);
 
+			ScopedLock sl(parent.listeners.getLock());
+
 			for (auto l : parent.listeners)
 			{
 				l->mpeModulatorAssigned(m, false);
@@ -379,13 +381,19 @@ void MidiControllerAutomationHandler::MPEData::AsyncRestorer::timerCallback()
 			}
 		}
 
-		for (auto l : parent.listeners)
 		{
-			if (l)
+			ScopedLock sl(parent.listeners.getLock());
+
+			for (auto l : parent.listeners)
 			{
-				l->mpeDataReloaded();
+				if (l)
+				{
+					l->mpeDataReloaded();
+				}
 			}
 		}
+
+		
 
 		dirty = false;
 		stopTimer();
@@ -438,6 +446,8 @@ void MidiControllerAutomationHandler::MPEData::addConnection(MPEModulator* mod, 
 		{
 			mod->mpeModulatorAssigned(mod, true);
 
+			ScopedLock sl(listeners.getLock());
+
 			for (auto l : listeners)
 			{
 				if (l == mod)
@@ -462,6 +472,8 @@ void MidiControllerAutomationHandler::MPEData::removeConnection(MPEModulator* mo
 
 		if (notifyListeners == sendNotification)
 		{
+			ScopedLock sl(listeners.getLock());
+
 			for (auto l : listeners)
 			{
 				if (l == mod)
@@ -550,6 +562,8 @@ void MidiControllerAutomationHandler::MPEData::reset()
 {
 	clear();
 	mpeEnabled = false;
+
+	ScopedLock sl(listeners.getLock());
 
 	for (auto l : listeners)
 	{

@@ -495,6 +495,8 @@ public:
 
 		void notifyListeners(Listener::EventType t, Processor* p)
 		{
+			ScopedLock sl(listeners.getLock());
+
 			for (auto l : listeners)
 			{
 				if (l != nullptr)
@@ -504,6 +506,8 @@ public:
 
 		void notifyPostEventListeners(Listener::EventType t, Processor* p)
 		{
+			ScopedLock sl(postEventlisteners.getLock());
+
 			for (auto l : postEventlisteners)
 			{
 				if (l != nullptr)
@@ -513,8 +517,10 @@ public:
 
 	private:
 
-		Array<WeakReference<Listener>> listeners;
-		Array<WeakReference<Listener>> postEventlisteners;
+		
+
+		Array<WeakReference<Listener>, CriticalSection> listeners;
+		Array<WeakReference<Listener>, CriticalSection> postEventlisteners;
 	};
 
 	// ===================================================================================================================

@@ -1010,6 +1010,8 @@ juce::Result ProjectHandler::setWorkingProject(const File &workingDirectory, Com
 
 	getAppDataDirectory().getChildFile("projects.xml").replaceWithText(xml->createDocument(""));
 
+	ScopedLock sl(listeners.getLock());
+
 	for (int i = 0; i < listeners.size(); i++)
 	{
 		if (listeners[i].get() != nullptr)

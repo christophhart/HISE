@@ -269,6 +269,8 @@ public:
 
 	void sliderValueChanged(Slider *s) override;
 
+	void notifyListeners(int index);
+
 	void paintOverChildren(Graphics &g) override;
 
 	void paint(Graphics &g);
@@ -302,7 +304,7 @@ private:
     
 	SliderPackData dummyData;
 
-	Array<WeakReference<Listener>> listeners;
+	Array<WeakReference<Listener>, CriticalSection> listeners;
 
 	String suffix;
 

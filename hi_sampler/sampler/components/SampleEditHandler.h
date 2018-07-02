@@ -115,6 +115,8 @@ public:
 		
 		if (forceUpdate || existingSounds != lastSelection)
 		{
+			ScopedLock sl(selectionListeners.getLock());
+
 			for (int i = 0; i < selectionListeners.size(); i++)
 			{
                 if(selectionListeners[i].get() != nullptr)
@@ -173,7 +175,7 @@ private:
 
 	SampleSelection lastSelection;
 
-	Array<WeakReference<Listener>> selectionListeners;
+	Array<WeakReference<Listener>, CriticalSection> selectionListeners;
 
 	ModulatorSampler* sampler;
 public:

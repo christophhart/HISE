@@ -222,7 +222,7 @@ private:
 
 	MainController* mc;
 
-	Array<WeakReference<Listener>> cancelledListeners;
+	Array<WeakReference<Listener>, CriticalSection> cancelledListeners;
 
 	hise::LockfreeQueue<WeakReference<Listener>> pendingListeners;
 	hise::LockfreeQueue<Func> pendingFunctions;

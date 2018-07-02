@@ -1008,6 +1008,8 @@ void SampleMap::Notifier::handleLightweightPropertyChanges()
 {
 	if (mapWasChanged)
 	{
+		ScopedLock sl(parent.listeners.getLock());
+
 		auto r = parent.sampleMapData.getRef();
 
 		for (auto l : parent.listeners)
@@ -1023,6 +1025,8 @@ void SampleMap::Notifier::handleLightweightPropertyChanges()
 	}
 	else if (sampleAmountWasChanged)
 	{
+		ScopedLock sl(parent.listeners.getLock());
+
 		for (auto l : parent.listeners)
 		{
 			l->sampleAmountChanged();
@@ -1040,6 +1044,8 @@ void SampleMap::Notifier::handleLightweightPropertyChanges()
 		{
 			if (auto sound = parent.getSound(c.index))
 			{
+				ScopedLock sl(parent.listeners.getLock());
+
 				for (auto l : parent.listeners)
 				{
 					if (l)

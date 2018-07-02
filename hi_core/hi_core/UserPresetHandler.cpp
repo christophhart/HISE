@@ -119,6 +119,8 @@ void MainController::UserPresetHandler::setCurrentlyLoadedFile(const File& f)
 
 void MainController::UserPresetHandler::sendRebuildMessage()
 {
+	ScopedLock sl(listeners.getLock());
+
 	for (int i = 0; i < listeners.size(); i++)
 	{
 		if (listeners[i] != nullptr)
@@ -219,6 +221,8 @@ void MainController::UserPresetHandler::loadUserPresetInternal(const ValueTree& 
 
 		auto f = [this]()->void
 		{
+			ScopedLock sl(this->listeners.getLock());
+
 			for (auto l : this->listeners)
 			{
 				if (l != nullptr)

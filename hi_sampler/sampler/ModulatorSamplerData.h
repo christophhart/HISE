@@ -340,7 +340,7 @@ private:
 
 	WeakReference<SampleMapPool> currentPool;
 
-	Array<WeakReference<Listener>> listeners;
+	Array<WeakReference<Listener>, CriticalSection> listeners;
 
 	HlacMonolithInfo::Ptr currentMonolith;
 

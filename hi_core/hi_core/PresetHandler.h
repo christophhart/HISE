@@ -290,7 +290,7 @@ private:
 
 private:
 
-	Array<WeakReference<Listener>> listeners;
+	Array<WeakReference<Listener>, CriticalSection> listeners;
 
 	File currentWorkDirectory;
 	

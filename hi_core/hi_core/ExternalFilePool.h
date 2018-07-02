@@ -373,7 +373,9 @@ private:
 
 		void handleAsyncUpdate() override
 		{
-			for (auto l : parent.listeners)
+			ScopedLock sl(parent.listeners.getLock());
+			
+			for (auto& l : parent.listeners)
 			{
 				if (l != nullptr)
 				{
@@ -402,7 +404,7 @@ private:
 	EventType lastType;
 	PoolReference lastReference;
 
-	Array<WeakReference<Listener>> listeners;
+	Array<WeakReference<Listener>, CriticalSection> listeners;
 
 	ScopedPointer<DataProvider> dataProvider;
 

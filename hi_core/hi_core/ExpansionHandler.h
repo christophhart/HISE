@@ -341,6 +341,8 @@ private:
 
 		void handleAsyncUpdate()
 		{
+			ScopedLock sl(parent.listeners.getLock());
+
 			for (auto l : parent.listeners)
 			{
 				if (l.get() != nullptr)
@@ -364,7 +366,7 @@ private:
 
 	Notifier notifier;
 
-	Array<WeakReference<Listener>> listeners;
+	Array<WeakReference<Listener>, CriticalSection> listeners;
 
 	OwnedArray<Expansion> expansionList;
 
