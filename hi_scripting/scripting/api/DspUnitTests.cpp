@@ -340,6 +340,11 @@ private:
 	{
 		ScopedValueSetter<bool> s(MainController::unitTestMode, true);
 
+		testSimpleEnvelopeWithoutAttack(false);
+
+		testResuming(false);
+		testResuming(true);
+
 		testSimpleEnvelopeWithoutAttack(true);
 		testSimpleEnvelopeWithoutAttack(false);
 
@@ -361,11 +366,90 @@ private:
 		testSynthGroup();
 
 		testGlobalModulators(false);
+		testGlobalModulators(true);
+		
+		testGlobalModulatorIntensity(false);
+		testGlobalModulatorIntensity(true);
+		
+	}
+
+	void testGlobalModulatorIntensity(bool useGroup)
+	{
+		beginTestWithOptionalGroup("Testing global modulator intensity ", useGroup);
+
+		// Init
+		ScopedProcessor bp = Helpers::createWithOptionalGroup(NoiseSynth::DC, useGroup);
+
+		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Attack, 10.0f);
+		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Release, 20.0f);
+
+		// Setup
+
+		Helpers::addGlobalContainer(bp, useGroup);
+
+		auto sender = Helpers::addTimeModulator<GlobalModulatorContainer, ControlModulator>(bp, ModulatorSynth::GainModulation);
+		auto receiver = Helpers::addTimeModulatorToOptionalGroup<GlobalTimeVariantModulator>(bp, ModulatorSynth::GainModulation);
+		auto checkMod = Helpers::addTimeModulatorToOptionalGroup<ControlModulator>(bp, ModulatorSynth::GainModulation);
+
+		bp->prepareToPlay(sampleRate, 512);
+
+		sender->setAttribute(ControlModulator::SmoothTime, 0.0f, dontSendNotification);
+		sender->setAttribute(ControlModulator::DefaultValue, 0.0f, dontSendNotification);
+		sender->setIntensity(0.75f);
+
+		checkMod->setAttribute(ControlModulator::SmoothTime, 0.0f, dontSendNotification);
+		checkMod->setAttribute(ControlModulator::DefaultValue, 0.0f, dontSendNotification);
+		checkMod->setIntensity(0.75f);
+
+		receiver->setBypassed(true);
+		checkMod->setBypassed(true);
+
+
+		receiver->connectToGlobalModulator("Container:" + sender->getId());
+
+		expect(receiver->isConnected(), "Connection failed");
+
+		// Process
+
+		receiver->setBypassed(true);
+		checkMod->setBypassed(false);
+		
+		Random r;
+
+		const int startOffset = r.nextInt(4096);
+		const int stopOffset = r.nextInt({ 8192, 32768 });
+
+		const float nextIntensity = r.nextFloat();
+
+
+		auto testData = Helpers::createTestDataWithOneSecondNote(startOffset, stopOffset);
+		Helpers::process(bp, testData, 512, 16384);
+
+		checkMod->setIntensity(nextIntensity);
+
+		Helpers::resumeProcessing(bp, testData, 512, -1, 16384);
+
+		receiver->setBypassed(false);
+		checkMod->setBypassed(true);
+
+		auto testData2 = Helpers::createTestDataWithOneSecondNote(startOffset, stopOffset);
+		Helpers::process(bp, testData2, 512, 16384);
+
+		sender->setIntensity(nextIntensity);
+
+		Helpers::resumeProcessing(bp, testData2, 512, -1, 16384);
+
+
+		// Tests
+
+		expect(testData == testData2, "Compare static intensity");
+
+		bp = nullptr;
 	}
 
 	void testGlobalModulators(bool useGroup)
 	{
-		beginTestWithOptionalGroup("Testing simple envelope without attack", useGroup);
+		beginTestWithOptionalGroup("Testing global modulators", useGroup);
 
 		// Init
 		ScopedProcessor bp = Helpers::createWithOptionalGroup(NoiseSynth::DiracTrain, useGroup);
@@ -390,9 +474,6 @@ private:
 		Helpers::process(bp, testData, 512);
 
 		// Tests
-
-		
-		Helpers::copyToClipboard(bp);
 
 		bp = nullptr;
 	}
@@ -446,9 +527,6 @@ private:
 
 		expect(testData.isWithinErrorRange(leftNextDirac + 1, 0.0f, 0), "leftNextDirac + 1");
 		expect(testData.isWithinErrorRange(leftNextDirac + 1, 0.0f, 1), "leftNextDirac - 1");
-
-		Helpers::dump(testData.audioBuffer, "DiracsTest.wav");
-
 	}
 
 	void testModulatorCombo(bool useGroup)
@@ -507,6 +585,37 @@ private:
 
 	}
 
+	void testResuming(bool useGroup)
+	{
+		beginTestWithOptionalGroup("Testing resuming", useGroup);
+
+		// Init
+		ScopedProcessor bp = Helpers::createWithOptionalGroup(NoiseSynth::DC, useGroup);
+
+		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Attack, 0.0f);
+		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Release, 0.0f);
+
+		// Setup
+
+		// Process
+
+		auto testData = Helpers::createTestDataWithOneSecondNote();
+		Helpers::process(bp, testData, 512);
+
+		auto testData2 = Helpers::createTestDataWithOneSecondNote();
+		Helpers::process(bp, testData2, 512, 16384);
+		Helpers::resumeProcessing(bp, testData2, 512, -1, 16384);
+
+		// Tests
+
+		expect(testData == testData2, "Resume OK");
+
+
+
+		bp = nullptr;
+	}
+
+
 	void testSimpleEnvelopeWithoutAttack(bool useGroup)
 	{
 		beginTestWithOptionalGroup("Testing simple envelope without attack", useGroup);
@@ -521,7 +630,13 @@ private:
 
 		// Process
 
-		auto testData = Helpers::createTestDataWithOneSecondNote();
+		Random r;
+
+		const int stopOffset = r.nextInt({ 20000, 40000 });
+
+		logMessage("Offset: " + String(stopOffset));
+
+		auto testData = Helpers::createTestDataWithOneSecondNote(0, stopOffset);
 		Helpers::process(bp, testData, 512);
 
 		// Tests
@@ -529,12 +644,12 @@ private:
 		expectEquals<float>(testData.audioBuffer.getSample(0, 0), -1.0f, "First Dirac doesn't match");
 		expectEquals<float>(testData.audioBuffer.getSample(0, 256), 1.0f, "Second Dirac doesn't match");
 
-		double rasterValue = sampleRate / (double)HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+		double rasterValue = (double)stopOffset / (double)HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
 
-		int rasteredTimestamp = roundDoubleToInt(rasterValue) * HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+		int rasteredTimestamp = floor(rasterValue) * HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
 
 		auto diracBeforeNoteOff = (int)(floor((double)rasteredTimestamp / 256.0) * 256.0);
-		auto diracAfterNoteOff = (int)(ceil((double)rasteredTimestamp / 256.0) * 256.0);
+		auto diracAfterNoteOff = diracBeforeNoteOff + 256;
 
 		expectEquals<float>(testData.audioBuffer.getSample(0, diracBeforeNoteOff), 1.0f, "Dirac before note off");
 		expectEquals<float>(testData.audioBuffer.getSample(0, diracAfterNoteOff), 0.0f, "Dirac after note off");
@@ -851,6 +966,33 @@ private:
 				return audioBuffer.getSample(channelIndex, sampleIndex);
 			}
 
+			bool operator==(const TestData& other) const
+			{
+				if (audioBuffer.getNumSamples() != other.audioBuffer.getNumSamples())
+					return false;
+
+				int size = audioBuffer.getNumSamples();
+
+				float error = 0.0f;
+
+				for (int i = 0; i < size; i++)
+				{
+					error = jmax(error, fabsf(getSample(0, i) - other.getSample(0, i)));
+					error = jmax(error, fabsf(getSample(1, i) - other.getSample(1, i)));
+
+					
+
+				}
+
+				const float errorDb = Decibels::gainToDecibels(error);
+
+				if (errorDb > -80.0f)
+					return false;
+
+				return true;
+
+			}
+
 			Result matches(const TestData& otherData, UnitTest* test, float errorLevelDecibels)
 			{
 				if (audioBuffer.getNumSamples() != otherData.audioBuffer.getNumSamples())
@@ -968,25 +1110,36 @@ private:
 			return bp.release();
 		}
 
-		static TestData createTestDataWithOneSecondNote(int startOffset = 0)
+		static TestData createTestDataWithOneSecondNote(int startOffset = 0, int stopOffset=-1)
 		{
 			TestData d;
 
 			d.audioBuffer.setSize(2, sampleRate * 2);
 			d.audioBuffer.clear();
 			d.midiBuffer.addEvent(MidiMessage::noteOn(1, 64, 1.0f), startOffset);
-			d.midiBuffer.addEvent(MidiMessage::noteOff(1, 64), sampleRate);
+
+			if (stopOffset == -1)
+				stopOffset = roundDoubleToInt(sampleRate*0.7);
+
+			d.midiBuffer.addEvent(MidiMessage::noteOff(1, 64), stopOffset);
 
 			return d;
 		}
 
-		static void process(BackendProcessor* bp, TestData& data, int blockSize)
+		static void process(BackendProcessor* bp, TestData& data, int blockSize, int numToProcess=-1)
 		{
 			bp->prepareToPlay((double)sampleRate, blockSize);
 
-			int numSamplesTotal = data.audioBuffer.getNumSamples();
+			resumeProcessing(bp, data, blockSize, numToProcess, 0);
+		}
 
-			int offset = 0;
+		static void resumeProcessing(BackendProcessor* bp, TestData& data, int blockSize, int numToProcess, int sampleOffset)
+		{
+			int numSamplesTotal = numToProcess > 0 ? numToProcess : data.audioBuffer.getNumSamples();
+
+			numSamplesTotal = jmin<int>(numSamplesTotal, data.audioBuffer.getNumSamples()-sampleOffset);
+
+			int offset = sampleOffset;
 
 			while (numSamplesTotal > 0)
 			{
@@ -1006,6 +1159,7 @@ private:
 				offset += numThisTime;
 			}
 		}
+
 
 		static void dump(const AudioSampleBuffer& b, const String& fileName)
 		{
