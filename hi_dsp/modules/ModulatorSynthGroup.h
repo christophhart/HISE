@@ -127,7 +127,7 @@ public:
 
 	void calculateNoFMVoiceInternal(ModulatorSynth* childSynth, int unisonoIndex, int startSample, int numSamples, const float * voicePitchValues, bool& isFirst);
 
-	void calculatePitchValuesForChildVoice(ModulatorSynth* childSynth, ModulatorSynthVoice * childVoice, int startSample, int numSamples, const float * voicePitchValues);
+	void calculatePitchValuesForChildVoice(ModulatorSynth* childSynth, ModulatorSynthVoice * childVoice, int startSample, int numSamples, const float * voicePitchValues, bool applyDetune=true);
 
 	void calculateDetuneMultipliers(int childVoiceIndex);
 

@@ -346,7 +346,7 @@ void ModulatorSynthGroupVoice::calculateNoFMVoiceInternal(ModulatorSynth* childS
 }
 
 
-void ModulatorSynthGroupVoice::calculatePitchValuesForChildVoice(ModulatorSynth* childSynth, ModulatorSynthVoice * childVoice, int startSample, int numSamples, const float * voicePitchValues)
+void ModulatorSynthGroupVoice::calculatePitchValuesForChildVoice(ModulatorSynth* childSynth, ModulatorSynthVoice * childVoice, int startSample, int numSamples, const float * voicePitchValues, bool applyDetune/*=true*/)
 {
 	childSynth->calculateModulationValuesForVoice(childVoice, startSample, numSamples);
 
@@ -363,7 +363,9 @@ void ModulatorSynthGroupVoice::calculatePitchValuesForChildVoice(ModulatorSynth*
 	}
 
 	childVoice->applyConstantPitchFactor(getOwnerSynth()->getConstantPitchModValue());
-	childVoice->applyConstantPitchFactor(detuneValues.multiplier);
+	
+	if(applyDetune)
+		childVoice->applyConstantPitchFactor(detuneValues.multiplier);
 }
 
 void ModulatorSynthGroupVoice::calculateDetuneMultipliers(int childVoiceIndex)
@@ -414,7 +416,8 @@ void ModulatorSynthGroupVoice::calculateFMBlock(ModulatorSynthGroup * group, int
 
 	const float modGain = modSynth->getGain();
 
-	calculatePitchValuesForChildVoice(modSynth, modVoice, startSample, numSamples, voicePitchValues);
+	// Do not apply the detune to the FM modulator
+	calculatePitchValuesForChildVoice(modSynth, modVoice, startSample, numSamples, voicePitchValues, false);
 
 	modVoice->calculateBlock(startSample, numSamples);
 
@@ -491,8 +494,10 @@ void ModulatorSynthGroupVoice::calculateFMCarrierInternal(ModulatorSynthGroup * 
 		if (carrierVoice->isInactive())
 			continue;
 
-		carrierSynth->calculateModulationValuesForVoice(carrierVoice, startSample, numSamples);
-		carrierVoice->applyConstantPitchFactor(getOwnerSynth()->getConstantPitchModValue());
+		calculatePitchValuesForChildVoice(carrierSynth, carrierVoice, startSample, numSamples, voicePitchValues);
+
+		//carrierSynth->calculateModulationValuesForVoice(carrierVoice, startSample, numSamples);
+		//carrierVoice->applyConstantPitchFactor(getOwnerSynth()->getConstantPitchModValue());
 
 		float *carrierPitchValues = carrierSynth->getPitchValuesForVoice();
 
