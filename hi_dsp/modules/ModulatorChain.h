@@ -79,6 +79,8 @@ public:
 
 			void setMaxSize(int maxSamplesPerBlock_);
 
+			bool isInitialised() const noexcept;
+
 			// this array contains the actual modulation values that can be used by external processors;
 			float* voiceValues = nullptr;
 

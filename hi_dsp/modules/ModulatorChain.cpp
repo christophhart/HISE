@@ -155,6 +155,9 @@ void ModulatorChain::ModChainWithBuffer::Buffer::setMaxSize(int maxSamplesPerBlo
 	{
 		maxSamplesPerBlock = maxSamplesPerBlock_;
 		data.realloc(requiredSize, sizeof(float));
+
+		allocated = requiredSize;
+
 		data.clear(requiredSize);
 	}
 
@@ -163,6 +166,11 @@ void ModulatorChain::ModChainWithBuffer::Buffer::setMaxSize(int maxSamplesPerBlo
 
 
 
+
+bool ModulatorChain::ModChainWithBuffer::Buffer::isInitialised() const noexcept
+{
+	return allocated != 0;
+}
 
 void ModulatorChain::ModChainWithBuffer::Buffer::clear()
 {
@@ -364,6 +372,9 @@ void ModulatorChain::ModChainWithBuffer::setExpandToAudioRate(bool shouldExpandA
 
 void ModulatorChain::ModChainWithBuffer::calculateMonophonicModulationValues(int startSample, int numSamples)
 {
+	if (c->isVoiceStartChain)
+		return;
+
 	if (c->hasMonophonicTimeModulationMods())
 	{
 		int startSample_cr = startSample / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
@@ -399,7 +410,13 @@ void ModulatorChain::ModChainWithBuffer::calculateMonophonicModulationValues(int
 
 void ModulatorChain::ModChainWithBuffer::calculateModulationValuesForCurrentVoice(int voiceIndex, int startSample, int numSamples)
 {
+	if (c->isVoiceStartChain)
+	{
+		return;
+	}
+
 	jassert(voiceIndex >= 0);
+	jassert(modBuffer.isInitialised());
 
 	c->polyManager.setCurrentVoice(voiceIndex);
 
