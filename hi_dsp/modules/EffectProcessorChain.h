@@ -79,7 +79,8 @@ public:
 		// Skip the effectProcessor's prepareToPlay since it assumes all child processors are ModulatorChains
 		Processor::prepareToPlay(sampleRate, samplesPerBlock);
 
-		FOR_ALL_EFFECTS(prepareToPlay(sampleRate, samplesPerBlock));
+		for (auto fx : allEffects)
+			fx->prepareToPlay(sampleRate, samplesPerBlock);
 	};
 
 	void handleHiseEvent(const HiseEvent &m)

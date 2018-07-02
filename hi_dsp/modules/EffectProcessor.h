@@ -115,8 +115,11 @@ protected:
 	/** Takes a copy of the buffer before it is processed to check if a tail was added after processing. */
 	void saveBufferForTailCheck(AudioSampleBuffer &b, int startSample, int numSamples)
 	{
-		tailCheck.copyFrom(0, startSample, b.getReadPointer(0, startSample), numSamples);
-		tailCheck.copyFrom(1, startSample, b.getReadPointer(1, startSample), numSamples);
+		if (hasTail())
+		{
+			tailCheck.copyFrom(0, startSample, b.getReadPointer(0, startSample), numSamples);
+			tailCheck.copyFrom(1, startSample, b.getReadPointer(1, startSample), numSamples);
+		}
 	}
 
 	/** If your effect produces a tail, you have to call this method after your processing. */
