@@ -127,17 +127,7 @@ public:
 	float getDefaultValue(int parameterIndex) const override;
 	void setInternalAttribute (int parameter_index, float newValue) override;;
 
-	void setDownsampleFactor(float newValue)
-	{
-		ScopedLock sl(getMainController()->getLock());
-
-		downsampleFactor = jlimit(1, 128, roundFloatToInt(newValue));
-		ecoMode = downsampleFactor > 1.5f;
-		setAttackRate(attack);
-		setDecayRate(decay);
-		setReleaseRate(release);
-		setSustainLevel(sustain);
-	}
+	
 
 	float getAttribute(int parameter_index) const override;;
 
@@ -234,8 +224,6 @@ private:
 
 	StateInfo stateInfo;
 
-	int downsampleFactor = 1;
-
 	float getSampleRateForCurrentMode() const;
 
 	void setAttackRate(float rate);
@@ -277,8 +265,6 @@ private:
 	float release;
 	float releaseCoef;
 	float releaseBase;
-
-	bool ecoMode = false;
 
 	AhdsrEnvelopeState *state;
 

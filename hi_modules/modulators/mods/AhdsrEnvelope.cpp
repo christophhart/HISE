@@ -128,8 +128,7 @@ ValueTree AhdsrEnvelope::exportAsValueTree() const
 float AhdsrEnvelope::getSampleRateForCurrentMode() const
 {
 	auto sr = getControlRate();
-	if (ecoMode) sr *= (1.0 / (double)downsampleFactor);
-
+	
 	return (float)sr;
 }
 
@@ -317,50 +316,11 @@ void AhdsrEnvelope::calculateBlock(int startSample, int numSamples)
 	}
 	else
 	{
-		if (ecoMode)
+		while (numSamples > 0)
 		{
-			if (state->leftOverSamplesFromLastBuffer)
-			{
-				int numThisTime = jmin<int>(numSamples, state->leftOverSamplesFromLastBuffer);
-
-				FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), state->current_value, numThisTime);
-				startSample += numThisTime;
-				numSamples -= numThisTime;
-				state->leftOverSamplesFromLastBuffer -= numThisTime;
-			}
-
-			while (numSamples >= downsampleFactor)
-			{
-				auto value = calculateNewValue(voiceIndex);
-
-				
-
-				FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), value, downsampleFactor);
-
-				numSamples -= downsampleFactor;
-				startSample += downsampleFactor;
-			}
-
-			if (numSamples > 0)
-			{
-				auto value = calculateNewValue(voiceIndex);
-
-				FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), value, numSamples);
-
-				state->leftOverSamplesFromLastBuffer = downsampleFactor - numSamples;
-				startSample += numSamples;
-				
-				jassert(state->leftOverSamplesFromLastBuffer > 0);
-			}
-		}
-		else
-		{
-			while (numSamples > 0)
-			{
-				internalBuffer.setSample(0, startSample, calculateNewValue(voiceIndex));
-				++startSample;
-				numSamples--;
-			}
+			internalBuffer.setSample(0, startSample, calculateNewValue(voiceIndex));
+			++startSample;
+			numSamples--;
 		}
 
 		
@@ -449,9 +409,7 @@ void AhdsrEnvelope::setInternalAttribute(int parameterIndex, float newValue)
 	case Release:		setReleaseRate(newValue); break;
 	case AttackCurve:	setAttackCurve(newValue); break;
 	case DecayCurve:	setDecayCurve(newValue); break;
-	case EcoMode:		setDownsampleFactor(newValue);
-
-						break;
+	case EcoMode:		break; // not needed anymore...
 	default:			jassertfalse;
 	}
 }
@@ -473,7 +431,7 @@ float AhdsrEnvelope::getAttribute(int parameterIndex) const
 	case Release:		return release;
 	case AttackCurve:	return attackCurve;
 	case DecayCurve:	return decayCurve;
-	case EcoMode:		return (float)downsampleFactor;
+	case EcoMode:		return 1.0f; // not needed anymore...
 	default:		jassertfalse; return -1;
 	}
 }
