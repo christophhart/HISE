@@ -350,7 +350,18 @@ private:
 		const auto renderingSampleRate = getSampleRate();
 		const auto bufferSampleRate = getSampleRateForLoadedFile();
 
-		return renderingSampleRate / bufferSampleRate;
+		auto resampleFactor = renderingSampleRate / bufferSampleRate;
+
+		// not yet initialised, return a default until it will be recalled with the correct sample rate
+		if (resampleFactor < 0.0)
+		{
+			return 1.0;
+		}
+		else
+		{
+			return resampleFactor;
+		}
+
 	}
 
 	CriticalSection unusedFileLock;
