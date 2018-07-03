@@ -483,6 +483,15 @@ void Arpeggiator::onController()
 	}
 }
 
+void Arpeggiator::onAllNotesOff()
+{
+	if (bypassButton->getValue())
+		return;
+
+	clearUserHeldKeys();
+	reset(false, true);
+}
+
 void Arpeggiator::onTimer(int /*offsetInBuffer*/)
 {
 	if (bypassButton->getValue())
@@ -503,8 +512,6 @@ void Arpeggiator::playNote()
 
 	// start synth timer
 	start();
-
-	
 
 	// transfer user held keys to midi sequence
 	MidiSequenceArray.clearQuick();

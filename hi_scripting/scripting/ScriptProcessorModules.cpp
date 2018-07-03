@@ -269,8 +269,12 @@ void JavascriptMidiProcessor::runScriptCallbacks()
 		}
 		break;
 	}
+	case HiseEvent::Type::AllNotesOff:
+	{
+		synthObject->clearNoteCounter();
+		break;
+	}
         case HiseEvent::Type::Empty:
-        case HiseEvent::Type::AllNotesOff:
         case HiseEvent::Type::SongPosition:
         case HiseEvent::Type::MidiStart:
         case HiseEvent::Type::MidiStop:

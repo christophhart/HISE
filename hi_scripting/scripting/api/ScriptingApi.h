@@ -658,6 +658,12 @@ public:
 
 		// ============================================================================================================
 
+		void clearNoteCounter()
+		{
+			keyDown.clear();
+			numPressedKeys.set(0);
+		}
+
 		void increaseNoteCounter(int noteNumber) noexcept 
 		{ 
 			++numPressedKeys; 

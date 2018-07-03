@@ -73,6 +73,8 @@ public:
 
 	void onController() override;
 
+	void onAllNotesOff() override;
+
 	void onTimer(int /*offsetInBuffer*/);
 
 	void playNote();;
