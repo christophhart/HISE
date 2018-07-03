@@ -2133,6 +2133,8 @@ void ScriptingApi::Synth::noteOffDelayedByEventId(int eventId, int timestamp)
 
 	const HiseEvent e = getProcessor()->getMainController()->getEventHandler().popNoteOnFromEventId((uint16)eventId);
 
+	
+
 	if (!e.isEmpty())
 	{
 #if ENABLE_SCRIPTING_SAFE_CHECKS
@@ -2142,6 +2144,15 @@ void ScriptingApi::Synth::noteOffDelayedByEventId(int eventId, int timestamp)
 		}
 #endif
 		const HiseEvent* current = parentMidiProcessor->getCurrentHiseEvent();
+
+#if HISE_USE_BACKWARDS_COMPATIBLE_TIMESTAMPS
+		// Apparently there was something wrong with the timestamp calculation.
+		// This restores the old behaviour by removing one block from the timestamps.
+		// By default, it's turned off, but you can enable it if you need backwards
+		// compatibility with older patches...
+		int blocksize = parentMidiProcessor->getMainController()->getBufferSizeForCurrentBlock();
+		timestamp = jmax<int>(0, timestamp - blocksize);
+#endif
 
 		if (current != nullptr)
 		{
@@ -2793,6 +2804,16 @@ int ScriptingApi::Synth::internalAddNoteOn(int channel, int noteNumber, int velo
 					if (parentMidiProcessor != nullptr)
 					{
 						HiseEvent m = HiseEvent(HiseEvent::Type::NoteOn, (uint8)noteNumber, (uint8)velocity, (uint8)channel);
+
+
+#if HISE_USE_BACKWARDS_COMPATIBLE_TIMESTAMPS
+						// Apparently there was something wrong with the timestamp calculation.
+						// This restores the old behaviour by removing one block from the timestamps.
+						// By default, it's turned off, but you can enable it if you need backwards
+						// compatibility with older patches...
+						int blocksize = parentMidiProcessor->getLargestBlockSize();
+						timeStampSamples = jmax<int>(0, timeStampSamples - blocksize);
+#endif
 
 						if (auto ce = parentMidiProcessor->getCurrentHiseEvent())
 						{

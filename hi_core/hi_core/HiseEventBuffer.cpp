@@ -144,15 +144,11 @@ void HiseEvent::addToTimeStamp(int16 delta) noexcept
 	if (delta < 0)
 	{
 		int v = (int)timeStamp + delta;
-		jassert(v >= 0);
-
 		timeStamp = (uint16)jmax<int>(0, v);
 	}
 	else
 	{
 		int v = (int)timeStamp + delta;
-		jassert(v < UINT16_MAX);
-
 		timeStamp = (uint16)jmin<int>(UINT16_MAX, v);
 	}
 }
