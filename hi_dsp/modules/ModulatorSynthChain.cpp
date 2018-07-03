@@ -46,6 +46,8 @@ ModulatorSynthChain::ModulatorSynthChain(MainController *mc, const String &id, i
 	ignoreUnused(viewUndoManager);
 #endif
 
+	finaliseModChains();
+
 	FactoryType *t = new ModulatorSynthChainFactoryType(numVoices, this);
 
 	getMatrix().setAllowResizing(true);

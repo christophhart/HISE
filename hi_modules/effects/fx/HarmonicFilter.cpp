@@ -43,6 +43,8 @@ filterBanks(numVoices_)
 {
 	modChains += {this, "X-Fade Modulation"};
 
+	finaliseModChains();
+
     parameterNames.add("NumFilterBands");
     parameterNames.add("QFactor");
     parameterNames.add("Crossfade");

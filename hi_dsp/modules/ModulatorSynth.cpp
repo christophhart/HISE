@@ -70,20 +70,9 @@ lastClockCounter(0),
 wasPlayingInLastBuffer(false),
 bypassState(false)
 {
-	modChains.reserve(2);
-
 	modChains += { this, "GainModulation", ModulatorChain::ModulationType::Normal, Modulation::Mode::GainMode};
 	modChains += { this, "PitchModulation", ModulatorChain::ModulationType::Normal, Modulation::Mode::PitchMode};
 
-	
-	gainChain = modChains[BasicChains::GainChain].getChain();
-	pitchChain = modChains[BasicChains::PitchChain].getChain();
-	
-	modChains[BasicChains::GainChain].setIncludeMonophonicValuesInVoiceRendering(false);
-	modChains[BasicChains::PitchChain].setAllowModificationOfVoiceValues(true);
-	
-	modChains[BasicChains::GainChain].setExpandToAudioRate(true);
-	modChains[BasicChains::PitchChain].setExpandToAudioRate(true);
 
 
 	setVoiceLimit(numVoices);
@@ -109,16 +98,7 @@ bypassState(false)
 
 	setBalance(0.0f);
 
-	pitchChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
-
-	gainChain->setTableValueConverter(Modulation::getValueAsDecibel);
-	pitchChain->setTableValueConverter(Modulation::getValueAsSemitone);
-
-
-	disableChain(GainModulation, false);
-	disableChain(PitchModulation, false);
-	disableChain(MidiProcessor, false);
-	disableChain(EffectChain, false);
+	
 }
 
 ModulatorSynth::~ModulatorSynth()
@@ -359,6 +339,7 @@ void ModulatorSynth::processHiseEventBuffer(const HiseEventBuffer &inputBuffer, 
 
 void ModulatorSynth::addProcessorsWhenEmpty()
 {
+	jassert(finalised);
 	
 	if (dynamic_cast<ModulatorSynthChain*>(this) == nullptr)
 	{
@@ -841,6 +822,9 @@ void ModulatorSynth::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
 	const ScopedLock sl(isOnAir() ? getSynthLock() : getDummyLockWhenNotOnAir());
 
+	// You must call finaliseModChains() in your Constructor...
+	jassert(finalised);
+
 	if(newSampleRate != -1.0)
 	{
 		// Set the channel amount correctly
@@ -953,6 +937,32 @@ void ModulatorSynth::flagVoiceAsRemoved(ModulatorSynthVoice* v)
 	jassert(v->isInactive());
 
 	pendingRemoveVoices.insert(v);
+}
+
+void ModulatorSynth::finaliseModChains()
+{
+	modChains.finalise();
+
+	gainChain = modChains[BasicChains::GainChain].getChain();
+	pitchChain = modChains[BasicChains::PitchChain].getChain();
+
+	modChains[BasicChains::GainChain].setIncludeMonophonicValuesInVoiceRendering(false);
+	modChains[BasicChains::PitchChain].setAllowModificationOfVoiceValues(true);
+
+	modChains[BasicChains::GainChain].setExpandToAudioRate(true);
+	modChains[BasicChains::PitchChain].setExpandToAudioRate(true);
+
+	pitchChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
+
+	gainChain->setTableValueConverter(Modulation::getValueAsDecibel);
+	pitchChain->setTableValueConverter(Modulation::getValueAsSemitone);
+
+	disableChain(GainModulation, false);
+	disableChain(PitchModulation, false);
+	disableChain(MidiProcessor, false);
+	disableChain(EffectChain, false);
+
+	finalised = true;
 }
 
 void ModulatorSynth::disableChain(InternalChains chainToDisable, bool shouldBeDisabled)

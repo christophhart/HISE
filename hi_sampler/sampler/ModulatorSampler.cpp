@@ -123,6 +123,8 @@ temporaryVoiceBuffer(true, 2, 0)
 	modChains += {this, "Sample Start", ModulatorChain::ModulationType::VoiceStartOnly, Modulation::GainMode};
 	modChains += {this, "Group Fade"};
 
+	finaliseModChains();
+
 	modChains[Chains::XFade].setAllowModificationOfVoiceValues(true);
 	
 	sampleStartChain = modChains[Chains::SampleStart].getChain();

@@ -57,6 +57,9 @@ StereoEffect::StereoEffect(MainController *mc, const String &uid, int numVoices)
 	pan(getDefaultValue(Pan)/100.0f)
 {
 	modChains += {this, "Pan Modulation", ModulatorChain::ModulationType::Normal, Modulation::PanMode};
+	
+	finaliseModChains();
+
 	modChains[InternalChains::BalanceChain].setExpandToAudioRate(true);
 
 	parameterNames.add("Pan");

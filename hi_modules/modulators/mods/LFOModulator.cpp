@@ -64,6 +64,8 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	modChains += {this, "LFO Intensity Mod"};
 	modChains += {this, "LFO Frequency Mod"};
 
+	modChains.finalise();
+
 	intensityChain = modChains[IntensityChain].getChain();
 	frequencyChain = modChains[FrequencyChain].getChain();
 

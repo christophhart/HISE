@@ -47,6 +47,8 @@ smoothedGainR(1.0f)
 	modChains += {this, "Width Modulation"};
 	modChains += {this, "Pan Modulation"};
 
+	finaliseModChains();
+
 	gainChain = modChains[InternalChains::GainChain].getChain();
 	delayChain = modChains[InternalChains::DelayChain].getChain();
 	widthChain = modChains[InternalChains::WidthChain].getChain();

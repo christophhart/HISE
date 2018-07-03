@@ -222,6 +222,8 @@ syncMode(AudioSampleProcessor::SyncToHostMode::FreeRunning),
 pitchTrackingEnabled(false),
 rootNote(64)
 {
+	finaliseModChains();
+
 	parameterNames.add("SyncMode");
 	parameterNames.add("LoopEnabled");
 	parameterNames.add("PitchTracking");

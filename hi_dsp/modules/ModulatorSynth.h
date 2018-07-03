@@ -478,8 +478,10 @@ private:
 protected:
 
 	
-
+	void finaliseModChains();
 	
+
+	bool finalised = false;
 
 	bool checkTimerCallback(int timerIndex, int numSamplesThisBlock) const noexcept
 	{
@@ -840,6 +842,8 @@ public:
 	void applyGainModulation(int startSample, int numSamples, bool copyLeftChannel);
 
 protected:
+
+	
 
 	/** Returns the ModulatorSynth instance that this voice belongs to.
 	*

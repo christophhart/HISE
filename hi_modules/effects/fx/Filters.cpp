@@ -294,6 +294,8 @@ PolyFilterEffect::PolyFilterEffect(MainController *mc, const String &uid, int nu
 	modChains += {this, "Gain Modulation"};
 	modChains += {this, "Bipolar Freq Modulation"};
 
+	finaliseModChains();
+
 	for (auto& mb : modChains)
 		mb.getChain()->getHandler()->addPostEventListener(this);
 

@@ -639,6 +639,9 @@ PolyshapeFX::PolyshapeFX(MainController *mc, const String &uid, int numVoices):
 	dcRemovers(numVoices)
 {
 	modChains += { this, "Drive Modulation" };
+
+	finaliseModChains();
+
 	modChains[InternalChains::DriveModulation].setExpandToAudioRate(true);
 
 	for (int i = 0; i < numVoices; i++)

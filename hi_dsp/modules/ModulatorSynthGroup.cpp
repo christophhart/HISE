@@ -765,6 +765,8 @@ ModulatorSynthGroup::ModulatorSynthGroup(MainController *mc, const String &id, i
 	modChains += {this, "Detune Mod"};
 	modChains += {this, "Spread Mod"};
 
+	finaliseModChains();
+
 	detuneChain = modChains[ModChains::Detune].getChain();
 	spreadChain = modChains[ModChains::Spread].getChain();
 

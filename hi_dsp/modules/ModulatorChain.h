@@ -68,9 +68,34 @@ class ModulatorChain: public Chain,
 {
 public:
 
+	
+
 	class ModChainWithBuffer
 	{
 	public:
+
+		enum class Type
+		{
+			Normal,
+			VoiceStartOnly,
+			numTypes
+		};
+
+		struct ConstructionData
+		{
+			ConstructionData(Processor* parent_, const String& id_, Type t_ = Type::Normal, Mode m_ = Mode::GainMode) :
+				parent(parent_),
+				id(id_),
+				t(t_),
+				m(m_)
+			{}
+
+			Processor* parent;
+			String id;
+			Type t;
+			Mode m;
+		};
+
 		class Buffer
 		{
 		public:
@@ -101,15 +126,9 @@ public:
 			int maxSamplesPerBlock = 0;
 		};
 
-		enum class Type
-		{
-			Normal,
-			VoiceStartOnly,
-			numTypes
-		};
-
 		
-		ModChainWithBuffer(Processor* parent, const String& id, Type t=Type::Normal, Mode m = Mode::GainMode);;
+
+		ModChainWithBuffer(ConstructionData data);
 
 		~ModChainWithBuffer();
 
@@ -289,16 +308,11 @@ public:
 		float currentMonophonicRampValue;
 		float const* currentVoiceData = nullptr;
 
-		friend class FixedAlignedHeapArray<ModChainWithBuffer>;
-
-		ModChainWithBuffer(const ModChainWithBuffer& other);
-		ModChainWithBuffer& operator=(const ModChainWithBuffer& other) = delete;
-
-		JUCE_LEAK_DETECTOR(ModChainWithBuffer);
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModChainWithBuffer);
 	};
 
 	using ModulationType = ModChainWithBuffer::Type;
-	using Collection = FixedAlignedHeapArray<ModChainWithBuffer>;
+	using Collection = PreallocatedHeapArray<ModChainWithBuffer, ModChainWithBuffer::ConstructionData>;
 	
 	SET_PROCESSOR_NAME("ModulatorChain", "Modulator Chain")
 

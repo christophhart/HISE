@@ -41,6 +41,9 @@ SaturatorEffect::SaturatorEffect(MainController *mc, const String &uid) :
     postGain(1.0f)
 {
 	modChains += {this, "Saturation Modulation"};
+
+	finaliseModChains();
+
 	saturationChain = modChains[InternalChains::SaturationChain].getChain();
 
 	modChains[InternalChains::SaturationChain].setExpandToAudioRate(true);

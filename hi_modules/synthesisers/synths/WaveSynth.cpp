@@ -54,6 +54,8 @@ WaveSynth::WaveSynth(MainController *mc, const String &id, int numVoices) :
 {
 	modChains += { this, "Mix Modulation"};
 
+	finaliseModChains();
+
 	modChains[ChainIndex::MixChain].setAllowModificationOfVoiceValues(true);
 	modChains[ChainIndex::MixChain].setExpandToAudioRate(true);
 

@@ -40,6 +40,9 @@ WavetableSynth::WavetableSynth(MainController *mc, const String &id, int numVoic
 	tableIndexChain(new ModulatorChain(mc, "Table Index", numVoices, Modulation::GainMode, this))
 {
 	modChains += {this, "Table Index"};
+
+	finaliseModChains();
+
 	tableIndexChain = modChains[ChainIndex::TableIndex].getChain();
 
 	modChains[ChainIndex::TableIndex].setIncludeMonophonicValuesInVoiceRendering(true);

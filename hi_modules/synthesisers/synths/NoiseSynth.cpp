@@ -35,6 +35,8 @@ namespace hise { using namespace juce;
 NoiseSynth::NoiseSynth(MainController *mc, const String &id, int numVoices) :
 	ModulatorSynth(mc, id, numVoices)
 {
+	finaliseModChains();
+
 	for (int i = 0; i < numVoices; i++) addVoice(new NoiseVoice(this));
 	addSound(new NoiseSound());
 

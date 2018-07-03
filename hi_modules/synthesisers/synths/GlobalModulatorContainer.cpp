@@ -35,6 +35,8 @@ namespace hise { using namespace juce;
 GlobalModulatorContainer::GlobalModulatorContainer(MainController *mc, const String &id, int numVoices) :
 ModulatorSynth(mc, id, numVoices)
 {
+	finaliseModChains();
+
 	gainChain = modChains[BasicChains::GainChain].getChain();
 
 	// Do not expand the values, but leave them compressed for the receivers to expand them...

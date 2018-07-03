@@ -85,6 +85,8 @@ AhdsrEnvelope::AhdsrEnvelope(MainController *mc, const String &id, int voiceAmou
 	internalChains += {this, "Sustain Level", ModulatorChain::ModulationType::VoiceStartOnly };
 	internalChains += {this, "Release Time", ModulatorChain::ModulationType::VoiceStartOnly };
 
+	internalChains.finalise();
+
     setTargetRatioDR(0.0001f);
 
 	setAttackCurve(0.0f);

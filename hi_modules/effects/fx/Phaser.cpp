@@ -40,6 +40,9 @@ feedback(0.7f),
 mix(1.0f)
 {
 	modChains += { this, "Phase Modulation" };
+
+	finaliseModChains();
+
 	phaseModulationChain = modChains[InternalChains::PhaseModulationChain].getChain();
 	modChains[InternalChains::PhaseModulationChain].setExpandToAudioRate(true);
 

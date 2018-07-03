@@ -57,6 +57,7 @@ public:
 
 	virtual ~EffectProcessor()
 	{
+
 		modChains.clear();
 	};
 
@@ -83,6 +84,8 @@ public:
 	/** You have to override this method, since almost every effect needs the samplerate anyway. */
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override
 	{
+		jassert(finalised);
+
 		Processor::prepareToPlay(sampleRate, samplesPerBlock);
 
 		if (samplesPerBlock > 0 && hasTail())
@@ -116,6 +119,12 @@ public:
 
 protected:
 
+	void finaliseModChains()
+	{
+		modChains.finalise();
+		finalised = true;
+	}
+
 	/** Takes a copy of the buffer before it is processed to check if a tail was added after processing. */
 	void saveBufferForTailCheck(AudioSampleBuffer &b, int startSample, int numSamples)
 	{
@@ -131,7 +140,10 @@ protected:
 
 	ModulatorChain::Collection modChains;
 
+
 private:
+
+	bool finalised = false;
 
 	AudioSampleBuffer tailCheck;
 

@@ -224,42 +224,23 @@ void ModulatorChain::ModChainWithBuffer::setDisplayValueInternal(int voiceIndex,
 	}
 }
 
-ModulatorChain::ModChainWithBuffer::ModChainWithBuffer(Processor* parent, const String& id, Type t/*=Type::Normal*/, Mode m /*= Mode::GainMode*/) :
-	c(new ModulatorChain(parent->getMainController(),
-		id,
-		parent->getVoiceAmount(),
-		m,
-		parent)),
-	type(t),
+ModulatorChain::ModChainWithBuffer::ModChainWithBuffer(ConstructionData data) :
+	c(new ModulatorChain(data.parent->getMainController(),
+		data.id,
+		data.parent->getVoiceAmount(),
+		data.m,
+		data.parent)),
+	type(data.t),
 	currentMonophonicRampValue(c->getInitialValue())
 {
-	FloatVectorOperations::fill(currentConstantVoiceValues, 1.0f, NUM_POLYPHONIC_VOICES);
-	FloatVectorOperations::fill(currentRampValues, 1.0f, NUM_POLYPHONIC_VOICES);
+	FloatVectorOperations::fill(currentConstantVoiceValues, c->getInitialValue(), NUM_POLYPHONIC_VOICES);
+	FloatVectorOperations::fill(currentRampValues, c->getInitialValue(), NUM_POLYPHONIC_VOICES);
 
-	
-
-	if (t == Type::VoiceStartOnly)
+	if (data.t == Type::VoiceStartOnly)
 		c->setIsVoiceStartChain(true);
 }
 
-ModulatorChain::ModChainWithBuffer::ModChainWithBuffer(const ModChainWithBuffer& other)
-{
-	// Not the nicest way, but we now that it's only called once from the 
-	// FixedArray constructor
-	auto mutableOther = const_cast<ModChainWithBuffer*>(&other);
-	type = other.type;
 
-	c.swapWith(mutableOther->c);
-	options = other.options;
-
-	jassert(modBuffer.monoValues == nullptr);
-	jassert(other.modBuffer.monoValues == nullptr);
-
-	currentMonophonicRampValue = other.currentMonophonicRampValue;
-
-	FloatVectorOperations::fill(currentConstantVoiceValues, 1.0f, NUM_POLYPHONIC_VOICES);
-	FloatVectorOperations::fill(currentRampValues, 1.0f, NUM_POLYPHONIC_VOICES);
-}
 
 ModulatorChain::ModChainWithBuffer::~ModChainWithBuffer()
 {

@@ -43,101 +43,99 @@ namespace hise { using namespace juce;
 #pragma warning(disable: 4018)
 #endif
 
-
-template <class ElementType> class FixedAlignedHeapArray
+template <class HeapElementType, class ConstructionDataType> class PreallocatedHeapArray
 {
 public:
 
-	FixedAlignedHeapArray():
-		length(0)
-	{}
-
-	void operator+=(const ElementType& newElement)
-	{
-		if (length + 1 > allocated)
-		{
-			// Try to avoid reallocating when adding multiple elements...
-			//jassert(length == 0);
-
-			HeapBlock<ElementType> newData;
-
-			int newLength = length + 1;
-
-			newData.malloc(newLength);
-
-			auto newPtr = newData.get();
-
-			for (int i = 0; i < length; i++)
-				new (newPtr++) ElementType(data[i]);
-
-			new (newPtr++) ElementType(newElement);
-
-			clear();
-
-			length = newLength;
-			data.swapWith(newData);
-		}
-		else
-		{
-			auto ptr = data.get() + length;
-
-			new (ptr) ElementType(newElement);
-			length++;
-		}
-	}
-
-	~FixedAlignedHeapArray()
+	PreallocatedHeapArray() {};
+	~PreallocatedHeapArray()
 	{
 		clear();
 	}
 
-	inline ElementType* begin() const noexcept
+	void operator +=(const ConstructionDataType& d)
 	{
-		return const_cast<ElementType*>(data.get());
+		constructionData.add(d);
 	}
 
-	inline ElementType* end() const noexcept
+	void reserve(int numElements)
 	{
-		return const_cast<ElementType*>(data.get()) + length;
+		constructionData.ensureStorageAllocated(numElements);
 	}
 
-	inline ElementType& operator[](int index) const noexcept
+	void finalise()
 	{
-		// If it won't be catched during development, you're out of luck...
-		jassert(index < length);
-		return data[index];
+		allocate(constructionData.size());
+
+		for (const auto& cd : constructionData)
+		{
+			new (ptr++) HeapElementType(cd);
+		}
+
+		constructionData.clear();
+		finalised = true;
 	}
 
-	int size() const noexcept { return length; };
-
-	void reserve(int elements)
+	HeapElementType& operator[](int index) const
 	{
-		// You must call this before anything else...
-		jassert(length == 0);
-
-		allocated = elements;
-		data.allocate(elements, true);
+		jassert(finalised);
+		jassert(isPositiveAndBelow(index, length));
+		auto ptr = const_cast<HeapElementType*>(data.get() + index);
+		return *ptr;
 	}
 
 	void clear()
 	{
 		for (int i = 0; i < length; i++)
 		{
-			data[i].~ElementType();
+			data[i].~HeapElementType();
 		}
 
 		data.free();
 		length = 0;
+		finalised = false;
+	}
+
+	inline HeapElementType* begin() const noexcept
+	{
+		jassert(finalised);
+
+		return const_cast<HeapElementType*>(data.get());
+	}
+
+	inline HeapElementType* end() const noexcept
+	{
+		jassert(finalised);
+
+		return const_cast<HeapElementType*>(data.get()) + length;
+	}
+
+	int size() const noexcept
+	{
+		return length;
 	}
 
 private:
 
-	
+	void allocate(int numElements)
+	{
+		length = numElements;
+		data.allocate(numElements, true);
+		index = 0;
+		ptr = data.getData();
+	}
 
-	int length;
-	int allocated = 0;
+	Array<ConstructionDataType> constructionData;
 
-	HeapBlock<ElementType> data;
+	HeapBlock<HeapElementType> data;
+	int index = -1;
+	int length = -1;
+
+	bool finalised = false;
+
+	HeapElementType* ptr = nullptr;
+
+	JUCE_DECLARE_NON_COPYABLE(PreallocatedHeapArray);
 };
 
 

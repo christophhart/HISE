@@ -66,6 +66,28 @@ SET_DOCUMENTATION(SineSynth)
 
 }
 
+SineSynth::SineSynth(MainController *mc, const String &id, int numVoices) :
+	ModulatorSynth(mc, id, numVoices),
+	octaveTranspose((int)getDefaultValue(OctaveTranspose)),
+	semiTones((int)getDefaultValue(SemiTones)),
+	useRatio(false),
+	fineRatio(getDefaultValue(FineFreqRatio)),
+	coarseRatio(getDefaultValue(CoarseFreqRatio)),
+	saturationAmount(getDefaultValue(SaturationAmount))
+{
+	finaliseModChains();
+
+	parameterNames.add("OctaveTranspose");
+	parameterNames.add("SemiTones");
+	parameterNames.add("UseFreqRatio");
+	parameterNames.add("CoarseFreqRatio");
+	parameterNames.add("FineFreqRatio");
+	parameterNames.add("SaturationAmount");
+
+	for (int i = 0; i < numVoices; i++) addVoice(new SineSynthVoice(this));
+	addSound(new SineWaveSound());
+}
+
 ProcessorEditorBody* SineSynth::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
