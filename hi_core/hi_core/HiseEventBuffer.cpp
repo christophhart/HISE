@@ -279,16 +279,6 @@ void HiseEventBuffer::addEvents(const HiseEventBuffer &otherBuffer)
 	}
 }
 
-void HiseEventBuffer::addEvents(const HiseEventBuffer& otherBuffer, uint16 maxTimestamp)
-{
-	jassert(timeStampsAreSorted());
-	jassert(otherBuffer.timeStampsAreSorted());
-
-
-}
-
-
-
 bool HiseEventBuffer::timeStampsAreSorted() const
 {
 	if (numUsed == 0) return true;

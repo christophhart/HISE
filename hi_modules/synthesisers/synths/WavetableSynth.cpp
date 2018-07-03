@@ -129,7 +129,7 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 
 	const float *voicePitchValues = getOwnerSynth()->getPitchValuesForVoice();
 		
-	if (auto tableValues = getTableModulationValues(startSample, numSamples))
+	if (auto tableValues = getTableModulationValues())
 	{
 		while (--numSamples >= 0)
 		{
@@ -258,9 +258,9 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 		static_cast<WavetableSynth*>(getOwnerSynth())->triggerWaveformUpdate();
 }
 
-const float *WavetableSynthVoice::getTableModulationValues(int startSample, int numSamples)
+const float * WavetableSynthVoice::getTableModulationValues()
 {
-	return dynamic_cast<WavetableSynth*>(getOwnerSynth())->getTableModValues(voiceIndex);
+	return dynamic_cast<WavetableSynth*>(getOwnerSynth())->getTableModValues();
 }
 
 int WavetableSynthVoice::getSmoothSize() const

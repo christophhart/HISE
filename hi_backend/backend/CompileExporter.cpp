@@ -125,7 +125,7 @@ ValueTree BaseExporter::exportUserPresetFiles()
 	
 }
 
-ValueTree BaseExporter::exportEmbeddedFiles(bool includeSampleMaps)
+juce::ValueTree BaseExporter::exportEmbeddedFiles()
 {
 	ValueTree externalScriptFiles = FileChangeListener::collectAllScriptFiles(chainToExport);
 	ValueTree customFonts = chainToExport->getMainController()->exportCustomFontsAsValueTree();
@@ -520,7 +520,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 		writeValueTreeToTemporaryFile(UserPresetHelpers::collectAllUserPresets(chainToExport), directoryPath, "userPresets", true);
 
 		// Always embed scripts and fonts, but don't embed samplemaps
-		writeValueTreeToTemporaryFile(exportEmbeddedFiles(embedFiles && type != TargetTypes::EffectPlugin), directoryPath, "externalFiles", true);
+		writeValueTreeToTemporaryFile(exportEmbeddedFiles(), directoryPath, "externalFiles", true);
 
 		
 

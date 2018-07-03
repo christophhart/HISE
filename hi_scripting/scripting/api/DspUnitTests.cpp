@@ -534,13 +534,13 @@ private:
 		const int rightNextDirac = offset + roundDoubleToInt(ceil(256.0 / pitchFactorRight));
 
 		expect(testData.isWithinErrorRange(leftNextDirac - 1, 0.0f, 0), "leftNextDirac - 1");
-		expect(testData.isWithinErrorRange(leftNextDirac - 1, 0.0f, 1), "leftNextDirac - 1");
+		expect(testData.isWithinErrorRange(rightNextDirac - 1, 0.0f, 1), "rightNextDirac - 1");
 
 		expect(testData.isWithinErrorRange(leftNextDirac, 1.0f, 0), "leftNextDirac + 1");
-		expect(testData.isWithinErrorRange(leftNextDirac, 1.0f, 1), "leftNextDirac - 1");
+		expect(testData.isWithinErrorRange(rightNextDirac, 1.0f, 1), "rightNextDirac - 1");
 
 		expect(testData.isWithinErrorRange(leftNextDirac + 1, 0.0f, 0), "leftNextDirac + 1");
-		expect(testData.isWithinErrorRange(leftNextDirac + 1, 0.0f, 1), "leftNextDirac - 1");
+		expect(testData.isWithinErrorRange(rightNextDirac + 1, 0.0f, 1), "rightNextDirac - 1");
 
 		expect(testData == testData2, "Detune for FM");
 
@@ -664,7 +664,7 @@ private:
 
 		double rasterValue = (double)stopOffset / (double)HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
 
-		int rasteredTimestamp = floor(rasterValue) * HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+		int rasteredTimestamp = (int)(floor(rasterValue) * (double)HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR);
 
 		auto diracBeforeNoteOff = (int)(floor((double)rasteredTimestamp / 256.0) * 256.0);
 		auto diracAfterNoteOff = diracBeforeNoteOff + 256;
@@ -691,8 +691,8 @@ private:
 		Helpers::process(bp, testData, 512);
 
 		expectEquals<float>(testData.audioBuffer.getSample(0, 0), 0, "First Dirac doesn't match");
-		expectEquals<float>(testData.audioBuffer.getSample(0, attackSamples/2), 0.5f, "First Dirac doesn't match");
-		expectEquals<float>(testData.audioBuffer.getSample(0, attackSamples), 1.0f, "First Dirac doesn't match");
+		expectEquals<float>(testData.audioBuffer.getSample(0, (int)attackSamples/2), 0.5f, "First Dirac doesn't match");
+		expectEquals<float>(testData.audioBuffer.getSample(0, (int)attackSamples), 1.0f, "First Dirac doesn't match");
 	}
 
 	void testConstantModulator(bool useGroup)
@@ -760,7 +760,7 @@ private:
 
 		Helpers::get<SimpleEnvelope>(bp)->setBypassed(true);
 
-		auto ahdsr = Helpers::addVoiceModulatorToOptionalGroup<AhdsrEnvelope>(bp, ModulatorSynth::GainModulation);
+		Helpers::addVoiceModulatorToOptionalGroup<AhdsrEnvelope>(bp, ModulatorSynth::GainModulation);
 
 		const float sustainLevel = 0.25f;
 
@@ -1350,11 +1350,11 @@ private:
 		for (int i = 0; i < totalLength; i++)
 		{
 			float expected = 2.0f + (float)i / (float)totalLength;
-			float value = check[i];
+			float thisValue = check[i];
 
-			float delta = Decibels::gainToDecibels(fabsf(expected - value));
+			float delta = Decibels::gainToDecibels(fabsf(expected - thisValue));
 
-			expect(delta < -96.0f, "Value at " + String(i) + "Expected" + String(expected) + ", Actual: " + String(value));
+			expect(delta < -96.0f, "Value at " + String(i) + "Expected" + String(expected) + ", Actual: " + String(thisValue));
 		};
 
 	}
@@ -1476,7 +1476,7 @@ private:
 		}
 		catch (String& m)
 		{
-			
+			ignoreUnused(m);
 			DBG(m);
 			jassertfalse;
 		}

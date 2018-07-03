@@ -392,13 +392,13 @@ public:
 		return modChains[BasicChains::PitchChain].getWritePointerForVoiceValues(0);
 	};
 
-	void overwritePitchValues(const float* data, int startSample, int numSamples)
+	void overwritePitchValues(const float* modDataValues, int startSample, int numSamples)
 	{
 		useScratchBufferForArtificialPitch = true;
 
 		auto destination = modChains[BasicChains::PitchChain].getScratchBuffer();
 
-		FloatVectorOperations::copy(destination + startSample, data + startSample, numSamples);
+		FloatVectorOperations::copy(destination + startSample, modDataValues + startSample, numSamples);
 	}
 
 	const float* getVoiceGainValues() const
@@ -509,18 +509,8 @@ protected:
 
 private:
 
-	void updateShouldHaveEnvelope()
-	{
-		shouldHaveEnvelope = false;
-		
-		if (isInGroup())
-			shouldHaveEnvelope = false;
-		else if (ProcessorHelpers::is<GlobalModulatorContainer>(this))
-			shouldHaveEnvelope = false;
-		else 
-			shouldHaveEnvelope = true;
-	}
-
+    void updateShouldHaveEnvelope();
+	
 	bool shouldHaveEnvelope = true;
 
 

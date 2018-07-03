@@ -568,8 +568,6 @@ private:
 	{
 		beginTest("Testing alignment + " + String(Alignment) + " of Hise Events with max timestamp " + String(maxTimestamp));
 
-		Random r;
-
 		for (int i = 0; i < 100; i++)
 		{
 			HiseEvent b = generateRandomHiseEvent();

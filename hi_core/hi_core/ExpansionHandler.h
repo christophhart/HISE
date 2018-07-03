@@ -300,6 +300,7 @@ private:
 	{
 		auto type = PoolHelpers::getSubDirectoryType(DataType());
 
+		ignoreUnused(p, type);
 		jassert(p.getFileType() == type);
 		
         PoolCollection* poolCollection = getCurrentPoolCollection();

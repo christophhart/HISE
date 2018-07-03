@@ -76,7 +76,7 @@
 
 namespace hise { using namespace juce;
 
-#define ENABLE_STARTUP_LOG 1
+
 
 
 #if ENABLE_STARTUP_LOG

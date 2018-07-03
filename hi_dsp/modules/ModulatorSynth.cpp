@@ -238,8 +238,8 @@ void ModulatorSynth::synthTimerCallback(uint8 index, int numSamplesThisBlock)
 			eventBuffer.addEvent(HiseEvent::createTimerEvent(index, (uint16)rasteredOffset));
 			nextTimerCallbackTimes[index].store(nextTimerCallbackTimes[index].load() + synthTimerIntervals[index].load());
 			offsetInBuffer = (uint32)((nextTimerCallbackTimes[index] - uptime) * getSampleRate());
-			const uint32 delta = offsetInBuffer % HISE_EVENT_RASTER;
-			rasteredOffset = offsetInBuffer - delta;
+			const uint32 newDelta = offsetInBuffer % HISE_EVENT_RASTER;
+			rasteredOffset = offsetInBuffer - newDelta;
 		}
 	}
 	else jassertfalse;
@@ -543,7 +543,6 @@ void ModulatorSynth::calculateModulationValuesForVoice(ModulatorSynthVoice * v, 
 	if (v->isPitchFadeActive())
 	{
 		auto bufferToUse = modChains[BasicChains::PitchChain].getWritePointerForVoiceValues(0);
-		bool useScratchBuffer = false;
 
 		if (bufferToUse == nullptr)
 		{
@@ -1327,17 +1326,8 @@ void ModulatorSynthVoice::stopNote(float, bool)
 	LOG_SYNTH_EVENT("Stop Note for " + getOwnerSynth()->getId() + " with index " + String(voiceIndex));
     
 	ModulatorSynth *os = getOwnerSynth();
-
-	
-
-	ModulatorChain *c = static_cast<ModulatorChain*>(os->getChildProcessor(ModulatorSynth::GainModulation));
-	ModulatorChain *p = static_cast<ModulatorChain*>(os->getChildProcessor(ModulatorSynth::PitchModulation));
-	EffectProcessorChain *e = static_cast<EffectProcessorChain*>(os->getChildProcessor(ModulatorSynth::EffectChain));
-
 	isTailing = true;
-
 	os->preStopVoice(voiceIndex);
-
 	checkRelease();
 };
 
@@ -1363,8 +1353,6 @@ ModulatorSynthVoice* ModulatorSynth::getFreeVoice(SynthesiserSound* s, int midiC
 
 juce::SynthesiserVoice* ModulatorSynth::findVoiceToSteal(SynthesiserSound* soundToPlay, int midiChannel, int midiNoteNumber) const
 {
-	auto startUptime = getMainController()->getUptime();
-
 	for (auto v: activeVoices)
 	{
 		// return voices that are being killed
@@ -1679,6 +1667,21 @@ void ModulatorSynth::killAllVoices()
 	}
 }
 
+    void ModulatorSynth::updateShouldHaveEnvelope()
+    {
+        {
+            shouldHaveEnvelope = false;
+            
+            if (isInGroup())
+                shouldHaveEnvelope = false;
+            else if (ProcessorHelpers::is<GlobalModulatorContainer>(this))
+                shouldHaveEnvelope = false;
+            else 
+                shouldHaveEnvelope = true;
+        }
+
+    }
+    
 bool ModulatorSynth::areVoicesActive() const
 {
 	return !activeVoices.isEmpty();

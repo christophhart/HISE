@@ -262,7 +262,7 @@ void ModulatorSamplerVoice::setStreamingBufferDataType(bool shouldBeFloat)
 
 float ModulatorSamplerVoice::getConstantCrossfadeModulationValue() const noexcept
 {
-	return sampler->getConstantCrossFadeModulationValue(currentlyPlayingSamplerSound->getRRGroup() - 1);
+	return sampler->getConstantCrossFadeModulationValue();
 }
 
 const float * ModulatorSamplerVoice::getCrossfadeModulationValues(int startSample, int numSamples)

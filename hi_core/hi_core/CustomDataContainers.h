@@ -388,7 +388,7 @@ public:
 	void shrink(int newSize)
 	{
 		jassert(newSize > 0);
-		position = jlimit<size_t>(0, position, (size_t)newSize);
+		position = jlimit<int>(0, position, newSize);
 	}
 
     void clear()

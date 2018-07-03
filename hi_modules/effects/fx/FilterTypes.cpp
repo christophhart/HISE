@@ -127,11 +127,13 @@ void SimpleOnePoleSubType::processSamples(AudioSampleBuffer& buffer, int startSa
 
 		break;
 	}
-
+    default:
+        jassertfalse;
+        break;
 	}
 }
 
-void RingmodFilterSubType::updateCoefficients(double sampleRate, double frequency, double q, double gain)
+void RingmodFilterSubType::updateCoefficients(double sampleRate, double frequency, double q, double /*gain*/)
 {
 	uptimeDelta = frequency / sampleRate * 2.0 * double_Pi;
 	oscGain = jmap<float>((float)q, 0.3f, 9.9f, 0.0f, 1.0f);
@@ -170,9 +172,9 @@ void StaticBiquadSubType::reset(int numNewChannels)
 
 void StaticBiquadSubType::processSamples(AudioSampleBuffer& b, int startSample, int numSamples)
 {
-	int numChannels = b.getNumChannels();
+	int channelAmount = b.getNumChannels();
 
-	for (int i = 0; i < numChannels; i++)
+	for (int i = 0; i < channelAmount; i++)
 	{
 		float* d = b.getWritePointer(i, startSample);
 		filters[i].processSamples(d, numSamples);
@@ -191,7 +193,7 @@ void PhaseAllpassSubType::processSamples(AudioSampleBuffer& b, int startSample, 
 	}
 }
 
-void PhaseAllpassSubType::updateCoefficients(double sampleRate, double frequency, double q, double gain)
+void PhaseAllpassSubType::updateCoefficients(double sampleRate, double frequency, double q, double /*gain*/)
 {
 	if (sampleRate <= 0.0f)
 	{
@@ -267,7 +269,7 @@ float LadderSubType::processSample(float input, int channel)
 	return 2.0f * buffer[3];
 }
 
-void StateVariableFilterSubType::updateCoefficients(double sampleRate, double frequency, double q, double gain)
+void StateVariableFilterSubType::updateCoefficients(double sampleRate, double frequency, double q, double /*gain*/)
 {
 	const float scaledQ = jlimit<float>(0.0f, 9.999f, (float)q * 0.1f);
 
@@ -415,6 +417,9 @@ void StateVariableFilterSubType::processSamples(AudioSampleBuffer& buffer, int s
 
 		break;
 	}
+        default:
+            jassertfalse;
+            break;
 	}
 }
 

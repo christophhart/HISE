@@ -89,6 +89,9 @@ DECLARE_ID(UpperVelocityXFade);
 DECLARE_ID(SampleState);
 DECLARE_ID(Reversed);
 
+struct Helpers
+{
+
 	static bool isMapProperty(const Identifier& id)
 	{
 		return id == Root || id == HiKey || id == LoKey || id == HiVel || id == LoVel || id == RRGroup;
@@ -100,7 +103,9 @@ DECLARE_ID(Reversed);
 			id == LoopStart || id == LoopEnd || id == LoopXFade;
 	}
 
-	const int numProperties = 23;
+};
+
+const int numProperties = 23;
 }
 
 

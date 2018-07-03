@@ -339,7 +339,7 @@ void Plotter::mouseMove(const MouseEvent& m)
 	
 }
 
-void Plotter::mouseExit(const MouseEvent& m)
+void Plotter::mouseExit(const MouseEvent& /*m*/)
 {
 	if (!stickPopup)
 	{

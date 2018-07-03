@@ -384,7 +384,7 @@ void SamplerSoundMap::samplePropertyWasChanged(ModulatorSamplerSound* s, const I
 {
 	auto index = s->getId();
 
-	if (SampleIds::isMapProperty(id) && index < sampleComponents.size())
+	if (SampleIds::Helpers::isMapProperty(id) && index < sampleComponents.size())
 	{
 		updateSampleComponent(index);
 	}
@@ -1138,18 +1138,17 @@ SamplerSoundTable::SamplerSoundTable(ModulatorSampler *ownerSampler_, SampleEdit
 	{
 		int i1, i2, i3 = 50;
 
-
-		if (c == SampleIds::ID)
-		{
-			i1 = 30;
-			i2 = 30;
-			i3 = 30;
-		}
-		else if (c == SampleIds::FileName)
+		if (c == SampleIds::FileName)
 		{
 			i1 = 320;
 			i2 = -1;
 			i3 = -1;
+		}
+		else
+		{
+			i1 = 30;
+			i2 = 30;
+			i3 = 30;
 		}
 
 		table.getHeader().addColumn(c.toString(), columnIds.indexOf(c)+1, i1, i2, i3, TableHeaderComponent::notResizable);

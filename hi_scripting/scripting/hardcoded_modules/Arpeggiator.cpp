@@ -700,8 +700,6 @@ void Arpeggiator::playNote()
 
 void Arpeggiator::sendNoteOff(int eventId)
 {
-	const int shuffleTimeStamp = (currentStep % 2 != 0) ? (int)(0.8 * (double)currentNoteLengthInSamples * (double)shuffleSlider->getValue()) : 0;
-
 	Synth.noteOffDelayedByEventId(eventId, minNoteLenSamples);
 }
 

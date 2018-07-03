@@ -127,8 +127,6 @@ public:
 		SSEType deltaRamp = deltaConstant * r;
 		deltaRamp += startValue;
 		
-		int i = 0;
-
 		for (int i = 0; i < numLoop; i++)
 		{
 			deltaRamp.copyToRawArray(data);
@@ -235,9 +233,6 @@ public:
 
 			return (1-(int)aligned) * SkipAmount;
 		}
-
-		jassertfalse;
-		return loopCounter;
 	}
 
 	void reset()
@@ -518,88 +513,6 @@ public:
 		return smoothingActive;
 	}
 
-	void fillBufferWithSmoothedValue(float targetValue, float* data, int numSamples)
-	{
-		using SSEType = dsp::SIMDRegister<float>;
-
-		constexpr int numSSEValues = SSEType::SIMDRegisterSize / sizeof(float);
-		
-
-		// If you use this method, you need to use a downsampling factor that makes the SSE things smooth...
-		jassert(DownsamplingFactor % numSSEValues == 0);
-		jassert(DownsamplingFactor >= numSSEValues);
-
-		const bool smoothThisBuffer = resetRamper.isBusy() || (active && (fabsf(targetValue - currentValue) > 0.001f));
-
-#if 0
-		if (!smoothThisBuffer)
-		{
-			smoothingActive = false;
-			currentValue = targetValue;
-			downsampledRampValue = targetValue;
-			FloatVectorOperations::fill(data, targetValue, numSamples);
-			return;
-		}
-#endif
-
-		SpinLock::ScopedLockType sl(spinLock);
-
-		smoothingActive = true;
-
-		int startSample = 0;
-
-		const float* startData = data;
-
-		while (resetRamper.isBusy() && startSample < numSamples)
-		{
-			resetRamper.ramp(currentValue);
-			prevValue = currentValue;
-
-			data[startSample] = currentValue;
-
-			startSample++;
-		}
-
-		while (numSamples > 0)
-		{
-			bool calculateNew;
-
-			int subBlock = blockDivider.cutBlock(numSamples, calculateNew, data);
-
-			if (calculateNew)
-			{
-				currentValue = a0 * targetValue - b0 * prevValue;
-				prevValue = currentValue;
-				downsampledTargetValue = currentValue;
-			}
-
-			if (subBlock == 0)
-			{
-				AlignedSSERamper<DownsamplingFactor> ramper(data);
-				ramper.ramp(downsampledRampValue, downsampledTargetValue);
-				downsampledRampValue = downsampledTargetValue;
-				data += DownsamplingFactor;
-			}
-			else
-			{
-				while (--numSamples >= 0)
-				{
-					downsampledRampValue += currentRampDelta;
-					*data++ = downsampledRampValue;
-				}
-			}
-		}
-
-#if 0
-		for (int i = startSample; i < numSamples; i++)
-		{
-			currentValue = a0 * targetValue - b0 * prevValue;
-
-			prevValue = currentValue;
-			data[i] = currentValue;
-		}
-#endif
-	}
 
 	void smoothBuffer(float* data, int numSamples)
 	{
@@ -666,10 +579,7 @@ public:
 	/** Sets the internal sample rate. Call this method before setting the smooth time. */
 	void prepareToPlay(double sampleRate_)
 	{
-		sampleRate = (float)sampleRate_ / (double)DownsamplingFactor;
-
-		
-
+		sampleRate = (float)sampleRate_ / (float)DownsamplingFactor;
 		setSmoothingTime(smoothTime);
 	};
 

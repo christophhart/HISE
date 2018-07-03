@@ -900,77 +900,58 @@ void HiseAudioThumbnail::LoadingThread::run()
 
 	float width = (float)bounds.getWidth();
 
-	VariantBuffer::Ptr l = lb.getBuffer();
-
-	if (l)
-	{
-		if (l->size != 0)
-		{
-			const float* data = l->buffer.getReadPointer(0);
-			const int numSamples = l->size;
-
-			calculatePath(lPath, width, data, numSamples);
-		}
-	}
 
 	VariantBuffer::Ptr r = rb.getBuffer();
+	VariantBuffer::Ptr l = lb.getBuffer();
 
-	if (auto r = rb.getBuffer())
+	
+	if (l != nullptr && l->size != 0)
 	{
-		if (r->size != 0)
-		{
-			const float* data = r->buffer.getReadPointer(0);
-			const int numSamples = r->size;
+		const float* data = l->buffer.getReadPointer(0);
+		const int numSamples = l->size;
 
-			calculatePath(rPath, width, data, numSamples);
-		}
+		calculatePath(lPath, width, data, numSamples);
+	}
+
+	if (r != nullptr && r->size != 0)
+	{
+		const float* data = r->buffer.getReadPointer(0);
+		const int numSamples = r->size;
+
+		calculatePath(rPath, width, data, numSamples);
 	}
 	
 	const bool isMono = rPath.isEmpty();
 
 	if (isMono)
 	{
-		if (auto l = lb.getBuffer())
+		if (l != nullptr && l->size != 0)
 		{
-			if (l->size != 0)
-			{
-				const float* data = l->buffer.getReadPointer(0);
-				const int numSamples = l->size;
+			const float* data = l->buffer.getReadPointer(0);
+			const int numSamples = l->size;
 
-				scalePathFromLevels(lPath, { 0.0f, 0.0f, (float)bounds.getWidth(), (float)bounds.getHeight() }, data, numSamples);
-			}
+			scalePathFromLevels(lPath, { 0.0f, 0.0f, (float)bounds.getWidth(), (float)bounds.getHeight() }, data, numSamples);
 		}
 	}
 	else
 	{
-
 		float h = (float)bounds.getHeight() / 2.0f;
 
-		if (auto l = lb.getBuffer())
+		if (l != nullptr && l->size != 0)
 		{
-			if (l->size != 0)
-			{
-				const float* data = l->buffer.getReadPointer(0);
-				const int numSamples = l->size;
+			const float* data = l->buffer.getReadPointer(0);
+			const int numSamples = l->size;
 
-				scalePathFromLevels(lPath, { 0.0f, 0.0f, (float)bounds.getWidth(), h }, data, numSamples);
-			}
-				
-
-			
+			scalePathFromLevels(lPath, { 0.0f, 0.0f, (float)bounds.getWidth(), h }, data, numSamples);
 		}
 
-		if (auto r = rb.getBuffer())
+		if (r != nullptr && r->size != 0)
 		{
-			if (r->size != 0)
-			{
-				const float* data = r->buffer.getReadPointer(0);
-				const int numSamples = r->size;
+			const float* data = r->buffer.getReadPointer(0);
+			const int numSamples = r->size;
 
-				scalePathFromLevels(rPath, { 0.0f, h, (float)bounds.getWidth(), h }, data, numSamples);
-			}
+			scalePathFromLevels(rPath, { 0.0f, h, (float)bounds.getWidth(), h }, data, numSamples);
 		}
-
 	}
 
 	{
@@ -983,7 +964,6 @@ void HiseAudioThumbnail::LoadingThread::run()
 			parent->isClear = false;
 
 			parent->refresh();
-			
 		}
 	}
 }

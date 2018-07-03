@@ -951,8 +951,6 @@ private:
 			{
 				stopTimer();
 
-				int numListeners = parent.deleteListeners.size();
-
 				for (auto l: parent.deleteListeners)
 				{
 					if(l.get() != nullptr)

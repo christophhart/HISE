@@ -84,7 +84,7 @@ void Modulation::setIntensityFromSlider(float sliderValue) noexcept
 	{
 	case GainMode:	setIntensity(sliderValue); break;
 	case PitchMode:	setIntensity(PitchConverters::octaveRangeToSignedNormalisedRange(sliderValue)); break;
-	case PanMode:	setIntensity(sliderValue / 100.0); break;
+	case PanMode:	setIntensity(sliderValue / 100.0f); break;
 	}
 }
 
@@ -229,7 +229,7 @@ TimeModulation::TimeModulation(Modulation::Mode m) :
 {
 }
 
-void TimeModulation::prepareToModulate(double sampleRate, int samplesPerBlock)
+void TimeModulation::prepareToModulate(double sampleRate, int /*samplesPerBlock*/)
 {
 	constexpr double ratio = 1.0 / (double)HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
 
@@ -394,7 +394,9 @@ void TimeModulation::applyIntensityForGainValues(float* calculatedModulationValu
 
 	while (--numValues >= 0)
 	{
-		*calculatedModulationValues++ = *calculatedModulationValues * fixedIntensity + a;
+        const float modValue = *calculatedModulationValues * fixedIntensity + a;
+        
+		*calculatedModulationValues++ = modValue;
 	}
 }
 
@@ -405,7 +407,9 @@ void TimeModulation::applyIntensityForGainValues(float* calculatedModulationValu
 	{
 		const float intensityValue = fixedIntensity * *intensityValues++;
 		const float invIntensity = 1.0f - intensityValue;
-		*calculatedModulationValues++ = intensityValue * *calculatedModulationValues + invIntensity;
+        const float modValue = intensityValue * *calculatedModulationValues + invIntensity;
+		*calculatedModulationValues++ = modValue;
+        
 	}
 }
 

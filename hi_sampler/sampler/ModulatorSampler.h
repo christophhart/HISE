@@ -314,9 +314,9 @@ public:
 	Table *getTable(int tableIndex) const override { return tableIndex < crossfadeTables.size() ? crossfadeTables[tableIndex] : nullptr; }
 
 	float* calculateCrossfadeModulationValuesForVoice(int voiceIndex, int startSample, int numSamples, int groupIndex);
-	const float *getCrossfadeModValues(int voiceIndex) const;
+	const float *getCrossfadeModValues() const;
 
-	float getConstantCrossFadeModulationValue(int groupIndex) const noexcept;
+	float getConstantCrossFadeModulationValue() const noexcept;
 
 	float getCrossfadeValue(int groupIndex, float inputValue) const;
 

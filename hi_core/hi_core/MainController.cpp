@@ -1118,7 +1118,7 @@ MainController::SampleManager::~SampleManager()
 
 	internalPreloadJob.signalJobShouldExit();
 
-	const bool ok = samplerLoaderThreadPool->stopThread(2000);
+	samplerLoaderThreadPool->stopThread(2000);
 	
 	samplerLoaderThreadPool = nullptr;
 }

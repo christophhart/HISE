@@ -529,7 +529,7 @@ void ModulatorSamplerSound::updateInternalData(const Identifier& id, const var& 
 	{
 		WeakPtr refPtr = this;
 		
-		auto f = [refPtr, id, newValue](Processor* f)
+		auto f = [refPtr, id, newValue](Processor* )
 		{
 			auto s = refPtr.get();
 

@@ -48,7 +48,7 @@ public:
 
 protected:
 
-	ValueTree exportEmbeddedFiles(bool includeSampleMaps);
+	ValueTree exportEmbeddedFiles();
 	ValueTree exportUserPresetFiles();
 	ValueTree exportPresetFile();
 	

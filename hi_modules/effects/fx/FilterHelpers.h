@@ -114,7 +114,7 @@ public:
 	{
 		SpinLock::ScopedLockType sl(lock);
 
-		object->setSampleRate(sampleRate);
+		object->setSampleRate(newSampleRate);
 	}
 
 	bool calculateGainModValue = false;

@@ -114,9 +114,9 @@ void ModulatorSynthGroupVoice::startNote(int midiNoteNumber, float velocity, Syn
 		if (unisonoVoiceIndex >= NUM_POLYPHONIC_VOICES) // don't start more voices than you have allocated
 			break;
 
-		Iterator iter(this);
+		Iterator iter2(this);
 
-		while (auto childSynth = iter.getNextActiveChildSynth())
+		while (auto childSynth = iter2.getNextActiveChildSynth())
 		{
 			if (childSynth == mod)
 				continue;
@@ -127,7 +127,7 @@ void ModulatorSynthGroupVoice::startNote(int midiNoteNumber, float velocity, Syn
 };
 
 
-ModulatorSynthVoice* ModulatorSynthGroupVoice::startNoteInternal(ModulatorSynth* childSynth, int childVoiceIndex, int midiNoteNumber, float velocity)
+ModulatorSynthVoice* ModulatorSynthGroupVoice::startNoteInternal(ModulatorSynth* childSynth, int childVoiceIndex, int midiNoteNumber, float /*velocity*/)
 {
 	if (childVoiceIndex >= NUM_POLYPHONIC_VOICES)
 		return nullptr;
@@ -1028,17 +1028,17 @@ void ModulatorSynthGroup::setUnisonoSpreadAmount(float newSpreadAmount)
 
 int ModulatorSynthGroup::getNumActiveVoices() const
 {
-	int numActiveVoices = 0;
+	int thisNumActiveVoices = 0;
 
 	for (int i = 0; i < voices.size(); i++)
 	{
 		if (!voices[i]->isVoiceActive())
 			continue;
 
-		numActiveVoices += static_cast<ModulatorSynthGroupVoice*>(voices[i])->getChildVoiceAmount();
+		thisNumActiveVoices += static_cast<ModulatorSynthGroupVoice*>(voices[i])->getChildVoiceAmount();
 	}
 
-	return numActiveVoices;
+	return thisNumActiveVoices;
 }
 
 void ModulatorSynthGroup::preHiseEventCallback(const HiseEvent &m)

@@ -192,15 +192,15 @@ public:
 		if (Alignment == 1)
 			return;
 
-		const auto odd = timeStamp % Alignment;
+		const uint16 odd = timeStamp % (uint16)Alignment;
 		constexpr uint16 half = static_cast<uint16>(Alignment) / 2;
 
-		auto roundUpValue = static_cast<uint16>(odd > half) * static_cast<uint16>(Alignment);
-		auto delta = roundUpValue - odd;
+		uint16 roundUpValue = (uint16)(static_cast<uint16>(odd > half) * static_cast<uint16>(Alignment));
+		uint16 delta = roundUpValue - odd;
 
 		timeStamp += delta;
 
-		auto limitRoundDownValue = static_cast<uint16>(timeStamp >= maxTimestamp) * static_cast<uint16>(Alignment);
+		uint16 limitRoundDownValue = static_cast<uint16>(timeStamp >= maxTimestamp) * static_cast<uint16>(Alignment);
 
 		timeStamp -= limitRoundDownValue;
 	}
@@ -504,7 +504,7 @@ public:
 	void addEvents(const MidiBuffer& otherBuffer);
 
 	void addEvents(const HiseEventBuffer &otherBuffer);
-	void addEvents(const HiseEventBuffer& otherBuffer, uint16 maxTimestamp);
+	
 
 	template <int Alignment> void alignEventsToRaster(int maxTimeStamp)
 	{

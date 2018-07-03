@@ -351,7 +351,7 @@ MidiControllerAutomationHandler::MPEData::~MPEData()
 
 void MidiControllerAutomationHandler::MPEData::AsyncRestorer::timerCallback()
 {
-	if (auto l = PresetLoadLock(parent.getMainController()))
+	if (auto plock = PresetLoadLock(parent.getMainController()))
 	{
 		parent.clear();
 

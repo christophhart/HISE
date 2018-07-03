@@ -941,7 +941,7 @@ void ScriptingApi::Content::ScriptComponent::handleDefaultDeactivatedProperties(
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(isPluginParameter));
 }
 
-void ScriptingApi::Content::ScriptComponent::updatePropertiesAfterLink(NotificationType notifyEditor)
+void ScriptingApi::Content::ScriptComponent::updatePropertiesAfterLink(NotificationType /*notifyEditor*/)
 {
 	auto idList = getLinkProperties();
 
@@ -1318,7 +1318,7 @@ double ScriptingApi::Content::ScriptSlider::getMinValue() const
 	else
 	{
 		logErrorAndContinue("getMinValue() can only be called on sliders in 'Range' mode.");
-		RETURN_IF_NO_THROW(0.0)
+		return 0.0;
 	}
 }
 
@@ -1331,7 +1331,7 @@ double ScriptingApi::Content::ScriptSlider::getMaxValue() const
 	else
 	{
 		logErrorAndContinue("getMaxValue() can only be called on sliders in 'Range' mode.");
-		RETURN_IF_NO_THROW(1.0)
+		return 1.0;
 	}
 }
 
@@ -1344,7 +1344,7 @@ bool ScriptingApi::Content::ScriptSlider::contains(double valueToCheck)
 	else
 	{
 		logErrorAndContinue("contains() can only be called on sliders in 'Range' mode.");
-		RETURN_IF_NO_THROW(false)
+		return false;
 	}
 }
 
@@ -1870,7 +1870,8 @@ float ScriptingApi::Content::ScriptTable::getTableValue(int inputValue)
 		else
 		{
 			logErrorAndContinue("Connected Table was not found!");
-			RETURN_IF_NO_THROW(-1.0f)
+			
+			return -1.0f;
 		}
 	}
 	else
@@ -2652,7 +2653,7 @@ void ScriptingApi::Content::ScriptPanel::internalRepaint(bool forceRepaint/*=fal
 {
 	auto mc = dynamic_cast<Processor*>(getScriptProcessor())->getMainController();
 
-	if (auto lock = PresetLoadLock(mc))
+	if (auto plock = PresetLoadLock(mc))
 	{
 		const bool parentHasMovedOn = !parent->hasComponent(this);
 
@@ -3059,7 +3060,7 @@ void ScriptingApi::Content::ScriptPanel::AsyncPreloadStateHandler::handleAsyncUp
 	if (!(startFlag || endFlag))
 		return;
 
-	if (auto lock = PresetLoadLock(parent.getScriptProcessor()->getMainController_()))
+	if (auto plock = PresetLoadLock(parent.getScriptProcessor()->getMainController_()))
 	{
 		if (startFlag)
 		{
@@ -3854,7 +3855,7 @@ var ScriptingApi::Content::getComponent(var componentName)
 
 	logErrorAndContinue("Component with name " + componentName.toString() + " wasn't found.");
 
-	RETURN_IF_NO_THROW(var());
+	return var();
 }
 
 void ScriptingApi::Content::setPropertiesFromJSON(const Identifier &componentName, const var &jsonData)
@@ -3941,7 +3942,7 @@ void ScriptingApi::Content::makeFullScreenInterface()
 	dynamic_cast<JavascriptMidiProcessor*>(getProcessor())->addToFront(true);
 }
 
-void ScriptingApi::Content::setToolbarProperties(const var &toolbarProperties)
+void ScriptingApi::Content::setToolbarProperties(const var &/*toolbarProperties*/)
 {
 	reportScriptError("2017...");
 }

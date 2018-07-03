@@ -240,7 +240,7 @@ public:
 
 private:
 
-	float calculateNewValue(float voiceIndex);
+	float calculateNewValue(int voiceIndex);
 
 	ScopedPointer<SampleLookupTable> attackTable;
 	ScopedPointer<SampleLookupTable> releaseTable;

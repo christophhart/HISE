@@ -483,11 +483,11 @@ void LfoModulator::calculateBlock(int startSample, int numSamples)
 	const int startIndex = startSample;
 	const int numValues = numSamples;
 
-	auto* data = internalBuffer.getWritePointer(0, startSample);
+	auto* modData = internalBuffer.getWritePointer(0, startSample);
 
 	while (--numSamples >= 0)
 	{
-		*data++ = calculateNewValue();
+		*modData++ = calculateNewValue();
 	}
 
 	const float newInputValue = ((int)(uptime) % SAMPLE_LOOKUP_TABLE_SIZE) / (float)SAMPLE_LOOKUP_TABLE_SIZE;

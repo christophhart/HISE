@@ -99,7 +99,7 @@ void NoiseVoice::calculateBlock(int startSample, int numSamples)
 		while (--numSamples >= 0)
 		{
 			const float delta1 = 1.0f / (float)INT16_MAX;
-			const float uptimeToUse = (int)voiceUptime % INT16_MAX;
+			const float uptimeToUse = (float)((int)voiceUptime % INT16_MAX);
 			const float value = uptimeToUse * delta1;
 
 			voiceBuffer.setSample(0, startSample, value);
@@ -168,9 +168,9 @@ void NoiseVoice::calculateBlock(int startSample, int numSamples)
 			{
 				voiceUptime += uptimeDelta * *voicePitchValues++;
 
-				auto lastUptime = (int)(voiceUptime / 128.0);
+				auto prevUptime = (int)(voiceUptime / 128.0);
 
-				if (lastUptime % 2 == 0)
+				if (prevUptime % 2 == 0)
 				{
 					voiceUptime -= 256.0;
 					voiceBuffer.setSample(0, startSample, 1.0f);
@@ -189,9 +189,9 @@ void NoiseVoice::calculateBlock(int startSample, int numSamples)
 			{
 				voiceUptime += uptimeDelta;
 
-				auto lastUptime = (int)(voiceUptime / 128.0);
+				auto prevUptime = (int)(voiceUptime / 128.0);
 
-				if (lastUptime % 2 == 0)
+				if (prevUptime % 2 == 0)
 				{
 					voiceUptime -= 256.0;
 					voiceBuffer.setSample(0, startSample, 1.0f);

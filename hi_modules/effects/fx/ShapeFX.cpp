@@ -874,8 +874,8 @@ void PolyshapeFX::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSam
 
 	if (bias != 0.0f || mode == ShapeFX::ShapeMode::AsymetricalCurve)
 	{
-		FilterHelpers::RenderData r(b, startSample, numSamples);
-		dcRemovers[voiceIndex].render(r);
+		FilterHelpers::RenderData renderData(b, startSample, numSamples);
+		dcRemovers[voiceIndex].render(renderData);
 	}
 		
 

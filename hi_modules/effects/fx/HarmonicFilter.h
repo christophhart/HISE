@@ -129,7 +129,7 @@ class PeakFilterBand
 
 		void calculateFrequency(FloatType frequency, FloatType q_, FloatType sampleRate)
 		{
-			g = tan((frequency / sampleRate) * double_Pi);
+			g = tanf((frequency / sampleRate) * static_cast<FloatType>(double_Pi));
 			q = q_;
 
 			updateGainInternal();
@@ -182,7 +182,7 @@ public:
 
 		for (int i = 0; i < numBandsToUse; i++)
 		{
-			states[i].calculateFrequency(freqToUse, q, sampleRate);
+			states[i].calculateFrequency((float)freqToUse, (float)q, (float)sampleRate);
 			freqToUse += baseFrequency;
 		}
 	}

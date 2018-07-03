@@ -156,7 +156,7 @@ public:
         uptimeDelta *= getOwnerSynth()->getMainController()->getGlobalPitchFactor();
     };
 
-	const float *getTableModulationValues(int startSample, int numSamples);
+	const float *getTableModulationValues();
 
 	float getGainValue(float modValue);
 
@@ -381,7 +381,7 @@ public:
 		return morphSmoothing;
 	}
 
-	const float *getTableModValues(int voiceIndex) const
+	const float *getTableModValues() const
 	{
 		return modChains[ChainIndex::TableIndex].getReadPointerForVoiceValues(0);
 	}

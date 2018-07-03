@@ -116,7 +116,6 @@ smoothedGainR(1.0f)
 		if (tmp)
 		{
 			auto v = Decibels::decibelsToGain(tmp->getAttribute(GainEffect::Parameters::Delay));
-			auto dbValue = Decibels::gainToDecibels(v * input);
 			return String(roundFloatToInt(v)) + " ms";
 		}
 

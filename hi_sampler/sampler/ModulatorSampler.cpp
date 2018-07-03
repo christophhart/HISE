@@ -675,10 +675,10 @@ void ModulatorSampler::refreshMemoryUsage()
 
 void ModulatorSampler::setVoiceAmount(int newVoiceAmount)
 {
-	if (auto group = getGroup())
+	if (isInGroup())
 	{
 		// Don't allow the sampler to have another voice amount than it's parent group.
-		newVoiceAmount = group->getNumVoices();
+		newVoiceAmount = getGroup()->getNumVoices();
 	}
 
 	if (newVoiceAmount != voiceAmount)
@@ -948,8 +948,6 @@ float* ModulatorSampler::calculateCrossfadeModulationValuesForVoice(int voiceInd
 {
 	if (groupIndex > 8) return nullptr;
 
-	const int startSample_cr = startSample / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
-
 	if (auto compressedValues = modChains[Chains::XFade].getWritePointerForManualExpansion(startSample))
 	{
 		int numSamples_cr = numSamples / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
@@ -1000,12 +998,12 @@ float* ModulatorSampler::calculateCrossfadeModulationValuesForVoice(int voiceInd
 	}
 }
 
-const float * ModulatorSampler::getCrossfadeModValues(int voiceIndex) const
+const float * ModulatorSampler::getCrossfadeModValues() const
 {
 	return crossfadeGroups ? modChains[Chains::XFade].getReadPointerForVoiceValues(0) : nullptr;
 }
 
-float ModulatorSampler::getConstantCrossFadeModulationValue(int groupIndex) const noexcept
+float ModulatorSampler::getConstantCrossFadeModulationValue() const noexcept
 {
 	if (!crossfadeGroups)
 		return 1.0f;
@@ -1013,13 +1011,13 @@ float ModulatorSampler::getConstantCrossFadeModulationValue(int groupIndex) cons
 	return currentCrossfadeValue;
 }
 
-float ModulatorSampler::getCrossfadeValue(int groupIndex, float inputValue) const
+float ModulatorSampler::getCrossfadeValue(int groupIndex, float modValue) const
 {
 	SampleLookupTable * table = crossfadeTables[groupIndex];
 
-	inputValue = CONSTRAIN_TO_0_1(inputValue);
+	modValue = CONSTRAIN_TO_0_1(modValue);
 
-	return table->getInterpolatedValue((double)inputValue * (double)SAMPLE_LOOKUP_TABLE_SIZE);
+	return table->getInterpolatedValue((double)modValue * (double)SAMPLE_LOOKUP_TABLE_SIZE);
 }
 
 void ModulatorSampler::clearSampleMap(NotificationType n)

@@ -143,9 +143,9 @@ SampleEditor::~SampleEditor()
     //[/Destructor]
 }
 
-void SampleEditor::samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& newValue)
+void SampleEditor::samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& /*newValue*/)
 {
-	if (s == currentWaveForm->getCurrentSound() && SampleIds::isAudioProperty(id))
+	if (s == currentWaveForm->getCurrentSound() && SampleIds::Helpers::isAudioProperty(id))
 	{
 		currentWaveForm->updateRanges();
 	}

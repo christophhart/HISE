@@ -280,7 +280,7 @@ void TableEnvelope::handleHiseEvent(const HiseEvent& m)
 		releaseChain->handleHiseEvent(m);
 };
 
-float TableEnvelope::calculateNewValue(float voiceIndex)
+float TableEnvelope::calculateNewValue(int voiceIndex)
 {
 	jassert(voiceIndex < states.size());
 

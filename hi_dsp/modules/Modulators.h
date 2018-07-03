@@ -108,7 +108,9 @@ public:
 	Modulation(Mode m): 
 		intensity(m == PitchMode ? 0.0f : 1.0f), 
 		modulationMode(m), 
-		bipolar(m == PitchMode || m == PanMode) {};
+		bipolar(m == PitchMode || m == PanMode)
+	{};
+
     virtual ~Modulation();;
 
 	virtual Processor *getProcessor() = 0;

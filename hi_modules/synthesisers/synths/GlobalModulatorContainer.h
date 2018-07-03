@@ -332,11 +332,11 @@ public:
 
 	~GlobalModulatorContainer();
 
-	void processorChanged(EventType t, Processor* p) override { refreshList(); }
+	void processorChanged(EventType /*t*/, Processor* /*p*/) override { refreshList(); }
 
 	void restoreFromValueTree(const ValueTree &v) override;
 
-	const float *getModulationValuesForModulator(Processor *p, int startIndex, int voiceIndex = 0);
+	const float *getModulationValuesForModulator(Processor *p, int startIndex);
 	float getConstantVoiceValue(Processor *p, int noteNumber);
 
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;

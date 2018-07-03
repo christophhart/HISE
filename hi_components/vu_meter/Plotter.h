@@ -85,9 +85,9 @@ public:
 		currentMode = m;
 	}
 	
-	void setFont(Font& f)
+	void setFont(const Font& f)
 	{
-
+		font = f;
 	}
 
 

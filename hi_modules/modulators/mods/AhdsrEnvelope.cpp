@@ -469,7 +469,7 @@ void AhdsrEnvelope::calculateCoefficients(float timeInMilliSeconds, float base, 
 	stateBase = (exp1 *invertedBase - invertedBase) * maximum;
 }
 
-float AhdsrEnvelope::calculateNewValue(int voiceIndex)
+float AhdsrEnvelope::calculateNewValue(int /*voiceIndex*/)
 {
     const float thisSustain = sustain * state->modValues[SustainLevelChain];
     

@@ -321,6 +321,7 @@ void SampleMap::valueTreePropertyChanged(ValueTree& treeWhosePropertyHasChanged,
 
 void SampleMap::valueTreeChildAdded(ValueTree& parentTree, ValueTree& childWhichHasBeenAdded)
 {
+	ignoreUnused(parentTree);
 	jassert(parentTree == data);
 
 	auto f = [childWhichHasBeenAdded](Processor* p)
@@ -331,7 +332,7 @@ void SampleMap::valueTreeChildAdded(ValueTree& parentTree, ValueTree& childWhich
 
 			auto newSound = new ModulatorSamplerSound(map, childWhichHasBeenAdded, map->currentMonolith);
 			s->addSound(newSound);
-			dynamic_cast<ModulatorSamplerSound*>(newSound)->initPreloadBuffer(s->getAttribute(ModulatorSampler::PreloadSize));
+			dynamic_cast<ModulatorSamplerSound*>(newSound)->initPreloadBuffer((int)s->getAttribute(ModulatorSampler::PreloadSize));
 
 			ModulatorSamplerSoundPool* pool = s->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
 			pool->sendChangeMessage();
@@ -994,7 +995,7 @@ void SampleMap::Notifier::handleHeavyweightPropertyChanges()
 
 	newChanges.swapWith(asyncPendingChanges);
 
-	auto f = [newChanges](Processor* p)
+	auto f = [newChanges](Processor* )
 	{
 		for (const auto& c : newChanges)
 		{

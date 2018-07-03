@@ -1000,15 +1000,15 @@ void ScriptCreatedComponentWrappers::TableWrapper::updateConnectedTable(TableEdi
 	if (oldTable != newTable) t->setEditedTable(newTable);
 }
 
-void ScriptCreatedComponentWrappers::TableWrapper::pointDragStarted(Point<int> position, float index, float value)
+void ScriptCreatedComponentWrappers::TableWrapper::pointDragStarted(Point<int> position, float pointIndex, float value)
 {
 	localPopupPosition = position.withY(position.getY() - 20);;
 
-	popupText = String(index) + " | " + String(roundFloatToInt(value*100.0f)) + "%";
+	popupText = String(pointIndex) + " | " + String(roundFloatToInt(value*100.0f)) + "%";
 
 	if (auto st = dynamic_cast<ScriptingApi::Content::ScriptTable*>(getScriptComponent()))
 	{
-		auto xName = st->getTable()->getXValueText(index);
+		auto xName = st->getTable()->getXValueText(pointIndex);
 		auto yName = st->getTable()->getYValueText(value);
 
 		popupText = xName + " | " + yName;
@@ -1022,11 +1022,11 @@ void ScriptCreatedComponentWrappers::TableWrapper::pointDragEnded()
 	closeValuePopupAfterDelay();
 }
 
-void ScriptCreatedComponentWrappers::TableWrapper::pointDragged(Point<int> position, float index, float value)
+void ScriptCreatedComponentWrappers::TableWrapper::pointDragged(Point<int> position, float pointIndex, float value)
 {
 	if (auto st = dynamic_cast<ScriptingApi::Content::ScriptTable*>(getScriptComponent()))
 	{
-		auto xName = st->getTable()->getXValueText(index);
+		auto xName = st->getTable()->getXValueText(pointIndex);
 		auto yName = st->getTable()->getYValueText(value);
 
 		popupText = xName + " | " + yName;
@@ -2258,7 +2258,7 @@ void ScriptCreatedComponentWrapper::ValuePopup::updateText()
 	{
 		currentText = thisText;
 
-		int margin = p->getLayoutData().margin;
+		int margin = (int)p->getLayoutData().margin;
 
 		int newWidth = p->getFont().getStringWidth(currentText) + 2 * margin + 5;
 

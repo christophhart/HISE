@@ -246,9 +246,9 @@ bool MainController::KillStateHandler::voiceStartIsDisabled() const
 {
 #if HI_RUN_UNIT_TESTS
 	return false;
-#endif
-
+#else
 	return disableVoiceStartsThisCallback;
+#endif
 }
 
 void MainController::KillStateHandler::setSampleLoadingPending(bool isPending)

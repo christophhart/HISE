@@ -164,7 +164,7 @@ ProcessorEditorBody *StereoEffect::createEditor(ProcessorEditor *parentEditor)
 #endif
 }
 
-void StereoEffect::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples)
+void StereoEffect::applyEffect(int /*voiceIndex*/, AudioSampleBuffer &b, int startSample, int numSamples)
 {
 	auto& balanceChain = modChains[BalanceChain];
 

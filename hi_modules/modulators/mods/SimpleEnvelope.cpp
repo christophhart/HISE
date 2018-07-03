@@ -358,24 +358,24 @@ ProcessorEditorBody *SimpleEnvelope::createEditor(ProcessorEditor *parentEditor)
 
 float SimpleEnvelope::calcCoefficient(float time, float targetRatio/*=1.0f*/) const
 {
-	auto samplerate = (float)getControlRate();
+	auto srToUse = (float)getControlRate();
 
 	if (linearMode)
 	{
-		return 1.0f / ((time / 1000.0f) * (samplerate));
+		return 1.0f / ((time / 1000.0f) * (srToUse));
 	}
 	else
 	{
 		if (time == 0.0f) return 0.0f;
 
-		const float factor = samplerate * 0.001f;
+		const float factor = srToUse * 0.001f;
 
 		time *= factor;
 		return expf(-logf((1.0f + targetRatio) / targetRatio) / time);
 	}
 }
 
-float SimpleEnvelope::calculateNewValue(int voiceIndex)
+float SimpleEnvelope::calculateNewValue(int /*voiceIndex*/)
 {
 	switch (state->current_state)
 	{

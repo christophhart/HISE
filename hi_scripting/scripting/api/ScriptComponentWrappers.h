@@ -189,10 +189,11 @@ public:
 			{
 				switch (id)
 				{
-				case bgColour: return Colour((int64)bg.getValue());
-				case itemColour: return Colour((int64)item.getValue());
-				case itemColour2: return Colour((int64)item2.getValue());
-				case textColour: return Colour((int64)text.getValue());
+				case bgColour: return getColourFrom(bg);
+				case itemColour: return getColourFrom(item);
+				case itemColour2: return getColourFrom(item2);
+				case textColour: return getColourFrom(text);
+                default: break;
 				}
 					
 				jassertfalse;

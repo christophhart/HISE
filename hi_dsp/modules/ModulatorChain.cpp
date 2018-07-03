@@ -65,8 +65,6 @@ struct ModBufferExpansion
 
 			float* d = const_cast<float*>(modulationData + startSample);
 
-			int i = 0;
-
 			constexpr float ratio = 1.0f / (float)HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
 
 			for (int i = 0; i < numSamples_cr; i++)
@@ -103,6 +101,8 @@ private:
 
 	void init(VoiceStartModulator* v)
 	{
+		ignoreUnused(v);
+
 		auto handler = static_cast<const ModulatorChain::ModulatorChainHandler*>(chain->getHandler());
 
 		start = static_cast<ModulatorSubType**>(handler->activeVoiceStartList.begin());
@@ -111,6 +111,8 @@ private:
 
 	void init(TimeVariantModulator* v)
 	{
+		ignoreUnused(v);
+
 		auto handler = static_cast<const ModulatorChain::ModulatorChainHandler*>(chain->getHandler());
 
 		start = static_cast<ModulatorSubType**>(handler->activeTimeVariantsList.begin());
@@ -119,6 +121,8 @@ private:
 
 	void init(EnvelopeModulator* m)
 	{
+		ignoreUnused(m);
+
 		auto handler = static_cast<const ModulatorChain::ModulatorChainHandler*>(chain->getHandler());
 
 		start = static_cast<ModulatorSubType**>(handler->activeEnvelopesList.begin());
@@ -127,6 +131,8 @@ private:
 
 	void init(MonophonicEnvelope* m)
 	{
+		ignoreUnused(m);
+
 		auto handler = static_cast<const ModulatorChain::ModulatorChainHandler*>(chain->getHandler());
 
 		start = static_cast<ModulatorSubType**>(handler->activeMonophonicEnvelopesList.begin());
@@ -135,6 +141,8 @@ private:
 
 	void init(Modulator* a)
 	{
+		ignoreUnused(a);
+
 		auto handler = static_cast<const ModulatorChain::ModulatorChainHandler*>(chain->getHandler());
 
 		start = static_cast<ModulatorSubType**>(handler->activeAllList.begin());
@@ -315,8 +323,6 @@ void ModulatorChain::ModChainWithBuffer::expandVoiceValuesToAudioRate(int voiceI
 	{
 		polyExpandChecker = true;
 
-		bool shouldUseConstantValue = false;
-
 		if (!ModBufferExpansion::expand(currentVoiceData, startSample, numSamples, currentRampValues[voiceIndex]))
 		{
 			// Don't use the dynamic data for further processing...
@@ -423,17 +429,17 @@ void ModulatorChain::ModChainWithBuffer::calculateModulationValuesForCurrentVoic
 
 	if (c->hasActivePolyMods())
 	{
-		const float currentConstantValue = c->getConstantVoiceValue(voiceIndex);
+		const float thisConstantValue = c->getConstantVoiceValue(voiceIndex);
 		const float previousConstantValue = currentConstantVoiceValues[voiceIndex];
 
-		const bool smoothConstantValue = (std::fabsf(previousConstantValue - currentConstantValue) > 0.01f);
+		const bool smoothConstantValue = (std::fabsf(previousConstantValue - thisConstantValue) > 0.01f);
 
 		if (smoothConstantValue)
 		{
 			constantValuesAreSmoothed = true;
 
 			const float start = previousConstantValue;
-			const float delta = (currentConstantValue - start) / (float)numSamples_cr;
+			const float delta = (thisConstantValue - start) / (float)numSamples_cr;
 			int numLoop = numSamples_cr;
 			float value = start;
 			float* loop_ptr = voiceData + startSample_cr;
@@ -446,10 +452,10 @@ void ModulatorChain::ModChainWithBuffer::calculateModulationValuesForCurrentVoic
 		}
 		else
 		{
-			FloatVectorOperations::fill(voiceData + startSample_cr, currentConstantValue, numSamples_cr);
+			FloatVectorOperations::fill(voiceData + startSample_cr, thisConstantValue, numSamples_cr);
 		}
 
-		setConstantVoiceValueInternal(voiceIndex, currentConstantValue);
+		setConstantVoiceValueInternal(voiceIndex, thisConstantValue);
 
 		if (c->hasActivePolyEnvelopes())
 		{
@@ -885,8 +891,6 @@ bool ModulatorChain::isPlaying(int voiceIndex) const
 	if (!hasActivePolyEnvelopes())
 		return activeVoices[voiceIndex];
 
-	bool anyEnvelopePlaying = false;
-
 	ModIterator<EnvelopeModulator> iter(this);
 
 	while (auto mod = iter.next())
@@ -1100,8 +1104,6 @@ void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator
 			{
 				auto modulation = dynamic_cast<Modulation*>(mod.get());
 				auto intensity = modulation->getIntensity();
-
-				auto modValue = modulation->calcIntensityValue(input);
 
 				if (isBipolarModulation)
 				{

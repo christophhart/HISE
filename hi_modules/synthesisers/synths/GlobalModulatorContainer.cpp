@@ -54,7 +54,7 @@ ModulatorSynth(mc, id, numVoices)
 	gainChain->getFactoryType()->setConstrainer(new NoGlobalsConstrainer());
 	gainChain->setId("Global Modulators");
 
-	auto f = [](float input)
+	auto f = [](float )
 	{
 		return "Not assigned";
 	};
@@ -84,7 +84,7 @@ float GlobalModulatorContainer::getVoiceStartValueFor(const Processor * /*voiceS
 	return 1.0f;
 }
 
-const float * GlobalModulatorContainer::getModulationValuesForModulator(Processor *p, int startIndex, int voiceIndex /*= 0*/)
+const float * GlobalModulatorContainer::getModulationValuesForModulator(Processor *p, int startIndex)
 {
 	for (auto& tv : timeVariantData)
 	{
@@ -148,8 +148,6 @@ void GlobalModulatorContainer::preVoiceRendering(int startSample, int numThisTim
 
 				mod->setScratchBuffer(scratchBuffer, startSample_cr + numSamples_cr);
 				mod->render(modBuffer, scratchBuffer, startSample_cr, numSamples_cr);
-
-				int x = 5;
 			}
 			else
 			{
@@ -172,7 +170,7 @@ void GlobalModulatorContainer::prepareToPlay(double newSampleRate, int samplesPe
 	}
 }
 
-void GlobalModulatorContainer::addModulatorControlledParameter(const Processor* modulationSource, Processor* processor, int parameterIndex, NormalisableRange<double> range, int macroIndex)
+void GlobalModulatorContainer::addModulatorControlledParameter(const Processor* modulationSource, Processor* processor, int parameterIndex, NormalisableRange<double> range, int /*macroIndex*/)
 {
 	for (auto d : data)
 	{
@@ -373,7 +371,7 @@ void GlobalModulatorData::handleVoiceStartControlledParameters(int noteNumber)
 		{
 			if (auto processor = pc->processor)
 			{
-				auto value = pc->parameterRange.convertFrom0to1(normalizedValue);
+				auto value = (float)pc->parameterRange.convertFrom0to1(normalizedValue);
 
 				if (pc->lastValue != value)
 				{
@@ -401,7 +399,7 @@ void GlobalModulatorData::handleTimeVariantControlledParameters(int startSample,
 		{
 			if (auto processor = pc->processor)
 			{
-				auto value = pc->parameterRange.convertFrom0to1(maxValue);
+				auto value = (float)pc->parameterRange.convertFrom0to1(maxValue);
 
 				processor->setAttribute(pc->attribute, value, sendNotification);
 			}

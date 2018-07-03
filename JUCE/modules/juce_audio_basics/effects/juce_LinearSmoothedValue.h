@@ -50,22 +50,22 @@ public:
         @param sampleRate The sampling rate
         @param rampLengthInSeconds The duration of the ramp in seconds
     */
-    void reset (double sampleRate, double rampLengthInSeconds) noexcept
+    void reset (double newSampleRate, double rampLengthInSeconds) noexcept
     {
-        jassert (sampleRate > 0 && rampLengthInSeconds >= 0);
-        stepsToTarget = (int) std::floor (rampLengthInSeconds * sampleRate);
+        jassert (newSampleRate > 0 && rampLengthInSeconds >= 0);
+        stepsToTarget = (int) std::floor (rampLengthInSeconds * newSampleRate);
         currentValue = target;
         countdown = 0;
     }
 
-	void setValueAndRampTime(FloatType newValue, double sampleRate, double rampLengthInSeconds) noexcept
+	void setValueAndRampTime(FloatType newValue, double sampleRateToUse, double rampLengthInSeconds) noexcept
 	{
 		if (target != newValue)
 		{
 			target = newValue;
 
-			jassert(sampleRate > 0 && rampLengthInSeconds >= 0);
-			stepsToTarget = (int)std::floor(rampLengthInSeconds * sampleRate);
+			jassert(sampleRateToUse > 0 && rampLengthInSeconds >= 0);
+			stepsToTarget = (int)std::floor(rampLengthInSeconds * sampleRateToUse);
 			countdown = stepsToTarget;
 
 			if (countdown <= 0)
@@ -75,8 +75,8 @@ public:
 		}
 		else // might be possible that it still wants the same target but at a different speed
 		{
-			jassert(sampleRate > 0 && rampLengthInSeconds >= 0);
-			const auto thisStepsToTarget = (int)std::floor(rampLengthInSeconds * sampleRate);
+			jassert(sampleRateToUse > 0 && rampLengthInSeconds >= 0);
+			const auto thisStepsToTarget = (int)std::floor(rampLengthInSeconds * sampleRateToUse);
 
 			if (stepsToTarget != thisStepsToTarget)
 			{

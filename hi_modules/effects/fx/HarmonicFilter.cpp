@@ -62,7 +62,7 @@ filterBanks(numVoices_)
 
 	setNumFilterBands(filterBandIndex);
 
-	setQ(q);
+	setQ((float)q);
 }
 
 void HarmonicFilter::setInternalAttribute(int parameterIndex, float newValue)
@@ -82,7 +82,7 @@ float HarmonicFilter::getAttribute(int parameterIndex) const
 	switch (parameterIndex)
 	{
 	case NumFilterBands:	return (float)(filterBandIndex + 1);
-	case QFactor:			return q;
+	case QFactor:			return (float)q;
 	case Crossfade:			return currentCrossfadeValue;
 	case SemiToneTranspose:	return (float)semiToneTranspose;
 	default:				jassertfalse; return 1.0f;
@@ -243,19 +243,19 @@ void HarmonicFilter::setCrossfadeValue(double normalizedCrossfadeValue)
 
 int HarmonicFilter::getNumBandForFilterBandIndex(FilterBandNumbers number) const
 {
-	int numBands = 0;
+	int thisNumBands = 0;
 
 	switch (number)
 	{
-	case OneBand:		numBands = 1; break;
-	case TwoBands:		numBands = 2; break;
-	case FourBands:		numBands = 4; break;
-	case EightBands:	numBands = 8; break;
-	case SixteenBands:	numBands = 16; break;
+	case OneBand:		thisNumBands = 1; break;
+	case TwoBands:		thisNumBands = 2; break;
+	case FourBands:		thisNumBands = 4; break;
+	case EightBands:	thisNumBands = 8; break;
+	case SixteenBands:	thisNumBands = 16; break;
 	default:			jassertfalse; break;
 	}
 
-	return numBands;
+	return thisNumBands;
 }
 
 
@@ -290,7 +290,7 @@ filterBank()
 
 	setNumFilterBands(filterBandIndex);
 
-	setQ(q);
+	setQ((float)q);
 }
 
 void HarmonicMonophonicFilter::setInternalAttribute(int parameterIndex, float newValue)
@@ -310,7 +310,7 @@ float HarmonicMonophonicFilter::getAttribute(int parameterIndex) const
 	switch (parameterIndex)
 	{
 	case NumFilterBands:	return (float)(filterBandIndex + 1);
-	case QFactor:			return q;
+	case QFactor:			return (float)q;
 	case Crossfade:			return currentCrossfadeValue;
 	case SemiToneTranspose:	return (float)semiToneTranspose;
 	default:				jassertfalse; return 1.0f;
@@ -458,18 +458,18 @@ void HarmonicMonophonicFilter::setCrossfadeValue(double normalizedCrossfadeValue
 
 int HarmonicMonophonicFilter::getNumBandForFilterBandIndex(FilterBandNumbers number) const
 {
-	int numBands = 0;
+	int thisNumBands = 0;
 
 	switch (number)
 	{
-	case OneBand:		numBands = 1; break;
-	case TwoBands:		numBands = 2; break;
-	case FourBands:		numBands = 4; break;
-	case EightBands:	numBands = 8; break;
-	case SixteenBands:	numBands = 16; break;
+	case OneBand:		thisNumBands = 1; break;
+	case TwoBands:		thisNumBands = 2; break;
+	case FourBands:		thisNumBands = 4; break;
+	case EightBands:	thisNumBands = 8; break;
+	case SixteenBands:	thisNumBands = 16; break;
 	default:			jassertfalse; break;
 	}
 
-	return numBands;
+	return thisNumBands;
 }
 } // namespace hise

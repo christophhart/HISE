@@ -35,6 +35,7 @@ namespace hise { using namespace juce;
 
 ProjectHandler::SubDirectories PoolHelpers::getSubDirectoryType(const AudioSampleBuffer& emptyData)
 {
+	ignoreUnused(emptyData);
 	jassert(emptyData.getNumSamples() == 0);
 
 	return ProjectHandler::SubDirectories::AudioFiles;
@@ -44,6 +45,7 @@ ProjectHandler::SubDirectories PoolHelpers::getSubDirectoryType(const AudioSampl
 
 ProjectHandler::SubDirectories PoolHelpers::getSubDirectoryType(const Image& emptyImage)
 {
+	ignoreUnused(emptyImage);
 	jassert(emptyImage.isNull());
 
 	return ProjectHandler::SubDirectories::Images;
@@ -53,10 +55,11 @@ ProjectHandler::SubDirectories PoolHelpers::getSubDirectoryType(const Image& emp
 
 hise::ProjectHandler::SubDirectories PoolHelpers::getSubDirectoryType(const ValueTree& emptyTree)
 {
+	ignoreUnused(emptyTree);
 	return ProjectHandler::SubDirectories::SampleMaps;
 }
 
-void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, AudioSampleBuffer& data, var* additionalData)
+void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 /*hashCode*/, AudioSampleBuffer& data, var* additionalData)
 {
 	ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(ownedStream);
 
@@ -134,7 +137,7 @@ void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, in
 	}
 }
 
-void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, Image& data, var* additionalData)
+void PoolHelpers::loadData(AudioFormatManager& /*afm*/, InputStream* ownedStream, int64 hashCode, Image& data, var* additionalData)
 {
 	ScopedPointer<InputStream> inputStream = ownedStream;
 
@@ -144,7 +147,7 @@ void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, in
 	fillMetadata(data, additionalData);
 }
 
-void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, ValueTree& data, var* additionalData)
+void PoolHelpers::loadData(AudioFormatManager& /*afm*/, InputStream* ownedStream, int64 /*hashCode*/, ValueTree& data, var* additionalData)
 {
 	ScopedPointer<InputStream> inputStream = ownedStream;
 
@@ -163,7 +166,7 @@ void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, in
 	fillMetadata(data, additionalData);
 }
 
-void PoolHelpers::fillMetadata(AudioSampleBuffer& data, var* additionalData)
+void PoolHelpers::fillMetadata(AudioSampleBuffer& /*data*/, var* /*additionalData*/)
 {
 
 }
@@ -533,11 +536,11 @@ juce::Result PoolBase::DataProvider::restorePool(InputStream* ownedInputStream)
 
 	MemoryBlock metadataBlock;
 
-	input->readIntoMemoryBlock(metadataBlock, metadataSize);
+	input->readIntoMemoryBlock(metadataBlock, (size_t)metadataSize);
 
 	jassert(metadataBlock.getSize() == metadataSize);
 
-	metadata = ValueTree::readFromData(metadataBlock.getData(), metadataSize);
+	metadata = ValueTree::readFromData(metadataBlock.getData(), (size_t)metadataSize);
 
 	jassert(metadata.isValid());
 	jassert(metadata.getType() == Identifier("PoolData"));
@@ -569,7 +572,7 @@ juce::MemoryInputStream* PoolBase::DataProvider::createInputStream(const String&
 
 				MemoryBlock mb;
 
-				input->readIntoMemoryBlock(mb, offset - end);
+				input->readIntoMemoryBlock(mb, (size_t)(offset - end));
 
 				return new MemoryInputStream(mb, true);
 			}
@@ -671,7 +674,7 @@ Array<hise::PoolReference> PoolBase::DataProvider::getListOfAllEmbeddedReference
 	return references;
 }
 
-void PoolBase::DataProvider::Compressor::write(OutputStream& output, const ValueTree& data, const File& originalFile) const
+void PoolBase::DataProvider::Compressor::write(OutputStream& output, const ValueTree& data, const File& /*originalFile*/) const
 {
 	GZIPCompressorOutputStream zipper(&output, 9);
 	data.writeToStream(zipper);
@@ -692,7 +695,7 @@ void PoolBase::DataProvider::Compressor::write(OutputStream& output, const Image
 	format.writeImageToStream(data, newlyCompressedImage);
 	auto newSize = newlyCompressedImage.getDataSize();
 
-	if (isValidImage && originalFileSize < newSize)
+	if (isValidImage && originalFileSize < (int64)newSize)
 	{
 		output.writeFromInputStream(fis, fis.getTotalLength());
 	}
@@ -702,7 +705,7 @@ void PoolBase::DataProvider::Compressor::write(OutputStream& output, const Image
 	}
 }
 
-void PoolBase::DataProvider::Compressor::write(OutputStream& output, const AudioSampleBuffer& data, const File& originalFile) const
+void PoolBase::DataProvider::Compressor::write(OutputStream& output, const AudioSampleBuffer& data, const File& /*originalFile*/) const
 {
 	FlacAudioFormat format;
 
@@ -719,16 +722,16 @@ void PoolBase::DataProvider::Compressor::write(OutputStream& output, const Audio
 
 void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, ValueTree* data) const
 {
-	ScopedPointer<MemoryInputStream> input = mis;
+	ScopedPointer<MemoryInputStream> scopedInput = mis;
 
 	*data = ValueTree::readFromGZIPData(mis->getData(), mis->getDataSize());
 
-	input = nullptr;
+	scopedInput = nullptr;
 }
 
 void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, Image* data) const
 {
-	ScopedPointer<MemoryInputStream> input = mis;
+	ScopedPointer<MemoryInputStream> scopedInput = mis;
 
 	PNGImageFormat format;
 	*data = format.decodeImage(*mis);
@@ -740,8 +743,8 @@ void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, AudioSam
 
 	if (ScopedPointer<AudioFormatReader> reader = format.createReaderFor(mis, false))
 	{
-		*data = AudioSampleBuffer(reader->numChannels, reader->lengthInSamples);
-		reader->read(data, 0, reader->lengthInSamples, 0, true, true);
+		*data = AudioSampleBuffer(reader->numChannels, (int)reader->lengthInSamples);
+		reader->read(data, 0, (int)reader->lengthInSamples, 0, true, true);
 	}
 		
 }

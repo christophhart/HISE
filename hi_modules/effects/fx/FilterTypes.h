@@ -200,10 +200,10 @@ private:
 		dirty = true;
 	}
 
-	void update(FilterHelpers::RenderData& data)
+	void update(FilterHelpers::RenderData& renderData)
 	{
-		auto thisFreq = limit(data.freqModValue * frequency.getNextValue(), 20.0, 20000.0);
-		auto thisGain = data.gainModValue * gain.getNextValue();
+		auto thisFreq = limit(renderData.freqModValue * frequency.getNextValue(), 20.0, 20000.0);
+		auto thisGain = renderData.gainModValue * gain.getNextValue();
 		auto thisQ = q.getNextValue();
 
 		dirty |= compareAndSet(currentFreq, thisFreq);

@@ -1148,6 +1148,8 @@ float JavascriptEnvelopeModulator::startVoice(int voiceIndex)
 		scriptEngine->setCallbackParameter(onStartVoice, 0, voiceIndex);
 		return (float)scriptEngine->executeCallback(onStartVoice, &lastResult);
 	}
+    
+    return 0.0f;
 }
 
 void JavascriptEnvelopeModulator::stopVoice(int voiceIndex)

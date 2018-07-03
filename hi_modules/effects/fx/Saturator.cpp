@@ -172,8 +172,6 @@ void SaturatorEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, in
     float *l = buffer.getWritePointer(0, startSample);
 	float *r = buffer.getWritePointer(1, startSample);
 
-	float const *modValues = nullptr;
-
 	if (auto modValues = modChains[SaturationChain].getReadPointerForVoiceValues(startSample))
 	{
 		for (int i = 0; i < numSamples; i++)

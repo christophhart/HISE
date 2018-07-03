@@ -37,10 +37,7 @@ void SampleEditHandler::SampleEditingActions::deleteSelectedSounds(SampleEditHan
 	
 	auto soundsToBeDeleted = handler->getSelection().getItemArray();
 
-	
-
-	const int numToBeDeleted = soundsToBeDeleted.size();
-
+    
 	handler->getSampler()->getUndoManager()->beginNewTransaction("Delete samples");
 
 	for (int i = 0; i < soundsToBeDeleted.size(); i++)

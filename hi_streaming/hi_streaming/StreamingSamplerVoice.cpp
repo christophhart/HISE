@@ -532,17 +532,22 @@ static int unalignedCalls = 0;
 
 using SSEFloat = dsp::SIMDRegister<float>;
 
-static SSEFloat getSSEFloatRegister(const float* a)
+struct Helpers
 {
-	return SSEFloat::fromRawArray(a);
-}
+	static SSEFloat getSSEFloatRegister(const float* a)
+	{
+		return SSEFloat::fromRawArray(a);
+	}
 
-static SSEFloat getSSEFloatRegister(const int16* d)
-{
-	auto l = _mm_load_si128(reinterpret_cast<const __m128i*>(d));
-	l = _mm_cvtepi16_epi32(l);
-	return _mm_cvtepi32_ps(l);
-}
+	static SSEFloat getSSEFloatRegister(const int16* d)
+	{
+		auto l = _mm_load_si128(reinterpret_cast<const __m128i*>(d));
+		l = _mm_cvtepi16_epi32(l);
+		return _mm_cvtepi32_ps(l);
+	}
+};
+
+
 
 
 template <typename SignalType, bool isFloat> void interpolateStereoSamples(const SignalType* inL, const SignalType* inR, const float* pitchData, float* outL, float* outR, int startSample, double indexInBuffer, double uptimeDelta, int numSamples)
