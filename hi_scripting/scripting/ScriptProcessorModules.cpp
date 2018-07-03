@@ -420,6 +420,8 @@ onControlCallback(new SnippetDocument("onControl", "number value"))
 {
 	initContent();
 
+	finaliseModChains();
+
 	editorStateIdentifiers.add("contentShown");
 	editorStateIdentifiers.add("onInitOpen");
 	editorStateIdentifiers.add("prepareToPlayOpen");

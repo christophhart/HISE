@@ -20,6 +20,8 @@ DynamicsEffect::DynamicsEffect(MainController *mc, const String &uid) :
 	limiterMakeup(false),
 	compressorMakeup(false)
 {
+	finaliseModChains();
+
 	parameterNames.add("GateEnabled");
 	parameterNames.add("GateThreshold");
 	parameterNames.add("GateAttack");

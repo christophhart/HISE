@@ -208,6 +208,8 @@ public:
 		MasterEffectProcessor(mc, id),
 		fftBufferIndex(0)
 	{
+		finaliseModChains();
+
 		parameterNames.add("Gain");
 		parameterNames.add("Freq");
 		parameterNames.add("Q");

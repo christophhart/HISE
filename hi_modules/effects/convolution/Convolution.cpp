@@ -62,6 +62,8 @@ convolverR(new MultithreadedConvolver())
 wdlPimpl(new WdlPimpl())
 #endif
 {
+	finaliseModChains();
+
 	parameterNames.add("DryGain");
 	parameterNames.add("WetGain");
 	parameterNames.add("Latency");

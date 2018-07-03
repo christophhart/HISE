@@ -13,6 +13,8 @@ namespace hise { using namespace juce;
 SlotFX::SlotFX(MainController *mc, const String &uid) :
 	MasterEffectProcessor(mc, uid)
 {
+	finaliseModChains();
+
 	createList();
 
 	reset();

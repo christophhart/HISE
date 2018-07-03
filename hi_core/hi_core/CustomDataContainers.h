@@ -65,14 +65,29 @@ public:
 
 	void finalise()
 	{
-		allocate(constructionData.size());
-
-		for (const auto& cd : constructionData)
+		if (constructionData.isEmpty())
 		{
-			new (ptr++) HeapElementType(cd);
+			start = nullptr;
+			ende = nullptr;
+			length = 0;
+		}
+		else
+		{
+
+			allocate(constructionData.size());
+			start = data.get();
+			ende = start + length;
+
+			auto ptr = start;
+
+			for (const auto& cd : constructionData)
+			{
+				new (ptr++) HeapElementType(cd);
+			}
+
+			constructionData.clear();
 		}
 
-		constructionData.clear();
 		finalised = true;
 	}
 
@@ -80,7 +95,7 @@ public:
 	{
 		jassert(finalised);
 		jassert(isPositiveAndBelow(index, length));
-		auto ptr = const_cast<HeapElementType*>(data.get() + index);
+		auto ptr = const_cast<HeapElementType*>(start + index);
 		return *ptr;
 	}
 
@@ -100,14 +115,14 @@ public:
 	{
 		jassert(finalised);
 
-		return const_cast<HeapElementType*>(data.get());
+		return const_cast<HeapElementType*>(start);
 	}
 
 	inline HeapElementType* end() const noexcept
 	{
 		jassert(finalised);
 
-		return const_cast<HeapElementType*>(data.get()) + length;
+		return const_cast<HeapElementType*>(ende);
 	}
 
 	int size() const noexcept
@@ -121,19 +136,17 @@ private:
 	{
 		length = numElements;
 		data.allocate(numElements, true);
-		index = 0;
-		ptr = data.getData();
 	}
 
 	Array<ConstructionDataType> constructionData;
 
 	HeapBlock<HeapElementType> data;
-	int index = -1;
 	int length = -1;
 
 	bool finalised = false;
 
-	HeapElementType* ptr = nullptr;
+	HeapElementType* start = nullptr;
+	HeapElementType* ende = nullptr;
 
 	JUCE_DECLARE_NON_COPYABLE(PreallocatedHeapArray);
 };

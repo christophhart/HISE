@@ -54,6 +54,8 @@ public:
 		AnalyserEffect(MainController *mc, const String &uid) :
 		MasterEffectProcessor(mc, uid)
 	{
+		finaliseModChains();
+
 		parameterNames.add("PreviewType");
 		parameterNames.add("BufferSize");
 

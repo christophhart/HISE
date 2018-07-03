@@ -61,6 +61,8 @@ public:
 	SimpleReverbEffect(MainController *mc, const String &id):
 		MasterEffectProcessor(mc, id)
 	{
+		finaliseModChains();
+
 		parameterNames.add("RoomSize");
 		parameterNames.add("Damping");
 		parameterNames.add("WetLevel");
