@@ -34,15 +34,17 @@ namespace hise { using namespace juce;
 
 SaturatorEffect::SaturatorEffect(MainController *mc, const String &uid) :
 	MasterEffectProcessor(mc, uid),
-	saturationChain(new ModulatorChain(mc, "Saturation Modulation", 1, Modulation::GainMode, this)),
 	saturation(0.0f),
 	wet(1.0f),
 	dry(0.0f),
 	preGain(1.0f),
-    postGain(1.0f),
-    saturationBuffer(1, 0)
+    postGain(1.0f)
 {
-	
+	modChains += {this, "Saturation Modulation"};
+	saturationChain = modChains[InternalChains::SaturationChain].getChain();
+
+	modChains[InternalChains::SaturationChain].setExpandToAudioRate(true);
+	modChains[InternalChains::SaturationChain].setAllowModificationOfVoiceValues(true);
 
 	parameterNames.add("Saturation");
 	parameterNames.add("WetAmount");
@@ -169,30 +171,30 @@ void SaturatorEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, in
 
 	float const *modValues = nullptr;
 
-	if (!saturationChain->isBypassed() && saturationChain->getNumChildProcessors() != 0)
+	if (auto modValues = modChains[SaturationChain].getReadPointerForVoiceValues(startSample))
 	{
-		modValues = saturationBuffer.getReadPointer(0, startSample);
-	}
-
-	for (int i = 0; i < numSamples; i++)
-	{
-		if (modValues != nullptr && (i & 7))
+		for (int i = 0; i < numSamples; i++)
 		{
-			saturator.setSaturationAmount(modValues[i] * saturation);
+			if (i & 7)
+			{
+				saturator.setSaturationAmount(modValues[i] * saturation);
+			}
+
+			l[i] = dry * l[i] + wet * (postGain * saturator.getSaturatedSample(preGain*l[i]));
+			r[i] = dry * r[i] + wet * (postGain * saturator.getSaturatedSample(preGain*r[i]));
 		}
-
-		l[i] = dry * l[i] + wet * (postGain * saturator.getSaturatedSample(preGain*l[i]));
-		r[i] = dry * r[i] + wet * (postGain * saturator.getSaturatedSample(preGain*r[i]));
 	}
-}
-
-void SaturatorEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
-{
-	MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
-
-	if (sampleRate > 0)
+	else
 	{
-		ProcessorHelpers::increaseBufferIfNeeded(saturationBuffer, samplesPerBlock);
+		const float modValue = modChains[SaturationChain].getConstantModulationValue();
+
+		saturator.setSaturationAmount(modValue * saturation);
+
+		for (int i = 0; i < numSamples; i++)
+		{
+			l[i] = dry * l[i] + wet * (postGain * saturator.getSaturatedSample(preGain*l[i]));
+			r[i] = dry * r[i] + wet * (postGain * saturator.getSaturatedSample(preGain*r[i]));
+		}
 	}
 }
 } // namespace hise

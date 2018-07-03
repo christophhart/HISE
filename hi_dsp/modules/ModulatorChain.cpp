@@ -627,6 +627,12 @@ void ModulatorChain::ModChainWithBuffer::setIncludeMonophonicValuesInVoiceRender
 }
 
 
+void ModulatorChain::ModChainWithBuffer::clear()
+{
+	currentVoiceData = nullptr;
+	currentConstantValue = c->getInitialValue();
+}
+
 ModulatorChain::ModulatorChain(MainController *mc, const String &uid, int numVoices, Mode m, Processor *p): 
 	EnvelopeModulator(mc, uid, numVoices, m),
 	Modulation(m),

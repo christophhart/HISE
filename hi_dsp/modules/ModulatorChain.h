@@ -221,6 +221,12 @@ public:
 		*/
 		void setIncludeMonophonicValuesInVoiceRendering(bool shouldInclude);
 
+		/** Call this when there's nothing to do to reset the modulation chain. 
+		*
+		*	It clears the internal buffers and sets the constant value to the default.
+		*/
+		void clear();
+
 		/** This automatically expands the control rate values to audio rate after calculation. Default is disabled.
 		*
 		*	If you intend to use the modulation values at audio rate, you need to enable this or manually call the expandXXX() methods.

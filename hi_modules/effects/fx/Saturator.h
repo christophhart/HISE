@@ -85,7 +85,6 @@ public:
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	void applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples) override;
-	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 
 private:
 
@@ -97,9 +96,7 @@ private:
 
 	Saturator saturator;
 
-	ScopedPointer<ModulatorChain> saturationChain;
-
-	AudioSampleBuffer saturationBuffer;
+	ModulatorChain* saturationChain;
 };
 
 

@@ -315,8 +315,6 @@ public:
 
 	virtual const Processor *getChildProcessor(int /*processorIndex*/) const override { return dryWetChain; };
 
-	AudioSampleBuffer &getBufferForChain(int /*chainIndex*/) { return dryWetBuffer; };
-
 	void setInternalAttribute(int parameterIndex, float newValue) override
 	{
 		if(parameterIndex == DryWet) dryWet = newValue;
@@ -331,44 +329,11 @@ public:
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
-	virtual void applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples) override
-	{
-		FloatVectorOperations::copy(inputBuffer.getWritePointer(0, startSample), buffer.getReadPointer(0, startSample), numSamples);
-		FloatVectorOperations::copy(inputBuffer.getWritePointer(1, startSample), buffer.getReadPointer(1, startSample), numSamples);
-
-		float *inputData[2];
-
-		inputData[0] = inputBuffer.getWritePointer(0, startSample);
-		inputData[1] = inputBuffer.getWritePointer(1, startSample);
-
-		float *outputData[2];
-
-		outputData[0] = buffer.getWritePointer(0, startSample);
-		outputData[1] = buffer.getWritePointer(1, startSample);
-
-		effect->processReplacing(inputData, outputData, numSamples);
-
-		float *dryWetModValues = dryWetBuffer.getWritePointer(0, startSample);
-		FloatVectorOperations::multiply(dryWetModValues, dryWet, numSamples);
-
-		FloatVectorOperations::multiply(buffer.getWritePointer(0, startSample), dryWetModValues, numSamples);
-		FloatVectorOperations::multiply(buffer.getWritePointer(1, startSample), dryWetModValues, numSamples);
-
-		FloatVectorOperations::multiply(dryWetModValues, -1.0f, numSamples);
-		FloatVectorOperations::add(dryWetModValues, 1.0f, numSamples);
-
-		FloatVectorOperations::multiply(inputData[0], dryWetModValues, numSamples);
-		FloatVectorOperations::multiply(inputData[1], dryWetModValues, numSamples);
-
-		FloatVectorOperations::add(buffer.getWritePointer(0, startSample), inputData[0], numSamples);
-		FloatVectorOperations::add(buffer.getWritePointer(1, startSample), inputData[1], numSamples);
-
-	};
+	virtual void applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples) override;;
 
 private:
 
-	ScopedPointer<ModulatorChain> dryWetChain;
-	AudioSampleBuffer dryWetBuffer;
+	ModulatorChain* dryWetChain;
 
 	float dryWet;
 

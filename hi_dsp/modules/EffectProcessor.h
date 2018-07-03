@@ -66,7 +66,11 @@ public:
 		for (auto& mb : modChains)
 		{
 			if (!mb.getChain()->shouldBeProcessedAtAll())
+			{
+				mb.clear();
 				continue;
+			}
+				
 
 			mb.calculateMonophonicModulationValues(startSample, numSamples);
 			mb.calculateModulationValuesForCurrentVoice(0, startSample, numSamples);
