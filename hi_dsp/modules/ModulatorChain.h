@@ -108,6 +108,7 @@ public:
 			numTypes
 		};
 
+		
 		ModChainWithBuffer(Processor* parent, const String& id, Type t=Type::Normal, Mode m = Mode::GainMode);;
 
 		~ModChainWithBuffer();
@@ -256,6 +257,15 @@ public:
 
 		void setDisplayValueInternal(int voiceIndex, int startSample, int numSamples);
 
+		void setConstantVoiceValueInternal(int voiceIndex, float newValue)
+		{
+			lastConstantVoiceValue = newValue;
+			currentConstantVoiceValues[voiceIndex] = newValue;
+			currentConstantValue = newValue;
+		}
+
+		ScopedPointer<ModulatorChain> c;
+
 		Type type;
 
 		Buffer modBuffer;
@@ -265,12 +275,7 @@ public:
 
 		bool manualExpansionPending = false;
 
-		void setConstantVoiceValueInternal(int voiceIndex, float newValue)
-		{
-			lastConstantVoiceValue = newValue;
-			currentConstantVoiceValues[voiceIndex] = newValue;
-			currentConstantValue = newValue;
-		}
+		
 
 		Options options;
 		
@@ -281,10 +286,8 @@ public:
 		float currentConstantVoiceValues[NUM_POLYPHONIC_VOICES];
 		float currentRampValues[NUM_POLYPHONIC_VOICES];
 		
-		float currentMonophonicRampValue = 0.0f;
+		float currentMonophonicRampValue;
 		float const* currentVoiceData = nullptr;
-
-		ScopedPointer<ModulatorChain> c;
 
 		friend class FixedAlignedHeapArray<ModChainWithBuffer>;
 

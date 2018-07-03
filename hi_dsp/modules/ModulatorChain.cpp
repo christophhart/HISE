@@ -230,10 +230,13 @@ ModulatorChain::ModChainWithBuffer::ModChainWithBuffer(Processor* parent, const 
 		parent->getVoiceAmount(),
 		m,
 		parent)),
-	type(t)
+	type(t),
+	currentMonophonicRampValue(c->getInitialValue())
 {
 	FloatVectorOperations::fill(currentConstantVoiceValues, 1.0f, NUM_POLYPHONIC_VOICES);
 	FloatVectorOperations::fill(currentRampValues, 1.0f, NUM_POLYPHONIC_VOICES);
+
+	
 
 	if (t == Type::VoiceStartOnly)
 		c->setIsVoiceStartChain(true);
@@ -251,6 +254,8 @@ ModulatorChain::ModChainWithBuffer::ModChainWithBuffer(const ModChainWithBuffer&
 
 	jassert(modBuffer.monoValues == nullptr);
 	jassert(other.modBuffer.monoValues == nullptr);
+
+	currentMonophonicRampValue = other.currentMonophonicRampValue;
 
 	FloatVectorOperations::fill(currentConstantVoiceValues, 1.0f, NUM_POLYPHONIC_VOICES);
 	FloatVectorOperations::fill(currentRampValues, 1.0f, NUM_POLYPHONIC_VOICES);
@@ -283,7 +288,7 @@ void ModulatorChain::ModChainWithBuffer::resetVoice(int voiceIndex)
 	{
 		c->reset(voiceIndex);
 		currentRampValues[voiceIndex] = 0.0f;
-		currentMonophonicRampValue = 0.0f;
+		currentMonophonicRampValue = c->getInitialValue();
 	}
 }
 
@@ -299,15 +304,18 @@ void ModulatorChain::ModChainWithBuffer::startVoice(int voiceIndex)
 
 	if (options.includeMonophonicValues && c->hasMonophonicTimeModulationMods())
 	{
-		firstDynamicValue *= currentMonophonicRampValue;
+		Modulation::applyModulationValue(c->getMode(), firstDynamicValue, currentMonophonicRampValue);
+
 	}
 
 	if (c->hasVoiceModulators())
 	{
-		firstDynamicValue *= c->startVoice(voiceIndex);
+		auto startValue = c->startVoice(voiceIndex);
+
+		Modulation::applyModulationValue(c->getMode(), firstDynamicValue, startValue);
 	}
 	
-	firstDynamicValue *= c->getCurrentMonophonicStartValue();
+	Modulation::applyModulationValue(c->getMode(), firstDynamicValue, c->getCurrentMonophonicStartValue());
 
 	setConstantVoiceValueInternal(voiceIndex, c->getConstantVoiceValue(voiceIndex));
 

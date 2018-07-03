@@ -52,6 +52,8 @@ class Modulation
 {
 public:
 
+	
+
 	static String getDomainAsMidiRange(float input)
 	{
 		return String(roundFloatToInt(input*127.0f));
@@ -91,6 +93,17 @@ public:
 		/** Range is -1.0 ... 1.0 */
 		PanMode
 	};
+
+	static void applyModulationValue(Mode m, float& target, const float modValue)
+	{
+		if (m == PanMode)
+			target += modValue;
+		else
+			target *= modValue;
+
+		// This should not happen...
+		jassert(m != PitchMode || target > 0.0f);
+	}
 
 	Modulation(Mode m): 
 		intensity(m == PitchMode ? 0.0f : 1.0f), 
