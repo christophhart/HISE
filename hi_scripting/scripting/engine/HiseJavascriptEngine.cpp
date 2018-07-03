@@ -98,7 +98,12 @@ void HiseJavascriptEngine::setBreakpoints(Array<Breakpoint> &breakpoints)
 }
 
 
-void HiseJavascriptEngine::prepareTimeout() const noexcept{ root->timeout = Time::getCurrentTime() + maximumExecutionTime; }
+void HiseJavascriptEngine::prepareTimeout() const noexcept
+{ 
+#if USE_BACKEND
+	root->timeout = Time::getCurrentTime() + maximumExecutionTime; 
+#endif
+}
 
 
 
@@ -459,8 +464,10 @@ struct HiseJavascriptEngine::RootObject::Scope
 
 	void checkTimeOut(const CodeLocation& location) const
 	{
+#if USE_BACKEND
 		if (Time::getCurrentTime() > root->timeout)
 			location.throwError("Execution timed-out");
+#endif
 	}
 };
 
