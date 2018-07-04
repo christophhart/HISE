@@ -1003,7 +1003,36 @@ private:
 };
 
 
+class PoolExporter : public DialogWindowWithBackgroundThread
+{
+public:
 
+	PoolExporter(MainController* mc_):
+		DialogWindowWithBackgroundThread("Exporting pool resources"),
+		mc(mc_)
+	{
+		addBasicComponents(false);
+
+		runThread();
+	}
+
+	void run() override
+	{
+		showStatusMessage("Exporting pools");
+
+		auto& handler = mc->getCurrentFileHandler();
+		handler.exportAllPoolsToTemporaryDirectory(mc->getMainSynthChain(), &logData);
+	}
+
+	void threadFinished() override
+	{
+		PresetHandler::showMessageWindow("Sucessfully exported", "All pools were successfully exported");
+	}
+
+private:
+
+	MainController* mc;
+};
 
 
 class CyclicReferenceChecker: public DialogWindowWithBackgroundThread
@@ -1031,7 +1060,7 @@ public:
 		if (jsp != nullptr)
 		{
 			
-			data.progress = &progress;
+			data.progress = &logData.progress;
 			data.thread = this;
 			
 			showStatusMessage("Recompiling script");

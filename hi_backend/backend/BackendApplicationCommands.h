@@ -112,6 +112,7 @@ public:
 		MenuExportFileAsPlayerLibrary,
         MenuExportFileAsSnippet,
 		MenuExportSampleDataForInstaller,
+		MenuExportCompileFilesInPool,
 		MenuFileQuit,
 		MenuEditOffset = 0x30000,
 		MenuEditUndo,
@@ -346,6 +347,7 @@ public:
 
 		static String createWindowsInstallerTemplate(MainController* mc, bool includeAAX);
 		static void convertSampleMapToWavetableBanks(BackendRootWindow* bpe);
+		static void exportCompileFilesInPool(BackendRootWindow* bpe);
 	};
 
 private:

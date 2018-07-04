@@ -1909,7 +1909,7 @@ private:
 
 				auto endOffset = sound->getReferenceToSound()->getLengthInSamples();
 				
-				progress = (double)i / (double)numSamples;
+				logData.progress = (double)i / (double)numSamples;
 
 				if (threadShouldExit())
 				{

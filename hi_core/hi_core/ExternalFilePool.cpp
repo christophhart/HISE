@@ -538,7 +538,7 @@ juce::Result PoolBase::DataProvider::restorePool(InputStream* ownedInputStream)
 
 	input->readIntoMemoryBlock(metadataBlock, (size_t)metadataSize);
 
-	jassert(metadataBlock.getSize() == metadataSize);
+	jassert((int64)metadataBlock.getSize() == metadataSize);
 
 	metadata = ValueTree::readFromData(metadataBlock.getData(), (size_t)metadataSize);
 
@@ -588,10 +588,9 @@ juce::MemoryInputStream* PoolBase::DataProvider::createInputStream(const String&
 	}
 }
 
-juce::Result PoolBase::DataProvider::writePool(OutputStream* ownedOutputStream)
+juce::Result PoolBase::DataProvider::writePool(OutputStream* ownedOutputStream, double* progress/*=nullptr*/)
 {
 	ScopedPointer<OutputStream> output = ownedOutputStream;
-
 	
 	MemoryOutputStream dataOutputStream;
 
@@ -599,6 +598,15 @@ juce::Result PoolBase::DataProvider::writePool(OutputStream* ownedOutputStream)
 
 	for (int i = 0; i < pool->getNumLoadedFiles(); i++)
 	{
+		if (progress != nullptr)
+		{
+			double total = (double)pool->getNumLoadedFiles();
+			*progress = (double)i / total;
+		}
+
+		if (Thread::currentThreadShouldExit())
+			return Result::fail("Aborted");
+
 		auto ref = pool->getReference(i);
 		auto additionalData = pool->getAdditionalData(ref);
 
@@ -624,6 +632,9 @@ juce::Result PoolBase::DataProvider::writePool(OutputStream* ownedOutputStream)
 
 		metadata.addChild(child, -1, nullptr);
 	}
+
+	if (Thread::currentThreadShouldExit())
+		return Result::fail("Aborted");
 
 	MemoryOutputStream metadataOutputStream;
 

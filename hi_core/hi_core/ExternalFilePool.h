@@ -257,7 +257,7 @@ public:
 
 		MemoryInputStream* createInputStream(const String& referenceString);
 
-		virtual Result writePool(OutputStream* ownedOutputStream);
+		virtual Result writePool(OutputStream* ownedOutputStream, double* progress=nullptr);
 
 		var createAdditionalData(PoolReference r);
 

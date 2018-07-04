@@ -161,6 +161,14 @@ public:
 
 	static String getWildcardForFiles(SubDirectories directory);
 
+	void exportAllPoolsToTemporaryDirectory(ModulatorSynthChain* chain, DialogWindowWithBackgroundThread::LogData* logData=nullptr);
+
+	File getTempFolderForPoolResources() const;
+
+	File getTempFileForPool(SubDirectories dir) const;
+
+	static void loadOtherReferencedImages(ModulatorSynthChain* chainToExport);
+
 protected:
 
 	friend class MainController;
@@ -181,6 +189,8 @@ protected:
 	ScopedPointer<PoolCollection> pool;
 
 	Array<FolderReference> subDirectories;
+
+	
 };
 
 

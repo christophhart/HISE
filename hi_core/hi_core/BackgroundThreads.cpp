@@ -76,7 +76,6 @@ void QuasiModalComponent::destroy()
 
 DialogWindowWithBackgroundThread::DialogWindowWithBackgroundThread(const String &title, bool synchronous_) :
 AlertWindow(title, String(), AlertWindow::AlertIconType::NoIcon),
-progress(0.0),
 isQuasiModal(false),
 synchronous(synchronous_)
 {
@@ -96,7 +95,13 @@ synchronous(synchronous_)
 	new DelayedFunctionCaller(f, 200);
 #endif
 
+	Component::SafePointer<DialogWindowWithBackgroundThread> tmp = this;
 
+	logData.logFunction = [tmp](const String& m)
+	{
+		if (tmp.getComponent() != nullptr)
+			tmp->showStatusMessage(m);
+	};
 
 }
 
@@ -114,7 +119,7 @@ void DialogWindowWithBackgroundThread::addBasicComponents(bool addOKButton)
 
 	getTextEditor("state")->setReadOnly(true);
 
-	addProgressBarComponent(progress);
+	addProgressBarComponent(logData.progress);
 	
 	if (addOKButton)
 	{
@@ -188,7 +193,7 @@ void DialogWindowWithBackgroundThread::runSynchronous()
 	destroy();
 }
 
-void DialogWindowWithBackgroundThread::showStatusMessage(const String &message)
+void DialogWindowWithBackgroundThread::showStatusMessage(const String &message) const
 {
 	MessageManagerLock lock(thread);
 
@@ -202,7 +207,6 @@ void DialogWindowWithBackgroundThread::showStatusMessage(const String &message)
 		{
 			// Did you just call this method before 'addBasicComponents()' ?
 			jassertfalse;
-
 		}
 	}
 }
@@ -436,7 +440,7 @@ void SampleDataExporter::run()
 	data.targetFile = getTargetFile();
 	data.metadataJSON = getMetadataJSON();
 	data.fileList = collectMonoliths();
-	data.progress = &progress;
+	data.progress = &logData.progress;
 	data.totalProgress = &totalProgress;
 	data.partSize = 1024 * 1024;
 
@@ -686,7 +690,7 @@ void SampleDataImporter::run()
 	data.option = option;
 	data.sourceFile = getSourceFile();
 	data.targetDirectory = getTargetDirectory();
-	data.progress = &progress;
+	data.progress = &logData.progress;
 	data.partProgress = &partProgress;
 	data.totalProgress = &totalProgress;
 

@@ -36,45 +36,6 @@ namespace hise { using namespace juce;
 #define IS_SETTING_TRUE(id) (bool)dataObject.getSetting(id) == true
 
 
-void loadOtherReferencedImages(ModulatorSynthChain* chainToExport)
-{
-	auto mc = chainToExport->getMainController();
-
-	auto& handler = GET_PROJECT_HANDLER(chainToExport);
-
-	const bool hasCustomSkin = handler.getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("keyboard").isDirectory();
-
-	if (!hasCustomSkin)
-		return;
-
-	auto pool = mc->getCurrentImagePool(true);
-
-	Array<PooledImage> images;
-
-	for (int i = 0; i < 12; i++)
-	{
-		PoolReference upRef(mc, "{PROJECT_FOLDER}keyboard/up_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
-
-		jassert(upRef.isValid());
-
-		images.add(pool->loadFromReference(upRef, PoolHelpers::LoadAndCacheStrong));
-		
-		PoolReference downRef(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
-
-		jassert(downRef.isValid());
-
-		images.add(pool->loadFromReference(downRef, PoolHelpers::LoadAndCacheStrong));
-	}
-
-	const bool hasAboutPageImage = handler.getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("about.png").existsAsFile();
-
-	if (hasAboutPageImage)
-	{
-		PoolReference aboutRef(mc, "{PROJECT_FOLDER}about.png", ProjectHandler::SubDirectories::Images);
-
-		images.add(pool->loadFromReference(aboutRef, PoolHelpers::LoadAndCacheStrong));
-	}
-}
 
 ValueTree BaseExporter::exportUserPresetFiles()
 {
@@ -504,7 +465,9 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 		if (result != ErrorCodes::OK) return result;
 
-		const String directoryPath = File(solutionDirectory).getChildFile("temp/").getFullPathName();
+		auto tempDirectory = File(solutionDirectory).getChildFile("temp/");
+
+		const String directoryPath = tempDirectory.getFullPathName();
 
 		convertTccScriptsToCppClasses();
 		writeValueTreeToTemporaryFile(exportPresetFile(), directoryPath, "preset");
@@ -522,56 +485,60 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 		// Always embed scripts and fonts, but don't embed samplemaps
 		writeValueTreeToTemporaryFile(exportEmbeddedFiles(), directoryPath, "externalFiles", true);
 
-		
+		auto& handler = GET_PROJECT_HANDLER(chainToExport);
+
+		auto iof = handler.getTempFileForPool(FileHandlerBase::Images);
+		auto sof = handler.getTempFileForPool(FileHandlerBase::AudioFiles);
+		auto smof = handler.getTempFileForPool(FileHandlerBase::SampleMaps);
+
+		bool alreadyExported = iof.existsAsFile() || sof.existsAsFile() || smof.existsAsFile();
+
+		if (!alreadyExported)
+		{
+			handler.exportAllPoolsToTemporaryDirectory(chainToExport, nullptr);
+		}
+
+		File imageOutputFile, sampleOutputFile, samplemapFile;
 
 		if (embedFiles)
 		{
-			File imageOutputFile, sampleOutputFile, samplemapFile;
+			samplemapFile = tempDirectory.getChildFile("samplemaps");
 
-			samplemapFile = File(directoryPath + "/samplemaps");
+			if(smof.existsAsFile())
+				smof.copyFileTo(samplemapFile);
 
 			if (IS_SETTING_TRUE(HiseSettings::Project::EmbedAudioFiles))
 			{
-				imageOutputFile = File(directoryPath + "/images");
-				sampleOutputFile = File(directoryPath + "/impulses");
-				
+				imageOutputFile = tempDirectory.getChildFile("images");
+				sampleOutputFile = tempDirectory.getChildFile("impulses");
+
+				if (iof.existsAsFile())
+					iof.copyFileTo(imageOutputFile);
+
+				if (sof.existsAsFile())
+					sof.copyFileTo(sampleOutputFile);
+
 			}
-			else
-			{
-				imageOutputFile = GET_PROJECT_HANDLER(chainToExport).getRootFolder().getChildFile("ImageResources.dat");
-				sampleOutputFile = GET_PROJECT_HANDLER(chainToExport).getRootFolder().getChildFile("AudioResources.dat");
-			}
-
-			loadOtherReferencedImages(chainToExport);
-
-			sampleOutputFile.deleteFile();
-			imageOutputFile.deleteFile();
-			samplemapFile.deleteFile();
-
-			chainToExport->getMainController()->getCurrentAudioSampleBufferPool(true)->getDataProvider()->writePool(new FileOutputStream(sampleOutputFile));
-			chainToExport->getMainController()->getCurrentImagePool(true)->getDataProvider()->writePool(new FileOutputStream(imageOutputFile));
-			chainToExport->getMainController()->getCurrentSampleMapPool(true)->getDataProvider()->writePool(new FileOutputStream(samplemapFile));
 		}
 		else if (BuildOptionHelpers::isIOS(option))
 		{
-            loadOtherReferencedImages(chainToExport);
-            
 			auto resourceFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("EmbeddedResources");
 
 			if (!resourceFolder.isDirectory())
 				resourceFolder.createDirectory();
 
-			File sampleOutputFile = resourceFolder.getChildFile("AudioResources.dat");
-			File imageOutputFile = resourceFolder.getChildFile("ImageResources.dat");
-			File samplemapFile = resourceFolder.getChildFile("SampleMapResources.dat");
+			sampleOutputFile = resourceFolder.getChildFile("AudioResources.dat");
+			imageOutputFile = resourceFolder.getChildFile("ImageResources.dat");
+			samplemapFile = resourceFolder.getChildFile("SampleMapResources.dat");
 
-			sampleOutputFile.deleteFile();
-			imageOutputFile.deleteFile();
-			samplemapFile.deleteFile();
-			
-			chainToExport->getMainController()->getCurrentAudioSampleBufferPool(true)->getDataProvider()->writePool(new FileOutputStream(sampleOutputFile));
-			chainToExport->getMainController()->getCurrentImagePool(true)->getDataProvider()->writePool(new FileOutputStream(imageOutputFile));
-			chainToExport->getMainController()->getCurrentSampleMapPool(true)->getDataProvider()->writePool(new FileOutputStream(samplemapFile));
+			if (smof.existsAsFile())
+				smof.copyFileTo(samplemapFile);
+
+			if (iof.existsAsFile())
+				iof.copyFileTo(imageOutputFile);
+
+			if (sof.existsAsFile())
+				sof.copyFileTo(sampleOutputFile);
 		}
 
 		String presetDataString("PresetData");

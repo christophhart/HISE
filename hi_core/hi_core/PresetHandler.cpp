@@ -1907,6 +1907,7 @@ File PresetHandler::getDirectory(Processor *p)
 		return File();
 	}
 #else
+	ignoreUnused(p);
 	return File();
 #endif
 
@@ -2163,6 +2164,8 @@ Processor *PresetHandler::loadProcessorFromFile(File fileName, Processor *parent
 
 void PresetHandler::buildProcessorDataBase(Processor *root)
 {
+	ignoreUnused(root);
+
 #if USE_BACKEND
 	auto f = NativeFileHandler::getAppDataDirectory().getChildFile("moduleEnums.xml");
 
@@ -2576,6 +2579,122 @@ FileHandlerBase::FileHandlerBase(MainController* mc_) :
 	pool(new PoolCollection(mc_))
 {
 
+}
+
+
+
+void FileHandlerBase::exportAllPoolsToTemporaryDirectory(ModulatorSynthChain* chain, DialogWindowWithBackgroundThread::LogData* logData)
+{
+	ignoreUnused(chain, logData);
+
+#if USE_BACKEND
+	auto folder = getTempFolderForPoolResources();
+
+	if (!folder.isDirectory())
+		folder.createDirectory();
+
+	File imageOutputFile, sampleOutputFile, samplemapFile;
+
+	samplemapFile = getTempFileForPool(SampleMaps);
+	imageOutputFile = getTempFileForPool(Images);
+	sampleOutputFile = getTempFileForPool(AudioFiles);
+
+	loadOtherReferencedImages(chain);
+
+	if (Thread::currentThreadShouldExit())
+		return;
+
+	sampleOutputFile.deleteFile();
+	imageOutputFile.deleteFile();
+	samplemapFile.deleteFile();
+
+	auto previousLogger = Logger::getCurrentLogger();
+
+	ScopedPointer<Logger> outputLogger = new ConsoleLogger(chain);
+
+	if(!CompileExporter::isExportingFromCommandLine())
+		Logger::setCurrentLogger(outputLogger);
+
+	auto* progress = logData != nullptr ? &logData->progress : nullptr;
+
+	if (logData != nullptr) logData->logFunction("Export audio files");
+	chain->getMainController()->getCurrentAudioSampleBufferPool(true)->getDataProvider()->writePool(new FileOutputStream(sampleOutputFile), progress);
+
+	if (logData != nullptr) logData->logFunction("Export image files");
+	chain->getMainController()->getCurrentImagePool(true)->getDataProvider()->writePool(new FileOutputStream(imageOutputFile), progress);
+
+	if (logData != nullptr) logData->logFunction("Export samplemap files");
+	chain->getMainController()->getCurrentSampleMapPool(true)->getDataProvider()->writePool(new FileOutputStream(samplemapFile), progress);
+
+	Logger::setCurrentLogger(previousLogger);
+
+	outputLogger = nullptr;
+#else
+
+	jassertfalse;
+
+#endif
+}
+
+
+juce::File FileHandlerBase::getTempFolderForPoolResources() const
+{
+	return getRootFolder().getChildFile("PooledResources");
+}
+
+
+juce::File FileHandlerBase::getTempFileForPool(SubDirectories dir) const
+{
+	auto parent = getTempFolderForPoolResources();
+
+	switch (dir)
+	{
+	case Images:		return parent.getChildFile("ImageResources.dat");
+	case SampleMaps:	return parent.getChildFile("SampleMaps.dat");
+	case AudioFiles:	return parent.getChildFile("AudioResources.dat");
+	default:			jassertfalse;
+						break;
+	}
+
+	return {};
+}
+
+void FileHandlerBase::loadOtherReferencedImages(ModulatorSynthChain* chainToExport)
+{
+	auto mc = chainToExport->getMainController();
+	auto& handler = GET_PROJECT_HANDLER(chainToExport);
+
+	const bool hasCustomSkin = handler.getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("keyboard").isDirectory();
+
+	if (!hasCustomSkin)
+		return;
+
+	auto pool = mc->getCurrentImagePool(true);
+
+	Array<PooledImage> images;
+
+	for (int i = 0; i < 12; i++)
+	{
+		PoolReference upRef(mc, "{PROJECT_FOLDER}keyboard/up_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
+
+		jassert(upRef.isValid());
+
+		images.add(pool->loadFromReference(upRef, PoolHelpers::LoadAndCacheStrong));
+
+		PoolReference downRef(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
+
+		jassert(downRef.isValid());
+		images.add(pool->loadFromReference(downRef, PoolHelpers::LoadAndCacheStrong));
+	}
+
+	const bool hasAboutPageImage = handler.getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("about.png").existsAsFile();
+
+	if (hasAboutPageImage)
+	{
+		PoolReference aboutRef(mc, "{PROJECT_FOLDER}about.png", ProjectHandler::SubDirectories::Images);
+
+		images.add(pool->loadFromReference(aboutRef, PoolHelpers::LoadAndCacheStrong));
+	}
 }
 
 } // namespace hise

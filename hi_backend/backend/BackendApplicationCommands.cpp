@@ -108,6 +108,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuExportFileAsPlayerLibrary,
 		MenuExportFileAsSnippet,
 		MenuExportSampleDataForInstaller,
+		MenuExportCompileFilesInPool,
 		MenuFileQuit,
 		MenuEditUndo,
 		MenuEditRedo,
@@ -291,6 +292,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuExportSampleDataForInstaller:
 		setCommandTarget(result, "Export Samples for Installer", true, false, 'X', false);
+		break;
+	case MenuExportCompileFilesInPool:
+		setCommandTarget(result, "Export Pooled Files to Binary Resource", true, false, 'X', false);
 		break;
 	case MenuFileSettingsPreset:
 		setCommandTarget(result, "Preset Properties", true, false, 'X', false);
@@ -626,6 +630,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
     case MenuExportFileAsSnippet:       Actions::exportFileAsSnippet(bpe->getBackendProcessor()); return true;
 	case MenuExportFileAsPlayerLibrary: Actions::exportMainSynthChainAsPlayerLibrary(bpe); return true;
 	case MenuExportSampleDataForInstaller: Actions::exportSampleDataForInstaller(bpe); return true;
+	case MenuExportCompileFilesInPool:	Actions::exportCompileFilesInPool(bpe); return true;
     case MenuAddView:                   Actions::addView(bpe); updateCommands();return true;
     case MenuDeleteView:                Actions::deleteView(bpe); updateCommands();return true;
     case MenuRenameView:                Actions::renameView(bpe); updateCommands();return true;
@@ -790,6 +795,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuExportFileAsSnippet);
 		ADD_DESKTOP_ONLY(MenuExportSampleDataForInstaller);
 		ADD_DESKTOP_ONLY(MenuFileSettingsCleanBuildDirectory);
+		ADD_DESKTOP_ONLY(MenuExportCompileFilesInPool);
 		break;
 	}
 	case BackendCommandTarget::ToolsMenu:
@@ -2278,6 +2284,12 @@ void BackendCommandTarget::Actions::convertSampleMapToWavetableBanks(BackendRoot
 #else
 	PresetHandler::showMessageWindow("IPP required", "You need to build HISE with enabled IPP in order to use the resynthesis features", PresetHandler::IconType::Error);
 #endif
+}
+
+void BackendCommandTarget::Actions::exportCompileFilesInPool(BackendRootWindow* bpe)
+{
+	auto pet = new PoolExporter(bpe->getBackendProcessor());
+	pet->setModalBaseWindowComponent(bpe);
 }
 
 #undef REPLACE_WILDCARD
