@@ -2829,7 +2829,7 @@ void ScriptingApi::Content::ScriptPanel::timerCallback()
 	if (mc == nullptr)
 		return;
 
-	if (auto lock = PresetLoadLock(mc))
+	if (auto plock = PresetLoadLock(mc))
 	{
 		const bool parentHasMovedOn = !parent->hasComponent(this);
 

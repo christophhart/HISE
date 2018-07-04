@@ -371,7 +371,7 @@ public:
 
 protected:
 
-	TimeModulation(Modulation::Mode m);;
+	TimeModulation();
 
 	/** Creates the internal buffer with double the size of the expected buffer block size.
     */
@@ -701,18 +701,14 @@ public:
 
 protected:
 
-	
-
 	TimeVariantModulator(MainController *mc, const String &id, Modulation::Mode m):
 		Modulator(mc, id, 1),
-		TimeModulation(m),
-		Modulation(m)
+		Modulation(m),
+		TimeModulation()
 	{
 		lastConstantValue = getInitialValue();
 		smoothedIntensity.setValueWithoutSmoothing(0);
 	};
-
-	
 
 	virtual ValueTree exportAsValueTree() const override
 	{

@@ -189,9 +189,6 @@ public:
 
 	template <int Alignment> void alignToRaster(int maxTimestamp) noexcept
 	{
-		if (Alignment == 1)
-			return;
-
 		const uint16 odd = timeStamp % (uint16)Alignment;
 		constexpr uint16 half = static_cast<uint16>(Alignment) / 2;
 
@@ -508,9 +505,6 @@ public:
 
 	template <int Alignment> void alignEventsToRaster(int maxTimeStamp)
 	{
-		if (Alignment == 1)
-			return;
-
 		for (auto& e : *this)
 			e.alignToRaster<Alignment>(maxTimeStamp);
 	}

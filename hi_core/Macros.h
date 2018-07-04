@@ -176,7 +176,7 @@ class LinuxFontHandler
 #endif
 
 
-
+#if USE_BACKEND
 #define MARKDOWN_CHAPTER(chapter) namespace chapter {
 #define START_MARKDOWN(name) static const String name() { String content; static const String nl = "\n";
 #define ML(text) content << text << nl;
@@ -184,7 +184,15 @@ class LinuxFontHandler
 #define ML_END_CODE() ML("```")
 #define END_MARKDOWN() return content; };
 #define END_MARKDOWN_CHAPTER() }
-
+#else
+#define MARKDOWN_CHAPTER(chapter)
+#define START_MARKDOWN(name) 
+#define ML(text)
+#define ML_START_CODE() 
+#define ML_END_CODE() 
+#define END_MARKDOWN()
+#define END_MARKDOWN_CHAPTER()
+#endif
 
 #define HI_DECLARE_LISTENER_METHODS(x) public: \
 	void addListener(x* l) { listeners.addIfNotAlreadyThere(l); }\

@@ -315,6 +315,8 @@ void HiseJavascriptEngine::RootObject::CodeLocation::throwError(const String& me
 
 void DebugableObject::Helpers::gotoLocation(ModulatorSynthChain* mainSynthChain, const String& line)
 {
+	ignoreUnused(mainSynthChain, line);
+
 #if USE_BACKEND
 	const String reg = ".*(\\{[^\\s]+\\}).*";
 
@@ -464,6 +466,8 @@ struct HiseJavascriptEngine::RootObject::Scope
 
 	void checkTimeOut(const CodeLocation& location) const
 	{
+		ignoreUnused(location);
+
 #if USE_BACKEND
 		if (Time::getCurrentTime() > root->timeout)
 			location.throwError("Execution timed-out");

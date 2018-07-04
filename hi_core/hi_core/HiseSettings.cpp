@@ -363,7 +363,7 @@ HiseSettings::Data::Data(MainController* mc_) :
 
 juce::File HiseSettings::Data::getFileForSetting(const Identifier& id) const
 {
-	auto handler = &GET_PROJECT_HANDLER(mc->getMainSynthChain());
+	
 	auto appDataFolder = NativeFileHandler::getAppDataDirectory();
 
 	if (id == SettingFiles::AudioSettings)		return appDataFolder.getChildFile("DeviceSettings.xml");
@@ -371,6 +371,9 @@ juce::File HiseSettings::Data::getFileForSetting(const Identifier& id) const
 	else if (id == SettingFiles::GeneralSettings)	return appDataFolder.getChildFile("GeneralSettings.xml");
 
 #if USE_BACKEND
+
+	auto handler = &GET_PROJECT_HANDLER(mc->getMainSynthChain());
+
 	if (id == SettingFiles::ProjectSettings)	return handler->getWorkDirectory().getChildFile("project_info.xml");
 	else if (id == SettingFiles::UserSettings)		return handler->getWorkDirectory().getChildFile("user_info.xml");
 	else if (id == SettingFiles::CompilerSettings)	return appDataFolder.getChildFile("compilerSettings.xml");
@@ -579,7 +582,7 @@ void HiseSettings::Data::initialiseAudioDriverData(bool forceReload/*=false*/)
 
 var HiseSettings::Data::getDefaultSetting(const Identifier& id)
 {
-	auto& handler = GET_PROJECT_HANDLER(mc->getMainSynthChain());
+	BACKEND_ONLY(auto& handler = GET_PROJECT_HANDLER(mc->getMainSynthChain()));
 
 	if (id == Project::Name)
 	{

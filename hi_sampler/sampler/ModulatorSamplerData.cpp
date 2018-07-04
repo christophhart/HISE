@@ -439,6 +439,8 @@ void SampleMap::saveAsMonolith(Component* mainEditor)
 	m->setModalBaseWindowComponent(mainEditor);
 
 	changed = false;
+#else
+	ignoreUnused(mainEditor);
 #endif
 }
 
