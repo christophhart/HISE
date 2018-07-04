@@ -612,7 +612,7 @@ public:
 
         if(auto s = ProcessorHelpers::getFirstProcessorWithType<ModulatorSampler>(chain))
         {
-            auto sampleMapTree = s->getSampleMap()->exportAsValueTree();
+			auto sampleMapTree = s->getSampleMap()->getValueTree();
             
             converter->parseSampleMap(sampleMapTree);
             converter->refreshCurrentWavetable(getProgressCounter());
@@ -899,7 +899,7 @@ public:
         {
             if(auto sampler = dynamic_cast<ModulatorSampler*>(p))
             {
-                sampler->clearSampleMap();
+                sampler->clearSampleMap(dontSendNotification);
                 SampleImporter::loadAudioFilesRaw(tmpBpe, sampler, fileNamesCopy);
                 SampleEditHandler::SampleEditingActions::automapUsingMetadata(sampler);
             }
