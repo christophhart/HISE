@@ -1005,6 +1005,15 @@ const float * ModulatorSampler::getCrossfadeModValues() const
 
 float ModulatorSampler::getConstantCrossFadeModulationValue() const noexcept
 {
+#if HISE_PLAY_ALL_CROSSFADE_GROUPS_WHEN_EMPTY
+
+	// This plays all crossfade groups until there's a modulator present.
+	if (!modChains[Chains::XFade].getChain()->shouldBeProcessedAtAll())
+	{
+		return 1.0f;
+	}
+#endif
+
 	if (!crossfadeGroups)
 		return 1.0f;
 
