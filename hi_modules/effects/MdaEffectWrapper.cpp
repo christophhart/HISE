@@ -66,6 +66,9 @@ MdaDegradeEffect::MdaDegradeEffect(MainController *mc, const String &id):
 	dryWet(1.0f)
 {
 	modChains += {this, "FX Modulation"};
+
+	finaliseModChains();
+
 	dryWetChain = modChains[InternalChains::DryWetChain].getChain();
 	modChains[InternalChains::DryWetChain].setExpandToAudioRate(true);
 	modChains[InternalChains::DryWetChain].setAllowModificationOfVoiceValues(true);
