@@ -498,6 +498,37 @@ void ModulatorChain::ModChainWithBuffer::calculateModulationValuesForCurrentVoic
 	{
 		setConstantVoiceValueInternal(voiceIndex, c->getInitialValue());
 
+#if HISE_USE_SQUARED_TIMEVARIANT_MOD_VALUES_BUG
+		
+		if (c->getMode() == Modulation::PanMode)
+		{
+			// Use the default logic for pan
+			FloatVectorOperations::copy(voiceData + startSample_cr, monoData + startSample_cr, numSamples_cr);
+			currentVoiceData = voiceData;
+		}
+		else
+		{
+			// Now this is extremely annoying, but the old modulation scheme
+			// falsely multiplied the monophonic modulation values with each other, so we 
+			// must replicate this in order to keep consistency
+
+			int numLoop = numSamples_cr;
+
+			auto wp = voiceData + startSample_cr;
+			auto rp = monoData + startSample_cr;
+
+			while (--numLoop >= 0)
+			{
+				const float value = *rp++;
+				*wp++ = value * value;
+			}
+
+			currentVoiceData = voiceData;
+		}
+
+		
+
+#else
 		if (options.voiceValuesReadOnly)
 			currentVoiceData = monoData;
 		else
@@ -505,6 +536,7 @@ void ModulatorChain::ModChainWithBuffer::calculateModulationValuesForCurrentVoic
 			FloatVectorOperations::copy(voiceData + startSample_cr, monoData + startSample_cr, numSamples_cr);
 			currentVoiceData = voiceData;
 		}
+#endif
 
 #if JUCE_DEBUG
 		polyExpandChecker = false;

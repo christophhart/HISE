@@ -340,7 +340,8 @@ private:
 	{
 		ScopedValueSetter<bool> s(MainController::unitTestMode, true);
 
-		
+
+
 		testResuming(false);
 		testResuming(true);
 
@@ -362,6 +363,9 @@ private:
 		testModulatorCombo(false);
 		testModulatorCombo(true);
 
+		testPanModulation(false);
+		testPanModulation(true);
+
 		testSynthGroup();
 
 		testGlobalModulators(false);
@@ -369,7 +373,86 @@ private:
 		
 		testGlobalModulatorIntensity(false);
 		testGlobalModulatorIntensity(true);
+	
+		testScriptPitchFade(false);
+		testScriptPitchFade(true);
+	}
+
+	void testPanModulation(bool useGroup)
+	{
+		beginTestWithOptionalGroup("Testing pan modulation ", useGroup);
+
+		// Init
+		ScopedProcessor bp = Helpers::createWithOptionalGroup(NoiseSynth::DC, useGroup);
+
+		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Attack, 0.0f);
+		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Release, 0.0f);
+
+		// Setup
+
+		auto effect = Helpers::addVoiceEffectToOptionalGroup<StereoEffect>(bp);
+
+		auto lfo = Helpers::addTimeModulator<StereoEffect, LfoModulator>(bp, 0);
+
+		Helpers::setLfoToDefaultSquare(lfo);
+
+		// Process
+
+		auto testData = Helpers::createTestDataWithOneSecondNote(1024);
+		Helpers::process(bp, testData, 512);
+
+		// Tests
+
+		expect(testData.isWithinErrorRange(10000, sqrtf(2.0f), 0), "Left channel 1");
+		expect(testData.isWithinErrorRange(10000, 0.0f, 1), "Right channel 1");
+		expect(testData.isWithinErrorRange(15000, 0.0f, 0), "Left channel 2");
+		expect(testData.isWithinErrorRange(15000, sqrtf(2.0f), 1), "Left channel 2");
+
+		bp = nullptr;
+	}
+
+	void testScriptPitchFade(bool useGroup)
+	{
+		beginTestWithOptionalGroup("Testing script pitch fade", useGroup);
+
+		// Init
+		ScopedProcessor bp = Helpers::createWithOptionalGroup(NoiseSynth::DiracTrain, useGroup);
+
+		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Attack, 0.0f);
+		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Release, 0.0f);
+
+		// Setup
+
+		auto pitchFade = HiseEvent::createPitchFade(1, 1000, 12, 0);
+
+
+		const String pitchMidiProcessor = R"(function onNoteOn(){Synth.addPitchFade(Message.getEventId(),500,12,0);})" \
+			R"(function onNoteOff(){}function onController(){}function onTimer(){}function onControl(number, value){})";
+
+		auto jp = new JavascriptMidiProcessor(bp, "scripter");
+
+		auto mpc = dynamic_cast<MidiProcessorChain*>(bp->getMainSynthChain()->getChildProcessor(ModulatorSynth::MidiProcessor));
+		jp->setOwnerSynth(bp->getMainSynthChain());
+		jp->parseSnippetsFromString(pitchMidiProcessor, true);
+		mpc->getHandler()->add(jp, nullptr);
+
+		// Process
+
 		
+		auto testData = Helpers::createTestDataWithOneSecondNote();
+		Helpers::process(bp, testData, 512);
+
+		Helpers::DiracIterator di(testData.audioBuffer, 0, false);
+		expectResult(di.scan(), "Dirac scan");
+
+		auto& data = di.getData();
+
+		expectResult(data.matchesStartAndEnd(256, 128), "Start and end");
+		expectResult(data.isWithinRange({ 128, 256 }), "Outside range");
+
+		// Tests
+
+		bp = nullptr;
 	}
 
 	void testGlobalModulatorIntensity(bool useGroup)
@@ -734,6 +817,18 @@ private:
 
 		// Test
 
+		Helpers::DiracIterator di(testData.audioBuffer, 0, false);
+
+		di.scan();
+
+		di.dump(this);
+
+		Helpers::DiracIterator di2(testData.audioBuffer, 1, false);
+
+		di2.scan();
+
+		di2.dump(this);
+
 		auto expectedFirstValue = -1.0f;
 		auto gain_l = BalanceCalculator::getGainFactorForBalance(balance * 100, true) * gain;
 		auto gain_r = BalanceCalculator::getGainFactorForBalance(balance * 100, false) * gain;
@@ -839,6 +934,132 @@ private:
 
 	struct Helpers
 	{
+		class DiracIterator
+		{
+		public:
+
+			DiracIterator(AudioSampleBuffer& b, int channel, bool strictMode_):
+				ptr(b.getReadPointer(channel)),
+				strictMode(strictMode_),
+				numSamples(b.getNumSamples())
+			{
+				
+			}
+
+			Result scan()
+			{
+				int lastDiracIndex = -1;
+				int currentIndex = 0;
+
+				while (--numSamples >= 0)
+				{
+					const float value = *ptr++;
+
+					const bool isOne = strictMode ? (value == 1.0f) : (value > 0.01f);
+					const bool isMinusOne = strictMode ? (value == -11.0f) : (value < -0.01f);
+
+					if (isMinusOne)
+					{
+						if (lastDiracIndex != -1)
+						{
+							return Result::fail("Negative dirac at non-start");
+						}
+
+						data.firstIsNegative = true;
+
+						if(currentIndex != 0)
+							data.sampleDistances.add(currentIndex);
+
+						lastDiracIndex = currentIndex;
+					}
+					else if (isOne)
+					{
+						data.sampleDistances.add(currentIndex - lastDiracIndex);
+						lastDiracIndex = currentIndex;
+					}
+					else if (strictMode)
+					{
+						return Result::fail("Intermediate value found: " + String(value, 3) + " at " + String(currentIndex));
+					}
+
+					currentIndex++;
+				}
+
+				return Result::ok();
+			}
+
+			struct Data
+			{
+				Result matchesStartAndEnd(int start, int end) const
+				{
+					if (sampleDistances.getFirst() != start)
+						return Result::fail("Start doesn't match. Expected: " + String(start) + ", actual: " + String(sampleDistances.getFirst()));
+
+					if (sampleDistances.getLast() != end)
+						return Result::fail("End doesn't match. Expected: " + String(end) + ", actual: " + String(sampleDistances.getLast()));
+
+					return Result::ok();
+				};
+
+				Result isWithinRange(Range<int> r) const
+				{
+					for (int i = 0; i < sampleDistances.size(); i++)
+					{
+						auto v = sampleDistances[i];
+
+						if (v < r.getStart() || v > r.getEnd())
+						{
+							return Result::fail("Outside of range: " + String(v) + " at Sample index " + String(i));
+						}
+					}
+
+					return Result::ok();
+				}
+
+				Array<int> sampleDistances;
+				bool firstIsNegative = false;
+			};
+
+			const Data& getData() const
+			{
+				return data;
+			}
+
+			void dump(UnitTest* test)
+			{
+				String d;
+
+				d << "Dirac dump:\n";
+				
+				int row = 0;
+
+				for (const auto& da : data.sampleDistances)
+				{
+					d << da << ", ";
+
+					row++;
+
+					if (row >= 8)
+					{
+						d << "\n";
+						row = 0;
+					}
+
+				}
+				
+				test->logMessage(d);
+			}
+
+		private:
+
+			const float* ptr;
+			bool strictMode;
+			int numSamples;
+
+			Data data;
+
+		};
+
 		static void copyToClipboard(BackendProcessor* bp)
 		{
 			BackendCommandTarget::Actions::exportFileAsSnippet(bp);
