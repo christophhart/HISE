@@ -213,13 +213,21 @@ protected:
 
 	template <class ProcessorType> void fillModuleListWithType(StringArray& moduleList)
 	{
-		Processor::Iterator<ProcessorType> iter(getMainSynthChain(), false);
-
-		while (auto p = iter.getNextProcessor())
+		if (auto pLock = PresetLoadLock(getMainController()))
 		{
-			moduleList.add(dynamic_cast<Processor*>(p)->getId());
+			Processor::Iterator<ProcessorType> iter(getMainSynthChain(), false);
+
+			while (auto p = iter.getNextProcessor())
+			{
+				moduleList.add(dynamic_cast<Processor*>(p)->getId());
+			}
+		}
+		else
+		{
+			
 		}
 	}
+
 
 	const Identifier showConnectionBar;
 
@@ -240,6 +248,8 @@ private:
 	WeakReference<Processor> connectedProcessor;
 
 	ScopedPointer<Component> content;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(PanelWithProcessorConnection);
 };
 
 template <class ProcessorType> class GlobalConnectorPanel : public PanelWithProcessorConnection

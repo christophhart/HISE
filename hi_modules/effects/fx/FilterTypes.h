@@ -163,7 +163,6 @@ public:
 	
 	void render(FilterHelpers::RenderData& r)
 	{
-		DBG("numSamples: " + String(r.numSamples));
 		update(r);
 
 		if (numChannels != r.b.getNumChannels())
@@ -206,8 +205,6 @@ private:
 		auto thisFreq = limit(renderData.freqModValue * frequency.getNextValue(), 20.0, 20000.0);
 		auto thisGain = renderData.gainModValue * gain.getNextValue();
 		auto thisQ = q.getNextValue();
-
-		DBG(thisFreq);
 
 		dirty |= compareAndSet(currentFreq, thisFreq);
 		dirty |= compareAndSet(currentGain, thisGain);
