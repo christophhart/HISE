@@ -334,6 +334,7 @@ void ModulatorSynthGroupVoice::calculateNoFMVoiceInternal(ModulatorSynth* childS
 
 		if (childVoice->getCurrentlyPlayingSound() == nullptr)
 		{
+			ModulatorSynthVoice::resetVoice();
 			resetInternal(childSynth, unisonoIndex);
 			return;
 		}
@@ -348,6 +349,9 @@ void ModulatorSynthGroupVoice::calculateNoFMVoiceInternal(ModulatorSynth* childS
 
 void ModulatorSynthGroupVoice::calculatePitchValuesForChildVoice(ModulatorSynth* childSynth, ModulatorSynthVoice * childVoice, int startSample, int numSamples, const float * voicePitchValues, bool applyDetune/*=true*/)
 {
+	if (isInactive())
+		return;
+
 	childSynth->calculateModulationValuesForVoice(childVoice, startSample, numSamples);
 
 	auto childPitchValues = childSynth->getPitchValuesForVoice();
@@ -362,8 +366,10 @@ void ModulatorSynthGroupVoice::calculatePitchValuesForChildVoice(ModulatorSynth*
 		jassert(childSynth->getPitchValuesForVoice() != nullptr);
 	}
 
-	childVoice->applyConstantPitchFactor(getOwnerSynth()->getConstantPitchModValue());
-	
+	// Hack: isPitchFadeActive() doesn't work in groups because it's calculated before the rendering
+	// However, we can use the uptimeDelta value for this
+	childVoice->applyConstantPitchFactor(uptimeDelta);
+
 	if(applyDetune)
 		childVoice->applyConstantPitchFactor(detuneValues.multiplier);
 }

@@ -1243,12 +1243,11 @@ void ModulatorSynthVoice::resetVoice()
 	killThisVoice = false;
 	killFadeLevel = 1.0f;
 
-    gainFader.setValue(1.0);
-    gainFader.reset(44100.0, 0.0);
-    
-    pitchFader.setValue(1.0);
-    pitchFader.reset(44100.0, 0.0);
-    
+
+	gainFader.setValueWithoutSmoothing(1.0f);
+
+	pitchFader.setValueWithoutSmoothing(1.0);
+
 	os->flagVoiceAsRemoved(this);
 
 	currentHiseEvent = HiseEvent();

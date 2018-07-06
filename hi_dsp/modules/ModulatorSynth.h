@@ -600,7 +600,8 @@ public:
 		isTailing(false)
 		
 	{
-		
+		pitchFader.setValueWithoutSmoothing(1.0);
+		gainFader.setValue(1.0f);
 	};
 
 	/** If not overriden, this uses a sine generator for an example usage of this voice class. */
