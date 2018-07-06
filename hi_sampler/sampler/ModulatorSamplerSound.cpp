@@ -704,6 +704,9 @@ void ModulatorSamplerSoundPool::clearUnreferencedSamples()
 
 StreamingSamplerSound* ModulatorSamplerSoundPool::getSampleFromPool(PoolReference r) const
 {
+	if (!allowDuplicateSamples || !searchPool)
+		return nullptr;
+
 	for (const auto& entry : pool)
 	{
 		if (r == entry.r)

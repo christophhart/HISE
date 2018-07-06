@@ -493,6 +493,11 @@ public:
 		searchPool = !shouldBeDeactivated;
 	}
 
+	void setAllowDuplicateSamples(bool shouldAllowDuplicateSamples)
+	{
+		allowDuplicateSamples = shouldAllowDuplicateSamples;
+	}
+
 	// ================================================================================================================
 
 	void getMissingSamples(StreamingSamplerSoundArray &missingSounds) const;
@@ -600,6 +605,8 @@ private:
     bool updatePool;
 	bool searchPool;
     
+	bool allowDuplicateSamples = true;
+
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModulatorSamplerSoundPool)
 };
 

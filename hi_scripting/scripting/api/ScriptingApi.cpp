@@ -961,6 +961,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, isControllerUsedByAutomation);
 	API_METHOD_WRAPPER_0(Engine, getSettingsWindowObject);
 	API_METHOD_WRAPPER_1(Engine, getMasterPeakLevel);
+	API_VOID_METHOD_WRAPPER_1(Engine, setAllowDuplicateSamples);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadFont);
 	API_VOID_METHOD_WRAPPER_2(Engine, loadFontAs);
 	API_VOID_METHOD_WRAPPER_1(Engine, setGlobalFont);
@@ -1022,6 +1023,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(getZoomLevel);
 	ADD_API_METHOD_0(getVersion);
 	ADD_API_METHOD_0(getFilterModeList);
+	ADD_API_METHOD_1(setAllowDuplicateSamples);
 	ADD_API_METHOD_1(isControllerUsedByAutomation);
 	ADD_API_METHOD_0(getSettingsWindowObject);
 	ADD_API_METHOD_0(createTimerObject);
@@ -1354,6 +1356,11 @@ var ScriptingApi::Engine::getUserPresetList() const
 	}
 
 	return var(list);
+}
+
+void ScriptingApi::Engine::setAllowDuplicateSamples(bool shouldAllow)
+{
+	getProcessor()->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->setAllowDuplicateSamples(shouldAllow);
 }
 
 DynamicObject * ScriptingApi::Engine::getPlayHead() { return getProcessor()->getMainController()->getHostInfoObject(); }
@@ -2811,7 +2818,7 @@ int ScriptingApi::Synth::internalAddNoteOn(int channel, int noteNumber, int velo
 						// This restores the old behaviour by removing one block from the timestamps.
 						// By default, it's turned off, but you can enable it if you need backwards
 						// compatibility with older patches...
-						int blocksize = parentMidiProcessor->getLargestBlockSize();
+						int blocksize = parentMidiProcessor->getMainController()->getBufferSizeForCurrentBlock();
 						timeStampSamples = jmax<int>(0, timeStampSamples - blocksize);
 #endif
 

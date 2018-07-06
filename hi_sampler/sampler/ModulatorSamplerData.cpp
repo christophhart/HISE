@@ -580,8 +580,9 @@ void SampleMap::load(const PoolReference& reference)
 
 	if (sampleMapData)
 	{
-		
-		parseValueTree(*sampleMapData.getData());
+		auto v = sampleMapData.getData()->createCopy();
+
+		parseValueTree(v);
 		changed = false;
 	}
 	else
