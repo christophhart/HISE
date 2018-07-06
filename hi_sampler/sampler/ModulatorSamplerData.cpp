@@ -330,9 +330,15 @@ void SampleMap::valueTreeChildAdded(ValueTree& parentTree, ValueTree& childWhich
 		{
 			auto map = s->getSampleMap();
 
+			
+
 			auto newSound = new ModulatorSamplerSound(map, childWhichHasBeenAdded, map->currentMonolith);
 			s->addSound(newSound);
 			dynamic_cast<ModulatorSamplerSound*>(newSound)->initPreloadBuffer((int)s->getAttribute(ModulatorSampler::PreloadSize));
+
+			const bool isReversed = s->getAttribute(ModulatorSampler::Reversed) > 0.5f;
+
+			newSound->setReversed(isReversed);
 
 			ModulatorSamplerSoundPool* pool = s->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
 			pool->sendChangeMessage();
