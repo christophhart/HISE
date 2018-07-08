@@ -687,9 +687,19 @@ Array<hise::PoolReference> PoolBase::DataProvider::getListOfAllEmbeddedReference
 
 void PoolBase::DataProvider::Compressor::write(OutputStream& output, const ValueTree& data, const File& /*originalFile*/) const
 {
+	zstd::ZCompressor<SampleMapDictionaryProvider> compressor;
+
+	MemoryBlock mb;
+
+	compressor.compress(data, mb);
+	
+	output.write(mb.getData(), mb.getSize());
+	
+#if 0
 	GZIPCompressorOutputStream zipper(&output, 9);
 	data.writeToStream(zipper);
 	zipper.flush();
+#endif
 }
 
 void PoolBase::DataProvider::Compressor::write(OutputStream& output, const Image& data, const File& originalFile) const

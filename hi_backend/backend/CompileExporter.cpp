@@ -196,7 +196,9 @@ String CompileExporter::getCompileResult(ErrorCodes result)
 
 void CompileExporter::writeValueTreeToTemporaryFile(const ValueTree& v, const String &tempFolder, const String& childFile, bool compress)
 {
-	PresetHandler::writeValueTreeAsFile(v, File(tempFolder).getChildFile(childFile).getFullPathName(), compress); ;
+	auto file = File(tempFolder).getChildFile(childFile);
+
+	PresetHandler::writeValueTreeAsFile(v, file.getFullPathName(), compress); ;
 }
 
 
@@ -470,7 +472,8 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 		const String directoryPath = tempDirectory.getFullPathName();
 
 		convertTccScriptsToCppClasses();
-		writeValueTreeToTemporaryFile(exportPresetFile(), directoryPath, "preset");
+
+		compressValueTree<PresetDictionaryProvider>(exportPresetFile(), directoryPath, "preset");
 
 #if DONT_EMBED_FILES_IN_FRONTEND
 		const bool embedFiles = false;
@@ -480,10 +483,12 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 #endif
 
 		// Embed the user presets and extract them on first load
-		writeValueTreeToTemporaryFile(UserPresetHelpers::collectAllUserPresets(chainToExport), directoryPath, "userPresets", true);
+		//writeValueTreeToTemporaryFile(UserPresetHelpers::collectAllUserPresets(chainToExport), directoryPath, "userPresets", true);
+		compressValueTree<UserPresetDictionaryProvider>(UserPresetHelpers::collectAllUserPresets(chainToExport), directoryPath, "userPresets");
 
 		// Always embed scripts and fonts, but don't embed samplemaps
-		writeValueTreeToTemporaryFile(exportEmbeddedFiles(), directoryPath, "externalFiles", true);
+		compressValueTree<JavascriptDictionaryProvider>(exportEmbeddedFiles(), directoryPath, "externalFiles");
+		//writeValueTreeToTemporaryFile(exportEmbeddedFiles(), directoryPath, "externalFiles", true);
 
 		auto& handler = GET_PROJECT_HANDLER(chainToExport);
 

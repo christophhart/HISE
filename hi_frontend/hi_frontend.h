@@ -134,7 +134,10 @@ ValueTree externalFiles = hise::PresetHandler::loadValueTreeFromData(PresetData:
 
 
 #define CREATE_PLUGIN_WITH_AUDIO_FILES(deviceManager, callback) { LOG_START("Loading embedded instrument data");\
-	ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
+
+	ValueTree presetData;\
+	ZCompressor<PresetDictionaryProvider> presetDecompressor;\
+	presetDecompressor.expand(MemoryBlock(PresetData::preset, PresetData::presetSize), presetData);/*ValueTree presetData = ValueTree::readFromData(PresetData::preset PresetData::presetSize);\*/ \
 	LOG_START("Loading embedded image data");\
 	MemoryInputStream* imageData = new MemoryInputStream(PresetData::images, PresetData::imagesSize, false);\
 	LOG_START("Loading embedded impulse responses");\

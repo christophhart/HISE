@@ -175,6 +175,15 @@ public:
 
 	void writeValueTreeToTemporaryFile(const ValueTree& v, const String &tempFolder, const String& childFile, bool compress=false);
 
+	template <class ProviderType> Result compressValueTree(const ValueTree& v, const String& tempFolder, const String& childFile)
+	{
+		File tf(tempFolder);
+		File target = tf.getChildFile(childFile);
+
+		zstd::ZCompressor<ProviderType> compressor;
+		return compressor.compress(v, target);
+	}
+
 	int getBuildOptionPart(const String& argument);
 
 	static void setExportingFromCommandLine()
