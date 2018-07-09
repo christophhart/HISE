@@ -483,12 +483,10 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 #endif
 
 		// Embed the user presets and extract them on first load
-		//writeValueTreeToTemporaryFile(UserPresetHelpers::collectAllUserPresets(chainToExport), directoryPath, "userPresets", true);
 		compressValueTree<UserPresetDictionaryProvider>(UserPresetHelpers::collectAllUserPresets(chainToExport), directoryPath, "userPresets");
 
 		// Always embed scripts and fonts, but don't embed samplemaps
 		compressValueTree<JavascriptDictionaryProvider>(exportEmbeddedFiles(), directoryPath, "externalFiles");
-		//writeValueTreeToTemporaryFile(exportEmbeddedFiles(), directoryPath, "externalFiles", true);
 
 		auto& handler = GET_PROJECT_HANDLER(chainToExport);
 
@@ -509,8 +507,10 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 		{
 			samplemapFile = tempDirectory.getChildFile("samplemaps");
 
-			if(smof.existsAsFile())
+			if (smof.existsAsFile())
 				smof.copyFileTo(samplemapFile);
+			else
+				return ErrorCodes::CompileError;
 
 			if (IS_SETTING_TRUE(HiseSettings::Project::EmbedAudioFiles))
 			{
@@ -519,14 +519,31 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 				if (iof.existsAsFile())
 					iof.copyFileTo(imageOutputFile);
+				else
+					return ErrorCodes::CompileError;
 
 				if (sof.existsAsFile())
 					sof.copyFileTo(sampleOutputFile);
-
+				else
+					return ErrorCodes::CompileError;
 			}
 		}
 		else if (BuildOptionHelpers::isIOS(option))
 		{
+			{
+				// Make sure the binary data exists to prevent compilation error
+
+				samplemapFile = tempDirectory.getChildFile("samplemaps");
+				imageOutputFile = tempDirectory.getChildFile("images");
+				sampleOutputFile = tempDirectory.getChildFile("impulses");
+
+				const String unused = "unused";
+
+				samplemapFile.replaceWithText(unused);
+				imageOutputFile.replaceWithText(unused);
+				sampleOutputFile.replaceWithText(unused);
+			}
+
 			auto resourceFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("EmbeddedResources");
 
 			if (!resourceFolder.isDirectory())
@@ -2189,12 +2206,22 @@ CompileExporter::ErrorCodes CompileExporter::HelperClasses::saveProjucerFile(Str
 	return ErrorCodes::OK;
 }
 
-void CompileExporter::HeaderHelpers::addBasicIncludeLines(String& pluginDataHeaderFile)
+void CompileExporter::HeaderHelpers::addBasicIncludeLines(String& p)
 {
-	pluginDataHeaderFile << "\n";
+	p << "\n";
 
-	pluginDataHeaderFile << "#include \"JuceHeader.h\"" << "\n";
-	pluginDataHeaderFile << "#include \"PresetData.h\"\n";
+	p << "#include \"JuceHeader.h\"" << "\n";
+	p << "#include \"PresetData.h\"\n";
+
+	p << "\nBEGIN_EMBEDDED_DATA()";
+	p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::AudioFiles, PresetData::impulses, PresetData::impulsesSize);";
+	p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::Images, PresetData::images, PresetData::imagesSize);";
+	p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::SampleMaps, PresetData::samplemaps, PresetData::samplemapsSize);";
+	p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::Scripts, PresetData::externalFiles, PresetData::externalFilesSize);";
+	p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::Presets, PresetData::preset, PresetData::presetSize);";
+	p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::UserPresets, PresetData::userPresets, PresetData::userPresetsSize);";
+	p << "\nEND_EMBEDDED_DATA()";
+	p << "\n";
 }
 
 void CompileExporter::HeaderHelpers::addAdditionalSourceCodeHeaderLines(CompileExporter* exporter, String& pluginDataHeaderFile)

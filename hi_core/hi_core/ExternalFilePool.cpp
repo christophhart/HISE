@@ -540,14 +540,17 @@ juce::Result PoolBase::DataProvider::restorePool(InputStream* ownedInputStream)
 
 	jassert((int64)metadataBlock.getSize() == metadataSize);
 
-	metadata = ValueTree::readFromData(metadataBlock.getData(), (size_t)metadataSize);
+	zstd::ZDefaultCompressor mDecomp;
+	mDecomp.expand(metadataBlock, metadata);
 
 	jassert(metadata.isValid());
 	jassert(metadata.getType() == Identifier("PoolData"));
 
+	static const Identifier hc("HashCode");
+
 	for (const auto& item : metadata)
 	{
-		hashCodes.add(item.getProperty("HashCode"));
+		hashCodes.add(item.getProperty(hc));
 	}
 
 	metadataOffset = input->getPosition();
@@ -571,8 +574,7 @@ juce::MemoryInputStream* PoolBase::DataProvider::createInputStream(const String&
 				input->setPosition(offset + metadataOffset);
 
 				MemoryBlock mb;
-
-				input->readIntoMemoryBlock(mb, (size_t)(offset - end));
+				input->readIntoMemoryBlock(mb, (size_t)(end - offset));
 
 				return new MemoryInputStream(mb, true);
 			}
@@ -636,9 +638,16 @@ juce::Result PoolBase::DataProvider::writePool(OutputStream* ownedOutputStream, 
 	if (Thread::currentThreadShouldExit())
 		return Result::fail("Aborted");
 
+
+	MemoryBlock compressedMetadata;
+
+	zstd::ZDefaultCompressor mComp;
+
+	mComp.compress(metadata, compressedMetadata);
+
 	MemoryOutputStream metadataOutputStream;
 
-	metadata.writeToStream(metadataOutputStream);
+	metadataOutputStream.write(compressedMetadata.getData(), compressedMetadata.getSize());
 
 	int64 size = (int64)metadataOutputStream.getDataSize();
 
@@ -687,12 +696,9 @@ Array<hise::PoolReference> PoolBase::DataProvider::getListOfAllEmbeddedReference
 
 void PoolBase::DataProvider::Compressor::write(OutputStream& output, const ValueTree& data, const File& /*originalFile*/) const
 {
-	zstd::ZCompressor<SampleMapDictionaryProvider> compressor;
-
+	zstd::ZCompressor<SampleMapDictionaryProvider> comp;
 	MemoryBlock mb;
-
-	compressor.compress(data, mb);
-	
+	comp.compress(data, mb);
 	output.write(mb.getData(), mb.getSize());
 	
 #if 0
@@ -726,6 +732,7 @@ void PoolBase::DataProvider::Compressor::write(OutputStream& output, const Image
 	}
 }
 
+
 void PoolBase::DataProvider::Compressor::write(OutputStream& output, const AudioSampleBuffer& data, const File& /*originalFile*/) const
 {
 	FlacAudioFormat format;
@@ -744,10 +751,21 @@ void PoolBase::DataProvider::Compressor::write(OutputStream& output, const Audio
 void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, ValueTree* data) const
 {
 	ScopedPointer<MemoryInputStream> scopedInput = mis;
+	zstd::ZCompressor<SampleMapDictionaryProvider> dec;
+	MemoryBlock mb;
+	mis->readIntoMemoryBlock(mb);
+	dec.expand(mb, *data);
+	jassert(data->isValid());
+
+#if 0
+		ScopedPointer<MemoryInputStream> scopedInput = mis;
 
 	*data = ValueTree::readFromGZIPData(mis->getData(), mis->getDataSize());
 
+	jassert(data->isValid())
+
 	scopedInput = nullptr;
+#endif
 }
 
 void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, Image* data) const

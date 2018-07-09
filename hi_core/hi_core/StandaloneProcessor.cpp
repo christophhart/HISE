@@ -323,10 +323,6 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
 
 	ScopedPointer<XmlElement> globalSettings = XmlDocument::parse(savedDeviceData);
 
-#if USE_FRONTEND
-	mc->getSampleManager().getProjectHandler().checkAllSampleReferences();
-#endif
-
 	if (globalSettings != nullptr)
 	{
 		GlobalSettingManager* gm = dynamic_cast<GlobalSettingManager*>(mc);
@@ -354,6 +350,9 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
 		gm->voiceAmountMultiplier = globalSettings->getIntAttribute("VOICE_AMOUNT_MULTIPLIER", 2);
 
 		mc->getEventHandler().addCCRemap(gm->ccSustainValue, 64);
+
+		LOG_START("Setting disk mode");
+
 		mc->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)gm->diskMode);
 		mc->getMainSynthChain()->getActiveChannelData()->restoreFromData(gm->channelData);
 

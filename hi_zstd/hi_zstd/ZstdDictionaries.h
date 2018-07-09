@@ -89,12 +89,15 @@ template <class SourceType> class HeaderDictionaryProvider : public DictionaryPr
 {
 public:
 
-	HeaderDictionaryProvider(InputStream* input) :
-		DictionaryProviderBase(*input)
+	HeaderDictionaryProvider(InputStream* input_) :
+		DictionaryProviderBase<SourceType>(input_),
+        inputStream(input_)
 	{}
 
 	MemoryBlock createDictionaryData() override;
 
+    InputStream* inputStream;
+    
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HeaderDictionaryProvider)
 };
 

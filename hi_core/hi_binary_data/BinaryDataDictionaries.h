@@ -42,7 +42,7 @@ class SampleMapDictionaryProvider : public zstd::DictionaryProviderBase<void>
 {
 public:
 
-	SampleMapDictionaryProvider(InputStream* input = nullptr) :
+	SampleMapDictionaryProvider(InputStream* /*input*/ = nullptr) :
 		zstd::DictionaryProviderBase<void>(nullptr)
 	{
 
@@ -55,7 +55,7 @@ class JavascriptDictionaryProvider : public zstd::DictionaryProviderBase<void>
 {
 public:
 
-	JavascriptDictionaryProvider(InputStream* input = nullptr) :
+	JavascriptDictionaryProvider(InputStream* /*input*/ = nullptr) :
 		zstd::DictionaryProviderBase<void>(nullptr)
 	{}
 
@@ -67,7 +67,7 @@ class PresetDictionaryProvider : public zstd::DictionaryProviderBase<void>
 {
 public:
 
-	PresetDictionaryProvider(InputStream* input = nullptr) :
+	PresetDictionaryProvider(InputStream* /*input*/ = nullptr) :
 		zstd::DictionaryProviderBase<void>(nullptr)
 	{};
 
@@ -78,7 +78,7 @@ class UserPresetDictionaryProvider : public zstd::DictionaryProviderBase<void>
 {
 public:
 
-	UserPresetDictionaryProvider(InputStream* input = nullptr):
+	UserPresetDictionaryProvider(InputStream* /*input*/ = nullptr):
 		zstd::DictionaryProviderBase<void>(nullptr)
 	{}
 

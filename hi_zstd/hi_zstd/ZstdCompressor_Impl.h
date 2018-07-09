@@ -207,7 +207,7 @@ zstd::ZCompressor<ProviderType>::~ZCompressor()
 
 template <class ProviderType/*=NoDictionaryProvider<void>*/>
 zstd::ZCompressor<ProviderType>::ZCompressor(Mode m/*=Both*/, int compressionLevel_/*=19*/) :
-	ZCompressorBase(compressionLevel)
+	ZCompressorBase(compressionLevel_)
 {
 	ProviderType provider;
 

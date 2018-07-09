@@ -75,20 +75,12 @@ AudioProcessor* createPlugin(ValueTree &presetData, ValueTree &imageData, ValueT
 #define USE_FRONTEND 1
 #endif
 
-#include "frontend/TurboActivateHeader.h"
-
-
 #include "frontend/FrontEndProcessor.h"
 #include "frontend/FrontendProcessorEditor.h"
 
-
 #define USER_PRESET_OFFSET 8192
 
-
-
 #if HISE_IOS
-
-
 
 #define CREATE_PLUGIN(deviceManager, callback) { LOG_START("Loading embedded instrument data");\
     ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
@@ -131,28 +123,27 @@ ValueTree externalFiles = hise::PresetHandler::loadValueTreeFromData(PresetData:
 	return fp;\
 }
 
+namespace hise
+{
 
 
-#define CREATE_PLUGIN_WITH_AUDIO_FILES(deviceManager, callback) { LOG_START("Loading embedded instrument data");\
+struct FrontendFactory
+{
+	static juce::MemoryInputStream* getEmbeddedData(FileHandlerBase::SubDirectories directory);
 
-	ValueTree presetData;\
-	ZCompressor<PresetDictionaryProvider> presetDecompressor;\
-	presetDecompressor.expand(MemoryBlock(PresetData::preset, PresetData::presetSize), presetData);/*ValueTree presetData = ValueTree::readFromData(PresetData::preset PresetData::presetSize);\*/ \
-	LOG_START("Loading embedded image data");\
-	MemoryInputStream* imageData = new MemoryInputStream(PresetData::images, PresetData::imagesSize, false);\
-	LOG_START("Loading embedded impulse responses");\
-	MemoryInputStream* impulseData = new MemoryInputStream(PresetData::impulses, PresetData::impulsesSize, false);\
-	MemoryInputStream* sampleMapData = new MemoryInputStream(PresetData::samplemaps, PresetData::samplemapsSize, false);;\
-	LOG_START("Loading embedded other data")\
-	ValueTree externalFiles = hise::PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
-	LOG_START("Creating Frontend Processor")\
-	auto fp = new hise::FrontendProcessor(presetData, deviceManager, callback, imageData, impulseData, sampleMapData, &externalFiles, nullptr);\
-	hise::UserPresetHelpers::extractUserPresets(PresetData::userPresets, PresetData::userPresetsSize);\
-	hise::AudioProcessorDriver::restoreSettings(fp);\
-	hise::GlobalSettingManager::restoreGlobalSettings(fp);\
-	GET_PROJECT_HANDLER(fp->getMainSynthChain()).loadSamplesAfterSetup(); \
-	return fp; }
-    
+	static FrontendProcessor* createPluginWithAudioFiles(juce::AudioDeviceManager* deviceManager, juce::AudioProcessorPlayer* callback);
+
+	static FrontendProcessor* createPlugin(juce::AudioDeviceManager* deviceManager, juce::AudioProcessorPlayer* callback);
+};
+
+}
+
+#define CREATE_PLUGIN_WITH_AUDIO_FILES(deviceManager, callback) return hise::FrontendFactory::createPluginWithAudioFiles(deviceManager, callback);
+
+#define BEGIN_EMBEDDED_DATA() juce::MemoryInputStream* hise::FrontendFactory::getEmbeddedData(hise::FileHandlerBase::SubDirectories directory) { switch (directory) {
+#define DEFINE_EMBEDDED_DATA(subdirectory, data, size) case subdirectory: return new MemoryInputStream(data, size, false);
+#define END_EMBEDDED_DATA() default: jassertfalse; return nullptr; }}
+
 #endif
 
 

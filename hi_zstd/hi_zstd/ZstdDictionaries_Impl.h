@@ -44,9 +44,9 @@ using namespace juce;
 template <class SourceType>
 MemoryBlock zstd::HeaderDictionaryProvider<SourceType>::createDictionaryData()
 {
-	auto dictSize = input->readInt();
+    auto dictSize = inputStream->readInt();
 	MemoryBlock dictData;
-	input->readIntoMemoryBlock(dictData, dictSize);
+	inputStream->readIntoMemoryBlock(dictData, dictSize);
 	return dictData;
 }
 
