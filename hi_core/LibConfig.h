@@ -96,6 +96,7 @@ private:
 	static File getLogFile();
 	static void init();
 	static bool isInitialised;
+	static double timeToLastCall;
 };
 
 #define LOG_START(x) StartupLogger::log(x);

@@ -92,17 +92,20 @@ const ValueTree MainController::SampleManager::getLoadedSampleMap(const String &
 
 void MainController::SampleManager::setDiskMode(DiskMode mode) noexcept
 {
-	mc->allNotesOff();
-
-	hddMode = mode == DiskMode::HDD;
-
-	const int multplier = hddMode ? 2 : 1;
-
-	Processor::Iterator<ModulatorSampler> it(mc->getMainSynthChain());
-
-	while (ModulatorSampler* sampler = it.getNextProcessor())
+	if (hddMode != (mode == DiskMode::HDD))
 	{
-		sampler->setPreloadMultiplier(multplier);
+		mc->allNotesOff();
+
+		hddMode = mode == DiskMode::HDD;
+
+		const int multplier = hddMode ? 2 : 1;
+
+		Processor::Iterator<ModulatorSampler> it(mc->getMainSynthChain());
+
+		while (ModulatorSampler* sampler = it.getNextProcessor())
+		{
+			sampler->setPreloadMultiplier(multplier);
+		}
 	}
 }
 
@@ -131,22 +134,32 @@ SampleThreadPool::Job::JobStatus MainController::SampleManager::PreloadJob::runJ
 {
 	LOG_PRELOAD_EVENTS("Running preload thread ");
 
-	auto &pendingFunctions = mc->getKillStateHandler().getSampleLoadingQueue();
-
-	SafeFunctionCall c;
-
-	while (pendingFunctions.pop(c))
+	if (auto pLock = PresetLoadLock(mc))
 	{
-		if (shouldExit())
-			return SampleThreadPool::Job::jobHasFinished;
+		auto &pendingFunctions = mc->getKillStateHandler().getSampleLoadingQueue();
 
-		if (!c.call())
-			break;
+		SafeFunctionCall c;
+
+		while (pendingFunctions.pop(c))
+		{
+			if (shouldExit())
+				return SampleThreadPool::Job::jobHasFinished;
+
+			if (!c.call())
+				break;
+		}
+
+		mc->getSampleManager().clearPreloadFlag();
+
+		return SampleThreadPool::Job::jobHasFinished;
+	}
+	else
+	{
+		mc->getUserPresetHandler().signalMessageThreadShouldAbort();
+		return SampleThreadPool::Job::jobNeedsRunningAgain;
 	}
 
-	mc->getSampleManager().clearPreloadFlag();
-
-	return SampleThreadPool::Job::jobHasFinished;
+	
 }
 
 void MainController::SampleManager::clearPreloadFlag()

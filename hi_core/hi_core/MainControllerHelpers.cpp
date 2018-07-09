@@ -364,19 +364,16 @@ void MidiControllerAutomationHandler::MPEData::AsyncRestorer::timerCallback()
 			jassert(d.hasType("Processor"));
 
 			d.setProperty("Type", "MPEModulator", nullptr);
-
 			d.setProperty("Intensity", 1.0f, nullptr);
 
 			ValueTree dummyChild("ChildProcessors");
 
 			d.addChild(dummyChild, -1, nullptr);
-
 			String id_ = d.getProperty(id).toString();
 
 			if (auto mod = parent.findMPEModulator(id_))
 			{
 				mod->restoreFromValueTree(d);
-
 				parent.addConnection(mod, dontSendNotification);
 			}
 		}

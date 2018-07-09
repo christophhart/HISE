@@ -43,7 +43,7 @@ MainController::UserPresetHandler::UserPresetHandler(MainController* mc_) :
 
 
 MainController::UserPresetHandler::LoadLock::LoadLock(const MainController* mc) :
-	parent(mc->getUserPresetHandler())
+	parent(const_cast<MainController*>(mc)->getUserPresetHandler())
 {
 	auto currentThread = mc->getKillStateHandler().getCurrentThread();
 
@@ -56,8 +56,23 @@ MainController::UserPresetHandler::LoadLock::LoadLock(const MainController* mc) 
 
 	sameThreadHoldsLock = parent.presetLoadLock.load() == (int)currentThread;
 
-	if(!sameThreadHoldsLock)
+	if (!sameThreadHoldsLock)
+	{
 		holdsLock = parent.presetLoadLock.compare_exchange_strong(freeThread, (int)currentThread);
+	}
+
+	if (currentThread == KillStateHandler::MessageThread && holdsLock || sameThreadHoldsLock)
+	{
+		if (holdsLock)
+			lockEnterTime = Time::getMillisecondCounterHiRes();
+
+		parent.messageThreadHoldsLock.store(true);
+	}
+	else if (currentThread != KillStateHandler::MessageThread && holdsLock || sameThreadHoldsLock)
+	{
+		parent.messageThreadHoldsLock.store(false);
+	}
+		
 
 #if 0
 	if (sameThreadHoldsLock)
@@ -75,7 +90,29 @@ MainController::UserPresetHandler::LoadLock::~LoadLock()
 	if (holdsLock)
 	{
 		jassert(parent.presetLoadLock != MainController::KillStateHandler::TargetThread::Free);
-		
+	
+		if (parent.presetLoadLock == MainController::KillStateHandler::MessageThread)
+		{
+			auto duration = Time::getMillisecondCounterHiRes() - lockEnterTime;
+
+			// You're not supposed to hold the lock on the message thread for a long operation...
+			if (duration > 40.0)
+ 				jassert(!parent.signalExit);
+
+			parent.messageThreadHoldsLock.store(false);
+
+			if (parent.assertOnLockRelease)
+			{
+				// If you hit this assertion, then something on the message thread took to long
+				jassertfalse;
+				parent.assertOnLockRelease = false;
+			}
+		}
+		else if (parent.presetLoadLock == MainController::KillStateHandler::SampleLoadingThread)
+		{
+			parent.signalExit = false;
+		}
+
 #if 0
 		DBG("Preset Lock was released by " + String((parent.presetLoadLock == MainController::KillStateHandler::MessageThread ? "Message Thread" : "Sample Loading Thread")));
 #endif
@@ -157,6 +194,8 @@ void MainController::UserPresetHandler::loadUserPresetInternal(const ValueTree& 
 {
 	if (auto s = LoadLock(mc))
 	{
+		numberOfPresetLoadRetries = 0;
+
 #if USE_BACKEND
 		if (!GET_PROJECT_HANDLER(mc->getMainSynthChain()).isActive()) return;
 #endif
@@ -236,6 +275,15 @@ void MainController::UserPresetHandler::loadUserPresetInternal(const ValueTree& 
 	}
 	else
 	{
+		signalMessageThreadShouldAbort();
+		
+		numberOfPresetLoadRetries++;
+
+		if (numberOfPresetLoadRetries > 5)
+		{
+			setAssertOnLockRelease();
+		}
+
         mc->getDebugLogger().logMessage("Retry Loading of preset");
 		presetLoadDelayer.retryLoading(userPresetToLoad);
 	}

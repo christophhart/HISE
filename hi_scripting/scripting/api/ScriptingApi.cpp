@@ -1723,16 +1723,20 @@ void ScriptingApi::Sampler::setSoundPropertyForAllSamples(int propertyIndex, var
 		return;
 	}
 
-    if(auto lock = PresetLoadLock(s->getMainController()))
-    {
-        auto id = sampleIds[propertyIndex];
-        
-        for (int i = 0; i < s->getNumSounds(); i++)
-        {
-            if (auto sound = s->getSampleMap()->getSound(i))
-                sound->setSampleProperty(id, newValue, false);
-        }
-    }
+	auto id = sampleIds[propertyIndex];
+
+	auto f = [s, id, newValue](Processor* p)
+	{
+		for (int i = 0; i < s->getNumSounds(); i++)
+		{
+			if (auto sound = s->getSampleMap()->getSound(i))
+				sound->setSampleProperty(id, newValue, false);
+		}
+
+		return true;
+	};
+
+	s->killAllVoicesAndCall(f);
 }
 
 var ScriptingApi::Sampler::getSoundProperty(int propertyIndex, int soundIndex)

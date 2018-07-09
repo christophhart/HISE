@@ -344,6 +344,8 @@ public:
 	{
 	public:
 
+		using Function = std::function<void()>;
+
 		class Listener
 		{
 		public:
@@ -396,6 +398,8 @@ public:
 		*/
 		struct LoadLock
 		{
+			
+
 			LoadLock(const MainController* mc);
 
 			explicit operator bool() const
@@ -405,15 +409,95 @@ public:
 
 			~LoadLock();
 
-			const UserPresetHandler& parent;
+			UserPresetHandler& parent;
 
 			bool holdsLock = false;
 			bool sameThreadHoldsLock = false;
+			double lockEnterTime = 0.0;
 		};
 
 		bool isIdle() const;
 
+		template <class WeakReferenceableClass> static bool callWhenIdle(MainController* mc, WeakReferenceableClass* object, Function& f)
+		{
+			// This mechanism should only be called from the message thread...
+			jassert(MessageManager::getInstance()->isThisTheMessageThread());
+
+			if (auto lock = LoadLock(mc))
+			{
+				f();
+				return true;
+			}
+			else
+			{
+				new DelayedRepeater<WeakReferenceableClass>(mc, object, f);
+				return false;
+			}
+		}
+
+		void signalMessageThreadShouldAbort()
+		{
+			jassert(messageThreadHoldsLock);
+
+			signalExit.store(true);
+		}
+
+		bool shouldAbortMessageThreadOperation() const noexcept
+		{
+			jassert(mc->getKillStateHandler().getCurrentThread() == KillStateHandler::MessageThread);
+			jassert(messageThreadHoldsLock);
+
+			return signalExit;
+		}
+
+		void setAssertOnLockRelease()
+		{
+			jassert(mc->getKillStateHandler().getCurrentThread() == KillStateHandler::SampleLoadingThread);
+
+			assertOnLockRelease = true;
+		}
+
 	private:
+
+		template <class WeakReferenceableClass> struct DelayedRepeater : public Timer
+		{
+		public:
+
+			DelayedRepeater(MainController* mc, WeakReferenceableClass* object, const Function& f_) :
+				obj(object),
+				f(f_)
+			{
+				if (auto lock = LoadLock(mc))
+				{
+					jassert(obj != nullptr);
+					f();
+				}
+
+				startTimer(500);
+			}
+
+			void timerCallback() override
+			{
+				if (obj == nullptr)
+				{
+					stopTimer();
+					delete this;
+				}
+
+				if (auto lock = LoadLock(mc))
+				{
+					f();
+					stopTimer();
+					delete this;
+				}
+			}
+
+			WeakReference<WeakReferenceableClass> obj;
+			MainController* mc;
+			Function f;
+
+			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DelayedRepeater);
+		};
 
 		struct PresetLoadDelayer : private Timer
 		{
@@ -452,6 +536,13 @@ public:
 		File currentlyLoadedFile;
 
 		MainController* mc;
+
+		std::atomic<bool> signalExit;
+		std::atomic<bool> messageThreadHoldsLock;
+
+		bool assertOnLockRelease = false;
+
+		int numberOfPresetLoadRetries = 0;
 	};
 
 	struct GlobalAsyncModuleHandler: public AsyncUpdater,
@@ -1015,7 +1106,10 @@ public:
     
     float getGlobalCodeFontSize() const;;
     
-    
+	bool shouldAbortMessageThreadOperation() const noexcept
+	{
+		return getUserPresetHandler().shouldAbortMessageThreadOperation();
+	}
     
     SafeChangeBroadcaster &getFontSizeChangeBroadcaster() { return codeFontChangeNotificator; };
     
