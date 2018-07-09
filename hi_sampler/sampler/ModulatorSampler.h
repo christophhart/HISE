@@ -619,7 +619,7 @@ private:
 	bool useRoundRobinCycleLogic;
 	RepeatMode repeatMode;
 	int voiceAmount;
-	int preloadScaleFactor;
+	int preloadScaleFactor = 1;
 
 	mutable SamplerDisplayValues samplerDisplayValues;
 

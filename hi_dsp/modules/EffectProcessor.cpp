@@ -32,6 +32,17 @@
 
 namespace hise { using namespace juce;
 
+
+void EffectProcessor::finaliseModChains()
+{
+	modChains.finalise();
+
+	for (auto& mb : modChains)
+		mb.getChain()->setParentProcessor(this);
+
+	finalised = true;
+}
+
 void EffectProcessor::checkTailing(AudioSampleBuffer &b, int startSample, int numSamples)
 {
 	// Call this only on effects that produce a tail!

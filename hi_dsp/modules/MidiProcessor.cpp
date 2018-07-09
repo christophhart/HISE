@@ -236,6 +236,7 @@ void MidiProcessorChain::MidiProcessorChainHandler::add(Processor *newProcessor,
 		newProcessor->prepareToPlay(chain->getSampleRate(), chain->getLargestBlockSize());
 
 		newProcessor->setIsOnAir(true);
+		newProcessor->setParentProcessor(chain);
 
 		chain->processors.insert(index, m);
 

@@ -871,6 +871,18 @@ public:
 		rebuildDelayer.sendRebuildMessage(forceUpdate);
 	}
 
+	Processor* getParentProcessor(bool getOwnerSynth);
+
+	const Processor* getParentProcessor(bool getOwnerSynth) const;
+
+	void setParentProcessor(Processor* newParent)
+	{
+		parentProcessor = newParent;
+
+		for (int i = 0; i < getNumChildProcessors(); i++)
+			getChildProcessor(i)->setParentProcessor(this);
+	}
+
 protected:
 
 	/** Overwrite this method if you want to supply a custom symbol for the Processor. 
@@ -982,6 +994,8 @@ private:
 	CriticalSection dummyLock;
 
 	bool onAir = false;
+
+	WeakReference<Processor> parentProcessor;
 
 	Path symbol;
 

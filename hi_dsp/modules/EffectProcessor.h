@@ -119,11 +119,7 @@ public:
 
 protected:
 
-	void finaliseModChains()
-	{
-		modChains.finalise();
-		finalised = true;
-	}
+	void finaliseModChains();
 
 	/** Takes a copy of the buffer before it is processed to check if a tail was added after processing. */
 	void saveBufferForTailCheck(AudioSampleBuffer &b, int startSample, int numSamples)

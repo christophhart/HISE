@@ -1081,6 +1081,7 @@ void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator
 		MainController::ScopedSuspender ss(chain->getMainController());
 
 		newModulator->setIsOnAir(true);
+		newModulator->setParentProcessor(chain);
 
 		if (dynamic_cast<VoiceStartModulator*>(newModulator) != nullptr)
 		{

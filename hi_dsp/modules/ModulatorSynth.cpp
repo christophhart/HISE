@@ -73,7 +73,8 @@ bypassState(false)
 	modChains += { this, "GainModulation", ModulatorChain::ModulationType::Normal, Modulation::Mode::GainMode};
 	modChains += { this, "PitchModulation", ModulatorChain::ModulationType::Normal, Modulation::Mode::PitchMode};
 
-
+	effectChain->setParentProcessor(this);
+	midiProcessorChain->setParentProcessor(this);
 
 	setVoiceLimit(numVoices);
 
@@ -960,6 +961,9 @@ void ModulatorSynth::finaliseModChains()
 	disableChain(PitchModulation, false);
 	disableChain(MidiProcessor, false);
 	disableChain(EffectChain, false);
+
+	for (auto& mb : modChains)
+		mb.getChain()->setParentProcessor(this);
 
 	finalised = true;
 }

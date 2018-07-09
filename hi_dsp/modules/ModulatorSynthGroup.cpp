@@ -1397,6 +1397,7 @@ void ModulatorSynthGroup::ModulatorSynthGroupHandler::add(Processor *newProcesso
 		MainController::ScopedSuspender ss(group->getMainController());
 
 		m->setIsOnAir(true);
+		m->setParentProcessor(group);
 
 		jassert(m != nullptr);
 		group->synths.add(m);

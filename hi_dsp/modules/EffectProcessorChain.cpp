@@ -148,6 +148,7 @@ void EffectProcessorChain::EffectChainHandler::add(Processor *newProcessor, Proc
 		MainController::ScopedSuspender ss(chain->getMainController(), MainController::ScopedSuspender::LockType::Lock);
 
 		newProcessor->setIsOnAir(true);
+		newProcessor->setParentProcessor(chain);
 
 		if (VoiceEffectProcessor* vep = dynamic_cast<VoiceEffectProcessor*>(newProcessor))
 		{

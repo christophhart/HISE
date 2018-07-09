@@ -164,6 +164,34 @@ void Processor::setIsOnAir(bool isBeingProcessedInAudioThread)
 }
 
 
+const hise::Processor* Processor::getParentProcessor(bool getOwnerSynth) const
+{
+	if (parentProcessor == nullptr)
+	{
+		jassert(this == getMainController()->getMainSynthChain());
+		return nullptr;
+	}
+		
+
+	if (getOwnerSynth)
+	{
+		if (dynamic_cast<ModulatorSynth*>(parentProcessor.get()) != nullptr)
+			return parentProcessor;
+		else
+			return parentProcessor->getParentProcessor(true);
+	}
+	else
+	{
+		return parentProcessor;
+	}
+}
+
+
+hise::Processor* Processor::getParentProcessor(bool getOwnerSynth)
+{
+	return const_cast<Processor*>(const_cast<const Processor*>(this)->getParentProcessor(getOwnerSynth));
+}
+
 bool Chain::restoreChain(const ValueTree &v)
 {
 	Processor *thisAsProcessor = dynamic_cast<Processor*>(this);
@@ -304,6 +332,14 @@ const Processor *ProcessorHelpers::findParentProcessor(const Processor *childPro
 
 Processor * ProcessorHelpers::findParentProcessor(Processor *childProcessor, bool getParentSynth)
 {
+	if (childProcessor->getMainController()->getMainSynthChain() == childProcessor)
+		return nullptr;
+
+	if (auto p = childProcessor->getParentProcessor(getParentSynth))
+		return p;
+
+	
+
 	Processor *root = const_cast<Processor*>(childProcessor)->getMainController()->getMainSynthChain();
 	Processor::Iterator<Processor> iter(root, false);
 

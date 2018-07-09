@@ -537,6 +537,7 @@ void ModulatorSynthChain::ModulatorSynthChainHandler::add(Processor *newProcesso
 	{
 		MainController::ScopedSuspender ss(synth->getMainController());
 		ms->setIsOnAir(true);
+		ms->setParentProcessor(synth);
 		synth->synths.insert(index, ms);
 	}
 
