@@ -103,7 +103,6 @@ MainController::~MainController()
 	logger = nullptr;
 	masterReference.clear();
 	customTypeFaces.clear();
-	userPresetData = nullptr;
 }
 
 

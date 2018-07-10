@@ -1154,15 +1154,6 @@ public:
     
 	bool &getPluginParameterUpdateState() { return enablePluginParameterUpdate; }
 
-	void createUserPresetData()
-	{
-		userPresetData = new UserPresetData(this);
-	}
-
-	const UserPresetData* getUserPresetData() const { return userPresetData; }
-	
-	void rebuildUserPresetDatabase() { userPresetData->refreshPresetFileList(); }
-
 	ReadWriteLock &getCompileLock() { return compileLock; }
 
 	EventIdHandler& getEventHandler() { return eventIdHandler; }
@@ -1395,9 +1386,6 @@ private:
 	ProcessorChangeHandler processorChangeHandler;
 	GlobalAsyncModuleHandler globalAsyncModuleHandler;
 	
-
-	ScopedPointer<UserPresetData> userPresetData;
-
 	void storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositionInfo &lastPosInfo);
 
 	CustomKeyboardState keyboardState;

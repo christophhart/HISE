@@ -57,7 +57,6 @@ viewUndoManager(new UndoManager())
 	if (!inUnitTestMode())
 	{
 		getAutoSaver().updateAutosaving();
-		createUserPresetData();
 	}
 
 	

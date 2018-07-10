@@ -1794,8 +1794,6 @@ void BackendCommandTarget::Actions::loadProject(BackendRootWindow *bpe)
 		{
 			bpe->getBackendProcessor()->getSettingsObject().refreshProjectData();
 			bpe->getBackendProcessor()->clearPreset();
-			bpe->getBackendProcessor()->createUserPresetData();
-
 			loadFirstXmlAfterProjectSwitch(bpe);
 		}
 			
@@ -1824,10 +1822,6 @@ void BackendCommandTarget::Actions::closeProject(BackendRootWindow *bpe)
     if (!shouldDiscard) return;
     
 	GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(File(), bpe);
-
-
-	bpe->getBackendProcessor()->createUserPresetData();
-
 }
 
 void BackendCommandTarget::Actions::showProjectInFinder(BackendRootWindow *bpe)
