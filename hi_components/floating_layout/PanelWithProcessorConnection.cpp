@@ -304,14 +304,25 @@ void PanelWithProcessorConnection::comboBoxChanged(ComboBox* comboBoxThatHasChan
 
 void PanelWithProcessorConnection::refreshConnectionList()
 {
-	String currentId = connectionSelector->getText();
+	auto f = [](WeakReference<PanelWithProcessorConnection> tmp)
+	{
+		if (tmp.get() != nullptr)
+		{
+			String currentId = tmp->connectionSelector->getText();
+			tmp->connectionSelector->clear(dontSendNotification);
 
-	connectionSelector->clear(dontSendNotification);
+			StringArray items;
 
-	StringArray items;
+			tmp->fillModuleList(items);
+			tmp->refreshSelector(items, currentId);
+		}
+	};
 
-	fillModuleList(items);
+	MainController::UserPresetHandler::callOnMessageThreadWhenIdle<PanelWithProcessorConnection>(getMainController(), this, f);
+}
 
+void PanelWithProcessorConnection::refreshSelector(StringArray &items, String currentId)
+{
 	int index = items.indexOf(currentId);
 
 	connectionSelector->addItem("Disconnect", 1);

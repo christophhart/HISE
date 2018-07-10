@@ -124,6 +124,8 @@ public:
 
 	void refreshConnectionList();
 
+	void refreshSelector(StringArray &items, String currentId);
+
 	void refreshIndexList();
 
 	template <class ContentType> ContentType* getContent() { return dynamic_cast<ContentType*>(content.get()); };

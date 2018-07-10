@@ -673,6 +673,8 @@ private:
 
 	ValueTree allInterfaceData;
 
+	JUCE_DECLARE_WEAK_REFERENCEABLE(JavascriptProcessor);
+
 public:
 	
 };

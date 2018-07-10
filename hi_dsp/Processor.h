@@ -1070,6 +1070,22 @@ public:
 		return sa;
 	}
 
+	template <class ProcessorType> static Array<WeakReference<ProcessorType>> getListOfAllProcessors(const Processor* rootProcessor)
+	{
+		Array<WeakReference<ProcessorType>> list;
+
+		Processor::Iterator<ProcessorType> iter(rootProcessor, false);
+
+		ProcessorType* t;
+
+		while (t = iter.getNextProcessor())
+		{
+			list.add(t);
+		}
+
+		return list;
+	}
+
 	/** Small helper function that checks if the given processor is of the supplied type. */
 	template <class ProcessorType> static bool is(const Processor *p)
 	{

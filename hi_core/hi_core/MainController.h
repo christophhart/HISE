@@ -344,7 +344,7 @@ public:
 	{
 	public:
 
-		using Function = std::function<void()>;
+		template <class WeakReferenceableObject> using Function = std::function<void(WeakReference<WeakReferenceableObject> obj)>;
 
 		class Listener
 		{
@@ -418,21 +418,21 @@ public:
 
 		bool isIdle() const;
 
-		template <class WeakReferenceableClass> static bool callWhenIdle(MainController* mc, WeakReferenceableClass* object, Function& f)
+		template <class WeakReferenceableClass> static bool callOnMessageThreadWhenIdle(MainController* mc, WeakReferenceableClass* object, const Function<WeakReferenceableClass>& f)
 		{
 			// This mechanism should only be called from the message thread...
-			jassert(MessageManager::getInstance()->isThisTheMessageThread());
+			if (MessageManager::getInstance()->isThisTheMessageThread())
+			{
+				if (auto lock = LoadLock(mc))
+				{
+					// Idle + Messagethread, so call it directly
+					f(object);
+					return true;
+				}
+			}
 
-			if (auto lock = LoadLock(mc))
-			{
-				f();
-				return true;
-			}
-			else
-			{
-				new DelayedRepeater<WeakReferenceableClass>(mc, object, f);
-				return false;
-			}
+			new DelayedRepeater<WeakReferenceableClass>(mc, object, f);
+			return false;
 		}
 
 		void signalMessageThreadShouldAbort()
@@ -463,17 +463,30 @@ public:
 		{
 		public:
 
-			DelayedRepeater(MainController* mc, WeakReferenceableClass* object, const Function& f_) :
+			DelayedRepeater(MainController* mc_, WeakReferenceableClass* object, const Function<WeakReferenceableClass>& f_) :
 				obj(object),
+				mc(mc_),
 				f(f_)
 			{
-				if (auto lock = LoadLock(mc))
+				if (MessageManager::getInstance()->isThisTheMessageThread())
 				{
-					jassert(obj != nullptr);
-					f();
+					if (auto lock = LoadLock(mc_))
+					{
+						jassert(obj != nullptr);
+						f(obj);
+
+						// Set the object to zero to delete it asynchronously.
+						obj = nullptr;
+					}
 				}
 
-				startTimer(500);
+				startTimer(100);
+			}
+
+			~DelayedRepeater()
+			{
+				mc = nullptr;
+				obj = nullptr;
 			}
 
 			void timerCallback() override
@@ -482,19 +495,21 @@ public:
 				{
 					stopTimer();
 					delete this;
+					return;
 				}
 
 				if (auto lock = LoadLock(mc))
 				{
-					f();
+					f(obj);
 					stopTimer();
 					delete this;
+					return;
 				}
 			}
 
 			WeakReference<WeakReferenceableClass> obj;
 			MainController* mc;
-			Function f;
+			Function<WeakReferenceableClass> f;
 
 			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DelayedRepeater);
 		};

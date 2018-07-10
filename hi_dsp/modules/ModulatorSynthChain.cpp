@@ -178,18 +178,14 @@ void ModulatorSynthChain::compileAllScripts()
 {
 	if (getMainController()->isCompilingAllScriptsOnPresetLoad())
 	{
-		Processor::Iterator<JavascriptProcessor> it(this);
+		auto scriptProcessors = ProcessorHelpers::getListOfAllProcessors<JavascriptProcessor>(this);
 
-		JavascriptProcessor *sp;
-
-		while ((sp = it.getNextProcessor()) != 0)
+		for (auto& sp : scriptProcessors)
 		{
 			auto c = sp->getContent();
 
 			ValueTreeUpdateWatcher::ScopedDelayer sd(c->getUpdateWatcher());
-
 			sp->getContent()->resetContentProperties();
-
 			sp->compileScript();
 		}
 	}
