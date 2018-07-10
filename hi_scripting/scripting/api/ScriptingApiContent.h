@@ -1685,6 +1685,8 @@ public:
 
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */) override;
 
+		void createFloatingTileComponent(var newValue);
+
 
 		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptFloatingTile"); }
 		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); };
@@ -2158,6 +2160,7 @@ private:
 	AsyncRebuildMessageBroadcaster asyncRebuildBroadcaster;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Content);
+	
 
 	// ================================================================================================================
 };

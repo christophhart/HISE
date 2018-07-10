@@ -3550,40 +3550,15 @@ void ScriptingApi::Content::ScriptFloatingTile::setScriptObjectPropertyWithChang
 {
 	if (id == getIdFor(ContentType))
 	{
-		MessageManagerLock mm;
-
-		FloatingTile ft(getScriptProcessor()->getMainController_(), nullptr);
-
-		ft.setNewContent(newValue.toString());
-
-		auto ftc = ft.getCurrentFloatingPanel();
-
-		
-
-		setScriptObjectProperty(bgColour, (int64)ftc->getDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour).getARGB(), sendNotification);
-		setScriptObjectProperty(itemColour, (int64)ftc->getDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour1).getARGB(), sendNotification);
-		setScriptObjectProperty(itemColour2, (int64)ftc->getDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour2).getARGB(), sendNotification);
-		setScriptObjectProperty(textColour, (int64)ftc->getDefaultPanelColour(FloatingTileContent::PanelColourId::textColour).getARGB(), sendNotification);
-
-		jsonData = ftc->toDynamicObject();
-
-		if (auto obj = jsonData.getDynamicObject())
+		auto f = [newValue](WeakReference<ScriptFloatingTile> ref)
 		{
-			var specialData = var(obj->clone());
+			if (ref != nullptr)
+				ref->createFloatingTileComponent(newValue);
+		};
 
-			auto specialDataObj = specialData.getDynamicObject();
+		MainController::UserPresetHandler::callOnMessageThreadWhenIdle<ScriptFloatingTile>(getProcessor()->getMainController(), this, f);
 
-			specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::ColourData));
-			specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::StyleData));
-			specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::LayoutData));
-			specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::Font));
-			specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::FontSize));
-			specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::Type));
-
-			setScriptObjectProperty(ContentType, newValue, sendNotification);
-			setScriptObjectProperty(Data, JSON::toString(specialData, false, DOUBLE_TO_STRING_DIGITS), sendNotification);
-			return;
-		}
+		return;
 	}
 	else if (id == getIdFor(Data))
 	{
@@ -3591,14 +3566,17 @@ void ScriptingApi::Content::ScriptFloatingTile::setScriptObjectPropertyWithChang
 
 		if (auto obj = specialData.getDynamicObject())
 		{
-			auto dataObject = jsonData.getDynamicObject();
-
-			auto prop = obj->getProperties();
-
-			for (int i = 0; i < prop.size(); i++)
+			if (auto dataObject = jsonData.getDynamicObject())
 			{
-				dataObject->setProperty(prop.getName(i), prop.getValueAt(i));
+				auto prop = obj->getProperties();
+
+				for (int i = 0; i < prop.size(); i++)
+				{
+					dataObject->setProperty(prop.getName(i), prop.getValueAt(i));
+				}
 			}
+
+			
 		}
 	}
 	else if (id == getIdFor(bgColour) || id == getIdFor(textColour) || id == getIdFor(itemColour) || id == getIdFor(itemColour2) || id == getIdFor(itemColour3))
@@ -3640,6 +3618,46 @@ void ScriptingApi::Content::ScriptFloatingTile::handleDefaultDeactivatedProperti
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::parameterId));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::isMetaParameter));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::linkedTo));
+}
+
+void ScriptingApi::Content::ScriptFloatingTile::createFloatingTileComponent(var newValue)
+{
+	// Do not call this outside the message thread.
+	// If you call this from other threads, use the dispatcher for it.
+	jassert(MessageManager::getInstance()->isThisTheMessageThread());
+
+	FloatingTile ft(getScriptProcessor()->getMainController_(), nullptr);
+
+	ft.setNewContent(newValue.toString());
+
+	auto ftc = ft.getCurrentFloatingPanel();
+
+
+
+	setScriptObjectProperty(bgColour, (int64)ftc->getDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour).getARGB(), sendNotification);
+	setScriptObjectProperty(itemColour, (int64)ftc->getDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour1).getARGB(), sendNotification);
+	setScriptObjectProperty(itemColour2, (int64)ftc->getDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour2).getARGB(), sendNotification);
+	setScriptObjectProperty(textColour, (int64)ftc->getDefaultPanelColour(FloatingTileContent::PanelColourId::textColour).getARGB(), sendNotification);
+
+	jsonData = ftc->toDynamicObject();
+
+	if (auto obj = jsonData.getDynamicObject())
+	{
+		var specialData = var(obj->clone());
+
+		auto specialDataObj = specialData.getDynamicObject();
+
+		specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::ColourData));
+		specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::StyleData));
+		specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::LayoutData));
+		specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::Font));
+		specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::FontSize));
+		specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::Type));
+
+		setScriptObjectProperty(ContentType, newValue, sendNotification);
+		setScriptObjectProperty(Data, JSON::toString(specialData, false, DOUBLE_TO_STRING_DIGITS), sendNotification);
+		return;
+	}
 }
 
 // ====================================================================================================== Content functions
