@@ -66,8 +66,12 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 
 	modChains.finalise();
 
+
 	intensityChain = modChains[IntensityChain].getChain();
 	frequencyChain = modChains[FrequencyChain].getChain();
+
+	for (auto& mb : modChains)
+		mb.getChain()->setParentProcessor(this);
 
 	scaleFunction = [](float input) { return input * 2.0f - 1.0f; };
 

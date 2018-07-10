@@ -220,44 +220,45 @@ unlockCounter(0)
 
 	synthChain->setId(synthData.getProperty("ID", String()));
 
+	createPreset(synthData);
+}
+
+void FrontendProcessor::createPreset(const ValueTree& synthData)
+{
+	MainController::ScopedSuspender ss(this);
+
+	getSampleManager().setShouldSkipPreloading(true);
+
+	setSkipCompileAtPresetLoad(true);
+
+	LOG_START("Restoring main container");
+
+	synthChain->restoreFromValueTree(synthData);
+
+	setSkipCompileAtPresetLoad(false);
+
+	LOG_START("Compiling all scripts");
+
+	synthChain->compileAllScripts();
+
+	synthChain->loadMacrosFromValueTree(synthData);
+
+	LOG_START("Adding plugin parameters");
+
+	addScriptedParameters();
+
+	CHECK_COPY_AND_RETURN_6(synthChain);
+
+	if (getSampleRate() > 0)
 	{
-		MainController::ScopedSuspender ss(this);
+		LOG_START("Initialising audio callback");
 
-		getSampleManager().setShouldSkipPreloading(true);
-
-		setSkipCompileAtPresetLoad(true);
-
-		LOG_START("Restoring main container");
-
-		synthChain->restoreFromValueTree(synthData);
-
-		setSkipCompileAtPresetLoad(false);
-
-		LOG_START("Compiling all scripts");
-
-		synthChain->compileAllScripts();
-
-		synthChain->loadMacrosFromValueTree(synthData);
-
-		LOG_START("Adding plugin parameters");
-
-		addScriptedParameters();
-
-		CHECK_COPY_AND_RETURN_6(synthChain);
-
-		if (getSampleRate() > 0)
-		{
-			LOG_START("Initialising audio callback");
-
-			synthChain->prepareToPlay(getSampleRate(), getBlockSize());
-		}
-
-		createUserPresetData();
+		synthChain->prepareToPlay(getSampleRate(), getBlockSize());
 	}
 
-    
-
-	updateUnlockedSuspendStatus();
+#if INCLUDE_USER_DATA
+	createUserPresetData();
+#endif
 }
 
 const String FrontendProcessor::getName(void) const

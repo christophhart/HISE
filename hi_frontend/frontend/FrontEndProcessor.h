@@ -83,6 +83,8 @@ class FrontendProcessor: public PluginParameterAudioProcessor,
 public:
 	FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, MemoryInputStream *imageData_ = nullptr, MemoryInputStream *impulseData = nullptr, MemoryInputStream* sampleMapData = nullptr, ValueTree *externalScriptData = nullptr, ValueTree *userPresets = nullptr);
 
+	void createPreset(const ValueTree& synthData);
+
 	const String getName(void) const override;
 
 	void changeProgramName(int /*index*/, const String &/*newName*/) override {};

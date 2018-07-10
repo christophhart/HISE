@@ -87,6 +87,9 @@ AhdsrEnvelope::AhdsrEnvelope(MainController *mc, const String &id, int voiceAmou
 
 	internalChains.finalise();
 
+	for (auto& mb : internalChains)
+		mb.getChain()->setParentProcessor(this);
+
     setTargetRatioDR(0.0001f);
 
 	setAttackCurve(0.0f);

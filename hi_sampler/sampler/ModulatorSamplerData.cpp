@@ -1004,7 +1004,7 @@ void SampleMap::Notifier::handleHeavyweightPropertyChanges()
 
 	newChanges.swapWith(asyncPendingChanges);
 
-	auto f = [newChanges](Processor* )
+	auto f = [newChanges](Processor* p)
 	{
 		for (const auto& c : newChanges)
 		{

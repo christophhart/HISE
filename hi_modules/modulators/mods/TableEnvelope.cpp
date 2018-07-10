@@ -90,6 +90,8 @@ TableEnvelope::TableEnvelope(MainController *mc, const String &id, int voiceAmou
 	releaseTable->setGraphPoints(releasePoints, 2);
 	releaseTable->fillLookUpTable();
 
+	attackChain->setParentProcessor(this);
+	releaseChain->setParentProcessor(this);
 };
 
 TableEnvelope::~TableEnvelope()

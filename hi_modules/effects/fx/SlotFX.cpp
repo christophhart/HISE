@@ -197,6 +197,7 @@ bool SlotFX::setEffect(const String& typeName, bool synchronously)
 			ScopedLock sl(getMainController()->getLock());
             
             p->setIsOnAir(true);
+			p->setParentProcessor(this);
             
 			wrappedEffect = p;
             
