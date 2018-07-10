@@ -53,7 +53,7 @@ hise::MoogFilterSubType::MoogFilterSubType()
 
 void MoogFilterSubType::updateCoefficients(double sampleRate, double frequency, double q, double /*gain*/)
 {
-	auto lFrequency = jlimit<double>(20.0, 20000.0, frequency);
+	auto lFrequency = FilterLimits::limitFrequency(frequency);
 
 	fc = lFrequency / (0.5 *sampleRate);
 	res = q / 2.0;
@@ -247,7 +247,7 @@ void LadderSubType::processSamples(AudioSampleBuffer& b, int startSample, int nu
 
 void LadderSubType::updateCoefficients(double sampleRate, double frequency, double q, double /*gain*/)
 {
-	float inFreq = jlimit<float>(20.0f, 20000.0f, (float)frequency);
+	float inFreq = (float)FilterLimits::limitFrequency(frequency);
 
 	const float x = 2.0f * float_Pi*inFreq / (float)sampleRate;
 

@@ -139,17 +139,17 @@ public:
 
 	void setFrequency(double newFrequency)
 	{
-		frequency.setValue(newFrequency);
+		frequency.setValue(FilterLimits::limitFrequency(newFrequency));
 	}
 
 	void setQ(double newQ)
 	{
-		q.setValue(limit(newQ, 0.3, 8.0));
+		q.setValue(FilterLimits::limitQ(newQ));
 	}
 
 	void setGain(double newGain)
 	{
-		gain.setValue(newGain);
+		gain.setValue(FilterLimits::limitGain(newGain));
 	}
 
 	void reset()
@@ -202,7 +202,7 @@ private:
 
 	void update(FilterHelpers::RenderData& renderData)
 	{
-		auto thisFreq = limit(renderData.freqModValue * frequency.getNextValue(), 20.0, 20000.0);
+		auto thisFreq = FilterLimits::limitFrequency(renderData.freqModValue * frequency.getNextValue());
 		auto thisGain = renderData.gainModValue * gain.getNextValue();
 		auto thisQ = q.getNextValue();
 

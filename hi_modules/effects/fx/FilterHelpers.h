@@ -39,6 +39,46 @@ using namespace juce;
 
 #define GET_TYPED(Type) case FilterHelpers::FilterSubType::Type: static_cast<FilterBank<Type>*>(this)
 
+namespace FilterLimits
+{
+	constexpr double lowFrequency = 20.0f;
+	constexpr double highFrequency = 20000.0f;
+
+	constexpr double lowQ = 0.3;
+	constexpr double highQ = 9.999;
+
+	constexpr double lowGain = -18.0;
+	constexpr double highGain = 18.0;
+
+	inline double limit(double minValue, double maxValue, double value)
+	{
+		// Branchless SSE clamp.
+		// return minss( maxss(val,minval), maxval );
+
+#if HISE_IOS
+		return jlimit<double>(minValue, maxValue, value);
+#else
+		_mm_store_sd(&value, _mm_min_sd(_mm_max_sd(_mm_set_sd(value), _mm_set_sd(minValue)), _mm_set_sd(maxValue)));
+		return value;
+#endif
+	}
+
+	static double limitFrequency(double freq)
+	{
+		return limit(lowFrequency, highFrequency, freq);
+	}
+
+	static double limitQ(double q)
+	{
+		return limit(lowQ, highQ, q);
+	}
+
+	static double limitGain(double gain)
+	{
+		return limit(lowGain, highGain, gain);
+	}
+}
+
 
 class FilterBank
 {
