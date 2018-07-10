@@ -117,16 +117,6 @@ void BackendProcessorEditor::setRootProcessor(Processor *p, int scrollY/*=0*/)
 	currentRootProcessor = p;
 	container->setRootProcessorEditor(p);
 	
-	Processor::Iterator<Processor> iter(owner->synthChain, false);
-
-	Processor *iterProcessor;
-
-	while ((iterProcessor = iter.getNextProcessor()) != nullptr)
-	{
-		if ((bool)iterProcessor->getEditorState("Solo"))
-			addProcessorToPanel(iterProcessor);
-	}
-
 	breadCrumbComponent->refreshBreadcrumbs();
 
 	if (scrollY != 0)
