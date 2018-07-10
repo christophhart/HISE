@@ -541,12 +541,10 @@ public:
 	}
 
 	/** Adds an element to the queue. If it fails because the queue is full, it throws an assertion and return false. */
-	bool push(const ElementType&& newElement)
+	bool push(const ElementType& newElement)
 	{
-		const bool ok = queue.try_enqueue(newElement);
-#if HI_RUN_UNIT_TESTS == 0
-		jassert(ok);
-#endif
+		const bool ok = queue.try_enqueue(std::move(newElement));
+		jassert_skip_unit_test(ok);
 		return ok;
 	}
 
