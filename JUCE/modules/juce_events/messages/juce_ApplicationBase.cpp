@@ -61,8 +61,10 @@ void JUCEApplicationBase::appWillTerminateByForce()
                 app->shutdownApp();
         }
 
+		
         DeletedAtShutdown::deleteAll();
         MessageManager::deleteInstance();
+		AudioThreadGuard::deleteInstance();
     }
 }
 

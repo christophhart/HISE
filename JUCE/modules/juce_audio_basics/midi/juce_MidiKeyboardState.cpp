@@ -171,6 +171,9 @@ void MidiKeyboardState::processNextMidiBuffer (MidiBuffer& buffer,
 
     const ScopedLock sl (lock);
 
+	// Don't fire here until this is sorted out.
+	AudioThreadGuard::Suspender suspender;
+
     while (i.getNextEvent (message, time))
         processNextMidiEvent (message);
 

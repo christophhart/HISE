@@ -167,6 +167,7 @@
 #include "threads/juce_ThreadPool.cpp"
 #include "threads/juce_TimeSliceThread.cpp"
 #include "time/juce_PerformanceCounter.cpp"
+#include "logging/juce_AudioThreadGuard.cpp"
 #include "time/juce_RelativeTime.cpp"
 #include "time/juce_Time.cpp"
 #include "unit_tests/juce_UnitTest.cpp"

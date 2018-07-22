@@ -159,6 +159,12 @@
  #define JUCE_ALLOW_STATIC_NULL_VARIABLES 1
 #endif
 
+/** Config: JUCE_ENABLE_AUDIO_GUARD
+	If enabled, this will watch for calls considered evil in the audio thread and fire a warning
+*/
+#ifndef JUCE_ENABLE_AUDIO_GUARD
+#define JUCE_ENABLE_AUDIO_GUARD 0
+#endif
 
 #ifndef JUCE_STRING_UTF_TYPE
  #define JUCE_STRING_UTF_TYPE 8
@@ -192,6 +198,16 @@ namespace juce
     extern JUCE_API bool JUCE_CALLTYPE juce_isRunningUnderDebugger() noexcept;
     extern JUCE_API void JUCE_CALLTYPE logAssertion (const char* file, int line) noexcept;
 }
+
+#if JUCE_ENABLE_AUDIO_GUARD
+/** This little macro just calls DBG() with suspended audio guard (otherwise the string creation would fire). */
+#define DBG_WITH_AUDIO_GUARD(x) { juce::AudioThreadGuard::Suspender s; DBG(x); }
+#define WARN_IF_AUDIO_THREAD(condition, operationType) juce::AudioThreadGuard::warnIf(condition, operationType)
+#else
+#define WARN_IF_AUDIO_THREAD(condition, operationType)
+#define DBG_WITH_AUDIO_GUARD(x)
+#endif
+
 
 #include "memory/juce_Memory.h"
 #include "maths/juce_MathsFunctions.h"
@@ -304,6 +320,7 @@ namespace juce
 #include "network/juce_WebInputStream.h"
 #include "system/juce_SystemStats.h"
 #include "time/juce_PerformanceCounter.h"
+#include "logging/juce_AudioThreadGuard.h"
 #include "unit_tests/juce_UnitTest.h"
 #include "xml/juce_XmlDocument.h"
 #include "xml/juce_XmlElement.h"
