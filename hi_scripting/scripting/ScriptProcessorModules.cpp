@@ -395,6 +395,11 @@ onControlCallback(new SnippetDocument("onControl", "number value"))
 		buffers[i] = new VariantBuffer(0);
 	}
 
+	channels.ensureStorageAllocated(16);
+	channelIndexes.ensureStorageAllocated(16);
+
+	channelData = var(channels);
+
 	connectionChanged();
 }
 
@@ -431,6 +436,8 @@ void JavascriptMasterEffect::connectionChanged()
 			channelIndexes.add(i);
 		}
 	}
+
+	channelData = var(channels);
 }
 
 ProcessorEditorBody * JavascriptMasterEffect::createEditor(ProcessorEditor *parentEditor)
@@ -545,7 +552,7 @@ void JavascriptMasterEffect::renderWholeBuffer(AudioSampleBuffer &buffer)
 				b->referToData(d, numSamples);
 		}
 
-		scriptEngine->setCallbackParameter((int)Callback::processBlock, 0, channels);
+		scriptEngine->setCallbackParameter((int)Callback::processBlock, 0, channelData);
 		scriptEngine->executeCallback((int)Callback::processBlock, &lastResult);
 
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage()));

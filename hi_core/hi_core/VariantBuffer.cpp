@@ -17,9 +17,13 @@ VariantBuffer::VariantBuffer(VariantBuffer *otherBuffer, int offset /*= 0*/, int
 
 VariantBuffer::VariantBuffer(int samples) :
 size(samples),
-buffer(1, jmax<int>(0, samples))
+buffer()
 {
-	buffer.clear();
+	if (samples > 0)
+	{
+		buffer.setSize(1, jmax<int>(0, samples));
+		buffer.clear();
+	}
 }
 
 VariantBuffer::~VariantBuffer()

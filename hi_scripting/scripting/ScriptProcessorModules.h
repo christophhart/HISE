@@ -657,7 +657,10 @@ private:
 	var buffers[NUM_MAX_CHANNELS];
 
 	Array<var> channels;
-	Array<int> channelIndexes;
+
+	var channelData;
+
+	Array<int, DummyCriticalSection> channelIndexes;
 
 	ScopedPointer<SnippetDocument> onInitCallback;
 	ScopedPointer<SnippetDocument> prepareToPlayCallback;
