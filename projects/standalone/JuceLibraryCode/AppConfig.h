@@ -18,7 +18,11 @@
 
 // (You can add your own code in this section, and the Projucer will not overwrite it)
 
-#define HI_RUN_UNIT_TESTS 1
+#define HI_RUN_UNIT_TESTS 0
+
+#define JUCE_ENABLE_AUDIO_GUARD 1
+
+
 
 // [END_USER_CODE_SECTION]
 
@@ -316,6 +320,10 @@
 
 #ifndef    JUCE_ALLOW_STATIC_NULL_VARIABLES
  //#define JUCE_ALLOW_STATIC_NULL_VARIABLES 1
+#endif
+
+#ifndef    JUCE_ENABLE_AUDIO_GUARD
+ //#define JUCE_ENABLE_AUDIO_GUARD 1
 #endif
 
 //==============================================================================

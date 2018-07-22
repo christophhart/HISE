@@ -1573,9 +1573,9 @@ private:
 			float expected = 2.0f + (float)i / (float)totalLength;
 			float thisValue = check[i];
 
-			float delta = Decibels::gainToDecibels(fabsf(expected - thisValue));
+			float delta2 = Decibels::gainToDecibels(fabsf(expected - thisValue));
 
-			expect(delta < -96.0f, "Value at " + String(i) + "Expected" + String(expected) + ", Actual: " + String(thisValue));
+			expect(delta2 < -96.0f, "Value at " + String(i) + "Expected" + String(expected) + ", Actual: " + String(thisValue));
 		};
 
 	}
