@@ -43,6 +43,7 @@ onTimerCallback(new SnippetDocument("onTimer")),
 onControlCallback(new SnippetDocument("onControl", "number value")),
 front(false),
 deferred(false),
+deferredExecutioner(this),
 deferredUpdatePending(false)
 {
 	initContent();
@@ -149,12 +150,7 @@ void JavascriptMidiProcessor::processHiseEvent(HiseEvent &m)
 {
 	if (isDeferred())
 	{
-	
-		ScopedWriteLock sl(defferedMessageLock);
-		
-		deferredEvents.addEvent(m);
-		
-		triggerAsyncUpdate();
+		deferredExecutioner.addPendingEvent(m);
 	}
 	else
 	{
@@ -162,12 +158,9 @@ void JavascriptMidiProcessor::processHiseEvent(HiseEvent &m)
 
 		if (currentMidiMessage != nullptr)
 		{
-			currentEvent = &m;
+			ScopedValueSetter<HiseEvent*> svs(currentEvent, &m);
 			currentMidiMessage->setHiseEvent(m);
-
 			runScriptCallbacks();
-
-			currentEvent = nullptr;
 		}
 	}
 
@@ -206,6 +199,9 @@ void JavascriptMidiProcessor::registerApiClasses()
 void JavascriptMidiProcessor::runScriptCallbacks()
 {
 	ScopedReadLock sl(mainController->getCompileLock());
+	bool isCurrentlyCompiling = getMainController()->getJavascriptThreadPool().getCurrentTask() == JavascriptThreadPool::Task::Compilation;
+
+	jassert(!isCurrentlyCompiling);
 
 #if ENABLE_SCRIPTING_BREAKPOINTS
 	breakpointWasHit(-1);
@@ -284,6 +280,9 @@ void JavascriptMidiProcessor::runScriptCallbacks()
         break;
 	}
 
+	isCurrentlyCompiling = getMainController()->getJavascriptThreadPool().getCurrentTask() == JavascriptThreadPool::Task::Compilation;
+
+	jassert(!isCurrentlyCompiling);
 	
 #if 0
 	
@@ -364,47 +363,6 @@ StringArray JavascriptMidiProcessor::getImageFileNames() const
 	}
 
 	return fileNames;
-}
-
-
-void JavascriptMidiProcessor::handleAsyncUpdate()
-{
-	jassert(isDeferred());
-	jassert(!deferredUpdatePending);
-
-	deferredUpdatePending = true;
-
-	if (!deferredEvents.isEmpty())
-	{
-		ScopedWriteLock sl(defferedMessageLock);
-
-		copyEventBuffer.copyFrom(deferredEvents);
-		
-		deferredEvents.clear();
-
-	}
-	else
-	{
-		deferredUpdatePending = false;
-		return;
-	}
-
-	HiseEventBuffer::Iterator iter(copyEventBuffer);
-	
-	while (HiseEvent* m = iter.getNextEventPointer(true,true))
-	{
-		currentEvent = m;
-
-		currentMidiMessage->setHiseEvent(*m);
-
-		runScriptCallbacks();
-
-		currentEvent = nullptr;
-	}
-
-	copyEventBuffer.clear();
-	deferredUpdatePending = false;
-
 }
 
 

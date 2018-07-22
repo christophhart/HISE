@@ -51,8 +51,7 @@ namespace hise { using namespace juce;
 */
 class JavascriptMidiProcessor : public ScriptBaseMidiProcessor,
 								public JavascriptProcessor,
-								public Timer,
-								public AsyncUpdater
+								public Timer
 {
 public:
 
@@ -96,10 +95,6 @@ public:
 	void deferCallbacks(bool addToFront_);
 	bool isDeferred() const { return deferred; };
 
-	void handleAsyncUpdate() override;
-
-	
-
 	void timerCallback() override
 	{
 		jassert(isDeferred());
@@ -124,6 +119,56 @@ public:
 	}
 
 private:
+
+	struct DeferredExecutioner : private LockfreeAsyncUpdater
+	{
+		DeferredExecutioner(JavascriptMidiProcessor* jp) :
+			parent(*jp),
+			pendingEvents(128)
+		{};
+
+		void addPendingEvent(const HiseEvent& e)
+		{
+			pendingEvents.push(e);
+			triggerAsyncUpdate();
+		}
+
+	private:
+
+		void handleAsyncUpdate() override
+		{
+			jassert(parent.isDeferred());
+			
+			HiseEvent m;
+
+			while (pendingEvents.pop(m))
+			{
+				if (m.isIgnored() || m.isArtificial())
+					continue;
+
+				auto f = [m](JavascriptProcessor* p)
+				{
+					auto jmp = dynamic_cast<JavascriptMidiProcessor*>(p);
+
+					HiseEvent copy(m);
+
+					ScopedValueSetter<HiseEvent*> svs(jmp->currentEvent, &copy);
+					jmp->currentMidiMessage->setHiseEvent(m);
+					jmp->runScriptCallbacks();
+
+					return jmp->lastResult;
+				};
+
+				parent.getMainController()->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::HiPriorityCallbackExecution, &parent, f);
+			}
+		}
+
+		LockfreeQueue<HiseEvent> pendingEvents;
+		JavascriptMidiProcessor& parent;
+	};
+
+	DeferredExecutioner deferredExecutioner;
+
 
 	void runTimerCallback(int offsetInBuffer = -1);
 	void runScriptCallbacks();
