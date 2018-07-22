@@ -559,6 +559,343 @@ private:
 	ObjectType fallback;
 };
 
+namespace MultithreadedQueueHelpers
+{
+	/** The return type of a function that is called on each element of a queue. */
+	enum ReturnStatus
+	{
+		OK = 0,
+		SkipFurtherExecutions,
+		AbortClearing,
+		numReturnStatuses
+	};
+
+	/** This enum specifies the operating mode of a given lockfree queue. You can pass this as template parameter. */
+	enum class Configuration
+	{
+		NoAllocationsNoTokenlessUsage = 0, ///< The default setting. You have to provide a token list and a fixed size
+		NoAllocationsTokenlessUsageAllowed, ///< fixed size queue, but is allowed to operate without tokens
+		AllocationsAllowedNoTokenlessUsage, ///< dynamically resizable queue, but must be initialised with tokens
+		AllocationsAllowedAndTokenlessUsageAllowed, // dynamically resizable queue that can be used without tokens.
+		numConfiguration
+	};
+
+	constexpr Configuration DefaultConfiguration = Configuration::NoAllocationsNoTokenlessUsage;
+
+	constexpr bool allocationsAllowed(Configuration c)
+	{
+		return c == Configuration::AllocationsAllowedNoTokenlessUsage ||
+			   c == Configuration::AllocationsAllowedAndTokenlessUsageAllowed;
+	}
+
+	constexpr bool tokenlessUsageAllowed(Configuration c)
+	{
+		return c == Configuration::NoAllocationsTokenlessUsageAllowed ||
+			   c == Configuration::AllocationsAllowedAndTokenlessUsageAllowed;
+	}
+
+	/** This object will be used to build the internal tokens. */
+	struct PublicToken
+	{
+		/** The name of the thread. Just useful for debugging. */
+		String threadName;
+
+		/** The list of thread Ids. Get them with Thread::getCurrentThreadIds(). */
+		Array<void*> threadIds;
+
+		/** If you know this thread can push elements, set this to true. */
+		bool canBeProducer;
+	};
+}
+
+
+
+/** A wrapper around moodycamels ConcurrentQueue with more JUCE like interface and some assertions. */
+template <typename ElementType, 
+	      MultithreadedQueueHelpers::Configuration ConfigurationType=MultithreadedQueueHelpers::DefaultConfiguration>
+	class MultithreadedLockfreeQueue
+{
+public:
+
+	/** A function prototype for functions that can be called on a ElementType. */
+	using ElementFunction = std::function<MultithreadedQueueHelpers::ReturnStatus(ElementType& t)>;
+
+	MultithreadedLockfreeQueue(int numMaxElements) :
+		numElements(numMaxElements),
+		queue(numElements),
+		dummyCToken(queue),
+		dummyPToken(queue),
+		tokensHaveBeenSet(false),
+		somethingHasBeenPushed(false)
+	{}
+
+	/** This initialised the queue with the thread Ids. Best use KillstateHandler.createTokens() for this. */
+	void setThreadTokens(const Array<MultithreadedQueueHelpers::PublicToken>& threadTokens, const ElementFunction& clearFunction=ElementFunction())
+	{
+		if(!isEmpty())
+			clear(clearFunction);
+
+		if (!allocationsAllowed())
+		{
+			const int blockSize = moodycamel::ConcurrentQueue<ElementType>::BLOCK_SIZE;
+			int numProducers = 0;
+
+			for (const auto& tk : threadTokens)
+			{
+				if (tk.canBeProducer)
+					numProducers++;
+			}
+
+			int numRequired = roundDoubleToInt((ceil((double)numElements / (double)blockSize) + (double)1) * (double)numProducers * (double)blockSize);
+			
+			queue = std::move(moodycamel::ConcurrentQueue<ElementType>(size_t(numRequired)));
+		}
+
+		tokens.ensureStorageAllocated(threadTokens.size());
+
+		dummyCToken = moodycamel::ConsumerToken(queue);
+		dummyPToken = moodycamel::ProducerToken(queue);
+
+		for (const auto& tk : threadTokens)
+			tokens.add(PrivateThreadToken(queue, tk));
+
+		tokensHaveBeenSet = true;
+	}
+
+	bool push(ElementType&& e)
+	{
+		somethingHasBeenPushed.store(true);
+
+		jassert(tokenlessUsageAllowed() || tokensHaveBeenSet);
+
+		if (tokenlessUsageAllowed() && !tokensHaveBeenSet)
+		{
+			if (allocationsAllowed())
+				return queue.enqueue(e);
+			else
+				return queue.try_enqueue(e);
+		}
+		else
+		{
+			if (allocationsAllowed())
+				return queue.enqueue(getProducerToken(), e);
+			else
+				return queue.try_enqueue(getProducerToken(), e);
+		}
+		
+	}
+
+	bool pop(ElementType& e)
+	{
+		if (!somethingHasBeenPushed)
+			return false;
+
+		jassert(tokenlessUsageAllowed() || tokensHaveBeenSet);
+
+		if (tokenlessUsageAllowed() && !tokensHaveBeenSet)
+			return queue.try_dequeue(e);
+		else
+			return queue.try_dequeue(getConsumerToken(), e);
+	}
+
+	/** Copies multiple elements into the queue. If you don't need the data afterwards, use moveMultiple instead. */
+	bool copyMultiple(ElementType* source, int numElements)
+	{
+		somethingHasBeenPushed.store(true);
+
+		jassert(tokenlessUsageAllowed() || tokensHaveBeenSet);
+
+		if (tokenlessUsageAllowed() && !tokensHaveBeenSet)
+		{
+			if (allocationsAllowed())
+				return queue.enqueue_bulk(*source, (size_t)numElements);
+			else
+				return queue.try_enqueue_bulk(*source, (size_t)numElements);
+		}
+		else
+		{
+			if (allocationsAllowed())
+				return queue.enqueue_bulk(getProducerToken(), *source, (size_t)numElements);
+			else
+				return queue.try_enqueue_bulk(getProducerToken(), *source, (size_t)numElements);
+		}
+		
+	}
+
+	/** Moves multiple elements into the queue. The original data is invalid after this operation. */
+	bool moveMultiple(ElementType* source, int numElements)
+	{
+		somethingHasBeenPushed.store(true);
+
+		jassert(tokenlessUsageAllowed() || tokensHaveBeenSet);
+
+		if (tokenlessUsageAllowed() && !tokensHaveBeenSet)
+		{
+			if (allocationsAllowed())
+				return queue.enqueue_bulk(std::make_move_iterator(*source), (size_t)numElements);
+			else
+				return queue.try_enqueue_bulk(std::make_move_iterator(*source), (size_t)numElements);
+		}
+		else
+		{
+			if (allocationsAllowed())
+				return queue.enqueue_bulk(getProducerToken(), std::make_move_iterator(*source), (size_t)numElements);
+			else
+				return queue.try_enqueue_bulk(getProducerToken(), std::make_move_iterator(*source), (size_t)numElements);
+		}
+		
+	}
+
+	int popMultiple(ElementType* destination, int numDesired)
+	{
+		if (somethingHasBeenPushed)
+			return 0;
+
+		jassert(tokenlessUsageAllowed() || tokensHaveBeenSet);
+
+		if (tokenlessUsageAllowed() && !tokensHaveBeenSet)
+			return queue.try_dequeue_bulk(*destination, numDesired);
+		else
+			return queue.try_dequeue_bulk(getConsumerToken(), *destination, numDesired);
+	}
+
+	void addElementToSkip(ElementType&& element)
+	{
+		cancelledElements.add(element);
+	}
+
+	void clear(const ElementFunction& f=ElementFunction())
+	{
+		if (!somethingHasBeenPushed)
+			return;
+
+		jassert(tokenlessUsageAllowed() || tokensHaveBeenSet || isEmpty());
+
+		ElementType item;
+		bool skipFurtherExecution = false;
+		
+
+		if (tokenlessUsageAllowed() && !tokensHaveBeenSet)
+		{
+			while (queue.try_dequeue(item))
+			{
+				if (f && !skipFurtherExecution)
+				{
+					auto result = f(item);
+
+					if (result == MultithreadedQueueHelpers::SkipFurtherExecutions)
+						skipFurtherExecution = true;
+
+					if (result == MultithreadedQueueHelpers::AbortClearing)
+						break;
+				}
+			}
+		}
+		else
+		{
+			auto& cToken = getConsumerToken();
+
+			while (queue.try_dequeue(cToken, item))
+			{
+				if (f && !skipFurtherExecution)
+				{
+					auto result = f(item);
+
+					if (result == MultithreadedQueueHelpers::SkipFurtherExecutions)
+						skipFurtherExecution = true;
+
+					if (result == MultithreadedQueueHelpers::AbortClearing)
+						break;
+				}
+			}
+		}
+	}
+
+	int size() const noexcept
+	{
+		return somethingHasBeenPushed ? queue.size_approx() : 0;
+	}
+
+	bool isEmpty() const noexcept
+	{
+		return !somethingHasBeenPushed || queue.size_approx() == 0;
+	}
+
+private:
+
+	struct PrivateThreadToken
+	{
+		explicit PrivateThreadToken(moodycamel::ConcurrentQueue<ElementType>& q, 
+									const MultithreadedQueueHelpers::PublicToken& publicToken):
+			threadIds(std::move(publicToken.threadIds)),
+			name(publicToken.threadName),
+			cToken(q),
+			pToken(q),
+			canBeProducer(publicToken.canBeProducer)
+		{}
+
+		Array<void*> threadIds;
+		String name;
+		moodycamel::ProducerToken pToken;
+		moodycamel::ConsumerToken cToken;
+		bool canBeProducer;
+	};
+
+	moodycamel::ProducerToken& getProducerToken()
+	{
+		jassert(tokensHaveBeenSet);
+
+		auto id = Thread::getCurrentThreadId();
+
+		for (auto& t : tokens)
+		{
+			if (t.threadIds.contains(id))
+			{
+				// You somehow tried to push something from an unexcpected thread...
+				jassert(t.canBeProducer);
+				return t.pToken;
+			}
+		}
+
+		jassertfalse;
+		return dummyPToken;
+	}
+
+	moodycamel::ConsumerToken& getConsumerToken()
+	{
+		jassert(tokensHaveBeenSet);
+
+		auto id = Thread::getCurrentThreadId();
+
+		for (auto& t : tokens)
+			if (t.threadIds.contains(id))
+				return t.cToken;
+
+		jassertfalse;
+		return dummyCToken;
+	}
+	
+	constexpr bool allocationsAllowed()
+	{
+		return MultithreadedQueueHelpers::allocationsAllowed(ConfigurationType);
+	}
+
+	constexpr bool tokenlessUsageAllowed()
+	{
+		return MultithreadedQueueHelpers::tokenlessUsageAllowed(ConfigurationType);
+	}
+
+	Array<ElementType, CriticalSection> cancelledElements;
+
+	int numElements;
+	moodycamel::ConcurrentQueue<ElementType> queue;
+	moodycamel::ConsumerToken dummyCToken;
+	moodycamel::ProducerToken dummyPToken;
+	Array<PrivateThreadToken> tokens;
+	bool tokensHaveBeenSet = false;
+	std::atomic<bool> somethingHasBeenPushed;
+};
+
 
 /** A wrapper around moodycamels ReaderWriterQueue with more JUCE like interface and some assertions. */
 template <class ElementType> class LockfreeQueue
