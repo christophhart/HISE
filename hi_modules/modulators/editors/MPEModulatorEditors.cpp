@@ -80,7 +80,7 @@ MPEModulatorEditor::MPEModulatorEditor(ProcessorEditor* parent) :
 	}
 
 
-	addAndMakeVisible(mpePanel = new MPEKeyboard(getProcessor()->getMainController()->getKeyboardState()));
+	addAndMakeVisible(mpePanel = new MPEKeyboard(getProcessor()->getMainController()));
 
 	mpePanel->setColour(MPEKeyboard::ColourIds::bgColour, Colour(0x11000000));
 }

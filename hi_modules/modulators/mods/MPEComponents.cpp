@@ -1103,7 +1103,8 @@ void MPEPanel::Model::Row::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 	const bool shouldBeBipolar = result >= 3;
 	result = result % 3;
 
-	mod->setIsBipolar(shouldBeBipolar);
+	if(mod->getMode() != Modulation::GainMode)
+		mod->setIsBipolar(shouldBeBipolar);
 
 	if (result == 0)
 	{
@@ -1142,12 +1143,14 @@ void MPEPanel::Model::Row::deleteThisRow()
 	}
 }
 
-MPEKeyboard::MPEKeyboard(MidiKeyboardState& state_) :
-	state(state_),
-	pendingMessages(1024)
+MPEKeyboard::MPEKeyboard(MainController* mc) :
+	state(mc->getKeyboardState()),
+	pendingMessages(1024),
+	channelRange({2, 16})
 {
+	pendingMessages.setThreadTokens(mc->getKillStateHandler().createPublicTokenList(MainController::KillStateHandler::AudioThreadIsProducer |																									  MainController::KillStateHandler::MessageThreadIsProducer));
+
 	state.addListener(this);
-	startTimer(30);
 
 	setColour(bgColour, Colours::black);
 	setColour(waveColour, Colours::white.withAlpha(0.5f));
@@ -1160,16 +1163,16 @@ MPEKeyboard::~MPEKeyboard()
 	state.removeListener(this);
 }
 
-void MPEKeyboard::timerCallback()
+void MPEKeyboard::handleAsyncUpdate()
 {
 	if (!pendingMessages.isEmpty())
 	{
 		MidiMessage m;
 
-		while (pendingMessages.pop(m))
+		auto f = [this](MidiMessage& m)
 		{
 			if (!appliesToRange(m))
-				continue;
+				return MultithreadedQueueHelpers::OK;
 
 			if (m.isNoteOn())
 			{
@@ -1188,7 +1191,11 @@ void MPEKeyboard::timerCallback()
 				for (auto& n : pressedNotes)
 					n.updateNote(*this, m);
 			}
-		}
+
+			return MultithreadedQueueHelpers::OK;
+		};
+
+		pendingMessages.clear(f);
 
 		repaint();
 	}
@@ -1196,23 +1203,21 @@ void MPEKeyboard::timerCallback()
 
 void MPEKeyboard::handleNoteOn(MidiKeyboardState* /*source*/, int midiChannel, int midiNoteNumber, float velocity)
 {
-	auto m = MidiMessage::noteOn(midiChannel, midiNoteNumber, velocity);
-
-	pendingMessages.push(std::move(m));
+	pendingMessages.push(MidiMessage::noteOn(midiChannel, midiNoteNumber, velocity));
+	triggerAsyncUpdate();
 }
 
 void MPEKeyboard::handleNoteOff(MidiKeyboardState* /*source*/, int midiChannel, int midiNoteNumber, float velocity)
 {
-	auto m = MidiMessage::noteOff(midiChannel, midiNoteNumber, velocity);
-
-	pendingMessages.push(std::move(m));
+	pendingMessages.push(MidiMessage::noteOff(midiChannel, midiNoteNumber, velocity));
+	triggerAsyncUpdate();
 }
 
 void MPEKeyboard::handleMessage(const MidiMessage& m)
 {
 	MidiMessage copy(m);
-
 	pendingMessages.push(std::move(copy));
+	triggerAsyncUpdate();
 }
 
 void MPEKeyboard::mouseDown(const MouseEvent& e)

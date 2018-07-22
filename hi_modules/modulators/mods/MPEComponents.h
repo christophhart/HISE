@@ -263,11 +263,11 @@ public:
 		numColoursIds
 	};
 
-	MPEKeyboard(MidiKeyboardState& state_);
+	MPEKeyboard(MainController* mc);
 
 	~MPEKeyboard();
 
-	void timerCallback() override;
+	void handleAsyncUpdate() override;
 
 	void handleNoteOn(MidiKeyboardState* /*source*/,
 		int midiChannel, int midiNoteNumber, float velocity);
@@ -346,7 +346,7 @@ public:
 
 private:
 
-	hise::LockfreeQueue<MidiMessage> pendingMessages;
+	MultithreadedLockfreeQueue<MidiMessage, MultithreadedQueueHelpers::Configuration::NoAllocationsNoTokenlessUsage> pendingMessages;
 
 	struct Note
 	{
