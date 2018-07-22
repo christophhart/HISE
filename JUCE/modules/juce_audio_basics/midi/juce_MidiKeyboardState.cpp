@@ -26,6 +26,7 @@ namespace juce
 MidiKeyboardState::MidiKeyboardState()
 {
     zerostruct (noteStates);
+	eventsToAdd.ensureSize(128 * 3);
 }
 
 MidiKeyboardState::~MidiKeyboardState()
