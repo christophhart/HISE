@@ -83,10 +83,11 @@ void Arpeggiator::onInit()
 	Content.setWidth(800);
 	Content.setHeight(500);
 	
-	MidiSequenceArray.ensureStorageAllocated(128);
-	MidiSequenceArraySorted.ensureStorageAllocated(128);
 	userHeldKeysArray.ensureStorageAllocated(128);
 	userHeldKeysArraySorted.ensureStorageAllocated(128);
+	MidiSequenceArray.ensureStorageAllocated(128);
+	MidiSequenceArraySorted.ensureStorageAllocated(128);
+	currentlyPlayingEventIds.ensureStorageAllocated(128);
 
 	minNoteLenSamples = (int)(Engine.getSampleRate() / 80.0);
 
