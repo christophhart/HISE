@@ -55,6 +55,8 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
 
 	static var join(Args a)
 	{
+		WARN_IF_AUDIO_THREAD(true, IllegalAudioThreadOps::StringCreation);
+
 		StringArray strings;
 
 		if (const Array<var>* array = a.thisObject.getArray())
@@ -74,8 +76,12 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
 
 	static var push(Args a)
 	{
+		
+
 		if (Array<var>* array = a.thisObject.getArray())
 		{
+			WARN_IF_AUDIO_THREAD(a.numArguments + array->size() >= array->getNumAllocated(), ScriptGuard::ArrayResizing);
+
 			for (int i = 0; i < a.numArguments; ++i)
 				array->add(a.arguments[i]);
 

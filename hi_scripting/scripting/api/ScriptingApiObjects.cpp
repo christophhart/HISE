@@ -2557,12 +2557,7 @@ bool ApiHelpers::ModuleHandler::removeModule(Processor* p)
 
 Processor* ApiHelpers::ModuleHandler::addModule(Chain* c, const String& type, const String& id, int index /*= -1*/)
 {
-	
-
-	if (dynamic_cast<Processor*>(c)->getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::AudioThread)
-	{
-		throw String("Modules can't be added from the audio thread!");
-	}
+	WARN_IF_AUDIO_THREAD(true, IllegalAudioThreadOps::HeapBlockAllocation);
 
 	for (int i = 0; i < c->getHandler()->getNumProcessors(); i++)
 	{

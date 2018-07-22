@@ -722,6 +722,8 @@ public:
 		Identifier getName() const override { RETURN_STATIC_IDENTIFIER("Console"); }
 		static Identifier getClassName()   { RETURN_STATIC_IDENTIFIER("Console"); };
 
+		bool allowIllegalCallsOnAudioThread(int /*functionIndex*/) const override { return true; }
+
 		// ============================================================================================================ API Methods
 
 		/** Prints a message to the console. */

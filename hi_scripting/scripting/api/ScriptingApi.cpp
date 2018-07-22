@@ -1582,6 +1582,8 @@ sampler(sampler_)
 
 void ScriptingApi::Sampler::enableRoundRobin(bool shouldUseRoundRobin)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s != nullptr)
@@ -1639,6 +1641,8 @@ int ScriptingApi::Sampler::getRRGroupsForMessage(int noteNumber, int velocity)
 
 void ScriptingApi::Sampler::refreshRRMap()
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
@@ -1658,6 +1662,8 @@ void ScriptingApi::Sampler::refreshRRMap()
 
 void ScriptingApi::Sampler::selectSounds(String regexWildcard)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
@@ -1674,6 +1680,8 @@ void ScriptingApi::Sampler::selectSounds(String regexWildcard)
 
 int ScriptingApi::Sampler::getNumSelectedSounds()
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
@@ -1687,6 +1695,8 @@ int ScriptingApi::Sampler::getNumSelectedSounds()
 
 void ScriptingApi::Sampler::setSoundPropertyForSelection(int propertyId, var newValue)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
@@ -1715,6 +1725,8 @@ void ScriptingApi::Sampler::setSoundPropertyForSelection(int propertyId, var new
 
 void ScriptingApi::Sampler::setSoundPropertyForAllSamples(int propertyIndex, var newValue)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
@@ -1741,6 +1753,8 @@ void ScriptingApi::Sampler::setSoundPropertyForAllSamples(int propertyIndex, var
 
 var ScriptingApi::Sampler::getSoundProperty(int propertyIndex, int soundIndex)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
@@ -1770,6 +1784,8 @@ var ScriptingApi::Sampler::getSoundProperty(int propertyIndex, int soundIndex)
 
 void ScriptingApi::Sampler::setSoundProperty(int soundIndex, int propertyIndex, var newValue)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
@@ -1795,6 +1811,8 @@ void ScriptingApi::Sampler::setSoundProperty(int soundIndex, int propertyIndex, 
 
 void ScriptingApi::Sampler::purgeMicPosition(String micName, bool shouldBePurged)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
     if(micName.isEmpty())
@@ -1832,6 +1850,8 @@ void ScriptingApi::Sampler::purgeMicPosition(String micName, bool shouldBePurged
 
 String ScriptingApi::Sampler::getMicPositionName(int channelIndex)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
@@ -1883,6 +1903,8 @@ bool ScriptingApi::Sampler::isMicPositionPurged(int micIndex)
 
 void ScriptingApi::Sampler::refreshInterface()
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
@@ -1897,6 +1919,8 @@ void ScriptingApi::Sampler::refreshInterface()
 
 void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	if (fileName.isEmpty())
 		reportScriptError("Trying to load a empty sample map...");
     
@@ -1912,6 +1936,8 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 
 String ScriptingApi::Sampler::getCurrentSampleMapId() const
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
     ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
     
     if (s != nullptr)
@@ -1928,6 +1954,8 @@ String ScriptingApi::Sampler::getCurrentSampleMapId() const
 
 var ScriptingApi::Sampler::getSampleMapList() const
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	Array<var> sampleMapNames;
 
 	auto pool = getProcessor()->getMainController()->getCurrentSampleMapPool();
@@ -1975,6 +2003,8 @@ void ScriptingApi::Sampler::setAttribute(int index, var newValue)
 
 void ScriptingApi::Sampler::setUseStaticMatrix(bool shouldUseStaticMatrix)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
@@ -2637,6 +2667,8 @@ var ScriptingApi::Synth::getIdList(const String &type)
 
 ScriptingObjects::ScriptingEffect *ScriptingApi::Synth::getEffect(const String &name)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::ObjectCreation);
+
 	if(getScriptProcessor()->objectsCanBeCreated())
 	{
 		Processor::Iterator<EffectProcessor> it(owner);
@@ -2664,6 +2696,8 @@ ScriptingObjects::ScriptingEffect *ScriptingApi::Synth::getEffect(const String &
 
 ScriptingObjects::ScriptingAudioSampleProcessor * ScriptingApi::Synth::getAudioSampleProcessor(const String &name)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::ObjectCreation);
+
 	Processor::Iterator<AudioSampleProcessor> it(owner);
 
 		AudioSampleProcessor *asp;
@@ -2685,6 +2719,8 @@ ScriptingObjects::ScriptingAudioSampleProcessor * ScriptingApi::Synth::getAudioS
 
 ScriptingObjects::ScriptingTableProcessor *ScriptingApi::Synth::getTableProcessor(const String &name)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::ObjectCreation);
+
 	if (getScriptProcessor()->objectsCanBeCreated())
 	{
 		Processor::Iterator<LookupTableProcessor> it(owner);
@@ -2710,6 +2746,8 @@ ScriptingObjects::ScriptingTableProcessor *ScriptingApi::Synth::getTableProcesso
 
 ScriptingApi::Sampler * ScriptingApi::Synth::getSampler(const String &name)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::ObjectCreation);
+
 	if (getScriptProcessor()->objectsCanBeCreated())
 	{
 		Processor::Iterator<ModulatorSampler> it(owner);
@@ -2735,6 +2773,8 @@ ScriptingApi::Sampler * ScriptingApi::Synth::getSampler(const String &name)
 
 ScriptingApi::Synth::ScriptSlotFX* ScriptingApi::Synth::getSlotFX(const String& name)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::ObjectCreation);
+
 	if (getScriptProcessor()->objectsCanBeCreated())
 	{
 		Processor::Iterator<SlotFX> it(owner);
@@ -3142,6 +3182,9 @@ startTime(0.0)
 void ScriptingApi::Console::print(var x)
 {
 #if USE_BACKEND
+
+	AudioThreadGuard::Suspender suspender;
+
 	debugToConsole(getProcessor(), x);
 #endif
 }
@@ -3149,6 +3192,8 @@ void ScriptingApi::Console::print(var x)
 void ScriptingApi::Console::stop()
 {
 #if USE_BACKEND
+	AudioThreadGuard::Suspender suspender;
+
 	if(startTime == 0.0)
 	{
 		reportScriptError("The Benchmark was not started!");
@@ -3176,18 +3221,24 @@ void ScriptingApi::Console::clear()
 
 void ScriptingApi::Console::assertTrue(var condition)
 {
+	AudioThreadGuard::Suspender suspender;
+
 	if (!(bool)condition)
 		reportScriptError("Assertion failure: condition is false");
 }
 
 void ScriptingApi::Console::assertEqual(var v1, var v2)
 {
+	AudioThreadGuard::Suspender suspender;
+
 	if (v1 != v2)
 		reportScriptError("Assertion failure: values are unequal");
 }
 
 void ScriptingApi::Console::assertIsDefined(var v1)
 {
+	AudioThreadGuard::Suspender suspender;
+
 	if (v1.isUndefined() || v1.isVoid())
 		reportScriptError("Assertion failure: value is undefined");
 }

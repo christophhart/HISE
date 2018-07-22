@@ -119,6 +119,7 @@ Array<juce::Identifier> HiseSettings::Other::getAllIds()
 
 	ids.add(EnableAutosave);
 	ids.add(AutosaveInterval);
+	ids.add(AudioThreadGuardEnabled);
 
 	return ids;
 }
@@ -341,6 +342,10 @@ struct SettingDescription
 		D("The interval for the autosaver in minutes. This must be a number between `1` and `30`.");
 		P_();
 
+		P(HiseSettings::Other::AudioThreadGuardEnabled);
+		D("Watches for illegal calls in the audio thread. Use this during script development to catch allocations etc.");
+		P_();
+
 		return s;
 
 	};
@@ -455,7 +460,8 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Compiler::UseIPP ||
 		id == Scripting::EnableCallstack ||
 		id == Other::EnableAutosave ||
-		id == Scripting::EnableDebugMode)
+		id == Scripting::EnableDebugMode ||
+		id == Other::AudioThreadGuardEnabled) 
 		return { "Yes", "No" };
 
 	if (id == Compiler::VisualStudioVersion)
@@ -595,6 +601,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id)
 	else if (id == Project::RedirectSampleFolder)	BACKEND_ONLY(return handler.isRedirected(ProjectHandler::SubDirectories::Samples) ? handler.getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName() : "");
 	else if (id == Other::EnableAutosave)			return "Yes";
 	else if (id == Other::AutosaveInterval)			return 5;
+	else if (id == Other::AudioThreadGuardEnabled)  return "Yes";
 	else if (id == Scripting::CodeFontSize)			return 17.0;
 	else if (id == Scripting::EnableCallstack)		return "No";
 	else if (id == Scripting::CompileTimeout)		return 5.0;
@@ -734,6 +741,8 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 
 	else if (id == Other::EnableAutosave || id == Other::AutosaveInterval)
 		mc->getAutoSaver().updateAutosaving();
+	else if (id == Other::AudioThreadGuardEnabled)
+		mc->getKillStateHandler().enableAudioThreadGuard(newValue);
 
 	else if (id == Scripting::EnableDebugMode)
 		newValue ? mc->getDebugLogger().startLogging() : mc->getDebugLogger().stopLogging();

@@ -283,6 +283,62 @@ struct HiseJavascriptEngine::RootObject::CodeLocation
 	
 };
 
+#if JUCE_ENABLE_AUDIO_GUARD
+struct HiseJavascriptEngine::RootObject::ScriptAudioThreadGuard: public AudioThreadGuard::Handler
+{
+public:
+
+	enum IllegalScriptOps
+	{
+		ObjectCreation = IllegalAudioThreadOps::numIllegalOperationTypes,
+		ArrayCreation,
+		ArrayResizing,
+		ObjectResizing,
+		DynamicObjectAccess,
+		FunctionCall,
+		IllegalApiCall
+	};
+
+	ScriptAudioThreadGuard(const CodeLocation& location) :
+		loc(location),
+		setter(this)
+	{
+	};
+
+	String getOperationName(int operationType) override
+	{
+		switch (operationType)
+		{
+		case ObjectCreation:		return "Object creation";
+		case ArrayCreation:			return "non-empty Array creation";
+		case ArrayResizing:			return "Array resizing. Call Array.reserve() to make sure there's enough space.";
+		case ObjectResizing:		return "Resizing of object.";
+		case DynamicObjectAccess:	return "Dynamic object access using []. Try object.member instead";
+		case FunctionCall:			return "Non inline function call";
+		case IllegalApiCall:		return "Illegal API call";
+		default:
+			break;
+		}
+
+		return Handler::getOperationName(operationType);
+	}
+
+	void warn(int operationType) override
+	{
+		loc.throwError("Illegal operation in audio thread: " + getOperationName(operationType));
+	}
+
+private:
+
+	AudioThreadGuard::ScopedHandlerSetter setter;
+	CodeLocation loc;
+};
+#else
+struct HiseJavascriptEngine::RootObject::ScriptAudioThreadGuard
+{
+
+};
+#endif
 
 HiseJavascriptEngine::RootObject::Error HiseJavascriptEngine::RootObject::Error::fromLocation(const CodeLocation& location, const String& errorMessage)
 {

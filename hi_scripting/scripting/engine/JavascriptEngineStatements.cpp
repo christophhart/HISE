@@ -27,6 +27,8 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 		for (int i = 0; i < statements.size(); ++i)
 		{
 #if ENABLE_SCRIPTING_BREAKPOINTS
+			ScriptAudioThreadGuard guard(statements[i]->location);
+
 			if (statements.getUnchecked(i)->breakpointReference.index != -1)
 			{
 				Statement* st = statements.getUnchecked(i);

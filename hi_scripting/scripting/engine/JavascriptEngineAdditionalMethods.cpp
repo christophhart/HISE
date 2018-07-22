@@ -730,6 +730,7 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 		}
 		catch (RootObject::Error &e)
 		{
+			AudioThreadGuard::Suspender suspender;
 			if (result != nullptr) *result = Result::fail(root->dumpCallStack(e, c->getName()));
 		}
 		catch (Breakpoint& bp)
