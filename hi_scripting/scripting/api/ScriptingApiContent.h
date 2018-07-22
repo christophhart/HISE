@@ -550,7 +550,7 @@ public:
 			{
 				if (searchedProperty.isNull())
 				{
-					scriptChangedProperties.add(id);
+					scriptChangedProperties.addIfNotAlreadyThere(id);
 				}
 				if (searchedProperty == id)
 				{
@@ -1222,15 +1222,12 @@ public:
 
 		void preloadStateChanged(bool isPreloading) override;
 
-		void preloadStateInternal(bool isPreloading);
+		void preloadStateInternal(bool isPreloading, Result& r);
 
 		void preRecompileCallback() override
 		{
 			ScriptComponent::preRecompileCallback();
 			stopTimer();
-			repaintNotifier.removeAllChangeListeners();
-			
-			repainter.cancelPendingUpdate();
 			
 		}
 
@@ -1321,10 +1318,7 @@ public:
 
 		struct Wrapper;
 
-		Image getImage() const
-		{
-			return paintCanvas;
-		}
+		Image getImage() const;
 
 		bool isModal() const
 		{
@@ -1339,12 +1333,14 @@ public:
 
 		void mouseCallback(var mouseInformation);
 
+		void mouseCallbackInternal(const var& mouseInformation, Result& r);
+
 		var getJSONPopupData() const { return jsonPopupData; }
 
 		void cancelPendingFunctions() override
 		{
 			stopTimer();
-			repaintNotifier.removeAllChangeListeners();
+			//repaintNotifier.removeAllChangeListeners();
 		}
 
 		Rectangle<int> getPopupSize() const { return popupBounds; }
@@ -1352,6 +1348,8 @@ public:
         SafeChangeBroadcaster* getRepaintNotifier() { return &repaintNotifier; };
         
 		void timerCallback() override;
+
+		bool timerCallbackInternal(MainController * mc, Result &r);
 
 		Image getLoadedImage(const String &prettyName) const
 		{
@@ -1388,6 +1386,8 @@ public:
 			return shownAsPopup;
 		}
 
+		void repaintWrapped();
+
 	private:
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptPanel);
@@ -1395,7 +1395,6 @@ public:
 
 		bool shownAsPopup = false;
 		bool isModalPopup = false;
-
 
 		double getScaleFactorForCanvas() const;
 
@@ -1410,55 +1409,7 @@ public:
 		
 		void internalRepaint(bool forceRepaint=false);
 
-		
-
-		struct AsyncPreloadStateHandler : private AsyncUpdater,
-										  private Timer
-		{
-			AsyncPreloadStateHandler(ScriptPanel& parent_):
-				parent(parent_)
-			{}
-
-			void handleAsyncUpdate();
-
-
-
-			void addStateChange(bool newState);
-
-		private:
-
-			bool startFlag = false;
-			bool endFlag = false;
-
-			void timerCallback() override;
-
-
-			ScriptPanel& parent;
-
-		};
-
-		struct AsyncRepainter : public UpdateDispatcher::Listener //public Timer
-		{
-			AsyncRepainter(ScriptPanel* parent_) :
-				UpdateDispatcher::Listener(parent_->parent->getUpdateDispatcher()),
-				parent(parent_)
-			{}
-
-            ~AsyncRepainter()
-            {
-                
-            }
-            
-			void handleAsyncUpdate()
-			{
-				if (parent.get() != nullptr)
-					parent->internalRepaint();
-			}
-
-			WeakReference<ScriptPanel> parent;
-		};
-
-        
+		bool internalRepaintIdle(bool forceRepaint, Result& r);
         
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptPanel);
 
@@ -1482,14 +1433,7 @@ public:
 		
 		Array<NamedImage> loadedImages;
 
-
-		AsyncRepainter repainter;
-        
-        RepaintNotifier repaintNotifier;
-        
-		
-
-		AsyncPreloadStateHandler preloadStateHandler;
+		RepaintNotifier repaintNotifier;
 		
 		// ========================================================================================================
 	};
@@ -1663,7 +1607,8 @@ public:
 		// ========================================================================================================
 	};
 
-	struct ScriptFloatingTile : public ScriptComponent
+	struct ScriptFloatingTile : public ScriptComponent,
+								public Dispatchable
 	{
 		enum Properties
 		{
@@ -1685,7 +1630,7 @@ public:
 
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */) override;
 
-		void createFloatingTileComponent(var newValue);
+		bool createFloatingTileComponent(var newValue);
 
 
 		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptFloatingTile"); }
@@ -1729,7 +1674,6 @@ public:
 		var jsonData;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptFloatingTile);
-		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptFloatingTile);
 
 		// ========================================================================================================
 	};
@@ -1905,7 +1849,7 @@ public:
 
 	void resetContentProperties()
 	{
-		MessageManagerLock mmLock;
+		//MessageManagerLock mmLock;
 
 		rebuildComponentListFromValueTree();
 	};

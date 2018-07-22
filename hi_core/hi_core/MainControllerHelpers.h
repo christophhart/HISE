@@ -54,6 +54,7 @@ class Modulator;
 class CustomKeyboardState;
 class ModulatorSynthChain;
 class FactoryType;
+class JavascriptThreadPool;
 
 class MainController;
 
@@ -95,7 +96,8 @@ public:
 
 		
 	class MPEData : public ControlledObject,
-		public RestorableObject
+					public RestorableObject,
+					public Dispatchable
 	{
 	public:
 		MPEData(MainController* mc);;
@@ -200,6 +202,8 @@ public:
 			MPEData& parent;
 		};
 
+		ValueTree pendingData;
+
 		AsyncRestorer asyncRestorer;
 		
 
@@ -213,11 +217,8 @@ public:
 
 		Array<WeakReference<Listener>, CriticalSection> listeners;
 
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MPEData)
-
-		
-public:
-	
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MPEData);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(MPEData);
 	};
 	
 

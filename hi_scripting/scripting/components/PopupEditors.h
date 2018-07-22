@@ -41,7 +41,8 @@ class DebugConsoleTextEditor;
 
 class PopupIncludeEditor : public Component,
 						   public Timer,
-						   public ButtonListener
+						   public ButtonListener,
+						   public Dispatchable
 {
 public:
 

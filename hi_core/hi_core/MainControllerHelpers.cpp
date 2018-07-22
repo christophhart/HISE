@@ -108,7 +108,8 @@ int MidiControllerAutomationHandler::getMidiControllerNumber(Processor *interfac
 
 void MidiControllerAutomationHandler::refreshAnyUsedState()
 {
-	ScopedLock sl(mc->getLock());
+	AudioThreadGuard::Suspender suspender;
+	LockHelpers::SafeLock sl(mc, LockHelpers::AudioLock);
 
 	anyUsed = false;
 
@@ -139,16 +140,19 @@ void MidiControllerAutomationHandler::clear()
 
 void MidiControllerAutomationHandler::removeMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NotificationType notifyListeners)
 {
-	ScopedLock sl(mc->getLock());
-
-	for (int i = 0; i < 128; i++)
 	{
-		for (auto& a : automationData[i])
+		AudioThreadGuard audioGuard(&(mc->getKillStateHandler()));
+		LockHelpers::SafeLock sl(mc, LockHelpers::AudioLock);
+
+		for (int i = 0; i < 128; i++)
 		{
-			if (a.processor == interfaceProcessor && a.attribute == attributeIndex)
+			for (auto& a : automationData[i])
 			{
-				automationData[i].removeAllInstancesOf(a);
-				break;
+				if (a.processor == interfaceProcessor && a.attribute == attributeIndex)
+				{
+					automationData[i].removeAllInstancesOf(a);
+					break;
+				}
 			}
 		}
 	}
@@ -351,15 +355,18 @@ MidiControllerAutomationHandler::MPEData::~MPEData()
 
 void MidiControllerAutomationHandler::MPEData::AsyncRestorer::timerCallback()
 {
-	if (auto plock = PresetLoadLock(parent.getMainController()))
+#if 0
+	auto& tmpData = data;
+
+	auto f = [tmpData](WeakReference<MPEData> mpeData)
 	{
-		parent.clear();
+		mpeData->clear();
 
 		static const Identifier id("ID");
 
-		parent.setMpeMode(data.getProperty("Enabled", false));
+		mpeData->setMpeMode(tmpData.getProperty("Enabled", false));
 
-		for (auto d : data)
+		for (auto d : tmpData)
 		{
 			jassert(d.hasType("Processor"));
 
@@ -371,17 +378,17 @@ void MidiControllerAutomationHandler::MPEData::AsyncRestorer::timerCallback()
 			d.addChild(dummyChild, -1, nullptr);
 			String id_ = d.getProperty(id).toString();
 
-			if (auto mod = parent.findMPEModulator(id_))
+			if (auto mod = mpeData->findMPEModulator(id_))
 			{
 				mod->restoreFromValueTree(d);
-				parent.addConnection(mod, dontSendNotification);
+				mpeData->addConnection(mod, dontSendNotification);
 			}
 		}
 
 		{
-			ScopedLock sl(parent.listeners.getLock());
+			ScopedLock sl(mpeData->listeners.getLock());
 
-			for (auto l : parent.listeners)
+			for (auto l : mpeData->listeners)
 			{
 				if (l)
 				{
@@ -392,15 +399,76 @@ void MidiControllerAutomationHandler::MPEData::AsyncRestorer::timerCallback()
 
 		
 
-		dirty = false;
-		stopTimer();
+		mpeData->dirty = false;
+		
 	}
+
+#endif
 }
 
 
 
 void MidiControllerAutomationHandler::MPEData::restoreFromValueTree(const ValueTree &v)
 {
+	pendingData = v;
+
+	auto f = [this](Processor* p)
+	{
+		LockHelpers::noMessageThreadBeyondInitialisation(p->getMainController());
+
+		clear();
+
+		static const Identifier id("ID");
+
+		setMpeMode(pendingData.getProperty("Enabled", false));
+
+		for (auto d : pendingData)
+		{
+			jassert(d.hasType("Processor"));
+
+			d.setProperty("Type", "MPEModulator", nullptr);
+			d.setProperty("Intensity", 1.0f, nullptr);
+
+			ValueTree dummyChild("ChildProcessors");
+
+			d.addChild(dummyChild, -1, nullptr);
+			String id_ = d.getProperty(id).toString();
+
+			if (auto mod = findMPEModulator(id_))
+			{
+				mod->restoreFromValueTree(d);
+				addConnection(mod, dontSendNotification);
+			}
+		}
+
+		auto update = [](Dispatchable* object)
+		{
+			auto mpeData = static_cast<MPEData*>(object);
+
+			jassert_message_thread;
+
+			ScopedLock sl(mpeData->listeners.getLock());
+
+			for (auto l : mpeData->listeners)
+			{
+				mpeData->getMainController()->checkAndAbortMessageThreadOperation();
+
+				if (l)
+				{
+					l->mpeDataReloaded();
+				}
+			}
+
+			return Dispatchable::Status::OK;
+		};
+
+		getMainController()->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(this, update);
+
+		return SafeFunctionCall::OK;
+	};
+
+	getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
+
 	asyncRestorer.restore(v);
 }
 

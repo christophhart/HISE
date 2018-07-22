@@ -86,6 +86,24 @@ void ScriptCreatedComponentWrapper::changed(var newValue)
 	dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())->controlCallback(getScriptComponent(), newValue);
 }
 
+void ScriptCreatedComponentWrapper::asyncValueTreePropertyChanged(ValueTree& v, const Identifier& id)
+{
+	if (v != getScriptComponent()->getPropertyValueTree())
+		return;
+
+	jassert(v == getScriptComponent()->getPropertyValueTree());
+
+	auto idIndex = getScriptComponent()->getIndexForProperty(id);
+	auto value = v.getProperty(id);
+
+	if (idIndex == -1)
+	{
+		debugError(getProcessor(), "invalid property " + id.toString() + " with value: '" + value.toString() + "'");
+	}
+
+	updateComponent(idIndex, value);
+}
+
 void ScriptCreatedComponentWrapper::valueTreeParentChanged(ValueTree& /*v*/)
 {
 	contentComponent->updateComponentParent(this);

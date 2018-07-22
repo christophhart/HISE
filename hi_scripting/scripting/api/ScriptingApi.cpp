@@ -1672,10 +1672,7 @@ void ScriptingApi::Sampler::selectSounds(String regexWildcard)
 		return;
 	}
 
-    if(auto lock = PresetLoadLock(s->getMainController()))
-    {
-        ModulatorSamplerSound::selectSoundsBasedOnRegex(regexWildcard, s, soundSelection);
-    }
+	ModulatorSamplerSound::selectSoundsBasedOnRegex(regexWildcard, s, soundSelection);
 }
 
 int ScriptingApi::Sampler::getNumSelectedSounds()
@@ -1705,22 +1702,19 @@ void ScriptingApi::Sampler::setSoundPropertyForSelection(int propertyId, var new
 		return;
 	}
 
-    if(auto lock = PresetLoadLock(s->getMainController()))
-    {
-        auto sounds = soundSelection.getItemArray();
-        
-        auto id = sampleIds[propertyId];
-        
-        const int numSelected = sounds.size();
-        
-        for (int i = 0; i < numSelected; i++)
-        {
-            if (sounds[i].get() != nullptr)
-            {
-                sounds[i]->setSampleProperty(id, newValue, false);
-            }
-        }
-    }
+	auto sounds = soundSelection.getItemArray();
+
+	auto id = sampleIds[propertyId];
+
+	const int numSelected = sounds.size();
+
+	for (int i = 0; i < numSelected; i++)
+	{
+		if (sounds[i].get() != nullptr)
+		{
+			sounds[i]->setSampleProperty(id, newValue, false);
+		}
+	}
 }
 
 void ScriptingApi::Sampler::setSoundPropertyForAllSamples(int propertyIndex, var newValue)
@@ -1737,18 +1731,12 @@ void ScriptingApi::Sampler::setSoundPropertyForAllSamples(int propertyIndex, var
 
 	auto id = sampleIds[propertyIndex];
 
-	auto f = [s, id, newValue](Processor* p)
+	ModulatorSampler::SoundIterator iter(s);
+
+	while (auto sound = iter.getNextSound())
 	{
-		for (int i = 0; i < s->getNumSounds(); i++)
-		{
-			if (auto sound = s->getSampleMap()->getSound(i))
-				sound->setSampleProperty(id, newValue, false);
-		}
-
-		return true;
-	};
-
-	s->killAllVoicesAndCall(f);
+		sound->setSampleProperty(id, newValue, false);
+	}
 }
 
 var ScriptingApi::Sampler::getSoundProperty(int propertyIndex, int soundIndex)
@@ -1763,22 +1751,15 @@ var ScriptingApi::Sampler::getSoundProperty(int propertyIndex, int soundIndex)
 		RETURN_IF_NO_THROW(var())
 	}
 
-    if(auto lock = PresetLoadLock(s->getMainController()))
-    {
-        if (auto sound = s->getSampleMap()->getSound(soundIndex))
-        {
-            auto id = sampleIds[propertyIndex];
-            return sound->getSampleProperty(id);
-        }
-        else
-        {
-            reportScriptError("no sound with index " + String(soundIndex));
-            RETURN_IF_NO_THROW(var())
-        }
-    }
+	if (auto sound = s->getSampleMap()->getSound(soundIndex))
+	{
+		auto id = sampleIds[propertyIndex];
+		return sound->getSampleProperty(id);
+	}
 	else
 	{
-		return var();
+		reportScriptError("no sound with index " + String(soundIndex));
+		RETURN_IF_NO_THROW(var())
 	}
 }
 
@@ -1794,19 +1775,16 @@ void ScriptingApi::Sampler::setSoundProperty(int soundIndex, int propertyIndex, 
 		RETURN_VOID_IF_NO_THROW()
 	}
 
-    if(auto lock = PresetLoadLock(s->getMainController()))
-    {
-        if (auto sound = soundSelection.getSelectedItem(soundIndex).get())
-        {
-            auto id = sampleIds[propertyIndex];
-            sound->setSampleProperty(id, newValue, false);
-        }
-        else
-        {
-            reportScriptError("no sound with index " + String(soundIndex));
-            RETURN_VOID_IF_NO_THROW()
-        }
-    }
+	if (auto sound = soundSelection.getSelectedItem(soundIndex).get())
+	{
+		auto id = sampleIds[propertyIndex];
+		sound->setSampleProperty(id, newValue, false);
+	}
+	else
+	{
+		reportScriptError("no sound with index " + String(soundIndex));
+		RETURN_VOID_IF_NO_THROW()
+	}
 }
 
 void ScriptingApi::Sampler::purgeMicPosition(String micName, bool shouldBePurged)
@@ -1921,6 +1899,8 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 {
 	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
 
+	jassert(LockHelpers::isLockedBySameThread(getScriptProcessor()->getMainController_(), LockHelpers::ScriptLock));
+
 	if (fileName.isEmpty())
 		reportScriptError("Trying to load a empty sample map...");
     
@@ -1930,7 +1910,14 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 	{
 		PoolReference ref(s->getMainController(), fileName, FileHandlerBase::SampleMaps);
 
-		s->loadSampleMap(ref, true);
+		if (!ref.isValid())
+		{
+			jassertfalse;
+			reportScriptError("Samplemap " + ref.getReferenceString() + " is not valid");
+			return;
+		}
+
+		s->killAllVoicesAndCall([ref](Processor* p) {dynamic_cast<ModulatorSampler*>(p)->loadSampleMap(ref); return SafeFunctionCall::OK; }, true);
 	}
 }
 
@@ -3089,6 +3076,9 @@ ScriptingObjects::ScriptingModulator* ScriptingApi::Synth::addModulator(int chai
 	}
 
 	Processor* p = moduleHandler.addModule(c, type, id, -1);
+
+	if (p == nullptr)
+		reportScriptError("Processor with id " + id + " could not be generated");
 
 	return new ScriptingObjects::ScriptingModulator(getScriptProcessor(), dynamic_cast<Modulator*>(p));
 }

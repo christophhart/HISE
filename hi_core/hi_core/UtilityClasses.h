@@ -168,6 +168,25 @@ private:
 	WeakReference<SafeChangeListener>::Master masterReference;
 };
 
+/** A base class for objects that need to call dispatched messages. */
+struct Dispatchable
+{
+	enum class Status
+	{
+		OK = 0,
+		notExecuted,
+		needsToRunAgain,
+		cancelled
+	};
+
+	using Function = std::function<Status(Dispatchable* obj)>;
+
+	virtual ~Dispatchable() {};
+
+private:
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(Dispatchable);
+};
 
 /** This class is used to coallescate multiple calls to an asynchronous update for a given Listener.
 *
@@ -318,6 +337,67 @@ private:
 
 	Array<PropertyChange, CriticalSection> pendingPropertyChanges;
 };
+
+template <int Offset, int Length> class StackTrace
+{
+public:
+
+	StackTrace():
+		id(0)
+	{
+		for (int i = 0; i < Length; i++)
+			stackTrace[i] = {};
+	}
+
+	bool operator ==(const StackTrace& other) const noexcept
+	{
+		return id == other.id;
+	}
+
+	StackTrace(StackTrace&& other) noexcept
+	{
+		id = other.id;
+
+		for (int i = 0; i < Length; i++)
+			stackTrace[i].swap(other.stackTrace[i]);
+	}
+
+	StackTrace& operator=(StackTrace&& other) noexcept
+	{
+		id = other.id;
+
+		
+
+		for (int i = 0; i < Length; i++)
+			stackTrace[i].swap(other.stackTrace[i]);
+
+		return *this;
+	}
+
+	StackTrace(uint16 id_, bool createStackTrace=true):
+		id(id_)
+	{
+		if (createStackTrace)
+		{
+			auto full = StringArray::fromLines(SystemStats::getStackBacktrace());
+
+			for (int i = Offset; i < Offset + Length; i++)
+			{
+				stackTrace[i - Offset] = full.strings[i].toStdString();
+			}
+		}
+		else
+		{
+			for (int i = 0; i < Length; i++)
+				stackTrace[i] = {};
+		}
+		
+	}
+
+	uint16 id;
+	std::string stackTrace[Length];
+
+	JUCE_DECLARE_NON_COPYABLE(StackTrace);
 };
 
 
@@ -1186,20 +1266,45 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DelayedFunctionCaller);
 };
 
-using ProcessorFunction = std::function<bool(Processor*)>;
+
 
 struct SafeFunctionCall
 {
-	SafeFunctionCall(Processor* p_, const ProcessorFunction& f_);
+	enum Status
+	{
+		OK = 0,
+		cancelled,
+		interuptedByMessageThread,
+		processorWasDeleted,
+		nullPointerCall,
+		numStatuses
+	};
 
-	SafeFunctionCall();;
+	using Function = std::function<Status(Processor*)>;
 
-	bool call();
+	SafeFunctionCall(Processor* p_, const Function& f_) noexcept;
 
-	ProcessorFunction f;
+	SafeFunctionCall() noexcept;;
+
+	Status call() const;
+
+	bool isValid() const noexcept { return (bool)f; };
+
+	Result callWithResult() const
+	{
+		auto r = call();
+
+		if (r == OK)
+			return Result::ok();
+
+		return Result::fail(String(r));
+	}
+
+	Function f;
 	WeakReference<Processor> p;
 };
 
+using ProcessorFunction = SafeFunctionCall::Function;
 
 #if USE_VDSP_FFT
 

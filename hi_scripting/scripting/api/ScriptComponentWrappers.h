@@ -273,13 +273,7 @@ public:
 
 	const Component *getComponent() const { return component; }
 
-	virtual void asyncValueTreePropertyChanged(ValueTree& v, const Identifier& id)
-	{
-		auto idIndex = getScriptComponent()->getIndexForProperty(id);
-		auto value = v.getProperty(id);
-
-		updateComponent(idIndex, value);
-	}
+	virtual void asyncValueTreePropertyChanged(ValueTree& v, const Identifier& id);
 
 	virtual void valueTreeParentChanged(ValueTree& v) override;
 

@@ -58,7 +58,7 @@ void SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(SampleEdit
 
 	auto sounds = handler->getSelection().getItemArray();
 
-	ScopedLock sl(s->getMainController()->getSampleManager().getSamplerSoundLock());
+	LockHelpers::freeToGo(s->getMainController());
 
 	handler->getSelection().deselectAll();
 
@@ -220,7 +220,7 @@ void SampleEditHandler::SampleEditingActions::pasteSelectedSounds(SampleEditHand
 	checkMicPositionAmountBeforePasting(v, s);
 
 	{
-		ScopedLock sl(s->getMainController()->getSampleManager().getSamplerSoundLock());
+		LockHelpers::freeToGo(s->getMainController());
 
 
 		for (int i = 0; i < v.getNumChildren(); i++)
@@ -1868,7 +1868,7 @@ private:
 				}
 			}
 
-			return true;
+			return SafeFunctionCall::OK;
 		};
 
 		sampler->killAllVoicesAndCall(f);

@@ -46,7 +46,7 @@ bool ModulatorSynthGroupVoice::canPlaySound(SynthesiserSound *)
 
 void ModulatorSynthGroupVoice::addChildSynth(ModulatorSynth *childSynth)
 {
-	ScopedLock sl(ownerSynth->getSynthLock());
+	LockHelpers::SafeLock sl(ownerSynth->getMainController(), LockHelpers::AudioLock);
 
 	childSynths.add(ChildSynth(childSynth));
 }
@@ -54,7 +54,7 @@ void ModulatorSynthGroupVoice::addChildSynth(ModulatorSynth *childSynth)
 
 void ModulatorSynthGroupVoice::removeChildSynth(ModulatorSynth *childSynth)
 {
-	ScopedLock sl(ownerSynth->getSynthLock());
+	LockHelpers::SafeLock sl(ownerSynth->getMainController(), LockHelpers::AudioLock);
 
 	jassert(childSynth != nullptr);
 	jassert(childSynths.indexOf(childSynth) != -1);
@@ -68,8 +68,6 @@ void ModulatorSynthGroupVoice::removeChildSynth(ModulatorSynth *childSynth)
 	{
 		childSynths.removeAllInstancesOf(childSynth);
 	}
-
-	
 }
 
 /** Calls the base class startNote() for the group itself and all child synths.  */
@@ -207,7 +205,7 @@ ModulatorSynthVoice* ModulatorSynthGroupVoice::startNoteInternal(ModulatorSynth*
 
 void ModulatorSynthGroupVoice::calculateBlock(int startSample, int numSamples)
 {
-	ScopedLock sl(ownerSynth->getSynthLock());
+	ScopedLock sl(ownerSynth->getMainController()->getLock());
 
 	// Clear the buffer, since all child voices are added to this so it must be empty.
 	voiceBuffer.clear();
@@ -807,10 +805,13 @@ ModulatorSynthGroup::ModulatorSynthGroup(MainController *mc, const String &id, i
 
 ModulatorSynthGroup::~ModulatorSynthGroup()
 {
+	handler.clearAsync(this);
+
 	// This must be destroyed before the base class destructor because the MidiProcessor destructors may use some of ModulatorSynthGroup methods...
 	midiProcessorChain = nullptr;
 
 	
+
 }
 
 ProcessorEditorBody *ModulatorSynthGroup::createEditor(ProcessorEditor *parentEditor)
@@ -1172,7 +1173,6 @@ bool ModulatorSynthGroup::handleVoiceLimit(int numVoicesToClear)
 	jassert(numVoicesToClear == 1);
 
 	bool killedSomeVoices = ModulatorSynth::handleVoiceLimit(numVoicesToClear);
-
 	
 	if (killedSomeVoices)
 	{
@@ -1216,17 +1216,15 @@ bool ModulatorSynthGroup::handleVoiceLimit(int numVoicesToClear)
 
 void ModulatorSynthGroup::killAllVoices()
 {
-	for (int i = 0; i < voices.size(); i++)
+	for (auto v : activeVoices)
 	{
-		auto v = static_cast<ModulatorSynthGroupVoice*>(getVoice(i));
-
 		v->killVoice();
 
-		for (auto c : v->childSynths)
+		for (auto c : static_cast<ModulatorSynthGroupVoice*>(v)->childSynths)
 		{
 			if (c.isActiveForThisVoice)
 			{
-				auto childVoice = c.synth->getVoice(i);
+				auto childVoice = c.synth->getVoice(v->getVoiceIndex());
 
 				if (childVoice != nullptr)
 				{
@@ -1317,8 +1315,8 @@ ValueTree ModulatorSynthGroup::exportAsValueTree() const
 void ModulatorSynthGroup::checkFmState()
 {
 	getMainController()->getKillStateHandler().killVoicesAndCall(this, 
-		[](Processor* p) {dynamic_cast<ModulatorSynthGroup*>(p)->checkFMStateInternally(); return true; },
-		MainController::KillStateHandler::TargetThread::AudioThread);
+		[](Processor* p) {dynamic_cast<ModulatorSynthGroup*>(p)->checkFMStateInternally(); return SafeFunctionCall::OK; },
+		MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 
 
 	sendChangeMessage();
@@ -1328,9 +1326,10 @@ void ModulatorSynthGroup::checkFmState()
 
 void ModulatorSynthGroup::checkFMStateInternally()
 {
-	auto offset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
+	LockHelpers::freeToGo(getMainController());
+	LockHelpers::SafeLock l(getMainController(), LockHelpers::AudioLock, isOnAir());
 
-	jassert_skip_unit_test(!areVoicesActive());
+	auto offset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
 
 	if (fmEnabled)
 	{
@@ -1397,15 +1396,15 @@ void ModulatorSynthGroup::ModulatorSynthGroupHandler::add(Processor *newProcesso
 	m->setGroup(group);
 	m->prepareToPlay(group->getSampleRate(), group->getLargestBlockSize());
 
-	{
-		MainController::ScopedSuspender ss(group->getMainController());
+	m->setParentProcessor(group);
 
-		m->setIsOnAir(true);
-		m->setParentProcessor(group);
+	{
+		LOCK_PROCESSING_CHAIN(group);
+
+		m->setIsOnAir(group->isOnAir());
 
 		jassert(m != nullptr);
 		group->synths.add(m);
-
 		group->allowStates.setBit(group->synths.indexOf(m), true);
 
 		for (int i = 0; i < group->getNumVoices(); i++)
@@ -1413,12 +1412,8 @@ void ModulatorSynthGroup::ModulatorSynthGroupHandler::add(Processor *newProcesso
 			static_cast<ModulatorSynthGroupVoice*>(group->getVoice(i))->addChildSynth(m);
 		}
 
-
-
 		group->checkFmState();
-
 	}
-
 
 	group->sendChangeMessage();
 
@@ -1430,17 +1425,25 @@ void ModulatorSynthGroup::ModulatorSynthGroupHandler::remove(Processor *processo
 {
 	notifyListeners(Listener::ProcessorDeleted, processorToBeRemoved);
 
-	MainController::ScopedSuspender ss(group->getMainController(), MainController::ScopedSuspender::LockType::Lock);
+	ScopedPointer<ModulatorSynth> m = dynamic_cast<ModulatorSynth*>(processorToBeRemoved);
 
-	ModulatorSynth *m = dynamic_cast<ModulatorSynth*>(processorToBeRemoved);
-
-	for (int i = 0; i < group->getNumVoices(); i++)
 	{
-		static_cast<ModulatorSynthGroupVoice*>(group->getVoice(i))->removeChildSynth(m);
+		LOCK_PROCESSING_CHAIN(group);
+
+		for (int i = 0; i < group->getNumVoices(); i++)
+		{
+			static_cast<ModulatorSynthGroupVoice*>(group->getVoice(i))->removeChildSynth(m);
+		}
+
+		m->setIsOnAir(false);
+		group->synths.removeObject(m, false);
+		group->checkFmState();
 	}
 
-	group->synths.removeObject(m, removeSynth);
-	group->checkFmState();
+	if (removeSynth)
+		m = nullptr;
+	else
+		m.release();
 }
 
 

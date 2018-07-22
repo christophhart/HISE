@@ -229,7 +229,7 @@ void ModulatorSynth::synthTimerCallback(uint8 index, int numSamplesThisBlock)
 		const double uptime = getMainController()->getUptime();
 
 		// this has to be a uint32 because otherwise it could wrap around the uint16 max sample offset for bigger timer callbacks
-		uint32 offsetInBuffer = (uint32)((nextTimerCallbackTimes[index] - uptime) * getSampleRate());
+		uint32 offsetInBuffer = (uint32)((jmax(0.0, nextTimerCallbackTimes[index] - uptime)) * getSampleRate());
 
 		const uint32 delta = offsetInBuffer % HISE_EVENT_RASTER;
 		uint32 rasteredOffset = offsetInBuffer - delta;
@@ -340,15 +340,18 @@ void ModulatorSynth::processHiseEventBuffer(const HiseEventBuffer &inputBuffer, 
 
 void ModulatorSynth::addProcessorsWhenEmpty()
 {
+	LockHelpers::freeToGo(getMainController());
+
 	jassert(finalised);
 	
 	if (dynamic_cast<ModulatorSynthChain*>(this) == nullptr)
 	{
-		gainChain->getHandler()->add(new SimpleEnvelope(getMainController(),
+		ScopedPointer<SimpleEnvelope> newEnvelope = new SimpleEnvelope(getMainController(),
 			"DefaultEnvelope",
 			voices.size(),
-			Modulation::GainMode),
-			nullptr);
+			Modulation::GainMode);
+
+		gainChain->getHandler()->add(newEnvelope.release(), nullptr);
 
 		setEditorState("GainModulationShown", 1, dontSendNotification);
 	}
@@ -415,38 +418,6 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 
 		startSample += samplesToNextMidiMessage;
 		numSamples -= samplesToNextMidiMessage;
-
-		
-
-		
-#if 0
-		const int samplesToNextMidiMessage = midiEventPos - startSample;
-		const int delta = (samplesToNextMidiMessage % 8);
-		const int rastered = samplesToNextMidiMessage - delta;
-
-		if (rastered >= numSamples)
-		{
-			preVoiceRendering(startSample, numSamples);
-			renderVoice(startSample, numSamples);
-			postVoiceRendering(startSample, numSamples);
-			handleHiseEvent(m);
-			break;
-		}
-
-		if (rastered < 32)
-		{
-			handleHiseEvent(m);
-			continue;
-		}
-
-		preVoiceRendering(startSample, rastered);
-		renderVoice(startSample, rastered);
-		postVoiceRendering(startSample, rastered);
-
-		handleHiseEvent(m);
-		startSample += rastered;
-		numSamples -= rastered;
-#endif
 	}
 
 	while (eventIterator.getNextEvent(m, midiEventPos, true, false))
@@ -619,6 +590,13 @@ void ModulatorSynth::handleHiseEvent(const HiseEvent& m)
 {
 	if (getMainController()->getKillStateHandler().voiceStartIsDisabled())
 	{
+		// Pass the all notes off messages through
+		if (m.isAllNotesOff())
+		{
+			preHiseEventCallback(m);
+			allNotesOff(m.getChannel(), true);
+		}
+
 		return;
 	}
 	
@@ -660,19 +638,28 @@ void ModulatorSynth::handleHiseEvent(const HiseEvent& m)
 	}
 }
 
+#define DECLARE_ID(x) const juce::Identifier x(#x);
+
+namespace HostEventIds
+{
+DECLARE_ID(ppqPosition);
+DECLARE_ID(isPlaying);
+}
+
+#undef DECLARE_ID
+
 void ModulatorSynth::handleHostInfoHiseEvents(int numSamples)
 {
 	int ppqTimeStamp = -1;
 
 	// Check if ppqPosition should be added
-	static const Identifier ppqPosition("ppqPosition");
-	static const Identifier isPlaying("isPlaying");
+	
 
-	const bool hostIsPlaying = getMainController()->getHostInfoObject()->getProperty(isPlaying);
+	const bool hostIsPlaying = getMainController()->getHostInfoObject()->getProperty(HostEventIds::isPlaying);
 
 	if (hostIsPlaying && clockSpeed != ClockSpeed::Inactive)
 	{
-		double ppq = getMainController()->getHostInfoObject()->getProperty(ppqPosition);
+		double ppq = getMainController()->getHostInfoObject()->getProperty(HostEventIds::ppqPosition);
 
 		const double bufferAsMilliseconds = (double)numSamples / getSampleRate();
 		const double bufferAsPPQ = bufferAsMilliseconds * (getMainController()->getBpm() / 60.0);
@@ -820,7 +807,14 @@ void ModulatorSynth::preStopVoice(int voiceIndex)
 
 void ModulatorSynth::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
-	const ScopedLock sl(isOnAir() ? getSynthLock() : getDummyLockWhenNotOnAir());
+	if (isOnAir())
+	{
+		LockHelpers::freeToGo(getMainController());
+
+		//jassert(LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::AudioLock));
+	}
+
+	LockHelpers::SafeLock audioLock(getMainController(), LockHelpers::AudioLock, isOnAir());
 
 	// You must call finaliseModChains() in your Constructor...
 	jassert(finalised);
@@ -863,7 +857,7 @@ void ModulatorSynth::prepareToPlay(double newSampleRate, int samplesPerBlock)
 	
 void ModulatorSynth::numSourceChannelsChanged()
 {
-	ScopedLock sl(getSynthLock());
+	ScopedLock sl(getMainController()->getLock());
 
 	if (internalBuffer.getNumSamples() != 0)
 	{
@@ -1661,7 +1655,9 @@ void ModulatorSynth::resetAllVoices()
 void ModulatorSynth::killAllVoices()
 {
 	// Never call this directly, use 
-	jassert(!MessageManager::getInstance()->isThisTheMessageThread());
+	//jassert(MessageManager::getInstance()->isThisTheMessageThread());
+
+	LOG_KILL_EVENTS("Kill all voices for " + getId());
 
 	if (isInGroup())
 	{

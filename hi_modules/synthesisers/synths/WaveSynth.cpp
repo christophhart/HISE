@@ -563,7 +563,7 @@ float WaveSynth::getBalanceValue(bool usePan1, bool isLeft) const noexcept
 
 void WaveSynthVoice::setOctaveTransposeFactor(double newFactor, bool leftFactor)
 {
-	ScopedLock sl(getOwnerSynth()->getSynthLock());
+	ScopedLock sl(getOwnerSynth()->getMainController()->getLock());
 
 	if (leftFactor) octaveTransposeFactor1 = newFactor;
 	else octaveTransposeFactor2 = newFactor;

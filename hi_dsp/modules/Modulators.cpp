@@ -224,7 +224,7 @@ const float * TimeModulation::getCalculatedValues(int /*voiceIndex*/)
 }
 
 TimeModulation::TimeModulation() :
-	internalBuffer(0, 0)
+	internalBuffer()
 {
 }
 

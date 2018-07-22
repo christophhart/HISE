@@ -630,8 +630,8 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	case ToggleVerticalSize:toggleVerticalSize(); return true;
 	case NewSampleMap:		if (PresetHandler::showYesNoWindow("Clear Sample Map", "Do you want to clear the sample map?", PresetHandler::IconType::Question))
 	{
-		auto f = [](Processor* p) {dynamic_cast<ModulatorSampler*>(p)->clearSampleMap(sendNotificationAsync); return true; };
-		sampler->killAllVoicesAndCall(f);
+		auto f = [](Processor* p) {dynamic_cast<ModulatorSampler*>(p)->clearSampleMap(sendNotificationAsync); return SafeFunctionCall::OK; };
+		sampler->killAllVoicesAndCall(f, true);
 		return true;
 	}
 								
@@ -727,7 +727,7 @@ void SampleMapEditor::loadSampleMap()
 	{
 		PoolReference ref(sampler->getMainController(), f.getResult().getFullPathName(), FileHandlerBase::SampleMaps);
 
-		sampler->loadSampleMap(ref, true);
+		sampler->loadSampleMap(ref);
 	}
 }
 
@@ -771,7 +771,13 @@ void SampleMapEditor::comboBoxChanged(ComboBox* b)
 
 	PoolReference r(sampler->getMainController(), t, FileHandlerBase::SampleMaps);
 
-	sampler->loadSampleMap(r, true);
+	auto f = [r](Processor* p)
+	{
+		dynamic_cast<ModulatorSampler*>(p)->loadSampleMap(r);
+		return SafeFunctionCall::OK;
+	};
+
+	sampler->killAllVoicesAndCall(f);
 }
 
 ApplicationCommandManager * SampleMapEditor::getCommandManager()

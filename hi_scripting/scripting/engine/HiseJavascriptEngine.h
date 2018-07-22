@@ -38,6 +38,8 @@ namespace hise { using namespace juce;
 class JavascriptProcessor;
 class DialogWindowWithBackgroundThread;
 
+
+
 /** The HISE Javascript Engine.
  *
  *	This class is a modified version of the original Javascript engine found in JUCE.
@@ -147,6 +149,8 @@ public:
 
 	void registerGlobalStorge(DynamicObject *globaObject);
 
+	void extendTimeout(int milliSeconds);
+
 	/** Registers a callback to the engine.
 	*
 	*	If a function with this name is found at parsing, it will be stored as callback for faster execution:
@@ -161,7 +165,7 @@ public:
 
 	var executeCallback(int callbackIndex, Result *result);
 
-	void setCallbackParameter(int callbackIndex, int parameterIndex, var newValue);
+	void setCallbackParameter(int callbackIndex, int parameterIndex, const var& newValue);
 
 	DebugInformation*getDebugInformation(int index);
 

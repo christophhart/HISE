@@ -97,8 +97,7 @@ public:
 
 		setEnabledMidiChannels(synthChain->getActiveChannelData()->exportData());
 
-		ScopedLock sl(getLock());
-		ScopedLock sl2(getSampleManager().getSamplerSoundLock());
+		
 
 		deletePendingFlag = true;
 

@@ -682,8 +682,7 @@ ModulatorChain::ModulatorChain(MainController *mc, const String &uid, int numVoi
 
 ModulatorChain::~ModulatorChain()
 {
-	handler.clear();
-
+	handler.clearAsync(this);
 }
 
 Chain::Handler *ModulatorChain::getHandler() {return &handler;};;
@@ -1077,11 +1076,14 @@ void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator
 	
 	const int index = siblingToInsertBefore == nullptr ? -1 : chain->allModulators.indexOf(dynamic_cast<Modulator*>(siblingToInsertBefore));
 
-	{
-		MainController::ScopedSuspender ss(chain->getMainController());
+	newModulator->setParentProcessor(chain);
 
-		newModulator->setIsOnAir(true);
-		newModulator->setParentProcessor(chain);
+	bool onAir = chain->isOnAir();
+
+	{
+		LOCK_PROCESSING_CHAIN(chain);
+
+		newModulator->setIsOnAir(chain->isOnAir());
 
 		if (dynamic_cast<VoiceStartModulator*>(newModulator) != nullptr)
 		{
@@ -1113,15 +1115,14 @@ void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator
 		chain->allModulators.insert(index, newModulator);
 		jassert(chain->checkModulatorStructure());
 
-		if (JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(newModulator))
-		{
-			sp->compileScript();
-		}
-
 		checkActiveState();
 	}
 
-	
+	if (JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(newModulator))
+	{
+		sp->compileScript();
+	}
+
 
 	if (auto ltp = dynamic_cast<LookupTableProcessor*>(newModulator))
 	{
@@ -1186,51 +1187,63 @@ void ModulatorChain::ModulatorChainHandler::deleteModulator(Modulator *modulator
 {
 	notifyListeners(Listener::ProcessorDeleted, modulatorToBeDeleted);
 
-	modulatorToBeDeleted->removeBypassListener(this);
+	ScopedPointer<Modulator> mod = modulatorToBeDeleted;
 
-	activeAllList.remove(modulatorToBeDeleted);
-	
-	if (auto env = dynamic_cast<EnvelopeModulator*>(modulatorToBeDeleted))
 	{
-		activeEnvelopesList.remove(env);
-		activeMonophonicEnvelopesList.remove(static_cast<MonophonicEnvelope*>(env));
+		LOCK_PROCESSING_CHAIN(chain);
+
+		modulatorToBeDeleted->setIsOnAir(false);
+		modulatorToBeDeleted->removeBypassListener(this);
+
+		activeAllList.remove(modulatorToBeDeleted);
+
+		if (auto env = dynamic_cast<EnvelopeModulator*>(modulatorToBeDeleted))
+		{
+			activeEnvelopesList.remove(env);
+			activeMonophonicEnvelopesList.remove(static_cast<MonophonicEnvelope*>(env));
+		}
+		else if (auto vs = dynamic_cast<VoiceStartModulator*>(modulatorToBeDeleted))
+			activeVoiceStartList.remove(vs);
+		else if (auto tv = dynamic_cast<TimeVariantModulator*>(modulatorToBeDeleted))
+			activeTimeVariantsList.remove(tv);
+
+		for (int i = 0; i < getNumModulators(); ++i)
+		{
+			if (chain->allModulators[i] == modulatorToBeDeleted) chain->allModulators.remove(i);
+		};
+
+		for (int i = 0; i < chain->variantModulators.size(); ++i)
+		{
+			if (chain->variantModulators[i] == modulatorToBeDeleted) chain->variantModulators.remove(i, false);
+		};
+
+		for (int i = 0; i < chain->envelopeModulators.size(); ++i)
+		{
+			if (chain->envelopeModulators[i] == modulatorToBeDeleted) chain->envelopeModulators.remove(i, false);
+		};
+
+		for (int i = 0; i < chain->voiceStartModulators.size(); ++i)
+		{
+			if (chain->voiceStartModulators[i] == modulatorToBeDeleted) chain->voiceStartModulators.remove(i, false);
+		};
+
+		jassert(chain->checkModulatorStructure());
+
+		checkActiveState();
 	}
-	else if (auto vs = dynamic_cast<VoiceStartModulator*>(modulatorToBeDeleted))
-		activeVoiceStartList.remove(vs);
-	else if (auto tv = dynamic_cast<TimeVariantModulator*>(modulatorToBeDeleted))
-		activeTimeVariantsList.remove(tv);
 
-	for(int i = 0; i < getNumModulators(); ++i)
+	if (deleteMod)
 	{
-		if(chain->allModulators[i] == modulatorToBeDeleted) chain->allModulators.remove(i);
-	};
-		
-	for(int i = 0; i < chain->variantModulators.size(); ++i)
-	{
-		if(chain->variantModulators[i] == modulatorToBeDeleted) chain->variantModulators.remove(i, deleteMod);
-	};
-
-	for(int i = 0; i < chain->envelopeModulators.size(); ++i)
-	{
-		if(chain->envelopeModulators[i] == modulatorToBeDeleted) chain->envelopeModulators.remove(i, deleteMod);
-	};
-
-	for(int i = 0; i < chain->voiceStartModulators.size(); ++i) 
-	{
-		if(chain->voiceStartModulators[i] == modulatorToBeDeleted) chain->voiceStartModulators.remove(i, deleteMod);
-	};
-
-	jassert(chain->checkModulatorStructure());
-
-	checkActiveState();
+		mod = nullptr;
+	}
+	else
+		mod.release();
 };
 
 
 void ModulatorChain::ModulatorChainHandler::remove(Processor *processorToBeRemoved, bool deleteMod)
 {
 	notifyListeners(Listener::ProcessorDeleted, processorToBeRemoved);
-
-	ScopedLock sl(chain->getMainController()->getLock());
 
 	jassert(dynamic_cast<Modulator*>(processorToBeRemoved) != nullptr);
 	deleteModulator(dynamic_cast<Modulator*>(processorToBeRemoved), deleteMod);

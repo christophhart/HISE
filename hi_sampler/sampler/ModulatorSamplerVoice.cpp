@@ -92,7 +92,9 @@ void ModulatorSamplerVoice::stopNote(float velocity, bool allowTailoff)
 void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 {
     const StreamingSamplerSound *sound = wrappedVoice.getLoadedSound();
-    jassert(sound != nullptr);
+    
+	// In a synthgroup it might be possible that the wrapped sound is null
+	jassert(sound != nullptr || getOwnerSynth()->isInGroup());
  
 	CHECK_AND_LOG_ASSERTION(getOwnerSynth(), DebugLogger::Location::SampleRendering, sound != nullptr, 1);
 

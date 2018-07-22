@@ -107,8 +107,8 @@ class ProcessorEditorPanel;
 class ProcessorEditor : public Component,
 							  public SafeChangeListener,
 							  public DragAndDropTarget,
-
-							  public CopyPasteTarget
+							  public CopyPasteTarget,
+							  public Dispatchable
 {
 public:
 

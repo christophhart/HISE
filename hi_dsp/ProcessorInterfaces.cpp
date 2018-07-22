@@ -262,4 +262,31 @@ int AudioSampleProcessor::getConstrainedLoopValue(String metadata)
 	return jlimit<int>(sampleRange.getStart(), sampleRange.getEnd(), metadata.getIntValue());
 }
 
+void Chain::Handler::clearAsync(Processor* parentThatShouldBeTakenOffAir)
+{
+	int numToClear = getNumProcessors();
+
+	if(parentThatShouldBeTakenOffAir != nullptr)
+	{
+		LOCK_PROCESSING_CHAIN(parentThatShouldBeTakenOffAir);
+		parentThatShouldBeTakenOffAir->setIsOnAir(false);
+	}
+
+	while (--numToClear >= 0)
+	{
+		if (auto pToRemove = getProcessor(0))
+		{
+			
+			remove(pToRemove, false);
+			jassert(!pToRemove->isOnAir());
+
+			pToRemove->getMainController()->getGlobalAsyncModuleHandler().removeAsync(pToRemove, ProcessorFunction());
+		}
+		else
+		{
+			jassertfalse;
+		}
+	}
+}
+
 } // namespace hise

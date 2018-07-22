@@ -678,6 +678,11 @@ var HiseJavascriptEngine::RootObject::eval(Args a)
 
 Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowConstDeclarations/*=true*/)
 {
+#if JUCE_DEBUG
+	auto mc = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getMainController();
+	LockHelpers::noMessageThreadBeyondInitialisation(mc);
+#endif
+
 	static const Identifier onInit("onInit");
 
 	try
@@ -715,6 +720,11 @@ Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowCon
 
 var HiseJavascriptEngine::evaluate(const String& code, Result* result)
 {
+#if JUCE_DEBUG
+	auto mc = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getMainController();
+	LockHelpers::noMessageThreadBeyondInitialisation(mc);
+#endif
+
 	static const Identifier ext("eval");
 
 	try
@@ -793,6 +803,11 @@ ApiClass::Constant ApiClass::Constant::null;
 
 var HiseJavascriptEngine::callFunction(const Identifier& function, const var::NativeFunctionArgs& args, Result* result)
 {
+#if JUCE_DEBUG
+	auto mc = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getMainController();
+	LockHelpers::noMessageThreadBeyondInitialisation(mc);
+#endif
+
 	var returnVal(var::undefined());
 
 	try
@@ -831,7 +846,7 @@ int HiseJavascriptEngine::registerCallbackName(const Identifier &callbackName, i
 }
 
 
-void HiseJavascriptEngine::setCallbackParameter(int callbackIndex, int parameterIndex, var newValue)
+void HiseJavascriptEngine::setCallbackParameter(int callbackIndex, int parameterIndex, const var& newValue)
 {
 	root->hiseSpecialData.callbackNEW[callbackIndex]->setParameterValue(parameterIndex, newValue);
 }
@@ -962,6 +977,11 @@ void HiseJavascriptEngine::rebuildDebugInformation()
 
 var HiseJavascriptEngine::executeWithoutAllocation(const Identifier &function, const var::NativeFunctionArgs& args, Result* result /*= nullptr*/, DynamicObject *scopeToUse)
 {
+#if JUCE_DEBUG
+	auto mc = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getMainController();
+	LockHelpers::noMessageThreadBeyondInitialisation(mc);
+#endif
+
 	var returnVal(var::undefined());
 
 	try
@@ -996,6 +1016,13 @@ juce::CriticalSection& HiseJavascriptEngine::getDebugLock() const
 	return root->hiseSpecialData.getDebugLock();
 }
 
+void HiseJavascriptEngine::extendTimeout(int milliSeconds)
+{
+	auto newTimeout = root->timeout.toMilliseconds() + milliSeconds;
+
+	root->timeout = Time(newTimeout);
+}
+
 HiseJavascriptEngine::RootObject::Callback::Callback(const Identifier &id, int numArgs_, double bufferTime_) :
 callbackName(id),
 bufferTime(bufferTime_),
@@ -1007,6 +1034,8 @@ numArgs(numArgs_)
 		parameterValues[i] = var::undefined();
 	}
 }
+
+
 
 #if INCLUDE_NATIVE_JIT
 NativeJITScope* HiseJavascriptEngine::RootObject::HiseSpecialData::getNativeJITScope(const Identifier& id)

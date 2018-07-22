@@ -536,7 +536,7 @@ void ModulatorSamplerSound::updateInternalData(const Identifier& id, const var& 
 			if(s != nullptr)
 				s->updateAsyncInternalData(id, newValue);
 
-			return true;
+			return SafeFunctionCall::OK;
 		};
 
 		if (enableAsyncPropertyChange)
@@ -553,8 +553,9 @@ void ModulatorSamplerSound::updateInternalData(const Identifier& id, const var& 
 
 void ModulatorSamplerSound::updateAsyncInternalData(const Identifier& id, int newValue)
 {
-	jassert(getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::SampleLoadingThread);
-	jassert(getMainController()->getKillStateHandler().voicesAreKilled());
+	LockHelpers::freeToGo(getMainController());
+
+	jassert_sample_loading_thread(getMainController());
 
 	if (id == SampleIds::SampleStart)
 	{
@@ -991,8 +992,6 @@ StringArray ModulatorSamplerSoundPool::getFileNameList() const
 size_t ModulatorSamplerSoundPool::getMemoryUsageForAllSamples() const noexcept
 {
 	if (mc->getSampleManager().isPreloading()) return 0;
-
-	ScopedLock sl(mc->getSampleManager().getSamplerSoundLock());
 
 	size_t memoryUsage = 0;
 

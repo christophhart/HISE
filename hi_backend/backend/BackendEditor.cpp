@@ -36,13 +36,12 @@ namespace hise { using namespace juce;
 
 BackendProcessorEditor::BackendProcessorEditor(FloatingTile* parent) :
 FloatingTileContent(parent),
+PreloadListener(parent->getMainController()->getSampleManager()),
 owner(static_cast<BackendProcessor*>(parent->getMainController())),
 parentRootWindow(parent->getBackendRootWindow()),
 rootEditorIsMainSynthChain(true),
 isLoadingPreset(false)
 {
-	owner->getSampleManager().addPreloadListener(this);
-
     setOpaque(true);
 
 	setLookAndFeel(&lookAndFeelV3);
@@ -63,8 +62,6 @@ isLoadingPreset(false)
 
 BackendProcessorEditor::~BackendProcessorEditor()
 {
-	owner->getSampleManager().removePreloadListener(this);
-
 	owner->removeScriptListener(this);
 	
 	// Remove the popup components
@@ -338,7 +335,7 @@ void BackendProcessorEditor::loadNewContainer(const File &f)
 		GET_PROJECT_HANDLER(getMainSynthChain()).setWorkingProject(f.getParentDirectory().getParentDirectory(), this);
 	}
 
-	owner->killAndCallOnLoadingThread([f](Processor* p) {p->getMainController()->loadPresetFromFile(f, nullptr); return true; });
+	owner->killAndCallOnLoadingThread([f](Processor* p) {p->getMainController()->loadPresetFromFile(f, nullptr); return SafeFunctionCall::OK; });
 }
 
 void BackendProcessorEditor::refreshInterfaceAfterPresetLoad()
@@ -365,7 +362,7 @@ void BackendProcessorEditor::loadNewContainer(const ValueTree &v)
 	}
 	else
 	{
-		owner->killAndCallOnLoadingThread([v](Processor* p) {p->getMainController()->loadPresetFromValueTree(v, nullptr); return true; });
+		owner->killAndCallOnLoadingThread([v](Processor* p) {p->getMainController()->loadPresetFromValueTree(v, nullptr); return SafeFunctionCall::OK; });
 	}
 
 	
@@ -382,7 +379,7 @@ void BackendProcessorEditor::clearPreset()
 	isLoadingPreset = true;
 	viewport->showPreloadMessage(true);
 
-	owner->killAndCallOnLoadingThread([](Processor* p) {p->getMainController()->clearPreset(); return true; });
+	owner->killAndCallOnLoadingThread([](Processor* p) {p->getMainController()->clearPreset(); return SafeFunctionCall::OK; });
 
 }
 

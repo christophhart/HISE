@@ -289,7 +289,7 @@ void SampleImporter::importNewAudioFiles(Component *childComponentOfMainEditor, 
 void SampleImporter::loadAudioFilesUsingDropPoint(Component* /*childComponentOfMainEditor*/, ModulatorSampler *sampler, const StringArray &fileNames, BigInteger rootNotes)
 {
 	
-	ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
+	LockHelpers::freeToGo(sampler->getMainController());
 
 	const int startIndex = sampler->getNumSounds();
 
@@ -321,8 +321,6 @@ void SampleImporter::loadAudioFilesUsingDropPoint(Component* /*childComponentOfM
 		
 		if(mapToVelocity)
 		{
-			
-
 			data.hiKey = noteNumber;
 			data.lowVelocity = (int)(velocity);
 			data.hiVelocity = (int)(velocity + velocityDelta - 1.0f);
@@ -346,9 +344,6 @@ void SampleImporter::loadAudioFilesUsingDropPoint(Component* /*childComponentOfM
 	}
 
 	sampler->refreshPreloadSizes();
-	
-
-	
 }
 
 void SampleImporter::loadAudioFilesUsingFileName(Component *childComponentOfMainEditor, ModulatorSampler *sampler, const StringArray &fileNames, bool /*useVelocityAutomap*/)
@@ -366,6 +361,8 @@ void SampleImporter::loadAudioFilesUsingFileName(Component *childComponentOfMain
 
 void SampleImporter::loadAudioFilesUsingPitchDetection(Component* /*childComponentOfMainEditor*/, ModulatorSampler *sampler, const StringArray &fileNames, bool /*useVelocityAutomap*/)
 {
+	LockHelpers::freeToGo(sampler->getMainController());
+
 	Array<Range<double>> freqRanges;
 
 	freqRanges.add(Range<double>(0, MidiMessage::getMidiNoteInHertz(1)/2));
@@ -386,8 +383,6 @@ void SampleImporter::loadAudioFilesUsingPitchDetection(Component* /*childCompone
 	AudioSampleBuffer pitchDetectionBuffer(2, numSamplesPerDetection);
 
 	const int startIndex = sampler->getNumSounds();
-
-	ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
 
 	for(int i = 0; i < fileNames.size(); i++)
 	{
@@ -429,7 +424,7 @@ void SampleImporter::loadAudioFilesRaw(Component* /*childComponentOfMainEditor*/
 {
 	const int startIndex = sampler->getNumSounds();
 
-	ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
+	LockHelpers::freeToGo(sampler->getMainController());
 
 	for (int i = 0; i < fileNames.size(); i++)
 	{
@@ -685,9 +680,8 @@ void FileImportDialogWindow::run()
 	sampler->setNumMicPositions(collection.multiMicTokens);
 
 	{
-		ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
-		MessageManagerLock mLock;
-
+		LockHelpers::freeToGo(sampler->getMainController());
+		
 		for (int i = 0; i < collection.dataList.size(); i++)
 		{
 			showStatusMessage("Loading sample " + collection.dataList[i].files.getFirst().getReferenceString());

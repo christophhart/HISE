@@ -35,6 +35,7 @@
 namespace hise { using namespace juce;
 
 
+
 class ModulatorSynthGroup;
 
 
@@ -114,6 +115,7 @@ public:
 
 	const MainController* getMainController_() const { return mc; }
 
+	
 
 protected:
 
@@ -136,6 +138,12 @@ protected:
 	ReferenceCountedObjectPtr<ScriptingApi::Content> content;
 
 	//WeakReference<ScriptingApi::Content> content;
+
+private:
+
+	void defaultControlCallbackIdle(ScriptingApi::Content::ScriptComponent *component, const var& controllerValue, Result& r);
+
+	void customControlCallbackIdle(ScriptingApi::Content::ScriptComponent *component, const var& controllerValue, Result& r);
 };
 
 
@@ -282,7 +290,8 @@ private:
 *	
 */
 class JavascriptProcessor :	public FileChangeListener,
-							public HiseJavascriptEngine::Breakpoint::Listener
+							public HiseJavascriptEngine::Breakpoint::Listener,
+							public Dispatchable
 {
 public:
 
@@ -410,6 +419,8 @@ public:
 		int c;
 	};
 
+	using ResultFunction = std::function<void(const SnippetResult& result)>;
+
 	// ================================================================================================================
 
 	JavascriptProcessor(MainController *mc);
@@ -447,7 +458,7 @@ public:
 
 	virtual void fileChanged() override;
 
-	SnippetResult compileScript();
+	void compileScript(const ResultFunction& f = ResultFunction());
 
 	void setupApi();
 
@@ -495,6 +506,8 @@ public:
 	void setCompileProgress(double progress);
 
 	void compileScriptWithCycleReferenceCheckEnabled();
+
+	void stuffAfterCompilation(const SnippetResult& r);
 
 	void showPopupForCallback(const Identifier& callback, int charNumber, int lineNumber);
 
@@ -642,9 +655,13 @@ private:
 
 	};
 
-	struct RepaintUpdater : public AsyncUpdater
+	struct RepaintUpdater : public UpdateDispatcher::Listener
 	{
-		void handleAsyncUpdate()
+		RepaintUpdater(UpdateDispatcher& dp) :
+			Listener(&dp)
+		{};
+
+		void handleAsyncUpdate() override
 		{
 			for (int i = 0; i < editors.size(); i++)
 			{
@@ -654,6 +671,8 @@ private:
 
 		Array<Component::SafePointer<Component>> editors;
 	};
+
+	UpdateDispatcher repaintDispatcher;
 
 	RepaintUpdater repaintUpdater;
 
@@ -677,6 +696,120 @@ private:
 
 public:
 	
+};
+
+
+class JavascriptThreadPool : public Thread,
+							 public ControlledObject
+{
+public:
+
+	JavascriptThreadPool(MainController* mc) :
+		Thread("Javascript Thread"),
+		ControlledObject(mc),
+		lowPriorityQueue(8192),
+		highPriorityQueue(2048),
+		compilationQueue(128)
+	{
+		startThread(6);
+	}
+
+	~JavascriptThreadPool()
+	{
+		stopThread(1000);
+	}
+
+	
+	class Task
+	{
+	public:
+
+		enum Type
+		{
+			Compilation,
+			HiPriorityCallbackExecution,
+			LowPriorityCallbackExecution,
+			Free,
+			numTypes
+		};
+
+		using Function = std::function < Result(JavascriptProcessor*)>;
+
+		Task() noexcept:
+		  type(Free),
+		  f(),
+		  jp(nullptr)
+		{};
+
+		Task(Type t, JavascriptProcessor* jp_, const Function& functionToExecute) noexcept:
+			type(t),
+			f(functionToExecute),
+			jp(jp_)
+		{}
+
+		JavascriptProcessor* getProcessor() const noexcept { return jp.get(); };
+		
+		Type getType() const noexcept { return type; }
+
+		Result callWithResult();
+
+		bool isValid() const noexcept { return (bool)f; }
+
+		bool isHiPriority() const noexcept { return type == Compilation || type == HiPriorityCallbackExecution; }
+
+	private:
+
+		Type type;
+		WeakReference<JavascriptProcessor> jp;
+		Function f;
+	};
+
+	void addJob(Task::Type t, JavascriptProcessor* p, const Task::Function& f);
+
+	void run() override;;
+
+	const CriticalSection& getLock() const noexcept { return scriptLock; };
+
+#if CLEAN_UP_LOCK
+	bool shouldDeferExecution() const noexcept;;
+#endif
+
+	bool isBusy() const noexcept { return busy; }
+
+	Task::Type getCurrentTask() const noexcept { return currentType; }
+
+#if CLEANUP_LOCK
+	bool isLockedScriptThread() const noexcept;
+#endif
+
+	void killVoicesAndExtendTimeOut(JavascriptProcessor* jp, int milliseconds=1000);
+
+private:
+
+	using PendingCompilationList = Array<WeakReference<JavascriptProcessor>>;
+
+	void pushToQueue(const Task::Type& t, JavascriptProcessor* p, const Task::Function& f);
+
+	Result executeNow(const Task::Type& t, JavascriptProcessor* p, const Task::Function& f);
+
+	Result executeQueue(const Task::Type& t, PendingCompilationList& pendingCompilations);
+
+	std::atomic<bool> pending;
+	
+	bool busy = false;
+	Task::Type currentType;
+
+	CriticalSection scriptLock;
+
+	using CompilationTask = SuspendHelpers::Suspended<Task, SuspendHelpers::ScopedTicket>;
+	using CallbackTask = SuspendHelpers::Suspended<Task, SuspendHelpers::FreeTicket>;
+
+	using Config = MultithreadedQueueHelpers::Configuration;
+	constexpr static Config queueConfig = Config::AllocationsAllowedAndTokenlessUsageAllowed;
+
+	MultithreadedLockfreeQueue<CompilationTask, queueConfig> compilationQueue;
+	MultithreadedLockfreeQueue<CallbackTask, queueConfig> lowPriorityQueue;
+	MultithreadedLockfreeQueue<CallbackTask, queueConfig> highPriorityQueue;
 };
 
 

@@ -621,7 +621,7 @@ void MPEPanel::buttonClicked(Button* b)
 	auto f = [on](Processor* p)
 	{
 		p->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().setMpeMode(on);
-		return true;
+		return SafeFunctionCall::OK;
 	};
 
 	getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), f, MainController::KillStateHandler::MessageThread);
@@ -638,16 +638,13 @@ void MPEPanel::Notifier::timerCallback()
 {
 	if (refreshPanel)
 	{
-		if (auto l = PresetLoadLock(parent.getMainController()))
-		{
-			parent.enableMPEButton.setToggleState(isEnabled, dontSendNotification);
-			parent.setCurrentMod(nullptr);
-			parent.listbox.deselectAllRows();
-			parent.listbox.updateContent();
-			parent.repaint();
-			parent.resized();
-			refreshPanel = false;
-		}
+		parent.enableMPEButton.setToggleState(isEnabled, dontSendNotification);
+		parent.setCurrentMod(nullptr);
+		parent.listbox.deselectAllRows();
+		parent.listbox.updateContent();
+		parent.repaint();
+		parent.resized();
+		refreshPanel = false;
 	}
 }
 
@@ -710,7 +707,7 @@ void MPEPanel::Model::deleteKeyPressed(int lastRowSelected)
 				m->sendChangeMessage();
 			}
 
-			return true;
+			return SafeFunctionCall::OK;
 		};
 
 		mod->getMainController()->getKillStateHandler().killVoicesAndCall(mod, f, MainController::KillStateHandler::MessageThread);
@@ -853,7 +850,7 @@ void MPEPanel::Model::LastRow::buttonClicked(Button*)
 
 				data.addConnection(dynamic_cast<MPEModulator*>(p));
 
-				return true;
+				return SafeFunctionCall::OK;
 			};
 
 			mod->getMainController()->getKillStateHandler().killVoicesAndCall(mod, f, MainController::KillStateHandler::MessageThread);
@@ -1136,7 +1133,7 @@ void MPEPanel::Model::Row::deleteThisRow()
 				m->sendChangeMessage();
 			}
 
-			return true;
+			return SafeFunctionCall::OK;
 		};
 
 		findParentComponentOfClass<MPEPanel>()->setCurrentMod(nullptr);

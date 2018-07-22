@@ -61,7 +61,7 @@ struct MappingData
 
 // ====================================================================================================================
 
-#define DECLARE_ID(x) const Identifier x(#x);
+#define DECLARE_ID(x) const juce::Identifier x(#x);
 
 namespace SampleIds
 {
@@ -88,6 +88,8 @@ DECLARE_ID(LowerVelocityXFade);
 DECLARE_ID(UpperVelocityXFade);
 DECLARE_ID(SampleState);
 DECLARE_ID(Reversed);
+
+#undef DECLARE_ID
 
 struct Helpers
 {

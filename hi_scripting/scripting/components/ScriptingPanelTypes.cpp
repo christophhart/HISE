@@ -827,29 +827,33 @@ void ScriptContentPanel::Editor::Actions::rebuildAndRecompile(Editor* e)
     {
         ids.add(sc->getName());
     }
-    
-    content->resetContentProperties();
-    
-    auto f = [jp, content, ids, b]()
+
+    auto f = [ids, b](Processor* p)
     {
-        
-        
+		auto content = dynamic_cast<JavascriptProcessor*>(p)->getContent();
+
+		content->resetContentProperties();
+
+		auto jp = dynamic_cast<JavascriptProcessor*>(content->getProcessor());
+
         jp->compileScript();
         
         for (auto id : ids)
         {
             auto sc = content->getComponentWithName(id);
             
-            if (sc != nullptr)
-                b->addToSelection(sc, id == ids.getLast() ? sendNotification : dontSendNotification);
+			if (sc != nullptr)
+				b->addToSelection(sc, id == ids.getLast() ? sendNotification : dontSendNotification);
         }
         
         content->setIsRebuilding(false);
+
+		return SafeFunctionCall::OK;
     };
     
-    content->getUpdateDispatcher()->callFunctionAsynchronously(f);
-    
-    
+	auto p = e->getProcessor();
+
+	p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, MainController::KillStateHandler::ScriptingThread);
 }
 
 void ScriptContentPanel::Editor::Actions::zoomIn(Editor* e)

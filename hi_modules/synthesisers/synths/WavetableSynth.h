@@ -416,7 +416,7 @@ public:
 		{
 		case HqMode:
 			{
-				ScopedLock sl(getSynthLock());
+				ScopedLock sl(getMainController()->getLock());
 
 				hqMode = newValue == 1.0f;
 

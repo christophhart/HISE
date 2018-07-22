@@ -793,26 +793,39 @@ String BalanceCalculator::getBalanceAsString(int balanceValue)
 	else return String(abs(balanceValue)) + (balanceValue > 0 ? " R" : " L");
 }
 
-SafeFunctionCall::SafeFunctionCall(Processor* p_, const ProcessorFunction& f_) :
+SafeFunctionCall::SafeFunctionCall(Processor* p_, const Function& f_) noexcept:
 	p(p_),
 	f(f_)
 {
 
 }
 
-SafeFunctionCall::SafeFunctionCall() :
+SafeFunctionCall::SafeFunctionCall() noexcept:
 	p(nullptr),
 	f()
 {
 
 }
 
-bool SafeFunctionCall::call()
+SafeFunctionCall::Status SafeFunctionCall::call() const
 {
-	if (p.get() != nullptr)
-		return f(p.get());
+	try
+	{
+		if (p.get() != nullptr)
+			return f(p.get());
+	}
+	catch (MainController::LockFreeDispatcher::AbortSignal s)
+	{
+		// You should catch this before.
+		jassertfalse;
 
-	return false;
+		return Status::cancelled;
+	}
+
+	// You have called this without passing an actual object here.
+	jassert(p.wasObjectDeleted());
+
+	return p.wasObjectDeleted() ? Status::processorWasDeleted : Status::nullPointerCall;
 }
 
 

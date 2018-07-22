@@ -313,16 +313,21 @@ void PanelWithProcessorConnection::refreshConnectionList()
 
 			StringArray items;
 
-			tmp->fillModuleList(items);
 			tmp->refreshSelector(items, currentId);
 		}
+
+		return true;
 	};
 
-	MainController::UserPresetHandler::callOnMessageThreadWhenIdle<PanelWithProcessorConnection>(getMainController(), this, f);
+	f(this);
+
+	//getMainController()->getLockFreeDispatcher().callOnMessageThreadWhenIdle<PanelWithProcessorConnection>(this, f);
 }
 
 void PanelWithProcessorConnection::refreshSelector(StringArray &items, String currentId)
 {
+	fillModuleList(items);
+
 	int index = items.indexOf(currentId);
 
 	connectionSelector->addItem("Disconnect", 1);

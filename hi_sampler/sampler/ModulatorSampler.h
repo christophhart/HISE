@@ -72,28 +72,9 @@ public:
 		using SharedPointer = ReferenceCountedObjectPtr<ModulatorSamplerSound>;
 
 		/** This iterates over all sounds and locks the sound lock if desired. */
-		SoundIterator(ModulatorSampler* s_, bool lock_=true):
-			s(s_),
-			lock(lock_)
-		{
-			if (s->getNumSounds() == 0)
-			{
-				lock = false;
-			}
-			else
-			{
-				if (lock)
-				{
-					lock = s->getMainController()->getSampleManager().getSamplerSoundLock().tryEnter();
-
-					if (!lock)
-						jassertfalse;
-
-					//s->getMainController()->getSampleManager().getSamplerSoundLock().enter();
-				}
-					
-			}
-		}
+		SoundIterator(ModulatorSampler* s_, bool /*lock_*/=true):
+			s(s_)
+		{}
 
 		SharedPointer getNextSound()
 		{
@@ -103,11 +84,7 @@ public:
 			return nullptr;
 		}
 
-		~SoundIterator()
-		{
-			if(lock)
-				s->getMainController()->getSampleManager().getSamplerSoundLock().exit();
-		}
+		~SoundIterator() {}
 
 		int size() const
 		{
@@ -115,8 +92,6 @@ public:
 		}
 
 	private:
-
-		
 
 		ModulatorSamplerSound* getSoundInternal()
 		{
@@ -126,11 +101,8 @@ public:
 			return static_cast<ModulatorSamplerSound*>(s->getSound(index++));
 		}
 
-		bool lock;
-
 		int index = 0;
-
-		ModulatorSampler* s;
+		WeakReference<ModulatorSampler> s;
 	};
 
 
@@ -325,7 +297,7 @@ public:
 	SampleMap *getSampleMap() {	return sampleMap; };
 	void clearSampleMap(NotificationType n);
 	
-	void loadSampleMap(PoolReference ref, bool loadAsynchronous=false);
+	void loadSampleMap(PoolReference ref);
 
 	void loadEmbeddedValueTree(const ValueTree& v, bool loadAsynchronous = false);
 
@@ -397,14 +369,9 @@ public:
 		if (shouldBePurged != purged)
 		{
 			if (shouldBePurged)
-			{
 				getMainController()->getDebugLogger().logMessage("**Purging samples** from " + getId());
-			}
 			else
-			{
 				getMainController()->getDebugLogger().logMessage("**Unpurging samples** from " + getId());
-			}
-
 
 			auto f = [shouldBePurged](Processor* p)
 			{
@@ -417,17 +384,16 @@ public:
 				for (int i = 0; i < s->sounds.size(); i++)
 				{
 					ModulatorSamplerSound *sound = static_cast<ModulatorSamplerSound*>(s->getSound(i));
-
 					sound->setPurged(shouldBePurged);
 				}
 
 				s->refreshPreloadSizes();
 				s->refreshMemoryUsage();
 
-				return true;
+				return SafeFunctionCall::OK;
 			};
 
-			killAllVoicesAndCall(f);
+			killAllVoicesAndCall(f, true);
 		}
 	}
 
@@ -551,7 +517,7 @@ public:
 
 	bool hasPendingSampleLoad() const { return samplePreloadPending; }
 
-	void killAllVoicesAndCall(const ProcessorFunction& f);
+	void killAllVoicesAndCall(const ProcessorFunction& f, bool restrictToSampleLoadingThread=true);
 
 	void setUseStaticMatrix(bool shouldUseStaticMatrix)
 	{
@@ -569,7 +535,7 @@ private:
 
 	bool allVoicesAreKilled() const
 	{
-		return getMainController()->getKillStateHandler().voicesAreKilled();
+		return !getMainController()->getKillStateHandler().isAudioRunning();
 	}
 
 	
@@ -657,6 +623,7 @@ private:
 
     std::atomic<bool> samplePreloadPending;
 
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ModulatorSampler);
 };
 
 

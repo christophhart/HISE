@@ -484,6 +484,8 @@ protected:
         if(!anyTimerActive)
             return false;
         
+		auto nextCallbackTime = nextTimerCallbackTimes[timerIndex].load();
+
 		if (nextTimerCallbackTimes[timerIndex] == 0.0)
 			return false;
 
@@ -491,7 +493,7 @@ protected:
 		auto timeThisBlock = (double)numSamplesThisBlock / getSampleRate();
 
 		Range<double> rangeThisBlock(uptime, uptime + timeThisBlock);
-		return rangeThisBlock.contains(nextTimerCallbackTimes[timerIndex]);
+		return uptime > nextCallbackTime || rangeThisBlock.contains(nextCallbackTime);
 	};
 	
 	// Used to display the playing position

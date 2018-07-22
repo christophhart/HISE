@@ -58,11 +58,9 @@ viewUndoManager(new UndoManager())
 	{
 		getAutoSaver().updateAutosaving();
 	}
-
 	
 	clearPreset();
 	getSampleManager().getProjectHandler().addListener(this);
-
 
 	if (!inUnitTestMode())
 	{
@@ -71,22 +69,26 @@ viewUndoManager(new UndoManager())
 		auto f = [tmp](Processor*)
 		{
 			tmp->loadAllFilesFromProjectFolder();
-			return true;
+			return SafeFunctionCall::OK;
 		};
 
 		getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
 	}
+
+
+	
 }
 
 
 BackendProcessor::~BackendProcessor()
 {
+	AudioThreadGuard::setHandler(nullptr);
+
 	getSampleManager().cancelAllJobs();
 
 	getSampleManager().getProjectHandler().removeListener(this);
 
-	ScopedLock sl(getLock());
-	ScopedLock sl2(getSampleManager().getSamplerSoundLock());
+	GLOBAL_LOCK_POS( globalLock(this, GlobalLock::Reason::Destruction);)
 
 	deletePendingFlag = true;
 
@@ -109,7 +111,7 @@ void BackendProcessor::projectChanged(const File& /*newRootDirectory*/)
 	auto f = [tmp](Processor*)
 	{
 		tmp->loadAllFilesFromProjectFolder();
-		return true;
+		return SafeFunctionCall::OK;
 	};
 
 	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
@@ -189,7 +191,7 @@ void BackendProcessor::setStateInformation(const void *data, int sizeInBytes)
 
 		tmp.reset();
 
-		return true;
+		return SafeFunctionCall::OK;
 	};
 
 	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);

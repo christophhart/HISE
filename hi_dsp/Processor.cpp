@@ -44,7 +44,6 @@ void Processor::debugProcessor(const String &t)
 
 Processor::Processor(MainController *m, const String &id_, int numVoices_) :
 	ControlledObject(m),
-	rebuildDelayer(*this),
 	id(id_),
 	consoleEnabled(false),
 	bypassed(false),
@@ -57,6 +56,8 @@ Processor::Processor(MainController *m, const String &id_, int numVoices_) :
 	numVoices(numVoices_),
 	symbol(Path())
 {
+	WARN_IF_AUDIO_THREAD(true, MainController::KillStateHandler::ProcessorInsertion);
+
 	editorStateIdentifiers.add("Folded");
 	editorStateIdentifiers.add("BodyShown");
 	editorStateIdentifiers.add("Visible");
@@ -72,8 +73,61 @@ Processor::Processor(MainController *m, const String &id_, int numVoices_) :
 	}
 }
 
+Processor::~Processor()
+{
+	WARN_IF_AUDIO_THREAD(true, MainController::KillStateHandler::ProcessorDestructor);
+
+	getMainController()->getMacroManager().removeMacroControlsFor(this);
+
+	removeAllChangeListeners();
+
+	masterReference.clear();
+}
+
+juce::ValueTree Processor::exportAsValueTree() const
+{
+	WARN_IF_AUDIO_THREAD(true, MainController::KillStateHandler::ValueTreeOperation);
+
+#if USE_OLD_FILE_FORMAT
+	ValueTree v(getType());
+#else
+	ValueTree v("Processor");
+	v.setProperty("Type", getType().toString(), nullptr);
+#endif
+
+	v.setProperty("ID", getId(), nullptr);
+	v.setProperty("Bypassed", isBypassed(), nullptr);
+
+	ScopedPointer<XmlElement> editorValueSet = new XmlElement("EditorStates");
+	editorStateValueSet.copyToXmlAttributes(*editorValueSet);
+
+#if USE_OLD_FILE_FORMAT
+	v.setProperty("EditorState", editorValueSet->createDocument(""), nullptr);
+
+	for (int i = 0; i < getNumChildProcessors(); i++)
+	{
+		v.addChild(getChildProcessor(i)->exportAsValueTree(), i, nullptr);
+	};
+
+#else
+	ValueTree editorStateValueTree = ValueTree::fromXml(*editorValueSet);
+	v.addChild(editorStateValueTree, -1, nullptr);
+
+	ValueTree childProcessors("ChildProcessors");
+
+	for (int i = 0; i < getNumChildProcessors(); i++)
+	{
+		childProcessors.addChild(getChildProcessor(i)->exportAsValueTree(), i, nullptr);
+	};
+
+	v.addChild(childProcessors, -1, nullptr);
+#endif
+	return v;
+}
+
 void Processor::restoreFromValueTree(const ValueTree &previouslyExportedProcessorState)
 {
+	WARN_IF_AUDIO_THREAD(true, MainController::KillStateHandler::ValueTreeOperation);
 
 	const ValueTree &v = previouslyExportedProcessorState;
 
@@ -153,22 +207,96 @@ int Processor::getNumParameters() const
 		return parameterNames.size();
 }
 
-void Processor::setIsOnAir(bool isBeingProcessedInAudioThread)
+void Processor::setIsOnAir(bool shouldBeOnAir)
 {
-	onAir = isBeingProcessedInAudioThread;
+	// This should be called only with a locked iterator lock during insertion...
+	jassert(!shouldBeOnAir || LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::IteratorLock));
+	jassert(!shouldBeOnAir || LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::AudioLock));
+
+	// You must call setIsOnAir after setParentProcessor
+	ProcessorHelpers::isValidAndInitialised(this, false);
+
+	onAir = shouldBeOnAir;
 
 	for (int i = 0; i < getNumChildProcessors(); i++)
 	{
-		getChildProcessor(i)->setIsOnAir(isBeingProcessedInAudioThread);
+		getChildProcessor(i)->setIsOnAir(shouldBeOnAir);
 	}
 }
 
 
-const hise::Processor* Processor::getParentProcessor(bool getOwnerSynth) const
+bool Processor::isRebuildMessagePending() const noexcept
+{
+	if (rebuildMessagePending)
+		return true;
+
+	auto parent = getParentProcessor(false, false);
+
+	if (parent != nullptr)
+		return parent->isRebuildMessagePending();
+
+	return false;
+}
+
+void Processor::cleanRebuildFlagForThisAndParents()
+{
+	if (rebuildMessagePending)
+	{
+		rebuildMessagePending = false;
+
+		if (auto parent = getParentProcessor(false))
+			parent->cleanRebuildFlagForThisAndParents();
+	}
+}
+
+void Processor::sendRebuildMessage(bool forceUpdate/*=false*/)
+{
+	
+	if (!isRebuildMessagePending())
+	{
+		rebuildMessagePending = true;
+
+		auto f = [forceUpdate](Dispatchable* obj)
+		{
+			auto p = static_cast<Processor*>(obj);
+			auto pToUse = p;
+
+			while (auto parent = pToUse->getParentProcessor(false, false))
+			{
+				if (parent->isRebuildMessagePending())
+				{
+					DBG("Skipping rebuilding for " + pToUse->getId());
+					pToUse = parent;
+				}
+
+				else
+					break;
+			}
+
+			DBG("Rebuilding " + pToUse->getId());
+
+			for (auto l : pToUse->deleteListeners)
+			{
+				if (p->getMainController()->shouldAbortMessageThreadOperation())
+					return Status::needsToRunAgain;
+
+				if (l.get() != nullptr)
+					l->updateChildEditorList(forceUpdate);
+			}
+
+			p->cleanRebuildFlagForThisAndParents();
+			return Status::OK;
+		};
+
+		getMainController()->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(this, f);
+	}
+}
+
+const hise::Processor* Processor::getParentProcessor(bool getOwnerSynth, bool assertIfFalse) const
 {
 	if (parentProcessor == nullptr)
 	{
-		jassert(this == getMainController()->getMainSynthChain());
+		jassert(!assertIfFalse || this == getMainController()->getMainSynthChain());
 		return nullptr;
 	}
 		
@@ -178,7 +306,7 @@ const hise::Processor* Processor::getParentProcessor(bool getOwnerSynth) const
 		if (dynamic_cast<ModulatorSynth*>(parentProcessor.get()) != nullptr)
 			return parentProcessor;
 		else
-			return parentProcessor->getParentProcessor(true);
+			return parentProcessor->getParentProcessor(true, assertIfFalse);
 	}
 	else
 	{
@@ -187,9 +315,9 @@ const hise::Processor* Processor::getParentProcessor(bool getOwnerSynth) const
 }
 
 
-hise::Processor* Processor::getParentProcessor(bool getOwnerSynth)
+hise::Processor* Processor::getParentProcessor(bool getOwnerSynth, bool assertIfFalse)
 {
-	return const_cast<Processor*>(const_cast<const Processor*>(this)->getParentProcessor(getOwnerSynth));
+	return const_cast<Processor*>(const_cast<const Processor*>(this)->getParentProcessor(getOwnerSynth, assertIfFalse));
 }
 
 bool Chain::restoreChain(const ValueTree &v)
@@ -201,12 +329,17 @@ bool Chain::restoreChain(const ValueTree &v)
 
 	jassert(v.getType().toString() == "ChildProcessors");
 
-	for (int i = 0; i < getHandler()->getNumProcessors(); i++)
-	{
-		getHandler()->getProcessor(i)->sendDeleteMessage();
-	}
+	bool wasOnAir = thisAsProcessor->isOnAir();
 
-	getHandler()->clear();
+	getHandler()->clearAsync(nullptr);
+
+	if(thisAsProcessor->isOnAir() != wasOnAir)
+	{
+		LockHelpers::SafeLock itLock(thisAsProcessor->getMainController(), LockHelpers::IteratorLock);
+		LockHelpers::SafeLock audioLock(thisAsProcessor->getMainController(), LockHelpers::AudioLock);
+
+		thisAsProcessor->setIsOnAir(wasOnAir);
+	}
 
 	for(int i = 0; i < v.getNumChildren(); i++)
 	{
@@ -517,6 +650,9 @@ void ProcessorHelpers::restoreFromBase64String(Processor* p, const String& base6
 		if (newId.isNotEmpty())
 			p->setId(newId, dontSendNotification);
 
+		
+		
+
 		p->restoreFromValueTree(v);
 
 		p->setId(oldId);
@@ -525,33 +661,18 @@ void ProcessorHelpers::restoreFromBase64String(Processor* p, const String& base6
 		if (auto firstChild = p->getChildProcessor(0))
 		{
 			
-			auto f = [](Processor* p)
+			auto update = [](Dispatchable* obj)
 			{
-				p->sendRebuildMessage(true);
-				return true;
+				dynamic_cast<Processor*>(obj)->sendRebuildMessage(true);
+				return Dispatchable::Status::OK;
 			};
 
-			p->getMainController()->getKillStateHandler().killVoicesAndCall(firstChild, f, MainController::KillStateHandler::MessageThread);
-			
+			p->getMainController()->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(p, update);
 		}
 			
 #endif
 	}
 	
-}
-
-void ProcessorHelpers::deleteProcessor(Processor* p)
-{
-	PresetHandler::setChanged(p);
-
-	p->sendDeleteMessage();
-
-	auto c = dynamic_cast<Chain*>(findParentProcessor(p, false));
-
-	if (c != nullptr)
-	{
-		c->getHandler()->remove(p);
-	}
 }
 
 void ProcessorHelpers::increaseBufferIfNeeded(AudioSampleBuffer& b, int numSamplesNeeded)
@@ -585,11 +706,25 @@ void ProcessorHelpers::increaseBufferIfNeeded(hlac::HiseSampleBuffer& b, int num
 	}
 }
 
+bool ProcessorHelpers::isValidAndInitialised(const Processor* p, bool checkOnAir)
+{
+	const bool isOnAir = !checkOnAir || p->isOnAir();
+	const bool isMainSynthChain = p->getMainController()->getMainSynthChain() == p;
+	const bool hasParent = p->getParentProcessor(false) != nullptr;
+
+	const bool isValid = isOnAir && (isMainSynthChain || hasParent);
+
+	// Normally you expect this method to be true, so this assertion will fire here
+	// so that you can check the reason from the bools above...
+	jassert(isValid);
+	return isValid;
+}
+
 StringArray ProcessorHelpers::getListOfAllConnectableProcessors(const Processor* processorToSkip)
 {
 	const Processor* mainSynthChain = processorToSkip->getMainController()->getMainSynthChain();
 
-	Processor::Iterator<const Processor> boxIter(mainSynthChain, false);
+	Processor::Iterator<Processor> boxIter(mainSynthChain, false);
 
 	Array<const Processor*> processorList;
 

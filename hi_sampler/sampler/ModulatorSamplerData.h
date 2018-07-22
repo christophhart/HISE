@@ -217,11 +217,39 @@ private:
 
 	void setCurrentMonolith();
 
-	struct Notifier : private Timer,
-					  private AsyncUpdater
+	struct Notifier: public Dispatchable
 	{
+		Notifier(SampleMap& parent_);
+
+		void sendMapChangeMessage(NotificationType n);
+
+		void addPropertyChange(int index, const Identifier& id, const var& newValue);
+		void sendSampleAmountChangeMessage(NotificationType n);
+
+	private:
+
+		struct Collector : public LockfreeAsyncUpdater
+		{
+			Collector(Notifier& parent_) :
+				parent(parent_)
+			{};
+
+			void handleAsyncUpdate() override;
+
+		private:
+
+			
+
+			Notifier& parent;
+		};
+
 		struct AsyncPropertyChange
 		{
+			AsyncPropertyChange():
+				id({})
+			{
+			}
+
 			AsyncPropertyChange(ModulatorSamplerSound* sound, const Identifier& id, const var& newValue);
 
 			bool operator==(const Identifier& id_) const
@@ -235,80 +263,46 @@ private:
 			Identifier id;
 
 			void addPropertyChange(ModulatorSamplerSound* sound, const var& newValue);
-			
+
 		};
 
 		struct PropertyChange
 		{
+			PropertyChange():
+				index(-1)
+			{};
+
 			bool operator==(int indexToCompare) const
 			{
 				return indexToCompare == index;
 			}
 
-			void set(const Identifier& id, const var& newValue)
-			{
-				propertyChanges.set(id, newValue);
-			}
-
-			
+			void set(const Identifier& id, const var& newValue);
 
 			int index;
 
 			NamedValueSet propertyChanges;
+
+			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PropertyChange);
 		};
 
-		Notifier(SampleMap& parent_):
-			parent(parent_)
-		{}
-
-		void sendMapChangeMessage(NotificationType n)
-		{
-			sampleAmountWasChanged = false;
-			mapWasChanged = true;
-
-			if (n == sendNotificationAsync)
-				triggerLightWeightUpdate();
-			else
-				handleLightweightPropertyChanges();
-		}
-
-		void addPropertyChange(int index, const Identifier& id, const var& newValue);
-
-		void sendSampleAmountChangeMessage(NotificationType n)
-		{
-			sampleAmountWasChanged = true;
-
-			if (n == sendNotificationAsync)
-				triggerLightWeightUpdate();
-			else
-				handleLightweightPropertyChanges();
-		}
-
-	private:
+		void handleHeavyweightPropertyChangesIdle(const Array<AsyncPropertyChange, CriticalSection>& thisTime);
 
 		void handleHeavyweightPropertyChanges();
-
 		void handleLightweightPropertyChanges();
 
-		void triggerHeavyweightUpdate()
-		{
-			startTimer(100);
-		}
+		void triggerHeavyweightUpdate();
+		void triggerLightWeightUpdate();
 
-		void triggerLightWeightUpdate()
-		{
-			triggerAsyncUpdate();
-		}
-
-		void handleAsyncUpdate();
 		
 
-		void timerCallback() override;
+		Collector asyncUpdateCollector;
 
+		OwnedArray<PropertyChange, CriticalSection> pendingChanges;
+		Array<AsyncPropertyChange, CriticalSection> asyncPendingChanges;
 
-		Array<PropertyChange> pendingChanges;
-
-		Array<AsyncPropertyChange> asyncPendingChanges;
+		bool lightWeightUpdatePending = false;
+		bool heavyWeightUpdatePending = false;
 
 		bool mapWasChanged = false;
 		bool sampleAmountWasChanged = false;

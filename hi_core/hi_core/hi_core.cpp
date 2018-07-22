@@ -73,6 +73,8 @@
 #include "ExpansionHandler.cpp"
 #include "GlobalScriptCompileBroadcaster.cpp"
 #include "MainControllerHelpers.cpp"
+#include "LockHelpers.cpp"
+#include "LockfreeDispatcher.cpp"
 #include "MainController.cpp"
 #include "MainControllerSubClasses.cpp"
 #include "SampleManager.cpp"

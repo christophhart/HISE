@@ -38,7 +38,12 @@ namespace hise { using namespace juce;
 
 SampleMap::SampleMap(ModulatorSampler *sampler_):
 	sampler(sampler_),
-	notifier(*this)
+	notifier(*this),
+	mode(Undefined),
+	changed(false),
+	currentPool(nullptr),
+	sampleMapId(Identifier()),
+	data("samplemap")
 {
 	clear(dontSendNotification);
 
@@ -106,31 +111,35 @@ void SampleMap::changeListenerCallback(SafeChangeBroadcaster *)
 
 void SampleMap::clear(NotificationType n)
 {
-	
-	sampleMapData.clear();
-	
-	setNewValueTree(ValueTree("sampleMap"));
+	if (mode != Undefined)
+	{
+		LockHelpers::freeToGo(sampler->getMainController());
 
-    mode = Undefined;
-    
-    sampleMapId = Identifier();
-    changed = false;
-    
-	sampleMapData = PooledSampleMap();
+		sampleMapData.clear();
 
-	if (currentPool != nullptr)
-		currentPool->removeListener(this);
+		setNewValueTree(ValueTree("samplemap"));
 
-	currentPool = nullptr;
+		mode = Undefined;
 
-    if(sampler != nullptr)
-    {
-        sampler->sendChangeMessage();
-        sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
-    }
+		sampleMapId = Identifier();
+		changed = false;
 
-	if (n != dontSendNotification)
-		sendSampleMapChangeMessage(n);
+		sampleMapData = PooledSampleMap();
+
+		if (currentPool != nullptr)
+			currentPool->removeListener(this);
+
+		currentPool = nullptr;
+
+		if (sampler != nullptr)
+		{
+			sampler->sendChangeMessage();
+			sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
+		}
+
+		if (n != dontSendNotification)
+			sendSampleMapChangeMessage(n);
+	}
 }
 
 void SampleMap::setCurrentMonolith()
@@ -210,7 +219,7 @@ void SampleMap::setCurrentMonolith()
 
 void SampleMap::parseValueTree(const ValueTree &v)
 {
-	ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
+	LockHelpers::freeToGo(sampler->getMainController());
 
 	setNewValueTree(v);
 	
@@ -278,7 +287,7 @@ void SampleMap::poolEntryReloaded(PoolReference referenceThatWasChanged)
 	if (getReference() == referenceThatWasChanged)
 	{
 		clear(dontSendNotification);
-		getSampler()->loadSampleMap(referenceThatWasChanged, true);
+		getSampler()->loadSampleMap(referenceThatWasChanged);
 	}
 }
 
@@ -324,51 +333,47 @@ void SampleMap::valueTreeChildAdded(ValueTree& parentTree, ValueTree& childWhich
 	ignoreUnused(parentTree);
 	jassert(parentTree == data);
 
-	auto f = [childWhichHasBeenAdded](Processor* p)
+	LockHelpers::freeToGo(sampler->getMainController());
+
+	auto map = sampler->getSampleMap();
+
+	auto newSound = new ModulatorSamplerSound(map, childWhichHasBeenAdded, map->currentMonolith);
+
 	{
-		if (auto s = dynamic_cast<ModulatorSampler*>(p))
-		{
-			auto map = s->getSampleMap();
+		LockHelpers::SafeLock sl(sampler->getMainController(), LockHelpers::SampleLock);
+		sampler->addSound(newSound);
+	}
 
-			
+	dynamic_cast<ModulatorSamplerSound*>(newSound)->initPreloadBuffer((int)sampler->getAttribute(ModulatorSampler::PreloadSize));
 
-			auto newSound = new ModulatorSamplerSound(map, childWhichHasBeenAdded, map->currentMonolith);
-			s->addSound(newSound);
-			dynamic_cast<ModulatorSamplerSound*>(newSound)->initPreloadBuffer((int)s->getAttribute(ModulatorSampler::PreloadSize));
+	const bool isReversed = sampler->getAttribute(ModulatorSampler::Reversed) > 0.5f;
 
-			const bool isReversed = s->getAttribute(ModulatorSampler::Reversed) > 0.5f;
+	newSound->setReversed(isReversed);
 
-			newSound->setReversed(isReversed);
+	auto update = [](Dispatchable* obj)
+	{
+		auto sampler = static_cast<ModulatorSampler*>(obj);
 
-			ModulatorSamplerSoundPool* pool = s->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
-			pool->sendChangeMessage();
-			s->sendChangeMessage();
+		jassert_dispatched_message_thread(sampler->getMainController());
 
-			s->getSampleMap()->notifier.sendSampleAmountChangeMessage(sendNotificationAsync);
+		ModulatorSamplerSoundPool* pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
+		pool->sendChangeMessage();
+		sampler->sendChangeMessage();
 
-			return true;
-		}
+		sampler->getSampleMap()->notifier.sendSampleAmountChangeMessage(sendNotificationAsync);
 
-		return false;
+		return Dispatchable::Status::OK;
 	};
 
-	getSampler()->killAllVoicesAndCall(f);	
+	sampler->getMainController()->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(sampler, update);
 }
 
 void SampleMap::valueTreeChildRemoved(ValueTree& /*parentTree*/, ValueTree& /*childWhichHasBeenRemoved*/, int indexFromWhichChildWasRemoved)
 {
-	auto f = [indexFromWhichChildWasRemoved](Processor* p)
-	{
-		if (auto sampler = dynamic_cast<ModulatorSampler*>(p))
-		{
-			sampler->deleteSound(indexFromWhichChildWasRemoved);
-			sampler->getSampleMap()->notifier.sendSampleAmountChangeMessage(sendNotificationAsync);
-		}
+	LockHelpers::freeToGo(sampler->getMainController());
 
-		return true;
-	};
-	
-	sampler->killAllVoicesAndCall(f);
+	sampler->deleteSound(indexFromWhichChildWasRemoved);
+	sampler->getSampleMap()->notifier.sendSampleAmountChangeMessage(sendNotificationAsync);
 }
 
 void SampleMap::save()
@@ -426,7 +431,7 @@ void SampleMap::save()
 
 	auto pool = getSampler()->getMainController()->getCurrentSampleMapPool();
 	auto reloadedMap = pool->loadFromReference(ref, PoolHelpers::LoadingType::ForceReloadStrong);
-	getSampler()->loadSampleMap(reloadedMap.getRef(), true);
+	getSampler()->loadSampleMap(reloadedMap.getRef());
 
 	
 	
@@ -452,10 +457,10 @@ void SampleMap::saveAsMonolith(Component* mainEditor)
 
 void SampleMap::setNewValueTree(const ValueTree& v)
 {
-	
+	LockHelpers::freeToGo(sampler->getMainController());
 
 	data.removeListener(this);
-	
+
 	sampler->deleteAllSounds();
 	notifier.sendSampleAmountChangeMessage(sendNotificationAsync);
 
@@ -465,12 +470,16 @@ void SampleMap::setNewValueTree(const ValueTree& v)
 
 void SampleMap::addSound(ValueTree& newSoundData)
 {
+	LockHelpers::freeToGo(sampler->getMainController());
+
 	data.addChild(newSoundData, -1, sampler->getUndoManager());
 }
 
 
 void SampleMap::removeSound(ModulatorSamplerSound* s)
 {
+	LockHelpers::freeToGo(sampler->getMainController());
+
 	data.removeChild(s->getData(), getSampler()->getUndoManager());
 }
 
@@ -572,9 +581,14 @@ juce::String SampleMap::checkReferences(MainController* mc, ValueTree& v, const 
 
 void SampleMap::load(const PoolReference& reference)
 {
+	LockHelpers::freeToGo(sampler->getMainController());
+
 	clear(dontSendNotification);
 
 	currentPool = getSampler()->getMainController()->getCurrentSampleMapPool();
+
+	
+
 	sampleMapData = currentPool->loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
 	currentPool->addListener(this);
 
@@ -593,6 +607,8 @@ void SampleMap::load(const PoolReference& reference)
 
 void SampleMap::loadUnsavedValueTree(const ValueTree& v)
 {
+	LockHelpers::freeToGo(sampler->getMainController());
+
 	clear(dontSendNotification);
 
 	parseValueTree(v);
@@ -814,7 +830,7 @@ void MonolithExporter::threadFinished()
 
 			auto tmp = sampleMapFile;
 
-			sampleMap->getSampler()->loadSampleMap(ref, true);
+			sampleMap->getSampler()->loadSampleMap(ref);
 		}
 
 	}
@@ -941,6 +957,28 @@ void MonolithExporter::updateSampleMap()
 }
 #endif
 
+SampleMap::Notifier::Notifier(SampleMap& parent_) :
+	asyncUpdateCollector(*this),
+	parent(parent_)
+{
+
+}
+
+void SampleMap::Notifier::sendMapChangeMessage(NotificationType n)
+{
+	{
+		ScopedLock sl(pendingChanges.getLock());
+		sampleAmountWasChanged = false;
+		mapWasChanged = true;
+	}
+
+
+	if (n == sendNotificationAsync)
+		triggerLightWeightUpdate();
+	else
+		handleLightweightPropertyChanges();
+}
+
 void SampleMap::Notifier::addPropertyChange(int index, const Identifier& id, const var& newValue)
 {
 	if (auto sound = parent.getSound(index))
@@ -948,16 +986,16 @@ void SampleMap::Notifier::addPropertyChange(int index, const Identifier& id, con
 		if (!ModulatorSamplerSound::isAsyncProperty(id))
 		{
 			sound->updateInternalData(id, newValue);
-		}
-		else
-		{
+
+			ScopedLock sl(pendingChanges.getLock());
+
 			bool found = false;
 
-			for (auto& s : asyncPendingChanges)
+			for (auto p : pendingChanges)
 			{
-				if (s == id)
+				if (*p == index)
 				{
-					s.addPropertyChange(sound, newValue);
+					p->set(id, newValue);
 					found = true;
 					break;
 				}
@@ -965,68 +1003,101 @@ void SampleMap::Notifier::addPropertyChange(int index, const Identifier& id, con
 
 			if (!found)
 			{
-				asyncPendingChanges.add(AsyncPropertyChange(sound, id, newValue));
+				ScopedPointer<PropertyChange> newChange = new PropertyChange();
+				newChange->index = index;
+				newChange->set(id, newValue);
+
+				pendingChanges.add(newChange.release());
 			}
 
-			startTimer(100);
+			triggerLightWeightUpdate();
+		}
+		else
+		{
+			{
+				bool found = false;
+
+				for (auto& s : asyncPendingChanges)
+				{
+					if (s == id)
+					{
+						s.addPropertyChange(sound, newValue);
+						found = true;
+						break;
+					}
+				}
+
+				if (!found)
+				{
+					asyncPendingChanges.add(AsyncPropertyChange(sound, id, newValue));
+				}
+
+				triggerHeavyweightUpdate();
+			}
+
+			
 		}
 
 		
+	}
+}
 
-		bool found = false;
+void SampleMap::Notifier::sendSampleAmountChangeMessage(NotificationType n)
+{
+	{
+		ScopedLock sl(pendingChanges.getLock());
+		sampleAmountWasChanged = true;
+	}
 
-		for (auto& p : pendingChanges)
+
+	if (n == sendNotificationAsync)
+		triggerLightWeightUpdate();
+	else
+		handleLightweightPropertyChanges();
+}
+
+void SampleMap::Notifier::handleHeavyweightPropertyChangesIdle(const Array<AsyncPropertyChange, CriticalSection>& changesThisTime)
+{
+	jassert_sample_loading_thread(parent.getSampler()->getMainController());
+	LockHelpers::freeToGo(parent.getSampler()->getMainController());
+
+	for (auto& c : changesThisTime)
+	{
+		jassert(c.selection.size() == c.values.size());
+
+		for (int i = 0; i < c.selection.size(); i++)
 		{
-			if (p == index)
-			{
-				p.set(id, newValue);
-				found = true;
-				break;
-			}
+			if (c.selection[i] != nullptr)
+				static_cast<ModulatorSamplerSound*>(c.selection[i].get())->updateAsyncInternalData(c.id, c.values[i]);
 		}
-
-		if (!found)
-		{
-			PropertyChange newChange;
-			newChange.index = index;
-			newChange.set(id, newValue);
-
-			pendingChanges.add(newChange);
-		}
-			
-		triggerAsyncUpdate();
 	}
 }
 
 void SampleMap::Notifier::handleHeavyweightPropertyChanges()
 {
-	Array<AsyncPropertyChange> newChanges;
-
-	newChanges.swapWith(asyncPendingChanges);
-
-	auto f = [newChanges](Processor* p)
+	auto f = [this](Processor* /*p*/)
 	{
-		for (const auto& c : newChanges)
-		{
-			jassert(c.selection.size() == c.values.size());
+		LockHelpers::SafeLock sl(parent.getSampler()->getMainController(), LockHelpers::SampleLock);
 
-			for (int i = 0; i < c.selection.size(); i++)
-			{
-				if (c.selection[i] != nullptr)
-				{
-					static_cast<ModulatorSamplerSound*>(c.selection[i].get())->updateAsyncInternalData(c.id, c.values[i]);
-				}
-			}
-		}
+		Array<AsyncPropertyChange, CriticalSection> changesThisTime;
 
-		return true;
+		changesThisTime.swapWith(asyncPendingChanges);
+
+		handleHeavyweightPropertyChangesIdle(changesThisTime);
+
+		return SafeFunctionCall::OK;
 	};
 
-	parent.sampler->killAllVoicesAndCall(f);
+	parent.getSampler()->killAllVoicesAndCall(f);
+	
 }
 
 void SampleMap::Notifier::handleLightweightPropertyChanges()
 {
+	auto mc = parent.getSampler()->getMainController();
+
+	jassert_dispatched_message_thread(mc);
+
 	if (mapWasChanged)
 	{
 		ScopedLock sl(parent.listeners.getLock());
@@ -1035,10 +1106,10 @@ void SampleMap::Notifier::handleLightweightPropertyChanges()
 
 		for (auto l : parent.listeners)
 		{
-			if (auto l_ = l.get())
-			{
-				l_->sampleMapWasChanged(r);
-			}
+			mc->checkAndAbortMessageThreadOperation();
+
+			if (l != nullptr)
+				l->sampleMapWasChanged(r);
 		}
 
 		mapWasChanged = false;
@@ -1050,28 +1121,31 @@ void SampleMap::Notifier::handleLightweightPropertyChanges()
 
 		for (auto l : parent.listeners)
 		{
-			l->sampleAmountChanged();
+			mc->checkAndAbortMessageThreadOperation();
+
+			if(l != nullptr)
+				l->sampleAmountChanged();
 		}
 
 		sampleAmountWasChanged = false;
 	}
 	else
 	{
-		Array<PropertyChange> thisChanges;
-
-		thisChanges.swapWith(pendingChanges);
-
-		for (auto c : thisChanges)
+		while (!pendingChanges.isEmpty())
 		{
-			if (auto sound = parent.getSound(c.index))
+			ScopedPointer<PropertyChange> c = pendingChanges.removeAndReturn(0);
+
+			if (auto sound = parent.getSound(c->index))
 			{
 				ScopedLock sl(parent.listeners.getLock());
 
 				for (auto l : parent.listeners)
 				{
+					mc->checkAndAbortMessageThreadOperation();
+
 					if (l)
 					{
-						for (const auto& prop : c.propertyChanges)
+						for (const auto& prop : c->propertyChanges)
 							l->samplePropertyWasChanged(sound, prop.name, prop.value);
 					}
 				}
@@ -1080,28 +1154,35 @@ void SampleMap::Notifier::handleLightweightPropertyChanges()
 	}
 }
 
-
-    
-void SampleMap::Notifier::handleAsyncUpdate()
+void SampleMap::Notifier::triggerHeavyweightUpdate()
 {
-    if(auto lock = PresetLoadLock(parent.sampler->getMainController()))
-    {
-        handleLightweightPropertyChanges();
-    }
+	asyncUpdateCollector.triggerAsyncUpdate();
 }
 
-void SampleMap::Notifier::timerCallback()
+void SampleMap::Notifier::triggerLightWeightUpdate()
 {
-    if(auto lock = PresetLoadLock(parent.sampler->getMainController()))
-    {
-        handleHeavyweightPropertyChanges();
-        stopTimer();
-    }
+	if (lightWeightUpdatePending)
+		return;
+
+	auto f = [](Dispatchable* obj)
+	{
+		auto n = static_cast<Notifier*>(obj);
+		
+		n->handleLightweightPropertyChanges();
+		n->lightWeightUpdatePending = false;
+		return Status::OK;
+	};
+
+	lightWeightUpdatePending = true;
+	
+	parent.getSampler()->getMainController()->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(this, f);
 }
 
 SampleMap::Notifier::AsyncPropertyChange::AsyncPropertyChange(ModulatorSamplerSound* sound, const Identifier& id_, const var& newValue):
 	id(id_)
 {
+	jassert(ModulatorSamplerSound::isAsyncProperty(id));
+
 	addPropertyChange(sound, newValue);
 }
 
@@ -1118,6 +1199,18 @@ void SampleMap::Notifier::AsyncPropertyChange::addPropertyChange(ModulatorSample
 	{
 		values.set(index, newValue);
 	}
+}
+
+void SampleMap::Notifier::PropertyChange::set(const Identifier& id, const var& newValue)
+{
+	jassert(!ModulatorSamplerSound::isAsyncProperty(id));
+
+	propertyChanges.set(id, newValue);
+}
+
+void SampleMap::Notifier::Collector::handleAsyncUpdate()
+{
+	parent.handleHeavyweightPropertyChanges();
 }
 
 } // namespace hise

@@ -198,7 +198,6 @@ void JavascriptMidiProcessor::registerApiClasses()
 
 void JavascriptMidiProcessor::runScriptCallbacks()
 {
-	ScopedReadLock sl(mainController->getCompileLock());
 	bool isCurrentlyCompiling = getMainController()->getJavascriptThreadPool().getCurrentTask() == JavascriptThreadPool::Task::Compilation;
 
 	jassert(!isCurrentlyCompiling);
@@ -320,8 +319,6 @@ void JavascriptMidiProcessor::runTimerCallback(int /*offsetInBuffer*//*=-1*/)
 {
 	if (isBypassed() || onTimerCallback->isSnippetEmpty()) return;
 
-	ScopedReadLock sl(mainController->getCompileLock());
-
 	scriptEngine->maximumExecutionTime = isDeferred() ? RelativeTime(0.5) : RelativeTime(0.002);
 
 	if (lastResult.failed()) return;
@@ -423,8 +420,6 @@ Path JavascriptMasterEffect::getSpecialSymbol() const
 
 void JavascriptMasterEffect::connectionChanged()
 {
-	ScopedReadLock sl(mainController->getCompileLock());
-
 	channels.clear();
 	channelIndexes.clear();
 
@@ -514,8 +509,6 @@ void JavascriptMasterEffect::postCompileCallback()
 
 void JavascriptMasterEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-	ScopedReadLock sl(mainController->getCompileLock());
-
 	MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 	
 
@@ -534,8 +527,6 @@ void JavascriptMasterEffect::renderWholeBuffer(AudioSampleBuffer &buffer)
 {
 	if (!processBlockCallback->isSnippetEmpty() && lastResult.wasOk())
 	{
-		ScopedReadLock sl(getMainController()->getCompileLock());
-
 		const int numSamples = buffer.getNumSamples();
 
 		jassert(channelIndexes.size() == channels.size());
@@ -566,8 +557,6 @@ void JavascriptMasterEffect::applyEffect(AudioSampleBuffer &b, int startSample, 
 
 	if (!processBlockCallback->isSnippetEmpty() && lastResult.wasOk())
 	{
-		ScopedReadLock sl(getMainController()->getCompileLock());
-
 		jassert(startSample == 0);
 		CHECK_AND_LOG_ASSERTION(this, DebugLogger::Location::ScriptFXRendering, startSample == 0, startSample);
 
@@ -660,7 +649,6 @@ void JavascriptVoiceStartModulator::handleHiseEvent(const HiseEvent& m)
 
 		if (!onVoiceStopCallback->isSnippetEmpty())
 		{
-			ScopedReadLock sl(mainController->getCompileLock());
 			scriptEngine->setCallbackParameter(onVoiceStop, 0, 0);
 			scriptEngine->executeCallback(onVoiceStop, &lastResult);
 
@@ -669,7 +657,6 @@ void JavascriptVoiceStartModulator::handleHiseEvent(const HiseEvent& m)
 	}
 	else if (m.isController() && !onControllerCallback->isSnippetEmpty())
 	{
-		ScopedReadLock sl(mainController->getCompileLock());
 		scriptEngine->executeCallback(onController, &lastResult);
 
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage()));
@@ -680,8 +667,6 @@ float JavascriptVoiceStartModulator::startVoice(int voiceIndex)
 {
 	if (!onVoiceStartCallback->isSnippetEmpty())
 	{
-		ScopedReadLock sl(mainController->getCompileLock());
-
 		synthObject->setVoiceGainValue(voiceIndex, 1.0f);
 		synthObject->setVoicePitchValue(voiceIndex, 1.0f);
 		scriptEngine->setCallbackParameter(onVoiceStart, 0, voiceIndex);
@@ -773,8 +758,6 @@ JavascriptTimeVariantModulator::~JavascriptTimeVariantModulator()
 
 	cleanupEngine();
 
-	ScopedWriteLock sl(mainController->getCompileLock());
-
 	onInitCallback = new SnippetDocument("onInit");
 	prepareToPlayCallback = new SnippetDocument("prepareToPlay", "sampleRate samplesPerBlock");
 	processBlockCallback = new SnippetDocument("processBlock", "buffer");
@@ -822,7 +805,6 @@ void JavascriptTimeVariantModulator::handleHiseEvent(const HiseEvent &m)
 
 		if (!onNoteOnCallback->isSnippetEmpty())
 		{
-			ScopedReadLock sl(mainController->getCompileLock());
 			scriptEngine->executeCallback(onNoteOn, &lastResult);
 		}
 
@@ -834,7 +816,6 @@ void JavascriptTimeVariantModulator::handleHiseEvent(const HiseEvent &m)
 
 		if (!onNoteOffCallback->isSnippetEmpty())
 		{
-			ScopedReadLock sl(mainController->getCompileLock());
 			scriptEngine->executeCallback(onNoteOff, &lastResult);
 		}
 
@@ -842,7 +823,6 @@ void JavascriptTimeVariantModulator::handleHiseEvent(const HiseEvent &m)
 	}
 	else if (m.isController() && !onControllerCallback->isSnippetEmpty())
 	{
-		ScopedReadLock sl(mainController->getCompileLock());
 		scriptEngine->executeCallback(onController, &lastResult);
 
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage()));
@@ -860,8 +840,6 @@ void JavascriptTimeVariantModulator::prepareToPlay(double sampleRate, int sample
 
 	if (!prepareToPlayCallback->isSnippetEmpty())
 	{
-		ScopedReadLock sl(mainController->getCompileLock());
-
 		scriptEngine->setCallbackParameter(Callback::prepare, 0, sampleRate);
 		scriptEngine->setCallbackParameter(Callback::prepare, 1, samplesPerBlock);
 		scriptEngine->executeCallback(Callback::prepare, &lastResult);
@@ -875,8 +853,6 @@ void JavascriptTimeVariantModulator::calculateBlock(int startSample, int numSamp
 	if (!processBlockCallback->isSnippetEmpty() && lastResult.wasOk())
 	{
 		buffer->referToData(internalBuffer.getWritePointer(0, startSample), numSamples);
-
-		ScopedReadLock sl(mainController->getCompileLock());
 
 		scriptEngine->setCallbackParameter(Callback::processBlock, 0, bufferVar);
 		scriptEngine->executeCallback(Callback::processBlock, &lastResult);
@@ -1020,7 +996,6 @@ void JavascriptEnvelopeModulator::handleHiseEvent(const HiseEvent &m)
 
 		if (!onNoteOnCallback->isSnippetEmpty())
 		{
-			ScopedReadLock sl(mainController->getCompileLock());
 			scriptEngine->executeCallback(onNoteOn, &lastResult);
 		}
 
@@ -1032,7 +1007,6 @@ void JavascriptEnvelopeModulator::handleHiseEvent(const HiseEvent &m)
 
 		if (!onNoteOffCallback->isSnippetEmpty())
 		{
-			ScopedReadLock sl(mainController->getCompileLock());
 			scriptEngine->executeCallback(onNoteOff, &lastResult);
 		}
 
@@ -1040,7 +1014,6 @@ void JavascriptEnvelopeModulator::handleHiseEvent(const HiseEvent &m)
 	}
 	else if (m.isController() && !onControllerCallback->isSnippetEmpty())
 	{
-		ScopedReadLock sl(mainController->getCompileLock());
 		scriptEngine->executeCallback(onController, &lastResult);
 
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage()));
@@ -1057,8 +1030,6 @@ void JavascriptEnvelopeModulator::prepareToPlay(double sampleRate, int samplesPe
 
 	if (!prepareToPlayCallback->isSnippetEmpty())
 	{
-		ScopedReadLock sl(mainController->getCompileLock());
-
 		scriptEngine->setCallbackParameter(Callback::prepare, 0, sampleRate);
 		scriptEngine->setCallbackParameter(Callback::prepare, 1, samplesPerBlock);
 		scriptEngine->executeCallback(Callback::prepare, &lastResult);
@@ -1076,8 +1047,6 @@ void JavascriptEnvelopeModulator::calculateBlock(int startSample, int numSamples
 	if (!renderVoiceCallback->isSnippetEmpty() && lastResult.wasOk())
 	{
 		buffer->referToData(internalBuffer.getWritePointer(0, startSample), numSamples);
-
-		ScopedReadLock sl(mainController->getCompileLock());
 
 		scriptEngine->setCallbackParameter(Callback::renderVoice, 0, voiceIndex);
 		scriptEngine->setCallbackParameter(Callback::renderVoice, 1, state->uptime);
@@ -1108,8 +1077,6 @@ float JavascriptEnvelopeModulator::startVoice(int voiceIndex)
 
 	if (!startVoiceCallback->isSnippetEmpty())
 	{
-		ScopedReadLock sl(mainController->getCompileLock());
-
 		scriptEngine->setCallbackParameter(onStartVoice, 0, voiceIndex);
 		return (float)scriptEngine->executeCallback(onStartVoice, &lastResult);
 	}
@@ -1124,8 +1091,6 @@ void JavascriptEnvelopeModulator::stopVoice(int voiceIndex)
 
 	if (!startVoiceCallback->isSnippetEmpty())
 	{
-		ScopedReadLock sl(mainController->getCompileLock());
-
 		scriptEngine->setCallbackParameter(onStopVoice, 0, voiceIndex);
 		scriptEngine->executeCallback(onStopVoice, &lastResult);
 	}
@@ -1259,8 +1224,6 @@ public:
 
 		JavascriptModulatorSynth* jms = static_cast<JavascriptModulatorSynth*>(getOwnerSynth());
 
-		ScopedReadLock sl(jms->mainController->getCompileLock());
-
 		jms->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::startVoice, 0, getVoiceIndex());
 		jms->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::startVoice, 1, midiNoteNumber);
 		jms->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::startVoice, 2, velocity);
@@ -1296,8 +1259,6 @@ public:
         }
 		
 		JavascriptModulatorSynth* jms = static_cast<JavascriptModulatorSynth*>(getOwnerSynth());
-
-		ScopedReadLock sl(jms->getMainController()->getCompileLock());
 
 		jms->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::renderVoice, 0, getVoiceIndex());
 		jms->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::renderVoice, 1, var(channels));

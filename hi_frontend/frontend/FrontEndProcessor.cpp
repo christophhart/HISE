@@ -225,7 +225,7 @@ unlockCounter(0)
 
 void FrontendProcessor::createPreset(const ValueTree& synthData)
 {
-	MainController::ScopedSuspender ss(this);
+	
 
 	getSampleManager().setShouldSkipPreloading(true);
 
@@ -237,9 +237,13 @@ void FrontendProcessor::createPreset(const ValueTree& synthData)
 
 	setSkipCompileAtPresetLoad(false);
 
-	LOG_START("Compiling all scripts");
+	{
+		LOG_START("Compiling all scripts");
+		LockHelpers::SafeLock sl(this, LockHelpers::ScriptLock);
+		synthChain->compileAllScripts();
+	}
 
-	synthChain->compileAllScripts();
+	
 
 	synthChain->loadMacrosFromValueTree(synthData);
 
@@ -252,7 +256,6 @@ void FrontendProcessor::createPreset(const ValueTree& synthData)
 	if (getSampleRate() > 0)
 	{
 		LOG_START("Initialising audio callback");
-
 		synthChain->prepareToPlay(getSampleRate(), getBlockSize());
 	}
 
@@ -268,9 +271,7 @@ const String FrontendProcessor::getName(void) const
 
 void FrontendProcessor::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
-    MainController::ScopedSuspender ss(this);
-
-	getDelayedRenderer().prepareToPlayWrapped(newSampleRate, samplesPerBlock);
+    getDelayedRenderer().prepareToPlayWrapped(newSampleRate, samplesPerBlock);
 };
 
 AudioProcessorEditor* FrontendProcessor::createEditor()

@@ -61,7 +61,7 @@ public:
 			processor(p)
 		{};
 
-
+		
 		bool operator==(const ProcessorValueConverter& other) const
 		{
 			return other.processor == processor;
@@ -82,6 +82,10 @@ public:
 
 		Table::ValueTextConverter converter;
 		WeakReference<Processor> processor;
+
+	private:
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ProcessorValueConverter);
 	};
 
 	// ================================================================================================================
@@ -142,13 +146,13 @@ public:
 		{
 			for (int i = 0; i < yConverters.size(); i++)
 			{
-				auto* thisP = yConverters[i].processor.get();
+				auto thisP = yConverters[i]->processor.get();
 
 				if (thisP == nullptr || thisP == p)
 					yConverters.remove(i--);
 			}
 
-			yConverters.add({ converter, p });
+			yConverters.add(new ProcessorValueConverter(converter, p ));
 		}
 
 		updateYConverters();
@@ -158,7 +162,7 @@ public:
 	{
 		for (int i = 0; i < yConverters.size(); i++)
 		{
-			auto* thisP = yConverters[i].processor.get();
+			auto thisP = yConverters[i]->processor.get();
 
 			if (thisP == nullptr)
 				yConverters.remove(i--);
@@ -175,13 +179,13 @@ private:
 
 	void updateYConverters()
 	{
-		const auto& cToUse = yConverters.size() == 1 ? yConverters[0].converter : defaultYConverter;
+		const auto cToUse = yConverters.size() == 1 ? yConverters.getFirst()->converter : defaultYConverter;
 
 		for (int i = 0; i < getNumTables(); i++)
 			getTable(i)->setYTextConverterRaw(cToUse);
 	}
 
-	Array<ProcessorValueConverter> yConverters;
+	OwnedArray<ProcessorValueConverter> yConverters;
 	
 
 	TableChangeBroadcaster tableChangeBroadcaster;
@@ -472,6 +476,8 @@ public:
 
 		/** Deletes all Processors in the Chain. */
 		virtual void clear() = 0;
+
+		void clearAsync(Processor* parent);
 
 		void addListener(Listener* l)
 		{

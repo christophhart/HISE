@@ -105,9 +105,9 @@ public:
 
 	void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override;
 
-	virtual void processorDeleted(Processor* /*deletedProcessor*/)
+	void processorDeleted(Processor* /*deletedProcessor*/)
 	{
-		jassert(MessageManager::getInstance()->isThisTheMessageThread() || MessageManager::getInstance()->currentThreadHasLockedMessageManager());
+		jassert_message_thread;
 
 		setContentWithUndo(nullptr, -1);
 	}
@@ -215,21 +215,13 @@ protected:
 
 	template <class ProcessorType> void fillModuleListWithType(StringArray& moduleList)
 	{
-		if (auto pLock = PresetLoadLock(getMainController()))
-		{
-			Processor::Iterator<ProcessorType> iter(getMainSynthChain(), false);
+		Processor::Iterator<ProcessorType> iter(getMainSynthChain(), false);
 
-			while (auto p = iter.getNextProcessor())
-			{
-				moduleList.add(dynamic_cast<Processor*>(p)->getId());
-			}
-		}
-		else
+		while (auto p = iter.getNextProcessor())
 		{
-			
+			moduleList.add(dynamic_cast<Processor*>(p)->getId());
 		}
 	}
-
 
 	const Identifier showConnectionBar;
 

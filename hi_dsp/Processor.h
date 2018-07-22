@@ -176,7 +176,8 @@ private:
 */
 class Processor: public SafeChangeBroadcaster,
 				 public RestorableObject,
-				 public ControlledObject
+				 public ControlledObject,
+				 public Dispatchable
 {
 public:
 
@@ -184,14 +185,7 @@ public:
 	Processor(MainController *m, const String &id_, int numVoices);;
 
 	/** Overwrite this if you need custom destruction behaviour. */
-	virtual ~Processor()
-	{
-        getMainController()->getMacroManager().removeMacroControlsFor(this);
-		
-		removeAllChangeListeners();
-        
-        masterReference.clear();
-	};
+	virtual ~Processor();;
 
 	/** Overwrite this enum and add new parameters. This is used by the set- / getAttribute methods. */
 	enum SpecialParameters
@@ -248,45 +242,7 @@ public:
 	*	@see restoreFromValueTree()
 	*
 	*/
-	virtual ValueTree exportAsValueTree() const override
-	{
-#if USE_OLD_FILE_FORMAT
-		ValueTree v(getType());
-#else
-		ValueTree v("Processor");
-		v.setProperty("Type", getType().toString(), nullptr);
-#endif
-
-		v.setProperty("ID", getId(), nullptr);
-		v.setProperty("Bypassed", isBypassed(), nullptr);
-
-		ScopedPointer<XmlElement> editorValueSet = new XmlElement("EditorStates");
-		editorStateValueSet.copyToXmlAttributes(*editorValueSet);		
-
-#if USE_OLD_FILE_FORMAT
-		v.setProperty("EditorState", editorValueSet->createDocument(""), nullptr);
-
-		for(int i = 0; i < getNumChildProcessors(); i++)
-		{
-			v.addChild(getChildProcessor(i)->exportAsValueTree(), i, nullptr);
-		};
-
-#else
-		ValueTree editorStateValueTree = ValueTree::fromXml(*editorValueSet);
-		v.addChild(editorStateValueTree, -1, nullptr);
-
-		ValueTree childProcessors("ChildProcessors");
-
-		for(int i = 0; i < getNumChildProcessors(); i++)
-		{
-			childProcessors.addChild(getChildProcessor(i)->exportAsValueTree(), i, nullptr);
-		};
-
-		v.addChild(childProcessors, -1, nullptr);
-#endif
-		return v;
-
-	};
+	virtual ValueTree exportAsValueTree() const override;;
 	
 	/** Restores a previously saved ValueTree. 
 	*
@@ -632,53 +588,23 @@ public:
 		*	It creates a list of all child processors (children before siblings).
 		*	Call getNextProcessor() to get the next child processor. 
 		*/
-		Iterator(Processor *root_, bool useHierarchy=false):
+		Iterator(const Processor *root, bool useHierarchy = false) :
 			hierarchyUsed(useHierarchy),
-			index(0),
-			presetLoadLock(root_->getMainController())
+			index(0)
 		{
-			if (presetLoadLock)
-			{
-				if (useHierarchy)
-				{
-					internalHierarchyLevel = 0;
-					addProcessorWithHierarchy(root_);
+			jassert(ProcessorHelpers::isValidAndInitialised(root));
+			WARN_IF_AUDIO_THREAD(true, MainController::KillStateHandler::IllegalOps::IteratorCreation);
 
-				}
-				else
-				{
-					addProcessor(root_);
-				}
+			LockHelpers::SafeLock sl(root->getMainController(), LockHelpers::Type::IteratorLock);
+
+			if (useHierarchy)
+			{
+				internalHierarchyLevel = 0;
+				addProcessorWithHierarchy(const_cast<Processor*>(root));
 			}
 			else
-			{
-				jassertfalse;
-			}
-		};
+				addProcessor(const_cast<Processor*>(root));
 
-		Iterator(const Processor *root_, bool useHierarchy = false) :
-			hierarchyUsed(useHierarchy),
-			index(0),
-			presetLoadLock(root_->getMainController())
-		{
-			if (presetLoadLock)
-			{
-				if (useHierarchy)
-				{
-					internalHierarchyLevel = 0;
-					addProcessorWithHierarchy(const_cast<Processor*>(root_));
-
-				}
-				else
-				{
-					addProcessor(const_cast<Processor*>(root_));
-				}
-			}
-			else
-			{
-				jassertfalse;
-			}
-			
 		};
 
 		/** returns the next processor. 
@@ -690,7 +616,12 @@ public:
 		{
 			if(index == allProcessors.size()) return nullptr;
 
-			return dynamic_cast<SubTypeProcessor*>(allProcessors[index++].get());
+			auto thisProcessor = dynamic_cast<SubTypeProcessor*>(allProcessors[index++].get());
+
+			if (thisProcessor != nullptr)
+				return thisProcessor;
+
+			return getNextProcessor();
 		};
 
 		/** returns a const pointer to the next processor. 
@@ -702,19 +633,22 @@ public:
 		{
 			if(index == allProcessors.size()) return nullptr;
 
-			return dynamic_cast<const SubTypeProcessor*>(allProcessors[index++].get());
+			auto thisProcessor = dynamic_cast<SubTypeProcessor*>(allProcessors[index++].get());
+
+			if (thisProcessor != nullptr)
+				return thisProcessor;
+
+			return getNextProcessor();
 		}
 
 		int getHierarchyForCurrentProcessor() const
 		{
-
 			// You must use the other method!
 			jassert(hierarchyData.size() > index-1);
 
 			return hierarchyData[index-1];
 
 		}
-
 
 		int getNumProcessors() const
 		{
@@ -736,14 +670,20 @@ public:
 
 		void addProcessor(Processor *p)
 		{
-			jassert(p != nullptr);
-
-			if(dynamic_cast<SubTypeProcessor*>(p) != nullptr)
+			if (p == nullptr)
 			{
-				allProcessors.add(p);
+				jassertfalse;
+				return;
 			}
 
-			if (p == nullptr) return;
+			if (ProcessorHelpers::is<SubTypeProcessor>(p))
+				allProcessors.add(p);
+
+			// If you hit this assertion, it means that somehow
+			// a uninitialised processor got inserted into the processing
+			// chain, which is bad. Initialise all processors BEFORE
+			// adding them there...
+			jassert(ProcessorHelpers::isValidAndInitialised(p));
 
 			for(int i = 0; i < p->getNumChildProcessors(); i++)
 			{
@@ -753,13 +693,21 @@ public:
 
 		void addProcessorWithHierarchy(Processor *p)
 		{
-			jassert(p != nullptr);
-
-			if (p == nullptr) return;
+			if (p == nullptr)
+			{
+				jassertfalse;
+				return;
+			}
 
 			const int thisHierarchy = internalHierarchyLevel;
 
-			if(dynamic_cast<SubTypeProcessor*>(p) != nullptr)
+			// If you hit this assertion, it means that somehow
+			// a uninitialised processor got inserted into the processing
+			// chain, which is bad. Initialise all processors BEFORE
+			// adding them there...
+			jassert(ProcessorHelpers::isValidAndInitialised(p));
+
+			if(ProcessorHelpers::is<SubTypeProcessor>(p))
 			{
 				allProcessors.add(p);
 				hierarchyData.add(thisHierarchy);
@@ -769,16 +717,10 @@ public:
 
 			for(int i = 0; i < p->getNumChildProcessors(); i++)
 			{
-				
-
 				addProcessorWithHierarchy(p->getChildProcessor(i));
-
 				internalHierarchyLevel = thisHierarchy + 1;
-
 			}
 		};
-
-		PresetLoadLock presetLoadLock;
 
 		const bool hierarchyUsed;
 
@@ -810,12 +752,6 @@ public:
 
 	bool isOnAir() const noexcept{ return onAir; }
 
-	/** Call this method to get either the given lock or a dummy lock when the processor isn't on air yet. */
-	const CriticalSection& getDummyLockWhenNotOnAir() const
-	{
-		return dummyLock;
-	}
-
 	struct DeleteListener
 	{
 		virtual ~DeleteListener()
@@ -845,6 +781,8 @@ public:
 
 	void sendDeleteMessage()
 	{
+		jassert_message_thread;
+
 		int numListeners = deleteListeners.size();
 
 		for (int i = numListeners-1; i >= 0; --i)
@@ -866,17 +804,23 @@ public:
 		bypassListeners.removeAllInstancesOf(l);
 	}
 
-	void sendRebuildMessage(bool forceUpdate=false)
-	{
-		rebuildDelayer.sendRebuildMessage(forceUpdate);
-	}
+	bool isRebuildMessagePending() const noexcept;
 
-	Processor* getParentProcessor(bool getOwnerSynth);
+	void cleanRebuildFlagForThisAndParents();
 
-	const Processor* getParentProcessor(bool getOwnerSynth) const;
+	void sendRebuildMessage(bool forceUpdate = false);
+
+	Processor* getParentProcessor(bool getOwnerSynth, bool assertIfFalse=true);
+
+	const Processor* getParentProcessor(bool getOwnerSynth, bool assertIfFalse=true) const;
 
 	void setParentProcessor(Processor* newParent)
 	{
+		// You must call setParentProcessor before locking and inserting to the processing chain
+		jassert(!isOnAir());
+		jassert(!LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::IteratorLock));
+		jassert(!LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::AudioLock));
+
 		parentProcessor = newParent;
 
 		for (int i = 0; i < getNumChildProcessors(); i++)
@@ -936,56 +880,7 @@ protected:
 
 private:
 
-	struct RebuildDelayer : private Timer
-	{
-		RebuildDelayer(Processor& p):
-			parent(p)
-		{
-
-		}
-
-		~RebuildDelayer()
-		{
-			stopTimer();
-		}
-
-		void sendRebuildMessage(bool shouldForceUpdate)
-		{
-			forceUpdate = shouldForceUpdate;
-			sendInternal();
-		}
-		
-	private:
-
-		void sendInternal()
-		{
-			if (auto lock = PresetLoadLock(parent.getMainController()))
-			{
-				stopTimer();
-
-				for (auto l: parent.deleteListeners)
-				{
-					if(l.get() != nullptr)
-						l->updateChildEditorList(forceUpdate);
-				}
-			}
-			else
-			{
-				startTimer(300);
-			}
-		}
-
-		void timerCallback()
-		{
-			sendInternal();
-		}
-		
-		bool forceUpdate = false;
-
-		Processor& parent;
-	};
-
-	RebuildDelayer rebuildDelayer;
+	bool rebuildMessagePending = false;
 
 	Array<WeakReference<DeleteListener>> deleteListeners;
 
@@ -1076,9 +971,7 @@ public:
 
 		Processor::Iterator<ProcessorType> iter(rootProcessor, false);
 
-		ProcessorType* t;
-
-		while (t = iter.getNextProcessor())
+		while (auto t = iter.getNextProcessor())
 		{
 			list.add(t);
 		}
@@ -1130,7 +1023,9 @@ public:
 
 	static void restoreFromBase64String(Processor* p, const String& base64String, bool restoreScriptContentOnly=false);
 
+#if CLEANUP_LOCK
 	static void deleteProcessor(Processor* p);
+#endif
 
 	static void increaseBufferIfNeeded(AudioSampleBuffer& b, int numSamplesNeeded);
 
@@ -1143,6 +1038,8 @@ public:
 		static ValueTree getValueTreeFromBase64String(const String& base64State);
 	};
 
+
+	static bool isValidAndInitialised(const Processor* p, bool checkOnAir=false);
 
 	/** Returns a list of all processors that can be connected to a parameter. */
 	static StringArray getListOfAllConnectableProcessors(const Processor* processorToSkip);

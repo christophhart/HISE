@@ -907,6 +907,7 @@ public:
 		bool objectExists() const override { return false; }
 
 		void timerCallback();
+		void timerCallbackInternal(const var& callback, Result& r);
 
 		// ============================================================================================================
 		
