@@ -112,7 +112,7 @@ ValueTree ChorusEffect::exportAsValueTree() const
 
 void ChorusEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-	EffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
+	MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
 	ProcessorHelpers::increaseBufferIfNeeded(tempBuffer, samplesPerBlock);
 

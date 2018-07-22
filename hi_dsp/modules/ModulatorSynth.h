@@ -220,6 +220,9 @@ public:
 	// ===================================================================================================================
 
 	void setBypassed(bool shouldBeBypassed, NotificationType notifyChangeHandler=dontSendNotification) noexcept override;;
+
+	void softBypassStateChanged(bool isBypassedNow);
+
 	void disableChain(InternalChains chainToDisable, bool shouldBeDisabled);
 	bool isChainDisabled(InternalChains chain) const;;
 
@@ -350,8 +353,6 @@ public:
 
 	const ModulatorSynth* getPlayingSynth() const;
 
-
-
 	/** Sets the interval for the internal clock callback. */
 	void setClockSpeed(ClockSpeed newClockSpeed)
 	{
@@ -365,15 +366,8 @@ public:
 		return !(isGroup || isInGroup());
 	}
 
-
 	/** Returns the pointer to the calculated pitch buffers for the ModulatorSynthVoice's render callback. */
 	const float *getConstantPitchValues() const { return pitchBuffer.getReadPointer(0);	};
-
-	/** returns the lock the synth is using. */
-	const CriticalSection &getSynthLock() const
-	{
-        return getMainController()->getLock();
-	};
 
 	double getSampleRate() const { return Processor::getSampleRate(); }
 
@@ -463,7 +457,9 @@ public:
 
 	bool getMidiInputFlag();
 
-	void setSoftBypass(bool shouldBeBypassed);
+	void setSoftBypass(bool shouldBeBypassed, bool bypassFXToo);
+
+	void updateSoftBypassState();
 
 	VoiceStack activeVoices;
 	

@@ -61,6 +61,8 @@ ShapeFX::ShapeFX(MainController *mc, const String &uid):
 	
 	initShapers();
 
+	finaliseModChains();
+
 #if HI_USE_SHAPE_FX_SCRIPTING
 	initContent();
 
@@ -796,7 +798,7 @@ void PolyshapeFX::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSam
 		return;
 
 	
-	auto scratch = driveChain.getScratchBuffer();
+	auto scratch = (float*)alloca(sizeof(float) * numSamples);
 
 	auto smoother = &driveSmoothers[voiceIndex];
 

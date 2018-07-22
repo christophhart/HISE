@@ -39,22 +39,25 @@ using namespace juce;
 
 #define GET_TYPED(Type) case FilterHelpers::FilterSubType::Type: static_cast<FilterBank<Type>*>(this)
 
-namespace FilterLimits
+
+
+namespace FilterLimitValues
 {
-	constexpr double lowFrequency = 20.0f;
-	constexpr double highFrequency = 20000.0f;
+constexpr double lowFrequency = 20.0f;
+constexpr double highFrequency = 20000.0f;
 
-	constexpr double lowQ = 0.3;
-	constexpr double highQ = 9.999;
+constexpr double lowQ = 0.3;
+constexpr double highQ = 9.999;
 
-	constexpr double lowGain = -18.0;
-	constexpr double highGain = 18.0;
+constexpr double lowGain = -18.0;
+constexpr double highGain = 18.0;
+}
 
-	inline double limit(double minValue, double maxValue, double value)
+struct FilterLimits
+{
+
+	static double limit(double minValue, double maxValue, double value)
 	{
-		// Branchless SSE clamp.
-		// return minss( maxss(val,minval), maxval );
-
 #if HISE_IOS
 		return jlimit<double>(minValue, maxValue, value);
 #else
@@ -65,19 +68,20 @@ namespace FilterLimits
 
 	static double limitFrequency(double freq)
 	{
-		return limit(lowFrequency, highFrequency, freq);
+		return limit(FilterLimitValues::lowFrequency, FilterLimitValues::highFrequency, freq);
 	}
 
 	static double limitQ(double q)
 	{
-		return limit(lowQ, highQ, q);
+		return limit(FilterLimitValues::lowQ, FilterLimitValues::highQ, q);
 	}
 
 	static double limitGain(double gain)
 	{
-		return limit(lowGain, highGain, gain);
+		return limit(FilterLimitValues::lowGain, FilterLimitValues::highGain, gain);
 	}
-}
+};
+
 
 
 class FilterBank

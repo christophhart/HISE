@@ -142,32 +142,43 @@ public:
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override
 	{
-		EffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
+		MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
 		reverb.setSampleRate(sampleRate);
 		reverb.reset();
 	};
 
+	void voicesKilled() override
+	{
+		KILL_LOG("Kill Reverb");
+		reverb.reset();
+	}
+
+
+
 	void applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples) override
 	{
 		const bool inputSilent = buffer.getMagnitude(startSample, numSamples) == 0.0f;
 
-		if(!inputSilent || tailActive)
+		if(!inputSilent || isTailingOff())
 		{
 			reverb.processStereo(buffer.getWritePointer(0, startSample), buffer.getWritePointer(1, startSample), numSamples);
 
 			buffer.applyGain(0.5f);
-
-			const float outputLevel = buffer.getMagnitude(startSample, numSamples);
-			const bool outputSilent = outputLevel <= 0.0001f;
-			tailActive = !outputSilent;
+			//const float outputLevel = buffer.getMagnitude(startSample, numSamples);
+			//const bool outputSilent = outputLevel <= 0.0001f;
+			//tailActive = !outputSilent;
+		}
+		else
+		{
+			reverb.reset();
 		}
 
 	};
 
-	bool hasTail() const override {return false; };
+	bool hasTail() const override {return true; };
 
-
+	
 	int getNumChildProcessors() const override { return 0; };
 
 	Processor *getChildProcessor(int /*processorIndex*/) override { return nullptr; };
@@ -178,8 +189,6 @@ public:
 
 	
 private:
-
-	bool tailActive;
 
 	Reverb reverb;
 	Reverb::Parameters parameters;

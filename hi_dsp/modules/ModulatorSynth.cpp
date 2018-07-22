@@ -901,36 +901,40 @@ void ModulatorSynth::setBypassed(bool shouldBeBypassed, NotificationType notifyC
 {
 	Processor::setBypassed(shouldBeBypassed, notifyChangeHandler);
 
-	setSoftBypass(shouldBeBypassed);
+	setSoftBypass(shouldBeBypassed, true);
 }
 
-void ModulatorSynth::setSoftBypass(bool shouldBeBypassed)
+void ModulatorSynth::softBypassStateChanged(bool isBypassedNow)
 {
-	if (shouldBeBypassed)
+	bypassState.store(isBypassedNow);
+
+	
+}
+
+void ModulatorSynth::setSoftBypass(bool shouldBeBypassed, bool bypassFXToo)
+{
+	auto f = [shouldBeBypassed](Processor* p)
 	{
-		if (!bypassState)
-		{
-			if (!areVoicesActive())
-			{
-				bypassState = true;
-			}
-			else
-			{
-				auto& tmp = bypassState;
+		static_cast<ModulatorSynth*>(p)->softBypassStateChanged(shouldBeBypassed);
+		return SafeFunctionCall::OK;
+	};
 
-				auto f = [&tmp](Processor*) {tmp.store(true); return true; };
-
-				getMainController()->getKillStateHandler().killVoicesAndCall(this, f, MainController::KillStateHandler::TargetThread::AudioThread);
-			}
-		}
-	}
+	if (bypassFXToo && shouldBeBypassed)
+		effectChain->killMasterEffects();
 	else
-	{
-		bypassState.store(false);
-	}
+		effectChain->updateSoftBypassState();
+
+	getMainController()->getKillStateHandler().killVoicesAndCall(this, f, MainController::KillStateHandler::TargetThread::AudioThread);
 }
 
 
+
+void ModulatorSynth::updateSoftBypassState()
+{
+	setSoftBypass(isBypassed(), false);
+
+	effectChain->updateSoftBypassState();
+}
 
 void ModulatorSynth::flagVoiceAsRemoved(ModulatorSynthVoice* v)
 {
@@ -1273,8 +1277,8 @@ void ModulatorSynthVoice::checkRelease()
 	{
 		EffectProcessorChain *e = static_cast<EffectProcessorChain*>(os->getChildProcessor(ModulatorSynth::EffectChain));
 		
-		// Skip killing if effect is ringing off
-		if ((e->hasTail() && e->isTailingOff())) return;
+		if (e->hasTailingPolyEffects())
+			return;
 
 		resetVoice();
 	}
@@ -1648,6 +1652,8 @@ void ModulatorSynth::resetAllVoices()
 	lastStartedVoice = nullptr;
 	activeVoices.clearQuick();
 	pendingRemoveVoices.clearQuick();
+
+	effectChain->resetMasterEffects();
 }
 
 
@@ -1663,11 +1669,13 @@ void ModulatorSynth::killAllVoices()
 	}
 	else
 	{
-		for (int i = 0; i < getNumVoices(); i++)
+		for (auto& v : activeVoices)
 		{
-			static_cast<ModulatorSynthVoice*>(getVoice(i))->killVoice();
+			v->killVoice();
 		}
 	}
+
+	effectChain->killMasterEffects();
 }
 
     void ModulatorSynth::updateShouldHaveEnvelope()
@@ -1687,7 +1695,17 @@ void ModulatorSynth::killAllVoices()
     
 bool ModulatorSynth::areVoicesActive() const
 {
-	return !activeVoices.isEmpty();
+	const bool active = bypassState == false;
+	const bool voicesActive = !activeVoices.isEmpty();
+	const bool tailActive = effectChain->hasTailingMasterEffects();
+
+#if LOG_KILL_EVENTS
+	String x;
+	x << getId() << ": " << "voicesActive: " << (voicesActive ? "true" : "false") << ", " << "tailActive: " << (tailActive ? "true" : "false");
+	KILL_LOG(x);
+#endif
+
+	return active && (voicesActive || tailActive);
 }
 
 void ModulatorSynth::setVoiceLimit(int newVoiceLimit)

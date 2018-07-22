@@ -215,7 +215,7 @@ ValueTree ConvolutionEffect::exportAsValueTree() const
 
 void ConvolutionEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-	EffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
+	MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
 	ProcessorHelpers::increaseBufferIfNeeded(wetBuffer, samplesPerBlock);
 

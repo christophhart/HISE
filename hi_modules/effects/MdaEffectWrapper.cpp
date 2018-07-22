@@ -37,6 +37,8 @@ MdaLimiterEffect::MdaLimiterEffect(MainController *mc, const String &id):
 {
 	effect = new mdaLimiter();
 
+	finaliseModChains();
+
 	parameterNames.add("Threshhold");
 	parameterNames.add("Output");
 	parameterNames.add("Attack");

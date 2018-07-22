@@ -47,10 +47,11 @@ class EffectProcessor: public Processor
 {
 public:
 
+	static bool isSilent(AudioSampleBuffer& b, int startSample, int numSamples);
+
 	EffectProcessor(MainController *mc, const String &uid, int numVoices): 
 		Processor(mc, uid, numVoices),	
-		isTailing(false),
-		tailCheck(2, 0)
+		isTailing(false)
 	{
 		
 	};
@@ -71,7 +72,6 @@ public:
 				mb.clear();
 				continue;
 			}
-				
 
 			mb.calculateMonophonicModulationValues(startSample, numSamples);
 			mb.calculateModulationValuesForCurrentVoice(0, startSample, numSamples);
@@ -88,11 +88,6 @@ public:
 
 		Processor::prepareToPlay(sampleRate, samplesPerBlock);
 
-		if (samplesPerBlock > 0 && hasTail())
-		{
-			ProcessorHelpers::increaseBufferIfNeeded(tailCheck, samplesPerBlock);	
-		}
-
 		for (auto& mc : modChains)
 			mc.prepareToPlay(sampleRate, samplesPerBlock);
 	};
@@ -102,11 +97,16 @@ public:
 		return Colour(EFFECT_PROCESSOR_COLOUR);
 	}
 
+	virtual void voicesKilled()
+	{
+		jassert(!hasTail());
+	}
+
 	/** Overwrite this method if the effect has a tail (produces sound if no input is active */
 	virtual bool hasTail() const = 0;
 	
 	/** Checks if the effect is tailing off. This simply returns the calculated value, but the EffectChain overwrites this. */
-	virtual bool isTailingOff() const {	return isTailing; };
+	bool isTailingOff() const {	return isTailing; };
 
 	/** Renders the next block and applies the effect to the buffer. */
 	virtual void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples) = 0;
@@ -119,8 +119,12 @@ public:
 
 protected:
 
+	bool isTailing = false;
+
+
 	void finaliseModChains();
 
+#if 0
 	/** Takes a copy of the buffer before it is processed to check if a tail was added after processing. */
 	void saveBufferForTailCheck(AudioSampleBuffer &b, int startSample, int numSamples)
 	{
@@ -132,18 +136,30 @@ protected:
 	}
 
 	/** If your effect produces a tail, you have to call this method after your processing. */
-	void checkTailing(AudioSampleBuffer &b, int startSample, int numSamples);
+
+	void checkTailing(AudioSampleBuffer &b, int startSample, int numSamples)
+	{
+		// Call this only on effects that produce a tail!
+		jassert(hasTail());
+
+		const float maxInL = FloatVectorOperations::findMaximum(tailCheck.getReadPointer(0, startSample), numSamples);
+		const float maxInR = FloatVectorOperations::findMaximum(tailCheck.getReadPointer(1, startSample), numSamples);
+
+		const float maxL = FloatVectorOperations::findMaximum(b.getReadPointer(0, startSample), numSamples);
+		const float maxR = FloatVectorOperations::findMaximum(b.getReadPointer(1, startSample), numSamples);
+
+		const float in = maxInL + maxInR;
+		const float out = maxL + maxR;
+
+		isTailing = (in == 0.0f && out >= 0.01f);
+	}
+#endif
 
 	ModulatorChain::Collection modChains;
-
 
 private:
 
 	bool finalised = false;
-
-	AudioSampleBuffer tailCheck;
-
-	bool isTailing = false;
 };
 
 /** A MasterEffectProcessor renders a effect on a block of audio samples. 
@@ -155,8 +171,19 @@ class MasterEffectProcessor: public EffectProcessor,
 							 public RoutableProcessor
 {
 public:
+	
+	enum SoftBypassState
+	{
+		Inactive,
+		Pending,
+		Bypassed,
+		numSoftBypassStates
+	};
+
 	MasterEffectProcessor(MainController *mc, const String &uid): EffectProcessor(mc, uid, 1)
 	{
+		softBypassRamper.setValueWithoutSmoothing(1.0f);
+
 		getMatrix().init();
 		getMatrix().setOnlyEnablingAllowed(true);
 		getMatrix().setNumAllowedConnections(2);
@@ -195,6 +222,24 @@ public:
 		}
 	}
 
+	void setBypassed(bool shouldBeBypassed, NotificationType notifyChangeHandler/* =dontSendNotification */) noexcept override
+	{
+		Processor::setBypassed(shouldBeBypassed, notifyChangeHandler);
+		setSoftBypass(shouldBeBypassed);
+	}
+
+	virtual bool isFadeOutPending() const noexcept;
+
+	virtual void updateSoftBypass()
+	{
+		const bool shouldBeBypassed = isBypassed();
+
+		setSoftBypass(isBypassed(), !shouldBeBypassed);
+	}
+
+	bool isSoftBypassed() const noexcept { return softBypassState == Bypassed; }
+
+	virtual void setSoftBypass(bool shouldBeSoftBypassed, bool useRamp=true);
 
 	virtual void numDestinationChannelsChanged() override 
 	{
@@ -217,11 +262,22 @@ public:
 			mb.stopVoice(0);
 	}
 
+	void setKillBuffer(AudioSampleBuffer& b)
+	{
+		killBuffer = &b;
+	}
 
 	virtual void resetMonophonicVoice()
 	{
 		for (auto& mb : modChains)
 			mb.resetVoice(0);
+	}
+
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override
+	{
+		EffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
+
+		softBypassRamper.reset(sampleRate / (double)samplesPerBlock, 0.1);
 	}
 
 	/** A wrapper function around the actual processing.
@@ -249,6 +305,9 @@ public:
 	**/
 	virtual void renderWholeBuffer(AudioSampleBuffer &buffer)
 	{
+		if (softBypassState == Bypassed)
+			return;
+
 		if (getLeftSourceChannel() != -1 && getRightSourceChannel() != -1 &&
             getLeftSourceChannel() < getMatrix().getNumDestinationChannels() &&
             getRightSourceChannel() < getMatrix().getNumDestinationChannels())
@@ -262,12 +321,61 @@ public:
 
 			AudioSampleBuffer stereoBuffer(samples, 2, samplesToUse);
 
-			applyEffect(stereoBuffer, 0, samplesToUse);
+			if (softBypassState == Pending)
+			{
+				jassert(stereoBuffer.getNumChannels() == killBuffer->getNumChannels());
+				jassert(stereoBuffer.getNumSamples() <= killBuffer->getNumSamples());
+
+				int numSamples = stereoBuffer.getNumSamples();
+				int numChannels = 2;
+
+				float start = jmin<float>(1.0f, softBypassRamper.getCurrentValue());
+				float end = jmax<float>(0.0f, softBypassRamper.getNextValue());
+
+				float start_inv = 1.0f - start;
+				float end_inv = 1.0f - end;
+
+				for (int i = 0; i < numChannels; i++)
+				{
+					killBuffer->copyFromWithRamp(i, 0, stereoBuffer.getReadPointer(i), numSamples, start_inv, end_inv);
+				}
+
+				applyEffect(stereoBuffer, 0, samplesToUse);
+				isTailing = !isSilent(stereoBuffer, 0, samplesToUse);
+
+				stereoBuffer.applyGainRamp(0, numSamples, start, end);
+
+				for (int i = 0; i < numChannels; i++)
+				{
+					stereoBuffer.addFrom(i, 0, killBuffer->getReadPointer(i), numSamples);
+				}
+
+				if (!softBypassRamper.isSmoothing())
+				{
+					if (end < 0.5f)
+					{
+						voicesKilled();
+						softBypassState = Bypassed;
+					}
+					else
+					{
+						softBypassState = Inactive;
+					}
+				}
+
+				currentValues.outL = softBypassState == Bypassed ? 0.0f : stereoBuffer.getMagnitude(0, 0, samplesToUse);
+				currentValues.outR = softBypassState == Bypassed ? 0.0f : stereoBuffer.getMagnitude(1, 0, samplesToUse);
+			}
+			else
+			{
+				applyEffect(stereoBuffer, 0, samplesToUse);
+				isTailing = !isSilent(stereoBuffer, 0, samplesToUse);
 
 #if ENABLE_ALL_PEAK_METERS
-			currentValues.outL = stereoBuffer.getMagnitude(0, 0, samplesToUse);
-			currentValues.outR = stereoBuffer.getMagnitude(1, 0, samplesToUse);
+				currentValues.outL = stereoBuffer.getMagnitude(0, 0, samplesToUse);
+				currentValues.outR = stereoBuffer.getMagnitude(1, 0, samplesToUse);
 #endif
+			}
 
 			if (getMatrix().isEditorShown())
 			{
@@ -282,11 +390,25 @@ public:
 
 				getMatrix().setGainValues(gainValues, true);
 				getMatrix().setGainValues(gainValues, false);
+			}
 
+			if (softBypassState == Pending)
+			{
+				
 			}
 		}
+
+		
 	};
     
+	AudioSampleBuffer* killBuffer = nullptr;
+
+private:
+
+	SoftBypassState softBypassState = Inactive;
+	LinearSmoothedValue<float> softBypassRamper;
+
+	
 };
 
 /** A EffectProcessor which allows monophonic modulation of its parameters.
@@ -431,8 +553,6 @@ public:
 	{
 		jassert(isOnAir());
 
-		if(hasTail()) saveBufferForTailCheck(b, startSample, numSamples);
-
 		const int startIndex = startSample;
 		const int samplesToCheck = numSamples;
 
@@ -453,7 +573,10 @@ public:
 			applyEffect(voiceIndex, b, startSample, numSamples);
 		}
 
-		if(hasTail()) checkTailing(b, startIndex, samplesToCheck);
+		if (hasTail())
+		{
+			isTailing = !isSilent(b, startIndex, samplesToCheck);
+		}
 
 		return;
 	}

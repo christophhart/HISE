@@ -33,6 +33,52 @@
 namespace hise { using namespace juce;
 
 
+bool EffectProcessor::isSilent(AudioSampleBuffer& b, int startSample, int numSamples)
+{
+	if (numSamples == 0)
+		return true;
+
+	const float* l = b.getReadPointer(0, startSample);
+	const float* r = b.getReadPointer(1, startSample);
+
+	using SSEFloat = dsp::SIMDRegister<float>;
+
+	auto alignedL = SSEFloat::getNextSIMDAlignedPtr(l);
+	auto alignedR = SSEFloat::getNextSIMDAlignedPtr(r);
+
+	auto numUnaligned = alignedL - l;
+	auto numAligned = numSamples - numUnaligned;
+
+	while (--numUnaligned >= 0)
+	{
+		if (std::abs(*l++) > 0.001f || std::abs(*r++) > 0.001f)
+			return false;
+	}
+
+	constexpr int sseSize = SSEFloat::SIMDRegisterSize / sizeof(float);
+	const auto limit = 0.001f;
+
+	while (numAligned > sseSize)
+	{
+		auto l_ = SSEFloat::fromRawArray(alignedL);
+		auto r_ = SSEFloat::fromRawArray(alignedR);
+
+		auto sqL = l_ * l_;
+		auto sqR = r_ * r_;
+
+		auto max = SSEFloat::max(sqL, sqR);
+
+		if (max.sum() > 0.0001f)
+			return false;
+
+		alignedL += sseSize;
+		alignedR += sseSize;
+		numAligned -= sseSize;
+	}
+
+	return true;
+}
+
 void EffectProcessor::finaliseModChains()
 {
 	modChains.finalise();
@@ -41,23 +87,6 @@ void EffectProcessor::finaliseModChains()
 		mb.getChain()->setParentProcessor(this);
 
 	finalised = true;
-}
-
-void EffectProcessor::checkTailing(AudioSampleBuffer &b, int startSample, int numSamples)
-{
-	// Call this only on effects that produce a tail!
-	jassert(hasTail());
-
-	const float maxInL = FloatVectorOperations::findMaximum(tailCheck.getReadPointer(0, startSample), numSamples);
-	const float maxInR = FloatVectorOperations::findMaximum(tailCheck.getReadPointer(1, startSample), numSamples);
-
-	const float maxL = FloatVectorOperations::findMaximum(b.getReadPointer(0, startSample), numSamples);
-	const float maxR = FloatVectorOperations::findMaximum(b.getReadPointer(1, startSample), numSamples);
-
-	const float in = maxInL + maxInR;
-	const float out = maxL + maxR;
-		
-	isTailing = (in == 0.0f && out >= 0.01f);
 }
 
 juce::Path VoiceEffectProcessor::getSpecialSymbol() const
@@ -81,6 +110,40 @@ juce::Path VoiceEffectProcessor::getSpecialSymbol() const
 	path.loadPathFromData(pathData, sizeof(pathData));
 
 	return path;
+}
+
+bool MasterEffectProcessor::isFadeOutPending() const noexcept
+{
+	return softBypassState == Pending && softBypassRamper.getTargetValue() < 0.5f;
+}
+
+void MasterEffectProcessor::setSoftBypass(bool shouldBeSoftBypassed, bool useRamp/*=true*/)
+{
+
+
+
+	if (useRamp)
+	{
+		softBypassRamper.setValue(shouldBeSoftBypassed ? 0.0f : 1.0f);
+
+		if ((shouldBeSoftBypassed && softBypassState != Bypassed) ||
+			(!shouldBeSoftBypassed && softBypassState != Inactive))
+		{
+
+
+			softBypassState = Pending;
+		}
+
+		if (softBypassRamper.getCurrentValue() == softBypassRamper.getTargetValue())
+		{
+			softBypassState = shouldBeSoftBypassed ? Bypassed : Inactive;
+		}
+	}
+	else
+	{
+		softBypassState = shouldBeSoftBypassed ? Bypassed : Inactive;
+		softBypassRamper.setValueWithoutSmoothing(shouldBeSoftBypassed ? 0.0f : 1.0f);
+	}
 }
 
 } // namespace hise

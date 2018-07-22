@@ -1235,6 +1235,10 @@ void ModulatorSynthGroup::killAllVoices()
 			}
 		}
 	}
+
+	effectChain->killMasterEffects();
+
+
 }
 
 void ModulatorSynthGroup::resetAllVoices()

@@ -44,7 +44,9 @@ public:
 
 	EmptyFX(MainController *mc, const String &uid) :
 		MasterEffectProcessor(mc, uid)
-	{};
+	{
+		finaliseModChains();
+	};
 
 	~EmptyFX()
 	{};
@@ -57,6 +59,13 @@ public:
 	int getNumInternalChains() const override { return 0; };
 	int getNumChildProcessors() const override { return 0; };
 
+	void setSoftBypass(bool shouldBeSoftBypassed, bool useRamp/* =true */) override {};
+
+	bool isFadeOutPending() const noexcept override
+	{
+		return false;
+	}
+
 	Processor *getChildProcessor(int /*processorIndex*/) override
 	{
 		return nullptr;
@@ -68,11 +77,6 @@ public:
 	};
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
-
-	void prepareToPlay(double /*sampleRate*/, int /*samplesPerBlock*/)
-	{
-
-	}
 
 	void applyEffect(AudioSampleBuffer &/*b*/, int /*startSample*/, int /*numSamples*/)
 	{

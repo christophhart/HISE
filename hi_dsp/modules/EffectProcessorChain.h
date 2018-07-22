@@ -37,7 +37,7 @@ namespace hise { using namespace juce;
 
 #define FOR_EACH_VOICE_EFFECT(x) {for(int i = 0; i < voiceEffects.size(); ++i) {if(!voiceEffects[i]->isBypassed()) voiceEffects[i]->x;}}
 #define FOR_EACH_MONO_EFFECT(x) {for(int i = 0; i < monoEffects.size(); ++i) {if(!monoEffects[i]->isBypassed())monoEffects[i]->x;}}
-#define FOR_EACH_MASTER_EFFECT(x) {for(int i = 0; i < masterEffects.size(); ++i) {if(!masterEffects[i]->isBypassed())masterEffects[i]->x;}}
+#define FOR_EACH_MASTER_EFFECT(x) {for(int i = 0; i < masterEffects.size(); ++i) {if(!masterEffects[i]->isSoftBypassed())masterEffects[i]->x;}}
 
 #define FOR_ALL_EFFECTS(x) {for(int i = 0; i < allEffects.size(); ++i) {if(!allEffects[i]->isBypassed())allEffects[i]->x;}}
 
@@ -55,6 +55,8 @@ public:
 	SET_PROCESSOR_NAME("EffectChain", "FX Chain")
 
 	EffectProcessorChain(Processor *parentProcessor, const String &id, int numVoices);
+
+	~EffectProcessorChain();
 
 	Chain::Handler *getHandler() override {return &handler;};
 
@@ -81,6 +83,13 @@ public:
 
 		for (auto fx : allEffects)
 			fx->prepareToPlay(sampleRate, samplesPerBlock);
+
+		ProcessorHelpers::increaseBufferIfNeeded(killBuffer, samplesPerBlock);
+
+		resetCounterStartValue = (int64)(0.12 * sampleRate);
+
+		for (auto fx : masterEffects)
+			fx->setKillBuffer(killBuffer);
 	};
 
 	void handleHiseEvent(const HiseEvent &m)
@@ -103,6 +112,19 @@ public:
 		FOR_EACH_VOICE_EFFECT(preRenderCallback(startSample, numSamples));
 	}
 
+	void resetMasterEffects()
+	{
+		updateSoftBypassState();
+
+		for (auto fx : masterEffects)
+		{
+			if(fx->hasTail())
+				fx->voicesKilled();
+		}
+
+		resetCounter = -1;
+	}
+
 	void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples)
 	{
 		if(isBypassed()) return;
@@ -111,40 +133,79 @@ public:
 
 	};
 
-	bool hasTail() const
+	bool hasTailingMasterEffects() const noexcept
 	{
-		for(int i = 0; i < allEffects.size(); i++)
-		{
-			if (allEffects[i]->hasTail()) return true;
-		}
-
-		return false;
-	};
-
-	bool isTailingOff() const 
-	{
-		for(int i = 0; i < allEffects.size(); i++)
-		{
-			if (allEffects[i]->isTailingOff()) return true;
-		}
-
-		return false;
-	};
-
-	void renderMasterEffects(AudioSampleBuffer &b)
-	{
-		if(isBypassed()) return;
-
-		ADD_GLITCH_DETECTOR(parentProcessor, DebugLogger::Location::MasterEffectRendering);
-        
-		FOR_EACH_MASTER_EFFECT(renderWholeBuffer(b));
-
-#if ENABLE_ALL_PEAK_METERS
-		currentValues.outL = (b.getMagnitude(0, 0, b.getNumSamples()));
-		currentValues.outR = (b.getMagnitude(1, 0, b.getNumSamples()));
-#endif
-
+		return resetCounter > 0;
 	}
+
+	bool hasTailingPolyEffects() const
+	{
+		for (int i = 0; i < voiceEffects.size(); i++)
+		{
+			if (voiceEffects[i]->isBypassed())
+				continue;
+
+			if (!voiceEffects[i]->hasTail())
+				continue;
+
+			if (voiceEffects[i]->isTailingOff())
+				return true;
+		}
+
+		return false;
+	}
+
+	void killMasterEffects()
+	{
+		if (hasTailingMasterEffects())
+			return;
+
+		if (isBypassed())
+		{
+			resetCounter = -1;
+			return;
+		}
+
+		bool hasActiveMasterFX = false;
+
+		for (auto& fx : masterEffects)
+		{
+			if (!fx->hasTail())
+				continue;
+
+			if (!fx->isBypassed())
+			{
+				hasActiveMasterFX = true;
+				break;
+			}
+		}
+		
+		if (!hasActiveMasterFX)
+			return;
+
+		ScopedLock sl(getMainController()->getLock());
+
+		for (auto fx : masterEffects)
+		{
+			if (fx->isBypassed())
+				continue;
+
+			fx->setSoftBypass(true, true);
+		}
+			
+
+		resetCounter = resetCounterStartValue;
+	}
+
+	void updateSoftBypassState()
+	{
+		for (auto fx : masterEffects)
+			fx->updateSoftBypass();
+
+		resetCounter = -1;
+	}
+
+	void renderMasterEffects(AudioSampleBuffer &b);
 
 	void startVoice(int voiceIndex, int noteNumber) 
 	{
@@ -157,7 +218,8 @@ public:
 	void stopVoice(int voiceIndex) 
 	{
 		if(isBypassed()) return;
-		FOR_EACH_VOICE_EFFECT(stopVoice(voiceIndex));	
+
+		FOR_EACH_VOICE_EFFECT(stopVoice(voiceIndex));
 		FOR_EACH_MONO_EFFECT(stopMonophonicVoice());
 		FOR_EACH_MASTER_EFFECT(stopMonophonicVoice());
 	};
@@ -196,126 +258,33 @@ public:
 		*/
 		void add(Processor *newProcessor, Processor *siblingToInsertBefore) override;
 
-		void remove(Processor *processorToBeRemoved, bool removeEffect=true) override
-		{
-			notifyListeners(Listener::ProcessorDeleted, processorToBeRemoved);
+		void remove(Processor *processorToBeRemoved, bool removeEffect=true) override;
 
-			ScopedLock sl(chain->getMainController()->getLock());
+		void moveProcessor(Processor *processorInChain, int delta);
 
-			jassert(dynamic_cast<EffectProcessor*>(processorToBeRemoved) != nullptr);
-			
-			chain->allEffects.removeAllInstancesOf(dynamic_cast<EffectProcessor*>(processorToBeRemoved));
+		Processor *getProcessor(int processorIndex) override;
 
-			if(VoiceEffectProcessor* vep = dynamic_cast<VoiceEffectProcessor*>(processorToBeRemoved)) chain->voiceEffects.removeObject(vep, removeEffect);
-			else if (MasterEffectProcessor* mep = dynamic_cast<MasterEffectProcessor*>(processorToBeRemoved)) chain->masterEffects.removeObject(mep, removeEffect);
-			else if (MonophonicEffectProcessor* moep = dynamic_cast<MonophonicEffectProcessor*>(processorToBeRemoved)) chain->monoEffects.removeObject(moep, removeEffect);
-			else jassertfalse;
+		const Processor *getProcessor(int processorIndex) const override;
 
-			jassert(chain->allEffects.size() == (chain->masterEffects.size() + chain->voiceEffects.size() + chain->monoEffects.size()));
-		}
+		int getNumProcessors() const override;
 
-		void moveProcessor(Processor *processorInChain, int delta)
-		{
-			if (MasterEffectProcessor *mep = dynamic_cast<MasterEffectProcessor*>(processorInChain))
-			{
-				const int indexOfProcessor = chain->masterEffects.indexOf(mep);
-				jassert(indexOfProcessor != -1);
-
-				const int indexOfSwapProcessor = jlimit<int>(0, chain->masterEffects.size(), indexOfProcessor + delta);
-
-				const int indexOfProcessorInAllEffects = chain->allEffects.indexOf(mep);
-				const int indexOfSwapProcessorInAllEfects = jlimit<int>(0, chain->allEffects.size(), indexOfProcessorInAllEffects + delta);
-
-				if (indexOfProcessor != indexOfSwapProcessor)
-				{
-					ScopedLock sl(chain->getMainController()->getLock());
-
-					chain->masterEffects.swap(indexOfProcessor, indexOfSwapProcessor);
-					chain->allEffects.swap(indexOfProcessorInAllEffects, indexOfSwapProcessorInAllEfects);
-				}
-			}
-		}
-
-		Processor *getProcessor(int processorIndex)
-		{
-			if (processorIndex < chain->voiceEffects.size())
-			{
-				return chain->voiceEffects.getUnchecked(processorIndex);
-			}
-
-			processorIndex -= chain->voiceEffects.size();
-
-			if (processorIndex < chain->monoEffects.size())
-			{
-				return chain->monoEffects.getUnchecked(processorIndex);
-			}
-
-			processorIndex -= chain->monoEffects.size();
-
-			if (processorIndex < chain->masterEffects.size())
-			{
-				return chain->masterEffects.getUnchecked(processorIndex);
-			}
-
-			jassertfalse;
-
-			return chain->allEffects.getUnchecked(processorIndex);
-		};
-
-		const Processor *getProcessor(int processorIndex) const
-		{
-			
-
-			if (processorIndex < chain->voiceEffects.size())
-			{
-				return chain->voiceEffects.getUnchecked(processorIndex);
-			}
-
-			processorIndex -= chain->voiceEffects.size();
-
-			if (processorIndex < chain->monoEffects.size())
-			{
-				return chain->monoEffects.getUnchecked(processorIndex);
-			}
-
-			processorIndex -= chain->monoEffects.size();
-
-			if (processorIndex < chain->masterEffects.size())
-			{
-				return chain->masterEffects.getUnchecked(processorIndex);
-			}
-
-			jassertfalse;
-
-			return chain->allEffects.getUnchecked(processorIndex);
-			
-		};
-
-		virtual int getNumProcessors() const
-		{
-			return chain->allEffects.size(); 
-		};
-
-		void clear() override
-		{
-			notifyListeners(Listener::Cleared, nullptr);
-
-			chain->voiceEffects.clear();
-			chain->masterEffects.clear();
-			chain->monoEffects.clear();
-			chain->allEffects.clear();
-		}
+		void clear() override;
 
 	private:
 
 		EffectProcessorChain *chain;
-
-		
-
-
 	};
 
+
 private:
+
+	// Gives it a limit of 6 million years...
+	int64 resetCounter = -1;
+	int resetCounterStartValue = 22050;
+
+	bool tailActive = false;
+
+	AudioSampleBuffer killBuffer;
 
 	EffectChainHandler handler;
 
@@ -323,7 +292,7 @@ private:
 	OwnedArray<MasterEffectProcessor> masterEffects;
 	OwnedArray<MonophonicEffectProcessor> monoEffects;
 
-	Array<EffectProcessor*> allEffects;
+	Array<EffectProcessor*, DummyCriticalSection, 32> allEffects;
 
 	Processor *parentProcessor;
 
