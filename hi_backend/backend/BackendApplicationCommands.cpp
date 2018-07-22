@@ -1747,7 +1747,6 @@ void BackendCommandTarget::Actions::createNewProject(BackendRootWindow *bpe)
 		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).createNewProject(f, bpe);
 
 		bpe->getBackendProcessor()->clearPreset();
-		bpe->getBackendProcessor()->createUserPresetData();
 		bpe->getBackendProcessor()->getSettingsObject().refreshProjectData();
 	}
 }
@@ -2302,7 +2301,6 @@ bool BackendCommandTarget::Helpers::deviceTypeHasUIData(BackendRootWindow* bpe)
 		return false;
 
 	return mp->hasUIDataForDeviceType();
-
 }
 
 bool BackendCommandTarget::Helpers::canCopyDeviceType(BackendRootWindow* bpe)
@@ -2310,13 +2308,13 @@ bool BackendCommandTarget::Helpers::canCopyDeviceType(BackendRootWindow* bpe)
 	if (!HiseDeviceSimulator::isMobileDevice())
 		return false;
 
-
 	auto mp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(bpe->getBackendProcessor());
 
 	if (mp == nullptr)
 		return false;
 
 	return !mp->hasUIDataForDeviceType();
+	
 }
 
 } // namespace hise

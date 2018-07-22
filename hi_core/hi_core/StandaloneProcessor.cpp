@@ -68,6 +68,12 @@ void AudioProcessorDriver::saveDeviceSettingsAsXml()
 	}
 }
 
+void AudioProcessorDriver::setAudioDeviceType(const String deviceName)
+{
+	deviceManager->setCurrentAudioDeviceType(deviceName, true);
+
+}
+
 void AudioProcessorDriver::resetToDefault()
 {
 	auto prevState = getMidiInputState();
@@ -165,13 +171,10 @@ StandaloneProcessor::StandaloneProcessor()
 }
 
 
-void StandaloneProcessor::requestQuit(const std::function<void(void)>& f)
+void StandaloneProcessor::requestQuit()
 {
-	auto f2 = [f](Processor* ) {f(); return true; };
-
 	auto mc = dynamic_cast<MainController*>(wrappedProcessor.get());
-	
-	mc->getKillStateHandler().killVoicesAndCall(mc->getMainSynthChain(), f2, MainController::KillStateHandler::TargetThread::MessageThread);
+	mc->getKillStateHandler().requestQuit();
 }
 
 XmlElement * AudioProcessorDriver::getSettings()

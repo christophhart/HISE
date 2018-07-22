@@ -30,7 +30,7 @@ public:
     void paint (Graphics&);
     void resized();
 
-	void requestQuit(const std::function<void(void)>& f);
+	void requestQuit();
 
 private:
 

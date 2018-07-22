@@ -271,7 +271,12 @@ public:
 
 
 	void initialise(const String& /*commandLine*/) override { mainWindow = new MainWindow(getApplicationName()); }
-	void shutdown() override { mainWindow = nullptr; }
+	void shutdown() override 
+	{ 
+		mainWindow->closeButtonPressed();
+
+		//mainWindow = nullptr; 
+	}
 	void systemRequestedQuit() override { quit(); }
 
 	void anotherInstanceStarted(const String& /*commandLine*/) override {}
@@ -296,6 +301,11 @@ public:
             g.fillAll(Colours::black);
         }
     
+		void requestQuit()
+		{
+			standaloneProcessor->requestQuit();
+		}
+
 		~AudioWrapper();
 
 		void resized()
@@ -326,21 +336,17 @@ public:
 
 		~MainWindow()
         {
-			
-
-            audioWrapper = nullptr;
         }
 
 		void closeButtonPressed() override
 		{
-			JUCEApplication::getInstance()->systemRequestedQuit();
+			auto audioWrapper = dynamic_cast<AudioWrapper*>(getContentComponent());
+
+			audioWrapper->requestQuit();
 		}
 
 	private:
 
-		
-        
-		ScopedPointer<AudioWrapper> audioWrapper;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainWindow)
 	};
