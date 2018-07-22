@@ -57,7 +57,10 @@ public:
 
 	ProcessorEditorContainer() {};
 
-	void processorDeleted(Processor* deletedProcessor) override;
+	void processorDeleted(Processor* /*deletedProcessor*/) override
+	{
+		
+	}
 
 	void updateChildEditorList(bool forceUpdate) override;
 
