@@ -245,7 +245,7 @@ private:
 
 class MPEKeyboard : public Component,
 	public MidiKeyboardStateListener,
-	public Timer,
+	public LockfreeAsyncUpdater,
 	public ButtonListener,
 	public KeyboardBase
 {

@@ -863,6 +863,43 @@ void UpdateDispatcher::handlePendingListeners()
 	{
 		f();
 	}
+LockfreeAsyncUpdater::~LockfreeAsyncUpdater()
+{
+	cancelPendingUpdate();
+
+	instanceCount--;
+}
+
+void LockfreeAsyncUpdater::triggerAsyncUpdate()
+{
+	pimpl.triggerAsyncUpdate();
+}
+
+void LockfreeAsyncUpdater::cancelPendingUpdate()
+{
+	pimpl.cancelPendingUpdate();
+}
+
+LockfreeAsyncUpdater::LockfreeAsyncUpdater() :
+	pimpl(this)
+{
+	// If you're hitting this assertion, it means
+	// that you are creating a lot of these objects
+	// which clog the timer thread.
+	// Consider using the standard AsyncUpdater instead
+	jassert(instanceCount++ < 200);
+}
+
+
+
+int LockfreeAsyncUpdater::instanceCount = 0;
+
+UpdateDispatcher::Listener::Listener(UpdateDispatcher* dispatcher_) :
+	dispatcher(dispatcher_),
+	pending(false)
+{
+
+}
 }
 
 } // namespace hise

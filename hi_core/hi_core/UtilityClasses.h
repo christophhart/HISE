@@ -70,6 +70,78 @@ public:
 };
 
 
+/** This is a non allocating alternative to the AsyncUpdater.
+*
+*	If you're creating a lot of these object's, it will clog the Timer thread,
+*	but for single objects that need an update once in a while, it's better,
+*	because it won't post a update message that needs to be allocated.
+*/
+class LockfreeAsyncUpdater
+{
+public:
+
+	virtual ~LockfreeAsyncUpdater();
+
+	virtual void handleAsyncUpdate() = 0;
+
+	void triggerAsyncUpdate();
+	void cancelPendingUpdate();
+
+protected:
+
+	LockfreeAsyncUpdater();
+
+private:
+
+	struct TimerPimpl : private Timer
+	{
+		explicit TimerPimpl(LockfreeAsyncUpdater* p_) :
+			parent(*p_)
+		{
+			dirty = false;
+			startTimer(30);
+		}
+
+		~TimerPimpl()
+		{
+			dirty = false;
+			stopTimer();
+		}
+
+		void timerCallback() override
+		{
+			bool v = true;
+			if (dirty.compare_exchange_strong(v, false))
+			{
+				parent.handleAsyncUpdate();
+			}
+		}
+
+		void triggerAsyncUpdate()
+		{
+			dirty.store(true);
+		};
+
+		void cancelPendingUpdate()
+		{
+			dirty.store(false);
+		};
+
+	private:
+
+		LockfreeAsyncUpdater & parent;
+		std::atomic<bool> dirty;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TimerPimpl);
+	};
+
+	TimerPimpl pimpl;
+
+	static int instanceCount;
+};
+
+
+
 class SafeChangeBroadcaster;
 
 /** A class for message communication between objects.
