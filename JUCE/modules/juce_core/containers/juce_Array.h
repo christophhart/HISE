@@ -1179,6 +1179,13 @@ public:
         data.ensureAllocatedSize (minNumElements);
     }
 
+	/** Returns the number of allocated elements. */
+	int getNumAllocated() const noexcept
+	{
+		const ScopedLockType lock(getLock());
+		return data.numAllocated;
+	}
+
     //==============================================================================
     /** Sorts the array using a default comparison operation.
         If the type of your elements isn't supported by the DefaultElementComparator class
