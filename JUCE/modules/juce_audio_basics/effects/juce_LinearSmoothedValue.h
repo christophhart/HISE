@@ -144,6 +144,11 @@ public:
         return currentValue;
     }
 
+	FloatType getCurrentValue() const noexcept
+	{
+		return currentValue;
+	}
+
     /** Returns true if the current value is currently being interpolated. */
     bool isSmoothing() const noexcept
     {
