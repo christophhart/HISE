@@ -275,9 +275,20 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 			ScopedValueSetter<void*> loopScoper(s.currentLoopStatement, (void*)this);
 			index = 0;
 
-			const int size = currentObject.isArray() ? currentObject.getArray()->size() :
-							 currentObject.isBuffer() ? currentObject.getBuffer()->size :
-							 currentObject.isObject() ? currentObject.getDynamicObject()->getProperties().size() : 0;
+			int size = 0;
+
+			if (auto ar = currentObject.getArray())
+				size = ar->size();
+			else if (auto b = currentObject.getBuffer())
+				size = b->size;
+			else if (auto dynObj = currentObject.getDynamicObject())
+				size = dynObj->getProperties().size();
+			else
+			{
+				location.throwError("no iterable type");
+			}
+				
+			
 
 			while (index < size)
 			{
