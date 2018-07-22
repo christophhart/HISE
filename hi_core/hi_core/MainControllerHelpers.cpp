@@ -355,55 +355,7 @@ MidiControllerAutomationHandler::MPEData::~MPEData()
 
 void MidiControllerAutomationHandler::MPEData::AsyncRestorer::timerCallback()
 {
-#if 0
-	auto& tmpData = data;
 
-	auto f = [tmpData](WeakReference<MPEData> mpeData)
-	{
-		mpeData->clear();
-
-		static const Identifier id("ID");
-
-		mpeData->setMpeMode(tmpData.getProperty("Enabled", false));
-
-		for (auto d : tmpData)
-		{
-			jassert(d.hasType("Processor"));
-
-			d.setProperty("Type", "MPEModulator", nullptr);
-			d.setProperty("Intensity", 1.0f, nullptr);
-
-			ValueTree dummyChild("ChildProcessors");
-
-			d.addChild(dummyChild, -1, nullptr);
-			String id_ = d.getProperty(id).toString();
-
-			if (auto mod = mpeData->findMPEModulator(id_))
-			{
-				mod->restoreFromValueTree(d);
-				mpeData->addConnection(mod, dontSendNotification);
-			}
-		}
-
-		{
-			ScopedLock sl(mpeData->listeners.getLock());
-
-			for (auto l : mpeData->listeners)
-			{
-				if (l)
-				{
-					l->mpeDataReloaded();
-				}
-			}
-		}
-
-		
-
-		mpeData->dirty = false;
-		
-	}
-
-#endif
 }
 
 
