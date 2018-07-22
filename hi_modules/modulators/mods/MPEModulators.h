@@ -121,14 +121,12 @@ public:
 			const bool useSmoother = smoother.getSmoothingTime() > 0.0f;
 
 			smoother.setDefaultValue(initialValue);
-
             const float a0 = smoother.getA0();
             
 			currentRampValue = useSmoother ? initialValue : targetValue_;
-			currentRampTarget = -1.0f;
-			currentRampDelta = -1.0f;
             
-            
+			resetValue = initialValue;
+
 			targetValue = targetValue_ * a0;
 			//blockDivider.reset();
 		}
@@ -141,7 +139,7 @@ public:
 
 		void reset()
 		{
-			targetValue = -1.0f;
+			targetValue = 0.0f;
 			isPressed = false;
 		}
 
@@ -176,13 +174,8 @@ public:
 		Smoother smoother;
 		
 		float targetValue = 0.0f;
-		
 		float currentRampValue = 0.0f;
-		float currentRampTarget = 0.0f;
-		float currentRampDelta = 0.0f;
-		
-		int numCalls = 0;
-		int sumCalls = 0;
+		float resetValue = 0.0f;
 	};
 
 	ModulatorState *createSubclassedState(int voiceIndex) const override { return new MPEState(voiceIndex); };

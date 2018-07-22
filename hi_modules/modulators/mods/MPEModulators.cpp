@@ -434,46 +434,13 @@ void MPEModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 void MPEModulator::MPEState::process(float* data, int numSamples)
 {
+	jassert(targetValue != -1.0f);
+
 	while (--numSamples >= 0)
 	{
 		currentRampValue = smoother.smoothRaw(targetValue);
 		*data++ = currentRampValue;
 	}
-
-	
-
-#if 0
-	while (numSamples > 0)
-	{
-		bool calculateNew;
-		int subBlockSize = blockDivider.cutBlock(numSamples, calculateNew, data);
-
-		const float* d = data;
-
-		if (calculateNew)
-		{
-			currentRampTarget = smoother.smoothRaw(targetValue);
-			constexpr float ratio = 1.0f / (float)HISE_EVENT_RASTER;
-
-			currentRampDelta = (currentRampTarget - currentRampValue) * ratio;
-		}
-
-		if (subBlockSize == 0)
-		{
-			AlignedSSERamper<HISE_EVENT_RASTER> ramper(data);
-			ramper.ramp(currentRampValue, currentRampDelta);
-
-			data += HISE_EVENT_RASTER;
-			currentRampValue = currentRampTarget;
-		}
-		else
-		{
-			FallbackRamper ramper(data, subBlockSize);
-			currentRampValue = ramper.ramp(currentRampValue, currentRampDelta);
-			data += subBlockSize;
-		}
-	}
-#endif
 }
 
 
