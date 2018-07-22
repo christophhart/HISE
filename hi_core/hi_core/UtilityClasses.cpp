@@ -815,54 +815,47 @@ bool SafeFunctionCall::call()
 	return false;
 }
 
+
+UpdateDispatcher::UpdateDispatcher(MainController* mc_) :
+	mc(mc_),
+	pendingListeners(8192)
+{
+	startTimer(30);
+}
+
+void UpdateDispatcher::triggerAsyncUpdateForListener(Listener* l)
+{
+	pendingListeners.push(WeakReference<Listener>(l));
+}
+
 void UpdateDispatcher::timerCallback()
 {
-	if (auto l = PresetLoadLock(mc))
-	{
-		handlePendingListeners();
-		stopTimer();
-	}
-}
+	auto& tmp_mc = mc;
 
-void UpdateDispatcher::handleAsyncUpdate()
-{
-	if (auto l = PresetLoadLock(mc))
-	{
-		handlePendingListeners();
-	}
-	else
-	{
-		startTimer(300);
-	}
-}
-
-void UpdateDispatcher::handlePendingListeners()
-{
-	WeakReference<Listener> l;
-
-	while (pendingListeners.pop(l))
+	auto f = [tmp_mc](WeakReference<Listener>& l)
 	{
 		if (l != nullptr)
 		{
-			if (cancelledListeners.contains(l))
-			{
-				l->pending = false;
-				cancelledListeners.removeAllInstancesOf(l);
-				continue;
-			}
+			l->pending = false;
 
+			if (l->cancelled)
+				return MultithreadedQueueHelpers::OK;
 
 			l->handleAsyncUpdate();
-			l->pending = false;
 		}
-	}
 
-	Func f;
+		if (tmp_mc->shouldAbortMessageThreadOperation())
+			return MultithreadedQueueHelpers::AbortClearing;
 
-	while (pendingFunctions.pop(f))
-	{
-		f();
-	}
+		return MultithreadedQueueHelpers::OK;
+	};
+
+	pendingListeners.clear(f);
+}
+
+
+
+
 LockfreeAsyncUpdater::~LockfreeAsyncUpdater()
 {
 	cancelPendingUpdate();
@@ -900,6 +893,17 @@ UpdateDispatcher::Listener::Listener(UpdateDispatcher* dispatcher_) :
 {
 
 }
+
+void UpdateDispatcher::Listener::triggerAsyncUpdate()
+{
+	if (pending)
+		return;
+
+	cancelled.store(false);
+	pending = true;
+
+	if (dispatcher != nullptr)
+		dispatcher->triggerAsyncUpdateForListener(this);
 }
 
 } // namespace hise

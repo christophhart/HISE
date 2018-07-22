@@ -176,25 +176,18 @@ private:
 *
 *	In order to use this class, just create an instance and pass this to your subclassed listeners, which then
 *	can be used just like the standard AsyncUpdater from JUCE.
-*
-*	Another nice feature is that you can use the same mechanism to call a function asynchronously by passing
-*	a lambda to callFunctionAsynchronously.
 */
-class UpdateDispatcher : public AsyncUpdater,
-						 private Timer
+class UpdateDispatcher : private Timer
 {
 public:
 
-	UpdateDispatcher(MainController* mc_) :
-		mc(mc_),
-		pendingListeners(8192),
-		pendingFunctions(1024)
-	{};
+	UpdateDispatcher(MainController* mc_);;
 
 	~UpdateDispatcher()
 	{
-		cancelPendingUpdate();
-		masterReference.clear();
+		pendingListeners.clear();
+
+		stopTimer();
 	}
 
 	/** This class contains the sender logic of the UpdateDispatcher scheme.
@@ -207,12 +200,7 @@ public:
 	{
 	public:
 
-		Listener(UpdateDispatcher* dispatcher_) :
-			dispatcher(dispatcher_),
-			pending(false)
-		{
-
-		};
+		Listener(UpdateDispatcher* dispatcher_);;
 
 		virtual ~Listener()
 		{
@@ -221,28 +209,19 @@ public:
 
 		virtual void handleAsyncUpdate() = 0;
 
-		virtual void cancelPendingUpdate()
+		void cancelPendingUpdate()
 		{
 			if (!pending)
 				return;
-			
-			if(dispatcher != nullptr)
-				dispatcher->cancelPendingUpdateForListener(this);
+
+			cancelled.store(true);
 		}
 
-		virtual void triggerAsyncUpdate()
-		{
-			if (pending)
-				return;
-
-			pending = true;
-
-			if (dispatcher != nullptr)
-				dispatcher->triggerAsyncUpdateForListener(this);
-		}
+		void triggerAsyncUpdate();
 
 	private:
 
+		std::atomic<bool> cancelled;
 		std::atomic<bool> pending;
 
 		friend class WeakReference<Listener>;
@@ -253,51 +232,19 @@ public:
 		WeakReference<UpdateDispatcher> dispatcher;
 	};
 
-	using Func = std::function<void(void)>;
-
-	void triggerAsyncUpdateForListener(Listener* l)
-	{
-		const bool ok = pendingListeners.push(l);
-
-		jassert(ok);
-        ignoreUnused(ok);
-        
-        
-		triggerAsyncUpdate();
-	}
-
-	void callFunctionAsynchronously(const Func& f)
-	{
-		pendingFunctions.push(Func(f));
-
-		triggerAsyncUpdate();
-	}
-
-	void cancelPendingUpdateForListener(Listener* l)
-	{
-		cancelledListeners.addIfNotAlreadyThere(l);
-	}
-
 private:
 
+	void triggerAsyncUpdateForListener(Listener* l);
+
+	MultithreadedLockfreeQueue<WeakReference<Listener>, MultithreadedQueueHelpers::Configuration::NoAllocationsTokenlessUsageAllowed> pendingListeners;
+
 	void timerCallback() override;
-	void handleAsyncUpdate() override;
-
-	void handlePendingListeners();
-
-	friend class WeakReference<UpdateDispatcher>;
-	WeakReference<UpdateDispatcher>::Master masterReference;
-
-	
 
 	friend class Listener;
 
 	MainController* mc;
 
-	Array<WeakReference<Listener>, CriticalSection> cancelledListeners;
-
-	hise::LockfreeQueue<WeakReference<Listener>> pendingListeners;
-	hise::LockfreeQueue<Func> pendingFunctions;
+	JUCE_DECLARE_WEAK_REFERENCEABLE(UpdateDispatcher);
 };
 
 /** This class can be used to listen to ValueTree property changes asynchronously.
@@ -319,11 +266,7 @@ public:
 
 	void valueTreePropertyChanged(ValueTree& v, const Identifier& id) final override
 	{
-		{
-			ScopedLock sl(arrayLock);
-			pendingPropertyChanges.addIfNotAlreadyThere(PropertyChange(v, id));
-		}
-		
+		pendingPropertyChanges.addIfNotAlreadyThere(PropertyChange(v, id));
 		asyncHandler.triggerAsyncUpdate();
 	};
 
@@ -359,15 +302,9 @@ private:
 
 		void handleAsyncUpdate() override
 		{
-			Array<PropertyChange> thisTime;
-
+			while (!parent.pendingPropertyChanges.isEmpty())
 			{
-				ScopedLock sl(parent.arrayLock);
-				thisTime.swapWith(parent.pendingPropertyChanges);
-			}
-
-			for (auto& pc : thisTime)
-			{
+				auto pc = parent.pendingPropertyChanges.removeAndReturn(0);
 				parent.asyncValueTreePropertyChanged(pc.v, pc.id);
 			}
 		}
@@ -375,13 +312,12 @@ private:
 		AsyncValueTreePropertyListener& parent;
 	};
 
-	CriticalSection arrayLock;
-
 	ValueTree state;
 	WeakReference<UpdateDispatcher> dispatcher;
 	AsyncHandler asyncHandler;
 
-	Array<PropertyChange> pendingPropertyChanges;
+	Array<PropertyChange, CriticalSection> pendingPropertyChanges;
+};
 };
 
 
