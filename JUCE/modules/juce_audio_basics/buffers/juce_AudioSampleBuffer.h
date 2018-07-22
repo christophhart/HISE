@@ -58,7 +58,16 @@ public:
          size (numSamplesToAllocate)
     {
         jassert (size >= 0 && numChannels >= 0);
-        allocateData();
+
+		if(numChannelsToAllocate >= 1)
+			allocateData();
+		else
+		{
+			jassert(numSamplesToAllocate == 0);
+			channels = static_cast<Type**> (preallocatedChannelSpace);
+			isClear = false;
+			allocatedBytes = 0;
+		}
     }
 
     /** Creates a buffer using a pre-allocated block of memory.
