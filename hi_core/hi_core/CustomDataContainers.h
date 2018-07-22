@@ -297,9 +297,11 @@ private:
 *	- cache line friendly (the data is aligned)
 *
 */
-template <typename ElementType, int SIZE=UNORDERED_STACK_SIZE> class UnorderedStack
+template <typename ElementType, int SIZE=UNORDERED_STACK_SIZE, typename LockType=DummyCriticalSection> class UnorderedStack
 {
 public:
+
+	typedef typename LockType::ScopedLockType Lock;
 
 	/** Creates an unordered stack. */
 
@@ -307,15 +309,18 @@ public:
 	{
 		position = 0;
 
+		Lock sl(lock);
+
 		for (int i = 0; i < SIZE; i++)
 		{
 			data[i] = ElementType();
 		}
 	}
 
-	
 	~UnorderedStack()
 	{
+		Lock sl(lock);
+
 		for (int i = 0; i < position; i++)
 		{
 			data[i] = ElementType();
@@ -325,6 +330,8 @@ public:
 	/** Inserts an element at the end of the unordered stack. */
 	void insert(const ElementType& elementTypeToInsert)
 	{
+		Lock sl(lock);
+
 		if (contains(elementTypeToInsert))
 		{
 			return;
@@ -335,8 +342,21 @@ public:
 		position = jmin<int>(position + 1, SIZE - 1);
 	}
 
+	void insertWithoutSearch(ElementType&& elementTypeToInsert)
+	{
+		Lock sl(lock);
+
+		jassert(!contains(elementTypeToInsert));
+
+		data[position] = std::move(elementTypeToInsert);
+
+		position = jmin<int>(position + 1, SIZE - 1);
+	}
+
 	void insertWithoutSearch(const ElementType& elementTypeToInsert)
 	{
+		Lock sl(lock);
+
 		jassert(!contains(elementTypeToInsert));
 
 		data[position] = elementTypeToInsert;
@@ -348,6 +368,8 @@ public:
 
 	void remove(const ElementType& elementTypeToRemove)
 	{
+		Lock sl(lock);
+
 		if (!contains(elementTypeToRemove))
 		{
 			return;
@@ -366,44 +388,61 @@ public:
 
 	void removeElement(int index)
 	{
+		Lock sl(lock);
+
 		if (index < position)
 		{
 			position = jmax<int>(0, position-1);
-			data[index] = data[position];
+			data[index] = std::move(data[position]);
 			data[position] = ElementType();
 		}
 	}
 
-	bool contains(const ElementType& elementToLookFor) const
+	bool contains(const ElementType& elementToLookFor) const noexcept
 	{
+		return indexOf(elementToLookFor) != -1;
+	}
+
+	int indexOf(const ElementType& elementToLookFor) const noexcept
+	{
+		Lock sl(lock);
+
 		for (size_t i = 0; i < position; i++)
 		{
 			if (data[i] == elementToLookFor)
-				return true;
+				return i;
 		}
 
-		return false;
+		return -1;
 	}
 
-	void shrink(int newSize)
+	void shrink(int newSize) noexcept
 	{
+		Lock sl(lock);
+
 		jassert(newSize > 0);
 		position = jlimit<int>(0, position, newSize);
 	}
 
     void clear()
     {
+		Lock sl(lock);
+
         memset(data, 0, sizeof(ElementType) * position);
 		clearQuick();
     }
     
 	void clearQuick()
 	{
+		Lock sl(lock);
+
 		position = 0;
 	}
 
 	ElementType operator[](int index) const
 	{
+		Lock sl(lock);
+
 		if (index < position)
 		{
 			return data[index];
@@ -416,29 +455,38 @@ public:
 
 	bool isEmpty() const
 	{
+		Lock sl(lock);
+
 		return position == 0;
 	}
 
 	int size() const
 	{
+		Lock sl(lock);
+
 		return (int)position;
 	}
 
 	inline ElementType* begin() const noexcept
 	{
 		ElementType* d = const_cast<ElementType*>(data);
-
 		return d;
 	}
 
 	inline ElementType* end() const noexcept
 	{
-		ElementType* d = const_cast<ElementType*>(data);
+		Lock sl(lock);
 
+		ElementType* d = const_cast<ElementType*>(data);
 		return d + position;
 	}
 
+	inline const LockType& getLock() const noexcept { return data; }
+
+	
 private:
+
+	LockType lock;
 
 	ElementType data[SIZE];
 
