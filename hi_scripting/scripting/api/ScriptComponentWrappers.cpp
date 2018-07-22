@@ -1571,7 +1571,7 @@ void ScriptCreatedComponentWrappers::PanelWrapper::updateValue(var newValue)
 	}
 	else
 	{
-		bpc->setVisible(sc->isShowing(true));
+		bpc->setVisible(sc->isShowing(false));
 		bpc->repaint();
 	}
 }
