@@ -122,10 +122,22 @@ public:
 			JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 		};
 
+        enum EventType
+        {
+            MPEModeChanged,
+            MPEModConnectionAdded,
+            MPEModConnectionRemoved,
+            MPEDataReloaded,
+            MPEModulatorAmountChanged,
+            numEventTypes
+        };
+        
 		void restoreFromValueTree(const ValueTree &previouslyExportedState) override;
 
 		ValueTree exportAsValueTree() const override;
 
+        void sendAsyncNotificationMessage(MPEModulator* mod, EventType type);
+        
 		void addConnection(MPEModulator* mod, NotificationType notifyListeners=sendNotification);
 
 		void removeConnection(MPEModulator* mod, NotificationType notifyListeners=sendNotification);
