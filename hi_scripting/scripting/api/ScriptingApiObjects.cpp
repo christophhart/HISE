@@ -2199,6 +2199,7 @@ void ScriptingObjects::GraphicsObject::drawText(String text, var area)
 
 	g->setFont(currentFont);
 
+	LockHelpers::SafeUnlock unlock(getScriptProcessor()->getMainController_(), LockHelpers::Type::ScriptLock);
 	MessageManagerLock mm;
 
 	g->drawText(text, r, Justification::centred);
@@ -2220,6 +2221,7 @@ void ScriptingObjects::GraphicsObject::drawAlignedText(String text, var area, St
 
 	g->setFont(currentFont);
 
+	LockHelpers::SafeUnlock unlock(getScriptProcessor()->getMainController_(), LockHelpers::Type::ScriptLock);
 	MessageManagerLock mm;
 
 	g->drawText(text, r, just);

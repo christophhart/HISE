@@ -83,10 +83,25 @@ public:
 		CriticalSection const* lock;
 	};
 
-	struct BadLockException : public std::exception
+
+	struct SafeUnlock
+	{
+		SafeUnlock(const MainController* mc, Type t, bool useRealLock = true);
+
+		~SafeUnlock();
+
+	private:
+
+		MainController const* mc;
+		Type type;
+		bool suspendsLock;
+		CriticalSection const* lock;
+	};
+	
+
+	struct BadLockException 
 	{
 		BadLockException(Type t_) :
-			std::exception("Bad Lock"),
 			t(t_)
 		{};
 
