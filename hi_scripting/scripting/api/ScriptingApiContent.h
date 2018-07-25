@@ -1857,6 +1857,7 @@ public:
 	void valueTreeNeedsUpdate()
 	{
 #if USE_BACKEND
+		ValueTreeUpdateWatcher::ScopedDelayer sd(updateWatcher);
 		rebuildComponentListFromValueTree();
 #endif
 	}

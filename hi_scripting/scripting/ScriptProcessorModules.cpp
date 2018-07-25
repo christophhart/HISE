@@ -204,10 +204,6 @@ void JavascriptMidiProcessor::runScriptCallbacks()
         return;
     }
     
-	bool isCurrentlyCompiling = getMainController()->getJavascriptThreadPool().getCurrentTask() == JavascriptThreadPool::Task::Compilation;
-
-	jassert(!isCurrentlyCompiling);
-
 #if ENABLE_SCRIPTING_BREAKPOINTS
 	breakpointWasHit(-1);
 #endif
@@ -284,10 +280,6 @@ void JavascriptMidiProcessor::runScriptCallbacks()
         case HiseEvent::Type::numTypes:
         break;
 	}
-
-	isCurrentlyCompiling = getMainController()->getJavascriptThreadPool().getCurrentTask() == JavascriptThreadPool::Task::Compilation;
-
-	jassert(!isCurrentlyCompiling);
 	
 #if 0
 	
