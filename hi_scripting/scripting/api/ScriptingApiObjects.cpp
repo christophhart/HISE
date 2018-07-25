@@ -1823,11 +1823,18 @@ void ScriptingObjects::TimerObject::timerCallback()
 
 	if (HiseJavascriptEngine::isJavascriptFunction(callback))
 	{
-		auto f = [this, callback](JavascriptProcessor* jp)
+        WeakReference<TimerObject> ref(this);
+        
+		auto f = [ref, callback](JavascriptProcessor* jp)
 		{
-			Result r = Result::ok();
-			timerCallbackInternal(callback, r);
-
+            Result r = Result::ok();
+            
+            if(ref != nullptr)
+            {
+                
+                ref.get()->timerCallbackInternal(callback, r);
+            }
+			
 			return r;
 		};
 

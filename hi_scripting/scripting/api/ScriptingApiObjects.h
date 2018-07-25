@@ -949,6 +949,7 @@ public:
 		InternalTimer it;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TimerObject)
+        JUCE_DECLARE_WEAK_REFERENCEABLE(TimerObject);
 	};
 
 
