@@ -80,6 +80,7 @@ AudioProcessor* createPlugin(ValueTree &presetData, ValueTree &imageData, ValueT
 
 #define USER_PRESET_OFFSET 8192
 
+#if 0
 #if HISE_IOS
 
 #define CREATE_PLUGIN(deviceManager, callback) { LOG_START("Loading embedded instrument data");\
@@ -123,6 +124,10 @@ ValueTree externalFiles = hise::PresetHandler::loadValueTreeFromData(PresetData:
 	return fp;\
 }
 
+
+#endif
+#endif
+
 namespace hise
 {
 
@@ -140,11 +145,12 @@ struct FrontendFactory
 
 #define CREATE_PLUGIN_WITH_AUDIO_FILES(deviceManager, callback) return hise::FrontendFactory::createPluginWithAudioFiles(deviceManager, callback);
 
+#define CREATE_PLUGIN CREATE_PLUGIN_WITH_AUDIO_FILES
+
 #define BEGIN_EMBEDDED_DATA() juce::MemoryInputStream* hise::FrontendFactory::getEmbeddedData(hise::FileHandlerBase::SubDirectories directory) { switch (directory) {
 #define DEFINE_EMBEDDED_DATA(subdirectory, data, size) case subdirectory: return new MemoryInputStream(data, size, false);
-#define END_EMBEDDED_DATA() default: jassertfalse; return nullptr; }}
+#define END_EMBEDDED_DATA() default: return nullptr; }}
 
-#endif
 
 
 

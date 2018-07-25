@@ -167,7 +167,6 @@ unlockCounter(0)
 #endif
     
 	LOG_START("Load images");
-
     restorePool(imageData, FileHandlerBase::Images, "ImageResources.dat");
     
    	LOG_START("Load embedded audio files");

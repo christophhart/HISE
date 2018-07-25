@@ -479,7 +479,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 		const bool embedFiles = false;
 #else
 		// Don't embedd external files on iOS for quicker loading times...
-		const bool embedFiles = !BuildOptionHelpers::isIOS(option);
+        const bool embedFiles = false; //!BuildOptionHelpers::isIOS(option);
 #endif
 
 		// Embed the user presets and extract them on first load
@@ -1168,7 +1168,7 @@ CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(const St
 {
 	String pluginDataHeaderFile;
 
-	HeaderHelpers::addBasicIncludeLines(pluginDataHeaderFile);
+    HeaderHelpers::addBasicIncludeLines(pluginDataHeaderFile, iOSAUv3);
 
 	HeaderHelpers::addAdditionalSourceCodeHeaderLines(this,pluginDataHeaderFile);
 	HeaderHelpers::addStaticDspFactoryRegistration(pluginDataHeaderFile, this);
@@ -1214,18 +1214,9 @@ CompileExporter::ErrorCodes CompileExporter::createStandaloneAppHeaderFile(const
 	HeaderHelpers::addStaticDspFactoryRegistration(pluginDataHeaderFile, this);
 	HeaderHelpers::addCopyProtectionHeaderLines(publicKey, pluginDataHeaderFile);
 
-	if (GET_SETTING(HiseSettings::Project::EmbedAudioFiles) == "No")
-	{
-		pluginDataHeaderFile << "AudioProcessor* hise::StandaloneProcessor::createProcessor() { CREATE_PLUGIN(deviceManager, callback); }\n";
-		pluginDataHeaderFile << "\n";
-		pluginDataHeaderFile << "START_JUCE_APPLICATION(hise::FrontendStandaloneApplication)\n";
-	}
-	else
-	{
-		pluginDataHeaderFile << "AudioProcessor* hise::StandaloneProcessor::createProcessor() { CREATE_PLUGIN_WITH_AUDIO_FILES(deviceManager, callback); }\n";
-		pluginDataHeaderFile << "\n";
-		pluginDataHeaderFile << "START_JUCE_APPLICATION(hise::FrontendStandaloneApplication)\n";
-	}
+    pluginDataHeaderFile << "AudioProcessor* hise::StandaloneProcessor::createProcessor() { CREATE_PLUGIN(deviceManager, callback); }\n";
+    pluginDataHeaderFile << "\n";
+    pluginDataHeaderFile << "START_JUCE_APPLICATION(hise::FrontendStandaloneApplication)\n";
 
 	HeaderHelpers::addProjectInfoLines(this, pluginDataHeaderFile);
 	HeaderHelpers::addCustomToolbarRegistration(this, pluginDataHeaderFile);
@@ -2206,7 +2197,7 @@ CompileExporter::ErrorCodes CompileExporter::HelperClasses::saveProjucerFile(Str
 	return ErrorCodes::OK;
 }
 
-void CompileExporter::HeaderHelpers::addBasicIncludeLines(String& p)
+void CompileExporter::HeaderHelpers::addBasicIncludeLines(String& p, bool isIOS)
 {
 	p << "\n";
 
@@ -2214,9 +2205,14 @@ void CompileExporter::HeaderHelpers::addBasicIncludeLines(String& p)
 	p << "#include \"PresetData.h\"\n";
 
 	p << "\nBEGIN_EMBEDDED_DATA()";
-	p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::AudioFiles, PresetData::impulses, PresetData::impulsesSize);";
-	p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::Images, PresetData::images, PresetData::imagesSize);";
-	p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::SampleMaps, PresetData::samplemaps, PresetData::samplemapsSize);";
+    
+    if(!isIOS)
+    {
+        p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::AudioFiles, PresetData::impulses, PresetData::impulsesSize);";
+        p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::Images, PresetData::images, PresetData::imagesSize);";
+        p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::SampleMaps, PresetData::samplemaps, PresetData::samplemapsSize);";
+    }
+
 	p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::Scripts, PresetData::externalFiles, PresetData::externalFilesSize);";
 	p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::Presets, PresetData::preset, PresetData::presetSize);";
 	p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::UserPresets, PresetData::userPresets, PresetData::userPresetsSize);";

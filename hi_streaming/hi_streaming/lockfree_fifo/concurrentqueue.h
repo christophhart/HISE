@@ -1592,6 +1592,8 @@ private:
 		inline T const* operator[](index_t idx) const MOODYCAMEL_NOEXCEPT { return static_cast<T const*>(static_cast<void const*>(elements)) + static_cast<size_t>(idx & static_cast<index_t>(BLOCK_SIZE - 1)); }
 		
 	private:
+        
+        /*
 		// IMPORTANT: This must be the first member in Block, so that if T depends on the alignment of
 		// addresses returned by malloc, that alignment will be preserved. Apparently clang actually
 		// generates code that uses this assumption for AVX instructions in some cases. Ideally, we
@@ -1602,6 +1604,7 @@ private:
 		// otherwise the appropriate padding will not be added at the end of Block in order to make
 		// arrays of Blocks all be properly aligned (not just the first one). We use a union to force
 		// this.
+         */
 		union {
 			char elements[sizeof(T) * BLOCK_SIZE];
 			details::max_align_t dummy;

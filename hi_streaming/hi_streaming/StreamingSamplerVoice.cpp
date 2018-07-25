@@ -532,6 +532,7 @@ static int unalignedCalls = 0;
 
 using SSEFloat = dsp::SIMDRegister<float>;
 
+#if 0
 struct Helpers
 {
 	static SSEFloat getSSEFloatRegister(const float* a)
@@ -546,6 +547,7 @@ struct Helpers
 		return _mm_cvtepi32_ps(l);
 	}
 };
+#endif
 
 
 
