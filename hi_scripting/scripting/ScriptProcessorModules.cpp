@@ -198,6 +198,12 @@ void JavascriptMidiProcessor::registerApiClasses()
 
 void JavascriptMidiProcessor::runScriptCallbacks()
 {
+    if (currentEvent->isAllNotesOff())
+    {
+        // All notes off are controller message, so they should not be processed, or it can lead to loop.
+        return;
+    }
+    
 	bool isCurrentlyCompiling = getMainController()->getJavascriptThreadPool().getCurrentTask() == JavascriptThreadPool::Task::Compilation;
 
 	jassert(!isCurrentlyCompiling);
@@ -246,8 +252,8 @@ void JavascriptMidiProcessor::runScriptCallbacks()
 
 		if (onControllerCallback->isSnippetEmpty()) return;
 
-		// All notes off are controller message, so they should not be processed, or it can lead to loop.
-		if (currentEvent->isAllNotesOff()) return;
+		
+		
 
 		Result r = Result::ok();
 		scriptEngine->executeCallback(onController, &lastResult);

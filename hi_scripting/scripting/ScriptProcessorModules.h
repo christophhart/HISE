@@ -124,7 +124,7 @@ private:
 	{
 		DeferredExecutioner(JavascriptMidiProcessor* jp) :
 			parent(*jp),
-			pendingEvents(128)
+			pendingEvents(512)
 		{};
 
 		void addPendingEvent(const HiseEvent& e)
