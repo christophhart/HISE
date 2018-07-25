@@ -882,6 +882,23 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 }
 
 
+ValueTree getChildWithPropertyRecursive(const ValueTree& v, const Identifier& id, const var& value)
+{
+	auto r = v.getChildWithProperty(id, value);
+
+	if (r.isValid())
+		return r;
+
+	for (auto child : v)
+	{
+		r = getChildWithPropertyRecursive(child, id, value);
+
+		if (r.isValid())
+			return r;
+	}
+
+	return ValueTree();
+}
 
 void BackendCommandTarget::menuItemSelected(int menuItemID, int topLevelMenuIndex)
 {
@@ -980,6 +997,9 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int topLevelMenuInde
 	{
 		HiseDeviceSimulator::DeviceType newDevice = (HiseDeviceSimulator::DeviceType)(menuItemID - (int)MenuToolsDeviceSimulatorOffset);
 
+		bool copyMissing = HiseDeviceSimulator::getDeviceType() == HiseDeviceSimulator::DeviceType::Desktop &&
+						   newDevice != HiseDeviceSimulator::DeviceType::Desktop;
+
 		HiseDeviceSimulator::setDeviceType(newDevice);
 
 		auto mp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(owner);
@@ -988,10 +1008,85 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int topLevelMenuInde
 
 		if (mp != nullptr)
 		{
-			auto contentData = mp->getContent()->exportAsValueTree();
+			auto c = mp->getContent();
+
+
+			ValueTree oldContent;
+			Array<Identifier> idList;
+
+			if (copyMissing)
+			{
+				
+
+				oldContent = c->getContentProperties();
+				
+				for (int i = 0; i < c->getNumComponents(); i++)
+				{
+					auto cmp = c->getComponent(i);
+
+					//bool x = ScriptingApi::Content::Helpers::hasLocation(cmp);
+
+					if (cmp->getScriptObjectProperty(ScriptComponent::Properties::saveInPreset))
+					{
+						idList.add(cmp->getName());
+					}
+				}
+			}
+
+			auto contentData = c->exportAsValueTree();
 			mp->setDeviceTypeForInterface((int)newDevice);
 			mp->compileScript();
 			mp->getContent()->restoreFromValueTree(contentData);
+
+			if (copyMissing)
+			{
+				auto newContentProperties = c->getContentProperties();
+
+				Array<Identifier> missingIds;
+
+				for (const auto& id : idList)
+				{
+					if (c->getComponentWithName(id) == nullptr)
+					{
+						missingIds.add(id);
+					}
+				}
+				
+				if (!missingIds.isEmpty() && PresetHandler::showYesNoWindow("Missing components found", "There are some components in the desktop UI that are not available in the new UI. Press OK to query which components should be transferred."))
+				{
+					{
+						ValueTreeUpdateWatcher::ScopedDelayer sd(c->getUpdateWatcher());
+
+						for (const auto& id : missingIds)
+						{
+							if (PresetHandler::showYesNoWindow("Copy " + id.toString(), "Do you want to transfer this component?"))
+							{
+								auto v = getChildWithPropertyRecursive(oldContent, "id", id.toString());
+
+								if (v.isValid())
+								{
+									v = v.createCopy();
+									v.removeAllChildren(nullptr);
+
+									v.removeProperty("parentComponent", nullptr);
+
+									newContentProperties.addChild(v, -1, nullptr);
+									debugToConsole(mp, "Added " + id.toString() + " to " + HiseDeviceSimulator::getDeviceName());
+								}
+							}
+						}
+					}
+
+					mp->compileScript();
+				}
+
+				
+			}
+
+			
+
+
+
 		}
 
 	}
