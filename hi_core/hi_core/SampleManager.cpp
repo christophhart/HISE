@@ -83,7 +83,8 @@ void MainController::SampleManager::setShouldSkipPreloading(bool skip)
 
 void MainController::SampleManager::preloadEverything()
 {
-	jassert(skipPreloading);
+    if(!skipPreloading)
+        return;
 
 	skipPreloading = false;
 

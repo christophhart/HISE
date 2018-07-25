@@ -202,19 +202,7 @@ void MainController::CodeHandler::initialise()
 {
 	if (!initialised)
 	{
-		auto f = [](Dispatchable* obj)
-		{
-			auto h = static_cast<CodeHandler*>(obj);
-
-			h->printPendingMessagesFromQueue();
-			auto tokenList = h->mc->getKillStateHandler().createPublicTokenList();
-			h->pendingMessages.setThreadTokens(tokenList);
-
-			return Status::OK;
-		};
-
 		initialised = true;
-		mc->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(this, f);
 	}
 }
 
@@ -223,35 +211,6 @@ void MainController::CodeHandler::writeToConsole(const String &t, int warningLev
 {
 	pendingMessages.push({ (WarningLevel)warningLevel, const_cast<Processor*>(p), t });
 	triggerAsyncUpdate();
-
-#if 0
-	if (overflowProtection) return;
-
-	else
-	{
-		ScopedLock sl(getLock());
-
-		if (unprintedMessages.size() > 10)
-		{
-			unprintedMessages.push_back(ConsoleMessage(Error, const_cast<Processor*>(p), "Console Overflow"));
-			overflowProtection = true;
-			return;
-		}
-		else
-		{
-			unprintedMessages.push_back(ConsoleMessage((WarningLevel)warningLevel, const_cast<Processor*>(p), t));
-		}
-	}
-
-	if (MessageManager::getInstance()->isThisTheMessageThread())
-	{
-		handleAsyncUpdate();
-	}
-	else
-	{
-		triggerAsyncUpdate();
-	}
-#endif
 }
 
 void MainController::CodeHandler::clearConsole()

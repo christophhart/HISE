@@ -1323,7 +1323,11 @@ void ScriptingApi::Engine::loadUserPreset(const String& relativePath)
 
 	auto userPreset = userPresetRoot.getChildFile(relativePath + ".preset");
 
-	if (userPreset.existsAsFile())
+    if(!getProcessor()->getMainController()->isInitialised())
+    {
+        reportScriptError("Do not load user presets at startup.");
+    }
+    else if (userPreset.existsAsFile())
 	{
 		getProcessor()->getMainController()->getUserPresetHandler().loadUserPreset(userPreset);
 	}

@@ -166,7 +166,7 @@ void MainController::KillStateHandler::requestQuit()
 
 bool MainController::KillStateHandler::allowGracefulExit() const noexcept
 {
-#if IS_STANDALONE_APP
+#if JUCE_WINDOWS && IS_STANDALONE_APP
 	const bool formatAllowsGracefulExit = true;
 #else
 	const bool formatAllowsGracefulExit = false;
