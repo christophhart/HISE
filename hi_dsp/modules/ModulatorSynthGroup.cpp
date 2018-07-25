@@ -54,7 +54,9 @@ void ModulatorSynthGroupVoice::addChildSynth(ModulatorSynth *childSynth)
 
 void ModulatorSynthGroupVoice::removeChildSynth(ModulatorSynth *childSynth)
 {
-	LockHelpers::SafeLock sl(ownerSynth->getMainController(), LockHelpers::AudioLock);
+	LOCK_PROCESSING_CHAIN(ownerSynth);
+
+	//LockHelpers::SafeLock sl(ownerSynth->getMainController(), LockHelpers::AudioLock, getOwnerSynth()->isOnAir());
 
 	jassert(childSynth != nullptr);
 	jassert(childSynths.indexOf(childSynth) != -1);

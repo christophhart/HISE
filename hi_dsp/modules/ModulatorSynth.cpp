@@ -918,7 +918,7 @@ void ModulatorSynth::setSoftBypass(bool shouldBeBypassed, bool bypassFXToo)
 	else
 		effectChain->updateSoftBypassState();
 
-	getMainController()->getKillStateHandler().killVoicesAndCall(this, f, MainController::KillStateHandler::TargetThread::AudioThread);
+	getMainController()->getKillStateHandler().killVoicesAndCall(this, f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 }
 
 
@@ -1627,7 +1627,8 @@ int ModulatorSynth::killVoiceAndSiblings(ModulatorSynthVoice* v, bool allowTailO
 
 void ModulatorSynth::deleteAllVoices()
 {
-	ScopedLock sl(lock);
+	LockHelpers::SafeLock sl(getMainController(), LockHelpers::AudioLock, isOnAir());
+    
 	activeVoices.clear();
 	pendingRemoveVoices.clear();
 	lastStartedVoice = nullptr;
@@ -1636,17 +1637,20 @@ void ModulatorSynth::deleteAllVoices()
 
 void ModulatorSynth::resetAllVoices()
 {
-	ScopedLock sl(lock);
-
-	for (int i = 0; i < getNumVoices(); i++)
-	{
-		static_cast<ModulatorSynthVoice*>(getVoice(i))->resetVoice();
-	}
-
-	lastStartedVoice = nullptr;
-	activeVoices.clearQuick();
-	pendingRemoveVoices.clearQuick();
-
+    {
+        LockHelpers::SafeLock sl(getMainController(), LockHelpers::AudioLock, isOnAir());
+        
+        for (int i = 0; i < getNumVoices(); i++)
+        {
+            static_cast<ModulatorSynthVoice*>(getVoice(i))->resetVoice();
+        }
+        
+        lastStartedVoice = nullptr;
+        activeVoices.clearQuick();
+        pendingRemoveVoices.clearQuick();
+        
+    }
+    
 	effectChain->resetMasterEffects();
 }
 
