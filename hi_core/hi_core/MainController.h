@@ -884,13 +884,6 @@ public:
 
 		std::atomic<State> currentState;
 
-		void executePendingAudioThreadFunctions();
-
-		using AudioThreadFunction = SuspendHelpers::Suspended<SafeFunctionCall, SuspendHelpers::FreeTicket>;
-		static constexpr auto config = MultithreadedQueueHelpers::Configuration::AllocationsAllowedNoTokenlessUsage;
-
-		MultithreadedLockfreeQueue<AudioThreadFunction, config > pendingAudioFunctions;
-
 		UnorderedStack<StackTrace<3, 6>, 32> stackTraces;
 
 		MainController* mc;

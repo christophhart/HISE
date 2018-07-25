@@ -35,8 +35,7 @@ namespace hise { using namespace juce;
 
 MainController::KillStateHandler::KillStateHandler(MainController* mc_) :
 	mc(mc_),
-	currentState(State::WaitingForInitialisation),
-	pendingAudioFunctions(8192)
+	currentState(State::WaitingForInitialisation)
 {
 	audioThreads.ensureStorageAllocated(16);
 
@@ -56,8 +55,6 @@ bool MainController::KillStateHandler::handleKillState()
 #endif
 
 	initAudioThreadId();
-
-	executePendingAudioThreadFunctions();
 
 	ScopedTryLock sl(ticketLock);
 
@@ -145,7 +142,7 @@ bool MainController::KillStateHandler::handleKillState()
 		return false;
 	default:
 		jassertfalse;
-		break;
+        return false;
 	}
 
 }
@@ -211,7 +208,7 @@ void MainController::KillStateHandler::deferToThread(Processor* p, const Process
 		auto sf = [f](JavascriptProcessor* jp)
 		{
 			auto p = dynamic_cast<Processor*>(jp);
-			auto result = f(p);
+			f(p);
 			return jp->getLastErrorMessage();
 		};
 
@@ -221,8 +218,8 @@ void MainController::KillStateHandler::deferToThread(Processor* p, const Process
 	}
 	case AudioThread:
 	{
-		pendingAudioFunctions.push({ SafeFunctionCall(p, f), mc });
-		break;
+        jassertfalse;
+        break;
 	}
 	case MessageThread:
 	default:
@@ -550,12 +547,6 @@ void MainController::KillStateHandler::initAudioThreadId()
 		
 		init = true;
 
-		constexpr int flags = QueueProducerFlags::LoadingThreadIsProducer |
-			QueueProducerFlags::ScriptThreadIsProducer |
-			QueueProducerFlags::MessageThreadIsProducer;
-
-		pendingAudioFunctions.setThreadTokens(createPublicTokenList(flags));
-
 		BACKEND_ONLY(mc->getConsoleHandler().initialise());
 	}
 
@@ -563,24 +554,6 @@ void MainController::KillStateHandler::initAudioThreadId()
 	
 }
 
-void MainController::KillStateHandler::executePendingAudioThreadFunctions()
-{
-	jassert(getCurrentThread() == AudioThread);
-
-	AudioThreadFunction atf;
-
-	while (pendingAudioFunctions.pop(atf))
-	{
-		// Don't care about the Result object
-		auto result = atf.getFunction().call();
-
-		if(result != SafeFunctionCall::OK)
-		{
-			jassertfalse;
-			break;
-		}
-	};
-}
 
 void MainController::KillStateHandler::warn(int operationType)
 {
