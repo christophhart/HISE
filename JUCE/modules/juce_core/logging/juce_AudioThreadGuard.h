@@ -39,7 +39,12 @@ namespace IllegalAudioThreadOps
 	};
 }
 
+
+    
 #if JUCE_ENABLE_AUDIO_GUARD
+
+class CriticalSection;
+    
 /** This class watches certain methods that are not supposed to be called in the
 audio thread.
 
@@ -286,8 +291,6 @@ struct DummyAudioGuard
 };
 
 using AudioThreadGuard = DummyAudioGuard;
-using GuardedScopedTryLock = ScopedTryLock;
-using GuardedScopedLock = ScopedLock;
 
 #endif
 

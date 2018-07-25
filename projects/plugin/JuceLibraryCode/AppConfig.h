@@ -18,6 +18,8 @@
 
 // (You can add your own code in this section, and the Projucer will not overwrite it)
 
+#define JUCE_ENABLE_AUDIO_GUARD 1
+
 // [END_USER_CODE_SECTION]
 
 /*
@@ -58,6 +60,7 @@
 #define JUCE_MODULE_AVAILABLE_hi_sampler                    1
 #define JUCE_MODULE_AVAILABLE_hi_scripting                  1
 #define JUCE_MODULE_AVAILABLE_hi_streaming                  1
+#define JUCE_MODULE_AVAILABLE_hi_zstd                       1
 #define JUCE_MODULE_AVAILABLE_juce_audio_basics             1
 #define JUCE_MODULE_AVAILABLE_juce_audio_devices            1
 #define JUCE_MODULE_AVAILABLE_juce_audio_formats            1
@@ -329,6 +332,10 @@
 
 #ifndef    JUCE_ALLOW_STATIC_NULL_VARIABLES
  //#define JUCE_ALLOW_STATIC_NULL_VARIABLES 1
+#endif
+
+#ifndef    JUCE_ENABLE_AUDIO_GUARD
+ //#define JUCE_ENABLE_AUDIO_GUARD 1
 #endif
 
 //==============================================================================
