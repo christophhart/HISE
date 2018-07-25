@@ -384,7 +384,13 @@ public:
 					parent.pendingNewContent.swapWith(text);
 				}
 
+                parent.setDisableUndo(true);
+                
 				parent.replaceAllContent(text);
+                
+                parent.setDisableUndo(false);
+                
+                
 				parent.pendingNewContent = String();
 			}
 
