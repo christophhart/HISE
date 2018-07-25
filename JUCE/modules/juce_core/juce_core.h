@@ -232,6 +232,7 @@ namespace juce
 #include "text/juce_String.h"
 #include "text/juce_StringRef.h"
 #include "logging/juce_Logger.h"
+#include "logging/juce_AudioThreadGuard.h"
 #include "memory/juce_LeakedObjectDetector.h"
 #include "memory/juce_ContainerDeletePolicy.h"
 #include "memory/juce_HeapBlock.h"
@@ -320,7 +321,7 @@ namespace juce
 #include "network/juce_WebInputStream.h"
 #include "system/juce_SystemStats.h"
 #include "time/juce_PerformanceCounter.h"
-#include "logging/juce_AudioThreadGuard.h"
+
 #include "unit_tests/juce_UnitTest.h"
 #include "xml/juce_XmlDocument.h"
 #include "xml/juce_XmlElement.h"

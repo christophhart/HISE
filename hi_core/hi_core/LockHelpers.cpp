@@ -209,7 +209,7 @@ LockHelpers::SafeLock::SafeLock(const MainController* mc_, Type t, bool useRealL
 	{
 		try
 		{
-			if (lock = &getLockChecked(mc, type))
+			if ((lock = &getLockChecked(mc, type)))
 			{
 				lock->enter();
 				mc->getKillStateHandler().setLockForCurrentThread(type, true);

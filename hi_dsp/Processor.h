@@ -461,6 +461,8 @@ public:
 		return inputValue;
 	};
 
+    bool isValidAndInitialised(bool checkOnAir=false) const;
+    
 	/** Saves the state of the Processor's editor. It must be saved within the Processor, because the Editor can be deleted. 
 	*
 	*	You can add more states in your subclass (they should be expressable as bool). Best use a enum:
@@ -592,7 +594,7 @@ public:
 			hierarchyUsed(useHierarchy),
 			index(0)
 		{
-			jassert(ProcessorHelpers::isValidAndInitialised(root));
+			jassert(root->isValidAndInitialised());
 			WARN_IF_AUDIO_THREAD(true, MainController::KillStateHandler::IllegalOps::IteratorCreation);
 
 			LockHelpers::SafeLock sl(root->getMainController(), LockHelpers::Type::IteratorLock);
@@ -676,14 +678,14 @@ public:
 				return;
 			}
 
-			if (ProcessorHelpers::is<SubTypeProcessor>(p))
+			if (dynamic_cast<SubTypeProcessor*>(p) != nullptr)
 				allProcessors.add(p);
 
 			// If you hit this assertion, it means that somehow
 			// a uninitialised processor got inserted into the processing
 			// chain, which is bad. Initialise all processors BEFORE
 			// adding them there...
-			jassert(ProcessorHelpers::isValidAndInitialised(p));
+			jassert(p->isValidAndInitialised());
 
 			for(int i = 0; i < p->getNumChildProcessors(); i++)
 			{
@@ -705,9 +707,9 @@ public:
 			// a uninitialised processor got inserted into the processing
 			// chain, which is bad. Initialise all processors BEFORE
 			// adding them there...
-			jassert(ProcessorHelpers::isValidAndInitialised(p));
+			jassert(p->isValidAndInitialised());
 
-			if(ProcessorHelpers::is<SubTypeProcessor>(p))
+			if(dynamic_cast<SubTypeProcessor*>(p) != nullptr)
 			{
 				allProcessors.add(p);
 				hierarchyData.add(thisHierarchy);
@@ -1039,7 +1041,7 @@ public:
 	};
 
 
-	static bool isValidAndInitialised(const Processor* p, bool checkOnAir=false);
+	
 
 	/** Returns a list of all processors that can be connected to a parameter. */
 	static StringArray getListOfAllConnectableProcessors(const Processor* processorToSkip);
