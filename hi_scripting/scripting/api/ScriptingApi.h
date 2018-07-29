@@ -282,6 +282,9 @@ public:
 		/** Returns a list of all available user presets as relative path. */
 		var getUserPresetList() const;
 
+		/** Sets whether the samples are allowed to be duplicated. Set this to false if you operate on the same samples differently. */
+		void setAllowDuplicateSamples(bool shouldAllow);
+
 		/** Returns the Bpm of the host. */
 		double getHostBpm() const;
 		
@@ -658,6 +661,12 @@ public:
 
 		// ============================================================================================================
 
+		void clearNoteCounter()
+		{
+			keyDown.clear();
+			numPressedKeys.set(0);
+		}
+
 		void increaseNoteCounter(int noteNumber) noexcept 
 		{ 
 			++numPressedKeys; 
@@ -712,6 +721,8 @@ public:
 
 		Identifier getName() const override { RETURN_STATIC_IDENTIFIER("Console"); }
 		static Identifier getClassName()   { RETURN_STATIC_IDENTIFIER("Console"); };
+
+		bool allowIllegalCallsOnAudioThread(int /*functionIndex*/) const override { return true; }
 
 		// ============================================================================================================ API Methods
 

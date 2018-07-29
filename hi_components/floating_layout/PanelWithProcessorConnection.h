@@ -105,9 +105,9 @@ public:
 
 	void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override;
 
-	virtual void processorDeleted(Processor* /*deletedProcessor*/)
+	void processorDeleted(Processor* /*deletedProcessor*/)
 	{
-		jassert(MessageManager::getInstance()->isThisTheMessageThread() || MessageManager::getInstance()->currentThreadHasLockedMessageManager());
+		jassert_message_thread;
 
 		setContentWithUndo(nullptr, -1);
 	}
@@ -123,6 +123,8 @@ public:
 	virtual void performAdditionalUndoInformation(const var& /*undoInformation*/) {};
 
 	void refreshConnectionList();
+
+	void refreshSelector(StringArray &items, String currentId);
 
 	void refreshIndexList();
 
@@ -240,6 +242,8 @@ private:
 	WeakReference<Processor> connectedProcessor;
 
 	ScopedPointer<Component> content;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(PanelWithProcessorConnection);
 };
 
 template <class ProcessorType> class GlobalConnectorPanel : public PanelWithProcessorConnection

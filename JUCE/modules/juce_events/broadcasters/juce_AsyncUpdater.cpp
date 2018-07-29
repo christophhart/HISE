@@ -61,6 +61,8 @@ AsyncUpdater::~AsyncUpdater()
 
 void AsyncUpdater::triggerAsyncUpdate()
 {
+	WARN_IF_AUDIO_THREAD(true, IllegalAudioThreadOps::AsyncUpdater);
+
     // If you're calling this before (or after) the MessageManager is
     // running, then you're not going to get any callbacks!
     jassert (MessageManager::getInstanceWithoutCreating() != nullptr);

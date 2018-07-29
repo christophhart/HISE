@@ -37,10 +37,7 @@ void SampleEditHandler::SampleEditingActions::deleteSelectedSounds(SampleEditHan
 	
 	auto soundsToBeDeleted = handler->getSelection().getItemArray();
 
-	
-
-	const int numToBeDeleted = soundsToBeDeleted.size();
-
+    
 	handler->getSampler()->getUndoManager()->beginNewTransaction("Delete samples");
 
 	for (int i = 0; i < soundsToBeDeleted.size(); i++)
@@ -61,7 +58,7 @@ void SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(SampleEdit
 
 	auto sounds = handler->getSelection().getItemArray();
 
-	ScopedLock sl(s->getMainController()->getSampleManager().getSamplerSoundLock());
+	LockHelpers::freeToGo(s->getMainController());
 
 	handler->getSelection().deselectAll();
 
@@ -223,7 +220,7 @@ void SampleEditHandler::SampleEditingActions::pasteSelectedSounds(SampleEditHand
 	checkMicPositionAmountBeforePasting(v, s);
 
 	{
-		ScopedLock sl(s->getMainController()->getSampleManager().getSamplerSoundLock());
+		LockHelpers::freeToGo(s->getMainController());
 
 
 		for (int i = 0; i < v.getNumChildren(); i++)
@@ -1871,7 +1868,7 @@ private:
 				}
 			}
 
-			return true;
+			return SafeFunctionCall::OK;
 		};
 
 		sampler->killAllVoicesAndCall(f);
@@ -1912,7 +1909,7 @@ private:
 
 				auto endOffset = sound->getReferenceToSound()->getLengthInSamples();
 				
-				progress = (double)i / (double)numSamples;
+				logData.progress = (double)i / (double)numSamples;
 
 				if (threadShouldExit())
 				{

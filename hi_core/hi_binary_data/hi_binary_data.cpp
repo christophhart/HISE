@@ -36,5 +36,5 @@
 #include "FrontendBinaryData.cpp"
 #include "ProcessorEditorHeaderBinaryData.cpp"
 #include "LookAndFeelBinaryData.cpp"
-
+#include "BinaryDataDictionaries.cpp"
 

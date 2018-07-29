@@ -100,7 +100,7 @@ public:
 
 	int getNumChildProcessors() const override {return numTotalChains;};
 
-	void startVoice(int voiceIndex) override;
+	float startVoice(int voiceIndex) override;
 	
 	void stopVoice(int voiceIndex) override;
 
@@ -171,7 +171,7 @@ public:
 
 	int calculateTableLength(float ms)
 	{
-		const int x = (int)(ms * getSampleRate() / 1000.0f);
+		const int x = (int)(ms * getControlRate() / 1000.0f);
 
 		return x;
 
@@ -240,7 +240,7 @@ public:
 
 private:
 
-	float calculateNewValue ();
+	float calculateNewValue(int voiceIndex);
 
 	ScopedPointer<SampleLookupTable> attackTable;
 	ScopedPointer<SampleLookupTable> releaseTable;

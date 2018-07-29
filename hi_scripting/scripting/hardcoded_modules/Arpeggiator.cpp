@@ -83,10 +83,11 @@ void Arpeggiator::onInit()
 	Content.setWidth(800);
 	Content.setHeight(500);
 	
-	MidiSequenceArray.ensureStorageAllocated(128);
-	MidiSequenceArraySorted.ensureStorageAllocated(128);
 	userHeldKeysArray.ensureStorageAllocated(128);
 	userHeldKeysArraySorted.ensureStorageAllocated(128);
+	MidiSequenceArray.ensureStorageAllocated(128);
+	MidiSequenceArraySorted.ensureStorageAllocated(128);
+	currentlyPlayingEventIds.ensureStorageAllocated(128);
 
 	minNoteLenSamples = (int)(Engine.getSampleRate() / 80.0);
 
@@ -483,6 +484,15 @@ void Arpeggiator::onController()
 	}
 }
 
+void Arpeggiator::onAllNotesOff()
+{
+	if (bypassButton->getValue())
+		return;
+
+	clearUserHeldKeys();
+	reset(false, true);
+}
+
 void Arpeggiator::onTimer(int /*offsetInBuffer*/)
 {
 	if (bypassButton->getValue())
@@ -503,8 +513,6 @@ void Arpeggiator::playNote()
 
 	// start synth timer
 	start();
-
-	
 
 	// transfer user held keys to midi sequence
 	MidiSequenceArray.clearQuick();
@@ -693,8 +701,6 @@ void Arpeggiator::playNote()
 
 void Arpeggiator::sendNoteOff(int eventId)
 {
-	const int shuffleTimeStamp = (currentStep % 2 != 0) ? (int)(0.8 * (double)currentNoteLengthInSamples * (double)shuffleSlider->getValue()) : 0;
-
 	Synth.noteOffDelayedByEventId(eventId, minNoteLenSamples);
 }
 

@@ -134,20 +134,21 @@ void HiseEvent::setTimeStamp(int newTimestamp) noexcept
 	timeStamp = static_cast<uint16>(jlimit<int>(0, UINT16_MAX, newTimestamp));
 }
 
+void HiseEvent::setTimeStampRaw(uint16 newTimestamp) noexcept
+{
+	timeStamp = newTimestamp;
+}
+
 void HiseEvent::addToTimeStamp(int16 delta) noexcept
 {
 	if (delta < 0)
 	{
 		int v = (int)timeStamp + delta;
-		jassert(v >= 0);
-
 		timeStamp = (uint16)jmax<int>(0, v);
 	}
 	else
 	{
 		int v = (int)timeStamp + delta;
-		jassert(v < UINT16_MAX);
-
 		timeStamp = (uint16)jmin<int>(UINT16_MAX, v);
 	}
 }
@@ -276,14 +277,6 @@ void HiseEventBuffer::addEvents(const HiseEventBuffer &otherBuffer)
 	{
 		addEvent(*e);
 	}
-}
-
-void HiseEventBuffer::addEvents(const HiseEventBuffer& otherBuffer, uint16 maxTimestamp)
-{
-	jassert(timeStampsAreSorted());
-	jassert(otherBuffer.timeStampsAreSorted());
-
-
 }
 
 bool HiseEventBuffer::timeStampsAreSorted() const

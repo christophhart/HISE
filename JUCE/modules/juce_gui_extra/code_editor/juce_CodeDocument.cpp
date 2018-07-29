@@ -592,6 +592,14 @@ bool CodeDocument::writeToStream (OutputStream& stream)
     return true;
 }
 
+void CodeDocument::setDisableUndo(bool shouldBeDisabled)
+{
+	if (shouldBeDisabled)
+		clearUndoHistory();
+
+	undoDisabled = shouldBeDisabled;
+}
+
 void CodeDocument::setNewLineCharacters (const String& newChars) noexcept
 {
     jassert (newChars == "\r\n" || newChars == "\n" || newChars == "\r");
@@ -600,23 +608,33 @@ void CodeDocument::setNewLineCharacters (const String& newChars) noexcept
 
 void CodeDocument::newTransaction()
 {
-    undoManager.beginNewTransaction (String());
+	if(!undoDisabled)
+		undoManager.beginNewTransaction (String());
 }
 
 void CodeDocument::undo()
 {
-    newTransaction();
-    undoManager.undo();
+	if (!undoDisabled)
+	{
+		newTransaction();
+		undoManager.undo();
+	}
+    
 }
 
 void CodeDocument::redo()
 {
-    undoManager.redo();
+	if (!undoDisabled)
+	{
+		undoManager.redo();
+	}
+    
 }
 
 void CodeDocument::clearUndoHistory()
 {
-    undoManager.clearUndoHistory();
+	if(!undoDisabled)
+		undoManager.clearUndoHistory();
 }
 
 void CodeDocument::setSavePoint() noexcept
@@ -793,7 +811,7 @@ void CodeDocument::insert (const String& text, const int insertPos, const bool u
 {
     if (text.isNotEmpty())
     {
-        if (undoable)
+        if (undoable && !undoDisabled)
         {
             undoManager.perform (new InsertAction (*this, text, insertPos));
         }
@@ -884,7 +902,7 @@ void CodeDocument::remove (const int startPos, const int endPos, const bool undo
     if (endPos <= startPos)
         return;
 
-    if (undoable)
+    if (undoable && !undoDisabled)
     {
         undoManager.perform (new DeleteAction (*this, startPos, endPos));
     }

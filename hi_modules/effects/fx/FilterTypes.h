@@ -42,6 +42,50 @@ using namespace juce;
 
 #define SET_FILTER_TYPE(x) static FilterHelpers::FilterSubType getFilterType() { return x; };
 
+    
+    namespace FilterLimitValues
+    {
+        constexpr double lowFrequency = 20.0f;
+        constexpr double highFrequency = 20000.0f;
+        
+        constexpr double lowQ = 0.3;
+        constexpr double highQ = 9.999;
+        
+        constexpr double lowGain = -18.0;
+        constexpr double highGain = 18.0;
+    }
+    
+    struct FilterLimits
+    {
+        
+        static double limit(double minValue, double maxValue, double value)
+        {
+#if HISE_IOS
+            return jlimit<double>(minValue, maxValue, value);
+#else
+            _mm_store_sd(&value, _mm_min_sd(_mm_max_sd(_mm_set_sd(value), _mm_set_sd(minValue)), _mm_set_sd(maxValue)));
+            return value;
+#endif
+        }
+        
+        static double limitFrequency(double freq)
+        {
+            return limit(FilterLimitValues::lowFrequency, FilterLimitValues::highFrequency, freq);
+        }
+        
+        static double limitQ(double q)
+        {
+            return limit(FilterLimitValues::lowQ, FilterLimitValues::highQ, q);
+        }
+        
+        static double limitGain(double gain)
+        {
+            return limit(FilterLimitValues::lowGain, FilterLimitValues::highGain, gain);
+        }
+    };
+    
+
+    
 class FilterHelpers
 {
 public:
@@ -139,17 +183,17 @@ public:
 
 	void setFrequency(double newFrequency)
 	{
-		frequency.setValue(newFrequency);
+		frequency.setValue(FilterLimits::limitFrequency(newFrequency));
 	}
 
 	void setQ(double newQ)
 	{
-		q.setValue(limit(newQ, 0.3, 8.0));
+		q.setValue(FilterLimits::limitQ(newQ));
 	}
 
 	void setGain(double newGain)
 	{
-		gain.setValue(newGain);
+		gain.setValue(FilterLimits::limitGain(newGain));
 	}
 
 	void reset()
@@ -200,10 +244,10 @@ private:
 		dirty = true;
 	}
 
-	void update(FilterHelpers::RenderData& data)
+	void update(FilterHelpers::RenderData& renderData)
 	{
-		auto thisFreq = limit(data.freqModValue * frequency.getNextValue(), 20.0, 20000.0);
-		auto thisGain = data.gainModValue * gain.getNextValue();
+		auto thisFreq = FilterLimits::limitFrequency(renderData.freqModValue * frequency.getNextValue());
+		auto thisGain = renderData.gainModValue * gain.getNextValue();
 		auto thisQ = q.getNextValue();
 
 		dirty |= compareAndSet(currentFreq, thisFreq);

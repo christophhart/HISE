@@ -96,6 +96,14 @@ class DialogWindowWithBackgroundThread : public AlertWindow,
 {
 public:
 
+	using LogFunction = std::function<void(const String&)>;
+
+	struct LogData
+	{
+		LogFunction logFunction;
+		double progress = 0.0;
+	};
+
 	// ================================================================================================================
 
 	/** This stops the thread. In order to avoid killing, check threadShouldExit() regularly in your run() method. */
@@ -252,12 +260,12 @@ public:
 	// ================================================================================================================
 
 	/** Shows a status message during job execution. */
-	void showStatusMessage(const String &message);
+	void showStatusMessage(const String &message) const;
 	
 	/** Sets the progressbar during job execution. */
-	void setProgress(double progressValue) { progress = progressValue; };
+	void setProgress(double progressValue) { logData.progress = progressValue; };
 
-	double& getProgressCounter() { return progress; }
+	double& getProgressCounter() { return logData.progress; }
 
 	void buttonClicked(Button* b) override;
 
@@ -283,6 +291,8 @@ public:
 	
 protected:
 
+	LogData logData;
+
 	// ================================================================================================================
 
 	/** Creates a new instance with the given title. 
@@ -294,7 +304,7 @@ protected:
 	/** Call this method in your constructor after you created all custom methods. */
 	void addBasicComponents(bool addOkButton = true);
 	
-	double progress;
+	
 
 	Thread* getCurrentThread()
 	{

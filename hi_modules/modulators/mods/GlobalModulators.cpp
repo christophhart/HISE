@@ -60,9 +60,18 @@ GlobalModulator::~GlobalModulator()
 		}
 	}
 
+	table = nullptr;
+
+	
+
 	if (auto oltp = dynamic_cast<LookupTableProcessor*>(getOriginalModulator()))
 	{
+		
+
 		WeakReference<Processor> target = getOriginalModulator();
+
+		if (target->getMainController()->isBeingDeleted())
+			return;
 
 		auto f = [target]()
 		{
@@ -75,7 +84,7 @@ GlobalModulator::~GlobalModulator()
 		new DelayedFunctionCaller(f, 300);
 	}
 
-	table = nullptr;
+	
 }
 
 Modulator * GlobalModulator::getOriginalModulator()

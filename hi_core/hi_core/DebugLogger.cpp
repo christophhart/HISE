@@ -18,6 +18,8 @@ void StartupLogger::init()
 #else
 	getLogFile().replaceWithText("Startup Log for " + FrontendHandler::getProjectName() + "\n====================================\n");
 #endif
+
+	timeToLastCall = Time::getMillisecondCounter();
 }
 
 
@@ -26,11 +28,18 @@ void StartupLogger::log(const String& message)
 	if (!isInitialised)
 		init();
 
+	auto thisTime = Time::getMillisecondCounter();
+
+	auto duration = thisTime - timeToLastCall;
+
+	timeToLastCall = thisTime;
+
 	NewLine nl;
-	getLogFile().appendText(Time::getCurrentTime().toString(true, true, true, true) + ": " + message + nl);
+	getLogFile().appendText(String(duration, 1)  + " ms : " + message + nl);
 }
 
 bool StartupLogger::isInitialised = false;
+double StartupLogger::timeToLastCall = 0.0;
 #endif
 
 struct DebugLogger::Message

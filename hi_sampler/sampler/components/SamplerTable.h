@@ -109,7 +109,7 @@ public:
 	{
 		auto index = s->getId();
 
-		if(SampleIds::isMapProperty(id))
+		if(SampleIds::Helpers::isMapProperty(id))
 			table->refreshPropertyForRow(index, id);
 	}
 

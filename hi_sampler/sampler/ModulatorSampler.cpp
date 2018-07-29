@@ -98,8 +98,6 @@ ModulatorSynth(mc, id, numVoices),
 preloadSize(PRELOAD_SIZE),
 asyncPurger(this),
 soundCache(new AudioThumbnailCache(512)),
-sampleStartChain(new ModulatorChain(mc, "Sample Start", numVoices, Modulation::GainMode, this)),
-crossFadeChain(new ModulatorChain(mc, "Group Fade", numVoices, Modulation::GainMode, this)),
 sampleMap(new SampleMap(this)),
 rrGroupAmount(1),
 bufferSize(4096),
@@ -113,6 +111,7 @@ crossfadeBuffer(1, 0),
 purged(false),
 reversed(false),
 numChannels(1),
+repeatMode(RepeatMode::KillSecondOldestNote),
 deactivateUIUpdate(false),
 samplePreloadPending(false),
 temporaryVoiceBuffer(true, 2, 0)
@@ -121,8 +120,15 @@ temporaryVoiceBuffer(true, 2, 0)
 	sampleEditHandler = new SampleEditHandler(this);
 #endif
 
+	modChains += {this, "Sample Start", ModulatorChain::ModulationType::VoiceStartOnly, Modulation::GainMode};
+	modChains += {this, "Group Fade"};
+
+	finaliseModChains();
+
+	modChains[Chains::XFade].setAllowModificationOfVoiceValues(true);
 	
-	
+	sampleStartChain = modChains[Chains::SampleStart].getChain();
+	crossFadeChain = modChains[Chains::XFade].getChain();
 
 	setGain(1.0);
 
@@ -153,13 +159,8 @@ temporaryVoiceBuffer(true, 2, 0)
 	setEditorState(EditorStates::MapPanelShown, true);
 	setEditorState(EditorStates::BigSampleMap, true);
 
-	sampleStartChain->setFactoryType(new VoiceStartModulatorFactoryType(numVoices, Modulation::GainMode, sampleStartChain));
-
-    
-    
-    
+	
 	sampleStartChain->setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff5e8127)));
-
 	crossFadeChain->setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff884b29)));
 
 	for (int i = 0; i < 127; i++) samplerDisplayValues.currentNotes[i] = 0;
@@ -174,9 +175,6 @@ temporaryVoiceBuffer(true, 2, 0)
 	}
 
 	getMatrix().setAllowResizing(true);
-
-    
-    
 }
 
 
@@ -220,17 +218,15 @@ void ModulatorSampler::setReversed(bool shouldBeReversed)
 
             s->refreshMemoryUsage();
 
-            return true;
+            return SafeFunctionCall::OK;
         };
 
-        killAllVoicesAndCall(f);
+        killAllVoicesAndCall(f, true);
     }
 }
 
 void ModulatorSampler::setNumChannels(int numNewChannels)
 {
-
-
 	jassert(numNewChannels <= (NUM_MAX_CHANNELS / 2));
 
 	numChannels = jmin<int>(NUM_MAX_CHANNELS/2, numNewChannels);
@@ -338,7 +334,7 @@ void ModulatorSampler::restoreFromValueTree(const ValueTree &v)
 	{
 		PoolReference ref(getMainController(), v.getProperty("SampleMapID").toString(), FileHandlerBase::SampleMaps);
 
-		loadSampleMap(ref, true);
+		loadSampleMap(ref);
 	}
 
     loadAttribute(CrossfadeGroups, "CrossfadeGroups");
@@ -440,7 +436,7 @@ void ModulatorSampler::setInternalAttribute(int parameterIndex, float newValue)
 	case BufferSize:		
 	{
 		bufferSize = (int)newValue; 
-		killAllVoicesAndCall([](Processor*p) {static_cast<ModulatorSampler*>(p)->refreshStreamingBuffers(); return true; });
+		killAllVoicesAndCall([](Processor*p) {static_cast<ModulatorSampler*>(p)->refreshStreamingBuffers(); return SafeFunctionCall::OK; }, false);
 		break;
 	}
 	case VoiceAmount:		setVoiceAmount((int)newValue); break;
@@ -496,12 +492,7 @@ void ModulatorSampler::prepareToPlay(double newSampleRate, int samplesPerBlock)
 
 	if (newSampleRate != -1.0)
 	{
-		ProcessorHelpers::increaseBufferIfNeeded(crossfadeBuffer, samplesPerBlock);
-
 		StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, samplesPerBlock);
-
-		sampleStartChain->prepareToPlay(newSampleRate, samplesPerBlock);
-		crossFadeChain->prepareToPlay(newSampleRate, samplesPerBlock);
 	}
 }
 
@@ -530,7 +521,7 @@ void ModulatorSampler::loadCacheFromFile(File &f)
 
 void ModulatorSampler::refreshStreamingBuffers()
 {
-	jassert(getMainController()->getKillStateHandler().voicesAreKilled());
+	jassert_processor_idle;
 
 	for (int i = 0; i < getNumVoices(); i++)
 	{
@@ -542,33 +533,24 @@ void ModulatorSampler::refreshStreamingBuffers()
 
 void ModulatorSampler::deleteSound(int index)
 {
-	ScopedLock sl(getMainController()->getSampleManager().getSamplerSoundLock());
-
-	auto s = getSound(index);
-
-	jassert(getMainController()->getKillStateHandler().voicesAreKilled());
-
-	checkAndLogIsSoftBypassed(DebugLogger::Location::DeleteOneSample);
-
-	for (int i = 0; i < voices.size(); i++)
+	if (auto s = getSound(index))
 	{
-		if (static_cast<ModulatorSamplerVoice*>(voices[i])->getCurrentlyPlayingSamplerSound() == s)
+		LockHelpers::freeToGo(getMainController());
+
+		for (int i = 0; i < voices.size(); i++)
 		{
-			static_cast<ModulatorSamplerVoice*>(voices[i])->resetVoice();
+			if (static_cast<ModulatorSamplerVoice*>(voices[i])->getCurrentlyPlayingSamplerSound() == s)
+				static_cast<ModulatorSamplerVoice*>(voices[i])->resetVoice();
 		}
+
+		{
+			LockHelpers::SafeLock sl(getMainController(), LockHelpers::SampleLock);
+			removeSound(index);
+		}
+
+		refreshMemoryUsage();
+		sendChangeMessage();
 	}
-
-	removeSound(index);
-
-	refreshMemoryUsage();
-
-	sendChangeMessage();
-
-	//ScopedLock sl(getMainController()->getLock());
-
-	
-
-	
 }
 
 void ModulatorSampler::deleteAllSounds()
@@ -576,20 +558,21 @@ void ModulatorSampler::deleteAllSounds()
 	if (getNumSounds() == 0)
 		return;
 
-	ScopedLock sl(getMainController()->getSampleManager().getSamplerSoundLock());
-
-	jassert(getMainController()->getKillStateHandler().voicesAreKilled());
+	isOnAir() && LockHelpers::freeToGo(getMainController());
 
 	for (int i = 0; i < voices.size(); i++)
 	{
 		static_cast<ModulatorSamplerVoice*>(getVoice(i))->resetVoice();
 	}
 
-	if(getNumSounds() != 0)
 	{
-		clearSounds();
+		LockHelpers::SafeLock sl(getMainController(), LockHelpers::SampleLock);
 
-		getMainController()->getSampleManager().getModulatorSamplerSoundPool()->clearUnreferencedMonoliths();
+		if (getNumSounds() != 0)
+		{
+			clearSounds();
+			getMainController()->getSampleManager().getModulatorSamplerSoundPool()->clearUnreferencedMonoliths();
+		}
 	}
 	
 	refreshMemoryUsage();
@@ -607,12 +590,16 @@ void ModulatorSampler::refreshPreloadSizes()
 	
 	if (!getMainController()->getSampleManager().shouldSkipPreloading() &&  getNumSounds() != 0)
 	{
-		auto f = [](Processor* p)->bool
+		auto f = [](Processor* p)
 		{
-			return static_cast<ModulatorSampler*>(p)->preloadAllSamples();
+			if (static_cast<ModulatorSampler*>(p)->preloadAllSamples())
+				return SafeFunctionCall::OK;
+
+			else
+				return SafeFunctionCall::cancelled;
 		};
 
-		killAllVoicesAndCall(f);
+		killAllVoicesAndCall(f, true);
 	}
 	
 }
@@ -684,10 +671,10 @@ void ModulatorSampler::refreshMemoryUsage()
 
 void ModulatorSampler::setVoiceAmount(int newVoiceAmount)
 {
-	if (auto group = getGroup())
+	if (isInGroup())
 	{
 		// Don't allow the sampler to have another voice amount than it's parent group.
-		newVoiceAmount = group->getNumVoices();
+		newVoiceAmount = getGroup()->getNumVoices();
 	}
 
 	if (newVoiceAmount != voiceAmount)
@@ -698,19 +685,23 @@ void ModulatorSampler::setVoiceAmount(int newVoiceAmount)
 		if (getAttribute(ModulatorSynth::VoiceLimit) > voiceAmount)
 			setAttribute(ModulatorSynth::VoiceLimit, float(voiceAmount), sendNotification);
 
-		auto f = [](Processor*p) { static_cast<ModulatorSampler*>(p)->setVoiceAmountInternal(); return true; };
+		const bool synchronous = !isOnAir() ||
+			(!getMainController()->getKillStateHandler().isAudioRunning() &&
+			getMainController()->getKillStateHandler().isSuspendableThread());
 
-		killAllVoicesAndCall(f);
+		auto f = [](Processor*p) { static_cast<ModulatorSampler*>(p)->setVoiceAmountInternal(); return SafeFunctionCall::OK; };
+		killAllVoicesAndCall(f, false);
+
+		
 	}
 }
 
 void ModulatorSampler::setVoiceAmountInternal()
 {
-	jassert(allVoicesAreKilled());
+	if(isOnAir())
+		LockHelpers::freeToGo(getMainController());
 
 	{
-		ScopedLock sl(getMainController()->getLock());
-
 		deleteAllVoices();
 
 		for (int i = 0; i < voiceAmount; i++)
@@ -740,9 +731,16 @@ void ModulatorSampler::setVoiceAmountInternal()
 	refreshStreamingBuffers();
 }
 
-void ModulatorSampler::killAllVoicesAndCall(const ProcessorFunction& f)
+void ModulatorSampler::killAllVoicesAndCall(const ProcessorFunction& f, bool restrictToSampleLoadingThread/*=true*/)
 {
-	if (!isOnAir())
+	bool synchronous = false;
+
+	auto currentThread = getMainController()->getKillStateHandler().getCurrentThread();
+
+	bool correctThread = (currentThread == MainController::KillStateHandler::SampleLoadingThread) ||
+						 (!restrictToSampleLoadingThread && currentThread == MainController::KillStateHandler::ScriptingThread);
+
+	if (!isOnAir() && correctThread)
 	{
 		f(this);
 	}
@@ -751,7 +749,6 @@ void ModulatorSampler::killAllVoicesAndCall(const ProcessorFunction& f)
 		getMainController()->getKillStateHandler().killVoicesAndCall(this, f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 	}
 }
-
 
 void ModulatorSampler::AsyncPurger::timerCallback()
 {
@@ -785,7 +782,7 @@ void ModulatorSampler::setPreloadSize(int newPreloadSize)
 
 void ModulatorSampler::setPreloadSizeAsync(int newPreloadSize)
 {
-	killAllVoicesAndCall([newPreloadSize](Processor* p) { static_cast<ModulatorSampler*>(p)->setPreloadSize(newPreloadSize); return true; });
+	killAllVoicesAndCall([newPreloadSize](Processor* p) { static_cast<ModulatorSampler*>(p)->setPreloadSize(newPreloadSize); return SafeFunctionCall::OK; });
 }
 
 void ModulatorSampler::setCurrentPlayingPosition(double normalizedPosition)
@@ -842,13 +839,14 @@ void ModulatorSampler::preStartVoice(int voiceIndex, int noteNumber)
 {
 	ModulatorSynth::preStartVoice(voiceIndex, noteNumber);
 
-	const bool useSampleStartChain = sampleStartChain->getNumChildProcessors() != 0;
+	const bool useSampleStartChain = sampleStartChain->shouldBeProcessedAtAll();
 
 	float sampleStartModValue;
 
+	sampleStartModValue = modChains[Chains::SampleStart].getConstantModulationValue();
+
 	if (useSampleStartChain)
 	{
-		sampleStartChain->startVoice(voiceIndex);
 		sampleStartModValue = sampleStartChain->getConstantVoiceValue(voiceIndex);
 
 		// The display value can already be determined here.
@@ -861,19 +859,7 @@ void ModulatorSampler::preStartVoice(int voiceIndex, int noteNumber)
 		samplerDisplayValues.currentSampleStartPos = 0.0f;
 	}
 
-	crossFadeChain->startVoice(voiceIndex);
-
 	static_cast<ModulatorSamplerVoice*>(getLastStartedVoice())->setSampleStartModValue(sampleStartModValue);
-}
-
-void ModulatorSampler::preVoiceRendering(int startSample, int numThisTime)
-{
-	ModulatorSynth::preVoiceRendering(startSample, numThisTime);
-
-	if (crossfadeGroups)
-	{
-		crossFadeChain->renderNextBlock(crossfadeBuffer, startSample, numThisTime);
-	}
 }
 
 bool ModulatorSampler::soundCanBePlayed(ModulatorSynthSound *sound, int midiChannel, int midiNoteNumber, float velocity)
@@ -933,13 +919,8 @@ void ModulatorSampler::noteOff(const HiseEvent &m)
 
 void ModulatorSampler::preHiseEventCallback(const HiseEvent &m)
 {
-	crossFadeChain->handleHiseEvent(m);
-
 	if (m.isNoteOnOrOff())
 	{
-		sampleStartChain->handleHiseEvent(m);
-		
-
 		if (m.isNoteOn())
 		{
 			if (useRoundRobinCycleLogic)
@@ -966,47 +947,101 @@ void ModulatorSampler::preHiseEventCallback(const HiseEvent &m)
 	if (!m.isNoteOff() || !oneShotEnabled)
 	{
 		ModulatorSynth::preHiseEventCallback(m);
-
 	}
 }
 
-void ModulatorSampler::calculateCrossfadeModulationValuesForVoice(int voiceIndex, int startSample, int numSamples, int groupIndex)
+float* ModulatorSampler::calculateCrossfadeModulationValuesForVoice(int voiceIndex, int startSample, int numSamples, int groupIndex)
 {
-	if (groupIndex > 8) return;
+	if (groupIndex > 8) return nullptr;
 
-	crossFadeChain->renderVoice(voiceIndex, startSample, numSamples);
-
-	float *crossFadeValues = crossFadeChain->getVoiceValues(voiceIndex);
-
-	const float* timeVariantCrossFadeValues = crossfadeBuffer.getReadPointer(0);
-
-	FloatVectorOperations::multiply(crossFadeValues, timeVariantCrossFadeValues, startSample + numSamples);
-
-	if (isLastStartedVoice(static_cast<ModulatorSynthVoice*>(getVoice(voiceIndex))) && numSamples > 0)
+	if (auto compressedValues = modChains[Chains::XFade].getWritePointerForManualExpansion(startSample))
 	{
-		setCrossfadeTableValue(crossFadeValues[startSample]);
+		int numSamples_cr = numSamples / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+
+		auto firstValue = compressedValues[0];
+		auto lastValue = compressedValues[numSamples_cr - 1];
+
+		if (fabsf(firstValue - lastValue) < 0.001f)
+		{
+			float modValue = firstValue;
+			currentCrossfadeValue = getCrossfadeValue(groupIndex, modValue);
+			modChains[Chains::XFade].setCurrentRampValueForVoice(voiceIndex, currentCrossfadeValue);
+			return nullptr;
+		}
+		else
+		{
+			while (--numSamples_cr >= 0)
+			{
+				float value = *compressedValues;
+				*compressedValues++ = getCrossfadeValue(groupIndex, value);
+			}
+
+			modChains[Chains::XFade].expandVoiceValuesToAudioRate(voiceIndex, startSample, numSamples);
+
+			auto return_ptr = modChains[Chains::XFade].getWritePointerForVoiceValues(0);
+
+			// It might be possible that the expansion results in a "constantification", so check again...
+			if (return_ptr != nullptr)
+			{
+				currentCrossfadeValue = 1.0f;
+				return return_ptr;
+			}
+			else
+			{
+				float modValue = modChains[Chains::XFade].getConstantModulationValue();
+				currentCrossfadeValue = getCrossfadeValue(groupIndex, modValue);
+				modChains[Chains::XFade].setCurrentRampValueForVoice(voiceIndex, currentCrossfadeValue);
+				return return_ptr;
+			}
+		}
 	}
-
-	SampleLookupTable *table = crossfadeTables[groupIndex];
-
-	for (int i = 0; i < numSamples; i++)
+	else
 	{
-		const float value = CONSTRAIN_TO_0_1(crossFadeValues[i + startSample]);
-		const float tableValue = table->getInterpolatedValue((double)value * (double)SAMPLE_LOOKUP_TABLE_SIZE);
-
-		crossFadeValues[i + startSample] = tableValue;
+		float modValue = modChains[Chains::XFade].getConstantModulationValue();
+		currentCrossfadeValue = getCrossfadeValue(groupIndex, modValue);
+		modChains[Chains::XFade].setCurrentRampValueForVoice(voiceIndex, currentCrossfadeValue);
+		return nullptr;
 	}
+}
+
+const float * ModulatorSampler::getCrossfadeModValues() const
+{
+	return crossfadeGroups ? modChains[Chains::XFade].getReadPointerForVoiceValues(0) : nullptr;
+}
+
+float ModulatorSampler::getConstantCrossFadeModulationValue() const noexcept
+{
+#if HISE_PLAY_ALL_CROSSFADE_GROUPS_WHEN_EMPTY
+
+	// This plays all crossfade groups until there's a modulator present.
+	if (!modChains[Chains::XFade].getChain()->shouldBeProcessedAtAll())
+	{
+		return 1.0f;
+	}
+#endif
+
+	if (!crossfadeGroups)
+		return 1.0f;
+
+	return currentCrossfadeValue;
+}
+
+float ModulatorSampler::getCrossfadeValue(int groupIndex, float modValue) const
+{
+	SampleLookupTable * table = crossfadeTables[groupIndex];
+
+	modValue = CONSTRAIN_TO_0_1(modValue);
+
+	return table->getInterpolatedValue((double)modValue * (double)SAMPLE_LOOKUP_TABLE_SIZE);
 }
 
 void ModulatorSampler::clearSampleMap(NotificationType n)
 {
-	jassert(isOnSampleLoadingThread());
+	LockHelpers::freeToGo(getMainController());
 
-	ScopedLock sl(getMainController()->getSampleManager().getSamplerSoundLock());
+	if (sampleMap == nullptr)
+		return;
 
-    if(sampleMap == nullptr)
-        return;
-    
 	sampleMap->saveIfNeeded();
 
 	deleteAllSounds();
@@ -1014,21 +1049,14 @@ void ModulatorSampler::clearSampleMap(NotificationType n)
 }
 
 
-void ModulatorSampler::loadSampleMap(PoolReference ref, bool loadAsynchronous/*=false*/)
+void ModulatorSampler::loadSampleMap(PoolReference ref)
 {
 	if (getSampleMap()->getReference() == ref)
 		return;
 
-	auto f = [ref](Processor* p)
-	{
-		dynamic_cast<ModulatorSampler*>(p)->getSampleMap()->load(ref);
-		return true;
-	};
+	LockHelpers::freeToGo(getMainController());
 
-	if (loadAsynchronous)
-		killAllVoicesAndCall(f);
-	else
-		f(this);
+	getSampleMap()->load(ref);
 }
 
 void ModulatorSampler::loadEmbeddedValueTree(const ValueTree& v, bool loadAsynchronous /*= false*/)
@@ -1038,15 +1066,10 @@ void ModulatorSampler::loadEmbeddedValueTree(const ValueTree& v, bool loadAsynch
 	auto f = [v](Processor* p)
 	{
 		dynamic_cast<ModulatorSampler*>(p)->getSampleMap()->loadUnsavedValueTree(v);
-		return true;
+		return SafeFunctionCall::OK;
 	};
 
-	if (loadAsynchronous)
-		killAllVoicesAndCall(f);
-	else
-		f(this);
-
-
+	killAllVoicesAndCall(f, false);
 }
 
 void ModulatorSampler::updateRRGroupAmountAfterMapLoad()

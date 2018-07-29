@@ -61,7 +61,7 @@ public:
 			processor(p)
 		{};
 
-
+		
 		bool operator==(const ProcessorValueConverter& other) const
 		{
 			return other.processor == processor;
@@ -82,6 +82,10 @@ public:
 
 		Table::ValueTextConverter converter;
 		WeakReference<Processor> processor;
+
+	private:
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ProcessorValueConverter);
 	};
 
 	// ================================================================================================================
@@ -142,13 +146,13 @@ public:
 		{
 			for (int i = 0; i < yConverters.size(); i++)
 			{
-				auto* thisP = yConverters[i].processor.get();
+				auto thisP = yConverters[i]->processor.get();
 
 				if (thisP == nullptr || thisP == p)
 					yConverters.remove(i--);
 			}
 
-			yConverters.add({ converter, p });
+			yConverters.add(new ProcessorValueConverter(converter, p ));
 		}
 
 		updateYConverters();
@@ -158,7 +162,7 @@ public:
 	{
 		for (int i = 0; i < yConverters.size(); i++)
 		{
-			auto* thisP = yConverters[i].processor.get();
+			auto thisP = yConverters[i]->processor.get();
 
 			if (thisP == nullptr)
 				yConverters.remove(i--);
@@ -175,13 +179,13 @@ private:
 
 	void updateYConverters()
 	{
-		const auto& cToUse = yConverters.size() == 1 ? yConverters[0].converter : defaultYConverter;
+		const auto cToUse = yConverters.size() == 1 ? yConverters.getFirst()->converter : defaultYConverter;
 
 		for (int i = 0; i < getNumTables(); i++)
 			getTable(i)->setYTextConverterRaw(cToUse);
 	}
 
-	Array<ProcessorValueConverter> yConverters;
+	OwnedArray<ProcessorValueConverter> yConverters;
 	
 
 	TableChangeBroadcaster tableChangeBroadcaster;
@@ -473,6 +477,8 @@ public:
 		/** Deletes all Processors in the Chain. */
 		virtual void clear() = 0;
 
+		void clearAsync(Processor* parent);
+
 		void addListener(Listener* l)
 		{
 			listeners.addIfNotAlreadyThere(l);
@@ -483,9 +489,32 @@ public:
 			listeners.removeAllInstancesOf(l);
 		}
 
+		void addPostEventListener(Listener* l)
+		{
+			postEventlisteners.addIfNotAlreadyThere(l);
+		}
+
+		void removePostEventListener(Listener* l)
+		{
+			postEventlisteners.removeAllInstancesOf(l);
+		}
+
 		void notifyListeners(Listener::EventType t, Processor* p)
 		{
+			ScopedLock sl(listeners.getLock());
+
 			for (auto l : listeners)
+			{
+				if (l != nullptr)
+					l->processorChanged(t, p);
+			}
+		}
+
+		void notifyPostEventListeners(Listener::EventType t, Processor* p)
+		{
+			ScopedLock sl(postEventlisteners.getLock());
+
+			for (auto l : postEventlisteners)
 			{
 				if (l != nullptr)
 					l->processorChanged(t, p);
@@ -494,7 +523,10 @@ public:
 
 	private:
 
-		Array<WeakReference<Listener>> listeners;
+		
+
+		Array<WeakReference<Listener>, CriticalSection> listeners;
+		Array<WeakReference<Listener>, CriticalSection> postEventlisteners;
 	};
 
 	// ===================================================================================================================

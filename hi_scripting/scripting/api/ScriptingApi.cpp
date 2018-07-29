@@ -961,6 +961,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, isControllerUsedByAutomation);
 	API_METHOD_WRAPPER_0(Engine, getSettingsWindowObject);
 	API_METHOD_WRAPPER_1(Engine, getMasterPeakLevel);
+	API_VOID_METHOD_WRAPPER_1(Engine, setAllowDuplicateSamples);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadFont);
 	API_VOID_METHOD_WRAPPER_2(Engine, loadFontAs);
 	API_VOID_METHOD_WRAPPER_1(Engine, setGlobalFont);
@@ -1022,6 +1023,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(getZoomLevel);
 	ADD_API_METHOD_0(getVersion);
 	ADD_API_METHOD_0(getFilterModeList);
+	ADD_API_METHOD_1(setAllowDuplicateSamples);
 	ADD_API_METHOD_1(isControllerUsedByAutomation);
 	ADD_API_METHOD_0(getSettingsWindowObject);
 	ADD_API_METHOD_0(createTimerObject);
@@ -1321,7 +1323,11 @@ void ScriptingApi::Engine::loadUserPreset(const String& relativePath)
 
 	auto userPreset = userPresetRoot.getChildFile(relativePath + ".preset");
 
-	if (userPreset.existsAsFile())
+    if(!getProcessor()->getMainController()->isInitialised())
+    {
+        reportScriptError("Do not load user presets at startup.");
+    }
+    else if (userPreset.existsAsFile())
 	{
 		getProcessor()->getMainController()->getUserPresetHandler().loadUserPreset(userPreset);
 	}
@@ -1354,6 +1360,11 @@ var ScriptingApi::Engine::getUserPresetList() const
 	}
 
 	return var(list);
+}
+
+void ScriptingApi::Engine::setAllowDuplicateSamples(bool shouldAllow)
+{
+	getProcessor()->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->setAllowDuplicateSamples(shouldAllow);
 }
 
 DynamicObject * ScriptingApi::Engine::getPlayHead() { return getProcessor()->getMainController()->getHostInfoObject(); }
@@ -1575,6 +1586,8 @@ sampler(sampler_)
 
 void ScriptingApi::Sampler::enableRoundRobin(bool shouldUseRoundRobin)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s != nullptr)
@@ -1632,6 +1645,8 @@ int ScriptingApi::Sampler::getRRGroupsForMessage(int noteNumber, int velocity)
 
 void ScriptingApi::Sampler::refreshRRMap()
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
@@ -1651,6 +1666,8 @@ void ScriptingApi::Sampler::refreshRRMap()
 
 void ScriptingApi::Sampler::selectSounds(String regexWildcard)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
@@ -1659,14 +1676,13 @@ void ScriptingApi::Sampler::selectSounds(String regexWildcard)
 		return;
 	}
 
-    if(auto lock = PresetLoadLock(s->getMainController()))
-    {
-        ModulatorSamplerSound::selectSoundsBasedOnRegex(regexWildcard, s, soundSelection);
-    }
+	ModulatorSamplerSound::selectSoundsBasedOnRegex(regexWildcard, s, soundSelection);
 }
 
 int ScriptingApi::Sampler::getNumSelectedSounds()
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
@@ -1680,6 +1696,8 @@ int ScriptingApi::Sampler::getNumSelectedSounds()
 
 void ScriptingApi::Sampler::setSoundPropertyForSelection(int propertyId, var newValue)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
@@ -1688,26 +1706,25 @@ void ScriptingApi::Sampler::setSoundPropertyForSelection(int propertyId, var new
 		return;
 	}
 
-    if(auto lock = PresetLoadLock(s->getMainController()))
-    {
-        auto sounds = soundSelection.getItemArray();
-        
-        auto id = sampleIds[propertyId];
-        
-        const int numSelected = sounds.size();
-        
-        for (int i = 0; i < numSelected; i++)
-        {
-            if (sounds[i].get() != nullptr)
-            {
-                sounds[i]->setSampleProperty(id, newValue, false);
-            }
-        }
-    }
+	auto sounds = soundSelection.getItemArray();
+
+	auto id = sampleIds[propertyId];
+
+	const int numSelected = sounds.size();
+
+	for (int i = 0; i < numSelected; i++)
+	{
+		if (sounds[i].get() != nullptr)
+		{
+			sounds[i]->setSampleProperty(id, newValue, false);
+		}
+	}
 }
 
 void ScriptingApi::Sampler::setSoundPropertyForAllSamples(int propertyIndex, var newValue)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
@@ -1716,20 +1733,20 @@ void ScriptingApi::Sampler::setSoundPropertyForAllSamples(int propertyIndex, var
 		return;
 	}
 
-    if(auto lock = PresetLoadLock(s->getMainController()))
-    {
-        auto id = sampleIds[propertyIndex];
-        
-        for (int i = 0; i < s->getNumSounds(); i++)
-        {
-            if (auto sound = s->getSampleMap()->getSound(i))
-                sound->setSampleProperty(id, newValue, false);
-        }
-    }
+	auto id = sampleIds[propertyIndex];
+
+	ModulatorSampler::SoundIterator iter(s);
+
+	while (auto sound = iter.getNextSound())
+	{
+		sound->setSampleProperty(id, newValue, false);
+	}
 }
 
 var ScriptingApi::Sampler::getSoundProperty(int propertyIndex, int soundIndex)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
@@ -1738,27 +1755,22 @@ var ScriptingApi::Sampler::getSoundProperty(int propertyIndex, int soundIndex)
 		RETURN_IF_NO_THROW(var())
 	}
 
-    if(auto lock = PresetLoadLock(s->getMainController()))
-    {
-        if (auto sound = s->getSampleMap()->getSound(soundIndex))
-        {
-            auto id = sampleIds[propertyIndex];
-            return sound->getSampleProperty(id);
-        }
-        else
-        {
-            reportScriptError("no sound with index " + String(soundIndex));
-            RETURN_IF_NO_THROW(var())
-        }
-    }
+	if (auto sound = s->getSampleMap()->getSound(soundIndex))
+	{
+		auto id = sampleIds[propertyIndex];
+		return sound->getSampleProperty(id);
+	}
 	else
 	{
-		return var();
+		reportScriptError("no sound with index " + String(soundIndex));
+		RETURN_IF_NO_THROW(var())
 	}
 }
 
 void ScriptingApi::Sampler::setSoundProperty(int soundIndex, int propertyIndex, var newValue)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
@@ -1767,23 +1779,22 @@ void ScriptingApi::Sampler::setSoundProperty(int soundIndex, int propertyIndex, 
 		RETURN_VOID_IF_NO_THROW()
 	}
 
-    if(auto lock = PresetLoadLock(s->getMainController()))
-    {
-        if (auto sound = soundSelection.getSelectedItem(soundIndex).get())
-        {
-            auto id = sampleIds[propertyIndex];
-            sound->setSampleProperty(id, newValue, false);
-        }
-        else
-        {
-            reportScriptError("no sound with index " + String(soundIndex));
-            RETURN_VOID_IF_NO_THROW()
-        }
-    }
+	if (auto sound = soundSelection.getSelectedItem(soundIndex).get())
+	{
+		auto id = sampleIds[propertyIndex];
+		sound->setSampleProperty(id, newValue, false);
+	}
+	else
+	{
+		reportScriptError("no sound with index " + String(soundIndex));
+		RETURN_VOID_IF_NO_THROW()
+	}
 }
 
 void ScriptingApi::Sampler::purgeMicPosition(String micName, bool shouldBePurged)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
     if(micName.isEmpty())
@@ -1821,6 +1832,8 @@ void ScriptingApi::Sampler::purgeMicPosition(String micName, bool shouldBePurged
 
 String ScriptingApi::Sampler::getMicPositionName(int channelIndex)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
@@ -1872,6 +1885,8 @@ bool ScriptingApi::Sampler::isMicPositionPurged(int micIndex)
 
 void ScriptingApi::Sampler::refreshInterface()
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
@@ -1886,6 +1901,10 @@ void ScriptingApi::Sampler::refreshInterface()
 
 void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
+	jassert(LockHelpers::isLockedBySameThread(getScriptProcessor()->getMainController_(), LockHelpers::ScriptLock));
+
 	if (fileName.isEmpty())
 		reportScriptError("Trying to load a empty sample map...");
     
@@ -1895,12 +1914,21 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 	{
 		PoolReference ref(s->getMainController(), fileName, FileHandlerBase::SampleMaps);
 
-		s->loadSampleMap(ref, true);
+		if (!ref.isValid())
+		{
+			jassertfalse;
+			reportScriptError("Samplemap " + ref.getReferenceString() + " is not valid");
+			return;
+		}
+
+		s->killAllVoicesAndCall([ref](Processor* p) {dynamic_cast<ModulatorSampler*>(p)->loadSampleMap(ref); return SafeFunctionCall::OK; }, true);
 	}
 }
 
 String ScriptingApi::Sampler::getCurrentSampleMapId() const
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
     ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
     
     if (s != nullptr)
@@ -1917,6 +1945,8 @@ String ScriptingApi::Sampler::getCurrentSampleMapId() const
 
 var ScriptingApi::Sampler::getSampleMapList() const
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	Array<var> sampleMapNames;
 
 	auto pool = getProcessor()->getMainController()->getCurrentSampleMapPool();
@@ -1964,6 +1994,8 @@ void ScriptingApi::Sampler::setAttribute(int index, var newValue)
 
 void ScriptingApi::Sampler::setUseStaticMatrix(bool shouldUseStaticMatrix)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
+
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
@@ -2133,6 +2165,8 @@ void ScriptingApi::Synth::noteOffDelayedByEventId(int eventId, int timestamp)
 
 	const HiseEvent e = getProcessor()->getMainController()->getEventHandler().popNoteOnFromEventId((uint16)eventId);
 
+	
+
 	if (!e.isEmpty())
 	{
 #if ENABLE_SCRIPTING_SAFE_CHECKS
@@ -2142,6 +2176,15 @@ void ScriptingApi::Synth::noteOffDelayedByEventId(int eventId, int timestamp)
 		}
 #endif
 		const HiseEvent* current = parentMidiProcessor->getCurrentHiseEvent();
+
+#if HISE_USE_BACKWARDS_COMPATIBLE_TIMESTAMPS
+		// Apparently there was something wrong with the timestamp calculation.
+		// This restores the old behaviour by removing one block from the timestamps.
+		// By default, it's turned off, but you can enable it if you need backwards
+		// compatibility with older patches...
+		int blocksize = parentMidiProcessor->getMainController()->getBufferSizeForCurrentBlock();
+		timestamp = jmax<int>(0, timestamp - blocksize);
+#endif
 
 		if (current != nullptr)
 		{
@@ -2615,6 +2658,8 @@ var ScriptingApi::Synth::getIdList(const String &type)
 
 ScriptingObjects::ScriptingEffect *ScriptingApi::Synth::getEffect(const String &name)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::ObjectCreation);
+
 	if(getScriptProcessor()->objectsCanBeCreated())
 	{
 		Processor::Iterator<EffectProcessor> it(owner);
@@ -2642,6 +2687,8 @@ ScriptingObjects::ScriptingEffect *ScriptingApi::Synth::getEffect(const String &
 
 ScriptingObjects::ScriptingAudioSampleProcessor * ScriptingApi::Synth::getAudioSampleProcessor(const String &name)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::ObjectCreation);
+
 	Processor::Iterator<AudioSampleProcessor> it(owner);
 
 		AudioSampleProcessor *asp;
@@ -2663,6 +2710,8 @@ ScriptingObjects::ScriptingAudioSampleProcessor * ScriptingApi::Synth::getAudioS
 
 ScriptingObjects::ScriptingTableProcessor *ScriptingApi::Synth::getTableProcessor(const String &name)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::ObjectCreation);
+
 	if (getScriptProcessor()->objectsCanBeCreated())
 	{
 		Processor::Iterator<LookupTableProcessor> it(owner);
@@ -2688,6 +2737,8 @@ ScriptingObjects::ScriptingTableProcessor *ScriptingApi::Synth::getTableProcesso
 
 ScriptingApi::Sampler * ScriptingApi::Synth::getSampler(const String &name)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::ObjectCreation);
+
 	if (getScriptProcessor()->objectsCanBeCreated())
 	{
 		Processor::Iterator<ModulatorSampler> it(owner);
@@ -2713,6 +2764,8 @@ ScriptingApi::Sampler * ScriptingApi::Synth::getSampler(const String &name)
 
 ScriptingApi::Synth::ScriptSlotFX* ScriptingApi::Synth::getSlotFX(const String& name)
 {
+	WARN_IF_AUDIO_THREAD(true, ScriptGuard::ObjectCreation);
+
 	if (getScriptProcessor()->objectsCanBeCreated())
 	{
 		Processor::Iterator<SlotFX> it(owner);
@@ -2793,6 +2846,16 @@ int ScriptingApi::Synth::internalAddNoteOn(int channel, int noteNumber, int velo
 					if (parentMidiProcessor != nullptr)
 					{
 						HiseEvent m = HiseEvent(HiseEvent::Type::NoteOn, (uint8)noteNumber, (uint8)velocity, (uint8)channel);
+
+
+#if HISE_USE_BACKWARDS_COMPATIBLE_TIMESTAMPS
+						// Apparently there was something wrong with the timestamp calculation.
+						// This restores the old behaviour by removing one block from the timestamps.
+						// By default, it's turned off, but you can enable it if you need backwards
+						// compatibility with older patches...
+						int blocksize = parentMidiProcessor->getMainController()->getBufferSizeForCurrentBlock();
+						timeStampSamples = jmax<int>(0, timeStampSamples - blocksize);
+#endif
 
 						if (auto ce = parentMidiProcessor->getCurrentHiseEvent())
 						{
@@ -3018,6 +3081,9 @@ ScriptingObjects::ScriptingModulator* ScriptingApi::Synth::addModulator(int chai
 
 	Processor* p = moduleHandler.addModule(c, type, id, -1);
 
+	if (p == nullptr)
+		reportScriptError("Processor with id " + id + " could not be generated");
+
 	return new ScriptingObjects::ScriptingModulator(getScriptProcessor(), dynamic_cast<Modulator*>(p));
 }
 
@@ -3110,6 +3176,9 @@ startTime(0.0)
 void ScriptingApi::Console::print(var x)
 {
 #if USE_BACKEND
+
+	AudioThreadGuard::Suspender suspender;
+
 	debugToConsole(getProcessor(), x);
 #endif
 }
@@ -3117,6 +3186,8 @@ void ScriptingApi::Console::print(var x)
 void ScriptingApi::Console::stop()
 {
 #if USE_BACKEND
+	AudioThreadGuard::Suspender suspender;
+
 	if(startTime == 0.0)
 	{
 		reportScriptError("The Benchmark was not started!");
@@ -3144,18 +3215,24 @@ void ScriptingApi::Console::clear()
 
 void ScriptingApi::Console::assertTrue(var condition)
 {
+	AudioThreadGuard::Suspender suspender;
+
 	if (!(bool)condition)
 		reportScriptError("Assertion failure: condition is false");
 }
 
 void ScriptingApi::Console::assertEqual(var v1, var v2)
 {
+	AudioThreadGuard::Suspender suspender;
+
 	if (v1 != v2)
 		reportScriptError("Assertion failure: values are unequal");
 }
 
 void ScriptingApi::Console::assertIsDefined(var v1)
 {
+	AudioThreadGuard::Suspender suspender;
+
 	if (v1.isUndefined() || v1.isVoid())
 		reportScriptError("Assertion failure: value is undefined");
 }

@@ -111,7 +111,7 @@ public:
 	int getNumChildProcessors() const override { return numInternalChains; };
 	int getNumInternalChains() const override {return numInternalChains;};
 
-	void startVoice(int voiceIndex) override;	
+	float startVoice(int voiceIndex) override;	
 	void stopVoice(int voiceIndex) override;
 	void reset(int voiceIndex) override;;
 
@@ -127,17 +127,7 @@ public:
 	float getDefaultValue(int parameterIndex) const override;
 	void setInternalAttribute (int parameter_index, float newValue) override;;
 
-	void setDownsampleFactor(float newValue)
-	{
-		ScopedLock sl(getMainController()->getLock());
-
-		downsampleFactor = jlimit(1, 128, roundFloatToInt(newValue));
-		ecoMode = downsampleFactor > 1.5f;
-		setAttackRate(attack);
-		setDecayRate(decay);
-		setReleaseRate(release);
-		setSustainLevel(sustain);
-	}
+	
 
 	float getAttribute(int parameter_index) const override;;
 
@@ -234,8 +224,6 @@ private:
 
 	StateInfo stateInfo;
 
-	int downsampleFactor = 1;
-
 	float getSampleRateForCurrentMode() const;
 
 	void setAttackRate(float rate);
@@ -248,7 +236,7 @@ private:
 
 	float calcCoef(float rate, float targetRatio) const;
 
-	float calculateNewValue ();
+	float calculateNewValue(int voiceIndex);
 	
 	void setAttackCurve(float newValue);
 	void setDecayCurve(float newValue);
@@ -278,13 +266,11 @@ private:
 	float releaseCoef;
 	float releaseBase;
 
-	bool ecoMode = false;
-
 	AhdsrEnvelopeState *state;
 
 	float release_delta;
 
-	OwnedArray<ModulatorChain> internalChains;
+	ModulatorChain::Collection internalChains;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AhdsrEnvelope)
 };

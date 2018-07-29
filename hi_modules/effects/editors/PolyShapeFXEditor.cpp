@@ -114,6 +114,8 @@ PolyShapeFXEditor::PolyShapeFXEditor (ProcessorEditor* p)
 	bias->setup(getProcessor(), PolyshapeFX::SpecialParameters::Bias, "Bias");
 	bias->setMode(HiSlider::NormalizedPercentage);
 
+	
+
     //[/UserPreSize]
 
     setSize (800, 200);
@@ -121,6 +123,7 @@ PolyShapeFXEditor::PolyShapeFXEditor (ProcessorEditor* p)
 
     //[Constructor] You can add your own custom stuff here..
 	h = getHeight();
+	startTimer(50);
     //[/Constructor]
 }
 

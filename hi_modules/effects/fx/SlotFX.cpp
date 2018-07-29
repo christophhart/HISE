@@ -13,6 +13,8 @@ namespace hise { using namespace juce;
 SlotFX::SlotFX(MainController *mc, const String &uid) :
 	MasterEffectProcessor(mc, uid)
 {
+	finaliseModChains();
+
 	createList();
 
 	reset();
@@ -43,7 +45,7 @@ void SlotFX::handleHiseEvent(const HiseEvent &m)
 
 	if (auto w = wrappedEffect.get())
 	{
-		if (!w->isBypassed())
+		if (!w->isSoftBypassed())
 		{
 			w->handleHiseEvent(m);
 		}
@@ -57,7 +59,7 @@ void SlotFX::startMonophonicVoice()
 
 	if (auto w = wrappedEffect.get())
 	{
-		if (!w->isBypassed())
+		if (!w->isSoftBypassed())
 		{
 			w->startMonophonicVoice();
 		}
@@ -71,7 +73,7 @@ void SlotFX::stopMonophonicVoice()
 
 	if (auto w = wrappedEffect.get())
 	{
-		if (!w->isBypassed())
+		if (!w->isSoftBypassed())
 		{
 			w->stopMonophonicVoice();
 		}
@@ -85,7 +87,7 @@ void SlotFX::resetMonophonicVoice()
 
 	if (auto w = wrappedEffect.get())
 	{
-		if (!w->isBypassed())
+		if (!w->isSoftBypassed())
 		{
 			w->resetMonophonicVoice();
 		}
@@ -99,7 +101,7 @@ void SlotFX::renderWholeBuffer(AudioSampleBuffer &buffer)
 
 	if (auto w = wrappedEffect.get())
 	{
-		if (!w->isBypassed())
+		if (!w->isSoftBypassed())
 		{
 			wrappedEffect->renderAllChains(0, buffer.getNumSamples());
 			wrappedEffect->renderWholeBuffer(buffer);
@@ -107,8 +109,20 @@ void SlotFX::renderWholeBuffer(AudioSampleBuffer &buffer)
 	}
 }
 
+hise::MasterEffectProcessor* SlotFX::getCurrentEffect()
+{
+	if (wrappedEffect != nullptr)
+		return wrappedEffect.get();
+
+
+	jassertfalse;
+	return nullptr;
+}
+
 bool SlotFX::setEffect(const String& typeName, bool synchronously)
 {
+	LockHelpers::freeToGo(getMainController());
+
 	int index = effectList.indexOf(typeName);
 
 	if (currentIndex == index)
@@ -122,94 +136,157 @@ bool SlotFX::setEffect(const String& typeName, bool synchronously)
 
 		currentIndex = index;
 
-
-		if (wrappedEffect != nullptr)
+		if (auto p = f->createProcessor(f->getProcessorTypeIndex(typeName), typeName))
 		{
-			if (synchronously)
-			{
-				wrappedEffect->sendDeleteMessage();
+			if (getSampleRate() > 0)
+				p->prepareToPlay(getSampleRate(), getLargestBlockSize());
 
-			}
-			else
-			{
-				ScopedLock sl(getMainController()->getLock());
-
-				auto pendingDeleteEffect = wrappedEffect.release();
-
-				auto df = [pendingDeleteEffect, this]()
-				{
-					pendingDeleteEffect->sendDeleteMessage();
-
-
-					auto p = this->wrappedEffect.get();
-
-					if (p != nullptr)
-					{
-						for (int i = 0; i < p->getNumInternalChains(); i++)
-						{
-							dynamic_cast<ModulatorChain*>(p->getChildProcessor(i))->setColour(p->getColour());
-						}
-
-						this->sendRebuildMessage(true);
-					}
-
-					ScopedLock sl(getMainController()->getLock());
-
-					delete pendingDeleteEffect;
-				};
-
-				new DelayedFunctionCaller(df, 100);
-			}
-
-			
-		}
-			
-
-
-
-		auto p = dynamic_cast<MasterEffectProcessor*>(f->createProcessor(f->getProcessorTypeIndex(typeName), typeName));
-
-		if (p == nullptr)
-		{
-			reset();
-			return true;
-		}
-
-		if (p != nullptr && getSampleRate() > 0)
-			p->prepareToPlay(getSampleRate(), getLargestBlockSize());
-
-        bool thisIsScriptFX = false;
-        
-        if (JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(p))
-        {
-            thisIsScriptFX = true;
-            sp->compileScript();
-        }
-        
-		if(p != nullptr)
-		{
+			p->setParentProcessor(this);
 			auto newId = getId() + "_" + p->getId();
 
 			p->setId(newId);
 
-			ScopedLock sl(getMainController()->getLock());
-            
-            p->setIsOnAir(true);
-            
-			wrappedEffect = p;
-            
-            hasScriptFX = thisIsScriptFX;
+			ScopedPointer<MasterEffectProcessor> pendingDelete;
 
-			isClear = wrappedEffect == nullptr || dynamic_cast<EmptyFX*>(wrappedEffect.get()) != nullptr;
+			if (wrappedEffect != nullptr)
+			{
+				LOCK_PROCESSING_CHAIN(this);
+				wrappedEffect.swapWith(pendingDelete);
+			}
+
+			if (pendingDelete != nullptr)
+			{
+				getMainController()->getGlobalAsyncModuleHandler().removeAsync(pendingDelete.release(), ProcessorFunction());
+			}
+
+			{
+				LOCK_PROCESSING_CHAIN(this);
+
+				wrappedEffect = dynamic_cast<MasterEffectProcessor*>(p);
+				wrappedEffect->setIsOnAir(isOnAir());
+				wrappedEffect->setKillBuffer(*(this->killBuffer));
+				isClear = wrappedEffect == nullptr || dynamic_cast<EmptyFX*>(wrappedEffect.get()) != nullptr;;
+			}
+
+			if (auto sp = dynamic_cast<JavascriptProcessor*>(wrappedEffect.get()))
+			{
+				hasScriptFX = true;
+				sp->compileScript();
+			}
+
+			return true;
+
+#if CLEANUP_LOCK
+			MasterEffectProcessor* fxToBeDeleted = nullptr;
+
+			if (processorWaitingToBeInserted != nullptr)
+			{
+				// Nothing to do here...
+				auto removeFunction = [](Processor*)
+				{
+					return SafeFunctionCall::OK;
+				};
+
+				getMainController()->getGlobalAsyncModuleHandler().removeAsync(processorWaitingToBeInserted.release(), removeFunction);
+			}
+
+			processorWaitingToBeInserted = dynamic_cast<MasterEffectProcessor*>(p);
+
+			
+
+			if (wrappedEffect != nullptr)
+			{
+				ScopedLock sl(getMainController()->getLock());
+
+				fxToBeDeleted = wrappedEffect.release();
+				wrappedEffect = nullptr;
+				fxToBeDeleted->setIsOnAir(false);
+			}
+
+			processorWaitingToBeInserted->setParentProcessor(this);
+			auto newId = getId() + "_" + processorWaitingToBeInserted->getId();
+
+			processorWaitingToBeInserted->setId(newId);
+
+			if (fxToBeDeleted)
+			{
+				getMainController()->getGlobalAsyncModuleHandler().removeAsync(fxToBeDeleted, ProcessorFunction());
+			}
+
+			auto addFunction = [this](Processor* p)
+			{
+				jassert(p == this->processorWaitingToBeInserted.get());
+				jassert(wrappedEffect == nullptr);
+
+				auto newFX = dynamic_cast<MasterEffectProcessor*>(p);
+
+				newFX->setKillBuffer(*(this->killBuffer));
+
+				if (getSampleRate() > 0)
+					newFX->prepareToPlay(getSampleRate(), getLargestBlockSize());
+
+				bool thisIsScriptFX = false;
+
+				if (JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(p))
+				{
+					thisIsScriptFX = true;
+
+					auto f = [](Processor* p)
+					{
+						dynamic_cast<JavascriptProcessor*>(p)->compileScript();
+						return SafeFunctionCall::OK;
+					};
+					
+					getMainController()->callFunctionWithGlobalLock(p, f, GlobalLock::Reason::ScriptCompilation);
+					
+				}
+
+				if (isOnAir())
+				{
+					auto chain = dynamic_cast<EffectProcessorChain*>(getParentProcessor(false));
+
+					if (chain->hasTailingMasterEffects())
+					{
+						newFX->setSoftBypass(true, false);
+					}
+				}
+
+				{
+					const bool newFXIsEmpty = processorWaitingToBeInserted == nullptr || dynamic_cast<EmptyFX*>(processorWaitingToBeInserted.get()) != nullptr;;
+
+					ScopedLock sl(getMainController()->getLock());
+
+					p->setIsOnAir(true);
+					wrappedEffect.swapWith(processorWaitingToBeInserted);
+					jassert(processorWaitingToBeInserted == nullptr);
+
+					hasScriptFX = thisIsScriptFX;
+					isClear = newFXIsEmpty;
+				}
+
+				return SafeFunctionCall::OK;
+			};
+
+			if (synchronously)
+			{
+				addFunction(p);
+			}
+			else
+			{
+				getMainController()->getGlobalAsyncModuleHandler().addAsync(p, addFunction);
+			}
+
+			return true;
+#endif
 		}
+		else
+		{
+			// Should have been catched before...
+			jassertfalse;
 
-		
-		
-
-		if (synchronously)
-			sendRebuildMessage(true);
-
-		return true;
+			reset();
+			return true;
+		}
 	}
 	else
 	{

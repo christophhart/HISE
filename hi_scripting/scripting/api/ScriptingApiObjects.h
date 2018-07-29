@@ -907,6 +907,7 @@ public:
 		bool objectExists() const override { return false; }
 
 		void timerCallback();
+		void timerCallbackInternal(const var& callback, Result& r);
 
 		// ============================================================================================================
 		
@@ -948,6 +949,7 @@ public:
 		InternalTimer it;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TimerObject)
+        JUCE_DECLARE_WEAK_REFERENCEABLE(TimerObject);
 	};
 
 

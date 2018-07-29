@@ -277,7 +277,7 @@ public:
 		}
 		else if(auto ref = PoolReference(dragSourceDetails.description))
 		{
-			sampler->loadSampleMap(ref, true);
+			sampler->loadSampleMap(ref);
 		}
 
 		mapIsHovered = false;

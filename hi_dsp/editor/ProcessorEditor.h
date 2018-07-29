@@ -57,7 +57,10 @@ public:
 
 	ProcessorEditorContainer() {};
 
-	void processorDeleted(Processor* deletedProcessor) override;
+	void processorDeleted(Processor* /*deletedProcessor*/) override
+	{
+		
+	}
 
 	void updateChildEditorList(bool forceUpdate) override;
 
@@ -104,8 +107,8 @@ class ProcessorEditorPanel;
 class ProcessorEditor : public Component,
 							  public SafeChangeListener,
 							  public DragAndDropTarget,
-
-							  public CopyPasteTarget
+							  public CopyPasteTarget,
+							  public Dispatchable
 {
 public:
 

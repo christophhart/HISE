@@ -194,7 +194,7 @@ public:
 				data(d)
 			{};
 
-			Image getImage(const String& imageURL, float width) override
+			Image getImage(const String& /*imageURL*/, float width) override
 			{
 				if (data == nullptr)
 					return Image();
@@ -313,7 +313,7 @@ public:
 		pool->removeListener(this);
 	}
 
-	void expansionPackLoaded(Expansion* currentExpansion) override
+	void expansionPackLoaded(Expansion* /*currentExpansion*/) override
 	{
 		updatePool();
 	}
@@ -332,7 +332,7 @@ public:
 		
 	}
 
-	void buttonClicked(Button* b) override
+	void buttonClicked(Button* /*b*/) override
 	{
 
 	}
@@ -415,7 +415,7 @@ public:
 		g.drawText(pool->getStatistics(), top, Justification::left);
 	}
 
-	void cellDoubleClicked(int rowNumber, int columnId, const MouseEvent&)
+	void cellDoubleClicked(int rowNumber, int /*columnId*/, const MouseEvent&)
 	{
 		if (pool == nullptr)
 			return;
@@ -433,7 +433,7 @@ public:
 		}
 	}
 
-	void cellClicked(int rowNumber, int columnId, const MouseEvent& e) override
+	void cellClicked(int rowNumber, int /*columnId*/, const MouseEvent& e) override
 	{
 		if (e.mods.isRightButtonDown())
 		{
@@ -470,8 +470,8 @@ public:
 			case MenuItems::Properties:
 			{
 				auto ref = pool.get()->getReference(rowNumber);
-				auto m = pool.get()->getWeakReferenceToItem(ref);
-				auto pc = new PreviewComponent(m.get());
+				auto mod = pool.get()->getWeakReferenceToItem(ref);
+				auto pc = new PreviewComponent(mod.get());
 				auto b = table.getRowPosition(rowNumber, true);
 				auto b2 = table.getScreenPosition();
 				Rectangle<int> b3({ b.getX() + b2.getX(), b.getY() + b2.getY(), b.getWidth(), b.getHeight() });

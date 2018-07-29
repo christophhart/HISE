@@ -127,6 +127,8 @@ public:
 
 	void calculateNoFMVoiceInternal(ModulatorSynth* childSynth, int unisonoIndex, int startSample, int numSamples, const float * voicePitchValues, bool& isFirst);
 
+	void calculatePitchValuesForChildVoice(ModulatorSynth* childSynth, ModulatorSynthVoice * childVoice, int startSample, int numSamples, const float * voicePitchValues, bool applyDetune=true);
+
 	void calculateDetuneMultipliers(int childVoiceIndex);
 
 	void calculateFMBlock(ModulatorSynthGroup * group, int startSample, int numSamples);
@@ -263,6 +265,12 @@ class ModulatorSynthGroup : public ModulatorSynth,
 {
 public:
 
+	enum ModChains
+	{
+		Detune = 2,
+		Spread
+	};
+
 	enum SpecialParameters
 	{
 		EnableFM = ModulatorSynth::numModulatorSynthParameters,
@@ -386,12 +394,17 @@ public:
 
 	int collectSoundsToBeStarted(const HiseEvent& m) override;
 
+	float getDetuneModValue(int startSample) const
+	{
+		return modChains[ModChains::Detune].getOneModulationValue(startSample);
+	}
 
-
-	void preStartVoice(int voiceIndex, int noteNumber) override;;
+	float getSpreadModValue(int startSample) const noexcept
+	{
+		return modChains[ModChains::Spread].getOneModulationValue(startSample);
+	}
 
 	void preVoiceRendering(int startSample, int numThisTime) override;;
-	void postVoiceRendering(int startSample, int numThisTime) override;;
 
 	void handleRetriggeredNote(ModulatorSynthVoice *voice) override;
 
@@ -450,28 +463,6 @@ public:
 
 	bool fmIsCorrectlySetup() const { return fmCorrectlySetup; };
 
-	const float* calculateDetuneModulationValuesForVoice(int voiceIndex, int startSample, int numSamples)
-	{
-		detuneChain->renderVoice(voiceIndex, startSample, numSamples);
-		float *detuneValues = detuneChain->getVoiceValues(voiceIndex);
-		const float* timeVariantDetuneValues = detuneBuffer.getReadPointer(0);
-
-		FloatVectorOperations::multiply(detuneValues + startSample, timeVariantDetuneValues + startSample, numSamples);
-
-		return detuneChain->getVoiceValues(voiceIndex) + startSample;
-	}
-
-	const float* calculateSpreadModulationValuesForVoice(int voiceIndex, int startSample, int numSamples)
-	{
-		spreadChain->renderVoice(voiceIndex, startSample, numSamples);
-		float *spreadValues = spreadChain->getVoiceValues(voiceIndex);
-		const float* timeVariantSpreadValues = spreadBuffer.getReadPointer(0);
-
-		FloatVectorOperations::multiply(spreadValues + startSample, timeVariantSpreadValues + startSample, numSamples);
-
-		return spreadChain->getVoiceValues(voiceIndex) + startSample;
-	}
-	
 private:
 
 	struct SynthVoiceAmount
@@ -490,8 +481,8 @@ private:
 	friend class ChildSynthIterator;
 	friend class ModulatorSynthGroupVoice;
 
-	ScopedPointer<ModulatorChain> detuneChain;
-	ScopedPointer<ModulatorChain> spreadChain;
+	ModulatorChain* detuneChain = nullptr;
+	ModulatorChain* spreadChain = nullptr;
 
 	// the precalculated modvalues for LFOs & stuff
 	AudioSampleBuffer modSynthGainValues;

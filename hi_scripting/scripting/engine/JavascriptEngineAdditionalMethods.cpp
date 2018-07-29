@@ -57,6 +57,10 @@ HiseJavascriptEngine::HiseJavascriptEngine(JavascriptProcessor *p) : maximumExec
 HiseJavascriptEngine::RootObject::RootObject() :
 hiseSpecialData(this)
 {
+#if ENABLE_SCRIPTING_BREAKPOINTS
+	callStack.ensureStorageAllocated(128);
+#endif
+
 	setMethod("exec", exec);
 	setMethod("eval", eval);
 	setMethod("trace", trace);
@@ -286,6 +290,11 @@ var HiseJavascriptEngine::RootObject::Scope::findFunctionCall(const CodeLocation
 
 var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFunctionArgs& args, Result* result /*= nullptr*/)
 {
+#if JUCE_DEBUG
+	auto mc = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getMainController();
+	LockHelpers::noMessageThreadBeyondInitialisation(mc);
+#endif
+
 	var returnVal(var::undefined());
 
 	static const Identifier thisIdent("this");
@@ -663,6 +672,11 @@ int HiseJavascriptEngine::RootObject::HiseSpecialData::getExternalCIndex(const I
 
 var HiseJavascriptEngine::executeInlineFunction(var inlineFunction, var* arguments, Result* result)
 {
+#if JUCE_DEBUG
+	auto mc = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getMainController();
+	LockHelpers::noMessageThreadBeyondInitialisation(mc);
+#endif
+
 	auto f = static_cast<HiseJavascriptEngine::RootObject::InlineFunction::Object*>(inlineFunction.getObject());
 
 	auto rootObj = getRootObject();
@@ -702,9 +716,20 @@ var HiseJavascriptEngine::executeInlineFunction(var inlineFunction, var* argumen
 	return var();
 }
 
+juce::String::CharPointerType HiseJavascriptEngine::RootObject::Callback::getProgramPtr() const
+{
+	return statements->location.program.getCharPointer();
+}
+
 var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 {
+#if JUCE_DEBUG
+	auto mc = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getMainController();
+	LockHelpers::noMessageThreadBeyondInitialisation(mc);
+#endif
+
 	RootObject::Callback *c = root->hiseSpecialData.callbackNEW[callbackIndex];
+	
 
 	// You need to register the callback correctly...
 	jassert(c != nullptr);
@@ -730,6 +755,7 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 		}
 		catch (RootObject::Error &e)
 		{
+			AudioThreadGuard::Suspender suspender;
 			if (result != nullptr) *result = Result::fail(root->dumpCallStack(e, c->getName()));
 		}
 		catch (Breakpoint& bp)

@@ -941,7 +941,7 @@ void ScriptingApi::Content::ScriptComponent::handleDefaultDeactivatedProperties(
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(isPluginParameter));
 }
 
-void ScriptingApi::Content::ScriptComponent::updatePropertiesAfterLink(NotificationType notifyEditor)
+void ScriptingApi::Content::ScriptComponent::updatePropertiesAfterLink(NotificationType /*notifyEditor*/)
 {
 	auto idList = getLinkProperties();
 
@@ -1318,7 +1318,7 @@ double ScriptingApi::Content::ScriptSlider::getMinValue() const
 	else
 	{
 		logErrorAndContinue("getMinValue() can only be called on sliders in 'Range' mode.");
-		RETURN_IF_NO_THROW(0.0)
+		return 0.0;
 	}
 }
 
@@ -1331,7 +1331,7 @@ double ScriptingApi::Content::ScriptSlider::getMaxValue() const
 	else
 	{
 		logErrorAndContinue("getMaxValue() can only be called on sliders in 'Range' mode.");
-		RETURN_IF_NO_THROW(1.0)
+		return 1.0;
 	}
 }
 
@@ -1344,7 +1344,7 @@ bool ScriptingApi::Content::ScriptSlider::contains(double valueToCheck)
 	else
 	{
 		logErrorAndContinue("contains() can only be called on sliders in 'Range' mode.");
-		RETURN_IF_NO_THROW(false)
+		return false;
 	}
 }
 
@@ -1870,7 +1870,8 @@ float ScriptingApi::Content::ScriptTable::getTableValue(int inputValue)
 		else
 		{
 			logErrorAndContinue("Connected Table was not found!");
-			RETURN_IF_NO_THROW(-1.0f)
+			
+			return -1.0f;
 		}
 	}
 	else
@@ -2516,10 +2517,9 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
 
 ScriptingApi::Content::ScriptPanel::ScriptPanel(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier panelName, int x, int y, int , int ) :
 ScriptComponent(base, panelName, 1),
+PreloadListener(base->getMainController_()->getSampleManager()),
 graphics(new ScriptingObjects::GraphicsObject(base, this)),
-repainter(this),
 repaintNotifier(this),
-preloadStateHandler(*this),
 loadRoutine(var()),
 paintRoutine(var()),
 mouseRoutine(var()),
@@ -2592,15 +2592,10 @@ ScriptingApi::Content::ScriptPanel::~ScriptPanel()
 	timerRoutine = var();
 	mouseRoutine = var();
 	paintRoutine = var();
-
     
-	getScriptProcessor()->getMainController_()->getSampleManager().removePreloadListener(this);
-
     loadedImages.clear();
     
     graphics = nullptr;
-    
-    
 }
 
 StringArray ScriptingApi::Content::ScriptPanel::getOptionsFor(const Identifier &id)
@@ -2620,20 +2615,13 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptPanel::createCompon
 
 void ScriptingApi::Content::ScriptPanel::repaint()
 {
-	repainter.triggerAsyncUpdate();
+	internalRepaint(false);
 }
 
 
 void ScriptingApi::Content::ScriptPanel::repaintImmediately()
 {
-	if (MessageManager::getInstance()->isThisTheMessageThread())
-	{
-		repainter.cancelPendingUpdate();
-		internalRepaint();
-	}
-		
-	else
-		repaint();
+	internalRepaint(false);
 }
 
 
@@ -2650,87 +2638,96 @@ void ScriptingApi::Content::ScriptPanel::setPaintRoutine(var paintFunction)
 
 void ScriptingApi::Content::ScriptPanel::internalRepaint(bool forceRepaint/*=false*/)
 {
-	auto mc = dynamic_cast<Processor*>(getScriptProcessor())->getMainController();
-
-	if (auto lock = PresetLoadLock(mc))
+	if (!usesClippedFixedImage && HiseJavascriptEngine::isJavascriptFunction(paintRoutine))
 	{
-		const bool parentHasMovedOn = !parent->hasComponent(this);
+		auto mc = dynamic_cast<Processor*>(getScriptProcessor())->getMainController();
+		auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
 
-		if (parentHasMovedOn || !parent->asyncFunctionsAllowed())
+		auto f = [this, forceRepaint](JavascriptProcessor* jp)
 		{
-			return;
-		}
-
-		ScopedReadLock sl(dynamic_cast<Processor*>(getScriptProcessor())->getMainController()->getCompileLock());
-
-		if (!usesClippedFixedImage)
-		{
-			HiseJavascriptEngine* engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
-
-			if (engine == nullptr)
-				return;
-
-			auto imageBounds = getBoundsForImage();
-
-			int canvasWidth = imageBounds.getWidth();
-			int canvasHeight = imageBounds.getHeight();
-
-			if ((!forceRepaint && !isShowing()) || canvasWidth <= 0 || canvasHeight <= 0)
-			{
-				paintCanvas = Image();
-
-				return;
-			}
-
-			if (paintCanvas.getWidth() != canvasWidth ||
-				paintCanvas.getHeight() != canvasHeight)
-			{
-				paintCanvas = Image(Image::PixelFormat::ARGB, canvasWidth, canvasHeight, !getScriptObjectProperty(Properties::opaque));
-			}
-			else if (!getScriptObjectProperty(Properties::opaque))
-			{
-				paintCanvas.clear(Rectangle<int>(0, 0, canvasWidth, canvasHeight));
-			}
-
-			Graphics g(paintCanvas);
-
-			g.addTransform(AffineTransform::scale((float)getScaleFactorForCanvas()));
-
-			var thisObject(this);
-			var arguments = var(graphics);
-			var::NativeFunctionArgs args(thisObject, &arguments, 1);
-
-			graphics->setGraphics(&g, &paintCanvas);
-
 			Result r = Result::ok();
+			internalRepaintIdle(forceRepaint, r);
+			return r;
+		};
 
-			if (!engine->isInitialising())
-			{
-				engine->maximumExecutionTime = RelativeTime(0.2);
-			}
-
-			engine->callExternalFunction(paintRoutine, args, &r);
-
-			if (r.failed())
-			{
-				debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
-			}
-
-			graphics->setGraphics(nullptr, nullptr);
-
-			sendChangeMessage();
-
-			repaintNotifier.sendSynchronousChangeMessage();
-		}
+		mc->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::LowPriorityCallbackExecution, jp, f);
 	}
-	else
-	{
-		jassertfalse;
-	}
+}
+
+
+juce::Image ScriptingApi::Content::ScriptPanel::getImage() const
+{
+	return paintCanvas;
+}
+
+
+bool ScriptingApi::Content::ScriptPanel::internalRepaintIdle(bool forceRepaint, Result& r)
+{
+	auto mc = dynamic_cast<Processor*>(getScriptProcessor())->getMainController();
 
 	
 
-	//SEND_MESSAGE(this);
+	jassert_locked_script_thread(mc);
+
+	const bool parentHasMovedOn = !parent->hasComponent(this);
+
+	if (parentHasMovedOn || !parent->asyncFunctionsAllowed())
+	{
+		return true;
+	}
+
+	HiseJavascriptEngine* engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
+
+	if (engine == nullptr)
+		return true;
+
+	auto imageBounds = getBoundsForImage();
+
+	int canvasWidth = imageBounds.getWidth();
+	int canvasHeight = imageBounds.getHeight();
+
+	if ((!forceRepaint && !isShowing()) || canvasWidth <= 0 || canvasHeight <= 0)
+	{
+		paintCanvas = Image();
+
+		return true;
+	}
+
+	Image newCanvas = Image(Image::PixelFormat::ARGB, canvasWidth, canvasHeight, !getScriptObjectProperty(Properties::opaque));
+
+	Graphics g(newCanvas);
+
+	g.addTransform(AffineTransform::scale((float)getScaleFactorForCanvas()));
+
+	var thisObject(this);
+	var arguments = var(graphics);
+	var::NativeFunctionArgs args(thisObject, &arguments, 1);
+
+	graphics->setGraphics(&g, &newCanvas);
+
+	Result::ok();
+
+	if (!engine->isInitialising())
+	{
+		engine->maximumExecutionTime = RelativeTime(0.2);
+	}
+
+	engine->callExternalFunction(paintRoutine, args, &r);
+
+	if (r.failed())
+	{
+		debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
+	}
+
+	graphics->setGraphics(nullptr, nullptr);
+
+	{
+		paintCanvas = newCanvas;
+	}
+
+	repaintNotifier.sendChangeMessage();
+	
+	return true;
 }
 
 void ScriptingApi::Content::ScriptPanel::setLoadingCallback(var loadingCallback)
@@ -2747,34 +2744,42 @@ void ScriptingApi::Content::ScriptPanel::preloadStateChanged(bool isPreloading)
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(loadRoutine))
 	{
-		preloadStateHandler.addStateChange(isPreloading);
+		auto f = [this, isPreloading](JavascriptProcessor* )
+		{
+			Result r = Result::ok();
+			preloadStateInternal(isPreloading, r);
+			return r;
+		};
+
+		auto mc = getScriptProcessor()->getMainController_();
+		
+		mc->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::HiPriorityCallbackExecution,
+			dynamic_cast<JavascriptProcessor*>(getScriptProcessor()),
+			f);
 	}
 }
 
 
-void ScriptingApi::Content::ScriptPanel::preloadStateInternal(bool isPreloading)
+void ScriptingApi::Content::ScriptPanel::preloadStateInternal(bool isPreloading, Result& r)
 {
-	if (HiseJavascriptEngine::isJavascriptFunction(loadRoutine))
+	jassert_locked_script_thread(getScriptProcessor()->getMainController_());
+
+	var thisObject(this);
+	var b(isPreloading);
+	var::NativeFunctionArgs args(thisObject, &b, 1);
+
+	auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
+
+	jassert(engine != nullptr);
+
+	if (engine != nullptr)
 	{
-		jassert(MessageManager::getInstance()->isThisTheMessageThread());
+		engine->maximumExecutionTime = RelativeTime(0.5);
+		engine->callExternalFunction(loadRoutine, args, &r);
 
-		var thisObject(this);
-		var b(isPreloading);
-		var::NativeFunctionArgs args(thisObject, &b, 1);
-
-		Result r = Result::ok();
-
-		auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
-
-		if (engine != nullptr)
+		if (r.failed())
 		{
-			engine->maximumExecutionTime = RelativeTime(0.5);
-			engine->callExternalFunction(loadRoutine, args, &r);
-
-			if (r.failed())
-			{
-				debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
-			}
+			debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
 		}
 	}
 }
@@ -2785,6 +2790,26 @@ void ScriptingApi::Content::ScriptPanel::setMouseCallback(var mouseCallbackFunct
 {
 	mouseRoutine = mouseCallbackFunction;
 }
+
+
+void ScriptingApi::Content::ScriptPanel::mouseCallbackInternal(const var& mouseInformation, Result& r)
+{
+	var thisObject(this);
+
+	var::NativeFunctionArgs args(thisObject, &mouseInformation, 1);
+
+	auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
+
+	engine->maximumExecutionTime = RelativeTime(0.5);
+	engine->callExternalFunction(mouseRoutine, args, &r);
+
+	if (r.failed())
+	{
+		debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
+	}
+	
+}
+
 
 void ScriptingApi::Content::ScriptPanel::mouseCallback(var mouseInformation)
 {
@@ -2797,29 +2822,25 @@ void ScriptingApi::Content::ScriptPanel::mouseCallback(var mouseInformation)
 
 	if (HiseJavascriptEngine::isJavascriptFunction(mouseRoutine))
 	{
-		var thisObject(this);
-
-		var::NativeFunctionArgs args(thisObject, &mouseInformation, 1);
-
-		Result r = Result::ok();
-
-        auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
-        
-        engine->maximumExecutionTime = RelativeTime(0.5);
-        
-		engine->callExternalFunction(mouseRoutine, args, &r);
-
-		if (r.failed())
+		auto f = [this, mouseInformation](JavascriptProcessor* jp)
 		{
-			debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
-		}
-	}
+			Result r = Result::ok();
+			mouseCallbackInternal(mouseInformation, r);
+			return r;
+		};
+
+		auto& tp = getScriptProcessor()->getMainController_()->getJavascriptThreadPool();
+
+		tp.addJob(JavascriptThreadPool::Task::HiPriorityCallbackExecution, dynamic_cast<JavascriptProcessor*>(getScriptProcessor()), f);
+	};
 }
 
 void ScriptingApi::Content::ScriptPanel::setTimerCallback(var timerCallback_)
 {
 	timerRoutine = timerCallback_;
 }
+
+
 
 void ScriptingApi::Content::ScriptPanel::timerCallback()
 {
@@ -2828,44 +2849,14 @@ void ScriptingApi::Content::ScriptPanel::timerCallback()
 	if (mc == nullptr)
 		return;
 
-	if (auto lock = PresetLoadLock(mc))
+	auto f = [this, mc](JavascriptProcessor* jp)
 	{
-		const bool parentHasMovedOn = !parent->hasComponent(this);
+		Result r = Result::ok();
+		this->timerCallbackInternal(mc, r);
+		return r;
+	};
 
-		if (parentHasMovedOn || !parent->asyncFunctionsAllowed())
-		{
-			return;
-		}
-
-		auto& readWriteLock = mc->getCompileLock();
-
-		if (readWriteLock.tryEnterRead())
-		{
-			if (HiseJavascriptEngine::isJavascriptFunction(timerRoutine))
-			{
-				auto engine = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine();
-
-				if (engine == nullptr)
-					return;
-
-				var thisObject(this);
-				var::NativeFunctionArgs args(thisObject, nullptr, 0);
-
-				Result r = Result::ok();
-
-				engine->maximumExecutionTime = RelativeTime(0.5);
-				engine->callExternalFunction(timerRoutine, args, &r);
-
-				if (r.failed())
-				{
-
-					debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
-				}
-			}
-
-			readWriteLock.exitRead();
-		}
-	}	
+	mc->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::LowPriorityCallbackExecution, dynamic_cast<JavascriptProcessor*>(getScriptProcessor()), f);
 }
 
 
@@ -2951,6 +2942,8 @@ void ScriptingApi::Content::ScriptPanel::setValueWithUndo(var oldValue, var newV
 
 void ScriptingApi::Content::ScriptPanel::setImage(String imageName, int xOffset, int yOffset)
 {
+	jassert_locked_script_thread(getScriptProcessor()->getMainController_());
+
 	paintRoutine = var();
 	usesClippedFixedImage = true;
 
@@ -2985,7 +2978,7 @@ void ScriptingApi::Content::ScriptPanel::setImage(String imageName, int xOffset,
 		logErrorAndContinue("Can't offset both dimensions. Either x or y must be 0");
 	}
 
-	repaintNotifier.sendSynchronousChangeMessage();
+	repaintNotifier.sendChangeMessage();
 
 }
 
@@ -3054,44 +3047,60 @@ void ScriptingApi::Content::ScriptPanel::showAsModalPopup()
 	repaintThisAndAllChildren();
 }
 
-void ScriptingApi::Content::ScriptPanel::AsyncPreloadStateHandler::handleAsyncUpdate()
+bool ScriptingApi::Content::ScriptPanel::timerCallbackInternal(MainController * mc, Result &r)
 {
-	if (!(startFlag || endFlag))
-		return;
+	jassert_locked_script_thread(mc);
 
-	if (auto lock = PresetLoadLock(parent.getScriptProcessor()->getMainController_()))
+	const bool parentHasMovedOn = !parent->hasComponent(this);
+
+	if (parentHasMovedOn || !parent->asyncFunctionsAllowed())
 	{
-		if (startFlag)
+		return true;
+	}
+
+	if (HiseJavascriptEngine::isJavascriptFunction(timerRoutine))
+	{
+		auto engine = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine();
+
+		if (engine == nullptr)
+			return true;
+
+		var thisObject(this);
+		var::NativeFunctionArgs args(thisObject, nullptr, 0);
+
+		engine->maximumExecutionTime = RelativeTime(0.5);
+		engine->callExternalFunction(timerRoutine, args, &r);
+
+		if (r.failed())
 		{
-			parent.preloadStateInternal(true);
-			startFlag = false;
+			debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
 		}
-		if (endFlag)
+	}
+
+	return true;
+}
+
+void ScriptingApi::Content::ScriptPanel::repaintWrapped()
+{
+	auto mc = getScriptProcessor()->getMainController_();
+
+	if (mc->getKillStateHandler().getCurrentThread() != MainController::KillStateHandler::ScriptingThread)
+	{
+		auto jp = dynamic_cast<JavascriptProcessor*>(getProcessor());
+
+		auto f = [this](JavascriptProcessor* )
 		{
-			parent.preloadStateInternal(false);
-			endFlag = false;
-		}
+			repaint();
+
+			return Result::ok();
+		};
+
+		mc->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::LowPriorityCallbackExecution, jp, f);
 	}
 	else
 	{
-		startTimer(300);
+		repaint();
 	}
-}
-
-void ScriptingApi::Content::ScriptPanel::AsyncPreloadStateHandler::addStateChange(bool newState)
-{
-	if (newState)
-		startFlag = true;
-	else
-		endFlag = true;
-
-	triggerAsyncUpdate();
-}
-
-void ScriptingApi::Content::ScriptPanel::AsyncPreloadStateHandler::timerCallback()
-{
-	stopTimer();
-	handleAsyncUpdate();
 }
 
 
@@ -3549,40 +3558,15 @@ void ScriptingApi::Content::ScriptFloatingTile::setScriptObjectPropertyWithChang
 {
 	if (id == getIdFor(ContentType))
 	{
-		MessageManagerLock mm;
-
-		FloatingTile ft(getScriptProcessor()->getMainController_(), nullptr);
-
-		ft.setNewContent(newValue.toString());
-
-		auto ftc = ft.getCurrentFloatingPanel();
-
-		
-
-		setScriptObjectProperty(bgColour, (int64)ftc->getDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour).getARGB(), sendNotification);
-		setScriptObjectProperty(itemColour, (int64)ftc->getDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour1).getARGB(), sendNotification);
-		setScriptObjectProperty(itemColour2, (int64)ftc->getDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour2).getARGB(), sendNotification);
-		setScriptObjectProperty(textColour, (int64)ftc->getDefaultPanelColour(FloatingTileContent::PanelColourId::textColour).getARGB(), sendNotification);
-
-		jsonData = ftc->toDynamicObject();
-
-		if (auto obj = jsonData.getDynamicObject())
+		auto f = [newValue](Dispatchable* obj)
 		{
-			var specialData = var(obj->clone());
+			static_cast<ScriptFloatingTile*>(obj)->createFloatingTileComponent(newValue);
+			return Status::OK;
+		};
 
-			auto specialDataObj = specialData.getDynamicObject();
+		getProcessor()->getMainController()->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(this, f);
 
-			specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::ColourData));
-			specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::StyleData));
-			specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::LayoutData));
-			specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::Font));
-			specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::FontSize));
-			specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::Type));
-
-			setScriptObjectProperty(ContentType, newValue, sendNotification);
-			setScriptObjectProperty(Data, JSON::toString(specialData, false, DOUBLE_TO_STRING_DIGITS), sendNotification);
-			return;
-		}
+		return;
 	}
 	else if (id == getIdFor(Data))
 	{
@@ -3590,14 +3574,17 @@ void ScriptingApi::Content::ScriptFloatingTile::setScriptObjectPropertyWithChang
 
 		if (auto obj = specialData.getDynamicObject())
 		{
-			auto dataObject = jsonData.getDynamicObject();
-
-			auto prop = obj->getProperties();
-
-			for (int i = 0; i < prop.size(); i++)
+			if (auto dataObject = jsonData.getDynamicObject())
 			{
-				dataObject->setProperty(prop.getName(i), prop.getValueAt(i));
+				auto prop = obj->getProperties();
+
+				for (int i = 0; i < prop.size(); i++)
+				{
+					dataObject->setProperty(prop.getName(i), prop.getValueAt(i));
+				}
 			}
+
+			
 		}
 	}
 	else if (id == getIdFor(bgColour) || id == getIdFor(textColour) || id == getIdFor(itemColour) || id == getIdFor(itemColour2) || id == getIdFor(itemColour3))
@@ -3639,6 +3626,55 @@ void ScriptingApi::Content::ScriptFloatingTile::handleDefaultDeactivatedProperti
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::parameterId));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::isMetaParameter));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::linkedTo));
+}
+
+bool ScriptingApi::Content::ScriptFloatingTile::createFloatingTileComponent(var newValue)
+{
+	auto mc = getScriptProcessor()->getMainController_();
+
+	// Do not call this outside the message thread.
+	// If you call this from other threads, use the dispatcher for it.
+	jassert_dispatched_message_thread(mc);
+
+	FloatingTile ft(mc, nullptr);
+
+	if (ft.getMainController()->shouldAbortMessageThreadOperation())
+		return false;
+
+	ft.setNewContent(newValue.toString());
+	ft.getMainController()->checkAndAbortMessageThreadOperation();
+
+	auto ftc = ft.getCurrentFloatingPanel();
+
+	setScriptObjectProperty(bgColour, (int64)ftc->getDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour).getARGB(), sendNotification);
+	setScriptObjectProperty(itemColour, (int64)ftc->getDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour1).getARGB(), sendNotification);
+	setScriptObjectProperty(itemColour2, (int64)ftc->getDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour2).getARGB(), sendNotification);
+	setScriptObjectProperty(textColour, (int64)ftc->getDefaultPanelColour(FloatingTileContent::PanelColourId::textColour).getARGB(), sendNotification);
+	ft.getMainController()->checkAndAbortMessageThreadOperation();
+
+	jsonData = ftc->toDynamicObject();
+
+	if (auto obj = jsonData.getDynamicObject())
+	{
+		var specialData = var(obj->clone());
+
+		auto specialDataObj = specialData.getDynamicObject();
+
+		specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::ColourData));
+		specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::StyleData));
+		specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::LayoutData));
+		specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::Font));
+		specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::FontSize));
+		specialDataObj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::Type));
+
+		setScriptObjectProperty(ContentType, newValue, sendNotification);
+		ft.getMainController()->checkAndAbortMessageThreadOperation();
+
+		setScriptObjectProperty(Data, JSON::toString(specialData, false, DOUBLE_TO_STRING_DIGITS), sendNotification);
+		ft.getMainController()->checkAndAbortMessageThreadOperation();
+	}
+
+	return true;
 }
 
 // ====================================================================================================== Content functions
@@ -3854,7 +3890,7 @@ var ScriptingApi::Content::getComponent(var componentName)
 
 	logErrorAndContinue("Component with name " + componentName.toString() + " wasn't found.");
 
-	RETURN_IF_NO_THROW(var());
+	return var();
 }
 
 void ScriptingApi::Content::setPropertiesFromJSON(const Identifier &componentName, const var &jsonData)
@@ -3941,7 +3977,7 @@ void ScriptingApi::Content::makeFullScreenInterface()
 	dynamic_cast<JavascriptMidiProcessor*>(getProcessor())->addToFront(true);
 }
 
-void ScriptingApi::Content::setToolbarProperties(const var &toolbarProperties)
+void ScriptingApi::Content::setToolbarProperties(const var &/*toolbarProperties*/)
 {
 	reportScriptError("2017...");
 }
@@ -4703,13 +4739,14 @@ void ScriptingApi::Content::Helpers::recompileAndSearchForPropertyChange(ScriptC
 
 	auto jp = dynamic_cast<JavascriptProcessor*>(const_cast<ProcessorWithScriptingContent*>(sc->getScriptProcessor()));
 
-	auto result = jp->compileScript();
+	auto f = [jp, sc](const JavascriptProcessor::SnippetResult& result)
+	{
+		DebugableObject::Helpers::gotoLocation(dynamic_cast<Processor*>(jp)->getMainController()->getMainSynthChain(), result.r.getErrorMessage());
+		sc->setPropertyToLookFor(Identifier());
+		jp->compileScript();
+	};
 
-	DebugableObject::Helpers::gotoLocation(dynamic_cast<Processor*>(jp)->getMainController()->getMainSynthChain(), result.r.getErrorMessage());
-
-	sc->setPropertyToLookFor(Identifier());
-	
-	jp->compileScript();
+	jp->compileScript(f);
 }
 
 String ScriptingApi::Content::Helpers::createCustomCallbackDefinition(ReferenceCountedArray<ScriptComponent> selection)

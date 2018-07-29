@@ -51,10 +51,8 @@ SET_DOCUMENTATION(ModulatorSynth)
 
 ModulatorSynth::ModulatorSynth(MainController *mc, const String &id, int numVoices) :
 Synthesiser(),
-Processor(mc, id),
+Processor(mc, id, numVoices),
 RoutableProcessor(),
-gainChain(new ModulatorChain(mc, "GainModulation", numVoices, TimeModulation::GainMode, this)),
-pitchChain(new ModulatorChain(mc, "PitchModulation", numVoices, TimeModulation::PitchMode, this)),
 midiProcessorChain(new MidiProcessorChain(mc, "Midi Processor", this)),
 effectChain(new EffectProcessorChain(this, "FX", numVoices)),
 pitchBuffer(1, 0),
@@ -70,12 +68,15 @@ iconColour(Colours::transparentBlack),
 clockSpeed(ClockSpeed::Inactive),
 lastClockCounter(0),
 wasPlayingInLastBuffer(false),
-pitchModulationActive(false),
 bypassState(false)
 {
-	setVoiceLimit(numVoices);
+	modChains += { this, "GainModulation", ModulatorChain::ModulationType::Normal, Modulation::Mode::GainMode};
+	modChains += { this, "PitchModulation", ModulatorChain::ModulationType::Normal, Modulation::Mode::PitchMode};
 
-	
+	effectChain->setParentProcessor(this);
+	midiProcessorChain->setParentProcessor(this);
+
+	setVoiceLimit(numVoices);
 
 	for (int i = 0; i < 4; i++)
 	{
@@ -98,14 +99,7 @@ bypassState(false)
 
 	setBalance(0.0f);
 
-	pitchChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
-
-	gainChain->setTableValueConverter(Modulation::getValueAsDecibel);
-
-	disableChain(GainModulation, false);
-	disableChain(PitchModulation, false);
-	disableChain(MidiProcessor, false);
-	disableChain(EffectChain, false);
+	
 }
 
 ModulatorSynth::~ModulatorSynth()
@@ -116,6 +110,9 @@ ModulatorSynth::~ModulatorSynth()
 	gainChain = nullptr;
 	pitchChain = nullptr;
 	effectChain = nullptr;
+
+	modChains.clear();
+
 }
 
 ValueTree ModulatorSynth::exportAsValueTree() const
@@ -232,9 +229,9 @@ void ModulatorSynth::synthTimerCallback(uint8 index, int numSamplesThisBlock)
 		const double uptime = getMainController()->getUptime();
 
 		// this has to be a uint32 because otherwise it could wrap around the uint16 max sample offset for bigger timer callbacks
-		uint32 offsetInBuffer = (uint32)((nextTimerCallbackTimes[index] - uptime) * getSampleRate());
+		uint32 offsetInBuffer = (uint32)((jmax(0.0, nextTimerCallbackTimes[index] - uptime)) * getSampleRate());
 
-		const uint32 delta = offsetInBuffer % 8;
+		const uint32 delta = offsetInBuffer % HISE_EVENT_RASTER;
 		uint32 rasteredOffset = offsetInBuffer - delta;
 
 		while (synthTimerIntervals[index] > 0.0 && rasteredOffset < (uint32)numSamplesThisBlock)
@@ -242,8 +239,8 @@ void ModulatorSynth::synthTimerCallback(uint8 index, int numSamplesThisBlock)
 			eventBuffer.addEvent(HiseEvent::createTimerEvent(index, (uint16)rasteredOffset));
 			nextTimerCallbackTimes[index].store(nextTimerCallbackTimes[index].load() + synthTimerIntervals[index].load());
 			offsetInBuffer = (uint32)((nextTimerCallbackTimes[index] - uptime) * getSampleRate());
-			const uint32 delta = offsetInBuffer % 8;
-			rasteredOffset = offsetInBuffer - delta;
+			const uint32 newDelta = offsetInBuffer % HISE_EVENT_RASTER;
+			rasteredOffset = offsetInBuffer - newDelta;
 		}
 	}
 	else jassertfalse;
@@ -324,6 +321,8 @@ void ModulatorSynth::processHiseEventBuffer(const HiseEventBuffer &inputBuffer, 
 {
 	eventBuffer.copyFrom(inputBuffer);
 
+	
+
 	if (checkTimerCallback(0, numSamples)) synthTimerCallback(0, numSamples);
 	if (checkTimerCallback(1, numSamples)) synthTimerCallback(1, numSamples);
 	if (checkTimerCallback(2, numSamples)) synthTimerCallback(2, numSamples);
@@ -335,18 +334,24 @@ void ModulatorSynth::processHiseEventBuffer(const HiseEventBuffer &inputBuffer, 
 	}
 
 	midiProcessorChain->renderNextHiseEventBuffer(eventBuffer, numSamples);
+
+	eventBuffer.alignEventsToRaster<HISE_EVENT_RASTER>(numSamples);
 }
 
 void ModulatorSynth::addProcessorsWhenEmpty()
 {
+	LockHelpers::freeToGo(getMainController());
+
+	jassert(finalised);
 	
 	if (dynamic_cast<ModulatorSynthChain*>(this) == nullptr)
 	{
-		gainChain->getHandler()->add(new SimpleEnvelope(getMainController(),
+		ScopedPointer<SimpleEnvelope> newEnvelope = new SimpleEnvelope(getMainController(),
 			"DefaultEnvelope",
 			voices.size(),
-			Modulation::GainMode),
-			nullptr);
+			Modulation::GainMode);
+
+		gainChain->getHandler()->add(newEnvelope.release(), nullptr);
 
 		setEditorState("GainModulationShown", 1, dontSendNotification);
 	}
@@ -375,10 +380,14 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 	
 	midiInputFlag = !eventBuffer.isEmpty();
 
+	
+
 	HiseEventBuffer::Iterator eventIterator(eventBuffer);
 
 	HiseEvent m;
 	int midiEventPos;
+
+
 
 	while (numSamples > 0)
 	{
@@ -392,31 +401,23 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 		}
 
 		const int samplesToNextMidiMessage = midiEventPos - startSample;
-		const int delta = (samplesToNextMidiMessage % 8);
-		const int rastered = samplesToNextMidiMessage - delta;
 
-		if (rastered >= numSamples)
+		jassert(startSample % HISE_EVENT_RASTER == 0);
+		jassert(midiEventPos % HISE_EVENT_RASTER == 0);
+		jassert(samplesToNextMidiMessage % HISE_EVENT_RASTER == 0);
+
+		if (samplesToNextMidiMessage > 0)
 		{
-			preVoiceRendering(startSample, numSamples);
-			renderVoice(startSample, numSamples);
-			postVoiceRendering(startSample, numSamples);
-			handleHiseEvent(m);
-			break;
+			preVoiceRendering(startSample, samplesToNextMidiMessage);
+			renderVoice(startSample, samplesToNextMidiMessage);
+			postVoiceRendering(startSample, samplesToNextMidiMessage);
+			
 		}
-
-		if (rastered < 32)
-		{
-			handleHiseEvent(m);
-			continue;
-		}
-
-		preVoiceRendering(startSample, rastered);
-		renderVoice(startSample, rastered);
-		postVoiceRendering(startSample, rastered);
 
 		handleHiseEvent(m);
-		startSample += rastered;
-		numSamples -= rastered;
+
+		startSample += samplesToNextMidiMessage;
+		numSamples -= samplesToNextMidiMessage;
 	}
 
 	while (eventIterator.getNextEvent(m, midiEventPos, true, false))
@@ -469,12 +470,10 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 
 void ModulatorSynth::preVoiceRendering(int startSample, int numThisTime)
 {
-	// calculate the variant pitch values before the voices are rendered.
-	pitchChain->renderNextBlock(pitchBuffer, startSample, numThisTime);
+	for (auto& mb : modChains)
+		mb.calculateMonophonicModulationValues(startSample, numThisTime);
 
-	CHECK_AND_LOG_BUFFER_DATA_WITH_ID(this, getIDAsIdentifier(), DebugLogger::Location::SynthPreVoiceRendering, pitchBuffer.getReadPointer(0, startSample), true, numThisTime);
-
-	if (!isChainDisabled(EffectChain)) effectChain->preRenderCallback(startSample, numThisTime);
+	effectChain->preRenderCallback(startSample, numThisTime);
 }
 
 void ModulatorSynth::renderVoice(int startSample, int numThisTime)
@@ -487,14 +486,47 @@ void ModulatorSynth::renderVoice(int startSample, int numThisTime)
 	{
 		jassert(!v->isInactive());
 
+		calculateModulationValuesForVoice(v, startSample, numThisTime);
+
 		v->renderNextBlock(internalBuffer, startSample, numThisTime);
 	}
 
 	clearPendingRemoveVoices();
-
 };
 
 	
+void ModulatorSynth::calculateModulationValuesForVoice(ModulatorSynthVoice * v, int startSample, int numThisTime)
+{
+	auto index = v->getVoiceIndex();
+
+	for (auto& mb : modChains)
+	{
+		mb.calculateModulationValuesForCurrentVoice(index, startSample, numThisTime);
+		if (mb.isAudioRateModulation())
+			mb.expandVoiceValuesToAudioRate(index, startSample, numThisTime);
+	}
+		
+	v->setUptimeDeltaValueForBlock();
+
+	v->applyConstantPitchFactor(getConstantPitchModValue());
+
+	useScratchBufferForArtificialPitch = false;
+
+	if (v->isPitchFadeActive())
+	{
+		auto bufferToUse = modChains[BasicChains::PitchChain].getWritePointerForVoiceValues(0);
+
+		if (bufferToUse == nullptr)
+		{
+			bufferToUse = modChains[BasicChains::PitchChain].getScratchBuffer();
+			FloatVectorOperations::fill(bufferToUse + startSample, 1.0f, numThisTime);
+			useScratchBufferForArtificialPitch = true;
+		}
+
+		v->applyScriptPitchFactors(bufferToUse + startSample, numThisTime);
+	}
+}
+
 void ModulatorSynth::clearPendingRemoveVoices()
 {
 	for (auto v : pendingRemoveVoices)
@@ -508,19 +540,24 @@ void ModulatorSynth::clearPendingRemoveVoices()
 
 void ModulatorSynth::postVoiceRendering(int startSample, int numThisTime)
 {
-	// Calculate the timeVariant modulators
-	gainChain->renderNextBlock(gainBuffer, startSample, numThisTime);
+	modChains[BasicChains::GainChain].expandMonophonicValuesToAudioRate(startSample, numThisTime);
+	auto monoValues = modChains[BasicChains::GainChain].getMonophonicModulationValues(startSample);
 
-	CHECK_AND_LOG_BUFFER_DATA_WITH_ID(this, getIDAsIdentifier(), DebugLogger::Location::SynthPostVoiceRenderingGainMod, gainBuffer.getReadPointer(0, startSample), true, numThisTime);
-
-	// Apply all gain modulators to the rendered voices
-	for (int i = 0; i < internalBuffer.getNumChannels(); i++)
+	if (monoValues != nullptr && numThisTime > 0)
 	{
-		FloatVectorOperations::multiply(internalBuffer.getWritePointer(i, startSample), gainBuffer.getReadPointer(0, startSample), numThisTime);
+		CHECK_AND_LOG_BUFFER_DATA_WITH_ID(this, getIDAsIdentifier(), DebugLogger::Location::SynthPostVoiceRenderingGainMod, gainBuffer.getReadPointer(0, startSample), true, numThisTime);
 
-		CHECK_AND_LOG_BUFFER_DATA_WITH_ID(this, getIDAsIdentifier(), DebugLogger::Location::SynthPostVoiceRendering, internalBuffer.getReadPointer(i, startSample), i % 2 != 0, numThisTime);
+		gainChain->applyMonoOnOutputValue(monoValues[0]);
+
+		// Apply all gain modulators to the rendered voices
+		for (int i = 0; i < internalBuffer.getNumChannels(); i++)
+		{
+			FloatVectorOperations::multiply(internalBuffer.getWritePointer(i, startSample), monoValues, numThisTime);
+
+			CHECK_AND_LOG_BUFFER_DATA_WITH_ID(this, getIDAsIdentifier(), DebugLogger::Location::SynthPostVoiceRendering, internalBuffer.getReadPointer(i, startSample), i % 2 != 0, numThisTime);
+		}
 	}
-
+	
 	if (!isChainDisabled(EffectChain)) effectChain->renderNextBlock(internalBuffer, startSample, numThisTime);
 }
 
@@ -553,6 +590,13 @@ void ModulatorSynth::handleHiseEvent(const HiseEvent& m)
 {
 	if (getMainController()->getKillStateHandler().voiceStartIsDisabled())
 	{
+		// Pass the all notes off messages through
+		if (m.isAllNotesOff())
+		{
+			preHiseEventCallback(m);
+			allNotesOff(m.getChannel(), true);
+		}
+
 		return;
 	}
 	
@@ -594,19 +638,28 @@ void ModulatorSynth::handleHiseEvent(const HiseEvent& m)
 	}
 }
 
+#define DECLARE_ID(x) const juce::Identifier x(#x);
+
+namespace HostEventIds
+{
+DECLARE_ID(ppqPosition);
+DECLARE_ID(isPlaying);
+}
+
+#undef DECLARE_ID
+
 void ModulatorSynth::handleHostInfoHiseEvents(int numSamples)
 {
 	int ppqTimeStamp = -1;
 
 	// Check if ppqPosition should be added
-	static const Identifier ppqPosition("ppqPosition");
-	static const Identifier isPlaying("isPlaying");
+	
 
-	const bool hostIsPlaying = getMainController()->getHostInfoObject()->getProperty(isPlaying);
+	const bool hostIsPlaying = getMainController()->getHostInfoObject()->getProperty(HostEventIds::isPlaying);
 
 	if (hostIsPlaying && clockSpeed != ClockSpeed::Inactive)
 	{
-		double ppq = getMainController()->getHostInfoObject()->getProperty(ppqPosition);
+		double ppq = getMainController()->getHostInfoObject()->getProperty(HostEventIds::ppqPosition);
 
 		const double bufferAsMilliseconds = (double)numSamples / getSampleRate();
 		const double bufferAsPPQ = bufferAsMilliseconds * (getMainController()->getBpm() / 60.0);
@@ -691,10 +744,10 @@ void ModulatorSynth::preHiseEventCallback(const HiseEvent &e)
 		stopSynthTimer(3);
 	}
 
-	gainChain->handleHiseEvent(e);
-	pitchChain->handleHiseEvent(e);
-	effectChain->handleHiseEvent(e);
+	for (auto& mb : modChains)
+		mb.handleHiseEvent(e);
 
+	effectChain->handleHiseEvent(e);
 }
 
 bool ModulatorSynth::soundCanBePlayed(ModulatorSynthSound *sound, int midiChannel, int midiNoteNumber, float velocity)
@@ -709,6 +762,12 @@ void ModulatorSynth::startVoiceWithHiseEvent(ModulatorSynthVoice* voice, Synthes
 {
 	jassert(!getMainController()->getKillStateHandler().voiceStartIsDisabled());
 
+	if (shouldHaveEnvelope && !gainChain->hasActivePolyEnvelopes())
+	{
+		debugError(this, "You need at least one envelope in the gain chain");
+		return;
+	}
+
 	// If this is false, your collectSoundsToBeStarted method is wrong
 	// it uses the event id because it might have another start offset in a detuned synth group
 	jassert(voice->getCurrentHiseEvent().getEventId() == eventForSoundCollection.getEventId());
@@ -718,6 +777,8 @@ void ModulatorSynth::startVoiceWithHiseEvent(ModulatorSynthVoice* voice, Synthes
 	activeVoices.insert(voice);
 
 	Synthesiser::startVoice(static_cast<SynthesiserVoice*>(voice), sound, e.getChannel(), e.getNoteNumber(), e.getFloatVelocity());
+
+	voice->saveStartUptimeDelta();
 }
 
 void ModulatorSynth::preStartVoice(int voiceIndex, int noteNumber)
@@ -726,16 +787,37 @@ void ModulatorSynth::preStartVoice(int voiceIndex, int noteNumber)
 
 	lastStartedVoice = static_cast<ModulatorSynthVoice*>(getVoice(voiceIndex));
 
+	for (auto& mb : modChains)
+	{
+		mb.startVoice(voiceIndex);
+	}
 
+	
 
-	gainChain->startVoice(voiceIndex);
-	pitchChain->startVoice(voiceIndex);
 	effectChain->startVoice(voiceIndex, noteNumber);
+}
+
+void ModulatorSynth::preStopVoice(int voiceIndex)
+{
+	for (auto& mb : modChains)
+		mb.stopVoice(voiceIndex);
+
+	effectChain->stopVoice(voiceIndex);
 }
 
 void ModulatorSynth::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
-	const ScopedLock sl(isOnAir() ? getSynthLock() : getDummyLockWhenNotOnAir());
+	if (isOnAir())
+	{
+		LockHelpers::freeToGo(getMainController());
+
+		//jassert(LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::AudioLock));
+	}
+
+	LockHelpers::SafeLock audioLock(getMainController(), LockHelpers::AudioLock, isOnAir());
+
+	// You must call finaliseModChains() in your Constructor...
+	jassert(finalised);
 
 	if(newSampleRate != -1.0)
 	{
@@ -758,21 +840,24 @@ void ModulatorSynth::prepareToPlay(double newSampleRate, int samplesPerBlock)
 		Processor::prepareToPlay(newSampleRate, samplesPerBlock);
 		
 		midiProcessorChain->prepareToPlay(newSampleRate, samplesPerBlock);
-		gainChain->prepareToPlay(newSampleRate, samplesPerBlock);
-		pitchChain->prepareToPlay(newSampleRate, samplesPerBlock);
+
+		for (auto& mb : modChains)
+			mb.prepareToPlay(newSampleRate, samplesPerBlock);
 
 		CHECK_COPY_AND_RETURN_12(effectChain);
 
 		effectChain->prepareToPlay(newSampleRate, samplesPerBlock);
 
 		setKillFadeOutTime(killFadeTime);
+
+		updateShouldHaveEnvelope();
 	}
 }
 
 	
 void ModulatorSynth::numSourceChannelsChanged()
 {
-	ScopedLock sl(getSynthLock());
+	ScopedLock sl(getMainController()->getLock());
 
 	if (internalBuffer.getNumSamples() != 0)
 	{
@@ -810,42 +895,75 @@ void ModulatorSynth::setBypassed(bool shouldBeBypassed, NotificationType notifyC
 {
 	Processor::setBypassed(shouldBeBypassed, notifyChangeHandler);
 
-	setSoftBypass(shouldBeBypassed);
+	setSoftBypass(shouldBeBypassed, true);
 }
 
-void ModulatorSynth::setSoftBypass(bool shouldBeBypassed)
+void ModulatorSynth::softBypassStateChanged(bool isBypassedNow)
 {
-	if (shouldBeBypassed)
+	bypassState.store(isBypassedNow);
+
+	
+}
+
+void ModulatorSynth::setSoftBypass(bool shouldBeBypassed, bool bypassFXToo)
+{
+	auto f = [shouldBeBypassed](Processor* p)
 	{
-		if (!bypassState)
-		{
-			if (!areVoicesActive())
-			{
-				bypassState = true;
-			}
-			else
-			{
-				auto& tmp = bypassState;
+		static_cast<ModulatorSynth*>(p)->softBypassStateChanged(shouldBeBypassed);
+		return SafeFunctionCall::OK;
+	};
 
-				auto f = [&tmp](Processor*) {tmp.store(true); return true; };
-
-				getMainController()->getKillStateHandler().killVoicesAndCall(this, f, MainController::KillStateHandler::TargetThread::AudioThread);
-			}
-		}
-	}
+	if (bypassFXToo && shouldBeBypassed)
+		effectChain->killMasterEffects();
 	else
-	{
-		bypassState.store(false);
-	}
+		effectChain->updateSoftBypassState();
+
+	getMainController()->getKillStateHandler().killVoicesAndCall(this, f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 }
 
 
+
+void ModulatorSynth::updateSoftBypassState()
+{
+	setSoftBypass(isBypassed(), false);
+
+	effectChain->updateSoftBypassState();
+}
 
 void ModulatorSynth::flagVoiceAsRemoved(ModulatorSynthVoice* v)
 {
 	jassert(v->isInactive());
 
 	pendingRemoveVoices.insert(v);
+}
+
+void ModulatorSynth::finaliseModChains()
+{
+	modChains.finalise();
+
+	gainChain = modChains[BasicChains::GainChain].getChain();
+	pitchChain = modChains[BasicChains::PitchChain].getChain();
+
+	modChains[BasicChains::GainChain].setIncludeMonophonicValuesInVoiceRendering(false);
+	modChains[BasicChains::PitchChain].setAllowModificationOfVoiceValues(true);
+
+	modChains[BasicChains::GainChain].setExpandToAudioRate(true);
+	modChains[BasicChains::PitchChain].setExpandToAudioRate(true);
+
+	pitchChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
+
+	gainChain->setTableValueConverter(Modulation::getValueAsDecibel);
+	pitchChain->setTableValueConverter(Modulation::getValueAsSemitone);
+
+	disableChain(GainModulation, false);
+	disableChain(PitchModulation, false);
+	disableChain(MidiProcessor, false);
+	disableChain(EffectChain, false);
+
+	for (auto& mb : modChains)
+		mb.getChain()->setParentProcessor(this);
+
+	finalised = true;
 }
 
 void ModulatorSynth::disableChain(InternalChains chainToDisable, bool shouldBeDisabled)
@@ -1054,27 +1172,6 @@ int ModulatorSynth::getVoiceIndex(const SynthesiserVoice *v) const
 }
 
 
-void ModulatorSynth::enablePitchModulation(bool shouldBeEnabled)
-{
-	pitchModulationActive = shouldBeEnabled;
-
-	if (allowEmptyPitchValues() || shouldBeEnabled)
-	{
-		// Take this lock on the Synthesizer while we iterate over voices, to prevent anyone
-		// else from modifying the array during that time.
-		const ScopedLock sl (lock);
-		for (int i = 0; i < voices.size(); i++)
-		{
-			static_cast<ModulatorSynthVoice*>(getVoice(i))->enablePitchModulation(shouldBeEnabled);
-		}
-	}
-}
-
-
-bool ModulatorSynth::isPitchModulationActive() const noexcept
-{
-	return pitchModulationActive;
-}
 
 void ModulatorSynth::setScriptGainValue(int voiceIndex, float gainValue) noexcept
 {
@@ -1126,14 +1223,16 @@ void ModulatorSynthVoice::resetVoice()
 
 	ModulatorSynth *os = getOwnerSynth();
 
-	
-
 	ModulatorChain *g = static_cast<ModulatorChain*>(os->getChildProcessor(ModulatorSynth::GainModulation));
 	ModulatorChain *p = static_cast<ModulatorChain*>(os->getChildProcessor(ModulatorSynth::PitchModulation));
 	EffectProcessorChain *e = static_cast<EffectProcessorChain*>(os->getChildProcessor(ModulatorSynth::EffectChain));
 
-	g->reset(voiceIndex);
-	p->reset(voiceIndex);
+	if(g->hasActiveEnvelopesAtAll())
+		g->reset(voiceIndex);
+
+	if(p->hasActiveEnvelopesAtAll())
+		p->reset(voiceIndex);
+
 	e->reset(voiceIndex);
 
 	uptimeDelta = 0.0;
@@ -1146,12 +1245,11 @@ void ModulatorSynthVoice::resetVoice()
 	killThisVoice = false;
 	killFadeLevel = 1.0f;
 
-    gainFader.setValue(1.0);
-    gainFader.reset(44100.0, 0.0);
-    
-    pitchFader.setValue(1.0);
-    pitchFader.reset(44100.0, 0.0);
-    
+
+	gainFader.setValueWithoutSmoothing(1.0f);
+
+	pitchFader.setValueWithoutSmoothing(1.0);
+
 	os->flagVoiceAsRemoved(this);
 
 	currentHiseEvent = HiseEvent();
@@ -1169,12 +1267,12 @@ void ModulatorSynthVoice::checkRelease()
 		return;
 	}
 
-	if( ! g->isPlaying(voiceIndex) )
+	if(!g->hasActivePolyEnvelopes() || ! g->isPlaying(voiceIndex) )
 	{
 		EffectProcessorChain *e = static_cast<EffectProcessorChain*>(os->getChildProcessor(ModulatorSynth::EffectChain));
 		
-		// Skip killing if effect is ringing off
-		if ((e->hasTail() && e->isTailingOff())) return;
+		if (e->hasTailingPolyEffects())
+			return;
 
 		resetVoice();
 	}
@@ -1186,23 +1284,52 @@ int ModulatorSynthVoice::getVoiceIndex() const
 	return voiceIndex;
 }
 
+void ModulatorSynthVoice::applyGainModulation(int startSample, int numSamples, bool copyLeftChannel)
+{
+	if (copyLeftChannel)
+	{
+		if (auto modValues = getOwnerSynth()->getVoiceGainValues())
+		{
+			FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startSample), modValues + startSample, numSamples);
+		}
+		else
+		{
+			const float gainMod = getOwnerSynth()->getConstantGainModValue();
+
+			if(gainMod != 1.0f)
+				FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startSample), modValues + startSample, numSamples);
+		}
+
+		FloatVectorOperations::copy(voiceBuffer.getWritePointer(1, startSample), voiceBuffer.getReadPointer(0, startSample), numSamples);
+	}
+	else
+	{
+		if (auto modValues = getOwnerSynth()->getVoiceGainValues())
+		{
+			FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startSample), modValues + startSample, numSamples);
+			FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startSample), modValues + startSample, numSamples);
+		}
+		else
+		{
+			const float gainMod = getOwnerSynth()->getConstantGainModValue();
+
+			if (gainMod != 1.0f)
+			{
+				FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startSample), gainMod, numSamples);
+				FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startSample), gainMod, numSamples);
+			}
+		}
+	}
+}
+
 void ModulatorSynthVoice::stopNote(float, bool)
 {
 	LOG_SYNTH_EVENT("Stop Note for " + getOwnerSynth()->getId() + " with index " + String(voiceIndex));
     
-		ModulatorSynth *os = getOwnerSynth();
-		
-		ModulatorChain *c = static_cast<ModulatorChain*>(os->getChildProcessor(ModulatorSynth::GainModulation));
-		ModulatorChain *p = static_cast<ModulatorChain*>(os->getChildProcessor(ModulatorSynth::PitchModulation));
-		EffectProcessorChain *e = static_cast<EffectProcessorChain*>(os->getChildProcessor(ModulatorSynth::EffectChain));
-
-		isTailing = true;
-
-		c->stopVoice(voiceIndex);
-		p->stopVoice(voiceIndex);
-		e->stopVoice(voiceIndex);
-
-		checkRelease();
+	ModulatorSynth *os = getOwnerSynth();
+	isTailing = true;
+	os->preStopVoice(voiceIndex);
+	checkRelease();
 };
 
 void ModulatorSynth::handleRetriggeredNote(ModulatorSynthVoice *voice)
@@ -1227,8 +1354,6 @@ ModulatorSynthVoice* ModulatorSynth::getFreeVoice(SynthesiserSound* s, int midiC
 
 juce::SynthesiserVoice* ModulatorSynth::findVoiceToSteal(SynthesiserSound* soundToPlay, int midiChannel, int midiNoteNumber) const
 {
-	auto startUptime = getMainController()->getUptime();
-
 	for (auto v: activeVoices)
 	{
 		// return voices that are being killed
@@ -1502,7 +1627,8 @@ int ModulatorSynth::killVoiceAndSiblings(ModulatorSynthVoice* v, bool allowTailO
 
 void ModulatorSynth::deleteAllVoices()
 {
-	ScopedLock sl(lock);
+	LockHelpers::SafeLock sl(getMainController(), LockHelpers::AudioLock, isOnAir());
+    
 	activeVoices.clear();
 	pendingRemoveVoices.clear();
 	lastStartedVoice = nullptr;
@@ -1511,16 +1637,21 @@ void ModulatorSynth::deleteAllVoices()
 
 void ModulatorSynth::resetAllVoices()
 {
-	ScopedLock sl(lock);
-
-	for (int i = 0; i < getNumVoices(); i++)
-	{
-		static_cast<ModulatorSynthVoice*>(getVoice(i))->resetVoice();
-	}
-
-	lastStartedVoice = nullptr;
-	activeVoices.clearQuick();
-	pendingRemoveVoices.clearQuick();
+    {
+        LockHelpers::SafeLock sl(getMainController(), LockHelpers::AudioLock, isOnAir());
+        
+        for (int i = 0; i < getNumVoices(); i++)
+        {
+            static_cast<ModulatorSynthVoice*>(getVoice(i))->resetVoice();
+        }
+        
+        lastStartedVoice = nullptr;
+        activeVoices.clearQuick();
+        pendingRemoveVoices.clearQuick();
+        
+    }
+    
+	effectChain->resetMasterEffects();
 }
 
 
@@ -1528,7 +1659,9 @@ void ModulatorSynth::resetAllVoices()
 void ModulatorSynth::killAllVoices()
 {
 	// Never call this directly, use 
-	jassert(!MessageManager::getInstance()->isThisTheMessageThread());
+	//jassert(MessageManager::getInstance()->isThisTheMessageThread());
+
+	LOG_KILL_EVENTS("Kill all voices for " + getId());
 
 	if (isInGroup())
 	{
@@ -1536,16 +1669,43 @@ void ModulatorSynth::killAllVoices()
 	}
 	else
 	{
-		for (int i = 0; i < getNumVoices(); i++)
+		for (auto& v : activeVoices)
 		{
-			static_cast<ModulatorSynthVoice*>(getVoice(i))->killVoice();
+			v->killVoice();
 		}
 	}
+
+	effectChain->killMasterEffects();
 }
 
+    void ModulatorSynth::updateShouldHaveEnvelope()
+    {
+        {
+            shouldHaveEnvelope = false;
+            
+            if (isInGroup())
+                shouldHaveEnvelope = false;
+            else if (ProcessorHelpers::is<GlobalModulatorContainer>(this))
+                shouldHaveEnvelope = false;
+            else 
+                shouldHaveEnvelope = true;
+        }
+
+    }
+    
 bool ModulatorSynth::areVoicesActive() const
 {
-	return !activeVoices.isEmpty();
+	const bool active = bypassState == false;
+	const bool voicesActive = !activeVoices.isEmpty();
+	const bool tailActive = effectChain->hasTailingMasterEffects();
+
+#if LOG_KILL_EVENTS
+	String x;
+	x << getId() << ": " << "voicesActive: " << (voicesActive ? "true" : "false") << ", " << "tailActive: " << (tailActive ? "true" : "false");
+	KILL_LOG(x);
+#endif
+
+	return active && (voicesActive || tailActive);
 }
 
 void ModulatorSynth::setVoiceLimit(int newVoiceLimit)
@@ -1555,7 +1715,7 @@ void ModulatorSynth::setVoiceLimit(int newVoiceLimit)
 
 	voiceLimit = jlimit<int>(2, NUM_POLYPHONIC_VOICES, newVoiceLimit);
 
-	internalVoiceLimit = (int)(getMainController()->getVoiceAmountMultiplier() * (float)voiceLimit);
+	internalVoiceLimit = jmax<int>(2, (int)(getMainController()->getVoiceAmountMultiplier() * (float)voiceLimit));
 }
 
 void ModulatorSynth::setKillFadeOutTime(double fadeTimeMilliSeconds)
@@ -1576,11 +1736,8 @@ void ModulatorSynthVoice::renderNextBlock (AudioSampleBuffer& outputBuffer, int 
 {
 	if (isActive)
     { 
-		if(isPitchModulationActive()) calculateVoicePitchValues(startSample, numSamples);
-
 		calculateBlock(startSample, numSamples);
 
-		
 		if (gainFader.isSmoothing())
 		{
 			applyEventVolumeFade(startSample, numSamples);
@@ -1615,7 +1772,6 @@ void ModulatorSynthVoice::setCurrentHiseEvent(const HiseEvent &m)
 	transposeAmount = m.getTransposeAmount();
 	eventGainFactor = m.getGainFactor();
 	eventPitchFactor = m.getPitchFactorForEvent();
-	scriptPitchActive = eventPitchFactor != 1.0;
 }
 
 void ModulatorSynthChainFactoryType::fillTypeNameList()

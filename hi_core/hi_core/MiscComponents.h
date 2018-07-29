@@ -222,7 +222,7 @@ private:
 	ScopedPointer<RectangleConstrainer> constrainer;
 	ComponentDragger dragger;
 
-	Array<WeakReference<Listener>> listenerList;
+	Array<WeakReference<Listener>, CriticalSection> listenerList;
 	DynamicObject::Ptr currentEvent;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MouseCallbackComponent);

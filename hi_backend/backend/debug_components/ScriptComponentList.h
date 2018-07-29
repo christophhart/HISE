@@ -43,6 +43,7 @@ namespace hise { using namespace juce;
 class ScriptComponentListItem : public TreeViewItem,
 								private AsyncValueTreePropertyListener,
 								private GlobalScriptCompileListener,
+								public Dispatchable,
 							    public Timer
 {
 public:
@@ -208,12 +209,21 @@ private:
 
 	void treeChildrenChanged(const ValueTree& parentTree)
 	{
-		if (parentTree == tree)
+		if (content != nullptr && parentTree == tree)
 		{
-			refreshSubItems();
-			treeHasChanged();
-			setOpen(true);
-		}
+			auto f = [](Dispatchable* obj)
+			{
+				auto list = static_cast<ScriptComponentListItem*>(obj);
+
+				list->refreshSubItems();
+				list->treeHasChanged();
+				list->setOpen(true);
+
+				return Dispatchable::Status::OK;
+			};
+
+			content->getScriptProcessor()->getMainController_()->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(this, f);
+		};
 	}
 	bool isDefinedInScript = false;
 	

@@ -43,6 +43,115 @@ namespace hise { using namespace juce;
 #pragma warning(disable: 4018)
 #endif
 
+template <class HeapElementType, class ConstructionDataType> class PreallocatedHeapArray
+{
+public:
+
+	PreallocatedHeapArray() {};
+	~PreallocatedHeapArray()
+	{
+		clear();
+	}
+
+	void operator +=(const ConstructionDataType& d)
+	{
+		constructionData.add(d);
+	}
+
+	void reserve(int numElements)
+	{
+		constructionData.ensureStorageAllocated(numElements);
+	}
+
+	void finalise()
+	{
+		if (constructionData.isEmpty())
+		{
+			start = nullptr;
+			ende = nullptr;
+			length = 0;
+		}
+		else
+		{
+
+			allocate(constructionData.size());
+			start = data.get();
+			ende = start + length;
+
+			auto ptr = start;
+
+			for (const auto& cd : constructionData)
+			{
+				new (ptr++) HeapElementType(cd);
+			}
+
+			constructionData.clear();
+		}
+
+		finalised = true;
+	}
+
+	HeapElementType& operator[](int index) const
+	{
+		jassert(finalised);
+		jassert(isPositiveAndBelow(index, length));
+		auto ptr = const_cast<HeapElementType*>(start + index);
+		return *ptr;
+	}
+
+	void clear()
+	{
+		for (int i = 0; i < length; i++)
+		{
+			data[i].~HeapElementType();
+		}
+
+		data.free();
+		length = 0;
+		finalised = false;
+	}
+
+	inline HeapElementType* begin() const noexcept
+	{
+		jassert(finalised);
+
+		return const_cast<HeapElementType*>(start);
+	}
+
+	inline HeapElementType* end() const noexcept
+	{
+		jassert(finalised);
+
+		return const_cast<HeapElementType*>(ende);
+	}
+
+	int size() const noexcept
+	{
+		return length;
+	}
+
+private:
+
+	void allocate(int numElements)
+	{
+		length = numElements;
+		data.allocate(numElements, true);
+	}
+
+	Array<ConstructionDataType> constructionData;
+
+	HeapBlock<HeapElementType> data;
+	int length = -1;
+
+	bool finalised = false;
+
+	HeapElementType* start = nullptr;
+	HeapElementType* ende = nullptr;
+
+	JUCE_DECLARE_NON_COPYABLE(PreallocatedHeapArray);
+};
+
+
 
 template <typename ElementType, class Sorter = DefaultElementComparator<ElementType>> class OrderedStack
 {
@@ -188,9 +297,11 @@ private:
 *	- cache line friendly (the data is aligned)
 *
 */
-template <typename ElementType> class UnorderedStack
+template <typename ElementType, int SIZE=UNORDERED_STACK_SIZE, typename LockType=DummyCriticalSection> class UnorderedStack
 {
 public:
+
+	typedef typename LockType::ScopedLockType Lock;
 
 	/** Creates an unordered stack. */
 
@@ -198,15 +309,18 @@ public:
 	{
 		position = 0;
 
-		for (int i = 0; i < UNORDERED_STACK_SIZE; i++)
+		Lock sl(lock);
+
+		for (int i = 0; i < SIZE; i++)
 		{
 			data[i] = ElementType();
 		}
 	}
 
-	
 	~UnorderedStack()
 	{
+		Lock sl(lock);
+
 		for (int i = 0; i < position; i++)
 		{
 			data[i] = ElementType();
@@ -216,6 +330,8 @@ public:
 	/** Inserts an element at the end of the unordered stack. */
 	void insert(const ElementType& elementTypeToInsert)
 	{
+		Lock sl(lock);
+
 		if (contains(elementTypeToInsert))
 		{
 			return;
@@ -223,24 +339,37 @@ public:
 
 		data[position] = elementTypeToInsert;
 
-		if (position < UNORDERED_STACK_SIZE)
-			position++;
+		position = jmin<int>(position + 1, SIZE - 1);
+	}
+
+	void insertWithoutSearch(ElementType&& elementTypeToInsert)
+	{
+		Lock sl(lock);
+
+		jassert(!contains(elementTypeToInsert));
+
+		data[position] = std::move(elementTypeToInsert);
+
+		position = jmin<int>(position + 1, SIZE - 1);
 	}
 
 	void insertWithoutSearch(const ElementType& elementTypeToInsert)
 	{
+		Lock sl(lock);
+
 		jassert(!contains(elementTypeToInsert));
 
 		data[position] = elementTypeToInsert;
 
-		if (position < UNORDERED_STACK_SIZE)
-			position++;
+		position = jmin<int>(position + 1, SIZE - 1);
 	}
 
 	/** Removes the given element and puts the last element into its slot. */
 
 	void remove(const ElementType& elementTypeToRemove)
 	{
+		Lock sl(lock);
+
 		if (!contains(elementTypeToRemove))
 		{
 			return;
@@ -259,44 +388,61 @@ public:
 
 	void removeElement(int index)
 	{
+		Lock sl(lock);
+
 		if (index < position)
 		{
-			--position;
-			data[index] = data[position];
+			position = jmax<int>(0, position-1);
+			data[index] = std::move(data[position]);
 			data[position] = ElementType();
 		}
 	}
 
-	bool contains(const ElementType& elementToLookFor) const
+	bool contains(const ElementType& elementToLookFor) const noexcept
 	{
+		return indexOf(elementToLookFor) != -1;
+	}
+
+	int indexOf(const ElementType& elementToLookFor) const noexcept
+	{
+		Lock sl(lock);
+
 		for (size_t i = 0; i < position; i++)
 		{
 			if (data[i] == elementToLookFor)
-				return true;
+				return i;
 		}
 
-		return false;
+		return -1;
 	}
 
-	void shrink(int newSize)
+	void shrink(int newSize) noexcept
 	{
+		Lock sl(lock);
+
 		jassert(newSize > 0);
-		position = jmin<size_t>(position, (size_t)newSize);
+		position = jlimit<int>(0, position, newSize);
 	}
 
     void clear()
     {
+		Lock sl(lock);
+
         memset(data, 0, sizeof(ElementType) * position);
 		clearQuick();
     }
     
 	void clearQuick()
 	{
+		Lock sl(lock);
+
 		position = 0;
 	}
 
 	ElementType operator[](int index) const
 	{
+		Lock sl(lock);
+
 		if (index < position)
 		{
 			return data[index];
@@ -309,33 +455,42 @@ public:
 
 	bool isEmpty() const
 	{
+		Lock sl(lock);
+
 		return position == 0;
 	}
 
 	int size() const
 	{
+		Lock sl(lock);
+
 		return (int)position;
 	}
 
 	inline ElementType* begin() const noexcept
 	{
 		ElementType* d = const_cast<ElementType*>(data);
-
 		return d;
 	}
 
 	inline ElementType* end() const noexcept
 	{
-		ElementType* d = const_cast<ElementType*>(data);
+		Lock sl(lock);
 
+		ElementType* d = const_cast<ElementType*>(data);
 		return d + position;
 	}
 
+	inline const LockType& getLock() const noexcept { return data; }
+
+	
 private:
 
-	ElementType data[UNORDERED_STACK_SIZE];
+	LockType lock;
 
-	size_t position;
+	ElementType data[SIZE];
+
+	int position;
 
 	JUCE_DECLARE_NON_COPYABLE(UnorderedStack)
 };
@@ -404,6 +559,343 @@ private:
 	ObjectType fallback;
 };
 
+namespace MultithreadedQueueHelpers
+{
+	/** The return type of a function that is called on each element of a queue. */
+	enum ReturnStatus
+	{
+		OK = 0,
+		SkipFurtherExecutions,
+		AbortClearing,
+		numReturnStatuses
+	};
+
+	/** This enum specifies the operating mode of a given lockfree queue. You can pass this as template parameter. */
+	enum class Configuration
+	{
+		NoAllocationsNoTokenlessUsage = 0, ///< The default setting. You have to provide a token list and a fixed size
+		NoAllocationsTokenlessUsageAllowed, ///< fixed size queue, but is allowed to operate without tokens
+		AllocationsAllowedNoTokenlessUsage, ///< dynamically resizable queue, but must be initialised with tokens
+		AllocationsAllowedAndTokenlessUsageAllowed, // dynamically resizable queue that can be used without tokens.
+		numConfiguration
+	};
+
+	constexpr Configuration DefaultConfiguration = Configuration::NoAllocationsNoTokenlessUsage;
+
+	constexpr bool allocationsAllowed(Configuration c)
+	{
+		return c == Configuration::AllocationsAllowedNoTokenlessUsage ||
+			   c == Configuration::AllocationsAllowedAndTokenlessUsageAllowed;
+	}
+
+	constexpr bool tokenlessUsageAllowed(Configuration c)
+	{
+		return c == Configuration::NoAllocationsTokenlessUsageAllowed ||
+			   c == Configuration::AllocationsAllowedAndTokenlessUsageAllowed;
+	}
+
+	/** This object will be used to build the internal tokens. */
+	struct PublicToken
+	{
+		/** The name of the thread. Just useful for debugging. */
+		String threadName;
+
+		/** The list of thread Ids. Get them with Thread::getCurrentThreadIds(). */
+		Array<void*> threadIds;
+
+		/** If you know this thread can push elements, set this to true. */
+		bool canBeProducer;
+	};
+}
+
+
+
+/** A wrapper around moodycamels ConcurrentQueue with more JUCE like interface and some assertions. */
+template <typename ElementType, 
+	      MultithreadedQueueHelpers::Configuration ConfigurationType=MultithreadedQueueHelpers::DefaultConfiguration>
+	class MultithreadedLockfreeQueue
+{
+public:
+
+	/** A function prototype for functions that can be called on a ElementType. */
+	using ElementFunction = std::function<MultithreadedQueueHelpers::ReturnStatus(ElementType& t)>;
+
+	MultithreadedLockfreeQueue(int numMaxElements) :
+		numElements(numMaxElements),
+		queue(numElements),
+		dummyCToken(queue),
+		dummyPToken(queue),
+		tokensHaveBeenSet(false),
+		somethingHasBeenPushed(false)
+	{}
+
+	/** This initialised the queue with the thread Ids. Best use KillstateHandler.createTokens() for this. */
+	void setThreadTokens(const Array<MultithreadedQueueHelpers::PublicToken>& threadTokens, const ElementFunction& clearFunction=ElementFunction())
+	{
+		if(!isEmpty())
+			clear(clearFunction);
+
+		if (!allocationsAllowed())
+		{
+			const int blockSize = moodycamel::ConcurrentQueue<ElementType>::BLOCK_SIZE;
+			int numProducers = 0;
+
+			for (const auto& tk : threadTokens)
+			{
+				if (tk.canBeProducer)
+					numProducers++;
+			}
+
+			int numRequired = roundDoubleToInt((ceil((double)numElements / (double)blockSize) + (double)1) * (double)numProducers * (double)blockSize);
+			
+			queue = std::move(moodycamel::ConcurrentQueue<ElementType>(size_t(numRequired)));
+		}
+
+		tokens.ensureStorageAllocated(threadTokens.size());
+
+		dummyCToken = moodycamel::ConsumerToken(queue);
+		dummyPToken = moodycamel::ProducerToken(queue);
+
+		for (const auto& tk : threadTokens)
+			tokens.add(PrivateThreadToken(queue, tk));
+
+		tokensHaveBeenSet = true;
+	}
+
+	bool push(ElementType&& e)
+	{
+		somethingHasBeenPushed.store(true);
+
+		jassert(tokenlessUsageAllowed() || tokensHaveBeenSet);
+
+		if (tokenlessUsageAllowed() && !tokensHaveBeenSet)
+		{
+			if (allocationsAllowed())
+				return queue.enqueue(e);
+			else
+				return queue.try_enqueue(e);
+		}
+		else
+		{
+			if (allocationsAllowed())
+				return queue.enqueue(getProducerToken(), e);
+			else
+				return queue.try_enqueue(getProducerToken(), e);
+		}
+		
+	}
+
+	bool pop(ElementType& e)
+	{
+		if (!somethingHasBeenPushed)
+			return false;
+
+		jassert(tokenlessUsageAllowed() || tokensHaveBeenSet);
+
+		if (tokenlessUsageAllowed() && !tokensHaveBeenSet)
+			return queue.try_dequeue(e);
+		else
+			return queue.try_dequeue(getConsumerToken(), e);
+	}
+
+	/** Copies multiple elements into the queue. If you don't need the data afterwards, use moveMultiple instead. */
+	bool copyMultiple(ElementType* source, int numElements)
+	{
+		somethingHasBeenPushed.store(true);
+
+		jassert(tokenlessUsageAllowed() || tokensHaveBeenSet);
+
+		if (tokenlessUsageAllowed() && !tokensHaveBeenSet)
+		{
+			if (allocationsAllowed())
+				return queue.enqueue_bulk(*source, (size_t)numElements);
+			else
+				return queue.try_enqueue_bulk(*source, (size_t)numElements);
+		}
+		else
+		{
+			if (allocationsAllowed())
+				return queue.enqueue_bulk(getProducerToken(), *source, (size_t)numElements);
+			else
+				return queue.try_enqueue_bulk(getProducerToken(), *source, (size_t)numElements);
+		}
+		
+	}
+
+	/** Moves multiple elements into the queue. The original data is invalid after this operation. */
+	bool moveMultiple(ElementType* source, int numElements)
+	{
+		somethingHasBeenPushed.store(true);
+
+		jassert(tokenlessUsageAllowed() || tokensHaveBeenSet);
+
+		if (tokenlessUsageAllowed() && !tokensHaveBeenSet)
+		{
+			if (allocationsAllowed())
+				return queue.enqueue_bulk(std::make_move_iterator(*source), (size_t)numElements);
+			else
+				return queue.try_enqueue_bulk(std::make_move_iterator(*source), (size_t)numElements);
+		}
+		else
+		{
+			if (allocationsAllowed())
+				return queue.enqueue_bulk(getProducerToken(), std::make_move_iterator(*source), (size_t)numElements);
+			else
+				return queue.try_enqueue_bulk(getProducerToken(), std::make_move_iterator(*source), (size_t)numElements);
+		}
+		
+	}
+
+	int popMultiple(ElementType* destination, int numDesired)
+	{
+		if (somethingHasBeenPushed)
+			return 0;
+
+		jassert(tokenlessUsageAllowed() || tokensHaveBeenSet);
+
+		if (tokenlessUsageAllowed() && !tokensHaveBeenSet)
+			return queue.try_dequeue_bulk(*destination, numDesired);
+		else
+			return queue.try_dequeue_bulk(getConsumerToken(), *destination, numDesired);
+	}
+
+	void addElementToSkip(ElementType&& element)
+	{
+		cancelledElements.add(element);
+	}
+
+	void clear(const ElementFunction& f=ElementFunction())
+	{
+		if (!somethingHasBeenPushed)
+			return;
+
+		jassert(tokenlessUsageAllowed() || tokensHaveBeenSet || isEmpty());
+
+		ElementType item;
+		bool skipFurtherExecution = false;
+		
+
+		if (tokenlessUsageAllowed() && !tokensHaveBeenSet)
+		{
+			while (queue.try_dequeue(item))
+			{
+				if (f && !skipFurtherExecution)
+				{
+					auto result = f(item);
+
+					if (result == MultithreadedQueueHelpers::SkipFurtherExecutions)
+						skipFurtherExecution = true;
+
+					if (result == MultithreadedQueueHelpers::AbortClearing)
+						break;
+				}
+			}
+		}
+		else
+		{
+			auto& cToken = getConsumerToken();
+
+			while (queue.try_dequeue(cToken, item))
+			{
+				if (f && !skipFurtherExecution)
+				{
+					auto result = f(item);
+
+					if (result == MultithreadedQueueHelpers::SkipFurtherExecutions)
+						skipFurtherExecution = true;
+
+					if (result == MultithreadedQueueHelpers::AbortClearing)
+						break;
+				}
+			}
+		}
+	}
+
+	int size() const noexcept
+	{
+		return somethingHasBeenPushed ? queue.size_approx() : 0;
+	}
+
+	bool isEmpty() const noexcept
+	{
+		return !somethingHasBeenPushed || queue.size_approx() == 0;
+	}
+
+private:
+
+	struct PrivateThreadToken
+	{
+		explicit PrivateThreadToken(moodycamel::ConcurrentQueue<ElementType>& q, 
+									const MultithreadedQueueHelpers::PublicToken& publicToken):
+			threadIds(std::move(publicToken.threadIds)),
+			name(publicToken.threadName),
+			cToken(q),
+			pToken(q),
+			canBeProducer(publicToken.canBeProducer)
+		{}
+
+		Array<void*> threadIds;
+		String name;
+		moodycamel::ProducerToken pToken;
+		moodycamel::ConsumerToken cToken;
+		bool canBeProducer;
+	};
+
+	moodycamel::ProducerToken& getProducerToken()
+	{
+		jassert(tokensHaveBeenSet);
+
+		auto id = Thread::getCurrentThreadId();
+
+		for (auto& t : tokens)
+		{
+			if (t.threadIds.contains(id))
+			{
+				// You somehow tried to push something from an unexcpected thread...
+				jassert(t.canBeProducer);
+				return t.pToken;
+			}
+		}
+
+		jassertfalse;
+		return dummyPToken;
+	}
+
+	moodycamel::ConsumerToken& getConsumerToken()
+	{
+		jassert(tokensHaveBeenSet);
+
+		auto id = Thread::getCurrentThreadId();
+
+		for (auto& t : tokens)
+			if (t.threadIds.contains(id))
+				return t.cToken;
+
+		jassertfalse;
+		return dummyCToken;
+	}
+	
+	constexpr bool allocationsAllowed()
+	{
+		return MultithreadedQueueHelpers::allocationsAllowed(ConfigurationType);
+	}
+
+	constexpr bool tokenlessUsageAllowed()
+	{
+		return MultithreadedQueueHelpers::tokenlessUsageAllowed(ConfigurationType);
+	}
+
+	Array<ElementType, CriticalSection> cancelledElements;
+
+	int numElements;
+	moodycamel::ConcurrentQueue<ElementType> queue;
+	moodycamel::ConsumerToken dummyCToken;
+	moodycamel::ProducerToken dummyPToken;
+	Array<PrivateThreadToken> tokens;
+	bool tokensHaveBeenSet = false;
+	std::atomic<bool> somethingHasBeenPushed;
+};
+
 
 /** A wrapper around moodycamels ReaderWriterQueue with more JUCE like interface and some assertions. */
 template <class ElementType> class LockfreeQueue
@@ -434,12 +926,10 @@ public:
 	}
 
 	/** Adds an element to the queue. If it fails because the queue is full, it throws an assertion and return false. */
-	bool push(const ElementType&& newElement)
+	bool push(const ElementType& newElement)
 	{
-		const bool ok = queue.try_enqueue(newElement);
-#if HI_RUN_UNIT_TESTS == 0
-		jassert(ok);
-#endif
+		const bool ok = queue.try_enqueue(std::move(newElement));
+		jassert_skip_unit_test(ok);
 		return ok;
 	}
 

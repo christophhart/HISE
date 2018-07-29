@@ -94,6 +94,7 @@ struct TestGlobalNamespace
 #include "ExpansionHandler.h"
 #include "GlobalScriptCompileBroadcaster.h"
 #include "MainControllerHelpers.h"
+#include "LockHelpers.h"
 #include "MainController.h"
 #include "SampleExporter.h"
 #include "Console.h"

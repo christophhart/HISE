@@ -32,6 +32,9 @@
 
 namespace hise { using namespace juce;
 
+int BlockDividerStatistics::numAlignedCalls = 0;
+int BlockDividerStatistics::numOddCalls = 0;
+
 
 #if  JUCE_MAC
 
@@ -790,76 +793,130 @@ String BalanceCalculator::getBalanceAsString(int balanceValue)
 	else return String(abs(balanceValue)) + (balanceValue > 0 ? " R" : " L");
 }
 
-SafeFunctionCall::SafeFunctionCall(Processor* p_, const ProcessorFunction& f_) :
+SafeFunctionCall::SafeFunctionCall(Processor* p_, const Function& f_) noexcept:
 	p(p_),
 	f(f_)
 {
 
 }
 
-SafeFunctionCall::SafeFunctionCall() :
+SafeFunctionCall::SafeFunctionCall() noexcept:
 	p(nullptr),
 	f()
 {
 
 }
 
-bool SafeFunctionCall::call()
+SafeFunctionCall::Status SafeFunctionCall::call() const
 {
-	if (p.get() != nullptr)
-		return f(p.get());
+	try
+	{
+		if (p.get() != nullptr)
+			return f(p.get());
+	}
+	catch (MainController::LockFreeDispatcher::AbortSignal s)
+	{
+		// You should catch this before.
+		jassertfalse;
 
-	return false;
+		return Status::cancelled;
+	}
+
+	// You have called this without passing an actual object here.
+	jassert(p.wasObjectDeleted());
+
+	return p.wasObjectDeleted() ? Status::processorWasDeleted : Status::nullPointerCall;
+}
+
+
+UpdateDispatcher::UpdateDispatcher(MainController* mc_) :
+	mc(mc_),
+	pendingListeners(8192)
+{
+	startTimer(30);
+}
+
+void UpdateDispatcher::triggerAsyncUpdateForListener(Listener* l)
+{
+	pendingListeners.push(WeakReference<Listener>(l));
 }
 
 void UpdateDispatcher::timerCallback()
 {
-	if (auto l = PresetLoadLock(mc))
-	{
-		handlePendingListeners();
-		stopTimer();
-	}
-}
+	auto& tmp_mc = mc;
 
-void UpdateDispatcher::handleAsyncUpdate()
-{
-	if (auto l = PresetLoadLock(mc))
-	{
-		handlePendingListeners();
-	}
-	else
-	{
-		startTimer(300);
-	}
-}
-
-void UpdateDispatcher::handlePendingListeners()
-{
-	WeakReference<Listener> l;
-
-	while (pendingListeners.pop(l))
+	auto f = [tmp_mc](WeakReference<Listener>& l)
 	{
 		if (l != nullptr)
 		{
-			if (cancelledListeners.contains(l))
-			{
-				l->pending = false;
-				cancelledListeners.removeAllInstancesOf(l);
-				continue;
-			}
+			l->pending = false;
 
+			if (l->cancelled)
+				return MultithreadedQueueHelpers::OK;
 
 			l->handleAsyncUpdate();
-			l->pending = false;
 		}
-	}
 
-	Func f;
+		if (tmp_mc->shouldAbortMessageThreadOperation())
+			return MultithreadedQueueHelpers::AbortClearing;
 
-	while (pendingFunctions.pop(f))
-	{
-		f();
-	}
+		return MultithreadedQueueHelpers::OK;
+	};
+
+	pendingListeners.clear(f);
+}
+
+
+
+
+LockfreeAsyncUpdater::~LockfreeAsyncUpdater()
+{
+	cancelPendingUpdate();
+
+	instanceCount--;
+}
+
+void LockfreeAsyncUpdater::triggerAsyncUpdate()
+{
+	pimpl.triggerAsyncUpdate();
+}
+
+void LockfreeAsyncUpdater::cancelPendingUpdate()
+{
+	pimpl.cancelPendingUpdate();
+}
+
+LockfreeAsyncUpdater::LockfreeAsyncUpdater() :
+	pimpl(this)
+{
+	// If you're hitting this assertion, it means
+	// that you are creating a lot of these objects
+	// which clog the timer thread.
+	// Consider using the standard AsyncUpdater instead
+	jassert(instanceCount++ < 200);
+}
+
+
+
+int LockfreeAsyncUpdater::instanceCount = 0;
+
+UpdateDispatcher::Listener::Listener(UpdateDispatcher* dispatcher_) :
+	dispatcher(dispatcher_),
+	pending(false)
+{
+
+}
+
+void UpdateDispatcher::Listener::triggerAsyncUpdate()
+{
+	if (pending)
+		return;
+
+	cancelled.store(false);
+	pending = true;
+
+	if (dispatcher != nullptr)
+		dispatcher->triggerAsyncUpdateForListener(this);
 }
 
 } // namespace hise

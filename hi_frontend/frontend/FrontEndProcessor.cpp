@@ -32,6 +32,51 @@
 
 namespace hise { using namespace juce;
 
+
+FrontendProcessor* FrontendFactory::createPluginWithAudioFiles(AudioDeviceManager* deviceManager, AudioProcessorPlayer* callback)
+{
+	ValueTree presetData; 
+	zstd::ZCompressor<PresetDictionaryProvider> pdec; 
+	MemoryBlock pBlock;
+	ScopedPointer<MemoryInputStream> pis = getEmbeddedData(FileHandlerBase::Presets);
+	pis->readIntoMemoryBlock(pBlock);
+	pdec.expand(pBlock, presetData);
+	
+	/*ValueTree presetData = ValueTree::readFromData(PresetData::preset PresetData::presetSize);\*/ 
+	LOG_START("Loading embedded image data"); 
+	auto imageData = getEmbeddedData(FileHandlerBase::Images);
+	LOG_START("Loading embedded impulse responses"); 
+	auto impulseData = getEmbeddedData(FileHandlerBase::AudioFiles);
+	auto sampleMapData = getEmbeddedData(FileHandlerBase::SampleMaps);
+	LOG_START("Loading embedded other data")
+
+	ValueTree externalFiles;
+	MemoryBlock eBlock;
+	ScopedPointer<MemoryInputStream> eis = getEmbeddedData(FileHandlerBase::Scripts);
+	eis->readIntoMemoryBlock(eBlock);
+	zstd::ZCompressor<JavascriptDictionaryProvider> edec;
+	edec.expand(eBlock, externalFiles);
+
+	//ValueTree externalFiles =  hise::PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true); 
+	LOG_START("Creating Frontend Processor")
+	auto fp = new hise::FrontendProcessor(presetData, deviceManager, callback, imageData, impulseData, sampleMapData, &externalFiles, nullptr); 
+
+	ScopedPointer<MemoryInputStream> uis = getEmbeddedData(FileHandlerBase::UserPresets);
+
+	UserPresetHelpers::extractUserPresets((const char*)uis->getData(), uis->getDataSize()); 
+	AudioProcessorDriver::restoreSettings(fp); 
+	GlobalSettingManager::restoreGlobalSettings(fp); 
+
+	GET_PROJECT_HANDLER(fp->getMainSynthChain()).loadSamplesAfterSetup(); 
+	return fp;
+}
+
+FrontendProcessor* FrontendFactory::createPlugin(AudioDeviceManager* deviceManager, AudioProcessorPlayer* callback)
+{
+	return createPluginWithAudioFiles(deviceManager, callback);
+}
+
+
 void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
 #if USE_COPY_PROTECTION
@@ -122,7 +167,6 @@ unlockCounter(0)
 #endif
     
 	LOG_START("Load images");
-
     restorePool(imageData, FileHandlerBase::Images, "ImageResources.dat");
     
    	LOG_START("Load embedded audio files");
@@ -175,44 +219,48 @@ unlockCounter(0)
 
 	synthChain->setId(synthData.getProperty("ID", String()));
 
+	createPreset(synthData);
+}
+
+void FrontendProcessor::createPreset(const ValueTree& synthData)
+{
+	
+
+	getSampleManager().setShouldSkipPreloading(true);
+
+	setSkipCompileAtPresetLoad(true);
+
+	LOG_START("Restoring main container");
+
+	synthChain->restoreFromValueTree(synthData);
+
+	setSkipCompileAtPresetLoad(false);
+
 	{
-		MainController::ScopedSuspender ss(this);
-
-		getSampleManager().setShouldSkipPreloading(true);
-
-		setSkipCompileAtPresetLoad(true);
-
-		LOG_START("Restoring main container");
-
-		synthChain->restoreFromValueTree(synthData);
-
-		setSkipCompileAtPresetLoad(false);
-
 		LOG_START("Compiling all scripts");
-
+		LockHelpers::SafeLock sl(this, LockHelpers::ScriptLock);
 		synthChain->compileAllScripts();
-
-		synthChain->loadMacrosFromValueTree(synthData);
-
-		LOG_START("Adding plugin parameters");
-
-		addScriptedParameters();
-
-		CHECK_COPY_AND_RETURN_6(synthChain);
-
-		if (getSampleRate() > 0)
-		{
-			LOG_START("Initialising audio callback");
-
-			synthChain->prepareToPlay(getSampleRate(), getBlockSize());
-		}
-
-		createUserPresetData();
 	}
 
-    
+	
 
-	updateUnlockedSuspendStatus();
+	synthChain->loadMacrosFromValueTree(synthData);
+
+	LOG_START("Adding plugin parameters");
+
+	addScriptedParameters();
+
+	CHECK_COPY_AND_RETURN_6(synthChain);
+
+	if (getSampleRate() > 0)
+	{
+		LOG_START("Initialising audio callback");
+		synthChain->prepareToPlay(getSampleRate(), getBlockSize());
+	}
+
+#if INCLUDE_USER_DATA
+	createUserPresetData();
+#endif
 }
 
 const String FrontendProcessor::getName(void) const
@@ -222,9 +270,7 @@ const String FrontendProcessor::getName(void) const
 
 void FrontendProcessor::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
-    MainController::ScopedSuspender ss(this);
-
-	getDelayedRenderer().prepareToPlayWrapped(newSampleRate, samplesPerBlock);
+    getDelayedRenderer().prepareToPlayWrapped(newSampleRate, samplesPerBlock);
 };
 
 AudioProcessorEditor* FrontendProcessor::createEditor()

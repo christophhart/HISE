@@ -264,7 +264,7 @@ private:
 			
 		}
 
-		void mouseDown(const MouseEvent& event) override
+		void mouseDown(const MouseEvent& /*event*/) override
 		{
 			closeModalPopup();
 		}

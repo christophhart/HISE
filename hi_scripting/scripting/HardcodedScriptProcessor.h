@@ -76,6 +76,8 @@ public:
 	/** called whenever a script control was moved. */
 	virtual void onControl(ScriptingApi::Content::ScriptComponent * /*controller*/, var /*value*/) {};
 
+	virtual void onAllNotesOff() {};
+
     void restoreFromValueTree(const ValueTree &v) override
     {
         jassert(content.get() != nullptr);

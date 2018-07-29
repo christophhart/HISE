@@ -98,7 +98,12 @@ void HiseJavascriptEngine::setBreakpoints(Array<Breakpoint> &breakpoints)
 }
 
 
-void HiseJavascriptEngine::prepareTimeout() const noexcept{ root->timeout = Time::getCurrentTime() + maximumExecutionTime; }
+void HiseJavascriptEngine::prepareTimeout() const noexcept
+{ 
+#if USE_BACKEND
+	root->timeout = Time::getCurrentTime() + maximumExecutionTime; 
+#endif
+}
 
 
 
@@ -278,6 +283,62 @@ struct HiseJavascriptEngine::RootObject::CodeLocation
 	
 };
 
+#if JUCE_ENABLE_AUDIO_GUARD
+struct HiseJavascriptEngine::RootObject::ScriptAudioThreadGuard: public AudioThreadGuard::Handler
+{
+public:
+
+	enum IllegalScriptOps
+	{
+		ObjectCreation = IllegalAudioThreadOps::numIllegalOperationTypes,
+		ArrayCreation,
+		ArrayResizing,
+		ObjectResizing,
+		DynamicObjectAccess,
+		FunctionCall,
+		IllegalApiCall
+	};
+
+	ScriptAudioThreadGuard(const CodeLocation& location) :
+		loc(location),
+		setter(this)
+	{
+	};
+
+	String getOperationName(int operationType) override
+	{
+		switch (operationType)
+		{
+		case ObjectCreation:		return "Object creation";
+		case ArrayCreation:			return "non-empty Array creation";
+		case ArrayResizing:			return "Array resizing. Call Array.reserve() to make sure there's enough space.";
+		case ObjectResizing:		return "Resizing of object.";
+		case DynamicObjectAccess:	return "Dynamic object access using []. Try object.member instead";
+		case FunctionCall:			return "Non inline function call";
+		case IllegalApiCall:		return "Illegal API call";
+		default:
+			break;
+		}
+
+		return Handler::getOperationName(operationType);
+	}
+
+	void warn(int operationType) override
+	{
+		loc.throwError("Illegal operation in audio thread: " + getOperationName(operationType));
+	}
+
+private:
+
+	AudioThreadGuard::ScopedHandlerSetter setter;
+	CodeLocation loc;
+};
+#else
+struct HiseJavascriptEngine::RootObject::ScriptAudioThreadGuard
+{
+
+};
+#endif
 
 HiseJavascriptEngine::RootObject::Error HiseJavascriptEngine::RootObject::Error::fromLocation(const CodeLocation& location, const String& errorMessage)
 {
@@ -310,6 +371,8 @@ void HiseJavascriptEngine::RootObject::CodeLocation::throwError(const String& me
 
 void DebugableObject::Helpers::gotoLocation(ModulatorSynthChain* mainSynthChain, const String& line)
 {
+	ignoreUnused(mainSynthChain, line);
+
 #if USE_BACKEND
 	const String reg = ".*(\\{[^\\s]+\\}).*";
 
@@ -459,8 +522,12 @@ struct HiseJavascriptEngine::RootObject::Scope
 
 	void checkTimeOut(const CodeLocation& location) const
 	{
+		ignoreUnused(location);
+
+#if USE_BACKEND
 		if (Time::getCurrentTime() > root->timeout)
 			location.throwError("Execution timed-out");
+#endif
 	}
 };
 
@@ -611,6 +678,11 @@ var HiseJavascriptEngine::RootObject::eval(Args a)
 
 Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowConstDeclarations/*=true*/)
 {
+#if JUCE_DEBUG
+	auto mc = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getMainController();
+	LockHelpers::noMessageThreadBeyondInitialisation(mc);
+#endif
+
 	static const Identifier onInit("onInit");
 
 	try
@@ -648,6 +720,11 @@ Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowCon
 
 var HiseJavascriptEngine::evaluate(const String& code, Result* result)
 {
+#if JUCE_DEBUG
+	auto mc = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getMainController();
+	LockHelpers::noMessageThreadBeyondInitialisation(mc);
+#endif
+
 	static const Identifier ext("eval");
 
 	try
@@ -726,6 +803,11 @@ ApiClass::Constant ApiClass::Constant::null;
 
 var HiseJavascriptEngine::callFunction(const Identifier& function, const var::NativeFunctionArgs& args, Result* result)
 {
+#if JUCE_DEBUG
+	auto mc = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getMainController();
+	LockHelpers::noMessageThreadBeyondInitialisation(mc);
+#endif
+
 	var returnVal(var::undefined());
 
 	try
@@ -764,7 +846,7 @@ int HiseJavascriptEngine::registerCallbackName(const Identifier &callbackName, i
 }
 
 
-void HiseJavascriptEngine::setCallbackParameter(int callbackIndex, int parameterIndex, var newValue)
+void HiseJavascriptEngine::setCallbackParameter(int callbackIndex, int parameterIndex, const var& newValue)
 {
 	root->hiseSpecialData.callbackNEW[callbackIndex]->setParameterValue(parameterIndex, newValue);
 }
@@ -895,6 +977,11 @@ void HiseJavascriptEngine::rebuildDebugInformation()
 
 var HiseJavascriptEngine::executeWithoutAllocation(const Identifier &function, const var::NativeFunctionArgs& args, Result* result /*= nullptr*/, DynamicObject *scopeToUse)
 {
+#if JUCE_DEBUG
+	auto mc = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getMainController();
+	LockHelpers::noMessageThreadBeyondInitialisation(mc);
+#endif
+
 	var returnVal(var::undefined());
 
 	try
@@ -929,6 +1016,13 @@ juce::CriticalSection& HiseJavascriptEngine::getDebugLock() const
 	return root->hiseSpecialData.getDebugLock();
 }
 
+void HiseJavascriptEngine::extendTimeout(int milliSeconds)
+{
+	auto newTimeout = root->timeout.toMilliseconds() + milliSeconds;
+
+	root->timeout = Time(newTimeout);
+}
+
 HiseJavascriptEngine::RootObject::Callback::Callback(const Identifier &id, int numArgs_, double bufferTime_) :
 callbackName(id),
 bufferTime(bufferTime_),
@@ -940,6 +1034,8 @@ numArgs(numArgs_)
 		parameterValues[i] = var::undefined();
 	}
 }
+
+
 
 #if INCLUDE_NATIVE_JIT
 NativeJITScope* HiseJavascriptEngine::RootObject::HiseSpecialData::getNativeJITScope(const Identifier& id)

@@ -33,7 +33,7 @@
 namespace hise { using namespace juce;
 
 MidiProcessor::MidiProcessor(MainController *mc, const String &id):
-		Processor(mc, id),
+		Processor(mc, id, 1),
 		processThisMessage(true),
 		ownerSynth(nullptr),
 		numThisTime(0)
@@ -225,8 +225,6 @@ bool MidiProcessorFactoryType::allowType(const Identifier &typeName) const
 void MidiProcessorChain::MidiProcessorChainHandler::add(Processor *newProcessor, Processor *siblingToInsertBefore)
 {
 	{
-		ScopedLock sl(chain->getMainController()->getLock());
-
 		MidiProcessor *m = dynamic_cast<MidiProcessor*>(newProcessor);
 
 		jassert(m != nullptr);
@@ -235,9 +233,15 @@ void MidiProcessorChain::MidiProcessorChainHandler::add(Processor *newProcessor,
 
 		newProcessor->prepareToPlay(chain->getSampleRate(), chain->getLargestBlockSize());
 
-		newProcessor->setIsOnAir(true);
+		
+		newProcessor->setParentProcessor(chain);
 
-		chain->processors.insert(index, m);
+		{
+			LOCK_PROCESSING_CHAIN(chain);
+
+			newProcessor->setIsOnAir(chain->isOnAir());
+			chain->processors.insert(index, m);
+		}
 
 		if (JavascriptMidiProcessor* sp = dynamic_cast<JavascriptMidiProcessor*>(newProcessor))
 		{

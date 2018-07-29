@@ -139,8 +139,10 @@ void TableEditor::mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &w
 		{
 			auto curveValue = dp->getCurve();
 
-			auto l = Rectangle<int>(pp->getPos(), dp->getPos());
-			auto middle = l.getCentre();
+			auto ar = Rectangle<int>(pp->getPos(), dp->getPos());
+			auto middle = ar.getCentre();
+
+			ScopedLock sl(listeners.getLock());
 
 			for (auto l : listeners)
 			{
@@ -271,8 +273,6 @@ void TableEditor::paint (Graphics& g)
 #if !HISE_IOS
     if (currently_dragged_point != nullptr && (findParentComponentOfClass<ScriptContentComponent>() == nullptr))
     {
-        int index = drag_points.indexOf(currently_dragged_point);
-        
         DragPoint *dp = currently_dragged_point;
         
         g.setFont(fontToUse);
@@ -283,8 +283,8 @@ void TableEditor::paint (Graphics& g)
         
 		String text = xName + " | " + yName;
         
-		int boxWidth = fontToUse.getStringWidth(text) + 10;
-		int boxHeight = fontToUse.getHeight() + 10;
+		int boxWidth = (int)fontToUse.getStringWidth(text) + 10;
+		int boxHeight = (int)fontToUse.getHeight() + 10;
         
 		int x_ = jlimit<int>(0, getWidth() - boxWidth, dp->getPos().x - boxWidth / 2);
 		int y_ = jlimit<int>(0, getHeight() - boxHeight, dp->getPos().y - 20);
@@ -430,6 +430,8 @@ void TableEditor::mouseDown(const MouseEvent &e)
 
 			showTouchOverlay();
 
+			ScopedLock sl(listeners.getLock());
+
 			for (auto l : listeners)
 			{
 				if (l.get() != nullptr)
@@ -543,6 +545,13 @@ void TableEditor::mouseUp(const MouseEvent &)
 
 	if(editedTable.get() != nullptr) editedTable->sendSynchronousChangeMessage();
 	
+	
+
+	needsRepaint = true;
+	repaint();
+
+	ScopedLock sl(listeners.getLock());
+
 	for (auto l : listeners)
 	{
 		if (l.get() != nullptr)
@@ -550,9 +559,6 @@ void TableEditor::mouseUp(const MouseEvent &)
 			l->pointDragEnded();
 		}
 	}
-
-	needsRepaint = true;
-	repaint();
 }
 
 void TableEditor::mouseDrag(const MouseEvent &e)
@@ -580,6 +586,8 @@ void TableEditor::mouseDrag(const MouseEvent &e)
 	auto index = drag_points.indexOf(currently_dragged_point);
 
 	changePointPosition(index, x, y, true);
+
+	ScopedLock sl(listeners.getLock());
 
 	for (auto l : listeners)
 	{

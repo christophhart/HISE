@@ -26,6 +26,7 @@ namespace juce
 MidiKeyboardState::MidiKeyboardState()
 {
     zerostruct (noteStates);
+	eventsToAdd.ensureSize(128 * 3);
 }
 
 MidiKeyboardState::~MidiKeyboardState()
@@ -169,6 +170,9 @@ void MidiKeyboardState::processNextMidiBuffer (MidiBuffer& buffer,
     int time;
 
     const ScopedLock sl (lock);
+
+	// Don't fire here until this is sorted out.
+	AudioThreadGuard::Suspender suspender;
 
     while (i.getNextEvent (message, time))
         processNextMidiEvent (message);

@@ -251,17 +251,13 @@ void ScriptComponentListItem::refreshScriptDefinedState()
 
 	try
 	{
-		var name(getUniqueName());
+		Identifier name(getUniqueName());
 
 		if (content.get() == nullptr)
 			return;
 
-		auto scVar = content->getComponent(name);
-
-		if (auto sc = dynamic_cast<ScriptingApi::Content::ScriptComponent*>(scVar.getObject()))
-		{
+		if (auto sc = content->getComponentWithName(name))
 			isDefinedInScript = ScriptingApi::Content::Helpers::hasLocation(sc);
-		}
 
 		repaintItem();
 	}

@@ -370,11 +370,6 @@ void ProcessorEditor::childEditorAmountChanged() const
 	panel->updateChildEditorList();
 }
 
-void ProcessorEditorContainer::processorDeleted(Processor* deletedProcessor)
-{
-	removeSoloProcessor(deletedProcessor, true);
-}
-
 void ProcessorEditorContainer::updateChildEditorList(bool forceUpdate)
 {
 	rootProcessorEditor->getPanel()->updateChildEditorList(forceUpdate);
@@ -528,7 +523,6 @@ void ProcessorEditorPanel::removeProcessorEditor(Processor *p)
 {
 	if (getEditor()->getRootContainer() != nullptr)
 	{
-		getEditor()->getRootContainer()->removeSoloProcessor(p, true);
 		getEditor()->getRootContainer()->sendChangeMessage();
 	}
 

@@ -129,10 +129,15 @@ FilterEditor::FilterEditor (ProcessorEditor *p)
 
     //[Constructor] You can add your own custom stuff here..
 
+	
+
 	h = getHeight();
 
     ProcessorEditorLookAndFeel::setupEditorNameLabel(label);
     
+	timerCallback();
+	updateNameLabel(true);
+
 	freqSlider->setIsUsingModulatedRing(true);
 	bipolarFreqSlider->setIsUsingModulatedRing(true);
 
@@ -157,6 +162,36 @@ FilterEditor::~FilterEditor()
     //[/Destructor]
 }
 
+void FilterEditor::timerCallback()
+{
+	IIRCoefficients c = dynamic_cast<FilterEffect*>(getProcessor())->getCurrentCoefficients();
+
+	if (!sameCoefficients(c, currentCoefficients))
+	{
+		currentCoefficients = c;
+
+		filterGraph->setCoefficients(0, getProcessor()->getSampleRate(), dynamic_cast<FilterEffect*>(getProcessor())->getCurrentCoefficients());
+	}
+
+	freqSlider->setDisplayValue(getProcessor()->getChildProcessor(MonoFilterEffect::FrequencyChain)->getOutputValue());
+	bipolarFreqSlider->setDisplayValue(getProcessor()->getChildProcessor(MonoFilterEffect::BipolarFrequencyChain)->getOutputValue());
+
+	updateNameLabel();
+}
+
+void FilterEditor::updateNameLabel(bool forceUpdate/*=false*/)
+{
+	auto polyFilter = dynamic_cast<PolyFilterEffect*>(getProcessor());
+
+	const bool thisPoly = polyFilter != nullptr && polyFilter->hasPolyMods();
+
+	if (forceUpdate || thisPoly != isPoly)
+	{
+		isPoly = thisPoly;
+		label->setText(isPoly ? "poly filter" : "mono filter", dontSendNotification);
+	}
+}
+
 //==============================================================================
 void FilterEditor::paint (Graphics& g)
 {
@@ -168,7 +203,7 @@ void FilterEditor::paint (Graphics& g)
 
     ProcessorEditorLookAndFeel::fillEditorBackgroundRectFixed(g, this, 600);
     
-	KnobLookAndFeel::drawHiBackground(g, filterGraph->getX() - 5, filterGraph->getY() - 5, filterGraph->getWidth() + 10, filterGraph->getHeight() + 10, nullptr, false);
+	KnobLookAndFeel::drawHiBackground(g, filterGraph->getX(), filterGraph->getY(), filterGraph->getWidth(), filterGraph->getHeight(), nullptr, false);
 
     //[/UserPaint]
 }
@@ -176,17 +211,20 @@ void FilterEditor::paint (Graphics& g)
 void FilterEditor::resized()
 {
     //[UserPreResize] Add your own custom resize code here..
+
+	const int x = (((getWidth() / 2) + -73 - (128 / 2)) + 128 - -16) + 128 - -23;
+
     //[/UserPreResize]
 
     freqSlider->setBounds ((getWidth() / 2) + -73 - (128 / 2), 118, 128, 48);
     qSlider->setBounds (((getWidth() / 2) + -73 - (128 / 2)) + 128 - -16, 118, 128, 48);
     gainSlider->setBounds (((getWidth() / 2) + -73 - (128 / 2)) + -16 - 128, 118, 128, 48);
-    modeSelector->setBounds ((((getWidth() / 2) + -73 - (128 / 2)) + 128 - -16) + 128 - -23, 82, 128, 28);
+    modeSelector->setBounds (x, 82, 128, 28);
     filterGraph->setBounds ((getWidth() / 2) + -69 - (proportionOfWidth (0.5075f) / 2), 16, proportionOfWidth (0.5075f), 88);
-    label->setBounds ((getWidth() / 2) + 242 - (100 / 2), 7, 100, 40);
+    label->setBounds (x, 7, 128, 40);
     //[UserResized] Add your own custom resize handling here..
 
-	bipolarFreqSlider->setBounds(qSlider->getRight() + 16, qSlider->getY(), 128, 48);
+	bipolarFreqSlider->setBounds(x, qSlider->getY(), 128, 48);
 
     //[/UserResized]
 }

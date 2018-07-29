@@ -36,13 +36,15 @@ HarmonicFilter::HarmonicFilter(MainController *mc, const String &uid, int numVoi
 VoiceEffectProcessor(mc, uid, numVoices_),
 q(12.0f),
 numVoices(numVoices_),
-xFadeChain(new ModulatorChain(mc, "X-Fade Modulation", numVoices_, Modulation::GainMode, this)),
 filterBandIndex(OneBand),
 currentCrossfadeValue(0.5f),
 semiToneTranspose(0),
-timeVariantFreqModulatorBuffer(1, 0),
 filterBanks(numVoices_)
 {
+	modChains += {this, "X-Fade Modulation"};
+
+	finaliseModChains();
+
     parameterNames.add("NumFilterBands");
     parameterNames.add("QFactor");
     parameterNames.add("Crossfade");
@@ -60,7 +62,7 @@ filterBanks(numVoices_)
 
 	setNumFilterBands(filterBandIndex);
 
-	setQ(q);
+	setQ((float)q);
 }
 
 void HarmonicFilter::setInternalAttribute(int parameterIndex, float newValue)
@@ -80,7 +82,7 @@ float HarmonicFilter::getAttribute(int parameterIndex) const
 	switch (parameterIndex)
 	{
 	case NumFilterBands:	return (float)(filterBandIndex + 1);
-	case QFactor:			return q;
+	case QFactor:			return (float)q;
 	case Crossfade:			return currentCrossfadeValue;
 	case SemiToneTranspose:	return (float)semiToneTranspose;
 	default:				jassertfalse; return 1.0f;
@@ -150,17 +152,10 @@ void HarmonicFilter::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	VoiceEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
-	ProcessorHelpers::increaseBufferIfNeeded(timeVariantFreqModulatorBuffer, samplesPerBlock);
-
 	for (auto& filterBank : filterBanks)
 	{
 		filterBank.setSampleRate(sampleRate);
 	}
-}
-
-void HarmonicFilter::preVoiceRendering(int voiceIndex, int startSample, int numSamples)
-{
-	calculateChain(XFadeChain, voiceIndex, startSample, numSamples);
 }
 
 void HarmonicFilter::startVoice(int voiceIndex, int noteNumber)
@@ -175,29 +170,18 @@ void HarmonicFilter::startVoice(int voiceIndex, int noteNumber)
 
 void HarmonicFilter::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples)
 {
-    double xModValue;
+	const bool useModulation = modChains[XFadeChain].getChain()->shouldBeProcessedAtAll();
 
-	if (xFadeChain->getHandler()->getNumProcessors() > 0)
-	{
-		xModValue = (double)getCurrentModulationValue(XFadeChain, voiceIndex, startSample);
-
-		if (voiceIndex == xFadeChain->polyManager.getLastStartedVoice())
-		{
-			setCrossfadeValue(xModValue);
-		}
-
-	}
-	else
-	{
-		xModValue = currentCrossfadeValue;
-	}
+	const float xModValue = useModulation ? modChains[XFadeChain].getOneModulationValue(startSample) : currentCrossfadeValue;
+	
+	if (voiceIndex == modChains[XFadeChain].getChain()->polyManager.getLastStartedVoice())
+		setCrossfadeValue(xModValue);
 
 	auto& filterBank = filterBanks[voiceIndex];
 
 	for (int i = 0; i < numBands; i++)
 	{
-		const float gainValue = Interpolator::interpolateLinear(dataA->getValue(i), dataB->getValue(i), (float)xModValue);
-
+		const float gainValue = Interpolator::interpolateLinear(dataA->getValue(i), dataB->getValue(i), xModValue);
 		filterBank.updateBand(i, gainValue);
 	}
 
@@ -259,19 +243,19 @@ void HarmonicFilter::setCrossfadeValue(double normalizedCrossfadeValue)
 
 int HarmonicFilter::getNumBandForFilterBandIndex(FilterBandNumbers number) const
 {
-	int numBands = 0;
+	int thisNumBands = 0;
 
 	switch (number)
 	{
-	case OneBand:		numBands = 1; break;
-	case TwoBands:		numBands = 2; break;
-	case FourBands:		numBands = 4; break;
-	case EightBands:	numBands = 8; break;
-	case SixteenBands:	numBands = 16; break;
+	case OneBand:		thisNumBands = 1; break;
+	case TwoBands:		thisNumBands = 2; break;
+	case FourBands:		thisNumBands = 4; break;
+	case EightBands:	thisNumBands = 8; break;
+	case SixteenBands:	thisNumBands = 16; break;
 	default:			jassertfalse; break;
 	}
 
-	return numBands;
+	return thisNumBands;
 }
 
 
@@ -282,13 +266,13 @@ int HarmonicFilter::getNumBandForFilterBandIndex(FilterBandNumbers number) const
 HarmonicMonophonicFilter::HarmonicMonophonicFilter(MainController *mc, const String &uid) :
 MonophonicEffectProcessor(mc, uid),
 q(12.0f),
-xFadeChain(new ModulatorChain(mc, "X-Fade Modulation", 1, Modulation::GainMode, this)),
 filterBandIndex(OneBand),
 currentCrossfadeValue(0.5f),
 semiToneTranspose(0),
-timeVariantFreqModulatorBuffer(1, 0),
 filterBank()
 {
+	modChains += {this, "X-Fade Modulation"};
+
 	editorStateIdentifiers.add("XFadeChainShown");
 
     parameterNames.add("NumFilterBands");
@@ -306,7 +290,7 @@ filterBank()
 
 	setNumFilterBands(filterBandIndex);
 
-	setQ(q);
+	setQ((float)q);
 }
 
 void HarmonicMonophonicFilter::setInternalAttribute(int parameterIndex, float newValue)
@@ -326,7 +310,7 @@ float HarmonicMonophonicFilter::getAttribute(int parameterIndex) const
 	switch (parameterIndex)
 	{
 	case NumFilterBands:	return (float)(filterBandIndex + 1);
-	case QFactor:			return q;
+	case QFactor:			return (float)q;
 	case Crossfade:			return currentCrossfadeValue;
 	case SemiToneTranspose:	return (float)semiToneTranspose;
 	default:				jassertfalse; return 1.0f;
@@ -404,23 +388,12 @@ void HarmonicMonophonicFilter::startMonophonicVoice(int noteNumber)
 
 void HarmonicMonophonicFilter::applyEffect(AudioSampleBuffer &b, int startSample, int numSamples)
 {
-	double xModValue;
+	const bool useModulation = modChains[XFadeChain].getChain()->shouldBeProcessedAtAll();
 
-	if (xFadeChain->getHandler()->getNumProcessors() > 0)
-	{
-		xFadeChain->renderAllModulatorsAsMonophonic(getBufferForChain(0), startSample, numSamples);
+	const float xModValue = useModulation ? modChains[XFadeChain].getOneModulationValue(startSample) : currentCrossfadeValue;
 
-		xModValue = getBufferForChain(0).getSample(0, startSample);
-
-		//xModValue = (double)getCurrentModulationValue(XFadeChain, 0, startSample);
-
-		setCrossfadeValue(xModValue);
-	}
-	else
-	{
-		xModValue = currentCrossfadeValue;
-	}
-
+	setCrossfadeValue(xModValue);
+	
 	for (int i = 0; i < numBands; i++)
 	{
 		const float gainValue = Interpolator::interpolateLinear(dataA->getValue(i), dataB->getValue(i), (float)xModValue);
@@ -480,24 +453,23 @@ void HarmonicMonophonicFilter::setCrossfadeValue(double normalizedCrossfadeValue
 		setInputValue(mixValue, dontSendNotification);
 
 		dataMix->setValue(i, mixValue, sendNotification);
-
 	}
 }
 
 int HarmonicMonophonicFilter::getNumBandForFilterBandIndex(FilterBandNumbers number) const
 {
-	int numBands = 0;
+	int thisNumBands = 0;
 
 	switch (number)
 	{
-	case OneBand:		numBands = 1; break;
-	case TwoBands:		numBands = 2; break;
-	case FourBands:		numBands = 4; break;
-	case EightBands:	numBands = 8; break;
-	case SixteenBands:	numBands = 16; break;
+	case OneBand:		thisNumBands = 1; break;
+	case TwoBands:		thisNumBands = 2; break;
+	case FourBands:		thisNumBands = 4; break;
+	case EightBands:	thisNumBands = 8; break;
+	case SixteenBands:	thisNumBands = 16; break;
 	default:			jassertfalse; break;
 	}
 
-	return numBands;
+	return thisNumBands;
 }
 } // namespace hise

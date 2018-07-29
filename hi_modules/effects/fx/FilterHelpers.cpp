@@ -125,7 +125,7 @@ void FilterBank::setMode(FilterMode newMode)
 
 void FilterBank::setType(FilterHelpers::FilterSubType newType, int filterSubType)
 {
-	if (type == newType)
+	if (type == newType && subType == filterSubType)
 		return;
 
 	ScopedPointer<InternalBankBase> newObject;
@@ -172,6 +172,7 @@ void FilterBank::setType(FilterHelpers::FilterSubType newType, int filterSubType
 	{
 		SpinLock::ScopedLockType sl(lock);
 		type = newType;
+		subType = filterSubType;
 		object.swapWith(newObject);
 	}
 
@@ -294,6 +295,10 @@ void FilterBank::setGain(float newGain)
 
 juce::IIRCoefficients FilterEffect::getDisplayCoefficients(FilterBank::FilterMode m, double frequency, double q, float gain, double samplerate)
 {
+	frequency = jlimit<double>(20.0, samplerate / 2.0, frequency);
+	gain = jlimit<float>(0.01f, 32.0f, gain);
+	q = jlimit<double>(0.3, 8.0, q);
+
 	switch (m)
 	{
 	case FilterBank::OnePoleLowPass:		return IIRCoefficients::makeLowPass(samplerate, frequency);

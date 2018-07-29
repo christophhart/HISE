@@ -257,7 +257,7 @@ void MidiKeyboardPanel::restoreInternal(const var& object)
 	if (keyboard->isMPEKeyboard() != isReallyMpeKeyboard)
 	{
 		if (isReallyMpeKeyboard)
-			keyboard = new hise::MPEKeyboard(getMainController()->getKeyboardState());
+			keyboard = new hise::MPEKeyboard(getMainController());
 		else
 			keyboard = new CustomKeyboard(getMainController());
 

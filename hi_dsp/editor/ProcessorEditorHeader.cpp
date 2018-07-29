@@ -267,7 +267,15 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 			intensitySlider->setTextBoxIsEditable(true);
 			bipolarModButton->setVisible(!isHeaderOfChain());
 			bipolarModButton->addListener(this);
-		};
+		}
+		else if (getModulatorMode() == Modulation::PanMode)
+		{
+			intensitySlider->setRange(-100.0, 100.0, 1);
+			intensitySlider->setTextValueSuffix("%");
+			intensitySlider->setTextBoxIsEditable(true);
+			bipolarModButton->setVisible(!isHeaderOfChain());
+			bipolarModButton->addListener(this);
+		}
 
 		intensitySlider->setTooltip("Set the intensity of the modulation. 0 = no effect, 1 = full range modulation.");
 
@@ -382,7 +390,8 @@ bool ProcessorEditorHeader::isHeaderOfModulatorSynth() const {return dynamic_cas
 
 bool ProcessorEditorHeader::isHeaderOfMidiProcessor() const	{ return dynamic_cast<const MidiProcessor*>(getProcessor()) != nullptr; };
 
-bool ProcessorEditorHeader::isHeaderOfEffectProcessor() const		{ return dynamic_cast<const EffectProcessor*>(getProcessor()) != nullptr;	};
+bool ProcessorEditorHeader::isHeaderOfEffectProcessor() const		{ return dynamic_cast<const EffectProcessor*>(getProcessor()) != nullptr ||
+																	         dynamic_cast<const EffectProcessorChain*>(getProcessor()) != nullptr;	};
 
 bool ProcessorEditorHeader::hasWorkspaceButton() const 
 { 
@@ -852,7 +861,20 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
 
 		if(dynamic_cast<ModulatorSynth*>(getProcessor()) == nullptr || PresetHandler::showYesNoWindow("Delete " + getProcessor()->getId() + "?", "Do you want to delete the Synth module?"))
 		{
-			ProcessorHelpers::deleteProcessor(getProcessor());
+			auto p = getProcessor();
+
+			auto f = [](Processor* p)
+			{
+				if (auto c = dynamic_cast<Chain*>(p->getParentProcessor(false)))
+				{
+					c->getHandler()->remove(p, false);
+					jassert(!p->isOnAir());
+				}
+				
+				return SafeFunctionCall::OK;
+			};
+
+			p->getMainController()->getGlobalAsyncModuleHandler().removeAsync(p, f);
 		}
 	}
   
@@ -1068,25 +1090,20 @@ void ProcessorEditorHeader::createProcessorFromPopup(Processor *insertBeforeSibl
 		Identifier type = t->getTypeNameFromPopupMenuResult(result);
 		String typeName = t->getNameFromPopupMenuResult(result);
 
-String name;
+		String name;
 
-if (isHeaderOfModulatorSynth()) name = typeName; // PresetHandler::getCustomName(typeName);
-else						  name = typeName;
+		if (isHeaderOfModulatorSynth()) name = typeName; // PresetHandler::getCustomName(typeName);
+		else						  name = typeName;
 
 
-if (name.isNotEmpty())
-{
-	processorToBeAdded = MainController::createProcessor(t, type, name);
+		if (name.isNotEmpty())
+		{
+			processorToBeAdded = MainController::createProcessor(t, type, name);
+			processorToBeAdded->setId(FactoryType::getUniqueName(processorToBeAdded));
 
-	processorToBeAdded->setId(FactoryType::getUniqueName(processorToBeAdded));
-
-	if (ProcessorHelpers::is<ModulatorSynth>(processorToBeAdded) && dynamic_cast<ModulatorSynthGroup*>(getEditor()->getProcessor()) == nullptr)
-	{
-		dynamic_cast<ModulatorSynth*>(processorToBeAdded)->addProcessorsWhenEmpty();
-	}
-
-}
-else return;
+			
+		}
+			else return;
 	}
 
 	// =================================================================================================================
@@ -1100,25 +1117,38 @@ void ProcessorEditorHeader::addProcessor(Processor *processorToBeAdded, Processo
 {
 	if (processorToBeAdded == nullptr)	{ jassertfalse;	return; }
 
-	getEditor()->getProcessorAsChain()->getHandler()->add(processorToBeAdded, insertBeforeSibling);
+	auto editor = getEditor();
 
-	getEditor()->changeListenerCallback(getProcessor());
-
-	getEditor()->childEditorAmountChanged();
-
-#if USE_BACKEND
-
-	GET_BACKEND_ROOT_WINDOW(this)->sendRootContainerRebuildMessage(false);
-
-#endif
-
-	if (dynamic_cast<ModulatorSynth*>(getProcessor()) != nullptr)
+	auto f = [editor, insertBeforeSibling](Processor* p)
 	{
-		getProcessor()->getMainController()->getMainSynthChain()->compileAllScripts();
-	}
+		if (ProcessorHelpers::is<ModulatorSynth>(p) && dynamic_cast<ModulatorSynthGroup*>(editor->getProcessor()) == nullptr)
+			dynamic_cast<ModulatorSynth*>(p)->addProcessorsWhenEmpty();
 
-    PresetHandler::setChanged(getProcessor());
-    
+		editor->getProcessorAsChain()->getHandler()->add(p, insertBeforeSibling);
+
+		if (ProcessorHelpers::is<ModulatorSynth>(editor->getProcessor()))
+			p->getMainController()->getMainSynthChain()->compileAllScripts();
+
+		auto update = [](Dispatchable* obj)
+		{
+			auto editor = static_cast<ProcessorEditor*>(obj);
+
+			editor->changeListenerCallback(editor->getProcessor());
+			editor->childEditorAmountChanged();
+
+			BACKEND_ONLY(GET_BACKEND_ROOT_WINDOW(editor)->sendRootContainerRebuildMessage(false));
+			PresetHandler::setChanged(editor->getProcessor());
+
+			return Dispatchable::Status::OK;
+		};
+
+		p->getMainController()->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(editor, update);
+
+		return SafeFunctionCall::OK;
+	};
+
+	editor->getProcessor()->getMainController()->getKillStateHandler().killVoicesAndCall(processorToBeAdded, f, MainController::KillStateHandler::SampleLoadingThread);
+	
 	return;
 
 }

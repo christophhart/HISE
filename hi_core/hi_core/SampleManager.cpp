@@ -50,10 +50,104 @@ MainController::SampleManager::SampleManager(MainController *mc_) :
 	sampleClipboard(ValueTree("clipboard")),
 	internalPreloadJob(mc_),
 	preloadListenerUpdater(this),
-	preloadFlag(false)
-
+	preloadFlag(false),
+	pendingFunctions(8192)
 {
 	
+}
+
+
+
+MainController::SampleManager::~SampleManager()
+{
+	preloadListeners.clear();
+
+	internalPreloadJob.signalJobShouldExit();
+	samplerLoaderThreadPool->stopThread(2000);
+
+	pendingFunctions.clear();
+
+	jassert(pendingFunctions.isEmpty());
+
+
+
+	samplerLoaderThreadPool = nullptr;
+}
+
+
+
+void MainController::SampleManager::setShouldSkipPreloading(bool skip)
+{
+	skipPreloading = skip;
+}
+
+void MainController::SampleManager::preloadEverything()
+{
+    if(!skipPreloading)
+        return;
+
+	skipPreloading = false;
+
+	LockHelpers::freeToGo(mc);
+
+	Processor::Iterator<ModulatorSampler> it(mc->getMainSynthChain());
+
+	Array<WeakReference<Processor>> samplersToPreload;
+
+	while (ModulatorSampler* s = it.getNextProcessor())
+	{
+		if (s->hasPendingSampleLoad())
+		{
+			auto f = [](Processor* p)
+			{
+				if (static_cast<ModulatorSampler*>(p)->preloadAllSamples())
+					return SafeFunctionCall::OK;
+				else
+					return SafeFunctionCall::cancelled;
+			};
+
+			s->killAllVoicesAndCall(f, true);
+		}
+	}
+}
+
+
+void MainController::SampleManager::addDeferredFunction(Processor* p, const ProcessorFunction& f)
+{
+	pendingFunctions.push({ SafeFunctionCall(p, f), mc });
+	triggerSamplePreloading();
+}
+
+double& MainController::SampleManager::getPreloadProgress()
+{
+	return internalPreloadJob.progress;
+}
+
+void MainController::SampleManager::cancelAllJobs()
+{
+	GLOBAL_LOCK_POS()
+
+		internalPreloadJob.signalJobShouldExit();
+	samplerLoaderThreadPool->stopThread(2000);
+}
+
+
+void MainController::SampleManager::initialiseQueue()
+{
+	if (!initialised)
+	{
+		initialised = true;
+
+		jassert(pendingFunctions.isEmpty());
+
+		auto flags = MainController::KillStateHandler::QueueProducerFlags::LoadingThreadIsProducer |
+			MainController::KillStateHandler::QueueProducerFlags::MessageThreadIsProducer |
+			MainController::KillStateHandler::QueueProducerFlags::ScriptThreadIsProducer;
+
+		auto tokens = mc->getKillStateHandler().createPublicTokenList(flags);
+
+		pendingFunctions.setThreadTokens(tokens);
+	}
 }
 
 
@@ -92,17 +186,20 @@ const ValueTree MainController::SampleManager::getLoadedSampleMap(const String &
 
 void MainController::SampleManager::setDiskMode(DiskMode mode) noexcept
 {
-	mc->allNotesOff();
-
-	hddMode = mode == DiskMode::HDD;
-
-	const int multplier = hddMode ? 2 : 1;
-
-	Processor::Iterator<ModulatorSampler> it(mc->getMainSynthChain());
-
-	while (ModulatorSampler* sampler = it.getNextProcessor())
+	if (hddMode != (mode == DiskMode::HDD))
 	{
-		sampler->setPreloadMultiplier(multplier);
+		mc->allNotesOff();
+
+		hddMode = mode == DiskMode::HDD;
+
+		const int multplier = hddMode ? 2 : 1;
+
+		Processor::Iterator<ModulatorSampler> it(mc->getMainSynthChain());
+
+		while (ModulatorSampler* sampler = it.getNextProcessor())
+		{
+			sampler->setPreloadMultiplier(multplier);
+		}
 	}
 }
 
@@ -131,20 +228,33 @@ SampleThreadPool::Job::JobStatus MainController::SampleManager::PreloadJob::runJ
 {
 	LOG_PRELOAD_EVENTS("Running preload thread ");
 
-	auto &pendingFunctions = mc->getKillStateHandler().getSampleLoadingQueue();
+	auto &pendingFunctions = mc->getSampleManager().pendingFunctions;
 
-	SafeFunctionCall c;
+	SampleFunction c;
 
 	while (pendingFunctions.pop(c))
 	{
-		if (shouldExit())
-			return SampleThreadPool::Job::jobHasFinished;
+		mc->getSampleManager().setCurrentPreloadMessage("Kill voices...");
 
-		if (!c.call())
+		mc->getKillStateHandler().killVoicesAndWait();
+
+		jassert(!mc->getKillStateHandler().isAudioRunning());
+
+		mc->getSampleManager().setCurrentPreloadMessage("");
+
+		auto result = c.getFunction().call();
+		
+		if (shouldExit())
+		{
+			break;
+		}
+
+		if (result == SafeFunctionCall::cancelled)
 			break;
 	}
 
 	mc->getSampleManager().clearPreloadFlag();
+	mc->getSampleManager().initialiseQueue();
 
 	return SampleThreadPool::Job::jobHasFinished;
 }
@@ -152,24 +262,17 @@ SampleThreadPool::Job::JobStatus MainController::SampleManager::PreloadJob::runJ
 void MainController::SampleManager::clearPreloadFlag()
 {
 	LOG_PRELOAD_EVENTS("Clearing Preload Pending Flag");
-	mc->getKillStateHandler().setSampleLoadingPending(false);
-
+	
 	jassert(preloadFlag);
 
 	internalPreloadJob.progress = 0.0;
 	preloadFlag = false;
 	preloadListenerUpdater.triggerAsyncUpdate();
-
-
-
-
 }
 
 void MainController::SampleManager::setPreloadFlag()
 {
 	LOG_PRELOAD_EVENTS("Setting Preload Pending Flag");
-
-	mc->getKillStateHandler().setSampleLoadingPending(true);
 
 	if (!preloadFlag.load())
 	{
@@ -180,18 +283,11 @@ void MainController::SampleManager::setPreloadFlag()
 
 void MainController::SampleManager::triggerSamplePreloading()
 {
-	jassert(mc->getKillStateHandler().voicesAreKilled());
-
 	mc->getSampleManager().setPreloadFlag();
 
 	if (!internalPreloadJob.isRunning() && !internalPreloadJob.isQueued())
 	{
-		LOG_PRELOAD_EVENTS("Starting preload job");
 		mc->getSampleManager().getGlobalSampleThreadPool()->addJob(&internalPreloadJob, false);
-	}
-	else
-	{
-		LOG_PRELOAD_EVENTS("Already running. Adding to queue");
 	}
 }
 

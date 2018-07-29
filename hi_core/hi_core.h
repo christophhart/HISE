@@ -71,6 +71,7 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_product_unlocking/juce_product_unlocking.h"
 #include "../JUCE/modules/juce_opengl/juce_opengl.h"
 #include "../JUCE/modules/juce_dsp/juce_dsp.h"
+#include "../hi_zstd/hi_zstd.h"
 #include "../hi_streaming/hi_streaming.h"
 
 
@@ -226,7 +227,7 @@ Set this to 0 to disable host information like tempo, playing position etc...
 If this is enabled, compiled plugins will write a startup log to the desktop for debugging purposes
 */
 #ifndef ENABLE_STARTUP_LOG
-#define ENABLE_STARTUP_LOG 0
+#define ENABLE_STARTUP_LOG 1
 #endif
 
 

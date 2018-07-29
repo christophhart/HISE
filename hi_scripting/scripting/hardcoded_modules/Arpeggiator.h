@@ -73,6 +73,8 @@ public:
 
 	void onController() override;
 
+	void onAllNotesOff() override;
+
 	void onTimer(int /*offsetInBuffer*/);
 
 	void playNote();;
@@ -111,12 +113,11 @@ private:
 
 	
 
-	Array<NoteWithChannel> userHeldKeysArray;
-	Array<NoteWithChannel> userHeldKeysArraySorted;
-	Array<NoteWithChannel> MidiSequenceArray;
-	Array<NoteWithChannel> MidiSequenceArraySorted;
-
-	Array<int> currentlyPlayingEventIds;
+	Array<NoteWithChannel, DummyCriticalSection, 256> userHeldKeysArray;
+	Array<NoteWithChannel, DummyCriticalSection, 256> userHeldKeysArraySorted;
+	Array<NoteWithChannel, DummyCriticalSection, 256> MidiSequenceArray;
+	Array<NoteWithChannel, DummyCriticalSection, 256> MidiSequenceArraySorted;
+	Array<int, DummyCriticalSection, 256> currentlyPlayingEventIds;
 	
 	struct MPEValues
 	{

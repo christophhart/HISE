@@ -35,6 +35,8 @@ namespace hise { using namespace juce;
 RouteEffect::RouteEffect(MainController *mc, const String &uid) :
 MasterEffectProcessor(mc, uid)
 {
+	finaliseModChains();
+
 	getMatrix().setOnlyEnablingAllowed(false);
 }
 

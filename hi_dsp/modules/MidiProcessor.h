@@ -156,7 +156,7 @@ public:
 
 	~MidiProcessorChain()
 	{
-		processors.clear();
+		getHandler()->clearAsync(this);
 	};
 
 	/** Wraps the handlers method. */
@@ -235,19 +235,19 @@ public:
 		{
 			notifyListeners(Listener::ProcessorDeleted, processorToBeRemoved);
 
-			ScopedLock sl(chain->getMainController()->getLock());
+			ScopedPointer<MidiProcessor> mp = dynamic_cast<MidiProcessor*>(processorToBeRemoved);
 
-			jassert(dynamic_cast<MidiProcessor*>(processorToBeRemoved) != nullptr);
-			for(int i = 0; i < chain->processors.size(); i++)
 			{
-				if (chain->processors[i] == processorToBeRemoved)
-				{
-					chain->processors.remove(i, deleteMp);
-					break;
-				}
-			}
+				LOCK_PROCESSING_CHAIN(chain);
 
+				processorToBeRemoved->setIsOnAir(false);
+				chain->processors.removeObject(mp.get(), false);
+			}
 			
+			if (deleteMp)
+				mp = nullptr;
+			else
+				mp.release();
 		};
 
 		const Processor *getProcessor(int processorIndex) const override

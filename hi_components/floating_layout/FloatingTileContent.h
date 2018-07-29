@@ -76,7 +76,7 @@ public:
 		return defaultValues.getValueAt(id);
 	};
 	
-	const var& operator()(const var& data, int index) const
+	var operator()(const var& data, int index) const
 	{
 		return getPropertyWithDefault(data, index);
 	}
@@ -156,6 +156,11 @@ public:
 		jassert(valueList.size() == defaultValues.size());
 
 		values = valueList;
+	}
+
+	static Colour getColourFrom(const Value& colourValue)
+	{
+		return Colour((uint32)(int64)(colourValue.getValue()));
 	}
 
 protected:

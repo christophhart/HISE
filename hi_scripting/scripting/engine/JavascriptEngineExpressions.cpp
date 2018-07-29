@@ -126,6 +126,9 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 		else if (Array<var>* array = result.getArray())
 		{
 			const int i = index->getResult(s);
+
+			WARN_IF_AUDIO_THREAD(i >= array->getNumAllocated(), ScriptAudioThreadGuard::ArrayResizing);
+
 			while (array->size() < i)
 				array->add(var::undefined());
 
@@ -142,12 +145,11 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 		}
         else if (DynamicObject* obj = result.getDynamicObject())
         {
+			WARN_IF_AUDIO_THREAD(true, ScriptAudioThreadGuard::DynamicObjectAccess);
+
             const String name = index->getResult(s).toString();
-                     
             return obj->setProperty(Identifier(name), newValue);
         }
-
-
 
 		Expression::assign(s, newValue);
 	}
@@ -159,7 +161,14 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 	mutable int cachedIndex = -1;
 };
 
+#define DECLARE_ID(x) const juce::Identifier x(#x);
 
+namespace DotIds
+{
+DECLARE_ID(length);
+}
+
+#undef DECLARE_ID
 
 struct HiseJavascriptEngine::RootObject::DotOperator : public Expression
 {
@@ -168,9 +177,8 @@ struct HiseJavascriptEngine::RootObject::DotOperator : public Expression
 	var getResult(const Scope& s) const override
 	{
 		var p(parent->getResult(s));
-		static const Identifier lengthID("length");
 
-		if (child == lengthID)
+		if (child == DotIds::length)
 		{
 			if (Array<var>* array = p.getArray())   return array->size();
 			if (p.isBuffer()) return p.getBuffer()->size;
@@ -197,7 +205,11 @@ struct HiseJavascriptEngine::RootObject::DotOperator : public Expression
 	void assign(const Scope& s, const var& newValue) const override
 	{
 		if (DynamicObject* o = parent->getResult(s).getDynamicObject())
+		{
+			WARN_IF_AUDIO_THREAD(!o->hasProperty(child), ScriptAudioThreadGuard::ObjectResizing);
+
 			o->setProperty(child, newValue);
+		}
 		else
 			Expression::assign(s, newValue);
 	}
@@ -304,6 +316,8 @@ struct HiseJavascriptEngine::RootObject::ObjectDeclaration : public Expression
 
 	var getResult(const Scope& s) const override
 	{
+		WARN_IF_AUDIO_THREAD(true, ScriptAudioThreadGuard::ObjectCreation);
+
 		DynamicObject::Ptr newObject(new DynamicObject());
 
 		for (int i = 0; i < names.size(); ++i)
@@ -322,6 +336,8 @@ struct HiseJavascriptEngine::RootObject::ArrayDeclaration : public Expression
 
 	var getResult(const Scope& s) const override
 	{
+		WARN_IF_AUDIO_THREAD(!values.isEmpty(), ScriptAudioThreadGuard::ArrayCreation);
+
 		Array<var> a;
 
 		for (int i = 0; i < values.size(); ++i)
@@ -355,6 +371,8 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 
 	var invoke(const Scope& s, const var::NativeFunctionArgs& args) const
 	{
+		WARN_IF_AUDIO_THREAD(true, ScriptAudioThreadGuard::FunctionCall);
+
 		DynamicObject::Ptr functionRoot(new DynamicObject());
 
 		static const Identifier thisIdent("this");

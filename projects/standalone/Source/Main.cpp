@@ -524,7 +524,7 @@ public:
             // ask the app to quit when this happens, but you can change this to do
             // whatever you need.
 
-			mw->requestQuit([]() {JUCEApplication::getInstance()->systemRequestedQuit(); });
+			mw->requestQuit();
 
             
         }

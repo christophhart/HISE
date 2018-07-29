@@ -61,7 +61,31 @@
 #define HISE_SMOOTH_FIRST_MOD_BUFFER 0
 #endif
 
+
+#ifndef HISE_EVENT_RASTER
+#define HISE_EVENT_RASTER 8
+#endif
+
+#ifndef HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR
+#define HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR HISE_EVENT_RASTER
+#endif
+
+#ifndef HISE_USE_BACKWARDS_COMPATIBLE_TIMESTAMPS
+#define HISE_USE_BACKWARDS_COMPATIBLE_TIMESTAMPS 1
+#endif 
+
+#ifndef HISE_USE_SQUARED_TIMEVARIANT_MOD_VALUES_BUG
+#define HISE_USE_SQUARED_TIMEVARIANT_MOD_VALUES_BUG 1
+#endif
+
+#ifndef HISE_PLAY_ALL_CROSSFADE_GROUPS_WHEN_EMPTY
+#define HISE_PLAY_ALL_CROSSFADE_GROUPS_WHEN_EMPTY 1
+#endif
+
 namespace hise { using namespace juce;
+
+
+
 
 #if ENABLE_STARTUP_LOG
 class StartupLogger
@@ -72,6 +96,7 @@ private:
 	static File getLogFile();
 	static void init();
 	static bool isInitialised;
+	static double timeToLastCall;
 };
 
 #define LOG_START(x) StartupLogger::log(x);

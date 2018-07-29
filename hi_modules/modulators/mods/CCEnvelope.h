@@ -123,7 +123,7 @@ public:
 	Processor *getChildProcessor(int processorIndex) override;
 	const Processor *getChildProcessor(int processorIndex) const override;;
 
-	void startVoice(int voiceIndex) override;
+	float startVoice(int voiceIndex) override;
 	void stopVoice(int voiceIndex) override;
 	void reset(int voiceIndex) override;
 	bool isPlaying(int voiceIndex) const override;

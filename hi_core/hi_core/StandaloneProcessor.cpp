@@ -68,6 +68,12 @@ void AudioProcessorDriver::saveDeviceSettingsAsXml()
 	}
 }
 
+void AudioProcessorDriver::setAudioDeviceType(const String deviceName)
+{
+	deviceManager->setCurrentAudioDeviceType(deviceName, true);
+
+}
+
 void AudioProcessorDriver::resetToDefault()
 {
 	auto prevState = getMidiInputState();
@@ -116,8 +122,24 @@ StandaloneProcessor::StandaloneProcessor()
     }
 #endif
     
+
+
+#if HI_RUN_UNIT_TESTS
+
+	UnitTestRunner runner;
+
+	runner.setAssertOnFailure(false);
+
+	runner.runAllTests();
+
+
+
+#endif
+
     
 	LOG_START("Create Main Processor");
+
+
 
 	wrappedProcessor = createProcessor();
 
@@ -149,13 +171,10 @@ StandaloneProcessor::StandaloneProcessor()
 }
 
 
-void StandaloneProcessor::requestQuit(const std::function<void(void)>& f)
+void StandaloneProcessor::requestQuit()
 {
-	auto f2 = [f](Processor* ) {f(); return true; };
-
 	auto mc = dynamic_cast<MainController*>(wrappedProcessor.get());
-	
-	mc->getKillStateHandler().killVoicesAndCall(mc->getMainSynthChain(), f2, MainController::KillStateHandler::TargetThread::MessageThread);
+	mc->getKillStateHandler().requestQuit();
 }
 
 XmlElement * AudioProcessorDriver::getSettings()
@@ -307,10 +326,6 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
 
 	ScopedPointer<XmlElement> globalSettings = XmlDocument::parse(savedDeviceData);
 
-#if USE_FRONTEND
-	mc->getSampleManager().getProjectHandler().checkAllSampleReferences();
-#endif
-
 	if (globalSettings != nullptr)
 	{
 		GlobalSettingManager* gm = dynamic_cast<GlobalSettingManager*>(mc);
@@ -338,6 +353,9 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
 		gm->voiceAmountMultiplier = globalSettings->getIntAttribute("VOICE_AMOUNT_MULTIPLIER", 2);
 
 		mc->getEventHandler().addCCRemap(gm->ccSustainValue, 64);
+
+		LOG_START("Setting disk mode");
+
 		mc->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)gm->diskMode);
 		mc->getMainSynthChain()->getActiveChannelData()->restoreFromData(gm->channelData);
 

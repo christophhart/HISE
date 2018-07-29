@@ -32,9 +32,18 @@
 
 namespace hise { using namespace juce;
 
+constexpr int plotterDefaultSize = 44100 / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+
 //==============================================================================
-Plotter::Plotter()
+Plotter::Plotter():
+	abstractFifo(8192),
+	yConverter(Table::getDefaultTextValue)
 {
+
+	setFont(GLOBAL_BOLD_FONT());
+
+	memset(tempBuffer, 0, sizeof(float) * 8192);
+
 	setName("Plotter");
 
 	setColour(backgroundColour, Colours::transparentBlack);
@@ -42,9 +51,10 @@ Plotter::Plotter()
 	setColour(pathColour, Colour(0x88ffffff));
 	setColour(pathColour2, Colour(0x44ffffff));
 
+	setColour(textColour, Colours::white);
 
-	displayBuffer.setSize(1, 44100);
-	
+	displayBuffer.setSize(1, plotterDefaultSize);
+	displayBuffer.clear();
     
 	setSize(380, 200);
 
@@ -58,6 +68,36 @@ Plotter::~Plotter()
 	
 };
 
+float getAverage(const float* data, int numSamples, Modulation::Mode m)
+{
+	if (numSamples == 0)
+		return 0.0f;
+
+	float sum = 0.0f;
+
+	for (int i = 0; i < numSamples; i++)
+	{
+		sum += data[i];
+	}
+
+	float thisValue = sum / (float)numSamples;
+
+	if (m == Modulation::PitchMode)
+	{
+		thisValue = Modulation::PitchConverters::pitchFactorToNormalisedRange(thisValue);
+		thisValue = (thisValue + 1.0f) / 2.0f;
+	}
+	else if (m == Modulation::PanMode)
+	{
+		thisValue = (thisValue + 1.0f) / 2.0f;
+	}
+
+	thisValue = jlimit<float>(0.0f, 1.0f, thisValue);
+	thisValue = FloatSanitizers::sanitizeFloatNumber(thisValue);
+
+	return thisValue;
+}
+
 void Plotter::paint (Graphics& g)
 {
 	Colour background = findColour(backgroundColour);
@@ -65,38 +105,65 @@ void Plotter::paint (Graphics& g)
 	if (!background.isTransparent())
 		g.fillAll(background);
 
-	Path drawPath;
+	g.setColour(findColour(textColour));
 
-	const float samplesPerPixel = (float)displayBuffer.getNumSamples() / (float)getWidth();
+	auto topText = yConverter(1.0f);
 
-	drawPath.startNewSubPath(0.0f, (float)getHeight());
+	float bottomValue = 0.0f;
 
-	int samplePos = 0;
-
-	for(int i = 0; i< getWidth(); i+=2)
+	if (currentMode == Modulation::PitchMode || currentMode == Modulation::PanMode)
 	{
-		samplePos = roundDoubleToInt(i * samplesPerPixel);
-		samplePos = (position + samplePos) % displayBuffer.getNumSamples();
-
-		int numToSearch = jmin<int>(roundFloatToInt(samplesPerPixel*2), displayBuffer.getNumSamples() - samplePos);
-		float thisValue = FloatVectorOperations::findMaximum(displayBuffer.getReadPointer(0, samplePos), numToSearch);
-
-		thisValue = jlimit<float>(0.0f, 1.0f, thisValue);
-
-		FloatSanitizers::sanitizeFloatNumber(thisValue);
-		drawPath.lineTo((float)i, (float)getHeight() - thisValue * (float)getHeight());
+		bottomValue = -1.0f;
 	}
-    
-	drawPath.lineTo((float)getWidth(), (float)getHeight());
-	drawPath.closeSubPath();
+
+	auto bottomText = yConverter(bottomValue);
+
+	g.setFont(font);
+
+	g.drawText(topText, getLocalBounds(), Justification::topRight);
+	g.drawText(bottomText, getLocalBounds(), Justification::bottomRight);
+
+	if (currentMode != Modulation::GainMode)
+	{
+		g.drawHorizontalLine(getHeight() / 2, 0.0f, (float)getWidth());
+	}
 
 	g.setGradientFill(ColourGradient(findColour(pathColour),
-			0.0f, 0.0f,
-			findColour(pathColour2),
-			0.0f, (float)getHeight(),
-			false));
+		0.0f, 0.0f,
+		findColour(pathColour2),
+		0.0f, (float)getHeight(),
+		false));
 
 	g.fillPath(drawPath);
+
+	if (!popupPosition.isOrigin())
+	{
+		Font f = font;
+
+		float yValue = (float)popupPosition.getY() / (float)getHeight();
+
+		if (currentMode != Modulation::GainMode)
+			yValue = jmap(yValue, 0.0f, 1.0f, 1.0f, -1.0f);
+		else
+			yValue = jmap(yValue, 0.0f, 1.0f, 1.0f, 0.0f);
+
+		auto value = yConverter(yValue);
+
+		auto width = f.getStringWidth(value) + 20;
+		auto height = (int)f.getHeight() + 4;
+
+		int x = jlimit<int>(0, getWidth() - width, popupPosition.getX() - width / 2);
+		int y = jlimit<int>(0, getHeight() - height, popupPosition.getY() - height - 10);
+
+		Rectangle<int> bounds = { x, y, width, height};
+
+		g.setColour(findColour(pathColour));
+		g.fillRect(bounds);
+		g.setColour(findColour(textColour));
+		g.drawText(value, bounds, Justification::centred);
+
+	}
+	
 }
 
 void Plotter::resized()
@@ -105,28 +172,103 @@ void Plotter::resized()
 
 
 
-void Plotter::addValues(const AudioSampleBuffer& b, int startSample, int numSamples)
+void Plotter::pushLockFree(const float* buffer, int startSample, int numSamples)
 {
-	SpinLock::ScopedLockType sl(swapLock);
+	int start1, size1, start2, size2;
+	abstractFifo.prepareToWrite(numSamples, start1, size1, start2, size2);
 
+	if (size1 > 0)
+	{
+		FloatVectorOperations::copy(tempBuffer + start1, buffer + startSample, size1);
+	}
+	
+	if (size2 > 0)
+	{
+		FloatVectorOperations::copy(tempBuffer + start2, buffer + startSample + start1, size2);
+	}
+
+	abstractFifo.finishedWrite(size1 + size2);
+}
+
+void Plotter::rebuildPath()
+{
+	drawPath.clear();
+
+	int numAvailable = abstractFifo.getNumReady();
+
+	if (numAvailable > 0)
+	{
+		float* temp = (float*)alloca(sizeof(float) * numAvailable);
+
+		popLockFree(temp, numAvailable);
+		addValues(temp, 0, numAvailable);
+	}
+
+	const float samplesPerPixel = (float)displayBuffer.getNumSamples() / (float)getWidth();
+
+
+	drawPath.startNewSubPath(0.0f, (float)getHeight());
+
+	int samplePos = 0;
+
+	for (int i = 0; i < getWidth(); i += 2)
+	{
+		samplePos = roundDoubleToInt(i * samplesPerPixel);
+		samplePos = (position + samplePos) % displayBuffer.getNumSamples();
+
+		int numToSearch = jmin<int>(roundFloatToInt(samplesPerPixel * 2), displayBuffer.getNumSamples() - samplePos);
+
+		float thisValue = getAverage(displayBuffer.getReadPointer(0, samplePos), numToSearch, currentMode);
+
+		drawPath.lineTo((float)i, (float)getHeight() - thisValue * (float)getHeight());
+	}
+
+	drawPath.lineTo((float)getWidth(), (float)getHeight());
+	drawPath.closeSubPath();
+
+}
+
+void Plotter::popLockFree(float* destination, int numSamples)
+{
+	int start1, size1, start2, size2;
+	abstractFifo.prepareToRead(numSamples, start1, size1, start2, size2);
+
+	if (size1 > 0)
+		FloatVectorOperations::copy(destination, tempBuffer + start1, size1);
+
+	if (size2 > 0)
+		FloatVectorOperations::copy(destination + size1, tempBuffer + start2, size2);
+
+	abstractFifo.finishedRead(size1 + size2);
+}
+
+void Plotter::addValues(const float* buffer, int startSample, int numSamples)
+{
+	jassert(MessageManager::getInstance()->isThisTheMessageThread());
+
+	
+	
 	const bool wrap = position + numSamples > displayBuffer.getNumSamples();
 
 	if (wrap)
 	{
 		const int numBeforeWrap = displayBuffer.getNumSamples() - position;
 
-		FloatVectorOperations::copy(displayBuffer.getWritePointer(0, position), b.getReadPointer(0, startSample), numBeforeWrap);
+		if(numBeforeWrap > 0)
+			FloatVectorOperations::copy(displayBuffer.getWritePointer(0, position), buffer + startSample, numBeforeWrap);
 
 		const int numAfterWrap = numSamples - numBeforeWrap;
 
 		position = 0;
 
-		FloatVectorOperations::copy(displayBuffer.getWritePointer(0, position), b.getReadPointer(0, startSample + numBeforeWrap), numAfterWrap);
+		if(numAfterWrap > 0)
+			FloatVectorOperations::copy(displayBuffer.getWritePointer(0, position), buffer + startSample + numBeforeWrap, numAfterWrap);
 
 	}
 	else
 	{
-		FloatVectorOperations::copy(displayBuffer.getWritePointer(0, position), b.getReadPointer(0, startSample), numSamples);
+		if(numSamples > 0)
+			FloatVectorOperations::copy(displayBuffer.getWritePointer(0, position), buffer + startSample, numSamples);
 
 		position += numSamples;
 	}
@@ -134,48 +276,77 @@ void Plotter::addValues(const AudioSampleBuffer& b, int startSample, int numSamp
 
 void Plotter::timerCallback()
 {
+	rebuildPath();
 	repaint();
 }
 
-void Plotter::mouseDown(const MouseEvent& /*m*/)
+void Plotter::mouseDown(const MouseEvent& m)
 {
-	PopupLookAndFeel plaf;
-	PopupMenu menu;
-	menu.setLookAndFeel(&plaf);
-
-
-	menu.addItem(1024, "Freeze", true, !active);
-	menu.addItem(1, "1 Second", true, displayBuffer.getNumSamples() == 44100);
-	menu.addItem(2, "2 Seconds", true, displayBuffer.getNumSamples() == 2*44100);
-	menu.addItem(4, "4 Seconds", true, displayBuffer.getNumSamples() == 4*44100);
-
-	int result = menu.show();
-
-	if (result == 1024)
+	if (m.mods.isRightButtonDown())
 	{
-		if (active)
+		PopupLookAndFeel plaf;
+		PopupMenu menu;
+		menu.setLookAndFeel(&plaf);
+
+
+		menu.addItem(1024, "Freeze", true, !active);
+		menu.addItem(1, "1 Second", true, displayBuffer.getNumSamples() == plotterDefaultSize);
+		menu.addItem(2, "2 Seconds", true, displayBuffer.getNumSamples() == 2 * plotterDefaultSize);
+		menu.addItem(4, "4 Seconds", true, displayBuffer.getNumSamples() == 4 * plotterDefaultSize);
+
+		int result = menu.show();
+
+		if (result == 1024)
 		{
-			active = false;
-			stopTimer();
+			if (active)
+			{
+				active = false;
+				stopTimer();
+			}
+			else
+			{
+				active = true;
+				startTimer(30);
+			}
 		}
-		else
+		else if (result > 0)
 		{
-			active = true;
-			startTimer(30);
+			AudioSampleBuffer newDisplayBuffer(1, result * plotterDefaultSize);
+			newDisplayBuffer.clear();
+
+			{
+				position = 0;
+				displayBuffer.setSize(1, result * plotterDefaultSize);
+				displayBuffer.clear();
+			}
 		}
 	}
-	else if (result > 0)
+	else
 	{
-		AudioSampleBuffer newDisplayBuffer(1, result * 44100);
-		newDisplayBuffer.clear();
-
-		{
-			SpinLock::ScopedLockType sl(swapLock);
-			position = 0;
-			displayBuffer.setSize(1, result * 44100);
-			displayBuffer.clear();
-		}
+		stickPopup = !stickPopup;
 	}
+
+	
+}
+
+void Plotter::mouseMove(const MouseEvent& m)
+{
+	if (!stickPopup)
+	{
+		popupPosition = m.getPosition();
+		repaint();
+	}
+	
+}
+
+void Plotter::mouseExit(const MouseEvent& /*m*/)
+{
+	if (!stickPopup)
+	{
+		popupPosition = {};
+	}
+	
+	repaint();
 }
 
 } // namespace hise

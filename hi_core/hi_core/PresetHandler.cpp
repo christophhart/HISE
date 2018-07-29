@@ -83,266 +83,6 @@ void CopyPasteTarget::dismissCopyAndPasteFocus()
 
 
 
-UserPresetData::UserPresetData(MainController* mc_) :
-mc(mc_)
-{
-	userPresets = new PresetCategory("User Presets");
-
-	refreshPresetFileList();
-}
-
-
-UserPresetData::~UserPresetData()
-{
-	mc = nullptr;
-	listeners.clear();
-}
-
-void UserPresetData::getCurrentPresetIndexes(int &category, int &preset, String &name) const
-{
-	category = currentCategoryIndex;
-	preset = currentPresetIndex;
-	name = currentName;
-}
-
-void UserPresetData::addFactoryPreset(const String &name, const String &category, int id, ValueTree &v)
-{
-	int index = -1;
-
-	for (int i = 0; i < factoryPresetCategories.size(); i++)
-	{
-		if (factoryPresetCategories[i]->name == category)
-		{
-			index = i;
-			break;
-		}
-	}
-
-	if (index == -1)
-	{
-		PresetCategory *newCategory = new PresetCategory(category);
-		newCategory->presets.add(Entry(name, id, v));
-		factoryPresetCategories.add(newCategory);
-	}
-	else
-	{
-		factoryPresetCategories[index]->presets.add(Entry(name, id, v));
-	}
-}
-
-void UserPresetData::addUserPreset(const String &name, int id, const ValueTree &v)
-{
-	userPresets->presets.add(Entry(name, id, v));
-}
-
-void UserPresetData::fillCategoryList(StringArray& listToFill) const
-{
-	listToFill.clear();
-
-	for (int i = 0; i < factoryPresetCategories.size(); i++)
-	{
-		listToFill.add(factoryPresetCategories[i]->name);
-	}
-
-	listToFill.add(userPresets->name);
-}
-
-
-
-
-
-void UserPresetData::fillPresetList(StringArray& listToFill, int categoryIndex) const
-{
-	listToFill.clear();
-
-	const PresetCategory* c = getPresetCategory(categoryIndex);
-
-	if (c != nullptr)
-	{
-		for (int i = 0; i < c->presets.size(); i++)
-		{
-			listToFill.add(c->presets[i].name);
-		}
-	}
-}
-
-
-void UserPresetData::addListener(Listener *newListener) const
-{
-	listeners.addIfNotAlreadyThere(newListener);
-}
-
-void UserPresetData::removeListener(Listener *listenerToRemove) const
-{
-	listeners.removeAllInstancesOf(listenerToRemove);
-}
-
-const UserPresetData::PresetCategory* UserPresetData::getPresetCategory(int index) const
-{
-	if (index == factoryPresetCategories.size())
-	{
-		return userPresets;
-	}
-	else if (index < factoryPresetCategories.size())
-	{
-		return factoryPresetCategories[index];
-	}
-	else return nullptr;
-}
-
-void UserPresetData::loadPreset(int categoryToLoad, int presetToLoad) const
-{
-	PresetCategory* c = nullptr;
-
-	if (categoryToLoad == factoryPresetCategories.size())
-	{
-		c = userPresets;
-	}
-	else
-	{
-		c = factoryPresetCategories[categoryToLoad];
-	}
-
-	if (c != nullptr)
-	{
-		if (presetToLoad < c->presets.size())
-		{
-			Entry* e = &c->presets.getReference(presetToLoad);
-
-			if (e != nullptr)
-			{
-				currentCategoryIndex = categoryToLoad;
-				currentPresetIndex = presetToLoad;
-				currentName = e->name;
-
-				for (int i = 0; i < listeners.size(); i++)
-				{
-					listeners[i]->presetLoaded(currentCategoryIndex, currentPresetIndex, e->name);
-				}
-
-				UserPresetHelpers::loadUserPreset(mc->getMainSynthChain(), e->v);
-			}
-		}
-	}
-}
-
-
-void UserPresetData::loadNextPreset() const
-{
-	const PresetCategory* c = getPresetCategory(currentCategoryIndex);
-
-	if (c != nullptr)
-	{
-		const int nextPresetIndex = currentPresetIndex + 1;
-
-		if (nextPresetIndex < c->presets.size())
-			loadPreset(currentCategoryIndex, nextPresetIndex);
-		else
-		{
-			const PresetCategory* category = getPresetCategory(currentCategoryIndex + 1);
-
-			if (category != nullptr)
-				loadPreset(currentCategoryIndex + 1, 0);
-		}
-	}
-}
-
-void UserPresetData::loadPreviousPreset() const
-{
-	const PresetCategory* c = getPresetCategory(currentCategoryIndex);
-
-	if (c != nullptr)
-	{
-		const int prevPresetIndex = currentPresetIndex - 1;
-
-		if (prevPresetIndex >= 0)
-			loadPreset(currentCategoryIndex, prevPresetIndex);
-
-		else
-		{
-			const PresetCategory* category = getPresetCategory(currentCategoryIndex - 1);
-
-			if (category != nullptr)
-				loadPreset(currentCategoryIndex - 1, category->presets.size() - 1);
-		}
-	}
-}
-
-void UserPresetData::refreshPresetFileList()
-{
-#if USE_BACKEND
-
-	
-
-	ProjectHandler *handler = &GET_PROJECT_HANDLER(mc->getMainSynthChain());
-
-	Array<File> fileList = handler->getFileList(ProjectHandler::SubDirectories::UserPresets, false, true);
-
-	factoryPresetCategories.clear();
-	userPresets->presets.clear();
-
-	for (int i = 0; i < fileList.size(); i++)
-	{
-		const File parentDirectory = fileList[i].getParentDirectory();
-		const File presetDirectory = handler->getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
-		const bool useCategory = (presetDirectory != parentDirectory);
-		const String categoryName = useCategory ? fileList[i].getParentDirectory().getFileName() : "Uncategorized";
-
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(fileList[i]);
-
-		if (xml != nullptr)
-		{
-			ValueTree v = ValueTree::fromXml(*xml);
-			addFactoryPreset(fileList[i].getFileNameWithoutExtension(), categoryName, i + 1, v);
-		}
-	}
-
-#else
-
-	ValueTree factoryPresets = mc->getSampleManager().getProjectHandler().getValueTree(ProjectHandler::SubDirectories::UserPresets);
-
-	factoryPresetCategories.clear();
-	userPresets->presets.clear();
-
-	for (int i = 1; i < factoryPresets.getNumChildren(); i++)
-	{
-		ValueTree c = factoryPresets.getChild(i);
-
-		addFactoryPreset(c.getProperty("FileName"), c.getProperty("Category"), i, c);
-	}
-
-    File userPresetDirectory;
-    
-    try
-    {
-        userPresetDirectory = FrontendHandler::getUserPresetDirectory();
-    }
-
-    catch(String& s)
-    {
-        mc->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, s);
-        return;
-    }
-
-
-	Array<File> newUserPresets;
-	userPresetDirectory.findChildFiles(newUserPresets, File::findFiles, false, "*.preset");
-
-	for (int i = 0; i < newUserPresets.size(); i++)
-	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(newUserPresets[i]);
-
-		if (xml != nullptr)
-		{
-			ValueTree v = ValueTree::fromXml(*xml);
-
-			addUserPreset(newUserPresets[i].getFileNameWithoutExtension(), i, v);
-		}
-	}
-
-#endif
-
-}
 
 
 
@@ -1009,6 +749,8 @@ juce::Result ProjectHandler::setWorkingProject(const File &workingDirectory, Com
 	}
 
 	getAppDataDirectory().getChildFile("projects.xml").replaceWithText(xml->createDocument(""));
+
+	ScopedLock sl(listeners.getLock());
 
 	for (int i = 0; i < listeners.size(); i++)
 	{
@@ -1905,6 +1647,7 @@ File PresetHandler::getDirectory(Processor *p)
 		return File();
 	}
 #else
+	ignoreUnused(p);
 	return File();
 #endif
 
@@ -2161,6 +1904,8 @@ Processor *PresetHandler::loadProcessorFromFile(File fileName, Processor *parent
 
 void PresetHandler::buildProcessorDataBase(Processor *root)
 {
+	ignoreUnused(root);
+
 #if USE_BACKEND
 	auto f = NativeFileHandler::getAppDataDirectory().getChildFile("moduleEnums.xml");
 
@@ -2574,6 +2319,122 @@ FileHandlerBase::FileHandlerBase(MainController* mc_) :
 	pool(new PoolCollection(mc_))
 {
 
+}
+
+
+
+void FileHandlerBase::exportAllPoolsToTemporaryDirectory(ModulatorSynthChain* chain, DialogWindowWithBackgroundThread::LogData* logData)
+{
+	ignoreUnused(chain, logData);
+
+#if USE_BACKEND
+	auto folder = getTempFolderForPoolResources();
+
+	if (!folder.isDirectory())
+		folder.createDirectory();
+
+	File imageOutputFile, sampleOutputFile, samplemapFile;
+
+	samplemapFile = getTempFileForPool(SampleMaps);
+	imageOutputFile = getTempFileForPool(Images);
+	sampleOutputFile = getTempFileForPool(AudioFiles);
+
+	loadOtherReferencedImages(chain);
+
+	if (Thread::currentThreadShouldExit())
+		return;
+
+	sampleOutputFile.deleteFile();
+	imageOutputFile.deleteFile();
+	samplemapFile.deleteFile();
+
+	auto previousLogger = Logger::getCurrentLogger();
+
+	ScopedPointer<Logger> outputLogger = new ConsoleLogger(chain);
+
+	if(!CompileExporter::isExportingFromCommandLine())
+		Logger::setCurrentLogger(outputLogger);
+
+	auto* progress = logData != nullptr ? &logData->progress : nullptr;
+
+	if (logData != nullptr) logData->logFunction("Export audio files");
+	chain->getMainController()->getCurrentAudioSampleBufferPool(true)->getDataProvider()->writePool(new FileOutputStream(sampleOutputFile), progress);
+
+	if (logData != nullptr) logData->logFunction("Export image files");
+	chain->getMainController()->getCurrentImagePool(true)->getDataProvider()->writePool(new FileOutputStream(imageOutputFile), progress);
+
+	if (logData != nullptr) logData->logFunction("Export samplemap files");
+	chain->getMainController()->getCurrentSampleMapPool(true)->getDataProvider()->writePool(new FileOutputStream(samplemapFile), progress);
+
+	Logger::setCurrentLogger(previousLogger);
+
+	outputLogger = nullptr;
+#else
+
+	jassertfalse;
+
+#endif
+}
+
+
+juce::File FileHandlerBase::getTempFolderForPoolResources() const
+{
+	return getRootFolder().getChildFile("PooledResources");
+}
+
+
+juce::File FileHandlerBase::getTempFileForPool(SubDirectories dir) const
+{
+	auto parent = getTempFolderForPoolResources();
+
+	switch (dir)
+	{
+	case Images:		return parent.getChildFile("ImageResources.dat");
+	case SampleMaps:	return parent.getChildFile("SampleMaps.dat");
+	case AudioFiles:	return parent.getChildFile("AudioResources.dat");
+	default:			jassertfalse;
+						break;
+	}
+
+	return {};
+}
+
+void FileHandlerBase::loadOtherReferencedImages(ModulatorSynthChain* chainToExport)
+{
+	auto mc = chainToExport->getMainController();
+	auto& handler = GET_PROJECT_HANDLER(chainToExport);
+
+	const bool hasCustomSkin = handler.getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("keyboard").isDirectory();
+
+	if (!hasCustomSkin)
+		return;
+
+	auto pool = mc->getCurrentImagePool(true);
+
+	Array<PooledImage> images;
+
+	for (int i = 0; i < 12; i++)
+	{
+		PoolReference upRef(mc, "{PROJECT_FOLDER}keyboard/up_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
+
+		jassert(upRef.isValid());
+
+		images.add(pool->loadFromReference(upRef, PoolHelpers::LoadAndCacheStrong));
+
+		PoolReference downRef(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
+
+		jassert(downRef.isValid());
+		images.add(pool->loadFromReference(downRef, PoolHelpers::LoadAndCacheStrong));
+	}
+
+	const bool hasAboutPageImage = handler.getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("about.png").existsAsFile();
+
+	if (hasAboutPageImage)
+	{
+		PoolReference aboutRef(mc, "{PROJECT_FOLDER}about.png", ProjectHandler::SubDirectories::Images);
+
+		images.add(pool->loadFromReference(aboutRef, PoolHelpers::LoadAndCacheStrong));
+	}
 }
 
 } // namespace hise

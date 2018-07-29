@@ -40,6 +40,7 @@ using namespace juce;
 #define GET_TYPED(Type) case FilterHelpers::FilterSubType::Type: static_cast<FilterBank<Type>*>(this)
 
 
+
 class FilterBank
 {
 public:
@@ -114,7 +115,7 @@ public:
 	{
 		SpinLock::ScopedLockType sl(lock);
 
-		object->setSampleRate(sampleRate);
+		object->setSampleRate(newSampleRate);
 	}
 
 	bool calculateGainModValue = false;
@@ -284,6 +285,7 @@ private:
 	const int numVoices;
 
 	FilterHelpers::FilterSubType type;
+	int subType = -1;
 	ScopedPointer<InternalBankBase> object = nullptr;
 };
 

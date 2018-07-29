@@ -108,7 +108,8 @@ int MidiControllerAutomationHandler::getMidiControllerNumber(Processor *interfac
 
 void MidiControllerAutomationHandler::refreshAnyUsedState()
 {
-	ScopedLock sl(mc->getLock());
+	AudioThreadGuard::Suspender suspender;
+	LockHelpers::SafeLock sl(mc, LockHelpers::AudioLock);
 
 	anyUsed = false;
 
@@ -139,16 +140,19 @@ void MidiControllerAutomationHandler::clear()
 
 void MidiControllerAutomationHandler::removeMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NotificationType notifyListeners)
 {
-	ScopedLock sl(mc->getLock());
-
-	for (int i = 0; i < 128; i++)
 	{
-		for (auto& a : automationData[i])
+		AudioThreadGuard audioGuard(&(mc->getKillStateHandler()));
+		LockHelpers::SafeLock sl(mc, LockHelpers::AudioLock);
+
+		for (int i = 0; i < 128; i++)
 		{
-			if (a.processor == interfaceProcessor && a.attribute == attributeIndex)
+			for (auto& a : automationData[i])
 			{
-				automationData[i].removeAllInstancesOf(a);
-				break;
+				if (a.processor == interfaceProcessor && a.attribute == attributeIndex)
+				{
+					automationData[i].removeAllInstancesOf(a);
+					break;
+				}
 			}
 		}
 	}
@@ -300,10 +304,7 @@ struct MidiControllerAutomationHandler::MPEData::Data: public Processor::DeleteL
 		{
 			connections.removeAllInstancesOf(m);
 
-			for (auto l : parent.listeners)
-			{
-				l->mpeModulatorAssigned(m, false);
-			}
+            parent.sendAsyncNotificationMessage(m, EventType::MPEModConnectionRemoved);
 		}
 		else
 			jassertfalse;
@@ -349,53 +350,53 @@ MidiControllerAutomationHandler::MPEData::~MPEData()
 
 void MidiControllerAutomationHandler::MPEData::AsyncRestorer::timerCallback()
 {
-	if (auto l = PresetLoadLock(parent.getMainController()))
-	{
-		parent.clear();
 
-		static const Identifier id("ID");
-
-		parent.setMpeMode(data.getProperty("Enabled", false));
-
-		for (auto d : data)
-		{
-			jassert(d.hasType("Processor"));
-
-			d.setProperty("Type", "MPEModulator", nullptr);
-
-			d.setProperty("Intensity", 1.0f, nullptr);
-
-			ValueTree dummyChild("ChildProcessors");
-
-			d.addChild(dummyChild, -1, nullptr);
-
-			String id_ = d.getProperty(id).toString();
-
-			if (auto mod = parent.findMPEModulator(id_))
-			{
-				mod->restoreFromValueTree(d);
-
-				parent.addConnection(mod, dontSendNotification);
-			}
-		}
-
-		for (auto l : parent.listeners)
-		{
-			if (l)
-			{
-				l->mpeDataReloaded();
-			}
-		}
-
-		dirty = false;
-		stopTimer();
-	}
 }
 
 
 
 void MidiControllerAutomationHandler::MPEData::restoreFromValueTree(const ValueTree &v)
 {
+	pendingData = v;
+
+	auto f = [this](Processor* p)
+	{
+		LockHelpers::noMessageThreadBeyondInitialisation(p->getMainController());
+
+		clear();
+
+		static const Identifier id("ID");
+
+		setMpeMode(pendingData.getProperty("Enabled", false));
+
+		for (auto d : pendingData)
+		{
+			jassert(d.hasType("Processor"));
+
+			d.setProperty("Type", "MPEModulator", nullptr);
+			d.setProperty("Intensity", 1.0f, nullptr);
+
+			ValueTree dummyChild("ChildProcessors");
+
+			d.addChild(dummyChild, -1, nullptr);
+			String id_ = d.getProperty(id).toString();
+
+			if (auto mod = findMPEModulator(id_))
+			{
+				mod->restoreFromValueTree(d);
+				addConnection(mod, dontSendNotification);
+			}
+		}
+
+		
+
+        sendAsyncNotificationMessage(nullptr, EventType::MPEDataReloaded);
+        
+        return SafeFunctionCall::OK;
+	};
+
+	getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
+
 	asyncRestorer.restore(v);
 }
 
@@ -428,51 +429,79 @@ juce::ValueTree MidiControllerAutomationHandler::MPEData::exportAsValueTree() co
 	return connectionData;
 }
 
+void MidiControllerAutomationHandler::MPEData::sendAsyncNotificationMessage(MPEModulator* mod, EventType type)
+{
+    WeakReference<MPEModulator> ref(mod);
+    
+    auto f = [ref, type](Dispatchable* obj)
+    {
+        if(ref.get() == nullptr)
+            return Dispatchable::Status::OK;
+        
+        auto d = static_cast<MPEData*>(obj);
+        
+        jassert_message_thread;
+        
+        ScopedLock sl(d->listeners.getLock());
+        
+        for (auto l : d->listeners)
+        {
+            if (l == ref.get())
+                continue;
+            
+            if (l)
+            {
+                switch(type)
+                {
+                    case EventType::MPEModConnectionAdded:   l->mpeModulatorAssigned(ref, true); break;
+                    case EventType::MPEModConnectionRemoved: l->mpeModulatorAssigned(ref, false); break;
+                    case EventType::MPEModeChanged:          l->mpeModeChanged(d->mpeEnabled); break;
+                    case EventType::MPEDataReloaded:         l->mpeDataReloaded(); break;
+                    default:                                 jassertfalse; break;
+                }
+            }
+        }
+        
+        return Dispatchable::Status::OK;
+    };
+    
+    getMainController()->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(this, f);
+
+}
+    
 void MidiControllerAutomationHandler::MPEData::addConnection(MPEModulator* mod, NotificationType notifyListeners/*=sendNotification*/)
 {
+    jassert(mod->isOnAir());
+    
+    jassert(LockHelpers::noMessageThreadBeyondInitialisation(mod->getMainController()));
+    
 	if (!data->connections.contains(mod))
 	{
 		data->add(mod);
 
+        mod->mpeModulatorAssigned(mod, true);
+        
 		if (notifyListeners == sendNotification)
-		{
-			mod->mpeModulatorAssigned(mod, true);
-
-			for (auto l : listeners)
-			{
-				if (l == mod)
-					continue;
-
-				if (l)
-				{
-					l->mpeModulatorAssigned(mod, true);
-				}
-			}
-		}
+            sendAsyncNotificationMessage(mod, EventType::MPEModConnectionAdded);
 	}
 }
 
 void MidiControllerAutomationHandler::MPEData::removeConnection(MPEModulator* mod, NotificationType notifyListeners/*=sendNotification*/)
 {
+    if(mod->isOnAir())
+    {
+        jassert(LockHelpers::noMessageThreadBeyondInitialisation(mod->getMainController()));
+    }
+    
 	if (data->connections.contains(mod))
 	{
 		data->remove(mod);
 
-		mod->mpeModulatorAssigned(mod, false);
+        if(mod->isOnAir())
+            mod->mpeModulatorAssigned(mod, false);
 
 		if (notifyListeners == sendNotification)
-		{
-			for (auto l : listeners)
-			{
-				if (l == mod)
-					continue;
-
-				if (l)
-				{
-					l->mpeModulatorAssigned(mod, false);
-				}
-			}
-		}
+            sendAsyncNotificationMessage(mod, EventType::MPEModConnectionRemoved);
 	}
 	else if (mod != nullptr)
 	{
@@ -551,13 +580,8 @@ void MidiControllerAutomationHandler::MPEData::reset()
 	clear();
 	mpeEnabled = false;
 
-	for (auto l : listeners)
-	{
-        if(l != nullptr)
-            l->mpeModeChanged(mpeEnabled);
-        else
-            jassertfalse;
-	}
+    
+    sendAsyncNotificationMessage(nullptr, EventType::MPEModeChanged);
 }
 
 int MidiControllerAutomationHandler::MPEData::size() const
@@ -577,9 +601,13 @@ void MidiControllerAutomationHandler::MPEData::setMpeMode(bool shouldBeOn)
 
 	mpeEnabled = shouldBeOn;
 
+    // Do this synchronously
+    ScopedLock sl(listeners.getLock());
+    
 	for (auto l : listeners)
 	{
-		l->mpeModeChanged(mpeEnabled);
+        if(l != nullptr)
+            l->mpeModeChanged(mpeEnabled);
 	}
 }
 

@@ -62,6 +62,8 @@ convolverR(new MultithreadedConvolver())
 wdlPimpl(new WdlPimpl())
 #endif
 {
+	finaliseModChains();
+
 	parameterNames.add("DryGain");
 	parameterNames.add("WetGain");
 	parameterNames.add("Latency");
@@ -213,7 +215,7 @@ ValueTree ConvolutionEffect::exportAsValueTree() const
 
 void ConvolutionEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-	EffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
+	MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
 	ProcessorHelpers::increaseBufferIfNeeded(wetBuffer, samplesPerBlock);
 

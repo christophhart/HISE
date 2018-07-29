@@ -33,61 +33,26 @@
 namespace hise { using namespace juce;
 
 MainController::UserPresetHandler::UserPresetHandler(MainController* mc_) :
-	mc(mc_),
-	presetLoadDelayer(*this),
-	presetLoadLock(MainController::KillStateHandler::Free)
+	mc(mc_)
 {
 
 }
 
-
-
-MainController::UserPresetHandler::LoadLock::LoadLock(const MainController* mc) :
-	parent(mc->getUserPresetHandler())
-{
-	auto currentThread = mc->getKillStateHandler().getCurrentThread();
-
-	// This mechanism is not suitable for the audio thread, so don't try calling it here...
-	jassert(currentThread != MainController::KillStateHandler::AudioThread);
-
-	int freeThread = (int)MainController::KillStateHandler::Free;
-
-	sameThreadHoldsLock = parent.presetLoadLock.load() == (int)currentThread;
-
-	if(!sameThreadHoldsLock)
-		holdsLock = parent.presetLoadLock.compare_exchange_strong(freeThread, (int)currentThread);
-
-#if 0
-	if (sameThreadHoldsLock)
-		DBG("Reentrant Preset Lock in " + String((currentThread == MainController::KillStateHandler::MessageThread ? "Message Thread" : "Sample Loading Thread")));
-	else if (holdsLock)
-		DBG("Preset Lock acquired by " + String((currentThread == MainController::KillStateHandler::MessageThread ? "Message Thread" : "Sample Loading Thread")));
-	else
-		DBG("Preset Lock was denied for " + String((currentThread == MainController::KillStateHandler::MessageThread ? "Message Thread" : "Sample Loading Thread")));
-#endif
-
-}
-
-MainController::UserPresetHandler::LoadLock::~LoadLock()
-{
-	if (holdsLock)
-	{
-		jassert(parent.presetLoadLock != MainController::KillStateHandler::TargetThread::Free);
-		
-#if 0
-		DBG("Preset Lock was released by " + String((parent.presetLoadLock == MainController::KillStateHandler::MessageThread ? "Message Thread" : "Sample Loading Thread")));
-#endif
-		parent.presetLoadLock.store((int)MainController::KillStateHandler::TargetThread::Free);
-	}
-}
 
 void MainController::UserPresetHandler::loadUserPreset(const ValueTree& v)
 {
-	auto f = [this, v](Processor*) {loadUserPresetInternal(v); return true; };
+	pendingPreset = v;
 
-	auto synthChain = mc->getMainSynthChain();
+	auto f = [](Processor*p) 
+	{
+		p->getMainController()->getUserPresetHandler().loadUserPresetInternal(); 
+		return SafeFunctionCall::OK; 
+	};
 
-	mc->getKillStateHandler().killVoicesAndCall(synthChain, f, KillStateHandler::TargetThread::SampleLoadingThread);
+	// Send a note off to stop the arpeggiator etc...
+	mc->allNotesOff(false);
+
+	mc->killAndCallOnLoadingThread(f);
 }
 
 void MainController::UserPresetHandler::loadUserPreset(const File& f)
@@ -117,13 +82,26 @@ void MainController::UserPresetHandler::setCurrentlyLoadedFile(const File& f)
 
 void MainController::UserPresetHandler::sendRebuildMessage()
 {
-	for (int i = 0; i < listeners.size(); i++)
+	auto f = [](Dispatchable* obj)
 	{
-		if (listeners[i] != nullptr)
+		auto uph = static_cast<UserPresetHandler*>(obj);
+
+		jassert_dispatched_message_thread(uph->mc);
+
+		ScopedLock sl(uph->listeners.getLock());
+
+		for (int i = 0; i < uph->listeners.size(); i++)
 		{
-			listeners[i]->presetListUpdated();
-		}
-	}
+			uph->mc->checkAndAbortMessageThreadOperation();
+
+			if (uph->listeners[i] != nullptr)
+				uph->listeners[i]->presetListUpdated();
+		};
+
+		return Status::OK;
+	};
+
+	mc->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(this, f);
 }
 
 void MainController::UserPresetHandler::savePreset(String presetName /*= String()*/)
@@ -149,20 +127,22 @@ void MainController::UserPresetHandler::saveUserPresetInternal(const String& nam
 }
 
 
-void MainController::UserPresetHandler::loadUserPresetInternal(const ValueTree& userPresetToLoad)
+void MainController::UserPresetHandler::loadUserPresetInternal()
 {
-	if (auto s = LoadLock(mc))
 	{
+		LockHelpers::freeToGo(mc);
+
+		ValueTree userPresetToLoad = pendingPreset;
+
 #if USE_BACKEND
 		if (!GET_PROJECT_HANDLER(mc->getMainSynthChain()).isActive()) return;
 #endif
 
 		jassert(userPresetToLoad.isValid());
-		jassert(!mc->getMainSynthChain()->areVoicesActive());
-
-		Processor::Iterator<JavascriptMidiProcessor> iter(mc->getMainSynthChain());
 
 		mc->getSampleManager().setShouldSkipPreloading(true);
+
+		Processor::Iterator<JavascriptMidiProcessor> iter(mc->getMainSynthChain());
 
 		while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
 		{
@@ -184,8 +164,6 @@ void MainController::UserPresetHandler::loadUserPresetInternal(const ValueTree& 
 				sp->getScriptingContent()->restoreAllControlsFromPreset(v);
 			}
 		}
-
-		mc->getSampleManager().preloadEverything();
 
 		ValueTree autoData = userPresetToLoad.getChildWithName("MidiAutomation");
 
@@ -215,25 +193,31 @@ void MainController::UserPresetHandler::loadUserPresetInternal(const ValueTree& 
 			mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().reset();
 		}
 
-		auto f = [this]()->void
+		auto f = [](Dispatchable* obj)
 		{
-			for (auto l : this->listeners)
+			auto uph = static_cast<UserPresetHandler*>(obj);
+			auto mc_ = uph->mc;
+			jassert_dispatched_message_thread(mc_);
+
+			ScopedLock sl(uph->listeners.getLock());
+
+			for (auto l : uph->listeners)
 			{
+				uph->mc->checkAndAbortMessageThreadOperation();
+
 				if (l != nullptr)
-					l->presetChanged(currentlyLoadedFile);
+					l->presetChanged(uph->currentlyLoadedFile);
 			}
+
+			return Status::OK;
 		};
 
-		new DelayedFunctionCaller(f, 400);
-
-		mc->allNotesOff(true);
-	}
-	else
-	{
-        mc->getDebugLogger().logMessage("Retry Loading of preset");
-		presetLoadDelayer.retryLoading(userPresetToLoad);
+		mc->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(this, f);
 	}
 
+	
+
+	mc->getSampleManager().preloadEverything();
 }
 
 

@@ -248,6 +248,9 @@ public:
     /** Writes the editor's current contents to a stream. */
     bool writeToStream (OutputStream& stream);
 
+	/** Disables the undo manger and directly calls the functions. */
+	void setDisableUndo(bool shouldBeDisabled);
+
     //==============================================================================
     /** Returns the preferred new-line characters for the document.
         This will be either "\n", "\r\n", or (rarely) "\r".
@@ -399,6 +402,8 @@ private:
     struct DeleteAction;
     friend class Iterator;
     friend class Position;
+
+	bool undoDisabled = false;
 
     OwnedArray<CodeDocumentLine> lines;
     Array<Position*> positionsToMaintain;

@@ -51,8 +51,7 @@ namespace hise { using namespace juce;
 */
 class JavascriptMidiProcessor : public ScriptBaseMidiProcessor,
 								public JavascriptProcessor,
-								public Timer,
-								public AsyncUpdater
+								public Timer
 {
 public:
 
@@ -96,10 +95,6 @@ public:
 	void deferCallbacks(bool addToFront_);
 	bool isDeferred() const { return deferred; };
 
-	void handleAsyncUpdate() override;
-
-	
-
 	void timerCallback() override
 	{
 		jassert(isDeferred());
@@ -124,6 +119,56 @@ public:
 	}
 
 private:
+
+	struct DeferredExecutioner : private LockfreeAsyncUpdater
+	{
+		DeferredExecutioner(JavascriptMidiProcessor* jp) :
+			parent(*jp),
+			pendingEvents(512)
+		{};
+
+		void addPendingEvent(const HiseEvent& e)
+		{
+			pendingEvents.push(e);
+			triggerAsyncUpdate();
+		}
+
+	private:
+
+		void handleAsyncUpdate() override
+		{
+			jassert(parent.isDeferred());
+			
+			HiseEvent m;
+
+			while (pendingEvents.pop(m))
+			{
+				if (m.isIgnored() || m.isArtificial())
+					continue;
+
+				auto f = [m](JavascriptProcessor* p)
+				{
+					auto jmp = dynamic_cast<JavascriptMidiProcessor*>(p);
+
+					HiseEvent copy(m);
+
+					ScopedValueSetter<HiseEvent*> svs(jmp->currentEvent, &copy);
+					jmp->currentMidiMessage->setHiseEvent(m);
+					jmp->runScriptCallbacks();
+
+					return jmp->lastResult;
+				};
+
+				parent.getMainController()->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::HiPriorityCallbackExecution, &parent, f);
+			}
+		}
+
+		LockfreeQueue<HiseEvent> pendingEvents;
+		JavascriptMidiProcessor& parent;
+	};
+
+	DeferredExecutioner deferredExecutioner;
+
 
 	void runTimerCallback(int offsetInBuffer = -1);
 	void runScriptCallbacks();
@@ -200,7 +245,7 @@ public:
 	virtual void handleHiseEvent(const HiseEvent &m) override;
 
 	/** When the startNote function is called, a previously calculated value (by the handleMidiMessage function) is stored using the supplied voice index. */
-	virtual void startVoice(int voiceIndex) override;;
+	virtual float startVoice(int voiceIndex) override;;
 
 	Identifier getIdentifierForParameterIndex(int parameterIndex) const override
 	{
@@ -380,7 +425,7 @@ public:
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 	void calculateBlock(int startSample, int numSamples) override;;
 
-	void startVoice(int voiceIndex) override;
+	float startVoice(int voiceIndex) override;
 	void stopVoice(int voiceIndex) override;
 	void reset(int voiceIndex) override;
 	bool isPlaying(int voiceIndex) const override;
@@ -499,8 +544,6 @@ public:
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 	void preHiseEventCallback(const HiseEvent &m) override;
 	void preStartVoice(int voiceIndex, int noteNumber) override;;
-	void preVoiceRendering(int startSample, int numThisTime);;
-
 	float getAttribute(int parameterIndex) const override;;
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
 
@@ -516,9 +559,6 @@ public:
 	void postCompileCallback() override;
 
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
-
-	void calculateScriptChainValuesForVoice(int voiceIndex, int startSample, int numSamples);
-	const float *getScriptChainValues(int chainIndex, int voiceIndex) const;
 
 private:
 
@@ -617,7 +657,10 @@ private:
 	var buffers[NUM_MAX_CHANNELS];
 
 	Array<var> channels;
-	Array<int> channelIndexes;
+
+	var channelData;
+
+	Array<int, DummyCriticalSection> channelIndexes;
 
 	ScopedPointer<SnippetDocument> onInitCallback;
 	ScopedPointer<SnippetDocument> prepareToPlayCallback;

@@ -353,6 +353,14 @@ void SliderPack::sliderValueChanged(Slider *s)
     
 	data->setValue(index, (float)s->getValue(), sendNotification, true);
 
+	notifyListeners(index);
+
+}
+
+void SliderPack::notifyListeners(int index)
+{
+	ScopedLock sl(listeners.getLock());
+
 	for (int i = 0; i < listeners.size(); i++)
 	{
 		if (listeners[i].get() != nullptr)

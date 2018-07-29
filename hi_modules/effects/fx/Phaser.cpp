@@ -37,11 +37,33 @@ MasterEffectProcessor(mc, id),
 freq1(400.0f),
 freq2(1600.0f),
 feedback(0.7f),
-mix(1.0f),
-phaseModulationChain(new ModulatorChain(mc, "Phase Modulation", 1, Modulation::GainMode, this)),
-phaseModulationBuffer(1, 0)
+mix(1.0f)
 {
-	
+	modChains += { this, "Phase Modulation" };
+
+	finaliseModChains();
+
+	phaseModulationChain = modChains[InternalChains::PhaseModulationChain].getChain();
+	modChains[InternalChains::PhaseModulationChain].setExpandToAudioRate(true);
+
+	WeakReference<Processor> tmp(this);
+
+	auto f = [tmp](float input)
+	{
+		if (tmp != nullptr)
+		{
+			float freq1 = tmp->getAttribute(PhaseFX::Attributes::Frequency1);
+			float freq2 = tmp->getAttribute(PhaseFX::Attributes::Frequency2);
+
+			float v = input * (freq2 - freq1) + freq1;
+
+			return HiSlider::getFrequencyString(v);
+		}
+
+		return Table::getDefaultTextValue(input);
+	};
+
+	phaseModulationChain->setTableValueConverter(f);
 
     parameterNames.add("Frequency1");
     parameterNames.add("Frequency2");
@@ -50,7 +72,6 @@ phaseModulationBuffer(1, 0)
     
 	editorStateIdentifiers.add("PhaseModulationChainShown");
 
-	updateFrequencies();
 }
 
 float PhaseFX::getAttribute(int parameterIndex) const
@@ -69,8 +90,8 @@ void PhaseFX::setInternalAttribute(int parameterIndex, float value)
 {
     switch (parameterIndex)
     {
-	case Frequency1:	freq1 = value; updateFrequencies(); break;
-	case Frequency2:	freq2 = value; updateFrequencies(); break;
+	case Frequency1:	freq1Smoothed.setValue(value); freq1 = value; break;
+	case Frequency2:	freq2Smoothed.setValue(value); freq2 = value; break;
 	case Feedback:		feedback = value; 
 						phaserLeft.setFeedback(value);
 						phaserRight.setFeedback(value);
@@ -107,38 +128,55 @@ void PhaseFX::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
-	ProcessorHelpers::increaseBufferIfNeeded(phaseModulationBuffer, samplesPerBlock);
-
-	phaseModulationChain->prepareToPlay(sampleRate, samplesPerBlock);
-
 	if (sampleRate > 0.0 && sampleRate != lastSampleRate)
 	{
 		lastSampleRate = sampleRate;
 
+		freq1Smoothed.setValueAndRampTime(freq1, sampleRate / (double)samplesPerBlock, 0.05);
+		freq2Smoothed.setValueAndRampTime(freq2, sampleRate / (double)samplesPerBlock, 0.05);
+
 		phaserLeft.setSampleRate(sampleRate);
 		phaserRight.setSampleRate(sampleRate);
-
-		updateFrequencies();
 	}
 }
 
+
+
 void PhaseFX::applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples)
 {
-	const float *modValues = phaseModulationBuffer.getReadPointer(0, startSample);
+	updateFrequencies();
 
 	float *l = buffer.getWritePointer(0, startSample);
 	float *r = buffer.getWritePointer(1, startSample);
 
-	while (--numSamples >= 0)
-	{
-		
+	const float invMix = 1.0f - mix;
 
-		*l = *l * (1.0f - mix) + mix * phaserLeft.getNextSample(*l, *modValues);
-		*r = *r * (1.0f-mix) + mix * phaserRight.getNextSample(*r, *modValues);
-		
-		l++;
-		r++;
-		modValues++;
+	if (auto modValues = modChains[InternalChains::PhaseModulationChain].getReadPointerForVoiceValues(startSample))
+	{
+		while (--numSamples >= 0)
+		{
+			*l = *l * invMix + mix * phaserLeft.getNextSample(*l, *modValues);
+			*r = *r * invMix + mix * phaserRight.getNextSample(*r, *modValues);
+
+			l++;
+			r++;
+			modValues++;
+		}
+	}
+	else
+	{
+		const float modValue = modChains[InternalChains::PhaseModulationChain].getConstantModulationValue();
+		phaserLeft.setConstDelay(modValue);
+		phaserRight.setConstDelay(modValue);
+
+		while (--numSamples >= 0)
+		{
+			*l = *l * invMix + mix * phaserLeft.getNextSample(*l);
+			*r = *r * invMix + mix * phaserRight.getNextSample(*r);
+
+			l++;
+			r++;
+		}
 	}
 }
 
@@ -157,6 +195,15 @@ ProcessorEditorBody *PhaseFX::createEditor(ProcessorEditor *parentEditor)
 #endif
 }
 
+
+void PhaseFX::updateFrequencies()
+{
+	const float sf1 = freq1Smoothed.getNextValue();
+	const float sf2 = freq2Smoothed.getNextValue();
+
+	phaserLeft.setRange(sf1, sf2);
+	phaserRight.setRange(sf1, sf2);
+}
 
 PhaseFX::PhaseModulator::PhaseModulator() :
 feedback(.7f),
@@ -186,6 +233,13 @@ void PhaseFX::PhaseModulator::setSampleRate(double newSampleRate)
 
 float PhaseFX::PhaseModulator::getNextSample(float input, float modValue)
 {
+	setConstDelay(modValue);
+
+	return getNextSample(input);
+}
+
+void PhaseFX::PhaseModulator::setConstDelay(float modValue)
+{
 	float delayThisSample = minDelay + (maxDelay - minDelay) * (modValue);
 
 	const float delayCoefficient = AllpassDelay::getDelayCoefficient(delayThisSample);
@@ -196,16 +250,20 @@ float PhaseFX::PhaseModulator::getNextSample(float input, float modValue)
 	allpassFilters[3].setDelay(delayCoefficient);
 	allpassFilters[4].setDelay(delayCoefficient);
 	allpassFilters[5].setDelay(delayCoefficient);
+}
 
+
+
+float PhaseFX::PhaseModulator::getNextSample(float input)
+{
 	float output = allpassFilters[0].getNextSample(
 		allpassFilters[1].getNextSample(
-		allpassFilters[2].getNextSample(
-		allpassFilters[3].getNextSample(
-		allpassFilters[4].getNextSample(
-		allpassFilters[5].getNextSample(input + currentValue * feedback))))));
+			allpassFilters[2].getNextSample(
+				allpassFilters[3].getNextSample(
+					allpassFilters[4].getNextSample(
+						allpassFilters[5].getNextSample(input + currentValue * feedback))))));
 
 	currentValue = output;
-
 	return input + output;
 }
 

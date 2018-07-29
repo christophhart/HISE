@@ -108,6 +108,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuExportFileAsPlayerLibrary,
 		MenuExportFileAsSnippet,
 		MenuExportSampleDataForInstaller,
+		MenuExportCompileFilesInPool,
 		MenuFileQuit,
 		MenuEditUndo,
 		MenuEditRedo,
@@ -291,6 +292,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuExportSampleDataForInstaller:
 		setCommandTarget(result, "Export Samples for Installer", true, false, 'X', false);
+		break;
+	case MenuExportCompileFilesInPool:
+		setCommandTarget(result, "Export Pooled Files to Binary Resource", true, false, 'X', false);
 		break;
 	case MenuFileSettingsPreset:
 		setCommandTarget(result, "Preset Properties", true, false, 'X', false);
@@ -623,9 +627,10 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuExportFileAsPlugin:        exporter.exportMainSynthChainAsInstrument(); return true;
 	case MenuExportFileAsEffectPlugin:	exporter.exportMainSynthChainAsFX(); return true;
 	case MenuExportFileAsStandaloneApp: exporter.exportMainSynthChainAsStandaloneApp(); return true;
-    case MenuExportFileAsSnippet:       Actions::exportFileAsSnippet(bpe); return true;
+    case MenuExportFileAsSnippet:       Actions::exportFileAsSnippet(bpe->getBackendProcessor()); return true;
 	case MenuExportFileAsPlayerLibrary: Actions::exportMainSynthChainAsPlayerLibrary(bpe); return true;
 	case MenuExportSampleDataForInstaller: Actions::exportSampleDataForInstaller(bpe); return true;
+	case MenuExportCompileFilesInPool:	Actions::exportCompileFilesInPool(bpe); return true;
     case MenuAddView:                   Actions::addView(bpe); updateCommands();return true;
     case MenuDeleteView:                Actions::deleteView(bpe); updateCommands();return true;
     case MenuRenameView:                Actions::renameView(bpe); updateCommands();return true;
@@ -790,6 +795,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuExportFileAsSnippet);
 		ADD_DESKTOP_ONLY(MenuExportSampleDataForInstaller);
 		ADD_DESKTOP_ONLY(MenuFileSettingsCleanBuildDirectory);
+		ADD_DESKTOP_ONLY(MenuExportCompileFilesInPool);
 		break;
 	}
 	case BackendCommandTarget::ToolsMenu:
@@ -876,6 +882,23 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 }
 
 
+ValueTree getChildWithPropertyRecursive(const ValueTree& v, const Identifier& id, const var& value)
+{
+	auto r = v.getChildWithProperty(id, value);
+
+	if (r.isValid())
+		return r;
+
+	for (auto child : v)
+	{
+		r = getChildWithPropertyRecursive(child, id, value);
+
+		if (r.isValid())
+			return r;
+	}
+
+	return ValueTree();
+}
 
 void BackendCommandTarget::menuItemSelected(int menuItemID, int topLevelMenuIndex)
 {
@@ -974,6 +997,9 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int topLevelMenuInde
 	{
 		HiseDeviceSimulator::DeviceType newDevice = (HiseDeviceSimulator::DeviceType)(menuItemID - (int)MenuToolsDeviceSimulatorOffset);
 
+		bool copyMissing = HiseDeviceSimulator::getDeviceType() == HiseDeviceSimulator::DeviceType::Desktop &&
+						   newDevice != HiseDeviceSimulator::DeviceType::Desktop;
+
 		HiseDeviceSimulator::setDeviceType(newDevice);
 
 		auto mp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(owner);
@@ -982,10 +1008,85 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int topLevelMenuInde
 
 		if (mp != nullptr)
 		{
-			auto contentData = mp->getContent()->exportAsValueTree();
+			auto c = mp->getContent();
+
+
+			ValueTree oldContent;
+			Array<Identifier> idList;
+
+			if (copyMissing)
+			{
+				
+
+				oldContent = c->getContentProperties();
+				
+				for (int i = 0; i < c->getNumComponents(); i++)
+				{
+					auto cmp = c->getComponent(i);
+
+					//bool x = ScriptingApi::Content::Helpers::hasLocation(cmp);
+
+					if (cmp->getScriptObjectProperty(ScriptComponent::Properties::saveInPreset))
+					{
+						idList.add(cmp->getName());
+					}
+				}
+			}
+
+			auto contentData = c->exportAsValueTree();
 			mp->setDeviceTypeForInterface((int)newDevice);
 			mp->compileScript();
 			mp->getContent()->restoreFromValueTree(contentData);
+
+			if (copyMissing)
+			{
+				auto newContentProperties = c->getContentProperties();
+
+				Array<Identifier> missingIds;
+
+				for (const auto& id : idList)
+				{
+					if (c->getComponentWithName(id) == nullptr)
+					{
+						missingIds.add(id);
+					}
+				}
+				
+				if (!missingIds.isEmpty() && PresetHandler::showYesNoWindow("Missing components found", "There are some components in the desktop UI that are not available in the new UI. Press OK to query which components should be transferred."))
+				{
+					{
+						ValueTreeUpdateWatcher::ScopedDelayer sd(c->getUpdateWatcher());
+
+						for (const auto& id : missingIds)
+						{
+							if (PresetHandler::showYesNoWindow("Copy " + id.toString(), "Do you want to transfer this component?"))
+							{
+								auto v = getChildWithPropertyRecursive(oldContent, "id", id.toString());
+
+								if (v.isValid())
+								{
+									v = v.createCopy();
+									v.removeAllChildren(nullptr);
+
+									v.removeProperty("parentComponent", nullptr);
+
+									newContentProperties.addChild(v, -1, nullptr);
+									debugToConsole(mp, "Added " + id.toString() + " to " + HiseDeviceSimulator::getDeviceName());
+								}
+							}
+						}
+					}
+
+					mp->compileScript();
+				}
+
+				
+			}
+
+			
+
+
+
 		}
 
 	}
@@ -1615,9 +1716,9 @@ void BackendCommandTarget::Actions::collectExternalFiles(BackendRootWindow * bpe
 }
 
 
-void BackendCommandTarget::Actions::exportFileAsSnippet(BackendRootWindow* bpe)
+void BackendCommandTarget::Actions::exportFileAsSnippet(BackendProcessor* bp)
 {
-	ValueTree v = bpe->getMainSynthChain()->exportAsValueTree();
+	ValueTree v = bp->getMainSynthChain()->exportAsValueTree();
 
 	MemoryOutputStream mos;
 
@@ -1634,7 +1735,11 @@ void BackendCommandTarget::Actions::exportFileAsSnippet(BackendRootWindow* bpe)
 
 	SystemClipboard::copyTextToClipboard(data);
 
-	PresetHandler::showMessageWindow("Preset copied as compressed snippet", "You can paste the clipboard content to share this preset", PresetHandler::IconType::Info);
+	if (!MainController::inUnitTestMode())
+	{
+		PresetHandler::showMessageWindow("Preset copied as compressed snippet", "You can paste the clipboard content to share this preset", PresetHandler::IconType::Info);
+	}
+	
 }
 
 void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)
@@ -1737,7 +1842,6 @@ void BackendCommandTarget::Actions::createNewProject(BackendRootWindow *bpe)
 		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).createNewProject(f, bpe);
 
 		bpe->getBackendProcessor()->clearPreset();
-		bpe->getBackendProcessor()->createUserPresetData();
 		bpe->getBackendProcessor()->getSettingsObject().refreshProjectData();
 	}
 }
@@ -1784,8 +1888,6 @@ void BackendCommandTarget::Actions::loadProject(BackendRootWindow *bpe)
 		{
 			bpe->getBackendProcessor()->getSettingsObject().refreshProjectData();
 			bpe->getBackendProcessor()->clearPreset();
-			bpe->getBackendProcessor()->createUserPresetData();
-
 			loadFirstXmlAfterProjectSwitch(bpe);
 		}
 			
@@ -1814,10 +1916,6 @@ void BackendCommandTarget::Actions::closeProject(BackendRootWindow *bpe)
     if (!shouldDiscard) return;
     
 	GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(File(), bpe);
-
-
-	bpe->getBackendProcessor()->createUserPresetData();
-
 }
 
 void BackendCommandTarget::Actions::showProjectInFinder(BackendRootWindow *bpe)
@@ -2276,6 +2374,12 @@ void BackendCommandTarget::Actions::convertSampleMapToWavetableBanks(BackendRoot
 #endif
 }
 
+void BackendCommandTarget::Actions::exportCompileFilesInPool(BackendRootWindow* bpe)
+{
+	auto pet = new PoolExporter(bpe->getBackendProcessor());
+	pet->setModalBaseWindowComponent(bpe);
+}
+
 #undef REPLACE_WILDCARD
 #undef REPLACE_WILDCARD_WITH_STRING
 
@@ -2292,7 +2396,6 @@ bool BackendCommandTarget::Helpers::deviceTypeHasUIData(BackendRootWindow* bpe)
 		return false;
 
 	return mp->hasUIDataForDeviceType();
-
 }
 
 bool BackendCommandTarget::Helpers::canCopyDeviceType(BackendRootWindow* bpe)
@@ -2300,13 +2403,13 @@ bool BackendCommandTarget::Helpers::canCopyDeviceType(BackendRootWindow* bpe)
 	if (!HiseDeviceSimulator::isMobileDevice())
 		return false;
 
-
 	auto mp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(bpe->getBackendProcessor());
 
 	if (mp == nullptr)
 		return false;
 
 	return !mp->hasUIDataForDeviceType();
+	
 }
 
 } // namespace hise

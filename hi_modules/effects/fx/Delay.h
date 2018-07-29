@@ -118,7 +118,7 @@ public:
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override
 	{
-		EffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
+		MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
         
         leftDelay.prepareToPlay(sampleRate);
         rightDelay.prepareToPlay(sampleRate);
@@ -186,7 +186,15 @@ public:
 		FloatVectorOperations::addWithMultiply(buffer.getWritePointer(1, sampleIndex), rightDelayFrames.getReadPointer(0, sampleIndex), wetMix, samplesToCopy);
 	};
 
-	bool hasTail() const override {return false; };
+	bool hasTail() const override {return true; };
+
+	void voicesKilled() override
+	{
+		leftDelay.clear();
+		rightDelay.clear();
+		leftDelayFrames.clear();
+		rightDelayFrames.clear();
+	}
 
 	int getNumChildProcessors() const override { return 0; };
 

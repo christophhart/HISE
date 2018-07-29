@@ -200,6 +200,7 @@ bool SampleComponent::needsToBeDrawn()
 // =================================================================================================================== SamplerSoundMap
 
 SamplerSoundMap::SamplerSoundMap(ModulatorSampler *ownerSampler_):
+	PreloadListener(ownerSampler_->getMainController()->getSampleManager()),
 	ownerSampler(ownerSampler_),
 	handler(ownerSampler->getSampleEditHandler()),
 	notePosition(-1),
@@ -207,8 +208,6 @@ SamplerSoundMap::SamplerSoundMap(ModulatorSampler *ownerSampler_):
 	selectedSounds(new SelectedItemSet<WeakReference<SampleComponent>>()),
 	sampleLasso(new LassoComponent<WeakReference<SampleComponent>>())
 {
-	ownerSampler->getMainController()->getSampleManager().addPreloadListener(this);
-
     sampleLasso->setColour(LassoComponent<SampleComponent>::ColourIds::lassoFillColourId, Colours::white.withAlpha(0.1f));
     sampleLasso->setColour(LassoComponent<SampleComponent>::ColourIds::lassoOutlineColourId, Colour(SIGNAL_COLOUR));
     
@@ -234,7 +233,6 @@ SamplerSoundMap::~SamplerSoundMap()
 {
 	if (ownerSampler != nullptr)
 	{
-		ownerSampler->getMainController()->getSampleManager().removePreloadListener(this);
 		ownerSampler->getSampleMap()->removeListener(this);
 	}
 		
@@ -384,7 +382,7 @@ void SamplerSoundMap::samplePropertyWasChanged(ModulatorSamplerSound* s, const I
 {
 	auto index = s->getId();
 
-	if (SampleIds::isMapProperty(id) && index < sampleComponents.size())
+	if (SampleIds::Helpers::isMapProperty(id) && index < sampleComponents.size())
 	{
 		updateSampleComponent(index);
 	}
@@ -1074,7 +1072,7 @@ void MapWithKeyboard::mouseDown(const MouseEvent &e)
 
 	HiseEvent m(HiseEvent::Type::NoteOn, (uint8)lastNoteNumber, (uint8)velocity, 1);
 
-    ScopedLock sl(sampler->getSynthLock());
+    ScopedLock sl(sampler->getMainController()->getLock());
 	sampler->preHiseEventCallback(m);
 	sampler->noteOn(m);
 
@@ -1094,7 +1092,7 @@ void MapWithKeyboard::mouseUp(const MouseEvent &e)
 
 	sampler->preHiseEventCallback(m);
     
-    ScopedLock sl(sampler->getSynthLock());
+    ScopedLock sl(sampler->getMainController()->getLock());
 	sampler->noteOff(m);
 
 	lastNoteNumber = -1;
@@ -1108,12 +1106,11 @@ void MapWithKeyboard::mouseUp(const MouseEvent &e)
 
 SamplerSoundTable::SamplerSoundTable(ModulatorSampler *ownerSampler_, SampleEditHandler* handler)   :
 	SamplerSubEditor(handler),
+	PreloadListener(ownerSampler_->getMainController()->getSampleManager()),
 	font (GLOBAL_FONT()),
 	ownerSampler(ownerSampler_),
 	internalSelection(false)
 {
-	ownerSampler->getMainController()->getSampleManager().addPreloadListener(this);
-
     // Create our table component and add it to this component..
     addAndMakeVisible (table);
     table.setModel (this);
@@ -1138,18 +1135,17 @@ SamplerSoundTable::SamplerSoundTable(ModulatorSampler *ownerSampler_, SampleEdit
 	{
 		int i1, i2, i3 = 50;
 
-
-		if (c == SampleIds::ID)
-		{
-			i1 = 30;
-			i2 = 30;
-			i3 = 30;
-		}
-		else if (c == SampleIds::FileName)
+		if (c == SampleIds::FileName)
 		{
 			i1 = 320;
 			i2 = -1;
 			i3 = -1;
+		}
+		else
+		{
+			i1 = 30;
+			i2 = 30;
+			i3 = 30;
 		}
 
 		table.getHeader().addColumn(c.toString(), columnIds.indexOf(c)+1, i1, i2, i3, TableHeaderComponent::notResizable);
@@ -1168,7 +1164,6 @@ SamplerSoundTable::SamplerSoundTable(ModulatorSampler *ownerSampler_, SampleEdit
 
 SamplerSoundTable::~SamplerSoundTable()
 {
-	ownerSampler->getMainController()->getSampleManager().removePreloadListener(this);
 }
 
 void SamplerSoundTable::refreshList()

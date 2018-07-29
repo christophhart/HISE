@@ -48,7 +48,7 @@ public:
 
 protected:
 
-	ValueTree exportEmbeddedFiles(bool includeSampleMaps);
+	ValueTree exportEmbeddedFiles();
 	ValueTree exportUserPresetFiles();
 	ValueTree exportPresetFile();
 	
@@ -175,6 +175,15 @@ public:
 
 	void writeValueTreeToTemporaryFile(const ValueTree& v, const String &tempFolder, const String& childFile, bool compress=false);
 
+	template <class ProviderType> Result compressValueTree(const ValueTree& v, const String& tempFolder, const String& childFile)
+	{
+		File tf(tempFolder);
+		File target = tf.getChildFile(childFile);
+
+		zstd::ZCompressor<ProviderType> compressor;
+		return compressor.compress(v, target);
+	}
+
 	int getBuildOptionPart(const String& argument);
 
 	static void setExportingFromCommandLine()
@@ -239,7 +248,7 @@ private:
 
 	struct HeaderHelpers
 	{
-		static void addBasicIncludeLines(String& pluginDataHeaderFile);
+		static void addBasicIncludeLines(String& pluginDataHeaderFile, bool isIOS=false);
 		static void addAdditionalSourceCodeHeaderLines(CompileExporter* exporter, String& pluginDataHeaderFile);
 		static void addStaticDspFactoryRegistration(String& pluginDataHeaderFile, CompileExporter* exporter);
 		static void addCopyProtectionHeaderLines(const String &publicKey, String& pluginDataHeaderFile);

@@ -111,6 +111,39 @@ namespace hise { using namespace juce;
 #define LOG_SYNTH_EVENT(x)
 #endif
 
+#if HI_RUN_UNIT_TESTS
+#define jassert_skip_unit_test(x)
+#else
+#define jassert_skip_unit_test(x) jassert(x)
+#endif
+
+#define ENABLE_KILL_LOG 0
+
+#if ENABLE_KILL_LOG
+#define KILL_LOG(x) DBG(x)
+#else
+#define KILL_LOG(x)
+#endif
+
+#define LOG_KILL_EVENTS KILL_LOG
+
+#define CLEANUP_LOCK 0
+#define GLOBAL_LOCK_POS(x)
+
+#define jassert_message_thread jassert(MessageManager::getInstance()->currentThreadHasLockedMessageManager())
+#define jassert_locked_script_thread(mc) jassert(LockHelpers::isLockedBySameThread(mc, LockHelpers::ScriptLock));
+#define jassert_dispatched_message_thread(mc) jassert_message_thread; jassert(mc->getLockFreeDispatcher().isInDispatchLoop());
+#define jassert_sample_loading_thread(mc) jassert(mc->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::SampleLoadingThread);
+#define jassert_sample_loading_or_global_lock(mc) jassert(mc->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::SampleLoadingThread || mc->getKillStateHandler().globalLockIsActive());
+#define jassert_processor_idle jassert(!isOnAir() || !getMainController()->getKillStateHandler().isAudioRunning());
+#define jassert_global_lock(mc) jassert(mc->getKillStateHandler().globalLockIsActive());
+
+
+#define LOCK_PROCESSING_CHAIN(parent) LockHelpers::SafeLock itLock(parent->getMainController(), LockHelpers::IteratorLock, parent->isOnAir()); \
+								  LockHelpers::SafeLock audioLock(parent->getMainController(), LockHelpers::AudioLock, parent->isOnAir());
+
+#define REMOVE_READ_LOCK(x)
+#define REMOVE_SAMPLER_LOCK(x);
 
 #if JUCE_WINDOWS || JUCE_MAC || JUCE_IOS
 
@@ -170,7 +203,7 @@ class LinuxFontHandler
 #endif
 
 
-
+#if USE_BACKEND
 #define MARKDOWN_CHAPTER(chapter) namespace chapter {
 #define START_MARKDOWN(name) static const String name() { String content; static const String nl = "\n";
 #define ML(text) content << text << nl;
@@ -178,7 +211,15 @@ class LinuxFontHandler
 #define ML_END_CODE() ML("```")
 #define END_MARKDOWN() return content; };
 #define END_MARKDOWN_CHAPTER() }
-
+#else
+#define MARKDOWN_CHAPTER(chapter)
+#define START_MARKDOWN(name) 
+#define ML(text)
+#define ML_START_CODE() 
+#define ML_END_CODE() 
+#define END_MARKDOWN()
+#define END_MARKDOWN_CHAPTER()
+#endif
 
 #define HI_DECLARE_LISTENER_METHODS(x) public: \
 	void addListener(x* l) { listeners.addIfNotAlreadyThere(l); }\
@@ -187,6 +228,7 @@ class LinuxFontHandler
 	Array<WeakReference<x>> listeners;
 
 #define RETURN_STATIC_IDENTIFIER(name) static const Identifier id(name); return id;
+
 
 
 #define SET_GENERIC_PANEL_ID(x) static Identifier getGenericPanelId() { RETURN_STATIC_IDENTIFIER(x) }
@@ -341,6 +383,12 @@ private:
 #endif
 
 #define DEBUG_BG_COLOUR 0xff636363
+
+#if JUCE_ENABLE_AUDIO_GUARD
+#define LOCK_WITH_GUARD(mc) AudioThreadGuard guard(&(mc->getKillStateHandler())); GuardedScopedLock sl(mc->getLock());
+#else
+#define LOCK_WITH_GUARD(mc) ScopedLock sl(mc->getLock());
+#endif
 
 
 #if HISE_IOS

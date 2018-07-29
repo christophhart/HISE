@@ -61,7 +61,7 @@ struct MappingData
 
 // ====================================================================================================================
 
-#define DECLARE_ID(x) const Identifier x(#x);
+#define DECLARE_ID(x) const juce::Identifier x(#x);
 
 namespace SampleIds
 {
@@ -89,6 +89,11 @@ DECLARE_ID(UpperVelocityXFade);
 DECLARE_ID(SampleState);
 DECLARE_ID(Reversed);
 
+#undef DECLARE_ID
+
+struct Helpers
+{
+
 	static bool isMapProperty(const Identifier& id)
 	{
 		return id == Root || id == HiKey || id == LoKey || id == HiVel || id == LoVel || id == RRGroup;
@@ -100,7 +105,9 @@ DECLARE_ID(Reversed);
 			id == LoopStart || id == LoopEnd || id == LoopXFade;
 	}
 
-	const int numProperties = 23;
+};
+
+const int numProperties = 23;
 }
 
 
@@ -411,8 +418,8 @@ private:
 	std::atomic<float> gain;
 	std::atomic<double> pitchFactor;
 
-	float leftBalanceGain;
-	float rightBalanceGain;
+	float leftBalanceGain = 1.0f;
+	float rightBalanceGain = 1.0f;
 
 	BigInteger purgeChannels;
 
@@ -486,6 +493,11 @@ public:
 	void setDeactivatePoolSearch(bool shouldBeDeactivated)
 	{
 		searchPool = !shouldBeDeactivated;
+	}
+
+	void setAllowDuplicateSamples(bool shouldAllowDuplicateSamples)
+	{
+		allowDuplicateSamples = shouldAllowDuplicateSamples;
 	}
 
 	// ================================================================================================================
@@ -595,6 +607,8 @@ private:
     bool updatePool;
 	bool searchPool;
     
+	bool allowDuplicateSamples = true;
+
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModulatorSamplerSoundPool)
 };
 

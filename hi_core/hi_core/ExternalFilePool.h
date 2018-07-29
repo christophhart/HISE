@@ -257,7 +257,7 @@ public:
 
 		MemoryInputStream* createInputStream(const String& referenceString);
 
-		virtual Result writePool(OutputStream* ownedOutputStream);
+		virtual Result writePool(OutputStream* ownedOutputStream, double* progress=nullptr);
 
 		var createAdditionalData(PoolReference r);
 
@@ -373,7 +373,9 @@ private:
 
 		void handleAsyncUpdate() override
 		{
-			for (auto l : parent.listeners)
+			ScopedLock sl(parent.listeners.getLock());
+			
+			for (auto& l : parent.listeners)
 			{
 				if (l != nullptr)
 				{
@@ -402,7 +404,7 @@ private:
 	EventType lastType;
 	PoolReference lastReference;
 
-	Array<WeakReference<Listener>> listeners;
+	Array<WeakReference<Listener>, CriticalSection> listeners;
 
 	ScopedPointer<DataProvider> dataProvider;
 

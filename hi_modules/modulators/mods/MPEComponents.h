@@ -239,13 +239,16 @@ private:
 	Rectangle<int> topArea;
 	Rectangle<int> bottomArea;
 	Rectangle<int> bottomBar;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(MPEPanel);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MPEPanel);
 };
 
 
 
 class MPEKeyboard : public Component,
 	public MidiKeyboardStateListener,
-	public Timer,
+	public LockfreeAsyncUpdater,
 	public ButtonListener,
 	public KeyboardBase
 {
@@ -260,11 +263,11 @@ public:
 		numColoursIds
 	};
 
-	MPEKeyboard(MidiKeyboardState& state_);
+	MPEKeyboard(MainController* mc);
 
 	~MPEKeyboard();
 
-	void timerCallback() override;
+	void handleAsyncUpdate() override;
 
 	void handleNoteOn(MidiKeyboardState* /*source*/,
 		int midiChannel, int midiNoteNumber, float velocity);
@@ -343,7 +346,7 @@ public:
 
 private:
 
-	hise::LockfreeQueue<MidiMessage> pendingMessages;
+	MultithreadedLockfreeQueue<MidiMessage, MultithreadedQueueHelpers::Configuration::NoAllocationsNoTokenlessUsage> pendingMessages;
 
 	struct Note
 	{

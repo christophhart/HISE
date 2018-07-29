@@ -1426,10 +1426,6 @@ public:
 		{
 			float* inL = data[0];
 
-			const int samplesToCopy = numSamples;
-
-			
-
 			if (numChannels == 2)
 			{
 				float* inR = data[1];

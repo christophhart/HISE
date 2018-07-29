@@ -86,6 +86,24 @@ void ScriptCreatedComponentWrapper::changed(var newValue)
 	dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())->controlCallback(getScriptComponent(), newValue);
 }
 
+void ScriptCreatedComponentWrapper::asyncValueTreePropertyChanged(ValueTree& v, const Identifier& id)
+{
+	if (v != getScriptComponent()->getPropertyValueTree())
+		return;
+
+	jassert(v == getScriptComponent()->getPropertyValueTree());
+
+	auto idIndex = getScriptComponent()->getIndexForProperty(id);
+	auto value = v.getProperty(id);
+
+	if (idIndex == -1)
+	{
+		debugError(getProcessor(), "invalid property " + id.toString() + " with value: '" + value.toString() + "'");
+	}
+
+	updateComponent(idIndex, value);
+}
+
 void ScriptCreatedComponentWrapper::valueTreeParentChanged(ValueTree& /*v*/)
 {
 	contentComponent->updateComponentParent(this);
@@ -1000,15 +1018,15 @@ void ScriptCreatedComponentWrappers::TableWrapper::updateConnectedTable(TableEdi
 	if (oldTable != newTable) t->setEditedTable(newTable);
 }
 
-void ScriptCreatedComponentWrappers::TableWrapper::pointDragStarted(Point<int> position, float index, float value)
+void ScriptCreatedComponentWrappers::TableWrapper::pointDragStarted(Point<int> position, float pointIndex, float value)
 {
 	localPopupPosition = position.withY(position.getY() - 20);;
 
-	popupText = String(index) + " | " + String(roundFloatToInt(value*100.0f)) + "%";
+	popupText = String(pointIndex) + " | " + String(roundFloatToInt(value*100.0f)) + "%";
 
 	if (auto st = dynamic_cast<ScriptingApi::Content::ScriptTable*>(getScriptComponent()))
 	{
-		auto xName = st->getTable()->getXValueText(index);
+		auto xName = st->getTable()->getXValueText(pointIndex);
 		auto yName = st->getTable()->getYValueText(value);
 
 		popupText = xName + " | " + yName;
@@ -1022,11 +1040,11 @@ void ScriptCreatedComponentWrappers::TableWrapper::pointDragEnded()
 	closeValuePopupAfterDelay();
 }
 
-void ScriptCreatedComponentWrappers::TableWrapper::pointDragged(Point<int> position, float index, float value)
+void ScriptCreatedComponentWrappers::TableWrapper::pointDragged(Point<int> position, float pointIndex, float value)
 {
 	if (auto st = dynamic_cast<ScriptingApi::Content::ScriptTable*>(getScriptComponent()))
 	{
-		auto xName = st->getTable()->getXValueText(index);
+		auto xName = st->getTable()->getXValueText(pointIndex);
 		auto yName = st->getTable()->getYValueText(value);
 
 		popupText = xName + " | " + yName;
@@ -1553,7 +1571,7 @@ void ScriptCreatedComponentWrappers::PanelWrapper::updateValue(var newValue)
 	}
 	else
 	{
-		bpc->setVisible(sc->isShowing(true));
+		bpc->setVisible(sc->isShowing(false));
 		bpc->repaint();
 	}
 }
@@ -2258,7 +2276,7 @@ void ScriptCreatedComponentWrapper::ValuePopup::updateText()
 	{
 		currentText = thisText;
 
-		int margin = p->getLayoutData().margin;
+		int margin = (int)p->getLayoutData().margin;
 
 		int newWidth = p->getFont().getStringWidth(currentText) + 2 * margin + 5;
 

@@ -47,10 +47,6 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	keysPressed(0),
 	intensityModulationValue(1.0f),
 	frequencyModulationValue(1.0f),
-	frequencyChain(new ModulatorChain(mc, "LFO Frequency Mod", 1, Modulation::GainMode, this)),
-	intensityChain(new ModulatorChain(mc, "LFO Intensity Mod", 1, Modulation::GainMode, this)),
-    intensityBuffer(1, 0),
-    frequencyBuffer(1, 0),
 	customTable(new SampleLookupTable()),
 	data(new SliderPackData(mc->getControlUndoManager())),
 	currentWaveform((Waveform)(int)getDefaultValue(WaveFormType)),
@@ -63,7 +59,20 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	smoothingTime(getDefaultValue(SmoothingTime)),
 	updater(*this)
 {
+	modChains.reserve(2);
 	
+	modChains += {this, "LFO Intensity Mod"};
+	modChains += {this, "LFO Frequency Mod"};
+
+	modChains.finalise();
+
+
+	intensityChain = modChains[IntensityChain].getChain();
+	frequencyChain = modChains[FrequencyChain].getChain();
+
+	for (auto& mb : modChains)
+		mb.getChain()->setParentProcessor(this);
+
 	scaleFunction = [](float input) { return input * 2.0f - 1.0f; };
 
 	editorStateIdentifiers.add("IntensityChainShown");
@@ -78,7 +87,7 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	parameterNames.add(Identifier("NumSteps"));
 	parameterNames.add(Identifier("LoopEnabled"));
 
-	frequencyUpdater.setManualCountLimit(4096);
+	frequencyUpdater.setManualCountLimit(4096/HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR);
 
 	randomGenerator.setSeedRandomly();
 
@@ -131,6 +140,11 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 
 LfoModulator::~LfoModulator()
 {
+	intensityChain = nullptr;
+	frequencyChain = nullptr;
+
+	modChains.clear();
+
 	customTable->removeAllChangeListeners();
 	data->removeAllChangeListeners();
 	customTable = nullptr;
@@ -138,6 +152,46 @@ LfoModulator::~LfoModulator()
 	getMainController()->removeTempoListener(this);
 };
 
+
+void LfoModulator::restoreFromValueTree(const ValueTree &v)
+{
+	TimeVariantModulator::restoreFromValueTree(v);
+
+	loadAttribute(TempoSync, "TempoSync");
+
+	loadAttribute(Frequency, "Frequency");
+	loadAttribute(FadeIn, "FadeIn");
+	loadAttribute(WaveFormType, "WaveformType");
+	loadAttribute(Legato, "Legato");
+
+	loadAttribute(SmoothingTime, "SmoothingTime");
+
+	if (v.hasProperty("LoopEnabled"))
+		loadAttribute(LoopEnabled, "LoopEnabled");
+
+	loadTable(customTable, "CustomWaveform");
+
+	data->fromBase64(v.getProperty("StepData"));
+}
+
+juce::ValueTree LfoModulator::exportAsValueTree() const
+{
+	ValueTree v = TimeVariantModulator::exportAsValueTree();
+
+	saveAttribute(Frequency, "Frequency");
+	saveAttribute(FadeIn, "FadeIn");
+	saveAttribute(WaveFormType, "WaveformType");
+	saveAttribute(Legato, "Legato");
+	saveAttribute(TempoSync, "TempoSync");
+	saveAttribute(SmoothingTime, "SmoothingTime");
+	saveAttribute(LoopEnabled, "LoopEnabled");
+
+	saveTable(customTable, "CustomWaveform");
+
+	v.setProperty("StepData", data->toBase64(), nullptr);
+
+	return v;
+}
 
 ProcessorEditorBody *LfoModulator::createEditor(ProcessorEditor *parentEditor)
 {
@@ -208,31 +262,7 @@ float LfoModulator::getAttribute(int parameter_index) const
 		return -1.0f;
 	}
 
-};
-
-
-void LfoModulator::applyTimeModulation(AudioSampleBuffer &buffer, int startIndex, int samplesToCopy)
-{
-	float *dest = buffer.getWritePointer(0, startIndex);
-	float *mod = internalBuffer.getWritePointer(0, startIndex);
-
-	intensityChain->renderAllModulatorsAsMonophonic(intensityBuffer, startIndex, samplesToCopy);
-	
-	frequencyChain->renderAllModulatorsAsMonophonic(frequencyBuffer, startIndex, samplesToCopy);
-
-	if(frequencyUpdater.shouldUpdate(samplesToCopy))
-	{
-		frequencyModulationValue = frequencyBuffer.getReadPointer(0, startIndex)[0];
-		calcAngleDelta();
-	}
-
-	float *intens = intensityBuffer.getWritePointer(0, startIndex);
-	//FloatVectorOperations::multiply(intens, getIntensity(), samplesToCopy);
-
-	if(getMode() == GainMode)		TimeModulation::applyGainModulation( mod, dest, getIntensity(), intens, samplesToCopy);
-	else if(getMode() == PitchMode) TimeModulation::applyPitchModulation(mod, dest, getIntensity(), intens, samplesToCopy);
-
-};
+};;
 
 void LfoModulator::setInternalAttribute (int parameter_index, float newValue)
 {
@@ -307,6 +337,13 @@ void LfoModulator::getWaveformTableValues(int /*displayIndex*/, float const** ta
 	}
 }
 
+void LfoModulator::setBypassed(bool shouldBeBypassed, NotificationType notifyChangeHandler/* =dontSendNotification */) noexcept
+{
+	keysPressed = 0;
+
+	TimeVariantModulator::setBypassed(shouldBeBypassed, notifyChangeHandler);
+}
+
 float LfoModulator::calculateNewValue ()
 {
 	//const float newValue = (cosf (uptime)) * 0.5f + 0.5f;	
@@ -316,13 +353,21 @@ float LfoModulator::calculateNewValue ()
 	const int firstIndex = index & (SAMPLE_LOOKUP_TABLE_SIZE - 1);
 	const int nextIndex = (index +1) & (SAMPLE_LOOKUP_TABLE_SIZE - 1);
 
+	constexpr double ratio = 1.0 / (double)(SAMPLE_LOOKUP_TABLE_SIZE);
+
+	const int thisCycleIndex = (int)floor((uptime + angleDelta) * ratio);
+	
+	const bool wrap = thisCycleIndex != lastCycleIndex;
+
+	lastCycleIndex = thisCycleIndex;
+
 	float newValue;
 
 	if(currentWaveform == Waveform::Random)
 	{
 		jassert(currentTable == nullptr);
 
-		if(nextIndex - firstIndex != 1)
+		if(wrap)
 		{
 			currentRandomValue = randomGenerator.nextFloat();
 		}
@@ -332,31 +377,40 @@ float LfoModulator::calculateNewValue ()
 	}
 	else if (currentWaveform == Waveform::Steps)
 	{
-
-		if (lastSwapIndex != index && nextIndex - firstIndex != 1)
+		if (wrap)
 		{
-			lastSwapIndex = index;
-
-			if (!loopEnabled && (currentSliderIndex+1) == data->getNumSliders())
+			if (!loopEnabled && (currentSliderIndex + 1) == data->getNumSliders())
 			{
 				if (loopEndValue == -1.0f)
 					loopEndValue = 1.0f - data->getValue(data->getNumSliders() - 1);
 
 				currentSliderValue = loopEndValue;
+				newValue = loopEndValue;
 			}
 			else
 			{
-				currentSliderIndex = (currentSliderIndex + 1) % data->getNumSliders();
+				currentSliderIndex = thisCycleIndex % data->getNumSliders();
+
+				const float thisSliderValue = 1.0f - data->getValue(currentSliderIndex);
 
 				data->setDisplayedIndex(currentSliderIndex);
 
-				currentSliderValue = 1.0f - data->getValue(currentSliderIndex);
+				float v1 = thisSliderValue;
+				float v2 = currentSliderValue;
+
+				// Just ramp over two values
+				const float alpha = 0.5f;
+				const float invAlpha = 0.5f;
+
+				newValue = (invAlpha * v1 + alpha * v2);
+
+				currentSliderValue = thisSliderValue;
 			}
-
-			
 		}
-
-		newValue = currentSliderValue;
+		else
+		{
+			newValue = currentSliderValue;
+		}
 	}
 	else
 	{
@@ -406,20 +460,19 @@ void LfoModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 	{
 		CHECK_COPY_AND_RETURN_5(this);
 
-		ProcessorHelpers::increaseBufferIfNeeded(intensityBuffer, samplesPerBlock);
-		ProcessorHelpers::increaseBufferIfNeeded(frequencyBuffer, samplesPerBlock);
-
-		intensityChain->prepareToPlay(sampleRate, samplesPerBlock);
-		frequencyChain->prepareToPlay(sampleRate, samplesPerBlock);
+		for (auto& mb : modChains)
+			mb.prepareToPlay(sampleRate, samplesPerBlock);
 
 		setAttackRate(attack);
 
 		calcAngleDelta();
-		smoother.prepareToPlay(sampleRate);
+		smoother.prepareToPlay(getControlRate());
 		
 		smoother.setSmoothingTime(smoothingTime);
 
 		inputMerger.setManualCountLimit(10);
+
+		valueUpdater.setManualCountLimit(LFO_DOWNSAMPLING_FACTOR);
 
 		randomGenerator.setSeedRandomly();
 	}
@@ -428,10 +481,69 @@ void LfoModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 	intensityInterpolator.setStepAmount(samplesPerBlock);
 };
 
+void LfoModulator::calculateBlock(int startSample, int numSamples)
+{
+	
+	const int startIndex = startSample;
+	const int numValues = numSamples;
+
+	auto* modData = internalBuffer.getWritePointer(0, startSample);
+
+	while (--numSamples >= 0)
+	{
+		*modData++ = calculateNewValue();
+	}
+
+	const float newInputValue = ((int)(uptime) % SAMPLE_LOOKUP_TABLE_SIZE) / (float)SAMPLE_LOOKUP_TABLE_SIZE;
+
+	if (inputMerger.shouldUpdate() && currentWaveform == Custom)
+	{
+		const bool isLooped = (loopEnabled || uptime < (double)SAMPLE_LOOKUP_TABLE_SIZE);
+
+		if (isLooped)
+		{
+			sendTableIndexChangeMessage(false, customTable, newInputValue);
+		}
+		else
+			sendTableIndexChangeMessage(false, customTable, 1.0f);
+	}
+
+	float *mod = internalBuffer.getWritePointer(0, startIndex);
+
+	const int pseudoOffset = startIndex * HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+	const int pseudoSize = numValues * HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+
+	for (auto& mb : modChains)
+	{
+		mb.calculateMonophonicModulationValues(pseudoOffset, pseudoSize);
+		mb.calculateModulationValuesForCurrentVoice(0, pseudoOffset, pseudoSize);
+	}
+
+	if (frequencyUpdater.shouldUpdate(numValues))
+	{
+		frequencyModulationValue = modChains[FrequencyChain].getOneModulationValue(pseudoOffset);
+		calcAngleDelta();
+	}
+
+	
+	
+
+	if (auto intensityModValues = modChains[IntensityChain].getWritePointerForManualExpansion(pseudoOffset))
+	{
+		applyIntensityForGainValues(mod, 1.0f, intensityModValues, numValues);
+	}
+	else
+	{
+		const float intensityToUse = modChains[IntensityChain].getConstantModulationValue();
+
+		applyIntensityForGainValues(mod, intensityToUse, numValues);
+	}
+}
+
 void LfoModulator::handleHiseEvent(const HiseEvent &m)
 {
-	intensityChain->handleHiseEvent(m);
-	frequencyChain->handleHiseEvent(m);
+	for (auto& mb : modChains)
+		mb.handleHiseEvent(m);
 
 	if (m.isAllNotesOff())
 	{
@@ -442,7 +554,8 @@ void LfoModulator::handleHiseEvent(const HiseEvent &m)
 		if(legato == false || keysPressed == 0)
 		{
 			uptime = 0.0;
-			
+			lastCycleIndex = 0;
+
 			loopEndValue = -1.0f;
 
 			if (currentWaveform == Steps)
@@ -453,12 +566,11 @@ void LfoModulator::handleHiseEvent(const HiseEvent &m)
 				lastSwapIndex = -1;
 			}
 
-			
-			intensityChain->startVoice(0);
-			//intensityInterpolator.setValue(intensityChain->getConstantVoiceValue(0));
-			frequencyChain->startVoice(0);
+			for (auto& mb : modChains)
+				mb.startVoice(0);
+
 			resetFadeIn();
-			frequencyModulationValue = frequencyChain->getConstantVoiceValue(0);
+			frequencyModulationValue = modChains[FrequencyChain].getConstantModulationValue();
 			calcAngleDelta();
 		}
 
@@ -474,19 +586,20 @@ void LfoModulator::handleHiseEvent(const HiseEvent &m)
 
 		if(legato == false || keysPressed == 0)
 		{
-			intensityChain->stopVoice(0);
-			frequencyChain->stopVoice(0);
+			if(intensityChain->hasVoiceModulators())
+				intensityChain->stopVoice(0);
+
+			if(frequencyChain->hasVoiceModulators())
+				frequencyChain->stopVoice(0);
 		}
-
 	}
-
 }
 
 
 
 void LfoModulator::calcAngleDelta()
 {
-	const double sr = getSampleRate();
+	const double sr = getControlRate();
 
 	const float frequencyToUse = tempoSync ? TempoSyncer::getTempoInHertz(getMainController()->getBpm(), currentTempo) :
 		frequency;
@@ -494,7 +607,7 @@ void LfoModulator::calcAngleDelta()
 	const float cyclesPerSecond = frequencyToUse * frequencyModulationValue;
 	const double cyclesPerSample = (double)cyclesPerSecond / sr;
 
-	angleDelta = cyclesPerSample * (double)SAMPLE_LOOKUP_TABLE_SIZE;
+	angleDelta = cyclesPerSample * (double)(SAMPLE_LOOKUP_TABLE_SIZE);
 }
 
 float WaveformLookupTables::sineTable[SAMPLE_LOOKUP_TABLE_SIZE];

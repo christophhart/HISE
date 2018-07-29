@@ -448,19 +448,29 @@ void ScriptingObjects::ScriptingModulator::setIntensity(float newIntensity)
 {
 	if (checkValidObject())
 	{
-		if (m->getMode() == Modulation::GainMode)
+		auto mode = m->getMode();
+
+		if (mode == Modulation::GainMode)
 		{
 			const float value = jlimit<float>(0.0f, 1.0f, newIntensity);
 			m->setIntensity(value);
 
 			mod.get()->sendChangeMessage();
 		}
-		else
+		else if(mode == Modulation::PitchMode)
 		{
 			const float value = jlimit<float>(-12.0f, 12.0f, newIntensity);
 			const float pitchFactor = value / 12.0f;
 
 			m->setIntensity(pitchFactor);
+
+			mod.get()->sendChangeMessage();
+		}
+		else
+		{
+			const float value = jlimit<float>(-1.0f, 1.0f, newIntensity);
+
+			m->setIntensity(value);
 
 			mod.get()->sendChangeMessage();
 		}
@@ -473,16 +483,14 @@ float ScriptingObjects::ScriptingModulator::getIntensity() const
 {
 	if (checkValidObject())
 	{
-		if (m->getMode() == Modulation::GainMode)
-		{
-			return dynamic_cast<const Modulation*>(mod.get())->getIntensity();
-		}
-		else
+		if (m->getMode() == Modulation::PitchMode)
 		{
 			return dynamic_cast<const Modulation*>(mod.get())->getIntensity() * 12.0f;
 		}
-
-		
+		else
+		{
+			return dynamic_cast<const Modulation*>(mod.get())->getIntensity();
+		}
 	}
 
 	return 0.0f;
@@ -777,7 +785,14 @@ void ScriptingObjects::ScriptingEffect::restoreState(String base64State)
 {
 	if (checkValidObject())
 	{
+		SuspendHelpers::ScopedTicket ticket(effect->getMainController());
+
+		effect->getMainController()->getJavascriptThreadPool().killVoicesAndExtendTimeOut(dynamic_cast<JavascriptProcessor*>(getScriptProcessor()));
+
+		LockHelpers::freeToGo(effect->getMainController());
+
 		ProcessorHelpers::restoreFromBase64String(effect, base64State);
+
 	}
 }
 
@@ -1003,15 +1018,20 @@ ScriptingObjects::ScriptingEffect* ScriptingObjects::ScriptingSlotFX::setEffect(
 {
 	if(auto slot = getSlotFX())
     {
-        if(slot->setEffect(effectName))
-        {
-			return new ScriptingEffect(getScriptProcessor(), slot->getCurrentEffect());
-        }
-        else
-        {
-            reportScriptError("Invalid Effect Type");
-            RETURN_IF_NO_THROW(new ScriptingEffect(getScriptProcessor(), nullptr))
-        }
+		auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
+
+		{
+			SuspendHelpers::ScopedTicket ticket(slot->getMainController());
+
+			slot->getMainController()->getJavascriptThreadPool().killVoicesAndExtendTimeOut(jp);
+
+			LockHelpers::freeToGo(slot->getMainController());
+			slot->setEffect(effectName);
+		}
+
+		jassert(slot->getCurrentEffect()->getType() == Identifier(effectName));
+
+		return new ScriptingEffect(getScriptProcessor(), slot->getCurrentEffect());
     }
 	else
 	{
@@ -1799,20 +1819,47 @@ ScriptingObjects::TimerObject::~TimerObject()
 
 void ScriptingObjects::TimerObject::timerCallback()
 {
+	auto callback = getProperty("callback");
+
+	if (HiseJavascriptEngine::isJavascriptFunction(callback))
+	{
+        WeakReference<TimerObject> ref(this);
+        
+		auto f = [ref, callback](JavascriptProcessor* jp)
+		{
+            Result r = Result::ok();
+            
+            if(ref != nullptr)
+            {
+                
+                ref.get()->timerCallbackInternal(callback, r);
+            }
+			
+			return r;
+		};
+
+		auto mc = getScriptProcessor()->getMainController_();
+		mc->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::LowPriorityCallbackExecution, 
+											 dynamic_cast<JavascriptProcessor*>(getScriptProcessor()), 
+											 f);
+	}
+}
+
+void ScriptingObjects::TimerObject::timerCallbackInternal(const var& callback, Result& r)
+{
+	jassert(LockHelpers::isLockedBySameThread(getScriptProcessor()->getMainController_(), LockHelpers::ScriptLock));
+
 	var undefinedArgs;
 	var thisObject(this);
 	var::NativeFunctionArgs args(thisObject, &undefinedArgs, 0);
 
-	Result r = Result::ok();
+	auto engine = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine();
 
-    auto engine = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine();
-    
+	jassert(engine != nullptr);
+
 	if (engine != nullptr)
 	{
 		engine->maximumExecutionTime = RelativeTime(0.5);
-
-		auto callback = getProperty("callback");
-
 		engine->callExternalFunction(callback, args, &r);
 
 		if (r.failed())
@@ -2159,6 +2206,9 @@ void ScriptingObjects::GraphicsObject::drawText(String text, var area)
 
 	g->setFont(currentFont);
 
+	LockHelpers::SafeUnlock unlock(getScriptProcessor()->getMainController_(), LockHelpers::Type::ScriptLock);
+	MessageManagerLock mm;
+
 	g->drawText(text, r, Justification::centred);
 }
 
@@ -2177,6 +2227,9 @@ void ScriptingObjects::GraphicsObject::drawAlignedText(String text, var area, St
 
 
 	g->setFont(currentFont);
+
+	LockHelpers::SafeUnlock unlock(getScriptProcessor()->getMainController_(), LockHelpers::Type::ScriptLock);
+	MessageManagerLock mm;
 
 	g->drawText(text, r, just);
 }
@@ -2510,7 +2563,7 @@ ApiHelpers::ModuleHandler::ModuleHandler(Processor* parent_) :
 {
 #if USE_BACKEND
 
-	auto console = parent->getMainController()->getConsoleHandler().getMainConsole();
+	auto console = parent != nullptr ? parent->getMainController()->getConsoleHandler().getMainConsole() : nullptr;
 
 	if (console)
 		mainEditor = GET_BACKEND_ROOT_WINDOW(console);
@@ -2540,7 +2593,22 @@ bool ApiHelpers::ModuleHandler::removeModule(Processor* p)
 
 	if (p != nullptr)
 	{
-		parent->getMainController()->getGlobalAsyncModuleHandler().removeAsync(p, mainEditor);
+		auto removeFunction = [](Processor* p)
+		{
+			auto c = dynamic_cast<Chain*>(p->getParentProcessor(false));
+
+			jassert(c != nullptr);
+
+			if (c == nullptr)
+				return SafeFunctionCall::cancelled;
+
+			// Remove it but don't delete it
+			c->getHandler()->remove(p, false);
+
+			return SafeFunctionCall::OK;
+		};
+
+		parent->getMainController()->getGlobalAsyncModuleHandler().removeAsync(p, removeFunction);
 		return true;
 	}
 	else
@@ -2549,12 +2617,7 @@ bool ApiHelpers::ModuleHandler::removeModule(Processor* p)
 
 Processor* ApiHelpers::ModuleHandler::addModule(Chain* c, const String& type, const String& id, int index /*= -1*/)
 {
-	
-
-	if (dynamic_cast<Processor*>(c)->getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::AudioThread)
-	{
-		throw String("Modules can't be added from the audio thread!");
-	}
+	WARN_IF_AUDIO_THREAD(true, IllegalAudioThreadOps::HeapBlockAllocation);
 
 	for (int i = 0; i < c->getHandler()->getNumProcessors(); i++)
 	{
@@ -2572,9 +2635,30 @@ Processor* ApiHelpers::ModuleHandler::addModule(Chain* c, const String& type, co
 	// Now we're safe...
 	Processor* pFree = newProcessor.release();
 
-	parent->getMainController()->getGlobalAsyncModuleHandler().addAsync(c, pFree, mainEditor, type, id, index);
+	auto addFunction = [c, index](Processor* p)
+	{
+		if (c == nullptr)
+		{
+			delete p; // Rather bad...
+			jassertfalse;
+			return SafeFunctionCall::OK;
+		}
 
-	// will be owned by the job, than by the handler...
+		if (index >= 0 && index < c->getHandler()->getNumProcessors())
+		{
+			Processor* sibling = c->getHandler()->getProcessor(index);
+			c->getHandler()->add(p, sibling);
+		}
+		else
+			c->getHandler()->add(p, nullptr);
+
+		return SafeFunctionCall::OK;
+	};
+	
+
+	parent->getMainController()->getGlobalAsyncModuleHandler().addAsync(pFree, addFunction);
+
+	// will be owned by the job, then by the handler...
 	return pFree;
 }
 

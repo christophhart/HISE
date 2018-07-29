@@ -175,6 +175,10 @@ public:
     /** Overwrite this and return your API class name (which will be the name in Javascript for the object).*/
 	virtual Identifier getName() const = 0;
 
+	/** You can overwrite this method and return true if you want to allow illegal calls that would otherwise
+	*	fire a warning. This is eg. used in the Console class to prevent firing when debugging. */
+	virtual bool allowIllegalCallsOnAudioThread(int /*functionIndex*/) const { return false; }
+
 	// ================================================================================================================
 
     /** Adds a constant. You can give it a name (it must be a valid Identifier) and a value and will be resolved at

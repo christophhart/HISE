@@ -116,6 +116,28 @@ void PitchwheelModulator::setInternalAttribute (int parameter_index, float newVa
 };
 
 
+void PitchwheelModulator::calculateBlock(int startSample, int numSamples)
+{
+	const bool smoothThisBlock = fabsf(targetValue - currentValue) > 0.001f;
+
+	if (smoothThisBlock)
+	{
+		while (--numSamples >= 0)
+		{
+			currentValue = smoother.smooth(targetValue);
+			internalBuffer.setSample(0, startSample, currentValue);
+			++startSample;
+		}
+	}
+	else
+	{
+		currentValue = targetValue;
+		FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), currentValue, numSamples);
+	}
+
+	if (useTable) sendTableIndexChangeMessage(false, table, inputValue);
+}
+
 float PitchwheelModulator::calculateNewValue ()
 {
 	currentValue = (fabsf(targetValue - currentValue) < 0.001) ? targetValue : smoother.smooth(targetValue);

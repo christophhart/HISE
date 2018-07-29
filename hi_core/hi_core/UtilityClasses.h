@@ -70,6 +70,78 @@ public:
 };
 
 
+/** This is a non allocating alternative to the AsyncUpdater.
+*
+*	If you're creating a lot of these object's, it will clog the Timer thread,
+*	but for single objects that need an update once in a while, it's better,
+*	because it won't post a update message that needs to be allocated.
+*/
+class LockfreeAsyncUpdater
+{
+public:
+
+	virtual ~LockfreeAsyncUpdater();
+
+	virtual void handleAsyncUpdate() = 0;
+
+	void triggerAsyncUpdate();
+	void cancelPendingUpdate();
+
+protected:
+
+	LockfreeAsyncUpdater();
+
+private:
+
+	struct TimerPimpl : private Timer
+	{
+		explicit TimerPimpl(LockfreeAsyncUpdater* p_) :
+			parent(*p_)
+		{
+			dirty = false;
+			startTimer(30);
+		}
+
+		~TimerPimpl()
+		{
+			dirty = false;
+			stopTimer();
+		}
+
+		void timerCallback() override
+		{
+			bool v = true;
+			if (dirty.compare_exchange_strong(v, false))
+			{
+				parent.handleAsyncUpdate();
+			}
+		}
+
+		void triggerAsyncUpdate()
+		{
+			dirty.store(true);
+		};
+
+		void cancelPendingUpdate()
+		{
+			dirty.store(false);
+		};
+
+	private:
+
+		LockfreeAsyncUpdater & parent;
+		std::atomic<bool> dirty;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TimerPimpl);
+	};
+
+	TimerPimpl pimpl;
+
+	static int instanceCount;
+};
+
+
+
 class SafeChangeBroadcaster;
 
 /** A class for message communication between objects.
@@ -96,6 +168,25 @@ private:
 	WeakReference<SafeChangeListener>::Master masterReference;
 };
 
+/** A base class for objects that need to call dispatched messages. */
+struct Dispatchable
+{
+	enum class Status
+	{
+		OK = 0,
+		notExecuted,
+		needsToRunAgain,
+		cancelled
+	};
+
+	using Function = std::function<Status(Dispatchable* obj)>;
+
+	virtual ~Dispatchable() {};
+
+private:
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(Dispatchable);
+};
 
 /** This class is used to coallescate multiple calls to an asynchronous update for a given Listener.
 *
@@ -104,25 +195,18 @@ private:
 *
 *	In order to use this class, just create an instance and pass this to your subclassed listeners, which then
 *	can be used just like the standard AsyncUpdater from JUCE.
-*
-*	Another nice feature is that you can use the same mechanism to call a function asynchronously by passing
-*	a lambda to callFunctionAsynchronously.
 */
-class UpdateDispatcher : public AsyncUpdater,
-						 private Timer
+class UpdateDispatcher : private Timer
 {
 public:
 
-	UpdateDispatcher(MainController* mc_) :
-		mc(mc_),
-		pendingListeners(8192),
-		pendingFunctions(1024)
-	{};
+	UpdateDispatcher(MainController* mc_);;
 
 	~UpdateDispatcher()
 	{
-		cancelPendingUpdate();
-		masterReference.clear();
+		pendingListeners.clear();
+
+		stopTimer();
 	}
 
 	/** This class contains the sender logic of the UpdateDispatcher scheme.
@@ -135,12 +219,7 @@ public:
 	{
 	public:
 
-		Listener(UpdateDispatcher* dispatcher_) :
-			dispatcher(dispatcher_),
-			pending(false)
-		{
-
-		};
+		Listener(UpdateDispatcher* dispatcher_);;
 
 		virtual ~Listener()
 		{
@@ -149,28 +228,19 @@ public:
 
 		virtual void handleAsyncUpdate() = 0;
 
-		virtual void cancelPendingUpdate()
+		void cancelPendingUpdate()
 		{
 			if (!pending)
 				return;
-			
-			if(dispatcher != nullptr)
-				dispatcher->cancelPendingUpdateForListener(this);
+
+			cancelled.store(true);
 		}
 
-		virtual void triggerAsyncUpdate()
-		{
-			if (pending)
-				return;
-
-			pending = true;
-
-			if (dispatcher != nullptr)
-				dispatcher->triggerAsyncUpdateForListener(this);
-		}
+		void triggerAsyncUpdate();
 
 	private:
 
+		std::atomic<bool> cancelled;
 		std::atomic<bool> pending;
 
 		friend class WeakReference<Listener>;
@@ -181,51 +251,19 @@ public:
 		WeakReference<UpdateDispatcher> dispatcher;
 	};
 
-	using Func = std::function<void(void)>;
-
-	void triggerAsyncUpdateForListener(Listener* l)
-	{
-		const bool ok = pendingListeners.push(l);
-
-		jassert(ok);
-        ignoreUnused(ok);
-        
-        
-		triggerAsyncUpdate();
-	}
-
-	void callFunctionAsynchronously(const Func& f)
-	{
-		pendingFunctions.push(Func(f));
-
-		triggerAsyncUpdate();
-	}
-
-	void cancelPendingUpdateForListener(Listener* l)
-	{
-		cancelledListeners.addIfNotAlreadyThere(l);
-	}
-
 private:
 
+	void triggerAsyncUpdateForListener(Listener* l);
+
+	MultithreadedLockfreeQueue<WeakReference<Listener>, MultithreadedQueueHelpers::Configuration::NoAllocationsTokenlessUsageAllowed> pendingListeners;
+
 	void timerCallback() override;
-	void handleAsyncUpdate() override;
-
-	void handlePendingListeners();
-
-	friend class WeakReference<UpdateDispatcher>;
-	WeakReference<UpdateDispatcher>::Master masterReference;
-
-	
 
 	friend class Listener;
 
 	MainController* mc;
 
-	Array<WeakReference<Listener>> cancelledListeners;
-
-	hise::LockfreeQueue<WeakReference<Listener>> pendingListeners;
-	hise::LockfreeQueue<Func> pendingFunctions;
+	JUCE_DECLARE_WEAK_REFERENCEABLE(UpdateDispatcher);
 };
 
 /** This class can be used to listen to ValueTree property changes asynchronously.
@@ -247,11 +285,7 @@ public:
 
 	void valueTreePropertyChanged(ValueTree& v, const Identifier& id) final override
 	{
-		{
-			ScopedLock sl(arrayLock);
-			pendingPropertyChanges.addIfNotAlreadyThere(PropertyChange(v, id));
-		}
-		
+		pendingPropertyChanges.addIfNotAlreadyThere(PropertyChange(v, id));
 		asyncHandler.triggerAsyncUpdate();
 	};
 
@@ -287,15 +321,9 @@ private:
 
 		void handleAsyncUpdate() override
 		{
-			Array<PropertyChange> thisTime;
-
+			while (!parent.pendingPropertyChanges.isEmpty())
 			{
-				ScopedLock sl(parent.arrayLock);
-				thisTime.swapWith(parent.pendingPropertyChanges);
-			}
-
-			for (auto& pc : thisTime)
-			{
+				auto pc = parent.pendingPropertyChanges.removeAndReturn(0);
 				parent.asyncValueTreePropertyChanged(pc.v, pc.id);
 			}
 		}
@@ -303,13 +331,73 @@ private:
 		AsyncValueTreePropertyListener& parent;
 	};
 
-	CriticalSection arrayLock;
-
 	ValueTree state;
 	WeakReference<UpdateDispatcher> dispatcher;
 	AsyncHandler asyncHandler;
 
-	Array<PropertyChange> pendingPropertyChanges;
+	Array<PropertyChange, CriticalSection> pendingPropertyChanges;
+};
+
+template <int Offset, int Length> class StackTrace
+{
+public:
+
+	StackTrace():
+		id(0)
+	{
+		for (int i = 0; i < Length; i++)
+			stackTrace[i] = {};
+	}
+
+	bool operator ==(const StackTrace& other) const noexcept
+	{
+		return id == other.id;
+	}
+
+	StackTrace(StackTrace&& other) noexcept
+	{
+		id = other.id;
+
+		for (int i = 0; i < Length; i++)
+			stackTrace[i].swap(other.stackTrace[i]);
+	}
+
+	StackTrace& operator=(StackTrace&& other) noexcept
+	{
+		id = other.id;
+
+		
+
+		for (int i = 0; i < Length; i++)
+			stackTrace[i].swap(other.stackTrace[i]);
+
+		return *this;
+	}
+
+	StackTrace(uint16 id_, bool createStackTrace=true):
+		id(id_)
+	{
+		if (createStackTrace)
+		{
+			auto full = StringArray::fromLines(SystemStats::getStackBacktrace());
+
+			for (int i = Offset; i < Offset + Length; i++)
+			{
+				stackTrace[i - Offset] = full.strings[i].toStdString();
+			}
+		}
+		else
+		{
+			for (int i = 0; i < Length; i++)
+				stackTrace[i] = {};
+		}
+		
+	}
+
+	uint16 id;
+	std::string stackTrace[Length];
+
+	JUCE_DECLARE_NON_COPYABLE(StackTrace);
 };
 
 
@@ -1083,7 +1171,7 @@ public:
         return !isAUv3();
 #else
       
-#if IS_STANDALONE_FRONTEND || USE_BACKEND
+#if IS_STANDALONE_FRONTEND || (USE_BACKEND && IS_STANDALONE_APP)
         return true;
 #else
         return false;
@@ -1178,20 +1266,45 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DelayedFunctionCaller);
 };
 
-using ProcessorFunction = std::function<bool(Processor*)>;
+
 
 struct SafeFunctionCall
 {
-	SafeFunctionCall(Processor* p_, const ProcessorFunction& f_);
+	enum Status
+	{
+		OK = 0,
+		cancelled,
+		interuptedByMessageThread,
+		processorWasDeleted,
+		nullPointerCall,
+		numStatuses
+	};
 
-	SafeFunctionCall();;
+	using Function = std::function<Status(Processor*)>;
 
-	bool call();
+	SafeFunctionCall(Processor* p_, const Function& f_) noexcept;
 
-	ProcessorFunction f;
+	SafeFunctionCall() noexcept;;
+
+	Status call() const;
+
+	bool isValid() const noexcept { return (bool)f; };
+
+	Result callWithResult() const
+	{
+		auto r = call();
+
+		if (r == OK)
+			return Result::ok();
+
+		return Result::fail(String(r));
+	}
+
+	Function f;
 	WeakReference<Processor> p;
 };
 
+using ProcessorFunction = SafeFunctionCall::Function;
 
 #if USE_VDSP_FFT
 

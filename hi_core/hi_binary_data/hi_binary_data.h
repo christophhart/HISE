@@ -36,6 +36,7 @@
 #include "FrontendBinaryData.h"
 #include "ProcessorEditorHeaderBinaryData.h"
 #include "LookAndFeelBinaryData.h"
+#include "BinaryDataDictionaries.h"
 
 namespace EditorIcons
 {

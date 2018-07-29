@@ -44,7 +44,9 @@ public:
 
 	EmptyFX(MainController *mc, const String &uid) :
 		MasterEffectProcessor(mc, uid)
-	{};
+	{
+		finaliseModChains();
+	};
 
 	~EmptyFX()
 	{};
@@ -57,6 +59,13 @@ public:
 	int getNumInternalChains() const override { return 0; };
 	int getNumChildProcessors() const override { return 0; };
 
+	void setSoftBypass(bool shouldBeSoftBypassed, bool useRamp/* =true */) override {};
+
+	bool isFadeOutPending() const noexcept override
+	{
+		return false;
+	}
+
 	Processor *getChildProcessor(int /*processorIndex*/) override
 	{
 		return nullptr;
@@ -68,11 +77,6 @@ public:
 	};
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
-
-	void prepareToPlay(double /*sampleRate*/, int /*samplesPerBlock*/)
-	{
-
-	}
 
 	void applyEffect(AudioSampleBuffer &/*b*/, int /*startSample*/, int /*numSamples*/)
 	{
@@ -125,18 +129,6 @@ public:
 	void restoreFromValueTree(const ValueTree &v) override;;
 	ValueTree exportAsValueTree() const override;
 
-	AudioSampleBuffer &getBufferForChain(int index) override
-	{
-		switch (index)
-		{
-		case GainChain: return gainBuffer;
-		case DelayChain: return delayBuffer;
-		case WidthChain: return widthBuffer;
-		case BalanceChain: return balanceBuffer;
-		default: jassertfalse; return gainBuffer;
-		}
-	}
-	
 	bool hasTail() const override { return false; };
 
 	Processor *getChildProcessor(int processorIndex) override
@@ -184,21 +176,16 @@ private:
     float delay;
 	float balance;
 
-	ScopedPointer<ModulatorChain> gainChain;
-    ScopedPointer<ModulatorChain> delayChain;
-    ScopedPointer<ModulatorChain> widthChain;
-	ScopedPointer<ModulatorChain> balanceChain;
+	ModulatorChain* gainChain;
+    ModulatorChain* delayChain;
+    ModulatorChain* widthChain;
+	ModulatorChain* balanceChain;
 
 	LinearSmoothedValue<float> smoothedGainL;
 	LinearSmoothedValue<float> smoothedGainR;
 	Smoother smoother;
 	Smoother balanceSmoother;
 
-	AudioSampleBuffer gainBuffer;
-    AudioSampleBuffer delayBuffer;
-    AudioSampleBuffer widthBuffer;
-	AudioSampleBuffer balanceBuffer;
-    
     MidSideDecoder msDecoder;
     
     DelayLine leftDelay;

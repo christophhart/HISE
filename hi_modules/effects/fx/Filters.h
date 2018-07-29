@@ -141,7 +141,8 @@ private:
 
 
 class PolyFilterEffect: public VoiceEffectProcessor,
-						public FilterEffect
+						public FilterEffect,
+						public ModulatorChain::Handler::Listener
 {
 public:
 
@@ -165,6 +166,10 @@ public:
 
 	PolyFilterEffect(MainController *mc, const String &uid, int numVoices);;
 
+	~PolyFilterEffect();
+
+	void processorChanged(EventType t, Processor* p) override;
+
 	float getAttribute(int parameterIndex) const override;;
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
 	float getDefaultValue(int parameterIndex) const override;
@@ -176,12 +181,9 @@ public:
 	int getNumChildProcessors() const override { return numInternalChains; };
 	Processor *getChildProcessor(int processorIndex) override;;
 	const Processor *getChildProcessor(int processorIndex) const override;;
-	AudioSampleBuffer & getBufferForChain(int index);;
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;;
-	void renderNextBlock(AudioSampleBuffer &/*b*/, int /*startSample*/, int /*numSample*/) { }
-	/** Calculates the frequency chain and sets the q to the current value. */
-	void preVoiceRendering(int voiceIndex, int startSample, int numSamples);
+	void renderNextBlock(AudioSampleBuffer &/*b*/, int /*startSample*/, int /*numSample*/);
 	void applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) override;
 	/** Resets the filter state if a new voice is started. */
 	void startVoice(int voiceIndex, int noteNumber) override;
@@ -191,21 +193,33 @@ public:
 
 	IIRCoefficients getCurrentCoefficients() const override;;
 
+	bool hasPolyMods() const noexcept;
+
 private:
+
+	
+
+	bool blockIsActive = false;
+	int polyWatchdog = 0;
+
+
+	BlockDivider<64> monoDivider;
+
+	bool polyMode = false;
+
+	FilterBank::FilterMode mode;
+	float frequency;
+	float q;
+	float gain;
+
+	
 
 	bool changeFlag;
 
 	float bipolarIntensity = 0.0f;
 
 	FilterBank voiceFilters;
-
-	ScopedPointer<ModulatorChain> freqChain;
-	ScopedPointer<ModulatorChain> gainChain;
-	ScopedPointer<ModulatorChain> bipolarFreqChain;
-
-	AudioSampleBuffer timeVariantFreqModulatorBuffer;
-	AudioSampleBuffer timeVariantGainModulatorBuffer;
-	AudioSampleBuffer timeVariantBipolarFreqModulatorBuffer;
+	FilterBank monoFilters;
 
 	mutable WeakReference<Processor> ownerSynthForCoefficients;
 };

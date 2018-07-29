@@ -36,45 +36,6 @@ namespace hise { using namespace juce;
 #define IS_SETTING_TRUE(id) (bool)dataObject.getSetting(id) == true
 
 
-void loadOtherReferencedImages(ModulatorSynthChain* chainToExport)
-{
-	auto mc = chainToExport->getMainController();
-
-	auto& handler = GET_PROJECT_HANDLER(chainToExport);
-
-	const bool hasCustomSkin = handler.getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("keyboard").isDirectory();
-
-	if (!hasCustomSkin)
-		return;
-
-	auto pool = mc->getCurrentImagePool(true);
-
-	Array<PooledImage> images;
-
-	for (int i = 0; i < 12; i++)
-	{
-		PoolReference upRef(mc, "{PROJECT_FOLDER}keyboard/up_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
-
-		jassert(upRef.isValid());
-
-		images.add(pool->loadFromReference(upRef, PoolHelpers::LoadAndCacheStrong));
-		
-		PoolReference downRef(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
-
-		jassert(downRef.isValid());
-
-		images.add(pool->loadFromReference(downRef, PoolHelpers::LoadAndCacheStrong));
-	}
-
-	const bool hasAboutPageImage = handler.getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("about.png").existsAsFile();
-
-	if (hasAboutPageImage)
-	{
-		PoolReference aboutRef(mc, "{PROJECT_FOLDER}about.png", ProjectHandler::SubDirectories::Images);
-
-		images.add(pool->loadFromReference(aboutRef, PoolHelpers::LoadAndCacheStrong));
-	}
-}
 
 ValueTree BaseExporter::exportUserPresetFiles()
 {
@@ -125,7 +86,7 @@ ValueTree BaseExporter::exportUserPresetFiles()
 	
 }
 
-ValueTree BaseExporter::exportEmbeddedFiles(bool includeSampleMaps)
+juce::ValueTree BaseExporter::exportEmbeddedFiles()
 {
 	ValueTree externalScriptFiles = FileChangeListener::collectAllScriptFiles(chainToExport);
 	ValueTree customFonts = chainToExport->getMainController()->exportCustomFontsAsValueTree();
@@ -235,7 +196,9 @@ String CompileExporter::getCompileResult(ErrorCodes result)
 
 void CompileExporter::writeValueTreeToTemporaryFile(const ValueTree& v, const String &tempFolder, const String& childFile, bool compress)
 {
-	PresetHandler::writeValueTreeAsFile(v, File(tempFolder).getChildFile(childFile).getFullPathName(), compress); ;
+	auto file = File(tempFolder).getChildFile(childFile);
+
+	PresetHandler::writeValueTreeAsFile(v, file.getFullPathName(), compress); ;
 }
 
 
@@ -504,74 +467,100 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 		if (result != ErrorCodes::OK) return result;
 
-		const String directoryPath = File(solutionDirectory).getChildFile("temp/").getFullPathName();
+		auto tempDirectory = File(solutionDirectory).getChildFile("temp/");
+
+		const String directoryPath = tempDirectory.getFullPathName();
 
 		convertTccScriptsToCppClasses();
-		writeValueTreeToTemporaryFile(exportPresetFile(), directoryPath, "preset");
+
+		compressValueTree<PresetDictionaryProvider>(exportPresetFile(), directoryPath, "preset");
 
 #if DONT_EMBED_FILES_IN_FRONTEND
 		const bool embedFiles = false;
 #else
 		// Don't embedd external files on iOS for quicker loading times...
-		const bool embedFiles = !BuildOptionHelpers::isIOS(option);
+        const bool embedFiles = false; //!BuildOptionHelpers::isIOS(option);
 #endif
 
 		// Embed the user presets and extract them on first load
-		writeValueTreeToTemporaryFile(UserPresetHelpers::collectAllUserPresets(chainToExport), directoryPath, "userPresets", true);
+		compressValueTree<UserPresetDictionaryProvider>(UserPresetHelpers::collectAllUserPresets(chainToExport), directoryPath, "userPresets");
 
 		// Always embed scripts and fonts, but don't embed samplemaps
-		writeValueTreeToTemporaryFile(exportEmbeddedFiles(embedFiles && type != TargetTypes::EffectPlugin), directoryPath, "externalFiles", true);
+		compressValueTree<JavascriptDictionaryProvider>(exportEmbeddedFiles(), directoryPath, "externalFiles");
 
-		
+		auto& handler = GET_PROJECT_HANDLER(chainToExport);
+
+		auto iof = handler.getTempFileForPool(FileHandlerBase::Images);
+		auto sof = handler.getTempFileForPool(FileHandlerBase::AudioFiles);
+		auto smof = handler.getTempFileForPool(FileHandlerBase::SampleMaps);
+
+		bool alreadyExported = iof.existsAsFile() || sof.existsAsFile() || smof.existsAsFile();
+
+		if (!alreadyExported)
+		{
+			handler.exportAllPoolsToTemporaryDirectory(chainToExport, nullptr);
+		}
+
+		File imageOutputFile, sampleOutputFile, samplemapFile;
 
 		if (embedFiles)
 		{
-			File imageOutputFile, sampleOutputFile, samplemapFile;
+			samplemapFile = tempDirectory.getChildFile("samplemaps");
 
-			samplemapFile = File(directoryPath + "/samplemaps");
+			if (smof.existsAsFile())
+				smof.copyFileTo(samplemapFile);
+			else
+				return ErrorCodes::CompileError;
 
 			if (IS_SETTING_TRUE(HiseSettings::Project::EmbedAudioFiles))
 			{
-				imageOutputFile = File(directoryPath + "/images");
-				sampleOutputFile = File(directoryPath + "/impulses");
-				
+				imageOutputFile = tempDirectory.getChildFile("images");
+				sampleOutputFile = tempDirectory.getChildFile("impulses");
+
+				if (iof.existsAsFile())
+					iof.copyFileTo(imageOutputFile);
+				else
+					return ErrorCodes::CompileError;
+
+				if (sof.existsAsFile())
+					sof.copyFileTo(sampleOutputFile);
+				else
+					return ErrorCodes::CompileError;
 			}
-			else
-			{
-				imageOutputFile = GET_PROJECT_HANDLER(chainToExport).getRootFolder().getChildFile("ImageResources.dat");
-				sampleOutputFile = GET_PROJECT_HANDLER(chainToExport).getRootFolder().getChildFile("AudioResources.dat");
-			}
-
-			loadOtherReferencedImages(chainToExport);
-
-			sampleOutputFile.deleteFile();
-			imageOutputFile.deleteFile();
-			samplemapFile.deleteFile();
-
-			chainToExport->getMainController()->getCurrentAudioSampleBufferPool(true)->getDataProvider()->writePool(new FileOutputStream(sampleOutputFile));
-			chainToExport->getMainController()->getCurrentImagePool(true)->getDataProvider()->writePool(new FileOutputStream(imageOutputFile));
-			chainToExport->getMainController()->getCurrentSampleMapPool(true)->getDataProvider()->writePool(new FileOutputStream(samplemapFile));
 		}
 		else if (BuildOptionHelpers::isIOS(option))
 		{
-            loadOtherReferencedImages(chainToExport);
-            
+			{
+				// Make sure the binary data exists to prevent compilation error
+
+				samplemapFile = tempDirectory.getChildFile("samplemaps");
+				imageOutputFile = tempDirectory.getChildFile("images");
+				sampleOutputFile = tempDirectory.getChildFile("impulses");
+
+				const String unused = "unused";
+
+				samplemapFile.replaceWithText(unused);
+				imageOutputFile.replaceWithText(unused);
+				sampleOutputFile.replaceWithText(unused);
+			}
+
 			auto resourceFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("EmbeddedResources");
 
 			if (!resourceFolder.isDirectory())
 				resourceFolder.createDirectory();
 
-			File sampleOutputFile = resourceFolder.getChildFile("AudioResources.dat");
-			File imageOutputFile = resourceFolder.getChildFile("ImageResources.dat");
-			File samplemapFile = resourceFolder.getChildFile("SampleMapResources.dat");
+			sampleOutputFile = resourceFolder.getChildFile("AudioResources.dat");
+			imageOutputFile = resourceFolder.getChildFile("ImageResources.dat");
+			samplemapFile = resourceFolder.getChildFile("SampleMapResources.dat");
 
-			sampleOutputFile.deleteFile();
-			imageOutputFile.deleteFile();
-			samplemapFile.deleteFile();
-			
-			chainToExport->getMainController()->getCurrentAudioSampleBufferPool(true)->getDataProvider()->writePool(new FileOutputStream(sampleOutputFile));
-			chainToExport->getMainController()->getCurrentImagePool(true)->getDataProvider()->writePool(new FileOutputStream(imageOutputFile));
-			chainToExport->getMainController()->getCurrentSampleMapPool(true)->getDataProvider()->writePool(new FileOutputStream(samplemapFile));
+			if (smof.existsAsFile())
+				smof.copyFileTo(samplemapFile);
+
+			if (iof.existsAsFile())
+				iof.copyFileTo(imageOutputFile);
+
+			if (sof.existsAsFile())
+				sof.copyFileTo(sampleOutputFile);
 		}
 
 		String presetDataString("PresetData");
@@ -1179,7 +1168,7 @@ CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(const St
 {
 	String pluginDataHeaderFile;
 
-	HeaderHelpers::addBasicIncludeLines(pluginDataHeaderFile);
+    HeaderHelpers::addBasicIncludeLines(pluginDataHeaderFile, iOSAUv3);
 
 	HeaderHelpers::addAdditionalSourceCodeHeaderLines(this,pluginDataHeaderFile);
 	HeaderHelpers::addStaticDspFactoryRegistration(pluginDataHeaderFile, this);
@@ -1225,18 +1214,9 @@ CompileExporter::ErrorCodes CompileExporter::createStandaloneAppHeaderFile(const
 	HeaderHelpers::addStaticDspFactoryRegistration(pluginDataHeaderFile, this);
 	HeaderHelpers::addCopyProtectionHeaderLines(publicKey, pluginDataHeaderFile);
 
-	if (GET_SETTING(HiseSettings::Project::EmbedAudioFiles) == "No")
-	{
-		pluginDataHeaderFile << "AudioProcessor* hise::StandaloneProcessor::createProcessor() { CREATE_PLUGIN(deviceManager, callback); }\n";
-		pluginDataHeaderFile << "\n";
-		pluginDataHeaderFile << "START_JUCE_APPLICATION(hise::FrontendStandaloneApplication)\n";
-	}
-	else
-	{
-		pluginDataHeaderFile << "AudioProcessor* hise::StandaloneProcessor::createProcessor() { CREATE_PLUGIN_WITH_AUDIO_FILES(deviceManager, callback); }\n";
-		pluginDataHeaderFile << "\n";
-		pluginDataHeaderFile << "START_JUCE_APPLICATION(hise::FrontendStandaloneApplication)\n";
-	}
+    pluginDataHeaderFile << "AudioProcessor* hise::StandaloneProcessor::createProcessor() { CREATE_PLUGIN(deviceManager, callback); }\n";
+    pluginDataHeaderFile << "\n";
+    pluginDataHeaderFile << "START_JUCE_APPLICATION(hise::FrontendStandaloneApplication)\n";
 
 	HeaderHelpers::addProjectInfoLines(this, pluginDataHeaderFile);
 	HeaderHelpers::addCustomToolbarRegistration(this, pluginDataHeaderFile);
@@ -2217,12 +2197,27 @@ CompileExporter::ErrorCodes CompileExporter::HelperClasses::saveProjucerFile(Str
 	return ErrorCodes::OK;
 }
 
-void CompileExporter::HeaderHelpers::addBasicIncludeLines(String& pluginDataHeaderFile)
+void CompileExporter::HeaderHelpers::addBasicIncludeLines(String& p, bool isIOS)
 {
-	pluginDataHeaderFile << "\n";
+	p << "\n";
 
-	pluginDataHeaderFile << "#include \"JuceHeader.h\"" << "\n";
-	pluginDataHeaderFile << "#include \"PresetData.h\"\n";
+	p << "#include \"JuceHeader.h\"" << "\n";
+	p << "#include \"PresetData.h\"\n";
+
+	p << "\nBEGIN_EMBEDDED_DATA()";
+    
+    if(!isIOS)
+    {
+        p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::AudioFiles, PresetData::impulses, PresetData::impulsesSize);";
+        p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::Images, PresetData::images, PresetData::imagesSize);";
+        p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::SampleMaps, PresetData::samplemaps, PresetData::samplemapsSize);";
+    }
+
+	p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::Scripts, PresetData::externalFiles, PresetData::externalFilesSize);";
+	p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::Presets, PresetData::preset, PresetData::presetSize);";
+	p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::UserPresets, PresetData::userPresets, PresetData::userPresetsSize);";
+	p << "\nEND_EMBEDDED_DATA()";
+	p << "\n";
 }
 
 void CompileExporter::HeaderHelpers::addAdditionalSourceCodeHeaderLines(CompileExporter* exporter, String& pluginDataHeaderFile)

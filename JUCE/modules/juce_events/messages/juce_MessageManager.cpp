@@ -382,6 +382,8 @@ MessageManagerLock::MessageManagerLock (ThreadPoolJob* jobToCheck)
 
 bool MessageManagerLock::attemptLock (Thread* threadToCheck, ThreadPoolJob* jobToCheck)
 {
+	WARN_IF_AUDIO_THREAD(true, IllegalAudioThreadOps::MessageManagerLock);
+
     jassert (threadToCheck == nullptr || jobToCheck == nullptr);
 
     if (threadToCheck != nullptr)
@@ -441,6 +443,7 @@ JUCE_API void JUCE_CALLTYPE shutdownJuce_GUI()
     {
         DeletedAtShutdown::deleteAll();
         MessageManager::deleteInstance();
+		AudioThreadGuard::deleteInstance();
     }
 }
 

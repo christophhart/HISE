@@ -46,6 +46,8 @@ ModulatorSynthChain::ModulatorSynthChain(MainController *mc, const String &id, i
 	ignoreUnused(viewUndoManager);
 #endif
 
+	finaliseModChains();
+
 	FactoryType *t = new ModulatorSynthChainFactoryType(numVoices, this);
 
 	getMatrix().setAllowResizing(true);
@@ -74,6 +76,8 @@ ModulatorSynthChain::ModulatorSynthChain(MainController *mc, const String &id, i
 
 ModulatorSynthChain::~ModulatorSynthChain()
 {
+	modChains.clear();
+
 	getHandler()->clear();
 
 	effectChain = nullptr;
@@ -174,18 +178,14 @@ void ModulatorSynthChain::compileAllScripts()
 {
 	if (getMainController()->isCompilingAllScriptsOnPresetLoad())
 	{
-		Processor::Iterator<JavascriptProcessor> it(this);
+		auto scriptProcessors = ProcessorHelpers::getListOfAllProcessors<JavascriptProcessor>(this);
 
-		JavascriptProcessor *sp;
-
-		while ((sp = it.getNextProcessor()) != 0)
+		for (auto& sp : scriptProcessors)
 		{
 			auto c = sp->getContent();
 
 			ValueTreeUpdateWatcher::ScopedDelayer sd(c->getUpdateWatcher());
-
 			sp->getContent()->resetContentProperties();
-
 			sp->compileScript();
 		}
 	}
@@ -330,27 +330,23 @@ void ModulatorSynthChain::restoreFromValueTree(const ValueTree &v)
 void ModulatorSynthChain::reset()
 {
 
+	Processor::Iterator<Processor> iter(this, false);
+
+#if 0
 	{
-		MessageManagerLock mm;
-
-		
-
 		sendDeleteMessage();
 
-		Processor::Iterator<Processor> iter(this, false);
-
 		while (auto p = iter.getNextProcessor())
-		{
 			p->sendDeleteMessage();
-		}
 	}
+#endif
 	
 
-    this->getHandler()->clear();
+    this->getHandler()->clearAsync(nullptr);
     
-    midiProcessorChain->getHandler()->clear();
-    gainChain->getHandler()->clear();
-    effectChain->getHandler()->clear();
+    midiProcessorChain->getHandler()->clearAsync(midiProcessorChain);
+    gainChain->getHandler()->clearAsync(gainChain);
+    effectChain->getHandler()->clearAsync(effectChain);
     getMatrix().resetToDefault();
     getMatrix().setNumSourceChannels(2);
 
@@ -402,23 +398,30 @@ void ModulatorSynthChain::killAllVoices()
 {
 	for (auto synth : synths)
 		synth->killAllVoices();
+
+	effectChain->killMasterEffects();
 }
 
 void ModulatorSynthChain::resetAllVoices()
 {
 	for (auto synth : synths)
 		synth->resetAllVoices();
+
+	effectChain->resetMasterEffects();
 }
 
 bool ModulatorSynthChain::areVoicesActive() const
 {
+	if (isSoftBypassed())
+		return false;
+
 	for (auto synth : synths)
 	{
 		if (synth->areVoicesActive())
 			return true;
 	}
 		
-	return false;
+	return effectChain->hasTailingMasterEffects();
 }
 
 
@@ -529,10 +532,11 @@ void ModulatorSynthChain::ModulatorSynthChainHandler::add(Processor *newProcesso
 	ms->getMatrix().setTargetProcessor(synth);
 
 	ms->prepareToPlay(synth->getSampleRate(), synth->getLargestBlockSize());
+	ms->setParentProcessor(synth);
 
 	{
-		MainController::ScopedSuspender ss(synth->getMainController());
-		ms->setIsOnAir(true);
+		LOCK_PROCESSING_CHAIN(synth);
+		ms->setIsOnAir(synth->isOnAir());
 		synth->synths.insert(index, ms);
 	}
 
@@ -543,11 +547,19 @@ void ModulatorSynthChain::ModulatorSynthChainHandler::remove(Processor *processo
 {
 	notifyListeners(Listener::ProcessorDeleted, processorToBeRemoved);
 
-	auto& tmp = synth;
+	ScopedPointer<Processor> removedP = processorToBeRemoved;
 
-	auto f = [tmp, removeSynth](Processor* p) { tmp->synths.removeObject(dynamic_cast<ModulatorSynth*>(p), removeSynth); return true; };
+	{
+		LOCK_PROCESSING_CHAIN(synth);
+		processorToBeRemoved->setIsOnAir(false);
+		synth->synths.removeObject(dynamic_cast<ModulatorSynth*>(processorToBeRemoved), false);
+	}
 
-	synth->getMainController()->getKillStateHandler().killVoicesAndCall(processorToBeRemoved, f, MainController::KillStateHandler::TargetThread::MessageThread);
+	if (removeSynth)
+		removedP = nullptr;
+	else
+		removedP.release();
+
 }
 
 Processor * ModulatorSynthChain::ModulatorSynthChainHandler::getProcessor(int processorIndex)

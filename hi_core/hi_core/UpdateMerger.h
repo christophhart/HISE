@@ -35,6 +35,216 @@
 
 namespace hise { using namespace juce;
 
+class FallbackRamper
+{
+public:
+
+	FallbackRamper(float* data, int numValues_):
+		d(data),
+		numValues(numValues_)
+	{};
+
+	float ramp(float startValue, float delta1)
+	{
+		float value = startValue;
+
+		while (--numValues >= 0)
+		{
+			*d++ = value;
+			value += delta1;
+		}
+
+		return value;
+	}
+
+private:
+
+	float* d;
+	int numValues;
+
+};
+
+template <int RampLength> class AlignedSSERamper
+{
+public:
+
+	AlignedSSERamper(float* data_) :
+		data(data_)
+	{
+		jassert(dsp::SIMDRegister<float>::isSIMDAligned(data));
+	}
+
+#if 0
+	void rampWithMultiply(float startValue, float endValue)
+	{
+		constexpr float ratio = 1.0f / (float)RampLength;
+		const float deltaWhole = (endValue - startValue);
+		const float delta1 = deltaWhole * ratio;
+
+		constexpr int numSSE = dsp::SIMDRegister<float>::SIMDRegisterSize / sizeof(float);
+		constexpr int numLoop = RampLength / numSSE;
+
+		auto deltaConstant = _mm_set1_ps(delta1);
+		auto step = _mm_mul_ps(deltaConstant, _mm_set1_ps(4.0f));
+
+		constexpr float r_[4] = { 1.0f, 2.0f, 3.0f, 4.0f };
+
+		auto r = _mm_load_ps(r_);
+
+		auto deltaRamp = _mm_mul_ps(deltaConstant, r);
+
+		int i = 0;
+
+		for (int i = 0; i < numLoop; i++)
+		{
+			auto d = _mm_load_ps(data);
+
+			d = _mm_mul_ps(deltaRamp, d);
+			_mm_store_ps(data, d);
+			data += numSSE;
+
+			deltaRamp = _mm_add_ps(deltaRamp, step);
+		}
+	}
+#endif
+
+	void ramp(float startValue, float delta1)
+	{
+		using SSEType = dsp::SIMDRegister<float>;
+
+		constexpr int numSSE = SSEType::SIMDRegisterSize / sizeof(float);
+		constexpr int numLoop = RampLength / numSSE;
+
+		SSEType deltaConstant(delta1);
+		SSEType step = deltaConstant * 4.0f;
+        
+#if JUCE_WINDOWS
+		SSEType r = SSEType::fromNative({ 0.0f, 1.0f, 2.0f, 3.0f });
+#else
+        SSEType r = SSEType::fromNative({0.0f, 1.0f, 2.0f, 3.0f});
+#endif
+        
+		SSEType deltaRamp = deltaConstant * r;
+		deltaRamp += startValue;
+		
+		for (int i = 0; i < numLoop; i++)
+		{
+			deltaRamp.copyToRawArray(data);
+			deltaRamp += step;
+			data += numSSE;
+		}
+	}
+
+private:
+
+	float* data;
+};
+
+#define USE_BLOCK_DIVIDER_STATISTICS 1
+
+struct BlockDividerStatistics
+{
+public:
+
+	static void resetStatistics()
+	{
+		numAlignedCalls = 0;
+		numOddCalls = 0;
+	}
+
+	static void incCounter(bool aligned)
+	{
+#if USE_BLOCK_DIVIDER_STATISTICS
+		aligned ? numAlignedCalls++ : numOddCalls++;
+#endif
+	}
+
+	static int getAlignedCallPercentage()
+	{
+		const int total = numAlignedCalls + numOddCalls;
+		auto p = total != 0 ? ((double)numAlignedCalls / (double)total) : 0.0;
+		return roundDoubleToInt(p * 100.0);
+	}
+
+
+
+private:
+
+	static int numAlignedCalls;
+	static int numOddCalls;
+};
+
+/** This class divides a block into fixed chunks of data.
+*
+*	It can be used to divide a block of audio data into smaller chunks
+*	and takes care of the edge cases when using SSE processing.
+*	
+*/
+template <int SkipAmount, typename FloatType=float> class BlockDivider
+{
+public:
+
+	/** checks the loop counter and returns the number of samples that have to be calculated manually. 
+	*
+	*	If it returns zero, you can use the entire blocksize specified by the SkipAmount.
+	*	It also guarantees SSE alignment so you can write a SSE loop without edge case handling.
+	*	
+	*/
+	int cutBlock(int& loopCounter, bool& newBlock, FloatType* pointerToCheck)
+	{
+		if (counter != 0)
+		{
+			newBlock = false;
+			const int numToCutThisTime = jmin<int>(loopCounter, SkipAmount - counter);
+
+			counter = (counter + numToCutThisTime) % SkipAmount;
+			loopCounter -= numToCutThisTime;
+
+			BlockDividerStatistics::incCounter(false);
+
+			return numToCutThisTime;
+		}
+
+		if (loopCounter < SkipAmount)
+		{
+			jassert(counter == 0);
+
+			newBlock = true;
+			counter += loopCounter;
+
+			const int returnValue = loopCounter;
+			loopCounter = 0;
+
+			BlockDividerStatistics::incCounter(false);
+
+			return returnValue;
+		}
+		else
+		{
+			jassert(counter == 0);
+			
+			newBlock = true;
+
+			const bool aligned = dsp::SIMDRegister<FloatType>::isSIMDAligned(pointerToCheck);
+
+			BlockDividerStatistics::incCounter(aligned);
+
+			loopCounter -= SkipAmount;
+
+			return (1-(int)aligned) * SkipAmount;
+		}
+	}
+
+	void reset()
+	{
+		counter = 0;
+	}
+
+private:
+
+	int counter = 0;
+};
+
 /** A counter which can be used to limit the frequency for eg. GUI updates
 *	@ingroup utility
 *
@@ -42,11 +252,11 @@ namespace hise { using namespace juce;
 *	that is incremented each time update() is called and returns true, if a new change message is due.
 *	
 */
-class UpdateMerger
+template <class Locktype=SpinLock> class ExecutionLimiter
 {
 public:
 	/** creates a new UpdateMerger and registeres the given listener.*/
-	UpdateMerger():
+	ExecutionLimiter():
 		frameRate(20),
         countLimit(0),
         updateCounter(0)
@@ -65,7 +275,7 @@ public:
 	/** sets a manual skip number. Use this if you don't need the fancy block -> frame conversion. */
 	void setManualCountLimit(int skipAmount)
 	{
-		SpinLock::ScopedLockType sl(processLock);
+		typename Locktype::ScopedLockType sl(processLock);
 
 		countLimit = skipAmount;
 
@@ -82,12 +292,17 @@ public:
 		jassert(countLimit > 0);
 		if(++updateCounter == countLimit)
 		{
-			SpinLock::ScopedLockType sl(processLock);
+			typename Locktype::ScopedLockType sl(processLock);
 			updateCounter = 0;
 			return true;
 		};
 		return false;		
 	};
+
+	inline void advance(int numSteps)
+	{
+		updateCounter += numSteps;
+	}
 
 	/** Call this method whenever something changes and the UpdateMerger class will check if a update is necessary.
 	*
@@ -102,7 +317,7 @@ public:
 
 		if(updateCounter >= countLimit)
 		{
-			SpinLock::ScopedLockType sl(processLock);
+			typename Locktype::ScopedLockType sl(processLock);
 
 			updateCounter = updateCounter % countLimit;
 			return true;
@@ -114,7 +329,7 @@ public:
 
 private:
 
-	SpinLock processLock;
+	Locktype processLock;
 
 	
 
@@ -140,6 +355,8 @@ private:
 #define GUI_UPDATER_FRAME_RATE 30
 #endif
 
+
+using UpdateMerger = ExecutionLimiter<SpinLock>;
 
 /** Utility class that reduces the update rate to a common framerate (~30 fps)
 *
@@ -249,20 +466,30 @@ private:
 /** A lowpass filter that can be used to smooth parameter changes.
 *	@ingroup utility
 */
-class Smoother
+template <int DownsamplingFactor> class DownsampledSmoother
 {
 public:
 
 	/** Creates a new smoother. If you use this manually, you have to call prepareToPlay() and setSmoothingTime() before using it. */
-	Smoother():
+	DownsampledSmoother():
 		active(false),
 		sampleRate(-1.0f),
         smoothTime(0.0f)
 	{ 
-		a0 = b0 = x = currentValue = prevValue = 0.0f;
+		a0 = b0 = currentValue = prevValue = 0.0f;
 		
 	};
 
+    forcedinline float smoothRaw(float a0newValue) noexcept
+    {
+        prevValue *= minusb0;
+        prevValue += a0newValue;
+        return prevValue;
+    }
+    
+    float getA0() const noexcept { return a0; }
+    
+    
 	/** smooth the next sample. */
 	float smooth(float newValue)
 	{
@@ -286,42 +513,6 @@ public:
 		return smoothingActive;
 	}
 
-	void fillBufferWithSmoothedValue(float targetValue, float* data, int numSamples)
-	{
-		const bool smoothThisBuffer = resetRamper.isBusy() || (active && (fabsf(targetValue - currentValue) > 0.001f));
-
-		if (!smoothThisBuffer)
-		{
-			smoothingActive = false;
-			currentValue = targetValue;
-			FloatVectorOperations::fill(data, targetValue, numSamples);
-			return;
-		}
-
-		SpinLock::ScopedLockType sl(spinLock);
-
-		smoothingActive = true;
-
-		int startSample = 0;
-
-		while (resetRamper.isBusy() && startSample < numSamples)
-		{
-			resetRamper.ramp(currentValue);
-			prevValue = currentValue;
-
-			data[startSample] = currentValue;
-
-			startSample++;
-		}
-
-		for (int i = startSample; i < numSamples; i++)
-		{
-			currentValue = a0 * targetValue - b0 * prevValue;
-
-			prevValue = currentValue;
-			data[i] = currentValue;
-		}
-	}
 
 	void smoothBuffer(float* data, int numSamples)
 	{
@@ -355,7 +546,10 @@ public:
 		else
 		{
 			currentValue = targetValue;
+			downsampledRampValue = targetValue;
+			downsampledTargetValue = targetValue;
 			resetRamper.setValue(targetValue);
+			prevValue = currentValue;
 		}
 	}
 
@@ -375,19 +569,17 @@ public:
 		{
 			const float freq = 1000.0f / newSmoothTime;
 
-			x = expf(-2.0f * float_Pi * freq / sampleRate);
+			const float x = expf(-2.0f * float_Pi * freq / sampleRate);
 			a0 = 1.0f - x;
 			b0 = -x;
+            minusb0 = x;
 		}
 	};
 
 	/** Sets the internal sample rate. Call this method before setting the smooth time. */
 	void prepareToPlay(double sampleRate_)
 	{
-		sampleRate = (float)sampleRate_;
-
-		
-
+		sampleRate = (float)sampleRate_ / (float)DownsamplingFactor;
 		setSmoothingTime(smoothTime);
 	};
 
@@ -404,11 +596,17 @@ public:
     
 private:
 
+	float downsampledRampValue = 1.0f;
+	float downsampledTargetValue = 1.0f;
+	float currentRampDelta = 0.0f;
+
 	Ramper resetRamper;
+
+	BlockDivider<DownsamplingFactor> blockDivider;
 
 	SpinLock spinLock;
 
-	JUCE_LEAK_DETECTOR(Smoother)
+	JUCE_LEAK_DETECTOR(DownsampledSmoother)
 
 	bool active;
 
@@ -418,12 +616,15 @@ private:
 
 	float smoothTime;
 
-	float a0, b0, x;
-
-	float currentValue;
-	float prevValue;
+    float a0;
+    float b0;
+    
+    float currentValue;
+    float prevValue;
+    float minusb0;
 };
 
+using Smoother = DownsampledSmoother<1>;
 
 } // namespace hise
 
