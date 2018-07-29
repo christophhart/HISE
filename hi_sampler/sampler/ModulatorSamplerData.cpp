@@ -762,8 +762,13 @@ void MonolithExporter::exportCurrentSampleMap(bool overwriteExistingData, bool e
 
 	showStatusMessage("Collecting files");
 
+	auto& lock = sampleMap->getSampler()->getMainController()->getSampleManager().getSamplerSoundLock();
+
 	try
 	{
+		MessageManagerLock mm;
+		ScopedLock sl(lock);
+
 		filesToWrite = sampleMap->createFileList();
 	}
 	catch (String errorMessage)
@@ -811,6 +816,9 @@ void MonolithExporter::exportCurrentSampleMap(bool overwriteExistingData, bool e
 void MonolithExporter::writeSampleMapFile(bool /*overwriteExistingFile*/)
 {
 	ScopedPointer<XmlElement> xml = v.createXml();
+
+	sampleMapFile.getParentDirectory().createDirectory();
+
 	xml->writeToFile(sampleMapFile, "");
 }
 
@@ -892,6 +900,9 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 		{
 			setProgress((double)i / (double)numSamples);
 
+            if(threadShouldExit())
+                return;
+            
 			ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(channelList->getUnchecked(i));
 
 			if (reader != nullptr)

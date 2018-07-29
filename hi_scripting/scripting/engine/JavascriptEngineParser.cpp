@@ -511,7 +511,13 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 		if (matchIf(TokenTypes::assign))            { ExpPtr rhs(parseExpression()); return new Assignment(location, lhs, rhs); }
 		if (matchIf(TokenTypes::plusEquals))        return parseInPlaceOpExpression<AdditionOp>(lhs);
 		if (matchIf(TokenTypes::minusEquals))       return parseInPlaceOpExpression<SubtractionOp>(lhs);
+        if (matchIf(TokenTypes::timesEquals))       return parseInPlaceOpExpression<MultiplyOp>(lhs);
+        if (matchIf(TokenTypes::divideEquals))      return parseInPlaceOpExpression<DivideOp>(lhs);
+        if (matchIf(TokenTypes::moduloEquals))      return parseInPlaceOpExpression<ModuloOp>(lhs);
 		if (matchIf(TokenTypes::leftShiftEquals))   return parseInPlaceOpExpression<LeftShiftOp>(lhs);
+        if (matchIf(TokenTypes::andEquals))         return parseInPlaceOpExpression<BitwiseAndOp>(lhs);
+        if (matchIf(TokenTypes::orEquals))          return parseInPlaceOpExpression<BitwiseOrOp>(lhs);
+        if (matchIf(TokenTypes::xorEquals))         return parseInPlaceOpExpression<BitwiseXorOp>(lhs);
 		if (matchIf(TokenTypes::rightShiftEquals))  return parseInPlaceOpExpression<RightShiftOp>(lhs);
 
 		if (skipConsoleCalls)

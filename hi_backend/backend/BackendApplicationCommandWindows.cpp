@@ -612,7 +612,7 @@ public:
 
         if(auto s = ProcessorHelpers::getFirstProcessorWithType<ModulatorSampler>(chain))
         {
-            auto sampleMapTree = s->getSampleMap()->getValueTree();
+			auto sampleMapTree = s->getSampleMap()->getValueTree();
             
             converter->parseSampleMap(sampleMapTree);
             converter->refreshCurrentWavetable(getProgressCounter());
@@ -870,9 +870,8 @@ public:
 		const String slash = "/";
 #endif
 
-		const String sampleMapId = sampleDirectory.getRelativePathFrom(sampleFolder).replace(slash, "_");
-
-		
+		const String sampleMapPath = sampleDirectory.getRelativePathFrom(sampleFolder);
+		const String sampleMapId = sampleMapPath.replace(slash, "_");
 
 		showStatusMessage("Importing " + sampleMapId);
 
@@ -890,26 +889,46 @@ public:
 			fileNames.add(samples[i].getFullPathName());
 		}
 
-		{
-			ScopedLock sl(sampler->getExportLock());
-			sampler->clearSampleMap(dontSendNotification);
-			SampleImporter::loadAudioFilesRaw(bpe, sampler, fileNames);
-		}
-
-		SampleEditHandler::SampleEditingActions::automapUsingMetadata(sampler);
-
-
+        auto& tmpBpe = bpe;
+		
+        StringArray fileNamesCopy;
         
-
+        fileNamesCopy.addArray(fileNames);
+        
+        auto f = [tmpBpe, fileNamesCopy](Processor* p)
+        {
+            if(auto sampler = dynamic_cast<ModulatorSampler*>(p))
+            {
+                sampler->clearSampleMap(dontSendNotification);
+                SampleImporter::loadAudioFilesRaw(tmpBpe, sampler, fileNamesCopy);
+                SampleEditHandler::SampleEditingActions::automapUsingMetadata(sampler);
+            }
+            
+            return true;
+        };
+        
+        sampler->killAllVoicesAndCall(f);
+		
+        Thread::sleep(500);
+        
 		sampler->getSampleMap()->setId(sampleMapId);
 		sampler->getSampleMap()->setIsMonolith();
 
 		setSampleMap(sampler->getSampleMap());
 
-		auto sampleMapFolder = sampler->getSampleEditHandler()->getCurrentSampleMapDirectory();
+        auto sampleMapFolder = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
         
-        sampleMapFile = sampleMapFolder.getChildFile(sampleMapId + ".xml");
+		sampleMapFile = sampleMapFolder.getChildFile(sampleMapPath + ".xml");
+
+        //sampleMapFile = sampleMapFolder.getChildFile(sampleMapId + ".xml");
         
+		auto& lock = sampler->getMainController()->getSampleManager().getSamplerSoundLock();
+
+		while (!lock.tryEnter())
+			Thread::sleep(500);
+
+		lock.exit();
+
 		exportCurrentSampleMap(overwriteExistingData, exportSamples, exportSampleMap);
 	}
 
@@ -923,25 +942,25 @@ public:
 		File f = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Scripts).getChildFile("samplemaps.js");
 		f.replaceWithText(data);
 
-		ExportOptions optionIndex = (ExportOptions)getComboBoxComponent("option")->getSelectedItemIndex();
-
-		const bool exportSamples = (optionIndex == ExportAll);
-		const bool exportSampleMap = (optionIndex == ExportSampleMapsAndJSON) || (optionIndex == ExportAll);
-		const bool overwriteData = getComboBoxComponent("overwriteFiles")->getSelectedItemIndex() == 0;
-
 		
-
-		for (int i = 0; i < fileList.size(); i++)
-		{
-			if (threadShouldExit())
-			{
-				break;
-			}
-
-			setProgress((double)i / (double)fileList.size());
-			convertSampleMap(fileList[i], overwriteData, exportSamples, exportSampleMap);
-		}
-
+        ExportOptions optionIndex = (ExportOptions)getComboBoxComponent("option")->getSelectedItemIndex();
+        
+        const bool exportSamples = (optionIndex == ExportAll);
+        const bool exportSampleMap = (optionIndex == ExportSampleMapsAndJSON) || (optionIndex == ExportAll);
+        const bool overwriteData = getComboBoxComponent("overwriteFiles")->getSelectedItemIndex() == 0;
+        
+        
+        
+        for (int i = 0; i < fileList.size(); i++)
+        {
+            if (threadShouldExit())
+            {
+                break;
+            }
+            
+            setProgress((double)i / (double)fileList.size());
+            convertSampleMap(fileList[i], overwriteData, exportSamples, exportSampleMap);
+        }
 	}
 
 	void generateDirectoryList()
@@ -986,7 +1005,7 @@ public:
 
 	void threadFinished() override
 	{
-
+        
 	};
 
 private:

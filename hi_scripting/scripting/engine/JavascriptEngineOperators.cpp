@@ -239,6 +239,10 @@ struct HiseJavascriptEngine::RootObject::ModuloOp : public BinaryOperator
 {
 	ModuloOp(const CodeLocation& l, ExpPtr& a, ExpPtr& b) noexcept : BinaryOperator(l, a, b, TokenTypes::modulo) {}
 	var getWithInts(int64 a, int64 b) const override   { return b != 0 ? var(a % b) : var(std::numeric_limits<double>::infinity()); }
+    var getWithDoubles(double a, double b) const override
+    {
+        return b != 0.0 ? var(roundDoubleToInt(a) % roundDoubleToInt(b)) : var(std::numeric_limits<double>::infinity());
+    }
 };
 
 struct HiseJavascriptEngine::RootObject::BitwiseOrOp : public BinaryOperator
