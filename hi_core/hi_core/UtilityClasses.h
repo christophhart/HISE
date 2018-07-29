@@ -1034,7 +1034,7 @@ public:
         return !isAUv3();
 #else
       
-#if IS_STANDALONE_FRONTEND || USE_BACKEND
+#if IS_STANDALONE_FRONTEND || (USE_BACKEND && IS_STANDALONE_APP)
         return true;
 #else
         return false;
