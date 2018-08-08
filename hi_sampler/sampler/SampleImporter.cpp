@@ -426,6 +426,8 @@ void SampleImporter::loadAudioFilesRaw(Component* /*childComponentOfMainEditor*/
 
 	LockHelpers::freeToGo(sampler->getMainController());
 
+	int startIndex = sampler->getNumSounds();
+
 	for (int i = 0; i < fileNames.size(); i++)
 	{
 		SamplerSoundBasicData data;

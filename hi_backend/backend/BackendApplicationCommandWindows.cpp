@@ -904,7 +904,7 @@ public:
                 SampleEditHandler::SampleEditingActions::automapUsingMetadata(sampler);
             }
             
-            return true;
+            return SafeFunctionCall::Status::OK;
         };
         
         sampler->killAllVoicesAndCall(f);
@@ -922,7 +922,7 @@ public:
 
         //sampleMapFile = sampleMapFolder.getChildFile(sampleMapId + ".xml");
         
-		auto& lock = sampler->getMainController()->getSampleManager().getSamplerSoundLock();
+		auto& lock = sampler->getMainController()->getSampleManager().getSampleLock();
 
 		while (!lock.tryEnter())
 			Thread::sleep(500);

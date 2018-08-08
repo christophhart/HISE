@@ -762,7 +762,7 @@ void MonolithExporter::exportCurrentSampleMap(bool overwriteExistingData, bool e
 
 	showStatusMessage("Collecting files");
 
-	auto& lock = sampleMap->getSampler()->getMainController()->getSampleManager().getSamplerSoundLock();
+	auto& lock = sampleMap->getSampler()->getMainController()->getSampleManager().getSampleLock();
 
 	try
 	{
