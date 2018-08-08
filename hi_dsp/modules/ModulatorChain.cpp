@@ -432,7 +432,7 @@ void ModulatorChain::ModChainWithBuffer::calculateModulationValuesForCurrentVoic
 		const float thisConstantValue = c->getConstantVoiceValue(voiceIndex);
 		const float previousConstantValue = currentConstantVoiceValues[voiceIndex];
 
-		const bool smoothConstantValue = (std::fabsf(previousConstantValue - thisConstantValue) > 0.01f);
+		const bool smoothConstantValue = (std::abs(previousConstantValue - thisConstantValue) > 0.01f);
 
 		if (smoothConstantValue)
 		{

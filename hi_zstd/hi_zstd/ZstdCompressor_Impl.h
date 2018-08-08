@@ -108,10 +108,12 @@ bool zstd::ZBatchCompressor<SourceType>::compress(const Array<SourceType>& sourc
 
 	for (const auto& source : sourceList)
 	{
-		MemoryOutputStream input;
+		MemoryBlock inputBlock;
+
+		MemoryOutputStream input(inputBlock);
 		DictionaryHelpers::readIntoMemory(source, input);
 
-		auto numWritten = DictionaryHelpers::compressWithOptionalDictionary(context, output, input, dictionary, compressionLevel);
+		auto numWritten = DictionaryHelpers::compressWithOptionalDictionary(context, output, inputBlock, dictionary, compressionLevel);
 		
 		stream.writeInt(numWritten);
 

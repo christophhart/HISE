@@ -99,7 +99,7 @@ public:
 
 			AudioDisplayComponent::SampleArea *area = c->getSampleArea(areaThatWasChanged);
 
-			const int64 startSample = jmax<int64>(0, area->getSampleRange().getStart());
+			const int64 startSample = (int64)jmax<int>(0, (int)area->getSampleRange().getStart());
 			const int64 endSample = (int64)(area->getSampleRange().getEnd());
 
 			switch (areaThatWasChanged)

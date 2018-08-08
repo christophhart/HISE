@@ -204,7 +204,7 @@ public:
 
 			while (stream->getNumBytesRemaining() > 0)
 			{
-				const int64 chunkSize = jmin<int64>(stream->getNumBytesRemaining(), 8192);
+				const int64 chunkSize = (int64)jmin<int>((int)stream->getNumBytesRemaining(), 8192);
 
 				downloadProgress(this, (int)numBytesRead, (int)numBytesTotal);
 
@@ -1240,7 +1240,7 @@ public:
 
 		while (stream->getNumBytesRemaining() > 0)
 		{
-			const int64 chunkSize = jmin<int64>(stream->getNumBytesRemaining(), 8192);
+			const int64 chunkSize = (int64)jmin<int>(stream->getNumBytesRemaining(), 8192);
 
 			downloadProgress(this, (int)numBytesRead, (int)numBytesTotal);
 

@@ -901,8 +901,8 @@ void PolyshapeFX::getWaveformTableValues(int /*displayIndex*/, float const** tab
 
 	switch (mode)
 	{
-	case ShapeFX::ShapeMode::Atan:				normalizeValue = 1.0f / std::atanf(displayPeak); break;
-	case ShapeFX::ShapeMode::Asinh:				normalizeValue = 1.0f / std::asinhf(displayPeak); break;
+	case ShapeFX::ShapeMode::Atan:				normalizeValue = 1.0f / atanf(displayPeak); break;
+	case ShapeFX::ShapeMode::Asinh:				normalizeValue = 1.0f / asinhf(displayPeak); break;
 	case ShapeFX::ShapeMode::AsymetricalCurve:	normalizeValue = 1.0f; break;
 	default:									normalizeValue = 1.0f;	break;
 	}

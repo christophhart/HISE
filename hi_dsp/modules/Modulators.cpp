@@ -223,8 +223,9 @@ const float * TimeModulation::getCalculatedValues(int /*voiceIndex*/)
 	return internalBuffer.getReadPointer(0);
 }
 
-TimeModulation::TimeModulation() :
-	internalBuffer()
+TimeModulation::TimeModulation(Mode m) :
+    Modulation(m),
+	internalBuffer(0, 0)
 {
 }
 
@@ -544,8 +545,8 @@ VoiceStartModulator::VoiceStartModulator(MainController *mc, const String &id, i
 
 EnvelopeModulator::EnvelopeModulator(MainController *mc, const String &id, int voiceAmount_, Modulation::Mode m):
 	Modulator(mc, id, voiceAmount_),
+	TimeModulation(m),
 	Modulation(m),
-	TimeModulation(),
 	VoiceModulation(voiceAmount_, m)
 {
 	parameterNames.add("Monophonic");

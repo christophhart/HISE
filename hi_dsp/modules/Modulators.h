@@ -371,7 +371,7 @@ public:
 
 protected:
 
-	TimeModulation();
+	TimeModulation(Mode m);
 
 	/** Creates the internal buffer with double the size of the expected buffer block size.
     */
@@ -703,8 +703,8 @@ protected:
 
 	TimeVariantModulator(MainController *mc, const String &id, Modulation::Mode m):
 		Modulator(mc, id, 1),
-		Modulation(m),
-		TimeModulation()
+		TimeModulation(m),
+		Modulation(m)
 	{
 		lastConstantValue = getInitialValue();
 		smoothedIntensity.setValueWithoutSmoothing(0);

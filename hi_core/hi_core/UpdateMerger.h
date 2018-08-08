@@ -120,7 +120,13 @@ public:
         
 #if JUCE_WINDOWS
 		SSEType r = SSEType::fromNative({ 0.0f, 1.0f, 2.0f, 3.0f });
+#elif JUCE_LINUX
+
+		float r_[4] = {0.0f, 1.0f, 2.0f, 3.0f };
+		SSEType r = SSEType::fromRawArray(r_);
 #else
+
+
         SSEType r = SSEType::fromNative({0.0f, 1.0f, 2.0f, 3.0f});
 #endif
         
