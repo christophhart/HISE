@@ -781,20 +781,7 @@ public:
 		deleteListeners.removeAllInstancesOf(listener);
 	}
 
-	void sendDeleteMessage()
-	{
-		jassert_message_thread;
-
-		int numListeners = deleteListeners.size();
-
-		for (int i = numListeners-1; i >= 0; --i)
-		{
-			if (deleteListeners[i].get() != nullptr)
-			{
-				deleteListeners[i]->processorDeleted(this);
-			}
-		}
-	}
+	void sendDeleteMessage();
 
 	void addBypassListener(BypassListener* l)
 	{

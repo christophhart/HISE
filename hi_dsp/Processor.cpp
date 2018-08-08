@@ -225,6 +225,21 @@ void Processor::setIsOnAir(bool shouldBeOnAir)
 }
 
 
+void Processor::sendDeleteMessage()
+{
+	jassert_message_thread;
+
+	int numListeners = deleteListeners.size();
+
+	for (int i = numListeners - 1; i >= 0; --i)
+	{
+		if (deleteListeners[i].get() != nullptr)
+		{
+			deleteListeners[i]->processorDeleted(this);
+		}
+	}
+}
+
 bool Processor::isRebuildMessagePending() const noexcept
 {
 	if (rebuildMessagePending)

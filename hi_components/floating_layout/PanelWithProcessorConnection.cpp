@@ -302,6 +302,13 @@ void PanelWithProcessorConnection::comboBoxChanged(ComboBox* comboBoxThatHasChan
 	}
 }
 
+void PanelWithProcessorConnection::processorDeleted(Processor* /*deletedProcessor*/)
+{
+	jassert_message_thread;
+
+	setContentWithUndo(nullptr, -1);
+}
+
 void PanelWithProcessorConnection::refreshConnectionList()
 {
 	auto f = [](WeakReference<PanelWithProcessorConnection> tmp)

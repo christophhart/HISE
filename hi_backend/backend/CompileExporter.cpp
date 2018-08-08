@@ -479,7 +479,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 		const bool embedFiles = false;
 #else
 		// Don't embedd external files on iOS for quicker loading times...
-        const bool embedFiles = false; //!BuildOptionHelpers::isIOS(option);
+        const bool embedFiles = !BuildOptionHelpers::isIOS(option);
 #endif
 
 		// Embed the user presets and extract them on first load

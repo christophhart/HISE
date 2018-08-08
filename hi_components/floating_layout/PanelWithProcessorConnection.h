@@ -105,12 +105,7 @@ public:
 
 	void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override;
 
-	void processorDeleted(Processor* /*deletedProcessor*/)
-	{
-		jassert_message_thread;
-
-		setContentWithUndo(nullptr, -1);
-	}
+	void processorDeleted(Processor* /*deletedProcessor*/);
 
 	/** Overwrite this and return the id of the processor. This is used to prevent resetting with global connector panels. */
 	virtual Identifier getProcessorTypeId() const

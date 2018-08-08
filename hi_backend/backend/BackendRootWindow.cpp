@@ -182,10 +182,8 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 
 #if IS_STANDALONE_APP 
 
-	if (owner->callback->getCurrentProcessor() == nullptr)
-	{
+	if (owner->callback->getCurrentProcessor() == nullptr &&  !CompileExporter::isExportingFromCommandLine())
 		showSettingsWindow();
-	}
 
 #endif
 
