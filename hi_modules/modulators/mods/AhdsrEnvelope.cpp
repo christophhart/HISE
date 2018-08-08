@@ -734,7 +734,11 @@ AhdsrGraph::AhdsrGraph(Processor *p) :
 	processor(p)
 {
 	setBufferedToImage(true);
-	startTimer(50);
+
+	if (dynamic_cast<AhdsrEnvelope*>(p) != nullptr)
+		startTimer(50);
+	else
+		jassertfalse;
 
 	setColour(lineColour, Colours::lightgrey.withAlpha(0.3f));
 }

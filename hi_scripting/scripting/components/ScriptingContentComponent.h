@@ -156,8 +156,15 @@ public:
         
         isRebuilding = rebuildState;
         
+		WeakReference<ScriptContentComponent> tmp(this);
+
+		auto f = [tmp]()
+		{
+			if (tmp != nullptr)
+				tmp.get()->repaint();
+		};
         
-        repaint();
+		new DelayedFunctionCaller(f, 100);
     };
     
 	void scriptWasCompiled(JavascriptProcessor *p) override;
@@ -340,6 +347,8 @@ private:
 
 	OwnedArray<ScriptCreatedComponentWrapper> componentWrappers;
 	ScriptCreatedComponentWrapper::ValuePopup::Properties::Ptr valuePopupProperties;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptContentComponent);
 };
 
 

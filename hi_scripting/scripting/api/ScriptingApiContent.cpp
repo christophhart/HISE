@@ -3560,9 +3560,12 @@ void ScriptingApi::Content::ScriptFloatingTile::setScriptObjectPropertyWithChang
 {
 	if (id == getIdFor(ContentType))
 	{
-		auto f = [newValue](Dispatchable* obj)
+		auto f = [newValue, notifyEditor](Dispatchable* obj)
 		{
-			static_cast<ScriptFloatingTile*>(obj)->createFloatingTileComponent(newValue);
+			auto tile = static_cast<ScriptFloatingTile*>(obj);
+			
+			tile->createFloatingTileComponent(newValue);
+			tile->setScriptObjectProperty(Properties::ContentType, newValue, notifyEditor);
 			return Status::OK;
 		};
 
@@ -3572,22 +3575,35 @@ void ScriptingApi::Content::ScriptFloatingTile::setScriptObjectPropertyWithChang
 	}
 	else if (id == getIdFor(Data))
 	{
-		var specialData = JSON::parse(newValue.toString());
-
-		if (auto obj = specialData.getDynamicObject())
+		auto f = [newValue, notifyEditor](Dispatchable* obj)
 		{
-			if (auto dataObject = jsonData.getDynamicObject())
-			{
-				auto prop = obj->getProperties();
+			auto tile = static_cast<ScriptFloatingTile*>(obj);
 
-				for (int i = 0; i < prop.size(); i++)
+			var specialData = JSON::parse(newValue.toString());
+
+			if (auto obj = specialData.getDynamicObject())
+			{
+				if (auto dataObject = tile->jsonData.getDynamicObject())
 				{
-					dataObject->setProperty(prop.getName(i), prop.getValueAt(i));
+					auto prop = obj->getProperties();
+
+					for (int i = 0; i < prop.size(); i++)
+					{
+						dataObject->setProperty(prop.getName(i), prop.getValueAt(i));
+					}
 				}
 			}
 
-			
-		}
+			tile->setScriptObjectProperty(Properties::Data, newValue, notifyEditor);
+
+			return Status::OK;
+		};
+
+		getProcessor()->getMainController()->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(this, f);
+
+		return;
+
+		
 	}
 	else if (id == getIdFor(bgColour) || id == getIdFor(textColour) || id == getIdFor(itemColour) || id == getIdFor(itemColour2) || id == getIdFor(itemColour3))
 	{

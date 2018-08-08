@@ -838,15 +838,25 @@ void ScriptContentPanel::Editor::Actions::rebuildAndRecompile(Editor* e)
 
         jp->compileScript();
         
-        for (auto id : ids)
-        {
-            auto sc = content->getComponentWithName(id);
-            
-			if (sc != nullptr)
-				b->addToSelection(sc, id == ids.getLast() ? sendNotification : dontSendNotification);
-        }
-        
-        content->setIsRebuilding(false);
+
+		auto f2 = [ids, b](Dispatchable* p)
+		{
+			auto content = dynamic_cast<JavascriptProcessor*>(p)->getContent();
+
+			for (auto id : ids)
+			{
+				auto sc = content->getComponentWithName(id);
+
+				if (sc != nullptr)
+					b->addToSelection(sc, id == ids.getLast() ? sendNotification : dontSendNotification);
+			}
+
+			content->setIsRebuilding(false);
+
+			return Dispatchable::Status::OK;
+		};
+
+		p->getMainController()->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(p, f2);
 
 		return SafeFunctionCall::OK;
     };
