@@ -65,8 +65,10 @@ void EffectProcessorChain::renderMasterEffects(AudioSampleBuffer &b)
 
 	if (signChange)
 	{
+#if JUCE_DEBUG
 		for (auto& fx : masterEffects)
 			jassert(fx->isBypassed() || !fx->isFadeOutPending());
+#endif
 
 		resetMasterEffects();
 	}

@@ -1390,7 +1390,6 @@ public:
 
 	private:
 
-		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptPanel);
 		
 
 		bool shownAsPopup = false;
@@ -1411,7 +1410,6 @@ public:
 
 		bool internalRepaintIdle(bool forceRepaint, Result& r);
         
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptPanel);
 
 		ReferenceCountedObjectPtr<ScriptingObjects::GraphicsObject> graphics;
 
@@ -1436,6 +1434,9 @@ public:
 		RepaintNotifier repaintNotifier;
 		
 		// ========================================================================================================
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptPanel);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptPanel);
 	};
 
 	struct ScriptedViewport : public ScriptComponent

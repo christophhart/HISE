@@ -2663,11 +2663,7 @@ juce::Image ScriptingApi::Content::ScriptPanel::getImage() const
 
 bool ScriptingApi::Content::ScriptPanel::internalRepaintIdle(bool forceRepaint, Result& r)
 {
-	auto mc = dynamic_cast<Processor*>(getScriptProcessor())->getMainController();
-
-	
-
-	jassert_locked_script_thread(mc);
+	jassert_locked_script_thread(dynamic_cast<Processor*>(getScriptProcessor())->getMainController());
 
 	const bool parentHasMovedOn = !parent->hasComponent(this);
 
@@ -2849,10 +2845,15 @@ void ScriptingApi::Content::ScriptPanel::timerCallback()
 	if (mc == nullptr)
 		return;
 
-	auto f = [this, mc](JavascriptProcessor* )
+	WeakReference<ScriptPanel> tmp(this);
+
+	auto f = [tmp, mc](JavascriptProcessor* )
 	{
 		Result r = Result::ok();
-		this->timerCallbackInternal(mc, r);
+
+		if (auto panel = tmp.get())
+			panel->timerCallbackInternal(mc, r);
+
 		return r;
 	};
 
@@ -3049,6 +3050,7 @@ void ScriptingApi::Content::ScriptPanel::showAsModalPopup()
 
 bool ScriptingApi::Content::ScriptPanel::timerCallbackInternal(MainController * mc, Result &r)
 {
+	ignoreUnused(mc);
 	jassert_locked_script_thread(mc);
 
 	const bool parentHasMovedOn = !parent->hasComponent(this);

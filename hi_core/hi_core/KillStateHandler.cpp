@@ -287,6 +287,7 @@ juce::uint16 MainController::KillStateHandler::requestNewTicket()
 
 	uint16 newTicket;
 
+	ignoreUnused(delta);
 	DBG(String(delta) + "ms: Request Ticket " + String(ticketCounter + 1));
 
 	{
