@@ -481,7 +481,7 @@ void ScriptCreatedComponentWrapper::updatePopupPosition()
 		}
 
 		auto l = parentTile->getLocalArea(c, c->getLocalBounds());
-		currentPopup->setCentrePosition(getValuePopupPosition(l));
+		currentPopup->setTopLeftPosition(getValuePopupPosition(l));
 	}
 }
 
