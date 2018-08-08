@@ -160,8 +160,6 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 	}
 	else if (auto callback = component->getCustomControlCallback())
 	{
-		Result& r = thisAsJavascriptProcessor->lastResult;
-
 		if (MessageManager::getInstance()->isThisTheMessageThread())
 		{
 			auto f = [component, controllerValue](JavascriptProcessor* p)
@@ -1530,27 +1528,6 @@ void JavascriptThreadPool::run()
 		wait(500);
 	}
 }
-
-#if CLEANUP_LOCK
-bool JavascriptThreadPool::shouldDeferExecution() const noexcept
-{
-	return MessageManager::getInstance()->isThisTheMessageThread();
-}
-
-bool JavascriptThreadPool::isLockedScriptThread() const noexcept
-{
-	if (!busy)
-		return false;
-
-	if (getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::SampleLoadingThread)
-		return getMainController()->getKillStateHandler().globalLockIsActive();
-
-	if (getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::ScriptingThread)
-		return true;
-
-	return false;
-}
-#endif
 
 void JavascriptThreadPool::killVoicesAndExtendTimeOut(JavascriptProcessor* jp, int milliseconds)
 {

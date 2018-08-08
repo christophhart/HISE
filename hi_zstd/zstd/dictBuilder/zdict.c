@@ -68,8 +68,13 @@ static const U32 g_selectivity_default = 9;
 /*-*************************************
 *  Console display
 ***************************************/
+#ifndef DISPLAY
 #define DISPLAY(...)         { fprintf(stderr, __VA_ARGS__); fflush( stderr ); }
+#endif
+
+#ifndef DISPLAYLEVEL
 #define DISPLAYLEVEL(l, ...) if (notificationLevel>=l) { DISPLAY(__VA_ARGS__); }    /* 0 : no display;   1: errors;   2: default;  3: details;  4: debug */
+#endif
 
 static clock_t ZDICT_clockSpan(clock_t nPrevious) { return clock() - nPrevious; }
 
@@ -505,13 +510,18 @@ static size_t ZDICT_trainBuffer_legacy(dictItem* dictList, U32 dictListSize,
     BYTE* doneMarks = (BYTE*)malloc((bufferSize+16)*sizeof(*doneMarks));   /* +16 for overflow security */
     U32* filePos = (U32*)malloc(nbFiles * sizeof(*filePos));
     size_t result = 0;
-    clock_t displayClock = 0;
-    clock_t const refreshRate = CLOCKS_PER_SEC * 3 / 10;
+    
 
-#   define DISPLAYUPDATE(l, ...) if (notificationLevel>=l) { \
+#ifndef DISPLAYUPDATE
+
+	clock_t displayClock = 0;
+	clock_t const refreshRate = CLOCKS_PER_SEC * 3 / 10;
+
+#define DISPLAYUPDATE(l, ...) if (notificationLevel>=l) { \
             if (ZDICT_clockSpan(displayClock) > refreshRate)  \
             { displayClock = clock(); DISPLAY(__VA_ARGS__); \
             if (notificationLevel>=4) fflush(stderr); } }
+#endif
 
     /* init */
     DISPLAYLEVEL(2, "\r%70s\r", "");   /* clean display line */

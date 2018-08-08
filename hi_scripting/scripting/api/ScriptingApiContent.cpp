@@ -2643,7 +2643,7 @@ void ScriptingApi::Content::ScriptPanel::internalRepaint(bool forceRepaint/*=fal
 		auto mc = dynamic_cast<Processor*>(getScriptProcessor())->getMainController();
 		auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
 
-		auto f = [this, forceRepaint](JavascriptProcessor* jp)
+		auto f = [this, forceRepaint](JavascriptProcessor*)
 		{
 			Result r = Result::ok();
 			internalRepaintIdle(forceRepaint, r);
@@ -2822,7 +2822,7 @@ void ScriptingApi::Content::ScriptPanel::mouseCallback(var mouseInformation)
 
 	if (HiseJavascriptEngine::isJavascriptFunction(mouseRoutine))
 	{
-		auto f = [this, mouseInformation](JavascriptProcessor* jp)
+		auto f = [this, mouseInformation](JavascriptProcessor*)
 		{
 			Result r = Result::ok();
 			mouseCallbackInternal(mouseInformation, r);
@@ -2849,7 +2849,7 @@ void ScriptingApi::Content::ScriptPanel::timerCallback()
 	if (mc == nullptr)
 		return;
 
-	auto f = [this, mc](JavascriptProcessor* jp)
+	auto f = [this, mc](JavascriptProcessor* )
 	{
 		Result r = Result::ok();
 		this->timerCallbackInternal(mc, r);

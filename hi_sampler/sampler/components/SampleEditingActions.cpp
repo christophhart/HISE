@@ -455,6 +455,7 @@ public:
 
 		ModulatorSampler *sampler = handler->getSampler();
 
+		ignoreUnused(sampler);
 
 		// TODO SAMPLEMAP
 #if 0
@@ -956,6 +957,8 @@ void SampleEditHandler::SampleEditingActions::mergeIntoMultiSamples(SampleEditHa
 
 void SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(SampleEditHandler * handler)
 {
+	ignoreUnused(handler);
+
 	if (PresetHandler::showYesNoWindow("Extract Multimics to Single mics", "Do you really want to extract the multimics to single samples?"))
 	{
 		throw std::logic_error("not implemented");

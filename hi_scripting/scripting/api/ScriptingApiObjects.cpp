@@ -1825,7 +1825,7 @@ void ScriptingObjects::TimerObject::timerCallback()
 	{
         WeakReference<TimerObject> ref(this);
         
-		auto f = [ref, callback](JavascriptProcessor* jp)
+		auto f = [ref, callback](JavascriptProcessor* )
 		{
             Result r = Result::ok();
             

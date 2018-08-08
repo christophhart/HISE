@@ -407,7 +407,7 @@ public:
 	{
 		Lock sl(lock);
 
-		for (size_t i = 0; i < position; i++)
+		for (int i = 0; i < position; i++)
 		{
 			if (data[i] == elementToLookFor)
 				return i;

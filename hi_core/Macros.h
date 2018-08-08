@@ -127,9 +127,6 @@ namespace hise { using namespace juce;
 
 #define LOG_KILL_EVENTS KILL_LOG
 
-#define CLEANUP_LOCK 0
-#define GLOBAL_LOCK_POS(x)
-
 #define jassert_message_thread jassert(MessageManager::getInstance()->currentThreadHasLockedMessageManager())
 #define jassert_locked_script_thread(mc) jassert(LockHelpers::isLockedBySameThread(mc, LockHelpers::ScriptLock));
 #define jassert_dispatched_message_thread(mc) jassert_message_thread; jassert(mc->getLockFreeDispatcher().isInDispatchLoop());
@@ -141,9 +138,6 @@ namespace hise { using namespace juce;
 
 #define LOCK_PROCESSING_CHAIN(parent) LockHelpers::SafeLock itLock(parent->getMainController(), LockHelpers::IteratorLock, parent->isOnAir()); \
 								  LockHelpers::SafeLock audioLock(parent->getMainController(), LockHelpers::AudioLock, parent->isOnAir());
-
-#define REMOVE_READ_LOCK(x)
-#define REMOVE_SAMPLER_LOCK(x);
 
 #if JUCE_WINDOWS || JUCE_MAC || JUCE_IOS
 

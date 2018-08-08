@@ -180,8 +180,6 @@ void EffectProcessorChain::EffectChainHandler::add(Processor *newProcessor, Proc
 	newProcessor->setParentProcessor(chain);
 
 	{
-		auto mc = chain->getMainController();
-	
 		LOCK_PROCESSING_CHAIN(chain);
 
 		newProcessor->setIsOnAir(chain->isOnAir());

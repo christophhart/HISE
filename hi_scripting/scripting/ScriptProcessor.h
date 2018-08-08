@@ -776,17 +776,9 @@ public:
 
 	const CriticalSection& getLock() const noexcept { return scriptLock; };
 
-#if CLEAN_UP_LOCK
-	bool shouldDeferExecution() const noexcept;;
-#endif
-
 	bool isBusy() const noexcept { return busy; }
 
 	Task::Type getCurrentTask() const noexcept { return currentType; }
-
-#if CLEANUP_LOCK
-	bool isLockedScriptThread() const noexcept;
-#endif
 
 	void killVoicesAndExtendTimeOut(JavascriptProcessor* jp, int milliseconds=1000);
 

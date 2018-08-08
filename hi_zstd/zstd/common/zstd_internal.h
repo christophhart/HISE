@@ -50,7 +50,9 @@ extern "C" {
 #undef MAX
 #define MIN(a,b) ((a)<(b) ? (a) : (b))
 #define MAX(a,b) ((a)>(b) ? (a) : (b))
+#ifndef CHECK_F
 #define CHECK_F(f) { size_t const errcod = f; if (ERR_isError(errcod)) return errcod; }  /* check and Forward error code */
+#endif
 #define CHECK_E(f, e) { size_t const errcod = f; if (ERR_isError(errcod)) return ERROR(e); }  /* check and send Error code */
 
 

@@ -83,7 +83,7 @@ struct ZstdOutputStream::Pimpl
 		DictionaryHelpers::checkResult(result);
 		auto numBytesWritten = outBuffer.pos - lastPos;
 
-		totalPosition += numBytesWritten;
+		totalPosition += (int)numBytesWritten;
 		return output->write(outBufferData.getData() + lastPos, numBytesWritten);
 	}
 

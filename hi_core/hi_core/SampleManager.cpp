@@ -125,9 +125,7 @@ double& MainController::SampleManager::getPreloadProgress()
 
 void MainController::SampleManager::cancelAllJobs()
 {
-	GLOBAL_LOCK_POS()
-
-		internalPreloadJob.signalJobShouldExit();
+	internalPreloadJob.signalJobShouldExit();
 	samplerLoaderThreadPool->stopThread(2000);
 }
 
@@ -228,11 +226,11 @@ SampleThreadPool::Job::JobStatus MainController::SampleManager::PreloadJob::runJ
 {
 	LOG_PRELOAD_EVENTS("Running preload thread ");
 
-	auto &pendingFunctions = mc->getSampleManager().pendingFunctions;
+	auto &pFunctions = mc->getSampleManager().pendingFunctions;
 
 	SampleFunction c;
 
-	while (pendingFunctions.pop(c))
+	while (pFunctions.pop(c))
 	{
 		mc->getSampleManager().setCurrentPreloadMessage("Kill voices...");
 

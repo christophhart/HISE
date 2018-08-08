@@ -187,18 +187,18 @@ void ZStdUnitTests::createUncompressedTestData(File& f, int maxElements /*= -1*/
 
 void ZStdUnitTests::createUncompressedTestData(ValueTree& v, int maxElements /*= -1*/)
 {
-	Random r;
+	Random rGenerator;
 
 	if (maxElements == -1)
 		maxElements = 8;
 
 	v = ValueTree(getRandomIdFromPool());
 
-	int numProperties = r.nextInt(16);
+	int numProperties = rGenerator.nextInt(16);
 
 	for (int i = 0; i < numProperties; i++)
 	{
-		if (r.nextBool())
+		if (rGenerator.nextBool())
 		{
 			v.setProperty(getRandomIdFromPool(), getRandomIdFromPool(), nullptr);
 		}
@@ -208,7 +208,7 @@ void ZStdUnitTests::createUncompressedTestData(ValueTree& v, int maxElements /*=
 		}
 	}
 
-	int numChildren = r.nextInt(maxElements);
+	int numChildren = rGenerator.nextInt(maxElements);
 
 	for (int i = 0; i < numChildren; i++)
 	{

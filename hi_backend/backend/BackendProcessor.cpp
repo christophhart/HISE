@@ -88,8 +88,6 @@ BackendProcessor::~BackendProcessor()
 
 	getSampleManager().getProjectHandler().removeListener(this);
 
-	GLOBAL_LOCK_POS( globalLock(this, GlobalLock::Reason::Destruction);)
-
 	deletePendingFlag = true;
 
 	clearPreset();

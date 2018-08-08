@@ -139,8 +139,10 @@ namespace SuspendHelpers
 {
 
 
-struct ScopedTicket
+class ScopedTicket
 {
+public:
+
 	ScopedTicket(MainController* mc) noexcept;
 
 	ScopedTicket(ScopedTicket&& other) noexcept;;
@@ -165,7 +167,7 @@ private:
 
 struct FreeTicket
 {
-	FreeTicket(MainController* mc_) noexcept:
+	FreeTicket(MainController* /*mc_*/) noexcept:
 	mc(nullptr) // The (mc != nullptr) check is used to check if the engine should be suspended
 	{};
 

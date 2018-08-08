@@ -583,8 +583,6 @@ SampleDataImporter::SampleDataImporter(ModalBaseWindow* mbw) :
 
 #else
 
-	File archiveFile;
-
 #endif
 
 	targetFile = new FilenameComponent("Sample Archive Location", archiveFile, true, false, false, "*.hr1", "", "Choose the Sample Archive");

@@ -1078,8 +1078,6 @@ void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator
 
 	newModulator->setParentProcessor(chain);
 
-	bool onAir = chain->isOnAir();
-
 	{
 		LOCK_PROCESSING_CHAIN(chain);
 

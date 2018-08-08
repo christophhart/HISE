@@ -733,21 +733,15 @@ void ModulatorSampler::setVoiceAmountInternal()
 
 void ModulatorSampler::killAllVoicesAndCall(const ProcessorFunction& f, bool restrictToSampleLoadingThread/*=true*/)
 {
-	bool synchronous = false;
-
 	auto currentThread = getMainController()->getKillStateHandler().getCurrentThread();
 
 	bool correctThread = (currentThread == MainController::KillStateHandler::SampleLoadingThread) ||
 						 (!restrictToSampleLoadingThread && currentThread == MainController::KillStateHandler::ScriptingThread);
 
 	if (!isOnAir() && correctThread)
-	{
 		f(this);
-	}
 	else
-	{
 		getMainController()->getKillStateHandler().killVoicesAndCall(this, f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
-	}
 }
 
 void ModulatorSampler::AsyncPurger::timerCallback()
@@ -1059,7 +1053,7 @@ void ModulatorSampler::loadSampleMap(PoolReference ref)
 	getSampleMap()->load(ref);
 }
 
-void ModulatorSampler::loadEmbeddedValueTree(const ValueTree& v, bool loadAsynchronous /*= false*/)
+void ModulatorSampler::loadEmbeddedValueTree(const ValueTree& v, bool /*loadAsynchronous*/ /*= false*/)
 {
 	debugError(this, "Loading embedded samplemaps is bad practice. Save the samplemap to a file instead.");
 

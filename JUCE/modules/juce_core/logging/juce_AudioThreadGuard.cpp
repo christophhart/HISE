@@ -195,13 +195,13 @@ juce::String AudioThreadGuard::Handler::getOperationName(int operationType)
 	return {};
 }
 
-AudioThreadGuard::ScopedHandlerSetter::ScopedHandlerSetter(Handler* instance, bool doSomething) :
+AudioThreadGuard::ScopedHandlerSetter::ScopedHandlerSetter(Handler* handler, bool doSomething) :
 	previousHandler(AudioThreadGuard::getGlobalData().currentHandler)
 {
 	if (doSomething && isAudioThread())
 	{
 		isActive = true;
-		AudioThreadGuard::setHandler(instance);
+		AudioThreadGuard::setHandler(handler);
 	}
 	
 }
@@ -249,6 +249,8 @@ AudioThreadGuard::ScopedLockType::~ScopedLockType()
 AudioThreadGuard::ScopedTryLockType::ScopedTryLockType(const CriticalSection& lock, bool assertIfPriorityInversion /*= true*/):
 	lock_(lock)
 {
+	ignoreUnused(assertIfPriorityInversion);
+
 	// If you hit this assertion, it means you didn't create an AudioThreadGuard object
 	// before creating this object.
 	jassert(AudioThreadGuard::isAudioThread());

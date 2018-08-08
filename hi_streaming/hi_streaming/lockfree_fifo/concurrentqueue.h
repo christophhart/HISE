@@ -30,6 +30,12 @@
 
 #pragma once
 
+
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4127)
+#endif
+
 #if defined(__GNUC__)
 // Disable -Wconversion warnings (spuriously triggered when Traits::size_t and
 // Traits::index_t are set to < 32 bits, causing integer promotion, causing warnings
@@ -3607,7 +3613,7 @@ ConsumerToken::ConsumerToken(ConcurrentQueue<T, Traits>& queue)
 	: itemsConsumedFromCurrent(0), currentProducer(nullptr), desiredProducer(nullptr)
 {
 	initialOffset = queue.nextExplicitConsumerId.fetch_add(1, std::memory_order_release);
-	lastKnownGlobalOffset = -1;
+	lastKnownGlobalOffset = (uint32_t)-1;
 }
 
 template<typename T, typename Traits>
@@ -3615,7 +3621,7 @@ ConsumerToken::ConsumerToken(BlockingConcurrentQueue<T, Traits>& queue)
 	: itemsConsumedFromCurrent(0), currentProducer(nullptr), desiredProducer(nullptr)
 {
 	initialOffset = reinterpret_cast<ConcurrentQueue<T, Traits>*>(&queue)->nextExplicitConsumerId.fetch_add(1, std::memory_order_release);
-	lastKnownGlobalOffset = -1;
+	lastKnownGlobalOffset = (uint32_t)-1;
 }
 
 template<typename T, typename Traits>
@@ -3644,4 +3650,8 @@ inline void swap(typename ConcurrentQueue<T, Traits>::ImplicitProducerKVP& a, ty
 
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop
+#endif
+
+#ifdef _MSC_VER
+#pragma warning(pop)
 #endif

@@ -59,7 +59,7 @@ public:
 	int getNumInternalChains() const override { return 0; };
 	int getNumChildProcessors() const override { return 0; };
 
-	void setSoftBypass(bool shouldBeSoftBypassed, bool useRamp/* =true */) override {};
+	void setSoftBypass(bool /*shouldBeSoftBypassed*/, bool /*useRamp*//* =true */) override {};
 
 	bool isFadeOutPending() const noexcept override
 	{

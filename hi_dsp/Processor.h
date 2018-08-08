@@ -1025,10 +1025,6 @@ public:
 
 	static void restoreFromBase64String(Processor* p, const String& base64String, bool restoreScriptContentOnly=false);
 
-#if CLEANUP_LOCK
-	static void deleteProcessor(Processor* p);
-#endif
-
 	static void increaseBufferIfNeeded(AudioSampleBuffer& b, int numSamplesNeeded);
 
 	static void increaseBufferIfNeeded(hlac::HiseSampleBuffer& b, int numSamplesNeeded);

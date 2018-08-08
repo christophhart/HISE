@@ -207,7 +207,7 @@ void MainController::loadPresetFromValueTree(const ValueTree &v, Component* /*ma
 
 void MainController::loadPresetInternal(const ValueTree& v)
 {
-	auto f = [this, v](Processor* p)
+	auto f = [this, v](Processor* )
 	{
 		LockHelpers::freeToGo(this);
 

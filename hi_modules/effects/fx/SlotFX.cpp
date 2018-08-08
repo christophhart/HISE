@@ -119,7 +119,7 @@ hise::MasterEffectProcessor* SlotFX::getCurrentEffect()
 	return nullptr;
 }
 
-bool SlotFX::setEffect(const String& typeName, bool synchronously)
+bool SlotFX::setEffect(const String& typeName, bool /*synchronously*/)
 {
 	LockHelpers::freeToGo(getMainController());
 
@@ -143,9 +143,7 @@ bool SlotFX::setEffect(const String& typeName, bool synchronously)
 
 			p->setParentProcessor(this);
 			auto newId = getId() + "_" + p->getId();
-
 			p->setId(newId);
-
 			ScopedPointer<MasterEffectProcessor> pendingDelete;
 
 			if (wrappedEffect != nullptr)
@@ -155,9 +153,7 @@ bool SlotFX::setEffect(const String& typeName, bool synchronously)
 			}
 
 			if (pendingDelete != nullptr)
-			{
 				getMainController()->getGlobalAsyncModuleHandler().removeAsync(pendingDelete.release(), ProcessorFunction());
-			}
 
 			{
 				LOCK_PROCESSING_CHAIN(this);
@@ -175,109 +171,6 @@ bool SlotFX::setEffect(const String& typeName, bool synchronously)
 			}
 
 			return true;
-
-#if CLEANUP_LOCK
-			MasterEffectProcessor* fxToBeDeleted = nullptr;
-
-			if (processorWaitingToBeInserted != nullptr)
-			{
-				// Nothing to do here...
-				auto removeFunction = [](Processor*)
-				{
-					return SafeFunctionCall::OK;
-				};
-
-				getMainController()->getGlobalAsyncModuleHandler().removeAsync(processorWaitingToBeInserted.release(), removeFunction);
-			}
-
-			processorWaitingToBeInserted = dynamic_cast<MasterEffectProcessor*>(p);
-
-			
-
-			if (wrappedEffect != nullptr)
-			{
-				ScopedLock sl(getMainController()->getLock());
-
-				fxToBeDeleted = wrappedEffect.release();
-				wrappedEffect = nullptr;
-				fxToBeDeleted->setIsOnAir(false);
-			}
-
-			processorWaitingToBeInserted->setParentProcessor(this);
-			auto newId = getId() + "_" + processorWaitingToBeInserted->getId();
-
-			processorWaitingToBeInserted->setId(newId);
-
-			if (fxToBeDeleted)
-			{
-				getMainController()->getGlobalAsyncModuleHandler().removeAsync(fxToBeDeleted, ProcessorFunction());
-			}
-
-			auto addFunction = [this](Processor* p)
-			{
-				jassert(p == this->processorWaitingToBeInserted.get());
-				jassert(wrappedEffect == nullptr);
-
-				auto newFX = dynamic_cast<MasterEffectProcessor*>(p);
-
-				newFX->setKillBuffer(*(this->killBuffer));
-
-				if (getSampleRate() > 0)
-					newFX->prepareToPlay(getSampleRate(), getLargestBlockSize());
-
-				bool thisIsScriptFX = false;
-
-				if (JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(p))
-				{
-					thisIsScriptFX = true;
-
-					auto f = [](Processor* p)
-					{
-						dynamic_cast<JavascriptProcessor*>(p)->compileScript();
-						return SafeFunctionCall::OK;
-					};
-					
-					getMainController()->callFunctionWithGlobalLock(p, f, GlobalLock::Reason::ScriptCompilation);
-					
-				}
-
-				if (isOnAir())
-				{
-					auto chain = dynamic_cast<EffectProcessorChain*>(getParentProcessor(false));
-
-					if (chain->hasTailingMasterEffects())
-					{
-						newFX->setSoftBypass(true, false);
-					}
-				}
-
-				{
-					const bool newFXIsEmpty = processorWaitingToBeInserted == nullptr || dynamic_cast<EmptyFX*>(processorWaitingToBeInserted.get()) != nullptr;;
-
-					ScopedLock sl(getMainController()->getLock());
-
-					p->setIsOnAir(true);
-					wrappedEffect.swapWith(processorWaitingToBeInserted);
-					jassert(processorWaitingToBeInserted == nullptr);
-
-					hasScriptFX = thisIsScriptFX;
-					isClear = newFXIsEmpty;
-				}
-
-				return SafeFunctionCall::OK;
-			};
-
-			if (synchronously)
-			{
-				addFunction(p);
-			}
-			else
-			{
-				getMainController()->getGlobalAsyncModuleHandler().addAsync(p, addFunction);
-			}
-
-			return true;
-#endif
 		}
 		else
 		{
@@ -299,15 +192,11 @@ bool SlotFX::setEffect(const String& typeName, bool synchronously)
 void SlotFX::createList()
 {
 	ScopedPointer<FactoryType> f = new EffectProcessorChainFactoryType(128, this);
-
 	f->setConstrainer(new Constrainer());
-
 	auto l = f->getAllowedTypes();
 
 	for (int i = 0; i < l.size(); i++)
-	{
 		effectList.add(l[i].type.toString());
-	}
 
 	f = nullptr;
 }

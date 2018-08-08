@@ -86,7 +86,7 @@ public:
 
 		ProcessorHelpers::increaseBufferIfNeeded(killBuffer, samplesPerBlock);
 
-		resetCounterStartValue = (int64)(0.12 * sampleRate);
+		resetCounterStartValue = (int)(0.12 * sampleRate);
 
 		for (auto fx : masterEffects)
 			fx->setKillBuffer(killBuffer);

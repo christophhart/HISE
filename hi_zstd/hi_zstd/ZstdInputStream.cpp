@@ -81,11 +81,9 @@ struct ZstdInputStream::Pimpl
 
 		DictionaryHelpers::checkResult(result);
 
-		int numByteDecompressed = outBuffer.pos;
-
 		memcpy(destBuffer, outBufferData, maxBytesToRead);
 
-		return inBuffer.pos;
+		return (int)inBuffer.pos;
 	}
 
 	size_t inSize;
