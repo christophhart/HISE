@@ -71,6 +71,7 @@ StringArray MouseCallbackComponent::getCallbackPropertyNames()
 	sa.add("drag");
 	sa.add("dragX");
 	sa.add("dragY");
+	sa.add("insideDrag");
 	sa.add("hover");
 	sa.add("result");
 	sa.add("itemText");
@@ -78,6 +79,7 @@ StringArray MouseCallbackComponent::getCallbackPropertyNames()
     sa.add("cmdDown");
     sa.add("altDown");
     sa.add("ctrlDown");
+	
 
 	return sa;
 }
@@ -463,6 +465,7 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
 	static const Identifier drag("drag");
 	static const Identifier dragX("dragX");
 	static const Identifier dragY("dragY");
+	static const Identifier insideDrag("insideDrag");
 	static const Identifier hover("hover");
 	static const Identifier mouseDownX("mouseDownX");
 	static const Identifier mouseDownY("mouseDownY");
@@ -499,6 +502,12 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
 
 	if (callbackLevel >= CallbackLevel::Drag)
 	{
+
+		
+
+		const bool isIn = getLocalBounds().contains(event.position.toInt());
+
+		currentEvent->setProperty(insideDrag, isIn ? 1: 0);
 		currentEvent->setProperty(drag, event.getDistanceFromDragStart() > 4);
 		currentEvent->setProperty(dragX, event.getDistanceFromDragStartX());
 		currentEvent->setProperty(dragY, event.getDistanceFromDragStartY());
