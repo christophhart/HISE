@@ -105,6 +105,8 @@ void MainController::GlobalAsyncModuleHandler::addPendingUIJob(Processor* p, Wha
 			return Dispatchable::Status::OK;
 		};
 
+		p->setIsWaitingForDeletion();
+
 		mc->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(p, f);
 	}
 }

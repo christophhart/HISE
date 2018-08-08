@@ -811,7 +811,7 @@ SafeFunctionCall::Status SafeFunctionCall::call() const
 {
 	try
 	{
-		if (p.get() != nullptr)
+		if (p.get() != nullptr && !p->isWaitingForDeletion())
 			return f(p.get());
 	}
 	catch (MainController::LockFreeDispatcher::AbortSignal s)

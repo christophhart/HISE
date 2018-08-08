@@ -776,6 +776,21 @@ public:
 		deleteListeners.addIfNotAlreadyThere(listener);
 	}
 
+	void setIsWaitingForDeletion()
+	{
+		// Must be called before this method
+		jassert(!isOnAir());
+		pendingDelete = true;
+
+		for (int i = 0; i < getNumChildProcessors(); i++)
+			getChildProcessor(i)->setIsWaitingForDeletion();
+	}
+
+	bool isWaitingForDeletion() const noexcept
+	{
+		return pendingDelete;
+	}
+
 	void removeDeleteListener(DeleteListener* listener)
 	{
 		deleteListeners.removeAllInstancesOf(listener);
@@ -878,6 +893,8 @@ private:
 	CriticalSection dummyLock;
 
 	bool onAir = false;
+
+	bool pendingDelete = false;
 
 	WeakReference<Processor> parentProcessor;
 
