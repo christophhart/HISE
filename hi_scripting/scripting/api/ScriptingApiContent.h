@@ -1631,7 +1631,20 @@ public:
 
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */) override;
 
-		bool createFloatingTileComponent(var newValue);
+		DynamicObject* createOrGetJSONData()
+		{
+			auto obj = jsonData.getDynamicObject();
+
+			if (obj == nullptr)
+			{
+				obj = new DynamicObject();
+				jsonData = var(obj);
+			}
+
+			return obj;
+		}
+
+		bool fillScriptPropertiesWithFloatingTile(FloatingTile* ft);
 
 
 		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptFloatingTile"); }
@@ -1663,7 +1676,14 @@ public:
 		void setContentData(var data)
 		{
 			jsonData = data;
-			triggerAsyncUpdate();
+
+			if (auto obj = jsonData.getDynamicObject())
+			{
+				auto id = obj->getProperty("Type");
+				setScriptObjectProperty(Properties::ContentType, id, sendNotification);
+			}
+			
+			//triggerAsyncUpdate();
 		}
 
 		// ========================================================================================================

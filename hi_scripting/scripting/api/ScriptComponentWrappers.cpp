@@ -1953,6 +1953,15 @@ void ScriptCreatedComponentWrappers::FloatingTileWrapper::updateComponent(int pr
 	PROPERTY_CASE::ScriptFloatingTile::Properties::Data :
 	PROPERTY_CASE::ScriptFloatingTile::Properties::ContentType: ft->setContent(sft->getContentData()); break;
 	}
+
+#if USE_BACKEND
+
+	// This will cause the properties to update and show the properties in the edit panel
+	if (propertyIndex == ScriptingApi::Content::ScriptFloatingTile::ContentType)
+	{
+		sft->fillScriptPropertiesWithFloatingTile(ft);
+	}
+#endif
 }
 
 void ScriptCreatedComponentWrappers::FloatingTileWrapper::updateValue(var newValue)

@@ -339,7 +339,15 @@ void ScriptComponentEditPanel::scriptComponentPropertyChanged(ScriptComponent* s
 {
 	if (getScriptComponentEditBroadcaster()->isFirstComponentInSelection(sc))
 	{
-		panel->refreshAll();
+		Component::SafePointer<PropertyPanel> tmp(panel);
+
+		auto f = [tmp]()
+		{
+			if(tmp)
+				tmp->refreshAll();
+		};
+
+		new DelayedFunctionCaller(f, 300);
 	}
 }
 
