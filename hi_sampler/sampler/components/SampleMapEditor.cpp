@@ -399,19 +399,50 @@ void SampleMapEditor::resized()
 
 	PLACE_BUTTON(helpButton);
 
-	int viewportHeight = verticalBigSize ? 256 + 32 : 128 + 32;
 
-	viewport->setBounds((getWidth() / 2) - (768 / 2), 42, 768, viewportHeight);
+	const bool isInMainPanel = findParentComponentOfClass<PanelWithProcessorConnection>() == nullptr;
 
+	int viewportHeight;
+	int viewportWidth;
+	int viewportY = 42;
 
-	rootNoteSetter->setBounds((getWidth() / 2) + -107 - (90 / 2), viewportHeight + 46, 90, 32);
-	lowKeySetter->setBounds((getWidth() / 2) + -11 - (90 / 2), viewportHeight + 46, 90, 32);
-	highKeySetter->setBounds((getWidth() / 2) + 85 - (90 / 2), viewportHeight + 46, 90, 32);
-	lowVelocitySetter->setBounds((getWidth() / 2) + 181 - (90 / 2), viewportHeight + 46, 90, 32);
-	highVelocitySetter->setBounds((getWidth() / 2) + 277 - (90 / 2), viewportHeight + 46, 90, 32);
-	rrGroupSetter->setBounds((getWidth() / 2) + -196 - (76 / 2), viewportHeight + 46, 76, 32);
-	displayGroupLabel->setBounds((getWidth() / 2) + -281 - (82 / 2), viewportHeight + 41, 82, 24);
-	groupDisplay->setBounds((getWidth() / 2) + -281 - (80 / 2), viewportHeight + 61, 80, 16);
+	if (isInMainPanel)
+	{
+		viewportHeight = verticalBigSize ? 256 + 32 : 128 + 32;
+		viewportWidth = 768;
+	}
+	else
+	{
+		auto wToUse = getWidth() - 10;
+
+		auto w = wToUse - wToUse % 128;
+
+		viewportWidth = w;
+
+		auto hToUse = getHeight() - 132;
+
+		viewportHeight = hToUse - hToUse % 128 + 32;
+
+		viewportY += (hToUse % 128 / 2);
+		
+	}
+
+	
+
+	viewport->setBounds((getWidth() / 2) - (viewportWidth / 2), viewportY, viewportWidth, viewportHeight);
+
+	updateMapInViewport();
+
+	int y = getHeight() - JUCE_LIVE_CONSTANT(46);
+
+	rootNoteSetter->setBounds((getWidth() / 2) + -107 - (90 / 2), y, 90, 32);
+	lowKeySetter->setBounds((getWidth() / 2) + -11 - (90 / 2), y, 90, 32);
+	highKeySetter->setBounds((getWidth() / 2) + 85 - (90 / 2), y, 90, 32);
+	lowVelocitySetter->setBounds((getWidth() / 2) + 181 - (90 / 2), y, 90, 32);
+	highVelocitySetter->setBounds((getWidth() / 2) + 277 - (90 / 2), y, 90, 32);
+	rrGroupSetter->setBounds((getWidth() / 2) + -196 - (76 / 2), y, 76, 32);
+	displayGroupLabel->setBounds((getWidth() / 2) + -281 - (82 / 2), y-5, 82, 24);
+	groupDisplay->setBounds((getWidth() / 2) + -281 - (80 / 2), y+16, 80, 16);
 
 	
 	lowXFadeSetter->setBounds(lowKeySetter->getBounds());

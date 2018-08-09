@@ -269,12 +269,30 @@ void SampleImporter::importNewAudioFiles(Component *childComponentOfMainEditor, 
 																									fileNames,
 																									fid->useMetadata());
 												break;
-		case FileImportDialog::DropPoint:		jassert(draggedRootNotes != 0);
-												SampleImporter::loadAudioFilesUsingDropPoint(childComponentOfMainEditor,
-																								sampler,
-																								fileNames,
-																								draggedRootNotes);
-												break;
+		case FileImportDialog::DropPoint:		
+		{
+			jassert(draggedRootNotes != 0);
+
+			bool useMetadata = fid->useMetadata();
+
+			auto f = [childComponentOfMainEditor, fileNames, draggedRootNotes, useMetadata](Processor* s)
+			{
+				auto sampler = static_cast<ModulatorSampler*>(s);
+
+				SampleImporter::loadAudioFilesUsingDropPoint(childComponentOfMainEditor,
+					sampler,
+					fileNames,
+					draggedRootNotes);
+
+				if (useMetadata)
+					SampleEditHandler::SampleEditingActions::automapUsingMetadata(sampler);
+
+				return SafeFunctionCall::OK;
+			};
+
+			sampler->killAllVoicesAndCall(f);
+			return;
+		}
         case FileImportDialog::numImportModes:  break;
 
 		}
@@ -623,6 +641,13 @@ FileImportDialogWindow::~FileImportDialogWindow()
 
 void FileImportDialogWindow::run()
 {
+	SuspendHelpers::ScopedTicket ticket(sampler->getMainController());
+
+	while (sampler->getMainController()->getKillStateHandler().isAudioRunning())
+	{
+		Thread::sleep(200);
+	}
+
 	SampleImporter::SampleCollection collection;
 
 	ModulatorSamplerSoundPool *pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
@@ -682,6 +707,8 @@ void FileImportDialogWindow::run()
 	sampler->setNumMicPositions(collection.multiMicTokens);
 
 	{
+
+
 		LockHelpers::freeToGo(sampler->getMainController());
 		
 		for (int i = 0; i < collection.dataList.size(); i++)

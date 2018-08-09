@@ -138,6 +138,7 @@ void MainController::SampleManager::initialiseQueue()
 
 		jassert(pendingFunctions.isEmpty());
 
+#if 0
 		auto flags = MainController::KillStateHandler::QueueProducerFlags::LoadingThreadIsProducer |
 			MainController::KillStateHandler::QueueProducerFlags::MessageThreadIsProducer |
 			MainController::KillStateHandler::QueueProducerFlags::ScriptThreadIsProducer;
@@ -145,6 +146,7 @@ void MainController::SampleManager::initialiseQueue()
 		auto tokens = mc->getKillStateHandler().createPublicTokenList(flags);
 
 		pendingFunctions.setThreadTokens(tokens);
+#endif
 	}
 }
 

@@ -197,6 +197,8 @@ public:
 	void valueTreeChildAdded(ValueTree& parentTree,
 		ValueTree& childWhichHasBeenAdded) override;;
 
+	void addSampleFromValueTree(ValueTree childWhichHasBeenAdded);
+
 	void valueTreeChildRemoved(ValueTree& parentTree,
 		ValueTree& childWhichHasBeenRemoved,
 		int indexFromWhichChildWasRemoved) override;;

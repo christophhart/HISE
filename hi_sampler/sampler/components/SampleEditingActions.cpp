@@ -34,22 +34,24 @@ namespace hise { using namespace juce;
 
 void SampleEditHandler::SampleEditingActions::deleteSelectedSounds(SampleEditHandler *handler)
 {
-	
-	auto soundsToBeDeleted = handler->getSelection().getItemArray();
-
-    
-	handler->getSampler()->getUndoManager()->beginNewTransaction("Delete samples");
-
-	for (int i = 0; i < soundsToBeDeleted.size(); i++)
+	auto f = [handler](Processor* s)
 	{
-		if (soundsToBeDeleted[i].get() != nullptr)
-		{
-			handler->sampler->getSampleMap()->removeSound(soundsToBeDeleted[i].get());
-		}
-	}
+		auto soundsToBeDeleted = handler->getSelection().getItemArray();
+		handler->getSampler()->getUndoManager()->beginNewTransaction("Delete samples");
 
-	handler->getSelection().deselectAll();
-	handler->getSelection().dispatchPendingMessages();
+		for (int i = 0; i < soundsToBeDeleted.size(); i++)
+		{
+			if (soundsToBeDeleted[i].get() != nullptr)
+				handler->sampler->getSampleMap()->removeSound(soundsToBeDeleted[i].get());
+		}
+
+		handler->getSelection().deselectAll();
+		
+		return SafeFunctionCall::OK;
+	};
+
+	handler->getSampler()->killAllVoicesAndCall(f);
+	
 }
 
 void SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(SampleEditHandler *handler)
@@ -1733,6 +1735,10 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 			auto currentSelectionId = (int)soundIndex.getValue();
 
 			currentlyDisplayedSound = handler->getSelection().getSelectedItem(jmax<int>(0, currentSelectionId-1));
+
+			if (currentlyDisplayedSound == nullptr)
+				return;
+			
 
 			firstPreview->setSoundToDisplay(currentlyDisplayedSound, multimicIndex.getValue());
 			firstPreview->getSampleArea(SamplerSoundWaveform::PlayArea)->setAreaEnabled(false);

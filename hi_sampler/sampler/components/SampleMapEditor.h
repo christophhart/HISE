@@ -468,14 +468,20 @@ public:
 		if(zoomOut) zoomFactor = jmax (1.0f, zoomFactor / 2.0f);
 		else		zoomFactor = jmin (4.0f, zoomFactor * 2.0f);
 
+		updateMapInViewport();
+
+	};
+
+	void updateMapInViewport()
+	{
 		const int newWidth = (int)(viewport->getWidth() * zoomFactor);
 
 		double midPoint = (double)(viewport->getViewPositionX() + viewport->getViewWidth() / 2) / (double)map->getWidth();
 
-		map->setSize(newWidth, map->getHeight());
+		map->setSize(newWidth, viewport->getHeight());
 
 		viewport->setViewPositionProportionately(midPoint, 0);
-	};
+	}
 
 	ApplicationCommandManager *getCommandManager();
 

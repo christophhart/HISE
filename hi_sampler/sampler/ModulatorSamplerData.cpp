@@ -45,6 +45,8 @@ SampleMap::SampleMap(ModulatorSampler *sampler_):
 	sampleMapId(Identifier()),
 	data("samplemap")
 {
+	data.addListener(this);
+
 	clear(dontSendNotification);
 
 	// You have to clear the sound array before you set a new SampleMap!
@@ -333,8 +335,19 @@ void SampleMap::valueTreeChildAdded(ValueTree& parentTree, ValueTree& childWhich
 	ignoreUnused(parentTree);
 	jassert(parentTree == data);
 
-	LockHelpers::freeToGo(sampler->getMainController());
+	ValueTree child = childWhichHasBeenAdded;
 
+	auto f = [child](Processor* p)
+	{
+		static_cast<ModulatorSampler*>(p)->getSampleMap()->addSampleFromValueTree(child);
+		return SafeFunctionCall::OK;
+	};
+
+	sampler->killAllVoicesAndCall(f);
+}
+
+void SampleMap::addSampleFromValueTree(ValueTree childWhichHasBeenAdded)
+{
 	auto map = sampler->getSampleMap();
 
 	auto newSound = new ModulatorSamplerSound(map, childWhichHasBeenAdded, map->currentMonolith);
@@ -368,12 +381,27 @@ void SampleMap::valueTreeChildAdded(ValueTree& parentTree, ValueTree& childWhich
 	sampler->getMainController()->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(sampler, update);
 }
 
-void SampleMap::valueTreeChildRemoved(ValueTree& /*parentTree*/, ValueTree& /*childWhichHasBeenRemoved*/, int indexFromWhichChildWasRemoved)
+void SampleMap::valueTreeChildRemoved(ValueTree& /*parentTree*/, ValueTree& child, int /*indexFromWhichChildWasRemoved*/)
 {
-	LockHelpers::freeToGo(sampler->getMainController());
+	auto f = [child](Processor* s)
+	{
+		auto sampler = static_cast<ModulatorSampler*>(s);
+		LockHelpers::freeToGo(sampler->getMainController());
 
-	sampler->deleteSound(indexFromWhichChildWasRemoved);
-	sampler->getSampleMap()->notifier.sendSampleAmountChangeMessage(sendNotificationAsync);
+		for (int i = 0; i < sampler->getNumSounds(); i++)
+		{
+			if (static_cast<ModulatorSamplerSound*>(sampler->getSound(i))->getData() == child)
+			{
+				sampler->deleteSound(i);
+				sampler->getSampleMap()->notifier.sendSampleAmountChangeMessage(sendNotificationAsync);
+				break;
+			}
+		}
+
+		return SafeFunctionCall::OK;
+	};
+
+	sampler->killAllVoicesAndCall(f);
 }
 
 void SampleMap::save()
