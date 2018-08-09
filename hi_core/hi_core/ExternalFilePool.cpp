@@ -419,6 +419,19 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 
 	static const String projectFolderWildcard("{PROJECT_FOLDER}");
 
+#if USE_RELATIVE_PATH_FOR_AUDIO_FILES
+
+	static const String rpWildcard = "{AUDIO_FILES}";
+
+	if (directoryType == FileHandlerBase::AudioFiles && input.startsWith(rpWildcard))
+	{
+		m = Mode::AbsolutePath;
+		auto root = FrontendHandler::getAdditionalAudioFilesDirectory();
+		reference = input;
+		f = root.getChildFile(input.fromFirstOccurrenceOf(rpWildcard, false, false));
+		return;
+	}
+#endif
 	if (ProjectHandler::isAbsolutePathCrossPlatform(input))
 	{
 		f = File(input);
