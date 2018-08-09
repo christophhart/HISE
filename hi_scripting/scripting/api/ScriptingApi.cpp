@@ -2067,7 +2067,7 @@ struct ScriptingApi::Synth::Wrapper
 ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *ownerSynth) :
 	ScriptingObject(p),
 	ApiClass(0),
-	moduleHandler(dynamic_cast<Processor*>(p)),
+	moduleHandler(dynamic_cast<Processor*>(p), dynamic_cast<JavascriptProcessor*>(p)),
 	owner(ownerSynth),
 	numPressedKeys(0),
 	keyDown(0),

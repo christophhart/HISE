@@ -280,7 +280,7 @@ ScriptingObjects::ScriptingModulator::ScriptingModulator(ProcessorWithScriptingC
 ConstScriptingObject(p, m_ != nullptr ? m_->getNumParameters() + 1 : 1),
 mod(m_),
 m(nullptr),
-moduleHandler(m_)
+moduleHandler(m_, dynamic_cast<JavascriptProcessor*>(p))
 {
 	if (mod != nullptr)
 	{
@@ -683,7 +683,7 @@ struct ScriptingObjects::ScriptingEffect::Wrapper
 ScriptingObjects::ScriptingEffect::ScriptingEffect(ProcessorWithScriptingContent *p, EffectProcessor *fx) :
 ConstScriptingObject(p, fx != nullptr ? fx->getNumParameters()+1 : 1),
 effect(fx),
-moduleHandler(fx)
+moduleHandler(fx, dynamic_cast<JavascriptProcessor*>(p))
 {
 	if (fx != nullptr)
 	{
@@ -1186,7 +1186,7 @@ struct ScriptingObjects::ScriptingSynth::Wrapper
 ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *p, ModulatorSynth *synth_) :
 	ConstScriptingObject(p, synth_ != nullptr ? synth_->getNumParameters() + 1 : 1),
 	synth(synth_),
-	moduleHandler(synth_)
+	moduleHandler(synth_, dynamic_cast<JavascriptProcessor*>(p))
 {
 	if (synth != nullptr)
 	{
@@ -2558,8 +2558,9 @@ String ScriptingObjects::ScriptingMessageHolder::dump() const
 
 
 
-ApiHelpers::ModuleHandler::ModuleHandler(Processor* parent_) :
-	parent(parent_)
+ApiHelpers::ModuleHandler::ModuleHandler(Processor* parent_, JavascriptProcessor* sp) :
+	parent(parent_),
+	scriptProcessor(sp)
 {
 #if USE_BACKEND
 
@@ -2627,6 +2628,12 @@ Processor* ApiHelpers::ModuleHandler::addModule(Chain* c, const String& type, co
 		}
 	}
 
+	SuspendHelpers::ScopedTicket ticket(parent->getMainController());
+
+	parent->getMainController()->getJavascriptThreadPool().killVoicesAndExtendTimeOut(getScriptProcessor());
+
+	LockHelpers::freeToGo(parent->getMainController());
+
 	ScopedPointer<Processor> newProcessor = parent->getMainController()->createProcessor(c->getFactoryType(), type, id);
 
 	if (newProcessor == nullptr)
@@ -2655,6 +2662,9 @@ Processor* ApiHelpers::ModuleHandler::addModule(Chain* c, const String& type, co
 		return SafeFunctionCall::OK;
 	};
 	
+
+
+
 
 	parent->getMainController()->getGlobalAsyncModuleHandler().addAsync(pFree, addFunction);
 

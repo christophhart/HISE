@@ -67,7 +67,18 @@ void MainController::GlobalAsyncModuleHandler::addAsync(Processor* p, const Safe
 		return result;
 	};
 
-	p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, KillStateHandler::SampleLoadingThread);
+	if (mc->getKillStateHandler().getCurrentThread() == KillStateHandler::ScriptingThread)
+	{
+		LockHelpers::freeToGo(mc);
+
+		f(p);
+	}
+	else
+	{
+		mc->getKillStateHandler().killVoicesAndCall(p, f, KillStateHandler::SampleLoadingThread);
+	}
+
+	
 }
 
 

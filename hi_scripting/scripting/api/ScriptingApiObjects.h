@@ -44,7 +44,7 @@ public:
 	{
 	public:
 
-		ModuleHandler(Processor* parent_);
+		ModuleHandler(Processor* parent_, JavascriptProcessor* sp);
 
 		~ModuleHandler();
 		
@@ -54,11 +54,14 @@ public:
 
 		Modulator* addAndConnectToGlobalModulator(Chain* c, Modulator* globalModulator, const String& modName, bool connectAsStaticMod=false);
 
+		JavascriptProcessor* getScriptProcessor() { return scriptProcessor.get(); };
+
 	private:
 
 		
 
 		WeakReference<Processor> parent;
+		WeakReference<JavascriptProcessor> scriptProcessor;
 
 		Component::SafePointer<Component> mainEditor;
 	};
