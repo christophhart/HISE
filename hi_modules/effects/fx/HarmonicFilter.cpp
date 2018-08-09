@@ -273,6 +273,8 @@ filterBank()
 {
 	modChains += {this, "X-Fade Modulation"};
 
+	finaliseModChains();
+
 	editorStateIdentifiers.add("XFadeChainShown");
 
     parameterNames.add("NumFilterBands");

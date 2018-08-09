@@ -36,14 +36,20 @@ MonoFilterEffect::MonoFilterEffect(MainController *mc, const String &id) :
 MonophonicEffectProcessor(mc, id),
 changeFlag(false),
 useInternalChains(true),
-freqChain(new ModulatorChain(mc, "Freq Modulation", 1, Modulation::GainMode, this)),
-gainChain(new ModulatorChain(mc, "Gain Modulation", 1, Modulation::GainMode, this)),
-bipolarFreqChain(new ModulatorChain(mc, "Bipolar Freq Mod", 1, Modulation::GainMode, this)),
-freqBuffer(1, 0),
-gainBuffer(1, 0),
-bipolarFreqBuffer(1, 0),
 filterCollection(1)
 {
+	modChains.reserve(numInternalChains);
+
+	modChains += {this, "Frequency Modulation"};
+	modChains += {this, "Gain Modulation"};
+	modChains += {this, "Bipolar Freq Modulation"};
+
+	finaliseModChains();
+
+	freqChain = modChains[InternalChains::FrequencyChain].getChain();
+	gainChain = modChains[InternalChains::GainChain].getChain();
+	bipolarFreqChain = modChains[InternalChains::BipolarFrequencyChain].getChain();
+
 	WeakReference<Processor> t = this;
 
 	auto f = [t](float input)
@@ -193,15 +199,29 @@ void MonoFilterEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 	}
 }
 
-void MonoFilterEffect::processBlockPartial(AudioSampleBuffer &/*buffer*/, int /*startSample*/, int /*numSamples*/)
+void MonoFilterEffect::processBlockPartial(AudioSampleBuffer &buffer, int startSample, int numSamples)
 {
+	FilterHelpers::RenderData r(buffer, startSample, numSamples);
+	r.voiceIndex = -1;
 
-	jassertfalse;
+	r.freqModValue = modChains[FrequencyChain].getOneModulationValue(startSample);
+
+	auto bipolarFMod = modChains[BipolarFrequencyChain].getOneModulationValue(startSample);
+	r.freqModValue += (double)(bipolarIntensity * bipolarFMod);
+	r.gainModValue = (double)modChains[GainChain].getOneModulationValue(startSample);
+
+	filterCollection.setDisplayModValues(-1, (float)r.freqModValue, (float)r.gainModValue);
+	filterCollection.renderMono(r);
+
 
 #if 0
+
+
+
+
 	FilterHelpers::RenderData r(buffer, startSample, numSamples);
 
-	r.freqModValue = (double)getConstantModulationValueForChain(freqChain, 0, startSample);
+	r.freqModValue = modChains[InternalChains::FrequencyChain].getOneModulationValue(startSample);
 	auto bipolarFMod = getConstantModulationValueForChain(bipolarFreqChain, 0, startSample);
 	r.freqModValue += (double)bipolarIntensity * bipolarFMod;
 	r.gainModValue = (double)getConstantModulationValueForChain(gainChain, 0, startSample);
@@ -251,19 +271,6 @@ const Processor * MonoFilterEffect::getChildProcessor(int processorIndex) const
 
 	jassertfalse;
 	return nullptr;
-}
-
-AudioSampleBuffer & MonoFilterEffect::getBufferForChain(int chainIndex)
-{
-	switch (chainIndex)
-	{
-	case FrequencyChain: return freqBuffer;
-	case GainChain: return gainBuffer;
-	case BipolarFrequencyChain: return bipolarFreqBuffer;
-	}
-
-	jassertfalse;
-	return bipolarFreqBuffer;
 }
 
 ProcessorEditorBody *MonoFilterEffect::createEditor(ProcessorEditor *parentEditor)

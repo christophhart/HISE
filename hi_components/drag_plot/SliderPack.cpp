@@ -76,7 +76,7 @@ void SliderPackData::setValue(int sliderIndex, float value, NotificationType not
 			values[sliderIndex] = value;
 
 			if (notifySliderPack == sendNotification)
-				sendChangeMessage();
+				sendAllocationFreeChangeMessage();
 		}
 
 	}

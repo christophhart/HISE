@@ -73,8 +73,6 @@ public:
 		numEffectParameters
 	};
 
-	
-
 	MonoFilterEffect(MainController *mc, const String &id);;
 
 	void setUseInternalChains(bool shouldBeUsed);;
@@ -97,14 +95,11 @@ public:
 	int getNumChildProcessors() const override { return useInternalChains ? numInternalChains : 0; };
 	Processor *getChildProcessor(int processorIndex) override;;
 	const Processor *getChildProcessor(int processorIndex) const override;;
-	AudioSampleBuffer &getBufferForChain(int chainIndex);;
-
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 	
 	IIRCoefficients getCurrentCoefficients() const override
 	{
 		return filterCollection.getCurrentCoefficients();
-		
 	}
 
 private:
@@ -116,13 +111,9 @@ private:
 	bool useInternalChains;
 	bool useFixedFrequency;
 
-	ScopedPointer<ModulatorChain> freqChain;
-	ScopedPointer<ModulatorChain> gainChain;
-	ScopedPointer<ModulatorChain> bipolarFreqChain;
-
-	AudioSampleBuffer freqBuffer;
-	AudioSampleBuffer gainBuffer;
-	AudioSampleBuffer bipolarFreqBuffer;
+	ModulatorChain* freqChain;
+	ModulatorChain* gainChain;
+	ModulatorChain* bipolarFreqChain;
 
 	friend class PolyFilterEffect;
 	friend class HarmonicFilter;
