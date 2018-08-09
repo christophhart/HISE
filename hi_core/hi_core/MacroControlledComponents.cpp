@@ -134,6 +134,7 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 		m.addItem(Remove, "Remove CC " + String(midiController));
 	}
 	
+#if 0
 	auto container = ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(getProcessor()->getMainController()->getMainSynthChain());
 
 	if (!mods.isEmpty())
@@ -155,6 +156,7 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 
 		m.addSubMenu("Add Modulation", modSubMenu);
 	}
+#endif
 
 	NormalisableRange<double> rangeWithSkew = getRange();
 
@@ -188,6 +190,7 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 	{
 		data.removeConnection(possibleConnection);
 	}
+#if 0
 	else if (result >= GlobalModAddOffset)
 	{
 		auto mod = mods[result - GlobalModAddOffset];
@@ -204,7 +207,7 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 			container->addModulatorControlledParameter(mod, processor, parameter, rangeWithSkew, getMacroIndex());	
 		}
 	}
-	
+#endif
 }
 
 void MacroControlledObject::setAttributeWithUndo(float newValue, bool useCustomOldValue/*=false*/, float customOldValue/*=-1.0f*/)
