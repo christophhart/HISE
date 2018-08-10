@@ -158,22 +158,9 @@ public:
 
 	void applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples) override
 	{
-		const bool inputSilent = buffer.getMagnitude(startSample, numSamples) == 0.0f;
+		reverb.processStereo(buffer.getWritePointer(0, startSample), buffer.getWritePointer(1, startSample), numSamples);
 
-		if(!inputSilent || isTailingOff())
-		{
-			reverb.processStereo(buffer.getWritePointer(0, startSample), buffer.getWritePointer(1, startSample), numSamples);
-
-			buffer.applyGain(0.5f);
-			//const float outputLevel = buffer.getMagnitude(startSample, numSamples);
-			//const bool outputSilent = outputLevel <= 0.0001f;
-			//tailActive = !outputSilent;
-		}
-		else
-		{
-			reverb.reset();
-		}
-
+		buffer.applyGain(0.5f);
 	};
 
 	bool hasTail() const override {return true; };
