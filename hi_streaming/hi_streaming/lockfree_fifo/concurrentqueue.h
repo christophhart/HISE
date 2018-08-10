@@ -336,13 +336,13 @@ struct ConcurrentQueueDefaultTraits
 #else
 	static inline void* malloc(size_t size)
 	{ 
-		WARN_IF_AUDIO_THREAD(size > 0, juce::IllegalAudioThreadOps::HeapBlockAllocation);
+		//WARN_IF_AUDIO_THREAD(size > 0, juce::IllegalAudioThreadOps::HeapBlockAllocation);
 		return std::malloc(size); 
 	}
 
 	static inline void free(void* ptr) 
 	{ 
-		WARN_IF_AUDIO_THREAD(ptr != nullptr, juce::IllegalAudioThreadOps::HeapBlockDeallocation);
+		//WARN_IF_AUDIO_THREAD(ptr != nullptr, juce::IllegalAudioThreadOps::HeapBlockDeallocation);
 		return std::free(ptr); 
 	}
 #endif

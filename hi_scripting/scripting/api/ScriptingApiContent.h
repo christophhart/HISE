@@ -309,7 +309,7 @@ public:
 
 		virtual void preRecompileCallback() 
 		{
-			controlSender.cancelPendingUpdate();
+			controlSender.cancelMessage();
 		};
 
 		virtual ValueTree exportAsValueTree() const override;;
@@ -568,7 +568,7 @@ public:
 
 		void cancelChangedControlCallback()
 		{
-			controlSender.cancelPendingUpdate();
+			controlSender.cancelMessage();
 		}
 
 	protected:
@@ -611,10 +611,20 @@ public:
 
 	private:
 
-        struct AsyncControlCallbackSender : public AsyncUpdater
+        struct AsyncControlCallbackSender : private UpdateDispatcher::Listener
         {
-            AsyncControlCallbackSender(ScriptComponent* parent_, ProcessorWithScriptingContent* p_) : parent(parent_), p(p_) {};
+		public:
+
+            AsyncControlCallbackSender(ScriptComponent* parent_, ProcessorWithScriptingContent* p_);;
             
+			void sendControlCallbackMessage();
+
+			void cancelMessage();
+
+		private:
+
+			bool changePending = false;
+
             void handleAsyncUpdate();
             
             ScriptComponent* parent;
@@ -649,8 +659,6 @@ public:
         int connectedMacroIndex = -1;
         bool macroRecursionProtection = false;
 
-		uint32 lastExecutedCallbackTime = 0;
-        
         JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptComponent);
         
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptComponent);

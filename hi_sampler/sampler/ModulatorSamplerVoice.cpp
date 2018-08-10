@@ -358,21 +358,21 @@ void MultiMicModulatorSamplerVoice::startNote(int midiNoteNumber, float velocity
 
 	for (int i = 0; i < wrappedVoices.size(); i++)
 	{
-		auto sound = currentlyPlayingSamplerSound->getReferenceToSound(i);
+		auto micSound = currentlyPlayingSamplerSound->getReferenceToSound(i);
 
-		if (sound == nullptr)
+		if (micSound == nullptr)
 		{
 			jassertfalse;
 			continue;
 		}
 
-		if (!sound->hasActiveState()) continue;
+		if (!micSound->hasActiveState()) continue;
 
 		StreamingSamplerVoice *voiceToUse = wrappedVoices[i];
 
-		voiceToUse->setPitchFactor(midiNoteNumber, rootNote, sound, globalPitchFactor);
+		voiceToUse->setPitchFactor(midiNoteNumber, rootNote, micSound, globalPitchFactor);
 		voiceToUse->setSampleStartModValue(sampleStartModulationDelta);
-		voiceToUse->startNote(midiNoteNumber, velocity, sound, -1);
+		voiceToUse->startNote(midiNoteNumber, velocity, micSound, -1);
 
 		voiceUptime = wrappedVoices[i]->voiceUptime;
 		uptimeDelta = wrappedVoices[i]->uptimeDelta;

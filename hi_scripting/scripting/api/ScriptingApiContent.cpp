@@ -569,21 +569,33 @@ void ScriptingApi::Content::ScriptComponent::changed()
 	if (!parent->asyncFunctionsAllowed())
 		return;
 
-	auto t = Time::getMillisecondCounter();
-	
-	auto delta = t - lastExecutedCallbackTime;
+	controlSender.sendControlCallbackMessage();
+}
 
-	if (delta < 5)
+
+ScriptingApi::Content::ScriptComponent::AsyncControlCallbackSender::AsyncControlCallbackSender(ScriptComponent* parent_, ProcessorWithScriptingContent* p_) :
+	UpdateDispatcher::Listener(p_->getScriptingContent()->getUpdateDispatcher()),
+	parent(parent_),
+	p(p_)
+{}
+
+void ScriptingApi::Content::ScriptComponent::AsyncControlCallbackSender::sendControlCallbackMessage()
+{
+	if (!changePending)
 	{
-		reportScriptError("Recursive call to changed() for " + getName().toString());
+		changePending = true;
+
+		if (p->getMainController_()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::ScriptingThread)
+			handleAsyncUpdate();
+		else
+			triggerAsyncUpdate();
 	}
+}
 
-	lastExecutedCallbackTime = t;
-
-	controlSender.triggerAsyncUpdate();
-	
-	if(auto sp = dynamic_cast<ScriptPanel*>(this))
-		sp->repaint();
+void ScriptingApi::Content::ScriptComponent::AsyncControlCallbackSender::cancelMessage()
+{
+	cancelPendingUpdate();
+	changePending = false;
 }
 
 void ScriptingApi::Content::ScriptComponent::AsyncControlCallbackSender::handleAsyncUpdate()
@@ -591,8 +603,14 @@ void ScriptingApi::Content::ScriptComponent::AsyncControlCallbackSender::handleA
 	if (parent != nullptr)
 	{
 		p->controlCallback(parent, parent->getValue());
+
+		if (auto sp = dynamic_cast<ScriptPanel*>(parent))
+			sp->repaint();
+
+		changePending = false;
 	}
 }
+
 
 void ScriptingApi::Content::ScriptComponent::setValue(var controlValue)
 {
