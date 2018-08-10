@@ -459,10 +459,13 @@ public:
 
 		ignoreUnused(sampler);
 
-		// TODO SAMPLEMAP
-#if 0
+		
+		
+
 		auto sampleMapId = sampler->getSampleMap()->getId();
-		auto file = PoolReference(sampler->getMainController(), sampler->getSampleMap()->getFile().getFullPathName(), ProjectHandler::SubDirectories::SampleMaps);
+
+		
+		auto file = sampler->getSampleMap()->getReference();
 
 		ValueTree newSampleMap("samplemap");
 		newSampleMap.setProperty("ID", sampleMapId.toString(), nullptr);
@@ -487,14 +490,12 @@ public:
 
 		auto f = [newSampleMap](Processor* p)
 		{
-			dynamic_cast<ModulatorSampler*>(p)->loadSampleMapSync(newSampleMap);
-
-			return true;
+			dynamic_cast<ModulatorSampler*>(p)->getSampleMap()->loadUnsavedValueTree(newSampleMap);
+			return SafeFunctionCall::OK;
 		};
 
 
 		sampler->getMainController()->getKillStateHandler().killVoicesAndCall(sampler, f, MainController::KillStateHandler::SampleLoadingThread);
-#endif
 
 	}
 
@@ -963,66 +964,47 @@ void SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(SampleEd
 
 	if (PresetHandler::showYesNoWindow("Extract Multimics to Single mics", "Do you really want to extract the multimics to single samples?"))
 	{
-		throw std::logic_error("not implemented");
-
-#if 0
 		handler->getSelection().deselectAll();
 
 		ModulatorSampler *sampler = handler->sampler;
-
-		sampler->setBypassed(true);
-
-		StreamingSamplerSoundArray singleList;
 
 		Array<MappingData> singleData;
 
 		ModulatorSampler::SoundIterator sIter(sampler);
 
+		ValueTree newSampleMap = sampler->getSampleMap()->getValueTree().createCopy();
+
+		newSampleMap.setProperty("MicPositions", ";", nullptr);
+
+		newSampleMap.removeAllChildren(nullptr);
+
 		while (auto s = sIter.getNextSound())
 		{
-			for (int i = 0; i < s->getNumMultiMicSamples(); i++)
+			auto multiSampleData = s->getData();
+			 
+			for (int i = 0; i < multiSampleData.getNumChildren(); i++)
 			{
-				auto single = s->getReferenceToSound(i);
-				MappingData newData((int)s->getSampleProperty(SampleIds::RootNote),
-					(int)s->getSampleProperty(SampleIds::LoKey),
-					(int)s->getSampleProperty(SampleIds::HiKey),
-					(int)s->getSampleProperty(SampleIds::LoVel),
-					(int)s->getSampleProperty(SampleIds::HiVel),
-					(int)s->getSampleProperty(SampleIds::RRGroup));
+				auto singleCopy = multiSampleData.createCopy();
 
-				singleList.add(single);
-				singleData.add(newData);
+				singleCopy.removeAllChildren(nullptr);
+
+				auto filename = multiSampleData.getChild(i).getProperty(SampleIds::FileName).toString();
+
+				singleCopy.setProperty(SampleIds::FileName, filename, nullptr);
+
+				newSampleMap.addChild(singleCopy, -1, nullptr);
 			}
 		}
 
-		jassert(singleList.size() == singleData.size());
-
-		ScopedLock sl(sampler->getMainController()->getLock());
-
-		sampler->clearSounds();
-
-		StringArray channels;
-		channels.add("SingleMic");
-
-		sampler->setNumMicPositions(channels);
-
-		for (int i = 0; i < singleList.size(); i++)
+		auto f = [newSampleMap](Processor* s)
 		{
-			ModulatorSamplerSound * s = new ModulatorSamplerSound(sampler->getMainController(), singleList[i], i);
+			auto sampler = static_cast<ModulatorSampler*>(s);
 
-			s->setMappingData(singleData[i]);
+			sampler->getSampleMap()->loadUnsavedValueTree(newSampleMap);
+			return SafeFunctionCall::OK;
+		};
 
-			sampler->addSound(s);
-
-			s->setUndoManager(sampler->getUndoManager());
-			s->addChangeListener(sampler->getSampleMap());
-		}
-
-		sampler->setBypassed(false);
-		sampler->sendChangeMessage();
-#endif
-
-		
+		sampler->killAllVoicesAndCall(f);
 	}
 }
 
@@ -1176,9 +1158,11 @@ bool SampleEditHandler::SampleEditingActions::metadataWasFound(ModulatorSampler*
 	for (int i = 0; i < sounds.size(); i++)
 	{
 
-		File f = File(sounds[i].get()->getSampleProperty(SampleIds::FileName).toString());
+		auto refString = sounds[i].get()->getSampleProperty(SampleIds::FileName).toString();
 
-		ScopedPointer<AudioFormatReader> reader = afm->createReaderFor(f);
+		auto ref = PoolReference(sampler->getMainController(), refString, FileHandlerBase::Samples);
+
+		ScopedPointer<AudioFormatReader> reader = afm->createReaderFor(ref.getFile());
 
 		if (reader != nullptr)
 		{
