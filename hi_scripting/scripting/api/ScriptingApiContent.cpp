@@ -1275,6 +1275,8 @@ void ScriptingApi::Content::ScriptSlider::setStyle(String style)
 	else if (style == "Horizontal") styleId = Slider::SliderStyle::LinearBar;
 	else if (style == "Vertical") styleId = Slider::SliderStyle::LinearBarVertical;
 	else if (style == "Range") styleId = Slider::SliderStyle::TwoValueHorizontal;
+
+	setScriptObjectProperty(Properties::Style, style, sendNotification);
 }
 
 void ScriptingApi::Content::ScriptSlider::setMinValue(double min) noexcept
