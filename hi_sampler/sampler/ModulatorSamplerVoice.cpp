@@ -330,10 +330,32 @@ void MultiMicModulatorSamplerVoice::startNote(int midiNoteNumber, float velocity
 	const bool samePitch = !sampler->isPitchTrackingEnabled();
 
 	const int rootNote = samePitch ? midiNoteNumber : currentlyPlayingSamplerSound->getRootNote();
-	const int sampleStartModulationDelta = (int)(sampleStartModValue * currentlyPlayingSamplerSound->getReferenceToSound()->getSampleStartModulation());
-
 	const double globalPitchFactor = getOwnerSynth()->getMainController()->getGlobalPitchFactor();
     
+
+	int sampleStartModulationDelta;
+
+	auto sound = currentlyPlayingSamplerSound->getReferenceToSound();
+
+	// if value is >= 0, then it comes from the modulator chain value
+	const bool sampleStartModIsFromChain = sampleStartModValue >= 0.0f;
+
+	if (sampleStartModIsFromChain)
+	{
+		jassert(sampleStartModValue <= 1.0f);
+		sampleStartModulationDelta = (int)(jlimit<float>(0.0f, 1.0f, sampleStartModValue) * sound->getSampleStartModulation());
+	}
+	else
+	{
+		auto maxOffset = sound->getSampleStartModulation();
+
+		// just flip the sign and use it directly...
+		sampleStartModulationDelta = jlimit<int>(0, maxOffset, (int)(-1.0f * sampleStartModValue));
+
+		// Now set the sample start mod value...
+		BACKEND_ONLY(sampler->getSamplerDisplayValues().currentSampleStartPos = jlimit<float>(0.0f, 1.0f, sampleStartModulationDelta / (float)maxOffset));
+	}
+
 	for (int i = 0; i < wrappedVoices.size(); i++)
 	{
 		auto sound = currentlyPlayingSamplerSound->getReferenceToSound(i);
