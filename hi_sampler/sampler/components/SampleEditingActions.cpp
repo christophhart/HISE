@@ -34,7 +34,7 @@ namespace hise { using namespace juce;
 
 void SampleEditHandler::SampleEditingActions::deleteSelectedSounds(SampleEditHandler *handler)
 {
-	auto f = [handler](Processor* s)
+	auto f = [handler](Processor* /*s*/)
 	{
 		auto soundsToBeDeleted = handler->getSelection().getItemArray();
 		handler->getSampler()->getUndoManager()->beginNewTransaction("Delete samples");

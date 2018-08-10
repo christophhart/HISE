@@ -1233,13 +1233,17 @@ void ScriptingApi::Engine::setLowestKeyToDisplay(int keyNumber) { getProcessor()
 void ScriptingApi::Engine::showErrorMessage(String message, bool isCritical)
 {
 #if USE_FRONTEND
-	getProcessor()->getMainController()->sendOverlayMessage(isCritical ? DeactiveOverlay::State::CriticalCustomErrorMessage :
-																		 DeactiveOverlay::State::CustomErrorMessage,
-																		 message);
 
 	if (isCritical)
-		throw message;
+	{
+		getProcessor()->getMainController()->sendOverlayMessage(isCritical ? DeactiveOverlay::State::CriticalCustomErrorMessage :
+			DeactiveOverlay::State::CustomErrorMessage,
+			message);
+	}
 
+	
+
+	
 #else
 
 	ignoreUnused(isCritical);
