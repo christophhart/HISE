@@ -60,6 +60,7 @@ ML("| `pluginParameterName` | String | Empty | If this control is a plugin param
 ML("| `isMetaParameter` | Boolean | false | If this control is a plugin parameter and causes other parameters to change their values (eg. a sync button that changes the values of the delay time knob), you'll have to set this to true in order to be fully standard compliant (Logic is known to cause issues when this isn't handled properly). |");
 ML("| `processorId` | Module ID | Empty | The module that is controlled by this control. |");
 ML("| `parameterId` | Parameter ID | Empty | the parameter ID of the module specified above that should be controlled.Use these two properties in order to hook up the control to a single parameter using the exact same range you specified below.As soon as you need something more complex, you need to use the scripting callbacks for it. |");
+ML("| `defaultValue` | Number | 0.0 | The default value for the control (if available). This value will be used at initialisation and if you load a user preset that has no stored value for this particular control (which happens if you add a control and try to load a user preset built with an older version). Sliders / Knobs will also use this as double click value. |");
 ML("| `x`, `y`, `width`, `height` | Number | Various | The absolute pixel position / size of the control.You can use the sliders to change them relatively or just input a number into the text field to set all selected controls to the same value. |");
 ML("| `bgColour`, `itemColour`, `itemColour2`, `textColour` | String or hex number | Various | the colours for the given control.How these colours are used differs between the control types, but in most cases, `bgColour` is the background colour and `textColour` is used for rendering the text, otherwise it would be a bit weird. |");
 
@@ -197,7 +198,7 @@ void ScriptComponentEditPanel::fillPanel()
         parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::isMetaParameter));
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::processorId));
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::parameterId));
-		
+		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::defaultValue));
 
 		addSectionToPanel(parameterIds, "Parameter Properties");
 

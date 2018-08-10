@@ -144,26 +144,36 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 
 		Processor::Iterator<JavascriptMidiProcessor> iter(mc->getMainSynthChain());
 
-		while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
+		try
 		{
-			if (!sp->isFront()) continue;
-
-			ValueTree v;
-
-			for (int i = 0; i < userPresetToLoad.getNumChildren(); i++)
+			while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
 			{
-				if (userPresetToLoad.getChild(i).getProperty("Processor") == sp->getId())
+				if (!sp->isFront()) continue;
+
+				ValueTree v;
+
+				for (int i = 0; i < userPresetToLoad.getNumChildren(); i++)
 				{
-					v = userPresetToLoad.getChild(i);
-					break;
+					if (userPresetToLoad.getChild(i).getProperty("Processor") == sp->getId())
+					{
+						v = userPresetToLoad.getChild(i);
+						break;
+					}
+				}
+
+				if (v.isValid())
+				{
+					sp->getScriptingContent()->restoreAllControlsFromPreset(v);
 				}
 			}
-
-			if (v.isValid())
-			{
-				sp->getScriptingContent()->restoreAllControlsFromPreset(v);
-			}
 		}
+		catch (String& m)
+		{
+			jassertfalse;
+			DBG(m);
+		}
+
+		
 
 		ValueTree autoData = userPresetToLoad.getChildWithName("MidiAutomation");
 

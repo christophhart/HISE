@@ -150,6 +150,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_NUMBER_PROPERTY(hId, "height");				ADD_AS_SLIDER_TYPE(0, MAX_SCRIPT_HEIGHT, 1);
 	ADD_NUMBER_PROPERTY(mId1, "min");
 	ADD_NUMBER_PROPERTY(mId2, "max");
+	ADD_NUMBER_PROPERTY(mId25, "defaultValue");
 	ADD_SCRIPT_PROPERTY(tId, "tooltip");
 	ADD_SCRIPT_PROPERTY(bId, "bgColour");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ColourPickerSelector);
 	ADD_SCRIPT_PROPERTY(iId1, "itemColour");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ColourPickerSelector);
@@ -168,9 +169,6 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 
 	handleDefaultDeactivatedProperties();
 
-	
-
-	
 
 	setDefaultValue(Properties::text, name.toString());
 	setDefaultValue(Properties::visible, true);
@@ -185,6 +183,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	setDefaultValue(Properties::textColour, (int64)0xFFFFFFFF);
 	setDefaultValue(Properties::macroControl, -1);
 	setDefaultValue(Properties::saveInPreset, true);
+	setDefaultValue(Properties::defaultValue, 0);
 	setDefaultValue(Properties::isPluginParameter, false);
 	setDefaultValue(Properties::pluginParameterName, "");
     setDefaultValue(Properties::isMetaParameter, false);
@@ -1020,7 +1019,6 @@ maximum(1.0f)
 	ADD_SCRIPT_PROPERTY(i02, "style");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_NUMBER_PROPERTY(i03, "stepSize");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_NUMBER_PROPERTY(i04, "middlePosition");
-	ADD_NUMBER_PROPERTY(i05, "defaultValue");
 	ADD_SCRIPT_PROPERTY(i06, "suffix");
 	ADD_SCRIPT_PROPERTY(i07, "filmstripImage");	ADD_TO_TYPE_SELECTOR(SelectorTypes::FileSelector);
 	ADD_NUMBER_PROPERTY(i08, "numStrips");		
@@ -1030,9 +1028,6 @@ maximum(1.0f)
 	ADD_SCRIPT_PROPERTY(i12, "dragDirection");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(i13, "showValuePopup"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(i14, "showTextBox"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-
-
-	
 
 #if 0
 	componentProperties->setProperty(getIdFor(Mode), 0);
@@ -1058,10 +1053,10 @@ maximum(1.0f)
 	setDefaultValue(ScriptSlider::Properties::Mode, "Linear");
 	setDefaultValue(ScriptSlider::Properties::Style, "Knob");
 	setDefaultValue(ScriptSlider::Properties::middlePosition, -1.0);
-	setDefaultValue(ScriptSlider::Properties::defaultValue, 0.0);
 	setDefaultValue(ScriptSlider::Properties::stepSize, 0.01);
 	setDefaultValue(ScriptComponent::min, 0.0);
 	setDefaultValue(ScriptComponent::max, 1.0);
+	setDefaultValue(ScriptComponent::defaultValue, 0.0);
 	setDefaultValue(ScriptSlider::Properties::suffix, "");
 	setDefaultValue(ScriptSlider::Properties::filmstripImage, "Use default skin");
 	setDefaultValue(ScriptSlider::Properties::numStrips, 0);
@@ -1490,7 +1485,7 @@ juce::Array<hise::ScriptingApi::Content::ScriptComponent::PropertyWithValue> Scr
 	idList.add({ Properties::middlePosition });
 	idList.add({ Properties::stepSize });
 	idList.add({ Properties::suffix });
-	idList.add({ Properties::defaultValue });
+	idList.add({ ScriptComponent::defaultValue });
 
 	return idList;
 }
@@ -1693,7 +1688,7 @@ Justification ScriptingApi::Content::ScriptLabel::getJustification()
 void ScriptingApi::Content::ScriptLabel::handleDefaultDeactivatedProperties()
 {
 
-
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::defaultValue));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::min));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::max));
 }
@@ -1708,7 +1703,7 @@ ScriptingApi::Content::ScriptComboBox::ScriptComboBox(ProcessorWithScriptingCont
 ScriptComponent(base, name)
 {
 	propertyIds.add(Identifier("items"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::MultilineSelector);
-	
+
 	priorityProperties.add(getIdFor(Items));
 
 	setDefaultValue(ScriptComponent::Properties::x, x);
@@ -1716,6 +1711,7 @@ ScriptComponent(base, name)
 	setDefaultValue(ScriptComponent::Properties::width, 128);
 	setDefaultValue(ScriptComponent::Properties::height, 32);
 	setDefaultValue(Items, "");
+	setDefaultValue(ScriptComponent::Properties::defaultValue, 1);
 	setDefaultValue(ScriptComponent::min, 1.0f);
 	
 	handleDefaultDeactivatedProperties();
@@ -2012,6 +2008,7 @@ void ScriptingApi::Content::ScriptTable::handleDefaultDeactivatedProperties()
 {
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::max));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::min));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::defaultValue));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::textColour));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::macroControl));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(parameterId));
@@ -2489,6 +2486,7 @@ void ScriptingApi::Content::ScriptImage::handleDefaultDeactivatedProperties()
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::itemColour2));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::max));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::min));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::defaultValue));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::textColour));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::macroControl));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(linkedTo));
@@ -3133,6 +3131,7 @@ ScriptingApi::Content::ScriptedViewport::ScriptedViewport(ProcessorWithScripting
 	setDefaultValue(autoHide, true);
 	setDefaultValue(useList, false);
 	setDefaultValue(Items, "");
+	setDefaultValue(defaultValue, 0);
 	setDefaultValue(FontStyle, "plain");
 	setDefaultValue(FontSize, 13.0f);
 	setDefaultValue(FontName, "Arial");
@@ -3273,6 +3272,8 @@ targetMod(nullptr)
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::textColour));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::macroControl));
+	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::defaultValue));
+
 
 	propertyIds.add("modulatorId");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 
@@ -3461,6 +3462,7 @@ void ScriptingApi::Content::ScriptAudioWaveform::handleDefaultDeactivatedPropert
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(text));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(min));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(max));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(defaultValue));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(macroControl));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(parameterId));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(pluginParameterName));
@@ -3632,6 +3634,7 @@ void ScriptingApi::Content::ScriptFloatingTile::handleDefaultDeactivatedProperti
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::isPluginParameter));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::min));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::max));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::defaultValue));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::pluginParameterName));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::text));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::tooltip));
@@ -3672,8 +3675,6 @@ bool ScriptingApi::Content::ScriptFloatingTile::fillScriptPropertiesWithFloating
 
 	if (auto obj = data.getDynamicObject())
 	{
-		
-
 		obj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::ColourData));
 		obj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::StyleData));
 		obj->removeProperty(ftc->getDefaultablePropertyId((int)FloatingTileContent::PanelPropertyId::LayoutData));

@@ -128,6 +128,9 @@ var HiPropertyComponent::getCurrentPropertyValue(bool returnUndefinedWhenMultipl
 
 	auto first = b->getFirstFromSelection();
 
+	if (first == nullptr)
+		return {};
+
 	const var& firstValue = first->getScriptObjectProperty(getId());
 	
 	if (returnUndefinedWhenMultipleSelection && (b->getNumSelected() > 1))

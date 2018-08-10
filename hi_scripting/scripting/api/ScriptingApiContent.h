@@ -265,6 +265,7 @@ public:
 			height,
 			min,
 			max,
+			defaultValue,
 			tooltip,
 			bgColour,
 			itemColour,
@@ -668,7 +669,6 @@ public:
 			Style,
 			stepSize,
 			middlePosition,
-			defaultValue,
 			suffix,
 			filmstripImage,
 			numStrips,
@@ -696,7 +696,9 @@ public:
 
 		void resetValueToDefault() override
 		{
-			setValue(getScriptObjectProperty(Properties::defaultValue));
+			auto f = (float)getScriptObjectProperty(ScriptComponent::defaultValue);
+			FloatSanitizers::sanitizeFloatNumber(f);
+			setValue(f);
 		}
 
 		void handleDefaultDeactivatedProperties() override;
@@ -791,6 +793,11 @@ public:
 
 		// ========================================================================================================
 
+		void resetValueToDefault() override
+		{
+			setValue((int)getScriptObjectProperty(defaultValue));
+		}
+
 		Rectangle<int> getPopupPosition() const
 		{
 			return popupPosition;
@@ -842,7 +849,7 @@ public:
 
 		void resetValueToDefault() override
 		{
-			setValue(1);
+			setValue((int)getScriptObjectProperty(defaultValue));
 		}
 
 		void handleDefaultDeactivatedProperties();
@@ -1064,7 +1071,9 @@ public:
 
 		void resetValueToDefault() override
 		{
-			setAllValues(0.0);
+			auto f = (float)getScriptObjectProperty(defaultValue);
+			FloatSanitizers::sanitizeFloatNumber(f);
+			setAllValues((double)f);
 		}
 
 		var getValue() const override;
@@ -1343,6 +1352,14 @@ public:
 			//repaintNotifier.removeAllChangeListeners();
 		}
 
+		void resetValueToDefault() override
+		{
+			auto f = (float)getScriptObjectProperty(defaultValue);
+			FloatSanitizers::sanitizeFloatNumber(f);
+			setValue(f);
+			repaint();
+		}
+
 		Rectangle<int> getPopupSize() const { return popupBounds; }
 
         SafeChangeBroadcaster* getRepaintNotifier() { return &repaintNotifier; };
@@ -1471,7 +1488,7 @@ public:
 		void handleDefaultDeactivatedProperties() override;
 		void resetValueToDefault() override
 		{
-			setValue(0);
+			setValue((int)getScriptObjectProperty(defaultValue));
 		}
 
 		Array<PropertyWithValue> getLinkProperties() const override;

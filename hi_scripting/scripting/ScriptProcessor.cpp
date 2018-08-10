@@ -1355,14 +1355,10 @@ void JavascriptProcessor::CompileThread::run()
 
 float ScriptBaseMidiProcessor::getDefaultValue(int index) const
 {
-	auto c = getScriptingContent()->getComponent(index);
+	if(auto c = getScriptingContent()->getComponent(index))
+		return c->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::defaultValue);
 
-	if (dynamic_cast<ScriptingApi::Content::ScriptSlider*>(c) != nullptr)
-	{
-		return c->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::defaultValue);
-	}
-	else
-		return 0.0f;
+	return 0.0f;
 }
 
 void JavascriptThreadPool::addJob(Task::Type t, JavascriptProcessor* p, const Task::Function& f)
