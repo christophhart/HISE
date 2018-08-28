@@ -110,6 +110,18 @@ public:
 
 	void ramp(float startValue, float delta1)
 	{
+#if JUCE_LINUX
+
+		for (int i = 0; i < RampLength; i+= 4)
+		{
+			data[i] = startValue;
+			data[i+1] = startValue + delta1;
+			data[i + 2] = startValue + delta1*2.0f;
+			data[i + 3] = startValue + delta1*3.0f;
+			startValue += delta1 * 4.0f;
+		}
+
+#else
 		using SSEType = dsp::SIMDRegister<float>;
 
 		constexpr int numSSE = SSEType::SIMDRegisterSize / sizeof(float);
@@ -120,16 +132,9 @@ public:
         
 #if JUCE_WINDOWS
 		SSEType r = SSEType::fromNative({ 0.0f, 1.0f, 2.0f, 3.0f });
-#elif JUCE_LINUX
-
-		float r_[4] = {0.0f, 1.0f, 2.0f, 3.0f };
-		SSEType r = SSEType::fromRawArray(r_);
 #else
-
-
         SSEType r = SSEType::fromNative({0.0f, 1.0f, 2.0f, 3.0f});
 #endif
-        
 		SSEType deltaRamp = deltaConstant * r;
 		deltaRamp += startValue;
 		
@@ -139,6 +144,7 @@ public:
 			deltaRamp += step;
 			data += numSSE;
 		}
+#endif
 	}
 
 private:
