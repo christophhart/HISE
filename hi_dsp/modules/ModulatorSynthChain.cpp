@@ -257,6 +257,8 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 		handleHiseEvent(*e);
 	}
 
+	modChains[GainModulation-1].calculateMonophonicModulationValues(0, numSamples);
+
 	postVoiceRendering(0, numSamples);
 
 	effectChain->renderMasterEffects(internalBuffer);
