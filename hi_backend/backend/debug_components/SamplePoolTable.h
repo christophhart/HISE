@@ -225,7 +225,7 @@ public:
 
 		void paint(Graphics& g) override
 		{
-			p.draw(g, FLOAT_RECTANGLE(getLocalBounds().reduced(10)));
+			p.draw(g, getLocalBounds().reduced(10).toFloat());
 		}
 
 		String getMarkdownDescription()

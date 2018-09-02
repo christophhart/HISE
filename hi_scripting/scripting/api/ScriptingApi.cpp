@@ -3009,7 +3009,7 @@ var ScriptingApi::Synth::getAllModulators(String regex)
 
 	while (auto m = iter.getNextProcessor())
 	{
-		if (RegexFunctions::matchesWildcard(regex, m->getId(), owner->getMainController()->getMainSynthChain()))
+		if (RegexFunctions::matchesWildcard(regex, m->getId()))
 		{
 			auto sm = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), m);
 			var smv(sm);

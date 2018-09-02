@@ -2306,7 +2306,7 @@ void ScriptCreatedComponentWrapper::ValuePopup::paint(Graphics& g)
 	{
 		auto l = p->getLayoutData();
 
-		auto ar = FLOAT_RECTANGLE(getLocalBounds()).reduced(l.lineThickness * 0.5f);
+		auto ar = getLocalBounds().toFloat().reduced(l.lineThickness * 0.5f);
 
 		g.setGradientFill(ColourGradient(p->getColour(Properties::itemColour), 0.0f, 0.0f, 
 										 p->getColour(Properties::itemColour2), 0.0f, (float)getHeight(), false));

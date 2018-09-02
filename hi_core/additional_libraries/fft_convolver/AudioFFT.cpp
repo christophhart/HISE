@@ -22,7 +22,7 @@
 #include "AudioFFT.h"
 
 #if USE_IPP
-#include "../../hi_core/IppFFT.h"
+#include "../../../hi_tools/hi_tools/IppFFT.h"
 #endif
 
 #include <cassert>

@@ -119,7 +119,7 @@ void MPEModulatorEditor::paint(Graphics& g)
 	area = area.withSizeKeepingCentre(650, area.getHeight() - 12);
 
 	g.setColour(Colour(0x30000000));
-	g.fillRoundedRectangle(FLOAT_RECTANGLE(area), 3.0f);
+	g.fillRoundedRectangle(area.toFloat(), 3.0f);
 	g.setColour(Colours::white);
 
 	area.reduce(8, 8);

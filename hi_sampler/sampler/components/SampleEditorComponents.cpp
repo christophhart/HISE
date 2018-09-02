@@ -524,7 +524,7 @@ void SamplerSoundMap::paintOverChildren(Graphics &g)
 		g.fillAll(Colour(0xAA222222));
 		g.setFont(GLOBAL_BOLD_FONT());
 		g.setColour(Colours::white);
-		g.drawText("Preloading", FLOAT_RECTANGLE(getLocalBounds()), Justification::centred);
+		g.drawText("Preloading", getLocalBounds().toFloat(), Justification::centred);
 	}
 	else
 	{
