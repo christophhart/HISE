@@ -30,6 +30,15 @@
 *   ===========================================================================
 */
 
+
+#if JUCE_IOS
+#else
+#include "xmmintrin.h"
+#endif
+
+
+
+
 namespace hise {
 using namespace juce;
 
