@@ -33,31 +33,12 @@
 #ifndef HI_CORE_H_INCLUDED
 #define HI_CORE_H_INCLUDED
 
-
-template <class A, class B>
-struct AreSame { enum { VALUE = -1 }; };
-template <class A>
-struct AreSame<A, A> { enum { VALUE = 1 }; };
-
-struct TestGlobalNamespace
-{
-	int test_namespace[AreSame<TestGlobalNamespace, ::TestGlobalNamespace>::VALUE];
-};
-
-
 #ifndef INT_MAX
 #define INT_MAX 2147483647
 #endif
 
 #ifndef INT_MIN
 #define INT_MIN -2147483647
-#endif
-
-#include "VariantBuffer.h"
-
-
-#if USE_IPP
-#include "IppFFT.h"
 #endif
 
 
@@ -68,20 +49,20 @@ struct TestGlobalNamespace
 *	Interface classes that enhance the functionality of a processor.
 * */
 
+
+
+
 /** @defgroup core Core Classes
 *	A collection of basic classes.
 */
 #include "UtilityClasses.h"
-#include "HI_LookAndFeels.h"
+
 #include "HiseEventBuffer.h"
 #include "DebugLogger.h"
-
-
 #include "ThreadWithQuasiModalProgressWindow.h"
 #include "Popup.h"
 #include "Tables.h"
 #include "UpdateMerger.h"
-#include "Markdown.h"
 #include "BackgroundThreads.h"
 #include "HiseSettings.h"
 #include "SettingsWindows.h"
@@ -100,9 +81,6 @@ struct TestGlobalNamespace
 #include "Console.h"
 
 
-
-#include "JavascriptTokeniser.h"
-#include "JavascriptTokeniserFunctions.h"
 #include "MacroControlledComponents.h"
 #include "MacroControlBroadcaster.h"
 #include "MiscComponents.h"

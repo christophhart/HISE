@@ -2042,7 +2042,7 @@ void ScriptedControlAudioParameter::setControlledScriptComponent(ScriptingApi::C
 			itemList = dynamic_cast<ScriptingApi::Content::ScriptComboBox*>(c)->getItemList();
 			break;
 		case ScriptedControlAudioParameter::Type::Panel:
-			range.interval = c->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::Properties::stepSize);
+			range.interval = jmax<float>(0.001f, c->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::Properties::stepSize));
 			break;
 		case ScriptedControlAudioParameter::Type::Unsupported:
 			// This should be taken care of before creation of this object...
@@ -2306,7 +2306,7 @@ void ScriptCreatedComponentWrapper::ValuePopup::paint(Graphics& g)
 	{
 		auto l = p->getLayoutData();
 
-		auto ar = FLOAT_RECTANGLE(getLocalBounds()).reduced(l.lineThickness * 0.5f);
+		auto ar = getLocalBounds().toFloat().reduced(l.lineThickness * 0.5f);
 
 		g.setGradientFill(ColourGradient(p->getColour(Properties::itemColour), 0.0f, 0.0f, 
 										 p->getColour(Properties::itemColour2), 0.0f, (float)getHeight(), false));

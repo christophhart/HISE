@@ -372,7 +372,15 @@ void UserPresetHelpers::extractUserPresets(const char* userPresetData, size_t si
 
 	userPresetDirectory.createDirectory();
 
-	ValueTree presetTree = PresetHandler::loadValueTreeFromData(userPresetData, size, true);
+	zstd::ZCompressor<UserPresetDictionaryProvider> decompressor;
+
+	MemoryBlock mb(userPresetData, size);
+
+	ValueTree presetTree;
+
+	decompressor.expand(mb, presetTree);
+
+	
 
 	for (auto bank : presetTree)
 	{

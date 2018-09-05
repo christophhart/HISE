@@ -478,11 +478,7 @@ public:
 		for (int i = 0; i < collections.size(); i++)
 		{
 			MultiMicCollection * c = collections[i];
-
-			auto pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
-			
 			auto tree = c->createSampleValueTree();
-
 			newSampleMap.addChild(tree, -1, nullptr);
 		}
 

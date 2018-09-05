@@ -73,7 +73,7 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_dsp/juce_dsp.h"
 #include "../hi_zstd/hi_zstd.h"
 #include "../hi_streaming/hi_streaming.h"
-
+#include "../hi_tools/hi_tools.h"
 
 #include <complex>
 
@@ -300,7 +300,7 @@ For all defined variables:
 
 
 
-#include "hi_binary_data/hi_binary_data.h"
+
 
 #include "LibConfig.h"
 #include "Macros.h"
