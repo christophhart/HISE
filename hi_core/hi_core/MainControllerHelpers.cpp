@@ -111,6 +111,8 @@ void MidiControllerAutomationHandler::refreshAnyUsedState()
 	AudioThreadGuard::Suspender suspender;
 	LockHelpers::SafeLock sl(mc, LockHelpers::AudioLock);
 
+	ignoreUnused(suspender);
+
 	anyUsed = false;
 
 	for (int i = 0; i < 128; i++)
