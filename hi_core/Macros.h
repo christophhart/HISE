@@ -150,12 +150,9 @@ namespace hise { using namespace juce;
 	Array<WeakReference<x>> listeners;
 
 
-#define SET_GENERIC_PANEL_ID(x) static Identifier getGenericPanelId() { RETURN_STATIC_IDENTIFIER(x) }
 
 #define GET_PROJECT_HANDLER(x)(x->getMainController()->getSampleManager().getProjectHandler())
 
-#define SET_PANEL_NAME(x) static Identifier getPanelId() { RETURN_STATIC_IDENTIFIER(x) }; Identifier getIdentifierForBaseClass() const override { return getPanelId(); };
-#define GET_PANEL_NAME(className) className::getPanelId()	
 
 #define GET_PROCESSOR_TYPE_ID(ProcessorClass) Identifier getProcessorTypeId() const override { return ProcessorClass::getConnectorId(); }
 #define SET_PROCESSOR_CONNECTOR_TYPE_ID(name) static Identifier getConnectorId() { RETURN_STATIC_IDENTIFIER(name) };

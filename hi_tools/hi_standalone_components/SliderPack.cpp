@@ -379,8 +379,6 @@ void SliderPack::mouseDown(const MouseEvent &e)
 {
 	if (!isEnabled()) return;
 
-	SET_CHANGED_FROM_PARENT_EDITOR();
-    
 	int x = e.getEventRelativeTo(this).getMouseDownPosition().getX();
 	int y = e.getEventRelativeTo(this).getMouseDownPosition().getY();
 

@@ -54,6 +54,15 @@ class Plotter    : public Component,
 				   public Timer
 {
 public:
+
+	enum Mode
+	{
+		GainMode,
+		PitchMode,
+		PanMode,
+		numModes
+	};
+
 	Plotter();
     ~Plotter();
 
@@ -80,7 +89,7 @@ public:
 
 	void mouseExit(const MouseEvent& m) override;
 
-	void setMode(Modulation::Mode m)
+	void setMode(Mode m)
 	{
 		currentMode = m;
 	}
@@ -109,7 +118,7 @@ private:
 
 	Table::ValueTextConverter yConverter;
 
-	Modulation::Mode currentMode;
+	Mode currentMode;
 
 	void popLockFree(float* destination, int numSamples);
 

@@ -62,4 +62,11 @@
 #include "hi_tools/JavascriptTokeniser.cpp"
 #include "hi_tools/Markdown.cpp"
 #include "hi_tools/VariantBuffer.cpp"
+#include "hi_tools/Tables.cpp"
 
+#include "hi_standalone_components/SampleDisplayComponent.cpp"
+
+#include "hi_standalone_components/VuMeter.cpp"
+#include "hi_standalone_components/Plotter.cpp"
+#include "hi_standalone_components/SliderPack.cpp"
+#include "hi_standalone_components/TableEditor.cpp"

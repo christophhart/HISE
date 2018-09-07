@@ -41,6 +41,75 @@ class SamplerSoundWaveform;
 class SamplerSoundMap;
 
 
+/** A component that displays the waveform of a sample.
+*	@ingroup components
+*
+*	It uses a thumbnail data to display the waveform of the selected ModulatorSamplerSound and has some SampleArea
+*	objects that allow changing of its sample ranges (playback range, loop range etc.) @see SampleArea.
+*
+*	It uses a timer to display the current playbar.
+*/
+class SamplerSoundWaveform : public AudioDisplayComponent,
+	public Timer
+{
+public:
+
+	/** Creates a new SamplerSoundWaveform.
+	*
+	*	@param ownerSampler the ModulatorSampler that the SamplerSoundWaveform should use.
+	*/
+	SamplerSoundWaveform(const ModulatorSampler *ownerSampler);
+
+	~SamplerSoundWaveform();
+
+
+	/** used to display the playing positions / sample start position. */
+	void timerCallback() override;
+
+	/** draws a vertical ruler at the position where the sample was recently started. */
+	void drawSampleStartBar(Graphics &g);
+
+	/** enables the range (makes it possible to drag the edges). */
+	void toggleRangeEnabled(AreaTypes type);
+
+	/** Call this whenever the sample ranges change.
+	*
+	*	If you only want to refresh the sample area (while dragging), use refreshSampleAreaBounds() instead.
+	*/
+	void updateRanges(SampleArea *areaToSkip = nullptr) override;
+
+	void updateRange(AreaTypes area, bool refreshBounds);
+
+	double getSampleRate() const override;
+
+	void paint(Graphics &g) override;
+
+	void resized() override;
+
+	/** Sets the currently displayed sound.
+	*
+	*	It listens for the global sound selection and displays the last selected sound if the selection changes.
+	*/
+	void setSoundToDisplay(const ModulatorSamplerSound *s, int multiMicIndex = 0);
+
+	const ModulatorSamplerSound *getCurrentSound() const { return currentSound.get(); }
+
+
+	float getNormalizedPeak() override;
+
+private:
+
+	const ModulatorSampler *sampler;
+	ReferenceCountedObjectPtr<ModulatorSamplerSound> currentSound;
+
+	int numSamplesInCurrentSample;
+
+
+	double sampleStartPosition;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SamplerSoundWaveform)
+};
+
 
 /** A base class for all sample editing components.
 *

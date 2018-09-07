@@ -34,6 +34,16 @@
 
 namespace hise { using namespace juce;
 
+#define NUM_MAX_CHANNELS 16
+
+#ifndef HISE_EVENT_RASTER
+#define HISE_EVENT_RASTER 8
+#endif
+
+#ifndef HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR
+#define HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR HISE_EVENT_RASTER
+#endif
+
 
 #if USE_FRONTEND
 #define ENABLE_MARKDOWN false
@@ -134,6 +144,11 @@ class LinuxFontHandler
 #endif
 
 #define RETURN_STATIC_IDENTIFIER(name) static const Identifier id(name); return id;
+
+#define SET_GENERIC_PANEL_ID(x) static Identifier getGenericPanelId() { RETURN_STATIC_IDENTIFIER(x) }
+
+#define SET_PANEL_NAME(x) static Identifier getPanelId() { RETURN_STATIC_IDENTIFIER(x) }; Identifier getIdentifierForBaseClass() const override { return getPanelId(); };
+#define GET_PANEL_NAME(className) className::getPanelId()	
 
 
 struct HiseColourScheme

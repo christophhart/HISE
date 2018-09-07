@@ -65,10 +65,7 @@ END_JUCE_MODULE_DECLARATION
 
 #include "resizable_height_component/ResizableHeightComponent.h"
 
-#include "vu_meter/Plotter.h"
 
-#include "drag_plot/SliderPack.h"
-#include "drag_plot/TableEditor.h"
 #include "keyboard/CustomKeyboard.h"
 #include "plugin_components/VoiceCpuBpmComponent.h"
 #include "plugin_components/PresetBrowser.h"
@@ -81,9 +78,7 @@ END_JUCE_MODULE_DECLARATION
 #include "plugin_components/PluginPreviewWindow.h"
 #endif
 
-#include "wave_components/SampleDisplayComponent.h"
 
-#include "vu_meter/VuMeter.h"
 
 
 #include "eq_plot/FilterInfo.h"
@@ -94,5 +89,117 @@ END_JUCE_MODULE_DECLARATION
 #include "plugin_components/PanelTypes.h"
 
 #include "hi_expansion/ExpansionFloatingTiles.h"
+
+namespace hise {
+using namespace juce;
+
+class HiseAudioSampleBufferComponent : public AudioSampleBufferComponentBase
+{
+public:
+
+	HiseAudioSampleBufferComponent(SafeChangeBroadcaster* p) :
+		AudioSampleBufferComponentBase(p)
+	{};
+
+	bool isInterestedInDragSource(const SourceDetails& dragSourceDetails) override
+	{
+		PoolReference ref(dragSourceDetails.description);
+		return ref && ref.getFileType() == FileHandlerBase::SubDirectories::AudioFiles;
+	}
+
+	void updatePlaybackPosition() override
+	{
+		if (connectedProcessor)
+			setPlaybackPosition(dynamic_cast<Processor*>(connectedProcessor.get())->getInputValue());
+	}
+
+	File getDefaultDirectory() const override
+	{
+#if USE_BACKEND
+		File searchDirectory;
+
+		if (ProcessorEditor *editor = findParentComponentOfClass<ProcessorEditor>())
+			searchDirectory = GET_PROJECT_HANDLER(editor->getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles);
+		else
+			searchDirectory = File();
+#else
+		File searchDirectory = FrontendHandler::getAdditionalAudioFilesDirectory();
+#endif
+		return searchDirectory;
+	}
+
+	void itemDropped(const SourceDetails& dragSourceDetails) override
+	{
+		PoolReference ref(dragSourceDetails.description);
+		poolItemWasDropped(ref);
+	}
+
+	void loadFile(const File& f) override
+	{
+		if (auto asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get()))
+		{
+#if USE_BACKEND
+			String fileName = f.getFullPathName();
+#else
+			auto fileName = FrontendHandler::getRelativePathForAdditionalAudioFile(f);
+#endif
+
+			buffer = nullptr;
+			asp->setLoadedFile(fileName, true);
+		}
+	}
+
+	void newBufferLoaded() override
+	{
+		AudioSampleProcessor *asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get());
+
+		if (asp != nullptr)
+		{
+			setAudioSampleBuffer(asp->getBuffer(), asp->getFileName(), dontSendNotification);
+			setRange(asp->getActualRange());
+
+			auto loopRange = asp->getLoopRange().isEmpty() ? asp->getRange() : asp->getLoopRange();
+
+			int x1 = getSampleArea(0)->getXForSample(jmax<int>(asp->getRange().getStart(), loopRange.getStart()));
+			int x2 = getSampleArea(0)->getXForSample(jmin<int>(asp->getRange().getEnd(), loopRange.getEnd()));
+
+			xPositionOfLoop = { x1, x2 };
+			setShowLoop(asp->isUsingLoop());
+
+
+		}
+	}
+
+	void updateProcessorConnection() override
+	{
+		if (auto asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get()))
+		{
+			setAudioSampleBuffer(asp->getBuffer(), asp->getFileName(), dontSendNotification);
+			setRange(asp->getRange());
+		}
+	}
+
+	void poolItemWasDropped(const PoolReference& ref)
+	{
+
+	}
+
+	void mouseDoubleClick(const MouseEvent&) override
+	{
+		if (auto asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get()))
+		{
+			buffer = nullptr;
+			asp->setLoadedFile("", true);
+		}
+	}
+
+
+};
+
+using AudioSampleBufferComponent = HiseAudioSampleBufferComponent;
+
+}
+
+
 
 #endif  // HI_COMPONENTS_H_INCLUDED

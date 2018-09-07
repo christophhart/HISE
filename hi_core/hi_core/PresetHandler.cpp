@@ -32,58 +32,6 @@
 
 namespace hise { using namespace juce;
 
-void CopyPasteTarget::grabCopyAndPasteFocus()
-{   
-#if USE_BACKEND
-    Component *thisAsComponent = dynamic_cast<Component*>(this);
-    
-    if(thisAsComponent)
-    {
-		BackendRootWindow *editor = GET_BACKEND_ROOT_WINDOW(thisAsComponent);
-        
-        if(editor != nullptr)
-        {
-            editor->setCopyPasteTarget(this);
-            isSelected = true;
-            thisAsComponent->repaint();
-        }
-    }
-    else
-    {
-        // You can only use components as CopyAndPasteTargets!
-        jassertfalse;
-    }
-#endif
-}
-
-
-void CopyPasteTarget::dismissCopyAndPasteFocus()
-{
-#if USE_BACKEND
-	Component *thisAsComponent = dynamic_cast<Component*>(this);
-
-	if (thisAsComponent)
-	{
-		BackendRootWindow *editor = GET_BACKEND_ROOT_WINDOW(thisAsComponent);
-
-		if (editor != nullptr && isSelected)
-		{
-			editor->setCopyPasteTarget(nullptr);
-			isSelected = false;
-			thisAsComponent->repaint();
-		}
-	}
-	else
-	{
-		// You can only use components as CopyAndPasteTargets!
-		jassertfalse;
-	}
-#endif
-}
-
-
-
-
 
 
 void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String& targetFile/*=String()*/, NotificationType notify/*=sendNotification*/)

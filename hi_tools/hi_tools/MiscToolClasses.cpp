@@ -42,6 +42,161 @@
 namespace hise {
 using namespace juce;
 
+
+
+void SafeChangeBroadcaster::sendSynchronousChangeMessage()
+{
+	if (MessageManager::getInstance()->isThisTheMessageThread() || MessageManager::getInstance()->currentThreadHasLockedMessageManager())
+	{
+		ScopedLock sl(listeners.getLock());
+
+		for (int i = 0; i < listeners.size(); i++)
+		{
+			if (listeners[i].get() != nullptr)
+			{
+				listeners[i]->changeListenerCallback(this);
+			}
+			else
+			{
+				// Ooops, you called an deleted listener. 
+				// Normally, it would crash now, but since this is really lame, this class only throws an assert!
+				jassertfalse;
+
+				listeners.remove(i--);
+			}
+		}
+	}
+	else
+	{
+		sendChangeMessage();
+	}
+
+
+}
+
+void SafeChangeBroadcaster::addChangeListener(SafeChangeListener *listener)
+{
+	ScopedLock sl(listeners.getLock());
+
+	listeners.addIfNotAlreadyThere(listener);
+}
+
+void SafeChangeBroadcaster::removeChangeListener(SafeChangeListener *listener)
+{
+	ScopedLock sl(listeners.getLock());
+
+	listeners.removeAllInstancesOf(listener);
+}
+
+void SafeChangeBroadcaster::removeAllChangeListeners()
+{
+	dispatcher.cancelPendingUpdate();
+
+	ScopedLock sl(listeners.getLock());
+
+	listeners.clear();
+}
+
+void SafeChangeBroadcaster::sendChangeMessage(const String &/*identifier*/ /*= String()*/)
+{
+	dispatcher.triggerAsyncUpdate();
+}
+
+void SafeChangeBroadcaster::sendAllocationFreeChangeMessage()
+{
+	// You need to call enableAllocationFreeMessages() first...
+	jassert(flagTimer.isTimerRunning());
+
+	flagTimer.triggerUpdate();
+}
+
+void SafeChangeBroadcaster::enableAllocationFreeMessages(int timerIntervalMilliseconds)
+{
+	flagTimer.startTimer(timerIntervalMilliseconds);
+}
+
+
+CopyPasteTarget::HandlerFunction* CopyPasteTarget::handlerFunction = nullptr;
+
+void CopyPasteTarget::grabCopyAndPasteFocus()
+{
+	Component *thisAsComponent = dynamic_cast<Component*>(this);
+
+	if (handlerFunction != nullptr && thisAsComponent)
+	{
+		CopyPasteTargetHandler *handler = handlerFunction->getHandler(thisAsComponent);
+
+		if (handler != nullptr)
+		{
+			handler->setCopyPasteTarget(this);
+			isSelected = true;
+			thisAsComponent->repaint();
+		}
+	}
+}
+
+
+void CopyPasteTarget::dismissCopyAndPasteFocus()
+{
+	Component *thisAsComponent = dynamic_cast<Component*>(this);
+
+	if (handlerFunction != nullptr && thisAsComponent)
+	{
+		CopyPasteTargetHandler *handler = handlerFunction->getHandler(thisAsComponent);
+
+		if (handler != nullptr && isSelected)
+		{
+			handler->setCopyPasteTarget(nullptr);
+			isSelected = false;
+			thisAsComponent->repaint();
+		}
+	}
+	else
+	{
+		// You can only use components as CopyAndPasteTargets!
+		jassertfalse;
+	}
+}
+
+
+void CopyPasteTarget::paintOutlineIfSelected(Graphics &g)
+{
+	if (isSelected)
+	{
+		Component *thisAsComponent = dynamic_cast<Component*>(this);
+
+		if (thisAsComponent != nullptr)
+		{
+			Rectangle<float> bounds = Rectangle<float>((float)thisAsComponent->getLocalBounds().getX(),
+				(float)thisAsComponent->getLocalBounds().getY(),
+				(float)thisAsComponent->getLocalBounds().getWidth(),
+				(float)thisAsComponent->getLocalBounds().getHeight());
+
+
+
+			Colour outlineColour = Colour(SIGNAL_COLOUR).withAlpha(0.3f);
+
+			g.setColour(outlineColour);
+
+			g.drawRect(bounds, 1.0f);
+
+		}
+		else jassertfalse;
+	}
+}
+
+void CopyPasteTarget::deselect()
+{
+	isSelected = false;
+	dynamic_cast<Component*>(this)->repaint();
+}
+
+
+void CopyPasteTarget::setHandlerFunction(HandlerFunction* f)
+{
+	handlerFunction = f;
+}
+
 Array<StringArray> RegexFunctions::findSubstringsThatMatchWildcard(const String &regexWildCard, const String &stringToTest)
 {
 	Array<StringArray> matches;

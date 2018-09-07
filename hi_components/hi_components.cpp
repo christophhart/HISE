@@ -35,9 +35,7 @@
 
 #include "resizable_height_component/ResizableHeightComponent.cpp"
 
-#include "vu_meter/Plotter.cpp"
-#include "drag_plot/SliderPack.cpp"
-#include "drag_plot/TableEditor.cpp"
+
 #include "keyboard/CustomKeyboard.cpp"
 #include "plugin_components/VoiceCpuBpmComponent.cpp"
 #include "plugin_components/PresetBrowser.cpp"
@@ -49,9 +47,6 @@
 #include "plugin_components/PluginPreviewWindow.cpp"
 #endif
 
-#include "wave_components/SampleDisplayComponent.cpp"
-
-#include "vu_meter/VuMeter.cpp"
 
 #include "eq_plot/FilterInfo.cpp"
 #include "eq_plot/FilterGraph.cpp"

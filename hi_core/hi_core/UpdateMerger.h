@@ -361,63 +361,8 @@ private:
 	volatile int updateCounter;
 };
 
-#if JUCE_DEBUG
-#define GUI_UPDATER_FRAME_RATE 150
-#else
-#define GUI_UPDATER_FRAME_RATE 30
-#endif
-
 
 using UpdateMerger = ExecutionLimiter<SpinLock>;
-
-/** Utility class that reduces the update rate to a common framerate (~30 fps)
-*
-*	Unlike the UpdateMerger class, this class checks the time between calls to shouldUpdate() and returns true, if 30ms have passed since the last succesfull call to shouldUpdate().
-*
-*/
-class GUIUpdater
-{
-public:
-
-	GUIUpdater():
-		timeOfLastCall(Time::currentTimeMillis()),
-		timeOfDebugCall(Time::currentTimeMillis())
-	{}
-
-	/** Call this to check if the last update was longer than 30 ms ago. 
-	*
-	*	If debugInterval is true, then the interval between calls will be printed in debug mode.
-	*/
-	bool shouldUpdate(bool debugInterval=false)
-	{
-		IGNORE_UNUSED_IN_RELEASE(debugInterval);
-
-		const int64 currentTime = Time::currentTimeMillis();
-
-#ifdef JUCE_DEBUG
-
-		if (debugInterval)
-		{
-			timeOfDebugCall = currentTime;
-		}
-
-#endif
-
-		if ((currentTime - timeOfLastCall) > GUI_UPDATER_FRAME_RATE)
-		{
-			timeOfLastCall = currentTime;
-			return true;
-		}
-
-		return false;
-	}
-
-private:
-
-	int64 timeOfLastCall;
-
-	int64 timeOfDebugCall;
-};
 
 
 /** A Ramper applies linear ramping to a value.

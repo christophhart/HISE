@@ -55,7 +55,14 @@ BackendCommandTarget::BackendCommandTarget(BackendProcessor *owner_):
 owner(owner_),
 currentColumnMode(OneColumn)
 {
-	
+	CopyPasteTargetHandler* h = this;
+
+	handlerFunction.f = [h](Component*)
+	{
+		return h;
+	};
+
+	CopyPasteTarget::setHandlerFunction(&handlerFunction);
 
 	createMenuBarNames();
 }

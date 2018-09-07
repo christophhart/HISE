@@ -62,6 +62,12 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_opengl/juce_opengl.h"
 #include "../hi_zstd/hi_zstd.h"
 
+#if USE_BACKEND || USE_FRONTEND
+#define HI_REMOVE_HISE_DEPENDENCY_FOR_TOOL_CLASSES 0
+#else
+#define HI_REMOVE_HISE_DEPENDENCY_FOR_TOOL_CLASSES 1
+#endif
+
 #ifndef DOUBLE_TO_STRING_DIGITS
 #define DOUBLE_TO_STRING_DIGITS 8
 #endif
@@ -77,7 +83,7 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_tools/HI_LookAndFeels.h"
 
 #include "hi_tools/VariantBuffer.h"
-
+#include "hi_tools/Tables.h"
 
 
 #if USE_IPP
@@ -91,3 +97,13 @@ END_JUCE_MODULE_DECLARATION
 
 #include "hi_tools/JavascriptTokeniser.h"
 #include "hi_tools/JavascriptTokeniserFunctions.h"
+
+
+#include "hi_standalone_components/Plotter.h"
+
+#include "hi_standalone_components/SliderPack.h"
+#include "hi_standalone_components/TableEditor.h"
+
+#include "hi_standalone_components/VuMeter.h"
+#include "hi_standalone_components/SampleDisplayComponent.h"
+

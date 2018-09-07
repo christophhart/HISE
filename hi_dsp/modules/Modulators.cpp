@@ -130,7 +130,7 @@ void Modulation::setPlotter(Plotter *targetPlotter)
 
 	if (attachedPlotter != nullptr)
 	{
-		attachedPlotter->setMode(getMode());
+		attachedPlotter->setMode((Plotter::Mode)(int)getMode()); // ugly as f***
 		
 		auto modChain = dynamic_cast<ModulatorChain*>(this);
 

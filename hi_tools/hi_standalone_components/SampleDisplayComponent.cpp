@@ -32,144 +32,7 @@
 
 namespace hise { using namespace juce;
 
-SamplerSoundWaveform::SamplerSoundWaveform(const ModulatorSampler *ownerSampler):
-	AudioDisplayComponent(),
-	sampler(ownerSampler),
-	sampleStartPosition(-1.0),
-	currentSound(nullptr)
-{
-	areas.add(new SampleArea(PlayArea, this));
-	areas.add(new SampleArea(SampleStartArea, this));
-	areas.add(new SampleArea(LoopArea, this));
-	areas.add(new SampleArea(LoopCrossfadeArea, this));
 
-    setColour(AudioDisplayComponent::ColourIds::bgColour, Colour(0xFF383838));
-
-	addAndMakeVisible(areas[PlayArea]);
-	areas[PlayArea]->addAndMakeVisible(areas[SampleStartArea]);
-	areas[PlayArea]->addAndMakeVisible(areas[LoopArea]);
-	areas[PlayArea]->addAndMakeVisible(areas[LoopCrossfadeArea]);
-	
-	areas[PlayArea]->setAreaEnabled(true);
-
-	areas[SampleStartArea]->leftEdge->setVisible(false);
-	areas[LoopCrossfadeArea]->rightEdge->setVisible(false);
-
-	setOpaque(true);
-
-#ifdef JUCE_DEBUG
-
-	startTimer(30);
-
-#else
-
-	startTimer(30);
-
-#endif
-
-	
-};
-
-SamplerSoundWaveform::~SamplerSoundWaveform()
-{
-    
-}
-
-
-
-void SamplerSoundWaveform::timerCallback() 
-{
-	if(sampler->getLastStartedVoice() != nullptr)
-	{
-		ModulatorSamplerSound *s = dynamic_cast<ModulatorSamplerVoice*>(sampler->getLastStartedVoice())->getCurrentlyPlayingSamplerSound();
-
-		if(s == currentSound)
-		{
-			sampleStartPosition = sampler->getSamplerDisplayValues().currentSampleStartPos;
-			setPlaybackPosition(sampler->getSamplerDisplayValues().currentSamplePos);
-		}
-        else
-        {
-            setPlaybackPosition(0);
-        }
-	}
-	
-};
-
-
-void SamplerSoundWaveform::updateRanges(SampleArea *areaToSkip)
-{
-	if(currentSound != nullptr)
-	{
-		updateRange(PlayArea, false);
-		updateRange(SampleStartArea, false);
-		updateRange(LoopArea, false);
-		updateRange(LoopCrossfadeArea, true);
-	}
-	else
-	{
-		refreshSampleAreaBounds(areaToSkip);
-	}
-
-	
-}
-
-void SamplerSoundWaveform::updateRange(AreaTypes a, bool refreshBounds)
-{
-	auto area = areas[a];
-
-	switch (a)
-	{
-	case hise::SamplerSoundWaveform::PlayArea:
-		area->setSampleRange(Range<int>(currentSound->getSampleProperty(SampleIds::SampleStart),
-			currentSound->getSampleProperty(SampleIds::SampleEnd)));
-
-		area->setAllowedPixelRanges(currentSound->getPropertyRange(SampleIds::SampleStart),
-			currentSound->getPropertyRange(SampleIds::SampleEnd));
-		break;
-	case hise::SamplerSoundWaveform::SampleStartArea:
-	{
-		area->setSampleRange(Range<int>(currentSound->getSampleProperty(SampleIds::SampleStart), (int)currentSound->getSampleProperty(SampleIds::SampleStart) + (int)currentSound->getSampleProperty(SampleIds::SampleStartMod)));
-		area->setAllowedPixelRanges(currentSound->getPropertyRange(SampleIds::SampleStart),
-			currentSound->getPropertyRange(SampleIds::SampleStartMod));
-		break;
-	}
-	case hise::SamplerSoundWaveform::LoopArea:
-	{
-		area->setVisible(currentSound->getSampleProperty(SampleIds::LoopEnabled));
-		area->setSampleRange(Range<int>(currentSound->getSampleProperty(SampleIds::LoopStart),
-			currentSound->getSampleProperty(SampleIds::LoopEnd)));
-
-		area->setAllowedPixelRanges(currentSound->getPropertyRange(SampleIds::LoopStart),
-			currentSound->getPropertyRange(SampleIds::LoopEnd));
-		break;
-	}
-	case hise::SamplerSoundWaveform::LoopCrossfadeArea:
-	{
-		const int64 start = (int64)currentSound->getSampleProperty(SampleIds::LoopStart) - (int64)currentSound->getSampleProperty(SampleIds::LoopXFade);
-
-		area->setSampleRange(Range<int>((int)start, currentSound->getSampleProperty(SampleIds::LoopStart)));
-		break;
-	}
-	case hise::SamplerSoundWaveform::numAreas:
-		break;
-	default:
-		break;
-	}
-
-	if (refreshBounds)
-		refreshSampleAreaBounds(nullptr);
-}
-
-void SamplerSoundWaveform::toggleRangeEnabled(AreaTypes type)
-{
-	areas[type]->toggleEnabled();
-}
-
-double SamplerSoundWaveform::getSampleRate() const
-{
-	return currentSound != nullptr ? currentSound->getSampleRate() : -1.0;
-}
 
 void AudioDisplayComponent::drawPlaybackBar(Graphics &g)
 {
@@ -220,120 +83,6 @@ void AudioDisplayComponent::paint(Graphics &g)
 	drawPlaybackBar(g);
 }
 
-void SamplerSoundWaveform::drawSampleStartBar(Graphics &g)
-{
-	if(sampleStartPosition != -1.0)
-	{
-		g.setColour(Colours::darkblue.withAlpha(0.5f));
-			
-		const int x = areas[PlayArea]->getX() + (int)(sampleStartPosition * areas[SampleStartArea]->getWidth());
-
-		g.drawLine((float)x, 0.0f, (float)x, (float)getBottom() - 2.0f, 1.0f);
-
-		g.setColour(Colours::blue.withAlpha(0.1f));
-
-		g.fillRect(jmax<int>(0, x - 5), 0, 10, getHeight());
-	}
-}
-
-void SamplerSoundWaveform::paint(Graphics &g)
-{
-    auto bgColour = findColour(AudioDisplayComponent::ColourIds::bgColour);
-    g.fillAll(bgColour);
-    
-	AudioDisplayComponent::paint(g);
-
-	if(getTotalSampleAmount() == 0) return;
-
-	if(areas[SampleStartArea]->getSampleRange().getLength() != 0)
-	{
-		drawSampleStartBar(g);
-	};
-
-	if (!onInterface && currentSound.get() != nullptr)
-	{
-		if (currentSound->getReferenceToSound()->isMonolithic())
-		{
-			g.setColour(Colour(0x22000000));
-			g.fillRect(0, 0, 80, 20);
-			g.setFont(GLOBAL_BOLD_FONT());
-			g.setColour(Colours::white);
-			g.drawText("Monolith", 0, 0, 80, 20, Justification::centred);
-		}
-	}
-}
-
-void SamplerSoundWaveform::resized()
-{
-	AudioDisplayComponent::resized();
-
-	if (onInterface)
-	{
-		for (auto a : areas)
-			a->setVisible(false);
-	}
-}
-
-void SamplerSoundWaveform::setSoundToDisplay(const ModulatorSamplerSound *s, int multiMicIndex/*=0*/)
-{
-    if(s != nullptr && !s->isMissing() && !s->isPurged())
-	{
-		currentSound = const_cast<ModulatorSamplerSound*>(s);
-
-		StreamingSamplerSound::Ptr sound = s->getReferenceToSound(multiMicIndex);
-
-		ScopedPointer<AudioFormatReader> afr;
-
-		if (sound->isMonolithic())
-		{
-			afr = sound->createReaderForPreview();
-		}
-		else
-		{
-			afr = PresetHandler::getReaderForFile(sound->getFileName(true));
-		}
-		
-		if (afr != nullptr)
-		{
-			numSamplesInCurrentSample = (int)afr->lengthInSamples;
-
-			if (onInterface && currentSound != nullptr)
-			{
-				numSamplesInCurrentSample = currentSound->getReferenceToSound()->getSampleLength();
-			}
-
-			preview->setReader(afr.release(), numSamplesInCurrentSample);
-
-			updateRanges();
-		}
-		else jassertfalse;
-		
-	}
-	else
-	{
-		currentSound = nullptr;
-
-		for(int i = 0; i < areas.size(); i++)
-		{
-			areas[i]->setBounds(0,0,0,0);
-		}
-
-		preview->clear();
-	}
-};
-
-
-
-float SamplerSoundWaveform::getNormalizedPeak()
-{
-	const ModulatorSamplerSound *s = getCurrentSound();
-
-	if (s != nullptr)
-	{
-		return s->getNormalizedPeak();
-	}
-	else return 1.0f;
-}
 
 // =================================================================================================================== SampleArea
 
@@ -410,8 +159,6 @@ int AudioDisplayComponent::SampleArea::getSampleForX(int x, bool relativeToAudio
 
 void AudioDisplayComponent::SampleArea::mouseDown(const MouseEvent &e)
 {
-	SET_CHANGED_FROM_PARENT_EDITOR()
-
 	prevDragWidth = getWidth();
 	leftEdgeClicked = e.eventComponent == leftEdge;
 
@@ -429,7 +176,7 @@ void AudioDisplayComponent::SampleArea::mouseDrag(const MouseEvent &)
 void AudioDisplayComponent::SampleArea::paint(Graphics &g)
 {
 	
-	if(area == SamplerSoundWaveform::LoopCrossfadeArea)
+	if(area == AreaTypes::LoopCrossfadeArea)
 	{
 		Path fadeInPath;
 
@@ -445,7 +192,7 @@ void AudioDisplayComponent::SampleArea::paint(Graphics &g)
 		PathStrokeType stroke(1.0f);
 		g.strokePath(fadeInPath, stroke);
 	}
-	else if (area == SamplerSoundWaveform::AreaTypes::PlayArea)
+	else if (area == AreaTypes::PlayArea)
 	{
 		g.setColour(getAreaColour().withAlpha(areaEnabled ? 0.1f : 0.02f));
 		g.fillAll();
@@ -537,11 +284,11 @@ Colour AudioDisplayComponent::SampleArea::getAreaColour() const
 {
 	switch(area)
 	{
-	case SamplerSoundWaveform::PlayArea:			return Colours::white;
-	case SamplerSoundWaveform::SampleStartArea:		return Colours::blue;
-	case SamplerSoundWaveform::LoopArea:			return Colours::green;
-	case SamplerSoundWaveform::LoopCrossfadeArea:	return Colours::yellow;
-	default:				jassertfalse;			return Colours::transparentBlack;
+	case AreaTypes::PlayArea:			return Colours::white;
+	case AreaTypes::SampleStartArea:	return Colours::blue;
+	case AreaTypes::LoopArea:			return Colours::green;
+	case AreaTypes::LoopCrossfadeArea:	return Colours::yellow;
+	default:		jassertfalse;		return Colours::transparentBlack;
 	}
 }
 
@@ -575,7 +322,7 @@ void AudioDisplayComponent::SampleArea::EdgeLookAndFeel::drawStretchableLayoutRe
 
 #pragma warning( pop )
 
-AudioSampleBufferComponent::AudioSampleBufferComponent(Processor* p) :
+AudioSampleBufferComponentBase::AudioSampleBufferComponentBase(SafeChangeBroadcaster* p) :
 	AudioDisplayComponent(),
 	buffer(nullptr),
 	itemDragged(false),
@@ -603,7 +350,7 @@ AudioSampleBufferComponent::AudioSampleBufferComponent(Processor* p) :
 	loopPath.loadPathFromData(pathData, sizeof(pathData));
 }
 
-AudioSampleBufferComponent::~AudioSampleBufferComponent()
+AudioSampleBufferComponentBase::~AudioSampleBufferComponentBase()
 {
 	if (connectedProcessor != nullptr)
 	{
@@ -611,15 +358,11 @@ AudioSampleBufferComponent::~AudioSampleBufferComponent()
 	}
 }
 
-void AudioSampleBufferComponent::setAudioSampleProcessor(Processor* newProcessor)
+void AudioSampleBufferComponentBase::setAudioSampleProcessor(SafeChangeBroadcaster* newProcessor)
 {
 	connectedProcessor = newProcessor;
 
-	if (auto asp = dynamic_cast<AudioSampleProcessor*>(newProcessor))
-	{
-		setAudioSampleBuffer(asp->getBuffer(), asp->getFileName(), dontSendNotification);
-		setRange(asp->getRange());
-	}
+	updateProcessorConnection();
 
 	if (connectedProcessor != nullptr)
 	{
@@ -629,96 +372,116 @@ void AudioSampleBufferComponent::setAudioSampleProcessor(Processor* newProcessor
 	}
 }
 
-bool AudioSampleBufferComponent::isAudioFile(const String &s)
+
+void AudioSampleBufferComponentBase::itemDragEnter(const SourceDetails& dragSourceDetails)
+{
+	over = isInterestedInDragSource(dragSourceDetails);
+	repaint();
+}
+
+void AudioSampleBufferComponentBase::itemDragExit(const SourceDetails& /*dragSourceDetails*/)
+{
+	over = false;
+	repaint();
+}
+
+bool AudioSampleBufferComponentBase::isInterestedInFileDrag(const StringArray &files)
+{
+	return files.size() == 1 && isAudioFile(files[0]);
+}
+
+bool AudioSampleBufferComponentBase::isAudioFile(const String &s)
 {
 	AudioFormatManager afm;
 
-	afm.registerBasicFormats();
-	afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
-
+	
+	//afm.registerBasicFormats();
+	//afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
+	
 	return File(s).existsAsFile() && afm.findFormatForFileExtension(File(s).getFileExtension()) != nullptr;
 }
 
 
-
-void AudioSampleBufferComponent::changeListenerCallback(SafeChangeBroadcaster *b)
+void AudioSampleBufferComponentBase::filesDropped(const StringArray &fileNames, int, int)
 {
-	AudioSampleProcessor *asp = dynamic_cast<AudioSampleProcessor*>(b);
-
-
-
-	if (asp != nullptr)
+	if (fileNames.size() > 0)
 	{
-		setAudioSampleBuffer(asp->getBuffer(), asp->getFileName(), dontSendNotification);
-		setRange(asp->getActualRange());
+		auto f = File(fileNames[0]);
 
-		auto loopRange = asp->getLoopRange().isEmpty() ? asp->getRange() : asp->getLoopRange();
-
-		int x1 = getSampleArea(0)->getXForSample(jmax<int>(asp->getRange().getStart(), loopRange.getStart()));
-		int x2 = getSampleArea(0)->getXForSample(jmin<int>(asp->getRange().getEnd(), loopRange.getEnd()));
-
-		xPositionOfLoop = { x1, x2 };
-		setShowLoop(asp->isUsingLoop());
-
-
+		loadFile(f);
 	}
+}
 
-	repaint();
+void AudioSampleBufferComponentBase::updateRanges(SampleArea *areaToSkip/*=nullptr*/)
+{
+	areas[PlayArea]->setSampleRange(Range<int>(0, buffer == nullptr ? 0 : buffer->getNumSamples()));
+	refreshSampleAreaBounds(areaToSkip);
+}
+
+void AudioSampleBufferComponentBase::setRange(Range<int> newRange)
+{
+	const bool isSomethingLoaded = currentFileName.isNotEmpty();
+
+	getSampleArea(0)->setVisible(isSomethingLoaded);
+
+	if (getSampleArea(0)->getSampleRange() != newRange)
+	{
+		getSampleArea(0)->setSampleRange(newRange);
+		refreshSampleAreaBounds();
+	}
 }
 
 
-void AudioSampleBufferComponent::poolItemWasDropped(PoolReference ref)
+
+void AudioSampleBufferComponentBase::setAudioSampleBuffer(const AudioSampleBuffer *b, const String &fileName, NotificationType notifyListeners)
 {
-	if (auto asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get()))
+	if (b != nullptr)
 	{
+		currentFileName = fileName;
+
+		buffer = b;
+
+		auto data = const_cast<float**>(b->getArrayOfReadPointers());
+
+		VariantBuffer::Ptr l = new VariantBuffer(data[0], b->getNumSamples());
+
+		var lVar = var(l);
+		var rVar;
+
+		if (data[1] != nullptr)
+		{
+			VariantBuffer::Ptr r = new VariantBuffer(data[1], b->getNumSamples());
+			rVar = var(r);
+		}
+
+		preview->setBuffer(lVar, rVar);
+	}
+	else
+	{
+		currentFileName = {};
+
 		buffer = nullptr;
-		asp->setLoadedFile(ref.getReferenceString(), true);
-	}
-}
 
-void AudioSampleBufferComponent::loadFile(const File& f)
-{
-	if (auto asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get()))
-	{
-#if USE_BACKEND
-		String fileName = f.getFullPathName();
-#else
-		auto fileName = FrontendHandler::getRelativePathForAdditionalAudioFile(f);
-#endif
-
-		buffer = nullptr;
-		asp->setLoadedFile(fileName, true);
+		preview->clear();
 	}
+
+	updateRanges();
+
+	setCurrentArea(getSampleArea(0));
+
+	if (notifyListeners)
+		sendAreaChangedMessage();
 }
 
 
 
-void AudioSampleBufferComponent::mouseDown(const MouseEvent &e)
+void AudioSampleBufferComponentBase::mouseDown(const MouseEvent &e)
 {
 	if (e.mods.isRightButtonDown() || e.mods.isCtrlDown())
 	{
-		SET_CHANGED_FROM_PARENT_EDITOR()
-        
 		String patterns = "*.wav;*.aif;*.aiff;*.WAV;*.AIFF;*.hlac;*.flac;*.HLAC;*.FLAC";
 
-#if USE_BACKEND
-
-		File searchDirectory;
-
-		if (ProcessorEditor *editor = findParentComponentOfClass<ProcessorEditor>())
-		{
-			searchDirectory = GET_PROJECT_HANDLER(editor->getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles);
-		}
-		else
-		{
-			searchDirectory = File();
-		}
-		
-#else
-	
-		File searchDirectory = FrontendHandler::getAdditionalAudioFilesDirectory();
-
-#endif
+		File searchDirectory = getDefaultDirectory();
 
 		FileChooser fc("Load File", searchDirectory, patterns, true);
 
@@ -731,16 +494,7 @@ void AudioSampleBufferComponent::mouseDown(const MouseEvent &e)
 	}
 }
 
-void AudioSampleBufferComponent::mouseDoubleClick(const MouseEvent& /*event*/)
-{
-	if (auto asp = dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get()))
-	{
-		buffer = nullptr;
-		asp->setLoadedFile("", true);
-	}
-}
-
-void AudioSampleBufferComponent::paint(Graphics &g)
+void AudioSampleBufferComponentBase::paint(Graphics &g)
 {
 	bgColour = findColour(AudioDisplayComponent::ColourIds::bgColour);
 	g.fillAll(bgColour);
@@ -753,7 +507,7 @@ void AudioSampleBufferComponent::paint(Graphics &g)
 }
 
 
-void AudioSampleBufferComponent::paintOverChildren(Graphics& g)
+void AudioSampleBufferComponentBase::paintOverChildren(Graphics& g)
 {
 
 	Font f = GLOBAL_BOLD_FONT();
@@ -781,7 +535,7 @@ void AudioSampleBufferComponent::paintOverChildren(Graphics& g)
 
 	AudioDisplayComponent::paint(g);
 
-	const String fileNameToShow = ProjectHandler::isAbsolutePathCrossPlatform(currentFileName) ? File(currentFileName).getFileName() : currentFileName;
+	const String fileNameToShow = File::isAbsolutePath(currentFileName) ? File(currentFileName).getFileName() : currentFileName;
 
 	if (showFileName && fileNameToShow.isNotEmpty())
 	{
@@ -810,8 +564,6 @@ void AudioSampleBufferComponent::paintOverChildren(Graphics& g)
 		t1.lineTo(x1 + 10.0f, 0.0f);
 		t1.lineTo(x1, 10.0f);
 		t1.closeSubPath();
-
-
 
 		g.fillPath(t1);
 

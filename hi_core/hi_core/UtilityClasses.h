@@ -41,31 +41,6 @@ class MainController;
 
 
 
-class SafeChangeBroadcaster;
-
-/** A class for message communication between objects.
-*
-*	This class has the same functionality as the JUCE ChangeListener class, but it uses a weak reference for the internal list,
-*	so deleted listeners will not crash the application.
-*/
-class SafeChangeListener
-{
-public:
-
-	virtual ~SafeChangeListener()
-	{
-		masterReference.clear();
-	}
-
-	/** Overwrite this and handle the message. */
-	virtual void changeListenerCallback(SafeChangeBroadcaster *b) = 0;
-
-private:
-
-	friend class WeakReference < SafeChangeListener > ;
-
-	WeakReference<SafeChangeListener>::Master masterReference;
-};
 
 /** A base class for objects that need to call dispatched messages. */
 struct Dispatchable
@@ -428,137 +403,6 @@ private:
 #endif
 
 
-/** A drop in replacement for the ChangeBroadcaster class from JUCE but with weak references.
-*
-*	If you use the normal class and forget to unregister a listener in its destructor, it will crash the application.
-*	This class uses a weak reference (but still throws an assertion so you still recognize if something is funky), so it handles this case much more gracefully.
-*
-*	Also you can add a string to your message for debugging purposes (with the JUCE class you have no way of knowing what caused the message if you call it asynchronously.
-*/
-class SafeChangeBroadcaster
-{
-public:
-
-	SafeChangeBroadcaster(const String& name_ = {}) :
-		dispatcher(this),
-        flagTimer(this),
-		name(name_)
-	{};
-
-	virtual ~SafeChangeBroadcaster()
-	{
-		dispatcher.cancelPendingUpdate();
-        flagTimer.stopTimer();
-	};
-
-	/** Sends a synchronous change message to all the registered listeners.
-	*
-	*	This will immediately call all the listeners that are registered. For thread-safety reasons, you must only call this method on the main message thread.
-	*/
-	void sendSynchronousChangeMessage();;
-
-	/** Registers a listener to receive change callbacks from this broadcaster.
-	*
-	*	Trying to add a listener that's already on the list will have no effect.
-	*/
-	void addChangeListener(SafeChangeListener *listener);
-
-	/**	Unregisters a listener from the list.
-	*
-	*	If the listener isn't on the list, this won't have any effect.
-	*/
-	void removeChangeListener(SafeChangeListener *listener);
-
-	/** Removes all listeners from the list. */
-	void removeAllChangeListeners();
-
-	/** Causes an asynchronous change message to be sent to all the registered listeners.
-	*
-	*	The message will be delivered asynchronously by the main message thread, so this method will return immediately.
-	*	To call the listeners synchronously use sendSynchronousChangeMessage().
-	*/
-	void sendChangeMessage(const String &/*identifier*/ = String());;
-    
-    /** This will send a message without allocating a message slot.
-    *
-    *   Use this in the audio thread to prevent malloc calls, but don't overuse this feature.
-    */
-    void sendAllocationFreeChangeMessage();
-    
-    void enableAllocationFreeMessages(int timerIntervalMilliseconds);
-
-	bool hasChangeListeners() const noexcept { return !listeners.isEmpty(); }
-
-private:
-
-    class FlagTimer: public Timer
-    {
-    public:
-        
-        
-        FlagTimer(SafeChangeBroadcaster *parent_):
-          parent(parent_),
-          send(false)
-        {
-           
-        }
- 
-        ~FlagTimer()
-        {
-            stopTimer();
-        }
-        
-        void triggerUpdate()
-        {
-            send.store(true);
-        }
-        
-        void timerCallback() override
-        {
-			const bool shouldUpdate = send.load();
-
-            if(shouldUpdate)
-            {
-                parent->sendSynchronousChangeMessage();
-				send.store(false);
-            }
-        }
-        
-        SafeChangeBroadcaster *parent;
-        std::atomic<bool> send;
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FlagTimer)
-    };
-    
-	class AsyncBroadcaster : public AsyncUpdater
-	{
-	public:
-		AsyncBroadcaster(SafeChangeBroadcaster *parent_) :
-			parent(parent_)
-		{}
-
-		void handleAsyncUpdate() override
-		{
-			parent->sendSynchronousChangeMessage();
-		}
-
-		SafeChangeBroadcaster *parent;
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AsyncBroadcaster)
-	};
-
-	const String name;
-
-	AsyncBroadcaster dispatcher;
-    FlagTimer flagTimer;
-
-	String currentString;
-
-	Array<WeakReference<SafeChangeListener>, CriticalSection> listeners;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SafeChangeBroadcaster)
-};
-
 
 
 /** This class is a listener class that can react to tempo changes.
@@ -641,26 +485,6 @@ private:
 
 	float saturationAmount;
 	float k;
-
-};
-
-
-/** A utility class for linear interpolation between samples.
-*	@ingroup utility
-*
-*/
-class Interpolator
-{
-public:
-
-	/** A simple linear interpolation.
-	*
-	*	@param lowValue the value of the lower index.
-	*	@param highValue the value of the higher index.
-	*	@param delta the sub-integer part between the two indexes (must be between 0.0f and 1.0f)
-	*	@returns the interpolated value.
-	*/
-	static float interpolateLinear(const float lowValue, const float highValue, const float delta);
 
 };
 
@@ -818,73 +642,6 @@ private:
 
 class Processor;
 
-/** Subclass your component from this class and the main window will focus it to allow copy pasting with shortcuts.
-*
-*   Then, in your mouseDown method, call grabCopyAndPasteFocus().
-*	If you call paintOutlineIfSelected from your paint method, it will be automatically highlighted.
-*/
-class CopyPasteTarget
-{
-public:
-
-	CopyPasteTarget() : isSelected(false) {};
-	virtual ~CopyPasteTarget()
-	{
-		masterReference.clear();
-	};
-
-	virtual String getObjectTypeName() = 0;
-	virtual void copyAction() = 0;
-	virtual void pasteAction() = 0;
-
-	void grabCopyAndPasteFocus();
-
-	void dismissCopyAndPasteFocus();
-
-	bool isSelectedForCopyAndPaste() { return isSelected; };
-
-	void paintOutlineIfSelected(Graphics &g)
-	{
-		if (isSelected)
-		{
-			Component *thisAsComponent = dynamic_cast<Component*>(this);
-
-			if (thisAsComponent != nullptr)
-			{
-				Rectangle<float> bounds = Rectangle<float>((float)thisAsComponent->getLocalBounds().getX(),
-														   (float)thisAsComponent->getLocalBounds().getY(),
-														   (float)thisAsComponent->getLocalBounds().getWidth(),
-														   (float)thisAsComponent->getLocalBounds().getHeight());
-
-
-
-				Colour outlineColour = Colour(SIGNAL_COLOUR).withAlpha(0.3f);
-				
-				g.setColour(outlineColour);
-
-				g.drawRect(bounds, 1.0f);
-
-			}
-			else jassertfalse;
-		}
-	}
-
-	void deselect()
-	{
-		isSelected = false;
-		dynamic_cast<Component*>(this)->repaint();
-	}
-
-private:
-
-	WeakReference<CopyPasteTarget>::Master masterReference;
-	friend class WeakReference < CopyPasteTarget > ;
-
-	WeakReference<Processor> processor;
-
-	bool isSelected;
-
-};
 
 
 

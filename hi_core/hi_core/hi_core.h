@@ -61,7 +61,6 @@
 #include "DebugLogger.h"
 #include "ThreadWithQuasiModalProgressWindow.h"
 #include "Popup.h"
-#include "Tables.h"
 #include "UpdateMerger.h"
 #include "BackgroundThreads.h"
 #include "HiseSettings.h"

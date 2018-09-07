@@ -1,5 +1,259 @@
 namespace hise { using namespace juce;
 
+SamplerSoundWaveform::SamplerSoundWaveform(const ModulatorSampler *ownerSampler) :
+	AudioDisplayComponent(),
+	sampler(ownerSampler),
+	sampleStartPosition(-1.0),
+	currentSound(nullptr)
+{
+	areas.add(new SampleArea(PlayArea, this));
+	areas.add(new SampleArea(SampleStartArea, this));
+	areas.add(new SampleArea(LoopArea, this));
+	areas.add(new SampleArea(LoopCrossfadeArea, this));
+
+	setColour(AudioDisplayComponent::ColourIds::bgColour, Colour(0xFF383838));
+
+	addAndMakeVisible(areas[PlayArea]);
+	areas[PlayArea]->addAndMakeVisible(areas[SampleStartArea]);
+	areas[PlayArea]->addAndMakeVisible(areas[LoopArea]);
+	areas[PlayArea]->addAndMakeVisible(areas[LoopCrossfadeArea]);
+
+	areas[PlayArea]->setAreaEnabled(true);
+
+	areas[SampleStartArea]->leftEdge->setVisible(false);
+	areas[LoopCrossfadeArea]->rightEdge->setVisible(false);
+
+	setOpaque(true);
+
+#ifdef JUCE_DEBUG
+
+	startTimer(30);
+
+#else
+
+	startTimer(30);
+
+#endif
+
+
+};
+
+SamplerSoundWaveform::~SamplerSoundWaveform()
+{
+
+}
+
+
+
+void SamplerSoundWaveform::timerCallback()
+{
+	if (sampler->getLastStartedVoice() != nullptr)
+	{
+		ModulatorSamplerSound *s = dynamic_cast<ModulatorSamplerVoice*>(sampler->getLastStartedVoice())->getCurrentlyPlayingSamplerSound();
+
+		if (s == currentSound)
+		{
+			sampleStartPosition = sampler->getSamplerDisplayValues().currentSampleStartPos;
+			setPlaybackPosition(sampler->getSamplerDisplayValues().currentSamplePos);
+		}
+		else
+		{
+			setPlaybackPosition(0);
+		}
+	}
+
+};
+
+
+void SamplerSoundWaveform::updateRanges(SampleArea *areaToSkip)
+{
+	if (currentSound != nullptr)
+	{
+		updateRange(PlayArea, false);
+		updateRange(SampleStartArea, false);
+		updateRange(LoopArea, false);
+		updateRange(LoopCrossfadeArea, true);
+	}
+	else
+	{
+		refreshSampleAreaBounds(areaToSkip);
+	}
+
+
+}
+
+void SamplerSoundWaveform::updateRange(AreaTypes a, bool refreshBounds)
+{
+	auto area = areas[a];
+
+	switch (a)
+	{
+	case hise::AudioDisplayComponent::PlayArea:
+		area->setSampleRange(Range<int>(currentSound->getSampleProperty(SampleIds::SampleStart),
+			currentSound->getSampleProperty(SampleIds::SampleEnd)));
+
+		area->setAllowedPixelRanges(currentSound->getPropertyRange(SampleIds::SampleStart),
+			currentSound->getPropertyRange(SampleIds::SampleEnd));
+		break;
+	case hise::AudioDisplayComponent::SampleStartArea:
+	{
+		area->setSampleRange(Range<int>(currentSound->getSampleProperty(SampleIds::SampleStart), (int)currentSound->getSampleProperty(SampleIds::SampleStart) + (int)currentSound->getSampleProperty(SampleIds::SampleStartMod)));
+		area->setAllowedPixelRanges(currentSound->getPropertyRange(SampleIds::SampleStart),
+			currentSound->getPropertyRange(SampleIds::SampleStartMod));
+		break;
+	}
+	case hise::AudioDisplayComponent::LoopArea:
+	{
+		area->setVisible(currentSound->getSampleProperty(SampleIds::LoopEnabled));
+		area->setSampleRange(Range<int>(currentSound->getSampleProperty(SampleIds::LoopStart),
+			currentSound->getSampleProperty(SampleIds::LoopEnd)));
+
+		area->setAllowedPixelRanges(currentSound->getPropertyRange(SampleIds::LoopStart),
+			currentSound->getPropertyRange(SampleIds::LoopEnd));
+		break;
+	}
+	case hise::AudioDisplayComponent::LoopCrossfadeArea:
+	{
+		const int64 start = (int64)currentSound->getSampleProperty(SampleIds::LoopStart) - (int64)currentSound->getSampleProperty(SampleIds::LoopXFade);
+
+		area->setSampleRange(Range<int>((int)start, currentSound->getSampleProperty(SampleIds::LoopStart)));
+		break;
+	}
+	case hise::AudioDisplayComponent::numAreas:
+		break;
+	default:
+		break;
+	}
+
+	if (refreshBounds)
+		refreshSampleAreaBounds(nullptr);
+}
+
+void SamplerSoundWaveform::toggleRangeEnabled(AreaTypes type)
+{
+	areas[type]->toggleEnabled();
+}
+
+double SamplerSoundWaveform::getSampleRate() const
+{
+	return currentSound != nullptr ? currentSound->getSampleRate() : -1.0;
+}
+
+void SamplerSoundWaveform::drawSampleStartBar(Graphics &g)
+{
+	if (sampleStartPosition != -1.0)
+	{
+		g.setColour(Colours::darkblue.withAlpha(0.5f));
+
+		const int x = areas[PlayArea]->getX() + (int)(sampleStartPosition * areas[SampleStartArea]->getWidth());
+
+		g.drawLine((float)x, 0.0f, (float)x, (float)getBottom() - 2.0f, 1.0f);
+
+		g.setColour(Colours::blue.withAlpha(0.1f));
+
+		g.fillRect(jmax<int>(0, x - 5), 0, 10, getHeight());
+	}
+}
+
+void SamplerSoundWaveform::paint(Graphics &g)
+{
+	auto bgColour = findColour(AudioDisplayComponent::ColourIds::bgColour);
+	g.fillAll(bgColour);
+
+	AudioDisplayComponent::paint(g);
+
+	if (getTotalSampleAmount() == 0) return;
+
+	if (areas[SampleStartArea]->getSampleRange().getLength() != 0)
+	{
+		drawSampleStartBar(g);
+	};
+
+	if (!onInterface && currentSound.get() != nullptr)
+	{
+		if (currentSound->getReferenceToSound()->isMonolithic())
+		{
+			g.setColour(Colour(0x22000000));
+			g.fillRect(0, 0, 80, 20);
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.setColour(Colours::white);
+			g.drawText("Monolith", 0, 0, 80, 20, Justification::centred);
+		}
+	}
+}
+
+void SamplerSoundWaveform::resized()
+{
+	AudioDisplayComponent::resized();
+
+	if (onInterface)
+	{
+		for (auto a : areas)
+			a->setVisible(false);
+	}
+}
+
+void SamplerSoundWaveform::setSoundToDisplay(const ModulatorSamplerSound *s, int multiMicIndex/*=0*/)
+{
+	if (s != nullptr && !s->isMissing() && !s->isPurged())
+	{
+		currentSound = const_cast<ModulatorSamplerSound*>(s);
+
+		StreamingSamplerSound::Ptr sound = s->getReferenceToSound(multiMicIndex);
+
+		ScopedPointer<AudioFormatReader> afr;
+
+		if (sound->isMonolithic())
+		{
+			afr = sound->createReaderForPreview();
+		}
+		else
+		{
+			afr = PresetHandler::getReaderForFile(sound->getFileName(true));
+		}
+
+		if (afr != nullptr)
+		{
+			numSamplesInCurrentSample = (int)afr->lengthInSamples;
+
+			if (onInterface && currentSound != nullptr)
+			{
+				numSamplesInCurrentSample = currentSound->getReferenceToSound()->getSampleLength();
+			}
+
+			preview->setReader(afr.release(), numSamplesInCurrentSample);
+
+			updateRanges();
+		}
+		else jassertfalse;
+
+	}
+	else
+	{
+		currentSound = nullptr;
+
+		for (int i = 0; i < areas.size(); i++)
+		{
+			areas[i]->setBounds(0, 0, 0, 0);
+		}
+
+		preview->clear();
+	}
+};
+
+
+
+float SamplerSoundWaveform::getNormalizedPeak()
+{
+	const ModulatorSamplerSound *s = getCurrentSound();
+
+	if (s != nullptr)
+	{
+		return s->getNormalizedPeak();
+	}
+	else return 1.0f;
+}
+
 // =================================================================================================================== SamplerSubEditor
 
 void SamplerSubEditor::selectSounds(const SampleSelection &selection)

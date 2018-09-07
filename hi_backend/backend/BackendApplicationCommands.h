@@ -38,7 +38,8 @@ namespace hise { using namespace juce;
 class BackendRootWindow;
 
 class BackendCommandTarget: public ApplicationCommandTarget,
-							  public MenuBarModel
+							public MenuBarModel,
+	                        public CopyPasteTargetHandler
 {
 public:
 
@@ -198,6 +199,8 @@ public:
 	virtual ~BackendCommandTarget()
 	{
 		mainCommandManager->setFirstCommandTarget(nullptr);
+
+		CopyPasteTarget::setHandlerFunction(nullptr);
 	};
 
 	ApplicationCommandTarget* getNextCommandTarget() override
@@ -352,6 +355,7 @@ public:
 
 private:
 
+	CopyPasteTarget::HandlerFunction handlerFunction;
 
 	friend class BackendRootWindow;
 

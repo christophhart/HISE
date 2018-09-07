@@ -68,7 +68,7 @@ Plotter::~Plotter()
 	
 };
 
-float getAverage(const float* data, int numSamples, Modulation::Mode m)
+float getAverage(const float* data, int numSamples, Plotter::Mode m)
 {
 	if (numSamples == 0)
 		return 0.0f;
@@ -82,12 +82,12 @@ float getAverage(const float* data, int numSamples, Modulation::Mode m)
 
 	float thisValue = sum / (float)numSamples;
 
-	if (m == Modulation::PitchMode)
+	if (m == Plotter::PitchMode)
 	{
-		thisValue = Modulation::PitchConverters::pitchFactorToNormalisedRange(thisValue);
+		thisValue = std::log2(thisValue);
 		thisValue = (thisValue + 1.0f) / 2.0f;
 	}
-	else if (m == Modulation::PanMode)
+	else if (m == Plotter::PanMode)
 	{
 		thisValue = (thisValue + 1.0f) / 2.0f;
 	}
@@ -111,7 +111,7 @@ void Plotter::paint (Graphics& g)
 
 	float bottomValue = 0.0f;
 
-	if (currentMode == Modulation::PitchMode || currentMode == Modulation::PanMode)
+	if (currentMode == Plotter::PitchMode || currentMode == Plotter::PanMode)
 	{
 		bottomValue = -1.0f;
 	}
@@ -123,7 +123,7 @@ void Plotter::paint (Graphics& g)
 	g.drawText(topText, getLocalBounds(), Justification::topRight);
 	g.drawText(bottomText, getLocalBounds(), Justification::bottomRight);
 
-	if (currentMode != Modulation::GainMode)
+	if (currentMode != Plotter::GainMode)
 	{
 		g.drawHorizontalLine(getHeight() / 2, 0.0f, (float)getWidth());
 	}
@@ -142,7 +142,7 @@ void Plotter::paint (Graphics& g)
 
 		float yValue = (float)popupPosition.getY() / (float)getHeight();
 
-		if (currentMode != Modulation::GainMode)
+		if (currentMode != Plotter::GainMode)
 			yValue = jmap(yValue, 0.0f, 1.0f, 1.0f, -1.0f);
 		else
 			yValue = jmap(yValue, 0.0f, 1.0f, 1.0f, 0.0f);

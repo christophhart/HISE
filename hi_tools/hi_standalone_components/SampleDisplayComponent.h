@@ -217,6 +217,15 @@ public:
 		numColourIds,
 	};
 
+	enum AreaTypes
+	{
+		PlayArea = 0,
+		SampleStartArea,
+		LoopArea,
+		LoopCrossfadeArea,
+		numAreas
+	};
+
 		/** A rectangle that represents a range of samples. */
 	class SampleArea: public Component
 	{
@@ -573,85 +582,6 @@ private:
 
 };
 
-/** A component that displays the waveform of a sample.
-*	@ingroup components
-*
-*	It uses a thumbnail data to display the waveform of the selected ModulatorSamplerSound and has some SampleArea 
-*	objects that allow changing of its sample ranges (playback range, loop range etc.) @see SampleArea.
-*
-*	It uses a timer to display the current playbar.
-*/
-class SamplerSoundWaveform: public AudioDisplayComponent,
-							public Timer
-{
-public:
-
-	enum AreaTypes
-	{
-		PlayArea = 0,
-		SampleStartArea,
-		LoopArea,
-		LoopCrossfadeArea,
-		numAreas
-	};
-
-	/** Creates a new SamplerSoundWaveform.	
-	*
-	*	@param ownerSampler the ModulatorSampler that the SamplerSoundWaveform should use.
-	*/
-	SamplerSoundWaveform(const ModulatorSampler *ownerSampler);
-
-	~SamplerSoundWaveform();
-
-	
-	/** used to display the playing positions / sample start position. */
-	void timerCallback() override;
-
-	/** draws a vertical ruler at the position where the sample was recently started. */
-	void drawSampleStartBar(Graphics &g);
-
-	/** enables the range (makes it possible to drag the edges). */
-	void toggleRangeEnabled(AreaTypes type);
-
-	/** Call this whenever the sample ranges change. 
-	*
-	*	If you only want to refresh the sample area (while dragging), use refreshSampleAreaBounds() instead.
-	*/
-	void updateRanges(SampleArea *areaToSkip=nullptr) override;
-
-	void updateRange(AreaTypes area, bool refreshBounds);
-
-	double getSampleRate() const override;
-
-	void paint(Graphics &g) override;
-
-	void resized() override;
-
-	/** Sets the currently displayed sound.
-	*
-	*	It listens for the global sound selection and displays the last selected sound if the selection changes. 
-	*/
-	void setSoundToDisplay(const ModulatorSamplerSound *s, int multiMicIndex=0);
-
-	const ModulatorSamplerSound *getCurrentSound() const { return currentSound.get(); }
-
-
-	float getNormalizedPeak() override;
-
-private:
-
-	const ModulatorSampler *sampler;
-	ReferenceCountedObjectPtr<ModulatorSamplerSound> currentSound;
-
-	int numSamplesInCurrentSample;
-
-	
-	double sampleStartPosition;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SamplerSoundWaveform)
-};
-
-
 /** A waveform component to display the content of a pooled AudioSampleBuffer.
 *
 *	Features:
@@ -662,7 +592,7 @@ private:
 *	- playback position display
 *	- designed to interact with AudioSampleProcessor & AudioSampleBufferPool
 */
-class AudioSampleBufferComponent: public AudioDisplayComponent,
+class AudioSampleBufferComponentBase: public AudioDisplayComponent,
 								  public FileDragAndDropTarget,
 								  public SafeChangeBroadcaster,
 								  public SafeChangeListener,
@@ -677,133 +607,45 @@ public:
 		numAreas
 	};
 
-	bool isInterestedInDragSource(const SourceDetails& dragSourceDetails) override
-	{
-		PoolReference ref(dragSourceDetails.description);
+	AudioSampleBufferComponentBase(SafeChangeBroadcaster* p);
+	virtual ~AudioSampleBufferComponentBase();
 
-		return ref && ref.getFileType() == FileHandlerBase::SubDirectories::AudioFiles;
-	};
+	virtual void updateProcessorConnection() = 0;
+	virtual File getDefaultDirectory() const = 0;
+	virtual void loadFile(const File& f) = 0;
 
-	void itemDragEnter(const SourceDetails& dragSourceDetails) override
-	{
-		over = isInterestedInDragSource(dragSourceDetails);
-		repaint();
-	};
-
-	void itemDragExit(const SourceDetails& /*dragSourceDetails*/) override
-	{
-		over = false;
-		repaint();
-	};
-
-	void itemDropped(const SourceDetails& dragSourceDetails) override
-	{
-		PoolReference ref(dragSourceDetails.description);
-
-		poolItemWasDropped(ref);
-	};
-
-	bool isInterestedInFileDrag (const StringArray &files) override
-	{
-		return files.size() == 1 && isAudioFile(files[0]);
-	}
+	void itemDragEnter(const SourceDetails& dragSourceDetails) override;;
+	void itemDragExit(const SourceDetails& /*dragSourceDetails*/) override;;
+	
+	bool isInterestedInFileDrag (const StringArray &files) override;
 
 	static bool isAudioFile(const String &s);
-
 	
-	void filesDropped(const StringArray &fileNames, int , int ) override
-	{
-		if(fileNames.size() > 0)
-		{
-			auto f = File(fileNames[0]);
+	void filesDropped(const StringArray &fileNames, int, int);
 
-			loadFile(f);
-		}
-	};
+	void setAudioSampleProcessor(SafeChangeBroadcaster* newProcessor);
 
-	AudioSampleBufferComponent(Processor* p);
-
+	virtual void updatePlaybackPosition() = 0;
 	
-
-	~AudioSampleBufferComponent();
-
-	void setAudioSampleProcessor(Processor* newProcessor);
-
-	void updatePlaybackPosition()
-	{
-		if (connectedProcessor)
-			setPlaybackPosition(connectedProcessor->getInputValue());
-	}
-
-	void poolItemWasDropped(PoolReference ref);
-
-	void loadFile(const File& f);
-
 	/** Call this when you want the component to display the content of the given AudioSampleBuffer. 
 	*
 	*	It repaints the waveform, resets the range and calls rangeChanged for all registered AreaListeners.
 	*/
-	void setAudioSampleBuffer(const AudioSampleBuffer *b, const String &fileName, NotificationType notifyListeners)
+	void setAudioSampleBuffer(const AudioSampleBuffer *b, const String &fileName, NotificationType notifyListeners);
+
+	virtual void newBufferLoaded() = 0;
+
+	void changeListenerCallback(SafeChangeBroadcaster *b) override
 	{
-		if(b != nullptr)
-		{
-			currentFileName = fileName;
+		newBufferLoaded();
 
-			buffer = b;
-
-			auto data = const_cast<float**>(b->getArrayOfReadPointers());
-
-			VariantBuffer::Ptr l = new VariantBuffer(data[0], b->getNumSamples());
-			
-			var lVar = var(l);
-			var rVar;
-
-			if (data[1] != nullptr)
-			{
-				VariantBuffer::Ptr r = new VariantBuffer(data[1], b->getNumSamples());
-				rVar = var(r);
-			}
-
-			preview->setBuffer(lVar, rVar);
-		}
-		else
-		{
-			currentFileName = {};
-
-			buffer = nullptr;
-
-			preview->clear();
-		}
-
-		updateRanges();
-
-		setCurrentArea(getSampleArea(0));
-
-		if (notifyListeners)
-			sendAreaChangedMessage();
+		repaint();
 	}
 
-	void changeListenerCallback(SafeChangeBroadcaster *b) override;
-
-	void updateRanges(SampleArea *areaToSkip=nullptr) override
-	{
-		areas[PlayArea]->setSampleRange(Range<int>(0, buffer == nullptr ? 0 : buffer->getNumSamples()));
-		refreshSampleAreaBounds(areaToSkip);
-	}
+	void updateRanges(SampleArea *areaToSkip=nullptr) override;
 
 	/** Call this whenever you need to set the range from outside. */
-	void setRange(Range<int> newRange)
-	{
-		const bool isSomethingLoaded = currentFileName.isNotEmpty();
-
-		getSampleArea(0)->setVisible(isSomethingLoaded);
-
-		if (getSampleArea(0)->getSampleRange() != newRange)
-		{
-			getSampleArea(0)->setSampleRange(newRange);
-			refreshSampleAreaBounds();
-		}
-	}
+	void setRange(Range<int> newRange);
 
 	void setShowFileName(bool shouldShowFileName)
 	{
@@ -814,8 +656,6 @@ public:
 	void setBackgroundColour(Colour c) { bgColour = c; };
 
 	void mouseDown(const MouseEvent &e) override;
-
-	void mouseDoubleClick(const MouseEvent& event) override;
 
 	void timerCallback() override
 	{
@@ -847,9 +687,7 @@ public:
 		}
 	}
 
-	
-
-private:
+protected:
 
 	bool over = false;
 
@@ -860,7 +698,7 @@ private:
 
 	Range<int> xPositionOfLoop;
 
-	WeakReference<Processor> connectedProcessor;
+	WeakReference<SafeChangeBroadcaster> connectedProcessor;
 
 	Colour bgColour;
 
@@ -869,6 +707,7 @@ private:
 
 	const AudioSampleBuffer *buffer;
 };
+
 
 } // namespace hise
 
