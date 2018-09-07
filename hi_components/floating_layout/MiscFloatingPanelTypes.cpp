@@ -365,7 +365,7 @@ void InterfaceContentPanel::paint(Graphics& g)
 	{
 		g.setFont(GLOBAL_BOLD_FONT());
 		g.setColour(Colours::white);
-		g.drawText("No interface found", FLOAT_RECTANGLE(getLocalBounds()).removeFromTop(40.0f), Justification::centred);
+		g.drawText("No interface found", getLocalBounds().toFloat().removeFromTop(40.0f), Justification::centred);
 	}
 }
 

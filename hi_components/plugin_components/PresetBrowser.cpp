@@ -254,7 +254,7 @@ void PresetBrowserColumn::ButtonLookAndFeel::drawButtonText(Graphics& g, TextBut
 		auto r = button.getLocalBounds();
 
 		g.setColour(highlightColour.withAlpha(0.1f));
-		g.fillRoundedRectangle(FLOAT_RECTANGLE(r.reduced(3, 1)), 2.0f);
+		g.fillRoundedRectangle(r.reduced(3, 1).toFloat(), 2.0f);
 	}
 #endif
 
@@ -278,7 +278,7 @@ void MultiColumnPresetBrowser::ModalWindow::paint(Graphics& g)
     auto area = inputLabel->getBounds().expanded(50);
     
 	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xfa212121)));
-    g.fillRoundedRectangle(FLOAT_RECTANGLE(area.expanded(40)), 2.0f);
+    g.fillRoundedRectangle(area.expanded(40).toFloat(), 2.0f);
     
     g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x228e8e8e)));
     
@@ -699,7 +699,7 @@ void PresetBrowserColumn::paint(Graphics& g)
 
 	g.setColour(highlightColour.withAlpha(0.1f));
 
-	g.drawRoundedRectangle(FLOAT_RECTANGLE(listArea), 2.0f, 2.0f);
+	g.drawRoundedRectangle(listArea.toFloat(), 2.0f, 2.0f);
 
 
 #endif
@@ -888,7 +888,7 @@ void MultiColumnPresetBrowser::paint(Graphics& g)
 	g.fillAll();
 
 	g.setColour(tagArea->blaf.highlightColour.withAlpha(0.1f));
-	g.fillRoundedRectangle(FLOAT_RECTANGLE(noteLabel->getBounds()), 2.0f);
+	g.fillRoundedRectangle(noteLabel->getBounds().toFloat(), 2.0f);
 
 
 

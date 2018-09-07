@@ -213,7 +213,7 @@ void SettingWindows::paint(Graphics& g)
 	g.fillRect(top);
 	g.setFont(GLOBAL_BOLD_FONT().withHeight(18.0f));
 	g.setColour(Colours::white);
-	g.drawText("Settings", FLOAT_RECTANGLE(top), Justification::centred);
+	g.drawText("Settings", top.toFloat(), Justification::centred);
 
 	auto bottom = area.removeFromBottom(80);
 	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour((uint32)tabBgColour)));

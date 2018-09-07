@@ -443,6 +443,8 @@ public:
 
 	void applyMonoOnOutputValue(float monoValue)
 	{
+		ignoreUnused(monoValue);
+
 #if ENABLE_ALL_PEAK_METERS
 		setOutputValue(getOutputValue() * monoValue);
 #endif

@@ -169,9 +169,10 @@ public:
 		macroControlledComponentEnabled(true)
 	{};
     
+
     enum HiBackgroundColours
     {
-        upperBgColour = 0xFF123532,
+        upperBgColour = HiseColourScheme::WidgetBackgroundColour,
         lowerBgColour,
         outlineBgColour,
         textColour,

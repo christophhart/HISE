@@ -171,8 +171,10 @@ void MidiKeyboardState::processNextMidiBuffer (MidiBuffer& buffer,
 
     const ScopedLock sl (lock);
 
+#if JUCE_ENABLE_AUDIO_GUARD
 	// Don't fire here until this is sorted out.
 	AudioThreadGuard::Suspender suspender;
+#endif
 
     while (i.getNextEvent (message, time))
         processNextMidiEvent (message);

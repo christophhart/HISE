@@ -117,6 +117,8 @@ void SampleMap::clear(NotificationType n)
 	{
 		LockHelpers::freeToGo(sampler->getMainController());
 
+		ScopedNotificationDelayer snd(*this);
+
 		sampleMapData.clear();
 
 		setNewValueTree(ValueTree("samplemap"));
@@ -254,9 +256,18 @@ void SampleMap::parseValueTree(const ValueTree &v)
 		}
 	}
 
+	auto& progress = getSampler()->getMainController()->getSampleManager().getPreloadProgress();
+
+	auto numSamples = (double)(jmax<int>(1, data.getNumChildren()));
+	auto sampleIndex = 0.0;
+
+	ScopedNotificationDelayer dnd(*this);
 
 	for (auto c : data)
 	{
+		progress = sampleIndex / numSamples;
+		sampleIndex += 1.0;
+
 		valueTreeChildAdded(data, c);
 	}
 
@@ -363,6 +374,12 @@ void SampleMap::addSampleFromValueTree(ValueTree childWhichHasBeenAdded)
 
 	newSound->setReversed(isReversed);
 
+	sendSampleAddedMessage();
+	return;
+}
+
+void SampleMap::sendSampleAddedMessage()
+{
 	auto update = [](Dispatchable* obj)
 	{
 		auto sampler = static_cast<ModulatorSampler*>(obj);
@@ -378,7 +395,10 @@ void SampleMap::addSampleFromValueTree(ValueTree childWhichHasBeenAdded)
 		return Dispatchable::Status::OK;
 	};
 
-	sampler->getMainController()->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(sampler, update);
+	if (delayNotifications)
+		notificationPending = true;
+	else
+		sampler->getMainController()->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(sampler, update);
 }
 
 void SampleMap::valueTreeChildRemoved(ValueTree& /*parentTree*/, ValueTree& child, int /*indexFromWhichChildWasRemoved*/)
@@ -393,15 +413,33 @@ void SampleMap::valueTreeChildRemoved(ValueTree& /*parentTree*/, ValueTree& chil
 			if (static_cast<ModulatorSamplerSound*>(sampler->getSound(i))->getData() == child)
 			{
 				sampler->deleteSound(i);
-				sampler->getSampleMap()->notifier.sendSampleAmountChangeMessage(sendNotificationAsync);
 				break;
 			}
 		}
+
+		sampler->getSampleMap()->sendSampleDeletedMessage(sampler);
 
 		return SafeFunctionCall::OK;
 	};
 
 	sampler->killAllVoicesAndCall(f);
+}
+
+void SampleMap::sendSampleDeletedMessage(ModulatorSampler * sampler)
+{
+	auto update = [](Dispatchable* obj)
+	{
+		auto sampler = static_cast<ModulatorSampler*>(obj);
+
+		sampler->getSampleMap()->notifier.sendSampleAmountChangeMessage(sendNotificationAsync);
+
+		return Dispatchable::Status::OK;
+	};
+
+	if (delayNotifications)
+		notificationPending = true;
+	else
+		sampler->getMainController()->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(sampler, update);
 }
 
 void SampleMap::save()
@@ -614,8 +652,6 @@ void SampleMap::load(const PoolReference& reference)
 	clear(dontSendNotification);
 
 	currentPool = getSampler()->getMainController()->getCurrentSampleMapPool();
-
-	
 
 	sampleMapData = currentPool->loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
 	currentPool->addListener(this);

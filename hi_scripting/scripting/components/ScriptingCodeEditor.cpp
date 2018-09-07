@@ -182,7 +182,7 @@ bool JavascriptCodeEditor::componentIsDefinedWithFactoryMethod(const Identifier&
 
 	const String allText = getDocument().getAllContent();
 
-	StringArray sa = RegexFunctions::getFirstMatch(regexp, allText, nullptr);
+	StringArray sa = RegexFunctions::getFirstMatch(regexp, allText);
 
 	if (sa.size() == 4)
 	{
@@ -197,7 +197,7 @@ String JavascriptCodeEditor::createNewDefinitionWithFactoryMethod(const String &
 {
 	const String regexp = "(const)?\\s*(global|var|reg)?\\s*" + oldId + "\\s*=\\s*([\\w\\.]+)\\(\\\"(\\w+)\\\"\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)(.*)\\);";
 	const String allText = getDocument().getAllContent();
-	StringArray sa = RegexFunctions::getFirstMatch(regexp, allText, nullptr);
+	StringArray sa = RegexFunctions::getFirstMatch(regexp, allText);
 
 	if (sa.size() == 8)
 	{
@@ -1420,7 +1420,7 @@ CodeDocument::Position JavascriptCodeEditor::Helpers::getPositionAfterDefinition
 
 	const String allText = doc.getAllContent();
 
-	StringArray sa = RegexFunctions::getFirstMatch(regexp, allText, nullptr);
+	StringArray sa = RegexFunctions::getFirstMatch(regexp, allText);
 
 	if (sa.size() > 0)
 	{

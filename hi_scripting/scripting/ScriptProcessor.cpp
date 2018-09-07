@@ -1573,6 +1573,9 @@ Result JavascriptThreadPool::executeNow(const Task::Type& t, JavascriptProcessor
 
 Result JavascriptThreadPool::Task::callWithResult()
 {
+	if (getProcessor() == nullptr)
+		return Result::fail("Processor deleted");
+
 	auto& parent = dynamic_cast<Processor*>(getProcessor())->getMainController()->getJavascriptThreadPool();
 
 	if (parent.threadShouldExit())

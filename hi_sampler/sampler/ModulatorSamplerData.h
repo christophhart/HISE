@@ -60,6 +60,8 @@ class SampleMap: public SafeChangeListener,
 public:
 
 
+
+
 	class Listener
 	{
 	public:
@@ -199,9 +201,13 @@ public:
 
 	void addSampleFromValueTree(ValueTree childWhichHasBeenAdded);
 
+	void sendSampleAddedMessage();
+
 	void valueTreeChildRemoved(ValueTree& parentTree,
 		ValueTree& childWhichHasBeenRemoved,
 		int indexFromWhichChildWasRemoved) override;;
+
+	void sendSampleDeletedMessage(ModulatorSampler * sampler);
 
 	void valueTreeChildOrderChanged(ValueTree& /*parentTreeWhoseChildrenHaveMoved*/,
 		int /*oldIndex*/, int /*newIndex*/) override {};
@@ -218,6 +224,30 @@ public:
 private:
 
 	void setCurrentMonolith();
+
+	struct ScopedNotificationDelayer
+	{
+		ScopedNotificationDelayer(SampleMap& parent_):
+			parent(parent_)
+		{
+			parent.delayNotifications = true;
+		};
+
+		~ScopedNotificationDelayer()
+		{
+			parent.delayNotifications = false;
+
+			if (parent.notificationPending)
+				parent.sendSampleAddedMessage();
+			
+		}
+
+		SampleMap& parent;
+	};
+
+	bool delayNotifications = false;
+	bool notificationPending = false;
+	
 
 	struct Notifier: public Dispatchable
 	{

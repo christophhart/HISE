@@ -71,6 +71,8 @@ struct WaveShaper
     void reset() noexcept {}
 };
 
+#define _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS 1
+
 //==============================================================================
 // Although clang supports C++17, their standard library still has no invoke_result
 // support. Remove the "|| JUCE_CLANG" once clang supports this properly!

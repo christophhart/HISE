@@ -33,7 +33,7 @@
 #ifndef BINARYDATA_DICTIONARIES_H_INCLUDED
 #define BINARYDATA_DICTIONARIES_H_INCLUDED
 
-#include "JuceHeader.h"
+
 
 namespace hise {
 using namespace juce;
