@@ -71,6 +71,8 @@ Processor::Processor(MainController *m, const String &id_, int numVoices_) :
 	{
 		idAsIdentifier = Identifier(id);
 	}
+
+	enableAllocationFreeMessages(50);
 }
 
 Processor::~Processor()

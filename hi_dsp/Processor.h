@@ -860,7 +860,7 @@ protected:
 
 		if(notify == sendNotification)
 		{
-			sendChangeMessage();
+			sendAllocationFreeChangeMessage();
 		}
 	};
 

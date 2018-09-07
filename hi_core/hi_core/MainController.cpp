@@ -878,7 +878,6 @@ void MainController::setHostBpm(double newTempo)
 
 void MainController::addTempoListener(TempoListener *t)
 {
-	AudioThreadGuard audioGuard(&getKillStateHandler());
 	LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
 
 	tempoListeners.addIfNotAlreadyThere(t);
@@ -886,7 +885,6 @@ void MainController::addTempoListener(TempoListener *t)
 
 void MainController::removeTempoListener(TempoListener *t)
 {
-	AudioThreadGuard audioGuard(&getKillStateHandler());
 	LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
 
 	tempoListeners.removeAllInstancesOf(t);
