@@ -496,6 +496,15 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 		bool alreadyExported = iof.existsAsFile() || sof.existsAsFile() || smof.existsAsFile();
 
+		if (alreadyExported && data.getSetting(HiseSettings::Compiler::RebuildPoolFiles))
+		{
+			iof.deleteFile();
+			sof.deleteFile();
+			smof.deleteFile();
+
+			handler.exportAllPoolsToTemporaryDirectory(chainToExport, nullptr);
+		}
+
 		if (!alreadyExported)
 		{
 			handler.exportAllPoolsToTemporaryDirectory(chainToExport, nullptr);

@@ -83,6 +83,7 @@ Array<juce::Identifier> HiseSettings::Compiler::getAllIds()
 	ids.add(HisePath);
 	ids.add(VisualStudioVersion);
 	ids.add(UseIPP);
+	ids.add(RebuildPoolFiles);
 
 	return ids;
 }
@@ -291,6 +292,12 @@ struct SettingDescription
 		D("> If you use the convolution reverb in your project, this is almost mandatory, but there are a few other places that benefit from having this library");
 		P_();
 
+		P(HiseSettings::Compiler::RebuildPoolFiles);
+		D("If enabled, the pool files for SampleMaps, AudioFiles and Images are deleted and rebuild everytime you export a plugin.");
+		D("You can turn this off in order to speed up compilation times, however be aware that in this case you need to delete them manually");
+		D("whenever you change the referenced data in any way or it will use the deprecated cached files.");
+		P_();
+
 		P(HiseSettings::Scripting::CodeFontSize);
 		D("Changes the font size of the scripting editor. Beware that on newer versions of macOS, some font sizes will not be displayed (Please don't ask why...).  ");
 		D("So if you're script is invisible, this might be the reason.");
@@ -461,7 +468,8 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Scripting::EnableCallstack ||
 		id == Other::EnableAutosave ||
 		id == Scripting::EnableDebugMode ||
-		id == Other::AudioThreadGuardEnabled) 
+		id == Other::AudioThreadGuardEnabled ||
+		id == Compiler::RebuildPoolFiles) 
 		return { "Yes", "No" };
 
 	if (id == Compiler::VisualStudioVersion)
@@ -607,6 +615,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id)
 	else if (id == Scripting::CompileTimeout)		return 5.0;
 	else if (id == Compiler::VisualStudioVersion)	return "Visual Studio 2017";
 	else if (id == Compiler::UseIPP)				return "Yes";
+	else if (id == Compiler::RebuildPoolFiles)		return "Yes";
 	else if (id == User::CompanyURL)				return "http://yourcompany.com";
 	else if (id == User::CompanyCopyright)			return "(c)2017, Company";
 	else if (id == User::CompanyCode)				return "Abcd";

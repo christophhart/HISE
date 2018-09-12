@@ -82,6 +82,7 @@ namespace Compiler
 DECLARE_ID(HisePath);
 DECLARE_ID(VisualStudioVersion);
 DECLARE_ID(UseIPP);
+DECLARE_ID(RebuildPoolFiles);
 
 Array<Identifier> getAllIds();
 
