@@ -1705,6 +1705,11 @@ public:
 			if (auto obj = jsonData.getDynamicObject())
 			{
 				auto id = obj->getProperty("Type");
+
+				// We need to make sure that the content type is changed so that the floating tile
+				// receives an update message
+				setScriptObjectProperty(Properties::ContentType, "", dontSendNotification);
+
 				setScriptObjectProperty(Properties::ContentType, id, sendNotification);
 			}
 			
