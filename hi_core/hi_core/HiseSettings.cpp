@@ -752,59 +752,67 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 		dynamic_cast<AudioProcessorDriver*>(mc)->setCurrentBlockSize(newValue.toString().getIntValue());
 	else if (id == Audio::Driver)
 	{
-		auto driver = dynamic_cast<AudioProcessorDriver*>(mc);
-		driver->deviceManager->setCurrentAudioDeviceType(newValue.toString(), true);
-		auto device = driver->deviceManager->getCurrentAudioDevice();
-
-		if (device == nullptr)
+		if (newValue.toString().isNotEmpty())
 		{
-			PresetHandler::showMessageWindow("Error initialising driver", "The audio driver could not be opened. The default settings will be loaded.", PresetHandler::IconType::Error);
-			driver->resetToDefault();
-		}
+			auto driver = dynamic_cast<AudioProcessorDriver*>(mc);
+			driver->deviceManager->setCurrentAudioDeviceType(newValue.toString(), true);
+			auto device = driver->deviceManager->getCurrentAudioDevice();
 
-		initialiseAudioDriverData(true);
-		sendChangeMessage();
+			if (device == nullptr)
+			{
+				PresetHandler::showMessageWindow("Error initialising driver", "The audio driver could not be opened. The default settings will be loaded.", PresetHandler::IconType::Error);
+				driver->resetToDefault();
+			}
+
+			initialiseAudioDriverData(true);
+			sendChangeMessage();
+		}
 	}
 	else if (id == Audio::Output)
 	{
-		auto driver = dynamic_cast<AudioProcessorDriver*>(mc);
-		auto device = driver->deviceManager->getCurrentAudioDevice();
-		auto list = ConversionHelpers::getChannelPairs(device);
-		auto outputIndex = list.indexOf(newValue.toString());
-
-		if (outputIndex != -1)
+		if (newValue.toString().isNotEmpty())
 		{
-			AudioDeviceManager::AudioDeviceSetup config;
-			driver->deviceManager->getAudioDeviceSetup(config);
+			auto driver = dynamic_cast<AudioProcessorDriver*>(mc);
+			auto device = driver->deviceManager->getCurrentAudioDevice();
+			auto list = ConversionHelpers::getChannelPairs(device);
+			auto outputIndex = list.indexOf(newValue.toString());
 
-			auto& original = config.outputChannels;
+			if (outputIndex != -1)
+			{
+				AudioDeviceManager::AudioDeviceSetup config;
+				driver->deviceManager->getAudioDeviceSetup(config);
 
-			original.clear();
-			original.setBit(outputIndex * 2, 1);
-			original.setBit(outputIndex * 2 + 1, 1);
+				auto& original = config.outputChannels;
 
-			config.useDefaultOutputChannels = false;
+				original.clear();
+				original.setBit(outputIndex * 2, 1);
+				original.setBit(outputIndex * 2 + 1, 1);
 
-			driver->deviceManager->setAudioDeviceSetup(config, true);
+				config.useDefaultOutputChannels = false;
+
+				driver->deviceManager->setAudioDeviceSetup(config, true);
+			}
 		}
-
-		
 	}
 	else if (id == Audio::Device)
 	{
-		auto driver = dynamic_cast<AudioProcessorDriver*>(mc);
-		driver->setAudioDevice(newValue.toString());
-
-		auto device = driver->deviceManager->getCurrentAudioDevice();
-
-		if (device == nullptr)
+		if (newValue.toString().isNotEmpty())
 		{
-			PresetHandler::showMessageWindow("Error initialising driver", "The audio driver could not be opened. The default settings will be loaded.", PresetHandler::IconType::Error);
-			driver->resetToDefault();
-		}
+			auto driver = dynamic_cast<AudioProcessorDriver*>(mc);
 
-		initialiseAudioDriverData(true);
-		sendChangeMessage();
+			driver->setAudioDevice(newValue.toString());
+
+			auto device = driver->deviceManager->getCurrentAudioDevice();
+
+			if (device == nullptr)
+			{
+				PresetHandler::showMessageWindow("Error initialising driver", "The audio driver could not be opened. The default settings will be loaded.", PresetHandler::IconType::Error);
+				driver->resetToDefault();
+			}
+
+			initialiseAudioDriverData(true);
+			sendChangeMessage();
+		}
 	}
 	else if (id == Midi::MidiInput)
 	{

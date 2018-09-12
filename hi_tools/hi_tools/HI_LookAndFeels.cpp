@@ -203,7 +203,7 @@ void KnobLookAndFeel::drawHiBackground(Graphics &g, int x, int y, int width, int
     
     g.fillRect ((float)x, (float)y, (float)width, (float)height);
     
-    Colour outlineColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::WidgetBackgroundColour) :
+    Colour outlineColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::WidgetOutlineColourId) :
     Colours::white.withAlpha(0.3f);
     
     g.setColour (outlineColour);

@@ -425,7 +425,7 @@ void SampleMap::valueTreeChildRemoved(ValueTree& /*parentTree*/, ValueTree& chil
 	sampler->killAllVoicesAndCall(f);
 }
 
-void SampleMap::sendSampleDeletedMessage(ModulatorSampler * sampler)
+void SampleMap::sendSampleDeletedMessage(ModulatorSampler * s)
 {
 	auto update = [](Dispatchable* obj)
 	{
@@ -439,7 +439,7 @@ void SampleMap::sendSampleDeletedMessage(ModulatorSampler * sampler)
 	if (delayNotifications)
 		notificationPending = true;
 	else
-		sampler->getMainController()->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(sampler, update);
+		s->getMainController()->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(s, update);
 }
 
 void SampleMap::save()

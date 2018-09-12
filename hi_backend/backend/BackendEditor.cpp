@@ -550,10 +550,10 @@ public:
 		sizeSelector->addListener(this);
 		sizeSelector->setTextWhenNothingSelected("Select Preset Size");
 
-		sizeSelector->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, Colour(0x66333333));
-		sizeSelector->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, Colour(0xfb111111));
-		sizeSelector->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::white.withAlpha(0.3f));
-		sizeSelector->setColour(MacroControlledObject::HiBackgroundColours::textColour, Colours::white);
+		sizeSelector->setColour(HiseColourScheme::WidgetFillTopColourId, Colour(0x66333333));
+		sizeSelector->setColour(HiseColourScheme::WidgetFillBottomColourId, Colour(0xfb111111));
+		sizeSelector->setColour(HiseColourScheme::WidgetOutlineColourId, Colours::white.withAlpha(0.3f));
+		sizeSelector->setColour(HiseColourScheme::WidgetTextColourId, Colours::white);
 
 		addAndMakeVisible(widthLabel = new Label("width"));
 		addAndMakeVisible(heightLabel = new Label("height"));

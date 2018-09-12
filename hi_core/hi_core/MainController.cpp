@@ -727,10 +727,10 @@ void MainController::skin(Component &c)
 {
     c.setLookAndFeel(mainLookAndFeel);
     
-    c.setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, Colour(0x66333333));
-    c.setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, Colour(0xfb111111));
-    c.setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::white.withAlpha(0.3f));
-	c.setColour(MacroControlledObject::HiBackgroundColours::textColour, Colours::white);
+    c.setColour(HiseColourScheme::WidgetFillTopColourId, Colour(0x66333333));
+    c.setColour(HiseColourScheme::WidgetFillBottomColourId, Colour(0xfb111111));
+    c.setColour(HiseColourScheme::WidgetOutlineColourId, Colours::white.withAlpha(0.3f));
+	c.setColour(HiseColourScheme::WidgetTextColourId, Colours::white);
 
 
 #if 0

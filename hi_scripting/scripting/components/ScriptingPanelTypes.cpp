@@ -533,10 +533,10 @@ ScriptContentPanel::Editor::Editor(Processor* p):
 	zoomSelector->setSelectedId(3, dontSendNotification);
 	zoomSelector->setLookAndFeel(&klaf);
 
-	zoomSelector->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, Colours::black.withAlpha(0.4f));
-	zoomSelector->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, Colours::black.withAlpha(0.4f));
-	zoomSelector->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::transparentBlack);
-	zoomSelector->setColour(MacroControlledObject::HiBackgroundColours::textColour, Colours::white.withAlpha(0.8f));
+	zoomSelector->setColour(HiseColourScheme::WidgetFillTopColourId, Colours::black.withAlpha(0.4f));
+	zoomSelector->setColour(HiseColourScheme::WidgetFillBottomColourId, Colours::black.withAlpha(0.4f));
+	zoomSelector->setColour(HiseColourScheme::WidgetOutlineColourId, Colours::transparentBlack);
+	zoomSelector->setColour(HiseColourScheme::WidgetTextColourId, Colours::white.withAlpha(0.8f));
 
 	Factory f;
 

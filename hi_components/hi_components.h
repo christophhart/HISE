@@ -179,7 +179,7 @@ public:
 		}
 	}
 
-	void poolItemWasDropped(const PoolReference& ref)
+	void poolItemWasDropped(const PoolReference& /*ref*/)
 	{
 
 	}

@@ -170,8 +170,8 @@ struct HiseColourScheme
 		WidgetBackgroundColour = 0xFF123532,
 		WidgetFillTopColourId,
 		WidgetFillBottomColourId,
-		WidgetTextColourId,
 		WidgetOutlineColourId,
+		WidgetTextColourId,
 		numColourIds
 	};
 

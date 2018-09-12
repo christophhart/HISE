@@ -170,15 +170,6 @@ public:
 	{};
     
 
-    enum HiBackgroundColours
-    {
-        upperBgColour = HiseColourScheme::WidgetBackgroundColour,
-        lowerBgColour,
-        outlineBgColour,
-        textColour,
-        numHiBackgroundColours
-    };
-
     virtual ~MacroControlledObject() {};
 
 	/** returns the name. */
@@ -306,10 +297,10 @@ public:
 
         setWantsKeyboardFocus(false);
         
-        setColour(HiBackgroundColours::upperBgColour, Colour(0x66333333));
-        setColour(HiBackgroundColours::lowerBgColour, Colour(0xfb111111));
-        setColour(HiBackgroundColours::outlineBgColour, Colours::white.withAlpha(0.3f));
-        setColour(HiBackgroundColours::textColour, Colours::white);
+        setColour(HiseColourScheme::WidgetFillTopColourId, Colour(0x66333333));
+        setColour(HiseColourScheme::WidgetFillBottomColourId, Colour(0xfb111111));
+        setColour(HiseColourScheme::WidgetOutlineColourId, Colours::white.withAlpha(0.3f));
+        setColour(HiseColourScheme::WidgetTextColourId, Colours::white);
 	};
 
 	void setup(Processor *p, int parameter, const String &name) override;
@@ -407,9 +398,9 @@ public:
 		addListener(this);
 		setWantsKeyboardFocus(false);
         
-        setColour(HiBackgroundColours::upperBgColour, Colour(0x66333333));
-        setColour(HiBackgroundColours::lowerBgColour, Colour(0xfb111111));
-        setColour(HiBackgroundColours::outlineBgColour, Colours::white.withAlpha(0.3f));
+        setColour(HiseColourScheme::WidgetFillTopColourId, Colour(0x66333333));
+        setColour(HiseColourScheme::WidgetFillBottomColourId, Colour(0xfb111111));
+        setColour(HiseColourScheme::WidgetOutlineColourId, Colours::white.withAlpha(0.3f));
 	};
 
 	void setup(Processor *p, int parameter, const String &name) override;
