@@ -262,8 +262,7 @@ void ModulatorSamplerSound::setMaxRRGroupIndex(int newGroupLimit)
 {
 	maxRRGroup = newGroupLimit;
 
-	// Not sure why this is here, remove it when nobody complains...
-	// rrGroup = jmin(rrGroup, newGroupLimit);
+	rrGroup = jmin<int>((int)data.getProperty(SampleIds::RRGroup), newGroupLimit);
 }
 
 void ModulatorSamplerSound::setMappingData(MappingData newData)
