@@ -830,7 +830,10 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 	getMainSynthChain()->prepareToPlay(sampleRate, maxBufferSize.get());
 
 	AudioThreadGuard guard(&getKillStateHandler());
+
 	AudioThreadGuard::Suspender suspender;
+	ignoreUnused(suspender);
+
 	LockHelpers::SafeLock itLock(this, LockHelpers::IteratorLock);
 	LockHelpers::SafeLock audioLock(this, LockHelpers::AudioLock);
 

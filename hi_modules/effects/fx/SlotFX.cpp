@@ -144,18 +144,18 @@ bool SlotFX::setEffect(const String& typeName, bool /*synchronously*/)
 			p->setParentProcessor(this);
 			auto newId = getId() + "_" + p->getId();
 			p->setId(newId);
-			ScopedPointer<MasterEffectProcessor> pendingDelete;
+			ScopedPointer<MasterEffectProcessor> pendingDeleteProcessor;
 
 			if (wrappedEffect != nullptr)
 			{
 				LOCK_PROCESSING_CHAIN(this);
 				wrappedEffect->setIsOnAir(false);
-				wrappedEffect.swapWith(pendingDelete);
+				wrappedEffect.swapWith(pendingDeleteProcessor);
 				
 			}
 
-			if (pendingDelete != nullptr)
-				getMainController()->getGlobalAsyncModuleHandler().removeAsync(pendingDelete.release(), ProcessorFunction());
+			if (pendingDeleteProcessor != nullptr)
+				getMainController()->getGlobalAsyncModuleHandler().removeAsync(pendingDeleteProcessor.release(), ProcessorFunction());
 
 			{
 				LOCK_PROCESSING_CHAIN(this);

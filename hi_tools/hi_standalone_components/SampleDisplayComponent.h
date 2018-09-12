@@ -635,7 +635,7 @@ public:
 
 	virtual void newBufferLoaded() = 0;
 
-	void changeListenerCallback(SafeChangeBroadcaster */*b*/) override
+	void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override
 	{
 		newBufferLoaded();
 

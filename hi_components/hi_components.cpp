@@ -55,3 +55,5 @@
 
 #include "floating_layout/FloatingLayout.cpp"
 #include "hi_expansion/ExpansionFloatingTiles.cpp"
+
+#include "wave_components/SampleComponents.cpp"

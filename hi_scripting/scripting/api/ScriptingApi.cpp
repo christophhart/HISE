@@ -3220,6 +3220,7 @@ void ScriptingApi::Console::clear()
 void ScriptingApi::Console::assertTrue(var condition)
 {
 	AudioThreadGuard::Suspender suspender;
+	ignoreUnused(suspender);
 
 	if (!(bool)condition)
 		reportScriptError("Assertion failure: condition is false");
@@ -3228,6 +3229,7 @@ void ScriptingApi::Console::assertTrue(var condition)
 void ScriptingApi::Console::assertEqual(var v1, var v2)
 {
 	AudioThreadGuard::Suspender suspender;
+	ignoreUnused(suspender);
 
 	if (v1 != v2)
 		reportScriptError("Assertion failure: values are unequal");
@@ -3236,6 +3238,7 @@ void ScriptingApi::Console::assertEqual(var v1, var v2)
 void ScriptingApi::Console::assertIsDefined(var v1)
 {
 	AudioThreadGuard::Suspender suspender;
+	ignoreUnused(suspender);
 
 	if (v1.isUndefined() || v1.isVoid())
 		reportScriptError("Assertion failure: value is undefined");

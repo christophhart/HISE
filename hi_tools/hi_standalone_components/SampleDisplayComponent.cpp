@@ -362,14 +362,7 @@ void AudioSampleBufferComponentBase::setAudioSampleProcessor(SafeChangeBroadcast
 {
 	connectedProcessor = newProcessor;
 
-	updateProcessorConnection();
-
-	if (connectedProcessor != nullptr)
-	{
-		removeAllChangeListeners();
-		connectedProcessor->addChangeListener(this);
-		changeListenerCallback(connectedProcessor);
-	}
+	
 }
 
 
