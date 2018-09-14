@@ -109,7 +109,7 @@ public:
 
 	~SampleMap()
 	{
-		if(!monolith) saveIfNeeded();
+		if(!isMonolith()) saveIfNeeded();
 	};
 
 	/** Checks if the samplemap was changed and deletes it. */
@@ -359,10 +359,9 @@ private:
 
 	ModulatorSampler *sampler;
 
-	SaveMode mode;
+	CachedValue<int> mode;
 
 	bool changed;
-	bool monolith;
 
 	WeakReference<SampleMapPool> currentPool;
 

@@ -1139,14 +1139,14 @@ SamplerSoundTable::SamplerSoundTable(ModulatorSampler *ownerSampler_, SampleEdit
 		if (c == SampleIds::FileName)
 		{
 			i1 = 320;
-			i2 = -1;
-			i3 = -1;
+			i2 = 320;
+			i3 = 600;
 		}
 		else
 		{
-			i1 = 30;
-			i2 = 30;
-			i3 = 30;
+			i1 = 40;
+			i2 = 40;
+			i3 = 40;
 		}
 
 		table.getHeader().addColumn(c.toString(), columnIds.indexOf(c)+1, i1, i2, i3, TableHeaderComponent::notResizable);

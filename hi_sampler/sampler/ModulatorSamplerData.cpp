@@ -39,11 +39,12 @@ namespace hise { using namespace juce;
 SampleMap::SampleMap(ModulatorSampler *sampler_):
 	sampler(sampler_),
 	notifier(*this),
-	mode(Undefined),
+	
 	changed(false),
 	currentPool(nullptr),
 	sampleMapId(Identifier()),
-	data("samplemap")
+	data("samplemap"),
+	mode(data, Identifier("SaveMode"), nullptr, 0)
 {
 	data.addListener(this);
 
@@ -227,7 +228,7 @@ void SampleMap::parseValueTree(const ValueTree &v)
 
 	setNewValueTree(v);
 	
-	mode = (SaveMode)(int)v.getProperty("SaveMode");
+	mode.referTo(data, "SaveMode", nullptr);
 
 	const String sampleMapName = v.getProperty("ID");
 	sampleMapId = sampleMapName.isEmpty() ? Identifier::null : Identifier(sampleMapName);
@@ -448,7 +449,9 @@ void SampleMap::save()
 	auto rootDirectory = sampler->getSampleEditHandler()->getCurrentSampleMapDirectory();
 
 	data.setProperty("ID", sampleMapId.toString(), nullptr);
-	data.setProperty("SaveMode", mode, nullptr);
+	
+
+
 	data.setProperty("RRGroupAmount", sampler->getAttribute(ModulatorSampler::Parameters::RRGroupAmount), nullptr);
 	data.setProperty("MicPositions", sampler->getStringForMicPositions(), nullptr);
 	

@@ -42,9 +42,7 @@ void ModulatorSamplerSound::loadSampleFromValueTree(const ValueTree& sampleData,
 	if (auto existingSample = pool->getSampleFromPool(ref))
 	{
 		soundArray.add(existingSample);
-
 		data.setProperty("Duplicate", true, nullptr);
-
 	}
 	else
 	{
@@ -53,9 +51,7 @@ void ModulatorSamplerSound::loadSampleFromValueTree(const ValueTree& sampleData,
 		if (hmaf != nullptr)
 		{
 			const int multimicIndex = isMultiMicSound ? sampleData.getParent().indexOf(sampleData) : 0;
-
 			soundArray.add(new StreamingSamplerSound(hmaf, multimicIndex, getId()));
-
 		}
 		else
 		{
@@ -192,6 +188,7 @@ juce::String ModulatorSamplerSound::getPropertyAsString(const Identifier& id) co
 	auto v = getSampleProperty(id);
 
 	if( id == SampleIds::Root)			return MidiMessage::getMidiNoteName((int)v, true, true, 3);
+	else if (id == SampleIds::FileName)		return firstSound->getFileName(false);
 	else if( id == SampleIds::HiKey)		return MidiMessage::getMidiNoteName((int)v, true, true, 3);
 	else if( id == SampleIds::LoKey)		return MidiMessage::getMidiNoteName((int)v, true, true, 3);
 	else if( id == SampleIds::Volume)		return String(Decibels::gainToDecibels(gain.load()), 1) + " dB";
