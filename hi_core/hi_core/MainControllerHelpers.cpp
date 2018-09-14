@@ -437,7 +437,7 @@ void MidiControllerAutomationHandler::MPEData::sendAsyncNotificationMessage(MPEM
     
     auto f = [ref, type](Dispatchable* obj)
     {
-        if(ref.get() == nullptr)
+        if(ref.get() == nullptr && (type == EventType::MPEModConnectionAdded || type == MPEModConnectionRemoved))
             return Dispatchable::Status::OK;
         
         auto d = static_cast<MPEData*>(obj);
