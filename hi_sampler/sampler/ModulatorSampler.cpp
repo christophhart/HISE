@@ -957,6 +957,8 @@ float* ModulatorSampler::calculateCrossfadeModulationValuesForVoice(int voiceInd
 
 		if (fabsf(firstValue - lastValue) < 0.001f)
 		{
+			// We need to manually convert the value from the table
+			// and send it to the mod chain to update the ramp value.
 			float modValue = firstValue;
 			currentCrossfadeValue = getCrossfadeValue(groupIndex, modValue);
 			modChains[Chains::XFade].setCurrentRampValueForVoice(voiceIndex, currentCrossfadeValue);
@@ -982,10 +984,9 @@ float* ModulatorSampler::calculateCrossfadeModulationValuesForVoice(int voiceInd
 			}
 			else
 			{
-				float modValue = modChains[Chains::XFade].getConstantModulationValue();
-				currentCrossfadeValue = getCrossfadeValue(groupIndex, modValue);
-				modChains[Chains::XFade].setCurrentRampValueForVoice(voiceIndex, currentCrossfadeValue);
-				return return_ptr;
+				// Just grab the last mod value, it's already converted using the tables.
+				currentCrossfadeValue = modChains[Chains::XFade].getConstantModulationValue();
+				return nullptr;
 			}
 		}
 	}
