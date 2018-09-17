@@ -208,12 +208,17 @@ void ModulatorSamplerSound::toggleBoolProperty(const Identifier& id)
 	{
 		isNormalized = !isNormalized;
 
+		data.setProperty(id, isNormalized, undoManager);
+
 		if (isNormalized)
 			calculateNormalizedPeak();
 	}
 	else if (id == SampleIds::LoopEnabled)
 	{
 		const bool wasEnabled = firstSound->isLoopEnabled();
+
+		data.setProperty(id, !wasEnabled, undoManager);
+
 		FOR_EVERY_SOUND(setLoopEnabled(!wasEnabled));
 	}
 }

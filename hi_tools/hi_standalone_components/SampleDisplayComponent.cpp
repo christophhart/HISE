@@ -202,7 +202,7 @@ void AudioDisplayComponent::SampleArea::paint(Graphics &g)
 	}
 	else
 	{
-		g.setColour(getAreaColour().withAlpha(areaEnabled ? 0.1f : 0.06f));
+		g.setColour(getAreaColour().withAlpha(areaEnabled ? 0.15f : 0.06f));
 		g.fillAll();
 
 		g.setColour(getAreaColour().withAlpha(0.3f));
