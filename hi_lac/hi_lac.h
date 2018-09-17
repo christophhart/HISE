@@ -55,16 +55,7 @@ END_JUCE_MODULE_DECLARATION
 
 #include <juce_audio_formats/juce_audio_formats.h>
 
-#ifndef HLAC_NO_SSE
-#if JUCE_WINDOWS
-#define HLAC_NO_SSE 0
-#else
-#define HLAC_NO_SSE 1
-#endif
-#endif
-
-#if HLAC_NO_SSE || JUCE_IOS
-#else
+#if !JUCE_IOS
 #include <nmmintrin.h> 
 #endif
 
