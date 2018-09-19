@@ -1496,12 +1496,28 @@ String ScriptingApi::Engine::doubleToString(double value, int digits)
 
 void ScriptingApi::Engine::undo()
 {
-	getProcessor()->getMainController()->getControlUndoManager()->undo();
+	WeakReference<Processor> p = getProcessor();
+	
+	auto f = [p]()
+	{
+		if(p != nullptr)
+			p.get()->getMainController()->getControlUndoManager()->undo();
+	};
+
+	MessageManager::callAsync(f);
 }
 
 void ScriptingApi::Engine::redo()
 {
-	getProcessor()->getMainController()->getControlUndoManager()->redo();
+	WeakReference<Processor> p = getProcessor();
+
+	auto f = [p]()
+	{
+		if (p != nullptr)
+			p.get()->getMainController()->getControlUndoManager()->redo();
+	};
+
+	MessageManager::callAsync(f);
 }
 
 // ====================================================================================================== Sampler functions
