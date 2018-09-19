@@ -2530,6 +2530,7 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
     API_VOID_METHOD_WRAPPER_3(ScriptPanel, setValueWithUndo);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, showAsPopup);
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, closeAsPopup);
+	API_METHOD_WRAPPER_0(ScriptPanel, isVisibleAsPopup);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setIsModalPopup);
 };
 
@@ -2601,6 +2602,7 @@ timerRoutine(var())
 	ADD_API_METHOD_1(showAsPopup);
 	ADD_API_METHOD_0(closeAsPopup);
 	ADD_API_METHOD_1(setIsModalPopup);
+	ADD_API_METHOD_0(isVisibleAsPopup);
 }
 
 ScriptingApi::Content::ScriptPanel::~ScriptPanel()
@@ -3020,6 +3022,12 @@ double ScriptingApi::Content::ScriptPanel::getScaleFactorForCanvas() const
 	scaleFactor = jmin<double>(2.0, scaleFactor);
 
 	return scaleFactor;
+}
+
+
+bool ScriptingApi::Content::ScriptPanel::isVisibleAsPopup()
+{
+	return shownAsPopup;
 }
 
 void ScriptingApi::Content::ScriptPanel::showAsPopup(bool closeOtherPopups)

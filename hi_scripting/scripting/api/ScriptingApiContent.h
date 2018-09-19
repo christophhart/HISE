@@ -1296,6 +1296,9 @@ public:
 		/** Closes the popup manually. */
 		void closeAsPopup();
 
+		/** Returns true if the popup is currently showing. */
+		bool isVisibleAsPopup();
+
 		/** If this is set to true, the popup will be modal with a dark background that can be clicked to close. */
 		void setIsModalPopup(bool shouldBeModal)
 		{
