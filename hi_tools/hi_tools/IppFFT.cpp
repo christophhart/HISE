@@ -199,7 +199,7 @@ void IppFFT::realFFT(const float *in, float* out, int size) const
 
 	if (N > 0)
 	{
-		ippsFFTFwd_RToCCS_32f((const Ipp32f*)in, (Ipp32f*)out, realFloatSpecs[N], workingBuffers[N]->getData());
+		ippsFFTFwd_RToPerm_32f((const Ipp32f*)in, (Ipp32f*)out, realFloatSpecs[N], workingBuffers[N]->getData());
 	}
 }
 
@@ -211,7 +211,7 @@ void IppFFT::realFFTInverse(const float *in, float* out, int size) const
 
 	if (N > 0)
 	{
-		ippsFFTInv_CCSToR_32f((const Ipp32f*)in, (Ipp32f*)out, realFloatSpecs[N], workingBuffers[N]->getData());
+		ippsFFTInv_PermToR_32f((const Ipp32f*)in, (Ipp32f*)out, realFloatSpecs[N], workingBuffers[N]->getData());
 	}
 }
 
