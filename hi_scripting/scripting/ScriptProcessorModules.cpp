@@ -523,6 +523,9 @@ void JavascriptMasterEffect::prepareToPlay(double sampleRate, int samplesPerBloc
 
 void JavascriptMasterEffect::renderWholeBuffer(AudioSampleBuffer &buffer)
 {
+	if (isBypassed()) // don't care about softbypassing scripted FX so we just use the normal bypass state
+		return;
+
 	if (!processBlockCallback->isSnippetEmpty() && lastResult.wasOk())
 	{
 		const int numSamples = buffer.getNumSamples();
