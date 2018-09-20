@@ -523,31 +523,36 @@ void JavascriptMasterEffect::prepareToPlay(double sampleRate, int samplesPerBloc
 
 void JavascriptMasterEffect::renderWholeBuffer(AudioSampleBuffer &buffer)
 {
-	if (isBypassed()) // don't care about softbypassing scripted FX so we just use the normal bypass state
-		return;
-
-	if (!processBlockCallback->isSnippetEmpty() && lastResult.wasOk())
+	if (channelIndexes.size() == 2)
 	{
-		const int numSamples = buffer.getNumSamples();
+		MasterEffectProcessor::renderWholeBuffer(buffer);
 
-		jassert(channelIndexes.size() == channels.size());
-
-		for (int i = 0; i < channelIndexes.size(); i++)
+	}
+	else
+	{
+		if (!processBlockCallback->isSnippetEmpty() && lastResult.wasOk())
 		{
-			float* d = buffer.getWritePointer(channelIndexes[i], 0);
+			const int numSamples = buffer.getNumSamples();
 
-			CHECK_AND_LOG_BUFFER_DATA(this, DebugLogger::Location::ScriptFXRendering, d, true, numSamples);
+			jassert(channelIndexes.size() == channels.size());
 
-			auto b = channels[i].getBuffer();
-			
-			if(b != nullptr)
-				b->referToData(d, numSamples);
+			for (int i = 0; i < channelIndexes.size(); i++)
+			{
+				float* d = buffer.getWritePointer(channelIndexes[i], 0);
+
+				CHECK_AND_LOG_BUFFER_DATA(this, DebugLogger::Location::ScriptFXRendering, d, true, numSamples);
+
+				auto b = channels[i].getBuffer();
+
+				if (b != nullptr)
+					b->referToData(d, numSamples);
+			}
+
+			scriptEngine->setCallbackParameter((int)Callback::processBlock, 0, channelData);
+			scriptEngine->executeCallback((int)Callback::processBlock, &lastResult);
+
+			BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage()));
 		}
-
-		scriptEngine->setCallbackParameter((int)Callback::processBlock, 0, channelData);
-		scriptEngine->executeCallback((int)Callback::processBlock, &lastResult);
-
-		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage()));
 	}
 }
 
@@ -564,18 +569,14 @@ void JavascriptMasterEffect::applyEffect(AudioSampleBuffer &b, int startSample, 
 		float *l = b.getWritePointer(0, 0);
 		float *r = b.getWritePointer(1, 0);
         
-		CHECK_AND_LOG_BUFFER_DATA(this, DebugLogger::Location::ScriptFXRendering, l, true, numSamples);
-		CHECK_AND_LOG_BUFFER_DATA(this, DebugLogger::Location::ScriptFXRendering, r, false, numSamples);
-        
-		//bufferL->referToData(l, numSamples);
-		//bufferR->referToData(r, numSamples);
+		if (auto lb = channels[0].getBuffer())
+			lb->referToData(l, numSamples);
 
-		scriptEngine->setCallbackParameter((int)Callback::processBlock, 0, channels);
+		if (auto rb = channels[1].getBuffer())
+			rb->referToData(r, numSamples);
+
+		scriptEngine->setCallbackParameter((int)Callback::processBlock, 0, channelData);
 		scriptEngine->executeCallback((int)Callback::processBlock, &lastResult);
-
-		CHECK_AND_LOG_BUFFER_DATA(this, DebugLogger::Location::ScriptFXRenderingPost, l, true, numSamples);
-		CHECK_AND_LOG_BUFFER_DATA(this, DebugLogger::Location::ScriptFXRenderingPost, r, false, numSamples);
-		
 
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage()));
 	}
