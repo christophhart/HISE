@@ -279,6 +279,9 @@ public:
 		/** Loads a user preset with the given relative path (use `/` for directory separation). */
 		void loadUserPreset(const String& relativePathWithoutFileEnding);
 
+		/** Sets the tags that appear in the user preset browser. */
+		void setUserPresetTagList(var listOfTags);
+
 		/** Returns a list of all available user presets as relative path. */
 		var getUserPresetList() const;
 

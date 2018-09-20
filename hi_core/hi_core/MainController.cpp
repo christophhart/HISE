@@ -1169,4 +1169,9 @@ void MainController::updateMultiChannelBuffer(int numNewChannels)
 	ProcessorHelpers::increaseBufferIfNeeded(multiChannelBuffer, maxBufferSize.get());
 }
 
+void MainController::UserPresetHandler::setTagList(const StringArray& newTagList)
+{
+	tagList = newTagList;
+}
+
 } // namespace hise

@@ -511,7 +511,13 @@ public:
 		void addListener(Listener* listener);
 		void removeListener(Listener* listener);
 
+		void setTagList(const StringArray& newTagList);
+
+		const StringArray& getTagList() const { return tagList; }
+
 	private:
+
+		StringArray tagList;
 
 		void loadUserPresetInternal();
 		void saveUserPresetInternal(const String& name=String());

@@ -169,6 +169,7 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 		}
 		catch (String& m)
 		{
+			ignoreUnused(m);
 			jassertfalse;
 			DBG(m);
 		}
@@ -207,6 +208,7 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 		{
 			auto uph = static_cast<UserPresetHandler*>(obj);
 			auto mc_ = uph->mc;
+			ignoreUnused(mc_);
 			jassert_dispatched_message_thread(mc_);
 
 			ScopedLock sl(uph->listeners.getLock());

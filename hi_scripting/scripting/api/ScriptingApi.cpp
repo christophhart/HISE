@@ -934,6 +934,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Engine, loadNextUserPreset);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadPreviousUserPreset);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadUserPreset);
+	API_VOID_METHOD_WRAPPER_1(Engine, setUserPresetTagList);
 	API_METHOD_WRAPPER_0(Engine, getUserPresetList);
 	API_METHOD_WRAPPER_0(Engine, getCurrentUserPresetName);
 	API_VOID_METHOD_WRAPPER_1(Engine, saveUserPreset);
@@ -1001,6 +1002,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(getExpansionHandler);
 	ADD_API_METHOD_1(loadNextUserPreset);
 	ADD_API_METHOD_1(loadPreviousUserPreset);
+	ADD_API_METHOD_1(setUserPresetTagList);
 	ADD_API_METHOD_0(getCurrentUserPresetName);
 	ADD_API_METHOD_1(saveUserPreset);
 	ADD_API_METHOD_1(loadUserPreset);
@@ -1339,6 +1341,21 @@ void ScriptingApi::Engine::loadUserPreset(const String& relativePath)
 	{
 		reportScriptError("User preset " + userPreset.getFullPathName() + " doesn't exist");
 	}
+}
+
+void ScriptingApi::Engine::setUserPresetTagList(var listOfTags)
+{
+	if(auto ar = listOfTags.getArray())
+	{ 
+		StringArray sa;
+
+		for (auto l : *ar)
+			sa.add(l.toString());
+
+		getProcessor()->getMainController()->getUserPresetHandler().setTagList(sa);
+	}
+
+	
 }
 
 var ScriptingApi::Engine::getUserPresetList() const
