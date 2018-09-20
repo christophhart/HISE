@@ -919,7 +919,7 @@ namespace audiofft
 		  {
 			  order = int(log2((double)numSamples)-1);
 			  fft_ = new IppFFT(hise::IppFFT::DataType::RealFloat);
-			  tempBuffer = ippsMalloc_32fc(numSamples);
+			  tempBuffer = ippsMalloc_32fc((int)numSamples);
 		  }
 		  else
 		  {
@@ -940,7 +940,7 @@ namespace audiofft
 
 		  jassert(fft_ != nullptr);
 		  
-		  fft_->realFFT(data, (float*)tempBuffer, numSamples);
+		  fft_->realFFT(data, (float*)tempBuffer, (int)numSamples);
 		  ippsCplxToReal_32fc(tempBuffer, re, im, size2);
 	  }
 
@@ -949,10 +949,11 @@ namespace audiofft
 		  jassert(fft_ != nullptr);
 
 		  int size2 = (int)numSamples / 2;
-		  ippsRealToCplx_32f(re, im, tempBuffer, (int)numSamples/2);
+		  ippsRealToCplx_32f(re, im, tempBuffer, size2);
 		  auto s = (float*)tempBuffer;
-		  fft_->realFFTInverse(s, data, numSamples);
-          FloatVectorOperations::multiply(data, 1.0f / (float)numSamples, (int)numSamples);
+		  fft_->realFFTInverse(s, data, (int)numSamples);
+
+		  FloatVectorOperations::multiply(data, 1.0f / (float)numSamples, (int)numSamples);
 	  }
 
   private:

@@ -307,6 +307,8 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 		if(convolverR != nullptr)
 			convolverR->process(r, convolutedR, numSamples);
 		
+		
+
 		smoothedGainerDry.processBlock(channels, 2, numSamples);
 
 		
@@ -395,8 +397,8 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 			currentValues.outR = FloatVectorOperations::findMaximum(wetBuffer.getReadPointer(1), availableSamples);
 #endif
 
-			FloatVectorOperations::add(l, wetBuffer.getReadPointer(0), availableSamples);
-			FloatVectorOperations::add(r, wetBuffer.getReadPointer(1), availableSamples);
+			FloatVectorOperations::addWithMultiply(l, wetBuffer.getReadPointer(0), 0.5f, availableSamples);
+			FloatVectorOperations::addWithMultiply(r, wetBuffer.getReadPointer(1), 0.5f, availableSamples);
 
 
 
