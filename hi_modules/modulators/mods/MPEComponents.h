@@ -114,7 +114,7 @@ public:
 
 	void buttonClicked(Button* b) override;
 
-
+	void cancelRefresh();
 
 private:
 
@@ -123,6 +123,14 @@ private:
 		Notifier(MPEPanel& parent_);
 
 		void timerCallback() override;
+
+		void cancelRefresh(bool handleUpdateNow=false)
+		{
+			if (handleUpdateNow)
+				timerCallback();
+
+			refreshPanel = false;
+		}
 
 		void refresh()
 		{
@@ -171,6 +179,8 @@ private:
 			void paint(Graphics& g) override;
 			void buttonClicked(Button* b) override;
 			void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override;
+
+			bool keyPressed(const KeyPress& key) override;
 
 			MPEModulator* getMod() { return mod; }
 			const MPEModulator* getMod() const { return mod; }
@@ -301,7 +311,7 @@ public:
 	bool isUsingCustomGraphics() const noexcept override { return false; };
 	void setUseCustomGraphics(bool /*shouldUseCustomGraphics*/) override {};
 
-	void setShowOctaveNumber(bool /*shouldDisplayOctaveNumber*/) override { }
+	void setShowOctaveNumber(bool shouldDisplayOctaveNumber) override { showOctaveNumbers = shouldDisplayOctaveNumber; }
 	bool isShowingOctaveNumbers() const override { return false; }
 
 	void setLowestKeyBase(int lowKey_) override { lowKey = lowKey_; }
@@ -448,6 +458,8 @@ private:
 	};
 
 	Range<int> channelRange;
+
+	bool showOctaveNumbers = false;
 
 	TextButton octaveUp;
 	TextButton octaveDown;

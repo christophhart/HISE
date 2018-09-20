@@ -360,10 +360,11 @@ MPEPanel::MPEPanel(FloatingTile* parent) :
 	enableMPEButton.addListener(this);
 
 
-
+	listbox.setWantsKeyboardFocus(true);
 	listbox.setModel(&m);
 	listbox.setRowHeight(36);
 	listbox.setColour(ListBox::ColourIds::backgroundColourId, Colours::transparentBlack);
+	
 
 	setDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour, Colours::transparentBlack);
 	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::white.withAlpha(0.5f));
@@ -397,6 +398,7 @@ void MPEPanel::updateTableColours()
 	currentTable.setColour(TableEditor::ColourIds::bgColour, laf.fillColour.withAlpha(0.05f));
 	currentTable.setColour(TableEditor::ColourIds::fillColour, laf.fillColour);
 	currentTable.setColour(TableEditor::ColourIds::lineColour, laf.lineColour);
+	listbox.getViewport()->getVerticalScrollBar().setColour(ScrollBar::ColourIds::thumbColourId, laf.fillColour);
 }
 
 void MPEPanel::fromDynamicObject(const var& object)
@@ -420,6 +422,7 @@ bool MPEPanel::keyPressed(const KeyPress& key)
 	if (key == KeyPress::escapeKey)
 	{
 		setCurrentMod(nullptr);
+		listbox.deselectAllRows();
 		return true;
 	}
 
@@ -545,8 +548,8 @@ void MPEPanel::paint(Graphics& g)
 			g.setColour(laf.textColour);
 			g.setFont(laf.font);
 
-			g.drawText("Curve", bottomBar.removeFromLeft(getWidth() / 2), Justification::centredTop);
-			g.drawText("Plot", bottomBar.removeFromLeft(getWidth() / 2), Justification::centredTop);
+			g.drawText("Curve", bottomBar.removeFromLeft(getWidth() / 2), Justification::centred);
+			g.drawText("Plot", bottomBar.removeFromLeft(getWidth() / 2), Justification::centred);
 		}
 	}
 	else
@@ -589,6 +592,7 @@ void MPEPanel::setCurrentMod(MPEModulator* newMod)
 
 		currentTable.connectToLookupTableProcessor(newMod);
 
+		repaint();
 		resized();
 	}
 }
@@ -626,6 +630,11 @@ void MPEPanel::buttonClicked(Button* b)
 
 	getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
 
+}
+
+void MPEPanel::cancelRefresh()
+{
+	notifier.cancelRefresh(true);
 }
 
 MPEPanel::Notifier::Notifier(MPEPanel& parent_) :
@@ -710,7 +719,7 @@ void MPEPanel::Model::deleteKeyPressed(int lastRowSelected)
 			return SafeFunctionCall::OK;
 		};
 
-		mod->getMainController()->getKillStateHandler().killVoicesAndCall(mod, f, MainController::KillStateHandler::MessageThread);
+		mod->getMainController()->getKillStateHandler().killVoicesAndCall(mod, f, MainController::KillStateHandler::SampleLoadingThread);
 	}
 
 	parent.setCurrentMod(nullptr);
@@ -844,11 +853,38 @@ void MPEPanel::Model::LastRow::buttonClicked(Button*)
 
 		if (auto mod = mpeData.findMPEModulator(id))
 		{
-			auto f = [](Processor* p)
+			Component::SafePointer<ListBox> lb = findParentComponentOfClass<ListBox>();
+
+			jassert(lb != nullptr);
+
+			auto f = [lb](Processor* p)
 			{
 				auto& data = p->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData();
 
-				data.addConnection(dynamic_cast<MPEModulator*>(p));
+				WeakReference<MPEModulator> m = dynamic_cast<MPEModulator*>(p);
+
+				data.addConnection(m.get());
+
+				auto updateF = [lb, m]()
+				{
+					if (lb.getComponent() != nullptr)
+					{
+						auto index = lb->getModel()->getNumRows() - 2;
+
+						auto par = lb->findParentComponentOfClass<MPEPanel>();
+
+						if (par != nullptr)
+						{
+							par->cancelRefresh();
+							par->setCurrentMod(m);
+							lb.getComponent()->selectRow(index);
+							lb.getComponent()->getViewport()->setViewPositionProportionately(0.0, 1.0);
+						}
+							
+					}
+				};
+
+				new DelayedFunctionCaller(updateF, 51);
 
 				return SafeFunctionCall::OK;
 			};
@@ -1122,6 +1158,17 @@ void MPEPanel::Model::Row::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 	}
 }
 
+bool MPEPanel::Model::Row::keyPressed(const KeyPress& key)
+{
+	if (key == KeyPress::upKey || key == KeyPress::downKey)
+	{
+		if (auto lb = findParentComponentOfClass<ListBox>())
+			return lb->keyPressed(key);
+	}
+
+	return false;
+}
+
 void MPEPanel::Model::Row::deleteThisRow()
 {
 	if (mod != nullptr)
@@ -1288,7 +1335,16 @@ void MPEKeyboard::paint(Graphics& g)
 
 	for (int i = 0; i < 24; i++)
 	{
-		auto l = getPositionForNote(lowKey + i);
+		auto noteNumber = lowKey + i;
+
+		auto l = getPositionForNote(noteNumber);
+
+		if (showOctaveNumbers && noteNumber % 12 == 0)
+		{
+			g.setFont(Font((float)l.getWidth() / 2.5f));
+			g.setColour(findColour(waveColour));
+			g.drawText(MidiMessage::getMidiNoteName(noteNumber, true, true, 3), l.withHeight(l.getHeight() - 10), Justification::centredBottom);
+		}
 
 		const float radius = getWidthForNote() * 0.2f;
 
