@@ -208,7 +208,7 @@ public:
 			return (int)parent.f.getStringWidthFloat(name) + 20;
 		}
 
-		void mouseDown(const MouseEvent& event) override
+		void mouseDown(const MouseEvent& ) override
 		{
 			parent.toggleTag(this);
 		}
