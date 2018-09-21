@@ -158,10 +158,8 @@ void MainController::KillStateHandler::requestQuit()
 	else
 	{
 
-		quit();
+		JUCEApplication::quit();
 	}
-
-
 }
 
 bool MainController::KillStateHandler::allowGracefulExit() const noexcept

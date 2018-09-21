@@ -272,10 +272,12 @@ public:
 
 	void initialise(const String& /*commandLine*/) override { mainWindow = new MainWindow(getApplicationName()); }
 	void shutdown() override 
-	{ 
+	{
+#if JUCE_WINDOWS
 		mainWindow->closeButtonPressed();
-
-		//mainWindow = nullptr; 
+#else
+		mainWindow = nullptr;
+#endif
 	}
 	void systemRequestedQuit() override { quit(); }
 
