@@ -315,17 +315,7 @@ int PresetBrowserColumn::ColumnListModel::getNumRows()
 	    entries.clear();
 	    rootToUse.findChildFiles(entries, displayDirectories ? File::findDirectories : File::findFiles, showFavoritesOnly);
 
-		for (int i = 0; i < entries.size(); i++)
-		{
-			const bool isNoPresetFile = entries[i].isHidden() || entries[i].getFileName().startsWith(".") || entries[i].getFileExtension() != ".preset";
-			const bool isNoDirectory = !entries[i].isDirectory();
-
-			if (isNoPresetFile && isNoDirectory)
-			{
-				entries.remove(i--);
-				continue;
-			}
-		}
+		MultiColumnPresetBrowser::DataBaseHelpers::cleanFileList(entries);
 
 		if (showFavoritesOnly && index == 2)
 		{
@@ -341,6 +331,8 @@ int PresetBrowserColumn::ColumnListModel::getNumRows()
 			
 	    entries.sort();
 
+		empty = entries.isEmpty();
+
 	    return entries.size();
     }
     else
@@ -353,10 +345,22 @@ int PresetBrowserColumn::ColumnListModel::getNumRows()
         
         entries.clear();
         
-        for(int i = 0; i < allFiles.size(); i++)
-        {
+		for (int i = 0; i < allFiles.size(); i++)
+		{
 			const bool matchesWildcard = wildcard.isEmpty() || allFiles[i].getFullPathName().containsIgnoreCase(wildcard);
-			const bool matchesTags = MultiColumnPresetBrowser::DataBaseHelpers::matchesTags(currentlyActiveTags, allFiles[i]);
+
+			bool matchesTags = false;
+
+			auto hash = allFiles[i].hashCode64();
+
+			for (auto& t : cachedTags)
+			{
+				if (t.hashCode == hash)
+				{
+					matchesTags = t.shown;
+					break;
+				}
+			}
             
 			if(matchesWildcard && matchesTags)
                 entries.add(allFiles[i]);
@@ -387,6 +391,8 @@ int PresetBrowserColumn::ColumnListModel::getNumRows()
 
         entries.sort();
         
+		empty = entries.isEmpty();
+
         return entries.size();
     }
 }
@@ -427,6 +433,51 @@ void PresetBrowserColumn::ColumnListModel::returnKeyPressed(int row)
 	}
 }
 
+
+void PresetBrowserColumn::ColumnListModel::rebuildCachedTagList()
+{
+	cachedTags.clear();
+
+	Array<File> allPresets;
+
+	totalRoot.findChildFiles(allPresets, File::findFiles, true, "*.preset");
+
+	MultiColumnPresetBrowser::DataBaseHelpers::cleanFileList(allPresets);
+
+	for (auto f : allPresets)
+	{
+		auto sa = MultiColumnPresetBrowser::DataBaseHelpers::getTagsFromXml(f);
+
+		CachedTag newTag;
+		newTag.hashCode = f.hashCode64();
+		for (auto t : sa)
+			newTag.tags.add(Identifier(t));
+
+		cachedTags.add(std::move(newTag));
+	}
+}
+
+void PresetBrowserColumn::ColumnListModel::updateTags(const StringArray& newSelection)
+{
+	currentlyActiveTags.clear();
+
+	for (auto s : newSelection)
+		currentlyActiveTags.add(Identifier(s));
+
+	for (auto& t : cachedTags)
+	{
+		t.shown = true;
+
+		for (auto st : currentlyActiveTags)
+		{
+			if (!t.tags.contains(st))
+			{
+				t.shown = false;
+				break;
+			}
+		}
+	}
+}
 
 void PresetBrowserColumn::ColumnListModel::paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected)
 {
@@ -721,7 +772,7 @@ void PresetBrowserColumn::paint(Graphics& g)
 		g.setColour(Colours::white.withAlpha(0.3f));
 		g.drawText("Select a " + String(index == 1 ? "Bank" : "Category"), 0, 0, getWidth(), getHeight(), Justification::centred);
 	}
-	else if (listModel->getNumRows() == 0)
+	else if (listModel->isEmpty())
 	{
 		g.setFont(font);
 		g.setColour(Colours::white.withAlpha(0.3f));
@@ -842,7 +893,7 @@ mc(mc_)
 	
 	tagList->addTagListener(presetColumn);
 	tagList->addTagListener(this);
-	
+	presetColumn->tagCacheNeedsRebuilding();
 
 	bankColumn->setNewRootDirectory(rootFile);
 
@@ -1467,7 +1518,8 @@ PresetBrowserColumn::ColumnListModel::FavoriteOverlay::FavoriteOverlay(ColumnLis
 	b->addListener(this);
 
 	setInterceptsMouseClicks(false, true);
-
+	setWantsKeyboardFocus(false);
+	b->setWantsKeyboardFocus(false);
 }
 
 
@@ -1652,6 +1704,12 @@ void TagList::toggleTag(Tag* n)
 		n->setActive(!shouldBeInActive);
 
 		MultiColumnPresetBrowser::DataBaseHelpers::writeTagsInXml(currentFile, currentlyActiveTags);
+
+		for (auto l : listeners)
+		{
+			if (l != nullptr)
+				l->tagCacheNeedsRebuilding();
+		}
 	}
 	else
 	{

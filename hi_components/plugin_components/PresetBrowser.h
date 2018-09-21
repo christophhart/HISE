@@ -154,6 +154,8 @@ public:
 
 		virtual void tagSelectionChanged(const StringArray& newSelection) = 0;
 
+		virtual void tagCacheNeedsRebuilding() = 0;
+
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 	};
 
@@ -302,6 +304,11 @@ public:
 		void listBoxItemClicked(int row, const MouseEvent &) override;
 		void paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected) override;
 
+		bool isEmpty() const
+		{
+			return empty;
+		}
+
 		class FavoriteOverlay : public Component,
 								public ButtonListener
 		{
@@ -374,16 +381,31 @@ public:
 		}
 
         String wildcard;
-        
-		StringArray currentlyActiveTags;
 
 		Colour highlightColour;
 		Font font;
 
 		var database;
 
+		Array<Identifier> currentlyActiveTags;
+
+
+		void rebuildCachedTagList();
+
+		void updateTags(const StringArray& newSelection);
+
+		struct CachedTag
+		{
+			int64 hashCode;
+			Array<Identifier> tags;
+			bool shown = false;
+		};
+
+		Array<CachedTag> cachedTags;
 
 	private:
+
+		bool empty = false;
 
 		bool showFavoritesOnly = false;
 
@@ -450,11 +472,16 @@ public:
 
 	void tagSelectionChanged(const StringArray& newSelection) override
 	{
-		listModel->currentlyActiveTags = newSelection;
+		listModel->updateTags(newSelection);
 
 		listbox->deselectAllRows();
 		listbox->updateContent();
 		listbox->repaint();
+	}
+
+	void tagCacheNeedsRebuilding() override
+	{
+		listModel->rebuildCachedTagList();
 	}
 
 	void labelTextChanged(Label* l) override
@@ -500,9 +527,11 @@ public:
 		}
 	}
 
+
+
 private:
 
-	
+
 
 	// ============================================================================================
 
@@ -925,6 +954,8 @@ public:
 
 	void paint(Graphics& g);
 	void resized();
+	
+	void tagCacheNeedsRebuilding() override {};
 
 	void tagSelectionChanged(const StringArray& newSelection) override
 	{
@@ -1101,6 +1132,21 @@ public:
 
 					e->setProperty("Favorite", isFavorite);
 					data->setProperty(id, e);
+				}
+			}
+		}
+
+		static void cleanFileList(Array<File>& filesToClean)
+		{
+			for (int i = 0; i < filesToClean.size(); i++)
+			{
+				const bool isNoPresetFile = filesToClean[i].isHidden() || filesToClean[i].getFileName().startsWith(".") || filesToClean[i].getFileExtension() != ".preset";
+				const bool isNoDirectory = !filesToClean[i].isDirectory();
+
+				if (isNoPresetFile && isNoDirectory)
+				{
+					filesToClean.remove(i--);
+					continue;
 				}
 			}
 		}
