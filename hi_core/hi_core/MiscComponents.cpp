@@ -34,7 +34,6 @@ namespace hise { using namespace juce;
 
 MouseCallbackComponent::MouseCallbackComponent() :
 callbackLevel(CallbackLevel::NoCallbacks),
-currentEvent(new DynamicObject()),
 callbackLevels(getCallbackLevels()),
 constrainer(new RectangleConstrainer())
 {
@@ -455,7 +454,7 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
 {
 	if (callbackLevel == CallbackLevel::NoCallbacks) return;
 
-	DynamicObject::Ptr obj = currentEvent;
+	DynamicObject::Ptr e = new DynamicObject();
 
 	static const Identifier x("x");
 	static const Identifier y("y");
@@ -475,45 +474,39 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
     static const Identifier altDown("altDown");
     static const Identifier ctrlDown("ctrlDown");
     
-	currentEvent->clear();
-
 	if (callbackLevel >= CallbackLevel::ClicksOnly)
 	{
-		currentEvent->setProperty(clicked, action == Action::Clicked);
-        currentEvent->setProperty(doubleClick, action == Action::DoubleClicked);
-		currentEvent->setProperty(rightClick, (action == Action::Clicked && event.mods.isRightButtonDown()) ||
+		e->setProperty(clicked, action == Action::Clicked);
+        e->setProperty(doubleClick, action == Action::DoubleClicked);
+		e->setProperty(rightClick, (action == Action::Clicked && event.mods.isRightButtonDown()) ||
 											  (action == Action::MouseUp && event.mods.isRightButtonDown()));
-		currentEvent->setProperty(mouseUp, action == Action::MouseUp);
-		currentEvent->setProperty(mouseDownX, event.getMouseDownX());
-		currentEvent->setProperty(mouseDownY, event.getMouseDownY());
-		currentEvent->setProperty(x, event.getPosition().getX());
-		currentEvent->setProperty(y, event.getPosition().getY());
-        currentEvent->setProperty(shiftDown, event.mods.isShiftDown());
-        currentEvent->setProperty(cmdDown, event.mods.isCommandDown());
-        currentEvent->setProperty(altDown, event.mods.isAltDown());
-        currentEvent->setProperty(ctrlDown, event.mods.isCtrlDown());
-        
+		e->setProperty(mouseUp, action == Action::MouseUp);
+		e->setProperty(mouseDownX, event.getMouseDownX());
+		e->setProperty(mouseDownY, event.getMouseDownY());
+		e->setProperty(x, event.getPosition().getX());
+		e->setProperty(y, event.getPosition().getY());
+        e->setProperty(shiftDown, event.mods.isShiftDown());
+        e->setProperty(cmdDown, event.mods.isCommandDown());
+        e->setProperty(altDown, event.mods.isAltDown());
+        e->setProperty(ctrlDown, event.mods.isCtrlDown());
 	}
 
 	if (callbackLevel >= CallbackLevel::ClicksAndEnter)
 	{
-		currentEvent->setProperty(hover, state != Exited);
+		e->setProperty(hover, state != Exited);
 	}
 
 	if (callbackLevel >= CallbackLevel::Drag)
 	{
-
-		
-
 		const bool isIn = getLocalBounds().contains(event.position.toInt());
 
-		currentEvent->setProperty(insideDrag, isIn ? 1: 0);
-		currentEvent->setProperty(drag, event.getDistanceFromDragStart() > 4);
-		currentEvent->setProperty(dragX, event.getDistanceFromDragStartX());
-		currentEvent->setProperty(dragY, event.getDistanceFromDragStartY());
+		e->setProperty(insideDrag, isIn ? 1: 0);
+		e->setProperty(drag, event.getDistanceFromDragStart() > 4);
+		e->setProperty(dragX, event.getDistanceFromDragStartX());
+		e->setProperty(dragY, event.getDistanceFromDragStartY());
 	}
 
-	var clickInformation(obj);
+	var clickInformation(e);
 
 	sendToListeners(clickInformation);
 }
