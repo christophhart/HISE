@@ -493,7 +493,7 @@ void CompressionHelpers::dump(const AudioSampleBuffer& b, String fileName)
 
 void CompressionHelpers::fastInt16ToFloat(const void* source, float* dest, int numSamples)
 {
-#if JUCE_IOS
+#if !JUCE_WINDOWS
 
 	AudioDataConverters::convertInt16LEToFloat(source, dest, numSamples);
 
@@ -537,7 +537,7 @@ void CompressionHelpers::fastInt16ToFloat(const void* source, float* dest, int n
 	{
 		AudioDataConverters::convertInt16LEToFloat(source, dest, numSamples);
 	}
-
+    
 #endif
 }
 
@@ -836,7 +836,7 @@ void CompressionHelpers::Diff::distributeFullSamples(AudioBufferInt16& dst, cons
 	int thisValue = 0;
 	int nextValue = 0;
 
-#if JUCE_IOS
+#if !JUCE_WINDOWS
 
 	for (int i = 0; i < numSamples - 2; i++)
 	{
@@ -922,9 +922,7 @@ void CompressionHelpers::Diff::distributeFullSamples(AudioBufferInt16& dst, cons
 		d += 4;
 	}
 
-
 #endif
-
 
 	thisValue = r[numSamples - 2];
 	nextValue = r[numSamples - 1];
@@ -948,7 +946,7 @@ void CompressionHelpers::Diff::addErrorSignal(AudioBufferInt16& dst, const uint1
 
 	int counter = 0;
 
-#if JUCE_IOS
+#if !JUCE_WINDOWS
 
 	while (numSamples > 2)
 	{
