@@ -237,7 +237,7 @@ struct DebugLogger::PerformanceWarning : public DebugLogger::Message
 
 struct DebugLogger::ParameterChange : public DebugLogger::Message
 {
-	ParameterChange(int messageIndex, int callbackIndex, double timestamp, const Identifier& id, const var& value_):
+	ParameterChange(int messageIndex, int callbackIndex, double timestamp, const Identifier& id, var value_):
 		Message(messageIndex, callbackIndex, timestamp, Location::Empty, nullptr, id),
 		value(value_)
 	{}
@@ -254,7 +254,7 @@ struct DebugLogger::ParameterChange : public DebugLogger::Message
 		return s;
 	}
 
-	const var value;
+	var value;
 };
 
 struct DebugLogger::Failure : public DebugLogger::Message
@@ -365,10 +365,9 @@ void DebugLogger::logEvents(const HiseEventBuffer& masterBuffer)
 			if (e->isAftertouch())
 				continue;
 
-			ScopedLock sl(debugLock);
-
 			Event e2(messageIndex++, callbackIndex, *e);
 
+			ScopedLock sl(debugLock);
 			pendingEvents.add(e2);
 		}
 	}
@@ -421,11 +420,20 @@ void DebugLogger::logParameterChange(JavascriptProcessor* p, ReferenceCountedObj
 
 				ScopedLock sl(debugLock);
 
-				if (pendingParameterChanges.getLast().id == id)
+				for (auto& pc_ : pendingParameterChanges)
 				{
-					pendingParameterChanges.removeLast();
+					if (pc_.id == id)
+					{
+						pc_.callbackIndex = pc.callbackIndex;
+						pc_.location = pc.location;
+						pc_.timestamp = pc.timestamp;
+						pc_.value = pc.value;
+						pc_.p = pc.p;
+
+						return;
+					}
 				}
-				
+
 				pendingParameterChanges.add(pc);
 			}
 		}
@@ -722,8 +730,6 @@ void DebugLogger::timerCallback()
 
 	Array<Message*> messages;
 
-	
-
 	for (int i = 0; i < warningCopy.size(); i++)
 		messages.add(&warningCopy.getReference(i));
 	
@@ -747,9 +753,8 @@ void DebugLogger::timerCallback()
 		FileOutputStream fos(currentLogFile, 512);
 		NewLine nl;
 
-
 		MessageComparator mec;
-		messages.sort(mec, false);
+		//messages.sort(mec, false);
 
 		for (auto m : messages)
 		{
