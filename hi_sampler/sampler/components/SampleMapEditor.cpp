@@ -433,7 +433,7 @@ void SampleMapEditor::resized()
 
 	updateMapInViewport();
 
-	int y = getHeight() - JUCE_LIVE_CONSTANT(46);
+	int y = getHeight() - JUCE_LIVE_CONSTANT_OFF(46);
 
 	rootNoteSetter->setBounds((getWidth() / 2) + -107 - (90 / 2), y, 90, 32);
 	lowKeySetter->setBounds((getWidth() / 2) + -11 - (90 / 2), y, 90, 32);

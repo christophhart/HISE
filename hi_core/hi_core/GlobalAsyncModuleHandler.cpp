@@ -89,7 +89,7 @@ void MainController::GlobalAsyncModuleHandler::addPendingUIJob(Processor* p, Wha
 		auto f = [](Dispatchable* obj)
 		{
 			auto p = static_cast<Processor*>(obj);
-			auto parent = p->getParentProcessor(false);
+			auto parent = p->getParentProcessor(false, false);
 
 			if (parent != nullptr)
 				parent->sendRebuildMessage(true);

@@ -262,6 +262,8 @@ struct DummyAudioGuard
 {
 	struct Handler
 	{
+        virtual ~Handler() {};
+        
 		virtual bool test() const noexcept { jassertfalse; return false; }
 		virtual void warn(int /*operationType*/)  { jassertfalse; }
 		virtual String getOperationName(int /*operationType*/) { jassertfalse;  return {}; }
