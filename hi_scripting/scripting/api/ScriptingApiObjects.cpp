@@ -2104,134 +2104,286 @@ rectangleResult(Result::ok())
 ScriptingObjects::GraphicsObject::~GraphicsObject()
 {
 	parent = nullptr;
-	imageToDraw = nullptr;
-	g = nullptr;
 }
+
+struct ScriptedDrawActions
+{
+	struct fillAll : public DrawActions::ActionBase
+	{
+		fillAll(Colour c_) : c(c_) {};
+		void perform(Graphics& g) { g.fillAll(c); };
+		Colour c;
+	};
+
+	struct setColour : public DrawActions::ActionBase
+	{
+		setColour(Colour c_) : c(c_) {};
+		void perform(Graphics& g) { g.setColour(c); };
+		Colour c;
+	};
+
+	struct addTransform : public DrawActions::ActionBase
+	{
+		addTransform(AffineTransform a_) : a(a_) {};
+		void perform(Graphics& g) override { g.addTransform(a); };
+		AffineTransform a;
+	};
+
+	struct fillPath : public DrawActions::ActionBase
+	{
+		fillPath(const Path& p_) : p(p_) {};
+		void perform(Graphics& g) override { g.fillPath(p); };
+		Path p;
+	};
+
+	struct drawPath : public DrawActions::ActionBase
+	{
+		drawPath(const Path& p_, float thickness_) : p(p_), thickness(thickness_) {};
+		void perform(Graphics& g) override
+		{
+			PathStrokeType s(thickness);
+			g.strokePath(p, s);
+		}
+		Path p;
+		float thickness;
+	};
+
+	struct fillRect : public DrawActions::ActionBase
+	{
+		fillRect(Rectangle<float> area_) : area(area_) {};
+		void perform(Graphics& g) { g.fillRect(area); };
+		Rectangle<float> area;
+	};
+
+	struct fillEllipse : public DrawActions::ActionBase
+	{
+		fillEllipse(Rectangle<float> area_) : area(area_) {};
+		void perform(Graphics& g) { g.fillEllipse(area); };
+		Rectangle<float> area;
+	};
+
+	struct drawRect : public DrawActions::ActionBase
+	{
+		drawRect(Rectangle<float> area_, float borderSize_) : area(area_), borderSize(borderSize_) {};
+		void perform(Graphics& g) { g.drawRect(area, borderSize); };
+		Rectangle<float> area;
+		float borderSize;
+	};
+
+	struct drawEllipse : public DrawActions::ActionBase
+	{
+		drawEllipse(Rectangle<float> area_, float borderSize_) : area(area_), borderSize(borderSize_) {};
+		void perform(Graphics& g) { g.drawEllipse(area, borderSize); };
+		Rectangle<float> area;
+		float borderSize;
+	};
+
+	struct fillRoundedRect : public DrawActions::ActionBase
+	{
+		fillRoundedRect(Rectangle<float> area_, float cornerSize_) :
+			area(area_), cornerSize(cornerSize_) {};
+		void perform(Graphics& g) { g.fillRoundedRectangle(area, cornerSize); };
+		Rectangle<float> area;
+		float cornerSize;
+	};
+
+	struct drawRoundedRectangle : public DrawActions::ActionBase
+	{
+		drawRoundedRectangle(Rectangle<float> area_, float borderSize_, float cornerSize_) :
+			area(area_), borderSize(borderSize_), cornerSize(cornerSize_) {};
+		void perform(Graphics& g) { g.drawRoundedRectangle(area, cornerSize, borderSize); };
+		Rectangle<float> area;
+		float cornerSize, borderSize;
+	};
+
+	struct drawImageWithin : public DrawActions::ActionBase
+	{
+		drawImageWithin(const Image& img_, Rectangle<float> r_) :
+			img(img_), r(r_){};
+
+		void perform(Graphics& g) override
+		{
+			auto ri = r.toNearestInt();
+
+			g.drawImageWithin(img, (int)r.getX(), (int)r.getY(), (int)r.getWidth(), (int)r.getHeight(), RectanglePlacement::centred);
+
+			
+			//			g.drawImage(img, ri.getX(), ri.getY(), (int)(r.getWidth() / scaleFactor), (int)(r.getHeight() / scaleFactor), 0, yOffset, (int)img.getWidth(), (int)((double)img.getHeight()));
+		}
+
+		Image img;
+		Rectangle<float> r;
+	};
+
+	struct drawImage : public DrawActions::ActionBase
+	{
+		drawImage(const Image& img_, Rectangle<float> r_, float scaleFactor_, int yOffset_) :
+			img(img_), r(r_), scaleFactor(scaleFactor_), yOffset(yOffset_) {};
+		
+		void perform(Graphics& g) override 
+		{
+			auto ri = r.toNearestInt();
+			
+			g.drawImage(img, (int)r.getX(), (int)r.getY(), (int)r.getWidth(), (int)r.getHeight(), 0, yOffset, (int)img.getWidth(), (int)((double)r.getHeight() * scaleFactor));
+
+
+//			g.drawImage(img, ri.getX(), ri.getY(), (int)(r.getWidth() / scaleFactor), (int)(r.getHeight() / scaleFactor), 0, yOffset, (int)img.getWidth(), (int)((double)img.getHeight()));
+		}
+
+		Image img;
+		Rectangle<float> r;
+		float scaleFactor;
+		int yOffset;
+	};
+
+	struct drawHorizontalLine : public DrawActions::ActionBase
+	{
+		drawHorizontalLine(int y_, float x1_, float x2_) :
+			y(y_), x1(x1_), x2(x2_) {};
+		void perform(Graphics& g) { g.drawHorizontalLine(y, x1, x2); };
+		int y; float x1; float x2;
+	};
+
+	struct setOpacity : public DrawActions::ActionBase
+	{
+		setOpacity(float alpha_) :
+			alpha(alpha_) {};
+		void perform(Graphics& g) { g.setOpacity(alpha); };
+		float alpha;
+	};
+
+	struct drawLine : public DrawActions::ActionBase
+	{
+		drawLine(float x1_, float x2_, float y1_, float y2_, float lineThickness_):
+			x1(x1_), x2(x2_), y1(y1_), y2(y2_), lineThickness(lineThickness_) {};
+		void perform(Graphics& g) { g.drawLine(x1, x2, y1, y2, lineThickness); };
+		float x1, x2, y1, y2, lineThickness;
+	};
+
+	struct setFont : public DrawActions::ActionBase
+	{
+		setFont(Font f_) : f(f_) {};
+		void perform(Graphics& g) { g.setFont(f); };
+		Font f;
+	};
+
+	struct setGradientFill : public DrawActions::ActionBase
+	{
+		setGradientFill(ColourGradient grad_) : grad(grad_) {};
+		void perform(Graphics& g) { g.setGradientFill(grad); };
+		ColourGradient grad;
+	};
+
+	struct drawText : public DrawActions::ActionBase
+	{
+		drawText(const String& text_, Rectangle<float> area_, Justification j_=Justification::centred ) : text(text_), area(area_), j(j_) {};
+		void perform(Graphics& g) override { g.drawText(text, area, j); };
+		String text;
+		Rectangle<float> area;
+		Justification j;
+	};
+
+	struct drawDropShadow : public DrawActions::ActionBase
+	{
+		drawDropShadow(Rectangle<int> r_, DropShadow& shadow_) : r(r_), shadow(shadow_) {};
+		void perform(Graphics& g) override { shadow.drawForRectangle(g, r); };
+		Rectangle<int> r;
+		DropShadow shadow;
+	};
+
+	struct addDropShadowFromAlpha : public DrawActions::ActionBase
+	{
+		addDropShadowFromAlpha(const DropShadow& shadow_) : shadow(shadow_) {};
+
+		bool wantsCachedImage() const override { return true; };
+
+		void perform(Graphics& g) override
+		{
+			shadow.drawForImage(g, cachedImage);
+		}
+
+		DropShadow shadow;
+	};
+};
 
 void ScriptingObjects::GraphicsObject::fillAll(var colour)
 {
-	initGraphics();
 	Colour c = ScriptingApi::Content::Helpers::getCleanedObjectColour(colour);
-
-	g->fillAll(c);
-
-	
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::fillAll(c));
 }
 
 void ScriptingObjects::GraphicsObject::fillRect(var area)
 {
-	initGraphics();
-
-	g->fillRect(getRectangleFromVar(area));
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::fillRect(getRectangleFromVar(area)));
 }
 
 void ScriptingObjects::GraphicsObject::drawRect(var area, float borderSize)
 {
-	initGraphics();
-
 	auto bs = (float)borderSize;
-
-	g->drawRect(getRectangleFromVar(area), SANITIZED(bs));
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawRect(getRectangleFromVar(area), SANITIZED(bs)));
 }
 
 void ScriptingObjects::GraphicsObject::fillRoundedRectangle(var area, float cornerSize)
 {
-	initGraphics();
-
     auto cs = (float)cornerSize;
-    
-	g->fillRoundedRectangle(getRectangleFromVar(area), SANITIZED(cs));
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::fillRoundedRect(getRectangleFromVar(area), SANITIZED(cs)));
 }
 
 void ScriptingObjects::GraphicsObject::drawRoundedRectangle(var area, float cornerSize, float borderSize)
 {
-	initGraphics();
-
-    auto cs = (float)cornerSize;
-    auto bs = (float)borderSize;
+    auto cs = SANITIZED(cornerSize);
+    auto bs = SANITIZED(borderSize);
+	auto ar = getRectangleFromVar(area);
     
-    g->drawRoundedRectangle(getRectangleFromVar(area), SANITIZED(cs), SANITIZED(bs));
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawRoundedRectangle(ar, bs, cs));
 }
 
 void ScriptingObjects::GraphicsObject::drawHorizontalLine(int y, float x1, float x2)
 {
-	initGraphics();
-
-    
-    
-	g->drawHorizontalLine(y, SANITIZED(x1), SANITIZED(x2));
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawHorizontalLine(y, SANITIZED(x1), SANITIZED(x2)));
 }
 
 void ScriptingObjects::GraphicsObject::setOpacity(float alphaValue)
 {
-	initGraphics();
-
-	
-
-	g->setOpacity(alphaValue);
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::setOpacity(alphaValue));
 }
 
 void ScriptingObjects::GraphicsObject::drawLine(float x1, float x2, float y1, float y2, float lineThickness)
 {
-	initGraphics();
-
-	g->drawLine(SANITIZED(x1), SANITIZED(y1), SANITIZED(x2), SANITIZED(y2), SANITIZED(lineThickness));
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawLine(
+		SANITIZED(x1), SANITIZED(y1), SANITIZED(x2), SANITIZED(y2), SANITIZED(lineThickness)));
 }
 
 void ScriptingObjects::GraphicsObject::setColour(var colour)
 {
-	
-	currentColour = ScriptingApi::Content::Helpers::getCleanedObjectColour(colour);
-	g->setColour(currentColour);
-
-	useGradient = false;
+	auto c = ScriptingApi::Content::Helpers::getCleanedObjectColour(colour);
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::setColour(c));
 }
 
 void ScriptingObjects::GraphicsObject::setFont(String fontName, float fontSize)
 {
 	MainController *mc = getScriptProcessor()->getMainController_();
-
-	currentFont = mc->getFontFromString(fontName, SANITIZED(fontSize));
-
-	g->setFont(currentFont);
+	auto f = mc->getFontFromString(fontName, SANITIZED(fontSize));
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::setFont(f));
 }
 
 void ScriptingObjects::GraphicsObject::drawText(String text, var area)
 {
-	initGraphics();
-
 	Rectangle<float> r = getRectangleFromVar(area);
-
-	currentFont.setHeightWithoutChangingWidth(r.getHeight());
-
-	g->setFont(currentFont);
-
-	LockHelpers::SafeUnlock unlock(getScriptProcessor()->getMainController_(), LockHelpers::Type::ScriptLock);
-	MessageManagerLock mm;
-
-	g->drawText(text, r, Justification::centred);
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawText(text, r));
 }
 
 void ScriptingObjects::GraphicsObject::drawAlignedText(String text, var area, String alignment)
 {
-	initGraphics();
-
 	Rectangle<float> r = getRectangleFromVar(area);
 
 	Result re = Result::ok();
-
 	auto just= ApiHelpers::getJustification(alignment, &re);
 
 	if (re.failed())
 		reportScriptError(re.getErrorMessage());
 
-
-	g->setFont(currentFont);
-
-	LockHelpers::SafeUnlock unlock(getScriptProcessor()->getMainController_(), LockHelpers::Type::ScriptLock);
-	MessageManagerLock mm;
-
-	g->drawText(text, r, just);
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawText(text, r, just));
 }
 
 void ScriptingObjects::GraphicsObject::setGradientFill(var gradientData)
@@ -2245,46 +2397,34 @@ void ScriptingObjects::GraphicsObject::setGradientFill(var gradientData)
 			auto c1 = ScriptingApi::Content::Helpers::getCleanedObjectColour(data->getUnchecked(0));
 			auto c2 = ScriptingApi::Content::Helpers::getCleanedObjectColour(data->getUnchecked(3));
 
-			currentGradient = ColourGradient(c1, (float)data->getUnchecked(1), (float)data->getUnchecked(2),
+			auto grad = ColourGradient(c1, (float)data->getUnchecked(1), (float)data->getUnchecked(2),
 					 					     c2, (float)data->getUnchecked(4), (float)data->getUnchecked(5), false);
 
-			useGradient = true;
 
-			g->setGradientFill(currentGradient);
+			drawActionHandler.addDrawAction(new ScriptedDrawActions::setGradientFill(grad));
 		}
 		else
-		{
 			reportScriptError("Gradient Data must have six elements");
-		}
 	}
 	else
-	{
 		reportScriptError("Gradient Data is not sufficient");
-	}
 }
 
 
 
 void ScriptingObjects::GraphicsObject::drawEllipse(var area, float lineThickness)
 {
-	initGraphics();
-
-	g->drawEllipse(getRectangleFromVar(area), lineThickness);
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawEllipse(getRectangleFromVar(area), lineThickness));
 }
 
 void ScriptingObjects::GraphicsObject::fillEllipse(var area)
 {
-	initGraphics();
-
-	g->fillEllipse(getRectangleFromVar(area));
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::fillEllipse(getRectangleFromVar(area)));
 }
 
 void ScriptingObjects::GraphicsObject::drawImage(String imageName, var area, int /*xOffset*/, int yOffset)
 {
-	initGraphics();
-
 	auto sc = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(parent);
-
 	const Image img = sc->getLoadedImage(imageName);
 
 	if (img.isValid())
@@ -2295,33 +2435,26 @@ void ScriptingObjects::GraphicsObject::drawImage(String imageName, var area, int
         {
             const double scaleFactor = (double)img.getWidth() / (double)r.getWidth();
             
-            g->drawImage(img, (int)r.getX(), (int)r.getY(), (int)r.getWidth(), (int)r.getHeight(), 0, yOffset, (int)img.getWidth(), (int)((double)r.getHeight() * scaleFactor));
+			drawActionHandler.addDrawAction(new ScriptedDrawActions::drawImage(img, r, scaleFactor, yOffset));
         }        
 	}
 	else
-	{
 		reportScriptError("Image not found");
-	};
 }
 
 void ScriptingObjects::GraphicsObject::drawDropShadow(var area, var colour, int radius)
 {
-	initGraphics();
-
+	auto r = getIntRectangleFromVar(area);
 	DropShadow shadow;
 
 	shadow.colour = ScriptingApi::Content::Helpers::getCleanedObjectColour(colour);
 	shadow.radius = radius;
 
-	auto r = getIntRectangleFromVar(area);
-
-	shadow.drawForRectangle(*g, r);
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawDropShadow(r, shadow));
 }
 
 void ScriptingObjects::GraphicsObject::drawTriangle(var area, float angle, float lineThickness)
 {
-	initGraphics();
-
 	Path p;
 	p.startNewSubPath(0.5f, 0.0f);
 	p.lineTo(1.0f, 1.0f);
@@ -2331,14 +2464,11 @@ void ScriptingObjects::GraphicsObject::drawTriangle(var area, float angle, float
 	auto r = getRectangleFromVar(area);
 	p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), false);
 	
-	PathStrokeType pst(lineThickness);
-	g->strokePath(p, pst);
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawPath(p, lineThickness));
 }
 
 void ScriptingObjects::GraphicsObject::fillTriangle(var area, float angle)
 {
-	initGraphics();
-
 	Path p;
 	p.startNewSubPath(0.5f, 0.0f);
 	p.lineTo(1.0f, 1.0f);
@@ -2348,28 +2478,17 @@ void ScriptingObjects::GraphicsObject::fillTriangle(var area, float angle)
 	auto r = getRectangleFromVar(area);
 	p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), false);
 
-	g->fillPath(p);
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::fillPath(p));
 }
 
 void ScriptingObjects::GraphicsObject::addDropShadowFromAlpha(var colour, int radius)
 {
-	initGraphics();
-
 	DropShadow shadow;
 
 	shadow.colour = ScriptingApi::Content::Helpers::getCleanedObjectColour(colour);
 	shadow.radius = radius;
 
-    Graphics g2(*imageToDraw);
-    
-#if JUCE_MAC || HISE_IOS
-    const double scaleFactor = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(parent)->parent->usesDoubleResolution() ? 2.0 : 1.0;
-    
-    // don't ask why...
-    g2.addTransform(AffineTransform::scale((float)(1.0 / scaleFactor)));
-#endif
-    
-	shadow.drawForImage(g2, *imageToDraw);
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::addDropShadowFromAlpha(shadow));
 }
 
 void ScriptingObjects::GraphicsObject::fillPath(var path, var area)
@@ -2384,7 +2503,7 @@ void ScriptingObjects::GraphicsObject::fillPath(var path, var area)
 			p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), false);
 		}
 
-		g->fillPath(p);
+		drawActionHandler.addDrawAction(new ScriptedDrawActions::fillPath(p));
 	}
 }
 
@@ -2401,22 +2520,17 @@ void ScriptingObjects::GraphicsObject::drawPath(var path, var area, var thicknes
 		}
 
         auto t = (float)thickness;
-        
-		g->strokePath(p, PathStrokeType(SANITIZED(t)));
+		drawActionHandler.addDrawAction(new ScriptedDrawActions::drawPath(p, SANITIZED(t)));
 	}
 }
 
 void ScriptingObjects::GraphicsObject::rotate(var angleInRadian, var center)
 {
-	initGraphics();
-
 	Point<float> c = getPointFromVar(center);
-
     auto air = (float)angleInRadian;
-    
 	auto a = AffineTransform::rotation(SANITIZED(air), c.getX(), c.getY());
 
-	g->addTransform(a);
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::addTransform(a));
 }
 
 Point<float> ScriptingObjects::GraphicsObject::getPointFromVar(const var& data)
@@ -2444,12 +2558,6 @@ Rectangle<int> ScriptingObjects::GraphicsObject::getIntRectangleFromVar(const va
 	if (rectangleResult.failed()) reportScriptError(rectangleResult.getErrorMessage());
 
 	return f;
-}
-
-void ScriptingObjects::GraphicsObject::initGraphics()
-{
-	if (g == nullptr) reportScriptError("Graphics not initialised");
-
 }
 
 struct ScriptingObjects::ScriptingMessageHolder::Wrapper

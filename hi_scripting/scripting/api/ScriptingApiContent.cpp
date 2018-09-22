@@ -2538,7 +2538,6 @@ ScriptingApi::Content::ScriptPanel::ScriptPanel(ProcessorWithScriptingContent *b
 ScriptComponent(base, panelName, 1),
 PreloadListener(base->getMainController_()->getSampleManager()),
 graphics(new ScriptingObjects::GraphicsObject(base, this)),
-repaintNotifier(this),
 loadRoutine(var()),
 paintRoutine(var()),
 mouseRoutine(var()),
@@ -2675,12 +2674,6 @@ void ScriptingApi::Content::ScriptPanel::internalRepaint(bool forceRepaint/*=fal
 }
 
 
-juce::Image ScriptingApi::Content::ScriptPanel::getImage() const
-{
-	return paintCanvas;
-}
-
-
 bool ScriptingApi::Content::ScriptPanel::internalRepaintIdle(bool forceRepaint, Result& r)
 {
 	jassert_locked_script_thread(dynamic_cast<Processor*>(getScriptProcessor())->getMainController());
@@ -2704,22 +2697,13 @@ bool ScriptingApi::Content::ScriptPanel::internalRepaintIdle(bool forceRepaint, 
 
 	if ((!forceRepaint && !isShowing()) || canvasWidth <= 0 || canvasHeight <= 0)
 	{
-		paintCanvas = Image();
-
 		return true;
 	}
-
-	Image newCanvas = Image(Image::PixelFormat::ARGB, canvasWidth, canvasHeight, !getScriptObjectProperty(Properties::opaque));
-
-	Graphics g(newCanvas);
-
-	g.addTransform(AffineTransform::scale((float)getScaleFactorForCanvas()));
 
 	var thisObject(this);
 	var arguments = var(graphics);
 	var::NativeFunctionArgs args(thisObject, &arguments, 1);
 
-	graphics->setGraphics(&g, &newCanvas);
 
 	Result::ok();
 
@@ -2735,14 +2719,8 @@ bool ScriptingApi::Content::ScriptPanel::internalRepaintIdle(bool forceRepaint, 
 		debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
 	}
 
-	graphics->setGraphics(nullptr, nullptr);
+	graphics->getDrawHandler().flush();
 
-	{
-		paintCanvas = newCanvas;
-	}
-
-	repaintNotifier.sendChangeMessage();
-	
 	return true;
 }
 
@@ -2970,37 +2948,41 @@ void ScriptingApi::Content::ScriptPanel::setImage(String imageName, int xOffset,
 
 	Image toUse = getLoadedImage(imageName);
 
-	auto b = getBoundsForImage();
+	auto b = getPosition().withPosition(0, 0);
+		
+	int w, h;
 
 	if (xOffset == 0)
 	{
 		double ratio = (double)b.getHeight() / (double)b.getWidth();
-		int w = toUse.getWidth();
-		int h = (int)((double)w * ratio);
-
+		w = toUse.getWidth();
+		h = (int)((double)w * ratio);
 		yOffset = jmin<int>(yOffset, toUse.getHeight() - h);
-
-		paintCanvas = toUse.getClippedImage(Rectangle<int>(0, yOffset, w, h));
-
 	}
 	else if (yOffset == 0)
 	{
 		double ratio = (double)b.getHeight() / (double)b.getWidth();
-		int h = toUse.getHeight();
-		int w = (int)((double)h * ratio);
-
+		h = toUse.getHeight();
+		w = (int)((double)h * ratio);
 		xOffset = jmin<int>(xOffset, toUse.getWidth() - xOffset);
-
-		paintCanvas = toUse.getClippedImage(Rectangle<int>(xOffset, 0, w, h));
-
 	}
 	else
 	{
 		logErrorAndContinue("Can't offset both dimensions. Either x or y must be 0");
 	}
 
-	repaintNotifier.sendChangeMessage();
+	auto img = toUse.getClippedImage(Rectangle<int>(0, yOffset, w, h));
 
+	auto scaleFactor = (float)b.getWidth() / (float)w;
+
+	if (auto drawHandler = getDrawActionHandler())
+	{
+		drawHandler->beginDrawing();
+		
+
+		drawHandler->addDrawAction(new ScriptedDrawActions::drawImageWithin(img, b.toFloat()));
+		drawHandler->flush();
+	}
 }
 
 Rectangle<int> ScriptingApi::Content::ScriptPanel::getBoundsForImage() const

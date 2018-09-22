@@ -237,45 +237,6 @@ LockHelpers::SafeLock::~SafeLock()
 }
 
 
-LockHelpers::SafeUnlock::SafeUnlock(const MainController* mc_, Type t, bool useRealLock /*= true*/):
-	mc(mc_),
-	type(t),
-	suspendsLock(false),
-	lock(nullptr)
-{
-	if (useRealLock && mc->getKillStateHandler().currentThreadHoldsLock(type))
-	{
-		try
-		{
-			lock = &getLockUnchecked(mc, type);
-			lock->exit();
-			mc->getKillStateHandler().setLockForCurrentThread(type, false);
-			suspendsLock = true;
-
-		}
-		catch (BadLockException& )
-		{
-			jassertfalse;
-			lock = nullptr;
-		}
-	}
-	else
-	{
-		jassertfalse;
-	}
-}
-
-
-LockHelpers::SafeUnlock::~SafeUnlock()
-{
-	if (suspendsLock)
-	{
-		jassert(lock != nullptr);
-		mc->getKillStateHandler().setLockForCurrentThread(type, true);
-		lock->enter();
-	}
-}
-
 namespace SuspendHelpers
 {
 

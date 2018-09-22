@@ -1119,8 +1119,6 @@ public:
 	private:
 
 		void connectToOtherSliderPack(const String &otherPackId);
-
-        
         
 		String otherPackId;
 		int otherPackIndex = 0;
@@ -1285,7 +1283,6 @@ public:
 
 		/** Sets a FloatingTile that is used as popup. The position is a array [x , y, width, height] that is used for the popup dimension */
 		void setPopupData(var jsonData, var position);
-
         
         /** Sets a new value, stores this action in the undo manager and calls the control callbacks. */
         void setValueWithUndo(var oldValue, var newValue, var actionName);
@@ -1338,8 +1335,6 @@ public:
 
 		struct Wrapper;
 
-		Image getImage() const;
-
 		bool isModal() const
 		{
 			return isModalPopup;
@@ -1360,7 +1355,6 @@ public:
 		void cancelPendingFunctions() override
 		{
 			stopTimer();
-			//repaintNotifier.removeAllChangeListeners();
 		}
 
 		void resetValueToDefault() override
@@ -1373,8 +1367,6 @@ public:
 
 		Rectangle<int> getPopupSize() const { return popupBounds; }
 
-        SafeChangeBroadcaster* getRepaintNotifier() { return &repaintNotifier; };
-        
 		void timerCallback() override;
 
 		bool timerCallbackInternal(MainController * mc, Result &r);
@@ -1392,17 +1384,6 @@ public:
 
 		Rectangle<int> getDragBounds() const;
 
-        struct RepaintNotifier: public SafeChangeBroadcaster
-        {
-            RepaintNotifier(ScriptPanel* panel_):
-            panel(panel_)
-            {
-                
-            }
-            
-            ScriptPanel* panel;
-        };
-        
 		bool isShowing(bool checkParentComponentVisibility=true) const override
 		{
 			if (!ScriptComponent::isShowing(checkParentComponentVisibility))
@@ -1416,9 +1397,15 @@ public:
 
 		void repaintWrapped();
 
-	private:
+		DrawActions::Handler* getDrawActionHandler()
+		{
+			if (graphics != nullptr)
+				return &graphics->getDrawHandler();
 
-		
+			return nullptr;
+		}
+
+	private:
 
 		bool shownAsPopup = false;
 		bool isModalPopup = false;
@@ -1433,11 +1420,9 @@ public:
 
 		Rectangle<int> popupBounds;
 
-		
 		void internalRepaint(bool forceRepaint=false);
 
 		bool internalRepaintIdle(bool forceRepaint, Result& r);
-        
 
 		ReferenceCountedObjectPtr<ScriptingObjects::GraphicsObject> graphics;
 
@@ -1448,18 +1433,13 @@ public:
 
 		var dragBounds;
 
-		Image paintCanvas;
-
 		struct NamedImage
 		{
 			PooledImage image;
 			String prettyName;
 		};
-
 		
 		Array<NamedImage> loadedImages;
-
-		RepaintNotifier repaintNotifier;
 		
 		// ========================================================================================================
 

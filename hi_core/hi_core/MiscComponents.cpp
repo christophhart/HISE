@@ -526,14 +526,17 @@ void MouseCallbackComponent::sendToListeners(var clickInformation)
 	}
 }
 
-BorderPanel::BorderPanel() :
+BorderPanel::BorderPanel(DrawActions::Handler* handler_) :
 borderColour(Colours::black),
+drawHandler(handler_),
 c1(Colours::white),
 c2(Colours::white),
 borderRadius(0.0f),
 borderSize(1.0f)
 {
 	addAndMakeVisible(closeButton);
+	
+	drawHandler->addDrawActionListener(this);
 
 	closeButton.addListener(this);
 
@@ -586,6 +589,12 @@ borderSize(1.0f)
 		img, 1.0f, Colours::white.withAlpha(0.1f));
 }
 
+BorderPanel::~BorderPanel()
+{
+	if (drawHandler != nullptr)
+		drawHandler->removeDrawActionListener(this);
+}
+
 void BorderPanel::buttonClicked(Button* /*b*/)
 {
 	auto contentComponent = findParentComponentOfClass<ScriptContentComponent>();
@@ -603,22 +612,42 @@ void BorderPanel::buttonClicked(Button* /*b*/)
 
 void BorderPanel::changeListenerCallback(SafeChangeBroadcaster* b)
 {
-    image = dynamic_cast<ScriptingApi::Content::ScriptPanel::RepaintNotifier*>(b)->panel->getImage();
-    
-    if(isShowing())
-        repaint();
 }
 
 void BorderPanel::paint(Graphics &g)
 {
+	
+
+	
 	if (isUsingCustomImage)
 	{
         SET_IMAGE_RESAMPLING_QUALITY();
-        
-		g.setColour(Colours::black);
-		g.setOpacity(1.0f);
 		
-        g.drawImageWithin(image, 0, 0, getWidth() , getHeight(), RectanglePlacement::centred);
+		if (isOpaque())
+			g.fillAll(Colours::black);
+
+		DrawActions::Handler::Iterator it(drawHandler.get());
+
+		if (it.wantsCachedImage())
+		{
+			Image cachedImage = Image(Image::ARGB, getWidth(), getHeight(), true);
+			Graphics g2(cachedImage);
+
+			while (auto action = it.getNextAction())
+			{
+				action->setCachedImage(cachedImage);
+				action->perform(g2);
+			}
+
+			g.drawImageAt(cachedImage, 0, 0);
+		}
+		else
+		{
+			while (auto action = it.getNextAction())
+				action->perform(g);
+		}
+
+		
 	}
 	else
 	{

@@ -1104,11 +1104,7 @@ public:
 		struct Wrapper;
 
 		
-		void setGraphics(Graphics *g_, Image* image_)
-		{
-			g = g_;
-			imageToDraw = image_;
-		}
+		DrawActions::Handler& getDrawHandler() { return drawActionHandler; }
 
 	private:
 
@@ -1116,20 +1112,11 @@ public:
 		Rectangle<float> getRectangleFromVar(const var &data);
 		Rectangle<int> getIntRectangleFromVar(const var &data);
 
-		void initGraphics();
-
 		Result rectangleResult;
 
-		Image *imageToDraw = nullptr;
-
-		Graphics *g = nullptr;
-
-		Colour currentColour;
-		Font currentFont;
-		ColourGradient currentGradient;
-		bool useGradient = false;
-
 		ConstScriptingObject* parent = nullptr;
+
+		DrawActions::Handler drawActionHandler;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GraphicsObject);
 

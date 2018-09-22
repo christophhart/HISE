@@ -1442,12 +1442,10 @@ void ScriptCreatedComponentWrappers::ImageWrapper::mouseCallback(const var &mous
 ScriptCreatedComponentWrappers::PanelWrapper::PanelWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptPanel *panel, int index) :
 ScriptCreatedComponentWrapper(content, index)
 {
-	BorderPanel *bp = new BorderPanel();
+	BorderPanel *bp = new BorderPanel(panel->getDrawActionHandler());
 
 	bp->setName(panel->name.toString());
 
-    panel->getRepaintNotifier()->addChangeListener(bp);
-    
 	bp->addMouseCallbackListener(this);
 	bp->setDraggingEnabled(panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::allowDragging));
 	bp->setDragBounds(panel->getDragBounds(), this);
@@ -1555,8 +1553,6 @@ void ScriptCreatedComponentWrappers::PanelWrapper::updateColourAndBorder(BorderP
 	bpc->borderColour = GET_OBJECT_COLOUR(textColour);
 	bpc->borderRadius = getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::borderRadius);
 	bpc->borderSize = getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::borderSize);
-	bpc->image = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent())->getImage();
-
 	bpc->repaint();
 };
 
@@ -1598,13 +1594,6 @@ void ScriptCreatedComponentWrappers::PanelWrapper::boundsChanged(const Rectangle
 ScriptCreatedComponentWrappers::PanelWrapper::~PanelWrapper()
 {
 	BorderPanel *bpc = dynamic_cast<BorderPanel*>(component.get());
-
-    auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
-    
-	if (panel != nullptr)
-	{
-		panel->getRepaintNotifier()->removeChangeListener(bpc);
-	}
 
 	bpc->removeCallbackListener(this);
 	
