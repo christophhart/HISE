@@ -72,7 +72,6 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_opengl/juce_opengl.h"
 #include "../JUCE/modules/juce_dsp/juce_dsp.h"
 #include "../hi_zstd/hi_zstd.h"
-#include "../hi_streaming/hi_streaming.h"
 #include "../hi_tools/hi_tools.h"
 
 #include <complex>

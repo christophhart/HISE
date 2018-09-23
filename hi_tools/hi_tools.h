@@ -61,6 +61,8 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
 #include "../JUCE/modules/juce_opengl/juce_opengl.h"
 #include "../hi_zstd/hi_zstd.h"
+#include "../hi_streaming/hi_streaming.h"
+
 
 #if USE_BACKEND || USE_FRONTEND
 #define HI_REMOVE_HISE_DEPENDENCY_FOR_TOOL_CLASSES 0
@@ -77,6 +79,8 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_binary_data/hi_binary_data.h"
 
 #include "Macros.h"
+
+#include "hi_tools/CustomDataContainers.h"
 
 #include "hi_tools/MiscToolClasses.h"
 

@@ -54,6 +54,8 @@
 #include "hi_tools/IppFFT.cpp"
 #endif
 
+#include "hi_tools/CustomDataContainers.cpp"
+
 #include "hi_tools/MiscToolClasses.cpp"
 
 #include "hi_tools/HI_LookAndFeels.cpp"

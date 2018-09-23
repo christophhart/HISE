@@ -36,6 +36,21 @@ namespace hise { using namespace juce;
 
 #define NUM_MAX_CHANNELS 16
 
+#ifndef NUM_POLYPHONIC_VOICES
+#if HISE_IOS
+#define NUM_POLYPHONIC_VOICES 128
+#else
+#define NUM_POLYPHONIC_VOICES 256
+#endif
+#endif
+
+
+#if HI_RUN_UNIT_TESTS
+#define jassert_skip_unit_test(x)
+#else
+#define jassert_skip_unit_test(x) jassert(x)
+#endif
+
 #ifndef HISE_EVENT_RASTER
 #define HISE_EVENT_RASTER 8
 #endif
