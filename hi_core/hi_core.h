@@ -226,7 +226,7 @@ Set this to 0 to disable host information like tempo, playing position etc...
 If this is enabled, compiled plugins will write a startup log to the desktop for debugging purposes
 */
 #ifndef ENABLE_STARTUP_LOG
-#define ENABLE_STARTUP_LOG 1
+#define ENABLE_STARTUP_LOG 0
 #endif
 
 
