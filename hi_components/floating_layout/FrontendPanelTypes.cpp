@@ -264,11 +264,6 @@ void MidiKeyboardPanel::restoreInternal(const var& object)
 		addAndMakeVisible(keyboard->asComponent());
 	}
 
-	keyboard->asComponent()->setColour(MidiKeyboardComponent::ColourIds::whiteNoteColourId, findPanelColour(PanelColourId::bgColour));
-	
-
-	keyboard->asComponent()->setColour(MidiKeyboardComponent::ColourIds::shadowColourId, findPanelColour(PanelColourId::itemColour2));
-
 	keyboard->setUseCustomGraphics(getPropertyWithDefault(object, SpecialPanelIds::CustomGraphics));
 
 	keyboard->setRangeBase(getPropertyWithDefault(object, SpecialPanelIds::LowKey),

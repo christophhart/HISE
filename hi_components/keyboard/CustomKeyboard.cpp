@@ -81,8 +81,7 @@ CustomKeyboardLookAndFeel::CustomKeyboardLookAndFeel()
 
 void CustomKeyboardLookAndFeel::drawKeyboardBackground(Graphics &g, int width, int height)
 {
-	g.setColour(findColour(MidiKeyboardComponent::ColourIds::shadowColourId));
-	g.drawLine(0.0f, 0.0f, (float)width, 0.0f, 3.0f);
+	
 
 	g.setGradientFill(ColourGradient(Colour(0x7d000000),
 		0.0f, 80.0f,
