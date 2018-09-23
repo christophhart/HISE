@@ -936,6 +936,9 @@ public:
 	JavascriptThreadPool& getJavascriptThreadPool() noexcept { return *javascriptThreadPool.get(); }
 	const JavascriptThreadPool& getJavascriptThreadPool() const noexcept { return *javascriptThreadPool.get(); }
 
+	PooledUIUpdater* getGlobalUIUpdater() { return &globalUIUpdater; }
+	const PooledUIUpdater* getGlobalUIUpdater() const { return &globalUIUpdater; }
+
 	const FileHandlerBase& getCurrentFileHandler(bool forceDefault=false) const
 	{
 		if (forceDefault)
@@ -1217,6 +1220,8 @@ public:
 
 	UndoManager* getControlUndoManager() { return controlUndoManager; }
 
+	
+
 private: // Never call this directly, but wrap it through DelayedRenderer...
 
 	/** This is the main processing loop that is shared among all subclasses. */
@@ -1280,7 +1285,11 @@ protected:
 
 	void killAndCallOnLoadingThread(const ProcessorFunction& f);
 
+	
+
 private:
+
+	PooledUIUpdater globalUIUpdater;
 
 	AudioSampleBuffer previewBuffer;
 	int previewBufferIndex = -1;

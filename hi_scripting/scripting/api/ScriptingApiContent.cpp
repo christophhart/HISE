@@ -1849,6 +1849,8 @@ lookupTableIndex(-1)
 	ADD_API_METHOD_1(getTableValue);
 	ADD_API_METHOD_2(connectToOtherTable);
 	ADD_API_METHOD_1(setSnapValues);
+
+	broadcaster.enablePooledUpdate(base->getMainController_()->getGlobalUIUpdater());
 }
 
 ScriptingApi::Content::ScriptTable::~ScriptTable()

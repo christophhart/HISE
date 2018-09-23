@@ -32,7 +32,7 @@
 
 namespace hise { using namespace juce;
 
-SliderPackData::SliderPackData(UndoManager* undoManager_) :
+SliderPackData::SliderPackData(UndoManager* undoManager_, PooledUIUpdater* updater) :
 stepSize(0.1),
 nextIndexToDisplay(-1),
 showValueOverlay(true),
@@ -41,9 +41,10 @@ undoManager(undoManager_),
 cachedData(0),
 defaultValue(var(1.0))
 {
-    enableAllocationFreeMessages(50);
+    //enableAllocationFreeMessages(50);
     
 	sliderRange = Range<double>(0.0, 1.0);
+	enablePooledUpdate(updater);
 }
 
 SliderPackData::~SliderPackData()
@@ -76,7 +77,7 @@ void SliderPackData::setValue(int sliderIndex, float value, NotificationType not
 			values[sliderIndex] = value;
 
 			if (notifySliderPack == sendNotification)
-				sendAllocationFreeChangeMessage();
+				sendPooledChangeMessage();
 		}
 
 	}
@@ -202,7 +203,7 @@ currentlyDragged(false),
 currentlyDraggedSlider(-1),
 currentlyDraggedSliderValue(0.0),
 defaultValue(0.0),
-dummyData(nullptr)
+dummyData(nullptr, nullptr)
 {
 	if (data == nullptr)
 	{

@@ -56,7 +56,7 @@ WavetableSynth::WavetableSynth(MainController *mc, const String &id, int numVoic
 
 	tableIndexChain->setColour(Colour(0xff4D54B3));
 
-	pack = new SliderPackData(nullptr);
+	pack = new SliderPackData(nullptr, mc->getGlobalUIUpdater());
 	pack->setNumSliders(128);
 	pack->setRange(0.0, 1.0, 0.01);
 	pack->setFlashActive(true);

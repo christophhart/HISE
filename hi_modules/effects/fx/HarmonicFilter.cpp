@@ -52,9 +52,9 @@ filterBanks(numVoices_)
 
 	editorStateIdentifiers.add("XFadeChainShown");
 
-	dataA = new SliderPackData(mc->getControlUndoManager());
-	dataB = new SliderPackData(mc->getControlUndoManager());
-	dataMix = new SliderPackData(mc->getControlUndoManager());
+	dataA = new SliderPackData(mc->getControlUndoManager(), mc->getGlobalUIUpdater());
+	dataB = new SliderPackData(mc->getControlUndoManager(), mc->getGlobalUIUpdater());
+	dataMix = new SliderPackData(mc->getControlUndoManager(), mc->getGlobalUIUpdater());
 
 	dataA->setRange(-24.0, 24.0, 0.1);
 	dataB->setRange(-24.0, 24.0, 0.1);
@@ -282,9 +282,9 @@ filterBank()
     parameterNames.add("Crossfade");
     parameterNames.add("SemiToneTranspose");
     
-	dataA = new SliderPackData(mc->getControlUndoManager());
-	dataB = new SliderPackData(mc->getControlUndoManager());
-	dataMix = new SliderPackData(mc->getControlUndoManager());
+	dataA = new SliderPackData(mc->getControlUndoManager(), mc->getGlobalUIUpdater());
+	dataB = new SliderPackData(mc->getControlUndoManager(), mc->getGlobalUIUpdater());
+	dataMix = new SliderPackData(mc->getControlUndoManager(), mc->getGlobalUIUpdater());
 
 	dataA->setRange(-24.0, 24.0, 0.1);
 	dataB->setRange(-24.0, 24.0, 0.1);

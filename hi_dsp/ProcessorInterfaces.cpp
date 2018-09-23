@@ -62,7 +62,7 @@ void LookupTableProcessor::sendTableIndexChangeMessage(bool sendSynchronous, Tab
 	}
 	
 	if (sendSynchronous) tableChangeBroadcaster.sendSynchronousChangeMessage();
-    else tableChangeBroadcaster.sendAllocationFreeChangeMessage();
+    else tableChangeBroadcaster.sendChangeMessage();
 }
 
 FactoryType::FactoryType(Processor *owner_) :

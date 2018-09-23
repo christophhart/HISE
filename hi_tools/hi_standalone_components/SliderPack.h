@@ -40,7 +40,7 @@ class SliderPackData: public SafeChangeBroadcaster
 {
 public:
 
-	SliderPackData(UndoManager* undoManager);
+	SliderPackData(UndoManager* undoManager, PooledUIUpdater* updater);
 
 	~SliderPackData();
 
@@ -97,7 +97,7 @@ public:
 	void setDisplayedIndex(int index)
 	{
 		nextIndexToDisplay = index;
-		sendAllocationFreeChangeMessage();
+		sendPooledChangeMessage();
 	}
 
 	const float* getCachedData()

@@ -36,6 +36,80 @@ namespace hise {
 using namespace juce;
 
 
+class PooledUIUpdater : public Timer
+{
+public:
+
+	PooledUIUpdater() :
+		pendingHandlers(8192)
+	{
+		startTimer(50);
+	}
+
+	class Broadcaster;
+
+	class Listener
+	{
+	public:
+
+		virtual ~Listener() {};
+
+		virtual void handlePooledMessage(Broadcaster* b) = 0;
+
+	private:
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+	};
+
+	class Broadcaster
+	{
+	public:
+		Broadcaster() {};
+		virtual ~Broadcaster() {};
+
+		void setHandler(PooledUIUpdater* handler_)
+		{
+			handler = handler_;
+		}
+
+		void sendPooledChangeMessage();
+
+		void addPooledChangeListener(Listener* l) { pooledListeners.addIfNotAlreadyThere(l); };
+		void removePooledChangeListener(Listener* l) { pooledListeners.removeAllInstancesOf(l); };
+
+	private:
+
+		friend class PooledUIUpdater;
+
+		Array<WeakReference<Listener>> pooledListeners;
+
+		WeakReference<PooledUIUpdater> handler;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Broadcaster);
+	};
+
+	void timerCallback() override
+	{
+		WeakReference<Broadcaster> b;
+
+		while (pendingHandlers.pop(b))
+		{
+			if (b != nullptr)
+			{
+				for (auto l : b->pooledListeners)
+				{
+					if (l != nullptr)
+						l->handlePooledMessage(b);
+				}
+			}
+
+		}
+	}
+
+	LockfreeQueue<WeakReference<Broadcaster>> pendingHandlers;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(PooledUIUpdater);
+};
 
 class SafeChangeBroadcaster;
 
@@ -44,7 +118,7 @@ class SafeChangeBroadcaster;
 *	This class has the same functionality as the JUCE ChangeListener class, but it uses a weak reference for the internal list,
 *	so deleted listeners will not crash the application.
 */
-class SafeChangeListener
+class SafeChangeListener : public PooledUIUpdater::Listener
 {
 public:
 
@@ -56,11 +130,73 @@ public:
 	/** Overwrite this and handle the message. */
 	virtual void changeListenerCallback(SafeChangeBroadcaster *b) = 0;
 
+	void handlePooledMessage(PooledUIUpdater::Broadcaster* b) override;
+
 private:
 
 	friend class WeakReference < SafeChangeListener >;
 
 	WeakReference<SafeChangeListener>::Master masterReference;
+};
+
+class SuspendableTimer
+{
+public:
+
+	SuspendableTimer() :
+		internalTimer(*this)
+	{};
+
+	void startTimer(int milliseconds)
+	{
+		if (!suspended)
+		{
+			internalTimer.startTimer(milliseconds);
+			lastTimerInterval = milliseconds;
+		}
+	}
+
+	void stopTimer()
+	{
+		if (!suspended)
+		{
+			internalTimer.stopTimer();
+			lastTimerInterval = -1;
+		}
+	}
+
+	void suspendTimer(bool shouldBeSuspended)
+	{
+		if (shouldBeSuspended != suspended)
+		{
+			suspended = shouldBeSuspended;
+
+			if (suspended)
+				stopTimer();
+			else if (lastTimerInterval != -1)
+				startTimer(lastTimerInterval);
+		}
+	}
+
+	virtual void timerCallback() = 0;
+
+private:
+
+	struct Internal : public Timer
+	{
+		Internal(SuspendableTimer& parent_) :
+			parent(parent_)
+		{};
+
+		void timerCallback() override { parent.timerCallback(); };
+
+		SuspendableTimer& parent;
+	};
+
+	Internal internalTimer;
+
+	bool suspended = false;
+	int lastTimerInterval = -1;
 };
 
 
@@ -71,7 +207,7 @@ private:
 *
 *	Also you can add a string to your message for debugging purposes (with the JUCE class you have no way of knowing what caused the message if you call it asynchronously.
 */
-class SafeChangeBroadcaster
+class SafeChangeBroadcaster: public PooledUIUpdater::Broadcaster
 {
 public:
 
@@ -120,6 +256,8 @@ public:
 	*   Use this in the audio thread to prevent malloc calls, but don't overuse this feature.
 	*/
 	void sendAllocationFreeChangeMessage();
+
+	void enablePooledUpdate(PooledUIUpdater* updater);
 
 	void enableAllocationFreeMessages(int timerIntervalMilliseconds);
 

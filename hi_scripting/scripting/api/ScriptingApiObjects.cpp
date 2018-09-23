@@ -184,7 +184,7 @@ struct ScriptingObjects::ScriptSliderPackData::Wrapper
 
 ScriptingObjects::ScriptSliderPackData::ScriptSliderPackData(ProcessorWithScriptingContent* pwsc) :
 	ConstScriptingObject(pwsc, 0),
-	data(pwsc->getMainController_()->getControlUndoManager())
+	data(pwsc->getMainController_()->getControlUndoManager(), pwsc->getMainController_()->getGlobalUIUpdater())
 {
 	data.setNumSliders(16);
 

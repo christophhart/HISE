@@ -79,6 +79,8 @@ void SafeChangeBroadcaster::addChangeListener(SafeChangeListener *listener)
 	ScopedLock sl(listeners.getLock());
 
 	listeners.addIfNotAlreadyThere(listener);
+
+	addPooledChangeListener(listener);
 }
 
 void SafeChangeBroadcaster::removeChangeListener(SafeChangeListener *listener)
@@ -86,6 +88,8 @@ void SafeChangeBroadcaster::removeChangeListener(SafeChangeListener *listener)
 	ScopedLock sl(listeners.getLock());
 
 	listeners.removeAllInstancesOf(listener);
+
+	removePooledChangeListener(listener);
 }
 
 void SafeChangeBroadcaster::removeAllChangeListeners()
@@ -108,6 +112,12 @@ void SafeChangeBroadcaster::sendAllocationFreeChangeMessage()
 	jassert(flagTimer.isTimerRunning());
 
 	flagTimer.triggerUpdate();
+}
+
+void SafeChangeBroadcaster::enablePooledUpdate(PooledUIUpdater* updater)
+{
+	setHandler(updater);
+	flagTimer.stopTimer();
 }
 
 void SafeChangeBroadcaster::enableAllocationFreeMessages(int timerIntervalMilliseconds)
@@ -500,5 +510,18 @@ Rectangle<int> HiseDeviceSimulator::getDisplayResolution()
 	}
 }
 
+
+void PooledUIUpdater::Broadcaster::sendPooledChangeMessage()
+{
+	if (handler != nullptr)
+		handler.get()->pendingHandlers.push(this);
+	else
+		jassertfalse; // you need to register it...
+}
+
+void SafeChangeListener::handlePooledMessage(PooledUIUpdater::Broadcaster* b)
+{
+	changeListenerCallback(dynamic_cast<SafeChangeBroadcaster*>(b));
+}
 
 }

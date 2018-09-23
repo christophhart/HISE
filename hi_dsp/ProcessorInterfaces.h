@@ -94,7 +94,7 @@ public:
 	{
         TableChangeBroadcaster()
         {
-            enableAllocationFreeMessages(50);
+            
         }
         
 		SpinLock lock;
