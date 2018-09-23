@@ -582,7 +582,7 @@ public:
 
 		addCustomComponent(preview);
 
-		gainPackData = new SliderPackData(nullptr);
+		gainPackData = new SliderPackData(nullptr, nullptr);
 		gainPackData->setNumSliders(64);
 		gainPackData->setRange(0.0, 1.0, 0.01);
 		gainPack = new SliderPack(gainPackData);
