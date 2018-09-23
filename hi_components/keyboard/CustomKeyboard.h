@@ -71,6 +71,12 @@ public:
 	static const char* white_key_on_png;
 	static const int white_key_on_pngSize;
 
+	bool useVectorGraphics = false;
+
+	Colour bgColour;
+	Colour topLineColour;
+	Colour overlayColour;
+
 private:
 
 	//==============================================================================
@@ -111,6 +117,9 @@ public:
 	virtual void setEnableToggleMode(bool /*isOn*/) {};
 	virtual void setMidiChannelBase(int /*midiChannel*/) = 0;
 
+	virtual void setUseVectorGraphics(bool shouldUseVectorGraphics) { ignoreUnused(shouldUseVectorGraphics); }
+	virtual bool isUsingVectorGraphics() const { return true; };
+
 	virtual ~KeyboardBase() {};
 };
 
@@ -144,6 +153,9 @@ public:
 	{
 		MidiKeyboardComponent::paint(g);
 		
+		//auto lf_ = dynamic_cast<CustomKeyboardLookAndFeel*>(&getLookAndFeel());
+		//lf_->overlayColour = findColour(MidiKeyboardComponent::ColourIds::mouseOverKeyOverlayColourId);
+
 		if(!useCustomGraphics)
 			dynamic_cast<CustomKeyboardLookAndFeel*>(&getLookAndFeel())->drawKeyboardBackground(g, getWidth(), getHeight());
 	};
@@ -200,9 +212,12 @@ public:
 	bool isToggleModeEnabled() const override { return toggleMode; };
 	void setEnableToggleMode(bool shouldBeEnabled) override { toggleMode = shouldBeEnabled; }
 
-	
+	void setUseVectorGraphics(bool shouldUseVectorGraphics) override
+	{
+		laf.useVectorGraphics = shouldUseVectorGraphics;
+	}
 
-	
+	bool isUsingVectorGraphics() const override { return laf.useVectorGraphics; }
 
 	void setRange(int lowKey_, int hiKey_)
 	{
@@ -230,6 +245,7 @@ private:
 	CustomKeyboardState *state;
  
 	bool useCustomGraphics = false;
+	bool useVectorGraphics = false;
 
     bool narrowKeys;
     

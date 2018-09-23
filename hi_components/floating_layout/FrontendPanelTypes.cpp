@@ -159,7 +159,7 @@ MidiKeyboardPanel::MidiKeyboardPanel(FloatingTile* parent) :
 	updater(*this),
 	mpeZone({2, 16})
 {
-	setDefaultPanelColour(PanelColourId::bgColour, Colours::transparentBlack);
+	setDefaultPanelColour(PanelColourId::bgColour, Colour(BACKEND_BG_COLOUR_BRIGHT));
 
 	setInterceptsMouseClicks(false, true);
 
@@ -169,7 +169,6 @@ MidiKeyboardPanel::MidiKeyboardPanel(FloatingTile* parent) :
 
 	keyboard->setLowestKeyBase(12);
 
-	setDefaultPanelColour(PanelColourId::bgColour, Colours::transparentBlack);
 	setDefaultPanelColour(PanelColourId::itemColour1, Colours::white.withAlpha(0.1f));
 	setDefaultPanelColour(PanelColourId::itemColour2, Colours::white);
 	setDefaultPanelColour(PanelColourId::itemColour3, Colour(SIGNAL_COLOUR));
@@ -232,6 +231,7 @@ var MidiKeyboardPanel::toDynamicObject() const
 	storePropertyInObject(obj, SpecialPanelIds::BlackKeyRatio, keyboard->getBlackNoteLengthProportionBase());
 	storePropertyInObject(obj, SpecialPanelIds::ToggleMode, keyboard->isToggleModeEnabled());
 	storePropertyInObject(obj, SpecialPanelIds::MidiChannel, keyboard->getMidiChannelBase());
+	storePropertyInObject(obj, SpecialPanelIds::UseVectorGraphics, keyboard->isUsingVectorGraphics());
 	storePropertyInObject(obj, SpecialPanelIds::MPEKeyboard, shouldBeMpeKeyboard);
 	storePropertyInObject(obj, SpecialPanelIds::MPEStartChannel, mpeZone.getStart());
 	storePropertyInObject(obj, SpecialPanelIds::MPEEndChannel, mpeZone.getEnd());
@@ -264,6 +264,11 @@ void MidiKeyboardPanel::restoreInternal(const var& object)
 		addAndMakeVisible(keyboard->asComponent());
 	}
 
+	keyboard->asComponent()->setColour(MidiKeyboardComponent::ColourIds::whiteNoteColourId, findPanelColour(PanelColourId::bgColour));
+	
+
+	keyboard->asComponent()->setColour(MidiKeyboardComponent::ColourIds::shadowColourId, findPanelColour(PanelColourId::itemColour2));
+
 	keyboard->setUseCustomGraphics(getPropertyWithDefault(object, SpecialPanelIds::CustomGraphics));
 
 	keyboard->setRangeBase(getPropertyWithDefault(object, SpecialPanelIds::LowKey),
@@ -277,6 +282,7 @@ void MidiKeyboardPanel::restoreInternal(const var& object)
 	keyboard->setBlackNoteLengthProportionBase(getPropertyWithDefault(object, SpecialPanelIds::BlackKeyRatio));
 	keyboard->setEnableToggleMode(getPropertyWithDefault(object, SpecialPanelIds::ToggleMode));
 	keyboard->setMidiChannelBase(getPropertyWithDefault(object, SpecialPanelIds::MidiChannel));
+	keyboard->setUseVectorGraphics(getPropertyWithDefault(object, SpecialPanelIds::UseVectorGraphics));
 
 	auto startChannel = (int)getPropertyWithDefault(object, SpecialPanelIds::MPEStartChannel);
 	auto endChannel = (int)getPropertyWithDefault(object, SpecialPanelIds::MPEEndChannel);
@@ -311,6 +317,7 @@ Identifier MidiKeyboardPanel::getDefaultablePropertyId(int index) const
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::MPEKeyboard, "MPEKeyboard");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::MPEStartChannel, "MPEStartChannel");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::MPEEndChannel, "MPEEndChannel");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::UseVectorGraphics, "UseVectorGraphics");
 	
 	jassertfalse;
 	return{};
@@ -333,6 +340,7 @@ var MidiKeyboardPanel::getDefaultProperty(int index) const
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::MPEKeyboard, false);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::MPEStartChannel, 2);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::MPEEndChannel, 16);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::UseVectorGraphics, false);
 
 	jassertfalse;
 	return{};

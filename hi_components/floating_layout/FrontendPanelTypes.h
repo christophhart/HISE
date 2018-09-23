@@ -159,6 +159,7 @@ public:
 		MPEKeyboard,
 		MPEStartChannel,
 		MPEEndChannel,
+		UseVectorGraphics,
 		numProperyIds
 	};
 
