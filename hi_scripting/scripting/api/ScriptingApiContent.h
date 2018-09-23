@@ -1193,7 +1193,7 @@ public:
 	};
 
 	struct ScriptPanel : public ScriptComponent,
-						 public Timer,
+						 public SuspendableTimer,
 						 public GlobalSettingManager::ScaleFactorListener,
 						 public HiseJavascriptEngine::CyclicReferenceCheckBase,
 						 public MainController::SampleManager::PreloadListener
@@ -2023,7 +2023,7 @@ public:
         }
     }
     
-	
+	void suspendPanelTimers(bool shouldBeSuspended);
 
 private:
 
@@ -2111,6 +2111,8 @@ private:
 		
 		return t;
 	}
+
+	
 
 	void restoreSavedValue(const Identifier& id);
 

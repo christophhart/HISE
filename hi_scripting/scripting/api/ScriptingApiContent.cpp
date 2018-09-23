@@ -138,6 +138,9 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	hasChanged(false),
 	customControlCallback(var())
 {
+
+
+
 	jassert(propertyTree.isValid());
 
 	ADD_SCRIPT_PROPERTY(textId, "text");
@@ -1901,7 +1904,7 @@ float ScriptingApi::Content::ScriptTable::getTableValue(int inputValue)
 			broadcaster.table = t;
 			broadcaster.tableIndex = (float)inputValue / (float)t->getTableSize();
 
-			broadcaster.sendAllocationFreeChangeMessage();
+			broadcaster.sendPooledChangeMessage();
 		}
 
 		return ownedTable->get(inputValue);
@@ -2060,7 +2063,7 @@ struct ScriptingApi::Content::ScriptSliderPack::Wrapper
 
 ScriptingApi::Content::ScriptSliderPack::ScriptSliderPack(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier name_, int x, int y, int , int ) :
 ScriptComponent(base, name_),
-packData(new SliderPackData(base->getMainController_()->getControlUndoManager())),
+packData(new SliderPackData(base->getMainController_()->getControlUndoManager(), base->getMainController_()->getGlobalUIUpdater())),
 existingData(nullptr)
 {
 	
@@ -3713,6 +3716,10 @@ name(String()),
 allowGuiCreation(true),
 colour(Colour(0xff777777))
 {
+#if USE_FRONTEND
+	updateDispatcher.suspendUpdates(true);
+#endif
+
 	initNumberProperties();
 
 	DynamicObject::Ptr c = new DynamicObject();
@@ -4502,6 +4509,17 @@ void ScriptingApi::Content::sendRebuildMessage()
 void ScriptingApi::Content::setValuePopupData(var jsonData)
 {
 	valuePopupData = jsonData;
+}
+
+void ScriptingApi::Content::suspendPanelTimers(bool shouldBeSuspended)
+{
+	for (int i = 0; i < components.size(); i++)
+	{
+		if (auto sp = dynamic_cast<ScriptPanel*>(components[i].get()))
+		{
+			sp->suspendTimer(shouldBeSuspended);
+		}
+	}
 }
 
 #undef ADD_TO_TYPE_SELECTOR

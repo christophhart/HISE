@@ -89,6 +89,32 @@ void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& mid
 	getDelayedRenderer().processWrapped(buffer, midiMessages);
 };
 
+void FrontendProcessor::incActiveEditors()
+{
+	if (numActiveEditors == 0)
+	{
+		Processor::Iterator<ProcessorWithScriptingContent> iter(getMainSynthChain());
+
+		while (auto pwsc = iter.getNextProcessor())
+			pwsc->getScriptingContent()->suspendPanelTimers(false);
+	}
+
+	numActiveEditors++;
+}
+
+void FrontendProcessor::decActiveEditors()
+{
+	numActiveEditors = jmax<int>(0, numActiveEditors - 1);
+
+	if (numActiveEditors == 0)
+	{
+		Processor::Iterator<ProcessorWithScriptingContent> iter(getMainSynthChain());
+
+		while (auto pwsc = iter.getNextProcessor())
+			pwsc->getScriptingContent()->suspendPanelTimers(true);
+	}
+}
+
 void FrontendProcessor::handleControllersForMacroKnobs(const MidiBuffer &midiMessages)
 {
 	if(!getMacroManager().macroControlMidiLearnModeActive() && !getMacroManager().midiMacroControlActive()) return;
@@ -220,6 +246,8 @@ unlockCounter(0)
 	synthChain->setId(synthData.getProperty("ID", String()));
 
 	createPreset(synthData);
+
+	
 }
 
 void FrontendProcessor::createPreset(const ValueTree& synthData)
@@ -261,6 +289,8 @@ void FrontendProcessor::createPreset(const ValueTree& synthData)
 #if INCLUDE_USER_DATA
 	createUserPresetData();
 #endif
+
+	decActiveEditors();
 }
 
 const String FrontendProcessor::getName(void) const

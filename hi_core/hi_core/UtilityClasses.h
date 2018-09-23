@@ -83,6 +83,14 @@ public:
 		stopTimer();
 	}
 
+	void suspendUpdates(bool shouldSuspendUpdates)
+	{
+		if (shouldSuspendUpdates)
+			stopTimer();
+		else
+			startTimer(30);
+	}
+
 	/** This class contains the sender logic of the UpdateDispatcher scheme.
 	*
 	*	In order to use it, subclass your object from this, register the parent UpdateDispatcher in 

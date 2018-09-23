@@ -196,6 +196,15 @@ void JavascriptMidiProcessor::registerApiClasses()
 
 
 
+void JavascriptMidiProcessor::addToFront(bool addToFront_) noexcept
+{
+	front = addToFront_;
+
+#if USE_FRONTEND
+	content->getUpdateDispatcher()->suspendUpdates(false);
+#endif
+}
+
 void JavascriptMidiProcessor::runScriptCallbacks()
 {
     if (currentEvent->isAllNotesOff())

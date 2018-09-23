@@ -83,7 +83,7 @@ public:
 	void registerApiClasses() override;
 	
 
-	void addToFront(bool addToFront_) noexcept{ front = addToFront_; };
+	void addToFront(bool addToFront_) noexcept;;
 	bool isFront() const { return front; };
 
 	StringArray getImageFileNames() const;

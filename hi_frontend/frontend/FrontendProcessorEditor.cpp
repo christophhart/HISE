@@ -35,6 +35,8 @@ namespace hise { using namespace juce;
 FrontendProcessorEditor::FrontendProcessorEditor(FrontendProcessor *fp) :
 AudioProcessorEditor(fp)
 {
+	fp->incActiveEditors();
+
     Desktop::getInstance().setDefaultLookAndFeel(&globalLookAndFeel);
     
 	LOG_START("Creating Interface")
@@ -155,6 +157,8 @@ AudioProcessorEditor(fp)
 
 FrontendProcessorEditor::~FrontendProcessorEditor()
 {
+	dynamic_cast<FrontendProcessor*>(getAudioProcessor())->decActiveEditors();
+
 	dynamic_cast<OverlayMessageBroadcaster*>(getAudioProcessor())->removeOverlayListener(this);
 
 	container->removeChildComponent(rootTile);

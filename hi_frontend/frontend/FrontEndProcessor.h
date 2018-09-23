@@ -194,7 +194,9 @@ public:
 		
 	};
 
-    
+	void incActiveEditors();
+
+	void decActiveEditors();
     
 	void handleControllersForMacroKnobs(const MidiBuffer &midiMessages);
  
@@ -255,7 +257,10 @@ private:
 	
 	int unlockCounter;
 
+	int numActiveEditors = 0;
+
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FrontendProcessor)	
+
 };
 
 
