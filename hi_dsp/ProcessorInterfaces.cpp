@@ -54,6 +54,18 @@ void LookupTableProcessor::removeTableChangeListener(SafeChangeListener *listene
 
 void LookupTableProcessor::sendTableIndexChangeMessage(bool sendSynchronous, Table *table, float tableIndex)
 {
+	if (!tableChangeBroadcaster.isHandlerInitialised())
+	{
+		auto t = dynamic_cast<Processor*>(this);
+
+		if (t != nullptr)
+			tableChangeBroadcaster.setHandler(t->getMainController()->getGlobalUIUpdater());
+		else
+			jassertfalse;
+	}
+
+	
+
 	{
 		SpinLock::ScopedLockType sl(tableChangeBroadcaster.lock);
 
@@ -62,7 +74,7 @@ void LookupTableProcessor::sendTableIndexChangeMessage(bool sendSynchronous, Tab
 	}
 	
 	if (sendSynchronous) tableChangeBroadcaster.sendSynchronousChangeMessage();
-    else tableChangeBroadcaster.sendChangeMessage();
+    else tableChangeBroadcaster.sendPooledChangeMessage();
 }
 
 FactoryType::FactoryType(Processor *owner_) :

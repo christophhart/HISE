@@ -77,6 +77,8 @@ public:
 		void addPooledChangeListener(Listener* l) { pooledListeners.addIfNotAlreadyThere(l); };
 		void removePooledChangeListener(Listener* l) { pooledListeners.removeAllInstancesOf(l); };
 
+		bool isHandlerInitialised() const { return handler != nullptr; };
+
 	private:
 
 		friend class PooledUIUpdater;
