@@ -1382,16 +1382,20 @@ private:
 
 
 struct DeviceTypeSanityCheck : public DialogWindowWithBackgroundThread,
-							   public ControlledObject,
-							   public GlobalScriptCompileListener
+							   public ControlledObject
 {
+	enum TestIndex
+	{
+		ControlPersistency,
+		DefaultValues,
+		InitState,
+		AllTests
+	};
 
 	DeviceTypeSanityCheck(MainController* mc):
 		DialogWindowWithBackgroundThread("Checking Device type sanity"),
 		ControlledObject(mc)
 	{
-		getMainController()->addScriptListener(this);
-
 		StringArray options;
 
 		options.add("iPad only");
@@ -1400,16 +1404,26 @@ struct DeviceTypeSanityCheck : public DialogWindowWithBackgroundThread,
 
 		addComboBox("targets", options, "Device Targets");
 
-		addBasicComponents(true);
-	}
+		StringArray tests;
 
-	~DeviceTypeSanityCheck()
-	{
-		getMainController()->removeScriptListener(this);
+		tests.add("Check Control persistency");
+		tests.add("Check default values");
+		tests.add("Check init state matches default values");
+		tests.add("All tests");
+
+		addComboBox("tests", tests, "Tests to run");
+
+		addBasicComponents(true);
 	}
 
 	void run() override
 	{
+		ok = true;
+		mp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(getMainController());
+		content = mp->getScriptingContent();
+		desktopConnections = createArrayForCurrentDevice();
+
+		auto testIndex = getComboBoxComponent("tests")->getSelectedItemIndex();
 		auto index = getComboBoxComponent("targets")->getSelectedItemIndex();
 		CompileExporter::BuildOption option;
 
@@ -1417,18 +1431,30 @@ struct DeviceTypeSanityCheck : public DialogWindowWithBackgroundThread,
 		if (index == 1) option = CompileExporter::BuildOption::StandaloneiPhone;
 		if (index == 2) option = CompileExporter::BuildOption::StandaloneiOS;
 
-		check(getMainController(), option);
-	}
 
-	void scriptWasCompiled(JavascriptProcessor *processor) override
-	{
-		if (processor == mp)
-			waitingForCompilation = false;
+		if (testIndex == ControlPersistency || testIndex == AllTests)
+		{
+			runTest(option, [this](HiseDeviceSimulator::DeviceType t) {this->checkPersistency(t); });
+			
+		}
+
+		if (testIndex == DefaultValues || testIndex == AllTests)
+		{
+			runTest(option, [this](HiseDeviceSimulator::DeviceType t) {this->checkDefaultValues(t); });
+		}
+
+		if (testIndex == InitState || testIndex == AllTests)
+		{
+			checkInitState();
+		}
 	}
 
 	void threadFinished() override
 	{
-		
+		if (ok)
+			PresetHandler::showMessageWindow("Tests passed", "All tests are passed");
+		else
+			PresetHandler::showMessageWindow("Tests failed", "Some tests failed. Check the console for more info", PresetHandler::IconType::Error);
 	}
 
 	struct ProcessorConnection
@@ -1441,6 +1467,7 @@ struct DeviceTypeSanityCheck : public DialogWindowWithBackgroundThread,
 		Identifier id;
 		Processor* p = nullptr;
 		int parameterIndex = -1;
+		var defaultValue;
 	};
 
 	Array<ProcessorConnection> createArrayForCurrentDevice()
@@ -1460,9 +1487,7 @@ struct DeviceTypeSanityCheck : public DialogWindowWithBackgroundThread,
 			pc.id = sc->getName();
 			pc.p = sc->getConnectedProcessor();
 			pc.parameterIndex = sc->getConnectedParameterIndex();
-
-			debugToConsole(mp, " -- " + pc.id);
-
+			pc.defaultValue = sc->getScriptObjectProperty(ScriptComponent::Properties::defaultValue);
 			newList.add(pc);
 		}
 
@@ -1476,6 +1501,8 @@ struct DeviceTypeSanityCheck : public DialogWindowWithBackgroundThread,
 		throw error;
 	}
 
+	bool ok = true;
+
 	void setDeviceType(HiseDeviceSimulator::DeviceType type)
 	{
 		showStatusMessage("Setting device type " + HiseDeviceSimulator::getDeviceName());
@@ -1486,9 +1513,22 @@ struct DeviceTypeSanityCheck : public DialogWindowWithBackgroundThread,
 
 		showStatusMessage("Waiting for compilation");
 		waitingForCompilation = true;
-		mp->compileScript();
 
-		
+		bool* w = &waitingForCompilation;
+		auto& tmp = mp;
+
+		auto f = [tmp, w]()
+		{
+			auto rf = [w](const JavascriptProcessor::SnippetResult&)
+			{
+				*w = false;
+				return;
+			};
+
+			tmp->compileScript(rf);
+		};
+
+		MessageManager::callAsync(f);
 		
 
 		while (waitingForCompilation && !threadShouldExit())
@@ -1500,51 +1540,142 @@ struct DeviceTypeSanityCheck : public DialogWindowWithBackgroundThread,
 		mp->getContent()->restoreFromValueTree(contentData);
 	}
 
-	void log(String& s)
+	void log(const String& s)
 	{
 		debugToConsole(mp, s);
 	}
 
-	void checkDeviceType(HiseDeviceSimulator::DeviceType type)
+	Array<ProcessorConnection> setAndCreateArray(HiseDeviceSimulator::DeviceType type)
 	{
+		if (threadShouldExit())
+			return {};
+
 		setDeviceType(type);
 
-		auto deviceConnections = createArrayForCurrentDevice();
+		if (!mp->hasUIDataForDeviceType())
+		{
+			if (HiseDeviceSimulator::isAUv3())
+				showStatusMessage("You need to define a interface for AUv3");
+
+			return {};
+		}
+
+		if (threadShouldExit())
+			return {};
+
+		return createArrayForCurrentDevice();
+	}
+
+	void checkDefaultValues(HiseDeviceSimulator::DeviceType type)
+	{
+		auto deviceConnections = setAndCreateArray(type);
+
+		showStatusMessage("Checking default values");
+
+		for (const auto& item : deviceConnections)
+		{
+			auto dItemIndex = desktopConnections.indexOf(item);
+
+			if (dItemIndex == -1)
+			{
+				log("Missing control found. Run persistency check");
+				ok = false;
+				return;
+			}
+
+			auto expected = desktopConnections[dItemIndex].defaultValue;
+			auto actual = item.defaultValue;
+
+			if (expected != actual)
+			{
+				ok = false;
+				log("Default value mismatch for " + item.id);
+			}
+				
+		}
+	}
+
+	void checkInitState()
+	{
+		setDeviceType(HiseDeviceSimulator::DeviceType::Desktop);
+
+		desktopConnections = createArrayForCurrentDevice();
+
+		for (int i = 0; i < content->getNumComponents(); i++)
+		{
+			auto sc = content->getComponent(i);
+
+			if (!sc->getScriptObjectProperty(ScriptComponent::saveInPreset))
+				continue;
+
+			if (sc->getValue() != sc->getScriptObjectProperty(ScriptComponent::defaultValue))
+			{
+				ok = false;
+				log("Init value mismatch for " + sc->getName().toString());
+			}
+				
+		}
+	}
+
+	void checkPersistency(HiseDeviceSimulator::DeviceType type)
+	{
+		auto deviceConnections = setAndCreateArray(type);
 
 		showStatusMessage("Checking UI controls");
 
-		if (desktopConnections.size() != deviceConnections.size())
+		StringArray missingInDesktop;
+		StringArray missingInDevice;
+		StringArray connectionErrors;
+
+		compareArrays(desktopConnections, deviceConnections, missingInDesktop, connectionErrors);
+		compareArrays(deviceConnections, desktopConnections, missingInDevice, connectionErrors);
+		
+		if (!missingInDesktop.isEmpty())
 		{
-			int numMissing = abs(deviceConnections.size() - desktopConnections.size());
+			log(String("Missing in Desktop: "));
 
-			String error;
-			error << "Size mismatch. Desktop: ";
-			error << desktopConnections.size();
-			error << ", " << HiseDeviceSimulator::getDeviceName() << ": " << deviceConnections.size() << "\n";
-			error << numMissing << "missing elements in ";
+			for (const auto& s : missingInDesktop)
+				log(s);
+		}
 
-			Array<ProcessorConnection>* smaller;
-			Array<ProcessorConnection>* larger;
+		if (!missingInDevice.isEmpty())
+		{
+			log("Missing in " + HiseDeviceSimulator::getDeviceName());
 
-			if (deviceConnections.size() > desktopConnections.size())
+			for (const auto& s : missingInDevice)
+				log(s);
+		}
+
+		if (!connectionErrors.isEmpty())
+		{
+			log("Connection errors");
+
+			for (const auto& s : connectionErrors)
+				log(s);
+		}
+	}
+
+	void compareArrays(const Array<ProcessorConnection>& testArray, const Array<ProcessorConnection>& compareArray, StringArray& missingNames, StringArray& connectionErrors)
+	{
+		for (const auto& item : testArray)
+		{
+			int index = compareArray.indexOf(item);
+
+			if (index == -1)
 			{
-				error << "Desktop: ";
-				smaller = &desktopConnections;
-				larger = &deviceConnections;
+				missingNames.add(item.id.toString());
+				ok = false;
 			}
 			else
 			{
-				error << HiseDeviceSimulator::getDeviceName() << ": ";
-				smaller = &deviceConnections;
-				larger = &desktopConnections;
-			}
+				const bool processorMatches = item.p == compareArray[index].p;
+				const bool parameterMatches = item.parameterIndex == compareArray[index].parameterIndex;
 
-			log(error);
-
-			for (const auto& item : *larger)
-			{
-				if (!smaller->contains(item))
-					debugToConsole(mp, "--- missing: " + item.id.toString());
+				if (!processorMatches || !parameterMatches)
+				{
+					ok = false;
+					connectionErrors.add("Connection mismatch for " + item.id);
+				}
 			}
 		}
 	}
@@ -1553,47 +1684,42 @@ struct DeviceTypeSanityCheck : public DialogWindowWithBackgroundThread,
 
 	ScriptingApi::Content* content;
 	JavascriptMidiProcessor* mp;
-	MainController* mc;
 
 public:
 
 	bool waitingForCompilation = false;
 
-	Result check(MainController* mc_, CompileExporter::BuildOption option)
+	using TestFunction = std::function<void(HiseDeviceSimulator::DeviceType)>;
+
+	void runTest(CompileExporter::BuildOption option, const TestFunction& tf)
 	{
-		mc = mc_;
-
 		if (HiseDeviceSimulator::getDeviceType() != HiseDeviceSimulator::DeviceType::Desktop)
-			return Result::fail("Device Type must be Desktop for exporting");
-
-		mp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(mc);
-		content = mp->getScriptingContent();
-		desktopConnections = createArrayForCurrentDevice();
+			log("Device Type must be Desktop for exporting");
 
 		try
 		{
 			if (CompileExporter::BuildOptionHelpers::isIPad(option))
 			{
-				checkDeviceType(HiseDeviceSimulator::DeviceType::iPad);
-				checkDeviceType(HiseDeviceSimulator::DeviceType::iPadAUv3);
+				tf(HiseDeviceSimulator::DeviceType::iPad);
+				tf(HiseDeviceSimulator::DeviceType::iPadAUv3);
 			}
 
 			if (CompileExporter::BuildOptionHelpers::isIPhone(option))
 			{
-				checkDeviceType(HiseDeviceSimulator::DeviceType::iPhone);
-				checkDeviceType(HiseDeviceSimulator::DeviceType::iPhoneAUv3);
+				tf(HiseDeviceSimulator::DeviceType::iPhone);
+				tf(HiseDeviceSimulator::DeviceType::iPhoneAUv3);
 			}
 		}
 		catch (String& s)
 		{
 			setDeviceType(HiseDeviceSimulator::DeviceType::Desktop);
-			return Result::fail(s);
+			log(s);
 		}
 
 		setDeviceType(HiseDeviceSimulator::DeviceType::Desktop);
-
-		return Result::ok();
 	}
+
+	
 };
 
 } // namespace hise
