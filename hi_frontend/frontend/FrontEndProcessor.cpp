@@ -63,11 +63,20 @@ FrontendProcessor* FrontendFactory::createPluginWithAudioFiles(AudioDeviceManage
 
 	ScopedPointer<MemoryInputStream> uis = getEmbeddedData(FileHandlerBase::UserPresets);
 
-	UserPresetHelpers::extractUserPresets((const char*)uis->getData(), uis->getDataSize()); 
-	AudioProcessorDriver::restoreSettings(fp); 
-	GlobalSettingManager::restoreGlobalSettings(fp); 
-
-	GET_PROJECT_HANDLER(fp->getMainSynthChain()).loadSamplesAfterSetup(); 
+    try
+    {
+        UserPresetHelpers::extractUserPresets((const char*)uis->getData(), uis->getDataSize());
+        AudioProcessorDriver::restoreSettings(fp);
+        GlobalSettingManager::restoreGlobalSettings(fp);
+        
+        GET_PROJECT_HANDLER(fp->getMainSynthChain()).loadSamplesAfterSetup();
+    }
+    catch(String& s)
+    {
+        fp->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, s);
+    }
+	 
+	 
 	return fp;
 }
 
@@ -276,7 +285,14 @@ void FrontendProcessor::createPreset(const ValueTree& synthData)
 
 	LOG_START("Adding plugin parameters");
 
-	addScriptedParameters();
+    try
+    {
+        addScriptedParameters();
+    }
+    catch(String& s)
+    {
+        DBG("Error: " + s);
+    }
 
 	CHECK_COPY_AND_RETURN_6(synthChain);
 

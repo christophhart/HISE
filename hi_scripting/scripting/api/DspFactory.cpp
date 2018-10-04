@@ -252,7 +252,8 @@ int DynamicDspFactory::initialise(const String &arguments)
 
 var DynamicDspFactory::createModule(const String &moduleName) const
 {
-	if (isUnloadedForCompilation) throw String("Can't load modules for \"unloaded for recompile\" Libraries");
+	if (isUnloadedForCompilation)
+        throw String("Can't load modules for \"unloaded for recompile\" Libraries");
 
 	ScopedPointer<DspInstance> instance = new DspInstance(this, moduleName);
 

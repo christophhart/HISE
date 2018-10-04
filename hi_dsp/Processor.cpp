@@ -696,6 +696,9 @@ void ProcessorHelpers::restoreFromBase64String(Processor* p, const String& base6
 
 void ProcessorHelpers::increaseBufferIfNeeded(AudioSampleBuffer& b, int numSamplesNeeded)
 {
+    if(numSamplesNeeded <= 0)
+        return;
+    
 	// The channel amount must be set correctly in the constructor
 	jassert(b.getNumChannels() > 0);
 

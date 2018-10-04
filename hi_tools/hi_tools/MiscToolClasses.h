@@ -149,6 +149,8 @@ public:
 		internalTimer(*this)
 	{};
 
+    virtual ~SuspendableTimer() { internalTimer.stopTimer(); };
+    
 	void startTimer(int milliseconds)
 	{
 		if (!suspended)

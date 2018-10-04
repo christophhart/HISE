@@ -270,7 +270,8 @@ var VariantBuffer::Factory::referTo(const var::NativeFunctionArgs &args)
 	VariantBuffer *b = f->getFreeVariantBuffer();
 
 	// Don't wrap this into CHECK_CONDITION, because it could happen with working scripts...
-	if (b == nullptr) throw String("Buffer stack size reached!");
+	if (b == nullptr)
+        throw String("Buffer stack size reached!");
 
 	switch (args.numArguments)
 	{

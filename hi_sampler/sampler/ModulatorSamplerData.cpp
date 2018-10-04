@@ -913,11 +913,13 @@ void MonolithExporter::threadFinished()
 
 void MonolithExporter::checkSanity()
 {
-	if (filesToWrite.size() != numChannels) throw String("Channel amount mismatch");
+	if (filesToWrite.size() != numChannels)
+        throw String("Channel amount mismatch");
 
 	for (int i = 0; i < filesToWrite.size(); i++)
 	{
-		if (filesToWrite[i]->size() != numSamples) throw("Sample amount mismatch for Channel " + String(i + 1));
+		if (filesToWrite[i]->size() != numSamples)
+            throw("Sample amount mismatch for Channel " + String(i + 1));
 	}
 }
 
