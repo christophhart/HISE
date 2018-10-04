@@ -34,24 +34,24 @@ namespace hise { using namespace juce;
 
 void SampleEditHandler::SampleEditingActions::deleteSelectedSounds(SampleEditHandler *handler)
 {
-	auto f = [handler](Processor* )
+	auto f = [handler](Processor* /*s*/)
 	{
 		auto soundsToBeDeleted = handler->getSelection().getItemArray();
+		handler->getSampler()->getUndoManager()->beginNewTransaction("Delete samples");
 
-		const int numToBeDeleted = soundsToBeDeleted.size();
-
-		for (int i = 0; i < numToBeDeleted; i++)
+		for (int i = 0; i < soundsToBeDeleted.size(); i++)
 		{
-			if (soundsToBeDeleted[i].get() != nullptr) handler->sampler->deleteSound(soundsToBeDeleted[i].get());
+			if (soundsToBeDeleted[i].get() != nullptr)
+				handler->sampler->getSampleMap()->removeSound(soundsToBeDeleted[i].get());
 		}
 
 		handler->getSelection().deselectAll();
-		handler->getSelection().dispatchPendingMessages();
-
-		return true;
+		
+		return SafeFunctionCall::OK;
 	};
 
-	handler->sampler->getMainController()->getKillStateHandler().killVoicesAndCall(handler->sampler, f, MainController::KillStateHandler::TargetThread::MessageThread);
+	handler->getSampler()->killAllVoicesAndCall(f);
+	
 }
 
 void SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(SampleEditHandler *handler)
@@ -60,7 +60,7 @@ void SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(SampleEdit
 
 	auto sounds = handler->getSelection().getItemArray();
 
-	ScopedLock sl(s->getMainController()->getSampleManager().getSamplerSoundLock());
+	LockHelpers::freeToGo(s->getMainController());
 
 	handler->getSelection().deselectAll();
 
@@ -68,12 +68,14 @@ void SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(SampleEdit
 
 	for (int i = 0; i < sounds.size(); i++)
 	{
-		ValueTree v = sounds[i].get()->exportAsValueTree();
+		auto v = sounds[i].get()->getData();
 		const int index = s->getNumSounds();
 
-		newSelectedIndexes.add(index);
+        auto copy = v.createCopy();
+        
+		s->getSampleMap()->addSound(copy);
 
-		s->addSamplerSound(v, index, true);
+		newSelectedIndexes.add(index);
 	}
     
     s->refreshPreloadSizes();
@@ -110,7 +112,7 @@ void SampleEditHandler::SampleEditingActions::removeDuplicateSounds(SampleEditHa
 			{
 				ModulatorSamplerSound *sound = soundsInSampler[i].get();
 
-				String fileName = sound->getProperty(ModulatorSamplerSound::FileName);
+				String fileName = sound->getSampleProperty(SampleIds::FileName);
 
 				if (fileNames.contains(fileName))
 				{
@@ -129,7 +131,7 @@ void SampleEditHandler::SampleEditingActions::removeDuplicateSounds(SampleEditHa
 
 		for (int i = 0; i < soundsToDelete.size(); i++)
 		{
-			handler->sampler->deleteSound(soundsToDelete[i]);
+			handler->getSampler()->getSampleMap()->removeSound(soundsToDelete[i]);
 		}
 
 		if (numDeleted != 0)
@@ -162,8 +164,8 @@ void SampleEditHandler::SampleEditingActions::automapVelocity(SampleEditHandler 
 
 	for (int i = 0; i < sounds.size(); i++)
 	{
-		lowerLimit = jmin(lowerLimit, (int)sounds[i]->getProperty(ModulatorSamplerSound::VeloLow));
-		upperLimit = jmax(upperLimit, (int)sounds[i]->getProperty(ModulatorSamplerSound::VeloHigh));
+		lowerLimit = jmin(lowerLimit, (int)sounds[i]->getSampleProperty(SampleIds::LoVel));
+		upperLimit = jmax(upperLimit, (int)sounds[i]->getSampleProperty(SampleIds::HiVel));
 	}
 
 	Array<ModulatorSamplerSound*> sortedList;
@@ -220,15 +222,20 @@ void SampleEditHandler::SampleEditingActions::pasteSelectedSounds(SampleEditHand
 	checkMicPositionAmountBeforePasting(v, s);
 
 	{
-		ScopedLock sl(s->getMainController()->getSampleManager().getSamplerSoundLock());
+		LockHelpers::freeToGo(s->getMainController());
+
 
 		for (int i = 0; i < v.getNumChildren(); i++)
 		{
 			const int index = s->getNumSounds();
 
-			auto newSound = s->addSamplerSound(v.getChild(i), index);
+            auto child = v.getChild(i);
+            
+			s->getSampleMap()->addSound(child);
 
-			handler->getSelection().addToSelection(newSound);
+			auto newSound = s->getSound(index);
+
+			handler->getSelection().addToSelection(dynamic_cast<ModulatorSamplerSound*>(newSound));
 		}
 	}
 
@@ -243,8 +250,8 @@ void SampleEditHandler::SampleEditingActions::refreshCrossfades(SampleEditHandle
 
 	for (int i = 0; i < sounds.size(); i++)
 	{
-		sounds[i]->setProperty(ModulatorSamplerSound::UpperVelocityXFade, 0);
-		sounds[i]->setProperty(ModulatorSamplerSound::LowerVelocityXFade, 0);
+		sounds[i]->setSampleProperty(SampleIds::UpperVelocityXFade, 0);
+		sounds[i]->setSampleProperty(SampleIds::LowerVelocityXFade, 0);
 	}
 
 	for (int i = 0; i < sounds.size(); i++)
@@ -255,7 +262,7 @@ void SampleEditHandler::SampleEditingActions::refreshCrossfades(SampleEditHandle
 
 		Range<int> referenceVelocityRange = referenceSound->getVelocityRange();
 
-		const int referenceGroup = referenceSound->getProperty(ModulatorSamplerSound::RRGroup);
+		const int referenceGroup = referenceSound->getSampleProperty(SampleIds::RRGroup);
 
 		for (int j = 0; j < sounds.size(); j++)
 		{
@@ -264,7 +271,7 @@ void SampleEditHandler::SampleEditingActions::refreshCrossfades(SampleEditHandle
 
 			if (thisSound == referenceSound) continue;
 
-			const int thisGroup = thisSound->getProperty(ModulatorSamplerSound::RRGroup);
+			const int thisGroup = thisSound->getSampleProperty(SampleIds::RRGroup);
 
 			if (thisGroup != referenceGroup) continue;
 
@@ -343,8 +350,8 @@ public:
 
 			setProgress((double)i / (double)soundList.size());
 
-			showStatusMessage("Normalizing " + soundList[i]->getProperty(ModulatorSamplerSound::FileName).toString());
-			soundList[i].get()->toggleBoolProperty(ModulatorSamplerSound::Normalized, dontSendNotification);
+			showStatusMessage("Normalizing " + soundList[i]->getSampleProperty(SampleIds::FileName).toString());
+			soundList[i].get()->toggleBoolProperty(SampleIds::Normalized);
 		};
 	}
 
@@ -385,6 +392,7 @@ public:
 		ExistingMultimicSamples,
 		SampleCollectionNotSameSize,
 		FaultySample,
+		NoMonolithAllowed,
 		TooMuchChannels
 	};
 
@@ -415,6 +423,7 @@ public:
 			modes.add("Mapping and filename");
 			addComboBox("mode", modes, "Select detection mode");
 
+			
 			addBasicComponents(true);
 
 			rebuildTokenList();
@@ -431,6 +440,7 @@ public:
 
 	void run() override
 	{
+		
 		if (errorStatus != Error::OK)
 		{
 			PresetHandler::showMessageWindow("Error", errorMessage + ".\nPress OK to quit merging", PresetHandler::IconType::Error);
@@ -447,32 +457,42 @@ public:
 
 		ModulatorSampler *sampler = handler->getSampler();
 
-		sampler->setBypassed(true);
+		ignoreUnused(sampler);
 
-		ScopedLock sl(sampler->getMainController()->getLock());
+		
+		
 
-		sampler->clearSounds();
+		auto sampleMapId = sampler->getSampleMap()->getId();
 
-		sampler->setNumMicPositions(channelNames);
+		
+		auto file = sampler->getSampleMap()->getReference();
+
+		ValueTree newSampleMap("samplemap");
+		newSampleMap.setProperty("ID", sampleMapId.toString(), nullptr);
+		
+		newSampleMap.setProperty("SaveMode", 0, nullptr);
+		newSampleMap.setProperty("FileName", file.getReferenceString(), nullptr);
+		newSampleMap.setProperty("MicPositions", channelNames.joinIntoString(";"), nullptr);
+		newSampleMap.setProperty("RRGroupAmount", (int)sampler->getAttribute(ModulatorSampler::RRGroupAmount), nullptr);
 
 		for (int i = 0; i < collections.size(); i++)
 		{
 			MultiMicCollection * c = collections[i];
-
-			ModulatorSamplerSound * s = new ModulatorSamplerSound(sampler->getMainController(), c->soundList, i);
-
-			s->setMappingData(c->mappingData);
-
-			sampler->addSound(s);
-
-			s->setUndoManager(sampler->getUndoManager());
-			s->addChangeListener(sampler->getSampleMap());
+			auto tree = c->createSampleValueTree();
+			newSampleMap.addChild(tree, -1, nullptr);
 		}
 
-		sampler->setBypassed(false);
+		collections.clear();
+
+		auto f = [newSampleMap](Processor* p)
+		{
+			dynamic_cast<ModulatorSampler*>(p)->getSampleMap()->loadUnsavedValueTree(newSampleMap);
+			return SafeFunctionCall::OK;
+		};
 
 
-		sampler->sendChangeMessage();
+		sampler->getMainController()->getKillStateHandler().killVoicesAndCall(sampler, f, MainController::KillStateHandler::SampleLoadingThread);
+
 	}
 
 	void threadFinished() override
@@ -500,16 +520,20 @@ private:
 
 	struct MultiMicCollection
 	{
-		MultiMicCollection(ModulatorSamplerSound *firstSound, const String &fileNameWithoutToken_):
-			mappingData((int)firstSound->getProperty(ModulatorSamplerSound::RootNote),
-						(int)firstSound->getProperty(ModulatorSamplerSound::KeyLow),
-						(int)firstSound->getProperty(ModulatorSamplerSound::KeyHigh),
-						(int)firstSound->getProperty(ModulatorSamplerSound::VeloLow),
-						(int)firstSound->getProperty(ModulatorSamplerSound::VeloHigh),
-						(int)firstSound->getProperty(ModulatorSamplerSound::RRGroup)),
+		MultiMicCollection(ModulatorSamplerSound *firstSound, const String &fileNameWithoutToken_) :
+			data(firstSound->getData().createCopy()),
 			fileNameWithoutToken(fileNameWithoutToken_)
 		{
-			soundList.add(firstSound->getReferenceToSound());
+			
+			references.add(firstSound->createPoolReference());
+
+			sampleList.add(firstSound->getReferenceToSound());
+		}
+
+		void add(ModulatorSamplerSound* otherSound)
+		{
+			references.add(otherSound->createPoolReference());
+			sampleList.add(otherSound->getReferenceToSound());
 		}
 
 		bool fits(ModulatorSamplerSound *otherSound, const String &otherFileNameWithoutToken, DetectionMode mode) const
@@ -534,6 +558,49 @@ private:
 			return false;
 		}
 
+		ValueTree createSampleValueTree()
+		{
+			data.removeProperty("FileName", nullptr);
+
+			for (const auto& ref : references)
+			{
+				ValueTree fileChild("file");
+				fileChild.setProperty("FileName", ref.getReferenceString(), nullptr);
+				data.addChild(fileChild, -1, nullptr);
+			}
+
+			return data;
+		}
+
+		bool checkSampleSize() const
+		{
+			int lastLength = -1;
+
+			for (const auto s : sampleList)
+			{
+				int thisLength = s->getSampleLength();
+
+				if (lastLength != -1 && thisLength != lastLength)
+					return false;
+
+				lastLength = thisLength;
+			}
+
+			return true;
+		}
+
+		String getDisplayString(int index=0) const
+		{
+			return references[index].getReferenceString();
+		}
+
+		int size() const
+		{
+			jassert(references.size() == sampleList.size());
+
+			return references.size();
+		}
+
 	private:
 
 		bool appliesToFileName(const String &otherFileNameWithoutToken) const
@@ -543,20 +610,26 @@ private:
 
 		bool appliesToCollection(ModulatorSamplerSound *otherSound) const
 		{
-			return  mappingData.rootNote == (int)otherSound->getProperty(ModulatorSamplerSound::RootNote) &&
-				    mappingData.loKey == (int)otherSound->getProperty(ModulatorSamplerSound::KeyLow) &&
-				    mappingData.hiKey == (int)otherSound->getProperty(ModulatorSamplerSound::KeyHigh) &&
-					mappingData.loVel == (int)otherSound->getProperty(ModulatorSamplerSound::VeloLow) &&
-					mappingData.hiVel == (int)otherSound->getProperty(ModulatorSamplerSound::VeloHigh) &&
-					mappingData.rrGroup == (int)otherSound->getProperty(ModulatorSamplerSound::RRGroup);
+			return  data[SampleIds::Root] == otherSound->getSampleProperty(SampleIds::Root) &&
+				    data[SampleIds::LoKey] == otherSound->getSampleProperty(SampleIds::LoKey) &&
+				    data[SampleIds::HiKey] == otherSound->getSampleProperty(SampleIds::HiKey) &&
+					data[SampleIds::LoVel] == otherSound->getSampleProperty(SampleIds::LoVel) &&
+					data[SampleIds::HiVel] == otherSound->getSampleProperty(SampleIds::HiVel) &&
+					data[SampleIds::RRGroup] == otherSound->getSampleProperty(SampleIds::RRGroup);
 		}
+
+		ValueTree data;
+
+		Array<PoolReference> references;
+
+		StreamingSamplerSoundArray sampleList;
 
 	public:
 
 		// ============================================================================================================
 
-		StreamingSamplerSoundArray soundList;
-		MappingData mappingData;
+		
+
 		const String fileNameWithoutToken;
 
 		// ============================================================================================================
@@ -635,8 +708,6 @@ private:
 
 					MultiMicCollection *newCollection = new MultiMicCollection(sound, thisFileNameWithoutToken);
 
-					newCollection->mappingData.fillOtherProperties(sound);
-
 					collections.add(newCollection);
 				}
 			}
@@ -667,10 +738,7 @@ private:
 					{
 						if (collections[i]->fits(sound, thisFileNameWithoutToken, mode))
 						{
-							collections[i]->soundList.add(sound->getReferenceToSound());
-
-							collections[i]->mappingData.fillOtherProperties(sound);
-
+							collections[i]->add(sound);
 							break;
 						}
 					}
@@ -726,7 +794,7 @@ private:
 		{
 			setProgress((double)i / double(collections.size()));
 
-			auto collectionChannelAmount = collections[i]->soundList.size();
+			auto collectionChannelAmount = collections[i]->size();
 
 			maxChannelAmount = jmax<int>(maxChannelAmount, collectionChannelAmount);
 
@@ -738,9 +806,9 @@ private:
 				{
 					bool found = false;
 
-					for (int j = 0; j < collections[i]->soundList.size(); j++)
+					for (int j = 0; j < collections[i]->size(); j++)
 					{			
-						if (collections[i]->soundList[j]->getFileName(false).contains(channelNames[channelIndex]))
+						if (collections[i]->getDisplayString(j).contains(channelNames[channelIndex]))
 						{
 							found = true;
 							break;
@@ -757,8 +825,8 @@ private:
 				String faultyChannel = channelNames[faultyIndex];
 
 				errorStatus = Error::SampleCollectionNotSameSize;
-				errorMessage = (collections[i]->soundList.size() != 0) ?
-					String(String(numPerCollection - collections[i]->soundList.size()) + " missing channel(s) - " + faultyChannel + " at Sample " + String(i) + ": " + collections[i]->soundList[0]->getFileName(false)) :
+				errorMessage = (collections[i]->size() != 0) ?
+					String(String(numPerCollection - collections[i]->size()) + " missing channel(s) - " + faultyChannel + " at Sample " + String(i) + ": " + collections[i]->getDisplayString()) :
 					String("Sample Nr. " + String(i) + "has no channels");
 				return false;
 
@@ -768,8 +836,8 @@ private:
 			if (!checkSampleSize(collections[i]))
 			{
 				errorStatus = Error::UnequalLength;
-				errorMessage = (collections[i]->soundList.size() != 0) ? 
-							   String("Unequal length at Sample " + String(i) + ": " + collections[i]->soundList[0]->getFileName(false)) :
+				errorMessage = (collections[i]->size() != 0) ? 
+					String("Unequal length at Sample " + String(i) + ": " + collections[i]->getDisplayString()) :
 							   String("Unequal length at Sample Nr. " + String(i));
 				return false;
 			}
@@ -791,16 +859,15 @@ private:
 		{
 		case MultimicMergeDialogWindow::Error::OK:
 			return "OK.";
-			break;
 		case MultimicMergeDialogWindow::Error::UnequalLength:
 			return errorMessage;
-			break;
 		case MultimicMergeDialogWindow::Error::UnselectedSamples:
 			return "You have to select all samples for the merge.";
-			break;
 		case MultimicMergeDialogWindow::Error::ExistingMultimicSamples:
 			return "There are already multimic samples in this sampler. Extract them back to single mics and remerge them.";
-			break;
+		case MultimicMergeDialogWindow::Error::NoMonolithAllowed:
+			return "You can't merge monolith samples";
+			
 		case Error::SampleCollectionNotSameSize:
 			return errorMessage;
 		case Error::TooMuchChannels:
@@ -814,22 +881,23 @@ private:
 
 	bool checkSampleSize(MultiMicCollection *collection)
 	{
-		StreamingSamplerSound *firstSound = collection->soundList.getFirst();
+		return collection->checkSampleSize();
+	}
 
-		const int length = firstSound->getSampleLength();
-
-		for (int i = 0; i < collection->soundList.size(); i++)
-		{
-			const int thisLength = collection->soundList[i]->getSampleLength();
-
-			if (thisLength != length) return false;
-		}
-
-		return true;
+	bool checkNoMonolith()
+	{
+		return !handler->getSampler()->getSampleMap()->isMonolith();
 	}
 
 	bool sanityCheck()
 	{
+		if (!checkNoMonolith())
+		{
+			errorStatus = Error::NoMonolithAllowed;
+
+			return false;
+		}
+
 		if (!checkAllSelected())
 		{
 			errorStatus = Error::UnselectedSamples;
@@ -888,67 +956,55 @@ void SampleEditHandler::SampleEditingActions::mergeIntoMultiSamples(SampleEditHa
 
 void SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(SampleEditHandler * handler)
 {
+	ignoreUnused(handler);
+
 	if (PresetHandler::showYesNoWindow("Extract Multimics to Single mics", "Do you really want to extract the multimics to single samples?"))
 	{
 		handler->getSelection().deselectAll();
 
 		ModulatorSampler *sampler = handler->sampler;
 
-		sampler->setBypassed(true);
-
-		StreamingSamplerSoundArray singleList;
-
 		Array<MappingData> singleData;
 
 		ModulatorSampler::SoundIterator sIter(sampler);
 
+		ValueTree newSampleMap = sampler->getSampleMap()->getValueTree().createCopy();
+
+		newSampleMap.setProperty("MicPositions", ";", nullptr);
+
+		newSampleMap.removeAllChildren(nullptr);
+
 		while (auto s = sIter.getNextSound())
 		{
-			for (int i = 0; i < s->getNumMultiMicSamples(); i++)
+			auto multiSampleData = s->getData();
+			 
+			for (int i = 0; i < multiSampleData.getNumChildren(); i++)
 			{
-				auto single = s->getReferenceToSound(i);
-				MappingData newData((int)s->getProperty(ModulatorSamplerSound::RootNote),
-					(int)s->getProperty(ModulatorSamplerSound::KeyLow),
-					(int)s->getProperty(ModulatorSamplerSound::KeyHigh),
-					(int)s->getProperty(ModulatorSamplerSound::VeloLow),
-					(int)s->getProperty(ModulatorSamplerSound::VeloHigh),
-					(int)s->getProperty(ModulatorSamplerSound::RRGroup));
+				auto singleCopy = multiSampleData.createCopy();
 
-				singleList.add(single);
-				singleData.add(newData);
+				singleCopy.removeAllChildren(nullptr);
+
+				auto filename = multiSampleData.getChild(i).getProperty(SampleIds::FileName).toString();
+
+				singleCopy.setProperty(SampleIds::FileName, filename, nullptr);
+
+				newSampleMap.addChild(singleCopy, -1, nullptr);
 			}
 		}
 
-		jassert(singleList.size() == singleData.size());
-
-		ScopedLock sl(sampler->getMainController()->getLock());
-
-		sampler->clearSounds();
-
-		StringArray channels;
-		channels.add("SingleMic");
-
-		sampler->setNumMicPositions(channels);
-
-		for (int i = 0; i < singleList.size(); i++)
+		auto f = [newSampleMap](Processor* s)
 		{
-			ModulatorSamplerSound * s = new ModulatorSamplerSound(sampler->getMainController(), singleList[i], i);
+			auto sampler = static_cast<ModulatorSampler*>(s);
 
-			s->setMappingData(singleData[i]);
+			sampler->getSampleMap()->loadUnsavedValueTree(newSampleMap);
+			return SafeFunctionCall::OK;
+		};
 
-			sampler->addSound(s);
-
-			s->setUndoManager(sampler->getUndoManager());
-			s->addChangeListener(sampler->getSampleMap());
-		}
-
-		sampler->setBypassed(false);
-
-		sampler->sendChangeMessage();
+		sampler->killAllVoicesAndCall(f);
 	}
 }
 
-#define SET_PROPERTY_FROM_METADATA_STRING(string, prop) if (string.isNotEmpty()) sound->setProperty(prop, string.getIntValue(), sendNotification);
+#define SET_PROPERTY_FROM_METADATA_STRING(string, prop) if (string.isNotEmpty()) sound->setSampleProperty(prop, string.getIntValue());
 
 bool setSoundPropertiesFromMetadata(ModulatorSamplerSound *sound, const StringPairArray &metadata, bool readOnly=false)
 {
@@ -1049,19 +1105,19 @@ bool setSoundPropertiesFromMetadata(ModulatorSamplerSound *sound, const StringPa
 
 	if (!readOnly)
 	{
-		SET_PROPERTY_FROM_METADATA_STRING(lowVel, ModulatorSamplerSound::VeloLow);
-		SET_PROPERTY_FROM_METADATA_STRING(hiVel, ModulatorSamplerSound::VeloHigh);
-		SET_PROPERTY_FROM_METADATA_STRING(loKey, ModulatorSamplerSound::KeyLow);
-		SET_PROPERTY_FROM_METADATA_STRING(hiKey, ModulatorSamplerSound::KeyHigh);
-		SET_PROPERTY_FROM_METADATA_STRING(root, ModulatorSamplerSound::RootNote);
-		SET_PROPERTY_FROM_METADATA_STRING(start, ModulatorSamplerSound::SampleStart);
-		SET_PROPERTY_FROM_METADATA_STRING(end, ModulatorSamplerSound::SampleEnd);
-		SET_PROPERTY_FROM_METADATA_STRING(loopEnabled, ModulatorSamplerSound::LoopEnabled);
-		SET_PROPERTY_FROM_METADATA_STRING(loopStart, ModulatorSamplerSound::LoopStart);
-		SET_PROPERTY_FROM_METADATA_STRING(loopEnd, ModulatorSamplerSound::LoopEnd);
-	}
+		sound->startPropertyChange("Applying metadata");
 
-	
+		SET_PROPERTY_FROM_METADATA_STRING(lowVel, SampleIds::LoVel);
+		SET_PROPERTY_FROM_METADATA_STRING(hiVel, SampleIds::HiVel);
+		SET_PROPERTY_FROM_METADATA_STRING(loKey, SampleIds::LoKey);
+		SET_PROPERTY_FROM_METADATA_STRING(hiKey, SampleIds::HiKey);
+		SET_PROPERTY_FROM_METADATA_STRING(root, SampleIds::Root);
+		SET_PROPERTY_FROM_METADATA_STRING(start, SampleIds::SampleStart);
+		SET_PROPERTY_FROM_METADATA_STRING(end, SampleIds::SampleEnd);
+		SET_PROPERTY_FROM_METADATA_STRING(loopEnabled, SampleIds::LoopEnabled);
+		SET_PROPERTY_FROM_METADATA_STRING(loopStart, SampleIds::LoopStart);
+		SET_PROPERTY_FROM_METADATA_STRING(loopEnd, SampleIds::LoopEnd);
+	}
 
 	return 	lowVel != "" ||
 		hiVel != "" ||
@@ -1098,9 +1154,11 @@ bool SampleEditHandler::SampleEditingActions::metadataWasFound(ModulatorSampler*
 	for (int i = 0; i < sounds.size(); i++)
 	{
 
-		File f = File(sounds[i].get()->getProperty(ModulatorSamplerSound::FileName).toString());
+		auto refString = sounds[i].get()->getSampleProperty(SampleIds::FileName).toString();
 
-		ScopedPointer<AudioFormatReader> reader = afm->createReaderFor(f);
+		auto ref = PoolReference(sampler->getMainController(), refString, FileHandlerBase::Samples);
+
+		ScopedPointer<AudioFormatReader> reader = afm->createReaderFor(ref.getFile());
 
 		if (reader != nullptr)
 		{
@@ -1141,7 +1199,9 @@ void SampleEditHandler::SampleEditingActions::automapUsingMetadata(ModulatorSamp
 	for (int i = 0; i < sounds.size(); i++)
 	{
 	
-		File f = File(sounds[i].get()->getProperty(ModulatorSamplerSound::FileName).toString());
+		PoolReference ref(sampler->getMainController(), sounds[i].get()->getSampleProperty(SampleIds::FileName).toString(), FileHandlerBase::Samples);
+
+		File f = ref.getFile();
 
 		ScopedPointer<AudioFormatReader> reader = afm->createReaderFor(f);
 
@@ -1410,7 +1470,7 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 
 		void calculateNewSampleStartForPreview()
 		{
-			auto offset = 0;// (int)currentlyDisplayedSound->getProperty(ModulatorSamplerSound::SampleStart);
+			auto offset = 0;// (int)currentlyDisplayedSound->getSampleProperty(SampleIds::SampleStart);
 
 			auto newSampleStart = SampleStartTrimmer::calculateSampleTrimOffset(offset, analyseBuffer, handler->getSampler(), threshhold.getValue(), shouldSnapToZero());
 
@@ -1565,7 +1625,7 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 					auto currentSound = handler->getSelection().getSelectedItem(i);
 					if (currentSound != nullptr)
 					{
-						choices.add(currentSound->getPropertyAsString(ModulatorSamplerSound::Property::FileName));
+						choices.add(currentSound->getPropertyAsString(SampleIds::FileName));
 					}
 					else
 					{
@@ -1610,10 +1670,10 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 					{
 						p->getChildComponent(0)->setLookAndFeel(&klaf);
 
-						p->getChildComponent(0)->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, Colour(0x66333333));
-						p->getChildComponent(0)->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, Colour(0xfb111111));
-						p->getChildComponent(0)->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::white.withAlpha(0.3f));
-						p->getChildComponent(0)->setColour(MacroControlledObject::HiBackgroundColours::textColour, Colours::white);
+						p->getChildComponent(0)->setColour(HiseColourScheme::WidgetFillTopColourId, Colour(0x66333333));
+						p->getChildComponent(0)->setColour(HiseColourScheme::WidgetFillBottomColourId, Colour(0xfb111111));
+						p->getChildComponent(0)->setColour(HiseColourScheme::WidgetOutlineColourId, Colours::white.withAlpha(0.3f));
+						p->getChildComponent(0)->setColour(HiseColourScheme::WidgetTextColourId, Colours::white);
 
 					}
 				}
@@ -1656,12 +1716,16 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 
 			currentlyDisplayedSound = handler->getSelection().getSelectedItem(jmax<int>(0, currentSelectionId-1));
 
+			if (currentlyDisplayedSound == nullptr)
+				return;
+			
+
 			firstPreview->setSoundToDisplay(currentlyDisplayedSound, multimicIndex.getValue());
 			firstPreview->getSampleArea(SamplerSoundWaveform::PlayArea)->setAreaEnabled(false);
 			firstPreview->getSampleArea(SamplerSoundWaveform::LoopArea)->setAreaEnabled(false);
 
 			auto start = 0;
-			auto end = (int)currentlyDisplayedSound->getProperty(ModulatorSamplerSound::SampleEnd);
+			auto end = (int)currentlyDisplayedSound->getSampleProperty(SampleIds::SampleEnd);
 
 			previewRange = { start, end };
 
@@ -1788,12 +1852,12 @@ private:
 			{
 				if (t.s.get() != nullptr)
 				{
-					t.s->setPropertyWithUndo(ModulatorSamplerSound::SampleStart, t.trimStart);
-					t.s->setPropertyWithUndo(ModulatorSamplerSound::SampleEnd, t.trimEnd);
+					t.s->setSampleProperty(SampleIds::SampleStart, t.trimStart);
+					t.s->setSampleProperty(SampleIds::SampleEnd, t.trimEnd);
 				}
 			}
 
-			return true;
+			return SafeFunctionCall::OK;
 		};
 
 		sampler->killAllVoicesAndCall(f);
@@ -1815,12 +1879,9 @@ private:
 
 		ModulatorSampler *sampler = handler->getSampler();
 
-
-		
-
 		if (auto s = sounds.getFirst())
 		{
-			s->startPropertyChange(ModulatorSamplerSound::SampleStart, 0);
+			s->startPropertyChange("Trim SampleStart");
 		}
 
 		numSamples = sounds.size();
@@ -1833,11 +1894,11 @@ private:
 
 				AudioSampleBuffer analyseBuffer = getBufferForAnalysis(sound, multiMicIndex);
 
-				auto startOffset = 0;// sound->getProperty(ModulatorSamplerSound::SampleStart);
+				auto startOffset = 0;// sound->getSampleProperty(SampleIds::SampleStart);
 
 				auto endOffset = sound->getReferenceToSound()->getLengthInSamples();
 				
-				progress = (double)i / (double)numSamples;
+				logData.progress = (double)i / (double)numSamples;
 
 				if (threadShouldExit())
 				{
@@ -1860,11 +1921,6 @@ private:
 					trimActions.add({ sound, trimStart, trimEnd});
 			}
 		}
-
-		if (auto s = sounds.getFirst())
-		{
-			s->sendChangeMessage();
-		};
 	}
 
 	

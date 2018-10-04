@@ -111,7 +111,7 @@ public:
 	int getNumChildProcessors() const override { return numInternalChains; };
 	int getNumInternalChains() const override {return numInternalChains;};
 
-	void startVoice(int voiceIndex) override;	
+	float startVoice(int voiceIndex) override;	
 	void stopVoice(int voiceIndex) override;
 	void reset(int voiceIndex) override;;
 
@@ -127,17 +127,7 @@ public:
 	float getDefaultValue(int parameterIndex) const override;
 	void setInternalAttribute (int parameter_index, float newValue) override;;
 
-	void setDownsampleFactor(float newValue)
-	{
-		ScopedLock sl(getMainController()->getLock());
-
-		downsampleFactor = jlimit(1, 128, roundFloatToInt(newValue));
-		ecoMode = downsampleFactor > 1.5f;
-		setAttackRate(attack);
-		setDecayRate(decay);
-		setReleaseRate(release);
-		setSustainLevel(sustain);
-	}
+	
 
 	float getAttribute(int parameter_index) const override;;
 
@@ -214,9 +204,25 @@ public:
 
 	void calculateCoefficients(float timeInMilliSeconds, float base, float maximum, float &stateBase, float &stateCoeff) const;
 
+	struct StateInfo
+	{
+		bool operator ==(const StateInfo& other) const
+		{
+			return other.state == state;
+		};
+
+		AhdsrEnvelopeState::EnvelopeState state = AhdsrEnvelopeState::IDLE;
+		double changeTime = 0.0;
+	};
+
+	StateInfo getStateInfo() const
+	{
+		return stateInfo;
+	};
+
 private:
 
-	int downsampleFactor = 1;
+	StateInfo stateInfo;
 
 	float getSampleRateForCurrentMode() const;
 
@@ -230,7 +236,7 @@ private:
 
 	float calcCoef(float rate, float targetRatio) const;
 
-	float calculateNewValue ();
+	float calculateNewValue(int voiceIndex);
 	
 	void setAttackCurve(float newValue);
 	void setDecayCurve(float newValue);
@@ -260,18 +266,75 @@ private:
 	float releaseCoef;
 	float releaseBase;
 
-	bool ecoMode = false;
-
 	AhdsrEnvelopeState *state;
 
 	float release_delta;
 
-	OwnedArray<ModulatorChain> internalChains;
+	ModulatorChain::Collection internalChains;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AhdsrEnvelope)
 };
 
+class AhdsrGraph : public Component,
+				   public Timer
+{
+public:
 
+	enum ColourIds
+	{
+		bgColour,
+		fillColour,
+		lineColour,
+		outlineColour,
+		numColourIds
+	};
+
+	AhdsrGraph(Processor *p);
+
+	~AhdsrGraph();
+
+	void paint(Graphics &g);
+	void setUseFlatDesign(bool shouldUseFlatDesign);
+
+	void timerCallback() override;
+
+	void rebuildGraph();
+
+	class Panel : public PanelWithProcessorConnection
+	{
+	public:
+
+		SET_PANEL_NAME("AHDSRGraph");
+
+		Panel(FloatingTile* parent);
+
+		Identifier getProcessorTypeId() const override { return AhdsrEnvelope::getClassType(); }
+		Component* createContentComponent(int /*index*/) override;
+		void fillModuleList(StringArray& moduleList) override;
+	};
+
+private:
+
+	AhdsrEnvelope::StateInfo lastState;
+
+	bool flatDesign = false;
+
+	WeakReference<Processor> processor;
+
+	float attack = 0.0f;
+	float attackLevel = 0.0f;
+	float hold = 0.0f;
+	float decay = 0.0f;
+	float sustain = 0.f;
+	float release = 0.f;
+	float attackCurve = 0.f;
+
+	Path envelopePath;
+	Path attackPath;
+	Path holdPath;
+	Path decayPath;
+	Path releasePath;
+};
 
 } // namespace hise
 

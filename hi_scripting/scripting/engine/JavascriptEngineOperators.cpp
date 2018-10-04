@@ -107,7 +107,11 @@ struct HiseJavascriptEngine::RootObject::AdditionOp : public BinaryOperator
 	AdditionOp(const CodeLocation& l, ExpPtr& a, ExpPtr& b) noexcept : BinaryOperator(l, a, b, TokenTypes::plus) {}
 	var getWithDoubles(double a, double b) const override                 { return a + b; }
 	var getWithInts(int64 a, int64 b) const override                      { return a + b; }
-	var getWithStrings(const String& a, const String& b) const override   { return a + b; }
+	var getWithStrings(const String& a, const String& b) const override   
+	{ 
+		WARN_IF_AUDIO_THREAD(true, IllegalAudioThreadOps::StringCreation);
+		return a + b; 
+	}
 
 	var getWithArrayOrObject(const var &a, const var& b) const override
 	{
@@ -235,6 +239,10 @@ struct HiseJavascriptEngine::RootObject::ModuloOp : public BinaryOperator
 {
 	ModuloOp(const CodeLocation& l, ExpPtr& a, ExpPtr& b) noexcept : BinaryOperator(l, a, b, TokenTypes::modulo) {}
 	var getWithInts(int64 a, int64 b) const override   { return b != 0 ? var(a % b) : var(std::numeric_limits<double>::infinity()); }
+    var getWithDoubles(double a, double b) const override
+    {
+        return b != 0.0 ? var(roundDoubleToInt(a) % roundDoubleToInt(b)) : var(std::numeric_limits<double>::infinity());
+    }
 };
 
 struct HiseJavascriptEngine::RootObject::BitwiseOrOp : public BinaryOperator

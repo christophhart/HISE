@@ -154,7 +154,8 @@ void DspInstance::initialise()
 
 void DspInstance::processBlock(const var &data)
 {
-	if (!prepareToPlayWasCalled) throw String(moduleName + ": prepareToPlay must be called before processing buffers.");
+	if (!prepareToPlayWasCalled)
+        throw String(moduleName + ": prepareToPlay must be called before processing buffers.");
 
 	checkPriorityInversion();
 

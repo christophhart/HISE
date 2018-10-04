@@ -43,21 +43,48 @@ useTable(false)
 
 	Processor::Iterator<GlobalModulatorContainer> iter(chain, false);
 
-	GlobalModulatorContainer *c;
-
-	while ((c = iter.getNextProcessor()) != nullptr)
+	while (auto c = iter.getNextProcessor())
 	{
-		c->addChangeListenerToHandler(this);
+		c->gainChain->getHandler()->addListener(this);
+		watchedContainers.add(c);
 	}
-
 }
 
 GlobalModulator::~GlobalModulator()
 {
+	for (auto c : watchedContainers)
+	{
+		if (c != nullptr)
+		{
+			c->gainChain->getHandler()->removeListener(this);
+		}
+	}
+
 	table = nullptr;
 
 	
 
+	if (auto oltp = dynamic_cast<LookupTableProcessor*>(getOriginalModulator()))
+	{
+		
+
+		WeakReference<Processor> target = getOriginalModulator();
+
+		if (target->getMainController()->isBeingDeleted())
+			return;
+
+		auto f = [target]()
+		{
+			if (auto ltp = dynamic_cast<LookupTableProcessor*>(target.get()))
+			{
+				ltp->refreshYConvertersAfterRemoval();
+			}
+		};
+
+		new DelayedFunctionCaller(f, 300);
+	}
+
+	
 }
 
 Modulator * GlobalModulator::getOriginalModulator()
@@ -78,6 +105,12 @@ GlobalModulatorContainer * GlobalModulator::getConnectedContainer()
 const GlobalModulatorContainer * GlobalModulator::getConnectedContainer() const
 {
 	return dynamic_cast<const GlobalModulatorContainer*>(connectedContainer.get());
+}
+
+void GlobalModulator::processorChanged(EventType /*t*/, Processor* /*p*/)
+{
+	// Just send a regular update message to update the GUI
+	dynamic_cast<Processor*>(this)->sendChangeMessage();
 }
 
 StringArray GlobalModulator::getListOfAllModulatorsWithType()
@@ -144,8 +177,12 @@ void GlobalModulator::connectToGlobalModulator(const String &itemEntry)
 				connectedContainer = c;
 
 				originalModulator = ProcessorHelpers::getFirstProcessorWithName(c, modulatorId);
-			}
 
+				if (auto ltp = dynamic_cast<LookupTableProcessor*>(originalModulator.get()))
+				{
+					ltp->addYValueConverter(defaultYConverter, dynamic_cast<Processor*>(this));
+				}
+			}
 		}
 
 		jassert(isConnected());
@@ -180,26 +217,6 @@ void GlobalModulator::loadFromValueTree(const ValueTree &v)
 	connectToGlobalModulator(v.getProperty("Connection"));
 }
 
-void GlobalModulator::removeFromAllContainers()
-{
-	ModulatorSynthChain *chain = dynamic_cast<Processor*>(this)->getMainController()->getMainSynthChain();
-
-	if (chain != nullptr)
-	{
-		Processor::Iterator<GlobalModulatorContainer> iter(chain, false);
-
-		GlobalModulatorContainer *c;
-
-		while ((c = iter.getNextProcessor()) != nullptr)
-		{
-			c->removeChangeListenerFromHandler(this);
-		}
-
-	}
-
-	
-}
-
 GlobalVoiceStartModulator::GlobalVoiceStartModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m) :
 VoiceStartModulator(mc, id, numVoices, m),
 Modulation(m),
@@ -211,7 +228,7 @@ GlobalModulator(mc)
 
 GlobalVoiceStartModulator::~GlobalVoiceStartModulator()
 {
-	removeFromAllContainers();
+	
 }
 
 void GlobalVoiceStartModulator::restoreFromValueTree(const ValueTree &v)
@@ -295,7 +312,6 @@ GlobalStaticTimeVariantModulator::GlobalStaticTimeVariantModulator(MainControlle
 
 GlobalStaticTimeVariantModulator::~GlobalStaticTimeVariantModulator()
 {
-	removeFromAllContainers();
 }
 
 void GlobalStaticTimeVariantModulator::restoreFromValueTree(const ValueTree &v)

@@ -102,7 +102,7 @@ ValueSettingComponent::~ValueSettingComponent()
     //[/Destructor]
 }
 
-void ValueSettingComponent::setPropertyForAllSelectedSounds(ModulatorSamplerSound::Property p, int newValue)
+void ValueSettingComponent::setPropertyForAllSelectedSounds(const Identifier& p, int newValue)
 {
 	if (currentSelection.size() != 0)
 	{
@@ -116,7 +116,7 @@ void ValueSettingComponent::setPropertyForAllSelectedSounds(ModulatorSamplerSoun
 
 		const int clippedValue = jlimit(low, high, newValue);
 
-		currentSelection[i]->setPropertyWithUndo(p, clippedValue);
+		currentSelection[i]->setSampleProperty(p, clippedValue);
 
 
 	}
@@ -224,12 +224,14 @@ void ValueSettingComponent::buttonClicked (Button* buttonThatWasClicked)
 
 void ValueSettingComponent::mouseDown(const MouseEvent &e)
 {
+#if USE_BACKEND
     ProcessorEditor *editor = findParentComponentOfClass<ProcessorEditor>();
     
     if(editor != nullptr)
     {
         PresetHandler::setChanged(editor->getProcessor());
     }
+#endif
     
     if(currentSelection.size() != 0 && e.mods.isRightButtonDown())
     {
@@ -252,23 +254,12 @@ void ValueSettingComponent::mouseDown(const MouseEvent &e)
         
         if(currentSelection.size() != 0)
         {
-            if(isFileAccessingProperty())
-            {
-                for(int i = 0; i < currentSelection.size(); i++)
-                {
-                    currentSelection[i].get()->openFileHandle();
-                }
-            }
-            
-            
-            s->setValue(currentSelection[0]->getProperty(soundProperty), dontSendNotification);
-            
+            s->setValue(currentSelection[0]->getSampleProperty(soundProperty), dontSendNotification);
         }
         else
         {
             s->setEnabled(false);
         }
-        
         
         s->setSize (600, 32);
         
@@ -277,8 +268,6 @@ void ValueSettingComponent::mouseDown(const MouseEvent &e)
 		auto rootPos = root->getLocalArea(getParentComponent(), getBoundsInParent());
 
         CallOutBox::launchAsynchronously (s, rootPos, root);
-        
-        startTimer(500);
         
     }
     

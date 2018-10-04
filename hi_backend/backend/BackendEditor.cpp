@@ -36,13 +36,12 @@ namespace hise { using namespace juce;
 
 BackendProcessorEditor::BackendProcessorEditor(FloatingTile* parent) :
 FloatingTileContent(parent),
+PreloadListener(parent->getMainController()->getSampleManager()),
 owner(static_cast<BackendProcessor*>(parent->getMainController())),
 parentRootWindow(parent->getBackendRootWindow()),
 rootEditorIsMainSynthChain(true),
 isLoadingPreset(false)
 {
-	owner->getSampleManager().addPreloadListener(this);
-
     setOpaque(true);
 
 	setLookAndFeel(&lookAndFeelV3);
@@ -63,8 +62,6 @@ isLoadingPreset(false)
 
 BackendProcessorEditor::~BackendProcessorEditor()
 {
-	owner->getSampleManager().removePreloadListener(this);
-
 	owner->removeScriptListener(this);
 	
 	// Remove the popup components
@@ -117,16 +114,6 @@ void BackendProcessorEditor::setRootProcessor(Processor *p, int scrollY/*=0*/)
 	currentRootProcessor = p;
 	container->setRootProcessorEditor(p);
 	
-	Processor::Iterator<Processor> iter(owner->synthChain, false);
-
-	Processor *iterProcessor;
-
-	while ((iterProcessor = iter.getNextProcessor()) != nullptr)
-	{
-		if ((bool)iterProcessor->getEditorState("Solo"))
-			addProcessorToPanel(iterProcessor);
-	}
-
 	breadCrumbComponent->refreshBreadcrumbs();
 
 	if (scrollY != 0)
@@ -348,7 +335,7 @@ void BackendProcessorEditor::loadNewContainer(const File &f)
 		GET_PROJECT_HANDLER(getMainSynthChain()).setWorkingProject(f.getParentDirectory().getParentDirectory(), this);
 	}
 
-	owner->killAndCallOnLoadingThread([f](Processor* p) {p->getMainController()->loadPresetFromFile(f, nullptr); return true; });
+	owner->killAndCallOnLoadingThread([f](Processor* p) {p->getMainController()->loadPresetFromFile(f, nullptr); return SafeFunctionCall::OK; });
 }
 
 void BackendProcessorEditor::refreshInterfaceAfterPresetLoad()
@@ -375,7 +362,7 @@ void BackendProcessorEditor::loadNewContainer(const ValueTree &v)
 	}
 	else
 	{
-		owner->killAndCallOnLoadingThread([v](Processor* p) {p->getMainController()->loadPresetFromValueTree(v, nullptr); return true; });
+		owner->killAndCallOnLoadingThread([v](Processor* p) {p->getMainController()->loadPresetFromValueTree(v, nullptr); return SafeFunctionCall::OK; });
 	}
 
 	
@@ -392,7 +379,7 @@ void BackendProcessorEditor::clearPreset()
 	isLoadingPreset = true;
 	viewport->showPreloadMessage(true);
 
-	owner->killAndCallOnLoadingThread([](Processor* p) {p->getMainController()->clearPreset(); return true; });
+	owner->killAndCallOnLoadingThread([](Processor* p) {p->getMainController()->clearPreset(); return SafeFunctionCall::OK; });
 
 }
 
@@ -563,10 +550,10 @@ public:
 		sizeSelector->addListener(this);
 		sizeSelector->setTextWhenNothingSelected("Select Preset Size");
 
-		sizeSelector->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, Colour(0x66333333));
-		sizeSelector->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, Colour(0xfb111111));
-		sizeSelector->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::white.withAlpha(0.3f));
-		sizeSelector->setColour(MacroControlledObject::HiBackgroundColours::textColour, Colours::white);
+		sizeSelector->setColour(HiseColourScheme::WidgetFillTopColourId, Colour(0x66333333));
+		sizeSelector->setColour(HiseColourScheme::WidgetFillBottomColourId, Colour(0xfb111111));
+		sizeSelector->setColour(HiseColourScheme::WidgetOutlineColourId, Colours::white.withAlpha(0.3f));
+		sizeSelector->setColour(HiseColourScheme::WidgetTextColourId, Colours::white);
 
 		addAndMakeVisible(widthLabel = new Label("width"));
 		addAndMakeVisible(heightLabel = new Label("height"));
@@ -625,7 +612,7 @@ public:
 
 				String code = "Content.makeFrontInterface(" + String(getWidth()) + ", " + String(getHeight()) + ");";
 
-				jsp->getSnippet(0)->replaceAllContent(code);
+				jsp->getSnippet(0)->replaceContentAsync(code);
 				jsp->compileScript();
 
 				midiChain->getHandler()->add(s, nullptr);
@@ -652,8 +639,12 @@ public:
                 
                 editorOfParent->getChainBar()->refreshPanel();
                 editorOfParent->sendResizedMessage();
-                editorOfChain->changeListenerCallback(editorOfChain->getProcessor());
-                editorOfChain->childEditorAmountChanged();
+                
+                if(editorOfChain != nullptr)
+                {
+                    editorOfChain->changeListenerCallback(editorOfChain->getProcessor());
+                    editorOfChain->childEditorAmountChanged();
+                }
 			}
 		}
 

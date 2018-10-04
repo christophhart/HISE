@@ -64,6 +64,14 @@ Component * MidiKeyboardFocusTraverser::getDefaultComponent(Component *parentCom
 
 CustomKeyboardLookAndFeel::CustomKeyboardLookAndFeel()
 {
+	topLineColour = Colours::darkred;
+	bgColour = Colour(BACKEND_BG_COLOUR_BRIGHT);
+	overlayColour = Colours::red.withAlpha(0.12f);
+
+#if HISE_IOS
+	useVectorGraphics = true;
+#endif
+
 	cachedImage_black_key_off_png = ImageCache::getFromMemory(black_key_off_png, black_key_off_pngSize);
 	cachedImage_black_key_on_png = ImageCache::getFromMemory(black_key_on_png, black_key_on_pngSize);
 	cachedImage_white_key_off_png = ImageCache::getFromMemory(white_key_off_png, white_key_off_pngSize);
@@ -73,8 +81,7 @@ CustomKeyboardLookAndFeel::CustomKeyboardLookAndFeel()
 
 void CustomKeyboardLookAndFeel::drawKeyboardBackground(Graphics &g, int width, int height)
 {
-	g.setColour(Colours::darkred);
-	g.drawLine(0.0f, 0.0f, (float)width, 0.0f, 3.0f);
+	
 
 	g.setGradientFill(ColourGradient(Colour(0x7d000000),
 		0.0f, 80.0f,
@@ -91,16 +98,193 @@ void CustomKeyboardLookAndFeel::drawKeyboardBackground(Graphics &g, int width, i
 	g.fillRect(width - 16, 0, 16, height);
 }
 
+
+void CustomKeyboardLookAndFeel::drawWhiteNote(CustomKeyboardState* state, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &/*lineColour*/, const Colour &/*textColour*/)
+{
+	if (useVectorGraphics)
+	{
+		float cornerSize = (float)w * 0.1f;
+		g.setColour(Colours::black);
+		//g.fillRect(x, y, w, h);
+
+		if (!isDown)
+			h -= (h/20);
+
+		Colour bc = isDown ? JUCE_LIVE_CONSTANT_OFF(Colour(0xFFAAAAAA)) : Colour(0xFFCCCCCC);
+
+		g.setGradientFill(ColourGradient(Colour(0xFFEEEEEE), 0.0f, 0.0f,
+			bc, 0.0f, (float)(y + h), false));
+
+		g.fillRoundedRectangle((float)x + 1.f, (float)y - cornerSize, (float)w - 2.f, (float)h + cornerSize, cornerSize);
+
+		if (isOver)
+		{
+			g.setColour(overlayColour);
+			g.fillRoundedRectangle((float)x + 1.f, (float)y - cornerSize, (float)w - 2.f, (float)h + cornerSize, cornerSize);
+		}
+
+		g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.2f), 0.0f, 0.0f,
+			Colours::transparentBlack, 0.0f, 8.0f, false));
+
+		g.fillRect(x, y, w, 8);
+
+		g.setColour(Colour(BACKEND_BG_COLOUR_BRIGHT));
+		g.drawLine(x, y, x + w, y, 2);
+
+		if (state->isColourDefinedForKey(midiNoteNumber))
+		{
+			g.setColour(state->getColourForSingleKey(midiNoteNumber));
+			g.fillRoundedRectangle((float)x + 1.f, (float)y - cornerSize, (float)w - 2.f, (float)h + cornerSize, cornerSize);
+		}
+
+	}
+	else
+	{
+		const int off = midiNoteNumber % 12;
+
+		g.setOpacity(1.0f);
+		if (!isDown)
+		{
+			g.drawImage(cachedImage_white_key_on_png,
+				x, y, w, h,
+				0, 0, cachedImage_white_key_on_png.getWidth(), cachedImage_white_key_on_png.getHeight());
+
+			g.setColour(Colours::grey.withAlpha(0.2f));
+			g.fillRect(x, y, w, h);
+
+		}
+		else
+		{
+			g.drawImage(cachedImage_white_key_off_png,
+				x, y, w, h,
+				0, 0, cachedImage_white_key_off_png.getWidth(), cachedImage_white_key_on_png.getHeight());
+		}
+
+		if (off == 0)
+		{
+			g.setColour(Colours::black.withAlpha(0.5f));
+			g.setFont(GLOBAL_MONOSPACE_FONT().withHeight(9.0f));
+			g.drawText(MidiMessage::getMidiNoteName(midiNoteNumber, false, true, 3), x, y, w, h - 3, Justification::centredBottom, true);
+		}
+
+		if (isOver)
+		{
+			g.setColour(findColour(MidiKeyboardComponent::ColourIds::mouseOverKeyOverlayColourId));
+			g.fillRect(x, y, w, h);
+		}
+
+		if (state->isColourDefinedForKey(midiNoteNumber))
+		{
+			g.setColour(state->getColourForSingleKey(midiNoteNumber));
+			g.fillRect(x, y, w, h);
+		}
+	}
+}
+
+void CustomKeyboardLookAndFeel::drawBlackNote(CustomKeyboardState* state, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &noteFillColour)
+{
+
+	if (useVectorGraphics)
+	{
+		float cornerSize = (float)w * 0.1f;
+		Rectangle<float> keyArea((float)x, (float)y - cornerSize, (float)w, (float)(h - cornerSize)*0.9f);
+		float xOffset = JUCE_LIVE_CONSTANT_OFF(0.22f) * (float)w;
+		float shadowHeight = isDown ? 0.05f : 0.18f * (float)h;
+
+		Colour c1 = JUCE_LIVE_CONSTANT_OFF(Colour(0xFF333333));
+
+		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF333333)));
+		g.fillRoundedRectangle(keyArea, cornerSize);
+
+		Colour c2 = JUCE_LIVE_CONSTANT_OFF(Colour(0xff505050));
+		
+		g.setGradientFill(ColourGradient(c1, 0.0f, 0.0f,
+			isDown ? c1 : c2, 0.0f, (float)h, false));
+
+		g.fillRect(keyArea.reduced(xOffset, shadowHeight));
+
+		if (isOver)
+		{
+			g.setColour(overlayColour);
+			g.fillRoundedRectangle(keyArea, cornerSize);
+		}
+
+		Path p;
+
+		p.startNewSubPath(keyArea.getBottomLeft());
+		p.lineTo((float)x + xOffset, keyArea.getBottom() - shadowHeight);
+		p.lineTo(keyArea.getRight() - xOffset, keyArea.getBottom() - shadowHeight);
+		p.lineTo(keyArea.getBottomRight());
+		p.closeSubPath();
+		
+		g.setGradientFill(ColourGradient(JUCE_LIVE_CONSTANT_OFF(Colour(0x36ffffff)), 0.0f, p.getBounds().getY(),
+										 Colours::transparentWhite, 0.0f, keyArea.getBottom(), false));
+
+		g.fillPath(p);
+
+		g.setColour(Colour(BACKEND_BG_COLOUR_BRIGHT));
+		//g.drawRoundedRectangle(keyArea, cornerSize, 1.0f);
+
+		if (state->isColourDefinedForKey(midiNoteNumber))
+		{
+			g.setColour(state->getColourForSingleKey(midiNoteNumber));
+			g.fillRoundedRectangle(keyArea, cornerSize);
+		}
+	}
+	else
+	{
+		ignoreUnused(noteFillColour);
+
+		const int offset[12] = { 0, 2, 0, 0, 0, 0, 4, 0, 2, 0, -1, 0 };
+
+		const int off = midiNoteNumber % 12;
+
+
+		g.setOpacity(1.0f);
+		if (!isDown)
+		{
+
+			g.drawImage(cachedImage_black_key_on_png,
+				x + offset[off], y, w, h - 4,
+				0, 0, cachedImage_black_key_on_png.getWidth(), cachedImage_black_key_on_png.getHeight());
+
+
+		}
+		else
+		{
+
+			g.drawImage(cachedImage_black_key_off_png,
+				x + offset[off], y, w, h - 4,
+				0, 0, cachedImage_black_key_off_png.getWidth(), cachedImage_black_key_off_png.getHeight());
+
+		}
+
+		if (isOver)
+		{
+			g.setColour(Colours::red.withAlpha(0.1f));
+			g.fillRect(x + offset[off], y, w - 2, h - 4);
+		}
+
+		if (state->isColourDefinedForKey(midiNoteNumber))
+		{
+			g.setColour(state->getColourForSingleKey(midiNoteNumber));
+			g.fillRect(x + offset[off], y, w - 2, h - 4);
+		}
+	}
+}
+
 //==============================================================================
 CustomKeyboard::CustomKeyboard(MainController* mc_) :
 	MidiKeyboardComponent(mc_->getKeyboardState(), Orientation::horizontalKeyboard),
 	state(&mc_->getKeyboardState()),
 	mc(mc_),
     narrowKeys(true),
-    lowKey(36)
+    lowKey(12)
 {
 	state->addChangeListener(this);
    
+	setColour(whiteNoteColourId, Colours::black);
+
 	setLookAndFeel(&laf);
 
     setOpaque(true);
@@ -177,20 +361,26 @@ void CustomKeyboard::setUseCustomGraphics(bool shouldUseCustomGraphics)
 	if (!useCustomGraphics)
 		return;
 
+	auto& handler = mc->getExpansionHandler();
+
 	for (int i = 0; i < 12; i++)
 	{
-		upImages[i] = ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}keyboard/up_" + String(i) + ".png");
+		PoolReference upRef(mc, "{PROJECT_FOLDER}keyboard/up_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
 
-		if (upImages[i].isNull())
+		upImages.set(i, handler.loadImageReference(upRef, PoolHelpers::LoadAndCacheStrong));
+
+		if (!upImages[i])
 		{
 			jassertfalse;
 			useCustomGraphics = false;
 			break;
 		}
 
-		downImages[i] = ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png");
+		PoolReference downRef(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
 
-		if (downImages[i].isNull())
+		downImages.set(i, handler.loadImageReference(downRef, PoolHelpers::LoadAndCacheStrong));
+
+		if (!downImages[i])
 		{
 			jassertfalse;
 			useCustomGraphics = false;
@@ -211,11 +401,15 @@ void CustomKeyboard::drawWhiteNote(int midiNoteNumber, Graphics &g, int x, int y
         
 		const int index = midiNoteNumber % 12;
 
-		Image keyImage = isDown ? downImages[index] : upImages[index];
+		if (auto keyImage = isDown ? downImages[index].getData() : upImages[index].getData())
+		{
+			g.drawImage(*keyImage,
+				x, y, w, h,
+				0, 0, keyImage->getWidth(), keyImage->getHeight());
+		}
 
-		g.drawImage(keyImage,
-			x, y, w, h,
-			0, 0, keyImage.getWidth(), keyImage.getHeight());
+
+		
 
 	}
 	else
@@ -243,11 +437,14 @@ void CustomKeyboard::drawBlackNote(int midiNoteNumber, Graphics &g, int x, int y
         
 		const int index = midiNoteNumber % 12;
 
-		Image keyImage = isDown ? downImages[index] : upImages[index];
+		if (auto keyImage = isDown ? downImages[index].getData() : upImages[index].getData())
+		{
+			g.drawImage(*keyImage,
+				x, y, w, h,
+				0, 0, keyImage->getWidth(), keyImage->getHeight());
+		}
 
-		g.drawImage(keyImage,
-			x, y, w, h,
-			0, 0, keyImage.getWidth(), keyImage.getHeight());
+		
 	}
 	else
 	{
@@ -255,145 +452,6 @@ void CustomKeyboard::drawBlackNote(int midiNoteNumber, Graphics &g, int x, int y
 	}
 }
 
-void CustomKeyboardLookAndFeel::drawWhiteNote(CustomKeyboardState* state, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &lineColour, const Colour &/*textColour*/)
-{
-#if HISE_IOS
-
-	g.setColour(Colour(BACKEND_BG_COLOUR_BRIGHT));
-	g.fillRect(x, y, w, h);
-
-	g.setGradientFill(ColourGradient(Colour(0xFFEEEEEE), 0.0f, 0.0f,
-									 Colour(0xFFCCCCCC), 0.0f, (float)(y+h), false));
-
-	g.fillRoundedRectangle((float)x+1.f,(float)y-5.0f,(float)w-2.f,(float)h+5.0f, 5.0f);
-
-	if (isDown)
-	{
-		g.setColour(Colours::red.withAlpha(0.1f));
-		g.fillRoundedRectangle((float)x + 1.f, (float)y - 5.0f, (float)w - 2.f, (float)h + 5.0f, 5.0f);
-	}
-
-
-	g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.2f), 0.0f, 0.0f,
-								   	 Colours::transparentBlack, 0.0f, 8.0f, false));
-
-	g.fillRect(x, y, w, 8);
-
-	g.setColour(Colour(BACKEND_BG_COLOUR_BRIGHT));
-	g.drawLine(x, y, x + w, y, 2);
-
-
-#else
-
-    ignoreUnused(lineColour);
-    
-	const int off = midiNoteNumber % 12;
-
-	g.setOpacity(1.0f);
-	if(!isDown)
-	{
-		g.drawImage (cachedImage_white_key_on_png,
-                 x, y, w, h,
-                 0, 0, cachedImage_white_key_on_png.getWidth(), cachedImage_white_key_on_png.getHeight());
-
-		g.setColour(Colours::grey.withAlpha(0.2f));
-		g.fillRect(x,y,w, h);
-
-	}
-	else
-	{
-		g.drawImage (cachedImage_white_key_off_png,
-                 x, y, w, h,
-                 0, 0, cachedImage_white_key_off_png.getWidth(), cachedImage_white_key_on_png.getHeight());
-	}
-
-	if(off == 0)
-	{
-		g.setColour(Colours::black.withAlpha(0.5f));
-		g.setFont(GLOBAL_MONOSPACE_FONT().withHeight(9.0f));
-		g.drawText(MidiMessage::getMidiNoteName(midiNoteNumber, false, true, 3), x, y, w, h-3, Justification::centredBottom, true);
-
-	}
-
-	if(isOver)
-	{
-		g.setColour(Colours::red.withAlpha(0.2f));
-		g.fillRect(x,y,w, h);
-	}
-
-	if(state->isColourDefinedForKey(midiNoteNumber))
-	{
-		g.setColour(state->getColourForSingleKey(midiNoteNumber));
-		g.fillRect(x,y,w,h);
-	}
-
-#endif
-}
-
-void CustomKeyboardLookAndFeel::drawBlackNote(CustomKeyboardState* state, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &noteFillColour)
-{
-	
-#if HISE_IOS
-
-	g.setGradientFill(ColourGradient(Colour(0xFF444444), 0.0f, 0.0f,
-									 Colour(0xFF222222), 0.0f, (float)h, false));
-
-	Rectangle<float> keyArea((float)x, (float)y-5.0f, (float)w, (float)(h - 5.0f)*0.9f);
-
-	g.fillRoundedRectangle(keyArea, 5.0f);
-
-	if (isDown)
-	{
-		g.setColour(Colours::red.withAlpha(0.1f));
-		g.fillRoundedRectangle(keyArea, 5.0f);
-	}
-
-	g.setColour(Colour(BACKEND_BG_COLOUR_BRIGHT));
-
-	g.drawRoundedRectangle(keyArea, 5.0f, 2.0f);
-
-#else
-
-    ignoreUnused(noteFillColour);
-    
-	const int offset[12] = {0, 2, 0, 0, 0, 0, 4, 0, 2, 0, -1, 0};
-
-	const int off = midiNoteNumber % 12;
-
-	
-	g.setOpacity(1.0f);
-	if(!isDown)
-	{
-		
-		g.drawImage (cachedImage_black_key_on_png,
-                 x+ offset[off], y, w, h-4,
-                 0, 0, cachedImage_black_key_on_png.getWidth(), cachedImage_black_key_on_png.getHeight());
-		
-
-	}
-	else
-	{
-		
-		g.drawImage (cachedImage_black_key_off_png,
-                 x+ offset[off], y, w, h-4,
-                 0, 0, cachedImage_black_key_off_png.getWidth(), cachedImage_black_key_off_png.getHeight());
-
-	}
-
-	if(isOver)
-	{
-		g.setColour(Colours::red.withAlpha(0.1f));
-		g.fillRect(x + offset[off],y,w - 2, h-4);
-	}
-
-	if(state->isColourDefinedForKey(midiNoteNumber))
-	{
-		g.setColour(state->getColourForSingleKey(midiNoteNumber));
-		g.fillRect(x + offset[off],y,w - 2, h-4);
-	}
-
-#endif
-}
 
 
 // JUCER_RESOURCE: black_key_off_png, 1340, "C:/Users/Chrisboy/Documents/black_key_off.png"

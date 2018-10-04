@@ -365,8 +365,15 @@ struct HlacMonolithInfo : public ReferenceCountedObject
 {
 public:
 
+	bool operator ==(const Identifier& sampleMapId) const
+	{
+		return sampleMapId == id;
+	}
+
 	HlacMonolithInfo(const Array<File>& monolithicFiles_)
 	{
+		id = monolithicFiles_.getFirst().getFileNameWithoutExtension().replaceCharacter('_', '/');
+
 		monolithicFiles.reserve(monolithicFiles_.size());
 
 
@@ -399,7 +406,7 @@ public:
 
 	int64 getMonolithLength(int sampleIndex) const
 	{
-		return jmax<int64>(0, multiChannelSampleInformation[0][sampleIndex].length);
+		return (int64)jmax<int>(0, (int)multiChannelSampleInformation[0][sampleIndex].length);
 	}
 
 	double getMonolithSampleRate(int sampleIndex) const
@@ -508,6 +515,8 @@ private:
 		}
 
 	};
+
+	Identifier id;
 
 	hlac::HiseLosslessAudioFormat hlaf;
 

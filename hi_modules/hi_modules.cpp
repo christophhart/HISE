@@ -51,6 +51,8 @@ namespace wdl
 #include "modulators/mods/CCEnvelope.cpp"
 #include "modulators/mods/CCDucker.cpp"
 #include "modulators/mods/GainMatcher.cpp"
+#include "modulators/mods/MPEModulators.cpp"
+#include "modulators/mods/MPEComponents.cpp"
 
 #if USE_BACKEND
 
@@ -72,6 +74,7 @@ namespace wdl
 #include "modulators/editors/ArrayModulatorEditor.cpp"
 #include "modulators/editors/GlobalModulatorEditor.cpp"
 #include "modulators/editors/GainMatcherEditor.cpp"
+#include "modulators/editors/MPEModulatorEditors.cpp"
 
 #endif
 
@@ -102,6 +105,8 @@ namespace wdl
 #include "effects/MdaEffectWrapper.cpp"
 
 #include "effects/fx/RouteFX.cpp"
+#include "effects/fx/FilterTypes.cpp"
+#include "effects/fx/FilterHelpers.cpp"
 #include "effects/fx/Filters.cpp"
 #include "effects/fx/HarmonicFilter.cpp"
 #include "effects/fx/CurveEq.cpp"

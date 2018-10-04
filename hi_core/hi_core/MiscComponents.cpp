@@ -34,7 +34,6 @@ namespace hise { using namespace juce;
 
 MouseCallbackComponent::MouseCallbackComponent() :
 callbackLevel(CallbackLevel::NoCallbacks),
-currentEvent(new DynamicObject()),
 callbackLevels(getCallbackLevels()),
 constrainer(new RectangleConstrainer())
 {
@@ -71,6 +70,7 @@ StringArray MouseCallbackComponent::getCallbackPropertyNames()
 	sa.add("drag");
 	sa.add("dragX");
 	sa.add("dragY");
+	sa.add("insideDrag");
 	sa.add("hover");
 	sa.add("result");
 	sa.add("itemText");
@@ -78,6 +78,7 @@ StringArray MouseCallbackComponent::getCallbackPropertyNames()
     sa.add("cmdDown");
     sa.add("altDown");
     sa.add("ctrlDown");
+	
 
 	return sa;
 }
@@ -453,7 +454,7 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
 {
 	if (callbackLevel == CallbackLevel::NoCallbacks) return;
 
-	DynamicObject::Ptr obj = currentEvent;
+	DynamicObject::Ptr e = new DynamicObject();
 
 	static const Identifier x("x");
 	static const Identifier y("y");
@@ -463,6 +464,7 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
 	static const Identifier drag("drag");
 	static const Identifier dragX("dragX");
 	static const Identifier dragY("dragY");
+	static const Identifier insideDrag("insideDrag");
 	static const Identifier hover("hover");
 	static const Identifier mouseDownX("mouseDownX");
 	static const Identifier mouseDownY("mouseDownY");
@@ -472,39 +474,39 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
     static const Identifier altDown("altDown");
     static const Identifier ctrlDown("ctrlDown");
     
-	currentEvent->clear();
-
 	if (callbackLevel >= CallbackLevel::ClicksOnly)
 	{
-		currentEvent->setProperty(clicked, action == Action::Clicked);
-        currentEvent->setProperty(doubleClick, action == Action::DoubleClicked);
-		currentEvent->setProperty(rightClick, (action == Action::Clicked && event.mods.isRightButtonDown()) ||
+		e->setProperty(clicked, action == Action::Clicked);
+        e->setProperty(doubleClick, action == Action::DoubleClicked);
+		e->setProperty(rightClick, (action == Action::Clicked && event.mods.isRightButtonDown()) ||
 											  (action == Action::MouseUp && event.mods.isRightButtonDown()));
-		currentEvent->setProperty(mouseUp, action == Action::MouseUp);
-		currentEvent->setProperty(mouseDownX, event.getMouseDownX());
-		currentEvent->setProperty(mouseDownY, event.getMouseDownY());
-		currentEvent->setProperty(x, event.getPosition().getX());
-		currentEvent->setProperty(y, event.getPosition().getY());
-        currentEvent->setProperty(shiftDown, event.mods.isShiftDown());
-        currentEvent->setProperty(cmdDown, event.mods.isCommandDown());
-        currentEvent->setProperty(altDown, event.mods.isAltDown());
-        currentEvent->setProperty(ctrlDown, event.mods.isCtrlDown());
-        
+		e->setProperty(mouseUp, action == Action::MouseUp);
+		e->setProperty(mouseDownX, event.getMouseDownX());
+		e->setProperty(mouseDownY, event.getMouseDownY());
+		e->setProperty(x, event.getPosition().getX());
+		e->setProperty(y, event.getPosition().getY());
+        e->setProperty(shiftDown, event.mods.isShiftDown());
+        e->setProperty(cmdDown, event.mods.isCommandDown());
+        e->setProperty(altDown, event.mods.isAltDown());
+        e->setProperty(ctrlDown, event.mods.isCtrlDown());
 	}
 
 	if (callbackLevel >= CallbackLevel::ClicksAndEnter)
 	{
-		currentEvent->setProperty(hover, state != Exited);
+		e->setProperty(hover, state != Exited);
 	}
 
 	if (callbackLevel >= CallbackLevel::Drag)
 	{
-		currentEvent->setProperty(drag, event.getDistanceFromDragStart() > 4);
-		currentEvent->setProperty(dragX, event.getDistanceFromDragStartX());
-		currentEvent->setProperty(dragY, event.getDistanceFromDragStartY());
+		const bool isIn = getLocalBounds().contains(event.position.toInt());
+
+		e->setProperty(insideDrag, isIn ? 1: 0);
+		e->setProperty(drag, event.getDistanceFromDragStart() > 4);
+		e->setProperty(dragX, event.getDistanceFromDragStartX());
+		e->setProperty(dragY, event.getDistanceFromDragStartY());
 	}
 
-	var clickInformation(obj);
+	var clickInformation(e);
 
 	sendToListeners(clickInformation);
 }
@@ -513,6 +515,8 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
 
 void MouseCallbackComponent::sendToListeners(var clickInformation)
 {
+	ScopedLock sl(listenerList.getLock());
+
 	for (int i = 0; i < listenerList.size(); i++)
 	{
 		if (listenerList[i].get() != nullptr)
@@ -522,14 +526,17 @@ void MouseCallbackComponent::sendToListeners(var clickInformation)
 	}
 }
 
-BorderPanel::BorderPanel() :
+BorderPanel::BorderPanel(DrawActions::Handler* handler_) :
 borderColour(Colours::black),
+drawHandler(handler_),
 c1(Colours::white),
 c2(Colours::white),
 borderRadius(0.0f),
 borderSize(1.0f)
 {
 	addAndMakeVisible(closeButton);
+	
+	drawHandler->addDrawActionListener(this);
 
 	closeButton.addListener(this);
 
@@ -582,6 +589,12 @@ borderSize(1.0f)
 		img, 1.0f, Colours::white.withAlpha(0.1f));
 }
 
+BorderPanel::~BorderPanel()
+{
+	if (drawHandler != nullptr)
+		drawHandler->removeDrawActionListener(this);
+}
+
 void BorderPanel::buttonClicked(Button* /*b*/)
 {
 	auto contentComponent = findParentComponentOfClass<ScriptContentComponent>();
@@ -599,22 +612,42 @@ void BorderPanel::buttonClicked(Button* /*b*/)
 
 void BorderPanel::changeListenerCallback(SafeChangeBroadcaster* b)
 {
-    image = dynamic_cast<ScriptingApi::Content::ScriptPanel::RepaintNotifier*>(b)->panel->getImage();
-    
-    if(isShowing())
-        repaint();
 }
 
 void BorderPanel::paint(Graphics &g)
 {
+	
+
+	
 	if (isUsingCustomImage)
 	{
         SET_IMAGE_RESAMPLING_QUALITY();
-        
-		g.setColour(Colours::black);
-		g.setOpacity(1.0f);
 		
-        g.drawImageWithin(image, 0, 0, getWidth() , getHeight(), RectanglePlacement::centred);
+		if (isOpaque())
+			g.fillAll(Colours::black);
+
+		DrawActions::Handler::Iterator it(drawHandler.get());
+
+		if (it.wantsCachedImage())
+		{
+			Image cachedImage = Image(Image::ARGB, getWidth(), getHeight(), true);
+			Graphics g2(cachedImage);
+
+			while (auto action = it.getNextAction())
+			{
+				action->setCachedImage(cachedImage);
+				action->perform(g2);
+			}
+
+			g.drawImageAt(cachedImage, 0, 0);
+		}
+		else
+		{
+			while (auto action = it.getNextAction())
+				action->perform(g);
+		}
+
+		
 	}
 	else
 	{

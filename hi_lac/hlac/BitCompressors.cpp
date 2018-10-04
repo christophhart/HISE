@@ -124,12 +124,14 @@ void unpackArrayOfInt16(int16* d, int /*numValues*/, uint8 bitDepth)
 {
 	jassert(reinterpret_cast<uint64>(d) % 16 == 0);
 
-#if HLAC_NO_SSE
+#if JUCE_IOS
 	for (int i = 0; i < 8; i++)
 	{
 		d[i] = decompressUInt16(d[i], bitDepth);
 	}
 #else
+
+	// SSE 2.0 needed -> Pentium 4
 
 	const int16 sub = (1 << (bitDepth - 1)) - 1;
 
@@ -539,7 +541,7 @@ bool BitCompressors::SixBit::compress(uint8* destination, const int16* data, int
 
 bool BitCompressors::SixBit::decompress(int16* destination, const uint8* data, int numValuesToDecompress)
 {
-#if HLAC_NO_SSE
+#if JUCE_IOS
 	while (numValuesToDecompress >= 8)
 	{
 		decompress6Bit(destination, data);
@@ -656,7 +658,6 @@ bool BitCompressors::SixBit::decompress(int16* destination, const uint8* data, i
 		numValuesToDecompress -= 64;
 	}
 
-
 	while (numValuesToDecompress >= 8)
 	{
 		decompress6Bit(destination, data);
@@ -665,10 +666,6 @@ bool BitCompressors::SixBit::decompress(int16* destination, const uint8* data, i
 		data += 6;
 		numValuesToDecompress -= 8;
 	}
-
-
-
-
 #endif
 
 	memcpy(destination, data, sizeof(int16) * numValuesToDecompress);

@@ -193,6 +193,7 @@ FileBrowser::FileBrowser(BackendRootWindow* rootWindow_) :
 
 	browserCommandManager = new ApplicationCommandManager(); // dynamic_cast<MainController*>(editor->getAudioProcessor())->getCommandManager();
 
+	rootWindow->getMainController()->getExpansionHandler().addListener(this);
 
 	browserToolbarFactory = new FileBrowserToolbarFactory(this);
 
@@ -249,6 +250,22 @@ FileBrowser::FileBrowser(BackendRootWindow* rootWindow_) :
 void FileBrowser::projectChanged(const File& newRootDirectory)
 {
 	goToDirectory(newRootDirectory, false);
+
+	browseUndoManager->clearUndoHistory();
+}
+
+void FileBrowser::expansionPackLoaded(Expansion* currentExpansion)
+{
+	if (currentExpansion == nullptr)
+	{
+		goToDirectory(GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).getWorkDirectory());
+	}
+	else
+	{
+		goToDirectory(currentExpansion->root, false);
+	}
+
+	
 
 	browseUndoManager->clearUndoHistory();
 }
@@ -441,6 +458,8 @@ void FileBrowser::previewFile(const File& f)
 FileBrowser::~FileBrowser()
 {
 	//GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).removeListener(this);
+
+	rootWindow->getMainController()->getExpansionHandler().removeListener(this);
 
     saveFavoriteFile();
     

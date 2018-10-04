@@ -78,12 +78,12 @@ private:
 */
 class FrontendProcessor: public PluginParameterAudioProcessor,
 						 public AudioProcessorDriver,
-						 public MainController,
-						 public FrontendDataHolder,
-						 public FrontendSampleManager
+						 public MainController
 {
 public:
-	FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, ValueTree *imageData_ = nullptr, ValueTree *impulseData = nullptr, ValueTree *externalScriptData = nullptr, ValueTree *userPresets = nullptr);
+	FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, MemoryInputStream *imageData_ = nullptr, MemoryInputStream *impulseData = nullptr, MemoryInputStream* sampleMapData = nullptr, ValueTree *externalScriptData = nullptr, ValueTree *userPresets = nullptr);
+
+	void createPreset(const ValueTree& synthData);
 
 	const String getName(void) const override;
 
@@ -91,37 +91,47 @@ public:
 
 	~FrontendProcessor()
 	{
+		storeAllSamplesFound(GET_PROJECT_HANDLER(getMainSynthChain()).areSamplesLoadedCorrectly());
+
+		getSampleManager().cancelAllJobs();
+
 		setEnabledMidiChannels(synthChain->getActiveChannelData()->exportData());
+
+		
+
+		deletePendingFlag = true;
 
 		clearPreset();
 
 		synthChain = nullptr;
 
-		storeAllSamplesFound(areSamplesLoadedCorrectly());
+		
 
 	};
 
 	bool shouldLoadSamplesAfterSetup() {
-		return areSamplesLoadedCorrectly() && keyFileCorrectlyLoaded;
+		return GET_PROJECT_HANDLER(getMainSynthChain()).areSamplesLoadedCorrectly() && keyFileCorrectlyLoaded;
 	}
 
 	void updateUnlockedSuspendStatus()
 	{
 
 	}
-
+    
+    void restorePool(InputStream* inputStream, FileHandlerBase::SubDirectories directory, const String& fileNameToLook);
+    
 	void prepareToPlay (double sampleRate, int samplesPerBlock);
 	void releaseResources() {};
 
 	void loadSamplesAfterRegistration()
     {
-#if USE_COPY_PROTECTION || USE_TURBO_ACTIVATE
+#if USE_COPY_PROTECTION
         keyFileCorrectlyLoaded = unlocker.isUnlocked();
 #else
         keyFileCorrectlyLoaded = true;
 #endif
         
-        loadSamplesAfterSetup();
+        GET_PROJECT_HANDLER(getMainSynthChain()).loadSamplesAfterSetup();
     }
 
 	void getStateInformation	(MemoryBlock &destData) override
@@ -184,28 +194,9 @@ public:
 		
 	};
 
-    void createSampleMapValueTreeFromPreset(ValueTree& treeToSearch)
-    {
-        static const Identifier sm("samplemap");
-        
-        for(int i = 0; i < treeToSearch.getNumChildren(); i++)
-        {
-            ValueTree child = treeToSearch.getChild(i);
-            
-            if(child.hasType(sm))
-            {
-                treeToSearch.removeChild(child, nullptr);
-                
-                sampleMaps.addChild(child, -1, nullptr);
-                
-                i--;
-            }
-            else
-            {
-                createSampleMapValueTreeFromPreset(child);
-            }
-        }
-    };
+	void incActiveEditors();
+
+	void decActiveEditors();
     
 	void handleControllersForMacroKnobs(const MidiBuffer &midiMessages);
  
@@ -238,30 +229,14 @@ public:
 		//return currentlyLoadedProgram;
 	}
 
-	File getSampleLocation() const override { return ProjectHandler::Frontend::getSampleLocationForCompiledPlugin(); }
-
 	void setCurrentProgram(int index) override;
 	
 #if USE_COPY_PROTECTION
 	Unlocker unlocker;
 #endif
 
-#if USE_TURBO_ACTIVATE
-	TurboActivateUnlocker unlocker;
-#endif
-
-	const ValueTree getValueTree(ProjectHandler::SubDirectories type) const override
-	{
-		if (type == ProjectHandler::SubDirectories::SampleMaps) return sampleMaps;
-		else if (type == ProjectHandler::SubDirectories::UserPresets) return presets;
-		else return ValueTree();
-	}
-
-
 private:
 
-	void loadImages(ValueTree *imageData);
-	
 	friend class FrontendProcessorEditor;
 	friend class DefaultFrontendBar;
 
@@ -271,23 +246,21 @@ private:
 
 	int numParameters;
 
-	const ValueTree presets;
-
-	ValueTree sampleMaps;
-
+	
 	AudioPlayHead::CurrentPositionInfo lastPosInfo;
 
 	friend class FrontendProcessorEditor;
 
 	ScopedPointer<ModulatorSynthChain> synthChain;
 
-	ScopedPointer<AudioSampleBufferPool> audioSampleBufferPool;
-
 	int currentlyLoadedProgram;
 	
 	int unlockCounter;
 
+	int numActiveEditors = 0;
+
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FrontendProcessor)	
+
 };
 
 
@@ -303,7 +276,14 @@ public:
 
 
 	void initialise(const String& /*commandLine*/) override { mainWindow = new MainWindow(getApplicationName()); }
-	void shutdown() override { mainWindow = nullptr; }
+	void shutdown() override 
+	{
+#if JUCE_WINDOWS
+		mainWindow->closeButtonPressed();
+#else
+		mainWindow = nullptr;
+#endif
+	}
 	void systemRequestedQuit() override { quit(); }
 
 	void anotherInstanceStarted(const String& /*commandLine*/) override {}
@@ -328,6 +308,11 @@ public:
             g.fillAll(Colours::black);
         }
     
+		void requestQuit()
+		{
+			standaloneProcessor->requestQuit();
+		}
+
 		~AudioWrapper();
 
 		void resized()
@@ -360,21 +345,17 @@ public:
 
 		~MainWindow()
         {
-			
-
-            audioWrapper = nullptr;
         }
 
 		void closeButtonPressed() override
 		{
-			JUCEApplication::getInstance()->systemRequestedQuit();
+			auto audioWrapper = dynamic_cast<AudioWrapper*>(getContentComponent());
+
+			audioWrapper->requestQuit();
 		}
 
 	private:
 
-		
-        
-		ScopedPointer<AudioWrapper> audioWrapper;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainWindow)
 	};

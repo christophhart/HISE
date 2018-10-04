@@ -59,52 +59,28 @@ public:
 		gainSlider->updateValue();
 		qSlider->updateValue();
 
-		MonoFilterEffect::FilterMode m = (MonoFilterEffect::FilterMode)(int)(getProcessor()->getAttribute(MonoFilterEffect::Mode));
+		FilterBank::FilterMode m = (FilterBank::FilterMode)(int)(getProcessor()->getAttribute(MonoFilterEffect::Mode));
 
 		switch (m)
 		{
-		case MonoFilterEffect::OnePoleHighPass:	qSlider->setEnabled(false); gainSlider->setEnabled(false); break;
-		case MonoFilterEffect::OnePoleLowPass:	qSlider->setEnabled(false); gainSlider->setEnabled(false); break;
-		case MonoFilterEffect::LowPass:			qSlider->setEnabled(false); gainSlider->setEnabled(false); break;
-		case MonoFilterEffect::HighPass:		qSlider->setEnabled(false); gainSlider->setEnabled(false); break;
-		case MonoFilterEffect::LowShelf:		qSlider->setEnabled(true); gainSlider->setEnabled(true); break;
-		case MonoFilterEffect::HighShelf:		qSlider->setEnabled(true); gainSlider->setEnabled(true); break;
-		case MonoFilterEffect::Peak:			qSlider->setEnabled(true); gainSlider->setEnabled(true); break;
-		case MonoFilterEffect::ResoLow:			qSlider->setEnabled(true); gainSlider->setEnabled(false); break;
-		case MonoFilterEffect::StateVariableLP: qSlider->setEnabled(true); gainSlider->setEnabled(false); break;
-		case MonoFilterEffect::StateVariableHP: qSlider->setEnabled(true); gainSlider->setEnabled(false); break;
-		case MonoFilterEffect::MoogLP:			qSlider->setEnabled(true); gainSlider->setEnabled(false); break;
+		case FilterBank::OnePoleHighPass:	qSlider->setEnabled(false); gainSlider->setEnabled(false); break;
+		case FilterBank::OnePoleLowPass:	qSlider->setEnabled(false); gainSlider->setEnabled(false); break;
+		case FilterBank::LowPass:			qSlider->setEnabled(false); gainSlider->setEnabled(false); break;
+		case FilterBank::HighPass:		qSlider->setEnabled(false); gainSlider->setEnabled(false); break;
+		case FilterBank::LowShelf:		qSlider->setEnabled(true); gainSlider->setEnabled(true); break;
+		case FilterBank::HighShelf:		qSlider->setEnabled(true); gainSlider->setEnabled(true); break;
+		case FilterBank::Peak:			qSlider->setEnabled(true); gainSlider->setEnabled(true); break;
+		case FilterBank::ResoLow:			qSlider->setEnabled(true); gainSlider->setEnabled(false); break;
+		case FilterBank::StateVariableLP: qSlider->setEnabled(true); gainSlider->setEnabled(false); break;
+		case FilterBank::StateVariableHP: qSlider->setEnabled(true); gainSlider->setEnabled(false); break;
+		case FilterBank::MoogLP:			qSlider->setEnabled(true); gainSlider->setEnabled(false); break;
 		default:								break;
 		}
 	};
 
-	void timerCallback() override
-	{
-		IIRCoefficients c = dynamic_cast<FilterEffect*>(getProcessor())->getCurrentCoefficients();
+	void timerCallback() override;
 
-#if 0
-		for(int i = 0; i < 5; i++)
-		{
-
-			if(c.coefficients[i] == 0.0) // Replace with safe check function!
-			{
-				
-				return;
-			}
-		}
-#endif
-
-		if(!sameCoefficients(c, currentCoefficients))
-		{
-			currentCoefficients = c;
-
-			filterGraph->setCoefficients(0, getProcessor()->getSampleRate(), dynamic_cast<FilterEffect*>(getProcessor())->getCurrentCoefficients());
-		}
-
-		freqSlider->setDisplayValue(getProcessor()->getChildProcessor(MonoFilterEffect::FrequencyChain)->getOutputValue());
-		bipolarFreqSlider->setDisplayValue(getProcessor()->getChildProcessor(MonoFilterEffect::BipolarFrequencyChain)->getOutputValue());
-
-	}
+	void updateNameLabel(bool forceUpdate=false);
 
 	bool sameCoefficients(IIRCoefficients c1, IIRCoefficients c2)
 	{
@@ -136,6 +112,8 @@ private:
     //[UserVariables]   -- You can add your own custom variables in this section.
 
 	int h;
+
+	bool isPoly = true;
 
 	IIRCoefficients currentCoefficients;
 

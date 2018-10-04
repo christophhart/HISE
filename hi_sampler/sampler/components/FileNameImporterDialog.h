@@ -115,8 +115,10 @@ public:
 		{
 			SampleImporter::SamplerSoundBasicData data;
 
+			PoolReference ref(sampler->getMainController(), fileNames[i], FileHandlerBase::Samples);
+
 			data.index = startIndex + i;
-			data.fileNames.add(fileNames[i]);
+			data.files.add(ref);
 			collection.dataList.add(data);
 
 			StringArray currentTokens;

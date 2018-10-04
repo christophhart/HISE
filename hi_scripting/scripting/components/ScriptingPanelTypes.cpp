@@ -464,39 +464,11 @@ private:
 
 };
 
-namespace EditorIcons
-{
-	static const unsigned char compileIcon[] = { 110,109,0,0,22,67,15,2,192,67,108,0,0,27,67,54,88,195,67,98,0,0,27,67,54,88,195,67,110,3,35,67,195,174,188,67,0,0,37,67,232,171,188,67,98,0,0,37,67,232,171,188,67,110,99,39,67,232,171,188,67,0,0,42,67,232,171,188,67,98,183,253,39,67,232,171,188,67,0,
-		0,27,67,93,174,198,67,0,0,27,67,93,174,198,67,108,0,0,17,67,15,2,192,67,99,101,0,0 };
-
-	static const unsigned char cancelIcon[] = { 110,109,116,110,45,66,184,32,152,67,108,215,146,59,66,43,92,150,67,108,0,0,102,66,208,169,155,67,108,148,54,136,66,43,92,150,67,108,198,72,143,66,184,32,152,67,108,99,36,116,66,93,110,157,67,108,198,72,143,66,2,188,162,67,108,148,54,136,66,143,128,164,
-		67,108,0,0,102,66,233,50,159,67,108,215,146,59,66,142,128,164,67,108,116,110,45,66,2,188,162,67,108,157,219,87,66,93,110,157,67,99,101,0,0 };
-
-	static const unsigned char undoIcon[] = { 110,109,0,93,96,67,64,87,181,67,98,169,116,87,67,119,74,181,67,238,53,75,67,247,66,184,67,128,173,59,67,64,229,191,67,108,0,0,47,67,64,46,186,67,108,0,0,47,67,64,174,203,67,108,0,0,82,67,64,174,203,67,108,0,86,71,67,128,123,197,67,98,221,255,111,67,79,
-		174,178,67,128,164,101,67,210,215,207,67,128,228,102,67,64,179,210,67,98,201,215,119,67,101,133,198,67,205,117,117,67,136,117,181,67,0,93,96,67,64,87,181,67,99,101,0,0 };
-
-	static const unsigned char redoIcon[] = { 110,109,90,186,64,67,64,87,181,67,98,176,162,73,67,118,74,181,67,108,225,85,67,247,66,184,67,218,105,101,67,64,229,191,67,108,90,23,114,67,64,46,186,67,108,90,23,114,67,64,174,203,67,108,90,23,79,67,64,174,203,67,108,90,193,89,67,128,123,197,67,98,125,
-		23,49,67,79,174,178,67,218,114,59,67,211,215,207,67,218,50,58,67,64,179,210,67,98,145,63,41,67,101,133,198,67,141,161,43,67,136,117,181,67,90,186,64,67,64,87,181,67,99,101,0,0 };
-};
 
 
 
-juce::Path HiseShapeButton::Factory::createPath(const String& id) const
-{
-	if (id == "Edit")	return ColumnIcons::getPath(OverlayIcons::penShape, sizeof(OverlayIcons::penShape));
-	if (id == "EditOff")return ColumnIcons::getPath(OverlayIcons::lockShape, sizeof(OverlayIcons::lockShape));
-	if (id == "Cancel") return ColumnIcons::getPath(EditorIcons::cancelIcon, sizeof(EditorIcons::cancelIcon));
-	if (id == "Undo")	return ColumnIcons::getPath(EditorIcons::undoIcon, sizeof(EditorIcons::undoIcon));
-	if (id == "Redo")	return ColumnIcons::getPath(EditorIcons::redoIcon, sizeof(EditorIcons::redoIcon));
-	if (id == "Rebuild")return ColumnIcons::getPath(ColumnIcons::moveIcon, sizeof(ColumnIcons::moveIcon));
 
-	if (id == "Vertical Align") return ColumnIcons::getPath(ColumnIcons::verticalAlign, sizeof(ColumnIcons::verticalAlign));
-	if (id == "Horizontal Align") return ColumnIcons::getPath(ColumnIcons::horizontalAlign, sizeof(ColumnIcons::horizontalAlign));
-	if (id == "Vertical Distribute") return ColumnIcons::getPath(ColumnIcons::verticalDistribute, sizeof(ColumnIcons::verticalDistribute));
-	if (id == "Horizontal Distribute") return ColumnIcons::getPath(ColumnIcons::horizontalDistribute, sizeof(ColumnIcons::horizontalDistribute));
 
-	return Path();
-}
 
 MARKDOWN_CHAPTER(InterfaceDesignerHelp)
 START_MARKDOWN(Help)
@@ -561,19 +533,21 @@ ScriptContentPanel::Editor::Editor(Processor* p):
 	zoomSelector->setSelectedId(3, dontSendNotification);
 	zoomSelector->setLookAndFeel(&klaf);
 
-	zoomSelector->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, Colours::black.withAlpha(0.4f));
-	zoomSelector->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, Colours::black.withAlpha(0.4f));
-	zoomSelector->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::transparentBlack);
-	zoomSelector->setColour(MacroControlledObject::HiBackgroundColours::textColour, Colours::white.withAlpha(0.8f));
+	zoomSelector->setColour(HiseColourScheme::WidgetFillTopColourId, Colours::black.withAlpha(0.4f));
+	zoomSelector->setColour(HiseColourScheme::WidgetFillBottomColourId, Colours::black.withAlpha(0.4f));
+	zoomSelector->setColour(HiseColourScheme::WidgetOutlineColourId, Colours::transparentBlack);
+	zoomSelector->setColour(HiseColourScheme::WidgetTextColourId, Colours::white.withAlpha(0.8f));
 
-	addAndMakeVisible(editSelector = new HiseShapeButton("Edit", this, "EditOff"));
-	addAndMakeVisible(cancelButton = new HiseShapeButton("Cancel", this));
+	Factory f;
 
-	addAndMakeVisible(undoButton = new HiseShapeButton("Undo", this));
+	addAndMakeVisible(editSelector = new HiseShapeButton("Edit", this, f, "EditOff"));
+	addAndMakeVisible(cancelButton = new HiseShapeButton("Cancel", this, f));
+
+	addAndMakeVisible(undoButton = new HiseShapeButton("Undo", this, f));
 	undoButton->setTooltip("Undo last item change");
 
-	addAndMakeVisible(redoButton = new HiseShapeButton("Redo", this));
-	addAndMakeVisible(rebuildButton = new HiseShapeButton("Rebuild", this));
+	addAndMakeVisible(redoButton = new HiseShapeButton("Redo", this, f));
+	addAndMakeVisible(rebuildButton = new HiseShapeButton("Rebuild", this, f));
 
 	addAndMakeVisible(viewport = new Viewport());
 
@@ -587,19 +561,19 @@ ScriptContentPanel::Editor::Editor(Processor* p):
 	redoButton->setTooltip("Redo last item change");
 	rebuildButton->setTooltip("Rebuild Interface (F5)");
 
-	addAndMakeVisible(verticalAlignButton = new HiseShapeButton("Vertical Align", this));
+	addAndMakeVisible(verticalAlignButton = new HiseShapeButton("Vertical Align", this, f));
 	verticalAlignButton->setTooltip("Align the selection vertically on the left edge");
-	addAndMakeVisible(horizontalAlignButton = new HiseShapeButton("Horizontal Align", this));
+	addAndMakeVisible(horizontalAlignButton = new HiseShapeButton("Horizontal Align", this, f));
 	horizontalAlignButton->setTooltip("Align the selection horizontally on the top edge");
-	addAndMakeVisible(verticalDistributeButton = new HiseShapeButton("Vertical Distribute", this));
+	addAndMakeVisible(verticalDistributeButton = new HiseShapeButton("Vertical Distribute", this, f));
 	verticalDistributeButton->setTooltip("Distribute the selection vertically with equal space");
-	addAndMakeVisible(horizontalDistributeButton = new HiseShapeButton("Horizontal Distribute", this));
+	addAndMakeVisible(horizontalDistributeButton = new HiseShapeButton("Horizontal Distribute", this, f));
 	horizontalDistributeButton->setTooltip("Distribute the selection horizontally with equal space");
 
 	addAndMakeVisible(helpButton = new MarkdownHelpButton());
 	helpButton->setPopupWidth(600);
 	
-	helpButton->setHelpText<MarkdownParser::PathProvider<HiseShapeButton::Factory>>(InterfaceDesignerHelp::Help());
+	helpButton->setHelpText<MarkdownParser::PathProvider<Factory>>(InterfaceDesignerHelp::Help());
 
 	setWantsKeyboardFocus(true);
 
@@ -853,29 +827,43 @@ void ScriptContentPanel::Editor::Actions::rebuildAndRecompile(Editor* e)
     {
         ids.add(sc->getName());
     }
-    
-    content->resetContentProperties();
-    
-    auto f = [jp, content, ids, b]()
+
+    auto f = [ids, b](Processor* p)
     {
-        
-        
+		auto content = dynamic_cast<JavascriptProcessor*>(p)->getContent();
+
+		content->resetContentProperties();
+
+		auto jp = dynamic_cast<JavascriptProcessor*>(content->getProcessor());
+
         jp->compileScript();
         
-        for (auto id : ids)
-        {
-            auto sc = content->getComponentWithName(id);
-            
-            if (sc != nullptr)
-                b->addToSelection(sc, id == ids.getLast() ? sendNotification : dontSendNotification);
-        }
-        
-        content->setIsRebuilding(false);
+
+		auto f2 = [ids, b](Dispatchable* p)
+		{
+			auto content = dynamic_cast<JavascriptProcessor*>(p)->getContent();
+
+			for (auto id : ids)
+			{
+				auto sc = content->getComponentWithName(id);
+
+				if (sc != nullptr)
+					b->addToSelection(sc, id == ids.getLast() ? sendNotification : dontSendNotification);
+			}
+
+			content->setIsRebuilding(false);
+
+			return Dispatchable::Status::OK;
+		};
+
+		p->getMainController()->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(p, f2);
+
+		return SafeFunctionCall::OK;
     };
     
-    content->getUpdateDispatcher()->callFunctionAsynchronously(f);
-    
-    
+	auto p = e->getProcessor();
+
+	p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, MainController::KillStateHandler::ScriptingThread);
 }
 
 void ScriptContentPanel::Editor::Actions::zoomIn(Editor* e)
@@ -1034,26 +1022,21 @@ Component* ScriptWatchTablePanel::createContentComponent(int /*index*/)
 	return swt;
 }
 
-void ConnectorHelpers::tut(PanelWithProcessorConnection* connector, const Identifier &idToSearch)
+juce::Path ScriptContentPanel::Factory::createPath(const String& id) const
 {
-    auto parentContainer = connector->getParentShell()->getParentContainer();
-    
-	if (parentContainer != nullptr)
-	{
-		FloatingTile::Iterator<PanelWithProcessorConnection> iter(parentContainer->getParentShell());
+	if (id == "Edit")	return ColumnIcons::getPath(OverlayIcons::penShape, sizeof(OverlayIcons::penShape));
+	if (id == "EditOff")return ColumnIcons::getPath(OverlayIcons::lockShape, sizeof(OverlayIcons::lockShape));
+	if (id == "Cancel") return ColumnIcons::getPath(EditorIcons::cancelIcon, sizeof(EditorIcons::cancelIcon));
+	if (id == "Undo")	return ColumnIcons::getPath(EditorIcons::undoIcon, sizeof(EditorIcons::undoIcon));
+	if (id == "Redo")	return ColumnIcons::getPath(EditorIcons::redoIcon, sizeof(EditorIcons::redoIcon));
+	if (id == "Rebuild")return ColumnIcons::getPath(ColumnIcons::moveIcon, sizeof(ColumnIcons::moveIcon));
 
-		while (auto p = iter.getNextPanel())
-		{
-			if (p == connector)
-				continue;
+	if (id == "Vertical Align") return ColumnIcons::getPath(ColumnIcons::verticalAlign, sizeof(ColumnIcons::verticalAlign));
+	if (id == "Horizontal Align") return ColumnIcons::getPath(ColumnIcons::horizontalAlign, sizeof(ColumnIcons::horizontalAlign));
+	if (id == "Vertical Distribute") return ColumnIcons::getPath(ColumnIcons::verticalDistribute, sizeof(ColumnIcons::verticalDistribute));
+	if (id == "Horizontal Distribute") return ColumnIcons::getPath(ColumnIcons::horizontalDistribute, sizeof(ColumnIcons::horizontalDistribute));
 
-			if (p->getProcessorTypeId() != idToSearch)
-				continue;
-
-			p->setContentWithUndo(connector->getProcessor(), 0);
-		}
-	}
+	return Path();
 }
-
 
 } // namespace hise

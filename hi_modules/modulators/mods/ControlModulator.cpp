@@ -50,6 +50,8 @@ ControlModulator::ControlModulator(MainController *mc, const String &id, Modulat
 	
 	table->setLengthInSamples(512);
 	
+	table->setXTextConverter(Modulation::getDomainAsMidiRange);
+
 	for (int i = 0; i < 128; i++)
 	{
 		polyValues[i] = -1.0;
@@ -60,10 +62,13 @@ ControlModulator::ControlModulator(MainController *mc, const String &id, Modulat
 	parameterNames.add("ControllerNumber");
 	parameterNames.add("SmoothTime");
 	parameterNames.add("DefaultValue");
+
+	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().addListener(this);
 };
 
 ControlModulator::~ControlModulator()
 {
+	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().removeListener(this);
 };
 
 void ControlModulator::restoreFromValueTree(const ValueTree &v)
@@ -176,7 +181,7 @@ void ControlModulator::setInternalAttribute (int parameter_index, float newValue
 void ControlModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	TimeVariantModulator::prepareToPlay(sampleRate, samplesPerBlock);
-	smoother.prepareToPlay(getSampleRate());
+	smoother.prepareToPlay(getControlRate());
 
 	if (sampleRate != -1.0) setInternalAttribute(SmoothTime, smoothTime);
 }
@@ -188,15 +193,6 @@ void ControlModulator::calculateBlock(int startSample, int numSamples)
 
 	if (smoothThisBlock)
 	{
-		if (--numSamples >= 0)
-		{
-			currentValue = smoother.smooth(targetValue);
-
-			internalBuffer.setSample(0, startSample, currentValue);
-			++startSample;
-
-		}
-
 		while (--numSamples >= 0)
 		{
 			currentValue = smoother.smooth(targetValue);
@@ -215,8 +211,6 @@ void ControlModulator::calculateBlock(int startSample, int numSamples)
         lastInputValue = inputValue;
         sendTableIndexChangeMessage(false, table, inputValue);
     }
-
-	setOutputValue(currentValue);
 }
 
 float ControlModulator::calculateNewValue()
@@ -231,6 +225,9 @@ float ControlModulator::calculateNewValue()
 	/** sets the new target value if the controller number matches. */
 void ControlModulator::handleHiseEvent(const HiseEvent &m)
 {
+	if (mpeEnabled && m.getChannel() != 1)
+		return;
+
 	if (m.isNoteOff())
 	{
 		polyValues[m.getNoteNumber()] = -1.0f;

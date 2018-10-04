@@ -157,13 +157,15 @@ private:
 		auto v = jlimit<float>(0.0f, 511.0f, (input + 1.0f) * 256.0f);
 
 		const float i1 = floor(v);
-		const float i2 = jmin<float>((float)SAMPLE_LOOKUP_TABLE_SIZE - 1.0f, i1 + 1.0f);
 
 		const float delta = v - i1;
 
+		const int index1 = (int)i1 % SAMPLE_LOOKUP_TABLE_SIZE;
+		const int index2 = (index1+1) % SAMPLE_LOOKUP_TABLE_SIZE;
+
 		auto t = table->getReadPointer();
 
-		auto value = 2.0f * Interpolator::interpolateLinear(t[(int)i1], t[(int)i2], delta) - 1.0f;
+		auto value = 2.0f * Interpolator::interpolateLinear(t[index1], t[index2], delta) - 1.0f;
 
 		return value;
 	}
@@ -217,6 +219,7 @@ private:
 
 };
 
+#if HI_USE_SHAPE_FX_SCRIPTING
 class ShapeFX::ScriptShaper : public ShapeFX::ShaperBase
 {
 public:
@@ -272,6 +275,7 @@ private:
 		return value;
 	}
 };
+
 
 class ShapeFX::CachedScriptShaper : public ShapeFX::ShaperBase
 {
@@ -352,6 +356,7 @@ private:
 	SpinLock tableLock;
 	Result shapeResult;
 };
+#endif
 
 class ShapeFX::InternalSaturator : public ShapeFX::ShaperBase
 {
@@ -404,11 +409,14 @@ void ShapeFX::initShapers()
 	REGISTER_BASIC_SHAPE_FUNCTION(Square);
 	REGISTER_BASIC_SHAPE_FUNCTION(SquareRoot);
 	REGISTER_SHAPER_CLASS(Curve, TableShaper);
+
+#if HI_USE_SHAPE_FX_SCRIPTING
 	REGISTER_SHAPER_CLASS(CachedScript, CachedScriptShaper);
 	REGISTER_SHAPER_CLASS(Script, ScriptShaper);
 
 	static_cast<ScriptShaper*>(shapers[Script])->parent = this;
 	static_cast<CachedScriptShaper*>(shapers[CachedScript])->parent = this;
+#endif
 };
 
 void PolyshapeFX::initShapers()

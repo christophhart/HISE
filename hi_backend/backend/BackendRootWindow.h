@@ -41,7 +41,7 @@
 #define GET_ROOT_FLOATING_TILE(child) GET_BACKEND_ROOT_WINDOW(child)->getRootFloatingTile()
 
 // This is a simple counter that gets bumped everytime the layout is changed and shows a hint to reset the workspace
-#define BACKEND_UI_VERSION 4
+#define BACKEND_UI_VERSION 5
 
 namespace hise { using namespace juce;
 
@@ -52,7 +52,8 @@ class BackendRootWindow : public AudioProcessorEditor,
 						  public Timer,
 						  public ComponentWithKeyboard,
 						  public ModalBaseWindow,
-						  public ComponentWithBackendConnection
+						  public ComponentWithBackendConnection,
+						  public DragAndDropContainer
 {
 public:
 
@@ -102,7 +103,7 @@ public:
 
 	void resetInterface();
 
-	CustomKeyboard* getKeyboard() const override
+	Component* getKeyboard() const override
 	{
 		if (floatingRoot == nullptr)
 			return nullptr;

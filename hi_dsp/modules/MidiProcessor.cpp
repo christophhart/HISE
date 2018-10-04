@@ -33,7 +33,7 @@
 namespace hise { using namespace juce;
 
 MidiProcessor::MidiProcessor(MainController *mc, const String &id):
-		Processor(mc, id),
+		Processor(mc, id, 1),
 		processThisMessage(true),
 		ownerSynth(nullptr),
 		numThisTime(0)
@@ -92,20 +92,7 @@ ProcessorEditorBody *MidiProcessorChain::createEditor(ProcessorEditor *parentEdi
 
 void MidiProcessorChain::addArtificialEvent(const HiseEvent& m)
 {
-	const int timeStamp = (int)m.getTimeStamp();
-
-	//jassert(m.isArtificial());
-
-	const int thisBlockSize = dynamic_cast<AudioProcessor*>(getMainController())->getBlockSize();
-
-	if (timeStamp > thisBlockSize)
-	{
-		futureEventBuffer.addEvent(m);
-	}
-	else
-	{
-		artificialEvents.addEvent(m);
-	}
+	artificialEvents.addEvent(m);
 }
 
 void MidiProcessorChain::renderNextHiseEventBuffer(HiseEventBuffer &buffer, int numSamples)
@@ -120,21 +107,18 @@ void MidiProcessorChain::renderNextHiseEventBuffer(HiseEventBuffer &buffer, int 
 	if (buffer.isEmpty() && futureEventBuffer.isEmpty() && artificialEvents.isEmpty()) return;
 
 	HiseEventBuffer::Iterator it(buffer);
+	
 
 	while (HiseEvent* e = it.getNextEventPointer(true, false))
 	{
 		processHiseEvent(*e);
 	}
 
-	buffer.addEvents(artificialEvents);
-	artificialEvents.clear();
+	artificialEvents.moveEventsBelow(buffer, numSamples);
 
-
-	futureEventBuffer.subtractFromTimeStamps(numSamples);
-	futureEventBuffer.moveEventsBelow(buffer, numSamples);
-
-
-	buffer.moveEventsAbove(futureEventBuffer, numSamples);
+	artificialEvents.subtractFromTimeStamps(numSamples);
+	
+	buffer.moveEventsAbove(artificialEvents, numSamples);
 }
 
 MidiProcessorFactoryType::MidiProcessorFactoryType(Processor *p) :
@@ -240,26 +224,32 @@ bool MidiProcessorFactoryType::allowType(const Identifier &typeName) const
 
 void MidiProcessorChain::MidiProcessorChainHandler::add(Processor *newProcessor, Processor *siblingToInsertBefore)
 {
-	ScopedLock sl(chain->getMainController()->getLock());
+	{
+		MidiProcessor *m = dynamic_cast<MidiProcessor*>(newProcessor);
 
-	MidiProcessor *m = dynamic_cast<MidiProcessor*>(newProcessor);
+		jassert(m != nullptr);
 
-	jassert(m != nullptr);
+		const int index = siblingToInsertBefore == nullptr ? -1 : chain->processors.indexOf(dynamic_cast<MidiProcessor*>(siblingToInsertBefore));
 
-	const int index = siblingToInsertBefore == nullptr ? -1 : chain->processors.indexOf(dynamic_cast<MidiProcessor*>(siblingToInsertBefore));
+		newProcessor->prepareToPlay(chain->getSampleRate(), chain->getLargestBlockSize());
 
-    newProcessor->prepareToPlay(chain->getSampleRate(), chain->getBlockSize());
-    
-    newProcessor->setIsOnAir(true);
-    
-	chain->processors.insert(index, m);
+		
+		newProcessor->setParentProcessor(chain);
 
-	if (JavascriptMidiProcessor* sp = dynamic_cast<JavascriptMidiProcessor*>(newProcessor))
-	{	
-		sp->compileScript();
+		{
+			LOCK_PROCESSING_CHAIN(chain);
+
+			newProcessor->setIsOnAir(chain->isOnAir());
+			chain->processors.insert(index, m);
+		}
+
+		if (JavascriptMidiProcessor* sp = dynamic_cast<JavascriptMidiProcessor*>(newProcessor))
+		{
+			sp->compileScript();
+		}
 	}
-
-	sendChangeMessage();
+	
+	notifyListeners(Listener::ProcessorAdded, newProcessor);
 }
 
 } // namespace hise

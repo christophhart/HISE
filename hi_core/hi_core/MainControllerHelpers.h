@@ -46,7 +46,6 @@ class Processor;
 class Console;
 class ModulatorSamplerSound;
 class ModulatorSamplerSoundPool;
-class AudioSampleBufferPool;
 class Plotter;
 class ScriptWatchTable;
 class ScriptComponentEditPanel;
@@ -55,49 +54,11 @@ class Modulator;
 class CustomKeyboardState;
 class ModulatorSynthChain;
 class FactoryType;
+class JavascriptThreadPool;
 
 class MainController;
 
-
-/** A base class for all objects that need access to a MainController.
-*	@ingroup core
-*
-*	If you want to have access to the main controller object, derive the class from this object and pass a pointer to the MainController
-*	instance in the constructor.
-*/
-class ControlledObject
-{
-public:
-
-	/** Creates a new ControlledObject. The MainController must be supplied. */
-	ControlledObject(MainController *m);
-
-	virtual ~ControlledObject();
-
-	/** Provides read-only access to the main controller. */
-	const MainController *getMainController() const noexcept
-	{
-		jassert(controller != nullptr);
-		return controller;
-	};
-
-	/** Provides write access to the main controller. Use this if you want to make changes. */
-	MainController *getMainController() noexcept
-	{
-		jassert(controller != nullptr);
-		return controller;
-	}
-
-private:
-
-	friend class WeakReference<ControlledObject>;
-	WeakReference<ControlledObject>::Master masterReference;
-
-	MainController* const controller;
-
-	friend class MainController;
-	friend class ProcessorFactory;
-};
+class MPEModulator;
 
 #define HI_NUM_MIDI_AUTOMATION_SLOTS 8
 
@@ -133,9 +94,147 @@ public:
 	/** The main routine. Call this for every MidiBuffer you want to process and it handles both setting parameters as well as MIDI learning. */
 	void handleParameterData(MidiBuffer &b);
 
+		
+	class MPEData : public ControlledObject,
+					public RestorableObject,
+					public Dispatchable
+	{
+	public:
+		MPEData(MainController* mc);;
+
+		~MPEData();
+
+		struct Listener
+		{
+		public:
+			virtual ~Listener() {};
+
+			virtual void mpeModeChanged(bool isEnabled) = 0;
+
+			virtual void mpeModulatorAssigned(MPEModulator* m, bool wasAssigned) = 0;
+
+			virtual void mpeDataReloaded() = 0;
+
+			virtual void mpeModulatorAmountChanged() {};
+
+		private:
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+		};
+
+        enum EventType
+        {
+            MPEModeChanged,
+            MPEModConnectionAdded,
+            MPEModConnectionRemoved,
+            MPEDataReloaded,
+            MPEModulatorAmountChanged,
+            numEventTypes
+        };
+        
+		void restoreFromValueTree(const ValueTree &previouslyExportedState) override;
+
+		ValueTree exportAsValueTree() const override;
+
+        void sendAsyncNotificationMessage(MPEModulator* mod, EventType type);
+        
+		void addConnection(MPEModulator* mod, NotificationType notifyListeners=sendNotification);
+
+		void removeConnection(MPEModulator* mod, NotificationType notifyListeners=sendNotification);
+
+		MPEModulator* getModulator(int index) const;
+
+		MPEModulator* findMPEModulator(const String& name) const;
+
+		StringArray getListOfUnconnectedModulators(bool prettyName) const;
+
+		static String getPrettyName(const String& id);
+
+		void reset();
+
+		void clear();
+
+		int size() const;
+
+		void setMpeMode(bool shouldBeOn);
+
+		bool isMpeEnabled() const { return mpeEnabled; }
+
+		bool contains(MPEModulator* mod) const;
+
+		void addListener(Listener* l)
+		{
+			listeners.addIfNotAlreadyThere(l);
+
+			// Fire this once to setup the correct state
+			l->mpeModeChanged(mpeEnabled);
+		}
+
+		void removeListener(Listener* l)
+		{
+			listeners.removeAllInstancesOf(l);
+		}
+
+		void sendAmountChangeMessage()
+		{
+			ScopedLock sl(listeners.getLock());
+
+			for (auto l : listeners)
+			{
+				if (l)
+					l->mpeModulatorAmountChanged();
+			}
+		}
+
+	private:
+
+		struct AsyncRestorer : private Timer
+		{
+		public:
+
+			AsyncRestorer(MPEData& parent_) :
+				parent(parent_)
+			{};
+
+			void restore(const ValueTree& v)
+			{
+				data = v;
+				dirty = true;
+				startTimer(50);
+			}
+
+		private:
+
+			void timerCallback() override;
+
+			bool dirty = false;
+
+			ValueTree data;
+
+			MPEData& parent;
+		};
+
+		ValueTree pendingData;
+
+		AsyncRestorer asyncRestorer;
+		
+
+		bool mpeEnabled = false;
+
+		struct Data;
+
+		struct Connection;
+
+		ScopedPointer<Data> data;
+
+		Array<WeakReference<Listener>, CriticalSection> listeners;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MPEData);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(MPEData);
+	};
 	
 
-	struct AutomationData
+	struct AutomationData: public RestorableObject
 	{
 		AutomationData();
 
@@ -143,6 +242,11 @@ public:
 
 		bool operator==(const AutomationData& other) const;
 
+		void restoreFromValueTree(const ValueTree &v) override;
+
+		ValueTree exportAsValueTree() const override;
+
+		MainController* mc = nullptr;
 		WeakReference<Processor> processor;
 		int attribute;
 		NormalisableRange<double> parameterRange;
@@ -157,6 +261,10 @@ public:
 	/** Returns a copy of the automation data for the given index. */
 	AutomationData getDataFromIndex(int index) const;
 
+	MPEData& getMPEData() { return mpeData; }
+
+	const MPEData& getMPEData() const { return mpeData; }
+
 	int getNumActiveConnections() const;
 	bool setNewRangeForParameter(int index, NormalisableRange<double> range);
 	bool setParameterInverted(int index, bool value);
@@ -164,11 +272,15 @@ private:
 
 	// ========================================================================================================
 
+	MainController *mc;
 	
 
 	CriticalSection lock;
 
-	MainController *mc;
+	
+
+	MPEData mpeData;
+
 	bool anyUsed;
 	MidiBuffer tempBuffer;
 
@@ -211,7 +323,7 @@ public:
 
 	void addOverlayListener(Listener *listener)
 	{
-		listeners.add(listener);
+		listeners.addIfNotAlreadyThere(listener);
 	}
 
 	void removeOverlayListener(Listener* listener)
@@ -229,6 +341,8 @@ private:
 
 		void handleAsyncUpdate() override
 		{
+			ScopedLock sl(parent->listeners.getLock());
+
 			for (int i = 0; i < parent->listeners.size(); i++)
 			{
 				if (parent->listeners[i].get() != nullptr)
@@ -251,7 +365,7 @@ private:
 
 	InternalAsyncUpdater internalUpdater;
 
-	Array<WeakReference<Listener>> listeners;
+	Array<WeakReference<Listener>, CriticalSection> listeners;
 };
 
 

@@ -63,6 +63,8 @@ public:
     */
     virtual void handleNoteOff (MidiKeyboardState* source,
                                 int midiChannel, int midiNoteNumber, float velocity) = 0;
+
+	virtual void handleMessage(const MidiMessage& /*m*/) {};
 };
 
 
@@ -135,6 +137,8 @@ public:
     */
     void noteOff (int midiChannel, int midiNoteNumber, float velocity);
 
+	void injectMessage(const MidiMessage& m);
+
     /** This will turn off any currently-down notes for the given midi channel.
 
         If you pass 0 for the midi channel, it will in fact turn off all notes on all channels.
@@ -195,6 +199,8 @@ private:
 
     void noteOnInternal (int midiChannel, int midiNoteNumber, float velocity);
     void noteOffInternal (int midiChannel, int midiNoteNumber, float velocity);
+
+	void sendMessageInternal(const MidiMessage& m);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MidiKeyboardState)
 };

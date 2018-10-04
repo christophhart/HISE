@@ -42,7 +42,8 @@ namespace hise { using namespace juce;
 *	It uses a simple low pass filter to smooth value changes.  
 */
 class PitchwheelModulator: public TimeVariantModulator,
-						   public LookupTableProcessor
+						   public LookupTableProcessor,
+						   public MidiControllerAutomationHandler::MPEData::Listener
 {
 public:
 
@@ -85,6 +86,17 @@ public:
 
 	};
 
+	void mpeModeChanged(bool isEnabled) override 
+	{
+		mpeEnabled = isEnabled;
+	}
+
+	void mpeDataReloaded() override {}
+
+	void mpeModulatorAssigned(MPEModulator* /*m*/, bool /*wasAssigned*/) override
+	{
+		
+	}
 	
 
 	/** Returns a new editor */
@@ -99,38 +111,7 @@ public:
 	float getAttribute (int parameter_index) const override;
 	void setInternalAttribute (int parameter_index, float newValue) override;
 
-	void calculateBlock(int startSample, int numSamples) override
-	{
-
-		const bool smoothThisBlock = fabsf(targetValue - currentValue) > 0.001f;
-
-		if(smoothThisBlock)
-		{
-			if(--numSamples >= 0)
-			{
-				currentValue =  smoother.smooth(targetValue);
-				
-				internalBuffer.setSample(0, startSample, currentValue);
-				++startSample;
-				
-			}
-
-			while(--numSamples >= 0)
-			{
-				currentValue =  smoother.smooth(targetValue);
-				internalBuffer.setSample(0, startSample, currentValue);
-				++startSample;
-			}
-		}
-		else
-		{
-			currentValue = targetValue;
-			FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), currentValue, numSamples);
-		}
-
-		if (useTable) sendTableIndexChangeMessage(false, table, inputValue);
-		setOutputValue(currentValue);
-	};
+	void calculateBlock(int startSample, int numSamples) override;;
 
 	/** sets the new target value if the controller number matches. */
 	void handleHiseEvent(const HiseEvent &m) override;
@@ -142,12 +123,14 @@ public:
 	virtual void prepareToPlay(double sampleRate, int samplesPerBlock) override
 	{
 		TimeVariantModulator::prepareToPlay(sampleRate, samplesPerBlock);
-		smoother.prepareToPlay(getSampleRate());
+		smoother.prepareToPlay(getControlRate());
 
 		if(sampleRate != -1.0) setInternalAttribute(SmoothTime, smoothTime);
 	};
 
 private:
+
+	bool mpeEnabled = false;
 
 	/** Returns a smoothed value of the current control value. 
 	*	Don't use this for GUI stuff, since it advances the smoothing! 

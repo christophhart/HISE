@@ -151,6 +151,8 @@ public:
 		
 	};
 
+	int getNumTables() const override { return 2; };
+
 private:
 
 	ScopedPointer<DiscreteTable> keyTable;

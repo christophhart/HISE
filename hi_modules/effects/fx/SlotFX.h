@@ -26,18 +26,46 @@ public:
 
 	
 
-	bool hasTail() const override { return false; };
+	bool hasTail() const override 
+	{ 
+		return wrappedEffect != nullptr ? wrappedEffect->hasTail() : false;
+	};
 
 	Processor *getChildProcessor(int /*processorIndex*/) override
 	{
-		return wrappedEffect;
+		return getCurrentEffect();
 	};
 
+	void voicesKilled() override
+	{
+		if (wrappedEffect != nullptr)
+			wrappedEffect->voicesKilled();
+	}
 
 	const Processor *getChildProcessor(int /*processorIndex*/) const override
 	{
-		return wrappedEffect;
+		return getCurrentEffect();
 	};
+
+	void updateSoftBypass() override
+	{
+		if (wrappedEffect != nullptr)
+			wrappedEffect->updateSoftBypass();
+	}
+
+	void setSoftBypass(bool shouldBeSoftBypassed, bool useRamp) override
+	{
+		if (wrappedEffect != nullptr && !ProcessorHelpers::is<EmptyFX>(getCurrentEffect()))
+			wrappedEffect->setSoftBypass(shouldBeSoftBypassed, useRamp);
+	}
+
+	bool isFadeOutPending() const noexcept override
+	{
+		if (wrappedEffect != nullptr)
+			return wrappedEffect->isFadeOutPending();
+
+		return false;
+	}
 
 	int getNumInternalChains() const override { return 0; };
 	int getNumChildProcessors() const override { return 1; };
@@ -56,15 +84,14 @@ public:
     
     void restoreFromValueTree(const ValueTree& v) override
     {
+		LockHelpers::noMessageThreadBeyondInitialisation(getMainController());
+
 		MasterEffectProcessor::restoreFromValueTree(v);
 
         auto d = v.getChildWithName("ChildProcessors").getChild(0);
         
-		
-        
         setEffect(d.getProperty("Type"), true);
         
-		ScopedLock sl(getMainController()->getLock());
         wrappedEffect->restoreFromValueTree(d);
     }
     
@@ -74,12 +101,25 @@ public:
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) 
 	{ 
-		ScopedLock sl(getMainController()->getLock());
+		LockHelpers::noMessageThreadBeyondInitialisation(getMainController());
 
-		Processor::prepareToPlay(sampleRate, samplesPerBlock);
+		AudioThreadGuard guard(&getMainController()->getKillStateHandler());
+		AudioThreadGuard::Suspender sp(isOnAir());
+		LockHelpers::SafeLock sl(getMainController(), LockHelpers::AudioLock);
+
+		MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 		wrappedEffect->prepareToPlay(sampleRate, samplesPerBlock); 
+		wrappedEffect->setKillBuffer(*killBuffer);
 	}
 	
+	void handleHiseEvent(const HiseEvent &m) override;
+
+	void startMonophonicVoice() override;
+
+	void stopMonophonicVoice() override;
+
+	void resetMonophonicVoice();
+
 	void renderWholeBuffer(AudioSampleBuffer &buffer) override;
 
 	void applyEffect(AudioSampleBuffer &/*b*/, int /*startSample*/, int /*numSamples*/) override 
@@ -89,9 +129,33 @@ public:
 
 	void reset()
 	{
-		isClear = true;
+		ScopedPointer<MasterEffectProcessor> newEmptyFX;
 		
-		setEffect(EmptyFX::getClassType().toString(), true);
+		if (wrappedEffect != nullptr)
+		{
+			LOCK_PROCESSING_CHAIN(this);
+
+			newEmptyFX.swapWith(wrappedEffect);
+		}
+
+		if (newEmptyFX != nullptr)
+		{
+			getMainController()->getGlobalAsyncModuleHandler().removeAsync(newEmptyFX.release(), ProcessorFunction());
+		}
+
+		newEmptyFX = new EmptyFX(getMainController(), "Empty");
+
+		if (getSampleRate() > 0)
+			newEmptyFX->prepareToPlay(getSampleRate(), getLargestBlockSize());
+
+		newEmptyFX->setParentProcessor(this);
+		auto newId = getId() + "_" + newEmptyFX->getId();
+		newEmptyFX->setId(newId);
+
+		{
+			LOCK_PROCESSING_CHAIN(this);
+			newEmptyFX.swapWith(wrappedEffect);
+		}
 	}
 
 	void swap(SlotFX* otherSlot)
@@ -101,11 +165,17 @@ public:
 
 		int tempIndex = currentIndex;
 
+		
+
 		currentIndex = otherSlot->currentIndex;
 		otherSlot->currentIndex = tempIndex;
 
 		{
 			ScopedLock sl(getMainController()->getLock());
+
+			bool tempClear = isClear;
+			isClear = otherSlot->isClear;
+			otherSlot->isClear = tempClear;
 
 			wrappedEffect = oe;
 			otherSlot->wrappedEffect = te;
@@ -120,15 +190,20 @@ public:
 
 	int getCurrentEffectID() const { return currentIndex; }
 
-	MasterEffectProcessor* getCurrentEffect() { return wrappedEffect.get(); }
+	MasterEffectProcessor* getCurrentEffect();
+
+	const MasterEffectProcessor* getCurrentEffect() const { return const_cast<SlotFX*>(this)->getCurrentEffect(); }
 
 	const StringArray& getEffectList() const { return effectList; }
 
+	/** This creates a new processor and sets it as processed FX.
+	*
+	*	Note that if synchronously is false, it will dispatch the initialisation
+	*
+	*/
 	bool setEffect(const String& typeName, bool synchronously=false);
 
 private:
-
-	
 
 	class Constrainer : public FactoryType::Constrainer
 	{
@@ -163,6 +238,8 @@ private:
     bool hasScriptFX = false;
 
 	ScopedPointer<MasterEffectProcessor> wrappedEffect;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SlotFX)
 };
 
 

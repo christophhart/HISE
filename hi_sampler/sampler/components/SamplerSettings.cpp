@@ -421,6 +421,7 @@ SamplerSettings::SamplerSettings (ModulatorSampler *s)
 	retriggerEditor->addOption("Kill Note");
 	retriggerEditor->addOption("Note off");
 	retriggerEditor->addOption("Do nothing");
+	retriggerEditor->addOption("Kill Duplicate");
 
 	retriggerEditor->addListener(this);
 
@@ -664,7 +665,7 @@ void SamplerSettings::labelTextChanged (Label* labelThatHasChanged)
 
 		if(value > 0)
 		{
-			value = jmin(128, value);
+			value = jmin(NUM_POLYPHONIC_VOICES, value);
 
 			sampler->setAttribute(ModulatorSampler::VoiceAmount, (float)value, dontSendNotification);
 		}
@@ -679,7 +680,7 @@ void SamplerSettings::labelTextChanged (Label* labelThatHasChanged)
 
 		if(value > 0)
 		{
-			value = jmin(128, value);
+			value = jmin(NUM_POLYPHONIC_VOICES, value);
 
 			sampler->setAttribute(ModulatorSynth::VoiceLimit, (float)value, dontSendNotification);
 		}
@@ -764,7 +765,9 @@ void SamplerSettings::labelTextChanged (Label* labelThatHasChanged)
 			crossfadeEditor->setEditedTable(nullptr);
 		}
 
-		findParentComponentOfClass<ProcessorEditorBody>()->refreshBodySize();
+
+		BACKEND_ONLY(findParentComponentOfClass<ProcessorEditorBody>()->refreshBodySize());
+
 
 
         //[/UserLabelCode_crossfadeGroupEditor]

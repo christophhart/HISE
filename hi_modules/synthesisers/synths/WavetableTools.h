@@ -199,9 +199,9 @@ public:
 
 	AudioSampleBuffer getPreviewBuffers(bool original);
 
-	static var getSampleProperty(const ValueTree& vt, ModulatorSamplerSound::Property propertyIndex)
+	static var getSampleProperty(const ValueTree& vt, const Identifier& id)
 	{
-		return vt.getProperty(ModulatorSamplerSound::getPropertyName(propertyIndex));
+		return vt.getProperty(id);
 	}
 
 private:

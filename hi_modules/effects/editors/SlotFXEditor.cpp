@@ -26,7 +26,18 @@ SlotFXEditor::SlotFXEditor(ProcessorEditor* parentEditor) :
 
 void SlotFXEditor::comboBoxChanged(ComboBox* /*comboBoxThatHasChanged*/)
 {
-	dynamic_cast<SlotFX*>(getProcessor())->setEffect(effectSelector->getText());
+	auto newEffectName = effectSelector->getText();
+
+	auto f = [newEffectName](Processor*p)
+	{
+		dynamic_cast<SlotFX*>(p)->setEffect(newEffectName);
+		return SafeFunctionCall::OK;
+	};
+
+	auto p = getProcessor();
+
+	p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, MainController::KillStateHandler::SampleLoadingThread);
+	
 }
 
 } // namespace hise

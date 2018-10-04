@@ -50,20 +50,64 @@ public:
         @param sampleRate The sampling rate
         @param rampLengthInSeconds The duration of the ramp in seconds
     */
-    void reset (double sampleRate, double rampLengthInSeconds) noexcept
+    void reset (double newSampleRate, double rampLengthInSeconds) noexcept
     {
-        jassert (sampleRate > 0 && rampLengthInSeconds >= 0);
-        stepsToTarget = (int) std::floor (rampLengthInSeconds * sampleRate);
+        jassert (newSampleRate > 0 && rampLengthInSeconds >= 0);
+        stepsToTarget = (int) std::floor (rampLengthInSeconds * newSampleRate);
         currentValue = target;
         countdown = 0;
     }
+
+	void setValueAndRampTime(FloatType newValue, double sampleRateToUse, double rampLengthInSeconds) noexcept
+	{
+		if (target != newValue)
+		{
+			target = newValue;
+
+			jassert(sampleRateToUse > 0 && rampLengthInSeconds >= 0);
+			stepsToTarget = (int)std::floor(rampLengthInSeconds * sampleRateToUse);
+			countdown = stepsToTarget;
+
+			if (countdown <= 0)
+				currentValue = target;
+			else
+				step = (target - currentValue) / (FloatType)countdown;
+		}
+		else // might be possible that it still wants the same target but at a different speed
+		{
+			jassert(sampleRateToUse > 0 && rampLengthInSeconds >= 0);
+			const auto thisStepsToTarget = (int)std::floor(rampLengthInSeconds * sampleRateToUse);
+
+			if (stepsToTarget != thisStepsToTarget)
+			{
+				// Readjust the ramp speed
+				stepsToTarget = thisStepsToTarget;
+				countdown = stepsToTarget;
+
+				if (countdown <= 0)
+					currentValue = target;
+				else
+					step = (target - currentValue) / (FloatType)countdown;
+			}
+
+		}
+	}
+
+	
 
     //==============================================================================
     /** Set a new target value.
         @param newValue New target value
     */
-    void setValue (FloatType newValue) noexcept
+    void setValue (FloatType newValue, bool force=false) noexcept
     {
+		if (force)
+		{
+			setValueWithoutSmoothing(newValue);
+			return;
+		}
+			
+
         if (target != newValue)
         {
             target = newValue;
@@ -75,6 +119,16 @@ public:
                 step = (target - currentValue) / (FloatType) countdown;
         }
     }
+
+	/** Set a new target value without ramping.
+	@param newValue New target value
+	*/
+	void setValueWithoutSmoothing(FloatType newValue) noexcept
+	{
+		target = newValue;
+		currentValue = target;
+		countdown = 0;
+	}
 
     //==============================================================================
     /** Compute the next value.
@@ -89,6 +143,11 @@ public:
         currentValue += step;
         return currentValue;
     }
+
+	FloatType getCurrentValue() const noexcept
+	{
+		return currentValue;
+	}
 
     /** Returns true if the current value is currently being interpolated. */
     bool isSmoothing() const noexcept

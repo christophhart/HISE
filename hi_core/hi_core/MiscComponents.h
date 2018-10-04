@@ -222,27 +222,130 @@ private:
 	ScopedPointer<RectangleConstrainer> constrainer;
 	ComponentDragger dragger;
 
-	Array<WeakReference<Listener>> listenerList;
-	DynamicObject::Ptr currentEvent;
-
+	Array<WeakReference<Listener>, CriticalSection> listenerList;
+	
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MouseCallbackComponent);
 
 	// ================================================================================================================
 };
 
+struct DrawActions
+{
+	class ActionBase: public ReferenceCountedObject
+	{
+	public:
 
+		ActionBase() {};
+		virtual ~ActionBase() {};
+		virtual void perform(Graphics& g) = 0;
+		virtual bool wantsCachedImage() const { return false; };
+
+		void setCachedImage(Image& img) { cachedImage = img; }
+
+	protected:
+
+		Image cachedImage;
+
+	private:
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ActionBase);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ActionBase);
+	};
+
+	struct Handler: private AsyncUpdater
+	{
+		struct Iterator
+		{
+			Iterator(Handler* handler)
+			{
+				if(handler != nullptr)
+					actionsInIterator.addArray(handler->nextActions);
+			}
+
+			ActionBase* getNextAction()
+			{
+				if (index < actionsInIterator.size())
+					return actionsInIterator[index++];
+
+				return nullptr;
+			}
+
+			bool wantsCachedImage() const
+			{
+				for (auto action : actionsInIterator)
+					if (action->wantsCachedImage())
+						return true;
+
+				return false;
+			}
+
+			int index = 0;
+			ReferenceCountedArray<ActionBase> actionsInIterator;
+		};
+
+		struct Listener
+		{
+			virtual ~Listener() {};
+			virtual void newPaintActionsAvailable() = 0;
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+		};
+
+		void beginDrawing()
+		{
+			currentActions.clear();
+		}
+
+		void addDrawAction(ActionBase* newDrawAction)
+		{
+			currentActions.add(newDrawAction);
+		}
+
+		void flush()
+		{
+			nextActions.swapWith(currentActions);
+			currentActions.clear();
+			triggerAsyncUpdate();
+		}
+
+		void addDrawActionListener(Listener* l) { listeners.addIfNotAlreadyThere(l); }
+		void removeDrawActionListener(Listener* l) { listeners.removeAllInstancesOf(l); }
+
+	private:
+
+		void handleAsyncUpdate() override
+		{
+			for (auto l : listeners)
+			{
+				if (l != nullptr)
+					l->newPaintActionsAvailable();
+			}
+		}
+
+		Array<WeakReference<Listener>> listeners;
+
+		ReferenceCountedArray<ActionBase> nextActions;
+		ReferenceCountedArray<ActionBase> currentActions;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Handler);
+	};
+
+};
 
 class BorderPanel : public MouseCallbackComponent,
                     public SafeChangeListener,
 					public SettableTooltipClient,
-				    public ButtonListener
+				    public ButtonListener,
+					public DrawActions::Handler::Listener
 {
 public:
 
 	// ================================================================================================================
 
-	BorderPanel();
-	~BorderPanel() {}
+	BorderPanel(DrawActions::Handler* drawHandler);
+	~BorderPanel();
+
+	void newPaintActionsAvailable() override { repaint(); }
 
 	void paint(Graphics &g);
 	Colour c1, c2, borderColour;
@@ -272,6 +375,8 @@ public:
 	bool isPopupPanel;
 
 	ImageButton closeButton;
+
+	WeakReference<DrawActions::Handler> drawHandler;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BorderPanel);
 	

@@ -32,107 +32,94 @@
 
 namespace hise { using namespace juce;
 
-MainController::GlobalAsyncModuleHandler::JobData::JobData(Processor* parent_, Processor* processor_, What what_) :
-	what(what_),
-	parent(parent_),
-	processorToDelete(what_ == What::Delete ? processor_ : nullptr),
-	processorToAdd(what_ == What::Add ? processor_ : nullptr)
+
+void MainController::GlobalAsyncModuleHandler::removeAsync(Processor* p, const SafeFunctionCall::Function& removeFunction)
 {
-
-}
-
-MainController::GlobalAsyncModuleHandler::JobData::JobData() :
-	what(numWhat),
-	parent(nullptr),
-	processorToDelete(nullptr),
-	processorToAdd(nullptr)
-{
-
-}
-
-void MainController::GlobalAsyncModuleHandler::JobData::doit()
-{
-	if (what == What::Add)
+	if (removeFunction)
 	{
-		if (parent.get() != nullptr)
-			parent->sendRebuildMessage(true);
+		auto f = [removeFunction](Processor* p)
+		{
+			LockHelpers::freeToGo(p->getMainController());
+
+			auto result = removeFunction(p);
+
+			p->getMainController()->getGlobalAsyncModuleHandler().addPendingUIJob(p, What::Delete);
+
+			return result;
+		};
+
+		mc->getKillStateHandler().killVoicesAndCall(p, f, KillStateHandler::SampleLoadingThread);
 	}
 	else
 	{
-		processorToDelete->sendDeleteMessage();
-
-		if (parent.get() != nullptr)
-			parent->sendRebuildMessage(true);
-
-		delete processorToDelete;
+		p->getMainController()->getGlobalAsyncModuleHandler().addPendingUIJob(p, What::Delete);
 	}
 }
 
-void MainController::GlobalAsyncModuleHandler::addPendingUIJob(Processor* parent, Processor* p, JobData::What what)
+void MainController::GlobalAsyncModuleHandler::addAsync(Processor* p, const SafeFunctionCall::Function& addFunction)
 {
-	pendingJobs.push(JobData(parent, p, what));
-
-	triggerAsyncUpdate();
-}
-
-void MainController::GlobalAsyncModuleHandler::handleAsyncUpdate()
-{
-	JobData d;
-
-	while (pendingJobs.pop(d))
-		d.doit();
-}
-
-
-void MainController::GlobalAsyncModuleHandler::removeAsync(Processor* p, Component* /*rootWindow*/)
-{
-	auto f = [](Processor* p)
+	auto f = [addFunction](Processor* p)
 	{
-		if (p == nullptr)
-			return true;
+		auto result = addFunction(p);
 
-		auto c = dynamic_cast<Chain*>(ProcessorHelpers::findParentProcessor(p, false));
+		p->getMainController()->getGlobalAsyncModuleHandler().addPendingUIJob(p, What::Add);
 
-		jassert(c != nullptr);
-
-		if (c == nullptr)
-			return true;
-
-		c->getHandler()->remove(p, false);
-		p->getMainController()->getGlobalAsyncModuleHandler().addPendingUIJob(dynamic_cast<Processor*>(c), p, JobData::What::Delete);
-
-		return true;
+		return result;
 	};
 
-	p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, KillStateHandler::SampleLoadingThread);
-}
-
-void MainController::GlobalAsyncModuleHandler::addAsync(Chain* c, Processor* p, Component* /*rootWindow*/, const String& /*type*/, const String& /*id*/, int index)
-{
-
-	auto f = [c, index](Processor* p)
+	if (mc->getKillStateHandler().getCurrentThread() == KillStateHandler::ScriptingThread)
 	{
-		if (c == nullptr)
-		{
-			delete p; // Rather bad...
-			return false;
-		}
+		LockHelpers::freeToGo(mc);
 
-		if (index >= 0 && index < c->getHandler()->getNumProcessors())
-		{
-			Processor* sibling = c->getHandler()->getProcessor(index);
-			c->getHandler()->add(p, sibling);
-		}
-		else
-			c->getHandler()->add(p, nullptr);
+		f(p);
+	}
+	else
+	{
+		mc->getKillStateHandler().killVoicesAndCall(p, f, KillStateHandler::SampleLoadingThread);
+	}
 
-		p->getMainController()->getGlobalAsyncModuleHandler().addPendingUIJob(dynamic_cast<Processor*>(c), p, JobData::What::Add);
-
-		return true;
-	};
-
-	p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, KillStateHandler::SampleLoadingThread);
+	
 }
 
+
+void MainController::GlobalAsyncModuleHandler::addPendingUIJob(Processor* p, What what)
+{
+	if (what == Add)
+	{
+		auto f = [](Dispatchable* obj)
+		{
+			auto p = static_cast<Processor*>(obj);
+			auto parent = p->getParentProcessor(false, false);
+
+			if (parent != nullptr)
+				parent->sendRebuildMessage(true);
+
+			return Dispatchable::Status::OK;
+		};
+
+		mc->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(p, f);
+	}
+	else
+	{
+		auto f = [](Dispatchable* obj)
+		{
+			auto p = static_cast<Processor*>(obj);
+			p->sendDeleteMessage();
+
+			auto parent = p->getParentProcessor(false, false);
+
+			if (parent != nullptr)
+				parent->sendRebuildMessage(true);
+
+			delete p;
+
+			return Dispatchable::Status::OK;
+		};
+
+		p->setIsWaitingForDeletion();
+
+		mc->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(p, f);
+	}
+}
 
 } // namespace hise

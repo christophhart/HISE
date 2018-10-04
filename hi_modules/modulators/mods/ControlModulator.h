@@ -42,7 +42,8 @@
 *	It uses a simple low pass filter to smooth value changes.  
 */
 class ControlModulator: public TimeVariantModulator,
-						public LookupTableProcessor
+						public LookupTableProcessor,
+						public MidiControllerAutomationHandler::MPEData::Listener
 {
 public:
 
@@ -84,7 +85,21 @@ public:
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
+	void mpeModeChanged(bool isEnabled) override
+	{
+		mpeEnabled = isEnabled;
+	}
+
+	void mpeDataReloaded() override {}
+
+	void mpeModulatorAssigned(MPEModulator* /*m*/, bool /*wasAssigned*/) override
+	{
+
+	}
+
 private:
+
+	bool mpeEnabled = false;
 
 	float calculateNewValue();
 

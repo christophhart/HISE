@@ -92,7 +92,7 @@ void MainContentComponent::resized()
 
 }
 
-void MainContentComponent::requestQuit(const std::function<void(void)>& f)
+void MainContentComponent::requestQuit()
 {
-	standaloneProcessor->requestQuit(f);
+	standaloneProcessor->requestQuit();
 }

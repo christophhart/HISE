@@ -115,7 +115,9 @@ public:
 		{};
 
 		int index;
-		StringArray fileNames;
+
+		Array<PoolReference> files;
+
 		int rootNote;
 		int lowKey;
 		int hiKey;
@@ -129,7 +131,7 @@ public:
 			String s;
 
 			s << "Index: " << String(index) << ", ";
-			s << "FileName: " << fileNames[0] << ", ";
+			s << "FileName: " << files.getFirst().getReferenceString() << ", ";
 			s << "Group: " << String(group) << ", ";
 			s << "RootNote: " << MidiMessage::getMidiNoteName(rootNote, true, true, 3) << ", ";
 			s << "NoteMap: " << String(lowKey) << " - " << String(hiKey) << ", ";

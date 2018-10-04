@@ -1246,7 +1246,7 @@ String FloatingTile::exportAsJSON() const
 {
 	var obj = getCurrentFloatingPanel()->toDynamicObject();
 
-	auto json = JSON::toString(obj, false);
+	auto json = JSON::toString(obj, false, DOUBLE_TO_STRING_DIGITS);
 
 	return json;
 }

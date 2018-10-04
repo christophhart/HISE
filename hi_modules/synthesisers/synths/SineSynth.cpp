@@ -66,6 +66,28 @@ SET_DOCUMENTATION(SineSynth)
 
 }
 
+SineSynth::SineSynth(MainController *mc, const String &id, int numVoices) :
+	ModulatorSynth(mc, id, numVoices),
+	octaveTranspose((int)getDefaultValue(OctaveTranspose)),
+	semiTones((int)getDefaultValue(SemiTones)),
+	useRatio(false),
+	fineRatio(getDefaultValue(FineFreqRatio)),
+	coarseRatio(getDefaultValue(CoarseFreqRatio)),
+	saturationAmount(getDefaultValue(SaturationAmount))
+{
+	finaliseModChains();
+
+	parameterNames.add("OctaveTranspose");
+	parameterNames.add("SemiTones");
+	parameterNames.add("UseFreqRatio");
+	parameterNames.add("CoarseFreqRatio");
+	parameterNames.add("FineFreqRatio");
+	parameterNames.add("SaturationAmount");
+
+	for (int i = 0; i < numVoices; i++) addVoice(new SineSynthVoice(this));
+	addSound(new SineWaveSound());
+}
+
 ProcessorEditorBody* SineSynth::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
@@ -103,13 +125,12 @@ void SineSynthVoice::calculateBlock(int startSample, int numSamples)
 	const int startIndex = startSample;
 	const int samplesToCopy = numSamples;
 
-	const float *voicePitchValues = getVoicePitchValues();
-	const float *modValues = getVoiceGainValues(startSample, numSamples);
-
 	float saturation = static_cast<SineSynth*>(getOwnerSynth())->saturationAmount;
 	float *leftValues = voiceBuffer.getWritePointer(0, startSample);
 	
-	if (isPitchModulationActive())
+	
+
+	if (auto voicePitchValues = getOwnerSynth()->getPitchValuesForVoice())
 	{
 		voicePitchValues += startSample;
 
@@ -199,12 +220,24 @@ void SineSynthVoice::calculateBlock(int startSample, int numSamples)
 		}
 	}
 
+	if (auto modValues = getOwnerSynth()->getVoiceGainValues())
+	{
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
+	}
+	else
+	{
+		const float gainValue = getOwnerSynth()->getConstantGainModValue();
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), gainValue, samplesToCopy);
+	}
+		
+
 	FloatVectorOperations::copy(voiceBuffer.getWritePointer(1, startIndex), voiceBuffer.getReadPointer(0, startIndex), samplesToCopy);
 
 	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
 
-	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
-	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
+	
+	
+		
 }
 
 } // namespace hise

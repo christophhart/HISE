@@ -32,13 +32,12 @@
 
 namespace hise { using namespace juce;
 
-VoiceCpuBpmComponent::VoiceCpuBpmComponent(MainController *mc_)
+VoiceCpuBpmComponent::VoiceCpuBpmComponent(MainController *mc_):
+	PreloadListener(mc_->getSampleManager())
 {
 	if (mc_ != nullptr)
 	{
 		mainControllers.add(mc_);
-
-		mc_->getSampleManager().addPreloadListener(this);
 
 		preloadActive = mc_->getSampleManager().isPreloading();
 	}
@@ -117,8 +116,7 @@ VoiceCpuBpmComponent::VoiceCpuBpmComponent(MainController *mc_)
 
 VoiceCpuBpmComponent::~VoiceCpuBpmComponent()
 {
-	if (auto mc = mainControllers.getFirst())
-		mc->getSampleManager().removePreloadListener(this);
+	
 }
 
 void VoiceCpuBpmComponent::buttonClicked(Button *)
@@ -242,10 +240,22 @@ void VoiceCpuBpmComponent::paintOverChildren(Graphics& g)
 		g.setColour(Colours::white.withAlpha(0.7f));
 		g.setFont(GLOBAL_FONT());
 
-		const auto progress = mainControllers.getFirst()->getSampleManager().getPreloadProgress();
-		const auto percent = roundDoubleToInt(progress*100.0);
+		auto message = getCurrentErrorMessage();
 
-		g.drawText("Preloading: " + String(percent) + "%", getLocalBounds(), Justification::centred);
+		if (message.isNotEmpty())
+		{
+			g.drawText(message, getLocalBounds(), Justification::centred);
+		}
+		else
+		{
+			const auto progress = mainControllers.getFirst()->getSampleManager().getPreloadProgress();
+			const auto percent = roundDoubleToInt(progress*100.0);
+
+			g.drawText("Preloading: " + String(percent) + "%", getLocalBounds(), Justification::centred);
+		}
+
+
+		
 
 	}
 	else

@@ -32,18 +32,97 @@
 
 namespace hise { using namespace juce;
 
+struct GapCloseHelpers
+{
+	static Array<ValueTree> getPossibleLimiters(const Array<ValueTree>& candidates, const ValueTree& data, bool closeNoteGaps)
+	{
+		Identifier loIdLimit = closeNoteGaps ? SampleIds::LoVel : SampleIds::LoKey;
+		Identifier hiIdLimit = closeNoteGaps ? SampleIds::HiVel : SampleIds::HiKey;
+
+		Range<int> compareRange(data[loIdLimit], data[hiIdLimit]);
+
+		Array<ValueTree> limiters;
+
+		for (const auto& c : candidates)
+		{
+			if (c == data)
+				continue;
+
+			Range<int> r(c[loIdLimit], c[hiIdLimit]);
+
+			if (r.contains(compareRange) || compareRange.contains(r))
+				limiters.add(c);
+		}
+		return limiters;
+	}
+
+	static int getLimitValue(const Array<ValueTree>& candidates, int lowLimit, bool closeNoteGaps)
+	{
+		Identifier loIdLimit = closeNoteGaps ? SampleIds::LoKey : SampleIds::LoVel;
+
+		int lowestLimit = 127;
+
+		for (const auto& c : candidates)
+		{
+			auto thisLowLimit = (int)c[loIdLimit];
+
+			if (thisLowLimit > lowLimit)
+			{
+				lowestLimit = jmin<int>(lowestLimit, thisLowLimit);
+			}
+		}
+
+		return lowestLimit;
+	}
+};
+
 void SampleImporter::closeGaps(Array<ModulatorSamplerSound*> &selection, bool closeNoteGaps, bool /*increaseUpperLimit*/)
 {
+	if (selection.isEmpty())
+		return;
+
+	Array<ValueTree> data;
+
+	for (const auto& s : selection)
+		data.add(s->getData());
+
+	Identifier loId = closeNoteGaps ? SampleIds::LoKey : SampleIds::LoVel;
+	Identifier hiId = closeNoteGaps ? SampleIds::HiKey : SampleIds::HiVel;
+
+	auto undoManager = selection.getFirst()->getMainController()->getControlUndoManager();
+
+	undoManager->beginNewTransaction("Close gaps");
+
+	for (auto d : data)
+	{
+		auto limiters = GapCloseHelpers::getPossibleLimiters(data, d, closeNoteGaps);
+
+		auto lowValue = (int)d[loId];
+
+		auto limit = GapCloseHelpers::getLimitValue(limiters, closeNoteGaps, lowValue);
+
+		
+
+		if(limit > lowValue)
+			d.setProperty(hiId, limit - 1, undoManager);
+	}
+
+#if 0
 	// Search the biggest value of the whole selection ================================================================================
 
 	int upperLimit = 0;
 	int lowerLimit = 127;
 
+	Identifier loId = closeNoteGaps ? SampleIds::LoKey : SampleIds::LoVel;
+	Identifier hiId = closeNoteGaps ? SampleIds::HiKey : SampleIds::HiVel;
+
 	for(int i = 0; i < selection.size(); i++)
 	{
-		lowerLimit = jmin(lowerLimit, (int)selection[i]->getProperty(closeNoteGaps ? ModulatorSamplerSound::KeyLow  : ModulatorSamplerSound::VeloLow));
-		upperLimit = jmax(upperLimit, (int)selection[i]->getProperty(closeNoteGaps ? ModulatorSamplerSound::KeyHigh : ModulatorSamplerSound::VeloHigh));
+		lowerLimit = jmin(lowerLimit, (int)selection[i]->getSampleProperty(loId));
+		upperLimit = jmax(upperLimit, (int)selection[i]->getSampleProperty(hiId));
 	}
+
+
 
 	Array<ModulatorSamplerSound*> interestingSounds;
 
@@ -53,10 +132,9 @@ void SampleImporter::closeGaps(Array<ModulatorSamplerSound*> &selection, bool cl
 
 		// Get the data from the current sound ================================================================================
 
-		const int upperValue = selection[i]->getProperty(closeNoteGaps ? ModulatorSamplerSound::KeyHigh : ModulatorSamplerSound::VeloHigh);
+		const int upperValue = selection[i]->getSampleProperty(hiId);
 
-		const Range<int> interestingRegion = Range<int>(selection[i]->getProperty(closeNoteGaps ? ModulatorSamplerSound::VeloLow : ModulatorSamplerSound::KeyLow) ,
-														selection[i]->getProperty(closeNoteGaps ? ModulatorSamplerSound::VeloHigh : ModulatorSamplerSound::KeyHigh));
+		const Range<int> interestingRegion = Range<int>(selection[i]->getSampleProperty(loId), (int)selection[i]->getSampleProperty(hiId) + 1);
 
 		// Check each sound if it can be a possible candidate for the new upper limit ================================================================================
 
@@ -64,10 +142,10 @@ void SampleImporter::closeGaps(Array<ModulatorSamplerSound*> &selection, bool cl
 		{
 			if(i == j) continue; // Skip comparing to the same sample
 
-			const int lowerValueToCheck = selection[j]->getProperty(closeNoteGaps ? ModulatorSamplerSound::KeyLow : ModulatorSamplerSound::VeloLow);
+			const int lowerValueToCheck = selection[j]->getSampleProperty(loId);
 
-			const Range<int> regionToCheck = Range<int>(selection[j]->getProperty(closeNoteGaps ? ModulatorSamplerSound::VeloLow : ModulatorSamplerSound::KeyLow) ,
-														selection[j]->getProperty(closeNoteGaps ? ModulatorSamplerSound::VeloHigh : ModulatorSamplerSound::KeyHigh));
+			const Range<int> regionToCheck = Range<int>(selection[j]->getSampleProperty(loId) ,
+														(int)selection[j]->getSampleProperty(hiId) + 1);
 			
 			if(( regionToCheck == interestingRegion || regionToCheck.intersects(interestingRegion) ) && lowerValueToCheck > upperValue) interestingSounds.add(selection[j]);
 		}
@@ -84,51 +162,56 @@ void SampleImporter::closeGaps(Array<ModulatorSamplerSound*> &selection, bool cl
 
 		for(int j = 0; j < interestingSounds.size(); j++)
 		{
-			newUpperValue = jmin(newUpperValue, (int)interestingSounds[j]->getProperty(closeNoteGaps ? ModulatorSamplerSound::KeyLow : ModulatorSamplerSound::VeloLow) - 1);
+			newUpperValue = jmin(newUpperValue, (int)interestingSounds[j]->getSampleProperty(loId) - 1);
 		}
 
 		// Set the value
 
 		if(newUpperValue != upperValue)
 		{
-			selection[i]->setPropertyWithUndo(closeNoteGaps ? ModulatorSamplerSound::KeyHigh : ModulatorSamplerSound::VeloHigh, newUpperValue);
+			selection[i]->setSampleProperty(hiId, newUpperValue);
 		}
 	};
+#endif
 }
 
 
-#define SET(x, y) (v.setProperty(ModulatorSamplerSound::getPropertyName(x), y, nullptr));
+#define SET(id, y) (v.setProperty(id, y, nullptr));
 
 bool SampleImporter::createSoundAndAddToSampler(ModulatorSampler *sampler, const SamplerSoundBasicData &basicData)
 {
 	ValueTree v("sample");
 
-	SET(ModulatorSamplerSound::FileName, basicData.fileNames[0]);
-	SET(ModulatorSamplerSound::RootNote, basicData.rootNote);
-	SET(ModulatorSamplerSound::KeyLow, basicData.lowKey);
-	SET(ModulatorSamplerSound::KeyHigh, basicData.hiKey);
-	SET(ModulatorSamplerSound::VeloLow, basicData.lowVelocity);
-	SET(ModulatorSamplerSound::VeloHigh, basicData.hiVelocity);
-	SET(ModulatorSamplerSound::RRGroup, basicData.group);
+	
+	SET(SampleIds::Root, basicData.rootNote);
+	SET(SampleIds::LoKey, basicData.lowKey);
+	SET(SampleIds::HiKey, basicData.hiKey);
+	SET(SampleIds::LoVel, basicData.lowVelocity);
+	SET(SampleIds::HiVel, basicData.hiVelocity);
+	SET(SampleIds::RRGroup, basicData.group);
 
 	String allowedWildcards = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->afm.getWildcardForAllFormats();
 
-	for (int i = 0; i < basicData.fileNames.size(); i++)
+	if (basicData.files.size() == 1)
 	{
-		File f(basicData.fileNames[i]);
+		SET(SampleIds::FileName, basicData.files.getFirst().getReferenceString());
+	}
+	else
+	{
+		for (auto f : basicData.files)
+		{
+			ValueTree fileChild("file");
+			fileChild.setProperty(SampleIds::FileName, f.getReferenceString(), nullptr);
 
-		jassert(allowedWildcards.containsIgnoreCase(f.getFileExtension()));
-
-		ValueTree fileChild("file");
-
-		fileChild.setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName), basicData.fileNames[i], nullptr);
-
-		v.addChild(fileChild, -1, nullptr);
+			v.addChild(fileChild, -1, nullptr);
+		}
 	}
 
 	try
 	{
-		sampler->addSamplerSound(v, basicData.index);
+		
+		sampler->getSampleMap()->addSound(v);
+
 	}
 	catch(StreamingSamplerSound::LoadingError l)
 	{
@@ -186,31 +269,45 @@ void SampleImporter::importNewAudioFiles(Component *childComponentOfMainEditor, 
 																									fileNames,
 																									fid->useMetadata());
 												break;
-		case FileImportDialog::DropPoint:		jassert(draggedRootNotes != 0);
-												SampleImporter::loadAudioFilesUsingDropPoint(childComponentOfMainEditor,
-																								sampler,
-																								fileNames,
-																								draggedRootNotes);
-												break;
+		case FileImportDialog::DropPoint:		
+		{
+			jassert(draggedRootNotes != 0);
+
+			bool useMetadata = fid->useMetadata();
+
+			auto f = [childComponentOfMainEditor, fileNames, draggedRootNotes, useMetadata](Processor* s)
+			{
+				auto sampler = static_cast<ModulatorSampler*>(s);
+
+				SampleImporter::loadAudioFilesUsingDropPoint(childComponentOfMainEditor,
+					sampler,
+					fileNames,
+					draggedRootNotes);
+
+				if (useMetadata)
+					SampleEditHandler::SampleEditingActions::automapUsingMetadata(sampler);
+
+				return SafeFunctionCall::OK;
+			};
+
+			sampler->killAllVoicesAndCall(f);
+			return;
+		}
         case FileImportDialog::numImportModes:  break;
 
 		}
 
 		if (fid->useMetadata())
 		{
-			SamplerBody* body = childComponentOfMainEditor->findParentComponentOfClass<SamplerBody>();
-
-			if (body != nullptr)
-			{
-				SampleEditHandler::SampleEditingActions::automapUsingMetadata(sampler);
-			}
+			SampleEditHandler::SampleEditingActions::automapUsingMetadata(sampler);
 		}
 	}
 }
 
 void SampleImporter::loadAudioFilesUsingDropPoint(Component* /*childComponentOfMainEditor*/, ModulatorSampler *sampler, const StringArray &fileNames, BigInteger rootNotes)
 {
-	ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
+	
+	LockHelpers::freeToGo(sampler->getMainController());
 
 	const int startIndex = sampler->getNumSounds();
 
@@ -219,7 +316,12 @@ void SampleImporter::loadAudioFilesUsingDropPoint(Component* /*childComponentOfM
 	const float velocityDelta = 127.0f / (float)fileNames.size();
 
 	const int startNote = rootNotes.findNextSetBit(0);
-	const int delta = mapToVelocity ? 0 : rootNotes.findNextSetBit(startNote +1) - startNote;
+	int delta = mapToVelocity ? 1 : rootNotes.findNextSetBit(startNote +1) - startNote;
+
+	if (fileNames.size() == 1)
+	{
+		delta = 1;
+	}
 
 	float velocity = 0.0f;
 	int noteNumber = startNote;
@@ -228,15 +330,15 @@ void SampleImporter::loadAudioFilesUsingDropPoint(Component* /*childComponentOfM
 	{
 		SamplerSoundBasicData data;
 
-		data.fileNames.add(fileNames[i]);
+		PoolReference ref(sampler->getMainController(), fileNames[i], FileHandlerBase::Samples);
+
+		data.files.add(ref);
 		data.index = startIndex + i;
 		data.rootNote = noteNumber;
 		data.lowKey = noteNumber;
 		
 		if(mapToVelocity)
 		{
-			
-
 			data.hiKey = noteNumber;
 			data.lowVelocity = (int)(velocity);
 			data.hiVelocity = (int)(velocity + velocityDelta - 1.0f);
@@ -259,12 +361,7 @@ void SampleImporter::loadAudioFilesUsingDropPoint(Component* /*childComponentOfM
 		createSoundAndAddToSampler(sampler, data);		
 	}
 
-	ThumbnailHandler::saveNewThumbNails(sampler, fileNames);
-
 	sampler->refreshPreloadSizes();
-	sampler->refreshMemoryUsage();
-
-	
 }
 
 void SampleImporter::loadAudioFilesUsingFileName(Component *childComponentOfMainEditor, ModulatorSampler *sampler, const StringArray &fileNames, bool /*useVelocityAutomap*/)
@@ -282,6 +379,8 @@ void SampleImporter::loadAudioFilesUsingFileName(Component *childComponentOfMain
 
 void SampleImporter::loadAudioFilesUsingPitchDetection(Component* /*childComponentOfMainEditor*/, ModulatorSampler *sampler, const StringArray &fileNames, bool /*useVelocityAutomap*/)
 {
+	LockHelpers::freeToGo(sampler->getMainController());
+
 	Array<Range<double>> freqRanges;
 
 	freqRanges.add(Range<double>(0, MidiMessage::getMidiNoteInHertz(1)/2));
@@ -303,8 +402,6 @@ void SampleImporter::loadAudioFilesUsingPitchDetection(Component* /*childCompone
 
 	const int startIndex = sampler->getNumSounds();
 
-	ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
-
 	for(int i = 0; i < fileNames.size(); i++)
 	{
 		const double pitch = PitchDetection::detectPitch(File(fileNames[i]), pitchDetectionBuffer, sampler->Processor::getSampleRate());
@@ -324,7 +421,9 @@ void SampleImporter::loadAudioFilesUsingPitchDetection(Component* /*childCompone
 		
 		SamplerSoundBasicData data;
 
-		data.fileNames.add(fileNames[i]);
+		PoolReference ref(sampler->getMainController(), fileNames[i], FileHandlerBase::Samples);
+
+		data.files.add(ref);
 		data.index = startIndex + i;
 		data.rootNote = rootNote;
 		data.lowKey = rootNote;
@@ -335,23 +434,25 @@ void SampleImporter::loadAudioFilesUsingPitchDetection(Component* /*childCompone
 		createSoundAndAddToSampler(sampler, data);
 	}
 
-	ThumbnailHandler::saveNewThumbNails(sampler, fileNames);
-
 	sampler->refreshPreloadSizes();
 	sampler->refreshMemoryUsage();
 }
 
 void SampleImporter::loadAudioFilesRaw(Component* /*childComponentOfMainEditor*/, ModulatorSampler* sampler, const StringArray& fileNames)
 {
-	const int startIndex = sampler->getNumSounds();
+	MessageManagerLock mm;
 
-	ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
+	LockHelpers::freeToGo(sampler->getMainController());
+
+	int startIndex = sampler->getNumSounds();
 
 	for (int i = 0; i < fileNames.size(); i++)
 	{
 		SamplerSoundBasicData data;
 
-		data.fileNames.add(fileNames[i]);
+		PoolReference ref(sampler->getMainController(), fileNames[i], FileHandlerBase::Samples);
+
+		data.files.add(ref);
 		data.index = startIndex + i;
 		data.rootNote = i % 127;
 		data.lowKey = i % 127;
@@ -363,8 +464,8 @@ void SampleImporter::loadAudioFilesRaw(Component* /*childComponentOfMainEditor*/
 		createSoundAndAddToSampler(sampler, data);
 	}
 
-	//sampler->refreshPreloadSizes();
-	//sampler->refreshMemoryUsage();
+	sampler->refreshPreloadSizes();
+	sampler->refreshMemoryUsage();
 
 }
 
@@ -372,7 +473,7 @@ XmlElement *SampleImporter::createXmlDescriptionForFile(const File &f, int index
 {
 	XmlElement *newSample = new XmlElement("sample");
 
-	newSample->setAttribute(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::ID), index);
+	newSample->setAttribute(SampleIds::ID, index);
 
 	jassert(f.getFileExtension() == ".wav");
 
@@ -388,7 +489,7 @@ XmlElement *SampleImporter::createXmlDescriptionForFile(const File &f, int index
 	StringArray properties = StringArray::fromTokens(fileName, "_", "");
 	String name = properties[Name];
 
-	newSample->setAttribute(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName), f.getFullPathName());
+	newSample->setAttribute(SampleIds::FileName, f.getFullPathName());
 
 	// Get Root note
 
@@ -405,7 +506,7 @@ XmlElement *SampleImporter::createXmlDescriptionForFile(const File &f, int index
 
 	jassert(root != -1);
 
-	newSample->setAttribute(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::RootNote), root);
+	newSample->setAttribute(SampleIds::Root, root);
 	
 
 	// Set midi note range
@@ -418,8 +519,8 @@ XmlElement *SampleImporter::createXmlDescriptionForFile(const File &f, int index
 	midiNotes.setBit(root+2, true);
 	midiNotes.setBit(root-1, true);
 
-	newSample->setAttribute(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::KeyLow), midiNotes.findNextSetBit(0));
-	newSample->setAttribute(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::KeyHigh), midiNotes.getHighestBit());
+	newSample->setAttribute(SampleIds::LoKey, midiNotes.findNextSetBit(0));
+	newSample->setAttribute(SampleIds::HiKey, midiNotes.getHighestBit());
 	
 	// Get Velocity
 
@@ -432,14 +533,14 @@ XmlElement *SampleImporter::createXmlDescriptionForFile(const File &f, int index
 	
 	switch (properties[Velocity].getIntValue())
 	{
-	case Low:		newSample->setAttribute(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::VeloLow), 0);
-					newSample->setAttribute(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::VeloHigh), 29);
+	case Low:		newSample->setAttribute(SampleIds::LoVel, 0);
+					newSample->setAttribute(SampleIds::HiVel, 29);
 					break;
-	case Middle:	newSample->setAttribute(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::VeloLow), 30);
-					newSample->setAttribute(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::VeloHigh), 69);
+	case Middle:	newSample->setAttribute(SampleIds::LoVel, 30);
+					newSample->setAttribute(SampleIds::HiVel, 69);
 					break;
-	case High:		newSample->setAttribute(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::VeloLow), 70);
-					newSample->setAttribute(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::VeloHigh), 127);
+	case High:		newSample->setAttribute(SampleIds::LoVel, 70);
+					newSample->setAttribute(SampleIds::HiVel, 127);
 					break;
 	}
 
@@ -450,6 +551,7 @@ void SampleImporter::SampleCollection::cleanCollection(DialogWindowWithBackgroun
 {
 	thread->showStatusMessage("Cleaning file list");
 
+#if 0
 	for (int i = 0; i < dataList.size(); i++)
 	{
 		thread->setProgress((double)i / (double)dataList.size());
@@ -460,6 +562,7 @@ void SampleImporter::SampleCollection::cleanCollection(DialogWindowWithBackgroun
 			i--;
 		}
 	}
+#endif
 
 	if (multiMicTokens.size() == 0) return; // nothing to do here...
 
@@ -473,7 +576,7 @@ void SampleImporter::SampleCollection::cleanCollection(DialogWindowWithBackgroun
 
 		if (indexOfSameMicSample != -1)
 		{
-			dataList.getReference(indexOfSameMicSample).fileNames.add(dataList[i].fileNames[0]);
+			dataList.getReference(indexOfSameMicSample).files.add(dataList[i].files[0]);
 			dataList.remove(i);
 			i--;
 		}
@@ -482,7 +585,7 @@ void SampleImporter::SampleCollection::cleanCollection(DialogWindowWithBackgroun
 
 int SampleImporter::SampleCollection::getIndexOfSameMicSample(int currentIndex) const
 {
-	String fileName = File(dataList[currentIndex].fileNames[0]).getFileNameWithoutExtension();
+	String fileName = dataList[currentIndex].files[0].getReferenceString();
 
 	String token = "";
 
@@ -501,7 +604,7 @@ int SampleImporter::SampleCollection::getIndexOfSameMicSample(int currentIndex) 
 
 	for (int i = 0; i < currentIndex; i++)
 	{
-		if (dataList[i].fileNames[0].contains(fileNameWithoutToken))
+		if (dataList[i].files[0].getReferenceString().contains(fileNameWithoutToken))
 		{
 			return i;
 		}
@@ -538,6 +641,13 @@ FileImportDialogWindow::~FileImportDialogWindow()
 
 void FileImportDialogWindow::run()
 {
+	SuspendHelpers::ScopedTicket ticket(sampler->getMainController());
+
+	while (sampler->getMainController()->getKillStateHandler().isAudioRunning())
+	{
+		Thread::sleep(200);
+	}
+
 	SampleImporter::SampleCollection collection;
 
 	ModulatorSamplerSoundPool *pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
@@ -597,12 +707,13 @@ void FileImportDialogWindow::run()
 	sampler->setNumMicPositions(collection.multiMicTokens);
 
 	{
-		ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
-		MessageManagerLock mLock;
 
+
+		LockHelpers::freeToGo(sampler->getMainController());
+		
 		for (int i = 0; i < collection.dataList.size(); i++)
 		{
-			showStatusMessage("Loading sample " + collection.dataList[i].fileNames[0]);
+			showStatusMessage("Loading sample " + collection.dataList[i].files.getFirst().getReferenceString());
 
 			setProgress((double)i / (double)collection.dataList.size());
 
@@ -645,7 +756,7 @@ void FileImportDialogWindow::threadFinished()
 
 	while (auto sound = sIter.getNextSound())
 	{
-		const int thisRR = sound->getProperty(ModulatorSamplerSound::RRGroup);
+		const int thisRR = sound->getSampleProperty(SampleIds::RRGroup);
 
 		maxRRIndex = jmax<int>(maxRRIndex, thisRR);
 	};

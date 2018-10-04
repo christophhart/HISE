@@ -453,7 +453,7 @@ void CachedViewport::InternalViewport::paint(Graphics &g)
 	Colour c2 = Colour(0xff242424);
 
 	g.setColour(c2);
-	g.fillRect(FLOAT_RECTANGLE(area));
+	g.fillRect(area.toFloat());
 
 	if (isCurrentlyScrolling)
 	{

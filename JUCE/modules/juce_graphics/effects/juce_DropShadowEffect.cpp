@@ -50,7 +50,7 @@ static inline void blurDataTriplets (uint8* d, int num, const int delta) noexcep
 static void blurSingleChannelImage (uint8* const data, const int width, const int height,
                                     const int lineStride, const int repetitions) noexcept
 {
-    jassert (width > 2 && height > 2);
+    
 
     for (int y = 0; y < height; ++y)
         for (int i = repetitions; --i >= 0;)

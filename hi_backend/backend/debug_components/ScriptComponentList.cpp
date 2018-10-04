@@ -79,12 +79,19 @@ void ScriptComponentListItem::itemDoubleClicked(const MouseEvent& /*e*/)
 
 	auto scId = var(getUniqueName());
 
-	auto v = content->getComponent(scId);
-
-	if (auto sc = dynamic_cast<ScriptingApi::Content::ScriptComponent*>(v.getObject()))
+	try
 	{
-		ScriptingApi::Content::Helpers::gotoLocation(sc);
-	}	
+		auto v = content->getComponent(scId);
+
+		if (auto sc = dynamic_cast<ScriptingApi::Content::ScriptComponent*>(v.getObject()))
+		{
+			ScriptingApi::Content::Helpers::gotoLocation(sc);
+		}
+	}
+	catch (String& /*errorMessage*/)
+	{
+		jassertfalse;
+	}
 }
 
 void ScriptComponentListItem::paintItem(Graphics& g, int width, int height)
@@ -114,13 +121,20 @@ void ScriptComponentListItem::paintItem(Graphics& g, int width, int height)
 		if (content.get() != nullptr)
 		{
 			auto scId = var(getUniqueName());
-
-			auto v = content->getComponent(scId);
-
-			if (auto sc = dynamic_cast<ScriptingApi::Content::ScriptComponent*>(v.getObject()))
+			try
 			{
-				saveInPreset = sc->getScriptObjectProperty(ScriptComponent::Properties::saveInPreset);
+				auto v = content->getComponent(scId);
+
+				if (auto sc = dynamic_cast<ScriptingApi::Content::ScriptComponent*>(v.getObject()))
+				{
+					saveInPreset = sc->getScriptObjectProperty(ScriptComponent::Properties::saveInPreset);
+				}
 			}
+			catch (String& /*errorMessage*/)
+			{
+				jassertfalse;
+			}
+			
 		}
 
 		Colour c3 = saveInPreset ? Colours::green : Colours::red;
@@ -183,21 +197,29 @@ void ScriptComponentListItem::itemSelectionChanged(bool isNowSelected)
 
 	auto b = content->getScriptProcessor()->getMainController_()->getScriptComponentEditBroadcaster();
 
-	auto sc = content->getComponentWithName(id);
-
-	if (sc != nullptr)
+	try
 	{
-		auto selectionContainsParent = b->getSelection().contains(sc->getParentScriptComponent());
+		auto sc = content->getComponentWithName(id);
 
-		if (isNowSelected && !selectionContainsParent)
+		if (sc != nullptr)
 		{
-			b->addToSelection(sc);
-		}
-		else
-		{
-			b->removeFromSelection(sc);
+			auto selectionContainsParent = b->getSelection().contains(sc->getParentScriptComponent());
+
+			if (isNowSelected && !selectionContainsParent)
+			{
+				b->addToSelection(sc);
+			}
+			else
+			{
+				b->removeFromSelection(sc);
+			}
 		}
 	}
+	catch (String& /*errorMessage*/)
+	{
+		jassertfalse;
+	}
+	
 }
 
 
@@ -229,22 +251,20 @@ void ScriptComponentListItem::refreshScriptDefinedState()
 
 	try
 	{
-		var name(getUniqueName());
+		Identifier name(getUniqueName());
 
 		if (content.get() == nullptr)
 			return;
 
-		auto scVar = content->getComponent(name);
-
-		if (auto sc = dynamic_cast<ScriptingApi::Content::ScriptComponent*>(scVar.getObject()))
-		{
+		if (auto sc = content->getComponentWithName(name))
 			isDefinedInScript = ScriptingApi::Content::Helpers::hasLocation(sc);
-		}
 
 		repaintItem();
 	}
-	catch (String& /*errorMessage*/)
+	catch (String& errorMessage)
 	{
+        DBG(errorMessage);
+        ignoreUnused(errorMessage);
 		jassertfalse;
 	}
 

@@ -301,8 +301,8 @@ Component* FloatingPanelTemplates::createHiseLayout(FloatingTile* rootTile)
 
 
 
-	File scriptJSON = File(PresetHandler::getDataFolder()).getChildFile("Workspaces/ScriptingWorkspace.json");
-	File sampleJSON = File(PresetHandler::getDataFolder()).getChildFile("Workspaces/SamplerWorkspace.json");
+	File scriptJSON = ProjectHandler::getAppDataDirectory().getChildFile("Workspaces/ScriptingWorkspace.json");
+	File sampleJSON = ProjectHandler::getAppDataDirectory().getChildFile("Workspaces/SamplerWorkspace.json");
 
 	var scriptData = JSON::parse(scriptJSON.loadFileAsString());
 	var sampleData = JSON::parse(sampleJSON.loadFileAsString());
@@ -353,8 +353,17 @@ Component* FloatingPanelTemplates::createSamplerWorkspace(FloatingTile* rootTile
 	ib.setId(samplePanel, "SamplerWorkspace");
 
 	const int toggleBar = ib.addChild<VisibilityToggleBar>(samplePanel);
-	const int fileBrowser = ib.addChild<GenericPanel<FileBrowser>>(samplePanel);
-	const int samplePoolTable = ib.addChild<GenericPanel<SamplePoolTable>>(samplePanel);
+
+	auto browserBar = ib.addChild<HorizontalTile>(samplePanel);
+	
+	auto editBar = ib.addChild<ExpansionEditBar>(browserBar);
+	auto fileBrowser = ib.addChild<GenericPanel<FileBrowser>>(browserBar);
+
+	ib.getPanel(editBar)->setCanBeFolded(false);
+
+	ib.setDynamic(browserBar, false);
+
+	auto samplePoolTable = ib.addChild<GenericPanel<SamplePoolTable>>(samplePanel);
     
     ib.getPanel(samplePoolTable)->getLayoutData().setVisible(false);
     
@@ -381,7 +390,7 @@ Component* FloatingPanelTemplates::createSamplerWorkspace(FloatingTile* rootTile
 	ib.setId(sampleMapEditor, "MainSampleMapEditor");
 	ib.setId(samplerTable, "MainSamplerTable");
 	
-	ib.setCustomPanels(toggleBar, { fileBrowser, samplePoolTable, sampleEditor, sampleMapEditor, samplerTable });
+	ib.setCustomPanels(toggleBar, { browserBar, samplePoolTable, sampleEditor, sampleMapEditor, samplerTable });
 	ib.getPanel(toggleBar)->setCanBeFolded(false);
 
 	ib.getContent<FloatingTileContent>(sampleEditor)->setStyleProperty("showConnectionBar", false);

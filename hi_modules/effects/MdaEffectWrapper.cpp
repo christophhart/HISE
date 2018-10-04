@@ -37,6 +37,8 @@ MdaLimiterEffect::MdaLimiterEffect(MainController *mc, const String &id):
 {
 	effect = new mdaLimiter();
 
+	finaliseModChains();
+
 	parameterNames.add("Threshhold");
 	parameterNames.add("Output");
 	parameterNames.add("Attack");
@@ -63,10 +65,16 @@ ProcessorEditorBody *MdaLimiterEffect::createEditor(ProcessorEditor *parentEdito
 
 MdaDegradeEffect::MdaDegradeEffect(MainController *mc, const String &id):
 	MdaEffectWrapper(mc, id),
-	dryWet(1.0f),
-	dryWetChain(new ModulatorChain(mc, "FX Modulation", 1, ModulatorChain::GainMode, this)),
-    dryWetBuffer(1, 0)
+	dryWet(1.0f)
 {
+	modChains += {this, "FX Modulation"};
+
+	finaliseModChains();
+
+	dryWetChain = modChains[InternalChains::DryWetChain].getChain();
+	modChains[InternalChains::DryWetChain].setExpandToAudioRate(true);
+	modChains[InternalChains::DryWetChain].setAllowModificationOfVoiceValues(true);
+
 	parameterNames.add("Headroom");
 	parameterNames.add("Quant");
 	parameterNames.add("Rate");
@@ -76,7 +84,6 @@ MdaDegradeEffect::MdaDegradeEffect(MainController *mc, const String &id):
 
 	editorStateIdentifiers.add("DryWetChainShown");
 
-	useStepSizeCalculation(false);
 	effect = new mdaDegrade();
 };
 
@@ -96,5 +103,54 @@ ProcessorEditorBody *MdaDegradeEffect::createEditor(ProcessorEditor *parentEdito
 
 #endif
 };
+
+void MdaDegradeEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples)
+{
+	FloatVectorOperations::copy(inputBuffer.getWritePointer(0, startSample), buffer.getReadPointer(0, startSample), numSamples);
+	FloatVectorOperations::copy(inputBuffer.getWritePointer(1, startSample), buffer.getReadPointer(1, startSample), numSamples);
+
+	float *inputData[2];
+
+	inputData[0] = inputBuffer.getWritePointer(0, startSample);
+	inputData[1] = inputBuffer.getWritePointer(1, startSample);
+
+	float *outputData[2];
+
+	outputData[0] = buffer.getWritePointer(0, startSample);
+	outputData[1] = buffer.getWritePointer(1, startSample);
+
+	effect->processReplacing(inputData, outputData, numSamples);
+
+	
+
+	if (auto dryWetModValues = modChains[InternalChains::DryWetChain].getWritePointerForVoiceValues(startSample))
+	{
+		FloatVectorOperations::multiply(dryWetModValues, dryWet, numSamples);
+
+		FloatVectorOperations::multiply(buffer.getWritePointer(0, startSample), dryWetModValues, numSamples);
+		FloatVectorOperations::multiply(buffer.getWritePointer(1, startSample), dryWetModValues, numSamples);
+
+		FloatVectorOperations::multiply(dryWetModValues, -1.0f, numSamples);
+		FloatVectorOperations::add(dryWetModValues, 1.0f, numSamples);
+
+		FloatVectorOperations::multiply(inputData[0], dryWetModValues, numSamples);
+		FloatVectorOperations::multiply(inputData[1], dryWetModValues, numSamples);
+
+		FloatVectorOperations::add(buffer.getWritePointer(0, startSample), inputData[0], numSamples);
+		FloatVectorOperations::add(buffer.getWritePointer(1, startSample), inputData[1], numSamples);
+	}
+	else
+	{
+		const float modValue = dryWet * modChains[DryWetChain].getConstantModulationValue();
+
+		FloatVectorOperations::multiply(buffer.getWritePointer(0, startSample), modValue, numSamples);
+		FloatVectorOperations::multiply(buffer.getWritePointer(1, startSample), modValue, numSamples);
+		FloatVectorOperations::multiply(inputData[0], 1.0f - modValue, numSamples);
+		FloatVectorOperations::multiply(inputData[1], 1.0f - modValue, numSamples);
+		FloatVectorOperations::add(buffer.getWritePointer(0, startSample), inputData[0], numSamples);
+		FloatVectorOperations::add(buffer.getWritePointer(1, startSample), inputData[1], numSamples);
+	}
+	
+}
 
 } // namespace hise

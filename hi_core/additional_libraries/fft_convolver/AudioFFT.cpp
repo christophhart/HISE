@@ -22,7 +22,7 @@
 #include "AudioFFT.h"
 
 #if USE_IPP
-#include "../../hi_core/IppFFT.h"
+#include "../../../hi_tools/hi_tools/IppFFT.h"
 #endif
 
 #include <cassert>
@@ -899,12 +899,15 @@ namespace audiofft
 	  IPP_FFT() :
 		  detail::AudioFFTImpl()
 	  {
-		  tempBuffer = ippsMalloc_32fc(44100);
+		  
+
+		  
 	  };
 
 	  virtual ~IPP_FFT()
 	  {
-		  ippFree(tempBuffer);
+		  if (tempBuffer != nullptr)
+			  ippFree(tempBuffer);
 		  fft_ = nullptr;
 	  }
 
@@ -912,51 +915,55 @@ namespace audiofft
 	  {
 		  numSamples = size;
 
-		  
-
 		  if (numSamples != 0)
 		  {
-			  order = roundDoubleToInt(log2((double)numSamples));
-
-			  fft_ = new IppFFT(hise::IppFFT::DataType::ComplexFloat);
+			  order = int(log2((double)numSamples)-1);
+			  fft_ = new IppFFT(hise::IppFFT::DataType::RealFloat);
+			  tempBuffer = ippsMalloc_32fc((int)numSamples);
 		  }
 		  else
 		  {
+			  if (tempBuffer != nullptr)
+			  {
+				  ippFree(tempBuffer);
+				  tempBuffer = nullptr;
+			  }
+				  
 			  order = -1;
 			  fft_ = nullptr;
 		  }
-
-		  
 	  }
 
 	  virtual void fft(const float* data, float* re, float* im) override
 	  {
+		  int size2 = (int)numSamples / 2;
+
 		  jassert(fft_ != nullptr);
-
-		  fft_->complexFFT(data, (float*)tempBuffer, (int)numSamples/2);
-
-		  ippsCplxToReal_32fc(tempBuffer, re, im, (int)numSamples/2);
+		  
+		  fft_->realFFT(data, (float*)tempBuffer, (int)numSamples);
+		  ippsCplxToReal_32fc(tempBuffer, re, im, size2);
 	  }
 
 	  virtual void ifft(float* data, const float* re, const float* im) override
 	  {
 		  jassert(fft_ != nullptr);
 
-		  ippsRealToCplx_32f(re, im, tempBuffer, (int)numSamples/2);
-		  fft_->complexFFTInverse((float*)tempBuffer, data, (int)numSamples/2);
-          
-          FloatVectorOperations::multiply(data, 1.0f / (float)numSamples, (int)numSamples);
+		  int size2 = (int)numSamples / 2;
+		  ippsRealToCplx_32f(re, im, tempBuffer, size2);
+		  auto s = (float*)tempBuffer;
+		  fft_->realFFTInverse(s, data, (int)numSamples);
+
+		  FloatVectorOperations::multiply(data, 1.0f / (float)numSamples, (int)numSamples);
 	  }
 
   private:
 
 	  juce::ScopedPointer<hise::IppFFT> fft_;
 
-	  Ipp32fc* tempBuffer;
+	  Ipp32fc* tempBuffer = nullptr;
 
 	  size_t numSamples;
 	  int order;
-
   };
 
   typedef IPP_FFT AudioFFTImplementation;

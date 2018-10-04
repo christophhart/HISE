@@ -42,8 +42,96 @@ void Processor::debugProcessor(const String &t)
 
 #endif
 
+Processor::Processor(MainController *m, const String &id_, int numVoices_) :
+	ControlledObject(m),
+	id(id_),
+	consoleEnabled(false),
+	bypassed(false),
+	visible(true),
+	samplerate(-1.0),
+	largestBlockSize(-1),
+	inputValue(0.0f),
+	outputValue(0.0f),
+	editorState(0),
+	numVoices(numVoices_),
+	symbol(Path())
+{
+	WARN_IF_AUDIO_THREAD(true, MainController::KillStateHandler::ProcessorInsertion);
+
+	editorStateIdentifiers.add("Folded");
+	editorStateIdentifiers.add("BodyShown");
+	editorStateIdentifiers.add("Visible");
+	editorStateIdentifiers.add("Solo");
+
+	setEditorState(Processor::BodyShown, true, dontSendNotification);
+	setEditorState(Processor::Visible, true, dontSendNotification);
+	setEditorState(Processor::Solo, false, dontSendNotification);
+
+	if (Identifier::isValidIdentifier(id))
+	{
+		idAsIdentifier = Identifier(id);
+	}
+
+	enablePooledUpdate(getMainController()->getGlobalUIUpdater());
+
+	//enableAllocationFreeMessages(50);
+}
+
+Processor::~Processor()
+{
+	WARN_IF_AUDIO_THREAD(true, MainController::KillStateHandler::ProcessorDestructor);
+
+	getMainController()->getMacroManager().removeMacroControlsFor(this);
+
+	removeAllChangeListeners();
+
+	masterReference.clear();
+}
+
+juce::ValueTree Processor::exportAsValueTree() const
+{
+	WARN_IF_AUDIO_THREAD(true, MainController::KillStateHandler::ValueTreeOperation);
+
+#if USE_OLD_FILE_FORMAT
+	ValueTree v(getType());
+#else
+	ValueTree v("Processor");
+	v.setProperty("Type", getType().toString(), nullptr);
+#endif
+
+	v.setProperty("ID", getId(), nullptr);
+	v.setProperty("Bypassed", isBypassed(), nullptr);
+
+	ScopedPointer<XmlElement> editorValueSet = new XmlElement("EditorStates");
+	editorStateValueSet.copyToXmlAttributes(*editorValueSet);
+
+#if USE_OLD_FILE_FORMAT
+	v.setProperty("EditorState", editorValueSet->createDocument(""), nullptr);
+
+	for (int i = 0; i < getNumChildProcessors(); i++)
+	{
+		v.addChild(getChildProcessor(i)->exportAsValueTree(), i, nullptr);
+	};
+
+#else
+	ValueTree editorStateValueTree = ValueTree::fromXml(*editorValueSet);
+	v.addChild(editorStateValueTree, -1, nullptr);
+
+	ValueTree childProcessors("ChildProcessors");
+
+	for (int i = 0; i < getNumChildProcessors(); i++)
+	{
+		childProcessors.addChild(getChildProcessor(i)->exportAsValueTree(), i, nullptr);
+	};
+
+	v.addChild(childProcessors, -1, nullptr);
+#endif
+	return v;
+}
+
 void Processor::restoreFromValueTree(const ValueTree &previouslyExportedProcessorState)
 {
+	WARN_IF_AUDIO_THREAD(true, MainController::KillStateHandler::ValueTreeOperation);
 
 	const ValueTree &v = previouslyExportedProcessorState;
 
@@ -105,34 +193,11 @@ void Processor::setConstrainerForAllInternalChains(BaseConstrainer *constrainer)
 	}
 }
 
-const Identifier Processor::getIdentifierForParameterIndex(int parameterIndex) const
+Identifier Processor::getIdentifierForParameterIndex(int parameterIndex) const
 {
-	if (auto pwsc = dynamic_cast<const ProcessorWithScriptingContent*>(this))
-	{
-		if (auto content = pwsc->getScriptingContent())
-		{
-			if (auto sc = content->getComponent(parameterIndex))
-			{
-				return sc->name.toString();
-			}
-            
-            auto child = content->getContentProperties().getChild(parameterIndex);
-            
-            if(child.isValid())
-                return Identifier(child.getProperty("id").toString());
-            
+	if (parameterIndex > parameterNames.size()) return Identifier();
 
-			return Identifier();
-		}
-		else
-			return Identifier();
-	}
-	else
-	{
-		if (parameterIndex > parameterNames.size()) return Identifier();
-
-		return parameterNames[parameterIndex];
-	}
+	return parameterNames[parameterIndex];
 }
 
 
@@ -146,16 +211,133 @@ int Processor::getNumParameters() const
 		return parameterNames.size();
 }
 
-void Processor::setIsOnAir(bool isBeingProcessedInAudioThread)
+void Processor::setIsOnAir(bool shouldBeOnAir)
 {
-	onAir = isBeingProcessedInAudioThread;
+	// This should be called only with a locked iterator lock during insertion...
+	jassert(!shouldBeOnAir || LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::IteratorLock));
+	jassert(!shouldBeOnAir || LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::AudioLock));
+
+	// You must call setIsOnAir after setParentProcessor
+	isValidAndInitialised(false);
+
+	onAir = shouldBeOnAir;
 
 	for (int i = 0; i < getNumChildProcessors(); i++)
 	{
-		getChildProcessor(i)->setIsOnAir(isBeingProcessedInAudioThread);
+		getChildProcessor(i)->setIsOnAir(shouldBeOnAir);
 	}
 }
 
+
+void Processor::sendDeleteMessage()
+{
+	jassert_message_thread;
+
+	int numListeners = deleteListeners.size();
+
+	for (int i = numListeners - 1; i >= 0; --i)
+	{
+		if (deleteListeners[i].get() != nullptr)
+		{
+			deleteListeners[i]->processorDeleted(this);
+		}
+	}
+}
+
+bool Processor::isRebuildMessagePending() const noexcept
+{
+	if (rebuildMessagePending)
+		return true;
+
+	auto parent = getParentProcessor(false, false);
+
+	if (parent != nullptr)
+		return parent->isRebuildMessagePending();
+
+	return false;
+}
+
+void Processor::cleanRebuildFlagForThisAndParents()
+{
+	if (rebuildMessagePending)
+	{
+		rebuildMessagePending = false;
+
+		if (auto parent = getParentProcessor(false))
+			parent->cleanRebuildFlagForThisAndParents();
+	}
+}
+
+void Processor::sendRebuildMessage(bool forceUpdate/*=false*/)
+{
+	
+	if (!isRebuildMessagePending())
+	{
+		rebuildMessagePending = true;
+
+		auto f = [forceUpdate](Dispatchable* obj)
+		{
+			auto p = static_cast<Processor*>(obj);
+			auto pToUse = p;
+
+			while (auto parent = pToUse->getParentProcessor(false, false))
+			{
+				if (parent->isRebuildMessagePending())
+				{
+					DBG("Skipping rebuilding for " + pToUse->getId());
+					pToUse = parent;
+				}
+
+				else
+					break;
+			}
+
+			DBG("Rebuilding " + pToUse->getId());
+
+			for (auto l : pToUse->deleteListeners)
+			{
+				if (p->getMainController()->shouldAbortMessageThreadOperation())
+					return Status::needsToRunAgain;
+
+				if (l.get() != nullptr)
+					l->updateChildEditorList(forceUpdate);
+			}
+
+			p->cleanRebuildFlagForThisAndParents();
+			return Status::OK;
+		};
+
+		getMainController()->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(this, f);
+	}
+}
+
+const hise::Processor* Processor::getParentProcessor(bool getOwnerSynth, bool assertIfFalse) const
+{
+	if (parentProcessor == nullptr)
+	{
+		jassert(!assertIfFalse || this == getMainController()->getMainSynthChain());
+		return nullptr;
+	}
+		
+
+	if (getOwnerSynth)
+	{
+		if (dynamic_cast<ModulatorSynth*>(parentProcessor.get()) != nullptr)
+			return parentProcessor;
+		else
+			return parentProcessor->getParentProcessor(true, assertIfFalse);
+	}
+	else
+	{
+		return parentProcessor;
+	}
+}
+
+
+hise::Processor* Processor::getParentProcessor(bool getOwnerSynth, bool assertIfFalse)
+{
+	return const_cast<Processor*>(const_cast<const Processor*>(this)->getParentProcessor(getOwnerSynth, assertIfFalse));
+}
 
 bool Chain::restoreChain(const ValueTree &v)
 {
@@ -166,12 +348,17 @@ bool Chain::restoreChain(const ValueTree &v)
 
 	jassert(v.getType().toString() == "ChildProcessors");
 
-	for (int i = 0; i < getHandler()->getNumProcessors(); i++)
-	{
-		getHandler()->getProcessor(i)->sendDeleteMessage();
-	}
+	bool wasOnAir = thisAsProcessor->isOnAir();
 
-	getHandler()->clear();
+	getHandler()->clearAsync(nullptr);
+
+	if(thisAsProcessor->isOnAir() != wasOnAir)
+	{
+		LockHelpers::SafeLock itLock(thisAsProcessor->getMainController(), LockHelpers::IteratorLock);
+		LockHelpers::SafeLock audioLock(thisAsProcessor->getMainController(), LockHelpers::AudioLock);
+
+		thisAsProcessor->setIsOnAir(wasOnAir);
+	}
 
 	for(int i = 0; i < v.getNumChildren(); i++)
 	{
@@ -269,6 +456,25 @@ Processor *ProcessorHelpers::getFirstProcessorWithName(const Processor *root, co
 	return nullptr;
 }
 
+
+Array<WeakReference<Processor>> ProcessorHelpers::getListOfAllGlobalModulators(const Processor* rootProcessor)
+{
+	Array<WeakReference<Processor>> mods;
+
+	// Only checks the first global modulator container, should be enough...
+	if (auto container = getFirstProcessorWithType<GlobalModulatorContainer>(rootProcessor))
+	{
+		auto chain = container->getChildProcessor(ModulatorSynth::GainModulation);
+
+		for (int i = 0; i < chain->getNumChildProcessors(); i++)
+		{
+			mods.add(chain->getChildProcessor(i));
+		}
+	}
+
+	return mods;
+}
+
 const Processor *ProcessorHelpers::findParentProcessor(const Processor *childProcessor, bool getParentSynth)
 {
 	return const_cast<const Processor*>(findParentProcessor(const_cast<Processor*>(childProcessor), getParentSynth));
@@ -278,6 +484,14 @@ const Processor *ProcessorHelpers::findParentProcessor(const Processor *childPro
 
 Processor * ProcessorHelpers::findParentProcessor(Processor *childProcessor, bool getParentSynth)
 {
+	if (childProcessor->getMainController()->getMainSynthChain() == childProcessor)
+		return nullptr;
+
+	if (auto p = childProcessor->getParentProcessor(getParentSynth))
+		return p;
+
+	
+
 	Processor *root = const_cast<Processor*>(childProcessor)->getMainController()->getMainSynthChain();
 	Processor::Iterator<Processor> iter(root, false);
 
@@ -455,6 +669,9 @@ void ProcessorHelpers::restoreFromBase64String(Processor* p, const String& base6
 		if (newId.isNotEmpty())
 			p->setId(newId, dontSendNotification);
 
+		
+		
+
 		p->restoreFromValueTree(v);
 
 		p->setId(oldId);
@@ -463,14 +680,13 @@ void ProcessorHelpers::restoreFromBase64String(Processor* p, const String& base6
 		if (auto firstChild = p->getChildProcessor(0))
 		{
 			
-			auto f = [](Processor* p)
+			auto update = [](Dispatchable* obj)
 			{
-				p->sendRebuildMessage(true);
-				return true;
+				dynamic_cast<Processor*>(obj)->sendRebuildMessage(true);
+				return Dispatchable::Status::OK;
 			};
 
-			p->getMainController()->getKillStateHandler().killVoicesAndCall(firstChild, f, MainController::KillStateHandler::MessageThread);
-			
+			p->getMainController()->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(p, update);
 		}
 			
 #endif
@@ -478,22 +694,11 @@ void ProcessorHelpers::restoreFromBase64String(Processor* p, const String& base6
 	
 }
 
-void ProcessorHelpers::deleteProcessor(Processor* p)
-{
-	PresetHandler::setChanged(p);
-
-	p->sendDeleteMessage();
-
-	auto c = dynamic_cast<Chain*>(findParentProcessor(p, false));
-
-	if (c != nullptr)
-	{
-		c->getHandler()->remove(p);
-	}
-}
-
 void ProcessorHelpers::increaseBufferIfNeeded(AudioSampleBuffer& b, int numSamplesNeeded)
 {
+    if(numSamplesNeeded <= 0)
+        return;
+    
 	// The channel amount must be set correctly in the constructor
 	jassert(b.getNumChannels() > 0);
 
@@ -523,11 +728,25 @@ void ProcessorHelpers::increaseBufferIfNeeded(hlac::HiseSampleBuffer& b, int num
 	}
 }
 
+bool Processor::isValidAndInitialised(bool checkOnAir) const
+{
+	const bool onAir_ = !checkOnAir || isOnAir();
+	const bool isMainSynthChain = getMainController()->getMainSynthChain() == this;
+	const bool hasParent = getParentProcessor(false) != nullptr;
+
+	const bool isValid = onAir_ && (isMainSynthChain || hasParent);
+
+	// Normally you expect this method to be true, so this assertion will fire here
+	// so that you can check the reason from the bools above...
+	jassert(isValid);
+	return isValid;
+}
+
 StringArray ProcessorHelpers::getListOfAllConnectableProcessors(const Processor* processorToSkip)
 {
 	const Processor* mainSynthChain = processorToSkip->getMainController()->getMainSynthChain();
 
-	Processor::Iterator<const Processor> boxIter(mainSynthChain, false);
+	Processor::Iterator<Processor> boxIter(mainSynthChain, false);
 
 	Array<const Processor*> processorList;
 
@@ -599,26 +818,26 @@ int ProcessorHelpers::getParameterIndexFromProcessor(Processor* p, const Identif
 	return -1;
 }
 
-void AudioSampleProcessor::replaceReferencesWithGlobalFolder()
-{
-	if (!isReference(loadedFileName))
-	{
-		loadedFileName = getGlobalReferenceForFile(loadedFileName);
-	}
-}
-
 void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFile/*=false*/, bool forceReload/*=false*/)
 {
 	ignoreUnused(forceReload);
 
-	if (loadedFileName != fileName && fileName.isEmpty())
+	PoolReference newRef(dynamic_cast<Processor*>(this)->getMainController(), fileName, ProjectHandler::SubDirectories::AudioFiles);
+
+	if (data.getRef() != newRef && !newRef.isValid())
 	{
-		loadedFileName = fileName;
+		if (currentPool != nullptr)
+		{
+			currentPool->removeListener(this);
+			currentPool = nullptr;
+		}
+			
+
+		data.clear();
 
 		length = 0;
 		sampleRateOfLoadedFile = -1.0;
-		sampleBuffer.setSize(0, 0);
-
+		
 		setRange(Range<int>(0, 0));
 
 		// A AudioSampleProcessor must also be derived from Processor!
@@ -626,54 +845,31 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 
 		dynamic_cast<Processor*>(this)->sendChangeMessage();
 
-		if (loadedFileName.isNotEmpty())
-		{
-			auto f = mc->getSampleManager().getAudioSampleBufferPool()->getFileFromFileNameString(loadedFileName);
-			setLoopFromMetadata(f);
-		}
-		else
-		{
-			loopRange = {};
-			setUseLoop(false);
-		}
-		
+		loopRange = {};
+		setUseLoop(false);
 
 		newFileLoaded();
-
-		
 	}
 
-	if(loadedFileName != fileName && loadThisFile && fileName.isNotEmpty())
+	if(data.getRef() != newRef && loadThisFile && newRef.isValid())
 	{
 		ScopedLock sl(getFileLock());
 
-		loadedFileName = fileName;
+		currentPool = mc->getCurrentAudioSampleBufferPool();
+		
+		data = currentPool->loadFromReference(newRef, PoolHelpers::LoadAndCacheWeak);
+		currentPool->addListener(this);
 
-#if USE_FRONTEND
+		sampleRateOfLoadedFile = data.getAdditionalData().getProperty(MetadataIDs::SampleRate, 0.0);
 
-		sampleBuffer = mc->getSampleManager().getAudioSampleBufferPool()->loadFileIntoPool(fileName);
-
-		Identifier fileId = mc->getSampleManager().getAudioSampleBufferPool()->getIdForFileName(fileName);
-
-#else
-
-		File actualFile = getFile(loadedFileName, PresetPlayerHandler::AudioFiles);
-		Identifier fileId = mc->getSampleManager().getAudioSampleBufferPool()->getIdForFileName(actualFile.getFullPathName());
-		sampleBuffer = mc->getSampleManager().getAudioSampleBufferPool()->loadFileIntoPool(actualFile.getFullPathName());
-
-#endif
-
-		sampleRateOfLoadedFile = mc->getSampleManager().getAudioSampleBufferPool()->getSampleRateForFile(fileId);
-
-		setRange(Range<int>(0, sampleBuffer.getNumSamples()));
+		setRange(Range<int>(0, getTotalLength()));
 
 		// A AudioSampleProcessor must also be derived from Processor!
 		jassert(dynamic_cast<Processor*>(this) != nullptr);
 		
 		dynamic_cast<Processor*>(this)->sendChangeMessage();
 
-		auto f = mc->getSampleManager().getAudioSampleBufferPool()->getFileFromFileNameString(loadedFileName);
-		setLoopFromMetadata(f);
+		setLoopFromMetadata(data.getAdditionalData());
 
 		newFileLoaded();
 	}
@@ -686,7 +882,7 @@ void AudioSampleProcessor::setRange(Range<int> newSampleRange)
 		ScopedLock sl(getFileLock());
 
 		sampleRange = newSampleRange;
-		sampleRange.setEnd(jmin<int>(sampleBuffer.getNumSamples(), sampleRange.getEnd()));
+		sampleRange.setEnd(jmin<int>(getTotalLength(), sampleRange.getEnd()));
 		length = sampleRange.getLength();
 
 		if (loopRange.getEnd() < sampleRange.getEnd())

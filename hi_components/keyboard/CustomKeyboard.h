@@ -71,6 +71,12 @@ public:
 	static const char* white_key_on_png;
 	static const int white_key_on_pngSize;
 
+	bool useVectorGraphics = false;
+
+	Colour bgColour;
+	Colour topLineColour;
+	Colour overlayColour;
+
 private:
 
 	//==============================================================================
@@ -81,10 +87,46 @@ private:
 
 };
 
+class KeyboardBase
+{
+public:
+
+	virtual bool isMPEKeyboard() const = 0;
+
+	virtual void setLowestKeyBase(int lowKey) = 0;
+
+	Component* asComponent() { return dynamic_cast<Component*>(this); }
+	const Component* asComponent() const { return dynamic_cast<const Component*>(this); }
+
+	virtual float getKeyWidthBase() const = 0;
+	virtual bool isShowingOctaveNumbers() const = 0;
+	virtual int getRangeStartBase() const = 0;
+	virtual int getRangeEndBase() const = 0;
+	virtual bool isUsingCustomGraphics() const { return false; }
+	virtual double getBlackNoteLengthProportionBase() const = 0;
+	virtual bool isToggleModeEnabled() const { return false; }
+	virtual int getMidiChannelBase() const = 0;
+
+	
+	virtual void setUseCustomGraphics(bool) = 0;
+	virtual void setRangeBase(int min, int max) = 0;
+	virtual void setKeyWidthBase(float w) = 0;
+
+	virtual void setShowOctaveNumber(bool /*shouldShow*/) {};
+	virtual void setBlackNoteLengthProportionBase(float /*ratio*/) {};
+	virtual void setEnableToggleMode(bool /*isOn*/) {};
+	virtual void setMidiChannelBase(int /*midiChannel*/) = 0;
+
+	virtual void setUseVectorGraphics(bool shouldUseVectorGraphics) { ignoreUnused(shouldUseVectorGraphics); }
+	virtual bool isUsingVectorGraphics() const { return true; };
+
+	virtual ~KeyboardBase() {};
+};
 
 class CustomKeyboard : public MidiKeyboardComponent,
 					   public SafeChangeListener,
-					   public ButtonListener
+					   public ButtonListener,
+					   public KeyboardBase
 					   
 {
 public:
@@ -111,6 +153,9 @@ public:
 	{
 		MidiKeyboardComponent::paint(g);
 		
+		//auto lf_ = dynamic_cast<CustomKeyboardLookAndFeel*>(&getLookAndFeel());
+		//lf_->overlayColour = findColour(MidiKeyboardComponent::ColourIds::mouseOverKeyOverlayColourId);
+
 		if(!useCustomGraphics)
 			dynamic_cast<CustomKeyboardLookAndFeel*>(&getLookAndFeel())->drawKeyboardBackground(g, getWidth(), getHeight());
 	};
@@ -122,18 +167,58 @@ public:
 		repaint();
 	}
 
+	
 	void mouseDown(const MouseEvent& e) override;
 
 	void mouseUp(const MouseEvent& e) override;
 
 	void mouseDrag(const MouseEvent& e) override;
 
-	void setUseCustomGraphics(bool shouldUseCustomGraphics);
+	bool isMPEKeyboard() const override { return false; }
 
-	void setShowOctaveNumber(bool shouldDisplayOctaveNumber) { displayOctaveNumber = shouldDisplayOctaveNumber; }
+	bool isUsingCustomGraphics() const noexcept override { return useCustomGraphics; };
+	void setUseCustomGraphics(bool shouldUseCustomGraphics) override;
+
+	void setShowOctaveNumber(bool shouldDisplayOctaveNumber) override { displayOctaveNumber = shouldDisplayOctaveNumber; }
+	bool isShowingOctaveNumbers() const override { return displayOctaveNumber; }
+
+	void setLowestKeyBase(int lowKey_) override { setLowestVisibleKey(lowKey_); }
+
+	float getKeyWidthBase() const override { return getKeyWidth(); };
+	void setKeyWidthBase(float w) override { setKeyWidth(w); }
+
+	int getRangeStartBase() const override { return lowKey; };
+	int getRangeEndBase() const override { return hiKey; };
+
+	int getMidiChannelBase() const override { return getMidiChannel(); }
+	void setMidiChannelBase(int newChannel) override 
+	{ 
+		setMidiChannel(newChannel); 
+		BigInteger mask = 0;
+		mask.setBit(newChannel-1, true);
+		setMidiChannelsToDisplay(mask.toInteger());
+	}
 
 	int getLowKey() const { return lowKey; }
 	int getHiKey() const { return hiKey; }
+	
+	void setRangeBase(int min, int max) override { setRange(min, max); }
+
+	
+
+	void setBlackNoteLengthProportionBase(float ratio) override { setBlackNoteLengthProportion(ratio); }
+	double getBlackNoteLengthProportionBase() const override { return getBlackNoteLengthProportion(); }
+
+	bool isToggleModeEnabled() const override { return toggleMode; };
+	void setEnableToggleMode(bool shouldBeEnabled) override { toggleMode = shouldBeEnabled; }
+
+	void setUseVectorGraphics(bool shouldUseVectorGraphics) override
+	{
+		laf.useVectorGraphics = shouldUseVectorGraphics;
+	}
+
+	bool isUsingVectorGraphics() const override { return laf.useVectorGraphics; }
+
 	void setRange(int lowKey_, int hiKey_)
 	{
 		lowKey = jlimit<int>(0, 100, lowKey_);
@@ -141,18 +226,6 @@ public:
 
 		setAvailableRange(lowKey, hiKey);
 	}
-
-
-	bool isUsingCustomGraphics() const noexcept { return useCustomGraphics; };
-
-	bool isShowingOctaveNumbers() const { return displayOctaveNumber; }
-
-	void setEnableToggleMode(bool shouldBeEnabled)
-	{
-		toggleMode = shouldBeEnabled;
-	}
-
-	bool isToggleModeEnabled() const { return toggleMode; };
 
 protected:
 
@@ -162,8 +235,8 @@ protected:
 
 private:
 
-	Image upImages[12];
-	Image downImages[12];
+	Array<PooledImage> upImages;
+	Array<PooledImage> downImages;
 
 	MainController* mc;
 
@@ -172,6 +245,7 @@ private:
 	CustomKeyboardState *state;
  
 	bool useCustomGraphics = false;
+	bool useVectorGraphics = false;
 
     bool narrowKeys;
     

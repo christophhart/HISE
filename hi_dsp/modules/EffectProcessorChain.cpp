@@ -33,13 +33,50 @@
 namespace hise { using namespace juce;
 
 EffectProcessorChain::EffectProcessorChain(Processor *parentProcessor_, const String &id, int numVoices) :
-		VoiceEffectProcessor(parentProcessor_->getMainController(), id, numVoices),
+		Processor(parentProcessor_->getMainController(), id, numVoices),
 		handler(this),
-		parentProcessor(parentProcessor_)
+		parentProcessor(parentProcessor_),
+		killBuffer(2, 0)
 {
 	effectChainFactory = new EffectProcessorChainFactoryType(numVoices, parentProcessor);
 
 	setEditorState(Processor::Visible, false, dontSendNotification);
+}
+
+EffectProcessorChain::~EffectProcessorChain()
+{
+	getHandler()->clearAsync(this);
+}
+
+void EffectProcessorChain::renderMasterEffects(AudioSampleBuffer &b)
+{
+	if (isBypassed())
+		return;
+
+	ADD_GLITCH_DETECTOR(parentProcessor, DebugLogger::Location::MasterEffectRendering);
+
+	FOR_EACH_MASTER_EFFECT(renderWholeBuffer(b));
+
+	const auto prev = resetCounter;
+
+	resetCounter -= (int64)b.getNumSamples();
+
+	const bool signChange = (prev * resetCounter) < 0;
+
+	if (signChange)
+	{
+#if JUCE_DEBUG
+		for (auto& fx : masterEffects)
+			jassert(fx->isBypassed() || !fx->isFadeOutPending());
+#endif
+
+		resetMasterEffects();
+	}
+
+#if ENABLE_ALL_PEAK_METERS
+	currentValues.outL = (b.getMagnitude(0, 0, b.getNumSamples()));
+	currentValues.outR = (b.getMagnitude(1, 0, b.getNumSamples()));
+#endif
 }
 
 ProcessorEditorBody *EffectProcessorChain::EffectProcessorChain::createEditor(ProcessorEditor *parentEditor)
@@ -136,18 +173,18 @@ void EffectProcessorChain::EffectChainHandler::add(Processor *newProcessor, Proc
 	newProcessor->setConstrainerForAllInternalChains(chain->getFactoryType()->getConstrainer());
 
 	if (chain->getSampleRate() > 0.0 && newProcessor != nullptr)
-		newProcessor->prepareToPlay(chain->getSampleRate(), chain->getBlockSize());
+		newProcessor->prepareToPlay(chain->getSampleRate(), chain->getLargestBlockSize());
 	else
 	{
 		debugError(chain, "Trying to add a processor to a uninitialized effect chain (internal engine error).");
 	}
 
-	
+	newProcessor->setParentProcessor(chain);
 
 	{
-		MainController::ScopedSuspender ss(chain->getMainController(), MainController::ScopedSuspender::LockType::Lock);
+		LOCK_PROCESSING_CHAIN(chain);
 
-		newProcessor->setIsOnAir(true);
+		newProcessor->setIsOnAir(chain->isOnAir());
 
 		if (VoiceEffectProcessor* vep = dynamic_cast<VoiceEffectProcessor*>(newProcessor))
 		{
@@ -158,6 +195,9 @@ void EffectProcessorChain::EffectChainHandler::add(Processor *newProcessor, Proc
 		{
 			const int index = chain->masterEffects.indexOf(dynamic_cast<MasterEffectProcessor*>(siblingToInsertBefore));
 			chain->masterEffects.insert(index, mep);
+
+			mep->setKillBuffer(chain->killBuffer);
+
 		}
 		else if (MonophonicEffectProcessor* moep = dynamic_cast<MonophonicEffectProcessor*>(newProcessor))
 		{
@@ -172,8 +212,6 @@ void EffectProcessorChain::EffectChainHandler::add(Processor *newProcessor, Proc
 		jassert(chain->allEffects.size() == (chain->masterEffects.size() + chain->voiceEffects.size() + chain->monoEffects.size()));
 	}
 
-	
-
 	if (RoutableProcessor *rp = dynamic_cast<RoutableProcessor*>(newProcessor))
 	{
 		RoutableProcessor *parentRouter = dynamic_cast<RoutableProcessor*>(chain->getParentProcessor());
@@ -184,15 +222,138 @@ void EffectProcessorChain::EffectChainHandler::add(Processor *newProcessor, Proc
 		rp->getMatrix().setNumDestinationChannels(parentRouter->getMatrix().getNumSourceChannels());
 		rp->getMatrix().setTargetProcessor(chain->getParentProcessor());
 	}
-
 	
-	if (JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(newProcessor))
+	if (auto sp = dynamic_cast<JavascriptProcessor*>(newProcessor))
 	{
 		sp->compileScript();
 	}
 
-	sendChangeMessage();
+	notifyListeners(Listener::ProcessorAdded, newProcessor);
 }
 
+
+void EffectProcessorChain::EffectChainHandler::remove(Processor *processorToBeRemoved, bool removeEffect/*=true*/)
+{
+	notifyListeners(Listener::ProcessorDeleted, processorToBeRemoved);
+
+	ScopedPointer<Processor> ownedProcessorToRemove = processorToBeRemoved;
+
+	{
+		auto mc = chain->getMainController();
+
+		LOCK_PROCESSING_CHAIN(chain);
+
+		LockHelpers::SafeLock sl2(mc, LockHelpers::IteratorLock);
+		LockHelpers::SafeLock sl(mc, LockHelpers::AudioLock);
+		
+		jassert(dynamic_cast<EffectProcessor*>(processorToBeRemoved) != nullptr);
+
+		processorToBeRemoved->setIsOnAir(false);
+		chain->allEffects.removeAllInstancesOf(dynamic_cast<EffectProcessor*>(processorToBeRemoved));
+
+		if (auto vep = dynamic_cast<VoiceEffectProcessor*>(processorToBeRemoved))		 chain->voiceEffects.removeObject(vep, false);
+		else if (auto mep = dynamic_cast<MasterEffectProcessor*>(processorToBeRemoved))		 chain->masterEffects.removeObject(mep, false);
+		else if (auto moep = dynamic_cast<MonophonicEffectProcessor*>(processorToBeRemoved)) chain->monoEffects.removeObject(moep, false);
+		else jassertfalse;
+
+		jassert(chain->allEffects.size() == (chain->masterEffects.size() + chain->voiceEffects.size() + chain->monoEffects.size()));
+	}
+
+	if (removeEffect)
+		ownedProcessorToRemove = nullptr;
+	else
+		ownedProcessorToRemove.release();
+}
+
+void EffectProcessorChain::EffectChainHandler::moveProcessor(Processor *processorInChain, int delta)
+{
+	if (MasterEffectProcessor *mep = dynamic_cast<MasterEffectProcessor*>(processorInChain))
+	{
+		const int indexOfProcessor = chain->masterEffects.indexOf(mep);
+		jassert(indexOfProcessor != -1);
+
+		const int indexOfSwapProcessor = jlimit<int>(0, chain->masterEffects.size(), indexOfProcessor + delta);
+
+		const int indexOfProcessorInAllEffects = chain->allEffects.indexOf(mep);
+		const int indexOfSwapProcessorInAllEfects = jlimit<int>(0, chain->allEffects.size(), indexOfProcessorInAllEffects + delta);
+
+		if (indexOfProcessor != indexOfSwapProcessor)
+		{
+			ScopedLock sl(chain->getMainController()->getLock());
+
+			chain->masterEffects.swap(indexOfProcessor, indexOfSwapProcessor);
+			chain->allEffects.swap(indexOfProcessorInAllEffects, indexOfSwapProcessorInAllEfects);
+		}
+	}
+}
+
+hise::Processor * EffectProcessorChain::EffectChainHandler::getProcessor(int processorIndex)
+{
+	if (processorIndex < chain->voiceEffects.size())
+	{
+		return chain->voiceEffects.getUnchecked(processorIndex);
+	}
+
+	processorIndex -= chain->voiceEffects.size();
+
+	if (processorIndex < chain->monoEffects.size())
+	{
+		return chain->monoEffects.getUnchecked(processorIndex);
+	}
+
+	processorIndex -= chain->monoEffects.size();
+
+	if (processorIndex < chain->masterEffects.size())
+	{
+		return chain->masterEffects.getUnchecked(processorIndex);
+	}
+
+	jassertfalse;
+
+	return chain->allEffects.getUnchecked(processorIndex);
+}
+
+const hise::Processor * EffectProcessorChain::EffectChainHandler::getProcessor(int processorIndex) const
+{
+
+
+	if (processorIndex < chain->voiceEffects.size())
+	{
+		return chain->voiceEffects.getUnchecked(processorIndex);
+	}
+
+	processorIndex -= chain->voiceEffects.size();
+
+	if (processorIndex < chain->monoEffects.size())
+	{
+		return chain->monoEffects.getUnchecked(processorIndex);
+	}
+
+	processorIndex -= chain->monoEffects.size();
+
+	if (processorIndex < chain->masterEffects.size())
+	{
+		return chain->masterEffects.getUnchecked(processorIndex);
+	}
+
+	jassertfalse;
+
+	return chain->allEffects.getUnchecked(processorIndex);
+}
+
+int EffectProcessorChain::EffectChainHandler::getNumProcessors() const
+{
+	return chain->allEffects.size();
+}
+
+void EffectProcessorChain::EffectChainHandler::clear()
+{
+	notifyListeners(Listener::Cleared, nullptr);
+
+	chain->voiceEffects.clear();
+	chain->masterEffects.clear();
+	chain->monoEffects.clear();
+	chain->allEffects.clear();
+}
 
 } // namespace hise

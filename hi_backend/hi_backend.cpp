@@ -35,7 +35,6 @@
 
 #include "backend/WinInstallerTemplate.cpp"
 
-#include "backend/BackendBinaryData.cpp"
 #include "backend/BackendCommandIcons.cpp"
 
 #include "backend/debug_components/SamplePoolTable.cpp"

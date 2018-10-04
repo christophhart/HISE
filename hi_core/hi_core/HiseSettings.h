@@ -37,10 +37,9 @@
 namespace hise {
 using namespace juce;
 
-
-#define DECLARE_ID(name)      const Identifier name (#name)
-
 namespace HiseSettings {
+
+#define DECLARE_ID(x) const juce::Identifier x(#x);
 
 namespace SettingFiles
 {
@@ -83,6 +82,7 @@ namespace Compiler
 DECLARE_ID(HisePath);
 DECLARE_ID(VisualStudioVersion);
 DECLARE_ID(UseIPP);
+DECLARE_ID(RebuildPoolFiles);
 
 Array<Identifier> getAllIds();
 
@@ -116,6 +116,7 @@ namespace Other
 {
 DECLARE_ID(EnableAutosave);
 DECLARE_ID(AutosaveInterval);
+DECLARE_ID(AudioThreadGuardEnabled)
 
 Array<Identifier> getAllIds();
 
@@ -142,7 +143,7 @@ Array<Identifier> getAllIds();
 
 } // Midi
 
-
+#undef DECLARE_ID
 
 
 

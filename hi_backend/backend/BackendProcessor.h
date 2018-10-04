@@ -47,17 +47,20 @@ class BackendProcessor;
 */
 class BackendProcessor: public PluginParameterAudioProcessor,
 					    public AudioProcessorDriver,
-						public MainController
+						public MainController,
+						public ProjectHandler::Listener
 {
 public:
 	BackendProcessor(AudioDeviceManager *deviceManager_=nullptr, AudioProcessorPlayer *callback_=nullptr);
 
 	~BackendProcessor();
 
+	void projectChanged(const File& newRootDirectory) override;
+
 	void handleEditorData(bool save)
 	{
 #if IS_STANDALONE_APP
-		File jsonFile(PresetHandler::getDataFolder() + "/editorData.json");
+		File jsonFile = NativeFileHandler::getAppDataDirectory().getChildFile("editorData.json");
 
 		if (save)
 		{

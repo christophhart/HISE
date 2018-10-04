@@ -279,7 +279,7 @@ public:
 			throwErrorAndQuit(hisePath.getFullPathName() + " is not HISE source folder");
 		}
 
-		auto compilerSettings = File(PresetHandler::getDataFolder()).getChildFile("compilerSettings.xml");
+		auto compilerSettings = NativeFileHandler::getAppDataDirectory().getChildFile("compilerSettings.xml");
 
 		ScopedPointer<XmlElement> xml;
 
@@ -524,7 +524,7 @@ public:
             // ask the app to quit when this happens, but you can change this to do
             // whatever you need.
 
-			mw->requestQuit([]() {JUCEApplication::getInstance()->systemRequestedQuit(); });
+			mw->requestQuit();
 
             
         }

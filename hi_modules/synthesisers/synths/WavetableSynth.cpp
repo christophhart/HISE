@@ -39,7 +39,14 @@ WavetableSynth::WavetableSynth(MainController *mc, const String &id, int numVoic
 	morphSmoothing(700),
 	tableIndexChain(new ModulatorChain(mc, "Table Index", numVoices, Modulation::GainMode, this))
 {
-	tableBuffer = AudioSampleBuffer(1, 0);
+	modChains += {this, "Table Index"};
+
+	finaliseModChains();
+
+	tableIndexChain = modChains[ChainIndex::TableIndex].getChain();
+
+	modChains[ChainIndex::TableIndex].setIncludeMonophonicValuesInVoiceRendering(true);
+	modChains[ChainIndex::TableIndex].setExpandToAudioRate(true);
 
 	parameterNames.add("HqMode");
 	parameterNames.add("LoadedBankIndex");
@@ -49,15 +56,10 @@ WavetableSynth::WavetableSynth(MainController *mc, const String &id, int numVoic
 
 	tableIndexChain->setColour(Colour(0xff4D54B3));
 
-
-	disableChain((ModulatorSynth::InternalChains)(int)TableIndexModulation, false);
-
-	pack = new SliderPackData(nullptr);
+	pack = new SliderPackData(nullptr, mc->getGlobalUIUpdater());
 	pack->setNumSliders(128);
 	pack->setRange(0.0, 1.0, 0.01);
 	pack->setFlashActive(true);
-
-
 
 	for (int i = 0; i < 128; i++)
 	{
@@ -125,17 +127,13 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 	const int startIndex = startSample;
 	const int samplesToCopy = numSamples;
 
-	const float *voicePitchValues = getVoicePitchValues();
-	const float *modValues = getVoiceGainValues(startSample, numSamples);
-	const float *tableValues = getTableModulationValues(startSample, numSamples);
-
-	if (hqMode)
+	const float *voicePitchValues = getOwnerSynth()->getPitchValuesForVoice();
+		
+	if (auto tableValues = getTableModulationValues())
 	{
 		while (--numSamples >= 0)
 		{
 			// Get the two indexes for the table position
-
-
 
 			int index = (int)voiceUptime;
 
@@ -147,12 +145,10 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 			{
 				const float tableModValue = tableValues[startSample];
 				currentTableIndex = roundToInt(tableModValue * 63);
-
 				i2 = 0;
 			}
 
 			const float tableModValue = tableValues[startSample];
-
 			const float tableValue = jlimit<float>(0.0f, 1.0f, tableModValue) * 63.0f;
 
 			const int lowerTableIndex = (int)(tableValue);
@@ -188,7 +184,6 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 
 			// Stereo mode assumed
 			voiceBuffer.setSample(0, startSample, sample);
-			voiceBuffer.setSample(1, startSample, sample);
 
 			jassert(voicePitchValues == nullptr || voicePitchValues[startSample] > 0.0f);
 
@@ -197,15 +192,19 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 			voiceUptime += delta;
 
 			++startSample;
-
 		}
 	}
 	else
 	{
-
+		const float tableModValue = static_cast<WavetableSynth*>(getOwnerSynth())->getConstantTableModValue();
+		currentTableIndex = roundToInt(tableModValue * 63);
+		lowerTable = currentSound->getWaveTableData(currentTableIndex);
+		float tableGainValue = currentSound->getUnnormalizedGainValue(currentTableIndex);
 
 		while (--numSamples >= 0)
 		{
+			// Get the two indexes for the table position
+
 			int index = (int)voiceUptime;
 
 			const int i1 = index % (tableSize);
@@ -217,59 +216,12 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 				i2 = 0;
 			}
 
-			//const int i2 = (index +1) % (tableSize);
-
-			const int smoothIndex = index % smoothSize;
-
-			if (index == 0 || i2 == 0)
-			{
-				const float tableModValue = tableValues[startSample];
-
-				currentTableIndex = nextTableIndex;
-				nextTableIndex = roundToInt(tableModValue * 63);
-
-				//DBG(nextTableIndex);
-
-				currentGainValue = nextGainValue;
-				nextGainValue = getGainValue(tableModValue);
-
-				currentTable = nextTable;
-				nextTable = currentSound->getWaveTableData(nextTableIndex);
-			}
-
-
-			const float tableModValue = tableValues[startSample];
-
-
-
-			const int tableGainLowIndex = (int)(tableModValue * 63);
-			const int tableGainHighIndex = jmin(63, tableGainLowIndex + 1);
-			const float tableGainAlpha = tableModValue * 63 - tableGainLowIndex;
-
-			float tableGainValue = tableGainInterpolator.interpolateLinear(currentSound->getUnnormalizedGainValue(tableGainLowIndex), currentSound->getUnnormalizedGainValue(tableGainHighIndex), tableGainAlpha);
-
-			tableGainValue *= getGainValue(tableModValue);
-
-			float v1 = currentTable[i1];
-			float v2 = currentTable[i2];
-
-			float n1 = nextTable[i1];
-			float n2 = nextTable[i2];
+			float u1 = upperTable[i1];
+			float u2 = upperTable[i2];
 
 			const float alpha = float(voiceUptime) - (float)index;
-			//const float invAlpha = 1.0f - alpha;
 
-			const float currentSample = tableGainInterpolator.interpolateLinear(v1, v2, alpha);
-
-			const float nextSample = tableGainInterpolator.interpolateLinear(n1, n2, alpha);
-
-			const float tableAlpha = (float)smoothIndex / (float)(smoothSize - 1);
-
-
-			currentGainValue = 1.0f;
-			nextGainValue = 1.0f;
-
-			float sample = tableGainInterpolator.interpolateLinear(currentSample, nextSample, tableAlpha);
+			float sample = tableGainInterpolator.interpolateLinear(u1, u2, alpha);
 
 			sample *= tableGainValue;
 
@@ -277,46 +229,38 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 
 			// Stereo mode assumed
 			voiceBuffer.setSample(0, startSample, sample);
-			voiceBuffer.setSample(1, startSample, sample);
 
-			const double delta = (voicePitchValues != nullptr) ? (uptimeDelta * voicePitchValues[startSample]) : uptimeDelta;
+			jassert(voicePitchValues == nullptr || voicePitchValues[startSample] > 0.0f);
+
+			const double delta = (uptimeDelta * (voicePitchValues == nullptr ? 1.0 : voicePitchValues[startSample]));
 
 			voiceUptime += delta;
-
-
-
-
 			++startSample;
 		}
+	}
 
+	if (auto modValues = getOwnerSynth()->getVoiceGainValues())
+	{
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
+		FloatVectorOperations::copy(voiceBuffer.getWritePointer(1, startIndex), voiceBuffer.getReadPointer(0, startIndex), samplesToCopy);
+	}
+	else
+	{
+		const float constantGain = getOwnerSynth()->getConstantGainModValue();
+
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), constantGain, samplesToCopy);
+		FloatVectorOperations::copy(voiceBuffer.getWritePointer(1, startIndex), voiceBuffer.getReadPointer(0, startIndex), samplesToCopy);
 	}
 
 	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
 
-	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
-	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
-
 	if (getOwnerSynth()->getLastStartedVoice() == this)
-	{
 		static_cast<WavetableSynth*>(getOwnerSynth())->triggerWaveformUpdate();
-	}
 }
 
-const float *WavetableSynthVoice::getTableModulationValues(int startSample, int numSamples)
+const float * WavetableSynthVoice::getTableModulationValues()
 {
-	dynamic_cast<WavetableSynth*>(getOwnerSynth())->calculateTableModulationValuesForVoice(voiceIndex, startSample, numSamples);
-
-	return dynamic_cast<WavetableSynth*>(getOwnerSynth())->getTableModValues(voiceIndex);
-}
-
-void WavetableSynthVoice::stopNote(float velocity, bool allowTailoff)
-{
-
-	ModulatorSynthVoice::stopNote(velocity, allowTailoff);
-
-	ModulatorChain *c = static_cast<ModulatorChain*>(getOwnerSynth()->getChildProcessor(WavetableSynth::TableIndexModulation));
-
-	c->stopVoice(voiceIndex);
+	return dynamic_cast<WavetableSynth*>(getOwnerSynth())->getTableModValues();
 }
 
 int WavetableSynthVoice::getSmoothSize() const

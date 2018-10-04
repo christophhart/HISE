@@ -88,34 +88,89 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 
 	MidiControllerAutomationHandler *handler = getProcessor()->getMainController()->getMacroManager().getMidiControlAutomationHandler();
 
+	auto mods = ProcessorHelpers::getListOfAllGlobalModulators(getProcessor()->getMainController()->getMainSynthChain());
+
 	const int midiController = handler->getMidiControllerNumber(processor, parameter);
 	const bool learningActive = handler->isLearningActive(processor, parameter);
+
+	enum Commands
+	{
+		Learn = 1,
+		Remove,
+		AddMPE,
+		RemoveMPE,
+		GlobalModAddOffset=100,
+		GlobalModRemoveOffset=200,
+		numCommands
+	};
 
 	PopupLookAndFeel plaf;
 	PopupMenu m;
 
 	m.setLookAndFeel(&plaf);
 
-	m.addItem(1, "Learn MIDI CC", true, learningActive);
+	m.addItem(Learn, "Learn MIDI CC", true, learningActive);
 	
+	auto& data = getProcessor()->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData();
+
+	const String possibleName = dynamic_cast<Component*>(this)->getName() + "MPE";
+
+	auto possibleConnection = dynamic_cast<MPEModulator*>(ProcessorHelpers::getFirstProcessorWithName(getProcessor()->getMainController()->getMainSynthChain(), possibleName));
+
+	if (data.isMpeEnabled() && possibleConnection != nullptr)
+	{
+		const bool active = !data.getListOfUnconnectedModulators(false).contains(possibleName);
+
+		if (active)
+		{
+			m.addItem(RemoveMPE, "Remove MPE Gesture");
+		}
+		else
+			m.addItem(AddMPE, "Add MPE Gesture");
+	}
+
 	if (midiController != -1)
 	{
-		m.addItem(2, "Remove CC " + String(midiController));
+		m.addItem(Remove, "Remove CC " + String(midiController));
 	}
 	
+#if 0
+	auto container = ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(getProcessor()->getMainController()->getMainSynthChain());
+
+	if (!mods.isEmpty())
+	{
+		jassert(container != nullptr);
+
+		PopupMenu modSubMenu;
+
+		auto currentlyControllingMod = container->getModulatorForControlledParameter(processor, parameter);
+
+		for (int i = 0; i < mods.size(); i++)
+		{
+			auto m_ = mods[i].get();
+			if (m_ == nullptr)
+				continue;
+
+			modSubMenu.addItem(i + GlobalModAddOffset, m_->getId(), true, currentlyControllingMod == m_);
+		}
+
+		m.addSubMenu("Add Modulation", modSubMenu);
+	}
+#endif
+
+	NormalisableRange<double> rangeWithSkew = getRange();
+
+	if (HiSlider *slider = dynamic_cast<HiSlider*>(this))
+	{
+		rangeWithSkew.skew = slider->getSkewFactor();
+	}
+
 	const int result = m.show();
 
-	if (result == 1)
+	if (result == Learn)
 	{
 		if (!learningActive)
 		{
-			NormalisableRange<double> rangeWithSkew = getRange();
-
-			if (HiSlider *slider = dynamic_cast<HiSlider*>(this))
-			{
-				rangeWithSkew.skew = slider->getSkewFactor();
-			}
-
 			handler->addMidiControlledParameter(processor, parameter, rangeWithSkew, getMacroIndex());
 		}
 		else
@@ -123,10 +178,36 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 			handler->deactivateMidiLearning();
 		}
 	}
-	else if (result == 2)
+	else if (result == Remove)
 	{
 		handler->removeMidiControlledParameter(processor, parameter, sendNotification);
 	}
+	else if (result == AddMPE)
+	{
+		data.addConnection(possibleConnection);
+	}
+	else if (result == RemoveMPE)
+	{
+		data.removeConnection(possibleConnection);
+	}
+#if 0
+	else if (result >= GlobalModAddOffset)
+	{
+		auto mod = mods[result - GlobalModAddOffset];
+
+		auto currentMod = container->getModulatorForControlledParameter(processor, parameter);
+
+		if (currentMod != nullptr)
+		{
+			container->removeModulatorControlledParameter(currentMod, processor, parameter);
+		}
+
+		if (currentMod != mod)
+		{
+			container->addModulatorControlledParameter(mod, processor, parameter, rangeWithSkew, getMacroIndex());	
+		}
+	}
+#endif
 }
 
 void MacroControlledObject::setAttributeWithUndo(float newValue, bool useCustomOldValue/*=false*/, float customOldValue/*=-1.0f*/)
@@ -147,6 +228,19 @@ void MacroControlledObject::setAttributeWithUndo(float newValue, bool useCustomO
 	{
 		getProcessor()->setAttribute(parameter, newValue, dontSendNotification);
 	}
+}
+
+bool MacroControlledObject::isConnectedToModulator() const
+{
+	auto chain = getProcessor()->getMainController()->getMainSynthChain();
+
+	if (auto container = ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(chain))
+	{
+		return container->getModulatorForControlledParameter(getProcessor(), parameter) != nullptr;
+	}
+
+	return false;
+	
 }
 
 bool  MacroControlledObject::isLocked()
@@ -287,9 +381,9 @@ HiSlider::HiSlider(const String &name) :
 	addListener(this);
 	setWantsKeyboardFocus(false);
 
-	setColour(HiBackgroundColours::upperBgColour, Colour(0x66333333));
-	setColour(HiBackgroundColours::lowerBgColour, Colour(0xfb111111));
-	setColour(HiBackgroundColours::outlineBgColour, Colours::white.withAlpha(0.3f));
+	setColour(HiseColourScheme::WidgetFillTopColourId, Colour(0x66333333));
+	setColour(HiseColourScheme::WidgetFillBottomColourId, Colour(0xfb111111));
+	setColour(HiseColourScheme::WidgetOutlineColourId, Colours::white.withAlpha(0.3f));
 	setColour(TextEditor::highlightColourId, Colour(SIGNAL_COLOUR).withAlpha(0.5f));
 	setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
 }
@@ -329,8 +423,12 @@ void HiSlider::mouseDown(const MouseEvent &e)
 			PresetHandler::setChanged(getProcessor());
 
 			checkLearnMode();
-			Slider::mouseDown(e);
-			startTouch(e.getMouseDownPosition());
+
+			if (!isConnectedToModulator())
+			{
+				Slider::mouseDown(e);
+				startTouch(e.getMouseDownPosition());
+			}
 		}
 		
 	}

@@ -38,7 +38,7 @@ using namespace juce;
 
 
 class WaveformComponent : public Component,
-						  public Timer
+						  public SafeChangeListener
 {
 public:
 
@@ -147,15 +147,29 @@ public:
 
 	~WaveformComponent();
 
+	void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override
+	{
+		setBypassed(processor->isBypassed());
+	}
+
+	void setBypassed(bool shouldBeBypassed)
+	{
+		if (bypassed != shouldBeBypassed)
+		{
+			bypassed = shouldBeBypassed;
+			rebuildPath();
+		}
+	}
+
 	void setUseFlatDesign(bool shouldUseFlatDesign)
 	{
 		useFlatDesign = shouldUseFlatDesign;
 		repaint();
 	}
 
-	void timerCallback();
-
 	void paint(Graphics &g);
+
+
 
 	void resized() override
 	{
@@ -190,6 +204,8 @@ protected:
 	
 
 private:
+
+	bool bypassed = false;
 
 	int index = 0;
 

@@ -63,6 +63,8 @@ namespace chunkware_simple
 	//-------------------------------------------------------------
 	void SimpleLimit::setAttack( SimpleDataType ms )
 	{
+		ms = jmax<SimpleDataType>(SimpleDataType(0.02), ms);
+
 		unsigned int samp = jmin<int>(BUFFER_SIZE-1, int( 0.001 * ms * att_.getSampleRate() ));
 
 		assert( samp < BUFFER_SIZE );

@@ -47,6 +47,8 @@ public:
     /** Move assignment operator */
     NamedValueSet& operator= (NamedValueSet&&) noexcept;
 
+	
+
     /** Destructor. */
     ~NamedValueSet() noexcept;
 
@@ -88,6 +90,10 @@ public:
 
     NamedValueSet::NamedValue* begin() { return values.begin(); }
     NamedValueSet::NamedValue* end()   { return values.end();   }
+
+#if JUCE_COMPILER_SUPPORTS_INITIALIZER_LISTS
+	NamedValueSet(const std::initializer_list<NamedValue>& items) noexcept;
+#endif
 
     //==============================================================================
 

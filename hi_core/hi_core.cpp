@@ -22,7 +22,7 @@
 
 hise::HiseColourScheme::Scheme hise::HiseColourScheme::currentColourScheme = Dark;
 
-#include "hi_binary_data/hi_binary_data.cpp"
+
 
 #include "hi_core/hi_core.cpp"
 

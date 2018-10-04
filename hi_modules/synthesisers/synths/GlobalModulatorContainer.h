@@ -59,6 +59,119 @@ public:
 
 };
 
+template <class ModulatorType> class GlobalModulatorDataBase
+{
+public:
+
+	GlobalModulatorDataBase(Modulator* mod_):
+		mod(mod_)
+	{}
+
+	bool operator==(const GlobalModulatorDataBase& other) const
+	{
+		return mod == other.mod;
+	}
+
+	ModulatorType* getModulator()
+	{
+		if (mod.get() == nullptr)
+			return nullptr;
+
+		return static_cast<ModulatorType*>(mod.get());
+	}
+
+private:
+
+	WeakReference<Modulator> mod;
+
+};
+
+class VoiceStartData : public GlobalModulatorDataBase<VoiceStartModulator>
+{
+public:
+
+	VoiceStartData(Modulator* mod):
+		GlobalModulatorDataBase(mod)
+	{
+		FloatVectorOperations::clear(voiceValues, 128);
+	}
+
+	void saveValue(int noteNumber, int voiceIndex)
+	{
+		if (auto m = getModulator())
+		{
+			if (isPositiveAndBelow(noteNumber, 128))
+			{
+				voiceValues[noteNumber] = m->getVoiceStartValue(voiceIndex);
+			}
+		}
+	}
+
+	float getConstantVoiceValue(int noteNumber) const
+	{
+		if (isPositiveAndBelow(noteNumber, 128))
+		{
+			return voiceValues[noteNumber];
+		}
+		
+		return 1.0f;
+	}
+
+	float voiceValues[128];
+};
+
+class TimeVariantData : public GlobalModulatorDataBase<TimeVariantModulator>
+{
+public:
+
+	TimeVariantData(Modulator* mod, int samplesPerBlock) :
+		GlobalModulatorDataBase(mod),
+		savedValuesForBlock(1, 0)
+	{
+		prepareToPlay(samplesPerBlock);
+	}
+
+	void prepareToPlay(int samplesPerBlock)
+	{
+		ProcessorHelpers::increaseBufferIfNeeded(savedValuesForBlock, samplesPerBlock);
+	}
+
+	void saveValues(const float* data, int startSample, int numSamples)
+	{
+		jassertfalse;
+		auto dest = savedValuesForBlock.getWritePointer(0, startSample);
+		FloatVectorOperations::copy(dest, data + startSample, numSamples);
+		isClear = false;
+	}
+
+	const float* getReadPointer(int startSample) const
+	{
+		return savedValuesForBlock.getReadPointer(0, startSample);
+	}
+
+	float* initialiseBuffer(int startSample, int numSamples)
+	{
+		auto wp = savedValuesForBlock.getWritePointer(0, 0);
+		FloatVectorOperations::fill(wp + startSample, 1.0f, numSamples);
+		isClear = false;
+		return wp;
+	}
+
+	void clear()
+	{
+		if (!isClear)
+		{
+			FloatVectorOperations::fill(savedValuesForBlock.getWritePointer(0, 0), 1.0f, savedValuesForBlock.getNumSamples());
+			isClear = true;
+		}
+	}
+
+private:
+
+	AudioSampleBuffer savedValuesForBlock;
+	bool isClear = false;
+};
+
 class GlobalModulatorData
 {
 public:
@@ -69,10 +182,12 @@ public:
 	void prepareToPlay(double sampleRate, int blockSize);
 
 	void saveValuesToBuffer(int startIndex, int numSamples, int voiceIndex = 0, int noteNumber=-1);
-	const float *getModulationValues(int startIndex, int voiceIndex = 0);
+	const float *getModulationValues(int startIndex, int voiceIndex = 0) const;
 	float getConstantVoiceValue(int noteNumber);
 
 	const Processor *getProcessor() const { return modulator.get(); }
+
+	
 
 	VoiceStartModulator *getVoiceStartModulator() { return dynamic_cast<VoiceStartModulator*>(modulator.get()); }
 	const VoiceStartModulator *getVoiceStartModulator() const { return dynamic_cast<VoiceStartModulator*>(modulator.get()); }
@@ -83,8 +198,108 @@ public:
 
 	GlobalModulator::ModulatorType getType() const noexcept{ return type; }
 
+	void handleVoiceStartControlledParameters(int noteNumber);
+
+	struct ParameterConnection: public MidiControllerAutomationHandler::AutomationData
+	{
+		ParameterConnection(Processor* p, int parameterIndex_, const NormalisableRange<double>& range_) :
+			AutomationData()
+		{
+			attribute = parameterIndex_;
+			processor = p;
+			parameterRange = range_;
+			fullRange = range_;
+		};
+
+		ValueTree exportAsValueTree() const override
+		{
+			ValueTree av = AutomationData::exportAsValueTree();
+
+			av.removeProperty("Controller", nullptr);
+
+			ValueTree v("ParameterConnection");
+
+			v.copyPropertiesFrom(av, nullptr);
+
+			return v;
+		}
+
+		void restoreFromValueTree(const ValueTree &v) override
+		{
+			AutomationData::restoreFromValueTree(v);
+		}
+
+		float lastValue = 0.0f;
+        
+        JUCE_DECLARE_WEAK_REFERENCEABLE(ParameterConnection);
+	};
+
+	ParameterConnection* getParameterConnection(const Processor* p, int parameterIndex)
+	{
+		for (auto pc : connectedParameters)
+		{
+			if (pc->attribute == parameterIndex && pc->processor == p)
+				return pc;
+		}
+
+		return nullptr;
+	}
+
+	ParameterConnection* addConnectedParameter(Processor* p, int parameterIndex, NormalisableRange<double> normalisableRange)
+	{
+		auto newConnection = new ParameterConnection(p, parameterIndex, normalisableRange);
+		connectedParameters.addIfNotAlreadyThere(newConnection);
+		return connectedParameters.getLast();
+	}
+
+	void removeConnectedParameter(Processor* p, int parameterIndex)
+	{
+		for (auto c : connectedParameters)
+		{
+			if (c->processor.get() == p && c->attribute == parameterIndex)
+			{
+				connectedParameters.removeObject(c, true);
+				return;
+			}
+		}
+	}
+
+	ValueTree exportAllConnectedParameters() const
+	{
+		if (connectedParameters.size() == 0)
+			return {};
+
+		auto pId = getProcessor()->getId();
+
+		ValueTree v("Modulator");
+		v.setProperty("id", pId, nullptr);
+
+		for (auto pc : connectedParameters)
+		{
+			auto child = pc->exportAsValueTree();
+			v.addChild(child, -1, nullptr);
+		}
+
+		return v;
+	}
+
+	void restoreParameterConnections(const ValueTree& v)
+	{
+		connectedParameters.clear();
+
+		for (const auto& c : v)
+		{
+			auto p = new ParameterConnection(nullptr, -1, {});
+			p->restoreFromValueTree(c);
+			connectedParameters.add(p);
+		}
+	}
+
+	void handleTimeVariantControlledParameters(int startSample, int numThisTime) const;
 private:
 
+	OwnedArray<ParameterConnection> connectedParameters;
+	
 	WeakReference<Processor> modulator;
 	GlobalModulator::ModulatorType type;
 
@@ -94,9 +309,18 @@ private:
 };
 
 class GlobalModulatorContainer : public ModulatorSynth,
-								 public SafeChangeListener
+								 public Chain::Handler::Listener
 {
 public:
+
+	struct ModulatorListListener
+	{
+        virtual ~ModulatorListListener() {};
+        
+		virtual void listWasChanged() = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+	};
 
 	SET_PROCESSOR_NAME("GlobalModulatorContainer", "Global Modulator Container");
 
@@ -106,31 +330,55 @@ public:
     
 	GlobalModulatorContainer(MainController *mc, const String &id, int numVoices);;
 
+	~GlobalModulatorContainer();
+
+	void processorChanged(EventType /*t*/, Processor* /*p*/) override { refreshList(); }
+
 	void restoreFromValueTree(const ValueTree &v) override;
 
-	const float *getModulationValuesForModulator(Processor *p, int startIndex, int voiceIndex = 0);
+	const float *getModulationValuesForModulator(Processor *p, int startIndex);
 	float getConstantVoiceValue(Processor *p, int noteNumber);
 
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
 
 	void changeListenerCallback(SafeChangeBroadcaster *) { refreshList(); }
-	void addChangeListenerToHandler(SafeChangeListener *listener);
-	void removeChangeListenerFromHandler(SafeChangeListener *listener);
 
 	void preStartVoice(int voiceIndex, int noteNumber);
-	void postVoiceRendering(int startSample, int numThisTime);
+	
+
+	void preVoiceRendering(int startSample, int numThisTime) override;
 
 	void addProcessorsWhenEmpty() override {};
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 
+	void addModulatorControlledParameter(const Processor* modulationSource, Processor* processor, int parameterIndex, NormalisableRange<double> range, int macroIndex);
+	void removeModulatorControlledParameter(const Processor* modulationSource, Processor* processor, int parameterIndex);
+	bool isModulatorControlledParameter(Processor* processor, int parameterIndex) const;
+	
+	const Processor* getModulatorForControlledParameter(const Processor* processor, int parameterIndex) const;
+
+
+	ValueTree exportModulatedParameters() const;
+
+	void restoreModulatedParameters(const ValueTree& v);
+
 private:
 
+	Array<VoiceStartData> voiceStartData;
+	Array<TimeVariantData> timeVariantData;
+
+	Array<WeakReference<ModulatorListListener>> modListeners;
+
 	friend class GlobalModulatorContainerVoice;
+
+	Array<WeakReference<GlobalModulatorData::ParameterConnection>> allParameters;
 
 	void refreshList();
 
 	OwnedArray<GlobalModulatorData> data;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(GlobalModulatorContainer);
 };
 
 

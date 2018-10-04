@@ -189,9 +189,9 @@ struct CompressionHelpers
 
 	static int getByteAmountForDifferential(AudioBufferInt16& b);
 
-	static void dump(const AudioBufferInt16& b);
+	static void dump(const AudioBufferInt16& b, String fileName=String());
 
-	static void dump(const AudioSampleBuffer& b);
+	static void dump(const AudioSampleBuffer& b, String fileName = String());
 
 	static void fastInt16ToFloat(const void* source, float* destination, int numSamples);
 

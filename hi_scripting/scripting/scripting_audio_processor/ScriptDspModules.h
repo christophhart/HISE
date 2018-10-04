@@ -1389,7 +1389,95 @@ public:
 		float smoothingTime = 0;
 	};
 
+	class NoiseGenerator : public DspBaseObject
+	{
+	public:
 
+		enum Parameters
+		{
+			Gain,
+			numParameters
+		};
+
+		NoiseGenerator() :
+			DspBaseObject()
+		{
+			gain.reset(44100.0, 0.02f);
+			gain.setValue(1.0f);
+		}
+
+		SET_MODULE_NAME("noise");
+
+		void setParameter(int /*index*/, float newValue) override
+		{
+			gain.setValue(newValue);
+		};
+
+		int getNumParameters() const override { return (int)Parameters::numParameters; };
+
+		float getParameter(int /*index*/) const override { return gain.getTargetValue(); };
+
+		void prepareToPlay(double sampleRate_, int /*samplesPerBlock*/) override
+		{
+			gain.reset(sampleRate_, 0.2f);
+		}
+
+		void processBlock(float **data, int numChannels, int numSamples) override
+		{
+			float* inL = data[0];
+
+			if (numChannels == 2)
+			{
+				float* inR = data[1];
+
+				while (--numSamples >= 0)
+				{
+					const float v = (r.nextFloat() * 2.0f - 1.0f) * gain.getNextValue();
+					*inL++ += v;
+					*inR++ += v;
+				}
+			}
+			else
+			{
+				while (--numSamples >= 0)
+				{
+					*inL++ = (r.nextFloat() * 2.0f - 1.0f) * gain.getNextValue();
+				}
+			}
+		}
+
+		int getNumConstants() const { return (int)Parameters::numParameters; };
+
+		void getIdForConstant(int index, char*name, int &size) const noexcept override
+		{
+			switch (index)
+			{
+				FILL_PARAMETER_ID(Parameters, Gain, size, name);
+			}
+		};
+
+		bool getConstant(int index, int& value) const noexcept override
+		{
+			if (index < getNumParameters())
+			{
+				value = index;
+				return true;
+			}
+
+			return false;
+		};
+
+		bool getConstant(int /*index*/, float** /*data*/, int &/*size*/) noexcept override
+		{
+			return false;
+		};
+
+	private:
+
+		Random r;
+
+		LinearSmoothedValue<float> gain;
+	};
 
 	class SineGenerator : public DspBaseObject
 	{
@@ -1401,6 +1489,7 @@ public:
 			Frequency,
 			Phase,
 			Amplitude,
+			GlideTime,
 			numParameters
 		};
 
@@ -1409,7 +1498,9 @@ public:
 			uptime(0.0),
 			uptimeDelta(0.0),
 			gain(1.0),
-			phaseOffset(0.0)
+			phaseOffset(0.0),
+			frequency(220.0),
+			glideTime(0.0f)
 		{
 
 		}
@@ -1424,11 +1515,18 @@ public:
 			{
 			case ScriptingDsp::SineGenerator::Parameters::ResetPhase: uptime = 0.0;
 				break;
-			case ScriptingDsp::SineGenerator::Parameters::Frequency: uptimeDelta = newValue / sampleRate * double_Pi;
+			case ScriptingDsp::SineGenerator::Parameters::Frequency: 
+				frequency = newValue;
+				updateFrequency();
 				break;
 			case ScriptingDsp::SineGenerator::Parameters::Phase: phaseOffset = newValue;
 				break;
-			case ScriptingDsp::SineGenerator::Parameters::Amplitude: gain = newValue;
+			case ScriptingDsp::SineGenerator::Parameters::Amplitude: gain.setValue(newValue);
+				break;
+			case ScriptingDsp::SineGenerator::Parameters::GlideTime:
+				glideTime = newValue;
+				if(sampleRate > 0.0)
+					uptimeDelta.reset(sampleRate, glideTime);
 				break;
 			case ScriptingDsp::SineGenerator::Parameters::numParameters:
 				break;
@@ -1444,19 +1542,49 @@ public:
 		void prepareToPlay(double sampleRate_, int /*samplesPerBlock*/) override 
 		{
 			sampleRate = sampleRate_;
+
+			gain.reset(sampleRate, 0.02f);
+
+			uptimeDelta.reset(sampleRate, 0.0);
+
+			updateFrequency();
+
+			uptimeDelta.reset(sampleRate, glideTime);
+			
+			updateFrequency();
 		}
 
 		void processBlock(float **data, int numChannels, int numSamples) override
 		{
 			float* inL = data[0];
+			
 
 			const int samplesToCopy = numSamples;
 
-			while (--numSamples >= 0)
+			if (numChannels == 2)
 			{
-				*inL++ = (float)std::sin(uptime + phaseOffset) * gain;
-				uptime += uptimeDelta;
+				float* inR = data[1];
+
+				while (--numSamples >= 0)
+				{
+					float v = (float)std::sin(uptime + phaseOffset) * gain.getNextValue();
+
+					*inL++ += v;
+					*inR++ += v;
+
+					uptime += uptimeDelta.getNextValue();
+				}
 			}
+			else
+			{
+				while (--numSamples >= 0)
+				{
+					*inL++ += (float)std::sin(uptime + phaseOffset) * gain.getNextValue();
+					uptime += uptimeDelta.getNextValue();
+				}
+			}
+
+			
 
 			if (numChannels == 2)
 			{
@@ -1464,16 +1592,58 @@ public:
 			}
 		}
 
+		int getNumConstants() const { return (int)Parameters::numParameters; };
+
+		void getIdForConstant(int index, char*name, int &size) const noexcept override
+		{
+			switch (index)
+			{
+				FILL_PARAMETER_ID(Parameters, ResetPhase, size, name);
+				FILL_PARAMETER_ID(Parameters, Frequency, size, name);
+				FILL_PARAMETER_ID(Parameters, Phase, size, name);
+				FILL_PARAMETER_ID(Parameters, Amplitude, size, name);
+				FILL_PARAMETER_ID(Parameters, GlideTime, size, name);
+			}
+		};
+
+		bool getConstant(int index, int& value) const noexcept override
+		{
+			if (index < getNumParameters())
+			{
+				value = index;
+				return true;
+			}
+
+			return false;
+		};
+
+		bool getConstant(int /*index*/, float** /*data*/, int &/*size*/) noexcept override
+		{
+			return false;
+		};
 
 	private:
 
-		float gain;
+		
+		
+
+		LinearSmoothedValue<float> gain;
+		LinearSmoothedValue<double> uptimeDelta;
+
+		float frequency;
+		
+		float glideTime;
+
 		double phaseOffset;
 
-		double uptimeDelta;
 		double uptime;
 		
 		double sampleRate;
+
+		void updateFrequency()
+		{
+			uptimeDelta.setValue(frequency / sampleRate * 2.0 * double_Pi);
+		}
 	};
 
 
@@ -1850,6 +2020,7 @@ class HiseCoreDspFactory : public StaticDspFactory
 		registerDspModule<ScriptingDsp::StereoWidener>();
         registerDspModule<ScriptingDsp::MoogFilter>();
 		registerDspModule<ScriptingDsp::SineGenerator>();
+		registerDspModule<ScriptingDsp::NoiseGenerator>();
 		registerDspModule<ScriptingDsp::Allpass>();
 		registerDspModule<ScriptingDsp::MidSideEncoder>();
 		registerDspModule<ScriptingDsp::PeakMeter>();

@@ -34,20 +34,26 @@ namespace hise { using namespace juce;
 
 GainEffect::GainEffect(MainController *mc, const String &uid) :
 MasterEffectProcessor(mc, uid),
-gainChain(new ModulatorChain(mc, "Gain Modulation", 1, Modulation::GainMode, this)),
-delayChain(new ModulatorChain(mc, "Delay Modulation", 1, Modulation::GainMode, this)),
-widthChain(new ModulatorChain(mc, "Width Modulation", 1, Modulation::GainMode, this)),
-balanceChain(new ModulatorChain(mc, "Pan Modulation", 1, Modulation::GainMode, this)),
 gain(1.0f),
 delay(0.0f),
 balance(0.0f),
-gainBuffer(1, 0),
-delayBuffer(1, 0),
-widthBuffer(1, 0),
-balanceBuffer(1, 0)
-
+smoothedGainL(1.0f),
+smoothedGainR(1.0f)
 {
-	
+	modChains.reserve(InternalChains::numInternalChains);
+
+	modChains += {this, "Gain Modulation"};
+	modChains += {this, "Delay Modulation"};
+	modChains += {this, "Width Modulation"};
+	modChains += {this, "Pan Modulation"};
+
+	finaliseModChains();
+
+	gainChain = modChains[InternalChains::GainChain].getChain();
+	delayChain = modChains[InternalChains::DelayChain].getChain();
+	widthChain = modChains[InternalChains::WidthChain].getChain();
+	balanceChain = modChains[InternalChains::BalanceChain].getChain();
+
 	smoother.setSmoothingTime(0.2f);
 
 	parameterNames.add("Gain");
@@ -60,17 +66,76 @@ balanceBuffer(1, 0)
     editorStateIdentifiers.add("WidthChainShown");
 	editorStateIdentifiers.add("BalanceChainShown");
 
-	gainChain->setFactoryType(new TimeVariantModulatorFactoryType(Modulation::GainMode, this));
-    widthChain->setFactoryType(new TimeVariantModulatorFactoryType(Modulation::GainMode, this));
-    delayChain->setFactoryType(new TimeVariantModulatorFactoryType(Modulation::GainMode, this));
+	auto tmp = WeakReference<Processor>(this);
 
+	auto balanceConverter = [tmp](float input)
+	{
+		if (tmp.get() != nullptr)
+		{
+			auto normalized = (input - 0.5f) * 2.0f;
+			auto v = tmp->getAttribute(GainEffect::Parameters::Balance) * normalized;
+
+			return BalanceCalculator::getBalanceAsString(roundFloatToInt(v));
+		}
+
+		return Table::getDefaultTextValue(input);
+	};
+
+	balanceChain->setTableValueConverter(balanceConverter);
+
+	auto widthConverter = [tmp](float input)
+	{
+		if (tmp)
+		{
+			auto v = tmp->getAttribute(GainEffect::Parameters::Width) / 100.0f;
+			const float thisWidth = (v - 1.0f) * input + 1.0f;
+			return String(roundFloatToInt(thisWidth*100.0f)) + "%";
+		}
+
+		return Table::getDefaultTextValue(input);
+	};
+
+	widthChain->setTableValueConverter(widthConverter);
+
+	auto gainConverter = [tmp](float input)
+	{
+		if (tmp)
+		{
+			auto v = Decibels::decibelsToGain(tmp->getAttribute(GainEffect::Parameters::Gain));
+			auto dbValue = Decibels::gainToDecibels(v * input);
+			return String(dbValue, 1) + " dB";
+		}
+
+		return Table::getDefaultTextValue(input);
+	};
+
+	gainChain->setTableValueConverter(gainConverter);
+
+	auto delayConverter = [tmp](float input)
+	{
+		if (tmp)
+		{
+			auto v = Decibels::decibelsToGain(tmp->getAttribute(GainEffect::Parameters::Delay));
+			return String(roundFloatToInt(v)) + " ms";
+		}
+
+		return Table::getDefaultTextValue(input);
+	};
+
+	delayChain->setTableValueConverter(delayConverter);
 }
 
+GainEffect::~GainEffect()
+{
+	modChains.clear();
+}
+    
 void GainEffect::setInternalAttribute(int parameterIndex, float newValue)
 {
 	switch (parameterIndex)
 	{
-	case Gain:							gain = Decibels::decibelsToGain(newValue); break;
+	case Gain:							gain = Decibels::decibelsToGain(newValue); 
+										break;
     case Delay:                         setDelayTime(newValue); break;
     case Width:                         msDecoder.setWidth(newValue/100.0f); break;
 	case Balance:						balance = newValue; break;
@@ -136,53 +201,34 @@ void GainEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int num
 	float *l = buffer.getWritePointer(0, startIndex);
 	float *r = buffer.getWritePointer(1, startIndex);
 
-	if (!delayChain->isBypassed() && delayChain->getNumChildProcessors() != 0)
+	const float gainModValue = modChains[InternalChains::GainChain].getOneModulationValue(startSample);
+
+	smoothedGainL.setValue(gain * gainModValue);
+	smoothedGainR.setValue(gain * gainModValue);
+
+	const float delayModValue = modChains[InternalChains::DelayChain].getOneModulationValue(startSample);
+
+	if (delayModValue != 1.0f)
 	{
-		const float thisDelayTime = delay * delayBuffer.getSample(0, 0);
+		const float thisDelayTime = delay * delayModValue;
 
 		leftDelay.setDelayTimeSeconds(thisDelayTime / 1000.0f);
 		rightDelay.setDelayTimeSeconds(thisDelayTime / 1000.0f);
 	}
 
-	while (numSamples > 0)
+	if (delay != 0)
 	{
-		const float smoothedGain = smoother.smooth(gain);
+		leftDelay.processBlock(l, numSamples);
+		smoothedGainL.applyGain(l, numSamples);
 
-		if (delay != 0)
-		{
-			l[0] = leftDelay.getDelayedValue(smoothedGain * l[0]);
-			r[0] = rightDelay.getDelayedValue(smoothedGain * r[0]);
-
-			l[1] = leftDelay.getDelayedValue(smoothedGain * l[1]);
-			r[1] = rightDelay.getDelayedValue(smoothedGain * r[1]);
-
-			l[2] = leftDelay.getDelayedValue(smoothedGain * l[2]);
-			r[2] = rightDelay.getDelayedValue(smoothedGain * r[2]);
-
-			l[3] = leftDelay.getDelayedValue(smoothedGain * l[3]);
-			r[3] = rightDelay.getDelayedValue(smoothedGain * r[3]);
-		}
-		else
-		{
-			l[0] = smoothedGain * l[0];
-			r[0] = smoothedGain * r[0];
-
-			l[1] = smoothedGain * l[1];
-			r[1] = smoothedGain * r[1];
-
-			l[2] = smoothedGain * l[2];
-			r[2] = smoothedGain * r[2];
-
-			l[3] = smoothedGain * l[3];
-			r[3] = smoothedGain * r[3];
-		}
-
-		l += 4;
-		r += 4;
-
-		numSamples -= 4;
+		rightDelay.processBlock(r, numSamples);
+		smoothedGainR.applyGain(r, numSamples);
 	}
-
+	else
+	{
+		smoothedGainL.applyGain(l, numSamples);
+		smoothedGainR.applyGain(r, numSamples);
+	}
 
 	if (msDecoder.getWidth() != 1.0f)
 	{
@@ -191,10 +237,11 @@ void GainEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int num
 		l = buffer.getWritePointer(0, startIndex);
 		r = buffer.getWritePointer(1, startIndex);
 
-		if (!widthChain->isBypassed() && widthChain->getNumChildProcessors() != 0)
-		{
-			const float thisWidth = (msDecoder.getWidth() - 1.0f) * widthBuffer.getSample(0, 0) + 1.0f;
+		const float widthModValue = modChains[InternalChains::WidthChain].getOneModulationValue(startSample);
 
+		if (widthModValue != 1.0f)
+		{
+			const float thisWidth = (msDecoder.getWidth() - 1.0f) * widthModValue + 1.0f;
 			msDecoder.setWidth(thisWidth);
 		}
 
@@ -212,28 +259,17 @@ void GainEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int num
 		}
 	}
 
-	if (!gainChain->isBypassed() && gainChain->getNumChildProcessors() != 0)
-	{
-		FloatVectorOperations::multiply(buffer.getWritePointer(0, startIndex), gainBuffer.getReadPointer(0, startIndex), samplesToCopy);
-		FloatVectorOperations::multiply(buffer.getWritePointer(1, startIndex), gainBuffer.getReadPointer(0, startIndex), samplesToCopy);
-	}
 
-	if (!balanceChain->isBypassed() && balanceChain->getNumChildProcessors() != 0)
-	{
-		BalanceCalculator::processBuffer(buffer, balanceBuffer.getWritePointer(0, startIndex), startIndex, samplesToCopy);
-	}
-	else
-	{
-		const float smoothedBalance = balanceSmoother.smooth(balance);
+	const float balanceModValue = modChains[InternalChains::BalanceChain].getOneModulationValue(startSample);
+	const float smoothedBalance = balanceSmoother.smooth(balance * balanceModValue);
 
-		const float leftGain = BalanceCalculator::getGainFactorForBalance(smoothedBalance, true);
-		const float rightGain = BalanceCalculator::getGainFactorForBalance(smoothedBalance, false);
+	const float leftGain = BalanceCalculator::getGainFactorForBalance(smoothedBalance, true);
+	const float rightGain = BalanceCalculator::getGainFactorForBalance(smoothedBalance, false);
 
-		if(leftGain != rightGain)
-		{
-			FloatVectorOperations::multiply(buffer.getWritePointer(0, startIndex), leftGain, samplesToCopy);
-			FloatVectorOperations::multiply(buffer.getWritePointer(1, startIndex), rightGain, samplesToCopy);
-		}
+	if (leftGain != rightGain)
+	{
+		FloatVectorOperations::multiply(buffer.getWritePointer(0, startIndex), leftGain, samplesToCopy);
+		FloatVectorOperations::multiply(buffer.getWritePointer(1, startIndex), rightGain, samplesToCopy);
 	}
 }
 
@@ -244,16 +280,6 @@ void GainEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 	if (sampleRate > 0)
 	{
-        gainChain->prepareToPlay(sampleRate, samplesPerBlock);
-        delayChain->prepareToPlay(sampleRate, samplesPerBlock);
-        widthChain->prepareToPlay(sampleRate, samplesPerBlock);
-		balanceChain->prepareToPlay(sampleRate, samplesPerBlock);
-        
-		ProcessorHelpers::increaseBufferIfNeeded(gainBuffer, samplesPerBlock);
-		ProcessorHelpers::increaseBufferIfNeeded(delayBuffer, samplesPerBlock);
-		ProcessorHelpers::increaseBufferIfNeeded(widthBuffer, samplesPerBlock);
-		ProcessorHelpers::increaseBufferIfNeeded(balanceBuffer, samplesPerBlock);
-
         leftDelay.prepareToPlay(sampleRate);
         rightDelay.prepareToPlay(sampleRate);
         
@@ -262,6 +288,9 @@ void GainEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
         
 		smoother.prepareToPlay(sampleRate);
 		smoother.setSmoothingTime(4.0);
+
+		smoothedGainL.reset(sampleRate, 0.05);
+		smoothedGainR.reset(sampleRate, 0.05);
 
 		balanceSmoother.prepareToPlay(sampleRate / (double)samplesPerBlock);
 		balanceSmoother.setSmoothingTime(1000.0f);

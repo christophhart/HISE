@@ -48,6 +48,8 @@ DelayEffect::DelayEffect(MainController *mc, const String &id) :
 	leftDelayFrames(1, 0),
 	rightDelayFrames(1, 0)
 {
+	finaliseModChains();
+
 	parameterNames.add("DelayTimeLeft");
 	parameterNames.add("DelayTimeRight");
 	parameterNames.add("FeedbackLeft");

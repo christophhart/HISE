@@ -54,13 +54,32 @@ float MidSideDecoder::getWidth() const noexcept
 
 StereoEffect::StereoEffect(MainController *mc, const String &uid, int numVoices) :
 	VoiceEffectProcessor(mc, uid, numVoices),
-	balanceChain(new ModulatorChain(mc, "Pan Modulation", numVoices, Modulation::GainMode, this)),
-	pan(getDefaultValue(Pan)),
-	width(getDefaultValue(Width)),
-    panBuffer(1, 0)
+	pan(getDefaultValue(Pan)/100.0f)
 {
+	modChains += {this, "Pan Modulation", ModulatorChain::ModulationType::Normal, Modulation::PanMode};
+	
+	finaliseModChains();
+
+	modChains[InternalChains::BalanceChain].setExpandToAudioRate(true);
+
 	parameterNames.add("Pan");
 	parameterNames.add("Width");
+
+	auto tmp = WeakReference<Processor>(this);
+
+	auto f = [tmp](float input)
+	{
+		if (tmp.get() != nullptr)
+		{
+			auto v = -1.0f * tmp->getAttribute(StereoEffect::Pan) * input;
+
+			return BalanceCalculator::getBalanceAsString(roundFloatToInt(v));
+		}
+
+		return Table::getDefaultTextValue(input);
+	};
+
+	modChains[BalanceChain].getChain()->setTableValueConverter(f);
 
 	editorStateIdentifiers.add("PanChainShown");
 }
@@ -89,7 +108,7 @@ float StereoEffect::getDefaultValue(int parameterIndex) const
 {
 	switch (parameterIndex)
 	{
-	case Pan:							return 1.0f;
+	case Pan:							return 100.0f;
 	case Width:							return 100.0f;
 	default:							jassertfalse; return 1.0f;
 	}
@@ -118,11 +137,13 @@ void StereoEffect::renderNextBlock(AudioSampleBuffer &buffer, int startSample, i
 	float *l = buffer.getWritePointer(0, 0);
 	float *r = buffer.getWritePointer(1, 0);
 
-	while (--numSamples >= 0)
+	if (msDecoder.getWidth() != 1.0f)
 	{
-		msDecoder.calculateStereoValues(l[startSample], r[startSample]);
-
-		startSample++;
+		while (--numSamples >= 0)
+		{
+			msDecoder.calculateStereoValues(l[startSample], r[startSample]);
+			startSample++;
+		}
 	}
 }
 
@@ -143,34 +164,43 @@ ProcessorEditorBody *StereoEffect::createEditor(ProcessorEditor *parentEditor)
 #endif
 }
 
-AudioSampleBuffer & StereoEffect::getBufferForChain(int /*index*/)
+void StereoEffect::applyEffect(int /*voiceIndex*/, AudioSampleBuffer &b, int startSample, int numSamples)
 {
-	return panBuffer;
-}
+	auto& balanceChain = modChains[BalanceChain];
 
-void StereoEffect::preVoiceRendering(int voiceIndex, int startSample, int numSamples)
-{
-	calculateChain(BalanceChain, voiceIndex, startSample, numSamples);
-}
+	if (!balanceChain.getChain()->shouldBeProcessedAtAll())
+		return;
 
-void StereoEffect::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples)
-{
-	if (balanceChain->shouldBeProcessed(true) || balanceChain->shouldBeProcessed(false))
+	if (auto panValues = balanceChain.getReadPointerForVoiceValues(startSample))
 	{
-		float* panValues = getCurrentModulationValues(BalanceChain, voiceIndex, startSample);
-
 		float* outL = b.getWritePointer(0, startSample);
 		float* outR = b.getWritePointer(1, startSample);
 
-		const float normalizedPan = (pan - 0.5f) * 400.0f;
+		const float normalizedPan = (pan - 0.5f) * 200.0f;
 
 		while (--numSamples >= 0)
 		{
-			const float scaledPanValue = (*panValues++ - 0.5f) * normalizedPan;
+			const float scaledPanValue = *panValues++ * normalizedPan;
 
 			*outL++ *= BalanceCalculator::getGainFactorForBalance(scaledPanValue, true);
 			*outR++ *= BalanceCalculator::getGainFactorForBalance(scaledPanValue, false);
 		}
+	}
+	else
+	{
+		auto modValue = balanceChain.getConstantModulationValue();
+
+		float* outL = b.getWritePointer(0, startSample);
+		float* outR = b.getWritePointer(1, startSample);
+
+		const float normalizedPan = (pan - 0.5f) * 200.0f;
+		const float scaledPanValue = (modValue) * normalizedPan;
+
+		float gainL = BalanceCalculator::getGainFactorForBalance(scaledPanValue, true);
+		float gainR = BalanceCalculator::getGainFactorForBalance(scaledPanValue, false);
+
+		FloatVectorOperations::multiply(outL, gainL, numSamples);
+		FloatVectorOperations::multiply(outR, gainR, numSamples);
 	}
 }
 

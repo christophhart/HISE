@@ -103,6 +103,8 @@
         <MODULEPATH id="hi_streaming" path="../../../HISE modules"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_zstd" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <VS2015 targetFolder="Builds/VisualStudio2015" vstFolder="c:\SDKs\vstsdk2.4"
@@ -128,20 +130,20 @@
                        linkTimeOptimisation="1" vstBinaryLocation=""/>
         <CONFIGURATION name="Debug MultiChannel" winWarningLevel="4" generateManifest="1"
                        winArchitecture="x64" isDebug="1" optimisation="1" targetName="HISE x64 Debug 16 Out"
-                       binaryPath="" libraryPath="" useRuntimeLibDLL="0" defines="HISE_NUM_PLUGIN_CHANNELS=8"
+                       binaryPath="" libraryPath="" useRuntimeLibDLL="0" defines="HISE_NUM_PLUGIN_CHANNELS=16&#10;"
                        debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"/>
         <CONFIGURATION name="Release MultiChannel" winWarningLevel="4" generateManifest="1"
                        winArchitecture="x64" isDebug="0" optimisation="3" targetName="HISE x64 16 Out"
                        binaryPath="" alwaysGenerateDebugSymbols="0" useRuntimeLibDLL="0"
-                       libraryPath="" defines="HISE_NUM_PLUGIN_CHANNELS=8" debugInformationFormat="ProgramDatabase"
+                       libraryPath="" defines="HISE_NUM_PLUGIN_CHANNELS=16" debugInformationFormat="ProgramDatabase"
                        enablePluginBinaryCopyStep="0" linkTimeOptimisation="1"/>
         <CONFIGURATION name="Debug MultiChannel" winWarningLevel="4" generateManifest="1"
                        winArchitecture="32-bit" isDebug="1" optimisation="1" targetName="HISE x86 Debug 16 Out"
-                       binaryPath="" libraryPath="" useRuntimeLibDLL="0" defines="HISE_NUM_PLUGIN_CHANNELS=8"
+                       binaryPath="" libraryPath="" useRuntimeLibDLL="0" defines="HISE_NUM_PLUGIN_CHANNELS=16"
                        debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"/>
         <CONFIGURATION name="Release MultiChannel" winWarningLevel="4" generateManifest="1"
                        winArchitecture="32-bit" isDebug="0" optimisation="3" targetName="HISE x86 16 Out"
-                       binaryPath="" libraryPath="" useRuntimeLibDLL="0" defines="HISE_NUM_PLUGIN_CHANNELS=8"
+                       binaryPath="" libraryPath="" useRuntimeLibDLL="0" defines="HISE_NUM_PLUGIN_CHANNELS=16&#10;"
                        debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
                        linkTimeOptimisation="1"/>
       </CONFIGURATIONS>
@@ -171,6 +173,8 @@
         <MODULEPATH id="hi_streaming" path="../../../HISE modules"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_zstd" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
       </MODULEPATHS>
     </VS2015>
     <VS2017 targetFolder="Builds/VisualStudio2017" vstFolder="c:\SDKs\vstsdk2.4"
@@ -242,6 +246,8 @@
         <MODULEPATH id="hi_streaming" path="../../../HISE modules"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_zstd" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
       </MODULEPATHS>
     </VS2017>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="" linuxExtraPkgConfig="x11 xinerama xext">
@@ -277,6 +283,8 @@
         <MODULEPATH id="hi_streaming" path="../../../HISE modules"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_zstd" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
@@ -291,6 +299,8 @@
     <MODULE id="hi_sampler" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_scripting" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_streaming" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="hi_tools" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_zstd" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULES id="juce_audio_basics" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_audio_devices" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_audio_formats" showAllCode="1" useLocalCopy="0"/>

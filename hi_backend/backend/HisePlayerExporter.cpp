@@ -61,7 +61,7 @@ void HisePlayerExporter::run()
 
 	setStatusMessage("Exporting Embedded Files");
 	setProgress(1.0 / 7.0);
-	library.addChild(exportEmbeddedFiles(true), -1, nullptr);
+	library.addChild(exportEmbeddedFiles(), -1, nullptr);
 	
 	if (threadShouldExit()) return;
 
@@ -73,13 +73,13 @@ void HisePlayerExporter::run()
 
 	setStatusMessage("Exporting Audio Files");
 	setProgress(3.0 / 7.0);
-	library.addChild(exportReferencedAudioFiles(), -1, nullptr);
+	
 	
 	if (threadShouldExit()) return;
 
 	setStatusMessage("Exporting Image Files");
 	setProgress(4.0 / 7.0);
-	library.addChild(exportReferencedImageFiles(), -1, nullptr);
+	
 
 	if (threadShouldExit()) return;
 

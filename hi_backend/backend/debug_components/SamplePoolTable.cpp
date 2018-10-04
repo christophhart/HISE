@@ -171,161 +171,79 @@ void SamplePoolTable::mouseDown(const MouseEvent &e)
 	}
 
 
-}
-
-// ========================================================================================================= ExternalFileTable
-
-
-
-ExternalFileTableBase::ExternalFileTableBase(SharedPoolBase *pool_)   :
-	font (GLOBAL_FONT()),
-	pool(pool_),
-	selectedRow(-1)
-{
-	setName(getHeadline());
-
-    // Create our table component and add it to this component..
-    addAndMakeVisible (table);
-    table.setModel (this);
-
-	pool->addChangeListener(this);
-
-	laf = new TableHeaderLookAndFeel();
-
-	table.getHeader().setLookAndFeel(laf);
-
-	table.getHeader().setSize(getWidth(), 22);
-
-    // give it a border
-    table.setColour (ListBox::outlineColourId, Colours::grey);
-	table.setColour(ListBox::backgroundColourId, HiseColourScheme::getColour(HiseColourScheme::ColourIds::DebugAreaBackgroundColourId));
-
-    table.setOutlineThickness (0);
-
-	table.getViewport()->setScrollBarsShown(true, false, false, false);
-
-	//table.getHeader().setInterceptsMouseClicks(false, false);
-
-	table.getHeader().addColumn("File Name", FileName, 60);
-	table.getHeader().addColumn("Size", Memory, 50);
-	table.getHeader().addColumn("Type", Type, 50);
-	table.getHeader().addColumn("# Ref", References, 40);
-
-	
-}
-
-
-ExternalFileTableBase::~ExternalFileTableBase()
-{
-	pool->removeChangeListener(this);
-}
-
-
-int ExternalFileTableBase::getNumRows()
-{
-	return pool->getNumLoadedFiles();
 };
 
-
-
-	
-void ExternalFileTableBase::paintRowBackground (Graphics& g, int rowNumber, int /*width*/, int /*height*/, bool rowIsSelected)
+juce::Image PoolTableHelpers::getPreviewImage(const AudioSampleBuffer* buffer, float width)
 {
-	if(rowNumber % 2) g.fillAll(Colours::white.withAlpha(0.05f));
+	if (buffer == nullptr)
+		return PoolHelpers::getEmptyImage((int)width, 150);
 
-    if (rowIsSelected)
-        g.fillAll (Colour(0x44000000));
+	return HiseAudioThumbnail::createPreview(buffer, (int)width);
 }
 
-void ExternalFileTableBase::selectedRowsChanged(int i/*lastRowSelected*/) {selectedRow = i;};
-
-void ExternalFileTableBase::paintCell (Graphics& g, int rowNumber, int columnId,
-                int width, int height, bool /*rowIsSelected*/) 
+juce::Image PoolTableHelpers::getPreviewImage(const Image* img, float width)
 {
-	g.setColour (Colours::white.withAlpha(.8f));
-    g.setFont (font);
+	if (img == nullptr)
+		return PoolHelpers::getEmptyImage((int)width, 150);
 
-	String text = getTextForTableCell(rowNumber, columnId);
+	auto ratio = (float)img->getWidth() / (float)img->getHeight();
 
-    g.drawText (text, 2, 0, width - 4, height, Justification::centredLeft, true);
-
-    //g.setColour (Colours::black.withAlpha (0.2f));
-    //g.fillRect (width - 1, 0, 1, height);
-}
-
-String ExternalFileTableBase::getTextForTableCell(int rowNumber, int columnNumber)
-{
-	
-	StringArray info = pool->getTextDataForId(rowNumber);
-
-	if((columnNumber-1) < info.size())
+	if (img->getWidth() > width)
 	{
-		return info[columnNumber-1];
+		return img->rescaled((int)width, (int)(width / ratio));
 	}
-	else return String();
-
-	
-}
-
-
-String ExternalFileTableBase::getHeadline() const
-{
-	String x;
-    
-	const int numSamples = pool->getNumLoadedFiles();
-
-	x << "External Files: " << String(numSamples) << " " << pool->getFileTypeName().toString();
-
-	return x;
-}
-
-    
-void ExternalFileTableBase::resized()
-{
-    table.setBounds(getLocalBounds());
-
-	table.getHeader().setColumnWidth(FileName, getWidth() - 200);
-	table.getHeader().setColumnWidth(Memory, 100);
-	table.getHeader().setColumnWidth(References, 100);
-
-}
-
-PoolTableSubTypes::AudioFilePoolTable::AudioFilePoolTable(BackendRootWindow* rootWindow):
-	ExternalFileTableBase(rootWindow->getBackendProcessor()->getSampleManager().getAudioSampleBufferPool())
-{
-
-}
-
-void PoolTableSubTypes::AudioFilePoolTable::cellDoubleClicked(int rowNumber, int /*columnId*/, const MouseEvent& /*e*/)
-{
-	auto mc = dynamic_cast<MainController*>(GET_BACKEND_ROOT_WINDOW(this)->getBackendProcessor());
-
-	if (auto editor = mc->getLastActiveEditor())
+	else
 	{
-		auto fileName = pool->getFileNameForId(pool->getIdForIndex(rowNumber));
-		auto ref = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getFileReference(fileName, ProjectHandler::SubDirectories::AudioFiles);
+		if (img->getHeight() < 1600)
+		{
+			int heightToUse = jmin<int>(500, img->getHeight());
 
-		editor->insertTextAtCaret(ref);
+			return img->rescaled((int)((float)heightToUse * ratio), heightToUse);
+		}
+		else
+		{
+			// most likely a filmstrip, so crop it to show the first two strips...
+			return img->getClippedImage({ 0, 0, img->getWidth(), img->getWidth() * 2 });
+
+		}
 	}
 }
 
-PoolTableSubTypes::ImageFilePoolTable::ImageFilePoolTable(BackendRootWindow* rootWindow):
-	ExternalFileTableBase(rootWindow->getBackendProcessor()->getSampleManager().getImagePool())
+juce::Image PoolTableHelpers::getPreviewImage(const ValueTree* v, float width)
 {
+	if (v == nullptr)
+		return PoolHelpers::getEmptyImage((int)width, 150);
+	
+	Array<Rectangle<int>> zones;
 
-}
+	auto totalArea = Rectangle<int>(0, 0, (int)width, 128);
 
-void PoolTableSubTypes::ImageFilePoolTable::cellDoubleClicked(int rowNumber, int /*columnId*/, const MouseEvent&)
-{
-	auto mc = dynamic_cast<MainController*>(GET_BACKEND_ROOT_WINDOW(this)->getBackendProcessor());
-
-	if (auto editor = mc->getLastActiveEditor())
+	for (const auto& data : *v)
 	{
-		auto fileName = pool->getFileNameForId(pool->getIdForIndex(rowNumber));
-		auto ref = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getFileReference(fileName, ProjectHandler::SubDirectories::Images);
+		auto d = StreamingHelpers::getBasicMappingDataFromSample(data);
 
-		editor->insertTextAtCaret(ref);
+		int x = jmap((int)d.lowKey, 0, 128, 0, totalArea.getWidth());
+		int w = jmap((int)(1 + d.highKey - d.lowKey), 0, 128, 0, totalArea.getWidth());
+		int y = jmap((int)d.highVelocity, 128, 0, 0, totalArea.getHeight());
+		int h = jmap((int)(1 + d.highVelocity - d.lowVelocity), 0, 128, 0, totalArea.getHeight() - 1);
+
+		zones.add({ x, y, w, h });
 	}
+
+	Image img(Image::ARGB, (int)width, 128, true);
+
+	Graphics g(img);
+
+	g.setColour(Colours::white.withAlpha(0.2f));
+	g.drawRect(totalArea, 1);
+
+	for (auto z : zones)
+	{
+		g.fillRect(z);
+		g.drawRect(z);
+	}
+
+	return img;
 }
 
 } // namespace hise

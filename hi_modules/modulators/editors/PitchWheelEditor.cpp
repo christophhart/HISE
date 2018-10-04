@@ -43,7 +43,7 @@ PitchWheelEditorBody::PitchWheelEditorBody (ProcessorEditor *p)
     label->setColour (TextEditor::textColourId, Colours::black);
     label->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
-    addAndMakeVisible (midiTable = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), static_cast<ControlModulator*>(getProcessor())->getTable()));
+    addAndMakeVisible (midiTable = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), dynamic_cast<LookupTableProcessor*>(getProcessor())->getTable(0)));
     midiTable->setName ("new component");
 
     addAndMakeVisible (useTableButton = new ToggleButton ("new toggle button"));
@@ -216,7 +216,7 @@ BEGIN_JUCER_METADATA
          fontname="Arial" fontsize="24" bold="1" italic="0" justification="34"/>
   <GENERICCOMPONENT name="new component" id="e2252e55bedecdc5" memberName="midiTable"
                     virtualName="" explicitFocusOrder="0" pos="0Cc 89 112M 120" class="TableEditor"
-                    params="static_cast&lt;ControlModulator*&gt;(getProcessor())-&gt;getTable()"/>
+                    params="dynamic_cast&lt;LookupTableProcessor*&gt;(getProcessor())-&gt;getTable(0)"/>
   <TOGGLEBUTTON name="new toggle button" id="e77edc03c117de85" memberName="useTableButton"
                 virtualName="" explicitFocusOrder="0" pos="0 42 128 32" posRelativeX="e2252e55bedecdc5"
                 tooltip="Use a look up table to calculate the modulation value."

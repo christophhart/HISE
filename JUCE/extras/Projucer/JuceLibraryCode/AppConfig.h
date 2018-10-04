@@ -63,7 +63,7 @@
 
 // END SECTION A
 
-#define JUCE_USE_DARK_SPLASH_SCREEN 0
+#define JUCE_USE_DARK_SPLASH_SCREEN 1
 
 //==============================================================================
 #define JUCE_MODULE_AVAILABLE_juce_core                 1
@@ -100,7 +100,7 @@
 #endif
 
 #ifndef    JUCE_USE_CURL
- #define   JUCE_USE_CURL 1
+ #define   JUCE_USE_CURL 0
 #endif
 
 #ifndef    JUCE_CATCH_UNHANDLED_EXCEPTIONS
@@ -109,6 +109,10 @@
 
 #ifndef    JUCE_ALLOW_STATIC_NULL_VARIABLES
  //#define JUCE_ALLOW_STATIC_NULL_VARIABLES 1
+#endif
+
+#ifndef    JUCE_ENABLE_AUDIO_GUARD
+ //#define JUCE_ENABLE_AUDIO_GUARD 1
 #endif
 
 //==============================================================================
@@ -152,7 +156,7 @@
 // juce_gui_extra flags:
 
 #ifndef    JUCE_WEB_BROWSER
- //#define JUCE_WEB_BROWSER 1
+ #define   JUCE_WEB_BROWSER 0
 #endif
 
 #ifndef    JUCE_ENABLE_LIVE_CONSTANT_EDITOR

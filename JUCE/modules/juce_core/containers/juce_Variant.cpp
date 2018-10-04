@@ -162,6 +162,10 @@ public:
     }
 };
 
+#ifndef DOUBLE_TO_STRING_DIGITS
+#define DOUBLE_TO_STRING_DIGITS 8
+#endif
+
 //==============================================================================
 class var::VariantType_Double   : public var::VariantType
 {
@@ -172,7 +176,7 @@ public:
     int toInt (const ValueUnion& data) const noexcept override       { return (int) data.doubleValue; }
     int64 toInt64 (const ValueUnion& data) const noexcept override   { return (int64) data.doubleValue; }
     double toDouble (const ValueUnion& data) const noexcept override { return data.doubleValue; }
-    String toString (const ValueUnion& data) const override          { return String (data.doubleValue, 20); }
+    String toString (const ValueUnion& data) const override          { return String (data.doubleValue, DOUBLE_TO_STRING_DIGITS); }
     bool toBool (const ValueUnion& data) const noexcept override     { return data.doubleValue != 0.0; }
     bool isDouble() const noexcept override                          { return true; }
 
@@ -188,6 +192,8 @@ public:
         output.writeDouble (data.doubleValue);
     }
 };
+
+
 
 //==============================================================================
 class var::VariantType_Bool   : public var::VariantType
@@ -489,6 +495,7 @@ var::var (const var& valueToCopy)  : type (valueToCopy.type)
 }
 
 var::var (const int v) noexcept       : type (&VariantType_Int::instance)    { value.intValue = v; }
+var::var (const uint32 v) noexcept :	type (&VariantType_Int64::instance)  { value.int64Value = static_cast<int64>(v); }
 var::var (const int64 v) noexcept     : type (&VariantType_Int64::instance)  { value.int64Value = v; }
 var::var (const bool v) noexcept      : type (&VariantType_Bool::instance)   { value.boolValue = v; }
 var::var (const double v) noexcept    : type (&VariantType_Double::instance) { value.doubleValue = v; }

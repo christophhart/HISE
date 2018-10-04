@@ -45,6 +45,23 @@ class PresetBrowserLookAndFeel : public LookAndFeel_V3
 {
 public:
 
+	class ButtonLookAndFeel : public LookAndFeel_V3
+	{
+	public:
+
+		ButtonLookAndFeel() :
+			highlightColour(Colour(0xffffa8a8))
+		{};
+
+		void drawButtonBackground(Graphics& g, Button& button, const Colour& backgroundColour,
+			bool isMouseOverButton, bool isButtonDown);
+
+		void drawButtonText(Graphics& g, TextButton& button, bool /*isMouseOverButton*/, bool /*isButtonDown*/);
+
+		Colour highlightColour;
+		Font font;
+	};
+
 	enum ColourIds
 	{
 		highlightColourId = 0xf312,
@@ -122,31 +139,143 @@ public:
     
 };
 
+
+class TagList : public Component,
+	public ControlledObject,
+	public MainController::UserPresetHandler::Listener,
+	public ButtonListener,
+	public Timer
+{
+public:
+
+	struct Listener
+	{
+		virtual ~Listener() {};
+
+		virtual void tagSelectionChanged(const StringArray& newSelection) = 0;
+
+		virtual void tagCacheNeedsRebuilding() = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+	};
+
+	TagList(MainController* mc_);
+
+	~TagList()
+	{
+		getMainController()->getUserPresetHandler().removeListener(this);
+		editButton.removeListener(this);
+	}
+
+	void buttonClicked(Button*) override;
+
+	virtual void presetChanged(const File& newPreset);
+
+	virtual void presetListUpdated()
+	{
+		rebuildTags();
+	}
+
+	void rebuildTags();
+
+	bool isActive() const
+	{
+		return !tags.isEmpty();
+	}
+
+	void addTagListener(Listener* l) {
+		listeners.addIfNotAlreadyThere(l);
+	}
+
+	void removeTagListener(Listener* l)
+	{
+		listeners.removeAllInstancesOf(l);
+	}
+
+	void resized() override;
+
+	void setHighlightColourAndFont(Colour c_, Colour bgColour, Font font);
+
+	class Tag : public Component
+	{
+	public:
+
+		Tag(TagList& parent_, const String& name_) :
+			parent(parent_),
+			name(name_)
+		{}
+
+		int getTagWidth() const
+		{
+			return (int)parent.f.getStringWidthFloat(name) + 20;
+		}
+
+		void mouseDown(const MouseEvent& ) override
+		{
+			parent.toggleTag(this);
+		}
+
+		void setActive(bool shouldBeActive)
+		{
+			active = shouldBeActive;
+			repaint();
+		}
+
+		void setSelected(bool shouldBeSelected)
+		{
+			selected = shouldBeSelected;
+			repaint();
+		}
+
+		bool isActive() const { return active; };
+
+		void paint(Graphics& g) override;
+
+		TagList& parent;
+		String name;
+		bool active = false;
+		bool selected = false;
+	};
+
+	void timerCallback() override
+	{
+		on = !on;
+
+		for (auto t : tags)
+			t->repaint();
+	}
+
+	void toggleTag(Tag* n);
+
+	PresetBrowserLookAndFeel::ButtonLookAndFeel blaf;
+
+	File currentFile;
+	StringArray currentlyActiveTags;
+	StringArray currentlySelectedTags;
+
+	Colour c;
+	Font f;
+
+	bool on = false;
+	bool editMode = false;
+	TextButton editButton;
+
+	OwnedArray<Tag> tags;
+
+	Array<WeakReference<Listener>> listeners;
+};
+
 class PresetBrowserColumn : public Component,
 	                       public ButtonListener,
 	                       public Label::Listener,
+						   public TagList::Listener,
 	                       public Timer
 {
 public:
 
 	// ============================================================================================
 
-	class ButtonLookAndFeel : public LookAndFeel_V3
-	{
-	public:
-
-		ButtonLookAndFeel() :
-			highlightColour(Colour(0xffffa8a8))
-		{};
-
-		void drawButtonBackground(Graphics& g, Button& button, const Colour& backgroundColour,
-			bool isMouseOverButton, bool isButtonDown);
-
-		void drawButtonText(Graphics& g, TextButton& button, bool /*isMouseOverButton*/, bool /*isButtonDown*/);
-
-		Colour highlightColour;
-		Font font;
-	};
+	
 
 	// ============================================================================================
 
@@ -174,6 +303,11 @@ public:
 		int getNumRows() override;
 		void listBoxItemClicked(int row, const MouseEvent &) override;
 		void paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected) override;
+
+		bool isEmpty() const
+		{
+			return empty;
+		}
 
 		class FavoriteOverlay : public Component,
 								public ButtonListener
@@ -247,14 +381,31 @@ public:
 		}
 
         String wildcard;
-        
+
 		Colour highlightColour;
 		Font font;
 
 		var database;
 
+		Array<Identifier> currentlyActiveTags;
+
+
+		void rebuildCachedTagList();
+
+		void updateTags(const StringArray& newSelection);
+
+		struct CachedTag
+		{
+			int64 hashCode;
+			Array<Identifier> tags;
+			bool shown = false;
+		};
+
+		Array<CachedTag> cachedTags;
 
 	private:
+
+		bool empty = false;
 
 		bool showFavoritesOnly = false;
 
@@ -319,6 +470,20 @@ public:
 
 	void updateButtonVisibility();
 
+	void tagSelectionChanged(const StringArray& newSelection) override
+	{
+		listModel->updateTags(newSelection);
+
+		listbox->deselectAllRows();
+		listbox->updateContent();
+		listbox->repaint();
+	}
+
+	void tagCacheNeedsRebuilding() override
+	{
+		listModel->rebuildCachedTagList();
+	}
+
 	void labelTextChanged(Label* l) override
 	{
 	    listModel->wildcard = l->getText();
@@ -362,9 +527,11 @@ public:
 		}
 	}
 
+
+
 private:
 
-	
+
 
 	// ============================================================================================
 
@@ -383,7 +550,7 @@ private:
 
 	File selectedFile;
 
-	ButtonLookAndFeel blaf;
+	PresetBrowserLookAndFeel::ButtonLookAndFeel blaf;
 
 	ScopedPointer<TextButton> editButton;
 
@@ -410,12 +577,14 @@ private:
 };
 
 
+
 class MultiColumnPresetBrowser : public Component,
 							     public QuasiModalComponent,
 								 public Button::Listener,
 								 public PresetBrowserColumn::ColumnListModel::Listener,
 								 public Label::Listener,
-								 public MainController::UserPresetHandler::Listener
+								 public MainController::UserPresetHandler::Listener,
+								 public TagList::Listener
 {
 public:
 
@@ -594,12 +763,16 @@ public:
 				case MultiColumnPresetBrowser::ModalWindow::Action::Replace:
                     {
                     auto note = DataBaseHelpers::getNoteFromXml(le.newFile);
-                        
+                    auto tags = DataBaseHelpers::getTagsFromXml(le.newFile);
+
                     le.oldFile.moveFileTo(le.newFile);
                         
                     if(note.isNotEmpty())
                         DataBaseHelpers::writeNoteInXml(le.newFile, note);
                     
+					if(!tags.isEmpty())
+						DataBaseHelpers::writeTagsInXml(le.newFile, tags);
+
 					if (le.oldFile.getFileName() == "tempFileBeforeMove.preset")
 						le.oldFile.deleteFile();
 
@@ -781,6 +954,17 @@ public:
 
 	void paint(Graphics& g);
 	void resized();
+	
+	void tagCacheNeedsRebuilding() override {};
+
+	void tagSelectionChanged(const StringArray& newSelection) override
+	{
+		currentTagSelection = newSelection;
+
+		showOnlyPresets = !currentTagSelection.isEmpty() || currentWildcard != "*" || favoriteButton->getToggleState();
+
+		resized();
+	}
 
 	void labelTextChanged(Label* l) override
 	{
@@ -793,7 +977,7 @@ public:
 		}
 		else
 		{
-			showOnlyPresets = l->getText().isNotEmpty() || favoriteButton->getToggleState();
+			showOnlyPresets = !currentTagSelection.isEmpty() || l->getText().isNotEmpty() || favoriteButton->getToggleState();
 
 			if (showOnlyPresets)
 			{
@@ -952,6 +1136,56 @@ public:
 			}
 		}
 
+		static void cleanFileList(Array<File>& filesToClean)
+		{
+			for (int i = 0; i < filesToClean.size(); i++)
+			{
+				const bool isNoPresetFile = filesToClean[i].isHidden() || filesToClean[i].getFileName().startsWith(".") || filesToClean[i].getFileExtension() != ".preset";
+				const bool isNoDirectory = !filesToClean[i].isDirectory();
+
+				if (isNoPresetFile && isNoDirectory)
+				{
+					filesToClean.remove(i--);
+					continue;
+				}
+			}
+		}
+
+		static void writeTagsInXml(const File& currentPreset, const StringArray& tags)
+		{
+			if (currentPreset.existsAsFile())
+			{
+				ScopedPointer<XmlElement> xml = XmlDocument::parse(currentPreset);
+
+				if (xml != nullptr)
+				{
+					xml->setAttribute("Tags", tags.joinIntoString(";"));
+
+					auto newPresetContent = xml->createDocument("");
+
+					currentPreset.replaceWithText(newPresetContent);
+				}
+			}
+		}
+
+		static bool matchesTags(const StringArray& currentlyActiveTags, const File& presetToTest)
+		{
+			if (currentlyActiveTags.isEmpty())
+				return true;
+
+			auto presetTags = getTagsFromXml(presetToTest);
+
+			if (presetTags.isEmpty())
+				return false;
+
+			for (auto t : currentlyActiveTags)
+				if (!presetTags.contains(t))
+					return false;
+
+			return true;
+		}
+
+
 		static void writeNoteInXml(const File& currentPreset, const String& newNote)
 		{
 			if (currentPreset.existsAsFile())
@@ -967,6 +1201,26 @@ public:
 					currentPreset.replaceWithText(newPresetContent);
 				}
 			}
+		}
+
+		static StringArray getTagsFromXml(const File& currentPreset)
+		{
+			StringArray sa;
+
+			if (currentPreset.existsAsFile())
+			{
+				auto content = currentPreset.loadFileAsString();
+
+				static const String tagAttribute = "Tags=\"";
+
+				if (content.contains(tagAttribute))
+				{
+					auto tags = content.fromFirstOccurrenceOf(tagAttribute, false, false).upToFirstOccurrenceOf("\"", false, false);
+					sa = StringArray::fromTokens(tags, ";", "");
+				}
+			}
+
+			return sa;
 		}
 
 		static String getNoteFromXml(const File& currentPreset)
@@ -1025,7 +1279,7 @@ public:
 				//s = s.replaceCharacters("öäüèêé", "oaueee");
 
 
-				s = s.removeCharacters(" \t!+");
+				s = s.removeCharacters(" \t!+&");
 
 				if (Identifier::isValidIdentifier(s))
 				{
@@ -1042,81 +1296,6 @@ public:
 
 private:
 
-	class TagArea : public Component,
-		public ButtonListener
-	{
-	public:
-
-		TagArea()
-		{
-			Array<var> t;
-			t.add("Favorites");
-			t.add("Bass");
-			t.add("Soundscapes");
-			t.add("Heavy");
-			t.add("Dark");
-			t.add("Arpeggiated");
-			t.add("Drums");
-			t.add("Sequenced");
-			t.add("Tuned");
-			t.add("Plucked");
-
-			tags = var(t);
-
-			rebuildTags();
-		}
-
-		void resized() override
-		{
-			auto area = getLocalBounds();
-
-			const int numColumns = 6;
-
-			const int numRows = jmax<int>(1, tagButtons.size() / numColumns + 1);
-			const int heightPerRow = getHeight() / numRows;
-			const int widthPerButton = getWidth() / numColumns;
-
-			for (int i = 0; i < tagButtons.size(); i++)
-			{
-				const int row = i / numColumns;
-				const int column = i % numColumns;
-
-				auto rowArea = Rectangle<int>(column * widthPerButton, row * heightPerRow, widthPerButton, heightPerRow);
-				tagButtons[i]->setBounds(rowArea.reduced(2));
-			}
-		};
-
-		void buttonClicked(Button* b) override
-		{
-			b->setToggleState(!b->getToggleState(), dontSendNotification);
-		}
-
-		void rebuildTags()
-		{
-			tagButtons.clear();
-
-			if (auto vArray = tags.getArray())
-			{
-				for (const auto& v : *vArray)
-				{
-					TextButton* t = new TextButton(v.toString());
-					t->setLookAndFeel(&blaf);
-					t->addListener(this);
-					addAndMakeVisible(t);
-					tagButtons.add(t);
-				}
-			}
-
-			resized();
-		}
-
-		var tags;
-
-		PresetBrowserColumn::ButtonLookAndFeel blaf;
-
-		OwnedArray<TextButton> tagButtons;
-	};
-
 	// ============================================================================================
 
 	Colour backgroundColour;
@@ -1124,7 +1303,7 @@ private:
 
 	PresetBrowserLookAndFeel pblaf;
 
-	PresetBrowserColumn::ButtonLookAndFeel blaf;
+	PresetBrowserLookAndFeel::ButtonLookAndFeel blaf;
 
 	File rootFile;
 	File currentBankFile;
@@ -1137,8 +1316,9 @@ private:
 
 	ScopedPointer<BetterLabel> noteLabel;
 
-	ScopedPointer<TagArea> tagArea;
+	ScopedPointer<TagList> tagList;
 
+	
 	ScopedPointer<ShapeButton> closeButton;
 
 	ScopedPointer<ShapeButton> favoriteButton;
@@ -1153,7 +1333,8 @@ private:
 
 	bool showOnlyPresets = false;
 	String currentWildcard = "*";
-	
+	StringArray currentTagSelection;
+
 	var presetDatabase;
 	
 	

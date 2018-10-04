@@ -75,16 +75,30 @@ AudioProcessor* createPlugin(ValueTree &presetData, ValueTree &imageData, ValueT
 #define USE_FRONTEND 1
 #endif
 
-#include "frontend/TurboActivateHeader.h"
-
-
 #include "frontend/FrontEndProcessor.h"
 #include "frontend/FrontendProcessorEditor.h"
 
-
 #define USER_PRESET_OFFSET 8192
 
-#if DONT_EMBED_FILES_IN_FRONTEND
+#if 0
+#if HISE_IOS
+
+#define CREATE_PLUGIN(deviceManager, callback) { LOG_START("Loading embedded instrument data");\
+    ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
+    LOG_START("Loading embedded other data")\
+    ValueTree externalFiles = hise::PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
+    LOG_START("Creating Frontend Processor")\
+    auto fp = new hise::FrontendProcessor(presetData, deviceManager, callback, nullptr, nullptr, nullptr, &externalFiles, nullptr);\
+        hise::UserPresetHelpers::extractUserPresets(PresetData::userPresets, PresetData::userPresetsSize);\
+    hise::AudioProcessorDriver::restoreSettings(fp);\
+    hise::GlobalSettingManager::restoreGlobalSettings(fp);\
+    GET_PROJECT_HANDLER(fp->getMainSynthChain()).loadSamplesAfterSetup(); \
+    return fp; }
+
+#define CREATE_PLUGIN_WITH_AUDIO_FILES CREATE_PLUGIN // same same
+
+
+#elif DONT_EMBED_FILES_IN_FRONTEND
 
 #define CREATE_PLUGIN(deviceManager, callback) {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
 ValueTree externalFiles = hise::PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
@@ -99,6 +113,7 @@ ValueTree externalFiles = hise::PresetHandler::loadValueTreeFromData(PresetData:
 #define CREATE_PLUGIN_WITH_AUDIO_FILES CREATE_PLUGIN // same same
 
 #else
+
 #define CREATE_PLUGIN(deviceManager, callback) {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
 	ValueTree externalFiles = hise::PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
 	\
@@ -109,25 +124,33 @@ ValueTree externalFiles = hise::PresetHandler::loadValueTreeFromData(PresetData:
 	return fp;\
 }
 
-#define CREATE_PLUGIN_WITH_AUDIO_FILES(deviceManager, callback) {\
-    LOG_START("Loading embedded instrument data")\
-    ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
-	LOG_START("Loading embedded image data")\
-	ValueTree imageData = hise::PresetHandler::loadValueTreeFromData(PresetData::images, PresetData::imagesSize, false);\
-	LOG_START("Loading embedded impulse responses")\
-	ValueTree impulseData = hise::PresetHandler::loadValueTreeFromData(PresetData::impulses, PresetData::impulsesSize, false); \
-	LOG_START("Loading embedded other data")\
-	ValueTree externalFiles = hise::PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
-	\
-	LOG_START("Creating Frontend Processor")\
-	auto fp = new hise::FrontendProcessor(presetData, deviceManager, callback, &imageData, &impulseData, &externalFiles, nullptr); \
-    hise::UserPresetHelpers::extractUserPresets(PresetData::userPresets, PresetData::userPresetsSize);\
-	hise::AudioProcessorDriver::restoreSettings(fp);\
-	hise::GlobalSettingManager::restoreGlobalSettings(fp); \
-	fp->loadSamplesAfterSetup();\
-	return fp;\
-}
+
 #endif
+#endif
+
+namespace hise
+{
+
+
+struct FrontendFactory
+{
+	static juce::MemoryInputStream* getEmbeddedData(FileHandlerBase::SubDirectories directory);
+
+	static FrontendProcessor* createPluginWithAudioFiles(juce::AudioDeviceManager* deviceManager, juce::AudioProcessorPlayer* callback);
+
+	static FrontendProcessor* createPlugin(juce::AudioDeviceManager* deviceManager, juce::AudioProcessorPlayer* callback);
+};
+
+}
+
+#define CREATE_PLUGIN_WITH_AUDIO_FILES(deviceManager, callback) return hise::FrontendFactory::createPluginWithAudioFiles(deviceManager, callback);
+
+#define CREATE_PLUGIN CREATE_PLUGIN_WITH_AUDIO_FILES
+
+#define BEGIN_EMBEDDED_DATA() juce::MemoryInputStream* hise::FrontendFactory::getEmbeddedData(hise::FileHandlerBase::SubDirectories directory) { switch (directory) {
+#define DEFINE_EMBEDDED_DATA(subdirectory, data, size) case subdirectory: return new MemoryInputStream(data, size, false);
+#define END_EMBEDDED_DATA() default: return nullptr; }}
+
 
 
 

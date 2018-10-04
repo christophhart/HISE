@@ -36,8 +36,10 @@ using namespace juce;
 
 ShapeFX::ShapeFX(MainController *mc, const String &uid):
 	MasterEffectProcessor(mc, uid),
+#if HI_USE_SHAPE_FX_SCRIPTING
 	JavascriptProcessor(mc),
 	ProcessorWithScriptingContent(mc),
+#endif
 	biasLeft(getDefaultValue(BiasLeft)),
 	biasRight(getDefaultValue(BiasRight)),
 	gain(1.0f),
@@ -50,12 +52,19 @@ ShapeFX::ShapeFX(MainController *mc, const String &uid):
 	highpass(getDefaultValue(HighPass)),
 	lowpass(getDefaultValue(LowPass)),
 	tableBroadcaster(new SafeChangeBroadcaster()),
+#if HI_USE_SHAPE_FX_SCRIPTING
 	functionCode(new SnippetDocument("shape", "input")),
-	dryBuffer(2, 0),
-	shapeResult(Result::ok())
+	shapeResult(Result::ok()),
+#endif
+	dryBuffer(2, 0)
 {
-	initContent();
+	
 	initShapers();
+
+	finaliseModChains();
+
+#if HI_USE_SHAPE_FX_SCRIPTING
+	initContent();
 
 	String s;
 	s << "function shape(input)\n";
@@ -64,6 +73,7 @@ ShapeFX::ShapeFX(MainController *mc, const String &uid):
 	s << "}\n";
 
 	functionCode->replaceAllContent(s);
+#endif
 
 	tableUpdater = new TableUpdater(*this);
 
@@ -71,6 +81,7 @@ ShapeFX::ShapeFX(MainController *mc, const String &uid):
 	tableBroadcaster->enableAllocationFreeMessages(50);
 
 	memset(displayTable, 0, sizeof(float)*SAMPLE_LOOKUP_TABLE_SIZE);
+    memset(unusedTable, 0, sizeof(float)*SAMPLE_LOOKUP_TABLE_SIZE);
 	
 	parameterNames.add("BiasLeft");
 	parameterNames.add("BiasRight");
@@ -85,7 +96,9 @@ ShapeFX::ShapeFX(MainController *mc, const String &uid):
 	parameterNames.add("Drive");
 	parameterNames.add("Mix");
 
+#if HI_USE_SHAPE_FX_SCRIPTING
 	setupApi();
+#endif
 
 	updateMode();
 	updateOversampling();
@@ -101,6 +114,7 @@ ShapeFX::~ShapeFX()
 	tableBroadcaster = nullptr;
 	tableUpdater = nullptr;
 
+#if HI_USE_SHAPE_FX_SCRIPTING
 	cleanupEngine();
 	clearExternalWindows();
 
@@ -108,11 +122,12 @@ ShapeFX::~ShapeFX()
 
 	functionCode = nullptr;
 	
-#if USE_BACKEND
+#if USE_BACKEND 
 	if (consoleEnabled)
 	{
 		getMainController()->setWatchedScriptProcessor(nullptr, nullptr);
 	}
+#endif
 #endif
 }
 
@@ -122,8 +137,8 @@ void ShapeFX::setInternalAttribute(int parameterIndex, float newValue)
 	{
 	case BiasLeft: biasLeft = newValue; break;
 	case BiasRight: biasRight = newValue; break;
-	case HighPass: highpass = newValue; updateFilter(false); break;
-	case LowPass: lowpass = newValue; updateFilter(true); break;
+	case HighPass: highpass = jmax<float>(20.0f, newValue); updateFilter(false); break;
+	case LowPass: lowpass = jmax<float>(20.0f, newValue); updateFilter(true); break;
 	case Mode: mode = (ShapeMode)(int)newValue; updateMode(); break;
 	case Oversampling: oversampleFactor = (int)newValue; updateOversampling(); break;
 	case Gain: gain = Decibels::decibelsToGain(newValue); updateMode(); break;
@@ -180,8 +195,10 @@ juce::ValueTree ShapeFX::exportAsValueTree() const
 {
 	ValueTree v = MasterEffectProcessor::exportAsValueTree();
 
+#if HI_USE_SHAPE_FX_SCRIPTING
 	saveScript(v);
 	saveContent(v);
+#endif
 
 	saveTable(getTable(0), "Curve");
 	
@@ -206,8 +223,10 @@ void ShapeFX::restoreFromValueTree(const ValueTree &v)
 {
 	MasterEffectProcessor::restoreFromValueTree(v);
 
+#if HI_USE_SHAPE_FX_SCRIPTING
 	restoreScript(v);
 	restoreContent(v);
+#endif
 
 	loadTable(getTable(0), "Curve");
 	
@@ -246,15 +265,17 @@ hise::ProcessorEditorBody * ShapeFX::createEditor(ProcessorEditor *parentEditor)
 #endif
 }
 
-
+#if HI_USE_SHAPE_FX_SCRIPTING
 void ShapeFX::registerApiClasses()
 {
+
 	content = new ScriptingApi::Content(this);
 	auto engineObject = new ScriptingApi::Engine(this);
 	
 	scriptEngine->registerApiClass(engineObject);
 	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
 }
+#endif
 
 void ShapeFX::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
@@ -292,6 +313,8 @@ void ShapeFX::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 	lDcRemover.setCoefficients(dcCoeffs);
 	rDcRemover.setCoefficients(dcCoeffs);
+
+	
 
 	limiter.setSampleRate(sampleRate);
 	limiter.setAttack(0.03);
@@ -350,6 +373,7 @@ void ShapeFX::processBitcrushedValues(float* l, float* r, int numSamples)
 	}
 }
 
+#if HI_USE_SHAPE_FX_SCRIPTING
 void ShapeFX::rebuildScriptedTable()
 {
 	float sum = 0.0f;
@@ -397,6 +421,7 @@ void ShapeFX::rebuildScriptedTable()
 	graphNormalizeValue = autogainValue;
 	triggerWaveformUpdate();
 }
+#endif
 
 void ShapeFX::recalculateDisplayTable()
 {
@@ -406,7 +431,7 @@ void ShapeFX::recalculateDisplayTable()
 	generateRampForDisplayValue(displayTable, gain);
 
 
-	shapers[mode]->processBlock(displayTable, displayTable, SAMPLE_LOOKUP_TABLE_SIZE);
+	shapers[mode]->processBlock(displayTable, unusedTable, SAMPLE_LOOKUP_TABLE_SIZE);
 
 	graphNormalizeValue = autogainValue;
 	triggerWaveformUpdate();
@@ -428,7 +453,14 @@ void ShapeFX::updateMode()
 {
 	if (mode == Script || mode == CachedScript)
 	{	
+#if HI_USE_SHAPE_FX_SCRIPTING
 		rebuildScriptedTable();
+#else
+		// You somehow managed to set the mode to Script without having this enabled...
+		jassertfalse;
+		mode = Linear;
+		updateGain();
+#endif
 	}
 	else
 	{
@@ -439,22 +471,26 @@ void ShapeFX::updateMode()
 
 void ShapeFX::updateOversampling()
 {
-	ScopedLock sl(oversamplerLock);
-
 	auto factor = roundDoubleToInt(log2((double)oversampleFactor));
 
-	oversampler = new Oversampler(2, factor, Oversampler::FilterType::filterHalfBandPolyphaseIIR, false);
+	ScopedPointer<Oversampler> newOverSampler = new Oversampler(2, factor, Oversampler::FilterType::filterHalfBandPolyphaseIIR, false);
 
-	if(getBlockSize() > 0)
-		oversampler->initProcessing(getBlockSize());
+	if (getLargestBlockSize() > 0)
+		newOverSampler->initProcessing(getLargestBlockSize());
 
-	int latency = roundFloatToInt(oversampler->getLatencyInSamples());
-
-	if(getSampleRate() > 0.0)
-		bitCrushSmoother.reset(getSampleRate() * oversampleFactor, 0.04);
+	int latency = roundFloatToInt(newOverSampler->getLatencyInSamples());
 
 	lDelay.setDelayTimeSamples(latency);
 	rDelay.setDelayTimeSamples(latency);
+
+	{
+		SpinLock::ScopedLockType sl(oversamplerLock);
+
+		oversampler.swapWith(newOverSampler);
+
+		if (getSampleRate() > 0.0)
+			bitCrushSmoother.reset(getSampleRate() * oversampleFactor, 0.04);
+	}
 }
 
 void ShapeFX::updateGain()
@@ -543,24 +579,36 @@ void ShapeFX::applyEffect(AudioSampleBuffer &b, int startSample, int numSamples)
 		}
 	}
 
-	dsp::AudioBlock<float> block(b, startSample);
-	ScopedLock sl(oversamplerLock);
-	dsp::AudioBlock<float> oversampledData = oversampler->processSamplesUp(block);
-	auto numOversampled = (int)oversampledData.getNumSamples();
-
-	float* o_l = oversampledData.getChannelPointer(0);
-	float* o_r = oversampledData.getChannelPointer(1);
-
-	shapers[mode]->processBlock(o_l, o_r, numOversampled);
-	processBitcrushedValues(o_l, o_r, numOversampled);
-	oversampler->processSamplesDown(block);
-
-	if (oversampler->getLatencyInSamples() > 0.0f)
+	if (oversampleFactor != 1)
 	{
-		lDelay.processBlock(dryL, numSamples);
-		rDelay.processBlock(dryR, numSamples);
+		dsp::AudioBlock<float> block(b, startSample);
+		
+		SpinLock::ScopedLockType sl(oversamplerLock);
+		dsp::AudioBlock<float> oversampledData = oversampler->processSamplesUp(block);
+		auto numOversampled = (int)oversampledData.getNumSamples();
+
+		float* data_l = oversampledData.getChannelPointer(0);
+		float* data_r = oversampledData.getChannelPointer(1);
+
+		shapers[mode]->processBlock(data_l, data_r, numOversampled);
+		processBitcrushedValues(data_l, data_r, numOversampled);
+		oversampler->processSamplesDown(block);
+
+		if (oversampler->getLatencyInSamples() > 0.0f)
+		{
+			lDelay.processBlock(dryL, numSamples);
+			rDelay.processBlock(dryR, numSamples);
+		}
+	}
+	else
+	{
+		SpinLock::ScopedLockType sl(oversamplerLock);
+
+		shapers[mode]->processBlock(wetL, wetR, numSamples);
+		processBitcrushedValues(wetL, wetR, numSamples);
 	}
 
+	
 	lDcRemover.processSamples(wetL, numSamples);
 	rDcRemover.processSamples(wetR, numSamples);
 
@@ -589,17 +637,25 @@ void ShapeFX::updateMix()
 
 PolyshapeFX::PolyshapeFX(MainController *mc, const String &uid, int numVoices):
 	VoiceEffectProcessor(mc, uid, numVoices),
-	driveChain(new ModulatorChain(mc, "Drive Modulation", numVoices, Modulation::Mode::GainMode, this)),
-	driveBuffer(1, 0)
+	polyUpdater(*this),
+	dcRemovers(numVoices)
 {
+	modChains += { this, "Drive Modulation" };
+
+	finaliseModChains();
+
+	modChains[InternalChains::DriveModulation].setExpandToAudioRate(true);
+
 	for (int i = 0; i < numVoices; i++)
 	{
 		oversamplers.add(new ShapeFX::Oversampler(2, 2, ShapeFX::Oversampler::FilterType::filterHalfBandPolyphaseIIR, false));
-		dcRemovers.add(new SimpleOnePole());
+		driveSmoothers[i] = LinearSmoothedValue<float>(0.0f);
 	}
 
 	initShapers();
 
+    memset(unusedTable, 0, sizeof(float)*SAMPLE_LOOKUP_TABLE_SIZE);
+    
 	tableUpdater = new TableUpdater(*this);
 
 	parameterNames.add("Drive");
@@ -614,7 +670,7 @@ PolyshapeFX::~PolyshapeFX()
 {
 	tableUpdater = nullptr;
 	shapers.clear();
-	dcRemovers.clear();
+	
 	oversamplers.clear();
 }
 
@@ -705,19 +761,18 @@ hise::ProcessorEditorBody * PolyshapeFX::createEditor(ProcessorEditor *parentEdi
 #endif
 }
 
-juce::AudioSampleBuffer & PolyshapeFX::getBufferForChain(int /*index*/)
-{
-	return driveBuffer;
-}
-
-void PolyshapeFX::preVoiceRendering(int voiceIndex, int startSample, int numSamples)
-{
-	calculateChain(DriveModulation, voiceIndex, startSample, numSamples);
-}
 
 void PolyshapeFX::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	VoiceEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
+
+	for (auto&mb : modChains)
+		mb.prepareToPlay(sampleRate, samplesPerBlock);
+
+	for (int i = 0; i < NUM_POLYPHONIC_VOICES; i++)
+	{
+		driveSmoothers[i].reset(sampleRate, 0.05);
+	}
 
 	for (auto os : oversamplers)
 	{
@@ -725,47 +780,70 @@ void PolyshapeFX::prepareToPlay(double sampleRate, int samplesPerBlock)
 		os->reset();
 	}
 
-	for (auto dc : dcRemovers)
+	for (auto& dc : dcRemovers)
 	{
-		dc->setSampleRate(sampleRate);
-		dc->setType(SimpleOnePole::FilterType::HP);
-		dc->setFrequency(20.0);
-		dc->setNumChannels(2);
-		dc->reset();
+		dc.setFrequency(20.0);
+		dc.setSampleRate(sampleRate);
+		dc.setType(SimpleOnePole::FilterType::HP);
+		dc.setNumChannels(2);
+		dc.reset();
 	}
 }
 
 void PolyshapeFX::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples)
 {
-	float* driveValues = getCurrentModulationValues(DriveModulation, voiceIndex, startSample);
+	auto& driveChain = modChains[DriveModulation];
+
+	if (voiceIndex >= NUM_POLYPHONIC_VOICES)
+		return;
+
+	
+	auto scratch = (float*)alloca(sizeof(float) * numSamples);
+
+	auto smoother = &driveSmoothers[voiceIndex];
+
+	smoother->setValue(drive - 1.0f);
+
+	if (auto compressedDriveValues = driveChain.getReadPointerForVoiceValues(startSample))
+	{
+		FloatVectorOperations::copy(scratch, compressedDriveValues, numSamples);
+	}
+	else
+	{
+		auto constantValue = driveChain.getConstantModulationValue();
+		FloatVectorOperations::fill(scratch, constantValue, numSamples);
+	}
+
+	smoother->applyGain(scratch, numSamples);
+
+	FloatVectorOperations::add(scratch, 1.0f, numSamples);
 
 	float* l = b.getWritePointer(0, startSample);
 	float* r = b.getWritePointer(1, startSample);
 
 	if (mode == ShapeFX::ShapeMode::Sin || mode == ShapeFX::ShapeMode::TanCos)
 	{
-		for (int i = 0; i < numSamples; i++)
+		if (bias != 0.0f)
 		{
-			l[i] = (l[i]) * (1.0f + driveValues[i] * (drive-1.0f)) + bias;
-			r[i] = (r[i]) * (1.0f + driveValues[i] * (drive-1.0f)) + bias;
-
-
+			FloatVectorOperations::multiply(l, scratch, numSamples);
+			FloatVectorOperations::add(l, bias, numSamples);
+			FloatVectorOperations::multiply(r, scratch, numSamples);
+			FloatVectorOperations::add(r, bias, numSamples);
+		}
+		else
+		{
+			FloatVectorOperations::multiply(l, scratch, numSamples);
+			FloatVectorOperations::multiply(r, scratch, numSamples);
 		}
 	}
 	else
 	{
 		for (int i = 0; i < numSamples; i++)
 		{
-			l[i] = (l[i] + bias) * (1.0f + driveValues[i] * (drive - 1.0f));
-			r[i] = (r[i] + bias) * (1.0f + driveValues[i] * (drive - 1.0f));
-
-
+			l[i] = (l[i] + bias) * (1.0f + scratch[i]);
+			r[i] = (r[i] + bias) * (1.0f + scratch[i]);
 		}
 	}
-
-	
-
-	
 
 	if (oversampling)
 	{
@@ -788,23 +866,61 @@ void PolyshapeFX::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSam
 		shapers[mode]->processBlock(l, r, numSamples);
 	}
 
-	if (bias != 0.0f)
-		dcRemovers[voiceIndex]->processSamples(b, startSample, numSamples);
+	const float attenuation = 0.03162f;
+
+	for (int i = 0; i < numSamples; i++)
+	{
+		l[i] /= (attenuation * scratch[i] + 1.0f);
+		r[i] /= (attenuation * scratch[i] + 1.0f);
+	}
+
+	if (bias != 0.0f || mode == ShapeFX::ShapeMode::AsymetricalCurve)
+	{
+		FilterHelpers::RenderData renderData(b, startSample, numSamples);
+		dcRemovers[voiceIndex].render(renderData);
+	}
+		
+
 }
 
 void PolyshapeFX::getWaveformTableValues(int /*displayIndex*/, float const** tableValues, int& numValues, float& normalizeValue)
 {
+	const float driveValue = 1.0f + (modChains[DriveModulation].getChain()->getOutputValue() * (drive-1.0f));
+
+	displayPeak = driveValue;
+
+	ShapeFX::generateRampForDisplayValue(displayTable, displayPeak);
+
+	if (auto s = shapers[mode])
+	{
+		shapers[mode]->processBlock(displayTable, unusedTable, SAMPLE_LOOKUP_TABLE_SIZE);
+	}
+
 	*tableValues = displayTable;
 	numValues = SAMPLE_LOOKUP_TABLE_SIZE;
-	normalizeValue = 1.0f;
+
+	switch (mode)
+	{
+	case ShapeFX::ShapeMode::Atan:				normalizeValue = 1.0f / atanf(displayPeak); break;
+	case ShapeFX::ShapeMode::Asinh:				normalizeValue = 1.0f / asinhf(displayPeak); break;
+	case ShapeFX::ShapeMode::AsymetricalCurve:	normalizeValue = 1.0f; break;
+	default:									normalizeValue = 1.0f;	break;
+	}
 }
 
 void PolyshapeFX::recalculateDisplayTable()
 {
-	ShapeFX::generateRampForDisplayValue(displayTable, drive);
+	
+}
 
-	shapers[mode]->processBlock(displayTable, unusedTable, SAMPLE_LOOKUP_TABLE_SIZE);
-	triggerWaveformUpdate();
+
+
+void PolyshapeFX::startVoice(int voiceIndex, int noteNumber)
+{
+	VoiceEffectProcessor::startVoice(voiceIndex, noteNumber);
+
+	driveSmoothers[voiceIndex].setValueWithoutSmoothing(drive-1.0f);
+
 }
 
 }

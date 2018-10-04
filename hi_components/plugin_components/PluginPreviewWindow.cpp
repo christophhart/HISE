@@ -132,37 +132,14 @@ mainSynthChain(editor->getMainSynthChain())
 		jassertfalse;
 	}
 
-	addAndMakeVisible(frontendBar = new DefaultFrontendBar(editor->getBackendProcessor()));
-
-    DynamicObject::Ptr toolbarSettings = editor->getMainSynthChain()->getMainController()->getToolbarPropertiesObject();
-    
-    const bool showKeyboard = (bool)toolbarSettings->hasProperty("keyboard") ? (bool)toolbarSettings->getProperty("keyboard") : true;
-    
-    addAndMakeVisible(keyboard = new CustomKeyboard(editor->getBackendProcessor()));
-    keyboard->setAvailableRange(editor->getBackendProcessor()->getKeyboardState().getLowestKeyToDisplay(), 127);
-    
-    keyboard->setVisible(showKeyboard);
-    
-	const int xDelta = 2;
-
-#if HISE_IOS
-
-	frontendBar->setVisible(false);
-	keyboard->setVisible(false);
 
 	setSize(content->getContentWidth(), content->getContentHeight());
-#else
     
-    setSize(content->getContentWidth() + xDelta, content->getContentHeight() + (frontendBar->isOverlaying() ? 0 : frontendBar->getHeight()) + (showKeyboard ? (72 + xDelta) : 0));
-#endif
 }
 
 PluginPreviewWindow::Content::~Content()
 {
-	frontendBar = nullptr;
 	content = nullptr;
-	keyboard = nullptr;
-
 	editor = nullptr;
 }
 
@@ -171,9 +148,7 @@ void PluginPreviewWindow::Content::resized()
 #if HISE_IOS
 	container->setBounds(0, 0, content->getContentWidth(), content->getContentHeight());
 #else
-	frontendBar->setBounds(2, 2, content->getContentWidth(), frontendBar->getHeight());
-	content->setBounds(2, (frontendBar->isOverlaying() ? frontendBar->getY() : frontendBar->getBottom()), content->getContentWidth(), content->getContentHeight());
-	keyboard->setBounds(2, content->getBottom(), content->getContentWidth(), 72);
+	content->setBounds(2, 0, content->getContentWidth(), content->getContentHeight());
 #endif
 }
 

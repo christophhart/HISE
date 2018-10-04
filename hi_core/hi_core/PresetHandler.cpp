@@ -32,318 +32,6 @@
 
 namespace hise { using namespace juce;
 
-void CopyPasteTarget::grabCopyAndPasteFocus()
-{   
-#if USE_BACKEND
-    Component *thisAsComponent = dynamic_cast<Component*>(this);
-    
-    if(thisAsComponent)
-    {
-		BackendRootWindow *editor = GET_BACKEND_ROOT_WINDOW(thisAsComponent);
-        
-        if(editor != nullptr)
-        {
-            editor->setCopyPasteTarget(this);
-            isSelected = true;
-            thisAsComponent->repaint();
-        }
-    }
-    else
-    {
-        // You can only use components as CopyAndPasteTargets!
-        jassertfalse;
-    }
-#endif
-}
-
-
-void CopyPasteTarget::dismissCopyAndPasteFocus()
-{
-#if USE_BACKEND
-	Component *thisAsComponent = dynamic_cast<Component*>(this);
-
-	if (thisAsComponent)
-	{
-		BackendRootWindow *editor = GET_BACKEND_ROOT_WINDOW(thisAsComponent);
-
-		if (editor != nullptr && isSelected)
-		{
-			editor->setCopyPasteTarget(nullptr);
-			isSelected = false;
-			thisAsComponent->repaint();
-		}
-	}
-	else
-	{
-		// You can only use components as CopyAndPasteTargets!
-		jassertfalse;
-	}
-#endif
-}
-
-
-
-UserPresetData::UserPresetData(MainController* mc_) :
-mc(mc_)
-{
-	userPresets = new PresetCategory("User Presets");
-
-	refreshPresetFileList();
-}
-
-
-UserPresetData::~UserPresetData()
-{
-	mc = nullptr;
-	listeners.clear();
-}
-
-void UserPresetData::getCurrentPresetIndexes(int &category, int &preset, String &name) const
-{
-	category = currentCategoryIndex;
-	preset = currentPresetIndex;
-	name = currentName;
-}
-
-void UserPresetData::addFactoryPreset(const String &name, const String &category, int id, ValueTree &v)
-{
-	int index = -1;
-
-	for (int i = 0; i < factoryPresetCategories.size(); i++)
-	{
-		if (factoryPresetCategories[i]->name == category)
-		{
-			index = i;
-			break;
-		}
-	}
-
-	if (index == -1)
-	{
-		PresetCategory *newCategory = new PresetCategory(category);
-		newCategory->presets.add(Entry(name, id, v));
-		factoryPresetCategories.add(newCategory);
-	}
-	else
-	{
-		factoryPresetCategories[index]->presets.add(Entry(name, id, v));
-	}
-}
-
-void UserPresetData::addUserPreset(const String &name, int id, const ValueTree &v)
-{
-	userPresets->presets.add(Entry(name, id, v));
-}
-
-void UserPresetData::fillCategoryList(StringArray& listToFill) const
-{
-	listToFill.clear();
-
-	for (int i = 0; i < factoryPresetCategories.size(); i++)
-	{
-		listToFill.add(factoryPresetCategories[i]->name);
-	}
-
-	listToFill.add(userPresets->name);
-}
-
-
-
-
-
-void UserPresetData::fillPresetList(StringArray& listToFill, int categoryIndex) const
-{
-	listToFill.clear();
-
-	const PresetCategory* c = getPresetCategory(categoryIndex);
-
-	if (c != nullptr)
-	{
-		for (int i = 0; i < c->presets.size(); i++)
-		{
-			listToFill.add(c->presets[i].name);
-		}
-	}
-}
-
-
-void UserPresetData::addListener(Listener *newListener) const
-{
-	listeners.addIfNotAlreadyThere(newListener);
-}
-
-void UserPresetData::removeListener(Listener *listenerToRemove) const
-{
-	listeners.removeAllInstancesOf(listenerToRemove);
-}
-
-const UserPresetData::PresetCategory* UserPresetData::getPresetCategory(int index) const
-{
-	if (index == factoryPresetCategories.size())
-	{
-		return userPresets;
-	}
-	else if (index < factoryPresetCategories.size())
-	{
-		return factoryPresetCategories[index];
-	}
-	else return nullptr;
-}
-
-void UserPresetData::loadPreset(int categoryToLoad, int presetToLoad) const
-{
-	PresetCategory* c = nullptr;
-
-	if (categoryToLoad == factoryPresetCategories.size())
-	{
-		c = userPresets;
-	}
-	else
-	{
-		c = factoryPresetCategories[categoryToLoad];
-	}
-
-	if (c != nullptr)
-	{
-		if (presetToLoad < c->presets.size())
-		{
-			Entry* e = &c->presets.getReference(presetToLoad);
-
-			if (e != nullptr)
-			{
-				currentCategoryIndex = categoryToLoad;
-				currentPresetIndex = presetToLoad;
-				currentName = e->name;
-
-				for (int i = 0; i < listeners.size(); i++)
-				{
-					listeners[i]->presetLoaded(currentCategoryIndex, currentPresetIndex, e->name);
-				}
-
-				UserPresetHelpers::loadUserPreset(mc->getMainSynthChain(), e->v);
-			}
-		}
-	}
-}
-
-
-void UserPresetData::loadNextPreset() const
-{
-	const PresetCategory* c = getPresetCategory(currentCategoryIndex);
-
-	if (c != nullptr)
-	{
-		const int nextPresetIndex = currentPresetIndex + 1;
-
-		if (nextPresetIndex < c->presets.size())
-			loadPreset(currentCategoryIndex, nextPresetIndex);
-		else
-		{
-			const PresetCategory* category = getPresetCategory(currentCategoryIndex + 1);
-
-			if (category != nullptr)
-				loadPreset(currentCategoryIndex + 1, 0);
-		}
-	}
-}
-
-void UserPresetData::loadPreviousPreset() const
-{
-	const PresetCategory* c = getPresetCategory(currentCategoryIndex);
-
-	if (c != nullptr)
-	{
-		const int prevPresetIndex = currentPresetIndex - 1;
-
-		if (prevPresetIndex >= 0)
-			loadPreset(currentCategoryIndex, prevPresetIndex);
-
-		else
-		{
-			const PresetCategory* category = getPresetCategory(currentCategoryIndex - 1);
-
-			if (category != nullptr)
-				loadPreset(currentCategoryIndex - 1, category->presets.size() - 1);
-		}
-	}
-}
-
-void UserPresetData::refreshPresetFileList()
-{
-#if USE_BACKEND
-
-	Array<File> fileList;
-
-	ProjectHandler *handler = &GET_PROJECT_HANDLER(mc->getMainSynthChain());
-
-	handler->getFileList(fileList, ProjectHandler::SubDirectories::UserPresets, "*.preset", false, true);
-
-	factoryPresetCategories.clear();
-	userPresets->presets.clear();
-
-	for (int i = 0; i < fileList.size(); i++)
-	{
-		const File parentDirectory = fileList[i].getParentDirectory();
-		const File presetDirectory = handler->getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
-		const bool useCategory = (presetDirectory != parentDirectory);
-		const String categoryName = useCategory ? fileList[i].getParentDirectory().getFileName() : "Uncategorized";
-
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(fileList[i]);
-
-		if (xml != nullptr)
-		{
-			ValueTree v = ValueTree::fromXml(*xml);
-			addFactoryPreset(fileList[i].getFileNameWithoutExtension(), categoryName, i + 1, v);
-		}
-	}
-
-#else
-
-	ValueTree factoryPresets = dynamic_cast<FrontendDataHolder*>(mc)->getValueTree(ProjectHandler::SubDirectories::UserPresets);
-
-	factoryPresetCategories.clear();
-	userPresets->presets.clear();
-
-	for (int i = 1; i < factoryPresets.getNumChildren(); i++)
-	{
-		ValueTree c = factoryPresets.getChild(i);
-
-		addFactoryPreset(c.getProperty("FileName"), c.getProperty("Category"), i, c);
-	}
-
-    File userPresetDirectory;
-    
-    try
-    {
-        userPresetDirectory = ProjectHandler::Frontend::getUserPresetDirectory();
-    }
-
-    catch(String& s)
-    {
-        mc->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, s);
-        return;
-    }
-
-
-	Array<File> newUserPresets;
-	userPresetDirectory.findChildFiles(newUserPresets, File::findFiles, false, "*.preset");
-
-	for (int i = 0; i < newUserPresets.size(); i++)
-	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(newUserPresets[i]);
-
-		if (xml != nullptr)
-		{
-			ValueTree v = ValueTree::fromXml(*xml);
-
-			addUserPreset(newUserPresets[i].getFileNameWithoutExtension(), i, v);
-		}
-	}
-
-#endif
-
-}
-
 
 
 void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String& targetFile/*=String()*/, NotificationType notify/*=sendNotification*/)
@@ -370,7 +58,7 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
     
     try
     {
-        userPresetDir = ProjectHandler::Frontend::getUserPresetDirectory();
+        userPresetDir = FrontendHandler::getUserPresetDirectory();
     }
     catch(String& s)
     {
@@ -386,11 +74,13 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 	File presetFile = File(targetFile);
 	
     String existingNote;
+	StringArray existingTags;
     
 	if (presetFile.existsAsFile() && PresetHandler::showYesNoWindow("Confirm overwrite", "Do you want to overwrite the preset (Press cancel to create a new user preset?"))
 	{
         existingNote = MultiColumnPresetBrowser::DataBaseHelpers::getNoteFromXml(presetFile);
-        
+        existingTags = MultiColumnPresetBrowser::DataBaseHelpers::getTagsFromXml(presetFile);
+
 		presetFile.deleteFile();
 		
 	}
@@ -400,6 +90,19 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 		Processor::Iterator<JavascriptMidiProcessor> iter(chain);
 
 		ValueTree autoData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree();
+
+		ValueTree mpeData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().exportAsValueTree();
+
+
+
+		auto container = ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(chain);
+
+		ValueTree modulationData;
+
+		if (container != nullptr)
+		{
+			modulationData = container->exportModulatedParameters();
+		}
 
 		while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
 		{
@@ -414,6 +117,10 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 			preset.setProperty("Version", getCurrentVersionNumber(chain), nullptr);
 			preset.addChild(v, -1, nullptr);
 			preset.addChild(autoData, -1, nullptr);
+			preset.addChild(mpeData, -1, nullptr);
+
+			if (modulationData.isValid())
+				preset.addChild(modulationData, -1, nullptr);
 
 			ScopedPointer<XmlElement> xml = preset.createXml();
 
@@ -423,6 +130,11 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
             {
                 MultiColumnPresetBrowser::DataBaseHelpers::writeNoteInXml(presetFile, existingNote);
             }
+
+			if (!existingTags.isEmpty())
+			{
+				MultiColumnPresetBrowser::DataBaseHelpers::writeTagsInXml(presetFile, existingTags);
+			}
             
 			if (notify)
 			{
@@ -443,15 +155,7 @@ void UserPresetHelpers::loadUserPreset(ModulatorSynthChain *chain, const File &f
     
     if(xml != nullptr)
     {
-		if (!checkVersionNumber(chain, *xml))
-		{
-            addMissingControlsToUserPreset(chain, fileToLoad);
-            updateVersionNumber(chain, fileToLoad);
-            
-            xml = XmlDocument::parse(fileToLoad);
-		}
-
-        ValueTree parent = ValueTree::fromXml(*xml);
+		ValueTree parent = ValueTree::fromXml(*xml);
         
 		chain->getMainController()->getDebugLogger().logMessage("### Loading user preset " + fileToLoad.getFileNameWithoutExtension() + "\n");
 
@@ -468,71 +172,6 @@ void UserPresetHelpers::loadUserPreset(ModulatorSynthChain* chain, const ValueTr
 {
 	chain->getMainController()->loadUserPresetAsync(parent);
 
-}
-
-int UserPresetHelpers::addMissingControlsToUserPreset(ModulatorSynthChain* chain, const File& fileToUpdate)
-{
-	static const Identifier type("type");
-	static const Identifier id("id");
-	static const Identifier value("value");
-
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(fileToUpdate);
-
-	int numAddedControls = 0;
-
-	if (xml != nullptr)
-	{
-		ValueTree thisPreset = ValueTree::fromXml(*xml);
-		ValueTree contentData = thisPreset.getChild(0);
-		jassert(contentData.hasType("Content"));
-		const String interfaceId = contentData.getProperty("Processor").toString();
-		auto pwsc = dynamic_cast<ProcessorWithScriptingContent*>(ProcessorHelpers::getFirstProcessorWithName(chain, interfaceId));
-
-		if (pwsc == nullptr)
-		{
-			PresetHandler::showMessageWindow("Invalid User Preset", "The user preset " + fileToUpdate.getFileNameWithoutExtension() + " is not associated with the current instrument", PresetHandler::IconType::Error);
-			return -1;
-		}
-
-		auto content = pwsc->getScriptingContent();
-
-		for (int i = 0; i < content->getNumComponents(); i++)
-		{
-			auto control = content->getComponent(i);
-			bool isPresetControl = (int)control->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::saveInPreset) > 0;
-
-			if (!isPresetControl)
-				continue;
-
-			ValueTree controlData = control->exportAsValueTree();
-			ValueTree existingControlData = contentData.getChildWithProperty(id, controlData.getProperty(id));
-
-			if (existingControlData.isValid())
-			{
-				continue;
-			}
-
-			numAddedControls++;
-
-			var defaultValue = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(control) ?
-				control->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::defaultValue) :
-				var(0.0f);
-
-			controlData.setProperty(value, defaultValue, nullptr);
-			contentData.addChild(controlData, -1, nullptr);
-		}
-
-		if (numAddedControls != 0)
-		{
-			xml = thisPreset.createXml();
-
-			fileToUpdate.replaceWithText(xml->createDocument(""));
-		}
-
-		return numAddedControls;
-	}
-
-	return -1;
 }
 
 #if !USE_MIDI_AUTOMATION_MIGRATION
@@ -590,7 +229,7 @@ String UserPresetHelpers::getCurrentVersionNumber(ModulatorSynthChain* chain)
 	return dynamic_cast<GlobalSettingManager*>(chain->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Version);
 #else
 	ignoreUnused(chain);
-	return ProjectHandler::Frontend::getVersionString();
+	return FrontendHandler::getVersionString();
 #endif
 }
 
@@ -607,7 +246,7 @@ File UserPresetHelpers::getUserPresetFile(ModulatorSynthChain *chain, const Stri
     
     try
     {
-        userPresetDir = ProjectHandler::Frontend::getUserPresetDirectory();
+        userPresetDir = FrontendHandler::getUserPresetDirectory();
     }
     catch(String& s)
     {
@@ -679,7 +318,7 @@ ValueTree UserPresetHelpers::collectAllUserPresets(ModulatorSynthChain* chain)
 void UserPresetHelpers::extractUserPresets(const char* userPresetData, size_t size)
 {
 #if USE_FRONTEND
-	auto userPresetDirectory = ProjectHandler::Frontend::getUserPresetDirectory();
+	auto userPresetDirectory = FrontendHandler::getUserPresetDirectory();
 
 	if (userPresetDirectory.isDirectory())
 		return;
@@ -688,7 +327,15 @@ void UserPresetHelpers::extractUserPresets(const char* userPresetData, size_t si
 
 	userPresetDirectory.createDirectory();
 
-	ValueTree presetTree = PresetHandler::loadValueTreeFromData(userPresetData, size, true);
+	zstd::ZCompressor<UserPresetDictionaryProvider> decompressor;
+
+	MemoryBlock mb(userPresetData, size);
+
+	ValueTree presetTree;
+
+	decompressor.expand(mb, presetTree);
+
+	
 
 	for (auto bank : presetTree)
 	{
@@ -1064,7 +711,9 @@ juce::Result ProjectHandler::setWorkingProject(const File &workingDirectory, Com
 		xml->addChildElement(child);
 	}
 
-	File(PresetHandler::getDataFolder()).getChildFile("projects.xml").replaceWithText(xml->createDocument(""));
+	getAppDataDirectory().getChildFile("projects.xml").replaceWithText(xml->createDocument(""));
+
+	ScopedLock sl(listeners.getLock());
 
 	for (int i = 0; i < listeners.size(); i++)
 	{
@@ -1079,7 +728,7 @@ juce::Result ProjectHandler::setWorkingProject(const File &workingDirectory, Com
 
 void ProjectHandler::restoreWorkingProjects()
 {
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(File(PresetHandler::getDataFolder()).getChildFile("projects.xml"));
+	ScopedPointer<XmlElement> xml = XmlDocument::parse(getAppDataDirectory().getChildFile("projects.xml"));
 
 	if (xml != nullptr)
 	{
@@ -1126,23 +775,12 @@ bool ProjectHandler::isValidProjectFolder(const File &file) const
 	return true;
 }
 
-File ProjectHandler::getLinkFile(const File &subDirectory)
-{
-#if JUCE_MAC
-    return subDirectory.getChildFile("LinkOSX");
-#elif JUCE_LINUX
-    return subDirectory.getChildFile("LinkLinux");
-#else
-    return subDirectory.getChildFile("LinkWindows");
-#endif
-}
-
 
 void ProjectHandler::checkSubDirectories()
 {
 	subDirectories.clear();
 
-	for (int i = 0; i < (int)ProjectHandler::SubDirectories::numSubDirectories; i++)
+	for (int i = 0; i < (int)SubDirectories::numSubDirectories; i++)
 	{
 		SubDirectories dir = (SubDirectories)i;
 
@@ -1153,7 +791,7 @@ void ProjectHandler::checkSubDirectories()
 		File linkFile = getLinkFile(subDirectory);
 		const bool redirected = linkFile.existsAsFile();
 
-		subDirectories.add(FolderReference(dir, redirected, f));
+		subDirectories.add({ dir, redirected, f });
 	}
 }
 
@@ -1181,7 +819,7 @@ File ProjectHandler::checkSubDirectory(SubDirectories dir)
                     {
                         File f = fc.getResult();
                         
-                        createLinkFile(ProjectHandler::SubDirectories::Samples, f);
+                        createLinkFile(SubDirectories::Samples, f);
                         
                         return f;
                     }
@@ -1219,13 +857,6 @@ bool ProjectHandler::anySubdirectoryExists(const File& possibleProjectFolder) co
 
 }
 
-File ProjectHandler::getSubDirectory(SubDirectories dir) const
-{
-    jassert(isActive());
-    
-	return subDirectories[(int)dir].file;
-}
-
 File ProjectHandler::getWorkDirectory() const
 {
 	if (!isActive())
@@ -1234,38 +865,6 @@ File ProjectHandler::getWorkDirectory() const
 	}
 
 	else return currentWorkDirectory;
-}
-
-String ProjectHandler::getIdentifier(SubDirectories dir)
-{
-	switch (dir)
-	{
-	case ProjectHandler::SubDirectories::Scripts:			return "Scripts/";
-	case ProjectHandler::SubDirectories::AdditionalSourceCode:	return "AdditionalSourceCode/";
-	case ProjectHandler::SubDirectories::Binaries:			return "Binaries/";
-	case ProjectHandler::SubDirectories::Presets:			return "Presets/";
-	case ProjectHandler::SubDirectories::XMLPresetBackups:	return "XmlPresetBackups/";
-	case ProjectHandler::SubDirectories::Samples:			return "Samples/";
-	case ProjectHandler::SubDirectories::Images:			return "Images/";
-	case ProjectHandler::SubDirectories::AudioFiles:		return "AudioFiles/";
-	case ProjectHandler::SubDirectories::UserPresets:		return "UserPresets/";
-	case ProjectHandler::SubDirectories::SampleMaps:		return "SampleMaps/";
-	case ProjectHandler::SubDirectories::numSubDirectories: 
-	default:												jassertfalse; return String();
-	}
-}
-
-ProjectHandler::SubDirectories ProjectHandler::getSubDirectoryForIdentifier(Identifier id)
-{
-	for (int i = 0; i < (int)SubDirectories::numSubDirectories; i++)
-	{
-		if (id == Identifier(getIdentifier((SubDirectories)i)))
-		{
-			return (ProjectHandler::SubDirectories)i;
-		}
-	}
-
-	return SubDirectories::numSubDirectories;
 }
 
 
@@ -1280,40 +879,6 @@ struct FileModificationComparator
 		else return 1;
 	}
 };
-
-
-void ProjectHandler::getFileList(Array<File> &filesInDirectory, SubDirectories dir, const String &wildcard, bool sortByTime /*= false*/, bool searchInSubfolders/*=false*/)
-{
-    if(!isActive()) return;
-    
-	File presetDir = getSubDirectory(dir);
-
-	filesInDirectory.clear();
-
-	presetDir.findChildFiles(filesInDirectory, File::findFiles, searchInSubfolders, wildcard);
-
-#if JUCE_WINDOWS
-
-	// Remove hidden OSX files (in OSX they are automatically ignored...)
-	for (int i = 0; i < filesInDirectory.size(); i++)
-	{
-		if (filesInDirectory[i].getFileName().startsWith("."))
-		{
-			filesInDirectory.remove(i);
-			i--;
-		}
-	}
-#endif
-
-	if (sortByTime)
-	{
-		FileModificationComparator comparator;
-
-		filesInDirectory.sort(comparator, false);
-	}
-	
-
-}
 
 void ProjectHandler::createRSAKey() const
 {
@@ -1426,7 +991,9 @@ void ProjectHandler::checkAllSampleMaps()
 				return;
 			}
 
-			falseName = SampleMap::checkReferences(v, getSubDirectory(SubDirectories::Samples), samples);
+			
+
+			falseName = SampleMap::checkReferences(getMainController(), v, getSubDirectory(SubDirectories::Samples), samples);
 
 			if (falseName.isNotEmpty())
 			{
@@ -1445,7 +1012,40 @@ void ProjectHandler::checkAllSampleMaps()
 	}
 }
 
-String ProjectHandler::Frontend::checkSampleReferences(const ValueTree &sampleMaps, bool returnTrueIfOneSampleFound)
+juce::File ProjectHandler::getAppDataDirectory()
+{
+
+#if USE_COMMON_APP_DATA_FOLDER
+	const File::SpecialLocationType appDataDirectoryToUse = File::commonApplicationDataDirectory;
+#else
+	const File::SpecialLocationType appDataDirectoryToUse = File::userApplicationDataDirectory;
+#endif
+
+
+#if JUCE_WINDOWS
+	// Windows
+	File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile("HISE");
+#elif JUCE_MAC
+
+#if HISE_IOS
+	// iOS
+	File f = File::getSpecialLocation(appDataDirectoryToUse);
+#else
+	// OS X
+	File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/HISE");
+#endif
+
+#else
+	// Linux
+	File f = File::getSpecialLocation(File::SpecialLocationType::userHomeDirectory).getChildFile(".hise/");
+#endif
+
+	if (!f.isDirectory()) f.createDirectory();
+
+	return f.getFullPathName();
+}
+
+juce::String FrontendHandler::checkSampleReferences(MainController* mc, bool returnTrueIfOneSampleFound)
 {
 	Array<File> sampleList;
 
@@ -1460,25 +1060,33 @@ String ProjectHandler::Frontend::checkSampleReferences(const ValueTree &sampleMa
 
     int numCorrectSampleMaps = 0;
     
-	for (int i = 0; i < sampleMaps.getNumChildren(); i++)
+	auto pool = mc->getCurrentSampleMapPool(true);
+
+	Array<PooledSampleMap> sampleMaps;
+
+	pool->loadAllFilesFromDataProvider();
+
+	for (int i = 0; i < pool->getNumLoadedFiles(); i++)
 	{
-        
-        
-		ValueTree child = sampleMaps.getChild(i);
-		
-        const String thisFalseName = SampleMap::checkReferences(child, sampleLocation, sampleList);
+		if (auto item = pool->getWeakReferenceToItem(pool->getReference(i)))
+		{
+			auto sampleMap = *item.getData();
 
-        if(thisFalseName.isNotEmpty())
-        {
-            falseName = thisFalseName;
-        }
-        else
-        {
-            numCorrectSampleMaps++;
-        }
-    }
+			const String thisFalseName = SampleMap::checkReferences(mc, sampleMap, sampleLocation, sampleList);
 
-    if(returnTrueIfOneSampleFound)
+			if (thisFalseName.isNotEmpty())
+			{
+				falseName = thisFalseName;
+			}
+			else
+			{
+				numCorrectSampleMaps++;
+			}
+		}
+
+	}
+
+	if(returnTrueIfOneSampleFound)
     {
         if(numCorrectSampleMaps != 0)
         {
@@ -1496,7 +1104,7 @@ String ProjectHandler::Frontend::checkSampleReferences(const ValueTree &sampleMa
 }
 
 
-File ProjectHandler::Frontend::getResourcesFolder()
+File FrontendHandler::getResourcesFolder()
 {
 #if HISE_IOS
 
@@ -1525,36 +1133,6 @@ bool ProjectHandler::isActive() const
 	return currentWorkDirectory != File();
 }
 
-bool ProjectHandler::isRedirected(ProjectHandler::SubDirectories dir) const
-{
-	return subDirectories[(int)dir].isReference;
-}
-
-void ProjectHandler::createLinkFile(ProjectHandler::SubDirectories dir, const File &relocation)
-{
-    File subDirectory = currentWorkDirectory.getChildFile(getIdentifier(dir));
-    
-	createLinkFileInFolder(subDirectory, relocation);
-}
-
-
-void ProjectHandler::createLinkFileInFolder(const File& source, const File& target)
-{
-	File linkFile = getLinkFile(source);
-
-	if (linkFile.existsAsFile())
-	{
-		if (!PresetHandler::showYesNoWindow("Already there", "Link redirect file exists. Do you want to replace it?"))
-		{
-			return;
-		}
-	}
-
-	linkFile.create();
-
-	linkFile.replaceWithText(target.getFullPathName());
-}
-
 void ProjectHandler::setProjectSettings(Component *mainEditor)
 {
 	ignoreUnused(mainEditor);
@@ -1564,87 +1142,51 @@ void ProjectHandler::setProjectSettings(Component *mainEditor)
 #endif
 }
 
-
-String ProjectHandler::getFilePath(const String &pathToFile, SubDirectories subDir) const
+juce::File FrontendHandler::getRootFolder() const
 {
-	if (ProjectHandler::isAbsolutePathCrossPlatform(pathToFile)) return pathToFile;
-
-    static String id = "{PROJECT_FOLDER}";
-
-
- 
-#if USE_FRONTEND
-
-	// Everything else must be embedded into the binary...
-	jassert(subDir == ProjectHandler::SubDirectories::Samples);
-	ignoreUnused(subDir);
-
-	File sampleFolder = dynamic_cast<FrontendDataHolder*>(mc)->getSampleLocation();
-
-	if (sampleFolder.isDirectory())
-		return sampleFolder.getChildFile(pathToFile.replace(id, "")).getFullPathName();
-
-	else
-		return String();
-
-#else
-
-    static int idLength = id.length();
-
-#if JUCE_MAC
-    String pathToUse = pathToFile.replace("\\", "/");
-    
-	if (pathToUse.startsWith(id))
-	{
-		return getSubDirectory(subDir).getChildFile(pathToUse.substring(idLength)).getFullPathName(); \
-	}
-
-	return pathToFile;
-
-#else
-    
-	if (pathToFile.startsWith(id))
-	{
-		return getSubDirectory(subDir).getChildFile(pathToFile.substring(idLength)).getFullPathName(); \
-	}
-		
-	return pathToFile;
-
-#endif
-
-#endif
-
+	return getAppDataDirectory();
 }
 
-const String ProjectHandler::getFileReference(const String &absoluteFileName, SubDirectories dir) const
+juce::File FrontendHandler::getEmbeddedResourceDirectory() const
 {
-	static String id = "{PROJECT_FOLDER}";
-
-	if (absoluteFileName.contains(id)) return absoluteFileName;
-
-	File subDir = getSubDirectory(dir);
-
-	if (absoluteFileName.contains(subDir.getFullPathName()))
-	{
-#if JUCE_WINDOWS
-		String fileName = File(absoluteFileName).getRelativePathFrom(subDir).replace("\\", "/");
+#if HISE_IOS
+    return getResourcesFolder().getChildFile("EmbeddedResources");
 #else
-		String fileName = File(absoluteFileName).getRelativePathFrom(subDir);
+    return getRootFolder();
 #endif
-
-        if(ProjectHandler::isAbsolutePathCrossPlatform(fileName))
-        {
-            return absoluteFileName;
-        }
-        else
-        {
-            return id + fileName;
-        }
+    
+}
+    
+juce::File FrontendHandler::getSubDirectory(SubDirectories directory) const
+{
+	switch (directory)
+	{
+	case hise::FileHandlerBase::AudioFiles:
+		return getAdditionalAudioFilesDirectory();
+		break;
+	case hise::FileHandlerBase::Scripts:
+	case hise::FileHandlerBase::Images:
+	case hise::FileHandlerBase::Presets:
+	case hise::FileHandlerBase::Binaries:
+	case hise::FileHandlerBase::SampleMaps:
+	case hise::FileHandlerBase::XMLPresetBackups:
+	case hise::FileHandlerBase::AdditionalSourceCode:
+	case hise::FileHandlerBase::numSubDirectories:
+		jassertfalse;
+		break;
+	case hise::FileHandlerBase::UserPresets:
+		return getRootFolder().getChildFile("User Presets");
+	case hise::FileHandlerBase::Samples:
+		return getSampleLocationForCompiledPlugin();
+	default:
+		break;
 	}
-	else return absoluteFileName;
+
+	jassertfalse;
+	return File();
 }
 
-File ProjectHandler::Frontend::getSampleLocationForCompiledPlugin()
+File FrontendHandler::getSampleLocationForCompiledPlugin()
 {
 #if USE_FRONTEND
     
@@ -1690,39 +1232,26 @@ File ProjectHandler::Frontend::getSampleLocationForCompiledPlugin()
 #endif
 }
 
-juce::File ProjectHandler::Frontend::getAppDataDirectory(ModulatorSynthChain *chain/*=nullptr*/)
+juce::File FrontendHandler::getAppDataDirectory()
 {
 
     const File::SpecialLocationType appDataDirectoryToUse = File::userApplicationDataDirectory;
-
-
-#if USE_FRONTEND
     
-	ignoreUnused(chain);
-
 #if JUCE_IOS
-    
     File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/" + getCompanyName() + "/" + getProjectName());
-    
-    if(!f.isDirectory())
-    {
-        f.createDirectory();
-    }
-    
-    return f;
-    
 #elif JUCE_MAC
 
     
 #if ENABLE_APPLE_SANDBOX
-    return File::getSpecialLocation(File::userMusicDirectory).getChildFile(getCompanyName() + "/" + getProjectName());
+    File f = File::getSpecialLocation(File::userMusicDirectory).getChildFile(getCompanyName() + "/" + getProjectName());
 #else
-    return File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/" + getCompanyName() + "/" + getProjectName());
+    File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/" + getCompanyName() + "/" + getProjectName());
 #endif
     
-#else // WINDOWS
 
+#else // WINDOWS
 	File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile(getCompanyName() + "/" + getProjectName());
+#endif
 
 	if (!f.isDirectory())
 	{
@@ -1730,25 +1259,43 @@ juce::File ProjectHandler::Frontend::getAppDataDirectory(ModulatorSynthChain *ch
 	}
 
 	return f;
+}
 
-#endif
-#else // BACKEND
+void FrontendHandler::loadSamplesAfterSetup()
+{
+	if (shouldLoadSamplesAfterSetup())
+	{
+		LOG_START("Loading samples");
 
-	jassert(chain != nullptr);
+		dynamic_cast<AudioProcessor*>(getMainController())->suspendProcessing(false);
 
-	auto company = dynamic_cast<GlobalSettingManager*>(chain->getMainController())->getSettingsObject().getSetting(HiseSettings::User::Company).toString();
-	auto product = dynamic_cast<GlobalSettingManager*>(chain->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Name).toString();
+		getMainController()->getSampleManager().preloadEverything();
+	}
+	else
+	{
+		dynamic_cast<AudioProcessor*>(getMainController())->suspendProcessing(true);
+	}
+}
 
-#if JUCE_MAC
-	return File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/" + company + "/" + product);
+void FrontendHandler::checkAllSampleReferences()
+{
+#if HISE_IOS
+
+	samplesCorrectlyLoaded = true;
+
 #else
-	return File::getSpecialLocation(appDataDirectoryToUse).getChildFile(company + "/" + String(product));
-#endif
+	const String missingSampleName = checkSampleReferences(getMainController(), true);
 
+	samplesCorrectlyLoaded = missingSampleName.isEmpty();
+
+	if (missingSampleName.isNotEmpty())
+	{
+		dynamic_cast<MainController*>(getMainController())->sendOverlayMessage(DeactiveOverlay::State::SamplesNotFound, "The sample " + missingSampleName + " was not found.");
+	}
 #endif
 }
 
-File ProjectHandler::Frontend::getLicenseKey()
+File FrontendHandler::getLicenseKey()
 {
 #if USE_FRONTEND
 
@@ -1761,7 +1308,7 @@ File ProjectHandler::Frontend::getLicenseKey()
 #endif
 }
 
-String ProjectHandler::Frontend::getLicenseKeyExtension()
+String FrontendHandler::getLicenseKeyExtension()
 {
 
 #if JUCE_WINDOWS
@@ -1777,14 +1324,7 @@ String ProjectHandler::Frontend::getLicenseKeyExtension()
 #endif
 }
 
-String ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(const String &absoluteFileName)
-{
-	static String id = "{PROJECT_FOLDER}";
-
-	return absoluteFileName.substring(16);
-}
-
-void ProjectHandler::Frontend::setSampleLocation(const File &newLocation)
+void FrontendHandler::setSampleLocation(const File &newLocation)
 {
 #if USE_FRONTEND
 	
@@ -1801,7 +1341,7 @@ void ProjectHandler::Frontend::setSampleLocation(const File &newLocation)
 
 
 
-File ProjectHandler::Frontend::getSampleLinkFile()
+File FrontendHandler::getSampleLinkFile()
 {
 	File appDataDir = getAppDataDirectory();
 
@@ -1828,7 +1368,7 @@ File ProjectHandler::Frontend::getSampleLinkFile()
 
 
 
-File ProjectHandler::Frontend::getUserPresetDirectory()
+File FrontendHandler::getUserPresetDirectory()
 {
 #if HISE_IOS
     
@@ -1880,14 +1420,14 @@ File ProjectHandler::Frontend::getUserPresetDirectory()
 }
 
 
-File ProjectHandler::Frontend::getAdditionalAudioFilesDirectory()
+File FrontendHandler::getAdditionalAudioFilesDirectory()
 {
 #if USE_BACKEND
     return File();
 #else
     
 #if USE_RELATIVE_PATH_FOR_AUDIO_FILES
-	File searchDirectory = ProjectHandler::Frontend::getAppDataDirectory().getChildFile("AudioFiles");
+	File searchDirectory = getAppDataDirectory().getChildFile("AudioFiles");
 
 	if (!searchDirectory.isDirectory())
 		searchDirectory.createDirectory();
@@ -1901,7 +1441,7 @@ File ProjectHandler::Frontend::getAdditionalAudioFilesDirectory()
 }
 
 
-String ProjectHandler::Frontend::getRelativePathForAdditionalAudioFile(const File& audioFile)
+String FrontendHandler::getRelativePathForAdditionalAudioFile(const File& audioFile)
 {
 #if USE_RELATIVE_PATH_FOR_AUDIO_FILES
 	String fileName;
@@ -1926,7 +1466,7 @@ String ProjectHandler::Frontend::getRelativePathForAdditionalAudioFile(const Fil
 }
 
 
-File ProjectHandler::Frontend::getAudioFileForRelativePath(const String& relativePath)
+File FrontendHandler::getAudioFileForRelativePath(const String& relativePath)
 {
 	auto root = getAdditionalAudioFilesDirectory();
 
@@ -1940,13 +1480,45 @@ File ProjectHandler::Frontend::getAudioFileForRelativePath(const String& relativ
 	return File();
 }
 
-const bool ProjectHandler::Frontend::checkSamplesCorrectlyInstalled()
+
+
+const bool FrontendHandler::checkSamplesCorrectlyInstalled()
 {
 	return getSampleLinkFile().existsAsFile();
 }
 
 
+#if USE_BACKEND
+juce::String FrontendHandler::getProjectName()
+{
+	jassertfalse;
+	return {};
+}
 
+juce::String FrontendHandler::getCompanyName()
+{
+	jassertfalse;
+	return {};
+}
+
+juce::String FrontendHandler::getCompanyWebsiteName()
+{
+	jassertfalse;
+	return {};
+}
+
+juce::String FrontendHandler::getVersionString()
+{
+	jassertfalse;
+	return {};
+}
+
+juce::String FrontendHandler::getAppGroupId()
+{
+	jassertfalse;
+	return {};
+}
+#endif
 
 StringArray ProjectHandler::recentWorkDirectories = StringArray();
 
@@ -2028,6 +1600,7 @@ void PresetHandler::checkProcessorIdsForDuplicates(Processor *rootProcessor, boo
 
 File PresetHandler::getDirectory(Processor *p)
 {
+#if USE_BACKEND
 	if (GET_PROJECT_HANDLER(p).isActive())
 	{
 		return GET_PROJECT_HANDLER(p).getSubDirectory(ProjectHandler::SubDirectories::Presets);
@@ -2036,6 +1609,11 @@ File PresetHandler::getDirectory(Processor *p)
 	{
 		return File();
 	}
+#else
+	ignoreUnused(p);
+	return File();
+#endif
+
 }
 
 
@@ -2289,7 +1867,10 @@ Processor *PresetHandler::loadProcessorFromFile(File fileName, Processor *parent
 
 void PresetHandler::buildProcessorDataBase(Processor *root)
 {
-	File f(getDataFolder() + "/moduleEnums.xml");
+	ignoreUnused(root);
+
+#if USE_BACKEND
+	auto f = NativeFileHandler::getAppDataDirectory().getChildFile("moduleEnums.xml");
 
 	if (f.existsAsFile()) return;
 
@@ -2321,6 +1902,7 @@ void PresetHandler::buildProcessorDataBase(Processor *root)
 
 
 	xml->writeToFile(f, "");
+#endif
 }
 
 XmlElement * PresetHandler::buildFactory(FactoryType *t, const String &factoryName)
@@ -2376,43 +1958,6 @@ AudioFormatReader * PresetHandler::getReaderForInputStream(InputStream *stream)
 	afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
 
 	return afm.createReaderFor(stream);
-}
-
-String PresetHandler::getGlobalSampleFolder()
-{
-	return String();
-}
-
-String PresetHandler::getDataFolder()
-{
-#if USE_COMMON_APP_DATA_FOLDER
-	const File::SpecialLocationType appDataDirectoryToUse = File::commonApplicationDataDirectory;
-#else
-	const File::SpecialLocationType appDataDirectoryToUse = File::userApplicationDataDirectory;
-#endif
-
-
-#if JUCE_WINDOWS
-    // Windows
-    File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile("HISE");
-#elif JUCE_MAC
-    
-#if HISE_IOS
-    // iOS
-    File f = File::getSpecialLocation(appDataDirectoryToUse);
-#else
-    // OS X
-    File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/HISE");
-#endif
-    
-#else
-    // Linux
-    File f = File::getSpecialLocation(File::SpecialLocationType::userHomeDirectory).getChildFile(".hise/");
-#endif
-    
-    if(!f.isDirectory()) f.createDirectory();
-    
-    return f.getFullPathName();
 }
 
 
@@ -2575,144 +2120,284 @@ void AboutPage::mouseDown(const MouseEvent &)
 #endif
 }
 
-String PresetPlayerHandler::getSpecialFolder(FolderType type, const String &packageName /*= String()*/, bool ignoreMissingDirectory)
+FileHandlerBase::~FileHandlerBase()
 {
-	IGNORE_UNUSED_IN_RELEASE(ignoreMissingDirectory);
-
-	File globalSampleFolder = PresetHandler::getGlobalSampleFolder();
-
-	String packageToUse = packageName;
-
-	
-	String returnFile;
-
-	switch (type)
-	{
-	case FolderType::GlobalSampleDirectory: returnFile = globalSampleFolder.getFullPathName(); break;
-	case FolderType::PackageDirectory:		returnFile = globalSampleFolder.getFullPathName() + "/" + packageToUse; break;
-	case FolderType::StreamedSampleFolder:	returnFile = globalSampleFolder.getFullPathName() + "/" + packageToUse + "/streamed_samples"; break;
-	case FolderType::AudioFiles:			returnFile = globalSampleFolder.getFullPathName() + "/" + packageToUse + "/audio_files"; break;
-	case FolderType::ImageResources:		returnFile = globalSampleFolder.getFullPathName() + "/" + packageToUse + "/image_resources"; break;
-	default: jassertfalse;
-	}
-
-	// You must create the package before using it!
-	jassert(ignoreMissingDirectory || File(returnFile).isDirectory());
-
-	return returnFile;
+	pool = nullptr;
 }
 
-
-
-void PresetPlayerHandler::checkAndCreatePackage(const String &packageName)
+juce::File FileHandlerBase::getSubDirectory(SubDirectories dir) const
 {
-	
-	File packageFolder = File(getSpecialFolder(PackageDirectory, packageName, true));
+	return subDirectories[(int)dir].file;
+}
 
-	if (packageFolder.isDirectory())
+juce::String FileHandlerBase::getIdentifier(SubDirectories dir)
+{
+	switch (dir)
 	{
-
-	}
-	else
-	{
-		packageFolder.createDirectory();
-
-		File audioFileFolder = getSpecialFolder(AudioFiles, packageName, true);
-		File imageFolder = getSpecialFolder(ImageResources, packageName, true);
-		File sampleFolder = getSpecialFolder(StreamedSampleFolder, packageName, true);
-
-		audioFileFolder.createDirectory();
-		imageFolder.createDirectory();
-		sampleFolder.createDirectory();
-
-		String niceName = PresetHandler::getCustomName("Nice Package Name");
-		String version = PresetHandler::getCustomName("Version");
-		String author = PresetHandler::getCustomName("Author");
-
-		ScopedPointer<XmlElement> packageXml = new XmlElement("package");
-		packageXml->setAttribute("name", niceName);
-		packageXml->setAttribute("version", version);
-		packageXml->setAttribute("author", author);
-
-		File xmlFile(packageFolder.getFullPathName() + "/package.xml");
-
-		packageXml->writeToFile(xmlFile, "");
+	case SubDirectories::Scripts:			return "Scripts/";
+	case SubDirectories::AdditionalSourceCode:	return "AdditionalSourceCode/";
+	case SubDirectories::Binaries:			return "Binaries/";
+	case SubDirectories::Presets:			return "Presets/";
+	case SubDirectories::XMLPresetBackups:	return "XmlPresetBackups/";
+	case SubDirectories::Samples:			return "Samples/";
+	case SubDirectories::Images:			return "Images/";
+	case SubDirectories::AudioFiles:		return "AudioFiles/";
+	case SubDirectories::UserPresets:		return "UserPresets/";
+	case SubDirectories::SampleMaps:		return "SampleMaps/";
+	case SubDirectories::numSubDirectories:
+	default:								jassertfalse; return String();
 	}
 }
 
-void PresetPlayerHandler::addInstrumentToPackageXml(const String &instrumentFileName, const String &packageName)
+hise::FileHandlerBase::SubDirectories FileHandlerBase::getSubDirectoryForIdentifier(Identifier id)
 {
-	checkAndCreatePackage(packageName);
-
-	File xmlFile(getSpecialFolder(PackageDirectory, packageName) + "/package.xml");
-
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(xmlFile);
-
-	jassert(xml != nullptr);
-
-	if (xml != nullptr)
+	for (int i = 0; i < (int)SubDirectories::numSubDirectories; i++)
 	{
-		XmlElement *child = new XmlElement("instrument");
-		child->setAttribute("name", instrumentFileName);
-		child->setAttribute("file", instrumentFileName + ".hip");
-
-		xml->addChildElement(child);
-
-		xml->writeToFile(xmlFile, "");
+		if (id == Identifier(getIdentifier((SubDirectories)i)))
+		{
+			return (ProjectHandler::SubDirectories)i;
+		}
 	}
 
-
+	return SubDirectories::numSubDirectories;
 }
 
-void FrontendSampleManager::loadSamplesAfterSetup()
+juce::String FileHandlerBase::getFilePath(const String &pathToFile, SubDirectories subDir) const
 {
-	
+	if (ProjectHandler::isAbsolutePathCrossPlatform(pathToFile)) return pathToFile;
 
-	if (shouldLoadSamplesAfterSetup())
+	PoolReference ref(getMainController(), pathToFile, subDir);
+
+	return ref.getFile().getFullPathName();
+}
+
+const juce::String FileHandlerBase::getFileReference(const String &absoluteFileName, SubDirectories dir) const
+{
+	PoolReference ref(getMainController(), absoluteFileName, dir);
+
+	return ref.getReferenceString();
+}
+
+Array<File> FileHandlerBase::getFileList(SubDirectories dir, bool sortByTime /*= false*/, bool searchInSubfolders /*= false*/) const
+{
+	Array<File> filesInDirectory;
+
+	auto wildcard = getWildcardForFiles(dir);
+
+	File presetDir = getSubDirectory(dir);
+
+	filesInDirectory.clear();
+
+	presetDir.findChildFiles(filesInDirectory, File::findFiles, searchInSubfolders, wildcard);
+
+#if JUCE_WINDOWS
+
+	// Remove hidden OSX files (in OSX they are automatically ignored...)
+	for (int i = 0; i < filesInDirectory.size(); i++)
 	{
-		LOG_START("Loading samples");
-
-		dynamic_cast<AudioProcessor*>(this)->suspendProcessing(false);
-		
-		dynamic_cast<MainController*>(this)->getSampleManager().preloadEverything();
+		if (filesInDirectory[i].getFileName().startsWith("."))
+		{
+			filesInDirectory.remove(i);
+			i--;
+		}
 	}
-	else
+#endif
+
+	if (sortByTime)
 	{
-		dynamic_cast<AudioProcessor*>(this)->suspendProcessing(true);
+		FileModificationComparator comparator;
+		filesInDirectory.sort(comparator, false);
 	}
+
+	return filesInDirectory;
 }
 
-
-
-
-void FrontendSampleManager::setAllSampleReferencesCorrect()
+bool FileHandlerBase::isAbsolutePathCrossPlatform(const String &pathName)
 {
-	samplesCorrectlyLoaded = true;
+	if (pathName.startsWithChar('{'))
+		return false;
+
+	const bool isAbsoluteWindowsPath = pathName.substring(1).startsWith(":\\");
+	const bool isAbsoluteOSXPath = pathName.startsWithChar('/');
+
+	return isAbsoluteWindowsPath || isAbsoluteOSXPath || File::isAbsolutePath(pathName);
 }
 
-void FrontendSampleManager::checkAllSampleReferences()
+juce::File FileHandlerBase::getLinkFile(const File &subDirectory)
 {
-#if HISE_IOS
-    
-    samplesCorrectlyLoaded = true;
-    
+#if JUCE_MAC
+	return subDirectory.getChildFile("LinkOSX");
+#elif JUCE_LINUX
+	return subDirectory.getChildFile("LinkLinux");
 #else
-	ValueTree sampleMapTree = dynamic_cast<FrontendDataHolder*>(this)->getValueTree(ProjectHandler::SubDirectories::SampleMaps);
-
-	const String missingSampleName = ProjectHandler::Frontend::checkSampleReferences(sampleMapTree, true);
-
-	samplesCorrectlyLoaded = missingSampleName.isEmpty();
-
-	if (missingSampleName.isNotEmpty())
-	{
-		dynamic_cast<MainController*>(this)->sendOverlayMessage(DeactiveOverlay::State::SamplesNotFound, "The sample " + missingSampleName + " was not found.");
-	}
+	return subDirectory.getChildFile("LinkWindows");
 #endif
 }
 
-bool FrontendSampleManager::areSampleReferencesCorrect() const
+void FileHandlerBase::createLinkFile(SubDirectories dir, const File &relocation)
 {
-	return samplesCorrectlyLoaded;
+	File subDirectory = getRootFolder().getChildFile(getIdentifier(dir));
+
+	createLinkFileInFolder(subDirectory, relocation);
+}
+
+void FileHandlerBase::createLinkFileInFolder(const File& source, const File& target)
+{
+	File linkFile = getLinkFile(source);
+
+	if (linkFile.existsAsFile())
+	{
+		if (!PresetHandler::showYesNoWindow("Already there", "Link redirect file exists. Do you want to replace it?"))
+		{
+			return;
+		}
+	}
+
+	linkFile.create();
+
+	linkFile.replaceWithText(target.getFullPathName());
+}
+
+juce::String FileHandlerBase::getWildcardForFiles(SubDirectories directory)
+{
+	switch (directory)
+	{
+	case hise::FileHandlerBase::Samples:
+	case hise::FileHandlerBase::AudioFiles:				return "*.wav;*.aif;*.aiff;*.hlac;*.flac;*.WAV;*.AIF;*.AIFF;*.HLAC;*.FLAC";
+	case hise::FileHandlerBase::Images:					return "*.jpg;*.png;*.PNG;*.JPG";
+	case hise::FileHandlerBase::SampleMaps:				return "*.xml";
+	case hise::FileHandlerBase::UserPresets:			return "*.preset";
+	case hise::FileHandlerBase::Scripts:				return "*.js";
+	case hise::FileHandlerBase::Presets:				return "*.hip";
+	case hise::FileHandlerBase::XMLPresetBackups:		return "*.xml";
+	case hise::FileHandlerBase::Binaries:				
+	case hise::FileHandlerBase::AdditionalSourceCode:
+	case hise::FileHandlerBase::numSubDirectories:		
+	default:											return "*.*";
+	}
+}
+
+FileHandlerBase::FileHandlerBase(MainController* mc_) :
+	ControlledObject(mc_),
+	pool(new PoolCollection(mc_))
+{
+
+}
+
+
+
+void FileHandlerBase::exportAllPoolsToTemporaryDirectory(ModulatorSynthChain* chain, DialogWindowWithBackgroundThread::LogData* logData)
+{
+	ignoreUnused(chain, logData);
+
+#if USE_BACKEND
+	auto folder = getTempFolderForPoolResources();
+
+	if (!folder.isDirectory())
+		folder.createDirectory();
+
+	File imageOutputFile, sampleOutputFile, samplemapFile;
+
+	samplemapFile = getTempFileForPool(SampleMaps);
+	imageOutputFile = getTempFileForPool(Images);
+	sampleOutputFile = getTempFileForPool(AudioFiles);
+
+	loadOtherReferencedImages(chain);
+
+	if (Thread::currentThreadShouldExit())
+		return;
+
+	sampleOutputFile.deleteFile();
+	imageOutputFile.deleteFile();
+	samplemapFile.deleteFile();
+
+	auto previousLogger = Logger::getCurrentLogger();
+
+	ScopedPointer<Logger> outputLogger = new ConsoleLogger(chain);
+
+	if(!CompileExporter::isExportingFromCommandLine())
+		Logger::setCurrentLogger(outputLogger);
+
+	auto* progress = logData != nullptr ? &logData->progress : nullptr;
+
+	if (logData != nullptr) logData->logFunction("Export audio files");
+	chain->getMainController()->getCurrentAudioSampleBufferPool(true)->getDataProvider()->writePool(new FileOutputStream(sampleOutputFile), progress);
+
+	if (logData != nullptr) logData->logFunction("Export image files");
+	chain->getMainController()->getCurrentImagePool(true)->getDataProvider()->writePool(new FileOutputStream(imageOutputFile), progress);
+
+	if (logData != nullptr) logData->logFunction("Export samplemap files");
+	chain->getMainController()->getCurrentSampleMapPool(true)->getDataProvider()->writePool(new FileOutputStream(samplemapFile), progress);
+
+	Logger::setCurrentLogger(previousLogger);
+
+	outputLogger = nullptr;
+#else
+
+	jassertfalse;
+
+#endif
+}
+
+
+juce::File FileHandlerBase::getTempFolderForPoolResources() const
+{
+	return getRootFolder().getChildFile("PooledResources");
+}
+
+
+juce::File FileHandlerBase::getTempFileForPool(SubDirectories dir) const
+{
+	auto parent = getTempFolderForPoolResources();
+
+	switch (dir)
+	{
+	case Images:		return parent.getChildFile("ImageResources.dat");
+	case SampleMaps:	return parent.getChildFile("SampleMaps.dat");
+	case AudioFiles:	return parent.getChildFile("AudioResources.dat");
+	default:			jassertfalse;
+						break;
+	}
+
+	return {};
+}
+
+void FileHandlerBase::loadOtherReferencedImages(ModulatorSynthChain* chainToExport)
+{
+	auto mc = chainToExport->getMainController();
+	auto& handler = GET_PROJECT_HANDLER(chainToExport);
+
+	const bool hasCustomSkin = handler.getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("keyboard").isDirectory();
+
+	if (!hasCustomSkin)
+		return;
+
+	auto pool = mc->getCurrentImagePool(true);
+
+	Array<PooledImage> images;
+
+	for (int i = 0; i < 12; i++)
+	{
+		PoolReference upRef(mc, "{PROJECT_FOLDER}keyboard/up_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
+
+		jassert(upRef.isValid());
+
+		images.add(pool->loadFromReference(upRef, PoolHelpers::LoadAndCacheStrong));
+
+		PoolReference downRef(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png", ProjectHandler::SubDirectories::Images);
+
+		jassert(downRef.isValid());
+		images.add(pool->loadFromReference(downRef, PoolHelpers::LoadAndCacheStrong));
+	}
+
+	const bool hasAboutPageImage = handler.getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("about.png").existsAsFile();
+
+	if (hasAboutPageImage)
+	{
+		PoolReference aboutRef(mc, "{PROJECT_FOLDER}about.png", ProjectHandler::SubDirectories::Images);
+
+		images.add(pool->loadFromReference(aboutRef, PoolHelpers::LoadAndCacheStrong));
+	}
 }
 
 } // namespace hise

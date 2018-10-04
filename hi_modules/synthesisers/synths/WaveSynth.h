@@ -197,6 +197,13 @@ public:
 		MixChainShown = ModulatorSynth::numEditorStates
 	};
 
+	enum ChainIndex
+	{
+		GainChain=0,
+		PitchChain,
+		MixChain
+	};
+
 	enum AdditionalWaveformTypes
 	{
 		Triangle2 = WaveformComponent::WaveformType::numWaveformTypes,
@@ -254,13 +261,34 @@ public:
 
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
 
-	void postVoiceRendering(int startSample, int numSamples) override;;
 
 	void prepareToPlay(double newSampleRate, int samplesPerBlock) override;
 
-	void preHiseEventCallback(const HiseEvent &m) override;
-
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
+
+	float* getMixModulationValues(int startSample)
+	{
+		return modChains[ChainIndex::MixChain].getWritePointerForVoiceValues(startSample);
+	}
+
+	float getConstantMixValue() const noexcept
+	{
+		auto& mb = modChains[ChainIndex::MixChain];
+
+		if (mb.getChain()->shouldBeProcessedAtAll())
+		{
+			return mb.getConstantModulationValue();
+		}
+
+		return mix;
+	}
+
+	AudioSampleBuffer& getTempBufferForMixCalculation()
+	{
+		return tempBuffer;
+	}
+
+	float getBalanceValue(bool usePan1, bool isLeft) const noexcept;
 
 private:
 
@@ -274,10 +302,9 @@ private:
 
 	double getPitchValue(bool getLeftValue);
 
-	ScopedPointer<ModulatorChain> mixChain;
+	ModulatorChain* mixChain;
 
 	AudioSampleBuffer tempBuffer;
-	AudioSampleBuffer mixBuffer;
 
 	int octaveTranspose1, octaveTranspose2;
 

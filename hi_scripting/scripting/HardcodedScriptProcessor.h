@@ -76,6 +76,8 @@ public:
 	/** called whenever a script control was moved. */
 	virtual void onControl(ScriptingApi::Content::ScriptComponent * /*controller*/, var /*value*/) {};
 
+	virtual void onAllNotesOff() {};
+
     void restoreFromValueTree(const ValueTree &v) override
     {
         jassert(content.get() != nullptr);
@@ -196,20 +198,20 @@ public:
 		lastNote = -1;
 		lastEventId = -1;
 		possibleRetriggerNote = -1;		
+		possibleRetriggerChannel = -1;
 		lastVelo = 0;
 	}
 
 	void onNoteOn() override
 	{
-		Message.ignoreEvent(true);
-		
-		int newID = Synth.playNote(Message.getNoteNumber(), Message.getVelocity());
+		int newID = Message.makeArtificial();
 
 		if(lastNote != -1)
 		{
 			Synth.noteOffByEventId(lastEventId);
 		
 			possibleRetriggerNote = lastNote;
+			possibleRetriggerChannel = lastChannel;
 		}
 	
 		
@@ -217,11 +219,12 @@ public:
 
 		lastNote = Message.getNoteNumber();
 		lastVelo = Message.getVelocity();
+		lastChannel = Message.getChannel();
 	};
 
 	void onNoteOff() override
 	{
-		if (Message.getNoteNumber() == lastNote)
+		if (Message.getNoteNumber() == lastNote && Message.getChannel() == lastChannel)
 		{
 			Message.ignoreEvent(true);
 			Synth.noteOffByEventId(lastEventId);
@@ -229,19 +232,24 @@ public:
 
 		int number = Message.getNoteNumber();
 	
-		if(number == possibleRetriggerNote)
+		int channel = Message.getChannel();
+
+		if(number == possibleRetriggerNote && channel == possibleRetriggerChannel)
 		{
 			possibleRetriggerNote = -1;
+			possibleRetriggerChannel = -1;
 		}
 	
 		if(number == lastNote)
 		{
-			if(possibleRetriggerNote != -1)
+			if(possibleRetriggerNote != -1 && possibleRetriggerChannel != -1)
 			{
-				lastEventId = Synth.playNote(possibleRetriggerNote, lastVelo);
-			
+				lastEventId = Synth.addNoteOn(possibleRetriggerChannel, possibleRetriggerNote, lastVelo, 0);
+
 				lastNote = possibleRetriggerNote;
+				lastChannel = possibleRetriggerChannel;
 				possibleRetriggerNote = -1;
+				possibleRetriggerChannel = -1;
 			}
 			else
 			{
@@ -254,10 +262,12 @@ public:
 
 	
 	
-private:
+private:	
 
 	int lastNote;
 	int lastEventId;
+	int lastChannel;
+	int possibleRetriggerChannel;
 	int possibleRetriggerNote;
 	int lastVelo;
 
@@ -310,7 +320,8 @@ private:
 };
 
 /** allows release trigger functionality with a time variant decrease of the velocity. @ingroup midiTypes */
-class ReleaseTriggerScriptProcessor: public HardcodedScriptProcessor
+class ReleaseTriggerScriptProcessor: public HardcodedScriptProcessor,
+									 public MidiControllerAutomationHandler::MPEData::Listener
 {
 public:
 
@@ -319,8 +330,21 @@ public:
 	ReleaseTriggerScriptProcessor(MainController *mc, const String &id, ModulatorSynth *ms):
 		HardcodedScriptProcessor(mc, id, ms)
 	{
-		onInit();	
+		onInit();
+
+		getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().addListener(this);
 	};
+
+	~ReleaseTriggerScriptProcessor()
+	{
+		getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().removeListener(this);
+	}
+
+	void mpeModeChanged(bool isEnabled) override { mpeEnabled = isEnabled; };
+
+	void mpeDataReloaded() override {};
+
+	void mpeModulatorAssigned(MPEModulator* /*m*/, bool /*wasAssigned*/) override {};
 
 	void onInit() override
 	{
@@ -389,7 +413,9 @@ public:
 	
 		auto onEvent = messageHolders[noteNumber]->getMessageCopy();
 
-		const int v = (int)((float)onEvent.getVelocity() * attenuationLevel);
+		auto velocityToUse = mpeEnabled ? Message.getVelocity() : onEvent.getVelocity();
+
+		const int v = (int)((float)velocityToUse * attenuationLevel);
 
 		//const int v = (int)(velocityValues[noteNumber] * attenuationLevel);
 
@@ -397,7 +423,7 @@ public:
 		{
 			onEvent.setVelocity((uint8)v);
 			onEvent.ignoreEvent(false);
-			onEvent.setTimeStamp((uint16)Message.getTimestamp());
+			onEvent.setTimeStamp((int)Message.getTimestamp());
 			
 
 			currentMessageHolder->setMessage(onEvent);
@@ -422,6 +448,8 @@ public:
 	};
 	
 private:
+
+	bool mpeEnabled = false;
 
 	ReferenceCountedArray<ScriptingObjects::ScriptingMessageHolder> messageHolders;
 
@@ -560,7 +588,8 @@ private:
 	
 };
 
-class ChannelFilterScriptProcessor : public HardcodedScriptProcessor
+class ChannelFilterScriptProcessor : public HardcodedScriptProcessor,
+	public MidiControllerAutomationHandler::MPEData::Listener
 {
 public:
 
@@ -570,7 +599,14 @@ public:
 		HardcodedScriptProcessor(mc, id, ms)
 	{
 		onInit();
+
+		mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().addListener(this);
 	};
+
+	~ChannelFilterScriptProcessor()
+	{
+		getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().removeListener(this);
+	}
 
 	void onInit() override
 	{
@@ -580,44 +616,113 @@ public:
 		channelNumber->set("text", "MIDI Channel");
 		channelNumber->setRange(1, 16, 1);
 
+		mpeStartChannel = Content.addKnob("mpeStart", 150, 0);
+		mpeStartChannel->set("width", 170);
+		mpeStartChannel->set("text", "MPE Start Channel");
+		mpeStartChannel->setRange(2, 16, 1);
+
+		mpeEndChannel = Content.addKnob("mpeEnd", 150 + 190, 0);
+		mpeEndChannel->set("width", 170);
+		mpeEndChannel->set("text", "MPE End Channel");
+		mpeEndChannel->setRange(2, 16, 1);
+		mpeEndChannel->setValue(16);
+
 		channel = 1;
+		mpeRange = 0;
+
+		mpeRange.setRange(1, 15, true);
 	}
+
+	void mpeModeChanged(bool isEnabled) override
+	{
+		mpeEnabled = isEnabled;
+	}
+
+	void mpeDataReloaded() override {};
+
+	void mpeModulatorAmountChanged() override {};
+
+	void mpeModulatorAssigned(MPEModulator* /*m*/, bool /*wasAssigned*/) override {};
 
 	void onNoteOn() override
 	{
-		if (Message.getChannel() != channel)
+		if (mpeEnabled)
 		{
-			Message.ignoreEvent(true);
+			if (!mpeRange[Message.getChannel()-1])
+				Message.ignoreEvent(true);
+		}
+		else
+		{
+			if (Message.getChannel() != channel)
+			{
+				Message.ignoreEvent(true);
+			}
 		}
 	};
 
 	void onNoteOff() override
 	{
-		if (Message.getChannel() != channel)
+		if (mpeEnabled)
 		{
-			Message.ignoreEvent(true);
+			if (!mpeRange[Message.getChannel()-1])
+				Message.ignoreEvent(true);
 		}
+		else
+		{
+			if (Message.getChannel() != channel)
+			{
+				Message.ignoreEvent(true);
+			}
+		}
+		
 	};
 
 	void onController() override
 	{
-		if (Message.getChannel() != channel)
+		if (mpeEnabled)
 		{
-			Message.ignoreEvent(true);
+			if (!mpeRange[Message.getChannel()-1])
+				Message.ignoreEvent(true);
 		}
+		else
+		{
+			if (Message.getChannel() != channel)
+			{
+				Message.ignoreEvent(true);
+			}
+		}
+		
 	};
 
-	void onControl(ScriptingApi::Content::ScriptComponent *, var value) override
+	void onControl(ScriptingApi::Content::ScriptComponent *c, var value) override
 	{
-		channel = value;
+		if (c == channelNumber)
+		{
+			channel = value;
+		}
+		else
+		{
+			auto startValue = (int)mpeStartChannel->getValue()-1;
+			auto endValue = (int)mpeEndChannel->getValue()-1;
+
+			mpeRange.clear();
+			mpeRange.setRange(startValue, (endValue - startValue) + 1, true);
+			
+			// Always allow stuff on the master channel
+			mpeRange.setBit(0, true);
+		}
 	};
 
 private:
 
 	ScriptingApi::Content::ScriptSlider *channelNumber;
-	
-	int channel;
+	ScriptingApi::Content::ScriptSlider *mpeStartChannel;
+	ScriptingApi::Content::ScriptSlider *mpeEndChannel;
 
+	bool mpeEnabled = false;
+
+	int channel;
+	BigInteger mpeRange;
 };
 
 class ChannelSetterScriptProcessor : public HardcodedScriptProcessor

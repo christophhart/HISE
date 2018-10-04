@@ -52,23 +52,59 @@ public:
 	virtual ~ObjectWithDefaultProperties() {};
 
 	/** Writes the state of this object into a dynamic object. */
-	virtual var toDynamicObject() const = 0;
+	virtual var toDynamicObject() const
+	{
+		jassert(useCustomDefaultValues);
+
+		var obj(new DynamicObject());
+		saveValuesFromList(obj);
+		return obj;
+	}
 
 	/** Restores the state of this object from a dynamic object. */
-	virtual void fromDynamicObject(const var& objectData) = 0;
+	virtual void fromDynamicObject(const var& objectData)
+	{
+		jassert(useCustomDefaultValues);
+		loadValuesToList(objectData);
+	}
 
 	/** Overwrite this and get the default property. */
-	virtual var getDefaultProperty(int id) const = 0;
+	virtual var getDefaultProperty(int id) const 
+	{
+		jassert(useCustomDefaultValues);
+
+		return defaultValues.getValueAt(id);
+	};
 	
+	var operator()(const var& data, int index) const
+	{
+		return getPropertyWithDefault(data, index);
+	}
+
+	void operator()(const var& data, int index, const var& value) const
+	{
+		storePropertyInObject(data, index, value);
+	}
+
 	/** Overwrite this and return the number of properties that are defaultable. */
-	virtual int getNumDefaultableProperties() const = 0;
+	virtual int getNumDefaultableProperties() const
+	{
+		jassert(useCustomDefaultValues);
+
+		return defaultValues.size();
+	}
 	
 	/** Overwrite this and return the Identifier for the given property index. 
 	*
 	*	You might want to use the macro RETURN_DEFAULT_PROPERTY_ID(idToCheck, name) with a named enum for this. 
 	*
 	*/
-	virtual Identifier getDefaultablePropertyId(int i) const = 0;
+	virtual Identifier getDefaultablePropertyId(int i) const
+	{
+		jassert(useCustomDefaultValues);
+
+		return defaultValues.getName(i);
+	}
 
 	/** Clears the given object and sets all defaultable properties to their initial values. */
 	void resetObject(DynamicObject* objectToClear)
@@ -105,8 +141,55 @@ public:
 				return getDefaultProperty(id);
 		}
 
-		return {};
+		return getDefaultProperty(id);
 	}
+
+	void setDefaultValues(const NamedValueSet& newDefaultValues)
+	{
+		defaultValues = newDefaultValues;
+		useCustomDefaultValues = true;
+	}
+
+	void setValueList(const Array<Value>& valueList)
+	{
+		jassert(useCustomDefaultValues);
+		jassert(valueList.size() == defaultValues.size());
+
+		values = valueList;
+	}
+
+	static Colour getColourFrom(const Value& colourValue)
+	{
+		return Colour((uint32)(int64)(colourValue.getValue()));
+	}
+
+protected:
+
+	void saveValuesFromList(var& object) const
+	{
+		jassert(useCustomDefaultValues);
+
+		for (int i = 0; i < getNumDefaultableProperties(); i++)
+		{
+			storePropertyInObject(object, i, values[i].getValue(), getDefaultProperty(i));
+		}
+	}
+
+	void loadValuesToList(const var& object)
+	{
+		jassert(useCustomDefaultValues);
+
+		for (int i = 0; i < getNumDefaultableProperties(); i++)
+		{
+			values[i].setValue(getPropertyWithDefault(object, i));
+		}
+	}
+
+	NamedValueSet defaultValues;
+
+	Array<Value> values;
+
+	bool useCustomDefaultValues = false;
 };
 
 
@@ -123,7 +206,7 @@ public:
 
 		tokeniser = new JavascriptTokeniser();
 		doc = new CodeDocument();
-		doc->replaceAllContent(JSON::toString(editedObject->toDynamicObject()));
+		doc->replaceAllContent(JSON::toString(editedObject->toDynamicObject(), false, DOUBLE_TO_STRING_DIGITS));
 		doc->setSavePoint();
 		doc->clearUndoHistory();
 
@@ -147,7 +230,7 @@ public:
 
 	JSONEditor(var object)
 	{
-		auto s = JSON::toString(object, false);
+		auto s = JSON::toString(object, false, DOUBLE_TO_STRING_DIGITS);
 
 		tokeniser = new JavascriptTokeniser();
 		doc = new CodeDocument();
@@ -239,7 +322,7 @@ public:
 	void setDataToEdit(var newData)
 	{
 		doc->clearUndoHistory();
-		doc->replaceAllContent(JSON::toString(newData));
+		doc->replaceAllContent(JSON::toString(newData, false, DOUBLE_TO_STRING_DIGITS));
 	}
 
 	void replace();
@@ -453,12 +536,14 @@ public:
 			ApiCollection,
 			ScriptWatchTable,
 			ScriptComponentEditPanel,
+			ExpansionEditBar,
 			ModuleBrowser,
 			PatchBrowser,
 			FileBrowser,
 			ImageTable,
 			AudioFileTable,
 			SamplePoolTable,
+			SampleMapPoolTable,
 			PopoutButton,
 			PerformanceStatistics,
 			ActivityLed,
@@ -471,7 +556,9 @@ public:
 			AboutPage,
 			SampleMapBrowser,
 			WavetablePreview,
+			AHDSRGraph,
 			FilterGraphPanel,
+			MPEPanel,
 			Matrix2x2,
 			ThreeColumns,
 			ThreeRows,

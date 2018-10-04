@@ -150,12 +150,15 @@ void PopupIncludeEditor::compileInternal()
 		externalFile->getFileDocument().setSavePoint();
 	}
 
-	sp->compileScript();
-	
-	lastCompileOk = sp->wasLastCompileOK();
-	resultLabel->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white);
-	resultLabel->setColour(TextEditor::ColourIds::textColourId, Colours::white);
-	startTimer(200);
+	auto rf = [this](const JavascriptProcessor::SnippetResult& r)
+	{
+		lastCompileOk = r.r.wasOk();
+		resultLabel->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white);
+		resultLabel->setColour(TextEditor::ColourIds::textColourId, Colours::white);
+		startTimer(200);
+	};
+
+	sp->compileScript(rf);
 }
 
 } // namespace hise

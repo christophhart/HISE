@@ -130,56 +130,115 @@ public:
 	{
 	public:
 
-		ValuePopup(Component* c_):
-			c(c_)
+		class Properties : public ObjectWithDefaultProperties,
+						   public ControlledObject,
+						   public ReferenceCountedObject
 		{
+		public:
+
+			typedef ReferenceCountedObjectPtr<Properties> Ptr ;
+
+			struct LayoutData
+			{
+				float radius;
+				float lineThickness;
+				float margin;
+			};
+
+			enum ID
+			{
+				fontName,
+				fontSize,
+				borderSize,
+				borderRadius,
+				margin,
+				bgColour,
+				itemColour,
+				itemColour2,
+				textColour,
+				numIds
+			};
+
+			Properties(MainController* mc, const var& data):
+				ControlledObject(mc)
+			{
+
+				setDefaultValues({
+					{"fontName", "Default"},
+					{"fontSize", 14.0},
+					{"borderSize", 2.0 },
+					{"borderRadius", 2.0},
+					{"margin", 3.0},
+					{"bgColour", 0xFFFFFFFF},
+					{"itemColour", 0xaa222222 },
+					{"itemColour2", 0xaa222222 },
+					{"textColour", 0xFFFFFFFF}
+				});
+
+				setValueList({ fName, fSize, bSize_, bRadius, mrgin, bg, item, item2, text });
+				fromDynamicObject(data);
+			}
+
+			void fromDynamicObject(const var& data) override
+			{
+				ObjectWithDefaultProperties::fromDynamicObject(data);
+				f = getMainController()->getFontFromString(fName.toString(), fSize.getValue());
+			}
+
+			Colour getColour(ID id)
+			{
+				switch (id)
+				{
+				case bgColour: return getColourFrom(bg);
+				case itemColour: return getColourFrom(item);
+				case itemColour2: return getColourFrom(item2);
+				case textColour: return getColourFrom(text);
+                default: break;
+				}
+					
+				jassertfalse;
+				return Colours::transparentBlack;
+			}
+
+			Font getFont() const { return f; }
+
+			LayoutData getLayoutData() const { return { bRadius.getValue(), bSize_.getValue(), mrgin.getValue() }; }
+
+			
+
+		private:
+
+			Font f;
+			Value fName, fSize, bSize_, bRadius, mrgin, bg, item, item2, text;
+
+			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Properties);
+		};
+
+		ValuePopup(ScriptCreatedComponentWrapper& p):
+			parent(p),
+			shadow({ Colours::black, 10,{ 0, 0 } })
+		{
+			f = GLOBAL_BOLD_FONT();
+
+			shadow.setOwner(this);
+
 			updateText();
 			startTimer(30);
 		}
 
-		void updateText()
+		void setFont(Font newFont)
 		{
-			if (auto slider = dynamic_cast<Slider*>(c.getComponent()))
-			{
-				auto oldText = currentText;
-
-				currentText = slider->getTextFromValue(slider->getValue());
-
-				if (currentText != oldText)
-				{
-					auto f = GLOBAL_BOLD_FONT();
-					int newWidth = f.getStringWidth(currentText) + 20;
-
-					setSize(newWidth, 20);
-
-					repaint();
-				}
-			}
+			f = newFont;
 		}
+
+		void updateText();
 
 		void timerCallback() override
 		{
 			updateText();
 		}
 
-		void paint(Graphics& g) override
-		{
-			
-			auto ar = Rectangle<float>(1.0f, 1.0f, (float)getWidth()-2.0f, (float)getHeight()-2.0f);
-
-			g.setGradientFill(ColourGradient(itemColour, 0.0f, 0.0f, itemColour2, 0.0f, (float)getHeight(), false));
-			g.fillRoundedRectangle(ar, 2.0f);
-
-			g.setColour(bgColour);
-			g.drawRoundedRectangle(ar, 2.0f, 2.0f);
-
-			if (dynamic_cast<Slider*>(c.getComponent()) != nullptr)
-			{
-				g.setFont(GLOBAL_BOLD_FONT());
-				g.setColour(textColour);
-				g.drawText(currentText, getLocalBounds(), Justification::centred);
-			}
-		}
+		void paint(Graphics& g) override;
 
 		Colour bgColour;
 		Colour itemColour;
@@ -188,11 +247,15 @@ public:
 
 		String currentText;
 
-		Component::SafePointer<Component> c;
+		Font f;
+
+		ScriptCreatedComponentWrapper& parent;
+
+		DropShadower shadow;
 	};
 
 	/** Don't forget to deregister the listener here. */
-	virtual ~ScriptCreatedComponentWrapper() {};
+	virtual ~ScriptCreatedComponentWrapper();;
 
 	/** Overwrite this method and update the component. */
 	virtual void updateComponent() = 0;
@@ -208,13 +271,9 @@ public:
 
 	Component *getComponent() { return component; }
 
-	virtual void asyncValueTreePropertyChanged(ValueTree& v, const Identifier& id)
-	{
-		auto idIndex = getScriptComponent()->getIndexForProperty(id);
-		auto value = v.getProperty(id);
+	const Component *getComponent() const { return component; }
 
-		updateComponent(idIndex, value);
-	}
+	virtual void asyncValueTreePropertyChanged(ValueTree& v, const Identifier& id);
 
 	virtual void valueTreeParentChanged(ValueTree& v) override;
 
@@ -224,6 +283,13 @@ public:
 	{
 		return scriptComponent;
 	};
+
+	const ScriptingApi::Content::ScriptComponent *getScriptComponent() const
+	{
+		return scriptComponent;
+	};
+
+	ScopedPointer<ValuePopup> currentPopup;
 
 protected:
 
@@ -240,7 +306,17 @@ protected:
 
 	void initAllProperties();
 
+	void showValuePopup();
 
+	void updatePopupPosition();
+
+	virtual Point<int> getValuePopupPosition(Rectangle<int> componentBounds) const { return Point<int>(); }
+
+	virtual String getTextForValuePopup()
+	{
+		jassertfalse;
+		return ""; 
+	};
 
 	/** the component that will be owned by this wrapper. */
 	ScopedPointer<Component> component;
@@ -248,7 +324,44 @@ protected:
 	/** the parent component. */
 	ScriptContentComponent *contentComponent;
 
+	void closeValuePopupAfterDelay();
+
 private:
+
+	struct ValuePopupHandler : public Timer
+	{
+		ValuePopupHandler(ScriptCreatedComponentWrapper& p):
+			parent(p)
+		{
+
+		}
+
+		void timerCallback() override
+		{
+			if (auto c = parent.getComponent())
+			{
+				Desktop::getInstance().getAnimator().fadeOut(parent.currentPopup, 200);
+
+				auto parentTile = c->findParentComponentOfClass<FloatingTile>(); // always in a tile...
+
+				if (parentTile == nullptr)
+				{
+					// Ouch...
+					jassertfalse;
+					return;
+				}
+
+				parentTile->removeChildComponent(parent.currentPopup);
+				parent.currentPopup = nullptr;
+
+				stopTimer();
+			}
+		}
+
+		ScriptCreatedComponentWrapper& parent;
+	};
+
+	ValuePopupHandler valuePopupHandler;
 
 	ScriptingApi::Content::ScriptComponent::Ptr scriptComponent;
 
@@ -362,8 +475,7 @@ class ScriptCreatedComponentWrappers
 public:
 
 	class SliderWrapper: public ScriptCreatedComponentWrapper,
-						 public SliderListener,
-						 public Timer
+						 public SliderListener
 	{
 	public:
 		SliderWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptSlider *scriptSlider, int index);
@@ -381,13 +493,15 @@ public:
 
 		void sliderDragEnded(Slider* s) override;
 
-		void timerCallback() override;
-
-		ScopedPointer<ValuePopup> currentPopup;
-
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SliderWrapper);
 
+		Point<int> getValuePopupPosition(Rectangle<int> componentBounds) const;
+
+		String getTextForValuePopup() override;
+
 	private:
+
+		
 
 		void updateFilmstrip();
 		void updateColours(HiSlider * s);
@@ -470,7 +584,9 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ComboBoxWrapper)
 	};
 
-	class TableWrapper : public ScriptCreatedComponentWrapper
+	class TableWrapper : public ScriptCreatedComponentWrapper,
+						 public TableEditor::Listener
+		
 	{
 	public:
 
@@ -483,8 +599,20 @@ public:
 		void updateComponent(int index, var newValue) override;
 
 		void updateConnectedTable(TableEditor * t);
-
 		
+		void pointDragStarted(Point<int> position, float index, float value) override;
+		void pointDragEnded() override;
+		void pointDragged(Point<int> position, float index, float value) override;
+		void curveChanged(Point<int> position, float curveValue) override;
+
+		Point<int> getValuePopupPosition(Rectangle<int> componentBounds) const override;
+
+		String getTextForValuePopup() override { return popupText; }
+
+	private:
+
+		String popupText;
+		Point<int> localPopupPosition;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TableWrapper)
 	};
@@ -667,11 +795,15 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioWaveformWrapper)
 	private:
 
+        void updateSampleIndex(ScriptingApi::Content::ScriptAudioWaveform *waveform, AudioDisplayComponent* asb, int newValue);
+        
 		class SamplerListener;
 
 		ScopedPointer<SamplerListener> samplerListener;
 
 		void updateColours(AudioDisplayComponent* asb);
+        
+        int lastIndex = -1;
 	};
 
 	class FloatingTileWrapper : public ScriptCreatedComponentWrapper

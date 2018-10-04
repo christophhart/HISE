@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Processor Type="SynthChain" ID="MPEDemo" Bypassed="0" Gain="1" Balance="0"
+           VoiceLimit="64" KillFadeTime="20" IconColour="0" packageName=""
+           BuildVersion="650">
+  <ChildProcessors>
+    <Processor Type="MidiProcessorChain" ID="Midi Processor" Bypassed="0">
+      <ChildProcessors>
+        <Processor Type="ScriptProcessor" ID="Interface" Bypassed="0">
+          <ChildProcessors/>
+          <Content>
+            <Control type="ScriptComboBox" id="UpperStart" value="1"/>
+            <Control type="ScriptComboBox" id="UpperEnd" value="2"/>
+            <Control type="ScriptComboBox" id="LowerStart" value="1"/>
+            <Control type="ScriptComboBox" id="LowerEnd" value="3"/>
+          </Content>
+          <UIData>
+            <ContentProperties DeviceType="Desktop">
+              <Component type="ScriptFloatingTile" id="UpperKeyboard" x="40" y="30" width="960"
+                         height="280" bgColour="4294951115" itemColour="4294951115" itemColour2="4294951115"
+                         textColour="4294951115" Data="{&#13;&#10;}"/>
+              <Component type="ScriptFloatingTile" id="LowerKeyboard" x="40" y="380" width="960"
+                         height="280" bgColour="4294951115" itemColour="4294951115" itemColour2="4294951115"
+                         textColour="4294951115" Data="{&#13;&#10;}"/>
+              <Component type="ScriptLabel" id="ChannelLabel" x="454" y="705" width="188"
+                         height="48" text="Channel 3" saveInPreset="0" editable="0"/>
+              <Component type="ScriptComboBox" id="UpperStart" x="40" y="320" max="15"
+                         items="2&#10;3&#10;4&#10;5&#10;6&#10;7&#10;8&#10;9&#10;10&#10;11&#10;12&#10;13&#10;14&#10;15&#10;16&#10;"/>
+              <Component type="ScriptComboBox" id="UpperEnd" x="190" y="320" max="15"
+                         items="2&#10;3&#10;4&#10;5&#10;6&#10;7&#10;8&#10;9&#10;10&#10;11&#10;12&#10;13&#10;14&#10;15&#10;16&#10;"/>
+              <Component type="ScriptComboBox" id="LowerStart" x="40" y="690" max="15"
+                         items="2&#10;3&#10;4&#10;5&#10;6&#10;7&#10;8&#10;9&#10;10&#10;11&#10;12&#10;13&#10;14&#10;15&#10;16&#10;"/>
+              <Component type="ScriptComboBox" id="LowerEnd" x="190" y="690" max="15"
+                         items="2&#10;3&#10;4&#10;5&#10;6&#10;7&#10;8&#10;9&#10;10&#10;11&#10;12&#10;13&#10;14&#10;15&#10;16&#10;"/>
+              <Component type="ScriptButton" id="Settings" x="0" y="0" isMomentary="1"
+                         saveInPreset="0"/>
+            </ContentProperties>
+          </UIData>
+        </Processor>
+      </ChildProcessors>
+    </Processor>
+    <Processor Type="ModulatorChain" ID="GainModulation" Bypassed="0" Intensity="1">
+      <ChildProcessors/>
+    </Processor>
+    <Processor Type="ModulatorChain" ID="PitchModulation" Bypassed="1" Intensity="0">
+      <ChildProcessors/>
+    </Processor>
+    <Processor Type="EffectChain" ID="FX" Bypassed="0">
+      <ChildProcessors/>
+    </Processor>
+    <Processor Type="SineSynth" ID="Sine Wave Generator" Bypassed="0" Gain="0.25"
+               Balance="0" VoiceLimit="256" KillFadeTime="20" IconColour="0"
+               OctaveTranspose="0" SemiTones="0" UseFreqRatio="0" CoarseFreqRatio="1"
+               FineFreqRatio="0" SaturationAmount="0.68000001">
+      <ChildProcessors>
+        <Processor Type="MidiProcessorChain" ID="Midi Processor" Bypassed="0">
+          <ChildProcessors/>
+        </Processor>
+        <Processor Type="ModulatorChain" ID="GainModulation" Bypassed="0" Intensity="1">
+          <ChildProcessors>
+            <Processor Type="SimpleEnvelope" ID="DefaultEnvelope" Bypassed="0" Monophonic="0"
+                       Retrigger="1" Intensity="1" Attack="5" Release="10" LinearMode="1">
+              <ChildProcessors>
+                <Processor Type="ModulatorChain" ID="Attack Time Modulation" Bypassed="0"
+                           Intensity="1">
+                  <ChildProcessors/>
+                </Processor>
+              </ChildProcessors>
+            </Processor>
+            <Processor Type="MPEModulator" ID="MPE Modulator" Bypassed="0" Monophonic="0"
+                       Retrigger="1" Intensity="0.88" GestureCC="2" SmoothingTime="200"
+                       DefaultValue="0.5" SmoothedIntensity="1" Table="24...............vO...f+....9C...vO">
+              <ChildProcessors/>
+            </Processor>
+          </ChildProcessors>
+        </Processor>
+        <Processor Type="ModulatorChain" ID="PitchModulation" Bypassed="0" Intensity="0">
+          <ChildProcessors>
+            <Processor Type="MPEModulator" ID="PitchOSC1" Bypassed="0" Monophonic="0"
+                       Retrigger="1" Intensity="1" GestureCC="3" SmoothingTime="200"
+                       DefaultValue="0" SmoothedIntensity="12" Table="24...............vO...f+....9C...vO">
+              <ChildProcessors/>
+            </Processor>
+          </ChildProcessors>
+        </Processor>
+        <Processor Type="EffectChain" ID="FX" Bypassed="0">
+          <ChildProcessors/>
+        </Processor>
+      </ChildProcessors>
+      <RoutingMatrix NumSourceChannels="2" Channel0="0" Send0="-1" Channel1="1" Send1="-1"/>
+    </Processor>
+  </ChildProcessors>
+  <RoutingMatrix NumSourceChannels="2" Channel0="0" Send0="-1" Channel1="1" Send1="-1"/>
+  <macro_controls>
+    <macro name="Macro 1" value="0" midi_cc="-1"/>
+    <macro name="Macro 2" value="0" midi_cc="-1"/>
+    <macro name="Macro 3" value="0" midi_cc="-1"/>
+    <macro name="Macro 4" value="0" midi_cc="-1"/>
+    <macro name="Macro 5" value="0" midi_cc="-1"/>
+    <macro name="Macro 6" value="0" midi_cc="-1"/>
+    <macro name="Macro 7" value="0" midi_cc="-1"/>
+    <macro name="Macro 8" value="0" midi_cc="-1"/>
+  </macro_controls>
+  <MidiAutomation/>
+  <MPEData Enabled="1">
+    <Processor ID="MPE Modulator" Bypassed="0" Monophonic="0" Retrigger="1"
+               GestureCC="2" SmoothingTime="200" DefaultValue="0.5" SmoothedIntensity="1"
+               Table="24...............vO...f+....9C...vO"/>
+    <Processor ID="PitchOSC1" Bypassed="0" Monophonic="0" Retrigger="1" GestureCC="3"
+               SmoothingTime="200" DefaultValue="0" SmoothedIntensity="12" Table="24...............vO...f+....9C...vO"/>
+  </MPEData>
+</Processor>

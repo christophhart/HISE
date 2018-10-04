@@ -38,64 +38,29 @@ namespace hise { using namespace juce;
 class Processor;
 class MainController;
 
-/** A Helper class that encapsulates the regex operations */
-class RegexFunctions
+
+
+
+
+/** A base class for objects that need to call dispatched messages. */
+struct Dispatchable
 {
-public:
-    
-	static Array<StringArray> findSubstringsThatMatchWildcard(const String &regexWildCard, const String &stringToTest);
-
-	/** Searches a string and returns a StringArray with all matches. 
-	*	You can specify and index of a capture group (if not, the entire match will be used). */
-	static StringArray search(const String& wildcard, const String &stringToTest, int indexInMatch=0);
-
-	/** Returns the first match of the given wildcard in the test string. The first entry will be the whole match, followed by capture groups. */
-    static StringArray getFirstMatch(const String &wildcard, const String &stringToTest, const Processor* /*processorForErrorOutput*/=nullptr);
-    
-	/** Checks if the given string matches the regex wildcard. */
-    static bool matchesWildcard(const String &wildcard, const String &stringToTest, const Processor* /*processorForErrorOutput*/=nullptr);
-
-};
-
-
-/** A small helper class that uses RAII for enabling flush to zero mode. */
-class ScopedNoDenormals
-{
-public:
-	ScopedNoDenormals();;
-
-	~ScopedNoDenormals();;
-
-	int oldMXCSR;
-};
-
-
-class SafeChangeBroadcaster;
-
-/** A class for message communication between objects.
-*
-*	This class has the same functionality as the JUCE ChangeListener class, but it uses a weak reference for the internal list,
-*	so deleted listeners will not crash the application.
-*/
-class SafeChangeListener
-{
-public:
-
-	virtual ~SafeChangeListener()
+	enum class Status
 	{
-		masterReference.clear();
-	}
+		OK = 0,
+		notExecuted,
+		needsToRunAgain,
+		cancelled
+	};
 
-	/** Overwrite this and handle the message. */
-	virtual void changeListenerCallback(SafeChangeBroadcaster *b) = 0;
+	using Function = std::function<Status(Dispatchable* obj)>;
+
+	virtual ~Dispatchable() {};
 
 private:
 
-	friend class WeakReference < SafeChangeListener > ;
-
-	WeakReference<SafeChangeListener>::Master masterReference;
+	JUCE_DECLARE_WEAK_REFERENCEABLE(Dispatchable);
 };
-
 
 /** This class is used to coallescate multiple calls to an asynchronous update for a given Listener.
 *
@@ -104,34 +69,39 @@ private:
 *
 *	In order to use this class, just create an instance and pass this to your subclassed listeners, which then
 *	can be used just like the standard AsyncUpdater from JUCE.
-*
-*	Another nice feature is that you can use the same mechanism to call a function asynchronously by passing
-*	a lambda to callFunctionAsynchronously.
 */
-class UpdateDispatcher : public AsyncUpdater
+class UpdateDispatcher : private Timer
 {
 public:
 
-	UpdateDispatcher() :
-		pendingListeners(1024),
-		pendingFunctions(1024)
-	{};
+	UpdateDispatcher(MainController* mc_);;
 
 	~UpdateDispatcher()
 	{
-		masterReference.clear();
+		pendingListeners.clear();
+
+		stopTimer();
 	}
 
+	void suspendUpdates(bool shouldSuspendUpdates)
+	{
+		if (shouldSuspendUpdates)
+			stopTimer();
+		else
+			startTimer(30);
+	}
+
+	/** This class contains the sender logic of the UpdateDispatcher scheme.
+	*
+	*	In order to use it, subclass your object from this, register the parent UpdateDispatcher in 
+	*	the constructor, and then use triggerAsyncUpdate() just like you would do with a normal AsyncUpdater
+	*
+	*/
 	class Listener
 	{
 	public:
 
-		Listener(UpdateDispatcher* dispatcher_) :
-			dispatcher(dispatcher_),
-			pending(false)
-		{
-
-		};
+		Listener(UpdateDispatcher* dispatcher_);;
 
 		virtual ~Listener()
 		{
@@ -140,28 +110,19 @@ public:
 
 		virtual void handleAsyncUpdate() = 0;
 
-		virtual void cancelPendingUpdate()
+		void cancelPendingUpdate()
 		{
 			if (!pending)
 				return;
-			
-			if(dispatcher != nullptr)
-				dispatcher->cancelPendingUpdateForListener(this);
+
+			cancelled.store(true);
 		}
 
-		virtual void triggerAsyncUpdate()
-		{
-			if (pending)
-				return;
-
-			pending = true;
-
-			if (dispatcher != nullptr)
-				dispatcher->triggerAsyncUpdateForListener(this);
-		}
+		void triggerAsyncUpdate();
 
 	private:
 
+		std::atomic<bool> cancelled;
 		std::atomic<bool> pending;
 
 		friend class WeakReference<Listener>;
@@ -172,71 +133,19 @@ public:
 		WeakReference<UpdateDispatcher> dispatcher;
 	};
 
-	using Func = std::function<void(void)>;
-
-	void triggerAsyncUpdateForListener(Listener* l)
-	{
-		const bool ok = pendingListeners.push(l);
-
-		jassert(ok);
-        ignoreUnused(ok);
-        
-        
-		triggerAsyncUpdate();
-	}
-
-	void callFunctionAsynchronously(const Func& f)
-	{
-		pendingFunctions.push(Func(f));
-
-		triggerAsyncUpdate();
-	}
-
-	void cancelPendingUpdateForListener(Listener* l)
-	{
-		cancelledListeners.addIfNotAlreadyThere(l);
-	}
-
 private:
 
-	friend class WeakReference<UpdateDispatcher>;
-	WeakReference<UpdateDispatcher>::Master masterReference;
+	void triggerAsyncUpdateForListener(Listener* l);
 
-	void handleAsyncUpdate() override
-	{
-		WeakReference<Listener> l;
+	MultithreadedLockfreeQueue<WeakReference<Listener>, MultithreadedQueueHelpers::Configuration::NoAllocationsTokenlessUsageAllowed> pendingListeners;
 
-		while (pendingListeners.pop(l))
-		{
-			if (l != nullptr)
-			{
-				if (cancelledListeners.contains(l))
-				{
-					l->pending = false;
-					cancelledListeners.removeAllInstancesOf(l);
-					continue;
-				}
-					
-
-				l->handleAsyncUpdate();
-				l->pending = false;
-			}
-		}
-
-		Func f;
-
-		while (pendingFunctions.pop(f))
-		{
-			f();
-		}
-	}
+	void timerCallback() override;
 
 	friend class Listener;
 
-	Array<WeakReference<Listener>> cancelledListeners;
+	MainController* mc;
 
-	hise::LockfreeQueue<WeakReference<Listener>> pendingListeners;
-	hise::LockfreeQueue<Func> pendingFunctions;
+	JUCE_DECLARE_WEAK_REFERENCEABLE(UpdateDispatcher);
 };
 
 /** This class can be used to listen to ValueTree property changes asynchronously.
@@ -258,11 +167,7 @@ public:
 
 	void valueTreePropertyChanged(ValueTree& v, const Identifier& id) final override
 	{
-		{
-			ScopedLock sl(arrayLock);
-			pendingPropertyChanges.addIfNotAlreadyThere(PropertyChange(v, id));
-		}
-		
+		pendingPropertyChanges.addIfNotAlreadyThere(PropertyChange(v, id));
 		asyncHandler.triggerAsyncUpdate();
 	};
 
@@ -298,15 +203,9 @@ private:
 
 		void handleAsyncUpdate() override
 		{
-			Array<PropertyChange> thisTime;
-
+			while (!parent.pendingPropertyChanges.isEmpty())
 			{
-				ScopedLock sl(parent.arrayLock);
-				thisTime.swapWith(parent.pendingPropertyChanges);
-			}
-
-			for (auto& pc : thisTime)
-			{
+				auto pc = parent.pendingPropertyChanges.removeAndReturn(0);
 				parent.asyncValueTreePropertyChanged(pc.v, pc.id);
 			}
 		}
@@ -314,17 +213,137 @@ private:
 		AsyncValueTreePropertyListener& parent;
 	};
 
-	CriticalSection arrayLock;
-
 	ValueTree state;
 	WeakReference<UpdateDispatcher> dispatcher;
 	AsyncHandler asyncHandler;
 
-	Array<PropertyChange> pendingPropertyChanges;
+	Array<PropertyChange, CriticalSection> pendingPropertyChanges;
+};
+
+template <int Offset, int Length> class StackTrace
+{
+public:
+
+	StackTrace():
+		id(0)
+	{
+		for (int i = 0; i < Length; i++)
+			stackTrace[i] = {};
+	}
+
+	bool operator ==(const StackTrace& other) const noexcept
+	{
+		return id == other.id;
+	}
+
+	StackTrace(StackTrace&& other) noexcept
+	{
+		id = other.id;
+
+		for (int i = 0; i < Length; i++)
+			stackTrace[i].swap(other.stackTrace[i]);
+	}
+
+	StackTrace& operator=(StackTrace&& other) noexcept
+	{
+		id = other.id;
+
+		
+
+		for (int i = 0; i < Length; i++)
+			stackTrace[i].swap(other.stackTrace[i]);
+
+		return *this;
+	}
+
+	StackTrace(uint16 id_, bool createStackTrace=true):
+		id(id_)
+	{
+		if (createStackTrace)
+		{
+			auto full = StringArray::fromLines(SystemStats::getStackBacktrace());
+
+			for (int i = Offset; i < Offset + Length; i++)
+			{
+				stackTrace[i - Offset] = full.strings[i].toStdString();
+			}
+		}
+		else
+		{
+			for (int i = 0; i < Length; i++)
+				stackTrace[i] = {};
+		}
+		
+	}
+
+	uint16 id;
+	std::string stackTrace[Length];
+
+	JUCE_DECLARE_NON_COPYABLE(StackTrace);
 };
 
 
+/** A base class for all objects that can be saved as value tree.
+*	@ingroup core
+*/
+class RestorableObject
+{
+public:
 
+	virtual ~RestorableObject() {};
+
+	/** Overwrite this method and return a representation of the object as ValueTree.
+	*
+	*	It's best practice to only store variables that are not internal (eg. states ...)
+	*/
+	virtual ValueTree exportAsValueTree() const = 0;
+
+	/** Overwrite this method and restore the properties of this object using the referenced ValueTree.
+	*/
+	virtual void restoreFromValueTree(const ValueTree &previouslyExportedState) = 0;
+};
+
+class MainController;
+
+/** A base class for all objects that need access to a MainController.
+*	@ingroup core
+*
+*	If you want to have access to the main controller object, derive the class from this object and pass a pointer to the MainController
+*	instance in the constructor.
+*/
+class ControlledObject
+{
+public:
+
+	/** Creates a new ControlledObject. The MainController must be supplied. */
+	ControlledObject(MainController *m);
+
+	virtual ~ControlledObject();
+
+	/** Provides read-only access to the main controller. */
+	const MainController *getMainController() const noexcept
+	{
+		jassert(controller != nullptr);
+		return controller;
+	};
+
+	/** Provides write access to the main controller. Use this if you want to make changes. */
+	MainController *getMainController() noexcept
+	{
+		jassert(controller != nullptr);
+		return controller;
+	}
+
+private:
+
+	friend class WeakReference<ControlledObject>;
+	WeakReference<ControlledObject>::Master masterReference;
+
+	MainController* const controller;
+
+	friend class MainController;
+	friend class ProcessorFactory;
+};
 
 /** A small helper class that detects a timeout.
 *
@@ -391,162 +410,6 @@ private:
 #define ADD_GLITCH_DETECTOR(processor, loc)
 #endif
 
-
-/** A collection of little helper functions to clean float arrays.
-*
-*	Source: http://musicdsp.org/showArchiveComment.php?ArchiveID=191
-*/
-struct FloatSanitizers
-{
-	static void sanitizeArray(float* data, int size);;
-
-	static float sanitizeFloatNumber(float& input);;
-
-	struct Test : public UnitTest
-	{
-		Test():
-			UnitTest("Testing float sanitizer")
-		{
-
-		};
-
-		void runTest() override;
-	};
-};
-
-
-static FloatSanitizers::Test floatSanitizerTest;
-
-/** A drop in replacement for the ChangeBroadcaster class from JUCE but with weak references.
-*
-*	If you use the normal class and forget to unregister a listener in its destructor, it will crash the application.
-*	This class uses a weak reference (but still throws an assertion so you still recognize if something is funky), so it handles this case much more gracefully.
-*
-*	Also you can add a string to your message for debugging purposes (with the JUCE class you have no way of knowing what caused the message if you call it asynchronously.
-*/
-class SafeChangeBroadcaster
-{
-public:
-
-	SafeChangeBroadcaster(const String& name_ = {}) :
-		dispatcher(this),
-        flagTimer(this),
-		name(name_)
-	{};
-
-	virtual ~SafeChangeBroadcaster()
-	{
-		dispatcher.cancelPendingUpdate();
-        flagTimer.stopTimer();
-	};
-
-	/** Sends a synchronous change message to all the registered listeners.
-	*
-	*	This will immediately call all the listeners that are registered. For thread-safety reasons, you must only call this method on the main message thread.
-	*/
-	void sendSynchronousChangeMessage();;
-
-	/** Registers a listener to receive change callbacks from this broadcaster.
-	*
-	*	Trying to add a listener that's already on the list will have no effect.
-	*/
-	void addChangeListener(SafeChangeListener *listener);
-
-	/**	Unregisters a listener from the list.
-	*
-	*	If the listener isn't on the list, this won't have any effect.
-	*/
-	void removeChangeListener(SafeChangeListener *listener);
-
-	/** Removes all listeners from the list. */
-	void removeAllChangeListeners();
-
-	/** Causes an asynchronous change message to be sent to all the registered listeners.
-	*
-	*	The message will be delivered asynchronously by the main message thread, so this method will return immediately.
-	*	To call the listeners synchronously use sendSynchronousChangeMessage().
-	*/
-	void sendChangeMessage(const String &/*identifier*/ = String());;
-    
-    /** This will send a message without allocating a message slot.
-    *
-    *   Use this in the audio thread to prevent malloc calls, but don't overuse this feature.
-    */
-    void sendAllocationFreeChangeMessage();
-    
-    void enableAllocationFreeMessages(int timerIntervalMilliseconds);
-
-	bool hasChangeListeners() const noexcept { return !listeners.isEmpty(); }
-
-private:
-
-    class FlagTimer: public Timer
-    {
-    public:
-        
-        
-        FlagTimer(SafeChangeBroadcaster *parent_):
-          parent(parent_),
-          send(false)
-        {
-           
-        }
- 
-        ~FlagTimer()
-        {
-            stopTimer();
-        }
-        
-        void triggerUpdate()
-        {
-            send.store(true);
-        }
-        
-        void timerCallback() override
-        {
-			const bool shouldUpdate = send.load();
-
-            if(shouldUpdate)
-            {
-                parent->sendSynchronousChangeMessage();
-				send.store(false);
-            }
-        }
-        
-        SafeChangeBroadcaster *parent;
-        std::atomic<bool> send;
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FlagTimer)
-    };
-    
-	class AsyncBroadcaster : public AsyncUpdater
-	{
-	public:
-		AsyncBroadcaster(SafeChangeBroadcaster *parent_) :
-			parent(parent_)
-		{}
-
-		void handleAsyncUpdate() override
-		{
-			parent->sendSynchronousChangeMessage();
-		}
-
-		SafeChangeBroadcaster *parent;
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AsyncBroadcaster)
-	};
-
-	const String name;
-
-	AsyncBroadcaster dispatcher;
-    FlagTimer flagTimer;
-
-	String currentString;
-
-	Array<WeakReference<SafeChangeListener>, CriticalSection> listeners;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SafeChangeBroadcaster)
-};
 
 
 
@@ -634,26 +497,6 @@ private:
 };
 
 
-/** A utility class for linear interpolation between samples.
-*	@ingroup utility
-*
-*/
-class Interpolator
-{
-public:
-
-	/** A simple linear interpolation.
-	*
-	*	@param lowValue the value of the lower index.
-	*	@param highValue the value of the higher index.
-	*	@param delta the sub-integer part between the two indexes (must be between 0.0f and 1.0f)
-	*	@returns the interpolated value.
-	*/
-	static float interpolateLinear(const float lowValue, const float highValue, const float delta);
-
-};
-
-
 /** A class that handles temposyncing.
 *	@ingroup utility
 *
@@ -720,10 +563,10 @@ public:
 	}
 
 	/** Returns the name of the tempo with the index 't'. */
-	static const String & getTempoName(int t)
+	static String getTempoName(int t)
 	{
 		jassert(t < numTempos);
-		return tempoNames[t];
+        return t < numTempos ? tempoNames[t] : "Invalid";
 	};
 
 	/** Returns the next Tempo index for the given time. 
@@ -755,7 +598,18 @@ public:
 	}
 
 	/** Returns the index of the tempo with the name 't'. */
-	static Tempo getTempoIndex(const String &t) { return (Tempo)tempoNames.indexOf(t); };
+	static Tempo getTempoIndex(const String &t)
+    {
+        int index = tempoNames.indexOf(t);
+        
+        if(index != -1)
+            return (Tempo)index;
+        else
+        {
+            jassertfalse;
+            return Tempo::Quarter;
+        }
+    };
 
 	/** Fills the internal arrays. Call this on application start. */
 	static void initTempoData()
@@ -778,12 +632,16 @@ public:
 		tempoNames.add("1/32T");	tempoFactors[ThirtyTwoTriplet] = 0.25f / 3.0f;
 		tempoNames.add("1/64D");	tempoFactors[SixtyForthDuet] = 0.125f * 0.5f * 1.5f;
 		tempoNames.add("1/64");		tempoFactors[SixtyForth] = 0.125f * 0.5f;
-		tempoNames.add("1/64T");	tempoFactors[SixtyForthTriplet] = 0.125f * 0.5f / 3.0f;
+		tempoNames.add("1/64T");	tempoFactors[SixtyForthTriplet] = 0.125f / 3.0f;
 	}
 
 private:
 
-	static float getTempoFactor(Tempo t) { return tempoFactors[(int)t]; };
+	static float getTempoFactor(Tempo t)
+    {
+        jassert(t < numTempos);
+        return t < numTempos ? tempoFactors[(int)t] : tempoFactors[(int)Tempo::Quarter];
+    };
 
 	static StringArray tempoNames;
 	static float tempoFactors[numTempos];
@@ -792,73 +650,6 @@ private:
 
 class Processor;
 
-/** Subclass your component from this class and the main window will focus it to allow copy pasting with shortcuts.
-*
-*   Then, in your mouseDown method, call grabCopyAndPasteFocus().
-*	If you call paintOutlineIfSelected from your paint method, it will be automatically highlighted.
-*/
-class CopyPasteTarget
-{
-public:
-
-	CopyPasteTarget() : isSelected(false) {};
-	virtual ~CopyPasteTarget()
-	{
-		masterReference.clear();
-	};
-
-	virtual String getObjectTypeName() = 0;
-	virtual void copyAction() = 0;
-	virtual void pasteAction() = 0;
-
-	void grabCopyAndPasteFocus();
-
-	void dismissCopyAndPasteFocus();
-
-	bool isSelectedForCopyAndPaste() { return isSelected; };
-
-	void paintOutlineIfSelected(Graphics &g)
-	{
-		if (isSelected)
-		{
-			Component *thisAsComponent = dynamic_cast<Component*>(this);
-
-			if (thisAsComponent != nullptr)
-			{
-				Rectangle<float> bounds = Rectangle<float>((float)thisAsComponent->getLocalBounds().getX(),
-														   (float)thisAsComponent->getLocalBounds().getY(),
-														   (float)thisAsComponent->getLocalBounds().getWidth(),
-														   (float)thisAsComponent->getLocalBounds().getHeight());
-
-
-
-				Colour outlineColour = Colour(SIGNAL_COLOUR).withAlpha(0.3f);
-				
-				g.setColour(outlineColour);
-
-				g.drawRect(bounds, 1.0f);
-
-			}
-			else jassertfalse;
-		}
-	}
-
-	void deselect()
-	{
-		isSelected = false;
-		dynamic_cast<Component*>(this)->repaint();
-	}
-
-private:
-
-	WeakReference<CopyPasteTarget>::Master masterReference;
-	friend class WeakReference < CopyPasteTarget > ;
-
-	WeakReference<Processor> processor;
-
-	bool isSelected;
-
-};
 
 
 
@@ -968,72 +759,6 @@ private:
 	MainController *mc;
 };
 
-/** This class is used to simulate different devices.
-*
-*	In the backend application you can choose the current device. In compiled apps
-*	it will be automatically set to the actual model.
-*
-*	It will use different UX paradigms depending on the model as well.
-*
-*	Due to simplicity, it uses a static variable which may cause some glitches when used with plugins, so 
-*	it's recommended to use this only in standalone mode.
-*/
-class HiseDeviceSimulator
-{
-public:
-	enum class DeviceType
-	{
-		Desktop = 0,
-		iPad,
-		iPadAUv3,
-		iPhone,
-        iPhoneAUv3,
-		numDeviceTypes
-	};
-
-    static void init(AudioProcessor::WrapperType wrapper);
-
-	static void setDeviceType(DeviceType newDeviceTye)
-	{
-		currentDevice = newDeviceTye;
-	}
-
-	static DeviceType getDeviceType() { return currentDevice; }
-	
-	static String getDeviceName(int index=-1);
-
-	static bool fileNameContainsDeviceWildcard(const File& f);
-
-	static bool isMobileDevice() { return currentDevice > DeviceType::Desktop; }
-	
-    static bool isAUv3() { return currentDevice == DeviceType::iPadAUv3 || currentDevice == DeviceType::iPhoneAUv3; };
-    
-    static bool isiPhone()
-    {
-        return currentDevice == DeviceType::iPhone || currentDevice == DeviceType::iPhoneAUv3;
-    }
-    
-    static bool isStandalone()
-    {
-#if HISE_IOS
-        return !isAUv3();
-#else
-      
-#if IS_STANDALONE_FRONTEND || USE_BACKEND
-        return true;
-#else
-        return false;
-#endif
-        
-#endif
-    }
-    
-	static Rectangle<int> getDisplayResolution();
-
-	private:
-
-	static DeviceType currentDevice;
-};
 
 class SemanticVersionChecker
 {
@@ -1114,20 +839,45 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DelayedFunctionCaller);
 };
 
-using ProcessorFunction = std::function<bool(Processor*)>;
+
 
 struct SafeFunctionCall
 {
-	SafeFunctionCall(Processor* p_, const ProcessorFunction& f_);
+	enum Status
+	{
+		OK = 0,
+		cancelled,
+		interuptedByMessageThread,
+		processorWasDeleted,
+		nullPointerCall,
+		numStatuses
+	};
 
-	SafeFunctionCall();;
+	using Function = std::function<Status(Processor*)>;
 
-	bool call();
+	SafeFunctionCall(Processor* p_, const Function& f_) noexcept;
 
-	ProcessorFunction f;
+	SafeFunctionCall() noexcept;;
+
+	Status call() const;
+
+	bool isValid() const noexcept { return (bool)f; };
+
+	Result callWithResult() const
+	{
+		auto r = call();
+
+		if (r == OK)
+			return Result::ok();
+
+		return Result::fail(String(r));
+	}
+
+	Function f;
 	WeakReference<Processor> p;
 };
 
+using ProcessorFunction = SafeFunctionCall::Function;
 
 #if USE_VDSP_FFT
 

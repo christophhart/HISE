@@ -76,7 +76,6 @@ void QuasiModalComponent::destroy()
 
 DialogWindowWithBackgroundThread::DialogWindowWithBackgroundThread(const String &title, bool synchronous_) :
 AlertWindow(title, String(), AlertWindow::AlertIconType::NoIcon),
-progress(0.0),
 isQuasiModal(false),
 synchronous(synchronous_)
 {
@@ -96,7 +95,13 @@ synchronous(synchronous_)
 	new DelayedFunctionCaller(f, 200);
 #endif
 
+	Component::SafePointer<DialogWindowWithBackgroundThread> tmp = this;
 
+	logData.logFunction = [tmp](const String& m)
+	{
+		if (tmp.getComponent() != nullptr)
+			tmp->showStatusMessage(m);
+	};
 
 }
 
@@ -114,7 +119,7 @@ void DialogWindowWithBackgroundThread::addBasicComponents(bool addOKButton)
 
 	getTextEditor("state")->setReadOnly(true);
 
-	addProgressBarComponent(progress);
+	addProgressBarComponent(logData.progress);
 	
 	if (addOKButton)
 	{
@@ -188,7 +193,7 @@ void DialogWindowWithBackgroundThread::runSynchronous()
 	destroy();
 }
 
-void DialogWindowWithBackgroundThread::showStatusMessage(const String &message)
+void DialogWindowWithBackgroundThread::showStatusMessage(const String &message) const
 {
 	MessageManagerLock lock(thread);
 
@@ -202,7 +207,6 @@ void DialogWindowWithBackgroundThread::showStatusMessage(const String &message)
 		{
 			// Did you just call this method before 'addBasicComponents()' ?
 			jassertfalse;
-
 		}
 	}
 }
@@ -436,7 +440,7 @@ void SampleDataExporter::run()
 	data.targetFile = getTargetFile();
 	data.metadataJSON = getMetadataJSON();
 	data.fileList = collectMonoliths();
-	data.progress = &progress;
+	data.progress = &logData.progress;
 	data.totalProgress = &totalProgress;
 	data.partSize = 1024 * 1024;
 
@@ -519,8 +523,8 @@ File getDefaultSampleDestination()
 
 #if USE_FRONTEND
 
-	const String product = ProjectHandler::Frontend::getProjectName();
-	const String company = ProjectHandler::Frontend::getCompanyName();
+	const String product = FrontendHandler::getProjectName();
+	const String company = FrontendHandler::getCompanyName();
 
 	const String path = company + "/" + product + "/Samples";
 
@@ -577,10 +581,15 @@ SampleDataImporter::SampleDataImporter(ModalBaseWindow* mbw) :
 		sampleDestination = fc2.getResult();
 	}
 
+#else
+
+#endif
 
 	targetFile = new FilenameComponent("Sample Archive Location", archiveFile, true, false, false, "*.hr1", "", "Choose the Sample Archive");
 	targetFile->setSize(300, 24);
 	addCustomComponent(targetFile);
+
+#if USE_FRONTEND
 
 	sampleDirectory = new FilenameComponent("Sample Folder", sampleDestination, true, true, true, "", "", "Choose the Sample location folder");
 
@@ -686,7 +695,7 @@ void SampleDataImporter::run()
 	data.option = option;
 	data.sourceFile = getSourceFile();
 	data.targetDirectory = getTargetDirectory();
-	data.progress = &progress;
+	data.progress = &logData.progress;
 	data.partProgress = &partProgress;
 	data.totalProgress = &totalProgress;
 
@@ -707,7 +716,7 @@ void SampleDataImporter::run()
 	
 	auto sampleLocation = sampleDirectory->getCurrentFile();
 
-	ProjectHandler::Frontend::setSampleLocation(sampleLocation);
+	FrontendHandler::setSampleLocation(sampleLocation);
 
 	
 #endif
@@ -764,7 +773,7 @@ String SampleDataImporter::getProjectName() const
 #if USE_BACKEND
 	return dynamic_cast<GlobalSettingManager*>(synthChain->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Name);
 #else
-	return ProjectHandler::Frontend::getProjectName();
+	return FrontendHandler::getProjectName();
 #endif
 }
 
@@ -773,7 +782,7 @@ String SampleDataImporter::getCompanyName() const
 #if USE_BACKEND
 	return dynamic_cast<GlobalSettingManager*>(synthChain->getMainController())->getSettingsObject().getSetting(HiseSettings::User::Company);
 #else
-	return ProjectHandler::Frontend::getCompanyName();
+	return FrontendHandler::getCompanyName();
 #endif
 }
 
@@ -786,7 +795,7 @@ String SampleDataImporter::getProjectVersion() const
 	// TODO: change this later...
 	return "1.0.0";
 
-	//return ProjectHandler::Frontend::getVersionString();
+	//return FrontendHandler::getVersionString();
 #endif
 }
 

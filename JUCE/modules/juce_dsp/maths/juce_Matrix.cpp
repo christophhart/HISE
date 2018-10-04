@@ -116,13 +116,13 @@ Matrix<ElementType> Matrix<ElementType>::operator* (const Matrix<ElementType>& o
     auto n = getNumRows(), m = other.getNumColumns(), p = getNumColumns();
     Matrix result (n, m);
 
-    jassert (other.getNumRows() == p && n == m);
+    jassert (p == other.getNumRows());
 
     size_t offsetMat = 0, offsetlhs = 0;
 
-    auto *dst = result.getRawDataPointer();
-    auto *a  = getRawDataPointer();
-    auto *b  = other.getRawDataPointer();
+    auto* dst = result.getRawDataPointer();
+    auto* a = getRawDataPointer();
+    auto* b = other.getRawDataPointer();
 
     for (size_t i = 0; i < n; ++i)
     {

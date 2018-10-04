@@ -38,7 +38,8 @@ namespace hise { using namespace juce;
 class BackendRootWindow;
 
 class BackendCommandTarget: public ApplicationCommandTarget,
-							  public MenuBarModel
+							public MenuBarModel,
+	                        public CopyPasteTargetHandler
 {
 public:
 
@@ -112,6 +113,7 @@ public:
 		MenuExportFileAsPlayerLibrary,
         MenuExportFileAsSnippet,
 		MenuExportSampleDataForInstaller,
+		MenuExportCompileFilesInPool,
 		MenuFileQuit,
 		MenuEditOffset = 0x30000,
 		MenuEditUndo,
@@ -197,6 +199,8 @@ public:
 	virtual ~BackendCommandTarget()
 	{
 		mainCommandManager->setFirstCommandTarget(nullptr);
+
+		CopyPasteTarget::setHandlerFunction(nullptr);
 	};
 
 	ApplicationCommandTarget* getNextCommandTarget() override
@@ -305,7 +309,7 @@ public:
 		static void collectExternalFiles(BackendRootWindow * bpe);
 		static void saveFileAsXml(BackendRootWindow * bpe);
 		static void openFileFromXml(BackendRootWindow * bpe, const File &fileToLoad);
-		static void exportFileAsSnippet(BackendRootWindow* bpe);
+		static void exportFileAsSnippet(BackendProcessor* bp);
 		static void showFilePresetSettings(BackendRootWindow * bpe);
 		static void showFileProjectSettings(BackendRootWindow * bpe);
 		static void showFileUserSettings(BackendRootWindow * bpe);
@@ -315,7 +319,6 @@ public:
 		static void changeCodeFontSize(BackendRootWindow *bpe, bool increase);
 		static void createRSAKeys(BackendRootWindow * bpe);
 		static void createDummyLicenseFile(BackendRootWindow * bpe);
-		static void createDefaultToolbarJSON(BackendRootWindow * bpe);
 		static void toggleForcePoolSearch(BackendRootWindow * bpe);
 		static void archiveProject(BackendRootWindow * bpe);
 		static void downloadNewProject(BackendRootWindow * bpe);
@@ -347,10 +350,12 @@ public:
 
 		static String createWindowsInstallerTemplate(MainController* mc, bool includeAAX);
 		static void convertSampleMapToWavetableBanks(BackendRootWindow* bpe);
+		static void exportCompileFilesInPool(BackendRootWindow* bpe);
 	};
 
 private:
 
+	CopyPasteTarget::HandlerFunction handlerFunction;
 
 	friend class BackendRootWindow;
 

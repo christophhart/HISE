@@ -15,11 +15,14 @@ DynamicsEffect::DynamicsEffect(MainController *mc, const String &uid) :
 	gateEnabled(false),
 	compressorEnabled(false),
 	limiterEnabled(false),
+	limiterPending(false),
 	limiterMakeupGain(1.0f),
 	compressorMakeupGain(1.0f),
 	limiterMakeup(false),
 	compressorMakeup(false)
 {
+	finaliseModChains();
+
 	parameterNames.add("GateEnabled");
 	parameterNames.add("GateThreshold");
 	parameterNames.add("GateAttack");
@@ -50,7 +53,13 @@ void DynamicsEffect::setInternalAttribute(int parameterIndex, float newValue)
 	{
 	case GateEnabled:			gateEnabled = newValue > 0.5f; break;
 	case CompressorEnabled:		compressorEnabled = newValue > 0.5f; break;
-	case LimiterEnabled:		limiterEnabled = newValue > 0.5f; break;
+	case LimiterEnabled:
+	{
+		const bool isEnabled = newValue > 0.5f;
+		limiterPending = isEnabled != limiterEnabled;
+		limiterEnabled = isEnabled;
+		break;
+	}
 	case GateThreshold:			gate.setThresh((SimpleDataType)newValue); break;
 	case CompressorThreshold:	compressor.setThresh((SimpleDataType)newValue); updateMakeupValues(false); break;
 	case LimiterThreshold:		limiter.setThresh((SimpleDataType)newValue); updateMakeupValues(true); break;
@@ -202,8 +211,6 @@ void DynamicsEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int
 
 	if (gateEnabled)
 	{
-		
-
 		float* l = buffer.getWritePointer(0, startSample);
 		float* r = buffer.getWritePointer(1, startSample);
 
@@ -256,36 +263,71 @@ void DynamicsEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int
 		}
 	}
 
-	if (limiterEnabled)
+	if (limiterEnabled || limiterPending)
 	{
-		float* l = buffer.getWritePointer(0, startSample);
-		float* r = buffer.getWritePointer(1, startSample);
-
-		for (int i = 0; i < numToProcess; i++)
+		if (limiterPending)
 		{
-			SimpleDataType l_ = (SimpleDataType)*l;
-			SimpleDataType r_ = (SimpleDataType)*r;
+			float* temp[2];
 
-			limiter.process(l_, r_);
+			temp[0] = (float*)alloca(sizeof(float) * numToProcess);
+			temp[1] = (float*)alloca(sizeof(float) * numToProcess);
 
-			const float gR = (float)limiter.getGainReduction();
+			const float dryRampStart = limiterEnabled ? 1.0f : 0.0f;
+			const float dryRampEnd = 1.0f - dryRampStart;
+			const float wetRampStart = dryRampEnd;
+			const float wetRampEnd = dryRampStart;
 
-			if (gR > limiterReduction)
-				limiterReduction = gR;
-			else
-				limiterReduction = limiterReduction * 0.9999f;
+			AudioSampleBuffer tempBuffer(temp, 2, numToProcess);
+			tempBuffer.clear();
+			tempBuffer.copyFromWithRamp(0, 0, buffer.getReadPointer(0, startSample), numToProcess, dryRampStart, dryRampEnd);
+			tempBuffer.copyFromWithRamp(1, 0, buffer.getReadPointer(1, startSample), numToProcess, dryRampStart, dryRampEnd);
 
-			*l++ = (float)l_;
-			*r++ = (float)r_;
+			applyLimiter(buffer, startSample, numToProcess);
+
+			buffer.applyGainRamp(startSample, numToProcess, wetRampStart, wetRampEnd);
+			
+			FloatVectorOperations::add(buffer.getWritePointer(0, startSample), temp[0], numToProcess);
+			FloatVectorOperations::add(buffer.getWritePointer(1, startSample), temp[1], numToProcess);
+
+			limiterPending = false;
 		}
-
-		if (limiterMakeup)
+		else
 		{
-			FloatVectorOperations::multiply(buffer.getWritePointer(0, startSample), limiterMakeupGain, numToProcess);
-			FloatVectorOperations::multiply(buffer.getWritePointer(1, startSample), limiterMakeupGain, numToProcess);
+			applyLimiter(buffer, startSample, numToProcess);
 		}
 	}
-	
+}
+
+void DynamicsEffect::applyLimiter(AudioSampleBuffer &buffer, int startSample, const int numToProcess)
+{
+	float* l = buffer.getWritePointer(0, startSample);
+	float* r = buffer.getWritePointer(1, startSample);
+
+
+
+	for (int i = 0; i < numToProcess; i++)
+	{
+		SimpleDataType l_ = (SimpleDataType)*l;
+		SimpleDataType r_ = (SimpleDataType)*r;
+
+		limiter.process(l_, r_);
+
+		const float gR = (float)limiter.getGainReduction();
+
+		if (gR > limiterReduction)
+			limiterReduction = gR;
+		else
+			limiterReduction = limiterReduction * 0.9999f;
+
+		*l++ = (float)l_;
+		*r++ = (float)r_;
+	}
+
+	if (limiterMakeup)
+	{
+		FloatVectorOperations::multiply(buffer.getWritePointer(0, startSample), limiterMakeupGain, numToProcess);
+		FloatVectorOperations::multiply(buffer.getWritePointer(1, startSample), limiterMakeupGain, numToProcess);
+	}
 }
 
 void DynamicsEffect::prepareToPlay(double sampleRate, int samplesPerBlock)

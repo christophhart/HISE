@@ -114,7 +114,7 @@ void HiseSampleBuffer::clear()
 
 void HiseSampleBuffer::clear(int startSample, int numSamples)
 {
-	if (numSamples == 0)
+	if (numSamples <= 0)
 		return;
 
 	if (isFloatingPoint())
@@ -130,7 +130,7 @@ void HiseSampleBuffer::clear(int startSample, int numSamples)
 
 void HiseSampleBuffer::copy(HiseSampleBuffer& dst, const HiseSampleBuffer& source, int startSampleDst, int startSampleSource, int numSamples)
 {
-	if (numSamples == 0)
+	if (numSamples <= 0)
 		return;
 
 	if (source.isFloatingPoint() == dst.isFloatingPoint())
@@ -156,7 +156,7 @@ void HiseSampleBuffer::copy(HiseSampleBuffer& dst, const HiseSampleBuffer& sourc
 
 void HiseSampleBuffer::add(HiseSampleBuffer& dst, const HiseSampleBuffer& source, int startSampleDst, int startSampleSource, int numSamples)
 {
-	if (numSamples == 0)
+	if (numSamples <= 0)
 		return;
 
 	if (source.isFloatingPoint() && dst.isFloatingPoint())

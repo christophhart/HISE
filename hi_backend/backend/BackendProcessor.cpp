@@ -37,35 +37,59 @@ MainController(),
 AudioProcessorDriver(deviceManager_, callback_),
 viewUndoManager(new UndoManager())
 {
-	
 	ExtendedApiDocumentation::init();
 
     synthChain = new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES, viewUndoManager);
-
     
 	synthChain->addProcessorsWhenEmpty();
 
 	getSampleManager().getModulatorSamplerSoundPool()->setDebugProcessor(synthChain);
-
 	getMacroManager().setMacroChain(synthChain);
 
-	
-
-	handleEditorData(false);
-
-	restoreGlobalSettings(this);
+	if (!inUnitTestMode())
+	{
+		handleEditorData(false);
+		restoreGlobalSettings(this);
+	}
 
 	initData(this);
 
-	getAutoSaver().updateAutosaving();
+	if (!inUnitTestMode())
+	{
+		getAutoSaver().updateAutosaving();
+	}
+	
+	clearPreset();
+	getSampleManager().getProjectHandler().addListener(this);
+
+	if (!inUnitTestMode())
+	{
+		auto tmp = getCurrentSampleMapPool(true);
+
+		auto f = [tmp](Processor*)
+		{
+			tmp->loadAllFilesFromProjectFolder();
+			return SafeFunctionCall::OK;
+		};
+
+		getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
+	}
 
 
-	createUserPresetData();
+	
 }
 
 
 BackendProcessor::~BackendProcessor()
 {
+	AudioThreadGuard::setHandler(nullptr);
+
+	getSampleManager().cancelAllJobs();
+
+	getSampleManager().getProjectHandler().removeListener(this);
+
+	deletePendingFlag = true;
+
 	clearPreset();
 
 	synthChain = nullptr;
@@ -74,6 +98,22 @@ BackendProcessor::~BackendProcessor()
 }
 
 
+
+void BackendProcessor::projectChanged(const File& /*newRootDirectory*/)
+{
+	getExpansionHandler().setCurrentExpansion("");
+	getExpansionHandler().getCurrentPoolCollection()->clear();
+
+	auto tmp = getCurrentSampleMapPool(true);
+
+	auto f = [tmp](Processor*)
+	{
+		tmp->loadAllFilesFromProjectFolder();
+		return SafeFunctionCall::OK;
+	};
+
+	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
+}
 
 void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
@@ -106,7 +146,7 @@ void BackendProcessor::getStateInformation(MemoryBlock &destData)
 		root->saveInterfaceData();
 	}
 
-	v.setProperty("InterfaceData", JSON::toString(editorInformation, true), nullptr);
+	v.setProperty("InterfaceData", JSON::toString(editorInformation, true, DOUBLE_TO_STRING_DIGITS), nullptr);
 
 	v.writeToStream(output);
 }
@@ -149,7 +189,7 @@ void BackendProcessor::setStateInformation(const void *data, int sizeInBytes)
 
 		tmp.reset();
 
-		return true;
+		return SafeFunctionCall::OK;
 	};
 
 	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);

@@ -70,6 +70,8 @@ public:
     //==============================================================================
     static CharPointerType createUninitialisedBytes (size_t numBytes)
     {
+		WARN_IF_AUDIO_THREAD(numBytes > 0, IllegalAudioThreadOps::StringCreation);
+
         numBytes = (numBytes + 3) & ~(size_t) 3;
         auto s = reinterpret_cast<StringHolder*> (new char [sizeof (StringHolder) - sizeof (CharType) + numBytes]);
         s->refCount.value = 0;

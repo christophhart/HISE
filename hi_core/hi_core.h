@@ -57,6 +57,11 @@ END_JUCE_MODULE_DECLARATION
 
 #include "AppConfig.h"
 
+#ifndef DOUBLE_TO_STRING_DIGITS
+#define DOUBLE_TO_STRING_DIGITS 8
+#endif
+
+
 #include "../JUCE/modules/juce_core/juce_core.h"
 #include "../JUCE/modules/juce_audio_basics/juce_audio_basics.h"
 #include "../JUCE/modules/juce_gui_basics/juce_gui_basics.h"
@@ -65,8 +70,8 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
 #include "../JUCE/modules/juce_product_unlocking/juce_product_unlocking.h"
 #include "../JUCE/modules/juce_dsp/juce_dsp.h"
-#include "../hi_streaming/hi_streaming.h"
-
+#include "../hi_zstd/hi_zstd.h"
+#include "../hi_tools/hi_tools.h"
 
 #include <complex>
 
@@ -293,14 +298,16 @@ For all defined variables:
 
 
 
-#include "hi_binary_data/hi_binary_data.h"
+
 
 #include "LibConfig.h"
 #include "Macros.h"
 
+#include "additional_libraries/additional_libraries.h"
+
 #include "hi_core/hi_core.h" // has its own namespace definition
 
-#include "additional_libraries/additional_libraries.h"
+
 
 
 

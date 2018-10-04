@@ -83,6 +83,7 @@ Array<juce::Identifier> HiseSettings::Compiler::getAllIds()
 	ids.add(HisePath);
 	ids.add(VisualStudioVersion);
 	ids.add(UseIPP);
+	ids.add(RebuildPoolFiles);
 
 	return ids;
 }
@@ -119,6 +120,7 @@ Array<juce::Identifier> HiseSettings::Other::getAllIds()
 
 	ids.add(EnableAutosave);
 	ids.add(AutosaveInterval);
+	ids.add(AudioThreadGuardEnabled);
 
 	return ids;
 }
@@ -290,6 +292,12 @@ struct SettingDescription
 		D("> If you use the convolution reverb in your project, this is almost mandatory, but there are a few other places that benefit from having this library");
 		P_();
 
+		P(HiseSettings::Compiler::RebuildPoolFiles);
+		D("If enabled, the pool files for SampleMaps, AudioFiles and Images are deleted and rebuild everytime you export a plugin.");
+		D("You can turn this off in order to speed up compilation times, however be aware that in this case you need to delete them manually");
+		D("whenever you change the referenced data in any way or it will use the deprecated cached files.");
+		P_();
+
 		P(HiseSettings::Scripting::CodeFontSize);
 		D("Changes the font size of the scripting editor. Beware that on newer versions of macOS, some font sizes will not be displayed (Please don't ask why...).  ");
 		D("So if you're script is invisible, this might be the reason.");
@@ -341,6 +349,10 @@ struct SettingDescription
 		D("The interval for the autosaver in minutes. This must be a number between `1` and `30`.");
 		P_();
 
+		P(HiseSettings::Other::AudioThreadGuardEnabled);
+		D("Watches for illegal calls in the audio thread. Use this during script development to catch allocations etc.");
+		P_();
+
 		return s;
 
 	};
@@ -363,19 +375,27 @@ HiseSettings::Data::Data(MainController* mc_) :
 
 juce::File HiseSettings::Data::getFileForSetting(const Identifier& id) const
 {
-	auto handler = &GET_PROJECT_HANDLER(mc->getMainSynthChain());
-	auto appDataFolder = File(PresetHandler::getDataFolder());
+	
+	auto appDataFolder = NativeFileHandler::getAppDataDirectory();
 
-	if		(id == SettingFiles::ProjectSettings)	return handler->getWorkDirectory().getChildFile("project_info.xml");
-	else if (id == SettingFiles::UserSettings)		return handler->getWorkDirectory().getChildFile("user_info.xml");
-	else if (id == SettingFiles::CompilerSettings)	return appDataFolder.getChildFile("compilerSettings.xml");
-	else if (id == SettingFiles::AudioSettings)		return appDataFolder.getChildFile("DeviceSettings.xml");
+	if (id == SettingFiles::AudioSettings)		return appDataFolder.getChildFile("DeviceSettings.xml");
 	else if (id == SettingFiles::MidiSettings)		return appDataFolder.getChildFile("DeviceSettings.xml");
 	else if (id == SettingFiles::GeneralSettings)	return appDataFolder.getChildFile("GeneralSettings.xml");
+
+#if USE_BACKEND
+
+	auto handler = &GET_PROJECT_HANDLER(mc->getMainSynthChain());
+
+	if (id == SettingFiles::ProjectSettings)	return handler->getWorkDirectory().getChildFile("project_info.xml");
+	else if (id == SettingFiles::UserSettings)		return handler->getWorkDirectory().getChildFile("user_info.xml");
+	else if (id == SettingFiles::CompilerSettings)	return appDataFolder.getChildFile("compilerSettings.xml");
 	else if (id == SettingFiles::ScriptingSettings)	return appDataFolder.getChildFile("ScriptSettings.xml");
 	else if (id == SettingFiles::OtherSettings)		return appDataFolder.getChildFile("OtherSettings.xml");
 
 	jassertfalse;
+
+#endif
+	
 	return File();
 }
 
@@ -447,7 +467,9 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Compiler::UseIPP ||
 		id == Scripting::EnableCallstack ||
 		id == Other::EnableAutosave ||
-		id == Scripting::EnableDebugMode)
+		id == Scripting::EnableDebugMode ||
+		id == Other::AudioThreadGuardEnabled ||
+		id == Compiler::RebuildPoolFiles) 
 		return { "Yes", "No" };
 
 	if (id == Compiler::VisualStudioVersion)
@@ -574,32 +596,35 @@ void HiseSettings::Data::initialiseAudioDriverData(bool forceReload/*=false*/)
 
 var HiseSettings::Data::getDefaultSetting(const Identifier& id)
 {
-	auto& handler = GET_PROJECT_HANDLER(mc->getMainSynthChain());
+	BACKEND_ONLY(auto& handler = GET_PROJECT_HANDLER(mc->getMainSynthChain()));
 
 	if (id == Project::Name)
 	{
-		
-		return handler.getWorkDirectory().getFileName();
+		BACKEND_ONLY(return handler.getWorkDirectory().getFileName());
 	}
 	else if (id == Project::Version)			    return "1.0.0";
 	else if (id == Project::BundleIdentifier)	    return "com.myCompany.product";
 	else if (id == Project::PluginCode)			    return "Abcd";
-	else if (id == Project::EmbedAudioFiles)		return "No";
-	else if (id == Project::RedirectSampleFolder)	return handler.isRedirected(ProjectHandler::SubDirectories::Samples) ? handler.getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName() : "";
+	else if (id == Project::EmbedAudioFiles)		return "Yes";
+	else if (id == Project::RedirectSampleFolder)	BACKEND_ONLY(return handler.isRedirected(ProjectHandler::SubDirectories::Samples) ? handler.getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName() : "");
 	else if (id == Other::EnableAutosave)			return "Yes";
 	else if (id == Other::AutosaveInterval)			return 5;
+	else if (id == Other::AudioThreadGuardEnabled)  return "Yes";
 	else if (id == Scripting::CodeFontSize)			return 17.0;
 	else if (id == Scripting::EnableCallstack)		return "No";
 	else if (id == Scripting::CompileTimeout)		return 5.0;
 	else if (id == Compiler::VisualStudioVersion)	return "Visual Studio 2017";
 	else if (id == Compiler::UseIPP)				return "Yes";
+	else if (id == Compiler::RebuildPoolFiles)		return "Yes";
 	else if (id == User::CompanyURL)				return "http://yourcompany.com";
 	else if (id == User::CompanyCopyright)			return "(c)2017, Company";
 	else if (id == User::CompanyCode)				return "Abcd";
 	else if (id == User::Company)					return "My Company";
 	else if (id == Scripting::GlobalScriptPath)		
 	{
-		File scriptFolder = File(PresetHandler::getDataFolder()).getChildFile("scripts");
+		FRONTEND_ONLY(jassertfalse);
+
+		File scriptFolder = File(NativeFileHandler::getAppDataDirectory()).getChildFile("scripts");
 		if (!scriptFolder.isDirectory())
 			scriptFolder.createDirectory();
 
@@ -707,14 +732,14 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 {
 	if (id == Project::RedirectSampleFolder)
 	{
+#if USE_BACKEND
 		auto& handler = GET_PROJECT_HANDLER(mc->getMainSynthChain());
-
 
 		if (File::isAbsolutePath(newValue.toString()))
 			handler.createLinkFile(ProjectHandler::SubDirectories::Samples, File(newValue.toString()));
 		else
 			ProjectHandler::getLinkFile(handler.getWorkDirectory().getChildFile("Samples")).deleteFile();
-	
+#endif
 	}
 
 	if (id == Scripting::EnableCallstack)
@@ -725,6 +750,8 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 
 	else if (id == Other::EnableAutosave || id == Other::AutosaveInterval)
 		mc->getAutoSaver().updateAutosaving();
+	else if (id == Other::AudioThreadGuardEnabled)
+		mc->getKillStateHandler().enableAudioThreadGuard(newValue);
 
 	else if (id == Scripting::EnableDebugMode)
 		newValue ? mc->getDebugLogger().startLogging() : mc->getDebugLogger().stopLogging();
@@ -734,59 +761,67 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 		dynamic_cast<AudioProcessorDriver*>(mc)->setCurrentBlockSize(newValue.toString().getIntValue());
 	else if (id == Audio::Driver)
 	{
-		auto driver = dynamic_cast<AudioProcessorDriver*>(mc);
-		driver->deviceManager->setCurrentAudioDeviceType(newValue.toString(), true);
-		auto device = driver->deviceManager->getCurrentAudioDevice();
-
-		if (device == nullptr)
+		if (newValue.toString().isNotEmpty())
 		{
-			PresetHandler::showMessageWindow("Error initialising driver", "The audio driver could not be opened. The default settings will be loaded.", PresetHandler::IconType::Error);
-			driver->resetToDefault();
-		}
+			auto driver = dynamic_cast<AudioProcessorDriver*>(mc);
+			driver->deviceManager->setCurrentAudioDeviceType(newValue.toString(), true);
+			auto device = driver->deviceManager->getCurrentAudioDevice();
 
-		initialiseAudioDriverData(true);
-		sendChangeMessage();
+			if (device == nullptr)
+			{
+				PresetHandler::showMessageWindow("Error initialising driver", "The audio driver could not be opened. The default settings will be loaded.", PresetHandler::IconType::Error);
+				driver->resetToDefault();
+			}
+
+			initialiseAudioDriverData(true);
+			sendChangeMessage();
+		}
 	}
 	else if (id == Audio::Output)
 	{
-		auto driver = dynamic_cast<AudioProcessorDriver*>(mc);
-		auto device = driver->deviceManager->getCurrentAudioDevice();
-		auto list = ConversionHelpers::getChannelPairs(device);
-		auto outputIndex = list.indexOf(newValue.toString());
-
-		if (outputIndex != -1)
+		if (newValue.toString().isNotEmpty())
 		{
-			AudioDeviceManager::AudioDeviceSetup config;
-			driver->deviceManager->getAudioDeviceSetup(config);
+			auto driver = dynamic_cast<AudioProcessorDriver*>(mc);
+			auto device = driver->deviceManager->getCurrentAudioDevice();
+			auto list = ConversionHelpers::getChannelPairs(device);
+			auto outputIndex = list.indexOf(newValue.toString());
 
-			auto& original = config.outputChannels;
+			if (outputIndex != -1)
+			{
+				AudioDeviceManager::AudioDeviceSetup config;
+				driver->deviceManager->getAudioDeviceSetup(config);
 
-			original.clear();
-			original.setBit(outputIndex * 2, 1);
-			original.setBit(outputIndex * 2 + 1, 1);
+				auto& original = config.outputChannels;
 
-			config.useDefaultOutputChannels = false;
+				original.clear();
+				original.setBit(outputIndex * 2, 1);
+				original.setBit(outputIndex * 2 + 1, 1);
 
-			driver->deviceManager->setAudioDeviceSetup(config, true);
+				config.useDefaultOutputChannels = false;
+
+				driver->deviceManager->setAudioDeviceSetup(config, true);
+			}
 		}
-
-		
 	}
 	else if (id == Audio::Device)
 	{
-		auto driver = dynamic_cast<AudioProcessorDriver*>(mc);
-		driver->setAudioDevice(newValue.toString());
-
-		auto device = driver->deviceManager->getCurrentAudioDevice();
-
-		if (device == nullptr)
+		if (newValue.toString().isNotEmpty())
 		{
-			PresetHandler::showMessageWindow("Error initialising driver", "The audio driver could not be opened. The default settings will be loaded.", PresetHandler::IconType::Error);
-			driver->resetToDefault();
-		}
+			auto driver = dynamic_cast<AudioProcessorDriver*>(mc);
 
-		initialiseAudioDriverData(true);
-		sendChangeMessage();
+			driver->setAudioDevice(newValue.toString());
+
+			auto device = driver->deviceManager->getCurrentAudioDevice();
+
+			if (device == nullptr)
+			{
+				PresetHandler::showMessageWindow("Error initialising driver", "The audio driver could not be opened. The default settings will be loaded.", PresetHandler::IconType::Error);
+				driver->resetToDefault();
+			}
+
+			initialiseAudioDriverData(true);
+			sendChangeMessage();
+		}
 	}
 	else if (id == Midi::MidiInput)
 	{

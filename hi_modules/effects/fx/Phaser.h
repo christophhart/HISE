@@ -79,8 +79,6 @@ public:
 	int getNumInternalChains() const override { return numInternalChains; };
     Processor *getChildProcessor(int /*processorIndex*/) override { return phaseModulationChain; };
     const Processor *getChildProcessor(int /*processorIndex*/) const override { return phaseModulationChain; };
-    
-	AudioSampleBuffer &getBufferForChain(int /*index*/) override { return phaseModulationBuffer; };
 
     ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
     
@@ -95,6 +93,10 @@ private:
 		void setSampleRate(double newSampleRate);
 
 		float getNextSample(float input, float modValue);;
+
+		void setConstDelay(float modValue);
+
+		float getNextSample(float input);
 
 	private:
 
@@ -137,19 +139,16 @@ private:
 		float currentValue;
 	};
 
-	void updateFrequencies()
-	{
-		phaserLeft.setRange(freq1, freq2);
-		phaserRight.setRange(freq1, freq2);
-	}
+	void updateFrequencies();
 
 	float freq1, freq2;
 	float feedback;
 	float mix;
 
-	ScopedPointer<ModulatorChain> phaseModulationChain;
+	LinearSmoothedValue<float> freq1Smoothed;
+	LinearSmoothedValue<float> freq2Smoothed;
 
-	AudioSampleBuffer phaseModulationBuffer;
+	ModulatorChain* phaseModulationChain;
 
 	PhaseModulator phaserLeft;
 	PhaseModulator phaserRight;

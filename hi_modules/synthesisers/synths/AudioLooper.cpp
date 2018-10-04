@@ -99,9 +99,9 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 	const int startIndex = startSample;
 	const int samplesToCopy = numSamples;
 
-	const float *voicePitchValues = getVoicePitchValues();
+	const float *voicePitchValues = getOwnerSynth()->getPitchValuesForVoice();
 
-	const float *modValues = getVoiceGainValues(startSample, numSamples);
+	
 
 	AudioLooper *looper = static_cast<AudioLooper*>(getOwnerSynth());
 
@@ -137,6 +137,9 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 
 	auto loopOffset = jmax<int>(0, loopStart - offset);
 
+	bool resetAfterBlock = false;
+	bool checkReset = !looper->isUsingLoop();
+
 	while (--numSamples >= 0)
 	{
 		int uptime = (int)voiceUptime;
@@ -147,11 +150,12 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 		//const int samplePos = (int)voiceUptime % looper->length + looper->sampleRange.getStart();
 		//const int nextSamplePos = ((int)voiceUptime + 1) % looper->length + looper->sampleRange.getStart();
 
-        if(!looper->isUsingLoop() && uptime > looper->length)
+        if(checkReset && (uptime+2) > looper->length)
         {
-			voiceBuffer.clear(startSample, numSamples);
-			resetVoice();
-            return;
+			voiceBuffer.clear(startSample, numSamples+1);
+
+			resetAfterBlock = true;
+			break;
         }
         
 		const double alpha = fmod(voiceUptime, 1.0);
@@ -183,8 +187,11 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 
 	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
 
-	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
-	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
+	if (auto modValues = getOwnerSynth()->getVoiceGainValues())
+	{
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
+	}
 
 	if (isLastVoice && looper->length != 0 && looper->inputMerger.shouldUpdate())
 	{
@@ -195,6 +202,9 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 		//const float inputValue = (float)((int)voiceUptime % looper->length) / (float)looper->length;
 		looper->setInputValue((float)samplePos / (float)actualLength, dontSendNotification);
 	}
+
+	if (resetAfterBlock)
+		resetVoice();
 }
 
 void AudioLooperVoice::resetVoice()
@@ -212,6 +222,8 @@ syncMode(AudioSampleProcessor::SyncToHostMode::FreeRunning),
 pitchTrackingEnabled(false),
 rootNote(64)
 {
+	finaliseModChains();
+
 	parameterNames.add("SyncMode");
 	parameterNames.add("LoopEnabled");
 	parameterNames.add("PitchTracking");

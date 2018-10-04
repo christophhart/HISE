@@ -45,14 +45,18 @@ PitchwheelModulator::PitchwheelModulator(MainController *mc, const String &id, M
 {
 	this->enableConsoleOutput(false);
 	
+	table->setXTextConverter(Modulation::getDomainAsPitchBendRange);
+
 	parameterNames.add("Inverted");
 	parameterNames.add("UseTable");
 	parameterNames.add("SmoothTime");
 
+	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().addListener(this);
 };
 
 PitchwheelModulator::~PitchwheelModulator()
 {
+	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().removeListener(this);
 };
 
 ProcessorEditorBody *PitchwheelModulator::createEditor(ProcessorEditor *parentEditor)
@@ -112,6 +116,28 @@ void PitchwheelModulator::setInternalAttribute (int parameter_index, float newVa
 };
 
 
+void PitchwheelModulator::calculateBlock(int startSample, int numSamples)
+{
+	const bool smoothThisBlock = fabsf(targetValue - currentValue) > 0.001f;
+
+	if (smoothThisBlock)
+	{
+		while (--numSamples >= 0)
+		{
+			currentValue = smoother.smooth(targetValue);
+			internalBuffer.setSample(0, startSample, currentValue);
+			++startSample;
+		}
+	}
+	else
+	{
+		currentValue = targetValue;
+		FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), currentValue, numSamples);
+	}
+
+	if (useTable) sendTableIndexChangeMessage(false, table, inputValue);
+}
+
 float PitchwheelModulator::calculateNewValue ()
 {
 	currentValue = (fabsf(targetValue - currentValue) < 0.001) ? targetValue : smoother.smooth(targetValue);
@@ -122,7 +148,9 @@ float PitchwheelModulator::calculateNewValue ()
 	/** sets the new target value if the controller number matches. */
 void PitchwheelModulator::handleHiseEvent (const HiseEvent &m)
 {
-	
+	if (mpeEnabled && m.getChannel() != 1)
+		return;
+
 	if(m.isPitchWheel())
 	{
 		inputValue = m.getPitchWheelValue() / 16383.0f;

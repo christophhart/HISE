@@ -65,14 +65,10 @@ END_JUCE_MODULE_DECLARATION
 
 #include "resizable_height_component/ResizableHeightComponent.h"
 
-#include "vu_meter/Plotter.h"
 
-#include "drag_plot/SliderPack.h"
-#include "drag_plot/TableEditor.h"
 #include "keyboard/CustomKeyboard.h"
 #include "plugin_components/VoiceCpuBpmComponent.h"
 #include "plugin_components/PresetBrowser.h"
-#include "plugin_components/PresetComponents.h"
 #include "plugin_components/StandalonePopupComponents.h"
 
 #include "plugin_components/FrontendBar.h"
@@ -82,9 +78,7 @@ END_JUCE_MODULE_DECLARATION
 #include "plugin_components/PluginPreviewWindow.h"
 #endif
 
-#include "wave_components/SampleDisplayComponent.h"
-
-#include "vu_meter/VuMeter.h"
+#include "wave_components/SampleComponents.h"
 
 
 #include "eq_plot/FilterInfo.h"
@@ -93,5 +87,14 @@ END_JUCE_MODULE_DECLARATION
 
 #include "floating_layout/FloatingLayout.h"
 #include "plugin_components/PanelTypes.h"
+
+#include "hi_expansion/ExpansionFloatingTiles.h"
+
+namespace hise {
+using namespace juce;
+
+}
+
+
 
 #endif  // HI_COMPONENTS_H_INCLUDED

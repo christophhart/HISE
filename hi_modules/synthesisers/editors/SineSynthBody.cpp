@@ -217,7 +217,7 @@ void SineSynthBody::sliderValueChanged (Slider* sliderThatWasMoved)
     {
         //[UserSliderCode_saturationSlider] -- add your slider handling code here..
 
-		waveDisplay->timerCallback();
+		
         //[/UserSliderCode_saturationSlider]
     }
 
@@ -334,8 +334,7 @@ void SineSynthBody::updateGui()
 	semiToneSlider->updateValue();
 	musicalRatio->updateValue();
 	saturationSlider->updateValue();
-	waveDisplay->timerCallback();
-
+	
 	fadeTimeEditor->setText(String((int)getProcessor()->getAttribute(ModulatorSynth::KillFadeTime)), dontSendNotification);
 	voiceAmountEditor->setText(String((int)getProcessor()->getAttribute(ModulatorSynth::VoiceLimit)), dontSendNotification);
 

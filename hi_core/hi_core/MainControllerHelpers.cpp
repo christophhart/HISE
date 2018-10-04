@@ -35,6 +35,7 @@ namespace hise { using namespace juce;
 
 MidiControllerAutomationHandler::MidiControllerAutomationHandler(MainController *mc_) :
 anyUsed(false),
+mpeData(mc_),
 mc(mc_)
 {
 	tempBuffer.ensureSize(2048);
@@ -107,7 +108,10 @@ int MidiControllerAutomationHandler::getMidiControllerNumber(Processor *interfac
 
 void MidiControllerAutomationHandler::refreshAnyUsedState()
 {
-	ScopedLock sl(mc->getLock());
+	AudioThreadGuard::Suspender suspender;
+	LockHelpers::SafeLock sl(mc, LockHelpers::AudioLock);
+
+	ignoreUnused(suspender);
 
 	anyUsed = false;
 
@@ -138,16 +142,19 @@ void MidiControllerAutomationHandler::clear()
 
 void MidiControllerAutomationHandler::removeMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NotificationType notifyListeners)
 {
-	ScopedLock sl(mc->getLock());
-
-	for (int i = 0; i < 128; i++)
 	{
-		for (auto& a : automationData[i])
+		AudioThreadGuard audioGuard(&(mc->getKillStateHandler()));
+		LockHelpers::SafeLock sl(mc, LockHelpers::AudioLock);
+
+		for (int i = 0; i < 128; i++)
 		{
-			if (a.processor == interfaceProcessor && a.attribute == attributeIndex)
+			for (auto& a : automationData[i])
 			{
-				automationData[i].removeAllInstancesOf(a);
-				break;
+				if (a.processor == interfaceProcessor && a.attribute == attributeIndex)
+				{
+					automationData[i].removeAllInstancesOf(a);
+					break;
+				}
 			}
 		}
 	}
@@ -164,7 +171,8 @@ attribute(-1),
 parameterRange(NormalisableRange<double>()),
 fullRange(NormalisableRange<double>()),
 macroIndex(-1),
-used(false)
+used(false),
+inverted(false)
 {
 
 }
@@ -183,10 +191,434 @@ void MidiControllerAutomationHandler::AutomationData::clear()
 	used = false;
 }
 
+
+
 bool MidiControllerAutomationHandler::AutomationData::operator==(const AutomationData& other) const
 {
 	return other.processor == processor && other.attribute == attribute;
 }
+
+void MidiControllerAutomationHandler::AutomationData::restoreFromValueTree(const ValueTree &v)
+{
+	ccNumber = v.getProperty("Controller", 1);;
+	processor = ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), v.getProperty("Processor"));
+	macroIndex = v.getProperty("MacroIndex");
+
+	auto attributeString = v.getProperty("Attribute", attribute).toString();
+
+	const bool isParameterId = attributeString.containsAnyOf("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
+
+	// The parameter was stored correctly as ID
+	if (isParameterId && processor.get() != nullptr)
+	{
+		const Identifier pId(attributeString);
+
+		for (int j = 0; j < processor->getNumParameters(); j++)
+		{
+			if (processor->getIdentifierForParameterIndex(j) == pId)
+			{
+				attribute = j;
+				break;
+			}
+		}
+	}
+	else
+	{
+		// This tries to obtain the correct id.
+		auto presetVersion = v.getRoot().getProperty("Version").toString();
+
+		const Identifier pId = UserPresetHelpers::getAutomationIndexFromOldVersion(presetVersion, attributeString.getIntValue());
+
+		if (pId.isNull())
+		{
+			attribute = attributeString.getIntValue();
+		}
+		else
+		{
+			for (int j = 0; j < processor->getNumParameters(); j++)
+			{
+				if (processor->getIdentifierForParameterIndex(j) == pId)
+				{
+					attribute = j;
+					break;
+				}
+			}
+		}
+	}
+
+	double start = v.getProperty("Start");
+	double end = v.getProperty("End");
+	double skew = v.getProperty("Skew", parameterRange.skew);
+	double interval = v.getProperty("Interval", parameterRange.interval);
+
+	auto fullStart = v.getProperty("FullStart", start);
+	auto fullEnd = v.getProperty("FullEnd", end);
+
+	parameterRange = NormalisableRange<double>(start, end, interval, skew);
+	fullRange = NormalisableRange<double>(fullStart, fullEnd, interval, skew);
+
+	used = true;
+	inverted = v.getProperty("Inverted", false);
+}
+
+juce::ValueTree MidiControllerAutomationHandler::AutomationData::exportAsValueTree() const
+{
+	ValueTree cc("Controller");
+
+	cc.setProperty("Controller", ccNumber, nullptr);
+	cc.setProperty("Processor", processor->getId(), nullptr);
+	cc.setProperty("MacroIndex", macroIndex, nullptr);
+	cc.setProperty("Start", parameterRange.start, nullptr);
+	cc.setProperty("End", parameterRange.end, nullptr);
+	cc.setProperty("FullStart", fullRange.start, nullptr);
+	cc.setProperty("FullEnd", fullRange.end, nullptr);
+	cc.setProperty("Skew", parameterRange.skew, nullptr);
+	cc.setProperty("Interval", parameterRange.interval, nullptr);
+	cc.setProperty("Attribute", processor->getIdentifierForParameterIndex(attribute).toString(), nullptr);
+	cc.setProperty("Inverted", inverted, nullptr);
+
+	return cc;
+}
+
+
+struct MidiControllerAutomationHandler::MPEData::Data: public Processor::DeleteListener
+{
+	Data(MPEData& parent_) :
+		Processor::DeleteListener(),
+		parent(parent_)
+	{};
+
+	void add(MPEModulator* m)
+	{
+		m->addDeleteListener(this);
+		connections.addIfNotAlreadyThere(m);
+	}
+
+	void remove(MPEModulator* m)
+	{
+		m->removeDeleteListener(this);
+		connections.removeAllInstancesOf(m);
+	}
+
+	void processorDeleted(Processor* deletedProcessor) override
+	{
+		if (auto m = dynamic_cast<MPEModulator*>(deletedProcessor))
+		{
+			connections.removeAllInstancesOf(m);
+
+            parent.sendAsyncNotificationMessage(m, EventType::MPEModConnectionRemoved);
+		}
+		else
+			jassertfalse;
+	}
+
+	void clear()
+	{
+		for (auto c : connections)
+		{
+			if (c)
+			{
+				c->removeDeleteListener(this);
+				c->setBypassed(true);
+				c->sendChangeMessage();
+			}
+			else
+				jassertfalse;
+		}
+
+		connections.clear();
+	}
+
+	void updateChildEditorList(bool /*forceUpdate*/) override {};
+
+	MPEData& parent;
+	Array<WeakReference<MPEModulator>> connections;
+};
+
+MidiControllerAutomationHandler::MPEData::MPEData(MainController* mc) :
+	ControlledObject(mc),
+	data(new Data(*this)),
+	asyncRestorer(*this)
+{
+
+}
+
+
+MidiControllerAutomationHandler::MPEData::~MPEData()
+{
+	jassert(listeners.size() == 0);
+	data = nullptr;
+}
+
+void MidiControllerAutomationHandler::MPEData::AsyncRestorer::timerCallback()
+{
+
+}
+
+
+
+void MidiControllerAutomationHandler::MPEData::restoreFromValueTree(const ValueTree &v)
+{
+	pendingData = v;
+
+	auto f = [this](Processor* p)
+	{
+		LockHelpers::noMessageThreadBeyondInitialisation(p->getMainController());
+
+		clear();
+
+		static const Identifier id("ID");
+
+		setMpeMode(pendingData.getProperty("Enabled", false));
+
+		for (auto d : pendingData)
+		{
+			jassert(d.hasType("Processor"));
+
+			d.setProperty("Type", "MPEModulator", nullptr);
+			d.setProperty("Intensity", 1.0f, nullptr);
+
+			ValueTree dummyChild("ChildProcessors");
+
+			d.addChild(dummyChild, -1, nullptr);
+			String id_ = d.getProperty(id).toString();
+
+			if (auto mod = findMPEModulator(id_))
+			{
+				mod->restoreFromValueTree(d);
+				addConnection(mod, dontSendNotification);
+			}
+		}
+
+		
+
+        sendAsyncNotificationMessage(nullptr, EventType::MPEDataReloaded);
+        
+        return SafeFunctionCall::OK;
+	};
+
+	getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
+
+	asyncRestorer.restore(v);
+}
+
+juce::ValueTree MidiControllerAutomationHandler::MPEData::exportAsValueTree() const
+{
+	ValueTree connectionData("MPEData");
+
+	connectionData.setProperty("Enabled", mpeEnabled, nullptr);
+
+	static const Identifier t("Type");
+	static const Identifier i_("Intensity");
+	
+
+	for (auto mod : data->connections)
+	{
+		if (mod.get() != nullptr)
+		{
+			auto child = mod->exportAsValueTree();
+			child.removeChild(0, nullptr);
+			child.removeChild(0, nullptr);
+			jassert(child.getNumChildren() == 0);
+			child.removeProperty(t, nullptr);
+			child.removeProperty(i_, nullptr);
+			
+			
+			connectionData.addChild(child, -1, nullptr);
+		}
+	}
+
+	return connectionData;
+}
+
+void MidiControllerAutomationHandler::MPEData::sendAsyncNotificationMessage(MPEModulator* mod, EventType type)
+{
+    WeakReference<MPEModulator> ref(mod);
+    
+    auto f = [ref, type](Dispatchable* obj)
+    {
+        if(ref.get() == nullptr && (type == EventType::MPEModConnectionAdded || type == MPEModConnectionRemoved))
+            return Dispatchable::Status::OK;
+        
+        auto d = static_cast<MPEData*>(obj);
+        
+        jassert_message_thread;
+        
+        ScopedLock sl(d->listeners.getLock());
+        
+        for (auto l : d->listeners)
+        {
+            if (l == ref.get())
+                continue;
+            
+            if (l)
+            {
+                switch(type)
+                {
+                    case EventType::MPEModConnectionAdded:   l->mpeModulatorAssigned(ref, true); break;
+                    case EventType::MPEModConnectionRemoved: l->mpeModulatorAssigned(ref, false); break;
+                    case EventType::MPEModeChanged:          l->mpeModeChanged(d->mpeEnabled); break;
+                    case EventType::MPEDataReloaded:         l->mpeDataReloaded(); break;
+                    default:                                 jassertfalse; break;
+                }
+            }
+        }
+        
+        return Dispatchable::Status::OK;
+    };
+    
+    getMainController()->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(this, f);
+
+}
+    
+void MidiControllerAutomationHandler::MPEData::addConnection(MPEModulator* mod, NotificationType notifyListeners/*=sendNotification*/)
+{
+    jassert(mod->isOnAir());
+    
+    jassert(LockHelpers::noMessageThreadBeyondInitialisation(mod->getMainController()));
+    
+	if (!data->connections.contains(mod))
+	{
+		data->add(mod);
+
+        mod->mpeModulatorAssigned(mod, true);
+        
+		if (notifyListeners == sendNotification)
+            sendAsyncNotificationMessage(mod, EventType::MPEModConnectionAdded);
+	}
+}
+
+void MidiControllerAutomationHandler::MPEData::removeConnection(MPEModulator* mod, NotificationType notifyListeners/*=sendNotification*/)
+{
+    if(mod->isOnAir())
+    {
+        jassert(LockHelpers::noMessageThreadBeyondInitialisation(mod->getMainController()));
+    }
+    
+	if (data->connections.contains(mod))
+	{
+		data->remove(mod);
+
+        if(mod->isOnAir())
+            mod->mpeModulatorAssigned(mod, false);
+
+		if (notifyListeners == sendNotification)
+            sendAsyncNotificationMessage(mod, EventType::MPEModConnectionRemoved);
+	}
+	else if (mod != nullptr)
+	{
+		sendAmountChangeMessage();
+	}
+}
+
+MPEModulator* MidiControllerAutomationHandler::MPEData::getModulator(int index) const
+{
+	return data->connections[index].get();
+}
+
+MPEModulator* MidiControllerAutomationHandler::MPEData::findMPEModulator(const String& modName) const
+{
+	return dynamic_cast<MPEModulator*>(ProcessorHelpers::getFirstProcessorWithName(getMainController()->getMainSynthChain(), modName));
+}
+
+juce::StringArray MidiControllerAutomationHandler::MPEData::getListOfUnconnectedModulators(bool prettyName) const
+{
+	Processor::Iterator<MPEModulator> iter(getMainController()->getMainSynthChain(), false);
+
+	StringArray sa;
+
+	while (auto m = iter.getNextProcessor())
+	{
+		if (!data->connections.contains(m))
+			sa.add(m->getId());
+	}
+
+	if (prettyName)
+	{
+		for (auto& s : sa)
+		{
+			s = getPrettyName(s);
+		}
+	}
+
+	return sa;
+}
+
+juce::String MidiControllerAutomationHandler::MPEData::getPrettyName(const String& id)
+{
+	auto n = id.replace("MPE", "");
+	String pretty;
+	auto ptr = n.getCharPointer();
+	bool lastWasUppercase = true;
+
+	while (!ptr.isEmpty())
+	{
+		if (ptr.isUpperCase() && !lastWasUppercase)
+			pretty << " ";
+
+		lastWasUppercase = ptr.isUpperCase();
+		pretty << ptr.getAddress()[0];
+		ptr++;
+	}
+
+	return pretty;
+}
+
+void MidiControllerAutomationHandler::MPEData::clear()
+{
+	data->clear();
+
+	Processor::Iterator<MPEModulator> iter(getMainController()->getMainSynthChain());
+
+	while (auto m = iter.getNextProcessor())
+	{
+		m->resetToDefault();
+	}
+	
+}
+
+void MidiControllerAutomationHandler::MPEData::reset()
+{
+	clear();
+	mpeEnabled = false;
+
+    
+    sendAsyncNotificationMessage(nullptr, EventType::MPEModeChanged);
+}
+
+int MidiControllerAutomationHandler::MPEData::size() const
+{
+	return data->connections.size();
+}
+
+void MidiControllerAutomationHandler::MPEData::setMpeMode(bool shouldBeOn)
+{
+	
+
+	
+
+	getMainController()->getKeyboardState().injectMessage(MidiMessage::controllerEvent(1, 74, 64));
+	getMainController()->getKeyboardState().injectMessage(MidiMessage::pitchWheel(1, 8192));
+	getMainController()->allNotesOff();
+
+	mpeEnabled = shouldBeOn;
+
+    // Do this synchronously
+    ScopedLock sl(listeners.getLock());
+    
+	for (auto l : listeners)
+	{
+        if(l != nullptr)
+            l->mpeModeChanged(mpeEnabled);
+	}
+}
+
+bool MidiControllerAutomationHandler::MPEData::contains(MPEModulator* mod) const
+{
+	return data->connections.contains(mod);
+}
+
+
 
 ValueTree MidiControllerAutomationHandler::exportAsValueTree() const
 {
@@ -198,19 +630,7 @@ ValueTree MidiControllerAutomationHandler::exportAsValueTree() const
 		{
 			if (a.used && a.processor != nullptr)
 			{
-				ValueTree cc("Controller");
-
-				cc.setProperty("Controller", i, nullptr);
-				cc.setProperty("Processor", a.processor->getId(), nullptr);
-				cc.setProperty("MacroIndex", a.macroIndex, nullptr);
-				cc.setProperty("Start", a.parameterRange.start, nullptr);
-				cc.setProperty("End", a.parameterRange.end, nullptr);
-				cc.setProperty("FullStart", a.fullRange.start, nullptr);
-				cc.setProperty("FullEnd", a.fullRange.end, nullptr);
-				cc.setProperty("Skew", a.parameterRange.skew, nullptr);
-				cc.setProperty("Interval", a.parameterRange.interval, nullptr);
-				cc.setProperty("Attribute", a.processor->getIdentifierForParameterIndex(a.attribute).toString(), nullptr);
-				cc.setProperty("Inverted", a.inverted, nullptr);
+				auto cc = a.exportAsValueTree();
 				v.addChild(cc, -1, nullptr);
 			}
 		}
@@ -234,66 +654,9 @@ void MidiControllerAutomationHandler::restoreFromValueTree(const ValueTree &v)
 		auto& aArray = automationData[controller];
 
 		AutomationData a;
+		a.mc = mc;
 
-		a.ccNumber = controller;
-		a.processor = ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), cc.getProperty("Processor"));
-		a.macroIndex = cc.getProperty("MacroIndex");
-
-		auto attributeString = cc.getProperty("Attribute", a.attribute).toString();
-
-		const bool isParameterId = attributeString.containsAnyOf("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
-		
-		// The parameter was stored correctly as ID
-		if (isParameterId && a.processor.get() != nullptr)
-		{
-			const Identifier pId(attributeString);
-
-			for (int j = 0; j < a.processor->getNumParameters(); j++)
-			{
-				if (a.processor->getIdentifierForParameterIndex(j) == pId)
-				{
-					a.attribute = j;
-					break;
-				}
-			}
-		}
-		else
-		{
-			// This tries to obtain the correct id.
-			auto presetVersion = v.getRoot().getProperty("Version").toString();
-
-			const Identifier pId = UserPresetHelpers::getAutomationIndexFromOldVersion(presetVersion, attributeString.getIntValue());
-
-			if (pId.isNull())
-			{
-				a.attribute = attributeString.getIntValue();
-			}
-			else
-			{
-				for (int j = 0; j < a.processor->getNumParameters(); j++)
-				{
-					if (a.processor->getIdentifierForParameterIndex(j) == pId)
-					{
-						a.attribute = j;
-						break;
-					}
-				}
-			}
-		}
-
-		double start = cc.getProperty("Start");
-		double end = cc.getProperty("End");
-		double skew = cc.getProperty("Skew", a.parameterRange.skew);
-		double interval = cc.getProperty("Interval", a.parameterRange.interval);
-
-		auto fullStart = cc.getProperty("FullStart", start);
-		auto fullEnd = cc.getProperty("FullEnd", end);
-
-		a.parameterRange = NormalisableRange<double>(start, end, interval, skew);
-		a.fullRange = NormalisableRange<double>(fullStart, fullEnd, interval, skew);
-		
-		a.used = true;
-		a.inverted = cc.getProperty("Inverted", false);
+		a.restoreFromValueTree(cc);
 
 		aArray.addIfNotAlreadyThere(a);
 	}

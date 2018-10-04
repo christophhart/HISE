@@ -229,7 +229,7 @@ void AudioProcessorWrapper::setAudioProcessor(const Identifier& processorId)
 			{
 				if (getSampleRate() > 0.0)
 				{
-					wrappedAudioProcessor->prepareToPlay(getSampleRate(), getBlockSize());
+					wrappedAudioProcessor->prepareToPlay(getSampleRate(), getLargestBlockSize());
 				}
 
 				loadedProcessorId = processorId;

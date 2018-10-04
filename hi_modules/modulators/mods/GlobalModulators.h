@@ -39,7 +39,7 @@ class GlobalModulatorContainer;
 
 
 class GlobalModulator: public LookupTableProcessor,
-					   public SafeChangeListener
+					   public Chain::Handler::Listener
 {
 public:
 
@@ -59,24 +59,15 @@ public:
 		numTypes
 	};
 
-	
-
 	virtual ModulatorType getModulatorType() const = 0;
-
 	virtual ~GlobalModulator();
 
 	Table *getTable(int /*tableIndex*/) const override { return table; }
-
 	Modulator *getOriginalModulator();
-
 	const Modulator *getOriginalModulator() const;
-
 	GlobalModulatorContainer *getConnectedContainer();
 
-	void changeListenerCallback(SafeChangeBroadcaster *)
-	{
-		dynamic_cast<Processor*>(this)->sendSynchronousChangeMessage();
-	}
+	void processorChanged(EventType t, Processor* p) override;
 
 	const GlobalModulatorContainer *getConnectedContainer() const;
 
@@ -89,10 +80,7 @@ public:
 	static String getItemEntryFor(const GlobalModulatorContainer *c, const Processor *p);
 
 	void saveToValueTree(ValueTree &v) const;
-
 	void loadFromValueTree(const ValueTree &v);
-
-	void removeFromAllContainers();
 
 protected:
 
@@ -109,6 +97,7 @@ private:
 
 	WeakReference<Processor> originalModulator;
 
+	Array<WeakReference<GlobalModulatorContainer>> watchedContainers;
 };
 
 /** Deactivates Globals (this is used in Global Containers. */
@@ -194,7 +183,7 @@ public:
 
 	GlobalTimeVariantModulator(MainController *mc, const String &id, Modulation::Mode m);
 
-	~GlobalTimeVariantModulator() { removeFromAllContainers(); };
+	~GlobalTimeVariantModulator() { };
 
 	void restoreFromValueTree(const ValueTree &v) override;;
 

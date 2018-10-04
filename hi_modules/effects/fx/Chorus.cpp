@@ -36,6 +36,8 @@ ChorusEffect::ChorusEffect(MainController *mc, const String &id) :
 MasterEffectProcessor(mc, id),
 tempBuffer(2, 0)
 {
+	finaliseModChains();
+
 	parameterNames.add("Rate");
 	parameterNames.add("Width");
 	parameterNames.add("Feedback");
@@ -110,7 +112,7 @@ ValueTree ChorusEffect::exportAsValueTree() const
 
 void ChorusEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-	EffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
+	MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
 	ProcessorHelpers::increaseBufferIfNeeded(tempBuffer, samplesPerBlock);
 

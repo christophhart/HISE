@@ -169,14 +169,6 @@ public:
 		macroControlledComponentEnabled(true)
 	{};
     
-    enum HiBackgroundColours
-    {
-        upperBgColour = 0xFF123532,
-        lowerBgColour,
-        outlineBgColour,
-        textColour,
-        numHiBackgroundColours
-    };
 
     virtual ~MacroControlledObject() {};
 
@@ -194,6 +186,8 @@ public:
 	{
 		return midiLearnEnabled;
 	}
+
+	bool isConnectedToModulator() const;
 
 	void setUseUndoManagerForEvents(bool shouldUseUndo) { useUndoManagerForEvents = shouldUseUndo; }
 
@@ -303,10 +297,10 @@ public:
 
         setWantsKeyboardFocus(false);
         
-        setColour(HiBackgroundColours::upperBgColour, Colour(0x66333333));
-        setColour(HiBackgroundColours::lowerBgColour, Colour(0xfb111111));
-        setColour(HiBackgroundColours::outlineBgColour, Colours::white.withAlpha(0.3f));
-        setColour(HiBackgroundColours::textColour, Colours::white);
+        setColour(HiseColourScheme::WidgetFillTopColourId, Colour(0x66333333));
+        setColour(HiseColourScheme::WidgetFillBottomColourId, Colour(0xfb111111));
+        setColour(HiseColourScheme::WidgetOutlineColourId, Colours::white.withAlpha(0.3f));
+        setColour(HiseColourScheme::WidgetTextColourId, Colours::white);
 	};
 
 	void setup(Processor *p, int parameter, const String &name) override;
@@ -404,9 +398,9 @@ public:
 		addListener(this);
 		setWantsKeyboardFocus(false);
         
-        setColour(HiBackgroundColours::upperBgColour, Colour(0x66333333));
-        setColour(HiBackgroundColours::lowerBgColour, Colour(0xfb111111));
-        setColour(HiBackgroundColours::outlineBgColour, Colours::white.withAlpha(0.3f));
+        setColour(HiseColourScheme::WidgetFillTopColourId, Colour(0x66333333));
+        setColour(HiseColourScheme::WidgetFillBottomColourId, Colour(0xfb111111));
+        setColour(HiseColourScheme::WidgetOutlineColourId, Colours::white.withAlpha(0.3f));
 	};
 
 	void setup(Processor *p, int parameter, const String &name) override;
@@ -556,7 +550,30 @@ public:
 	*/
 	HiSlider(const String &name);;
 
+	static String getFrequencyString(float input)
+	{
+		if (input < 30.0f)
+		{
+			return String(input, 1) + " Hz";
+		}
+		if (input < 1000.0f)
+		{
+			return String(roundFloatToInt(input)) + " Hz";
+		}
+		else
+		{
+			return String(input / 1000.0, 1) + " kHz";
+		}
+	}
 	
+	static double getFrequencyFromTextString(const String& t)
+	{
+		if (t.contains("kHz"))
+			return t.getDoubleValue() * 1000.0;
+		else
+			return t.getDoubleValue();
+	}
+
 	void mouseDown(const MouseEvent &e) override;
 
 	void mouseDrag(const MouseEvent& e) override;
@@ -667,6 +684,7 @@ public:
 	{
 		if(mode == Pan) setTextValueSuffix(getModeSuffix());
 
+		if (mode == Frequency) return getFrequencyString((float)value);
 		if(mode == TempoSync) return TempoSyncer::getTempoName((int)(value));
 		else if(mode == NormalizedPercentage) return String((int)(value * 100)) + "%";
 		else				  return Slider::getTextFromValue(value);
@@ -675,6 +693,7 @@ public:
 	/** Overrides the slider method to set the value from the Tempo names */
 	double getValueFromText(const String &text) override
 	{
+		if (mode == Frequency) return getFrequencyFromTextString(text);
 		if(mode == TempoSync) return TempoSyncer::getTempoIndex(text);
 		else if (mode == NormalizedPercentage) return text.getDoubleValue() / 100.0;
 		else				  return Slider::getValueFromText(text);

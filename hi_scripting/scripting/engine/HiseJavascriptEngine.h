@@ -38,6 +38,8 @@ namespace hise { using namespace juce;
 class JavascriptProcessor;
 class DialogWindowWithBackgroundThread;
 
+
+
 /** The HISE Javascript Engine.
  *
  *	This class is a modified version of the original Javascript engine found in JUCE.
@@ -147,6 +149,8 @@ public:
 
 	void registerGlobalStorge(DynamicObject *globaObject);
 
+	void extendTimeout(int milliSeconds);
+
 	/** Registers a callback to the engine.
 	*
 	*	If a function with this name is found at parsing, it will be stored as callback for faster execution:
@@ -161,7 +165,7 @@ public:
 
 	var executeCallback(int callbackIndex, Result *result);
 
-	void setCallbackParameter(int callbackIndex, int parameterIndex, var newValue);
+	void setCallbackParameter(int callbackIndex, int parameterIndex, const var& newValue);
 
 	DebugInformation*getDebugInformation(int index);
 
@@ -373,6 +377,8 @@ public:
 		struct Statement;
 		struct Expression;
 
+		struct ScriptAudioThreadGuard;
+
 		struct Error
 		{
 			static Error fromBreakpoint(const Breakpoint &bp)
@@ -409,6 +415,9 @@ public:
 
 			String getEncodedLocation(Processor* p) const
 			{
+				ignoreUnused(p);
+
+#if USE_BACKEND
 				String l;
 
 				l << p->getId() << "|";
@@ -422,6 +431,9 @@ public:
 				l << "|" << String(lineNumber) << "|" << String(columnNumber);
 
 				return "{" + Base64::toBase64(l) + "}";
+#else
+				return {};
+#endif
 			}
 
 			String toString(Processor* p) const
@@ -545,7 +557,9 @@ public:
 
 			String getDebugName() const override { return callbackName.toString() + "()"; }
 
-			void setParameterValue(int parameterIndex, var newValue)
+			String::CharPointerType getProgramPtr() const;
+
+			void setParameterValue(int parameterIndex, const var& newValue)
 			{
 				parameterValues[parameterIndex] = newValue;
 			}
@@ -806,11 +820,13 @@ public:
 
 		private:
 
-		Array<CallStackEntry> callStack;
+		Array<CallStackEntry, SpinLock, 1024> callStack;
 
 		bool enableCallstack = false;
 
 		bool shouldUseCycleCheck = false;
+
+
 	};
 
 	
@@ -945,7 +961,7 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HiseJavascriptEngine)
 };
 
-
+using ScriptGuard = HiseJavascriptEngine::RootObject::ScriptAudioThreadGuard;
 
 } // namespace hise
 #endif  // HISEJAVASCRIPTENGINE_H_INCLUDED

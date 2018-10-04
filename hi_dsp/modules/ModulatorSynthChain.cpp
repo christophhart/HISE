@@ -46,6 +46,8 @@ ModulatorSynthChain::ModulatorSynthChain(MainController *mc, const String &id, i
 	ignoreUnused(viewUndoManager);
 #endif
 
+	finaliseModChains();
+
 	FactoryType *t = new ModulatorSynthChainFactoryType(numVoices, this);
 
 	getMatrix().setAllowResizing(true);
@@ -74,6 +76,8 @@ ModulatorSynthChain::ModulatorSynthChain(MainController *mc, const String &id, i
 
 ModulatorSynthChain::~ModulatorSynthChain()
 {
+	modChains.clear();
+
 	getHandler()->clear();
 
 	effectChain = nullptr;
@@ -160,6 +164,7 @@ ValueTree ModulatorSynthChain::exportAsValueTree() const
 
 		v.addChild(getMainController()->getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree(), -1, nullptr);
 
+		v.addChild(getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().exportAsValueTree(), -1, nullptr);
 	}
 	return v;
 }
@@ -173,18 +178,14 @@ void ModulatorSynthChain::compileAllScripts()
 {
 	if (getMainController()->isCompilingAllScriptsOnPresetLoad())
 	{
-		Processor::Iterator<JavascriptProcessor> it(this);
+		auto scriptProcessors = ProcessorHelpers::getListOfAllProcessors<JavascriptProcessor>(this);
 
-		JavascriptProcessor *sp;
-
-		while ((sp = it.getNextProcessor()) != 0)
+		for (auto& sp : scriptProcessors)
 		{
 			auto c = sp->getContent();
 
 			ValueTreeUpdateWatcher::ScopedDelayer sd(c->getUpdateWatcher());
-
 			sp->getContent()->resetContentProperties();
-
 			sp->compileScript();
 		}
 	}
@@ -197,10 +198,6 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 	if (isSoftBypassed()) return;
 
 	ADD_GLITCH_DETECTOR(this, DebugLogger::Location::SynthChainRendering);
-
-	ScopedLock sl(getSynthLock());
-
-	
 
 	if (getMainController()->getMainSynthChain() == this && !activeChannels.areAllChannelsEnabled())
 	{
@@ -216,7 +213,7 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 		}
 	}
 
-	const int numSamples = getBlockSize();//buffer.getNumSamples();
+	const int numSamples = buffer.getNumSamples();
 
 	jassert(numSamples <= buffer.getNumSamples());
 
@@ -259,6 +256,8 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 
 		handleHiseEvent(*e);
 	}
+
+	modChains[GainModulation-1].calculateMonophonicModulationValues(0, numSamples);
 
 	postVoiceRendering(0, numSamples);
 
@@ -320,35 +319,36 @@ void ModulatorSynthChain::restoreFromValueTree(const ValueTree &v)
 	ValueTree autoData = v.getChildWithName("MidiAutomation");
 
 	if (autoData.isValid())
-	{
 		getMainController()->getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(autoData);
-	}
+
+	ValueTree mpeData = v.getChildWithName("MPEData");
+
+	if (mpeData.isValid())
+		getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().restoreFromValueTree(mpeData);
+	else
+		getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().reset();
 }
 
 void ModulatorSynthChain::reset()
 {
 
+	Processor::Iterator<Processor> iter(this, false);
+
+#if 0
 	{
-		MessageManagerLock mm;
-
-		
-
 		sendDeleteMessage();
 
-		Processor::Iterator<Processor> iter(this, false);
-
 		while (auto p = iter.getNextProcessor())
-		{
 			p->sendDeleteMessage();
-		}
 	}
+#endif
 	
 
-    this->getHandler()->clear();
+    this->getHandler()->clearAsync(nullptr);
     
-    midiProcessorChain->getHandler()->clear();
-    gainChain->getHandler()->clear();
-    effectChain->getHandler()->clear();
+    midiProcessorChain->getHandler()->clearAsync(midiProcessorChain);
+    gainChain->getHandler()->clearAsync(gainChain);
+    effectChain->getHandler()->clearAsync(effectChain);
     getMatrix().resetToDefault();
     getMatrix().setNumSourceChannels(2);
 
@@ -400,23 +400,30 @@ void ModulatorSynthChain::killAllVoices()
 {
 	for (auto synth : synths)
 		synth->killAllVoices();
+
+	effectChain->killMasterEffects();
 }
 
 void ModulatorSynthChain::resetAllVoices()
 {
 	for (auto synth : synths)
 		synth->resetAllVoices();
+
+	effectChain->resetMasterEffects();
 }
 
 bool ModulatorSynthChain::areVoicesActive() const
 {
+	if (isSoftBypassed())
+		return false;
+
 	for (auto synth : synths)
 	{
 		if (synth->areVoicesActive())
 			return true;
 	}
 		
-	return false;
+	return effectChain->hasTailingMasterEffects();
 }
 
 
@@ -526,29 +533,35 @@ void ModulatorSynthChain::ModulatorSynthChainHandler::add(Processor *newProcesso
 	ms->getMatrix().setNumDestinationChannels(synth->getMatrix().getNumSourceChannels());
 	ms->getMatrix().setTargetProcessor(synth);
 
-	ms->prepareToPlay(synth->getSampleRate(), synth->getBlockSize());
+	ms->prepareToPlay(synth->getSampleRate(), synth->getLargestBlockSize());
+	ms->setParentProcessor(synth);
 
 	{
-		MainController::ScopedSuspender ss(synth->getMainController());
-		ms->setIsOnAir(true);
+		LOCK_PROCESSING_CHAIN(synth);
+		ms->setIsOnAir(synth->isOnAir());
 		synth->synths.insert(index, ms);
 	}
 
-	sendChangeMessage();
+	notifyListeners(Listener::ProcessorAdded, newProcessor);
 }
 
 void ModulatorSynthChain::ModulatorSynthChainHandler::remove(Processor *processorToBeRemoved, bool removeSynth)
 {
+	notifyListeners(Listener::ProcessorDeleted, processorToBeRemoved);
+
+	ScopedPointer<Processor> removedP = processorToBeRemoved;
+
 	{
-		auto& tmp = synth;
-
-		auto f = [tmp, removeSynth](Processor* p) { tmp->synths.removeObject(dynamic_cast<ModulatorSynth*>(p), removeSynth); return true; };
-
-		synth->getMainController()->getKillStateHandler().killVoicesAndCall(processorToBeRemoved, f, MainController::KillStateHandler::TargetThread::MessageThread);
-		
+		LOCK_PROCESSING_CHAIN(synth);
+		processorToBeRemoved->setIsOnAir(false);
+		synth->synths.removeObject(dynamic_cast<ModulatorSynth*>(processorToBeRemoved), false);
 	}
 
-	sendChangeMessage();
+	if (removeSynth)
+		removedP = nullptr;
+	else
+		removedP.release();
+
 }
 
 Processor * ModulatorSynthChain::ModulatorSynthChainHandler::getProcessor(int processorIndex)
@@ -568,11 +581,11 @@ int ModulatorSynthChain::ModulatorSynthChainHandler::getNumProcessors() const
 
 void ModulatorSynthChain::ModulatorSynthChainHandler::clear()
 {
+	notifyListeners(Listener::Cleared, nullptr);
+
 	ScopedLock sl(synth->getMainController()->getLock());
 
 	synth->synths.clear();
-
-	sendChangeMessage();
 }
 
 } // namespace hise

@@ -32,9 +32,63 @@
 
 namespace hise { using namespace juce;
 
+
+FrontendProcessor* FrontendFactory::createPluginWithAudioFiles(AudioDeviceManager* deviceManager, AudioProcessorPlayer* callback)
+{
+	ValueTree presetData; 
+	zstd::ZCompressor<PresetDictionaryProvider> pdec; 
+	MemoryBlock pBlock;
+	ScopedPointer<MemoryInputStream> pis = getEmbeddedData(FileHandlerBase::Presets);
+	pis->readIntoMemoryBlock(pBlock);
+	pdec.expand(pBlock, presetData);
+	
+	/*ValueTree presetData = ValueTree::readFromData(PresetData::preset PresetData::presetSize);\*/ 
+	LOG_START("Loading embedded image data"); 
+	auto imageData = getEmbeddedData(FileHandlerBase::Images);
+	LOG_START("Loading embedded impulse responses"); 
+	auto impulseData = getEmbeddedData(FileHandlerBase::AudioFiles);
+	auto sampleMapData = getEmbeddedData(FileHandlerBase::SampleMaps);
+	LOG_START("Loading embedded other data")
+
+	ValueTree externalFiles;
+	MemoryBlock eBlock;
+	ScopedPointer<MemoryInputStream> eis = getEmbeddedData(FileHandlerBase::Scripts);
+	eis->readIntoMemoryBlock(eBlock);
+	zstd::ZCompressor<JavascriptDictionaryProvider> edec;
+	edec.expand(eBlock, externalFiles);
+
+	//ValueTree externalFiles =  hise::PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true); 
+	LOG_START("Creating Frontend Processor")
+	auto fp = new hise::FrontendProcessor(presetData, deviceManager, callback, imageData, impulseData, sampleMapData, &externalFiles, nullptr); 
+
+	ScopedPointer<MemoryInputStream> uis = getEmbeddedData(FileHandlerBase::UserPresets);
+
+    try
+    {
+        UserPresetHelpers::extractUserPresets((const char*)uis->getData(), uis->getDataSize());
+        AudioProcessorDriver::restoreSettings(fp);
+        GlobalSettingManager::restoreGlobalSettings(fp);
+        
+        GET_PROJECT_HANDLER(fp->getMainSynthChain()).loadSamplesAfterSetup();
+    }
+    catch(String& s)
+    {
+        fp->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, s);
+    }
+	 
+	 
+	return fp;
+}
+
+FrontendProcessor* FrontendFactory::createPlugin(AudioDeviceManager* deviceManager, AudioProcessorPlayer* callback)
+{
+	return createPluginWithAudioFiles(deviceManager, callback);
+}
+
+
 void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
-#if USE_COPY_PROTECTION || USE_TURBO_ACTIVATE
+#if USE_COPY_PROTECTION
 	if (!keyFileCorrectlyLoaded)
 		return;
 
@@ -43,6 +97,32 @@ void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& mid
 
 	getDelayedRenderer().processWrapped(buffer, midiMessages);
 };
+
+void FrontendProcessor::incActiveEditors()
+{
+	if (numActiveEditors == 0)
+	{
+		Processor::Iterator<ProcessorWithScriptingContent> iter(getMainSynthChain());
+
+		while (auto pwsc = iter.getNextProcessor())
+			pwsc->getScriptingContent()->suspendPanelTimers(false);
+	}
+
+	numActiveEditors++;
+}
+
+void FrontendProcessor::decActiveEditors()
+{
+	numActiveEditors = jmax<int>(0, numActiveEditors - 1);
+
+	if (numActiveEditors == 0)
+	{
+		Processor::Iterator<ProcessorWithScriptingContent> iter(getMainSynthChain());
+
+		while (auto pwsc = iter.getNextProcessor())
+			pwsc->getScriptingContent()->suspendPanelTimers(true);
+	}
+}
 
 void FrontendProcessor::handleControllersForMacroKnobs(const MidiBuffer &midiMessages)
 {
@@ -75,29 +155,40 @@ void FrontendProcessor::handleControllersForMacroKnobs(const MidiBuffer &midiMes
 
 }
 
-#if JUCE_WINDOWS
-#define TURBOACTIVATE_FILE_PATH ProjectHandler::Frontend::getAppDataDirectory().getFullPathName().toUTF16().getAddress()
-#else
-#if ENABLE_APPLE_SANDBOX
-#define TURBOACTIVATE_FILE_PATH ProjectHandler::Frontend::getAppDataDirectory().getChildFile("Resources/").getFullPathName().toUTF8().getAddress()
-#else
-#define TURBOACTIVATE_FILE_PATH ProjectHandler::Frontend::getAppDataDirectory().getFullPathName().toUTF8().getAddress()
-#endif
-#endif
+    
+    
+void FrontendProcessor::restorePool(InputStream* inputStream, FileHandlerBase::SubDirectories directory, const String& fileNameToLook)
+{
+    ScopedPointer<FileInputStream> fis;
+    InputStream* streamToUse = inputStream;
+        
+    if(streamToUse == nullptr)
+    {
+        auto resourceFile = getSampleManager().getProjectHandler().getEmbeddedResourceDirectory().getChildFile(fileNameToLook);
+            
+        fis = new FileInputStream(resourceFile);
+        streamToUse = fis.release();
+    }
+    
+    jassert(streamToUse != nullptr);
+    
+    switch(directory)
+    {
+        case FileHandlerBase::Images: getCurrentImagePool(true)->getDataProvider()->restorePool(streamToUse); break;
+        case FileHandlerBase::AudioFiles: getCurrentAudioSampleBufferPool(true)->getDataProvider()->restorePool(streamToUse); break;
+        case FileHandlerBase::SampleMaps: getCurrentSampleMapPool(true)->getDataProvider()->restorePool(streamToUse); break;
+        default: jassertfalse; break;
+    }
+}
 
-FrontendProcessor::FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, ValueTree *imageData_/*=nullptr*/, ValueTree *impulseData/*=nullptr*/, ValueTree *externalFiles/*=nullptr*/, ValueTree *) :
+FrontendProcessor::FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, MemoryInputStream *imageData/*=nullptr*/, MemoryInputStream *impulseData/*=nullptr*/, MemoryInputStream* sampleMapData, ValueTree *externalFiles/*=nullptr*/, ValueTree *) :
 MainController(),
-PluginParameterAudioProcessor(ProjectHandler::Frontend::getProjectName()),
+PluginParameterAudioProcessor(FrontendHandler::getProjectName()),
 AudioProcessorDriver(manager, callback_),
 synthChain(new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES)),
 keyFileCorrectlyLoaded(true),
 currentlyLoadedProgram(0),
-#if USE_TURBO_ACTIVATE
-unlockCounter(0),
-unlocker(TURBOACTIVATE_FILE_PATH)
-#else
 unlockCounter(0)
-#endif
 {
 	LOG_START("Checking license");
 
@@ -106,116 +197,126 @@ unlockCounter(0)
 	GlobalSettingManager::initData(this);
 
 #if USE_COPY_PROTECTION
-
 	if (!unlocker.loadKeyFile())
-	{
 		keyFileCorrectlyLoaded = false;
-	}
-	
-#elif USE_TURBO_ACTIVATE
-	
-	keyFileCorrectlyLoaded = unlocker.isUnlocked();
-
 #endif
     
 	LOG_START("Load images");
+    restorePool(imageData, FileHandlerBase::Images, "ImageResources.dat");
+    
+   	LOG_START("Load embedded audio files");
+    restorePool(impulseData, FileHandlerBase::AudioFiles, "AudioResources.dat");
+    
+  	LOG_START("Load samplemaps");
+    restorePool(sampleMapData, FileHandlerBase::SampleMaps, "SampleMapResources.dat");
+    
+#if 0
+	if(imageData)
+		getCurrentImagePool(true)->getDataProvider()->restorePool(imageData);
+	else
+	{
+		File imageResourceFile(getSampleManager().getProjectHandler().getEmbeddedResourceDirectory().getChildFile("ImageResources.dat"));
 
-	loadImages(imageData_);
+		if (imageResourceFile.existsAsFile())
+		{
+			FileInputStream* fis = new FileInputStream(imageResourceFile);
 
+			LOG_START("Load impulses");
+
+			getCurrentImagePool(true)->getDataProvider()->restorePool(fis);
+		}
+        else
+        {
+            jassertfalse;
+        }
+	}
+
+	if (impulseData)
+		getCurrentAudioSampleBufferPool(true)->getDataProvider()->restorePool(impulseData);
+	else
+	{
+		
+	}
+	
+	getCurrentSampleMapPool(true)->getDataProvider()->restorePool(sampleMapData);
+#endif
+    
 	if (externalFiles != nullptr)
 	{
 		setExternalScriptData(externalFiles->getChildWithName("ExternalScripts"));
 		restoreCustomFontValueTree(externalFiles->getChildWithName("CustomFonts"));
 
-		sampleMaps = externalFiles->getChildWithName("SampleMaps");
 	}
     
-	if (impulseData != nullptr)
-	{
-		getSampleManager().getAudioSampleBufferPool()->restoreFromValueTree(*impulseData);
-	}
-	else
-	{
-		File audioResourceFile(ProjectHandler::Frontend::getAppDataDirectory().getChildFile("AudioResources.dat"));
-
-		if (audioResourceFile.existsAsFile())
-		{
-			FileInputStream fis(audioResourceFile);
-
-			LOG_START("Load impulses");
-
-			ValueTree impulseDataFile = ValueTree::readFromStream(fis);
-
-			if (impulseDataFile.isValid())
-			{
-				getSampleManager().getAudioSampleBufferPool()->restoreFromValueTree(impulseDataFile);
-			}
-		}
-	}
-
 	numParameters = 0;
 
 	getMacroManager().setMacroChain(synthChain);
 
 	synthChain->setId(synthData.getProperty("ID", String()));
 
+	createPreset(synthData);
+
+	
+}
+
+void FrontendProcessor::createPreset(const ValueTree& synthData)
+{
+	
+
+	getSampleManager().setShouldSkipPreloading(true);
+
+	setSkipCompileAtPresetLoad(true);
+
+	LOG_START("Restoring main container");
+
+	synthChain->restoreFromValueTree(synthData);
+
+	setSkipCompileAtPresetLoad(false);
+
 	{
-		MainController::ScopedSuspender ss(this);
-
-		getSampleManager().setShouldSkipPreloading(true);
-
-		setSkipCompileAtPresetLoad(true);
-
-		LOG_START("Restoring main container");
-
-		synthChain->restoreFromValueTree(synthData);
-
-		setSkipCompileAtPresetLoad(false);
-
 		LOG_START("Compiling all scripts");
-
+		LockHelpers::SafeLock sl(this, LockHelpers::ScriptLock);
 		synthChain->compileAllScripts();
-
-		synthChain->loadMacrosFromValueTree(synthData);
-
-		LOG_START("Adding plugin parameters");
-
-		addScriptedParameters();
-
-		CHECK_COPY_AND_RETURN_6(synthChain);
-
-		if (getSampleRate() > 0)
-		{
-			LOG_START("Initialising audio callback");
-
-			synthChain->prepareToPlay(getSampleRate(), getBlockSize());
-		}
-
-#if !DONT_EMBED_FILES_IN_FRONTEND
-		if (sampleMaps.getNumChildren() == 0)
-		{
-			createSampleMapValueTreeFromPreset(synthData);
-		}
-#endif
-
-		createUserPresetData();
 	}
 
-    
+	
 
-	updateUnlockedSuspendStatus();
+	synthChain->loadMacrosFromValueTree(synthData);
+
+	LOG_START("Adding plugin parameters");
+
+    try
+    {
+        addScriptedParameters();
+    }
+    catch(String& s)
+    {
+        DBG("Error: " + s);
+    }
+
+	CHECK_COPY_AND_RETURN_6(synthChain);
+
+	if (getSampleRate() > 0)
+	{
+		LOG_START("Initialising audio callback");
+		synthChain->prepareToPlay(getSampleRate(), getBlockSize());
+	}
+
+#if INCLUDE_USER_DATA
+	createUserPresetData();
+#endif
+
+	decActiveEditors();
 }
 
 const String FrontendProcessor::getName(void) const
 {
-	return ProjectHandler::Frontend::getProjectName();
+	return FrontendHandler::getProjectName();
 }
 
 void FrontendProcessor::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
-    MainController::ScopedSuspender ss(this);
-
-	getDelayedRenderer().prepareToPlayWrapped(newSampleRate, samplesPerBlock);
+    getDelayedRenderer().prepareToPlayWrapped(newSampleRate, samplesPerBlock);
 };
 
 AudioProcessorEditor* FrontendProcessor::createEditor()
@@ -226,38 +327,6 @@ AudioProcessorEditor* FrontendProcessor::createEditor()
 void FrontendProcessor::setCurrentProgram(int /*index*/)
 {
 	return;
-}
-
-void FrontendProcessor::loadImages(ValueTree *imageData)
-{
-#if HISE_IOS
-    
-    // The images are loaded from actual files here...
-    return;
-#endif
-    
-	if (imageData == nullptr)
-	{
-		File imageResources = ProjectHandler::Frontend::getAppDataDirectory().getChildFile("ImageResources.dat");
-
-		if (imageResources.existsAsFile())
-		{
-			FileInputStream fis(imageResources);
-
-			auto t = ValueTree::readFromStream(fis);
-
-			if (t.isValid())
-				getSampleManager().getImagePool()->restoreFromValueTree(t);
-			else
-				sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, "The image resources are corrupt. Contact support");
-		}
-		else
-			sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, "The image resources can't be located. Contact support");
-	}
-	else
-	{
-		getSampleManager().getImagePool()->restoreFromValueTree(*imageData);
-	}
 }
 
 const String FrontendStandaloneApplication::getApplicationName()
@@ -310,12 +379,8 @@ FrontendStandaloneApplication::AudioWrapper::AudioWrapper()
 {
 #if USE_SPLASH_SCREEN
 
-    
-
     Image imgiPhone = ImageCache::getFromMemory(BinaryData::SplashScreeniPhone_png, BinaryData::SplashScreeniPhone_pngSize);
-
 	Image imgiPad = ImageCache::getFromMemory(BinaryData::SplashScreen_png, BinaryData::SplashScreen_pngSize);
-
 
     const bool isIPhone = SystemStats::getDeviceDescription() == "iPhone";
     
@@ -332,18 +397,9 @@ FrontendStandaloneApplication::AudioWrapper::AudioWrapper()
 	auto userHeight = Desktop::getInstance().getDisplays().getMainDisplay().userArea.getHeight();
 
 	if (userHeight < 768)
-	{
 		setSize(870, 653);
-	}
 	else
-	{
 		setSize(1024, 768);
-	}
-	
-
-	
-
-    
 #endif
     
 	startTimer(100);

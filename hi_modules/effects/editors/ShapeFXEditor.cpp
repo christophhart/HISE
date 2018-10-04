@@ -35,8 +35,10 @@ ShapeFXEditor::ShapeFXEditor (ProcessorEditor* p)
     //[Constructor_pre] You can add your own custom stuff here..
 	auto sfx = dynamic_cast<ShapeFX*>(getProcessor());
 
+#if HI_USE_SHAPE_FX_SCRIPTING
+	
 	tokeniser = new JavascriptTokeniser();
-
+#endif
     //[/Constructor_pre]
 
     addAndMakeVisible (shapeDisplay = new WaveformComponent (dynamic_cast<ShapeFX*>(getProcessor())));
@@ -72,8 +74,10 @@ ShapeFXEditor::ShapeFXEditor (ProcessorEditor* p)
     modeSelector->addItem (TRANS("Square"), 5);
     modeSelector->addItem (TRANS("Square Root"), 6);
     modeSelector->addItem (TRANS("Curve"), 7);
+#if HI_USE_SHAPE_FX_SCRIPTING
     modeSelector->addItem (TRANS("Script"), 8);
     modeSelector->addItem (TRANS("Cached Script"), 9);
+#endif
     modeSelector->addListener (this);
 
     addAndMakeVisible (biasRight = new HiSlider ("Bias Right"));
@@ -162,8 +166,11 @@ ShapeFXEditor::ShapeFXEditor (ProcessorEditor* p)
     addAndMakeVisible (table = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), static_cast<ShapeFX*>(getProcessor())->getTable(0)));
     table->setName ("new component");
 
+
+#if HI_USE_SHAPE_FX_SCRIPTING
     addAndMakeVisible (editor = new JavascriptCodeEditor (*sfx->getSnippet(0), tokeniser, sfx, "shape"));
     editor->setName ("new component");
+#endif
 
     addAndMakeVisible (limitButton = new HiToggleButton ("Auto Gain"));
     limitButton->setTooltip (TRANS("Apply a soft limiter before the input to avoid hard clipping"));
@@ -262,7 +269,10 @@ ShapeFXEditor::~ShapeFXEditor()
     autoGain = nullptr;
     lowPass = nullptr;
     table = nullptr;
+
+#if HI_USE_SHAPE_FX_SCRIPTING
     editor = nullptr;
+#endif
     limitButton = nullptr;
 
 
@@ -323,7 +333,11 @@ void ShapeFXEditor::resized()
     autoGain->setBounds (((getWidth() / 2) + 264 - (128 / 2)) + 128 / 2 + 8 - (128 / 2), 177, 128, 32);
     lowPass->setBounds (((getWidth() / 2) + -264 - (128 / 2)) + 0, 184, 128, 48);
     table->setBounds ((getWidth() / 2) + -2 - ((getWidth() - 109) / 2), 319, getWidth() - 109, 257);
+
+#if HI_USE_SHAPE_FX_SCRIPTING
     editor->setBounds ((getWidth() / 2) + 2 - ((getWidth() - 109) / 2), 320, getWidth() - 109, 257);
+#endif
+
     limitButton->setBounds (((getWidth() / 2) + 264 - (128 / 2)) + 128 / 2 + 8 - (128 / 2), 224, 128, 32);
     //[UserResized] Add your own custom resize handling here..
     //[/UserResized]

@@ -41,7 +41,6 @@ class SamplerSoundWaveform;
 class SamplerSoundMap;
 
 
-
 /** A base class for all sample editing components.
 *
 *	It offers a synchronous callback system for selecting sounds with recursive protection.
@@ -196,8 +195,7 @@ private:
 /** A simple rectangle which represents a ModulatorSamplerSound within a SamplerSoundMap.
 *	@ingroup components
 */
-class SampleComponent: public Timer,
-					   public SafeChangeListener
+class SampleComponent: public Timer
 {
 public:
 
@@ -205,14 +203,10 @@ public:
 
 	~SampleComponent() 
 	{ 
-		if(sound != nullptr) sound->removeChangeListener(this); 
-		
 		masterReference.clear();
 	};
 
 	void timerCallback();
-
-	void changeListenerCallback(SafeChangeBroadcaster *b);
 
 	void triggerNoteOnAnimation(int velocity)
 	{
@@ -313,7 +307,8 @@ class SamplerSoundMap: public Component,
 					   public LassoSource<WeakReference<SampleComponent>>,
 					   public SettableTooltipClient,
 					   public Timer,
-					   public MainController::SampleManager::PreloadListener
+					   public MainController::SampleManager::PreloadListener,
+					   public SampleMap::Listener
 {
 public:
 	
@@ -353,6 +348,19 @@ public:
 
         stopTimer();
 	}
+
+	void sampleMapWasChanged(PoolReference newSampleMap) override
+	{
+		updateSampleComponents();
+	}
+
+	void sampleAmountChanged() override
+	{
+		updateSampleComponents();
+	}
+
+	void samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& newValue) override;
+
 
 	void preloadStateChanged(bool isPreloading) override;
 
@@ -550,7 +558,11 @@ public:
 			refreshList();
 	}
 
+	void refreshPropertyForRow(int index, const Identifier& id);
+
 private:
+
+	friend class SamplerTable;
 
 	bool isPreloading = false;
 
@@ -567,12 +579,14 @@ private:
 
 	TableHeaderLookAndFeel laf;
 
+	Array<Identifier> columnIds;
+
     //==============================================================================
     // A comparator used to sort our data when the user clicks a column header
     class DemoDataSorter
     {
     public:
-		DemoDataSorter (ModulatorSamplerSound::Property propertyToSort_, bool forwards)
+		DemoDataSorter (const Identifier& propertyToSort_, bool forwards)
             : propertyToSort (propertyToSort_),
               direction (forwards ? 1 : -1)
         {}
@@ -582,14 +596,14 @@ private:
 			if (first == nullptr || second == nullptr)
 				return direction;
 
-			int result = first->getProperty (propertyToSort).toString()
-                           .compareNatural (second->getProperty (propertyToSort).toString());
+			int result = first->getSampleProperty(propertyToSort).toString()
+                           .compareNatural (second->getSampleProperty(propertyToSort).toString());
 
             return direction * result;
         }
 
     private:
-		ModulatorSamplerSound::Property propertyToSort;
+		Identifier propertyToSort;
         int direction;
     };
 

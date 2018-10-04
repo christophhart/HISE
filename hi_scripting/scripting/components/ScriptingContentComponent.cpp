@@ -48,6 +48,8 @@ mod(m)
 
 ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_) :
 	AsyncValueTreePropertyListener(p_->getScriptingContent()->getContentProperties(), p_->getScriptingContent()->getUpdateDispatcher()),
+	contentRebuildNotifier(*this),
+	modalOverlay(*this),
 	processor(p_),
 	p(dynamic_cast<Processor*>(p_))
 {
@@ -61,10 +63,9 @@ ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_
 
 	p->addChangeListener(this);
 	p->getMainController()->addScriptListener(this, true);
+
+	addChildComponent(modalOverlay);
 }
-
-
-
 
 ScriptContentComponent::~ScriptContentComponent()
 {
@@ -84,6 +85,8 @@ ScriptContentComponent::~ScriptContentComponent()
 		p->removeChangeListener(this);
 		p->removeDeleteListener(this);
 	};
+
+	componentWrappers.clear();
 }
 
 
@@ -196,7 +199,13 @@ void ScriptContentComponent::changeListenerCallback(SafeChangeBroadcaster *b)
 	{
 		auto index = contentData->getComponentIndex(sc->name);
 
-		componentWrappers[index]->updateValue(sc->getValue());
+		if (index == -1)
+			return;
+
+		if (auto w = componentWrappers[index])
+		{
+			w->updateValue(sc->getValue());
+		}
 	}
 	else
 	{
@@ -352,6 +361,8 @@ void ScriptContentComponent::updateComponentParent(ScriptCreatedComponentWrapper
 
 void ScriptContentComponent::resized()
 {
+	modalOverlay.setBounds(getLocalBounds());
+
 	if (!contentValid())
 	{
 		return;
@@ -368,17 +379,27 @@ void ScriptContentComponent::resized()
 	}
 }
 
+void ScriptContentComponent::setModalPopup(ScriptCreatedComponentWrapper* wrapper, bool shouldShow)
+{
+	if (shouldShow)
+	{
+		modalOverlay.showFor(wrapper);
+	}
+	else
+		modalOverlay.closeModalPopup();
+}
+
 void ScriptContentComponent::scriptWasCompiled(JavascriptProcessor *jp)
 {
 	if (jp == getScriptProcessor())
 	{
-		setNewContent(processor->getScriptingContent());
+		contentRebuildNotifier.notify(processor->getScriptingContent());
 	}
 }
 
 void ScriptContentComponent::contentWasRebuilt()
 {
-	setNewContent(processor->getScriptingContent());
+	contentRebuildNotifier.notify(processor->getScriptingContent());
 }
 
 
@@ -390,6 +411,8 @@ void ScriptContentComponent::setNewContent(ScriptingApi::Content *c)
 	contentData = c;
 
 	deleteAllScriptComponents();
+
+	valuePopupProperties = new ScriptCreatedComponentWrapper::ValuePopup::Properties(p->getMainController(), c->getValuePopupProperties());
 
 	for (int i = 0; i < contentData->components.size(); i++)
 	{

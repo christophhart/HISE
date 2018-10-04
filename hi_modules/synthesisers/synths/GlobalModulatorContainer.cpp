@@ -35,6 +35,15 @@ namespace hise { using namespace juce;
 GlobalModulatorContainer::GlobalModulatorContainer(MainController *mc, const String &id, int numVoices) :
 ModulatorSynth(mc, id, numVoices)
 {
+	finaliseModChains();
+
+	gainChain = modChains[BasicChains::GainChain].getChain();
+
+	// Do not expand the values, but leave them compressed for the receivers to expand them...
+	modChains[BasicChains::GainChain].setExpandToAudioRate(false);
+
+	
+
 	for (int i = 0; i < numVoices; i++) addVoice(new GlobalModulatorContainerVoice(this));
 	addSound(new GlobalModulatorContainerSound());
 
@@ -45,9 +54,22 @@ ModulatorSynth(mc, id, numVoices)
 	gainChain->getFactoryType()->setConstrainer(new NoGlobalsConstrainer());
 	gainChain->setId("Global Modulators");
 
-	gainChain->getHandler()->addChangeListener(this);
+	auto f = [](float )
+	{
+		return "Not assigned";
+	};
 
-	
+	gainChain->setTableValueConverter(f);
+
+	gainChain->getHandler()->addListener(this);
+}
+
+GlobalModulatorContainer::~GlobalModulatorContainer()
+{
+	gainChain->getHandler()->removeListener(this);
+
+	data.clear();
+	allParameters.clear();
 }
 
 void GlobalModulatorContainer::restoreFromValueTree(const ValueTree &v)
@@ -62,29 +84,23 @@ float GlobalModulatorContainer::getVoiceStartValueFor(const Processor * /*voiceS
 	return 1.0f;
 }
 
-const float * GlobalModulatorContainer::getModulationValuesForModulator(Processor *p, int startIndex, int voiceIndex /*= 0*/)
+const float * GlobalModulatorContainer::getModulationValuesForModulator(Processor *p, int startIndex)
 {
-	for (int i = 0; i < data.size(); i++)
+	for (auto& tv : timeVariantData)
 	{
-		if (data[i]->getProcessor() == p)
-		{
-			return data[i]->getModulationValues(startIndex, voiceIndex);
-		}
+		if (tv.getModulator() == p)
+			return tv.getReadPointer(startIndex);
 	}
-
-	jassertfalse;
 
 	return nullptr;
 }
 
 float GlobalModulatorContainer::getConstantVoiceValue(Processor *p, int noteNumber)
 {
-	for (int i = 0; i < data.size(); i++)
+	for (auto& vd : voiceStartData)
 	{
-		if (data[i]->getProcessor() == p)
-		{
-			return data[i]->getConstantVoiceValue(noteNumber);
-		}
+		if (vd.getModulator() == p)
+			return vd.getConstantVoiceValue(noteNumber);
 	}
 
 	jassertfalse;
@@ -105,38 +121,38 @@ ProcessorEditorBody* GlobalModulatorContainer::createEditor(ProcessorEditor *par
 #endif
 }
 
-void GlobalModulatorContainer::addChangeListenerToHandler(SafeChangeListener *listener)
-{
-	gainChain->getHandler()->addChangeListener(listener);
-}
-
-void GlobalModulatorContainer::removeChangeListenerFromHandler(SafeChangeListener *listener)
-{
-	gainChain->getHandler()->removeChangeListener(listener);
-}
-
 void GlobalModulatorContainer::preStartVoice(int voiceIndex, int noteNumber)
 {
 	ModulatorSynth::preStartVoice(voiceIndex, noteNumber);
 
-	for (int i = 0; i < data.size(); i++)
+	for (auto& vd : voiceStartData)
 	{
-		if (data[i]->getType() == GlobalModulator::VoiceStart)
-		{
-			data[i]->saveValuesToBuffer(0, 0, voiceIndex, noteNumber);
-		}
+		vd.saveValue(noteNumber, voiceIndex);
 	}
 }
 
-void GlobalModulatorContainer::postVoiceRendering(int startSample, int numThisTime)
+void GlobalModulatorContainer::preVoiceRendering(int startSample, int numThisTime)
 {
-	gainChain->renderNextBlock(gainBuffer, startSample, numThisTime);
+	int startSample_cr = startSample / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+	int numSamples_cr = numThisTime / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+	
+	auto scratchBuffer = modChains[GainChain].getScratchBuffer();
 
-	for (int i = 0; i < data.size(); i++)
+	for (auto& tv : timeVariantData)
 	{
-		if (data[i]->getType() == GlobalModulator::TimeVariant)
+		if (auto mod = tv.getModulator())
 		{
-			data[i]->saveValuesToBuffer(startSample, numThisTime, 0);
+			if (!mod->isBypassed())
+			{
+				auto modBuffer = tv.initialiseBuffer(startSample_cr, numSamples_cr);
+
+				mod->setScratchBuffer(scratchBuffer, startSample_cr + numSamples_cr);
+				mod->render(modBuffer, scratchBuffer, startSample_cr, numSamples_cr);
+			}
+			else
+			{
+				tv.clear();
+			}
 		}
 	}
 }
@@ -145,9 +161,89 @@ void GlobalModulatorContainer::prepareToPlay(double newSampleRate, int samplesPe
 {
 	ModulatorSynth::prepareToPlay(newSampleRate, samplesPerBlock);
 
+	for (auto& d : timeVariantData)
+		d.prepareToPlay(samplesPerBlock);
+
 	for (int i = 0; i < data.size(); i++)
 	{
 		data[i]->prepareToPlay(newSampleRate, samplesPerBlock);
+	}
+}
+
+void GlobalModulatorContainer::addModulatorControlledParameter(const Processor* modulationSource, Processor* processor, int parameterIndex, NormalisableRange<double> range, int /*macroIndex*/)
+{
+	for (auto d : data)
+	{
+		if (d->getProcessor() == modulationSource)
+		{
+			auto newConnection = d->addConnectedParameter(processor, parameterIndex, range);
+
+			allParameters.add(newConnection);
+
+			return;
+		}
+	}
+}
+
+void GlobalModulatorContainer::removeModulatorControlledParameter(const Processor* modulationSource, Processor* processor, int parameterIndex)
+{
+	for(auto pc: allParameters)
+		
+
+	for (auto d : data)
+	{
+		if (d->getProcessor() == modulationSource)
+		{
+			d->removeConnectedParameter(processor, parameterIndex);
+			return;
+		}
+	}
+}
+
+bool GlobalModulatorContainer::isModulatorControlledParameter(Processor* processor, int parameterIndex) const
+{
+	return getModulatorForControlledParameter(processor, parameterIndex) != nullptr;
+}
+
+const hise::Processor* GlobalModulatorContainer::getModulatorForControlledParameter(const Processor* processor, int parameterIndex) const
+{
+	for (auto d : data)
+	{
+		if (auto pc = d->getParameterConnection(processor, parameterIndex))
+			return d->getProcessor();
+	}
+
+	return nullptr;
+}
+
+juce::ValueTree GlobalModulatorContainer::exportModulatedParameters() const
+{
+	ValueTree v("ModulatedParameters");
+
+	for (auto d : data)
+	{
+		auto tree = d->exportAllConnectedParameters();
+
+		if (tree.isValid())
+			v.addChild(tree, -1, nullptr);
+	}
+
+	return v;
+}
+
+void GlobalModulatorContainer::restoreModulatedParameters(const ValueTree& v)
+{
+	for (const auto& c : v)
+	{
+		auto pId = c.getProperty("id");
+
+		for (auto d : data)
+		{
+			if (pId == d->getProcessor()->getId())
+			{
+				d->restoreParameterConnections(c);
+			}
+		}
 	}
 }
 
@@ -155,23 +251,22 @@ void GlobalModulatorContainer::refreshList()
 {
 	// Delete all old datas
 
-	for (int i = 0; i < data.size(); i++)
+	voiceStartData.clearQuick();
+	
+	auto handler = dynamic_cast<ModulatorChain::ModulatorChainHandler*>(gainChain->getHandler());
+
+	for (auto& mod : handler->activeVoiceStartList)
 	{
-		if (data[i]->getProcessor() == nullptr)
-		{
-			data.remove(i--);
-		}
+		voiceStartData.add(VoiceStartData(mod));
 	}
 
-	for (int i = 0; i < gainChain->getHandler()->getNumProcessors(); i++)
-	{
-		if (i >= data.size() || gainChain->getHandler()->getProcessor(i) != data[i]->getProcessor())
-		{
-			data.insert(i, new GlobalModulatorData(gainChain->getHandler()->getProcessor(i)));
-		}
-	}
+	timeVariantData.clearQuick();
 
-	jassert(data.size() == gainChain->getHandler()->getNumProcessors());
+	for (auto& mod : handler->activeTimeVariantsList)
+	{
+		timeVariantData.add(TimeVariantData(mod, getLargestBlockSize()));
+		//mod->deactivateIntensitySmoothing();
+	}
 }
 
 void GlobalModulatorContainerVoice::startNote(int midiNoteNumber, float /*velocity*/, SynthesiserSound*, int /*currentPitchWheelPosition*/)
@@ -220,7 +315,7 @@ valuesForCurrentBuffer(1, 0)
 		jassertfalse;
 	}
 
-	if (modulator->getSampleRate() > 0) prepareToPlay(modulator->getSampleRate(), modulator->getBlockSize());
+	if (modulator->getSampleRate() > 0) prepareToPlay(modulator->getSampleRate(), modulator->getLargestBlockSize());
 
 }
 
@@ -248,7 +343,7 @@ void GlobalModulatorData::saveValuesToBuffer(int startIndex, int numSamples, int
 	}
 }
 
-const float * GlobalModulatorData::getModulationValues(int startIndex, int /*voiceIndex*/)
+const float * GlobalModulatorData::getModulationValues(int startIndex, int /*voiceIndex*/) const
 {
 	switch (type)
 	{
@@ -264,6 +359,52 @@ const float * GlobalModulatorData::getModulationValues(int startIndex, int /*voi
 float GlobalModulatorData::getConstantVoiceValue(int noteNumber)
 {
 	return constantVoiceValues[noteNumber];
+}
+
+void GlobalModulatorData::handleVoiceStartControlledParameters(int noteNumber)
+{
+	if (connectedParameters.size() != 0)
+	{
+		auto normalizedValue = getConstantVoiceValue(noteNumber);
+
+		for (auto pc : connectedParameters)
+		{
+			if (auto processor = pc->processor)
+			{
+				auto value = (float)pc->parameterRange.convertFrom0to1(normalizedValue);
+
+				if (pc->lastValue != value)
+				{
+					processor->setAttribute(pc->attribute, value, sendNotification);
+					pc->lastValue = value;
+				}
+			}
+		}
+	}
+
+	
+
+
+}
+
+void GlobalModulatorData::handleTimeVariantControlledParameters(int startSample, int numThisTime) const
+{
+	if (connectedParameters.size() > 0)
+	{
+		auto modData = getModulationValues(startSample);
+
+		auto maxValue = FloatVectorOperations::findMaximum(modData, numThisTime);
+
+		for (auto pc : connectedParameters)
+		{
+			if (auto processor = pc->processor)
+			{
+				auto value = (float)pc->parameterRange.convertFrom0to1(maxValue);
+
+				processor->setAttribute(pc->attribute, value, sendNotification);
+			}
+		}
+	}
 }
 
 } // namespace hise

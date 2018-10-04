@@ -128,6 +128,9 @@ var HiPropertyComponent::getCurrentPropertyValue(bool returnUndefinedWhenMultipl
 
 	auto first = b->getFirstFromSelection();
 
+	if (first == nullptr)
+		return {};
+
 	const var& firstValue = first->getScriptObjectProperty(getId());
 	
 	if (returnUndefinedWhenMultipleSelection && (b->getNumSelected() > 1))
@@ -493,7 +496,7 @@ HiCodeEditorPropertyComponent::HiCodeEditorPropertyComponent(const Identifier& i
 
 	JSONEditor::F5Callback cb = [b, id](const var& newValue)
 	{
-		b->setScriptComponentPropertyForSelection(id, JSON::toString(newValue, dontSendNotification), sendNotification);
+		b->setScriptComponentPropertyForSelection(id, JSON::toString(newValue, dontSendNotification, DOUBLE_TO_STRING_DIGITS), sendNotification);
 	};
 
 	editor->setCallback(cb);

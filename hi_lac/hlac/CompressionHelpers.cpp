@@ -459,25 +459,28 @@ int CompressionHelpers::getByteAmountForDifferential(AudioBufferInt16& b)
 }
 
 
-void CompressionHelpers::dump(const AudioBufferInt16& b)
+void CompressionHelpers::dump(const AudioBufferInt16& b, String fileName)
 {
 	AudioSampleBuffer fb = b.getFloatBuffer();
 
-	dump(fb);
+	dump(fb, fileName);
 }
 
 
-void CompressionHelpers::dump(const AudioSampleBuffer& b)
+void CompressionHelpers::dump(const AudioSampleBuffer& b, String fileName)
 {
 	WavAudioFormat afm;
     
+	if (fileName.isEmpty())
+		fileName = "dump.wav";
+
 #if JUCE_WINDOWS
-	File dumpFile("D:\\compressionTest\\dump.wav");
+	File dumpFile = File("D:\\").getChildFile(fileName);
 #else
-    File dumpFile("/Volumes/Shared/compressionTest/dump.wav");
+	File dumpFile = File("/Volumes/Shared/").getChildFile(fileName);
 #endif
 
-
+	dumpFile.deleteFile();
 
 	FileOutputStream* fis = new FileOutputStream(dumpFile.getNonexistentSibling());
 	StringPairArray metadata;
@@ -490,44 +493,51 @@ void CompressionHelpers::dump(const AudioSampleBuffer& b)
 
 void CompressionHelpers::fastInt16ToFloat(const void* source, float* dest, int numSamples)
 {
-#if HLAC_NO_SSE
+#if !JUCE_WINDOWS
 
 	AudioDataConverters::convertInt16LEToFloat(source, dest, numSamples);
 
 #else
 
-	uint64 alignOffsetFloat = reinterpret_cast<uint64>(dest) % 16;
-	uint64 alignOffsetInt = reinterpret_cast<uint64>(source) % 16;
-
-	if (alignOffsetFloat == 0 && alignOffsetInt == 0)
+	if (SystemStats::hasSSE41())
 	{
-		const int16* intData = static_cast<const int16*> (source);
-		const float scale = 1.0f / 0x7fff;
+		uint64 alignOffsetFloat = reinterpret_cast<uint64>(dest) % 16;
+		uint64 alignOffsetInt = reinterpret_cast<uint64>(source) % 16;
 
-		__m128 s = _mm_set1_ps(scale);
-
-		const int numSingle = (numSamples % 4);
-		const int numSSE = numSamples - numSingle;
-
-		for (int i = 0; i < numSSE; i += 4)
+		if (alignOffsetFloat == 0 && alignOffsetInt == 0)
 		{
-			__m128i a = _mm_loadl_epi64((__m128i*)(intData + i));
-			a = _mm_cvtepi16_epi32(a);
-			__m128 a_f = _mm_cvtepi32_ps(a);
-			a_f = _mm_mul_ps(a_f, s);
-			_mm_store_ps(dest + i, a_f);
+			const int16* intData = static_cast<const int16*> (source);
+			const float scale = 1.0f / 0x7fff;
+
+			__m128 s = _mm_set1_ps(scale);
+
+			const int numSingle = (numSamples % 4);
+			const int numSSE = numSamples - numSingle;
+
+			for (int i = 0; i < numSSE; i += 4)
+			{
+				__m128i a = _mm_loadl_epi64((__m128i*)(intData + i));
+				a = _mm_cvtepi16_epi32(a);
+				__m128 a_f = _mm_cvtepi32_ps(a);
+				a_f = _mm_mul_ps(a_f, s);
+				_mm_store_ps(dest + i, a_f);
+			}
+
+			for (int i = 0; i < numSingle; i++)
+			{
+				dest[i + numSSE] = scale * intData[i + numSSE];
+			}
 		}
-
-		for (int i = 0; i < numSingle; i++)
+		else
 		{
-			dest[i + numSSE] = scale * intData[i + numSSE];
+			AudioDataConverters::convertInt16LEToFloat(source, dest, numSamples);
 		}
 	}
 	else
 	{
 		AudioDataConverters::convertInt16LEToFloat(source, dest, numSamples);
 	}
-
+    
 #endif
 }
 
@@ -826,7 +836,7 @@ void CompressionHelpers::Diff::distributeFullSamples(AudioBufferInt16& dst, cons
 	int thisValue = 0;
 	int nextValue = 0;
 
-#if HLAC_NO_SSE
+#if !JUCE_WINDOWS
 
 	for (int i = 0; i < numSamples - 2; i++)
 	{
@@ -843,57 +853,60 @@ void CompressionHelpers::Diff::distributeFullSamples(AudioBufferInt16& dst, cons
 
 #else
 
-	for (int i = 0; i < numSamples - 9; i+=4)
+	if (SystemStats::hasSSE41())
 	{
-		__m128i a = _mm_loadl_epi64((const __m128i*)(r + i));
-		__m128i b = _mm_loadl_epi64((const __m128i*)(r + i + 1));
-		const __m128i mul3 = _mm_set1_epi32(3);
-		
-		a = _mm_cvtepi16_epi32(a);
-		b = _mm_cvtepi16_epi32(b);
+		for (int i = 0; i < numSamples - 9; i += 4)
+		{
+			__m128i a = _mm_loadl_epi64((const __m128i*)(r + i));
+			__m128i b = _mm_loadl_epi64((const __m128i*)(r + i + 1));
+			const __m128i mul3 = _mm_set1_epi32(3);
 
-		auto v1 = a;
+			a = _mm_cvtepi16_epi32(a);
+			b = _mm_cvtepi16_epi32(b);
 
-		auto v2 = _mm_mullo_epi32(a, mul3);
-		v2 = _mm_add_epi32(v2, b);
-		v2 = _mm_srai_epi32(v2, 2);
+			auto v1 = a;
 
-		auto v3 = _mm_add_epi32(a, b);
-		v3 = _mm_srai_epi32(v3, 1);
+			auto v2 = _mm_mullo_epi32(a, mul3);
+			v2 = _mm_add_epi32(v2, b);
+			v2 = _mm_srai_epi32(v2, 2);
 
-		auto v4 = _mm_mullo_epi32(b, mul3);
-		v4 = _mm_add_epi32(v4, a);
-		v4 = _mm_srai_epi32(v4, 2);
+			auto v3 = _mm_add_epi32(a, b);
+			v3 = _mm_srai_epi32(v3, 1);
 
-		const uint8 z = 0x80;
+			auto v4 = _mm_mullo_epi32(b, mul3);
+			v4 = _mm_add_epi32(v4, a);
+			v4 = _mm_srai_epi32(v4, 2);
 
-		const __m128i mask1a = _mm_set_epi8(z, z, z, z,   z, z, 5, 4,   z, z, z, z,    z, z, 1, 0);
-		const __m128i mask1b = _mm_set_epi8(z, z, z, z,   z, z,13,12,   z, z, z, z,    z, z, 9, 8);
-		const __m128i mask2a = _mm_set_epi8(z, z, z, z,   5, 4, z, z,   z, z, z, z,    1, 0, z, z);
-		const __m128i mask2b = _mm_set_epi8(z, z, z, z,  13,12, z, z,   z, z, z, z,    9, 8, z, z);
-		const __m128i mask3a = _mm_set_epi8(z, z, 5, 4,   z, z, z, z,   z, z, 1, 0,    z, z, z, z);
-		const __m128i mask3b = _mm_set_epi8(z, z,13,12,   z, z, z, z,   z, z, 9, 8,    z, z, z, z);
-		const __m128i mask4a = _mm_set_epi8( 5, 4, z, z,  z, z, z, z,   1, 0, z, z,    z, z, z, z);
-		const __m128i mask4b = _mm_set_epi8(13,12, z, z,  z, z, z, z,   9, 8, z, z,    z, z, z, z);
+			const uint8 z = 0x80;
 
-		const __m128i d1a = _mm_shuffle_epi8(v1, mask1a);
-		const __m128i d1b = _mm_shuffle_epi8(v2, mask2a);
-		const __m128i d1c = _mm_shuffle_epi8(v3, mask3a);
-		const __m128i d1d = _mm_shuffle_epi8(v4, mask4a);
+			const __m128i mask1a = _mm_set_epi8(z, z, z, z, z, z, 5, 4, z, z, z, z, z, z, 1, 0);
+			const __m128i mask1b = _mm_set_epi8(z, z, z, z, z, z, 13, 12, z, z, z, z, z, z, 9, 8);
+			const __m128i mask2a = _mm_set_epi8(z, z, z, z, 5, 4, z, z, z, z, z, z, 1, 0, z, z);
+			const __m128i mask2b = _mm_set_epi8(z, z, z, z, 13, 12, z, z, z, z, z, z, 9, 8, z, z);
+			const __m128i mask3a = _mm_set_epi8(z, z, 5, 4, z, z, z, z, z, z, 1, 0, z, z, z, z);
+			const __m128i mask3b = _mm_set_epi8(z, z, 13, 12, z, z, z, z, z, z, 9, 8, z, z, z, z);
+			const __m128i mask4a = _mm_set_epi8(5, 4, z, z, z, z, z, z, 1, 0, z, z, z, z, z, z);
+			const __m128i mask4b = _mm_set_epi8(13, 12, z, z, z, z, z, z, 9, 8, z, z, z, z, z, z);
 
-		const __m128i d1 = _mm_or_si128(_mm_or_si128(d1a, d1b), _mm_or_si128(d1c, d1d));
-		
-		const __m128i d2a = _mm_shuffle_epi8(v1, mask1b);
-		const __m128i d2b = _mm_shuffle_epi8(v2, mask2b);
-		const __m128i d2c = _mm_shuffle_epi8(v3, mask3b);
-		const __m128i d2d = _mm_shuffle_epi8(v4, mask4b);
+			const __m128i d1a = _mm_shuffle_epi8(v1, mask1a);
+			const __m128i d1b = _mm_shuffle_epi8(v2, mask2a);
+			const __m128i d1c = _mm_shuffle_epi8(v3, mask3a);
+			const __m128i d1d = _mm_shuffle_epi8(v4, mask4a);
 
-		const __m128i d2 = _mm_or_si128(_mm_or_si128(d2a, d2b), _mm_or_si128(d2c, d2d));
+			const __m128i d1 = _mm_or_si128(_mm_or_si128(d1a, d1b), _mm_or_si128(d1c, d1d));
 
-		_mm_store_si128((__m128i*)d, d1);
-		_mm_store_si128((__m128i*)(d+8), d2);
+			const __m128i d2a = _mm_shuffle_epi8(v1, mask1b);
+			const __m128i d2b = _mm_shuffle_epi8(v2, mask2b);
+			const __m128i d2c = _mm_shuffle_epi8(v3, mask3b);
+			const __m128i d2d = _mm_shuffle_epi8(v4, mask4b);
 
-		d += 16;
+			const __m128i d2 = _mm_or_si128(_mm_or_si128(d2a, d2b), _mm_or_si128(d2c, d2d));
+
+			_mm_store_si128((__m128i*)d, d1);
+			_mm_store_si128((__m128i*)(d + 8), d2);
+
+			d += 16;
+		}
 	}
 
 	for (int i = numSamples - 9; i < numSamples - 2; i++)
@@ -909,9 +922,7 @@ void CompressionHelpers::Diff::distributeFullSamples(AudioBufferInt16& dst, cons
 		d += 4;
 	}
 
-
 #endif
-
 
 	thisValue = r[numSamples - 2];
 	nextValue = r[numSamples - 1];
@@ -924,8 +935,6 @@ void CompressionHelpers::Diff::distributeFullSamples(AudioBufferInt16& dst, cons
 
 void CompressionHelpers::Diff::addErrorSignal(AudioBufferInt16& dst, const uint16* errorSignalPacked, int numSamples)
 {
-
-
 	jassert(isPowerOfTwo(4*(numSamples+1)/3));
 
 	// Needs 64 bit alignment for the destination buffer.
@@ -937,7 +946,7 @@ void CompressionHelpers::Diff::addErrorSignal(AudioBufferInt16& dst, const uint1
 
 	int counter = 0;
 
-#if HLAC_NO_SSE
+#if !JUCE_WINDOWS
 
 	while (numSamples > 2)
 	{
@@ -960,6 +969,8 @@ void CompressionHelpers::Diff::addErrorSignal(AudioBufferInt16& dst, const uint1
 
 	while (numSamples > 2)
 	{
+		// SSE 3.0 should be available everywhere by now...
+
 		counter += 16;
 
 		__m128i a1 = _mm_load_si128((__m128i*)d);
@@ -993,7 +1004,6 @@ void CompressionHelpers::Diff::addErrorSignal(AudioBufferInt16& dst, const uint1
 		numSamples -= 12;
 
 	}
-
 
 	d[1] -= e[0];
 	d[2] -= e[1];

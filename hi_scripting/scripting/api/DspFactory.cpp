@@ -137,11 +137,11 @@ void DynamicDspFactory::openDynamicLibrary()
 {
 #if JUCE_WINDOWS
 
-#if USE_BACKEND
-	const File path = File(PresetHandler::getDataFolder()).getChildFile("dll/");
-#else
+	const File path = NativeFileHandler::getAppDataDirectory().getChildFile("dll/");
 
-	const File path = ProjectHandler::Frontend::getAppDataDirectory().getChildFile("dll/");
+#if USE_FRONTEND
+
+	
 
 	if (!path.isDirectory())
 	{
@@ -159,14 +159,10 @@ void DynamicDspFactory::openDynamicLibrary()
 
 #else
     
+
+    const File path = NativeFileHandler::getAppDataDirectory().getChildFile("lib/");
     
-#if USE_BACKEND
-    
-    const File path = File(PresetHandler::getDataFolder()).getChildFile("lib/");
-    
-#else
-    
-    const File path = ProjectHandler::Frontend::getAppDataDirectory().getChildFile("lib/");
+#if USE_FRONTEND
     
     if (!path.isDirectory())
     {
@@ -256,7 +252,8 @@ int DynamicDspFactory::initialise(const String &arguments)
 
 var DynamicDspFactory::createModule(const String &moduleName) const
 {
-	if (isUnloadedForCompilation) throw String("Can't load modules for \"unloaded for recompile\" Libraries");
+	if (isUnloadedForCompilation)
+        throw String("Can't load modules for \"unloaded for recompile\" Libraries");
 
 	ScopedPointer<DspInstance> instance = new DspInstance(this, moduleName);
 

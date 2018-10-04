@@ -184,8 +184,25 @@ public:
 	// ========================================================================================================================== MIDI Message methods
 
 	uint16 getTimeStamp() const noexcept{ return timeStamp; };
-	void setTimeStamp(uint16 newTimestamp) noexcept{ timeStamp = (uint16)newTimestamp; };
-	void addToTimeStamp(int16 delta) noexcept{ timeStamp += delta; };
+	void setTimeStamp(int newTimestamp) noexcept;;
+	void setTimeStampRaw(uint16 newTimestamp) noexcept;
+
+	template <int Alignment> void alignToRaster(int maxTimestamp) noexcept
+	{
+		const uint16 odd = timeStamp % (uint16)Alignment;
+		constexpr uint16 half = static_cast<uint16>(Alignment) / 2;
+
+		uint16 roundUpValue = (uint16)(static_cast<uint16>(odd > half) * static_cast<uint16>(Alignment));
+		uint16 delta = roundUpValue - odd;
+
+		timeStamp += delta;
+
+		uint16 limitRoundDownValue = static_cast<uint16>(timeStamp >= maxTimestamp) * static_cast<uint16>(Alignment);
+
+		timeStamp -= limitRoundDownValue;
+	}
+
+	void addToTimeStamp(int16 delta) noexcept;
 
 	int getChannel() const noexcept{ return (int)channel; };
 	void setChannel(int newChannelNumber) noexcept{ channel = (uint8)newChannelNumber; };
@@ -484,8 +501,20 @@ public:
 	void addEvents(const MidiBuffer& otherBuffer);
 
 	void addEvents(const HiseEventBuffer &otherBuffer);
-
 	
+
+	template <int Alignment> void alignEventsToRaster(int maxTimeStamp)
+	{
+		for (auto& e : *this)
+			e.alignToRaster<Alignment>(maxTimeStamp);
+	}
+
+	bool timeStampsAreSorted() const;
+	
+	uint16 getMinTimeStamp() const;
+
+	uint16 getMaxTimeStamp() const;
+
 	struct CopyHelpers
 	{
 		static void copyEvents(HiseEvent* destination, const HiseEvent* source, int numElements)
@@ -527,6 +556,16 @@ public:
 
 		mutable int index;
 	};
+
+	inline HiseEvent* begin() const noexcept
+	{
+		return const_cast<HiseEvent*>(buffer);
+	}
+
+	inline HiseEvent* end() const noexcept
+	{
+		return const_cast<HiseEvent*>(buffer + numUsed);
+	}
 
 private:
 

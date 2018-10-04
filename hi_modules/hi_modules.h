@@ -88,6 +88,9 @@ END_JUCE_MODULE_DECLARATION
 #include "modulators/mods/CCEnvelope.h"
 #include "modulators/mods/CCDucker.h"
 #include "modulators/mods/GainMatcher.h"
+#include "modulators/mods/MPEModulators.h"
+#include "modulators/mods/MPEComponents.h"
+
 
 #if USE_BACKEND
 
@@ -109,6 +112,7 @@ END_JUCE_MODULE_DECLARATION
 #include "modulators/editors/ArrayModulatorEditor.h"
 #include "modulators/editors/GlobalModulatorEditor.h"
 #include "modulators/editors/GainMatcherEditor.h"
+#include "modulators/editors/MPEModulatorEditors.h"
 
 #endif
 
@@ -141,6 +145,8 @@ END_JUCE_MODULE_DECLARATION
 #include "effects/MdaEffectWrapper.h"
 
 #include "effects/fx/RouteFX.h"
+#include "effects/fx/FilterTypes.h"
+#include "effects/fx/FilterHelpers.h"
 #include "effects/fx/Filters.h"
 #include "effects/fx/HarmonicFilter.h"
 #include "effects/fx/CurveEq.h"

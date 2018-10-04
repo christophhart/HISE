@@ -32,17 +32,641 @@
 
 namespace hise { using namespace juce;
 
+
+struct ModBufferExpansion
+{
+
+	static bool isEqual(float rampStart, const float* data, int numElements)
+	{
+		auto range = FloatVectorOperations::findMinAndMax(data, numElements);
+		return (range.contains(rampStart) || range.getEnd() == rampStart) && range.getLength() < 0.001f;
+	}
+
+	/** Expands the data found in modulationData + startsample according to the HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR.
+	*
+	*	It updates the rampstart and returns true if there was movement in the modulation data.
+	*
+	*/
+	static bool expand(const float* modulationData, int startSample, int numSamples, float& rampStart)
+	{
+		const int startSample_cr = startSample / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+		const int numSamples_cr = numSamples / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+
+		if (isEqual(rampStart, modulationData + startSample_cr, numSamples_cr))
+		{
+			rampStart = modulationData[startSample_cr];
+			return false;
+		}
+		else
+		{
+			float* temp = (float*)alloca(sizeof(float) * (numSamples_cr));
+
+			FloatVectorOperations::copy(temp, modulationData + startSample_cr, numSamples_cr);
+
+			float* d = const_cast<float*>(modulationData + startSample);
+
+			constexpr float ratio = 1.0f / (float)HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+
+			for (int i = 0; i < numSamples_cr; i++)
+			{
+				AlignedSSERamper<HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR> ramper(d);
+
+				const float delta1 = (temp[i] - rampStart) * ratio;
+				ramper.ramp(rampStart, delta1);
+				rampStart = temp[i];
+				d += HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+			}
+
+			return true;
+		}
+	}
+};
+
+template <class ModulatorSubType> struct ModIterator
+{
+	ModIterator(const ModulatorChain* modChain) :
+		chain(modChain)
+	{
+		ModulatorSubType* dummy = nullptr;
+
+		init(dummy);
+	}
+
+	ModulatorSubType* next()
+	{
+		return (start != ende) ? *start++ : nullptr;
+	}
+
+private:
+
+	void init(VoiceStartModulator* v)
+	{
+		ignoreUnused(v);
+
+		auto handler = static_cast<const ModulatorChain::ModulatorChainHandler*>(chain->getHandler());
+
+		start = static_cast<ModulatorSubType**>(handler->activeVoiceStartList.begin());
+		ende = static_cast<ModulatorSubType**>(handler->activeVoiceStartList.end());
+	}
+
+	void init(TimeVariantModulator* v)
+	{
+		ignoreUnused(v);
+
+		auto handler = static_cast<const ModulatorChain::ModulatorChainHandler*>(chain->getHandler());
+
+		start = static_cast<ModulatorSubType**>(handler->activeTimeVariantsList.begin());
+		ende = static_cast<ModulatorSubType**>(handler->activeTimeVariantsList.end());
+	}
+
+	void init(EnvelopeModulator* m)
+	{
+		ignoreUnused(m);
+
+		auto handler = static_cast<const ModulatorChain::ModulatorChainHandler*>(chain->getHandler());
+
+		start = static_cast<ModulatorSubType**>(handler->activeEnvelopesList.begin());
+		ende = static_cast<ModulatorSubType**>(handler->activeEnvelopesList.end());
+	}
+
+	void init(MonophonicEnvelope* m)
+	{
+		ignoreUnused(m);
+
+		auto handler = static_cast<const ModulatorChain::ModulatorChainHandler*>(chain->getHandler());
+
+		start = static_cast<ModulatorSubType**>(handler->activeMonophonicEnvelopesList.begin());
+		ende = static_cast<ModulatorSubType**>(handler->activeMonophonicEnvelopesList.end());
+	}
+
+	void init(Modulator* a)
+	{
+		ignoreUnused(a);
+
+		auto handler = static_cast<const ModulatorChain::ModulatorChainHandler*>(chain->getHandler());
+
+		start = static_cast<ModulatorSubType**>(handler->activeAllList.begin());
+		ende = static_cast<ModulatorSubType**>(handler->activeAllList.end());
+	}
+
+	const ModulatorChain* chain;
+
+	ModulatorSubType ** start;
+	ModulatorSubType ** ende;
+};
+
+void ModulatorChain::ModChainWithBuffer::Buffer::setMaxSize(int maxSamplesPerBlock_)
+{
+	int requiredSize = (dsp::SIMDRegister<float>::SIMDRegisterSize + maxSamplesPerBlock_) * 3;
+
+	if (requiredSize > allocated)
+	{
+		maxSamplesPerBlock = maxSamplesPerBlock_;
+		data.realloc(requiredSize, sizeof(float));
+
+		allocated = requiredSize;
+
+		data.clear(requiredSize);
+	}
+
+	updatePointers();
+}
+
+
+
+
+bool ModulatorChain::ModChainWithBuffer::Buffer::isInitialised() const noexcept
+{
+	return allocated != 0;
+}
+
+void ModulatorChain::ModChainWithBuffer::Buffer::clear()
+{
+	voiceValues = nullptr;
+	monoValues = nullptr;
+	scratchBuffer = nullptr;
+	data.free();
+}
+
+void ModulatorChain::ModChainWithBuffer::Buffer::updatePointers()
+{
+	voiceValues = dsp::SIMDRegister<float>::getNextSIMDAlignedPtr(data);
+	monoValues = dsp::SIMDRegister<float>::getNextSIMDAlignedPtr(voiceValues + maxSamplesPerBlock);
+	scratchBuffer = dsp::SIMDRegister<float>::getNextSIMDAlignedPtr(monoValues + maxSamplesPerBlock);
+}
+
+void ModulatorChain::ModChainWithBuffer::applyMonophonicValuesToVoiceInternal(float* voiceBuffer, float* monoBuffer, int numSamples)
+{
+	if (c->getMode() == Modulation::PanMode)
+	{
+		FloatVectorOperations::add(voiceBuffer, monoBuffer, numSamples);
+	}
+	else
+	{
+		FloatVectorOperations::multiply(voiceBuffer, monoBuffer, numSamples);
+	}
+}
+
+
+void ModulatorChain::ModChainWithBuffer::setDisplayValueInternal(int voiceIndex, int startSample, int numSamples)
+{
+	if (c->polyManager.getLastStartedVoice() == voiceIndex)
+	{
+		float displayValue;
+
+		if (currentVoiceData == nullptr)
+			displayValue = getConstantModulationValue();
+		else
+			displayValue = currentVoiceData[startSample];
+
+		if (c->getMode() == Modulation::PanMode)
+		{
+			displayValue = displayValue * 0.5f + 0.5f;
+		}
+
+
+		c->setOutputValue(displayValue);
+
+		if(currentVoiceData != nullptr)
+			c->pushPlotterValues(currentVoiceData, startSample, numSamples);
+	}
+}
+
+ModulatorChain::ModChainWithBuffer::ModChainWithBuffer(ConstructionData data) :
+	c(new ModulatorChain(data.parent->getMainController(),
+		data.id,
+		data.parent->getVoiceAmount(),
+		data.m,
+		data.parent)),
+	type(data.t),
+	currentMonophonicRampValue(c->getInitialValue())
+{
+	FloatVectorOperations::fill(currentConstantVoiceValues, c->getInitialValue(), NUM_POLYPHONIC_VOICES);
+	FloatVectorOperations::fill(currentRampValues, c->getInitialValue(), NUM_POLYPHONIC_VOICES);
+
+	if (data.t == Type::VoiceStartOnly)
+		c->setIsVoiceStartChain(true);
+}
+
+
+
+ModulatorChain::ModChainWithBuffer::~ModChainWithBuffer()
+{
+	c = nullptr;
+
+	modBuffer.clear();
+}
+
+void ModulatorChain::ModChainWithBuffer::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+	c->prepareToPlay(sampleRate, samplesPerBlock);
+
+	if (type == Type::Normal)
+		modBuffer.setMaxSize(samplesPerBlock);
+}
+
+void ModulatorChain::ModChainWithBuffer::handleHiseEvent(const HiseEvent& m)
+{
+	if (c->shouldBeProcessedAtAll())
+		c->handleHiseEvent(m);
+}
+
+void ModulatorChain::ModChainWithBuffer::resetVoice(int voiceIndex)
+{
+	if (c->hasActiveEnvelopesAtAll())
+	{
+		c->reset(voiceIndex);
+		currentRampValues[voiceIndex] = 0.0f;
+		currentMonophonicRampValue = c->getInitialValue();
+	}
+}
+
+void ModulatorChain::ModChainWithBuffer::stopVoice(int voiceIndex)
+{
+	if (c->hasVoiceModulators())
+		c->stopVoice(voiceIndex);
+}
+
+void ModulatorChain::ModChainWithBuffer::startVoice(int voiceIndex)
+{
+	float firstDynamicValue = 1.0f;
+
+	if (options.includeMonophonicValues && c->hasMonophonicTimeModulationMods())
+	{
+		Modulation::applyModulationValue(c->getMode(), firstDynamicValue, currentMonophonicRampValue);
+
+	}
+
+	if (c->hasVoiceModulators())
+	{
+		auto startValue = c->startVoice(voiceIndex);
+
+		Modulation::applyModulationValue(c->getMode(), firstDynamicValue, startValue);
+	}
+	
+	Modulation::applyModulationValue(c->getMode(), firstDynamicValue, c->getCurrentMonophonicStartValue());
+
+	setConstantVoiceValueInternal(voiceIndex, c->getConstantVoiceValue(voiceIndex));
+
+	
+
+	currentRampValues[voiceIndex] = firstDynamicValue;
+
+	
+	//currentMonophonicRampValue = firstDynamicValue;
+}
+
+
+void ModulatorChain::ModChainWithBuffer::expandVoiceValuesToAudioRate(int voiceIndex, int startSample, int numSamples)
+{
+	if (currentVoiceData != nullptr)
+	{
+		polyExpandChecker = true;
+
+		if (!ModBufferExpansion::expand(currentVoiceData, startSample, numSamples, currentRampValues[voiceIndex]))
+		{
+			// Don't use the dynamic data for further processing...
+
+			currentConstantValue = currentRampValues[voiceIndex];
+
+			currentVoiceData = nullptr;
+		}
+		else
+		{
+			currentConstantValue = 1.0f;
+		}
+	}
+}
+
+void ModulatorChain::ModChainWithBuffer::expandMonophonicValuesToAudioRate(int startSample, int numSamples)
+{
+#if JUCE_DEBUG
+	monoExpandChecker = true;
+#endif
+
+	if (auto data = getMonophonicModulationValues(startSample))
+	{
+		if (!ModBufferExpansion::expand(getMonophonicModulationValues(0), startSample, numSamples, currentMonophonicRampValue))
+		{
+			FloatVectorOperations::fill(const_cast<float*>(data + startSample), currentMonophonicRampValue, numSamples);
+		}
+	}
+}
+
+void ModulatorChain::ModChainWithBuffer::setCurrentRampValueForVoice(int voiceIndex, float value) noexcept
+{
+	if (voiceIndex >= 0 && voiceIndex < NUM_POLYPHONIC_VOICES)
+		currentRampValues[voiceIndex] = value;
+}
+
+void ModulatorChain::ModChainWithBuffer::setExpandToAudioRate(bool shouldExpandAfterRendering)
+{
+	options.expandToAudioRate = shouldExpandAfterRendering;
+}
+
+
+void ModulatorChain::ModChainWithBuffer::calculateMonophonicModulationValues(int startSample, int numSamples)
+{
+	if (c->isVoiceStartChain)
+		return;
+
+	if (c->hasMonophonicTimeModulationMods())
+	{
+		int startSample_cr = startSample / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+		int numSamples_cr = numSamples / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+
+		jassert(type == Type::Normal);
+		jassert(c->hasMonophonicTimeModulationMods());
+		jassert(c->getSampleRate() > 0);
+
+		ModIterator<TimeVariantModulator> iter(c);
+		
+		FloatVectorOperations::fill(modBuffer.monoValues + startSample_cr, c->getInitialValue(), numSamples_cr);
+
+		while (auto mod = iter.next())
+		{
+			mod->render(modBuffer.monoValues, modBuffer.scratchBuffer, startSample_cr, numSamples_cr);
+		}
+
+		ModIterator<MonophonicEnvelope> iter2(c);
+
+		while (auto mod = iter2.next())
+		{
+			mod->render(0, modBuffer.monoValues, modBuffer.scratchBuffer, startSample_cr, numSamples_cr);
+		}
+
+		currentMonoValue = modBuffer.monoValues[startSample_cr];
+
+		monoExpandChecker = false;
+	}
+}
+
+
+
+void ModulatorChain::ModChainWithBuffer::calculateModulationValuesForCurrentVoice(int voiceIndex, int startSample, int numSamples)
+{
+	if (c->isVoiceStartChain)
+	{
+		return;
+	}
+
+	jassert(voiceIndex >= 0);
+	jassert(modBuffer.isInitialised());
+
+	c->polyManager.setCurrentVoice(voiceIndex);
+
+	const bool useMonophonicData = options.includeMonophonicValues && c->hasMonophonicTimeModulationMods();
+
+	auto voiceData = modBuffer.voiceValues;
+	const auto monoData = modBuffer.monoValues;
+
+	jassert(startSample % HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR == 0);
+
+	int startSample_cr = startSample / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+	int numSamples_cr = numSamples / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+
+	bool constantValuesAreSmoothed = false;
+
+	if (c->hasActivePolyMods())
+	{
+		const float thisConstantValue = c->getConstantVoiceValue(voiceIndex);
+		const float previousConstantValue = currentConstantVoiceValues[voiceIndex];
+
+		const bool smoothConstantValue = (std::abs(previousConstantValue - thisConstantValue) > 0.01f);
+
+		if (smoothConstantValue)
+		{
+			constantValuesAreSmoothed = true;
+
+			const float start = previousConstantValue;
+			const float delta = (thisConstantValue - start) / (float)numSamples_cr;
+			int numLoop = numSamples_cr;
+			float value = start;
+			float* loop_ptr = voiceData + startSample_cr;
+
+			while (--numLoop >= 0)
+			{
+				*loop_ptr++ = value;
+				value += delta;
+			}
+		}
+		else
+		{
+			FloatVectorOperations::fill(voiceData + startSample_cr, thisConstantValue, numSamples_cr);
+		}
+
+		setConstantVoiceValueInternal(voiceIndex, thisConstantValue);
+
+		if (c->hasActivePolyEnvelopes())
+		{
+			ModIterator<EnvelopeModulator> iter(c);
+
+			while (auto mod = iter.next())
+			{
+				mod->render(voiceIndex, voiceData, modBuffer.scratchBuffer, startSample_cr, numSamples_cr);
+			}
+
+			if (useMonophonicData)
+			{
+				applyMonophonicValuesToVoiceInternal(voiceData + startSample_cr, monoData + startSample_cr, numSamples_cr);
+			}
+
+			currentVoiceData = voiceData;
+			
+#if JUCE_DEBUG
+			polyExpandChecker = false;
+#endif
+		}
+		else if (useMonophonicData)
+		{
+			applyMonophonicValuesToVoiceInternal(voiceData + startSample_cr, monoData + startSample_cr, numSamples_cr);
+
+			
+			currentVoiceData = voiceData;
+
+#if JUCE_DEBUG
+			polyExpandChecker = false;
+#endif
+		}
+		else
+		{
+			// Set it to nullptr, and let the module use the constant value instead...
+			currentVoiceData = nullptr;
+		}
+	}
+	else if (useMonophonicData)
+	{
+		setConstantVoiceValueInternal(voiceIndex, c->getInitialValue());
+
+#if HISE_USE_SQUARED_TIMEVARIANT_MOD_VALUES_BUG
+		
+		if (c->getMode() == Modulation::PanMode)
+		{
+			// Use the default logic for pan
+			FloatVectorOperations::copy(voiceData + startSample_cr, monoData + startSample_cr, numSamples_cr);
+			currentVoiceData = voiceData;
+		}
+		else
+		{
+			// Now this is extremely annoying, but the old modulation scheme
+			// falsely multiplied the monophonic modulation values with each other, so we 
+			// must replicate this in order to keep consistency
+
+			int numLoop = numSamples_cr;
+
+			auto wp = voiceData + startSample_cr;
+			auto rp = monoData + startSample_cr;
+
+			while (--numLoop >= 0)
+			{
+				const float value = *rp++;
+				*wp++ = value * value;
+			}
+
+			currentVoiceData = voiceData;
+		}
+
+		
+
+#else
+		if (options.voiceValuesReadOnly)
+			currentVoiceData = monoData;
+		else
+		{
+			FloatVectorOperations::copy(voiceData + startSample_cr, monoData + startSample_cr, numSamples_cr);
+			currentVoiceData = voiceData;
+		}
+#endif
+
+#if JUCE_DEBUG
+		polyExpandChecker = false;
+#endif
+	}
+	else
+	{
+		currentVoiceData = nullptr;
+
+		setConstantVoiceValueInternal(voiceIndex, 1.0f);
+	}
+
+	setDisplayValueInternal(voiceIndex, startSample_cr, numSamples_cr);
+
+	c->polyManager.clearCurrentVoice();
+}
+
+void ModulatorChain::ModChainWithBuffer::applyMonophonicModulationValues(AudioSampleBuffer& b, int startSample, int numSamples)
+{
+	if (c->hasMonophonicTimeModulationMods())
+	{
+		// You need to expand the modulation values to audio rate before calling this method.
+		// Either call setExpandAudioRate(true) in the constructor, or manually expand them
+		jassert(monoExpandChecker);
+
+		for (int i = 0; i < b.getNumSamples(); i++)
+		{
+			FloatVectorOperations::multiply(b.getWritePointer(i, startSample), modBuffer.monoValues, numSamples);
+		}
+	}
+}
+
+const float* ModulatorChain::ModChainWithBuffer::getReadPointerForVoiceValues(int startSample) const
+{
+	// You need to expand the modulation values to audio rate before calling this method.
+	// Either call setExpandAudioRate(true) in the constructor, or manually expand them
+	jassert(currentVoiceData == nullptr || polyExpandChecker);
+
+	return currentVoiceData != nullptr ? currentVoiceData + startSample : nullptr;
+}
+
+float* ModulatorChain::ModChainWithBuffer::getWritePointerForVoiceValues(int startSample)
+{
+	jassert(!options.voiceValuesReadOnly);
+
+	// You need to expand the modulation values to audio rate before calling this method.
+	// Either call setExpandAudioRate(true) in the constructor, or manually expand them
+	jassert(currentVoiceData == nullptr || polyExpandChecker);
+
+	return currentVoiceData != nullptr ? const_cast<float*>(currentVoiceData) + startSample : nullptr;
+}
+
+float* ModulatorChain::ModChainWithBuffer::getWritePointerForManualExpansion(int startSample)
+{
+	// You have already expanded the values...
+	jassert(currentVoiceData != nullptr || !polyExpandChecker);
+
+	// Have you already downsampled the startOffsetValue? If not, this is really bad...
+	jassert(startSample % HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR == 0);
+
+	int startSample_cr = startSample / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+
+	manualExpansionPending = true;
+
+	return currentVoiceData != nullptr ? const_cast<float*>(currentVoiceData) + startSample_cr : nullptr;
+}
+
+const float* ModulatorChain::ModChainWithBuffer::getMonophonicModulationValues(int startSample) const
+{
+	// If you include the monophonic modulation values in the voice modulation, there's no need for this method
+	jassert(!options.includeMonophonicValues);
+
+	if (c->hasMonophonicTimeModulationMods())
+	{
+		// You need to expand the modulation values to audio rate before calling this method.
+		// Either call setExpandAudioRate(true) in the constructor, or manually expand them
+		jassert(monoExpandChecker);
+
+		return modBuffer.monoValues + startSample;
+	}
+
+	return nullptr;
+}
+
+float ModulatorChain::ModChainWithBuffer::getConstantModulationValue() const
+{
+	return currentConstantValue;
+}
+
+float ModulatorChain::ModChainWithBuffer::getOneModulationValue(int startSample) const
+{
+	// If you set this, you probably don't need this method...
+	jassert(!options.expandToAudioRate);
+
+	if (currentVoiceData == nullptr)
+		return getConstantModulationValue();
+
+	const int downsampledOffset = startSample / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+	return currentVoiceData[downsampledOffset];
+}
+
+float* ModulatorChain::ModChainWithBuffer::getScratchBuffer()
+{
+	return modBuffer.scratchBuffer;
+}
+
+void ModulatorChain::ModChainWithBuffer::setAllowModificationOfVoiceValues(bool mightBeOverwritten)
+{
+	options.voiceValuesReadOnly = !mightBeOverwritten;
+}
+
+void ModulatorChain::ModChainWithBuffer::setIncludeMonophonicValuesInVoiceRendering(bool shouldInclude)
+{
+	options.includeMonophonicValues = shouldInclude;
+}
+
+
+void ModulatorChain::ModChainWithBuffer::clear()
+{
+	currentVoiceData = nullptr;
+	currentConstantValue = c->getInitialValue();
+}
+
 ModulatorChain::ModulatorChain(MainController *mc, const String &uid, int numVoices, Mode m, Processor *p): 
 	EnvelopeModulator(mc, uid, numVoices, m),
 	Modulation(m),
 	handler(this),
 	parentProcessor(p),
-	isVoiceStartChain(false),
-    internalVoiceBuffer(numVoices, 0),
-    envelopeTempBuffer(1, 0)
+	isVoiceStartChain(false)
 {
-	
-
 	activeVoices.setRange(0, numVoices, false);
 	setFactoryType(new ModulatorChainFactoryType(numVoices, m, p));
 
@@ -56,70 +680,121 @@ ModulatorChain::ModulatorChain(MainController *mc, const String &uid, int numVoi
 	setEditorState(Processor::Visible, false, dontSendNotification);
 };
 
-Chain::Handler *ModulatorChain::getHandler() {return &handler;};
+ModulatorChain::~ModulatorChain()
+{
+	handler.clearAsync(this);
+}
 
+Chain::Handler *ModulatorChain::getHandler() {return &handler;};;
 
-bool ModulatorChain::shouldBeProcessed(bool checkPolyphonicModulators) const
-{ 
-	if (isBypassed())
-		return false;
+bool ModulatorChain::hasActivePolyMods() const noexcept
+{
+	return !isBypassed() && (handler.hasActiveEnvelopes() || handler.hasActiveVoiceStartMods());
+}
 
-	if (checkPolyphonicModulators)
-	{
-		for (int i = 0; i < envelopeModulators.size(); i++)
-			if (!envelopeModulators[i]->isBypassed())
-				return true;
+bool ModulatorChain::hasActiveVoiceStartMods() const noexcept
+{
+	return !isBypassed() && handler.hasActiveVoiceStartMods();
+}
 
-		for (int i = 0; i < voiceStartModulators.size(); i++)
-			if (!voiceStartModulators[i]->isBypassed())
-				return true;
+bool ModulatorChain::hasActiveTimeVariantMods() const noexcept
+{
+	return !isBypassed() && handler.hasActiveTimeVariantMods(); 
+}
 
-		return false;
-	}
-	else
-	{
-		for (int i = 0; i < variantModulators.size(); i++)
-			if (!variantModulators[i]->isBypassed())
-				return true;
+bool ModulatorChain::hasActivePolyEnvelopes() const noexcept
+{
+	return !isBypassed() && handler.hasActiveEnvelopes();
+}
 
-		return false;
-	}
-};
+bool ModulatorChain::hasActiveMonoEnvelopes() const noexcept
+{
+	return !isBypassed() && handler.hasActiveMonophoicEnvelopes();
+}
+
+bool ModulatorChain::hasActiveEnvelopesAtAll() const noexcept
+{
+	return !isBypassed() && (handler.hasActiveMonophoicEnvelopes() || handler.hasActiveEnvelopes());
+}
+
+bool ModulatorChain::hasOnlyVoiceStartMods() const noexcept
+{
+	return !isBypassed() && !(handler.hasActiveEnvelopes() || handler.hasActiveTimeVariantMods() || handler.hasActiveMonophoicEnvelopes()) && handler.hasActiveVoiceStartMods();
+}
+
+bool ModulatorChain::hasTimeModulationMods() const noexcept
+{
+	return !isBypassed() && (handler.hasActiveTimeVariantMods() || handler.hasActiveEnvelopes() || handler.hasActiveMonophoicEnvelopes());
+}
+
+bool ModulatorChain::hasMonophonicTimeModulationMods() const noexcept
+{
+	return !isBypassed() && (handler.hasActiveTimeVariantMods() || handler.hasActiveMonophoicEnvelopes());
+}
+
+bool ModulatorChain::hasVoiceModulators() const noexcept
+{
+	return !isBypassed() &&  (handler.hasActiveVoiceStartMods() || handler.hasActiveEnvelopes() || handler.hasActiveMonophoicEnvelopes());
+}
+
+bool ModulatorChain::shouldBeProcessedAtAll() const noexcept
+{
+	return !isBypassed() && handler.hasActiveMods();
+}
 
 void ModulatorChain::reset(int voiceIndex)
 {
+	jassert(hasActiveEnvelopesAtAll());
+
 	EnvelopeModulator::reset(voiceIndex);
 
-	for(int i = 0; i < envelopeModulators.size(); ++i) envelopeModulators[i]->reset(voiceIndex);	
+	ModIterator<EnvelopeModulator> iter(this);
+	
+	while(auto mod = iter.next())
+		mod->reset(voiceIndex);
+
+	ModIterator<MonophonicEnvelope> iter2(this);
+
+	while (auto mod = iter2.next())
+		mod->reset(voiceIndex);
 };
 
 void ModulatorChain::handleHiseEvent(const HiseEvent &m)
 {
+	jassert(shouldBeProcessedAtAll());
+
 	EnvelopeModulator::handleHiseEvent(m);
 
-	for(int i = 0; i < voiceStartModulators.size(); i++) voiceStartModulators[i]->handleHiseEvent(m);
+	ModIterator<Modulator> iter(this);
 
-	for(int i = 0; i < envelopeModulators.size(); i++) envelopeModulators[i]->handleHiseEvent(m);
-
-	for(int i = 0; i < variantModulators.size(); i++) variantModulators[i]->handleHiseEvent(m);
+	while(auto mod = iter.next())
+		mod->handleHiseEvent(m);
 };
 
 
+void ModulatorChain::allNotesOff()
+{
+	if (hasVoiceModulators())
+		VoiceModulation::allNotesOff();
+}
+
 float ModulatorChain::getConstantVoiceValue(int voiceIndex) const
 {
-	if (getMode() == Modulation::GainMode)
+	if (!hasActiveVoiceStartMods())
+		return getInitialValue();
+
+	auto m = getMode();
+
+	if(m == Modulation::GainMode)
 	{
 		float value = 1.0f;
 
-		for (int i = 0; i < voiceStartModulators.size(); ++i)
+		ModIterator<VoiceStartModulator> iter(this);
+
+		while (auto mod = iter.next())
 		{
-			const VoiceStartModulator *mod = voiceStartModulators[i];
-			if (mod->isBypassed()) continue;
-
-			const float modValue = mod->getVoiceStartValue(voiceIndex);
-
-			const float intensityModValue = mod->calcGainIntensityValue(modValue);
-
+			const auto modValue = mod->getVoiceStartValue(voiceIndex);
+			const auto intensityModValue = mod->calcGainIntensityValue(modValue);
 			value *= intensityModValue;
 		}
 
@@ -129,96 +804,178 @@ float ModulatorChain::getConstantVoiceValue(int voiceIndex) const
 	{
 		float value = 0.0f;
 
-		for (int i = 0; i < voiceStartModulators.size(); ++i)
+		ModIterator<VoiceStartModulator> iter(this);
+
+		while (auto mod = iter.next())
 		{
-			const VoiceStartModulator *mod = voiceStartModulators[i];
-			if (mod->isBypassed()) continue;
+			float modValue = mod->getVoiceStartValue(voiceIndex);
 
 			if (mod->isBipolar())
-			{
-				const float modValue = 2.0f * mod->getVoiceStartValue(voiceIndex) - 1.0f;
-				const float intensityModValue = mod->calcPitchIntensityValue(modValue);
+				modValue = 2.0f * modValue - 1.0f;
 
-				value += intensityModValue;
-			}
-			else
-			{
-				const float modValue = mod->getVoiceStartValue(voiceIndex);
-				const float intensityModValue = mod->calcPitchIntensityValue(modValue);
-
-				value += intensityModValue;
-			}
+			const float intensityModValue = mod->calcPitchIntensityValue(modValue);
+			value += intensityModValue;
 		}
 
-		return Modulation::PitchConverters::normalisedRangeToPitchFactor(value);
+		return m == Mode::PanMode ? value : Modulation::PitchConverters::normalisedRangeToPitchFactor(value);
 	}
 };
 
-void ModulatorChain::startVoice(int voiceIndex)
+float ModulatorChain::startVoice(int voiceIndex)
 {
-	activeVoices.setBit(voiceIndex, true);
+	jassert(hasVoiceModulators());
 
+	activeVoices.setBit(voiceIndex, true);
 
 	polyManager.setLastStartedVoice(voiceIndex);
 
-	for (int i = 0; i < voiceStartModulators.size(); i++) voiceStartModulators[i]->startVoice(voiceIndex);
+	ModIterator<VoiceStartModulator> iter(this);
 
-	for (int i = 0; i < envelopeModulators.size(); i++)
-	{
-		envelopeModulators[i]->startVoice(voiceIndex);
-		envelopeModulators[i]->polyManager.setLastStartedVoice(voiceIndex);
-	}
+	while(auto mod = iter.next())
+		mod->startVoice(voiceIndex);
 
 	const float startValue = getConstantVoiceValue(voiceIndex);
-
 	lastVoiceValues[voiceIndex] = startValue;
 
 	setOutputValue(startValue);
+
+	monophonicStartValue = 1.0f;
+
+	auto m = getMode();
+
+	if (m == GainMode)
+	{
+		float envelopeStartValue = startValue;
+
+		ModIterator<EnvelopeModulator> iter2(this);
+
+		while (auto mod = iter2.next())
+		{
+			const auto modValue = mod->startVoice(voiceIndex);
+			const auto intensityModValue = mod->calcGainIntensityValue(modValue);
+			envelopeStartValue *= intensityModValue;
+			mod->polyManager.setLastStartedVoice(voiceIndex);
+		}
+
+		ModIterator<MonophonicEnvelope> iter3(this);
+
+		while (auto mod = iter3.next())
+		{
+			// Don't use the start value for monophonic envelopes...
+			const auto modValue = mod->startVoice(voiceIndex);
+			const auto intensityModValue = mod->calcGainIntensityValue(modValue);
+
+			monophonicStartValue *= intensityModValue;
+
+			mod->polyManager.setLastStartedVoice(voiceIndex);
+		}
+
+		return envelopeStartValue;
+	}
+	else // Pitch / Pan Mode
+	{
+		float envelopeStartValue = 0.0f;
+
+		ModIterator<EnvelopeModulator> iter2(this);
+
+		while (auto mod = iter2.next())
+		{
+			auto modValue = mod->startVoice(voiceIndex);
+
+			if (mod->isBipolar())
+				modValue = 2.0f * modValue - 1.0f;
+
+			const float intensityModValue = mod->calcPitchIntensityValue(modValue);
+			envelopeStartValue += intensityModValue;
+
+			mod->polyManager.setLastStartedVoice(voiceIndex);
+		}
+
+		ModIterator<MonophonicEnvelope> iter3(this);
+
+		while (auto mod = iter3.next())
+		{
+			auto modValue = mod->startVoice(voiceIndex);
+
+			if (mod->isBipolar())
+				modValue = 2.0f * modValue - 1.0f;
+
+			const float intensityModValue = mod->calcPitchIntensityValue(modValue);
+			monophonicStartValue += intensityModValue;
+
+			mod->polyManager.setLastStartedVoice(voiceIndex);
+		}
+
+		return m == PanMode ? envelopeStartValue : Modulation::PitchConverters::normalisedRangeToPitchFactor(envelopeStartValue);
+	}
 }
 
+
+bool ModulatorChain::isPlaying(int voiceIndex) const
+{
+	jassert(hasActivePolyEnvelopes());
+	jassert(getMode() == GainMode);
+
+	if (isBypassed())
+		return false;
+
+	if (!hasActivePolyEnvelopes())
+		return activeVoices[voiceIndex];
+
+	ModIterator<EnvelopeModulator> iter(this);
+
+	while (auto mod = iter.next())
+		if (!mod->isPlaying(voiceIndex))
+			return false;
+
+	return true;
+};
+
+ProcessorEditorBody *ModulatorChain::createEditor(ProcessorEditor *parentEditor)
+{
+#if USE_BACKEND
+
+	return new EmptyProcessorEditorBody(parentEditor);
+
+#else 
+
+	ignoreUnused(parentEditor);
+	jassertfalse;
+	return nullptr;
+
+#endif
+};
 
 
 void ModulatorChain::stopVoice(int voiceIndex)
 {
+	jassert(hasVoiceModulators());
+
 	activeVoices.setBit(voiceIndex, false);
 
-	for (int i = 0; i < envelopeModulators.size(); i++)
-	{
-		envelopeModulators[i]->stopVoice(voiceIndex);
-	}
-};
+	ModIterator<EnvelopeModulator> iter(this);
 
-void ModulatorChain::renderAllModulatorsAsMonophonic(AudioSampleBuffer &buffer, int startSample, int numSamples)
-{
-	// Doesn't make sense to call this method on a polyphonic chain!
-	jassert(polyManager.getVoiceAmount() == 1);
-		
-	renderNextBlock(buffer, startSample, numSamples);
-	renderVoice(0, startSample, numSamples);
-	FloatVectorOperations::multiply(buffer.getWritePointer(0, startSample), getVoiceValues(0), numSamples);
-};
+	while(auto mod = iter.next())
+		mod->stopVoice(voiceIndex);
+
+	ModIterator<MonophonicEnvelope> iter2(this);
+
+	while (auto mod = iter2.next())
+		mod->stopVoice(voiceIndex);
+};;
 
 void ModulatorChain::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	EnvelopeModulator::prepareToPlay(sampleRate, samplesPerBlock);
 	blockSize = samplesPerBlock;
 
-	ProcessorHelpers::increaseBufferIfNeeded(internalVoiceBuffer, samplesPerBlock);
-	ProcessorHelpers::increaseBufferIfNeeded(envelopeTempBuffer, samplesPerBlock);
-
+	
+	
 	for(int i = 0; i < envelopeModulators.size(); i++) envelopeModulators[i]->prepareToPlay(sampleRate, samplesPerBlock);
 	for(int i = 0; i < variantModulators.size(); i++) variantModulators[i]->prepareToPlay(sampleRate, samplesPerBlock);
 
 	jassert(checkModulatorStructure());
 };
-
-float ModulatorChain::calculateNewValue()
-{
-	jassertfalse;
-
-	return 1.0f;
-};
-
 
 void ModulatorChain::setIsVoiceStartChain(bool isVoiceStartChain_)
 {
@@ -237,6 +994,70 @@ void ModulatorChain::setIsVoiceStartChain(bool isVoiceStartChain_)
 	}
 }
 
+ModulatorChain::ModulatorChainHandler::ModulatorChainHandler(ModulatorChain *handledChain) : 
+	chain(handledChain),
+	tableValueConverter(Table::getDefaultTextValue)
+{}
+
+void ModulatorChain::ModulatorChainHandler::bypassStateChanged(Processor* p, bool bypassState)
+{
+	jassert(dynamic_cast<Modulator*>(p) != nullptr);
+
+	auto mod = dynamic_cast<Modulator*>(p);
+
+	if (!bypassState)
+	{
+		activeAllList.insert(mod);
+
+		if (auto env = dynamic_cast<EnvelopeModulator*>(mod))
+		{
+			chain->getMainController()->allNotesOff();
+
+			if (env->isInMonophonicMode())
+			{
+				activeMonophonicEnvelopesList.insert(static_cast<MonophonicEnvelope*>(env));
+				activeEnvelopesList.remove(env);
+			}
+			else
+			{
+				activeMonophonicEnvelopesList.remove(static_cast<MonophonicEnvelope*>(env));
+				activeEnvelopesList.insert(env);
+			}
+		}
+		else if (auto tv = dynamic_cast<TimeVariantModulator*>(mod))
+		{
+			activeTimeVariantsList.insert(tv);
+		}
+		else if (auto vs = dynamic_cast<VoiceStartModulator*>(mod))
+		{
+			activeVoiceStartList.insert(vs);
+		}
+	}
+	else
+	{
+		activeAllList.remove(mod);
+
+		if (auto env = dynamic_cast<EnvelopeModulator*>(mod))
+		{
+			chain->getMainController()->allNotesOff();
+			activeEnvelopesList.remove(env);
+			activeMonophonicEnvelopesList.remove(static_cast<MonophonicEnvelope*>(env));
+		}
+		else if (auto tv = dynamic_cast<TimeVariantModulator*>(mod))
+		{
+			activeTimeVariantsList.remove(tv);
+		}
+		else if (auto vs = dynamic_cast<VoiceStartModulator*>(mod))
+		{
+			activeVoiceStartList.remove(vs);
+		}
+	}
+
+	checkActiveState();
+
+	notifyPostEventListeners(Chain::Handler::Listener::EventType::ProcessorOrderChanged, p);
+}
+
 void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator, Processor *siblingToInsertBefore)
 {
 	newModulator->setColour(chain->getColour());
@@ -248,41 +1069,96 @@ void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator
 
 	newModulator->setConstrainerForAllInternalChains(chain->getFactoryType()->getConstrainer());
 
+	newModulator->addBypassListener(this);
+
 	if (chain->isInitialized())
 		newModulator->prepareToPlay(chain->getSampleRate(), chain->blockSize);
 	
 	const int index = siblingToInsertBefore == nullptr ? -1 : chain->allModulators.indexOf(dynamic_cast<Modulator*>(siblingToInsertBefore));
 
-	{
-		MainController::ScopedSuspender ss(chain->getMainController());
+	newModulator->setParentProcessor(chain);
 
-		newModulator->setIsOnAir(true);
+	{
+		LOCK_PROCESSING_CHAIN(chain);
+
+		newModulator->setIsOnAir(chain->isOnAir());
 
 		if (dynamic_cast<VoiceStartModulator*>(newModulator) != nullptr)
 		{
 			VoiceStartModulator *m = static_cast<VoiceStartModulator*>(newModulator);
 			chain->voiceStartModulators.add(m);
+
+			activeVoiceStartList.insert(m);
 		}
 		else if (dynamic_cast<EnvelopeModulator*>(newModulator) != nullptr)
 		{
 			EnvelopeModulator *m = static_cast<EnvelopeModulator*>(newModulator);
 			chain->envelopeModulators.add(m);
+
+			if (m->isInMonophonicMode())
+				activeMonophonicEnvelopesList.insert(static_cast<MonophonicEnvelope*>(m));
+			else
+				activeEnvelopesList.insert(m);
 		}
 		else if (dynamic_cast<TimeVariantModulator*>(newModulator) != nullptr)
 		{
 			TimeVariantModulator *m = static_cast<TimeVariantModulator*>(newModulator);
 			chain->variantModulators.add(m);
+
+			activeTimeVariantsList.insert(m);
 		}
 		else jassertfalse;
 
+		activeAllList.insert(newModulator);
 		chain->allModulators.insert(index, newModulator);
-
 		jassert(chain->checkModulatorStructure());
 
-		if (JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(newModulator))
+		checkActiveState();
+	}
+
+	if (JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(newModulator))
+	{
+		sp->compileScript();
+	}
+
+
+	if (auto ltp = dynamic_cast<LookupTableProcessor*>(newModulator))
+	{
+		WeakReference<Modulator> mod = newModulator;
+
+		auto& cf = tableValueConverter;
+
+		auto isBipolarModulation = chain->getMode() == Modulation::PitchMode || chain->getMode() == Modulation::PanMode;
+
+		auto f = [mod, cf, isBipolarModulation](float input)
 		{
-			sp->compileScript();
-		}
+			if (mod.get() != nullptr)
+			{
+				auto modulation = dynamic_cast<Modulation*>(mod.get());
+				auto intensity = modulation->getIntensity();
+
+				if (isBipolarModulation)
+				{
+					float normalizedInput;
+
+					if (modulation->isBipolar())
+						normalizedInput = (input-0.5f) * intensity * 2.0f;
+					else
+						normalizedInput = (input) * intensity;
+
+					return cf(normalizedInput);
+				}
+				else
+				{
+					auto v = jmap<float>(input, 1.0f - intensity, 1.0f);
+					return cf(v);
+				}
+			}
+
+			return Table::getDefaultTextValue(input);
+		};
+
+		ltp->addYValueConverter(f, newModulator);
 	}
 
 	chain->sendChangeMessage();
@@ -299,234 +1175,91 @@ void ModulatorChain::ModulatorChainHandler::add(Processor *newProcessor, Process
 
 	addModulator(dynamic_cast<Modulator*>(newProcessor), siblingToInsertBefore);
 
-	const bool isPitchChain = chain->getMode() == Modulation::PitchMode;
-	if (isPitchChain)
-	{
-		ModulatorSynth *p = dynamic_cast<ModulatorSynth*>(chain->getParentProcessor());
-
-		if(p != nullptr) p->enablePitchModulation(true);
-	}
-
 	dynamic_cast<AudioProcessor*>(chain->getMainController())->suspendProcessing(false);
 
-	sendChangeMessage();
+	notifyListeners(Listener::ProcessorAdded, newProcessor);
+	notifyPostEventListeners(Listener::ProcessorAdded, newProcessor);
 }
 
 void ModulatorChain::ModulatorChainHandler::deleteModulator(Modulator *modulatorToBeDeleted, bool deleteMod)
 {
-	for(int i = 0; i < getNumModulators(); ++i)
-	{
-		if(chain->allModulators[i] == modulatorToBeDeleted) chain->allModulators.remove(i);
-	};
-		
-	for(int i = 0; i < chain->variantModulators.size(); ++i)
-	{
-		if(chain->variantModulators[i] == modulatorToBeDeleted) chain->variantModulators.remove(i, deleteMod);
-	};
+	notifyListeners(Listener::ProcessorDeleted, modulatorToBeDeleted);
 
-	for(int i = 0; i < chain->envelopeModulators.size(); ++i)
-	{
-		if(chain->envelopeModulators[i] == modulatorToBeDeleted) chain->envelopeModulators.remove(i, deleteMod);
-	};
+	ScopedPointer<Modulator> mod = modulatorToBeDeleted;
 
-	for(int i = 0; i < chain->voiceStartModulators.size(); ++i) 
 	{
-		if(chain->voiceStartModulators[i] == modulatorToBeDeleted) chain->voiceStartModulators.remove(i, deleteMod);
-	};
+		LOCK_PROCESSING_CHAIN(chain);
 
-	jassert(chain->checkModulatorStructure());
-	chain->sendChangeMessage();
+		modulatorToBeDeleted->setIsOnAir(false);
+		modulatorToBeDeleted->removeBypassListener(this);
+
+		activeAllList.remove(modulatorToBeDeleted);
+
+		if (auto env = dynamic_cast<EnvelopeModulator*>(modulatorToBeDeleted))
+		{
+			activeEnvelopesList.remove(env);
+			activeMonophonicEnvelopesList.remove(static_cast<MonophonicEnvelope*>(env));
+		}
+		else if (auto vs = dynamic_cast<VoiceStartModulator*>(modulatorToBeDeleted))
+			activeVoiceStartList.remove(vs);
+		else if (auto tv = dynamic_cast<TimeVariantModulator*>(modulatorToBeDeleted))
+			activeTimeVariantsList.remove(tv);
+
+		for (int i = 0; i < getNumModulators(); ++i)
+		{
+			if (chain->allModulators[i] == modulatorToBeDeleted) chain->allModulators.remove(i);
+		};
+
+		for (int i = 0; i < chain->variantModulators.size(); ++i)
+		{
+			if (chain->variantModulators[i] == modulatorToBeDeleted) chain->variantModulators.remove(i, false);
+		};
+
+		for (int i = 0; i < chain->envelopeModulators.size(); ++i)
+		{
+			if (chain->envelopeModulators[i] == modulatorToBeDeleted) chain->envelopeModulators.remove(i, false);
+		};
+
+		for (int i = 0; i < chain->voiceStartModulators.size(); ++i)
+		{
+			if (chain->voiceStartModulators[i] == modulatorToBeDeleted) chain->voiceStartModulators.remove(i, false);
+		};
+
+		jassert(chain->checkModulatorStructure());
+
+		checkActiveState();
+	}
+
+	if (deleteMod)
+	{
+		mod = nullptr;
+	}
+	else
+		mod.release();
 };
 
 
 void ModulatorChain::ModulatorChainHandler::remove(Processor *processorToBeRemoved, bool deleteMod)
 {
-	ScopedLock sl(chain->getMainController()->getLock());
+	notifyListeners(Listener::ProcessorDeleted, processorToBeRemoved);
 
 	jassert(dynamic_cast<Modulator*>(processorToBeRemoved) != nullptr);
 	deleteModulator(dynamic_cast<Modulator*>(processorToBeRemoved), deleteMod);
-    
-	const bool isPitchChainOfNonGroup = chain->getMode() == Modulation::PitchMode;
-	if (isPitchChainOfNonGroup && getNumModulators() == 0)
-	{
-		dynamic_cast<ModulatorSynth*>(chain->getParentProcessor())->enablePitchModulation(false);
-	}
 
-	sendChangeMessage();
+	notifyPostEventListeners(Listener::ProcessorDeleted, nullptr);
 }
 
-bool ModulatorChain::isPlaying(int voiceIndex) const
+void ModulatorChain::ModulatorChainHandler::checkActiveState()
 {
-	jassert(getMode() == GainMode);
-
-	if(isBypassed()) return false;
-
-	if(envelopeModulators.size() == 0)
-	{
-		return activeVoices[voiceIndex];
-	}
-
-	bool anyActiveEnvelopes = false;
-
-	for (int i = 0; i < envelopeModulators.size(); i++)
-	{
-		if (!envelopeModulators[i]->isBypassed())
-		{
-			anyActiveEnvelopes = true;
-			break;
-		}
-	}
-
-	if (!anyActiveEnvelopes)
-	{
-		return activeVoices[voiceIndex];
-	}
-
-	for(int i = 0; i < envelopeModulators.size(); ++i) // only search envelope modulators for playing status!
-	{
-		if (! envelopeModulators[i]->isBypassed() && !envelopeModulators[i]->isPlaying(voiceIndex)) return false;
-	}
-
-	return true;
-
-};
-
-ProcessorEditorBody *ModulatorChain::createEditor(ProcessorEditor *parentEditor)
-{
-#if USE_BACKEND
-
-	return new EmptyProcessorEditorBody(parentEditor);
-
-#else 
-
-	ignoreUnused(parentEditor);
-	jassertfalse;
-	return nullptr;
-
-#endif
-};
-
-void ModulatorChain::renderVoice(int voiceIndex, int startSample, int numSamples)
-{
-    ADD_GLITCH_DETECTOR(parentProcessor, DebugLogger::Location::ModulatorChainVoiceRendering);
-    
-	// Use the internal buffer from timeModulation as working buffer.
-
-	//initializeBuffer(internalBuffer, startSample, numSamples);
-
-
-	const int startIndex = startSample;
-	const int sampleAmount = numSamples;
-
-	if( shouldBeProcessed(true))
-	{
-		const float constantVoiceValue = getConstantVoiceValue(voiceIndex);
-		const float lastVoiceValue = lastVoiceValues[voiceIndex];
-
-		if (std::abs(constantVoiceValue - lastVoiceValue) > 0.001f)
-		{
-			const float stepSize = (constantVoiceValue - lastVoiceValue) / (float)numSamples;
-			float* bufferPointer = internalBuffer.getWritePointer(0, startSample);
-			float rampedGain = lastVoiceValue;
-
-			for (int i = 0; i < numSamples; i++)
-			{
-				bufferPointer[i] = rampedGain;
-				rampedGain += stepSize;
-			}
-		}
-		else
-		{
-			FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), constantVoiceValue, numSamples);
-		}
-
-		lastVoiceValues[voiceIndex] = constantVoiceValue;
-
-		for(int i = 0; i < envelopeModulators.size(); i++)
-		{
-			EnvelopeModulator *m = envelopeModulators[i];
-		
-			if(m->isBypassed() ) continue;
-
-			if (m->isInMonophonicMode())
-				continue;
-			
-			m->polyManager.setCurrentVoice(voiceIndex);
-
-			FloatVectorOperations::fill(envelopeTempBuffer.getWritePointer(0, startSample), 1.0f, numSamples);
-
-			float* bufferPointer = internalBuffer.getWritePointer(0, 0);
-
-			AudioSampleBuffer b1(&bufferPointer, 1, startSample + numSamples);
-
-			m->renderNextBlock(b1, startSample, numSamples);
-
-			m->polyManager.clearCurrentVoice();
-		}
-
-	}
-
-	CHECK_AND_LOG_BUFFER_DATA_WITH_ID(parentProcessor, chainIdentifier, DebugLogger::Location::ModulatorChainVoiceRendering, internalBuffer.getReadPointer(0, startIndex), true, sampleAmount);
-
-	if(getMode() != Modulation::PitchMode)
-		FloatVectorOperations::clip(internalBuffer.getWritePointer(0, startIndex), internalBuffer.getReadPointer(0, startIndex), (getMode() == Modulation::GainMode ? 0.0f : -1.0f), 1.0f, sampleAmount);
-
-	// Copy the result to the voice buffer
-	FloatVectorOperations::copy(internalVoiceBuffer.getWritePointer(voiceIndex, startIndex), internalBuffer.getReadPointer(0, startIndex), sampleAmount);
-
-#if ENABLE_PLOTTER
-	if(voiceIndex == polyManager.getLastStartedVoice())
-	{
-		saveEnvelopeValueForPlotter(internalBuffer, startIndex, sampleAmount);
-	}
-#elif ENABLE_ALL_PEAK_METERS
-	if (voiceIndex == polyManager.getLastStartedVoice())
-	{
-		envelopeOutputValue1 = internalBuffer.getSample(0, startIndex);
-	}
-#endif
-
+	activeEnvelopes = !activeEnvelopesList.isEmpty();
+	activeTimeVariants = !activeTimeVariantsList.isEmpty();
+	activeVoiceStarts = !activeVoiceStartList.isEmpty();
+	activeMonophonicEnvelopes = !activeMonophonicEnvelopesList.isEmpty();
+	anyActive = !activeAllList.isEmpty();
 }
 
-void ModulatorChain::renderNextBlock(AudioSampleBuffer& buffer, int startSample, int numSamples)
-{
-	const int startIndex = startSample;
-	const int sampleAmount = numSamples;
 
-	{
-		ADD_GLITCH_DETECTOR(parentProcessor, DebugLogger::Location::ModulatorChainTimeVariantRendering);
 
-		jassert(getSampleRate() > 0);
-
-		initializeBuffer(internalBuffer, startSample, numSamples);
-
-		for (auto v : variantModulators)
-		{
-			if (v->isBypassed()) continue;
-			v->renderNextBlock(internalBuffer, startSample, numSamples);
-		}
-
-		for (auto m : envelopeModulators)
-		{
-			if (m->isBypassed()) continue;
-			if (!m->isInMonophonicMode()) continue;
-
-			m->renderNextBlock(internalBuffer, startSample, numSamples);
-		}
-
-#if ENABLE_PLOTTER
-		updatePlotter(internalBuffer, startSample, numSamples);
-#elif ENABLE_ALL_PEAK_METERS
-		if (!isVoiceStartChain)
-			setOutputValue(internalBuffer.getSample(0, startSample) * envelopeOutputValue1);
-#endif
-
-		FloatVectorOperations::copy(buffer.getWritePointer(0, startIndex), internalBuffer.getReadPointer(0, startIndex), sampleAmount);
-	}
-
-	CHECK_AND_LOG_BUFFER_DATA_WITH_ID(parentProcessor, chainIdentifier, DebugLogger::Location::ModulatorChainTimeVariantRendering, internalBuffer.getReadPointer(0, startIndex), true, sampleAmount);
-    
-}
 
 bool ModulatorChain::checkModulatorStructure()
 {
@@ -575,6 +1308,7 @@ void EnvelopeModulatorFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(TableEnvelope);
 	ADD_NAME_TO_TYPELIST(CCEnvelope);
 	ADD_NAME_TO_TYPELIST(JavascriptEnvelopeModulator);
+	ADD_NAME_TO_TYPELIST(MPEModulator);
 }
 
 

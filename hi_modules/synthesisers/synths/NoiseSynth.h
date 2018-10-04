@@ -64,40 +64,25 @@ public:
         voiceUptime = 0.0;
         
         uptimeDelta = 1.0;
+#if HI_RUN_UNIT_TESTS
+		lastUptime = -1.0;
+#endif
     }
 
-	void calculateBlock(int startSample, int numSamples) override
-	{
-		const int startIndex = startSample;
-		const int samplesToCopy = numSamples;
-
-		const float *modValues = getVoiceGainValues(startSample, numSamples);
-
-		while (--numSamples >= 0)
-        {
-			const float currentSample = getNextValue();
-
-			// Stereo mode assumed
-			voiceBuffer.setSample (0, startSample, currentSample);
-			voiceBuffer.setSample (1, startSample, currentSample);
-
-			voiceUptime++;
-
-            ++startSample;    
-        }
-
-		getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
-
-		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
-		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
-	};
+	void calculateBlock(int startSample, int numSamples) override;;
 
 private:
+
+#if HI_RUN_UNIT_TESTS
+	double lastUptime = 0.0;
+#endif
 
 	inline float getNextValue() const
 	{
 		return 2.0f * ((float)(rand()) / (float)(RAND_MAX)) - 1.0f;
 	};
+
+	
 
 };
 
@@ -105,16 +90,40 @@ class NoiseSynth: public ModulatorSynth
 {
 public:
 
-	SET_PROCESSOR_NAME("Noise", "Noise Generator")
-
-	NoiseSynth(MainController *mc, const String &id, int numVoices):
-		ModulatorSynth(mc, id, numVoices)
+	enum TestSignal
 	{
-		for(int i = 0; i < numVoices; i++) addVoice(new NoiseVoice(this));
-		addSound (new NoiseSound());	
+		Normal,
+		DC,
+		Ramp,
+		DiracTrain,
+		Square,
+		numTestSignals
 	};
 
+	SET_PROCESSOR_NAME("Noise", "Noise Generator")
+
+	NoiseSynth(MainController *mc, const String &id, int numVoices);
+
+	void setTestSignal(TestSignal newSignalType)
+	{
+#if !HI_RUN_UNIT_TESTS
+		jassertfalse;
+#endif
+
+		signalType = newSignalType;
+
+	}
+
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
+
+	TestSignal getTestSignal() const noexcept
+	{
+		return signalType;
+	}
+
+private:
+
+	TestSignal signalType = Normal;;
 };
 
 } // namespace hise

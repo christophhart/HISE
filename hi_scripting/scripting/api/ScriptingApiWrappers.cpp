@@ -82,6 +82,7 @@ struct ScriptingApi::Content::Wrapper
 	static var setMode(const var::NativeFunctionArgs& args);
 	static var setStyle(const var::NativeFunctionArgs& args);
 	static var setPropertiesFromJSON(const var::NativeFunctionArgs& args);
+	static var setValuePopupData(const var::NativeFunctionArgs& args);
 	static var storeAllControlsAsPreset(const var::NativeFunctionArgs& args);
 	static var restoreAllControlsFromPreset(const var::NativeFunctionArgs& args);
 	static var setMidPoint(const var::NativeFunctionArgs& args);
@@ -543,6 +544,20 @@ var ScriptingApi::Content::Wrapper::setPropertiesFromJSON (const var::NativeFunc
 
 	return var();
 };
+
+
+var ScriptingApi::Content::Wrapper::setValuePopupData(const var::NativeFunctionArgs& args)
+{
+	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("setValuePopupData()", 1);
+
+		thisObject->setValuePopupData(args.arguments[0]);
+	}
+
+	return var();
+}
+
 
 var ScriptingApi::Content::Wrapper::setColour (const var::NativeFunctionArgs& args)
 {

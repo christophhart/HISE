@@ -56,7 +56,18 @@ END_JUCE_MODULE_DECLARATION
 
 
 
-#include "backend/BackendBinaryData.h"
+
+
+#include "backend/BackendProcessor.h"
+#include "backend/BackendComponents.h"
+#include "backend/BackendToolbar.h"
+#include "backend/ProcessorPopupList.h"
+#include "backend/MainMenuComponent.h"
+#include "backend/BackendApplicationCommands.h"
+#include "backend/BackendEditor.h"
+#include "backend/BackendRootWindow.h"
+#include "backend/CompileExporter.h"
+#include "backend/HisePlayerExporter.h"
 
 #include "backend/debug_components/SamplePoolTable.h"
 #include "backend/debug_components/MacroEditTable.h"
@@ -70,18 +81,6 @@ END_JUCE_MODULE_DECLARATION
 #include "backend/debug_components/PatchBrowser.h"
 #include "backend/debug_components/FileBrowser.h"
 #include "backend/debug_components/DebugArea.h"
-
-#include "backend/BackendProcessor.h"
-#include "backend/BackendComponents.h"
-#include "backend/BackendToolbar.h"
-#include "backend/ProcessorPopupList.h"
-#include "backend/MainMenuComponent.h"
-#include "backend/BackendApplicationCommands.h"
-#include "backend/BackendEditor.h"
-#include "backend/BackendRootWindow.h"
-#include "backend/CompileExporter.h"
-#include "backend/HisePlayerExporter.h"
-
 
 
 

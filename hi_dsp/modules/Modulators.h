@@ -52,6 +52,34 @@ class Modulation
 {
 public:
 
+	
+
+	static String getDomainAsMidiRange(float input)
+	{
+		return String(roundFloatToInt(input*127.0f));
+	};
+
+	static String getDomainAsPitchBendRange(float input)
+	{
+		auto v = jmap<float>(input, -8192.0f, 8192.0f);
+		return String(roundFloatToInt(v));
+	};
+
+	static String getDomainAsMidiNote(float input)
+	{
+		return MidiMessage::getMidiNoteName(roundFloatToInt(input*127.0f), true, true, 3);
+	};
+
+	static String getValueAsDecibel(float input)
+	{
+		return String(Decibels::gainToDecibels(input), 1) + " dB";
+	};
+
+	static String getValueAsSemitone(float input)
+	{
+		return String(input*12.0f, 2) + " st";
+	}
+
 	/** There are two modes that Modulation can work: GainMode and PitchMode */
 	enum Mode
 	{
@@ -61,14 +89,29 @@ public:
 		*
 		*	The range is supposed to be -1.0 ... 1.0 and must be converted using convertToFreqRatio directly before using it.
 		**/
-		PitchMode 
+		PitchMode,
+		/** Range is -1.0 ... 1.0 */
+		PanMode
 	};
 
+	static void applyModulationValue(Mode m, float& target, const float modValue)
+	{
+		if (m == PanMode)
+			target += modValue;
+		else
+			target *= modValue;
+
+		// This should not happen...
+		jassert(m != PitchMode || target > 0.0f);
+	}
+
 	Modulation(Mode m): 
-		intensity(m == GainMode ? 1.0f : 0.0f), 
+		intensity(m == PitchMode ? 0.0f : 1.0f), 
 		modulationMode(m), 
-		bipolar(m == PitchMode) {};
-    virtual ~Modulation() {};
+		bipolar(m == PitchMode || m == PanMode)
+	{};
+
+    virtual ~Modulation();;
 
 	virtual Processor *getProcessor() = 0;
 
@@ -86,6 +129,8 @@ public:
 
 	inline float calcPitchIntensityValue(float calculatedModulationValue) const noexcept;
 
+	inline float calcPanIntensityValue(float calculatedModulationValue) const noexcept;
+
 	/** This applies the previously calculated value to the supplied destination value depending on the modulation mode (adding or multiplying). */
 	void applyModulationValue(float calculatedModulationValue, float &destinationValue) const noexcept;;
 
@@ -102,6 +147,8 @@ public:
 
 	void setIsBipolar(bool shouldBeBiPolar) noexcept;;
 
+	float getInitialValue() const noexcept;
+
 	/** Returns the intensity. This is used by the modulator chain to either multiply or add the outcome of the Modulation. 
 	*
 	*	You can subclass this method if you modulate the intensity. In this case, don't change the intensity directly (or you can't change it in the GUI anymore),
@@ -113,7 +160,7 @@ public:
 	*		};
 	*
 	*/
-	virtual float getIntensity() const noexcept;;
+	float getIntensity() const noexcept;;
 
 	/** Returns the actual intensity of the Modulation. Use this for GUI displays, since getIntensity() could be overwritten and behave funky. */
 	float getDisplayIntensity() const noexcept;;
@@ -129,6 +176,12 @@ public:
 		static inline float normalisedRangeToPitchFactor(float range)
 		{
 			return std::exp2(range);
+		}
+
+		/** [0.5 ... 2.0] => [-1 ... 1] */
+		static inline float pitchFactorToNormalisedRange(float pitchFactor)
+		{
+			return std::log2(pitchFactor);
 		}
 
 		static inline float octaveRangeToPitchFactor(float octaveValue)
@@ -178,16 +231,36 @@ public:
 		}
 	};
 
+	public:
+
+
+	void setPlotter(Plotter *targetPlotter);
+
+	bool isPlotted() const;
+
+	void pushPlotterValues(const float* b, int startSample, int numSamples);
+
+	virtual bool shouldUpdatePlotter() const { return true; };
+
+	void deactivateIntensitySmoothing()
+	{
+		smoothedIntensity.reset(44100.0, 0.0);
+	}
+
 protected:
 
 	const Mode modulationMode;
 
+	LinearSmoothedValue<float> smoothedIntensity;
+
 private:
+
+	Component::SafePointer<Plotter> attachedPlotter;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Modulation)
 
 	float intensity;
-	
+
 	bool bipolar;
 };
 
@@ -221,7 +294,7 @@ public:
 	// Constructors / Destructor
 
 	/**	Creates a new modulator with the given Identifier. */
-	Modulator(MainController *m, const String &id);
+	Modulator(MainController *m, const String &id, int numVoices);
 	virtual ~Modulator();;
 
 
@@ -246,17 +319,7 @@ public:
 
 	virtual Colour getColour() const override { return colour; };
 
-	/** @brief enables the plotting of time variant modulators in the plotter popup.
-
-		If a valid Plotter object is set, the modulator sends his results to the plotter.
-	*/
-	void setPlotter(Plotter *targetPlotter);
 	
-	bool isPlotted() const;
-
-	/** Adds a value to the plotter. It is okay to do this on a sample level, the Plotter automatically interpolates it.
-	*/
-	void addValueToPlotter(float v) const;
 
 	UpdateMerger editorUpdater;
 
@@ -267,7 +330,7 @@ private:
 
 	Colour colour;
 
-	Component::SafePointer<Plotter> attachedPlotter;
+	
 	
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Modulator)
 	
@@ -285,17 +348,6 @@ public:
     
     virtual ~TimeModulation() {};
 
-	/** This renders the next chunk of samples. It repeatedly calls calculateNewValue() until the buffer is filled.
-	*
-	*	
-	*
-	*	@param buffer the AudioSampleBuffer that the function operates on.
-	*	@param startSample the start index within the buffer. If you need to change only a part of the buffer
-	*					   (eg. if a voice starts in the middle), use this parameter
-	*	@param numSamples the amount of samples that are processed (numSamples = buffersize - startSample)
-	*
-	*/
-	virtual void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples);;
 
 	/** This calculates the time modulated values and stores them in the internal buffer. 
 	*/
@@ -305,34 +357,25 @@ public:
 	*
 	*	By default, it applies one intensity value to all calculated values, but you can override it if your Modulator has a internal Chain for the intensity.
 	*/
-	virtual void applyTimeModulation(AudioSampleBuffer &buffer, int startIndex, int samplesToCopy);;
+	void applyTimeModulation(float* destinationBuffer, int startIndex, int samplesToCopy);
+
+	
 
 	/** Returns a read pointer to the calculated values. This is used by the global modulator system. */
 	virtual const float *getCalculatedValues(int /*voiceIndex*/);
 
-	float getLastConstantValue() const {
-		return lastConstantValue;
+	void setScratchBuffer(float* scratchBuffer, int numSamples)
+	{
+		internalBuffer.setDataToReferTo(&scratchBuffer, 1, numSamples);
 	}
 
 protected:
 
-	TimeModulation(Modulation::Mode m):
-		Modulation(m),
-		internalBuffer(1, 0)
-	{};
+	TimeModulation(Mode m);
 
 	/** Creates the internal buffer with double the size of the expected buffer block size.
     */
 	virtual void prepareToModulate(double /*sampleRate*/, int samplesPerBlock);;
-
-	/** Picks 4 values out of the processed buffer and sends it to the plotter. 
-	*
-	*	This is called after the internal buffer has been filled with the Modulation values. 
-	*/
-	virtual void updatePlotter(const AudioSampleBuffer &processedBuffer, int startSample, int numSamples) = 0;
-	
-	/** Overwrite this method to determine whether the modulation values should be sent to the Gui. */
-	virtual bool shouldUpdatePlotter() const = 0;
 
 	/** Checks if the prepareToPlay method has been called. */
 	virtual bool isInitialized();
@@ -345,14 +388,14 @@ protected:
 	*	@param fixedIntensity the intensity of the modulator. Normally you will pass the subclasses getIntensity() here.
 	*	@param intensityValues a pointer to the precalculated intensity array. It changes the array, so don't use it afterwards!
 	*/
-	void applyGainModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, float *intensityValues, int numValues) const noexcept;;
+	void applyGainModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, const float *intensityValues, int numValues) const noexcept;;
 
 	/** A vectorized version of the calcIntensityValue() and applyModulationValue() for Pitch modulation with varying intensities. 
 	*
 	*	@param fixedIntensity the intensity of the modulator. Normally you will pass the subclasses getIntensity() here.
 	*	@param intensityValues a pointer to the precalculated intensity array. It changes the array, so don't use it afterwards!
 	*/
-	void applyPitchModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, float *intensityValues, int numValues) const noexcept;;
+	void applyPitchModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, const float *intensityValues, int numValues) const noexcept;;
 
 	/** a vectorized version of the calcIntensityValue() and applyModulationValue() for Pitch modulation with a fixed intensity value.
 	*
@@ -360,15 +403,42 @@ protected:
 	*/
 	void applyPitchModulation(float* calculatedModulationValues, float *destinationValues, float fixedIntensity, int numValues) const noexcept;;
 
+	void applyPanModulation(float * calculatedModValues, float * destinationValues, float fixedIntensity, float* intensityValues, int numValues) const noexcept;
+	void applyPanModulation(float * calculatedModValues, float * destinationValues, float fixedIntensity, int numValues) const noexcept;
+
+	void applyIntensityForGainValues(float* calculatedModulationValues, float fixedIntensity, int numValues) const;
+
+	void applyIntensityForPitchValues(float* calculatedModulationValues, float fixedIntensity, int numValues) const;
+
+	void applyIntensityForGainValues(float* calculatedModulationValues, float fixedIntensity, const float* intensityValues, int numValues) const;
+
+	void applyIntensityForPitchValues(float* calculatedModulationValues, float fixedIntensity, const float* intensityValues, int numValuse) const;
+
+#if 0
 	// Prepares the buffer for the processing. The buffer is cleared and filled with 1.0.
-	static void initializeBuffer(AudioSampleBuffer &bufferToBeInitialized, int startSample, int numSamples);;
+
+	static void initializeBuffer(AudioSampleBuffer &bufferToBeInitialized, int startSample, int numSamples);
+	{
+		jassert(bufferToBeInitialized.getNumChannels() == 1);
+		jassert(bufferToBeInitialized.getNumSamples() >= startSample + numSamples);
+
+		float *writePointer = bufferToBeInitialized.getWritePointer(0, startSample);
+
+		FloatVectorOperations::fill(writePointer, 1.0f, numSamples);
+	}
+#endif
 
 	AudioSampleBuffer internalBuffer;
 
+	double getControlRate() const noexcept { return controlRate; };
+
 private:
+
+	double controlRate = 0.0;
 
 	float lastConstantValue = 1.0f;
 
+	
 };
 
 
@@ -383,12 +453,12 @@ public:
     virtual ~VoiceModulation() {};
 
 	/** Implement the startVoice logic here. */
-	virtual void startVoice(int voiceIndex) = 0;
+	virtual float startVoice(int voiceIndex) = 0;
 
 	/** Implement the stopVoice logic here. */
 	virtual void stopVoice(int voiceIndex) = 0;	
 
-	void allNotesOff();
+	virtual void allNotesOff();
 
 	/** If you subclass a Modulator from this class, it can handle multiple voices. */
 	class PolyphonyManager
@@ -419,7 +489,7 @@ public:
 		/** Call this when you finished the processing to clear the current voice. */
 		void clearCurrentVoice() noexcept
 		{
-			jassert(currentVoice != -1);
+			//jassert(currentVoice != -1);
 			currentVoice = -1;
 		};
 
@@ -468,7 +538,7 @@ public:
 	VoiceStartModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m);
 	
 	/** When the startNote function is called, a previously calculated value (by the handleMidiMessage function) is stored using the supplied voice index. */
-	virtual void startVoice(int voiceIndex) override
+	virtual float startVoice(int voiceIndex) override
 	{
 		jassert(isOnAir());
 
@@ -477,6 +547,8 @@ public:
 #if ENABLE_ALL_PEAK_METERS
 		setOutputValue(unsavedValue);
 #endif
+
+		return unsavedValue;
 	};
 
 	static Path getSymbolPath()
@@ -603,17 +675,40 @@ public:
 		return getSymbolPath();
 	};
 
+	void render(float* monoModulationValues, float* scratchBuffer, int startSample, int numSamples)
+	{
+		// applyTimeModulation will not work correctly if it's going to be calculated in place...
+		jassert(monoModulationValues != scratchBuffer);
+
+		setScratchBuffer(scratchBuffer, startSample + numSamples);
+		calculateBlock(startSample, numSamples);
+
+		applyTimeModulation(monoModulationValues, startSample, numSamples);
+		lastConstantValue = monoModulationValues[startSample];
+
+#if ENABLE_ALL_PEAK_METERS
+		const float displayValue = lastConstantValue;
+
+		pushPlotterValues(monoModulationValues, startSample, numSamples);
+
+		setOutputValue(displayValue);
+#endif
+		
+
+	}
+
+	float getLastConstantValue() const noexcept { return lastConstantValue; }
+
 protected:
 
-	
-
 	TimeVariantModulator(MainController *mc, const String &id, Modulation::Mode m):
-		Modulator(mc, id),
+		Modulator(mc, id, 1),
 		TimeModulation(m),
 		Modulation(m)
-	{};
-
-	
+	{
+		lastConstantValue = getInitialValue();
+		smoothedIntensity.setValueWithoutSmoothing(0);
+	};
 
 	virtual ValueTree exportAsValueTree() const override
 	{
@@ -632,26 +727,17 @@ protected:
 		setIntensity(v.getProperty("Intensity", 1.0f));
 	}
 
+	
+
 	Processor *getProcessor() override { return this; };
 
-	bool shouldUpdatePlotter() const override {return ENABLE_PLOTTER == 1;};
+	
 
-	void updatePlotter(const AudioSampleBuffer &processedBuffer, int startSample, int numSamples) override
-	{
-		jassert(isOnAir());
+private:
 
-		const float plot1 = processedBuffer.getSample(0, startSample );
-		const float plot2 = processedBuffer.getSample(0, startSample + numSamples / 4);
-		const float plot3 = processedBuffer.getSample(0, startSample + numSamples / 2);
-		const float plot4 = processedBuffer.getSample(0, startSample + (3 * numSamples) / 4);
-
-		addValueToPlotter(plot1);
-		addValueToPlotter(plot2);
-		addValueToPlotter(plot3);
-		addValueToPlotter(plot4);
-	};
-
-
+	
+	
+	float lastConstantValue = 1.0f;
 
 };
 
@@ -749,8 +835,10 @@ public:
 	{
 		switch (parameterIndex)
 		{
-		case Parameters::Monophonic: isMonophonic = newValue > 0.5f;
-		case Parameters::Retrigger:  shouldRetrigger = newValue > 0.5f;
+		case Parameters::Monophonic: isMonophonic = newValue > 0.5f; 
+									 sendSynchronousBypassChangeMessage();
+									 break;
+		case Parameters::Retrigger:  shouldRetrigger = newValue > 0.5f; break;
 		default:
 			break;
 		}
@@ -812,13 +900,17 @@ public:
 	{
 		Processor::prepareToPlay(sampleRate, samplesPerBlock);
 		TimeModulation::prepareToModulate(sampleRate, samplesPerBlock);
+		
+		// Deactivate smoothing for envelopes
+		smoothedIntensity.reset(sampleRate, 0.0);
 	}
 
 	bool isInMonophonicMode() const { return isMonophonic; }
 
-	void startVoice(int /*voiceIndex*/) override
+	float startVoice(int /*voiceIndex*/) override
 	{
 		numPressedKeys++;
+		return 1.0f;
 	}
 
 	void stopVoice(int /*voiceIndex*/) override
@@ -826,28 +918,36 @@ public:
 		numPressedKeys = jmax<int>(0, numPressedKeys - 1);
 	}
 
+	bool shouldUpdatePlotter() const override
+	{
+		return isMonophonic || polyManager.getLastStartedVoice() == polyManager.getCurrentVoice();
+	}
+
+	void render(int voiceIndex, float* voiceBuffer, float* scratchBuffer, int startSample, int numSamples)
+	{
+		polyManager.setCurrentVoice(voiceIndex);
+
+		setScratchBuffer(scratchBuffer, startSample + numSamples);
+		calculateBlock(startSample, numSamples);
+		applyTimeModulation(voiceBuffer, startSample, numSamples);
+
+#if ENABLE_ALL_PEAK_METERS
+		if (isMonophonic || polyManager.getLastStartedVoice() == voiceIndex)
+		{
+			const float displayValue = voiceBuffer[startSample];
+			setOutputValue(displayValue);
+
+			pushPlotterValues(voiceBuffer, startSample, numSamples);
+		}
+#endif
+
+		polyManager.clearCurrentVoice();
+	}
+
 protected:
 
 	int getNumPressedKeys() const { return numPressedKeys; }
 
-	virtual bool shouldUpdatePlotter() const override {return isMonophonic || polyManager.getCurrentVoice() == polyManager.getLastStartedVoice(); };
-
-
-	virtual void updatePlotter(const AudioSampleBuffer &processedBuffer, int startSample, int numSamples) override
-	{
-		jassert(isOnAir());
-
-		const float plot1 = processedBuffer.getSample(0, startSample );
-		const float plot2 = processedBuffer.getSample(0, startSample + numSamples / 4);
-		const float plot3 = processedBuffer.getSample(0, startSample + numSamples / 2);
-		const float plot4 = processedBuffer.getSample(0, startSample + (3 * numSamples) / 4);
-
-		addValueToPlotter(plot1);
-		addValueToPlotter(plot2);
-		addValueToPlotter(plot3);
-		addValueToPlotter(plot4);
-		
-	};
 
 	EnvelopeModulator(MainController *mc, const String &id, int voiceAmount_, Modulation::Mode m);
 
@@ -874,8 +974,9 @@ protected:
 
 		virtual ~ModulatorState() {};
 
-	private:
 		int index;
+
+	private:
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModulatorState)
 	};
@@ -897,7 +998,11 @@ private:
 
 };
 
+/** This class only exists for the Iterator. */
+class MonophonicEnvelope: public EnvelopeModulator
+{
 
+};
 
 
 
@@ -962,7 +1067,8 @@ class EnvelopeModulatorFactoryType: public FactoryType
 		ahdsrEnvelope,
 		tableEnvelope,
 		ccEnvelope,
-		scriptEnvelope
+		scriptEnvelope,
+		mpeModulator
 	};
 
 public:
