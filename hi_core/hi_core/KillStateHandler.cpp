@@ -522,6 +522,9 @@ MainController::KillStateHandler::TargetThread MainController::KillStateHandler:
 			return MessageThread;
 	}
 
+	DBG("Unknown thread with ID " + String(reinterpret_cast<int64>(threadId)));
+	DBG("Thread name: " + Thread::getCurrentThread()->getThreadName());
+
 	return UnknownThread;
 }
 

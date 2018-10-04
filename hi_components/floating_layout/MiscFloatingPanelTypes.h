@@ -631,7 +631,11 @@ public:
 
 	void resized() override
 	{
+#if USE_FRONTEND
+		component->setBounds(getLocalBounds());
+#else
 		component->setBounds(getParentShell()->getContentBounds());
+#endif
 	}
 
 private:
