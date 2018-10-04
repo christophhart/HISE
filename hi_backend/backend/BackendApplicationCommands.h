@@ -175,9 +175,9 @@ public:
 		MenuToolsImportArchivedSamples,
 		MenuToolsCollectExternalFiles,
 		MenuToolsCheckUnusedImages,
-        
 		MenuToolsRedirectScriptFolder,
 		MenuToolsCreateUIDataFromDesktop,
+		MenuToolsCheckDeviceSanity,
 		MenuToolsForcePoolSearch,
 		MenuToolsConvertAllSamplesToMonolith,
 		MenuToolsConvertSampleMapToWavetableBanks,
@@ -351,6 +351,7 @@ public:
 		static String createWindowsInstallerTemplate(MainController* mc, bool includeAAX);
 		static void convertSampleMapToWavetableBanks(BackendRootWindow* bpe);
 		static void exportCompileFilesInPool(BackendRootWindow* bpe);
+		static void checkDeviceSanity(BackendRootWindow * bpe);
 	};
 
 private:

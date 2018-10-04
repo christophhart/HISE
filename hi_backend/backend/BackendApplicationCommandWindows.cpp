@@ -1380,4 +1380,220 @@ private:
 	int httpStatusCode;
 };
 
+
+struct DeviceTypeSanityCheck : public DialogWindowWithBackgroundThread,
+							   public ControlledObject,
+							   public GlobalScriptCompileListener
+{
+
+	DeviceTypeSanityCheck(MainController* mc):
+		DialogWindowWithBackgroundThread("Checking Device type sanity"),
+		ControlledObject(mc)
+	{
+		getMainController()->addScriptListener(this);
+
+		StringArray options;
+
+		options.add("iPad only");
+		options.add("iPhone only");
+		options.add("iPad / iPhone");
+
+		addComboBox("targets", options, "Device Targets");
+
+		addBasicComponents(true);
+	}
+
+	~DeviceTypeSanityCheck()
+	{
+		getMainController()->removeScriptListener(this);
+	}
+
+	void run() override
+	{
+		auto index = getComboBoxComponent("targets")->getSelectedItemIndex();
+		CompileExporter::BuildOption option;
+
+		if (index == 0) option = CompileExporter::BuildOption::StandaloneiPad;
+		if (index == 1) option = CompileExporter::BuildOption::StandaloneiPhone;
+		if (index == 2) option = CompileExporter::BuildOption::StandaloneiOS;
+
+		check(getMainController(), option);
+	}
+
+	void scriptWasCompiled(JavascriptProcessor *processor) override
+	{
+		if (processor == mp)
+			waitingForCompilation = false;
+	}
+
+	void threadFinished() override
+	{
+		
+	}
+
+	struct ProcessorConnection
+	{
+		bool operator==(const ProcessorConnection& other) const
+		{
+			return other.id == id;
+		}
+
+		Identifier id;
+		Processor* p = nullptr;
+		int parameterIndex = -1;
+	};
+
+	Array<ProcessorConnection> createArrayForCurrentDevice()
+	{
+		Array<ProcessorConnection> newList;
+
+		debugToConsole(mp, " - " + HiseDeviceSimulator::getDeviceName());
+
+		for (int i = 0; i < content->getNumComponents(); i++)
+		{
+			auto sc = content->getComponent(i);
+
+			if (!sc->getScriptObjectProperty(ScriptComponent::saveInPreset))
+				continue;
+
+			ProcessorConnection pc;
+			pc.id = sc->getName();
+			pc.p = sc->getConnectedProcessor();
+			pc.parameterIndex = sc->getConnectedParameterIndex();
+
+			debugToConsole(mp, " -- " + pc.id);
+
+			newList.add(pc);
+		}
+
+		return newList;
+	}
+
+	void throwError(const String& message)
+	{
+		String error = HiseDeviceSimulator::getDeviceName() + ": " + message;
+
+		throw error;
+	}
+
+	void setDeviceType(HiseDeviceSimulator::DeviceType type)
+	{
+		showStatusMessage("Setting device type " + HiseDeviceSimulator::getDeviceName());
+
+		HiseDeviceSimulator::setDeviceType(type);
+		auto contentData = content->exportAsValueTree();
+		mp->setDeviceTypeForInterface((int)type);
+
+		showStatusMessage("Waiting for compilation");
+		waitingForCompilation = true;
+		mp->compileScript();
+
+		
+		
+
+		while (waitingForCompilation && !threadShouldExit())
+		{
+			Thread::sleep(500);
+		}
+
+		showStatusMessage("Restoring content values");
+		mp->getContent()->restoreFromValueTree(contentData);
+	}
+
+	void log(String& s)
+	{
+		debugToConsole(mp, s);
+	}
+
+	void checkDeviceType(HiseDeviceSimulator::DeviceType type)
+	{
+		setDeviceType(type);
+
+		auto deviceConnections = createArrayForCurrentDevice();
+
+		showStatusMessage("Checking UI controls");
+
+		if (desktopConnections.size() != deviceConnections.size())
+		{
+			int numMissing = abs(deviceConnections.size() - desktopConnections.size());
+
+			String error;
+			error << "Size mismatch. Desktop: ";
+			error << desktopConnections.size();
+			error << ", " << HiseDeviceSimulator::getDeviceName() << ": " << deviceConnections.size() << "\n";
+			error << numMissing << "missing elements in ";
+
+			Array<ProcessorConnection>* smaller;
+			Array<ProcessorConnection>* larger;
+
+			if (deviceConnections.size() > desktopConnections.size())
+			{
+				error << "Desktop: ";
+				smaller = &desktopConnections;
+				larger = &deviceConnections;
+			}
+			else
+			{
+				error << HiseDeviceSimulator::getDeviceName() << ": ";
+				smaller = &deviceConnections;
+				larger = &desktopConnections;
+			}
+
+			log(error);
+
+			for (const auto& item : *larger)
+			{
+				if (!smaller->contains(item))
+					debugToConsole(mp, "--- missing: " + item.id.toString());
+			}
+		}
+	}
+
+	Array<ProcessorConnection> desktopConnections;
+
+	ScriptingApi::Content* content;
+	JavascriptMidiProcessor* mp;
+	MainController* mc;
+
+public:
+
+	bool waitingForCompilation = false;
+
+	Result check(MainController* mc_, CompileExporter::BuildOption option)
+	{
+		mc = mc_;
+
+		if (HiseDeviceSimulator::getDeviceType() != HiseDeviceSimulator::DeviceType::Desktop)
+			return Result::fail("Device Type must be Desktop for exporting");
+
+		mp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(mc);
+		content = mp->getScriptingContent();
+		desktopConnections = createArrayForCurrentDevice();
+
+		try
+		{
+			if (CompileExporter::BuildOptionHelpers::isIPad(option))
+			{
+				checkDeviceType(HiseDeviceSimulator::DeviceType::iPad);
+				checkDeviceType(HiseDeviceSimulator::DeviceType::iPadAUv3);
+			}
+
+			if (CompileExporter::BuildOptionHelpers::isIPhone(option))
+			{
+				checkDeviceType(HiseDeviceSimulator::DeviceType::iPhone);
+				checkDeviceType(HiseDeviceSimulator::DeviceType::iPhoneAUv3);
+			}
+		}
+		catch (String& s)
+		{
+			setDeviceType(HiseDeviceSimulator::DeviceType::Desktop);
+			return Result::fail(s);
+		}
+
+		setDeviceType(HiseDeviceSimulator::DeviceType::Desktop);
+
+		return Result::ok();
+	}
+};
+
 } // namespace hise

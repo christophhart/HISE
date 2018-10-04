@@ -140,6 +140,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsCreateToolbarPropertyDefinition,
 		MenuToolsCreateExternalScriptFile,
 		MenuToolsCreateUIDataFromDesktop,
+		MenuToolsCheckDeviceSanity,
 		MenuToolsValidateUserPresets,
 		MenuToolsResolveMissingSamples,
 		MenuToolsDeleteMissingSamples,
@@ -410,6 +411,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsCreateUIDataFromDesktop:
 		setCommandTarget(result, "Copy UI Data from Desktop", Helpers::canCopyDeviceType(bpe), Helpers::deviceTypeHasUIData(bpe), 'X', false);
 		break;
+	case MenuToolsCheckDeviceSanity:
+		setCommandTarget(result, "Check Sanity for defined Devices", true, false, 'X', false);
+		break;
 	case MenuToolsValidateUserPresets:
 		setCommandTarget(result, "Validate User Presets", true, false, 'X', false);
 		break;
@@ -605,6 +609,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsResolveMissingSamples:Actions::resolveMissingSamples(bpe); return true;
 	case MenuToolsCollectExternalFiles:	Actions::collectExternalFiles(bpe); return true;
 	case MenuToolsCreateUIDataFromDesktop: Actions::createUIDataFromDesktop(bpe); updateCommands(); return true;
+	case MenuToolsCheckDeviceSanity:	Actions::checkDeviceSanity(bpe); return true;
 	case MenuToolsCheckUnusedImages:	Actions::checkUnusedImages(bpe); return true;
 	case MenuToolsRedirectScriptFolder: Actions::redirectScriptFolder(bpe); updateCommands(); return true;
 	case MenuToolsForcePoolSearch:		Actions::toggleForcePoolSearch(bpe); updateCommands(); return true;
@@ -830,6 +835,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		p.addSubMenu("Device simulator", sub);
 
 		ADD_DESKTOP_ONLY(MenuToolsCreateUIDataFromDesktop);
+		ADD_DESKTOP_ONLY(MenuToolsCheckDeviceSanity);
 
 		p.addSeparator();
 		p.addSectionHeader("Sample Management");
@@ -2385,6 +2391,12 @@ void BackendCommandTarget::Actions::exportCompileFilesInPool(BackendRootWindow* 
 {
 	auto pet = new PoolExporter(bpe->getBackendProcessor());
 	pet->setModalBaseWindowComponent(bpe);
+}
+
+void BackendCommandTarget::Actions::checkDeviceSanity(BackendRootWindow * bpe)
+{
+	auto window = new DeviceTypeSanityCheck(bpe->getBackendProcessor());
+	window->setModalBaseWindowComponent(bpe);
 }
 
 #undef REPLACE_WILDCARD

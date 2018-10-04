@@ -251,7 +251,7 @@ bool MainController::KillStateHandler::initialised() const noexcept
 
 bool MainController::KillStateHandler::invalidateTicket(uint16 ticket)
 {
-	DBG("Invalidate Ticket " + String(ticket));
+	//DBG("Invalidate Ticket " + String(ticket));
 
 	jassert(currentState == Suspended);
 
@@ -286,7 +286,7 @@ juce::uint16 MainController::KillStateHandler::requestNewTicket()
 	uint16 newTicket;
 
 	ignoreUnused(delta);
-	DBG(String(delta) + "ms: Request Ticket " + String(ticketCounter + 1));
+	//DBG(String(delta) + "ms: Request Ticket " + String(ticketCounter + 1));
 
 	{
 		ScopedLock sl(ticketLock);
