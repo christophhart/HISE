@@ -1619,8 +1619,15 @@ struct DeviceTypeSanityCheck : public DialogWindowWithBackgroundThread,
 
 	void checkPersistency(HiseDeviceSimulator::DeviceType type)
 	{
+        log("Testing persistency for " + HiseDeviceSimulator::getDeviceName((int)type));
+        
 		auto deviceConnections = setAndCreateArray(type);
-
+        
+        if(deviceConnections.size() == 0)
+        {
+            return;
+        }
+        
 		showStatusMessage("Checking UI controls");
 
 		StringArray missingInDesktop;
@@ -1700,7 +1707,7 @@ public:
 		{
 			if (CompileExporter::BuildOptionHelpers::isIPad(option))
 			{
-				tf(HiseDeviceSimulator::DeviceType::iPad);
+                tf(HiseDeviceSimulator::DeviceType::iPad);
 				tf(HiseDeviceSimulator::DeviceType::iPadAUv3);
 			}
 
