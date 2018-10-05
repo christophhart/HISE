@@ -4411,7 +4411,10 @@ void ScriptingApi::Content::addComponentsFromValueTree(const ValueTree& v)
 		{
 			const Identifier thisId = Identifier(v.getProperty(id).toString());
 
-			auto sc = Helpers::createComponentFromValueTree(this, v);
+			ReferenceCountedObjectPtr<ScriptComponent> sc = Helpers::createComponentFromValueTree(this, v);
+
+			if(sc == nullptr)
+				return;
 
 			DynamicObject* dyn = new DynamicObject();
 			var d(dyn);

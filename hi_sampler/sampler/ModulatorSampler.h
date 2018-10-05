@@ -187,9 +187,6 @@ public:
 
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
 
-
-	/** returns the thumbnailCache for the sampler. */
-	AudioThumbnailCache &getCache() const noexcept { return *soundCache; };
 	void loadCacheFromFile(File &f);;
 
 	/** This resets the streaming buffer size of the voices. Call this whenever you change the voice amount. */

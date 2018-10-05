@@ -97,7 +97,6 @@ ModulatorSampler::ModulatorSampler(MainController *mc, const String &id, int num
 ModulatorSynth(mc, id, numVoices),
 preloadSize(PRELOAD_SIZE),
 asyncPurger(this),
-soundCache(new AudioThumbnailCache(512)),
 sampleMap(new SampleMap(this)),
 rrGroupAmount(1),
 bufferSize(4096),
