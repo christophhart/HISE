@@ -244,8 +244,9 @@ void MainController::UserPresetHandler::incPreset(bool next, bool stayInSameDire
 #endif
 
 	userDirectory.findChildFiles(allPresets, File::findFiles, true, "*.preset");
+    MultiColumnPresetBrowser::DataBaseHelpers::cleanFileList(allPresets);
 	allPresets.sort();
-
+    
 	if (!currentlyLoadedFile.existsAsFile())
 	{
 		currentlyLoadedFile = allPresets.getFirst();
@@ -256,7 +257,10 @@ void MainController::UserPresetHandler::incPreset(bool next, bool stayInSameDire
 		{
 			allPresets.clear();
 			currentlyLoadedFile.getParentDirectory().findChildFiles(allPresets, File::findFiles, false, "*.preset");
+            MultiColumnPresetBrowser::DataBaseHelpers::cleanFileList(allPresets);
 			allPresets.sort();
+            
+            
 		}
 
 		if (allPresets.size() == 1)
