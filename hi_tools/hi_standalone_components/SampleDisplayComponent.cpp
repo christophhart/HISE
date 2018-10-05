@@ -388,8 +388,8 @@ bool AudioSampleBufferComponentBase::isAudioFile(const String &s)
 	AudioFormatManager afm;
 
 	
-	//afm.registerBasicFormats();
-	//afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
+	afm.registerBasicFormats();
+	afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
 	
 	return File(s).existsAsFile() && afm.findFormatForFileExtension(File(s).getFileExtension()) != nullptr;
 }
