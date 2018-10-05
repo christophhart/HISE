@@ -528,6 +528,7 @@ MainController::KillStateHandler::TargetThread MainController::KillStateHandler:
 	return MessageThread;
 #else
 	return UnknownThread;
+#endif
 }
 
 
