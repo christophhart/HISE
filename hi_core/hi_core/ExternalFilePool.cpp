@@ -294,8 +294,7 @@ juce::Identifier PoolHelpers::Reference::getId() const
 juce::File PoolHelpers::Reference::getFile() const
 {
 	jassert(isValid() && !isEmbeddedReference());
-	jassert(f.existsAsFile());
-
+	
 	return f;
 }
 

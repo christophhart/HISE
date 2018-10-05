@@ -83,6 +83,7 @@
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_zstd" path="../../../HISE modules"/>
         <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
+        <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="landscape" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
@@ -124,6 +125,7 @@
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_zstd" path="../../../HISE modules"/>
         <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
+        <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
     <VS2017 targetFolder="Builds/VisualStudio2017" smallIcon="ho3qQy" bigIcon="ho3qQy"
@@ -183,6 +185,7 @@
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_zstd" path="../../../HISE modules"/>
         <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
+        <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </VS2017>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=0" smallIcon="bfBEgJ"
@@ -190,7 +193,8 @@
                 linuxExtraPkgConfig="x11 xinerama xext">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="HISE Standalone"/>
-        <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="HISE Standalone"/>
+        <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="HISE Standalone"
+                       linkTimeOptimisation="1"/>
         <CONFIGURATION name="TravisCI" isDebug="1" optimisation="1" targetName="HISE Standalone"
                        defines="TRAVIS_CI=1"/>
       </CONFIGURATIONS>
@@ -219,8 +223,9 @@
         <MODULEPATH id="hi_streaming" path="../../"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_zstd" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_zstd" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../"/>
+        <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
@@ -250,6 +255,7 @@
     <MODULES id="juce_graphics" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_gui_basics" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_gui_extra" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="juce_opengl" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_product_unlocking" showAllCode="1" useLocalCopy="0"
             useGlobalPath="0"/>
   </MODULES>
@@ -263,7 +269,7 @@
                JUCE_ALSA="enabled" JUCE_JACK="enabled" USE_VDSP_FFT="disabled"
                ENABLE_SCRIPTING_BREAKPOINTS="enabled" HLAC_MEASURE_DECODING_PERFORMANCE="disabled"
                HLAC_DEBUG_LOG="disabled" HLAC_INCLUDE_TEST_SUITE="disabled"
-               STANDALONE_STREAMING="disabled"/>
+               STANDALONE_STREAMING="disabled" JUCE_ENABLE_AUDIO_GUARD="enabled"/>
   <LIVE_SETTINGS>
     <OSX defines="USE_IPP=0"/>
   </LIVE_SETTINGS>

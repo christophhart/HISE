@@ -242,11 +242,9 @@ private:
 	{
 		const float factor = (float)getControlRate() * 0.001f;
 
-		rate *= factor;
+		rate = jmax<float>(0.000001f, rate * factor);
 
 		float returnValue = expf(-logf((1.0f + targetRatio) / targetRatio) / rate);
-
-		jassert(returnValue > 0.0f);
 
 		return returnValue;
 	}

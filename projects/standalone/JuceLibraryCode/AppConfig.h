@@ -18,12 +18,6 @@
 
 // (You can add your own code in this section, and the Projucer will not overwrite it)
 
-#define HI_RUN_UNIT_TESTS 0
-
-#define JUCE_ENABLE_AUDIO_GUARD 1
-
-
-
 // [END_USER_CODE_SECTION]
 
 /*
@@ -79,6 +73,7 @@
 #define JUCE_MODULE_AVAILABLE_juce_graphics               1
 #define JUCE_MODULE_AVAILABLE_juce_gui_basics             1
 #define JUCE_MODULE_AVAILABLE_juce_gui_extra              1
+#define JUCE_MODULE_AVAILABLE_juce_opengl                 1
 #define JUCE_MODULE_AVAILABLE_juce_product_unlocking      1
 
 #define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
@@ -323,7 +318,7 @@
 #endif
 
 #ifndef    JUCE_ENABLE_AUDIO_GUARD
- //#define JUCE_ENABLE_AUDIO_GUARD 1
+ #define   JUCE_ENABLE_AUDIO_GUARD 1
 #endif
 
 //==============================================================================
@@ -384,6 +379,10 @@
 
 #ifndef    JUCE_USE_XCURSOR
  //#define JUCE_USE_XCURSOR 1
+#endif
+
+#ifndef    JUCE_HEADLESS_PLUGIN_CLIENT
+ //#define JUCE_HEADLESS_PLUGIN_CLIENT 1
 #endif
 
 //==============================================================================
