@@ -748,6 +748,7 @@ bool CompileExporter::checkSanity(BuildOption option)
     }
 #endif
 
+#if !JUCE_LINUX
     if(BuildOptionHelpers::isAAX(option))
     {
         const File aaxSDK = hiseDirectory.getChildFile("tools/SDK/AAX/Libs");
@@ -758,6 +759,7 @@ bool CompileExporter::checkSanity(BuildOption option)
             return false;
         }
     }
+#endif
     
     if(!isExportingFromCommandLine() && PresetHandler::showYesNoWindow("Check Sample references", "Do you want to validate all sample references"))
     {
@@ -826,9 +828,12 @@ CompileExporter::BuildOption CompileExporter::showCompilePopup(TargetTypes type)
 	{
 	case CompileExporter::TargetTypes::InstrumentPlugin:
 		b->addItem("VSTi", BuildOption::VSTiLinux);
+		b->addItem("Headless VSTi", BuildOption::HeadlessLinuxVSTi);
+		
 		break;
 	case CompileExporter::TargetTypes::EffectPlugin:
 		b->addItem("VST", BuildOption::VSTLinux);
+		b->addItem("Headless VST", BuildOption::HeadlessLinuxVST);
 		break;
 	case CompileExporter::TargetTypes::StandaloneApplication:
 		b->addItem("Standalone Linux", BuildOption::StandaloneLinux);
@@ -1397,8 +1402,12 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 		REPLACE_WILDCARD_WITH_STRING("%BUILD_AUV3%", "0");
 
 		const bool buildAU = BuildOptionHelpers::isAU(option);
-		const bool buildVST = BuildOptionHelpers::isVST(option);
+		const bool buildVST = BuildOptionHelpers::isVST(option) || BuildOptionHelpers::isHeadlessLinuxPlugin(option);
+#if JUCE_LINUX
+		const bool buildAAX = false;
+#else
 		const bool buildAAX = BuildOptionHelpers::isAAX(option);
+#endif
 
 		REPLACE_WILDCARD_WITH_STRING("%BUILD_AU%", buildAU ? "1" : "0");
 		REPLACE_WILDCARD_WITH_STRING("%BUILD_VST%", buildVST ? "1" : "0");
@@ -1442,6 +1451,26 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 			REPLACE_WILDCARD_WITH_STRING("%AAX_DEBUG_LIB%", String());
 			REPLACE_WILDCARD_WITH_STRING("%AAX_IDENTIFIER%", String());
 		}
+	}
+
+	// Add the linux GUI packages for non headless plugin builds to the projucer exporter...
+	if (BuildOptionHelpers::isLinux(option))
+	{
+		if(BuildOptionHelpers::isHeadlessLinuxPlugin(option))
+		{
+			REPLACE_WILDCARD_WITH_STRING("%LINUX_GUI_LIBS%", "");
+			REPLACE_WILDCARD_WITH_STRING("%JUCE_HEADLESS_PLUGIN_CLIENT%", "enabled");
+		}
+		else
+		{
+			REPLACE_WILDCARD_WITH_STRING("%LINUX_GUI_LIBS%", "x11 xinerama xext");
+			REPLACE_WILDCARD_WITH_STRING("%JUCE_HEADLESS_PLUGIN_CLIENT%", "disabled");
+		}
+	}
+	else
+	{
+		REPLACE_WILDCARD_WITH_STRING("%LINUX_GUI_LIBS%", "");
+		REPLACE_WILDCARD_WITH_STRING("%JUCE_HEADLESS_PLUGIN_CLIENT%", "disabled");
 	}
 
 	ProjectTemplateHelpers::handleCompilerInfo(this, templateProject);

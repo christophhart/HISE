@@ -348,7 +348,7 @@ void FrontendStandaloneApplication::AudioWrapper::init()
 
 	editor = standaloneProcessor->createEditor();
 
-#if !HISE_IOS
+#if 0 && !HISE_IOS
 	context = new OpenGLContext();
 
 	if (dynamic_cast<GlobalSettingManager*>(editor->getAudioProcessor())->useOpenGL)
@@ -421,7 +421,7 @@ FrontendStandaloneApplication::AudioWrapper::AudioWrapper()
 
 FrontendStandaloneApplication::AudioWrapper::~AudioWrapper()
 {
-#if !HISE_IOS
+#if 0 && !HISE_IOS
 
 	if(context->isAttached())
 		context->detach();

@@ -44,7 +44,7 @@
   dependencies:     juce_events juce_graphics juce_data_structures
   OSXFrameworks:    Cocoa Carbon QuartzCore
   iOSFrameworks:    UIKit
-  linuxPackages:    x11 xinerama xext
+  linuxPackages:
 
  END_JUCE_MODULE_DECLARATION
 
@@ -107,6 +107,13 @@
 */
 #ifndef JUCE_USE_XCURSOR
  #define JUCE_USE_XCURSOR 1
+#endif
+
+/** Config: JUCE_HEADLESS_PLUGIN_CLIENT
+    Enables a headless build of a VST plugin for embedded Linux.
+*/
+#ifndef JUCE_HEADLESS_PLUGIN_CLIENT
+ #define JUCE_HEADLESS_PLUGIN_CLIENT 0
 #endif
 
 //==============================================================================
@@ -292,7 +299,11 @@ namespace juce
 #include "mouse/juce_LassoComponent.h"
 
 #if JUCE_LINUX
- #include "native/juce_linux_X11.h"
+ #if ! JUCE_HEADLESS_PLUGIN_CLIENT
+  #include "native/juce_linux_X11.h"
+ #else
+  #include "native/juce_linux_headless_X_keysymdef.h"
+ #endif
 #endif
 
 // these classes are C++11-only

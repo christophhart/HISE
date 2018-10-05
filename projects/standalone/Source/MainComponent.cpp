@@ -30,11 +30,6 @@ MainContentComponent::MainContentComponent(const String &commandLine)
 
 	setSize(editor->getWidth(), editor->getHeight());
 
-	if (dynamic_cast<hise::GlobalSettingManager*>(editor->getAudioProcessor())->useOpenGL)
-	{
-		open.attachTo(*editor);
-	}
-
 	handleCommandLineArguments(commandLine);
 
 }
@@ -76,14 +71,7 @@ MainContentComponent::~MainContentComponent()
 {
 	
 	root = nullptr;
-
-	if (open.isAttached())
-		open.detach();
-
-	open.detach();
 	editor = nullptr;
-
-	
 
 	standaloneProcessor = nullptr;
 }
