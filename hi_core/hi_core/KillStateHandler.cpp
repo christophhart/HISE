@@ -340,6 +340,7 @@ void MainController::KillStateHandler::killVoicesAndCall(Processor* p, const Pro
 	{
 		jassert(currentState == State::WaitingForInitialisation || 
 		        currentState == State::ShutdownComplete);
+
 		functionToExecuteWhenKilled(p);
 		return;
 	}
@@ -522,9 +523,10 @@ MainController::KillStateHandler::TargetThread MainController::KillStateHandler:
 			return MessageThread;
 	}
 
-	DBG("Unknown thread with ID " + String(reinterpret_cast<int64>(threadId)));
-	DBG("Thread name: " + Thread::getCurrentThread()->getThreadName());
-
+#if JUCE_LINUX && !IS_STANDALONE_APP
+	// Linux appears to be using multiple message threads, so this is the best bet...
+	return MessageThread;
+#else
 	return UnknownThread;
 }
 

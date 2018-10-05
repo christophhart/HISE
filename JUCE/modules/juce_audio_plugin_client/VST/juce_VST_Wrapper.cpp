@@ -182,9 +182,10 @@ struct SharedMessageThread  : public Thread
         initialiseJuce_GUI();
         initialised = true;
 
+        MessageManagerLock mm;
         MessageManager::getInstance()->setCurrentThreadAsMessageThread();
 
-        ScopedXDisplay xDisplay;
+        ScopedXDisplay xDisplay;        
 
         while ((! threadShouldExit()) && MessageManager::getInstance()->runDispatchLoopUntil (250))
         {}

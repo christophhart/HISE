@@ -140,6 +140,7 @@ const juce::CriticalSection& LockHelpers::getLockChecked(const MainController* m
 		throw BadLockException(lockType);
 	}
 
+#if !JUCE_LINUX
 	if (!noMessageLockFromAnotherThread())
 	{
 		// You can't acquire any lock from another thread than the message thread
@@ -147,6 +148,7 @@ const juce::CriticalSection& LockHelpers::getLockChecked(const MainController* m
 		jassertfalse;
 		throw BadLockException(lockType);
 	}
+#endif
 
 	for (int i = (int)lockType + 1; i < Type::numLockTypes; i++)
 	{
