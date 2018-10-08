@@ -1086,6 +1086,11 @@ void ModulatorSampler::saveSampleMap() const
 	sampleMap->save();
 }
 
+void ModulatorSampler::saveSampleMapAsReference() const
+{
+	sampleMap->saveSampleMapAsReference();
+}
+
 void ModulatorSampler::saveSampleMapAsMonolith(Component* mainEditor) const
 {
 	sampleMap->saveAsMonolith(mainEditor);

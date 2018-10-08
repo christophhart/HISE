@@ -147,17 +147,22 @@ void SampleMap::clear(NotificationType n)
 	}
 }
 
+juce::String SampleMap::getMonolithID() const
+{
+	return data.getProperty("MonolithReference", sampleMapId.toString()).toString();
+}
+
 void SampleMap::setCurrentMonolith()
 {
 	if (isMonolith())
 	{
 		ModulatorSamplerSoundPool* pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
 
-		if (auto existingInfo = pool->getMonolith(sampleMapId))
+		if (auto existingInfo = pool->getMonolith(getMonolithID()))
 		{
 			currentMonolith = existingInfo;
 
-			jassert(*currentMonolith == sampleMapId);
+			jassert(*currentMonolith == getMonolithID());
 		}
 		else
 		{
@@ -179,7 +184,7 @@ void SampleMap::setCurrentMonolith()
 
 			for (int i = 0; i < numChannels; i++)
 			{
-				auto path = sampleMapId.toString().replace("/", "_");
+				auto path = getMonolithID().replace("/", "_");
 
 				File f = monolithDirectory.getChildFile(path + ".ch" + String(i + 1));
 				if (f.existsAsFile())
@@ -188,7 +193,6 @@ void SampleMap::setCurrentMonolith()
 				}
 				else
 				{
-
 					sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage,
 						"The sample " + f.getFileName() + " wasn't found");
 
@@ -205,18 +209,14 @@ void SampleMap::setCurrentMonolith()
 				micPositions.removeEmptyStrings(true);
 
 				if (micPositions.size() == numChannels)
-				{
 					sampler->setNumMicPositions(micPositions);
-				}
 				else
-				{
 					sampler->setNumChannels(1);
-				}
 
 				currentMonolith = pool->loadMonolithicData(data, monolithFiles);
 
 				if(currentMonolith)
-					jassert(*currentMonolith == sampleMapId);
+					jassert(*currentMonolith == getMonolithID());
 			}
 		}
 	}
@@ -489,7 +489,6 @@ void SampleMap::save()
 			}
 			else
 				return;
-			
 		}
 	}
 
@@ -502,12 +501,16 @@ void SampleMap::save()
 	auto reloadedMap = pool->loadFromReference(ref, PoolHelpers::LoadingType::ForceReloadStrong);
 	getSampler()->loadSampleMap(reloadedMap.getRef());
 
-	
-	
-
 #endif
 }
 
+
+void SampleMap::saveSampleMapAsReference()
+{
+	sampleMapData = {};
+	data.setProperty("MonolithReference", data.getProperty("ID"), nullptr);
+	save();
+}
 
 void SampleMap::saveAsMonolith(Component* mainEditor)
 {

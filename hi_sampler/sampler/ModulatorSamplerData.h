@@ -134,6 +134,8 @@ public:
 	/** Saves all data with the mode depending on the file extension. */
 	void save();
 
+	void saveSampleMapAsReference();
+
 	void saveAsMonolith(Component* mainEditor);
 
 	void setIsMonolith() noexcept { mode = SaveMode::Monolith; }
@@ -145,6 +147,8 @@ public:
 	
 	ModulatorSampler* getSampler() const { return sampler; }
 	
+	String getMonolithID() const;
+
 	void setId(Identifier newIdentifier)
     {
         sampleMapId = newIdentifier.toString();

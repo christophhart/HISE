@@ -527,6 +527,10 @@ void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo
 	case SaveSampleMapAsXml:	result.setInfo("Save as XML", "Save the current SampleMap as XML file", "SampleMap Handling", 0);
 		result.setActive(true);
 		break;
+	case DuplicateSampleMapAsReference:
+		result.setInfo("Duplicate as Reference", "Creates a copy of this samplemap and reuses the current monolith", "SampleMap Handling", 0);
+		result.setActive(true);
+		break;
 	case SaveSampleMapAsMonolith:	result.setInfo("Save as Monolith", "Save the current SampleMap as one big monolith file", "SampleMap Handling", 0);
 		result.setActive(true);
 		break;
@@ -668,6 +672,7 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 								
 	case LoadSampleMap:				loadSampleMap(); return true;
 	case SaveSampleMap:				sampler->saveSampleMap(); return true;
+	case DuplicateSampleMapAsReference:	sampler->saveSampleMapAsReference(); return true;
 	case SaveSampleMapAsMonolith:	sampler->saveSampleMapAsMonolith(this); return true;
 	case ImportSfz:					importSfz(); return true;
 

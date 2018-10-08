@@ -83,6 +83,7 @@ public:
 		SaveSampleMap,
 		SaveSampleMapAsXml,
 		SaveSampleMapAsMonolith,
+		DuplicateSampleMapAsReference,
 		ImportSfz,
 		ImportFiles,
 
@@ -126,6 +127,7 @@ public:
 								SaveSampleMap,
 								SaveSampleMapAsXml,
 								SaveSampleMapAsMonolith,
+								DuplicateSampleMapAsReference,
 								ImportSfz,
 								ImportFiles,
 								Undo,
@@ -515,6 +517,7 @@ public:
 
 		saveAs.addCommandItem(a, SaveSampleMapAsXml);
 		saveAs.addCommandItem(a, SaveSampleMapAsMonolith);
+		saveAs.addCommandItem(a, DuplicateSampleMapAsReference);
 
 		p.addSubMenu("Save as", saveAs, true);
 

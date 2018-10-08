@@ -470,7 +470,16 @@ public:
 		ValueTree newSampleMap("samplemap");
 		newSampleMap.setProperty("ID", sampleMapId.toString(), nullptr);
 		
+
+		auto monolithID = sampler->getSampleMap()->getMonolithID();
+
+		
+
 		newSampleMap.setProperty("SaveMode", 0, nullptr);
+
+		if (sampleMapId.toString() != monolithID)
+			newSampleMap.setProperty("MonolithReference", monolithID, nullptr);
+
 		newSampleMap.setProperty("FileName", file.getReferenceString(), nullptr);
 		newSampleMap.setProperty("MicPositions", channelNames.joinIntoString(";"), nullptr);
 		newSampleMap.setProperty("RRGroupAmount", (int)sampler->getAttribute(ModulatorSampler::RRGroupAmount), nullptr);
