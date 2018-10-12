@@ -27,6 +27,62 @@
 namespace juce
 {
 
+#if JUCE_IOS
+#define JUCE_CORE_GRAPHICS_NEEDS_DELAYED_GARBAGE_COLLECTION 1
+#endif
+    
+#if JUCE_CORE_GRAPHICS_NEEDS_DELAYED_GARBAGE_COLLECTION
+    class CoreGraphicsImageGarbageCollector   : public Timer,
+    public DeletedAtShutdown
+    {
+    public:
+        CoreGraphicsImageGarbageCollector()
+        {
+            // TODO: Add an assertion here telling JUCE developers to move to the
+            // latest SDK if/when the CoreGraphics memory handling is fixed.
+        }
+        
+        ~CoreGraphicsImageGarbageCollector()
+        {
+            clearSingletonInstance();
+        }
+        
+        JUCE_DECLARE_SINGLETON (CoreGraphicsImageGarbageCollector, false)
+        
+        void addItem (HeapBlock<uint8>&& data)
+        {
+            ScopedLock lock (queueLock);
+            
+            queue.emplace_back (Time::getApproximateMillisecondCounter(), std::move (data));
+            
+            if (! isTimerRunning())
+                startTimer (timeDelta);
+        }
+        
+        void timerCallback() override
+        {
+            ScopedLock lock (queueLock);
+            
+            auto cutoffTime = Time::getApproximateMillisecondCounter() - timeDelta;
+            
+            auto it = std::find_if (queue.begin(), queue.end(),
+                                    [cutoffTime](const std::pair<int32, HeapBlock<uint8>>& x) { return x.first > cutoffTime; });
+            queue.erase (queue.begin(), it);
+            
+            queue.empty() ? stopTimer() : startTimer (timeDelta);
+        }
+        
+    private:
+        CriticalSection queueLock;
+        std::vector<std::pair<int32, HeapBlock<uint8>>> queue;
+        static constexpr int timeDelta = 50;
+    };
+    
+    JUCE_IMPLEMENT_SINGLETON (CoreGraphicsImageGarbageCollector)
+#endif
+    
+    //==============================================================================
+    
 class CoreGraphicsImage   : public ImagePixelData
 {
 public:
@@ -36,7 +92,16 @@ public:
         pixelStride = format == Image::RGB ? 3 : ((format == Image::ARGB) ? 4 : 1);
         lineStride = (pixelStride * jmax (1, width) + 3) & ~3;
 
-        imageData.allocate ((size_t) (lineStride * jmax (1, height)), clearImage);
+        auto numComponents = (size_t) lineStride * (size_t) jmax (1, height);
+        
+# if JUCE_MAC && defined (__MAC_10_14)
+        // This version of the SDK intermittently requires a bit of extra space
+        // at the end of the image data. This feels like something has gone
+        // wrong in Apple's code.
+        numComponents += (size_t) lineStride;
+#endif
+        
+        imageData.allocate (numComponents, clearImage);
 
         CGColorSpaceRef colourSpace = (format == Image::SingleChannel) ? CGColorSpaceCreateDeviceGray()
                                                                        : CGColorSpaceCreateDeviceRGB();
@@ -51,6 +116,10 @@ public:
     {
         freeCachedImageRef();
         CGContextRelease (context);
+        
+#if JUCE_CORE_GRAPHICS_NEEDS_DELAYED_GARBAGE_COLLECTION
+        CoreGraphicsImageGarbageCollector::getInstance()->addItem (std::move (imageData));
+#endif
     }
 
     LowLevelGraphicsContext* createLowLevelContext() override
@@ -480,9 +549,11 @@ void CoreGraphicsContext::drawImage (const Image& sourceImage, const AffineTrans
 {
     const int iw = sourceImage.getWidth();
     const int ih = sourceImage.getHeight();
-    CGImageRef image = CoreGraphicsImage::getCachedImageRef (sourceImage, sourceImage.getFormat() == Image::PixelFormat::SingleChannel ? greyColourSpace
-                                                                                                                                       : rgbColourSpace);
-
+    
+    auto colourSpace = sourceImage.getFormat() == Image::PixelFormat::SingleChannel ? greyColourSpace
+    : rgbColourSpace;
+    CGImageRef image = CoreGraphicsImage::getCachedImageRef (sourceImage, colourSpace);
+    
     CGContextSaveGState (context);
     CGContextSetAlpha (context, state->fillType.getOpacity());
 
