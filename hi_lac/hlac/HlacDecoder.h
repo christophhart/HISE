@@ -44,6 +44,11 @@ public:
 	workBuffer(0)
 	{};
 
+	void setHlacVersion(int version)
+	{
+		hlacVersion = version;
+	}
+
 	void decode(HiseSampleBuffer& destination, bool decodeStereo, InputStream& input, int offsetInSource=0, int numSamples=-1);
 
 	void setupForDecompression();
@@ -80,6 +85,8 @@ private:
 
 	void reset();
 	
+	
+
 	bool decodeBlock(HiseSampleBuffer& destination, bool decodeStereo, InputStream& input, int channelIndex);
 
 	void decodeDiff(const CycleHeader& header, bool decodeStereo, HiseSampleBuffer& destination, InputStream& input, int channelIndex);
@@ -128,6 +135,9 @@ private:
 	Array<double> decompressionSpeeds;
 
 	double decompressionSpeed = 0.0;
+
+	int currentNormalisationAmount = 0;
+	int hlacVersion = HLAC_VERSION;
 };
 
 } // namespace hlac

@@ -83,6 +83,7 @@ public:
 		header(input)
 	{
 		decoder.setupForDecompression();
+		decoder.setHlacVersion(header.getVersion());
 	}
 
 	HlacReaderCommon(const File& f) :
@@ -90,6 +91,7 @@ public:
 		header(f)
 	{
 		decoder.setupForDecompression();
+		decoder.setHlacVersion(header.getVersion());
 	}
 
 	/** You can choose what the target data type should be. If you read into integer AudioSampleBuffers, you might want to call this method

@@ -146,9 +146,13 @@ public:
 	/** Returns the internal AudioSampleBuffer for convenient usage with AudioFormatReader classes. */
 	AudioSampleBuffer* getFloatBufferForFileReader();
 
-	
+	CompressionHelpers::NormaliseMap& getNormaliseMap(int channelIndex)
+	{
+		return channelIndex == 0 ? leftIntBuffer.getMap() : rightIntBuffer.getMap();
+	}
 
 private:
+
 
 	int numChannels = 0;
 	int size = 0;

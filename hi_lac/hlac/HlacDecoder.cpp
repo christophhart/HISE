@@ -40,7 +40,6 @@ void HlacDecoder::setupForDecompression()
 	readIndex = 0;
 
 	decompressionSpeed = 0.0;
-
 }
 
 
@@ -77,6 +76,12 @@ void HlacDecoder::reset()
 
 bool HlacDecoder::decodeBlock(HiseSampleBuffer& destination, bool decodeStereo, InputStream& input, int channelIndex)
 {
+	auto normalizeValues = input.readInt();
+
+	auto& mapToUse = destination.getNormaliseMap(channelIndex);
+
+	mapToUse.setNormalisationValues(readIndex, normalizeValues);
+
 	auto checksum = input.readInt();
 
 	if (!CompressionHelpers::Misc::validateChecksum((uint32)checksum))
@@ -221,8 +226,6 @@ void HlacDecoder::decodeCycle(const CycleHeader& header, bool /*decodeStereo*/, 
 	if (numBytesToRead > 0)
 		input.read(readBuffer.getData(), numBytesToRead);
 
-	
-
 	if (header.isTemplate())
 	{
         LOG("DEC  " + String(readOffset + readIndex + indexInBlock) + "\t\t\tNew Template with bit depth " + String(compressor->getAllowedBitRange()) + ": " + String(numSamples));
@@ -262,7 +265,12 @@ void HlacDecoder::decodeCycle(const CycleHeader& header, bool /*decodeStereo*/, 
 
 void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSampleBuffer& destination, int channelIndex, int numSamples)
 {
-	auto src = useTempBuffer ? workBuffer.getReadPointer() : currentCycle.getReadPointer();
+	auto src = useTempBuffer ? workBuffer.getWritePointer() : currentCycle.getWritePointer();
+
+	if (currentNormalisationAmount != 0)
+	{
+		CompressionHelpers::normaliseBlock(src, numSamples, currentNormalisationAmount, -1);
+	}
 
 	int& skipToUse = channelIndex == 0 ? leftNumToSkip : rightNumToSkip;
 
@@ -303,6 +311,8 @@ void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSam
 			else
 				rightFloatIndex += numThisTime;
 		}
+
+		
 	}
 	else
 	{
@@ -348,6 +358,8 @@ void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSam
 			skipToUse = 0;
 		}
 	}
+
+	
 }
 
 void HlacDecoder::seekToPosition(InputStream& input, uint32 position, uint32 byteOffset)

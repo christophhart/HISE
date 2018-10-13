@@ -48,6 +48,20 @@ END_JUCE_MODULE_DECLARATION
 
 ******************************************************************************/
 
+
+/* TODO 24bit rewrite:
+
+- make the temporary voice buffer a floating point buffer and normalize when copying from the two read buffers there.
+- ensure 100% backwards compatibility
+- check that there's no performance overhead if not used
+- skip this when the sample material is already 16bit (maybe even add a warning then)
+- support seeking and odd sample offsets
+- make the .hr1 files 24bit FLACs
+- add some nice end user options
+
+*/
+
+
 #ifndef HI_LAC_INCLUDED
 #define HI_LAC_INCLUDED
 
@@ -60,7 +74,7 @@ END_JUCE_MODULE_DECLARATION
 #endif
 
 // This is the current HLAC version. HLAC has full backward compatibility.
-#define HLAC_VERSION 2
+#define HLAC_VERSION 3
 
 // This is the compression block size used by HLAC. Don't change that value unless you know what you're doing...
 #define COMPRESSION_BLOCK_SIZE 4096

@@ -30,28 +30,14 @@
 
 namespace hlac { using namespace juce; 
 
-CompressionHelpers::AudioBufferInt16::AudioBufferInt16(AudioSampleBuffer& b, int channelToUse, bool normalizeBeforeStoring)
+CompressionHelpers::AudioBufferInt16::AudioBufferInt16(AudioSampleBuffer& b, int channelToUse, uint8 normalizeBeforeStoring)
 {
-#if JUCE_DEBUG
-	const float level = b.getMagnitude(0, b.getNumSamples());
-	jassert(level <= 1.0f);
-#endif
-
 	allocate(b.getNumSamples());
 	
-
-	if (normalizeBeforeStoring)
+	if (normalizeBeforeStoring != NormaliseMap::NoNormalisation)
 	{
-		auto r = b.findMinMax(channelToUse, 0, size);
-
-		const float peak = jmax<float>(fabsf(r.getStart()), fabsf(r.getEnd()));
-		gainFactor = 1.0f / peak;
-
-		b.applyGain(gainFactor); // Slow but don't care...
-
-		AudioDataConverters::convertFloatToInt16LE(b.getReadPointer(channelToUse), data, b.getNumSamples());
-
-		b.applyGain(peak);
+		map.setMode(normalizeBeforeStoring);
+		map.normalise(b.getReadPointer(channelToUse), data, b.getNumSamples());
 	}
 	else
 	{
@@ -92,7 +78,7 @@ AudioSampleBuffer CompressionHelpers::AudioBufferInt16::getFloatBuffer() const
 
 	fastInt16ToFloat(data, b.getWritePointer(0), size);
 
-	b.applyGain(1.0f / gainFactor);
+	jassertfalse;
 
 	return b;
 }
@@ -175,8 +161,6 @@ const int16* CompressionHelpers::AudioBufferInt16::getReadPointer(int startSampl
 	
 	return externalData != nullptr ? externalData + startSample : data + startSample;
 }
-
-
 
 void CompressionHelpers::AudioBufferInt16::allocate(int newNumSamples)
 {
@@ -318,6 +302,50 @@ uint8 CompressionHelpers::getBitrateForCycleLength(const AudioBufferInt16& block
 	IntVectorOperations::sub(workBuffer.getWritePointer(), part.getReadPointer(), block.getReadPointer(cycleLength), cycleLength);
 
 	return BitCompressors::getMinBitDepthForData(workBuffer.getReadPointer(), cycleLength);
+}
+
+void CompressionHelpers::normaliseBlock(int16* data, int numSamples, int normalisationAmount, int direction, bool useDither)
+{
+	int shiftAmount = pow(2, normalisationAmount);
+
+	if (direction == 1)
+	{
+		for (int i = 0; i < numSamples; i++)
+		{
+			int v = (int)data[i];
+			v *= shiftAmount;
+
+			//jassert(v > INT16_MIN && v < INT16_MAX);
+
+			v = jlimit<int>(INT16_MIN, INT16_MAX, v);
+
+			data[i] = (int16)v;
+		}
+
+		if (useDither)
+		{
+			float* d = (float*)alloca(sizeof(float)* numSamples);
+
+			for (int i = 0; i < numSamples; i++)
+				d[i] = data[i] / (float)INT16_MAX;
+
+			applyDithering(d, numSamples);
+
+			for (int i = 0; i < numSamples; i++)
+				data[i] = (int16)(d[i] * (float)INT16_MAX);
+		}
+	}
+	else
+	{
+		for (int i = 0; i < numSamples; i++)
+		{
+			int v = (int)data[i];
+			v /= shiftAmount;
+			data[i] = (int16)v;
+		}
+	}
+
+	
 }
 
 int CompressionHelpers::getCycleLengthWithLowestBitRate(const AudioBufferInt16& block, int& bitRate, AudioBufferInt16& workBuffer)
@@ -539,6 +567,41 @@ void CompressionHelpers::fastInt16ToFloat(const void* source, float* dest, int n
 	}
     
 #endif
+}
+
+void CompressionHelpers::applyDithering(float* data, int numSamples)
+{
+	int   r1, r2;                //rectangular-PDF random numbers
+	float s1, s2;                //error feedback buffers
+	float s = 0.5f;              //set to 0.0f for no noise shaping
+	float w = pow(2.0, 16 - 1);   //word length (usually bits=16)
+	float wi = 1.0f / w;
+	float d = wi / RAND_MAX;     //dither amplitude (2 lsb)
+	float o = wi * 0.5f;         //remove dc offset
+	float in, tmp;
+	int   out;
+
+	r1 = r2 = 0;
+	s1 = s2 = 0.0f;
+
+	for (int i = 0; i < numSamples; i++)
+	{
+		float in = data[i];
+
+		r2 = r1;                               //can make HP-TRI dither by
+		r1 = rand();                           //subtracting previous rand()
+
+		in += s * (s1 + s1 - s2);            //error feedback
+		tmp = in + o + d * (float)(r1 - r2); //dc offset and dither
+
+		out = floorf(w * tmp);                //truncate downwards
+		if (tmp < 0.0f) out--;                  //this is faster than floor()
+
+		s2 = s1;
+		s1 = in - wi * (float)out;           //error
+
+		data[i] = out / w;
+	}
 }
 
 uint8 CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, AudioSampleBuffer& referenceBuffer)
@@ -1557,5 +1620,81 @@ HlacArchiver::Flag HlacArchiver::readFlag(FileInputStream* fis)
 
 #undef VERBOSE_LOG
 #undef STATUS_LOG
+
+void CompressionHelpers::NormaliseMap::setUseStaticNormalisation(uint8 staticNormalisationAmount)
+{
+	normalisationMode = Mode::StaticNormalisation;
+	memset(preallocated, staticNormalisationAmount, 16);
+}
+
+bool CompressionHelpers::NormaliseMap::writeNormalisationHeader(OutputStream& output)
+{
+	// Can't use this with a non-fixed size block size...
+	jassert(allocated == nullptr);
+
+	constexpr int numBytes = COMPRESSION_BLOCK_SIZE / normaliseBlockSize;
+
+	String s;
+
+	s << "Normalisation bits: ";
+	s << "0: " << String((int)preallocated[0]) << "\t";
+	s << "1: " << String((int)preallocated[1]) << "\t";
+	s << "2: " << String((int)preallocated[2]) << "\t";
+	s << "3: " << String((int)preallocated[3]) << "\t";
+
+	LOG(s);
+
+	return output.write(preallocated, numBytes);
+}
+
+void CompressionHelpers::NormaliseMap::normalise(const float* src, int16* dst, int numSamples)
+{
+	if (normalisationMode == Mode::NoNormalisation)
+		return;
+
+	if (normalisationMode == Mode::RangeBasedNormalisation)
+	{
+		int index = 0;
+		int tableIndex = 0;
+
+		while (index < numSamples)
+		{
+			int thisTime = jmin<int>(numSamples - index, normaliseBlockSize);
+			auto data = dst + index;
+
+			AudioDataConverters::convertFloatToInt16LE(src + index, data, thisTime);
+
+			CompressionHelpers::AudioBufferInt16 l(data, thisTime);
+
+			
+
+			auto lMax = CompressionHelpers::getPossibleBitReductionAmount(l);
+			auto normalisationAmount = jmin<int>(8, 16 - lMax);
+
+			getTableData()[tableIndex++] = normalisationAmount;
+			internalNormalisation(src + index, data, thisTime, normalisationAmount);
+
+			index += thisTime;
+		}
+	}
+	else if (normalisationMode == Mode::StaticNormalisation)
+	{
+		internalNormalisation(src, dst, numSamples, preallocated[0]);
+	}
+}
+
+void CompressionHelpers::NormaliseMap::internalNormalisation(const float* src, int16* dst, int numSamples, uint8 amount)
+{
+	if (amount == 0)
+		return;
+
+	float db = Decibels::decibelsToGain((float)amount * 6.0f);
+
+	for (int i = 0; i < numSamples; i++)
+	{
+		float gainedValue = src[i] * db;
+		dst[i] =  (int16)(gainedValue * (float)INT16_MAX);
+	};
+}
 
 } // namespace hlac

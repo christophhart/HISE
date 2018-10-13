@@ -63,6 +63,8 @@ public:
 		int16 fixedBlockWidth = -1;
 		bool reuseFirstCycleLengthForBlock = true;
 		bool removeDcOffset = true;
+		bool applyDithering = false;
+		uint8 normalisationMode = 0;
 		float deltaCycleThreshhold = 0.2f;
 		int bitRateForWholeBlock = 6;
 		bool useDiffEncodingWithFixedBlocks = false;
@@ -116,6 +118,7 @@ public:
 			}
 			if (p == Presets::Delta)
 			{
+				jassertfalse;
 				HlacEncoder::CompressorOptions delta;
 
 				delta.fixedBlockWidth = -1;
@@ -165,6 +168,8 @@ private:
 
 	bool encodeBlock(CompressionHelpers::AudioBufferInt16& block, OutputStream& output);
 
+	bool normaliseBlockAndAddHeader(CompressionHelpers::AudioBufferInt16& block16, OutputStream& output);
+
 	MemoryBlock createCompressedBlock(CompressionHelpers::AudioBufferInt16& block);
 
 	uint8 getBitReductionAmountForMSEncoding(AudioSampleBuffer& block);
@@ -175,6 +180,8 @@ private:
 	}
 
 	bool writeChecksumBytesForBlock(OutputStream& output);
+
+	bool writeNormalisationAmount(OutputStream& output);
 
 	bool writeUncompressed(CompressionHelpers::AudioBufferInt16& block, OutputStream& output);
 
@@ -215,7 +222,7 @@ private:
 
 	CompressorOptions options;
 
-	
+	int currentNormaliseBitShiftAmount = 0;
 
 	float ratio = 0.0f;
 

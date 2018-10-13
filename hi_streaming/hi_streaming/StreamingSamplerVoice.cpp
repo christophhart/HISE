@@ -171,12 +171,15 @@ double SampleLoader::getDiskUsage() noexcept
 
 void SampleLoader::setStreamingBufferDataType(bool shouldBeFloat)
 {
-	ScopedLock sl(getLock());
+	if (b1.isFloatingPoint() != shouldBeFloat)
+	{
+		ScopedLock sl(getLock());
 
-	b1 = hlac::HiseSampleBuffer(shouldBeFloat, 2, 0);
-	b2 = hlac::HiseSampleBuffer(shouldBeFloat, 2, 0);
+		b1 = hlac::HiseSampleBuffer(shouldBeFloat, 2, 0);
+		b2 = hlac::HiseSampleBuffer(shouldBeFloat, 2, 0);
 
-	refreshBufferSizes();
+		refreshBufferSizes();
+	}
 }
 
 StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuffer, double numSamples) const

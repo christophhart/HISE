@@ -34,6 +34,17 @@ void HlacEncoder::compress(AudioSampleBuffer& source, OutputStream& output, uint
 {
 	bool compressStereo = source.getNumChannels() == 2;
 
+#if HLAC_VERSION > 2
+	if (options.normalisationMode == CompressionHelpers::NormaliseMap::Mode::StaticNormalisation)
+	{
+		auto maxLevel = source.getMagnitude(0, source.getNumSamples());
+		auto db = -1.0f * Decibels::gainToDecibels(maxLevel);
+		currentNormaliseBitShiftAmount = jmin<int>(8, (int)(db / 6.0f));
+	}
+	else
+		currentNormaliseBitShiftAmount = 0;
+#endif
+
 	if (source.getNumSamples() == COMPRESSION_BLOCK_SIZE)
 	{
 		blockOffsetData[blockIndex] = numBytesWritten;
@@ -42,8 +53,9 @@ void HlacEncoder::compress(AudioSampleBuffer& source, OutputStream& output, uint
 		if (compressStereo)
 		{
 			auto l = CompressionHelpers::getPart(source, 0, 0, COMPRESSION_BLOCK_SIZE);
-			encodeBlock(l, output);
 			auto r = CompressionHelpers::getPart(source, 1, 0, COMPRESSION_BLOCK_SIZE);
+
+			encodeBlock(l, output);
 			encodeBlock(r, output);
 		}
 		else
@@ -65,16 +77,17 @@ void HlacEncoder::compress(AudioSampleBuffer& source, OutputStream& output, uint
 		if (compressStereo)
 		{
 			auto l = CompressionHelpers::getPart(source, 0, blockOffset, numTodo);
-			encodeBlock(l, output);
 			auto r = CompressionHelpers::getPart(source, 1, blockOffset, numTodo);
+
+			encodeBlock(l, output);
 			encodeBlock(r, output);
 		}
 		else
 		{
 			auto b = CompressionHelpers::getPart(source, blockOffset, numTodo);
+			
 			encodeBlock(b, output);
 		}
-
 
 		blockOffset += numTodo;
 
@@ -139,7 +152,10 @@ float HlacEncoder::getCompressionRatio() const
 
 bool HlacEncoder::encodeBlock(AudioSampleBuffer& block, OutputStream& output)
 {
-	auto block16 = CompressionHelpers::AudioBufferInt16(block, 0, false);
+	auto block16 = CompressionHelpers::AudioBufferInt16(block, 0, options.normalisationMode);
+
+	if (!normaliseBlockAndAddHeader(block16, output))
+		return false;
 
 	return encodeBlock(block16, output);
 }
@@ -147,11 +163,10 @@ bool HlacEncoder::encodeBlock(AudioSampleBuffer& block, OutputStream& output)
 bool HlacEncoder::encodeBlock(CompressionHelpers::AudioBufferInt16& block16, OutputStream& output)
 {
 	auto compressedBlock = createCompressedBlock(block16);
-
 	auto thisBlockSize = compressedBlock.getSize();
 
 	writeChecksumBytesForBlock(output);
-
+	
 	if (thisBlockSize > 2 * COMPRESSION_BLOCK_SIZE)
 	{
 		writeCycleHeader(true, 16, COMPRESSION_BLOCK_SIZE, output);
@@ -168,6 +183,13 @@ bool HlacEncoder::encodeBlock(CompressionHelpers::AudioBufferInt16& block16, Out
 }
 
 
+bool HlacEncoder::normaliseBlockAndAddHeader(CompressionHelpers::AudioBufferInt16& block16, OutputStream& output)
+{
+	numBytesWritten += 4;
+
+	return block16.getMap().writeNormalisationHeader(output);
+}
+
 MemoryBlock HlacEncoder::createCompressedBlock(CompressionHelpers::AudioBufferInt16& block16)
 {
 	jassert(block16.size == COMPRESSION_BLOCK_SIZE);
@@ -175,21 +197,34 @@ MemoryBlock HlacEncoder::createCompressedBlock(CompressionHelpers::AudioBufferIn
 	MemoryOutputStream blockMos;
 
 	firstCycleLength = -1;
-
+	
 	auto maxBitDepth = CompressionHelpers::getPossibleBitReductionAmount(block16);
-
-	LOG("ENC " + String(numBytesUncompressed / 2) + "\t\tNew Block with bit depth: " + String(maxBitDepth));
-
+	
 	numBytesUncompressed += COMPRESSION_BLOCK_SIZE * 2;
 
 	if (maxBitDepth <= options.bitRateForWholeBlock)
 	{
 		indexInBlock = 0;
-		encodeCycle(block16, blockMos);
 
+		if (options.fixedBlockWidth > 0)
+		{
+			while (!isBlockExhausted())
+			{
+				int numRemaining = jmin<int>(options.fixedBlockWidth, COMPRESSION_BLOCK_SIZE - indexInBlock);
+				auto part = CompressionHelpers::getPart(block16, indexInBlock, numRemaining);
+				encodeCycle(part, blockMos);
+				indexInBlock += numRemaining;
+			}
+		}
+		else
+		{
+			encodeCycle(block16, blockMos);
+		}
+		
 		blockMos.flush();
 		return blockMos.getMemoryBlock();
 	}
+
 
 	indexInBlock = 0;
 
@@ -198,8 +233,14 @@ MemoryBlock HlacEncoder::createCompressedBlock(CompressionHelpers::AudioBufferIn
 		int numRemaining = COMPRESSION_BLOCK_SIZE - indexInBlock;
 		auto rest = CompressionHelpers::getPart(block16, indexInBlock, numRemaining);
 
+
 		if (numRemaining <= 4)
 		{
+			
+
+			LOG("ENC " + String(numBytesUncompressed / 2) + "\t\tNew Block with bit depth: " + String(maxBitDepth));
+
+
 			if (!encodeCycleDelta(rest, blockMos))
 				return MemoryBlock();
 
@@ -335,6 +376,19 @@ bool HlacEncoder::writeChecksumBytesForBlock(OutputStream& output)
 	return true;
 }
 
+bool HlacEncoder::writeNormalisationAmount(OutputStream& output)
+{
+#if HLAC_VERSION > 2
+	if (!output.writeByte((uint8)currentNormaliseBitShiftAmount))
+		return false;
+
+	numBytesWritten += 1;
+	return true;
+#else
+	return true;
+#endif
+}
+
 bool HlacEncoder::writeUncompressed(CompressionHelpers::AudioBufferInt16& block, OutputStream& output)
 {
 	jassert(block.size == COMPRESSION_BLOCK_SIZE);
@@ -449,6 +503,8 @@ bool HlacEncoder::encodeDiff(CompressionHelpers::AudioBufferInt16& cycle, Output
 
 bool HlacEncoder::encodeCycleDelta(CompressionHelpers::AudioBufferInt16& nextCycle, OutputStream& output)
 {
+	jassertfalse;
+
     if(nextCycle.size < 8)
     {
         return encodeCycle(nextCycle, output);
@@ -511,13 +567,29 @@ bool HlacEncoder::writeDiffHeader(int fullBitRate, int errorBitRate, int blockSi
 
 void HlacEncoder::encodeLastBlock(AudioSampleBuffer& block, OutputStream& output)
 {
-	writeChecksumBytesForBlock(output);
+	CompressionHelpers::AudioBufferInt16 a(block, 0, options.normalisationMode);
 
+	normaliseBlockAndAddHeader(a, output);
+	writeChecksumBytesForBlock(output);
+	
 	MemoryOutputStream lastTemp;
 
-	CompressionHelpers::AudioBufferInt16 a(block, 0, false);
+	if (options.fixedBlockWidth > 0)
+	{
+		indexInBlock = 0;
 
-	encodeCycle(a, lastTemp);
+		while (indexInBlock < a.size)
+		{
+			int numRemaining = jmin<int>(a.size - indexInBlock, options.fixedBlockWidth);
+
+			auto part = CompressionHelpers::getPart(a, indexInBlock, numRemaining);
+
+			encodeCycle(part, lastTemp);
+			indexInBlock += numRemaining;
+		}
+	}
+
+	
 
 	int numZerosToPad = COMPRESSION_BLOCK_SIZE - a.size;
 

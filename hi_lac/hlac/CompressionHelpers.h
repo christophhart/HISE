@@ -46,6 +46,79 @@ class HiseSampleBuffer;
 
 struct CompressionHelpers
 {
+	/** This structure will hold the information about the normalization amount needed to be applied to the 16 bit signal. */
+	struct NormaliseMap
+	{
+		enum Mode
+		{
+			NoNormalisation = 0,
+			StaticNormalisation,
+			RangeBasedNormalisation,
+			numModes
+		};
+
+		NormaliseMap()
+		{
+			memset(preallocated, 0, 16);
+		}
+
+		void denormalize(float* destination, const int16* src, int start, int numSamples)
+		{
+		}
+
+		/** You can use a fixed amount of normalisation instead of splitting it into chunks of 1024 samples.
+		*
+		*	Doing so will create a compromise between file size and audio quality.
+		*/
+		void setUseStaticNormalisation(uint8 staticNormalisationAmount);
+
+		bool writeNormalisationHeader(OutputStream& output);
+
+		void setMode(uint8 newMode)
+		{
+			normalisationMode = newMode;
+		}
+
+		void setNormalisationValues(int readOffset, int normalisedValues)
+		{
+			uint8* ptr = reinterpret_cast<uint8*>(&normalisedValues);
+
+			int index = readOffset / normaliseBlockSize;
+
+			getTableData()[index] = ptr[0];
+			getTableData()[index+1] = ptr[1];
+			getTableData()[index+2] = ptr[2];
+			getTableData()[index+3] = ptr[3];
+		}
+
+		/** This applies normalisation. */
+		void normalise(const float* src, int16* dst, int numSamples);
+
+		/** If the buffers are not aligned to a 1024 sample boundary, you can set the first range length here in order to synchronise it. */
+		void setOffsetForNormalisationTable(int lengthOfFirstBlock)
+		{
+
+		}
+
+	private:
+
+		void internalNormalisation(const float* src, int16* dst, int numSamples, uint8 amount);
+
+		uint8 * getTableData()
+		{
+			if (allocated != nullptr)
+				return allocated;
+			else
+				return preallocated;
+		}
+
+		static constexpr int normaliseBlockSize = 1024;
+
+		uint8 normalisationMode = Mode::NoNormalisation;
+		uint16 firstOffset = -1;
+		uint8 preallocated[16];
+		HeapBlock<uint8> allocated;
+	};
 
 	/** A normalized 16 bit integer buffer
 	*
@@ -54,12 +127,10 @@ struct CompressionHelpers
 	*/
 	struct AudioBufferInt16
 	{
-		AudioBufferInt16(AudioSampleBuffer& b, int channelToUse, bool normalizeBeforeStoring);
+		AudioBufferInt16(AudioSampleBuffer& b, int channelToUse, uint8 normalisationMode);
 		AudioBufferInt16(int16* externalData_, int numSamples);
 		AudioBufferInt16(const int16* externalData_, int numSamples);
 		AudioBufferInt16(int size_=0);
-
-		
 
 		AudioBufferInt16(AudioBufferInt16&& other)
 		{
@@ -70,11 +141,8 @@ struct CompressionHelpers
 
 			other.data = nullptr;
 
-			gainFactor = other.gainFactor;
 			isReadOnly = other.isReadOnly;
 			externalData = other.externalData;
-
-
 		}
 
 		AudioBufferInt16& operator= (AudioBufferInt16&& other)
@@ -84,7 +152,6 @@ struct CompressionHelpers
 			size = other.size;
 			data = other.data;
 			other.data = nullptr;
-			gainFactor = other.gainFactor;
 			isReadOnly = other.isReadOnly;
 			externalData = other.externalData;
 
@@ -105,7 +172,8 @@ struct CompressionHelpers
 		const int16* getReadPointer(int startSample = 0) const;
 
 		int size = 0;
-		float gainFactor = 1.0f;
+
+		NormaliseMap& getMap() { return map; }
 
 	private:
 
@@ -113,9 +181,12 @@ struct CompressionHelpers
 		void deAllocate();
 
 		bool isReadOnly = false;
+		bool useNormalisation = false;
 		int16* data = nullptr;
 
 		int16* externalData = nullptr;
+
+		NormaliseMap map;
 	};
 
 	/** Loads a file into a AudioSampleBuffer. */
@@ -160,6 +231,8 @@ struct CompressionHelpers
 	*	Don't use this directly, but use getCycleLengthWithLowestBitrate() instead. */
 	static uint8 getBitrateForCycleLength(const AudioBufferInt16& block, int cycleLength, AudioBufferInt16& workBuffer);
 
+	static void normaliseBlock(int16* data, int numSamples, int normalisationAmount, int direction, bool applyDither=false);
+
 	/** Get the cycle length the yields the lowest bit rate for the next cycle and store the bitrate in bitRate. */
 	static int getCycleLengthWithLowestBitRate(const AudioBufferInt16& block, int& bitRate, AudioBufferInt16& workBuffer);
 
@@ -194,6 +267,8 @@ struct CompressionHelpers
 	static void dump(const AudioSampleBuffer& b, String fileName = String());
 
 	static void fastInt16ToFloat(const void* source, float* destination, int numSamples);
+
+	static void applyDithering(float* data, int numSamples);
 
 	struct Diff
 	{
