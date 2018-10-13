@@ -608,6 +608,12 @@ public:
 		sendPoolChangeMessage(Removed);
 	}
 
+	void refreshPoolAfterUpdate()
+	{
+		clearData();
+		loadAllFilesFromProjectFolder();
+	}
+
 	bool contains(int64 hashCode) const
 	{
 		for (int i = 0; i < getNumLoadedFiles(); i++)

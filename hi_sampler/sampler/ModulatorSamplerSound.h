@@ -548,6 +548,8 @@ public:
 
 	void addSound(const PoolEntry& newPoolEntry);
 
+	void removeFromPool(const PoolReference& ref);
+
 	HlacMonolithInfo* getMonolith(const Identifier& id);
 
 private:

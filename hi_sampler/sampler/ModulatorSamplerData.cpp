@@ -135,6 +135,7 @@ void SampleMap::clear(NotificationType n)
 			currentPool->removeListener(this);
 
 		currentPool = nullptr;
+		currentMonolith = nullptr;
 
 		if (sampler != nullptr)
 		{
@@ -498,8 +499,21 @@ void SampleMap::save()
 	PoolReference ref(getSampler()->getMainController(), f.getFullPathName(), FileHandlerBase::SubDirectories::SampleMaps);
 
 	auto pool = getSampler()->getMainController()->getCurrentSampleMapPool();
+
+	pool->refreshPoolAfterUpdate();
+
 	auto reloadedMap = pool->loadFromReference(ref, PoolHelpers::LoadingType::ForceReloadStrong);
-	getSampler()->loadSampleMap(reloadedMap.getRef());
+
+	auto tmp = reloadedMap.getRef();
+
+	auto func = [tmp](Processor* p)
+	{
+		static_cast<ModulatorSampler*>(p)->loadSampleMap(tmp);
+
+		return SafeFunctionCall::OK;
+	};
+
+	getSampler()->killAllVoicesAndCall(func, true);
 
 #endif
 }
@@ -785,6 +799,21 @@ MonolithExporter::MonolithExporter(SampleMap* sampleMap_) :
 
 	getComboBoxComponent("compressionOptions")->setSelectedItemIndex(2, dontSendNotification);
 
+	StringArray sa2;
+
+	sa2.add("No normalisation");
+	sa2.add("Normalise every sample");
+	sa2.add("Full Dynamics");
+
+	addComboBox("normalise", sa2, "Normalization");
+
+	StringArray sa3;
+
+	sa3.add("No");
+	sa3.add("Yes");
+
+	addComboBox("dithering", sa3, "Dithering");
+
 	addBasicComponents(true);
 }
 
@@ -890,6 +919,10 @@ void MonolithExporter::writeSampleMapFile(bool /*overwriteExistingFile*/)
 	sampleMapFile.getParentDirectory().createDirectory();
 
 	xml->writeToFile(sampleMapFile, "");
+
+	auto pool = sampleMap->getSampler()->getMainController()->getCurrentSampleMapPool();
+
+	pool->refreshPoolAfterUpdate();
 }
 
 void MonolithExporter::threadFinished()
@@ -908,7 +941,14 @@ void MonolithExporter::threadFinished()
 
 			auto tmp = sampleMapFile;
 
-			sampleMap->getSampler()->loadSampleMap(ref);
+			auto f = [ref](Processor* p)
+			{
+				static_cast<ModulatorSampler*>(p)->loadSampleMap(ref);
+
+				return SafeFunctionCall::OK;
+			};
+
+			sampleMap->getSampler()->killAllVoicesAndCall(f);
 		}
 
 	}
@@ -961,6 +1001,9 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 		int cIndex = getComboBoxComponent("compressionOptions")->getSelectedItemIndex();
 
 		hlac::HlacEncoder::CompressorOptions options = hlac::HlacEncoder::CompressorOptions::getPreset((hlac::HlacEncoder::CompressorOptions::Presets)cIndex);
+
+		options.applyDithering = getComboBoxComponent("dithering")->getSelectedItemIndex() == 1;
+		options.normalisationMode = getComboBoxComponent("normalise")->getSelectedItemIndex();
 
 		StringPairArray empty;
 

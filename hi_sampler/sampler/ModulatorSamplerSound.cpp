@@ -39,7 +39,15 @@ void ModulatorSamplerSound::loadSampleFromValueTree(const ValueTree& sampleData,
 
 	PoolReference ref(getMainController(), sampleData.getProperty("FileName").toString(), ProjectHandler::SubDirectories::Samples);
 
-	if (auto existingSample = pool->getSampleFromPool(ref))
+	auto existingSample = pool->getSampleFromPool(ref);
+
+	if (existingSample != nullptr && existingSample->isMonolithic() != (hmaf != nullptr))
+	{
+		pool->removeFromPool(ref);
+		existingSample = nullptr;
+	}
+
+	if (existingSample != nullptr)
 	{
 		soundArray.add(existingSample);
 		data.setProperty("Duplicate", true, nullptr);
@@ -653,6 +661,18 @@ void ModulatorSamplerSoundPool::addSound(const PoolEntry& newPoolEntry)
 	jassert(getSampleFromPool(newPoolEntry.r) == nullptr);
 
 	pool.add(newPoolEntry);
+}
+
+void ModulatorSamplerSoundPool::removeFromPool(const PoolReference& ref)
+{
+	for (int i = 0; i < pool.size(); i++)
+	{
+		if (pool[i].r == ref)
+		{
+			pool.remove(i);
+			return;
+		}
+	}
 }
 
 hise::HlacMonolithInfo* ModulatorSamplerSoundPool::getMonolith(const Identifier& id)

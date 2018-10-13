@@ -192,6 +192,7 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 	updateSampleMapSelector(true);
 	
 	sampler->getSampleMap()->addListener(this);
+	sampler->getMainController()->getCurrentSampleMapPool()->addListener(this);
 
 	Factory f;
 
@@ -249,6 +250,7 @@ SampleMapEditor::~SampleMapEditor()
     //[Destructor_pre]. You can add your own custom destruction code here..
 
 	sampler->getSampleMap()->removeListener(this);
+	sampler->getMainController()->getCurrentSampleMapPool()->removeListener(this);
 
 	if (getCommandManager()->getFirstCommandTarget(CopySamples))
 	{
@@ -943,6 +945,7 @@ void SampleMapEditor::updateSampleMapSelector(bool rebuild)
 
 		auto pool = sampler->getMainController()->getCurrentSampleMapPool();
 		auto ref = pool->getListOfAllReferences(true);
+
 
 		PoolReference::Comparator comp;
 
