@@ -136,7 +136,6 @@ private:
 
 	double decompressionSpeed = 0.0;
 
-	int currentNormalisationAmount = 0;
 	int hlacVersion = HLAC_VERSION;
 };
 

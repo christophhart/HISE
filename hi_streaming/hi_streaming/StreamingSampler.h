@@ -112,9 +112,8 @@ class DebugLogger;
 */
 struct StereoChannelData
 {
-	const void *leftChannel;
-	const void *rightChannel;
-	bool isFloatingPoint = false;
+	hlac::HiseSampleBuffer const* b;
+	int offsetInBuffer = 0;
 };
 
 // ==================================================================================================================================================

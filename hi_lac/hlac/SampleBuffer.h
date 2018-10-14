@@ -129,6 +129,10 @@ public:
 
 	int getNumChannels() const { return numChannels; }
 
+	void allocateNormalisationTables();
+
+	FixedSampleBuffer& getFixedBuffer(int channelIndex);
+
 	/** Copies the samples from the source to the destination. The buffers must have the same data type. */
 	static void copy(HiseSampleBuffer& dst, const HiseSampleBuffer& source, int startSampleDst, int startSampleSource, int numSamples);
 
@@ -147,6 +151,11 @@ public:
 	AudioSampleBuffer* getFloatBufferForFileReader();
 
 	CompressionHelpers::NormaliseMap& getNormaliseMap(int channelIndex)
+	{
+		return channelIndex == 0 ? leftIntBuffer.getMap() : rightIntBuffer.getMap();
+	}
+
+	const CompressionHelpers::NormaliseMap& getNormaliseMap(int channelIndex) const
 	{
 		return channelIndex == 0 ? leftIntBuffer.getMap() : rightIntBuffer.getMap();
 	}

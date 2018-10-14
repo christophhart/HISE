@@ -265,12 +265,9 @@ void HlacDecoder::decodeCycle(const CycleHeader& header, bool /*decodeStereo*/, 
 
 void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSampleBuffer& destination, int channelIndex, int numSamples)
 {
-	auto src = useTempBuffer ? workBuffer.getWritePointer() : currentCycle.getWritePointer();
-
-	if (currentNormalisationAmount != 0)
-	{
-		CompressionHelpers::normaliseBlock(src, numSamples, currentNormalisationAmount, -1);
-	}
+	auto& srcBuffer = useTempBuffer ? workBuffer : currentCycle;
+	
+	auto src = srcBuffer.getWritePointer();
 
 	int& skipToUse = channelIndex == 0 ? leftNumToSkip : rightNumToSkip;
 
@@ -287,12 +284,14 @@ void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSam
 				if (destination.isFloatingPoint())
 				{
 					auto dst = static_cast<float*>(destination.getWritePointer(channelIndex, bufferOffset));
-					CompressionHelpers::fastInt16ToFloat(src, dst, numThisTime);
+
+					destination.getNormaliseMap(channelIndex).normalisedInt16ToFloat(dst, src, bufferOffset, numThisTime);
+
+					//CompressionHelpers::fastInt16ToFloat(src, dst, numThisTime);
 				}
 				else
 				{
-					auto dst = static_cast<int16*>(destination.getWritePointer(channelIndex, bufferOffset));
-					memcpy(dst, src, sizeof(int16) * numThisTime);
+					CompressionHelpers::AudioBufferInt16::copyWithNormalisation(destination.getFixedBuffer(channelIndex), srcBuffer, bufferOffset, 0, numThisTime);
 				}
 			}
 				
@@ -311,8 +310,6 @@ void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSam
 			else
 				rightFloatIndex += numThisTime;
 		}
-
-		
 	}
 	else
 	{
@@ -331,7 +328,12 @@ void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSam
 				if (destination.isFloatingPoint())
 				{
 					auto dst = static_cast<float*>(destination.getWritePointer(channelIndex, bufferOffset));
-					CompressionHelpers::fastInt16ToFloat(src + skipToUse, dst, numThisTime);
+
+					jassertfalse;
+
+					destination.getNormaliseMap(channelIndex).normalisedInt16ToFloat(dst, src, bufferOffset, numThisTime);
+
+					//CompressionHelpers::fastInt16ToFloat(src + skipToUse, dst, numThisTime);
 				}
 				else
 				{

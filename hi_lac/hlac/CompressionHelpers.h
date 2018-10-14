@@ -62,9 +62,7 @@ struct CompressionHelpers
 			memset(preallocated, 0, 16);
 		}
 
-		void denormalize(float* destination, const int16* src, int start, int numSamples)
-		{
-		}
+		void normalisedInt16ToFloat(float* destination, const int16* src, int start, int numSamples) const;
 
 		/** You can use a fixed amount of normalisation instead of splitting it into chunks of 1024 samples.
 		*
@@ -79,17 +77,7 @@ struct CompressionHelpers
 			normalisationMode = newMode;
 		}
 
-		void setNormalisationValues(int readOffset, int normalisedValues)
-		{
-			uint8* ptr = reinterpret_cast<uint8*>(&normalisedValues);
-
-			int index = readOffset / normaliseBlockSize;
-
-			getTableData()[index] = ptr[0];
-			getTableData()[index+1] = ptr[1];
-			getTableData()[index+2] = ptr[2];
-			getTableData()[index+3] = ptr[3];
-		}
+		void setNormalisationValues(int readOffset, int normalisedValues);
 
 		/** This applies normalisation. */
 		void normalise(const float* src, int16* dst, int numSamples);
@@ -100,9 +88,26 @@ struct CompressionHelpers
 
 		}
 
+		void allocateTableIndexes(int numSamples);
+
+		void copyNormalisationTable(NormaliseMap& dst, int startSampleSource, int startSampleDst, int numSamples) const;
+
 	private:
 
-		void internalNormalisation(const float* src, int16* dst, int numSamples, uint8 amount);
+		void internalNormalisation(const float* src, int16* dst, int numSamples, uint8 amount) const;
+
+		constexpr uint16 getIndexForSamplePosition(int samplePosition) const
+		{
+			return (uint16)(samplePosition / normaliseBlockSize);
+		}
+
+		const uint8 * getTableData() const
+		{
+			if (allocated != nullptr)
+				return allocated;
+			else
+				return preallocated;
+		}
 
 		uint8 * getTableData()
 		{
@@ -117,6 +122,7 @@ struct CompressionHelpers
 		uint8 normalisationMode = Mode::NoNormalisation;
 		uint16 firstOffset = -1;
 		uint8 preallocated[16];
+		uint16 numAllocated = 0;
 		HeapBlock<uint8> allocated;
 	};
 
@@ -173,7 +179,12 @@ struct CompressionHelpers
 
 		int size = 0;
 
+		const NormaliseMap& getMap() const { return map; }
 		NormaliseMap& getMap() { return map; }
+
+
+		/** Copies the samples from the int buffers and also copies the normalisation tables. */
+		static void copyWithNormalisation(AudioBufferInt16& dst, const AudioBufferInt16& source, int startSampleDst, int StartSampleSrc, int numSamples);
 
 	private:
 

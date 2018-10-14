@@ -51,6 +51,7 @@ END_JUCE_MODULE_DECLARATION
 
 /* TODO 24bit rewrite:
 
+- write unit tests for all new functions
 - make the temporary voice buffer a floating point buffer and normalize when copying from the two read buffers there.
 - ensure 100% backwards compatibility
 - check that there's no performance overhead if not used
@@ -58,6 +59,11 @@ END_JUCE_MODULE_DECLARATION
 - support seeking and odd sample offsets
 - make the .hr1 files 24bit FLACs
 - add some nice end user options
+
+
+SampleMap bugs:
+
+- saving without saving the samplemap discard changes...
 
 */
 

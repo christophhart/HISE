@@ -183,6 +183,7 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 	}
 
 	preloadBuffer.clear();
+	preloadBuffer.allocateNormalisationTables();
 
 	if (sampleRate <= 0.0)
 	{

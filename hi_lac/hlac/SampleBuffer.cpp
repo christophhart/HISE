@@ -128,6 +128,31 @@ void HiseSampleBuffer::clear(int startSample, int numSamples)
 	}
 }
 
+
+void HiseSampleBuffer::allocateNormalisationTables()
+{
+	leftIntBuffer.getMap().allocateTableIndexes(size);
+
+	if(hasSecondChannel())
+		rightIntBuffer.getMap().allocateTableIndexes(size);
+}
+
+
+hlac::FixedSampleBuffer& HiseSampleBuffer::getFixedBuffer(int channelIndex)
+{
+	jassert(!isFloatingPoint());
+
+	if (channelIndex == 0)
+	{
+		return leftIntBuffer;
+	}
+	else
+	{
+		jassert(hasSecondChannel());
+		return rightIntBuffer;
+	}
+}
+
 void HiseSampleBuffer::copy(HiseSampleBuffer& dst, const HiseSampleBuffer& source, int startSampleDst, int startSampleSource, int numSamples)
 {
 	if (numSamples <= 0)
@@ -145,6 +170,13 @@ void HiseSampleBuffer::copy(HiseSampleBuffer& dst, const HiseSampleBuffer& sourc
 				memcpy(dst.getWritePointer(1, startSampleDst), source.getReadPointer(1, startSampleSource), byteToCopy);
 			else
 				memcpy(dst.getWritePointer(1, startSampleDst), source.getReadPointer(0, startSampleSource), byteToCopy);
+		}
+
+		if (!source.isFloatingPoint())
+		{
+			source.getNormaliseMap(0).copyNormalisationTable(dst.getNormaliseMap(0), startSampleSource, startSampleDst, numSamples);
+
+			source.getNormaliseMap(1).copyNormalisationTable(dst.getNormaliseMap(1), startSampleSource, startSampleDst, numSamples);
 		}
 	}
 	else

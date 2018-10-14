@@ -162,6 +162,14 @@ const int16* CompressionHelpers::AudioBufferInt16::getReadPointer(int startSampl
 	return externalData != nullptr ? externalData + startSample : data + startSample;
 }
 
+
+void CompressionHelpers::AudioBufferInt16::copyWithNormalisation(AudioBufferInt16& dst, const AudioBufferInt16& source, int startSampleDst, int StartSampleSrc, int numSamples)
+{
+	auto d = dst.getWritePointer(startSampleDst);
+	auto s = source.getReadPointer(StartSampleSrc);
+	memcpy(d, s, sizeof(int16) * numSamples);
+}
+
 void CompressionHelpers::AudioBufferInt16::allocate(int newNumSamples)
 {
 	size = newNumSamples;
@@ -1621,6 +1629,44 @@ HlacArchiver::Flag HlacArchiver::readFlag(FileInputStream* fis)
 #undef VERBOSE_LOG
 #undef STATUS_LOG
 
+
+void CompressionHelpers::NormaliseMap::normalisedInt16ToFloat(float* destination, const int16* src, int start, int numSamples) const
+{
+	const int totalLimit = start + numSamples;
+	int numToDo = numSamples;
+	int index = start;
+
+	while (numToDo > 0)
+	{
+		int tableIndex = getIndexForSamplePosition(start);
+
+		auto thisAmount = getTableData()[tableIndex];
+
+		int nextLimit = (tableIndex + 1) * normaliseBlockSize;
+		nextLimit = jmin<int>(nextLimit, totalLimit);
+		int numThisTime = nextLimit - index;
+
+		if (numThisTime == 0)
+			break;
+
+		auto r = src + (index - start);
+		auto w = destination;
+
+		//CompressionHelpers::fastInt16ToFloat(r, w, numThisTime);
+
+		const float normaliseAmount = (float)(1 << (thisAmount));
+		const float gainFactor = 1.0f / ((float)INT16_MAX * normaliseAmount);
+
+		for (int i = 0; i < numThisTime; i++)
+		{
+			w[i] = r[i] * gainFactor;
+		}
+
+		numToDo -= numThisTime;
+		index += numThisTime;
+	}
+}
+
 void CompressionHelpers::NormaliseMap::setUseStaticNormalisation(uint8 staticNormalisationAmount)
 {
 	normalisationMode = Mode::StaticNormalisation;
@@ -1645,6 +1691,27 @@ bool CompressionHelpers::NormaliseMap::writeNormalisationHeader(OutputStream& ou
 	LOG(s);
 
 	return output.write(preallocated, numBytes);
+}
+
+
+void CompressionHelpers::NormaliseMap::setNormalisationValues(int readOffset, int normalisedValues)
+{
+	
+	uint8* ptr = reinterpret_cast<uint8*>(&normalisedValues);
+	uint16 index = getIndexForSamplePosition(readOffset);
+
+	uint16 maxSize = allocated != nullptr ? numAllocated : 16;
+
+	if ((index + 3) >= maxSize)
+	{
+		jassertfalse;
+		return;
+	}
+
+	getTableData()[index] = ptr[0];
+	getTableData()[index + 1] = ptr[1];
+	getTableData()[index + 2] = ptr[2];
+	getTableData()[index + 3] = ptr[3];
 }
 
 void CompressionHelpers::NormaliseMap::normalise(const float* src, int16* dst, int numSamples)
@@ -1683,7 +1750,37 @@ void CompressionHelpers::NormaliseMap::normalise(const float* src, int16* dst, i
 	}
 }
 
-void CompressionHelpers::NormaliseMap::internalNormalisation(const float* src, int16* dst, int numSamples, uint8 amount)
+
+void CompressionHelpers::NormaliseMap::allocateTableIndexes(int numSamples)
+{
+	if (numSamples <= (16 * normaliseBlockSize))
+	{
+		allocated.free();
+		numAllocated = 0;
+	}
+	else
+	{
+		numAllocated = (numSamples / normaliseBlockSize) + 4;
+
+		memset(preallocated, 0, 16);
+		allocated.realloc(numAllocated, 1);
+		allocated.clear(numAllocated);
+	}
+}
+
+
+void CompressionHelpers::NormaliseMap::copyNormalisationTable(NormaliseMap& dst, int startSampleSource, int startSampleDst, int numSamples) const
+{
+	auto start = getIndexForSamplePosition(startSampleSource);
+	auto end = getIndexForSamplePosition(startSampleDst);
+	auto numIndexes = getIndexForSamplePosition(numSamples) + 1;
+
+	memcpy(dst.getTableData() + end , getTableData() + start, numIndexes);
+
+	int x = 5;
+}
+
+void CompressionHelpers::NormaliseMap::internalNormalisation(const float* src, int16* dst, int numSamples, uint8 amount) const
 {
 	if (amount == 0)
 		return;
