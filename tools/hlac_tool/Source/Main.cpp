@@ -206,7 +206,6 @@ int main(int argc, char **argv)
 		HlacEncoder::CompressorOptions option = HlacEncoder::CompressorOptions::getPreset(HlacEncoder::CompressorOptions::Presets::Diff);
 
 		if (mode.contains("Block")) option = HlacEncoder::CompressorOptions::getPreset(HlacEncoder::CompressorOptions::Presets::WholeBlock);
-		else if (mode.contains("Delta")) option = HlacEncoder::CompressorOptions::getPreset(HlacEncoder::CompressorOptions::Presets::Delta);
 
 		if (output.existsAsFile())
 			output.deleteFile();
@@ -218,7 +217,7 @@ int main(int argc, char **argv)
 	if (mode == "unit_test")
 	{
 		UnitTestRunner runner;
-		runner.setAssertOnFailure(false);
+		runner.setAssertOnFailure(true);
 		runner.runAllTests();
 
 		int numTests = runner.getNumResults();
@@ -379,45 +378,6 @@ int main(int argc, char **argv)
 
 			blockWriter = nullptr;
 			blockReader = nullptr;
-		}
-
-		if (useDelta)
-		{
-			MemoryOutputStream* deltaMos = new MemoryOutputStream();
-			ScopedPointer<HiseLosslessAudioFormatWriter> deltaWriter = dynamic_cast<HiseLosslessAudioFormatWriter*>(hlac.createWriterFor(deltaMos, 44100, b.getNumChannels(), 16, emptyMetadata, 5));
-
-			if (deltaWriter == nullptr)
-				return 1;
-
-
-			HlacEncoder::CompressorOptions delta = HlacEncoder::CompressorOptions::getPreset(HlacEncoder::CompressorOptions::Presets::Delta);
-
-			deltaWriter->setOptions(delta);
-
-			deltaWriter->writeFromAudioSampleBuffer(b, 0, b.getNumSamples());
-
-			r = deltaWriter->getCompressionRatioForLastFile();
-			deltaWriter->flush();
-
-			AudioSampleBuffer b3(b.getNumChannels(), CompressionHelpers::getPaddedSampleSize(b.getNumSamples()));
-			
-            FloatVectorOperations::fill(b3.getWritePointer(0), 1.0f, b3.getNumSamples());
-			
-
-			MemoryInputStream* deltaMis = new MemoryInputStream(deltaMos->getMemoryBlock(), true);
-			ScopedPointer<HiseLosslessAudioFormatReader> deltaReader = dynamic_cast<HiseLosslessAudioFormatReader*>(hlac.createReaderFor(deltaMis, false));
-
-			deltaReader->read(&b3, 0, b3.getNumSamples(), 0, true, true);
-
-            
-            
-			deltaSpeed += deltaReader->getDecompressionPerformanceForLastFile();
-
-			CompressionHelpers::checkBuffersEqual(b3, b);
-
-			Logger::writeToLog("Compressing with delta:  " + String(r, 3));
-
-			deltaRatio += r;
 		}
 
 		if (useDiff)

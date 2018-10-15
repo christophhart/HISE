@@ -184,7 +184,7 @@
 #endif
 
 #ifndef    HLAC_DEBUG_LOG
- #define   HLAC_DEBUG_LOG 0
+ #define   HLAC_DEBUG_LOG 1
 #endif
 
 #ifndef    HLAC_INCLUDE_TEST_SUITE

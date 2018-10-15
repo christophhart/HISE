@@ -264,7 +264,6 @@ CodecTest::CodecTest() :
 	UnitTest("Testing HLAC codec")
 {
 	options[(int)Option::WholeBlock] = HlacEncoder::CompressorOptions::getPreset(HlacEncoder::CompressorOptions::Presets::WholeBlock);
-	options[(int)Option::Delta] = HlacEncoder::CompressorOptions::getPreset(HlacEncoder::CompressorOptions::Presets::Delta);
 	options[(int)Option::Diff] = HlacEncoder::CompressorOptions::getPreset(HlacEncoder::CompressorOptions::Presets::Diff);
 }
 
@@ -274,11 +273,13 @@ void CodecTest::runTest()
 
 	testHiseSampleBuffer();
 
+	testNormalisation();
+
 	SignalType testOnly = SignalType::numSignalTypes;
 	Option soloOption = Option::numCompressorOptions;
-	bool testOnce = false;
+	bool testOnce = true;
 
-	for (int i = 0; i < (int)SignalType::numSignalTypes; i++)
+	for (int i = 1; i < (int)SignalType::numSignalTypes; i++) // AFTERFIX: Change i = 0
 	{
 		if (testOnly != SignalType::numSignalTypes && i != (int)testOnly)
 			continue;
@@ -322,7 +323,7 @@ void CodecTest::testIntegerBuffers()
 		logMessage("Testing " + getNameForSignal((SignalType)i));
 		AudioSampleBuffer src = createTestSignal(numSamples, 1, (SignalType)i, r.nextFloat() * 0.6f + 0.4f);
 
-		CompressionHelpers::AudioBufferInt16 intBuffer(src, 0, false);
+		CompressionHelpers::AudioBufferInt16 intBuffer(src, 0, 0);
 
 		AudioSampleBuffer dst = intBuffer.getFloatBuffer();
 
@@ -331,6 +332,39 @@ void CodecTest::testIntegerBuffers()
 		expectEquals<int>(error, 0, "Int Buffer conversion");
 	}	
 }
+
+
+void CodecTest::testNormalisation()
+{
+	beginTest("Test normalisation");
+
+	Random r;
+
+	const int numSamples = CompressionHelpers::getPaddedSampleSize(r.nextInt(Range<int>(1000, 10000)));
+
+	for (int i = 2; i < (int)SignalType::numSignalTypes; i++)
+	{
+		logMessage("Testing " + getNameForSignal((SignalType)i));
+		AudioSampleBuffer src = createTestSignal(numSamples, 1, (SignalType)i, r.nextFloat() * 0.6f + 0.4f);
+
+		CompressionHelpers::AudioBufferInt16 intBuffer(src, 0, 2);
+
+		AudioSampleBuffer dst = intBuffer.getFloatBuffer();
+
+		auto error = CompressionHelpers::checkBuffersEqual(dst, src);
+
+		if (error != 0)
+		{
+			dst = intBuffer.getFloatBuffer();
+
+			CompressionHelpers::dump(src, "Expected.wav");
+			CompressionHelpers::dump(dst, "Actual.wav");
+		}
+
+		expectEquals<int>(error, 0, "Normalisation");
+	}
+}
+
 
 void CodecTest::testHiseSampleBuffer()
 {
@@ -403,6 +437,7 @@ void CodecTest::testCodec(SignalType type, Option option, bool /*testStereo*/)
 	expect(ts1.getMagnitude(0, numSamples) <= 1.0f, "  Peak > 1.0f");
 
 	auto ts1_dst = HiseSampleBuffer(true, numChannels, CompressionHelpers::getPaddedSampleSize(numSamples));
+	ts1_dst.allocateNormalisationTables();
 
 	encoder.setOptions(options[(int)option]);
 	encoder.compress(ts1, mos, blockOffsets);
@@ -550,8 +585,6 @@ String CodecTest::getNameForOption(Option o) const
 	{
 	case CodecTest::Option::WholeBlock: return "Block";
 		break;
-	case CodecTest::Option::Delta: return "Delta";
-		break;
 	case CodecTest::Option::Diff: return "Diff";
 		break;
 		
@@ -589,7 +622,7 @@ String CodecTest::getNameForSignal(SignalType s) const
 	return {};
 }
 
-//static CodecTest codecTest;
+static CodecTest codecTest;
 
 class FormatTest : public UnitTest
 {
@@ -611,7 +644,6 @@ public:
 		testFixedSampleBuffer();
 
 		runFormatTestWithOption(HlacEncoder::CompressorOptions::Presets::WholeBlock);
-		runFormatTestWithOption(HlacEncoder::CompressorOptions::Presets::Delta);
 		runFormatTestWithOption(HlacEncoder::CompressorOptions::Presets::Diff);
 
 		return;

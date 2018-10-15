@@ -70,7 +70,6 @@ struct CodecTest : public UnitTest
 	enum class Option
 	{
 		WholeBlock,
-		Delta,
 		Diff,
 		numCompressorOptions
 	};
@@ -82,6 +81,8 @@ struct CodecTest : public UnitTest
 	void testCodec(SignalType type, Option option, bool testStereo);
 
 	void testHiseSampleBuffer();
+
+	void testNormalisation();
 
 	static AudioSampleBuffer createTestSignal(int numSamples, int numChannels, SignalType type, float maxAmplitude);
 

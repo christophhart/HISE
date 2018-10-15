@@ -75,6 +75,7 @@ struct CompressionHelpers
 		void setMode(uint8 newMode)
 		{
 			normalisationMode = newMode;
+			active = newMode > 0;
 		}
 
 		void setNormalisationValues(int readOffset, int normalisedValues);
@@ -111,6 +112,8 @@ struct CompressionHelpers
 
 		uint8 * getTableData()
 		{
+			return nullptr;
+
 			if (allocated != nullptr)
 				return allocated;
 			else
@@ -124,6 +127,7 @@ struct CompressionHelpers
 		uint8 preallocated[16];
 		uint16 numAllocated = 0;
 		HeapBlock<uint8> allocated;
+		bool active = false;
 	};
 
 	/** A normalized 16 bit integer buffer
@@ -165,13 +169,10 @@ struct CompressionHelpers
 		}
 
 		~AudioBufferInt16();;
-
 		AudioSampleBuffer getFloatBuffer() const;
 
 		void reverse(int startSample, int numSamples);
-
 		void negate();
-
 		void applyGainRamp(int startOffset, int rampLength, float startGain, float endGain);
 
 		int16* getWritePointer(int startSample = 0);
@@ -182,7 +183,6 @@ struct CompressionHelpers
 		const NormaliseMap& getMap() const { return map; }
 		NormaliseMap& getMap() { return map; }
 
-
 		/** Copies the samples from the int buffers and also copies the normalisation tables. */
 		static void copyWithNormalisation(AudioBufferInt16& dst, const AudioBufferInt16& source, int startSampleDst, int StartSampleSrc, int numSamples);
 
@@ -192,9 +192,7 @@ struct CompressionHelpers
 		void deAllocate();
 
 		bool isReadOnly = false;
-		bool useNormalisation = false;
 		int16* data = nullptr;
-
 		int16* externalData = nullptr;
 
 		NormaliseMap map;

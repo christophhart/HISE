@@ -125,6 +125,7 @@ public:
 		int numSamples = -1;
 		double freqModValue = 1.0;
 		double gainModValue = 1.0;
+		double qModValue = 1.0;
 	};
 };
 
@@ -248,11 +249,11 @@ private:
 	{
 		auto thisFreq = FilterLimits::limitFrequency(renderData.freqModValue * frequency.getNextValue());
 		auto thisGain = renderData.gainModValue * gain.getNextValue();
-		auto thisQ = q.getNextValue();
+		auto thisQ = FilterLimits::limitQ(q.getNextValue() * renderData.qModValue);
 
 		dirty |= compareAndSet(currentFreq, thisFreq);
 		dirty |= compareAndSet(currentGain, thisGain);
-		dirty |= q.isSmoothing();
+		dirty |= compareAndSet(currentQ, thisQ);
 
 		if (dirty)
 		{
@@ -270,6 +271,7 @@ private:
 
 	double currentFreq;
 	double currentGain;
+	double currentQ;
 
 	int type = -1;
 	int numChannels = 2;

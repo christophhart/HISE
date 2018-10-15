@@ -257,9 +257,6 @@ MemoryBlock HlacEncoder::createCompressedBlock(CompressionHelpers::AudioBufferIn
 				idealCycleLength = options.fixedBlockWidth;
 			else
 				idealCycleLength = getCycleLength(rest) + 1;
-
-			if (options.reuseFirstCycleLengthForBlock)
-				firstCycleLength = idealCycleLength;
 		}
 		else
 			idealCycleLength = firstCycleLength;
@@ -290,37 +287,6 @@ MemoryBlock HlacEncoder::createCompressedBlock(CompressionHelpers::AudioBufferIn
 		if (!encodeCycle(currentCycle, blockMos))
 			return MemoryBlock();
 
-
-		while (options.useDeltaEncoding && !isBlockExhausted())
-		{
-			if (numRemaining >= 2*cycleLength)
-			{
-				auto nextCycle = CompressionHelpers::getPart(block16, indexInBlock, cycleLength);
-				uint8 bitReductionDelta = CompressionHelpers::getBitReductionWithTemplate(currentCycle, nextCycle, options.removeDcOffset);
-
-				float factor = (float)bitReductionDelta / (float)bitRateForCurrentCycle;
-
-				if (factor > options.deltaCycleThreshhold)
-				{
-					int nextCycleSize = getCycleLengthFromTemplate(nextCycle, rest);
-					nextCycle.size = nextCycleSize;
-
-					indexInBlock += nextCycle.size;
-
-					numRemaining = COMPRESSION_BLOCK_SIZE - indexInBlock;
-
-					jassert(indexInBlock <= COMPRESSION_BLOCK_SIZE);
-
-					encodeCycleDelta(nextCycle, blockMos);
-
-				}
-				else
-					break;
-
-			}
-			else
-				break;
-		}
 	}
 
 	blockMos.flush();

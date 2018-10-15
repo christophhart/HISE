@@ -144,6 +144,7 @@ public:
 		FrequencyChain = 0,
 		GainChain,
 		BipolarFrequencyChain,
+		ResonanceChain,
 		numInternalChains
 	};
 
@@ -152,6 +153,7 @@ public:
 		FrequencyChainShown = Processor::numEditorStates,
 		GainChainShown,
 		BipolarFreqChainShown,
+		ResonanceChainShown,
 		numEditorStates
 	};
 
@@ -178,7 +180,7 @@ public:
 	void applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) override;
 	/** Resets the filter state if a new voice is started. */
 	void startVoice(int voiceIndex, int noteNumber) override;
-	bool hasTail() const override { return true; };
+	bool hasTail() const override { return false; };
 	
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 

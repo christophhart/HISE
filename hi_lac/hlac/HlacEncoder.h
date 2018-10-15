@@ -54,18 +54,14 @@ public:
 			Uncompressed = 0,
 			WholeBlock = 1,
 			Diff,
-			Delta,
 			numPresets
 		};
 
 		bool useCompression = true;
-		bool useDeltaEncoding = true;
 		int16 fixedBlockWidth = -1;
-		bool reuseFirstCycleLengthForBlock = true;
 		bool removeDcOffset = true;
 		bool applyDithering = false;
 		uint8 normalisationMode = 0;
-		float deltaCycleThreshhold = 0.2f;
 		int bitRateForWholeBlock = 6;
 		bool useDiffEncodingWithFixedBlocks = false;
 
@@ -80,9 +76,7 @@ public:
 			NewLine nl;
 
 			s << "useCompression: " << getBoolString(useCompression) << nl;
-			s << "useDeltaEncoding: " << getBoolString(useDeltaEncoding) << nl;
 			s << "fixedBlockWidth: " << String(fixedBlockWidth) << nl;
-			s << "reuseFirstCycleLength: " << getBoolString(reuseFirstCycleLengthForBlock) << nl;
 			s << "removeDCOffset: " << getBoolString(removeDcOffset) << nl;
 			s << "bitRateForWholeBlock: " << String(bitRateForWholeBlock) << nl;
 			s << "useDiffEncodingWithFixedBlocks: " << getBoolString(useDiffEncodingWithFixedBlocks) << nl;
@@ -96,12 +90,10 @@ public:
 			{
 				HlacEncoder::CompressorOptions uncompressed;
 
-				uncompressed.fixedBlockWidth = 4096;
+				uncompressed.fixedBlockWidth = 1024;
 				uncompressed.useCompression = false;
 				uncompressed.removeDcOffset = false;
-				uncompressed.useDeltaEncoding = false;
 				uncompressed.useDiffEncodingWithFixedBlocks = false;
-				
 
 				return uncompressed;
 			}
@@ -109,26 +101,11 @@ public:
 			{
 				HlacEncoder::CompressorOptions wholeBlock;
 
-				wholeBlock.fixedBlockWidth = 512;
+				wholeBlock.fixedBlockWidth = 1024;
 				wholeBlock.removeDcOffset = false;
-				wholeBlock.useDeltaEncoding = false;
 				wholeBlock.useDiffEncodingWithFixedBlocks = false;
 
 				return wholeBlock;
-			}
-			if (p == Presets::Delta)
-			{
-				jassertfalse;
-				HlacEncoder::CompressorOptions delta;
-
-				delta.fixedBlockWidth = -1;
-				delta.removeDcOffset = false;
-				delta.useDeltaEncoding = true;
-				delta.useDiffEncodingWithFixedBlocks = false;
-				delta.reuseFirstCycleLengthForBlock = true;
-				delta.deltaCycleThreshhold = 0.1f;
-
-				return delta;
 			}
 			if (p == Presets::Diff)
 			{
@@ -136,7 +113,6 @@ public:
 
 				diff.fixedBlockWidth = 1024;
 				diff.removeDcOffset = false;
-				diff.useDeltaEncoding = false;
 				diff.bitRateForWholeBlock = 4;
 				diff.useDiffEncodingWithFixedBlocks = true;
 
@@ -212,7 +188,6 @@ private:
 
 	uint32 blockOffset = 0;
 	uint32 blockIndex = 0;
-
 
 	uint8 bitRateForCurrentCycle = 0;
 

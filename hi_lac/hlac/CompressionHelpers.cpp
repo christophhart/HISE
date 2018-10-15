@@ -37,6 +37,7 @@ CompressionHelpers::AudioBufferInt16::AudioBufferInt16(AudioSampleBuffer& b, int
 	if (normalizeBeforeStoring != NormaliseMap::NoNormalisation)
 	{
 		map.setMode(normalizeBeforeStoring);
+		map.allocateTableIndexes(b.getNumSamples());
 		map.normalise(b.getReadPointer(channelToUse), data, b.getNumSamples());
 	}
 	else
@@ -76,9 +77,7 @@ AudioSampleBuffer CompressionHelpers::AudioBufferInt16::getFloatBuffer() const
 {
 	AudioSampleBuffer b(1, size);
 
-	fastInt16ToFloat(data, b.getWritePointer(0), size);
-
-	jassertfalse;
+	map.normalisedInt16ToFloat(b.getWritePointer(0), data, 0, size);
 
 	return b;
 }
@@ -507,18 +506,27 @@ void CompressionHelpers::dump(const AudioSampleBuffer& b, String fileName)
 {
 	WavAudioFormat afm;
     
+	bool sibling = false;
+
 	if (fileName.isEmpty())
+	{
 		fileName = "dump.wav";
+		sibling = true;
+	}
 
 #if JUCE_WINDOWS
-	File dumpFile = File("D:\\").getChildFile(fileName);
+	File dumpFile = File("D:\\dumps").getChildFile(fileName);
 #else
 	File dumpFile = File("/Volumes/Shared/").getChildFile(fileName);
 #endif
 
-	dumpFile.deleteFile();
+	if (sibling)
+		dumpFile = dumpFile.getNonexistentSibling(false);
 
-	FileOutputStream* fis = new FileOutputStream(dumpFile.getNonexistentSibling());
+	dumpFile.deleteFile();
+	dumpFile.create();
+
+	FileOutputStream* fis = new FileOutputStream(dumpFile);
 	StringPairArray metadata;
 	ScopedPointer<AudioFormatWriter> writer = afm.createWriterFor(fis, 44100, b.getNumChannels(), 16, metadata, 5);
 
@@ -1632,13 +1640,19 @@ HlacArchiver::Flag HlacArchiver::readFlag(FileInputStream* fis)
 
 void CompressionHelpers::NormaliseMap::normalisedInt16ToFloat(float* destination, const int16* src, int start, int numSamples) const
 {
+	if (!active)
+	{
+		CompressionHelpers::fastInt16ToFloat(src, destination, numSamples);
+		return;
+	}
+
 	const int totalLimit = start + numSamples;
 	int numToDo = numSamples;
 	int index = start;
 
 	while (numToDo > 0)
 	{
-		int tableIndex = getIndexForSamplePosition(start);
+		int tableIndex = getIndexForSamplePosition(index);
 
 		auto thisAmount = getTableData()[tableIndex];
 
@@ -1650,7 +1664,7 @@ void CompressionHelpers::NormaliseMap::normalisedInt16ToFloat(float* destination
 			break;
 
 		auto r = src + (index - start);
-		auto w = destination;
+		auto w = destination + index;
 
 		//CompressionHelpers::fastInt16ToFloat(r, w, numThisTime);
 
@@ -1659,7 +1673,7 @@ void CompressionHelpers::NormaliseMap::normalisedInt16ToFloat(float* destination
 
 		for (int i = 0; i < numThisTime; i++)
 		{
-			w[i] = r[i] * gainFactor;
+			w[i] = (float)r[i] * gainFactor;
 		}
 
 		numToDo -= numThisTime;
@@ -1696,7 +1710,8 @@ bool CompressionHelpers::NormaliseMap::writeNormalisationHeader(OutputStream& ou
 
 void CompressionHelpers::NormaliseMap::setNormalisationValues(int readOffset, int normalisedValues)
 {
-	
+	active |= (normalisedValues > 0);
+
 	uint8* ptr = reinterpret_cast<uint8*>(&normalisedValues);
 	uint16 index = getIndexForSamplePosition(readOffset);
 
@@ -1707,6 +1722,8 @@ void CompressionHelpers::NormaliseMap::setNormalisationValues(int readOffset, in
 		jassertfalse;
 		return;
 	}
+
+	return; //AFTERFIX: Remove
 
 	getTableData()[index] = ptr[0];
 	getTableData()[index + 1] = ptr[1];
@@ -1721,6 +1738,8 @@ void CompressionHelpers::NormaliseMap::normalise(const float* src, int16* dst, i
 
 	if (normalisationMode == Mode::RangeBasedNormalisation)
 	{
+		active = true;
+
 		int index = 0;
 		int tableIndex = 0;
 
@@ -1733,19 +1752,31 @@ void CompressionHelpers::NormaliseMap::normalise(const float* src, int16* dst, i
 
 			CompressionHelpers::AudioBufferInt16 l(data, thisTime);
 
-			
-
 			auto lMax = CompressionHelpers::getPossibleBitReductionAmount(l);
-			auto normalisationAmount = jmin<int>(8, 16 - lMax);
 
-			getTableData()[tableIndex++] = normalisationAmount;
-			internalNormalisation(src + index, data, thisTime, normalisationAmount);
+			if (lMax == 0)
+			{
+				auto normalisationAmount = jmin<int>(8, 16 - lMax);
+
+				//getTableData()[tableIndex++] = 0;
+				
+				CompressionHelpers::IntVectorOperations::clear(data, thisTime);
+			}
+			else
+			{
+				auto normalisationAmount = 0; // AFTERFIX: jmin<int>(8, 16 - lMax);
+
+				//getTableData()[tableIndex++] = normalisationAmount;
+				internalNormalisation(src + index, data, thisTime, normalisationAmount);
+			}
 
 			index += thisTime;
 		}
 	}
 	else if (normalisationMode == Mode::StaticNormalisation)
 	{
+		active = true;
+
 		internalNormalisation(src, dst, numSamples, preallocated[0]);
 	}
 }
@@ -1753,6 +1784,8 @@ void CompressionHelpers::NormaliseMap::normalise(const float* src, int16* dst, i
 
 void CompressionHelpers::NormaliseMap::allocateTableIndexes(int numSamples)
 {
+	active = numSamples > 0;
+
 	if (numSamples <= (16 * normaliseBlockSize))
 	{
 		allocated.free();
@@ -1790,7 +1823,7 @@ void CompressionHelpers::NormaliseMap::internalNormalisation(const float* src, i
 	for (int i = 0; i < numSamples; i++)
 	{
 		float gainedValue = src[i] * db;
-		dst[i] =  (int16)(gainedValue * (float)INT16_MAX);
+		dst[i] =  (int16)roundToInt(gainedValue * (float)INT16_MAX);
 	};
 }
 
