@@ -121,6 +121,8 @@ void StreamingSamplerSound::setBasicMappingData(const StreamingHelpers::BasicMap
 
 void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 {
+	
+
 	if (reversed)
 	{
 		return;
@@ -151,6 +153,14 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 
 	if (newPreloadSize == -1 || (preloadSize + sampleStartMod) > sampleLength)
 	{
+		if (sampleLength == MAX_SAMPLE_NUMBER)
+		{
+			// this hasn't been initialised, so we need to do it here...
+
+			fileReader.openFileHandles(dontSendNotification);
+			sampleLength = (int)fileReader.getSampleLength();
+		}
+
 		internalPreloadSize = (int)sampleLength;
 		entireSampleLoaded = true;
 	}
@@ -183,7 +193,7 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 	}
 
 	preloadBuffer.clear();
-	preloadBuffer.allocateNormalisationTables();
+	preloadBuffer.allocateNormalisationTables(sampleStart);
 
 	if (sampleRate <= 0.0)
 	{

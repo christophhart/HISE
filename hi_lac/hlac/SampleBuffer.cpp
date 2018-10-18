@@ -52,6 +52,7 @@ HiseSampleBuffer::HiseSampleBuffer(HiseSampleBuffer& otherBuffer, int offset)
 	}
 }
 
+
 void HiseSampleBuffer::reverse(int startSample, int numSamples)
 {
 	if (isFloatingPoint())
@@ -129,14 +130,55 @@ void HiseSampleBuffer::clear(int startSample, int numSamples)
 }
 
 
-void HiseSampleBuffer::allocateNormalisationTables()
+void HiseSampleBuffer::allocateNormalisationTables(int offsetToUse)
 {
-	leftIntBuffer.getMap().allocateTableIndexes(size);
+	leftIntBuffer.getMap().setOffset(offsetToUse);
+	leftIntBuffer.getMap().allocateTableIndexes(size + leftIntBuffer.getMap().getOffset());
 
-	if(hasSecondChannel())
-		rightIntBuffer.getMap().allocateTableIndexes(size);
+	if (hasSecondChannel())
+	{
+		rightIntBuffer.getMap().setOffset(offsetToUse);
+		rightIntBuffer.getMap().allocateTableIndexes(size + rightIntBuffer.getMap().getOffset());
+	}
 }
 
+
+void HiseSampleBuffer::flushNormalisationInfo()
+{
+	auto& lMap = getNormaliseMap(0);
+	auto& rMap = getNormaliseMap(1);
+
+	auto s = lMap.size();
+
+	uint8 currentRangeL = lMap.getTableData()[0];
+	uint8 currentRangeR = rMap.getTableData()[0];
+
+	int currentStart = 0;
+	int currentEnd = 1024;
+
+	for (int i = 1; i < s; i++)
+	{
+		uint8 nextL = lMap.getTableData()[i];
+		uint8 nextR = lMap.getTableData()[i];
+
+		if (nextL != currentRangeL || nextR != currentRangeR)
+		{
+			Normaliser::NormalisationInfo newInfo;
+			newInfo.leftNormalisation = currentRangeL;
+			newInfo.rightNormalisation = currentRangeR;
+			newInfo.range = { currentStart, currentEnd };
+
+			currentStart = currentEnd;
+			currentEnd += 1024;
+		}
+		else
+		{
+			currentEnd += 1024;
+		}
+	}
+
+
+}
 
 hlac::FixedSampleBuffer& HiseSampleBuffer::getFixedBuffer(int channelIndex)
 {
@@ -153,6 +195,8 @@ hlac::FixedSampleBuffer& HiseSampleBuffer::getFixedBuffer(int channelIndex)
 	}
 }
 
+static int dummy = 0;
+
 void HiseSampleBuffer::copy(HiseSampleBuffer& dst, const HiseSampleBuffer& source, int startSampleDst, int startSampleSource, int numSamples)
 {
 	if (numSamples <= 0)
@@ -160,23 +204,78 @@ void HiseSampleBuffer::copy(HiseSampleBuffer& dst, const HiseSampleBuffer& sourc
 
 	if (source.isFloatingPoint() == dst.isFloatingPoint())
 	{
-		auto byteToCopy = (source.isFloatingPoint() ? sizeof(float) : sizeof(int16)) * numSamples;
-
-		memcpy(dst.getWritePointer(0, startSampleDst), source.getReadPointer(0, startSampleSource), byteToCopy);
-
-		if (dst.hasSecondChannel())
+		if (source.isFloatingPoint())
 		{
-			if (source.hasSecondChannel())
-				memcpy(dst.getWritePointer(1, startSampleDst), source.getReadPointer(1, startSampleSource), byteToCopy);
-			else
-				memcpy(dst.getWritePointer(1, startSampleDst), source.getReadPointer(0, startSampleSource), byteToCopy);
+			auto byteToCopy = sizeof(float) * numSamples;
+
+			memcpy(dst.getWritePointer(0, startSampleDst), source.getReadPointer(0, startSampleSource), byteToCopy);
+
+			if (dst.hasSecondChannel())
+			{
+				if (source.hasSecondChannel())
+					memcpy(dst.getWritePointer(1, startSampleDst), source.getReadPointer(1, startSampleSource), byteToCopy);
+				else
+					memcpy(dst.getWritePointer(1, startSampleDst), source.getReadPointer(0, startSampleSource), byteToCopy);
+			}
 		}
-
-		if (!source.isFloatingPoint())
+		else
 		{
-			source.getNormaliseMap(0).copyNormalisationTable(dst.getNormaliseMap(0), startSampleSource, startSampleDst, numSamples);
+			auto byteToCopy = sizeof(int16) * numSamples;
 
-			source.getNormaliseMap(1).copyNormalisationTable(dst.getNormaliseMap(1), startSampleSource, startSampleDst, numSamples);
+			memcpy(dst.getWritePointer(0, startSampleDst), source.getReadPointer(0, startSampleSource), byteToCopy);
+
+			if (dst.hasSecondChannel())
+			{
+				if (source.hasSecondChannel())
+					memcpy(dst.getWritePointer(1, startSampleDst), source.getReadPointer(1, startSampleSource), byteToCopy);
+				else
+					memcpy(dst.getWritePointer(1, startSampleDst), source.getReadPointer(0, startSampleSource), byteToCopy);
+			}
+
+			Range<int> srcRange({ startSampleSource, startSampleSource + numSamples });
+			Range<int> dstRange({ startSampleDst, startSampleDst + numSamples });
+
+			dst.normaliser.copyFrom(source.normaliser, srcRange, dstRange);
+
+			
+
+#if 0
+
+			auto o1 = (dst.getNormaliseMap(0).getOffset() + startSampleDst) % COMPRESSION_BLOCK_SIZE;
+			auto o2 = (source.getNormaliseMap(0).getOffset() + startSampleSource) % COMPRESSION_BLOCK_SIZE;
+
+			
+
+			dst.setUseOneMap(source.useOneMap);
+				
+			if ((o1 == o2))
+			{
+				dst.getNormaliseMap(0).copyIntBufferWithNormalisation(source.getNormaliseMap(0), (const int16*)source.getReadPointer(0), (int16*)dst.getWritePointer(0, 0), startSampleSource, startSampleDst, numSamples, true);
+
+				if (dst.hasSecondChannel() && !dst.useOneMap)
+				{
+					dst.getNormaliseMap(1).copyIntBufferWithNormalisation(source.getNormaliseMap(1), (const int16*)source.getReadPointer(1), (int16*)dst.getWritePointer(1, 0), startSampleSource, startSampleDst, numSamples, true);
+				}
+
+				dummy++;
+
+				//AudioThreadGuard::Suspender ss;
+				//CompressionHelpers::dump(dst.getFixedBuffer(0), "Merge" + String(dummy) + ".wav");
+
+			}
+			else
+			{
+				equaliseNormalisationAndCopy(dst, source, startSampleDst, startSampleSource, numSamples, 0);
+
+				if (dst.hasSecondChannel())
+				{
+					equaliseNormalisationAndCopy(dst, source, startSampleDst, startSampleSource, numSamples, 1);
+					
+
+				}
+			}
+#endif
+			
 		}
 	}
 	else
@@ -184,6 +283,62 @@ void HiseSampleBuffer::copy(HiseSampleBuffer& dst, const HiseSampleBuffer& sourc
 		// Data type mismatch!
 		jassertfalse;
 	}
+}
+
+void HiseSampleBuffer::equaliseNormalisationAndCopy(HiseSampleBuffer &dst, const HiseSampleBuffer &source, int startSampleDst, int startSampleSource, int numSamples, int channelIndex)
+{
+	if (channelIndex == 1 && (dst.useOneMap || source.useOneMap))
+		return;
+
+	Range<int> dst_range({ 0, startSampleDst });
+	Range<int> src_range({ startSampleSource, startSampleSource + numSamples });
+	Range<int> src_dst_range({ startSampleDst, startSampleDst + numSamples });
+
+	auto min_dst = dst.getNormaliseMap(channelIndex).getLowestNormalisationAmount(dst_range);
+	auto min_src = source.getNormaliseMap(channelIndex).getLowestNormalisationAmount(src_range);
+
+	auto normalisationLevel = jmin<uint8>(min_dst, min_src);
+
+	auto& map_dst = dst.getNormaliseMap(channelIndex);
+
+	auto dst_ptr = static_cast<int16*>(dst.getWritePointer(channelIndex, 0));
+
+	for (int i = dst_range.getStart(); i < dst_range.getEnd(); i++)
+	{
+		auto index = map_dst.getIndexForSamplePosition(i + map_dst.getOffset());
+		auto diff = map_dst.getTableData()[index] - normalisationLevel;
+
+		if (diff > 0)
+		{
+			int divider = 1 << diff;
+
+			dst_ptr[i] /= divider;
+		}
+	}
+
+	auto& map_src = source.getNormaliseMap(channelIndex);
+	auto src_ptr = static_cast<const int16*>(source.getReadPointer(channelIndex, 0));
+
+	for (int i = src_range.getStart(); i < src_range.getEnd(); i++)
+	{
+		auto index = map_src.getIndexForSamplePosition(i + map_src.getOffset());
+		auto diff = map_src.getTableData()[index] - normalisationLevel;
+
+		auto dst_index = i - src_range.getStart() + startSampleDst;
+
+		if (diff == 0)
+		{
+			dst_ptr[dst_index] = src_ptr[i];
+		}
+		else
+		{
+			int divider = 1 << diff;
+			dst_ptr[dst_index] = src_ptr[i] / divider;
+		}
+	}
+
+	memset(dst.getNormaliseMap(channelIndex).preallocated, normalisationLevel, 16);
+	dst.getNormaliseMap(channelIndex).setOffset(0);
 }
 
 void HiseSampleBuffer::add(HiseSampleBuffer& dst, const HiseSampleBuffer& source, int startSampleDst, int startSampleSource, int numSamples)
@@ -261,11 +416,11 @@ const void* HiseSampleBuffer::getReadPointer(int channel, int startSample/*=0*/)
 {
 	if (isFloatingPoint())
 	{
-		return floatBuffer.getReadPointer(channel, startSample);
+		return floatBuffer.getReadPointer(channel % numChannels, startSample);
 	}
 	else
 	{
-		if (channel == 0)
+		if (channel == 0 || numChannels == 1)
 			return leftIntBuffer.getReadPointer(startSample);
 		else if (channel == 1 && hasSecondChannel())
 		{
@@ -300,6 +455,16 @@ AudioSampleBuffer* HiseSampleBuffer::getFloatBufferForFileReader()
 	jassert(isFloatingPoint());
 
 	return &floatBuffer;
+}
+
+const hlac::CompressionHelpers::NormaliseMap& HiseSampleBuffer::getNormaliseMap(int channelIndex) const
+{
+	return (channelIndex == 0) ? leftIntBuffer.getMap() : rightIntBuffer.getMap();
+}
+
+hlac::CompressionHelpers::NormaliseMap& HiseSampleBuffer::getNormaliseMap(int channelIndex)
+{
+	return (channelIndex == 0) ? leftIntBuffer.getMap() : rightIntBuffer.getMap();
 }
 
 } // namespace hlac

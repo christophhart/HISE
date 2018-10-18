@@ -46,6 +46,7 @@ class HiseSampleBuffer;
 
 struct CompressionHelpers
 {
+
 	/** This structure will hold the information about the normalization amount needed to be applied to the 16 bit signal. */
 	struct NormaliseMap
 	{
@@ -78,28 +79,53 @@ struct CompressionHelpers
 			active = newMode > 0;
 		}
 
+		/** Sets 4 values at once. Used by the HLAC decoder. */
 		void setNormalisationValues(int readOffset, int normalisedValues);
+
+		/** Change a particular normalisation level. Used when merging buffers with different offsets. */
+		void insertNormalisationValue(int samplePosition, uint8 normalisationValue);
 
 		/** This applies normalisation. */
 		void normalise(const float* src, int16* dst, int numSamples);
-
-		/** If the buffers are not aligned to a 1024 sample boundary, you can set the first range length here in order to synchronise it. */
-		void setOffsetForNormalisationTable(int lengthOfFirstBlock)
-		{
-
-		}
 
 		void allocateTableIndexes(int numSamples);
 
 		void copyNormalisationTable(NormaliseMap& dst, int startSampleSource, int startSampleDst, int numSamples) const;
 
+		void copyIntBufferWithNormalisation(const NormaliseMap& srcMap, const int16* srcWithoutOffset, int16* dstWithoutOffset, int startSampleSource, int startSampleDst, int numSamples, bool overwriteTable);
+
+		int getOffset() const { return firstOffset; }
+
+		/** If the buffers are not aligned to a 1024 sample boundary, you can set the first range length here in order to synchronise it. */
+		void setOffset(int offsetToUse);
+
+		uint8 getNormalisationAmount(int samplePosition) const;
+
+		uint8 getLowestNormalisationAmount(Range<int> samplePositionRange) const;
+
+
+
 	private:
+
+		friend class HiseSampleBuffer;
+
+		int16 size() const;
 
 		void internalNormalisation(const float* src, int16* dst, int numSamples, uint8 amount) const;
 
-		constexpr uint16 getIndexForSamplePosition(int samplePosition) const
+		const uint16 getIndexForSamplePosition(int samplePosition, bool roundUp=false) const
 		{
-			return (uint16)(samplePosition / normaliseBlockSize);
+			if (roundUp)
+			{
+				auto value = std::ceilf((float)samplePosition / (float)normaliseBlockSize);
+				return (uint16)roundToInt(value);
+			}
+			else
+			{
+				return (uint16)((samplePosition) / normaliseBlockSize);
+			}
+
+			
 		}
 
 		const uint8 * getTableData() const
@@ -112,8 +138,6 @@ struct CompressionHelpers
 
 		uint8 * getTableData()
 		{
-			return nullptr;
-
 			if (allocated != nullptr)
 				return allocated;
 			else
@@ -123,12 +147,13 @@ struct CompressionHelpers
 		static constexpr int normaliseBlockSize = 1024;
 
 		uint8 normalisationMode = Mode::NoNormalisation;
-		uint16 firstOffset = -1;
+		int firstOffset = 0;
 		uint8 preallocated[16];
 		uint16 numAllocated = 0;
 		HeapBlock<uint8> allocated;
 		bool active = false;
 	};
+
 
 	/** A normalized 16 bit integer buffer
 	*
@@ -153,6 +178,7 @@ struct CompressionHelpers
 
 			isReadOnly = other.isReadOnly;
 			externalData = other.externalData;
+			map = std::move(other.map);
 		}
 
 		AudioBufferInt16& operator= (AudioBufferInt16&& other)
@@ -164,6 +190,7 @@ struct CompressionHelpers
 			other.data = nullptr;
 			isReadOnly = other.isReadOnly;
 			externalData = other.externalData;
+			map = std::move(other.map);
 
 			return *this;
 		}
@@ -184,7 +211,7 @@ struct CompressionHelpers
 		NormaliseMap& getMap() { return map; }
 
 		/** Copies the samples from the int buffers and also copies the normalisation tables. */
-		static void copyWithNormalisation(AudioBufferInt16& dst, const AudioBufferInt16& source, int startSampleDst, int StartSampleSrc, int numSamples);
+		static void copyWithNormalisation(AudioBufferInt16& dst, const AudioBufferInt16& source, int startSampleDst, int StartSampleSrc, int numSamples, bool overwriteTable);
 
 	private:
 

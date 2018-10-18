@@ -121,6 +121,8 @@ bool HlacDecoder::decodeBlock(HiseSampleBuffer& destination, bool decodeStereo, 
 
 void HlacDecoder::decode(HiseSampleBuffer& destination, bool decodeStereo, InputStream& input, int offsetInSource/*=0*/, int numSamples/*=-1*/)
 {
+	destination.allocateNormalisationTables(offsetInSource);
+
 #if HLAC_MEASURE_DECODING_PERFORMANCE
 	double start = Time::getMillisecondCounterHiRes();
 #endif
@@ -128,8 +130,6 @@ void HlacDecoder::decode(HiseSampleBuffer& destination, bool decodeStereo, Input
 	if (numSamples < 0)
 		numSamples = destination.getNumSamples();
 	
-	
-
 	const int endThisTime = numSamples + offsetInSource;
 
 	// You must seek on a higher level!
@@ -155,6 +155,8 @@ void HlacDecoder::decode(HiseSampleBuffer& destination, bool decodeStereo, Input
 	}
 
 	readOffset += readIndex;
+
+	destination.flushNormalisationInfo();
 
 #if HLAC_MEASURE_DECODING_PERFORMANCE
 	double stop = Time::getMillisecondCounterHiRes();
@@ -285,13 +287,13 @@ void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSam
 				{
 					auto dst = static_cast<float*>(destination.getWritePointer(channelIndex, bufferOffset));
 
-					destination.getNormaliseMap(channelIndex).normalisedInt16ToFloat(dst, src, bufferOffset, numThisTime);
+					jassert(bufferOffset + numThisTime <= destination.getNumSamples());
 
-					//CompressionHelpers::fastInt16ToFloat(src, dst, numThisTime);
+					destination.getNormaliseMap(channelIndex).normalisedInt16ToFloat(dst, src, bufferOffset, numThisTime);
 				}
 				else
 				{
-					CompressionHelpers::AudioBufferInt16::copyWithNormalisation(destination.getFixedBuffer(channelIndex), srcBuffer, bufferOffset, 0, numThisTime);
+					CompressionHelpers::AudioBufferInt16::copyWithNormalisation(destination.getFixedBuffer(channelIndex), srcBuffer, bufferOffset, 0, numThisTime, false);
 				}
 			}
 				
@@ -329,16 +331,20 @@ void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSam
 				{
 					auto dst = static_cast<float*>(destination.getWritePointer(channelIndex, bufferOffset));
 
-					jassertfalse;
-
-					destination.getNormaliseMap(channelIndex).normalisedInt16ToFloat(dst, src, bufferOffset, numThisTime);
+					destination.getNormaliseMap(channelIndex).normalisedInt16ToFloat(dst, src + skipToUse, bufferOffset, numThisTime);
 
 					//CompressionHelpers::fastInt16ToFloat(src + skipToUse, dst, numThisTime);
 				}
 				else
 				{
+					
+					CompressionHelpers::AudioBufferInt16::copyWithNormalisation(destination.getFixedBuffer(channelIndex), srcBuffer, bufferOffset, skipToUse, numThisTime, false);
+
+#if 0
 					auto dst = static_cast<int16*>(destination.getWritePointer(channelIndex, bufferOffset));
+
 					memcpy(dst, src + skipToUse, sizeof(int16) * numThisTime);
+#endif
 				}
 			}
 				

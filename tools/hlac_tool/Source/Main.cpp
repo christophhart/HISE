@@ -217,7 +217,7 @@ int main(int argc, char **argv)
 	if (mode == "unit_test")
 	{
 		UnitTestRunner runner;
-		runner.setAssertOnFailure(true);
+		runner.setAssertOnFailure(false);
 		runner.runAllTests();
 
 		int numTests = runner.getNumResults();

@@ -162,11 +162,10 @@ const int16* CompressionHelpers::AudioBufferInt16::getReadPointer(int startSampl
 }
 
 
-void CompressionHelpers::AudioBufferInt16::copyWithNormalisation(AudioBufferInt16& dst, const AudioBufferInt16& source, int startSampleDst, int StartSampleSrc, int numSamples)
+void CompressionHelpers::AudioBufferInt16::copyWithNormalisation(AudioBufferInt16& dst, const AudioBufferInt16& source, int startSampleDst, int startSampleSrc, int numSamples, bool overwriteTable)
 {
-	auto d = dst.getWritePointer(startSampleDst);
-	auto s = source.getReadPointer(StartSampleSrc);
-	memcpy(d, s, sizeof(int16) * numSamples);
+	
+	dst.getMap().copyIntBufferWithNormalisation(source.getMap(), source.getReadPointer(), dst.getWritePointer(), startSampleSrc, startSampleDst, numSamples, overwriteTable);
 }
 
 void CompressionHelpers::AudioBufferInt16::allocate(int newNumSamples)
@@ -313,7 +312,7 @@ uint8 CompressionHelpers::getBitrateForCycleLength(const AudioBufferInt16& block
 
 void CompressionHelpers::normaliseBlock(int16* data, int numSamples, int normalisationAmount, int direction, bool useDither)
 {
-	int shiftAmount = pow(2, normalisationAmount);
+	int shiftAmount = 1 << normalisationAmount;
 
 	if (direction == 1)
 	{
@@ -440,7 +439,7 @@ AudioSampleBuffer CompressionHelpers::getPart(HiseSampleBuffer& b, int startInde
 		{
 			auto src = static_cast<const int16*>(b.getReadPointer(i, startIndex));
 
-			fastInt16ToFloat(src, buffer.getWritePointer(i), numSamples);
+			b.getNormaliseMap(i).normalisedInt16ToFloat(buffer.getWritePointer(i), src, 0, numSamples);
 		}
 
 		return buffer;
@@ -587,6 +586,7 @@ void CompressionHelpers::fastInt16ToFloat(const void* source, float* dest, int n
 
 void CompressionHelpers::applyDithering(float* data, int numSamples)
 {
+#if 0
 	int   r1, r2;                //rectangular-PDF random numbers
 	float s1, s2;                //error feedback buffers
 	float s = 0.5f;              //set to 0.0f for no noise shaping
@@ -618,6 +618,7 @@ void CompressionHelpers::applyDithering(float* data, int numSamples)
 
 		data[i] = out / w;
 	}
+#endif
 }
 
 uint8 CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, AudioSampleBuffer& referenceBuffer)
@@ -638,22 +639,21 @@ uint8 CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, Audio
 	{
 		DBG("Bit rate for error signal: " + String(br));
 
-		//DUMP(wbInt);
-		//
-		DUMP(referenceBuffer);
-		DUMP(workBuffer);
 
 		float* w = workBuffer.getWritePointer(0);
 		const float* r = referenceBuffer.getReadPointer(0);
 
 		FloatVectorOperations::subtract(w, r, numToCheck);
 
-		float x = workBuffer.getMagnitude(0, numToCheck);
+		float x = workBuffer.getMagnitude(0, 0, numToCheck);
 
 		float db = Decibels::gainToDecibels(x);
 
 		if (db > -96.0f)
 		{
+			DUMP(referenceBuffer);
+			DUMP(workBuffer);
+
 			DBG("Buffer mismatch detected!");
 
 			int maxIndex = -1;
@@ -682,6 +682,8 @@ uint8 CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, Audio
 			DBG("Min index: " + String(minIndex) + ", value: " + String(minValue));
 			DBG("Max index: " + String(maxIndex) + ", value: " + String(maxValue));
 		}
+		else
+			return 0;
 
 		return br;
 	}
@@ -1640,15 +1642,18 @@ HlacArchiver::Flag HlacArchiver::readFlag(FileInputStream* fis)
 
 void CompressionHelpers::NormaliseMap::normalisedInt16ToFloat(float* destination, const int16* src, int start, int numSamples) const
 {
-	if (!active)
+	
+	if (false && !active)
 	{
 		CompressionHelpers::fastInt16ToFloat(src, destination, numSamples);
 		return;
 	}
 
-	const int totalLimit = start + numSamples;
+	const int thisOffset = start + firstOffset;
+
+	const int totalLimit = thisOffset + numSamples;
 	int numToDo = numSamples;
-	int index = start;
+	int index = thisOffset;
 
 	while (numToDo > 0)
 	{
@@ -1663,11 +1668,26 @@ void CompressionHelpers::NormaliseMap::normalisedInt16ToFloat(float* destination
 		if (numThisTime == 0)
 			break;
 
-		auto r = src + (index - start);
-		auto w = destination + index;
+		auto r = src + (index - thisOffset);
+		auto w = destination + (index- thisOffset);
 
-		//CompressionHelpers::fastInt16ToFloat(r, w, numThisTime);
+		
+		if (false && thisAmount == 0) // AFTERFIX: remove false
+		{
+			CompressionHelpers::fastInt16ToFloat(r, w, numThisTime);
+		}
+		else
+		{
+			float gainFactor = (float)(1 << thisAmount);
 
+			for (int i = 0; i < numThisTime; i++)
+			{
+				w[i] = (float)r[i] / ((float)INT16_MAX * gainFactor);
+			}
+		}
+
+
+#if 0
 		const float normaliseAmount = (float)(1 << (thisAmount));
 		const float gainFactor = 1.0f / ((float)INT16_MAX * normaliseAmount);
 
@@ -1675,6 +1695,7 @@ void CompressionHelpers::NormaliseMap::normalisedInt16ToFloat(float* destination
 		{
 			w[i] = (float)r[i] * gainFactor;
 		}
+#endif
 
 		numToDo -= numThisTime;
 		index += numThisTime;
@@ -1723,12 +1744,27 @@ void CompressionHelpers::NormaliseMap::setNormalisationValues(int readOffset, in
 		return;
 	}
 
-	return; //AFTERFIX: Remove
-
 	getTableData()[index] = ptr[0];
 	getTableData()[index + 1] = ptr[1];
 	getTableData()[index + 2] = ptr[2];
 	getTableData()[index + 3] = ptr[3];
+}
+
+void CompressionHelpers::NormaliseMap::insertNormalisationValue(int samplePosition, uint8 normalisationValue)
+{
+	uint16 index = getIndexForSamplePosition(samplePosition);
+
+	// This doesn't work with dynamically sized buffers
+	jassert(allocated == nullptr);
+
+	auto ptr = preallocated[index];
+
+	for (int i = 15; i > index; i--)
+	{
+		preallocated[i] = preallocated[i-1];
+	}
+
+	preallocated[index] = normalisationValue;
 }
 
 void CompressionHelpers::NormaliseMap::normalise(const float* src, int16* dst, int numSamples)
@@ -1758,15 +1794,15 @@ void CompressionHelpers::NormaliseMap::normalise(const float* src, int16* dst, i
 			{
 				auto normalisationAmount = jmin<int>(8, 16 - lMax);
 
-				//getTableData()[tableIndex++] = 0;
+				getTableData()[tableIndex++] = 0;
 				
 				CompressionHelpers::IntVectorOperations::clear(data, thisTime);
 			}
 			else
 			{
-				auto normalisationAmount = 0; // AFTERFIX: jmin<int>(8, 16 - lMax);
+				auto normalisationAmount = jmin<uint8>(8, 16 - lMax);
 
-				//getTableData()[tableIndex++] = normalisationAmount;
+				getTableData()[tableIndex++] = normalisationAmount;
 				internalNormalisation(src + index, data, thisTime, normalisationAmount);
 			}
 
@@ -1793,11 +1829,15 @@ void CompressionHelpers::NormaliseMap::allocateTableIndexes(int numSamples)
 	}
 	else
 	{
-		numAllocated = (numSamples / normaliseBlockSize) + 4;
+		uint16 newNumAllocated = (numSamples / normaliseBlockSize) + 4;
 
-		memset(preallocated, 0, 16);
-		allocated.realloc(numAllocated, 1);
-		allocated.clear(numAllocated);
+		if (newNumAllocated != numAllocated)
+		{
+			numAllocated = newNumAllocated;
+			memset(preallocated, 0, 16);
+			allocated.realloc(numAllocated, 1);
+			allocated.clear(numAllocated);
+		}
 	}
 }
 
@@ -1805,12 +1845,68 @@ void CompressionHelpers::NormaliseMap::allocateTableIndexes(int numSamples)
 void CompressionHelpers::NormaliseMap::copyNormalisationTable(NormaliseMap& dst, int startSampleSource, int startSampleDst, int numSamples) const
 {
 	auto start = getIndexForSamplePosition(startSampleSource);
-	auto end = getIndexForSamplePosition(startSampleDst);
-	auto numIndexes = getIndexForSamplePosition(numSamples) + 1;
+	auto end = getIndexForSamplePosition(startSampleDst, false);
+	auto numIndexes = getIndexForSamplePosition(numSamples, false) + 1;
 
 	memcpy(dst.getTableData() + end , getTableData() + start, numIndexes);
+}
 
-	int x = 5;
+void CompressionHelpers::NormaliseMap::copyIntBufferWithNormalisation(const NormaliseMap& srcMap, const int16* srcWithoutOffset, int16* dstWithoutOffset, int startSampleSource, int startSampleDst, int numSamples, bool overwriteTable)
+{
+	auto srcOffset = (srcMap.getOffset() + startSampleSource) % COMPRESSION_BLOCK_SIZE;
+	auto dstOffset = (getOffset() + startSampleDst) % COMPRESSION_BLOCK_SIZE;
+
+	//jassert(srcOffset == dstOffset || srcOffset == 0);
+
+	if (overwriteTable)
+	{
+		if(srcOffset != dstOffset)
+			setOffset(srcMap.getOffset());
+		
+		srcMap.copyNormalisationTable(*this, startSampleSource, startSampleDst + getOffset(), numSamples);
+	}
+
+	auto d = dstWithoutOffset + startSampleDst;
+	auto s = srcWithoutOffset + startSampleSource;
+	memcpy(d, s, sizeof(int16) * numSamples);
+}
+
+void CompressionHelpers::NormaliseMap::setOffset(int offsetToUse)
+{
+	firstOffset = offsetToUse % COMPRESSION_BLOCK_SIZE;
+}
+
+juce::uint8 CompressionHelpers::NormaliseMap::getNormalisationAmount(int samplePosition) const
+{
+	int index = getIndexForSamplePosition(samplePosition, false);
+
+	return getTableData()[index];
+}
+
+juce::uint8 CompressionHelpers::NormaliseMap::getLowestNormalisationAmount(Range<int> samplePositionRange) const
+{
+	auto s = size();
+
+	auto ptr = getTableData();
+
+	auto start = getIndexForSamplePosition(samplePositionRange.getStart());
+	auto end = getIndexForSamplePosition(samplePositionRange.getEnd(), true);
+
+	auto l = end - start;
+
+	uint8 minAmount = 8;
+
+	for (int i = 0; i < l; i++)
+	{
+		minAmount = jmin<int>(ptr[start + i], minAmount);
+	}
+
+	return minAmount;
+}
+
+juce::int16 CompressionHelpers::NormaliseMap::size() const
+{
+	return allocated != nullptr ? numAllocated : 16;
 }
 
 void CompressionHelpers::NormaliseMap::internalNormalisation(const float* src, int16* dst, int numSamples, uint8 amount) const
@@ -1818,12 +1914,12 @@ void CompressionHelpers::NormaliseMap::internalNormalisation(const float* src, i
 	if (amount == 0)
 		return;
 
-	float db = Decibels::decibelsToGain((float)amount * 6.0f);
+	auto gainFactor = (float)(1 << amount);
 
 	for (int i = 0; i < numSamples; i++)
 	{
-		float gainedValue = src[i] * db;
-		dst[i] =  (int16)roundToInt(gainedValue * (float)INT16_MAX);
+		auto gainedValue = src[i] * (float)gainFactor * (float)INT16_MAX;
+		dst[i] = (int16)(gainedValue);
 	};
 }
 

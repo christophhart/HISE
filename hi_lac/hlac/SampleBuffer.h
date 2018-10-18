@@ -46,6 +46,57 @@ class HiseSampleBuffer
 {
 public:
 
+	struct Normaliser
+	{
+		Normaliser()
+		{};
+
+		void allocate(int numSamples)
+		{
+			auto minNumToUse = jmax<int>(16, numSamples / 1024 + 3);
+			infos.ensureStorageAllocated(minNumToUse);
+		}
+
+		void apply(float* dataLWithoutOffset, float* dataRWithoutOffset, Range<int> rangeInData)
+		{
+			for (const auto& i : infos)
+			{
+				i.apply(dataLWithoutOffset, dataRWithoutOffset, rangeInData);
+			}
+		}
+
+		/** Copies the normalisation ranges from the source than intersect with the given range. */
+		void copyFrom(const Normaliser& source, Range<int> srcRange, Range<int> dstRange)
+		{}
+
+		struct NormalisationInfo
+		{
+			uint8 leftNormalisation = 0;
+			uint8 rightNormalisation = 0;
+			Range<int> range;
+
+			void apply(float* dataLWithoutOffset, float* dataRWithoutOffset, Range<int> rangeInData) const
+			{
+				auto intersection = range.getIntersectionWith(rangeInData);
+
+				if (!intersection.isEmpty() + (leftNormalisation + rightNormalisation) != 0)
+				{
+					int l = intersection.getLength();
+
+					const float lGain = 1.0f / (1 << leftNormalisation);
+					const float rGain = 1.0f / (1 << leftNormalisation);
+
+					FloatVectorOperations::multiply(dataLWithoutOffset + intersection.getStart(), lGain, l);
+					FloatVectorOperations::multiply(dataRWithoutOffset + intersection.getStart(), rGain, l);
+				}
+			}
+		};
+
+		Array<NormalisationInfo, DummyCriticalSection, 16> infos;
+	};
+
+	
+
 	HiseSampleBuffer() :
 		isFloat(true),
 		leftIntBuffer(0),
@@ -97,9 +148,18 @@ public:
 		return *this;
 	}
 
-	
-
 	HiseSampleBuffer(HiseSampleBuffer& otherBuffer, int offset);
+
+	HiseSampleBuffer(FixedSampleBuffer&& intBuffer) :
+		isFloat(false),
+		size(intBuffer.size),
+		floatBuffer(),
+		numChannels(1),
+		leftIntBuffer(std::move(intBuffer)), 
+		rightIntBuffer(0)
+	{
+
+	}
 
 	/** Creates a HiseSampleBuffer from an existing AudioSampleBuffer. */
 	HiseSampleBuffer(AudioSampleBuffer& floatBuffer_):
@@ -129,12 +189,16 @@ public:
 
 	int getNumChannels() const { return numChannels; }
 
-	void allocateNormalisationTables();
+	void allocateNormalisationTables(int offsetToUse);
+
+	void flushNormalisationInfo();
 
 	FixedSampleBuffer& getFixedBuffer(int channelIndex);
 
 	/** Copies the samples from the source to the destination. The buffers must have the same data type. */
 	static void copy(HiseSampleBuffer& dst, const HiseSampleBuffer& source, int startSampleDst, int startSampleSource, int numSamples);
+
+	static void equaliseNormalisationAndCopy(HiseSampleBuffer &dst, const HiseSampleBuffer &source, int startSampleDst, int startSampleSource, int numSamples, int channelIndex);
 
 	/** Adds the samples from the source to the destination. The buffers must have the same data type. */
 	static void add(HiseSampleBuffer& dst, const HiseSampleBuffer& source, int startSampleDst, int startSampleSource, int numSamples);
@@ -150,18 +214,17 @@ public:
 	/** Returns the internal AudioSampleBuffer for convenient usage with AudioFormatReader classes. */
 	AudioSampleBuffer* getFloatBufferForFileReader();
 
-	CompressionHelpers::NormaliseMap& getNormaliseMap(int channelIndex)
-	{
-		return channelIndex == 0 ? leftIntBuffer.getMap() : rightIntBuffer.getMap();
-	}
+	CompressionHelpers::NormaliseMap& getNormaliseMap(int channelIndex);
 
-	const CompressionHelpers::NormaliseMap& getNormaliseMap(int channelIndex) const
-	{
-		return channelIndex == 0 ? leftIntBuffer.getMap() : rightIntBuffer.getMap();
-	}
+	const CompressionHelpers::NormaliseMap& getNormaliseMap(int channelIndex) const;
+
+	void setUseOneMap(bool shouldUseOneMap) { useOneMap = shouldUseOneMap; };
+
+	bool useOneMap = false;
 
 private:
 
+	Normaliser normaliser;
 
 	int numChannels = 0;
 	int size = 0;
