@@ -438,6 +438,12 @@ public:
 
     void setEditMode(bool on) { listModel->setEditMode(on); listbox->repaint(); };
     
+	void setShowButtons(bool shouldBeShown)
+	{
+		showButtonsAtBottom = shouldBeShown;
+		resized();
+	}
+
 	void setHighlightColourAndFont(Colour c, Font fo)
 	{
 		highlightColour = c;
@@ -535,7 +541,7 @@ private:
 
 	// ============================================================================================
 
-	
+	bool showButtonsAtBottom = true;
 
 	Rectangle<int> listArea;
 
@@ -1065,6 +1071,22 @@ public:
 
 		resized();
 #endif
+	}
+
+	void setShowNotesLabel(bool shouldBeShown)
+	{
+		if (shouldBeShown != noteLabel->isVisible())
+		{
+			noteLabel->setVisible(shouldBeShown);
+			resized();
+		}
+	}
+
+	void setShowEditButtons(bool showEditButtons)
+	{
+		bankColumn->setShowButtons(showEditButtons);
+		categoryColumn->setShowButtons(showEditButtons);
+		presetColumn->setShowButtons(showEditButtons);
 	}
 
 	void setShowCloseButton(bool shouldShowButton)

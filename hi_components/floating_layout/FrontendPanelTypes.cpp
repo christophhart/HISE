@@ -553,17 +553,34 @@ PresetBrowserPanel::~PresetBrowserPanel()
 	presetBrowser = nullptr;
 }
 
+var PresetBrowserPanel::toDynamicObject() const
+{
+	var obj = FloatingTileContent::toDynamicObject();
+
+	storePropertyInObject(obj, SpecialPanelIds::ShowSaveButton, showSaveButton);
+
+	storePropertyInObject(obj, SpecialPanelIds::ShowFolderButton, showFolderButton);
+	storePropertyInObject(obj, SpecialPanelIds::ShowNotes, showNotes);
+	storePropertyInObject(obj, SpecialPanelIds::ShowEditButtons, showEditButtons);
+
+	return obj;
+}
+
 void PresetBrowserPanel::fromDynamicObject(const var& object)
 {
 	FloatingTileContent::fromDynamicObject(object);
 
 	presetBrowser->setHighlightColourAndFont(findPanelColour(PanelColourId::itemColour1), findPanelColour(PanelColourId::bgColour), getFont());
 
-	const bool showSaveButton = getPropertyWithDefault(object, SpecialPanelIds::ShowSaveButton);
-	const bool showFolderButton = getPropertyWithDefault(object, SpecialPanelIds::ShowFolderButton);
+	showSaveButton = getPropertyWithDefault(object, SpecialPanelIds::ShowSaveButton);
+	showFolderButton = getPropertyWithDefault(object, SpecialPanelIds::ShowFolderButton);
+	showNotes = getPropertyWithDefault(object, SpecialPanelIds::ShowNotes);
+	showEditButtons = getPropertyWithDefault(object, SpecialPanelIds::ShowEditButtons);
 
 	presetBrowser->setShowButton(0, showFolderButton);
 	presetBrowser->setShowButton(1, showSaveButton);
+	presetBrowser->setShowNotesLabel(showNotes);
+	presetBrowser->setShowEditButtons(showEditButtons);
 
 }
 
@@ -587,6 +604,8 @@ juce::Identifier PresetBrowserPanel::getDefaultablePropertyId(int index) const
 
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowFolderButton, "ShowFolderButton");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowSaveButton, "ShowSaveButton");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowNotes, "ShowNotes");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowEditButtons, "ShowEditButtons");
 
 	return Identifier();
 }
@@ -603,6 +622,8 @@ var PresetBrowserPanel::getDefaultProperty(int index) const
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowFolderButton, true);
 #endif
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowSaveButton, true);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowNotes, true);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowEditButtons, true);
 
 	return var();
 }

@@ -32,8 +32,6 @@
 
 namespace hise { using namespace juce;
 
-static int dummy = 0;
-
 // =============================================================================================================================================== SampleLoader methods
 
 SampleLoader::SampleLoader(SampleThreadPool *pool_) :
@@ -198,11 +196,11 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 		const int indexBeforeWrap = jmax<int>(0, (int)(readIndexDouble));
 		const int numSamplesInFirstBuffer = localReadBuffer->getNumSamples() - indexBeforeWrap;
 
+		voiceBuffer.clear();
+
 		voiceBuffer.setUseOneMap(localReadBuffer->useOneMap);
 
 		jassert(numSamplesInFirstBuffer >= 0);
-
-		dummy++;
 
 		// Reset the offset so that the first one will go through
 		auto existingOffset = localReadBuffer->getNormaliseMap(0).getOffset();
@@ -503,8 +501,6 @@ void StreamingSamplerVoice::startNote(int /*midiNoteNumber*/,
 	SynthesiserSound* s,
 	int /*currentPitchWheelPosition*/)
 {
-	dummy = 0;
-
 	StreamingSamplerSound *sound = dynamic_cast<StreamingSamplerSound*>(s);
 
 	if (sound != nullptr && sound->getSampleLength() > 0)

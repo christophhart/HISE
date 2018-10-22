@@ -797,19 +797,18 @@ void PresetBrowserColumn::resized()
 	listArea = listArea.reduced(1);
 
 	updateButtonVisibility();
-
 	
+	if (showButtonsAtBottom)
+	{
+		auto buttonArea = listArea.removeFromBottom(28).reduced(2);
+		const int buttonWidth = buttonArea.getWidth() / 3;
 
-	auto buttonArea = listArea.removeFromBottom(28).reduced(2);
-	const int buttonWidth = buttonArea.getWidth() / 3;
-
-	addButton->setBounds(buttonArea.removeFromLeft(buttonWidth));
-	//editButton->setBounds(buttonArea.removeFromLeft(buttonWidth));
-	renameButton->setBounds(buttonArea.removeFromLeft(buttonWidth));
-	deleteButton->setBounds(buttonArea.removeFromLeft(buttonWidth));
-
-	listArea.removeFromBottom(10);
-
+		addButton->setBounds(buttonArea.removeFromLeft(buttonWidth));
+		renameButton->setBounds(buttonArea.removeFromLeft(buttonWidth));
+		deleteButton->setBounds(buttonArea.removeFromLeft(buttonWidth));
+		listArea.removeFromBottom(10);
+	}
+	
 	listbox->setBounds(listArea.reduced(3));
 #endif
 }
@@ -820,7 +819,7 @@ void PresetBrowserColumn::updateButtonVisibility()
 #if !OLD_PRESET_BROWSER
 	editButton->setVisible(false);
 
-	const bool buttonsVisible = !isResultBar && currentRoot.isDirectory();
+	const bool buttonsVisible = showButtonsAtBottom && !isResultBar && currentRoot.isDirectory();
 	const bool fileIsSelected = listbox->getNumSelectedRows() > 0;
 
 	addButton->setVisible(buttonsVisible);
@@ -946,15 +945,21 @@ void MultiColumnPresetBrowser::paint(Graphics& g)
 	g.fillAll(backgroundColour);
 #else
 
-    g.fillAll(Colour(0xFF666666));
-    
-	g.setGradientFill(ColourGradient(backgroundColour.withMultipliedBrightness(1.2f), 0.0f, 0.0f,
-		backgroundColour, 0.0f, (float)getHeight(), false));
+	if (isOpaque())
+	{
 
-	g.fillAll();
+		g.fillAll(Colour(0xFF666666));
+
+		g.setGradientFill(ColourGradient(backgroundColour.withMultipliedBrightness(1.2f), 0.0f, 0.0f,
+			backgroundColour, 0.0f, (float)getHeight(), false));
+
+		g.fillAll();
+	}
 
 	g.setColour(blaf.highlightColour.withAlpha(0.1f));
-	g.fillRoundedRectangle(noteLabel->getBounds().toFloat(), 2.0f);
+
+	if(noteLabel->isVisible())
+		g.fillRoundedRectangle(noteLabel->getBounds().toFloat(), 2.0f);
 
 
 
@@ -1061,8 +1066,12 @@ void MultiColumnPresetBrowser::resized()
 	auto listArea = Rectangle<int>(x, y, getWidth() - 6, getHeight() - y - 3);
 
 #if !OLD_PRESET_BROWSER
-	auto labelArea = listArea.removeFromTop(40);
-	noteLabel->setBounds(labelArea.reduced(3, 5));
+
+	if (noteLabel->isVisible())
+	{
+		auto labelArea = listArea.removeFromTop(40);
+		noteLabel->setBounds(labelArea.reduced(3, 5));
+	}
 
 	if (tagList->isActive())
 		tagList->setBounds(listArea.removeFromTop(30));
@@ -1133,6 +1142,8 @@ void MultiColumnPresetBrowser::setHighlightColourAndFont(Colour c, Colour bgColo
 	noteLabel->setFont(f);
 
 	favoriteButton->setColours(c.withAlpha(0.7f), c.withAlpha(0.5f), c.withAlpha(0.6f));
+
+	setOpaque(bgColour.isOpaque());
 
 	searchBar->setHighlightColourAndFont(c, f);
 	bankColumn->setHighlightColourAndFont(c, f);

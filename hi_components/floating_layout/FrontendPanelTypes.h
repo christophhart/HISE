@@ -399,6 +399,8 @@ public:
 	{
 		ShowFolderButton = (int)FloatingTileContent::PanelPropertyId::numPropertyIds,
 		ShowSaveButton,
+		ShowNotes,
+		ShowEditButtons,
 		numSpecialProperties
 	};
 
@@ -408,6 +410,7 @@ public:
 
 	~PresetBrowserPanel();
 
+	var toDynamicObject() const override;
 	void fromDynamicObject(const var& object) override;
 	bool showTitleInPresentationMode() const override;
 	void resized() override;
@@ -416,6 +419,11 @@ public:
 	var getDefaultProperty(int index) const override;
 
 private:
+
+	bool showSaveButton = true;
+	bool showFolderButton = true;
+	bool showNotes = true;
+	bool showEditButtons = true;
 
 	ScopedPointer<MultiColumnPresetBrowser> presetBrowser;
 };
