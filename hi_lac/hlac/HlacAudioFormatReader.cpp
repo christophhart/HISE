@@ -101,6 +101,7 @@ void HiseLosslessAudioFormatReader::setTargetAudioDataType(AudioDataConverters::
 	internalReader.setTargetAudioDataType(dataType);
 }
 
+
 uint32 HiseLosslessHeader::getOffsetForReadPosition(int64 samplePosition, bool addHeaderOffset)
 {
 	if (samplePosition % COMPRESSION_BLOCK_SIZE == 0)
@@ -187,6 +188,8 @@ bool HlacReaderCommon::internalHlacRead(int** destSamples, int numDestChannels, 
 {
 	ignoreUnused(startSampleInFile);
 	ignoreUnused(numDestChannels);
+
+	decoder.setHlacVersion(header.getVersion());
 
 	bool isStereo = destSamples[1] != nullptr;
 
@@ -277,14 +280,15 @@ bool HlacReaderCommon::fixedBufferRead(HiseSampleBuffer& buffer, int numDestChan
 		decoder.seekToPosition(*input, (uint32)startSampleInFile, byteOffset);
 	}
 
+	decoder.setHlacVersion(header.getVersion());
+
 	if(startOffsetInBuffer == 0)
 		decoder.decode(buffer, isStereo, *input, (int)startSampleInFile, numSamples);
 	else
 	{
 		HiseSampleBuffer offset(buffer, startOffsetInBuffer);
-
 		decoder.decode(offset, isStereo, *input, (int)startSampleInFile, numSamples);
-
+		buffer.copyNormalisationRanges(offset, startOffsetInBuffer);
 	}
 
 	return true;

@@ -101,12 +101,6 @@ struct CompressionHelpers
 		/** If the buffers are not aligned to a 1024 sample boundary, you can set the first range length here in order to synchronise it. */
 		void setOffset(int offsetToUse);
 
-		uint8 getNormalisationAmount(int samplePosition) const;
-
-		uint8 getLowestNormalisationAmount(Range<int> samplePositionRange) const;
-
-
-
 	private:
 
 		friend class HiseSampleBuffer;
@@ -150,6 +144,7 @@ struct CompressionHelpers
 
 		uint8 normalisationMode = Mode::NoNormalisation;
 		int firstOffset = 0;
+
 		uint8 preallocated[16];
 		uint16 numAllocated = 0;
 		HeapBlock<uint8> allocated;
@@ -213,7 +208,11 @@ struct CompressionHelpers
 		NormaliseMap& getMap() { return map; }
 
 		/** Copies the samples from the int buffers and also copies the normalisation tables. */
-		static void copyWithNormalisation(AudioBufferInt16& dst, const AudioBufferInt16& source, int startSampleDst, int StartSampleSrc, int numSamples, bool overwriteTable);
+		static void copyWithNormalisation(AudioBufferInt16& dst, const AudioBufferInt16& source, int startSampleDst, int startSampleSrc, int numSamples, bool overwriteTable)
+		{
+
+			dst.getMap().copyIntBufferWithNormalisation(source.getMap(), source.getReadPointer(), dst.getWritePointer(), startSampleSrc, startSampleDst, numSamples, overwriteTable);
+		}
 
 	private:
 

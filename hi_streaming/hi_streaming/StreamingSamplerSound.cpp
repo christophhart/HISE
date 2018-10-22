@@ -159,6 +159,7 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 
 			fileReader.openFileHandles(dontSendNotification);
 			sampleLength = (int)fileReader.getSampleLength();
+			loopLength = jmin<int>(loopLength, sampleLength);
 		}
 
 		internalPreloadSize = (int)sampleLength;
@@ -525,6 +526,9 @@ float StreamingSamplerSound::calculatePeakValue()
 void StreamingSamplerSound::fillSampleBuffer(hlac::HiseSampleBuffer &sampleBuffer, int samplesToCopy, int uptime) const
 {
 	ScopedLock sl(getSampleLock());
+
+	if (sampleBuffer.getNumSamples() == samplesToCopy)
+		sampleBuffer.clearNormalisation({});
 
 	if (!fileReader.isUsed()) return;
 

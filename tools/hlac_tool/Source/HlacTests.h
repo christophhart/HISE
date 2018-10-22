@@ -96,6 +96,7 @@ struct CodecTest : public UnitTest
 
 private:
 	void testHiseSampleBufferMinNormalisation();
+	void testHiseSampleBufferClearing();
 };
 
 

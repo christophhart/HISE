@@ -36,7 +36,6 @@ void HlacEncoder::compress(AudioSampleBuffer& source, OutputStream& output, uint
 {
 	bool compressStereo = source.getNumChannels() == 2;
 
-#if HLAC_VERSION > 2
 	if (options.normalisationMode == CompressionHelpers::NormaliseMap::Mode::StaticNormalisation)
 	{
 		auto maxLevel = source.getMagnitude(0, source.getNumSamples());
@@ -45,7 +44,6 @@ void HlacEncoder::compress(AudioSampleBuffer& source, OutputStream& output, uint
 	}
 	else
 		currentNormaliseBitShiftAmount = 0;
-#endif
 
 	if (source.getNumSamples() == COMPRESSION_BLOCK_SIZE)
 	{
@@ -187,9 +185,10 @@ bool HlacEncoder::encodeBlock(CompressionHelpers::AudioBufferInt16& block16, Out
 
 bool HlacEncoder::normaliseBlockAndAddHeader(CompressionHelpers::AudioBufferInt16& block16, OutputStream& output)
 {
+#if HLAC_VERSION > 2
 	numBytesWritten += 4;
-
 	return block16.getMap().writeNormalisationHeader(output);
+#endif
 }
 
 MemoryBlock HlacEncoder::createCompressedBlock(CompressionHelpers::AudioBufferInt16& block16)

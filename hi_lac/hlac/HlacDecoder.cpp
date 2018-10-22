@@ -78,14 +78,15 @@ void HlacDecoder::reset()
 
 bool HlacDecoder::decodeBlock(HiseSampleBuffer& destination, bool decodeStereo, InputStream& input, int channelIndex)
 {
-	auto normalizeValues = input.readInt();
-
-	auto& mapToUse = destination.getNormaliseMap(channelIndex);
-
-	mapToUse.setNormalisationValues(readIndex, normalizeValues);
+	if (hlacVersion > 2)
+	{
+		auto normalizeValues = input.readInt();
+		auto& mapToUse = destination.getNormaliseMap(channelIndex);
+		mapToUse.setNormalisationValues(readIndex, normalizeValues);
+	}
 
 	auto checksum = input.readInt();
-
+	
 	if (!CompressionHelpers::Misc::validateChecksum((uint32)checksum))
 	{
 		// Something is wrong here...
@@ -123,7 +124,12 @@ bool HlacDecoder::decodeBlock(HiseSampleBuffer& destination, bool decodeStereo, 
 
 void HlacDecoder::decode(HiseSampleBuffer& destination, bool decodeStereo, InputStream& input, int offsetInSource/*=0*/, int numSamples/*=-1*/)
 {
-	destination.allocateNormalisationTables(offsetInSource);
+	if (hlacVersion > 2)
+	{
+		destination.allocateNormalisationTables(offsetInSource);
+		destination.clearNormalisation({ 0, numSamples });
+	}
+	
 
 #if HLAC_MEASURE_DECODING_PERFORMANCE
 	double start = Time::getMillisecondCounterHiRes();
@@ -158,7 +164,8 @@ void HlacDecoder::decode(HiseSampleBuffer& destination, bool decodeStereo, Input
 
 	readOffset += readIndex;
 
-	destination.flushNormalisationInfo();
+	if(hlacVersion > 2)
+		destination.flushNormalisationInfo({ 0, numSamples });
 
 #if HLAC_MEASURE_DECODING_PERFORMANCE
 	double stop = Time::getMillisecondCounterHiRes();
@@ -291,11 +298,21 @@ void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSam
 
 					jassert(bufferOffset + numThisTime <= destination.getNumSamples());
 
-					destination.getNormaliseMap(channelIndex).normalisedInt16ToFloat(dst, src, bufferOffset, numThisTime);
+					if (hlacVersion > 2)
+						destination.getNormaliseMap(channelIndex).normalisedInt16ToFloat(dst, src, bufferOffset, numThisTime);
+					else
+						CompressionHelpers::fastInt16ToFloat(src, dst, numThisTime);
 				}
 				else
 				{
-					CompressionHelpers::AudioBufferInt16::copyWithNormalisation(destination.getFixedBuffer(channelIndex), srcBuffer, bufferOffset, 0, numThisTime, false);
+					if (hlacVersion > 2)
+						CompressionHelpers::AudioBufferInt16::copyWithNormalisation(destination.getFixedBuffer(channelIndex), srcBuffer, bufferOffset, 0, numThisTime, false);
+					else
+					{
+						auto dst = static_cast<int16*>(destination.getWritePointer(channelIndex, bufferOffset));
+						memcpy(dst, src, sizeof(int16) * numThisTime);
+					}
+					
 				}
 			}
 				
@@ -333,20 +350,27 @@ void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSam
 				{
 					auto dst = static_cast<float*>(destination.getWritePointer(channelIndex, bufferOffset));
 
-					destination.getNormaliseMap(channelIndex).normalisedInt16ToFloat(dst, src + skipToUse, bufferOffset, numThisTime);
-
-					//CompressionHelpers::fastInt16ToFloat(src + skipToUse, dst, numThisTime);
+					if (hlacVersion > 2)
+					{
+						destination.getNormaliseMap(channelIndex).normalisedInt16ToFloat(dst, src + skipToUse, bufferOffset, numThisTime);
+					}
+					else
+					{
+						CompressionHelpers::fastInt16ToFloat(src + skipToUse, dst, numThisTime);
+					}
 				}
 				else
 				{
-					
-					CompressionHelpers::AudioBufferInt16::copyWithNormalisation(destination.getFixedBuffer(channelIndex), srcBuffer, bufferOffset, skipToUse, numThisTime, false);
+					if (hlacVersion > 2)
+					{
+						CompressionHelpers::AudioBufferInt16::copyWithNormalisation(destination.getFixedBuffer(channelIndex), srcBuffer, bufferOffset, skipToUse, numThisTime, false);
+					}
+					else
+					{
+						auto dst = static_cast<int16*>(destination.getWritePointer(channelIndex, bufferOffset));
 
-#if 0
-					auto dst = static_cast<int16*>(destination.getWritePointer(channelIndex, bufferOffset));
-
-					memcpy(dst, src + skipToUse, sizeof(int16) * numThisTime);
-#endif
+						memcpy(dst, src + skipToUse, sizeof(int16) * numThisTime);
+					}
 				}
 			}
 				
