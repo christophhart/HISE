@@ -110,6 +110,8 @@ void HiseSampleBuffer::clear()
 
 		if (hasSecondChannel())
 			hlac::CompressionHelpers::IntVectorOperations::clear(rightIntBuffer.getWritePointer(), rightIntBuffer.size);
+
+		normaliser.clear({});
 	}
 }
 
@@ -126,6 +128,8 @@ void HiseSampleBuffer::clear(int startSample, int numSamples)
 
 		if (hasSecondChannel())
 			hlac::CompressionHelpers::IntVectorOperations::clear(rightIntBuffer.getWritePointer(startSample), numSamples);
+
+		normaliser.clear({startSample, startSample + numSamples});
 	}
 }
 
@@ -179,7 +183,7 @@ void HiseSampleBuffer::flushNormalisationInfo(Range<int> rangeToFlush)
 		numToFlush -= numThisTime;
 		thisIndex += numThisTime;
 
-		if (nextL != lastL || (useOneMap && nextR != lastR))
+		if (nextL != lastL || (!useOneMap && nextR != lastR))
 		{
 			Normaliser::NormalisationInfo newInfo;
 
@@ -235,7 +239,7 @@ hlac::FixedSampleBuffer& HiseSampleBuffer::getFixedBuffer(int channelIndex)
 }
 
 
-void HiseSampleBuffer::convertToFloatWithNormalisation(float** data, int numChannels, int startSampleInSource, int numSamples) const
+void HiseSampleBuffer::convertToFloatWithNormalisation(float** data, int numTargetChannels, int startSampleInSource, int numSamples) const
 {
 	Range<int> rangeInBuffer({ startSampleInSource, startSampleInSource + numSamples });
 
@@ -248,7 +252,7 @@ void HiseSampleBuffer::convertToFloatWithNormalisation(float** data, int numChan
 
 		normaliser.apply(ptr, nullptr, rangeInBuffer);
 
-		if (numChannels == 2)
+		if (numTargetChannels == 2)
 		{
 			FloatVectorOperations::copy(data[1], data[0], numSamples);
 		}
@@ -256,14 +260,14 @@ void HiseSampleBuffer::convertToFloatWithNormalisation(float** data, int numChan
 	else
 	{
 		float* l_ptr = data[0];
-		float* r_ptr = numChannels == 2 ? data[1] : nullptr;
+		float* r_ptr = numTargetChannels == 2 ? data[1] : nullptr;
 
 		auto int_l_ptr = static_cast<const int16*>(getReadPointer(0, startSampleInSource));
 		auto int_r_ptr = static_cast<const int16*>(getReadPointer(1, startSampleInSource));
 		
 		CompressionHelpers::fastInt16ToFloat(int_l_ptr, l_ptr, numSamples);
 		
-		if(numChannels == 2)
+		if(numTargetChannels == 2)
 			CompressionHelpers::fastInt16ToFloat(int_r_ptr, r_ptr, numSamples);
 
 		normaliser.apply(l_ptr, r_ptr, rangeInBuffer);
@@ -471,7 +475,7 @@ const void* HiseSampleBuffer::getReadPointer(int channel, int startSample/*=0*/)
 	}
 	else
 	{
-		if (channel == 0 || numChannels == 1)
+		if (channel == 0 || numChannels == 1 || useOneMap)
 			return leftIntBuffer.getReadPointer(startSample);
 		else if (channel == 1 && hasSecondChannel())
 		{
@@ -539,6 +543,54 @@ void HiseSampleBuffer::minimizeNormalisationInfo()
 	}
 }
 
+void HiseSampleBuffer::Normaliser::clear(Range<int> rangeToClear /*= Range<int>()*/)
+{
+	if (rangeToClear.isEmpty())
+		infos.clearQuick();
+	else
+	{
+		for (int i = 0; i < infos.size(); i++)
+		{
+			auto& info = infos.getReference(i);
+
+			if (rangeToClear.contains(info.range) || rangeToClear == info.range)
+			{
+				infos.remove(i--);
+				continue;
+			}
+			else if (info.range.contains(rangeToClear))
+			{
+				info.range.setEnd(rangeToClear.getStart());
+
+				NormalisationInfo newInfo;
+
+				newInfo.leftNormalisation = info.leftNormalisation;
+				newInfo.rightNormalisation = info.rightNormalisation;
+
+				newInfo.range = { rangeToClear.getEnd(), info.range.getEnd() };
+
+				infos.add(std::move(newInfo));
+			}
+			else if (rangeToClear.contains(info.range.getStart()))
+				info.range.setStart(rangeToClear.getEnd());
+			else if (rangeToClear.contains(info.range.getEnd()))
+				info.range.setEnd(rangeToClear.getStart());
+
+			int x = 5;
+		}
+
+		int x = 5;
+	}
+}
+
+void HiseSampleBuffer::Normaliser::apply(float* dataLWithoutOffset, float* dataRWithoutOffset, Range<int> rangeInData) const
+{
+	for (const auto& i : infos)
+	{
+		i.apply(dataLWithoutOffset, dataRWithoutOffset, rangeInData);
+	}
+}
+
 void HiseSampleBuffer::Normaliser::copyFrom(const Normaliser& source, Range<int> srcRange, Range<int> dstRange)
 {
 	int offset = dstRange.getStart() - srcRange.getStart();
@@ -601,6 +653,45 @@ void HiseSampleBuffer::Normaliser::copyFrom(const Normaliser& source, Range<int>
 			newInfo.range = thisRange + offset;
 
 			infos.add(std::move(newInfo), true);
+		}
+	}
+}
+
+bool HiseSampleBuffer::Normaliser::NormalisationInfo::canBeJoined(const NormalisationInfo& other) const
+{
+	bool normalisationMatches = leftNormalisation == other.leftNormalisation &&
+		rightNormalisation == other.rightNormalisation;
+
+	bool rangeAppendable = other.range.getEnd() == range.getStart() ||
+		other.range.getStart() == range.getEnd();
+
+	return normalisationMatches && rangeAppendable;
+}
+
+void HiseSampleBuffer::Normaliser::NormalisationInfo::join(NormalisationInfo&& other)
+{
+	range = { jmin<int>(range.getStart(), other.range.getStart()),
+			 jmax<int>(range.getEnd(), other.range.getEnd()) };
+}
+
+void HiseSampleBuffer::Normaliser::NormalisationInfo::apply(float* dataLWithoutOffset, float* dataRWithoutOffset, Range<int> rangeInData) const
+{
+	auto intersection = range.getIntersectionWith(rangeInData);
+
+	if (!intersection.isEmpty() && (leftNormalisation + rightNormalisation) != 0)
+	{
+		int l = intersection.getLength();
+
+		const float lGain = 1.0f / (1 << leftNormalisation);
+		const float rGain = 1.0f / (1 << rightNormalisation);
+
+		int offsetInFloatArray = intersection.getStart() - rangeInData.getStart();
+
+		FloatVectorOperations::multiply(dataLWithoutOffset + offsetInFloatArray, lGain, l);
+
+		if (dataRWithoutOffset != nullptr)
+		{
+			FloatVectorOperations::multiply(dataRWithoutOffset + offsetInFloatArray, rGain, l);
 		}
 	}
 }

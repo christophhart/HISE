@@ -180,29 +180,9 @@ public:
 			infos.ensureStorageAllocated(minNumToUse);
 		}
 
-		void clear(Range<int> rangeToClear = Range<int>())
-		{
-			if (rangeToClear.isEmpty())
-				infos.clearQuick();
-			else
-			{
-				for (int i = 0; i < infos.size(); i++)
-				{
-					if (rangeToClear.contains(infos[i].range))
-					{
-						infos.remove(i--);
-					}
-				}
-			}
-		}
+		void clear(Range<int> rangeToClear = Range<int>());
 
-		void apply(float* dataLWithoutOffset, float* dataRWithoutOffset, Range<int> rangeInData) const
-		{
-			for (const auto& i : infos)
-			{
-				i.apply(dataLWithoutOffset, dataRWithoutOffset, rangeInData);
-			}
-		}
+		void apply(float* dataLWithoutOffset, float* dataRWithoutOffset, Range<int> rangeInData) const;
 
 		/** Copies the normalisation ranges from the source than intersect with the given range. */
 		void copyFrom(const Normaliser& source, Range<int> srcRange, Range<int> dstRange);
@@ -213,44 +193,11 @@ public:
 			uint8 rightNormalisation = 0;
 			Range<int> range;
 
-			bool canBeJoined(const NormalisationInfo& other) const
-			{
-				bool normalisationMatches = leftNormalisation == other.leftNormalisation &&
-											rightNormalisation == other.rightNormalisation;
+			bool canBeJoined(const NormalisationInfo& other) const;
 
-				bool rangeAppendable = other.range.getEnd() == range.getStart() ||
-									   other.range.getStart() == range.getEnd();
+			void join(NormalisationInfo&& other);
 
-				return normalisationMatches && rangeAppendable;
-			}
-
-			void join(NormalisationInfo&& other)
-			{
-				range = { jmin<int>(range.getStart(), other.range.getStart()),
-						 jmax<int>(range.getEnd(), other.range.getEnd()) };
-			}
-
-			void apply(float* dataLWithoutOffset, float* dataRWithoutOffset, Range<int> rangeInData) const
-			{
-				auto intersection = range.getIntersectionWith(rangeInData);
-
-				if (!intersection.isEmpty() + (leftNormalisation + rightNormalisation) != 0)
-				{
-					int l = intersection.getLength();
-
-					const float lGain = 1.0f / (1 << leftNormalisation);
-					const float rGain = 1.0f / (1 << leftNormalisation);
-
-					int offsetInFloatArray = intersection.getStart() - rangeInData.getStart();
-
-					FloatVectorOperations::multiply(dataLWithoutOffset + offsetInFloatArray, lGain, l);
-
-					if (dataRWithoutOffset != nullptr)
-					{
-						FloatVectorOperations::multiply(dataRWithoutOffset + offsetInFloatArray, rGain, l);
-					}
-				}
-			}
+			void apply(float* dataLWithoutOffset, float* dataRWithoutOffset, Range<int> rangeInData) const;
 		};
 
 		OptionalDynamicArray<NormalisationInfo, 16> infos;

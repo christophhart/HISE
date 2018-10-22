@@ -198,6 +198,8 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 		const int indexBeforeWrap = jmax<int>(0, (int)(readIndexDouble));
 		const int numSamplesInFirstBuffer = localReadBuffer->getNumSamples() - indexBeforeWrap;
 
+		voiceBuffer.setUseOneMap(localReadBuffer->useOneMap);
+
 		jassert(numSamplesInFirstBuffer >= 0);
 
 		dummy++;
@@ -209,6 +211,8 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 		voiceBuffer.clearNormalisation({});
 
 		voiceBuffer.getNormaliseMap(0).setOffset(existingOffset + offsetInBuffer);
+
+		
 
 		if(!localReadBuffer->useOneMap)
 			voiceBuffer.getNormaliseMap(1).setOffset(localReadBuffer->getNormaliseMap(1).getOffset());
@@ -744,7 +748,7 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 				}
 				else
 				{
-					data.b->convertToFloatWithNormalisation(d, data.b->getNumChannels(), data.offsetInBuffer, numSamplesThisTime);
+					data.b->convertToFloatWithNormalisation(d, 1, data.offsetInBuffer, numSamplesThisTime);
 
 					interpolateMonoSamples<float, true>(inL_f, nullptr, pitchData, outL, nullptr, startSample, indexInBuffer, uptimeDelta, numSamples);
 
