@@ -121,6 +121,8 @@ void StreamingSamplerSound::setBasicMappingData(const StreamingHelpers::BasicMap
 
 void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 {
+	
+
 	if (reversed)
 	{
 		return;
@@ -151,6 +153,15 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 
 	if (newPreloadSize == -1 || (preloadSize + sampleStartMod) > sampleLength)
 	{
+		if (sampleLength == MAX_SAMPLE_NUMBER)
+		{
+			// this hasn't been initialised, so we need to do it here...
+
+			fileReader.openFileHandles(dontSendNotification);
+			sampleLength = (int)fileReader.getSampleLength();
+			loopLength = jmin<int>(loopLength, sampleLength);
+		}
+
 		internalPreloadSize = (int)sampleLength;
 		entireSampleLoaded = true;
 	}
@@ -183,6 +194,7 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 	}
 
 	preloadBuffer.clear();
+	preloadBuffer.allocateNormalisationTables(sampleStart);
 
 	if (sampleRate <= 0.0)
 	{
@@ -514,6 +526,9 @@ float StreamingSamplerSound::calculatePeakValue()
 void StreamingSamplerSound::fillSampleBuffer(hlac::HiseSampleBuffer &sampleBuffer, int samplesToCopy, int uptime) const
 {
 	ScopedLock sl(getSampleLock());
+
+	if (sampleBuffer.getNumSamples() == samplesToCopy)
+		sampleBuffer.clearNormalisation({});
 
 	if (!fileReader.isUsed()) return;
 

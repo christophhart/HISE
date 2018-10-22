@@ -2955,7 +2955,8 @@ void ScriptingApi::Content::ScriptPanel::setImage(String imageName, int xOffset,
 
 	auto b = getPosition().withPosition(0, 0);
 		
-	int w, h;
+	int w = 0;
+	int h = 0;
 
 	if (xOffset == 0)
 	{
@@ -2978,13 +2979,9 @@ void ScriptingApi::Content::ScriptPanel::setImage(String imageName, int xOffset,
 
 	auto img = toUse.getClippedImage(Rectangle<int>(0, yOffset, w, h));
 
-	auto scaleFactor = (float)b.getWidth() / (float)w;
-
 	if (auto drawHandler = getDrawActionHandler())
 	{
 		drawHandler->beginDrawing();
-		
-
 		drawHandler->addDrawAction(new ScriptedDrawActions::drawImageWithin(img, b.toFloat()));
 		drawHandler->flush();
 	}

@@ -253,16 +253,16 @@ void GlobalModulatorContainer::refreshList()
 
 	voiceStartData.clearQuick();
 	
-	auto handler = dynamic_cast<ModulatorChain::ModulatorChainHandler*>(gainChain->getHandler());
+	auto handler_ = dynamic_cast<ModulatorChain::ModulatorChainHandler*>(gainChain->getHandler());
 
-	for (auto& mod : handler->activeVoiceStartList)
+	for (auto& mod : handler_->activeVoiceStartList)
 	{
 		voiceStartData.add(VoiceStartData(mod));
 	}
 
 	timeVariantData.clearQuick();
 
-	for (auto& mod : handler->activeTimeVariantsList)
+	for (auto& mod : handler_->activeTimeVariantsList)
 	{
 		timeVariantData.add(TimeVariantData(mod, getLargestBlockSize()));
 		//mod->deactivateIntensitySmoothing();

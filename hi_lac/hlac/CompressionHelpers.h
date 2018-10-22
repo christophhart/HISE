@@ -1,32 +1,34 @@
-/*  HISE Lossless Audio Codec
-*	�2017 Christoph Hart
-*
-*	Redistribution and use in source and binary forms, with or without modification,
-*	are permitted provided that the following conditions are met:
-*
-*	1. Redistributions of source code must retain the above copyright notice,
-*	   this list of conditions and the following disclaimer.
-*
-*	2. Redistributions in binary form must reproduce the above copyright notice,
-*	   this list of conditions and the following disclaimer in the documentation
-*	   and/or other materials provided with the distribution.
-*
-*	3. All advertising materials mentioning features or use of this software must
-*	   display the following acknowledgement:
-*	   This product includes software developed by Hart Instruments
-*
-*	4. Neither the name of the copyright holder nor the names of its contributors may be used
-*	   to endorse or promote products derived from this software without specific prior written permission.
-*
-*	THIS SOFTWARE IS PROVIDED BY CHRISTOPH HART "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING,
-*	BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-*	DISCLAIMED. IN NO EVENT SHALL COPYRIGHT HOLDER BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-*	SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
-*	GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-*	THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-*	ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*
-*/
+/*  ===========================================================================
+ *
+ *   This file is part of HISE.
+ *   Copyright 2016 Christoph Hart
+ *
+ *   HISE is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation, either version 3 of the License, or
+ *   (at your option) any later version.
+ *
+ *   HISE is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *   Commercial licenses for using HISE in an closed source project are
+ *   available on request. Please visit the project's website to get more
+ *   information about commercial licensing:
+ *
+ *   http://www.hise.audio/
+ *
+ *   HISE is based on the JUCE library,
+ *   which must be separately licensed for closed source applications:
+ *
+ *   http://www.juce.com
+ *
+ *   ===========================================================================
+ */
 
 
 #ifndef COMPRESSIONHELPERS_H_INCLUDED
@@ -47,6 +49,113 @@ class HiseSampleBuffer;
 struct CompressionHelpers
 {
 
+	/** This structure will hold the information about the normalization amount needed to be applied to the 16 bit signal. */
+	struct NormaliseMap
+	{
+		enum Mode
+		{
+			NoNormalisation = 0,
+			StaticNormalisation,
+			RangeBasedNormalisation,
+			numModes
+		};
+
+		NormaliseMap()
+		{
+			memset(preallocated, 0, 16);
+		}
+
+		void normalisedInt16ToFloat(float* destination, const int16* src, int start, int numSamples) const;
+
+		/** You can use a fixed amount of normalisation instead of splitting it into chunks of 1024 samples.
+		*
+		*	Doing so will create a compromise between file size and audio quality.
+		*/
+		void setUseStaticNormalisation(uint8 staticNormalisationAmount);
+
+		bool writeNormalisationHeader(OutputStream& output);
+
+		void setMode(uint8 newMode)
+		{
+			normalisationMode = newMode;
+			active = newMode > 0;
+		}
+
+		/** Sets 4 values at once. Used by the HLAC decoder. */
+		void setNormalisationValues(int readOffset, int normalisedValues);
+
+		/** This applies normalisation. */
+		void normalise(const float* src, int16* dst, int numSamples);
+
+		void allocateTableIndexes(int numSamples);
+
+		void copyNormalisationTable(NormaliseMap& dst, int startSampleSource, int startSampleDst, int numSamples) const;
+
+		void copyIntBufferWithNormalisation(const NormaliseMap& srcMap, const int16* srcWithoutOffset, int16* dstWithoutOffset, int startSampleSource, int startSampleDst, int numSamples, bool overwriteTable);
+
+		int getOffset() const { return firstOffset; }
+
+		/** If the buffers are not aligned to a 1024 sample boundary, you can set the first range length here in order to synchronise it. */
+		void setOffset(int offsetToUse);
+
+		void setThreshold(uint8 newThreshhold)
+		{
+			minNormalisation = newThreshhold;
+		}
+
+	private:
+
+		uint8 minNormalisation = 0;
+
+		friend class HiseSampleBuffer;
+
+		int16 size() const;
+
+		void internalNormalisation(const float* src, int16* dst, int numSamples, uint8 amount) const;
+
+		const uint16 getIndexForSamplePosition(int samplePosition, bool roundUp=false) const
+		{
+			if (roundUp)
+			{
+				auto value = std::ceilf((float)samplePosition / (float)normaliseBlockSize);
+				return (uint16)roundToInt(value);
+			}
+			else
+			{
+				return (uint16)((samplePosition) / normaliseBlockSize);
+			}
+
+			
+		}
+
+		const uint8 * getTableData() const
+		{
+			if (allocated != nullptr)
+				return allocated;
+			else
+				return preallocated;
+		}
+
+		uint8 * getTableData()
+		{
+			if (allocated != nullptr)
+				return allocated;
+			else
+				return preallocated;
+		}
+
+		static constexpr int normaliseBlockSize = 1024;
+
+		uint8 normalisationMode = Mode::NoNormalisation;
+		int firstOffset = 0;
+
+		uint8 preallocated[16];
+		uint16 numAllocated = 0;
+		HeapBlock<uint8> allocated;
+		bool active = false;
+	};
+
+
 	/** A normalized 16 bit integer buffer
 	*
 	*	The conversion between AudioSampleBuffers and this type will normalize the float values to retain the full 16bit range.
@@ -54,12 +163,10 @@ struct CompressionHelpers
 	*/
 	struct AudioBufferInt16
 	{
-		AudioBufferInt16(AudioSampleBuffer& b, int channelToUse, bool normalizeBeforeStoring);
+		AudioBufferInt16(AudioSampleBuffer& b, int channelToUse, uint8 normalisationMode, uint8 normalisationThreshold=0);
 		AudioBufferInt16(int16* externalData_, int numSamples);
 		AudioBufferInt16(const int16* externalData_, int numSamples);
 		AudioBufferInt16(int size_=0);
-
-		
 
 		AudioBufferInt16(AudioBufferInt16&& other)
 		{
@@ -70,11 +177,9 @@ struct CompressionHelpers
 
 			other.data = nullptr;
 
-			gainFactor = other.gainFactor;
 			isReadOnly = other.isReadOnly;
 			externalData = other.externalData;
-
-
+			map = std::move(other.map);
 		}
 
 		AudioBufferInt16& operator= (AudioBufferInt16&& other)
@@ -84,28 +189,34 @@ struct CompressionHelpers
 			size = other.size;
 			data = other.data;
 			other.data = nullptr;
-			gainFactor = other.gainFactor;
 			isReadOnly = other.isReadOnly;
 			externalData = other.externalData;
+			map = std::move(other.map);
 
 			return *this;
 		}
 
 		~AudioBufferInt16();;
-
 		AudioSampleBuffer getFloatBuffer() const;
 
 		void reverse(int startSample, int numSamples);
-
 		void negate();
-
 		void applyGainRamp(int startOffset, int rampLength, float startGain, float endGain);
 
 		int16* getWritePointer(int startSample = 0);
 		const int16* getReadPointer(int startSample = 0) const;
 
 		int size = 0;
-		float gainFactor = 1.0f;
+
+		const NormaliseMap& getMap() const { return map; }
+		NormaliseMap& getMap() { return map; }
+
+		/** Copies the samples from the int buffers and also copies the normalisation tables. */
+		static void copyWithNormalisation(AudioBufferInt16& dst, const AudioBufferInt16& source, int startSampleDst, int startSampleSrc, int numSamples, bool overwriteTable)
+		{
+
+			dst.getMap().copyIntBufferWithNormalisation(source.getMap(), source.getReadPointer(), dst.getWritePointer(), startSampleSrc, startSampleDst, numSamples, overwriteTable);
+		}
 
 	private:
 
@@ -114,8 +225,9 @@ struct CompressionHelpers
 
 		bool isReadOnly = false;
 		int16* data = nullptr;
-
 		int16* externalData = nullptr;
+
+		NormaliseMap map;
 	};
 
 	/** Loads a file into a AudioSampleBuffer. */
@@ -160,6 +272,8 @@ struct CompressionHelpers
 	*	Don't use this directly, but use getCycleLengthWithLowestBitrate() instead. */
 	static uint8 getBitrateForCycleLength(const AudioBufferInt16& block, int cycleLength, AudioBufferInt16& workBuffer);
 
+	static void normaliseBlock(int16* data, int numSamples, int normalisationAmount, int direction, bool applyDither=false);
+
 	/** Get the cycle length the yields the lowest bit rate for the next cycle and store the bitrate in bitRate. */
 	static int getCycleLengthWithLowestBitRate(const AudioBufferInt16& block, int& bitRate, AudioBufferInt16& workBuffer);
 
@@ -194,6 +308,8 @@ struct CompressionHelpers
 	static void dump(const AudioSampleBuffer& b, String fileName = String());
 
 	static void fastInt16ToFloat(const void* source, float* destination, int numSamples);
+
+	static void applyDithering(float* data, int numSamples);
 
 	struct Diff
 	{

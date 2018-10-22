@@ -2435,7 +2435,7 @@ void ScriptingObjects::GraphicsObject::drawImage(String imageName, var area, int
         {
             const double scaleFactor = (double)img.getWidth() / (double)r.getWidth();
             
-			drawActionHandler.addDrawAction(new ScriptedDrawActions::drawImage(img, r, scaleFactor, yOffset));
+			drawActionHandler.addDrawAction(new ScriptedDrawActions::drawImage(img, r, (float)scaleFactor, yOffset));
         }        
 	}
 	else

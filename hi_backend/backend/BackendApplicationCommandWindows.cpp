@@ -805,7 +805,6 @@ public:
 		bpe(bpe_),
 		chain(bpe_->getMainSynthChain())
 	{
-
 		sampler = dynamic_cast<ModulatorSampler*>(ProcessorHelpers::getFirstProcessorWithName(chain, "Sampler"));
 		sampleFolder = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::Samples);
 
@@ -842,6 +841,21 @@ public:
 		sa.add("Low file size (recommended)");
 
 		addComboBox("compressionOptions", sa, "HLAC Compression options");
+
+		StringArray sa2;
+
+		sa.add("No normalisation");
+		sa.add("Normalise every sample");
+		sa.add("Full Dynamics");
+
+		addComboBox("normalise", sa2, "Normalization");
+
+		StringArray sa3;
+		
+		sa.add("No");
+		sa.add("Yes");
+
+		addComboBox("dithering", sa3, "Dithering");
 
 		addBasicComponents(true);
 	};
@@ -1425,7 +1439,8 @@ struct DeviceTypeSanityCheck : public DialogWindowWithBackgroundThread,
 
 		auto testIndex = getComboBoxComponent("tests")->getSelectedItemIndex();
 		auto index = getComboBoxComponent("targets")->getSelectedItemIndex();
-		CompileExporter::BuildOption option;
+
+		CompileExporter::BuildOption option = CompileExporter::BuildOption::Cancelled;
 
 		if (index == 0) option = CompileExporter::BuildOption::StandaloneiPad;
 		if (index == 1) option = CompileExporter::BuildOption::StandaloneiPhone;

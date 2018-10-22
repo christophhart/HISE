@@ -1,4 +1,3 @@
-
 /*  ===========================================================================
 *
 *   This file is part of HISE.
@@ -42,6 +41,7 @@ HiseSampleBuffer::HiseSampleBuffer(HiseSampleBuffer& otherBuffer, int offset)
 	else
 	{
 		size = otherBuffer.size - offset;
+		useOneMap = otherBuffer.useOneMap;
 
 		leftIntBuffer = hlac::CompressionHelpers::getPart(otherBuffer.leftIntBuffer, offset, size);
 
@@ -51,6 +51,7 @@ HiseSampleBuffer::HiseSampleBuffer(HiseSampleBuffer& otherBuffer, int offset)
 			rightIntBuffer = hlac::CompressionHelpers::getPart(otherBuffer.rightIntBuffer, offset, size);
 	}
 }
+
 
 void HiseSampleBuffer::reverse(int startSample, int numSamples)
 {
@@ -109,6 +110,8 @@ void HiseSampleBuffer::clear()
 
 		if (hasSecondChannel())
 			hlac::CompressionHelpers::IntVectorOperations::clear(rightIntBuffer.getWritePointer(), rightIntBuffer.size);
+
+		normaliser.clear({});
 	}
 }
 
@@ -125,8 +128,185 @@ void HiseSampleBuffer::clear(int startSample, int numSamples)
 
 		if (hasSecondChannel())
 			hlac::CompressionHelpers::IntVectorOperations::clear(rightIntBuffer.getWritePointer(startSample), numSamples);
+
+		normaliser.clear({startSample, startSample + numSamples});
 	}
 }
+
+
+void HiseSampleBuffer::allocateNormalisationTables(int offsetToUse)
+{
+	leftIntBuffer.getMap().setOffset(offsetToUse);
+	leftIntBuffer.getMap().allocateTableIndexes(size + leftIntBuffer.getMap().getOffset());
+
+	if (hasSecondChannel())
+	{
+		rightIntBuffer.getMap().setOffset(offsetToUse);
+		rightIntBuffer.getMap().allocateTableIndexes(size + rightIntBuffer.getMap().getOffset());
+	}
+
+	normaliser.allocate(size);
+}
+
+
+void HiseSampleBuffer::flushNormalisationInfo(Range<int> rangeToFlush)
+{
+	//DBG("-- FLUSHING {" + String(rangeToFlush.getStart()) + ", " + String(rangeToFlush.getEnd()) + "}");
+
+	auto& lMap = getNormaliseMap(0);
+	auto& rMap = getNormaliseMap(useOneMap ? 0 : 1);
+
+	auto offset = getNormaliseMap(0).getOffset();
+
+	int numToFlush = jmin<int>(size, rangeToFlush.getLength());
+
+	uint8 lastL = 128;
+	uint8 lastR = 128;
+
+	int currentStart = 0;
+	int currentEnd = 0;
+
+	int thisIndex = offset;
+
+	while (numToFlush > 0)
+	{
+		int numThisTime = jmin<int>(numToFlush, 1024 - (thisIndex % 1024));
+
+		//DBG("--- READING " + String(numThisTime) + " / " + String(numToFlush) + " at " + String(thisIndex));
+
+		auto pos = lMap.getIndexForSamplePosition(thisIndex);
+
+		uint8 nextL = lMap.getTableData()[pos];
+		uint8 nextR = rMap.getTableData()[pos];
+
+		currentEnd += numThisTime;
+		numToFlush -= numThisTime;
+		thisIndex += numThisTime;
+
+		if (nextL != lastL || (!useOneMap && nextR != lastR))
+		{
+			Normaliser::NormalisationInfo newInfo;
+
+			newInfo.leftNormalisation = nextL;
+			newInfo.rightNormalisation = useOneMap ? 0 : nextR;
+			newInfo.range = rangeToFlush.getIntersectionWith({ currentStart, currentEnd });
+
+			newInfo.range = newInfo.range;
+
+			//DBG("---- ADDING RANGE (" + String(nextL) + ") {" + String(newInfo.range.getStart()) + ", " + String(newInfo.range.getEnd()) + "}");
+
+			if (!newInfo.range.isEmpty())
+				normaliser.infos.add(std::move(newInfo), true);
+
+			lastL = nextL;
+			lastR = nextR;
+
+			currentStart = currentEnd;
+		}
+		else
+		{
+			auto* lastElement = normaliser.infos.end() - 1;
+			lastElement->range.setEnd(currentEnd);
+
+			//DBG("---- EXTENDING RANGE (" + String(nextL) + ") {" + String(lastElement.range.getStart()) + ", " + String(lastElement.range.getEnd()) + "}");
+
+			currentStart = currentEnd;
+		}
+	}
+
+	for (int i = 0; i < normaliser.infos.size(); i++)
+	{
+		const auto& info = normaliser.infos[i];
+
+		if (info.leftNormalisation == 0 && (useOneMap || info.rightNormalisation == 0))
+			normaliser.infos.remove(i--);
+	}
+}
+
+hlac::FixedSampleBuffer& HiseSampleBuffer::getFixedBuffer(int channelIndex)
+{
+	jassert(!isFloatingPoint());
+
+	if (channelIndex == 0)
+	{
+		return leftIntBuffer;
+	}
+	else
+	{
+		jassert(hasSecondChannel());
+		return rightIntBuffer;
+	}
+}
+
+
+void HiseSampleBuffer::convertToFloatWithNormalisation(float** data, int numTargetChannels, int startSampleInSource, int numSamples) const
+{
+	Range<int> rangeInBuffer({ startSampleInSource, startSampleInSource + numSamples });
+
+	if (useOneMap)
+	{
+		float* ptr = data[0];
+		auto int_ptr = static_cast<const int16*>(getReadPointer(0, startSampleInSource));
+
+		CompressionHelpers::fastInt16ToFloat(int_ptr, ptr, numSamples);
+
+		normaliser.apply(ptr, nullptr, rangeInBuffer);
+
+		if (numTargetChannels == 2)
+		{
+			FloatVectorOperations::copy(data[1], data[0], numSamples);
+		}
+	}
+	else
+	{
+		float* l_ptr = data[0];
+		float* r_ptr = numTargetChannels == 2 ? data[1] : nullptr;
+
+		auto int_l_ptr = static_cast<const int16*>(getReadPointer(0, startSampleInSource));
+		auto int_r_ptr = static_cast<const int16*>(getReadPointer(1, startSampleInSource));
+		
+		CompressionHelpers::fastInt16ToFloat(int_l_ptr, l_ptr, numSamples);
+		
+		if(numTargetChannels == 2)
+			CompressionHelpers::fastInt16ToFloat(int_r_ptr, r_ptr, numSamples);
+
+		normaliser.apply(l_ptr, r_ptr, rangeInBuffer);
+	}
+}
+
+
+void HiseSampleBuffer::clearNormalisation(Range<int> r)
+{
+	if (r.getStart() == 0 && r.getLength() == size)
+		normaliser.clear();
+	else
+		normaliser.clear(r);
+}
+
+
+bool HiseSampleBuffer::usesNormalisation() const noexcept
+{
+	return normaliser.infos.size() != 0;
+}
+
+void HiseSampleBuffer::copyNormalisationRanges(const HiseSampleBuffer& otherBuffer, int startOffsetInBuffer)
+{
+	Range<int> rangeToClear({ startOffsetInBuffer, startOffsetInBuffer + otherBuffer.size });
+
+	clearNormalisation(rangeToClear);
+
+	for (const auto& i : otherBuffer.normaliser.infos)
+	{
+		Normaliser::NormalisationInfo i_copy(i);
+
+		i_copy.range = i_copy.range + startOffsetInBuffer;
+
+		normaliser.infos.add(std::move(i_copy), true);
+	}
+
+}
+
+static int dummy = 0;
 
 void HiseSampleBuffer::copy(HiseSampleBuffer& dst, const HiseSampleBuffer& source, int startSampleDst, int startSampleSource, int numSamples)
 {
@@ -135,16 +315,78 @@ void HiseSampleBuffer::copy(HiseSampleBuffer& dst, const HiseSampleBuffer& sourc
 
 	if (source.isFloatingPoint() == dst.isFloatingPoint())
 	{
-		auto byteToCopy = (source.isFloatingPoint() ? sizeof(float) : sizeof(int16)) * numSamples;
-
-		memcpy(dst.getWritePointer(0, startSampleDst), source.getReadPointer(0, startSampleSource), byteToCopy);
-
-		if (dst.hasSecondChannel())
+		if (source.isFloatingPoint())
 		{
-			if (source.hasSecondChannel())
-				memcpy(dst.getWritePointer(1, startSampleDst), source.getReadPointer(1, startSampleSource), byteToCopy);
+			auto byteToCopy = sizeof(float) * numSamples;
+
+			memcpy(dst.getWritePointer(0, startSampleDst), source.getReadPointer(0, startSampleSource), byteToCopy);
+
+			if (dst.hasSecondChannel())
+			{
+				if (source.hasSecondChannel())
+					memcpy(dst.getWritePointer(1, startSampleDst), source.getReadPointer(1, startSampleSource), byteToCopy);
+				else
+					memcpy(dst.getWritePointer(1, startSampleDst), source.getReadPointer(0, startSampleSource), byteToCopy);
+			}
+		}
+		else
+		{
+			auto byteToCopy = sizeof(int16) * numSamples;
+
+			memcpy(dst.getWritePointer(0, startSampleDst), source.getReadPointer(0, startSampleSource), byteToCopy);
+
+			if (dst.hasSecondChannel())
+			{
+				if (source.hasSecondChannel())
+					memcpy(dst.getWritePointer(1, startSampleDst), source.getReadPointer(1, startSampleSource), byteToCopy);
+				else
+					memcpy(dst.getWritePointer(1, startSampleDst), source.getReadPointer(0, startSampleSource), byteToCopy);
+			}
+
+			Range<int> srcRange({ startSampleSource, startSampleSource + numSamples });
+			Range<int> dstRange({ startSampleDst, startSampleDst + numSamples });
+
+			dst.normaliser.copyFrom(source.normaliser, srcRange, dstRange);
+
+			
+
+#if 0
+
+			auto o1 = (dst.getNormaliseMap(0).getOffset() + startSampleDst) % COMPRESSION_BLOCK_SIZE;
+			auto o2 = (source.getNormaliseMap(0).getOffset() + startSampleSource) % COMPRESSION_BLOCK_SIZE;
+
+			
+
+			dst.setUseOneMap(source.useOneMap);
+				
+			if ((o1 == o2))
+			{
+				dst.getNormaliseMap(0).copyIntBufferWithNormalisation(source.getNormaliseMap(0), (const int16*)source.getReadPointer(0), (int16*)dst.getWritePointer(0, 0), startSampleSource, startSampleDst, numSamples, true);
+
+				if (dst.hasSecondChannel() && !dst.useOneMap)
+				{
+					dst.getNormaliseMap(1).copyIntBufferWithNormalisation(source.getNormaliseMap(1), (const int16*)source.getReadPointer(1), (int16*)dst.getWritePointer(1, 0), startSampleSource, startSampleDst, numSamples, true);
+				}
+
+				dummy++;
+
+				//AudioThreadGuard::Suspender ss;
+				//CompressionHelpers::dump(dst.getFixedBuffer(0), "Merge" + String(dummy) + ".wav");
+
+			}
 			else
-				memcpy(dst.getWritePointer(1, startSampleDst), source.getReadPointer(0, startSampleSource), byteToCopy);
+			{
+				equaliseNormalisationAndCopy(dst, source, startSampleDst, startSampleSource, numSamples, 0);
+
+				if (dst.hasSecondChannel())
+				{
+					equaliseNormalisationAndCopy(dst, source, startSampleDst, startSampleSource, numSamples, 1);
+					
+
+				}
+			}
+#endif
+			
 		}
 	}
 	else
@@ -229,11 +471,11 @@ const void* HiseSampleBuffer::getReadPointer(int channel, int startSample/*=0*/)
 {
 	if (isFloatingPoint())
 	{
-		return floatBuffer.getReadPointer(channel, startSample);
+		return floatBuffer.getReadPointer(channel % numChannels, startSample);
 	}
 	else
 	{
-		if (channel == 0)
+		if (channel == 0 || numChannels == 1 || useOneMap)
 			return leftIntBuffer.getReadPointer(startSample);
 		else if (channel == 1 && hasSecondChannel())
 		{
@@ -268,6 +510,190 @@ AudioSampleBuffer* HiseSampleBuffer::getFloatBufferForFileReader()
 	jassert(isFloatingPoint());
 
 	return &floatBuffer;
+}
+
+const hlac::CompressionHelpers::NormaliseMap& HiseSampleBuffer::getNormaliseMap(int channelIndex) const
+{
+	return (channelIndex == 0) ? leftIntBuffer.getMap() : rightIntBuffer.getMap();
+}
+
+hlac::CompressionHelpers::NormaliseMap& HiseSampleBuffer::getNormaliseMap(int channelIndex)
+{
+	return (channelIndex == 0) ? leftIntBuffer.getMap() : rightIntBuffer.getMap();
+}
+
+
+void HiseSampleBuffer::minimizeNormalisationInfo()
+{
+	for (int i = 0; i < normaliser.infos.size()-1; i++)
+	{
+		auto& ci = normaliser.infos.getReference(i);
+		const auto& ni = normaliser.infos[i + 1];
+
+		const bool levelMatch = ci.leftNormalisation == ni.leftNormalisation && (useOneMap || ci.leftNormalisation == ci.rightNormalisation);
+
+		const bool neighbours = ci.range.getEnd() == ni.range.getStart();
+
+		if (levelMatch && neighbours)
+		{
+			ci.range.setEnd(ni.range.getEnd());
+			normaliser.infos.remove(i + 1);
+			i--;
+		}
+	}
+}
+
+void HiseSampleBuffer::Normaliser::clear(Range<int> rangeToClear /*= Range<int>()*/)
+{
+	if (rangeToClear.isEmpty())
+		infos.clearQuick();
+	else
+	{
+		for (int i = 0; i < infos.size(); i++)
+		{
+			auto& info = infos.getReference(i);
+
+			if (rangeToClear.contains(info.range) || rangeToClear == info.range)
+			{
+				infos.remove(i--);
+				continue;
+			}
+			else if (info.range.contains(rangeToClear))
+			{
+				info.range.setEnd(rangeToClear.getStart());
+
+				NormalisationInfo newInfo;
+
+				newInfo.leftNormalisation = info.leftNormalisation;
+				newInfo.rightNormalisation = info.rightNormalisation;
+
+				newInfo.range = { rangeToClear.getEnd(), info.range.getEnd() };
+
+				infos.add(std::move(newInfo));
+			}
+			else if (rangeToClear.contains(info.range.getStart()))
+				info.range.setStart(rangeToClear.getEnd());
+			else if (rangeToClear.contains(info.range.getEnd()))
+				info.range.setEnd(rangeToClear.getStart());
+
+			int x = 5;
+		}
+
+		int x = 5;
+	}
+}
+
+void HiseSampleBuffer::Normaliser::apply(float* dataLWithoutOffset, float* dataRWithoutOffset, Range<int> rangeInData) const
+{
+	for (const auto& i : infos)
+	{
+		i.apply(dataLWithoutOffset, dataRWithoutOffset, rangeInData);
+	}
+}
+
+void HiseSampleBuffer::Normaliser::copyFrom(const Normaliser& source, Range<int> srcRange, Range<int> dstRange)
+{
+	int offset = dstRange.getStart() - srcRange.getStart();
+	
+
+	for (auto& i : infos)
+	{
+		if (i.range.intersects(dstRange))
+		{
+			// This range needs to be cut by the dstRange amount.
+			if (dstRange.contains(i.range))
+			{
+				// will be deleted later
+				i.leftNormalisation = 0;
+				i.rightNormalisation = 0;
+			}
+			else if (i.range.contains(dstRange))
+			{
+				if (i.leftNormalisation == 0 && i.rightNormalisation == 0)
+					continue;
+				else
+				{
+					i.range.setEnd(dstRange.getStart());
+
+					NormalisationInfo newRange;
+					newRange.leftNormalisation = i.leftNormalisation;
+					newRange.rightNormalisation = i.rightNormalisation;
+
+					newRange.range.setStart(dstRange.getEnd());
+					newRange.range.setEnd(i.range.getEnd());
+
+					infos.add(std::move(newRange), true);
+				}
+			}
+			else if (dstRange.contains(i.range.getStart() - 1))
+			{
+				i.range.setStart(dstRange.getEnd());
+			}
+			else if (dstRange.contains(i.range.getEnd() - 1))
+			{
+				i.range.setEnd(dstRange.getStart());
+			}
+			else
+				jassertfalse;
+		}
+	}
+
+	for (const auto& i : source.infos)
+	{
+		if (i.leftNormalisation == 0 && i.rightNormalisation == 0)
+			continue;
+
+		auto thisRange = srcRange.getIntersectionWith(i.range);
+
+		if (!thisRange.isEmpty())
+		{
+			NormalisationInfo newInfo;
+			newInfo.leftNormalisation = i.leftNormalisation;
+			newInfo.rightNormalisation = i.rightNormalisation;
+			newInfo.range = thisRange + offset;
+
+			infos.add(std::move(newInfo), true);
+		}
+	}
+}
+
+bool HiseSampleBuffer::Normaliser::NormalisationInfo::canBeJoined(const NormalisationInfo& other) const
+{
+	bool normalisationMatches = leftNormalisation == other.leftNormalisation &&
+		rightNormalisation == other.rightNormalisation;
+
+	bool rangeAppendable = other.range.getEnd() == range.getStart() ||
+		other.range.getStart() == range.getEnd();
+
+	return normalisationMatches && rangeAppendable;
+}
+
+void HiseSampleBuffer::Normaliser::NormalisationInfo::join(NormalisationInfo&& other)
+{
+	range = { jmin<int>(range.getStart(), other.range.getStart()),
+			 jmax<int>(range.getEnd(), other.range.getEnd()) };
+}
+
+void HiseSampleBuffer::Normaliser::NormalisationInfo::apply(float* dataLWithoutOffset, float* dataRWithoutOffset, Range<int> rangeInData) const
+{
+	auto intersection = range.getIntersectionWith(rangeInData);
+
+	if (!intersection.isEmpty() && (leftNormalisation + rightNormalisation) != 0)
+	{
+		int l = intersection.getLength();
+
+		const float lGain = 1.0f / (1 << leftNormalisation);
+		const float rGain = 1.0f / (1 << rightNormalisation);
+
+		int offsetInFloatArray = intersection.getStart() - rangeInData.getStart();
+
+		FloatVectorOperations::multiply(dataLWithoutOffset + offsetInFloatArray, lGain, l);
+
+		if (dataRWithoutOffset != nullptr)
+		{
+			FloatVectorOperations::multiply(dataRWithoutOffset + offsetInFloatArray, rGain, l);
+		}
+	}
 }
 
 } // namespace hlac

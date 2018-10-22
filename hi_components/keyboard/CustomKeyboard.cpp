@@ -129,7 +129,7 @@ void CustomKeyboardLookAndFeel::drawWhiteNote(CustomKeyboardState* state, int mi
 		g.fillRect(x, y, w, 8);
 
 		g.setColour(Colour(BACKEND_BG_COLOUR_BRIGHT));
-		g.drawLine(x, y, x + w, y, 2);
+		g.drawLine((float)x, (float)y, (float)(x + w), (float)y, 2.0f);
 
 		if (state->isColourDefinedForKey(midiNoteNumber))
 		{

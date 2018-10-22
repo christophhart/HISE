@@ -1,31 +1,33 @@
-/*  HISE Lossless Audio Codec
-*	�2017 Christoph Hart
+/*  ===========================================================================
 *
-*	Redistribution and use in source and binary forms, with or without modification, 
-*	are permitted provided that the following conditions are met:
+*   This file is part of HISE.
+*   Copyright 2016 Christoph Hart
 *
-*	1. Redistributions of source code must retain the above copyright notice, 
-*	   this list of conditions and the following disclaimer.
+*   HISE is free software: you can redistribute it and/or modify
+*   it under the terms of the GNU General Public License as published by
+*   the Free Software Foundation, either version 3 of the License, or
+*   (at your option) any later version.
 *
-*	2. Redistributions in binary form must reproduce the above copyright notice, 
-*	   this list of conditions and the following disclaimer in the documentation 
-*	   and/or other materials provided with the distribution.
+*   HISE is distributed in the hope that it will be useful,
+*   but WITHOUT ANY WARRANTY; without even the implied warranty of
+*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*   GNU General Public License for more details.
 *
-*	3. All advertising materials mentioning features or use of this software must 
-*	   display the following acknowledgement: 
-*	   This product includes software developed by Hart Instruments
+*   You should have received a copy of the GNU General Public License
+*   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
 *
-*	4. Neither the name of the copyright holder nor the names of its contributors may be used 
-*	   to endorse or promote products derived from this software without specific prior written permission.
+*   Commercial licenses for using HISE in an closed source project are
+*   available on request. Please visit the project's website to get more
+*   information about commercial licensing:
 *
-*	THIS SOFTWARE IS PROVIDED BY CHRISTOPH HART "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, 
-*	BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
-*	DISCLAIMED. IN NO EVENT SHALL COPYRIGHT HOLDER BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
-*	SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE 
-*	GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
-*	THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
-*	ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*   http://www.hise.audio/
 *
+*   HISE is based on the JUCE library,
+*   which must be separately licensed for closed source applications:
+*
+*   http://www.juce.com
+*
+*   ===========================================================================
 */
 
 /******************************************************************************
@@ -38,7 +40,7 @@ BEGIN_JUCE_MODULE_DECLARATION
   name:             HISE Lossless Audio Codec
   description:      A fast, lossless audio codec suitable for disk streaming.
   website:          http://hise.audio
-  license:          BSD Clause 4
+  license:          GPLv3 / commercial
 
   dependencies:     juce_audio_basics, juce_audio_formats, juce_core
   OSXFrameworks:    Accelerate
@@ -47,6 +49,26 @@ BEGIN_JUCE_MODULE_DECLARATION
 END_JUCE_MODULE_DECLARATION
 
 ******************************************************************************/
+
+
+/* TODO 24bit rewrite:
+
+- write unit tests for all new functions
+- make the temporary voice buffer a floating point buffer and normalize when copying from the two read buffers there.
+- ensure 100% backwards compatibility
+- check that there's no performance overhead if not used
+- skip this when the sample material is already 16bit (maybe even add a warning then)
+- support seeking and odd sample offsets
+- make the .hr1 files 24bit FLACs
+- add some nice end user options
+
+
+SampleMap bugs:
+
+- saving without saving the samplemap discard changes...
+
+*/
+
 
 #ifndef HI_LAC_INCLUDED
 #define HI_LAC_INCLUDED
@@ -60,7 +82,7 @@ END_JUCE_MODULE_DECLARATION
 #endif
 
 // This is the current HLAC version. HLAC has full backward compatibility.
-#define HLAC_VERSION 2
+#define HLAC_VERSION 3
 
 // This is the compression block size used by HLAC. Don't change that value unless you know what you're doing...
 #define COMPRESSION_BLOCK_SIZE 4096

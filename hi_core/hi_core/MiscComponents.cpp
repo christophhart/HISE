@@ -610,7 +610,7 @@ void BorderPanel::buttonClicked(Button* /*b*/)
 	}
 }
 
-void BorderPanel::changeListenerCallback(SafeChangeBroadcaster* b)
+void BorderPanel::changeListenerCallback(SafeChangeBroadcaster* )
 {
 }
 
@@ -630,16 +630,16 @@ void BorderPanel::paint(Graphics &g)
 
 		if (it.wantsCachedImage())
 		{
-			Image cachedImage = Image(Image::ARGB, getWidth(), getHeight(), true);
-			Graphics g2(cachedImage);
+			Image cachedImg = Image(Image::ARGB, getWidth(), getHeight(), true);
+			Graphics g2(cachedImg);
 
 			while (auto action = it.getNextAction())
 			{
-				action->setCachedImage(cachedImage);
+				action->setCachedImage(cachedImg);
 				action->perform(g2);
 			}
 
-			g.drawImageAt(cachedImage, 0, 0);
+			g.drawImageAt(cachedImg, 0, 0);
 		}
 		else
 		{

@@ -32,6 +32,8 @@
 
 namespace hise { using namespace juce;
 
+static int dummy = 0;
+
 // =============================================================================================================================================== SampleLoader methods
 
 SampleLoader::SampleLoader(SampleThreadPool *pool_) :
@@ -171,13 +173,17 @@ double SampleLoader::getDiskUsage() noexcept
 
 void SampleLoader::setStreamingBufferDataType(bool shouldBeFloat)
 {
-	ScopedLock sl(getLock());
+	if (b1.isFloatingPoint() != shouldBeFloat)
+	{
+		ScopedLock sl(getLock());
 
-	b1 = hlac::HiseSampleBuffer(shouldBeFloat, 2, 0);
-	b2 = hlac::HiseSampleBuffer(shouldBeFloat, 2, 0);
+		b1 = hlac::HiseSampleBuffer(shouldBeFloat, 2, 0);
+		b2 = hlac::HiseSampleBuffer(shouldBeFloat, 2, 0);
 
-	refreshBufferSizes();
+		refreshBufferSizes();
+	}
 }
+
 
 StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuffer, double numSamples) const
 {
@@ -192,7 +198,24 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 		const int indexBeforeWrap = jmax<int>(0, (int)(readIndexDouble));
 		const int numSamplesInFirstBuffer = localReadBuffer->getNumSamples() - indexBeforeWrap;
 
+		voiceBuffer.setUseOneMap(localReadBuffer->useOneMap);
+
 		jassert(numSamplesInFirstBuffer >= 0);
+
+		dummy++;
+
+		// Reset the offset so that the first one will go through
+		auto existingOffset = localReadBuffer->getNormaliseMap(0).getOffset();
+		auto offsetInBuffer = indexBeforeWrap % COMPRESSION_BLOCK_SIZE;
+
+		voiceBuffer.clearNormalisation({});
+
+		voiceBuffer.getNormaliseMap(0).setOffset(existingOffset + offsetInBuffer);
+
+		
+
+		if(!localReadBuffer->useOneMap)
+			voiceBuffer.getNormaliseMap(1).setOffset(localReadBuffer->getNormaliseMap(1).getOffset());
 
 		if (numSamplesInFirstBuffer > 0)
 		{
@@ -204,7 +227,11 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 
 		if ((numSamplesAvailableInSecondBuffer > 0) && (numSamplesAvailableInSecondBuffer <= localWriteBuffer->getNumSamples()))
 		{
-			const int numSamplesToCopyFromSecondBuffer = jmin<int>(numSamplesAvailableInSecondBuffer, voiceBuffer.getNumSamples() - offset);
+			//const int numSamplesToCopyFromSecondBuffer = jmin<int>(numSamplesAvailableInSecondBuffer, voiceBuffer.getNumSamples() - offset);
+
+			int numSamplesToCopyFromSecondBuffer = (int)(ceil(numSamples - (double)numSamplesInFirstBuffer));
+
+			numSamplesToCopyFromSecondBuffer = jmin<int>(numSamplesToCopyFromSecondBuffer, numSamplesAvailableInSecondBuffer);
 
 			if (writeBufferIsBeingFilled || entireSampleIsLoaded)
 			{
@@ -225,9 +252,8 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 
 		StereoChannelData returnData;
 
-		returnData.isFloatingPoint = localReadBuffer->isFloatingPoint();
-		returnData.leftChannel = voiceBuffer.getReadPointer(0);
-		returnData.rightChannel = voiceBuffer.getReadPointer(1);
+		returnData.b = &voiceBuffer;
+		returnData.offsetInBuffer = 0;
 
 #if USE_SAMPLE_DEBUG_COUNTER
 
@@ -257,9 +283,9 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 
 		StereoChannelData returnData;
 
-		returnData.isFloatingPoint = localReadBuffer->isFloatingPoint();
-		returnData.leftChannel = localReadBuffer->getReadPointer(0, index);
-		returnData.rightChannel = localReadBuffer->getReadPointer(localReadBuffer->getNumChannels() > 1 ? 1 : 0, index);
+		returnData.b = localReadBuffer;
+
+		returnData.offsetInBuffer = index;
 
 		return returnData;
 	}
@@ -471,11 +497,14 @@ StreamingSamplerVoice::StreamingSamplerVoice(SampleThreadPool *pool) :
 	pitchData = nullptr;
 };
 
+
 void StreamingSamplerVoice::startNote(int /*midiNoteNumber*/,
 	float /*velocity*/,
 	SynthesiserSound* s,
 	int /*currentPitchWheelPosition*/)
 {
+	dummy = 0;
+
 	StreamingSamplerSound *sound = dynamic_cast<StreamingSamplerSound*>(s);
 
 	if (sound != nullptr && sound->getSampleLength() > 0)
@@ -550,15 +579,11 @@ struct Helpers
 #endif
 
 
-
-
-template <typename SignalType, bool isFloat> void interpolateStereoSamples(const SignalType* inL, const SignalType* inR, const float* pitchData, float* outL, float* outR, int startSample, double indexInBuffer, double uptimeDelta, int numSamples)
+template <typename SignalType, bool isFloat> void interpolateMonoSamples(const SignalType* inL, const SignalType* unusedIn, const float* pitchData, float* outL, float* unusedOut, int startSample, double indexInBuffer, double uptimeDelta, int numSamples)
 {
-#if 0
-	constexpr float gainFactor = isFloat ? 1.0f : (1.0f / (float)INT16_MAX);
+	ignoreUnused(unusedIn, unusedOut);
 
-	using SSEFloat = dsp::SIMDRegister<float>;
-	using SSEInt = dsp::SIMDRegister<int>;
+	constexpr float gainFactor = isFloat ? 1.0f : (1.0f / (float)INT16_MAX);
 
 	if (pitchData != nullptr)
 	{
@@ -566,103 +591,23 @@ template <typename SignalType, bool isFloat> void interpolateStereoSamples(const
 
 		float indexInBufferFloat = (float)indexInBuffer;
 
-		int pitchAlignment = SSEFloat::getNextSIMDAlignedPtr(pitchData) - pitchData;
-		int outLAlignment = SSEFloat::getNextSIMDAlignedPtr(outL) - outL;
-		int outRAlignment = SSEFloat::getNextSIMDAlignedPtr(outR) - outR;
-
-		
-
-		constexpr int numSSE = SSEFloat::SIMDRegisterSize / sizeof(float);
-
-		bool allAligned = pitchAlignment == 0 && outLAlignment == 0 && outRAlignment == 0;
-
-		allAligned ? alignedCalls++ : unalignedCalls++;
-		
-		if (allAligned)
+		for (int i = 0; i < numSamples; i++)
 		{
-			int numLoop = numSamples / numSSE;
+			const int pos = int(indexInBufferFloat);
+			const float alpha = indexInBufferFloat - (float)pos;
+			const float invAlpha = 1.0f - alpha;
 
-			while (--numLoop >= 0)
-			{
-				auto indexes = SSEFloat::fromRawArray(pitchData);
+			float l = ((float)inL[pos] * invAlpha + (float)inL[pos + 1] * alpha);
 
-				auto pitchDelta = indexes.sum();
+			outL[i] = l * gainFactor;
 
-				indexes = SSEFloat::fromNative({ 0.0f, 0.25f, 0.5f, 0.75f }) * pitchDelta;
-				
-				indexes += indexInBufferFloat;
+			jassert(*pitchData <= (float)MAX_SAMPLER_PITCH);
 
-				auto rounded = SSEFloat::fromNative(_mm_floor_ps(indexes.value));
-
-				auto pos1 = SSEInt::fromNative(_mm_cvtps_epi32(rounded.value));
-				auto pos2 = pos1 + 1;
-
-				auto alpha = indexes - rounded;
-				auto invAlpha = SSEFloat::expand(1.0f) - alpha;
-
-				alignas(16) int p1[4];
-				alignas(16) int p2[4];
-
-				pos1.copyToRawArray(p1);
-				pos2.copyToRawArray(p2);
-
-				alignas(16) const SignalType in1L_[4] = { inL[p1[0]], inL[p1[1]], inL[p1[2]], inL[p1[3]] };
-				alignas(16) const SignalType in2L_[4] = { inL[p2[0]], inL[p2[1]], inL[p2[2]], inL[p2[3]] };
-
-				alignas(16) const SignalType in1R_[4] = { inR[p1[0]], inR[p1[1]], inR[p1[2]], inR[p1[3]] };
-				alignas(16) const SignalType in2R_[4] = { inR[p2[0]], inR[p2[1]], inR[p2[2]], inR[p2[3]] };
-
-				auto in1L = getSSEFloatRegister(in1L_);
-				auto in2L = getSSEFloatRegister(in2L_);
-				auto in1R = getSSEFloatRegister(in1R_);
-				auto in2R = getSSEFloatRegister(in2R_);
-
-				auto l = in1L * invAlpha + in2L * alpha;
-				auto r = in1R * invAlpha + in2R * alpha;
-
-				//auto l = SSEFloat::fromRawArray(in1L_) * invAlpha;
-				//SSEFloat::multiplyAdd(l, SSEFloat::fromRawArray(in2L_), alpha);
-
-				//auto r = SSEFloat::fromRawArray(in1R_) * invAlpha;
-				//SSEFloat::multiplyAdd(r, SSEFloat::fromRawArray(in2R_), alpha);
-
-				l *= gainFactor;
-				r *= gainFactor;
-
-				l.copyToRawArray(outL);
-				r.copyToRawArray(outR);
-
-				indexInBufferFloat += pitchDelta;
-				outL += numSSE;
-				outR += numSSE;
-			}
+			indexInBufferFloat += pitchData[i];
 		}
-		else
-		{
-			for (int i = 0; i < numSamples; i++)
-			{
-				const int pos = int(indexInBufferFloat);
-				const float alpha = indexInBufferFloat - (float)pos;
-				const float invAlpha = 1.0f - alpha;
-
-				float l = ((float)inL[pos] * invAlpha + (float)inL[pos + 1] * alpha);
-				float r = ((float)inR[pos] * invAlpha + (float)inR[pos + 1] * alpha);
-
-				outL[i] = l * gainFactor;
-				outR[i] = r * gainFactor;
-
-				jassert(*pitchData <= (float)MAX_SAMPLER_PITCH);
-
-				indexInBufferFloat += pitchData[i];
-			}
-		}
-
-
-		
 	}
 	else
 	{
-
 		float indexInBufferFloat = (float)indexInBuffer;
 		const float uptimeDeltaFloat = (float)uptimeDelta;
 
@@ -673,17 +618,18 @@ template <typename SignalType, bool isFloat> void interpolateStereoSamples(const
 			const float invAlpha = 1.0f - alpha;
 
 			float l = ((float)inL[pos] * invAlpha + (float)inL[pos + 1] * alpha);
-			float r = ((float)inR[pos] * invAlpha + (float)inR[pos + 1] * alpha);
 
 			*outL++ = l * gainFactor;
-			*outR++ = r * gainFactor;
 
 			indexInBufferFloat += uptimeDeltaFloat;
 
 			numSamples--;
 		}
 	}
-#else
+}
+
+template <typename SignalType, bool isFloat> void interpolateStereoSamples(const SignalType* inL, const SignalType* inR, const float* pitchData, float* outL, float* outR, int startSample, double indexInBuffer, double uptimeDelta, int numSamples)
+{
 	constexpr float gainFactor = isFloat ? 1.0f : (1.0f / (float)INT16_MAX);
 
 	if (pitchData != nullptr)
@@ -711,7 +657,6 @@ template <typename SignalType, bool isFloat> void interpolateStereoSamples(const
 	}
 	else
 	{
-
 		float indexInBufferFloat = (float)indexInBuffer;
 		const float uptimeDeltaFloat = (float)uptimeDelta;
 
@@ -732,10 +677,8 @@ template <typename SignalType, bool isFloat> void interpolateStereoSamples(const
 			numSamples--;
 		}
 	}
-
-
-#endif
 }
+
 
 
 void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int startSample, int numSamples)
@@ -757,8 +700,6 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 
 		jassert(tempVoiceBuffer != nullptr);
 
-		//tempVoiceBuffer->clear();
-
 		// Copy the not resampled values into the voice buffer.
 		StereoChannelData data = loader.fillVoiceBuffer(*tempVoiceBuffer, pitchCounter + startAlpha);
 
@@ -768,27 +709,56 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 		const int startFixed = startSample;
 		const int numSamplesFixed = numSamples;
 
-
 #if USE_SAMPLE_DEBUG_COUNTER
 		jassert((int)voiceUptime == data.leftChannel[0]);
 #endif
 
 		double indexInBuffer = startAlpha;
 
-		if (data.isFloatingPoint)
+		if (data.b->isFloatingPoint())
 		{
-			const float* const inL = static_cast<const float*>(data.leftChannel);
-			const float* const inR = static_cast<const float*>(data.rightChannel);
+			const float* const inL = static_cast<const float*>(data.b->getReadPointer(0, data.offsetInBuffer));
+			const float* const inR = static_cast<const float*>(data.b->getReadPointer(1, data.offsetInBuffer));
 
 			interpolateStereoSamples<float, true>(inL, inR, pitchData, outL, outR, startSample, indexInBuffer, uptimeDelta, numSamples);
 		}
 		else
 		{
-			const int16* const inL = static_cast<const int16*>(data.leftChannel);
-			const int16* const inR = static_cast<const int16*>(data.rightChannel);
+			const int16* const inL = static_cast<const int16*>(data.b->getReadPointer(0, data.offsetInBuffer));
+			const int16* const inR = static_cast<const int16*>(data.b->getReadPointer(1, data.offsetInBuffer));
 
-			interpolateStereoSamples<int16, false>(inL, inR, pitchData, outL, outR, startSample, indexInBuffer, uptimeDelta, numSamples);
+			bool useNormalisation = data.b->usesNormalisation();
 
+			if (useNormalisation)
+			{
+				const int numSamplesThisTime = (int)((pitchCounter + startAlpha) + 1.0);
+
+				float* inL_f = (float*)alloca(sizeof(float) * numSamplesThisTime);
+				float* d[2] = { inL_f, nullptr };
+
+				if (data.b->getNumChannels() == 2 && !data.b->useOneMap)
+				{
+					float* inR_f = (float*)alloca(sizeof(float) * numSamplesThisTime);
+
+					d[1] = inR_f;
+
+					data.b->convertToFloatWithNormalisation(d, data.b->getNumChannels(), data.offsetInBuffer, numSamplesThisTime);
+
+					interpolateStereoSamples<float, true>(inL_f, inR_f, pitchData, outL, outR, startSample, indexInBuffer, uptimeDelta, numSamples);
+				}
+				else
+				{
+					data.b->convertToFloatWithNormalisation(d, 1, data.offsetInBuffer, numSamplesThisTime);
+
+					interpolateMonoSamples<float, true>(inL_f, nullptr, pitchData, outL, nullptr, startSample, indexInBuffer, uptimeDelta, numSamples);
+
+					memcpy(outR, outL, sizeof(float) * numSamples);
+				}
+			}
+			else
+			{
+				interpolateStereoSamples<int16, false>(inL, inR, pitchData, outL, outR, startSample, indexInBuffer, uptimeDelta, numSamples);
+			}
 		}
 
 #if USE_SAMPLE_DEBUG_COUNTER 
