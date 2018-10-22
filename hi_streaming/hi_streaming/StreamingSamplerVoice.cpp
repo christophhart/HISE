@@ -196,8 +196,6 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 		const int indexBeforeWrap = jmax<int>(0, (int)(readIndexDouble));
 		const int numSamplesInFirstBuffer = localReadBuffer->getNumSamples() - indexBeforeWrap;
 
-		voiceBuffer.clear();
-
 		voiceBuffer.setUseOneMap(localReadBuffer->useOneMap);
 
 		jassert(numSamplesInFirstBuffer >= 0);
@@ -209,8 +207,6 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 		voiceBuffer.clearNormalisation({});
 
 		voiceBuffer.getNormaliseMap(0).setOffset(existingOffset + offsetInBuffer);
-
-		
 
 		if(!localReadBuffer->useOneMap)
 			voiceBuffer.getNormaliseMap(1).setOffset(localReadBuffer->getNormaliseMap(1).getOffset());
@@ -227,7 +223,7 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 		{
 			//const int numSamplesToCopyFromSecondBuffer = jmin<int>(numSamplesAvailableInSecondBuffer, voiceBuffer.getNumSamples() - offset);
 
-			int numSamplesToCopyFromSecondBuffer = (int)(ceil(numSamples - (double)numSamplesInFirstBuffer));
+			int numSamplesToCopyFromSecondBuffer = (int)(ceil(numSamples - (double)numSamplesInFirstBuffer)) + 1;
 
 			numSamplesToCopyFromSecondBuffer = jmin<int>(numSamplesToCopyFromSecondBuffer, numSamplesAvailableInSecondBuffer);
 
@@ -252,6 +248,9 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 
 		returnData.b = &voiceBuffer;
 		returnData.offsetInBuffer = 0;
+
+
+		
 
 #if USE_SAMPLE_DEBUG_COUNTER
 
