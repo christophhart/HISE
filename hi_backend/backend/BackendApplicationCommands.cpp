@@ -1779,6 +1779,8 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)
 
 			XmlBackupFunctions::removeEditorStatesFromXml(*xml);
 
+			
+
 			File scriptDirectory = XmlBackupFunctions::getScriptDirectoryFor(bpe->getMainSynthChain());
 
 			Processor::Iterator<JavascriptProcessor> iter(bpe->getMainSynthChain());
@@ -1787,12 +1789,20 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)
 
 			scriptDirectory.createDirectory();
 
+			String interfaceId = "";
+
 			while (JavascriptProcessor *sp = iter.getNextProcessor())
 			{
 				if (sp->isConnectedToExternalFile())
 					continue;
 
 				String content;
+
+				if (auto jmp = dynamic_cast<JavascriptMidiProcessor*>(sp))
+				{
+					if (jmp->isFront())
+						interfaceId = jmp->getId();
+				}
 
 				sp->mergeCallbacksToScript(content);
 
@@ -1803,6 +1813,8 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)
 
 			XmlBackupFunctions::removeAllScripts(*xml);
 			
+			if(interfaceId.isNotEmpty())
+				XmlBackupFunctions::extractContentData(*xml, interfaceId, fc.getResult());
 
 			fc.getResult().replaceWithText(xml->createDocument(""));
 
@@ -1825,6 +1837,8 @@ void BackendCommandTarget::Actions::openFileFromXml(BackendRootWindow * bpe, con
 
 		if (xml != nullptr)
 		{
+			XmlBackupFunctions::addContentFromSubdirectory(*xml, fileToLoad);
+
 			String newId = xml->getStringAttribute("ID");
 
 			XmlBackupFunctions::restoreAllScripts(*xml, bpe->getMainSynthChain(), newId);

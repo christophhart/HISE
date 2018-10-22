@@ -332,6 +332,85 @@ struct XmlBackupFunctions
 		}
 	}
 
+	static XmlElement* getFirstChildElementWithAttribute(XmlElement* parent, const String& attributeName, const String& value)
+	{
+		if (parent->getStringAttribute(attributeName) == value)
+			return parent;
+
+		for (int i = 0; i < parent->getNumChildElements(); i++)
+		{
+			
+
+			auto* e = parent->getChildElement(i);
+
+			DBG(e->getTagName());
+
+			if (e->getStringAttribute(attributeName) == value)
+				return e;
+			
+			auto c = getFirstChildElementWithAttribute(e, attributeName, value);
+
+			if (c != nullptr)
+				return c;
+		}
+
+		return nullptr;
+	}
+
+	static void addContentFromSubdirectory(XmlElement& xml, const File& fileToLoad)
+	{
+		String subDirectoryId = fileToLoad.getFileNameWithoutExtension() + "UIData";
+
+		auto folder = fileToLoad.getParentDirectory().getChildFile(subDirectoryId);
+
+		Array<File> contentFiles;
+
+		folder.findChildFiles(contentFiles, File::findFiles, false, "*.xml");
+
+		if (auto uiData = getFirstChildElementWithAttribute(&xml, "Source", subDirectoryId))
+		{
+			for (const auto& f : contentFiles)
+			{
+				if (auto child = XmlDocument::parse(f))
+				{
+					uiData->addChildElement(child);
+				}
+			}
+
+			uiData->removeAttribute("Source");
+		}
+
+		DBG(xml.createDocument(""));
+	}
+
+	static void extractContentData(XmlElement& xml, const String& interfaceId, const File& xmlFile)
+	{
+		auto folder = xmlFile.getParentDirectory().getChildFile(xmlFile.getFileNameWithoutExtension() + "UIData");
+		
+		if (folder.isDirectory())
+			folder.createDirectory();
+
+		if (auto pXml = getFirstChildElementWithAttribute(&xml, "ID", interfaceId))
+		{
+			if (auto uiData = pXml->getChildByName("UIData"))
+			{
+				for (int i = 0; i < uiData->getNumChildElements(); i++)
+				{
+					auto e = uiData->getChildElement(i);
+					auto name = e->getStringAttribute("DeviceType");
+
+					auto file = folder.getChildFile(xmlFile.getFileNameWithoutExtension() + name + ".xml");
+
+					file.create();
+					file.replaceWithText(e->createDocument(""));
+				}
+
+				uiData->deleteAllChildElements();
+				uiData->setAttribute("Source", folder.getRelativePathFrom(xmlFile.getParentDirectory()));
+			}
+		}
+	}
+
 	static void removeAllScripts(XmlElement &xml)
 	{
 		const String t = xml.getStringAttribute("Script");
