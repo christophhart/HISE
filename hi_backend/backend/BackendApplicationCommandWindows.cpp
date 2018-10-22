@@ -1439,7 +1439,8 @@ struct DeviceTypeSanityCheck : public DialogWindowWithBackgroundThread,
 
 		auto testIndex = getComboBoxComponent("tests")->getSelectedItemIndex();
 		auto index = getComboBoxComponent("targets")->getSelectedItemIndex();
-		CompileExporter::BuildOption option;
+
+		CompileExporter::BuildOption option = CompileExporter::BuildOption::Cancelled;
 
 		if (index == 0) option = CompileExporter::BuildOption::StandaloneiPad;
 		if (index == 1) option = CompileExporter::BuildOption::StandaloneiPhone;

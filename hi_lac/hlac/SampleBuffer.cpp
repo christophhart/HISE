@@ -156,8 +156,6 @@ void HiseSampleBuffer::flushNormalisationInfo(Range<int> rangeToFlush)
 
 	int numToFlush = jmin<int>(size, rangeToFlush.getLength());
 
-	auto s = lMap.getIndexForSamplePosition(numToFlush, true);
-
 	uint8 lastL = 128;
 	uint8 lastR = 128;
 
@@ -219,8 +217,6 @@ void HiseSampleBuffer::flushNormalisationInfo(Range<int> rangeToFlush)
 		if (info.leftNormalisation == 0 && (useOneMap || info.rightNormalisation == 0))
 			normaliser.infos.remove(i--);
 	}
-
-	int x = 5;
 }
 
 hlac::FixedSampleBuffer& HiseSampleBuffer::getFixedBuffer(int channelIndex)

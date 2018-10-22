@@ -581,6 +581,8 @@ void CompressionHelpers::fastInt16ToFloat(const void* source, float* dest, int n
 
 void CompressionHelpers::applyDithering(float* data, int numSamples)
 {
+	ignoreUnused(data, numSamples);
+
 #if 0
 	int   r1, r2;                //rectangular-PDF random numbers
 	float s1, s2;                //error feedback buffers
@@ -1637,8 +1639,7 @@ HlacArchiver::Flag HlacArchiver::readFlag(FileInputStream* fis)
 
 void CompressionHelpers::NormaliseMap::normalisedInt16ToFloat(float* destination, const int16* src, int start, int numSamples) const
 {
-	
-	if (false && !active)
+	if (!active)
 	{
 		CompressionHelpers::fastInt16ToFloat(src, destination, numSamples);
 		return;
@@ -1745,23 +1746,6 @@ void CompressionHelpers::NormaliseMap::setNormalisationValues(int readOffset, in
 	getTableData()[index + 3] = ptr[3];
 }
 
-void CompressionHelpers::NormaliseMap::insertNormalisationValue(int samplePosition, uint8 normalisationValue)
-{
-	uint16 index = getIndexForSamplePosition(samplePosition);
-
-	// This doesn't work with dynamically sized buffers
-	jassert(allocated == nullptr);
-
-	auto ptr = preallocated[index];
-
-	for (int i = 15; i > index; i--)
-	{
-		preallocated[i] = preallocated[i-1];
-	}
-
-	preallocated[index] = normalisationValue;
-}
-
 void CompressionHelpers::NormaliseMap::normalise(const float* src, int16* dst, int numSamples)
 {
 	if (normalisationMode == Mode::NoNormalisation)
@@ -1787,8 +1771,6 @@ void CompressionHelpers::NormaliseMap::normalise(const float* src, int16* dst, i
 
 			if (lMax == 0)
 			{
-				auto normalisationAmount = jmin<int>(8, 16 - lMax);
-
 				getTableData()[tableIndex++] = 0;
 				
 				CompressionHelpers::IntVectorOperations::clear(data, thisTime);

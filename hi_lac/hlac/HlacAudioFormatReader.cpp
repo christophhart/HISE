@@ -251,7 +251,7 @@ bool HlacReaderCommon::internalHlacRead(int** destSamples, int numDestChannels, 
 
 			AudioSampleBuffer b(&destinationFloat, 1, numSamples);
 			HiseSampleBuffer hsb(b);
-			hsb.allocateNormalisationTables(startSampleInFile);
+			hsb.allocateNormalisationTables((int)startSampleInFile);
 
 			decoder.decode(hsb, false, *input, (int)startSampleInFile, numSamples);
 		}
@@ -260,7 +260,7 @@ bool HlacReaderCommon::internalHlacRead(int** destSamples, int numDestChannels, 
 			int16** destinationFixed = reinterpret_cast<int16**>(destSamples);
 
 			HiseSampleBuffer hsb(destinationFixed, 1, numSamples);
-			hsb.allocateNormalisationTables(startSampleInFile);
+			hsb.allocateNormalisationTables((int)startSampleInFile);
 
 			decoder.decode(hsb, false, *input, (int)startSampleInFile, numSamples);
 		}

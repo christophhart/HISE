@@ -84,9 +84,6 @@ struct CompressionHelpers
 		/** Sets 4 values at once. Used by the HLAC decoder. */
 		void setNormalisationValues(int readOffset, int normalisedValues);
 
-		/** Change a particular normalisation level. Used when merging buffers with different offsets. */
-		void insertNormalisationValue(int samplePosition, uint8 normalisationValue);
-
 		/** This applies normalisation. */
 		void normalise(const float* src, int16* dst, int numSamples);
 

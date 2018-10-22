@@ -753,7 +753,7 @@ void DebugLogger::timerCallback()
 		FileOutputStream fos(currentLogFile, 512);
 		NewLine nl;
 
-		MessageComparator mec;
+		//MessageComparator mec;
 		//messages.sort(mec, false);
 
 		for (auto m : messages)

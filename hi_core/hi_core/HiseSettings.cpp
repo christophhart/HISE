@@ -384,10 +384,10 @@ juce::File HiseSettings::Data::getFileForSetting(const Identifier& id) const
 
 #if USE_BACKEND
 
-	auto handler = &GET_PROJECT_HANDLER(mc->getMainSynthChain());
+	auto handler_ = &GET_PROJECT_HANDLER(mc->getMainSynthChain());
 
-	if (id == SettingFiles::ProjectSettings)	return handler->getWorkDirectory().getChildFile("project_info.xml");
-	else if (id == SettingFiles::UserSettings)		return handler->getWorkDirectory().getChildFile("user_info.xml");
+	if (id == SettingFiles::ProjectSettings)	return handler_->getWorkDirectory().getChildFile("project_info.xml");
+	else if (id == SettingFiles::UserSettings)		return handler_->getWorkDirectory().getChildFile("user_info.xml");
 	else if (id == SettingFiles::CompilerSettings)	return appDataFolder.getChildFile("compilerSettings.xml");
 	else if (id == SettingFiles::ScriptingSettings)	return appDataFolder.getChildFile("ScriptSettings.xml");
 	else if (id == SettingFiles::OtherSettings)		return appDataFolder.getChildFile("OtherSettings.xml");
@@ -596,17 +596,17 @@ void HiseSettings::Data::initialiseAudioDriverData(bool forceReload/*=false*/)
 
 var HiseSettings::Data::getDefaultSetting(const Identifier& id)
 {
-	BACKEND_ONLY(auto& handler = GET_PROJECT_HANDLER(mc->getMainSynthChain()));
+	BACKEND_ONLY(auto& handler_ = GET_PROJECT_HANDLER(mc->getMainSynthChain()));
 
 	if (id == Project::Name)
 	{
-		BACKEND_ONLY(return handler.getWorkDirectory().getFileName());
+		BACKEND_ONLY(return handler_.getWorkDirectory().getFileName());
 	}
 	else if (id == Project::Version)			    return "1.0.0";
 	else if (id == Project::BundleIdentifier)	    return "com.myCompany.product";
 	else if (id == Project::PluginCode)			    return "Abcd";
 	else if (id == Project::EmbedAudioFiles)		return "Yes";
-	else if (id == Project::RedirectSampleFolder)	BACKEND_ONLY(return handler.isRedirected(ProjectHandler::SubDirectories::Samples) ? handler.getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName() : "");
+	else if (id == Project::RedirectSampleFolder)	BACKEND_ONLY(return handler_.isRedirected(ProjectHandler::SubDirectories::Samples) ? handler_.getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName() : "");
 	else if (id == Other::EnableAutosave)			return "Yes";
 	else if (id == Other::AutosaveInterval)			return 5;
 	else if (id == Other::AudioThreadGuardEnabled)  return "Yes";
@@ -733,12 +733,12 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 	if (id == Project::RedirectSampleFolder)
 	{
 #if USE_BACKEND
-		auto& handler = GET_PROJECT_HANDLER(mc->getMainSynthChain());
+		auto& handler_ = GET_PROJECT_HANDLER(mc->getMainSynthChain());
 
 		if (File::isAbsolutePath(newValue.toString()))
-			handler.createLinkFile(ProjectHandler::SubDirectories::Samples, File(newValue.toString()));
+			handler_.createLinkFile(ProjectHandler::SubDirectories::Samples, File(newValue.toString()));
 		else
-			ProjectHandler::getLinkFile(handler.getWorkDirectory().getChildFile("Samples")).deleteFile();
+			ProjectHandler::getLinkFile(handler_.getWorkDirectory().getChildFile("Samples")).deleteFile();
 #endif
 	}
 

@@ -1586,7 +1586,7 @@ void PresetBrowserColumn::ColumnListModel::FavoriteOverlay::resized()
 
 void TagList::Tag::paint(Graphics& g)
 {
-	float alpha = active ? 0.4 : 0.1f;
+	float alpha = active ? 0.4f : 0.1f;
 	alpha += (parent.on ? 0.2f : 0.0f);
 
 	auto ar = getLocalBounds().toFloat().reduced(1.0f);

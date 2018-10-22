@@ -1003,7 +1003,7 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 		hlac::HlacEncoder::CompressorOptions options = hlac::HlacEncoder::CompressorOptions::getPreset((hlac::HlacEncoder::CompressorOptions::Presets)cIndex);
 
 		options.applyDithering = getComboBoxComponent("dithering")->getSelectedItemIndex() == 1;
-		options.normalisationMode = getComboBoxComponent("normalise")->getSelectedItemIndex();
+		options.normalisationMode = (uint8)getComboBoxComponent("normalise")->getSelectedItemIndex();
 
 		StringPairArray empty;
 
