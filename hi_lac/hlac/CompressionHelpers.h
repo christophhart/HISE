@@ -98,7 +98,14 @@ struct CompressionHelpers
 		/** If the buffers are not aligned to a 1024 sample boundary, you can set the first range length here in order to synchronise it. */
 		void setOffset(int offsetToUse);
 
+		void setThreshold(uint8 newThreshhold)
+		{
+			minNormalisation = newThreshhold;
+		}
+
 	private:
+
+		uint8 minNormalisation = 0;
 
 		friend class HiseSampleBuffer;
 
@@ -156,7 +163,7 @@ struct CompressionHelpers
 	*/
 	struct AudioBufferInt16
 	{
-		AudioBufferInt16(AudioSampleBuffer& b, int channelToUse, uint8 normalisationMode);
+		AudioBufferInt16(AudioSampleBuffer& b, int channelToUse, uint8 normalisationMode, uint8 normalisationThreshold=0);
 		AudioBufferInt16(int16* externalData_, int numSamples);
 		AudioBufferInt16(const int16* externalData_, int numSamples);
 		AudioBufferInt16(int size_=0);

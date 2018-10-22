@@ -32,12 +32,13 @@
 
 namespace hlac { using namespace juce; 
 
-CompressionHelpers::AudioBufferInt16::AudioBufferInt16(AudioSampleBuffer& b, int channelToUse, uint8 normalizeBeforeStoring)
+CompressionHelpers::AudioBufferInt16::AudioBufferInt16(AudioSampleBuffer& b, int channelToUse, uint8 normalizeBeforeStoring, uint8 normalisationThreshold)
 {
 	allocate(b.getNumSamples());
 	
 	if (normalizeBeforeStoring != NormaliseMap::NoNormalisation)
 	{
+		map.setThreshold(normalisationThreshold);
 		map.setMode(normalizeBeforeStoring);
 		map.allocateTableIndexes(b.getNumSamples());
 		map.normalise(b.getReadPointer(channelToUse), data, b.getNumSamples());
@@ -688,8 +689,8 @@ uint8 CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, Audio
 
 	if (workBuffer.getNumChannels() > 1)
 	{
-		AudioBufferInt16 wbIntR(workBuffer, 1, false);
-		AudioBufferInt16 rbIntR(referenceBuffer, 1, false);
+		AudioBufferInt16 wbIntR(workBuffer, 1, 0, 0);
+		AudioBufferInt16 rbIntR(referenceBuffer, 1, 0, 0);
 
 		IntVectorOperations::sub(wbIntR.getWritePointer(), rbIntR.getReadPointer(), numToCheck);
 
@@ -1778,6 +1779,9 @@ void CompressionHelpers::NormaliseMap::normalise(const float* src, int16* dst, i
 			else
 			{
 				auto normalisationAmount = jmin<uint8>(8, 16 - lMax);
+
+				if (normalisationAmount < minNormalisation)
+					normalisationAmount = 0;
 
 				getTableData()[tableIndex++] = normalisationAmount;
 				internalNormalisation(src + index, data, thisTime, normalisationAmount);

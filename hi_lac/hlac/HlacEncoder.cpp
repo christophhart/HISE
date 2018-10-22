@@ -152,7 +152,7 @@ float HlacEncoder::getCompressionRatio() const
 
 bool HlacEncoder::encodeBlock(AudioSampleBuffer& block, OutputStream& output)
 {
-	auto block16 = CompressionHelpers::AudioBufferInt16(block, 0, options.normalisationMode);
+	auto block16 = CompressionHelpers::AudioBufferInt16(block, 0, options.normalisationMode, options.normalisationThreshold);
 
 	if (!normaliseBlockAndAddHeader(block16, output))
 		return false;
@@ -534,7 +534,7 @@ bool HlacEncoder::writeDiffHeader(int fullBitRate, int errorBitRate, int blockSi
 
 void HlacEncoder::encodeLastBlock(AudioSampleBuffer& block, OutputStream& output)
 {
-	CompressionHelpers::AudioBufferInt16 a(block, 0, options.normalisationMode);
+	CompressionHelpers::AudioBufferInt16 a(block, 0, options.normalisationMode, options.normalisationThreshold);
 
 	normaliseBlockAndAddHeader(a, output);
 	writeChecksumBytesForBlock(output);

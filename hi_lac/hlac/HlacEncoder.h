@@ -64,6 +64,7 @@ public:
 		bool removeDcOffset = true;
 		bool applyDithering = false;
 		uint8 normalisationMode = 0;
+		uint8 normalisationThreshold = 4;
 		int bitRateForWholeBlock = 6;
 		bool useDiffEncodingWithFixedBlocks = false;
 
