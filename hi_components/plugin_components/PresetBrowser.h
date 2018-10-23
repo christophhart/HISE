@@ -266,6 +266,7 @@ public:
 };
 
 class PresetBrowserColumn : public Component,
+						   public TouchAndHoldComponent,
 	                       public ButtonListener,
 	                       public Label::Listener,
 						   public TagList::Listener,
@@ -390,6 +391,8 @@ public:
 		Array<Identifier> currentlyActiveTags;
 
 
+		
+
 		void rebuildCachedTagList();
 
 		void updateTags(const StringArray& newSelection);
@@ -403,7 +406,13 @@ public:
 
 		Array<CachedTag> cachedTags;
 
+		bool allowRecursiveSearch = false;
+
+		bool deleteOnClick = false;
+
 	private:
+
+		
 
 		bool empty = false;
 
@@ -438,6 +447,12 @@ public:
 
     void setEditMode(bool on) { listModel->setEditMode(on); listbox->repaint(); };
     
+	void setAllowRecursiveFileSearch(bool shouldAllow)
+	{
+		listModel->allowRecursiveSearch = shouldAllow;
+		listbox->updateContent();
+	}
+
 	void setShowButtons(bool shouldBeShown)
 	{
 		showButtonsAtBottom = shouldBeShown;
@@ -465,6 +480,27 @@ public:
 
 
 		
+	}
+
+	void touchAndHold(Point<int> downPosition) override
+	{
+		bool scrolling = listbox->getViewport()->isCurrentlyScrollingOnDrag();
+
+		if (!scrolling && !showButtonsAtBottom)
+		{
+			listModel->deleteOnClick = !listModel->deleteOnClick;
+			listbox->repaint();
+		}
+	}
+
+	void mouseDown(const MouseEvent& e) override
+	{
+		TouchAndHoldComponent::startTouch(e.getPosition());
+	}
+
+	void mouseUp(const MouseEvent& e) override
+	{
+		TouchAndHoldComponent::abortTouch();
 	}
 
 	void buttonClicked(Button* b);
@@ -537,7 +573,7 @@ public:
 
 private:
 
-
+	bool deleteByTouch = false;
 
 	// ============================================================================================
 
@@ -1045,6 +1081,8 @@ public:
 
 	void setHighlightColourAndFont(Colour c, Colour bgColour, Font f);
 
+	void setNumColumns(int numColumns);
+
 	/** SaveButton = 1, ShowFolderButton = 0 */
 	void setShowButton(int buttonId, bool newValue)
 	{
@@ -1319,6 +1357,8 @@ public:
 private:
 
 	// ============================================================================================
+
+	int numColumns = 3;
 
 	Colour backgroundColour;
 	Colour outlineColour;

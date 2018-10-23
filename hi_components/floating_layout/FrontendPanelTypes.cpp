@@ -562,6 +562,7 @@ var PresetBrowserPanel::toDynamicObject() const
 	storePropertyInObject(obj, SpecialPanelIds::ShowFolderButton, showFolderButton);
 	storePropertyInObject(obj, SpecialPanelIds::ShowNotes, showNotes);
 	storePropertyInObject(obj, SpecialPanelIds::ShowEditButtons, showEditButtons);
+	storePropertyInObject(obj, SpecialPanelIds::NumColumns, numColumns);
 
 	return obj;
 }
@@ -576,11 +577,13 @@ void PresetBrowserPanel::fromDynamicObject(const var& object)
 	showFolderButton = getPropertyWithDefault(object, SpecialPanelIds::ShowFolderButton);
 	showNotes = getPropertyWithDefault(object, SpecialPanelIds::ShowNotes);
 	showEditButtons = getPropertyWithDefault(object, SpecialPanelIds::ShowEditButtons);
+	numColumns = getPropertyWithDefault(object, SpecialPanelIds::NumColumns);
 
 	presetBrowser->setShowButton(0, showFolderButton);
 	presetBrowser->setShowButton(1, showSaveButton);
 	presetBrowser->setShowNotesLabel(showNotes);
 	presetBrowser->setShowEditButtons(showEditButtons);
+	presetBrowser->setNumColumns(numColumns);
 
 }
 
@@ -606,6 +609,7 @@ juce::Identifier PresetBrowserPanel::getDefaultablePropertyId(int index) const
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowSaveButton, "ShowSaveButton");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowNotes, "ShowNotes");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowEditButtons, "ShowEditButtons");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::NumColumns, "NumColumns");
 
 	return Identifier();
 }
@@ -624,6 +628,7 @@ var PresetBrowserPanel::getDefaultProperty(int index) const
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowSaveButton, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowNotes, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowEditButtons, true);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::NumColumns, 3);
 
 	return var();
 }

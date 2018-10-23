@@ -401,6 +401,7 @@ public:
 		ShowSaveButton,
 		ShowNotes,
 		ShowEditButtons,
+		NumColumns,
 		numSpecialProperties
 	};
 
@@ -424,6 +425,7 @@ private:
 	bool showFolderButton = true;
 	bool showNotes = true;
 	bool showEditButtons = true;
+	int numColumns = 3;
 
 	ScopedPointer<MultiColumnPresetBrowser> presetBrowser;
 };
