@@ -948,12 +948,12 @@ void JavascriptProcessor::setDeviceTypeForInterface(int deviceIndex)
 
 
 
-ValueTree JavascriptProcessor::getContentPropertiesForDevice(int /*deviceIndex*/)
+ValueTree JavascriptProcessor::getContentPropertiesForDevice(int deviceIndex)
 {
 	static const Identifier deviceType("DeviceType");
 
 	auto desktopName = HiseDeviceSimulator::getDeviceName((int)HiseDeviceSimulator::DeviceType::Desktop);
-	auto deviceName = HiseDeviceSimulator::getDeviceName();
+	auto deviceName = HiseDeviceSimulator::getDeviceName(deviceIndex);
 
 	auto ct = allInterfaceData.getChildWithProperty(deviceType, deviceName);
 
@@ -967,11 +967,11 @@ ValueTree JavascriptProcessor::getContentPropertiesForDevice(int /*deviceIndex*/
 	return ct;
 }
 
-bool JavascriptProcessor::hasUIDataForDeviceType() const
+bool JavascriptProcessor::hasUIDataForDeviceType(int type) const
 {
 	static const Identifier deviceType("DeviceType");
 
-	auto deviceName = HiseDeviceSimulator::getDeviceName();
+	auto deviceName = HiseDeviceSimulator::getDeviceName(type);
 
 	auto ct = allInterfaceData.getChildWithProperty(deviceType, deviceName);
 

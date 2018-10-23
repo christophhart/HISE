@@ -470,15 +470,37 @@ void ScriptComponentList::mouseUp(const MouseEvent& event)
 			CreateCustomCallbackDefinition,
 			CopyProperties,
 			PasteProperties,
-			numOptions
+			CopyToAllDevices,
+			CopyToDeviceOffset,
+			
+			numOptions = CopyToDeviceOffset + 10
 		};
 
 		PopupLookAndFeel plaf;
 		PopupMenu m;
 		m.setLookAndFeel(&plaf);
 
+		const bool somethingSelected = b->getNumSelected() != 0;
+
 		m.addItem(PopupMenuOptions::CreateScriptVariableDeclaration, "Create script variable definition");
 		m.addItem(PopupMenuOptions::CreateCustomCallbackDefinition, "Create custom callback definition");
+
+
+		PopupMenu s;
+
+		s.addItem(CopyToAllDevices, "Copy selection to all devices", somethingSelected);
+
+		for (int i = 0; i < (int)HiseDeviceSimulator::DeviceType::numDeviceTypes; i++)
+		{
+			
+
+			int resultValue = (int)PopupMenuOptions::CopyToDeviceOffset + i;
+
+			s.addItem(resultValue, "Copy selection to " + HiseDeviceSimulator::getDeviceName(i), somethingSelected, false);
+		}
+
+		m.addSubMenu("Copy to Device", s, somethingSelected);
+		
 
 		const bool isSingleSelection = tree->getNumSelectedItems() == 1;
 
@@ -533,7 +555,77 @@ void ScriptComponentList::mouseUp(const MouseEvent& event)
 			SystemClipboard::copyTextToClipboard(st);
 			break;
 		}
-		
+		case CopyToAllDevices:
+		case CopyToDeviceOffset+0:
+		case CopyToDeviceOffset+1:
+		case CopyToDeviceOffset+2:
+		case CopyToDeviceOffset+3:
+		case CopyToDeviceOffset+4:
+		case CopyToDeviceOffset+5:
+		case CopyToDeviceOffset+6:
+		{
+			const int deviceToUse = result - CopyToDeviceOffset;
+
+			auto jp = dynamic_cast<JavascriptProcessor*>(componentListToUse.getFirst()->getProcessor());
+
+			for (int i = 0; i < (int)HiseDeviceSimulator::DeviceType::numDeviceTypes; i++)
+			{
+				if (!jp->hasUIDataForDeviceType(i))
+					continue;
+					
+				if ((int)HiseDeviceSimulator::getDeviceType() == i)
+					continue;
+				
+				if (deviceToUse != -1 && deviceToUse != i)
+					continue;
+
+				auto deviceContent = jp->getContentPropertiesForDevice(i);
+
+				for (auto sc : componentListToUse)
+				{
+					auto id = sc->getName().toString();
+
+					bool found = false;
+					bool* tmp = &found;
+
+					auto f = [id, tmp](ValueTree& other)
+					{
+						if (other.getProperty("ID").toString() == id)
+							*tmp = true;
+
+						return false;
+					};
+
+
+					ScriptingApi::Content::Helpers::callRecursive(deviceContent, f);
+
+					if (!found)
+					{
+						auto pId = sc->getParentComponentId();
+						auto c = sc->getPropertyValueTree().createCopy();
+
+						auto f2 = [pId, c](ValueTree& other)
+						{
+							const bool matchesParent = other.getProperty("ID").toString() == pId &&
+								pId.isEmpty() && other.getType() == Identifier("ContentProperties");
+
+							if (matchesParent)
+							{
+								other.addChild(c, -1, nullptr);
+								return true;
+							}
+
+							return false;
+						};
+
+						ScriptingApi::Content::Helpers::callRecursive(deviceContent, f2);
+					}
+				}
+			}
+
+			break;
+		}
+
 		ADD_WIDGET(ScriptEditHandler::Widgets::Knob, ScriptingApi::Content::ScriptSlider);
 		ADD_WIDGET(ScriptEditHandler::Widgets::Button, ScriptingApi::Content::ScriptButton);
 		ADD_WIDGET(ScriptEditHandler::Widgets::Label, ScriptingApi::Content::ScriptLabel);
