@@ -66,6 +66,22 @@ SET_DOCUMENTATION(SineSynth)
 
 }
 
+float SineSynthVoice::sinTable[2048];
+bool SineSynthVoice::tableInitialised = false;
+    
+void SineSynthVoice::initTable()
+{
+    if(tableInitialised)
+        return;
+    
+    tableInitialised = true;
+    
+    for(int i = 0; i < 2048; i++)
+    {
+        sinTable[i] = sinf(i * float_Pi / 1024.0f);
+    }
+}
+    
 SineSynth::SineSynth(MainController *mc, const String &id, int numVoices) :
 	ModulatorSynth(mc, id, numVoices),
 	octaveTranspose((int)getDefaultValue(OctaveTranspose)),
