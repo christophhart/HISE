@@ -253,7 +253,7 @@ bool MainController::KillStateHandler::invalidateTicket(uint16 ticket)
 {
 	//DBG("Invalidate Ticket " + String(ticket));
 
-	jassert(currentState == Suspended);
+	jassert(mc->isBeingDeleted() || currentState == Suspended);
 
 	//stackTraces.remove(StackTrace<3, 6>(ticket, false));
 

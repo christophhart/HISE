@@ -81,7 +81,7 @@ size_t DictionaryHelpers::compressWithOptionalDictionary(PointerTypes::Compressi
 {
 	size_t numWritten = 0;
 
-	auto min_size = jmax<size_t>(input.getSize(), 128);
+	auto min_size = jmax<size_t>(input.getSize(), 256);
 
 	output.ensureSize(min_size, true);
 

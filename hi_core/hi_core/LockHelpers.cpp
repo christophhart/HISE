@@ -36,6 +36,11 @@ using namespace juce;
 
 bool LockHelpers::freeToGo(MainController* mc)
 {
+	if (mc->isBeingDeleted())
+	{
+		return true;
+	}
+
 	if (!mc->isInitialised())
 	{
 		return true;
@@ -280,6 +285,8 @@ void ScopedTicket::invalidate()
 {
 	if (mc != nullptr && mc->isInitialised())
 	{
+		
+
 		LockHelpers::freeToGo(mc);
 		jassert(ticket != 0);
 		mc->getKillStateHandler().invalidateTicket(ticket);
