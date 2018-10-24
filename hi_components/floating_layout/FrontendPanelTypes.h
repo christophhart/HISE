@@ -160,6 +160,7 @@ public:
 		MPEStartChannel,
 		MPEEndChannel,
 		UseVectorGraphics,
+		UseFlatStyle,
 		numProperyIds
 	};
 
