@@ -180,6 +180,8 @@ void FrontendProcessor::restorePool(InputStream* inputStream, FileHandlerBase::S
         default: jassertfalse; break;
     }
 }
+    
+static int numInstances = 0;
 
 FrontendProcessor::FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, MemoryInputStream *imageData/*=nullptr*/, MemoryInputStream *impulseData/*=nullptr*/, MemoryInputStream* sampleMapData, ValueTree *externalFiles/*=nullptr*/, ValueTree *) :
 MainController(),
@@ -196,6 +198,15 @@ unlockCounter(0)
     
 	GlobalSettingManager::initData(this);
 
+    numInstances++;
+    
+    if(HiseDeviceSimulator::isAUv3() && numInstances > HISE_AUV3_MAX_INSTANCE_COUNT)
+    {
+        deactivatedBecauseOfMemoryLimitation = true;
+        keyFileCorrectlyLoaded = true;
+        return;
+    }
+    
 #if USE_COPY_PROTECTION
 	if (!unlocker.loadKeyFile())
 		keyFileCorrectlyLoaded = false;
@@ -209,37 +220,6 @@ unlockCounter(0)
     
   	LOG_START("Load samplemaps");
     restorePool(sampleMapData, FileHandlerBase::SampleMaps, "SampleMapResources.dat");
-    
-#if 0
-	if(imageData)
-		getCurrentImagePool(true)->getDataProvider()->restorePool(imageData);
-	else
-	{
-		File imageResourceFile(getSampleManager().getProjectHandler().getEmbeddedResourceDirectory().getChildFile("ImageResources.dat"));
-
-		if (imageResourceFile.existsAsFile())
-		{
-			FileInputStream* fis = new FileInputStream(imageResourceFile);
-
-			LOG_START("Load impulses");
-
-			getCurrentImagePool(true)->getDataProvider()->restorePool(fis);
-		}
-        else
-        {
-            jassertfalse;
-        }
-	}
-
-	if (impulseData)
-		getCurrentAudioSampleBufferPool(true)->getDataProvider()->restorePool(impulseData);
-	else
-	{
-		
-	}
-	
-	getCurrentSampleMapPool(true)->getDataProvider()->restorePool(sampleMapData);
-#endif
     
 	if (externalFiles != nullptr)
 	{
@@ -259,6 +239,24 @@ unlockCounter(0)
 	
 }
 
+
+    FrontendProcessor::~FrontendProcessor()
+    {
+        numInstances--;
+        
+        storeAllSamplesFound(GET_PROJECT_HANDLER(getMainSynthChain()).areSamplesLoadedCorrectly());
+        
+        getSampleManager().cancelAllJobs();
+        
+        setEnabledMidiChannels(synthChain->getActiveChannelData()->exportData());
+        
+        deletePendingFlag = true;
+        clearPreset();
+        synthChain = nullptr;
+    };
+    
+
+    
 void FrontendProcessor::createPreset(const ValueTree& synthData)
 {
 	

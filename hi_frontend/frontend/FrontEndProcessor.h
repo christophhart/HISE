@@ -89,25 +89,7 @@ public:
 
 	void changeProgramName(int /*index*/, const String &/*newName*/) override {};
 
-	~FrontendProcessor()
-	{
-		storeAllSamplesFound(GET_PROJECT_HANDLER(getMainSynthChain()).areSamplesLoadedCorrectly());
-
-		getSampleManager().cancelAllJobs();
-
-		setEnabledMidiChannels(synthChain->getActiveChannelData()->exportData());
-
-		
-
-		deletePendingFlag = true;
-
-		clearPreset();
-
-		synthChain = nullptr;
-
-		
-
-	};
+    ~FrontendProcessor();
 
 	bool shouldLoadSamplesAfterSetup() {
 		return GET_PROJECT_HANDLER(getMainSynthChain()).areSamplesLoadedCorrectly() && keyFileCorrectlyLoaded;
@@ -235,6 +217,8 @@ public:
 	Unlocker unlocker;
 #endif
 
+    bool deactivatedBecauseOfMemoryLimitation = false;
+    
 private:
 
 	friend class FrontendProcessorEditor;
@@ -258,6 +242,8 @@ private:
 	int unlockCounter;
 
 	int numActiveEditors = 0;
+    
+    
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FrontendProcessor)	
 

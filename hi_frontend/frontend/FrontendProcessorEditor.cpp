@@ -39,6 +39,8 @@ AudioProcessorEditor(fp)
 
     Desktop::getInstance().setDefaultLookAndFeel(&globalLookAndFeel);
     
+    
+    
 	LOG_START("Creating Interface")
 
     addAndMakeVisible(container = new FrontendEditorHolder());
@@ -71,7 +73,7 @@ AudioProcessorEditor(fp)
 #endif
     
 
-    if(searchSamples)
+    if(searchSamples && !fp->deactivatedBecauseOfMemoryLimitation)
     {
         deactiveOverlay->setState(DeactiveOverlay::SamplesNotInstalled, !FrontendHandler::checkSamplesCorrectlyInstalled());
         
@@ -100,9 +102,24 @@ AudioProcessorEditor(fp)
 
 	debugLoggerComponent->setVisible(fp->getDebugLogger().isLogging());
 
+    if(fp->deactivatedBecauseOfMemoryLimitation)
+    {
+        auto b = HiseDeviceSimulator::getDisplayResolution();
+        
+        rootTile->setVisible(false);
+        
+        deactiveOverlay->clearAllFlags();
+        deactiveOverlay->setVisible(false);
+        container->setVisible(false);
+        
+        setSize(b.getWidth(), b.getHeight());
+        return;
+    }
+    
 	auto jsp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(fp);
     
 
+    
 
     if(jsp != nullptr)
     {
@@ -153,6 +170,8 @@ AudioProcessorEditor(fp)
         setGlobalScaleFactor((float)fp->getGlobalScaleFactor());
 	}
 #endif
+        
+    
 }
 
 FrontendProcessorEditor::~FrontendProcessorEditor()
