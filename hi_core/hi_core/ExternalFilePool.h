@@ -340,6 +340,11 @@ public:
 		return type;
 	}
 
+	void setUseSharedPool(bool shouldUse)
+	{
+		useSharedCache = shouldUse;
+	}
+
 protected:
 
 	virtual Identifier getFileTypeName() const = 0;
@@ -357,6 +362,8 @@ protected:
 	
 
 	FileHandlerBase::SubDirectories type;
+
+	bool useSharedCache = false;
 
 private:
 
@@ -444,6 +451,63 @@ public:
 	var additionalData;
 	
 	JUCE_DECLARE_WEAK_REFERENCEABLE(PoolEntry<DataType>);
+};
+
+
+//using DataType = Image;
+
+
+template <class DataType> class SharedCache
+{
+
+public:
+
+	SharedCache()
+	{
+		DataType* unused = nullptr;
+		DBG("Create Shared Cache Pool for " + PoolHelpers::getPrettyName(unused));
+	}
+
+	bool contains(int64 hashCode)
+	{
+		for (const auto& i : sharedItems)
+		{
+			if (i->ref.getHashCode() == hashCode)
+				return true;
+		}
+
+		return false;
+	}
+
+	PoolEntry<DataType>* getSharedData(int64 hashCode)
+	{
+		for (const auto& i: sharedItems)
+		{
+			if (i->ref.getHashCode() == hashCode)
+				return i;
+		}
+
+		jassertfalse;
+		return {};
+	}
+
+	void store(PoolEntry<DataType>* newEntry)
+	{
+		if (contains(newEntry->ref.getHashCode()))
+			return;
+
+		sharedItems.add(newEntry);
+	}
+
+	~SharedCache()
+	{
+		DataType* unused = nullptr;
+		DBG("Delete Shared Cache Pool for " + PoolHelpers::getPrettyName(unused));
+	}
+
+private:
+
+	ReferenceCountedArray<PoolEntry<DataType>> sharedItems;
 };
 
 
@@ -797,6 +861,11 @@ public:
 		if (getDataProvider()->isEmbeddedResource(r))
 			r = getDataProvider()->getEmbeddedReference(r);
 
+		if (useSharedCache && sharedCache->contains(r.getHashCode()))
+		{
+			return ManagedPtr(this, sharedCache->getSharedData(r.getHashCode()), true);
+		}
+
 		if (PoolHelpers::shouldSearchInPool(loadingType))
 		{
 			int index = indexOf(r);
@@ -817,6 +886,7 @@ public:
                         jassert(ad.isObject());
                         
 						PoolHelpers::loadData(afm, inputStream, r.getHashCode(), *d.getData(), &ad);
+
 						sendPoolChangeMessage(PoolBase::Reloaded, sendNotificationSync, r);
 						return ManagedPtr(this, d.get(), true);
 					}
@@ -852,9 +922,17 @@ public:
 
 				ne->additionalData = getDataProvider()->createAdditionalData(r);
 
-				weakPool.add(ManagedPtr(this, ne.getObject(), false));
-				refCountedPool.add(ManagedPtr(this, ne.getObject(), true));
+				if (useSharedCache)
+				{
+					sharedCache->store(ne);
+				}
+				else
+				{
+					weakPool.add(ManagedPtr(this, ne.getObject(), false));
+					refCountedPool.add(ManagedPtr(this, ne.getObject(), true));
+				}
 
+				
 				sendPoolChangeMessage(PoolBase::Added);
 
 				return ManagedPtr(this, ne.getObject(), true);
@@ -873,10 +951,19 @@ public:
 			if (auto inputStream = r.createInputStream())
 			{
 				PoolHelpers::loadData(afm, inputStream, r.getHashCode(), ne->data, &ne->additionalData);
-				weakPool.add(ManagedPtr(this, ne.getObject(), false));
 
-				if (PoolHelpers::isStrong(loadingType))
-					refCountedPool.add(ManagedPtr(this, ne.getObject(), true));
+
+				if (useSharedCache)
+				{
+					sharedCache->store(ne);
+				}
+				else
+				{
+					weakPool.add(ManagedPtr(this, ne.getObject(), false));
+
+					if (PoolHelpers::isStrong(loadingType))
+						refCountedPool.add(ManagedPtr(this, ne.getObject(), true));
+				}
 				
 				sendPoolChangeMessage(PoolBase::Added);
 
@@ -890,7 +977,11 @@ public:
 		}
 	}
 
+	
+
 private:
+
+	SharedResourcePointer<SharedCache<DataType>> sharedCache;
 
 	DataType empty;
 
@@ -919,109 +1010,38 @@ class PoolCollection: public ControlledObject
 {
 public:
 
-	PoolCollection(MainController* mc):
-		ControlledObject(mc)
-	{
-		for (int i = 0; i < (int)ProjectHandler::SubDirectories::numSubDirectories; i++)
-		{
-			switch ((ProjectHandler::SubDirectories)i)
-			{
-			case ProjectHandler::SubDirectories::AudioFiles:
-				dataPools[i] = new AudioSampleBufferPool(mc);
-				break;
-			case ProjectHandler::SubDirectories::Images:
-				dataPools[i] = new ImagePool(mc);
-				break;
-			case ProjectHandler::SubDirectories::SampleMaps:
-				dataPools[i] = new SampleMapPool(mc);
-				
-				break;
-			default:
-				dataPools[i] = nullptr;
-			}
-		}
+	PoolCollection(MainController* mc);;
 
-	};
+	~PoolCollection();
 
-	~PoolCollection()
-	{
-		for (int i = 0; i < (int)ProjectHandler::SubDirectories::numSubDirectories; i++)
-		{
-			if (dataPools[i] != nullptr)
-			{
-				delete dataPools[i];
-				dataPools[i] = nullptr;
-			}
-		}
-	}
-
-	void clear()
-	{
-		for (int i = 0; i < (int)ProjectHandler::SubDirectories::numSubDirectories; i++)
-		{
-			if (dataPools[i] != nullptr)
-			{
-				dataPools[i]->clearData();
-			}
-		}
-	}
+	void clear();
 
 	template<class DataType> SharedPoolBase<DataType>* getPool()
 	{
 		auto type = PoolHelpers::getSubDirectoryType(DataType());
-
 		jassert(dataPools[type] != nullptr);
-
 		return static_cast<SharedPoolBase<DataType>*>(dataPools[type]);
 	}
 
 	template<class DataType> const SharedPoolBase<DataType>* getPool() const
 	{
 		auto type = PoolHelpers::getSubDirectoryType(DataType());
-
 		jassert(dataPools[type] != nullptr);
-
 		return static_cast<SharedPoolBase<DataType>*>(dataPools[type]);
 	}
 
+	const AudioSampleBufferPool& getAudioSampleBufferPool() const;
+	AudioSampleBufferPool& getAudioSampleBufferPool();
 
-	const AudioSampleBufferPool& getAudioSampleBufferPool() const
-	{
-		return *getPool<AudioSampleBuffer>();
-	}
+	const ImagePool& getImagePool() const;
+	ImagePool& getImagePool();
 
-	AudioSampleBufferPool& getAudioSampleBufferPool()
-	{
-		return *getPool<AudioSampleBuffer>();
-	}
-
-	const ImagePool& getImagePool() const
-	{
-		return *getPool<Image>();
-	}
-
-	ImagePool& getImagePool()
-	{
-		return *getPool<Image>();
-	}
-
-	const SampleMapPool& getSampleMapPool() const
-	{
-		return *getPool<ValueTree>();
-	}
-
-	SampleMapPool& getSampleMapPool()
-	{
-		return *getPool<ValueTree>();
-	}
+	const SampleMapPool& getSampleMapPool() const;
+	SampleMapPool& getSampleMapPool();
 
 	AudioFormatManager afm;
 
-	
-
 private:
-
-	
 
 	PoolBase * dataPools[(int)ProjectHandler::SubDirectories::numSubDirectories];
 
@@ -1046,8 +1066,6 @@ public:
 	bool hasHoveringPoolItem() const { return over; };
 
 private:
-
-	
 
 	MainController * mc;
 
