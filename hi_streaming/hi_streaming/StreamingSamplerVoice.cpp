@@ -34,6 +34,8 @@ namespace hise { using namespace juce;
 
 // =============================================================================================================================================== SampleLoader methods
 
+
+    
 SampleLoader::SampleLoader(SampleThreadPool *pool_) :
 	SampleThreadPoolJob("SampleLoader"),
 	backgroundPool(pool_),
@@ -50,8 +52,8 @@ SampleLoader::SampleLoader(SampleThreadPool *pool_) :
 	writeBuffer(nullptr),
 	diskUsage(0.0),
 	lastCallToRequestData(0.0),
-	b1(true, 2, 0),
-	b2(true, 2, 0)
+	b1(DEFAULT_BUFFER_TYPE_IS_FLOAT, 2, 0),
+	b2(DEFAULT_BUFFER_TYPE_IS_FLOAT, 2, 0)
 {
 	unmapper.setLoader(this);
 
