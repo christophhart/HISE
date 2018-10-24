@@ -320,9 +320,17 @@ void KnobLookAndFeel::drawToggleButton (Graphics &g, ToggleButton &b, bool isMou
 	g.drawImage(clip, 7, (b.getHeight() - 16) / 2, 16, 16, 0, 0, filmStripHeight, filmStripHeight);
 }
 
+#ifndef INCLUDE_STOCK_FILMSTRIPS
+#if HISE_IOS
+#define INCLUDE_STOCK_FILMSTRIPS 0
+#else
+#define INCLUDE_STOCK_FILMSTRIPS 1
+#endif
+#endif
 
 KnobLookAndFeel::KnobLookAndFeel()
 {
+#if INCLUDE_STOCK_FILMSTRIPS
 	cachedImage_smalliKnob_png = ImageProvider::getImage(ImageProvider::ImageType::KnobEmpty); // ImageCache::getFromMemory(BinaryData::knob_empty_png, BinaryData::knob_empty_pngSize);
 	cachedImage_knobRing_png = ImageProvider::getImage(ImageProvider::ImageType::KnobUnmodulated); // ImageCache::getFromMemory(BinaryData::ring_unmodulated_png, BinaryData::ring_unmodulated_pngSize);
 	ring_modulated = ImageProvider::getImage(ImageProvider::ImageType::KnobModulated); //ImageCache::getFromMemory(BinaryData::ring_modulated_png, BinaryData::ring_modulated_pngSize);
@@ -335,7 +343,9 @@ KnobLookAndFeel::KnobLookAndFeel()
 	cachedImage_toggle_png = ImageProvider::getImage(ImageProvider::ImageType::ToggleButton); // ImageCache::getFromMemory(toggle_png, toggle_pngSize);
 	cachedImage_slider_strip2_png = ImageCache::getFromMemory (slider_strip2_png, slider_strip2_pngSize);
 	cachedImage_slider2_bipolar_png = ImageCache::getFromMemory (slider2_bipolar_png, slider2_bipolar_pngSize);
-
+#endif
+    
+    
 	setColour(PopupMenu::highlightedBackgroundColourId, Colour(SIGNAL_COLOUR));
 
 	Colour dark(0xFF252525);
