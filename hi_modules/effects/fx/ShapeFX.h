@@ -323,8 +323,8 @@ private:
 	
 	float graphNormalizeValue = 0.0f;
 
-	DelayLine lDelay;
-	DelayLine rDelay;
+	DelayLine<1024> lDelay;
+	DelayLine<1024> rDelay;
 
 	LowpassSmoothedValue gainer;
 	LowpassSmoothedValue autogainer;

@@ -226,8 +226,8 @@ private:
 	AudioSampleBuffer leftDelayFrames;
 	AudioSampleBuffer rightDelayFrames;
     
-    DelayLine leftDelay;
-    DelayLine rightDelay;
+    DelayLine<> leftDelay;
+    DelayLine<> rightDelay;
 
 	bool skipFirstBuffer;
 };
