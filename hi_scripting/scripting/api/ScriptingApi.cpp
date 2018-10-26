@@ -968,6 +968,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Engine, setGlobalFont);
 	API_VOID_METHOD_WRAPPER_0(Engine, undo);
 	API_VOID_METHOD_WRAPPER_0(Engine, redo);
+	API_VOID_METHOD_WRAPPER_0(Engine, loadAudioFilesIntoPool)
 };
 
 ScriptingApi::Engine::Engine(ProcessorWithScriptingContent *p) :
@@ -1036,6 +1037,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(setGlobalFont);
 	ADD_API_METHOD_0(undo);
 	ADD_API_METHOD_0(redo);
+	ADD_API_METHOD_0(loadAudioFilesIntoPool);
 }
 
 
@@ -1386,6 +1388,14 @@ var ScriptingApi::Engine::getUserPresetList() const
 void ScriptingApi::Engine::setAllowDuplicateSamples(bool shouldAllow)
 {
 	getProcessor()->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->setAllowDuplicateSamples(shouldAllow);
+}
+
+void ScriptingApi::Engine::loadAudioFilesIntoPool()
+{
+#if USE_BACKEND
+	auto pool = getScriptProcessor()->getMainController_()->getCurrentAudioSampleBufferPool(true);
+	pool->loadAllFilesFromProjectFolder();
+#endif
 }
 
 DynamicObject * ScriptingApi::Engine::getPlayHead() { return getProcessor()->getMainController()->getHostInfoObject(); }
