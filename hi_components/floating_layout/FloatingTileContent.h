@@ -36,6 +36,17 @@
 
 #define OLD_COLOUR 0
 
+#ifndef HI_ENABLE_EXTERNAL_CUSTOM_TILES
+#define HI_ENABLE_EXTERNAL_CUSTOM_TILES 0
+#endif
+
+
+#if HI_ENABLE_EXTERNAL_CUSTOM_TILES
+#define REGISTER_EXTERNAL_FLOATING_TILE(x) registerType<x>(FloatingTileContent::Factory::PopupMenuOptions::numOptions);
+#else
+#define REGISTER_EXTERNAL_FLOATING_TILE(x)
+#endif
+
 namespace hise { using namespace juce;
 
 class FloatingTile;
@@ -583,17 +594,7 @@ public:
 		}
 
 		/** Creates a subclass instance with the registered Identifier and returns a base class pointer to this. You need to take care of the ownership of course. */
-		FloatingTileContent* createFromId(const Identifier &id, FloatingTile* parent) const
-		{
-			const int index = ids.indexOf(id);
-
-			if (index != -1) return functions[index](parent);
-			else
-			{
-				jassertfalse;
-				return functions[0](parent);
-			}
-		}
+		FloatingTileContent* createFromId(const Identifier &id, FloatingTile* parent) const;
 
 		PopupMenuOptions getOption(const FloatingTile* t) const;
 
@@ -606,6 +607,9 @@ public:
 
 		void registerFrontendPanelTypes();
 
+#if HI_ENABLE_EXTERNAL_CUSTOM_TILES
+		void registerExternalPanelTypes();
+#endif
 
 
 		Drawable* getIcon(PopupMenuOptions type) const;

@@ -34,7 +34,11 @@
 #ifndef FLOATINGLAYOUT_H_INCLUDED
 #define FLOATINGLAYOUT_H_INCLUDED
 
+namespace hise
+{
 class FloatingTile;
+}
+
 
 
 
