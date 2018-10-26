@@ -447,6 +447,8 @@ void HiseSampleBuffer::add(HiseSampleBuffer& dst, const HiseSampleBuffer& source
 
 void* HiseSampleBuffer::getWritePointer(int channel, int startSample)
 {
+    jassert(isPositiveAndBelow(startSample, size));
+    
 	if (isFloatingPoint())
 	{
 		return floatBuffer.getWritePointer(channel, startSample);

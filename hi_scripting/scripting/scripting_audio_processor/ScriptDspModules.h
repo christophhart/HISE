@@ -1320,8 +1320,8 @@ public:
 		
 	private:
 
-		DelayLine delayL;
-		DelayLine delayR;
+		DelayLine<> delayL;
+		DelayLine<> delayR;
 
 		float delayTimeSamples = 0.0f;
 

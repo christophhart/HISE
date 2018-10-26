@@ -43,6 +43,10 @@ using namespace juce;
 #endif
 
 
+#ifndef HI_ENABLE_SHAPE_FX_OVERSAMPLER
+#define HI_ENABLE_SHAPE_FX_OVERSAMPLER 1
+#endif
+    
 class LowpassSmoothedValue
 {
 public:
@@ -86,10 +90,8 @@ class ShapeFX : public MasterEffectProcessor,
 {
 public:
 
-	
-	
-
 	using Oversampler = juce::dsp::Oversampling<float>;
+    
 	using ShapeFunction = std::function<float(float)>;
 
 	enum ShapeMode
@@ -323,8 +325,8 @@ private:
 	
 	float graphNormalizeValue = 0.0f;
 
-	DelayLine lDelay;
-	DelayLine rDelay;
+	DelayLine<1024> lDelay;
+	DelayLine<1024> rDelay;
 
 	LowpassSmoothedValue gainer;
 	LowpassSmoothedValue autogainer;

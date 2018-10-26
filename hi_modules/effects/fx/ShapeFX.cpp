@@ -471,9 +471,14 @@ void ShapeFX::updateMode()
 
 void ShapeFX::updateOversampling()
 {
+    
+#if HI_ENABLE_SHAPE_FX_OVERSAMPLER
 	auto factor = roundDoubleToInt(log2((double)oversampleFactor));
+#else
+    auto factor = 0;
+#endif
 
-	ScopedPointer<Oversampler> newOverSampler = new Oversampler(2, factor, Oversampler::FilterType::filterHalfBandPolyphaseIIR, false);
+    ScopedPointer<Oversampler> newOverSampler = new Oversampler(2, factor, Oversampler::FilterType::filterHalfBandPolyphaseIIR, false);
 
 	if (getLargestBlockSize() > 0)
 		newOverSampler->initProcessing(getLargestBlockSize());
@@ -482,7 +487,7 @@ void ShapeFX::updateOversampling()
 
 	lDelay.setDelayTimeSamples(latency);
 	rDelay.setDelayTimeSamples(latency);
-
+    
 	{
 		SpinLock::ScopedLockType sl(oversamplerLock);
 
@@ -648,7 +653,13 @@ PolyshapeFX::PolyshapeFX(MainController *mc, const String &uid, int numVoices):
 
 	for (int i = 0; i < numVoices; i++)
 	{
-		oversamplers.add(new ShapeFX::Oversampler(2, 2, ShapeFX::Oversampler::FilterType::filterHalfBandPolyphaseIIR, false));
+#if HI_ENABLE_SHAPE_FX_OVERSAMPLER
+        auto factor = 2;
+#else
+        auto factor = 0;
+#endif
+        
+		oversamplers.add(new ShapeFX::Oversampler(2, factor, ShapeFX::Oversampler::FilterType::filterHalfBandPolyphaseIIR, false));
 		driveSmoothers[i] = LinearSmoothedValue<float>(0.0f);
 	}
 

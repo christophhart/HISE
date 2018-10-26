@@ -188,8 +188,8 @@ private:
 
     MidSideDecoder msDecoder;
     
-    DelayLine leftDelay;
-    DelayLine rightDelay;
+    DelayLine<16384> leftDelay;
+    DelayLine<16384> rightDelay;
     
 };
 

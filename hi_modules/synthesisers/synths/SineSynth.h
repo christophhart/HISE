@@ -55,10 +55,7 @@ public:
 		ModulatorSynthVoice(ownerSynth),
 		octaveTransposeFactor(1.0)
 	{
-		for(int i = 0; i < 2048; i++)
-		{
-			sinTable[i] = sinf(i * float_Pi / 1024.0f);
-		}
+        initTable();
 	};
 
 	bool canPlaySound(SynthesiserSound *) override
@@ -91,8 +88,11 @@ public:
 
 private:
 
-	float sinTable[2048];
-
+    static void initTable();
+    
+	static float sinTable[2048];
+    static bool tableInitialised;
+    
 	double octaveTransposeFactor;
 
 

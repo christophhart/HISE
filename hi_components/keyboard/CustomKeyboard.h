@@ -72,10 +72,12 @@ public:
 	static const int white_key_on_pngSize;
 
 	bool useVectorGraphics = false;
+	bool useFlatStyle = false;
 
 	Colour bgColour;
 	Colour topLineColour;
 	Colour overlayColour;
+	Colour activityColour;
 
 private:
 
@@ -117,8 +119,9 @@ public:
 	virtual void setEnableToggleMode(bool /*isOn*/) {};
 	virtual void setMidiChannelBase(int /*midiChannel*/) = 0;
 
-	virtual void setUseVectorGraphics(bool shouldUseVectorGraphics) { ignoreUnused(shouldUseVectorGraphics); }
+	virtual void setUseVectorGraphics(bool shouldUseVectorGraphics, bool useFlatStyle) { ignoreUnused(shouldUseVectorGraphics, useFlatStyle); }
 	virtual bool isUsingVectorGraphics() const { return true; };
+	virtual bool isUsingFlatStyle() const { return false; };
 
 	virtual ~KeyboardBase() {};
 };
@@ -212,12 +215,11 @@ public:
 	bool isToggleModeEnabled() const override { return toggleMode; };
 	void setEnableToggleMode(bool shouldBeEnabled) override { toggleMode = shouldBeEnabled; }
 
-	void setUseVectorGraphics(bool shouldUseVectorGraphics) override
-	{
-		laf.useVectorGraphics = shouldUseVectorGraphics;
-	}
+	void setUseVectorGraphics(bool shouldUseVectorGraphics, bool useFlatStyle=false) override;
 
 	bool isUsingVectorGraphics() const override { return laf.useVectorGraphics; }
+
+	bool isUsingFlatStyle() const override { return laf.useFlatStyle; }
 
 	void setRange(int lowKey_, int hiKey_)
 	{

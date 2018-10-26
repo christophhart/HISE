@@ -108,7 +108,7 @@ private:
 		{
 			stopTimer();
 
-			if (dragDistance < 6.0f)
+			if (dragDistance < 8.0f)
 			{
 				parent->touchAndHold(downPosition);
 			}

@@ -32,10 +32,10 @@
 
 namespace hise { using namespace juce;
 
-static int dummy = 0;
-
 // =============================================================================================================================================== SampleLoader methods
 
+
+    
 SampleLoader::SampleLoader(SampleThreadPool *pool_) :
 	SampleThreadPoolJob("SampleLoader"),
 	backgroundPool(pool_),
@@ -52,8 +52,8 @@ SampleLoader::SampleLoader(SampleThreadPool *pool_) :
 	writeBuffer(nullptr),
 	diskUsage(0.0),
 	lastCallToRequestData(0.0),
-	b1(true, 2, 0),
-	b2(true, 2, 0)
+	b1(DEFAULT_BUFFER_TYPE_IS_FLOAT, 2, 0),
+	b2(DEFAULT_BUFFER_TYPE_IS_FLOAT, 2, 0)
 {
 	unmapper.setLoader(this);
 
@@ -202,8 +202,6 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 
 		jassert(numSamplesInFirstBuffer >= 0);
 
-		dummy++;
-
 		// Reset the offset so that the first one will go through
 		auto existingOffset = localReadBuffer->getNormaliseMap(0).getOffset();
 		auto offsetInBuffer = indexBeforeWrap % COMPRESSION_BLOCK_SIZE;
@@ -211,8 +209,6 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 		voiceBuffer.clearNormalisation({});
 
 		voiceBuffer.getNormaliseMap(0).setOffset(existingOffset + offsetInBuffer);
-
-		
 
 		if(!localReadBuffer->useOneMap)
 			voiceBuffer.getNormaliseMap(1).setOffset(localReadBuffer->getNormaliseMap(1).getOffset());
@@ -229,7 +225,7 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 		{
 			//const int numSamplesToCopyFromSecondBuffer = jmin<int>(numSamplesAvailableInSecondBuffer, voiceBuffer.getNumSamples() - offset);
 
-			int numSamplesToCopyFromSecondBuffer = (int)(ceil(numSamples - (double)numSamplesInFirstBuffer));
+			int numSamplesToCopyFromSecondBuffer = (int)(ceil(numSamples - (double)numSamplesInFirstBuffer)) + 1;
 
 			numSamplesToCopyFromSecondBuffer = jmin<int>(numSamplesToCopyFromSecondBuffer, numSamplesAvailableInSecondBuffer);
 
@@ -254,6 +250,9 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 
 		returnData.b = &voiceBuffer;
 		returnData.offsetInBuffer = 0;
+
+
+		
 
 #if USE_SAMPLE_DEBUG_COUNTER
 
@@ -503,8 +502,6 @@ void StreamingSamplerVoice::startNote(int /*midiNoteNumber*/,
 	SynthesiserSound* s,
 	int /*currentPitchWheelPosition*/)
 {
-	dummy = 0;
-
 	StreamingSamplerSound *sound = dynamic_cast<StreamingSamplerSound*>(s);
 
 	if (sound != nullptr && sound->getSampleLength() > 0)

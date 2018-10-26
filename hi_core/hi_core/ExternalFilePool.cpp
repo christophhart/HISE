@@ -32,7 +32,6 @@
 
 namespace hise { using namespace juce;
 
-
 ProjectHandler::SubDirectories PoolHelpers::getSubDirectoryType(const AudioSampleBuffer& emptyData)
 {
 	ignoreUnused(emptyData);
@@ -546,6 +545,9 @@ juce::Result PoolBase::DataProvider::restorePool(InputStream* ownedInputStream)
 	input = ownedInputStream;
 	int64 metadataSize = input->readInt64();
 
+	if (metadataSize == 0)
+		return Result::ok();
+
 	MemoryBlock metadataBlock;
 
 	input->readIntoMemoryBlock(metadataBlock, (size_t)metadataSize);
@@ -798,6 +800,91 @@ void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, AudioSam
 		reader->read(data, 0, (int)reader->lengthInSamples, 0, true, true);
 	}
 		
+}
+
+PoolCollection::PoolCollection(MainController* mc) :
+	ControlledObject(mc)
+{
+	for (int i = 0; i < (int)ProjectHandler::SubDirectories::numSubDirectories; i++)
+	{
+		switch ((ProjectHandler::SubDirectories)i)
+		{
+		case ProjectHandler::SubDirectories::AudioFiles:
+			dataPools[i] = new AudioSampleBufferPool(mc);
+			break;
+		case ProjectHandler::SubDirectories::Images:
+			dataPools[i] = new ImagePool(mc);
+			break;
+		case ProjectHandler::SubDirectories::SampleMaps:
+			dataPools[i] = new SampleMapPool(mc);
+
+			break;
+		default:
+			dataPools[i] = nullptr;
+		}
+	}
+
+#if USE_FRONTEND
+	// This makes plugins use one global pool of images in order to save memory
+	dataPools[ProjectHandler::SubDirectories::Images]->setUseSharedPool(true);
+
+	// Since memory is super tight on AUv3, we also share the audio files here...
+	if (HiseDeviceSimulator::isAUv3())
+		dataPools[ProjectHandler::SubDirectories::AudioFiles]->setUseSharedPool(true);
+#endif
+}
+
+PoolCollection::~PoolCollection()
+{
+	for (int i = 0; i < (int)ProjectHandler::SubDirectories::numSubDirectories; i++)
+	{
+		if (dataPools[i] != nullptr)
+		{
+			delete dataPools[i];
+			dataPools[i] = nullptr;
+		}
+	}
+}
+
+void PoolCollection::clear()
+{
+	for (int i = 0; i < (int)ProjectHandler::SubDirectories::numSubDirectories; i++)
+	{
+		if (dataPools[i] != nullptr)
+		{
+			dataPools[i]->clearData();
+		}
+	}
+}
+
+const hise::AudioSampleBufferPool& PoolCollection::getAudioSampleBufferPool() const
+{
+	return *getPool<AudioSampleBuffer>();
+}
+
+hise::AudioSampleBufferPool& PoolCollection::getAudioSampleBufferPool()
+{
+	return *getPool<AudioSampleBuffer>();
+}
+
+const hise::ImagePool& PoolCollection::getImagePool() const
+{
+	return *getPool<Image>();
+}
+
+hise::ImagePool& PoolCollection::getImagePool()
+{
+	return *getPool<Image>();
+}
+
+const hise::SampleMapPool& PoolCollection::getSampleMapPool() const
+{
+	return *getPool<ValueTree>();
+}
+
+hise::SampleMapPool& PoolCollection::getSampleMapPool()
+{
+	return *getPool<ValueTree>();
 }
 
 } // namespace hise

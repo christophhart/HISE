@@ -140,6 +140,7 @@ void Processor::restoreFromValueTree(const ValueTree &previouslyExportedProcesso
 	jassert(v.getProperty("ID", String()) == getId());
 	setBypassed(v.getProperty("Bypassed", false));
 
+#if 0
 	ScopedPointer<XmlElement> editorValueSet = v.getChildWithName("EditorStates").createXml();
 	
 	if(editorValueSet != nullptr)
@@ -148,6 +149,7 @@ void Processor::restoreFromValueTree(const ValueTree &previouslyExportedProcesso
 
 		editorStateValueSet.setFromXmlAttributes(*editorValueSet);
 	}
+#endif
 
 	ValueTree childProcessors = v.getChildWithName("ChildProcessors");
 

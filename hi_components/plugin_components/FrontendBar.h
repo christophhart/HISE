@@ -82,6 +82,11 @@ public:
 		resized();
 	}
 
+    void clearAllFlags()
+    {
+        currentState = 0;
+    }
+    
 	void setCustomMessage(const String newCustomMessage)
 	{
 		customMessage = newCustomMessage;

@@ -745,4 +745,55 @@ void JSONEditor::executeCallback()
 	}
 }
 
+
+
+class ExternalPlaceholder : public FloatingTileContent,
+	public Component
+{
+public:
+
+	ExternalPlaceholder(FloatingTile* parent) :
+		FloatingTileContent(parent)
+	{};
+
+	Identifier getIdentifierForBaseClass() const override { return id; }
+
+	void setName(const Identifier& newId)
+	{
+		id = newId;
+	}
+
+	void paint(Graphics& g)
+	{
+		g.fillAll(Colours::grey);
+		g.setColour(Colours::black);
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText(id.toString(), getLocalBounds().toFloat(), Justification::centred);
+	}
+
+	Identifier id;
+};
+
+hise::FloatingTileContent* FloatingTileContent::Factory::createFromId(const Identifier &id, FloatingTile* parent) const
+{
+#if USE_BACKEND
+	if (id.toString().startsWith("External"))
+	{
+		auto ft = new ExternalPlaceholder(parent);
+		ft->setName(id);
+
+		return ft;
+	}
+#endif
+
+	const int index = ids.indexOf(id);
+
+	if (index != -1) return functions[index](parent);
+	else
+	{
+		jassertfalse;
+		return functions[0](parent);
+	}
+}
+
 } // namespace hise

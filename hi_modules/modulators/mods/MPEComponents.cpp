@@ -1406,7 +1406,7 @@ hise::MPEKeyboard::Note MPEKeyboard::Note::fromMouseEvent(const MPEKeyboard& p, 
 	n.slideValue = 8192;
 	n.strokeValue = 127;
 	n.liftValue = 127;
-	n.pressureValue = 0;
+    n.pressureValue = e.isPressureValid() ? (int)(e.pressure * 127.0f) : 0;
 
 	n.startPoint = { (int)p.getPositionForNote(n.noteNumber).getCentreX(), e.getMouseDownY() };
 
@@ -1452,6 +1452,15 @@ void MPEKeyboard::Note::updateNote(const MPEKeyboard& p, const MouseEvent& e)
 	float normalisedGlide = -0.5f * (float)e.getDistanceFromDragStartY() / (float)p.getHeight();
 	glideValue = jlimit<int>(0, 127, 64 + roundFloatToInt(normalisedGlide * 127.0f));
 
+    if(e.isPressureValid())
+    {
+        
+        pressureValue = jlimit<int>(0, 127, (int)(e.pressure * 127.0f));
+        
+        p.state.injectMessage(MidiMessage::channelPressureChange(assignedMidiChannel, pressureValue));
+    }
+    
+    
 	p.state.injectMessage(MidiMessage::pitchWheel(assignedMidiChannel, slideValue));
 	p.state.injectMessage(MidiMessage::controllerEvent(assignedMidiChannel, 74, glideValue));
 }

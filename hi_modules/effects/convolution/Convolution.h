@@ -389,8 +389,8 @@ private:
 	bool processFlag;
 	int rampIndex;
 
-	DelayLine leftPredelay;
-	DelayLine rightPredelay;
+	DelayLine<4096> leftPredelay;
+	DelayLine<4096> rightPredelay;
 
 	CriticalSection lock;
 

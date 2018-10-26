@@ -112,6 +112,15 @@ public:
 	void paint(Graphics &g) override
 	{
 		g.fillAll(Colours::black);
+        
+        if(dynamic_cast<FrontendProcessor*>(getAudioProcessor())->deactivatedBecauseOfMemoryLimitation)
+        {
+            g.setColour(Colours::white);
+            g.setFont(GLOBAL_BOLD_FONT());
+            g.drawText("Deactivated because of AUv3 memory limitation", getLocalBounds(), Justification::centred);
+            
+        }
+        
 	};
 
     void setGlobalScaleFactor(float newScaleFactor);

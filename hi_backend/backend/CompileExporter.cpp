@@ -1577,7 +1577,7 @@ void CompileExporter::ProjectTemplateHelpers::handleVisualStudioVersion(const Hi
 
 
 
-void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(CompileExporter* exporter, String &templateProject, BuildOption option)
+void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(CompileExporter* exporter, String &templateProject, BuildOption /*option*/)
 {
 	ModulatorSynthChain* chainToExport = exporter->chainToExport;
 
@@ -1585,49 +1585,20 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 
 	File additionalSourceCodeDirectory = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AdditionalSourceCode);
 
-	File additionalMainHeaderFile = additionalSourceCodeDirectory.getChildFile("AdditionalSourceCode.h");
-
-	if (!BuildOptionHelpers::isIOS(option) && additionalMainHeaderFile.existsAsFile())
-	{
-		additionalSourceFiles.add(additionalMainHeaderFile);
-	}
-
-#if JUCE_WINDOWS
-
-	File resourceFile = additionalSourceCodeDirectory.getChildFile("resources.rc");
-
-	if (resourceFile.existsAsFile())
-	{
-		File resourceTargetFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("Builds/VisualStudio2015/resources.rc");
-
-		const String command = "copy &quot;" + resourceFile.getFullPathName() + "&quot; &quot;" + resourceTargetFile.getFullPathName() + "&quot;";
-
-		REPLACE_WILDCARD_WITH_STRING("%PREBUILD_COMMAND%", command);
-	}
-	else
-	{
-		REPLACE_WILDCARD_WITH_STRING("%PREBUILD_COMMAND%", "");
-	}
-
-#endif
+	additionalSourceCodeDirectory.findChildFiles(additionalSourceFiles, File::findFiles, true, "*.h");
+	additionalSourceCodeDirectory.findChildFiles(additionalSourceFiles, File::findFiles, true, "*.cpp");
 
 	File copyProtectionCppFile = additionalSourceCodeDirectory.getChildFile("CopyProtection.cpp");
+
+	// This will be copied to the source directory
+	additionalSourceFiles.removeAllInstancesOf(copyProtectionCppFile);
 
 	File copyProtectionTargetFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("Source/CopyProtection.cpp");
 
 	if (copyProtectionCppFile.existsAsFile())
-	{
 		copyProtectionCppFile.copyFileTo(copyProtectionTargetFile);
-	}
 	else
-	{
 		copyProtectionTargetFile.create();
-	}
-
-	File turboActivateFile = additionalSourceCodeDirectory.getChildFile("TurboActivate.dat");
-
-	if (turboActivateFile.existsAsFile())
-		additionalSourceFiles.add(turboActivateFile);
 
 	File iconFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("Icon.png");
 
@@ -1664,15 +1635,11 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 	}
 
 #if JUCE_MAC
-    
-    
     const String additionalStaticLibs = exporter->GET_SETTING(HiseSettings::Project::OSXStaticLibs);
     templateProject = templateProject.replace("%OSX_STATIC_LIBS%", additionalStaticLibs);
 #else
 
 	auto additionalStaticLibFolder = exporter->GET_SETTING(HiseSettings::Project::WindowsStaticLibFolder);
-
-	
 
 	if (additionalStaticLibFolder.isNotEmpty())
 	{
@@ -1696,17 +1663,8 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 
 		for (int i = 0; i < additionalSourceFiles.size(); i++)
 		{
-			if (additionalSourceFiles[i].getFileName().startsWith("_Tcc"))
-			{
-				// Will be included in the Factory .cpp source file
-				continue;
-			}
-
 			bool isSourceFile = additionalSourceFiles[i].hasFileExtension(".cpp");
-
             bool isSplashScreen = additionalSourceFiles[i].getFileName().contains("SplashScreen");
-
-			bool isTurboActivate = (additionalSourceFiles[i].getFileName() == "TurboActivate.dat");
 
 			const String relativePath = additionalSourceFiles[i].getRelativePathFrom(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries));
 
@@ -1720,16 +1678,12 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
             }
             
 			newAditionalSourceLine << "      <FILE id=\"" << fileId << "\" name=\"" << additionalSourceFiles[i].getFileName() << "\" compile=\"" << (isSourceFile ? "1" : "0") << "\" ";
-			newAditionalSourceLine << "resource=\"" << (isSplashScreen || isTurboActivate ? "1" : "0") << "\"\r\n";
+			newAditionalSourceLine << "resource=\"" << (isSplashScreen ? "1" : "0") << "\"\r\n";
 			newAditionalSourceLine << "            file=\"" << relativePath << "\"/>\r\n";
 
 			additionalFileDefinitions.add(newAditionalSourceLine);
 		}
 
-        
-        
-        
-        
 		templateProject = templateProject.replace("%ADDITIONAL_FILES%", additionalFileDefinitions.joinIntoString(""));
 
 		templateProject = templateProject.replace("%USE_CUSTOM_FRONTEND_TOOLBAR%", "disabled");
@@ -1739,7 +1693,6 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
     {
         templateProject = templateProject.replace("%ADDITIONAL_FILES%", "");
     }
-
 }
 
 void CompileExporter::ProjectTemplateHelpers::handleCopyProtectionInfo(CompileExporter* exporter, String &templateProject, BuildOption option)

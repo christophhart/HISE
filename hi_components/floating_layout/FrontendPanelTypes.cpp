@@ -232,6 +232,7 @@ var MidiKeyboardPanel::toDynamicObject() const
 	storePropertyInObject(obj, SpecialPanelIds::ToggleMode, keyboard->isToggleModeEnabled());
 	storePropertyInObject(obj, SpecialPanelIds::MidiChannel, keyboard->getMidiChannelBase());
 	storePropertyInObject(obj, SpecialPanelIds::UseVectorGraphics, keyboard->isUsingVectorGraphics());
+	storePropertyInObject(obj, SpecialPanelIds::UseFlatStyle, keyboard->isUsingFlatStyle());
 	storePropertyInObject(obj, SpecialPanelIds::MPEKeyboard, shouldBeMpeKeyboard);
 	storePropertyInObject(obj, SpecialPanelIds::MPEStartChannel, mpeZone.getStart());
 	storePropertyInObject(obj, SpecialPanelIds::MPEEndChannel, mpeZone.getEnd());
@@ -277,7 +278,7 @@ void MidiKeyboardPanel::restoreInternal(const var& object)
 	keyboard->setBlackNoteLengthProportionBase(getPropertyWithDefault(object, SpecialPanelIds::BlackKeyRatio));
 	keyboard->setEnableToggleMode(getPropertyWithDefault(object, SpecialPanelIds::ToggleMode));
 	keyboard->setMidiChannelBase(getPropertyWithDefault(object, SpecialPanelIds::MidiChannel));
-	keyboard->setUseVectorGraphics(getPropertyWithDefault(object, SpecialPanelIds::UseVectorGraphics));
+	keyboard->setUseVectorGraphics(getPropertyWithDefault(object, SpecialPanelIds::UseVectorGraphics), getPropertyWithDefault(object, SpecialPanelIds::UseFlatStyle));
 
 	auto startChannel = (int)getPropertyWithDefault(object, SpecialPanelIds::MPEStartChannel);
 	auto endChannel = (int)getPropertyWithDefault(object, SpecialPanelIds::MPEEndChannel);
@@ -291,7 +292,19 @@ void MidiKeyboardPanel::restoreInternal(const var& object)
 		keyboard->asComponent()->setColour(hise::MPEKeyboard::ColourIds::keyOnColour, findPanelColour(PanelColourId::itemColour2));
 		keyboard->asComponent()->setColour(hise::MPEKeyboard::ColourIds::dragColour, findPanelColour(PanelColourId::itemColour3));
 		
-		dynamic_cast<hise::MPEKeyboard*>(keyboard.get())->setChannelRange(mpeZone);
+		if(keyboard->isMPEKeyboard())
+			dynamic_cast<hise::MPEKeyboard*>(keyboard.get())->setChannelRange(mpeZone);
+	}
+
+	if (keyboard->isUsingFlatStyle())
+	{
+		if (auto claf = dynamic_cast<CustomKeyboardLookAndFeel*>(&dynamic_cast<CustomKeyboard*>(keyboard.get())->getLookAndFeel()))
+		{
+			claf->bgColour = findPanelColour(PanelColourId::bgColour);
+			claf->overlayColour = findPanelColour(PanelColourId::itemColour1);
+			claf->topLineColour = findPanelColour(PanelColourId::itemColour2);
+			claf->activityColour = findPanelColour(PanelColourId::itemColour3);
+		}
 	}
 }
 
@@ -313,6 +326,7 @@ Identifier MidiKeyboardPanel::getDefaultablePropertyId(int index) const
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::MPEStartChannel, "MPEStartChannel");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::MPEEndChannel, "MPEEndChannel");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::UseVectorGraphics, "UseVectorGraphics");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::UseFlatStyle, "UseFlatStyle");
 	
 	jassertfalse;
 	return{};
@@ -336,6 +350,7 @@ var MidiKeyboardPanel::getDefaultProperty(int index) const
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::MPEStartChannel, 2);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::MPEEndChannel, 16);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::UseVectorGraphics, false);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::UseFlatStyle, false);
 
 	jassertfalse;
 	return{};
@@ -553,17 +568,37 @@ PresetBrowserPanel::~PresetBrowserPanel()
 	presetBrowser = nullptr;
 }
 
+var PresetBrowserPanel::toDynamicObject() const
+{
+	var obj = FloatingTileContent::toDynamicObject();
+
+	storePropertyInObject(obj, SpecialPanelIds::ShowSaveButton, showSaveButton);
+
+	storePropertyInObject(obj, SpecialPanelIds::ShowFolderButton, showFolderButton);
+	storePropertyInObject(obj, SpecialPanelIds::ShowNotes, showNotes);
+	storePropertyInObject(obj, SpecialPanelIds::ShowEditButtons, showEditButtons);
+	storePropertyInObject(obj, SpecialPanelIds::NumColumns, numColumns);
+
+	return obj;
+}
+
 void PresetBrowserPanel::fromDynamicObject(const var& object)
 {
 	FloatingTileContent::fromDynamicObject(object);
 
 	presetBrowser->setHighlightColourAndFont(findPanelColour(PanelColourId::itemColour1), findPanelColour(PanelColourId::bgColour), getFont());
 
-	const bool showSaveButton = getPropertyWithDefault(object, SpecialPanelIds::ShowSaveButton);
-	const bool showFolderButton = getPropertyWithDefault(object, SpecialPanelIds::ShowFolderButton);
+	showSaveButton = getPropertyWithDefault(object, SpecialPanelIds::ShowSaveButton);
+	showFolderButton = getPropertyWithDefault(object, SpecialPanelIds::ShowFolderButton);
+	showNotes = getPropertyWithDefault(object, SpecialPanelIds::ShowNotes);
+	showEditButtons = getPropertyWithDefault(object, SpecialPanelIds::ShowEditButtons);
+	numColumns = getPropertyWithDefault(object, SpecialPanelIds::NumColumns);
 
 	presetBrowser->setShowButton(0, showFolderButton);
 	presetBrowser->setShowButton(1, showSaveButton);
+	presetBrowser->setShowNotesLabel(showNotes);
+	presetBrowser->setShowEditButtons(showEditButtons);
+	presetBrowser->setNumColumns(numColumns);
 
 }
 
@@ -587,6 +622,9 @@ juce::Identifier PresetBrowserPanel::getDefaultablePropertyId(int index) const
 
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowFolderButton, "ShowFolderButton");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowSaveButton, "ShowSaveButton");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowNotes, "ShowNotes");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowEditButtons, "ShowEditButtons");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::NumColumns, "NumColumns");
 
 	return Identifier();
 }
@@ -603,6 +641,9 @@ var PresetBrowserPanel::getDefaultProperty(int index) const
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowFolderButton, true);
 #endif
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowSaveButton, true);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowNotes, true);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowEditButtons, true);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::NumColumns, 3);
 
 	return var();
 }

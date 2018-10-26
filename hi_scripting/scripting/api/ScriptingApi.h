@@ -288,6 +288,9 @@ public:
 		/** Sets whether the samples are allowed to be duplicated. Set this to false if you operate on the same samples differently. */
 		void setAllowDuplicateSamples(bool shouldAllow);
 
+		/** Calling this makes sure that all audio files are loaded into the pool and will be available in the compiled plugin. */
+		void loadAudioFilesIntoPool();
+
 		/** Returns the Bpm of the host. */
 		double getHostBpm() const;
 		

@@ -129,6 +129,10 @@ void FloatingTileContent::Factory::registerFrontendPanelTypes()
 	registerType<FilterGraph::Panel>(PopupMenuOptions::FilterGraphPanel);
 	registerType<MPEPanel>(PopupMenuOptions::MPEPanel);
 	registerType<AhdsrGraph::Panel>(PopupMenuOptions::AHDSRGraph);
+
+#if HI_ENABLE_EXTERNAL_CUSTOM_TILES
+	registerExternalPanelTypes();
+#endif
 }
 
 

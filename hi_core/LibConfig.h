@@ -68,6 +68,11 @@
 #define HISE_PLAY_ALL_CROSSFADE_GROUPS_WHEN_EMPTY 1
 #endif
 
+
+#ifndef HISE_AUV3_MAX_INSTANCE_COUNT
+#define HISE_AUV3_MAX_INSTANCE_COUNT 2
+#endif
+
 namespace hise { using namespace juce;
 
 

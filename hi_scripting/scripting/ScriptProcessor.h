@@ -601,9 +601,9 @@ public:
 
 	void setDeviceTypeForInterface(int newDevice);
 
-	ValueTree getContentPropertiesForDevice(int deviceIndex);
+	ValueTree getContentPropertiesForDevice(int deviceIndex=-1);
 
-	bool hasUIDataForDeviceType() const;
+	bool hasUIDataForDeviceType(int type=-1) const;
 
 protected:
 

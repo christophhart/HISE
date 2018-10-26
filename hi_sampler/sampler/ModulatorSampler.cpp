@@ -113,7 +113,7 @@ numChannels(1),
 repeatMode(RepeatMode::KillSecondOldestNote),
 deactivateUIUpdate(false),
 samplePreloadPending(false),
-temporaryVoiceBuffer(true, 2, 0)
+temporaryVoiceBuffer(DEFAULT_BUFFER_TYPE_IS_FLOAT, 2, 0)
 {
 #if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING
 	sampleEditHandler = new SampleEditHandler(this);
@@ -624,7 +624,12 @@ void ModulatorSampler::refreshMemoryUsage()
 		return;
 
 	const auto temporaryBufferIsFloatingPoint = getTemporaryVoiceBuffer()->isFloatingPoint();
+    
+#if HISE_IOS
+    const auto temporaryBufferShouldBeFloatingPoint = false;
+#else
 	const auto temporaryBufferShouldBeFloatingPoint = !sampleMap->isMonolith();
+#endif
 
 	if (temporaryBufferIsFloatingPoint != temporaryBufferShouldBeFloatingPoint)
 	{
