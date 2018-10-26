@@ -482,7 +482,7 @@ public:
 		
 	}
 
-	void touchAndHold(Point<int> downPosition) override
+	void touchAndHold(Point<int> /*downPosition*/) override
 	{
 		bool scrolling = listbox->getViewport()->isCurrentlyScrollingOnDrag();
 
@@ -498,7 +498,7 @@ public:
 		TouchAndHoldComponent::startTouch(e.getPosition());
 	}
 
-	void mouseUp(const MouseEvent& e) override
+	void mouseUp(const MouseEvent& /*e*/) override
 	{
 		TouchAndHoldComponent::abortTouch();
 	}

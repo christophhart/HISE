@@ -1577,7 +1577,7 @@ void CompileExporter::ProjectTemplateHelpers::handleVisualStudioVersion(const Hi
 
 
 
-void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(CompileExporter* exporter, String &templateProject, BuildOption option)
+void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(CompileExporter* exporter, String &templateProject, BuildOption /*option*/)
 {
 	ModulatorSynthChain* chainToExport = exporter->chainToExport;
 
