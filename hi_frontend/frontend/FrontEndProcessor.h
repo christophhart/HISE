@@ -118,6 +118,11 @@ public:
 
 	void getStateInformation	(MemoryBlock &destData) override
 	{
+#if USE_RAW_FRONTEND
+		zstd::ZDefaultCompressor compressor;
+		ValueTree v = saveStateRaw();
+		compressor.compress(v, destData);
+#else
 		MemoryOutputStream output(destData, false);
 
 		
@@ -136,10 +141,21 @@ public:
 		v.setProperty("UserPreset", getUserPresetHandler().getCurrentlyLoadedFile().getFullPathName(), nullptr);
 
 		v.writeToStream(output);
+#endif
 	};
     
     void setStateInformation(const void *data,int sizeInBytes) override
 	{
+#if USE_RAW_FRONTEND
+		MemoryInputStream in(data, sizeInBytes, false);
+		MemoryBlock mb;
+		in.readIntoMemoryBlock(mb);
+		ValueTree v;
+		zstd::ZDefaultCompressor compressor;
+		compressor.expand(mb, v);
+
+		loadStateRaw(v);
+#else
 		ValueTree v = ValueTree::readFromData(data, sizeInBytes);
 
 		currentlyLoadedProgram = v.getProperty("Program");
@@ -158,9 +174,48 @@ public:
 		}
 
 		synthChain->restoreInterfaceValues(v.getChildWithName("InterfaceData"));
+#endif
 	}
 
+	// If you want to create your project using only C++, you need to implement these
+	// methods...
+#if USE_RAW_FRONTEND
+
+	/** This class is supposed to hold all data defined by your C++ project. 
 	
+		Just create subclass it, create one of these when you need to store data and
+		it will take ownership of it and delete it properly at shutdown. */
+	class RawDataHolder: public ControlledObject
+	{
+	public:
+
+		RawDataHolder(MainController* mc):
+		  ControlledObject(mc)
+		{};
+
+		virtual ~RawDataHolder() {};
+
+	private:
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RawDataHolder);
+	};
+
+	ScopedPointer<RawDataHolder> rawDataHolder;
+
+	RawDataHolder* createPresetRaw();
+
+	template <class T> T* getRawDataHolder()
+	{
+		auto rt = dynamic_cast<T*>(rawDataHolder.get());
+		jassert(rt != nullptr);
+	}
+
+	void loadStateRaw(const ValueTree& v);
+
+	ValueTree saveStateRaw();
+#endif
+
+
 
 	void processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages);
 
@@ -242,9 +297,7 @@ private:
 	int unlockCounter;
 
 	int numActiveEditors = 0;
-    
-    
-
+   
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FrontendProcessor)	
 
 };

@@ -76,7 +76,6 @@ FrontendProcessor* FrontendFactory::createPluginWithAudioFiles(AudioDeviceManage
         fp->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, s);
     }
 	 
-	 
 	return fp;
 }
 
@@ -232,35 +231,38 @@ unlockCounter(0)
 
 	getMacroManager().setMacroChain(synthChain);
 
+#if USE_RAW_FRONTEND
+	rawDataHolder = createPresetRaw();
+#else
 	synthChain->setId(synthData.getProperty("ID", String()));
-
 	createPreset(synthData);
-
+#endif
 	
 }
 
+FrontendProcessor::~FrontendProcessor()
+{
+	numInstances--;
 
-    FrontendProcessor::~FrontendProcessor()
-    {
-        numInstances--;
-        
-        storeAllSamplesFound(GET_PROJECT_HANDLER(getMainSynthChain()).areSamplesLoadedCorrectly());
-        
-        getSampleManager().cancelAllJobs();
-        
-        setEnabledMidiChannels(synthChain->getActiveChannelData()->exportData());
-        
-        deletePendingFlag = true;
-        clearPreset();
-        synthChain = nullptr;
-    };
-    
+	storeAllSamplesFound(GET_PROJECT_HANDLER(getMainSynthChain()).areSamplesLoadedCorrectly());
+
+	getSampleManager().cancelAllJobs();
+
+	setEnabledMidiChannels(synthChain->getActiveChannelData()->exportData());
+
+	deletePendingFlag = true;
+	clearPreset();
+	synthChain = nullptr;
+
+#if USE_RAW_FRONTEND
+	rawDataHolder = nullptr;
+#endif
+};
+
 
     
 void FrontendProcessor::createPreset(const ValueTree& synthData)
 {
-	
-
 	getSampleManager().setShouldSkipPreloading(true);
 
 	setSkipCompileAtPresetLoad(true);
@@ -276,8 +278,6 @@ void FrontendProcessor::createPreset(const ValueTree& synthData)
 		LockHelpers::SafeLock sl(this, LockHelpers::ScriptLock);
 		synthChain->compileAllScripts();
 	}
-
-	
 
 	synthChain->loadMacrosFromValueTree(synthData);
 
@@ -299,10 +299,6 @@ void FrontendProcessor::createPreset(const ValueTree& synthData)
 		LOG_START("Initialising audio callback");
 		synthChain->prepareToPlay(getSampleRate(), getBlockSize());
 	}
-
-#if INCLUDE_USER_DATA
-	createUserPresetData();
-#endif
 
 	decActiveEditors();
 }
@@ -346,13 +342,6 @@ void FrontendStandaloneApplication::AudioWrapper::init()
 
 	editor = standaloneProcessor->createEditor();
 
-#if 0 && !HISE_IOS
-	context = new OpenGLContext();
-
-	if (dynamic_cast<GlobalSettingManager*>(editor->getAudioProcessor())->useOpenGL)
-		context->attachTo(*editor);
-#endif
-
 	addAndMakeVisible(editor);
 
 	if (splashScreen != nullptr)
@@ -376,7 +365,6 @@ void FrontendStandaloneApplication::AudioWrapper::init()
 FrontendStandaloneApplication::AudioWrapper::AudioWrapper()
 {
 #if USE_SPLASH_SCREEN
-
     Image imgiPhone = ImageCache::getFromMemory(BinaryData::SplashScreeniPhone_png, BinaryData::SplashScreeniPhone_pngSize);
 	Image imgiPad = ImageCache::getFromMemory(BinaryData::SplashScreen_png, BinaryData::SplashScreen_pngSize);
 
@@ -419,14 +407,6 @@ FrontendStandaloneApplication::AudioWrapper::AudioWrapper()
 
 FrontendStandaloneApplication::AudioWrapper::~AudioWrapper()
 {
-#if 0 && !HISE_IOS
-
-	if(context->isAttached())
-		context->detach();
-
-	context = nullptr;
-#endif
-
 	editor = nullptr;
 	standaloneProcessor = nullptr;
 }
@@ -438,10 +418,7 @@ FrontendStandaloneApplication::MainWindow::MainWindow(String name) : DocumentWin
 	setUsingNativeTitleBar(true);
 	setContentOwned(new AudioWrapper(), true);
 
-	
-
 	centreWithSize(getWidth(), getHeight());
-
 		
 	setResizable(false, false);
 	setVisible(true);

@@ -98,6 +98,14 @@ If true, this project uses the frontend module and some special file reference h
 #define USE_FRONTEND 1
 #endif
 
+/** Config: USE_RAW_FRONTEND
+
+If true, this project will not use the embedded module architecture and the script UI.
+Use this to create the HISE project with C++ only. */
+#ifndef USE_RAW_FRONTEND
+#define USE_RAW_FRONTEND 0
+#endif
+
 /** Config: IS_STANDALONE_APP
 
 If true, then this will use some additional features for the standalone app (popup out windows, audio device settings etc.)

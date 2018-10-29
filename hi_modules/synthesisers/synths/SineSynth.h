@@ -253,6 +253,8 @@ private:
 	float coarseRatio;
 	float fineRatio;
 	bool useRatio;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SineSynth);
 };
 
 

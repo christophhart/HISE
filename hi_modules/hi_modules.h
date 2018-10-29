@@ -225,7 +225,8 @@ END_JUCE_MODULE_DECLARATION
 #endif
 
 
-
+#include "raw/raw_builder.h"
+#include "raw/raw_builder_impl.h"
 
 
 #endif   // HI_MODULES_INCLUDED

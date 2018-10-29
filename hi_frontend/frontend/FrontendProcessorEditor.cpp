@@ -39,31 +39,27 @@ AudioProcessorEditor(fp)
 
     Desktop::getInstance().setDefaultLookAndFeel(&globalLookAndFeel);
     
-    
-    
 	LOG_START("Creating Interface")
 
     addAndMakeVisible(container = new FrontendEditorHolder());
     
-
+#if USE_RAW_FRONTEND
+	container->addAndMakeVisible(rawEditor = createRawEditor(fp->rawDataHolder));
+#else
 	container->addAndMakeVisible(rootTile = new FloatingTile(fp, nullptr));
 
 	LOG_START("Creating Root Panel");
 
 #if HI_ENABLE_EXPANSION_EDITING
-
-
 	ExpansionHandler::Helpers::createFrontendLayoutWithExpansionEditing(rootTile);
-
 #else
-
 	rootTile->setNewContent("InterfacePanel");
 #endif
-    
+#endif
+
 	fp->addOverlayListener(this);
 	
 	container->addAndMakeVisible(deactiveOverlay = new DeactiveOverlay());
-
 
 #if FRONTEND_IS_PLUGIN || HISE_IOS
     const bool searchSamples = false;
@@ -71,7 +67,6 @@ AudioProcessorEditor(fp)
     const bool searchSamples = ProcessorHelpers::getFirstProcessorWithType<ModulatorSampler>(fp->getMainSynthChain()) != nullptr;
     
 #endif
-    
 
     if(searchSamples && !fp->deactivatedBecauseOfMemoryLimitation)
     {
@@ -84,7 +79,6 @@ AudioProcessorEditor(fp)
         // make sure to call setState at least once or the overlay will be visible...
         deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, false);
     }
-    
     
 #if USE_COPY_PROTECTION
 	if (!fp->unlocker.isUnlocked())
@@ -106,7 +100,7 @@ AudioProcessorEditor(fp)
     {
         auto b = HiseDeviceSimulator::getDisplayResolution();
         
-        rootTile->setVisible(false);
+        getContentComponent()->setVisible(false);
         
         deactiveOverlay->clearAllFlags();
         deactiveOverlay->setVisible(false);
@@ -116,6 +110,9 @@ AudioProcessorEditor(fp)
         return;
     }
     
+#if USE_RAW_FRONTEND
+	setSize(getContentComponent()->getWidth(), getContentComponent()->getHeight());
+#else
 	auto jsp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(fp);
     
 
@@ -130,9 +127,8 @@ AudioProcessorEditor(fp)
 #endif
 
         setSize(jsp->getScriptingContent()->getContentWidth(), heightOfContent);
-
     }
-    
+#endif
 	
 	startTimer(4125);
 
@@ -142,7 +138,6 @@ AudioProcessorEditor(fp)
 	const int availableHeight = Desktop::getInstance().getDisplays().getMainDisplay().userArea.getHeight();
 	const float displayScaleFactor = (float)Desktop::getInstance().getDisplays().getMainDisplay().scale;
 	const int unscaledInterfaceHeight = getHeight();
-
     
 #if HISE_IOS
     
@@ -150,9 +145,6 @@ AudioProcessorEditor(fp)
     {
         const float iosScaleFactor = (float)availableHeight / (float)originalSizeY;
         setGlobalScaleFactor(iosScaleFactor);
-        
-        
-        
     }
     else if (HiseDeviceSimulator::isiPhone())
     {
@@ -180,13 +172,26 @@ FrontendProcessorEditor::~FrontendProcessorEditor()
 
 	dynamic_cast<OverlayMessageBroadcaster*>(getAudioProcessor())->removeOverlayListener(this);
 
+#if USE_RAW_FRONTEND
+	container->removeChildComponent(rawEditor);
+	rawEditor = nullptr;
+#else
 	container->removeChildComponent(rootTile);
-
 	rootTile = nullptr;
-	container = nullptr;
+#endif
 
+	container = nullptr;
 	loaderOverlay = nullptr;
 	debugLoggerComponent = nullptr;
+}
+
+Component* FrontendProcessorEditor::getContentComponent()
+{
+#if USE_RAW_FRONTEND
+	return rawEditor;
+#else
+	return rootTile;
+#endif
 }
 
 void FrontendProcessorEditor::setGlobalScaleFactor(float newScaleFactor)
@@ -227,17 +232,11 @@ void FrontendProcessorEditor::resized()
 	int height = (int)((double)getHeight() / scaleFactor);
 #endif
 
-
     container->setBounds(0, 0, width, height);
-	rootTile->setBounds(0, 0, width, height);
+	getContentComponent()->setBounds(0, 0, width, height);
     deactiveOverlay->setBounds(0, 0, width, height);
 	loaderOverlay->setBounds(0, 0, width, height);
 	debugLoggerComponent->setBounds(0, height -90, width, 90);
-
-	
-
-
-
 }
 
 } // namespace hise

@@ -243,7 +243,11 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 	internalBuffer.setSize(getMatrix().getNumSourceChannels(), numSamples, true, false, true);
 
 	// Process the Synths and add store their output in the internal buffer
-	for (int i = 0; i < synths.size(); i++) if (!synths[i]->isSoftBypassed()) synths[i]->renderNextBlockWithModulators(internalBuffer, eventBuffer);
+	for (int i = 0; i < synths.size(); i++)
+    {
+        if (!synths[i]->isSoftBypassed())
+            synths[i]->renderNextBlockWithModulators(internalBuffer, eventBuffer);
+    }
 
 	HiseEventBuffer::Iterator eventIterator(eventBuffer);
 
