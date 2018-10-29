@@ -1,8 +1,13 @@
-#include "raw_builder.h"
+namespace hise
+{
+using namespace juce;
 
 
+namespace raw
+{
 
-hise::hise::Processor* hise::raw::Builder::createFromBase64State(const String& base64EncodedString, Processor* parent, int chainIndex/*=-1*/)
+
+Processor* Builder::createFromBase64State(const String& base64EncodedString, Processor* parent, int chainIndex/*=-1*/)
 {
 	ValueTree v = ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(base64EncodedString);
 
@@ -16,10 +21,16 @@ hise::hise::Processor* hise::raw::Builder::createFromBase64State(const String& b
 	return p;
 }
 
-void hise::raw::Builder::setAttributes(Processor* p, const AttributeCollection& collection)
+void Builder::setAttributes(Processor* p, const AttributeCollection& collection)
 {
 	for (const auto& i : collection)
 	{
 		p->setAttribute(i.index, i.value, dontSendNotification);
 	}
 }
+
+
+
+}
+}
+

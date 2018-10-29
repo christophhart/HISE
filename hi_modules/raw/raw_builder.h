@@ -36,11 +36,11 @@ namespace hise
 {
 
 /** @brief A gateway drug to the full HISE world.
-
-What is love? Baby don't hurt me.
 */
 namespace raw
 {
+
+using namespace juce;
 
 struct AttributeItem
 {
@@ -130,7 +130,7 @@ public:
 	/** A connection to a internal attribute of a Processor. */
 	struct Connection
 	{
-		WeakReference<Processor>;
+		WeakReference<Processor> processor;
 		int index;
 		NormalisableRange<float> parameterRange;
 		float lastValue;

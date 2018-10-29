@@ -57,9 +57,9 @@ END_JUCE_MODULE_DECLARATION
 #include "../hi_dsp/hi_dsp.h"
 #include "../hi_dsp_library/hi_dsp_library.h"
 
-/** @defgroup components Components
+/** @defgroup hise_ui HISE UI elements
 *
-*	custom components for HI.
+*	A collection of reusable HISE components
 */
 
 
