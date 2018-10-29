@@ -130,7 +130,12 @@ private:
 
 };
 
+/** The polyphonic filter module of HISE. 
+	@ingroup effectTypes
 
+	This is the filter module of HISE that will apply monophonic or polyphonic filtering
+	on the signal depending on the modulators that are inserted into its modulation chains.
+*/
 class PolyFilterEffect: public VoiceEffectProcessor,
 						public FilterEffect,
 						public ModulatorChain::Handler::Listener

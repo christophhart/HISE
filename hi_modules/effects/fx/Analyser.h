@@ -37,7 +37,9 @@ namespace hise {
 using namespace juce;
 
 
-/** A simple effect that does nothing. */
+/** A analyser that powers one of the available visualisations in HISE (FFT, Oscilloscope or Goniometer.
+	@ingroup effectTypes
+*/
 class AnalyserEffect : public MasterEffectProcessor
 {
 public:

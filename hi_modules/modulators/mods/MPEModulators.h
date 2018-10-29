@@ -38,7 +38,17 @@ using namespace juce;
 
 
 
+/** A modulator that uses MPE messages to create modulation.
+	@ingroup modulatorTypes
 
+	This is a polyphonic, timevariant modulator that is able to process MIDI messages
+	according to the MPE standard and use it as modulation.
+
+	Using MPE in HISE is a special topic as it is controllable via a global state whether
+	it should be enabled or not, also the MPE modulators can be individually configured
+	using a dedicated floating tile which allows you to give the end user the ability
+	to tweak the behaviour of the sound.
+*/
 class MPEModulator : public EnvelopeModulator,
 					 public LookupTableProcessor,
 					 public MidiControllerAutomationHandler::MPEData::Listener
@@ -101,7 +111,7 @@ public:
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
-	/** The container for the envelope state. */
+	/** @internal The container for the envelope state. */
 	struct MPEState : public EnvelopeModulator::ModulatorState
 	{
 	public:

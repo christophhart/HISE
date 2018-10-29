@@ -37,7 +37,12 @@
 
 class GlobalModulatorContainer;
 
-
+/** A modulator that connects to a global modulator and uses its signal.
+	@ingroup modulator
+	
+	If you need to apply a modulation signal to multiple targets, use a GlobalModulatorContainer where you 
+	define the actual modulation and create instances of this class for each target.
+*/
 class GlobalModulator: public LookupTableProcessor,
 					   public Chain::Handler::Listener
 {
@@ -118,6 +123,9 @@ class NoGlobalEnvelopeConstrainer : public FactoryType::Constrainer
 	}
 };
 
+/** A modulator that connects to a global VoiceStartModulator (eg. Velocity).
+	@ingroup modulatorTypes	
+*/
 class GlobalVoiceStartModulator : public VoiceStartModulator,
 								  public GlobalModulator
 {
@@ -145,6 +153,12 @@ public:
 	float calculateVoiceStartValue(const HiseEvent& ) override;;
 };
 
+/** A voice start modulator that connects to a global TimeVariantModulator (eg. LFO).
+	@ingroup modulatorTypes
+
+	Note that this is a special class that uses the current value from the given time-variant modulator
+	at the time of the voice start for a constant / per voice modulation.
+*/
 class GlobalStaticTimeVariantModulator : public VoiceStartModulator,
 										 public GlobalModulator
 {
@@ -172,6 +186,9 @@ public:
 	float calculateVoiceStartValue(const HiseEvent&) override;;
 };
 
+/** A modulator that connects to a global TimeVariantModulator (eg. LFO).
+@ingroup modulatorTypes
+*/
 class GlobalTimeVariantModulator : public TimeVariantModulator,
 								   public GlobalModulator
 {

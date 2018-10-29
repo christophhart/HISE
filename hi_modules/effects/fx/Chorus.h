@@ -37,7 +37,8 @@ namespace hise { using namespace juce;
 
 #define BUFMAX   2048
 
-/** 
+/** A simple (and rather cheap sounding) chorus effect
+	@ingroup effectTypes
 */
 class ChorusEffect : public MasterEffectProcessor
 {

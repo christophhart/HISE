@@ -34,6 +34,9 @@
 
 namespace hise { using namespace juce;
 
+/** A general purpose phase effect used for phasers and stuff.
+	@ingroup effectTypes
+*/
 class PhaseFX: public MasterEffectProcessor
 {
 public:

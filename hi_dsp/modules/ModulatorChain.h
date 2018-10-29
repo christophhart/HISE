@@ -37,7 +37,7 @@ namespace hise { using namespace juce;
 
 /** A chain of Modulators that can be processed serially.
 *
-*	@ingroup modulatorTypes
+*	@ingroup modulator
 *
 *	A ModulatorChain can hold three different types of Modulators:
 *

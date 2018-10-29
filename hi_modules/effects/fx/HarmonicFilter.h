@@ -276,7 +276,9 @@ public:
 };
 
  
-
+/** A set of tuned hi-resonant peak filters that are set to the root frequency and harmonics of each note
+	@ingroup effectTypes
+*/
 class HarmonicFilter : public VoiceEffectProcessor,
 					   public BaseHarmonicFilter
 {

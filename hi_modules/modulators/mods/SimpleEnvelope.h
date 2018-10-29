@@ -111,7 +111,7 @@ public:
 	
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
-    /** The container for the envelope state. */
+    /** @internal The container for the envelope state. */
     struct SimpleEnvelopeState: public EnvelopeModulator::ModulatorState
 	{
 	public:

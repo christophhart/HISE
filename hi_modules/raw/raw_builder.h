@@ -32,44 +32,51 @@
 
 #pragma once
 
+namespace hise
+{
+
+//! @brief A gateway drug to the full HISE world.
+namespace raw
+{
+
 
 namespace hise {
 using namespace juce;
 
-namespace raw
-{
 
 struct AttributeItem
 {
-    int index;
-    float value;
+	int index;
+	float value;
 };
 
 /** a collection of attribute key/value pairs. */
 using AttributeCollection = std::vector<AttributeItem>;
-    
+
 /** This enumerations can be used for the basic targets. */
 namespace ChainIndexes
 {
-	/** The slot index for MIDI Processors. */
-	constexpr int Midi = hise::ModulatorSynth::MidiProcessor;
+constexpr int Direct = -1;
 
-	/** The slot index for Gain modulators. */
-	constexpr int Gain = hise::ModulatorSynth::GainModulation;
+/** The slot index for MIDI Processors. */
+constexpr int Midi = hise::ModulatorSynth::MidiProcessor;
 
-	/** the slot index for Pitch modulators. */
-	constexpr int Pitch = hise::ModulatorSynth::PitchModulation;
+/** The slot index for Gain modulators. */
+constexpr int Gain = hise::ModulatorSynth::GainModulation;
 
-	/** the slot index for FX. */
-	constexpr int FX = hise::ModulatorSynth::EffectChain;
+/** the slot index for Pitch modulators. */
+constexpr int Pitch = hise::ModulatorSynth::PitchModulation;
+
+/** the slot index for FX. */
+constexpr int FX = hise::ModulatorSynth::EffectChain;
 };
 
-/** The builder is a low overhead helper class that provides functions to add modules. 
+/** The builder is a low overhead helper class that provides functions to add modules.
 
-	Create one of those, supply the main controller instance and call its methods to build up the architecture of your plugin. */
+Create one of those, supply the main controller instance and call its methods to build up the architecture of your plugin.
+*/
 class Builder
 {
-	
 public:
 
 	Builder(MainController* mc_) :
@@ -81,37 +88,35 @@ public:
 	template <class T> T* find(const String& name);
 
 	/** Adds the given module to the parent processor. Specify the chainIndex for modulators / effects. */
-	template <class T> void add(T* processor, Processor* parent, int chainIndex = -1);
+	template <class T> void add(T* processor, Processor* parent, int chainIndex = ChainIndexes::Direct);
 
 	/** Creates a module of the given class and adds it to the parent with the specified
-	    chainIndex. See ChainIndexes. 
-		
-		This only works with HISE modules that are registered at one of the factories, so if you want to add a custom module, use the add() function instead. */
-	template <class T> T* create(Processor* parent, int chainIndex = -1);
+	chainIndex. See ChainIndexes.
 
-    Processor* createFromBase64State(const String& base64EncodedString, Processor* parent, int chainIndex=-1)
-    {
-        ValueTree v = ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(base64EncodedString);
-        
-        // TODO
-        // Create the processor somehow...
-        
-        Processor* p = nullptr;
-        
-        p->restoreFromValueTree(v);
+	This only works with HISE modules that are registered at one of the factories, so if you want to add a custom module, use the add() function instead.
+	*/
+	template <class T> T* create(Processor* parent, int chainIndex = ChainIndexes::Direct);
 
-        return p;
-    }
-    
-    /** Sets all the attributes from the given collection. */
-    void setAttributes(Processor* p, const AttributeCollection& collection)
-    {
-        for(const auto& i: collection)
-        {
-            p->setAttribute(i.index, i.value, dontSendNotification);
-        }
-    }
-    
+	/** Creates a module from the given Base64 encoded String and adds it to the parent module with the suppliedChainIndex. */
+	Processor* createFromBase64State(const String& base64EncodedString, Processor* parent, int chainIndex = ChainIndexes::Direct);
+
+	/** Sets all the attributes from the given collection.
+
+	You can use std::initialiser_lists for a clean syntax:
+
+	```
+	AttributeCollection c =
+	{
+		{ SimpleEnvelope::Attack, 10.0f },
+		{ SimpleEnvelope::Release, 248.0f }
+	};
+
+	for(auto* envelope: myEnvelopes)
+		builder.setAttributes(envelope, c);
+	```
+	*/
+	void setAttributes(Processor* p, const AttributeCollection& collection);
+
 private:
 
 	template <class T> T* addInternal(Processor* p, Chain* c);
@@ -119,6 +124,48 @@ private:
 	MainController * mc;
 };
 
-}
+/** A wrapper around a plugin parameter (not yet functional). */
+class Parameter : private SafeChangeListener
+{
+public:
 
-} // namespace hise;
+	/** A connection to a internal attribute of a Processor. */
+	struct Connection
+	{
+		WeakReference<Processor>;
+		int index;
+		NormalisableRange<float> parameterRange;
+		float lastValue;
+	};
+
+	/** Creates a parameter. */
+	Parameter(MainController* mc)
+	{
+
+	};
+
+	/** Adds a parameter connection. */
+	void addConnection(const Connection& c)
+	{
+
+	}
+
+private:
+
+	void changeListenerCallback(SafeChangeBroadcaster *b) override
+	{
+
+	}
+
+	Array<Connection> connections;
+
+};
+
+
+
+
+
+
+} // namespace raw
+
+}

@@ -37,7 +37,10 @@
 namespace hise { using namespace juce;
 
 
-/** A simple gain effect that allows time variant modulation. */
+/** A signal chain tool that allows to duplicate and send the signal to other channels to build AUX signal paths.
+	@ingroup effectTypes.
+
+*/
 class RouteEffect : public MasterEffectProcessor
 {
 public:

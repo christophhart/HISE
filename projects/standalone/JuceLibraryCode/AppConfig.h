@@ -89,6 +89,10 @@
  //#define USE_FRONTEND 1
 #endif
 
+#ifndef    USE_RAW_FRONTEND
+ //#define USE_RAW_FRONTEND 1
+#endif
+
 #ifndef    IS_STANDALONE_APP
  #define   IS_STANDALONE_APP 1
 #endif

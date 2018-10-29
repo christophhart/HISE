@@ -43,7 +43,8 @@ class ModulatorSynth;
 /**	A MidiProcessor processes a MidiBuffer.
 *	@ingroup midiProcessor
 *
-*	It can be used to change the incoming MIDI data before it is sent to a ModulatorSynth.
+*	It can be used to change the incoming MIDI data before it is sent to a ModulatorSynth. Note that if you want to create your own MIDI processors,
+	you should use the HardcodedScriptProcessor as base class since it offers a simpler integration of existing Javascript code and a cleaner API.
 */
 class MidiProcessor: public Processor
 {
@@ -141,8 +142,7 @@ private:
 
 class ChainEditor;
 
-/** A MidiProcessorChain is a container for multiple MidiProcessors. 
-*	@ingroup midiTypes
+/** @internal A MidiProcessorChain is a container for multiple MidiProcessors. 
 *
 */
 class MidiProcessorChain: public MidiProcessor,
@@ -220,7 +220,7 @@ public:
 		}
 	};
 
-	/** Handles the creation of MidiProcessors within a MidiProcessorChain. */
+	/** @internal Handles the creation of MidiProcessors within a MidiProcessorChain. */
 	class MidiProcessorChainHandler: public Chain::Handler
 	{
 	public:
@@ -295,14 +295,9 @@ private:
 
 };
 
-
-
 class HardcodedScriptFactoryType;
 
-/**	Allows creation of MidiProcessors.
-*
-*	@ingroup midiProcessor
-*/
+
 class MidiProcessorFactoryType: public FactoryType
 {
 public:

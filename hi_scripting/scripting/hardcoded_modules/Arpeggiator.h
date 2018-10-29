@@ -35,9 +35,11 @@
 
 namespace hise { using namespace juce;
 
-/** A hardcoded midi script arpeggiator.
+/** A MIDI arpeggiator.
+	@ingroup midiTypes
 *
-*	This code is based on a script by Elan Hickler
+*	A general purpose arpeggiator that can be used to build sequenced patches.
+*	This code is based on a script by Elan Hickler.
 */
 class Arpeggiator : public HardcodedScriptProcessor,
 	public SliderPackProcessor,
@@ -78,8 +80,6 @@ public:
 	void onTimer(int /*offsetInBuffer*/);
 
 	void playNote();;
-
-	
 
 private:
 

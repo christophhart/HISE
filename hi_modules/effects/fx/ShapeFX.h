@@ -76,7 +76,9 @@ public:
 	float targetValue = 1.0f;
 };
 
-/** A general purpose waveshaper effect. */
+/** A general purpose waveshaper effect. 
+	@ingroup effectTypes.
+*/
 class ShapeFX : public MasterEffectProcessor,
 				public WaveformComponent::Broadcaster,
 #if HI_USE_SHAPE_FX_SCRIPTING
@@ -365,7 +367,7 @@ private:
 };
 
 
-/** A polyphonic waveshaper
+/** A polyphonic wave shaper.
 *	@ingroup effectTypes
 *
 */

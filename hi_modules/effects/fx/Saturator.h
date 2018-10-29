@@ -35,7 +35,9 @@
 
 namespace hise { using namespace juce;
 
-/** A simple gain effect that allows time variant modulation. */
+/** A simple saturator effect. Use the ShapeFX class for more control.
+	@ingroup effectTypes.
+*/
 class SaturatorEffect : public MasterEffectProcessor
 {
 public:

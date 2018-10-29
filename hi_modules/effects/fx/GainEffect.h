@@ -85,7 +85,10 @@ public:
 
 };
 
-/** A simple gain effect that allows time variant modulation. */
+/** A utility effect that allows smooth gain changes, static delays and panning.
+	@ingroup effectTypes
+	
+*/
 class GainEffect: public MasterEffectProcessor
 {
 public:

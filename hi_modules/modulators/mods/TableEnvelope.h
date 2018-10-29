@@ -184,7 +184,7 @@ public:
 	/** @brief returns \c true, if the envelope is not IDLE and not bypassed. */
 	bool isPlaying(int voiceIndex) const override;;
 
-	/** The container for the envelope state. */
+	/** @internal The container for the envelope state. */
     struct TableEnvelopeState: public EnvelopeModulator::ModulatorState
 	{
 	public:

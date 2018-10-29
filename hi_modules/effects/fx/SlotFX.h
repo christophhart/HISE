@@ -13,7 +13,11 @@
 
 namespace hise { using namespace juce;
 
-/** A simple gain effect that allows time variant modulation. */
+/** A placeholder for another effect that can be swapped pretty conveniently.
+	@ingroup effectTypes.
+	
+	Use this as building block for dynamic signal chains.
+*/
 class SlotFX : public MasterEffectProcessor
 {
 public:

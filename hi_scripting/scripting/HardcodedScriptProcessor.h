@@ -125,6 +125,7 @@ private:
 
 
 /** This Processor is a demonstration of how to convert a script into a MidiProcessor.
+	@ingroup midiTypes
 *
 *	It is a simple transpose function. Two things had to be changed manually:
 *	
@@ -273,7 +274,9 @@ private:
 
 };
 
-/** Swaps two control change numbers. @ingroup midiTypes */
+/** Swaps two control change numbers. 
+	@ingroup midiTypes 
+	*/
 class CCSwapper: public HardcodedScriptProcessor
 {
 public:
@@ -319,7 +322,9 @@ private:
 
 };
 
-/** allows release trigger functionality with a time variant decrease of the velocity. @ingroup midiTypes */
+/** Allows release trigger functionality with a time variant decrease of the velocity. 
+	@ingroup midiTypes 
+*/
 class ReleaseTriggerScriptProcessor: public HardcodedScriptProcessor,
 									 public MidiControllerAutomationHandler::MPEData::Listener
 {
@@ -588,6 +593,9 @@ private:
 	
 };
 
+/** This MIDI processor simply filters messages that do not fit the given channel. 
+	@ingroup midiTypes
+*/
 class ChannelFilterScriptProcessor : public HardcodedScriptProcessor,
 	public MidiControllerAutomationHandler::MPEData::Listener
 {
@@ -725,6 +733,12 @@ private:
 	BigInteger mpeRange;
 };
 
+/** Changes the MIDI channel of every incoming message.
+	@ingroup midiTypes.
+	
+	Note that you have 256 MIDI channels in HISE, so you can use it for advanced routing
+	of messages.
+*/
 class ChannelSetterScriptProcessor : public HardcodedScriptProcessor
 {
 public:
@@ -776,6 +790,12 @@ private:
 
 };
 
+/** Mutes the incoming note-on messages, but leaves everything else through.
+	@ingroup midiTypes
+	
+	This is a more sophisticated version of just ignoring everything, because
+	this might lead to stuck notes pretty easily.
+*/
 class MuteAllScriptProcessor : public HardcodedScriptProcessor
 {
 public:

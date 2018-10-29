@@ -64,10 +64,11 @@ END_JUCE_MODULE_DECLARATION
 #include "synthesisers/editors/WavetableComponents.h"
 
 
-/** @defgroup modulatorTypes ModulatorTypes =========================================================================
+
+/** @defgroup modulatorTypes HISE Modulators
 *	@ingroup modulator
 *
-*	Here are all actual Modulators that can be used.
+*	A list of all available HISE modulators.
 */
 
 #include "modulators/mods/ConstantModulator.h"
@@ -116,11 +117,11 @@ END_JUCE_MODULE_DECLARATION
 
 #endif
 
-/** @defgroup midiTypes MidiProcessor Types =======================================================================
+
+/** @defgroup midiTypes HISE MidiProcessors
 *	@ingroup midiProcessor
 *
-*	All actual MidiProcessors that can be used.
-*	There are almost none, because everything can also be achieved using scripts (or hardcoded scripts)
+*	A list of all available HISE MIDI processors.
 */
 
 #include "midi_processor/mps/MidiDelay.h"
@@ -136,10 +137,10 @@ END_JUCE_MODULE_DECLARATION
 
 #endif
 
-/** @defgroup effectTypes Effect Types ===========================================================================
-*	@ingroup dsp
+/** @defgroup effectTypes HISE Effects
+*	@ingroup effect
 *
-*	Contains all audio effect classes
+*	A list of all available HISE Effects
 */
 
 #include "effects/MdaEffectWrapper.h"
@@ -199,10 +200,10 @@ END_JUCE_MODULE_DECLARATION
 #include "effects/fx/WrappedAudioProcessors/WrappedAudioProcessors.h"
 
 
-/** @defgroup synthTypes Synth Types ===========================================================================
-*	@ingroup dsp
+/** @defgroup synthTypes HISE Sound Generators
+*	@ingroup modulatorSynth
 *
-*	Contains all synth classes
+*	A list of all available HISE sound generators.
 */
 
 #include "synthesisers/synths/GlobalModulatorContainer.h"

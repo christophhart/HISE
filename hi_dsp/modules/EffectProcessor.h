@@ -42,6 +42,9 @@ namespace hise { using namespace juce;
 /** Base class for all Processors that applies a audio effect on the audio data. 
 *	@ingroup effect
 *
+*	You won't ever subclass from this class directly, but use either MasterEffectProcessor or VoiceEffectProcessor,
+	depending on the type of your effect.
+*
 */
 class EffectProcessor: public Processor
 {
@@ -162,10 +165,10 @@ private:
 	bool finalised = false;
 };
 
-/** A MasterEffectProcessor renders a effect on a block of audio samples. 
+/** A MasterEffectProcessor renders a effect on a stereo signal.
 *	@ingroup effect
 *
-*	Derive all effects that are processed on the whole buffer from this class. For polyphonic effects, use VoiceEffectProcessor as baseclass.
+*	Derive all effects that are processed on the whole buffer from this class. For polyphonic effects that need to process single voices, use VoiceEffectProcessor as base class.
 */
 class MasterEffectProcessor: public EffectProcessor,
 							 public RoutableProcessor
@@ -199,8 +202,6 @@ public:
 
 		return path;
 	}
-
-	
 
 	ValueTree exportAsValueTree() const override
 	{
@@ -411,8 +412,7 @@ private:
 	
 };
 
-/** A EffectProcessor which allows monophonic modulation of its parameters.
-*	@ingroup effects
+/** @internal A EffectProcessor which allows monophonic modulation of its parameters.
 *
 *	If your effect wants to do more than modulate the wet amount or anything else that can be achieved
 *	with a trivial multiplication, you can subclass it from this class and it takes care of the following
@@ -507,7 +507,7 @@ public:
 
 
 
-/** A VoiceEffectProcessor has multiple states that allows polyphonic rendering of the audio effect. 
+/** A VoiceEffectProcessor will process each voice before it is summed up and allows polyphonic effects.
 *	@ingroup effect
 */
 class VoiceEffectProcessor: public EffectProcessor

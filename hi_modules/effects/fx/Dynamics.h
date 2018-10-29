@@ -35,7 +35,9 @@
 
 namespace hise { using namespace juce;
 
-/** A simple gain effect that allows time variant modulation. */
+/** A general purpose dynamics processor based on chunkware's SimpleCompressor.
+	@ingroup effectTypes
+*/
 class DynamicsEffect : public MasterEffectProcessor
 {
 public:

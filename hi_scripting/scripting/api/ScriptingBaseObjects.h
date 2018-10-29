@@ -206,7 +206,8 @@ private:
 
 
 
-/** A interface class for objects that can be used with the [] operator in Javascript.
+/** @internal A interface class for objects that can be used with the [] operator in Javascript.
+	
 *
 *	It uses a cached look up index on compilation to accelerate the look up.
 */
