@@ -38,7 +38,7 @@
 
 namespace hise { using namespace juce;
 
-//==============================================================================
+
 class FilterGraph    : public Component,
                        public SettableTooltipClient,
 					   public SafeChangeListener
@@ -75,17 +75,18 @@ public:
     void resized();
     
 	void addFilter(FilterType filterType);
+
 	void addEqBand(BandType eqType);
 
 	void changeListenerCallback(SafeChangeBroadcaster *b);
 	
-
 	void clearBands()
 	{
 		numFilters = 0;
 		filterVector.clear();
 	}
 
+	/** Activates the given filter band. */
 	void enableBand(int index, bool shouldBeEnabled)
 	{
 		if(index < filterVector.size())

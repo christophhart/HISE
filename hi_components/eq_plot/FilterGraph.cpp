@@ -34,7 +34,12 @@
 
 namespace hise { using namespace juce;
 
+/** a component that plots a collection of filters.
+@ingroup floating_tile_objects.
 
+Just connect it to a PolyphonicFilterEffect or a CurveEQ and it will automatically update
+the filter graph.
+*/
 class FilterGraph::Panel : public PanelWithProcessorConnection,
 						   public SafeChangeListener,
 						   public Timer

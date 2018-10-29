@@ -202,7 +202,11 @@ private:
 };
 
 
-/** A widget which contains multiple Sliders which support dragging & bipolar display. */
+/** A widget which contains multiple Sliders which support dragging & bipolar display. 
+	@ingroup hise_ui
+	
+	This class is driven by the SliderPackData class, which acts as data container.
+*/
 class SliderPack : public Component,
 				   public Slider::Listener,
 				   public SafeChangeListener,
@@ -210,11 +214,14 @@ class SliderPack : public Component,
 {
 public:
 
+	/** Inherit from this class in order to get notified about changes to the slider pack. */
 	class Listener
 	{
 	public:
 
 		virtual ~Listener();
+
+		/** Callback that will be executed when a slider is moved. You can get the actual value with SliderPack::getValue(int index). */
 		virtual void sliderPackChanged(SliderPack *s, int index ) = 0;
 
 	private:
@@ -230,11 +237,13 @@ public:
 
 	~SliderPack();
 
+	/** Register a listener that will receive notification when the sliders are changed. */
 	void addListener(Listener *listener)
 	{
 		listeners.addIfNotAlreadyThere(listener);
 	}
 
+	/** Removes a previously registered listener. */
 	void removeListener(Listener *listener)
 	{
 		listeners.removeAllInstancesOf(listener);
@@ -256,13 +265,9 @@ public:
 	void changeListenerCallback(SafeChangeBroadcaster *b) override;
 
 	void mouseDown(const MouseEvent &e) override;
-
 	void mouseDrag(const MouseEvent &e) override;
-
 	void mouseUp(const MouseEvent &e) override;
-
 	void mouseDoubleClick(const MouseEvent &e) override;
-
 	void mouseExit(const MouseEvent &e) override;
 
 	void update();
@@ -279,6 +284,7 @@ public:
 
 	void setDisplayedIndex(int displayIndex);
 
+	/** Sets the double click return value. */
 	void setDefaultValue(double defaultValue);
 
 	void setColourForSliders(int colourId, Colour c);
@@ -287,11 +293,18 @@ public:
 
 	void resized() override;
 	void setValuesFromLine();
+
+	/** Returns the number of slider. */
 	int getNumSliders();
+
 	void setFlashActive(bool setFlashActive);
 	void setShowValueOverlay(bool shouldShowValueOverlay);
 	void setStepSize(double stepSize);
     
+	/** Set the slider widths to the given proportions. 
+		
+		For example { 0.25, 0.5, 0.25 } will make the middle slider twice as big. 
+	*/
     void setSliderWidths(const Array<var>& newWidths)
     {
         sliderWidths = newWidths;

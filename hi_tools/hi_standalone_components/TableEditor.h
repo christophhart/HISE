@@ -309,12 +309,8 @@ private:
 class Processor;
 
 //==============================================================================
-/** A component that can edit a Table.
-*	@ingroup components
-*
-*
-*
-*
+/** A editor for the Table object, which represents a curve with different resolutions. 
+*	@ingroup hise_ui
 */
 class TableEditor : public Component,
 	public SettableTooltipClient,

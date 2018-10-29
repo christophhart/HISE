@@ -35,6 +35,7 @@
 namespace hise {
 using namespace juce;
 
+/** A component that displays the content of a buffer loaded into a AudioSampleProcessor. */
 class HiseAudioSampleBufferComponent : public AudioSampleBufferComponentBase
 {
 public:
