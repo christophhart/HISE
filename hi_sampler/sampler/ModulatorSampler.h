@@ -40,8 +40,6 @@ class SampleEditHandler;
 /** The main sampler class.
 *	@ingroup sampler
 *
-*	A ModulatorSampler is a synthesiser which allows playback of samples.
-*
 *	Features:
 *
 *	- Disk Streaming with fast MemoryMappedFile reading
@@ -50,10 +48,6 @@ class SampleEditHandler;
 *	- Resampling (using linear interpolation for now, but can be extended to a complexer algorithm)
 *	- Application-wide sample pool with reference counting to ensure minimal memory usage.
 *	- Different playback modes (pitch tracking / one shot, etc.)
-*
-*	Current limitations:
-*
-*	- supported file format is stereo wave.
 */
 class ModulatorSampler: public ModulatorSynth,
 						public LookupTableProcessor

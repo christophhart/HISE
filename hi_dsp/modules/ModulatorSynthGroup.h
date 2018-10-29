@@ -243,11 +243,10 @@ private:
 
 
 
-/** A ModulatorSynthGroup is a collection of somehow related ModulatorSynths that are processed together.
+/** A ModulatorSynthGroup is a collection of tightly coupled ModulatorSynth that are processed together.
+	@ingroup modulatorSynth
 *
-*	This class is designed to process related ModulatorSynths (eg. round-robin groups or multimiced samples) together. Unlike the ModulatorSynthChain,
-*	this structure allows Modulators and effects to control multiple child synths.
-*	In order to ensure correct functionality, the ModulatorSynthGroup assumes that all child synths start at the same time.
+*	Other than the ModulatorSynthChain, it will render its children grouped on voice level which allows stuff like FM synthesis etc.
 *
 *	The ModulatorSynthGroup is rendered like a normal ModulatorSynth using a special kind of voice (the ModulatorSynthGroupVoice).
 *

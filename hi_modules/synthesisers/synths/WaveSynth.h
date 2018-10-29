@@ -185,6 +185,9 @@ private:
 	};
 };
 
+/** A waveform generator based on BLIP synthesis of common synthesiser waveforms.
+	@ingroup synthTypes.
+*/
 class WaveSynth: public ModulatorSynth,
 				 public WaveformComponent::Broadcaster
 {

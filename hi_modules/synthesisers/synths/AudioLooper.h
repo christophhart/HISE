@@ -74,6 +74,13 @@ private:
 
 };
 
+/** A simple, one-file sample player with looping facitilies.
+	@ingroup synthTypes
+
+	Whenever you don't need a fully fledged streaming sampler, you can use
+	this class to play a single sample that the user can change using
+	a AudioDisplayWaveform component.
+*/
 class AudioLooper : public ModulatorSynth,
 					public AudioSampleProcessor,
 					public TempoListener

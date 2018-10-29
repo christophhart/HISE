@@ -35,14 +35,12 @@
 namespace hise
 {
 
-//! @brief A gateway drug to the full HISE world.
+/** @brief A gateway drug to the full HISE world.
+
+What is love? Baby don't hurt me.
+*/
 namespace raw
 {
-
-
-namespace hise {
-using namespace juce;
-
 
 struct AttributeItem
 {

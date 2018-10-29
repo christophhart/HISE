@@ -308,6 +308,9 @@ private:
 	Array<float> constantVoiceValues;
 };
 
+/** A container that processes Modulator instances that can be used at different locations.
+	@ingroup synthTypes
+*/
 class GlobalModulatorContainer : public ModulatorSynth,
 								 public Chain::Handler::Listener
 {

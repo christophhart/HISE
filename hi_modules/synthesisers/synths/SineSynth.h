@@ -98,6 +98,9 @@ private:
 
 };
 
+/** A sine wave generator.
+	@ingroup synthTypes.
+*/
 class SineSynth: public ModulatorSynth,
 				 public WaveformComponent::Broadcaster
 {

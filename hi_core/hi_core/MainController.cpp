@@ -30,6 +30,10 @@
 *   ===========================================================================
 */
 
+/** The entire HISE codebase
+
+
+*/
 namespace hise { using namespace juce;
 
 #if HI_RUN_UNIT_TESTS

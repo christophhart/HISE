@@ -54,6 +54,11 @@ END_JUCE_MODULE_DECLARATION
 #include "../hi_components/hi_components.h"
 #include "../hi_dsp_library/hi_dsp_library.h"
 
+/** @defgroup sampler Sampler
+	@ingroup dsp
+	
+	All classes related to the sample streaming engine of HISE.
+*/
 
 
 

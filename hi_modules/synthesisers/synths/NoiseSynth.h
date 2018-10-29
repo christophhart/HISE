@@ -86,6 +86,9 @@ private:
 
 };
 
+/** A simple noise generator.
+	@ingroup synthTypes.
+*/
 class NoiseSynth: public ModulatorSynth
 {
 public:

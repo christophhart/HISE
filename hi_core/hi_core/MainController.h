@@ -33,6 +33,7 @@
 #ifndef MAINCONTROLLER_H_INCLUDED
 #define MAINCONTROLLER_H_INCLUDED
 
+
 namespace hise { using namespace juce;
 
 /** A class for handling application wide tasks.

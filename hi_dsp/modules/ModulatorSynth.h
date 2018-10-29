@@ -46,8 +46,8 @@ typedef HiseEventBuffer EVENT_BUFFER_TO_USE;
 
 using VoiceStack = UnorderedStack<ModulatorSynthVoice*>;
 
-/** A ModulatorSynth is a synthesiser with a ModulatorChain for volume and pitch that allows
-*	modulation of these parameters.
+/** The base class for all sound generators in HISE
+	@ingroup modulatorSynth
 *
 *	Instead of renderNextBlock(), simply call renderNextBlockWithModulators() and it processes the chains.
 *	Also you have to subclass the used voice type from ModulatorSynthVoice and make sure it uses the voice modulation 

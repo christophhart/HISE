@@ -382,6 +382,27 @@ private:
 *	- add it to the popup menu
 *
 *	You can use the ValueTree methods to save / restore the state.
+
+Description
+
+![%TYPE% Screenshot](http://hise.audio/images/floating_tile_gifs/%TYPE%.gif)
+
+### Used base properties
+
+| ID | Description |
+| --- | --- |
+`ColourData::textColour`  | the text colour
+`ColourData::bgColour`    | the background colour
+`ColourData::itemColour1` | the first item colour
+`Font`					  | the font
+`FontSize`				  | the font size
+
+### Example JSON
+
+```
+const var data = {%EXAMPLE_JSON};
+```
+
 */
 class FloatingTileContent : public ObjectWithDefaultProperties
 {

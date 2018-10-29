@@ -217,7 +217,9 @@ private:
 };
 
 
-
+/** A two-dimensional wavetable synthesiser.
+	@ingroup synthTypes
+*/
 class WavetableSynth: public ModulatorSynth,
 					  public SliderPackProcessor,
 					  public WaveformComponent::Broadcaster

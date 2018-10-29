@@ -46,7 +46,10 @@
 
 
 /** @defgroup processor_interfaces Processor Interface Classes
+	@ingroup dsp
 *	Interface classes that enhance the functionality of a processor.
+	You can add functionality to a Processor by subclassing it from one of these
+	pure virtual base classes.
 * */
 
 
