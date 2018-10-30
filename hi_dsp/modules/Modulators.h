@@ -584,7 +584,9 @@ public:
 		ValueTree v(Processor::exportAsValueTree());
 
 		v.setProperty("Intensity", getIntensity(), nullptr);
-		v.setProperty("Bipolar", isBipolar(), nullptr);
+
+		if (getMode() != Modulation::GainMode)
+			v.setProperty("Bipolar", isBipolar(), nullptr);
 
 		return v;
 
@@ -594,7 +596,9 @@ public:
 	{
 		Processor::restoreFromValueTree(v);
 
-		setIsBipolar(v.getProperty("Bipolar", true));
+		if (getMode() != Modulation::GainMode)
+			setIsBipolar(v.getProperty("Bipolar", true));
+
 		setIntensity(v.getProperty("Intensity", 1.0f));
 	};
 
@@ -717,10 +721,11 @@ protected:
 		ValueTree v(Processor::exportAsValueTree());
 
 		v.setProperty("Intensity", getIntensity(), nullptr);
-		v.setProperty("Bipolar", isBipolar(), nullptr);
+
+		if (getMode() != Modulation::GainMode)
+			v.setProperty("Bipolar", isBipolar(), nullptr);
 
 		return v;
-
 	};
 
 	virtual void restoreFromValueTree(const ValueTree &v) override
@@ -728,8 +733,9 @@ protected:
 		Processor::restoreFromValueTree(v);
 
 		setIntensity(v.getProperty("Intensity", 1.0f));
-		setIsBipolar(v.getProperty("Bipolar", true));
 
+		if (getMode() != Modulation::GainMode)
+			setIsBipolar(v.getProperty("Bipolar", true));
 	}
 
 	Processor *getProcessor() override { return this; };
@@ -850,7 +856,9 @@ public:
 		{
 			saveAttribute(Monophonic, "Monophonic");
 			saveAttribute(Retrigger, "Retrigger");
-			v.setProperty("Bipolar", isBipolar(), nullptr);
+
+			if (getMode() != Modulation::GainMode)
+				v.setProperty("Bipolar", isBipolar(), nullptr);
 		}
 		
 		v.setProperty("Intensity", getIntensity(), nullptr);
@@ -866,7 +874,9 @@ public:
 		{
 			loadAttribute(Monophonic, "Monophonic");
 			loadAttribute(Retrigger, "Retrigger");
-			setIsBipolar(v.getProperty("Bipolar", true));
+
+			if(getMode() != Modulation::GainMode)
+				setIsBipolar(v.getProperty("Bipolar", true));
 		}
 
 		setIntensity(v.getProperty("Intensity", 1.0f));

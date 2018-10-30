@@ -73,8 +73,6 @@ void Modulation::setIntensity(float newIntensity) noexcept
 {
 	intensity = newIntensity;
 
-	
-
 	smoothedIntensity.setValue(newIntensity);
 }
 
@@ -103,7 +101,6 @@ void Modulation::setIsBipolar(bool shouldBeBiPolar) noexcept
 float Modulation::getInitialValue() const noexcept
 {
 	// Pitch mode is converted to 0.5...2.0 so it's still 1.0f;
-
 	return getMode() == PanMode ? 0.0f : 1.0f;
 }
 
