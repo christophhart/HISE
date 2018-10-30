@@ -372,6 +372,19 @@ CustomKeyboard::~CustomKeyboard()
 }
 
 
+void CustomKeyboard::paint(Graphics &g)
+{
+	if (!useCustomGraphics)
+		dynamic_cast<CustomKeyboardLookAndFeelBase*>(&getLookAndFeel())->drawKeyboardBackground(g, getWidth(), getHeight());
+
+	MidiKeyboardComponent::paint(g);
+
+	//auto lf_ = dynamic_cast<CustomKeyboardLookAndFeel*>(&getLookAndFeel());
+	//lf_->overlayColour = findColour(MidiKeyboardComponent::ColourIds::mouseOverKeyOverlayColourId);
+
+	
+}
+
 void CustomKeyboard::mouseDown(const MouseEvent& e)
 {
 	if (toggleMode)
@@ -481,7 +494,7 @@ void CustomKeyboard::drawWhiteNote(int midiNoteNumber, Graphics &g, int x, int y
 	}
 	else
 	{
-		dynamic_cast<CustomKeyboardLookAndFeel*>(&getLookAndFeel())->drawWhiteNote(state, midiNoteNumber, g, x, y, w, h, isDown, isOver, lineColour, textColour);
+		dynamic_cast<CustomKeyboardLookAndFeelBase*>(&getLookAndFeel())->drawWhiteNote(state, midiNoteNumber, g, x, y, w, h, isDown, isOver, lineColour, textColour);
 	}
 
 	if (displayOctaveNumber && midiNoteNumber % 12 == 0)
@@ -515,7 +528,7 @@ void CustomKeyboard::drawBlackNote(int midiNoteNumber, Graphics &g, int x, int y
 	}
 	else
 	{
-		dynamic_cast<CustomKeyboardLookAndFeel*>(&getLookAndFeel())->drawBlackNote(state, midiNoteNumber, g, x, y, w, h, isDown, isOver, noteFillColour);
+		dynamic_cast<CustomKeyboardLookAndFeelBase*>(&getLookAndFeel())->drawBlackNote(state, midiNoteNumber, g, x, y, w, h, isDown, isOver, noteFillColour);
 	}
 }
 

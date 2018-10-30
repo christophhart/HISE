@@ -48,9 +48,20 @@ public:
 };
 
 
+class CustomKeyboardLookAndFeelBase : public LookAndFeel_V3
+{
+public:
 
+	virtual ~CustomKeyboardLookAndFeelBase() {}
+	
+	virtual void drawKeyboardBackground(Graphics &g, int width, int height) = 0;
 
-class CustomKeyboardLookAndFeel: public LookAndFeel_V3
+	virtual void drawWhiteNote(CustomKeyboardState* state, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &lineColour, const Colour &textColour) = 0;
+	virtual void drawBlackNote(CustomKeyboardState* state, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &noteFillColour) = 0;
+
+};
+
+class CustomKeyboardLookAndFeel: public CustomKeyboardLookAndFeelBase
 {
 public:
 
@@ -152,16 +163,7 @@ public:
         setAvailableRange(lowKey, lowKey + 19);
 	}
 
-	void paint(Graphics &g) override
-	{
-		MidiKeyboardComponent::paint(g);
-		
-		//auto lf_ = dynamic_cast<CustomKeyboardLookAndFeel*>(&getLookAndFeel());
-		//lf_->overlayColour = findColour(MidiKeyboardComponent::ColourIds::mouseOverKeyOverlayColourId);
-
-		if(!useCustomGraphics)
-			dynamic_cast<CustomKeyboardLookAndFeel*>(&getLookAndFeel())->drawKeyboardBackground(g, getWidth(), getHeight());
-	};
+	void paint(Graphics &g) override;;
 
 
 	void changeListenerCallback(SafeChangeBroadcaster *) override
