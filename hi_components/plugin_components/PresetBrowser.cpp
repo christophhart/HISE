@@ -1750,7 +1750,8 @@ void TagList::resized()
 {
 	auto ar = getLocalBounds();
 
-	editButton.setBounds(ar.removeFromRight(80).reduced(3));
+	if(editButton.isVisible())
+		editButton.setBounds(ar.removeFromRight(80).reduced(3));
 
 	for (auto t : tags)
 		t->setBounds(ar.removeFromLeft(t->getTagWidth()).reduced(5));

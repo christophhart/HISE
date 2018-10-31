@@ -176,6 +176,12 @@ public:
 		rebuildTags();
 	}
 
+	void setShowEditButton(bool shouldBeVisible)
+	{
+		editButton.setVisible(shouldBeVisible);
+		resized();
+	}
+
 	void rebuildTags();
 
 	bool isActive() const
@@ -1125,6 +1131,7 @@ public:
 		bankColumn->setShowButtons(showEditButtons);
 		categoryColumn->setShowButtons(showEditButtons);
 		presetColumn->setShowButtons(showEditButtons);
+		tagList->setShowEditButton(showEditButtons);
 	}
 
 	void setShowCloseButton(bool shouldShowButton)
