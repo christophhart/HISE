@@ -1199,6 +1199,8 @@ MPEKeyboard::MPEKeyboard(MainController* mc) :
 
 	state.addListener(this);
 
+	setLookAndFeel(&dlaf);
+
 	setColour(bgColour, Colours::black);
 	setColour(waveColour, Colours::white.withAlpha(0.5f));
 	setColour(keyOnColour, Colours::white);
@@ -1320,50 +1322,6 @@ void MPEKeyboard::mouseDrag(const MouseEvent& event)
 		s.updateNote(*this, event);
 
 	repaint();
-}
-
-void MPEKeyboard::paint(Graphics& g)
-{
-	Colour c1 = findColour(bgColour).withMultipliedAlpha(1.1f);
-	Colour c2 = findColour(bgColour).withMultipliedAlpha(0.9f);
-
-	g.setGradientFill(ColourGradient(c1, 0.0f, 0.0f, c2, 0.0f, (float)getHeight(), false));
-	g.fillAll();
-
-	static const int whiteWave[24] = { 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0,
-		0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0 };
-
-	for (int i = 0; i < 24; i++)
-	{
-		auto noteNumber = lowKey + i;
-
-		auto l = getPositionForNote(noteNumber);
-
-		if (showOctaveNumbers && noteNumber % 12 == 0)
-		{
-			g.setFont(Font((float)l.getWidth() / 2.5f));
-			g.setColour(findColour(waveColour));
-			g.drawText(MidiMessage::getMidiNoteName(noteNumber, true, true, 3), l.withHeight(l.getHeight() - 10), Justification::centredBottom);
-		}
-
-		const float radius = getWidthForNote() * 0.2f;
-
-		if (whiteWave[i] == 1)
-		{
-			g.setColour(findColour(waveColour));
-			g.drawLine(l.getCentreX(), radius, l.getCentreX(), l.getHeight() - 2.0f*radius, 4.0f);
-		}
-		else if (whiteWave[i] == 0)
-		{
-			l.reduce(4, 3);
-
-			g.setColour(findColour(waveColour).withMultipliedAlpha(0.1f));
-			g.fillRoundedRectangle(l, radius);
-		}
-	}
-
-	for (const auto& n : pressedNotes)
-		n.draw(*this, g);
 }
 
 juce::Rectangle<float> MPEKeyboard::getPositionForNote(int noteNumber) const
@@ -1497,29 +1455,87 @@ void MPEKeyboard::Note::updateNote(const MPEKeyboard& p, const MidiMessage& m)
 		liftValue = m.getVelocity();
 }
 
-void MPEKeyboard::Note::draw(const MPEKeyboard& p, Graphics& g) const
+void MPEKeyboard::DefaultLookAndFeel::drawKeyboard(MPEKeyboard& keyboard, Graphics& g)
 {
-	if (!isVisible(p))
-		return;
+	Colour c1 = keyboard.findColour(bgColour).withMultipliedAlpha(1.1f);
+	Colour c2 = keyboard.findColour(bgColour).withMultipliedAlpha(0.9f);
 
-	auto area = p.getPositionForNote(noteNumber);
+	g.setGradientFill(ColourGradient(c1, 0.0f, 0.0f, c2, 0.0f, (float)keyboard.getHeight(), false));
+	g.fillAll();
 
-	g.setColour(p.findColour(keyOnColour).withAlpha(0.1f + 0.9f * ((float)pressureValue / 127.0f)));
+	static const int whiteWave[24] = { 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0,
+		0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0 };
+
+	for (int i = 0; i < 24; i++)
+	{
+		auto noteNumber = keyboard.lowKey + i;
+
+		auto l = keyboard.getPositionForNote(noteNumber);
+
+		if (keyboard.isShowingOctaveNumbers() && noteNumber % 12 == 0)
+		{
+			g.setFont(Font((float)l.getWidth() / 2.5f));
+			g.setColour(keyboard.findColour(waveColour));
+			g.drawText(MidiMessage::getMidiNoteName(noteNumber, true, true, 3), l.withHeight(l.getHeight() - 10), Justification::centredBottom);
+		}
+
+		const float radius = keyboard.getWidthForNote() * 0.2f;
+
+		if (whiteWave[i] == 1)
+		{
+			g.setColour(keyboard.findColour(waveColour));
+			g.drawLine(l.getCentreX(), radius, l.getCentreX(), l.getHeight() - 2.0f*radius, 4.0f);
+		}
+		else if (whiteWave[i] == 0)
+		{
+			l.reduce(4, 3);
+
+			g.setColour(keyboard.findColour(waveColour).withMultipliedAlpha(0.1f));
+			g.fillRoundedRectangle(l, radius);
+		}
+	}
+}
+
+
+void MPEKeyboard::paint(Graphics& g)
+{
+	MPEKeyboardLookAndFeel* laf = dynamic_cast<MPEKeyboardLookAndFeel*>(&getLookAndFeel());
+
+	if (laf == nullptr)
+		laf = &dlaf;
+
+	laf->drawKeyboard(*this, g);
+
+	for (const auto& n : pressedNotes)
+	{
+		if (!n.isVisible(*this))
+			continue;
+
+		auto area = getPositionForNote(n.noteNumber);
+
+		laf->drawNote(*this, n, g, area);
+	}
+}
+
+
+void MPEKeyboard::DefaultLookAndFeel::drawNote(MPEKeyboard& keyboard, const Note& n, Graphics& g, Rectangle<float> area)
+{
+	g.setColour(keyboard.findColour(keyOnColour).withAlpha(0.1f + 0.9f * ((float)n.pressureValue / 127.0f)));
 
 	area.reduce(4.0f, 3.0f);
-	auto radius = p.getWidthForNote() * 0.2f;
+	auto radius = keyboard.getWidthForNote() * 0.2f;
 
 	g.fillRoundedRectangle(area, radius);
-	g.setColour(p.findColour(dragColour));
+	g.setColour(keyboard.findColour(dragColour));
 
-	auto l = Line<int>(startPoint, dragPoint);
+	auto l = Line<int>(n.startPoint, n.dragPoint);
 
 	g.drawLine((float)l.getStartX(), (float)l.getStartY(), (float)l.getEndX(), (float)l.getEndY(), 2.0f);
 
-	Rectangle<float> r((float)dragPoint.getX(), (float)dragPoint.getY(), 0.0f, 0.0f);
+	Rectangle<float> r((float)n.dragPoint.getX(), (float)n.dragPoint.getY(), 0.0f, 0.0f);
 	r = r.withSizeKeepingCentre(10, 10);
 
-	g.setColour(Colours::white.withAlpha((float)strokeValue / 127.0f));
+	g.setColour(Colours::white.withAlpha((float)n.strokeValue / 127.0f));
 	g.drawEllipse(r, 2.0f);
 }
 

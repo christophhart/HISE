@@ -262,7 +262,101 @@ class MPEKeyboard : public Component,
 	public ButtonListener,
 	public KeyboardBase
 {
+	
+
 public:
+
+	struct Note
+	{
+		static Note fromMouseEvent(const MPEKeyboard& p, const MouseEvent& e, int channelIndex);
+		static Note fromMidiMessage(const MPEKeyboard& p, const MidiMessage& m);
+
+		bool operator ==(const Note& other)  const
+		{
+			if (noteNumber != other.noteNumber)
+				return false;
+
+			if (other.fingerIndex == -1 || fingerIndex == -1)
+			{
+				return assignedMidiChannel == other.assignedMidiChannel;
+			}
+			else
+			{
+				return fingerIndex == other.fingerIndex &&
+					assignedMidiChannel == other.assignedMidiChannel;
+			}
+		}
+
+		bool operator !=(const Note& other)  const
+		{
+			if (noteNumber != other.noteNumber)
+				return true;
+
+			if (other.fingerIndex == -1 && fingerIndex == -1)
+			{
+				return assignedMidiChannel != other.assignedMidiChannel;
+			}
+			else
+			{
+				return fingerIndex != other.fingerIndex &&
+					assignedMidiChannel != other.assignedMidiChannel;
+			}
+		}
+
+		bool operator ==(const MidiMessage& m) const
+		{
+			return m.getNoteNumber() == noteNumber &&
+				assignedMidiChannel == m.getChannel();
+		}
+
+		bool operator ==(const MouseEvent& e) const
+		{
+			return fingerIndex == e.source.getIndex();
+		}
+
+		bool operator !=(const MidiMessage& m) const
+		{
+			return assignedMidiChannel != m.getChannel();
+		}
+
+		bool operator !=(const MouseEvent& e) const
+		{
+			return fingerIndex != e.source.getIndex();
+		}
+
+		void updateNote(const MPEKeyboard& p, const MidiMessage& m);
+
+		void updateNote(const MPEKeyboard& p, const MouseEvent& e);
+
+		bool isVisible(const MPEKeyboard& p) const
+		{
+			return !p.getPositionForNote(noteNumber).isEmpty();
+		}
+
+		void sendNoteOn(MidiKeyboardState& state) const
+		{
+			state.noteOn(assignedMidiChannel, noteNumber, (float)strokeValue / 127.0f);
+		}
+
+		void sendNoteOff(MidiKeyboardState& state) const
+		{
+			state.noteOff(assignedMidiChannel, noteNumber, (float)liftValue / 127.0f);
+		}
+
+		bool isArtificial;
+		int fingerIndex;
+		int assignedMidiChannel;
+		int noteNumber;
+
+		int glideValue;
+		int slideValue;
+		int strokeValue;
+		int liftValue;
+		int pressureValue;
+		Point<int> startPoint;
+		Point<int> dragPoint;
+
+	};
 
 	enum ColourIds
 	{
@@ -271,6 +365,21 @@ public:
 		keyOnColour,
 		dragColour,
 		numColoursIds
+	};
+
+	struct MPEKeyboardLookAndFeel: public LookAndFeel_V3
+	{
+		virtual void drawKeyboard(MPEKeyboard& keyboard, Graphics& g) = 0;
+
+		virtual void drawNote(MPEKeyboard& keyboard, const Note& n, Graphics& g, Rectangle<float> area) = 0;
+	};
+
+	struct DefaultLookAndFeel : public MPEKeyboardLookAndFeel
+	{
+		void drawKeyboard(MPEKeyboard& keyboard, Graphics& g) override;
+
+		void drawNote(MPEKeyboard& keyboard, const Note& n, Graphics& g, Rectangle<float> area) override;
+
 	};
 
 	MPEKeyboard(MainController* mc);
@@ -356,106 +465,11 @@ public:
 
 private:
 
+	DefaultLookAndFeel dlaf;
+
 	MultithreadedLockfreeQueue<MidiMessage, MultithreadedQueueHelpers::Configuration::NoAllocationsNoTokenlessUsage> pendingMessages;
 
-	struct Note
-	{
-		static Note fromMouseEvent(const MPEKeyboard& p, const MouseEvent& e, int channelIndex);
-
-		static Note fromMidiMessage(const MPEKeyboard& p, const MidiMessage& m);
-
-		bool operator ==(const Note& other)  const
-		{
-            if(noteNumber != other.noteNumber)
-                return false;
-            
-            if(other.fingerIndex == -1 || fingerIndex == -1)
-            {
-                return assignedMidiChannel == other.assignedMidiChannel;
-            }
-            else
-            {
-                return fingerIndex == other.fingerIndex &&
-                         assignedMidiChannel == other.assignedMidiChannel;
-            }
-		}
-
-		bool operator !=(const Note& other)  const
-		{
-            if(noteNumber != other.noteNumber)
-                return true;
-            
-            if(other.fingerIndex == -1 && fingerIndex == -1)
-            {
-                return assignedMidiChannel != other.assignedMidiChannel;
-            }
-            else
-            {
-                return fingerIndex != other.fingerIndex &&
-                       assignedMidiChannel != other.assignedMidiChannel;
-            }
-            
-			
-		}
-
-		bool operator ==(const MidiMessage& m) const
-		{
-			return m.getNoteNumber() == noteNumber &&
-                   assignedMidiChannel == m.getChannel();
-		}
-
-		bool operator ==(const MouseEvent& e) const
-		{
-			return fingerIndex == e.source.getIndex();
-		}
-
-		bool operator !=(const MidiMessage& m) const
-		{
-			return assignedMidiChannel != m.getChannel();
-		}
-
-		bool operator !=(const MouseEvent& e) const
-		{
-			return fingerIndex != e.source.getIndex();
-		}
-
-		void updateNote(const MPEKeyboard& p, const MidiMessage& m);
-
-		void updateNote(const MPEKeyboard& p, const MouseEvent& e);
-
-		void draw(const MPEKeyboard& p, Graphics& g) const;
-
-		bool isVisible(const MPEKeyboard& p) const
-		{
-			return !p.getPositionForNote(noteNumber).isEmpty();
-		}
-
-		void sendNoteOn(MidiKeyboardState& state) const
-		{
-			state.noteOn(assignedMidiChannel, noteNumber, (float)strokeValue / 127.0f);
-		}
-
-		void sendNoteOff(MidiKeyboardState& state) const
-		{
-			state.noteOff(assignedMidiChannel, noteNumber, (float)liftValue / 127.0f);
-		}
-
-	private:
-
-		bool isArtificial;
-		int fingerIndex;
-		int assignedMidiChannel;
-		int noteNumber;
-
-		int glideValue;
-		int slideValue;
-		int strokeValue;
-		int liftValue;
-		int pressureValue;
-		Point<int> startPoint;
-		Point<int> dragPoint;
-
-	};
+	
 
 	Range<int> channelRange;
 
