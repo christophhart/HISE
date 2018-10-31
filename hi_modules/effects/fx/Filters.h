@@ -220,6 +220,8 @@ private:
 	FilterBank monoFilters;
 
 	mutable WeakReference<Processor> ownerSynthForCoefficients;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(PolyFilterEffect)
 };
 
 

@@ -193,7 +193,8 @@ private:
     
     DelayLine<16384> leftDelay;
     DelayLine<16384> rightDelay;
-    
+  
+	JUCE_DECLARE_WEAK_REFERENCEABLE(GainEffect)
 };
 
 } // namespace hise
