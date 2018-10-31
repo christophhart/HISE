@@ -434,6 +434,27 @@ Processor *MainController::createProcessor(FactoryType *factory,
 };
 
 
+void MainController::stopBufferToPlay()
+{
+	LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
+
+	if (previewBufferIndex != -1 && !fadeOutPreviewBuffer)
+	{
+		fadeOutPreviewBufferGain = 1.0f;
+		fadeOutPreviewBuffer = true;
+	}
+}
+
+void MainController::setBufferToPlay(const AudioSampleBuffer& buffer)
+{
+	LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
+
+	previewBufferIndex = 0;
+	previewBuffer = buffer;
+	fadeOutPreviewBuffer = false;
+	fadeOutPreviewBufferGain = 1.0f;
+}
+
 void MainController::setKeyboardCoulour(int keyNumber, Colour colour)
 {
 	keyboardState.setColourForSingleKey(keyNumber, colour);
@@ -647,11 +668,28 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	{
 		int numToPlay = jmin<int>(numSamplesThisBlock, previewBuffer.getNumSamples() - previewBufferIndex);
 
-		FloatVectorOperations::copy(multiChannelBuffer.getWritePointer(0, 0), previewBuffer.getReadPointer(0, previewBufferIndex), numToPlay);
-		FloatVectorOperations::copy(multiChannelBuffer.getWritePointer(1, 0), previewBuffer.getReadPointer(1, previewBufferIndex), numToPlay);
+		if (numToPlay > 0)
+		{
+			FloatVectorOperations::copy(multiChannelBuffer.getWritePointer(0, 0), previewBuffer.getReadPointer(0, previewBufferIndex), numToPlay);
+			FloatVectorOperations::copy(multiChannelBuffer.getWritePointer(1, 0), previewBuffer.getReadPointer(1, previewBufferIndex), numToPlay);
 
-		previewBufferIndex += numToPlay;
+			previewBufferIndex += numToPlay;
+		}
 
+		if (fadeOutPreviewBuffer)
+		{
+			float thisGain = fadeOutPreviewBufferGain;
+			fadeOutPreviewBufferGain = jmax<float>(thisGain * 0.93f, 0.0f);
+
+			multiChannelBuffer.applyGainRamp(0, numSamplesThisBlock, thisGain, fadeOutPreviewBufferGain);
+
+			if (fadeOutPreviewBufferGain <= 0.001f)
+			{
+				previewBuffer = AudioSampleBuffer();
+				previewBufferIndex = -1;
+			}
+		}
+		
 		if (previewBufferIndex >= previewBuffer.getNumSamples())
 		{
 			previewBuffer = AudioSampleBuffer();

@@ -1067,13 +1067,9 @@ public:
 	DebugLogger& getDebugLogger() { return debugLogger; }
 	const DebugLogger& getDebugLogger() const { return debugLogger; }
     
-	void setBufferToPlay(const AudioSampleBuffer& buffer)
-	{
-		LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
+	void stopBufferToPlay();
 
-		previewBufferIndex = 0;
-		previewBuffer = buffer;
-	}
+	void setBufferToPlay(const AudioSampleBuffer& buffer);
 
 	void setKeyboardCoulour(int keyNumber, Colour colour);
 
@@ -1294,6 +1290,8 @@ private:
 
 	AudioSampleBuffer previewBuffer;
 	int previewBufferIndex = -1;
+	float fadeOutPreviewBufferGain = 1.0f;
+	bool fadeOutPreviewBuffer = false;
 
 	void loadPresetInternal(const ValueTree& v);
 
