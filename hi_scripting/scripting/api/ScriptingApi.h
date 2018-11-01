@@ -246,6 +246,9 @@ public:
 		/** Creates a reference to the expansion handler. */
 		var getExpansionHandler();
 
+		/** Extends the compilation timeout. Use this if you have a long task that would get cancelled otherwise. This is doing nothing in compiled plugins. */
+		void extendTimeOut(int additionalMilliseconds);
+
 		/** Changes the lowest visible key on the on screen keyboard. */
 		void setLowestKeyToDisplay(int keyNumber);
 

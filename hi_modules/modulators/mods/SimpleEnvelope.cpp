@@ -249,8 +249,11 @@ void SimpleEnvelope::stopVoice(int voiceIndex)
 	}
 	else
 	{
-		auto thisState = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
-		thisState->current_state = SimpleEnvelopeState::RELEASE;
+		if (isPositiveAndBelow(voiceIndex, states.size()))
+		{
+			auto thisState = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
+			thisState->current_state = SimpleEnvelopeState::RELEASE;
+		}
 	}
 }
 
@@ -264,10 +267,13 @@ void SimpleEnvelope::reset(int voiceIndex)
 	{
 		EnvelopeModulator::reset(voiceIndex);
 
-		SimpleEnvelopeState *thisState = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
+		if (isPositiveAndBelow(voiceIndex, states.size()))
+		{
+			SimpleEnvelopeState *thisState = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
 
-		thisState->current_state = SimpleEnvelopeState::IDLE;
-		thisState->current_value = 0.0f;
+			thisState->current_state = SimpleEnvelopeState::IDLE;
+			thisState->current_value = 0.0f;
+		}
 	}
 }
 
