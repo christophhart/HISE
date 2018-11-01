@@ -72,15 +72,15 @@ hise::raw::Reference<ProcessorType>::~Reference()
 
 
 template <class ProcessorType>
-Processor* hise::raw::Reference<ProcessorType>::getProcessor()
+ProcessorType* hise::raw::Reference<ProcessorType>::getProcessor()
 {
-	return static_cast<Processor*>(processor.get());
+	return processor.get();
 }
 
 template <class ProcessorType>
-const Processor* hise::raw::Reference<ProcessorType>::getProcessor() const
+const ProcessorType* hise::raw::Reference<ProcessorType>::getProcessor() const
 {
-	return static_cast<const Processor*>(processor.get());
+	return processor.get();
 }
 
 

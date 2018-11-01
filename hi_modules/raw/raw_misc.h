@@ -32,6 +32,8 @@
 
 #pragma once
 
+#include "JuceHeader.h"
+
 namespace hise {
 using namespace juce;
 
@@ -186,8 +188,6 @@ private:
 	bool allowUnusedSources = false;
 };
 
-}
-}
 
 
 /** A wrapper around a plugin parameter (not yet functional). */
