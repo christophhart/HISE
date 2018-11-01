@@ -157,6 +157,7 @@ public:
 		MenuViewProcessorListOffset = 0x80000,
 		
 		MenuToolsRecompile = 0x50000,
+		
 		MenuToolsCreateInterface,
         MenuToolsCheckDuplicate,
         MenuToolsClearConsole,
@@ -171,6 +172,7 @@ public:
 		MenuToolsExternalScriptFileOffset,
 		MenuToolsResolveMissingSamples = 0x60000,
 		MenuToolsDeleteMissingSamples,
+		MenuToolsGetMissingSampleList,
 		MenuToolsCheckAllSampleMaps,
 		MenuToolsImportArchivedSamples,
 		MenuToolsCollectExternalFiles,
@@ -352,6 +354,7 @@ public:
 		static void convertSampleMapToWavetableBanks(BackendRootWindow* bpe);
 		static void exportCompileFilesInPool(BackendRootWindow* bpe);
 		static void checkDeviceSanity(BackendRootWindow * bpe);
+		static void copyMissingSampleListToClipboard(BackendRootWindow * bpe);
 	};
 
 private:

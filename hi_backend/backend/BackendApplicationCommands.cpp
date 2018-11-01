@@ -147,7 +147,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsCheckAllSampleMaps,
 		MenuToolsCollectExternalFiles,
 		MenuToolsCheckUnusedImages,
-        
+		MenuToolsGetMissingSampleList,
 		MenuToolsRedirectScriptFolder,
 		MenuToolsForcePoolSearch,
 		MenuToolsConvertSampleMapToWavetableBanks,
@@ -423,6 +423,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsResolveMissingSamples:
 		setCommandTarget(result, "Resolve missing samples", true, false, 'X', false);
 		break;
+	case MenuToolsGetMissingSampleList:
+		setCommandTarget(result, "Copy list of missing samples to clipboard", true, false, 'X', false);
+		break;
 	case MenuToolsCheckAllSampleMaps:
 		setCommandTarget(result, "Check all sample maps", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
 		break;
@@ -607,6 +610,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
     case MenuToolsCheckDuplicate:       Actions::checkDuplicateIds(bpe); return true;
 	case MenuToolsValidateUserPresets:	Actions::validateUserPresets(bpe); return true;
 	case MenuToolsResolveMissingSamples:Actions::resolveMissingSamples(bpe); return true;
+	case MenuToolsGetMissingSampleList:	Actions::copyMissingSampleListToClipboard(bpe); return true;
 	case MenuToolsCollectExternalFiles:	Actions::collectExternalFiles(bpe); return true;
 	case MenuToolsCreateUIDataFromDesktop: Actions::createUIDataFromDesktop(bpe); updateCommands(); return true;
 	case MenuToolsCheckDeviceSanity:	Actions::checkDeviceSanity(bpe); return true;
@@ -841,6 +845,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		p.addSectionHeader("Sample Management");
 		
 		ADD_DESKTOP_ONLY(MenuToolsResolveMissingSamples);
+		ADD_DESKTOP_ONLY(MenuToolsGetMissingSampleList);
 		ADD_DESKTOP_ONLY(MenuToolsDeleteMissingSamples);
 		ADD_DESKTOP_ONLY(MenuToolsCheckAllSampleMaps);
 		ADD_DESKTOP_ONLY(MenuToolsImportArchivedSamples);
@@ -2411,6 +2416,38 @@ void BackendCommandTarget::Actions::checkDeviceSanity(BackendRootWindow * bpe)
 {
 	auto window = new DeviceTypeSanityCheck(bpe->getBackendProcessor());
 	window->setModalBaseWindowComponent(bpe);
+}
+
+void BackendCommandTarget::Actions::copyMissingSampleListToClipboard(BackendRootWindow * bpe)
+{
+	auto pool = bpe->getBackendProcessor()->getSampleManager().getModulatorSamplerSoundPool();
+
+	StreamingSamplerSoundArray missingSounds;
+
+	pool->getMissingSamples(missingSounds);
+
+	if (missingSounds.isEmpty())
+	{
+		PresetHandler::showMessageWindow("No missing samples founr", "All samples could be found", PresetHandler::IconType::Info);
+	}
+	else
+	{
+		String text;
+
+		for (auto sound : missingSounds)
+		{
+			if (sound == nullptr)
+				continue;
+
+			if (sound->isMonolithic())
+				continue;
+
+			text << sound->getFileName(true) << "\n";
+		}
+
+		SystemClipboard::copyTextToClipboard(text);
+		PresetHandler::showMessageWindow("Missing samples detected", "There were " + String(missingSounds.size()) + " missing samples.", PresetHandler::IconType::Warning);
+	}
 }
 
 #undef REPLACE_WILDCARD
