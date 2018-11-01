@@ -1599,6 +1599,12 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 	additionalSourceCodeDirectory.findChildFiles(additionalSourceFiles, File::findFiles, true, "*.h");
 	additionalSourceCodeDirectory.findChildFiles(additionalSourceFiles, File::findFiles, true, "*.cpp");
 
+	for (int i = 0; i < additionalSourceFiles.size(); i++)
+	{
+		if (additionalSourceFiles[i].getFileName().startsWith("."))
+			additionalSourceFiles.remove(i--);
+	}
+
 	File copyProtectionCppFile = additionalSourceCodeDirectory.getChildFile("CopyProtection.cpp");
 
 	// This will be copied to the source directory

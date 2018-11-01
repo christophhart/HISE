@@ -90,7 +90,7 @@ void hise::raw::Reference<ProcessorType>::changeListenerCallback(SafeChangeBroad
 	for (const auto& p : watchedParameters)
 	{
 		if (p.lastValue != processor->getAttribute(p.index))
-			p.callbackFunction(p.index, p.lastValue);
+			p.callbackFunction(p.lastValue);
 	}
 }
 
