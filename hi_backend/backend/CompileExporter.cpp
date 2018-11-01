@@ -1537,6 +1537,17 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_OSX%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsOSX).toString());
 	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_IOS%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsIOS).toString());
 
+	auto allow32BitMacOS = exporter->dataObject.getSetting(HiseSettings::Compiler::Support32BitMacOS);
+
+	if (allow32BitMacOS)
+	{
+		REPLACE_WILDCARD_WITH_STRING("%MACOS_ARCHITECTURE%", "64BitUniversal");
+	}
+	else
+	{
+		REPLACE_WILDCARD_WITH_STRING("%MACOS_ARCHITECTURE%", "64BitIntel");
+	}
+
 	REPLACE_WILDCARD_WITH_STRING("%COPY_PLUGIN%", isUsingCIMode() ? "0" : "1");
 
 #if JUCE_MAC

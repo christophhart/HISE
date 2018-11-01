@@ -84,6 +84,7 @@ Array<juce::Identifier> HiseSettings::Compiler::getAllIds()
 	ids.add(VisualStudioVersion);
 	ids.add(UseIPP);
 	ids.add(RebuildPoolFiles);
+	ids.add(Support32BitMacOS);
 
 	return ids;
 }
@@ -303,6 +304,12 @@ struct SettingDescription
 		D("So if you're script is invisible, this might be the reason.");
 		P_();
 
+		P(HiseSettings::Compiler::Support32BitMacOS);
+		D("If enabled (which is still the default), the compiler will build both 32bit and 64bit versions as universal binary on macOS. However since 32bit binaries are deprecated in the most recent versions of macOS / XCode, you can tell the exporter to just generate 64bit binaries by disabling this flag. If you see this error messag in the compile terminal:");
+		D("> error: The i386 architecture is deprecated. You should update your ARCHS build setting to remove the i386 architecture.");
+		D("Just disable this flag and try again.");
+		P_();
+
 		P(HiseSettings::Scripting::EnableCallstack);
 		D("This enables a stacktrace that shows the order of function calls that lead to the error (or breakpoint).");
 		D("#### Example: ")
@@ -469,7 +476,8 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Other::EnableAutosave ||
 		id == Scripting::EnableDebugMode ||
 		id == Other::AudioThreadGuardEnabled ||
-		id == Compiler::RebuildPoolFiles) 
+		id == Compiler::RebuildPoolFiles ||
+		id == Compiler::Support32BitMacOS)
 		return { "Yes", "No" };
 
 	if (id == Compiler::VisualStudioVersion)
@@ -616,6 +624,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id)
 	else if (id == Compiler::VisualStudioVersion)	return "Visual Studio 2017";
 	else if (id == Compiler::UseIPP)				return "Yes";
 	else if (id == Compiler::RebuildPoolFiles)		return "Yes";
+	else if (id == Compiler::Support32BitMacOS)		return "Yes";
 	else if (id == User::CompanyURL)				return "http://yourcompany.com";
 	else if (id == User::CompanyCopyright)			return "(c)2017, Company";
 	else if (id == User::CompanyCode)				return "Abcd";
