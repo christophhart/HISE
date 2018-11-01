@@ -84,6 +84,13 @@ T* hise::raw::Builder::addInternal(Processor* p, Chain* c)
 
 
 template <class T>
+bool hise::raw::Builder::remove(Processor* p)
+{
+
+}
+
+
+template <class T>
 T* hise::raw::Builder::create(Processor* parent, int chainIndex /*= -1*/)
 {
 	const Identifier id = T::getClassType();

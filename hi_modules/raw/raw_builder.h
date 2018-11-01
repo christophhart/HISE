@@ -51,23 +51,6 @@ struct AttributeItem
 /** a collection of attribute key/value pairs. */
 using AttributeCollection = std::vector<AttributeItem>;
 
-/** This enumerations can be used for the basic targets. */
-namespace ChainIndexes
-{
-constexpr int Direct = -1;
-
-/** The slot index for MIDI Processors. */
-constexpr int Midi = hise::ModulatorSynth::MidiProcessor;
-
-/** The slot index for Gain modulators. */
-constexpr int Gain = hise::ModulatorSynth::GainModulation;
-
-/** the slot index for Pitch modulators. */
-constexpr int Pitch = hise::ModulatorSynth::PitchModulation;
-
-/** the slot index for FX. */
-constexpr int FX = hise::ModulatorSynth::EffectChain;
-};
 
 /** The builder is a low overhead helper class that provides functions to add modules.
 
@@ -80,23 +63,29 @@ public:
 	Builder(MainController* mc_) :
 		mc(mc_)
 	{
+		// if you're hitting this assertion, it means that you haven't killed the voices properly.
+		// Use an raw::TaskAfterSuspension object for this.
+		jassert(LockHelpers::freeToGo(mc));
 	};
 
 	/** Finds the module with the given ID. */
 	template <class T> T* find(const String& name);
 
 	/** Adds the given module to the parent processor. Specify the chainIndex for modulators / effects. */
-	template <class T> void add(T* processor, Processor* parent, int chainIndex = ChainIndexes::Direct);
+	template <class T> void add(T* processor, Processor* parent, int chainIndex = IDs::Chains::Direct);
 
 	/** Creates a module of the given class and adds it to the parent with the specified
 	chainIndex. See ChainIndexes.
 
 	This only works with HISE modules that are registered at one of the factories, so if you want to add a custom module, use the add() function instead.
 	*/
-	template <class T> T* create(Processor* parent, int chainIndex = ChainIndexes::Direct);
+	template <class T> T* create(Processor* parent, int chainIndex = IDs::Chains::Direct);
+
+	/** Removes a processor and all its child processors from the signal path. */
+	template <class T> bool remove(Processor* p);
 
 	/** Creates a module from the given Base64 encoded String and adds it to the parent module with the suppliedChainIndex. */
-	Processor* createFromBase64State(const String& base64EncodedString, Processor* parent, int chainIndex = ChainIndexes::Direct);
+	Processor* createFromBase64State(const String& base64EncodedString, Processor* parent, int chainIndex = IDs::Chains::Direct);
 
 	/** Sets all the attributes from the given collection.
 
@@ -121,47 +110,6 @@ private:
 
 	MainController * mc;
 };
-
-/** A wrapper around a plugin parameter (not yet functional). */
-class Parameter : private SafeChangeListener
-{
-public:
-
-	/** A connection to a internal attribute of a Processor. */
-	struct Connection
-	{
-		WeakReference<Processor> processor;
-		int index;
-		NormalisableRange<float> parameterRange;
-		float lastValue;
-	};
-
-	/** Creates a parameter. */
-	Parameter(MainController* mc)
-	{
-
-	};
-
-	/** Adds a parameter connection. */
-	void addConnection(const Connection& c)
-	{
-
-	}
-
-private:
-
-	void changeListenerCallback(SafeChangeBroadcaster *b) override
-	{
-
-	}
-
-	Array<Connection> connections;
-
-};
-
-
-
-
 
 
 } // namespace raw
