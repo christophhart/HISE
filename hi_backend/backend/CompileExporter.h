@@ -172,6 +172,13 @@ public:
 	
     bool useIpp;
 
+	bool rawMode = false;
+
+	void setRawExportMode(bool useRawMode)
+	{
+		rawMode = useRawMode;
+	}
+
 	void printErrorMessage(const String& title, const String &message);
 
 	static String getCompileResult(ErrorCodes result);

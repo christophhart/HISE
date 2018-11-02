@@ -426,8 +426,6 @@ void SampleLoader::fillInactiveBuffer()
 
 #if USE_SAMPLE_DEBUG_COUNTER
 
-		DBG(positionInSampleFile);
-
 		const float *l = writeBuffer.get()->getReadPointer(0);
 		const float *r = writeBuffer.get()->getReadPointer(1);
 

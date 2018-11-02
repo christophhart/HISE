@@ -275,6 +275,10 @@ PoolHelpers::Reference::Reference(PoolBase* pool_, const String& embeddedReferen
 	pool(pool_),
 	directoryType(type)
 {
+#if USE_BACKEND
+	jassertfalse;
+#endif
+
 	reference = embeddedReference;
 	hashCode = reference.hashCode64();
 	m = EmbeddedResource;
