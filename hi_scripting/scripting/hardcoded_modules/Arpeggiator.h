@@ -47,6 +47,21 @@ class Arpeggiator : public HardcodedScriptProcessor,
 {
 public:
 
+	enum Parameters
+	{
+		Bypass = 0,
+		Reset,
+		NumSteps,
+		StepReset,
+		Stride,
+		SortKeys,
+		Tempo,
+		Direction,
+		OctaveRange,
+		Shuffle,
+		CurrentStep
+	};
+
 	Arpeggiator(MainController *mc, const String &id, ModulatorSynth *ms);;
 
 	~Arpeggiator();
@@ -321,6 +336,8 @@ private:
 
 	int mpeStart = 2;
 	int mpeEnd = 16;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(Arpeggiator);
 };
 
 

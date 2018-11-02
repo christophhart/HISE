@@ -156,8 +156,6 @@ private:
 				{
 					auto relativePath = c.getProperty("FilePath").toString();
 
-					DBG(relativePath);
-
 					ScopedPointer<XmlElement> xml = c.createXml();
 
 					xml->removeAttribute("FilePath");

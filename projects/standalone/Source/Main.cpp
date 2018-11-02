@@ -265,7 +265,6 @@ public:
 		}
 	}
 	
-
 	static void setHiseFolder(const String& commandLine)
 	{
 		auto args = getCommandLineArgs(commandLine);

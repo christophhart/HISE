@@ -969,7 +969,8 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Engine, setGlobalFont);
 	API_VOID_METHOD_WRAPPER_0(Engine, undo);
 	API_VOID_METHOD_WRAPPER_0(Engine, redo);
-	API_VOID_METHOD_WRAPPER_0(Engine, loadAudioFilesIntoPool)
+	API_VOID_METHOD_WRAPPER_0(Engine, loadAudioFilesIntoPool);
+	API_VOID_METHOD_WRAPPER_1(Engine, loadImageIntoPool);
 };
 
 ScriptingApi::Engine::Engine(ProcessorWithScriptingContent *p) :
@@ -1040,6 +1041,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(undo);
 	ADD_API_METHOD_0(redo);
 	ADD_API_METHOD_0(loadAudioFilesIntoPool);
+	ADD_API_METHOD_1(loadImageIntoPool);
 }
 
 
@@ -1402,6 +1404,44 @@ void ScriptingApi::Engine::loadAudioFilesIntoPool()
 #if USE_BACKEND
 	auto pool = getScriptProcessor()->getMainController_()->getCurrentAudioSampleBufferPool(true);
 	pool->loadAllFilesFromProjectFolder();
+#endif
+}
+
+void ScriptingApi::Engine::loadImageIntoPool(const String& id)
+{
+#if USE_BACKEND
+
+	auto mc = getScriptProcessor()->getMainController_();
+
+	auto pool = mc->getCurrentImagePool(true);
+	const bool isWildcard = id.contains("*");
+
+	if (isWildcard)
+	{
+		File root = GET_PROJECT_HANDLER(dynamic_cast<Processor*>(getScriptProcessor())).getSubDirectory(ProjectHandler::Images);
+
+		Array<File> results;
+
+		auto wildcard = id.fromFirstOccurrenceOf("{PROJECT_FOLDER}", false, false).replace("*", "");
+
+		root.findChildFiles(results, File::findFiles, true);
+
+		for (auto r : results)
+		{
+			auto fileName = r.getRelativePathFrom(root).replace("\\", "/");
+
+			if (wildcard.isEmpty() || fileName.contains(wildcard))
+			{
+				PoolReference ref(mc, r.getFullPathName(), ProjectHandler::Images);
+				pool->loadFromReference(ref, PoolHelpers::LoadAndCacheStrong);
+			}
+		}
+	}
+	else
+	{
+		PoolReference r(mc, id, FileHandlerBase::Images);
+		pool->loadFromReference(r, PoolHelpers::LoadAndCacheStrong);
+	}
 #endif
 }
 

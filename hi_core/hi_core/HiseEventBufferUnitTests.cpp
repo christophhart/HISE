@@ -825,7 +825,6 @@ public:
 
 		void asyncValueTreePropertyChanged(ValueTree& v, const Identifier& id) override
 		{
-			DBG(v.getProperty(id).toString());
 			parent.lastValue = v.getProperty(id);
 			parent.numCalled++;
 		}

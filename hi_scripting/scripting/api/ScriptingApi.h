@@ -294,6 +294,9 @@ public:
 		/** Calling this makes sure that all audio files are loaded into the pool and will be available in the compiled plugin. */
 		void loadAudioFilesIntoPool();
 
+		/** Loads an image into the pool. You can use a wildcard to load multiple images at once. */
+		void loadImageIntoPool(const String& id);
+
 		/** Returns the Bpm of the host. */
 		double getHostBpm() const;
 		

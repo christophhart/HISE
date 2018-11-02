@@ -343,8 +343,6 @@ struct XmlBackupFunctions
 
 			auto* e = parent->getChildElement(i);
 
-			DBG(e->getTagName());
-
 			if (e->getStringAttribute(attributeName) == value)
 				return e;
 			
@@ -379,8 +377,6 @@ struct XmlBackupFunctions
 
 			uiData->removeAttribute("Source");
 		}
-
-		DBG(xml.createDocument(""));
 	}
 
 	static void extractContentData(XmlElement& xml, const String& interfaceId, const File& xmlFile)

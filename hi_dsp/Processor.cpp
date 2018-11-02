@@ -294,8 +294,6 @@ void Processor::sendRebuildMessage(bool forceUpdate/*=false*/)
 					break;
 			}
 
-			DBG("Rebuilding " + pToUse->getId());
-
 			for (auto l : pToUse->deleteListeners)
 			{
 				if (p->getMainController()->shouldAbortMessageThreadOperation())
