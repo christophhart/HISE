@@ -87,12 +87,55 @@ const ProcessorType* hise::raw::Reference<ProcessorType>::getProcessor() const
 template <class ProcessorType>
 void hise::raw::Reference<ProcessorType>::changeListenerCallback(SafeChangeBroadcaster *)
 {
-	for (const auto& p : watchedParameters)
+	for (auto& p : watchedParameters)
 	{
-		if (p.lastValue != processor->getAttribute(p.index))
+		auto thisValue = processor->getAttribute(p.index);
+
+		if (p.lastValue != thisValue)
+		{
+			p.lastValue = thisValue;
 			p.callbackFunction(p.lastValue);
+		}
+			
 	}
 }
+
+
+template <class ComponentType>
+hise::raw::UIConnection::Base<ComponentType>::Base(ComponentType* c, MainController* mc, const String& id, int parameterIndex) :
+	ControlledObject(mc),
+	component(c),
+	processor(mc, id, true),
+	index(parameterIndex)
+{
+	c->addListener(this);
+
+	auto f = [this](float newValue)
+	{
+		if (component.getComponent() != nullptr)
+		{
+			this->updateUI(newValue);
+		}
+	};
+
+	processor.addParameterToWatch(index, f);
+}
+
+
+template <class ComponentType>
+hise::raw::UIConnection::Base<ComponentType>::~Base()
+{
+	if (component.getComponent() != nullptr)
+		component->removeListener(this);
+}
+
+
+template <class ComponentType>
+void hise::raw::UIConnection::Base<ComponentType>::parameterChangedFromUI(float newValue)
+{
+	processor.getProcessor()->setAttribute(index, newValue, sendNotification);
+}
+
 
 }
 

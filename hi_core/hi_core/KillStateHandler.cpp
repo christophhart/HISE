@@ -332,7 +332,7 @@ bool MainController::KillStateHandler::voicesAreKilled() const
 }
 
 
-void MainController::KillStateHandler::killVoicesAndCall(Processor* p, const ProcessorFunction& functionToExecuteWhenKilled, MainController::KillStateHandler::TargetThread targetThread)
+bool MainController::KillStateHandler::killVoicesAndCall(Processor* p, const ProcessorFunction& functionToExecuteWhenKilled, MainController::KillStateHandler::TargetThread targetThread)
 {
 	WARN_IF_AUDIO_THREAD(true, IllegalOps::GlobalLocking);
 
@@ -342,7 +342,7 @@ void MainController::KillStateHandler::killVoicesAndCall(Processor* p, const Pro
 		        currentState == State::ShutdownComplete);
 
 		functionToExecuteWhenKilled(p);
-		return;
+		return true;
 	}
 
 	jassert(targetThread != MessageThread);
@@ -355,6 +355,7 @@ void MainController::KillStateHandler::killVoicesAndCall(Processor* p, const Pro
 		// and the target thread is active, so we can call the function without
 		// further actions
 		functionToExecuteWhenKilled(p);
+		return true;
 	}
 	else
 	{
@@ -372,26 +373,31 @@ void MainController::KillStateHandler::killVoicesAndCall(Processor* p, const Pro
 					jassert(!isAudioRunning());
 
 					functionToExecuteWhenKilled(p);
-
+					
 					jassert(currentState = State::Suspended);
 
 					invalidateTicket(newTicket);
 
-					return;
+					return true;
 				}
 				else
 				{
 					// Somehow the voices could not been killed.
 					jassertfalse;
 					invalidateTicket(newTicket);
+					return true;
 				}
 			}
 		}
 		else
 		{
 			deferToThread(p, functionToExecuteWhenKilled, targetThread);
+			return false;
 		}
 	}
+
+	jassertfalse;
+	return false;
 }
 
 

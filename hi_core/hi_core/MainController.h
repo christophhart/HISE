@@ -793,7 +793,7 @@ public:
 		*
 		*	It will check whether the processor was deleted before calling the function.
 		*/
-		void killVoicesAndCall(Processor* p, const ProcessorFunction& functionToExecuteWhenKilled, TargetThread targetThread);
+		bool killVoicesAndCall(Processor* p, const ProcessorFunction& functionToExecuteWhenKilled, TargetThread targetThread);
 
 		bool killVoicesAndWait(int* timeOutMilliSeconds=nullptr);
 

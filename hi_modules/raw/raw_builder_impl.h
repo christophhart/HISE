@@ -39,10 +39,9 @@ namespace raw
 {
 
 template <class T>
-T* hise::raw::Builder::find(const String& name)
+raw::Reference<T> hise::raw::Builder::find(const String& name)
 {
-	auto p = ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), name);
-	return dynamic_cast<T*>(p);
+	return Reference<T>(mc, name);
 }
 
 
@@ -88,7 +87,6 @@ bool hise::raw::Builder::remove(Processor* p)
 {
 
 }
-
 
 template <class T>
 T* hise::raw::Builder::create(Processor* parent, int chainIndex /*= -1*/)

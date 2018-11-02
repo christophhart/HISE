@@ -168,4 +168,6 @@ namespace wdl
 #endif
 
 
+#include "raw/raw_misc.cpp"
 #include "raw/raw_builder.cpp"
+

@@ -810,6 +810,7 @@ void ConsoleLogger::logMessage(const String &message)
 	if (message.startsWith("!"))
 	{
 		debugError(processor, message.substring(1));
+		
 	}
 	else
 	{
