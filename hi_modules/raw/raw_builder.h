@@ -35,12 +35,12 @@
 namespace hise
 {
 
-/** @brief A gateway drug to the full HISE world.
+/** @brief a higher-level API for HISE.
 
-	This namespace acts as higher level API to the HISE code base and provides helper classes and convenient functions to tuck away the complexity of the full code base. The goal of this namespace is to provide access to the HISE codebase for the majority of use cases
+	This namespace acts as entry point to the HISE code base and provides helper classes and convenient functions to tuck away the complexity of the full code base. The goal of this namespace is to provide access to the HISE code base for the majority of use cases
 	that are required by people using HISE for their projects. The full API class list of all HISE classes can be overwhelming, so this is supposed to be a starting point for people diving into the C++ side of HISE.
 
-	Also, all classes in this API are guaranteed to meet stricter API standards regarding documentation and backwards compatibility.
+	Also, all classes in this API are guaranteed to meet stricter API standards regarding documentation and backwards compatibility. Important: until further notice, this is a very WIP namespace so you can expect it to change radically until the dust has settled.
 
 	In this namespace you get:
 
@@ -49,8 +49,6 @@ namespace hise
 	- a wrapper around a module that gets notified when a parameter changes: the Reference
 	- a class that loads embedded data: the Pool
 	- a class that handles the (asynchronous) and lockfree execution of larger tasks: the TaskAfterSuspension.
-
-
 */
 namespace raw
 {
@@ -68,7 +66,7 @@ using AttributeCollection = std::vector<AttributeItem>;
 
 /** The builder is a low overhead helper class that provides functions to add modules.
 
-Create one of those, supply the main controller instance and call its methods to build up the architecture of your plugin. 
+Create one of those, supply the MainController instance and call its methods to build up the architecture of your plugin. 
 
 \code
 // The main controller of this project

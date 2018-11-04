@@ -39,7 +39,13 @@ namespace hise { using namespace juce;
 
 class SampleDataImporter;
 
+/** A overlay that can show critical error messages on the compiled plugin.
+	@ingroup hise_ui
 
+	If your plugin's state encounters a error that either needs the full attention of the user
+	or even completely deactivates the UI functionality, this class will appear and show the 
+	error message that was received.
+*/
 class DeactiveOverlay : public Component,
 	public ButtonListener
 {

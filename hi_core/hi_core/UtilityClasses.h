@@ -63,6 +63,7 @@ private:
 };
 
 /** This class is used to coallescate multiple calls to an asynchronous update for a given Listener.
+*	@ingroup event_handling
 *
 *	It is designed to be a replacement for the normal AsyncUpdater which can clog the message thread if too
 *	many change notifications are sent.
@@ -284,7 +285,6 @@ public:
 
 
 /** A base class for all objects that can be saved as value tree.
-*	@ingroup core
 */
 class RestorableObject
 {
@@ -292,24 +292,19 @@ public:
 
 	virtual ~RestorableObject() {};
 
-	/** Overwrite this method and return a representation of the object as ValueTree.
-	*
-	*	It's best practice to only store variables that are not internal (eg. states ...)
-	*/
+	/** Overwrite this method and return a representation of the object as ValueTree. */
 	virtual ValueTree exportAsValueTree() const = 0;
 
-	/** Overwrite this method and restore the properties of this object using the referenced ValueTree.
-	*/
+	/** Overwrite this method and restore the properties of this object using the referenced ValueTree. */
 	virtual void restoreFromValueTree(const ValueTree &previouslyExportedState) = 0;
 };
 
 class MainController;
 
 /** A base class for all objects that need access to a MainController.
-*	@ingroup core
 *
-*	If you want to have access to the main controller object, derive the class from this object and pass a pointer to the MainController
-*	instance in the constructor.
+*	If you want to have access to the main controller object, derive the class from this object and pass 
+*	a pointer to the MainController instance in the constructor.
 */
 class ControlledObject
 {
@@ -497,11 +492,14 @@ private:
 };
 
 
-/** A class that handles temposyncing.
+/** A class that handles tempo syncing.
 *	@ingroup utility
 *
 *	All methods are static and it holds no data, so you have to get the host bpm before
 *	you can use this class.
+*
+*	You can use the slider mode TempoSync, which automatically maps the slider values
+*	to the tempo indexes and shows the corresponding text representation.
 *
 *	If the supplied hostTempo is invalid (= 0.0), a default tempo of 120.0 is used.
 */
@@ -512,25 +510,25 @@ public:
 	/** The note values. */
 	enum Tempo
 	{
-		Whole = 0, ///< a whole note
-		HalfDuet,
-		Half, ///< a half note
-		HalfTriplet, ///< a half triplet note
-		QuarterDuet,
-		Quarter, ///< a quarter note
-		QuarterTriplet, ///< a quarter triplet note
-		EighthDuet,
-		Eighth, ///< a eighth note
-		EighthTriplet, ///< a eighth triplet note
-		SixteenthDuet,
-		Sixteenth, ///< a sixteenth note
-		SixteenthTriplet, ///< a sixteenth triplet
-		ThirtyTwoDuet,
-		ThirtyTwo,
-		ThirtyTwoTriplet,
-		SixtyForthDuet,
-		SixtyForth,
-		SixtyForthTriplet,
+		Whole = 0, ///< a whole note (1/1)
+		HalfDuet, ///< a half note duole (1/2D)
+		Half, ///< a half note (1/2)
+		HalfTriplet, ///< a half triplet note (1/2T)
+		QuarterDuet, ///< a quarter note duole (1/4D)
+		Quarter, ///< a quarter note (1/4)
+		QuarterTriplet, ///< a quarter triplet note (1/4T)
+		EighthDuet, ///< a eight note duole (1/8D)
+		Eighth, ///< a eighth note (1/8)
+		EighthTriplet, ///< a eighth triplet note (1/8T)
+		SixteenthDuet, ///< a sixteenth duole (1/16D)
+		Sixteenth, ///< a sixteenth note (1/16)
+		SixteenthTriplet, ///< a sixteenth triplet (1/16T)
+		ThirtyTwoDuet, ///< a 32th duole (1/32D)
+		ThirtyTwo, ///< a 32th note (1/32)
+		ThirtyTwoTriplet, ///< a 32th triplet (1/32T)
+		SixtyForthDuet, ///< a 64th duole (1/64D)
+		SixtyForth, ///< a 64th note (1/64)
+		SixtyForthTriplet, ///> a 64th triplet 1/64T)
 		numTempos
 	};
 
@@ -903,6 +901,7 @@ struct SafeFunctionCall
 	WeakReference<Processor> p;
 };
 
+/** A function prototype for lambdas passed into the suspended task system. */
 using ProcessorFunction = SafeFunctionCall::Function;
 
 #if USE_VDSP_FFT

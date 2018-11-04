@@ -154,7 +154,8 @@ h2
 
 h3
 {
-font-size: 24px;
+font-size: 1.2em;
+letter-spacing: -1px;
 }
 
 h1.glow, h2.glow, h3.glow, h4.glow, h5.glow, h6.glow {

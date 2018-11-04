@@ -61,11 +61,6 @@ END_JUCE_MODULE_DECLARATION
 *	A collection of small helper classes.
 */
 
-/** @defgroup dsp DSP classes
-*
-*	All classes used for signal processing / sound generation.
-*/
-
 
 #include "Processor.h"
 #include "ProcessorInterfaces.h"
@@ -96,35 +91,17 @@ class ProcessorEditor;
 /**	@defgroup modulator Modulator classes
 *	@ingroup dsp
 *
-*	Processors that create a modulation signal that can be used to control parameters of another module.
+*	Classes related to the modulation architecture of HISE.
 */
 
 #include "modules/Modulators.h"
 #include "modules/ModulatorChain.h"
 
-
-/**	@defgroup midiProcessor MidiProcessor classes
-*	@ingroup dsp
-*
-*	Contains all classes related to Midi-Processors
-*/
-
 #include "modules/MidiProcessor.h"
 
-/**	@defgroup effect Effect classes
-*	@ingroup dsp
-*
-*	The classes for audio effects in HISE.
-*/
 
 #include "modules/EffectProcessor.h"
 #include "modules/EffectProcessorChain.h"
-
-/**	@defgroup modulatorSynth Sound Generator classes
-*	@ingroup dsp
-*
-*	Contains all classes related to Modulator-Synthesisers.
-*/
 
 #include "modules/ModulatorSynth.h"
 #include "modules/ModulatorSynthChain.h"

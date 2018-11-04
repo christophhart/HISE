@@ -583,6 +583,7 @@ private:
 };
 
 /** A waveform component to display the content of a pooled AudioSampleBuffer.
+*	@ingroup hise_ui
 *
 *	Features:
 *

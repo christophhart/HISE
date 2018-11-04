@@ -43,7 +43,7 @@ class ScriptContentComponent;
 
 //==============================================================================
 /** A plotter component that displays the Modulator value
-*	@ingroup debugComponents
+*	@ingroup hise_ui
 *
 *	You can add values with addValue(). This should be periodic 
 *	(either within the audio callback or with a designated timer in your Editor, as

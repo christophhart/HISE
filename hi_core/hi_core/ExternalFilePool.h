@@ -45,17 +45,20 @@ const Identifier LoopEnd("LoopEnd");
 
 class PoolBase;
 
+/** Helper functions for the file pools. 
+*/
 struct PoolHelpers
 {
+	/** If you load a file into the pool you can specify the caching behaviour with one of these. */
 	enum LoadingType
 	{
-		LoadAndCacheWeak = 0,
-		LoadAndCacheStrong,
-		ForceReloadWeak,
-		ForceReloadStrong,
-		SkipPoolSearchWeak,
-		SkipPoolSearchStrong,
-		DontCreateNewEntry,
+		LoadAndCacheWeak = 0, ///< Loads the file, but does not increase the reference count. This results in the file being unloaded if the reference to it gets destroyed. If the file is already loaded, it just returns the reference.
+		LoadAndCacheStrong, ///< Loads the file and increases the reference count to extend the lifetime of the cached data until the pool is destroyed or manually cleaned.
+		ForceReloadWeak, ///< This will bypass the search in the pool and reloads the file no matter if it was loaded before.
+		ForceReloadStrong, ///< reloads the file and increases it's reference count.
+		SkipPoolSearchWeak, ///< skips the check if the file is already pooled.
+		SkipPoolSearchStrong, ///< skips the search in the pool and increases the reference count
+		DontCreateNewEntry, ///< this assumes the file is already in the pool and throws an assertion if it's not.
 		numLoadingTypes
 	};
 
@@ -85,29 +88,54 @@ struct PoolHelpers
 	static ProjectHandler::SubDirectories getSubDirectoryType(const Image& emptyImage);
 	static ProjectHandler::SubDirectories getSubDirectoryType(const ValueTree& emptyTree);
 
+	/** @internal (used by the template instantiations. */
 	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, AudioSampleBuffer& data, var* additionalData);
+	/** @internal (used by the template instantiations. */
 	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, Image& data, var* additionalData);
+	/** @internal (used by the template instantiations. */
 	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, ValueTree& data, var* additionalData);
 
+	/** @internal (used by the template instantiations. */
 	static void fillMetadata(AudioSampleBuffer& data, var* additionalData);
+	/** @internal (used by the template instantiations. */
 	static void fillMetadata(Image& data, var* additionalData);
+	/** @internal (used by the template instantiations. */
 	static void fillMetadata(ValueTree& data, var* additionalData);
 
+	/** @internal (used by the template instantiations. */
 	static size_t getDataSize(const AudioSampleBuffer* buffer);
-
+	/** @internal (used by the template instantiations. */
 	static size_t getDataSize(const Image* img);
+	/** @internal (used by the template instantiations. */
 	static size_t getDataSize(const ValueTree* img);
 
+	/** @internal (used by the template instantiations. */
 	static bool isValid(const AudioSampleBuffer* buffer);
+	/** @internal (used by the template instantiations. */
 	static bool isValid(const Image* buffer);
+	/** @internal (used by the template instantiations. */
 	static bool isValid(const ValueTree* buffer);
 
+	/** @internal (used by the template instantiations. */
 	static Identifier getPrettyName(const AudioSampleBuffer* /*buffer*/) { RETURN_STATIC_IDENTIFIER("AudioFilePool"); }
+	/** @internal (used by the template instantiations. */
 	static Identifier getPrettyName(const Image* /*img*/) { RETURN_STATIC_IDENTIFIER("ImagePool"); }
+	/** @internal (used by the template instantiations. */
 	static Identifier getPrettyName(const ValueTree* /*img*/) { RETURN_STATIC_IDENTIFIER("SampleMapPool"); }
 
 	static Image getEmptyImage(int width, int height);
 
+	/** A lightweight object that encapsulates all different sources for a pool with a 
+		hash code and a relative path system.
+		
+		@ingroup core
+		
+		Whenever you need to access external / embedded resources, this class is used to 
+		resolve the path / ID to fetch the data. 
+		
+		Normally, you create one of these just with a String and it will figure out automatically
+		whether it's a absolute path, a path relative to the project folder or an embedded resource.
+	*/
 	struct Reference
 	{
 		struct Comparator
@@ -118,17 +146,19 @@ struct PoolHelpers
 			}
 		};
 
+		/** The data sources for the Reference. */
 		enum Mode
 		{
-			Invalid,
-			AbsolutePath,
-			ExpansionPath,
-			ProjectPath,
-			EmbeddedResource,
-			LinkToEmbeddedResource,
+			Invalid = 0, ///< if the reference can't be resolved
+			AbsolutePath, ///< the reference is an absolute path outside the HISE project folder. This needs to be avoided during development, but for compiled plugins it stores the location to a file specified by the user
+			ExpansionPath, ///< if the resource is bundled in an expansion pack, it will be using this value
+			ProjectPath, ///< a file within the HISE project folder. This will be transformed into a EmbeddedResource when compiling the plugin
+			EmbeddedResource, ///< data that is either embedded in the plugin or shipped as compressed pool data along with the binary
+			LinkToEmbeddedResource, ///< ???
 			numModes_
 		};
 
+		/** Creates a Invalid reference. */
 		Reference();
 
 		/** Creates a reference using the given string. */
@@ -140,6 +170,7 @@ struct PoolHelpers
 		/** Creates a reference from an embedded resource. */
 		Reference(PoolBase* pool, const String& embeddedReference, ProjectHandler::SubDirectories directoryType);
 
+		/** This can be used to type shorter conditions. */
 		explicit operator bool() const
 		{
 			return isValid();
@@ -148,24 +179,41 @@ struct PoolHelpers
 		bool operator ==(const Reference& other) const;
 		bool operator !=(const Reference& other) const;
 
+		/** Returns the type of the reference. */
 		Mode getMode() const { return m; }
+
+		/** Returns the String that was passed in the constructor. */
 		String getReferenceString() const;
+
+		/** Returns the Identifier as used by the pool. */
 		Identifier getId() const;
+
+		/** If this is a file based reference, it will return the file. */
 		File getFile() const;
+
 		bool isRelativeReference() const;
 		bool isAbsoluteFile() const;
 		bool isEmbeddedReference() const;;
+
+		/** This creates an input stream for the reference. If it's file based, it will be a FileInputStream, and for embedded references you'll get a MemoryInputStream. */
 	 	InputStream* createInputStream() const;
+
+		/** Upon creation it creates a hash code that will be used by the pool to identify
+			and return already cached data.
+		*/
 		int64 getHashCode() const;
 		bool isValid() const;
+
+		/** Returns the data type. A Reference has the data type baked in it (because you hardly want to load images into a convolution reverb). 
+		*/
 		ProjectHandler::SubDirectories getFileType() const;
 
+		/** @internal. */
 		var createDragDescription() const;
 
 	private:
 
 		void parseDragDescription(const var& v);
-
 		void parseReferenceString(const MainController* mc, const String& input);
 
 		String reference;
@@ -176,8 +224,6 @@ struct PoolHelpers
 		int64 hashCode;
 
 		PoolBase* pool;
-
-
 		ProjectHandler::SubDirectories directoryType;
 	};
 
@@ -189,7 +235,9 @@ class PoolCollection;
 using PoolReference = PoolHelpers::Reference;
 
 
-
+/** The base class for all resource pools.
+*
+*	This class handles the caching of resources and provides the data. */
 class PoolBase : public ControlledObject
 {
 public:
@@ -222,6 +270,7 @@ public:
 		PoolBase& parent;
 	};
 
+	/** The internal data management class for embedded resources. */
 	class DataProvider
 	{
 	public:
@@ -279,15 +328,26 @@ public:
 		ScopedPointer<Compressor> compressor;
 	};
 
+	/** A interface class that will be notified about changes to the pool. 
+	*
+	*	If you want to reflect the state of a pool in your UI, subclass this and overwrite the callbacks.
+	*	They will be asynchronously called after the state of the pool changes.
+	*/
 	class Listener
 	{
 	public:
 
 		virtual ~Listener() {};
 
+		/** Called whenever a pool entry was added. */
 		virtual void poolEntryAdded() {};
+
+		/** Called when a pool entry was removed. */
 		virtual void poolEntryRemoved() {};
+
+		/** If a pool entry gets changed, this will be called. */
 		virtual void poolEntryChanged(PoolReference referenceThatWasChanged) {};
+
 
 		virtual void poolEntryReloaded(PoolReference referenceThatWasChanged) {};
 
@@ -323,6 +383,7 @@ public:
 		dataProvider = newDataProvider;
 	}
 
+	
 	virtual int getNumLoadedFiles() const = 0;
 	virtual PoolReference getReference(int index) const = 0;
 	virtual void clearData() = 0;
@@ -330,7 +391,6 @@ public:
 	virtual StringArray getTextDataForId(int index) const = 0;
 
 	virtual void writeItemToOutput(OutputStream& output, PoolReference r) = 0;
-	
 
 	DataProvider* getDataProvider() { return dataProvider; };
 	const DataProvider* getDataProvider() const { return dataProvider; };
@@ -358,8 +418,6 @@ protected:
 	{
 
 	}
-
-	
 
 	FileHandlerBase::SubDirectories type;
 
@@ -414,7 +472,6 @@ private:
 	Array<WeakReference<Listener>, CriticalSection> listeners;
 
 	ScopedPointer<DataProvider> dataProvider;
-
 	
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PoolBase)
@@ -454,9 +511,10 @@ public:
 };
 
 
-//using DataType = Image;
-
-
+/** This class extends the pool to a global data storage used across all instances of the plugin.
+*
+*	This is useful if you have a lot of read-only data (like images), which would increase the memory
+*	usage when multiple instances of your plugin are used. */
 template <class DataType> class SharedCache
 {
 
@@ -514,15 +572,16 @@ private:
 
 
 
-
+/** Implementations of the data pool. */
 template <class DataType> class SharedPoolBase : public PoolBase
 {
 public:
 
-	
-
 	using PoolItem = PoolEntry<DataType>;
 
+	/** A ManagedPtr is a wrapper around a reference in the pool. Normally you don't create them
+	*	manually, but use the loadFromReference() method which creates and returns this object. 
+	*/
 	class ManagedPtr
 	{
 	public:
@@ -657,11 +716,13 @@ public:
 		return ProjectHandler::getIdentifier(type);
 	}
 
+	/** Returns the number of loaded files. */
 	int getNumLoadedFiles() const override
 	{
 		return weakPool.size();
 	}
 
+	/** Clears the pool. */
 	void clearData() override
 	{
 		ScopedNotificationDelayer snd(*this, EventType::Removed);
@@ -678,6 +739,7 @@ public:
 		loadAllFilesFromProjectFolder();
 	}
 
+	/** Checks if the hash code is used by the pool. Use this method with the hash code of a PoolReference. */
 	bool contains(int64 hashCode) const
 	{
 		for (int i = 0; i < getNumLoadedFiles(); i++)
@@ -689,6 +751,7 @@ public:
 		return false;
 	}
 
+	/** Returns the PoolReference at the given index. */
 	PoolReference getReference(int index) const override
 	{
 		if (index >= 0 && index < getNumLoadedFiles())
@@ -708,6 +771,7 @@ public:
 		return -1;
 	}
 
+	/** Every pool item has a storage object for additional metadata (eg. the sample rate for audio files). */
 	var getAdditionalData(PoolReference r) const override
 	{
 		auto i = indexOf(r);
@@ -718,6 +782,7 @@ public:
 		return {};
 	}
 
+	/** Creates a list of all cached data. */
 	Array<PoolReference> getListOfAllReferences(bool includeEmbeddedButUnloadedReferences) const
 	{
 		Array<PoolReference> references;
@@ -768,6 +833,7 @@ public:
 		}
 	}
 
+	/** Returns a statistic string with the size and memory usage of the pool. */
 	String getStatistics() const
 	{
 		String s;
@@ -856,6 +922,9 @@ public:
 		return ManagedPtr(this, ne.getObject(), true);
 	}
 
+	/** Loads a reference with the given LoadingType. Use this whenever you need to access data,
+		as it will check if the data was already cached. 
+	*/
 	ManagedPtr loadFromReference(PoolReference r, PoolHelpers::LoadingType loadingType)
 	{
 		if (getDataProvider()->isEmbeddedResource(r))

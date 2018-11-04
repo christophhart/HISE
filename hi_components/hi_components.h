@@ -57,9 +57,22 @@ END_JUCE_MODULE_DECLARATION
 #include "../hi_dsp/hi_dsp.h"
 #include "../hi_dsp_library/hi_dsp_library.h"
 
-/** @defgroup hise_ui HISE UI elements
+/** @defgroup ui UI
+
+	All class related to the interface design using C++	
+*/
+
+/** @defgroup event_handling Event Handling
+	@ingroup ui
+	
+	Classes and helpers for communication between audio rendering
+	and the user interface.
+/*
+
+/** @defgroup hise_ui HISE Components
+*	@ingroup ui
 *
-*	A collection of reusable HISE components
+*	All HISE UI widgets that can be used in compiled plugins.
 */
 
 

@@ -100,6 +100,10 @@ private:
 
 /** A sine wave generator.
 	@ingroup synthTypes.
+
+	This is a rather lightweight module, however if you're planning to do stuff like
+	additive synthesis, I'd recommend writing your own module to save CPU since this
+	would calculate the pitch modulation / event triggering for each SineSynth instance.
 */
 class SineSynth: public ModulatorSynth,
 				 public WaveformComponent::Broadcaster
@@ -110,14 +114,15 @@ public:
 
 	SET_PROCESSOR_NAME("SineSynth", "Sine Wave Generator");
 
+	/** The parameters. */
 	enum SpecialParameters
 	{
-		OctaveTranspose = ModulatorSynth::numModulatorSynthParameters,
-		SemiTones,
-		UseFreqRatio,
-		CoarseFreqRatio,
-		FineFreqRatio,
-		SaturationAmount,
+		OctaveTranspose = ModulatorSynth::numModulatorSynthParameters, ///< The octave transpose amount (+- 5)
+		SemiTones, ///< the semitones transpose amount (+- 12)
+		UseFreqRatio, ///< switches between musical and harmonic-based tuning
+		CoarseFreqRatio, ///< the harmonic index (= frequency multiplier)
+		FineFreqRatio, ///< the harmonic detune amount
+		SaturationAmount, ///< the amount of the inbuilt saturator effect
 		numSineSynthParameters
 	};
 

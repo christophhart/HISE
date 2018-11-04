@@ -58,6 +58,28 @@ HiseEvent::HiseEvent(const MidiMessage& message)
 	value = data[2];
 }
 
+HiseEvent::HiseEvent(Type type_, uint8 number_, uint8 value_, uint8 channel_ /*= 1*/) :
+	type(type_),
+	number(number_),
+	value(value_),
+	channel(channel_)
+{
+
+}
+
+HiseEvent::HiseEvent(const HiseEvent &other) noexcept
+{
+	// Only works with struct size of 16 bytes...
+	jassert(sizeof(HiseEvent) == 16);
+
+	uint64* data = reinterpret_cast<uint64*>(this);
+
+	const uint64* otherData = reinterpret_cast<const uint64*>(&other);
+
+	data[0] = otherData[0];
+	data[1] = otherData[1];
+}
+
 String HiseEvent::getTypeAsString() const noexcept
 {
 	switch (type)

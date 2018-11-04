@@ -66,7 +66,7 @@ END_JUCE_MODULE_DECLARATION
 
 
 /** @defgroup modulatorTypes HISE Modulators
-*	@ingroup modulator
+*	@ingroup types
 *
 *	A list of all available HISE modulators.
 */
@@ -119,7 +119,7 @@ END_JUCE_MODULE_DECLARATION
 
 
 /** @defgroup midiTypes HISE MidiProcessors
-*	@ingroup midiProcessor
+*	@ingroup types
 *
 *	A list of all available HISE MIDI processors.
 */
@@ -138,7 +138,7 @@ END_JUCE_MODULE_DECLARATION
 #endif
 
 /** @defgroup effectTypes HISE Effects
-*	@ingroup effect
+*	@ingroup types
 *
 *	A list of all available HISE Effects
 */
@@ -201,7 +201,7 @@ END_JUCE_MODULE_DECLARATION
 
 
 /** @defgroup synthTypes HISE Sound Generators
-*	@ingroup modulatorSynth
+*	@ingroup types
 *
 *	A list of all available HISE sound generators.
 */

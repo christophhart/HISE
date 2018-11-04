@@ -46,12 +46,16 @@ typedef HiseEventBuffer EVENT_BUFFER_TO_USE;
 
 using VoiceStack = UnorderedStack<ModulatorSynthVoice*>;
 
-/** The base class for all sound generators in HISE
-	@ingroup modulatorSynth
-*
-*	Instead of renderNextBlock(), simply call renderNextBlockWithModulators() and it processes the chains.
-*	Also you have to subclass the used voice type from ModulatorSynthVoice and make sure it uses the voice modulation 
-*	values in its renderNextBlock().
+/** The base class for all sound generators in HISE.
+	@ingroup dsp_base_classes
+
+	It is a extension of the juce::Synthesiser class with the following additions:
+
+	- slots for adding MIDI processing modules, modulators and effects
+	- usage of the HiseEvent type instead of the MidiMessage.
+	
+	If you're know your way around writing a sound generator based on the juce::Synthesiser class,
+	the adaption to this class should be very straight forward.
 */
 class ModulatorSynth: public Synthesiser,
 					  public Processor,

@@ -41,7 +41,7 @@ class ModulatorSynth;
 #define MIDI_PROCESSOR_COLOUR 0xFFC65638
 
 /**	A MidiProcessor processes a MidiBuffer.
-*	@ingroup midiProcessor
+*	@ingroup dsp_base_classes
 *
 *	It can be used to change the incoming MIDI data before it is sent to a ModulatorSynth. Note that if you want to create your own MIDI processors,
 	you should use the HardcodedScriptProcessor as base class since it offers a simpler integration of existing Javascript code and a cleaner API.

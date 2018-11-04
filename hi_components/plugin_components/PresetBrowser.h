@@ -625,7 +625,18 @@ private:
 };
 
 
+/** A UI widget that handles the user preset organisation. 
+	@ingroup hise_ui
+	
+	This is a configurable browser for the file-based user preset system in HISE. It features:
+	
+	- automatic synchronisation with the file system.
+	- a variable hierarchy based on the folder structure (up to three levels deep)
+	- a favorite system that allows the user to flag certain presets that can be filtered.
+	- a quasi-modal action window system for editing / saving / removing presets.
+	- a tag system that can be used to further organisation of presets.
 
+*/
 class MultiColumnPresetBrowser : public Component,
 							     public QuasiModalComponent,
 								 public Button::Listener,

@@ -40,7 +40,7 @@ namespace hise { using namespace juce;
 /** A table is a data structure that allows editing of a look up table with a TableEditor. It uses a list of graph points to create a path which is rendered to a float 
 *	array of the desired size.
 *
-*	@ingroup core
+*	@ingroup ui_types
 */
 class Table: public SafeChangeBroadcaster
 {
@@ -54,7 +54,7 @@ public:
 	enum DataType
 	{
 		Midi = 0, ///< in this mode, the table contains 128 elements and can be used for everything midi-related.
-		SampleLookupTable ///> in this mode, the table contains 2048 elements and can be used for holding everything sample-related (waveforms, envelopes, etc.)
+		SampleLookupTable ///< in this mode, the table contains 2048 elements and can be used for holding everything sample-related (waveforms, envelopes, etc.)
 	};
 
 	/** Creates a new table of the specified type. */
@@ -245,7 +245,6 @@ private:
 
 
 /** A Table subclass that can be used for any 7bit data.
-*	@ingroup utility
 */
 class MidiTable: public Table
 {
@@ -279,9 +278,7 @@ private:
 
 #define SAMPLE_LOOKUP_TABLE_SIZE 512
 
-/** A Table subclass that contains sample data with the fixed size of 2048.
-*	@ingroup utility
-*/
+/** A Table subclass that contains sample data with the fixed size of 512. */
 class SampleLookupTable: public Table
 {
 public:
@@ -374,9 +371,7 @@ private:
 };
 
 
-/** A table subclass that allows direct access to its items. 
-*	@ingroup utility
-*/
+
 class DiscreteTable: public Table
 {
 public:

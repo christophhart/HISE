@@ -1808,6 +1808,58 @@ void PresetHandler::setUniqueIdsForProcessor(Processor * p)
 	}
 }
 
+
+juce::ValueTree PresetHandler::changeFileStructureToNewFormat(const ValueTree &v)
+{
+	ValueTree newTree("Processor");
+
+	newTree.copyPropertiesFrom(v, nullptr);
+	newTree.removeProperty("MacroControls", nullptr);
+	newTree.removeProperty("EditorState", nullptr);
+
+	newTree.setProperty("Type", v.getType().toString(), nullptr);
+
+	ScopedPointer<XmlElement> editorValueSet = XmlDocument::parse(v.getProperty("EditorState", var::undefined()));
+
+	if (newTree.hasProperty("Content"))
+	{
+		MemoryBlock b = *v.getProperty("Content", MemoryBlock()).getBinaryData();
+
+		ValueTree restoredContentValues = ValueTree::readFromData(b.getData(), b.getSize());
+
+		newTree.removeProperty("Content", nullptr);
+
+		newTree.addChild(restoredContentValues, -1, nullptr);
+	};
+
+	if (editorValueSet != nullptr)
+	{
+		ValueTree editorStateValueTree = ValueTree::fromXml(*editorValueSet);
+		newTree.addChild(editorStateValueTree, -1, nullptr);
+	}
+
+	ScopedPointer<XmlElement> macroControlData = XmlDocument::parse(v.getProperty("MacroControls", String()));
+
+	if (macroControlData != nullptr)
+	{
+		ValueTree macros = ValueTree::fromXml(*macroControlData);
+		newTree.addChild(macros, -1, nullptr);
+	}
+
+	ValueTree childProcessors("ChildProcessors");
+
+	for (int i = 0; i < v.getNumChildren(); i++)
+	{
+		ValueTree newChild = changeFileStructureToNewFormat(v.getChild(i));
+
+		childProcessors.addChild(newChild, -1, nullptr);
+	}
+
+	newTree.addChild(childProcessors, -1, nullptr);
+
+	return newTree;
+}
+
 Processor *PresetHandler::loadProcessorFromFile(File fileName, Processor *parent)
 {
 	FileInputStream fis(fileName);

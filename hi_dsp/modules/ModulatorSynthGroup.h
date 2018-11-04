@@ -244,7 +244,7 @@ private:
 
 
 /** A ModulatorSynthGroup is a collection of tightly coupled ModulatorSynth that are processed together.
-	@ingroup modulatorSynth
+	@ingroup synthTypes
 *
 *	Other than the ModulatorSynthChain, it will render its children grouped on voice level which allows stuff like FM synthesis etc.
 *

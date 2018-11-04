@@ -36,11 +36,27 @@
 
 namespace hise { using namespace juce;
 
-/** A class for handling application wide tasks.
+/** The grand central station of HISE.
 *	@ingroup core
 *
-*	Every Processor must be connected to a MainController instance and has access to its public methods.
+*	The MainController class represents the instance of a HISE project and can be used
+*	to access quasi-global data / methods.
 *
+*	It is divided into multiple sub-classes which encapsulate different logic in order
+*	to bring some order into the enormous task of handling everything:
+*
+*	- the SampleManager subclass handles pooling / preloading of samples
+*	- the MacroManager (which itself has multiple subclasses) handle all automation /
+*     MIDI controller tasks
+*	- the UserPresetHandler takes care of the loading / browsing of user presets.
+*
+*	Implementations of this class are also derived by the juce::AudioProcessor and some 
+*	other helper classes. Check out the hise::FrontendProcessor class for actual usage
+*	in a C++ HISE project.
+*
+*	Most classes just want a reference to the MainController instance. If you want to
+*	use it in your C++ classes, I recommend subclassing it from ControlledObject, which
+*	exists for this sole purpose.
 */
 class MainController: public GlobalScriptCompileBroadcaster,
 					  public OverlayMessageBroadcaster,
@@ -66,6 +82,14 @@ public:
 	{
 	public:
 
+		/** A class that will be notified about sample preloading changes.
+		*
+		*	This can be used to implement loading bars / progress labels when
+		*	the samples are preloaded. In order to use this, just create one of
+		*	these, supply the SampleManager instance of your MainController and
+		*	it will automatically register and deregister as callbacks and will
+		*	call the preloadStateChanged(bool isPreloading).
+		*/
 		class PreloadListener
 		{
 		public:
@@ -83,10 +107,18 @@ public:
 				masterReference.clear();
 			}
 
+			/** This gets called whenever the preload state changes.
+			*
+			*	the isPreloading flag indicates whether the preloading
+			*	was initiated or completed. Normally, you would start
+			*	or stop a timer which regularly checks the sample progress
+			*	(with SampleManager::getPreloadProgress()).
+			*/
 			virtual void preloadStateChanged(bool isPreloading) = 0;
 
 		protected:
 
+			/** Returns the preload message. */
 			String getCurrentErrorMessage() const
 			{
 				return manager.currentPreloadMessage;
@@ -135,7 +167,6 @@ public:
 		/** returns a pointer to the global sample pool */
 		ModulatorSamplerSoundPool *getModulatorSamplerSoundPool() const { return globalSamplerSoundPool; }
 
-		/** Copies the samples to an internal clipboard for copy & paste functionality. */
 		void copySamplesToClipboard(void* soundsToCopy);
 
 		const ValueTree &getSamplesFromClipboard() const;
@@ -291,7 +322,7 @@ public:
 
 	};
 
-	/** Contains methods for handling macros. */
+	/** Contains methods for handling macros, MIDI automation and MPE gestures. */
 	class MacroManager
 	{
 	public:
@@ -346,6 +377,13 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MacroManager)
 	};
 
+	/** This class will iterate over incoming MIDI messages, and transform them
+	*	into HiseEvents with a succesive index for note-on / note-off messages.
+	*	
+	*	Normally, you won't use this class, but rather benefit from it in the MIDI
+	*	processing world using Message.getEventId(), but there are a few methods
+	*	that can access these things directly.
+	*/
 	class EventIdHandler
 	{
 	public:
@@ -479,16 +517,46 @@ public:
 		JUCE_DECLARE_WEAK_REFERENCEABLE(LockFreeDispatcher);
 	};
 
+	/** The handler class for user presets in HISE.
+	*
+	*	A user preset is a certain state of your plugin which is used
+	*	for factory banks, storing the plugin state in the DAW as well as
+	*	files created by the user that restore a certain sound. 
+	*
+	*	If you use a scripted interface, the data that is stored will be a
+	*	XML element with the value of every ScriptComponent that has the
+	*	`saveInPreset` flag enabled. 
+	*
+	*	However if you are bypassing the scripted interface logic and write your
+	*	UI and signal path completely in C++, you can still use the logic / file
+	*	handling of this class. In this case, you will be given a ValueTree that
+	*	you have to fill / restore with the callbacks in the FrontendProcessor. 
+	*
+	*	This class is deeply connected to the MultiColumnPresetBrowser class, which
+	*	is the general purpose preset management UI component of HISE and offers
+	*	functionality like a folder-based hierarchy, search field, favorite system and
+	*	tags.
+	*
+	*	It also makes sure that the loading of presets are as smooth as possible by
+	*	killing all voices, then load the preset on the background thread and call
+	*	all registered UserPresetHandler::Listener objects when the loading has finished
+	*	so you can update your UI (or whatever).
+	*/
 	class UserPresetHandler: public Dispatchable
 	{
 	public:
 
+		/** A class that will be notified about user preset changes. */
 		class Listener
 		{
 		public:
 
 			virtual ~Listener() { masterReference.clear(); };
+
+			/** Called on the message thread whenever the new preset was loaded. */
 			virtual void presetChanged(const File& newPreset) = 0;
+
+			/** Called whenever the number of presets changed. */
 			virtual void presetListUpdated() = 0;
 
 		private:
@@ -499,21 +567,44 @@ public:
 
 		UserPresetHandler(MainController* mc_);;
 
+		/** Just loads the next user preset (or the previous one). Use this for "browse buttons". 
+		*
+		*	@param stayInSameDirectory if true, it will cycle through the current directory
+		*                              (otherwise the entire preset list will be used).
+		*/
 		void incPreset(bool next, bool stayInSameDirectory);
+
 		void loadUserPreset(const ValueTree& v);
 		void loadUserPreset(const File& f);
 
+		/** Returns the currently loaded file. Can be used to display the user preset name. */
 		File getCurrentlyLoadedFile() const;;
 
+		/** @internal */
 		void setCurrentlyLoadedFile(const File& f);
 
+		/** @internal */
 		void sendRebuildMessage();
+
+		/** Saves a preset. 
+		*
+		*	If you use the MultiColumnPresetBrowser, you won't need to bother about this method,
+		*	but for custom implementations, this will save the current UI state to the given file.
+		*/
 		void savePreset(String presetName = String());
+
+		/** Registers a listener that will be notified about preset changes. */
 		void addListener(Listener* listener);
+
+		/** Deregisters a listener. */
 		void removeListener(Listener* listener);
 
+		/** If you want to use the tag system, supply a list of Strings and it will
+			create the tags automatically.
+		*/
 		void setTagList(const StringArray& newTagList);
 
+		/** @internal */
 		const StringArray& getTagList() const { return tagList; }
 
 	private:
@@ -534,7 +625,7 @@ public:
 	};
 
 
-
+	/** A class that handles the asynchronous adding / removal of Processor objects to the signal path. */
 	struct GlobalAsyncModuleHandler
 	{
 	public:
@@ -547,11 +638,6 @@ public:
 		*
 		*	It will be deactivated and removed from it's parent on the Sample loading thread
 		*	Then it will call all listeners and be finally removed on the message thread.
-		*
-		*	Things to do in the removeFunction:
-		*
-		*	Remove it from the processing chain
-		*	Send the delete mess
 		*
 		*	The removeFunction you pass in must not delete the processor!
 		*
@@ -732,6 +818,7 @@ public:
 
 	};
 
+	/** Handles the voice killing when a longer task is about to start. */
 	class KillStateHandler :  public AudioThreadGuard::Handler
 	{
 	public:
@@ -825,8 +912,9 @@ public:
 
 		bool initialised() const noexcept;
 
-		
-
+		/** Returns true if the current thread can be safely suspended by a call to Thread::sleep().
+		*
+		*	This will return true only for the sample loading thread and the scripting thread. */
 		bool isSuspendableThread() const noexcept;
 
 	private:
@@ -838,8 +926,6 @@ public:
 		bool invalidateTicket(uint16 ticket);
 
 		bool checkForClearance() const noexcept;
-
-		
 
 		struct LockStates
 		{
@@ -871,7 +957,6 @@ public:
 		void deferToThread(Processor* p, const ProcessorFunction& f, TargetThread t);
 
 		void quit();
-
 
 		enum State
 		{

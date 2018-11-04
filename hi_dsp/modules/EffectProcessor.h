@@ -40,7 +40,7 @@ namespace hise { using namespace juce;
 #define EFFECT_PROCESSOR_COLOUR 0xff3a6666
 
 /** Base class for all Processors that applies a audio effect on the audio data. 
-*	@ingroup effect
+*	
 *
 *	You won't ever subclass from this class directly, but use either MasterEffectProcessor or VoiceEffectProcessor,
 	depending on the type of your effect.
@@ -166,7 +166,7 @@ private:
 };
 
 /** A MasterEffectProcessor renders a effect on a stereo signal.
-*	@ingroup effect
+*	@ingroup dsp_base_classes
 *
 *	Derive all effects that are processed on the whole buffer from this class. For polyphonic effects that need to process single voices, use VoiceEffectProcessor as base class.
 */
@@ -508,7 +508,7 @@ public:
 
 
 /** A VoiceEffectProcessor will process each voice before it is summed up and allows polyphonic effects.
-*	@ingroup effect
+*	@ingroup dsp_base_classes
 */
 class VoiceEffectProcessor: public EffectProcessor
 {

@@ -57,7 +57,6 @@ using AudioSampleBufferComponent = HiseAudioSampleBufferComponent;
 
 
 /** A component that displays the waveform of a sample.
-*	@ingroup components
 *
 *	It uses a thumbnail data to display the waveform of the selected ModulatorSamplerSound and has some SampleArea
 *	objects that allow changing of its sample ranges (playback range, loop range etc.) @see SampleArea.

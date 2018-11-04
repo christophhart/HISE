@@ -35,8 +35,8 @@
 
 namespace hise { using namespace juce;
 
-/** A Slider-style component that displays peak values.
-*	@ingroup components
+/** A level meter that for showing peak values.
+*	@ingroup hise_ui
 *
 *	The best practice for using one of those is a Timer that regularly
 *	calls setPeak() in its timerCallback().
@@ -78,8 +78,6 @@ public:
 
 	void paint(Graphics &g) override;;
 
-	
-
 	/** Change the Type of the VuMeter. */
 	void setType(Type newType);;
 
@@ -94,9 +92,7 @@ public:
 private:
 
 	void drawMonoMeter(Graphics &g);
-
 	void drawStereoMeter(Graphics &g);;
-
 
 	float previousValue;
 

@@ -30,20 +30,7 @@ class PopupLabel;
 
 
 //==============================================================================
-/**
-                                                                    //[Comments]
-*	@endinternal
-*
-*	@class FileNamePartComponent
-*	@ingroup components
-*
-*	@brief A Panel component that specifies the data which will be extracted from the associated filename token.
-*
-*
-*	@see FileNameImporterDialog
-*	@internal
-                                                                    //[/Comments]
-*/
+
 class FileNamePartComponent  : public Component,
                                public LabelListener,
 							   public ButtonListener

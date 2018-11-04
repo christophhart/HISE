@@ -266,8 +266,9 @@ private:
 
 
 
-/** A modulator is a module that encapsulates modulation behaviour and returns a float value 
+/** A modulator is a Processor that encapsulates modulation behaviour and returns a float value 
     between 0.0 and 1.0.
+	@ingroup core
 
 	A Modulator should be always inside a ModulatorChain, which handles the processing according to the characteristics of each Modulator.
 	
@@ -524,7 +525,7 @@ protected:
 
 /** A Modulator that calculates its value only at the start of a voice.
 *
-*	@ingroup modulator
+*	@ingroup dsp_base_classes
 *
 *	If a midi note on comes in, it calculates a value and temporarily saves the value until startNote() is called.
 *	The value is then stored using the supplied voice index and can be retrieved using getVoiceStartValue().
@@ -644,7 +645,7 @@ private:
 
 /** A Modulator that calculates its return value for every processed sample. 
 *
-*	@ingroup modulator
+*	@ingroup dsp_base_classes
 *
 **/
 class TimeVariantModulator: public Modulator,
@@ -748,7 +749,7 @@ private:
 
 /** A EnvelopeModulator is a base class for all envelope-type modulators.
 *
-*	@ingroup modulator
+*	@ingroup dsp_base_classes
 *
 *	It is basically a TimeVariantModulator with two additional features:
 *

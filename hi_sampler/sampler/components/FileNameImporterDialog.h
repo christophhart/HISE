@@ -25,26 +25,7 @@
 //[/Headers]
 
 //==============================================================================
-/**
-                                                                    //[Comments]
-*	@endinternal
-*
-*	@class FileNameImporterDialog
-*	@ingroup components
-*
-*	@brief A component that allows to specify certain tokens within a file name pattern
-*	and associate them with a ModulatorSamplerSound::Property.
-*	This can be used to set the basic data (Everything that can be stored in SampleImporter::SamplerSoundBasicData) automatically
-*	when new sounds are imported.
-*
-*	You have to specify a seperator character and it divides the file name and shows a FileNamePartComponent for all detected tokens.
-*
-*	You can import and export the panel settings (it copies an XML string into the clipboard so you can do whatever you need to do with it)
-*	to save some time when importing multiple but similar file selections.
-*
-*	@internal
-                                                                    //[/Comments]
-*/
+
 class FileNameImporterDialog  : public Component,
                                 public LabelListener,
                                 public ButtonListener

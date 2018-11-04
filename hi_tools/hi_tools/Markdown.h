@@ -37,6 +37,7 @@ namespace hise {
 using namespace juce;
 
 
+/** a simple markdown parser that renders markdown formatted code. */
 class MarkdownParser
 {
 public:

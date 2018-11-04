@@ -36,6 +36,10 @@ namespace hise {
 using namespace juce;
 
 
+/** Coallescates timer updates.
+	@ingroup event_handling
+	
+*/
 class PooledUIUpdater : public Timer
 {
 public:
@@ -116,6 +120,7 @@ public:
 class SafeChangeBroadcaster;
 
 /** A class for message communication between objects.
+*	@ingroup event_handling
 *
 *	This class has the same functionality as the JUCE ChangeListener class, but it uses a weak reference for the internal list,
 *	so deleted listeners will not crash the application.
@@ -140,6 +145,7 @@ private:
 
 	WeakReference<SafeChangeListener>::Master masterReference;
 };
+
 
 class SuspendableTimer
 {
@@ -205,6 +211,7 @@ private:
 
 
 /** A drop in replacement for the ChangeBroadcaster class from JUCE but with weak references.
+*	@ingroup event_handling
 *
 *	If you use the normal class and forget to unregister a listener in its destructor, it will crash the application.
 *	This class uses a weak reference (but still throws an assertion so you still recognize if something is funky), so it handles this case much more gracefully.
@@ -426,6 +433,7 @@ public:
 };
 
 /** This is a non allocating alternative to the AsyncUpdater.
+*	@ingroup event_handling
 *
 *	If you're creating a lot of these object's, it will clog the Timer thread,
 *	but for single objects that need an update once in a while, it's better,
@@ -496,7 +504,8 @@ private:
 };
 
 
-/** A Helper class that encapsulates the regex operations */
+/** A Helper class that encapsulates the regex operations.
+*	@ingroup utility */
 class RegexFunctions
 {
 public:
@@ -518,6 +527,7 @@ public:
 
 
 /** A collection of little helper functions to clean float arrays.
+*	@ingroup utility
 *
 *	Source: http://musicdsp.org/showArchiveComment.php?ArchiveID=191
 */

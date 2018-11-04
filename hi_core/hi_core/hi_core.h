@@ -44,19 +44,36 @@
 
 
 
+/** @defgroup dsp DSP classes
+*
+*	All classes used for signal processing / sound generation.
+*/
+
+/** @defgroup types HISE Modules
+*	@ingroup dsp
+*
+*	 All available HISE modules.
+*/
+
+/** @defgroup dsp_base_classes DSP Base Classes
+*	@ingroup dsp
+*
+*	All classes you need to subclass to write your own modules.
+*/
+
+
 
 /** @defgroup processor_interfaces Processor Interface Classes
-	@ingroup dsp
+	@ingroup dsp_base_classes
 *	Interface classes that enhance the functionality of a processor.
 	You can add functionality to a Processor by subclassing it from one of these
 	pure virtual base classes.
 * */
 
 
-
-
 /** @defgroup core Core Classes
-*	A collection of basic classes.
+*	
+*	The most important classes in HISE.
 */
 #include "UtilityClasses.h"
 

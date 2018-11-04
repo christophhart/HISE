@@ -37,6 +37,9 @@ namespace hise { using namespace juce;
 
 class VuMeter;
 
+/** A component that shows the current statistics (voice count, CPU usage etc.). 
+	@ingroup hise_ui
+*/
 class VoiceCpuBpmComponent : public Component,
 	public Timer,
 	public ButtonListener,

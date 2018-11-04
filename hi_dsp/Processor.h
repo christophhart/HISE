@@ -154,21 +154,20 @@ private:
 
 
 
-/** The base class for all modules.
+/** The base class for all HISE modules in the signal path.
+*	@ingroup core
 *
 *	Every object within HISE that processes audio or MIDI is derived from this base class to share the following features:
 *
 *	- handling of child processors (and special treatment for child processors which are Chains)
 *	- bypassing & parameter management (using the 'float' type for compatibility with audio processing & plugin parameters): setAttribute() / getAttribute()
-*	- set / restore view properties (folded, body shown etc.) using a NamedValueSet (setEditorState(), getEditorState())
-*	- set input / output values for metering and stuff (setInputValue(), setOutputValue())
+*	- set input / output values for metering and visualization (setInputValue(), setOutputValue())
 *	- access to the global MainController object (see ControlledObject)
 *	- import / export via ValueTree (see RestorableObject)
 *	- methods for identification (getId(), getType(), getName(), getSymbol(), getColour())
 *	- access to the console
-*	- a specially designed component (ProcessorEditor) which acts as interface for the Processor.
 *
-*	The general architecture of a HISE patch is a tree of Processors, with a main processor (which can be obtained using getMainController()->getMainSynthChain()).
+*	The general architecture of a HISE patch is a tree of Processor objects, all residing in a main container of the type ModulatorSynthChain (which can be obtained using getMainController()->getMainSynthChain()).
 *	There is a small helper class ProcessorHelpers, which contains some static methods for searching & checking the type of the Processor.
 *
 *	Normally, you would not derive from this class directly, but use some of its less generic subclasses (MidiProcessor, Modulator, EffectProcessor or ModulatorSynth). 

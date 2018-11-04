@@ -42,9 +42,7 @@ class ExponentialStateCalculator
 
 /** @ingroup modulatorTypes
 
-### Simple Envelope
-
-This modulator is the most simple envelope (only attack and release).
+The most simple envelope (only attack and release).
 
 It has an attack and release time that can be modified by an internal modulator chain, which are calculated at the note-on (attack) and note-off (release) time.
 You have to specify a sampleRate using the prepareToPlay method or the modulator will not be working!
