@@ -108,8 +108,6 @@ public:
 
 		timeSinceLastSelectionChange = thisTime;
 
-		auto newSelection = selectedSamplerSounds.getItemArray();
-
 		auto existingSounds = getSanitizedSelection();
 
 		

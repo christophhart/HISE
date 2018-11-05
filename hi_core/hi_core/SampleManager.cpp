@@ -151,9 +151,9 @@ void MainController::SampleManager::initialiseQueue()
 }
 
 
-void MainController::SampleManager::copySamplesToClipboard(void* soundsToCopy_)
+void MainController::SampleManager::copySamplesToClipboard(const void* soundsToCopy_)
 {
-	auto soundsToCopy = *reinterpret_cast<SampleSelection*>(soundsToCopy_);
+	auto soundsToCopy = *reinterpret_cast<const SampleSelection*>(soundsToCopy_);
 
 	sampleClipboard.removeAllChildren(nullptr);
 

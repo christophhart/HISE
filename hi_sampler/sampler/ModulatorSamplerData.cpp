@@ -335,6 +335,9 @@ int SampleMap::getNumRRGroups() const
 
 void SampleMap::valueTreePropertyChanged(ValueTree& treeWhosePropertyHasChanged, const Identifier& property)
 {
+	if (treeWhosePropertyHasChanged == data)
+		return;
+
 	auto i = data.indexOf(treeWhosePropertyHasChanged);
 
 	if (i != -1)
@@ -345,6 +348,14 @@ void SampleMap::valueTreePropertyChanged(ValueTree& treeWhosePropertyHasChanged,
 
 void SampleMap::valueTreeChildAdded(ValueTree& parentTree, ValueTree& childWhichHasBeenAdded)
 {
+	static const Identifier sa("sample");
+
+	if (parentTree.getType() == sa)
+	{
+		return;
+	}
+		
+
 	ignoreUnused(parentTree);
 	jassert(parentTree == data);
 
@@ -419,7 +430,10 @@ void SampleMap::valueTreeChildRemoved(ValueTree& /*parentTree*/, ValueTree& chil
 			}
 		}
 
-		sampler->getSampleMap()->sendSampleDeletedMessage(sampler);
+		if (!sampler->shouldDelayUpdate())
+		{
+			sampler->getSampleMap()->sendSampleDeletedMessage(sampler);
+		}
 
 		return SafeFunctionCall::OK;
 	};

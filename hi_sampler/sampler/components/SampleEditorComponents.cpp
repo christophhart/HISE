@@ -251,7 +251,7 @@ void SamplerSoundMap::changeListenerCallback(ChangeBroadcaster *b)
 			sampleComponents[i]->setSelected(false);
 		}
 
-		Array<WeakReference<SampleComponent>> selectedSampleComponents = selectedSounds->getItemArray();
+		auto& selectedSampleComponents = selectedSounds->getItemArray();
 
 		for(int i = 0; i < selectedSampleComponents.size(); i++)
 		{
@@ -279,6 +279,11 @@ void SamplerSoundMap::selectNeighbourSample(Neighbour direction)
 {
 	if(selectedSounds->getNumSelected() != 0)
 	{
+		auto sound = selectedSounds->getSelectedItem(0).get();
+
+		if (sound == nullptr)
+			return;
+
 		const int lowKey = selectedSounds->getSelectedItem(0)->getSound()->getSampleProperty(SampleIds::LoKey);
 		const int lowVelo = selectedSounds->getSelectedItem(0)->getSound()->getSampleProperty(SampleIds::LoVel);
 

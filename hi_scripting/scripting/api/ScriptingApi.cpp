@@ -1800,7 +1800,7 @@ void ScriptingApi::Sampler::setSoundPropertyForSelection(int propertyId, var new
 		return;
 	}
 
-	auto sounds = soundSelection.getItemArray();
+	auto& sounds = soundSelection.getItemArray();
 
 	auto id = sampleIds[propertyId];
 

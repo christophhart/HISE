@@ -36,8 +36,10 @@ void SampleEditHandler::SampleEditingActions::deleteSelectedSounds(SampleEditHan
 {
 	auto f = [handler](Processor* /*s*/)
 	{
-		auto soundsToBeDeleted = handler->getSelection().getItemArray();
+		auto& soundsToBeDeleted = handler->getSelection().getItemArray();
 		handler->getSampler()->getUndoManager()->beginNewTransaction("Delete samples");
+
+		ModulatorSampler::ScopedUpdateDelayer sud(handler->getSampler());
 
 		for (int i = 0; i < soundsToBeDeleted.size(); i++)
 		{
@@ -58,7 +60,9 @@ void SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(SampleEdit
 {
 	ModulatorSampler *s = handler->sampler;
 
-	auto sounds = handler->getSelection().getItemArray();
+	ModulatorSampler::ScopedUpdateDelayer sud(s);
+
+	auto& sounds = handler->getSelection().getItemArray();
 
 	LockHelpers::freeToGo(s->getMainController());
 
@@ -100,11 +104,13 @@ void SampleEditHandler::SampleEditingActions::removeDuplicateSounds(SampleEditHa
 {
 	if (PresetHandler::showYesNoWindow("Confirm", "Do you really want to remove all duplicates?"))
 	{
-		auto soundsInSampler = handler->getSelection().getItemArray();
+		auto& soundsInSampler = handler->getSelection().getItemArray();
 
 		SampleSelection soundsToDelete;
 
 		StringArray fileNames;
+
+		ModulatorSampler::ScopedUpdateDelayer sud(handler->getSampler());
 
 		for (int i = 0; i < soundsInSampler.size(); i++)
 		{
@@ -150,14 +156,14 @@ void SampleEditHandler::SampleEditingActions::cutSelectedSounds(SampleEditHandle
 
 void SampleEditHandler::SampleEditingActions::copySelectedSounds(SampleEditHandler *handler)
 {
-	auto sounds = handler->getSelection().getItemArray();
+	auto& sounds = handler->getSelection().getItemArray();
 
 	handler->sampler->getMainController()->getSampleManager().copySamplesToClipboard(&sounds);
 }
 
 void SampleEditHandler::SampleEditingActions::automapVelocity(SampleEditHandler *handler)
 {
-	auto sounds = handler->getSelection().getItemArray();
+	auto& sounds = handler->getSelection().getItemArray();
 
 	int upperLimit = 0;
 	int lowerLimit = 127;
@@ -222,6 +228,8 @@ void SampleEditHandler::SampleEditingActions::pasteSelectedSounds(SampleEditHand
 	checkMicPositionAmountBeforePasting(v, s);
 
 	{
+		ModulatorSampler::ScopedUpdateDelayer sud(handler->getSampler());
+
 		LockHelpers::freeToGo(s->getMainController());
 
 
@@ -246,7 +254,7 @@ void SampleEditHandler::SampleEditingActions::pasteSelectedSounds(SampleEditHand
 
 void SampleEditHandler::SampleEditingActions::refreshCrossfades(SampleEditHandler * handler)
 {
-	auto sounds = handler->getSelection().getItemArray();
+	auto& sounds = handler->getSelection().getItemArray();
 
 	for (int i = 0; i < sounds.size(); i++)
 	{
@@ -339,7 +347,7 @@ public:
 
 	void run() override
 	{
-		auto soundList = handler->getSelection().getItemArray();
+		auto& soundList = handler->getSelection().getItemArray();
 
 		for (int i = 0; i < soundList.size(); i++)
 		{
@@ -973,6 +981,8 @@ void SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(SampleEd
 
 		ModulatorSampler *sampler = handler->sampler;
 
+		auto id = sampler->getSampleMap()->getId();
+
 		Array<MappingData> singleData;
 
 		ModulatorSampler::SoundIterator sIter(sampler);
@@ -980,6 +990,8 @@ void SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(SampleEd
 		ValueTree newSampleMap = sampler->getSampleMap()->getValueTree().createCopy();
 
 		newSampleMap.setProperty("MicPositions", ";", nullptr);
+
+		newSampleMap.setProperty("ID", id.toString(), nullptr);
 
 		newSampleMap.removeAllChildren(nullptr);
 
@@ -1877,7 +1889,7 @@ private:
 	{
 		trimActions.clear();
 
-		auto sounds = handler->getSelection().getItemArray();
+		auto& sounds = handler->getSelection().getItemArray();
 
 		int multiMicIndex = 0;
 

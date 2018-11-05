@@ -54,7 +54,25 @@ class ModulatorSampler: public ModulatorSynth,
 {
 public:
 
+	/** If you add or delete multiple samples at once (but not the entire sample set), it will
+	    fire an UI update for each sample drastically slowing down the UI responsiveness.
+		
+		In this case, just create a ScopedUpdateDelayer object and it will cancel all UI updates
+		until it goes out of scope (and in this case, it will fire a update regardless if it's
+		necessary or not.
+	*/
+	class ScopedUpdateDelayer
+	{
+	public:
 
+		ScopedUpdateDelayer(ModulatorSampler* s);;
+
+		~ScopedUpdateDelayer();
+
+
+	private:
+		WeakReference<ModulatorSampler> sampler;
+	};
 
 	/** A small helper tool that iterates over the sound array in a thread-safe way.
 	*
@@ -519,6 +537,8 @@ public:
     
     bool isUsingStaticMatrix() const noexcept { return useStaticMatrix; };
 
+	bool shouldDelayUpdate() const noexcept { return delayUpdate; }
+
 private:
 
 	bool isOnSampleLoadingThread() const
@@ -598,6 +618,8 @@ private:
 	AudioSampleBuffer crossfadeBuffer;
 
 	hlac::HiseSampleBuffer temporaryVoiceBuffer;
+
+	bool delayUpdate = false;
 
 	float groupGainValues[8];
 	float currentCrossfadeValue;

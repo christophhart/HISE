@@ -771,7 +771,7 @@ void SampleMapEditor::loadSampleMap()
 
 void SampleMapEditor::refreshRootNotes()
 {
-	auto sounds = handler->getSelection().getItemArray();
+	auto& sounds = handler->getSelection().getItemArray();
 
 	if (sounds.size() == 0 && map->selectedRootNotes == 0) return;
 

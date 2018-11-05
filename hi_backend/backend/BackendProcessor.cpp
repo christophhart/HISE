@@ -82,7 +82,9 @@ viewUndoManager(new UndoManager())
 
 BackendProcessor::~BackendProcessor()
 {
+#if JUCE_ENABLE_AUDIO_GUARD
 	AudioThreadGuard::setHandler(nullptr);
+#endif
 
 	getSampleManager().cancelAllJobs();
 

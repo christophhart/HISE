@@ -336,7 +336,7 @@ private:
 #else
 struct HiseJavascriptEngine::RootObject::ScriptAudioThreadGuard
 {
-
+	ScriptAudioThreadGuard(const CodeLocation& location) {};
 };
 #endif
 

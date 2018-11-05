@@ -547,8 +547,12 @@ void ModulatorSampler::deleteSound(int index)
 			removeSound(index);
 		}
 
-		refreshMemoryUsage();
-		sendChangeMessage();
+		if (!delayUpdate)
+		{
+			refreshMemoryUsage();
+			sendChangeMessage();
+		}
+		
 	}
 }
 
@@ -1224,6 +1228,21 @@ bool ModulatorSampler::preloadSample(StreamingSamplerSound * s, const int preloa
 
 		return false;
 	}
+}
+
+ModulatorSampler::ScopedUpdateDelayer::ScopedUpdateDelayer(ModulatorSampler* s) :
+	sampler(s)
+{
+	sampler->delayUpdate = true;
+}
+
+ModulatorSampler::ScopedUpdateDelayer::~ScopedUpdateDelayer()
+{
+	sampler->delayUpdate = false;
+
+	sampler->refreshMemoryUsage();
+	sampler->sendChangeMessage();
+	sampler->getSampleMap()->sendSampleMapChangeMessage(sendNotificationAsync);
 }
 
 } // namespace hise

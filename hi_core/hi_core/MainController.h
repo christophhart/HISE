@@ -167,7 +167,7 @@ public:
 		/** returns a pointer to the global sample pool */
 		ModulatorSamplerSoundPool *getModulatorSamplerSoundPool() const { return globalSamplerSoundPool; }
 
-		void copySamplesToClipboard(void* soundsToCopy);
+		void copySamplesToClipboard(const void* soundsToCopy);
 
 		const ValueTree &getSamplesFromClipboard() const;
 

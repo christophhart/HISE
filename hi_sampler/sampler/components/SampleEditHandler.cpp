@@ -111,7 +111,7 @@ void SampleEditHandler::handleMidiSelection()
 
 SampleSelection SampleEditHandler::getSanitizedSelection()
 {
-	auto sounds = selectedSamplerSounds.getItemArray();
+	auto& sounds = selectedSamplerSounds.getItemArray();
 
 	SampleSelection existingSounds;
 
@@ -119,7 +119,8 @@ SampleSelection SampleEditHandler::getSanitizedSelection()
 
 	for (int i = 0; i < sounds.size(); i++)
 	{
-		if (sounds[i].get() != nullptr) existingSounds.add(sounds[i].get());
+		if (sounds[i].get() != nullptr) 
+			existingSounds.add(sounds[i].get());
 	}
 
 	return existingSounds;
@@ -194,6 +195,8 @@ void SampleEditHandler::SampleEditingActions::createMultimicSampleMap(SampleEdit
 				sample.addChild(fChild, -1, nullptr);
 			}
 		}
+
+		v.setProperty("MicPositions", multimicTokens, nullptr);
 
 		auto ref = handler->getSampler()->getSampleMap()->getReference();
 		
