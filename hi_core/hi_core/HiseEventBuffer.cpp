@@ -80,6 +80,36 @@ HiseEvent::HiseEvent(const HiseEvent &other) noexcept
 	data[1] = otherData[1];
 }
 
+void HiseEvent::swapWith(HiseEvent &other)
+{
+	// Only works with struct size of 16 bytes...
+	jassert(sizeof(HiseEvent) == 16);
+
+	uint64* data = reinterpret_cast<uint64*>(this);
+
+	const uint64 first = data[0];
+	const uint64 second = data[1];
+
+	uint64* otherData = reinterpret_cast<uint64*>(&other);
+
+	*data++ = *otherData;
+	*data = otherData[1];
+	*otherData++ = first;
+	*otherData = second;
+}
+
+bool HiseEvent::operator==(const HiseEvent &other) const
+{
+	// Only works with struct size of 16 bytes...
+	jassert(sizeof(HiseEvent) == 16);
+
+	const uint64* data = reinterpret_cast<const uint64*>(this);
+
+	const uint64* otherData = reinterpret_cast<const uint64*>(&other);
+
+	return data[0] == otherData[0] && data[1] == otherData[1];
+}
+
 String HiseEvent::getTypeAsString() const noexcept
 {
 	switch (type)
@@ -175,6 +205,20 @@ void HiseEvent::addToTimeStamp(int16 delta) noexcept
 	}
 }
 
+bool HiseEvent::isNoteOn(bool returnTrueForVelocity0 /*= false*/) const noexcept
+{
+	ignoreUnused(returnTrueForVelocity0);
+
+	return type == Type::NoteOn;
+}
+
+void HiseEvent::setNoteNumber(int newNoteNumber) noexcept
+{
+
+	jassert(isNoteOnOrOff());
+	number = jmin<uint8>((uint8)newNoteNumber, 127);
+}
+
 int HiseEvent::getPitchWheelValue() const noexcept
 {
 	return number | (value << 7);
@@ -194,6 +238,12 @@ void HiseEvent::setStartOffset(uint16 newStartOffset) noexcept
 uint16 HiseEvent::getStartOffset() const noexcept
 {
 	return startOffset;
+}
+
+void HiseEvent::setSongPositionValue(int positionInMidiBeats)
+{
+	number = positionInMidiBeats & 127;
+	value = (positionInMidiBeats >> 7) & 127;
 }
 
 HiseEventBuffer::HiseEventBuffer()
