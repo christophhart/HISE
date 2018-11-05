@@ -726,7 +726,7 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 
 			if (useNormalisation)
 			{
-				const int numSamplesThisTime = (int)((pitchCounter + startAlpha) + 1.0);
+				const int numSamplesThisTime = (int)(ceil)((pitchCounter + startAlpha)) + 1;
 
 				float* inL_f = (float*)alloca(sizeof(float) * numSamplesThisTime);
 				float* d[2] = { inL_f, nullptr };
