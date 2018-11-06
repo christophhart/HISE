@@ -78,8 +78,8 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
     
 	if (presetFile.existsAsFile() && PresetHandler::showYesNoWindow("Confirm overwrite", "Do you want to overwrite the preset (Press cancel to create a new user preset?"))
 	{
-        existingNote = MultiColumnPresetBrowser::DataBaseHelpers::getNoteFromXml(presetFile);
-        existingTags = MultiColumnPresetBrowser::DataBaseHelpers::getTagsFromXml(presetFile);
+        existingNote = PresetBrowser::DataBaseHelpers::getNoteFromXml(presetFile);
+        existingTags = PresetBrowser::DataBaseHelpers::getTagsFromXml(presetFile);
 
 		presetFile.deleteFile();
 		
@@ -128,12 +128,12 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 
             if(existingNote.isNotEmpty())
             {
-                MultiColumnPresetBrowser::DataBaseHelpers::writeNoteInXml(presetFile, existingNote);
+                PresetBrowser::DataBaseHelpers::writeNoteInXml(presetFile, existingNote);
             }
 
 			if (!existingTags.isEmpty())
 			{
-				MultiColumnPresetBrowser::DataBaseHelpers::writeTagsInXml(presetFile, existingTags);
+				PresetBrowser::DataBaseHelpers::writeTagsInXml(presetFile, existingTags);
 			}
             
 			if (notify)

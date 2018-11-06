@@ -35,7 +35,7 @@
 
 namespace hise { using namespace juce;
 
-class MultiColumnPresetBrowser;
+class PresetBrowser;
 
 #ifndef OLD_PRESET_BROWSER
 #define OLD_PRESET_BROWSER 0
@@ -615,7 +615,7 @@ private:
 
     int numFiles;
 	
-    MultiColumnPresetBrowser* browser;
+    PresetBrowser* browser;
     
 	MainController* mc;
 
@@ -637,7 +637,7 @@ private:
 	- a tag system that can be used to further organisation of presets.
 
 */
-class MultiColumnPresetBrowser : public Component,
+class PresetBrowser :			 public Component,
 							     public QuasiModalComponent,
 								 public Button::Listener,
 								 public PresetBrowserColumn::ColumnListModel::Listener,
@@ -716,16 +716,16 @@ public:
 
 			switch (le.currentAction)
 			{
-			case MultiColumnPresetBrowser::ModalWindow::Action::Idle:
+			case PresetBrowser::ModalWindow::Action::Idle:
 				break;
-			case MultiColumnPresetBrowser::ModalWindow::Action::Rename:
-			case MultiColumnPresetBrowser::ModalWindow::Action::Add:
+			case PresetBrowser::ModalWindow::Action::Rename:
+			case PresetBrowser::ModalWindow::Action::Add:
 				return "Enter the name";
-			case MultiColumnPresetBrowser::ModalWindow::Action::Delete:
+			case PresetBrowser::ModalWindow::Action::Delete:
 				return "Are you sure you want to delete the file " + le.newFile.getFileNameWithoutExtension() + "?";
-			case MultiColumnPresetBrowser::ModalWindow::Action::Replace:
+			case PresetBrowser::ModalWindow::Action::Replace:
 				return "Are you sure you want to replace the file " + le.newFile.getFileNameWithoutExtension() + "?";
-			case MultiColumnPresetBrowser::ModalWindow::Action::numActions:
+			case PresetBrowser::ModalWindow::Action::numActions:
 				break;
 			default:
 				break;
@@ -744,21 +744,21 @@ public:
 
 			switch (le.currentAction)
 			{
-			case MultiColumnPresetBrowser::ModalWindow::Action::Idle:
+			case PresetBrowser::ModalWindow::Action::Idle:
 				break;
-			case MultiColumnPresetBrowser::ModalWindow::Action::Rename:
+			case PresetBrowser::ModalWindow::Action::Rename:
 				s << "Rename ";
 				break;
-			case MultiColumnPresetBrowser::ModalWindow::Action::Add:
+			case PresetBrowser::ModalWindow::Action::Add:
 				s << "Add new ";
 				break;
-			case MultiColumnPresetBrowser::ModalWindow::Action::Replace:
+			case PresetBrowser::ModalWindow::Action::Replace:
 				s << "Replace ";
 				break;
-			case MultiColumnPresetBrowser::ModalWindow::Action::Delete:
+			case PresetBrowser::ModalWindow::Action::Delete:
 				s << "Delete ";
 				break;
-			case MultiColumnPresetBrowser::ModalWindow::Action::numActions:
+			case PresetBrowser::ModalWindow::Action::numActions:
 				break;
 			default:
 				break;
@@ -797,7 +797,7 @@ public:
 
 			stack.removeLast();
 
-			auto p = findParentComponentOfClass<MultiColumnPresetBrowser>();
+			auto p = findParentComponentOfClass<PresetBrowser>();
 
 			if (b == okButton)
 			{
@@ -807,19 +807,19 @@ public:
 
 				switch (le.currentAction)
 				{
-				case MultiColumnPresetBrowser::ModalWindow::Action::Idle:
+				case PresetBrowser::ModalWindow::Action::Idle:
 					jassertfalse;
 					break;
-				case MultiColumnPresetBrowser::ModalWindow::Action::Rename:
+				case PresetBrowser::ModalWindow::Action::Rename:
 					p->renameEntry(le.columnIndex, le.rowIndex, inputLabel->getText());
 					break;
-				case MultiColumnPresetBrowser::ModalWindow::Action::Add:
+				case PresetBrowser::ModalWindow::Action::Add:
 					p->addEntry(le.columnIndex, inputLabel->getText());
 					break;
-				case MultiColumnPresetBrowser::ModalWindow::Action::Delete:
+				case PresetBrowser::ModalWindow::Action::Delete:
 					p->deleteEntry(le.columnIndex, le.oldFile);
 					break;
-				case MultiColumnPresetBrowser::ModalWindow::Action::Replace:
+				case PresetBrowser::ModalWindow::Action::Replace:
                     {
                     auto note = DataBaseHelpers::getNoteFromXml(le.newFile);
                     auto tags = DataBaseHelpers::getTagsFromXml(le.newFile);
@@ -838,7 +838,7 @@ public:
 					p->rebuildAllPresets();
 					break;
                     }
-				case MultiColumnPresetBrowser::ModalWindow::Action::numActions:
+				case PresetBrowser::ModalWindow::Action::numActions:
 					break;
 				default:
 					break;
@@ -973,9 +973,9 @@ public:
 
 	void buttonClicked(Button* b) override;
 
-	MultiColumnPresetBrowser(MainController* mc_, int width=810, int height=500);
+	PresetBrowser(MainController* mc_, int width=810, int height=500);
 
-	~MultiColumnPresetBrowser();
+	~PresetBrowser();
 
 	void presetChanged(const File& newPreset) override
 	{
@@ -1419,7 +1419,7 @@ private:
 	
 	
 
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MultiColumnPresetBrowser);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PresetBrowser);
 
 	// ============================================================================================
 

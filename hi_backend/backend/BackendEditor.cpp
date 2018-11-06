@@ -776,7 +776,7 @@ void MainTopBar::popupChanged(Component* newComponent)
 	bool settingsShouldBeOn = (newComponent != nullptr && newComponent->getName() == "Settings");
 	bool previewShouldBeShown = (newComponent != nullptr && newComponent->getName() == "Interface Preview") ||
 								(newComponent != nullptr && newComponent->getName() == "Create User Interface");
-	bool presetBrowserShown = dynamic_cast<MultiColumnPresetBrowser*>(newComponent) != nullptr;
+	bool presetBrowserShown = dynamic_cast<PresetBrowser*>(newComponent) != nullptr;
 
 	setColoursForButton(macroButton, macroShouldBeOn);
 	setColoursForButton(settingsButton, settingsShouldBeOn);
@@ -1020,7 +1020,7 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 	}
 	case PopupType::PresetBrowser:
 	{
-		MultiColumnPresetBrowser* pr = new MultiColumnPresetBrowser(mc, 700, 500);
+		PresetBrowser* pr = new PresetBrowser(mc, 700, 500);
 
 		pr->setShowCloseButton(false);
 

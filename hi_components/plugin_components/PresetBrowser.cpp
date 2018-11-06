@@ -274,7 +274,7 @@ listener(listener_)
 	
 }
 
-void MultiColumnPresetBrowser::ModalWindow::paint(Graphics& g)
+void PresetBrowser::ModalWindow::paint(Graphics& g)
 {
     g.setColour(Colours::black.withAlpha(JUCE_LIVE_CONSTANT_OFF(0.7f)));
     g.fillAll();
@@ -313,13 +313,13 @@ int PresetBrowserColumn::ColumnListModel::getNumRows()
 	    entries.clear();
 	    rootToUse.findChildFiles(entries, displayDirectories ? File::findDirectories : File::findFiles, allowRecursiveSearch || showFavoritesOnly);
 
-		MultiColumnPresetBrowser::DataBaseHelpers::cleanFileList(entries);
+		PresetBrowser::DataBaseHelpers::cleanFileList(entries);
 
 		if (showFavoritesOnly && index == 2)
 		{
 			for (int i = 0; i < entries.size(); i++)
 			{
-				if (!MultiColumnPresetBrowser::DataBaseHelpers::isFavorite(database, entries[i]))
+				if (!PresetBrowser::DataBaseHelpers::isFavorite(database, entries[i]))
 				{
 					entries.remove(i--);
 					continue;
@@ -381,7 +381,7 @@ int PresetBrowserColumn::ColumnListModel::getNumRows()
 		{
 			for (int i = 0; i < entries.size(); i++)
 			{
-				if (!MultiColumnPresetBrowser::DataBaseHelpers::isFavorite(database, entries[i]))
+				if (!PresetBrowser::DataBaseHelpers::isFavorite(database, entries[i]))
 				{
 					entries.remove(i--);
 					continue;
@@ -410,12 +410,12 @@ void PresetBrowserColumn::ColumnListModel::listBoxItemClicked(int row, const Mou
 
 		auto name = entries[row].getFileNameWithoutExtension();
 
-		auto pb = dynamic_cast<MultiColumnPresetBrowser*>(listener);
+		auto pb = dynamic_cast<PresetBrowser*>(listener);
 
 		if (pb == nullptr)
 			return;
 
-		pb->openModalAction(MultiColumnPresetBrowser::ModalWindow::Action::Delete, name, entries[row], index, row);
+		pb->openModalAction(PresetBrowser::ModalWindow::Action::Delete, name, entries[row], index, row);
 
 	}
 	else
@@ -445,11 +445,11 @@ void PresetBrowserColumn::ColumnListModel::rebuildCachedTagList()
 
 	totalRoot.findChildFiles(allPresets, File::findFiles, true, "*.preset");
 
-	MultiColumnPresetBrowser::DataBaseHelpers::cleanFileList(allPresets);
+	PresetBrowser::DataBaseHelpers::cleanFileList(allPresets);
 
 	for (auto f : allPresets)
 	{
-		auto sa = MultiColumnPresetBrowser::DataBaseHelpers::getTagsFromXml(f);
+		auto sa = PresetBrowser::DataBaseHelpers::getTagsFromXml(f);
 
 		CachedTag newTag;
 		newTag.hashCode = f.hashCode64();
@@ -598,7 +598,7 @@ index(index_)
 
 	listModel = new ColumnListModel(index, listener);
 
-	listModel->database = dynamic_cast<MultiColumnPresetBrowser*>(listener)->getDataBase();
+	listModel->database = dynamic_cast<PresetBrowser*>(listener)->getDataBase();
 	
 	listModel->setTotalRoot(rootDirectory);
 	
@@ -630,7 +630,7 @@ index(index_)
 
 	setSize(150, 300);
     
-    browser = dynamic_cast<MultiColumnPresetBrowser*>(listener);
+    browser = dynamic_cast<PresetBrowser*>(listener);
 }
 
 File PresetBrowserColumn::getChildDirectory(File& root, int level, int index)
@@ -678,7 +678,7 @@ void PresetBrowserColumn::buttonClicked(Button* b)
 	}
 	else if (b == addButton)
 	{
-		browser->openModalAction(MultiColumnPresetBrowser::ModalWindow::Action::Add, index == 2 ? "New Preset" : "New Directory", File(), index, -1);
+		browser->openModalAction(PresetBrowser::ModalWindow::Action::Add, index == 2 ? "New Preset" : "New Directory", File(), index, -1);
 	}
 #if !OLD_PRESET_BROWSER
 	else if (b == renameButton)
@@ -689,7 +689,7 @@ void PresetBrowserColumn::buttonClicked(Button* b)
 		{
 			File oldFile = listModel->getFileForIndex(selectedIndex);
 
-			browser->openModalAction(MultiColumnPresetBrowser::ModalWindow::Action::Rename, oldFile.getFileNameWithoutExtension(), oldFile, index, selectedIndex);
+			browser->openModalAction(PresetBrowser::ModalWindow::Action::Rename, oldFile.getFileNameWithoutExtension(), oldFile, index, selectedIndex);
 		}
 	}
 	else if (b == deleteButton)
@@ -699,7 +699,7 @@ void PresetBrowserColumn::buttonClicked(Button* b)
 		if (selectedIndex >= 0)
 		{
 			File f = listModel->getFileForIndex(selectedIndex);
-			browser->openModalAction(MultiColumnPresetBrowser::ModalWindow::Action::Delete, "", f, index, selectedIndex);
+			browser->openModalAction(PresetBrowser::ModalWindow::Action::Delete, "", f, index, selectedIndex);
 		}
 	}
 #endif
@@ -846,7 +846,7 @@ void PresetBrowserColumn::updateButtonVisibility()
 #endif
 }
 
-MultiColumnPresetBrowser::MultiColumnPresetBrowser(MainController* mc_, int width, int height) :
+PresetBrowser::PresetBrowser(MainController* mc_, int width, int height) :
 mc(mc_)
 {
 	setName("Preset Browser");
@@ -935,7 +935,7 @@ mc(mc_)
 
 }
 
-MultiColumnPresetBrowser::~MultiColumnPresetBrowser()
+PresetBrowser::~PresetBrowser()
 {
 	mc->getUserPresetHandler().removeListener(this);
 
@@ -957,7 +957,7 @@ MultiColumnPresetBrowser::~MultiColumnPresetBrowser()
 	presetColumn = nullptr;
 }
 
-void MultiColumnPresetBrowser::paint(Graphics& g)
+void PresetBrowser::paint(Graphics& g)
 {
 #if OLD_PRESET_BROWSER
 	g.fillAll(Colours::black.withAlpha(0.97f));
@@ -995,7 +995,7 @@ void MultiColumnPresetBrowser::paint(Graphics& g)
 	}
 }
 
-void MultiColumnPresetBrowser::rebuildAllPresets()
+void PresetBrowser::rebuildAllPresets()
 {
 	allPresets.clear();
 	rootFile.findChildFiles(allPresets, File::findFiles, true, "*.preset");
@@ -1027,7 +1027,7 @@ void MultiColumnPresetBrowser::rebuildAllPresets()
 	}
 }
 
-String MultiColumnPresetBrowser::getCurrentlyLoadedPresetName()
+String PresetBrowser::getCurrentlyLoadedPresetName()
 {
 	if (currentlyLoadedPreset > 0 && currentlyLoadedPreset < allPresets.size())
 	{
@@ -1037,7 +1037,7 @@ String MultiColumnPresetBrowser::getCurrentlyLoadedPresetName()
 	return String();
 }
 
-void MultiColumnPresetBrowser::resized()
+void PresetBrowser::resized()
 {
 	modalInputWindow->setBounds(getLocalBounds());
 
@@ -1135,7 +1135,7 @@ void MultiColumnPresetBrowser::resized()
 }
 
 
-void MultiColumnPresetBrowser::loadPresetDatabase(const File& rootDirectory)
+void PresetBrowser::loadPresetDatabase(const File& rootDirectory)
 {
 	auto dbFile = rootDirectory.getChildFile("db.json");
 
@@ -1148,7 +1148,7 @@ void MultiColumnPresetBrowser::loadPresetDatabase(const File& rootDirectory)
 }
 
 
-void MultiColumnPresetBrowser::savePresetDatabase(const File& rootDirectory)
+void PresetBrowser::savePresetDatabase(const File& rootDirectory)
 {
 	auto content = JSON::toString(presetDatabase);
 
@@ -1157,7 +1157,7 @@ void MultiColumnPresetBrowser::savePresetDatabase(const File& rootDirectory)
 	dbFile.replaceWithText(content);
 }
 
-void MultiColumnPresetBrowser::setHighlightColourAndFont(Colour c, Colour bgColour, Font f)
+void PresetBrowser::setHighlightColourAndFont(Colour c, Colour bgColour, Font f)
 {
 	backgroundColour = bgColour;
 	outlineColour = c;
@@ -1183,7 +1183,7 @@ void MultiColumnPresetBrowser::setHighlightColourAndFont(Colour c, Colour bgColo
 	presetColumn->setHighlightColourAndFont(c, f);
 }
 
-void MultiColumnPresetBrowser::setNumColumns(int newNumColumns)
+void PresetBrowser::setNumColumns(int newNumColumns)
 {
 	newNumColumns = jlimit<int>(1, 3, newNumColumns);
 
@@ -1197,7 +1197,7 @@ void MultiColumnPresetBrowser::setNumColumns(int newNumColumns)
 	}
 }
 
-void MultiColumnPresetBrowser::openModalAction(ModalWindow::Action action, const String& preEnteredText, const File& fileToChange, int columnIndex, int rowIndex)
+void PresetBrowser::openModalAction(ModalWindow::Action action, const String& preEnteredText, const File& fileToChange, int columnIndex, int rowIndex)
 {
 	if (action == ModalWindow::Action::Delete)
 	{
@@ -1210,7 +1210,7 @@ void MultiColumnPresetBrowser::openModalAction(ModalWindow::Action action, const
 	
 }
 
-void MultiColumnPresetBrowser::showLoadedPreset()
+void PresetBrowser::showLoadedPreset()
 {
 	if (currentlyLoadedPreset != -1)
 	{
@@ -1227,7 +1227,7 @@ void MultiColumnPresetBrowser::showLoadedPreset()
 	}
 }
 
-void MultiColumnPresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const File& file, bool /*doubleClick*/)
+void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const File& file, bool /*doubleClick*/)
 {
 	const bool showCategoryColumn = numColumns == 3;
 	const bool showBankColumns = numColumns >= 2;
@@ -1293,7 +1293,7 @@ void MultiColumnPresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*
 }
 
 
-void MultiColumnPresetBrowser::renameEntry(int columnIndex, int rowIndex, const String& newName)
+void PresetBrowser::renameEntry(int columnIndex, int rowIndex, const String& newName)
 {
 	if (columnIndex == 0)
 	{
@@ -1354,7 +1354,7 @@ void MultiColumnPresetBrowser::renameEntry(int columnIndex, int rowIndex, const 
 	}
 }
 
-void MultiColumnPresetBrowser::deleteEntry(int columnIndex, const File& f)
+void PresetBrowser::deleteEntry(int columnIndex, const File& f)
 {
 	if (columnIndex == 0)
 	{
@@ -1393,7 +1393,7 @@ void MultiColumnPresetBrowser::deleteEntry(int columnIndex, const File& f)
 }
 
 
-void MultiColumnPresetBrowser::buttonClicked(Button* b)
+void PresetBrowser::buttonClicked(Button* b)
 {
 	if (b == closeButton)
 	{
@@ -1507,7 +1507,7 @@ void MultiColumnPresetBrowser::buttonClicked(Button* b)
 
 
 
-void MultiColumnPresetBrowser::addEntry(int columnIndex, const String& name)
+void PresetBrowser::addEntry(int columnIndex, const String& name)
 {
 	if (columnIndex == 0)	bankColumn->addEntry(name);
 	if (columnIndex == 1)	categoryColumn->addEntry(name);
@@ -1515,7 +1515,7 @@ void MultiColumnPresetBrowser::addEntry(int columnIndex, const String& name)
 	
 }
 
-void MultiColumnPresetBrowser::loadPreset(const File& f)
+void PresetBrowser::loadPreset(const File& f)
 {
     if(f.existsAsFile())
     {
@@ -1609,7 +1609,7 @@ void PresetBrowserColumn::ColumnListModel::FavoriteOverlay::refreshShape()
 {
 	auto f = parent.getFileForIndex(index);
 
-	const bool on = MultiColumnPresetBrowser::DataBaseHelpers::isFavorite(parent.database, f);
+	const bool on = PresetBrowser::DataBaseHelpers::isFavorite(parent.database, f);
 
 
 	static const unsigned char onShape[] = "nm\xac&=Ca\xee<Cl\x12\x96?C%\xaf""CCl\xde\xc2""FC\xd0\xe9""CClZ\x17""AC\xebPHCl(\x17""CC\xf1""5OCl\xad&=C\xc4-KCl267C\xf1""5OCl\0""69C\xebPHCl}\x8a""3C\xd0\xe9""CClH\xb7:C%\xaf""CCce";
@@ -1644,7 +1644,7 @@ void PresetBrowserColumn::ColumnListModel::FavoriteOverlay::buttonClicked(Button
 
 	auto f = parent.getFileForIndex(index);
 
-	MultiColumnPresetBrowser::DataBaseHelpers::setFavorite(parent.database, f, newValue);
+	PresetBrowser::DataBaseHelpers::setFavorite(parent.database, f, newValue);
 
 	
 	refreshShape();
@@ -1718,7 +1718,7 @@ void TagList::presetChanged(const File& newPreset)
 
 	if (currentFile.existsAsFile())
 	{
-		currentlyActiveTags = MultiColumnPresetBrowser::DataBaseHelpers::getTagsFromXml(currentFile);
+		currentlyActiveTags = PresetBrowser::DataBaseHelpers::getTagsFromXml(currentFile);
 	}
 	else
 		currentlyActiveTags.clear();
@@ -1780,7 +1780,7 @@ void TagList::toggleTag(Tag* n)
 
 		n->setActive(!shouldBeInActive);
 
-		MultiColumnPresetBrowser::DataBaseHelpers::writeTagsInXml(currentFile, currentlyActiveTags);
+		PresetBrowser::DataBaseHelpers::writeTagsInXml(currentFile, currentlyActiveTags);
 
 		for (auto l : listeners)
 		{

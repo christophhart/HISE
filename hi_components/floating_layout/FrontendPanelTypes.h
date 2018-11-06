@@ -430,7 +430,7 @@ private:
 	bool showEditButtons = true;
 	int numColumns = 3;
 
-	ScopedPointer<MultiColumnPresetBrowser> presetBrowser;
+	ScopedPointer<PresetBrowser> presetBrowser;
 };
 
 /** Type-ID: `TooltipPanel`
