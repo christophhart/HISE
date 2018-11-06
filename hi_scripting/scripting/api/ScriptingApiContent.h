@@ -1492,77 +1492,6 @@ public:
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptedViewport);
 	};
 
-
-	struct ScriptedPlotter : public ScriptComponent
-	{
-	public:
-
-		// ========================================================================================================
-
-		ScriptedPlotter(ProcessorWithScriptingContent *base, Content *parentContent, Identifier plotterName, int x, int y, int width, int height);;
-
-		// ========================================================================================================
-
-		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptedPlotter"); }
-		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
-		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
-
-		void addModulator(Modulator *m) { mods.add(m); };
-		void clearModulators() { mods.clear(); };
-
-		// ======================================================================================================== API Methods
-
-		/** Searches a processor and adds the modulator to the plotter. */
-		void addModulatorToPlotter(String processorName, String modulatorName);
-
-		/** Removes all modulators from the plotter. */
-		void clearModulatorPlotter();
-
-		// ========================================================================================================
-
-		struct Wrapper;
-
-		Array<WeakReference<Modulator>> mods;
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptedPlotter);
-		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptedPlotter);
-
-		// ========================================================================================================
-	};
-
-	struct ModulatorMeter : public ScriptComponent
-	{
-
-		// ========================================================================================================
-
-		enum Properties
-		{
-			ModulatorId = ScriptComponent::numProperties,
-			numProperties
-		};
-
-		ModulatorMeter(ProcessorWithScriptingContent *base, Content *parentContent, Identifier modulatorName, int x, int y, int width, int height);;
-		~ModulatorMeter() {};
-
-		// ========================================================================================================
-
-		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ModulatorMeter"); }
-		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
-		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
-		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification) override;
-		StringArray getOptionsFor(const Identifier &id) override;
-		void setScriptProcessor(ProcessorWithScriptingContent *sb);
-
-		// ========================================================================================================
-
-		WeakReference<Modulator> targetMod;
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModulatorMeter)
-		JUCE_DECLARE_WEAK_REFERENCEABLE(ModulatorMeter);
-	};
-
-
-
 	struct ScriptAudioWaveform : public ScriptComponent
 	{
 		enum Properties
@@ -1746,12 +1675,6 @@ public:
 
 	/** Adds a text input label. */
 	ScriptLabel *addLabel(Identifier label, int x, int y);
-
-	/** Adds a peak meter that displays the modulator's output. */
-	ModulatorMeter *addModulatorMeter(Identifier modulatorName, int x, int y);
-
-	/** Adds a plotter that plots multiple modulators. */
-	ScriptedPlotter *addPlotter(Identifier plotterName, int x, int y);
 
 	/** Adds a image to the script interface. */
 	ScriptImage *addImage(Identifier imageName, int x, int y);

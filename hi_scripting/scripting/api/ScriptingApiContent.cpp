@@ -3223,145 +3223,6 @@ juce::Array<hise::ScriptingApi::Content::ScriptComponent::PropertyWithValue> Scr
 	return vArray;
 }
 
-struct ScriptingApi::Content::ScriptedPlotter::Wrapper
-{
-	API_VOID_METHOD_WRAPPER_2(ScriptedPlotter, addModulatorToPlotter);
-	API_VOID_METHOD_WRAPPER_0(ScriptedPlotter, clearModulatorPlotter);
-};
-
-ScriptingApi::Content::ScriptedPlotter::ScriptedPlotter(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier plotterName, int /*x*/, int /*y*/, int /*width*/, int /*height*/) :
-ScriptComponent(base, plotterName)
-{
-	ADD_API_METHOD_2(addModulatorToPlotter);
-	ADD_API_METHOD_0(clearModulatorPlotter);
-}
-
-ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptedPlotter::createComponentWrapper(ScriptContentComponent *content, int index)
-{
-	return new ScriptCreatedComponentWrappers::PlotterWrapper(content, this, index);
-}
-
-void ScriptingApi::Content::ScriptedPlotter::addModulatorToPlotter(String processorName, String modulatorName)
-{
-	Processor::Iterator<ModulatorSynth> synthIter(getProcessor()->getMainController()->getMainSynthChain());
-
-	ModulatorSynth *synth;
-
-	while ((synth = synthIter.getNextProcessor()) != nullptr)
-	{
-		if (synth->getId() == processorName)
-		{
-			Processor::Iterator<Modulator> modIter(synth);
-
-			Modulator *m;
-
-			while ((m = modIter.getNextProcessor()) != nullptr)
-			{
-				if (m->getId() == modulatorName)
-				{
-					addModulator(m);
-					return;
-				}
-			}
-		}
-	}
-
-	logErrorAndContinue(String(modulatorName) + " was not found");
-
-}
-
-void ScriptingApi::Content::ScriptedPlotter::clearModulatorPlotter()
-{
-	clearModulators();
-}
-
-
-ScriptingApi::Content::ModulatorMeter::ModulatorMeter(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier modulatorName, int /*x*/, int /*y*/, int /*width*/, int /*height*/) :
-ScriptComponent(base, modulatorName),
-targetMod(nullptr)
-{
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::textColour));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::macroControl));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::defaultValue));
-
-
-	propertyIds.add("modulatorId");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
-
-	
-
-	setScriptObjectProperty(ModulatorId, "");
-}
-
-ScriptCreatedComponentWrapper * ScriptingApi::Content::ModulatorMeter::createComponentWrapper(ScriptContentComponent *content, int index)
-{
-	return new ScriptCreatedComponentWrappers::ModulatorMeterWrapper(content, this, index);
-}
-
-void ScriptingApi::Content::ModulatorMeter::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor)
-{
-	if (getIdFor(ModulatorId) == id)
-	{
-		jassert(isCorrectlyInitialised(ModulatorId));
-
-		setScriptProcessor(getScriptProcessor());
-	}
-
-	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
-}
-
-
-
-void ScriptingApi::Content::ModulatorMeter::setScriptProcessor(ProcessorWithScriptingContent *sp)
-{
-	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(sp);
-
-	if (mp == nullptr) reportScriptError("Can only be called from MidiProcessors");
-
-	Processor::Iterator<Modulator> it(mp->getOwnerSynth(), true);
-
-	String modulatorName = getScriptObjectProperty(ModulatorId);
-
-	if (modulatorName.isEmpty()) return;
-
-	Identifier n(modulatorName);
-
-	while (Modulator* m = it.getNextProcessor())
-	{
-		if (Identifier(m->getId()) == n)
-		{
-			targetMod = m;
-			break;
-		}
-	}
-
-	if (targetMod == nullptr) debugError(mp, "Modulator " + modulatorName + " not found!");
-};
-
-
-StringArray ScriptingApi::Content::ModulatorMeter::getOptionsFor(const Identifier &id)
-{
-	if (id != getIdFor(ModulatorId)) return ScriptComponent::getOptionsFor(id);
-
-	StringArray sa;
-
-	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
-	if (mp == nullptr) return StringArray();
-
-	Processor::Iterator<Modulator> iter(mp->getOwnerSynth());
-
-	Modulator *m;
-
-	while ((m = iter.getNextProcessor()) != nullptr)
-	{
-		sa.add(m->getId());
-	}
-
-	return sa;
-};
-
-
 ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier waveformName, int x, int y, int , int ) :
 ScriptComponent(base, waveformName)
 {
@@ -3738,8 +3599,6 @@ colour(Colour(0xff777777))
 	setMethod("addComboBox", Wrapper::addComboBox);
 	setMethod("addTable", Wrapper::addTable);
 	setMethod("addImage", Wrapper::addImage);
-	setMethod("addModulatorMeter", Wrapper::addModulatorMeter);
-	setMethod("addPlotter", Wrapper::addPlotter);
 	setMethod("addViewport", Wrapper::addScriptedViewport);
 	setMethod("addPanel", Wrapper::addPanel);
 	setMethod("addAudioWaveform", Wrapper::addAudioWaveform);
@@ -3856,21 +3715,6 @@ ScriptingApi::Content::ScriptTable * ScriptingApi::Content::addTable(Identifier 
 	return addComponent<ScriptTable>(labelName, x, y);
 };
 
-ScriptingApi::Content::ModulatorMeter * ScriptingApi::Content::addModulatorMeter(Identifier modulatorName, int x, int y)
-{
-	ModulatorMeter *m = addComponent<ModulatorMeter>(modulatorName, x, y);
-
-	m->setScriptProcessor(getScriptProcessor());
-
-	return m;
-
-};
-
-ScriptingApi::Content::ScriptedPlotter * ScriptingApi::Content::addPlotter(Identifier plotterName, int x, int y)
-{
-	return addComponent<ScriptedPlotter>(plotterName, x, y);
-
-};
 
 ScriptingApi::Content::ScriptPanel * ScriptingApi::Content::addPanel(Identifier panelName, int x, int y)
 {
@@ -5029,9 +4873,6 @@ ScriptingApi::Content::ScriptComponent * ScriptingApi::Content::Helpers::createC
 		return sc;
 
 	if (auto sc = createComponentIfTypeMatches<ScriptedViewport>(c, typeId, name, x, y, w, h))
-		return sc;
-
-	if (auto sc = createComponentIfTypeMatches<ModulatorMeter>(c, typeId, name, x, y, w, h))
 		return sc;
 
 	if (auto sc = createComponentIfTypeMatches<ScriptAudioWaveform>(c, typeId, name, x, y, w, h))

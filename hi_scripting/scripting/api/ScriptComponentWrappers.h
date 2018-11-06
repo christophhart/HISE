@@ -617,27 +617,6 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TableWrapper)
 	};
 
-	class ModulatorMeterWrapper : public ScriptCreatedComponentWrapper
-	{
-	public:
-
-		ModulatorMeterWrapper(ScriptContentComponent *content, ScriptingApi::Content::ModulatorMeter *meter, int index);
-
-		void updateComponent() override;
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModulatorMeterWrapper)
-	};
-	
-	class PlotterWrapper : public ScriptCreatedComponentWrapper
-	{
-	public:
-
-		PlotterWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptedPlotter *plotter, int index);
-
-		void updateComponent() override;
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PlotterWrapper)
-	};
 
 	class ImageWrapper : public ScriptCreatedComponentWrapper,
                          public MouseCallbackComponent::Listener

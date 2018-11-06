@@ -1071,23 +1071,6 @@ juce::Point<int> ScriptCreatedComponentWrappers::TableWrapper::getValuePopupPosi
 	return { l.getX() + localPopupPosition.getX(), l.getY() + localPopupPosition.getY() };
 }
 
-ScriptCreatedComponentWrappers::ModulatorMeterWrapper::ModulatorMeterWrapper(ScriptContentComponent *content, ScriptingApi::Content::ModulatorMeter *m, int index) :
-ScriptCreatedComponentWrapper(content, index)
-{
-	ModulatorPeakMeter *pm = new ModulatorPeakMeter(m->targetMod);
-
-	pm->setName(m->name.toString());
-
-	pm->setColour(Colour(0x22ffffff));
-
-	component = pm;
-
-}
-
-void ScriptCreatedComponentWrappers::ModulatorMeterWrapper::updateComponent()
-{
-	dynamic_cast<SettableTooltipClient*>(component.get())->setTooltip(GET_SCRIPT_PROPERTY(tooltip));
-}
 
 
 class DummyComponent: public Component
@@ -1328,28 +1311,6 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::updateFont(ScriptingApi::C
 	}
 }
 
-
-
-ScriptCreatedComponentWrappers::PlotterWrapper::PlotterWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptedPlotter *p, int index):
-ScriptCreatedComponentWrapper(content, index)
-{
-	Plotter *pl = new Plotter();
-
-	pl->setName(p->name.toString());
-
-	
-
-	component = pl;
-}
-
-void ScriptCreatedComponentWrappers::PlotterWrapper::updateComponent()
-{
-	dynamic_cast<SettableTooltipClient*>(component.get())->setTooltip(GET_SCRIPT_PROPERTY(tooltip));
-
-	component.get()->setColour(Plotter::pathColour, GET_OBJECT_COLOUR(itemColour));
-	component.get()->setColour(Plotter::pathColour2, GET_OBJECT_COLOUR(itemColour2));
-	component.get()->setColour(Plotter::backgroundColour, GET_OBJECT_COLOUR(bgColour));
-}
 
 ScriptCreatedComponentWrappers::ImageWrapper::ImageWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptImage *img, int index):
 ScriptCreatedComponentWrapper(content, index)

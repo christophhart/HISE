@@ -65,10 +65,7 @@ struct ScriptingApi::Content::Wrapper
 	static var addComboBox(const var::NativeFunctionArgs& args);
 	static var addTable(const var::NativeFunctionArgs& args);
 	static var addImage(const var::NativeFunctionArgs& args);
-	static var addModulatorMeter(const var::NativeFunctionArgs& args);
 	static var addScriptedViewport(const var::NativeFunctionArgs& args);
-	static var addPlotter(const var::NativeFunctionArgs& args);
-	static var addModulatorToPlotter(const var::NativeFunctionArgs& args);
 	static var addPanel(const var::NativeFunctionArgs& args);
 	static var addAudioWaveform(const var::NativeFunctionArgs& args);
 	static var addSliderPack(const var::NativeFunctionArgs& args);
@@ -76,7 +73,6 @@ struct ScriptingApi::Content::Wrapper
 	static var getComponent(const var::NativeFunctionArgs& args);
 	static var set(const var::NativeFunctionArgs& args);
 	static var get(const var::NativeFunctionArgs& args);
-	static var clearModulatorToPlotter(const var::NativeFunctionArgs& args);
 	static var addToMacroControl(const var::NativeFunctionArgs& args);
 	static var setRange(const var::NativeFunctionArgs& args);
 	static var setMode(const var::NativeFunctionArgs& args);
@@ -222,40 +218,6 @@ var ScriptingApi::Content::Wrapper::addImage (const var::NativeFunctionArgs& arg
 		CHECK_ARGUMENTS("addImage()", 3);
 
 		return thisObject->addImage(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
-	}
-
-	return var();
-};
-
-var ScriptingApi::Content::Wrapper::addModulatorMeter (const var::NativeFunctionArgs& args)
-{
-	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
-	{
-		if(args.numArguments == 1)
-		{
-			return thisObject->addModulatorMeter(Identifier(args.arguments[0]), 0, 0);
-		}
-
-		CHECK_ARGUMENTS("addModulatorMeter()", 3);
-
-		return thisObject->addModulatorMeter(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
-	}
-
-	return var();
-};
-
-var ScriptingApi::Content::Wrapper::addPlotter (const var::NativeFunctionArgs& args)
-{
-	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
-	{
-		if(args.numArguments == 1)
-		{
-			return thisObject->addPlotter(Identifier(args.arguments[0]), 0, 0);
-		}
-
-		CHECK_ARGUMENTS("addPlotter()", 3);
-
-		return thisObject->addPlotter(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
 	}
 
 	return var();
@@ -575,29 +537,7 @@ var ScriptingApi::Content::Wrapper::setColour (const var::NativeFunctionArgs& ar
 
 // =================================================================================================== Content Component Wrappers
 
-var ScriptingApi::Content::Wrapper::addModulatorToPlotter (const var::NativeFunctionArgs& args)
-{
-	if (ScriptingApi::Content::ScriptedPlotter* thisObject = GET_OBJECT(Content::ScriptedPlotter))
-	{
-		CHECK_ARGUMENTS("addModulatorToPlotter()", 2);
 
-		thisObject->addModulatorToPlotter(args.arguments[0].toString(), args.arguments[1].toString());
-	}
-
-	return var();
-};
-
-var ScriptingApi::Content::Wrapper::clearModulatorToPlotter (const var::NativeFunctionArgs& args)
-{
-	if (ScriptingApi::Content::ScriptedPlotter* thisObject = GET_OBJECT(Content::ScriptedPlotter))
-	{
-		CHECK_ARGUMENTS("addModulatorToPlotter()", 0);
-
-		thisObject->clearModulatorPlotter();
-	}
-
-	return var();
-};
 
 var ScriptingApi::Content::Wrapper::addItem (const var::NativeFunctionArgs& args)
 {

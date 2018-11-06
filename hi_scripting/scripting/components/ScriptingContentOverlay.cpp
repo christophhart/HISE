@@ -39,7 +39,7 @@ ScriptEditHandler::ScriptEditHandler()
 
 }
 
-void ScriptEditHandler::createNewComponent(ComponentType componentType, int x, int y)
+void ScriptEditHandler::createNewComponent(ComponentType componentId, int x, int y)
 {
 	if (getScriptEditHandlerContent() == nullptr)
 		return;
@@ -51,7 +51,7 @@ void ScriptEditHandler::createNewComponent(ComponentType componentType, int x, i
 
 	String componentType;
 
-	switch (componentType)
+	switch (componentId)
 	{
 	case ComponentType::Knob:				componentType = "Knob"; break;
 	case ComponentType::Button:			componentType = "Button"; break;
@@ -60,8 +60,6 @@ void ScriptEditHandler::createNewComponent(ComponentType componentType, int x, i
 	case ComponentType::Label:				componentType = "Label"; break;
 	case ComponentType::Image:				componentType = "Image"; break;
 	case ComponentType::Viewport:			componentType = "Viewport"; break;
-	case ComponentType::Plotter:			componentType = "Plotter"; break;
-	case ComponentType::ModulatorMeter:	componentType = "ModulatorMeter"; break;
 	case ComponentType::Panel:				componentType = "Panel"; break;
 	case ComponentType::AudioWaveform:		componentType = "AudioWaveform"; break;
 	case ComponentType::SliderPack:		componentType = "SliderPack"; break;
@@ -87,7 +85,7 @@ void ScriptEditHandler::createNewComponent(ComponentType componentType, int x, i
 
 	ScriptComponent::Ptr newComponent;
 
-	switch (componentType)
+	switch (componentId)
 	{
 	case hise::ScriptEditHandler::ComponentType::Knob: 
 		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptSlider>(id, x, y);
@@ -109,12 +107,6 @@ void ScriptEditHandler::createNewComponent(ComponentType componentType, int x, i
 		break;
 	case hise::ScriptEditHandler::ComponentType::Viewport:
 		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptedViewport>(id, x, y);
-		break;
-	case hise::ScriptEditHandler::ComponentType::Plotter:
-		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptedPlotter>(id, x, y);
-		break;
-	case hise::ScriptEditHandler::ComponentType::ModulatorMeter:
-		newComponent = content->createNewComponent<ScriptingApi::Content::ModulatorMeter>(id, x, y);
 		break;
 	case hise::ScriptEditHandler::ComponentType::Panel:
 		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptPanel>(id, x, y);

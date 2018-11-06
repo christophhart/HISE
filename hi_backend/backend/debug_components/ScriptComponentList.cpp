@@ -633,8 +633,6 @@ void ScriptComponentList::mouseUp(const MouseEvent& event)
 		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::ComboBox, ScriptingApi::Content::ScriptComboBox);
 		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::FloatingTile, ScriptingApi::Content::ScriptFloatingTile);
 		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::Image, ScriptingApi::Content::ScriptImage);
-		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::ModulatorMeter, ScriptingApi::Content::ModulatorMeter);
-		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::Plotter, ScriptingApi::Content::ScriptedPlotter);
 		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::Panel, ScriptingApi::Content::ScriptPanel);
 		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::SliderPack, ScriptingApi::Content::ScriptSliderPack);
 		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::Table, ScriptingApi::Content::ScriptTable);
