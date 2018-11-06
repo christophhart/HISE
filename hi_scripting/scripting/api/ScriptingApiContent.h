@@ -1774,7 +1774,7 @@ public:
 	/** Returns the reference to the given component. */
 	var getComponent(var name);
 
-	/** Restore the widget from a JSON object. */
+	/** Restore the Component from a JSON object. */
 	void setPropertiesFromJSON(const Identifier &name, const var &jsonData);
 
 	/** sets the data for the value popups. */

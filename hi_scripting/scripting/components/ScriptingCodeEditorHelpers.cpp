@@ -233,24 +233,24 @@ public:
 
 				newLines.add(inlineDefinition);
 
-				const String newFirstLine = "\tlocal widget = " + componentType + "(name, x, y);";
+				const String newFirstLine = "\tlocal component = " + componentType + "(name, x, y);";
 
 				newLines.add(newFirstLine);
 
 				for (int i = 1; i < lines.size(); i++)
 				{
-					newLines.add("    " + lines[i].replace(componentId, "name").replace(componentName + ".", "widget."));
+					newLines.add("    " + lines[i].replace(componentId, "name").replace(componentName + ".", "component."));
 				}
 
-				newLines.add("    return widget;\n};\n");
+				newLines.add("    return component;\n};\n");
 
-				const String newWidgetDefinition = "const var " + componentName + " = " +
+				const String newComponentDefinition = "const var " + componentName + " = " +
 					functionName + "(" +
 					componentId + ", " +
 					componentX + ", " +
 					componentY + ");\n";
 
-				newLines.add(newWidgetDefinition);
+				newLines.add(newComponentDefinition);
 
 				return newLines.joinIntoString("\n");
 			}
@@ -262,7 +262,7 @@ public:
 	}
 
 
-	static const String createWidgetReference(const String selection)
+	static const String createScriptComponentReference(const String selection)
 	{
 		String regexString = "(\\s*)(const\\s+var |local )(\\w+)\\s*=\\s*(Content.add\\w+)\\(\\s*(\"\\w+\"),\\s*(\\d+),\\s*(\\d+)";
 

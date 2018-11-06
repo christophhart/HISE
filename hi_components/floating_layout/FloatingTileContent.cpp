@@ -516,7 +516,7 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 	ib.getContent(mainVertical)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::transparentBlack);
 	ib.getContent(codeEditor)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::transparentBlack);
 
-    const int widgetList = ib.addChild<ScriptComponentList::Panel>(interfaceDesigner);
+    const int componentList = ib.addChild<ScriptComponentList::Panel>(interfaceDesigner);
 
 	const int interfaceHorizontal = ib.addChild<HorizontalTile>(interfaceDesigner);
 
@@ -536,7 +536,7 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 
 	ib.setCustomName(interfaceDesigner, "Interface Designer");
 	ib.setCustomName(propertyEditor, "Property Editor");
-	ib.setCustomName(widgetList, "Widget List");
+	ib.setCustomName(componentList, "Component List");
     
     ib.setId(toggleBar, "ScriptingWorkspaceToggleBar");
     
@@ -560,7 +560,7 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 	ib.getContent<FloatingTileContent>(interfacePanel)->setStyleProperty("showConnectionBar", false);
 	ib.getContent<FloatingTileContent>(variableWatch)->setStyleProperty("showConnectionBar", false);
 	ib.getContent<FloatingTileContent>(variableWatch)->setStyleProperty("showConnectionBar", false);
-	ib.getContent<FloatingTileContent>(widgetList)->setStyleProperty("showConnectionBar", false);
+	ib.getContent<FloatingTileContent>(componentList)->setStyleProperty("showConnectionBar", false);
 	ib.getContent<FloatingTileContent>(propertyEditor)->setStyleProperty("showConnectionBar", false);
 
 	ib.getPanel(onInitPanel)->setFolded(true);

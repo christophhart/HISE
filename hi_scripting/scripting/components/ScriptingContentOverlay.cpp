@@ -39,7 +39,7 @@ ScriptEditHandler::ScriptEditHandler()
 
 }
 
-void ScriptEditHandler::createNewComponent(Widgets componentType, int x, int y)
+void ScriptEditHandler::createNewComponent(ComponentType componentType, int x, int y)
 {
 	if (getScriptEditHandlerContent() == nullptr)
 		return;
@@ -49,89 +49,89 @@ void ScriptEditHandler::createNewComponent(Widgets componentType, int x, int y)
 		return;
 	}
 
-	String widgetType;
+	String componentType;
 
 	switch (componentType)
 	{
-	case Widgets::Knob:				widgetType = "Knob"; break;
-	case Widgets::Button:			widgetType = "Button"; break;
-	case Widgets::Table:				widgetType = "Table"; break;
-	case Widgets::ComboBox:			widgetType = "ComboBox"; break;
-	case Widgets::Label:				widgetType = "Label"; break;
-	case Widgets::Image:				widgetType = "Image"; break;
-	case Widgets::Viewport:			widgetType = "Viewport"; break;
-	case Widgets::Plotter:			widgetType = "Plotter"; break;
-	case Widgets::ModulatorMeter:	widgetType = "ModulatorMeter"; break;
-	case Widgets::Panel:				widgetType = "Panel"; break;
-	case Widgets::AudioWaveform:		widgetType = "AudioWaveform"; break;
-	case Widgets::SliderPack:		widgetType = "SliderPack"; break;
-	case Widgets::FloatingTile:		widgetType = "FloatingTile"; break;
-	case Widgets::duplicateWidget:
+	case ComponentType::Knob:				componentType = "Knob"; break;
+	case ComponentType::Button:			componentType = "Button"; break;
+	case ComponentType::Table:				componentType = "Table"; break;
+	case ComponentType::ComboBox:			componentType = "ComboBox"; break;
+	case ComponentType::Label:				componentType = "Label"; break;
+	case ComponentType::Image:				componentType = "Image"; break;
+	case ComponentType::Viewport:			componentType = "Viewport"; break;
+	case ComponentType::Plotter:			componentType = "Plotter"; break;
+	case ComponentType::ModulatorMeter:	componentType = "ModulatorMeter"; break;
+	case ComponentType::Panel:				componentType = "Panel"; break;
+	case ComponentType::AudioWaveform:		componentType = "AudioWaveform"; break;
+	case ComponentType::SliderPack:		componentType = "SliderPack"; break;
+	case ComponentType::FloatingTile:		componentType = "FloatingTile"; break;
+	case ComponentType::duplicateComponent:
 	{
 		auto b = getScriptEditHandlerOverlay()->getScriptComponentEditBroadcaster();
 
 		auto sc = b->getFirstFromSelection();
 
-		widgetType = sc->getObjectName().toString();
-		widgetType = widgetType.replace("Scripted", "");
-		widgetType = widgetType.replace("Script", "");
-		widgetType = widgetType.replace("Slider", "Knob");
+		componentType = sc->getObjectName().toString();
+		componentType = componentType.replace("Scripted", "");
+		componentType = componentType.replace("Script", "");
+		componentType = componentType.replace("Slider", "Knob");
 		break;
 	}
-	case Widgets::numWidgets: break;
+	case ComponentType::numComponentTypes: break;
 	}
 
 	auto content = getScriptEditHandlerProcessor()->getContent();
 
-	Identifier id = ScriptingApi::Content::Helpers::getUniqueIdentifier(content, widgetType);
+	Identifier id = ScriptingApi::Content::Helpers::getUniqueIdentifier(content, componentType);
 
 	ScriptComponent::Ptr newComponent;
 
 	switch (componentType)
 	{
-	case hise::ScriptEditHandler::Widgets::Knob: 
+	case hise::ScriptEditHandler::ComponentType::Knob: 
 		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptSlider>(id, x, y);
 		break;
-	case hise::ScriptEditHandler::Widgets::Button:
+	case hise::ScriptEditHandler::ComponentType::Button:
 		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptButton>(id, x, y);
 		break;
-	case hise::ScriptEditHandler::Widgets::Table:
+	case hise::ScriptEditHandler::ComponentType::Table:
 		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptTable>(id, x, y);
 		break;
-	case hise::ScriptEditHandler::Widgets::ComboBox:
+	case hise::ScriptEditHandler::ComponentType::ComboBox:
 		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptComboBox>(id, x, y);
 		break;
-	case hise::ScriptEditHandler::Widgets::Label:
+	case hise::ScriptEditHandler::ComponentType::Label:
 		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptLabel>(id, x, y);
 		break;
-	case hise::ScriptEditHandler::Widgets::Image:
+	case hise::ScriptEditHandler::ComponentType::Image:
 		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptImage>(id, x, y);
 		break;
-	case hise::ScriptEditHandler::Widgets::Viewport:
+	case hise::ScriptEditHandler::ComponentType::Viewport:
 		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptedViewport>(id, x, y);
 		break;
-	case hise::ScriptEditHandler::Widgets::Plotter:
+	case hise::ScriptEditHandler::ComponentType::Plotter:
 		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptedPlotter>(id, x, y);
 		break;
-	case hise::ScriptEditHandler::Widgets::ModulatorMeter:
+	case hise::ScriptEditHandler::ComponentType::ModulatorMeter:
 		newComponent = content->createNewComponent<ScriptingApi::Content::ModulatorMeter>(id, x, y);
 		break;
-	case hise::ScriptEditHandler::Widgets::Panel:
+	case hise::ScriptEditHandler::ComponentType::Panel:
 		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptPanel>(id, x, y);
 		break;
-	case hise::ScriptEditHandler::Widgets::AudioWaveform:
+	case hise::ScriptEditHandler::ComponentType::AudioWaveform:
 		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptAudioWaveform>(id, x, y);
 		break;
-	case hise::ScriptEditHandler::Widgets::SliderPack:
+	case hise::ScriptEditHandler::ComponentType::SliderPack:
 		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptSliderPack>(id, x, y);
 		break;
-	case hise::ScriptEditHandler::Widgets::FloatingTile:
+	case hise::ScriptEditHandler::ComponentType::FloatingTile:
 		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptFloatingTile>(id, x, y);
 		break;
-	case hise::ScriptEditHandler::Widgets::duplicateWidget:
+	case hise::ScriptEditHandler::ComponentType::duplicateComponent:
 		jassertfalse;
 		break;
-	case hise::ScriptEditHandler::Widgets::numWidgets:
+	case hise::ScriptEditHandler::ComponentType::numComponentTypes:
 		jassertfalse;
 		break;
 	default:
@@ -142,72 +142,6 @@ void ScriptEditHandler::createNewComponent(Widgets componentType, int x, int y)
 
 	b->setSelection(content->getComponentWithName(id));
 
-#if 0
-	switch (componentType)
-	{
-	case Widgets::Knob:				widgetType = "Knob"; break;
-	case Widgets::Button:			widgetType = "Button"; break;
-	case Widgets::Table:				widgetType = "Table"; break;
-	case Widgets::ComboBox:			widgetType = "ComboBox"; break;
-	case Widgets::Label:				widgetType = "Label"; break;
-	case Widgets::Image:				widgetType = "Image"; break;
-	case Widgets::Viewport:			widgetType = "Viewport"; break;
-	case Widgets::Plotter:			widgetType = "Plotter"; break;
-	case Widgets::ModulatorMeter:	widgetType = "ModulatorMeter"; break;
-	case Widgets::Panel:				widgetType = "Panel"; break;
-	case Widgets::AudioWaveform:		widgetType = "AudioWaveform"; break;
-	case Widgets::SliderPack:		widgetType = "SliderPack"; break;
-	case Widgets::FloatingTile:		widgetType = "FloatingTile"; break;
-	case Widgets::duplicateWidget:
-	{
-		widgetType = getScriptEditHandlerContent()->getEditedComponent()->getObjectName().toString();
-		widgetType = widgetType.replace("Scripted", "");
-		widgetType = widgetType.replace("Script", "");
-		widgetType = widgetType.replace("Slider", "Knob");
-		break;
-	}
-	case Widgets::numWidgets: break;
-	}
-
-	String id = PresetHandler::getCustomName(widgetType);
-
-	String errorMessage = isValidWidgetName(id);
-
-	while (errorMessage.isNotEmpty() && PresetHandler::showYesNoWindow("Wrong variable name", errorMessage + "\nPress 'OK' to re-enter a valid variable name or 'Cancel' to abort", PresetHandler::IconType::Warning))
-	{
-		id = PresetHandler::getCustomName(widgetType);
-		errorMessage = isValidWidgetName(id);
-	}
-
-	errorMessage = isValidWidgetName(id);
-
-	if (errorMessage.isNotEmpty()) return;
-
-	String textToInsert;
-
-	textToInsert << "\nconst var " << id << " = Content.add" << widgetType << "(\"" << id << "\", " << x << ", " << y << ");\n";
-
-	if (componentType == Widgets::duplicateWidget)
-	{
-		const int xOfOriginal = getScriptEditHandlerContent()->getEditedComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::x);
-		const int yOfOriginal = getScriptEditHandlerContent()->getEditedComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::y);
-
-		const String originalId = getScriptEditHandlerContent()->getEditedComponent()->getName().toString();
-
-		if (getScriptEditHandlerEditor()->componentIsDefinedWithFactoryMethod(originalId))
-		{
-			textToInsert = getScriptEditHandlerEditor()->createNewDefinitionWithFactoryMethod(originalId, id, x, y);
-		}
-	}
-
-	auto onInit = getScriptEditHandlerProcessor()->getSnippet("onInit");
-
-	CodeDocument::Position end(*onInit, onInit->getNumCharacters());
-
-	onInit->insertText(end, textToInsert);
-
-	compileScript();
-#endif
 }
 
 void ScriptEditHandler::toggleComponentSelectMode(bool shouldSelectOnClick)
@@ -227,7 +161,7 @@ void ScriptEditHandler::compileScript()
 }
 
 
-String ScriptEditHandler::isValidWidgetName(const String &id)
+String ScriptEditHandler::isValidComponentName(const String &id)
 {
 	if (id.isEmpty()) return "Identifier must not be empty";
 
@@ -545,20 +479,20 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 			
 			m.setLookAndFeel(luf);
 
-			m.addSectionHeader("Create new widget");
-			m.addItem((int)ScriptEditHandler::Widgets::Knob, "Add new Slider");
-			m.addItem((int)ScriptEditHandler::Widgets::Button, "Add new Button");
-			m.addItem((int)ScriptEditHandler::Widgets::Table, "Add new Table");
-			m.addItem((int)ScriptEditHandler::Widgets::ComboBox, "Add new ComboBox");
-			m.addItem((int)ScriptEditHandler::Widgets::Label, "Add new Label");
-			m.addItem((int)ScriptEditHandler::Widgets::Image, "Add new Image");
-			m.addItem((int)ScriptEditHandler::Widgets::Viewport, "Add new Viewport");
-			m.addItem((int)ScriptEditHandler::Widgets::Plotter, "Add new Plotter");
-			m.addItem((int)ScriptEditHandler::Widgets::ModulatorMeter, "Add new ModulatorMeter");
-			m.addItem((int)ScriptEditHandler::Widgets::Panel, "Add new Panel");
-			m.addItem((int)ScriptEditHandler::Widgets::AudioWaveform, "Add new AudioWaveform");
-			m.addItem((int)ScriptEditHandler::Widgets::SliderPack, "Add new SliderPack");
-			m.addItem((int)ScriptEditHandler::Widgets::FloatingTile, "Add new FloatingTile");
+			m.addSectionHeader("Create new Component");
+			m.addItem((int)ScriptEditHandler::ComponentType::Knob, "Add new Slider");
+			m.addItem((int)ScriptEditHandler::ComponentType::Button, "Add new Button");
+			m.addItem((int)ScriptEditHandler::ComponentType::Table, "Add new Table");
+			m.addItem((int)ScriptEditHandler::ComponentType::ComboBox, "Add new ComboBox");
+			m.addItem((int)ScriptEditHandler::ComponentType::Label, "Add new Label");
+			m.addItem((int)ScriptEditHandler::ComponentType::Image, "Add new Image");
+			m.addItem((int)ScriptEditHandler::ComponentType::Viewport, "Add new Viewport");
+			m.addItem((int)ScriptEditHandler::ComponentType::Plotter, "Add new Plotter");
+			m.addItem((int)ScriptEditHandler::ComponentType::ModulatorMeter, "Add new ModulatorMeter");
+			m.addItem((int)ScriptEditHandler::ComponentType::Panel, "Add new Panel");
+			m.addItem((int)ScriptEditHandler::ComponentType::AudioWaveform, "Add new AudioWaveform");
+			m.addItem((int)ScriptEditHandler::ComponentType::SliderPack, "Add new SliderPack");
+			m.addItem((int)ScriptEditHandler::ComponentType::FloatingTile, "Add new FloatingTile");
 
 			auto components = b->getSelection();
 
@@ -611,12 +545,12 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 
 				SystemClipboard::copyTextToClipboard(code);
 			}
-			else if (result >= (int)ScriptEditHandler::Widgets::Knob && result < (int)ScriptEditHandler::Widgets::numWidgets)
+			else if (result >= (int)ScriptEditHandler::ComponentType::Knob && result < (int)ScriptEditHandler::ComponentType::numComponentTypes)
 			{
 				const int insertX = e.getEventRelativeTo(content).getMouseDownPosition().getX();
 				const int insertY = e.getEventRelativeTo(content).getMouseDownPosition().getY();
 
-				handler->createNewComponent((ScriptEditHandler::Widgets)result, insertX, insertY);
+				handler->createNewComponent((ScriptEditHandler::ComponentType)result, insertX, insertY);
 			}
 			else if (result == showCallback)
 			{

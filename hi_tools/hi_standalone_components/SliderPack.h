@@ -35,7 +35,7 @@
 
 namespace hise { using namespace juce;
 
-/** The data model for a SliderPack widget. */
+/** The data model for a SliderPack component. */
 class SliderPackData: public SafeChangeBroadcaster
 {
 public:
@@ -202,7 +202,7 @@ private:
 };
 
 
-/** A widget which contains multiple Sliders which support dragging & bipolar display. 
+/** A Component which contains multiple Sliders which support dragging & bipolar display. 
 	@ingroup hise_ui
 	
 	This class is driven by the SliderPackData class, which acts as data container.

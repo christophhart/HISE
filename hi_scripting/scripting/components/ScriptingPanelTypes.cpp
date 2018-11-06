@@ -479,10 +479,10 @@ ML("At the top of the canvas you'll find a toolbar that contains a few important
 
 ML("| Icon | Function | Shortcut | Description |");
 ML("| -- | ------ | ---- | ------------------- |");
-ML("| ![](Edit) | **Toggle Edit / Play mode** | `F4` | Toggles the canvas between play mode(where you can actually use the widgets) and edit mode where you can edit them and drag them around. |");
+ML("| ![](Edit) | **Toggle Edit / Play mode** | `F4` | Toggles the canvas between play mode(where you can actually use the Components) and edit mode where you can edit them and drag them around. |");
 ML("| ![](Cancel) | **Deselect current item** | `Escape` | Deselects all items |");
 ML("| - | **Zoom selector** | `Cmd + / Cmd -` | Change the zoom amount from 50 % to 200 % .|");
-ML("| ![](Undo) | **Undo** | `Cmd + Z` | Undo the last property change.This is using the global undo manager, so it also undoes drag operations in the Widget List or property changes in the Property Editor. |");
+ML("| ![](Undo) | **Undo** | `Cmd + Z` | Undo the last property change.This is using the global undo manager, so it also undoes drag operations in the Component List or property changes in the Property Editor. |");
 ML("| ![](Redo) | **Redo** | `Cmd + Y` | Same as undo says Captain Obvious. |");
 ML("| ![](Rebuild) | **Rebuild Interface** | `F5` | Refreshes the UI model. |");
 ML("| ![](Vertical Align) | **Vertical Align** | `` | Align the selection vertically on the left edge. |");
@@ -533,10 +533,10 @@ ScriptContentPanel::Editor::Editor(Processor* p):
 	zoomSelector->setSelectedId(3, dontSendNotification);
 	zoomSelector->setLookAndFeel(&klaf);
 
-	zoomSelector->setColour(HiseColourScheme::WidgetFillTopColourId, Colours::black.withAlpha(0.4f));
-	zoomSelector->setColour(HiseColourScheme::WidgetFillBottomColourId, Colours::black.withAlpha(0.4f));
-	zoomSelector->setColour(HiseColourScheme::WidgetOutlineColourId, Colours::transparentBlack);
-	zoomSelector->setColour(HiseColourScheme::WidgetTextColourId, Colours::white.withAlpha(0.8f));
+	zoomSelector->setColour(HiseColourScheme::ComponentFillTopColourId, Colours::black.withAlpha(0.4f));
+	zoomSelector->setColour(HiseColourScheme::ComponentFillBottomColourId, Colours::black.withAlpha(0.4f));
+	zoomSelector->setColour(HiseColourScheme::ComponentOutlineColourId, Colours::transparentBlack);
+	zoomSelector->setColour(HiseColourScheme::ComponentTextColourId, Colours::white.withAlpha(0.8f));
 
 	Factory f;
 

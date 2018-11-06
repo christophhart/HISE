@@ -625,7 +625,7 @@ private:
 };
 
 
-/** A UI widget that handles the user preset organisation. 
+/** A UI Component that handles the user preset organisation. 
 	@ingroup hise_ui
 	
 	This is a configurable browser for the file-based user preset system in HISE. It features:

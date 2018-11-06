@@ -182,11 +182,11 @@ struct HiseColourScheme
 		ModulatorSynthBackgroundColourId,
 		DebugAreaBackgroundColourId,
 		ModulatorSynthHeader,
-		WidgetBackgroundColour = 0xFF123532,
-		WidgetFillTopColourId,
-		WidgetFillBottomColourId,
-		WidgetOutlineColourId,
-		WidgetTextColourId,
+		ComponentBackgroundColour = 0xFF123532,
+		ComponentFillTopColourId,
+		ComponentFillBottomColourId,
+		ComponentOutlineColourId,
+		ComponentTextColourId,
 		numColourIds
 	};
 

@@ -1691,10 +1691,10 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 					{
 						p->getChildComponent(0)->setLookAndFeel(&klaf);
 
-						p->getChildComponent(0)->setColour(HiseColourScheme::WidgetFillTopColourId, Colour(0x66333333));
-						p->getChildComponent(0)->setColour(HiseColourScheme::WidgetFillBottomColourId, Colour(0xfb111111));
-						p->getChildComponent(0)->setColour(HiseColourScheme::WidgetOutlineColourId, Colours::white.withAlpha(0.3f));
-						p->getChildComponent(0)->setColour(HiseColourScheme::WidgetTextColourId, Colours::white);
+						p->getChildComponent(0)->setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
+						p->getChildComponent(0)->setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
+						p->getChildComponent(0)->setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
+						p->getChildComponent(0)->setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
 
 					}
 				}

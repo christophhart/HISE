@@ -65,7 +65,7 @@ FilterEditor::FilterEditor (ProcessorEditor *p)
     modeSelector->setJustificationType (Justification::centredLeft);
     modeSelector->setTextWhenNothingSelected (TRANS("Filter mode"));
     modeSelector->setTextWhenNoChoicesAvailable (TRANS("(no choices)"));
-    modeSelector->setColour(HiseColourScheme::WidgetTextColourId, Colours::white);
+    modeSelector->setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
 	modeSelector->addItem(TRANS("1 Pole LP"), FilterBank::FilterMode::OnePoleLowPass + 1);
 	modeSelector->addItem(TRANS("1 Pole HP"), FilterBank::FilterMode::OnePoleHighPass + 1);
 	modeSelector->addItem(TRANS("SVF LP"), FilterBank::FilterMode::StateVariableLP + 1);

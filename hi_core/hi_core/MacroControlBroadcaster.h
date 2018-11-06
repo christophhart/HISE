@@ -330,7 +330,7 @@ public:
 	*	@param processorId the unique id of the processor. If the ID is not unique, then the first processor is used, which can have undesired effects,
 	*			           so make sure, you rename the processor before mapping a controller!
 	*	@param parameterId the parameter id (use the SpecialParameters enum from the Processor)
-	*	@param parameterName the name of the control. This is supplied by the name of the widget component, but it can be useful for eg. scripted controls.
+	*	@param parameterName the name of the control. This is supplied by the name of the component, but it can be useful for eg. scripted controls.
 	*	@param range the total range of the parameter.
 	*	@param readOnly if the knob can be changed when assigned. 
 	*/

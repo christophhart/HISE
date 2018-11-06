@@ -72,7 +72,7 @@ END_JUCE_MODULE_DECLARATION
 /** @defgroup hise_ui HISE Components
 *	@ingroup ui
 *
-*	All HISE UI widgets that can be used in compiled plugins.
+*	All HISE UI Components that can be used in compiled plugins.
 */
 
 

@@ -241,7 +241,7 @@ void ScriptComponentEditPanel::fillPanel()
 	}
 }
 
-void ScriptComponentEditPanel::rebuildWidgets()
+void ScriptComponentEditPanel::rebuildScriptedComponents()
 {
 	auto sc = getScriptComponentEditBroadcaster()->getFirstFromSelection();
 

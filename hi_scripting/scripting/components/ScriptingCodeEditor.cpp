@@ -255,9 +255,9 @@ void JavascriptCodeEditor::createMissingCaseStatementsForComponents()
 
 			for (int i = content->getNumComponents()-1; i >= 0 ; i--)
 			{
-				const String widgetName = content->getComponent(i)->getName().toString();
+				const String componentName = content->getComponent(i)->getName().toString();
 
-                const String reg = "case " + widgetName;
+                const String reg = "case " + componentName;
 
                 const bool hasCaseStatement = allText.contains(reg);
 
@@ -265,7 +265,7 @@ void JavascriptCodeEditor::createMissingCaseStatementsForComponents()
 				{
 					moveCaretTo(insertPos, false);
 
-					String newCaseStatement = "\n\t\tcase " + widgetName + ":\n\t\t{\n";
+					String newCaseStatement = "\n\t\tcase " + componentName + ":\n\t\t{\n";
                     newCaseStatement << "\t\t\t// Insert logic here...\n\t\t\tbreak;\n\t\t}";
 
 					insertTextAtCaret(newCaseStatement);
@@ -372,7 +372,7 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &menu, const MouseEvent *
 		const bool isUIDefinitionSelected = selection.startsWith("const var");
 
 		menu.addItem(ContextActions::CreateUiFactoryMethod, "Create UI factory method from selection", isUIDefinitionSelected);
-		menu.addItem(ContextActions::ReplaceConstructorWithReference, "Replace addWidget with Content.getComponent()");
+		menu.addItem(ContextActions::ReplaceConstructorWithReference, "Replace addComponent with Content.getComponent()");
         menu.addSeparator();
         menu.addSectionHeader("Import / Export");
         menu.addItem(ContextActions::SaveScriptFile, "Save Script To File");
@@ -436,7 +436,7 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 	case JavascriptCodeEditor::ReplaceConstructorWithReference:
 	{
 		const String selection = getTextInRange(getHighlightedRegion()).trimEnd().trimStart();
-		const String newText = CodeReplacer::createWidgetReference(selection);
+		const String newText = CodeReplacer::createScriptComponentReference(selection);
 
 		insertTextAtCaret(newText);
 	}

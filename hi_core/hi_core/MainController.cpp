@@ -769,10 +769,10 @@ void MainController::skin(Component &c)
 {
     c.setLookAndFeel(mainLookAndFeel);
     
-    c.setColour(HiseColourScheme::WidgetFillTopColourId, Colour(0x66333333));
-    c.setColour(HiseColourScheme::WidgetFillBottomColourId, Colour(0xfb111111));
-    c.setColour(HiseColourScheme::WidgetOutlineColourId, Colours::white.withAlpha(0.3f));
-	c.setColour(HiseColourScheme::WidgetTextColourId, Colours::white);
+    c.setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
+    c.setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
+    c.setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
+	c.setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
 
 
 #if 0

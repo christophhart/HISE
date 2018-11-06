@@ -310,7 +310,7 @@ public:
 		*
 		*	If you want to supply parameters, supply a whitespace separated list as last argument:
 		*
-		*	SnippetDocument doc("onControl", "widget value"); // 2 parameters, 'widget' and 'value'.
+		*	SnippetDocument doc("onControl", "component value"); // 2 parameters, 'component' and 'value'.
 		*/
 		SnippetDocument(const Identifier &callbackName_, const String &parameters=String());
 

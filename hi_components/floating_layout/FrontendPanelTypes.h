@@ -435,7 +435,7 @@ private:
 
 /** Type-ID: `TooltipPanel`
 *
-*	Shows a descriptive text whenever the mouse hovers over a widget with a tooltip.
+*	Shows a descriptive text whenever the mouse hovers over a Component with a tooltip.
 *
 *	Use `Control.set("tooltip", "This is the tooltip text")` for each control that you want a tooltip for.
 *	Then add this panel and it will automatically show and hide the tooltip.

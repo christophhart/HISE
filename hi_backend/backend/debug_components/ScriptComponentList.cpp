@@ -361,7 +361,7 @@ void ScriptComponentListItem::updateSelection(ScriptComponentSelection newSelect
 	}
 }
 
-#define ADD_WIDGET(widgetIndex, widgetClass) case (int)widgetIndex: ScriptingApi::Content::Helpers::createNewComponentData(content, pTree, widgetClass::getStaticObjectName().toString(), ScriptingApi::Content::Helpers::getUniqueIdentifier(content, widgetClass::getStaticObjectName().toString()).toString()); break;
+#define ADD_SCRIPT_COMPONENT(cIndex, cClass) case (int)cIndex: ScriptingApi::Content::Helpers::createNewComponentData(content, pTree, cClass::getStaticObjectName().toString(), ScriptingApi::Content::Helpers::getUniqueIdentifier(content, cClass::getStaticObjectName().toString()).toString()); break;
 
 ScriptComponentList::ScriptComponentList(ScriptingApi::Content* c) :
 	ScriptComponentEditListener(dynamic_cast<Processor*>(c->getScriptProcessor())),
@@ -511,20 +511,20 @@ void ScriptComponentList::mouseUp(const MouseEvent& event)
 		{
 			pTree = static_cast<ScriptComponentListItem*>(tree->getSelectedItem(0))->tree;
 
-			m.addSectionHeader("Add new widget");
-			m.addItem((int)ScriptEditHandler::Widgets::Knob, "Add new Slider");
-			m.addItem((int)ScriptEditHandler::Widgets::Button, "Add new Button");
-			m.addItem((int)ScriptEditHandler::Widgets::Table, "Add new Table");
-			m.addItem((int)ScriptEditHandler::Widgets::ComboBox, "Add new ComboBox");
-			m.addItem((int)ScriptEditHandler::Widgets::Label, "Add new Label");
-			m.addItem((int)ScriptEditHandler::Widgets::Image, "Add new Image");
-			m.addItem((int)ScriptEditHandler::Widgets::Viewport, "Add new Viewport");
-			m.addItem((int)ScriptEditHandler::Widgets::Plotter, "Add new Plotter");
-			m.addItem((int)ScriptEditHandler::Widgets::ModulatorMeter, "Add new ModulatorMeter");
-			m.addItem((int)ScriptEditHandler::Widgets::Panel, "Add new Panel");
-			m.addItem((int)ScriptEditHandler::Widgets::AudioWaveform, "Add new AudioWaveform");
-			m.addItem((int)ScriptEditHandler::Widgets::SliderPack, "Add new SliderPack");
-			m.addItem((int)ScriptEditHandler::Widgets::FloatingTile, "Add new FloatingTile");
+			m.addSectionHeader("Add new Component");
+			m.addItem((int)ScriptEditHandler::ComponentType::Knob, "Add new Slider");
+			m.addItem((int)ScriptEditHandler::ComponentType::Button, "Add new Button");
+			m.addItem((int)ScriptEditHandler::ComponentType::Table, "Add new Table");
+			m.addItem((int)ScriptEditHandler::ComponentType::ComboBox, "Add new ComboBox");
+			m.addItem((int)ScriptEditHandler::ComponentType::Label, "Add new Label");
+			m.addItem((int)ScriptEditHandler::ComponentType::Image, "Add new Image");
+			m.addItem((int)ScriptEditHandler::ComponentType::Viewport, "Add new Viewport");
+			m.addItem((int)ScriptEditHandler::ComponentType::Plotter, "Add new Plotter");
+			m.addItem((int)ScriptEditHandler::ComponentType::ModulatorMeter, "Add new ModulatorMeter");
+			m.addItem((int)ScriptEditHandler::ComponentType::Panel, "Add new Panel");
+			m.addItem((int)ScriptEditHandler::ComponentType::AudioWaveform, "Add new AudioWaveform");
+			m.addItem((int)ScriptEditHandler::ComponentType::SliderPack, "Add new SliderPack");
+			m.addItem((int)ScriptEditHandler::ComponentType::FloatingTile, "Add new FloatingTile");
 		}
 		
 
@@ -626,19 +626,19 @@ void ScriptComponentList::mouseUp(const MouseEvent& event)
 			break;
 		}
 
-		ADD_WIDGET(ScriptEditHandler::Widgets::Knob, ScriptingApi::Content::ScriptSlider);
-		ADD_WIDGET(ScriptEditHandler::Widgets::Button, ScriptingApi::Content::ScriptButton);
-		ADD_WIDGET(ScriptEditHandler::Widgets::Label, ScriptingApi::Content::ScriptLabel);
-		ADD_WIDGET(ScriptEditHandler::Widgets::AudioWaveform, ScriptingApi::Content::ScriptAudioWaveform);
-		ADD_WIDGET(ScriptEditHandler::Widgets::ComboBox, ScriptingApi::Content::ScriptComboBox);
-		ADD_WIDGET(ScriptEditHandler::Widgets::FloatingTile, ScriptingApi::Content::ScriptFloatingTile);
-		ADD_WIDGET(ScriptEditHandler::Widgets::Image, ScriptingApi::Content::ScriptImage);
-		ADD_WIDGET(ScriptEditHandler::Widgets::ModulatorMeter, ScriptingApi::Content::ModulatorMeter);
-		ADD_WIDGET(ScriptEditHandler::Widgets::Plotter, ScriptingApi::Content::ScriptedPlotter);
-		ADD_WIDGET(ScriptEditHandler::Widgets::Panel, ScriptingApi::Content::ScriptPanel);
-		ADD_WIDGET(ScriptEditHandler::Widgets::SliderPack, ScriptingApi::Content::ScriptSliderPack);
-		ADD_WIDGET(ScriptEditHandler::Widgets::Table, ScriptingApi::Content::ScriptTable);
-		ADD_WIDGET(ScriptEditHandler::Widgets::Viewport, ScriptingApi::Content::ScriptedViewport);
+		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::Knob, ScriptingApi::Content::ScriptSlider);
+		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::Button, ScriptingApi::Content::ScriptButton);
+		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::Label, ScriptingApi::Content::ScriptLabel);
+		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::AudioWaveform, ScriptingApi::Content::ScriptAudioWaveform);
+		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::ComboBox, ScriptingApi::Content::ScriptComboBox);
+		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::FloatingTile, ScriptingApi::Content::ScriptFloatingTile);
+		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::Image, ScriptingApi::Content::ScriptImage);
+		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::ModulatorMeter, ScriptingApi::Content::ModulatorMeter);
+		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::Plotter, ScriptingApi::Content::ScriptedPlotter);
+		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::Panel, ScriptingApi::Content::ScriptPanel);
+		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::SliderPack, ScriptingApi::Content::ScriptSliderPack);
+		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::Table, ScriptingApi::Content::ScriptTable);
+		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::Viewport, ScriptingApi::Content::ScriptedViewport);
 		default:
 			break;
 		}
@@ -702,7 +702,7 @@ void ScriptComponentList::resized()
 	tree->setBounds(r.reduced(3));
 }
 
-#undef ADD_WIDGET
+#undef ADD_SCRIPT_COMPONENT
 
 bool ScriptComponentList::keyPressed(const KeyPress& key)
 {

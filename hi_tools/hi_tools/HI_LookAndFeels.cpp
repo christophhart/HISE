@@ -189,10 +189,10 @@ void VUSliderLookAndFeel::drawLinearSlider(Graphics &g,
 
 void KnobLookAndFeel::drawHiBackground(Graphics &g, int x, int y, int width, int height, Component *c, bool isMouseOverButton)
 {
-    Colour upperBgColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::WidgetFillTopColourId) :
+    Colour upperBgColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::ComponentFillTopColourId) :
                                             Colour(0x66333333);
     
-    Colour lowerBgColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::WidgetFillBottomColourId) :
+    Colour lowerBgColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::ComponentFillBottomColourId) :
                                             Colour(0xfb111111);
     
     g.setGradientFill(ColourGradient(upperBgColour.withMultipliedBrightness(isMouseOverButton ? 1.6f : 1.1f),
@@ -203,7 +203,7 @@ void KnobLookAndFeel::drawHiBackground(Graphics &g, int x, int y, int width, int
     
     g.fillRect ((float)x, (float)y, (float)width, (float)height);
     
-    Colour outlineColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::WidgetOutlineColourId) :
+    Colour outlineColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::ComponentOutlineColourId) :
     Colours::white.withAlpha(0.3f);
     
     g.setColour (outlineColour);
@@ -216,7 +216,7 @@ void KnobLookAndFeel::drawHiBackground(Graphics &g, int x, int y, int width, int
 
 void KnobLookAndFeel::drawComboBox(Graphics &g, int width, int height, bool isButtonDown, int /*buttonX*/, int /*buttonY*/, int /*buttonW*/, int /*buttonH*/, ComboBox &c)
 {
-    c.setColour(ComboBox::ColourIds::textColourId, c.findColour(HiseColourScheme::ColourIds::WidgetTextColourId));
+    c.setColour(ComboBox::ColourIds::textColourId, c.findColour(HiseColourScheme::ColourIds::ComponentTextColourId));
 
 	drawHiBackground(g, 0, 0, width, height - 2, dynamic_cast<ComboBox*>(&c), isButtonDown);
 
@@ -227,7 +227,7 @@ void KnobLookAndFeel::drawComboBox(Graphics &g, int width, int height, bool isBu
 
 	path.scaleToFit((float)width - 20.0f, (float)(height - 12) * 0.5f, 12.0f, 12.0f, true);
 
-	g.setColour(c.findColour(HiseColourScheme::ColourIds::WidgetTextColourId));
+	g.setColour(c.findColour(HiseColourScheme::ColourIds::ComponentTextColourId));
 	g.fillPath(path);
 }
 

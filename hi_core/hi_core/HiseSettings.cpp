@@ -333,7 +333,7 @@ struct SettingDescription
 		P_();
 
 		P(HiseSettings::Scripting::GlobalScriptPath);
-		D("There is a folder that can be used to store global script files like additional API functions or generic UI widget definitions.");
+		D("There is a folder that can be used to store global script files like additional API functions or generic UI Component definitions.");
 		D("By default, this folder is stored in the application data folder, but you can choose to redirect it to another location, which may be useful if you want to put it under source control.");
 		D("You can include scripts that are stored in this location by using the `{GLOBAL_SCRIPT_FOLDER}` wildcard:");
 		D("```javascript");

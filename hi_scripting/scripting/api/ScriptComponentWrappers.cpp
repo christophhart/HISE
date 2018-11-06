@@ -216,9 +216,9 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateColours(HiSlider * s)
 	s->setColour(Slider::thumbColourId, GET_OBJECT_COLOUR(itemColour));
 	s->setColour(Slider::trackColourId, GET_OBJECT_COLOUR(itemColour2));
 
-	s->setColour(HiseColourScheme::WidgetOutlineColourId, GET_OBJECT_COLOUR(bgColour));
-	s->setColour(HiseColourScheme::WidgetFillTopColourId, GET_OBJECT_COLOUR(itemColour));
-	s->setColour(HiseColourScheme::WidgetFillBottomColourId, GET_OBJECT_COLOUR(itemColour2));
+	s->setColour(HiseColourScheme::ComponentOutlineColourId, GET_OBJECT_COLOUR(bgColour));
+	s->setColour(HiseColourScheme::ComponentFillTopColourId, GET_OBJECT_COLOUR(itemColour));
+	s->setColour(HiseColourScheme::ComponentFillBottomColourId, GET_OBJECT_COLOUR(itemColour2));
 
 	s->setColour(Slider::textBoxTextColourId, GET_OBJECT_COLOUR(textColour));
 }
@@ -422,7 +422,7 @@ void ScriptCreatedComponentWrappers::SliderWrapper::sliderValueChanged(Slider *s
 	}
 	else
 	{
-		/*changed(s->getValue());*/ // setInternalAttribute handles this for HiWidgets.
+		/*changed(s->getValue());*/ // setInternalAttribute handles this for .
 	}
 }
 
@@ -673,10 +673,10 @@ void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateItems(HiComboBox * c
 
 void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateColours(HiComboBox * cb)
 {
-	cb->setColour(HiseColourScheme::WidgetOutlineColourId, GET_OBJECT_COLOUR(bgColour));
-	cb->setColour(HiseColourScheme::WidgetFillTopColourId, GET_OBJECT_COLOUR(itemColour));
-	cb->setColour(HiseColourScheme::WidgetFillBottomColourId, GET_OBJECT_COLOUR(itemColour2));
-	cb->setColour(HiseColourScheme::WidgetTextColourId, GET_OBJECT_COLOUR(textColour));
+	cb->setColour(HiseColourScheme::ComponentOutlineColourId, GET_OBJECT_COLOUR(bgColour));
+	cb->setColour(HiseColourScheme::ComponentFillTopColourId, GET_OBJECT_COLOUR(itemColour));
+	cb->setColour(HiseColourScheme::ComponentFillBottomColourId, GET_OBJECT_COLOUR(itemColour2));
+	cb->setColour(HiseColourScheme::ComponentTextColourId, GET_OBJECT_COLOUR(textColour));
 }
 
 void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateValue(var newValue)
@@ -783,9 +783,9 @@ void ScriptCreatedComponentWrappers::ButtonWrapper::updateComponent(int property
 
 void ScriptCreatedComponentWrappers::ButtonWrapper::updateColours(HiToggleButton * b)
 {
-	b->setColour(HiseColourScheme::WidgetOutlineColourId, GET_OBJECT_COLOUR(bgColour));
-	b->setColour(HiseColourScheme::WidgetFillTopColourId, GET_OBJECT_COLOUR(itemColour));
-	b->setColour(HiseColourScheme::WidgetFillBottomColourId, GET_OBJECT_COLOUR(itemColour2));
+	b->setColour(HiseColourScheme::ComponentOutlineColourId, GET_OBJECT_COLOUR(bgColour));
+	b->setColour(HiseColourScheme::ComponentFillTopColourId, GET_OBJECT_COLOUR(itemColour));
+	b->setColour(HiseColourScheme::ComponentFillBottomColourId, GET_OBJECT_COLOUR(itemColour2));
 }
 
 void ScriptCreatedComponentWrappers::ButtonWrapper::updateValue(var newValue)

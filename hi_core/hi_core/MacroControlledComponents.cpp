@@ -381,9 +381,9 @@ HiSlider::HiSlider(const String &name) :
 	addListener(this);
 	setWantsKeyboardFocus(false);
 
-	setColour(HiseColourScheme::WidgetFillTopColourId, Colour(0x66333333));
-	setColour(HiseColourScheme::WidgetFillBottomColourId, Colour(0xfb111111));
-	setColour(HiseColourScheme::WidgetOutlineColourId, Colours::white.withAlpha(0.3f));
+	setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
+	setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
+	setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
 	setColour(TextEditor::highlightColourId, Colour(SIGNAL_COLOUR).withAlpha(0.5f));
 	setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
 }

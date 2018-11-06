@@ -40,18 +40,18 @@ PanelWithProcessorConnection::PanelWithProcessorConnection(FloatingTile* parent)
 	connectionSelector->addListener(this);
 	getMainSynthChain()->getMainController()->skin(*connectionSelector);
 
-	connectionSelector->setColour(HiseColourScheme::WidgetFillTopColourId, Colours::transparentBlack);
-	connectionSelector->setColour(HiseColourScheme::WidgetFillBottomColourId, Colours::transparentBlack);
-	connectionSelector->setColour(HiseColourScheme::WidgetOutlineColourId, Colours::transparentBlack);
+	connectionSelector->setColour(HiseColourScheme::ComponentFillTopColourId, Colours::transparentBlack);
+	connectionSelector->setColour(HiseColourScheme::ComponentFillBottomColourId, Colours::transparentBlack);
+	connectionSelector->setColour(HiseColourScheme::ComponentOutlineColourId, Colours::transparentBlack);
 	connectionSelector->setTextWhenNothingSelected("Disconnected");
 
 	addAndMakeVisible(indexSelector = new ComboBox());
 	indexSelector->addListener(this);
 	getMainSynthChain()->getMainController()->skin(*indexSelector);
 
-	indexSelector->setColour(HiseColourScheme::WidgetFillTopColourId, Colours::transparentBlack);
-	indexSelector->setColour(HiseColourScheme::WidgetFillBottomColourId, Colours::transparentBlack);
-	indexSelector->setColour(HiseColourScheme::WidgetOutlineColourId, Colours::transparentBlack);
+	indexSelector->setColour(HiseColourScheme::ComponentFillTopColourId, Colours::transparentBlack);
+	indexSelector->setColour(HiseColourScheme::ComponentFillBottomColourId, Colours::transparentBlack);
+	indexSelector->setColour(HiseColourScheme::ComponentOutlineColourId, Colours::transparentBlack);
 	indexSelector->setTextWhenNothingSelected("Disconnected");
 
 	BACKEND_ONLY(getMainController()->getProcessorChangeHandler().addProcessorChangeListener(this);)

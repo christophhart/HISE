@@ -177,7 +177,7 @@ private:
 
 	void fillPanel();
 
-	void rebuildWidgets();
+	void rebuildScriptedComponents();
 
 	void addSectionToPanel(const Array<Identifier> &idsToAdd, const String &sectionName);
 

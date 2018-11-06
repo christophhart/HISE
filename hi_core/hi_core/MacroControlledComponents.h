@@ -129,7 +129,7 @@ private:
 };
 
 
-/** A base class for all control widgets that can be controlled by a MacroControlBroadcaster.
+/** A base class for all control Components that can be controlled by a MacroControlBroadcaster.
 *	@ingroup macroControl
 *
 *	Subclass your component from this class, and set the Processor's Attribute in its specified callback.
@@ -191,12 +191,12 @@ public:
 
 	void setUseUndoManagerForEvents(bool shouldUseUndo) { useUndoManagerForEvents = shouldUseUndo; }
 
-	/** Initializes the control widget.
+	/** Initializes the control element.
 	*
 	*	It connects to a Processor's parameter and automatically updates its value and changes the attribute. 
-	*	@param p the Processor that is controlled by the widget.
-	*	@param parameter_ the parameter that is controlled by the widget
-	*	@param name_ the name of the widget. This will also be the displayed name in the macro control panel.
+	*	@param p the Processor that is controlled by the element.
+	*	@param parameter_ the parameter that is controlled by the element
+	*	@param name_ the name of the element. This will also be the displayed name in the macro control panel.
 	*/
 	virtual void setup(Processor *p, int parameter_, const String &name_)
 	{
@@ -217,7 +217,7 @@ public:
 		macroIndex = -1;	
 	}
 
-	/** overwrite this method and update the widget to display the current value of the controlled attribute. */
+	/** overwrite this method and update the element to display the current value of the controlled attribute. */
 	virtual void updateValue(NotificationType sendAttributeChange = sendNotification) = 0;
 
 	/** overwrite this method and return the range that the parameter can have. */
@@ -242,7 +242,7 @@ protected:
 	/** checks if the macro learn mode is active.
 	*
 	*	If it is active, it adds this control to the macro and returns true.
-	*	You can use this in the widget callback like:
+	*	You can use this in the element's callback like:
 	*
 	*		if(!checkLearnMode())
 	*		{
@@ -297,10 +297,10 @@ public:
 
         setWantsKeyboardFocus(false);
         
-        setColour(HiseColourScheme::WidgetFillTopColourId, Colour(0x66333333));
-        setColour(HiseColourScheme::WidgetFillBottomColourId, Colour(0xfb111111));
-        setColour(HiseColourScheme::WidgetOutlineColourId, Colours::white.withAlpha(0.3f));
-        setColour(HiseColourScheme::WidgetTextColourId, Colours::white);
+        setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
+        setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
+        setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
+        setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
 	};
 
 	void setup(Processor *p, int parameter, const String &name) override;
@@ -398,9 +398,9 @@ public:
 		addListener(this);
 		setWantsKeyboardFocus(false);
         
-        setColour(HiseColourScheme::WidgetFillTopColourId, Colour(0x66333333));
-        setColour(HiseColourScheme::WidgetFillBottomColourId, Colour(0xfb111111));
-        setColour(HiseColourScheme::WidgetOutlineColourId, Colours::white.withAlpha(0.3f));
+        setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
+        setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
+        setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
 	};
 
 	void setup(Processor *p, int parameter, const String &name) override;

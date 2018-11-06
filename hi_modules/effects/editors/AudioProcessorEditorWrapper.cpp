@@ -71,9 +71,9 @@ WrappedAudioProcessorEditorContent::WrappedAudioProcessorEditorContent(AudioProc
 
 	registeredProcessorList->addListener(this);
 
-	registeredProcessorList->setColour(HiseColourScheme::WidgetFillTopColourId, Colour(0x66333333));
-	registeredProcessorList->setColour(HiseColourScheme::WidgetFillBottomColourId, Colour(0xfb111111));
-	registeredProcessorList->setColour(HiseColourScheme::WidgetOutlineColourId, Colours::white.withAlpha(0.3f));
+	registeredProcessorList->setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
+	registeredProcessorList->setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
+	registeredProcessorList->setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
 
 	if (getWrapper() != nullptr)
 	{

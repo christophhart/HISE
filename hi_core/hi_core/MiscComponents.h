@@ -165,7 +165,7 @@ public:
 	CallbackLevel getCallbackLevel() const;
 
 
-	/** overwrite this method and update the widget to display the current value of the controlled attribute. */
+	/** overwrite this method and update the Component to display the current value of the controlled attribute. */
 	virtual void updateValue(NotificationType /*sendAttributeChange=sendNotification*/)
 	{
 		repaint();
