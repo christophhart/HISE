@@ -69,13 +69,14 @@ public:
 
 	enum Parameters
 	{
-		Gain = 0,
-		Balance,
-		VoiceLimit,
-		KillFadeTime,
+		Gain = 0, ///< the volume as gain factor from 0...1
+		Balance, ///< the stereo balance from -100 to 100
+		VoiceLimit, ///< the amount of voices
+		KillFadeTime, ///< the fade time when voices are killed \endcond module_list
 		numModulatorSynthParameters
 	};
-
+	
+	
 	/** These are the three Chains that the ModulatorSynth uses. */
 	enum InternalChains
 	{
@@ -925,8 +926,7 @@ public:
 		noise,
 		wavetableSynth,
 		audioLooper,
-		modulatorSynthGroup,
-		scriptSynth
+		modulatorSynthGroup
 	};
 
 	ModulatorSynthChainFactoryType(int numVoices_, Processor *ownerProcessor):
