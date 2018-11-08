@@ -155,6 +155,15 @@ If set to 1, you can specify a customized toolbar class which will be used inste
 #define USE_CUSTOM_FRONTEND_TOOLBAR 0
 #endif
 
+/** Config: HI_SUPPORT_MONO_CHANNEL_LAYOUT
+
+If enabled, the plugin will also be compatible to mono track configurations. 
+*/
+#ifndef HI_SUPPORT_MONO_CHANNEL_LAYOUT
+#define HI_SUPPORT_MONO_CHANNEL_LAYOUT 0
+#endif
+
+
 /** Config: IS_STANDALONE_FRONTEND
 
 If set to 1, you can specify a customized toolbar class which will be used instead of the default one. 

@@ -70,7 +70,12 @@ public:
 	BusesProperties getHiseBusProperties() const
 	{
 #if FRONTEND_IS_PLUGIN
+#if HI_SUPPORT_MONO_CHANNEL_LAYOUT
+
 		return BusesProperties().withInput("Input", AudioChannelSet::stereo()).withOutput("Output", AudioChannelSet::stereo());
+#else
+		return BusesProperties().withInput("Input", AudioChannelSet::stereo()).withOutput("Output", AudioChannelSet::stereo());
+#endif
 #else
 auto busProp = BusesProperties();
 
@@ -89,7 +94,12 @@ auto busProp = BusesProperties();
     bool isBusesLayoutSupported (const BusesLayout& layouts) const override
     {
 #if FRONTEND_IS_PLUGIN
+#if HI_SUPPORT_MONO_CHANNEL_LAYOUT
+		return (layouts.getMainInputChannels() == 1 && layouts.getMainOutputChannels() == 1) ||
+			   (layouts.getMainInputChannels() == 2 && layouts.getMainOutputChannels() == 2);
+#else
 		return (layouts.getMainInputChannels() == 2 && layouts.getMainOutputChannels() == 2);
+#endif
 #else
         return (layouts.getMainInputChannels() == 2);
 #endif

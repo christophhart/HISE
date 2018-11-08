@@ -285,6 +285,10 @@ private:
 
 	int numParameters;
 
+#if FRONTEND_IS_PLUGIN && HI_SUPPORT_MONO_CHANNEL_LAYOUT
+	AudioSampleBuffer stereoCopy;
+#endif
+
 	
 	AudioPlayHead::CurrentPositionInfo lastPosInfo;
 

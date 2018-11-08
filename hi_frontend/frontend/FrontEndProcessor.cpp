@@ -94,7 +94,28 @@ void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& mid
 	if (((unlockCounter++ & 1023) == 0) && !unlocker.isUnlocked()) return;
 #endif
 
+#if FRONTEND_IS_PLUGIN && HI_SUPPORT_MONO_CHANNEL_LAYOUT
+	
+	if (buffer.getNumChannels() == 1)
+	{
+		stereoCopy.copyFrom(0, 0, buffer, 0, 0, buffer.getNumSamples());
+		stereoCopy.copyFrom(1, 0, buffer, 0, 0, buffer.getNumSamples());
+
+		getDelayedRenderer().processWrapped(stereoCopy, midiMessages);
+
+		buffer.copyFrom(0, 0, stereoCopy, 0, 0, buffer.getNumSamples());
+	}
+	else
+	{
+		getDelayedRenderer().processWrapped(buffer, midiMessages);
+	}
+
+#else
 	getDelayedRenderer().processWrapped(buffer, midiMessages);
+#endif
+
+
+	
 };
 
 void FrontendProcessor::incActiveEditors()
@@ -238,6 +259,9 @@ unlockCounter(0)
 	createPreset(synthData);
 #endif
 	
+#if FRONTEND_IS_PLUGIN && HI_SUPPORT_MONO_CHANNEL_LAYOUT
+	stereoCopy.setSize(2, 0);
+#endif
 }
 
 FrontendProcessor::~FrontendProcessor()
@@ -311,6 +335,10 @@ const String FrontendProcessor::getName(void) const
 void FrontendProcessor::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
     getDelayedRenderer().prepareToPlayWrapped(newSampleRate, samplesPerBlock);
+
+#if FRONTEND_IS_PLUGIN && HI_SUPPORT_MONO_CHANNEL_LAYOUT
+	ProcessorHelpers::increaseBufferIfNeeded(stereoCopy, samplesPerBlock);
+#endif
 };
 
 AudioProcessorEditor* FrontendProcessor::createEditor()

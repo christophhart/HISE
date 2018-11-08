@@ -73,6 +73,7 @@ DECLARE_ID(ExtraDefinitionsIOS);
 DECLARE_ID(AppGroupID);
 DECLARE_ID(RedirectSampleFolder);
 DECLARE_ID(AAXCategoryFX);
+DECLARE_ID(SupportMonoFX);
 
 Array<Identifier> getAllIds();
 

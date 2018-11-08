@@ -1379,10 +1379,18 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "0");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN", "0");
 		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "enabled");
+
+		String monoSupport = GET_SETTING(HiseSettings::Project::SupportMonoFX) == "1" ? "enabled" : "disabled";
+
+		REPLACE_WILDCARD_WITH_STRING("%SUPPORT_MONO%", monoSupport);
+
+
         REPLACE_WILDCARD("%AAX_CATEGORY%", HiseSettings::Project::AAXCategoryFX);
 	}
 	else
 	{
+		REPLACE_WILDCARD_WITH_STRING("%SUPPORT_MONO%", "disabled");
+
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "1");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN", "1");
 		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "disabled");
