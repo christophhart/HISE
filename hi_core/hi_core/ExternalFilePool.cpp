@@ -754,15 +754,18 @@ void PoolBase::DataProvider::Compressor::write(OutputStream& output, const Image
 void PoolBase::DataProvider::Compressor::write(OutputStream& output, const AudioSampleBuffer& data, const File& /*originalFile*/) const
 {
 	FlacAudioFormat format;
-
-	MemoryOutputStream* tempStream = new MemoryOutputStream();
+	
+	MemoryBlock mb;
+	MemoryOutputStream* tempStream = new MemoryOutputStream(mb, true);
 
 	if (ScopedPointer<AudioFormatWriter> writer = format.createWriterFor(tempStream, 44100.0, data.getNumChannels(), 24, StringPairArray(), 9))
 	{
 		writer->writeFromAudioSampleBuffer(data, 0, data.getNumSamples());
 
-		output.write(tempStream->getData(), tempStream->getDataSize());
+		// We need to destruct the writer before the next line in order to make sure it flushes the last padded block correctly.
 		writer = nullptr;
+
+		output.write(mb.getData(), mb.getSize());
 	}
 }
 
