@@ -1379,7 +1379,7 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "0");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN", "0");
 		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "enabled");
-        REPLACE_WILDCARD_WITH_STRING("%AAX_CATEGORY%", "AAX_ePlugInCategory_Modulation");
+        REPLACE_WILDCARD("%AAX_CATEGORY%", HiseSettings::Project::AAXCategoryFX);
 	}
 	else
 	{

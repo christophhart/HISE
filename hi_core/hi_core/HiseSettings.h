@@ -72,6 +72,7 @@ DECLARE_ID(ExtraDefinitionsOSX);
 DECLARE_ID(ExtraDefinitionsIOS);
 DECLARE_ID(AppGroupID);
 DECLARE_ID(RedirectSampleFolder);
+DECLARE_ID(AAXCategoryFX);
 
 Array<Identifier> getAllIds();
 

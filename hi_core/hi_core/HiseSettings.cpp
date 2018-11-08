@@ -72,6 +72,7 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(ExtraDefinitionsIOS);
 	ids.add(AppGroupID);
 	ids.add(RedirectSampleFolder);
+	ids.add(AAXCategoryFX);
 
 	return ids;
 }
@@ -263,6 +264,24 @@ struct SettingDescription
 		D("> HISE will create a file called `LinkWindows` / `LinkOSX` in the samples folder that contains the link to the real folder.");
 		P_();
 
+		P(HiseSettings::Project::AAXCategoryFX);
+		D("If you export an effect plugin, you can specify the category it will show up in ProTools here");
+		
+		D("| ID | Description |");
+		D("| ------ | ---- |");
+		D("| AAX_ePlugInCategory_EQ | Equalization |");
+		D("| AAX_ePlugInCategory_Dynamics | Compressor, expander, limiter, etc. |");
+		D("| AAX_ePlugInCategory_PitchShift | Pitch processing |");
+		D("| AAX_ePlugInCategory_Reverb | Reverberation and room/space simulation |");
+		D("| AAX_ePlugInCategory_Delay | Delay and echo |");
+		D("| AAX_ePlugInCategory_Modulation | Phasing, flanging, chorus, etc. |");
+		D("| AAX_ePlugInCategory_Harmonic | Distortion, saturation, and harmonic enhancement |");
+		D("| AAX_ePlugInCategory_NoiseReduction | Noise reduction |");
+		D("| AAX_ePlugInCategory_Dither | Dither, noise shaping, etc. |");
+		D("| AAX_ePlugInCategory_SoundField | Pan, auto-pan, upmix and downmix, and surround handling |");
+		D("| AAX_EPlugInCategory_Effect | Special effects |");
+		D("> This setting will have no effect for virtual instruments.");
+		P_();
 		P(HiseSettings::User::Company);
 		D("Your company name. This will be used for the path to the app data directory so make sure you don't use weird characters here");
 		P_();
@@ -483,6 +502,21 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 	if (id == Compiler::VisualStudioVersion)
 		return { "Visual Studio 2015", "Visual Studio 2017" };
 
+	if (id == Project::AAXCategoryFX)
+		return {
+			"AAX_ePlugInCategory_EQ",
+			"AAX_ePlugInCategory_Dynamics",
+			"AAX_ePlugInCategory_PitchShift",
+			"AAX_ePlugInCategory_Reverb",
+			"AAX_ePlugInCategory_Delay",
+			"AAX_ePlugInCategory_Modulation",
+			"AAX_ePlugInCategory_Harmonic",
+			"AAX_ePlugInCategory_NoiseReduction",
+			"AAX_ePlugInCategory_Dither",
+			"AAX_ePlugInCategory_SoundField",
+			"AAX_EPlugInCategory_Effect"
+		};
+
 #if IS_STANDALONE_APP
 	else if (Audio::getAllIds().contains(id))
 	{
@@ -615,6 +649,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id)
 	else if (id == Project::PluginCode)			    return "Abcd";
 	else if (id == Project::EmbedAudioFiles)		return "Yes";
 	else if (id == Project::RedirectSampleFolder)	BACKEND_ONLY(return handler_.isRedirected(ProjectHandler::SubDirectories::Samples) ? handler_.getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName() : "");
+	else if (id == Project::AAXCategoryFX)			return "AAX_ePlugInCategory_Modulation";
 	else if (id == Other::EnableAutosave)			return "Yes";
 	else if (id == Other::AutosaveInterval)			return 5;
 	else if (id == Other::AudioThreadGuardEnabled)  return "Yes";
