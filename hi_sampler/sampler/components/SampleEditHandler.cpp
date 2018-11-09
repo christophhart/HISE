@@ -228,4 +228,55 @@ void SampleEditHandler::SampleEditingActions::createMultimicSampleMap(SampleEdit
 	}
 
 }
+
+void SampleEditHandler::SampleEditingActions::reencodeMonolith(Component* childComponentOfMainEditor, SampleEditHandler* handler)
+{
+	if (PresetHandler::showYesNoWindow("Reencode monolith", "Do you want to reencode the monolith?\nYou need the original files at the same location in order to make this work"))
+	{
+		auto s = handler->getSampler();
+
+		auto map = s->getSampleMap();
+
+		auto tree = map->getValueTree().createCopy();
+
+		tree.setProperty("SaveMode", 0, nullptr);
+		
+		for (auto s : tree)
+		{
+			s.removeProperty("MonolithOffset", nullptr);
+			s.removeProperty("MonolithLength", nullptr);
+		}
+
+		auto f = [map, tree, childComponentOfMainEditor](Processor* p)
+		{
+			map->loadUnsavedValueTree(tree);
+
+			auto f2 = [map, childComponentOfMainEditor]()
+			{
+				map->saveAsMonolith(childComponentOfMainEditor);
+			};
+
+			MessageManager::callAsync(f2);
+
+			return SafeFunctionCall::OK;
+		};
+
+		s->killAllVoicesAndCall(f, true);
+	}
+}
+
+void SampleEditHandler::SampleEditingActions::encodeAllMonoliths(Component * comp, SampleEditHandler* handler)
+{
+#if HI_ENABLE_EXPANSION_EDITING
+	BatchReencoder *encoder = new BatchReencoder(handler->getSampler());
+
+	encoder->setModalBaseWindowComponent(comp);
+#endif
+}
+
+
+
+
+
+
 } // namespace hise

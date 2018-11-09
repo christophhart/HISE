@@ -534,6 +534,26 @@ private:
 
 	String error;
 };
+
+class BatchReencoder : public MonolithExporter,
+	public ControlledObject
+{
+public:
+
+	BatchReencoder(ModulatorSampler* s);;
+
+	void run() override;
+
+	void reencode(PoolReference r);
+
+private:
+
+	double wholeProgress = 0.0;
+
+	WeakReference<ModulatorSampler> sampler;
+
+};
+
 #endif
 
 } // namespace hise

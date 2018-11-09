@@ -592,6 +592,15 @@ void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo
 		result.setInfo("Extract to Singlemic samples", "Extract to Singlemic samples", "Sample Editing", 0);
 		result.setActive(selectionIsNotEmpty);
 		break;
+	case ReencodeMonolith:
+		result.setInfo("Reencode HLAC monolith", "Reencode HLAC monolith", "Sample Editing", 0);
+		result.setActive(true);
+		result.addDefaultKeypress(KeyPress::F5Key, ModifierKeys::shiftModifier);
+		break;
+	case EncodeAllMonoliths:
+		result.setInfo("(Re)encode all sample maps as HLAC monolith", "(Re)encode all sample maps as HLAC monolith", "Sample Editing", 0);
+		result.setActive(true);
+		break;
 	case FillNoteGaps:		result.setInfo("Fill Note Gaps", "Fill note gaps in SampleMap", "Sample Editing", 0);
 		result.setActive(selectionIsNotEmpty);
 		break;
@@ -660,6 +669,8 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	case MergeIntoMultisamples:		SampleEditHandler::SampleEditingActions::mergeIntoMultiSamples(handler, this); return true;
 	case CreateMultiMicSampleMap:	SampleEditHandler::SampleEditingActions::createMultimicSampleMap(handler); return true;
 	case ExtractToSingleMicSamples:	SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(handler); return true;
+	case ReencodeMonolith:	SampleEditHandler::SampleEditingActions::reencodeMonolith(this, handler); return true;
+	case EncodeAllMonoliths:	SampleEditHandler::SampleEditingActions::encodeAllMonoliths(this, handler); return true;
 	case ZoomIn:			zoom(false); return true;
 	case ZoomOut:			zoom(true); return true;
 	case Undo:				sampler->getUndoManager()->undo(); return true;

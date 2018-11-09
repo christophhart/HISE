@@ -102,6 +102,8 @@ public:
 		MergeIntoMultisamples,
 		CreateMultiMicSampleMap,
 		ExtractToSingleMicSamples,
+		ReencodeMonolith,
+		EncodeAllMonoliths,
 		FillNoteGaps,
 		FillVelocityGaps,
 		AutomapVelocity,
@@ -143,6 +145,8 @@ public:
 								CreateMultiMicSampleMap,
 								MergeIntoMultisamples,
 								ExtractToSingleMicSamples,
+								ReencodeMonolith,
+								EncodeAllMonoliths,
 								FillNoteGaps,
 								FillVelocityGaps,
 								AutomapVelocity,
@@ -535,6 +539,8 @@ public:
 		toolsMenu.addCommandItem(a, MergeIntoMultisamples);
 		toolsMenu.addCommandItem(a, CreateMultiMicSampleMap);
 		toolsMenu.addCommandItem(a, ExtractToSingleMicSamples);
+		toolsMenu.addCommandItem(a, ReencodeMonolith);
+		toolsMenu.addCommandItem(a, EncodeAllMonoliths);
 		
 
 		p.addSubMenu("Tools", toolsMenu, true);

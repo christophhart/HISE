@@ -153,6 +153,8 @@ public:
 		static void trimSampleStart(Component* childComponentOfMainEditor, SampleEditHandler * body);
 		static void createMultimicSampleMap(SampleEditHandler* handler);
 		static void deselectAllSamples(SampleEditHandler* handler);
+		static void reencodeMonolith(Component* childComponentOfMainEditor, SampleEditHandler* handler);
+		static void encodeAllMonoliths(Component* comp, SampleEditHandler* handler);
 	};
 
 	

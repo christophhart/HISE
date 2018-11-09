@@ -843,12 +843,8 @@ MonolithExporter::MonolithExporter(SampleMap* sampleMap_) :
 
 	addComboBox("normalise", sa2, "Normalization");
 
-	StringArray sa3;
-
-	sa3.add("No");
-	sa3.add("Yes");
-
-	addComboBox("dithering", sa3, "Dithering");
+	if (GET_HISE_SETTING(sampleMap->getSampler(), HiseSettings::Project::SupportFullDynamicsHLAC) == "1")
+		getComboBoxComponent("normalise")->setSelectedItemIndex(2, dontSendNotification);
 
 	addBasicComponents(true);
 }
@@ -943,6 +939,8 @@ void MonolithExporter::exportCurrentSampleMap(bool overwriteExistingData, bool e
 				return;
 			}
 
+			showStatusMessage("Writing Monolith for Channel " + String(i + 1) + "/" + String(numChannels));
+
 			writeFiles(i, overwriteExistingData);
 		}
 	}
@@ -950,6 +948,8 @@ void MonolithExporter::exportCurrentSampleMap(bool overwriteExistingData, bool e
 
 void MonolithExporter::writeSampleMapFile(bool /*overwriteExistingFile*/)
 {
+	showStatusMessage("Saving Samplemap file");
+	
 	ScopedPointer<XmlElement> xml = v.createXml();
 
 	sampleMapFile.getParentDirectory().createDirectory();
@@ -1122,6 +1122,103 @@ void MonolithExporter::updateSampleMap()
 		}
 	}
 }
+
+BatchReencoder::BatchReencoder(ModulatorSampler* s) :
+	MonolithExporter(String("Batch reencode all sample maps"), s->getMainController()->getMainSynthChain()),
+	ControlledObject(s->getMainController()),
+	sampler(s)
+{
+	StringArray sa;
+
+	sa.add("No compression");
+	sa.add("Fast Decompression");
+	sa.add("Low file size (recommended)");
+
+	addComboBox("compressionOptions", sa, "HLAC Compression options");
+
+	StringArray sa2;
+
+	sa2.add("No normalisation");
+	sa2.add("Normalise every sample");
+	sa2.add("Full Dynamics");
+
+	addComboBox("normalise", sa2, "Normalization");
+
+	if (GET_HISE_SETTING(s, HiseSettings::Project::SupportFullDynamicsHLAC) == "1")
+		getComboBoxComponent("normalise")->setSelectedItemIndex(2, dontSendNotification);
+
+	addProgressBarComponent(wholeProgress);
+
+	addBasicComponents(true);
+}
+
+void BatchReencoder::run()
+{
+	auto pool = getMainController()->getCurrentSampleMapPool();
+
+	auto list = pool->getListOfAllReferences(true);
+
+	setSampleMap(sampler->getSampleMap());
+
+	for (int i = 0; i < list.size(); i++)
+	{
+		reencode(list[i]);
+
+		if (threadShouldExit())
+			return;
+
+		wholeProgress = (double)i / double(list.size());
+	}
+}
+
+void BatchReencoder::reencode(PoolReference r)
+{
+	auto map = sampler->getSampleMap();
+	bool done = false;
+	bool* ptr = &done;
+
+	auto f = [map, r, ptr](Processor* p)
+	{
+		map->load(r);
+
+		if (map->isMonolith())
+		{
+			auto tree = map->getValueTree().createCopy();
+
+			tree.setProperty("SaveMode", 0, nullptr);
+
+			for (auto s : tree)
+			{
+				s.removeProperty("MonolithOffset", nullptr);
+				s.removeProperty("MonolithLength", nullptr);
+			}
+
+			map->loadUnsavedValueTree(tree);
+		}
+
+		*ptr = true;
+		return SafeFunctionCall::OK;
+	};
+
+	showStatusMessage("Resaving samplemap");
+	
+	sampler->killAllVoicesAndCall(f);
+
+	while (!done)
+	{
+		Thread::sleep(300);
+
+		if (threadShouldExit())
+			return;
+	}
+
+	sampleMapFile = r.getFile();
+
+	exportCurrentSampleMap(true, true, true);
+}
+
+
+
 #endif
 
 SampleMap::Notifier::Notifier(SampleMap& parent_) :
