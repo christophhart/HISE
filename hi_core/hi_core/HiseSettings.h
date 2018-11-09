@@ -64,6 +64,7 @@ DECLARE_ID(Description);
 DECLARE_ID(BundleIdentifier);
 DECLARE_ID(PluginCode);
 DECLARE_ID(EmbedAudioFiles);
+DECLARE_ID(SupportFullDynamicsHLAC);
 DECLARE_ID(AdditionalDspLibraries);
 DECLARE_ID(OSXStaticLibs);
 DECLARE_ID(WindowsStaticLibFolder);

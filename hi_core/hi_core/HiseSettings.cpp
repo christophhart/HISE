@@ -64,6 +64,7 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(BundleIdentifier);
 	ids.add(PluginCode);
 	ids.add(EmbedAudioFiles);
+	ids.add(SupportFullDynamicsHLAC);
 	ids.add(AdditionalDspLibraries);
 	ids.add(OSXStaticLibs);
 	ids.add(WindowsStaticLibFolder);
@@ -213,6 +214,13 @@ struct SettingDescription
 		D("> **macOS:** `~/Library/Application Support/Company/Product/`");
 		D("Normally you would try to embed them into the binary, however if you have a lot of images and audio files (> 50MB)");
 		D("the compiler will crash with an **out of heap space** error, so in this case you're better off not embedding them.");
+		P_();
+
+		P(HiseSettings::Project::SupportFullDynamicsHLAC);
+		D("If enabled, the user can extract the sample monolith files to support the full dynamic range of 24 bit.");
+		D("The HLAC codec is 16bit only, but with this feature enabled, it normalises the audio data in chunks of 1024 samples in order to recreate higher bit depths. This results in a lower compression ratio, but removes the quantisation noise that can occur under certain circumstances:");
+		D("For normal sample libraries without heavy dynamics processing this feature is not required, but for projects that heavily process the dynamic range (eg. drum libraries that squash the samples with a compressor) the quantisation noise floor of -96dB might get attenuated into the audible range. So: If you start to hear quantisation noise, enable this, otherwise enjoy the low disk usage and performance of 16bit samples.");
+		D("> The end user can still choose whether he wants to use the samples in the full dynamics range. However in order to make this work, create the sample archive with the **Support Full Dynamics** option set to true.");
 		P_();
 
 		P(HiseSettings::Project::AdditionalDspLibraries);
@@ -504,7 +512,8 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Other::AudioThreadGuardEnabled ||
 		id == Compiler::RebuildPoolFiles ||
 		id == Compiler::Support32BitMacOS ||
-		id == Project::SupportMonoFX)
+		id == Project::SupportMonoFX ||
+		id == Project::SupportFullDynamicsHLAC)
 		return { "Yes", "No" };
 
 	if (id == Compiler::VisualStudioVersion)
@@ -656,6 +665,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id)
 	else if (id == Project::BundleIdentifier)	    return "com.myCompany.product";
 	else if (id == Project::PluginCode)			    return "Abcd";
 	else if (id == Project::EmbedAudioFiles)		return "Yes";
+	else if (id == Project::SupportFullDynamicsHLAC)	return "No";
 	else if (id == Project::RedirectSampleFolder)	BACKEND_ONLY(return handler_.isRedirected(ProjectHandler::SubDirectories::Samples) ? handler_.getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName() : "");
 	else if (id == Project::AAXCategoryFX)			return "AAX_ePlugInCategory_Modulation";
 	else if (id == Project::SupportMonoFX)			return "No";

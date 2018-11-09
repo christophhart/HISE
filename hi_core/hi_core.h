@@ -163,6 +163,13 @@ If enabled, the plugin will also be compatible to mono track configurations.
 #define HI_SUPPORT_MONO_CHANNEL_LAYOUT 0
 #endif
 
+/** Config: HI_SUPPORT_FULL_DYNAMICS_HLAC
+
+If enabled, the sample extraction dialog will show the option "Full Dynamics" when extracting the sample files. 
+*/
+#ifndef HI_SUPPORT_FULL_DYNAMICS_HLAC
+#define HI_SUPPORT_FULL_DYNAMICS_HLAC 0
+#endif
 
 /** Config: IS_STANDALONE_FRONTEND
 

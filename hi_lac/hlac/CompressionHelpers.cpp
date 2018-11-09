@@ -323,19 +323,6 @@ void CompressionHelpers::normaliseBlock(int16* data, int numSamples, int normali
 
 			data[i] = (int16)v;
 		}
-
-		if (useDither)
-		{
-			float* d = (float*)alloca(sizeof(float)* numSamples);
-
-			for (int i = 0; i < numSamples; i++)
-				d[i] = data[i] / (float)INT16_MAX;
-
-			applyDithering(d, numSamples);
-
-			for (int i = 0; i < numSamples; i++)
-				data[i] = (int16)(d[i] * (float)INT16_MAX);
-		}
 	}
 	else
 	{
@@ -1308,6 +1295,14 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 			const int bufferSize = 8192 * 32;
 
+
+			hlac::HlacEncoder::CompressorOptions options = hlac::HlacEncoder::CompressorOptions::getPreset(hlac::HlacEncoder::CompressorOptions::Presets::Diff);
+
+			options.applyDithering = false;
+			options.normalisationMode = data.supportFullDynamics ? 2 : 0;
+
+			dynamic_cast<HiseLosslessAudioFormatWriter*>(writer.get())->setOptions(options);
+
 			AudioSampleBuffer tempBuffer(flacReader->numChannels, bufferSize);
 
 			for (int64 readerOffset = 0; readerOffset < flacReader->lengthInSamples; readerOffset += bufferSize)
@@ -1377,7 +1372,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 #define WRITE_FLAG(x) writeFlag(fos, x)
 
-FileInputStream* HlacArchiver::writeTempFile(AudioFormatReader* reader)
+FileInputStream* HlacArchiver::writeTempFile(AudioFormatReader* reader, int bitDepth)
 {
 	FlacAudioFormat flacFormat;
 
@@ -1390,7 +1385,7 @@ FileInputStream* HlacArchiver::writeTempFile(AudioFormatReader* reader)
 
 	AudioSampleBuffer tempBuffer(reader->numChannels, bufferSize);
 
-	ScopedPointer<AudioFormatWriter> writer = flacFormat.createWriterFor(tempOutput, reader->sampleRate, reader->numChannels, 16, metadata, 9);
+	ScopedPointer<AudioFormatWriter> writer = flacFormat.createWriterFor(tempOutput, reader->sampleRate, reader->numChannels, bitDepth, metadata, 9);
 
 	bool writeResult = true;
 
@@ -1439,6 +1434,9 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 
 #if USE_BACKEND
 	const String& metadataJSON = data.metadataJSON;
+
+	int bitDepth = (int)JSON::parse(metadataJSON).getProperty("BitDepth", 16);
+
 	const Array<File>& hlacFiles = data.fileList;
 	const File& targetFile = data.targetFile;
 	progress = data.progress;
@@ -1502,7 +1500,7 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 
 			
 
-			ScopedPointer<FileInputStream> tmpInput = writeTempFile(reader);
+			ScopedPointer<FileInputStream> tmpInput = writeTempFile(reader, bitDepth);
 
 			if (tmpInput == nullptr)
 				return;

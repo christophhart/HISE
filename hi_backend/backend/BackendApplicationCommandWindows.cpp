@@ -863,6 +863,7 @@ public:
 
 };
 
+
 class MonolithConverter : public MonolithExporter
 {
 public:
@@ -924,13 +925,6 @@ public:
 		sa.add("Full Dynamics");
 
 		addComboBox("normalise", sa2, "Normalization");
-
-		StringArray sa3;
-		
-		sa.add("No");
-		sa.add("Yes");
-
-		addComboBox("dithering", sa3, "Dithering");
 
 		addBasicComponents(true);
 	};

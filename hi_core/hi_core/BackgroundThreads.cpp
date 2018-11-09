@@ -397,7 +397,23 @@ SampleDataExporter::SampleDataExporter(ModalBaseWindow* mbw) :
 
 	addComboBox("split", sa2, "Split archive size");
 
-	targetFile = new FilenameComponent("Target directory", File(), true, true, true, "", "", "Choose export directory");
+	StringArray sa3;
+
+	sa3.add("Yes");
+	sa3.add("No");
+
+	addComboBox("supportFull", sa3, "Support Full Dynamics range");
+
+	if (GET_HISE_SETTING(synthChain, HiseSettings::Project::SupportFullDynamicsHLAC) == "0")
+		getComboBoxComponent("supportFull")->setSelectedItemIndex(1, dontSendNotification);
+
+#if USE_BACKEND
+	File f = GET_PROJECT_HANDLER(synthChain).getRootFolder();
+#else
+	File f = {};
+#endif
+
+	targetFile = new FilenameComponent("Target directory", f, true, true, true, "", "", "Choose export directory");
 	targetFile->setSize(300, 24);
 	addCustomComponent(targetFile);
 
@@ -486,6 +502,10 @@ String SampleDataExporter::getMetadataJSON() const
 	d->setProperty("Name", getProjectName());
 	d->setProperty("Version", getProjectVersion());
 	d->setProperty("Company", getCompanyName());
+	
+	int index = getComboBoxComponent("supportFull")->getSelectedItemIndex();
+
+	d->setProperty("BitDepth", index == 0 ? 24 : 16);
 
 	var data(d);
 
@@ -598,6 +618,17 @@ SampleDataImporter::SampleDataImporter(ModalBaseWindow* mbw) :
 
 #endif
 
+#if USE_BACKEND || HI_SUPPORT_FULL_DYNAMICS_HLAC
+
+	StringArray sa5;
+
+	sa5.add("Standard (less disk usage, slightly faster)");
+	sa5.add("Full Dynamics (less quantisation noise)");
+
+	addComboBox("fullDynamics", sa5, "Sample bit depth");
+
+#endif
+
 	StringArray sa;
 
 	sa.add("Overwrite if newer");
@@ -693,6 +724,7 @@ void SampleDataImporter::run()
 	hlac::HlacArchiver::DecompressData data;
 
 	data.option = option;
+	data.supportFullDynamics = getComboBoxComponent("fullDynamics")->getSelectedItemIndex() == 1;
 	data.sourceFile = getSourceFile();
 	data.targetDirectory = getTargetDirectory();
 	data.progress = &logData.progress;

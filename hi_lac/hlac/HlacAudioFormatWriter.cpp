@@ -74,6 +74,12 @@ void HiseLosslessAudioFormatWriter::setOptions(HlacEncoder::CompressorOptions& n
 	encoder.setOptions(newOptions);
 }
 
+void HiseLosslessAudioFormatWriter::setEnableFullDynamics(bool shouldEnableFullDynamics)
+{
+	options.normalisationMode = shouldEnableFullDynamics ? 2 : 0;
+	encoder.setOptions(options);
+}
+
 bool HiseLosslessAudioFormatWriter::write(const int** samplesToWrite, int numSamples)
 {
 	tempWasFlushed = false;

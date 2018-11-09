@@ -56,6 +56,8 @@ public:
 
 	void setOptions(HlacEncoder::CompressorOptions& newOptions);
 
+	void setEnableFullDynamics(bool shouldEnableFullDynamics);
+
 	bool write(const int** samplesToWrite, int numSamples) override;
 
 	double getCompressionRatioForLastFile() { return encoder.getCompressionRatio(); }

@@ -393,11 +393,13 @@ struct HlacArchiver
 	struct DecompressData
 	{
 		OverwriteOption option;
+		bool supportFullDynamics = false;
 		File sourceFile;
 		File targetDirectory;
 		double* progress = nullptr;
 		double* partProgress = nullptr;
 		double* totalProgress = nullptr;
+
 	};
 
 	HlacArchiver(Thread* threadToUse) :
@@ -428,7 +430,7 @@ struct HlacArchiver
 
 private:
 
-	FileInputStream* writeTempFile(AudioFormatReader* reader);
+	FileInputStream* writeTempFile(AudioFormatReader* reader, int bitDepth=16);
 
 	Listener* listener = nullptr;
 

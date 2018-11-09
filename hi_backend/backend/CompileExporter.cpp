@@ -1373,6 +1373,10 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 
 	REPLACE_WILDCARD_WITH_STRING("%PLUGIN_CHANNEL_AMOUNT%", ProjectTemplateHelpers::getPluginChannelAmount(chain));
 
+	auto x = GET_SETTING(HiseSettings::Project::SupportFullDynamicsHLAC);
+
+	String fullDynamicsSupport = x == "1" ? "enabled" : "disabled";
+	REPLACE_WILDCARD_WITH_STRING("%SUPPORT_FULL_DYNAMICS%", fullDynamicsSupport);
 
 	if (type == TargetTypes::EffectPlugin)
 	{
@@ -1383,6 +1387,8 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 		String monoSupport = GET_SETTING(HiseSettings::Project::SupportMonoFX) == "1" ? "enabled" : "disabled";
 
 		REPLACE_WILDCARD_WITH_STRING("%SUPPORT_MONO%", monoSupport);
+
+		
 
 
         REPLACE_WILDCARD("%AAX_CATEGORY%", HiseSettings::Project::AAXCategoryFX);
@@ -1564,7 +1570,8 @@ hise::CompileExporter::CompileExporter::ErrorCodes CompileExporter::createStanda
 	REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "disabled");
 	REPLACE_WILDCARD_WITH_STRING("%IS_STANDALONE_FRONTEND%", "enabled");
 
-    
+	String fullDynamicsSupport = GET_SETTING(HiseSettings::Project::SupportFullDynamicsHLAC) == "1" ? "enabled" : "disabled";
+	REPLACE_WILDCARD_WITH_STRING("%SUPPORT_FULL_DYNAMICS%", fullDynamicsSupport);
 
 	ProjectTemplateHelpers::handleVisualStudioVersion(dataObject,templateProject);
 
