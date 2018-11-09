@@ -580,6 +580,8 @@ public:
 		resized();
 	}
 
+	void refreshSampleMapPool();
+
 	void deletePopup()
 	{
 		if (parentCopy.getComponent() != nullptr)

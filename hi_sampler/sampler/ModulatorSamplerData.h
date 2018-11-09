@@ -59,9 +59,6 @@ class SampleMap: public SafeChangeListener,
 {
 public:
 
-
-
-
 	class Listener
 	{
 	public:
@@ -124,6 +121,8 @@ public:
 	*/
 	bool hasUnsavedChanges() const
 	{
+		return changeWatcher != nullptr && changeWatcher->wasChanged();
+
 		return false; //fileOnDisk == File() || changed;
 	}
 
@@ -225,7 +224,66 @@ public:
 
 	int getNumRRGroups() const;
 
+	void saveAndReloadMap();
 private:
+
+	struct ChangeWatcher : private ValueTree::Listener
+	{
+	public:
+
+		ChangeWatcher(ValueTree& v) :
+			d(v)
+		{
+			d.addListener(this);
+		}
+
+		~ChangeWatcher()
+		{
+			d.removeListener(this);
+		}
+
+		bool wasChanged() const
+		{
+			return changed;
+		}
+
+	private:
+
+		ValueTree d;
+
+		void valueTreePropertyChanged(ValueTree& /*treeWhosePropertyHasChanged*/,
+			const Identifier& /*property*/)
+		{
+			changed = true;
+		}
+
+		void valueTreeChildAdded(ValueTree& parentTree,
+			ValueTree& childWhichHasBeenAdded) override
+		{
+			changed = true;
+		}
+
+		void valueTreeChildRemoved(ValueTree& parentTree,
+			ValueTree& childWhichHasBeenRemoved,
+			int indexFromWhichChildWasRemoved) override
+		{
+			changed = true;
+		}
+
+		void sendSampleDeletedMessage(ModulatorSampler * sampler);
+
+		void valueTreeChildOrderChanged(ValueTree& /*parentTreeWhoseChildrenHaveMoved*/,
+			int /*oldIndex*/, int /*newIndex*/) override {};
+
+		void valueTreeParentChanged(ValueTree& /*treeWhoseParentHasChanged*/) override {};
+
+		void valueTreeRedirected(ValueTree& /*treeWhichHasBeenChanged*/) override {};
+
+		bool changed = false;
+
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ChangeWatcher);
+	};
 
 	void setCurrentMonolith();
 
@@ -330,7 +388,7 @@ private:
 		void triggerHeavyweightUpdate();
 		void triggerLightWeightUpdate();
 
-		
+		ScopedPointer<ChangeWatcher> changeWatcher;
 
 		Collector asyncUpdateCollector;
 
@@ -344,6 +402,8 @@ private:
 		bool sampleAmountWasChanged = false;
 		SampleMap& parent;
 	};
+
+	ScopedPointer<ChangeWatcher> changeWatcher;
 
 	Notifier notifier;
 
@@ -364,8 +424,6 @@ private:
 	ModulatorSampler *sampler;
 
 	CachedValue<int> mode;
-
-	bool changed;
 
 	WeakReference<SampleMapPool> currentPool;
 

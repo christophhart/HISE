@@ -1785,6 +1785,13 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)
 			XmlBackupFunctions::removeEditorStatesFromXml(*xml);
 
 			
+			Processor::Iterator<ModulatorSampler> siter(bpe->getMainSynthChain());
+
+			while (auto s = siter.getNextProcessor())
+			{
+				if (s->getSampleMap()->hasUnsavedChanges())
+					s->getSampleMap()->saveAndReloadMap();
+			}
 
 			File scriptDirectory = XmlBackupFunctions::getScriptDirectoryFor(bpe->getMainSynthChain());
 

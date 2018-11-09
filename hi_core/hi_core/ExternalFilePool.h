@@ -733,10 +733,19 @@ public:
 		sendPoolChangeMessage(Removed);
 	}
 
-	void refreshPoolAfterUpdate()
+	void refreshPoolAfterUpdate(PoolReference r=PoolReference())
 	{
-		clearData();
-		loadAllFilesFromProjectFolder();
+		if (r.isValid())
+		{
+			loadFromReference(r, PoolHelpers::ForceReloadStrong);
+		}
+		else
+		{
+			clearData();
+			loadAllFilesFromProjectFolder();
+		}
+
+		
 	}
 
 	/** Checks if the hash code is used by the pool. Use this method with the hash code of a PoolReference. */

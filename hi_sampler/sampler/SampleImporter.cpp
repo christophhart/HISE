@@ -56,7 +56,7 @@ struct GapCloseHelpers
 		return limiters;
 	}
 
-	static int getLimitValue(const Array<ValueTree>& candidates, int lowLimit, bool closeNoteGaps)
+	static int getLimitValue(const Array<ValueTree>& candidates, int currentStart, bool closeNoteGaps)
 	{
 		Identifier loIdLimit = closeNoteGaps ? SampleIds::LoKey : SampleIds::LoVel;
 
@@ -66,13 +66,13 @@ struct GapCloseHelpers
 		{
 			auto thisLowLimit = (int)c[loIdLimit];
 
-			if (thisLowLimit > lowLimit)
+			if (thisLowLimit > currentStart)
 			{
 				lowestLimit = jmin<int>(lowestLimit, thisLowLimit);
 			}
 		}
 
-		return lowestLimit;
+		return lowestLimit == 127 ? currentStart : lowestLimit;
 	}
 };
 
@@ -99,7 +99,7 @@ void SampleImporter::closeGaps(Array<ModulatorSamplerSound*> &selection, bool cl
 
 		auto lowValue = (int)d[loId];
 
-		auto limit = GapCloseHelpers::getLimitValue(limiters, closeNoteGaps, lowValue);
+		auto limit = GapCloseHelpers::getLimitValue(limiters, lowValue, closeNoteGaps);
 
 		
 

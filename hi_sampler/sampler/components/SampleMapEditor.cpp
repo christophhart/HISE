@@ -673,8 +673,8 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	}
 								
 	case LoadSampleMap:				loadSampleMap(); return true;
-	case SaveSampleMap:				sampler->saveSampleMap(); return true;
-	case DuplicateSampleMapAsReference:	sampler->saveSampleMapAsReference(); return true;
+	case SaveSampleMap:				sampler->saveSampleMap(); refreshSampleMapPool(); return true;
+	case DuplicateSampleMapAsReference:	sampler->saveSampleMapAsReference(); refreshSampleMapPool(); return true;
 	case SaveSampleMapAsMonolith:	sampler->saveSampleMapAsMonolith(this); return true;
 	case ImportSfz:					importSfz(); return true;
 
@@ -756,8 +756,6 @@ void SampleMapEditor::importSfz()
 
 void SampleMapEditor::loadSampleMap()
 {
-
-
 	auto rootFile = sampler->getSampleEditHandler()->getCurrentSampleMapDirectory();
 
 	FileChooser f("Load new samplemap", rootFile, "*.xml");
@@ -806,6 +804,11 @@ void SampleMapEditor::sampleAmountChanged()
 void SampleMapEditor::comboBoxChanged(ComboBox* b)
 {
 	auto t = b->getText();
+
+	if (sampler->getSampleMap()->hasUnsavedChanges() && PresetHandler::showYesNoWindow("Save " + sampler->getSampleMap()->getId().toString(), "Do you want to save the current sample map"))
+	{
+		sampler->getSampleMap()->saveAndReloadMap();
+	}
 
 	PoolReference r(sampler->getMainController(), t, FileHandlerBase::SampleMaps);
 
@@ -890,6 +893,11 @@ bool SampleMapEditor::keyPressed(const KeyPress& k)
 	}
 
 	return false;
+}
+
+void SampleMapEditor::refreshSampleMapPool()
+{
+	sampler->getMainController()->getCurrentSampleMapPool()->refreshPoolAfterUpdate();
 }
 
 void SampleMapEditor::toggleVerticalSize()

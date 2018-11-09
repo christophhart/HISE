@@ -39,8 +39,6 @@ namespace hise { using namespace juce;
 SampleMap::SampleMap(ModulatorSampler *sampler_):
 	sampler(sampler_),
 	notifier(*this),
-	
-	changed(false),
 	currentPool(nullptr),
 	sampleMapId(Identifier()),
 	data("samplemap"),
@@ -108,8 +106,7 @@ SampleMap::FileList SampleMap::createFileList()
 
 void SampleMap::changeListenerCallback(SafeChangeBroadcaster *)
 {
-	if(changed==false) sampler->sendChangeMessage();
-	changed = true;
+	jassertfalse;
 };
 
 void SampleMap::clear(NotificationType n)
@@ -127,7 +124,7 @@ void SampleMap::clear(NotificationType n)
 		mode = Undefined;
 
 		sampleMapId = Identifier();
-		changed = false;
+		changeWatcher = new ChangeWatcher(data);
 
 		sampleMapData = PooledSampleMap();
 
@@ -301,8 +298,17 @@ void SampleMap::poolEntryReloaded(PoolReference referenceThatWasChanged)
 {
 	if (getReference() == referenceThatWasChanged)
 	{
-		clear(dontSendNotification);
-		getSampler()->loadSampleMap(referenceThatWasChanged);
+		auto f = [referenceThatWasChanged](Processor* p)
+		{
+			auto s = static_cast<ModulatorSampler*>(p);
+
+			s->getSampleMap()->clear(dontSendNotification);
+			s->loadSampleMap(referenceThatWasChanged);
+
+			return SafeFunctionCall::OK;
+		};
+
+		sampler->killAllVoicesAndCall(f);
 	}
 }
 
@@ -331,6 +337,21 @@ const hise::ModulatorSamplerSound* SampleMap::getSound(int index) const
 int SampleMap::getNumRRGroups() const
 {
 	return (int)getSampler()->getAttribute(ModulatorSampler::RRGroupAmount);
+}
+
+void SampleMap::saveAndReloadMap()
+{
+	auto f = getReference().getFile();
+
+	ScopedPointer<XmlElement> xml = data.createXml();
+	xml->writeToFile(f, "");
+
+	auto pool = sampler->getMainController()->getCurrentSampleMapPool();
+	pool->removeListener(this);
+	pool->loadFromReference(getReference(), PoolHelpers::ForceReloadStrong);
+	pool->addListener(this);
+
+	changeWatcher = new ChangeWatcher(data);
 }
 
 void SampleMap::valueTreePropertyChanged(ValueTree& treeWhosePropertyHasChanged, const Identifier& property)
@@ -514,10 +535,9 @@ void SampleMap::save()
 
 	auto pool = getSampler()->getMainController()->getCurrentSampleMapPool();
 
-	pool->refreshPoolAfterUpdate();
-
 	auto reloadedMap = pool->loadFromReference(ref, PoolHelpers::LoadingType::ForceReloadStrong);
 
+#if 0
 	auto tmp = reloadedMap.getRef();
 
 	auto func = [tmp](Processor* p)
@@ -528,6 +548,7 @@ void SampleMap::save()
 	};
 
 	getSampler()->killAllVoicesAndCall(func, true);
+#endif
 
 #endif
 }
@@ -549,7 +570,7 @@ void SampleMap::saveAsMonolith(Component* mainEditor)
 
 	m->setModalBaseWindowComponent(mainEditor);
 
-	changed = false;
+	changeWatcher = new ChangeWatcher(data);
 #else
 	ignoreUnused(mainEditor);
 #endif
@@ -695,7 +716,7 @@ void SampleMap::load(const PoolReference& reference)
 		auto v = sampleMapData.getData()->createCopy();
 
 		parseValueTree(v);
-		changed = false;
+		changeWatcher = new ChangeWatcher(data);
 	}
 	else
 		jassertfalse;
@@ -715,7 +736,8 @@ void SampleMap::loadUnsavedValueTree(const ValueTree& v)
 	sampleMapData = PooledSampleMap();
 	
 	parseValueTree(data);
-	changed = false;
+	changeWatcher = new ChangeWatcher(data);
+
 
 	sendSampleMapChangeMessage();
 }
@@ -871,6 +893,8 @@ void MonolithExporter::run()
 
 void MonolithExporter::exportCurrentSampleMap(bool overwriteExistingData, bool exportSamples, bool exportSampleMap)
 {
+	sampleMap->getSampler()->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->clearUnreferencedMonoliths();
+
 	jassert(sampleMap != nullptr);
 
 	showStatusMessage("Collecting files");
@@ -889,8 +913,6 @@ void MonolithExporter::exportCurrentSampleMap(bool overwriteExistingData, bool e
 		error = errorMessage;
 		return;
 	}
-	
-	
 
 	v = sampleMap->getValueTree();
 	numSamples = v.getNumChildren();
@@ -936,7 +958,9 @@ void MonolithExporter::writeSampleMapFile(bool /*overwriteExistingFile*/)
 
 	auto pool = sampleMap->getSampler()->getMainController()->getCurrentSampleMapPool();
 
-	pool->refreshPoolAfterUpdate();
+	PoolReference ref(sampleMap->getSampler()->getMainController(), sampleMapFile.getFullPathName(), FileHandlerBase::SampleMaps);
+
+	pool->loadFromReference(ref, PoolHelpers::ForceReloadStrong);
 }
 
 void MonolithExporter::threadFinished()
@@ -1005,7 +1029,10 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 	if (!outputFile.existsAsFile() || overwriteExistingData)
 	{
 
-		outputFile.deleteFile();
+		bool ok = outputFile.deleteFile();
+
+		jassert(ok);
+
 		outputFile.create();
 		
 		hlac::HiseLosslessAudioFormat hlac;
@@ -1016,7 +1043,7 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 
 		hlac::HlacEncoder::CompressorOptions options = hlac::HlacEncoder::CompressorOptions::getPreset((hlac::HlacEncoder::CompressorOptions::Presets)cIndex);
 
-		options.applyDithering = getComboBoxComponent("dithering")->getSelectedItemIndex() == 1;
+		options.applyDithering = false;
 		options.normalisationMode = (uint8)getComboBoxComponent("normalise")->getSelectedItemIndex();
 
 		StringPairArray empty;
