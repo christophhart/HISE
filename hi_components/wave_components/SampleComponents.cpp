@@ -343,6 +343,12 @@ void SamplerSoundWaveform::setSoundToDisplay(const ModulatorSamplerSound *s, int
 
 		StreamingSamplerSound::Ptr sound = s->getReferenceToSound(multiMicIndex);
 
+		if (sound == nullptr)
+		{
+			jassertfalse;
+			return;
+		}
+
 		ScopedPointer<AudioFormatReader> afr;
 
 		if (sound->isMonolithic())

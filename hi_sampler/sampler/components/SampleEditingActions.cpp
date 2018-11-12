@@ -1618,24 +1618,17 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 
 			if (currentlyDisplayedSound != nullptr)
 			{
-
-				auto s = currentlyDisplayedSound->getReferenceToSound(multimicIndex.getValue());
-
-				if (s != nullptr)
+				if (auto s = currentlyDisplayedSound->getReferenceToSound(multimicIndex.getValue()))
 				{
 					const bool isStereo = s->getPreloadBuffer().getNumChannels() == 2;
-
 					thressholdPainter->setStereo(isStereo);
 				}
-
 
 				properties->clear();
 
 				Array<PropertyComponent*> props;
-
 				
 				updateMaxArea();
-
 
 				Array<var> values;
 				StringArray choices;
@@ -1645,20 +1638,14 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 					values.add(i+1);
 					auto currentSound = handler->getSelection().getSelectedItem(i);
 					if (currentSound != nullptr)
-					{
 						choices.add(currentSound->getPropertyAsString(SampleIds::FileName));
-					}
 					else
-					{
 						choices.add("Deleted Sample");
-					}
 				}
 
 				
 				props.add(new ChoicePropertyComponent(soundIndex, "Displayed Sample", choices, values));
 				props.add(new SliderPropertyComponent(zoomLevel, "Zoom", 100.0, 3000.0, 1.0));
-
-				
 
 				props.add(new SliderPropertyComponent(max, "Max Offset", 0.0, 44100.0, 1.0));
 				props.add(new ChoicePropertyComponent(snapToZero, "Snap to zero", { "Yes", "No" }, { var(1), var(2) }));
@@ -1695,7 +1682,6 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 						p->getChildComponent(0)->setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
 						p->getChildComponent(0)->setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
 						p->getChildComponent(0)->setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
-
 					}
 				}
 				

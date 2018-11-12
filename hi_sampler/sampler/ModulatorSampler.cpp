@@ -656,7 +656,10 @@ void ModulatorSampler::refreshMemoryUsage()
 		{
 			for (int j = 0; j < numChannels; j++)
 			{
-				actualPreloadSize += sound->getReferenceToSound(j)->getActualPreloadSize();
+				if (auto micS = sound->getReferenceToSound(j))
+				{
+					actualPreloadSize += micS->getActualPreloadSize();
+				}
 			}
 		}
 	}
@@ -1173,11 +1176,9 @@ bool ModulatorSampler::preloadAllSamples()
 			{
 				const bool isEnabled = getChannelData(j).enabled;
 
-				auto s = sound->getReferenceToSound(j);
-
 				progress = (double)currentIndex++ / (double)numToLoad;
 
-				if (s != nullptr)
+				if (auto s = sound->getReferenceToSound(j))
 				{
 					if (isEnabled)
 					{

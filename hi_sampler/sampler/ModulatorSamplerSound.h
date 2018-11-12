@@ -309,7 +309,12 @@ public:
 
 	PoolReference createPoolReference(int multiMicIndex) const
 	{
-		return PoolReference(getMainController(), getReferenceToSound(multiMicIndex)->getFileName(true), ProjectHandler::SubDirectories::Samples);
+		if (isPositiveAndBelow(multiMicIndex, getNumMultiMicSamples()))
+		{
+			return PoolReference(getMainController(), getReferenceToSound(multiMicIndex)->getFileName(true), ProjectHandler::SubDirectories::Samples);
+		}
+
+		return {};
 	}
 
 	// ====================================================================================================================

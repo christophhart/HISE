@@ -72,18 +72,18 @@ SampleMap::FileList SampleMap::createFileList()
 		{
 			for (int i = 0; i < sound->getNumMultiMicSamples(); i++)
 			{
-				auto sample = sound->getReferenceToSound(i);
-
-				File file = sample->getFileName(true);
-
-				if (!file.existsAsFile())
+				if (auto sample = sound->getReferenceToSound(i))
 				{
-					allFound = false;
+					File file = sample->getFileName(true);
 
-					missingFileList << file.getFullPathName() << "\n";
+					if (!file.existsAsFile())
+					{
+						allFound = false;
+						missingFileList << file.getFullPathName() << "\n";
+					}
+
+					list[i]->add(file);
 				}
-
-				list[i]->add(file);
 			}
 		}
 	}
