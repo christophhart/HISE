@@ -1612,6 +1612,7 @@ struct ScriptingApi::Sampler::Wrapper
 	API_METHOD_WRAPPER_0(Sampler, getNumMicPositions);
 	API_METHOD_WRAPPER_1(Sampler, isMicPositionPurged);
 	API_METHOD_WRAPPER_1(Sampler, getMicPositionName);
+	API_METHOD_WRAPPER_1(Sampler, isNoteNumberMapped);
 	API_VOID_METHOD_WRAPPER_0(Sampler, refreshInterface);
 	API_VOID_METHOD_WRAPPER_1(Sampler, loadSampleMap);
 	API_METHOD_WRAPPER_0(Sampler, getSampleMapList);
@@ -1646,6 +1647,7 @@ sampler(sampler_)
 	ADD_API_METHOD_0(getSampleMapList);
     ADD_API_METHOD_1(getAttribute);
     ADD_API_METHOD_2(setAttribute);
+	ADD_API_METHOD_1(isNoteNumberMapped);
 	ADD_API_METHOD_1(setUseStaticMatrix);
 
 	sampleIds.add(SampleIds::ID);
@@ -1975,6 +1977,20 @@ bool ScriptingApi::Sampler::isMicPositionPurged(int micIndex)
 	else return false;
 
 	
+}
+
+bool ScriptingApi::Sampler::isNoteNumberMapped(int noteNumber)
+{
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("isNoteNumberMapped() only works with Samplers.");
+		RETURN_IF_NO_THROW(false)
+	}
+
+
+	return s->isNoteNumberMapped(noteNumber);
 }
 
 void ScriptingApi::Sampler::refreshInterface()

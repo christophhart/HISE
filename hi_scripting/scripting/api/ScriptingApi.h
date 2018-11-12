@@ -454,6 +454,9 @@ public:
 		/** Checks if the mic position is purged. */
 		bool isMicPositionPurged(int micIndex);
 
+		/** Checks whether the note number is mapped to any samples. */
+		bool isNoteNumberMapped(int noteNumber);
+
 		/** Refreshes the interface. Call this after you changed the properties. */
 		void refreshInterface();
 

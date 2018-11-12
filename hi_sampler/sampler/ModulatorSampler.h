@@ -340,6 +340,8 @@ public:
 	bool isPitchTrackingEnabled() const {return pitchTrackingEnabled; };
 	bool isOneShot() const {return oneShotEnabled; };
 
+	bool isNoteNumberMapped(int noteNumber) const;
+
 	CriticalSection &getSamplerLock() {	return lock; }
 	
 	const CriticalSection& getExportLock() const { return exportLock; }

@@ -1134,6 +1134,19 @@ void ModulatorSampler::setRRGroupAmount(int newGroupLimit)
 }
 
 
+bool ModulatorSampler::isNoteNumberMapped(int noteNumber) const
+{
+	ModulatorSampler::SoundIterator sIter(this);
+
+	while (auto sound = sIter.getNextSound())
+	{
+		if (sound->appliesToNote(noteNumber))
+			return true;
+	}
+
+	return false;
+}
+
 bool ModulatorSampler::preloadAllSamples()
 {
 	const int preloadSizeToUse = (int)getAttribute(ModulatorSampler::PreloadSize) * getPreloadScaleFactor();
