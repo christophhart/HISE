@@ -563,6 +563,9 @@ bool PresetHandler::showYesNoWindow(const String &title, const String &message, 
     return NativeMessageBox::showOkCancelBox(AlertWindow::AlertIconType::NoIcon, title, message);
     
 #else
+
+	MessageManagerLock mm;
+
 	AlertWindowLookAndFeel laf;
 
 	ScopedPointer<MessageWithIcon> comp = new MessageWithIcon(type, message);

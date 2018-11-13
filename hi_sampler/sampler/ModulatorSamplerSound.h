@@ -96,7 +96,8 @@ struct Helpers
 
 	static bool isMapProperty(const Identifier& id)
 	{
-		return id == Root || id == HiKey || id == LoKey || id == HiVel || id == LoVel || id == RRGroup;
+		return id == Root || id == HiKey || id == LoKey || id == HiVel || id == LoVel || id == RRGroup ||
+			   id == LowerVelocityXFade || id == UpperVelocityXFade;
 	}
 
 	static bool isAudioProperty(const Identifier& id)

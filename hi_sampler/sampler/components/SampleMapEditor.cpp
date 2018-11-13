@@ -28,14 +28,12 @@ namespace hise { using namespace juce;
 
 MARKDOWN_CHAPTER(SampleMapEditorHelp)
 START_MARKDOWN(Warning)
-ML("### Why is this bad");
-ML("In HISE, a sample map is a separate content type which can be loaded into different samplers");
-ML("You can save samplers without storing the samplemap as separate file, but there are many advantages if you use this option:");
-ML("- faster loading times");
-ML("- ability to load different sample sets using scripting");
-ML("- better separation between content and architecture");
-ML("### How to avoid this warning?");
-ML("In order to save sample maps, use the **Save SampleMap** button and create a samplemap file (which is a simple .XML file containing the current sample set");
+ML("### Why is icon appearing");
+ML("In HISE, a sample map is a encapsulated content type which can be loaded into different samplers.");
+ML("During development, sample maps are stored as XML files in their subdirectory and are cached in order to speed up loading times.");
+ML("However this means that if you make changes to a samplemap it won't get written to disk until you explicitely save the sample map");
+ML("This button will light up as soon as you've made changes indicating that you need to resave the samplemap.");
+ML("> If you save the project as XML Backup, all currently loaded sample maps will be saved along with the rest of the preset and if you try to select another sample map using the selector on the left, it will ask whether it should save the changes you made before loading the new map. However if you load another sample map using the scripting call `Sampler.loadSampleMap()`, any changes will be discarded.");
 END_MARKDOWN()
 START_MARKDOWN(Help)
 ML("### Toolbar Functions");
@@ -346,7 +344,7 @@ void SampleMapEditor::resized()
 
 	sampleMaps->setBounds(topBar.removeFromLeft(150));
 
-	if (sampler->getSampleMap()->isUsingUnsavedValueTree())
+	if (sampler->getSampleMap()->hasUnsavedChanges())
 	{
 		warningButton->setVisible(true);
 
@@ -536,6 +534,9 @@ void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo
 	case SaveSampleMapAsMonolith:	result.setInfo("Save as Monolith", "Save the current SampleMap as one big monolith file", "SampleMap Handling", 0);
 		result.setActive(true);
 		break;
+	case RevertSampleMap:result.setInfo("Revert sample map", "Discards all changes and reloads the samplemap from disk", "SampleMap Handling", 0);
+		result.setActive(sampler->getSampleMap()->hasUnsavedChanges());
+		break;
 	case ImportSfz:		result.setInfo("Import SFZ file format", "Import SFZ file format", "SampleMap Handling", 0);
 		result.setActive(true);
 		break;
@@ -614,7 +615,6 @@ void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo
 
 		if (selectedSoundList.size() > 1)
 		{
-
 			containsVelocityMaterial = true;
 
 			int lowLimit = selectedSoundList[0]->getSampleProperty(SampleIds::LoKey);
@@ -628,10 +628,7 @@ void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo
 					containsVelocityMaterial = false;
 					break;
 				}
-
 			}
-
-
 		}
 
 		result.setActive(selectionIsNotEmpty && containsVelocityMaterial);
@@ -680,10 +677,23 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	{
 		auto f = [](Processor* p) {dynamic_cast<ModulatorSampler*>(p)->clearSampleMap(sendNotificationAsync); return SafeFunctionCall::OK; };
 		sampler->killAllVoicesAndCall(f, true);
+
 		return true;
 	}
 								
 	case LoadSampleMap:				loadSampleMap(); return true;
+	case RevertSampleMap:
+	{
+		if (PresetHandler::showYesNoWindow("Revert Samplemap", "Do you really want to revert the samplemap"))
+		{
+			auto ref = sampler->getSampleMap()->getReference();
+			sampler->getMainController()->getCurrentSampleMapPool()->loadFromReference(ref, PoolHelpers::ForceReloadStrong);
+			auto f = [ref](Processor* p) {dynamic_cast<ModulatorSampler*>(p)->loadSampleMap(ref); return SafeFunctionCall::OK; };
+			sampler->killAllVoicesAndCall(f, true);
+		}
+		
+		return true;
+	}
 	case SaveSampleMap:				sampler->saveSampleMap(); refreshSampleMapPool(); return true;
 	case DuplicateSampleMapAsReference:	sampler->saveSampleMapAsReference(); refreshSampleMapPool(); return true;
 	case SaveSampleMapAsMonolith:	sampler->saveSampleMapAsMonolith(this); return true;
@@ -809,7 +819,21 @@ void SampleMapEditor::sampleMapWasChanged(PoolReference newSampleMap)
 
 void SampleMapEditor::sampleAmountChanged()
 {
-	
+	updateWarningButton();
+}
+
+void SampleMapEditor::samplePropertyWasChanged(ModulatorSamplerSound* /*s*/, const Identifier& /*id*/, const var& /*newValue*/)
+{
+	updateWarningButton();
+}
+
+void SampleMapEditor::updateWarningButton()
+{
+	bool unsavedChanges = sampler->getSampleMap()->hasUnsavedChanges();
+	bool warningVisible = warningButton->isVisible();
+
+	if (unsavedChanges != warningVisible)
+		resized();
 }
 
 void SampleMapEditor::comboBoxChanged(ComboBox* b)
@@ -958,26 +982,42 @@ void SampleMapEditor::paintOverChildren(Graphics& g)
 
 void SampleMapEditor::updateSampleMapSelector(bool rebuild)
 {
-	if (rebuild)
+	Component::SafePointer<ComboBox> cb(sampleMaps.get());
+	WeakReference<ModulatorSampler> s(sampler);
+
+	auto f = [rebuild, cb, s]()
 	{
-		sampleMaps->clear(dontSendNotification);
+		if (cb.getComponent() == nullptr)
+			return;
 
-		auto pool = sampler->getMainController()->getCurrentSampleMapPool();
-		auto ref = pool->getListOfAllReferences(true);
+		if (rebuild)
+		{
+			cb.getComponent()->clear(dontSendNotification);
 
+			auto pool = s.get()->getMainController()->getCurrentSampleMapPool();
+			auto ref = pool->getListOfAllReferences(true);
 
-		PoolReference::Comparator comp;
+			PoolReference::Comparator comp;
 
-		ref.sort(comp, true);
+			ref.sort(comp, true);
 
-		int i = 1;
+			int i = 1;
 
-		for (auto r : ref)
-			sampleMaps->addItem(r.getReferenceString(), i++);
-	}
+			for (auto r : ref)
+			{
+				if (!r.isValid())
+					continue;
 
-	if (auto currentRef = sampler->getSampleMap()->getReference())
-		sampleMaps->setText(currentRef.getReferenceString(), dontSendNotification);
+				cb.getComponent()->addItem(r.getReferenceString(), i++);
+			}
+				
+		}
+
+		if (auto currentRef = s.get()->getSampleMap()->getReference())
+			cb.getComponent()->setText(currentRef.getReferenceString(), dontSendNotification);
+	};
+
+	MessageManager::callAsync(f);
 }
 
 //[/MiscUserCode]

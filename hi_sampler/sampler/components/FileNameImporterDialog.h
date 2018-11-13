@@ -20,9 +20,7 @@
 #ifndef __JUCE_HEADER_44A2A0BCCC20A6FE__
 #define __JUCE_HEADER_44A2A0BCCC20A6FE__
 
-//[Headers]     -- You can add your own extra header files here --
  namespace hise { using namespace juce;
-//[/Headers]
 
 //==============================================================================
 
@@ -36,7 +34,6 @@ public:
     ~FileNameImporterDialog();
 
     //==============================================================================
-    //[UserMethods]     -- You can add your own custom methods in this section.
 
 	/** set the separator character. Multiple characters are not allowed. */
 	void setSeparator(String separator)
@@ -60,7 +57,6 @@ public:
 
 		for(int i = 0; i < tokens.size(); i++)
 		{
-
 			FileNamePartComponent *tp = new FileNamePartComponent(tokens[i]);
 
 			addAndMakeVisible(tp);
@@ -69,9 +65,6 @@ public:
 			y += 50;
 
 			tokenPanels.add(tp);
-
-
-
 		}
 
 	};
@@ -118,17 +111,12 @@ public:
 
 	const StringArray &getFileNameList() { return relativeFileNames; }
 
-    //[/UserMethods]
-
     void paint (Graphics& g);
     void resized();
     void labelTextChanged (Label* labelThatHasChanged);
     void buttonClicked (Button* buttonThatWasClicked);
 
-
-
 private:
-    //[UserVariables]   -- You can add your own custom variables in this section.
 
 	void restoreFromXml(const String& xmlData);
 
@@ -143,10 +131,8 @@ private:
 	OwnedArray<FileNamePartComponent> tokenPanels;
 
 	ModulatorSampler *sampler;
-
 	AlertWindowLookAndFeel laf;
 
-    //[/UserVariables]
 
     //==============================================================================
     ScopedPointer<Label> separatorLabel;
@@ -161,18 +147,17 @@ private:
     ScopedPointer<TextButton> pasteButton;
     ScopedPointer<TextButton> saveButton;
     ScopedPointer<TextButton> loadButton;
+	ScopedPointer<TextButton> clearButton;
 
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileNameImporterDialog)
 };
 
-//[EndFile] You can add extra defines here...
 
 
 /** \endcond */
 } // namespace hise
 
-//[/EndFile]
 
 #endif   // __JUCE_HEADER_44A2A0BCCC20A6FE__

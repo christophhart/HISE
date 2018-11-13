@@ -105,19 +105,13 @@ public:
 	{
 		soundProperty = p;
 		descriptionLabel->setText(p.toString(), dontSendNotification);
-
 		descriptionLabel->setTooltip(p.toString());
-
 	}
 
 	void setCurrentSelection(const SampleSelection &newSelection)
 	{
-		
-
 		currentSelection.clear();
 		currentSelection.addArray(newSelection);
-
-		
 
 		if(newSelection.size() != 0 && currentSlider.getComponent() != nullptr)
 		{

@@ -84,8 +84,8 @@ public:
 		using SharedPointer = ReferenceCountedObjectPtr<ModulatorSamplerSound>;
 
 		/** This iterates over all sounds and locks the sound lock if desired. */
-		SoundIterator(ModulatorSampler* s_, bool /*lock_*/=true):
-			s(s_)
+		SoundIterator(const ModulatorSampler* s_, bool /*lock_*/=true):
+			s(const_cast<ModulatorSampler*>(s_))
 		{}
 
 		SharedPointer getNextSound()

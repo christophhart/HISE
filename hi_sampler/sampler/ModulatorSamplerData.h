@@ -71,6 +71,8 @@ public:
 
 		virtual void sampleAmountChanged() = 0;
 
+		virtual void sampleMapCleared() {};
+
 	private:
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
@@ -105,13 +107,9 @@ public:
 	FileList createFileList();
 
 	~SampleMap()
-	{
-		if(!isMonolith()) saveIfNeeded();
-	};
+	{};
 
 	/** Checks if the samplemap was changed and deletes it. */
-	void saveIfNeeded();
-
 	void changeListenerCallback(SafeChangeBroadcaster *b);
 
 	/** Checks if any ModulatorSamplerSound was changed since the last save. 
@@ -316,6 +314,8 @@ private:
 		Notifier(SampleMap& parent_);
 
 		void sendMapChangeMessage(NotificationType n);
+
+		void sendMapClearMessage(NotificationType n);
 
 		void addPropertyChange(int index, const Identifier& id, const var& newValue);
 		void sendSampleAmountChangeMessage(NotificationType n);

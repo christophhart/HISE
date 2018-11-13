@@ -46,7 +46,7 @@ SampleMap::SampleMap(ModulatorSampler *sampler_):
 {
 	data.addListener(this);
 
-	clear(dontSendNotification);
+	changeWatcher = new ChangeWatcher(data);
 
 	// You have to clear the sound array before you set a new SampleMap!
 	jassert(sampler->getNumSounds() == 0);
@@ -111,38 +111,35 @@ void SampleMap::changeListenerCallback(SafeChangeBroadcaster *)
 
 void SampleMap::clear(NotificationType n)
 {
-	if (mode != Undefined)
+	LockHelpers::freeToGo(sampler->getMainController());
+
+	ScopedNotificationDelayer snd(*this);
+
+	sampleMapData.clear();
+
+	setNewValueTree(ValueTree("samplemap"));
+
+	mode = Undefined;
+
+	sampleMapId = Identifier();
+	changeWatcher = new ChangeWatcher(data);
+
+	sampleMapData = PooledSampleMap();
+
+	if (currentPool != nullptr)
+		currentPool->removeListener(this);
+
+	currentPool = nullptr;
+	currentMonolith = nullptr;
+
+	if (sampler != nullptr)
 	{
-		LockHelpers::freeToGo(sampler->getMainController());
-
-		ScopedNotificationDelayer snd(*this);
-
-		sampleMapData.clear();
-
-		setNewValueTree(ValueTree("samplemap"));
-
-		mode = Undefined;
-
-		sampleMapId = Identifier();
-		changeWatcher = new ChangeWatcher(data);
-
-		sampleMapData = PooledSampleMap();
-
-		if (currentPool != nullptr)
-			currentPool->removeListener(this);
-
-		currentPool = nullptr;
-		currentMonolith = nullptr;
-
-		if (sampler != nullptr)
-		{
-			sampler->sendChangeMessage();
-			sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
-		}
-
-		if (n != dontSendNotification)
-			sendSampleMapChangeMessage(n);
+		sampler->sendChangeMessage();
+		sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
 	}
+
+	if (n != dontSendNotification)
+		sendSampleMapChangeMessage(n);
 }
 
 juce::String SampleMap::getMonolithID() const
@@ -276,18 +273,6 @@ void SampleMap::parseValueTree(const ValueTree &v)
 	sampler->refreshMemoryUsage();
 	
 };
-
-void SampleMap::saveIfNeeded()
-{
-	const bool unsavedChanges = sampler != nullptr && sampler->getNumSounds() != 0 && hasUnsavedChanges();
-
-	if(unsavedChanges)
-	{
-		const bool result = PresetHandler::showYesNoWindow("Save sample map?", "Do you want to save the current sample map?");
-
-		if(result) save();
-	}
-}
 
 const ValueTree SampleMap::getValueTree() const
 {
@@ -537,7 +522,6 @@ void SampleMap::save()
 
 	auto reloadedMap = pool->loadFromReference(ref, PoolHelpers::LoadingType::ForceReloadStrong);
 
-#if 0
 	auto tmp = reloadedMap.getRef();
 
 	auto func = [tmp](Processor* p)
@@ -548,7 +532,6 @@ void SampleMap::save()
 	};
 
 	getSampler()->killAllVoicesAndCall(func, true);
-#endif
 
 #endif
 }

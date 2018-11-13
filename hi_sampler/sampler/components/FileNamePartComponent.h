@@ -32,8 +32,7 @@ class PopupLabel;
 //==============================================================================
 
 class FileNamePartComponent  : public Component,
-                               public LabelListener,
-							   public ButtonListener
+                               public LabelListener
 {
 public:
     //==============================================================================
@@ -197,9 +196,6 @@ public:
 	/** imports the settings from the supplied XmlElement. */
 	void importSettings(XmlElement &p);
 
-	void buttonClicked(Button* b) override;
-	
-
     //[/UserMethods]
 
     void paint (Graphics& g);
@@ -268,9 +264,6 @@ private:
 
 	Array<SampleImporter::SamplerSoundBasicData> dataList;
 
-	ScopedPointer<ShapeButton> propertyInfoButton;
-	ScopedPointer<ShapeButton> dataInfoButton;
-
     //[/UserVariables]
 
     //==============================================================================
@@ -284,7 +277,6 @@ private:
     ScopedPointer<Label> itemLabel;
     ScopedPointer<Label> displayGroupLabel4;
     ScopedPointer<Label> valueLabel;
-
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileNamePartComponent)

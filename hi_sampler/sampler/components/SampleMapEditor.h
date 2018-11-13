@@ -84,6 +84,7 @@ public:
 		SaveSampleMapAsXml,
 		SaveSampleMapAsMonolith,
 		DuplicateSampleMapAsReference,
+		RevertSampleMap,
 		ImportSfz,
 		ImportFiles,
 
@@ -130,6 +131,7 @@ public:
 								SaveSampleMapAsXml,
 								SaveSampleMapAsMonolith,
 								DuplicateSampleMapAsReference,
+								RevertSampleMap,
 								ImportSfz,
 								ImportFiles,
 								Undo,
@@ -269,7 +271,9 @@ public:
 	
 	void sampleAmountChanged() override;
 
-	void samplePropertyWasChanged(ModulatorSamplerSound* /*s*/, const Identifier& /*id*/, const var& /*newValue*/) override {}
+	void samplePropertyWasChanged(ModulatorSamplerSound* /*s*/, const Identifier& /*id*/, const var& /*newValue*/) override;
+
+	void updateWarningButton();
 
 	void itemDropped(const SourceDetails &dragSourceDetails) override
 	{
@@ -283,7 +287,15 @@ public:
 		}
 		else if(auto ref = PoolReference(dragSourceDetails.description))
 		{
-			sampler->loadSampleMap(ref);
+			auto f = [ref](Processor* p)
+			{
+				auto s = static_cast<ModulatorSampler*>(p);
+				s->loadSampleMap(ref);
+
+				return SafeFunctionCall::OK;
+			};
+
+			sampler->killAllVoicesAndCall(f);
 		}
 
 		mapIsHovered = false;
@@ -516,6 +528,7 @@ public:
 		p.addCommandItem(a, NewSampleMap);
 		p.addCommandItem(a, LoadSampleMap);
 		p.addCommandItem(a, SaveSampleMap);
+		p.addCommandItem(a, RevertSampleMap);
 
 		PopupMenu saveAs;
 

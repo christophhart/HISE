@@ -384,12 +384,22 @@ ValueTree ModulatorSampler::exportAsValueTree() const
 	{
 		debugError(const_cast<ModulatorSampler*>(this), "Saving embedded samplemaps is bad practice. Save the samplemap to a file instead.");
 
-		v.addChild(sampleMap->getValueTree(), -1, nullptr);
+		v.addChild(sampleMap->getValueTree().createCopy(), -1, nullptr);
 
 	}
 	else
 	{
-		v.setProperty("SampleMapID", sampleMap->getReference().getReferenceString(), nullptr);
+		if (sampleMap->hasUnsavedChanges())
+		{
+			debugToConsole(const_cast<ModulatorSampler*>(this), "The sample map has unsaved changes so it will be embedded into the sampler.");
+			v.addChild(sampleMap->getValueTree().createCopy(), -1, nullptr);
+		}
+		else
+		{
+			v.setProperty("SampleMapID", sampleMap->getReference().getReferenceString(), nullptr);
+		}
+
+		
 	}
 
 	
@@ -1047,8 +1057,6 @@ void ModulatorSampler::clearSampleMap(NotificationType n)
 
 	if (sampleMap == nullptr)
 		return;
-
-	sampleMap->saveIfNeeded();
 
 	deleteAllSounds();
 	sampleMap->clear(n);

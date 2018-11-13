@@ -106,11 +106,10 @@ void SimpleEnvelope::setInternalAttribute(int parameterIndex, float newValue)
 	switch (parameterIndex)
 	{
 	case Attack:
-		setAttackRate(newValue, nullptr);
-		
+		setAttackRate(jmax<float>(0.0f, newValue), nullptr);
 		break;
 	case Release:
-		release = newValue;
+		release = jmax<float>(0.0f, newValue);
 		setReleaseRate(newValue);
 		break;
 	case LinearMode:

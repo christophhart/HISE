@@ -41,7 +41,7 @@ namespace raw
 template <class T>
 raw::Reference<T> hise::raw::Builder::find(const String& name)
 {
-	return Reference<T>(mc, name);
+	return { mc, name };
 }
 
 
