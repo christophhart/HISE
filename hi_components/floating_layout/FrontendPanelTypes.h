@@ -404,6 +404,7 @@ public:
 		ShowSaveButton,
 		ShowNotes,
 		ShowEditButtons,
+		ShowFavoriteIcon,
 		NumColumns,
 		numSpecialProperties
 	};
@@ -411,7 +412,6 @@ public:
 	SET_PANEL_NAME("PresetBrowser");
 
 	PresetBrowserPanel(FloatingTile* parent);
-
 	~PresetBrowserPanel();
 
 	var toDynamicObject() const override;
@@ -424,11 +424,7 @@ public:
 
 private:
 
-	bool showSaveButton = true;
-	bool showFolderButton = true;
-	bool showNotes = true;
-	bool showEditButtons = true;
-	int numColumns = 3;
+	PresetBrowser::Options options;
 
 	ScopedPointer<PresetBrowser> presetBrowser;
 };

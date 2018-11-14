@@ -179,7 +179,8 @@ private:
 
 	ScopedPointer<XmlElement> tableGraph;
 
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VelocityModulator)
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VelocityModulator);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(VelocityModulator);
 };
 
 

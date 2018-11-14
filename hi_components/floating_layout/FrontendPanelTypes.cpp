@@ -550,12 +550,13 @@ var PresetBrowserPanel::toDynamicObject() const
 {
 	var obj = FloatingTileContent::toDynamicObject();
 
-	storePropertyInObject(obj, SpecialPanelIds::ShowSaveButton, showSaveButton);
+	storePropertyInObject(obj, SpecialPanelIds::ShowSaveButton, options.showSaveButtons);
 
-	storePropertyInObject(obj, SpecialPanelIds::ShowFolderButton, showFolderButton);
-	storePropertyInObject(obj, SpecialPanelIds::ShowNotes, showNotes);
-	storePropertyInObject(obj, SpecialPanelIds::ShowEditButtons, showEditButtons);
-	storePropertyInObject(obj, SpecialPanelIds::NumColumns, numColumns);
+	storePropertyInObject(obj, SpecialPanelIds::ShowFolderButton, options.showFolderButton);
+	storePropertyInObject(obj, SpecialPanelIds::ShowNotes, options.showNotesLabel);
+	storePropertyInObject(obj, SpecialPanelIds::ShowEditButtons, options.showEditButtons);
+	storePropertyInObject(obj, SpecialPanelIds::ShowFavoriteIcon, options.showFavoriteIcons);
+	storePropertyInObject(obj, SpecialPanelIds::NumColumns, options.numColumns);
 
 	return obj;
 }
@@ -564,20 +565,18 @@ void PresetBrowserPanel::fromDynamicObject(const var& object)
 {
 	FloatingTileContent::fromDynamicObject(object);
 
-	presetBrowser->setHighlightColourAndFont(findPanelColour(PanelColourId::itemColour1), findPanelColour(PanelColourId::bgColour), getFont());
-
-	showSaveButton = getPropertyWithDefault(object, SpecialPanelIds::ShowSaveButton);
-	showFolderButton = getPropertyWithDefault(object, SpecialPanelIds::ShowFolderButton);
-	showNotes = getPropertyWithDefault(object, SpecialPanelIds::ShowNotes);
-	showEditButtons = getPropertyWithDefault(object, SpecialPanelIds::ShowEditButtons);
-	numColumns = getPropertyWithDefault(object, SpecialPanelIds::NumColumns);
-
-	presetBrowser->setShowButton(0, showFolderButton);
-	presetBrowser->setShowButton(1, showSaveButton);
-	presetBrowser->setShowNotesLabel(showNotes);
-	presetBrowser->setShowEditButtons(showEditButtons);
-	presetBrowser->setNumColumns(numColumns);
-
+	options.showSaveButtons = getPropertyWithDefault(object, SpecialPanelIds::ShowSaveButton);
+	options.showFolderButton = getPropertyWithDefault(object, SpecialPanelIds::ShowFolderButton);
+	options.showNotesLabel = getPropertyWithDefault(object, SpecialPanelIds::ShowNotes);
+	options.showEditButtons = getPropertyWithDefault(object, SpecialPanelIds::ShowEditButtons);
+	options.numColumns = getPropertyWithDefault(object, SpecialPanelIds::NumColumns);
+	options.showFavoriteIcons = getPropertyWithDefault(object, SpecialPanelIds::ShowFavoriteIcon);
+	options.backgroundColour = findPanelColour(PanelColourId::bgColour);
+	options.highlightColour = findPanelColour(PanelColourId::itemColour1);
+	options.textColour = findPanelColour(PanelColourId::textColour);
+	options.font = getFont();
+	
+	presetBrowser->setOptions(options);
 }
 
 bool PresetBrowserPanel::showTitleInPresentationMode() const
@@ -588,9 +587,8 @@ bool PresetBrowserPanel::showTitleInPresentationMode() const
 void PresetBrowserPanel::resized()
 {
 	presetBrowser->setBounds(getLocalBounds());
-	presetBrowser->setHighlightColourAndFont(findPanelColour(PanelColourId::itemColour1), findPanelColour(PanelColourId::bgColour), getFont());
+	presetBrowser->setOptions(options);
 }
-
 
 
 juce::Identifier PresetBrowserPanel::getDefaultablePropertyId(int index) const
@@ -603,6 +601,7 @@ juce::Identifier PresetBrowserPanel::getDefaultablePropertyId(int index) const
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowNotes, "ShowNotes");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowEditButtons, "ShowEditButtons");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::NumColumns, "NumColumns");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowFavoriteIcon, "ShowFavoriteIcon");
 
 	return Identifier();
 }
@@ -622,6 +621,7 @@ var PresetBrowserPanel::getDefaultProperty(int index) const
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowNotes, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowEditButtons, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::NumColumns, 3);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowFavoriteIcon, true);
 
 	return var();
 }

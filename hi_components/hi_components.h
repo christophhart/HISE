@@ -81,6 +81,7 @@ END_JUCE_MODULE_DECLARATION
 
 #include "keyboard/CustomKeyboard.h"
 #include "plugin_components/VoiceCpuBpmComponent.h"
+#include "plugin_components/PresetBrowserComponents.h"
 #include "plugin_components/PresetBrowser.h"
 #include "plugin_components/StandalonePopupComponents.h"
 

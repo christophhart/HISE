@@ -38,6 +38,7 @@
 
 #include "keyboard/CustomKeyboard.cpp"
 #include "plugin_components/VoiceCpuBpmComponent.cpp"
+#include "plugin_components/PresetBrowserComponents.cpp"
 #include "plugin_components/PresetBrowser.cpp"
 #include "plugin_components/StandalonePopupComponents.cpp"
 #include "plugin_components/PanelTypes.cpp"

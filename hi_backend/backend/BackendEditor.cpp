@@ -1022,12 +1022,13 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 	{
 		PresetBrowser* pr = new PresetBrowser(mc, 700, 500);
 
-		pr->setShowCloseButton(false);
+		PresetBrowser::Options newOptions;
 
-		Colour c2 = Colours::black.withAlpha(0.8f);
-		Colour c1 = Colour(SIGNAL_COLOUR);
+		newOptions.highlightColour = Colour(SIGNAL_COLOUR);
+		newOptions.backgroundColour = Colours::black.withAlpha(0.8f);
+		newOptions.font = GLOBAL_BOLD_FONT();
 
-		pr->setHighlightColourAndFont(c1, c2, GLOBAL_BOLD_FONT());
+		pr->setOptions(newOptions);
 
 		c = dynamic_cast<Component*>(pr);
 
