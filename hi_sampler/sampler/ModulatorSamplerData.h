@@ -67,9 +67,9 @@ public:
 
 		virtual void sampleMapWasChanged(PoolReference newSampleMap) = 0;
 
-		virtual void samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& newValue) = 0;
+		virtual void samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& newValue) {};
 
-		virtual void sampleAmountChanged() = 0;
+		virtual void sampleAmountChanged() {};
 
 		virtual void sampleMapCleared() {};
 

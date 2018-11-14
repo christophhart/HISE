@@ -47,7 +47,7 @@ bool TableEditor::isInMainPanelInternal() const
 	return findParentComponentOfClass<ScriptContentComponent>() == nullptr;
 }
 
-void TableEditor::connectToLookupTableProcessor(Processor *p)
+void TableEditor::connectToLookupTableProcessor(Processor *p, int tableIndex)
 {
 	if (p == connectedProcessor) return;
 
@@ -67,10 +67,12 @@ void TableEditor::connectToLookupTableProcessor(Processor *p)
 	{
 		connectedProcessor = p;
 
-
 		fontToUse = p->getMainController()->getFontFromString("Default", 14.0f);
 
 		ltp->addTableChangeListener(this);
+
+		if (tableIndex != -1)
+			setEditedTable(ltp->getTable(tableIndex));
 	}
 }
 
