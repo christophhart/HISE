@@ -231,6 +231,8 @@ END_JUCE_MODULE_DECLARATION
 #include "raw/raw_builder.h"
 #include "raw/raw_builder_impl.h"
 #include "raw/raw_positioner.h"
+#include "raw/raw_UserPreset.h"
+#include "raw/raw_PluginParameter.h"
 
 
 

@@ -126,6 +126,28 @@ juce::Image Pool::loadImage(const String& id)
 	return {};
 }
 
+juce::StringArray Pool::getSampleMapList() const
+{
+	auto pool = getMainController()->getCurrentSampleMapPool();
+
+	StringArray sampleMapNames;
+	auto references = pool->getListOfAllReferences(true);
+	PoolReference::Comparator comparator;
+	references.sort(comparator);
+
+	sampleMapNames.ensureStorageAllocated(references.size());
+
+	for (auto r : references)
+		sampleMapNames.add(r.getReferenceString());
+
+	return sampleMapNames;
+}
+
+hise::PoolReference Pool::createSampleMapReference(const String& referenceString)
+{
+	return PoolReference(getMainController(), referenceString, FileHandlerBase::SampleMaps);
+}
+
 }
 
 } // namespace hise;

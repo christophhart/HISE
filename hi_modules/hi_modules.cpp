@@ -167,8 +167,8 @@ namespace wdl
 
 #endif
 
-
 #include "raw/raw_misc.cpp"
 #include "raw/raw_builder.cpp"
-
 #include "raw/raw_positioner.cpp"
+#include "raw/raw_UserPreset.cpp"
+#include "raw/raw_PluginParameter.cpp"

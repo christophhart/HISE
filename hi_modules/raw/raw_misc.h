@@ -90,10 +90,19 @@ public:
 	};
 
 	/** Executes the function passed as lambda and returns the ReturnType depending on the
-		execution state of the function. */
+		execution state of the function. If you want to specify the processor being used, use the other call() method. */
 	static ReturnType call(MainController* mc, const ProcessorFunction& f, int TargetThread = IDs::Threads::Loading)
 	{
 		bool synchronouslyCalled = mc->getKillStateHandler().killVoicesAndCall(mc->getMainSynthChain(), f, (MainController::KillStateHandler::TargetThread)TargetThread);
+
+		return synchronouslyCalled ? ExecutedSynchronously : DeferredToThread;
+	}
+
+	/** Executes the function passed as lambda for the given processor and returns the ReturnType depending on the
+	execution state of the function. */
+	static ReturnType call(Processor* p, const ProcessorFunction& f, int TargetThread = IDs::Threads::Loading)
+	{
+		bool synchronouslyCalled = p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, (MainController::KillStateHandler::TargetThread)TargetThread);
 
 		return synchronouslyCalled ? ExecutedSynchronously : DeferredToThread;
 	}
@@ -140,10 +149,12 @@ public:
 	void addParameterToWatch(int parameterIndex, const ParameterCallback& callbackFunction);
 
 	/** Returns a raw pointer to the connected Processor. */
-	ProcessorType* getProcessor();
+	ProcessorType* getProcessor() const noexcept;
 
-	/** Returns a raw const pointer to the connected Processor. */
-	const ProcessorType* getProcessor() const;
+	ProcessorType* operator->() noexcept { return getProcessor(); }
+	const ProcessorType* operator->() const noexcept { return getProcessor(); }
+
+	operator ProcessorType*() const noexcept { return getProcessor(); }
 
 private:
 
@@ -310,6 +321,10 @@ public:
 	/** Loads an Image from the given ID. */
 	Image loadImage(const String& id);
 
+	StringArray getSampleMapList() const;
+
+	PoolReference createSampleMapReference(const String& referenceString);
+
 private:
 
 	bool allowUnusedSources = false;
@@ -350,6 +365,135 @@ private:
 
 	Array<Connection> connections;
 };
+
+
+
+struct Data : public RestorableObject
+{
+	using SaveFunction = std::function<var(Processor* p)>;
+	using LoadFunction = std::function<void(Processor* p, const var&)>;
+
+	struct SampleMap
+	{
+		static var save(Processor* p)
+		{
+			return var(dynamic_cast<ModulatorSampler*>(p)->getSampleMap()->getReference().getReferenceString());
+		}
+
+		static void load(Processor* p, const var& newValue)
+		{
+			raw::Pool pool(p->getMainController(), true);
+			auto ref = pool.createSampleMapReference(newValue.toString());
+			dynamic_cast<ModulatorSampler*>(p)->loadSampleMap(ref);
+		}
+	};
+
+	template <int attributeIndex> struct Attribute
+	{
+		static var save(Processor* p)
+		{
+			return p->getAttribute(attributeIndex);
+		}
+
+		static void load(Processor* p, const var& newValue)
+		{
+			float value = (float)newValue;
+			FloatSanitizers::sanitizeFloatNumber(value);
+			p->setAttribute(attributeIndex, value, sendNotification);
+		}
+	};
+
+	template <int tableIndex = 0> struct Table
+	{
+		static var save(Processor* p)
+		{
+			if (auto ltp = dynamic_cast<hise::LookupTableProcessor*>(p))
+			{
+				return var(ltp->getTable(tableIndex)->exportData());
+			}
+
+			return {};
+		}
+
+		static void load(Processor* p, const var& newValue)
+		{
+			if (auto ltp = dynamic_cast<hise::LookupTableProcessor*>(p))
+			{
+				auto table = ltp->getTable(tableIndex);
+				
+				table->restoreData(newValue.toString());
+				table->sendChangeMessage();
+			}
+		}
+	};
+
+	Data(const Identifier& id_) :
+		id(id_)
+	{};
+
+	ValueTree exportAsValueTree() const override
+	{
+		ValueTree v("Control");
+		
+		v.setProperty("id", id.toString(), nullptr);
+		v.setProperty("value", save(), nullptr);
+		return v;
+	}
+
+	void restoreFromValueTree(const ValueTree &previouslyExportedState) override
+	{
+		jassert(previouslyExportedState.getType() == Identifier("Control"));
+
+		if (previouslyExportedState.getProperty("id") == id.toString())
+		{
+			load(previouslyExportedState.getProperty("value"));
+		}
+	}
+
+	virtual var save() const = 0;
+	virtual void load(const var& newValue) = 0;
+
+private:
+
+	Identifier id;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Data);
+
+};
+
+
+template <class FunctionClass> class Storage : public Data
+{
+public:
+
+	Storage(const Identifier& id, Processor* p) :
+		Data(id),
+		processor(p->getMainController(), p->getId()),
+		saveFunction(FunctionClass::save),
+		loadFunction(FunctionClass::load)
+	{};
+
+	~Storage() {};
+
+	void load(const var& newValue) override
+	{
+		loadFunction(processor, newValue);
+	}
+
+	var save() const override
+	{
+		return saveFunction(processor);
+	}
+
+private:
+
+	Reference<Processor> processor;
+
+	SaveFunction saveFunction;
+	LoadFunction loadFunction;
+
+};
+
 
 }
 
