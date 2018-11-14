@@ -388,6 +388,8 @@ public:
 
 		if (editedTable != nullptr)
 		{
+			editedTable->addChangeListener(this);
+
 			createDragPoints();
 			refreshGraph();
 		}
@@ -410,7 +412,7 @@ public:
 
 	void changeListenerCallback(SafeChangeBroadcaster *b) override;;
 
-	void connectToLookupTableProcessor(Processor *p);;
+	void connectToLookupTableProcessor(Processor *p, int tableIndex=-1);;
 
 	/** Set the display of the domain value to the desired type. If you want a scaled value to be displayed, pass a Range<int> object */
 	void setDomain(DomainType newDomainType, Range<int> newRange=Range<int>());
