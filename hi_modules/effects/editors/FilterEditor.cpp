@@ -203,7 +203,7 @@ void FilterEditor::paint (Graphics& g)
 
     ProcessorEditorLookAndFeel::fillEditorBackgroundRectFixed(g, this, 600);
     
-	KnobLookAndFeel::drawHiBackground(g, filterGraph->getX(), filterGraph->getY(), filterGraph->getWidth(), filterGraph->getHeight(), nullptr, false);
+	GlobalHiseLookAndFeel::drawHiBackground(g, filterGraph->getX(), filterGraph->getY(), filterGraph->getWidth(), filterGraph->getHeight(), nullptr, false);
 
     //[/UserPaint]
 }

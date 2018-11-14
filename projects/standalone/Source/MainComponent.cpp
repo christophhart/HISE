@@ -23,7 +23,6 @@
 //==============================================================================
 MainContentComponent::MainContentComponent(const String &commandLine)
 {
-
 	standaloneProcessor = new hise::StandaloneProcessor();
 
 	addAndMakeVisible(editor = standaloneProcessor->createEditor());

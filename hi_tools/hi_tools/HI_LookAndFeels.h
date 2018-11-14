@@ -183,16 +183,11 @@ public:
 
 		Colour bright(0xFFAAAAAA);
 
-#if USE_BACKEND
 		setColour(PopupMenu::ColourIds::backgroundColourId, dark);
-#else
-		setColour(PopupMenu::ColourIds::backgroundColourId, Colours::black);
-#endif
 		setColour(PopupMenu::ColourIds::textColourId, bright);
 		setColour(PopupMenu::ColourIds::highlightedBackgroundColourId, bright);
 		setColour(PopupMenu::ColourIds::highlightedTextColourId, dark);
 		setColour(PopupMenu::ColourIds::headerTextColourId, bright);
-
 	};
 
 protected:
@@ -301,7 +296,7 @@ protected:
 
 	void drawPopupMenuBackground(Graphics& g, int width, int height) override
 	{
-		Colour c1 = findColour(PopupMenu::backgroundColourId).withMultipliedBrightness(JUCE_LIVE_CONSTANT_OFF(1.3f));
+		Colour c1 = findColour(PopupMenu::backgroundColourId).withMultipliedBrightness(JUCE_LIVE_CONSTANT_OFF(1.1f));
 		Colour c2 = findColour(PopupMenu::backgroundColourId).withMultipliedBrightness(0.9f);
 
 		g.setGradientFill(ColourGradient(c1, 0.0f, 0.0f, c2, 0.0f, (float)height, false));
@@ -1134,12 +1129,11 @@ private:
 
 };
 
-class KnobLookAndFeel: public PopupLookAndFeel
+class GlobalHiseLookAndFeel: public PopupLookAndFeel
 {
 public:
 
-	KnobLookAndFeel();
-
+	GlobalHiseLookAndFeel();
 	
 	Slider::SliderLayout getSliderLayout(Slider&s) override
 	{
@@ -1155,8 +1149,6 @@ public:
 
 	Label *createSliderTextBox (Slider &s) override
 	{
-
-
 		Label *label = new Label("Textbox");
 		label->setFont (GLOBAL_FONT());
 		label->setEditable (false, false, false);
@@ -1172,8 +1164,6 @@ public:
 			
 			textColour = Colour(0x66ffffff);
 			contrastColour = Colours::black;
-
-			
 		}
 		else
 		{
@@ -1195,7 +1185,6 @@ public:
 		return label;
 	}
 
-
 	Font getPopupMenuFont () override
 	{
 		if (HiseDeviceSimulator::isMobileDevice())
@@ -1211,20 +1200,6 @@ public:
 #endif
 		}
 	};
-
-#if 0
-	void drawPopupMenuBackground (Graphics& g, int width, int height) override
-	{
-		g.setColour( (findColour (PopupMenu::backgroundColourId)));
-		g.fillRect(0.0f, 0.0f, (float)width, (float)height);
-		(void) width; (void) height;
-
-	   #if ! JUCE_MAC
-		g.setColour (findColour (PopupMenu::textColourId));
-		//g.drawRoundedRectangle(0.0f, 0.0f, (float)width, (float)height, 4.0f, 0.5f);
-	   #endif
-	}
-#endif
 
     static void drawHiBackground(Graphics &g, int x, int y, int width, int height, Component *c=nullptr, bool isMouseOverButton=false);
 	
@@ -1397,7 +1372,7 @@ private:
 
 };
 
-class FilmstripLookAndFeel : public KnobLookAndFeel
+class FilmstripLookAndFeel : public GlobalHiseLookAndFeel
 {
 public:
 

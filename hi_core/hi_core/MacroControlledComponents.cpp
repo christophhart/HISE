@@ -63,11 +63,10 @@ void MacroControlledObject::removeParameterWithPopup()
 {
 	if (macroIndex != -1)
 	{
-		ScopedPointer<PopupLookAndFeel> plaf = new PopupLookAndFeel();
-
 		PopupMenu m;
 
-		m.setLookAndFeel(plaf);
+		auto& plaf = getProcessor()->getMainController()->getGlobalLookAndFeel();
+		m.setLookAndFeel(&plaf);
 
 		m.addItem(1, "Remove Macro control");
 
@@ -104,8 +103,10 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 		numCommands
 	};
 
-	PopupLookAndFeel plaf;
 	PopupMenu m;
+
+	auto mc = getProcessor()->getMainController();
+	auto& plaf = mc->getGlobalLookAndFeel();
 
 	m.setLookAndFeel(&plaf);
 

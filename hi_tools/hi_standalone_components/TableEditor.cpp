@@ -272,7 +272,7 @@ void TableEditor::paint (Graphics& g)
 	}
 	else
 	{
-		KnobLookAndFeel::fillPathHiStyle(g, dragPath, getWidth(), getHeight());
+		GlobalHiseLookAndFeel::fillPathHiStyle(g, dragPath, getWidth(), getHeight());
 	}
     
     

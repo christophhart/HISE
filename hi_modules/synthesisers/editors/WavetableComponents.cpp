@@ -91,7 +91,7 @@ void WaveformComponent::paint(Graphics &g)
 	}
 	else
 	{
-		KnobLookAndFeel::fillPathHiStyle(g, p, (int)w, (int)h);
+		GlobalHiseLookAndFeel::fillPathHiStyle(g, p, (int)w, (int)h);
 	}
 }
 

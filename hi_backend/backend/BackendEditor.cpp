@@ -755,7 +755,7 @@ public:
 private:
 
 	AlertWindowLookAndFeel alaf;
-	KnobLookAndFeel klaf;
+	GlobalHiseLookAndFeel klaf;
 
 	ScopedPointer<Label> widthLabel;
 	ScopedPointer<Label> heightLabel;

@@ -57,7 +57,7 @@ MainController::MainController() :
 	console(nullptr),
 	voiceAmount(0),
 	scrollY(0),
-	mainLookAndFeel(new KnobLookAndFeel()),
+	mainLookAndFeel(new GlobalHiseLookAndFeel()),
 	mainCommandManager(new ApplicationCommandManager()),
 	shownComponents(0),
 	plotter(nullptr),

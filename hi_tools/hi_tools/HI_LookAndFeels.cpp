@@ -41,7 +41,7 @@ void FilmstripLookAndFeel::drawToggleButton(Graphics &g, ToggleButton &b, bool i
     
 	if (!imageToUse.isValid() || (numStrips != 2 && numStrips != 6))
 	{
-		KnobLookAndFeel::drawToggleButton(g, b, isMouseOverButton, isButtonDown);
+		GlobalHiseLookAndFeel::drawToggleButton(g, b, isMouseOverButton, isButtonDown);
 		return;
 	}
 	else
@@ -98,7 +98,7 @@ void FilmstripLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, i
     
 	if (!imageToUse.isValid() || numStrips == 0)
 	{
-		KnobLookAndFeel::drawRotarySlider(g, -1, -1, width, height, -1, -1, -1, s);
+		GlobalHiseLookAndFeel::drawRotarySlider(g, -1, -1, width, height, -1, -1, -1, s);
 		return;
 	}
 	else
@@ -187,7 +187,7 @@ void VUSliderLookAndFeel::drawLinearSlider(Graphics &g,
 	}
 };
 
-void KnobLookAndFeel::drawHiBackground(Graphics &g, int x, int y, int width, int height, Component *c, bool isMouseOverButton)
+void GlobalHiseLookAndFeel::drawHiBackground(Graphics &g, int x, int y, int width, int height, Component *c, bool isMouseOverButton)
 {
     Colour upperBgColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::ComponentFillTopColourId) :
                                             Colour(0x66333333);
@@ -214,7 +214,7 @@ void KnobLookAndFeel::drawHiBackground(Graphics &g, int x, int y, int width, int
     }
 }
 
-void KnobLookAndFeel::drawComboBox(Graphics &g, int width, int height, bool isButtonDown, int /*buttonX*/, int /*buttonY*/, int /*buttonW*/, int /*buttonH*/, ComboBox &c)
+void GlobalHiseLookAndFeel::drawComboBox(Graphics &g, int width, int height, bool isButtonDown, int /*buttonX*/, int /*buttonY*/, int /*buttonW*/, int /*buttonH*/, ComboBox &c)
 {
     c.setColour(ComboBox::ColourIds::textColourId, c.findColour(HiseColourScheme::ColourIds::ComponentTextColourId));
 
@@ -231,7 +231,7 @@ void KnobLookAndFeel::drawComboBox(Graphics &g, int width, int height, bool isBu
 	g.fillPath(path);
 }
 
-void KnobLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int width, int height, float /*sliderPosProportional*/, float /*rotaryStartAngle*/, float /*rotaryEndAngle*/, Slider &s)
+void GlobalHiseLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int width, int height, float /*sliderPosProportional*/, float /*rotaryStartAngle*/, float /*rotaryEndAngle*/, Slider &s)
 {
 	s.setTextBoxStyle (Slider::TextBoxRight, false, 80, 28);
 
@@ -296,7 +296,7 @@ void KnobLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int wi
 }
 
 
-void KnobLookAndFeel::drawToggleButton (Graphics &g, ToggleButton &b, bool isMouseOverButton, bool /*isButtonDown*/)
+void GlobalHiseLookAndFeel::drawToggleButton (Graphics &g, ToggleButton &b, bool isMouseOverButton, bool /*isButtonDown*/)
 {
 	drawHiBackground(g, 0, 0, b.getWidth(), b.getHeight() - 2, &b, isMouseOverButton);
 
@@ -328,7 +328,7 @@ void KnobLookAndFeel::drawToggleButton (Graphics &g, ToggleButton &b, bool isMou
 #endif
 #endif
 
-KnobLookAndFeel::KnobLookAndFeel()
+GlobalHiseLookAndFeel::GlobalHiseLookAndFeel()
 {
 #if INCLUDE_STOCK_FILMSTRIPS
 	cachedImage_smalliKnob_png = ImageProvider::getImage(ImageProvider::ImageType::KnobEmpty); // ImageCache::getFromMemory(BinaryData::knob_empty_png, BinaryData::knob_empty_pngSize);
@@ -361,20 +361,20 @@ KnobLookAndFeel::KnobLookAndFeel()
 }
 
 
-const char* KnobLookAndFeel::smalliKnob_png =  (const char*) HiBinaryData::LookAndFeelBinaryData::knob_mod_bg_png;
-const int KnobLookAndFeel::smalliKnob_pngSize = 16277;
+const char* GlobalHiseLookAndFeel::smalliKnob_png =  (const char*) HiBinaryData::LookAndFeelBinaryData::knob_mod_bg_png;
+const int GlobalHiseLookAndFeel::smalliKnob_pngSize = 16277;
 
-const char* KnobLookAndFeel::knobRing_png =  (const char*) HiBinaryData::LookAndFeelBinaryData::knob_mod_ring_png;
-const int KnobLookAndFeel::knobRing_size = 17983;
+const char* GlobalHiseLookAndFeel::knobRing_png =  (const char*) HiBinaryData::LookAndFeelBinaryData::knob_mod_ring_png;
+const int GlobalHiseLookAndFeel::knobRing_size = 17983;
 
-const char* KnobLookAndFeel::toggle_png = (const char*) HiBinaryData::LookAndFeelBinaryData::resource_Background_toggle_png;
-const int KnobLookAndFeel::toggle_pngSize = 1758;
+const char* GlobalHiseLookAndFeel::toggle_png = (const char*) HiBinaryData::LookAndFeelBinaryData::resource_Background_toggle_png;
+const int GlobalHiseLookAndFeel::toggle_pngSize = 1758;
 
-const char* KnobLookAndFeel::slider_strip2_png = (const char*) HiBinaryData::LookAndFeelBinaryData::resource_Background_slider_strip2_png;
-const int KnobLookAndFeel::slider_strip2_pngSize = 97907;
+const char* GlobalHiseLookAndFeel::slider_strip2_png = (const char*) HiBinaryData::LookAndFeelBinaryData::resource_Background_slider_strip2_png;
+const int GlobalHiseLookAndFeel::slider_strip2_pngSize = 97907;
 
-const char* KnobLookAndFeel::slider2_bipolar_png = (const char*) HiBinaryData::LookAndFeelBinaryData::resource_Background_slider2_bipolar_png;
-const int KnobLookAndFeel::slider2_bipolar_pngSize = 87929;
+const char* GlobalHiseLookAndFeel::slider2_bipolar_png = (const char*) HiBinaryData::LookAndFeelBinaryData::resource_Background_slider2_bipolar_png;
+const int GlobalHiseLookAndFeel::slider2_bipolar_pngSize = 87929;
 
 const char* BalanceButtonLookAndFeel::balanceKnob_png = (const char*) HiBinaryData::LookAndFeelBinaryData::resource_Button_balanceKnob_png;
 const int BalanceButtonLookAndFeel::balanceKnob_pngSize = 5215;

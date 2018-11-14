@@ -245,6 +245,8 @@ void MouseCallbackComponent::touchAndHold(Point<int> downPosition)
 void MouseCallbackComponent::fillPopupMenu(const MouseEvent &event)
 {
 	PopupMenu m;
+
+	auto& plaf = getProcessor()->getMainController()->getGlobalLookAndFeel();
 	m.setLookAndFeel(&plaf);
 
 	std::vector<SubMenuList> subMenus;

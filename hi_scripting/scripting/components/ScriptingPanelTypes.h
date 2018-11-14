@@ -268,7 +268,7 @@ public:
 
 		double zoomAmount;
 
-		KnobLookAndFeel klaf;
+		GlobalHiseLookAndFeel klaf;
 
 		ScopedPointer<ComboBox> zoomSelector;
 		ScopedPointer<HiseShapeButton> editSelector;

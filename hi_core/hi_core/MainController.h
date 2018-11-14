@@ -1025,6 +1025,8 @@ public:
 	PooledUIUpdater* getGlobalUIUpdater() { return &globalUIUpdater; }
 	const PooledUIUpdater* getGlobalUIUpdater() const { return &globalUIUpdater; }
 
+	GlobalHiseLookAndFeel& getGlobalLookAndFeel() const { return *mainLookAndFeel; }
+
 	const FileHandlerBase& getCurrentFileHandler(bool forceDefault=false) const
 	{
 		if (forceDefault)
@@ -1462,7 +1464,7 @@ private:
 
 	ScopedPointer<ApplicationCommandManager> mainCommandManager;
 
-	ScopedPointer<KnobLookAndFeel> mainLookAndFeel;
+	ScopedPointer<GlobalHiseLookAndFeel> mainLookAndFeel;
 
 	Font globalFont;
 

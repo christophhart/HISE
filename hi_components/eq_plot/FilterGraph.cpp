@@ -411,7 +411,7 @@ void FilterGraph::paint (Graphics& g)
 		}
 		else
 		{
-			KnobLookAndFeel::fillPathHiStyle(g, tracePath, getWidth(), getHeight());
+			GlobalHiseLookAndFeel::fillPathHiStyle(g, tracePath, getWidth(), getHeight());
 		}
 
 		

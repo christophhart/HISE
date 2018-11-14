@@ -1758,7 +1758,7 @@ class SampleStartTrimmer : public DialogWindowWithBackgroundThread
 		HiPropertyPanelLookAndFeel pplaf;
 
 		BiPolarSliderLookAndFeel plaf;
-		KnobLookAndFeel klaf;
+		GlobalHiseLookAndFeel klaf;
 
 		ScopedPointer<ThreshholdPainter> thressholdPainter;
 

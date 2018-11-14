@@ -104,6 +104,8 @@ public:
 		transposeSelector->addListener(this);
 		microTuningSelector->addListener(this);
 
+		auto& plaf = mc->getGlobalLookAndFeel();
+
 		transposeSelector->setLookAndFeel(&plaf);
 		microTuningSelector->setLookAndFeel(&plaf);
 
@@ -214,8 +216,6 @@ private:
 	}
 
 
-	PopupLookAndFeel plaf;
-
 	MainController* mc;
 
 	ScopedPointer<ComboBox> transposeSelector;
@@ -319,7 +319,6 @@ private:
 
 	Array<var> scaleFactorList;
 
-	PopupLookAndFeel plaf;
 	BlackTextButtonLookAndFeel blaf;
 
 	MainController* mc;
@@ -363,7 +362,7 @@ public:
 
 private:
 
-	KnobLookAndFeel klaf;
+	GlobalHiseLookAndFeel klaf;
 	
 
 	int numMidiDevices = 0;

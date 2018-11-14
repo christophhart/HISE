@@ -207,7 +207,6 @@ private:
 	void sendMessage(const MouseEvent &event, Action action, EnterState state = Nothing);
 	void sendToListeners(var clickInformation);
 
-	PopupLookAndFeel plaf;
 	const StringArray callbackLevels;
 	CallbackLevel callbackLevel;
 

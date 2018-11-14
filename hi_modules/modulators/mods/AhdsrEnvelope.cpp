@@ -763,7 +763,7 @@ void AhdsrGraph::paint(Graphics &g)
 	}
 	else
 	{
-		KnobLookAndFeel::fillPathHiStyle(g, envelopePath, getWidth(), getHeight());
+		GlobalHiseLookAndFeel::fillPathHiStyle(g, envelopePath, getWidth(), getHeight());
 
 		g.setColour(findColour(lineColour));
 
