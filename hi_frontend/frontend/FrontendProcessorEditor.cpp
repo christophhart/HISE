@@ -44,7 +44,7 @@ AudioProcessorEditor(fp)
     addAndMakeVisible(container = new FrontendEditorHolder());
     
 #if USE_RAW_FRONTEND
-	container->addAndMakeVisible(rawEditor = createRawEditor(fp->rawDataHolder));
+	container->addAndMakeVisible(rawEditor = fp->rawDataHolder->createEditor());
 #else
 	container->addAndMakeVisible(rootTile = new FloatingTile(fp, nullptr));
 

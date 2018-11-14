@@ -142,6 +142,13 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 
 		mc->getSampleManager().setShouldSkipPreloading(true);
 
+#if USE_RAW_FRONTEND
+
+		auto fp = dynamic_cast<FrontendProcessor*>(mc);
+		
+		fp->getRawDataHolder()->restoreFromValueTree(userPresetToLoad);
+
+#else
 		Processor::Iterator<JavascriptMidiProcessor> iter(mc->getMainSynthChain());
 
 		try
@@ -203,6 +210,8 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 		{
 			mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().reset();
 		}
+
+#endif
 
 		auto f = [](Dispatchable* obj)
 		{

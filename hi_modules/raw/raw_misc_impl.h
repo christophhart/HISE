@@ -72,13 +72,7 @@ hise::raw::Reference<ProcessorType>::~Reference()
 
 
 template <class ProcessorType>
-ProcessorType* hise::raw::Reference<ProcessorType>::getProcessor()
-{
-	return processor.get();
-}
-
-template <class ProcessorType>
-const ProcessorType* hise::raw::Reference<ProcessorType>::getProcessor() const
+ProcessorType* hise::raw::Reference<ProcessorType>::getProcessor() const noexcept
 {
 	return processor.get();
 }

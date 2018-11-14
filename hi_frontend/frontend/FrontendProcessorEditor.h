@@ -102,8 +102,6 @@ public:
 	}
 
 #if USE_RAW_FRONTEND
-	Component* createRawEditor(FrontendProcessor::RawDataHolder* data);
-
 	ScopedPointer<Component> rawEditor;
 #endif
 

@@ -65,8 +65,6 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
         chain->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, s);
         return;
     }
-    
-	 
 
 #endif
 
@@ -82,18 +80,18 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
         existingTags = PresetBrowser::DataBaseHelpers::getTagsFromXml(presetFile);
 
 		presetFile.deleteFile();
-		
 	}
 	
 	if (!presetFile.existsAsFile())
 	{
-		Processor::Iterator<JavascriptMidiProcessor> iter(chain);
+		ValueTree preset;
+
+#if USE_RAW_FRONTEND
+		preset = dynamic_cast<FrontendProcessor*>(chain->getMainController())->getRawDataHolder()->exportAsValueTree();
+#else
 
 		ValueTree autoData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree();
-
 		ValueTree mpeData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().exportAsValueTree();
-
-
 
 		auto container = ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(chain);
 
@@ -104,15 +102,13 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 			modulationData = container->exportModulatedParameters();
 		}
 
-		while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
+		if(auto sp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(chain->getMainController()))
 		{
-			if (!sp->isFront()) continue;
-
 			ValueTree v = sp->getScriptingContent()->exportAsValueTree();
 
 			v.setProperty("Processor", sp->getId(), nullptr);
 
-			ValueTree preset = ValueTree("Preset");
+			preset = ValueTree("Preset");
 
 			preset.setProperty("Version", getCurrentVersionNumber(chain), nullptr);
 			preset.addChild(v, -1, nullptr);
@@ -122,29 +118,26 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 			if (modulationData.isValid())
 				preset.addChild(modulationData, -1, nullptr);
 
+		}
+#endif
+
+		if (preset.isValid())
+		{
 			ScopedPointer<XmlElement> xml = preset.createXml();
 
 			presetFile.replaceWithText(xml->createDocument(""));
 
-            if(existingNote.isNotEmpty())
-            {
-                PresetBrowser::DataBaseHelpers::writeNoteInXml(presetFile, existingNote);
-            }
+			if (existingNote.isNotEmpty())
+				PresetBrowser::DataBaseHelpers::writeNoteInXml(presetFile, existingNote);
 
 			if (!existingTags.isEmpty())
-			{
 				PresetBrowser::DataBaseHelpers::writeTagsInXml(presetFile, existingTags);
-			}
-            
+
 			if (notify)
 			{
 				chain->getMainController()->getUserPresetHandler().setCurrentlyLoadedFile(presetFile);
 				chain->getMainController()->getUserPresetHandler().sendRebuildMessage();
 			}
-
-			
-
-			return;
 		}
 	}
 }

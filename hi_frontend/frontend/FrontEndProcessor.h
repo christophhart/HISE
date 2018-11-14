@@ -120,7 +120,7 @@ public:
 	{
 #if USE_RAW_FRONTEND
 		zstd::ZDefaultCompressor compressor;
-		ValueTree v = saveStateRaw();
+		ValueTree v = rawDataHolder->exportAsValueTree();
 		compressor.compress(v, destData);
 #else
 		MemoryOutputStream output(destData, false);
@@ -154,7 +154,7 @@ public:
 		zstd::ZDefaultCompressor compressor;
 		compressor.expand(mb, v);
 
-		loadStateRaw(v);
+		rawDataHolder->restoreFromValueTree(v);
 #else
 		ValueTree v = ValueTree::readFromData(data, sizeInBytes);
 
@@ -177,45 +177,45 @@ public:
 #endif
 	}
 
-	// If you want to create your project using only C++, you need to implement these
-	// methods...
+
 #if USE_RAW_FRONTEND
 
 	/** This class is supposed to hold all data defined by your C++ project. 
 	
 		Just create subclass it, create one of these when you need to store data and
-		it will take ownership of it and delete it properly at shutdown. */
-	class RawDataHolder: public ControlledObject
+		it will take ownership of it and delete it properly at shutdown. 
+	*/
+	class RawDataBase: public ControlledObject,
+						 public RestorableObject
 	{
 	public:
 
-		RawDataHolder(MainController* mc):
+		RawDataBase(MainController* mc):
 		  ControlledObject(mc)
 		{};
 
-		virtual ~RawDataHolder() {};
+		/** Overwrite this method and return your plugin's main editor. */
+		virtual Component* createEditor() = 0;
+
+		virtual ~RawDataBase() {};
 
 	private:
 
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RawDataHolder);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(RawDataBase);
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RawDataBase);
 	};
 
-	ScopedPointer<RawDataHolder> rawDataHolder;
+	ScopedPointer<RawDataBase> rawDataHolder;
 
-	RawDataHolder* createPresetRaw();
+	/** Overwrite this method and return your subclassed data model. */
+	RawDataBase* createPresetRaw();
 
-	template <class T> T* getRawDataHolder()
+	RawDataBase* getRawDataHolder()
 	{
-		auto rt = dynamic_cast<T*>(rawDataHolder.get());
-		jassert(rt != nullptr);
+		return rawDataHolder.get();
 	}
 
-	void loadStateRaw(const ValueTree& v);
-
-	ValueTree saveStateRaw();
 #endif
-
-
 
 	void processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages);
 
