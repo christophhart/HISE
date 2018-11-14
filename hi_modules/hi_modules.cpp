@@ -171,3 +171,4 @@ namespace wdl
 #include "raw/raw_misc.cpp"
 #include "raw/raw_builder.cpp"
 
+#include "raw/raw_positioner.cpp"

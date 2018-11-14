@@ -1316,14 +1316,9 @@ void FloatingTile::setContent(const var& data)
 	else
 	{
 		layoutData.fromDynamicObject(data);
-
-
-
 		addAndMakeVisible(content = dynamic_cast<Component*>(FloatingTileContent::createPanel(data, this)));
-
 		getCurrentFloatingPanel()->fromDynamicObject(data);
 	}
-		
 
 	refreshFixedSizeForNewContent();
 
@@ -1336,13 +1331,20 @@ void FloatingTile::setContent(const var& data)
 		getParentContainer()->refreshLayout();
 	}
 		
-
 	bringButtonsToFront();
 	refreshMouseClickTarget();
 	resized();
 	repaint();
+}
 
 
+void FloatingTile::setContent(NamedValueSet&& data)
+{
+	DynamicObject::Ptr d = new DynamicObject();
+	d->swapProperties(std::move(data));
+	var newData(d);
+
+	setContent(newData);
 }
 
 void FloatingTile::setNewContent(const Identifier& newId)

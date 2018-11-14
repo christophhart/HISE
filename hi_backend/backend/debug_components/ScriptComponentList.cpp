@@ -470,9 +470,9 @@ void ScriptComponentList::mouseUp(const MouseEvent& event)
 			CreateCustomCallbackDefinition,
 			CopyProperties,
 			PasteProperties,
+			CreateCppPositionData,
 			CopyToAllDevices,
 			CopyToDeviceOffset,
-			
 			numOptions = CopyToDeviceOffset + 10
 		};
 
@@ -484,6 +484,8 @@ void ScriptComponentList::mouseUp(const MouseEvent& event)
 
 		m.addItem(PopupMenuOptions::CreateScriptVariableDeclaration, "Create script variable definition");
 		m.addItem(PopupMenuOptions::CreateCustomCallbackDefinition, "Create custom callback definition");
+
+		m.addItem(PopupMenuOptions::CreateCppPositionData, "Copy C++ position data to clipboard", somethingSelected, false);
 
 
 		PopupMenu s;
@@ -553,6 +555,17 @@ void ScriptComponentList::mouseUp(const MouseEvent& event)
 			debugToConsole(dynamic_cast<Processor*>(content->getScriptProcessor()), String(b->getNumSelected()) + " callback definitions created and copied to the clipboard");
 
 			SystemClipboard::copyTextToClipboard(st);
+			break;
+		}
+		case CreateCppPositionData:
+		{
+
+			raw::Positioner pos(componentListToUse.getFirst());
+
+			SystemClipboard::copyTextToClipboard(pos.toString());
+
+			PresetHandler::showMessageWindow("Position data copied", "The position data for " + componentListToUse.getFirst()->getName().toString() + " was copied to the clipboard. Paste it in your C++ files for automatic positioning of equally named component structures");
+
 			break;
 		}
 		case CopyToAllDevices:
