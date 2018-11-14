@@ -241,10 +241,10 @@ void SampleEditHandler::SampleEditingActions::reencodeMonolith(Component* childC
 
 		tree.setProperty("SaveMode", 0, nullptr);
 		
-		for (auto s : tree)
+		for (auto sample : tree)
 		{
-			s.removeProperty("MonolithOffset", nullptr);
-			s.removeProperty("MonolithLength", nullptr);
+			sample.removeProperty("MonolithOffset", nullptr);
+			sample.removeProperty("MonolithLength", nullptr);
 		}
 
 		auto f = [map, tree, childComponentOfMainEditor](Processor* p)

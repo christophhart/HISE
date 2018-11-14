@@ -330,44 +330,6 @@ private:
 	bool allowUnusedSources = false;
 };
 
-/** A wrapper around a plugin parameter (not yet functional). */
-class Parameter : private SafeChangeListener
-{
-public:
-
-	/** A connection to a internal attribute of a Processor. */
-	struct Connection
-	{
-		WeakReference<Processor> processor;
-		int index;
-		NormalisableRange<float> parameterRange;
-		float lastValue;
-	};
-
-	/** Creates a parameter. */
-	Parameter(MainController* mc)
-	{
-
-	};
-
-	/** Adds a parameter connection. */
-	void addConnection(const Connection& c)
-	{
-
-	}
-
-private:
-
-	void changeListenerCallback(SafeChangeBroadcaster *b) override
-	{
-
-	}
-
-	Array<Connection> connections;
-};
-
-
-
 struct Data : public RestorableObject
 {
 	using SaveFunction = std::function<var(Processor* p)>;

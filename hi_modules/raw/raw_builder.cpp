@@ -7,10 +7,9 @@ namespace raw
 {
 
 
-Processor* Builder::createFromBase64State(const String& base64EncodedString, Processor* parent, int chainIndex/*=-1*/)
+Processor* Builder::createFromBase64State(const String& base64EncodedString, Processor* parent, int chainIndex)
 {
-	
-
+	ignoreUnused(parent, chainIndex);
 
 	ValueTree v = ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(base64EncodedString);
 

@@ -1808,7 +1808,7 @@ void CompressionHelpers::NormaliseMap::allocateTableIndexes(int numSamples)
 	}
 	else
 	{
-		uint16 newNumAllocated = (numSamples / normaliseBlockSize) + 4;
+		uint16 newNumAllocated = (uint16)((numSamples / normaliseBlockSize) + 4);
 
 		if (newNumAllocated != numAllocated)
 		{

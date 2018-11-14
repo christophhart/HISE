@@ -524,6 +524,7 @@ public:
 	{
 		DataType* unused = nullptr;
 		DBG("Create Shared Cache Pool for " + PoolHelpers::getPrettyName(unused));
+		ignoreUnused(unused);
 	}
 
 	bool contains(int64 hashCode)
@@ -561,6 +562,7 @@ public:
 	{
 		DataType* unused = nullptr;
 		DBG("Delete Shared Cache Pool for " + PoolHelpers::getPrettyName(unused));
+		ignoreUnused(unused);
 	}
 
 private:

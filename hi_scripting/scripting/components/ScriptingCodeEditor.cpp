@@ -255,9 +255,9 @@ void JavascriptCodeEditor::createMissingCaseStatementsForComponents()
 
 			for (int i = content->getNumComponents()-1; i >= 0 ; i--)
 			{
-				const String componentName = content->getComponent(i)->getName().toString();
+				const String cName = content->getComponent(i)->getName().toString();
 
-                const String reg = "case " + componentName;
+                const String reg = "case " + cName;
 
                 const bool hasCaseStatement = allText.contains(reg);
 
@@ -265,7 +265,7 @@ void JavascriptCodeEditor::createMissingCaseStatementsForComponents()
 				{
 					moveCaretTo(insertPos, false);
 
-					String newCaseStatement = "\n\t\tcase " + componentName + ":\n\t\t{\n";
+					String newCaseStatement = "\n\t\tcase " + cName + ":\n\t\t{\n";
                     newCaseStatement << "\t\t\t// Insert logic here...\n\t\t\tbreak;\n\t\t}";
 
 					insertTextAtCaret(newCaseStatement);

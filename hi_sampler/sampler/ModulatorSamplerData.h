@@ -67,7 +67,10 @@ public:
 
 		virtual void sampleMapWasChanged(PoolReference newSampleMap) = 0;
 
-		virtual void samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& newValue) {};
+		virtual void samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& newValue) 
+		{
+			ignoreUnused(s, id, newValue);
+		};
 
 		virtual void sampleAmountChanged() {};
 
@@ -120,8 +123,6 @@ public:
 	bool hasUnsavedChanges() const
 	{
 		return changeWatcher != nullptr && changeWatcher->wasChanged();
-
-		return false; //fileOnDisk == File() || changed;
 	}
 
 	void load(const PoolReference& reference);
@@ -255,15 +256,15 @@ private:
 			changed = true;
 		}
 
-		void valueTreeChildAdded(ValueTree& parentTree,
-			ValueTree& childWhichHasBeenAdded) override
+		void valueTreeChildAdded(ValueTree& /*parentTree*/,
+			ValueTree& /*childWhichHasBeenAdded*/) override
 		{
 			changed = true;
 		}
 
-		void valueTreeChildRemoved(ValueTree& parentTree,
-			ValueTree& childWhichHasBeenRemoved,
-			int indexFromWhichChildWasRemoved) override
+		void valueTreeChildRemoved(ValueTree& /*parentTree*/,
+			ValueTree& /*childWhichHasBeenRemoved*/,
+			int /*indexFromWhichChildWasRemoved*/) override
 		{
 			changed = true;
 		}

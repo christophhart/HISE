@@ -142,11 +142,11 @@ void Positioner::Data::apply(Component& c, StringArray& processedComponents) con
 	{
 		auto child = c.getChildComponent(i);
 
-		auto name = child->getName();
+		auto n = child->getName();
 
 		for (const auto& c : children)
 		{
-			if (c.name == name)
+			if (c.name == n)
 				c.apply(*child, processedComponents);
 		}
 	}
@@ -183,6 +183,7 @@ void Positioner::apply(Component& c)
 
 void Positioner::printSummary()
 {
+#if JUCE_DEBUG
 	StringArray unprocessedComponents;
 	data.fillNameList(unprocessedComponents);
 
@@ -200,6 +201,7 @@ void Positioner::printSummary()
 
 	for (const auto& p : unprocessedComponents)
 		DBG("    - " + p);
+#endif
 }
 
 }

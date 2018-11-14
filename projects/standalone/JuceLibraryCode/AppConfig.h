@@ -16,6 +16,8 @@
 //==============================================================================
 // [BEGIN_USER_CODE_SECTION]
 
+#define JUCE_ENABLE_AUDIO_GUARD 0
+
 // (You can add your own code in this section, and the Projucer will not overwrite it)
 
 // [END_USER_CODE_SECTION]
@@ -115,6 +117,14 @@
 
 #ifndef    USE_CUSTOM_FRONTEND_TOOLBAR
  //#define USE_CUSTOM_FRONTEND_TOOLBAR 1
+#endif
+
+#ifndef    HI_SUPPORT_MONO_CHANNEL_LAYOUT
+ //#define HI_SUPPORT_MONO_CHANNEL_LAYOUT 1
+#endif
+
+#ifndef    HI_SUPPORT_FULL_DYNAMICS_HLAC
+ //#define HI_SUPPORT_FULL_DYNAMICS_HLAC 1
 #endif
 
 #ifndef    IS_STANDALONE_FRONTEND
