@@ -1333,6 +1333,7 @@ CompileExporter::ErrorCodes CompileExporter::createResourceFile(const String &so
 
 #define REPLACE_WILDCARD_WITH_STRING(wildcard, s) (templateProject = templateProject.replace(wildcard, s))
 #define REPLACE_WILDCARD(wildcard, settingId) templateProject = templateProject.replace(wildcard, GET_SETTING(settingId));
+#define SET_JUCER_FLAG(wildcard, settingId) REPLACE_WILDCARD_WITH_STRING(wildcard, GET_SETTING(settingId) == "1" ? "enabled" : "disabled");
 
 struct FileHelpers
 {
@@ -1653,6 +1654,10 @@ void CompileExporter::ProjectTemplateHelpers::handleVisualStudioVersion(const Hi
 void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(CompileExporter* exporter, String &templateProject, BuildOption /*option*/)
 {
 	ModulatorSynthChain* chainToExport = exporter->chainToExport;
+
+	auto& dataObject = exporter->dataObject;
+
+	SET_JUCER_FLAG("%USE_RAW_FRONTEND%", HiseSettings::Project::UseRawFrontend);
 
 	Array<File> additionalSourceFiles;
 

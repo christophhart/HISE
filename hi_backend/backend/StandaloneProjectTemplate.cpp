@@ -221,7 +221,7 @@ static const unsigned char projectStandaloneTemplate_jucer_lines[] =
 "    <MODULE id=\"juce_product_unlocking\" showAllCode=\"1\" useLocalCopy=\"0\"/>\r\n"
 "    <MODULE id=\"juce_opengl\" showAllCode=\"1\" useLocalCopy=\"0\"/>\r\n"
 "  </MODULES>\r\n"
-"  <JUCEOPTIONS JUCE_QUICKTIME=\"disabled\" USE_BACKEND=\"disabled\" USE_FRONTEND=\"enabled\"\r\n"
+"  <JUCEOPTIONS JUCE_QUICKTIME=\"disabled\" USE_BACKEND=\"disabled\" USE_FRONTEND=\"enabled\" USE_RAW_FRONTEND=\"%USE_RAW_FRONTEND%\"\r\n"
 "               HI_EXPORT_DSP_LIBRARY=\"disabled\" USE_COPY_PROTECTION=\"%USE_COPY_PROTECTION%\"\r\n"
 "               IS_STANDALONE_APP=\"enabled\" USE_IPP=\"%USE_IPP%\" FRONTEND_IS_PLUGIN=\"%FRONTEND_IS_PLUGIN%\"\r\n"
 "               USE_CUSTOM_FRONTEND_TOOLBAR=\"%USE_CUSTOM_FRONTEND_TOOLBAR%\" HI_SUPPORT_FULL_DYNAMICS_HLAC=\"%SUPPORT_FULL_DYNAMICS%\"  IS_STANDALONE_FRONTEND=\"%IS_STANDALONE_FRONTEND%\" USE_GLITCH_DETECTION=\"enabled\"\r\n"

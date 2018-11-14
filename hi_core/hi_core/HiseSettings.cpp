@@ -75,6 +75,7 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(RedirectSampleFolder);
 	ids.add(AAXCategoryFX);
 	ids.add(SupportMonoFX);
+	ids.add(UseRawFrontend);
 
 	return ids;
 }
@@ -297,6 +298,11 @@ struct SettingDescription
 		D("> This setting will have no effect for virtual instruments.");
 		P_();
 
+		P(HiseSettings::Project::UseRawFrontend);
+		D("If enabled, the project will not use the preset structure and scripted user interface and lets you use HISE as C++ framework.");
+		D("You will have to implement a custom C++ class in the `AdditionalSourceCode` subfolder.");
+		P_();
+
 		P(HiseSettings::User::Company);
 		D("Your company name. This will be used for the path to the app data directory so make sure you don't use weird characters here");
 		P_();
@@ -513,6 +519,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Compiler::RebuildPoolFiles ||
 		id == Compiler::Support32BitMacOS ||
 		id == Project::SupportMonoFX ||
+		id == Project::UseRawFrontend ||
 		id == Project::SupportFullDynamicsHLAC)
 		return { "Yes", "No" };
 
@@ -647,11 +654,7 @@ void HiseSettings::Data::initialiseAudioDriverData(bool forceReload/*=false*/)
 	}
 
 #endif
-
-
 }
-
-
 
 var HiseSettings::Data::getDefaultSetting(const Identifier& id)
 {
@@ -669,6 +672,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id)
 	else if (id == Project::RedirectSampleFolder)	BACKEND_ONLY(return handler_.isRedirected(ProjectHandler::SubDirectories::Samples) ? handler_.getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName() : "");
 	else if (id == Project::AAXCategoryFX)			return "AAX_ePlugInCategory_Modulation";
 	else if (id == Project::SupportMonoFX)			return "No";
+	else if (id == Project::UseRawFrontend)			return "No";
 	else if (id == Other::EnableAutosave)			return "Yes";
 	else if (id == Other::AutosaveInterval)			return 5;
 	else if (id == Other::AudioThreadGuardEnabled)  return "Yes";
@@ -679,6 +683,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id)
 	else if (id == Compiler::UseIPP)				return "Yes";
 	else if (id == Compiler::RebuildPoolFiles)		return "Yes";
 	else if (id == Compiler::Support32BitMacOS)		return "Yes";
+
 	else if (id == User::CompanyURL)				return "http://yourcompany.com";
 	else if (id == User::CompanyCopyright)			return "(c)2017, Company";
 	else if (id == User::CompanyCode)				return "Abcd";
