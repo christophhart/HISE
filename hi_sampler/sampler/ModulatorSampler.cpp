@@ -1144,6 +1144,8 @@ void ModulatorSampler::setRRGroupAmount(int newGroupLimit)
 
 bool ModulatorSampler::isNoteNumberMapped(int noteNumber) const
 {
+	LockHelpers::SafeLock ss(getMainController(), LockHelpers::SampleLock);
+
 	ModulatorSampler::SoundIterator sIter(this);
 
 	while (auto sound = sIter.getNextSound())
