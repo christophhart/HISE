@@ -60,42 +60,50 @@ void SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(SampleEdit
 {
 	ModulatorSampler *s = handler->sampler;
 
-	ModulatorSampler::ScopedUpdateDelayer sud(s);
-
-	auto& sounds = handler->getSelection().getItemArray();
-
-	LockHelpers::freeToGo(s->getMainController());
-
-	handler->getSelection().deselectAll();
-
-	Array<int> newSelectedIndexes;
-
-	for (int i = 0; i < sounds.size(); i++)
+	auto f = [handler](Processor* p)
 	{
-		auto v = sounds[i].get()->getData();
-		const int index = s->getNumSounds();
+		auto s = handler->getSampler();
 
-        auto copy = v.createCopy();
-        
-		s->getSampleMap()->addSound(copy);
+		ModulatorSampler::ScopedUpdateDelayer sud(s);
 
-		newSelectedIndexes.add(index);
-	}
-    
-    s->refreshPreloadSizes();
+		auto sounds = handler->getSelection().getItemArray();
 
-	auto f = [handler, newSelectedIndexes]()
-	{
-		for (auto i : newSelectedIndexes)
+		LockHelpers::freeToGo(s->getMainController());
+
+		handler->getSelection().deselectAll();
+
+		Array<int> newSelectedIndexes;
+
+		for (int i = 0; i < sounds.size(); i++)
 		{
-			auto newSound = dynamic_cast<ModulatorSamplerSound*>(handler->getSampler()->getSound(i));
+			auto v = sounds[i].get()->getData();
+			const int index = s->getNumSounds();
 
-			if (newSound != nullptr)
-				handler->getSelection().addToSelection(newSound);
+			auto copy = v.createCopy();
+
+			s->getSampleMap()->addSound(copy);
+
+			newSelectedIndexes.add(index);
 		}
+
+		s->refreshPreloadSizes();
+
+		auto f2 = [handler, newSelectedIndexes]()
+		{
+			for (auto i : newSelectedIndexes)
+			{
+				auto newSound = dynamic_cast<ModulatorSamplerSound*>(handler->getSampler()->getSound(i));
+
+				if (newSound != nullptr)
+					handler->getSelection().addToSelection(newSound);
+			}
+		};
+
+		MessageManager::callAsync(f2);
+		return SafeFunctionCall::OK;
 	};
 
-	new DelayedFunctionCaller(f, 50);
+	s->killAllVoicesAndCall(f);
 
 }
 
@@ -221,35 +229,46 @@ void SampleEditHandler::SampleEditingActions::checkMicPositionAmountBeforePastin
 
 void SampleEditHandler::SampleEditingActions::pasteSelectedSounds(SampleEditHandler *handler)
 {
+
+
 	ModulatorSampler *s = handler->sampler;
 
-	const ValueTree &v = s->getMainController()->getSampleManager().getSamplesFromClipboard();
+
+	ValueTree v = s->getMainController()->getSampleManager().getSamplesFromClipboard();
 	
 	checkMicPositionAmountBeforePasting(v, s);
 
+	auto f = [handler, v](Processor* p)
 	{
+		auto s = handler->getSampler();
+
 		ModulatorSampler::ScopedUpdateDelayer sud(handler->getSampler());
 
 		LockHelpers::freeToGo(s->getMainController());
 
-
 		for (int i = 0; i < v.getNumChildren(); i++)
 		{
 			const int index = s->getNumSounds();
+            auto child = v.getChild(i).createCopy();
 
-            auto child = v.getChild(i);
-            
 			s->getSampleMap()->addSound(child);
-
 			auto newSound = s->getSound(index);
-
 			handler->getSelection().addToSelection(dynamic_cast<ModulatorSamplerSound*>(newSound));
 		}
-	}
 
-	s->refreshPreloadSizes();
+		s->refreshPreloadSizes();
 
-	handler->getSelection().dispatchPendingMessages();
+		auto f = [handler]()
+		{
+			handler->getSelection().dispatchPendingMessages();
+		};
+
+		MessageManager::callAsync(f);
+
+		return SafeFunctionCall::OK;
+	};
+
+	s->killAllVoicesAndCall(f);
 }
 
 void SampleEditHandler::SampleEditingActions::refreshCrossfades(SampleEditHandler * handler)

@@ -164,10 +164,13 @@ public:
 
 			for(int i = 0; i < currentSelection.size(); i++)
 			{
-				int newValue = currentSelection[i]->getSampleProperty(soundProperty);
+				if (auto s = currentSelection[i])
+				{
+					int newValue = currentSelection[i]->getSampleProperty(soundProperty);
 
-				min = jmin(newValue, min);
-				max = jmax(newValue, max);
+					min = jmin(newValue, min);
+					max = jmax(newValue, max);
+				}
 			};
 
 			String text;

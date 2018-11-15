@@ -247,7 +247,7 @@ void SampleEditHandler::SampleEditingActions::reencodeMonolith(Component* childC
 			sample.removeProperty("MonolithLength", nullptr);
 		}
 
-		auto f = [map, tree, childComponentOfMainEditor](Processor* p)
+		auto f = [map, tree, childComponentOfMainEditor](Processor* )
 		{
 			map->loadUnsavedValueTree(tree);
 

@@ -724,7 +724,12 @@ void SampleDataImporter::run()
 	hlac::HlacArchiver::DecompressData data;
 
 	data.option = option;
+
+#if USE_BACKEND || HI_SUPPORT_FULL_DYNAMICS_HLAC
 	data.supportFullDynamics = getComboBoxComponent("fullDynamics")->getSelectedItemIndex() == 1;
+#else
+	data.supportFullDynamics = false;
+#endif
 	data.sourceFile = getSourceFile();
 	data.targetDirectory = getTargetDirectory();
 	data.progress = &logData.progress;
