@@ -284,6 +284,12 @@ void MainController::loadPresetInternal(const ValueTree& v)
 
 				p->getMainController()->getSampleManager().setCurrentPreloadMessage("Done...");
 
+				p->getMainController()->getLockFreeDispatcher().sendPresetReloadMessage();
+
+#if USE_BACKEND
+
+#endif
+
 				return Dispatchable::Status::OK;
 			};
 

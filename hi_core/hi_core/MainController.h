@@ -475,9 +475,37 @@ public:
 		*/
 		bool callOnMessageThreadAfterSuspension(Dispatchable* object, const Dispatchable::Function& f);
 
+		struct PresetLoadListener
+		{
+			virtual ~PresetLoadListener() {};
+
+			virtual void newHisePresetLoaded() = 0;
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(PresetLoadListener);
+		};
+
+		void addPresetLoadListener(PresetLoadListener* l)
+		{
+			presetLoadListeners.addIfNotAlreadyThere(l);
+		}
+
+		void removePresetLoadListener(PresetLoadListener* l)
+		{
+			presetLoadListeners.removeAllInstancesOf(l);
+		}
+
+		void sendPresetReloadMessage()
+		{
+			for (auto l : presetLoadListeners)
+			{
+				if (l.get() != nullptr)
+					l->newHisePresetLoaded();
+			}
+		}
 
 	private:
 
+		Array<WeakReference<PresetLoadListener>> presetLoadListeners;
 
 		struct Job
 		{

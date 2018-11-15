@@ -70,9 +70,7 @@ void PanelWithProcessorConnection::paint(Graphics& g)
 {
 	auto bounds = getParentShell()->getContentBounds();
 
-	const bool scb = getStyleProperty(showConnectionBar, true) && findParentComponentOfClass<ScriptContentComponent>() == nullptr;
-
-    
+	const bool scb = getStyleProperty(showConnectionBar, true) && !shouldHideSelector();
     
 	if (scb)
 	{
@@ -193,9 +191,7 @@ void PanelWithProcessorConnection::moduleListChanged(Processor* b, MainControlle
 
 void PanelWithProcessorConnection::resized()
 {
-	const bool isInScriptContent = findParentComponentOfClass<ScriptContentComponent>() != nullptr;
-
-	if (isInScriptContent)
+	if (shouldHideSelector())
 	{
 		connectionSelector->setVisible(false);
 		indexSelector->setVisible(false);

@@ -113,6 +113,15 @@ public:
 		return Identifier("unsupported");
 	}
 	
+	bool shouldHideSelector() const
+	{
+#if USE_BACKEND
+		return findParentComponentOfClass<ScriptContentComponent>() != nullptr;
+#else
+		return true;
+#endif
+	}
+
 	virtual var getAdditionalUndoInformation() const { return var(); }
 
 	virtual void performAdditionalUndoInformation(const var& /*undoInformation*/) {};
@@ -241,7 +250,8 @@ private:
 	JUCE_DECLARE_WEAK_REFERENCEABLE(PanelWithProcessorConnection);
 };
 
-template <class ProcessorType> class GlobalConnectorPanel : public PanelWithProcessorConnection
+template <class ProcessorType> class GlobalConnectorPanel : public PanelWithProcessorConnection,
+															public MainController::LockFreeDispatcher::PresetLoadListener
 {
 public:
 
@@ -249,6 +259,21 @@ public:
 	GlobalConnectorPanel(FloatingTile* parent) :
 		PanelWithProcessorConnection(parent)
 	{
+		getMainController()->getLockFreeDispatcher().addPresetLoadListener(this);
+	}
+
+	~GlobalConnectorPanel()
+	{
+		getMainController()->getLockFreeDispatcher().removePresetLoadListener(this);
+
+	}
+
+	void newHisePresetLoaded() override
+	{
+		if (auto p = ProcessorHelpers::getFirstProcessorWithType<ProcessorType>(getMainController()->getMainSynthChain()))
+		{
+			setContentWithUndo(dynamic_cast<Processor*>(p), 0);
+		}
 
 	}
 
