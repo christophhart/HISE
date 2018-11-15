@@ -260,7 +260,7 @@ void PresetBrowserLookAndFeel::drawButtonText(Graphics& g, TextButton& button, b
 
 }
 
-void PresetBrowserLookAndFeel::drawListItem(Graphics& g, int columnIndex, int rowNumber, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode)
+void PresetBrowserLookAndFeel::drawListItem(Graphics& g, int columnIndex, int /*rowNumber*/, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode)
 {
 	g.setGradientFill(ColourGradient(highlightColour.withAlpha(0.3f), 0.0f, 0.0f,
 		highlightColour.withAlpha(0.2f), 0.0f, (float)position.getHeight(), false));

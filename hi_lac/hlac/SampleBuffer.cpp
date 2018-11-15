@@ -577,11 +577,7 @@ void HiseSampleBuffer::Normaliser::clear(Range<int> rangeToClear /*= Range<int>(
 				info.range.setStart(rangeToClear.getEnd());
 			else if (rangeToClear.contains(info.range.getEnd()))
 				info.range.setEnd(rangeToClear.getStart());
-
-			int x = 5;
 		}
-
-		int x = 5;
 	}
 }
 

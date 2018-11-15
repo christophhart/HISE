@@ -306,7 +306,7 @@ uint8 CompressionHelpers::getBitrateForCycleLength(const AudioBufferInt16& block
 	return BitCompressors::getMinBitDepthForData(workBuffer.getReadPointer(), cycleLength);
 }
 
-void CompressionHelpers::normaliseBlock(int16* data, int numSamples, int normalisationAmount, int direction, bool useDither)
+void CompressionHelpers::normaliseBlock(int16* data, int numSamples, int normalisationAmount, int direction, bool /*useDither*/)
 {
 	int shiftAmount = 1 << normalisationAmount;
 

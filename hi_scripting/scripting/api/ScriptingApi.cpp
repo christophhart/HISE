@@ -3288,7 +3288,7 @@ void ScriptingApi::Console::print(var x)
 #if USE_BACKEND
 
 	AudioThreadGuard::Suspender suspender;
-
+	ignoreUnused(suspender);
 	debugToConsole(getProcessor(), x);
 #endif
 }

@@ -212,6 +212,8 @@ keyFileCorrectlyLoaded(true),
 currentlyLoadedProgram(0),
 unlockCounter(0)
 {
+	ignoreUnused(synthData);
+
 	LOG_START("Checking license");
 
     HiseDeviceSimulator::init(wrapperType);
@@ -313,6 +315,7 @@ void FrontendProcessor::createPreset(const ValueTree& synthData)
     }
     catch(String& s)
     {
+		ignoreUnused(s);
         DBG("Error: " + s);
     }
 

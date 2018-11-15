@@ -514,8 +514,6 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 			if (rawMode)
 			{
-				NewLine nl;
-
 				auto printExportedFiles = [](MainController* mc, const Array<PoolReference>& files, ProjectHandler::SubDirectories d)
 				{
 					String name = ProjectHandler::getIdentifier(d);
