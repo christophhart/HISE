@@ -181,24 +181,12 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 			DBG(m);
 		}
 
-		
+#endif
 
 		ValueTree autoData = userPresetToLoad.getChildWithName("MidiAutomation");
 
 		if (autoData.isValid())
 			mc->getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(autoData);
-
-		ValueTree modulationData = userPresetToLoad.getChildWithName("ModulatedParameters");
-
-		if (modulationData.isValid())
-		{
-			auto container = ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(mc->getMainSynthChain());
-
-			if (container != nullptr)
-			{
-				container->restoreModulatedParameters(modulationData);
-			}
-		}
 
 		auto mpeData = userPresetToLoad.getChildWithName("MPEData");
 
@@ -211,7 +199,7 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 			mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().reset();
 		}
 
-#endif
+
 
 		auto f = [](Dispatchable* obj)
 		{

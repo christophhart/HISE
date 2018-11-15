@@ -90,17 +90,9 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 		preset = dynamic_cast<FrontendProcessor*>(chain->getMainController())->getRawDataHolder()->exportAsValueTree();
 #else
 
-		ValueTree autoData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree();
-		ValueTree mpeData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().exportAsValueTree();
+		
 
 		auto container = ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(chain);
-
-		ValueTree modulationData;
-
-		if (container != nullptr)
-		{
-			modulationData = container->exportModulatedParameters();
-		}
 
 		if(auto sp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(chain->getMainController()))
 		{
@@ -108,18 +100,25 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 
 			v.setProperty("Processor", sp->getId(), nullptr);
 
+
+
 			preset = ValueTree("Preset");
 
-			preset.setProperty("Version", getCurrentVersionNumber(chain), nullptr);
 			preset.addChild(v, -1, nullptr);
-			preset.addChild(autoData, -1, nullptr);
-			preset.addChild(mpeData, -1, nullptr);
 
-			if (modulationData.isValid())
-				preset.addChild(modulationData, -1, nullptr);
+			
 
 		}
 #endif
+
+		ValueTree autoData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree();
+		ValueTree mpeData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().exportAsValueTree();
+
+		preset.setProperty("Version", getCurrentVersionNumber(chain), nullptr);
+
+		preset.addChild(autoData, -1, nullptr);
+		preset.addChild(mpeData, -1, nullptr);
+
 
 		if (preset.isValid())
 		{
