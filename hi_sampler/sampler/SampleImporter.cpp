@@ -614,7 +614,7 @@ int SampleImporter::SampleCollection::getIndexOfSameMicSample(int currentIndex) 
 }
 
 FileImportDialogWindow::FileImportDialogWindow(ModulatorSampler *sampler_, const StringArray &files_):
-	DialogWindowWithBackgroundThread("File Name Pattern Settings"),
+	DialogWindowWithBackgroundThread("Filename Token Parser"),
 	sampler(sampler_),
 	files(files_)
 {
