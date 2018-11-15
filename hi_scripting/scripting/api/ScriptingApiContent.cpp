@@ -4418,8 +4418,16 @@ void ScriptingApi::Content::Helpers::deleteComponent(Content* c, const Identifie
 	childToRemove.getParent().removeChild(childToRemove, &b->getUndoManager());
 }
 
-void ScriptingApi::Content::Helpers::renameComponent(Content* c, const Identifier& id, const Identifier& newId)
+bool ScriptingApi::Content::Helpers::renameComponent(Content* c, const Identifier& id, const Identifier& newId)
 {
+	auto existingTree = c->getValueTreeForComponent(newId);
+
+	if (existingTree.isValid())
+	{
+		PresetHandler::showMessageWindow("Existing ID", "The ID " + newId.toString() + " already exists. Pick another one.");
+		return false;
+	}
+
 	auto childTree = c->getValueTreeForComponent(id);
 
 	auto& undoManager = c->getProcessor()->getMainController()->getScriptComponentEditBroadcaster()->getUndoManager();
@@ -4436,6 +4444,8 @@ void ScriptingApi::Content::Helpers::renameComponent(Content* c, const Identifie
 			child.setProperty("parentComponent", newId.toString(), &undoManager);
 		}
 	}
+
+	return true;
 }
 
 
@@ -4482,9 +4492,14 @@ void ScriptingApi::Content::Helpers::duplicateSelection(Content* c, ReferenceCou
 
 		cTree.getParent().addChild(sibling, -1, undoManager);
 
-		auto setUniqueId = [c, undoManager](ValueTree& v)
+		auto tmp = &newIds;
+
+		auto setUniqueId = [c, undoManager, tmp](ValueTree& v)
 		{
 			auto newId = getUniqueIdentifier(c, v.getProperty("id"));
+
+			tmp->add(newId);
+
 			v.setProperty("id", newId.toString(), undoManager);
 			return true;
 		};
@@ -4514,16 +4529,21 @@ void ScriptingApi::Content::Helpers::duplicateSelection(Content* c, ReferenceCou
 
 	b->clearSelection(dontSendNotification);
 	
-	ScriptComponentSelection newSelection;
-
-	for (auto id : newIds)
+	auto f = [newIds, c, b]()
 	{
-		auto sc = c->getComponentWithName(id);
-		jassert(sc != nullptr);
-		newSelection.add(sc);
-	}
+		ScriptComponentSelection newSelection;
 
-	b->setSelection(newSelection, sendNotification);
+		for (auto id : newIds)
+		{
+			auto sc = c->getComponentWithName(id);
+			jassert(sc != nullptr);
+			newSelection.add(sc);
+		}
+
+		b->setSelection(newSelection, sendNotification);
+	};
+
+	MessageManager::callAsync(f);
 }
 
 

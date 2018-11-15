@@ -1839,7 +1839,7 @@ public:
 
 		static void deleteSelection(Content* c, ScriptComponentEditBroadcaster* b);
 
-		static void renameComponent(Content* c, const Identifier& id, const Identifier& newId);
+		static bool renameComponent(Content* c, const Identifier& id, const Identifier& newId);
 
 		static void duplicateSelection(Content* c, ReferenceCountedArray<ScriptComponent> selection, int deltaX, int deltaY, UndoManager* undoManager);
 
