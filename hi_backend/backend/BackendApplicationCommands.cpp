@@ -1768,13 +1768,8 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)
 
 		if (fc.browseForFileToSave(true))
 		{
-			const bool hasDefaultName = bpe->owner->getMainSynthChain()->getId() == "Master Chain";
-
-			if (hasDefaultName)
-			{
-				const String newName = fc.getResult().getFileNameWithoutExtension();
-				bpe->owner->getMainSynthChain()->setId(newName);
-			}
+			const String newName = fc.getResult().getFileNameWithoutExtension();
+			bpe->owner->getMainSynthChain()->setId(newName);
 
 			ValueTree v = bpe->owner->getMainSynthChain()->exportAsValueTree();
 

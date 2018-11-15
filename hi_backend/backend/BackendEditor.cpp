@@ -363,6 +363,7 @@ void BackendProcessorEditor::loadNewContainer(const ValueTree &v)
 	else
 	{
 		owner->killAndCallOnLoadingThread([v](Processor* p) {p->getMainController()->loadPresetFromValueTree(v, nullptr); return SafeFunctionCall::OK; });
+
 	}
 
 	
