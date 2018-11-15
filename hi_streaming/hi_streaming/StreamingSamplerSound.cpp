@@ -946,19 +946,28 @@ void StreamingSamplerSound::FileReader::readFromDisk(hlac::HiseSampleBuffer &buf
 
 float StreamingSamplerSound::FileReader::calculatePeakValue()
 {
+#if USE_FRONTEND
+
+	// If you hit this assertion, it means that you haven't saved the normalised gain value into the samplemap.
+	// Please resave the samplemap in order to speed up loading times
+	jassertfalse;
+
+#endif
+
 	float l1, l2, r1, r2;
 
 	openFileHandles();
 
-	AudioFormatReader *readerToUse = getReader();
-
-	if (readerToUse != nullptr) readerToUse->readMaxLevels(sound->sampleStart + sound->monolithOffset, sound->sampleLength, l1, l2, r1, r2);
+	ScopedPointer<AudioFormatReader> readerToUse = createMonolithicReaderForPreview();// getReader();
+	
+	if (readerToUse != nullptr) 
+		readerToUse->readMaxLevels(sound->sampleStart + sound->monolithOffset, sound->sampleLength, l1, l2, r1, r2);
 	else return 0.0f;
 
 	closeFileHandles();
 
-	const float maxLeft = jmax<float>(-l1, l2);
-	const float maxRight = jmax<float>(-r1, r2);
+	const float maxLeft = jmax<float>(std::fabsf(l1), std::fabsf(l2));
+	const float maxRight = jmax<float>(std::fabsf(r1), std::fabsf(r2));
 
 	return jmax<float>(maxLeft, maxRight);
 }

@@ -793,20 +793,12 @@ MonolithExporter::MonolithExporter(SampleMap* sampleMap_) :
 
 	File fileToUse;
 
-	auto sampleMapId = sampleMap_->getId();
+	auto sampleMapFile = sampleMap_->getReference().getFile();
 
-	if (sampleMapId.isValid())
-	{
-		auto path = sampleMapId.toString() + ".xml";
-
-		fileToUse = sampleMapDirectory.getChildFile(path);
-	}
+	if (sampleMapFile.existsAsFile())
+		fileToUse = sampleMapFile;
 	else
-	{
 		fileToUse = sampleMapDirectory;
-	}
-
-
 
 	fc = new FilenameComponent("Sample Map File", fileToUse, false, false, true, "*.xml", "", "SampleMap File");
 
@@ -1160,7 +1152,7 @@ void BatchReencoder::reencode(PoolReference r)
 	bool done = false;
 	bool* ptr = &done;
 
-	auto f = [map, r, ptr](Processor* p)
+	auto f = [map, r, ptr](Processor* )
 	{
 		map->load(r);
 

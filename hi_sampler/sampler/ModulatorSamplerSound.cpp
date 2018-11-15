@@ -271,7 +271,6 @@ double ModulatorSamplerSound::getPropertyPitch() const noexcept { return pitchFa
 void ModulatorSamplerSound::setMaxRRGroupIndex(int newGroupLimit)
 {
 	maxRRGroup = newGroupLimit;
-
 	rrGroup = jmin<int>((int)data.getProperty(SampleIds::RRGroup), newGroupLimit);
 }
 
@@ -280,28 +279,21 @@ void ModulatorSamplerSound::setMappingData(MappingData newData)
 	for (int i = 0; i < newData.data.getNumProperties(); i++)
 	{
 		const Identifier id_(newData.data.getPropertyName(i));
-
 		setSampleProperty(id_, newData.data[id_]);
 	}
 }
 
-void ModulatorSamplerSound::calculateNormalizedPeak(bool forceScan /*= false*/)
+void ModulatorSamplerSound::calculateNormalizedPeak()
 {
-	if (forceScan || normalizedPeak < 0.0f)
+	float highestPeak = 0.0f;
+
+	for (auto s : soundArray)
+		highestPeak = jmax<float>(highestPeak, s->calculatePeakValue());
+
+	if (highestPeak != 0.0f)
 	{
-		float highestPeak = 0.0f;
-
-		for (auto s: soundArray)
-		{
-			highestPeak = jmax<float>(highestPeak, s->calculatePeakValue());
-		}
-
-		if (highestPeak != 0.0f)
-		{
-			normalizedPeak = 1.0f / highestPeak;
-		}
-
-		
+		normalizedPeak = jlimit<float>(1.0f, 128.0f, 1.0f / highestPeak);
+		data.setProperty(SampleIds::NormalizedPeak, normalizedPeak, nullptr);
 	}
 }
 
@@ -506,7 +498,23 @@ void ModulatorSamplerSound::updateInternalData(const Identifier& id, const var& 
 		{
 			isNormalized = newValue != 0;
 
-			if (isNormalized && normalizedPeak < 0.0f) calculateNormalizedPeak();
+			if (isNormalized)
+			{
+				if (data.hasProperty(SampleIds::NormalizedPeak))
+				{
+					normalizedPeak = (float)data.getProperty(SampleIds::NormalizedPeak);
+					FloatSanitizers::sanitizeFloatNumber(normalizedPeak);
+				}
+				else
+				{
+					calculateNormalizedPeak();
+				}
+			}
+			else
+			{
+				data.removeProperty(SampleIds::NormalizedPeak, nullptr);
+				normalizedPeak = 1.0f;
+			}
 		}
 		else if (id == SampleIds::RRGroup)
 		{

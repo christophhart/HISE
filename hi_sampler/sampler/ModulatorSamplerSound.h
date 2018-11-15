@@ -76,6 +76,7 @@ DECLARE_ID(RRGroup);
 DECLARE_ID(Volume);
 DECLARE_ID(Pan);
 DECLARE_ID(Normalized);
+DECLARE_ID(NormalizedPeak);
 DECLARE_ID(Pitch);
 DECLARE_ID(SampleStart);
 DECLARE_ID(SampleEnd);
@@ -327,10 +328,8 @@ public:
 	*
 	*	It should save calculated value along with the other properties, but if a new sound is added,
 	*	it will call StreamingSamplerSound::getPeakValue(), which scans the whole file.
-	*
-	*	@param forceScan if true, then it will scan the file and calculate the peak value.
 	*/
-	void calculateNormalizedPeak(bool forceScan = false);;
+	void calculateNormalizedPeak();;
 
 	/**	Returns the gain value that must be applied to normalize the volume of the sample ( 1.0 / peakValue ). */
 	float getNormalizedPeak() const;
