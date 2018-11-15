@@ -456,10 +456,9 @@ void ScriptComponentList::scriptComponentSelectionChanged()
 	}
 }
 
+
 void ScriptComponentList::mouseUp(const MouseEvent& event)
 {
-	
-
 	if(event.mods.isRightButtonDown())
 	{
 		auto b = getScriptComponentEditBroadcaster();
@@ -791,9 +790,7 @@ bool ScriptComponentList::keyPressed(const KeyPress& key)
 		};
 
 		editor->setCallback(callback, true);
-
 		editor->setName("Editing JSON");
-
 		editor->setSize(400, 400);
 
 		findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(editor, this, getLocalBounds().getCentre());
@@ -801,6 +798,31 @@ bool ScriptComponentList::keyPressed(const KeyPress& key)
 		editor->grabKeyboardFocus();
 
 		return true;
+	}
+	else if (key.isKeyCode(KeyPress::F2Key))
+	{
+		auto b = getScriptComponentEditBroadcaster();
+
+		auto sc = b->getFirstFromSelection();
+
+		auto oldName = sc->getName().toString();
+		auto newName = PresetHandler::getCustomName(oldName);
+
+		if (newName.isNotEmpty() && oldName != newName)
+		{
+			auto c = sc->getScriptProcessor()->getScriptingContent();
+
+			if (ScriptingApi::Content::Helpers::renameComponent(c, oldName, newName))
+			{
+				auto f = [b, c, sc, newName]()
+				{
+					auto sc = c->getComponentWithName(newName);
+					b->addToSelection(sc);
+				};
+
+				MessageManager::callAsync(f);
+			}
+		}
 	}
 
 	return Component::keyPressed(key);

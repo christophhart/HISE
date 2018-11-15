@@ -87,7 +87,7 @@ ScriptComponentEditPanel::ScriptComponentEditPanel(BackendRootWindow* rootWindow
 	idEditor->addListener(this);
 	idEditor->setFont(GLOBAL_MONOSPACE_FONT());
 
-	idEditor->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white.withAlpha(0.2f));
+	idEditor->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white.withAlpha(0.4f));
 	idEditor->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
 	idEditor->setColour(Label::ColourIds::outlineWhenEditingColourId, Colour(SIGNAL_COLOUR));
 	idEditor->setColour(TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR));
