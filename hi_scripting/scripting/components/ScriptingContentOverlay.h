@@ -88,7 +88,7 @@ public:
 
 	Component* getAsComponent() { return dynamic_cast<Component*>(this); };
 
-	void createNewComponent(ComponentType componentType, int x, int y);
+	void createNewComponent(ComponentType componentType, int x, int y, ScriptComponent* parent=nullptr);
 
 	bool editModeEnabled() const { return useComponentSelectMode; }
 

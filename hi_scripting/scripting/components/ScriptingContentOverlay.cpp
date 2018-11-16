@@ -39,7 +39,7 @@ ScriptEditHandler::ScriptEditHandler()
 
 }
 
-void ScriptEditHandler::createNewComponent(ComponentType componentId, int x, int y)
+void ScriptEditHandler::createNewComponent(ComponentType componentType, int x, int y, ScriptComponent* parent/*=nullptr*/)
 {
 	if (getScriptEditHandlerContent() == nullptr)
 		return;
@@ -49,31 +49,31 @@ void ScriptEditHandler::createNewComponent(ComponentType componentId, int x, int
 		return;
 	}
 
-	String componentType;
+	String componentName;
 
-	switch (componentId)
+	switch (componentType)
 	{
-	case ComponentType::Knob:				componentType = "Knob"; break;
-	case ComponentType::Button:			componentType = "Button"; break;
-	case ComponentType::Table:				componentType = "Table"; break;
-	case ComponentType::ComboBox:			componentType = "ComboBox"; break;
-	case ComponentType::Label:				componentType = "Label"; break;
-	case ComponentType::Image:				componentType = "Image"; break;
-	case ComponentType::Viewport:			componentType = "Viewport"; break;
-	case ComponentType::Panel:				componentType = "Panel"; break;
-	case ComponentType::AudioWaveform:		componentType = "AudioWaveform"; break;
-	case ComponentType::SliderPack:		componentType = "SliderPack"; break;
-	case ComponentType::FloatingTile:		componentType = "FloatingTile"; break;
+	case ComponentType::Knob:				componentName = "Knob"; break;
+	case ComponentType::Button:				componentName = "Button"; break;
+	case ComponentType::Table:				componentName = "Table"; break;
+	case ComponentType::ComboBox:			componentName = "ComboBox"; break;
+	case ComponentType::Label:				componentName = "Label"; break;
+	case ComponentType::Image:				componentName = "Image"; break;
+	case ComponentType::Viewport:			componentName = "Viewport"; break;
+	case ComponentType::Panel:				componentName = "Panel"; break;
+	case ComponentType::AudioWaveform:		componentName = "AudioWaveform"; break;
+	case ComponentType::SliderPack:			componentName = "SliderPack"; break;
+	case ComponentType::FloatingTile:		componentName = "FloatingTile"; break;
 	case ComponentType::duplicateComponent:
 	{
 		auto b = getScriptEditHandlerOverlay()->getScriptComponentEditBroadcaster();
 
 		auto sc = b->getFirstFromSelection();
 
-		componentType = sc->getObjectName().toString();
-		componentType = componentType.replace("Scripted", "");
-		componentType = componentType.replace("Script", "");
-		componentType = componentType.replace("Slider", "Knob");
+		componentName = sc->getObjectName().toString();
+		componentName = componentName.replace("Scripted", "");
+		componentName = componentName.replace("Script", "");
+		componentName = componentName.replace("Slider", "Knob");
 		break;
 	}
 	case ComponentType::numComponentTypes: break;
@@ -81,11 +81,11 @@ void ScriptEditHandler::createNewComponent(ComponentType componentId, int x, int
 
 	auto content = getScriptEditHandlerProcessor()->getContent();
 
-	Identifier id = ScriptingApi::Content::Helpers::getUniqueIdentifier(content, componentType);
+	Identifier id = ScriptingApi::Content::Helpers::getUniqueIdentifier(content, componentName);
 
 	ScriptComponent::Ptr newComponent;
 
-	switch (componentId)
+	switch (componentType)
 	{
 	case hise::ScriptEditHandler::ComponentType::Knob: 
 		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptSlider>(id, x, y);
@@ -131,6 +131,11 @@ void ScriptEditHandler::createNewComponent(ComponentType componentId, int x, int
 	}
 
 	auto b = content->getScriptProcessor()->getMainController_()->getScriptComponentEditBroadcaster();
+
+	if (parent != nullptr && newComponent != nullptr)
+	{
+		newComponent->getPropertyValueTree().setProperty("parentComponent", parent->getName().toString(), nullptr);
+	}
 
 	b->setSelection(content->getComponentWithName(id));
 
@@ -393,6 +398,12 @@ bool ScriptingContentOverlay::keyPressed(const KeyPress &key)
 			auto deltaX = end.x - start.x;
 			auto deltaY = end.y - start.y;
 
+			if (key.getModifiers().isShiftDown())
+			{
+				deltaX = 0;
+				deltaY = 0;
+			}
+
 			ScriptingApi::Content::Helpers::duplicateSelection(pwsc->getScriptingContent(), b->getSelection(), deltaX, deltaY, &b->getUndoManager());
 		}
 
@@ -479,8 +490,6 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 			m.addItem((int)ScriptEditHandler::ComponentType::Label, "Add new Label");
 			m.addItem((int)ScriptEditHandler::ComponentType::Image, "Add new Image");
 			m.addItem((int)ScriptEditHandler::ComponentType::Viewport, "Add new Viewport");
-			m.addItem((int)ScriptEditHandler::ComponentType::Plotter, "Add new Plotter");
-			m.addItem((int)ScriptEditHandler::ComponentType::ModulatorMeter, "Add new ModulatorMeter");
 			m.addItem((int)ScriptEditHandler::ComponentType::Panel, "Add new Panel");
 			m.addItem((int)ScriptEditHandler::ComponentType::AudioWaveform, "Add new AudioWaveform");
 			m.addItem((int)ScriptEditHandler::ComponentType::SliderPack, "Add new SliderPack");
@@ -539,10 +548,23 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 			}
 			else if (result >= (int)ScriptEditHandler::ComponentType::Knob && result < (int)ScriptEditHandler::ComponentType::numComponentTypes)
 			{
-				const int insertX = e.getEventRelativeTo(content).getMouseDownPosition().getX();
-				const int insertY = e.getEventRelativeTo(content).getMouseDownPosition().getY();
+				int insertX = e.getEventRelativeTo(content).getMouseDownPosition().getX();
+				int insertY = e.getEventRelativeTo(content).getMouseDownPosition().getY();
 
-				handler->createNewComponent((ScriptEditHandler::ComponentType)result, insertX, insertY);
+				auto parent = b->getNumSelected() == 1 ? b->getFirstFromSelection() : nullptr;
+
+				if (parent != nullptr)
+				{
+					if (auto d = draggers.getFirst())
+					{
+						auto b = d->getLocalArea(this, d->getLocalBounds());
+
+						insertX += b.getX();
+						insertY += b.getY();
+					}
+				}
+
+				handler->createNewComponent((ScriptEditHandler::ComponentType)result, insertX, insertY, parent);
 			}
 			else if (result == showCallback)
 			{
