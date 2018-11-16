@@ -1166,6 +1166,7 @@ void MainController::loadUserPresetAsync(const ValueTree& v)
 void MainController::writeToConsole(const String &message, int warningLevel, const Processor *p, Colour c)
 {
 	AudioThreadGuard::Suspender suspender;
+	ignoreUnused(suspender);
 
 	codeHandler.writeToConsole(message, warningLevel, p, c);
 }

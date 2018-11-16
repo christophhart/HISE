@@ -66,8 +66,6 @@ public:
 		Label,
 		Image,
 		Viewport,
-		Plotter,
-		ModulatorMeter,
 		Panel,
 		AudioWaveform,
 		SliderPack,

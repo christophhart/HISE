@@ -97,7 +97,6 @@ ProcessorEditorBody *EffectProcessorChain::EffectProcessorChain::createEditor(Pr
 
 void EffectProcessorChainFactoryType::fillTypeNameList()
 {
-	ADD_NAME_TO_TYPELIST(MonoFilterEffect);
 	ADD_NAME_TO_TYPELIST(PolyFilterEffect);
 	ADD_NAME_TO_TYPELIST(HarmonicFilter);
 	ADD_NAME_TO_TYPELIST(HarmonicMonophonicFilter);
@@ -130,7 +129,6 @@ Processor* EffectProcessorChainFactoryType::createProcessor	(int typeIndex, cons
 
 	switch(typeIndex)
 	{
-	case monophonicFilter:				return new MonoFilterEffect(m, id);
 	case polyphonicFilter:				return new PolyFilterEffect(m, id, numVoices);
 	case harmonicFilter:				return new HarmonicFilter(m, id, numVoices);
 	case harmonicFilterMono:			return new HarmonicMonophonicFilter(m, id);
@@ -174,11 +172,7 @@ void EffectProcessorChain::EffectChainHandler::add(Processor *newProcessor, Proc
 
 	if (chain->getSampleRate() > 0.0 && newProcessor != nullptr)
 		newProcessor->prepareToPlay(chain->getSampleRate(), chain->getLargestBlockSize());
-	else
-	{
-		debugError(chain, "Trying to add a processor to a uninitialized effect chain (internal engine error).");
-	}
-
+	
 	newProcessor->setParentProcessor(chain);
 
 	{

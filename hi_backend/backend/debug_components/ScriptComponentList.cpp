@@ -520,8 +520,6 @@ void ScriptComponentList::mouseUp(const MouseEvent& event)
 			m.addItem((int)ScriptEditHandler::ComponentType::Label, "Add new Label");
 			m.addItem((int)ScriptEditHandler::ComponentType::Image, "Add new Image");
 			m.addItem((int)ScriptEditHandler::ComponentType::Viewport, "Add new Viewport");
-			m.addItem((int)ScriptEditHandler::ComponentType::Plotter, "Add new Plotter");
-			m.addItem((int)ScriptEditHandler::ComponentType::ModulatorMeter, "Add new ModulatorMeter");
 			m.addItem((int)ScriptEditHandler::ComponentType::Panel, "Add new Panel");
 			m.addItem((int)ScriptEditHandler::ComponentType::AudioWaveform, "Add new AudioWaveform");
 			m.addItem((int)ScriptEditHandler::ComponentType::SliderPack, "Add new SliderPack");
@@ -814,10 +812,10 @@ bool ScriptComponentList::keyPressed(const KeyPress& key)
 
 			if (ScriptingApi::Content::Helpers::renameComponent(c, oldName, newName))
 			{
-				auto f = [b, c, sc, newName]()
+				auto f = [b, c, newName]()
 				{
-					auto sc = c->getComponentWithName(newName);
-					b->addToSelection(sc);
+					auto nc = c->getComponentWithName(newName);
+					b->addToSelection(nc);
 				};
 
 				MessageManager::callAsync(f);

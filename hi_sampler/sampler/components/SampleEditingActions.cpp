@@ -60,7 +60,7 @@ void SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(SampleEdit
 {
 	ModulatorSampler *s = handler->sampler;
 
-	auto f = [handler](Processor* p)
+	auto f = [handler](Processor* )
 	{
 		auto s = handler->getSampler();
 

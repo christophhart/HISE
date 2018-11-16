@@ -3297,6 +3297,7 @@ void ScriptingApi::Console::stop()
 {
 #if USE_BACKEND
 	AudioThreadGuard::Suspender suspender;
+	ignoreUnused(suspender);
 
 	if(startTime == 0.0)
 	{

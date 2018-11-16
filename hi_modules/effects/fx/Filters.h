@@ -142,7 +142,7 @@ class PolyFilterEffect: public VoiceEffectProcessor,
 {
 public:
 
-	SET_PROCESSOR_NAME("PolyphonicFilter", "Polyphonic Filter");
+	SET_PROCESSOR_NAME("PolyphonicFilter", "Filter");
 
 	enum InternalChains
 	{

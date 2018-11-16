@@ -306,8 +306,7 @@ public:
 
 	enum
 	{
-		monophonicFilter = 0,
-		polyphonicFilter,
+		polyphonicFilter=0,
 		harmonicFilter,
 		harmonicFilterMono,
 		curveEq,
