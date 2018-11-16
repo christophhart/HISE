@@ -97,7 +97,7 @@ void hise::raw::Reference<ProcessorType>::changeListenerCallback(SafeChangeBroad
 
 template <class ComponentType, typename ValueType>
 hise::raw::UIConnection::Base<ComponentType, ValueType>::Base(ComponentType* c, MainController* mc, const String& id) :
-	Data(id),
+	Data<ValueType>(id),
 	ControlledObject(mc),
 	component(c),
 	processor(ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), id))
@@ -108,7 +108,7 @@ hise::raw::UIConnection::Base<ComponentType, ValueType>::Base(ComponentType* c, 
 	c->addListener(this);
 	processor->addChangeListener(this);
 
-	setData<Data<ValueType>::Dummy>();
+	//setData<Data<ValueType>::Dummy>();
 }
 
 

@@ -536,6 +536,7 @@ PresetBrowserPanel::PresetBrowserPanel(FloatingTile* parent) :
 	FloatingTileContent(parent)
 {
 	setDefaultPanelColour(PanelColourId::bgColour, Colours::black.withAlpha(0.97f));
+    setDefaultPanelColour(PanelColourId::textColour, Colours::white);
 	setDefaultPanelColour(PanelColourId::itemColour1, Colour(SIGNAL_COLOUR));
 
 	addAndMakeVisible(presetBrowser = new PresetBrowser(getMainController()));

@@ -407,8 +407,8 @@ public:
 
 		ValueType lastValue;
 
-		LoadFunction loadFunction;
-		SaveFunction saveFunction;
+        typename Data<ValueType>::LoadFunction loadFunction;
+        typename Data<ValueType>::SaveFunction saveFunction;
 
 		Component::SafePointer<ComponentType> component;
 		WeakReference<Processor> processor;
