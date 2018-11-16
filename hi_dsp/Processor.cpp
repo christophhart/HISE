@@ -397,9 +397,14 @@ bool Chain::restoreChain(const ValueTree &v)
 
 bool FactoryType::countProcessorsWithSameId(int &index, const Processor *p, Processor *processorToLookFor, const String &nameToLookFor)
 {   
-	
+	auto pName = p->getId();
 
-	if (p->getId().startsWith(nameToLookFor))
+	auto pNumber = String(pName.getTrailingIntValue());
+
+	if (pNumber.isNotEmpty())
+		pName = pName.upToLastOccurrenceOf(pNumber, false, false);
+
+	if (pName == nameToLookFor)
 	{
 		index++;
 	}
@@ -433,11 +438,20 @@ String FactoryType::getUniqueName(Processor *id, String name/*=String()*/)
 
 	if(name.isEmpty()) name = id->getId();
 
+
+
+	auto lastNumbers = String(name.getTrailingIntValue());
+
+	if (lastNumbers.isNotEmpty())
+		name = name.upToLastOccurrenceOf(lastNumbers, false, false);
+
 	countProcessorsWithSameId(amount, chain, id, name);
 
-	if(amount > 0) name = name + String(amount+1);
-	else name = id->getId();
+	// If this happens, you haven't added the processor yet.
+	jassert(amount != 0);
 
+	name = name + String(amount);
+	
 	return name;
 }
 

@@ -90,24 +90,14 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 		preset = dynamic_cast<FrontendProcessor*>(chain->getMainController())->getRawDataHolder()->exportAsValueTree();
 #else
 
-		
-
-		auto container = ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(chain);
-
 		if(auto sp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(chain->getMainController()))
 		{
 			ValueTree v = sp->getScriptingContent()->exportAsValueTree();
 
 			v.setProperty("Processor", sp->getId(), nullptr);
 
-
-
 			preset = ValueTree("Preset");
-
 			preset.addChild(v, -1, nullptr);
-
-			
-
 		}
 #endif
 
@@ -118,7 +108,6 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 
 		preset.addChild(autoData, -1, nullptr);
 		preset.addChild(mpeData, -1, nullptr);
-
 
 		if (preset.isValid())
 		{
@@ -1733,12 +1722,7 @@ Processor* PresetHandler::createProcessorFromClipBoard(Processor *parent)
 
 		String name = v.getProperty("ID", "Unnamed");
 		
-#if USE_OLD_FILE_FORMAT
-		Identifier type = v.getType();
-#else
 		Identifier type = v.getProperty("Type", String()).toString();
-#endif
-
 		FactoryType *t = dynamic_cast<Chain*>(parent)->getFactoryType();
 		
 		// Look in every processor when inserting from clipboard.
@@ -1755,8 +1739,7 @@ Processor* PresetHandler::createProcessorFromClipBoard(Processor *parent)
 		Processor *p = MainController::createProcessor(t, type.toString(), name);
 		p->restoreFromValueTree(v);
 
-		p->setId(FactoryType::getUniqueName(p));
-
+		
 		debugToConsole(p, name + " added from Clipboard.");
 
 		return p;

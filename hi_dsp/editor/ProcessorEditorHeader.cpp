@@ -1099,7 +1099,6 @@ void ProcessorEditorHeader::createProcessorFromPopup(Processor *insertBeforeSibl
 		if (name.isNotEmpty())
 		{
 			processorToBeAdded = MainController::createProcessor(t, type, name);
-			processorToBeAdded->setId(FactoryType::getUniqueName(processorToBeAdded));
 
 			
 		}
@@ -1125,6 +1124,8 @@ void ProcessorEditorHeader::addProcessor(Processor *processorToBeAdded, Processo
 			dynamic_cast<ModulatorSynth*>(p)->addProcessorsWhenEmpty();
 
 		editor->getProcessorAsChain()->getHandler()->add(p, insertBeforeSibling);
+
+		PresetHandler::setUniqueIdsForProcessor(p);
 
 		if (ProcessorHelpers::is<ModulatorSynth>(editor->getProcessor()))
 			p->getMainController()->getMainSynthChain()->compileAllScripts();

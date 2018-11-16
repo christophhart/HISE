@@ -304,13 +304,34 @@ void ProcessorEditor::pasteAction()
 			{
 				FactoryType *t = getProcessorAsChain()->getFactoryType();
 
+				Component::SafePointer<ProcessorEditor> safeEditor = this;
+
 				if(t->allowType(Identifier(typeName)))
 				{
-					Processor *c = PresetHandler::createProcessorFromClipBoard(getProcessor());
+					auto f = [safeEditor](Processor* p)
+					{
+						Processor *c = PresetHandler::createProcessorFromClipBoard(p);
 
-					getProcessorAsChain()->getHandler()->add(c, nullptr);
+						dynamic_cast<Chain*>(p)->getHandler()->add(c, nullptr);
 
-					childEditorAmountChanged();
+						PresetHandler::setUniqueIdsForProcessor(c);
+
+						WeakReference<Processor> safeP = p;
+
+						auto f2 = [safeEditor]()
+						{
+							if(safeEditor.getComponent() != nullptr)
+								safeEditor.getComponent()->childEditorAmountChanged();
+
+							BACKEND_ONLY(GET_BACKEND_ROOT_WINDOW(safeEditor.getComponent())->sendRootContainerRebuildMessage(false));
+						};
+
+						MessageManager::callAsync(f2);
+
+						return SafeFunctionCall::OK;
+					};
+
+					getProcessor()->getMainController()->getKillStateHandler().killVoicesAndCall(getProcessor(), f, MainController::KillStateHandler::SampleLoadingThread);
 				}
 			}
 		}
