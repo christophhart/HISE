@@ -959,7 +959,7 @@ const ModulatorSynth* ModulatorSynthGroup::getFMModulator() const
 
 ModulatorSynth* ModulatorSynthGroup::getFMCarrier()
 {
-	if (carrierIndex == -1)
+	if (carrierIndex <= 0)
 		return nullptr;
 
 	else
@@ -971,7 +971,7 @@ ModulatorSynth* ModulatorSynthGroup::getFMCarrier()
 
 const ModulatorSynth* ModulatorSynthGroup::getFMCarrier() const
 {
-	if (carrierIndex == -1)
+	if (carrierIndex <= 0)
 		return nullptr;
 
 	else
