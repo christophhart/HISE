@@ -333,7 +333,8 @@ void ModulatorSampler::restoreFromValueTree(const ValueTree &v)
 	{
 		PoolReference ref(getMainController(), v.getProperty("SampleMapID").toString(), FileHandlerBase::SampleMaps);
 
-		loadSampleMap(ref);
+		if(ref.isValid())
+			loadSampleMap(ref);
 	}
 
     loadAttribute(CrossfadeGroups, "CrossfadeGroups");

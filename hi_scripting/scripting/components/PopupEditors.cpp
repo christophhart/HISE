@@ -92,6 +92,7 @@ PopupIncludeEditor::~PopupIncludeEditor()
 void PopupIncludeEditor::timerCallback()
 {
 	resultLabel->setColour(TextEditor::backgroundColourId, lastCompileOk ? Colours::green.withBrightness(0.1f) : Colours::red.withBrightness((0.1f)));
+	repaint();
 	stopTimer();
 }
 

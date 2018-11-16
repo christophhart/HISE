@@ -790,13 +790,12 @@ MonolithExporter::MonolithExporter(SampleMap* sampleMap_) :
 	sa.add("No compression");
 	sa.add("Fast Decompression");
 	sa.add("Low file size (recommended)");
-
+	
 	File fileToUse;
-
-	auto sampleMapFile = sampleMap_->getReference().getFile();
-
-	if (sampleMapFile.existsAsFile())
-		fileToUse = sampleMapFile;
+	auto ref = sampleMap_->getReference();
+	
+	if(ref.isValid())
+		fileToUse = ref.getFile();
 	else
 		fileToUse = sampleMapDirectory;
 
@@ -951,6 +950,8 @@ void MonolithExporter::threadFinished()
 		if (sampleMapFile.existsAsFile())
 		{
 			PoolReference ref(sampleMap->getSampler()->getMainController(), sampleMapFile.getFullPathName(), FileHandlerBase::SampleMaps);
+
+			sampleMap->getSampler()->getMainController()->getCurrentSampleMapPool()->loadFromReference(ref, PoolHelpers::ForceReloadStrong);
 
 			auto tmp = sampleMapFile;
 
