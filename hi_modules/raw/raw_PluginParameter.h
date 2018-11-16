@@ -37,77 +37,165 @@ using namespace juce;
 
 namespace raw {
 
+
 /** A connection to processor attributes as plugin parameter. */
-class PluginParameter : public AudioProcessorParameterWithID,
-						public ControlledObject
+template <class FunctionType> class PluginParameter : public AudioProcessorParameterWithID,
+													  public Data<float>,
+													  public ControlledObject
 {
 public:
 
-	struct ProcessorConnection
-	{
-		ProcessorConnection() {};
-
-		ProcessorConnection(MainController* mc, const String& id, int index_, NormalisableRange<float> range_) :
-			processor(ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), id)),
-			index(index_),
-			range(range_)
-		{}
-
-		WeakReference<Processor> processor;
-		int index = -1;
-		NormalisableRange<float> range;
-	};
-
 	// ================================================================================================================
 
-	enum class Type
-	{
-		Slider = 0,
-		Button,
-		ComboBox,
-		Unsupported
-	};
+	
 
-	PluginParameter(MainController* mc, Type t, const String& name, const Array<ProcessorConnection>& connections_) :
+	PluginParameter(MainController* mc, const String& name) :
 		AudioProcessorParameterWithID(name, name),
 		ControlledObject(mc),
-		type(t),
-		connections(connections_)
-	{
+		Data(name)
+	{}
 
+	void setup(int t, const String& processorId, NormalisableRange<float> range, float midPoint)
+	{
+		type = t;
+		p = ProcessorHelpers::getFirstProcessorWithName(getMainController()->getMainSynthChain(), processorId);
+		parameterRange = range;
+		parameterRange.setSkewForCentre(midPoint);
 	}
 
 	// ================================================================================================================
 
-	float getValue() const override;
-	void setValue(float newValue) override;
-	float getDefaultValue() const override;
+	float getValue() const override
+	{
+		return FunctionType::save(p.get());
+	}
 
-	String getLabel() const override;
-	String getText(float value, int) const override;
+	void setValue(float newValue) override
+	{
+		bool *enableUpdate = &getMainController()->getPluginParameterUpdateState();
 
-	float getValueForText(const String &text) const override;
-	int getNumSteps() const override;
+		if (enableUpdate)
+		{
+			ScopedValueSetter<bool> setter(*enableUpdate, false, true);
 
-	void setParameterNotifyingHost(int index, float newValue);
+			const float convertedValue = parameterRange.convertFrom0to1(newValue);
+			const float snappedValue = parameterRange.snapToLegalValue(convertedValue);
+
+			if (!lastValueInitialised || lastValue != snappedValue)
+			{
+				lastValue = snappedValue;
+				lastValueInitialised = true;
+
+				FunctionType::load(p.get(), snappedValue);
+			}
+		}
+	}
+
+	float getDefaultValue() const override
+	{
+		return 0.0f;
+	}
+
+	String getLabel() const override
+	{
+		if (type == IDs::UIWidgets::Slider)
+		{
+			return suffix;
+		}
+		else return String();
+	}
+
+	String getText(float value, int) const override
+	{
+		switch (type)
+		{
+		case IDs::UIWidgets::Slider:
+
+			return String(parameterRange.convertFrom0to1(jlimit(0.0f, 1.0f, value)), 1);
+			break;
+		case IDs::UIWidgets::Button:
+			return value > 0.5f ? "On" : "Off";
+			break;
+		case IDs::UIWidgets::ComboBox:
+		{
+			const int index = jlimit<int>(0, itemList.size() - 1, (int)(value*(float)itemList.size()));
+			return itemList[index];
+			break;
+		}
+		default:
+			jassertfalse;
+			break;
+		}
+
+		return String();
+	}
+
+
+	float getValueForText(const String &text) const override
+	{
+		switch (type)
+		{
+		case IDs::UIWidgets::Slider:
+			return text.getFloatValue();
+			break;
+		case IDs::UIWidgets::Button:
+			return text == "On" ? 1.0f : 0.0f;
+			break;
+		case IDs::UIWidgets::ComboBox:
+			return (float)itemList.indexOf(text);
+			break;
+		default:
+			break;
+		}
+
+		return 0.0f;
+	}
+
+
+	int getNumSteps() const override
+	{
+		switch (type)
+		{
+		case IDs::UIWidgets::Slider:
+			return (int)((float)parameterRange.getRange().getLength() / parameterRange.interval);
+		case IDs::UIWidgets::Button:
+			return 2;
+		case IDs::UIWidgets::ComboBox:
+			return itemList.size();
+		default:
+			break;
+		}
+
+		jassertfalse;
+		return 2;
+	}
+
+
+	void setParameterNotifyingHost(int index, float newValue)
+	{
+		ScopedValueSetter<bool> setter(getMainController()->getPluginParameterUpdateState(), false, true);
+
+		auto sanitizedValue = jlimit<float>(parameterRange.start, parameterRange.end, newValue);
+		auto parentProcessor = dynamic_cast<AudioProcessor*>(getMainController());
+
+		parentProcessor->setParameterNotifyingHost(index, parameterRange.convertTo0to1(sanitizedValue));
+	}
+
 	bool isAutomatable() const override { return true; };
 
-	bool isMetaParameter() const override;
+	bool isMetaParameter() const override
+	{
+		return false;
+	}
 
 private:
 
-	NormalisableRange<float> getRangeToUse() const
-	{
-		return connections.size() == 1 ? connections.getFirst().range : parameterRange;
-	}
-
 	// ================================================================================================================
 
-	Type type;
+	int type;
 
+	WeakReference<Processor> p;
 	NormalisableRange<float> parameterRange;
-
-	Array<ProcessorConnection> connections;
 
 	String suffix;
 	StringArray itemList;

@@ -144,10 +144,10 @@ void Positioner::Data::apply(Component& c, StringArray& processedComponents) con
 
 		auto n = child->getName();
 
-		for (const auto& c : children)
+		for (const auto& ch : children)
 		{
-			if (c.name == n)
-				c.apply(*child, processedComponents);
+			if (ch.name == n)
+				ch.apply(*child, processedComponents);
 		}
 	}
 }

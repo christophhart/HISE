@@ -172,11 +172,168 @@ private:
 	WeakReference<ProcessorType> processor;
 };
 
-/** This class offers a bidirectional connection between a parameter and its UI representation.
 
-	If you just want to connect one UI element to a Processor's parameter, this lets
-	you do it with the minimal amount of code. It automatically registers as listener
-	to both the slider and the Processor and updates each other when one of them changes.
+/** A object that handles the embedded resources (audio files, images and samplemaps). */
+class Pool : public hise::ControlledObject
+{
+public:
+
+	Pool(MainController* mc, bool allowLoading = false) :
+		ControlledObject(mc),
+		allowUnusedSources(allowLoading)
+	{};
+
+	/** By default, this object assumes that the data is already loaded (if not, it fails with an assertion).
+	Call this to allow the Pool object to actually load the items from the embedded data. */
+	void allowLoadingOfUnusedResources();
+
+	/** Loads an audio file into a AudioSampleBuffer. */
+	AudioSampleBuffer loadAudioFile(const String& id);
+
+	/** Loads an Image from the given ID. */
+	Image loadImage(const String& id);
+
+	StringArray getSampleMapList() const;
+
+	PoolReference createSampleMapReference(const String& referenceString);
+
+private:
+
+	bool allowUnusedSources = false;
+};
+
+
+
+/** The base class for all data connections used in the raw namespace.
+
+	This is a powerful and generic class which is the glue between the data of a Processor
+	and your raw project. 
+
+	- templated data type for best performance without overhead
+	- ready made accessor-classes for the most important data in HISE (Processor attributes, bypass states, samplemaps, table data)
+	
+	In order to use it, pass it as template argument to one of the more high-level classes (UIConnection and Storage) and
+	it will magically synchronize with the actual data in your Processor tree.
+*/
+template <typename DataType> struct Data
+{
+	using SaveFunction = std::function<DataType(Processor* p)>;
+	using LoadFunction = std::function<void(Processor* p, const DataType&)>;
+
+	struct Dummy
+	{
+		static DataType save(Processor* p)
+		{
+			ignoreUnused(p);
+			jassertfalse;
+			return {};
+		}
+
+		static void load(Processor* p, const DataType& newValue)
+		{
+			ignoreUnused(p, newValue);
+			jassertfalse;
+		}
+	};
+
+	struct SampleMap
+	{
+		static DataType save(Processor* p)
+		{
+			return DataType(dynamic_cast<ModulatorSampler*>(p)->getSampleMap()->getReference().getReferenceString());
+		}
+
+		static void load(Processor* p, const DataType& newValue)
+		{
+			auto f = [newValue](Processor* p)
+			{
+				raw::Pool pool(p->getMainController(), true);
+				auto ref = pool.createSampleMapReference(newValue);
+				dynamic_cast<ModulatorSampler*>(p)->loadSampleMap(ref);
+				return SafeFunctionCall::OK;
+			};
+
+			TaskAfterSuspension::call(p, f);
+		}
+	};
+
+	template <bool inverted = false> struct Bypassed
+	{
+		static DataType save(Processor* p)
+		{
+			if (inverted)
+				return static_cast<DataType>(!p->isBypassed());
+			else
+				return static_cast<DataType>(p->isBypassed());
+		}
+
+		static void load(Processor* p, const DataType& newValue)
+		{
+			if (inverted)
+				p->setBypassed(static_cast<bool>(newValue), sendNotification);
+			else
+				p->setBypassed(!static_cast<bool>(newValue), sendNotification);
+		}
+	};
+
+	template <int attributeIndex> struct Attribute
+	{
+		static DataType save(Processor* p)
+		{
+			return static_cast<DataType>(p->getAttribute(attributeIndex));
+		}
+
+		static void load(Processor* p, const DataType& newValue)
+		{
+			float value = static_cast<float>(newValue);
+			FloatSanitizers::sanitizeFloatNumber(value);
+			p->setAttribute(attributeIndex, value, sendNotification);
+		}
+	};
+
+	template <int tableIndex = 0> struct Table
+	{
+		static DataType save(Processor* p)
+		{
+			if (auto ltp = dynamic_cast<hise::LookupTableProcessor*>(p))
+			{
+				return DataType(ltp->getTable(tableIndex)->exportData());
+			}
+
+			return {};
+		}
+
+		static void load(Processor* p, const DataType& newValue)
+		{
+			if (auto ltp = dynamic_cast<hise::LookupTableProcessor*>(p))
+			{
+				auto table = ltp->getTable(tableIndex);
+
+				table->restoreData(newValue.toString());
+				table->sendChangeMessage();
+			}
+		}
+	};
+
+	Data(const Identifier& id_) :
+		id(id_)
+	{};
+
+	
+protected:
+
+	Identifier id;
+
+private:
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(Data);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Data);
+
+};
+
+
+
+/** This class offers a bidirectional connection between Data and its UI representation.
 
 	In order to use it, just add one of these as Member variable in your interface class:
 
@@ -216,41 +373,58 @@ public:
 		   important to match the displayed value when the parameter is changed externally,
 		   eg. by loading presets or automation.
 	*/
-	template <class ComponentType> class Base : public ControlledObject,
-												public ComponentType::Listener
+	template <class ComponentType, typename ValueType> 
+	class Base : public Data<ValueType>,
+				 public ControlledObject,
+				 public ComponentType::Listener,
+				 public SafeChangeListener
 	{
 	public:
 
-		Base(ComponentType* c, MainController* mc, const String& id, int parameterIndex);
+		Base(ComponentType* c, MainController* mc, const String& id);
 		virtual ~Base();
+
+		template <class FunctionClass> void setData()
+		{
+			loadFunction = FunctionClass::load;
+			saveFunction = FunctionClass::save;
+		}
 
 	protected:
 
 		/** Call this method from your subclass's listener callback. */
-		void parameterChangedFromUI(float newValue);
+		void parameterChangedFromUI(ValueType newValue);
 
 		/** Overwrite this method and change the displayed value on your Component. */
-		virtual void updateUI(float newValue) = 0;
+		virtual void updateUI(ValueType newValue) = 0;
 
 		/** Returns a reference to the component. It is safe to assume that it's not deleted in the UI callbacks. */
 		ComponentType& getComponent() { return *component.getComponent(); }
-		
+
+		void changeListenerCallback(SafeChangeBroadcaster* b) override;
+
 	private:
 
+		ValueType lastValue;
+
+		LoadFunction loadFunction;
+		SaveFunction saveFunction;
+
 		Component::SafePointer<ComponentType> component;
-		raw::Reference<Processor> processor;
-		int index;
+		WeakReference<Processor> processor;
 		
 		JUCE_DECLARE_NON_COPYABLE(Base);
 	};
 
+	
+
 	/** A connection between a Processor's parameter and a juce::Slider. */
-	class Slider: private Base<juce::Slider>
+	template <int parameterIndex> class Slider: private Base<juce::Slider, float>
 	{
 	public:
 
 		Slider(juce::Slider* s, MainController* mc, 
-					  const String& processorID, int parameterIndex);
+					  const String& processorID);
 
 	private:
 
@@ -266,139 +440,103 @@ public:
 		It assumes toggling mode (as it's the case with 99% of all HISE parameters
 		connected to buttons)
 	*/
-	class Button : private Base<juce::Button>
+	class Button : public Base<juce::Button, bool>
 	{
 	public:
 
 		Button(juce::Button* b, MainController* mc,
-			const String& processorID, int parameterIndex);
+			const String& processorID) :
+			Base(b, mc, processorID)
+		{}
 
 	private:
 
 		/** Changes the button's toggle state. */
-		void updateUI(float newValue) override;
+		void updateUI(bool newValue) override
+		{
+			getComponent().setToggleState(newValue, dontSendNotification);
+		}
 
-		void buttonClicked(juce::Button*) override;
+		void buttonClicked(juce::Button*) override
+		{
+			parameterChangedFromUI(!getComponent().getToggleState());
+		}
 	};
 
-	/** A connection between a Processor's parameter and a juce::ComboBox.
-	
-		It uses the index (starting with zero) for the value.
+	/** A connection between a Processor's data (anything) and a juce::ComboBox.
 	*/
-	class ComboBox : private Base<juce::ComboBox>
+	class ComboBox : public Base<juce::ComboBox, var>
 	{
 	public:
 
 		ComboBox(juce::ComboBox* b, MainController* mc,
-			const String& processorID, int parameterIndex);
+			const String& processorID):
+			Base(b, mc, processorID)
+		{}
+
+		enum Mode
+		{
+			Index = 0,
+			Id,
+			Text,
+			numModes
+		};
+
+		void setMode(Mode m)
+		{
+			mode = m;
+		}
 
 	private:
 
-		/** Changes the comboboxes's value. */
-		void updateUI(float newValue) override;
+		Mode mode;
 
-		void comboBoxChanged(juce::ComboBox*) override;
+		/** Changes the comboboxes's value. */
+		void updateUI(var newValue) override
+		{
+			switch (mode)
+			{
+			case Index: getComponent().setSelectedItemIndex((int)newValue, dontSendNotification); break;
+			case Id:	getComponent().setSelectedId((int)newValue, dontSendNotification); break;
+			case Text:  getComponent().setText(newValue.toString(), dontSendNotification); break;
+			default:	jassertfalse; break;
+			}
+		}
+
+		void comboBoxChanged(juce::ComboBox*) override
+		{
+			var valueToUse;
+
+			switch (mode)
+			{
+			case Index: valueToUse = getComponent().getSelectedItemIndex(); break;
+			case Id:	valueToUse = getComponent().getSelectedId(); break;
+			case Text:	valueToUse = getComponent().getText(); break;
+			default:	jassertfalse; break;
+			}
+
+			parameterChangedFromUI(valueToUse);
+		}
 	};
+
+	
 };
 
-/** A object that handles the embedded resources (audio files, images and samplemaps). */
-class Pool : public hise::ControlledObject
+class GenericStorage : public Data<juce::var>,
+	public RestorableObject
 {
 public:
 
-	Pool(MainController* mc, bool allowLoading=false) :
-		ControlledObject(mc),
-		allowUnusedSources(allowLoading)
-	{};
-
-	/** By default, this object assumes that the data is already loaded (if not, it fails with an assertion). 
-		Call this to allow the Pool object to actually load the items from the embedded data. */
-	void allowLoadingOfUnusedResources();
-
-	/** Loads an audio file into a AudioSampleBuffer. */
-	AudioSampleBuffer loadAudioFile(const String& id);
-
-	/** Loads an Image from the given ID. */
-	Image loadImage(const String& id);
-
-	StringArray getSampleMapList() const;
-
-	PoolReference createSampleMapReference(const String& referenceString);
-
-private:
-
-	bool allowUnusedSources = false;
-};
-
-struct Data : public RestorableObject
-{
-	using SaveFunction = std::function<var(Processor* p)>;
-	using LoadFunction = std::function<void(Processor* p, const var&)>;
-
-	struct SampleMap
-	{
-		static var save(Processor* p)
-		{
-			return var(dynamic_cast<ModulatorSampler*>(p)->getSampleMap()->getReference().getReferenceString());
-		}
-
-		static void load(Processor* p, const var& newValue)
-		{
-			raw::Pool pool(p->getMainController(), true);
-			auto ref = pool.createSampleMapReference(newValue.toString());
-			dynamic_cast<ModulatorSampler*>(p)->loadSampleMap(ref);
-		}
-	};
-
-	template <int attributeIndex> struct Attribute
-	{
-		static var save(Processor* p)
-		{
-			return p->getAttribute(attributeIndex);
-		}
-
-		static void load(Processor* p, const var& newValue)
-		{
-			float value = (float)newValue;
-			FloatSanitizers::sanitizeFloatNumber(value);
-			p->setAttribute(attributeIndex, value, sendNotification);
-		}
-	};
-
-	template <int tableIndex = 0> struct Table
-	{
-		static var save(Processor* p)
-		{
-			if (auto ltp = dynamic_cast<hise::LookupTableProcessor*>(p))
-			{
-				return var(ltp->getTable(tableIndex)->exportData());
-			}
-
-			return {};
-		}
-
-		static void load(Processor* p, const var& newValue)
-		{
-			if (auto ltp = dynamic_cast<hise::LookupTableProcessor*>(p))
-			{
-				auto table = ltp->getTable(tableIndex);
-				
-				table->restoreData(newValue.toString());
-				table->sendChangeMessage();
-			}
-		}
-	};
-
-	Data(const Identifier& id_) :
-		id(id_)
+	GenericStorage(const Identifier& id) :
+		Data<juce::var>(id)
 	{};
 
 	ValueTree exportAsValueTree() const override
 	{
 		ValueTree v("Control");
-		
+
 		v.setProperty("id", id.toString(), nullptr);
-		v.setProperty("value", save(), nullptr);
+		v.setProperty("value", var(save()), nullptr);
 		return v;
 	}
 
@@ -416,20 +554,15 @@ struct Data : public RestorableObject
 	virtual void load(const var& newValue) = 0;
 
 private:
-
-	Identifier id;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Data);
-
 };
 
 
-template <class FunctionClass> class Storage : public Data
+template <class FunctionClass> class Storage : public GenericStorage
 {
 public:
 
 	Storage(const Identifier& id, Processor* p) :
-		Data(id),
+		GenericStorage(id),
 		processor(p->getMainController(), p->getId()),
 		saveFunction(FunctionClass::save),
 		loadFunction(FunctionClass::load)

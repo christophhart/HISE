@@ -97,6 +97,15 @@ constexpr int GlobalModulatorSlot = hise::GlobalModulatorContainer::GainModulati
 
 }
 
+namespace UIWidgets
+{
+constexpr int Slider = 0;
+
+constexpr int Button = 1;
+
+constexpr int ComboBox = 2;
+}
+
 }
 
 

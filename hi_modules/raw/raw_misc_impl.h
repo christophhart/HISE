@@ -95,41 +95,69 @@ void hise::raw::Reference<ProcessorType>::changeListenerCallback(SafeChangeBroad
 }
 
 
-template <class ComponentType>
-hise::raw::UIConnection::Base<ComponentType>::Base(ComponentType* c, MainController* mc, const String& id, int parameterIndex) :
+template <class ComponentType, typename ValueType>
+hise::raw::UIConnection::Base<ComponentType, ValueType>::Base(ComponentType* c, MainController* mc, const String& id) :
+	Data(id),
 	ControlledObject(mc),
 	component(c),
-	processor(mc, id, true),
-	index(parameterIndex)
+	processor(ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), id))
 {
+	// You definitely need a valid connection here...
+	jassert(processor != nullptr);
+
 	c->addListener(this);
+	processor->addChangeListener(this);
 
-	auto f = [this](float newValue)
-	{
-		if (component.getComponent() != nullptr)
-		{
-			this->updateUI(newValue);
-		}
-	};
-
-	processor.addParameterToWatch(index, f);
+	setData<Data<ValueType>::Dummy>();
 }
 
 
-template <class ComponentType>
-hise::raw::UIConnection::Base<ComponentType>::~Base()
+template <class ComponentType, typename ValueType>
+hise::raw::UIConnection::Base<ComponentType, ValueType>::~Base()
 {
 	if (component.getComponent() != nullptr)
 		component->removeListener(this);
+
+	if (processor.get() != nullptr)
+		processor->removeChangeListener(this);
 }
 
-
-template <class ComponentType>
-void hise::raw::UIConnection::Base<ComponentType>::parameterChangedFromUI(float newValue)
+template <class ComponentType, typename ValueType>
+void hise::raw::UIConnection::Base<ComponentType, ValueType>::changeListenerCallback(SafeChangeBroadcaster* )
 {
-	processor.getProcessor()->setAttribute(index, newValue, sendNotification);
+	auto newValue = static_cast<ValueType>(saveFunction(processor));
+
+	if (newValue != lastValue)
+	{
+		lastValue = newValue;
+		updateUI(newValue);
+	}
 }
 
+template <class ComponentType, typename ValueType>
+void hise::raw::UIConnection::Base<ComponentType, ValueType>::parameterChangedFromUI(ValueType newValue)
+{
+	loadFunction(processor, newValue);
+}
+
+template <int parameterIndex>
+hise::raw::UIConnection::Slider<parameterIndex>::Slider(juce::Slider* s, MainController* mc, const String& processorID) :
+	Base(s, mc, processorID)
+{
+	setData<Data::Attribute<parameterIndex>>();
+}
+
+template <int parameterIndex>
+void hise::raw::UIConnection::Slider<parameterIndex>::sliderValueChanged(juce::Slider*)
+{
+	parameterChangedFromUI((float)getComponent().getValue());
+}
+
+template <int parameterIndex>
+void hise::raw::UIConnection::Slider<parameterIndex>::updateUI(float newValue)
+{
+	getComponent().setValue(newValue, dontSendNotification);
+}
 
 }
 

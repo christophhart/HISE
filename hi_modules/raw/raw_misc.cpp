@@ -36,22 +36,10 @@ using namespace juce;
 namespace raw
 {
 
-UIConnection::Slider::Slider(juce::Slider* s, MainController* mc, const String& processorID, int parameterIndex) :
-	Base(s, mc, processorID, parameterIndex)
-{}
 
-void UIConnection::Slider::updateUI(float newValue)
-{
-	getComponent().setValue(newValue, dontSendNotification);
-}
-
-void UIConnection::Slider::sliderValueChanged(juce::Slider*)
-{
-	parameterChangedFromUI((float)getComponent().getValue());
-}
-
+#if 0
 UIConnection::Button::Button(juce::Button* b, MainController* mc, const String& processorID, int parameterIndex) :
-	Base(b, mc, processorID, parameterIndex)
+	Base(b, mc, processorID)
 {}
 
 void UIConnection::Button::updateUI(float newValue)
@@ -68,7 +56,7 @@ void UIConnection::Button::buttonClicked(juce::Button*)
 }
 
 UIConnection::ComboBox::ComboBox(juce::ComboBox* b, MainController* mc, const String& processorID, int parameterIndex) :
-	Base(b, mc, processorID, parameterIndex)
+	Base(b, mc, processorID)
 {}
 
 void UIConnection::ComboBox::updateUI(float newValue)
@@ -78,9 +66,10 @@ void UIConnection::ComboBox::updateUI(float newValue)
 
 void UIConnection::ComboBox::comboBoxChanged(juce::ComboBox*)
 {
-	int index = getComponent().getSelectedItemIndex();
-	parameterChangedFromUI((float)index);
+	int itemIndex = getComponent().getSelectedItemIndex();
+	parameterChangedFromUI((float)itemIndex);
 }
+#endif
 
 void Pool::allowLoadingOfUnusedResources()
 {
