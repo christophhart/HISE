@@ -540,6 +540,9 @@ MainController::KillStateHandler::TargetThread MainController::KillStateHandler:
 
 void MainController::KillStateHandler::addThreadIdToAudioThreadList()
 {
+    if(MessageManager::getInstance()->isThisTheMessageThread())
+        return;
+    
 	auto threadId = Thread::getCurrentThreadId();
 
 	audioThreads.addIfNotAlreadyThere(threadId);
