@@ -38,7 +38,8 @@ namespace hise { using namespace juce;
 
 typedef AudioProcessor *(createAudioProcessorFunction)();
 
-/** This module is a wrapper for the general purpose AudioProcessor class from JUCE.
+/** This module is a wrapper for the general purpose AudioProcessor class from JUCE (non-functional at the moment).
+	@ingroup effects
 *
 *	This allows to embed other plugin code directly into HISE.
 *	To do this, create a method that creates an instance of your AudioProcessor and add this to the list of available AudioProcessors 
@@ -71,11 +72,6 @@ public:
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
 	float getAttribute(int parameterIndex) const override;
 	float getDefaultValue(int parameterIndex) const override;
-
-	AudioSampleBuffer &getBufferForChain(int /*index*/) override
-	{
-		return wetAmountBuffer;
-	}
 
 	void restoreFromValueTree(const ValueTree &v) override;;
 	ValueTree exportAsValueTree() const override;

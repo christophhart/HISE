@@ -40,8 +40,6 @@ class SampleEditHandler;
 /** The main sampler class.
 *	@ingroup sampler
 *
-*	A ModulatorSampler is a synthesiser which allows playback of samples.
-*
 *	Features:
 *
 *	- Disk Streaming with fast MemoryMappedFile reading
@@ -50,18 +48,31 @@ class SampleEditHandler;
 *	- Resampling (using linear interpolation for now, but can be extended to a complexer algorithm)
 *	- Application-wide sample pool with reference counting to ensure minimal memory usage.
 *	- Different playback modes (pitch tracking / one shot, etc.)
-*
-*	Current limitations:
-*
-*	- supported file format is stereo wave.
 */
 class ModulatorSampler: public ModulatorSynth,
-						public ExternalFileProcessor,
 						public LookupTableProcessor
 {
 public:
 
+	/** If you add or delete multiple samples at once (but not the entire sample set), it will
+	    fire an UI update for each sample drastically slowing down the UI responsiveness.
+		
+		In this case, just create a ScopedUpdateDelayer object and it will cancel all UI updates
+		until it goes out of scope (and in this case, it will fire a update regardless if it's
+		necessary or not.
+	*/
+	class ScopedUpdateDelayer
+	{
+	public:
 
+		ScopedUpdateDelayer(ModulatorSampler* s);;
+
+		~ScopedUpdateDelayer();
+
+
+	private:
+		WeakReference<ModulatorSampler> sampler;
+	};
 
 	/** A small helper tool that iterates over the sound array in a thread-safe way.
 	*
@@ -73,28 +84,9 @@ public:
 		using SharedPointer = ReferenceCountedObjectPtr<ModulatorSamplerSound>;
 
 		/** This iterates over all sounds and locks the sound lock if desired. */
-		SoundIterator(ModulatorSampler* s_, bool lock_=true):
-			s(s_),
-			lock(lock_)
-		{
-			if (s->getNumSounds() == 0)
-			{
-				lock = false;
-			}
-			else
-			{
-				if (lock)
-				{
-					lock = s->getMainController()->getSampleManager().getSamplerSoundLock().tryEnter();
-
-					if (!lock)
-						jassertfalse;
-
-					//s->getMainController()->getSampleManager().getSamplerSoundLock().enter();
-				}
-					
-			}
-		}
+		SoundIterator(const ModulatorSampler* s_, bool /*lock_*/=true):
+			s(const_cast<ModulatorSampler*>(s_))
+		{}
 
 		SharedPointer getNextSound()
 		{
@@ -104,11 +96,7 @@ public:
 			return nullptr;
 		}
 
-		~SoundIterator()
-		{
-			if(lock)
-				s->getMainController()->getSampleManager().getSamplerSoundLock().exit();
-		}
+		~SoundIterator() {}
 
 		int size() const
 		{
@@ -116,8 +104,6 @@ public:
 		}
 
 	private:
-
-		
 
 		ModulatorSamplerSound* getSoundInternal()
 		{
@@ -127,11 +113,8 @@ public:
 			return static_cast<ModulatorSamplerSound*>(s->getSound(index++));
 		}
 
-		bool lock;
-
 		int index = 0;
-
-		ModulatorSampler* s;
+		WeakReference<ModulatorSampler> s;
 	};
 
 
@@ -162,6 +145,12 @@ public:
 		DoNothing, ///< do nothin (a new voice is started and the old keeps ringing).
 		KillSecondOldestNote, // allow one note to retrigger, but then kill the notes
 		KillThirdOldestNote
+	};
+
+	enum Chains
+	{
+		SampleStart = 2,
+		XFade
 	};
 
 	/** Additional modulator chains. */
@@ -210,11 +199,6 @@ public:
 
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
 
-	/** returns the ModulatorSamplerSound::Property for the given index. */
-	var getPropertyForSound(int soundIndex, ModulatorSamplerSound::Property p);
-
-	/** returns the thumbnailCache for the sampler. */
-	AudioThumbnailCache &getCache() const noexcept { return *soundCache; };
 	void loadCacheFromFile(File &f);;
 
 	/** This resets the streaming buffer size of the voices. Call this whenever you change the voice amount. */
@@ -224,7 +208,7 @@ public:
 	*
 	*	It removes the sound from the sampler and if no reference is left in the global sample pool deletes the sample and frees the storage.
 	*/
-	void deleteSound(ModulatorSamplerSound *s);
+	void deleteSound(int index);
 
 	/** Deletes all sounds. Call this instead of clearSounds(). */
 	void deleteAllSounds();
@@ -278,13 +262,7 @@ public:
 	void resetNoteDisplay(int noteNumber);
 	void resetNotes();
 
-	/** Adds a sound to the sampler.
-	*
-	*	
-	*/
-	ModulatorSamplerSound* addSamplerSound(const ValueTree &description, int index, bool forceReuse=false);
-
-	void addSamplerSounds(OwnedArray<ModulatorSamplerSound>& monolithicSounds);
+	
 
 	void renderNextBlockWithModulators(AudioSampleBuffer& outputAudio, const HiseEventBuffer& inputMidi) override
 	{
@@ -305,7 +283,6 @@ public:
 	void setShouldUpdateUI(bool shouldUpdate) noexcept{ deactivateUIUpdate = !shouldUpdate; };
 
 	void preStartVoice(int voiceIndex, int noteNumber) override;
-	void preVoiceRendering(int startSample, int numThisTime) override;
 	void soundsChanged() {};
 	bool soundCanBePlayed(ModulatorSynthSound *sound, int midiChannel, int midiNoteNumber, float velocity) override;;
 	void handleRetriggeredNote(ModulatorSynthVoice *voice) override;
@@ -317,18 +294,30 @@ public:
 	bool isUsingCrossfadeGroups() const { return crossfadeGroups; }
 	Table *getTable(int tableIndex) const override { return tableIndex < crossfadeTables.size() ? crossfadeTables[tableIndex] : nullptr; }
 
-	void calculateCrossfadeModulationValuesForVoice(int voiceIndex, int startSample, int numSamples, int groupIndex);
-	const float *getCrossfadeModValues(int voiceIndex) const {	return crossFadeChain->getVoiceValues(voiceIndex);	}
+	float* calculateCrossfadeModulationValuesForVoice(int voiceIndex, int startSample, int numSamples, int groupIndex);
+	const float *getCrossfadeModValues() const;
+
+	float getConstantCrossFadeModulationValue() const noexcept;
+
+	float getCrossfadeValue(int groupIndex, float inputValue) const;
 
 	UndoManager *getUndoManager() {	return getMainController()->getControlUndoManager();	};
 
 	SampleMap *getSampleMap() {	return sampleMap; };
-	void clearSampleMap();
+	void clearSampleMap(NotificationType n);
 	
+	void loadSampleMap(PoolReference ref);
+
+	void loadEmbeddedValueTree(const ValueTree& v, bool loadAsynchronous = false);
+
+	void updateRRGroupAmountAfterMapLoad();
+
+#if 0
 	void loadSampleMapSync(const File &f);
 	void loadSampleMapSync(const ValueTree &valueTreeData);
 	void loadSampleMapFromIdAsync(const String& sampleMapId);
 	void loadSampleMapFromId(const String& sampleMapId);
+#endif
 
 	/** This function will be called on a background thread and preloads all samples. */
 	bool preloadAllSamples();
@@ -337,7 +326,7 @@ public:
 
 	void saveSampleMap() const;
 
-	void saveSampleMapAs();
+	void saveSampleMapAsReference() const;
 
 	void saveSampleMapAsMonolith (Component* mainEditor) const;
 
@@ -351,18 +340,16 @@ public:
 	bool isPitchTrackingEnabled() const {return pitchTrackingEnabled; };
 	bool isOneShot() const {return oneShotEnabled; };
 
+	bool isNoteNumberMapped(int noteNumber) const;
+
 	CriticalSection &getSamplerLock() {	return lock; }
 	
 	const CriticalSection& getExportLock() const { return exportLock; }
 
-#if USE_BACKEND
+#if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING
 	SampleEditHandler* getSampleEditHandler() { return sampleEditHandler; }
 	const SampleEditHandler* getSampleEditHandler() const { return sampleEditHandler; }
 #endif
-
-	bool useGlobalFolderForSaving() const;
-	void setUseGlobalFolderForSaving() { useGlobalFolder = true; };
-	void replaceReferencesWithGlobalFolder() override;
 
 	struct SamplerDisplayValues : public Processor::DisplayValues
 	{
@@ -395,14 +382,9 @@ public:
 		if (shouldBePurged != purged)
 		{
 			if (shouldBePurged)
-			{
 				getMainController()->getDebugLogger().logMessage("**Purging samples** from " + getId());
-			}
 			else
-			{
 				getMainController()->getDebugLogger().logMessage("**Unpurging samples** from " + getId());
-			}
-
 
 			auto f = [shouldBePurged](Processor* p)
 			{
@@ -415,17 +397,16 @@ public:
 				for (int i = 0; i < s->sounds.size(); i++)
 				{
 					ModulatorSamplerSound *sound = static_cast<ModulatorSamplerSound*>(s->getSound(i));
-
 					sound->setPurged(shouldBePurged);
 				}
 
 				s->refreshPreloadSizes();
 				s->refreshMemoryUsage();
 
-				return true;
+				return SafeFunctionCall::OK;
 			};
 
-			killAllVoicesAndCall(f);
+			killAllVoicesAndCall(f, true);
 		}
 	}
 
@@ -504,7 +485,7 @@ public:
 		}
 
 		refreshPreloadSizes();
-		refreshMemoryUsage();
+		
 	}
 	
 	void setPreloadMultiplier(int newPreloadScaleFactor)
@@ -549,11 +530,7 @@ public:
 
 	bool hasPendingSampleLoad() const { return samplePreloadPending; }
 
-	void killAllVoicesAndCall(const ProcessorFunction& f);
-
-    void setSoundPropertyAsync(ModulatorSamplerSound* s, int index, int newValue);
-
-    void setSoundPropertyAsyncForAllSamples(int index, int newValue);
+	void killAllVoicesAndCall(const ProcessorFunction& f, bool restrictToSampleLoadingThread=true);
 
 	void setUseStaticMatrix(bool shouldUseStaticMatrix)
 	{
@@ -561,6 +538,8 @@ public:
 	}
     
     bool isUsingStaticMatrix() const noexcept { return useStaticMatrix; };
+
+	bool shouldDelayUpdate() const noexcept { return delayUpdate; }
 
 private:
 
@@ -571,50 +550,9 @@ private:
 
 	bool allVoicesAreKilled() const
 	{
-		return getMainController()->getKillStateHandler().voicesAreKilled();
+		return !getMainController()->getKillStateHandler().isAudioRunning();
 	}
 
-	struct SamplePropertyUpdater: public Timer
-	{
-		SamplePropertyUpdater(ModulatorSampler* s):
-			sampler(s)
-		{
-
-		};
-
-		struct PropertyChange
-		{
-			PropertyChange(ModulatorSamplerSound* s, int i, var n, bool a) :
-				sound(s),
-				index(i),
-				newValue(n),
-				allSamples(a)
-			{};
-
-			ModulatorSamplerSound::Ptr sound;
-			int index;
-			int newValue;
-			bool allSamples;
-		};
-
-		void timerCallback() override
-		{
-			if (!sampler->sampleMapLoadingPending)
-			{
-				handlePendingChanges();
-			}
-		}
-
-		void handlePendingChanges();
-
-		void addNewPropertyChange(ModulatorSamplerSound* sound, int index, int newValue, bool allSamples);
-
-		CriticalSection arrayLock;
-
-		ModulatorSampler* sampler;
-
-		Array<PropertyChange> pendingChanges;
-	};
 	
 
 
@@ -636,9 +574,7 @@ private:
 		ModulatorSampler *sampler;
 	};
 
-	SamplePropertyUpdater samplePropertyUpdater;
-    
-
+	
     /** Sets the streaming buffer and preload buffer sizes. */
     void setPreloadSize(int newPreloadSize);
     
@@ -654,7 +590,6 @@ private:
 
 	bool reversed = false;
 
-	bool useGlobalFolder;
 	bool pitchTrackingEnabled;
 	bool oneShotEnabled;
 	bool crossfadeGroups;
@@ -665,7 +600,7 @@ private:
 	bool useRoundRobinCycleLogic;
 	RepeatMode repeatMode;
 	int voiceAmount;
-	int preloadScaleFactor;
+	int preloadScaleFactor = 1;
 
 	mutable SamplerDisplayValues samplerDisplayValues;
 
@@ -686,22 +621,26 @@ private:
 
 	hlac::HiseSampleBuffer temporaryVoiceBuffer;
 
+	bool delayUpdate = false;
+
 	float groupGainValues[8];
+	float currentCrossfadeValue;
 
 	ChannelData channelData[NUM_MIC_POSITIONS];
 	int numChannels;
 
 	ScopedPointer<SampleMap> sampleMap;
-	ScopedPointer<ModulatorChain> sampleStartChain;
-	ScopedPointer<ModulatorChain> crossFadeChain;
+	ModulatorChain* sampleStartChain = nullptr;
+	ModulatorChain* crossFadeChain = nullptr;
 	ScopedPointer<AudioThumbnailCache> soundCache;
 	
-#if USE_BACKEND
+#if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING
 	ScopedPointer<SampleEditHandler> sampleEditHandler;
 #endif
 
     std::atomic<bool> samplePreloadPending;
 
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ModulatorSampler);
 };
 
 

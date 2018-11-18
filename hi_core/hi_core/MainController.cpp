@@ -30,10 +30,21 @@
 *   ===========================================================================
 */
 
+/** The entire HISE codebase
+
+
+*/
 namespace hise { using namespace juce;
 
-MainController::MainController():
+#if HI_RUN_UNIT_TESTS
+bool MainController::unitTestMode = false;
+#endif
+
+MainController::MainController() :
+
 	sampleManager(new SampleManager(this)),
+	javascriptThreadPool(new JavascriptThreadPool(this)),
+	expansionHandler(this),
 	allNotesOffFlag(false),
 	maxBufferSize(-1),
 	cpuBufferSize(0),
@@ -46,14 +57,14 @@ MainController::MainController():
 	console(nullptr),
 	voiceAmount(0),
 	scrollY(0),
-	mainLookAndFeel(new KnobLookAndFeel()),
+	mainLookAndFeel(new GlobalHiseLookAndFeel()),
 	mainCommandManager(new ApplicationCommandManager()),
 	shownComponents(0),
 	plotter(nullptr),
 	usagePercent(0),
 	scriptWatchTable(nullptr),
-    globalPitchFactor(1.0),
-    midiInputFlag(false),
+	globalPitchFactor(1.0),
+	midiInputFlag(false),
 	macroManager(this),
 	autoSaver(this),
 	delayedRenderer(this),
@@ -61,15 +72,18 @@ MainController::MainController():
 	customTypeFaceData(ValueTree("CustomFonts")),
 	masterEventBuffer(),
 	eventIdHandler(masterEventBuffer),
+	lockfreeDispatcher(this),
 	userPresetHandler(this),
 	codeHandler(this),
 	processorChangeHandler(this),
 	killStateHandler(this),
 	debugLogger(this),
+	globalAsyncModuleHandler(this),
 	//presetLoadRampFlag(OldUserPresetHandler::Active),
-	suspendIndex(0),
 	controlUndoManager(new UndoManager())
 {
+	globalFont = GLOBAL_FONT();
+
 	BACKEND_ONLY(popupConsole = nullptr);
 	BACKEND_ONLY(usePopupConsole = false);
 
@@ -80,37 +94,20 @@ MainController::MainController():
 
 	TempoSyncer::initTempoData();
     
-	globalVariableArray.insertMultiple(0, var::undefined(), NUM_GLOBAL_VARIABLES);
 	globalVariableObject = new DynamicObject();
-
-	toolbarProperties = DefaultFrontendBar::createDefaultProperties();
 
 	hostInfo = new DynamicObject();
     
-#if HI_RUN_UNIT_TESTS
-
-	UnitTestRunner runner;
-
-	runner.setAssertOnFailure(false);
-
-	runner.runAllTests();
-
-	
-
-#endif
 };
 
 
 MainController::~MainController()
 {
-
-
 	sampleManager = nullptr;
 	Logger::setCurrentLogger(nullptr);
 	logger = nullptr;
 	masterReference.clear();
 	customTypeFaces.clear();
-	userPresetData = nullptr;
 }
 
 
@@ -137,7 +134,7 @@ void MainController::loadPresetFromFile(const File &f, Component* /*mainEditor*/
 
 		ValueTree v = ValueTree::readFromStream(fis);
 		p->getMainController()->loadPresetFromValueTree(v);
-		return true;
+		return SafeFunctionCall::OK;
 	};
 
 #if USE_BACKEND
@@ -154,32 +151,34 @@ void MainController::loadPresetFromFile(const File &f, Component* /*mainEditor*/
 
 void MainController::clearPreset()
 {
-	ScopedLock sl(getLock());
+	Processor::Iterator<Processor> iter(getMainSynthChain(), false);
 
-	jassert(!getMainSynthChain()->areVoicesActive());
+	while (auto p = iter.getNextProcessor())
+		p->cleanRebuildFlagForThisAndParents();
 
-	getMacroManager().getMidiControlAutomationHandler()->getMPEData().clear();
-
-	getScriptComponentEditBroadcaster()->getUndoManager().clearUndoHistory();
-
-	getMainSynthChain()->reset();
-
-	globalVariableObject->clear();
-
-	toolbarProperties = DefaultFrontendBar::createDefaultProperties();
-
-	for (int i = 0; i < 127; i++)
+	auto f = [](Processor* p)
 	{
-		setKeyboardCoulour(i, Colours::transparentBlack);
-	}
-    
-	clearIncludedFiles();
+		auto mc = p->getMainController();
+		LockHelpers::freeToGo(mc);
 
-	getSampleManager().getImagePool()->clearData();
-	getSampleManager().getAudioSampleBufferPool()->clearData();
+		mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().clear();
+		mc->getScriptComponentEditBroadcaster()->getUndoManager().clearUndoHistory();
+		mc->getMainSynthChain()->reset();
+		mc->globalVariableObject->clear();
 
+		for (int i = 0; i < 127; i++)
+		{
+			mc->setKeyboardCoulour(i, Colours::transparentBlack);
+		}
 
-    changed = false;
+		mc->clearIncludedFiles();
+
+		mc->changed = false;
+
+		return SafeFunctionCall::OK;
+	};
+
+	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::SampleLoadingThread);
 }
 
 void MainController::loadPresetFromValueTree(const ValueTree &v, Component* /*mainEditor*/)
@@ -188,7 +187,7 @@ void MainController::loadPresetFromValueTree(const ValueTree &v, Component* /*ma
     const bool isCommandLine = CompileExporter::isExportingFromCommandLine();
     const bool isSampleLoadingThread = killStateHandler.getCurrentThread() == KillStateHandler::SampleLoadingThread;
     
-	jassert(isCommandLine || isSampleLoadingThread);
+	jassert(isCommandLine || isSampleLoadingThread || !isInitialised());
     ignoreUnused(isCommandLine, isSampleLoadingThread);
 #endif
 
@@ -212,87 +211,112 @@ void MainController::loadPresetFromValueTree(const ValueTree &v, Component* /*ma
 
 void MainController::loadPresetInternal(const ValueTree& v)
 {
-	try
+	auto f = [this, v](Processor* )
 	{
-		getSampleManager().setPreloadFlag();
+		LockHelpers::freeToGo(this);
 
-		ModulatorSynthChain *synthChain = getMainSynthChain();
+		try
+		{
+			getSampleManager().setPreloadFlag();
+
+			ModulatorSynthChain *synthChain = getMainSynthChain();
 
 #if USE_BACKEND
-        const bool isCommandLine = CompileExporter::isExportingFromCommandLine();
-        const bool isSampleLoadingThread = killStateHandler.getCurrentThread() == KillStateHandler::SampleLoadingThread;
-        
-		jassert(isCommandLine || isSampleLoadingThread);
-        ignoreUnused(isCommandLine, isSampleLoadingThread);
-#endif
-        
-		jassert(!synthChain->areVoicesActive());
+			const bool isCommandLine = CompileExporter::isExportingFromCommandLine();
+			const bool isSampleLoadingThread = killStateHandler.getCurrentThread() == KillStateHandler::SampleLoadingThread;
 
-		clearPreset();
-
-		getSampleManager().setShouldSkipPreloading(true);
-
-		// Reset the sample rate so that prepareToPlay does not get called in restoreFromValueTree
-		// synthChain->setCurrentPlaybackSampleRate(-1.0);
-		synthChain->setId(v.getProperty("ID", "MainSynthChain"));
-
-		skipCompilingAtPresetLoad = true;
-
-		synthChain->restoreFromValueTree(v);
-
-		skipCompilingAtPresetLoad = false;
-
-		synthChain->compileAllScripts();
-
-		if (sampleRate > 0.0)
-		{
-			LOG_START("Initialising audio callback");
-
-			synthChain->prepareToPlay(sampleRate, maxBufferSize.get());
-		}
-
-		synthChain->loadMacrosFromValueTree(v);
-
-
-		getSampleManager().getAudioSampleBufferPool()->clearData();
-
-#if USE_BACKEND
-		Processor::Iterator<ModulatorSynth> iter(synthChain, false);
-
-		while (ModulatorSynth *synth = iter.getNextProcessor())
-		{
-			synth->setEditorState(Processor::EditorState::Folded, true);
-		}
-
-		changed = false;
-
-		auto f = [](Processor* synthChain)
-		{
-			synthChain->sendRebuildMessage(true);
-			return true;
-		};
-
-		killAndCallOnMessageThread(f);
-		
-
-		getSampleManager().preloadEverything();
-
+			jassert(!isInitialised() || isCommandLine || isSampleLoadingThread);
+			ignoreUnused(isCommandLine, isSampleLoadingThread);
 #endif
 
-		allNotesOff(true);
-	}
-	catch (String& errorMessage)
-	{
-		ignoreUnused(errorMessage);
+			getSampleManager().setCurrentPreloadMessage("Closing...");
+
+			clearPreset();
+
+			getSampleManager().setShouldSkipPreloading(true);
+
+			
+
+			// Reset the sample rate so that prepareToPlay does not get called in restoreFromValueTree
+			// synthChain->setCurrentPlaybackSampleRate(-1.0);
+			synthChain->setId(v.getProperty("ID", "MainSynthChain"));
+
+			skipCompilingAtPresetLoad = true;
+
+			getSampleManager().setCurrentPreloadMessage("Building modules...");
+
+			synthChain->restoreFromValueTree(v);
+
+			skipCompilingAtPresetLoad = false;
+
+			getSampleManager().setCurrentPreloadMessage("Compiling scripts...");
+
+			synthChain->compileAllScripts();
+
+			if (sampleRate > 0.0)
+			{
+				LOG_START("Initialising audio callback");
+
+				getSampleManager().setCurrentPreloadMessage("Initialising audio...");
+
+				prepareToPlay(sampleRate, maxBufferSize.get());
+			}
+
+			synthChain->loadMacrosFromValueTree(v);
 
 #if USE_BACKEND
-		writeToConsole(errorMessage, 1, getMainSynthChain());
+			Processor::Iterator<ModulatorSynth> iter(synthChain, false);
+
+			while (ModulatorSynth *synth = iter.getNextProcessor())
+			{
+				synth->setEditorState(Processor::EditorState::Folded, true);
+			}
+
+			changed = false;
+
+			auto f = [](Dispatchable* obj)
+			{
+				auto p = static_cast<Processor*>(obj);
+			
+				p->getMainController()->getSampleManager().setCurrentPreloadMessage("Building UI...");
+
+				p->sendRebuildMessage(true);
+
+				p->getMainController()->getSampleManager().setCurrentPreloadMessage("Done...");
+
+				p->getMainController()->getLockFreeDispatcher().sendPresetReloadMessage();
+
+#if USE_BACKEND
+
+#endif
+
+				return Dispatchable::Status::OK;
+			};
+
+			
+
+			getLockFreeDispatcher().callOnMessageThreadAfterSuspension(synthChain, f);
+#endif
+
+			allNotesOff(true);
+		}
+		catch (String& errorMessage)
+		{
+			ignoreUnused(errorMessage);
+
+#if USE_BACKEND
+			writeToConsole(errorMessage, 1, getMainSynthChain());
 #else
-		DBG(errorMessage);
+			DBG(errorMessage);
 #endif
-	}
+		}
 
+		BACKEND_ONLY(getSampleManager().preloadEverything());
+
+		return SafeFunctionCall::OK;
+	};
 	
+	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::SampleLoadingThread);
 }
 
 
@@ -332,6 +356,12 @@ void MainController::compileAllScripts()
 
 void MainController::allNotesOff(bool resetSoftBypassState/*=false*/)
 {
+#if HI_RUN_UNIT_TESTS
+	// Skip the all notes off command for the unit test mode
+	if (sampleRate == -1.0)
+		return;
+#endif
+
 	if (resetSoftBypassState)
 	{
 		auto f = [](Processor* p)
@@ -340,16 +370,18 @@ void MainController::allNotesOff(bool resetSoftBypassState/*=false*/)
 
 			while (auto s = iter.getNextProcessor())
 			{
-				if (!s->isBypassed())
-				{
-					s->setSoftBypass(false);
-				}
+				s->updateSoftBypassState();
 			}
 
-			return true;
+			// Set the all notes off flag here again
+			p->getMainController()->allNotesOff(false);
+
+			return SafeFunctionCall::OK;
 		};
 
-		getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::TargetThread::MessageThread);
+		getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::TargetThread::SampleLoadingThread);
+
+		
 	}
 	else
 	{
@@ -373,11 +405,6 @@ void MainController::stopCpuBenchmark()
 	}
 }
 
-void MainController::killAndCallOnMessageThread(const ProcessorFunction& f)
-{
-	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::MessageThread);
-}
-
 void MainController::killAndCallOnAudioThread(const ProcessorFunction& f)
 {
 	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::AudioThread);
@@ -391,20 +418,6 @@ void MainController::killAndCallOnLoadingThread(const ProcessorFunction& f)
 int MainController::getNumActiveVoices() const
 {
 	return getMainSynthChain()->getNumActiveVoices();
-}
-
-void MainController::replaceReferencesToGlobalFolder()
-{
-	ModulatorSynthChain *root = getMainSynthChain();
-
-	Processor::Iterator<ExternalFileProcessor> it(root);
-
-	ExternalFileProcessor *p = nullptr;
-
-	while ((p = it.getNextProcessor()) != nullptr)
-	{
-		p->replaceReferencesWithGlobalFolder();
-	}
 }
 
 void MainController::beginParameterChangeGesture(int index)			{ dynamic_cast<PluginParameterAudioProcessor*>(this)->beginParameterChangeGesture(index); }
@@ -426,6 +439,27 @@ Processor *MainController::createProcessor(FactoryType *factory,
 	return p;
 };
 
+
+void MainController::stopBufferToPlay()
+{
+	LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
+
+	if (previewBufferIndex != -1 && !fadeOutPreviewBuffer)
+	{
+		fadeOutPreviewBufferGain = 1.0f;
+		fadeOutPreviewBuffer = true;
+	}
+}
+
+void MainController::setBufferToPlay(const AudioSampleBuffer& buffer)
+{
+	LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
+
+	previewBufferIndex = 0;
+	previewBuffer = buffer;
+	fadeOutPreviewBuffer = false;
+	fadeOutPreviewBufferGain = 1.0f;
+}
 
 void MainController::setKeyboardCoulour(int keyNumber, Colour colour)
 {
@@ -461,119 +495,64 @@ float MainController::getVoiceAmountMultiplier() const
 	}
 }
 
-void MainController::setPlotter(Plotter *p)
-{
-	plotter = p;
-};
-
-void MainController::skin(Component &c)
-{
-    c.setLookAndFeel(mainLookAndFeel);
-    
-    c.setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, Colour(0x66333333));
-    c.setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, Colour(0xfb111111));
-    c.setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::white.withAlpha(0.3f));
-	c.setColour(MacroControlledObject::HiBackgroundColours::textColour, Colours::white);
-
-
-#if 0
-    if(dynamic_cast<Slider*>(&c) != nullptr) 
-		dynamic_cast<Slider*>(&c)->setScrollWheelEnabled(false);
-#endif
-};
-
-
-
-void MainController::setCurrentViewChanged()
-{
-#if USE_BACKEND
-	if(getMainSynthChain() != nullptr)
-	{
-		getMainSynthChain()->setCurrentViewChanged();
-	}
-#endif
-}
-
-void MainController::setGlobalVariable(int index, var newVariable)
-{
-	if (index >= NUM_GLOBAL_VARIABLES || index < 0)
-	{
-		jassertfalse;
-		return;
-	}
-
-	ScopedLock sl(getLock());
-	globalVariableArray.setUnchecked(index, newVariable.clone());
-}
-
-var MainController::getGlobalVariable(int index) const
-{
-	if (index >= NUM_GLOBAL_VARIABLES || index < 0)
-	{
-		jassertfalse;
-		return var::undefined();
-	}
-
-	ScopedLock sl(getLock());
-	return globalVariableArray.getUnchecked(index);
-}
-
-void MainController::storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositionInfo &/*newPosition*/)
-{
-	//static const Identifier bpmId("bpm");
-	//static const Identifier timeSigNumerator("timeSigNumerator");
-	//static const Identifier timeSigDenominator("timeSigDenominator");
-	//static const Identifier timeInSamples("timeInSamples");
-	//static const Identifier timeInSeconds("timeInSeconds");
-	//static const Identifier editOriginTime("editOriginTime");
-	//static const Identifier ppqPosition("ppqPosition");
-	//static const Identifier ppqPositionOfLastBarStart("ppqPositionOfLastBarStart");
-	//static const Identifier frameRate("frameRate");
-	//static const Identifier isPlaying("isPlaying");
-	//static const Identifier isRecording("isRecording");
-	//static const Identifier ppqLoopStart("ppqLoopStart");
-	//static const Identifier ppqLoopEnd("ppqLoopEnd");
-	//static const Identifier isLooping("isLooping");
-
-	//ScopedLock sl(getLock());
-
-	//hostInfo->setProperty(bpmId, newPosition.bpm);
-	//hostInfo->setProperty(timeSigNumerator, newPosition.timeSigNumerator);
-	//hostInfo->setProperty(timeSigDenominator, newPosition.timeSigDenominator);
-	//hostInfo->setProperty(timeInSamples, newPosition.timeInSamples);
-	//hostInfo->setProperty(timeInSeconds, newPosition.timeInSeconds);
-	//hostInfo->setProperty(editOriginTime, newPosition.editOriginTime);
-	//hostInfo->setProperty(ppqPosition, newPosition.ppqPosition);
-	//hostInfo->setProperty(ppqPositionOfLastBarStart, newPosition.ppqPositionOfLastBarStart);
-	//hostInfo->setProperty(frameRate, newPosition.frameRate);
-	//hostInfo->setProperty(isPlaying, newPosition.isPlaying);
-	//hostInfo->setProperty(isRecording, newPosition.isRecording);
-	//hostInfo->setProperty(ppqLoopStart, newPosition.ppqLoopStart);
-	//hostInfo->setProperty(ppqLoopEnd, newPosition.ppqLoopEnd);
-	//hostInfo->setProperty(isLooping, newPosition.isLooping);
-}
-
 void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &midiMessages)
 {
+	AudioThreadGuard audioThreadGuard(&getKillStateHandler());
+
 	ADD_GLITCH_DETECTOR(getMainSynthChain(), DebugLogger::Location::MainRenderCallback);
     
-	numSamplesThisBlock = buffer.getNumSamples();
-
 	getDebugLogger().checkAudioCallbackProperties(thisAsProcessor->getSampleRate(), numSamplesThisBlock);
 
 	ScopedNoDenormals snd;
 
-
 	getDebugLogger().checkPriorityInversion(processLock);
+
+	numSamplesThisBlock = buffer.getNumSamples();
+
+	if (!getKillStateHandler().handleKillState())
+	{
+		buffer.clear();
+
+		
+
+		MidiBuffer::Iterator it(midiMessages);
+
+		MidiMessage m;
+		int samplePos;
+		while(it.getNextEvent(m, samplePos))
+		{
+			if (m.isNoteOff())
+				suspendedNoteOns.insert(HiseEvent(m));
+		}
+
+		midiMessages.clear();
+
+		if (sampleRate > 0.0)
+			uptime += double(numSamplesThisBlock) / sampleRate;
+
+		return;
+	}
+
+
 
 	ScopedTryLock sl(processLock);
 
 	if (!sl.isLocked())
 	{
+		// Something long is taking the audio lock without suspending.
+		// Use killVoicesAndCall for this
+		jassertfalse;
+
+		usagePercent.store(0.0);
 		buffer.clear();
 		midiMessages.clear();
+
+		if (sampleRate > 0.0)
+			uptime += double(numSamplesThisBlock) / sampleRate;
+
 		return;
 	}
+
 
 	ModulatorSynthChain *synthChain = getMainSynthChain();
 
@@ -587,7 +566,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	masterEventBuffer.addEvents(midiMessages);
 
-	killStateHandler.handleKillState();
+	handleSuspendedNoteOffs();
 
     if (!masterEventBuffer.isEmpty()) setMidiInputFlag();
     
@@ -695,11 +674,28 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	{
 		int numToPlay = jmin<int>(numSamplesThisBlock, previewBuffer.getNumSamples() - previewBufferIndex);
 
-		FloatVectorOperations::copy(multiChannelBuffer.getWritePointer(0, 0), previewBuffer.getReadPointer(0, previewBufferIndex), numToPlay);
-		FloatVectorOperations::copy(multiChannelBuffer.getWritePointer(1, 0), previewBuffer.getReadPointer(1, previewBufferIndex), numToPlay);
+		if (numToPlay > 0)
+		{
+			FloatVectorOperations::copy(multiChannelBuffer.getWritePointer(0, 0), previewBuffer.getReadPointer(0, previewBufferIndex), numToPlay);
+			FloatVectorOperations::copy(multiChannelBuffer.getWritePointer(1, 0), previewBuffer.getReadPointer(1, previewBufferIndex), numToPlay);
 
-		previewBufferIndex += numToPlay;
+			previewBufferIndex += numToPlay;
+		}
 
+		if (fadeOutPreviewBuffer)
+		{
+			float thisGain = fadeOutPreviewBufferGain;
+			fadeOutPreviewBufferGain = jmax<float>(thisGain * 0.93f, 0.0f);
+
+			multiChannelBuffer.applyGainRamp(0, numSamplesThisBlock, thisGain, fadeOutPreviewBufferGain);
+
+			if (fadeOutPreviewBufferGain <= 0.001f)
+			{
+				previewBuffer = AudioSampleBuffer();
+				previewBufferIndex = -1;
+			}
+		}
+		
 		if (previewBufferIndex >= previewBuffer.getNumSamples())
 		{
 			previewBuffer = AudioSampleBuffer();
@@ -770,6 +766,75 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 }
 
+void MainController::setPlotter(Plotter *p)
+{
+	plotter = p;
+};
+
+void MainController::skin(Component &c)
+{
+    c.setLookAndFeel(mainLookAndFeel);
+    
+    c.setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
+    c.setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
+    c.setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
+	c.setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
+
+
+#if 0
+    if(dynamic_cast<Slider*>(&c) != nullptr) 
+		dynamic_cast<Slider*>(&c)->setScrollWheelEnabled(false);
+#endif
+};
+
+
+
+void MainController::setCurrentViewChanged()
+{
+#if USE_BACKEND
+	if(getMainSynthChain() != nullptr)
+	{
+		getMainSynthChain()->setCurrentViewChanged();
+	}
+#endif
+}
+
+
+void MainController::storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositionInfo &/*newPosition*/)
+{
+	//static const Identifier bpmId("bpm");
+	//static const Identifier timeSigNumerator("timeSigNumerator");
+	//static const Identifier timeSigDenominator("timeSigDenominator");
+	//static const Identifier timeInSamples("timeInSamples");
+	//static const Identifier timeInSeconds("timeInSeconds");
+	//static const Identifier editOriginTime("editOriginTime");
+	//static const Identifier ppqPosition("ppqPosition");
+	//static const Identifier ppqPositionOfLastBarStart("ppqPositionOfLastBarStart");
+	//static const Identifier frameRate("frameRate");
+	//static const Identifier isPlaying("isPlaying");
+	//static const Identifier isRecording("isRecording");
+	//static const Identifier ppqLoopStart("ppqLoopStart");
+	//static const Identifier ppqLoopEnd("ppqLoopEnd");
+	//static const Identifier isLooping("isLooping");
+
+	//ScopedLock sl(getLock());
+
+	//hostInfo->setProperty(bpmId, newPosition.bpm);
+	//hostInfo->setProperty(timeSigNumerator, newPosition.timeSigNumerator);
+	//hostInfo->setProperty(timeSigDenominator, newPosition.timeSigDenominator);
+	//hostInfo->setProperty(timeInSamples, newPosition.timeInSamples);
+	//hostInfo->setProperty(timeInSeconds, newPosition.timeInSeconds);
+	//hostInfo->setProperty(editOriginTime, newPosition.editOriginTime);
+	//hostInfo->setProperty(ppqPosition, newPosition.ppqPosition);
+	//hostInfo->setProperty(ppqPositionOfLastBarStart, newPosition.ppqPositionOfLastBarStart);
+	//hostInfo->setProperty(frameRate, newPosition.frameRate);
+	//hostInfo->setProperty(isPlaying, newPosition.isPlaying);
+	//hostInfo->setProperty(isRecording, newPosition.isRecording);
+	//hostInfo->setProperty(ppqLoopStart, newPosition.ppqLoopStart);
+	//hostInfo->setProperty(ppqLoopEnd, newPosition.ppqLoopEnd);
+	//hostInfo->setProperty(isLooping, newPosition.isLooping);
+}
+
 void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 {
     LOG_START("Preparing playback");
@@ -785,7 +850,7 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 
     thisAsProcessor = dynamic_cast<AudioProcessor*>(this);
     
-#if ENABLE_CONSOLE_OUTPUT
+#if ENABLE_CONSOLE_OUTPUT && !HI_RUN_UNIT_TESTS
 	if (logger == nullptr)
 	{
 		logger = new ConsoleLogger(getMainSynthChain());
@@ -810,7 +875,15 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
     
 #endif
 
-    getMainSynthChain()->prepareToPlay(sampleRate, maxBufferSize.get());
+	getMainSynthChain()->prepareToPlay(sampleRate, maxBufferSize.get());
+
+	AudioThreadGuard guard(&getKillStateHandler());
+
+	AudioThreadGuard::Suspender suspender;
+	ignoreUnused(suspender);
+
+	LockHelpers::SafeLock itLock(this, LockHelpers::IteratorLock);
+	LockHelpers::SafeLock audioLock(this, LockHelpers::AudioLock);
 
 	getMainSynthChain()->setIsOnAir(true);
 }
@@ -823,12 +896,10 @@ void MainController::setBpm(double newTempo)
 	{
 		bpm = newTempo;
 
-		for(int i = 0; i < tempoListeners.size(); i++)
+		for (auto& t : tempoListeners)
 		{
-			if(tempoListeners[i].get() != nullptr)
-			{
-				tempoListeners[i].get()->tempoChanged(bpm);
-			}
+			if (auto t_ = t.get())
+				t_->tempoChanged(bpm);
 			else
 			{
 				// delete it with removeTempoListener!
@@ -858,13 +929,15 @@ void MainController::setHostBpm(double newTempo)
 
 void MainController::addTempoListener(TempoListener *t)
 {
-	ScopedLock sl(getLock());
+	LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
+
 	tempoListeners.addIfNotAlreadyThere(t);
 }
 
 void MainController::removeTempoListener(TempoListener *t)
 {
-	ScopedLock sl(getLock());
+	LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
+
 	tempoListeners.removeAllInstancesOf(t);
 }
 
@@ -885,6 +958,9 @@ juce::Typeface* MainController::getFont(const String &fontName) const
 
 Font MainController::getFontFromString(const String& fontName, float fontSize) const
 {
+	if (fontName == "Default")
+		return globalFont;
+
 	const Identifier id(fontName);
 
 	for (auto& tf : customTypeFaces)
@@ -919,6 +995,26 @@ Font MainController::getFontFromString(const String& fontName, float fontSize) c
 	return currentFont;
 }
 
+
+void MainController::setGlobalFont(const String& fontName)
+{
+	if (fontName.isEmpty())
+		globalFont = GLOBAL_FONT();
+	else 
+		globalFont = getFontFromString(fontName, 14.0f);
+
+	mainLookAndFeel->setComboBoxFont(globalFont);
+}
+
+void MainController::checkAndAbortMessageThreadOperation()
+{
+	jassert_dispatched_message_thread(this);
+
+	if (shouldAbortMessageThreadOperation())
+	{
+		throw LockFreeDispatcher::AbortSignal();
+	}
+}
 
 void MainController::fillWithCustomFonts(StringArray &fontList)
 {
@@ -1012,6 +1108,11 @@ void MainController::restoreCustomFontValueTree(const ValueTree &v)
 }
 
 
+bool MainController::isInitialised() const noexcept
+{
+	return getKillStateHandler().initialised();
+}
+
 void MainController::insertStringAtLastActiveEditor(const String &string, bool selectArguments)
 {
 	if (lastActiveEditor.getComponent() != nullptr)
@@ -1052,6 +1153,7 @@ float MainController::getGlobalCodeFontSize() const
 	return (float)dynamic_cast<const GlobalSettingManager*>(this)->getSettingsObject().getSetting(HiseSettings::Scripting::CodeFontSize);
 }
 
+
 void MainController::loadUserPresetAsync(const ValueTree& v)
 {
 	//getMainSynthChain()->killAllVoices();
@@ -1063,10 +1165,10 @@ void MainController::loadUserPresetAsync(const ValueTree& v)
 
 void MainController::writeToConsole(const String &message, int warningLevel, const Processor *p, Colour c)
 {
+	AudioThreadGuard::Suspender suspender;
+	ignoreUnused(suspender);
+
 	codeHandler.writeToConsole(message, warningLevel, p, c);
-
-	
-
 }
 
 void MainController::setWatchedScriptProcessor(JavascriptProcessor *p, Component *editor)
@@ -1095,6 +1197,17 @@ void MainController::rebuildVoiceLimits()
 	}
 }
 
+void MainController::handleSuspendedNoteOffs()
+{
+	if (!suspendedNoteOns.isEmpty())
+	{
+		for (int i = 0; i < suspendedNoteOns.size(); i++)
+			masterEventBuffer.addEvent(suspendedNoteOns[i]);
+		
+		suspendedNoteOns.clearQuick();
+	}
+}
+
 void MainController::updateMultiChannelBuffer(int numNewChannels)
 {
 	ScopedLock sl(processLock);
@@ -1105,69 +1218,9 @@ void MainController::updateMultiChannelBuffer(int numNewChannels)
 	ProcessorHelpers::increaseBufferIfNeeded(multiChannelBuffer, maxBufferSize.get());
 }
 
-MainController::SampleManager::~SampleManager()
+void MainController::UserPresetHandler::setTagList(const StringArray& newTagList)
 {
-	preloadListeners.clear();
-
-	internalPreloadJob.signalJobShouldExit();
-
-	const bool ok = samplerLoaderThreadPool->stopThread(2000);
-	
-	samplerLoaderThreadPool = nullptr;
+	tagList = newTagList;
 }
-
-void MainController::SampleManager::setShouldSkipPreloading(bool skip)
-{
-	skipPreloading = skip;
-}
-
-void MainController::SampleManager::preloadEverything()
-{
-	
-	jassert(skipPreloading);
-
-	skipPreloading = false;
-	
-	jassert(mc->getKillStateHandler().voicesAreKilled());
-
-	Processor::Iterator<ModulatorSampler> it(mc->getMainSynthChain());
-
-	Array<WeakReference<Processor>> samplersToPreload;
-
-	while (ModulatorSampler* s = it.getNextProcessor())
-	{
-		if (s->hasPendingSampleLoad())
-		{
-			auto f = [](Processor* p)->bool {
-				return static_cast<ModulatorSampler*>(p)->preloadAllSamples();
-			};
-
-			mc->getKillStateHandler().killVoicesAndCall(s, f, KillStateHandler::SampleLoadingThread);
-		}
-	}
-}
-
-
-double& MainController::SampleManager::getPreloadProgress()
-{
-	return internalPreloadJob.progress;
-}
-
-void MainController::SampleManager::cancelAllJobs()
-{
-	ScopedLock sl(getSamplerSoundLock());
-
-	internalPreloadJob.signalJobShouldExit();
-	samplerLoaderThreadPool->stopThread(2000);
-
-	
-
-}
-
-void MainController::CodeHandler::setMainConsole(Console* console)
-{
-	mainConsole = dynamic_cast<Component*>(console);
-}
-
 
 } // namespace hise

@@ -63,6 +63,8 @@ public:
         decibelMode(false),
 		velocityTable(new MidiTable())
 	{ 
+		velocityTable->setXTextConverter(Modulation::getDomainAsMidiRange);
+
 		parameterNames.add("Inverted");
 		parameterNames.add("UseTable");
         parameterNames.add("DecibelMode");
@@ -177,7 +179,8 @@ private:
 
 	ScopedPointer<XmlElement> tableGraph;
 
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VelocityModulator)
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VelocityModulator);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(VelocityModulator);
 };
 
 

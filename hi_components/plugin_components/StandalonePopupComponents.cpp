@@ -130,6 +130,10 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_, bool buildMenus)
 	mc(mc_),
     font(GLOBAL_BOLD_FONT())
 {
+	//auto& plaf = mc->getGlobalLookAndFeel();
+
+	PopupLookAndFeel plaf;
+
 	ADD(Driver);
 	ADD(Device);
 	ADD(Output);
@@ -419,7 +423,7 @@ void CustomSettingsWindow::buttonClicked(Button* b)
 	{
 #if USE_FRONTEND
 
-		File oldLocation = ProjectHandler::Frontend::getSampleLocationForCompiledPlugin();
+		File oldLocation = FrontendHandler::getSampleLocationForCompiledPlugin();
 
 		FileChooser fc("Select new Sample folder", oldLocation);
 
@@ -429,13 +433,13 @@ void CustomSettingsWindow::buttonClicked(Button* b)
 
 			if (newLocation.isDirectory())
 			{
-				ProjectHandler::Frontend::setSampleLocation(newLocation);
+				FrontendHandler::setSampleLocation(newLocation);
 
-				auto fp = dynamic_cast<FrontendSampleManager*>(mc);
+				auto& handler = mc->getSampleManager().getProjectHandler();
+
+				handler.checkAllSampleReferences();
 				
-				fp->checkAllSampleReferences();
-				
-				if (fp->areSampleReferencesCorrect())
+				if (handler.areSampleReferencesCorrect())
 				{
 					PresetHandler::showMessageWindow("Sample Folder relocated", "You need to reload the plugin to complete this step", PresetHandler::IconType::Info);
 				}
@@ -605,11 +609,7 @@ void CustomSettingsWindow::paint(Graphics& g)
 
 		y += 40;
 
-#if USE_BACKEND
 		const String samplePath = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName();
-#else
-		const String samplePath = ProjectHandler::Frontend::getSampleLocationForCompiledPlugin().getFullPathName();
-#endif
 
 		g.setFont(font);
 		g.drawText("Sample Location:", 15, y, getWidth() - 30, 30, Justification::centredTop);

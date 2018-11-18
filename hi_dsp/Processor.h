@@ -154,21 +154,20 @@ private:
 
 
 
-/** The base class for all modules.
+/** The base class for all HISE modules in the signal path.
+*	@ingroup core
 *
 *	Every object within HISE that processes audio or MIDI is derived from this base class to share the following features:
 *
 *	- handling of child processors (and special treatment for child processors which are Chains)
 *	- bypassing & parameter management (using the 'float' type for compatibility with audio processing & plugin parameters): setAttribute() / getAttribute()
-*	- set / restore view properties (folded, body shown etc.) using a NamedValueSet (setEditorState(), getEditorState())
-*	- set input / output values for metering and stuff (setInputValue(), setOutputValue())
+*	- set input / output values for metering and visualization (setInputValue(), setOutputValue())
 *	- access to the global MainController object (see ControlledObject)
 *	- import / export via ValueTree (see RestorableObject)
 *	- methods for identification (getId(), getType(), getName(), getSymbol(), getColour())
 *	- access to the console
-*	- a specially designed component (ProcessorEditor) which acts as interface for the Processor.
 *
-*	The general architecture of a HISE patch is a tree of Processors, with a main processor (which can be obtained using getMainController()->getMainSynthChain()).
+*	The general architecture of a HISE patch is a tree of Processor objects, all residing in a main container of the type ModulatorSynthChain (which can be obtained using getMainController()->getMainSynthChain()).
 *	There is a small helper class ProcessorHelpers, which contains some static methods for searching & checking the type of the Processor.
 *
 *	Normally, you would not derive from this class directly, but use some of its less generic subclasses (MidiProcessor, Modulator, EffectProcessor or ModulatorSynth). 
@@ -176,46 +175,16 @@ private:
 */
 class Processor: public SafeChangeBroadcaster,
 				 public RestorableObject,
-				 public ControlledObject
+				 public ControlledObject,
+				 public Dispatchable
 {
 public:
 
 	/**	Creates a new Processor with the given Identifier. */
-	Processor(MainController *m, const String &id_):
-		ControlledObject(m),
-		id(id_),
-		consoleEnabled(false),
-		bypassed(false),
-		visible(true),
-		samplerate(-1.0),
-		largestBlockSize(-1),
-		inputValue(0.0f),
-		outputValue(0.0f),
-		editorState(0),
-		symbol(Path())
-	{
-		editorStateIdentifiers.add("Folded");
-		editorStateIdentifiers.add("BodyShown");
-		editorStateIdentifiers.add("Visible");
-		editorStateIdentifiers.add("Solo");
-		
-		setEditorState(Processor::BodyShown, true, dontSendNotification);
-		setEditorState(Processor::Visible, true, dontSendNotification);
-		setEditorState(Processor::Solo, false, dontSendNotification);
-
-		if (Identifier::isValidIdentifier(id))
-		{
-			idAsIdentifier = Identifier(id);
-		}
-	};
+	Processor(MainController *m, const String &id_, int numVoices);;
 
 	/** Overwrite this if you need custom destruction behaviour. */
-	virtual ~Processor()
-	{
-		getMainController()->getMacroManager().removeMacroControlsFor(this);
-		masterReference.clear();
-		removeAllChangeListeners();	
-	};
+	virtual ~Processor();;
 
 	/** Overwrite this enum and add new parameters. This is used by the set- / getAttribute methods. */
 	enum SpecialParameters
@@ -272,45 +241,7 @@ public:
 	*	@see restoreFromValueTree()
 	*
 	*/
-	virtual ValueTree exportAsValueTree() const override
-	{
-#if USE_OLD_FILE_FORMAT
-		ValueTree v(getType());
-#else
-		ValueTree v("Processor");
-		v.setProperty("Type", getType().toString(), nullptr);
-#endif
-
-		v.setProperty("ID", getId(), nullptr);
-		v.setProperty("Bypassed", isBypassed(), nullptr);
-
-		ScopedPointer<XmlElement> editorValueSet = new XmlElement("EditorStates");
-		editorStateValueSet.copyToXmlAttributes(*editorValueSet);		
-
-#if USE_OLD_FILE_FORMAT
-		v.setProperty("EditorState", editorValueSet->createDocument(""), nullptr);
-
-		for(int i = 0; i < getNumChildProcessors(); i++)
-		{
-			v.addChild(getChildProcessor(i)->exportAsValueTree(), i, nullptr);
-		};
-
-#else
-		ValueTree editorStateValueTree = ValueTree::fromXml(*editorValueSet);
-		v.addChild(editorStateValueTree, -1, nullptr);
-
-		ValueTree childProcessors("ChildProcessors");
-
-		for(int i = 0; i < getNumChildProcessors(); i++)
-		{
-			childProcessors.addChild(getChildProcessor(i)->exportAsValueTree(), i, nullptr);
-		};
-
-		v.addChild(childProcessors, -1, nullptr);
-#endif
-		return v;
-
-	};
+	virtual ValueTree exportAsValueTree() const override;;
 	
 	/** Restores a previously saved ValueTree. 
 	*
@@ -431,6 +362,9 @@ public:
 		return Colours::grey;
 	};
 
+	/** getNumVoices() is occupied by the Synthesiser class, d'oh! */
+	int getVoiceAmount() const noexcept { return numVoices; };
+
 	/** Returns the unique id of the Processor instance (!= the Processor name). 
 	*
 	*	It must be a valid Identifier (so no whitespace and weird characters).
@@ -474,12 +408,21 @@ public:
 		bypassed = shouldBeBypassed; 
 		currentValues.clear();
 
+		sendSynchronousBypassChangeMessage();
+
 		if (notifyChangeHandler)
 			getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::ProcessorBypassed, false);
 	};
 
 	/** Returns true if the processor is bypassed. For checking the bypass state of ModulatorSynths, better use isSoftBypassed(). */
 	bool isBypassed() const noexcept { return bypassed; };
+
+	void sendSynchronousBypassChangeMessage()
+	{
+		for (auto l : bypassListeners)
+			if (l)
+				l->bypassStateChanged(this, bypassed);
+	}
 
 	/** Sets the sample rate and the block size. */
 	virtual void prepareToPlay(double sampleRate_, int samplesPerBlock_)
@@ -517,6 +460,8 @@ public:
 		return inputValue;
 	};
 
+    bool isValidAndInitialised(bool checkOnAir=false) const;
+    
 	/** Saves the state of the Processor's editor. It must be saved within the Processor, because the Editor can be deleted. 
 	*
 	*	You can add more states in your subclass (they should be expressable as bool). Best use a enum:
@@ -621,6 +566,15 @@ public:
 
 	DisplayValues getDisplayValues() const { return currentValues;};
 
+	struct BypassListener
+	{
+		virtual ~BypassListener() {};
+
+		virtual void bypassStateChanged(Processor* p, bool bypassState) = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(BypassListener)
+	};
+
 	/** A iterator over all child processors. 
 	*
 	*	You don't have to use a inherited class of Processor for the template argument, it works with all classes.
@@ -635,36 +589,23 @@ public:
 		*	It creates a list of all child processors (children before siblings).
 		*	Call getNextProcessor() to get the next child processor. 
 		*/
-		Iterator(Processor *root_, bool useHierarchy=false):
+		Iterator(const Processor *root, bool useHierarchy = false) :
 			hierarchyUsed(useHierarchy),
 			index(0)
 		{
-			if(useHierarchy)
-			{
-				internalHierarchyLevel = 0;
-				addProcessorWithHierarchy(root_);
+			jassert(root->isValidAndInitialised());
+			WARN_IF_AUDIO_THREAD(true, MainController::KillStateHandler::IllegalOps::IteratorCreation);
 
-			}
-			else
-			{
-				addProcessor(root_);
-			}
-		};
+			LockHelpers::SafeLock sl(root->getMainController(), LockHelpers::Type::IteratorLock);
 
-		Iterator(const Processor *root_, bool useHierarchy = false) :
-			hierarchyUsed(useHierarchy),
-			index(0)
-		{
 			if (useHierarchy)
 			{
 				internalHierarchyLevel = 0;
-				addProcessorWithHierarchy(const_cast<Processor*>(root_));
-
+				addProcessorWithHierarchy(const_cast<Processor*>(root));
 			}
 			else
-			{
-				addProcessor(const_cast<Processor*>(root_));
-			}
+				addProcessor(const_cast<Processor*>(root));
+
 		};
 
 		/** returns the next processor. 
@@ -676,7 +617,12 @@ public:
 		{
 			if(index == allProcessors.size()) return nullptr;
 
-			return dynamic_cast<SubTypeProcessor*>(allProcessors[index++].get());
+			auto thisProcessor = dynamic_cast<SubTypeProcessor*>(allProcessors[index++].get());
+
+			if (thisProcessor != nullptr)
+				return thisProcessor;
+
+			return getNextProcessor();
 		};
 
 		/** returns a const pointer to the next processor. 
@@ -688,19 +634,22 @@ public:
 		{
 			if(index == allProcessors.size()) return nullptr;
 
-			return dynamic_cast<const SubTypeProcessor*>(allProcessors[index++].get());
+			auto thisProcessor = dynamic_cast<SubTypeProcessor*>(allProcessors[index++].get());
+
+			if (thisProcessor != nullptr)
+				return thisProcessor;
+
+			return getNextProcessor();
 		}
 
 		int getHierarchyForCurrentProcessor() const
 		{
-
 			// You must use the other method!
 			jassert(hierarchyData.size() > index-1);
 
 			return hierarchyData[index-1];
 
 		}
-
 
 		int getNumProcessors() const
 		{
@@ -722,14 +671,20 @@ public:
 
 		void addProcessor(Processor *p)
 		{
-			jassert(p != nullptr);
-
-			if(dynamic_cast<SubTypeProcessor*>(p) != nullptr)
+			if (p == nullptr)
 			{
-				allProcessors.add(p);
+				jassertfalse;
+				return;
 			}
 
-			if (p == nullptr) return;
+			if (dynamic_cast<SubTypeProcessor*>(p) != nullptr)
+				allProcessors.add(p);
+
+			// If you hit this assertion, it means that somehow
+			// a uninitialised processor got inserted into the processing
+			// chain, which is bad. Initialise all processors BEFORE
+			// adding them there...
+			jassert(p->isValidAndInitialised());
 
 			for(int i = 0; i < p->getNumChildProcessors(); i++)
 			{
@@ -739,11 +694,19 @@ public:
 
 		void addProcessorWithHierarchy(Processor *p)
 		{
-			jassert(p != nullptr);
-
-			if (p == nullptr) return;
+			if (p == nullptr)
+			{
+				jassertfalse;
+				return;
+			}
 
 			const int thisHierarchy = internalHierarchyLevel;
+
+			// If you hit this assertion, it means that somehow
+			// a uninitialised processor got inserted into the processing
+			// chain, which is bad. Initialise all processors BEFORE
+			// adding them there...
+			jassert(p->isValidAndInitialised());
 
 			if(dynamic_cast<SubTypeProcessor*>(p) != nullptr)
 			{
@@ -755,12 +718,8 @@ public:
 
 			for(int i = 0; i < p->getNumChildProcessors(); i++)
 			{
-				
-
 				addProcessorWithHierarchy(p->getChildProcessor(i));
-
 				internalHierarchyLevel = thisHierarchy + 1;
-
 			}
 		};
 
@@ -794,12 +753,6 @@ public:
 
 	bool isOnAir() const noexcept{ return onAir; }
 
-	/** Call this method to get either the given lock or a dummy lock when the processor isn't on air yet. */
-	const CriticalSection& getDummyLockWhenNotOnAir() const
-	{
-		return dummyLock;
-	}
-
 	struct DeleteListener
 	{
 		virtual ~DeleteListener()
@@ -822,35 +775,59 @@ public:
 		deleteListeners.addIfNotAlreadyThere(listener);
 	}
 
+	void setIsWaitingForDeletion()
+	{
+		// Must be called before this method
+		jassert(!isOnAir());
+		pendingDelete = true;
+
+		for (int i = 0; i < getNumChildProcessors(); i++)
+			getChildProcessor(i)->setIsWaitingForDeletion();
+	}
+
+	bool isWaitingForDeletion() const noexcept
+	{
+		return pendingDelete;
+	}
+
 	void removeDeleteListener(DeleteListener* listener)
 	{
 		deleteListeners.removeAllInstancesOf(listener);
 	}
 
-	void sendDeleteMessage()
-	{
-		int numListeners = deleteListeners.size();
+	void sendDeleteMessage();
 
-		for (int i = numListeners-1; i >= 0; --i)
-		{
-			if (deleteListeners[i].get() != nullptr)
-			{
-				deleteListeners[i]->processorDeleted(this);
-			}
-		}
+	void addBypassListener(BypassListener* l)
+	{
+		bypassListeners.addIfNotAlreadyThere(l);
 	}
 
-	void sendRebuildMessage(bool forceUpdate=false)
+	void removeBypassListener(BypassListener* l)
 	{
-		int numListeners = deleteListeners.size();
+		bypassListeners.removeAllInstancesOf(l);
+	}
 
-		for (int i = 0; i < numListeners; i++)
-		{
-			if (deleteListeners[i].get() != nullptr)
-			{
-				deleteListeners[i]->updateChildEditorList(forceUpdate);
-			}
-		}
+	bool isRebuildMessagePending() const noexcept;
+
+	void cleanRebuildFlagForThisAndParents();
+
+	void sendRebuildMessage(bool forceUpdate = false);
+
+	Processor* getParentProcessor(bool getOwnerSynth, bool assertIfFalse=true);
+
+	const Processor* getParentProcessor(bool getOwnerSynth, bool assertIfFalse=true) const;
+
+	void setParentProcessor(Processor* newParent)
+	{
+		// You must call setParentProcessor before locking and inserting to the processing chain
+		jassert(!isOnAir());
+		jassert(!LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::IteratorLock));
+		jassert(!LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::AudioLock));
+
+		parentProcessor = newParent;
+
+		for (int i = 0; i < getNumChildProcessors(); i++)
+			getChildProcessor(i)->setParentProcessor(this);
 	}
 
 protected:
@@ -882,7 +859,7 @@ protected:
 
 		if(notify == sendNotification)
 		{
-			sendChangeMessage();
+			sendPooledChangeMessage();
 		}
 	};
 
@@ -906,11 +883,19 @@ protected:
 
 private:
 
+	bool rebuildMessagePending = false;
+
 	Array<WeakReference<DeleteListener>> deleteListeners;
+
+	Array<WeakReference<BypassListener>> bypassListeners;
 
 	CriticalSection dummyLock;
 
 	bool onAir = false;
+
+	bool pendingDelete = false;
+
+	WeakReference<Processor> parentProcessor;
 
 	Path symbol;
 
@@ -923,6 +908,7 @@ private:
 
 	NamedValueSet editorStateValueSet;
 	
+	const int numVoices;
 
 	float inputValue;
 	double outputValue;
@@ -984,6 +970,20 @@ public:
 		return sa;
 	}
 
+	template <class ProcessorType> static Array<WeakReference<ProcessorType>> getListOfAllProcessors(const Processor* rootProcessor)
+	{
+		Array<WeakReference<ProcessorType>> list;
+
+		Processor::Iterator<ProcessorType> iter(rootProcessor, false);
+
+		while (auto t = iter.getNextProcessor())
+		{
+			list.add(t);
+		}
+
+		return list;
+	}
+
 	/** Small helper function that checks if the given processor is of the supplied type. */
 	template <class ProcessorType> static bool is(const Processor *p)
 	{
@@ -1028,8 +1028,6 @@ public:
 
 	static void restoreFromBase64String(Processor* p, const String& base64String, bool restoreScriptContentOnly=false);
 
-	static void deleteProcessor(Processor* p);
-
 	static void increaseBufferIfNeeded(AudioSampleBuffer& b, int numSamplesNeeded);
 
 	static void increaseBufferIfNeeded(hlac::HiseSampleBuffer& b, int numSamplesNeeded);
@@ -1041,6 +1039,8 @@ public:
 		static ValueTree getValueTreeFromBase64String(const String& base64State);
 	};
 
+
+	
 
 	/** Returns a list of all processors that can be connected to a parameter. */
 	static StringArray getListOfAllConnectableProcessors(const Processor* processorToSkip);

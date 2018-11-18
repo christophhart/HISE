@@ -34,6 +34,8 @@ namespace hise { using namespace juce;
 
 // =============================================================================================================================================== SampleLoader methods
 
+
+    
 SampleLoader::SampleLoader(SampleThreadPool *pool_) :
 	SampleThreadPoolJob("SampleLoader"),
 	backgroundPool(pool_),
@@ -50,8 +52,8 @@ SampleLoader::SampleLoader(SampleThreadPool *pool_) :
 	writeBuffer(nullptr),
 	diskUsage(0.0),
 	lastCallToRequestData(0.0),
-	b1(true, 2, 0),
-	b2(true, 2, 0)
+	b1(DEFAULT_BUFFER_TYPE_IS_FLOAT, 2, 0),
+	b2(DEFAULT_BUFFER_TYPE_IS_FLOAT, 2, 0)
 {
 	unmapper.setLoader(this);
 
@@ -139,6 +141,7 @@ void SampleLoader::reset()
 		{
 			currentSound->decreaseVoiceCount();
 			clearLoader();
+			
 		}
 		else
 		{
@@ -158,7 +161,7 @@ void SampleLoader::clearLoader()
 {
 	sound = nullptr;
 	diskUsage = 0.0f;
-	cancelled = false;
+	cancelled = true;
 }
 
 double SampleLoader::getDiskUsage() noexcept
@@ -170,13 +173,17 @@ double SampleLoader::getDiskUsage() noexcept
 
 void SampleLoader::setStreamingBufferDataType(bool shouldBeFloat)
 {
-	ScopedLock sl(getLock());
+	if (b1.isFloatingPoint() != shouldBeFloat)
+	{
+		ScopedLock sl(getLock());
 
-	b1 = hlac::HiseSampleBuffer(shouldBeFloat, 2, 0);
-	b2 = hlac::HiseSampleBuffer(shouldBeFloat, 2, 0);
+		b1 = hlac::HiseSampleBuffer(shouldBeFloat, 2, 0);
+		b2 = hlac::HiseSampleBuffer(shouldBeFloat, 2, 0);
 
-	refreshBufferSizes();
+		refreshBufferSizes();
+	}
 }
+
 
 StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuffer, double numSamples) const
 {
@@ -191,7 +198,20 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 		const int indexBeforeWrap = jmax<int>(0, (int)(readIndexDouble));
 		const int numSamplesInFirstBuffer = localReadBuffer->getNumSamples() - indexBeforeWrap;
 
+		voiceBuffer.setUseOneMap(localReadBuffer->useOneMap);
+
 		jassert(numSamplesInFirstBuffer >= 0);
+
+		// Reset the offset so that the first one will go through
+		auto existingOffset = localReadBuffer->getNormaliseMap(0).getOffset();
+		auto offsetInBuffer = indexBeforeWrap % COMPRESSION_BLOCK_SIZE;
+
+		voiceBuffer.clearNormalisation({});
+
+		voiceBuffer.getNormaliseMap(0).setOffset(existingOffset + offsetInBuffer);
+
+		if(!localReadBuffer->useOneMap)
+			voiceBuffer.getNormaliseMap(1).setOffset(localReadBuffer->getNormaliseMap(1).getOffset());
 
 		if (numSamplesInFirstBuffer > 0)
 		{
@@ -203,7 +223,11 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 
 		if ((numSamplesAvailableInSecondBuffer > 0) && (numSamplesAvailableInSecondBuffer <= localWriteBuffer->getNumSamples()))
 		{
-			const int numSamplesToCopyFromSecondBuffer = jmin<int>(numSamplesAvailableInSecondBuffer, voiceBuffer.getNumSamples() - offset);
+			//const int numSamplesToCopyFromSecondBuffer = jmin<int>(numSamplesAvailableInSecondBuffer, voiceBuffer.getNumSamples() - offset);
+
+			int numSamplesToCopyFromSecondBuffer = (int)(ceil(numSamples - (double)numSamplesInFirstBuffer)) + 1;
+
+			numSamplesToCopyFromSecondBuffer = jmin<int>(numSamplesToCopyFromSecondBuffer, numSamplesAvailableInSecondBuffer);
 
 			if (writeBufferIsBeingFilled || entireSampleIsLoaded)
 			{
@@ -224,9 +248,11 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 
 		StereoChannelData returnData;
 
-		returnData.isFloatingPoint = localReadBuffer->isFloatingPoint();
-		returnData.leftChannel = voiceBuffer.getReadPointer(0);
-		returnData.rightChannel = voiceBuffer.getReadPointer(1);
+		returnData.b = &voiceBuffer;
+		returnData.offsetInBuffer = 0;
+
+
+		
 
 #if USE_SAMPLE_DEBUG_COUNTER
 
@@ -256,9 +282,9 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 
 		StereoChannelData returnData;
 
-		returnData.isFloatingPoint = localReadBuffer->isFloatingPoint();
-		returnData.leftChannel = localReadBuffer->getReadPointer(0, index);
-		returnData.rightChannel = localReadBuffer->getReadPointer(localReadBuffer->getNumChannels() > 1 ? 1 : 0, index);
+		returnData.b = localReadBuffer;
+
+		returnData.offsetInBuffer = index;
 
 		return returnData;
 	}
@@ -302,6 +328,8 @@ int SampleLoader::getNumSamplesForStreamingBuffers() const
 
 bool SampleLoader::requestNewData()
 {
+	cancelled = false;
+
 #if KILL_VOICES_WHEN_STREAMING_IS_BLOCKED
 	if (this->isQueued())
 	{
@@ -327,7 +355,6 @@ SampleThreadPoolJob::JobStatus SampleLoader::runJob()
 {
 	if (cancelled)
 	{
-		cancelled = false;
 		return SampleThreadPoolJob::jobHasFinished;
 	}
 
@@ -399,8 +426,6 @@ void SampleLoader::fillInactiveBuffer()
 
 #if USE_SAMPLE_DEBUG_COUNTER
 
-		DBG(positionInSampleFile);
-
 		const float *l = writeBuffer.get()->getReadPointer(0);
 		const float *r = writeBuffer.get()->getReadPointer(1);
 
@@ -469,6 +494,7 @@ StreamingSamplerVoice::StreamingSamplerVoice(SampleThreadPool *pool) :
 	pitchData = nullptr;
 };
 
+
 void StreamingSamplerVoice::startNote(int /*midiNoteNumber*/,
 	float /*velocity*/,
 	SynthesiserSound* s,
@@ -525,9 +551,81 @@ void StreamingSamplerVoice::setDebugLogger(DebugLogger* newLogger)
 	loader.setLogger(logger);
 }
 
-template <typename SignalType> void interpolateStereoSamples(const SignalType* inL, const SignalType* inR, const float* pitchData, float* outL, float* outR, int startSample, double indexInBuffer, double uptimeDelta, int numSamples, bool isFloat)
+static int alignedCalls = 0;
+static int unalignedCalls = 0;
+
+using SSEFloat = dsp::SIMDRegister<float>;
+
+#if 0
+struct Helpers
 {
-	const float gainFactor = isFloat ? 1.0f : (1.0f / (float)INT16_MAX);
+	static SSEFloat getSSEFloatRegister(const float* a)
+	{
+		return SSEFloat::fromRawArray(a);
+	}
+
+	static SSEFloat getSSEFloatRegister(const int16* d)
+	{
+		auto l = _mm_load_si128(reinterpret_cast<const __m128i*>(d));
+		l = _mm_cvtepi16_epi32(l);
+		return _mm_cvtepi32_ps(l);
+	}
+};
+#endif
+
+
+template <typename SignalType, bool isFloat> void interpolateMonoSamples(const SignalType* inL, const SignalType* unusedIn, const float* pitchData, float* outL, float* unusedOut, int startSample, double indexInBuffer, double uptimeDelta, int numSamples)
+{
+	ignoreUnused(unusedIn, unusedOut);
+
+	constexpr float gainFactor = isFloat ? 1.0f : (1.0f / (float)INT16_MAX);
+
+	if (pitchData != nullptr)
+	{
+		pitchData += startSample;
+
+		float indexInBufferFloat = (float)indexInBuffer;
+
+		for (int i = 0; i < numSamples; i++)
+		{
+			const int pos = int(indexInBufferFloat);
+			const float alpha = indexInBufferFloat - (float)pos;
+			const float invAlpha = 1.0f - alpha;
+
+			float l = ((float)inL[pos] * invAlpha + (float)inL[pos + 1] * alpha);
+
+			outL[i] = l * gainFactor;
+
+			jassert(*pitchData <= (float)MAX_SAMPLER_PITCH);
+
+			indexInBufferFloat += pitchData[i];
+		}
+	}
+	else
+	{
+		float indexInBufferFloat = (float)indexInBuffer;
+		const float uptimeDeltaFloat = (float)uptimeDelta;
+
+		while (numSamples > 0)
+		{
+			const int pos = int(indexInBufferFloat);
+			const float alpha = indexInBufferFloat - (float)pos;
+			const float invAlpha = 1.0f - alpha;
+
+			float l = ((float)inL[pos] * invAlpha + (float)inL[pos + 1] * alpha);
+
+			*outL++ = l * gainFactor;
+
+			indexInBufferFloat += uptimeDeltaFloat;
+
+			numSamples--;
+		}
+	}
+}
+
+template <typename SignalType, bool isFloat> void interpolateStereoSamples(const SignalType* inL, const SignalType* inR, const float* pitchData, float* outL, float* outR, int startSample, double indexInBuffer, double uptimeDelta, int numSamples)
+{
+	constexpr float gainFactor = isFloat ? 1.0f : (1.0f / (float)INT16_MAX);
 
 	if (pitchData != nullptr)
 	{
@@ -554,7 +652,6 @@ template <typename SignalType> void interpolateStereoSamples(const SignalType* i
 	}
 	else
 	{
-
 		float indexInBufferFloat = (float)indexInBuffer;
 		const float uptimeDeltaFloat = (float)uptimeDelta;
 
@@ -578,6 +675,7 @@ template <typename SignalType> void interpolateStereoSamples(const SignalType* i
 }
 
 
+
 void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int startSample, int numSamples)
 {
 	const StreamingSamplerSound *sound = loader.getLoadedSound();
@@ -597,8 +695,6 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 
 		jassert(tempVoiceBuffer != nullptr);
 
-		//tempVoiceBuffer->clear();
-
 		// Copy the not resampled values into the voice buffer.
 		StereoChannelData data = loader.fillVoiceBuffer(*tempVoiceBuffer, pitchCounter + startAlpha);
 
@@ -608,27 +704,56 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 		const int startFixed = startSample;
 		const int numSamplesFixed = numSamples;
 
-
 #if USE_SAMPLE_DEBUG_COUNTER
 		jassert((int)voiceUptime == data.leftChannel[0]);
 #endif
 
 		double indexInBuffer = startAlpha;
 
-		if (data.isFloatingPoint)
+		if (data.b->isFloatingPoint())
 		{
-			const float* const inL = static_cast<const float*>(data.leftChannel);
-			const float* const inR = static_cast<const float*>(data.rightChannel);
+			const float* const inL = static_cast<const float*>(data.b->getReadPointer(0, data.offsetInBuffer));
+			const float* const inR = static_cast<const float*>(data.b->getReadPointer(1, data.offsetInBuffer));
 
-			interpolateStereoSamples(inL, inR, pitchData, outL, outR, startSample, indexInBuffer, uptimeDelta, numSamples, true);
+			interpolateStereoSamples<float, true>(inL, inR, pitchData, outL, outR, startSample, indexInBuffer, uptimeDelta, numSamples);
 		}
 		else
 		{
-			const int16* const inL = static_cast<const int16*>(data.leftChannel);
-			const int16* const inR = static_cast<const int16*>(data.rightChannel);
+			const int16* const inL = static_cast<const int16*>(data.b->getReadPointer(0, data.offsetInBuffer));
+			const int16* const inR = static_cast<const int16*>(data.b->getReadPointer(1, data.offsetInBuffer));
 
-			interpolateStereoSamples(inL, inR, pitchData, outL, outR, startSample, indexInBuffer, uptimeDelta, numSamples, false);
+			bool useNormalisation = data.b->usesNormalisation();
 
+			if (useNormalisation)
+			{
+				const int numSamplesThisTime = (int)(ceil)((pitchCounter + startAlpha)) + 1;
+
+				float* inL_f = (float*)alloca(sizeof(float) * numSamplesThisTime);
+				float* d[2] = { inL_f, nullptr };
+
+				if (data.b->getNumChannels() == 2 && !data.b->useOneMap)
+				{
+					float* inR_f = (float*)alloca(sizeof(float) * numSamplesThisTime);
+
+					d[1] = inR_f;
+
+					data.b->convertToFloatWithNormalisation(d, data.b->getNumChannels(), data.offsetInBuffer, numSamplesThisTime);
+
+					interpolateStereoSamples<float, true>(inL_f, inR_f, pitchData, outL, outR, startSample, indexInBuffer, uptimeDelta, numSamples);
+				}
+				else
+				{
+					data.b->convertToFloatWithNormalisation(d, 1, data.offsetInBuffer, numSamplesThisTime);
+
+					interpolateMonoSamples<float, true>(inL_f, nullptr, pitchData, outL, nullptr, startSample, indexInBuffer, uptimeDelta, numSamples);
+
+					memcpy(outR, outL, sizeof(float) * numSamples);
+				}
+			}
+			else
+			{
+				interpolateStereoSamples<int16, false>(inL, inR, pitchData, outL, outR, startSample, indexInBuffer, uptimeDelta, numSamples);
+			}
 		}
 
 #if USE_SAMPLE_DEBUG_COUNTER 

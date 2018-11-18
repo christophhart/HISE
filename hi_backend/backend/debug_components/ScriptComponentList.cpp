@@ -251,17 +251,13 @@ void ScriptComponentListItem::refreshScriptDefinedState()
 
 	try
 	{
-		var name(getUniqueName());
+		Identifier name(getUniqueName());
 
 		if (content.get() == nullptr)
 			return;
 
-		auto scVar = content->getComponent(name);
-
-		if (auto sc = dynamic_cast<ScriptingApi::Content::ScriptComponent*>(scVar.getObject()))
-		{
+		if (auto sc = content->getComponentWithName(name))
 			isDefinedInScript = ScriptingApi::Content::Helpers::hasLocation(sc);
-		}
 
 		repaintItem();
 	}
@@ -365,7 +361,7 @@ void ScriptComponentListItem::updateSelection(ScriptComponentSelection newSelect
 	}
 }
 
-#define ADD_WIDGET(widgetIndex, widgetClass) case (int)widgetIndex: ScriptingApi::Content::Helpers::createNewComponentData(content, pTree, widgetClass::getStaticObjectName().toString(), ScriptingApi::Content::Helpers::getUniqueIdentifier(content, widgetClass::getStaticObjectName().toString()).toString()); break;
+#define ADD_SCRIPT_COMPONENT(cIndex, cClass) case (int)cIndex: ScriptingApi::Content::Helpers::createNewComponentData(content, pTree, cClass::getStaticObjectName().toString(), ScriptingApi::Content::Helpers::getUniqueIdentifier(content, cClass::getStaticObjectName().toString()).toString()); break;
 
 ScriptComponentList::ScriptComponentList(ScriptingApi::Content* c) :
 	ScriptComponentEditListener(dynamic_cast<Processor*>(c->getScriptProcessor())),
@@ -460,10 +456,9 @@ void ScriptComponentList::scriptComponentSelectionChanged()
 	}
 }
 
+
 void ScriptComponentList::mouseUp(const MouseEvent& event)
 {
-	
-
 	if(event.mods.isRightButtonDown())
 	{
 		auto b = getScriptComponentEditBroadcaster();
@@ -474,15 +469,39 @@ void ScriptComponentList::mouseUp(const MouseEvent& event)
 			CreateCustomCallbackDefinition,
 			CopyProperties,
 			PasteProperties,
-			numOptions
+			CreateCppPositionData,
+			CopyToAllDevices,
+			CopyToDeviceOffset,
+			numOptions = CopyToDeviceOffset + 10
 		};
 
 		PopupLookAndFeel plaf;
 		PopupMenu m;
 		m.setLookAndFeel(&plaf);
 
+		const bool somethingSelected = b->getNumSelected() != 0;
+
 		m.addItem(PopupMenuOptions::CreateScriptVariableDeclaration, "Create script variable definition");
 		m.addItem(PopupMenuOptions::CreateCustomCallbackDefinition, "Create custom callback definition");
+
+		m.addItem(PopupMenuOptions::CreateCppPositionData, "Copy C++ position data to clipboard", somethingSelected, false);
+
+
+		PopupMenu s;
+
+		s.addItem(CopyToAllDevices, "Copy selection to all devices", somethingSelected);
+
+		for (int i = 0; i < (int)HiseDeviceSimulator::DeviceType::numDeviceTypes; i++)
+		{
+			
+
+			int resultValue = (int)PopupMenuOptions::CopyToDeviceOffset + i;
+
+			s.addItem(resultValue, "Copy selection to " + HiseDeviceSimulator::getDeviceName(i), somethingSelected, false);
+		}
+
+		m.addSubMenu("Copy to Device", s, somethingSelected);
+		
 
 		const bool isSingleSelection = tree->getNumSelectedItems() == 1;
 
@@ -493,20 +512,18 @@ void ScriptComponentList::mouseUp(const MouseEvent& event)
 		{
 			pTree = static_cast<ScriptComponentListItem*>(tree->getSelectedItem(0))->tree;
 
-			m.addSectionHeader("Add new widget");
-			m.addItem((int)ScriptEditHandler::Widgets::Knob, "Add new Slider");
-			m.addItem((int)ScriptEditHandler::Widgets::Button, "Add new Button");
-			m.addItem((int)ScriptEditHandler::Widgets::Table, "Add new Table");
-			m.addItem((int)ScriptEditHandler::Widgets::ComboBox, "Add new ComboBox");
-			m.addItem((int)ScriptEditHandler::Widgets::Label, "Add new Label");
-			m.addItem((int)ScriptEditHandler::Widgets::Image, "Add new Image");
-			m.addItem((int)ScriptEditHandler::Widgets::Viewport, "Add new Viewport");
-			m.addItem((int)ScriptEditHandler::Widgets::Plotter, "Add new Plotter");
-			m.addItem((int)ScriptEditHandler::Widgets::ModulatorMeter, "Add new ModulatorMeter");
-			m.addItem((int)ScriptEditHandler::Widgets::Panel, "Add new Panel");
-			m.addItem((int)ScriptEditHandler::Widgets::AudioWaveform, "Add new AudioWaveform");
-			m.addItem((int)ScriptEditHandler::Widgets::SliderPack, "Add new SliderPack");
-			m.addItem((int)ScriptEditHandler::Widgets::FloatingTile, "Add new FloatingTile");
+			m.addSectionHeader("Add new Component");
+			m.addItem((int)ScriptEditHandler::ComponentType::Knob, "Add new Slider");
+			m.addItem((int)ScriptEditHandler::ComponentType::Button, "Add new Button");
+			m.addItem((int)ScriptEditHandler::ComponentType::Table, "Add new Table");
+			m.addItem((int)ScriptEditHandler::ComponentType::ComboBox, "Add new ComboBox");
+			m.addItem((int)ScriptEditHandler::ComponentType::Label, "Add new Label");
+			m.addItem((int)ScriptEditHandler::ComponentType::Image, "Add new Image");
+			m.addItem((int)ScriptEditHandler::ComponentType::Viewport, "Add new Viewport");
+			m.addItem((int)ScriptEditHandler::ComponentType::Panel, "Add new Panel");
+			m.addItem((int)ScriptEditHandler::ComponentType::AudioWaveform, "Add new AudioWaveform");
+			m.addItem((int)ScriptEditHandler::ComponentType::SliderPack, "Add new SliderPack");
+			m.addItem((int)ScriptEditHandler::ComponentType::FloatingTile, "Add new FloatingTile");
 		}
 		
 
@@ -537,20 +554,99 @@ void ScriptComponentList::mouseUp(const MouseEvent& event)
 			SystemClipboard::copyTextToClipboard(st);
 			break;
 		}
-		
-		ADD_WIDGET(ScriptEditHandler::Widgets::Knob, ScriptingApi::Content::ScriptSlider);
-		ADD_WIDGET(ScriptEditHandler::Widgets::Button, ScriptingApi::Content::ScriptButton);
-		ADD_WIDGET(ScriptEditHandler::Widgets::Label, ScriptingApi::Content::ScriptLabel);
-		ADD_WIDGET(ScriptEditHandler::Widgets::AudioWaveform, ScriptingApi::Content::ScriptAudioWaveform);
-		ADD_WIDGET(ScriptEditHandler::Widgets::ComboBox, ScriptingApi::Content::ScriptComboBox);
-		ADD_WIDGET(ScriptEditHandler::Widgets::FloatingTile, ScriptingApi::Content::ScriptFloatingTile);
-		ADD_WIDGET(ScriptEditHandler::Widgets::Image, ScriptingApi::Content::ScriptImage);
-		ADD_WIDGET(ScriptEditHandler::Widgets::ModulatorMeter, ScriptingApi::Content::ModulatorMeter);
-		ADD_WIDGET(ScriptEditHandler::Widgets::Plotter, ScriptingApi::Content::ScriptedPlotter);
-		ADD_WIDGET(ScriptEditHandler::Widgets::Panel, ScriptingApi::Content::ScriptPanel);
-		ADD_WIDGET(ScriptEditHandler::Widgets::SliderPack, ScriptingApi::Content::ScriptSliderPack);
-		ADD_WIDGET(ScriptEditHandler::Widgets::Table, ScriptingApi::Content::ScriptTable);
-		ADD_WIDGET(ScriptEditHandler::Widgets::Viewport, ScriptingApi::Content::ScriptedViewport);
+		case CreateCppPositionData:
+		{
+
+			raw::Positioner pos(componentListToUse.getFirst());
+
+			SystemClipboard::copyTextToClipboard(pos.toString());
+
+			PresetHandler::showMessageWindow("Position data copied", "The position data for " + componentListToUse.getFirst()->getName().toString() + " was copied to the clipboard. Paste it in your C++ files for automatic positioning of equally named component structures");
+
+			break;
+		}
+		case CopyToAllDevices:
+		case CopyToDeviceOffset+0:
+		case CopyToDeviceOffset+1:
+		case CopyToDeviceOffset+2:
+		case CopyToDeviceOffset+3:
+		case CopyToDeviceOffset+4:
+		case CopyToDeviceOffset+5:
+		case CopyToDeviceOffset+6:
+		{
+			const int deviceToUse = result - CopyToDeviceOffset;
+
+			auto jp = dynamic_cast<JavascriptProcessor*>(componentListToUse.getFirst()->getProcessor());
+
+			for (int i = 0; i < (int)HiseDeviceSimulator::DeviceType::numDeviceTypes; i++)
+			{
+				if (!jp->hasUIDataForDeviceType(i))
+					continue;
+					
+				if ((int)HiseDeviceSimulator::getDeviceType() == i)
+					continue;
+				
+				if (deviceToUse != -1 && deviceToUse != i)
+					continue;
+
+				auto deviceContent = jp->getContentPropertiesForDevice(i);
+
+				for (auto sc : componentListToUse)
+				{
+					auto id = sc->getName().toString();
+
+					bool found = false;
+					bool* tmp = &found;
+
+					auto f = [id, tmp](ValueTree& other)
+					{
+						if (other.getProperty("ID").toString() == id)
+							*tmp = true;
+
+						return false;
+					};
+
+
+					ScriptingApi::Content::Helpers::callRecursive(deviceContent, f);
+
+					if (!found)
+					{
+						auto pId = sc->getParentComponentId();
+						auto c = sc->getPropertyValueTree().createCopy();
+
+						auto f2 = [pId, c](ValueTree& other)
+						{
+							const bool matchesParent = other.getProperty("ID").toString() == pId &&
+								pId.isEmpty() && other.getType() == Identifier("ContentProperties");
+
+							if (matchesParent)
+							{
+								other.addChild(c, -1, nullptr);
+								return true;
+							}
+
+							return false;
+						};
+
+						ScriptingApi::Content::Helpers::callRecursive(deviceContent, f2);
+					}
+				}
+			}
+
+			break;
+		}
+
+		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::Knob, ScriptingApi::Content::ScriptSlider);
+		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::Button, ScriptingApi::Content::ScriptButton);
+		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::Label, ScriptingApi::Content::ScriptLabel);
+		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::AudioWaveform, ScriptingApi::Content::ScriptAudioWaveform);
+		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::ComboBox, ScriptingApi::Content::ScriptComboBox);
+		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::FloatingTile, ScriptingApi::Content::ScriptFloatingTile);
+		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::Image, ScriptingApi::Content::ScriptImage);
+		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::Panel, ScriptingApi::Content::ScriptPanel);
+		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::SliderPack, ScriptingApi::Content::ScriptSliderPack);
+		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::Table, ScriptingApi::Content::ScriptTable);
+		ADD_SCRIPT_COMPONENT(ScriptEditHandler::ComponentType::Viewport, ScriptingApi::Content::ScriptedViewport);
 		default:
 			break;
 		}
@@ -614,7 +710,7 @@ void ScriptComponentList::resized()
 	tree->setBounds(r.reduced(3));
 }
 
-#undef ADD_WIDGET
+#undef ADD_SCRIPT_COMPONENT
 
 bool ScriptComponentList::keyPressed(const KeyPress& key)
 {
@@ -692,9 +788,7 @@ bool ScriptComponentList::keyPressed(const KeyPress& key)
 		};
 
 		editor->setCallback(callback, true);
-
 		editor->setName("Editing JSON");
-
 		editor->setSize(400, 400);
 
 		findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(editor, this, getLocalBounds().getCentre());
@@ -702,6 +796,31 @@ bool ScriptComponentList::keyPressed(const KeyPress& key)
 		editor->grabKeyboardFocus();
 
 		return true;
+	}
+	else if (key.isKeyCode(KeyPress::F2Key))
+	{
+		auto b = getScriptComponentEditBroadcaster();
+
+		auto sc = b->getFirstFromSelection();
+
+		auto oldName = sc->getName().toString();
+		auto newName = PresetHandler::getCustomName(oldName);
+
+		if (newName.isNotEmpty() && oldName != newName)
+		{
+			auto c = sc->getScriptProcessor()->getScriptingContent();
+
+			if (ScriptingApi::Content::Helpers::renameComponent(c, oldName, newName))
+			{
+				auto f = [b, c, newName]()
+				{
+					auto nc = c->getComponentWithName(newName);
+					b->addToSelection(nc);
+				};
+
+				MessageManager::callAsync(f);
+			}
+		}
 	}
 
 	return Component::keyPressed(key);

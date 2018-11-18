@@ -68,6 +68,12 @@ void AudioProcessorDriver::saveDeviceSettingsAsXml()
 	}
 }
 
+void AudioProcessorDriver::setAudioDeviceType(const String deviceName)
+{
+	deviceManager->setCurrentAudioDeviceType(deviceName, true);
+
+}
+
 void AudioProcessorDriver::resetToDefault()
 {
 	auto prevState = getMidiInputState();
@@ -107,7 +113,7 @@ StandaloneProcessor::StandaloneProcessor()
 #if HISE_IOS
     if(!HiseDeviceSimulator::isAUv3())
     {
-        const String portName = ProjectHandler::Frontend::getProjectName() + " Virtual MIDI";
+        const String portName = FrontendHandler::getProjectName() + " Virtual MIDI";
         
         if(virtualMidiPort = MidiInput::createNewDevice(portName, callback))
         {
@@ -116,8 +122,24 @@ StandaloneProcessor::StandaloneProcessor()
     }
 #endif
     
+
+
+#if HI_RUN_UNIT_TESTS
+
+	UnitTestRunner runner;
+
+	runner.setAssertOnFailure(false);
+
+	runner.runAllTests();
+
+
+
+#endif
+
     
 	LOG_START("Create Main Processor");
+
+
 
 	wrappedProcessor = createProcessor();
 
@@ -149,13 +171,10 @@ StandaloneProcessor::StandaloneProcessor()
 }
 
 
-void StandaloneProcessor::requestQuit(const std::function<void(void)>& f)
+void StandaloneProcessor::requestQuit()
 {
-	auto f2 = [f](Processor* ) {f(); return true; };
-
 	auto mc = dynamic_cast<MainController*>(wrappedProcessor.get());
-	
-	mc->getKillStateHandler().killVoicesAndCall(mc->getMainSynthChain(), f2, MainController::KillStateHandler::TargetThread::MessageThread);
+	mc->getKillStateHandler().requestQuit();
 }
 
 XmlElement * AudioProcessorDriver::getSettings()
@@ -307,11 +326,6 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
 
 	ScopedPointer<XmlElement> globalSettings = XmlDocument::parse(savedDeviceData);
 
-#if USE_FRONTEND
-	if (globalSettings == nullptr)
-		dynamic_cast<FrontendSampleManager*>(mc)->checkAllSampleReferences();
-#endif
-
 	if (globalSettings != nullptr)
 	{
 		GlobalSettingManager* gm = dynamic_cast<GlobalSettingManager*>(mc);
@@ -339,21 +353,26 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
 		gm->voiceAmountMultiplier = globalSettings->getIntAttribute("VOICE_AMOUNT_MULTIPLIER", 2);
 
 		mc->getEventHandler().addCCRemap(gm->ccSustainValue, 64);
+
+		LOG_START("Setting disk mode");
+
 		mc->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)gm->diskMode);
 		mc->getMainSynthChain()->getActiveChannelData()->restoreFromData(gm->channelData);
 
 #if USE_FRONTEND
 		bool allSamplesThere = globalSettings->getBoolAttribute("SAMPLES_FOUND");
 
+		auto& handler = mc->getSampleManager().getProjectHandler();
+
 		if (!allSamplesThere)
 		{
 			LOG_START("Samples not validated. Checking references");
-			dynamic_cast<FrontendSampleManager*>(mc)->checkAllSampleReferences();
+			handler.checkAllSampleReferences();
 		}
 		else
 		{
 			LOG_START("Samples are validated. Skipping reference check");
-			dynamic_cast<FrontendSampleManager*>(mc)->setAllSampleReferencesCorrect();
+			handler.setAllSampleReferencesCorrect();
 		}
 #else
 		ignoreUnused(mc);
@@ -391,43 +410,12 @@ void GlobalSettingManager::saveSettingsAsXml()
 File GlobalSettingManager::getSettingDirectory()
 {
 
-#if JUCE_WINDOWS
-#if USE_BACKEND
-	String parentDirectory = File(PresetHandler::getDataFolder()).getFullPathName();
-#else
-	String parentDirectory = ProjectHandler::Frontend::getAppDataDirectory().getFullPathName();
-#endif
-
-	File parent(parentDirectory);
-
-	if (!parent.isDirectory())
-		parent.createDirectory();
-
-#else
-
-#if HISE_IOS
-	String parentDirectory = File::getSpecialLocation(File::SpecialLocationType::userApplicationDataDirectory).getFullPathName();
-#else
-
-#if USE_BACKEND
-	String parentDirectory = File(PresetHandler::getDataFolder()).getFullPathName();
-#else
 
 #if ENABLE_APPLE_SANDBOX
-	String parentDirectory = ProjectHandler::Frontend::getAppDataDirectory().getChildFile("Resources/").getFullPathName();
+	return NativeFileHandler::getAppDataDirectory().getChildFile("Resources/");
 #else
-	String parentDirectory = ProjectHandler::Frontend::getAppDataDirectory().getFullPathName();
+	return NativeFileHandler::getAppDataDirectory();
 #endif
-
-
-
-#endif
-#endif
-
-	File parent(parentDirectory);
-#endif
-
-	return parent;
 
 }
 

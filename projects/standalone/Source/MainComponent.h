@@ -30,7 +30,7 @@ public:
     void paint (Graphics&);
     void resized();
 
-	void requestQuit(const std::function<void(void)>& f);
+	void requestQuit();
 
 private:
 
@@ -38,8 +38,6 @@ private:
 	ScopedPointer<hise::StandaloneProcessor> standaloneProcessor;
 
 	ScopedPointer<hise::FloatingTile> root;
-
-	OpenGLContext open;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainContentComponent)

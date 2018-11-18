@@ -156,7 +156,7 @@ public:
         uptimeDelta *= getOwnerSynth()->getMainController()->getGlobalPitchFactor();
     };
 
-	const float *getTableModulationValues(int startSample, int numSamples);
+	const float *getTableModulationValues();
 
 	float getGainValue(float modValue);
 
@@ -166,8 +166,6 @@ public:
 	{
 		return currentTableIndex;
 	};
-
-	void stopNote(float velocity, bool allowTailoff) override;
 
 	void setHqMode(bool useHqMode)
 	{
@@ -219,7 +217,9 @@ private:
 };
 
 
-
+/** A two-dimensional wavetable synthesiser.
+	@ingroup synthTypes
+*/
 class WavetableSynth: public ModulatorSynth,
 					  public SliderPackProcessor,
 					  public WaveformComponent::Broadcaster
@@ -238,6 +238,13 @@ public:
 		HqMode = ModulatorSynth::numModulatorSynthParameters,
 		LoadedBankIndex,
 		numSpecialParameters
+	};
+
+	enum ChainIndex
+	{
+		Gain = 0,
+		Pitch = 1,
+		TableIndex = 2
 	};
 
 	enum InternalChains
@@ -356,15 +363,10 @@ public:
 		}
 	};
 
-
 	void prepareToPlay(double newSampleRate, int samplesPerBlock) override
 	{
 		if(newSampleRate > -1.0)
 		{
-			ProcessorHelpers::increaseBufferIfNeeded(tableBuffer, samplesPerBlock);
-
-			tableIndexChain->prepareToPlay(newSampleRate, samplesPerBlock);
-
 			for(int i = 0; i < sounds.size(); i++)
 			{
 				static_cast<WavetableSound*>(getSound(i))->calculatePitchRatio(newSampleRate);
@@ -381,50 +383,16 @@ public:
 		return morphSmoothing;
 	}
 
-	
-	void preHiseEventCallback(const HiseEvent &m) override
+	const float *getTableModValues() const
 	{
-		tableIndexChain->handleHiseEvent(m);
-
-		ModulatorSynth::preHiseEventCallback(m);
+		return modChains[ChainIndex::TableIndex].getReadPointerForVoiceValues(0);
 	}
 
-	void preStartVoice(int voiceIndex, int noteNumber) override
+	float getConstantTableModValue() const noexcept
 	{
-		ModulatorSynth::preStartVoice(voiceIndex, noteNumber);
-
-		tableIndexChain->startVoice(voiceIndex);
-
-	};
-
-	/** This method is called to handle all modulatorchains just before the voice rendering. */
-	void preVoiceRendering(int startSample, int numThisTime) override
-	{
-		tableIndexChain->renderNextBlock(tableBuffer, startSample, numThisTime);
-
-		ModulatorSynth::preVoiceRendering(startSample, numThisTime);
-
-		if( !isChainDisabled(EffectChain)) effectChain->preRenderCallback(startSample, numThisTime);
-	};
-
-	void calculateTableModulationValuesForVoice(int voiceIndex, int startSample, int numSamples)
-	{
-		tableIndexChain->renderVoice(voiceIndex, startSample, numSamples);
-
-		float *tableValues = tableIndexChain->getVoiceValues(voiceIndex);
-
-		const float* timeVariantTableValues = tableBuffer.getReadPointer(0);
-
-		FloatVectorOperations::multiply(tableValues, timeVariantTableValues, startSample + numSamples);
-
-
-
+		return modChains[ChainIndex::TableIndex].getConstantModulationValue();
 	}
 
-	const float *getTableModValues(int voiceIndex) const
-	{
-		return tableIndexChain->getVoiceValues(voiceIndex);
-	}
 
 	float getAttribute(int parameterIndex) const override 
 	{
@@ -450,7 +418,7 @@ public:
 		{
 		case HqMode:
 			{
-				ScopedLock sl(getSynthLock());
+				ScopedLock sl(getMainController()->getLock());
 
 				hqMode = newValue == 1.0f;
 
@@ -475,7 +443,7 @@ public:
 
 	StringArray getWavetableList() const
 	{
-		auto dir = GET_PROJECT_HANDLER(this).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles);
+		auto dir = getMainController()->getCurrentFileHandler().getSubDirectory(ProjectHandler::SubDirectories::AudioFiles);
 
 		Array<File> wavetables;
 		dir.findChildFiles(wavetables, File::findFiles, true, "*.hwt");
@@ -501,7 +469,7 @@ public:
 			clearSounds();
 		}
 
-		auto dir = GET_PROJECT_HANDLER(this).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles);
+		auto dir = getMainController()->getCurrentFileHandler().getSubDirectory(ProjectHandler::SubDirectories::AudioFiles);
 
 		Array<File> wavetables;
 
@@ -533,11 +501,10 @@ private:
 	
 	bool hqMode;
 
-	ScopedPointer<ModulatorChain> tableIndexChain;
+	ModulatorChain* tableIndexChain;
 
 	int morphSmoothing;
 
-	AudioSampleBuffer tableBuffer;
 
 };
 

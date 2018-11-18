@@ -33,13 +33,30 @@
 #ifndef MAINCONTROLLER_H_INCLUDED
 #define MAINCONTROLLER_H_INCLUDED
 
+
 namespace hise { using namespace juce;
 
-/** A class for handling application wide tasks.
+/** The grand central station of HISE.
 *	@ingroup core
 *
-*	Every Processor must be connected to a MainController instance and has access to its public methods.
+*	The MainController class represents the instance of a HISE project and can be used
+*	to access quasi-global data / methods.
 *
+*	It is divided into multiple sub-classes which encapsulate different logic in order
+*	to bring some order into the enormous task of handling everything:
+*
+*	- the SampleManager subclass handles pooling / preloading of samples
+*	- the MacroManager (which itself has multiple subclasses) handle all automation /
+*     MIDI controller tasks
+*	- the UserPresetHandler takes care of the loading / browsing of user presets.
+*
+*	Implementations of this class are also derived by the juce::AudioProcessor and some 
+*	other helper classes. Check out the hise::FrontendProcessor class for actual usage
+*	in a C++ HISE project.
+*
+*	Most classes just want a reference to the MainController instance. If you want to
+*	use it in your C++ classes, I recommend subclassing it from ControlledObject, which
+*	exists for this sole purpose.
 */
 class MainController: public GlobalScriptCompileBroadcaster,
 					  public OverlayMessageBroadcaster,
@@ -47,25 +64,69 @@ class MainController: public GlobalScriptCompileBroadcaster,
 {
 public:
 
+#if HI_RUN_UNIT_TESTS
+	// You can set this bool globally and it will skip some annoying things like restoring the pool or spawning threads
+	// when a BackendProcessor is created for testing purposes...
+	static bool unitTestMode;
+
+	static bool inUnitTestMode() { return unitTestMode; }
+
+#else
+
+	static bool inUnitTestMode() { return false; }
+
+#endif
+
 	/** Contains all methods related to sample management. */
 	class SampleManager
 	{
 	public:
 
+		/** A class that will be notified about sample preloading changes.
+		*
+		*	This can be used to implement loading bars / progress labels when
+		*	the samples are preloaded. In order to use this, just create one of
+		*	these, supply the SampleManager instance of your MainController and
+		*	it will automatically register and deregister as callbacks and will
+		*	call the preloadStateChanged(bool isPreloading).
+		*/
 		class PreloadListener
 		{
 		public:
 
+			PreloadListener(SampleManager& sampleManager):
+				manager(sampleManager)
+			{
+				manager.addPreloadListener(this);
+			}
+
 			virtual ~PreloadListener()
 			{
+				manager.removePreloadListener(this);
+
 				masterReference.clear();
 			}
 
+			/** This gets called whenever the preload state changes.
+			*
+			*	the isPreloading flag indicates whether the preloading
+			*	was initiated or completed. Normally, you would start
+			*	or stop a timer which regularly checks the sample progress
+			*	(with SampleManager::getPreloadProgress()).
+			*/
 			virtual void preloadStateChanged(bool isPreloading) = 0;
 
 		protected:
 
+			/** Returns the preload message. */
+			String getCurrentErrorMessage() const
+			{
+				return manager.currentPreloadMessage;
+			}
+
 		private:
+
+			SampleManager& manager;
 
 			friend class WeakReference<PreloadListener>;
 			WeakReference<PreloadListener>::Master masterReference;
@@ -106,8 +167,7 @@ public:
 		/** returns a pointer to the global sample pool */
 		ModulatorSamplerSoundPool *getModulatorSamplerSoundPool() const { return globalSamplerSoundPool; }
 
-		/** Copies the samples to an internal clipboard for copy & paste functionality. */
-		void copySamplesToClipboard(void* soundsToCopy);
+		void copySamplesToClipboard(const void* soundsToCopy);
 
 		const ValueTree &getSamplesFromClipboard() const;
 
@@ -123,20 +183,11 @@ public:
 		*/
 		const ValueTree getLoadedSampleMap(const String &fileName) const;
 
-		/** Returns the impulse response pool. */
-		const AudioSampleBufferPool *getAudioSampleBufferPool() const {	return globalAudioSampleBufferPool; };
-
-		/** Returns the impulse response pool. */
-		AudioSampleBufferPool *getAudioSampleBufferPool() {	return globalAudioSampleBufferPool; };
-
-		ImagePool *getImagePool() {return globalImagePool;};
-		const ImagePool *getImagePool() const {return globalImagePool;};
-
-		ProjectHandler &getProjectHandler() { return projectHandler; }
+		NativeFileHandler &getProjectHandler() { return projectHandler; }
 
 		void setDiskMode(DiskMode mode) noexcept;
 
-		const ProjectHandler &getProjectHandler() const { return projectHandler; }
+		const NativeFileHandler &getProjectHandler() const { return projectHandler; }
 
 		bool isUsingHddMode() const noexcept{ return hddMode; };
 
@@ -155,34 +206,66 @@ public:
 
 		void triggerSamplePreloading();
 
+		void addDeferredFunction(Processor* p, const ProcessorFunction& f);
+
+		void setCurrentPreloadMessage(String newMessage)
+		{
+			currentPreloadMessage.swapWith(newMessage);
+		};
+
+
 		void addPreloadListener(PreloadListener* p);
 		void removePreloadListener(PreloadListener* p);
 
-		/** Lock this everytime you add / remove ModulatorSamplerSounds.
-		*
-		*	If you use a ModulatorSampler:SoundIterator, it will lock automatically.
-		*
-		*/
-		CriticalSection& getSamplerSoundLock() { return samplerSoundLock; }
-
 		double& getPreloadProgress();
 
+
+
+		const CriticalSection& getSampleLock() const noexcept { return sampleLock; }
+
 		void cancelAllJobs();
+
+		void initialiseQueue();
+
 	private:
 
-		CriticalSection samplerSoundLock;
+		String currentPreloadMessage;
 
-		struct PreloadListenerUpdater : public AsyncUpdater
+		struct PreloadListenerUpdater : private Timer
 		{
 		public:
 
 			PreloadListenerUpdater(SampleManager* manager_) :
 				manager(manager_)
-			{};
+			{
+				startTimer(30);
+			};
 
-			void handleAsyncUpdate() override;
+			~PreloadListenerUpdater()
+			{
+				stopTimer();
+			}
+
+			void triggerAsyncUpdate()
+			{
+				dirty = true;
+			}
 
 		private:
+
+			void timerCallback() override
+			{
+				bool value = true;
+
+				if (dirty.compare_exchange_strong(value, false))
+				{
+					handleAsyncUpdate();
+				}
+			}
+
+			std::atomic<bool> dirty;
+
+			void handleAsyncUpdate();
 
 			SampleManager* manager;
 		};
@@ -205,14 +288,16 @@ public:
 			
 		};
 
-		ProjectHandler projectHandler;
+
+		NativeFileHandler projectHandler;
+
+		CriticalSection sampleLock;
 
 		MainController* mc;
 
 		ValueTree sampleClipboard;
 		ValueTree sampleMaps;
-		ScopedPointer<AudioSampleBufferPool> globalAudioSampleBufferPool;
-		ScopedPointer<ImagePool> globalImagePool;
+
 		ScopedPointer<ModulatorSamplerSoundPool> globalSamplerSoundPool;
 		ScopedPointer<SampleThreadPool> samplerLoaderThreadPool;
 
@@ -224,11 +309,20 @@ public:
 		// Just used for the listeners
 		std::atomic<bool> preloadFlag;
 
+		bool initialised = false;
+
 		Array<WeakReference<PreloadListener>> preloadListeners;
+
+		using SampleFunction = SuspendHelpers::Suspended<SafeFunctionCall, SuspendHelpers::ScopedTicket>;
+		static constexpr auto config = MultithreadedQueueHelpers::Configuration::AllocationsAllowedAndTokenlessUsageAllowed;
+
+		MultithreadedLockfreeQueue<SampleFunction, config> pendingFunctions;
+
+		std::atomic<int> pendingTasksWithSuspension;
 
 	};
 
-	/** Contains methods for handling macros. */
+	/** Contains methods for handling macros, MIDI automation and MPE gestures. */
 	class MacroManager
 	{
 	public:
@@ -283,6 +377,13 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MacroManager)
 	};
 
+	/** This class will iterate over incoming MIDI messages, and transform them
+	*	into HiseEvents with a succesive index for note-on / note-off messages.
+	*	
+	*	Normally, you won't use this class, but rather benefit from it in the MIDI
+	*	processing world using Message.getEventId(), but there are a few methods
+	*	that can access these things directly.
+	*/
 	class EventIdHandler
 	{
 	public:
@@ -335,16 +436,155 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(EventIdHandler)
 	};
 
-	class UserPresetHandler
+	/** This class is a dispatcher for methods that are being called by either the message thread or the sample loading thread.
+	*
+	*	The general philosophy is that the loading thread functions always have the priority. In order to enforce this method,
+	*	you need to check regularly in your message thread's function if it should abort and return false so it will get called again.
+	*
+	*	If you can' acquire the lock in your sample loading function, call signalAbort and return false, so it will try to repeat calling
+	*	the method after a short time (usually 50 ms)
+	*
+	*/
+	class LockFreeDispatcher: private Timer
 	{
 	public:
 
+		LockFreeDispatcher(MainController* mc_);;
+
+		~LockFreeDispatcher();
+
+		struct AbortSignal
+		{
+			String errorMessage;
+		};
+
+		void clearQueueWithoutCalling();
+		
+		bool isIdle() const;
+
+		bool isInDispatchLoop() const noexcept { return inDispatchLoop; }
+
+		/** This method executes the function with the given DispatchableBaseObject.
+		
+			It will call it synchronously if its on the message thread and there's no abort signal from a 
+			pending global lock.
+
+			If it needs to be called asynchronously, it will be added to the internal queue.
+			In your method you should need to regularly check if the operation should abort and
+			return DispatchableObject::Status::needsToRunAgain
+		*/
+		bool callOnMessageThreadAfterSuspension(Dispatchable* object, const Dispatchable::Function& f);
+
+		struct PresetLoadListener
+		{
+			virtual ~PresetLoadListener() {};
+
+			virtual void newHisePresetLoaded() = 0;
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(PresetLoadListener);
+		};
+
+		void addPresetLoadListener(PresetLoadListener* l)
+		{
+			presetLoadListeners.addIfNotAlreadyThere(l);
+		}
+
+		void removePresetLoadListener(PresetLoadListener* l)
+		{
+			presetLoadListeners.removeAllInstancesOf(l);
+		}
+
+		void sendPresetReloadMessage()
+		{
+			for (auto l : presetLoadListeners)
+			{
+				if (l.get() != nullptr)
+					l->newHisePresetLoaded();
+			}
+		}
+
+	private:
+
+		Array<WeakReference<PresetLoadListener>> presetLoadListeners;
+
+		struct Job
+		{
+			Job()
+			{};
+
+			Job(Dispatchable* object, const Dispatchable::Function &f) noexcept :
+				obj(object),
+				func(f)
+			{};
+
+			~Job();
+
+			Dispatchable::Status run();
+
+			void cancel();
+
+			bool isDone() const noexcept;
+
+		private:
+			
+			Dispatchable::Status status = Dispatchable::Status::notExecuted;
+			WeakReference<Dispatchable> obj;
+			Dispatchable::Function func;
+		};
+
+		MultithreadedLockfreeQueue<Job, MultithreadedQueueHelpers::Configuration::AllocationsAllowedAndTokenlessUsageAllowed> pendingTasks;
+
+		void timerCallback() override;
+		bool isMessageThread() const noexcept;
+		bool isLoadingThread() const noexcept;
+
+		bool inDispatchLoop = false;
+
+		MainController* mc;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(LockFreeDispatcher);
+	};
+
+	/** The handler class for user presets in HISE.
+	*
+	*	A user preset is a certain state of your plugin which is used
+	*	for factory banks, storing the plugin state in the DAW as well as
+	*	files created by the user that restore a certain sound. 
+	*
+	*	If you use a scripted interface, the data that is stored will be a
+	*	XML element with the value of every ScriptComponent that has the
+	*	`saveInPreset` flag enabled. 
+	*
+	*	However if you are bypassing the scripted interface logic and write your
+	*	UI and signal path completely in C++, you can still use the logic / file
+	*	handling of this class. In this case, you will be given a ValueTree that
+	*	you have to fill / restore with the callbacks in the FrontendProcessor. 
+	*
+	*	This class is deeply connected to the MultiColumnPresetBrowser class, which
+	*	is the general purpose preset management UI component of HISE and offers
+	*	functionality like a folder-based hierarchy, search field, favorite system and
+	*	tags.
+	*
+	*	It also makes sure that the loading of presets are as smooth as possible by
+	*	killing all voices, then load the preset on the background thread and call
+	*	all registered UserPresetHandler::Listener objects when the loading has finished
+	*	so you can update your UI (or whatever).
+	*/
+	class UserPresetHandler: public Dispatchable
+	{
+	public:
+
+		/** A class that will be notified about user preset changes. */
 		class Listener
 		{
 		public:
 
 			virtual ~Listener() { masterReference.clear(); };
+
+			/** Called on the message thread whenever the new preset was loaded. */
 			virtual void presetChanged(const File& newPreset) = 0;
+
+			/** Called whenever the number of presets changed. */
 			virtual void presetListUpdated() = 0;
 
 		private:
@@ -353,71 +593,108 @@ public:
 			WeakReference<Listener>::Master masterReference;
 		};
 
-		UserPresetHandler(MainController* mc_) :
-			mc(mc_)
-		{};
+		UserPresetHandler(MainController* mc_);;
 
+		/** Just loads the next user preset (or the previous one). Use this for "browse buttons". 
+		*
+		*	@param stayInSameDirectory if true, it will cycle through the current directory
+		*                              (otherwise the entire preset list will be used).
+		*/
 		void incPreset(bool next, bool stayInSameDirectory);
+
 		void loadUserPreset(const ValueTree& v);
 		void loadUserPreset(const File& f);
 
+		/** Returns the currently loaded file. Can be used to display the user preset name. */
 		File getCurrentlyLoadedFile() const;;
 
+		/** @internal */
 		void setCurrentlyLoadedFile(const File& f);
 
+		/** @internal */
 		void sendRebuildMessage();
+
+		/** Saves a preset. 
+		*
+		*	If you use the MultiColumnPresetBrowser, you won't need to bother about this method,
+		*	but for custom implementations, this will save the current UI state to the given file.
+		*/
 		void savePreset(String presetName = String());
+
+		/** Registers a listener that will be notified about preset changes. */
 		void addListener(Listener* listener);
+
+		/** Deregisters a listener. */
 		void removeListener(Listener* listener);
+
+		/** If you want to use the tag system, supply a list of Strings and it will
+			create the tags automatically.
+		*/
+		void setTagList(const StringArray& newTagList);
+
+		/** @internal */
+		const StringArray& getTagList() const { return tagList; }
 
 	private:
 
-		void loadUserPresetInternal(const ValueTree& v);
+		StringArray tagList;
+
+		void loadUserPresetInternal();
 		void saveUserPresetInternal(const String& name=String());
 
-		Array<WeakReference<Listener>> listeners;
+		Array<WeakReference<Listener>, CriticalSection> listeners;
 
 		File currentlyLoadedFile;
+		ValueTree pendingPreset;
 
 		MainController* mc;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(UserPresetHandler);
 	};
 
-	struct GlobalAsyncModuleHandler: public AsyncUpdater
+
+	/** A class that handles the asynchronous adding / removal of Processor objects to the signal path. */
+	struct GlobalAsyncModuleHandler
 	{
-		GlobalAsyncModuleHandler() :
-			pendingJobs(1024)
+	public:
+
+		GlobalAsyncModuleHandler(MainController* mc_) :
+			mc(mc_)
 		{};
 
-		struct JobData
+		/** Asynchronously removes the module. 
+		*
+		*	It will be deactivated and removed from it's parent on the Sample loading thread
+		*	Then it will call all listeners and be finally removed on the message thread.
+		*
+		*	The removeFunction you pass in must not delete the processor!
+		*
+		*/
+		void removeAsync(Processor* p, const SafeFunctionCall::Function& removeFunction);
+
+		/** Asynchronously adds a module.
+		*
+		*	It will be activated, initialised and added to the parent on the sample loading thread
+		*	like defined in the addFunction
+		*
+		*	Then in the message thread, it will call all listeners.
+		*
+		*	The ownership must be transferred in the addFunction
+		*/
+		void addAsync(Processor* p, const SafeFunctionCall::Function& addFunction);
+		
+	private:
+
+		enum What
 		{
-			enum What
-			{
-				Delete,
-				Add,
-				numWhat
-			};
-
-			JobData(Processor* parent_, Processor* processor_, What what_);;
-			JobData();;
-
-			WeakReference<Processor> parent;
-			WeakReference<Processor> processorToDelete;
-			WeakReference<Processor> processorToAdd;
-
-			What what; // what
-
-			void doit();
+			Delete,
+			Add,
+			numWhat
 		};
 
-		void removeAsync(Processor* p, Component* rootWindow);
+		void addPendingUIJob(Processor* p, What what); // what
 
-		void addAsync(Chain* c, Processor* p, Component* rootWindow, const String& type, const String& id, int index);
-
-		void addPendingUIJob(Processor* parent, Processor* p, JobData::What what);
-
-		void handleAsyncUpdate() override;
-
-		LockfreeQueue<JobData> pendingJobs;
+		MainController * mc;
 	};
 
 	class ProcessorChangeHandler : public AsyncUpdater
@@ -476,13 +753,18 @@ public:
 			if (tempProcessor == nullptr)
 				return;
 
-			for (int i = 0; i < listeners.size(); i++)
 			{
-				if (listeners[i].get() != nullptr)
-					listeners[i]->moduleListChanged(tempProcessor, tempType);
-				else
-					listeners.remove(i--);
+				ScopedLock sl(listeners.getLock());
+
+				for (int i = 0; i < listeners.size(); i++)
+				{
+					if (listeners[i].get() != nullptr)
+						listeners[i]->moduleListChanged(tempProcessor, tempType);
+					else
+						listeners.remove(i--);
+				}
 			}
+			
 
 			tempProcessor = nullptr;
 			tempType = EventType::numEventTypes;
@@ -505,10 +787,11 @@ public:
 		Processor* tempProcessor = nullptr;
 		EventType tempType = EventType::numEventTypes;
 
-		Array<WeakReference<Listener>> listeners;
+		Array<WeakReference<Listener>, CriticalSection> listeners;
 	};
 
-	class CodeHandler: public AsyncUpdater
+	class CodeHandler: public Dispatchable,
+					   private LockfreeAsyncUpdater
 	{
 	public:
 
@@ -522,31 +805,7 @@ public:
 
 		void writeToConsole(const String &t, int warningLevel, const Processor *p, Colour c);
 
-		void handleAsyncUpdate();
-
-
-		enum class ConsoleMessageItems
-		{
-			WarningLevel = 0,
-			Processor,
-			Message
-		};
-
-		using ConsoleMessage = std::tuple < WarningLevel, const WeakReference<Processor>, String >;
-
-		const CriticalSection &getLock() const { return lock; }
-
-		std::vector<ConsoleMessage> unprintedMessages;
-
-		CriticalSection lock;
-
-		void clearConsole()
-		{
-			clearFlag = true;
-
-			triggerAsyncUpdate();
-
-		}
+		void clearConsole();
 
 		CodeDocument* getConsoleData() { return &consoleData; }
 
@@ -554,7 +813,24 @@ public:
 
 		void setMainConsole(Console* console);
 
+		void initialise();
+
 	private:
+
+		struct ConsoleMessage
+		{
+			WarningLevel warningLevel;
+			WeakReference<Processor> p;
+			String message;
+		};
+
+		void handleAsyncUpdate();
+
+		void printPendingMessagesFromQueue();
+
+		MultithreadedLockfreeQueue<ConsoleMessage, MultithreadedQueueHelpers::Configuration::AllocationsAllowedAndTokenlessUsageAllowed> pendingMessages;
+
+		bool initialised = false;
 
 		bool overflowProtection = false;
 
@@ -566,19 +842,49 @@ public:
 
 		MainController* mc;
 
+		JUCE_DECLARE_WEAK_REFERENCEABLE(CodeHandler);
+
 	};
 
-	class KillStateHandler : private AsyncUpdater
+	/** Handles the voice killing when a longer task is about to start. */
+	class KillStateHandler :  public AudioThreadGuard::Handler
 	{
 	public:
+
+		enum IllegalOps
+		{
+			ProcessorInsertion = IllegalAudioThreadOps::numIllegalOperationTypes,
+			ProcessorDestructor,
+			ValueTreeOperation,
+			SampleCreation,
+			SampleDestructor,
+			IteratorCreation,
+			Compilation,
+			GlobalLocking,
+			numIllegalOps
+		};
 
 		enum TargetThread
 		{
 			MessageThread = 0,
 			SampleLoadingThread,
 			AudioThread,
-			numTargetThreads
+			ScriptingThread,
+			numTargetThreads,
+			UnknownThread,
+			Free // This is just to indicate there's no thread in use
 		};
+
+		enum QueueProducerFlags
+		{
+			AudioThreadIsProducer = 0x0001,
+			LoadingThreadIsProducer = 0x0010,
+			MessageThreadIsProducer = 0x0100,
+			ScriptThreadIsProducer = 0x1000,
+			AllProducers = 0x1111,
+			numConsumerFlags
+		};
+
 
 		KillStateHandler(MainController* mc);
 
@@ -589,10 +895,11 @@ public:
 		*
 		*	It checks if anything is pending and if yes, voiceStartIsDisabled() will return true for the callback.
 		*/
-		void handleKillState();
+		bool handleKillState();
 
-		/** Checks if all voices are killed. Use this as an assertion on all functions where you assume killed voices. */
-		bool voicesAreKilled() const;
+		/** Replacement for allVoicesKilled. Checks if the audio is running. */
+		bool isAudioRunning() const noexcept;
+		
 
 		/** Give this method a lambda and a processor and it will call it as soon as all voices are killed.
 		*
@@ -601,113 +908,205 @@ public:
 		*
 		*	It will check whether the processor was deleted before calling the function.
 		*/
-		void killVoicesAndCall(Processor* p, const ProcessorFunction& functionToExecuteWhenKilled, TargetThread targetThread);
+		bool killVoicesAndCall(Processor* p, const ProcessorFunction& functionToExecuteWhenKilled, TargetThread targetThread);
+
+		bool killVoicesAndWait(int* timeOutMilliSeconds=nullptr);
 
 		/** This can be set by the Internal Preloader. */
-		void setSampleLoadingPending(bool isPending);
-
 		void setSampleLoadingThreadId(void* newId);
-
-		LockfreeQueue<SafeFunctionCall>& getSampleLoadingQueue() { return pendingSampleLoadFunctions; }
 
 		TargetThread getCurrentThread() const;
 
 		void addThreadIdToAudioThreadList();
 
+		bool test() const noexcept override;
+
+		void warn(int operationType) override;
+
+		void requestQuit();
+
+		String getOperationName(int operationType) override;
+
+		void enableAudioThreadGuard(bool shouldBeEnabled)
+		{
+			guardEnabled = shouldBeEnabled;
+		}
+
+		Array<MultithreadedQueueHelpers::PublicToken> createPublicTokenList(int producerFlags = AllProducers);
+
+		void setLockForCurrentThread(LockHelpers::Type t, bool lock) const;
+
+		bool currentThreadHoldsLock(LockHelpers::Type t) const noexcept;
+
+		bool initialised() const noexcept;
+
+		/** Returns true if the current thread can be safely suspended by a call to Thread::sleep().
+		*
+		*	This will return true only for the sample loading thread and the scripting thread. */
+		bool isSuspendableThread() const noexcept;
+
 	private:
 
-		
+		friend class SuspendHelpers::ScopedTicket;
+
+		uint16 requestNewTicket();
+
+		bool invalidateTicket(uint16 ticket);
+
+		bool checkForClearance() const noexcept;
+
+		struct LockStates
+		{
+			LockStates()
+			{
+				threadsForLock[LockHelpers::MessageLock] = TargetThread::Free;
+				threadsForLock[LockHelpers::AudioLock] = TargetThread::Free;
+				threadsForLock[LockHelpers::SampleLock] = TargetThread::Free;
+				threadsForLock[LockHelpers::IteratorLock] = TargetThread::Free;
+				threadsForLock[LockHelpers::ScriptLock] = TargetThread::Free;
+				threadsForLock[LockHelpers::numLockTypes] = TargetThread::Free;
+			}
+
+			std::atomic<TargetThread> threadsForLock[LockHelpers::Type::numLockTypes];
+		};
+
+		mutable LockStates lockStates;
+
+		/** Checks if all voices are killed. */
+
+		bool voicesAreKilled() const;
+
+		bool guardEnabled = true;
 
 		void initAudioThreadId();
 
-		enum NewKillState
-		{
-			Clear,				// when nothing happens
-			Pending,			// something is pending...
-			SetForClearance,    // when all callbacks are done, it will check in the next audio callback and reset to clear
-			numNewKillStates
-		};
+		bool allowGracefulExit() const noexcept;
 
-		enum PendingState
+		void deferToThread(Processor* p, const ProcessorFunction& f, TargetThread t);
+
+		void quit();
+
+		enum State
 		{
-			VoiceKillStart = 0,
+			WaitingForInitialisation = 0,
+			Clear,
 			VoiceKill,
-			AudioThreadFunction,
-			SyncMessageCallback,
-			WaitingForAsyncUpdate,
-			AsyncMessageCallback,
-			SampleLoading,
+			Suspended,
+			ShutdownSignalReceived,
+			PendingShutdown,
+			ShutdownComplete,
 			numPendingStates
 		};
 
-		/*@ internal*/
-		static String getStringForKillState(NewKillState s);
-		/*@ internal*/
-		static String getStringForPendingState(PendingState state);
-		/*@ internal*/
-		void onAllVoicesAreKilled();
-		void triggerPendingMessageCallbackFunctionsUpdate();
-		void triggerPendingSampleLoadingFunctionsUpdate();
-		void executePendingAudioThreadFunctions();
-		/*@ internal*/
-		void handleAsyncUpdate() override;
-		/*@ internal*/
-		void setPendingState(PendingState pendingState, bool isPending);
-		/*@ internal*/
-		void setKillState(NewKillState newKillState);
-		/*@ internal*/
-		bool isPending(PendingState state) const;
-		/*@ internal*/
-		bool isNothingPending() const;
-		/*@ internal*/
-		void addFunctionToExecute(Processor* p, const ProcessorFunction& functionToCallWhenVoicesAreKilled, TargetThread targetThread, NotificationType triggerUpdate);
+		bool init = false;
 
-		BigInteger pendingStates;
+		UnorderedStack<uint16, 4096> pendingTickets;
+		uint16 ticketCounter = 0;
+		CriticalSection ticketLock;
 
-		std::atomic<NewKillState> killState;
+		std::atomic<State> currentState;
 
-		LockfreeQueue<SafeFunctionCall> pendingAudioThreadFunctions;
-		LockfreeQueue<SafeFunctionCall> pendingMessageThreadFunctions;
-		LockfreeQueue<SafeFunctionCall> pendingSampleLoadFunctions;
+		UnorderedStack<StackTrace<3, 6>, 32> stackTraces;
 
 		MainController* mc;
-
-		bool disableVoiceStartsThisCallback = false;
-
 		void* threadIds[(int)TargetThread::numTargetThreads];
-		
 		Array<void*> audioThreads;
-
-		LockfreeQueue<SafeFunctionCall>* pendingFunctions[TargetThread::numTargetThreads];
 	};
 
 	MainController();
 
 	virtual ~MainController();
 
-	SampleManager &getSampleManager() {return *sampleManager; };
-	const SampleManager &getSampleManager() const { return *sampleManager; };
+	SampleManager &getSampleManager() noexcept {return *sampleManager; };
+	const SampleManager &getSampleManager() const noexcept { return *sampleManager; };
 
-	MacroManager &getMacroManager() {return macroManager;};
-	const MacroManager &getMacroManager() const {return macroManager;};
+	MacroManager &getMacroManager() noexcept {return macroManager;};
+	const MacroManager &getMacroManager() const noexcept {return macroManager;};
 
-	AutoSaver &getAutoSaver() { return autoSaver; }
-	const AutoSaver &getAutoSaver() const { return autoSaver; }
+	AutoSaver &getAutoSaver() noexcept { return autoSaver; }
+	const AutoSaver &getAutoSaver() const noexcept { return autoSaver; }
 
-	DelayedRenderer& getDelayedRenderer() { return delayedRenderer; };
-	const DelayedRenderer& getDelayedRenderer() const { return delayedRenderer; };
+	DelayedRenderer& getDelayedRenderer() noexcept { return delayedRenderer; };
+	const DelayedRenderer& getDelayedRenderer() const noexcept { return delayedRenderer; };
 
-	UserPresetHandler& getUserPresetHandler() { return userPresetHandler; };
-	const UserPresetHandler& getUserPresetHandler() const { return userPresetHandler; };
+	UserPresetHandler& getUserPresetHandler() noexcept { return userPresetHandler; };
+	const UserPresetHandler& getUserPresetHandler() const noexcept { return userPresetHandler; };
 
-	CodeHandler& getConsoleHandler() { return codeHandler; };
-	const CodeHandler& getConsoleHandler() const { return codeHandler; };
+	CodeHandler& getConsoleHandler() noexcept { return codeHandler; };
+	const CodeHandler& getConsoleHandler() const noexcept { return codeHandler; };
 
-	ProcessorChangeHandler& getProcessorChangeHandler() { return processorChangeHandler; }
-	const ProcessorChangeHandler& getProcessorChangeHandler() const { return processorChangeHandler; }
+	ProcessorChangeHandler& getProcessorChangeHandler() noexcept { return processorChangeHandler; }
+	const ProcessorChangeHandler& getProcessorChangeHandler() const noexcept { return processorChangeHandler; }
 
 	GlobalAsyncModuleHandler& getGlobalAsyncModuleHandler() { return globalAsyncModuleHandler; }
 	const GlobalAsyncModuleHandler& getGlobalAsyncModuleHandler() const { return globalAsyncModuleHandler; }
+
+	ExpansionHandler& getExpansionHandler() noexcept { return expansionHandler; }
+	const ExpansionHandler& getExpansionHandler() const noexcept { return expansionHandler; }
+
+	LockFreeDispatcher& getLockFreeDispatcher() noexcept { return lockfreeDispatcher; }
+	const LockFreeDispatcher& getLockFreeDispatcher() const noexcept { return lockfreeDispatcher; }
+
+	JavascriptThreadPool& getJavascriptThreadPool() noexcept { return *javascriptThreadPool.get(); }
+	const JavascriptThreadPool& getJavascriptThreadPool() const noexcept { return *javascriptThreadPool.get(); }
+
+	PooledUIUpdater* getGlobalUIUpdater() { return &globalUIUpdater; }
+	const PooledUIUpdater* getGlobalUIUpdater() const { return &globalUIUpdater; }
+
+	GlobalHiseLookAndFeel& getGlobalLookAndFeel() const { return *mainLookAndFeel; }
+
+	const FileHandlerBase& getCurrentFileHandler(bool forceDefault=false) const
+	{
+		if (forceDefault)
+			return getSampleManager().getProjectHandler();
+
+		if (auto e = getExpansionHandler().getCurrentExpansion())
+			return *e;
+
+		return getSampleManager().getProjectHandler();
+	}
+
+	FileHandlerBase& getCurrentFileHandler(bool forceDefault=false)
+	{
+		if(forceDefault)
+			return getSampleManager().getProjectHandler();
+
+		if (auto e = getExpansionHandler().getCurrentExpansion())
+			return *e;
+
+		return getSampleManager().getProjectHandler();
+	}
+
+	
+	const AudioSampleBufferPool *getCurrentAudioSampleBufferPool(bool forceDefault=false) const 
+	{ 
+		return &getCurrentFileHandler(forceDefault).pool->getAudioSampleBufferPool(); 
+	};
+
+	AudioSampleBufferPool *getCurrentAudioSampleBufferPool(bool forceDefault = false)
+	{
+		return &getCurrentFileHandler(forceDefault).pool->getAudioSampleBufferPool();
+	};
+
+	const ImagePool *getCurrentImagePool(bool forceDefault = false) const
+	{
+		return &getCurrentFileHandler(forceDefault).pool->getImagePool();
+	};
+
+	ImagePool *getCurrentImagePool(bool forceDefault = false)
+	{
+		return &getCurrentFileHandler(forceDefault).pool->getImagePool();
+	};
+
+	SampleMapPool* getCurrentSampleMapPool(bool forceDefault = false)
+	{
+		return &getCurrentFileHandler(forceDefault).pool->getSampleMapPool();
+	}
+
+	const SampleMapPool* getCurrentSampleMapPool(bool forceDefault = false) const
+	{
+		return &getCurrentFileHandler(forceDefault).pool->getSampleMapPool();
+	}
 
 	KillStateHandler& getKillStateHandler() { return killStateHandler; };
 	const KillStateHandler& getKillStateHandler() const { return killStateHandler; };
@@ -773,21 +1172,19 @@ public:
 
 	ApplicationCommandManager *getCommandManager() { return mainCommandManager; };
 
-    const CriticalSection &getLock() const;
+    const CriticalSection& getLock() const;
     
+	const CriticalSection& getLockNew() const { return processLock; };
+
 	AudioProcessor* getAsAudioProcessor() { return dynamic_cast<AudioProcessor*>(this); };
 	const AudioProcessor* getAsAudioProcessor() const { return dynamic_cast<const AudioProcessor*>(this); };
 
 	DebugLogger& getDebugLogger() { return debugLogger; }
 	const DebugLogger& getDebugLogger() const { return debugLogger; }
     
-	void setBufferToPlay(const AudioSampleBuffer& buffer)
-	{
-		ScopedLock sl(getLock());
+	void stopBufferToPlay();
 
-		previewBufferIndex = 0;
-		previewBuffer = buffer;
-	}
+	void setBufferToPlay(const AudioSampleBuffer& buffer);
 
 	void setKeyboardCoulour(int keyNumber, Colour colour);
 
@@ -813,17 +1210,9 @@ public:
 
 	void setCurrentViewChanged();
 	
-	/** saves a variable into the global index. */
-	void setGlobalVariable(int index, var newVariable);
-
-	/** returns the variable saved at the global index. */
-	var getGlobalVariable(int index) const;
-
 	DynamicObject *getGlobalVariableObject() { return globalVariableObject.get(); };
 
 	DynamicObject *getHostInfoObject() { return hostInfo.get(); }
-
-	DynamicObject *getToolbarPropertiesObject() { return toolbarProperties.get(); };
 
 	/** this must be overwritten by the derived class and return the master synth chain. */
 	virtual ModulatorSynthChain *getMainSynthChain() = 0;
@@ -835,8 +1224,6 @@ public:
 
 	/** Returns the amount of playing voices. */
 	int getNumActiveVoices() const;;
-
-	void replaceReferencesToGlobalFolder();
 
 	void setLastActiveEditor(CodeEditorComponent *editor, CodeDocument::Position position)
 	{
@@ -857,6 +1244,11 @@ public:
 		return lastActiveEditor.getComponent();
 	}
 
+	
+
+	/** This returns always true after the processor was initialised. */
+	bool isInitialised() const noexcept;;
+
 	void insertStringAtLastActiveEditor(const String &string, bool selectArguments);
 
 	void loadTypeFace(const String& fileName, const void* fontData, size_t fontDataSize, const String& fontId=String());
@@ -870,13 +1262,22 @@ public:
 
 	Font getFontFromString(const String& fontName, float fontSize) const;
 
+	void setGlobalFont(const String& fontName);
+
+	
+	void checkAndAbortMessageThreadOperation();
+
     bool checkAndResetMidiInputFlag();
     bool isChanged() const { return changed; }
     void setChanged(bool shouldBeChanged=true) { changed = shouldBeChanged; }
     
     float getGlobalCodeFontSize() const;;
     
-    
+
+	bool shouldAbortMessageThreadOperation() const noexcept
+	{
+		return false;
+	}
     
     SafeChangeBroadcaster &getFontSizeChangeBroadcaster() { return codeFontChangeNotificator; };
     
@@ -906,16 +1307,8 @@ public:
     
 	bool &getPluginParameterUpdateState() { return enablePluginParameterUpdate; }
 
-	void createUserPresetData()
-	{
-		userPresetData = new UserPresetData(this);
-	}
+	const CriticalSection& getIteratorLock() const { return iteratorLock; }
 
-	const UserPresetData* getUserPresetData() const { return userPresetData; }
-	
-	void rebuildUserPresetDatabase() { userPresetData->refreshPresetFileList(); }
-
-	ReadWriteLock &getCompileLock() { return compileLock; }
 
 	EventIdHandler& getEventHandler() { return eventIdHandler; }
 
@@ -924,103 +1317,22 @@ public:
 		skipCompilingAtPresetLoad = shouldSkip;
 	}
 
-	bool shouldSkipCompiling() const
+	bool shouldSkipCompiling() const noexcept
 	{
 		return skipCompilingAtPresetLoad;
 	}
+
+	bool isBeingDeleted() const noexcept
+	{
+		return deletePendingFlag;
+	}
+
 
 	void loadUserPresetAsync(const ValueTree& v);
 
 	UndoManager* getControlUndoManager() { return controlUndoManager; }
 
-	struct ScopedSuspender
-	{
-		enum class LockType
-		{
-			SuspendOnly,
-			SuspendWithBusyWait,
-			Lock,
-			TryLock,
-			numLockTypes
-		};
-
-		ScopedSuspender(MainController* mc_, LockType lockType_=LockType::SuspendOnly) :
-			mc(mc_),
-			lockType(lockType_)
-		{
-			switch (lockType)
-			{
-			case MainController::ScopedSuspender::LockType::SuspendOnly:
-				mc->suspendProcessing(true);
-				break;
-			case MainController::ScopedSuspender::LockType::SuspendWithBusyWait:
-			{
-
-				const CriticalSection& lock = mc->getLock();
-
-				ScopedTryLock sl(lock);
-				
-				while (!lock.tryEnter())
-				{
-
-				}
-
-				lock.exit();
-
-				mc->suspendProcessing(true);
-
-				break;
-			}
-			case MainController::ScopedSuspender::LockType::Lock:
-				mc->getLock().enter();
-				break;
-			case MainController::ScopedSuspender::LockType::TryLock:
-				hasLock = mc->getLock().tryEnter();
-				break;
-			case MainController::ScopedSuspender::LockType::numLockTypes:
-				break;
-			default:
-				break;
-			}
-
-			
-		}
-
-		~ScopedSuspender()
-		{
-			if (mc.get() != nullptr)
-			{
-				switch (lockType)
-				{
-				case MainController::ScopedSuspender::LockType::SuspendOnly:
-					mc->suspendProcessing(false);
-					break;
-				case MainController::ScopedSuspender::LockType::Lock:
-					mc->getLock().exit();
-					break;
-				case MainController::ScopedSuspender::LockType::TryLock:
-					if (hasLock) mc->getLock().exit();
-					break;
-				case MainController::ScopedSuspender::LockType::numLockTypes:
-					break;
-				default:
-					break;
-				}
-			}
-			else
-			{
-				jassertfalse;
-			}
-		}
-
-	private:
-
-		const LockType lockType;
-		bool hasLock = false;
-
-		WeakReference<MainController> mc;
-	};
-
+	
 
 private: // Never call this directly, but wrap it through DelayedRenderer...
 
@@ -1033,6 +1345,7 @@ private: // Never call this directly, but wrap it through DelayedRenderer...
 
 protected:
 
+	bool deletePendingFlag = false;
 
 	/** sets the new BPM and sends a message to all registered tempo listeners if the tempo changed. */
 	void setBpm(double bpm_);
@@ -1050,6 +1363,8 @@ protected:
 		{
 			masterEventBuffer.clear();
 			masterEventBuffer.addEvent(HiseEvent(HiseEvent::Type::AllNotesOff, 0, 0, 1));
+
+			keyboardState.allNotesOff(0);
 
 			allNotesOffFlag = false;
 		}
@@ -1078,47 +1393,33 @@ protected:
 		replaceBufferContent = shouldReplaceContent;
 	}
 
-	bool suspendProcessing(bool shouldSuspend)
-	{
-		if (shouldSuspend)
-		{
-			if (suspendIndex == 0)
-				getAsAudioProcessor()->suspendProcessing(true);
-
-			++suspendIndex;
-		}
-		else
-		{
-			--suspendIndex;
-
-			if (suspendIndex == 0)
-				getAsAudioProcessor()->suspendProcessing(false);
-
-			jassert(suspendIndex >= 0);
-
-			
-		}
-			
-		return suspendIndex >= 0;
-	}
-
-
-	void killAndCallOnMessageThread(const ProcessorFunction& f);
-
 	void killAndCallOnAudioThread(const ProcessorFunction& f);
 
 	void killAndCallOnLoadingThread(const ProcessorFunction& f);
 
+	
+
 private:
+
+	PooledUIUpdater globalUIUpdater;
 
 	AudioSampleBuffer previewBuffer;
 	int previewBufferIndex = -1;
+	float fadeOutPreviewBufferGain = 1.0f;
+	bool fadeOutPreviewBuffer = false;
 
 	void loadPresetInternal(const ValueTree& v);
 
 	CriticalSection processLock;
 
+	// This lock should be acquired when you add a new processor to the processing chain
+	// or when an iterator is created.
+	// You must not acquire this on the audio thread
+	CriticalSection iteratorLock;
+
 	ScopedPointer<UndoManager> controlUndoManager;
+
+	ScopedPointer<JavascriptThreadPool> javascriptThreadPool;
 
 	friend class UserPresetHandler;
     friend class PresetLoadingThread;
@@ -1132,14 +1433,15 @@ private:
 
 	bool replaceBufferContent = true;
 
+	UnorderedStack<HiseEvent> suspendedNoteOns;
+
 	HiseEventBuffer masterEventBuffer;
 	EventIdHandler eventIdHandler;
+	LockFreeDispatcher lockfreeDispatcher;
 	UserPresetHandler userPresetHandler;
 	ProcessorChangeHandler processorChangeHandler;
 	GlobalAsyncModuleHandler globalAsyncModuleHandler;
-
-	ScopedPointer<UserPresetData> userPresetData;
-
+	
 	void storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositionInfo &lastPosInfo);
 
 	CustomKeyboardState keyboardState;
@@ -1163,15 +1465,15 @@ private:
 	Array<CustomTypeFace> customTypeFaces;
 	ValueTree customTypeFaceData;
 
-	Array<var> globalVariableArray;
-
 	DynamicObject::Ptr globalVariableObject;
 	DynamicObject::Ptr hostInfo;
-	DynamicObject::Ptr toolbarProperties;
-
+	
 	ReadWriteLock compileLock;
 
 	ScopedPointer<SampleManager> sampleManager;
+	ExpansionHandler expansionHandler;
+	
+
 	MacroManager macroManager;
 
 	KillStateHandler killStateHandler;
@@ -1187,10 +1489,12 @@ private:
 	Atomic<int> presetLoadRampFlag;
 
 	AudioPlayHead::CurrentPositionInfo lastPosInfo;
-	
+
 	ScopedPointer<ApplicationCommandManager> mainCommandManager;
 
-	ScopedPointer<KnobLookAndFeel> mainLookAndFeel;
+	ScopedPointer<GlobalHiseLookAndFeel> mainLookAndFeel;
+
+	Font globalFont;
 
 	Component::SafePointer<CodeEditorComponent> lastActiveEditor;
 	int lastCharacterPositionOfSelectedEditor;
@@ -1209,17 +1513,11 @@ private:
 	DebugLogger debugLogger;
 
 #if USE_BACKEND
-    
-	
-
 	Component::SafePointer<ScriptWatchTable> scriptWatchTable;
 	Array<Component::SafePointer<ScriptComponentEditPanel>> scriptComponentEditPanels;
-
 #else
-
 	const ScriptComponentEditPanel *scriptComponentEditPanel;
 	const ScriptWatchTable *scriptWatchTable;
-
 #endif
 
     AudioProcessor* thisAsProcessor;
@@ -1240,8 +1538,6 @@ private:
 	Atomic<int> voiceAmount;
 	bool allNotesOffFlag;
     
-	
-
     bool changed;
     
     bool midiInputFlag;
@@ -1251,11 +1547,11 @@ private:
 	int scrollY;
 	BigInteger shownComponents;
 
-	std::atomic<int> suspendIndex;
-
+	void handleSuspendedNoteOffs();
 public:
 	void updateMultiChannelBuffer(int numNewChannels);
 };
+
 
 } // namespace hise
 

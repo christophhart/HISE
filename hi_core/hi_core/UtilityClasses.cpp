@@ -32,6 +32,9 @@
 
 namespace hise { using namespace juce;
 
+int BlockDividerStatistics::numAlignedCalls = 0;
+int BlockDividerStatistics::numOddCalls = 0;
+
 
 #if  JUCE_MAC
 
@@ -171,6 +174,7 @@ void AutoSaver::timerCallback()
 
 File AutoSaver::getAutoSaveFile()
 {
+#if USE_BACKEND
 	Processor *mainSynthChain = mc->getMainSynthChain();
 
 	File presetDirectory = GET_PROJECT_HANDLER(mainSynthChain).getSubDirectory(ProjectHandler::SubDirectories::Presets);
@@ -198,6 +202,9 @@ File AutoSaver::getAutoSaveFile()
 	{
 		return File();
 	}
+#else
+	return File();
+#endif
 }
 
 #if USE_VDSP_FFT
@@ -408,347 +415,6 @@ void VDspFFT::multiplyComplex(float* output, float* in1, int in1Offset, float* i
 
 #endif
 
-HiseDeviceSimulator::DeviceType HiseDeviceSimulator::currentDevice = HiseDeviceSimulator::DeviceType::Desktop;
-
-void HiseDeviceSimulator::init(AudioProcessor::WrapperType wrapper)
-{
-#if HISE_IOS
-    const bool isIPad = SystemStats::getDeviceDescription() == "iPad";
-    const bool isStandalone = wrapper != AudioProcessor::WrapperType::wrapperType_AudioUnitv3;
-    
-    if(isIPad)
-		currentDevice = isStandalone ? DeviceType::iPad : DeviceType::iPadAUv3;
-    else
-        currentDevice = isStandalone ? DeviceType::iPhone : DeviceType::iPhoneAUv3;
-#else
-	ignoreUnused(wrapper);
-    currentDevice = DeviceType::Desktop;
-#endif
-}
-
-String HiseDeviceSimulator::getDeviceName(int index)
-{
-	DeviceType thisDevice = (index == -1) ? currentDevice : (DeviceType)index;
-
-	switch (thisDevice)
-	{
-	case DeviceType::Desktop: return "Desktop";
-	case DeviceType::iPad: return "iPad";
-	case DeviceType::iPadAUv3: return "iPadAUv3";
-	case DeviceType::iPhone: return "iPhone";
-	case DeviceType::iPhoneAUv3: return "iPhoneAUv3";
-	default:
-		return{};
-	}
-}
-
-bool HiseDeviceSimulator::fileNameContainsDeviceWildcard(const File& f)
-{
-	String fileName = f.getFileNameWithoutExtension();
-
-	for (int i = 0; i < (int)DeviceType::numDeviceTypes; i++)
-	{
-		if (fileName.contains(getDeviceName(i)))
-			return true;
-	}
-
-	return false;
-}
-
-Rectangle<int> HiseDeviceSimulator::getDisplayResolution()
-{
-	switch (currentDevice)
-	{
-	case HiseDeviceSimulator::DeviceType::Desktop:		return{ 0, 0, 1024, 768 };
-	case HiseDeviceSimulator::DeviceType::iPad:			return{ 0, 0, 1024, 768 };
-	case HiseDeviceSimulator::DeviceType::iPadAUv3:		return{ 0, 0, 1024, 335 };
-	case HiseDeviceSimulator::DeviceType::iPhone:		return{ 0, 0, 568, 320 };
-    case HiseDeviceSimulator::DeviceType::iPhoneAUv3:	return{ 0, 0, 568, 172 };
-	case HiseDeviceSimulator::DeviceType::numDeviceTypes:
-	default:
-		return {};
-	}
-}
-
-Array<StringArray> RegexFunctions::findSubstringsThatMatchWildcard(const String &regexWildCard, const String &stringToTest)
-{
-	Array<StringArray> matches;
-	String remainingText = stringToTest;
-	StringArray m = getFirstMatch(regexWildCard, remainingText);
-
-	while (m.size() != 0 && m[0].length() != 0)
-	{
-		remainingText = remainingText.fromFirstOccurrenceOf(m[0], false, false);
-		matches.add(m);
-		m = getFirstMatch(regexWildCard, remainingText);
-	}
-
-	return matches;
-}
-
-StringArray RegexFunctions::search(const String& wildcard, const String &stringToTest, int indexInMatch/*=0*/)
-{
-#if TRAVIS_CI
-	return StringArray(); // Travis CI seems to have a problem with libc++...
-#else
-	try
-	{
-		StringArray searchResults;
-
-		std::regex includeRegex(wildcard.toStdString());
-		std::string xAsStd = stringToTest.toStdString();
-		std::sregex_iterator it(xAsStd.begin(), xAsStd.end(), includeRegex);
-		std::sregex_iterator it_end;
-
-		while (it != it_end)
-		{
-			std::smatch result = *it;
-
-			StringArray matches;
-			for (auto x : result)
-			{
-				matches.add(String(x));
-			}
-
-			if (indexInMatch < matches.size()) searchResults.add(matches[indexInMatch]);
-
-			++it;
-		}
-
-		return searchResults;
-	}
-	catch (std::regex_error e)
-	{
-		DBG(e.what());
-		return StringArray();
-	}
-#endif
-}
-
-StringArray RegexFunctions::getFirstMatch(const String &wildcard, const String &stringToTest, const Processor* /*processorForErrorOutput*//*=nullptr*/)
-{
-#if TRAVIS_CI
-	return StringArray(); // Travis CI seems to have a problem with libc++...
-#else
-
-	try
-	{
-		std::regex reg(wildcard.toStdString());
-		std::string s(stringToTest.toStdString());
-		std::smatch match;
-
-
-		if (std::regex_search(s, match, reg))
-		{
-			StringArray sa;
-
-			for (auto x : match)
-			{
-				sa.add(String(x));
-			}
-
-			return sa;
-		}
-
-		return StringArray();
-	}
-	catch (std::regex_error e)
-	{
-		jassertfalse;
-
-		DBG(e.what());
-		return StringArray();
-	}
-#endif
-}
-
-bool RegexFunctions::matchesWildcard(const String &wildcard, const String &stringToTest, const Processor* /*processorForErrorOutput*//*=nullptr*/)
-{
-#if TRAVIS_CI
-	return false; // Travis CI seems to have a problem with libc++...
-#else
-
-	try
-	{
-		std::regex reg(wildcard.toStdString());
-
-		return std::regex_search(stringToTest.toStdString(), reg);
-	}
-	catch (std::regex_error e)
-	{
-		DBG(e.what());
-
-		return false;
-	}
-#endif
-}
-
-ScopedNoDenormals::ScopedNoDenormals()
-{
-#if JUCE_IOS
-#else
-	oldMXCSR = _mm_getcsr();
-	int newMXCSR = oldMXCSR | 0x8040;
-	_mm_setcsr(newMXCSR);
-#endif
-}
-
-ScopedNoDenormals::~ScopedNoDenormals()
-{
-#if JUCE_IOS
-#else
-	_mm_setcsr(oldMXCSR);
-#endif
-}
-
-void FloatSanitizers::sanitizeArray(float* data, int size)
-{
-	uint32* dataAsInt = reinterpret_cast<uint32*>(data);
-
-	for (int i = 0; i < size; i++)
-	{
-		const uint32 sample = *dataAsInt;
-		const uint32 exponent = sample & 0x7F800000;
-
-		const int aNaN = exponent < 0x7F800000;
-		const int aDen = exponent > 0;
-
-		*dataAsInt++ = sample * (aNaN & aDen);
-
-	}
-}
-
-float FloatSanitizers::sanitizeFloatNumber(float& input)
-{
-	uint32* valueAsInt = reinterpret_cast<uint32*>(&input);
-	const uint32 exponent = *valueAsInt & 0x7F800000;
-
-	const int aNaN = exponent < 0x7F800000;
-	const int aDen = exponent > 0;
-
-	const uint32 sanitized = *valueAsInt * (aNaN & aDen);
-
-	return *reinterpret_cast<const float*>(&sanitized);
-}
-
-void FloatSanitizers::Test::runTest()
-{
-	beginTest("Testing array method");
-
-	float d[6];
-
-	d[0] = INFINITY;
-	d[1] = FLT_MIN / 20.0f;
-	d[2] = FLT_MIN / -14.0f;
-	d[3] = NAN;
-	d[4] = 24.0f;
-	d[5] = 0.0052f;
-
-	sanitizeArray(d, 6);
-
-	expectEquals<float>(d[0], 0.0f, "Infinity");
-	expectEquals<float>(d[1], 0.0f, "Denormal");
-	expectEquals<float>(d[2], 0.0f, "Negative Denormal");
-	expectEquals<float>(d[3], 0.0f, "NaN");
-	expectEquals<float>(d[4], 24.0f, "Normal Number");
-	expectEquals<float>(d[5], 0.0052f, "Small Number");
-
-	beginTest("Testing single method");
-
-	float d0 = INFINITY;
-	float d1 = FLT_MIN / 20.0f;
-	float d2 = FLT_MIN / -14.0f;
-	float d3 = NAN;
-	float d4 = 24.0f;
-	float d5 = 0.0052f;
-
-	d0 = sanitizeFloatNumber(d0);
-	d1 = sanitizeFloatNumber(d1);
-	d2 = sanitizeFloatNumber(d2);
-	d3 = sanitizeFloatNumber(d3);
-	d4 = sanitizeFloatNumber(d4);
-	d5 = sanitizeFloatNumber(d5);
-
-	expectEquals<float>(d0, 0.0f, "Single Infinity");
-	expectEquals<float>(d1, 0.0f, "Single Denormal");
-	expectEquals<float>(d2, 0.0f, "Single Negative Denormal");
-	expectEquals<float>(d3, 0.0f, "Single NaN");
-	expectEquals<float>(d4, 24.0f, "Single Normal Number");
-	expectEquals<float>(d5, 0.0052f, "Single Small Number");
-}
-
-void SafeChangeBroadcaster::sendSynchronousChangeMessage()
-{
-	if (MessageManager::getInstance()->isThisTheMessageThread() || MessageManager::getInstance()->currentThreadHasLockedMessageManager())
-	{
-		ScopedLock sl(listeners.getLock());
-
-		for (int i = 0; i < listeners.size(); i++)
-		{
-			if (listeners[i].get() != nullptr)
-			{
-				listeners[i]->changeListenerCallback(this);
-			}
-			else
-			{
-				// Ooops, you called an deleted listener. 
-				// Normally, it would crash now, but since this is really lame, this class only throws an assert!
-				jassertfalse;
-
-				listeners.remove(i--);
-			}
-		}
-	}
-	else
-	{
-		sendChangeMessage();
-	}
-
-	
-}
-
-void SafeChangeBroadcaster::addChangeListener(SafeChangeListener *listener)
-{
-	ScopedLock sl(listeners.getLock());
-
-	listeners.addIfNotAlreadyThere(listener);
-}
-
-void SafeChangeBroadcaster::removeChangeListener(SafeChangeListener *listener)
-{
-	ScopedLock sl(listeners.getLock());
-
-	listeners.removeAllInstancesOf(listener);
-}
-
-void SafeChangeBroadcaster::removeAllChangeListeners()
-{
-	dispatcher.cancelPendingUpdate();
-
-	ScopedLock sl(listeners.getLock());
-
-	listeners.clear();
-}
-
-void SafeChangeBroadcaster::sendChangeMessage(const String &/*identifier*/ /*= String()*/)
-{
-	dispatcher.triggerAsyncUpdate();
-}
-
-void SafeChangeBroadcaster::sendAllocationFreeChangeMessage()
-{
-	// You need to call enableAllocationFreeMessages() first...
-	jassert(flagTimer.isTimerRunning());
-
-	flagTimer.triggerUpdate();
-}
-
-void SafeChangeBroadcaster::enableAllocationFreeMessages(int timerIntervalMilliseconds)
-{
-	flagTimer.startTimer(timerIntervalMilliseconds);
-}
-
-
 
 float BalanceCalculator::getGainFactorForBalance(float balanceValue, bool calculateLeftChannel)
 {
@@ -783,29 +449,102 @@ String BalanceCalculator::getBalanceAsString(int balanceValue)
 {
 	if (balanceValue == 0) return "C";
 
-	else return String(balanceValue) + (balanceValue > 0 ? "R" : "L");
+	else return String(abs(balanceValue)) + (balanceValue > 0 ? " R" : " L");
 }
 
-SafeFunctionCall::SafeFunctionCall(Processor* p_, const ProcessorFunction& f_) :
+SafeFunctionCall::SafeFunctionCall(Processor* p_, const Function& f_) noexcept:
 	p(p_),
 	f(f_)
 {
 
 }
 
-SafeFunctionCall::SafeFunctionCall() :
+SafeFunctionCall::SafeFunctionCall() noexcept:
 	p(nullptr),
 	f()
 {
 
 }
 
-bool SafeFunctionCall::call()
+SafeFunctionCall::Status SafeFunctionCall::call() const
 {
-	if (p.get() != nullptr)
-		return f(p.get());
+	try
+	{
+		if (p.get() != nullptr && !p->isWaitingForDeletion())
+			return f(p.get());
+	}
+	catch (MainController::LockFreeDispatcher::AbortSignal s)
+	{
+		// You should catch this before.
+		jassertfalse;
 
-	return false;
+		return Status::cancelled;
+	}
+
+	// You have called this without passing an actual object here.
+	jassert(p.wasObjectDeleted());
+
+	return p.wasObjectDeleted() ? Status::processorWasDeleted : Status::nullPointerCall;
+}
+
+
+UpdateDispatcher::UpdateDispatcher(MainController* mc_) :
+	mc(mc_),
+	pendingListeners(8192)
+{
+	startTimer(30);
+}
+
+void UpdateDispatcher::triggerAsyncUpdateForListener(Listener* l)
+{
+	pendingListeners.push(WeakReference<Listener>(l));
+}
+
+void UpdateDispatcher::timerCallback()
+{
+	auto& tmp_mc = mc;
+
+	auto f = [tmp_mc](WeakReference<Listener>& l)
+	{
+		if (l != nullptr)
+		{
+			l->pending = false;
+
+			if (l->cancelled)
+				return MultithreadedQueueHelpers::OK;
+
+			l->handleAsyncUpdate();
+		}
+
+		if (tmp_mc->shouldAbortMessageThreadOperation())
+			return MultithreadedQueueHelpers::AbortClearing;
+
+		return MultithreadedQueueHelpers::OK;
+	};
+
+	pendingListeners.clear(f);
+}
+
+
+
+
+UpdateDispatcher::Listener::Listener(UpdateDispatcher* dispatcher_) :
+	dispatcher(dispatcher_),
+	pending(false)
+{
+
+}
+
+void UpdateDispatcher::Listener::triggerAsyncUpdate()
+{
+	if (pending)
+		return;
+
+	cancelled.store(false);
+	pending = true;
+
+	if (dispatcher != nullptr)
+		dispatcher->triggerAsyncUpdateForListener(this);
 }
 
 } // namespace hise

@@ -33,18 +33,6 @@
 #ifndef HI_CORE_H_INCLUDED
 #define HI_CORE_H_INCLUDED
 
-
-template <class A, class B>
-struct AreSame { enum { VALUE = -1 }; };
-template <class A>
-struct AreSame<A, A> { enum { VALUE = 1 }; };
-
-struct TestGlobalNamespace
-{
-	int test_namespace[AreSame<TestGlobalNamespace, ::TestGlobalNamespace>::VALUE];
-};
-
-
 #ifndef INT_MAX
 #define INT_MAX 2147483647
 #endif
@@ -53,50 +41,65 @@ struct TestGlobalNamespace
 #define INT_MIN -2147483647
 #endif
 
-#include "VariantBuffer.h"
 
 
-#if USE_IPP
-#include "IppFFT.h"
-#endif
+
+/** @defgroup dsp DSP classes
+*
+*	All classes used for signal processing / sound generation.
+*/
+
+/** @defgroup types HISE Modules
+*	@ingroup dsp
+*
+*	 All available HISE modules.
+*/
+
+/** @defgroup dsp_base_classes DSP Base Classes
+*	@ingroup dsp
+*
+*	All classes you need to subclass to write your own modules.
+*/
 
 
-#include "CustomDataContainers.h"
-
-#include "AES.h"
 
 /** @defgroup processor_interfaces Processor Interface Classes
+	@ingroup dsp_base_classes
 *	Interface classes that enhance the functionality of a processor.
+	You can add functionality to a Processor by subclassing it from one of these
+	pure virtual base classes.
 * */
 
+
 /** @defgroup core Core Classes
-*	A collection of basic classes.
+*	
+*	The most important classes in HISE.
 */
 #include "UtilityClasses.h"
-#include "HI_LookAndFeels.h"
+
 #include "HiseEventBuffer.h"
 #include "DebugLogger.h"
-
-
 #include "ThreadWithQuasiModalProgressWindow.h"
 #include "Popup.h"
-#include "Tables.h"
 #include "UpdateMerger.h"
-#include "ExternalFilePool.h"
-#include "Markdown.h"
 #include "BackgroundThreads.h"
 #include "HiseSettings.h"
 #include "SettingsWindows.h"
 
 #include "PresetHandler.h"
+
+#include "ExternalFilePool.h"
+
+
+#include "ExpansionHandler.h"
 #include "GlobalScriptCompileBroadcaster.h"
 #include "MainControllerHelpers.h"
+#include "LockHelpers.h"
 #include "MainController.h"
 #include "SampleExporter.h"
 #include "Console.h"
 
-#include "JavascriptTokeniser.h"
-#include "JavascriptTokeniserFunctions.h"
+
 #include "MacroControlledComponents.h"
 #include "MacroControlBroadcaster.h"
 #include "MiscComponents.h"

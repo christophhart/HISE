@@ -26,6 +26,7 @@ namespace juce
 MidiKeyboardState::MidiKeyboardState()
 {
     zerostruct (noteStates);
+	eventsToAdd.ensureSize(128 * 3);
 }
 
 MidiKeyboardState::~MidiKeyboardState()
@@ -153,7 +154,7 @@ void MidiKeyboardState::processNextMidiEvent (const MidiMessage& message)
         for (int i = 0; i < 128; ++i)
             noteOffInternal (message.getChannel(), i, 0.0f);
     }
-	else if (message.isChannelPressure() || message.isControllerOfType(74) || message.isPitchWheel())
+	else if (message.isChannelPressure() || message.isControllerOfType(74) || message.isPitchWheel() || message.isControllerOfType(1))
 	{
 		sendMessageInternal(message);
 	}
@@ -169,6 +170,11 @@ void MidiKeyboardState::processNextMidiBuffer (MidiBuffer& buffer,
     int time;
 
     const ScopedLock sl (lock);
+
+#if JUCE_ENABLE_AUDIO_GUARD
+	// Don't fire here until this is sorted out.
+	AudioThreadGuard::Suspender suspender;
+#endif
 
     while (i.getNextEvent (message, time))
         processNextMidiEvent (message);

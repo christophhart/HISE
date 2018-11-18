@@ -414,6 +414,8 @@ public:
 		closeButton = nullptr;
 	}
 
+	void setContent(NamedValueSet&& data);
+
 	void setContent(const var& data);
 	void setNewContent(const Identifier& newId);
 

@@ -74,13 +74,24 @@ public:
 		auto m = (ShapeFX::ShapeMode)(int)getProcessor()->getAttribute(ShapeFX::SpecialParameters::Mode);
 
 		table->setVisible(m == ShapeFX::Curve);
+
+#if HI_USE_SHAPE_FX_SCRIPTING
 		editor->setVisible(m == ShapeFX::Script || m == ShapeFX::CachedScript);
+#endif
 
 		refreshBodySize();
 	}
 
-	int getBodyHeight() const override { return (table->isVisible() || editor->isVisible()) ? 600 : 330; }
+	int getBodyHeight() const override 
+	{ 
+#if HI_USE_SHAPE_FX_SCRIPTING
+		return (table->isVisible() || editor->isVisible()) ? 600 : 330; 
+#else
+		return table->isVisible() ? 600 : 330;
+#endif
+	}
 
+#if HI_USE_SHAPE_FX_SCRIPTING
 	bool keyPressed(const KeyPress& key) override
 	{
 		if (key.isKeyCode(KeyPress::F5Key))
@@ -91,6 +102,7 @@ public:
 
 		return false;
 	}
+#endif
 
     //[/UserMethods]
 
@@ -106,7 +118,9 @@ private:
     //[UserVariables]   -- You can add your own custom variables in this section.
 	int h;
 
+#if HI_USE_SHAPE_FX_SCRIPTING
 	ScopedPointer<JavascriptTokeniser> tokeniser;
+#endif
     //[/UserVariables]
 
     //==============================================================================
@@ -124,7 +138,11 @@ private:
     ScopedPointer<HiToggleButton> autoGain;
     ScopedPointer<HiSlider> lowPass;
     ScopedPointer<TableEditor> table;
+
+#if HI_USE_SHAPE_FX_SCRIPTING
     ScopedPointer<JavascriptCodeEditor> editor;
+#endif
+
     ScopedPointer<HiToggleButton> limitButton;
 
 

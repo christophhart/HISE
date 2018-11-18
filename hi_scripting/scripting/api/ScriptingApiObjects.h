@@ -44,7 +44,7 @@ public:
 	{
 	public:
 
-		ModuleHandler(Processor* parent_);
+		ModuleHandler(Processor* parent_, JavascriptProcessor* sp);
 
 		~ModuleHandler();
 		
@@ -54,11 +54,14 @@ public:
 
 		Modulator* addAndConnectToGlobalModulator(Chain* c, Modulator* globalModulator, const String& modName, bool connectAsStaticMod=false);
 
+		JavascriptProcessor* getScriptProcessor() { return scriptProcessor.get(); };
+
 	private:
 
 		
 
 		WeakReference<Processor> parent;
+		WeakReference<JavascriptProcessor> scriptProcessor;
 
 		Component::SafePointer<Component> mainEditor;
 	};
@@ -361,6 +364,9 @@ public:
 		/** Checks if the Object exists and prints a error message on the console if not. */
 		bool exists() { return checkValidObject(); };
 
+		/** Returns the ID of the modulator. */
+		String getId() const;
+
 		/** Sets the attribute of the Modulator. You can look up the specific parameter indexes in the manual. */
 		void setAttribute(int index, float value);
 
@@ -412,6 +418,8 @@ public:
         /** Returns the Modulator chain with the given index. */
         var getModulatorChain(var chainIndex);
         
+		
+
 		// ============================================================================================================
 
 		struct Wrapper;
@@ -472,6 +480,9 @@ public:
 
 		/** Checks if the Object exists and prints a error message on the console if not. */
 		bool exists() { return checkValidObject(); };
+
+		/** Returns the ID of the effect. */
+		String getId() const;
 
 		/** Changes one of the Parameter. Look in the manual for the index numbers of each effect. */
 		void setAttribute(int parameterIndex, float newValue);
@@ -659,6 +670,9 @@ public:
 		/** Checks if the Object exists and prints a error message on the console if not. */
 		bool exists() { return checkValidObject(); };
 
+		/** Returns the ID of the synth. */
+		String getId() const;
+
 		/** Changes one of the Parameter. Look in the manual for the index numbers of each effect. */
 		void setAttribute(int parameterIndex, float newValue);;
 
@@ -746,6 +760,9 @@ public:
 
 		/** Checks if the Object exists and prints a error message on the console if not. */
 		bool exists() { return checkValidObject(); };
+
+		/** Returns the ID of the MIDI Processor. */
+		String getId() const;
 
 		/** Sets the attribute of the MidiProcessor. If it is a script, then the index of the component is used. */
 		void setAttribute(int index, float value);
@@ -893,6 +910,7 @@ public:
 		bool objectExists() const override { return false; }
 
 		void timerCallback();
+		void timerCallbackInternal(const var& callback, Result& r);
 
 		// ============================================================================================================
 		
@@ -934,6 +952,7 @@ public:
 		InternalTimer it;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TimerObject)
+        JUCE_DECLARE_WEAK_REFERENCEABLE(TimerObject);
 	};
 
 
@@ -1085,11 +1104,7 @@ public:
 		struct Wrapper;
 
 		
-		void setGraphics(Graphics *g_, Image* image_)
-		{
-			g = g_;
-			imageToDraw = image_;
-		}
+		DrawActions::Handler& getDrawHandler() { return drawActionHandler; }
 
 	private:
 
@@ -1097,25 +1112,91 @@ public:
 		Rectangle<float> getRectangleFromVar(const var &data);
 		Rectangle<int> getIntRectangleFromVar(const var &data);
 
-		void initGraphics();
-
 		Result rectangleResult;
 
-		Image *imageToDraw = nullptr;
-
-		Graphics *g = nullptr;
-
-		Colour currentColour;
-		Font currentFont;
-		ColourGradient currentGradient;
-		bool useGradient = false;
-
 		ConstScriptingObject* parent = nullptr;
+
+		DrawActions::Handler drawActionHandler;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GraphicsObject);
 
 		// ============================================================================================================
 	};
+
+	class ExpansionObject : public ConstScriptingObject,
+							public DebugableObject
+	{
+	public:
+
+		ExpansionObject(ProcessorWithScriptingContent* p, Expansion* expansion);
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Expansion"); }
+
+		virtual bool objectDeleted() const { return data.get() == nullptr; }
+		virtual bool objectExists() const { return data.get() != nullptr; }
+
+		String getDebugName() const override { return data != nullptr ? data->name.get() : "Deleted"; }
+		String getDebugValue() const override { return data != nullptr ? data->name.get() : "Deleted"; }
+
+		/** Returns a list of all samplemaps in this expansion pack. */
+		var getSampleMapList();
+
+		/** Returns a list of all audio files in this expansion pack. */
+		var getAudioFileList();
+
+		/** Returns a list of all image files in this expansion pack. */
+		var getImageFilelist();
+
+		/** Returns a reference string that can be used to load expansion pack data. */
+		var getReferenceString(var relativeFilePath);
+
+	private:
+
+		struct Wrapper;
+
+		WeakReference<Expansion> data;
+	};
+
+	class ExpansionHandlerObject : public ConstScriptingObject,
+								   public ExpansionHandler::Listener
+	{
+	public:
+
+		ExpansionHandlerObject(ProcessorWithScriptingContent* p);
+
+		~ExpansionHandlerObject();
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("ExpansionHandler"); }
+
+		void expansionPackLoaded(Expansion* currentExpansion) override;
+
+		void expansionPackCreated(Expansion* exp) { expansionPackLoaded(exp); };
+
+		/** Returns a list of expansion objects. */
+		var getExpansionList();
+
+		/** Returns a reference to the currently loaded expansion or undefined. */
+		var getCurrentExpansion();
+
+		/** Sets a function that will be executed when a new expansion will be loaded. */
+		void setLoadingCallback(var function);
+
+		/** Loads the expansion with the given name. Returns false, if expansion can't be loaded. */
+		bool loadExpansion(const String expansionName);
+
+
+	private:
+
+
+
+		var loadingCallback;
+
+		struct Wrapper;
+
+		ExpansionHandler& handler;
+
+	};
+
 };
 
 

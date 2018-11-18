@@ -117,6 +117,9 @@ public:
     */
     virtual void writeAsJSON (OutputStream&, int indentLevel, bool allOnOneLine, int maximumDecimalPlaces);
 
+	/** Swaps the properties. */
+	void swapProperties(NamedValueSet&& newProperties);
+
 private:
     //==============================================================================
     NamedValueSet properties;

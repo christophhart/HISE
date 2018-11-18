@@ -154,7 +154,8 @@ h2
 
 h3
 {
-font-size: 24px;
+font-size: 1.2em;
+letter-spacing: -1px;
 }
 
 h1.glow, h2.glow, h3.glow, h4.glow, h5.glow, h6.glow {
@@ -968,13 +969,10 @@ table.fieldtable {
 .navpath ul
 {
 	font-size: 11px;
-	background-image:url('tab_b.png');
-	background-repeat:repeat-x;
-	background-position: 0 -5px;
+	background-color: #444;
 	height:30px;
 	line-height:30px;
 	color:#8AA0CC;
-	border:solid 1px #C2CDE4;
 	overflow:hidden;
 	margin:0px;
 	padding:0px;
@@ -986,9 +984,7 @@ table.fieldtable {
 	float:left;
 	padding-left:10px;
 	padding-right:15px;
-	background-image:url('bc_s.png');
-	background-repeat:no-repeat;
-	background-position:right;
+	border-right: 1px solid #777;
 	color:#364D7C;
 }
 
@@ -998,9 +994,8 @@ table.fieldtable {
 	display:block;
 	text-decoration: none;
 	outline: none;
-	color: #283A5D;
-	font-family: 'Lucida Grande',Geneva,Helvetica,Arial,sans-serif;
-	text-shadow: 0px 1px 1px rgba(255, 255, 255, 0.9);
+	color: #fff;
+	font-family: 'Oxygen',Geneva,Helvetica,Arial,sans-serif;
 	text-decoration: none;        
 }
 

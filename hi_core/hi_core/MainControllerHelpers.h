@@ -46,7 +46,6 @@ class Processor;
 class Console;
 class ModulatorSamplerSound;
 class ModulatorSamplerSoundPool;
-class AudioSampleBufferPool;
 class Plotter;
 class ScriptWatchTable;
 class ScriptComponentEditPanel;
@@ -55,50 +54,9 @@ class Modulator;
 class CustomKeyboardState;
 class ModulatorSynthChain;
 class FactoryType;
+class JavascriptThreadPool;
 
 class MainController;
-
-
-/** A base class for all objects that need access to a MainController.
-*	@ingroup core
-*
-*	If you want to have access to the main controller object, derive the class from this object and pass a pointer to the MainController
-*	instance in the constructor.
-*/
-class ControlledObject
-{
-public:
-
-	/** Creates a new ControlledObject. The MainController must be supplied. */
-	ControlledObject(MainController *m);
-
-	virtual ~ControlledObject();
-
-	/** Provides read-only access to the main controller. */
-	const MainController *getMainController() const noexcept
-	{
-		jassert(controller != nullptr);
-		return controller;
-	};
-
-	/** Provides write access to the main controller. Use this if you want to make changes. */
-	MainController *getMainController() noexcept
-	{
-		jassert(controller != nullptr);
-		return controller;
-	}
-
-private:
-
-	friend class WeakReference<ControlledObject>;
-	WeakReference<ControlledObject>::Master masterReference;
-
-	MainController* const controller;
-
-	friend class MainController;
-	friend class ProcessorFactory;
-};
-
 
 class MPEModulator;
 
@@ -138,7 +96,8 @@ public:
 
 		
 	class MPEData : public ControlledObject,
-		public RestorableObject
+					public RestorableObject,
+					public Dispatchable
 	{
 	public:
 		MPEData(MainController* mc);;
@@ -163,10 +122,22 @@ public:
 			JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 		};
 
+        enum EventType
+        {
+            MPEModeChanged,
+            MPEModConnectionAdded,
+            MPEModConnectionRemoved,
+            MPEDataReloaded,
+            MPEModulatorAmountChanged,
+            numEventTypes
+        };
+        
 		void restoreFromValueTree(const ValueTree &previouslyExportedState) override;
 
 		ValueTree exportAsValueTree() const override;
 
+        void sendAsyncNotificationMessage(MPEModulator* mod, EventType type);
+        
 		void addConnection(MPEModulator* mod, NotificationType notifyListeners=sendNotification);
 
 		void removeConnection(MPEModulator* mod, NotificationType notifyListeners=sendNotification);
@@ -206,6 +177,8 @@ public:
 
 		void sendAmountChangeMessage()
 		{
+			ScopedLock sl(listeners.getLock());
+
 			for (auto l : listeners)
 			{
 				if (l)
@@ -215,7 +188,7 @@ public:
 
 	private:
 
-		struct AsyncRestorer : private AsyncUpdater
+		struct AsyncRestorer : private Timer
 		{
 		public:
 
@@ -226,19 +199,22 @@ public:
 			void restore(const ValueTree& v)
 			{
 				data = v;
-				triggerAsyncUpdate();
+				dirty = true;
+				startTimer(50);
 			}
 
 		private:
 
-			void handleAsyncUpdate() override;;
+			void timerCallback() override;
 
-			
+			bool dirty = false;
 
 			ValueTree data;
 
 			MPEData& parent;
 		};
+
+		ValueTree pendingData;
 
 		AsyncRestorer asyncRestorer;
 		
@@ -251,13 +227,10 @@ public:
 
 		ScopedPointer<Data> data;
 
-		Array<WeakReference<Listener>> listeners;
+		Array<WeakReference<Listener>, CriticalSection> listeners;
 
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MPEData)
-
-		
-public:
-	
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MPEData);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(MPEData);
 	};
 	
 
@@ -350,7 +323,7 @@ public:
 
 	void addOverlayListener(Listener *listener)
 	{
-		listeners.add(listener);
+		listeners.addIfNotAlreadyThere(listener);
 	}
 
 	void removeOverlayListener(Listener* listener)
@@ -368,6 +341,8 @@ private:
 
 		void handleAsyncUpdate() override
 		{
+			ScopedLock sl(parent->listeners.getLock());
+
 			for (int i = 0; i < parent->listeners.size(); i++)
 			{
 				if (parent->listeners[i].get() != nullptr)
@@ -390,7 +365,7 @@ private:
 
 	InternalAsyncUpdater internalUpdater;
 
-	Array<WeakReference<Listener>> listeners;
+	Array<WeakReference<Listener>, CriticalSection> listeners;
 };
 
 

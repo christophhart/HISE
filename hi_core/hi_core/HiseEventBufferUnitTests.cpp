@@ -64,6 +64,9 @@ public:
 		testEventHandler();
 		testEventBufferStack();
 		testStartOffset();
+		testAlignment<16>(128);
+		testAlignment<1>(128);
+		testAlignment<32>(32);
 	}
 
 private:
@@ -561,7 +564,34 @@ private:
 
 	}
 	
-	
+	template <int Alignment> void testAlignment(int maxTimestamp)
+	{
+		beginTest("Testing alignment + " + String(Alignment) + " of Hise Events with max timestamp " + String(maxTimestamp));
+
+		for (int i = 0; i < 100; i++)
+		{
+			HiseEvent b = generateRandomHiseEvent();
+			b.setTimeStamp(r.nextInt(maxTimestamp));
+
+			b.alignToRaster<Alignment>(maxTimestamp);
+
+			auto rasteredTimeStamp = b.getTimeStamp();
+
+			expectEquals<int>(rasteredTimeStamp % Alignment, 0, "Not rastered");
+			
+			expect(rasteredTimeStamp < maxTimestamp, "Bigger than limit");
+
+		}
+
+		HiseEvent upper = generateRandomHiseEvent();
+		upper.setTimeStamp(maxTimestamp - 1);
+		upper.alignToRaster<Alignment>(maxTimestamp);
+
+		expectEquals<int>(upper.getTimeStamp(), maxTimestamp - Alignment, "Upper");
+
+
+
+	}
 
 	void testEventBufferMoveOperations()
 	{
@@ -795,7 +825,6 @@ public:
 
 		void asyncValueTreePropertyChanged(ValueTree& v, const Identifier& id) override
 		{
-			DBG(v.getProperty(id).toString());
 			parent.lastValue = v.getProperty(id);
 			parent.numCalled++;
 		}
@@ -806,6 +835,7 @@ public:
 	CustomValueTreeUnitTests() :
 		UnitTest("Testing custom ValueTree classes"),
 		t("Test"),
+		dispatcher(nullptr),
 		vlt(t, &dispatcher, *this)
 	{}
 

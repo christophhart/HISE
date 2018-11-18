@@ -37,6 +37,125 @@ namespace hlac { using namespace juce;
 
 typedef CompressionHelpers::AudioBufferInt16 FixedSampleBuffer;
 
+template <typename ElementType, int PreallocatedSize> class OptionalDynamicArray
+{
+public:
+
+	OptionalDynamicArray()
+	{
+		dataPtr = preallocated;
+	};
+
+	void ensureStorageAllocated(int minNumElements)
+	{
+		if (minNumElements <= PreallocatedSize)
+		{
+			allocatedData.free();
+			numAllocated = minNumElements;
+			dataPtr = preallocated;
+		}
+		else
+		{
+			if (minNumElements != numAllocated)
+				allocatedData.realloc(minNumElements);
+
+			numAllocated = minNumElements;
+			dataPtr = allocatedData;
+		}
+	}
+
+	void clearQuick()
+	{
+		numUsed = 0;
+	}
+
+	void clear()
+	{
+		for (auto& element : *this)
+			element = ElementType();
+
+		numUsed = 0;
+	}
+
+	const ElementType& operator[](int index) const
+	{
+		jassert(isPositiveAndBelow(index, numUsed));
+
+		return *(begin() + index);
+	}
+
+	void add(ElementType&& newElement, bool joinIfPossible=false)
+	{
+		if (joinIfPossible)
+		{
+			for (auto& e : *this)
+			{
+				if (newElement.canBeJoined(e))
+				{
+					e.join(std::move(newElement));
+					return;
+				}
+			}
+		}
+		
+		jassert(numUsed + 1 <= numAllocated);
+		ElementType* ptr = begin() + numUsed;
+		*ptr = newElement;
+		numUsed++;
+	}
+
+	void remove(int indexToRemove)
+	{
+		if (isPositiveAndBelow(indexToRemove, numUsed))
+		{
+			--numUsed;
+			ElementType* const e = begin() + indexToRemove;
+			e->~ElementType();
+			const int numberToShift = numUsed - indexToRemove;
+
+			if (numberToShift > 0)
+				memmove(e, e + 1, ((size_t)numberToShift) * sizeof(ElementType));
+		}
+		else
+		{
+			jassertfalse;
+		}
+	}
+
+	ElementType* begin() const noexcept
+	{
+		return const_cast<ElementType*>(dataPtr);
+	}
+
+	ElementType* end() const noexcept
+	{
+		return begin() + numUsed;
+	}
+
+	int size() const noexcept { return numUsed; }
+
+	int maxSize() const noexcept { return numAllocated; }
+
+	bool isDynamic() const noexcept { return allocatedData != nullptr; }
+
+	ElementType& getReference(int index)
+	{
+		jassert(isPositiveAndBelow(index, numUsed));
+
+		return *(begin() + index);
+	}
+
+private:
+
+	int numUsed = 0;
+	int numAllocated = PreallocatedSize;
+
+	ElementType* dataPtr;
+	ElementType preallocated[PreallocatedSize];
+	HeapBlock<ElementType> allocatedData;
+};
+
+
 /** A buffer for audio signals with two storage types: 32bit float and 16bit integer. 
 *
 *	It mirrors the functionality of JUCE's AudioSampleBuffer, but uses two different data types internally.
@@ -46,12 +165,51 @@ class HiseSampleBuffer
 {
 public:
 
+	/** The normaliser object takes care of applying the normalisation from the HLAC codec to
+		the a given audiosample buffer.
+		
+	*/
+	struct Normaliser
+	{
+		Normaliser()
+		{};
+
+		void allocate(int numSamples)
+		{
+			auto minNumToUse = jmax<int>(16, numSamples / 1024 + 3);
+			infos.ensureStorageAllocated(minNumToUse);
+		}
+
+		void clear(Range<int> rangeToClear = Range<int>());
+
+		void apply(float* dataLWithoutOffset, float* dataRWithoutOffset, Range<int> rangeInData) const;
+
+		/** Copies the normalisation ranges from the source than intersect with the given range. */
+		void copyFrom(const Normaliser& source, Range<int> srcRange, Range<int> dstRange);
+
+		struct NormalisationInfo
+		{
+			uint8 leftNormalisation = 0;
+			uint8 rightNormalisation = 0;
+			Range<int> range;
+
+			bool canBeJoined(const NormalisationInfo& other) const;
+
+			void join(NormalisationInfo&& other);
+
+			void apply(float* dataLWithoutOffset, float* dataRWithoutOffset, Range<int> rangeInData) const;
+		};
+
+		OptionalDynamicArray<NormalisationInfo, 16> infos;
+	};
+
 	HiseSampleBuffer() :
 		isFloat(true),
 		leftIntBuffer(0),
 		rightIntBuffer(0),
 		numChannels(0),
-		size(0)
+		size(0),
+		useOneMap(false)
 	{};
 
 	HiseSampleBuffer(bool isFloat_, int numChannels_, int numSamples) :
@@ -62,7 +220,7 @@ public:
 		numChannels(numChannels_),
 		size(numSamples)
 	{
-
+		useOneMap = numChannels == 1;
 	}
 
 	HiseSampleBuffer(HiseSampleBuffer&& otherBuffer) :
@@ -71,7 +229,8 @@ public:
 		leftIntBuffer(std::move(otherBuffer.leftIntBuffer)),
 		rightIntBuffer(std::move(otherBuffer.rightIntBuffer)),
 		numChannels(otherBuffer.numChannels),
-		size(otherBuffer.size)
+		size(otherBuffer.size),
+		useOneMap(otherBuffer.useOneMap)
 	{};
 
 	/** Creates an HiseSampleBuffer from an array of data pointers. */
@@ -80,7 +239,8 @@ public:
 		rightIntBuffer(numChannels_ > 1 ? sampleData[0] : nullptr, numSamples),
 		isFloat(false),
 		size(numSamples),
-		numChannels(numChannels_)
+		numChannels(numChannels_),
+		useOneMap(numChannels_ == 1)
 	{
 		
 	}
@@ -93,13 +253,24 @@ public:
 		floatBuffer = other.floatBuffer;
 		numChannels = other.numChannels;
 		size = other.size;
+		useOneMap = other.useOneMap;
 
 		return *this;
 	}
 
-	
-
 	HiseSampleBuffer(HiseSampleBuffer& otherBuffer, int offset);
+
+	HiseSampleBuffer(FixedSampleBuffer&& intBuffer) :
+		isFloat(false),
+		size(intBuffer.size),
+		floatBuffer(),
+		numChannels(1),
+		leftIntBuffer(std::move(intBuffer)),
+		rightIntBuffer(0),
+		useOneMap(true)
+	{
+		flushNormalisationInfo({ 0, size });
+	}
 
 	/** Creates a HiseSampleBuffer from an existing AudioSampleBuffer. */
 	HiseSampleBuffer(AudioSampleBuffer& floatBuffer_):
@@ -108,7 +279,8 @@ public:
 		leftIntBuffer(0),
 		rightIntBuffer(0),
 		numChannels(floatBuffer_.getNumChannels()),
-		size(floatBuffer_.getNumSamples())
+		size(floatBuffer_.getNumSamples()),
+		useOneMap(floatBuffer_.getNumChannels() == 1)
 	{
 		
 	};
@@ -129,6 +301,20 @@ public:
 
 	int getNumChannels() const { return numChannels; }
 
+	void allocateNormalisationTables(int offsetToUse);
+
+	void flushNormalisationInfo(Range<int> rangeToFlush);
+
+	FixedSampleBuffer& getFixedBuffer(int channelIndex);
+
+	void convertToFloatWithNormalisation(float** data, int numChannels, int startSampleInSource, int numSamples) const;
+
+	void clearNormalisation(Range<int> r);
+
+	bool usesNormalisation() const noexcept;
+
+	void copyNormalisationRanges(const HiseSampleBuffer& otherBuffset, int startOffsetInBuffer);
+
 	/** Copies the samples from the source to the destination. The buffers must have the same data type. */
 	static void copy(HiseSampleBuffer& dst, const HiseSampleBuffer& source, int startSampleDst, int startSampleSource, int numSamples);
 
@@ -146,9 +332,19 @@ public:
 	/** Returns the internal AudioSampleBuffer for convenient usage with AudioFormatReader classes. */
 	AudioSampleBuffer* getFloatBufferForFileReader();
 
-	
+	CompressionHelpers::NormaliseMap& getNormaliseMap(int channelIndex);
+
+	const CompressionHelpers::NormaliseMap& getNormaliseMap(int channelIndex) const;
+
+	void setUseOneMap(bool shouldUseOneMap) { useOneMap = shouldUseOneMap; };
+
+	bool useOneMap = false;
+
+	void minimizeNormalisationInfo();
 
 private:
+
+	Normaliser normaliser;
 
 	int numChannels = 0;
 	int size = 0;

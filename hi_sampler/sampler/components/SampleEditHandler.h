@@ -108,13 +108,13 @@ public:
 
 		timeSinceLastSelectionChange = thisTime;
 
-		auto newSelection = selectedSamplerSounds.getItemArray();
-
 		auto existingSounds = getSanitizedSelection();
 
 		
 		if (forceUpdate || existingSounds != lastSelection)
 		{
+			ScopedLock sl(selectionListeners.getLock());
+
 			for (int i = 0; i < selectionListeners.size(); i++)
 			{
                 if(selectionListeners[i].get() != nullptr)
@@ -153,6 +153,8 @@ public:
 		static void trimSampleStart(Component* childComponentOfMainEditor, SampleEditHandler * body);
 		static void createMultimicSampleMap(SampleEditHandler* handler);
 		static void deselectAllSamples(SampleEditHandler* handler);
+		static void reencodeMonolith(Component* childComponentOfMainEditor, SampleEditHandler* handler);
+		static void encodeAllMonoliths(Component* comp, SampleEditHandler* handler);
 	};
 
 	
@@ -163,7 +165,7 @@ private:
 
 	bool newKeysPressed(const uint8 *currentNotes);
 
-	void changeProperty(ModulatorSamplerSound *s, ModulatorSamplerSound::Property p, int delta);;
+	void changeProperty(ModulatorSamplerSound *s, const Identifier& p, int delta);;
 
 	int rrIndex = -1;
 
@@ -173,9 +175,11 @@ private:
 
 	SampleSelection lastSelection;
 
-	Array<WeakReference<Listener>> selectionListeners;
+	Array<WeakReference<Listener>, CriticalSection> selectionListeners;
 
 	ModulatorSampler* sampler;
+public:
+	File getCurrentSampleMapDirectory() const;
 };
 
 

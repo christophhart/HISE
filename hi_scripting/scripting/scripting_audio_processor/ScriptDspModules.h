@@ -1320,8 +1320,8 @@ public:
 		
 	private:
 
-		DelayLine delayL;
-		DelayLine delayR;
+		DelayLine<> delayL;
+		DelayLine<> delayR;
 
 		float delayTimeSamples = 0.0f;
 
@@ -1425,10 +1425,6 @@ public:
 		void processBlock(float **data, int numChannels, int numSamples) override
 		{
 			float* inL = data[0];
-
-			const int samplesToCopy = numSamples;
-
-			
 
 			if (numChannels == 2)
 			{

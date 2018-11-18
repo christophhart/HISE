@@ -36,6 +36,17 @@
 
 #define OLD_COLOUR 0
 
+#ifndef HI_ENABLE_EXTERNAL_CUSTOM_TILES
+#define HI_ENABLE_EXTERNAL_CUSTOM_TILES 0
+#endif
+
+
+#if HI_ENABLE_EXTERNAL_CUSTOM_TILES
+#define REGISTER_EXTERNAL_FLOATING_TILE(x) registerType<x>(FloatingTileContent::Factory::PopupMenuOptions::numOptions);
+#else
+#define REGISTER_EXTERNAL_FLOATING_TILE(x)
+#endif
+
 namespace hise { using namespace juce;
 
 class FloatingTile;
@@ -52,23 +63,59 @@ public:
 	virtual ~ObjectWithDefaultProperties() {};
 
 	/** Writes the state of this object into a dynamic object. */
-	virtual var toDynamicObject() const = 0;
+	virtual var toDynamicObject() const
+	{
+		jassert(useCustomDefaultValues);
+
+		var obj(new DynamicObject());
+		saveValuesFromList(obj);
+		return obj;
+	}
 
 	/** Restores the state of this object from a dynamic object. */
-	virtual void fromDynamicObject(const var& objectData) = 0;
+	virtual void fromDynamicObject(const var& objectData)
+	{
+		jassert(useCustomDefaultValues);
+		loadValuesToList(objectData);
+	}
 
 	/** Overwrite this and get the default property. */
-	virtual var getDefaultProperty(int id) const = 0;
+	virtual var getDefaultProperty(int id) const 
+	{
+		jassert(useCustomDefaultValues);
+
+		return defaultValues.getValueAt(id);
+	};
 	
+	var operator()(const var& data, int index) const
+	{
+		return getPropertyWithDefault(data, index);
+	}
+
+	void operator()(const var& data, int index, const var& value) const
+	{
+		storePropertyInObject(data, index, value);
+	}
+
 	/** Overwrite this and return the number of properties that are defaultable. */
-	virtual int getNumDefaultableProperties() const = 0;
+	virtual int getNumDefaultableProperties() const
+	{
+		jassert(useCustomDefaultValues);
+
+		return defaultValues.size();
+	}
 	
 	/** Overwrite this and return the Identifier for the given property index. 
 	*
 	*	You might want to use the macro RETURN_DEFAULT_PROPERTY_ID(idToCheck, name) with a named enum for this. 
 	*
 	*/
-	virtual Identifier getDefaultablePropertyId(int i) const = 0;
+	virtual Identifier getDefaultablePropertyId(int i) const
+	{
+		jassert(useCustomDefaultValues);
+
+		return defaultValues.getName(i);
+	}
 
 	/** Clears the given object and sets all defaultable properties to their initial values. */
 	void resetObject(DynamicObject* objectToClear)
@@ -105,8 +152,55 @@ public:
 				return getDefaultProperty(id);
 		}
 
-		return {};
+		return getDefaultProperty(id);
 	}
+
+	void setDefaultValues(const NamedValueSet& newDefaultValues)
+	{
+		defaultValues = newDefaultValues;
+		useCustomDefaultValues = true;
+	}
+
+	void setValueList(const Array<Value>& valueList)
+	{
+		jassert(useCustomDefaultValues);
+		jassert(valueList.size() == defaultValues.size());
+
+		values = valueList;
+	}
+
+	static Colour getColourFrom(const Value& colourValue)
+	{
+		return Colour((uint32)(int64)(colourValue.getValue()));
+	}
+
+protected:
+
+	void saveValuesFromList(var& object) const
+	{
+		jassert(useCustomDefaultValues);
+
+		for (int i = 0; i < getNumDefaultableProperties(); i++)
+		{
+			storePropertyInObject(object, i, values[i].getValue(), getDefaultProperty(i));
+		}
+	}
+
+	void loadValuesToList(const var& object)
+	{
+		jassert(useCustomDefaultValues);
+
+		for (int i = 0; i < getNumDefaultableProperties(); i++)
+		{
+			values[i].setValue(getPropertyWithDefault(object, i));
+		}
+	}
+
+	NamedValueSet defaultValues;
+
+	Array<Value> values;
+
+	bool useCustomDefaultValues = false;
 };
 
 
@@ -288,6 +382,27 @@ private:
 *	- add it to the popup menu
 *
 *	You can use the ValueTree methods to save / restore the state.
+
+Description
+
+![%TYPE% Screenshot](http://hise.audio/images/floating_tile_gifs/%TYPE%.gif)
+
+### Used base properties
+
+| ID | Description |
+| --- | --- |
+`ColourData::textColour`  | the text colour
+`ColourData::bgColour`    | the background colour
+`ColourData::itemColour1` | the first item colour
+`Font`					  | the font
+`FontSize`				  | the font size
+
+### Example JSON
+
+```
+const var data = {%EXAMPLE_JSON};
+```
+
 */
 class FloatingTileContent : public ObjectWithDefaultProperties
 {
@@ -453,12 +568,14 @@ public:
 			ApiCollection,
 			ScriptWatchTable,
 			ScriptComponentEditPanel,
+			ExpansionEditBar,
 			ModuleBrowser,
 			PatchBrowser,
 			FileBrowser,
 			ImageTable,
 			AudioFileTable,
 			SamplePoolTable,
+			SampleMapPoolTable,
 			PopoutButton,
 			PerformanceStatistics,
 			ActivityLed,
@@ -471,6 +588,7 @@ public:
 			AboutPage,
 			SampleMapBrowser,
 			WavetablePreview,
+			AHDSRGraph,
 			FilterGraphPanel,
 			MPEPanel,
 			Matrix2x2,
@@ -497,17 +615,7 @@ public:
 		}
 
 		/** Creates a subclass instance with the registered Identifier and returns a base class pointer to this. You need to take care of the ownership of course. */
-		FloatingTileContent* createFromId(const Identifier &id, FloatingTile* parent) const
-		{
-			const int index = ids.indexOf(id);
-
-			if (index != -1) return functions[index](parent);
-			else
-			{
-				jassertfalse;
-				return functions[0](parent);
-			}
-		}
+		FloatingTileContent* createFromId(const Identifier &id, FloatingTile* parent) const;
 
 		PopupMenuOptions getOption(const FloatingTile* t) const;
 
@@ -520,6 +628,9 @@ public:
 
 		void registerFrontendPanelTypes();
 
+#if HI_ENABLE_EXTERNAL_CUSTOM_TILES
+		void registerExternalPanelTypes();
+#endif
 
 
 		Drawable* getIcon(PopupMenuOptions type) const;

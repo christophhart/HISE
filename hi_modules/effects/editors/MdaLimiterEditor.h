@@ -39,7 +39,7 @@ public:
 		const float w = (float)getWidth();
 		const float h = (float)getHeight();
 
-		KnobLookAndFeel::fillPathHiStyle(g, dynamicPath, (int)w, (int)h);
+		GlobalHiseLookAndFeel::fillPathHiStyle(g, dynamicPath, (int)w, (int)h);
 
 		g.setColour(Colours::lightgrey.withAlpha(0.1f));
 

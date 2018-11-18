@@ -204,7 +204,7 @@ public:
 
 			while (stream->getNumBytesRemaining() > 0)
 			{
-				const int64 chunkSize = jmin<int64>(stream->getNumBytesRemaining(), 8192);
+				const int64 chunkSize = (int64)jmin<int>((int)stream->getNumBytesRemaining(), 8192);
 
 				downloadProgress(this, (int)numBytesRead, (int)numBytesTotal);
 
@@ -329,6 +329,81 @@ struct XmlBackupFunctions
 		for (int i = 0; i < xml.getNumChildElements(); i++)
 		{
 			removeEditorStatesFromXml(*xml.getChildElement(i));
+		}
+	}
+
+	static XmlElement* getFirstChildElementWithAttribute(XmlElement* parent, const String& attributeName, const String& value)
+	{
+		if (parent->getStringAttribute(attributeName) == value)
+			return parent;
+
+		for (int i = 0; i < parent->getNumChildElements(); i++)
+		{
+			
+
+			auto* e = parent->getChildElement(i);
+
+			if (e->getStringAttribute(attributeName) == value)
+				return e;
+			
+			auto c = getFirstChildElementWithAttribute(e, attributeName, value);
+
+			if (c != nullptr)
+				return c;
+		}
+
+		return nullptr;
+	}
+
+	static void addContentFromSubdirectory(XmlElement& xml, const File& fileToLoad)
+	{
+		String subDirectoryId = fileToLoad.getFileNameWithoutExtension() + "UIData";
+
+		auto folder = fileToLoad.getParentDirectory().getChildFile(subDirectoryId);
+
+		Array<File> contentFiles;
+
+		folder.findChildFiles(contentFiles, File::findFiles, false, "*.xml");
+
+		if (auto uiData = getFirstChildElementWithAttribute(&xml, "Source", subDirectoryId))
+		{
+			for (const auto& f : contentFiles)
+			{
+				if (auto child = XmlDocument::parse(f))
+				{
+					uiData->addChildElement(child);
+				}
+			}
+
+			uiData->removeAttribute("Source");
+		}
+	}
+
+	static void extractContentData(XmlElement& xml, const String& interfaceId, const File& xmlFile)
+	{
+		auto folder = xmlFile.getParentDirectory().getChildFile(xmlFile.getFileNameWithoutExtension() + "UIData");
+		
+		if (folder.isDirectory())
+			folder.createDirectory();
+
+		if (auto pXml = getFirstChildElementWithAttribute(&xml, "ID", interfaceId))
+		{
+			if (auto uiData = pXml->getChildByName("UIData"))
+			{
+				for (int i = 0; i < uiData->getNumChildElements(); i++)
+				{
+					auto e = uiData->getChildElement(i);
+					auto name = e->getStringAttribute("DeviceType");
+
+					auto file = folder.getChildFile(xmlFile.getFileNameWithoutExtension() + name + ".xml");
+
+					file.create();
+					file.replaceWithText(e->createDocument(""));
+				}
+
+				uiData->deleteAllChildElements();
+				uiData->setAttribute("Source", folder.getRelativePathFrom(xmlFile.getParentDirectory()));
+			}
 		}
 	}
 
@@ -582,7 +657,7 @@ public:
 
 		addCustomComponent(preview);
 
-		gainPackData = new SliderPackData(nullptr);
+		gainPackData = new SliderPackData(nullptr, nullptr);
 		gainPackData->setNumSliders(64);
 		gainPackData->setRange(0.0, 1.0, 0.01);
 		gainPack = new SliderPack(gainPackData);
@@ -612,7 +687,7 @@ public:
 
         if(auto s = ProcessorHelpers::getFirstProcessorWithType<ModulatorSampler>(chain))
         {
-            auto sampleMapTree = s->getSampleMap()->exportAsValueTree();
+			auto sampleMapTree = s->getSampleMap()->getValueTree();
             
             converter->parseSampleMap(sampleMapTree);
             converter->refreshCurrentWavetable(getProgressCounter());
@@ -788,6 +863,7 @@ public:
 
 };
 
+
 class MonolithConverter : public MonolithExporter
 {
 public:
@@ -805,7 +881,6 @@ public:
 		bpe(bpe_),
 		chain(bpe_->getMainSynthChain())
 	{
-
 		sampler = dynamic_cast<ModulatorSampler*>(ProcessorHelpers::getFirstProcessorWithName(chain, "Sampler"));
 		sampleFolder = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::Samples);
 
@@ -842,6 +917,14 @@ public:
 		sa.add("Low file size (recommended)");
 
 		addComboBox("compressionOptions", sa, "HLAC Compression options");
+
+		StringArray sa2;
+
+		sa.add("No normalisation");
+		sa.add("Normalise every sample");
+		sa.add("Full Dynamics");
+
+		addComboBox("normalise", sa2, "Normalization");
 
 		addBasicComponents(true);
 	};
@@ -899,12 +982,12 @@ public:
         {
             if(auto sampler = dynamic_cast<ModulatorSampler*>(p))
             {
-                sampler->clearSampleMap();
+                sampler->clearSampleMap(dontSendNotification);
                 SampleImporter::loadAudioFilesRaw(tmpBpe, sampler, fileNamesCopy);
                 SampleEditHandler::SampleEditingActions::automapUsingMetadata(sampler);
             }
             
-            return true;
+            return SafeFunctionCall::Status::OK;
         };
         
         sampler->killAllVoicesAndCall(f);
@@ -922,7 +1005,7 @@ public:
 
         //sampleMapFile = sampleMapFolder.getChildFile(sampleMapId + ".xml");
         
-		auto& lock = sampler->getMainController()->getSampleManager().getSamplerSoundLock();
+		auto& lock = sampler->getMainController()->getSampleManager().getSampleLock();
 
 		while (!lock.tryEnter())
 			Thread::sleep(500);
@@ -1022,7 +1105,36 @@ private:
 };
 
 
+class PoolExporter : public DialogWindowWithBackgroundThread
+{
+public:
 
+	PoolExporter(MainController* mc_):
+		DialogWindowWithBackgroundThread("Exporting pool resources"),
+		mc(mc_)
+	{
+		addBasicComponents(false);
+
+		runThread();
+	}
+
+	void run() override
+	{
+		showStatusMessage("Exporting pools");
+
+		auto& handler = mc->getCurrentFileHandler();
+		handler.exportAllPoolsToTemporaryDirectory(mc->getMainSynthChain(), &logData);
+	}
+
+	void threadFinished() override
+	{
+		PresetHandler::showMessageWindow("Sucessfully exported", "All pools were successfully exported");
+	}
+
+private:
+
+	MainController* mc;
+};
 
 
 class CyclicReferenceChecker: public DialogWindowWithBackgroundThread
@@ -1050,7 +1162,7 @@ public:
 		if (jsp != nullptr)
 		{
 			
-			data.progress = &progress;
+			data.progress = &logData.progress;
 			data.thread = this;
 			
 			showStatusMessage("Recompiling script");
@@ -1211,7 +1323,7 @@ public:
 
 		while (stream->getNumBytesRemaining() > 0)
 		{
-			const int64 chunkSize = jmin<int64>(stream->getNumBytesRemaining(), 8192);
+			const int64 chunkSize = (int64)jmin<int>((int)stream->getNumBytesRemaining(), 8192);
 
 			downloadProgress(this, (int)numBytesRead, (int)numBytesTotal);
 
@@ -1349,6 +1461,356 @@ private:
 
 	ErrorCodes result;
 	int httpStatusCode;
+};
+
+
+struct DeviceTypeSanityCheck : public DialogWindowWithBackgroundThread,
+							   public ControlledObject
+{
+	enum TestIndex
+	{
+		ControlPersistency,
+		DefaultValues,
+		InitState,
+		AllTests
+	};
+
+	DeviceTypeSanityCheck(MainController* mc):
+		DialogWindowWithBackgroundThread("Checking Device type sanity"),
+		ControlledObject(mc)
+	{
+		StringArray options;
+
+		options.add("iPad only");
+		options.add("iPhone only");
+		options.add("iPad / iPhone");
+
+		addComboBox("targets", options, "Device Targets");
+
+		StringArray tests;
+
+		tests.add("Check Control persistency");
+		tests.add("Check default values");
+		tests.add("Check init state matches default values");
+		tests.add("All tests");
+
+		addComboBox("tests", tests, "Tests to run");
+
+		addBasicComponents(true);
+	}
+
+	void run() override
+	{
+		ok = true;
+		mp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(getMainController());
+		content = mp->getScriptingContent();
+		desktopConnections = createArrayForCurrentDevice();
+
+		auto testIndex = getComboBoxComponent("tests")->getSelectedItemIndex();
+		auto index = getComboBoxComponent("targets")->getSelectedItemIndex();
+
+		CompileExporter::BuildOption option = CompileExporter::BuildOption::Cancelled;
+
+		if (index == 0) option = CompileExporter::BuildOption::StandaloneiPad;
+		if (index == 1) option = CompileExporter::BuildOption::StandaloneiPhone;
+		if (index == 2) option = CompileExporter::BuildOption::StandaloneiOS;
+
+
+		if (testIndex == ControlPersistency || testIndex == AllTests)
+		{
+			runTest(option, [this](HiseDeviceSimulator::DeviceType t) {this->checkPersistency(t); });
+			
+		}
+
+		if (testIndex == DefaultValues || testIndex == AllTests)
+		{
+			runTest(option, [this](HiseDeviceSimulator::DeviceType t) {this->checkDefaultValues(t); });
+		}
+
+		if (testIndex == InitState || testIndex == AllTests)
+		{
+			checkInitState();
+		}
+	}
+
+	void threadFinished() override
+	{
+		if (ok)
+			PresetHandler::showMessageWindow("Tests passed", "All tests are passed");
+		else
+			PresetHandler::showMessageWindow("Tests failed", "Some tests failed. Check the console for more info", PresetHandler::IconType::Error);
+	}
+
+	struct ProcessorConnection
+	{
+		bool operator==(const ProcessorConnection& other) const
+		{
+			return other.id == id;
+		}
+
+		Identifier id;
+		Processor* p = nullptr;
+		int parameterIndex = -1;
+		var defaultValue;
+	};
+
+	Array<ProcessorConnection> createArrayForCurrentDevice()
+	{
+		Array<ProcessorConnection> newList;
+
+		debugToConsole(mp, " - " + HiseDeviceSimulator::getDeviceName());
+
+		for (int i = 0; i < content->getNumComponents(); i++)
+		{
+			auto sc = content->getComponent(i);
+
+			if (!sc->getScriptObjectProperty(ScriptComponent::saveInPreset))
+				continue;
+
+			ProcessorConnection pc;
+			pc.id = sc->getName();
+			pc.p = sc->getConnectedProcessor();
+			pc.parameterIndex = sc->getConnectedParameterIndex();
+			pc.defaultValue = sc->getScriptObjectProperty(ScriptComponent::Properties::defaultValue);
+			newList.add(pc);
+		}
+
+		return newList;
+	}
+
+	void throwError(const String& message)
+	{
+		String error = HiseDeviceSimulator::getDeviceName() + ": " + message;
+
+		throw error;
+	}
+
+	bool ok = true;
+
+	void setDeviceType(HiseDeviceSimulator::DeviceType type)
+	{
+		showStatusMessage("Setting device type " + HiseDeviceSimulator::getDeviceName());
+
+		HiseDeviceSimulator::setDeviceType(type);
+		auto contentData = content->exportAsValueTree();
+		mp->setDeviceTypeForInterface((int)type);
+
+		showStatusMessage("Waiting for compilation");
+		waitingForCompilation = true;
+
+		bool* w = &waitingForCompilation;
+		auto& tmp = mp;
+
+		auto f = [tmp, w]()
+		{
+			auto rf = [w](const JavascriptProcessor::SnippetResult&)
+			{
+				*w = false;
+				return;
+			};
+
+			tmp->compileScript(rf);
+		};
+
+		MessageManager::callAsync(f);
+		
+
+		while (waitingForCompilation && !threadShouldExit())
+		{
+			Thread::sleep(500);
+		}
+
+		showStatusMessage("Restoring content values");
+		mp->getContent()->restoreFromValueTree(contentData);
+	}
+
+	void log(const String& s)
+	{
+		debugToConsole(mp, s);
+	}
+
+	Array<ProcessorConnection> setAndCreateArray(HiseDeviceSimulator::DeviceType type)
+	{
+		if (threadShouldExit())
+			return {};
+
+		setDeviceType(type);
+
+		if (!mp->hasUIDataForDeviceType())
+		{
+			if (HiseDeviceSimulator::isAUv3())
+				showStatusMessage("You need to define a interface for AUv3");
+
+			return {};
+		}
+
+		if (threadShouldExit())
+			return {};
+
+		return createArrayForCurrentDevice();
+	}
+
+	void checkDefaultValues(HiseDeviceSimulator::DeviceType type)
+	{
+		auto deviceConnections = setAndCreateArray(type);
+
+		showStatusMessage("Checking default values");
+
+		for (const auto& item : deviceConnections)
+		{
+			auto dItemIndex = desktopConnections.indexOf(item);
+
+			if (dItemIndex == -1)
+			{
+				log("Missing control found. Run persistency check");
+				ok = false;
+				return;
+			}
+
+			auto expected = desktopConnections[dItemIndex].defaultValue;
+			auto actual = item.defaultValue;
+
+			if (expected != actual)
+			{
+				ok = false;
+				log("Default value mismatch for " + item.id);
+			}
+				
+		}
+	}
+
+	void checkInitState()
+	{
+		setDeviceType(HiseDeviceSimulator::DeviceType::Desktop);
+
+		desktopConnections = createArrayForCurrentDevice();
+
+		for (int i = 0; i < content->getNumComponents(); i++)
+		{
+			auto sc = content->getComponent(i);
+
+			if (!sc->getScriptObjectProperty(ScriptComponent::saveInPreset))
+				continue;
+
+			if (sc->getValue() != sc->getScriptObjectProperty(ScriptComponent::defaultValue))
+			{
+				ok = false;
+				log("Init value mismatch for " + sc->getName().toString());
+			}
+				
+		}
+	}
+
+	void checkPersistency(HiseDeviceSimulator::DeviceType type)
+	{
+        log("Testing persistency for " + HiseDeviceSimulator::getDeviceName((int)type));
+        
+		auto deviceConnections = setAndCreateArray(type);
+        
+        if(deviceConnections.size() == 0)
+        {
+            return;
+        }
+        
+		showStatusMessage("Checking UI controls");
+
+		StringArray missingInDesktop;
+		StringArray missingInDevice;
+		StringArray connectionErrors;
+
+		compareArrays(desktopConnections, deviceConnections, missingInDesktop, connectionErrors);
+		compareArrays(deviceConnections, desktopConnections, missingInDevice, connectionErrors);
+		
+		if (!missingInDesktop.isEmpty())
+		{
+			log(String("Missing in Desktop: "));
+
+			for (const auto& s : missingInDesktop)
+				log(s);
+		}
+
+		if (!missingInDevice.isEmpty())
+		{
+			log("Missing in " + HiseDeviceSimulator::getDeviceName());
+
+			for (const auto& s : missingInDevice)
+				log(s);
+		}
+
+		if (!connectionErrors.isEmpty())
+		{
+			log("Connection errors");
+
+			for (const auto& s : connectionErrors)
+				log(s);
+		}
+	}
+
+	void compareArrays(const Array<ProcessorConnection>& testArray, const Array<ProcessorConnection>& compareArray, StringArray& missingNames, StringArray& connectionErrors)
+	{
+		for (const auto& item : testArray)
+		{
+			int index = compareArray.indexOf(item);
+
+			if (index == -1)
+			{
+				missingNames.add(item.id.toString());
+				ok = false;
+			}
+			else
+			{
+				const bool processorMatches = item.p == compareArray[index].p;
+				const bool parameterMatches = item.parameterIndex == compareArray[index].parameterIndex;
+
+				if (!processorMatches || !parameterMatches)
+				{
+					ok = false;
+					connectionErrors.add("Connection mismatch for " + item.id);
+				}
+			}
+		}
+	}
+
+	Array<ProcessorConnection> desktopConnections;
+
+	ScriptingApi::Content* content;
+	JavascriptMidiProcessor* mp;
+
+public:
+
+	bool waitingForCompilation = false;
+
+	using TestFunction = std::function<void(HiseDeviceSimulator::DeviceType)>;
+
+	void runTest(CompileExporter::BuildOption option, const TestFunction& tf)
+	{
+		if (HiseDeviceSimulator::getDeviceType() != HiseDeviceSimulator::DeviceType::Desktop)
+			log("Device Type must be Desktop for exporting");
+
+		try
+		{
+			if (CompileExporter::BuildOptionHelpers::isIPad(option))
+			{
+                tf(HiseDeviceSimulator::DeviceType::iPad);
+				tf(HiseDeviceSimulator::DeviceType::iPadAUv3);
+			}
+
+			if (CompileExporter::BuildOptionHelpers::isIPhone(option))
+			{
+				tf(HiseDeviceSimulator::DeviceType::iPhone);
+				tf(HiseDeviceSimulator::DeviceType::iPhoneAUv3);
+			}
+		}
+		catch (String& s)
+		{
+			setDeviceType(HiseDeviceSimulator::DeviceType::Desktop);
+			log(s);
+		}
+
+		setDeviceType(HiseDeviceSimulator::DeviceType::Desktop);
+	}
+
+	
 };
 
 } // namespace hise

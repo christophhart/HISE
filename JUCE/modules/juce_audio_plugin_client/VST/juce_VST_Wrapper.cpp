@@ -182,9 +182,12 @@ struct SharedMessageThread  : public Thread
         initialiseJuce_GUI();
         initialised = true;
 
+        MessageManagerLock mm;
         MessageManager::getInstance()->setCurrentThreadAsMessageThread();
 
+        #if ! JUCE_HEADLESS_PLUGIN_CLIENT
         ScopedXDisplay xDisplay;
+        #endif
 
         while ((! threadShouldExit()) && MessageManager::getInstance()->runDispatchLoopUntil (250))
         {}
@@ -1222,9 +1225,11 @@ public:
             addToDesktop (0, args.ptr);
             hostWindow = (HWND) args.ptr;
            #elif JUCE_LINUX
+            #if ! JUCE_HEADLESS_PLUGIN_CLIENT
             addToDesktop (0, args.ptr);
             hostWindow = (Window) args.ptr;
             XReparentWindow (display.display, (Window) getWindowHandle(), hostWindow, 0, 0);
+            #endif
            #else
             hostWindow = attachComponentToWindowRefVST (this, args.ptr, wrapper.useNSView);
            #endif
@@ -1308,7 +1313,7 @@ public:
 
                    #if ! JUCE_LINUX // setSize() on linux causes renoise and energyxt to fail.
                     setSize (pos.getWidth(), pos.getHeight());
-                   #else
+                   #elif ! JUCE_HEADLESS_PLUGIN_CLIENT
                     XResizeWindow (display.display, (Window) getWindowHandle(), pos.getWidth(), pos.getHeight());
                    #endif
 
@@ -1430,7 +1435,9 @@ public:
        #if JUCE_MAC
         void* hostWindow = {};
        #elif JUCE_LINUX
+        #if ! JUCE_HEADLESS_PLUGIN_CLIENT
         ScopedXDisplay display;
+        #endif
         Window hostWindow = {};
        #else
         HWND hostWindow = {};

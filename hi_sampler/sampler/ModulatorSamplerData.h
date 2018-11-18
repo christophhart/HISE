@@ -38,78 +38,12 @@ namespace hise { using namespace juce;
 class ModulatorSampler;
 class ModulatorSamplerSound;
 
-/** Handles all thumbnail related stuff
-*	@ingroup sampler
-*
-*	Simply call loadThumbNails whenever you change the directory and it takes care of everything.
-*/
-class ThumbnailHandler: public ThreadWithQuasiModalProgressWindow
+
+
+struct SampleMapData
 {
-public:
-
-	/** This loads the thumbnails into the sampler.
-	*
-	*	It looks for a previously saved file and creates a new file if nothing is found.
-	*/
-	static void loadThumbnails(ModulatorSampler* /*sampler*/, const File &/*directory*/)
-	{
-		
-	}
-
-	static void saveNewThumbNails(ModulatorSampler *sampler, const StringArray &newAudioFiles);
-
-private:
-
-	ThumbnailHandler(const File &directoryToLoad, ModulatorSampler *s);;
-
-	ThumbnailHandler(const File &directoryToLoad, const StringArray &fileNames, ModulatorSampler *s);
-
-	static File getThumbnailFile(ModulatorSampler *sampler);;
-
-	static void loadThumbnailsIntoSampler(ModulatorSampler *sampler );
-
-	/** This generates a thumbnail file in the specified directory and loads it into the sampler. */
-	static void generateThumbnailData(ModulatorSampler *sampler, const File &directoryToLoad)
-	{
-		new ThumbnailHandler(directoryToLoad, sampler);
-	}
-
-	void saveThumbnail(AudioThumbnailCache *cache, AudioFormatManager &afm, const File &file)
-	{
-		AudioThumbnail thumb(256, afm, *cache);
-		ScopedPointer<AudioFormatReader> afr = afm.createReaderFor(new FileInputStream(file));
-		
-        if(afr != nullptr)
-        {
-            AudioSampleBuffer buffer(afr->numChannels, (int)afr->lengthInSamples);
-            
-            thumb.reset(afr->numChannels, afr->sampleRate, afr->lengthInSamples);
-            afr->read(&buffer, 0, (int)afr->lengthInSamples, 0, true, true);
-            thumb.addBlock(0, buffer, 0, buffer.getNumSamples());
-            cache->storeThumb(thumb, file.hashCode64());
-        }
-        else
-        {
-            jassertfalse;
-        }
-        
-	}
-
-	void run() override;
-
-	const bool addThumbNailsToExistingCache;
-
-	ScopedPointer<AudioThumbnailCache> writeCache;
-
-	AlertWindowLookAndFeel laf;
-
-	File directory;
-
-	StringArray fileNamesToLoad;
-
-	ModulatorSampler *sampler;
+	ValueTree data;
 };
-
 
 /** A SampleMap is a data structure that encapsulates all data loaded into an ModulatorSampler. 
 *	@ingroup sampler
@@ -119,10 +53,33 @@ private:
 *	It supports two saving modes (monolithic and file-system based).
 *	It only accesses the sampler data when saved or loaded, and uses a ChangeListener to check if a sound has changed.
 */
-class SampleMap: public RestorableObject,
-				 public SafeChangeListener
+class SampleMap: public SafeChangeListener,
+				 public PoolBase::Listener,
+				 public ValueTree::Listener
 {
 public:
+
+	class Listener
+	{
+	public:
+
+		virtual ~Listener() {};
+
+		virtual void sampleMapWasChanged(PoolReference newSampleMap) = 0;
+
+		virtual void samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& newValue) 
+		{
+			ignoreUnused(s, id, newValue);
+		};
+
+		virtual void sampleAmountChanged() {};
+
+		virtual void sampleMapCleared() {};
+
+	private:
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+	};
 
 	/** A SamplerMap can be saved in multiple modes. */
 	enum SaveMode
@@ -153,16 +110,9 @@ public:
 	FileList createFileList();
 
 	~SampleMap()
-	{
-		if(!monolith) saveIfNeeded();
-	};
+	{};
 
 	/** Checks if the samplemap was changed and deletes it. */
-	void saveIfNeeded();
-
-	/** writes all loaded samples into the '/samples' subdirectory. */
-	void saveAllSoundsToSubdirectory();
-	
 	void changeListenerCallback(SafeChangeBroadcaster *b);
 
 	/** Checks if any ModulatorSamplerSound was changed since the last save. 
@@ -172,37 +122,17 @@ public:
 	*/
 	bool hasUnsavedChanges() const
 	{
-		return false; //fileOnDisk == File() || changed;
+		return changeWatcher != nullptr && changeWatcher->wasChanged();
 	}
 
-	/** Returns the file on the disk. */
-	File getFile() const {return fileOnDisk;};
+	void load(const PoolReference& reference);
 
-	/** loads a XML file from disk. 
-	*
-	*	It parses the file and calls restoreFromValue().
-	*/
-	void load(const File &f);
-
-	/** Restores the samplemap from the ValueTree.
-	*
-	*	If the files are saved in relative mode, the references are replaced
-	*	using the parent directory of the sample map before they are loaded.
-	*	If the files are saved as monolith, it assumes the files are already loaded and simply adds references to this samplemap.
-	*/
-	void restoreFromValueTree(const ValueTree &v) override;
-	
-	/** Exports the SampleMap as ValueTree.
-	*
-	*	If the relative mode is enabled, it writes the files to the subdirectory '/samples',
-	*	if they don't exist yet.
-	*/
-	ValueTree exportAsValueTree() const override;	
-
-	void replaceFileReferences(ValueTree &soundTree) const;
+	void loadUnsavedValueTree(const ValueTree& v);
 
 	/** Saves all data with the mode depending on the file extension. */
 	void save();
+
+	void saveSampleMapAsReference();
 
 	void saveAsMonolith(Component* mainEditor);
 
@@ -210,48 +140,302 @@ public:
 
 	bool isMonolith() const noexcept { return mode == SaveMode::Monolith; };
 
-	/** returns the default sample directory (the sample map directory + '/samples'. */
-	String getSampleDirectory() const
-	{
-		if(fileOnDisk == File()) return String();
-
-		return fileOnDisk.getParentDirectory().getFullPathName() + "/samples/";
-	};
-
 	/** Clears the sample map. */
-    void clear();
+    void clear(NotificationType n);
 	
 	ModulatorSampler* getSampler() const { return sampler; }
 	
-	void replaceReferencesWithGlobalFolder();
+	String getMonolithID() const;
 
-    void setId(Identifier newIdentifier)
+	void setId(Identifier newIdentifier)
     {
-        sampleMapId = newIdentifier;
+        sampleMapId = newIdentifier.toString();
+		data.setProperty("ID", sampleMapId.toString(), nullptr);
     }
     
     Identifier getId() const { return sampleMapId; };
     
-	static String checkReferences(ValueTree& v, const File& sampleRootFolder, Array<File>& sampleList);
+	static String checkReferences(MainController* mc, ValueTree& v, const File& sampleRootFolder, Array<File>& sampleList);
 
+	void addSound(ValueTree& newSoundData);
+
+	void removeSound(ModulatorSamplerSound* s);
+
+	/** Exports the SampleMap as ValueTree.
+	*
+	*	If the relative mode is enabled, it writes the files to the subdirectory '/samples',
+	*	if they don't exist yet.
+	*/
+	const ValueTree getValueTree() const;
+
+	PoolReference getReference() const
+	{
+		return sampleMapData.getRef();
+	}
+
+	void poolEntryReloaded(PoolReference referenceThatWasChanged) override;
+
+	bool isUsingUnsavedValueTree() const
+	{
+		return !sampleMapData && data.getNumChildren() != 0;
+	}
+
+	void addListener(Listener* l)
+	{
+		listeners.addIfNotAlreadyThere(l);
+	}
+
+	void removeListener(Listener* l)
+	{
+		listeners.removeAllInstancesOf(l);
+	}
+
+	void sendSampleMapChangeMessage(NotificationType n=sendNotificationAsync)
+	{
+		notifier.sendMapChangeMessage(n);
+	}
+
+	void valueTreePropertyChanged(ValueTree& /*treeWhosePropertyHasChanged*/,
+		const Identifier& /*property*/);
+
+	void valueTreeChildAdded(ValueTree& parentTree,
+		ValueTree& childWhichHasBeenAdded) override;;
+
+	void addSampleFromValueTree(ValueTree childWhichHasBeenAdded);
+
+	void sendSampleAddedMessage();
+
+	void valueTreeChildRemoved(ValueTree& parentTree,
+		ValueTree& childWhichHasBeenRemoved,
+		int indexFromWhichChildWasRemoved) override;;
+
+	void sendSampleDeletedMessage(ModulatorSampler * sampler);
+
+	void valueTreeChildOrderChanged(ValueTree& /*parentTreeWhoseChildrenHaveMoved*/,
+		int /*oldIndex*/, int /*newIndex*/) override {};
+
+	void valueTreeParentChanged(ValueTree& /*treeWhoseParentHasChanged*/) override {};
+
+	void valueTreeRedirected(ValueTree& /*treeWhichHasBeenChanged*/) override {};
+
+	ModulatorSamplerSound* getSound(int index);
+	const ModulatorSamplerSound* getSound(int index) const;
+
+	int getNumRRGroups() const;
+
+	void saveAndReloadMap();
 private:
 
-	void resolveMissingFiles(ValueTree &treeToUse);
+	struct ChangeWatcher : private ValueTree::Listener
+	{
+	public:
 
-	void loadSamplesFromDirectory(const ValueTree &v);
+		ChangeWatcher(ValueTree& v) :
+			d(v)
+		{
+			d.addListener(this);
+		}
 
-	void loadSamplesFromMonolith(const ValueTree &v);
+		~ChangeWatcher()
+		{
+			d.removeListener(this);
+		}
+
+		bool wasChanged() const
+		{
+			return changed;
+		}
+
+	private:
+
+		ValueTree d;
+
+		void valueTreePropertyChanged(ValueTree& /*treeWhosePropertyHasChanged*/,
+			const Identifier& /*property*/)
+		{
+			changed = true;
+		}
+
+		void valueTreeChildAdded(ValueTree& /*parentTree*/,
+			ValueTree& /*childWhichHasBeenAdded*/) override
+		{
+			changed = true;
+		}
+
+		void valueTreeChildRemoved(ValueTree& /*parentTree*/,
+			ValueTree& /*childWhichHasBeenRemoved*/,
+			int /*indexFromWhichChildWasRemoved*/) override
+		{
+			changed = true;
+		}
+
+		void sendSampleDeletedMessage(ModulatorSampler * sampler);
+
+		void valueTreeChildOrderChanged(ValueTree& /*parentTreeWhoseChildrenHaveMoved*/,
+			int /*oldIndex*/, int /*newIndex*/) override {};
+
+		void valueTreeParentChanged(ValueTree& /*treeWhoseParentHasChanged*/) override {};
+
+		void valueTreeRedirected(ValueTree& /*treeWhichHasBeenChanged*/) override {};
+
+		bool changed = false;
+
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ChangeWatcher);
+	};
+
+	void setCurrentMonolith();
+
+	struct ScopedNotificationDelayer
+	{
+		ScopedNotificationDelayer(SampleMap& parent_):
+			parent(parent_)
+		{
+			parent.delayNotifications = true;
+		};
+
+		~ScopedNotificationDelayer()
+		{
+			parent.delayNotifications = false;
+
+			if (parent.notificationPending)
+				parent.sendSampleAddedMessage();
+			
+		}
+
+		SampleMap& parent;
+	};
+
+	bool delayNotifications = false;
+	bool notificationPending = false;
+	
+
+	struct Notifier: public Dispatchable
+	{
+		Notifier(SampleMap& parent_);
+
+		void sendMapChangeMessage(NotificationType n);
+
+		void sendMapClearMessage(NotificationType n);
+
+		void addPropertyChange(int index, const Identifier& id, const var& newValue);
+		void sendSampleAmountChangeMessage(NotificationType n);
+
+	private:
+
+		struct Collector : public LockfreeAsyncUpdater
+		{
+			Collector(Notifier& parent_) :
+				parent(parent_)
+			{};
+
+			void handleAsyncUpdate() override;
+
+		private:
+
+			
+
+			Notifier& parent;
+		};
+
+		struct AsyncPropertyChange
+		{
+			AsyncPropertyChange():
+				id({})
+			{
+			}
+
+			AsyncPropertyChange(ModulatorSamplerSound* sound, const Identifier& id, const var& newValue);
+
+			bool operator==(const Identifier& id_) const
+			{
+				return id == id_;
+			}
+
+			Array<SynthesiserSound::Ptr> selection;
+			Array<var> values;
+
+			Identifier id;
+
+			void addPropertyChange(ModulatorSamplerSound* sound, const var& newValue);
+
+		};
+
+		struct PropertyChange
+		{
+			PropertyChange():
+				index(-1)
+			{};
+
+			bool operator==(int indexToCompare) const
+			{
+				return indexToCompare == index;
+			}
+
+			void set(const Identifier& id, const var& newValue);
+
+			int index;
+
+			NamedValueSet propertyChanges;
+
+			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PropertyChange);
+		};
+
+		void handleHeavyweightPropertyChangesIdle(const Array<AsyncPropertyChange, CriticalSection>& thisTime);
+
+		void handleHeavyweightPropertyChanges();
+		void handleLightweightPropertyChanges();
+
+		void triggerHeavyweightUpdate();
+		void triggerLightWeightUpdate();
+
+		ScopedPointer<ChangeWatcher> changeWatcher;
+
+		Collector asyncUpdateCollector;
+
+		OwnedArray<PropertyChange, CriticalSection> pendingChanges;
+		Array<AsyncPropertyChange, CriticalSection> asyncPendingChanges;
+
+		bool lightWeightUpdatePending = false;
+		bool heavyWeightUpdatePending = false;
+
+		bool mapWasChanged = false;
+		bool sampleAmountWasChanged = false;
+		SampleMap& parent;
+	};
+
+	ScopedPointer<ChangeWatcher> changeWatcher;
+
+	Notifier notifier;
+
+	/** Restores the samplemap from the ValueTree.
+	*
+	*	If the files are saved in relative mode, the references are replaced
+	*	using the parent directory of the sample map before they are loaded.
+	*	If the files are saved as monolith, it assumes the files are already loaded and simply adds references to this samplemap.
+	*/
+	void parseValueTree(const ValueTree &v);
+
+	PooledSampleMap sampleMapData;
+
+	ValueTree data;
+
+	void setNewValueTree(const ValueTree& v);
 
 	ModulatorSampler *sampler;
 
-	SaveMode mode;
+	CachedValue<int> mode;
 
-	File fileOnDisk;
-	bool changed;
-	bool monolith;
+	WeakReference<SampleMapPool> currentPool;
+
+	Array<WeakReference<Listener>, CriticalSection> listeners;
+
+	HlacMonolithInfo::Ptr currentMonolith;
 
     Identifier sampleMapId;
     
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SampleMap);
+
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SampleMap)
 		
 };
@@ -283,7 +467,7 @@ private:
 
 };
 
-
+#if HI_ENABLE_EXPANSION_EDITING
 class MonolithExporter : public DialogWindowWithBackgroundThread,
 						 public AudioFormatWriter
 {
@@ -291,14 +475,7 @@ public:
 
 	MonolithExporter(SampleMap* sampleMap_);
 
-	MonolithExporter(const String &name, ModulatorSynthChain* chain) :
-		DialogWindowWithBackgroundThread(name),
-		AudioFormatWriter(nullptr, "", 0.0, 0, 1),
-		sampleMapDirectory(GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps)),
-		monolithDirectory(GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::Samples)),
-		sampleMap(nullptr)
-	{
-	}
+	MonolithExporter(const String &name, ModulatorSynthChain* chain);
 
 	~MonolithExporter()
 	{
@@ -358,6 +535,27 @@ private:
 
 	String error;
 };
+
+class BatchReencoder : public MonolithExporter,
+	public ControlledObject
+{
+public:
+
+	BatchReencoder(ModulatorSampler* s);;
+
+	void run() override;
+
+	void reencode(PoolReference r);
+
+private:
+
+	double wholeProgress = 0.0;
+
+	WeakReference<ModulatorSampler> sampler;
+
+};
+
+#endif
 
 } // namespace hise
 #endif  // MODULATORSAMPLERDATA_H_INCLUDED

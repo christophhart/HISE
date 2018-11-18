@@ -35,15 +35,32 @@
 
 namespace hise { using namespace juce;
 
-/** A hardcoded midi script arpeggiator.
+/** A MIDI arpeggiator.
+	@ingroup midiTypes
 *
-*	This code is based on a script by Elan Hickler
+*	A general purpose arpeggiator that can be used to build sequenced patches.
+*	This code is based on a script by Elan Hickler.
 */
 class Arpeggiator : public HardcodedScriptProcessor,
 	public SliderPackProcessor,
 	public MidiControllerAutomationHandler::MPEData::Listener
 {
 public:
+
+	enum Parameters
+	{
+		Bypass = 0,
+		Reset,
+		NumSteps,
+		StepReset,
+		Stride,
+		SortKeys,
+		Tempo,
+		Direction,
+		OctaveRange,
+		Shuffle,
+		CurrentStep
+	};
 
 	Arpeggiator(MainController *mc, const String &id, ModulatorSynth *ms);;
 
@@ -73,13 +90,15 @@ public:
 
 	void onController() override;
 
+	void onAllNotesOff() override;
+
 	void onTimer(int /*offsetInBuffer*/);
 
 	void playNote();;
 
-	
-
 private:
+
+	bool killIncomingNotes = true;
 
 	void sendNoteOff(int eventId);
 
@@ -109,12 +128,11 @@ private:
 
 	
 
-	Array<NoteWithChannel> userHeldKeysArray;
-	Array<NoteWithChannel> userHeldKeysArraySorted;
-	Array<NoteWithChannel> MidiSequenceArray;
-	Array<NoteWithChannel> MidiSequenceArraySorted;
-
-	Array<int> currentlyPlayingEventIds;
+	Array<NoteWithChannel, DummyCriticalSection, 256> userHeldKeysArray;
+	Array<NoteWithChannel, DummyCriticalSection, 256> userHeldKeysArraySorted;
+	Array<NoteWithChannel, DummyCriticalSection, 256> MidiSequenceArray;
+	Array<NoteWithChannel, DummyCriticalSection, 256> MidiSequenceArraySorted;
+	Array<int, DummyCriticalSection, 256> currentlyPlayingEventIds;
 	
 	struct MPEValues
 	{
@@ -197,6 +215,21 @@ private:
 	bool shuffleNextNote = false;
 
 	Random r;
+
+	bool shouldFilterMessage(int channel)
+	{
+		if (mpeMode)
+		{
+			if (channel == 1)
+				return false;
+
+			return channel < mpeStart || channel > mpeEnd;
+		}
+		else
+		{
+			return channelFilter > 0 && channel != channelFilter;
+		}
+	}
 
 	void changeDirection();;
 
@@ -298,6 +331,13 @@ private:
 	ScriptSlider shuffleSlider;
 	ScriptComboBox inputMidiChannel;
 	ScriptComboBox outputMidiChannel;
+	ScriptComboBox mpeStartChannel;
+	ScriptComboBox mpeEndChannel;
+
+	int mpeStart = 2;
+	int mpeEnd = 16;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(Arpeggiator);
 };
 
 

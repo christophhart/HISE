@@ -260,7 +260,11 @@ MidiSourcePanel::MidiSourcePanel(FloatingTile* parent) :
 {
 	setDefaultPanelColour(PanelColourId::bgColour, Colours::black);
 
+#if HISE_IOS || IS_STANDALONE_APP
 	StringArray midiInputs = MidiInput::getDevices();
+#else
+	StringArray midiInputs;
+#endif
 
 	numMidiDevices = midiInputs.size();
 
@@ -297,7 +301,11 @@ void MidiSourcePanel::resized()
 
 void MidiSourcePanel::periodicCheckCallback(ToggleButtonList* list)
 {
+#if HISE_IOS || IS_STANDALONE_APP
 	const StringArray devices = MidiInput::getDevices();
+#else
+	StringArray devices;
+#endif
 
 	if (numMidiDevices != devices.size())
 	{

@@ -117,7 +117,7 @@ private:
     
 	void rebuildLines();
 
-	struct Rebuilder : public AsyncUpdater
+	struct Rebuilder : public LockfreeAsyncUpdater
 	{
 		Rebuilder(ScriptWatchTable* parent_):
 			parent(parent_)

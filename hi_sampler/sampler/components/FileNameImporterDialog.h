@@ -20,31 +20,10 @@
 #ifndef __JUCE_HEADER_44A2A0BCCC20A6FE__
 #define __JUCE_HEADER_44A2A0BCCC20A6FE__
 
-//[Headers]     -- You can add your own extra header files here --
  namespace hise { using namespace juce;
-//[/Headers]
 
 //==============================================================================
-/**
-                                                                    //[Comments]
-*	@endinternal
-*
-*	@class FileNameImporterDialog
-*	@ingroup components
-*
-*	@brief A component that allows to specify certain tokens within a file name pattern
-*	and associate them with a ModulatorSamplerSound::Property.
-*	This can be used to set the basic data (Everything that can be stored in SampleImporter::SamplerSoundBasicData) automatically
-*	when new sounds are imported.
-*
-*	You have to specify a seperator character and it divides the file name and shows a FileNamePartComponent for all detected tokens.
-*
-*	You can import and export the panel settings (it copies an XML string into the clipboard so you can do whatever you need to do with it)
-*	to save some time when importing multiple but similar file selections.
-*
-*	@internal
-                                                                    //[/Comments]
-*/
+
 class FileNameImporterDialog  : public Component,
                                 public LabelListener,
                                 public ButtonListener
@@ -55,7 +34,6 @@ public:
     ~FileNameImporterDialog();
 
     //==============================================================================
-    //[UserMethods]     -- You can add your own custom methods in this section.
 
 	/** set the separator character. Multiple characters are not allowed. */
 	void setSeparator(String separator)
@@ -79,7 +57,6 @@ public:
 
 		for(int i = 0; i < tokens.size(); i++)
 		{
-
 			FileNamePartComponent *tp = new FileNamePartComponent(tokens[i]);
 
 			addAndMakeVisible(tp);
@@ -88,9 +65,6 @@ public:
 			y += 50;
 
 			tokenPanels.add(tp);
-
-
-
 		}
 
 	};
@@ -115,8 +89,10 @@ public:
 		{
 			SampleImporter::SamplerSoundBasicData data;
 
+			PoolReference ref(sampler->getMainController(), fileNames[i], FileHandlerBase::Samples);
+
 			data.index = startIndex + i;
-			data.fileNames.add(fileNames[i]);
+			data.files.add(ref);
 			collection.dataList.add(data);
 
 			StringArray currentTokens;
@@ -135,17 +111,12 @@ public:
 
 	const StringArray &getFileNameList() { return relativeFileNames; }
 
-    //[/UserMethods]
-
     void paint (Graphics& g);
     void resized();
     void labelTextChanged (Label* labelThatHasChanged);
     void buttonClicked (Button* buttonThatWasClicked);
 
-
-
 private:
-    //[UserVariables]   -- You can add your own custom variables in this section.
 
 	void restoreFromXml(const String& xmlData);
 
@@ -160,10 +131,8 @@ private:
 	OwnedArray<FileNamePartComponent> tokenPanels;
 
 	ModulatorSampler *sampler;
-
 	AlertWindowLookAndFeel laf;
 
-    //[/UserVariables]
 
     //==============================================================================
     ScopedPointer<Label> separatorLabel;
@@ -178,18 +147,17 @@ private:
     ScopedPointer<TextButton> pasteButton;
     ScopedPointer<TextButton> saveButton;
     ScopedPointer<TextButton> loadButton;
+	ScopedPointer<TextButton> clearButton;
 
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileNameImporterDialog)
 };
 
-//[EndFile] You can add extra defines here...
 
 
 /** \endcond */
 } // namespace hise
 
-//[/EndFile]
 
 #endif   // __JUCE_HEADER_44A2A0BCCC20A6FE__

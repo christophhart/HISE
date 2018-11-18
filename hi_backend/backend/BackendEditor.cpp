@@ -36,13 +36,12 @@ namespace hise { using namespace juce;
 
 BackendProcessorEditor::BackendProcessorEditor(FloatingTile* parent) :
 FloatingTileContent(parent),
+PreloadListener(parent->getMainController()->getSampleManager()),
 owner(static_cast<BackendProcessor*>(parent->getMainController())),
 parentRootWindow(parent->getBackendRootWindow()),
 rootEditorIsMainSynthChain(true),
 isLoadingPreset(false)
 {
-	owner->getSampleManager().addPreloadListener(this);
-
     setOpaque(true);
 
 	setLookAndFeel(&lookAndFeelV3);
@@ -63,8 +62,6 @@ isLoadingPreset(false)
 
 BackendProcessorEditor::~BackendProcessorEditor()
 {
-	owner->getSampleManager().removePreloadListener(this);
-
 	owner->removeScriptListener(this);
 	
 	// Remove the popup components
@@ -117,16 +114,6 @@ void BackendProcessorEditor::setRootProcessor(Processor *p, int scrollY/*=0*/)
 	currentRootProcessor = p;
 	container->setRootProcessorEditor(p);
 	
-	Processor::Iterator<Processor> iter(owner->synthChain, false);
-
-	Processor *iterProcessor;
-
-	while ((iterProcessor = iter.getNextProcessor()) != nullptr)
-	{
-		if ((bool)iterProcessor->getEditorState("Solo"))
-			addProcessorToPanel(iterProcessor);
-	}
-
 	breadCrumbComponent->refreshBreadcrumbs();
 
 	if (scrollY != 0)
@@ -348,7 +335,7 @@ void BackendProcessorEditor::loadNewContainer(const File &f)
 		GET_PROJECT_HANDLER(getMainSynthChain()).setWorkingProject(f.getParentDirectory().getParentDirectory(), this);
 	}
 
-	owner->killAndCallOnLoadingThread([f](Processor* p) {p->getMainController()->loadPresetFromFile(f, nullptr); return true; });
+	owner->killAndCallOnLoadingThread([f](Processor* p) {p->getMainController()->loadPresetFromFile(f, nullptr); return SafeFunctionCall::OK; });
 }
 
 void BackendProcessorEditor::refreshInterfaceAfterPresetLoad()
@@ -375,7 +362,8 @@ void BackendProcessorEditor::loadNewContainer(const ValueTree &v)
 	}
 	else
 	{
-		owner->killAndCallOnLoadingThread([v](Processor* p) {p->getMainController()->loadPresetFromValueTree(v, nullptr); return true; });
+		owner->killAndCallOnLoadingThread([v](Processor* p) {p->getMainController()->loadPresetFromValueTree(v, nullptr); return SafeFunctionCall::OK; });
+
 	}
 
 	
@@ -392,7 +380,7 @@ void BackendProcessorEditor::clearPreset()
 	isLoadingPreset = true;
 	viewport->showPreloadMessage(true);
 
-	owner->killAndCallOnLoadingThread([](Processor* p) {p->getMainController()->clearPreset(); return true; });
+	owner->killAndCallOnLoadingThread([](Processor* p) {p->getMainController()->clearPreset(); return SafeFunctionCall::OK; });
 
 }
 
@@ -563,10 +551,10 @@ public:
 		sizeSelector->addListener(this);
 		sizeSelector->setTextWhenNothingSelected("Select Preset Size");
 
-		sizeSelector->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, Colour(0x66333333));
-		sizeSelector->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, Colour(0xfb111111));
-		sizeSelector->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::white.withAlpha(0.3f));
-		sizeSelector->setColour(MacroControlledObject::HiBackgroundColours::textColour, Colours::white);
+		sizeSelector->setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
+		sizeSelector->setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
+		sizeSelector->setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
+		sizeSelector->setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
 
 		addAndMakeVisible(widthLabel = new Label("width"));
 		addAndMakeVisible(heightLabel = new Label("height"));
@@ -625,7 +613,7 @@ public:
 
 				String code = "Content.makeFrontInterface(" + String(getWidth()) + ", " + String(getHeight()) + ");";
 
-				jsp->getSnippet(0)->replaceAllContent(code);
+				jsp->getSnippet(0)->replaceContentAsync(code);
 				jsp->compileScript();
 
 				midiChain->getHandler()->add(s, nullptr);
@@ -652,8 +640,12 @@ public:
                 
                 editorOfParent->getChainBar()->refreshPanel();
                 editorOfParent->sendResizedMessage();
-                editorOfChain->changeListenerCallback(editorOfChain->getProcessor());
-                editorOfChain->childEditorAmountChanged();
+                
+                if(editorOfChain != nullptr)
+                {
+                    editorOfChain->changeListenerCallback(editorOfChain->getProcessor());
+                    editorOfChain->childEditorAmountChanged();
+                }
 			}
 		}
 
@@ -764,7 +756,7 @@ public:
 private:
 
 	AlertWindowLookAndFeel alaf;
-	KnobLookAndFeel klaf;
+	GlobalHiseLookAndFeel klaf;
 
 	ScopedPointer<Label> widthLabel;
 	ScopedPointer<Label> heightLabel;
@@ -785,7 +777,7 @@ void MainTopBar::popupChanged(Component* newComponent)
 	bool settingsShouldBeOn = (newComponent != nullptr && newComponent->getName() == "Settings");
 	bool previewShouldBeShown = (newComponent != nullptr && newComponent->getName() == "Interface Preview") ||
 								(newComponent != nullptr && newComponent->getName() == "Create User Interface");
-	bool presetBrowserShown = dynamic_cast<MultiColumnPresetBrowser*>(newComponent) != nullptr;
+	bool presetBrowserShown = dynamic_cast<PresetBrowser*>(newComponent) != nullptr;
 
 	setColoursForButton(macroButton, macroShouldBeOn);
 	setColoursForButton(settingsButton, settingsShouldBeOn);
@@ -1029,14 +1021,15 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 	}
 	case PopupType::PresetBrowser:
 	{
-		MultiColumnPresetBrowser* pr = new MultiColumnPresetBrowser(mc, 700, 500);
+		PresetBrowser* pr = new PresetBrowser(mc, 700, 500);
 
-		pr->setShowCloseButton(false);
+		PresetBrowser::Options newOptions;
 
-		Colour c2 = Colours::black.withAlpha(0.8f);
-		Colour c1 = Colour(SIGNAL_COLOUR);
+		newOptions.highlightColour = Colour(SIGNAL_COLOUR);
+		newOptions.backgroundColour = Colours::black.withAlpha(0.8f);
+		newOptions.font = GLOBAL_BOLD_FONT();
 
-		pr->setHighlightColourAndFont(c1, c2, GLOBAL_BOLD_FONT());
+		pr->setOptions(newOptions);
 
 		c = dynamic_cast<Component*>(pr);
 

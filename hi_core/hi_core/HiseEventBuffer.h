@@ -37,94 +37,93 @@ namespace hise { using namespace juce;
 
 #define HISE_EVENT_ID_ARRAY_SIZE 16384
 
-/** This is a replacement of the standard midi message with more data. */
+/** The event type of HISE.
+	@ingroup core
+	
+	This is an enhancement of the MIDI Standard and is used for all internal
+	events in the audio path of HISE.
+	
+	The MIDI standard (and its implementation of JUCE) have a few limitations
+	and misses some convenient data. Therefore, a new event type was introduced,
+	with the following additions:
+	
+	- fixed size. The MIDI message has to have a dynamic size for handling
+	  SysEx messages, which is not used in 99,9999% of all cases. The HiseEvent
+	  simply ignores SysEx (there are better ways to communicate bigger chunks
+	  of data anyways) and uses a fixed size of 128bit per message. This makes
+	  copying / clearing the HiseEventBuffer trivially fast (just a memset / memcpy)
+	- note-on / note-off messages will be associated with a unique index (the
+	  EventID), which can be used to alter all voices that are started by
+	  the event.
+	- more types for internal actions like timer events, pitch / volume fades
+	- a timestamp that is baked into the message.
+	- 128 channels instead of 16 MIDI channels. 16 is a pretty low number and
+	  if you use the channel information to route the signals to certain 
+	  Processors, you might hit this limitation pretty easily.
+	- a transpose amount that will be added on top of the actual note number.
+	  This heavily simplifies any MIDI processing that changes the note number
+	  because the note off event does not need to be transposed to match the
+	  note on in order to prevent stuck notes
+	- a few flags that describe the state and origin of the note (whether the
+	  message should be processed at all or if it was created internally).
+
+	Most of its methods aim to be fully compatible to the juce::MidiMessage class,
+	so if you're used to this class, you will find your way around this class 
+	pretty quickly.
+
+
+	*/
 class HiseEvent
 {
 public:
 
+	/** The type of the event. The most important MIDI types are there, but there are a few
+	    more interesting types for internal HISE stuff. */
 	enum class Type : uint8
 	{
-		Empty = 0,
-		NoteOn,
-		NoteOff,
-		Controller,
-		PitchBend,
-		Aftertouch,
-		AllNotesOff,
-		SongPosition,
-		MidiStart,
-		MidiStop,
-		VolumeFade,
-		PitchFade,
-		TimerEvent,
-		ProgramChange,
+		Empty = 0, ///< an empty event (as created by the default constructor)
+		NoteOn,	///< a note on event (which will get a unique EventID upon creation).
+		NoteOff, ///< a note-off event (with the same EventID as its corresponding note-on)
+		Controller, ///< a MIDI CC message
+		PitchBend, ///< a 14-bit pitch-bend message
+		Aftertouch, ///< an aftertouch message (both channel aftertouch and polyphonic aftertouch)
+		AllNotesOff, ///< an all notes off message.
+		SongPosition, ///< the position of the DAW transport
+		MidiStart, ///< indicated the start of the playback in the DAW
+		MidiStop, ///< indicates the stop of the DAW playback
+		VolumeFade, ///< a volume fade that is applied to all voices started with the given EventID
+		PitchFade, ///< a pitch fade that is applied to all voices started with the given EventID
+		TimerEvent, ///< this event will fire the onTimer callback of MIDI Processors.
+		ProgramChange, ///< the MIDI ProgramChange message.
 		numTypes
 	};
 
-	/** Creates an empty Hise event. */
+	/** Creates an empty HiseEvent. */
 	HiseEvent() {};
 
-	/** Creates a Hise event from a MIDI message. */
+	/** Creates a HiseEvent from a MIDI message. */
 	HiseEvent(const MidiMessage& message);
 
-	HiseEvent(Type type_, uint8 number_, uint8 value_, uint8 channel_ = 1):
-		type(type_),
-		number(number_),
-		value(value_),
-		channel(channel_)
-	{
+	/** Creates a HiseEvent with the given data. */
+	HiseEvent(Type type_, uint8 number_, uint8 value_, uint8 channel_ = 1);
 
-	}
+	/** Creates a bit-wise copy of another event. */
+	HiseEvent(const HiseEvent &other) noexcept;
 
-	HiseEvent(const HiseEvent &other) noexcept
-	{
-		// Only works with struct size of 16 bytes...
-		jassert(sizeof(HiseEvent) == 16);
+	/** checks whether the event is equal to another. This checks for
+		bit-equality. */
+	bool operator==(const HiseEvent &other) const;
 
-		uint64* data = reinterpret_cast<uint64*>(this);
+	/** Swaps the event with another. */
+	void swapWith(HiseEvent &other);
 
-		const uint64* otherData = reinterpret_cast<const uint64*>(&other);
-
-		data[0] = otherData[0];
-		data[1] = otherData[1];
-	}
-
-	
-
-	bool operator==(const HiseEvent &other) const
-	{
-		// Only works with struct size of 16 bytes...
-		jassert(sizeof(HiseEvent) == 16);
-
-		const uint64* data = reinterpret_cast<const uint64*>(this);
-
-		const uint64* otherData = reinterpret_cast<const uint64*>(&other);
-
-		return data[0] == otherData[0] && data[1] == otherData[1];
-	}
-
-	void swapWith(HiseEvent &other)
-	{
-		// Only works with struct size of 16 bytes...
-		jassert(sizeof(HiseEvent) == 16);
-
-		uint64* data = reinterpret_cast<uint64*>(this);
-
-		const uint64 first = data[0];
-		const uint64 second = data[1];
-
-		uint64* otherData = reinterpret_cast<uint64*>(&other);
-
-		*data++ = *otherData;
-		*data = otherData[1];
-		*otherData++ = first;
-		*otherData = second;
-	}
-
+	/** Returns the Type of the HiseEvent. */
 	Type getType() const noexcept { return type; }
 
+	/** Returns a String representation of the type. */
 	String getTypeAsString() const noexcept;
 
+	/** Changes the type. Don't use this unless you know why. */
 	void setType(Type t) noexcept { type = t; }
 
 	/** Checks if the message was marked as ignored (by a script). */
@@ -133,16 +132,51 @@ public:
 	/** Ignores the event. Ignored events will not be processed, but remain in the buffer (they are not cleared). */
     void ignoreEvent(bool shouldBeIgnored) noexcept{ ignored = shouldBeIgnored; };
 
+	/** Returns the event ID of the message. The event IDs will be automatically created
+	    by HISE when it is processing the incoming MIDI messages and associates sequentially
+		increasing IDS for each note-on and its corresponding note-off event. 
+		
+		Be aware the the event ID is stored as unsigned 16 bit integer, so it will wrap around
+		65536. It's highly unlikely that you will hit any collisions, but you can't expect that 
+		older notes have a higher event ID.
+	*/
 	uint16 getEventId() const noexcept{ return eventId; };
 
+	/** Sets the event ID of the HiseEvent. Normally you don't need to do this because HISE
+	    will automatically assign this to note-on / note-off messages, but for all the types
+		that alter an existing event (like volume-fades), this can be used for setting the
+		target event.
+	*/
 	void setEventId(uint16 newEventId) noexcept{ eventId = (uint16)newEventId; };
 
+	/** If the event was created artificially by a MIDI Processor, it will call this method.
+		You don't need to use this yourself. */
     void setArtificial() noexcept { artificial = true; }
+
+	/** Returns true if this method was created artificially. 
+	
+		Events that come in as MIDI message (no matter if their origin is in an actual key
+		press or if there was a previous MIDI processor (like an arpeggiator) that created
+		it, will be flagged as "non-artificial". Events that are created within HISE are 
+		flagged as "artificial".
+		
+		This information can be useful sometimes in order to prevent endless recursive loops.
+		Also, the HiseEventBuffer::Iterator class can be told to skip artificial events. 
+	*/
     bool isArtificial() const noexcept{ return artificial; };
 
+	/** Sets the transpose amount of the given event ID.
 	
+		Unlike changing the note-number directly, this method will keep the original note
+		number so that you don't have to process the note-off number to match the note-on.
 
+		This is the recommended way of handling all note-number processing in HISE.
+	*/
 	void setTransposeAmount(int newTransposeValue) noexcept{ transposeValue = (int8)newTransposeValue; };
+
+	/** Returns the transpose amount. Be aware that you need to take this into account when
+		you need the actual note-number of an HiseEvent.
+	*/
 	int getTransposeAmount() const noexcept{ return (int)transposeValue; };
 
 	/** Sets the coarse detune amount in semitones. */
@@ -157,107 +191,202 @@ public:
 	/** Returns the fine detune amount int cents. */
 	int getFineDetune() const noexcept{ return (int)cents; };
 
-	/** Returns a ready to use pitchfactor (from 0.5 ... 2.0) */
+	/** Returns a ready to use pitch factor (from 0.5 ... 2.0) */
 	double getPitchFactorForEvent() const;
 
 	/** Sets the gain in decibels for this note. */
 	void setGain(int decibels) noexcept{ gain = (int8)decibels; };
 
+	/** returns the gain in decibels. */
 	int getGain() const noexcept{ return gain; };
 
+	/** Returns the gain factor (from 0...1) for the given event. */
 	float getGainFactor() const noexcept { return Decibels::decibelsToGain((float)gain); };
 
+	/** Creates a volume fade.
+		@param eventId the event ID that this fade should be applied to.
+		@param fadeTimeMilliseconds the fade time (it will be a linear fade).
+		@targetValue the target gain in decibels.
+	*/
 	static HiseEvent createVolumeFade(uint16 eventId, int fadeTimeMilliseconds, int8 targetValue);
 
+	/** Creates a pitch fade.
+		@param eventID the ID of the event that will be changed.
+		@param fadeTimeMilliseconds the length of the fade.
+		@param coarseTune the target pitch in semitones
+		@param fineTune the target pitch detune in cent.
+	*/
 	static HiseEvent createPitchFade(uint16 eventId, int fadeTimeMilliseconds, int8 coarseTune, int8 fineTune);
 
+	/** Creates a timer event.
+		@param timerIndex There are 4 timer slots per sound generator and this will
+		                  contain the index (0-3).
+		@param offset the sample offset within the current buffer [0 - buffer size).
+	*/
 	static HiseEvent createTimerEvent(uint8 timerIndex, uint16 offset);
 
+	/** Returns true if the event is a volume fade. */
 	bool isVolumeFade() const noexcept{ return type == Type::VolumeFade; };
+
+	/** Returns true if the event is a pitch fade. */
 	bool isPitchFade() const noexcept { return type == Type::PitchFade; };
 	
+	/** Returns the fade time for both pitch and volume fades. */
 	int getFadeTime() const noexcept{ return getPitchWheelValue(); };
 
+	/** Returns true if the event is a timer event. */
 	bool isTimerEvent() const noexcept { return type == Type::TimerEvent; };
+
+	/** Returns the index of the timer slot. */
 	int getTimerIndex() const noexcept { return channel; }	
 
 	// ========================================================================================================================== MIDI Message methods
 
+	/** Returns the timestamp of the message. The timestamp is the offset from 
+	    the current buffer start. If the timestamp is bigger than the current
+		buffer size, the message will be delayed until the buffer range contains
+		the time stamp.
+	*/
 	uint16 getTimeStamp() const noexcept{ return timeStamp; };
+
+	/** Sets the timestamp to a sample offset in the future. */
 	void setTimeStamp(int newTimestamp) noexcept;;
+
+	void setTimeStampRaw(uint16 newTimestamp) noexcept;
+
+	template <int Alignment> void alignToRaster(int maxTimestamp) noexcept
+	{
+		const uint16 odd = timeStamp % (uint16)Alignment;
+		constexpr uint16 half = static_cast<uint16>(Alignment) / 2;
+
+		uint16 roundUpValue = (uint16)(static_cast<uint16>(odd > half) * static_cast<uint16>(Alignment));
+		uint16 delta = roundUpValue - odd;
+
+		timeStamp += delta;
+
+		uint16 limitRoundDownValue = static_cast<uint16>(timeStamp >= maxTimestamp) * static_cast<uint16>(Alignment);
+
+		timeStamp -= limitRoundDownValue;
+	}
+
+	/** Adds the delta value to the timestamp. */
 	void addToTimeStamp(int16 delta) noexcept;
 
+	/** Returns the MIDI channel. */
 	int getChannel() const noexcept{ return (int)channel; };
+
+	/** Sets the MIDI channel. Note that in HISE you have 256 MIDI channels. */
 	void setChannel(int newChannelNumber) noexcept{ channel = (uint8)newChannelNumber; };
 
-	bool isNoteOn(bool returnTrueForVelocity0 = false) const noexcept
-	{
-		ignoreUnused(returnTrueForVelocity0);
+	/** Copied from MidiMessage. */
+	bool isNoteOn(bool returnTrueForVelocity0 = false) const noexcept;;
 
-		return type == Type::NoteOn; 
-	};
+	/** Copied from MidiMessage. */
 	bool isNoteOff() const noexcept { return type == Type::NoteOff; }
+
+	/** Copied from MidiMessage. */
 	bool isNoteOnOrOff() const noexcept { return type == Type::NoteOn || type == Type::NoteOff; };
+
+	/** Copied from MidiMessage. */
 	int getNoteNumber() const noexcept{ return (int)number; };
-	void setNoteNumber(int newNoteNumber) noexcept
-	{ 
-		jassert(isNoteOnOrOff());
-		number = jmin<uint8>((uint8)newNoteNumber, 127); 
-	};
+
+	/** Copied from MidiMessage. */
+	void setNoteNumber(int newNoteNumber) noexcept;;
+
+	/** Copied from MidiMessage. */
 	uint8 getVelocity() const noexcept{ return value; };
+
+	/** Copied from MidiMessage. */
 	float getFloatVelocity() const noexcept{ return (float)value / 127.0f; }
+
+	/** Copied from MidiMessage. */
 	void setVelocity(uint8 newVelocity) noexcept{ value = newVelocity; };
 
+	/** Copied from MidiMessage. */
 	bool isPitchWheel() const noexcept{ return type == Type::PitchBend; };
+
+	/** Copied from MidiMessage. */
 	int getPitchWheelValue() const noexcept;;
+
+	/** Copied from MidiMessage. */
 	void setPitchWheelValue(int position) noexcept;;
 
+	/** Sets the fade time for the event type. Only valid for VolumeFade and PitchFade types. */
 	void setFadeTime(int fadeTime) noexcept
 	{
 		setPitchWheelValue(fadeTime);
 	}
 
+	/** Adds a offset to the event. Unlike the timestamp, this will not delay the
+		event to the future, but tell the sound generator to skip the given amount
+		when the voice starts. This can be used for eg. skipping the attack phase of samples. */
 	void setStartOffset(uint16 startOffset) noexcept;
 
+	/** Returns the start offset of the event. */
 	uint16 getStartOffset() const noexcept;;
 
+	/** Copied from MidiMessage. */
 	bool isChannelPressure() const noexcept{ return type == Type::Aftertouch; };
+
+	/** Copied from MidiMessage. */
 	int getChannelPressureValue() const noexcept{ return value; };
+
+	/** Copied from MidiMessage. */
 	void setChannelPressureValue(int pressure) noexcept{ value = (uint8)pressure; };
 
+	/** Copied from MidiMessage. */
 	bool isAftertouch() const noexcept { return type == Type::Aftertouch; };
+
+	/** Copied from MidiMessage. */
 	int getAfterTouchValue() const noexcept { return (uint8)value; };
+
+	/** Copied from MidiMessage. */
 	void setAfterTouchValue(int noteNumber, int aftertouchAmount) noexcept{ number = (uint8)noteNumber; value = (uint8)aftertouchAmount; };
 
+	/** Copied from MidiMessage. */
 	bool isController() const noexcept{ return type == Type::Controller; }
+
+	/** Copied from MidiMessage. */
 	bool isControllerOfType(int controllerType) const noexcept{ return type == Type::Controller && controllerType == (int)number; };
 
+	/** Copied from MidiMessage. */
 	int getControllerNumber() const noexcept{ return number; };
+
+	/** Copied from MidiMessage. */
 	int getControllerValue() const noexcept{ return value; };
 
+	/** Copied from MidiMessage. */
 	void setControllerNumber(int controllerNumber) noexcept{ number = (uint8)controllerNumber; };
+
+	/** Copied from MidiMessage. */
 	void setControllerValue(int controllerValue) noexcept{ value = (uint8)controllerValue; };
 
+	/** Copied from MidiMessage. */
 	bool isProgramChange() const noexcept { return type == Type::ProgramChange; };
+
+	/** Copied from MidiMessage. */
 	int getProgramChangeNumber() const noexcept { return number; };
 
+	/** Returns true if the HiseEvent is empty. */
 	bool isEmpty() const noexcept{ return type == Type::Empty; };
 
+	/** Copied from MidiMessage. */
 	bool isAllNotesOff() const noexcept{ return type == Type::AllNotesOff; };
 
+	/** Copied from MidiMessage. */
 	bool isMidiStart() const noexcept{ return type == Type::MidiStart; };
-
+	
+	/** Copied from MidiMessage. */
 	bool isMidiStop() const noexcept{ return type == Type::MidiStop; };
 
+	/** Copied from MidiMessage. */
 	bool isSongPositionPointer() const noexcept{ return type == Type::SongPosition; };
 
+	/** Copied from MidiMessage. */
 	int getSongPositionPointerMidiBeat() const noexcept{ return number | (value << 7); };
 
-	void setSongPositionValue(int positionInMidiBeats)
-	{
-		number = positionInMidiBeats & 127;
-		value = (positionInMidiBeats >> 7) & 127;
-	}
+	/** Copied from MidiMessage. */
+	void setSongPositionValue(int positionInMidiBeats);
 
 	/** This clears the events using the fast memset operation. */
 	static void clear(HiseEvent* eventToClear, int numEvents = 1)
@@ -328,12 +457,13 @@ private:
 	
 	bool ignored = false;
 	bool artificial = false;
-	
-	
 };
 
 #define HISE_EVENT_BUFFER_SIZE 256
 
+/** The buffer type for the HiseEvent.
+
+*/
 class HiseEventBuffer
 {
 public:
@@ -467,8 +597,13 @@ public:
 		return true;
 	}
 
+	/** Clears the buffer. */
 	void clear();
+
+	/** checks if the buffer is empty. */
 	bool isEmpty() const noexcept{ return numUsed == 0; };
+
+	/** Returns the number of events in this buffer. */
 	int getNumUsed() const { return numUsed; }
 
 	HiseEvent getEvent(int index) const;
@@ -480,12 +615,18 @@ public:
 	void copyFrom(const HiseEventBuffer& otherBuffer);
 
 	void addEvent(const HiseEvent& hiseEvent);
+
 	void addEvent(const MidiMessage& midiMessage, int sampleNumber);
 	void addEvents(const MidiBuffer& otherBuffer);
 
 	void addEvents(const HiseEventBuffer &otherBuffer);
-	void addEvents(const HiseEventBuffer& otherBuffer, uint16 maxTimestamp);
+	
 
+	template <int Alignment> void alignEventsToRaster(int maxTimeStamp)
+	{
+		for (auto& e : *this)
+			e.alignToRaster<Alignment>(maxTimeStamp);
+	}
 
 	bool timeStampsAreSorted() const;
 	
@@ -506,6 +647,7 @@ public:
 		}
 	};
 
+	/** A iterator type for the HiseEventBuffer. */
 	class Iterator
 	{
 	public:
@@ -535,6 +677,18 @@ public:
 		mutable int index;
 	};
 
+	/** compatibility for standard C++ type iterators. */
+	inline HiseEvent* begin() const noexcept
+	{
+		return const_cast<HiseEvent*>(buffer);
+	}
+
+	/** compatibility for standard C++ type iterators. */
+	inline HiseEvent* end() const noexcept
+	{
+		return const_cast<HiseEvent*>(buffer + numUsed);
+	}
+
 private:
 
 	friend class Iterator;
@@ -544,8 +698,6 @@ private:
 	HiseEvent buffer[HISE_EVENT_BUFFER_SIZE];
 
 	int numUsed = 0;
-
-	
 };
 
 

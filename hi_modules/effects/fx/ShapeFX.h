@@ -36,7 +36,17 @@
 namespace hise {
 using namespace juce;
 
+// Set this to 1 to enable the shape FX module to be a workbench for finding cool waveshaping functions
+// This is disabled by default to prevent glitches with it being a script processor when it doesn't need to be in 99% of all cases
+#ifndef HI_USE_SHAPE_FX_SCRIPTING
+#define HI_USE_SHAPE_FX_SCRIPTING 0
+#endif
 
+
+#ifndef HI_ENABLE_SHAPE_FX_OVERSAMPLER
+#define HI_ENABLE_SHAPE_FX_OVERSAMPLER 1
+#endif
+    
 class LowpassSmoothedValue
 {
 public:
@@ -66,19 +76,24 @@ public:
 	float targetValue = 1.0f;
 };
 
-/** A general purpose waveshaper effect. */
+/** A general purpose waveshaper effect. 
+	@ingroup effectTypes.
+*/
 class ShapeFX : public MasterEffectProcessor,
 				public WaveformComponent::Broadcaster,
+#if HI_USE_SHAPE_FX_SCRIPTING
 				public LookupTableProcessor,
 				public JavascriptProcessor,
 				public ProcessorWithScriptingContent
+#else
+				public LookupTableProcessor
+#endif
+
 {
 public:
 
-	
-	
-
 	using Oversampler = juce::dsp::Oversampling<float>;
+    
 	using ShapeFunction = std::function<float(float)>;
 
 	enum ShapeMode
@@ -175,7 +190,22 @@ public:
 	void setInternalAttribute(int parameterIndex, float newValue) override;
 	float getAttribute(int parameterIndex) const override;
 	float getDefaultValue(int parameterIndex) const override;
+
+#if HI_USE_SHAPE_FX_SCRIPTING
 	int getNumScriptParameters() const override { return numParameters; }
+
+	void postCompileCallback() override
+	{
+		debugToConsole(this, "Update shape function");
+		updateMode();
+	}
+
+	SnippetDocument *getSnippet(int /*c*/) { return functionCode; }
+	const SnippetDocument *getSnippet(int /*c*/) const { return functionCode; }
+	int getNumSnippets() const { return 1; }
+
+	void registerApiClasses() override;
+#endif
 
 	ValueTree exportAsValueTree() const override;
 	void restoreFromValueTree(const ValueTree &v) override;
@@ -205,19 +235,11 @@ public:
 		return nullptr;
 	};
 
-	void postCompileCallback() override
-	{
-		debugToConsole(this, "Update shape function");
-		updateMode();
-	}
+	
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
-	SnippetDocument *getSnippet(int /*c*/) { return functionCode; }
-	const SnippetDocument *getSnippet(int /*c*/) const { return functionCode; }
-	int getNumSnippets() const { return 1; }
-
-	void registerApiClasses() override;
+	
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock);
 
@@ -281,14 +303,15 @@ private:
 		ShapeFX& parent;
 	};
 
+#if HI_USE_SHAPE_FX_SCRIPTING
 	void rebuildScriptedTable();
+	Result shapeResult;
+	ScopedPointer<SnippetDocument> functionCode;
+#endif
 
 	void recalculateDisplayTable();
 
 	SpinLock oversamplerLock;
-
-	Result shapeResult;
-
 	ScopedPointer<Oversampler> oversampler;
 	
 	ShapeMode mode;
@@ -304,8 +327,8 @@ private:
 	
 	float graphNormalizeValue = 0.0f;
 
-	DelayLine lDelay;
-	DelayLine rDelay;
+	DelayLine<1024> lDelay;
+	DelayLine<1024> rDelay;
 
 	LowpassSmoothedValue gainer;
 	LowpassSmoothedValue autogainer;
@@ -315,8 +338,6 @@ private:
 
 	LinearSmoothedValue<float> mixSmootherR;
 	LinearSmoothedValue<float> mixSmoother_invR;
-
-
 	LinearSmoothedValue<float> bitCrushSmoother;
 
 	AudioSampleBuffer dryBuffer;
@@ -339,19 +360,14 @@ private:
 
 	chunkware_simple::SimpleLimit limiter;
 
-	
-
 	ScopedPointer<SafeChangeBroadcaster> tableBroadcaster;
-
 	ScopedPointer<TableUpdater> tableUpdater;
-
-	ScopedPointer<SnippetDocument> functionCode;
 
 	void updateMix();
 };
 
 
-/** A polyphonic waveshaper
+/** A polyphonic wave shaper.
 *	@ingroup effectTypes
 *
 */
@@ -406,8 +422,8 @@ public:
 
 	bool hasTail() const override { return false; };
 
-	Processor *getChildProcessor(int /*processorIndex*/) override { return driveChain; };
-	const Processor *getChildProcessor(int /*processorIndex*/) const override { return driveChain; };
+	Processor *getChildProcessor(int /*processorIndex*/) override { return modChains[DriveModulation].getChain(); };
+	const Processor *getChildProcessor(int /*processorIndex*/) const override { return modChains[DriveModulation].getChain(); };
 	int getNumChildProcessors() const override { return numInternalChains; };
 	int getNumInternalChains() const override { return numInternalChains; };
 
@@ -417,12 +433,7 @@ public:
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
-	AudioSampleBuffer &getBufferForChain(int /*index*/) override;
-
-	void preVoiceRendering(int voiceIndex, int startSample, int numSamples);
-
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
-
 	void applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) override;
 
 	const StringArray& getShapeNames() const { return shapeNames; }
@@ -496,10 +507,8 @@ private:
 
 	int mode = ShapeFX::ShapeMode::Linear;
 	bool oversampling = false;
-	ScopedPointer<ModulatorChain> driveChain;
-	AudioSampleBuffer driveBuffer;
 
-	OwnedArray<SimpleOnePole> dcRemovers;
+	FixedVoiceAmountArray<SimpleOnePole> dcRemovers;
 
 	ScopedPointer<TableUpdater> tableUpdater;
 

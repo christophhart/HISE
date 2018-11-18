@@ -76,7 +76,6 @@ void QuasiModalComponent::destroy()
 
 DialogWindowWithBackgroundThread::DialogWindowWithBackgroundThread(const String &title, bool synchronous_) :
 AlertWindow(title, String(), AlertWindow::AlertIconType::NoIcon),
-progress(0.0),
 isQuasiModal(false),
 synchronous(synchronous_)
 {
@@ -96,7 +95,13 @@ synchronous(synchronous_)
 	new DelayedFunctionCaller(f, 200);
 #endif
 
+	Component::SafePointer<DialogWindowWithBackgroundThread> tmp = this;
 
+	logData.logFunction = [tmp](const String& m)
+	{
+		if (tmp.getComponent() != nullptr)
+			tmp->showStatusMessage(m);
+	};
 
 }
 
@@ -114,7 +119,7 @@ void DialogWindowWithBackgroundThread::addBasicComponents(bool addOKButton)
 
 	getTextEditor("state")->setReadOnly(true);
 
-	addProgressBarComponent(progress);
+	addProgressBarComponent(logData.progress);
 	
 	if (addOKButton)
 	{
@@ -188,7 +193,7 @@ void DialogWindowWithBackgroundThread::runSynchronous()
 	destroy();
 }
 
-void DialogWindowWithBackgroundThread::showStatusMessage(const String &message)
+void DialogWindowWithBackgroundThread::showStatusMessage(const String &message) const
 {
 	MessageManagerLock lock(thread);
 
@@ -202,7 +207,6 @@ void DialogWindowWithBackgroundThread::showStatusMessage(const String &message)
 		{
 			// Did you just call this method before 'addBasicComponents()' ?
 			jassertfalse;
-
 		}
 	}
 }
@@ -393,7 +397,23 @@ SampleDataExporter::SampleDataExporter(ModalBaseWindow* mbw) :
 
 	addComboBox("split", sa2, "Split archive size");
 
-	targetFile = new FilenameComponent("Target directory", File(), true, true, true, "", "", "Choose export directory");
+	StringArray sa3;
+
+	sa3.add("Yes");
+	sa3.add("No");
+
+	addComboBox("supportFull", sa3, "Support Full Dynamics range");
+
+	if (GET_HISE_SETTING(synthChain, HiseSettings::Project::SupportFullDynamicsHLAC) == "0")
+		getComboBoxComponent("supportFull")->setSelectedItemIndex(1, dontSendNotification);
+
+#if USE_BACKEND
+	File f = GET_PROJECT_HANDLER(synthChain).getRootFolder();
+#else
+	File f = {};
+#endif
+
+	targetFile = new FilenameComponent("Target directory", f, true, true, true, "", "", "Choose export directory");
 	targetFile->setSize(300, 24);
 	addCustomComponent(targetFile);
 
@@ -436,7 +456,7 @@ void SampleDataExporter::run()
 	data.targetFile = getTargetFile();
 	data.metadataJSON = getMetadataJSON();
 	data.fileList = collectMonoliths();
-	data.progress = &progress;
+	data.progress = &logData.progress;
 	data.totalProgress = &totalProgress;
 	data.partSize = 1024 * 1024;
 
@@ -482,6 +502,10 @@ String SampleDataExporter::getMetadataJSON() const
 	d->setProperty("Name", getProjectName());
 	d->setProperty("Version", getProjectVersion());
 	d->setProperty("Company", getCompanyName());
+	
+	int index = getComboBoxComponent("supportFull")->getSelectedItemIndex();
+
+	d->setProperty("BitDepth", index == 0 ? 24 : 16);
 
 	var data(d);
 
@@ -519,8 +543,8 @@ File getDefaultSampleDestination()
 
 #if USE_FRONTEND
 
-	const String product = ProjectHandler::Frontend::getProjectName();
-	const String company = ProjectHandler::Frontend::getCompanyName();
+	const String product = FrontendHandler::getProjectName();
+	const String company = FrontendHandler::getCompanyName();
 
 	const String path = company + "/" + product + "/Samples";
 
@@ -579,8 +603,6 @@ SampleDataImporter::SampleDataImporter(ModalBaseWindow* mbw) :
 
 #else
 
-	File archiveFile;
-
 #endif
 
 	targetFile = new FilenameComponent("Sample Archive Location", archiveFile, true, false, false, "*.hr1", "", "Choose the Sample Archive");
@@ -593,6 +615,17 @@ SampleDataImporter::SampleDataImporter(ModalBaseWindow* mbw) :
 
 	sampleDirectory->setSize(300, 24);
 	addCustomComponent(sampleDirectory);
+
+#endif
+
+#if USE_BACKEND || HI_SUPPORT_FULL_DYNAMICS_HLAC
+
+	StringArray sa5;
+
+	sa5.add("Standard (less disk usage, slightly faster)");
+	sa5.add("Full Dynamics (less quantisation noise)");
+
+	addComboBox("fullDynamics", sa5, "Sample bit depth");
 
 #endif
 
@@ -691,9 +724,15 @@ void SampleDataImporter::run()
 	hlac::HlacArchiver::DecompressData data;
 
 	data.option = option;
+
+#if USE_BACKEND || HI_SUPPORT_FULL_DYNAMICS_HLAC
+	data.supportFullDynamics = getComboBoxComponent("fullDynamics")->getSelectedItemIndex() == 1;
+#else
+	data.supportFullDynamics = false;
+#endif
 	data.sourceFile = getSourceFile();
 	data.targetDirectory = getTargetDirectory();
-	data.progress = &progress;
+	data.progress = &logData.progress;
 	data.partProgress = &partProgress;
 	data.totalProgress = &totalProgress;
 
@@ -714,7 +753,7 @@ void SampleDataImporter::run()
 	
 	auto sampleLocation = sampleDirectory->getCurrentFile();
 
-	ProjectHandler::Frontend::setSampleLocation(sampleLocation);
+	FrontendHandler::setSampleLocation(sampleLocation);
 
 	
 #endif
@@ -771,7 +810,7 @@ String SampleDataImporter::getProjectName() const
 #if USE_BACKEND
 	return dynamic_cast<GlobalSettingManager*>(synthChain->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Name);
 #else
-	return ProjectHandler::Frontend::getProjectName();
+	return FrontendHandler::getProjectName();
 #endif
 }
 
@@ -780,7 +819,7 @@ String SampleDataImporter::getCompanyName() const
 #if USE_BACKEND
 	return dynamic_cast<GlobalSettingManager*>(synthChain->getMainController())->getSettingsObject().getSetting(HiseSettings::User::Company);
 #else
-	return ProjectHandler::Frontend::getCompanyName();
+	return FrontendHandler::getCompanyName();
 #endif
 }
 
@@ -793,7 +832,7 @@ String SampleDataImporter::getProjectVersion() const
 	// TODO: change this later...
 	return "1.0.0";
 
-	//return ProjectHandler::Frontend::getVersionString();
+	//return FrontendHandler::getVersionString();
 #endif
 }
 

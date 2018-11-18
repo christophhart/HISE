@@ -71,9 +71,9 @@ WrappedAudioProcessorEditorContent::WrappedAudioProcessorEditorContent(AudioProc
 
 	registeredProcessorList->addListener(this);
 
-	registeredProcessorList->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, Colour(0x66333333));
-	registeredProcessorList->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, Colour(0xfb111111));
-	registeredProcessorList->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::white.withAlpha(0.3f));
+	registeredProcessorList->setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
+	registeredProcessorList->setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
+	registeredProcessorList->setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
 
 	if (getWrapper() != nullptr)
 	{

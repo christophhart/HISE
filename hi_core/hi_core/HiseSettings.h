@@ -37,10 +37,9 @@
 namespace hise {
 using namespace juce;
 
-
-#define DECLARE_ID(name)      const Identifier name (#name)
-
 namespace HiseSettings {
+
+#define DECLARE_ID(x) const juce::Identifier x(#x);
 
 namespace SettingFiles
 {
@@ -65,6 +64,7 @@ DECLARE_ID(Description);
 DECLARE_ID(BundleIdentifier);
 DECLARE_ID(PluginCode);
 DECLARE_ID(EmbedAudioFiles);
+DECLARE_ID(SupportFullDynamicsHLAC);
 DECLARE_ID(AdditionalDspLibraries);
 DECLARE_ID(OSXStaticLibs);
 DECLARE_ID(WindowsStaticLibFolder);
@@ -73,6 +73,9 @@ DECLARE_ID(ExtraDefinitionsOSX);
 DECLARE_ID(ExtraDefinitionsIOS);
 DECLARE_ID(AppGroupID);
 DECLARE_ID(RedirectSampleFolder);
+DECLARE_ID(AAXCategoryFX);
+DECLARE_ID(SupportMonoFX);
+DECLARE_ID(UseRawFrontend);
 
 Array<Identifier> getAllIds();
 
@@ -83,6 +86,8 @@ namespace Compiler
 DECLARE_ID(HisePath);
 DECLARE_ID(VisualStudioVersion);
 DECLARE_ID(UseIPP);
+DECLARE_ID(RebuildPoolFiles);
+DECLARE_ID(Support32BitMacOS);
 
 Array<Identifier> getAllIds();
 
@@ -116,6 +121,7 @@ namespace Other
 {
 DECLARE_ID(EnableAutosave);
 DECLARE_ID(AutosaveInterval);
+DECLARE_ID(AudioThreadGuardEnabled)
 
 Array<Identifier> getAllIds();
 
@@ -142,7 +148,7 @@ Array<Identifier> getAllIds();
 
 } // Midi
 
-
+#undef DECLARE_ID
 
 
 

@@ -203,12 +203,6 @@ public:
 
 	void calculateBlock(int startSample, int numSamples) override;;
 
-	/** This overwrites the TimeModulation callback to render the intensity chain. */
-	virtual void applyTimeModulation(AudioSampleBuffer &b, int startSamples, int numSamples) override;
-
-	/** Returns the modulated intensity value. */
-	virtual float getIntensity() const noexcept;;
-
 	static Processor *createProcessor(MainController *m, const String &id, Modulation::Mode mode)
 	{
 		return new AudioFileEnvelope(m, id, mode);

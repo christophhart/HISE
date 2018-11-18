@@ -121,6 +121,8 @@ void StreamingSamplerSound::setBasicMappingData(const StreamingHelpers::BasicMap
 
 void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 {
+	
+
 	if (reversed)
 	{
 		return;
@@ -151,6 +153,15 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 
 	if (newPreloadSize == -1 || (preloadSize + sampleStartMod) > sampleLength)
 	{
+		if (sampleLength == MAX_SAMPLE_NUMBER)
+		{
+			// this hasn't been initialised, so we need to do it here...
+
+			fileReader.openFileHandles(dontSendNotification);
+			sampleLength = (int)fileReader.getSampleLength();
+			loopLength = jmin<int>(loopLength, sampleLength);
+		}
+
 		internalPreloadSize = (int)sampleLength;
 		entireSampleLoaded = true;
 	}
@@ -183,6 +194,7 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 	}
 
 	preloadBuffer.clear();
+	preloadBuffer.allocateNormalisationTables(sampleStart);
 
 	if (sampleRate <= 0.0)
 	{
@@ -198,7 +210,6 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 	if (loopEnabled && (loopEnd - loopStart > 0) && loopEnd < internalPreloadSize)
 	{
 		entireSampleLoaded = false;
-		int samplesToFill = internalPreloadSize;
 		
 		fileReader.readFromDisk(preloadBuffer, 0, loopEnd, sampleStart + monolithOffset, true);
 		const int samplesPerFillOp = (loopEnd - loopStart);
@@ -515,6 +526,9 @@ float StreamingSamplerSound::calculatePeakValue()
 void StreamingSamplerSound::fillSampleBuffer(hlac::HiseSampleBuffer &sampleBuffer, int samplesToCopy, int uptime) const
 {
 	ScopedLock sl(getSampleLock());
+
+	if (sampleBuffer.getNumSamples() == samplesToCopy)
+		sampleBuffer.clearNormalisation({});
 
 	if (!fileReader.isUsed()) return;
 
@@ -932,19 +946,28 @@ void StreamingSamplerSound::FileReader::readFromDisk(hlac::HiseSampleBuffer &buf
 
 float StreamingSamplerSound::FileReader::calculatePeakValue()
 {
+#if USE_FRONTEND
+
+	// If you hit this assertion, it means that you haven't saved the normalised gain value into the samplemap.
+	// Please resave the samplemap in order to speed up loading times
+	jassertfalse;
+
+#endif
+
 	float l1, l2, r1, r2;
 
 	openFileHandles();
 
-	AudioFormatReader *readerToUse = getReader();
-
-	if (readerToUse != nullptr) readerToUse->readMaxLevels(sound->sampleStart + sound->monolithOffset, sound->sampleLength, l1, l2, r1, r2);
+	ScopedPointer<AudioFormatReader> readerToUse = createMonolithicReaderForPreview();// getReader();
+	
+	if (readerToUse != nullptr) 
+		readerToUse->readMaxLevels(sound->sampleStart + sound->monolithOffset, sound->sampleLength, l1, l2, r1, r2);
 	else return 0.0f;
 
 	closeFileHandles();
 
-	const float maxLeft = jmax<float>(-l1, l2);
-	const float maxRight = jmax<float>(-r1, r2);
+	const float maxLeft = jmax<float>(std::fabsf(l1), std::fabsf(l2));
+	const float maxRight = jmax<float>(std::fabsf(r1), std::fabsf(r2));
 
 	return jmax<float>(maxLeft, maxRight);
 }

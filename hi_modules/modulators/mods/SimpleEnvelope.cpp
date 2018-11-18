@@ -86,10 +86,7 @@ SimpleEnvelope::SimpleEnvelope(MainController *mc, const String &id, int voiceAm
 	attackChain = new ModulatorChain(mc, "Attack Time Modulation", voiceAmount, ModulatorChain::GainMode, this);
 
 	attackChain->setIsVoiceStartChain(true);
-
 	attackChain->setColour(Colours::red);
-
-
 };
 
 SimpleEnvelope::~SimpleEnvelope()
@@ -109,11 +106,10 @@ void SimpleEnvelope::setInternalAttribute(int parameterIndex, float newValue)
 	switch (parameterIndex)
 	{
 	case Attack:
-		setAttackRate(newValue, nullptr);
-		
+		setAttackRate(jmax<float>(0.0f, newValue), nullptr);
 		break;
 	case Release:
-		release = newValue;
+		release = jmax<float>(0.0f, newValue);
 		setReleaseRate(newValue);
 		break;
 	case LinearMode:
@@ -168,7 +164,7 @@ float SimpleEnvelope::getAttribute(int parameterIndex) const
 	}
 }
 
-void SimpleEnvelope::startVoice(int voiceIndex)
+float SimpleEnvelope::startVoice(int voiceIndex)
 {
 	if (isMonophonic)
 	{
@@ -178,41 +174,63 @@ void SimpleEnvelope::startVoice(int voiceIndex)
 
 		if (restartEnvelope)
 		{
-			auto monoState = static_cast<SimpleEnvelopeState*>(monophonicState.get());
+			state = static_cast<SimpleEnvelopeState*>(monophonicState.get());
 
-			attackChain->startVoice(voiceIndex);
+			float attackModValue = 1.0f;
+
+			if (attackChain->hasVoiceModulators())
+			{
+				attackChain->startVoice(voiceIndex);
+				attackModValue = attackChain->getConstantVoiceValue(voiceIndex);
+			}
+
+			const float thisAttackTime = attack * attackModValue;
 
 			if (linearMode)
-				monoState->attackDelta = this->calcCoefficient(attack * attackChain->getConstantVoiceValue(voiceIndex));
+				state->attackDelta = this->calcCoefficient(thisAttackTime);
 			else
-				setAttackRate(attack * attackChain->getConstantVoiceValue(voiceIndex), monoState);
+				setAttackRate(thisAttackTime, state);
 
 			// Don't reset the envelope for tailing releases
 			if (shouldRetrigger)
 			{
-				monoState->current_state = SimpleEnvelopeState::RETRIGGER;
+				state->current_state = SimpleEnvelopeState::RETRIGGER;
 			}
 			else
 			{
-				monoState->current_state = SimpleEnvelopeState::ATTACK;
+				state->current_state = SimpleEnvelopeState::ATTACK;
 			}
+
+			return thisAttackTime > 0.0f ? 0.0f : 1.0f;
 		}
+
+		return state->current_value;
 	}
 	else
 	{
-		auto thisState = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
+		state = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
 
-		if (thisState->current_state != SimpleEnvelopeState::IDLE)
+		if (state->current_state != SimpleEnvelopeState::IDLE)
 			reset(voiceIndex);
 
-		attackChain->startVoice(voiceIndex);
+		float attackModValue = 1.0f;
+
+		if (attackChain->hasVoiceModulators())
+		{
+			attackChain->startVoice(voiceIndex);
+			attackModValue = attackChain->getConstantVoiceValue(voiceIndex);
+		}
+		
+		const float thisAttackTime = attack * attackModValue;
 
 		if (linearMode)
-			thisState->attackDelta = this->calcCoefficient(attack * attackChain->getConstantVoiceValue(voiceIndex));
+			state->attackDelta = this->calcCoefficient(thisAttackTime);
 		else
-			setAttackRate(attack * attackChain->getConstantVoiceValue(voiceIndex), thisState);
+			setAttackRate(thisAttackTime, state);
 
-		thisState->current_state = SimpleEnvelopeState::ATTACK;
+		state->current_state = SimpleEnvelopeState::ATTACK;
+
+		return thisAttackTime > 0.0f ? 0.0f : 1.0f;
 	}
 }
 
@@ -230,8 +248,11 @@ void SimpleEnvelope::stopVoice(int voiceIndex)
 	}
 	else
 	{
-		auto thisState = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
-		thisState->current_state = SimpleEnvelopeState::RELEASE;
+		if (isPositiveAndBelow(voiceIndex, states.size()))
+		{
+			auto thisState = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
+			thisState->current_state = SimpleEnvelopeState::RELEASE;
+		}
 	}
 }
 
@@ -245,10 +266,13 @@ void SimpleEnvelope::reset(int voiceIndex)
 	{
 		EnvelopeModulator::reset(voiceIndex);
 
-		SimpleEnvelopeState *thisState = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
+		if (isPositiveAndBelow(voiceIndex, states.size()))
+		{
+			SimpleEnvelopeState *thisState = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
 
-		thisState->current_state = SimpleEnvelopeState::IDLE;
-		thisState->current_value = 0.0f;
+			thisState->current_state = SimpleEnvelopeState::IDLE;
+			thisState->current_value = 0.0f;
+		}
 	}
 }
 
@@ -280,12 +304,10 @@ void SimpleEnvelope::calculateBlock(int startSample, int numSamples)
 	if (state->current_state == SimpleEnvelopeState::SUSTAIN)
 	{
 		FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), 1.0f, numSamples);
-		setOutputValue(1.0f);
 	}
 	else if (state->current_state == SimpleEnvelopeState::IDLE)
 	{
 		FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), 0.0f, numSamples);
-		setOutputValue(0.0f);
 	}
 	else
 	{
@@ -294,40 +316,23 @@ void SimpleEnvelope::calculateBlock(int startSample, int numSamples)
 		
 		if (linearMode)
 		{
-			while (numSamples > 0)
-			{
-				*out++ = calculateNewValue();
-				*out++ = calculateNewValue();
-				*out++ = calculateNewValue();
-				*out++ = calculateNewValue();
-
-				numSamples -= 4;
-			}
+			while (--numSamples >= 0)
+				*out++ = calculateNewValue(voiceIndex);
 		}
 		else
 		{
-			while (numSamples > 0)
-			{
+			while (--numSamples >= 0)
 				*out++ = calculateNewExpValue();
-				*out++ = calculateNewExpValue();
-				*out++ = calculateNewExpValue();
-				*out++ = calculateNewExpValue();
-
-				numSamples -= 4;
-			}
 		}
-
-		if (isMonophonic || polyManager.getCurrentVoice() == polyManager.getLastStartedVoice()) setOutputValue(internalBuffer.getSample(0, 0));
 	}
-
-	
 }
 
 void SimpleEnvelope::handleHiseEvent(const HiseEvent &m)
 {
 	EnvelopeModulator::handleHiseEvent(m);
 
-	attackChain->handleHiseEvent(m);
+	if(attackChain->shouldBeProcessedAtAll())
+		attackChain->handleHiseEvent(m);
 };
 
 void SimpleEnvelope::prepareToPlay(double sampleRate, int samplesPerBlock)
@@ -358,22 +363,24 @@ ProcessorEditorBody *SimpleEnvelope::createEditor(ProcessorEditor *parentEditor)
 
 float SimpleEnvelope::calcCoefficient(float time, float targetRatio/*=1.0f*/) const
 {
+	auto srToUse = (float)getControlRate();
+
 	if (linearMode)
 	{
-		return 1.0f / ((time / 1000.0f) * (float)this->getSampleRate());
+		return 1.0f / ((time / 1000.0f) * (srToUse));
 	}
 	else
 	{
 		if (time == 0.0f) return 0.0f;
 
-		const float factor = (float)getSampleRate() * 0.001f;
+		const float factor = srToUse * 0.001f;
 
 		time *= factor;
 		return expf(-logf((1.0f + targetRatio) / targetRatio) / time);
 	}
 }
 
-float SimpleEnvelope::calculateNewValue()
+float SimpleEnvelope::calculateNewValue(int /*voiceIndex*/)
 {
 	switch (state->current_state)
 	{

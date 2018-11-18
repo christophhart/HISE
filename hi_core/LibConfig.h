@@ -39,13 +39,7 @@
 #define USE_OLD_FILE_FORMAT 0
 #define HI_USE_BACKWARD_COMPATIBILITY 1
 
-#ifndef NUM_POLYPHONIC_VOICES
-#if HISE_IOS
-#define NUM_POLYPHONIC_VOICES 128
-#else
-#define NUM_POLYPHONIC_VOICES 256
-#endif
-#endif
+
 
 #ifndef HISE_NUM_PLUGIN_CHANNELS
 #define HISE_NUM_PLUGIN_CHANNELS 2
@@ -54,14 +48,35 @@
 
 #define NUM_GLOBAL_VARIABLES 128
 #define NUM_MIC_POSITIONS 8
-#define NUM_MAX_CHANNELS 16
+
 
 
 #ifndef HISE_SMOOTH_FIRST_MOD_BUFFER
 #define HISE_SMOOTH_FIRST_MOD_BUFFER 0
 #endif
 
+
+#ifndef HISE_USE_BACKWARDS_COMPATIBLE_TIMESTAMPS
+#define HISE_USE_BACKWARDS_COMPATIBLE_TIMESTAMPS 1
+#endif 
+
+#ifndef HISE_USE_SQUARED_TIMEVARIANT_MOD_VALUES_BUG
+#define HISE_USE_SQUARED_TIMEVARIANT_MOD_VALUES_BUG 1
+#endif
+
+#ifndef HISE_PLAY_ALL_CROSSFADE_GROUPS_WHEN_EMPTY
+#define HISE_PLAY_ALL_CROSSFADE_GROUPS_WHEN_EMPTY 1
+#endif
+
+
+#ifndef HISE_AUV3_MAX_INSTANCE_COUNT
+#define HISE_AUV3_MAX_INSTANCE_COUNT 2
+#endif
+
 namespace hise { using namespace juce;
+
+
+
 
 #if ENABLE_STARTUP_LOG
 class StartupLogger
@@ -72,6 +87,7 @@ private:
 	static File getLogFile();
 	static void init();
 	static bool isInitialised;
+	static double timeToLastCall;
 };
 
 #define LOG_START(x) StartupLogger::log(x);

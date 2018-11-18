@@ -85,7 +85,8 @@ private:
 
 
 
-/** A ModulatorSynthChain processes multiple independent ModulatorSynth instances.
+/** A ModulatorSynthChain processes multiple independent ModulatorSynth instances serially.
+	@ingroup synthTypes
 *
 *	This class is supposed to be a wrapper for ModulatorSynths which are processed individually with their own MidiProcessors, Modulators and Effects.
 *	You can add some MidiProcessors which will be applied to all chains as well as non polyphonic gain Modulators (like a LfoModulator) which will be applied to the

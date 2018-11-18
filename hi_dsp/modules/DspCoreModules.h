@@ -13,13 +13,18 @@
 
 namespace hise { using namespace juce;
 
-#define DELAY_BUFFER_SIZE 65536
-#define DELAY_BUFFER_MASK 65536-1
+//#define DELAY_BUFFER_SIZE 65536
+//#define DELAY_BUFFER_MASK 65536-1
 
-class DelayLine
+template <int MaxLength=65536> class DelayLine
 {
+    static constexpr int DELAY_BUFFER_SIZE = MaxLength;
+    static constexpr int DELAY_BUFFER_MASK = MaxLength - 1;
+    
 public:
 
+    
+    
 	DelayLine() :
 		readIndex(0),
 		oldReadIndex(0),

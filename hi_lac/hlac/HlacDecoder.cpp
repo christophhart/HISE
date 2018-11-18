@@ -1,32 +1,34 @@
-/*  HISE Lossless Audio Codec
-*	�2017 Christoph Hart
-*
-*	Redistribution and use in source and binary forms, with or without modification,
-*	are permitted provided that the following conditions are met:
-*
-*	1. Redistributions of source code must retain the above copyright notice,
-*	   this list of conditions and the following disclaimer.
-*
-*	2. Redistributions in binary form must reproduce the above copyright notice,
-*	   this list of conditions and the following disclaimer in the documentation
-*	   and/or other materials provided with the distribution.
-*
-*	3. All advertising materials mentioning features or use of this software must
-*	   display the following acknowledgement:
-*	   This product includes software developed by Hart Instruments
-*
-*	4. Neither the name of the copyright holder nor the names of its contributors may be used
-*	   to endorse or promote products derived from this software without specific prior written permission.
-*
-*	THIS SOFTWARE IS PROVIDED BY CHRISTOPH HART "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING,
-*	BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-*	DISCLAIMED. IN NO EVENT SHALL COPYRIGHT HOLDER BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-*	SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
-*	GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-*	THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-*	ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*
-*/
+/*  ===========================================================================
+ *
+ *   This file is part of HISE.
+ *   Copyright 2016 Christoph Hart
+ *
+ *   HISE is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation, either version 3 of the License, or
+ *   (at your option) any later version.
+ *
+ *   HISE is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *   Commercial licenses for using HISE in an closed source project are
+ *   available on request. Please visit the project's website to get more
+ *   information about commercial licensing:
+ *
+ *   http://www.hise.audio/
+ *
+ *   HISE is based on the JUCE library,
+ *   which must be separately licensed for closed source applications:
+ *
+ *   http://www.juce.com
+ *
+ *   ===========================================================================
+ */
 
 namespace hlac { using namespace juce; 
 
@@ -40,7 +42,6 @@ void HlacDecoder::setupForDecompression()
 	readIndex = 0;
 
 	decompressionSpeed = 0.0;
-
 }
 
 
@@ -77,8 +78,15 @@ void HlacDecoder::reset()
 
 bool HlacDecoder::decodeBlock(HiseSampleBuffer& destination, bool decodeStereo, InputStream& input, int channelIndex)
 {
-	auto checksum = input.readInt();
+	if (hlacVersion > 2)
+	{
+		auto normalizeValues = input.readInt();
+		auto& mapToUse = destination.getNormaliseMap(channelIndex);
+		mapToUse.setNormalisationValues(readIndex, normalizeValues);
+	}
 
+	auto checksum = input.readInt();
+	
 	if (!CompressionHelpers::Misc::validateChecksum((uint32)checksum))
 	{
 		// Something is wrong here...
@@ -116,6 +124,13 @@ bool HlacDecoder::decodeBlock(HiseSampleBuffer& destination, bool decodeStereo, 
 
 void HlacDecoder::decode(HiseSampleBuffer& destination, bool decodeStereo, InputStream& input, int offsetInSource/*=0*/, int numSamples/*=-1*/)
 {
+	if (hlacVersion > 2)
+	{
+		destination.allocateNormalisationTables(offsetInSource);
+		destination.clearNormalisation({ 0, numSamples });
+	}
+	
+
 #if HLAC_MEASURE_DECODING_PERFORMANCE
 	double start = Time::getMillisecondCounterHiRes();
 #endif
@@ -123,8 +138,6 @@ void HlacDecoder::decode(HiseSampleBuffer& destination, bool decodeStereo, Input
 	if (numSamples < 0)
 		numSamples = destination.getNumSamples();
 	
-	
-
 	const int endThisTime = numSamples + offsetInSource;
 
 	// You must seek on a higher level!
@@ -150,6 +163,9 @@ void HlacDecoder::decode(HiseSampleBuffer& destination, bool decodeStereo, Input
 	}
 
 	readOffset += readIndex;
+
+	if(hlacVersion > 2)
+		destination.flushNormalisationInfo({ 0, numSamples });
 
 #if HLAC_MEASURE_DECODING_PERFORMANCE
 	double stop = Time::getMillisecondCounterHiRes();
@@ -221,8 +237,6 @@ void HlacDecoder::decodeCycle(const CycleHeader& header, bool /*decodeStereo*/, 
 	if (numBytesToRead > 0)
 		input.read(readBuffer.getData(), numBytesToRead);
 
-	
-
 	if (header.isTemplate())
 	{
         LOG("DEC  " + String(readOffset + readIndex + indexInBlock) + "\t\t\tNew Template with bit depth " + String(compressor->getAllowedBitRange()) + ": " + String(numSamples));
@@ -262,7 +276,9 @@ void HlacDecoder::decodeCycle(const CycleHeader& header, bool /*decodeStereo*/, 
 
 void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSampleBuffer& destination, int channelIndex, int numSamples)
 {
-	auto src = useTempBuffer ? workBuffer.getReadPointer() : currentCycle.getReadPointer();
+	auto& srcBuffer = useTempBuffer ? workBuffer : currentCycle;
+	
+	auto src = srcBuffer.getWritePointer();
 
 	int& skipToUse = channelIndex == 0 ? leftNumToSkip : rightNumToSkip;
 
@@ -279,12 +295,24 @@ void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSam
 				if (destination.isFloatingPoint())
 				{
 					auto dst = static_cast<float*>(destination.getWritePointer(channelIndex, bufferOffset));
-					CompressionHelpers::fastInt16ToFloat(src, dst, numThisTime);
+
+					jassert(bufferOffset + numThisTime <= destination.getNumSamples());
+
+					if (hlacVersion > 2)
+						destination.getNormaliseMap(channelIndex).normalisedInt16ToFloat(dst, src, bufferOffset, numThisTime);
+					else
+						CompressionHelpers::fastInt16ToFloat(src, dst, numThisTime);
 				}
 				else
 				{
-					auto dst = static_cast<int16*>(destination.getWritePointer(channelIndex, bufferOffset));
-					memcpy(dst, src, sizeof(int16) * numThisTime);
+					if (hlacVersion > 2)
+						CompressionHelpers::AudioBufferInt16::copyWithNormalisation(destination.getFixedBuffer(channelIndex), srcBuffer, bufferOffset, 0, numThisTime, false);
+					else
+					{
+						auto dst = static_cast<int16*>(destination.getWritePointer(channelIndex, bufferOffset));
+						memcpy(dst, src, sizeof(int16) * numThisTime);
+					}
+					
 				}
 			}
 				
@@ -321,12 +349,28 @@ void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSam
 				if (destination.isFloatingPoint())
 				{
 					auto dst = static_cast<float*>(destination.getWritePointer(channelIndex, bufferOffset));
-					CompressionHelpers::fastInt16ToFloat(src + skipToUse, dst, numThisTime);
+
+					if (hlacVersion > 2)
+					{
+						destination.getNormaliseMap(channelIndex).normalisedInt16ToFloat(dst, src + skipToUse, bufferOffset, numThisTime);
+					}
+					else
+					{
+						CompressionHelpers::fastInt16ToFloat(src + skipToUse, dst, numThisTime);
+					}
 				}
 				else
 				{
-					auto dst = static_cast<int16*>(destination.getWritePointer(channelIndex, bufferOffset));
-					memcpy(dst, src + skipToUse, sizeof(int16) * numThisTime);
+					if (hlacVersion > 2)
+					{
+						CompressionHelpers::AudioBufferInt16::copyWithNormalisation(destination.getFixedBuffer(channelIndex), srcBuffer, bufferOffset, skipToUse, numThisTime, false);
+					}
+					else
+					{
+						auto dst = static_cast<int16*>(destination.getWritePointer(channelIndex, bufferOffset));
+
+						memcpy(dst, src + skipToUse, sizeof(int16) * numThisTime);
+					}
 				}
 			}
 				
@@ -348,6 +392,8 @@ void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSam
 			skipToUse = 0;
 		}
 	}
+
+	
 }
 
 void HlacDecoder::seekToPosition(InputStream& input, uint32 position, uint32 byteOffset)

@@ -496,9 +496,7 @@ public:
 	Component* createContentComponent(int /*index*/) override
 	{
 		auto p = new Plotter();
-
 		auto mod = dynamic_cast<Modulation*>(getConnectedProcessor());
-
 		mod->setPlotter(p);
 
 		return p;
@@ -633,7 +631,11 @@ public:
 
 	void resized() override
 	{
+#if USE_FRONTEND
+		component->setBounds(getLocalBounds());
+#else
 		component->setBounds(getParentShell()->getContentBounds());
+#endif
 	}
 
 private:

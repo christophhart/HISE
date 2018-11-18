@@ -46,7 +46,10 @@ class SampleMapEditor  : public Component,
                          public ApplicationCommandTarget,
                          public FileDragAndDropTarget,
                          public DragAndDropTarget,
-                         public LabelListener
+                         public LabelListener,
+						 public PoolBase::Listener,
+						 public ComboBox::Listener,
+						 public SampleMap::Listener
 {
 public:
     //==============================================================================
@@ -55,6 +58,13 @@ public:
 
     //==============================================================================
     //[UserMethods]     -- You can add your own custom methods in this section.
+
+	class Factory : public PathFactory
+	{
+	public:
+		
+		Path createPath(const String& name) const override;
+	};
 
 
 	/** All application commands are collected here. */
@@ -73,8 +83,13 @@ public:
 		SaveSampleMap,
 		SaveSampleMapAsXml,
 		SaveSampleMapAsMonolith,
+		DuplicateSampleMapAsReference,
+		RevertSampleMap,
 		ImportSfz,
 		ImportFiles,
+
+		Undo,
+		Redo,
 
 		// Sample Editing
 		DuplicateSamples,
@@ -88,6 +103,8 @@ public:
 		MergeIntoMultisamples,
 		CreateMultiMicSampleMap,
 		ExtractToSingleMicSamples,
+		ReencodeMonolith,
+		EncodeAllMonoliths,
 		FillNoteGaps,
 		FillVelocityGaps,
 		AutomapVelocity,
@@ -113,8 +130,12 @@ public:
 								SaveSampleMap,
 								SaveSampleMapAsXml,
 								SaveSampleMapAsMonolith,
+								DuplicateSampleMapAsReference,
+								RevertSampleMap,
 								ImportSfz,
 								ImportFiles,
+								Undo,
+								Redo,
 								DuplicateSamples,
 								DeleteDuplicateSamples,
 								CutSamples,
@@ -126,6 +147,8 @@ public:
 								CreateMultiMicSampleMap,
 								MergeIntoMultisamples,
 								ExtractToSingleMicSamples,
+								ReencodeMonolith,
+								EncodeAllMonoliths,
 								FillNoteGaps,
 								FillVelocityGaps,
 								AutomapVelocity,
@@ -140,6 +163,10 @@ public:
 	void getCommandInfo (CommandID commandID, ApplicationCommandInfo &result) override;;
 
 	bool perform (const InvocationInfo &info) override;
+
+	void importSfz();
+
+	void loadSampleMap();
 
 	void soundsSelected(const SampleSelection &selectedSounds) override
 	{
@@ -181,35 +208,44 @@ public:
 
 	void itemDragEnter(const SourceDetails& dragSourceDetails)
 	{
-		String firstName = dragSourceDetails.description.toString().upToFirstOccurrenceOf(";", false, true);
-
-		File f(firstName);
-
-		if (f.isDirectory())
+		if (dragSourceDetails.description.isString())
 		{
-			filesInFolder.clear();
+			String firstName = dragSourceDetails.description.toString().upToFirstOccurrenceOf(";", false, true);
 
-			StringArray directories = StringArray::fromTokens(dragSourceDetails.description.toString(), ";", "");
+			File f(firstName);
 
-			for (int i = 0; i < directories.size(); i++)
+			if (f.isDirectory())
 			{
-				File dir(directories[i]);
+				filesInFolder.clear();
 
-				if (!dir.isDirectory()) continue;
+				StringArray directories = StringArray::fromTokens(dragSourceDetails.description.toString(), ";", "");
 
-				DirectoryIterator iter(dir, true, "*.wav;*.aif;*.mp3;*.aiff;", File::TypesOfFileToFind::findFiles);
-
-				while (iter.next())
+				for (int i = 0; i < directories.size(); i++)
 				{
-					filesInFolder.add(iter.getFile().getFullPathName());
+					File dir(directories[i]);
+
+					if (!dir.isDirectory()) continue;
+
+					DirectoryIterator iter(dir, true, "*.wav;*.aif;*.mp3;*.aiff;", File::TypesOfFileToFind::findFiles);
+
+					while (iter.next())
+					{
+						filesInFolder.add(iter.getFile().getFullPathName());
+					}
 				}
 			}
 		}
+		
+		mapIsHovered = true;
+		repaint();
 	}
 
 	void itemDragExit(const SourceDetails& /*dragSourceDetails*/)
 	{
 		filesInFolder.clear();
+
+		mapIsHovered = false;
+		repaint();
 	}
 
 	bool isInterestedInDragSource(const SourceDetails &dragSourceDetails) override
@@ -222,22 +258,52 @@ public:
 
 			return f.isDirectory() || AudioSampleBufferComponent::isAudioFile(firstName) || f.hasFileExtension("xml");
 		}
-
-		return false;
-	}
-
-	void 	itemDropped(const SourceDetails &dragSourceDetails) override
-	{
-		if (filesInFolder.size() != 0)
-		{
-			filesDropped(filesInFolder, dragSourceDetails.localPosition.getX(), dragSourceDetails.localPosition.getY());
-		}
 		else
 		{
-			filesDropped(StringArray::fromTokens(dragSourceDetails.description.toString(), ";", ""), dragSourceDetails.localPosition.getX(), dragSourceDetails.localPosition.getY());
+			PoolReference ref(dragSourceDetails.description);
+
+			return ref && ref.getFileType() == FileHandlerBase::SubDirectories::SampleMaps;
 		}
+		
 	}
 
+	void sampleMapWasChanged(PoolReference newSampleMap) override;
+	
+	void sampleAmountChanged() override;
+
+	void samplePropertyWasChanged(ModulatorSamplerSound* /*s*/, const Identifier& /*id*/, const var& /*newValue*/) override;
+
+	void updateWarningButton();
+
+	void itemDropped(const SourceDetails &dragSourceDetails) override
+	{
+		if (dragSourceDetails.description.isString())
+		{
+			if (filesInFolder.size() != 0)
+				filesDropped(filesInFolder, dragSourceDetails.localPosition.getX(), dragSourceDetails.localPosition.getY());
+			else
+				filesDropped(StringArray::fromTokens(dragSourceDetails.description.toString(), ";", ""), dragSourceDetails.localPosition.getX(), dragSourceDetails.localPosition.getY());
+
+		}
+		else if(auto ref = PoolReference(dragSourceDetails.description))
+		{
+			auto f = [ref](Processor* p)
+			{
+				auto s = static_cast<ModulatorSampler*>(p);
+				s->loadSampleMap(ref);
+
+				return SafeFunctionCall::OK;
+			};
+
+			sampler->killAllVoicesAndCall(f);
+		}
+
+		mapIsHovered = false;
+		resized();
+		repaint();
+	}
+
+	void comboBoxChanged(ComboBox* b) override;
 
 	bool isInterestedInFileDrag(const StringArray &files) override
 	{
@@ -256,6 +322,11 @@ public:
 
 	void itemDragMove(const SourceDetails &dragSourceDetails) override
 	{
+		if (dragSourceDetails.description.isObject())
+		{
+			return;
+		}
+
 		if (filesInFolder.size() != 0)
 		{
 			fileDragMove(filesInFolder, dragSourceDetails.localPosition.getX(), dragSourceDetails.localPosition.getY());
@@ -268,7 +339,17 @@ public:
 		
 	}
 
+	void poolEntryAdded() override { updateSampleMapSelector(true); }
+	void poolEntryRemoved() override { updateSampleMapSelector(true); }
+	void poolEntryReloaded(PoolReference ref) override { updateSampleMapSelector(true); }
+
 	
+
+	void fileDragEnter(const StringArray& /*files*/, int /*x*/, int /*y*/) override
+	{
+		mapIsHovered = true;
+		repaint();
+	}
 
 	void fileDragMove(const StringArray &files, int x, int y)
 	{
@@ -307,14 +388,16 @@ public:
 
 		if (f.getFileExtension() == ".xml")
 		{
-			sampler->loadSampleMapSync(f);
+			PoolReference ref(sampler->getMainController(), f.getFullPathName(), FileHandlerBase::SampleMaps);
+
+			sampler->loadSampleMap(ref);
 		}
 		else if (f.getFileExtension() == ".sfz")
 		{
 			try
 			{
 
-				sampler->clearSampleMap();
+				sampler->clearSampleMap(sendNotificationAsync);
 
 				SfzImporter sfz(sampler, f);
 				sfz.importSfzFile();
@@ -331,6 +414,7 @@ public:
 		}
 
 		clearDragPosition();
+		resized();
 	}
 
 	BigInteger getRootNotesForDragPosition()
@@ -351,6 +435,8 @@ public:
 	void clearDragPosition()
 	{
 		map->map->clearDragPosition();
+		mapIsHovered = false;
+		repaint();
 	}
 	void setPressedKeys(const uint8 *pressedKeyData)
 	{
@@ -400,14 +486,20 @@ public:
 		if(zoomOut) zoomFactor = jmax (1.0f, zoomFactor / 2.0f);
 		else		zoomFactor = jmin (4.0f, zoomFactor * 2.0f);
 
+		updateMapInViewport();
+
+	};
+
+	void updateMapInViewport()
+	{
 		const int newWidth = (int)(viewport->getWidth() * zoomFactor);
 
 		double midPoint = (double)(viewport->getViewPositionX() + viewport->getViewWidth() / 2) / (double)map->getWidth();
 
-		map->setSize(newWidth, map->getHeight());
+		map->setSize(newWidth, viewport->getHeight());
 
 		viewport->setViewPositionProportionately(midPoint, 0);
-	};
+	}
 
 	ApplicationCommandManager *getCommandManager();
 
@@ -436,11 +528,13 @@ public:
 		p.addCommandItem(a, NewSampleMap);
 		p.addCommandItem(a, LoadSampleMap);
 		p.addCommandItem(a, SaveSampleMap);
+		p.addCommandItem(a, RevertSampleMap);
 
 		PopupMenu saveAs;
 
 		saveAs.addCommandItem(a, SaveSampleMapAsXml);
 		saveAs.addCommandItem(a, SaveSampleMapAsMonolith);
+		saveAs.addCommandItem(a, DuplicateSampleMapAsReference);
 
 		p.addSubMenu("Save as", saveAs, true);
 
@@ -458,6 +552,8 @@ public:
 		toolsMenu.addCommandItem(a, MergeIntoMultisamples);
 		toolsMenu.addCommandItem(a, CreateMultiMicSampleMap);
 		toolsMenu.addCommandItem(a, ExtractToSingleMicSamples);
+		toolsMenu.addCommandItem(a, ReencodeMonolith);
+		toolsMenu.addCommandItem(a, EncodeAllMonoliths);
 		
 
 		p.addSubMenu("Tools", toolsMenu, true);
@@ -503,6 +599,8 @@ public:
 		resized();
 	}
 
+	void refreshSampleMapPool();
+
 	void deletePopup()
 	{
 		if (parentCopy.getComponent() != nullptr)
@@ -513,13 +611,19 @@ public:
 
 	void toggleVerticalSize();
 
+	void paintOverChildren(Graphics& g) override;
+
+	void updateSampleMapSelector(bool rebuild);
+
     //[/UserMethods]
 
     void paint (Graphics& g);
     void resized();
     void labelTextChanged (Label* labelThatHasChanged);
 
+	void addMenuButton(SampleMapCommands commandId);
 
+	HiseShapeButton* getButton(SampleMapCommands id) { return menuButtons[id].getComponent(); }
 
 private:
     //[UserVariables]   -- You can add your own custom variables in this section.
@@ -534,6 +638,8 @@ private:
 	bool selectionIsNotEmpty;
 
 	float zoomFactor;
+
+	bool mapIsHovered = false;
 
 	Array<ModulatorSamplerSound*> selectedSoundList;
 
@@ -557,6 +663,14 @@ private:
 	ScopedPointer<ValueSettingComponent> lowXFadeSetter;
 	ScopedPointer<ValueSettingComponent> highXFadeSetter;
 	
+	OwnedArray<HiseShapeButton> ownedMenuButtons;
+	Array<Component::SafePointer<HiseShapeButton>> menuButtons;
+
+	ScopedPointer<MarkdownHelpButton> helpButton;
+
+	ScopedPointer<ComboBox> sampleMaps;
+
+	ScopedPointer<MarkdownHelpButton> warningButton;
 
     //[/UserVariables]
 

@@ -62,6 +62,7 @@ struct CodecTest : public UnitTest
 		FullNoise,
 		SineOnly,
 		MixedSine,
+		RampDown,
 		DecayingSineWithHarmonic,
 		NastyDiracTrain,
 		numSignalTypes
@@ -70,7 +71,6 @@ struct CodecTest : public UnitTest
 	enum class Option
 	{
 		WholeBlock,
-		Delta,
 		Diff,
 		numCompressorOptions
 	};
@@ -81,7 +81,11 @@ struct CodecTest : public UnitTest
 
 	void testCodec(SignalType type, Option option, bool testStereo);
 
+	void testCopyWithNormalisation();
+
 	void testHiseSampleBuffer();
+
+	void testNormalisation();
 
 	static AudioSampleBuffer createTestSignal(int numSamples, int numChannels, SignalType type, float maxAmplitude);
 
@@ -90,6 +94,9 @@ struct CodecTest : public UnitTest
 	String getNameForOption(Option o) const;
 	String getNameForSignal(SignalType s) const;
 
+private:
+	void testHiseSampleBufferMinNormalisation();
+	void testHiseSampleBufferClearing();
 };
 
 

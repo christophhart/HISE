@@ -740,6 +740,78 @@ JUCE_COMCLASS (ITipInvocation, "37c994e7-432b-4834-a2f7-dce1f13b834b")  : public
     virtual HRESULT STDMETHODCALLTYPE Toggle (HWND) = 0;
 };
 
+struct OnScreenKeyboard : public DeletedAtShutdown,
+	private Timer
+{
+	void activate()
+	{
+		shouldBeActive = true;
+		startTimer(10);
+	}
+
+	void deactivate()
+	{
+		shouldBeActive = false;
+		startTimer(10);
+	}
+
+	JUCE_DECLARE_SINGLETON_SINGLETHREADED(OnScreenKeyboard, false)
+
+private:
+	OnScreenKeyboard()
+	{
+		tipInvocation.CoCreateInstance(ITipInvocation::getCLSID(), CLSCTX_INPROC_HANDLER | CLSCTX_LOCAL_SERVER);
+	}
+
+	~OnScreenKeyboard()
+	{
+		clearSingletonInstance();
+	}
+
+	void timerCallback() override
+	{
+		stopTimer();
+
+		if (reentrant || tipInvocation == nullptr)
+			return;
+
+		const ScopedValueSetter<bool> setter(reentrant, true, false);
+
+		const bool isActive = isVisible();
+
+		if (isActive != shouldBeActive)
+		{
+			if (!isActive)
+			{
+				tipInvocation->Toggle(GetDesktopWindow());
+			}
+			else
+			{
+				if (auto hwnd = FindWindow(L"IPTip_Main_Window", NULL))
+					PostMessage(hwnd, WM_SYSCOMMAND, (int)SC_CLOSE, 0);
+			}
+		}
+	}
+
+	bool isVisible()
+	{
+		if (auto hwnd = FindWindow(L"IPTip_Main_Window", NULL))
+		{
+			auto style = GetWindowLong(hwnd, GWL_STYLE);
+			return (style & WS_DISABLED) == 0 && (style & WS_VISIBLE) != 0;
+		}
+
+		return false;
+	}
+
+	bool shouldBeActive = false, reentrant = false;
+	ComSmartPtr<ITipInvocation> tipInvocation;
+};
+
+JUCE_IMPLEMENT_SINGLETON(OnScreenKeyboard)
+
+
+#if 0
 struct OnScreenKeyboard   : public DeletedAtShutdown,
                             private Timer
 {
@@ -803,7 +875,9 @@ private:
     ComSmartPtr<ITipInvocation> tipInvocation;
 };
 
+
 juce_ImplementSingleton_SingleThreaded (OnScreenKeyboard)
+#endif
 
 //==============================================================================
 struct HSTRING_PRIVATE;

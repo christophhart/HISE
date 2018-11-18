@@ -853,8 +853,8 @@ int SampleMapToWavetableConverter::getSampleIndexForNoteNumber(int noteNumber)
 	{
 		auto sample = sampleMap.getChild(i);
 
-		auto range = Range<int>(getSampleProperty(sample, ModulatorSamplerSound::Property::KeyLow),
-			(int)getSampleProperty(sample, ModulatorSamplerSound::Property::KeyHigh) + 1);
+		auto range = Range<int>(getSampleProperty(sample, SampleIds::LoKey),
+			(int)getSampleProperty(sample, SampleIds::HiKey) + 1);
 
 		if (range.contains(noteNumber))
 			return i;
@@ -887,7 +887,7 @@ juce::Result SampleMapToWavetableConverter::readSample(AudioSampleBuffer& buffer
 	}
 	else
 	{
-		auto fileName = getSampleProperty(sample, ModulatorSamplerSound::FileName);
+		auto fileName = getSampleProperty(sample, SampleIds::FileName);
 		filePath = GET_PROJECT_HANDLER(chain).getFilePath(fileName, ProjectHandler::SubDirectories::Samples);
 	}
 
@@ -897,11 +897,11 @@ juce::Result SampleMapToWavetableConverter::readSample(AudioSampleBuffer& buffer
 	File f = File(filePath);
 
 
-	auto range = Range<int>((int)getSampleProperty(sample, ModulatorSamplerSound::Property::SampleStart) + monoOffset,
-		(int)getSampleProperty(sample, ModulatorSamplerSound::Property::SampleEnd) + monoOffset);
+	auto range = Range<int>((int)getSampleProperty(sample, SampleIds::SampleStart) + monoOffset,
+		(int)getSampleProperty(sample, SampleIds::SampleEnd) + monoOffset);
 
 
-	auto rootNote = (int)getSampleProperty(sample, ModulatorSamplerSound::RootNote);
+	auto rootNote = (int)getSampleProperty(sample, SampleIds::Root);
 
 
 

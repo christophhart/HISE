@@ -12,9 +12,9 @@ HLAC  | 45% - 70% | 8000x - 12000x realtime | Wavetable Encoding / Linear Gradie
 
 Unlike FLAC and ALAC and almost every other generic purpose lossless codec around, HLAC uses a much simpler algorithm to compress the audio data.
 
-This results in a lower compression size, but highly improves the decoding speed which makes it a suitable canditate for disk streaming in sample based instruments (which usually use uncompressed data otherwise). It's current limitation on 16 bit is by design - it normalizes higher bitrates before encoding to use the full 96dB dynamic range available. This is useful because samples with lower dynamics are typically not normalized.
+This results in a lower compression size, but highly improves the decoding speed which makes it a suitable canditate for disk streaming in sample based instruments (which usually use uncompressed data otherwise). Another feature of HLAC is it's *Full Dynamics* mode, which removes quantisation noise on the lower end of the dynamics spectrum which might occur at the tail of heavily processed decaying audio material like cymbal hits / piano samples.
 
-For convenience, there are JUCE format readers available which offer a high level interface to the audio format. It just uses the ISC licensed modules of JUCE so a commercial JUCE license is not required for using this codec!
+For convenience, there are JUCE format readers available which offer a high level interface to the audio format.
 
 ## Features
 
@@ -26,8 +26,4 @@ For convenience, there are JUCE format readers available which offer a high leve
 - seekable with no overhead (within 4096 sample frame boundary)
 - 16 bit only 
 - multithreading capable (no global states)
-- BSD license
-
-## License
-
-The HLAC codec is licensed under the permissive BSD clause 4 license which allows usage in any other software including commercial projects.
+- GPL v3 license

@@ -42,7 +42,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<FloatingTabComponent>(PopupMenuOptions::Tabs);
 	registerType<Note>(PopupMenuOptions::Note);
 
-	
+	registerType<ExpansionEditBar>(PopupMenuOptions::ExpansionEditBar);
 
 #if USE_BACKEND
 	registerType<GenericPanel<MacroComponent>>(PopupMenuOptions::MacroControls);
@@ -54,6 +54,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<GenericPanel<SamplePoolTable>>(PopupMenuOptions::SamplePoolTable);
 	registerType<GenericPanel<PoolTableSubTypes::ImageFilePoolTable>>(PopupMenuOptions::ImageTable);
 	registerType<GenericPanel<PoolTableSubTypes::AudioFilePoolTable>>(PopupMenuOptions::AudioFileTable);
+	registerType<GenericPanel<PoolTableSubTypes::SampleMapPoolTable>>(PopupMenuOptions::SampleMapPoolTable);
 	registerType<MainTopBar>(PopupMenuOptions::MenuCommandOffset);
 	registerType<BackendProcessorEditor>(PopupMenuOptions::MenuCommandOffset);
 	registerType<ScriptWatchTablePanel>(PopupMenuOptions::ScriptWatchTable);
@@ -80,17 +81,22 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 
 	//MidiSourceList
 
-#if USE_BACKEND
 	registerType<GlobalConnectorPanel<ModulatorSampler>>(PopupMenuOptions::SampleConnector);
+
+#if HI_ENABLE_EXPANSION_EDITING
+
 	registerType<SampleEditorPanel>(PopupMenuOptions::SampleEditor);
 	registerType<SampleMapEditorPanel>(PopupMenuOptions::SampleMapEditor);
+
+#endif
+
+#if USE_BACKEND
+	
 	registerType<SamplerTablePanel>(PopupMenuOptions::SamplerTable);
 	registerType<GlobalConnectorPanel<JavascriptProcessor>>(PopupMenuOptions::ScriptConnectorPanel);
 	registerType<CodeEditorPanel>(PopupMenuOptions::ScriptEditor);
 	registerType<ScriptContentPanel>(PopupMenuOptions::ScriptContent);
 #endif
-
-	
 
 	registerType<TableEditorPanel>(PopupMenuOptions::TablePanel);
 	registerType<SliderPackPanel>(PopupMenuOptions::SliderPackPanel);
@@ -122,6 +128,11 @@ void FloatingTileContent::Factory::registerFrontendPanelTypes()
 	registerType<WaveformComponent::Panel>(PopupMenuOptions::WavetablePreview);
 	registerType<FilterGraph::Panel>(PopupMenuOptions::FilterGraphPanel);
 	registerType<MPEPanel>(PopupMenuOptions::MPEPanel);
+	registerType<AhdsrGraph::Panel>(PopupMenuOptions::AHDSRGraph);
+
+#if HI_ENABLE_EXTERNAL_CUSTOM_TILES
+	registerExternalPanelTypes();
+#endif
 }
 
 
@@ -466,6 +477,7 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 
 	}
 	break;
+	case FloatingTileContent::Factory::PopupMenuOptions::ExpansionEditBar:
 	case FloatingTileContent::Factory::PopupMenuOptions::FileBrowser:
 	{
 		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::fileBrowser, sizeof(BackendBinaryData::ToolbarIcons::fileBrowser)));
@@ -601,6 +613,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(m, PopupMenuOptions::Note, "Note");
 			addToPopupMenu(m, PopupMenuOptions::AudioFileTable, "Audio File Pool Table");
 			addToPopupMenu(m, PopupMenuOptions::ImageTable, "Image Pool Table");
+			addToPopupMenu(m, PopupMenuOptions::SampleMapPoolTable, "SampleMap Pool Table");
 
 			PopupMenu fm;
 
@@ -670,6 +683,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::SampleMapEditor:		parent->setNewContent(GET_PANEL_NAME(SampleMapEditorPanel)); break;
 	case PopupMenuOptions::SamplerTable:		parent->setNewContent(GET_PANEL_NAME(SamplerTablePanel)); break;
 	case PopupMenuOptions::WavetablePreview:	parent->setNewContent(GET_PANEL_NAME(WaveformComponent::Panel)); break;
+	case PopupMenuOptions::AHDSRGraph:			parent->setNewContent(GET_PANEL_NAME(AhdsrGraph::Panel)); break;
 	case PopupMenuOptions::FilterGraphPanel:	parent->setNewContent(GET_PANEL_NAME(FilterGraph::Panel)); break;
 	case PopupMenuOptions::MPEPanel:			parent->setNewContent(GET_PANEL_NAME(MPEPanel)); break;
 	case PopupMenuOptions::ScriptEditor:		parent->setNewContent(GET_PANEL_NAME(CodeEditorPanel)); break;
@@ -699,6 +713,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::SampleMapBrowser:	parent->setNewContent(GET_PANEL_NAME(SampleMapBrowser)); break;
 	case PopupMenuOptions::AboutPage:			parent->setNewContent(GET_PANEL_NAME(AboutPagePanel)); break;
 	case PopupMenuOptions::AudioFileTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<PoolTableSubTypes::AudioFilePoolTable>)); break;
+	case PopupMenuOptions::SampleMapPoolTable:  parent->setNewContent(GET_PANEL_NAME(GenericPanel<PoolTableSubTypes::SampleMapPoolTable>)); break;
 	case PopupMenuOptions::ImageTable:			parent->setNewContent(GET_PANEL_NAME(GenericPanel<PoolTableSubTypes::ImageFilePoolTable>)); break;
 	case PopupMenuOptions::ScriptWatchTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ScriptWatchTable>)); break;
 	case PopupMenuOptions::toggleGlobalLayoutMode:    parent->getRootFloatingTile()->setLayoutModeEnabled(!parent->isLayoutModeEnabled()); break;

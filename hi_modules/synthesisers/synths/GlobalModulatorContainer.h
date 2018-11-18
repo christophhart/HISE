@@ -59,6 +59,119 @@ public:
 
 };
 
+template <class ModulatorType> class GlobalModulatorDataBase
+{
+public:
+
+	GlobalModulatorDataBase(Modulator* mod_):
+		mod(mod_)
+	{}
+
+	bool operator==(const GlobalModulatorDataBase& other) const
+	{
+		return mod == other.mod;
+	}
+
+	ModulatorType* getModulator()
+	{
+		if (mod.get() == nullptr)
+			return nullptr;
+
+		return static_cast<ModulatorType*>(mod.get());
+	}
+
+private:
+
+	WeakReference<Modulator> mod;
+
+};
+
+class VoiceStartData : public GlobalModulatorDataBase<VoiceStartModulator>
+{
+public:
+
+	VoiceStartData(Modulator* mod):
+		GlobalModulatorDataBase(mod)
+	{
+		FloatVectorOperations::clear(voiceValues, 128);
+	}
+
+	void saveValue(int noteNumber, int voiceIndex)
+	{
+		if (auto m = getModulator())
+		{
+			if (isPositiveAndBelow(noteNumber, 128))
+			{
+				voiceValues[noteNumber] = m->getVoiceStartValue(voiceIndex);
+			}
+		}
+	}
+
+	float getConstantVoiceValue(int noteNumber) const
+	{
+		if (isPositiveAndBelow(noteNumber, 128))
+		{
+			return voiceValues[noteNumber];
+		}
+		
+		return 1.0f;
+	}
+
+	float voiceValues[128];
+};
+
+class TimeVariantData : public GlobalModulatorDataBase<TimeVariantModulator>
+{
+public:
+
+	TimeVariantData(Modulator* mod, int samplesPerBlock) :
+		GlobalModulatorDataBase(mod),
+		savedValuesForBlock(1, 0)
+	{
+		prepareToPlay(samplesPerBlock);
+	}
+
+	void prepareToPlay(int samplesPerBlock)
+	{
+		ProcessorHelpers::increaseBufferIfNeeded(savedValuesForBlock, samplesPerBlock);
+	}
+
+	void saveValues(const float* data, int startSample, int numSamples)
+	{
+		jassertfalse;
+		auto dest = savedValuesForBlock.getWritePointer(0, startSample);
+		FloatVectorOperations::copy(dest, data + startSample, numSamples);
+		isClear = false;
+	}
+
+	const float* getReadPointer(int startSample) const
+	{
+		return savedValuesForBlock.getReadPointer(0, startSample);
+	}
+
+	float* initialiseBuffer(int startSample, int numSamples)
+	{
+		auto wp = savedValuesForBlock.getWritePointer(0, 0);
+		FloatVectorOperations::fill(wp + startSample, 1.0f, numSamples);
+		isClear = false;
+		return wp;
+	}
+
+	void clear()
+	{
+		if (!isClear)
+		{
+			FloatVectorOperations::fill(savedValuesForBlock.getWritePointer(0, 0), 1.0f, savedValuesForBlock.getNumSamples());
+			isClear = true;
+		}
+	}
+
+private:
+
+	AudioSampleBuffer savedValuesForBlock;
+	bool isClear = false;
+};
+
 class GlobalModulatorData
 {
 public:
@@ -73,6 +186,8 @@ public:
 	float getConstantVoiceValue(int noteNumber);
 
 	const Processor *getProcessor() const { return modulator.get(); }
+
+	
 
 	VoiceStartModulator *getVoiceStartModulator() { return dynamic_cast<VoiceStartModulator*>(modulator.get()); }
 	const VoiceStartModulator *getVoiceStartModulator() const { return dynamic_cast<VoiceStartModulator*>(modulator.get()); }
@@ -193,10 +308,22 @@ private:
 	Array<float> constantVoiceValues;
 };
 
+/** A container that processes Modulator instances that can be used at different locations.
+	@ingroup synthTypes
+*/
 class GlobalModulatorContainer : public ModulatorSynth,
-								 public SafeChangeListener
+								 public Chain::Handler::Listener
 {
 public:
+
+	struct ModulatorListListener
+	{
+        virtual ~ModulatorListListener() {};
+        
+		virtual void listWasChanged() = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+	};
 
 	SET_PROCESSOR_NAME("GlobalModulatorContainer", "Global Modulator Container");
 
@@ -206,19 +333,23 @@ public:
     
 	GlobalModulatorContainer(MainController *mc, const String &id, int numVoices);;
 
+	~GlobalModulatorContainer();
+
+	void processorChanged(EventType /*t*/, Processor* /*p*/) override { refreshList(); }
+
 	void restoreFromValueTree(const ValueTree &v) override;
 
-	const float *getModulationValuesForModulator(Processor *p, int startIndex, int voiceIndex = 0);
+	const float *getModulationValuesForModulator(Processor *p, int startIndex);
 	float getConstantVoiceValue(Processor *p, int noteNumber);
 
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
 
 	void changeListenerCallback(SafeChangeBroadcaster *) { refreshList(); }
-	void addChangeListenerToHandler(SafeChangeListener *listener);
-	void removeChangeListenerFromHandler(SafeChangeListener *listener);
 
 	void preStartVoice(int voiceIndex, int noteNumber);
-	void postVoiceRendering(int startSample, int numThisTime);
+	
+
+	void preVoiceRendering(int startSample, int numThisTime) override;
 
 	void addProcessorsWhenEmpty() override {};
 
@@ -230,16 +361,17 @@ public:
 	
 	const Processor* getModulatorForControlledParameter(const Processor* processor, int parameterIndex) const;
 
-	int getNumControlledParameters() const
-	{
-
-	}
 
 	ValueTree exportModulatedParameters() const;
 
 	void restoreModulatedParameters(const ValueTree& v);
 
 private:
+
+	Array<VoiceStartData> voiceStartData;
+	Array<TimeVariantData> timeVariantData;
+
+	Array<WeakReference<ModulatorListListener>> modListeners;
 
 	friend class GlobalModulatorContainerVoice;
 
@@ -248,6 +380,8 @@ private:
 	void refreshList();
 
 	OwnedArray<GlobalModulatorData> data;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(GlobalModulatorContainer);
 };
 
 

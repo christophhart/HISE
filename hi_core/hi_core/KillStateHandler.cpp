@@ -32,95 +32,22 @@
 
 namespace hise { using namespace juce;
 
-#if ENABLE_LOG_KILL_EVENTS
-#define LOG_KILL_EVENTS(x) DBG(x)
-#else
-#define LOG_KILL_EVENTS(x)
-#endif
-
 
 MainController::KillStateHandler::KillStateHandler(MainController* mc_) :
 	mc(mc_),
-	killState(NewKillState::Clear),
-	pendingStates(0),
-	pendingMessageThreadFunctions(8192),
-	pendingAudioThreadFunctions(8192),
-	pendingSampleLoadFunctions(8192)
+	currentState(State::WaitingForInitialisation)
 {
-	pendingFunctions[TargetThread::AudioThread] = &pendingAudioThreadFunctions;
-	pendingFunctions[TargetThread::MessageThread] = &pendingMessageThreadFunctions;
-	pendingFunctions[TargetThread::SampleLoadingThread] = &pendingSampleLoadFunctions;
-
 	audioThreads.ensureStorageAllocated(16);
 
 	threadIds[TargetThread::AudioThread] = nullptr;
 	threadIds[TargetThread::SampleLoadingThread] = mc->getSampleManager().getGlobalSampleThreadPool()->getThreadId();
+	threadIds[TargetThread::ScriptingThread] = mc->javascriptThreadPool->getThreadId();
 	threadIds[TargetThread::MessageThread] = nullptr;
 }
 
-void MainController::KillStateHandler::addFunctionToExecute(Processor* p, const ProcessorFunction& functionToCallWhenVoicesAreKilled, TargetThread targetThread, NotificationType triggerUpdate)
-{
-	pendingFunctions[targetThread]->push(SafeFunctionCall(p, functionToCallWhenVoicesAreKilled));
-
-	if (triggerUpdate == sendNotification)
-	{
-
-		if (targetThread == MessageThread)
-			triggerPendingMessageCallbackFunctionsUpdate();
-		else if (targetThread == SampleLoadingThread)
-		{
-			triggerPendingSampleLoadingFunctionsUpdate();
-		}
-	}
-}
-
-bool MainController::KillStateHandler::voicesAreKilled() const
-{
-	return !mc->getMainSynthChain()->areVoicesActive();
-}
 
 
-void MainController::KillStateHandler::onAllVoicesAreKilled()
-{
-	LOG_KILL_EVENTS("  All voices killed.");
-
-	jassert(getCurrentThread() == AudioThread);
-	jassert(!isNothingPending());
-	mc->getMainSynthChain()->resetAllVoices();
-
-	executePendingAudioThreadFunctions();
-
-	triggerPendingMessageCallbackFunctionsUpdate();
-	triggerPendingSampleLoadingFunctionsUpdate();
-}
-
-void MainController::KillStateHandler::handleAsyncUpdate()
-{
-
-
-	jassert(getCurrentThread() == MessageThread);
-	jassert(voicesAreKilled());
-	jassert(isPending(WaitingForAsyncUpdate));
-	jassert(pendingMessageThreadFunctions.size() > 0);
-
-
-
-	setPendingState(AsyncMessageCallback, true);
-	setPendingState(WaitingForAsyncUpdate, false);
-
-	SafeFunctionCall f;
-
-	while (pendingMessageThreadFunctions.pop(f))
-	{
-		LOG_KILL_EVENTS("  Calling async function");
-		f.call();
-	}
-
-	setPendingState(AsyncMessageCallback, false);
-}
-
-
-void MainController::KillStateHandler::handleKillState()
+bool MainController::KillStateHandler::handleKillState()
 {
 #if ENABLE_LOG_KILL_EVENTS
 	if (killState != NewKillState::Clear)
@@ -129,201 +56,450 @@ void MainController::KillStateHandler::handleKillState()
 
 	initAudioThreadId();
 
+	ScopedTryLock sl(ticketLock);
 
-
-	switch ((int)killState.load())
+	if (!sl.isLocked())
 	{
-	case NewKillState::Clear:
-	{
-		disableVoiceStartsThisCallback = false;
-		executePendingAudioThreadFunctions();
-		return;
+		jassertfalse;
 	}
-	case NewKillState::Pending:
-	{
-		disableVoiceStartsThisCallback = true;
 
-		if (isPending(VoiceKillStart))
+	switch (currentState.load())
+	{
+	case State::Clear:
+	{
+		if (!checkForClearance())
 		{
-			if (!voicesAreKilled())
+			currentState = VoiceKill;
+
+			mc->getMainSynthChain()->killAllVoices();
+
+			if (voicesAreKilled())
 			{
-				setPendingState(VoiceKill, true);
-				mc->getMainSynthChain()->killAllVoices();
+				currentState = State::Suspended;
+				return false;
 			}
 			else
 			{
-				onAllVoicesAreKilled();
-				setPendingState(VoiceKillStart, false);
+				return true;
 			}
 		}
-		else if (isPending(VoiceKill))
-		{
-			if (voicesAreKilled())
-			{
-				onAllVoicesAreKilled();
-				setPendingState(VoiceKill, false);
-			}
-		}
-		return;
+		return true;
 	}
-	case NewKillState::SetForClearance:
+	case State::VoiceKill:
 	{
-		disableVoiceStartsThisCallback = true;
-
-		if (isNothingPending())
+		if (voicesAreKilled())
 		{
-			setKillState(NewKillState::Clear);
+			currentState = State::Suspended;
+			return false;
+		}
+
+		return true;
+	}
+	case State::Suspended:
+	{
+		if (checkForClearance())
+		{
+			{
+				DBG_WITH_AUDIO_GUARD("All tickets cleared. Resume processing");
+			}
+			
+
+			mc->getMainSynthChain()->resetAllVoices();
+			currentState = State::Clear;
+			return true;
+		}
+
+		return false;
+	}
+	case State::ShutdownSignalReceived:
+	{
+		currentState = PendingShutdown;
+		mc->getMainSynthChain()->killAllVoices();
+
+		if (voicesAreKilled())
+		{
+			quit();
+			return false;
 		}
 		else
 		{
-
-			for (int i = 0; i < PendingState::numPendingStates; i++)
-			{
-				if (isPending((PendingState)i))
-				{
-					LOG_KILL_EVENTS("    Still pending: " + getStringForPendingState((PendingState)i));
-				}
-			}
-
-			setKillState(Pending);
+			return true;
 		}
-		return;
+	}
+	case State::PendingShutdown:
+	{
+		jassert(allowGracefulExit());
+
+		if (voicesAreKilled())
+		{
+			quit();
+			return false;
+		}
+
+		return true;
+	}
+	case State::ShutdownComplete:
+		return false;
+	default:
+		jassertfalse;
+        return false;
 	}
 
-	default:
-		break;
-	}
 }
 
 
-void MainController::KillStateHandler::killVoicesAndCall(Processor* p, const ProcessorFunction& functionToExecuteWhenKilled, MainController::KillStateHandler::TargetThread targetThread)
+
+void MainController::KillStateHandler::requestQuit()
 {
-	if (voicesAreKilled())
+	if (allowGracefulExit())
 	{
-		auto currentThreadId = getCurrentThread();
-
-		if (targetThread == currentThreadId)
-		{
-			LOG_KILL_EVENTS("  Executing synchronously...");
-
-			setPendingState(SyncMessageCallback, true);
-
-			jassert(p != nullptr);
-			functionToExecuteWhenKilled(p);
-
-			setPendingState(SyncMessageCallback, false);
-
-			LOG_KILL_EVENTS("  Done Executing function OK");
-			return;
-		}
-		else
-		{
-			addFunctionToExecute(p, functionToExecuteWhenKilled, targetThread, sendNotification);
-		}
+		currentState = State::ShutdownSignalReceived;
 	}
 	else
 	{
-		jassert(p != nullptr);
 
-		setPendingState(VoiceKillStart, true);
-
-		LOG_KILL_EVENTS("  Active Voices detected. Delaying function call");
-		addFunctionToExecute(p, functionToExecuteWhenKilled, targetThread, dontSendNotification);
+		JUCEApplication::quit();
 	}
 }
 
+bool MainController::KillStateHandler::allowGracefulExit() const noexcept
+{
+#if JUCE_WINDOWS && IS_STANDALONE_APP
+	const bool formatAllowsGracefulExit = true;
+#else
+	const bool formatAllowsGracefulExit = false;
+#endif
+
+	return initialised() && formatAllowsGracefulExit;
+}
+
+void MainController::KillStateHandler::quit()
+{
+	LockHelpers::SafeLock sl(mc, LockHelpers::AudioLock);
+
+	mc->getMainSynthChain()->resetAllVoices();
+	currentState = ShutdownComplete;
+
+	auto f = [](Dispatchable* )
+	{
+		JUCEApplication::quit();
+		return Dispatchable::Status::OK;
+	};
+
+	mc->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(mc->getMainSynthChain(), f);
+}
+
+
+
+void MainController::KillStateHandler::deferToThread(Processor* p, const ProcessorFunction& f, TargetThread t)
+{
+	switch (t)
+	{
+	case SampleLoadingThread:
+	{
+		mc->getSampleManager().addDeferredFunction(p, f);
+		break;
+	}
+	
+	case ScriptingThread:
+	{
+		auto sf = [f](JavascriptProcessor* jp)
+		{
+			auto p = dynamic_cast<Processor*>(jp);
+			f(p);
+			return jp->getLastErrorMessage();
+		};
+
+		mc->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::Compilation, dynamic_cast<JavascriptProcessor*>(p), sf);
+
+		break;
+	}
+	case AudioThread:
+	{
+        jassertfalse;
+        break;
+	}
+	case MessageThread:
+	default:
+	{
+		jassertfalse;
+		break;
+	}
+	}
+}
+
+bool MainController::KillStateHandler::isAudioRunning() const noexcept
+{
+	return initialised() && currentState < State::Suspended;
+}
+
+void MainController::KillStateHandler::setLockForCurrentThread(LockHelpers::Type t, bool lock) const
+{
+	auto id = lock ? getCurrentThread() : TargetThread::Free;
+	lockStates.threadsForLock[t].store(id);
+}
+
+bool MainController::KillStateHandler::currentThreadHoldsLock(LockHelpers::Type t) const noexcept
+{
+	return getCurrentThread() == lockStates.threadsForLock[t];
+}
+
+bool MainController::KillStateHandler::initialised() const noexcept
+{
+	return init && currentState != ShutdownComplete;
+}
+
+bool MainController::KillStateHandler::invalidateTicket(uint16 ticket)
+{
+	//DBG("Invalidate Ticket " + String(ticket));
+
+	jassert(mc->isBeingDeleted() || currentState == Suspended);
+
+	//stackTraces.remove(StackTrace<3, 6>(ticket, false));
+
+	{
+		ScopedLock sl(ticketLock);
+
+		// You tried to invalidate an invalid ticket!
+		jassert(ticket != 0);
+
+		auto index = pendingTickets.indexOf(ticket);
+		pendingTickets.removeElement(index);
+		return index != -1;
+	}
+}
+
+static uint32 lastTime = 0;
+
+juce::uint16 MainController::KillStateHandler::requestNewTicket()
+{
+	jassert(currentState != WaitingForInitialisation);
+
+	auto thisTime = Time::getMillisecondCounter();
+
+	auto delta = thisTime - lastTime;
+	lastTime = thisTime;
+
+	
+
+
+	uint16 newTicket;
+
+	ignoreUnused(delta);
+	//DBG(String(delta) + "ms: Request Ticket " + String(ticketCounter + 1));
+
+	{
+		ScopedLock sl(ticketLock);
+
+		ticketCounter = jmax<uint16>(1, ticketCounter + 1);
+
+		newTicket = ticketCounter;
+
+		
+
+		pendingTickets.insertWithoutSearch(newTicket);
+	}
+	
+	//stackTraces.insertWithoutSearch(StackTrace<3, 6>(newTicket));
+
+	return newTicket;
+}
+
+bool MainController::KillStateHandler::checkForClearance() const noexcept
+{
+	ScopedTryLock sl(ticketLock);
+
+	if (sl.isLocked())
+		return pendingTickets.isEmpty();
+
+	// If we didn't get the lock, there's certainly going on something, 
+	// so we can't unsuspend the audio processing now.
+	return false;
+}
+
+bool MainController::KillStateHandler::isSuspendableThread() const noexcept
+{
+	auto c = getCurrentThread();
+	return c == ScriptingThread || c == SampleLoadingThread;
+}
+
+bool MainController::KillStateHandler::voicesAreKilled() const
+{
+	// This method should only be called during the voice killing state
+	jassert(currentState == State::VoiceKill || currentState == PendingShutdown);
+
+	return !mc->getMainSynthChain()->areVoicesActive();
+}
+
+
+bool MainController::KillStateHandler::killVoicesAndCall(Processor* p, const ProcessorFunction& functionToExecuteWhenKilled, MainController::KillStateHandler::TargetThread targetThread)
+{
+	WARN_IF_AUDIO_THREAD(true, IllegalOps::GlobalLocking);
+
+	if (!initialised())
+	{
+		jassert(currentState == State::WaitingForInitialisation || 
+		        currentState == State::ShutdownComplete);
+
+		functionToExecuteWhenKilled(p);
+		return true;
+	}
+
+	jassert(targetThread != MessageThread);
+
+	const bool sameThread = getCurrentThread() == targetThread;
+
+	if (inUnitTestMode() || (!isAudioRunning() && sameThread))
+	{
+		// We either don't care about threading (unit-test) or the engine is idle
+		// and the target thread is active, so we can call the function without
+		// further actions
+		functionToExecuteWhenKilled(p);
+		return true;
+	}
+	else
+	{
+		if (isSuspendableThread() && sameThread)
+		{
+			// We are on a suspendable thread and the function
+			// should be called here.
+
+			if (isAudioRunning())
+			{
+				auto newTicket = requestNewTicket();
+
+				if (killVoicesAndWait())
+				{
+					jassert(!isAudioRunning());
+
+					functionToExecuteWhenKilled(p);
+					
+					jassert(currentState = State::Suspended);
+
+					invalidateTicket(newTicket);
+
+					return true;
+				}
+				else
+				{
+					// Somehow the voices could not been killed.
+					jassertfalse;
+					invalidateTicket(newTicket);
+					return true;
+				}
+			}
+		}
+		else
+		{
+			deferToThread(p, functionToExecuteWhenKilled, targetThread);
+			return false;
+		}
+	}
+
+	jassertfalse;
+	return false;
+}
+
+
+bool MainController::KillStateHandler::killVoicesAndWait(int* timeoutMilliseconds)
+{
+	if (!isSuspendableThread())
+	{
+		jassertfalse;
+		return false;
+	}
+
+	if (currentState == Suspended)
+	{
+		if (timeoutMilliseconds != nullptr)
+			*timeoutMilliseconds = 0;
+		return true;
+	}
+
+	// If you call this method you need to have requested a ticket!
+	jassert(!checkForClearance());
+
+	int safeguard = 0;
+	int timeout = timeoutMilliseconds != nullptr ? *timeoutMilliseconds : 1000;
+	int numRetries = timeout / 20;
+
+	while (isAudioRunning() && safeguard < numRetries)
+	{
+		Thread::sleep(20);
+		safeguard++;
+	}
+
+	if (isAudioRunning())
+	{
+		jassertfalse;
+		return false;
+	}
+
+	if(timeoutMilliseconds != nullptr)
+		*timeoutMilliseconds = safeguard * numRetries;
+
+	return true;
+}
+
+bool MainController::KillStateHandler::test() const noexcept
+{
+	if (mc->getMainSynthChain() == nullptr)
+		return false;
+
+	if (!mc->getMainSynthChain()->isOnAir())
+		return false;
+
+	if (audioThreads.isEmpty())
+		return false;
+
+	return true;
+}
+
+
+juce::Array<MultithreadedQueueHelpers::PublicToken> MainController::KillStateHandler::createPublicTokenList(int producerFlags /*= AllProducers*/)
+{
+	jassert(initialised());
+
+	WARN_IF_AUDIO_THREAD(true, IllegalOps::Compilation);
+
+	/** You can't call this before initialising the audio threads. */
+	jassert(!audioThreads.isEmpty());
+
+	MultithreadedQueueHelpers::PublicToken audioThreadToken;
+	audioThreadToken.canBeProducer = producerFlags & QueueProducerFlags::AudioThreadIsProducer;
+	audioThreadToken.threadIds.insertArray(0, audioThreads.getRawDataPointer(), audioThreads.size());
+	audioThreadToken.threadName = "AudioThread";
+
+	MultithreadedQueueHelpers::PublicToken messageThreadToken;
+	messageThreadToken.canBeProducer = producerFlags & QueueProducerFlags::MessageThreadIsProducer;
+	messageThreadToken.threadIds.insert(-1, MessageManager::getInstance()->getCurrentMessageThread());
+	messageThreadToken.threadName = "Message Thread";
+
+	MultithreadedQueueHelpers::PublicToken sampleLoadingThreadToken;
+	sampleLoadingThreadToken.canBeProducer = producerFlags & QueueProducerFlags::LoadingThreadIsProducer;
+	sampleLoadingThreadToken.threadIds.insert(-1, mc->getSampleManager().getGlobalSampleThreadPool()->getThreadId());
+	sampleLoadingThreadToken.threadName = "Loading Thread";
+
+	MultithreadedQueueHelpers::PublicToken scriptThreadToken;
+	scriptThreadToken.canBeProducer = producerFlags & QueueProducerFlags::ScriptThreadIsProducer;
+	scriptThreadToken.threadIds.insert(-1, mc->javascriptThreadPool->getThreadId());
+	scriptThreadToken.threadName = "Scripting Thread";
+
+	return { audioThreadToken, messageThreadToken, sampleLoadingThreadToken, scriptThreadToken };
+}
 
 
 
 bool MainController::KillStateHandler::voiceStartIsDisabled() const
 {
-	return disableVoiceStartsThisCallback;
-}
-
-void MainController::KillStateHandler::setSampleLoadingPending(bool isPending)
-{
-	if (isPending == false)
-		jassert(voicesAreKilled());
-
-	setPendingState(SampleLoading, isPending);
-}
-
-
-String MainController::KillStateHandler::getStringForKillState(NewKillState s)
-{
-	switch (s)
-	{
-	case MainController::KillStateHandler::Clear: return "Clear";
-	case MainController::KillStateHandler::Pending: return "Pending";
-	case MainController::KillStateHandler::SetForClearance: return "SetForClearance";
-	case MainController::KillStateHandler::numNewKillStates:
-		break;
-	default:
-		break;
-	}
-
-	return String();
-}
-
-String MainController::KillStateHandler::getStringForPendingState(PendingState state)
-{
-	switch (state)
-	{
-	case MainController::KillStateHandler::VoiceKillStart: return "VoiceKillStart";
-	case MainController::KillStateHandler::VoiceKill: return "VoiceKill";
-	case MainController::KillStateHandler::AudioThreadFunction: return "AudioThreadFunction";
-	case MainController::KillStateHandler::SyncMessageCallback: return "SyncMessageCallback";
-	case MainController::KillStateHandler::WaitingForAsyncUpdate: return "WaitingForAsyncUpdate";
-	case MainController::KillStateHandler::AsyncMessageCallback: return "AsyncMessageCallback";
-	case MainController::KillStateHandler::SampleLoading: return "SampleLoading";
-	case MainController::KillStateHandler::numPendingStates:
-		break;
-	default:
-		break;
-	}
-
-	return "Unknown";
-}
-
-void MainController::KillStateHandler::setPendingState(PendingState pendingState, bool isPending)
-{
-#if ENABLE_LOG_KILL_EVENTS
-	if (isPending != pendingStates[pendingState])
-		LOG_KILL_EVENTS("    Pending State Change: " + getStringForPendingState(pendingState) + ": " + String(isPending ? "true" : "false"));
+#if HI_RUN_UNIT_TESTS
+	return false;
+#else
+	return currentState > State::Clear;
 #endif
-
-	pendingStates.setBit(pendingState, isPending);
-
-	if (isPending)
-	{
-		setKillState(Pending);
-	}
-	else
-	{
-		if (isNothingPending())
-			setKillState(NewKillState::SetForClearance);
-	}
 }
 
 
-void MainController::KillStateHandler::setKillState(NewKillState newKillState)
-{
-	if (newKillState != killState)
-	{
-		LOG_KILL_EVENTS("    Kill State change: " + getStringForKillState(killState) + " -> " + getStringForKillState(newKillState));
-		killState = newKillState;
-	}
-}
-
-bool MainController::KillStateHandler::isPending(PendingState state) const
-{
-	return pendingStates[state];
-}
-
-bool MainController::KillStateHandler::isNothingPending() const
-{
-	return pendingStates.isZero();
-}
 
 
 void MainController::KillStateHandler::setSampleLoadingThreadId(void* newId)
@@ -340,23 +516,33 @@ MainController::KillStateHandler::TargetThread MainController::KillStateHandler:
 
 	auto threadId = Thread::getCurrentThreadId();
 
-	if(audioThreads.contains(threadId))
+	if (audioThreads.contains(threadId))
 		return TargetThread::AudioThread;
 	else if (threadId == threadIds[(int)TargetThread::SampleLoadingThread])
 		return TargetThread::SampleLoadingThread;
-	
+	else if (threadId == threadIds[(int)TargetThread::ScriptingThread])
+		return TargetThread::ScriptingThread;
+
 	if (auto mm = MessageManager::getInstanceWithoutCreating())
 	{
 		if (mm->isThisTheMessageThread())
 			return MessageThread;
 	}
 
+#if JUCE_LINUX && !IS_STANDALONE_APP
+	// Linux appears to be using multiple message threads, so this is the best bet...
 	return MessageThread;
+#else
+	return UnknownThread;
+#endif
 }
 
 
 void MainController::KillStateHandler::addThreadIdToAudioThreadList()
 {
+    if(MessageManager::getInstance()->isThisTheMessageThread())
+        return;
+    
 	auto threadId = Thread::getCurrentThreadId();
 
 	audioThreads.addIfNotAlreadyThere(threadId);
@@ -365,52 +551,59 @@ void MainController::KillStateHandler::addThreadIdToAudioThreadList()
 void MainController::KillStateHandler::initAudioThreadId()
 {
 	addThreadIdToAudioThreadList();
-}
 
-void MainController::KillStateHandler::executePendingAudioThreadFunctions()
-{
-	if (!pendingAudioThreadFunctions.isEmpty())
+	if (!init)
 	{
-		SafeFunctionCall d;
-
-		setPendingState(AudioThreadFunction, true);
-
-		while (pendingAudioThreadFunctions.pop(d))
+		if (currentState == WaitingForInitialisation)
 		{
-			if (!d.call())
-			{
-				jassertfalse;
-				break;
-			}
+			currentState = State::Clear;
 		}
+		
+		init = true;
 
-		setPendingState(AudioThreadFunction, false);
+		BACKEND_ONLY(mc->getConsoleHandler().initialise());
 	}
+
+
+	
 }
 
 
-
-void MainController::KillStateHandler::triggerPendingMessageCallbackFunctionsUpdate()
+void MainController::KillStateHandler::warn(int operationType)
 {
-	if (!pendingMessageThreadFunctions.isEmpty())
+	if (guardEnabled)
 	{
-		setPendingState(WaitingForAsyncUpdate, true);
-		triggerAsyncUpdate();
+		String errorMessage = "Illegal call in audio thread detected: \n";
+
+		errorMessage << getOperationName(operationType);
+
+		DBG(errorMessage);
+
+		//errorMessage << SystemStats::getStackBacktrace();
+
+		debugError(mc->getMainSynthChain(), errorMessage);
 	}
 }
 
-
-void MainController::KillStateHandler::triggerPendingSampleLoadingFunctionsUpdate()
+juce::String MainController::KillStateHandler::getOperationName(int operationType)
 {
-	jassert(threadIds[TargetThread::SampleLoadingThread] != nullptr);
+	auto t = (IllegalOps)operationType;
 
-	if (!pendingSampleLoadFunctions.isEmpty())
+	switch (t)
 	{
-		setPendingState(SampleLoading, true);
-		mc->getSampleManager().triggerSamplePreloading();
+	case IllegalOps::ProcessorInsertion:	return "Processor insertion";
+	case IllegalOps::IteratorCreation:		return "Iterator creation";
+	case IllegalOps::Compilation:			return "Script compilation";
+	case IllegalOps::SampleCreation:		return "Sample creation";
+	case IllegalOps::SampleDestructor:		return "Sample deletion";
+	case IllegalOps::ValueTreeOperation:	return "ValueTree operation";
+	case IllegalOps::ProcessorDestructor:	return "Processor destructor";
+	default:
+		break;
 	}
-}
 
+	return Handler::getOperationName(operationType);
+}
 
 #undef LOG_KILL_EVENTS
 

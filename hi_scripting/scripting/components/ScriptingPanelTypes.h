@@ -77,81 +77,7 @@ private:
 	ScopedPointer<JavascriptTokeniser> tokeniser;
 };
 
-class HiseShapeButton : public ShapeButton
-{
-public:
 
-	class Factory : public PathFactory
-	{
-	public:
-
-		Path createPath(const String& id) const override;
-	};
-
-	HiseShapeButton(const String& name, ButtonListener* listener, const String& offName=String()):
-		ShapeButton(name, Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white)
-	{
-
-		Factory f;
-
-		onShape = f.createPath(name);
-
-		if (offName.isEmpty())
-			offShape = onShape;
-		else
-			offShape = f.createPath(offName);
-
-		if (listener != nullptr)
-			addListener(listener);
-
-		refreshShape();
-		refreshButtonColours();
-	}
-
-	void refreshButtonColours()
-	{
-		if (getToggleState())
-		{
-			setColours(Colour(SIGNAL_COLOUR).withAlpha(0.8f), Colour(SIGNAL_COLOUR), Colour(SIGNAL_COLOUR));
-		}
-		else
-		{
-			setColours(Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white);
-		}
-	}
-
-	void refreshShape()
-	{
-		if (getToggleState())
-		{
-			setShape(onShape, false, true, true);
-		}
-		else
-			setShape(offShape, false, true, true);
-	}
-
-	void refresh()
-	{
-		refreshShape();
-		refreshButtonColours();
-	}
-
-	void toggle()
-	{
-		setToggleState(!getToggleState(), dontSendNotification);
-		
-		refresh();
-	}
-
-	void setShapes(Path newOnShape, Path newOffShape)
-	{
-		onShape = newOnShape;
-		offShape = newOffShape;
-	}
-
-	Path onShape;
-	Path offShape;
-};
 
 class ScriptContentPanel : public PanelWithProcessorConnection,
 						   public GlobalScriptCompileListener
@@ -163,6 +89,12 @@ public:
 		ZoomAmount = PanelWithProcessorConnection::SpecialPanelIds::numSpecialPanelIds,
 		EditMode,
 		numSpecialPanelIds
+	};
+
+	class Factory : public PathFactory
+	{
+	public:
+		Path createPath(const String& id) const override;
 	};
 
 	struct Canvas;
@@ -336,7 +268,7 @@ public:
 
 		double zoomAmount;
 
-		KnobLookAndFeel klaf;
+		GlobalHiseLookAndFeel klaf;
 
 		ScopedPointer<ComboBox> zoomSelector;
 		ScopedPointer<HiseShapeButton> editSelector;
@@ -415,6 +347,8 @@ public:
 
 private:
 
+	Factory pathFactory;
+
 };
 
 
@@ -443,78 +377,6 @@ public:
 private:
 
 	const Identifier showConnectionBar;
-
-};
-
-class ConnectorHelpers
-{
-public:
-    
-    static void tut(PanelWithProcessorConnection* connector, const Identifier &idToSearch);
-    
-private:
-    
-    
-};
-
-template <class ProcessorType> class GlobalConnectorPanel : public PanelWithProcessorConnection
-{
-public:
-
-
-	GlobalConnectorPanel(FloatingTile* parent) :
-		PanelWithProcessorConnection(parent)
-	{
-
-	}
-
-	Identifier getIdentifierForBaseClass() const override
-	{
-		return GlobalConnectorPanel<ProcessorType>::getPanelId();
-	}
-
-	static Identifier getPanelId()
-	{
-		String n;
-
-		n << "GlobalConnector" << ProcessorType::getConnectorId().toString();
-
-		return Identifier(n);
-	}
-
-	int getFixedHeight() const override { return 18; }
-
-	Identifier getProcessorTypeId() const override
-	{
-		RETURN_STATIC_IDENTIFIER("Skip");
-	}
-
-	bool showTitleInPresentationMode() const override
-	{
-		return false;
-	}
-
-	bool hasSubIndex() const override { return false; }
-
-	Component* createContentComponent(int /*index*/) override
-	{
-		return new Component();
-	}
-
-    void contentChanged() override
-	{
-        Identifier idToSearch = ProcessorType::getConnectorId();
-        
-        ConnectorHelpers::tut(this, idToSearch);
-        
-	}
-
-	void fillModuleList(StringArray& moduleList) override
-	{
-		fillModuleListWithType<ProcessorType>(moduleList);
-	};
-
-private:
 
 };
 

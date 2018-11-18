@@ -42,7 +42,7 @@ BEGIN_JUCE_MODULE_DECLARATION
   website:          http://hise.audio
   license:          GPL / Commercial
 
-  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, juce_opengl, hi_lac
+  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, hi_lac
   OSXFrameworks:    Accelerate
   iOSFrameworks:    Accelerate
 
@@ -69,10 +69,9 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_audio_utils/juce_audio_utils.h"
 #include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
 #include "../JUCE/modules/juce_product_unlocking/juce_product_unlocking.h"
-#include "../JUCE/modules/juce_opengl/juce_opengl.h"
 #include "../JUCE/modules/juce_dsp/juce_dsp.h"
-#include "../hi_streaming/hi_streaming.h"
-
+#include "../hi_zstd/hi_zstd.h"
+#include "../hi_tools/hi_tools.h"
 
 #include <complex>
 
@@ -80,6 +79,8 @@ END_JUCE_MODULE_DECLARATION
 #ifndef HISE_VERSION
 #define HISE_VERSION "1.6.0"
 #endif
+
+
 
 
 //=============================================================================
@@ -97,6 +98,14 @@ If true, this project uses the frontend module and some special file reference h
 */
 #ifndef USE_FRONTEND
 #define USE_FRONTEND 1
+#endif
+
+/** Config: USE_RAW_FRONTEND
+
+If true, this project will not use the embedded module architecture and the script UI.
+Use this to create the HISE project with C++ only. */
+#ifndef USE_RAW_FRONTEND
+#define USE_RAW_FRONTEND 0
 #endif
 
 /** Config: IS_STANDALONE_APP
@@ -144,6 +153,22 @@ If set to 1, you can specify a customized toolbar class which will be used inste
 */
 #ifndef USE_CUSTOM_FRONTEND_TOOLBAR
 #define USE_CUSTOM_FRONTEND_TOOLBAR 0
+#endif
+
+/** Config: HI_SUPPORT_MONO_CHANNEL_LAYOUT
+
+If enabled, the plugin will also be compatible to mono track configurations. 
+*/
+#ifndef HI_SUPPORT_MONO_CHANNEL_LAYOUT
+#define HI_SUPPORT_MONO_CHANNEL_LAYOUT 0
+#endif
+
+/** Config: HI_SUPPORT_FULL_DYNAMICS_HLAC
+
+If enabled, the sample extraction dialog will show the option "Full Dynamics" when extracting the sample files. 
+*/
+#ifndef HI_SUPPORT_FULL_DYNAMICS_HLAC
+#define HI_SUPPORT_FULL_DYNAMICS_HLAC 0
 #endif
 
 /** Config: IS_STANDALONE_FRONTEND
@@ -299,7 +324,7 @@ For all defined variables:
 
 
 
-#include "hi_binary_data/hi_binary_data.h"
+
 
 #include "LibConfig.h"
 #include "Macros.h"

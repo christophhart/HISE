@@ -99,20 +99,26 @@ void HardcodedScriptProcessor::processHiseEvent(HiseEvent &m)
 
 		case HiseEvent::Type::Controller:
 		case HiseEvent::Type::PitchBend:
-		case HiseEvent::Type::Aftertouch: onController();
+		case HiseEvent::Type::Aftertouch: 
+			onController();
 			break;
-
 		case HiseEvent::Type::TimerEvent:
 		{
 			if (m.getTimerIndex() == getIndexInChain())
 			{
 				onTimer(m.getTimeStamp());
 				m.ignoreEvent(true);
-				break;
 			}
+
+			break;
+		}
+		case HiseEvent::Type::AllNotesOff:
+		{
+			Synth.clearNoteCounter();
+			onAllNotesOff();
+			break;
 		}
 		case HiseEvent::Type::Empty:
-		case HiseEvent::Type::AllNotesOff:
 		case HiseEvent::Type::SongPosition:
 		case HiseEvent::Type::MidiStart:
 		case HiseEvent::Type::MidiStop:

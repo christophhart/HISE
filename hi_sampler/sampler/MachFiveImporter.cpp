@@ -61,37 +61,37 @@ ValueTree MachFiveImporter::getSampleMapValueTree(const File &machFiveFile, cons
 				ValueTree sample = ValueTree("sample");
 				sample.setProperty("ID", i, nullptr);
 				sample.setProperty("FileName", samplePlayer.getProperty("SamplePath"), nullptr);
-				sample.setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::RootNote),
+				sample.setProperty(SampleIds::Root,
 					samplePlayer.getProperty("BaseNote"), nullptr);
 
-				sample.setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::KeyLow),
+				sample.setProperty(SampleIds::LoKey,
 					keyGroup.getProperty("LowKey"), nullptr);
 
-				sample.setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::KeyHigh),
+				sample.setProperty(SampleIds::HiKey,
 					keyGroup.getProperty("HighKey"), nullptr);
 
-				sample.setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::VeloLow),
+				sample.setProperty(SampleIds::LoVel,
 					keyGroup.getProperty("LowVelocity"), nullptr);
 
-				sample.setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::VeloHigh),
+				sample.setProperty(SampleIds::HiVel,
 					keyGroup.getProperty("HighVelocity"), nullptr);
 
-				sample.setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::RRGroup),
+				sample.setProperty(SampleIds::RRGroup,
 					1, nullptr); // TODO
 
-				sample.setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::Volume),
+				sample.setProperty(SampleIds::Volume,
 					Decibels::gainToDecibels<double>((double)keyGroup.getProperty("Gain")), nullptr);
 
-				sample.setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::Pan),
+				sample.setProperty(SampleIds::Pan,
 					keyGroup.getProperty("Pan"), nullptr);
 
-				sample.setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::Pitch),
+				sample.setProperty(SampleIds::Pitch,
 					0, nullptr); // TODO
 
-				sample.setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::SampleStart),
+				sample.setProperty(SampleIds::SampleStart,
 					samplePlayer.getChildWithName("PlaybackOptions").getProperty("Start"), nullptr);
 
-				sample.setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::SampleEnd),
+				sample.setProperty(SampleIds::SampleEnd,
 					samplePlayer.getChildWithName("PlaybackOptions").getProperty("Stop"), nullptr);
 
 				sampleMap.addChild(sample, -1, nullptr);

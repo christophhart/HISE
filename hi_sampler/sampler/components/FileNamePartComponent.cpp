@@ -17,23 +17,58 @@
   ==============================================================================
 */
 
-//[Headers] You can add your own extra header files here...
 namespace hise { using namespace juce;
-//[/Headers]
 
 #include "FileNamePartComponent.h"
 
-
-//[MiscUserDefs] You can add your own user definitions and misc code here...
-//[/MiscUserDefs]
+MARKDOWN_CHAPTER(FileParserHelp)
+START_MARKDOWN(Properties)
+ML("## Token Property Selector");
+ML("This column specifies the sample property (or properties) that should be set with the given token.");
+ML("| Property Name | Description | Expected Data type |");
+ML("| --- | ----- | ----- |");
+ML("| Velocity Value | Sets the velocity range to a single velocity value `(LoVel = x, HiVel = x + 1)`. | A single number. |");
+ML("| Velocity Range | Sets the velocity range. | A string in the format `63-127` (use the **NumericRange** data type). |");
+ML("| Velocity Spread | Spreads the velocity over the complete range | A **Custom** list or a **Number** x for (1-x). |");
+ML("| LowVelocity | The lower velocity limit. | A single number. |");
+ML("| HighVelocity | The upper velocity limit. | A single number. |");
+ML("| Single Key | maps the value to all note properties (`RootNote`, `LoKey` and `HiKey`). | A single number or the MIDI note name. |");
+ML("| RR Group | Sets the group index to be used for Round Robin (or custom logic). | A **Custom** list or a **Number** x for (1-x). |");
+ML("| Ignore | Do nothing with this token (default). Use this for every token that does not contain special information. | nothing |");
+END_MARKDOWN()
+START_MARKDOWN(DataType)
+ML("## Token Data Type Selector");
+ML("This column specifies how the token should be interpreted for setting the property (or properties) for the given token.");
+ML("| Data type | Expected Input | Items Example | Values Example | Result |");
+ML("| -- | ---- | -- | -- | ----- |");
+ML("| Number | A raw number. | - | - | the token property is set to the single value. |");
+ML("| Number with range | A number inside a range (starting with 1) | 4 | - | values `1, 2, 3, 4` are distributed across the property range. |");
+ML("| Numeric Range | a range in the format `1-63` | - | - | Velocity Range is set to LoVel: 1, HiVel: 63. |");
+ML("| Note name | a note name in the format `D#3` (middle octave is 3). | - | - | the token property is set to 60. |");
+ML("| Custom | a key-value pair | `pp, mp, ff` | 1, 2, 3 | pp is mapped to the lower, mp to the middle and ff to the upper third of the property range. |");
+ML("| Fixed value | a fixed value (discards the token value) | 5 | - | the token property is set to 5. |");
+ML("| Ignored | Ignores the token (default). | - | - | - |");
+END_MARKDOWN()
+START_MARKDOWN(Separator)
+ML("## Setting the token separator");
+ML("The file name of each sample will be divided into multiple tokens based on the separator character that you can enter here.");
+ML("### Example");
+ML("Let's assume we have two samples with the filenames");
+ML("`Cello_stacc_RR1_D#2_mp.wav`");
+ML("`Cello_stacc_RR2_C3_f.wav`");
+ML("The character that separates the tokens is obviously the `_` character (which is by far the best character for separation and far superior to (`-` or `.`). It will divide the filename into 5 tokens and create 5 rows for each token that can be set to these values:")
+ML("- `Cello`: can be ignored");
+ML("- `stacc`: can be ignored");
+ML("- RR1, RR2: the RR group of the sample. Use the Custom data type and create the mapping [RR1 -> 1, RR2 -> 2]");
+ML("- D#2, C3: the note number of the sample. Use Single-Key & Notename to map the sample to the given note.");
+ML("- mp, f: the velocity range. Use the Custom data type and create the mapping [mp -> 1, f -> 2].");
+END_MARKDOWN()
+END_MARKDOWN_CHAPTER()
 
 //==============================================================================
 FileNamePartComponent::FileNamePartComponent (const String &token)
     : tokenName(token)
 {
-    //[Constructor_pre] You can add your own custom stuff here..
-    //[/Constructor_pre]
-
     addAndMakeVisible (separatorLabel = new Label ("new label",
                                                    TRANS("String")));
     separatorLabel->setFont (Font ("Khmer UI", 13.00f, Font::plain));
@@ -142,8 +177,7 @@ FileNamePartComponent::FileNamePartComponent (const String &token)
     valueLabel->setColour (TextEditor::highlightColourId, Colour (0x407a0000));
     valueLabel->addListener (this);
 
-
-    //[UserPreSize]
+	
 
 	separatorLabel->setFont (GLOBAL_BOLD_FONT());
 	valueLabel->setFont (GLOBAL_BOLD_FONT());
@@ -158,13 +192,25 @@ FileNamePartComponent::FileNamePartComponent (const String &token)
 
 	partName->setText(tokenName, dontSendNotification);
 
+	auto propertyButton = new MarkdownHelpButton();
+	propertyButton->setHelpText(FileParserHelp::Properties());
+	propertyButton->attachTo(propertyLabel, MarkdownHelpButton::TopRight);
+	propertyButton->setPopupWidth(750);
+
+	auto dataTypeButton = new MarkdownHelpButton();
+	dataTypeButton->setHelpText(FileParserHelp::DataType());
+	dataTypeButton->attachTo(dataLabel, MarkdownHelpButton::TopRight);
+	dataTypeButton->setPopupWidth(750);
+
+
+
 	propertyLabel->addOption("Velocity Value", "Sets the velocity range to (VALUE,VALUE+1).");
 	propertyLabel->addOption("Velocity Range", "Use this with 'NumericRange' for velocity information like '63-127'");
 	propertyLabel->addOption("Velocity Spread", "Spreads the velocity over the complete range. Use 'Number' or 'Custom' as Datatype for this.");
-	
-    propertyLabel->addOption("LowVelocity", "The lower velocity limit.");
-    propertyLabel->addOption("HighVelocity", "The upper velocity limit.");
-    
+
+	propertyLabel->addOption("LowVelocity", "The lower velocity limit.");
+	propertyLabel->addOption("HighVelocity", "The upper velocity limit.");
+
 	propertyLabel->addOption("Single Key", "maps the value to RootNote, KeyLow and KeyHigh.");
 	propertyLabel->addOption("RR Group", "Puts the sound into the specified group.");
 	propertyLabel->addOption("Ignore", "Do nothing with this token (default). Use this for every token that does not contain special information");
@@ -181,43 +227,14 @@ FileNamePartComponent::FileNamePartComponent (const String &token)
 
 	propertyLabel->setItemIndex(TokenProperties::Ignore);
 
-
-
 	dataLabel->setEditable(false);
 	propertyLabel->setEditable(false);
 
-	addAndMakeVisible(propertyInfoButton = new ShapeButton("Info", Colours::white.withAlpha(0.4f), Colours::white.withAlpha(0.6f), Colours::white));
-	addAndMakeVisible(dataInfoButton = new ShapeButton("Info", Colours::white.withAlpha(0.4f), Colours::white.withAlpha(0.6f), Colours::white));
-
-	static const unsigned char pathData[] = { 110, 109, 0, 0, 12, 67, 46, 183, 84, 68, 98, 229, 174, 239, 66, 46, 183, 84, 68, 254, 255, 206, 66, 11, 205, 88, 68, 254, 255, 206, 66, 46, 215, 93, 68, 98, 254, 255, 206, 66, 82, 225, 98, 68, 228, 174, 239, 66, 46, 247, 102, 68, 0, 0, 12, 67, 46, 247, 102, 68, 98, 142, 40, 32, 67, 46, 247, 102, 68, 1, 128, 48, 67, 81, 225,
-		98, 68, 1, 128, 48, 67, 46, 215, 93, 68, 98, 1, 128, 48, 67, 10, 205, 88, 68, 142, 40, 32, 67, 46, 183, 84, 68, 0, 0, 12, 67, 46, 183, 84, 68, 99, 109, 0, 0, 12, 67, 46, 65, 101, 68, 98, 31, 62, 247, 66, 46, 65, 101, 68, 255, 175, 220, 66, 106, 239, 97, 68, 255, 175, 220, 66, 46, 215, 93, 68, 98, 255, 175, 220, 66, 242, 190,
-		89, 68, 31, 62, 247, 66, 46, 109, 86, 68, 0, 0, 12, 67, 46, 109, 86, 68, 98, 240, 96, 28, 67, 46, 109, 86, 68, 1, 168, 41, 67, 242, 190, 89, 68, 1, 168, 41, 67, 46, 215, 93, 68, 98, 1, 168, 41, 67, 106, 239, 97, 68, 241, 96, 28, 67, 46, 65, 101, 68, 0, 0, 12, 67, 46, 65, 101, 68, 99, 109, 0, 112, 7, 67, 46, 71, 89, 68, 108, 0, 144,
-		16, 67, 46, 71, 89, 68, 108, 0, 144, 16, 67, 46, 143, 91, 68, 108, 0, 112, 7, 67, 46, 143, 91, 68, 108, 0, 112, 7, 67, 46, 71, 89, 68, 99, 109, 0, 32, 21, 67, 46, 103, 98, 68, 108, 0, 224, 2, 67, 46, 103, 98, 68, 108, 0, 224, 2, 67, 46, 67, 97, 68, 108, 0, 112, 7, 67, 46, 67, 97, 68, 108, 0, 112, 7, 67, 46, 215, 93, 68, 108, 0, 224,
-		2, 67, 46, 215, 93, 68, 108, 0, 224, 2, 67, 46, 179, 92, 68, 108, 0, 144, 16, 67, 46, 179, 92, 68, 108, 0, 144, 16, 67, 46, 67, 97, 68, 108, 0, 32, 21, 67, 46, 67, 97, 68, 108, 0, 32, 21, 67, 46, 103, 98, 68, 99, 101, 0, 0 };
-
-	Path path;
-	path.loadPathFromData(pathData, sizeof(pathData));
-
-	propertyInfoButton->setShape(path, false, true, true);
-	dataInfoButton->setShape(path, false, true, true);
-
-	propertyInfoButton->addListener(this);
-	dataInfoButton->addListener(this);
-
-    //[/UserPreSize]
-
     setSize (600, 40);
-
-
-    //[Constructor] You can add your own custom stuff here..
-    //[/Constructor]
 }
 
 FileNamePartComponent::~FileNamePartComponent()
 {
-    //[Destructor_pre]. You can add your own custom destruction code here..
-    //[/Destructor_pre]
-
     separatorLabel = nullptr;
     partName = nullptr;
     displayGroupLabel = nullptr;
@@ -229,33 +246,21 @@ FileNamePartComponent::~FileNamePartComponent()
     displayGroupLabel4 = nullptr;
     valueLabel = nullptr;
 
-
-    //[Destructor]. You can add your own custom destruction code here..
-    //[/Destructor]
 }
 
 //==============================================================================
 void FileNamePartComponent::paint (Graphics& g)
 {
-    //[UserPrePaint] Add your own custom painting code here..
-    //[/UserPrePaint]
-
     g.setGradientFill (ColourGradient (Colour (0xff1b1b1b),
                                        240.0f, 0.0f,
                                        Colours::black,
                                        240.0f, 40.0f,
                                        false));
     g.fillRoundedRectangle (0.0f, 0.0f, static_cast<float> (proportionOfWidth (1.0000f)), static_cast<float> (proportionOfHeight (1.0000f)), 5.000f);
-
-    //[UserPaint] Add your own custom painting code here..
-    //[/UserPaint]
 }
 
 void FileNamePartComponent::resized()
 {
-    //[UserPreResize] Add your own custom resize code here..
-    //[/UserPreResize]
-
     separatorLabel->setBounds (24, -2, 39, 24);
     partName->setBounds (13, 18, 64, 16);
     displayGroupLabel->setBounds (100, -1, 57, 24);
@@ -266,22 +271,12 @@ void FileNamePartComponent::resized()
     itemLabel->setBounds (265, 18, 108, 16);
     displayGroupLabel4->setBounds (409, 0, 57, 24);
     valueLabel->setBounds (379, 18, 108, 16);
-    //[UserResized] Add your own custom resize handling here..
-
-	propertyInfoButton->setBounds(propertyLabel->getRight() - 14, 1, 16, 16);
-	dataInfoButton->setBounds(dataLabel->getRight() - 14, 1, 16, 16);
-
-    //[/UserResized]
 }
 
 void FileNamePartComponent::labelTextChanged (Label* labelThatHasChanged)
 {
-    //[UserlabelTextChanged_Pre]
-    //[/UserlabelTextChanged_Pre]
-
     if (labelThatHasChanged == propertyLabel)
     {
-        //[UserLabelCode_propertyLabel] -- add your label text handling code here..
 		tokenProperty = (TokenProperties) propertyLabel->getCurrentIndex();
 
         tokenDataType = getPreferedDataTypeFor(tokenProperty);
@@ -293,33 +288,23 @@ void FileNamePartComponent::labelTextChanged (Label* labelThatHasChanged)
 		valueLabel->setEnabled(enableFields);
 
 		dataLabel->setItemIndex(tokenDataType, sendNotification);
-
-        //[/UserLabelCode_propertyLabel]
     }
     else if (labelThatHasChanged == dataLabel)
     {
-        //[UserLabelCode_dataLabel] -- add your label text handling code here..
 		tokenDataType = (Datatype) dataLabel->getCurrentIndex();
 
 		if (tokenDataType == Custom)
 		{
 			fillCustomList();
 		}
-
-        //[/UserLabelCode_dataLabel]
     }
     else if (labelThatHasChanged == itemLabel)
     {
-        //[UserLabelCode_itemLabel] -- add your label text handling code here..
-
 		customList.clear();
 		customList.addTokens(itemLabel->getText(), " ", "");
-        //[/UserLabelCode_itemLabel]
     }
     else if (labelThatHasChanged == valueLabel)
     {
-        //[UserLabelCode_valueLabel] -- add your label text handling code here..
-
 		StringArray valueStrings;
 		valueStrings.addTokens(valueLabel->getText(), " ", "");
 
@@ -331,19 +316,10 @@ void FileNamePartComponent::labelTextChanged (Label* labelThatHasChanged)
 		}
 
 		if(valueList.size() == 2)
-		{
 			valueRange = Range<int>(valueList[0], valueList[1]);
-		}
 		else
-		{
 			valueRange = Range<int>();
-		}
-
-        //[/UserLabelCode_valueLabel]
     }
-
-    //[UserlabelTextChanged_Post]
-    //[/UserlabelTextChanged_Post]
 }
 
 
@@ -410,8 +386,6 @@ void FileNamePartComponent::fillCustomList()
 	}
 }
 
-//[MiscUserCode] You can add your own definitions of your custom methods or any other code here...
-
 void FileNamePartComponent::importSettings(XmlElement &p)
 {
 	String propName = p.getStringAttribute("Property");
@@ -438,105 +412,4 @@ void FileNamePartComponent::importSettings(XmlElement &p)
 	valueLabel->setText(p.getStringAttribute("Values"), sendNotification);
 }
 
-void FileNamePartComponent::buttonClicked(Button* b)
-{
-	if (b == dataInfoButton)
-	{
-		PresetHandler::showMessageWindow("Data Type Help", dataLabel->getOptionDescription(), PresetHandler::IconType::Info);
-	}
-	else if (b == propertyInfoButton)
-	{
-		PresetHandler::showMessageWindow("Property Type Help", propertyLabel->getOptionDescription(), PresetHandler::IconType::Info);
-	}
-
-}
-
-//[/MiscUserCode]
-
-
-//==============================================================================
-#if 0
-/*  -- Introjucer information section --
-
-    This is where the Introjucer stores the metadata that describe this GUI layout, so
-    make changes in here at your peril!
-
-BEGIN_JUCER_METADATA
-
-<JUCER_COMPONENT documentType="Component" className="FileNamePartComponent" componentName=""
-                 parentClasses="public Component" constructorParams="const String &amp;token"
-                 variableInitialisers="tokenName(token)" snapPixels="8" snapActive="1"
-                 snapShown="0" overlayOpacity="0.330" fixedSize="1" initialWidth="500"
-                 initialHeight="40">
-  <BACKGROUND backgroundColour="0">
-    <ROUNDRECT pos="0 0 100% 100%" cornerSize="5" fill="linear: 240 0, 240 40, 0=ff1b1b1b, 1=ff000000"
-               hasStroke="0"/>
-  </BACKGROUND>
-  <LABEL name="new label" id="5836a90d75d1dd4a" memberName="separatorLabel"
-         virtualName="" explicitFocusOrder="0" pos="24 -2 39 24" textCol="ffffffff"
-         edTextCol="ff000000" edBkgCol="0" labelText="String" editableSingleClick="0"
-         editableDoubleClick="0" focusDiscardsChanges="0" fontname="Khmer UI"
-         fontsize="13" bold="0" italic="0" justification="33"/>
-  <LABEL name="new label" id="fa0dc77af8626dc7" memberName="partName"
-         virtualName="" explicitFocusOrder="0" pos="13 18 64 16" bkgCol="38ffffff"
-         outlineCol="38ffffff" edTextCol="ff000000" edBkgCol="0" hiliteCol="407a0000"
-         labelText="PART" editableSingleClick="0" editableDoubleClick="0"
-         focusDiscardsChanges="0" fontname="Khmer UI" fontsize="14" bold="0"
-         italic="0" justification="36"/>
-  <LABEL name="new label" id="45354151fdeccf85" memberName="displayGroupLabel"
-         virtualName="" explicitFocusOrder="0" pos="100 -1 57 24" textCol="ffffffff"
-         edTextCol="ff000000" edBkgCol="0" labelText="Property" editableSingleClick="0"
-         editableDoubleClick="0" focusDiscardsChanges="0" fontname="Khmer UI"
-         fontsize="13" bold="0" italic="0" justification="33"/>
-  <LABEL name="new label" id="3ca481f4230f2188" memberName="propertyLabel"
-         virtualName="PopupLabel" explicitFocusOrder="0" pos="88 18 80 16"
-         tooltip="A selection of useful properties that can be set via the filename token."
-         bkgCol="38ffffff" outlineCol="38ffffff" edTextCol="ff000000"
-         edBkgCol="0" hiliteCol="407a0000" labelText="" editableSingleClick="1"
-         editableDoubleClick="1" focusDiscardsChanges="0" fontname="Khmer UI"
-         fontsize="14" bold="0" italic="0" justification="36"/>
-  <LABEL name="new label" id="e51ef85c31600193" memberName="displayGroupLabel2"
-         virtualName="" explicitFocusOrder="0" pos="189 -1 57 24" textCol="ffffffff"
-         edTextCol="ff000000" edBkgCol="0" labelText="Data Type" editableSingleClick="0"
-         editableDoubleClick="0" focusDiscardsChanges="0" fontname="Khmer UI"
-         fontsize="13" bold="0" italic="0" justification="33"/>
-  <LABEL name="new label" id="4a5730ac1fdfeba5" memberName="dataLabel"
-         virtualName="PopupLabel" explicitFocusOrder="0" pos="177 18 80 16"
-         tooltip="Specifies the type of data which this token contains."
-         bkgCol="38ffffff" outlineCol="38ffffff" edTextCol="ff000000"
-         edBkgCol="0" hiliteCol="407a0000" labelText="" editableSingleClick="1"
-         editableDoubleClick="1" focusDiscardsChanges="0" fontname="Khmer UI"
-         fontsize="14" bold="0" italic="0" justification="36"/>
-  <LABEL name="new label" id="a117394962b4825d" memberName="displayGroupLabel3"
-         virtualName="" explicitFocusOrder="0" pos="295 0 57 24" textCol="ffffffff"
-         edTextCol="ff000000" edBkgCol="0" labelText="Items" editableSingleClick="0"
-         editableDoubleClick="0" focusDiscardsChanges="0" fontname="Khmer UI"
-         fontsize="13" bold="0" italic="0" justification="33"/>
-  <LABEL name="new label" id="ac4700c36967320e" memberName="itemLabel"
-         virtualName="Label" explicitFocusOrder="0" pos="265 18 108 16"
-         tooltip="Enter all existing items" bkgCol="38ffffff" outlineCol="38ffffff"
-         edTextCol="ff000000" edBkgCol="0" hiliteCol="407a0000" labelText=""
-         editableSingleClick="1" editableDoubleClick="1" focusDiscardsChanges="0"
-         fontname="Khmer UI" fontsize="14" bold="0" italic="0" justification="36"/>
-  <LABEL name="new label" id="2b581b4ac7cedcbe" memberName="displayGroupLabel4"
-         virtualName="" explicitFocusOrder="0" pos="409 0 57 24" textCol="ffffffff"
-         edTextCol="ff000000" edBkgCol="0" labelText="Values" editableSingleClick="0"
-         editableDoubleClick="0" focusDiscardsChanges="0" fontname="Khmer UI"
-         fontsize="13" bold="0" italic="0" justification="33"/>
-  <LABEL name="new label" id="1a77f50564fb64c" memberName="valueLabel"
-         virtualName="Label" explicitFocusOrder="0" pos="379 18 108 16"
-         tooltip="enter the value list that are associated to the item list"
-         bkgCol="38ffffff" outlineCol="38ffffff" edTextCol="ff000000"
-         edBkgCol="0" hiliteCol="407a0000" labelText="" editableSingleClick="1"
-         editableDoubleClick="1" focusDiscardsChanges="0" fontname="Khmer UI"
-         fontsize="14" bold="0" italic="0" justification="36"/>
-</JUCER_COMPONENT>
-
-END_JUCER_METADATA
-*/
-#endif
-
-
-//[EndFile] You can add extra defines here...
 } // namespace hise
-//[/EndFile]

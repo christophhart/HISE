@@ -36,76 +36,6 @@ namespace hise { using namespace juce;
 #define IS_SETTING_TRUE(id) (bool)dataObject.getSetting(id) == true
 
 
-void loadOtherReferencedImages(ModulatorSynthChain* chainToExport)
-{
-	auto mc = chainToExport->getMainController();
-
-	auto& handler = GET_PROJECT_HANDLER(chainToExport);
-
-	const bool hasCustomSkin = handler.getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("keyboard").isDirectory();
-
-	if (!hasCustomSkin)
-		return;
-
-	for (int i = 0; i < 12; i++)
-	{
-		auto img = ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}keyboard/up_" + String(i) + ".png");
-		jassert(img.isValid());
-		auto img2 = ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png");
-		jassert(img2.isValid());
-	}
-
-	const bool hasAboutPageImage = handler.getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("about.png").existsAsFile();
-
-	if (hasAboutPageImage)
-	{
-		// make sure it's loaded
-		ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}about.png");
-	}
-}
-
-ValueTree BaseExporter::exportReferencedImageFiles()
-{
-	// Export the interface
-
-
-	loadOtherReferencedImages(chainToExport);
-
-	ImagePool *imagePool = chainToExport->getMainController()->getSampleManager().getImagePool();
-
-	
-
-	ValueTree imageTree = imagePool->exportAsValueTree();
-
-	return imageTree;
-
-	
-}
-
-ValueTree BaseExporter::exportReferencedAudioFiles()
-{
-	// Search for impulse responses
-
-	DirectoryIterator iter(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles), false);
-
-	AudioSampleBufferPool *samplePool = chainToExport->getMainController()->getSampleManager().getAudioSampleBufferPool();
-
-	while (iter.next())
-	{
-#if JUCE_WINDOWS
-
-		// Skip OSX hidden files on windows...
-		if (iter.getFile().getFileName().startsWith(".")) continue;
-
-#endif
-
-		samplePool->loadFileIntoPool(iter.getFile().getFullPathName());
-	}
-
-	return samplePool->exportAsValueTree();
-
-	
-}
 
 ValueTree BaseExporter::exportUserPresetFiles()
 {
@@ -156,7 +86,7 @@ ValueTree BaseExporter::exportUserPresetFiles()
 	
 }
 
-ValueTree BaseExporter::exportEmbeddedFiles(bool includeSampleMaps)
+juce::ValueTree BaseExporter::exportEmbeddedFiles()
 {
 	ValueTree externalScriptFiles = FileChangeListener::collectAllScriptFiles(chainToExport);
 	ValueTree customFonts = chainToExport->getMainController()->exportCustomFontsAsValueTree();
@@ -167,15 +97,7 @@ ValueTree BaseExporter::exportEmbeddedFiles(bool includeSampleMaps)
 	externalFiles.addChild(externalScriptFiles, -1, nullptr);
 	externalFiles.addChild(customFonts, -1, nullptr);
 
-	if (includeSampleMaps)
-	{
-		ValueTree sampleMaps = collectAllSampleMapsInDirectory();
-		externalFiles.addChild(sampleMaps, -1, nullptr);
-	}
-
 	return externalFiles;
-
-	
 }
 
 ValueTree BaseExporter::exportPresetFile()
@@ -274,7 +196,9 @@ String CompileExporter::getCompileResult(ErrorCodes result)
 
 void CompileExporter::writeValueTreeToTemporaryFile(const ValueTree& v, const String &tempFolder, const String& childFile, bool compress)
 {
-	PresetHandler::writeValueTreeAsFile(v, File(tempFolder).getChildFile(childFile).getFullPathName(), compress); ;
+	auto file = File(tempFolder).getChildFile(childFile);
+
+	PresetHandler::writeValueTreeAsFile(v, file.getFullPathName(), compress); ;
 }
 
 
@@ -312,6 +236,8 @@ CompileExporter::ErrorCodes CompileExporter::exportMainSynthChainAsStandaloneApp
 
 CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String& commandLine, String& pluginFile)
 {
+
+
 
 	//String options = commandLine.fromFirstOccurrenceOf("export ", false, false);
 
@@ -376,6 +302,8 @@ CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String
 		BuildOption b = exporter.getBuildOptionFromCommandLine(args);
 
 		pluginFile = HelperClasses::getFileNameForCompiledPlugin(exporter.dataObject, mainSynthChain, b);
+
+		exporter.setRawExportMode(exportType == "export_raw");
 
 		if (BuildOptionHelpers::isEffect(b)) result = exporter.exportMainSynthChainAsFX(b);
 		else if (BuildOptionHelpers::isInstrument(b)) result = exporter.exportMainSynthChainAsInstrument(b);
@@ -543,39 +471,150 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 		if (result != ErrorCodes::OK) return result;
 
-		const String directoryPath = File(solutionDirectory).getChildFile("temp/").getFullPathName();
+		auto tempDirectory = File(solutionDirectory).getChildFile("temp/");
+
+		const String directoryPath = tempDirectory.getFullPathName();
 
 		convertTccScriptsToCppClasses();
-		writeValueTreeToTemporaryFile(exportPresetFile(), directoryPath, "preset");
+
+		compressValueTree<PresetDictionaryProvider>(exportPresetFile(), directoryPath, "preset");
 
 #if DONT_EMBED_FILES_IN_FRONTEND
 		const bool embedFiles = false;
 #else
 		// Don't embedd external files on iOS for quicker loading times...
-		const bool embedFiles = !BuildOptionHelpers::isIOS(option);
+        const bool embedFiles = !BuildOptionHelpers::isIOS(option);
 #endif
 
 		// Embed the user presets and extract them on first load
-		writeValueTreeToTemporaryFile(UserPresetHelpers::collectAllUserPresets(chainToExport), directoryPath, "userPresets", true);
+		compressValueTree<UserPresetDictionaryProvider>(UserPresetHelpers::collectAllUserPresets(chainToExport), directoryPath, "userPresets");
 
 		// Always embed scripts and fonts, but don't embed samplemaps
-		writeValueTreeToTemporaryFile(exportEmbeddedFiles(embedFiles && type != TargetTypes::EffectPlugin), directoryPath, "externalFiles", true);
+		compressValueTree<JavascriptDictionaryProvider>(exportEmbeddedFiles(), directoryPath, "externalFiles");
+
+		auto& handler = GET_PROJECT_HANDLER(chainToExport);
+
+		auto iof = handler.getTempFileForPool(FileHandlerBase::Images);
+		auto sof = handler.getTempFileForPool(FileHandlerBase::AudioFiles);
+		auto smof = handler.getTempFileForPool(FileHandlerBase::SampleMaps);
+
+		bool alreadyExported = iof.existsAsFile() || sof.existsAsFile() || smof.existsAsFile();
+
+		if (rawMode || (alreadyExported && data.getSetting(HiseSettings::Compiler::RebuildPoolFiles)))
+		{
+			iof.deleteFile();
+			sof.deleteFile();
+			smof.deleteFile();
+
+			std::cout << "Exporting the pooled resources...";
+
+			handler.exportAllPoolsToTemporaryDirectory(chainToExport, nullptr);
+
+			std::cout << "DONE\n" ;
+
+			if (rawMode)
+			{
+				auto printExportedFiles = [](MainController* mc, const Array<PoolReference>& files, ProjectHandler::SubDirectories d)
+				{
+					String name = ProjectHandler::getIdentifier(d);
+					NewLine nl;
+
+					std::cout << "Exported " << name << " resources: " << nl;
+
+					auto& handler = mc->getCurrentFileHandler(true);
+
+					
+					auto folder = handler.getSubDirectory(d);
+
+					for (const auto& ref : files)
+					{
+						std::cout << ref.getFile().getRelativePathFrom(folder) << nl;
+					}
+
+					std::cout << "=============================================";
+				};
+
+				auto mc = chainToExport->getMainController();
+
+				auto audioPool = mc->getCurrentAudioSampleBufferPool(true);
+				auto imagePool = mc->getCurrentImagePool(true);
+				auto sampleMapPool = mc->getCurrentSampleMapPool(true);
+
+				printExportedFiles(mc, audioPool->getListOfAllReferences(false), ProjectHandler::AudioFiles);
+
+				printExportedFiles(mc, imagePool->getListOfAllReferences(false), ProjectHandler::Images);
+
+				printExportedFiles(mc, sampleMapPool->getListOfAllReferences(false), ProjectHandler::SampleMaps);
+			}
+
+			alreadyExported = true;
+		}
+
+		if (!alreadyExported)
+		{
+			handler.exportAllPoolsToTemporaryDirectory(chainToExport, nullptr);
+		}
+
+		File imageOutputFile, sampleOutputFile, samplemapFile;
 
 		if (embedFiles)
 		{
+			samplemapFile = tempDirectory.getChildFile("samplemaps");
+
+			if (smof.existsAsFile())
+				smof.copyFileTo(samplemapFile);
+			else
+				return ErrorCodes::CompileError;
+
 			if (IS_SETTING_TRUE(HiseSettings::Project::EmbedAudioFiles))
 			{
-				writeValueTreeToTemporaryFile(exportReferencedAudioFiles(), directoryPath, "impulses");
-				writeValueTreeToTemporaryFile(exportReferencedImageFiles(), directoryPath, "images");
-			}
-			else
-			{
-				File appFolder = ProjectHandler::Frontend::getAppDataDirectory(chainToExport).getChildFile("AudioResources.dat");
-				PresetHandler::writeValueTreeAsFile(exportReferencedAudioFiles(), appFolder.getFullPathName());
+				imageOutputFile = tempDirectory.getChildFile("images");
+				sampleOutputFile = tempDirectory.getChildFile("impulses");
 
-				File imageFolder = ProjectHandler::Frontend::getAppDataDirectory(chainToExport).getChildFile("ImageResources.dat");
-				PresetHandler::writeValueTreeAsFile(exportReferencedImageFiles(), imageFolder.getFullPathName());
+				if (iof.existsAsFile())
+					iof.copyFileTo(imageOutputFile);
+				else
+					return ErrorCodes::CompileError;
+
+				if (sof.existsAsFile())
+					sof.copyFileTo(sampleOutputFile);
+				else
+					return ErrorCodes::CompileError;
 			}
+		}
+		else if (BuildOptionHelpers::isIOS(option))
+		{
+			{
+				// Make sure the binary data exists to prevent compilation error
+
+				samplemapFile = tempDirectory.getChildFile("samplemaps");
+				imageOutputFile = tempDirectory.getChildFile("images");
+				sampleOutputFile = tempDirectory.getChildFile("impulses");
+
+				const String unused = "unused";
+
+				samplemapFile.replaceWithText(unused);
+				imageOutputFile.replaceWithText(unused);
+				sampleOutputFile.replaceWithText(unused);
+			}
+
+			auto resourceFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("EmbeddedResources");
+
+			if (!resourceFolder.isDirectory())
+				resourceFolder.createDirectory();
+
+			sampleOutputFile = resourceFolder.getChildFile("AudioResources.dat");
+			imageOutputFile = resourceFolder.getChildFile("ImageResources.dat");
+			samplemapFile = resourceFolder.getChildFile("SampleMapResources.dat");
+
+			if (smof.existsAsFile())
+				smof.copyFileTo(samplemapFile);
+
+			if (iof.existsAsFile())
+				iof.copyFileTo(imageOutputFile);
+
+			if (sof.existsAsFile())
+				sof.copyFileTo(sampleOutputFile);
 		}
 
 		String presetDataString("PresetData");
@@ -612,18 +651,32 @@ String checkSampleReferences(ModulatorSynthChain* chainToExport)
     
     sampleFolder.findChildFiles(sampleFiles, File::findFiles, true);
     
-    while(ModulatorSampler* sampler = iter.getNextProcessor())
-    {
-        auto map = sampler->getSampleMap();
-        
-        auto v = map->exportAsValueTree();
-        
-        const String faulty = map->checkReferences(v, sampleFolder, sampleFiles);
-        
-        if(faulty.isNotEmpty())
-            return faulty;
-    }
-    
+	Array<File> sampleMapFiles;
+
+	auto sampleMapRoot = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+
+	sampleMapRoot.findChildFiles(sampleMapFiles, File::findFiles, true, "*.xml");
+
+	Array<PooledSampleMap> maps;
+
+	for (const auto& f : sampleMapFiles)
+	{
+		PoolReference ref(chainToExport->getMainController(), f.getFullPathName(), FileHandlerBase::SampleMaps);
+
+		maps.add(chainToExport->getMainController()->getCurrentSampleMapPool(true)->loadFromReference(ref, PoolHelpers::LoadAndCacheStrong));
+	}
+
+	for (auto d : maps)
+	{
+		if (auto v = d.getData())
+		{
+			const String faulty = SampleMap::checkReferences(chainToExport->getMainController(), *v, sampleFolder, sampleFiles);
+
+			if (faulty.isNotEmpty())
+				return faulty;
+		}
+	}
+ 
     return String();
 }
 
@@ -740,6 +793,7 @@ bool CompileExporter::checkSanity(BuildOption option)
     }
 #endif
 
+#if !JUCE_LINUX
     if(BuildOptionHelpers::isAAX(option))
     {
         const File aaxSDK = hiseDirectory.getChildFile("tools/SDK/AAX/Libs");
@@ -750,6 +804,7 @@ bool CompileExporter::checkSanity(BuildOption option)
             return false;
         }
     }
+#endif
     
     if(!isExportingFromCommandLine() && PresetHandler::showYesNoWindow("Check Sample references", "Do you want to validate all sample references"))
     {
@@ -818,9 +873,12 @@ CompileExporter::BuildOption CompileExporter::showCompilePopup(TargetTypes type)
 	{
 	case CompileExporter::TargetTypes::InstrumentPlugin:
 		b->addItem("VSTi", BuildOption::VSTiLinux);
+		b->addItem("Headless VSTi", BuildOption::HeadlessLinuxVSTi);
+		
 		break;
 	case CompileExporter::TargetTypes::EffectPlugin:
 		b->addItem("VST", BuildOption::VSTLinux);
+		b->addItem("Headless VST", BuildOption::HeadlessLinuxVST);
 		break;
 	case CompileExporter::TargetTypes::StandaloneApplication:
 		b->addItem("Standalone Linux", BuildOption::StandaloneLinux);
@@ -1169,7 +1227,7 @@ CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(const St
 {
 	String pluginDataHeaderFile;
 
-	HeaderHelpers::addBasicIncludeLines(pluginDataHeaderFile);
+    HeaderHelpers::addBasicIncludeLines(pluginDataHeaderFile, iOSAUv3);
 
 	HeaderHelpers::addAdditionalSourceCodeHeaderLines(this,pluginDataHeaderFile);
 	HeaderHelpers::addStaticDspFactoryRegistration(pluginDataHeaderFile, this);
@@ -1215,18 +1273,9 @@ CompileExporter::ErrorCodes CompileExporter::createStandaloneAppHeaderFile(const
 	HeaderHelpers::addStaticDspFactoryRegistration(pluginDataHeaderFile, this);
 	HeaderHelpers::addCopyProtectionHeaderLines(publicKey, pluginDataHeaderFile);
 
-	if (GET_SETTING(HiseSettings::Project::EmbedAudioFiles) == "No")
-	{
-		pluginDataHeaderFile << "AudioProcessor* hise::StandaloneProcessor::createProcessor() { CREATE_PLUGIN(deviceManager, callback); }\n";
-		pluginDataHeaderFile << "\n";
-		pluginDataHeaderFile << "START_JUCE_APPLICATION(hise::FrontendStandaloneApplication)\n";
-	}
-	else
-	{
-		pluginDataHeaderFile << "AudioProcessor* hise::StandaloneProcessor::createProcessor() { CREATE_PLUGIN_WITH_AUDIO_FILES(deviceManager, callback); }\n";
-		pluginDataHeaderFile << "\n";
-		pluginDataHeaderFile << "START_JUCE_APPLICATION(hise::FrontendStandaloneApplication)\n";
-	}
+    pluginDataHeaderFile << "AudioProcessor* hise::StandaloneProcessor::createProcessor() { CREATE_PLUGIN(deviceManager, callback); }\n";
+    pluginDataHeaderFile << "\n";
+    pluginDataHeaderFile << "START_JUCE_APPLICATION(hise::FrontendStandaloneApplication)\n";
 
 	HeaderHelpers::addProjectInfoLines(this, pluginDataHeaderFile);
 	HeaderHelpers::addCustomToolbarRegistration(this, pluginDataHeaderFile);
@@ -1282,6 +1331,7 @@ CompileExporter::ErrorCodes CompileExporter::createResourceFile(const String &so
 
 #define REPLACE_WILDCARD_WITH_STRING(wildcard, s) (templateProject = templateProject.replace(wildcard, s))
 #define REPLACE_WILDCARD(wildcard, settingId) templateProject = templateProject.replace(wildcard, GET_SETTING(settingId));
+#define SET_JUCER_FLAG(wildcard, settingId) REPLACE_WILDCARD_WITH_STRING(wildcard, GET_SETTING(settingId) == "1" ? "enabled" : "disabled");
 
 struct FileHelpers
 {
@@ -1322,16 +1372,30 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 
 	REPLACE_WILDCARD_WITH_STRING("%PLUGIN_CHANNEL_AMOUNT%", ProjectTemplateHelpers::getPluginChannelAmount(chain));
 
+	auto x = GET_SETTING(HiseSettings::Project::SupportFullDynamicsHLAC);
+
+	String fullDynamicsSupport = x == "1" ? "enabled" : "disabled";
+	REPLACE_WILDCARD_WITH_STRING("%SUPPORT_FULL_DYNAMICS%", fullDynamicsSupport);
 
 	if (type == TargetTypes::EffectPlugin)
 	{
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "0");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN", "0");
 		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "enabled");
-        REPLACE_WILDCARD_WITH_STRING("%AAX_CATEGORY%", "AAX_ePlugInCategory_Modulation");
+
+		String monoSupport = GET_SETTING(HiseSettings::Project::SupportMonoFX) == "1" ? "enabled" : "disabled";
+
+		REPLACE_WILDCARD_WITH_STRING("%SUPPORT_MONO%", monoSupport);
+
+		
+
+
+        REPLACE_WILDCARD("%AAX_CATEGORY%", HiseSettings::Project::AAXCategoryFX);
 	}
 	else
 	{
+		REPLACE_WILDCARD_WITH_STRING("%SUPPORT_MONO%", "disabled");
+
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "1");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN", "1");
 		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "disabled");
@@ -1398,8 +1462,12 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 		REPLACE_WILDCARD_WITH_STRING("%BUILD_AUV3%", "0");
 
 		const bool buildAU = BuildOptionHelpers::isAU(option);
-		const bool buildVST = BuildOptionHelpers::isVST(option);
+		const bool buildVST = BuildOptionHelpers::isVST(option) || BuildOptionHelpers::isHeadlessLinuxPlugin(option);
+#if JUCE_LINUX
+		const bool buildAAX = false;
+#else
 		const bool buildAAX = BuildOptionHelpers::isAAX(option);
+#endif
 
 		REPLACE_WILDCARD_WITH_STRING("%BUILD_AU%", buildAU ? "1" : "0");
 		REPLACE_WILDCARD_WITH_STRING("%BUILD_VST%", buildVST ? "1" : "0");
@@ -1445,6 +1513,26 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 		}
 	}
 
+	// Add the linux GUI packages for non headless plugin builds to the projucer exporter...
+	if (BuildOptionHelpers::isLinux(option))
+	{
+		if(BuildOptionHelpers::isHeadlessLinuxPlugin(option))
+		{
+			REPLACE_WILDCARD_WITH_STRING("%LINUX_GUI_LIBS%", "");
+			REPLACE_WILDCARD_WITH_STRING("%JUCE_HEADLESS_PLUGIN_CLIENT%", "enabled");
+		}
+		else
+		{
+			REPLACE_WILDCARD_WITH_STRING("%LINUX_GUI_LIBS%", "x11 xinerama xext");
+			REPLACE_WILDCARD_WITH_STRING("%JUCE_HEADLESS_PLUGIN_CLIENT%", "disabled");
+		}
+	}
+	else
+	{
+		REPLACE_WILDCARD_WITH_STRING("%LINUX_GUI_LIBS%", "");
+		REPLACE_WILDCARD_WITH_STRING("%JUCE_HEADLESS_PLUGIN_CLIENT%", "disabled");
+	}
+
 	ProjectTemplateHelpers::handleCompilerInfo(this, templateProject);
 
 	ProjectTemplateHelpers::handleAdditionalSourceCode(this, templateProject, option);
@@ -1481,7 +1569,8 @@ hise::CompileExporter::CompileExporter::ErrorCodes CompileExporter::createStanda
 	REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "disabled");
 	REPLACE_WILDCARD_WITH_STRING("%IS_STANDALONE_FRONTEND%", "enabled");
 
-    
+	String fullDynamicsSupport = GET_SETTING(HiseSettings::Project::SupportFullDynamicsHLAC) == "1" ? "enabled" : "disabled";
+	REPLACE_WILDCARD_WITH_STRING("%SUPPORT_FULL_DYNAMICS%", fullDynamicsSupport);
 
 	ProjectTemplateHelpers::handleVisualStudioVersion(dataObject,templateProject);
 
@@ -1508,6 +1597,17 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_WIN%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsWindows).toString());
 	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_OSX%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsOSX).toString());
 	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_IOS%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsIOS).toString());
+
+	auto allow32BitMacOS = exporter->dataObject.getSetting(HiseSettings::Compiler::Support32BitMacOS);
+
+	if (allow32BitMacOS)
+	{
+		REPLACE_WILDCARD_WITH_STRING("%MACOS_ARCHITECTURE%", "64BitUniversal");
+	}
+	else
+	{
+		REPLACE_WILDCARD_WITH_STRING("%MACOS_ARCHITECTURE%", "64BitIntel");
+	}
 
 	REPLACE_WILDCARD_WITH_STRING("%COPY_PLUGIN%", isUsingCIMode() ? "0" : "1");
 
@@ -1549,57 +1649,38 @@ void CompileExporter::ProjectTemplateHelpers::handleVisualStudioVersion(const Hi
 
 
 
-void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(CompileExporter* exporter, String &templateProject, BuildOption option)
+void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(CompileExporter* exporter, String &templateProject, BuildOption /*option*/)
 {
 	ModulatorSynthChain* chainToExport = exporter->chainToExport;
+
+	auto& dataObject = exporter->dataObject;
+
+	SET_JUCER_FLAG("%USE_RAW_FRONTEND%", HiseSettings::Project::UseRawFrontend);
 
 	Array<File> additionalSourceFiles;
 
 	File additionalSourceCodeDirectory = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AdditionalSourceCode);
 
-	File additionalMainHeaderFile = additionalSourceCodeDirectory.getChildFile("AdditionalSourceCode.h");
+	additionalSourceCodeDirectory.findChildFiles(additionalSourceFiles, File::findFiles, true, "*.h");
+	additionalSourceCodeDirectory.findChildFiles(additionalSourceFiles, File::findFiles, true, "*.cpp");
 
-	if (!BuildOptionHelpers::isIOS(option) && additionalMainHeaderFile.existsAsFile())
+	for (int i = 0; i < additionalSourceFiles.size(); i++)
 	{
-		additionalSourceFiles.add(additionalMainHeaderFile);
+		if (additionalSourceFiles[i].getFileName().startsWith("."))
+			additionalSourceFiles.remove(i--);
 	}
-
-#if JUCE_WINDOWS
-
-	File resourceFile = additionalSourceCodeDirectory.getChildFile("resources.rc");
-
-	if (resourceFile.existsAsFile())
-	{
-		File resourceTargetFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("Builds/VisualStudio2015/resources.rc");
-
-		const String command = "copy &quot;" + resourceFile.getFullPathName() + "&quot; &quot;" + resourceTargetFile.getFullPathName() + "&quot;";
-
-		REPLACE_WILDCARD_WITH_STRING("%PREBUILD_COMMAND%", command);
-	}
-	else
-	{
-		REPLACE_WILDCARD_WITH_STRING("%PREBUILD_COMMAND%", "");
-	}
-
-#endif
 
 	File copyProtectionCppFile = additionalSourceCodeDirectory.getChildFile("CopyProtection.cpp");
+
+	// This will be copied to the source directory
+	additionalSourceFiles.removeAllInstancesOf(copyProtectionCppFile);
 
 	File copyProtectionTargetFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("Source/CopyProtection.cpp");
 
 	if (copyProtectionCppFile.existsAsFile())
-	{
 		copyProtectionCppFile.copyFileTo(copyProtectionTargetFile);
-	}
 	else
-	{
 		copyProtectionTargetFile.create();
-	}
-
-	File turboActivateFile = additionalSourceCodeDirectory.getChildFile("TurboActivate.dat");
-
-	if (turboActivateFile.existsAsFile())
-		additionalSourceFiles.add(turboActivateFile);
 
 	File iconFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("Icon.png");
 
@@ -1636,15 +1717,11 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 	}
 
 #if JUCE_MAC
-    
-    
     const String additionalStaticLibs = exporter->GET_SETTING(HiseSettings::Project::OSXStaticLibs);
     templateProject = templateProject.replace("%OSX_STATIC_LIBS%", additionalStaticLibs);
 #else
 
 	auto additionalStaticLibFolder = exporter->GET_SETTING(HiseSettings::Project::WindowsStaticLibFolder);
-
-	
 
 	if (additionalStaticLibFolder.isNotEmpty())
 	{
@@ -1668,17 +1745,8 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 
 		for (int i = 0; i < additionalSourceFiles.size(); i++)
 		{
-			if (additionalSourceFiles[i].getFileName().startsWith("_Tcc"))
-			{
-				// Will be included in the Factory .cpp source file
-				continue;
-			}
-
 			bool isSourceFile = additionalSourceFiles[i].hasFileExtension(".cpp");
-
             bool isSplashScreen = additionalSourceFiles[i].getFileName().contains("SplashScreen");
-
-			bool isTurboActivate = (additionalSourceFiles[i].getFileName() == "TurboActivate.dat");
 
 			const String relativePath = additionalSourceFiles[i].getRelativePathFrom(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries));
 
@@ -1692,16 +1760,12 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
             }
             
 			newAditionalSourceLine << "      <FILE id=\"" << fileId << "\" name=\"" << additionalSourceFiles[i].getFileName() << "\" compile=\"" << (isSourceFile ? "1" : "0") << "\" ";
-			newAditionalSourceLine << "resource=\"" << (isSplashScreen || isTurboActivate ? "1" : "0") << "\"\r\n";
+			newAditionalSourceLine << "resource=\"" << (isSplashScreen ? "1" : "0") << "\"\r\n";
 			newAditionalSourceLine << "            file=\"" << relativePath << "\"/>\r\n";
 
 			additionalFileDefinitions.add(newAditionalSourceLine);
 		}
 
-        
-        
-        
-        
 		templateProject = templateProject.replace("%ADDITIONAL_FILES%", additionalFileDefinitions.joinIntoString(""));
 
 		templateProject = templateProject.replace("%USE_CUSTOM_FRONTEND_TOOLBAR%", "disabled");
@@ -1711,7 +1775,6 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
     {
         templateProject = templateProject.replace("%ADDITIONAL_FILES%", "");
     }
-
 }
 
 void CompileExporter::ProjectTemplateHelpers::handleCopyProtectionInfo(CompileExporter* exporter, String &templateProject, BuildOption option)
@@ -1963,30 +2026,35 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 
 	const String vsFolder = HelperClasses::isUsingVisualStudio2015(exporter->dataObject) ? "VisualStudio2015" : "VisualStudio2017";
 
-
 	ADD_LINE("@echo off");
+
 	ADD_LINE("set project=" << projectName);
 	ADD_LINE("set build_path=" << buildPath);
-	ADD_LINE("set msbuild=" << msbuildPath);
-	ADD_LINE("set vs_args=" << vsArgs);
+
+	if (!exporter->rawMode)
+	{
+		
+		ADD_LINE("set msbuild=" << msbuildPath);
+		ADD_LINE("set vs_args=" << vsArgs);
 #if JUCE_64BIT
-    ADD_LINE("set PreferredToolArchitecture=x64");
+		ADD_LINE("set PreferredToolArchitecture=x64");
 #endif
 
-	if (HelperClasses::isUsingVisualStudio2015(exporter->dataObject))
-	{
-		ADD_LINE("set VisualStudioVersion=14.0");
+		if (HelperClasses::isUsingVisualStudio2015(exporter->dataObject))
+		{
+			ADD_LINE("set VisualStudioVersion=14.0");
+		}
+		else
+		{
+			ADD_LINE("set VisualStudioVersion=15.0");
+		}
 	}
-	else
-	{
-		ADD_LINE("set VisualStudioVersion=15.0");
-	}
-
+	
 	ADD_LINE("");
 	ADD_LINE("\"" << projucerPath << "\" --resave \"%build_path%\\AutogeneratedProject.jucer\"");
 	ADD_LINE("");
 
-	if (BuildOptionHelpers::is32Bit(buildOption))
+	if (!exporter->rawMode && BuildOptionHelpers::is32Bit(buildOption))
 	{
 		ADD_LINE("echo Compiling 32bit " << projectType << " %project% ...");
 		ADD_LINE("set Platform=Win32");
@@ -2006,7 +2074,7 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 		ADD_LINE("");
 	}
 	
-	if (BuildOptionHelpers::is64Bit(buildOption))
+	if (!exporter->rawMode && BuildOptionHelpers::is64Bit(buildOption))
 	{
 		ADD_LINE("echo Compiling 64bit " << projectType << " %project% ...");
 		ADD_LINE("set Platform=X64");
@@ -2026,6 +2094,11 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 	}
 
 	ADD_LINE("");
+
+	if (exporter->rawMode)
+	{
+		ADD_LINE("echo Project was exported succesfully. Open the VS2017 Solution file found in Binaries/Builds/VS2017");
+	}
 
 	if (!CompileExporter::isExportingFromCommandLine())
 		ADD_LINE("pause");
@@ -2064,9 +2137,18 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
     ADD_LINE("\"" << projucerPath << "\" --resave AutogeneratedProject.jucer");
     ADD_LINE("");
     
-    if(BuildOptionHelpers::isIOS(buildOption))
+    if(exporter->rawMode || BuildOptionHelpers::isIOS(buildOption))
     {
-        ADD_LINE("echo Sucessfully exported. Open XCode to compile and transfer to your iOS device.");
+		if (exporter->rawMode)
+		{
+			ADD_LINE("echo Sucessfully exported. Open the XCode project found under Binaries/Builds/MacOSX.");
+		}
+		else
+		{
+			ADD_LINE("echo Sucessfully exported. Open XCode to compile and transfer to your iOS device.");
+		}
+
+        
     }
     else
     {
@@ -2207,12 +2289,27 @@ CompileExporter::ErrorCodes CompileExporter::HelperClasses::saveProjucerFile(Str
 	return ErrorCodes::OK;
 }
 
-void CompileExporter::HeaderHelpers::addBasicIncludeLines(String& pluginDataHeaderFile)
+void CompileExporter::HeaderHelpers::addBasicIncludeLines(String& p, bool isIOS)
 {
-	pluginDataHeaderFile << "\n";
+	p << "\n";
 
-	pluginDataHeaderFile << "#include \"JuceHeader.h\"" << "\n";
-	pluginDataHeaderFile << "#include \"PresetData.h\"\n";
+	p << "#include \"JuceHeader.h\"" << "\n";
+	p << "#include \"PresetData.h\"\n";
+
+	p << "\nBEGIN_EMBEDDED_DATA()";
+    
+    if(!isIOS)
+    {
+        p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::AudioFiles, PresetData::impulses, PresetData::impulsesSize);";
+        p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::Images, PresetData::images, PresetData::imagesSize);";
+        p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::SampleMaps, PresetData::samplemaps, PresetData::samplemapsSize);";
+    }
+
+	p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::Scripts, PresetData::externalFiles, PresetData::externalFilesSize);";
+	p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::Presets, PresetData::preset, PresetData::presetSize);";
+	p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::UserPresets, PresetData::userPresets, PresetData::userPresetsSize);";
+	p << "\nEND_EMBEDDED_DATA()";
+	p << "\n";
 }
 
 void CompileExporter::HeaderHelpers::addAdditionalSourceCodeHeaderLines(CompileExporter* exporter, String& pluginDataHeaderFile)
@@ -2286,12 +2383,12 @@ void CompileExporter::HeaderHelpers::addProjectInfoLines(CompileExporter* export
 	const String versionString = exporter->GET_SETTING(HiseSettings::Project::Version);
 	const String appGroupString = exporter->GET_SETTING(HiseSettings::Project::AppGroupID);
 
-	pluginDataHeaderFile << "String hise::ProjectHandler::Frontend::getProjectName() { return \"" << projectName << "\"; };\n";
-	pluginDataHeaderFile << "String hise::ProjectHandler::Frontend::getCompanyName() { return \"" << companyName << "\"; };\n";
-	pluginDataHeaderFile << "String hise::ProjectHandler::Frontend::getCompanyWebsiteName() { return \"" << companyWebsiteName << "\"; };\n";
-	pluginDataHeaderFile << "String hise::ProjectHandler::Frontend::getVersionString() { return \"" << versionString << "\"; };\n";
+	pluginDataHeaderFile << "String hise::FrontendHandler::getProjectName() { return \"" << projectName << "\"; };\n";
+	pluginDataHeaderFile << "String hise::FrontendHandler::getCompanyName() { return \"" << companyName << "\"; };\n";
+	pluginDataHeaderFile << "String hise::FrontendHandler::getCompanyWebsiteName() { return \"" << companyWebsiteName << "\"; };\n";
+	pluginDataHeaderFile << "String hise::FrontendHandler::getVersionString() { return \"" << versionString << "\"; };\n";
     
-    pluginDataHeaderFile << "String hise::ProjectHandler::Frontend::getAppGroupId() { return \"" << appGroupString << "\"; };\n";
+    pluginDataHeaderFile << "String hise::FrontendHandler::getAppGroupId() { return \"" << appGroupString << "\"; };\n";
     
 }
 

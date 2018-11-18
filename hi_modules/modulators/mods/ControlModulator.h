@@ -124,6 +124,8 @@ private:
 
 	Smoother smoother;
 	ScopedPointer<SampleLookupTable> table;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ControlModulator);
 };
 
 

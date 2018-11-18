@@ -55,7 +55,14 @@ BackendCommandTarget::BackendCommandTarget(BackendProcessor *owner_):
 owner(owner_),
 currentColumnMode(OneColumn)
 {
-	
+	CopyPasteTargetHandler* h = this;
+
+	handlerFunction.f = [h](Component*)
+	{
+		return h;
+	};
+
+	CopyPasteTarget::setHandlerFunction(&handlerFunction);
 
 	createMenuBarNames();
 }
@@ -108,6 +115,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuExportFileAsPlayerLibrary,
 		MenuExportFileAsSnippet,
 		MenuExportSampleDataForInstaller,
+		MenuExportCompileFilesInPool,
 		MenuFileQuit,
 		MenuEditUndo,
 		MenuEditRedo,
@@ -132,13 +140,14 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsCreateToolbarPropertyDefinition,
 		MenuToolsCreateExternalScriptFile,
 		MenuToolsCreateUIDataFromDesktop,
+		MenuToolsCheckDeviceSanity,
 		MenuToolsValidateUserPresets,
 		MenuToolsResolveMissingSamples,
 		MenuToolsDeleteMissingSamples,
 		MenuToolsCheckAllSampleMaps,
 		MenuToolsCollectExternalFiles,
 		MenuToolsCheckUnusedImages,
-        
+		MenuToolsGetMissingSampleList,
 		MenuToolsRedirectScriptFolder,
 		MenuToolsForcePoolSearch,
 		MenuToolsConvertSampleMapToWavetableBanks,
@@ -292,6 +301,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuExportSampleDataForInstaller:
 		setCommandTarget(result, "Export Samples for Installer", true, false, 'X', false);
 		break;
+	case MenuExportCompileFilesInPool:
+		setCommandTarget(result, "Export Pooled Files to Binary Resource", true, false, 'X', false);
+		break;
 	case MenuFileSettingsPreset:
 		setCommandTarget(result, "Preset Properties", true, false, 'X', false);
 		break;
@@ -399,6 +411,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsCreateUIDataFromDesktop:
 		setCommandTarget(result, "Copy UI Data from Desktop", Helpers::canCopyDeviceType(bpe), Helpers::deviceTypeHasUIData(bpe), 'X', false);
 		break;
+	case MenuToolsCheckDeviceSanity:
+		setCommandTarget(result, "Check Sanity for defined Devices", true, false, 'X', false);
+		break;
 	case MenuToolsValidateUserPresets:
 		setCommandTarget(result, "Validate User Presets", true, false, 'X', false);
 		break;
@@ -407,6 +422,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuToolsResolveMissingSamples:
 		setCommandTarget(result, "Resolve missing samples", true, false, 'X', false);
+		break;
+	case MenuToolsGetMissingSampleList:
+		setCommandTarget(result, "Copy list of missing samples to clipboard", true, false, 'X', false);
 		break;
 	case MenuToolsCheckAllSampleMaps:
 		setCommandTarget(result, "Check all sample maps", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
@@ -588,13 +606,14 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsEnableCallStack:		Actions::toggleCallStackEnabled(bpe); updateCommands(); return true;
 	case MenuToolsCheckCyclicReferences:Actions::checkCyclicReferences(bpe); return true;
 	case MenuToolsRecompileScriptsOnReload: Actions::toggleCompileScriptsOnPresetLoad(bpe); updateCommands(); return true;
-	case MenuToolsCreateToolbarPropertyDefinition:	Actions::createDefaultToolbarJSON(bpe); return true;
 	case MenuToolsCreateExternalScriptFile:	Actions::createExternalScriptFile(bpe); updateCommands(); return true;
     case MenuToolsCheckDuplicate:       Actions::checkDuplicateIds(bpe); return true;
 	case MenuToolsValidateUserPresets:	Actions::validateUserPresets(bpe); return true;
 	case MenuToolsResolveMissingSamples:Actions::resolveMissingSamples(bpe); return true;
+	case MenuToolsGetMissingSampleList:	Actions::copyMissingSampleListToClipboard(bpe); return true;
 	case MenuToolsCollectExternalFiles:	Actions::collectExternalFiles(bpe); return true;
 	case MenuToolsCreateUIDataFromDesktop: Actions::createUIDataFromDesktop(bpe); updateCommands(); return true;
+	case MenuToolsCheckDeviceSanity:	Actions::checkDeviceSanity(bpe); return true;
 	case MenuToolsCheckUnusedImages:	Actions::checkUnusedImages(bpe); return true;
 	case MenuToolsRedirectScriptFolder: Actions::redirectScriptFolder(bpe); updateCommands(); return true;
 	case MenuToolsForcePoolSearch:		Actions::toggleForcePoolSearch(bpe); updateCommands(); return true;
@@ -624,9 +643,10 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuExportFileAsPlugin:        exporter.exportMainSynthChainAsInstrument(); return true;
 	case MenuExportFileAsEffectPlugin:	exporter.exportMainSynthChainAsFX(); return true;
 	case MenuExportFileAsStandaloneApp: exporter.exportMainSynthChainAsStandaloneApp(); return true;
-    case MenuExportFileAsSnippet:       Actions::exportFileAsSnippet(bpe); return true;
+    case MenuExportFileAsSnippet:       Actions::exportFileAsSnippet(bpe->getBackendProcessor()); return true;
 	case MenuExportFileAsPlayerLibrary: Actions::exportMainSynthChainAsPlayerLibrary(bpe); return true;
 	case MenuExportSampleDataForInstaller: Actions::exportSampleDataForInstaller(bpe); return true;
+	case MenuExportCompileFilesInPool:	Actions::exportCompileFilesInPool(bpe); return true;
     case MenuAddView:                   Actions::addView(bpe); updateCommands();return true;
     case MenuDeleteView:                Actions::deleteView(bpe); updateCommands();return true;
     case MenuRenameView:                Actions::renameView(bpe); updateCommands();return true;
@@ -710,9 +730,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_ALL_PLATFORMS(MenuSaveFileAsXmlBackup);
 
 		PopupMenu xmlBackups;
-		Array<File> xmlBackupFiles;
-
-		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getFileList(xmlBackupFiles, ProjectHandler::SubDirectories::XMLPresetBackups, "*.xml");
+		Array<File> xmlBackupFiles = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getFileList(ProjectHandler::SubDirectories::XMLPresetBackups);
 
 		for (int i = 0; i < xmlBackupFiles.size(); i++)
 		{
@@ -731,7 +749,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 
 		if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
 		{
-			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getFileList(recentFileList, ProjectHandler::SubDirectories::Presets, "*.hip", true);
+			recentFileList = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getFileList(ProjectHandler::SubDirectories::Presets, true);
 
 			for (int i = 0; i < recentFileList.size(); i++)
 			{
@@ -793,6 +811,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuExportFileAsSnippet);
 		ADD_DESKTOP_ONLY(MenuExportSampleDataForInstaller);
 		ADD_DESKTOP_ONLY(MenuFileSettingsCleanBuildDirectory);
+		ADD_DESKTOP_ONLY(MenuExportCompileFilesInPool);
 		break;
 	}
 	case BackendCommandTarget::ToolsMenu:
@@ -820,11 +839,13 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		p.addSubMenu("Device simulator", sub);
 
 		ADD_DESKTOP_ONLY(MenuToolsCreateUIDataFromDesktop);
+		ADD_DESKTOP_ONLY(MenuToolsCheckDeviceSanity);
 
 		p.addSeparator();
 		p.addSectionHeader("Sample Management");
 		
 		ADD_DESKTOP_ONLY(MenuToolsResolveMissingSamples);
+		ADD_DESKTOP_ONLY(MenuToolsGetMissingSampleList);
 		ADD_DESKTOP_ONLY(MenuToolsDeleteMissingSamples);
 		ADD_DESKTOP_ONLY(MenuToolsCheckAllSampleMaps);
 		ADD_DESKTOP_ONLY(MenuToolsImportArchivedSamples);
@@ -879,6 +900,23 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 }
 
 
+ValueTree getChildWithPropertyRecursive(const ValueTree& v, const Identifier& id, const var& value)
+{
+	auto r = v.getChildWithProperty(id, value);
+
+	if (r.isValid())
+		return r;
+
+	for (auto child : v)
+	{
+		r = getChildWithPropertyRecursive(child, id, value);
+
+		if (r.isValid())
+			return r;
+	}
+
+	return ValueTree();
+}
 
 void BackendCommandTarget::menuItemSelected(int menuItemID, int topLevelMenuIndex)
 {
@@ -945,16 +983,6 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int topLevelMenuInde
 #endif
 		}
 	}
-    else if (menuItemID >= MenuFileUserPresetMenuOffset && menuItemID < ((int)MenuFileUserPresetMenuOffset+50))
-    {
-        const int index = menuItemID - MenuFileUserPresetMenuOffset;
-        
-        Array<File> userPresetFiles;
-		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getFileList(userPresetFiles, ProjectHandler::SubDirectories::UserPresets, "*.preset");
-
-        File presetToLoad = userPresetFiles[index];
-		Actions::loadUserPreset(bpe, presetToLoad);
-    }
     else if (menuItemID >= MenuFileXmlBackupMenuOffset && menuItemID < ((int)MenuFileXmlBackupMenuOffset+50))
     {
         const bool shouldDiscard = !bpe->getBackendProcessor()->isChanged() || PresetHandler::showYesNoWindow("Discard the current preset?", "The current preset will be discarded", PresetHandler::IconType::Question);
@@ -963,9 +991,7 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int topLevelMenuInde
         
         const int index = menuItemID - MenuFileXmlBackupMenuOffset;
         
-        Array<File> xmlFileList;
-        
-		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getFileList(xmlFileList, ProjectHandler::SubDirectories::XMLPresetBackups, "*.xml");
+        Array<File> xmlFileList = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getFileList(ProjectHandler::SubDirectories::XMLPresetBackups);
         
 		File presetToLoad = xmlFileList[index];
             
@@ -989,6 +1015,9 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int topLevelMenuInde
 	{
 		HiseDeviceSimulator::DeviceType newDevice = (HiseDeviceSimulator::DeviceType)(menuItemID - (int)MenuToolsDeviceSimulatorOffset);
 
+		bool copyMissing = HiseDeviceSimulator::getDeviceType() == HiseDeviceSimulator::DeviceType::Desktop &&
+						   newDevice != HiseDeviceSimulator::DeviceType::Desktop;
+
 		HiseDeviceSimulator::setDeviceType(newDevice);
 
 		auto mp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(owner);
@@ -997,10 +1026,85 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int topLevelMenuInde
 
 		if (mp != nullptr)
 		{
-			auto contentData = mp->getContent()->exportAsValueTree();
+			auto c = mp->getContent();
+
+
+			ValueTree oldContent;
+			Array<Identifier> idList;
+
+			if (copyMissing)
+			{
+				
+
+				oldContent = c->getContentProperties();
+				
+				for (int i = 0; i < c->getNumComponents(); i++)
+				{
+					auto cmp = c->getComponent(i);
+
+					//bool x = ScriptingApi::Content::Helpers::hasLocation(cmp);
+
+					if (cmp->getScriptObjectProperty(ScriptComponent::Properties::saveInPreset))
+					{
+						idList.add(cmp->getName());
+					}
+				}
+			}
+
+			auto contentData = c->exportAsValueTree();
 			mp->setDeviceTypeForInterface((int)newDevice);
 			mp->compileScript();
 			mp->getContent()->restoreFromValueTree(contentData);
+
+			if (copyMissing)
+			{
+				auto newContentProperties = c->getContentProperties();
+
+				Array<Identifier> missingIds;
+
+				for (const auto& id : idList)
+				{
+					if (c->getComponentWithName(id) == nullptr)
+					{
+						missingIds.add(id);
+					}
+				}
+				
+				if (!missingIds.isEmpty() && PresetHandler::showYesNoWindow("Missing components found", "There are some components in the desktop UI that are not available in the new UI. Press OK to query which components should be transferred."))
+				{
+					{
+						ValueTreeUpdateWatcher::ScopedDelayer sd(c->getUpdateWatcher());
+
+						for (const auto& id : missingIds)
+						{
+							if (PresetHandler::showYesNoWindow("Copy " + id.toString(), "Do you want to transfer this component?"))
+							{
+								auto v = getChildWithPropertyRecursive(oldContent, "id", id.toString());
+
+								if (v.isValid())
+								{
+									v = v.createCopy();
+									v.removeAllChildren(nullptr);
+
+									v.removeProperty("parentComponent", nullptr);
+
+									newContentProperties.addChild(v, -1, nullptr);
+									debugToConsole(mp, "Added " + id.toString() + " to " + HiseDeviceSimulator::getDeviceName());
+								}
+							}
+						}
+					}
+
+					mp->compileScript();
+				}
+
+				
+			}
+
+			
+
+
+
 		}
 
 	}
@@ -1165,22 +1269,19 @@ void BackendCommandTarget::Actions::checkUnusedImages(BackendRootWindow * bpe)
 
 	Array<File> referencedFiles;
 
-	auto imagePool = bpe->getBackendProcessor()->getSampleManager().getImagePool();
+	auto imagePool = bpe->getBackendProcessor()->getCurrentImagePool(true);
 
-	auto list = imagePool->getFileNameList();
-
-	for (int i = 0; i < list.size(); i++)
+	for (int i = 0; i < allFiles.size(); i++)
 	{
-		auto f = File(list[i]);
+		auto f = File(allFiles[i]);
 
 		jassert(f.existsAsFile());
 
-		auto indexInAllFiles = allFiles.indexOf(f);
-
-		allFiles.remove(indexInAllFiles);
+		if (imagePool->contains(f.hashCode64()))
+		{
+			allFiles.remove(i--);
+		}
 	}
-
-	
 
 	for (int i = 0; i < allFiles.size(); i++)
 	{
@@ -1414,7 +1515,7 @@ void BackendCommandTarget::Actions::removeAllSampleMaps(BackendRootWindow * bpe)
 		Processor::Iterator<ModulatorSampler> iter(bpe->getMainSynthChain(), false);
 
 		while (auto sampler = iter.getNextProcessor())
-			sampler->clearSampleMap();
+			sampler->clearSampleMap(sendNotificationAsync);
 	}
 }
 
@@ -1426,7 +1527,7 @@ void BackendCommandTarget::Actions::redirectScriptFolder(BackendRootWindow * /*b
 	{
 		File f = fc.getResult();
 
-		ProjectHandler::createLinkFileInFolder(File(PresetHandler::getDataFolder()).getChildFile("scripts"), f);
+		ProjectHandler::createLinkFileInFolder(ProjectHandler::getAppDataDirectory().getChildFile("scripts"), f);
 	}
 }
 
@@ -1633,9 +1734,9 @@ void BackendCommandTarget::Actions::collectExternalFiles(BackendRootWindow * bpe
 }
 
 
-void BackendCommandTarget::Actions::exportFileAsSnippet(BackendRootWindow* bpe)
+void BackendCommandTarget::Actions::exportFileAsSnippet(BackendProcessor* bp)
 {
-	ValueTree v = bpe->getMainSynthChain()->exportAsValueTree();
+	ValueTree v = bp->getMainSynthChain()->exportAsValueTree();
 
 	MemoryOutputStream mos;
 
@@ -1652,7 +1753,11 @@ void BackendCommandTarget::Actions::exportFileAsSnippet(BackendRootWindow* bpe)
 
 	SystemClipboard::copyTextToClipboard(data);
 
-	PresetHandler::showMessageWindow("Preset copied as compressed snippet", "You can paste the clipboard content to share this preset", PresetHandler::IconType::Info);
+	if (!MainController::inUnitTestMode())
+	{
+		PresetHandler::showMessageWindow("Preset copied as compressed snippet", "You can paste the clipboard content to share this preset", PresetHandler::IconType::Info);
+	}
+	
 }
 
 void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)
@@ -1663,13 +1768,8 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)
 
 		if (fc.browseForFileToSave(true))
 		{
-			const bool hasDefaultName = bpe->owner->getMainSynthChain()->getId() == "Master Chain";
-
-			if (hasDefaultName)
-			{
-				const String newName = fc.getResult().getFileNameWithoutExtension();
-				bpe->owner->getMainSynthChain()->setId(newName);
-			}
+			const String newName = fc.getResult().getFileNameWithoutExtension();
+			bpe->owner->getMainSynthChain()->setId(newName);
 
 			ValueTree v = bpe->owner->getMainSynthChain()->exportAsValueTree();
 
@@ -1679,6 +1779,15 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)
 
 			XmlBackupFunctions::removeEditorStatesFromXml(*xml);
 
+			
+			Processor::Iterator<ModulatorSampler> siter(bpe->getMainSynthChain());
+
+			while (auto s = siter.getNextProcessor())
+			{
+				if (s->getSampleMap()->hasUnsavedChanges())
+					s->getSampleMap()->saveAndReloadMap();
+			}
+
 			File scriptDirectory = XmlBackupFunctions::getScriptDirectoryFor(bpe->getMainSynthChain());
 
 			Processor::Iterator<JavascriptProcessor> iter(bpe->getMainSynthChain());
@@ -1687,12 +1796,20 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)
 
 			scriptDirectory.createDirectory();
 
+			String interfaceId = "";
+
 			while (JavascriptProcessor *sp = iter.getNextProcessor())
 			{
 				if (sp->isConnectedToExternalFile())
 					continue;
 
 				String content;
+
+				if (auto jmp = dynamic_cast<JavascriptMidiProcessor*>(sp))
+				{
+					if (jmp->isFront())
+						interfaceId = jmp->getId();
+				}
 
 				sp->mergeCallbacksToScript(content);
 
@@ -1703,6 +1820,8 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)
 
 			XmlBackupFunctions::removeAllScripts(*xml);
 			
+			if(interfaceId.isNotEmpty())
+				XmlBackupFunctions::extractContentData(*xml, interfaceId, fc.getResult());
 
 			fc.getResult().replaceWithText(xml->createDocument(""));
 
@@ -1725,6 +1844,8 @@ void BackendCommandTarget::Actions::openFileFromXml(BackendRootWindow * bpe, con
 
 		if (xml != nullptr)
 		{
+			XmlBackupFunctions::addContentFromSubdirectory(*xml, fileToLoad);
+
 			String newId = xml->getStringAttribute("ID");
 
 			XmlBackupFunctions::restoreAllScripts(*xml, bpe->getMainSynthChain(), newId);
@@ -1755,7 +1876,6 @@ void BackendCommandTarget::Actions::createNewProject(BackendRootWindow *bpe)
 		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).createNewProject(f, bpe);
 
 		bpe->getBackendProcessor()->clearPreset();
-		bpe->getBackendProcessor()->createUserPresetData();
 		bpe->getBackendProcessor()->getSettingsObject().refreshProjectData();
 	}
 }
@@ -1802,8 +1922,6 @@ void BackendCommandTarget::Actions::loadProject(BackendRootWindow *bpe)
 		{
 			bpe->getBackendProcessor()->getSettingsObject().refreshProjectData();
 			bpe->getBackendProcessor()->clearPreset();
-			bpe->getBackendProcessor()->createUserPresetData();
-
 			loadFirstXmlAfterProjectSwitch(bpe);
 		}
 			
@@ -1817,9 +1935,7 @@ void BackendCommandTarget::Actions::loadFirstXmlAfterProjectSwitch(BackendRootWi
 {
 	auto& handler = GET_PROJECT_HANDLER(bpe->getMainSynthChain());
 
-	Array<File> files;
-
-	handler.getFileList(files, ProjectHandler::SubDirectories::XMLPresetBackups, "*.xml", true);
+	Array<File> files = handler.getFileList(ProjectHandler::SubDirectories::XMLPresetBackups, true);
 
 	if (files.size() > 0 && PresetHandler::showYesNoWindow("Load first XML in project?", "Do you want to load " + files[0].getFileName()))
 	{
@@ -1834,10 +1950,6 @@ void BackendCommandTarget::Actions::closeProject(BackendRootWindow *bpe)
     if (!shouldDiscard) return;
     
 	GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(File(), bpe);
-
-
-	bpe->getBackendProcessor()->createUserPresetData();
-
 }
 
 void BackendCommandTarget::Actions::showProjectInFinder(BackendRootWindow *bpe)
@@ -1968,7 +2080,7 @@ void BackendCommandTarget::Actions::createDummyLicenseFile(BackendRootWindow * b
 	}
 
 	String keyContent = KeyGeneration::generateKeyFile(productName, dummyEmail, userName, ids.joinIntoString("\n"), privateKey);
-	File key = handler->getWorkDirectory().getChildFile(productName + ProjectHandler::Frontend::getLicenseKeyExtension());
+	File key = handler->getWorkDirectory().getChildFile(productName + FrontendHandler::getLicenseKeyExtension());
 
 	key.replaceWithText(keyContent);
 
@@ -1983,24 +2095,6 @@ void BackendCommandTarget::Actions::createDummyLicenseFile(BackendRootWindow * b
 #endif
 
 	PresetHandler::showMessageWindow("License File created", message, PresetHandler::IconType::Info);
-}
-
-void BackendCommandTarget::Actions::createDefaultToolbarJSON(BackendRootWindow * bpe)
-{
-	String json = DefaultFrontendBar::createJSONString(bpe->getBackendProcessor()->getToolbarPropertiesObject());
-
-	String clipboard = "var toolbarData = ";
-	
-	clipboard << json;
-
-	clipboard << ";\n\nContent.setToolbarProperties(toolbarData);";
-
-	SystemClipboard::copyTextToClipboard(clipboard);
-
-	PresetHandler::showMessageWindow("JSON Data copied to clipboard", 
-		"The current toolbar properties are copied into the clipboard.\nPaste it into any script and change the data", 
-		PresetHandler::IconType::Info);
-
 }
 
 void BackendCommandTarget::Actions::toggleForcePoolSearch(BackendRootWindow * bpe)
@@ -2194,7 +2288,7 @@ void BackendCommandTarget::Actions::convertSfzFilesToSampleMaps(BackendRootWindo
 				const String id = f.getFileNameWithoutExtension();
 
 				sampler->getSampleMap()->setId(f.getFileNameWithoutExtension());
-				ValueTree sampleMap = sampler->getSampleMap()->exportAsValueTree();
+				auto sampleMap = sampler->getSampleMap()->getValueTree();
 
 				File sampleMapFile = GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps).getChildFile(id + ".xml");
 
@@ -2314,6 +2408,50 @@ void BackendCommandTarget::Actions::convertSampleMapToWavetableBanks(BackendRoot
 #endif
 }
 
+void BackendCommandTarget::Actions::exportCompileFilesInPool(BackendRootWindow* bpe)
+{
+	auto pet = new PoolExporter(bpe->getBackendProcessor());
+	pet->setModalBaseWindowComponent(bpe);
+}
+
+void BackendCommandTarget::Actions::checkDeviceSanity(BackendRootWindow * bpe)
+{
+	auto window = new DeviceTypeSanityCheck(bpe->getBackendProcessor());
+	window->setModalBaseWindowComponent(bpe);
+}
+
+void BackendCommandTarget::Actions::copyMissingSampleListToClipboard(BackendRootWindow * bpe)
+{
+	auto pool = bpe->getBackendProcessor()->getSampleManager().getModulatorSamplerSoundPool();
+
+	StreamingSamplerSoundArray missingSounds;
+
+	pool->getMissingSamples(missingSounds);
+
+	if (missingSounds.isEmpty())
+	{
+		PresetHandler::showMessageWindow("No missing samples founr", "All samples could be found", PresetHandler::IconType::Info);
+	}
+	else
+	{
+		String text;
+
+		for (auto sound : missingSounds)
+		{
+			if (sound == nullptr)
+				continue;
+
+			if (sound->isMonolithic())
+				continue;
+
+			text << sound->getFileName(true) << "\n";
+		}
+
+		SystemClipboard::copyTextToClipboard(text);
+		PresetHandler::showMessageWindow("Missing samples detected", "There were " + String(missingSounds.size()) + " missing samples.", PresetHandler::IconType::Warning);
+	}
+}
+
 #undef REPLACE_WILDCARD
 #undef REPLACE_WILDCARD_WITH_STRING
 
@@ -2330,7 +2468,6 @@ bool BackendCommandTarget::Helpers::deviceTypeHasUIData(BackendRootWindow* bpe)
 		return false;
 
 	return mp->hasUIDataForDeviceType();
-
 }
 
 bool BackendCommandTarget::Helpers::canCopyDeviceType(BackendRootWindow* bpe)
@@ -2338,13 +2475,13 @@ bool BackendCommandTarget::Helpers::canCopyDeviceType(BackendRootWindow* bpe)
 	if (!HiseDeviceSimulator::isMobileDevice())
 		return false;
 
-
 	auto mp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(bpe->getBackendProcessor());
 
 	if (mp == nullptr)
 		return false;
 
 	return !mp->hasUIDataForDeviceType();
+	
 }
 
 } // namespace hise

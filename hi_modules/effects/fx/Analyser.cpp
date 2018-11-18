@@ -428,6 +428,9 @@ Component* AudioAnalyserComponent::Panel::createContentComponent(int index)
 	case 2:	c = new FFTDisplay(getProcessor()); break;
 	}
 
+	if (findPanelColour(FloatingTileContent::PanelColourId::bgColour).isOpaque())
+		c->setOpaque(true);
+
 	return c;
 }
 

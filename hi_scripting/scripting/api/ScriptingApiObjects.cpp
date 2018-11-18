@@ -184,7 +184,7 @@ struct ScriptingObjects::ScriptSliderPackData::Wrapper
 
 ScriptingObjects::ScriptSliderPackData::ScriptSliderPackData(ProcessorWithScriptingContent* pwsc) :
 	ConstScriptingObject(pwsc, 0),
-	data(pwsc->getMainController_()->getControlUndoManager())
+	data(pwsc->getMainController_()->getControlUndoManager(), pwsc->getMainController_()->getGlobalUIUpdater())
 {
 	data.setNumSliders(16);
 
@@ -273,14 +273,14 @@ struct ScriptingObjects::ScriptingModulator::Wrapper
 	API_METHOD_WRAPPER_3(ScriptingModulator, addGlobalModulator);
 	API_METHOD_WRAPPER_3(ScriptingModulator, addStaticGlobalModulator);
 	API_METHOD_WRAPPER_0(ScriptingModulator, asTableProcessor);
-
+	API_METHOD_WRAPPER_0(ScriptingModulator, getId);
 };
 
 ScriptingObjects::ScriptingModulator::ScriptingModulator(ProcessorWithScriptingContent *p, Modulator *m_) :
 ConstScriptingObject(p, m_ != nullptr ? m_->getNumParameters() + 1 : 1),
 mod(m_),
 m(nullptr),
-moduleHandler(m_)
+moduleHandler(m_, dynamic_cast<JavascriptProcessor*>(p))
 {
 	if (mod != nullptr)
 	{
@@ -300,6 +300,7 @@ moduleHandler(m_)
 		setName("Invalid Modulator");
 	}
 
+	ADD_API_METHOD_0(getId);
 	ADD_API_METHOD_2(setAttribute);
 	ADD_API_METHOD_1(setBypassed);
 	ADD_API_METHOD_0(isBypassed);
@@ -362,6 +363,14 @@ void ScriptingObjects::ScriptingModulator::assign(const int index, var newValue)
 var ScriptingObjects::ScriptingModulator::getAssignedValue(int /*index*/) const
 {
 	return 1.0; // Todo...
+}
+
+String ScriptingObjects::ScriptingModulator::getId() const
+{
+	if (checkValidObject())
+		return mod->getId();
+
+	return String();
 }
 
 void ScriptingObjects::ScriptingModulator::setAttribute(int index, float value)
@@ -439,19 +448,29 @@ void ScriptingObjects::ScriptingModulator::setIntensity(float newIntensity)
 {
 	if (checkValidObject())
 	{
-		if (m->getMode() == Modulation::GainMode)
+		auto mode = m->getMode();
+
+		if (mode == Modulation::GainMode)
 		{
 			const float value = jlimit<float>(0.0f, 1.0f, newIntensity);
 			m->setIntensity(value);
 
 			mod.get()->sendChangeMessage();
 		}
-		else
+		else if(mode == Modulation::PitchMode)
 		{
 			const float value = jlimit<float>(-12.0f, 12.0f, newIntensity);
 			const float pitchFactor = value / 12.0f;
 
 			m->setIntensity(pitchFactor);
+
+			mod.get()->sendChangeMessage();
+		}
+		else
+		{
+			const float value = jlimit<float>(-1.0f, 1.0f, newIntensity);
+
+			m->setIntensity(value);
 
 			mod.get()->sendChangeMessage();
 		}
@@ -464,16 +483,14 @@ float ScriptingObjects::ScriptingModulator::getIntensity() const
 {
 	if (checkValidObject())
 	{
-		if (m->getMode() == Modulation::GainMode)
-		{
-			return dynamic_cast<const Modulation*>(mod.get())->getIntensity();
-		}
-		else
+		if (m->getMode() == Modulation::PitchMode)
 		{
 			return dynamic_cast<const Modulation*>(mod.get())->getIntensity() * 12.0f;
 		}
-
-		
+		else
+		{
+			return dynamic_cast<const Modulation*>(mod.get())->getIntensity();
+		}
 	}
 
 	return 0.0f;
@@ -660,12 +677,13 @@ struct ScriptingObjects::ScriptingEffect::Wrapper
 	API_METHOD_WRAPPER_3(ScriptingEffect, addGlobalModulator);
 	API_METHOD_WRAPPER_1(ScriptingEffect, getModulatorChain);
 	API_METHOD_WRAPPER_3(ScriptingEffect, addStaticGlobalModulator);
+	API_METHOD_WRAPPER_0(ScriptingEffect, getId);
 };
 
 ScriptingObjects::ScriptingEffect::ScriptingEffect(ProcessorWithScriptingContent *p, EffectProcessor *fx) :
 ConstScriptingObject(p, fx != nullptr ? fx->getNumParameters()+1 : 1),
 effect(fx),
-moduleHandler(fx)
+moduleHandler(fx, dynamic_cast<JavascriptProcessor*>(p))
 {
 	if (fx != nullptr)
 	{
@@ -683,6 +701,7 @@ moduleHandler(fx)
 		setName("Invalid Effect");
 	}
 
+	ADD_API_METHOD_0(getId);
 	ADD_API_METHOD_2(setAttribute);
 	ADD_API_METHOD_1(setBypassed);
     ADD_API_METHOD_1(getAttribute);
@@ -703,6 +722,14 @@ moduleHandler(fx)
 void ScriptingObjects::ScriptingEffect::rightClickCallback(const MouseEvent& e, Component* t)
 {
 	Helpers::showProcessorEditorPopup(e, t, effect.get());
+}
+
+juce::String ScriptingObjects::ScriptingEffect::getId() const
+{
+	if (checkValidObject())
+		return effect->getId();
+
+	return String();
 }
 
 void ScriptingObjects::ScriptingEffect::setAttribute(int parameterIndex, float newValue)
@@ -758,7 +785,14 @@ void ScriptingObjects::ScriptingEffect::restoreState(String base64State)
 {
 	if (checkValidObject())
 	{
+		SuspendHelpers::ScopedTicket ticket(effect->getMainController());
+
+		effect->getMainController()->getJavascriptThreadPool().killVoicesAndExtendTimeOut(dynamic_cast<JavascriptProcessor*>(getScriptProcessor()));
+
+		LockHelpers::freeToGo(effect->getMainController());
+
 		ProcessorHelpers::restoreFromBase64String(effect, base64State);
+
 	}
 }
 
@@ -898,11 +932,11 @@ var ScriptingObjects::ScriptingEffect::addStaticGlobalModulator(var chainIndex, 
 }
 
 ScriptingObjects::ScriptingEffect::FilterModeObject::FilterModeObject(const ProcessorWithScriptingContent* p) :
-	ConstScriptingObject(const_cast<ProcessorWithScriptingContent*>(p), (int)MonoFilterEffect::FilterMode::numFilterModes)
+	ConstScriptingObject(const_cast<ProcessorWithScriptingContent*>(p), (int)FilterBank::FilterMode::numFilterModes)
 {
 	
 
-#define ADD_FILTER_CONSTANT(x) addConstant(#x, (int)MonoFilterEffect::FilterMode::x)
+#define ADD_FILTER_CONSTANT(x) addConstant(#x, (int)FilterBank::FilterMode::x)
 
 	ADD_FILTER_CONSTANT(LowPass);
 	ADD_FILTER_CONSTANT(HighPass);
@@ -984,15 +1018,20 @@ ScriptingObjects::ScriptingEffect* ScriptingObjects::ScriptingSlotFX::setEffect(
 {
 	if(auto slot = getSlotFX())
     {
-        if(slot->setEffect(effectName))
-        {
-			return new ScriptingEffect(getScriptProcessor(), slot->getCurrentEffect());
-        }
-        else
-        {
-            reportScriptError("Invalid Effect Type");
-            RETURN_IF_NO_THROW(new ScriptingEffect(getScriptProcessor(), nullptr))
-        }
+		auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
+
+		{
+			SuspendHelpers::ScopedTicket ticket(slot->getMainController());
+
+			slot->getMainController()->getJavascriptThreadPool().killVoicesAndExtendTimeOut(jp);
+
+			LockHelpers::freeToGo(slot->getMainController());
+			slot->setEffect(effectName);
+		}
+
+		jassert(slot->getCurrentEffect()->getType() == Identifier(effectName));
+
+		return new ScriptingEffect(getScriptProcessor(), slot->getCurrentEffect());
     }
 	else
 	{
@@ -1141,12 +1180,13 @@ struct ScriptingObjects::ScriptingSynth::Wrapper
 	API_METHOD_WRAPPER_3(ScriptingSynth, addStaticGlobalModulator);
 	API_METHOD_WRAPPER_0(ScriptingSynth, asSampler);
 	API_METHOD_WRAPPER_0(ScriptingSynth, getRoutingMatrix);
+	API_METHOD_WRAPPER_0(ScriptingSynth, getId);
 };
 
 ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *p, ModulatorSynth *synth_) :
 	ConstScriptingObject(p, synth_ != nullptr ? synth_->getNumParameters() + 1 : 1),
 	synth(synth_),
-	moduleHandler(synth_)
+	moduleHandler(synth_, dynamic_cast<JavascriptProcessor*>(p))
 {
 	if (synth != nullptr)
 	{
@@ -1164,6 +1204,7 @@ ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *
 		setName("Invalid Effect");
 	}
 
+	ADD_API_METHOD_0(getId);
 	ADD_API_METHOD_2(setAttribute);
     ADD_API_METHOD_1(getAttribute);
 	ADD_API_METHOD_1(setBypassed);
@@ -1184,6 +1225,14 @@ ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *
 void ScriptingObjects::ScriptingSynth::rightClickCallback(const MouseEvent& e, Component* t)
 {
 	Helpers::showProcessorEditorPopup(e, t, synth);
+}
+
+String ScriptingObjects::ScriptingSynth::getId() const
+{
+	if (checkValidObject())
+		return synth->getId();
+
+	return String();
 }
 
 void ScriptingObjects::ScriptingSynth::setAttribute(int parameterIndex, float newValue)
@@ -1395,7 +1444,7 @@ struct ScriptingObjects::ScriptingMidiProcessor::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptingMidiProcessor, restoreState);
 	API_VOID_METHOD_WRAPPER_1(ScriptingMidiProcessor, restoreScriptControls);
 	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, exportScriptControls);
-	
+	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, getId);
 	
 };
 
@@ -1424,6 +1473,7 @@ mp(mp_)
 	ADD_API_METHOD_1(setBypassed);
 	ADD_API_METHOD_0(exportState);
 	ADD_API_METHOD_1(restoreState);
+	ADD_API_METHOD_0(getId);
 	ADD_API_METHOD_1(restoreScriptControls);
 	ADD_API_METHOD_0(exportScriptControls);
 	ADD_API_METHOD_0(getNumAttributes);
@@ -1457,6 +1507,14 @@ void ScriptingObjects::ScriptingMidiProcessor::assign(const int index, var newVa
 var ScriptingObjects::ScriptingMidiProcessor::getAssignedValue(int /*index*/) const
 {
 	return 1.0; // Todo...
+}
+
+String ScriptingObjects::ScriptingMidiProcessor::getId() const
+{
+	if (checkValidObject())
+		return mp->getId();
+
+	return String();
 }
 
 void ScriptingObjects::ScriptingMidiProcessor::setAttribute(int index, float value)
@@ -1631,13 +1689,7 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setFile(String fileName)
 
 		ScopedLock sl(asp->getFileLock());
 
-#if USE_FRONTEND
-
-		const String nameInPool = fileName.fromFirstOccurrenceOf("}", false, false);
-		asp->setLoadedFile(nameInPool, true);
-#else
-		asp->setLoadedFile(GET_PROJECT_HANDLER(dynamic_cast<Processor*>(audioSampleProcessor.get())).getFilePath(fileName, ProjectHandler::SubDirectories::AudioFiles), true);
-#endif
+		asp->setLoadedFile(fileName, true);
 	}
 }
 
@@ -1767,20 +1819,47 @@ ScriptingObjects::TimerObject::~TimerObject()
 
 void ScriptingObjects::TimerObject::timerCallback()
 {
+	auto callback = getProperty("callback");
+
+	if (HiseJavascriptEngine::isJavascriptFunction(callback))
+	{
+        WeakReference<TimerObject> ref(this);
+        
+		auto f = [ref, callback](JavascriptProcessor* )
+		{
+            Result r = Result::ok();
+            
+            if(ref != nullptr)
+            {
+                
+                ref.get()->timerCallbackInternal(callback, r);
+            }
+			
+			return r;
+		};
+
+		auto mc = getScriptProcessor()->getMainController_();
+		mc->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::LowPriorityCallbackExecution, 
+											 dynamic_cast<JavascriptProcessor*>(getScriptProcessor()), 
+											 f);
+	}
+}
+
+void ScriptingObjects::TimerObject::timerCallbackInternal(const var& callback, Result& r)
+{
+	jassert(LockHelpers::isLockedBySameThread(getScriptProcessor()->getMainController_(), LockHelpers::ScriptLock));
+
 	var undefinedArgs;
 	var thisObject(this);
 	var::NativeFunctionArgs args(thisObject, &undefinedArgs, 0);
 
-	Result r = Result::ok();
+	auto engine = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine();
 
-    auto engine = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine();
-    
+	jassert(engine != nullptr);
+
 	if (engine != nullptr)
 	{
 		engine->maximumExecutionTime = RelativeTime(0.5);
-
-		auto callback = getProperty("callback");
-
 		engine->callExternalFunction(callback, args, &r);
 
 		if (r.failed())
@@ -2025,128 +2104,286 @@ rectangleResult(Result::ok())
 ScriptingObjects::GraphicsObject::~GraphicsObject()
 {
 	parent = nullptr;
-	imageToDraw = nullptr;
-	g = nullptr;
 }
+
+struct ScriptedDrawActions
+{
+	struct fillAll : public DrawActions::ActionBase
+	{
+		fillAll(Colour c_) : c(c_) {};
+		void perform(Graphics& g) { g.fillAll(c); };
+		Colour c;
+	};
+
+	struct setColour : public DrawActions::ActionBase
+	{
+		setColour(Colour c_) : c(c_) {};
+		void perform(Graphics& g) { g.setColour(c); };
+		Colour c;
+	};
+
+	struct addTransform : public DrawActions::ActionBase
+	{
+		addTransform(AffineTransform a_) : a(a_) {};
+		void perform(Graphics& g) override { g.addTransform(a); };
+		AffineTransform a;
+	};
+
+	struct fillPath : public DrawActions::ActionBase
+	{
+		fillPath(const Path& p_) : p(p_) {};
+		void perform(Graphics& g) override { g.fillPath(p); };
+		Path p;
+	};
+
+	struct drawPath : public DrawActions::ActionBase
+	{
+		drawPath(const Path& p_, float thickness_) : p(p_), thickness(thickness_) {};
+		void perform(Graphics& g) override
+		{
+			PathStrokeType s(thickness);
+			g.strokePath(p, s);
+		}
+		Path p;
+		float thickness;
+	};
+
+	struct fillRect : public DrawActions::ActionBase
+	{
+		fillRect(Rectangle<float> area_) : area(area_) {};
+		void perform(Graphics& g) { g.fillRect(area); };
+		Rectangle<float> area;
+	};
+
+	struct fillEllipse : public DrawActions::ActionBase
+	{
+		fillEllipse(Rectangle<float> area_) : area(area_) {};
+		void perform(Graphics& g) { g.fillEllipse(area); };
+		Rectangle<float> area;
+	};
+
+	struct drawRect : public DrawActions::ActionBase
+	{
+		drawRect(Rectangle<float> area_, float borderSize_) : area(area_), borderSize(borderSize_) {};
+		void perform(Graphics& g) { g.drawRect(area, borderSize); };
+		Rectangle<float> area;
+		float borderSize;
+	};
+
+	struct drawEllipse : public DrawActions::ActionBase
+	{
+		drawEllipse(Rectangle<float> area_, float borderSize_) : area(area_), borderSize(borderSize_) {};
+		void perform(Graphics& g) { g.drawEllipse(area, borderSize); };
+		Rectangle<float> area;
+		float borderSize;
+	};
+
+	struct fillRoundedRect : public DrawActions::ActionBase
+	{
+		fillRoundedRect(Rectangle<float> area_, float cornerSize_) :
+			area(area_), cornerSize(cornerSize_) {};
+		void perform(Graphics& g) { g.fillRoundedRectangle(area, cornerSize); };
+		Rectangle<float> area;
+		float cornerSize;
+	};
+
+	struct drawRoundedRectangle : public DrawActions::ActionBase
+	{
+		drawRoundedRectangle(Rectangle<float> area_, float borderSize_, float cornerSize_) :
+			area(area_), borderSize(borderSize_), cornerSize(cornerSize_) {};
+		void perform(Graphics& g) { g.drawRoundedRectangle(area, cornerSize, borderSize); };
+		Rectangle<float> area;
+		float cornerSize, borderSize;
+	};
+
+	struct drawImageWithin : public DrawActions::ActionBase
+	{
+		drawImageWithin(const Image& img_, Rectangle<float> r_) :
+			img(img_), r(r_){};
+
+		void perform(Graphics& g) override
+		{
+			auto ri = r.toNearestInt();
+
+			g.drawImageWithin(img, (int)r.getX(), (int)r.getY(), (int)r.getWidth(), (int)r.getHeight(), RectanglePlacement::centred);
+
+			
+			//			g.drawImage(img, ri.getX(), ri.getY(), (int)(r.getWidth() / scaleFactor), (int)(r.getHeight() / scaleFactor), 0, yOffset, (int)img.getWidth(), (int)((double)img.getHeight()));
+		}
+
+		Image img;
+		Rectangle<float> r;
+	};
+
+	struct drawImage : public DrawActions::ActionBase
+	{
+		drawImage(const Image& img_, Rectangle<float> r_, float scaleFactor_, int yOffset_) :
+			img(img_), r(r_), scaleFactor(scaleFactor_), yOffset(yOffset_) {};
+		
+		void perform(Graphics& g) override 
+		{
+			auto ri = r.toNearestInt();
+			
+			g.drawImage(img, (int)r.getX(), (int)r.getY(), (int)r.getWidth(), (int)r.getHeight(), 0, yOffset, (int)img.getWidth(), (int)((double)r.getHeight() * scaleFactor));
+
+
+//			g.drawImage(img, ri.getX(), ri.getY(), (int)(r.getWidth() / scaleFactor), (int)(r.getHeight() / scaleFactor), 0, yOffset, (int)img.getWidth(), (int)((double)img.getHeight()));
+		}
+
+		Image img;
+		Rectangle<float> r;
+		float scaleFactor;
+		int yOffset;
+	};
+
+	struct drawHorizontalLine : public DrawActions::ActionBase
+	{
+		drawHorizontalLine(int y_, float x1_, float x2_) :
+			y(y_), x1(x1_), x2(x2_) {};
+		void perform(Graphics& g) { g.drawHorizontalLine(y, x1, x2); };
+		int y; float x1; float x2;
+	};
+
+	struct setOpacity : public DrawActions::ActionBase
+	{
+		setOpacity(float alpha_) :
+			alpha(alpha_) {};
+		void perform(Graphics& g) { g.setOpacity(alpha); };
+		float alpha;
+	};
+
+	struct drawLine : public DrawActions::ActionBase
+	{
+		drawLine(float x1_, float x2_, float y1_, float y2_, float lineThickness_):
+			x1(x1_), x2(x2_), y1(y1_), y2(y2_), lineThickness(lineThickness_) {};
+		void perform(Graphics& g) { g.drawLine(x1, x2, y1, y2, lineThickness); };
+		float x1, x2, y1, y2, lineThickness;
+	};
+
+	struct setFont : public DrawActions::ActionBase
+	{
+		setFont(Font f_) : f(f_) {};
+		void perform(Graphics& g) { g.setFont(f); };
+		Font f;
+	};
+
+	struct setGradientFill : public DrawActions::ActionBase
+	{
+		setGradientFill(ColourGradient grad_) : grad(grad_) {};
+		void perform(Graphics& g) { g.setGradientFill(grad); };
+		ColourGradient grad;
+	};
+
+	struct drawText : public DrawActions::ActionBase
+	{
+		drawText(const String& text_, Rectangle<float> area_, Justification j_=Justification::centred ) : text(text_), area(area_), j(j_) {};
+		void perform(Graphics& g) override { g.drawText(text, area, j); };
+		String text;
+		Rectangle<float> area;
+		Justification j;
+	};
+
+	struct drawDropShadow : public DrawActions::ActionBase
+	{
+		drawDropShadow(Rectangle<int> r_, DropShadow& shadow_) : r(r_), shadow(shadow_) {};
+		void perform(Graphics& g) override { shadow.drawForRectangle(g, r); };
+		Rectangle<int> r;
+		DropShadow shadow;
+	};
+
+	struct addDropShadowFromAlpha : public DrawActions::ActionBase
+	{
+		addDropShadowFromAlpha(const DropShadow& shadow_) : shadow(shadow_) {};
+
+		bool wantsCachedImage() const override { return true; };
+
+		void perform(Graphics& g) override
+		{
+			shadow.drawForImage(g, cachedImage);
+		}
+
+		DropShadow shadow;
+	};
+};
 
 void ScriptingObjects::GraphicsObject::fillAll(var colour)
 {
-	initGraphics();
 	Colour c = ScriptingApi::Content::Helpers::getCleanedObjectColour(colour);
-
-	g->fillAll(c);
-
-	
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::fillAll(c));
 }
 
 void ScriptingObjects::GraphicsObject::fillRect(var area)
 {
-	initGraphics();
-
-	g->fillRect(getRectangleFromVar(area));
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::fillRect(getRectangleFromVar(area)));
 }
 
 void ScriptingObjects::GraphicsObject::drawRect(var area, float borderSize)
 {
-	initGraphics();
-
 	auto bs = (float)borderSize;
-
-	g->drawRect(getRectangleFromVar(area), SANITIZED(bs));
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawRect(getRectangleFromVar(area), SANITIZED(bs)));
 }
 
 void ScriptingObjects::GraphicsObject::fillRoundedRectangle(var area, float cornerSize)
 {
-	initGraphics();
-
     auto cs = (float)cornerSize;
-    
-	g->fillRoundedRectangle(getRectangleFromVar(area), SANITIZED(cs));
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::fillRoundedRect(getRectangleFromVar(area), SANITIZED(cs)));
 }
 
 void ScriptingObjects::GraphicsObject::drawRoundedRectangle(var area, float cornerSize, float borderSize)
 {
-	initGraphics();
-
-    auto cs = (float)cornerSize;
-    auto bs = (float)borderSize;
+    auto cs = SANITIZED(cornerSize);
+    auto bs = SANITIZED(borderSize);
+	auto ar = getRectangleFromVar(area);
     
-    g->drawRoundedRectangle(getRectangleFromVar(area), SANITIZED(cs), SANITIZED(bs));
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawRoundedRectangle(ar, bs, cs));
 }
 
 void ScriptingObjects::GraphicsObject::drawHorizontalLine(int y, float x1, float x2)
 {
-	initGraphics();
-
-    
-    
-	g->drawHorizontalLine(y, SANITIZED(x1), SANITIZED(x2));
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawHorizontalLine(y, SANITIZED(x1), SANITIZED(x2)));
 }
 
 void ScriptingObjects::GraphicsObject::setOpacity(float alphaValue)
 {
-	initGraphics();
-
-	
-
-	g->setOpacity(alphaValue);
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::setOpacity(alphaValue));
 }
 
 void ScriptingObjects::GraphicsObject::drawLine(float x1, float x2, float y1, float y2, float lineThickness)
 {
-	initGraphics();
-
-	g->drawLine(SANITIZED(x1), SANITIZED(y1), SANITIZED(x2), SANITIZED(y2), SANITIZED(lineThickness));
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawLine(
+		SANITIZED(x1), SANITIZED(y1), SANITIZED(x2), SANITIZED(y2), SANITIZED(lineThickness)));
 }
 
 void ScriptingObjects::GraphicsObject::setColour(var colour)
 {
-	
-	currentColour = ScriptingApi::Content::Helpers::getCleanedObjectColour(colour);
-	g->setColour(currentColour);
-
-	useGradient = false;
+	auto c = ScriptingApi::Content::Helpers::getCleanedObjectColour(colour);
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::setColour(c));
 }
 
 void ScriptingObjects::GraphicsObject::setFont(String fontName, float fontSize)
 {
 	MainController *mc = getScriptProcessor()->getMainController_();
-
-	currentFont = mc->getFontFromString(fontName, SANITIZED(fontSize));
-
-	g->setFont(currentFont);
+	auto f = mc->getFontFromString(fontName, SANITIZED(fontSize));
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::setFont(f));
 }
 
 void ScriptingObjects::GraphicsObject::drawText(String text, var area)
 {
-	initGraphics();
-
 	Rectangle<float> r = getRectangleFromVar(area);
-
-	currentFont.setHeightWithoutChangingWidth(r.getHeight());
-
-	g->setFont(currentFont);
-
-	g->drawText(text, r, Justification::centred);
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawText(text, r));
 }
 
 void ScriptingObjects::GraphicsObject::drawAlignedText(String text, var area, String alignment)
 {
-	initGraphics();
-
 	Rectangle<float> r = getRectangleFromVar(area);
 
 	Result re = Result::ok();
-
 	auto just= ApiHelpers::getJustification(alignment, &re);
 
 	if (re.failed())
 		reportScriptError(re.getErrorMessage());
 
-
-	g->setFont(currentFont);
-
-	g->drawText(text, r, just);
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawText(text, r, just));
 }
 
 void ScriptingObjects::GraphicsObject::setGradientFill(var gradientData)
@@ -2160,46 +2397,34 @@ void ScriptingObjects::GraphicsObject::setGradientFill(var gradientData)
 			auto c1 = ScriptingApi::Content::Helpers::getCleanedObjectColour(data->getUnchecked(0));
 			auto c2 = ScriptingApi::Content::Helpers::getCleanedObjectColour(data->getUnchecked(3));
 
-			currentGradient = ColourGradient(c1, (float)data->getUnchecked(1), (float)data->getUnchecked(2),
+			auto grad = ColourGradient(c1, (float)data->getUnchecked(1), (float)data->getUnchecked(2),
 					 					     c2, (float)data->getUnchecked(4), (float)data->getUnchecked(5), false);
 
-			useGradient = true;
 
-			g->setGradientFill(currentGradient);
+			drawActionHandler.addDrawAction(new ScriptedDrawActions::setGradientFill(grad));
 		}
 		else
-		{
 			reportScriptError("Gradient Data must have six elements");
-		}
 	}
 	else
-	{
 		reportScriptError("Gradient Data is not sufficient");
-	}
 }
 
 
 
 void ScriptingObjects::GraphicsObject::drawEllipse(var area, float lineThickness)
 {
-	initGraphics();
-
-	g->drawEllipse(getRectangleFromVar(area), lineThickness);
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawEllipse(getRectangleFromVar(area), lineThickness));
 }
 
 void ScriptingObjects::GraphicsObject::fillEllipse(var area)
 {
-	initGraphics();
-
-	g->fillEllipse(getRectangleFromVar(area));
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::fillEllipse(getRectangleFromVar(area)));
 }
 
 void ScriptingObjects::GraphicsObject::drawImage(String imageName, var area, int /*xOffset*/, int yOffset)
 {
-	initGraphics();
-
 	auto sc = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(parent);
-
 	const Image img = sc->getLoadedImage(imageName);
 
 	if (img.isValid())
@@ -2210,33 +2435,26 @@ void ScriptingObjects::GraphicsObject::drawImage(String imageName, var area, int
         {
             const double scaleFactor = (double)img.getWidth() / (double)r.getWidth();
             
-            g->drawImage(img, (int)r.getX(), (int)r.getY(), (int)r.getWidth(), (int)r.getHeight(), 0, yOffset, (int)img.getWidth(), (int)((double)r.getHeight() * scaleFactor));
+			drawActionHandler.addDrawAction(new ScriptedDrawActions::drawImage(img, r, (float)scaleFactor, yOffset));
         }        
 	}
 	else
-	{
 		reportScriptError("Image not found");
-	};
 }
 
 void ScriptingObjects::GraphicsObject::drawDropShadow(var area, var colour, int radius)
 {
-	initGraphics();
-
+	auto r = getIntRectangleFromVar(area);
 	DropShadow shadow;
 
 	shadow.colour = ScriptingApi::Content::Helpers::getCleanedObjectColour(colour);
 	shadow.radius = radius;
 
-	auto r = getIntRectangleFromVar(area);
-
-	shadow.drawForRectangle(*g, r);
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawDropShadow(r, shadow));
 }
 
 void ScriptingObjects::GraphicsObject::drawTriangle(var area, float angle, float lineThickness)
 {
-	initGraphics();
-
 	Path p;
 	p.startNewSubPath(0.5f, 0.0f);
 	p.lineTo(1.0f, 1.0f);
@@ -2246,14 +2464,11 @@ void ScriptingObjects::GraphicsObject::drawTriangle(var area, float angle, float
 	auto r = getRectangleFromVar(area);
 	p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), false);
 	
-	PathStrokeType pst(lineThickness);
-	g->strokePath(p, pst);
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawPath(p, lineThickness));
 }
 
 void ScriptingObjects::GraphicsObject::fillTriangle(var area, float angle)
 {
-	initGraphics();
-
 	Path p;
 	p.startNewSubPath(0.5f, 0.0f);
 	p.lineTo(1.0f, 1.0f);
@@ -2263,28 +2478,17 @@ void ScriptingObjects::GraphicsObject::fillTriangle(var area, float angle)
 	auto r = getRectangleFromVar(area);
 	p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), false);
 
-	g->fillPath(p);
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::fillPath(p));
 }
 
 void ScriptingObjects::GraphicsObject::addDropShadowFromAlpha(var colour, int radius)
 {
-	initGraphics();
-
 	DropShadow shadow;
 
 	shadow.colour = ScriptingApi::Content::Helpers::getCleanedObjectColour(colour);
 	shadow.radius = radius;
 
-    Graphics g2(*imageToDraw);
-    
-#if JUCE_MAC || HISE_IOS
-    const double scaleFactor = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(parent)->parent->usesDoubleResolution() ? 2.0 : 1.0;
-    
-    // don't ask why...
-    g2.addTransform(AffineTransform::scale((float)(1.0 / scaleFactor)));
-#endif
-    
-	shadow.drawForImage(g2, *imageToDraw);
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::addDropShadowFromAlpha(shadow));
 }
 
 void ScriptingObjects::GraphicsObject::fillPath(var path, var area)
@@ -2299,7 +2503,7 @@ void ScriptingObjects::GraphicsObject::fillPath(var path, var area)
 			p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), false);
 		}
 
-		g->fillPath(p);
+		drawActionHandler.addDrawAction(new ScriptedDrawActions::fillPath(p));
 	}
 }
 
@@ -2316,22 +2520,17 @@ void ScriptingObjects::GraphicsObject::drawPath(var path, var area, var thicknes
 		}
 
         auto t = (float)thickness;
-        
-		g->strokePath(p, PathStrokeType(SANITIZED(t)));
+		drawActionHandler.addDrawAction(new ScriptedDrawActions::drawPath(p, SANITIZED(t)));
 	}
 }
 
 void ScriptingObjects::GraphicsObject::rotate(var angleInRadian, var center)
 {
-	initGraphics();
-
 	Point<float> c = getPointFromVar(center);
-
     auto air = (float)angleInRadian;
-    
 	auto a = AffineTransform::rotation(SANITIZED(air), c.getX(), c.getY());
 
-	g->addTransform(a);
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::addTransform(a));
 }
 
 Point<float> ScriptingObjects::GraphicsObject::getPointFromVar(const var& data)
@@ -2359,12 +2558,6 @@ Rectangle<int> ScriptingObjects::GraphicsObject::getIntRectangleFromVar(const va
 	if (rectangleResult.failed()) reportScriptError(rectangleResult.getErrorMessage());
 
 	return f;
-}
-
-void ScriptingObjects::GraphicsObject::initGraphics()
-{
-	if (g == nullptr) reportScriptError("Graphics not initialised");
-
 }
 
 struct ScriptingObjects::ScriptingMessageHolder::Wrapper
@@ -2473,12 +2666,13 @@ String ScriptingObjects::ScriptingMessageHolder::dump() const
 
 
 
-ApiHelpers::ModuleHandler::ModuleHandler(Processor* parent_) :
-	parent(parent_)
+ApiHelpers::ModuleHandler::ModuleHandler(Processor* parent_, JavascriptProcessor* sp) :
+	parent(parent_),
+	scriptProcessor(sp)
 {
 #if USE_BACKEND
 
-	auto console = parent->getMainController()->getConsoleHandler().getMainConsole();
+	auto console = parent != nullptr ? parent->getMainController()->getConsoleHandler().getMainConsole() : nullptr;
 
 	if (console)
 		mainEditor = GET_BACKEND_ROOT_WINDOW(console);
@@ -2508,7 +2702,22 @@ bool ApiHelpers::ModuleHandler::removeModule(Processor* p)
 
 	if (p != nullptr)
 	{
-		parent->getMainController()->getGlobalAsyncModuleHandler().removeAsync(p, mainEditor);
+		auto removeFunction = [](Processor* p)
+		{
+			auto c = dynamic_cast<Chain*>(p->getParentProcessor(false));
+
+			jassert(c != nullptr);
+
+			if (c == nullptr)
+				return SafeFunctionCall::cancelled;
+
+			// Remove it but don't delete it
+			c->getHandler()->remove(p, false);
+
+			return SafeFunctionCall::OK;
+		};
+
+		parent->getMainController()->getGlobalAsyncModuleHandler().removeAsync(p, removeFunction);
 		return true;
 	}
 	else
@@ -2517,12 +2726,7 @@ bool ApiHelpers::ModuleHandler::removeModule(Processor* p)
 
 Processor* ApiHelpers::ModuleHandler::addModule(Chain* c, const String& type, const String& id, int index /*= -1*/)
 {
-	
-
-	if (dynamic_cast<Processor*>(c)->getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::AudioThread)
-	{
-		throw String("Modules can't be added from the audio thread!");
-	}
+	WARN_IF_AUDIO_THREAD(true, IllegalAudioThreadOps::HeapBlockAllocation);
 
 	for (int i = 0; i < c->getHandler()->getNumProcessors(); i++)
 	{
@@ -2532,6 +2736,12 @@ Processor* ApiHelpers::ModuleHandler::addModule(Chain* c, const String& type, co
 		}
 	}
 
+	SuspendHelpers::ScopedTicket ticket(parent->getMainController());
+
+	parent->getMainController()->getJavascriptThreadPool().killVoicesAndExtendTimeOut(getScriptProcessor());
+
+	LockHelpers::freeToGo(parent->getMainController());
+
 	ScopedPointer<Processor> newProcessor = parent->getMainController()->createProcessor(c->getFactoryType(), type, id);
 
 	if (newProcessor == nullptr)
@@ -2540,9 +2750,33 @@ Processor* ApiHelpers::ModuleHandler::addModule(Chain* c, const String& type, co
 	// Now we're safe...
 	Processor* pFree = newProcessor.release();
 
-	parent->getMainController()->getGlobalAsyncModuleHandler().addAsync(c, pFree, mainEditor, type, id, index);
+	auto addFunction = [c, index](Processor* p)
+	{
+		if (c == nullptr)
+		{
+			delete p; // Rather bad...
+			jassertfalse;
+			return SafeFunctionCall::OK;
+		}
 
-	// will be owned by the job, than by the handler...
+		if (index >= 0 && index < c->getHandler()->getNumProcessors())
+		{
+			Processor* sibling = c->getHandler()->getProcessor(index);
+			c->getHandler()->add(p, sibling);
+		}
+		else
+			c->getHandler()->add(p, nullptr);
+
+		return SafeFunctionCall::OK;
+	};
+	
+
+
+
+
+	parent->getMainController()->getGlobalAsyncModuleHandler().addAsync(pFree, addFunction);
+
+	// will be owned by the job, then by the handler...
 	return pFree;
 }
 
@@ -2598,6 +2832,170 @@ hise::Modulator* ApiHelpers::ModuleHandler::addAndConnectToGlobalModulator(Chain
 	}
 	else
 		throw String("The modulator you passed in is not a global modulator. You must specify a modulator in a Global Modulator Container");
+}
+
+struct ScriptingObjects::ExpansionObject::Wrapper
+{
+	API_METHOD_WRAPPER_0(ExpansionObject, getSampleMapList);
+	API_METHOD_WRAPPER_0(ExpansionObject, getAudioFileList);
+	API_METHOD_WRAPPER_0(ExpansionObject, getImageFilelist);
+	API_METHOD_WRAPPER_1(ExpansionObject, getReferenceString);
+};
+
+ScriptingObjects::ExpansionObject::ExpansionObject(ProcessorWithScriptingContent* p, Expansion* expansion) :
+	ConstScriptingObject(p, 5),
+	data(expansion)
+{
+	addConstant("Name", expansion->name.get());
+	addConstant("Version", expansion->version.get());
+	addConstant("ProjectName", expansion->projectName.get());
+	addConstant("ProjectVersion", expansion->projectVersion.get());
+	addConstant("Encrypted", expansion->isEncrypted);
+
+	ADD_API_METHOD_0(getSampleMapList);
+	ADD_API_METHOD_0(getAudioFileList);
+	ADD_API_METHOD_0(getImageFilelist);
+	ADD_API_METHOD_1(getReferenceString);
+}
+
+var ScriptingObjects::ExpansionObject::getSampleMapList()
+{
+	if (objectExists())
+	{
+		return data->getSampleMapList();
+	}
+
+	return var();
+}
+
+
+var ScriptingObjects::ExpansionObject::getAudioFileList()
+{
+	if (objectExists())
+	{
+		return data->getAudioFileList();
+	}
+
+	return var();
+}
+
+var ScriptingObjects::ExpansionObject::getImageFilelist()
+{
+	if (objectExists())
+	{
+		return data->getImageList();
+	}
+
+	return var();
+}
+
+var ScriptingObjects::ExpansionObject::getReferenceString(var relativeFilePath)
+{
+	if (objectExists())
+	{
+		String s;
+
+		s << "{EXP::" << data->name << "}" << relativeFilePath.toString();
+
+		return var(s);
+	}
+
+	return var();
+}
+
+struct ScriptingObjects::ExpansionHandlerObject::Wrapper
+{
+	API_METHOD_WRAPPER_0(ExpansionHandlerObject, getExpansionList);
+	API_METHOD_WRAPPER_0(ExpansionHandlerObject, getCurrentExpansion);
+	API_VOID_METHOD_WRAPPER_1(ExpansionHandlerObject, setLoadingCallback);
+	API_METHOD_WRAPPER_1(ExpansionHandlerObject, loadExpansion);
+};
+
+ScriptingObjects::ExpansionHandlerObject::ExpansionHandlerObject(ProcessorWithScriptingContent* p) :
+	ConstScriptingObject(p, 0),
+	handler(p->getMainController_()->getExpansionHandler())
+{
+	handler.addListener(this);
+
+	ADD_API_METHOD_0(getExpansionList);
+	ADD_API_METHOD_0(getCurrentExpansion);
+	ADD_API_METHOD_1(setLoadingCallback);
+	ADD_API_METHOD_1(loadExpansion);
+}
+
+ScriptingObjects::ExpansionHandlerObject::~ExpansionHandlerObject()
+{
+	handler.removeListener(this);
+}
+
+void ScriptingObjects::ExpansionHandlerObject::expansionPackLoaded(Expansion* currentExpansion)
+{
+	if (HiseJavascriptEngine::isJavascriptFunction(loadingCallback))
+	{
+		var expansionArg;
+
+		if (currentExpansion != nullptr)
+		{
+			auto e = new ExpansionObject(getScriptProcessor(), currentExpansion);
+			expansionArg = var(e);
+		}
+		
+		var thisObject(this);
+		var::NativeFunctionArgs args(thisObject, &expansionArg, 1);
+
+		Result r = Result::ok();
+
+		auto engine = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine();
+
+		if (engine != nullptr)
+		{
+			engine->maximumExecutionTime = RelativeTime(2.0);
+			engine->callExternalFunction(loadingCallback, args, &r);
+
+			if (r.failed())
+				debugError(getProcessor(), r.getErrorMessage());
+		}
+	}
+}
+
+var ScriptingObjects::ExpansionHandlerObject::getExpansionList()
+{
+	Array<var> list;
+
+	for (int i = 0; i < handler.getNumExpansions(); i++)
+	{
+		auto newObject = new ExpansionObject(getScriptProcessor(), handler.getExpansion(i));
+
+		list.add(var(newObject));
+	}
+
+	return var(list);
+}
+
+var ScriptingObjects::ExpansionHandlerObject::getCurrentExpansion()
+{
+	if (auto e = handler.getCurrentExpansion())
+	{
+		auto newObject = new ExpansionObject(getScriptProcessor(), e);
+
+		return var(newObject);
+	}
+
+	return var();
+}
+
+
+void ScriptingObjects::ExpansionHandlerObject::setLoadingCallback(var f)
+{
+	if (HiseJavascriptEngine::isJavascriptFunction(f))
+	{
+		loadingCallback = f;
+	}
+}
+
+bool ScriptingObjects::ExpansionHandlerObject::loadExpansion(const String expansionName)
+{
+	return handler.setCurrentExpansion(expansionName);
 }
 
 } // namespace hise

@@ -1,57 +1,47 @@
-/*  HISE Lossless Audio Codec
-*	�2017 Christoph Hart
-*
-*	Redistribution and use in source and binary forms, with or without modification,
-*	are permitted provided that the following conditions are met:
-*
-*	1. Redistributions of source code must retain the above copyright notice,
-*	   this list of conditions and the following disclaimer.
-*
-*	2. Redistributions in binary form must reproduce the above copyright notice,
-*	   this list of conditions and the following disclaimer in the documentation
-*	   and/or other materials provided with the distribution.
-*
-*	3. All advertising materials mentioning features or use of this software must
-*	   display the following acknowledgement:
-*	   This product includes software developed by Hart Instruments
-*
-*	4. Neither the name of the copyright holder nor the names of its contributors may be used
-*	   to endorse or promote products derived from this software without specific prior written permission.
-*
-*	THIS SOFTWARE IS PROVIDED BY CHRISTOPH HART "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING,
-*	BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-*	DISCLAIMED. IN NO EVENT SHALL COPYRIGHT HOLDER BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-*	SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
-*	GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-*	THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-*	ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*
-*/
+/*  ===========================================================================
+ *
+ *   This file is part of HISE.
+ *   Copyright 2016 Christoph Hart
+ *
+ *   HISE is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation, either version 3 of the License, or
+ *   (at your option) any later version.
+ *
+ *   HISE is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *   Commercial licenses for using HISE in an closed source project are
+ *   available on request. Please visit the project's website to get more
+ *   information about commercial licensing:
+ *
+ *   http://www.hise.audio/
+ *
+ *   HISE is based on the JUCE library,
+ *   which must be separately licensed for closed source applications:
+ *
+ *   http://www.juce.com
+ *
+ *   ===========================================================================
+ */
 
 namespace hlac { using namespace juce; 
 
-CompressionHelpers::AudioBufferInt16::AudioBufferInt16(AudioSampleBuffer& b, int channelToUse, bool normalizeBeforeStoring)
+CompressionHelpers::AudioBufferInt16::AudioBufferInt16(AudioSampleBuffer& b, int channelToUse, uint8 normalizeBeforeStoring, uint8 normalisationThreshold)
 {
-#if JUCE_DEBUG
-	const float level = b.getMagnitude(0, b.getNumSamples());
-	jassert(level <= 1.0f);
-#endif
-
 	allocate(b.getNumSamples());
 	
-
-	if (normalizeBeforeStoring)
+	if (normalizeBeforeStoring != NormaliseMap::NoNormalisation)
 	{
-		auto r = b.findMinMax(channelToUse, 0, size);
-
-		const float peak = jmax<float>(fabsf(r.getStart()), fabsf(r.getEnd()));
-		gainFactor = 1.0f / peak;
-
-		b.applyGain(gainFactor); // Slow but don't care...
-
-		AudioDataConverters::convertFloatToInt16LE(b.getReadPointer(channelToUse), data, b.getNumSamples());
-
-		b.applyGain(peak);
+		map.setThreshold(normalisationThreshold);
+		map.setMode(normalizeBeforeStoring);
+		map.allocateTableIndexes(b.getNumSamples());
+		map.normalise(b.getReadPointer(channelToUse), data, b.getNumSamples());
 	}
 	else
 	{
@@ -90,9 +80,7 @@ AudioSampleBuffer CompressionHelpers::AudioBufferInt16::getFloatBuffer() const
 {
 	AudioSampleBuffer b(1, size);
 
-	fastInt16ToFloat(data, b.getWritePointer(0), size);
-
-	b.applyGain(1.0f / gainFactor);
+	map.normalisedInt16ToFloat(b.getWritePointer(0), data, 0, size);
 
 	return b;
 }
@@ -175,8 +163,6 @@ const int16* CompressionHelpers::AudioBufferInt16::getReadPointer(int startSampl
 	
 	return externalData != nullptr ? externalData + startSample : data + startSample;
 }
-
-
 
 void CompressionHelpers::AudioBufferInt16::allocate(int newNumSamples)
 {
@@ -320,6 +306,37 @@ uint8 CompressionHelpers::getBitrateForCycleLength(const AudioBufferInt16& block
 	return BitCompressors::getMinBitDepthForData(workBuffer.getReadPointer(), cycleLength);
 }
 
+void CompressionHelpers::normaliseBlock(int16* data, int numSamples, int normalisationAmount, int direction, bool /*useDither*/)
+{
+	int shiftAmount = 1 << normalisationAmount;
+
+	if (direction == 1)
+	{
+		for (int i = 0; i < numSamples; i++)
+		{
+			int v = (int)data[i];
+			v *= shiftAmount;
+
+			//jassert(v > INT16_MIN && v < INT16_MAX);
+
+			v = jlimit<int>(INT16_MIN, INT16_MAX, v);
+
+			data[i] = (int16)v;
+		}
+	}
+	else
+	{
+		for (int i = 0; i < numSamples; i++)
+		{
+			int v = (int)data[i];
+			v /= shiftAmount;
+			data[i] = (int16)v;
+		}
+	}
+
+	
+}
+
 int CompressionHelpers::getCycleLengthWithLowestBitRate(const AudioBufferInt16& block, int& bitRate, AudioBufferInt16& workBuffer)
 {
 	bitRate = 16;
@@ -405,7 +422,7 @@ AudioSampleBuffer CompressionHelpers::getPart(HiseSampleBuffer& b, int startInde
 		{
 			auto src = static_cast<const int16*>(b.getReadPointer(i, startIndex));
 
-			fastInt16ToFloat(src, buffer.getWritePointer(i), numSamples);
+			b.getNormaliseMap(i).normalisedInt16ToFloat(buffer.getWritePointer(i), src, 0, numSamples);
 		}
 
 		return buffer;
@@ -459,27 +476,39 @@ int CompressionHelpers::getByteAmountForDifferential(AudioBufferInt16& b)
 }
 
 
-void CompressionHelpers::dump(const AudioBufferInt16& b)
+void CompressionHelpers::dump(const AudioBufferInt16& b, String fileName)
 {
 	AudioSampleBuffer fb = b.getFloatBuffer();
 
-	dump(fb);
+	dump(fb, fileName);
 }
 
 
-void CompressionHelpers::dump(const AudioSampleBuffer& b)
+void CompressionHelpers::dump(const AudioSampleBuffer& b, String fileName)
 {
 	WavAudioFormat afm;
     
+	bool sibling = false;
+
+	if (fileName.isEmpty())
+	{
+		fileName = "dump.wav";
+		sibling = true;
+	}
+
 #if JUCE_WINDOWS
-	File dumpFile("D:\\compressionTest\\dump.wav");
+	File dumpFile = File("D:\\dumps").getChildFile(fileName);
 #else
-    File dumpFile("/Volumes/Shared/compressionTest/dump.wav");
+	File dumpFile = File("/Volumes/Shared/").getChildFile(fileName);
 #endif
 
+	if (sibling)
+		dumpFile = dumpFile.getNonexistentSibling(false);
 
+	dumpFile.deleteFile();
+	dumpFile.create();
 
-	FileOutputStream* fis = new FileOutputStream(dumpFile.getNonexistentSibling());
+	FileOutputStream* fis = new FileOutputStream(dumpFile);
 	StringPairArray metadata;
 	ScopedPointer<AudioFormatWriter> writer = afm.createWriterFor(fis, 44100, b.getNumChannels(), 16, metadata, 5);
 
@@ -490,44 +519,90 @@ void CompressionHelpers::dump(const AudioSampleBuffer& b)
 
 void CompressionHelpers::fastInt16ToFloat(const void* source, float* dest, int numSamples)
 {
-#if HLAC_NO_SSE
+#if !JUCE_WINDOWS
 
 	AudioDataConverters::convertInt16LEToFloat(source, dest, numSamples);
 
 #else
 
-	uint64 alignOffsetFloat = reinterpret_cast<uint64>(dest) % 16;
-	uint64 alignOffsetInt = reinterpret_cast<uint64>(source) % 16;
-
-	if (alignOffsetFloat == 0 && alignOffsetInt == 0)
+	if (SystemStats::hasSSE41())
 	{
-		const int16* intData = static_cast<const int16*> (source);
-		const float scale = 1.0f / 0x7fff;
+		uint64 alignOffsetFloat = reinterpret_cast<uint64>(dest) % 16;
+		uint64 alignOffsetInt = reinterpret_cast<uint64>(source) % 16;
 
-		__m128 s = _mm_set1_ps(scale);
-
-		const int numSingle = (numSamples % 4);
-		const int numSSE = numSamples - numSingle;
-
-		for (int i = 0; i < numSSE; i += 4)
+		if (alignOffsetFloat == 0 && alignOffsetInt == 0)
 		{
-			__m128i a = _mm_loadl_epi64((__m128i*)(intData + i));
-			a = _mm_cvtepi16_epi32(a);
-			__m128 a_f = _mm_cvtepi32_ps(a);
-			a_f = _mm_mul_ps(a_f, s);
-			_mm_store_ps(dest + i, a_f);
+			const int16* intData = static_cast<const int16*> (source);
+			const float scale = 1.0f / 0x7fff;
+
+			__m128 s = _mm_set1_ps(scale);
+
+			const int numSingle = (numSamples % 4);
+			const int numSSE = numSamples - numSingle;
+
+			for (int i = 0; i < numSSE; i += 4)
+			{
+				__m128i a = _mm_loadl_epi64((__m128i*)(intData + i));
+				a = _mm_cvtepi16_epi32(a);
+				__m128 a_f = _mm_cvtepi32_ps(a);
+				a_f = _mm_mul_ps(a_f, s);
+				_mm_store_ps(dest + i, a_f);
+			}
+
+			for (int i = 0; i < numSingle; i++)
+			{
+				dest[i + numSSE] = scale * intData[i + numSSE];
+			}
 		}
-
-		for (int i = 0; i < numSingle; i++)
+		else
 		{
-			dest[i + numSSE] = scale * intData[i + numSSE];
+			AudioDataConverters::convertInt16LEToFloat(source, dest, numSamples);
 		}
 	}
 	else
 	{
 		AudioDataConverters::convertInt16LEToFloat(source, dest, numSamples);
 	}
+    
+#endif
+}
 
+void CompressionHelpers::applyDithering(float* data, int numSamples)
+{
+	ignoreUnused(data, numSamples);
+
+#if 0
+	int   r1, r2;                //rectangular-PDF random numbers
+	float s1, s2;                //error feedback buffers
+	float s = 0.5f;              //set to 0.0f for no noise shaping
+	float w = pow(2.0, 16 - 1);   //word length (usually bits=16)
+	float wi = 1.0f / w;
+	float d = wi / RAND_MAX;     //dither amplitude (2 lsb)
+	float o = wi * 0.5f;         //remove dc offset
+	float in, tmp;
+	int   out;
+
+	r1 = r2 = 0;
+	s1 = s2 = 0.0f;
+
+	for (int i = 0; i < numSamples; i++)
+	{
+		float in = data[i];
+
+		r2 = r1;                               //can make HP-TRI dither by
+		r1 = rand();                           //subtracting previous rand()
+
+		in += s * (s1 + s1 - s2);            //error feedback
+		tmp = in + o + d * (float)(r1 - r2); //dc offset and dither
+
+		out = floorf(w * tmp);                //truncate downwards
+		if (tmp < 0.0f) out--;                  //this is faster than floor()
+
+		s2 = s1;
+		s1 = in - wi * (float)out;           //error
+
+		data[i] = out / w;
+	}
 #endif
 }
 
@@ -549,22 +624,21 @@ uint8 CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, Audio
 	{
 		DBG("Bit rate for error signal: " + String(br));
 
-		//DUMP(wbInt);
-		//
-		DUMP(referenceBuffer);
-		DUMP(workBuffer);
 
 		float* w = workBuffer.getWritePointer(0);
 		const float* r = referenceBuffer.getReadPointer(0);
 
 		FloatVectorOperations::subtract(w, r, numToCheck);
 
-		float x = workBuffer.getMagnitude(0, numToCheck);
+		float x = workBuffer.getMagnitude(0, 0, numToCheck);
 
 		float db = Decibels::gainToDecibels(x);
 
 		if (db > -96.0f)
 		{
+			//DUMP(referenceBuffer);
+			//DUMP(workBuffer);
+
 			DBG("Buffer mismatch detected!");
 
 			int maxIndex = -1;
@@ -593,6 +667,8 @@ uint8 CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, Audio
 			DBG("Min index: " + String(minIndex) + ", value: " + String(minValue));
 			DBG("Max index: " + String(maxIndex) + ", value: " + String(maxValue));
 		}
+		else
+			return 0;
 
 		return br;
 	}
@@ -600,8 +676,8 @@ uint8 CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, Audio
 
 	if (workBuffer.getNumChannels() > 1)
 	{
-		AudioBufferInt16 wbIntR(workBuffer, 1, false);
-		AudioBufferInt16 rbIntR(referenceBuffer, 1, false);
+		AudioBufferInt16 wbIntR(workBuffer, 1, 0, 0);
+		AudioBufferInt16 rbIntR(referenceBuffer, 1, 0, 0);
 
 		IntVectorOperations::sub(wbIntR.getWritePointer(), rbIntR.getReadPointer(), numToCheck);
 
@@ -826,7 +902,7 @@ void CompressionHelpers::Diff::distributeFullSamples(AudioBufferInt16& dst, cons
 	int thisValue = 0;
 	int nextValue = 0;
 
-#if HLAC_NO_SSE
+#if !JUCE_WINDOWS
 
 	for (int i = 0; i < numSamples - 2; i++)
 	{
@@ -843,57 +919,60 @@ void CompressionHelpers::Diff::distributeFullSamples(AudioBufferInt16& dst, cons
 
 #else
 
-	for (int i = 0; i < numSamples - 9; i+=4)
+	if (SystemStats::hasSSE41())
 	{
-		__m128i a = _mm_loadl_epi64((const __m128i*)(r + i));
-		__m128i b = _mm_loadl_epi64((const __m128i*)(r + i + 1));
-		const __m128i mul3 = _mm_set1_epi32(3);
-		
-		a = _mm_cvtepi16_epi32(a);
-		b = _mm_cvtepi16_epi32(b);
+		for (int i = 0; i < numSamples - 9; i += 4)
+		{
+			__m128i a = _mm_loadl_epi64((const __m128i*)(r + i));
+			__m128i b = _mm_loadl_epi64((const __m128i*)(r + i + 1));
+			const __m128i mul3 = _mm_set1_epi32(3);
 
-		auto v1 = a;
+			a = _mm_cvtepi16_epi32(a);
+			b = _mm_cvtepi16_epi32(b);
 
-		auto v2 = _mm_mullo_epi32(a, mul3);
-		v2 = _mm_add_epi32(v2, b);
-		v2 = _mm_srai_epi32(v2, 2);
+			auto v1 = a;
 
-		auto v3 = _mm_add_epi32(a, b);
-		v3 = _mm_srai_epi32(v3, 1);
+			auto v2 = _mm_mullo_epi32(a, mul3);
+			v2 = _mm_add_epi32(v2, b);
+			v2 = _mm_srai_epi32(v2, 2);
 
-		auto v4 = _mm_mullo_epi32(b, mul3);
-		v4 = _mm_add_epi32(v4, a);
-		v4 = _mm_srai_epi32(v4, 2);
+			auto v3 = _mm_add_epi32(a, b);
+			v3 = _mm_srai_epi32(v3, 1);
 
-		const uint8 z = 0x80;
+			auto v4 = _mm_mullo_epi32(b, mul3);
+			v4 = _mm_add_epi32(v4, a);
+			v4 = _mm_srai_epi32(v4, 2);
 
-		const __m128i mask1a = _mm_set_epi8(z, z, z, z,   z, z, 5, 4,   z, z, z, z,    z, z, 1, 0);
-		const __m128i mask1b = _mm_set_epi8(z, z, z, z,   z, z,13,12,   z, z, z, z,    z, z, 9, 8);
-		const __m128i mask2a = _mm_set_epi8(z, z, z, z,   5, 4, z, z,   z, z, z, z,    1, 0, z, z);
-		const __m128i mask2b = _mm_set_epi8(z, z, z, z,  13,12, z, z,   z, z, z, z,    9, 8, z, z);
-		const __m128i mask3a = _mm_set_epi8(z, z, 5, 4,   z, z, z, z,   z, z, 1, 0,    z, z, z, z);
-		const __m128i mask3b = _mm_set_epi8(z, z,13,12,   z, z, z, z,   z, z, 9, 8,    z, z, z, z);
-		const __m128i mask4a = _mm_set_epi8( 5, 4, z, z,  z, z, z, z,   1, 0, z, z,    z, z, z, z);
-		const __m128i mask4b = _mm_set_epi8(13,12, z, z,  z, z, z, z,   9, 8, z, z,    z, z, z, z);
+			const uint8 z = 0x80;
 
-		const __m128i d1a = _mm_shuffle_epi8(v1, mask1a);
-		const __m128i d1b = _mm_shuffle_epi8(v2, mask2a);
-		const __m128i d1c = _mm_shuffle_epi8(v3, mask3a);
-		const __m128i d1d = _mm_shuffle_epi8(v4, mask4a);
+			const __m128i mask1a = _mm_set_epi8(z, z, z, z, z, z, 5, 4, z, z, z, z, z, z, 1, 0);
+			const __m128i mask1b = _mm_set_epi8(z, z, z, z, z, z, 13, 12, z, z, z, z, z, z, 9, 8);
+			const __m128i mask2a = _mm_set_epi8(z, z, z, z, 5, 4, z, z, z, z, z, z, 1, 0, z, z);
+			const __m128i mask2b = _mm_set_epi8(z, z, z, z, 13, 12, z, z, z, z, z, z, 9, 8, z, z);
+			const __m128i mask3a = _mm_set_epi8(z, z, 5, 4, z, z, z, z, z, z, 1, 0, z, z, z, z);
+			const __m128i mask3b = _mm_set_epi8(z, z, 13, 12, z, z, z, z, z, z, 9, 8, z, z, z, z);
+			const __m128i mask4a = _mm_set_epi8(5, 4, z, z, z, z, z, z, 1, 0, z, z, z, z, z, z);
+			const __m128i mask4b = _mm_set_epi8(13, 12, z, z, z, z, z, z, 9, 8, z, z, z, z, z, z);
 
-		const __m128i d1 = _mm_or_si128(_mm_or_si128(d1a, d1b), _mm_or_si128(d1c, d1d));
-		
-		const __m128i d2a = _mm_shuffle_epi8(v1, mask1b);
-		const __m128i d2b = _mm_shuffle_epi8(v2, mask2b);
-		const __m128i d2c = _mm_shuffle_epi8(v3, mask3b);
-		const __m128i d2d = _mm_shuffle_epi8(v4, mask4b);
+			const __m128i d1a = _mm_shuffle_epi8(v1, mask1a);
+			const __m128i d1b = _mm_shuffle_epi8(v2, mask2a);
+			const __m128i d1c = _mm_shuffle_epi8(v3, mask3a);
+			const __m128i d1d = _mm_shuffle_epi8(v4, mask4a);
 
-		const __m128i d2 = _mm_or_si128(_mm_or_si128(d2a, d2b), _mm_or_si128(d2c, d2d));
+			const __m128i d1 = _mm_or_si128(_mm_or_si128(d1a, d1b), _mm_or_si128(d1c, d1d));
 
-		_mm_store_si128((__m128i*)d, d1);
-		_mm_store_si128((__m128i*)(d+8), d2);
+			const __m128i d2a = _mm_shuffle_epi8(v1, mask1b);
+			const __m128i d2b = _mm_shuffle_epi8(v2, mask2b);
+			const __m128i d2c = _mm_shuffle_epi8(v3, mask3b);
+			const __m128i d2d = _mm_shuffle_epi8(v4, mask4b);
 
-		d += 16;
+			const __m128i d2 = _mm_or_si128(_mm_or_si128(d2a, d2b), _mm_or_si128(d2c, d2d));
+
+			_mm_store_si128((__m128i*)d, d1);
+			_mm_store_si128((__m128i*)(d + 8), d2);
+
+			d += 16;
+		}
 	}
 
 	for (int i = numSamples - 9; i < numSamples - 2; i++)
@@ -909,9 +988,7 @@ void CompressionHelpers::Diff::distributeFullSamples(AudioBufferInt16& dst, cons
 		d += 4;
 	}
 
-
 #endif
-
 
 	thisValue = r[numSamples - 2];
 	nextValue = r[numSamples - 1];
@@ -924,8 +1001,6 @@ void CompressionHelpers::Diff::distributeFullSamples(AudioBufferInt16& dst, cons
 
 void CompressionHelpers::Diff::addErrorSignal(AudioBufferInt16& dst, const uint16* errorSignalPacked, int numSamples)
 {
-
-
 	jassert(isPowerOfTwo(4*(numSamples+1)/3));
 
 	// Needs 64 bit alignment for the destination buffer.
@@ -937,7 +1012,7 @@ void CompressionHelpers::Diff::addErrorSignal(AudioBufferInt16& dst, const uint1
 
 	int counter = 0;
 
-#if HLAC_NO_SSE
+#if !JUCE_WINDOWS
 
 	while (numSamples > 2)
 	{
@@ -960,6 +1035,8 @@ void CompressionHelpers::Diff::addErrorSignal(AudioBufferInt16& dst, const uint1
 
 	while (numSamples > 2)
 	{
+		// SSE 3.0 should be available everywhere by now...
+
 		counter += 16;
 
 		__m128i a1 = _mm_load_si128((__m128i*)d);
@@ -993,7 +1070,6 @@ void CompressionHelpers::Diff::addErrorSignal(AudioBufferInt16& dst, const uint1
 		numSamples -= 12;
 
 	}
-
 
 	d[1] -= e[0];
 	d[2] -= e[1];
@@ -1219,6 +1295,14 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 			const int bufferSize = 8192 * 32;
 
+
+			hlac::HlacEncoder::CompressorOptions options = hlac::HlacEncoder::CompressorOptions::getPreset(hlac::HlacEncoder::CompressorOptions::Presets::Diff);
+
+			options.applyDithering = false;
+			options.normalisationMode = data.supportFullDynamics ? 2 : 0;
+
+			dynamic_cast<HiseLosslessAudioFormatWriter*>(writer.get())->setOptions(options);
+
 			AudioSampleBuffer tempBuffer(flacReader->numChannels, bufferSize);
 
 			for (int64 readerOffset = 0; readerOffset < flacReader->lengthInSamples; readerOffset += bufferSize)
@@ -1288,7 +1372,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 #define WRITE_FLAG(x) writeFlag(fos, x)
 
-FileInputStream* HlacArchiver::writeTempFile(AudioFormatReader* reader)
+FileInputStream* HlacArchiver::writeTempFile(AudioFormatReader* reader, int bitDepth)
 {
 	FlacAudioFormat flacFormat;
 
@@ -1301,7 +1385,7 @@ FileInputStream* HlacArchiver::writeTempFile(AudioFormatReader* reader)
 
 	AudioSampleBuffer tempBuffer(reader->numChannels, bufferSize);
 
-	ScopedPointer<AudioFormatWriter> writer = flacFormat.createWriterFor(tempOutput, reader->sampleRate, reader->numChannels, 16, metadata, 9);
+	ScopedPointer<AudioFormatWriter> writer = flacFormat.createWriterFor(tempOutput, reader->sampleRate, reader->numChannels, bitDepth, metadata, 9);
 
 	bool writeResult = true;
 
@@ -1350,6 +1434,9 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 
 #if USE_BACKEND
 	const String& metadataJSON = data.metadataJSON;
+
+	int bitDepth = (int)JSON::parse(metadataJSON).getProperty("BitDepth", 16);
+
 	const Array<File>& hlacFiles = data.fileList;
 	const File& targetFile = data.targetFile;
 	progress = data.progress;
@@ -1413,7 +1500,7 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 
 			
 
-			ScopedPointer<FileInputStream> tmpInput = writeTempFile(reader);
+			ScopedPointer<FileInputStream> tmpInput = writeTempFile(reader, bitDepth);
 
 			if (tmpInput == nullptr)
 				return;
@@ -1547,5 +1634,244 @@ HlacArchiver::Flag HlacArchiver::readFlag(FileInputStream* fis)
 
 #undef VERBOSE_LOG
 #undef STATUS_LOG
+
+
+void CompressionHelpers::NormaliseMap::normalisedInt16ToFloat(float* destination, const int16* src, int start, int numSamples) const
+{
+	if (!active)
+	{
+		CompressionHelpers::fastInt16ToFloat(src, destination, numSamples);
+		return;
+	}
+
+	const int thisOffset = start + firstOffset;
+
+	const int totalLimit = thisOffset + numSamples;
+	int numToDo = numSamples;
+	int index = thisOffset;
+
+	while (numToDo > 0)
+	{
+		int tableIndex = getIndexForSamplePosition(index);
+
+		auto thisAmount = getTableData()[tableIndex];
+
+		int nextLimit = (tableIndex + 1) * normaliseBlockSize;
+		nextLimit = jmin<int>(nextLimit, totalLimit);
+		int numThisTime = nextLimit - index;
+
+		if (numThisTime == 0)
+			break;
+
+		auto r = src + (index - thisOffset);
+		auto w = destination + (index- thisOffset);
+
+		
+		if (thisAmount == 0)
+		{
+			CompressionHelpers::fastInt16ToFloat(r, w, numThisTime);
+		}
+		else
+		{
+			float gainFactor = (float)(1 << thisAmount);
+
+			for (int i = 0; i < numThisTime; i++)
+			{
+				w[i] = (float)r[i] / ((float)INT16_MAX * gainFactor);
+			}
+		}
+
+
+#if 0
+		const float normaliseAmount = (float)(1 << (thisAmount));
+		const float gainFactor = 1.0f / ((float)INT16_MAX * normaliseAmount);
+
+		for (int i = 0; i < numThisTime; i++)
+		{
+			w[i] = (float)r[i] * gainFactor;
+		}
+#endif
+
+		numToDo -= numThisTime;
+		index += numThisTime;
+	}
+}
+
+void CompressionHelpers::NormaliseMap::setUseStaticNormalisation(uint8 staticNormalisationAmount)
+{
+	normalisationMode = Mode::StaticNormalisation;
+	memset(preallocated, staticNormalisationAmount, 16);
+}
+
+bool CompressionHelpers::NormaliseMap::writeNormalisationHeader(OutputStream& output)
+{
+	// Can't use this with a non-fixed size block size...
+	jassert(allocated == nullptr);
+
+	constexpr int numBytes = COMPRESSION_BLOCK_SIZE / normaliseBlockSize;
+
+	String s;
+
+	s << "Normalisation bits: ";
+	s << "0: " << String((int)preallocated[0]) << "\t";
+	s << "1: " << String((int)preallocated[1]) << "\t";
+	s << "2: " << String((int)preallocated[2]) << "\t";
+	s << "3: " << String((int)preallocated[3]) << "\t";
+
+	LOG(s);
+
+	return output.write(preallocated, numBytes);
+}
+
+
+void CompressionHelpers::NormaliseMap::setNormalisationValues(int readOffset, int normalisedValues)
+{
+	active |= (normalisedValues > 0);
+
+	uint8* ptr = reinterpret_cast<uint8*>(&normalisedValues);
+	uint16 index = getIndexForSamplePosition(readOffset);
+
+	uint16 maxSize = allocated != nullptr ? numAllocated : 16;
+
+	if ((index + 3) >= maxSize)
+	{
+		jassertfalse;
+		return;
+	}
+
+	getTableData()[index] = ptr[0];
+	getTableData()[index + 1] = ptr[1];
+	getTableData()[index + 2] = ptr[2];
+	getTableData()[index + 3] = ptr[3];
+}
+
+void CompressionHelpers::NormaliseMap::normalise(const float* src, int16* dst, int numSamples)
+{
+	if (normalisationMode == Mode::NoNormalisation)
+		return;
+
+	if (normalisationMode == Mode::RangeBasedNormalisation)
+	{
+		active = true;
+
+		int index = 0;
+		int tableIndex = 0;
+
+		while (index < numSamples)
+		{
+			int thisTime = jmin<int>(numSamples - index, normaliseBlockSize);
+			auto data = dst + index;
+
+			AudioDataConverters::convertFloatToInt16LE(src + index, data, thisTime);
+
+			CompressionHelpers::AudioBufferInt16 l(data, thisTime);
+
+			auto lMax = CompressionHelpers::getPossibleBitReductionAmount(l);
+
+			if (lMax == 0)
+			{
+				getTableData()[tableIndex++] = 0;
+				
+				CompressionHelpers::IntVectorOperations::clear(data, thisTime);
+			}
+			else
+			{
+				auto normalisationAmount = jmin<uint8>(8, 16 - lMax);
+
+				if (normalisationAmount < minNormalisation)
+					normalisationAmount = 0;
+
+				getTableData()[tableIndex++] = normalisationAmount;
+				internalNormalisation(src + index, data, thisTime, normalisationAmount);
+			}
+
+			index += thisTime;
+		}
+	}
+	else if (normalisationMode == Mode::StaticNormalisation)
+	{
+		active = true;
+
+		internalNormalisation(src, dst, numSamples, preallocated[0]);
+	}
+}
+
+
+void CompressionHelpers::NormaliseMap::allocateTableIndexes(int numSamples)
+{
+	active = numSamples > 0;
+
+	if (numSamples <= (16 * normaliseBlockSize))
+	{
+		allocated.free();
+		numAllocated = 0;
+	}
+	else
+	{
+		uint16 newNumAllocated = (uint16)((numSamples / normaliseBlockSize) + 4);
+
+		if (newNumAllocated != numAllocated)
+		{
+			numAllocated = newNumAllocated;
+			memset(preallocated, 0, 16);
+			allocated.realloc(numAllocated, 1);
+			allocated.clear(numAllocated);
+		}
+	}
+}
+
+
+void CompressionHelpers::NormaliseMap::copyNormalisationTable(NormaliseMap& dst, int startSampleSource, int startSampleDst, int numSamples) const
+{
+	auto start = getIndexForSamplePosition(startSampleSource);
+	auto end = getIndexForSamplePosition(startSampleDst, false);
+	auto numIndexes = getIndexForSamplePosition(numSamples, false) + 1;
+
+	memcpy(dst.getTableData() + end , getTableData() + start, numIndexes);
+}
+
+void CompressionHelpers::NormaliseMap::copyIntBufferWithNormalisation(const NormaliseMap& srcMap, const int16* srcWithoutOffset, int16* dstWithoutOffset, int startSampleSource, int startSampleDst, int numSamples, bool overwriteTable)
+{
+	auto srcOffset = (srcMap.getOffset() + startSampleSource) % normaliseBlockSize;
+	auto dstOffset = (getOffset() + startSampleDst) % normaliseBlockSize;
+
+	jassert(srcOffset == dstOffset || srcOffset == 0);
+
+	if (overwriteTable)
+	{
+		if(srcOffset != dstOffset)
+			setOffset(srcMap.getOffset());
+		
+		srcMap.copyNormalisationTable(*this, startSampleSource, startSampleDst + getOffset(), numSamples);
+	}
+
+	auto d = dstWithoutOffset + startSampleDst;
+	auto s = srcWithoutOffset + startSampleSource;
+	memcpy(d, s, sizeof(int16) * numSamples);
+}
+
+void CompressionHelpers::NormaliseMap::setOffset(int offsetToUse)
+{
+	firstOffset = offsetToUse % COMPRESSION_BLOCK_SIZE;
+}
+
+juce::int16 CompressionHelpers::NormaliseMap::size() const
+{
+	return allocated != nullptr ? numAllocated : 16;
+}
+
+void CompressionHelpers::NormaliseMap::internalNormalisation(const float* src, int16* dst, int numSamples, uint8 amount) const
+{
+	if (amount == 0)
+		return;
+
+	auto gainFactor = (float)(1 << amount);
+
+	for (int i = 0; i < numSamples; i++)
+	{
+		auto gainedValue = src[i] * (float)gainFactor * (float)INT16_MAX;
+		dst[i] = (int16)(gainedValue);
+	};
+}
 
 } // namespace hlac

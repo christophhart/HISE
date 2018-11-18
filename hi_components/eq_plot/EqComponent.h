@@ -38,13 +38,6 @@ namespace hise { using namespace juce;
 class ModulatorSynth;
 
 //==============================================================================
-/** @class EqComponent
-    @ingroup components
-
-    @brief A component that displays a filter graph of an EQ.
-
-	@todo: add more filters (with a combobox)
-*/
 class EqComponent   : public Component,
 							   public SliderListener
 {

@@ -201,6 +201,9 @@ public:
 		/** Loads the font from the given file in the image folder and registers it under the fontId. This is platform agnostic. */
 		void loadFontAs(String fileName, String fontId);
 
+		/** Sets the font that will be used as default font for various things. */
+		void setGlobalFont(String fontName);
+
 		/** Returns the current sample rate. */
 		double getSampleRate() const;
 
@@ -240,6 +243,12 @@ public:
 		/** Sets a key of the global keyboard to the specified colour (using the form 0x00FF00 for eg. of the key to the specified colour. */
 		void setKeyColour(int keyNumber, int colourAsHex);
 		
+		/** Creates a reference to the expansion handler. */
+		var getExpansionHandler();
+
+		/** Extends the compilation timeout. Use this if you have a long task that would get cancelled otherwise. This is doing nothing in compiled plugins. */
+		void extendTimeOut(int additionalMilliseconds);
+
 		/** Changes the lowest visible key on the on screen keyboard. */
 		void setLowestKeyToDisplay(int keyNumber);
 
@@ -273,8 +282,20 @@ public:
 		/** Loads a user preset with the given relative path (use `/` for directory separation). */
 		void loadUserPreset(const String& relativePathWithoutFileEnding);
 
+		/** Sets the tags that appear in the user preset browser. */
+		void setUserPresetTagList(var listOfTags);
+
 		/** Returns a list of all available user presets as relative path. */
 		var getUserPresetList() const;
+
+		/** Sets whether the samples are allowed to be duplicated. Set this to false if you operate on the same samples differently. */
+		void setAllowDuplicateSamples(bool shouldAllow);
+
+		/** Calling this makes sure that all audio files are loaded into the pool and will be available in the compiled plugin. */
+		void loadAudioFilesIntoPool();
+
+		/** Loads an image into the pool. You can use a wildcard to load multiple images at once. */
+		void loadImageIntoPool(const String& id);
 
 		/** Returns the Bpm of the host. */
 		double getHostBpm() const;
@@ -433,6 +454,9 @@ public:
 		/** Checks if the mic position is purged. */
 		bool isMicPositionPurged(int micIndex);
 
+		/** Checks whether the note number is mapped to any samples. */
+		bool isNoteNumberMapped(int noteNumber);
+
 		/** Refreshes the interface. Call this after you changed the properties. */
 		void refreshInterface();
 
@@ -462,6 +486,8 @@ public:
 
 		WeakReference<Processor> sampler;
 		SelectedItemSet<ModulatorSamplerSound::Ptr> soundSelection;
+
+		Array<Identifier> sampleIds;
 	};
 	
 
@@ -650,6 +676,12 @@ public:
 
 		// ============================================================================================================
 
+		void clearNoteCounter()
+		{
+			keyDown.clear();
+			numPressedKeys.set(0);
+		}
+
 		void increaseNoteCounter(int noteNumber) noexcept 
 		{ 
 			++numPressedKeys; 
@@ -704,6 +736,8 @@ public:
 
 		Identifier getName() const override { RETURN_STATIC_IDENTIFIER("Console"); }
 		static Identifier getClassName()   { RETURN_STATIC_IDENTIFIER("Console"); };
+
+		bool allowIllegalCallsOnAudioThread(int /*functionIndex*/) const override { return true; }
 
 		// ============================================================================================================ API Methods
 

@@ -43,7 +43,6 @@
 
 #include "hi_core.h"
 
-#include <regex>
 #include <atomic>
 #include <float.h>
 #include <limits.h>
@@ -54,25 +53,17 @@
 #endif
 
 
-#include "VariantBuffer.cpp"
+#include "DepentUtilityFunctions.cpp"
 
-
-#include "CustomDataContainers.cpp"
-
-#if USE_IPP
-#include "IppFFT.cpp"
-
-#endif
-
-#include "AES.cpp"
 #include "UtilityClasses.cpp"
 #include "DebugLogger.cpp"
 #include "ThreadWithQuasiModalProgressWindow.cpp"
-#include "HI_LookAndFeels.cpp"
-#include "Tables.cpp"
 #include "ExternalFilePool.cpp"
+#include "ExpansionHandler.cpp"
 #include "GlobalScriptCompileBroadcaster.cpp"
 #include "MainControllerHelpers.cpp"
+#include "LockHelpers.cpp"
+#include "LockfreeDispatcher.cpp"
 #include "MainController.cpp"
 #include "MainControllerSubClasses.cpp"
 #include "SampleManager.cpp"
@@ -84,11 +75,9 @@
 #include "Popup.cpp"
 #include "Console.cpp"
 #include "BackgroundThreads.cpp"
-#include "Markdown.cpp"
 #include "HiseSettings.cpp"
 #include "SettingsWindows.cpp"
 #include "MiscComponents.cpp"
-#include "JavascriptTokeniser.cpp"
 #include "MacroControlledComponents.cpp"
 #include "MacroControlBroadcaster.cpp"
 #include "HiseEventBuffer.cpp"

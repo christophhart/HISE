@@ -16,6 +16,8 @@
 //==============================================================================
 // [BEGIN_USER_CODE_SECTION]
 
+#define JUCE_ENABLE_AUDIO_GUARD 0
+
 // (You can add your own code in this section, and the Projucer will not overwrite it)
 
 // [END_USER_CODE_SECTION]
@@ -58,6 +60,8 @@
 #define JUCE_MODULE_AVAILABLE_hi_sampler                  1
 #define JUCE_MODULE_AVAILABLE_hi_scripting                1
 #define JUCE_MODULE_AVAILABLE_hi_streaming                1
+#define JUCE_MODULE_AVAILABLE_hi_tools                    1
+#define JUCE_MODULE_AVAILABLE_hi_zstd                     1
 #define JUCE_MODULE_AVAILABLE_juce_audio_basics           1
 #define JUCE_MODULE_AVAILABLE_juce_audio_devices          1
 #define JUCE_MODULE_AVAILABLE_juce_audio_formats          1
@@ -87,6 +91,10 @@
  //#define USE_FRONTEND 1
 #endif
 
+#ifndef    USE_RAW_FRONTEND
+ //#define USE_RAW_FRONTEND 1
+#endif
+
 #ifndef    IS_STANDALONE_APP
  #define   IS_STANDALONE_APP 1
 #endif
@@ -109,6 +117,14 @@
 
 #ifndef    USE_CUSTOM_FRONTEND_TOOLBAR
  //#define USE_CUSTOM_FRONTEND_TOOLBAR 1
+#endif
+
+#ifndef    HI_SUPPORT_MONO_CHANNEL_LAYOUT
+ //#define HI_SUPPORT_MONO_CHANNEL_LAYOUT 1
+#endif
+
+#ifndef    HI_SUPPORT_FULL_DYNAMICS_HLAC
+ //#define HI_SUPPORT_FULL_DYNAMICS_HLAC 1
 #endif
 
 #ifndef    IS_STANDALONE_FRONTEND
@@ -315,6 +331,10 @@
  //#define JUCE_ALLOW_STATIC_NULL_VARIABLES 1
 #endif
 
+#ifndef    JUCE_ENABLE_AUDIO_GUARD
+ #define   JUCE_ENABLE_AUDIO_GUARD 1
+#endif
+
 //==============================================================================
 // juce_dsp flags:
 
@@ -373,6 +393,10 @@
 
 #ifndef    JUCE_USE_XCURSOR
  //#define JUCE_USE_XCURSOR 1
+#endif
+
+#ifndef    JUCE_HEADLESS_PLUGIN_CLIENT
+ //#define JUCE_HEADLESS_PLUGIN_CLIENT 1
 #endif
 
 //==============================================================================

@@ -26,94 +26,6 @@ namespace hise { using namespace juce;
 
 //[MiscUserDefs] You can add your own user definitions and misc code here...
 
-AhdsrGraph::AhdsrGraph(Processor *p):
-	processor(p)
-{}
-
-void AhdsrGraph::paint(Graphics &g)
-{
-	const float attack = processor->getAttribute(AhdsrEnvelope::Attack);
-	const float attackLevel = processor->getAttribute(AhdsrEnvelope::AttackLevel);
-	const float hold = processor->getAttribute(AhdsrEnvelope::Hold);
-	const float decay = processor->getAttribute(AhdsrEnvelope::Decay);
-	const float sustain = processor->getAttribute(AhdsrEnvelope::Sustain);
-	const float release = processor->getAttribute(AhdsrEnvelope::Release);
-	const float attackCurve = processor->getAttribute(AhdsrEnvelope::AttackCurve);
-
-
-	float aln = pow((1.0f - (attackLevel + 100.0f) / 100.0f), 0.6f);
-	const float sn =  pow((1.0f - (sustain     + 100.0f) / 100.0f), 0.6f);
-
-	aln = sn < aln ? sn : aln;
-
-
-	const float width = (float) getWidth();
-	const float height = (float) getHeight();
-
-	const float an = pow((attack / 20000.0f), 0.2f) * (0.2f * width );
-	const float hn = pow((hold / 20000.0f), 0.2f) * (0.2f * width );
-	const float dn = pow((decay / 20000.0f), 0.2f) * (0.2f * width );
-	const float rn = pow((release / 20000.0f), 0.2f) * (0.2f * width );
-
-	float x = 0.0f;
-	float lastX = x;
-
-	Path envelopePath;
-
-	envelopePath.startNewSubPath(0.0f, (float)getHeight());
-
-	// Attack Curve
-
-	lastX = x;
-	x += an;
-
-	const float controlY = aln*height + attackCurve * (height - aln*height);
-
-	envelopePath.quadraticTo((lastX + x) / 2, controlY, x, aln * height);
-
-	x += hn;
-
-	envelopePath.lineTo(x, aln * height);
-
-	lastX = x;
-	x += dn;
-
-	envelopePath.quadraticTo(lastX, sn * height, x, sn * height);
-
-	x = 0.8f * width;
-
-	envelopePath.lineTo(x, sn*height);
-
-	lastX = x;
-	x += rn;
-
-	envelopePath.quadraticTo(lastX, height, x, height);
-	envelopePath.closeSubPath();
-
-	KnobLookAndFeel::fillPathHiStyle(g, envelopePath, getWidth(), getHeight());
-
-	g.setColour(Colours::lightgrey.withAlpha(0.3f));
-	g.strokePath(envelopePath, PathStrokeType(1.0f));
-
-	g.setColour(Colours::lightgrey.withAlpha(0.1f));
-	g.drawRect(getLocalBounds(), 1);
-
-    g.setGradientFill (ColourGradient (Colour (0x77999999),
-                                       384.0f, 144.0f,
-                                       Colour (0x11777777),
-                                       408.0f, 520.0f,
-                                       false));
-
-	g.setGradientFill (ColourGradient (Colour (0x95c6c6c6),
-                                    0.0f, 0.0f,
-                                    Colour (0x976c6c6c),
-                                    0.0f, static_cast<float> (proportionOfHeight (1.0000f)),
-                                    false));
-
-	//g.fillPath(envelopePath);
-
-
-}
 
 
 
@@ -387,8 +299,7 @@ void AhdsrEnvelopeEditor::sliderValueChanged (Slider* sliderThatWasMoved)
 
     //[UsersliderValueChanged_Post]
 
-	ahdsrGraph->repaint();
-
+	
     //[/UsersliderValueChanged_Post]
 }
 

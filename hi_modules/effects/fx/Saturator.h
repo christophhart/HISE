@@ -35,7 +35,9 @@
 
 namespace hise { using namespace juce;
 
-/** A simple gain effect that allows time variant modulation. */
+/** A simple saturator effect. Use the ShapeFX class for more control.
+	@ingroup effectTypes.
+*/
 class SaturatorEffect : public MasterEffectProcessor
 {
 public:
@@ -72,11 +74,6 @@ public:
 	float getAttribute(int parameterIndex) const override;
 	float getDefaultValue(int parameterIndex) const override;
 
-	AudioSampleBuffer &getBufferForChain(int /*index*/) override
-	{
-		return saturationBuffer;
-	}
-
 	void restoreFromValueTree(const ValueTree &v) override;;
 	ValueTree exportAsValueTree() const override;
 
@@ -90,7 +87,6 @@ public:
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	void applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples) override;
-	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 
 private:
 
@@ -102,9 +98,7 @@ private:
 
 	Saturator saturator;
 
-	ScopedPointer<ModulatorChain> saturationChain;
-
-	AudioSampleBuffer saturationBuffer;
+	ModulatorChain* saturationChain;
 };
 
 

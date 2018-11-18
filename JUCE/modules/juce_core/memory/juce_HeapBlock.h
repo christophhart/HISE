@@ -106,6 +106,8 @@ public:
     explicit HeapBlock (SizeType numElements)
         : data (static_cast<ElementType*> (std::malloc (static_cast<size_t> (numElements) * sizeof (ElementType))))
     {
+		WARN_IF_AUDIO_THREAD(numElements > 0, IllegalAudioThreadOps::HeapBlockAllocation);
+
         throwOnAllocationFailure();
     }
 
@@ -120,6 +122,8 @@ public:
                                                ? std::calloc (static_cast<size_t> (numElements), sizeof (ElementType))
                                                : std::malloc (static_cast<size_t> (numElements) * sizeof (ElementType))))
     {
+		WARN_IF_AUDIO_THREAD(numElements > 0, IllegalAudioThreadOps::HeapBlockAllocation);
+
         throwOnAllocationFailure();
     }
 
@@ -128,7 +132,7 @@ public:
     */
     ~HeapBlock()
     {
-        std::free (data);
+		free();
     }
 
     /** Move constructor */
@@ -222,7 +226,9 @@ public:
     template <typename SizeType>
     void malloc (SizeType newNumElements, size_t elementSize = sizeof (ElementType))
     {
-        std::free (data);
+		WARN_IF_AUDIO_THREAD(newNumElements > 0 || data != nullptr, IllegalAudioThreadOps::HeapBlockAllocation);
+		
+		free();
         data = static_cast<ElementType*> (std::malloc (static_cast<size_t> (newNumElements) * elementSize));
         throwOnAllocationFailure();
     }
@@ -233,6 +239,8 @@ public:
     template <typename SizeType>
     void calloc (SizeType newNumElements, const size_t elementSize = sizeof (ElementType))
     {
+		WARN_IF_AUDIO_THREAD(newNumElements > 0 || data != nullptr, IllegalAudioThreadOps::HeapBlockAllocation);
+
         std::free (data);
         data = static_cast<ElementType*> (std::calloc (static_cast<size_t> (newNumElements), elementSize));
         throwOnAllocationFailure();
@@ -245,7 +253,9 @@ public:
     template <typename SizeType>
     void allocate (SizeType newNumElements, bool initialiseToZero)
     {
-        std::free (data);
+		WARN_IF_AUDIO_THREAD(newNumElements > 0 || data != nullptr, IllegalAudioThreadOps::HeapBlockAllocation);
+
+		free();
         data = static_cast<ElementType*> (initialiseToZero
                                              ? std::calloc (static_cast<size_t> (newNumElements), sizeof (ElementType))
                                              : std::malloc (static_cast<size_t> (newNumElements) * sizeof (ElementType)));
@@ -260,6 +270,8 @@ public:
     template <typename SizeType>
     void realloc (SizeType newNumElements, size_t elementSize = sizeof (ElementType))
     {
+		WARN_IF_AUDIO_THREAD(newNumElements > 0 || data != nullptr, IllegalAudioThreadOps::HeapBlockAllocation);
+
         data = static_cast<ElementType*> (data == nullptr ? std::malloc (static_cast<size_t> (newNumElements) * elementSize)
                                                           : std::realloc (data, static_cast<size_t> (newNumElements) * elementSize));
         throwOnAllocationFailure();
@@ -270,8 +282,13 @@ public:
     */
     void free() noexcept
     {
-        std::free (data);
-        data = nullptr;
+		WARN_IF_AUDIO_THREAD(data != nullptr, IllegalAudioThreadOps::HeapBlockDeallocation);
+
+		if (data != nullptr)
+		{
+			std::free(data);
+			data = nullptr;
+		}
     }
 
     /** Swaps this object's data with the data of another HeapBlock.

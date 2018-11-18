@@ -101,7 +101,7 @@ private:
 
 	const AudioProcessorWrapper *getWrapper() const { return dynamic_cast<AudioProcessorWrapper*>(wrapper.get()); };
 
-	KnobLookAndFeel laf;
+	GlobalHiseLookAndFeel laf;
 
 	friend class AudioProcessorEditorWrapper;
 

@@ -35,96 +35,17 @@
 
 namespace hise { using namespace juce;
 
-class BaseFrontendBar : public Component
-{
-public:
 
-	virtual ~BaseFrontendBar() {};
-
-	static BaseFrontendBar* createFrontendBar(MainController* mc);
-};
-
-#define CREATE_FRONTEND_BAR(ClassName) BaseFrontendBar* BaseFrontendBar::createFrontendBar(MainController* mc) { return new ClassName(mc); }
-
-
-
-/** The bar that is displayed for every FrontendProcessorEditor */
-class DefaultFrontendBar  : public BaseFrontendBar,
-                     public Timer,
-					 public SliderListener,
-					 public SettableTooltipClient,
-				     public ButtonListener
-{
-public:
-    
-	// ================================================================================================================
-
-    DefaultFrontendBar (MainController *p);
-    ~DefaultFrontendBar();
-
-	void sliderValueChanged(Slider* slider) override;
-
-	void setProperties(DynamicObject *p);
-	static String createJSONString(DynamicObject *p=nullptr);
-	static DynamicObject *createDefaultProperties();
-
-	// ================================================================================================================
-
-	void timerCallback();
-    void paint (Graphics& g);
-    void resized();
-	void buttonClicked(Button* b) override;
-
-	bool isOverlaying() const { return overlaying; }
-
-	static BaseFrontendBar* createFrontendBar(MainController* mc)
-	{
-		return new DefaultFrontendBar(mc);
-	}
-
-private:
-
-	const Image getFilmStripImageFromString(const String &fileReference) const;
-
-	// ================================================================================================================
-
-	
-	MainController *mc;
-
-	bool overlaying;
-
-	int height;
-
-	Colour bgColour;
-
-	FrontendKnobLookAndFeel fklaf;
-
-	ScopedPointer<Label> volumeSliderLabel;
-	ScopedPointer<Label> pitchSliderLabel;
-	ScopedPointer<Label> balanceSliderLabel;
-
-	ScopedPointer<Slider> volumeSlider;
-	ScopedPointer<Slider> balanceSlider;
-	ScopedPointer<Slider> pitchSlider;
-
-	ScopedPointer<VoiceCpuBpmComponent> voiceCpuComponent;
-
-	UpdateMerger cpuUpdater;
-	ScopedPointer<TooltipBar> tooltipBar;
-
-	ScopedPointer<PresetBox> presetSelector;
-	
-
-	ScopedPointer<VuMeter> outMeter;
-
-	ScopedPointer<ShapeButton> deviceSettingsButton;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DefaultFrontendBar)
-};
 
 class SampleDataImporter;
 
+/** A overlay that can show critical error messages on the compiled plugin.
+	@ingroup hise_ui
 
+	If your plugin's state encounters a error that either needs the full attention of the user
+	or even completely deactivates the UI functionality, this class will appear and show the 
+	error message that was received.
+*/
 class DeactiveOverlay : public Component,
 	public ButtonListener
 {
@@ -144,7 +65,6 @@ public:
 		MachineNumbersNotMatching,
 		LicenseExpired,
 		LicenseInvalid,
-		CopyProtectionError,
 		CriticalCustomErrorMessage,
 		SamplesNotInstalled,
 		SamplesNotFound,
@@ -168,6 +88,11 @@ public:
 		resized();
 	}
 
+    void clearAllFlags()
+    {
+        currentState = 0;
+    }
+    
 	void setCustomMessage(const String newCustomMessage)
 	{
 		customMessage = newCustomMessage;
@@ -207,7 +132,6 @@ private:
 	ScopedPointer<TextButton> installSampleButton;
 	ScopedPointer<TextButton> resolveSamplesButton;
 	ScopedPointer<TextButton> registerProductButton;
-	ScopedPointer<TextButton> useActivationResponseButton;
 	ScopedPointer<TextButton> ignoreButton;
 
 	BigInteger currentState;

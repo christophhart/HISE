@@ -34,7 +34,12 @@
 
 namespace hise { using namespace juce;
 
+/** a component that plots a collection of filters.
+@ingroup floating_tile_objects.
 
+Just connect it to a PolyphonicFilterEffect or a CurveEQ and it will automatically update
+the filter graph.
+*/
 class FilterGraph::Panel : public PanelWithProcessorConnection,
 						   public SafeChangeListener,
 						   public Timer
@@ -123,7 +128,7 @@ public:
 
 			c->setOpaque(c->findColour(bgColour).isOpaque());
 
-			if (auto f = dynamic_cast<FilterEffect*>(p))
+			if (dynamic_cast<FilterEffect*>(p) != nullptr)
 			{
 				c->addFilter(FilterType::LowPass);
 				startTimer(30);
@@ -406,7 +411,7 @@ void FilterGraph::paint (Graphics& g)
 		}
 		else
 		{
-			KnobLookAndFeel::fillPathHiStyle(g, tracePath, getWidth(), getHeight());
+			GlobalHiseLookAndFeel::fillPathHiStyle(g, tracePath, getWidth(), getHeight());
 		}
 
 		

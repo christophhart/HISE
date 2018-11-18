@@ -77,21 +77,22 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 	toolbar->setColour(Toolbar::ColourIds::buttonMouseOverBackgroundColourId, Colours::white.withAlpha(0.3f));
 	toolbar->setColour(Toolbar::ColourIds::buttonMouseDownBackgroundColourId, Colours::white.withAlpha(0.4f));
 
-	panSetter->setPropertyType(ModulatorSamplerSound::Pan);
-	volumeSetter->setPropertyType(ModulatorSamplerSound::Volume);
-	pitchSetter->setPropertyType(ModulatorSamplerSound::Pitch);
-	sampleStartSetter->setPropertyType(ModulatorSamplerSound::SampleStart);
-	sampleEndSetter->setPropertyType(ModulatorSamplerSound::SampleEnd);
-	startModulationSetter->setPropertyType(ModulatorSamplerSound::SampleStartMod);
-	loopStartSetter->setPropertyType(ModulatorSamplerSound::LoopStart);
-	loopEndSetter->setPropertyType(ModulatorSamplerSound::LoopEnd);
-	loopCrossfadeSetter->setPropertyType(ModulatorSamplerSound::LoopXFade);
+	panSetter->setPropertyType(SampleIds::Pan);
+	volumeSetter->setPropertyType(SampleIds::Volume);
+	pitchSetter->setPropertyType(SampleIds::Pitch);
+	sampleStartSetter->setPropertyType(SampleIds::SampleStart);
+	sampleEndSetter->setPropertyType(SampleIds::SampleEnd);
+	startModulationSetter->setPropertyType(SampleIds::SampleStartMod);
+	loopStartSetter->setPropertyType(SampleIds::LoopStart);
+	loopEndSetter->setPropertyType(SampleIds::LoopEnd);
+	loopCrossfadeSetter->setPropertyType(SampleIds::LoopXFade);
 
 	loopStartSetter->setLabelColour(Colours::green.withAlpha(0.1f), Colours::white);
 	loopEndSetter->setLabelColour(Colours::green.withAlpha(0.1f), Colours::white);
 	loopCrossfadeSetter->setLabelColour(Colours::yellow.withAlpha(0.1f), Colours::white);
 	startModulationSetter->setLabelColour(Colours::blue.withAlpha(0.1f), Colours::white);
 
+	sampler->getSampleMap()->addListener(this);
 
     //[/UserPreSize]
 
@@ -117,6 +118,12 @@ SampleEditor::~SampleEditor()
 {
     //[Destructor_pre]. You can add your own custom destruction code here..
 	samplerEditorCommandManager->setFirstCommandTarget(nullptr);
+
+
+	if (sampler != nullptr)
+	{
+		sampler->getSampleMap()->removeListener(this);
+	}
     //[/Destructor_pre]
 
     viewport = nullptr;
@@ -134,6 +141,15 @@ SampleEditor::~SampleEditor()
 
     //[Destructor]. You can add your own custom destruction code here..
     //[/Destructor]
+}
+
+void SampleEditor::samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& /*newValue*/)
+{
+	if (s == currentWaveForm->getCurrentSound() && SampleIds::Helpers::isAudioProperty(id))
+	{
+		currentWaveForm->updateRanges();
+	}
+		
 }
 
 //==============================================================================
@@ -240,10 +256,10 @@ bool SampleEditor::perform (const InvocationInfo &info)
 	case NormalizeVolume:  SampleEditHandler::SampleEditingActions::normalizeSamples(handler, this); return true;
 	case LoopEnabled:	   {for(int i = 0; i < selection.size(); i++)
 						   {
-							   selection[i]->toggleBoolProperty(ModulatorSamplerSound::LoopEnabled);
+							   selection[i]->toggleBoolProperty(SampleIds::LoopEnabled);
 						   };
 
-						   const bool isOn = (selection.size() != 0) ? (bool)selection.getLast()->getProperty(ModulatorSamplerSound::LoopEnabled) : false;
+						   const bool isOn = (selection.size() != 0) ? (bool)selection.getLast()->getSampleProperty(SampleIds::LoopEnabled) : false;
 
 						   currentWaveForm->getSampleArea(SamplerSoundWaveform::LoopArea)->setVisible(isOn);
 						   currentWaveForm->getSampleArea(SamplerSoundWaveform::LoopCrossfadeArea)->setVisible(isOn);

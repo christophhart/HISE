@@ -49,15 +49,15 @@ void SampleEditHandler::moveSamples(SamplerSoundMap::Neighbour direction)
 
 			if (direction == SamplerSoundMap::Right)
 			{
-				changeProperty(sound, ModulatorSamplerSound::KeyHigh, 1);
-				changeProperty(sound, ModulatorSamplerSound::KeyLow, 1);
-				changeProperty(sound, ModulatorSamplerSound::RootNote, 1);
+				changeProperty(sound, SampleIds::HiKey, 1);
+				changeProperty(sound, SampleIds::LoKey, 1);
+				changeProperty(sound, SampleIds::Root, 1);
 			}
 			else
 			{
-				changeProperty(sound, ModulatorSamplerSound::KeyLow, -1);
-				changeProperty(sound, ModulatorSamplerSound::KeyHigh, -1);
-				changeProperty(sound, ModulatorSamplerSound::RootNote, -1);
+				changeProperty(sound, SampleIds::LoKey, -1);
+				changeProperty(sound, SampleIds::HiKey, -1);
+				changeProperty(sound, SampleIds::Root, -1);
 			}
 		}
 		break;
@@ -69,8 +69,8 @@ void SampleEditHandler::moveSamples(SamplerSoundMap::Neighbour direction)
 		{
 			ModulatorSamplerSound *sound = selectedSamplerSounds.getSelectedItem(i);
 
-			changeProperty(sound, ModulatorSamplerSound::VeloHigh, direction == SamplerSoundMap::Up ? 1 : -1);
-			changeProperty(sound, ModulatorSamplerSound::VeloLow, direction == SamplerSoundMap::Up ? 1 : -1);
+			changeProperty(sound, SampleIds::HiVel, direction == SamplerSoundMap::Up ? 1 : -1);
+			changeProperty(sound, SampleIds::LoVel, direction == SamplerSoundMap::Up ? 1 : -1);
 		}
 		break;
 	}
@@ -111,7 +111,7 @@ void SampleEditHandler::handleMidiSelection()
 
 SampleSelection SampleEditHandler::getSanitizedSelection()
 {
-	auto sounds = selectedSamplerSounds.getItemArray();
+	auto& sounds = selectedSamplerSounds.getItemArray();
 
 	SampleSelection existingSounds;
 
@@ -119,7 +119,8 @@ SampleSelection SampleEditHandler::getSanitizedSelection()
 
 	for (int i = 0; i < sounds.size(); i++)
 	{
-		if (sounds[i].get() != nullptr) existingSounds.add(sounds[i].get());
+		if (sounds[i].get() != nullptr) 
+			existingSounds.add(sounds[i].get());
 	}
 
 	return existingSounds;
@@ -134,15 +135,21 @@ bool SampleEditHandler::newKeysPressed(const uint8 *currentNotes)
 	return false;
 }
 
-void SampleEditHandler::changeProperty(ModulatorSamplerSound *s, ModulatorSamplerSound::Property p, int delta)
+void SampleEditHandler::changeProperty(ModulatorSamplerSound *s, const Identifier& p, int delta)
 {
-	const int v = s->getProperty(p);
+	const int v = s->getSampleProperty(p);
 
-	s->setPropertyWithUndo(p, v + delta);
+	s->setSampleProperty(p, v + delta);
+}
+
+juce::File SampleEditHandler::getCurrentSampleMapDirectory() const
+{
+	return sampler->getMainController()->getCurrentFileHandler().getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
 }
 
 void SampleEditHandler::SampleEditingActions::createMultimicSampleMap(SampleEditHandler* handler)
 {
+	
 	const String multimicTokens = PresetHandler::getCustomName("Multimic Tokens", "Enter a semicolon separated list of all mic position tokens starting with the existing mic position");
 
 	auto list = StringArray::fromTokens(multimicTokens, ";", "\"");
@@ -159,7 +166,7 @@ void SampleEditHandler::SampleEditingActions::createMultimicSampleMap(SampleEdit
 
 	if (PresetHandler::showYesNoWindow("Confirm multimic tokens", "You have specified these tokens:" + listString + "\nPress OK to create a multimic samplemap with these mic positions"))
 	{
-		ValueTree v = handler->getSampler()->getSampleMap()->exportAsValueTree();
+		auto v = handler->getSampler()->getSampleMap()->getValueTree();
 
 		for (int i = 0; i < v.getNumChildren(); i++)
 		{
@@ -189,9 +196,17 @@ void SampleEditHandler::SampleEditingActions::createMultimicSampleMap(SampleEdit
 			}
 		}
 
+		v.setProperty("MicPositions", multimicTokens, nullptr);
+
+		auto ref = handler->getSampler()->getSampleMap()->getReference();
+		
+		handler->getSampler()->getMainController()->getCurrentSampleMapPool()->sendPoolChangeMessage(PoolBase::Reloaded, sendNotificationAsync, ref);
+
+
+#if 0
 		PresetHandler::showMessageWindow("Merge successful", "Press OK to choose a location for the multimic sample map");
 
-		auto sampleMapDirectory = GET_PROJECT_HANDLER(handler->getSampler()).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+		auto sampleMapDirectory = handler->getCurrentSampleMapDirectory();
 
 		FileChooser fc("Save multimic Samplemap", sampleMapDirectory, "*.xml", true);
 
@@ -208,6 +223,60 @@ void SampleEditHandler::SampleEditingActions::createMultimicSampleMap(SampleEdit
 			ScopedPointer<XmlElement> xml = v.createXml();
 			f.replaceWithText(xml->createDocument(""));
 		}
+#endif
+		
+	}
+
+}
+
+void SampleEditHandler::SampleEditingActions::reencodeMonolith(Component* childComponentOfMainEditor, SampleEditHandler* handler)
+{
+	if (PresetHandler::showYesNoWindow("Reencode monolith", "Do you want to reencode the monolith?\nYou need the original files at the same location in order to make this work"))
+	{
+		auto s = handler->getSampler();
+
+		auto map = s->getSampleMap();
+
+		auto tree = map->getValueTree().createCopy();
+
+		tree.setProperty("SaveMode", 0, nullptr);
+		
+		for (auto sample : tree)
+		{
+			sample.removeProperty("MonolithOffset", nullptr);
+			sample.removeProperty("MonolithLength", nullptr);
+		}
+
+		auto f = [map, tree, childComponentOfMainEditor](Processor* )
+		{
+			map->loadUnsavedValueTree(tree);
+
+			auto f2 = [map, childComponentOfMainEditor]()
+			{
+				map->saveAsMonolith(childComponentOfMainEditor);
+			};
+
+			MessageManager::callAsync(f2);
+
+			return SafeFunctionCall::OK;
+		};
+
+		s->killAllVoicesAndCall(f, true);
 	}
 }
+
+void SampleEditHandler::SampleEditingActions::encodeAllMonoliths(Component * comp, SampleEditHandler* handler)
+{
+#if HI_ENABLE_EXPANSION_EDITING
+	BatchReencoder *encoder = new BatchReencoder(handler->getSampler());
+
+	encoder->setModalBaseWindowComponent(comp);
+#endif
+}
+
+
+
+
+
+
 } // namespace hise

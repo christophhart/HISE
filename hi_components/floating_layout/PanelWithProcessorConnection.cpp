@@ -40,18 +40,18 @@ PanelWithProcessorConnection::PanelWithProcessorConnection(FloatingTile* parent)
 	connectionSelector->addListener(this);
 	getMainSynthChain()->getMainController()->skin(*connectionSelector);
 
-	connectionSelector->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, Colours::transparentBlack);
-	connectionSelector->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, Colours::transparentBlack);
-	connectionSelector->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::transparentBlack);
+	connectionSelector->setColour(HiseColourScheme::ComponentFillTopColourId, Colours::transparentBlack);
+	connectionSelector->setColour(HiseColourScheme::ComponentFillBottomColourId, Colours::transparentBlack);
+	connectionSelector->setColour(HiseColourScheme::ComponentOutlineColourId, Colours::transparentBlack);
 	connectionSelector->setTextWhenNothingSelected("Disconnected");
 
 	addAndMakeVisible(indexSelector = new ComboBox());
 	indexSelector->addListener(this);
 	getMainSynthChain()->getMainController()->skin(*indexSelector);
 
-	indexSelector->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, Colours::transparentBlack);
-	indexSelector->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, Colours::transparentBlack);
-	indexSelector->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::transparentBlack);
+	indexSelector->setColour(HiseColourScheme::ComponentFillTopColourId, Colours::transparentBlack);
+	indexSelector->setColour(HiseColourScheme::ComponentFillBottomColourId, Colours::transparentBlack);
+	indexSelector->setColour(HiseColourScheme::ComponentOutlineColourId, Colours::transparentBlack);
 	indexSelector->setTextWhenNothingSelected("Disconnected");
 
 	BACKEND_ONLY(getMainController()->getProcessorChangeHandler().addProcessorChangeListener(this);)
@@ -70,9 +70,7 @@ void PanelWithProcessorConnection::paint(Graphics& g)
 {
 	auto bounds = getParentShell()->getContentBounds();
 
-	const bool scb = getStyleProperty(showConnectionBar, true) && findParentComponentOfClass<ScriptContentComponent>() == nullptr;
-
-    
+	const bool scb = getStyleProperty(showConnectionBar, true) && !shouldHideSelector();
     
 	if (scb)
 	{
@@ -97,7 +95,8 @@ var PanelWithProcessorConnection::toDynamicObject() const
 
 	storePropertyInObject(obj, SpecialPanelIds::ProcessorId, getConnectedProcessor() != nullptr ? getConnectedProcessor()->getId() : "");
 	storePropertyInObject(obj, SpecialPanelIds::Index, currentIndex);
-
+	storePropertyInObject(obj, SpecialPanelIds::Index, currentIndex);
+	
 	return obj;
 }
 
@@ -192,9 +191,7 @@ void PanelWithProcessorConnection::moduleListChanged(Processor* b, MainControlle
 
 void PanelWithProcessorConnection::resized()
 {
-	const bool isInScriptContent = findParentComponentOfClass<ScriptContentComponent>() != nullptr;
-
-	if (isInScriptContent)
+	if (shouldHideSelector())
 	{
 		connectionSelector->setVisible(false);
 		indexSelector->setVisible(false);
@@ -301,14 +298,37 @@ void PanelWithProcessorConnection::comboBoxChanged(ComboBox* comboBoxThatHasChan
 	}
 }
 
+void PanelWithProcessorConnection::processorDeleted(Processor* /*deletedProcessor*/)
+{
+	jassert_message_thread;
+
+	setContentWithUndo(nullptr, -1);
+}
+
 void PanelWithProcessorConnection::refreshConnectionList()
 {
-	String currentId = connectionSelector->getText();
+	auto f = [](WeakReference<PanelWithProcessorConnection> tmp)
+	{
+		if (tmp.get() != nullptr)
+		{
+			String currentId = tmp->connectionSelector->getText();
+			tmp->connectionSelector->clear(dontSendNotification);
 
-	connectionSelector->clear(dontSendNotification);
+			StringArray items;
 
-	StringArray items;
+			tmp->refreshSelector(items, currentId);
+		}
 
+		return true;
+	};
+
+	f(this);
+
+	//getMainController()->getLockFreeDispatcher().callOnMessageThreadWhenIdle<PanelWithProcessorConnection>(this, f);
+}
+
+void PanelWithProcessorConnection::refreshSelector(StringArray &items, String currentId)
+{
 	fillModuleList(items);
 
 	int index = items.indexOf(currentId);
@@ -424,4 +444,25 @@ bool PanelWithProcessorConnection::ProcessorConnection::undo()
 	return false;
 }
 
+void PanelWithProcessorConnection::setContentForIdentifier(Identifier idToSearch)
+    {
+        auto parentContainer = getParentShell()->getParentContainer();
+        
+        if (parentContainer != nullptr)
+        {
+            FloatingTile::Iterator<PanelWithProcessorConnection> iter(parentContainer->getParentShell());
+            
+            while (auto p = iter.getNextPanel())
+            {
+                if (p == this)
+                    continue;
+                
+                if (p->getProcessorTypeId() != idToSearch)
+                    continue;
+                
+                p->setContentWithUndo(getProcessor(), 0);
+            }
+        }
+    }
+    
 } // namespace hise

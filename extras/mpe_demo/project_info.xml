@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<ProjectSettings>
+  <Name value="MPE Demo"/>
+  <Version value="1.0.0"/>
+  <Description value=""/>
+  <BundleIdentifier value="com.myCompany.product"/>
+  <PluginCode value="Mped"/>
+  <EmbedAudioFiles value="Yes"/>
+  <AdditionalDspLibraries value=""/>
+  <OSXStaticLibs value=""/>
+  <WindowsStaticLibFolder value=""/>
+  <ExtraDefinitionsWindows value=""/>
+  <ExtraDefinitionsOSX value=""/>
+  <ExtraDefinitionsIOS value=""/>
+  <AppGroupID value="group.hise.mpedemo"/>
+  <RedirectSampleFolder value=""/>
+</ProjectSettings>

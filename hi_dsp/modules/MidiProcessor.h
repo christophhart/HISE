@@ -41,9 +41,10 @@ class ModulatorSynth;
 #define MIDI_PROCESSOR_COLOUR 0xFFC65638
 
 /**	A MidiProcessor processes a MidiBuffer.
-*	@ingroup midiProcessor
+*	@ingroup dsp_base_classes
 *
-*	It can be used to change the incoming MIDI data before it is sent to a ModulatorSynth.
+*	It can be used to change the incoming MIDI data before it is sent to a ModulatorSynth. Note that if you want to create your own MIDI processors,
+	you should use the HardcodedScriptProcessor as base class since it offers a simpler integration of existing Javascript code and a cleaner API.
 */
 class MidiProcessor: public Processor
 {
@@ -141,8 +142,7 @@ private:
 
 class ChainEditor;
 
-/** A MidiProcessorChain is a container for multiple MidiProcessors. 
-*	@ingroup midiTypes
+/** @internal A MidiProcessorChain is a container for multiple MidiProcessors. 
 *
 */
 class MidiProcessorChain: public MidiProcessor,
@@ -156,7 +156,7 @@ public:
 
 	~MidiProcessorChain()
 	{
-		processors.clear();
+		getHandler()->clearAsync(this);
 	};
 
 	/** Wraps the handlers method. */
@@ -220,7 +220,7 @@ public:
 		}
 	};
 
-	/** Handles the creation of MidiProcessors within a MidiProcessorChain. */
+	/** @internal Handles the creation of MidiProcessors within a MidiProcessorChain. */
 	class MidiProcessorChainHandler: public Chain::Handler
 	{
 	public:
@@ -233,19 +233,21 @@ public:
 
 		void remove(Processor *processorToBeRemoved, bool deleteMp=true)
 		{
-			ScopedLock sl(chain->getMainController()->getLock());
+			notifyListeners(Listener::ProcessorDeleted, processorToBeRemoved);
 
-			jassert(dynamic_cast<MidiProcessor*>(processorToBeRemoved) != nullptr);
-			for(int i = 0; i < chain->processors.size(); i++)
+			ScopedPointer<MidiProcessor> mp = dynamic_cast<MidiProcessor*>(processorToBeRemoved);
+
 			{
-				if (chain->processors[i] == processorToBeRemoved)
-				{
-					chain->processors.remove(i, deleteMp);
-					break;
-				}
-			}
+				LOCK_PROCESSING_CHAIN(chain);
 
-			sendChangeMessage();
+				processorToBeRemoved->setIsOnAir(false);
+				chain->processors.removeObject(mp.get(), false);
+			}
+			
+			if (deleteMp)
+				mp = nullptr;
+			else
+				mp.release();
 		};
 
 		const Processor *getProcessor(int processorIndex) const override
@@ -265,9 +267,8 @@ public:
 
 		void clear()
 		{
+			notifyListeners(Listener::Cleared, nullptr);
 			chain->processors.clear();
-
-			sendChangeMessage();
 		}
 
 	private:
@@ -294,14 +295,9 @@ private:
 
 };
 
-
-
 class HardcodedScriptFactoryType;
 
-/**	Allows creation of MidiProcessors.
-*
-*	@ingroup midiProcessor
-*/
+
 class MidiProcessorFactoryType: public FactoryType
 {
 public:

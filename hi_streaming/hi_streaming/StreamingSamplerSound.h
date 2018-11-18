@@ -38,7 +38,12 @@ namespace hise { using namespace juce;
 
 // ==================================================================================================================================================
 
-/** A SamplerSound which provides buffered disk streaming using memory mapped file access and a preloaded sample start. */
+/** A SamplerSound which provides buffered disk streaming using memory mapped file access and a preloaded sample start. 
+	@ingroup sampler
+
+	This class is not directly used in HISE, but wrapped into a ModulatorSamplerSound which provides extra functionality.
+	However, if you roll your own sampler class and just need to reuse the streaming facilities, you can tinker around with this class.
+*/
 class StreamingSamplerSound : public SynthesiserSound
 {
 public:

@@ -75,10 +75,6 @@ namespace icstdsp
 #include "fft_convolver/FFTConvolver.h"
 #include "fft_convolver/TwoStageFFTConvolver.h"
 
-#include "tiny_aes/aes.hpp"
-
-
-
 #if JUCE_MSVC
 #pragma warning (push)
 #pragma warning (disable: 4244 4127 4267)

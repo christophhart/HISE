@@ -48,9 +48,7 @@ public:
 
 protected:
 
-	ValueTree exportReferencedImageFiles();
-	ValueTree exportReferencedAudioFiles();
-	ValueTree exportEmbeddedFiles(bool includeSampleMaps);
+	ValueTree exportEmbeddedFiles();
 	ValueTree exportUserPresetFiles();
 	ValueTree exportPresetFile();
 	
@@ -100,6 +98,8 @@ public:
 		AAXWindowsx64 = 0x1282,
 		AAXWindowsx86x64 = 0x1284,
 		AAXmacOS = 0x2284,
+		HeadlessLinuxVST = 0x0484,
+		HeadlessLinuxVSTi = 0x0284,
 		StandaloneWindowsx86 = 0x1101,
 		StandaloneWindowsx64 = 0x1102,
 		StandaloneWindowsx64x86 = 0x1104,
@@ -128,6 +128,7 @@ public:
 		static bool isStandalone(BuildOption option) { return (option & 0x0100) != 0; }
 		static bool isInstrument(BuildOption option) { return (option & 0x0200) != 0; }
 		static bool isEffect(BuildOption option) { return (option & 0x0400) != 0; }
+		static bool isHeadlessLinuxPlugin(BuildOption option) { return isLinux(option) && (option & 0x0080) != 0; };
 		static void runUnitTests();
 	};
 
@@ -171,11 +172,27 @@ public:
 	
     bool useIpp;
 
+	bool rawMode = false;
+
+	void setRawExportMode(bool useRawMode)
+	{
+		rawMode = useRawMode;
+	}
+
 	void printErrorMessage(const String& title, const String &message);
 
 	static String getCompileResult(ErrorCodes result);
 
 	void writeValueTreeToTemporaryFile(const ValueTree& v, const String &tempFolder, const String& childFile, bool compress=false);
+
+	template <class ProviderType> Result compressValueTree(const ValueTree& v, const String& tempFolder, const String& childFile)
+	{
+		File tf(tempFolder);
+		File target = tf.getChildFile(childFile);
+
+		zstd::ZCompressor<ProviderType> compressor;
+		return compressor.compress(v, target);
+	}
 
 	int getBuildOptionPart(const String& argument);
 
@@ -241,7 +258,7 @@ private:
 
 	struct HeaderHelpers
 	{
-		static void addBasicIncludeLines(String& pluginDataHeaderFile);
+		static void addBasicIncludeLines(String& pluginDataHeaderFile, bool isIOS=false);
 		static void addAdditionalSourceCodeHeaderLines(CompileExporter* exporter, String& pluginDataHeaderFile);
 		static void addStaticDspFactoryRegistration(String& pluginDataHeaderFile, CompileExporter* exporter);
 		static void addCopyProtectionHeaderLines(const String &publicKey, String& pluginDataHeaderFile);

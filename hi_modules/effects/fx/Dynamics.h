@@ -35,7 +35,9 @@
 
 namespace hise { using namespace juce;
 
-/** A simple gain effect that allows time variant modulation. */
+/** A general purpose dynamics processor based on chunkware's SimpleCompressor.
+	@ingroup effectTypes
+*/
 class DynamicsEffect : public MasterEffectProcessor
 {
 public:
@@ -86,6 +88,9 @@ public:
 	int getNumChildProcessors() const { return 0; };
 
 	void applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples) override;
+
+	void applyLimiter(AudioSampleBuffer &buffer, int startSample, const int numToProcess);
+
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 
 private:
@@ -99,6 +104,7 @@ private:
 	std::atomic<bool> gateEnabled;
 	std::atomic<bool> compressorEnabled;
 	std::atomic<bool> limiterEnabled;
+	std::atomic<bool> limiterPending;
 
 	std::atomic<bool> compressorMakeup;
 	std::atomic<bool> limiterMakeup;

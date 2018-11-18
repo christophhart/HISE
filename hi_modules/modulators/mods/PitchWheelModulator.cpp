@@ -45,6 +45,8 @@ PitchwheelModulator::PitchwheelModulator(MainController *mc, const String &id, M
 {
 	this->enableConsoleOutput(false);
 	
+	table->setXTextConverter(Modulation::getDomainAsPitchBendRange);
+
 	parameterNames.add("Inverted");
 	parameterNames.add("UseTable");
 	parameterNames.add("SmoothTime");
@@ -113,6 +115,28 @@ void PitchwheelModulator::setInternalAttribute (int parameter_index, float newVa
 	}
 };
 
+
+void PitchwheelModulator::calculateBlock(int startSample, int numSamples)
+{
+	const bool smoothThisBlock = fabsf(targetValue - currentValue) > 0.001f;
+
+	if (smoothThisBlock)
+	{
+		while (--numSamples >= 0)
+		{
+			currentValue = smoother.smooth(targetValue);
+			internalBuffer.setSample(0, startSample, currentValue);
+			++startSample;
+		}
+	}
+	else
+	{
+		currentValue = targetValue;
+		FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), currentValue, numSamples);
+	}
+
+	if (useTable) sendTableIndexChangeMessage(false, table, inputValue);
+}
 
 float PitchwheelModulator::calculateNewValue ()
 {

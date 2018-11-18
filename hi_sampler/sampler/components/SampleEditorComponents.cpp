@@ -1,5 +1,6 @@
 namespace hise { using namespace juce;
 
+
 // =================================================================================================================== SamplerSubEditor
 
 void SamplerSubEditor::selectSounds(const SampleSelection &selection)
@@ -46,12 +47,14 @@ void PopupLabel::showPopup()
 
 void PopupLabel::mouseDown(const MouseEvent &)
 {
+#if USE_BACKEND
     ProcessorEditor *pEditor = findParentComponentOfClass<ProcessorEditor>();
     
     if(pEditor != nullptr)
     {
         PresetHandler::setChanged(pEditor->getProcessor());
     }
+#endif
     
 	if(isEnabled())
 	{
@@ -107,7 +110,6 @@ SampleComponent::SampleComponent(ModulatorSamplerSound *s, SamplerSoundMap *pare
 
 	//addMouseListener(map, true);
     
-	sound->addChangeListener(this);
 
 	if (sound->isMissing() || sound->isPurged())
 	{
@@ -117,19 +119,6 @@ SampleComponent::SampleComponent(ModulatorSamplerSound *s, SamplerSoundMap *pare
 
 #pragma warning( push )
 #pragma warning( disable: 4100 )
-
-void SampleComponent::changeListenerCallback(SafeChangeBroadcaster *b)
-{
-	jassert(b == sound);
-	map->updateSampleComponentWithSound(sound);
-
-	SampleMapEditor *editor = map->findParentComponentOfClass<SampleMapEditor>();
-
-	if (editor != nullptr)
-	{
-		editor->refreshRootNotes();
-	}
-}
 
 #pragma warning( pop )
 
@@ -150,8 +139,8 @@ void SampleComponent::drawSampleRectangle(Graphics &g, Rectangle<int> areaInt)
 
     Rectangle<float> area((float)areaInt.getX(), (float)areaInt.getY(), (float)areaInt.getWidth(), (float)areaInt.getHeight());
     
-    const int lowerXFade = sound->getProperty(ModulatorSamplerSound::LowerVelocityXFade);
-    const int upperXFade = sound->getProperty(ModulatorSamplerSound::UpperVelocityXFade);
+    const int lowerXFade = sound->getSampleProperty(SampleIds::LowerVelocityXFade);
+    const int upperXFade = sound->getSampleProperty(SampleIds::UpperVelocityXFade);
     
     if (lowerXFade != 0 || upperXFade != 0)
     {
@@ -212,6 +201,7 @@ bool SampleComponent::needsToBeDrawn()
 // =================================================================================================================== SamplerSoundMap
 
 SamplerSoundMap::SamplerSoundMap(ModulatorSampler *ownerSampler_):
+	PreloadListener(ownerSampler_->getMainController()->getSampleManager()),
 	ownerSampler(ownerSampler_),
 	handler(ownerSampler->getSampleEditHandler()),
 	notePosition(-1),
@@ -219,12 +209,12 @@ SamplerSoundMap::SamplerSoundMap(ModulatorSampler *ownerSampler_):
 	selectedSounds(new SelectedItemSet<WeakReference<SampleComponent>>()),
 	sampleLasso(new LassoComponent<WeakReference<SampleComponent>>())
 {
-	ownerSampler->getMainController()->getSampleManager().addPreloadListener(this);
-
     sampleLasso->setColour(LassoComponent<SampleComponent>::ColourIds::lassoFillColourId, Colours::white.withAlpha(0.1f));
     sampleLasso->setColour(LassoComponent<SampleComponent>::ColourIds::lassoOutlineColourId, Colour(SIGNAL_COLOUR));
     
     
+	ownerSampler->getSampleMap()->addListener(this);
+
 	for (uint8 i = 0; i < 128; i++)
 	{
 		pressedKeys[i] = 255;
@@ -242,9 +232,11 @@ SamplerSoundMap::SamplerSoundMap(ModulatorSampler *ownerSampler_):
 
 SamplerSoundMap::~SamplerSoundMap()
 {
-	if(ownerSampler != nullptr)
-		ownerSampler->getMainController()->getSampleManager().removePreloadListener(this);
-
+	if (ownerSampler != nullptr)
+	{
+		ownerSampler->getSampleMap()->removeListener(this);
+	}
+		
 	sampleComponents.clear();
 }
 
@@ -259,7 +251,7 @@ void SamplerSoundMap::changeListenerCallback(ChangeBroadcaster *b)
 			sampleComponents[i]->setSelected(false);
 		}
 
-		Array<WeakReference<SampleComponent>> selectedSampleComponents = selectedSounds->getItemArray();
+		auto& selectedSampleComponents = selectedSounds->getItemArray();
 
 		for(int i = 0; i < selectedSampleComponents.size(); i++)
 		{
@@ -287,23 +279,28 @@ void SamplerSoundMap::selectNeighbourSample(Neighbour direction)
 {
 	if(selectedSounds->getNumSelected() != 0)
 	{
-		const int lowKey = selectedSounds->getSelectedItem(0)->getSound()->getProperty(ModulatorSamplerSound::KeyLow);
-		const int lowVelo = selectedSounds->getSelectedItem(0)->getSound()->getProperty(ModulatorSamplerSound::VeloLow);
+		auto sound = selectedSounds->getSelectedItem(0).get();
 
-		const int hiKey = selectedSounds->getSelectedItem(0)->getSound()->getProperty(ModulatorSamplerSound::KeyHigh);
-		const int hiVelo = selectedSounds->getSelectedItem(0)->getSound()->getProperty(ModulatorSamplerSound::VeloHigh);
+		if (sound == nullptr)
+			return;
 
-		const int group = selectedSounds->getSelectedItem(0)->getSound()->getProperty(ModulatorSamplerSound::RRGroup);
+		const int lowKey = selectedSounds->getSelectedItem(0)->getSound()->getSampleProperty(SampleIds::LoKey);
+		const int lowVelo = selectedSounds->getSelectedItem(0)->getSound()->getSampleProperty(SampleIds::LoVel);
+
+		const int hiKey = selectedSounds->getSelectedItem(0)->getSound()->getSampleProperty(SampleIds::HiKey);
+		const int hiVelo = selectedSounds->getSelectedItem(0)->getSound()->getSampleProperty(SampleIds::HiVel);
+
+		const int group = selectedSounds->getSelectedItem(0)->getSound()->getSampleProperty(SampleIds::RRGroup);
 
 		for(int i = 0; i < sampleComponents.size(); i++)
 		{
-			const int thisLowKey = sampleComponents[i]->getSound()->getProperty(ModulatorSamplerSound::KeyLow);
-			const int thisLowVelo = sampleComponents[i]->getSound()->getProperty(ModulatorSamplerSound::VeloLow);
+			const int thisLowKey = sampleComponents[i]->getSound()->getSampleProperty(SampleIds::LoKey);
+			const int thisLowVelo = sampleComponents[i]->getSound()->getSampleProperty(SampleIds::LoVel);
 
-			const int thisHiKey = sampleComponents[i]->getSound()->getProperty(ModulatorSamplerSound::KeyHigh);
-			const int thisHiVelo = sampleComponents[i]->getSound()->getProperty(ModulatorSamplerSound::VeloHigh);
+			const int thisHiKey = sampleComponents[i]->getSound()->getSampleProperty(SampleIds::HiKey);
+			const int thisHiVelo = sampleComponents[i]->getSound()->getSampleProperty(SampleIds::HiVel);
 
-			const int thisGroup = sampleComponents[i]->getSound()->getProperty(ModulatorSamplerSound::RRGroup);
+			const int thisGroup = sampleComponents[i]->getSound()->getSampleProperty(SampleIds::RRGroup);
 
 			if(thisGroup != group) continue;
 
@@ -351,15 +348,15 @@ void SamplerSoundMap::endSampleDragging(bool copyDraggedSounds)
 
         if(currentDragDeltaX < 0)
         {
-            d.sound->setPropertyWithUndo(ModulatorSamplerSound::RootNote, d.root + currentDragDeltaX);
-            d.sound->setPropertyWithUndo(ModulatorSamplerSound::KeyLow, d.lowKey + currentDragDeltaX);
-            d.sound->setPropertyWithUndo(ModulatorSamplerSound::KeyHigh, d.hiKey + currentDragDeltaX);
+            d.sound->setSampleProperty(SampleIds::Root, d.root + currentDragDeltaX);
+            d.sound->setSampleProperty(SampleIds::LoKey, d.lowKey + currentDragDeltaX);
+            d.sound->setSampleProperty(SampleIds::HiKey, d.hiKey + currentDragDeltaX);
         }
 		else if (currentDragDeltaX > 0)
         {
-            d.sound->setPropertyWithUndo(ModulatorSamplerSound::RootNote, d.root + currentDragDeltaX);
-            d.sound->setPropertyWithUndo(ModulatorSamplerSound::KeyHigh, d.hiKey + currentDragDeltaX);
-            d.sound->setPropertyWithUndo(ModulatorSamplerSound::KeyLow, d.lowKey + currentDragDeltaX);
+            d.sound->setSampleProperty(SampleIds::Root, d.root + currentDragDeltaX);
+            d.sound->setSampleProperty(SampleIds::HiKey, d.hiKey + currentDragDeltaX);
+            d.sound->setSampleProperty(SampleIds::LoKey, d.lowKey + currentDragDeltaX);
         }
 
 		if (currentDragDeltaY < 0)
@@ -368,23 +365,35 @@ void SamplerSoundMap::endSampleDragging(bool copyDraggedSounds)
 			const int lowVelo = jmax<int>(0, d.loVel + currentDragDeltaY);
 			const int highVelo = jmin<int>(127, d.hiVel + currentDragDeltaY);
 
-			d.sound->setPropertyWithUndo(ModulatorSamplerSound::VeloLow, lowVelo);
-			d.sound->setPropertyWithUndo(ModulatorSamplerSound::VeloHigh, highVelo);
+			d.sound->setSampleProperty(SampleIds::LoVel, lowVelo);
+			d.sound->setSampleProperty(SampleIds::HiVel, highVelo);
 		}
 		else if (currentDragDeltaY > 0)
 		{
 			const int lowVelo = jmax<int>(0, d.loVel + currentDragDeltaY);
 			const int highVelo = jmin<int>(127, d.hiVel + currentDragDeltaY);
 
-			d.sound->setPropertyWithUndo(ModulatorSamplerSound::VeloHigh, highVelo);
-			d.sound->setPropertyWithUndo(ModulatorSamplerSound::VeloLow, lowVelo);
+			d.sound->setSampleProperty(SampleIds::HiVel, highVelo);
+			d.sound->setSampleProperty(SampleIds::LoVel, lowVelo);
 		}
 			
 	}
 
-	ownerSampler->getUndoManager()->beginNewTransaction();
 
 	sampleDraggingEnabled = false;
+	refreshGraphics();
+}
+
+void SamplerSoundMap::samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& /*newValue*/)
+{
+	auto index = s->getId();
+
+	if (SampleIds::Helpers::isMapProperty(id) && index < sampleComponents.size())
+	{
+		updateSampleComponent(index);
+	}
+
+	
 }
 
 void SamplerSoundMap::preloadStateChanged(bool isPreloading_)
@@ -521,7 +530,7 @@ void SamplerSoundMap::paintOverChildren(Graphics &g)
 		g.fillAll(Colour(0xAA222222));
 		g.setFont(GLOBAL_BOLD_FONT());
 		g.setColour(Colours::white);
-		g.drawText("Preloading", FLOAT_RECTANGLE(getLocalBounds()), Justification::centred);
+		g.drawText("Preloading", getLocalBounds().toFloat(), Justification::centred);
 	}
 	else
 	{
@@ -556,8 +565,8 @@ void SamplerSoundMap::paintOverChildren(Graphics &g)
 				const int y = (int)(getHeight() - (d.hiVel + currentDragDeltaY) * velocityHeight);
 				const int h = (int)((127.0f - (float)(d.loVel + currentDragDeltaY)) * velocityHeight) - y;
 
-				//const int y = (int)(getHeight() - (float)d.sound->getProperty(ModulatorSamplerSound::VeloHigh) * velocityHeight);
-				//const int h = (int)((127.0f - (float)d.sound->getProperty(ModulatorSamplerSound::VeloLow)) * velocityHeight) - y;
+				//const int y = (int)(getHeight() - (float)d.sound->getSampleProperty(SampleIds::HiVel) * velocityHeight);
+				//const int h = (int)((127.0f - (float)d.sound->getSampleProperty(SampleIds::LoVel)) * velocityHeight) - y;
 
 				g.setColour(Colours::blue.withAlpha(0.4f));
 
@@ -612,7 +621,7 @@ void SamplerSoundMap::drawSampleMapForDragPosition()
 
 void SamplerSoundMap::updateSampleComponentWithSound(ModulatorSamplerSound *sound)
 {
-    const int index = (int)sound->getProperty(ModulatorSamplerSound::Property::ID);
+    const int index = (int)sound->getSampleProperty(SampleIds::ID);
     
     if(index < sampleComponents.size())
     {
@@ -636,11 +645,11 @@ void SamplerSoundMap::updateSampleComponent(int index)
 
 		jassert(s != nullptr);
 
-		const float x = (float)s->getProperty(ModulatorSamplerSound::KeyLow) * noteWidth;
-		const float x_max = ((float)s->getProperty(ModulatorSamplerSound::KeyHigh) + 1.0f) * noteWidth;
+		const float x = (float)s->getSampleProperty(SampleIds::LoKey) * noteWidth;
+		const float x_max = ((float)s->getSampleProperty(SampleIds::HiKey) + 1.0f) * noteWidth;
 
-		const int y = getHeight() - (int)s->getProperty(ModulatorSamplerSound::VeloHigh) * velocityHeight - velocityHeight;
-		const int y_max = getHeight() - (int)s->getProperty(ModulatorSamplerSound::VeloLow) * velocityHeight;
+		const int y = getHeight() - (int)s->getSampleProperty(SampleIds::HiVel) * velocityHeight - velocityHeight;
+		const int y_max = getHeight() - (int)s->getSampleProperty(SampleIds::LoVel) * velocityHeight;
 
 		sampleComponents[index]->setSampleBounds((int)x, (int)y, (int)(x_max - x), (int)(y_max-y));
 		
@@ -782,7 +791,7 @@ void SamplerSoundMap::mouseMove(const MouseEvent &e)
 
 	if(c != nullptr && c->getSound() != nullptr)
 	{
-		setTooltip(c->getSound()->getPropertyAsString(ModulatorSamplerSound::FileName));
+		setTooltip(c->getSound()->getPropertyAsString(SampleIds::FileName));
 	}
 	else
 	{
@@ -921,18 +930,22 @@ void SamplerSoundMap::checkEventForSampleDragging(const MouseEvent &e)
 
 		for(int i = 0; i < selectedSounds->getNumSelected(); i++)
 		{
-			DragData d;
+			if (auto sc = selectedSounds->getSelectedItem(i))
+			{
+				DragData d;
 
-			d.sound = selectedSounds->getSelectedItem(i)->getSound();
+				d.sound = sc->getSound();
 
-			d.root = d.sound->getProperty(ModulatorSamplerSound::RootNote);
-			d.lowKey = d.sound->getProperty(ModulatorSamplerSound::KeyLow);
-			d.hiKey = d.sound->getProperty(ModulatorSamplerSound::KeyHigh);
-			d.loVel = d.sound->getProperty(ModulatorSamplerSound::VeloLow);
-			d.hiVel = d.sound->getProperty(ModulatorSamplerSound::VeloHigh);
+				d.root = d.sound->getSampleProperty(SampleIds::Root);
+				d.lowKey = d.sound->getSampleProperty(SampleIds::LoKey);
+				d.hiKey = d.sound->getSampleProperty(SampleIds::HiKey);
+				d.loVel = d.sound->getSampleProperty(SampleIds::LoVel);
+				d.hiVel = d.sound->getSampleProperty(SampleIds::HiVel);
 
 
-			dragStartData.add(d);
+				dragStartData.add(d);
+			}
+
 		}
 	}
 }
@@ -1065,7 +1078,7 @@ void MapWithKeyboard::mouseDown(const MouseEvent &e)
 
 	HiseEvent m(HiseEvent::Type::NoteOn, (uint8)lastNoteNumber, (uint8)velocity, 1);
 
-    ScopedLock sl(sampler->getSynthLock());
+    ScopedLock sl(sampler->getMainController()->getLock());
 	sampler->preHiseEventCallback(m);
 	sampler->noteOn(m);
 
@@ -1085,7 +1098,7 @@ void MapWithKeyboard::mouseUp(const MouseEvent &e)
 
 	sampler->preHiseEventCallback(m);
     
-    ScopedLock sl(sampler->getSynthLock());
+    ScopedLock sl(sampler->getMainController()->getLock());
 	sampler->noteOff(m);
 
 	lastNoteNumber = -1;
@@ -1099,12 +1112,11 @@ void MapWithKeyboard::mouseUp(const MouseEvent &e)
 
 SamplerSoundTable::SamplerSoundTable(ModulatorSampler *ownerSampler_, SampleEditHandler* handler)   :
 	SamplerSubEditor(handler),
+	PreloadListener(ownerSampler_->getMainController()->getSampleManager()),
 	font (GLOBAL_FONT()),
 	ownerSampler(ownerSampler_),
 	internalSelection(false)
 {
-	ownerSampler->getMainController()->getSampleManager().addPreloadListener(this);
-
     // Create our table component and add it to this component..
     addAndMakeVisible (table);
     table.setModel (this);
@@ -1116,16 +1128,34 @@ SamplerSoundTable::SamplerSoundTable(ModulatorSampler *ownerSampler_, SampleEdit
     table.setOutlineThickness (0);
 
 
-#define PROPERTY(x) ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::x), ModulatorSamplerSound::x
+	columnIds.add(SampleIds::ID);
+	columnIds.add(SampleIds::FileName);
+	columnIds.add(SampleIds::RRGroup);
+	columnIds.add(SampleIds::Root);
+	columnIds.add(SampleIds::LoKey);
+	columnIds.add(SampleIds::HiKey);
+	columnIds.add(SampleIds::LoVel);
+	columnIds.add(SampleIds::HiVel);
 
-	table.getHeader().addColumn(PROPERTY(ID), 30, 30, 30, TableHeaderComponent::ColumnPropertyFlags::notResizable);
-	table.getHeader().addColumn(PROPERTY(FileName), 320, -1, -1, TableHeaderComponent::notResizable);
-	table.getHeader().addColumn(PROPERTY(RRGroup), 50, 50, 50, TableHeaderComponent::notResizable);
-    table.getHeader().addColumn(PROPERTY(RootNote), 50, 50, 50, TableHeaderComponent::notResizable);
-	table.getHeader().addColumn(PROPERTY(KeyHigh), 50, 50, 50, TableHeaderComponent::notResizable);
-	table.getHeader().addColumn(PROPERTY(KeyLow), 50, 50, 50, TableHeaderComponent::notResizable);
-	table.getHeader().addColumn(PROPERTY(VeloLow), 50, 50, 50, TableHeaderComponent::notResizable);
-	table.getHeader().addColumn(PROPERTY(VeloHigh), 50, 50, 50, TableHeaderComponent::notResizable);
+	for (auto c : columnIds)
+	{
+		int i1, i2, i3 = 50;
+
+		if (c == SampleIds::FileName)
+		{
+			i1 = 320;
+			i2 = 320;
+			i3 = 600;
+		}
+		else
+		{
+			i1 = 40;
+			i2 = 40;
+			i3 = 40;
+		}
+
+		table.getHeader().addColumn(c.toString(), columnIds.indexOf(c)+1, i1, i2, i3, TableHeaderComponent::notResizable);
+	}
 
 	table.getHeader().setLookAndFeel(&laf);
 
@@ -1135,15 +1165,11 @@ SamplerSoundTable::SamplerSoundTable(ModulatorSampler *ownerSampler_, SampleEdit
 
 	table.getHeader().setStretchToFitActive(true);
 	
-
-#undef PROPERTY
-
 	refreshList();
 }
 
 SamplerSoundTable::~SamplerSoundTable()
 {
-	ownerSampler->getMainController()->getSampleManager().removePreloadListener(this);
 }
 
 void SamplerSoundTable::refreshList()
@@ -1219,10 +1245,10 @@ void SamplerSoundTable::paintCell (Graphics& g, int rowNumber, int columnId,
 			return;
 
 
-		String text(sortedSoundList[rowNumber]->getPropertyAsString((ModulatorSamplerSound::Property)columnId));
+		auto id = columnIds[columnId-1];
 
-        
-        
+		String text(sortedSoundList[rowNumber]->getPropertyAsString(id));
+
 		g.drawText(text, 2, 0, width - 4, height, Justification::centred, true);
 
 		g.setColour(Colours::black.withAlpha(0.2f));
@@ -1238,7 +1264,7 @@ void SamplerSoundTable::sortOrderChanged (int newSortColumnId, bool isForwards)
 {
     if (newSortColumnId != 0)
     {
-		DemoDataSorter sorter ((ModulatorSamplerSound::Property)newSortColumnId, isForwards);
+		DemoDataSorter sorter (columnIds[newSortColumnId-1], isForwards);
 
 		sortedSoundList.sort(sorter);
         table.updateContent();
@@ -1271,6 +1297,12 @@ void SamplerSoundTable::resized()
 	table.getHeader().setColumnWidth(ModulatorSamplerSound::FileName, table.getVisibleRowWidth() - 330);
 }
 
+
+void SamplerSoundTable::refreshPropertyForRow(int index, const Identifier& id)
+{
+	if (columnIds.contains(id))
+		table.repaintRow(index);
+}
 
 void SamplerSoundTable::selectedRowsChanged(int /*lastRowSelected*/)
 {

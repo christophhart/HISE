@@ -39,7 +39,6 @@ namespace hise { using namespace juce;
 #define JUCE_WINDOWS 1
 #endif
 
-#define JUCE_LIVE_CONSTANT_OFF(x) x
 
 #if ENABLE_CONSOLE_OUTPUT
 #define debugToConsole(p, x) (p->getMainController()->writeToConsole(x, 0, p))
@@ -53,14 +52,11 @@ namespace hise { using namespace juce;
 
 #define CONTAINER_WIDTH 900 - 32
 
-
 #if USE_COPY_PROTECTION
 #define CHECK_KEY(mainController){ if(FrontendProcessor* fp = dynamic_cast<FrontendProcessor*>(mainController)) fp->checkKey();}
 #else
 #define CHECK_KEY(mainController) {mainController;}
 #endif
-
-#define SCALE_FACTOR() ((float)Desktop::getInstance().getDisplays().getMainDisplay().scale)
 
 #if JUCE_DEBUG || USE_FRONTEND || JUCE_MAC
 #define RETURN_IF_NO_THROW(x) return x;
@@ -70,6 +66,17 @@ namespace hise { using namespace juce;
 #define RETURN_VOID_IF_NO_THROW()
 #endif
 
+
+#if USE_BACKEND
+#ifndef HI_ENABLE_EXPANSION_EDITING
+#define HI_ENABLE_EXPANSION_EDITING 1
+#endif
+#else
+#ifndef HI_ENABLE_EXPANSION_EDITING
+#define HI_ENABLE_EXPANSION_EDITING 0
+#endif
+#endif
+
 #if USE_BACKEND
 #define BACKEND_ONLY(x) x 
 #define FRONTEND_ONLY(x)
@@ -77,6 +84,8 @@ namespace hise { using namespace juce;
 #define BACKEND_ONLY(x)
 #define FRONTEND_ONLY(x) x
 #endif
+
+
 
 #if FRONTEND_IS_PLUGIN
 #define FX_ONLY(x) x
@@ -99,72 +108,34 @@ namespace hise { using namespace juce;
 #endif
 
 
-#if JUCE_WINDOWS || JUCE_MAC || JUCE_IOS
+#define ENABLE_KILL_LOG 0
 
-static Typeface::Ptr oxygenBoldTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_bold_ttf, HiBinaryData::FrontendBinaryData::oxygen_bold_ttfSize);
-static Typeface::Ptr oxygenTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_regular_ttf, HiBinaryData::FrontendBinaryData::oxygen_regular_ttfSize);
-static Typeface::Ptr sourceCodeProTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otf, HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otfSize);
-static Typeface::Ptr sourceCodeProBoldTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProBold_otf, HiBinaryData::FrontendBinaryData::SourceCodeProBold_otfSize);
-
-#define GLOBAL_FONT() (Font(oxygenTypeFace).withHeight(13.0f))
-#define GLOBAL_BOLD_FONT() (Font(oxygenBoldTypeFace).withHeight(14.0f))
-#define GLOBAL_MONOSPACE_FONT() (Font(sourceCodeProTypeFace).withHeight(14.0f))
-
+#if ENABLE_KILL_LOG
+#define KILL_LOG(x) DBG(x)
 #else
-
-class LinuxFontHandler
-{
-    public:
-
-    LinuxFontHandler()
-    {
-        Typeface::Ptr oxygenBoldTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_bold_ttf, HiBinaryData::FrontendBinaryData::oxygen_bold_ttfSize);
-        Typeface::Ptr oxygenTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_regular_ttf, HiBinaryData::FrontendBinaryData::oxygen_regular_ttfSize);
-        Typeface::Ptr sourceCodeProTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otf, HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otfSize);
-        Typeface::Ptr sourceCodeProBoldTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProBold_otf, HiBinaryData::FrontendBinaryData::SourceCodeProBold_otfSize);
-
-        globalFont = Font(oxygenTypeFace).withHeight(13.0f);
-        globalBoldFont = Font(oxygenBoldTypeFace).withHeight(14.0f);
-        monospaceFont = Font(sourceCodeProTypeFace).withHeight(14.0f);
-    }
-
-    
-
-    Font globalFont;
-    Font globalBoldFont;
-    Font monospaceFont;
-
-    class Instance
-    {
-    public:
-
-        Instance() {};
-
-        Font getGlobalFont() {return data->globalFont;};
-        Font getGlobalBoldFont() {return data->globalBoldFont;};
-        Font getGlobalMonospaceFont() {return data->monospaceFont; }
-
-    private:
-
-        SharedResourcePointer<LinuxFontHandler> data;
-    };
-};
-
-#define GLOBAL_FONT() (LinuxFontHandler::Instance().getGlobalFont())
-#define GLOBAL_BOLD_FONT() (LinuxFontHandler::Instance().getGlobalBoldFont())
-#define GLOBAL_MONOSPACE_FONT() (LinuxFontHandler::Instance().getGlobalMonospaceFont())
-
+#define KILL_LOG(x)
 #endif
 
+#define LOG_KILL_EVENTS KILL_LOG
+
+#if USE_BACKEND
+#define export_ci() CompileExporter::isExportingFromCommandLine()
+#else
+#define export_ci() false
+#endif
+
+#define jassert_message_thread jassert(export_ci() || MessageManager::getInstance()->currentThreadHasLockedMessageManager())
+#define jassert_locked_script_thread(mc) jassert(export_ci() ||LockHelpers::isLockedBySameThread(mc, LockHelpers::ScriptLock));
+#define jassert_dispatched_message_thread(mc) jassert_message_thread; jassert(export_ci() || mc->getLockFreeDispatcher().isInDispatchLoop());
+#define jassert_sample_loading_thread(mc) jassert(export_ci() || mc->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::SampleLoadingThread);
+#define jassert_sample_loading_or_global_lock(mc) jassert(export_ci() || mc->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::SampleLoadingThread || mc->getKillStateHandler().globalLockIsActive());
+#define jassert_processor_idle jassert(export_ci() || !isOnAir() || !getMainController()->getKillStateHandler().isAudioRunning());
+#define jassert_global_lock(mc) jassert(export_ci() || mc->getKillStateHandler().globalLockIsActive());
 
 
-#define MARKDOWN_CHAPTER(chapter) namespace chapter {
-#define START_MARKDOWN(name) static const String name() { String content; static const String nl = "\n";
-#define ML(text) content << text << nl;
-#define ML_START_CODE() ML("```javascript")
-#define ML_END_CODE() ML("```")
-#define END_MARKDOWN() return content; };
-#define END_MARKDOWN_CHAPTER() }
+#define LOCK_PROCESSING_CHAIN(parent) LockHelpers::SafeLock itLock(parent->getMainController(), LockHelpers::IteratorLock, parent->isOnAir()); \
+								  LockHelpers::SafeLock audioLock(parent->getMainController(), LockHelpers::AudioLock, parent->isOnAir());
+
 
 
 #define HI_DECLARE_LISTENER_METHODS(x) public: \
@@ -173,15 +144,10 @@ class LinuxFontHandler
 	private:\
 	Array<WeakReference<x>> listeners;
 
-#define RETURN_STATIC_IDENTIFIER(name) static const Identifier id(name); return id;
 
-
-#define SET_GENERIC_PANEL_ID(x) static Identifier getGenericPanelId() { RETURN_STATIC_IDENTIFIER(x) }
 
 #define GET_PROJECT_HANDLER(x)(x->getMainController()->getSampleManager().getProjectHandler())
 
-#define SET_PANEL_NAME(x) static Identifier getPanelId() { RETURN_STATIC_IDENTIFIER(x) }; Identifier getIdentifierForBaseClass() const override { return getPanelId(); };
-#define GET_PANEL_NAME(className) className::getPanelId()	
 
 #define GET_PROCESSOR_TYPE_ID(ProcessorClass) Identifier getProcessorTypeId() const override { return ProcessorClass::getConnectorId(); }
 #define SET_PROCESSOR_CONNECTOR_TYPE_ID(name) static Identifier getConnectorId() { RETURN_STATIC_IDENTIFIER(name) };
@@ -197,141 +163,15 @@ class LinuxFontHandler
 #define IGNORE_UNUSED_IN_RELEASE(x) (ignoreUnused(x))
 #endif
 
-#define FLOAT_RECTANGLE(r) Rectangle<float>((float)r.getX(), (float)r.getY(), (float)r.getWidth(), (float)r.getHeight())
-#define INT_RECTANGLE(r) Rectangle<int>((int)r.getX(), (int)r.getY(), (int)r.getWidth(), (int)r.getHeight())
-
-#define CONSTRAIN_TO_0_1(x)(jlimit<float>(0.0f, 1.0f, x))
-
 #define RETURN_WHEN_X_BUTTON() if (e.mods.isX1ButtonDown() || e.mods.isX2ButtonDown()) return;
 
-struct HiseColourScheme
-{
-	enum Scheme
-	{
-		Dark,
-		Bright,
-		numSchemes
-	};
-
-	enum ColourIds
-	{
-		EditorBackgroundColourId,
-		EditorBackgroundColourIdBright,
-		ModulatorSynthBackgroundColourId,
-		DebugAreaBackgroundColourId,
-		ModulatorSynthHeader,
-		numColourIds
-	};
-
-	static Colour getColour(ColourIds id)
-	{
-		switch (id)
-		{
-		case HiseColourScheme::EditorBackgroundColourId:
-		{
-			switch (currentColourScheme)
-			{
-			case HiseColourScheme::Dark:
-				return JUCE_LIVE_CONSTANT_OFF(Colour(0xff515151));
-			case HiseColourScheme::Bright:
-				return JUCE_LIVE_CONSTANT_OFF(Colour(0xff898989));
-			case HiseColourScheme::numSchemes:
-				break;
-			}
-		}
-		case HiseColourScheme::EditorBackgroundColourIdBright:
-		{
-			switch (currentColourScheme)
-			{
-			case HiseColourScheme::Dark:
-				return JUCE_LIVE_CONSTANT_OFF(Colour(0xFF666666));
-			case HiseColourScheme::Bright:
-				return JUCE_LIVE_CONSTANT_OFF(Colour(0xFF666666));
-			case HiseColourScheme::numSchemes:
-				break;
-			}
-		}
-		case HiseColourScheme::ModulatorSynthBackgroundColourId:
-		{
-			switch (currentColourScheme)
-			{
-			case HiseColourScheme::Dark:
-				return JUCE_LIVE_CONSTANT_OFF(Colour(0xff414141));
-			case HiseColourScheme::Bright:
-				return JUCE_LIVE_CONSTANT_OFF(Colour(0xff5e5e5e));
-			case HiseColourScheme::numSchemes:
-				break;
-			}
-		}
-			
-		case HiseColourScheme::DebugAreaBackgroundColourId:
-		{
-			switch (currentColourScheme)
-			{
-			case HiseColourScheme::Dark:
-				return JUCE_LIVE_CONSTANT_OFF(Colour(0xFF3D3D3D));
-			case HiseColourScheme::Bright:
-				return JUCE_LIVE_CONSTANT_OFF(Colour(0xff5d5d5d));
-			case HiseColourScheme::numSchemes:
-				break;
-			}
-		}
-		
-		case HiseColourScheme::ModulatorSynthHeader:
-		{
-			switch (currentColourScheme)
-			{
-			case HiseColourScheme::Dark:
-				return JUCE_LIVE_CONSTANT_OFF(Colour(0xFFEEEEEE));
-			case HiseColourScheme::Bright:
-				return JUCE_LIVE_CONSTANT_OFF(Colour(0xFFEEEEEE));
-			case HiseColourScheme::numSchemes:
-				break;
-			}
-		}
-
-		default:
-			break;
-		}
-
-		jassertfalse;
-		return Colours::transparentBlack;
-	}
-
-	static void setColourScheme(Scheme s)
-	{
-		currentColourScheme = s;
-	}
-
-	static Scheme getCurrentColourScheme()
-	{
-		return currentColourScheme;
-	}
-
-private:
-
-
-	static Scheme currentColourScheme;
-};
-
-
-#define DEBUG_AREA_BACKGROUND_COLOUR_DARK 0x03000000
-#define BACKEND_BG_COLOUR 0xFF888888//0xff4d4d4d
-#define BACKEND_BG_COLOUR_BRIGHT 0xFF646464
-
-#define BACKEND_ICON_COLOUR_ON 0xCCFFFFFF
-#define BACKEND_ICON_COLOUR_OFF 0xFF333333
-
-#define SIGNAL_COLOUR 0xFF90FFB1
-
-#define DEBUG_BG_COLOUR 0xff636363
-
-
-#if HISE_IOS
-#define SET_IMAGE_RESAMPLING_QUALITY() g.setImageResamplingQuality (Graphics::ResamplingQuality::lowResamplingQuality);
+#if JUCE_ENABLE_AUDIO_GUARD
+#define LOCK_WITH_GUARD(mc) AudioThreadGuard guard(&(mc->getKillStateHandler())); GuardedScopedLock sl(mc->getLock());
 #else
-#define SET_IMAGE_RESAMPLING_QUALITY()
+#define LOCK_WITH_GUARD(mc) ScopedLock sl(mc->getLock());
 #endif
+
+#define GET_HISE_SETTING(processor, settingId) dynamic_cast<GlobalSettingManager*>(processor->getMainController())->getSettingsObject().getDefaultSetting(settingId)
 
 #include "copyProtectionMacros.h"
 

@@ -1,38 +1,49 @@
-/*  HISE Lossless Audio Codec
-*	�2017 Christoph Hart
-*
-*	Redistribution and use in source and binary forms, with or without modification,
-*	are permitted provided that the following conditions are met:
-*
-*	1. Redistributions of source code must retain the above copyright notice,
-*	   this list of conditions and the following disclaimer.
-*
-*	2. Redistributions in binary form must reproduce the above copyright notice,
-*	   this list of conditions and the following disclaimer in the documentation
-*	   and/or other materials provided with the distribution.
-*
-*	3. All advertising materials mentioning features or use of this software must
-*	   display the following acknowledgement:
-*	   This product includes software developed by Hart Instruments
-*
-*	4. Neither the name of the copyright holder nor the names of its contributors may be used
-*	   to endorse or promote products derived from this software without specific prior written permission.
-*
-*	THIS SOFTWARE IS PROVIDED BY CHRISTOPH HART "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING,
-*	BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-*	DISCLAIMED. IN NO EVENT SHALL COPYRIGHT HOLDER BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-*	SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
-*	GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-*	THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-*	ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*
-*/
+/*  ===========================================================================
+ *
+ *   This file is part of HISE.
+ *   Copyright 2016 Christoph Hart
+ *
+ *   HISE is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation, either version 3 of the License, or
+ *   (at your option) any later version.
+ *
+ *   HISE is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *   Commercial licenses for using HISE in an closed source project are
+ *   available on request. Please visit the project's website to get more
+ *   information about commercial licensing:
+ *
+ *   http://www.hise.audio/
+ *
+ *   HISE is based on the JUCE library,
+ *   which must be separately licensed for closed source applications:
+ *
+ *   http://www.juce.com
+ *
+ *   ===========================================================================
+ */
 
 namespace hlac { using namespace juce; 
 
 void HlacEncoder::compress(AudioSampleBuffer& source, OutputStream& output, uint32* blockOffsetData)
 {
 	bool compressStereo = source.getNumChannels() == 2;
+
+	if (options.normalisationMode == CompressionHelpers::NormaliseMap::Mode::StaticNormalisation)
+	{
+		auto maxLevel = source.getMagnitude(0, source.getNumSamples());
+		auto db = -1.0f * Decibels::gainToDecibels(maxLevel);
+		currentNormaliseBitShiftAmount = jmin<int>(8, (int)(db / 6.0f));
+	}
+	else
+		currentNormaliseBitShiftAmount = 0;
 
 	if (source.getNumSamples() == COMPRESSION_BLOCK_SIZE)
 	{
@@ -42,8 +53,9 @@ void HlacEncoder::compress(AudioSampleBuffer& source, OutputStream& output, uint
 		if (compressStereo)
 		{
 			auto l = CompressionHelpers::getPart(source, 0, 0, COMPRESSION_BLOCK_SIZE);
-			encodeBlock(l, output);
 			auto r = CompressionHelpers::getPart(source, 1, 0, COMPRESSION_BLOCK_SIZE);
+
+			encodeBlock(l, output);
 			encodeBlock(r, output);
 		}
 		else
@@ -65,16 +77,17 @@ void HlacEncoder::compress(AudioSampleBuffer& source, OutputStream& output, uint
 		if (compressStereo)
 		{
 			auto l = CompressionHelpers::getPart(source, 0, blockOffset, numTodo);
-			encodeBlock(l, output);
 			auto r = CompressionHelpers::getPart(source, 1, blockOffset, numTodo);
+
+			encodeBlock(l, output);
 			encodeBlock(r, output);
 		}
 		else
 		{
 			auto b = CompressionHelpers::getPart(source, blockOffset, numTodo);
+			
 			encodeBlock(b, output);
 		}
-
 
 		blockOffset += numTodo;
 
@@ -139,7 +152,10 @@ float HlacEncoder::getCompressionRatio() const
 
 bool HlacEncoder::encodeBlock(AudioSampleBuffer& block, OutputStream& output)
 {
-	auto block16 = CompressionHelpers::AudioBufferInt16(block, 0, false);
+	auto block16 = CompressionHelpers::AudioBufferInt16(block, 0, options.normalisationMode, options.normalisationThreshold);
+
+	if (!normaliseBlockAndAddHeader(block16, output))
+		return false;
 
 	return encodeBlock(block16, output);
 }
@@ -147,11 +163,10 @@ bool HlacEncoder::encodeBlock(AudioSampleBuffer& block, OutputStream& output)
 bool HlacEncoder::encodeBlock(CompressionHelpers::AudioBufferInt16& block16, OutputStream& output)
 {
 	auto compressedBlock = createCompressedBlock(block16);
-
 	auto thisBlockSize = compressedBlock.getSize();
 
 	writeChecksumBytesForBlock(output);
-
+	
 	if (thisBlockSize > 2 * COMPRESSION_BLOCK_SIZE)
 	{
 		writeCycleHeader(true, 16, COMPRESSION_BLOCK_SIZE, output);
@@ -168,6 +183,14 @@ bool HlacEncoder::encodeBlock(CompressionHelpers::AudioBufferInt16& block16, Out
 }
 
 
+bool HlacEncoder::normaliseBlockAndAddHeader(CompressionHelpers::AudioBufferInt16& block16, OutputStream& output)
+{
+#if HLAC_VERSION > 2
+	numBytesWritten += 4;
+	return block16.getMap().writeNormalisationHeader(output);
+#endif
+}
+
 MemoryBlock HlacEncoder::createCompressedBlock(CompressionHelpers::AudioBufferInt16& block16)
 {
 	jassert(block16.size == COMPRESSION_BLOCK_SIZE);
@@ -175,21 +198,34 @@ MemoryBlock HlacEncoder::createCompressedBlock(CompressionHelpers::AudioBufferIn
 	MemoryOutputStream blockMos;
 
 	firstCycleLength = -1;
-
+	
 	auto maxBitDepth = CompressionHelpers::getPossibleBitReductionAmount(block16);
-
-	LOG("ENC " + String(numBytesUncompressed / 2) + "\t\tNew Block with bit depth: " + String(maxBitDepth));
-
+	
 	numBytesUncompressed += COMPRESSION_BLOCK_SIZE * 2;
 
 	if (maxBitDepth <= options.bitRateForWholeBlock)
 	{
 		indexInBlock = 0;
-		encodeCycle(block16, blockMos);
 
+		if (options.fixedBlockWidth > 0)
+		{
+			while (!isBlockExhausted())
+			{
+				int numRemaining = jmin<int>(options.fixedBlockWidth, COMPRESSION_BLOCK_SIZE - indexInBlock);
+				auto part = CompressionHelpers::getPart(block16, indexInBlock, numRemaining);
+				encodeCycle(part, blockMos);
+				indexInBlock += numRemaining;
+			}
+		}
+		else
+		{
+			encodeCycle(block16, blockMos);
+		}
+		
 		blockMos.flush();
 		return blockMos.getMemoryBlock();
 	}
+
 
 	indexInBlock = 0;
 
@@ -198,8 +234,14 @@ MemoryBlock HlacEncoder::createCompressedBlock(CompressionHelpers::AudioBufferIn
 		int numRemaining = COMPRESSION_BLOCK_SIZE - indexInBlock;
 		auto rest = CompressionHelpers::getPart(block16, indexInBlock, numRemaining);
 
+
 		if (numRemaining <= 4)
 		{
+			
+
+			LOG("ENC " + String(numBytesUncompressed / 2) + "\t\tNew Block with bit depth: " + String(maxBitDepth));
+
+
 			if (!encodeCycleDelta(rest, blockMos))
 				return MemoryBlock();
 
@@ -216,9 +258,6 @@ MemoryBlock HlacEncoder::createCompressedBlock(CompressionHelpers::AudioBufferIn
 				idealCycleLength = options.fixedBlockWidth;
 			else
 				idealCycleLength = getCycleLength(rest) + 1;
-
-			if (options.reuseFirstCycleLengthForBlock)
-				firstCycleLength = idealCycleLength;
 		}
 		else
 			idealCycleLength = firstCycleLength;
@@ -249,37 +288,6 @@ MemoryBlock HlacEncoder::createCompressedBlock(CompressionHelpers::AudioBufferIn
 		if (!encodeCycle(currentCycle, blockMos))
 			return MemoryBlock();
 
-
-		while (options.useDeltaEncoding && !isBlockExhausted())
-		{
-			if (numRemaining >= 2*cycleLength)
-			{
-				auto nextCycle = CompressionHelpers::getPart(block16, indexInBlock, cycleLength);
-				uint8 bitReductionDelta = CompressionHelpers::getBitReductionWithTemplate(currentCycle, nextCycle, options.removeDcOffset);
-
-				float factor = (float)bitReductionDelta / (float)bitRateForCurrentCycle;
-
-				if (factor > options.deltaCycleThreshhold)
-				{
-					int nextCycleSize = getCycleLengthFromTemplate(nextCycle, rest);
-					nextCycle.size = nextCycleSize;
-
-					indexInBlock += nextCycle.size;
-
-					numRemaining = COMPRESSION_BLOCK_SIZE - indexInBlock;
-
-					jassert(indexInBlock <= COMPRESSION_BLOCK_SIZE);
-
-					encodeCycleDelta(nextCycle, blockMos);
-
-				}
-				else
-					break;
-
-			}
-			else
-				break;
-		}
 	}
 
 	blockMos.flush();
@@ -333,6 +341,19 @@ bool HlacEncoder::writeChecksumBytesForBlock(OutputStream& output)
 
 	numBytesWritten += 4;
 	return true;
+}
+
+bool HlacEncoder::writeNormalisationAmount(OutputStream& output)
+{
+#if HLAC_VERSION > 2
+	if (!output.writeByte((uint8)currentNormaliseBitShiftAmount))
+		return false;
+
+	numBytesWritten += 1;
+	return true;
+#else
+	return true;
+#endif
 }
 
 bool HlacEncoder::writeUncompressed(CompressionHelpers::AudioBufferInt16& block, OutputStream& output)
@@ -449,6 +470,8 @@ bool HlacEncoder::encodeDiff(CompressionHelpers::AudioBufferInt16& cycle, Output
 
 bool HlacEncoder::encodeCycleDelta(CompressionHelpers::AudioBufferInt16& nextCycle, OutputStream& output)
 {
+	jassertfalse;
+
     if(nextCycle.size < 8)
     {
         return encodeCycle(nextCycle, output);
@@ -511,13 +534,29 @@ bool HlacEncoder::writeDiffHeader(int fullBitRate, int errorBitRate, int blockSi
 
 void HlacEncoder::encodeLastBlock(AudioSampleBuffer& block, OutputStream& output)
 {
-	writeChecksumBytesForBlock(output);
+	CompressionHelpers::AudioBufferInt16 a(block, 0, options.normalisationMode, options.normalisationThreshold);
 
+	normaliseBlockAndAddHeader(a, output);
+	writeChecksumBytesForBlock(output);
+	
 	MemoryOutputStream lastTemp;
 
-	CompressionHelpers::AudioBufferInt16 a(block, 0, false);
+	if (options.fixedBlockWidth > 0)
+	{
+		indexInBlock = 0;
 
-	encodeCycle(a, lastTemp);
+		while (indexInBlock < a.size)
+		{
+			int numRemaining = jmin<int>(a.size - indexInBlock, options.fixedBlockWidth);
+
+			auto part = CompressionHelpers::getPart(a, indexInBlock, numRemaining);
+
+			encodeCycle(part, lastTemp);
+			indexInBlock += numRemaining;
+		}
+	}
+
+	
 
 	int numZerosToPad = COMPRESSION_BLOCK_SIZE - a.size;
 

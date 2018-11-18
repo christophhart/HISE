@@ -30,23 +30,9 @@ class PopupLabel;
 
 
 //==============================================================================
-/**
-                                                                    //[Comments]
-*	@endinternal
-*
-*	@class FileNamePartComponent
-*	@ingroup components
-*
-*	@brief A Panel component that specifies the data which will be extracted from the associated filename token.
-*
-*
-*	@see FileNameImporterDialog
-*	@internal
-                                                                    //[/Comments]
-*/
+
 class FileNamePartComponent  : public Component,
-                               public LabelListener,
-							   public ButtonListener
+                               public LabelListener
 {
 public:
     //==============================================================================
@@ -59,12 +45,12 @@ public:
 	/** A selection of useful properties that can be set via the filename token. */
 	enum TokenProperties
 	{
-		VelocityLowHigh = 0, ///< Velocity Low & High + 1: maps the value to both ModulatorSamplerSound::VeloLow and ModulatorSamplerSound::VeloHigh (+1). Use SampleImporter::fillGaps() after this.
+		VelocityLowHigh = 0, ///< Velocity Low & High + 1: maps the value to both ModulatorSamplerSound::LoVel and ModulatorSamplerSound::HiVel (+1). Use SampleImporter::fillGaps() after this.
 		VelocityRange, ///< Use this with 'NumericRange' for velocity information like '63-127'
 		VelocitySpread, ///< Spread Velocity to complete range: spreads the velocity evenly to the complete Range. Use the data type number and enter the upper limit into the item list or use the custom data type and enter the values '1 ... numItems'.
         LowVelocity, ///< the lower velocity limit
         HighVelocity, ///< the upper velocity limit
-		SingleKey, ///< Set to single Key: maps the value to RootNote, KeyLow and KeyHigh. SampleImporter::fillGaps might come in handy after this.
+		SingleKey, ///< Set to single Key: maps the value to RootNote, LoKey and HiKey. SampleImporter::fillGaps might come in handy after this.
 		Group, ///< RRGroup: moves the sound into the specified group.
 		Ignore, ///< Do nothing with this token. Use this for every token that does not contain special information (it is the default value anyway).
 		numTokenProperties
@@ -210,9 +196,6 @@ public:
 	/** imports the settings from the supplied XmlElement. */
 	void importSettings(XmlElement &p);
 
-	void buttonClicked(Button* b) override;
-	
-
     //[/UserMethods]
 
     void paint (Graphics& g);
@@ -281,9 +264,6 @@ private:
 
 	Array<SampleImporter::SamplerSoundBasicData> dataList;
 
-	ScopedPointer<ShapeButton> propertyInfoButton;
-	ScopedPointer<ShapeButton> dataInfoButton;
-
     //[/UserVariables]
 
     //==============================================================================
@@ -297,7 +277,6 @@ private:
     ScopedPointer<Label> itemLabel;
     ScopedPointer<Label> displayGroupLabel4;
     ScopedPointer<Label> valueLabel;
-
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileNamePartComponent)

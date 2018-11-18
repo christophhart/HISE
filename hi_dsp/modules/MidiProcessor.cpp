@@ -33,7 +33,7 @@
 namespace hise { using namespace juce;
 
 MidiProcessor::MidiProcessor(MainController *mc, const String &id):
-		Processor(mc, id),
+		Processor(mc, id, 1),
 		processThisMessage(true),
 		ownerSynth(nullptr),
 		numThisTime(0)
@@ -92,8 +92,6 @@ ProcessorEditorBody *MidiProcessorChain::createEditor(ProcessorEditor *parentEdi
 
 void MidiProcessorChain::addArtificialEvent(const HiseEvent& m)
 {
-	const int timeStamp = (int)m.getTimeStamp();
-
 	artificialEvents.addEvent(m);
 }
 
@@ -226,26 +224,32 @@ bool MidiProcessorFactoryType::allowType(const Identifier &typeName) const
 
 void MidiProcessorChain::MidiProcessorChainHandler::add(Processor *newProcessor, Processor *siblingToInsertBefore)
 {
-	ScopedLock sl(chain->getMainController()->getLock());
+	{
+		MidiProcessor *m = dynamic_cast<MidiProcessor*>(newProcessor);
 
-	MidiProcessor *m = dynamic_cast<MidiProcessor*>(newProcessor);
+		jassert(m != nullptr);
 
-	jassert(m != nullptr);
+		const int index = siblingToInsertBefore == nullptr ? -1 : chain->processors.indexOf(dynamic_cast<MidiProcessor*>(siblingToInsertBefore));
 
-	const int index = siblingToInsertBefore == nullptr ? -1 : chain->processors.indexOf(dynamic_cast<MidiProcessor*>(siblingToInsertBefore));
+		newProcessor->prepareToPlay(chain->getSampleRate(), chain->getLargestBlockSize());
 
-    newProcessor->prepareToPlay(chain->getSampleRate(), chain->getLargestBlockSize());
-    
-    newProcessor->setIsOnAir(true);
-    
-	chain->processors.insert(index, m);
+		
+		newProcessor->setParentProcessor(chain);
 
-	if (JavascriptMidiProcessor* sp = dynamic_cast<JavascriptMidiProcessor*>(newProcessor))
-	{	
-		sp->compileScript();
+		{
+			LOCK_PROCESSING_CHAIN(chain);
+
+			newProcessor->setIsOnAir(chain->isOnAir());
+			chain->processors.insert(index, m);
+		}
+
+		if (JavascriptMidiProcessor* sp = dynamic_cast<JavascriptMidiProcessor*>(newProcessor))
+		{
+			sp->compileScript();
+		}
 	}
-
-	sendChangeMessage();
+	
+	notifyListeners(Listener::ProcessorAdded, newProcessor);
 }
 
 } // namespace hise

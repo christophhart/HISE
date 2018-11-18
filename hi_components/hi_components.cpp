@@ -35,13 +35,11 @@
 
 #include "resizable_height_component/ResizableHeightComponent.cpp"
 
-#include "vu_meter/Plotter.cpp"
-#include "drag_plot/SliderPack.cpp"
-#include "drag_plot/TableEditor.cpp"
+
 #include "keyboard/CustomKeyboard.cpp"
 #include "plugin_components/VoiceCpuBpmComponent.cpp"
+#include "plugin_components/PresetBrowserComponents.cpp"
 #include "plugin_components/PresetBrowser.cpp"
-#include "plugin_components/PresetComponents.cpp"
 #include "plugin_components/StandalonePopupComponents.cpp"
 #include "plugin_components/PanelTypes.cpp"
 #include "plugin_components/FrontendBar.cpp"
@@ -50,9 +48,6 @@
 #include "plugin_components/PluginPreviewWindow.cpp"
 #endif
 
-#include "wave_components/SampleDisplayComponent.cpp"
-
-#include "vu_meter/VuMeter.cpp"
 
 #include "eq_plot/FilterInfo.cpp"
 #include "eq_plot/FilterGraph.cpp"
@@ -60,4 +55,6 @@
 
 
 #include "floating_layout/FloatingLayout.cpp"
+#include "hi_expansion/ExpansionFloatingTiles.cpp"
 
+#include "wave_components/SampleComponents.cpp"

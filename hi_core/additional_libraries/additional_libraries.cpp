@@ -74,6 +74,3 @@ extern "C"
 #pragma warning (pop)
 #endif
 
-
-#include "tiny_aes/aes.c"
-

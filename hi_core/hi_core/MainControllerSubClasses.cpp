@@ -185,45 +185,101 @@ int MainController::MacroManager::getMacroControlLearnMode() const
 
 
 MainController::CodeHandler::CodeHandler(MainController* mc_):
-	mc(mc_)
+	mc(mc_),
+	pendingMessages(8192)
 {
+	consoleData.setDisableUndo(true);
+}
 
+
+void MainController::CodeHandler::setMainConsole(Console* console)
+{
+	mainConsole = dynamic_cast<Component*>(console);
+}
+
+
+void MainController::CodeHandler::initialise()
+{
+	if (!initialised)
+	{
+		initialised = true;
+	}
 }
 
 
 void MainController::CodeHandler::writeToConsole(const String &t, int warningLevel, const Processor *p, Colour c)
 {
-	if (overflowProtection) return;
+	pendingMessages.push({ (WarningLevel)warningLevel, const_cast<Processor*>(p), t });
+	triggerAsyncUpdate();
+}
 
-	else
+void MainController::CodeHandler::clearConsole()
+{
+	clearFlag = true;
+
+	triggerAsyncUpdate();
+}
+
+void MainController::CodeHandler::printPendingMessagesFromQueue()
+{
+#if USE_BACKEND
+	if (clearFlag)
 	{
-		ScopedLock sl(getLock());
+		consoleData.replaceAllContent({});
+		clearFlag = false;
+	}
 
-		if (unprintedMessages.size() > 10)
+	String message;
+
+	auto f = [&message](ConsoleMessage& cm)
+	{
+		auto processor = cm.p.get();
+
+		if (processor == nullptr)
+			return MultithreadedQueueHelpers::SkipFurtherExecutions;
+
+		message << processor->getId() << ":";
+		message << (cm.warningLevel == WarningLevel::Error ? "! " : " ");
+		message << cm.message << "\n";
+
+		return MultithreadedQueueHelpers::OK;
+	};
+
+	pendingMessages.clear(f);
+
+	consoleData.insertText(consoleData.getNumCharacters(), message);
+
+	overflowProtection = false;
+
+	WeakReference<Processor> p = mc->getMainSynthChain();
+
+	auto c = mainConsole.getComponent();
+
+	auto toggle = [c](Dispatchable* obj)
+	{
+		auto p = static_cast<Processor*>(obj);
+
+		if (p->getMainController()->getConsoleHandler().getMainConsole() != nullptr)
 		{
-			unprintedMessages.push_back(ConsoleMessage(Error, const_cast<Processor*>(p), "Console Overflow"));
-			overflowProtection = true;
-			return;
-		}
-		else
-		{
-			unprintedMessages.push_back(ConsoleMessage((WarningLevel)warningLevel, const_cast<Processor*>(p), t));
-		}
-	}
+			auto rootWindow = GET_BACKEND_ROOT_WINDOW(c);
 
-	if (MessageManager::getInstance()->isThisTheMessageThread())
-	{
-		handleAsyncUpdate();
-	}
-	else
-	{
-		triggerAsyncUpdate();
-	}
+			if (rootWindow != nullptr)
+				BackendPanelHelpers::toggleVisibilityForRightColumnPanel<ConsolePanel>(rootWindow->getRootFloatingTile(), true);
+		}
+		
+		return Status::OK;
+	};
+
+	mc->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(p.get(), toggle);
+#endif
 }
 
 
 void MainController::CodeHandler::handleAsyncUpdate()
 {
+	printPendingMessagesFromQueue();
+
+#if 0
 #if USE_BACKEND
 	consoleData.clearUndoHistory();
 
@@ -276,6 +332,7 @@ void MainController::CodeHandler::handleAsyncUpdate()
 			BackendPanelHelpers::toggleVisibilityForRightColumnPanel<ConsolePanel>(rootWindow->getRootFloatingTile(), true);
 		}
 	}
+#endif
 #endif
 }
 

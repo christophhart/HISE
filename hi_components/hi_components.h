@@ -42,7 +42,7 @@ BEGIN_JUCE_MODULE_DECLARATION
   website:          http://hise.audio
   license:          GPL / Commercial
 
-  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, juce_opengl, hi_core, hi_dsp, hi_dsp_library
+  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, hi_core, hi_dsp, hi_dsp_library
 
 END_JUCE_MODULE_DECLARATION
 
@@ -57,22 +57,32 @@ END_JUCE_MODULE_DECLARATION
 #include "../hi_dsp/hi_dsp.h"
 #include "../hi_dsp_library/hi_dsp_library.h"
 
-/** @defgroup components Components
+/** @defgroup ui UI
+
+	All class related to the interface design using C++	
+*/
+
+/** @defgroup event_handling Event Handling
+	@ingroup ui
+	
+	Classes and helpers for communication between audio rendering
+	and the user interface.
+/*
+
+/** @defgroup hise_ui HISE Components
+*	@ingroup ui
 *
-*	custom components for HI.
+*	All HISE UI Components that can be used in compiled plugins.
 */
 
 
 #include "resizable_height_component/ResizableHeightComponent.h"
 
-#include "vu_meter/Plotter.h"
 
-#include "drag_plot/SliderPack.h"
-#include "drag_plot/TableEditor.h"
 #include "keyboard/CustomKeyboard.h"
 #include "plugin_components/VoiceCpuBpmComponent.h"
+#include "plugin_components/PresetBrowserComponents.h"
 #include "plugin_components/PresetBrowser.h"
-#include "plugin_components/PresetComponents.h"
 #include "plugin_components/StandalonePopupComponents.h"
 
 #include "plugin_components/FrontendBar.h"
@@ -82,9 +92,7 @@ END_JUCE_MODULE_DECLARATION
 #include "plugin_components/PluginPreviewWindow.h"
 #endif
 
-#include "wave_components/SampleDisplayComponent.h"
-
-#include "vu_meter/VuMeter.h"
+#include "wave_components/SampleComponents.h"
 
 
 #include "eq_plot/FilterInfo.h"
@@ -93,5 +101,14 @@ END_JUCE_MODULE_DECLARATION
 
 #include "floating_layout/FloatingLayout.h"
 #include "plugin_components/PanelTypes.h"
+
+#include "hi_expansion/ExpansionFloatingTiles.h"
+
+namespace hise {
+using namespace juce;
+
+}
+
+
 
 #endif  // HI_COMPONENTS_H_INCLUDED

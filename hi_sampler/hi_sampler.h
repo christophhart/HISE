@@ -42,7 +42,7 @@ BEGIN_JUCE_MODULE_DECLARATION
   website:          http://hise.audio
   license:          GPL / Commercial
 
-  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, juce_opengl, hi_core, hi_dsp, hi_components, hi_dsp_library
+  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, hi_core, hi_dsp, hi_components, hi_dsp_library
 
 END_JUCE_MODULE_DECLARATION
 
@@ -54,6 +54,11 @@ END_JUCE_MODULE_DECLARATION
 #include "../hi_components/hi_components.h"
 #include "../hi_dsp_library/hi_dsp_library.h"
 
+/** @defgroup sampler Sampler
+	@ingroup dsp
+	
+	All classes related to the sample streaming engine of HISE.
+*/
 
 
 
@@ -66,8 +71,9 @@ END_JUCE_MODULE_DECLARATION
 #include "sampler/ModulatorSamplerVoice.h"
 #include "sampler/ModulatorSampler.h"
 
-#if USE_BACKEND
 
+
+#if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING
 #include "sampler/SampleImporter.h"
 #include "sampler/SfzImporter.h"
 #include "sampler/MachFiveImporter.h"
@@ -84,6 +90,10 @@ END_JUCE_MODULE_DECLARATION
 #include "sampler/components/SampleMapEditor.h"
 #include "sampler/components/SamplerTable.h"
 #include "sampler/components/SampleEditHandler.h"
+#endif
+
+
+#if USE_BACKEND
 #include "sampler/components/SamplerBody.h"
 #endif
 

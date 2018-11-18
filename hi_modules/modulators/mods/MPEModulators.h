@@ -38,7 +38,17 @@ using namespace juce;
 
 
 
+/** A modulator that uses MPE messages to create modulation.
+	@ingroup modulatorTypes
 
+	This is a polyphonic, timevariant modulator that is able to process MIDI messages
+	according to the MPE standard and use it as modulation.
+
+	Using MPE in HISE is a special topic as it is controllable via a global state whether
+	it should be enabled or not, also the MPE modulators can be individually configured
+	using a dedicated floating tile which allows you to give the end user the ability
+	to tweak the behaviour of the sound.
+*/
 class MPEModulator : public EnvelopeModulator,
 					 public LookupTableProcessor,
 					 public MidiControllerAutomationHandler::MPEData::Listener
@@ -90,7 +100,7 @@ public:
 	Processor *getChildProcessor(int) override { return nullptr; };
 	const Processor *getChildProcessor(int) const override { return nullptr; };
 
-	void startVoice(int voiceIndex) override;
+	float startVoice(int voiceIndex) override;
 	void stopVoice(int voiceIndex) override;
 	void reset(int voiceIndex) override;
 	bool isPlaying(int voiceIndex) const override;
@@ -101,7 +111,7 @@ public:
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
-	/** The container for the envelope state. */
+	/** @internal The container for the envelope state. */
 	struct MPEState : public EnvelopeModulator::ModulatorState
 	{
 	public:
@@ -112,13 +122,70 @@ public:
 			smoother.setDefaultValue(0.0f);
 		};
 
-		Smoother smoother;
 		int midiChannel = -1;
-		float targetValue = 0.0f;
-		
 		bool isPressed = false;
-
 		bool isRingingOff = false;
+
+		void startVoice(float initialValue, float targetValue_)
+		{
+			const bool useSmoother = smoother.getSmoothingTime() > 0.0f;
+
+			smoother.setDefaultValue(initialValue);
+            const float a0 = smoother.getA0();
+            
+			currentRampValue = useSmoother ? initialValue : targetValue_;
+            
+			resetValue = initialValue;
+
+			targetValue = targetValue_ * a0;
+			//blockDivider.reset();
+		}
+
+		void stopVoice()
+		{
+			isPressed = false;
+			isRingingOff = targetValue == 0.0f;
+		}
+
+		void reset()
+		{
+			targetValue = 0.0f;
+			isPressed = false;
+		}
+
+		bool isPlaying() const noexcept
+		{
+			if (isRingingOff && currentRampValue == 0)
+				return false;
+
+			return true;
+		}
+
+		void setTargetValue(float newTargetValue)
+		{
+            const float a0 = smoother.getA0();
+			targetValue = newTargetValue * a0;
+		}
+
+		void process(float* data, int numSamples);
+		
+		void setSmoothingTime(float smoothingTime)
+		{
+			smoother.setSmoothingTime(smoothingTime);
+		}
+
+		void prepareToPlay(double sampleRate)
+		{
+			smoother.prepareToPlay(sampleRate);
+		}
+
+	private:
+
+		Smoother smoother;
+		
+		float targetValue = 0.0f;
+		float currentRampValue = 0.0f;
+		float resetValue = 0.0f;
 	};
 
 	ModulatorState *createSubclassedState(int voiceIndex) const override { return new MPEState(voiceIndex); };
@@ -154,19 +221,22 @@ private:
 	int monophonicVoiceCounter = 0;
 
 	int midiChannelForMonophonicMode = 1;
+	
 
 	UnorderedStack<MPEState*> activeStates;
 
 	int unsavedChannel = -1;
 	float unsavedStrokeValue = 0.0f;
 	float defaultValue = 0.0f;
-	float smoothingTime = 200.0f;
+	float smoothingTime = -1.0f;
 
 	int ccNumber = 0;
 	Gesture g;
 	float smoothedIntensity;
 
 	ScopedPointer<SampleLookupTable> table;
+
+	
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MPEModulator);
 

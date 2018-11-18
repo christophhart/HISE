@@ -1,177 +1,86 @@
-/**@mainpage HISE
+/**@mainpage HISE C++ API
 
-| Linux Build | Windows Build |
-| ----------- | ------------- |
-| [![Build Status](https://travis-ci.org/christophhart/HISE.svg?branch=master)](https://travis-ci.org/christophhart/HISE) | [![Build status](https://ci.appveyor.com/api/projects/status/54boowuns6wy0nhd?svg=true)](https://ci.appveyor.com/project/ChristophHart/hise) |
+## Introduction
 
+This API documentation is aimed towards people who use C++ to create HISE projects. It assumes a basic knowledge of the HISE architecture - if you don't know about it, I suggest you spend some time with the prebuild binaries and read / watch some of the high-level documentation to get a feeling of how it works.
 
-**The open source framework for sample based instruments.**
+## How to use the C++ side of HISE
 
-HISE is a cross-platform open source audio application for building virtual instruments. 
-It emphasizes on sampling, but includes some basic synthesis features for making hybrid instruments as well as audio effects. 
-You can export the instruments as VST / AU / AAX plugins or as standalone application for Windows / macOS or iOS.
+HISE can be used to build products without touching the C++ code base once. There are many inbuilt modules, a scripting engine for customizing the MIDI processing as well as designing interfaces and a automatic export that creates C++ IDE projects and compiles them into native plugins by calling the system compilers.
 
-More information:
+However in the course of time, I got more and more requests for customizations / edge case feature requests which lead to an enormous overhead and complexity if implemented, but limit the possibilities if not implemented globally. Also the nature of a dynamic scripting language has its limitations so for bigger
+projects or projects which require a higher amount of customization, I decided to open the C++ side of HISE. So if your projects require one of these things:
 
-[HISE website](http://hise.audio)
+- dynamic signal path (adding / changing the order of effects, sound generators)
+- having a lot of repetition in your UI (eg. a channel strip with 36 channels that all have the same elements)
+- reuse / embed existing C++ code (either UI elements or DSP code)
+- change the behaviour of the existing HISE modules
+- 100% customization of the user interface
 
-## System requirements
+it makes a perfect candidate for using the C++ side of HISE. In this case there are basically two options:
 
-Supported OS:
+### Use the DSP portion of HISE but build a custom UI
 
-- Windows 7-10
-- OSX 10.7 - 10.12
-- iOS 8.0
-- Linux (experimental, tested on Ubuntu 16.04 LTS)
+If you just want to change the user interface, but get along with the DSP possibilities of HISE, you can add a custom FloatingTile to your scripted interface that acts as shell around your C++ defined interface. This still leaves you the flexibility / protoyping convenience of using HISE as application, but gives you the full possibilities for UI design that JUCE offers.
 
-HISE is tested on Windows and OSX with the following hosts:
+  A example project that demonstrates this usage can be found here: [ExternalFloatingTileTest](https://github.com/christophhart/hise_tutorial/tree/master/ExternalFloatingTileTest)
 
-- Cubase
-- Ableton Live
-- Logic
-- Reaper
-- Protools
+### Write everything in C++
 
-It supports x86 and x64 on Windows, altough the 64bit version is highly recommended (it uses memory mapping for accessing samples and because of the limitations of the 32bit memory address space it needs a slower fallback solution).
+If you need dynamic signal paths, add modules on runtime or use other DSP code that you've either written yourself or licensed from a 3rd party, you can bypass the usage of the HISE application altogether, and create both the signal path as well as the UI completely in C++. In this case, you will still use the HISE app as project management tool as it will help you manage external resources and deployment options.
 
-## Highlights
+A example project that demonstrates this usage can be found here: [RawTest](https://github.com/christophhart/hise_tutorial/tree/master/RawTest)
 
-### Sampler engine
+## Getting started with HISE C++
 
-- fast disk streaming sampler engine using memory mapped files
-- Import SFZ files, Mach5 files or AIFFs with metadata from Keymap Pro
-- File name parser for automapping samples
-- multi mic sample support (with purging of single mic channels)
-- looping with crossfades
-- sample start modulation
-- crossfade between samples for dynamic sustain samples
-- customizable voice start behaviour
-- regex parser for mapping samples
-- custom monolith file format for faster loading times
-- switch sample mappings dynamically
+Take a grasp look at the classes in the [core module](group__core.html). These classes are the foundation of
+HISE and you should at least know what they are / do before doing anything else.
 
-### Modulation
+The [raw namespace](namespacehise_1_1raw.html) contains the most important tools needed to build HISE instruments and connect DSP classes to the interface. This should be your entry into the HISE world, from which you can dive into the more complex code base as needed.
 
-- complex modulation architecture for nested modulation of common parameters
-- includes the most common modulators (LFO, envelopes)
+A list of every available HISE module can be found [here](group__types.html).
 
-### Audio Effects
+## Create your own classes
 
-- fast convolution reverb
-- filters / eq
-- phaser / chorus
-- delay / reverb
+If you want to hook up your own DSP classes to build custom modules, take a look at the base class documentation for each different Processor type [here](group__dsp__base__classes.html) which contains information on how to build custom modules.
 
-### Javascript interpreter
+Also for a live-example for each of the Processor types I suggest looking at the source code of one of the simpler modules of each type (eg. the SineSynth module).
 
-- superset of Javascript built for real time usage (no allocations, low overhead function calls)
-- write MIDI processing scripts
-- change voice properties (volume & pitch)
-- create plugin interfaces with a WYSIWYG editor
-- built in IDE features (autocomplete / API reference, variable watch, console debugging)
-- combine DSP routines for custom effects
+## Code organisation
 
-### C / C++ compiler
+The HISE code base follows the JUCE coding style and uses its data structures (Array, OwnedArray) as well as some of its paradigms for handling UI / data connections (aka the Listener concept) where-ever possible. This should allow people who are acquainted with the JUCE library to catch on pretty quickly.
+The LookAndFeel paradigm that encapsulates styling and logic of UI Components is not fully used, but
+the most important classes will be migrated to this soon.
 
-- embedded C JIT compiler for fast prototyping of DSP routines (based on TinyCC)
-- API for adding DSP modules via dynamic libraries
-- one click C++ build system for building VST / AU / AAX plugins (based on JUCE) from within HISE (using msbuild / xcodebuild)
+The code base of HISE is organized into multiple JUCE modules, which are mostly dependent from each other, however they follow a dependency chain.
 
-### Export
+### No dependencies:
 
-- export HISE patches as plugin or standalone application
-- supported plugin architectures: AAX / VST / AU
-- supported platforms: Windows / macOS / iOS (I can't offer actual Linux support because of my Linux-noobness, but feel free to try compiling it and let me know if something doesn't work)
+- `hi_tools`: standalone tool classes
+- `hi_lac`: the HISE lossless audio codec
+- `hi_streaming`: the streaming classes in HISE (separated from the other sampler module)
 
-## How to compile HISE
+### HISE Main modules:
 
-### Windows / OSX
+- `hi_core`: the core classes of HISE
+- `hi_dsp`: the DSP base classes of HISE
+- `hi_components`: the components of HISE
+- `hi_scripting`: all classes related to the Javascript engine of HISE
+- `hi_sampler`: the sampler module of HISE
+- `hi_modules`: the HISE module collection (effects, sound generators, modulators)
 
-1. Clone this repository. It also includes the (slightly modified) JUCE source code, so it might take a while.
+### HISE target-dependent modules:
 
-2. Get all necessary 3rd party code:
-	- [ASIO SDK](http://www.steinberg.net/sdk_downloads/asiosdk2.3.zip) for standalone support on Windows.
-	- [VST SDK](http://www.steinberg.net/sdk_downloads/vstsdk366_27_06_2016_build_61.zip) for building VST plugins
-	- [Intel Performance Primitives](https://software.intel.com/en-us/articles/free-ipp) (this is optional but heavily increases the performance of the convolution reverb)
+- `hi_backend`: the module for the HISE application
+- `hi_frontend`: the module for compiled plugins
 
-3. Open the Projucer (there are compiled versions for every supported OS in the `tools/projucer` subdirectory) and load the HISE project (either `projects/standalone/HISE Standalone.jucer` or `project/plugin/HISE.jucer`)
+## Usage of Preprocessor definitions
 
-4. Make sure the VST / ASIO path settings is correct on your system. If you don't have IPP installed, set the USE_IPP flag in the hi_core module to 0.
+There are quite a few compile-time preprocessor flags that can change the behaviour of HISE - almost every hardcoded limitation like the max number of voices or the channel amount of multi-channel samplers are defined as preprocessor definitions and can be changed for projects that require a different value.
 
-5. Click on "Save Project and open in IDE" to load the project in XCode / Visual Studio. 
+The two most important preprocessor macros are `USE_BACKEND` and `USE_FRONTEND` which separates code paths
+between the HISE application and compiled plugins, but there are many more (mostly defined in the LibConfig file and the Macros.h file in the hi_core module).
 
-6. Hit compile and wait...
-
-### Compiling without IPP on OSX
-
-If you don't have Intel Performance Primitives installed on your machine, you need to change the Projucer file. Open the `.jucer` file in the Projucer (like in step 3 above), click on the Xcode (MacOSX) target and delete this from the **Extra Linker Flags** field:
-
-```
-/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a
-```
-
-Then remove the include directories from the **Debug** and **Release** configurations (Remove everything in the **Header Search Paths** and **Extra Library Search Paths**. As last step, you'll need to change the `USE_IPP` flag. Click on the `hi_core` module and change the `USE_IPP` field to *disabled*. Then proceed with step 5...
-
-### Linux
-
-1. Get these dependencies (taken from the JUCE forum):
-
-```
-sudo apt-get -y install llvm
-sudo apt-get -y install clang
-sudo apt-get -y install libfreetype6-dev
-sudo apt-get -y install libx11-dev
-sudo apt-get -y install libxinerama-dev
-sudo apt-get -y install libxrandr-dev
-sudo apt-get -y install libxcursor-dev
-sudo apt-get -y install mesa-common-dev
-sudo apt-get -y install libasound2-dev
-sudo apt-get -y install freeglut3-dev
-sudo apt-get -y install libxcomposite-dev
-sudo apt-get -y install libcurl4-gnutls-dev
-```
-
-2. Clone this repository.
-
-3. Open the Projucer (a precompiled Linux binary can be found at `tools/projucer`). Load the project `projects/standalone/HISE Standalone.jucer` and resave the project (this will generate the Makefile with correct Linux paths).
-
-4. Open the terminal and navigate to this subdirectory: `projects/standalone/Builds/LinuxMakefile`
-
-5. If you want to compile an optimized version of HISE, change these lines in the makefile:
-
-	```makefile
-	ifndef CONFIG
-	  CONFIG=Debug
-	endif
-	```
-
-	to
-
-	```makefile
-	ifndef CONFIG
-	  CONFIG=Release
-	endif
-	```
-
-6. type `make` and wait. 
-
-## License
-
-HISE is licensed under the GPL v3, but there will be a commercial license for closed source usage. Every instrument you'll build will inheritate this license so in order to release a closed source product you'll have to obtain a HISE commercial license as well as a JUCE commercial license. Please get in touch with me for further informations.
-
-## Included frameworks
-
-For FFT routines and some vector operations, it is recommended to build HISE against the Intel IPP library (not included).
-
-Apart from the JUCE C++ library, there are some other 3rd party frameworks and libraries included in HISE, which are all non restrictively licensed (either BSD or MIT):
-
-- **ICSTDP DSP library**: A pretty decent DSP library with some good and fast routines.   [Website](https://www.zhdk.ch/index.php?id=icst_dsplibrary)
-- **Tiny C Compiler** Awesome little compiler that translates C files into machine code within milliseconds. It is embedded into HISE as development tool. The compiler is LGPL licensed, so it is linked dynamically into HISE, but for closed source plugins, the C files will be compiled by a "real" compiler anyway.
-- **Kiss FFT**: A easy and C-only FFT library with a clean interface and acceptable performance. It is used as fallback FFT when the IPP library is not available.
-- **WDL** (just for the convolution, it might get sorted out in the future)
-- **MDA Plugins**: a collection of audio effects recently published as open source project.
-- some other public domain code taken from various sources (music-dsp.org, etc.).
-
-
+If you want to use preprocessor customizations, you can pass in the values in the project settings in HISE (there are dedicated places for each platform / OS type).
 
 */

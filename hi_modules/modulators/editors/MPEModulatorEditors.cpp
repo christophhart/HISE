@@ -63,17 +63,24 @@ MPEModulatorEditor::MPEModulatorEditor(ProcessorEditor* parent) :
 	defaultValue->setup(getProcessor(), MPEModulator::SpecialParameters::DefaultValue, "Default");
 	defaultValue->setMode(HiSlider::NormalizedPercentage);
 
-	if (dynamic_cast<MPEModulator*>(getProcessor())->getMode() == Modulation::GainMode)
+	auto mode = dynamic_cast<MPEModulator*>(getProcessor())->getMode();
+
+	if (mode == Modulation::GainMode)
 	{
 		defaultValue->setMode(HiSlider::NormalizedPercentage);
 	}
-	else
+	else if (mode == Modulation::PitchMode)
 	{
 		defaultValue->setMode(HiSlider::Linear, -12.0, 12.0, 0.0, 0.01);
 		defaultValue->setTextValueSuffix(" st.");
 	}
+	else if (mode == Modulation::PanMode)
+	{
+		defaultValue->setMode(HiSlider::Pan);
+	}
 
-	addAndMakeVisible(mpePanel = new MPEKeyboard(getProcessor()->getMainController()->getKeyboardState()));
+
+	addAndMakeVisible(mpePanel = new MPEKeyboard(getProcessor()->getMainController()));
 
 	mpePanel->setColour(MPEKeyboard::ColourIds::bgColour, Colour(0x11000000));
 }
@@ -112,7 +119,7 @@ void MPEModulatorEditor::paint(Graphics& g)
 	area = area.withSizeKeepingCentre(650, area.getHeight() - 12);
 
 	g.setColour(Colour(0x30000000));
-	g.fillRoundedRectangle(FLOAT_RECTANGLE(area), 3.0f);
+	g.fillRoundedRectangle(area.toFloat(), 3.0f);
 	g.setColour(Colours::white);
 
 	area.reduce(8, 8);

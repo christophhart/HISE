@@ -44,13 +44,57 @@ class LookupTableProcessor
 {
 public:
 
+	struct ProcessorValueConverter
+	{
+		ProcessorValueConverter() :
+			converter(Table::getDefaultTextValue),
+			processor(nullptr)
+		{};
+
+		ProcessorValueConverter(const Table::ValueTextConverter& c, Processor* p) :
+			converter(c),
+			processor(p)
+		{};
+
+		ProcessorValueConverter(Processor* p) :
+			converter(Table::getDefaultTextValue),
+			processor(p)
+		{};
+
+		
+		bool operator==(const ProcessorValueConverter& other) const
+		{
+			return other.processor == processor;
+		}
+
+		explicit operator bool() const
+		{
+			return processor != nullptr;
+		}
+
+		String getDefaultTextValue(float input)
+		{
+			if (processor.get())
+				return converter(input);
+			else
+				return Table::getDefaultTextValue(input);
+		}
+
+		Table::ValueTextConverter converter;
+		WeakReference<Processor> processor;
+
+	private:
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ProcessorValueConverter);
+	};
+
 	// ================================================================================================================
 
 	struct TableChangeBroadcaster : public SafeChangeBroadcaster
 	{
         TableChangeBroadcaster()
         {
-            enableAllocationFreeMessages(50);
+            
         }
         
 		SpinLock lock;
@@ -94,7 +138,55 @@ public:
 	*/
 	void sendTableIndexChangeMessage(bool sendSynchronous, Table *table, float tableIndex);
 
+	void addYValueConverter(const Table::ValueTextConverter& converter, Processor* p)
+	{
+		if (p == dynamic_cast<Processor*>(this))
+			defaultYConverter = converter;
+		else
+		{
+			for (int i = 0; i < yConverters.size(); i++)
+			{
+				auto thisP = yConverters[i]->processor.get();
+
+				if (thisP == nullptr || thisP == p)
+					yConverters.remove(i--);
+			}
+
+			yConverters.add(new ProcessorValueConverter(converter, p ));
+		}
+
+		updateYConverters();
+	}
+
+	void refreshYConvertersAfterRemoval()
+	{
+		for (int i = 0; i < yConverters.size(); i++)
+		{
+			auto thisP = yConverters[i]->processor.get();
+
+			if (thisP == nullptr)
+				yConverters.remove(i--);
+		}
+
+		updateYConverters();
+	}
+
+protected:
+
+	Table::ValueTextConverter defaultYConverter = Table::getDefaultTextValue;
+
 private:
+
+	void updateYConverters()
+	{
+		const auto cToUse = yConverters.size() == 1 ? yConverters.getFirst()->converter : defaultYConverter;
+
+		for (int i = 0; i < getNumTables(); i++)
+			getTable(i)->setYTextConverterRaw(cToUse);
+	}
+
+	OwnedArray<ProcessorValueConverter> yConverters;
+	
 
 	TableChangeBroadcaster tableChangeBroadcaster;
 
@@ -137,51 +229,6 @@ private:
 };
 
 
-/** A Processor that uses an external file for something. 
-*	@ingroup processor_interfaces
-*
-*	Whenever you need to use a external file (eg. an audio file or an image), subclass your Processor from this class.
-*	It will handle all file management issues:
-*
-*	1. In Backend mode, it will resolve the project path.
-*	2. In Frontend mode, it will retrieve the file content from the embedded data.
-*/
-class ExternalFileProcessor
-{
-public:
-
-	// ================================================================================================================
-
-	virtual ~ExternalFileProcessor() {};
-
-	/** Call this to get the file for the string.
-	*
-	*	Whenever you want to read a file, use this method instead of the direct File constructor, so it will parse a global file expression to the local global folder.
-	*/
-	File getFile(const String &fileNameOrReference, PresetPlayerHandler::FolderType type = PresetPlayerHandler::GlobalSampleDirectory);
-
-	bool isReference(const String &fileNameOrReference);
-
-	/** Overwrite this method and replace all internal references with a global file expression (use getGlobalReferenceForFile())
-	*
-	*	You don't need to reload the data, it will be loaded from the global folder the next time you load the patch.
-	*/
-	virtual void replaceReferencesWithGlobalFolder() = 0;
-
-	/** This will return a expression which can be stored instead of the actual filename. If you load the file using the getFile() method, it will look in the global sample folder. */
-	String getGlobalReferenceForFile(const String &file, PresetPlayerHandler::FolderType type = PresetPlayerHandler::GlobalSampleDirectory);
-
-private:
-
-	File getFileForGlobalReference(const String &reference, PresetPlayerHandler::FolderType type = PresetPlayerHandler::GlobalSampleDirectory);
-
-	// ================================================================================================================
-};
-
-
-
-
-
 
 /** A Processor that uses an audio sample.
 *	@ingroup processor_interfaces
@@ -200,7 +247,7 @@ private:
 *	3. Add the AudioSampleBuffer as ChangeListener (and remove it in the destructor!)
 *	4. Add an AreaListener to the AudioSampleBufferComponent and call setRange() and setLoadedFile in the rangeChanged() callback
 */
-class AudioSampleProcessor : public ExternalFileProcessor
+class AudioSampleProcessor: public PoolBase::Listener
 {
 public:
 
@@ -221,16 +268,11 @@ public:
 
 	// ================================================================================================================
 
-	void replaceReferencesWithGlobalFolder() override;
-
 	/** Call this method within your exportAsValueTree method to store the sample settings. */
 	void saveToValueTree(ValueTree &v) const;;
 
 	/** Call this method within your restoreFromValueTree() method to load the sample settings. */
 	void restoreFromValueTree(const ValueTree &v);
-
-	/** Returns the global thumbnail cache. Use this whenever you need a AudioSampleBufferComponent. */
-	AudioThumbnailCache &getCache() { return *mc->getSampleManager().getAudioSampleBufferPool()->getCache(); };
 
 	/** This loads the file from disk (or from the pool, if existing and loadThisFile is false. */
 	void setLoadedFile(const String &fileName, bool loadThisFile = false, bool forceReload = false);
@@ -247,14 +289,30 @@ public:
 		return sampleRange; 
 	};
 
-	int getTotalLength() const { return sampleBuffer.getNumSamples(); };
+	void poolEntryReloaded(PoolReference referenceThatWasChanged) override;
+
+	int getTotalLength() const { return data ? data.getData()->getNumSamples() : 0; };
 
 	/** Returns a const pointer to the audio sample buffer.
 	*
 	*	The pointer references a object from a AudioSamplePool and should be valid as long as the pool is not cleared. */
-	const AudioSampleBuffer *getBuffer() { return &sampleBuffer; };
+	const AudioSampleBuffer *getBuffer() 
+	{
+		if(data)
+			return data.getData(); 
 
-	void setLoopFromMetadata(const File& f);
+		return &fallback;
+	};
+
+	const AudioSampleBuffer *getSampleBuffer() const 
+	{ 
+		if (data)
+			return data.getData();
+
+		return &fallback;
+	};
+
+	void setLoopFromMetadata(const var& md);
 
 	void setUseLoop(bool shouldUseLoop)
 	{
@@ -277,48 +335,7 @@ public:
 	*	It is possible that the file does not exist on your system:
 	*	If you restore a pool completely from a ValueTree, it still uses the absolute filename as identification.
 	*/
-	String getFileName() const { return loadedFileName; };
-
-	/** This callback sets the loaded file.
-	*
-	*	The AudioSampleBuffer should not change anything, but only send a message to the AudioSampleProcessor.
-	*	This is where the actual reloading happens.
-	*/
-
-#if 0
-	void changeListenerCallback(SafeChangeBroadcaster *b) override
-	{
-		auto thisAsProcessor = dynamic_cast<Processor*>(this);
-
-		auto& tmp = loadedFileName;
-
-		auto f = [b, tmp](Processor* p)
-		{
-			AudioSampleBufferComponent *bc = dynamic_cast<AudioSampleBufferComponent*>(b);
-
-			if (bc != nullptr)
-			{
-				auto asp = dynamic_cast<AudioSampleProcessor*>(p);
-
-				asp->setLoadedFile(bc->getCurrentlyLoadedFileName(), true);
-
-				auto df = [bc, asp, tmp]()
-				{
-					bc->setAudioSampleBuffer(asp->getBuffer(), tmp);
-				};
-
-				new DelayedFunctionCaller(df, 200);
-
-				p->sendChangeMessage();
-			}
-			else jassertfalse;
-
-			return true;
-		};
-
-		thisAsProcessor->getMainController()->getKillStateHandler().killVoicesAndCall(thisAsProcessor, f, MainController::KillStateHandler::SampleLoadingThread);
-	}
-#endif
+	String getFileName() const { return data.getRef().getReferenceString(); };
 
 	/** Overwrite this method and do whatever needs to be done when the selected range changes. */
 	virtual void rangeUpdated() {};
@@ -353,31 +370,41 @@ public:
 		return loopRange;
 	}
 
+	
+
+	
 protected:
 
 	/** Call this constructor within your subclass constructor. */
-	AudioSampleProcessor(Processor *p);;
+	AudioSampleProcessor(Processor *p);
 
-	String loadedFileName;
+	PooledAudioFile data;
+
 	Range<int> sampleRange;
 	int length;
 
 	Range<int> loopRange;
 
-	const AudioSampleBuffer *getSampleBuffer() const { return &sampleBuffer; };
+	
 
 	double sampleRateOfLoadedFile;
 
 	bool useLoop = false;
 
+	WeakReference<AudioSampleBufferPool> currentPool;
+
 private:
+
+	
+
+	AudioSampleBuffer fallback;
 
 	int getConstrainedLoopValue(String metadata);
 	
 
 	// ================================================================================================================
 
-	AudioSampleBuffer sampleBuffer;
+	
 	MainController *mc;
 
 	// ================================================================================================================
@@ -404,9 +431,27 @@ public:
 	*
 	*	Subclass this, put it in your subclassed Chain and return a member object of the chain in Chain::getHandler().
 	*/
-	class Handler : public SafeChangeBroadcaster
+	class Handler
 	{
 	public:
+
+		struct Listener
+		{
+			enum EventType
+			{
+				ProcessorAdded,
+				ProcessorDeleted,
+				ProcessorOrderChanged,
+				Cleared,
+				numEventTypes
+			};
+
+            virtual ~Listener() {};
+            
+			virtual void processorChanged(EventType t, Processor* p) = 0;
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+		};
 
 		// ================================================================================================================
 
@@ -432,6 +477,56 @@ public:
 		/** Deletes all Processors in the Chain. */
 		virtual void clear() = 0;
 
+		void clearAsync(Processor* parent);
+
+		void addListener(Listener* l)
+		{
+			listeners.addIfNotAlreadyThere(l);
+		}
+
+		void removeListener(Listener* l)
+		{
+			listeners.removeAllInstancesOf(l);
+		}
+
+		void addPostEventListener(Listener* l)
+		{
+			postEventlisteners.addIfNotAlreadyThere(l);
+		}
+
+		void removePostEventListener(Listener* l)
+		{
+			postEventlisteners.removeAllInstancesOf(l);
+		}
+
+		void notifyListeners(Listener::EventType t, Processor* p)
+		{
+			ScopedLock sl(listeners.getLock());
+
+			for (auto l : listeners)
+			{
+				if (l != nullptr)
+					l->processorChanged(t, p);
+			}
+		}
+
+		void notifyPostEventListeners(Listener::EventType t, Processor* p)
+		{
+			ScopedLock sl(postEventlisteners.getLock());
+
+			for (auto l : postEventlisteners)
+			{
+				if (l != nullptr)
+					l->processorChanged(t, p);
+			}
+		}
+
+	private:
+
+		
+
+		Array<WeakReference<Listener>, CriticalSection> listeners;
+		Array<WeakReference<Listener>, CriticalSection> postEventlisteners;
 	};
 
 	// ===================================================================================================================

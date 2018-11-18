@@ -208,6 +208,8 @@ public:
 		MasterEffectProcessor(mc, id),
 		fftBufferIndex(0)
 	{
+		finaliseModChains();
+
 		parameterNames.add("Gain");
 		parameterNames.add("Freq");
 		parameterNames.add("Q");
@@ -263,7 +265,7 @@ public:
 
 	void addFilterBand(double freq, double gain)
 	{
-		ScopedLock sl(getLock());
+		ScopedLock sl(getMainController()->getLock());
 
 		StereoFilter *f = new StereoFilter();
 
@@ -282,7 +284,7 @@ public:
 
 	void removeFilterBand(int filterIndex)
 	{
-		ScopedLock sl(getLock());
+		ScopedLock sl(getMainController()->getLock());
 
 		filterBands.remove(filterIndex);
 
@@ -291,9 +293,9 @@ public:
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override
 	{
-		ScopedLock sl(getLock());
+		ScopedLock sl(getMainController()->getLock());
 
-		EffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
+		MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
 		if (lastSampleRate != sampleRate)
 		{
@@ -324,7 +326,7 @@ public:
 	{
 		MasterEffectProcessor::restoreFromValueTree(v);
 
-		ScopedLock sl(getLock());
+		ScopedLock sl(getMainController()->getLock());
 
 		filterBands.clear();
 
@@ -365,7 +367,7 @@ public:
 
 	const double *getExternalData()
 	{
-		ScopedLock sl(getLock());
+		ScopedLock sl(getMainController()->getLock());
 
 		for(int i = 0; i < FFT_SIZE_FOR_EQ; i++)
 		{
@@ -388,8 +390,6 @@ public:
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 private:
-
-	const CriticalSection& getLock() const { return getMainController()->getLock(); }
 
 	float fftData[FFT_SIZE_FOR_EQ];
 

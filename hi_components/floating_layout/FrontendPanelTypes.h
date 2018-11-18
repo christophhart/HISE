@@ -35,6 +35,8 @@
 
 namespace hise { using namespace juce;
 
+
+
 /** A LED that will light up when an MIDI message was received.
 *
 */
@@ -77,8 +79,8 @@ private:
 
 	bool isOn = false;
 
-	Image on;
-	Image off;
+	PooledImage on;
+	PooledImage off;
 };
 
 /** The base class for every panel.
@@ -157,6 +159,10 @@ public:
 		ToggleMode, ///< if activated, then the notes will be held until clicked again
 		MidiChannel, ///< which MIDI channel to use (1-16)
 		MPEKeyboard,
+		MPEStartChannel,
+		MPEEndChannel,
+		UseVectorGraphics,
+		UseFlatStyle,
 		numProperyIds
 	};
 
@@ -210,7 +216,7 @@ private:
 	bool defaultAppearance = true;
 	ScopedPointer<KeyboardBase> keyboard;
 
-	
+	Range<int> mpeZone;
 };
 
 /** Type-ID: `Note`.
@@ -396,15 +402,19 @@ public:
 	{
 		ShowFolderButton = (int)FloatingTileContent::PanelPropertyId::numPropertyIds,
 		ShowSaveButton,
+		ShowNotes,
+		ShowEditButtons,
+		ShowFavoriteIcon,
+		NumColumns,
 		numSpecialProperties
 	};
 
 	SET_PANEL_NAME("PresetBrowser");
 
 	PresetBrowserPanel(FloatingTile* parent);
-
 	~PresetBrowserPanel();
 
+	var toDynamicObject() const override;
 	void fromDynamicObject(const var& object) override;
 	bool showTitleInPresentationMode() const override;
 	void resized() override;
@@ -414,12 +424,14 @@ public:
 
 private:
 
-	ScopedPointer<MultiColumnPresetBrowser> presetBrowser;
+	PresetBrowser::Options options;
+
+	ScopedPointer<PresetBrowser> presetBrowser;
 };
 
 /** Type-ID: `TooltipPanel`
 *
-*	Shows a descriptive text whenever the mouse hovers over a widget with a tooltip.
+*	Shows a descriptive text whenever the mouse hovers over a Component with a tooltip.
 *
 *	Use `Control.set("tooltip", "This is the tooltip text")` for each control that you want a tooltip for.
 *	Then add this panel and it will automatically show and hide the tooltip.
@@ -539,7 +551,7 @@ public:
 
 private:
 
-	Image bgImage;
+	PooledImage bgImage;
 
 	AttributedString text;
 

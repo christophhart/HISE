@@ -42,9 +42,7 @@ class ExponentialStateCalculator
 
 /** @ingroup modulatorTypes
 
-### Simple Envelope
-
-This modulator is the most simple envelope (only attack and release).
+The most simple envelope (only attack and release).
 
 It has an attack and release time that can be modified by an internal modulator chain, which are calculated at the note-on (attack) and note-off (release) time.
 You have to specify a sampleRate using the prepareToPlay method or the modulator will not be working!
@@ -100,7 +98,7 @@ public:
 	Processor *getChildProcessor(int ) override { return attackChain; };
 	const Processor *getChildProcessor(int ) const override  { return attackChain; };
 
-	void startVoice(int voiceIndex) override;
+	float startVoice(int voiceIndex) override;
 	void stopVoice(int voiceIndex) override;
 	void reset(int voiceIndex) override;
 	bool isPlaying(int voiceIndex) const override;
@@ -111,7 +109,7 @@ public:
 	
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
-    /** The container for the envelope state. */
+    /** @internal The container for the envelope state. */
     struct SimpleEnvelopeState: public EnvelopeModulator::ModulatorState
 	{
 	public:
@@ -164,7 +162,7 @@ private:
 	
 	The calculation is linear and not logarithmic, so it may be sounding cheep
 	*/
-	float calculateNewValue ();
+	float calculateNewValue(int voiceIndex);
 	float calculateNewExpValue();
 
 	float inputValue;
@@ -186,7 +184,8 @@ private:
 
 	SimpleEnvelopeState *state;
 
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SimpleEnvelope)
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SimpleEnvelope);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SimpleEnvelope);
 };
 
 

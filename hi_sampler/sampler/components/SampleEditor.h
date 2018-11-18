@@ -21,7 +21,8 @@
 #define __JUCE_HEADER_A3E3B1B2DF55A952__
 
 //[Headers]     -- You can add your own extra header files here --
- namespace hise { using namespace juce;
+namespace hise {
+using namespace juce;
 
 class SamplerBody;
 class SampleEditHandler;
@@ -33,26 +34,30 @@ class SampleEditHandler;
 
 //==============================================================================
 /**
-                                                                    //[Comments]
-    \cond HIDDEN_SYMBOLS
+																	//[Comments]
+	\cond HIDDEN_SYMBOLS
 	An auto-generated component, created by the Introjucer.
 
-    Describe your class and how it works here!
-                                                                    //[/Comments]
+	Describe your class and how it works here!
+																	//[/Comments]
 */
-class SampleEditor  : public Component,
-                      public SamplerSubEditor,
-                      public ApplicationCommandTarget,
-                      public AudioDisplayComponent::Listener,
-                      public SafeChangeListener
+class SampleEditor : public Component,
+	public SamplerSubEditor,
+	public ApplicationCommandTarget,
+	public AudioDisplayComponent::Listener,
+	public SafeChangeListener,
+	public SampleMap::Listener
 {
 public:
-    //==============================================================================
-    SampleEditor (ModulatorSampler *s, SamplerBody *b);
-    ~SampleEditor();
+	//==============================================================================
+	SampleEditor(ModulatorSampler *s, SamplerBody *b);
+	~SampleEditor();
 
-    //==============================================================================
-    //[UserMethods]     -- You can add your own custom methods in this section.
+	//==============================================================================
+	//[UserMethods]     -- You can add your own custom methods in this section.
+
+
+
 
 	void changeListenerCallback(SafeChangeBroadcaster *)
 	{
@@ -62,6 +67,22 @@ public:
 	void updateInterface() override
 	{
 		updateWaveform();
+	}
+
+	void sampleMapWasChanged(PoolReference r) override
+	{
+		currentWaveForm->setSoundToDisplay(nullptr);
+		updateWaveform();
+	}
+
+	void samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& newValue) override;
+
+	void sampleAmountChanged() override
+	{
+		if(currentWaveForm->getCurrentSound() == nullptr)
+		{
+			currentWaveForm->setSoundToDisplay(nullptr);
+		}
 	}
 
 	void rangeChanged(AudioDisplayComponent *c, int areaThatWasChanged) override
@@ -78,14 +99,14 @@ public:
 
 			AudioDisplayComponent::SampleArea *area = c->getSampleArea(areaThatWasChanged);
 
-			const int64 startSample = jmax<int64>(0, area->getSampleRange().getStart());
+			const int64 startSample = (int64)jmax<int>(0, (int)area->getSampleRange().getStart());
 			const int64 endSample = (int64)(area->getSampleRange().getEnd());
 
 			switch (areaThatWasChanged)
 			{
 			case SamplerSoundWaveform::SampleStartArea:
 			{
-				soundToChange->setProperty(ModulatorSamplerSound::SampleStartMod, (int)(endSample - startSample));
+				soundToChange->setSampleProperty(SampleIds::SampleStartMod, (int)(endSample - startSample));
 				soundToChange->closeFileHandle();
 				break;
 			}
@@ -93,11 +114,11 @@ public:
 			{
 				if (!area->leftEdgeClicked)
 				{
-					soundToChange->setProperty(ModulatorSamplerSound::LoopEnd, (int)endSample);
+					soundToChange->setSampleProperty(SampleIds::LoopEnd, (int)endSample);
 				}
 				else
 				{
-					soundToChange->setProperty(ModulatorSamplerSound::LoopStart, (int)startSample);
+					soundToChange->setSampleProperty(SampleIds::LoopStart, (int)startSample);
 				}
 				break;
 			}
@@ -105,18 +126,18 @@ public:
 			{
 				if (!area->leftEdgeClicked)
 				{
-					soundToChange->setProperty(ModulatorSamplerSound::SampleEnd, (int)endSample);
+					soundToChange->setSampleProperty(SampleIds::SampleEnd, (int)endSample);
 				}
 				else
 				{
-					soundToChange->setProperty(ModulatorSamplerSound::SampleStart, (int)startSample);
+					soundToChange->setSampleProperty(SampleIds::SampleStart, (int)startSample);
 				}
 				break;
 			}
 			case SamplerSoundWaveform::LoopCrossfadeArea:
 			{
 				jassert(area->leftEdgeClicked);
-				soundToChange->setProperty(ModulatorSamplerSound::LoopXFade, (int)(endSample - startSample));
+				soundToChange->setSampleProperty(SampleIds::LoopXFade, (int)(endSample - startSample));
 				break;
 			}
 			}
@@ -179,10 +200,10 @@ public:
 								result.setActive(isSelected && zoomFactor != 1.0f);
 								break;
 		case EnableSampleStartArea:	result.setInfo("Enable SampleStart Dragging", "Enable Sample Start Modulation Area Dragging", "Areas", 0);
-									result.setActive(isSelected && (int)selection.getLast()->getProperty(ModulatorSamplerSound::SampleStartMod) != 0);
+									result.setActive(isSelected && (int)selection.getLast()->getSampleProperty(SampleIds::SampleStartMod) != 0);
 									break;
 		case EnableLoopArea:	result.setInfo("Enable SampleStart Dragging", "Enable Loop Area Dragging", "Areas", 0);
-								result.setActive(isSelected && selection.getLast()->getProperty(ModulatorSamplerSound::LoopEnabled));
+								result.setActive(isSelected && selection.getLast()->getSampleProperty(SampleIds::LoopEnabled));
 								break;
 		case EnablePlayArea:	result.setInfo("Enable Play Area Dragging", "Enable Playback Area Dragging", "Areas", 0);
 								result.setActive(isSelected);
@@ -193,11 +214,11 @@ public:
 								break;
 		case NormalizeVolume:	result.setInfo("Normalize Volume", "Normalize the sample volume to 0dB", "Properties", 0);
 								result.setActive(isSelected);
-								result.setTicked(isSelected && (int)selection.getLast()->getProperty(ModulatorSamplerSound::Normalized));
+								result.setTicked(isSelected && (int)selection.getLast()->getSampleProperty(SampleIds::Normalized));
 								break;
 		case LoopEnabled:		result.setInfo("Loop Enabled", "Enable Loop Playback", "Properties", 0);
 								result.setActive(isSelected);
-								result.setTicked(isSelected && (int)selection.getLast()->getProperty(ModulatorSamplerSound::LoopEnabled));
+								result.setTicked(isSelected && (int)selection.getLast()->getSampleProperty(SampleIds::LoopEnabled));
 								break;
 		}
 	};
@@ -237,7 +258,7 @@ public:
 
 			const bool useGain = selection.getLast()->getNormalizedPeak() != 1.0f;
 
-			const String fileName = selection.getLast()->getPropertyAsString(ModulatorSamplerSound::FileName);
+			const String fileName = selection.getLast()->getPropertyAsString(SampleIds::FileName);
 
 			const String autogain = useGain ? ("Autogain: " + String(Decibels::gainToDecibels(selection.getLast()->getNormalizedPeak()), 1) + " dB") : String();
 

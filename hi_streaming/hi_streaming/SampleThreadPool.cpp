@@ -140,7 +140,10 @@ void SampleThreadPool::run()
 
 				pimpl->currentlyExecutedJob.store(nullptr);
 			}
-
+			else
+			{
+				pimpl->jobQueue.pop();
+			}
 
 #if ENABLE_CPU_MEASUREMENT
 			pimpl->endTime = Time::getHighResolutionTicks();

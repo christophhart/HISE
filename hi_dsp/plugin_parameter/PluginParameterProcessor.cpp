@@ -56,7 +56,7 @@ void PluginParameterAudioProcessor::addScriptedParameters()
 
 				if (wantsAutomation && !isAutomatable)
 				{
-					// You specified a parameter for a unsupported widget type...
+					// You specified a parameter for a unsupported component type...
 					jassertfalse;
 				}
 

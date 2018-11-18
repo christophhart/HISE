@@ -360,10 +360,11 @@ MPEPanel::MPEPanel(FloatingTile* parent) :
 	enableMPEButton.addListener(this);
 
 
-
+	listbox.setWantsKeyboardFocus(true);
 	listbox.setModel(&m);
 	listbox.setRowHeight(36);
 	listbox.setColour(ListBox::ColourIds::backgroundColourId, Colours::transparentBlack);
+	
 
 	setDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour, Colours::transparentBlack);
 	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::white.withAlpha(0.5f));
@@ -397,6 +398,7 @@ void MPEPanel::updateTableColours()
 	currentTable.setColour(TableEditor::ColourIds::bgColour, laf.fillColour.withAlpha(0.05f));
 	currentTable.setColour(TableEditor::ColourIds::fillColour, laf.fillColour);
 	currentTable.setColour(TableEditor::ColourIds::lineColour, laf.lineColour);
+	listbox.getViewport()->getVerticalScrollBar().setColour(ScrollBar::ColourIds::thumbColourId, laf.fillColour);
 }
 
 void MPEPanel::fromDynamicObject(const var& object)
@@ -420,6 +422,7 @@ bool MPEPanel::keyPressed(const KeyPress& key)
 	if (key == KeyPress::escapeKey)
 	{
 		setCurrentMod(nullptr);
+		listbox.deselectAllRows();
 		return true;
 	}
 
@@ -500,12 +503,12 @@ void MPEPanel::paint(Graphics& g)
 		{
 			Rectangle<int> rectangles[9] = { tableHeader.removeFromLeft(100),
 				tableHeader.removeFromLeft(80),
-				tableHeader.removeFromLeft(80),
-				tableHeader.removeFromLeft(100),
 				tableHeader.removeFromLeft(100),
 				tableHeader.removeFromLeft(50),
 				tableHeader.removeFromLeft(100),
 				tableHeader.removeFromLeft(100),
+				tableHeader.removeFromLeft(100),
+				tableHeader.removeFromLeft(80),
 				tableHeader };
 
 			g.setColour(laf.fillColour.withAlpha(0.1f));
@@ -521,13 +524,16 @@ void MPEPanel::paint(Graphics& g)
 
 
 			g.drawText("Target", rectangles[0], Justification::centred);
-			g.drawText("Meter", rectangles[1], Justification::centred);
-			g.drawText("Gesture", rectangles[2], Justification::centred);
-			g.drawText("Mode", rectangles[3], Justification::centred);
+			
+			g.drawText("Gesture", rectangles[1], Justification::centred);
+			
+			g.drawText("Mode", rectangles[2], Justification::centred);
+			
+			g.drawText("Curve", rectangles[3], Justification::centred);
 			g.drawText("Intensity", rectangles[4], Justification::centred);
-			g.drawText("Curve", rectangles[5], Justification::centred);
-			g.drawText("Smoothing", rectangles[6], Justification::centred);
-			g.drawText("Default", rectangles[7], Justification::centred);
+			g.drawText("Smoothing", rectangles[5], Justification::centred);
+			g.drawText("Default", rectangles[6], Justification::centred);
+			g.drawText("Meter", rectangles[7], Justification::centred);
 		}
 		else
 		{
@@ -542,8 +548,8 @@ void MPEPanel::paint(Graphics& g)
 			g.setColour(laf.textColour);
 			g.setFont(laf.font);
 
-			g.drawText("Curve", bottomBar.removeFromLeft(getWidth() / 2), Justification::centredTop);
-			g.drawText("Plot", bottomBar.removeFromLeft(getWidth() / 2), Justification::centredTop);
+			g.drawText("Curve", bottomBar.removeFromLeft(getWidth() / 2), Justification::centred);
+			g.drawText("Plot", bottomBar.removeFromLeft(getWidth() / 2), Justification::centred);
 		}
 	}
 	else
@@ -574,22 +580,26 @@ void MPEPanel::setCurrentMod(MPEModulator* newMod)
 			addAndMakeVisible(currentPlotter = new Plotter());
 
 			newMod->setPlotter(currentPlotter);
+
+			currentPlotter->setFont(getFont());
+
+			currentPlotter->setColour(Plotter::ColourIds::textColour, laf.textColour);
 			currentPlotter->setColour(Plotter::ColourIds::pathColour, laf.fillColour.withMultipliedAlpha(1.05f));
 			currentPlotter->setColour(Plotter::ColourIds::pathColour2, laf.fillColour);
 			currentPlotter->setColour(Plotter::ColourIds::backgroundColour, laf.fillColour.withAlpha(0.05f));
 			currentTable.setColour(TableEditor::ColourIds::bgColour, laf.fillColour.withAlpha(0.05f));
 		}
 
-
 		currentTable.connectToLookupTableProcessor(newMod);
 
+		repaint();
 		resized();
 	}
 }
 
 void MPEPanel::mpeModeChanged(bool isEnabled)
 {
-	enableMPEButton.setToggleState(isEnabled, dontSendNotification);
+    notifier.isEnabled = isEnabled;
 	notifier.refresh();
 }
 
@@ -615,11 +625,16 @@ void MPEPanel::buttonClicked(Button* b)
 	auto f = [on](Processor* p)
 	{
 		p->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().setMpeMode(on);
-		return true;
+		return SafeFunctionCall::OK;
 	};
 
-	getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), f, MainController::KillStateHandler::MessageThread);
+	getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
 
+}
+
+void MPEPanel::cancelRefresh()
+{
+	notifier.cancelRefresh(true);
 }
 
 MPEPanel::Notifier::Notifier(MPEPanel& parent_) :
@@ -632,6 +647,7 @@ void MPEPanel::Notifier::timerCallback()
 {
 	if (refreshPanel)
 	{
+		parent.enableMPEButton.setToggleState(isEnabled, dontSendNotification);
 		parent.setCurrentMod(nullptr);
 		parent.listbox.deselectAllRows();
 		parent.listbox.updateContent();
@@ -700,10 +716,10 @@ void MPEPanel::Model::deleteKeyPressed(int lastRowSelected)
 				m->sendChangeMessage();
 			}
 
-			return true;
+			return SafeFunctionCall::OK;
 		};
 
-		mod->getMainController()->getKillStateHandler().killVoicesAndCall(mod, f, MainController::KillStateHandler::MessageThread);
+		mod->getMainController()->getKillStateHandler().killVoicesAndCall(mod, f, MainController::KillStateHandler::SampleLoadingThread);
 	}
 
 	parent.setCurrentMod(nullptr);
@@ -837,16 +853,43 @@ void MPEPanel::Model::LastRow::buttonClicked(Button*)
 
 		if (auto mod = mpeData.findMPEModulator(id))
 		{
-			auto f = [](Processor* p)
+			Component::SafePointer<ListBox> lb = findParentComponentOfClass<ListBox>();
+
+			jassert(lb != nullptr);
+
+			auto f = [lb](Processor* p)
 			{
 				auto& data = p->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData();
 
-				data.addConnection(dynamic_cast<MPEModulator*>(p));
+				WeakReference<MPEModulator> m = dynamic_cast<MPEModulator*>(p);
 
-				return true;
+				data.addConnection(m.get());
+
+				auto updateF = [lb, m]()
+				{
+					if (lb.getComponent() != nullptr)
+					{
+						auto index = lb->getModel()->getNumRows() - 2;
+
+						auto par = lb->findParentComponentOfClass<MPEPanel>();
+
+						if (par != nullptr)
+						{
+							par->cancelRefresh();
+							par->setCurrentMod(m);
+							lb.getComponent()->selectRow(index);
+							lb.getComponent()->getViewport()->setViewPositionProportionately(0.0, 1.0);
+						}
+							
+					}
+				};
+
+				new DelayedFunctionCaller(updateF, 51);
+
+				return SafeFunctionCall::OK;
 			};
 
-			mod->getMainController()->getKillStateHandler().killVoicesAndCall(mod, f, MainController::KillStateHandler::MessageThread);
+			mod->getMainController()->getKillStateHandler().killVoicesAndCall(mod, f, MainController::KillStateHandler::SampleLoadingThread);
 		}
 	}
 }
@@ -876,6 +919,12 @@ MPEPanel::Model::Row::Row(MPEModulator* mod_, LookAndFeel& laf_) :
 	modeSelector.addItem("Legato", 2);
 	modeSelector.addItem("Retrigger", 3);
 
+	if (mod->getMode() == Modulation::PanMode)
+	{
+		modeSelector.addItem("Polyphonic Bipolar", 4);
+		modeSelector.addItem("Legato Bipolar", 5);
+		modeSelector.addItem("Retrigger Bipolar", 6);
+	}
 
 
 	MPEPanel::Factory f;
@@ -883,7 +932,6 @@ MPEPanel::Model::Row::Row(MPEModulator* mod_, LookAndFeel& laf_) :
 	deleteButton.setShape(f.createPath("Delete"), false, true, false);
 
 	deleteButton.addListener(this);
-
 
 	selector.setup(mod, MPEModulator::SpecialParameters::GestureCC, "Gesture");
 
@@ -899,18 +947,16 @@ MPEPanel::Model::Row::Row(MPEModulator* mod_, LookAndFeel& laf_) :
 	defaultValue.setup(mod, MPEModulator::SpecialParameters::DefaultValue, "Default");
 	defaultValue.setMode(HiSlider::NormalizedPercentage);
 
-
-
-
-
 	intensity.setup(mod, MPEModulator::SpecialParameters::SmoothedIntensity, "Intensity");
 
-	if (mod->getMode() == Modulation::GainMode)
+	auto mode = mod->getMode();
+
+	if (mode == Modulation::GainMode)
 	{
 		intensity.setMode(HiSlider::NormalizedPercentage);
 		defaultValue.setMode(HiSlider::NormalizedPercentage);
 	}
-	else
+	else if (mode == Modulation::PitchMode)
 	{
 		intensity.setMode(HiSlider::Linear, -12.0, 12.0, 0.0, 0.01);
 		intensity.setTextValueSuffix(" st.");
@@ -918,7 +964,11 @@ MPEPanel::Model::Row::Row(MPEModulator* mod_, LookAndFeel& laf_) :
 		defaultValue.setMode(HiSlider::Linear, -12.0, 12.0, 0.0, 0.01);
 		defaultValue.setTextValueSuffix(" st.");
 	}
-
+	else if (mode == Modulation::PanMode)
+	{
+		intensity.setMode(HiSlider::Pan);
+		defaultValue.setMode(HiSlider::Pan);
+	}
 
 	smoothingTime.setColour(Slider::textBoxOutlineColourId, Colours::transparentBlack);
 	intensity.setColour(Slider::textBoxOutlineColourId, Colours::transparentBlack);
@@ -995,14 +1045,15 @@ void MPEPanel::Model::Row::resized()
 
 	ar.removeFromLeft(100);
 
-	output.setBounds(ar.removeFromLeft(80).reduced(margin));
+	
 	selector.setBounds(ar.removeFromLeft(80));
 	modeSelector.setBounds(ar.removeFromLeft(100).reduced(margin));
-	intensity.setBounds(ar.removeFromLeft(100).reduced(margin));
 	curvePreview.setBounds(ar.removeFromLeft(50).reduced(margin));
+	intensity.setBounds(ar.removeFromLeft(100).reduced(margin));
+	
 	smoothingTime.setBounds(ar.removeFromLeft(100).reduced(margin));
 	defaultValue.setBounds(ar.removeFromLeft(100).reduced(margin));
-
+	output.setBounds(ar.removeFromLeft(80).reduced(margin));
 	deleteButton.setBounds(ar.removeFromRight(buttonWidth).reduced(margin + 6));
 }
 
@@ -1021,8 +1072,15 @@ void MPEPanel::Model::Row::updateEnableState()
 
 		const bool isMonophonic = mod->getAttribute(EnvelopeModulator::Monophonic) > 0.5f;
 		const bool shouldRetrigger = mod->getAttribute(EnvelopeModulator::Retrigger) > 0.5f;
+		const bool isBipolarPan = mod->isBipolar() && mod->getMode() == Modulation::PanMode;
 
-		modeSelector.setSelectedId(isMonophonic ? (shouldRetrigger ? 3 : 2) : 1, dontSendNotification);
+		int valueToUse = isMonophonic ? (shouldRetrigger ? 3 : 2) : 1;
+
+		if (isBipolarPan)
+			valueToUse += 3;
+
+
+		modeSelector.setSelectedId(valueToUse, dontSendNotification);
 
 		intensity.setEnabled(enabled);
 		smoothingTime.setEnabled(enabled);
@@ -1076,22 +1134,39 @@ void MPEPanel::Model::Row::buttonClicked(Button* b)
 
 void MPEPanel::Model::Row::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 {
-	auto result = comboBoxThatHasChanged->getSelectedId();
+	auto result = comboBoxThatHasChanged->getSelectedId() - 1;
 
-	if (result == 1)
+	const bool shouldBeBipolar = result >= 3;
+	result = result % 3;
+
+	if(mod->getMode() != Modulation::GainMode)
+		mod->setIsBipolar(shouldBeBipolar);
+
+	if (result == 0)
 	{
 		mod->setAttribute(EnvelopeModulator::Parameters::Monophonic, false, sendNotification);
 	}
-	else if (result == 2)
+	else if (result == 1)
 	{
 		mod->setAttribute(EnvelopeModulator::Parameters::Monophonic, true, dontSendNotification);
 		mod->setAttribute(EnvelopeModulator::Parameters::Retrigger, false, sendNotification);
 	}
-	else if (result == 3)
+	else if (result == 2)
 	{
 		mod->setAttribute(EnvelopeModulator::Parameters::Monophonic, true, dontSendNotification);
 		mod->setAttribute(EnvelopeModulator::Parameters::Retrigger, true, sendNotification);
 	}
+}
+
+bool MPEPanel::Model::Row::keyPressed(const KeyPress& key)
+{
+	if (key == KeyPress::upKey || key == KeyPress::downKey)
+	{
+		if (auto lb = findParentComponentOfClass<ListBox>())
+			return lb->keyPressed(key);
+	}
+
+	return false;
 }
 
 void MPEPanel::Model::Row::deleteThisRow()
@@ -1106,21 +1181,25 @@ void MPEPanel::Model::Row::deleteThisRow()
 				m->sendChangeMessage();
 			}
 
-			return true;
+			return SafeFunctionCall::OK;
 		};
 
 		findParentComponentOfClass<MPEPanel>()->setCurrentMod(nullptr);
 
-		mod->getMainController()->getKillStateHandler().killVoicesAndCall(mod, f, MainController::KillStateHandler::MessageThread);
+		mod->getMainController()->getKillStateHandler().killVoicesAndCall(mod, f, MainController::KillStateHandler::SampleLoadingThread);
 	}
 }
 
-MPEKeyboard::MPEKeyboard(MidiKeyboardState& state_) :
-	state(state_),
-	pendingMessages(1024)
+MPEKeyboard::MPEKeyboard(MainController* mc) :
+	state(mc->getKeyboardState()),
+	pendingMessages(1024),
+	channelRange({2, 16})
 {
+	pendingMessages.setThreadTokens(mc->getKillStateHandler().createPublicTokenList(MainController::KillStateHandler::AudioThreadIsProducer |																									  MainController::KillStateHandler::MessageThreadIsProducer));
+
 	state.addListener(this);
-	startTimer(30);
+
+	setLookAndFeel(&dlaf);
 
 	setColour(bgColour, Colours::black);
 	setColour(waveColour, Colours::white.withAlpha(0.5f));
@@ -1133,14 +1212,17 @@ MPEKeyboard::~MPEKeyboard()
 	state.removeListener(this);
 }
 
-void MPEKeyboard::timerCallback()
+void MPEKeyboard::handleAsyncUpdate()
 {
 	if (!pendingMessages.isEmpty())
 	{
 		MidiMessage m;
 
-		while (pendingMessages.pop(m))
+		auto f = [this](MidiMessage& m)
 		{
+			if (!appliesToRange(m))
+				return MultithreadedQueueHelpers::OK;
+
 			if (m.isNoteOn())
 			{
 				pressedNotes.insert(Note::fromMidiMessage(*this, m));
@@ -1159,7 +1241,10 @@ void MPEKeyboard::timerCallback()
 					n.updateNote(*this, m);
 			}
 
-		}
+			return MultithreadedQueueHelpers::OK;
+		};
+
+		pendingMessages.clear(f);
 
 		repaint();
 	}
@@ -1167,53 +1252,67 @@ void MPEKeyboard::timerCallback()
 
 void MPEKeyboard::handleNoteOn(MidiKeyboardState* /*source*/, int midiChannel, int midiNoteNumber, float velocity)
 {
-	auto m = MidiMessage::noteOn(midiChannel, midiNoteNumber, velocity);
-
-	pendingMessages.push(std::move(m));
+	pendingMessages.push(MidiMessage::noteOn(midiChannel, midiNoteNumber, velocity));
+	triggerAsyncUpdate();
 }
 
 void MPEKeyboard::handleNoteOff(MidiKeyboardState* /*source*/, int midiChannel, int midiNoteNumber, float velocity)
 {
-	auto m = MidiMessage::noteOff(midiChannel, midiNoteNumber, velocity);
-
-	pendingMessages.push(std::move(m));
+	pendingMessages.push(MidiMessage::noteOff(midiChannel, midiNoteNumber, velocity));
+	triggerAsyncUpdate();
 }
 
 void MPEKeyboard::handleMessage(const MidiMessage& m)
 {
 	MidiMessage copy(m);
-
 	pendingMessages.push(std::move(copy));
+	triggerAsyncUpdate();
 }
 
 void MPEKeyboard::mouseDown(const MouseEvent& e)
 {
 	auto n = Note::fromMouseEvent(*this, e, nextChannelIndex);
+    
+    pressedNotes.insert(n);
+    
 	n.sendNoteOn(state);
-
-	pressedNotes.insert(n);
 
 	nextChannelIndex++;
 
-	if (nextChannelIndex > 15)
-		nextChannelIndex = 1;
+	if (nextChannelIndex > channelRange.getEnd())
+		nextChannelIndex = channelRange.getStart();
 
 	repaint();
 }
 
 void MPEKeyboard::mouseUp(const MouseEvent& e)
 {
+    bool found = false;
+    
 	for (int i = 0; i < pressedNotes.size(); i++)
 	{
 		if (pressedNotes[i] == e)
 		{
 			pressedNotes[i].sendNoteOff(state);
 			pressedNotes.removeElement(i--);
+            found = true;
 			break;
 		}
-
 	}
-
+    
+    if(!found)
+    {
+        DBG("Kill all voices to be sure");
+        
+        for(int i = 0; i < pressedNotes.size(); i++)
+        {
+            pressedNotes[i].sendNoteOff(state);
+        }
+        
+        pressedNotes.clear();
+    }
+    
+    
 	repaint();
 }
 
@@ -1223,41 +1322,6 @@ void MPEKeyboard::mouseDrag(const MouseEvent& event)
 		s.updateNote(*this, event);
 
 	repaint();
-}
-
-void MPEKeyboard::paint(Graphics& g)
-{
-	Colour c1 = findColour(bgColour).withMultipliedAlpha(1.1f);
-	Colour c2 = findColour(bgColour).withMultipliedAlpha(0.9f);
-
-	g.setGradientFill(ColourGradient(c1, 0.0f, 0.0f, c2, 0.0f, (float)getHeight(), false));
-	g.fillAll();
-
-	static const int whiteWave[24] = { 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0,
-		0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0 };
-
-	for (int i = 0; i < 24; i++)
-	{
-		auto l = getPositionForNote(lowKey + i);
-
-		const float radius = getWidthForNote() * 0.2f;
-
-		if (whiteWave[i] == 1)
-		{
-			g.setColour(findColour(waveColour));
-			g.drawLine(l.getCentreX(), radius, l.getCentreX(), l.getHeight() - 2.0f*radius, 4.0f);
-		}
-		else if (whiteWave[i] == 0)
-		{
-			l.reduce(4, 3);
-
-			g.setColour(findColour(waveColour).withMultipliedAlpha(0.1f));
-			g.fillRoundedRectangle(l, radius);
-		}
-	}
-
-	for (const auto& n : pressedNotes)
-		n.draw(*this, g);
 }
 
 juce::Rectangle<float> MPEKeyboard::getPositionForNote(int noteNumber) const
@@ -1300,10 +1364,11 @@ hise::MPEKeyboard::Note MPEKeyboard::Note::fromMouseEvent(const MPEKeyboard& p, 
 	n.slideValue = 8192;
 	n.strokeValue = 127;
 	n.liftValue = 127;
-	n.pressureValue = 0;
+    n.pressureValue = e.isPressureValid() ? (int)(e.pressure * 127.0f) : 0;
 
 	n.startPoint = { (int)p.getPositionForNote(n.noteNumber).getCentreX(), e.getMouseDownY() };
 
+    DBG("Finger: " + String(n.fingerIndex));
 
 	n.dragPoint = n.startPoint;
 
@@ -1345,6 +1410,15 @@ void MPEKeyboard::Note::updateNote(const MPEKeyboard& p, const MouseEvent& e)
 	float normalisedGlide = -0.5f * (float)e.getDistanceFromDragStartY() / (float)p.getHeight();
 	glideValue = jlimit<int>(0, 127, 64 + roundFloatToInt(normalisedGlide * 127.0f));
 
+    if(e.isPressureValid())
+    {
+        
+        pressureValue = jlimit<int>(0, 127, (int)(e.pressure * 127.0f));
+        
+        p.state.injectMessage(MidiMessage::channelPressureChange(assignedMidiChannel, pressureValue));
+    }
+    
+    
 	p.state.injectMessage(MidiMessage::pitchWheel(assignedMidiChannel, slideValue));
 	p.state.injectMessage(MidiMessage::controllerEvent(assignedMidiChannel, 74, glideValue));
 }
@@ -1381,29 +1455,87 @@ void MPEKeyboard::Note::updateNote(const MPEKeyboard& p, const MidiMessage& m)
 		liftValue = m.getVelocity();
 }
 
-void MPEKeyboard::Note::draw(const MPEKeyboard& p, Graphics& g) const
+void MPEKeyboard::DefaultLookAndFeel::drawKeyboard(MPEKeyboard& keyboard, Graphics& g)
 {
-	if (!isVisible(p))
-		return;
+	Colour c1 = keyboard.findColour(bgColour).withMultipliedAlpha(1.1f);
+	Colour c2 = keyboard.findColour(bgColour).withMultipliedAlpha(0.9f);
 
-	auto area = p.getPositionForNote(noteNumber);
+	g.setGradientFill(ColourGradient(c1, 0.0f, 0.0f, c2, 0.0f, (float)keyboard.getHeight(), false));
+	g.fillAll();
 
-	g.setColour(p.findColour(keyOnColour).withAlpha((float)pressureValue / 127.0f));
+	static const int whiteWave[24] = { 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0,
+		0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0 };
+
+	for (int i = 0; i < 24; i++)
+	{
+		auto noteNumber = keyboard.lowKey + i;
+
+		auto l = keyboard.getPositionForNote(noteNumber);
+
+		if (keyboard.isShowingOctaveNumbers() && noteNumber % 12 == 0)
+		{
+			g.setFont(Font((float)l.getWidth() / 2.5f));
+			g.setColour(keyboard.findColour(waveColour));
+			g.drawText(MidiMessage::getMidiNoteName(noteNumber, true, true, 3), l.withHeight(l.getHeight() - 10), Justification::centredBottom);
+		}
+
+		const float radius = keyboard.getWidthForNote() * 0.2f;
+
+		if (whiteWave[i] == 1)
+		{
+			g.setColour(keyboard.findColour(waveColour));
+			g.drawLine(l.getCentreX(), radius, l.getCentreX(), l.getHeight() - 2.0f*radius, 4.0f);
+		}
+		else if (whiteWave[i] == 0)
+		{
+			l.reduce(4, 3);
+
+			g.setColour(keyboard.findColour(waveColour).withMultipliedAlpha(0.1f));
+			g.fillRoundedRectangle(l, radius);
+		}
+	}
+}
+
+
+void MPEKeyboard::paint(Graphics& g)
+{
+	MPEKeyboardLookAndFeel* laf = dynamic_cast<MPEKeyboardLookAndFeel*>(&getLookAndFeel());
+
+	if (laf == nullptr)
+		laf = &dlaf;
+
+	laf->drawKeyboard(*this, g);
+
+	for (const auto& n : pressedNotes)
+	{
+		if (!n.isVisible(*this))
+			continue;
+
+		auto area = getPositionForNote(n.noteNumber);
+
+		laf->drawNote(*this, n, g, area);
+	}
+}
+
+
+void MPEKeyboard::DefaultLookAndFeel::drawNote(MPEKeyboard& keyboard, const Note& n, Graphics& g, Rectangle<float> area)
+{
+	g.setColour(keyboard.findColour(keyOnColour).withAlpha(0.1f + 0.9f * ((float)n.pressureValue / 127.0f)));
 
 	area.reduce(4.0f, 3.0f);
-	auto radius = p.getWidthForNote() * 0.2f;
+	auto radius = keyboard.getWidthForNote() * 0.2f;
 
 	g.fillRoundedRectangle(area, radius);
-	g.setColour(p.findColour(dragColour));
+	g.setColour(keyboard.findColour(dragColour));
 
-	auto l = Line<int>(startPoint, dragPoint);
+	auto l = Line<int>(n.startPoint, n.dragPoint);
 
 	g.drawLine((float)l.getStartX(), (float)l.getStartY(), (float)l.getEndX(), (float)l.getEndY(), 2.0f);
 
-	Rectangle<float> r((float)dragPoint.getX(), (float)dragPoint.getY(), 0.0f, 0.0f);
+	Rectangle<float> r((float)n.dragPoint.getX(), (float)n.dragPoint.getY(), 0.0f, 0.0f);
 	r = r.withSizeKeepingCentre(10, 10);
 
-	g.setColour(Colours::white.withAlpha((float)strokeValue / 127.0f));
+	g.setColour(Colours::white.withAlpha((float)n.strokeValue / 127.0f));
 	g.drawEllipse(r, 2.0f);
 }
 

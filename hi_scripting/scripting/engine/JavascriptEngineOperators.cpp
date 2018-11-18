@@ -107,7 +107,11 @@ struct HiseJavascriptEngine::RootObject::AdditionOp : public BinaryOperator
 	AdditionOp(const CodeLocation& l, ExpPtr& a, ExpPtr& b) noexcept : BinaryOperator(l, a, b, TokenTypes::plus) {}
 	var getWithDoubles(double a, double b) const override                 { return a + b; }
 	var getWithInts(int64 a, int64 b) const override                      { return a + b; }
-	var getWithStrings(const String& a, const String& b) const override   { return a + b; }
+	var getWithStrings(const String& a, const String& b) const override   
+	{ 
+		WARN_IF_AUDIO_THREAD(true, IllegalAudioThreadOps::StringCreation);
+		return a + b; 
+	}
 
 	var getWithArrayOrObject(const var &a, const var& b) const override
 	{

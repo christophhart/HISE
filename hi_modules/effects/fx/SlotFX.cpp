@@ -13,6 +13,8 @@ namespace hise { using namespace juce;
 SlotFX::SlotFX(MainController *mc, const String &uid) :
 	MasterEffectProcessor(mc, uid)
 {
+	finaliseModChains();
+
 	createList();
 
 	reset();
@@ -43,7 +45,7 @@ void SlotFX::handleHiseEvent(const HiseEvent &m)
 
 	if (auto w = wrappedEffect.get())
 	{
-		if (!w->isBypassed())
+		if (!w->isSoftBypassed())
 		{
 			w->handleHiseEvent(m);
 		}
@@ -57,7 +59,7 @@ void SlotFX::startMonophonicVoice()
 
 	if (auto w = wrappedEffect.get())
 	{
-		if (!w->isBypassed())
+		if (!w->isSoftBypassed())
 		{
 			w->startMonophonicVoice();
 		}
@@ -71,7 +73,7 @@ void SlotFX::stopMonophonicVoice()
 
 	if (auto w = wrappedEffect.get())
 	{
-		if (!w->isBypassed())
+		if (!w->isSoftBypassed())
 		{
 			w->stopMonophonicVoice();
 		}
@@ -85,7 +87,7 @@ void SlotFX::resetMonophonicVoice()
 
 	if (auto w = wrappedEffect.get())
 	{
-		if (!w->isBypassed())
+		if (!w->isSoftBypassed())
 		{
 			w->resetMonophonicVoice();
 		}
@@ -99,7 +101,7 @@ void SlotFX::renderWholeBuffer(AudioSampleBuffer &buffer)
 
 	if (auto w = wrappedEffect.get())
 	{
-		if (!w->isBypassed())
+		if (!w->isSoftBypassed())
 		{
 			wrappedEffect->renderAllChains(0, buffer.getNumSamples());
 			wrappedEffect->renderWholeBuffer(buffer);
@@ -107,8 +109,20 @@ void SlotFX::renderWholeBuffer(AudioSampleBuffer &buffer)
 	}
 }
 
-bool SlotFX::setEffect(const String& typeName, bool synchronously)
+hise::MasterEffectProcessor* SlotFX::getCurrentEffect()
 {
+	if (wrappedEffect != nullptr)
+		return wrappedEffect.get();
+
+
+	jassertfalse;
+	return nullptr;
+}
+
+bool SlotFX::setEffect(const String& typeName, bool /*synchronously*/)
+{
+	LockHelpers::freeToGo(getMainController());
+
 	int index = effectList.indexOf(typeName);
 
 	if (currentIndex == index)
@@ -122,94 +136,52 @@ bool SlotFX::setEffect(const String& typeName, bool synchronously)
 
 		currentIndex = index;
 
-
-		if (wrappedEffect != nullptr)
+		if (auto p = f->createProcessor(f->getProcessorTypeIndex(typeName), typeName))
 		{
-			if (synchronously)
+			if (getSampleRate() > 0)
+				p->prepareToPlay(getSampleRate(), getLargestBlockSize());
+
+			p->setParentProcessor(this);
+			auto newId = getId() + "_" + p->getId();
+			p->setId(newId);
+			ScopedPointer<MasterEffectProcessor> pendingDeleteProcessor;
+
+			if (wrappedEffect != nullptr)
 			{
-				wrappedEffect->sendDeleteMessage();
-
-			}
-			else
-			{
-				ScopedLock sl(getMainController()->getLock());
-
-				auto pendingDeleteEffect = wrappedEffect.release();
-
-				auto df = [pendingDeleteEffect, this]()
-				{
-					pendingDeleteEffect->sendDeleteMessage();
-
-
-					auto p = this->wrappedEffect.get();
-
-					if (p != nullptr)
-					{
-						for (int i = 0; i < p->getNumInternalChains(); i++)
-						{
-							dynamic_cast<ModulatorChain*>(p->getChildProcessor(i))->setColour(p->getColour());
-						}
-
-						this->sendRebuildMessage(true);
-					}
-
-					ScopedLock sl(getMainController()->getLock());
-
-					delete pendingDeleteEffect;
-				};
-
-				new DelayedFunctionCaller(df, 100);
+				LOCK_PROCESSING_CHAIN(this);
+				wrappedEffect->setIsOnAir(false);
+				wrappedEffect.swapWith(pendingDeleteProcessor);
+				
 			}
 
-			
+			if (pendingDeleteProcessor != nullptr)
+				getMainController()->getGlobalAsyncModuleHandler().removeAsync(pendingDeleteProcessor.release(), ProcessorFunction());
+
+			{
+				LOCK_PROCESSING_CHAIN(this);
+
+				wrappedEffect = dynamic_cast<MasterEffectProcessor*>(p);
+				wrappedEffect->setIsOnAir(isOnAir());
+				wrappedEffect->setKillBuffer(*(this->killBuffer));
+				isClear = wrappedEffect == nullptr || dynamic_cast<EmptyFX*>(wrappedEffect.get()) != nullptr;;
+			}
+
+			if (auto sp = dynamic_cast<JavascriptProcessor*>(wrappedEffect.get()))
+			{
+				hasScriptFX = true;
+				sp->compileScript();
+			}
+
+			return true;
 		}
-			
-
-
-
-		auto p = dynamic_cast<MasterEffectProcessor*>(f->createProcessor(f->getProcessorTypeIndex(typeName), typeName));
-
-		if (p == nullptr)
+		else
 		{
+			// Should have been catched before...
+			jassertfalse;
+
 			reset();
 			return true;
 		}
-
-		if (p != nullptr && getSampleRate() > 0)
-			p->prepareToPlay(getSampleRate(), getLargestBlockSize());
-
-        bool thisIsScriptFX = false;
-        
-        if (JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(p))
-        {
-            thisIsScriptFX = true;
-            sp->compileScript();
-        }
-        
-		if(p != nullptr)
-		{
-			auto newId = getId() + "_" + p->getId();
-
-			p->setId(newId);
-
-			ScopedLock sl(getMainController()->getLock());
-            
-            p->setIsOnAir(true);
-            
-			wrappedEffect = p;
-            
-            hasScriptFX = thisIsScriptFX;
-
-			isClear = wrappedEffect == nullptr || dynamic_cast<EmptyFX*>(wrappedEffect.get()) != nullptr;
-		}
-
-		
-		
-
-		if (synchronously)
-			sendRebuildMessage(true);
-
-		return true;
 	}
 	else
 	{
@@ -222,15 +194,11 @@ bool SlotFX::setEffect(const String& typeName, bool synchronously)
 void SlotFX::createList()
 {
 	ScopedPointer<FactoryType> f = new EffectProcessorChainFactoryType(128, this);
-
 	f->setConstrainer(new Constrainer());
-
 	auto l = f->getAllowedTypes();
 
 	for (int i = 0; i < l.size(); i++)
-	{
 		effectList.add(l[i].type.toString());
-	}
 
 	f = nullptr;
 }

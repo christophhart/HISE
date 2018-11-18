@@ -37,13 +37,13 @@ namespace hise { using namespace juce;
 Processor * AhdsrEnvelope::getChildProcessor(int processorIndex)
 {
 	jassert(processorIndex < internalChains.size());
-	return internalChains[processorIndex];
+	return internalChains[processorIndex].getChain();
 }
 
 const Processor * AhdsrEnvelope::getChildProcessor(int processorIndex) const
 {
 	jassert(processorIndex < internalChains.size());
-	return internalChains[processorIndex];
+	return internalChains[processorIndex].getChain();
 }
 
 AhdsrEnvelope::AhdsrEnvelope(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m) :
@@ -77,16 +77,18 @@ AhdsrEnvelope::AhdsrEnvelope(MainController *mc, const String &id, int voiceAmou
 
 	monophonicState = createSubclassedState(-1);
 
-	internalChains.add(new ModulatorChain(mc, "Attack Time", voiceAmount, ModulatorChain::GainMode, this));
-	internalChains.add(new ModulatorChain(mc, "Attack Level", voiceAmount, ModulatorChain::GainMode, this));
-	internalChains.add(new ModulatorChain(mc, "Decay Time", voiceAmount, ModulatorChain::GainMode, this));
-	internalChains.add(new ModulatorChain(mc, "Sustain Level", voiceAmount, ModulatorChain::GainMode, this));
-	internalChains.add(new ModulatorChain(mc, "Release Time", voiceAmount, ModulatorChain::GainMode, this));
+	internalChains.reserve(numInternalChains);
 
-	for(int i = 0; i < internalChains.size(); i++)
-	{
-		internalChains[i]->setIsVoiceStartChain(true);
-	};
+	internalChains += {this, "Attack Time", ModulatorChain::ModulationType::VoiceStartOnly };
+	internalChains += {this, "Attack Level", ModulatorChain::ModulationType::VoiceStartOnly };
+	internalChains += {this, "Decay Time", ModulatorChain::ModulationType::VoiceStartOnly };
+	internalChains += {this, "Sustain Level", ModulatorChain::ModulationType::VoiceStartOnly };
+	internalChains += {this, "Release Time", ModulatorChain::ModulationType::VoiceStartOnly };
+
+	internalChains.finalise();
+
+	for (auto& mb : internalChains)
+		mb.getChain()->setParentProcessor(this);
 
     setTargetRatioDR(0.0001f);
 
@@ -130,9 +132,8 @@ ValueTree AhdsrEnvelope::exportAsValueTree() const
 
 float AhdsrEnvelope::getSampleRateForCurrentMode() const
 {
-	auto sr = getSampleRate();
-	if (ecoMode) sr *= (1.0 / (double)downsampleFactor);
-
+	auto sr = getControlRate();
+	
 	return (float)sr;
 }
 
@@ -180,8 +181,13 @@ void AhdsrEnvelope::setTargetRatioDR(float targetRatio) {
     releaseBase = -targetRatioDR * (1.0f - releaseCoef);
 }
 
-void AhdsrEnvelope::startVoice(int voiceIndex)
+float AhdsrEnvelope::startVoice(int voiceIndex)
 {
+#if ENABLE_ALL_PEAK_METERS
+	stateInfo.state = AhdsrEnvelopeState::ATTACK;
+	stateInfo.changeTime = getMainController()->getUptime();
+#endif
+
 	if (isMonophonic)
 	{
 		state = static_cast<AhdsrEnvelopeState*>(monophonicState.get());
@@ -192,14 +198,18 @@ void AhdsrEnvelope::startVoice(int voiceIndex)
 
 		if (restartEnvelope)
 		{
-			for (int i = 0; i < numInternalChains; i++)
-			{
-				internalChains[i]->startVoice(voiceIndex);
-				state->modValues[i] = jmax(0.0f, internalChains[i]->getConstantVoiceValue(voiceIndex));
-			}
+			
+			for (auto& mb : internalChains)
+				mb.startVoice(voiceIndex);
+			
+			state->modValues[AttackTimeChain] = internalChains[AttackTimeChain].getChain()->getConstantVoiceValue(voiceIndex);
+			state->modValues[AttackLevelChain] = internalChains[AttackLevelChain].getChain()->getConstantVoiceValue(voiceIndex);
+			state->modValues[DecayTimeChain] = internalChains[DecayTimeChain].getChain()->getConstantVoiceValue(voiceIndex);
+			state->modValues[SustainLevelChain] = internalChains[SustainLevelChain].getChain()->getConstantVoiceValue(voiceIndex);
+			state->modValues[ReleaseTimeChain] = internalChains[ReleaseTimeChain].getChain()->getConstantVoiceValue(voiceIndex);
 
 			// Don't reset the envelope for tailing releases
-			if (shouldRetrigger)
+			if (shouldRetrigger && state->current_state != AhdsrEnvelopeState::IDLE)
 			{
 				state->current_state = AhdsrEnvelopeState::RETRIGGER;
 			}
@@ -226,11 +236,14 @@ void AhdsrEnvelope::startVoice(int voiceIndex)
 			reset(voiceIndex);
 		}
 
-		for (int i = 0; i < numInternalChains; i++)
-		{
-			internalChains[i]->startVoice(voiceIndex);
-			state->modValues[i] = jmax(0.0f, internalChains[i]->getConstantVoiceValue(voiceIndex));
-		}
+		for (auto& mb : internalChains)
+			mb.startVoice(voiceIndex);
+
+		state->modValues[AttackTimeChain] = internalChains[AttackTimeChain].getChain()->getConstantVoiceValue(voiceIndex);
+		state->modValues[AttackLevelChain] = internalChains[AttackLevelChain].getChain()->getConstantVoiceValue(voiceIndex);
+		state->modValues[DecayTimeChain] = internalChains[DecayTimeChain].getChain()->getConstantVoiceValue(voiceIndex);
+		state->modValues[SustainLevelChain] = internalChains[SustainLevelChain].getChain()->getConstantVoiceValue(voiceIndex);
+		state->modValues[ReleaseTimeChain] = internalChains[ReleaseTimeChain].getChain()->getConstantVoiceValue(voiceIndex);
 
 		state->attackLevel = attackLevel * state->modValues[AttackLevelChain];
 		state->setAttackRate(attack);
@@ -244,6 +257,8 @@ void AhdsrEnvelope::startVoice(int voiceIndex)
 
 		state->lastSustainValue = sustain * state->modValues[SustainLevelChain];
 	}
+
+	return calculateNewValue(voiceIndex);
 }
 
 void AhdsrEnvelope::stopVoice(int voiceIndex)
@@ -306,57 +321,27 @@ void AhdsrEnvelope::calculateBlock(int startSample, int numSamples)
 	}
 	else
 	{
-		if (ecoMode)
+		while (numSamples > 0)
 		{
-			if (state->leftOverSamplesFromLastBuffer)
-			{
-				int numThisTime = jmin<int>(numSamples, state->leftOverSamplesFromLastBuffer);
-
-				FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), state->current_value, numThisTime);
-				startSample += numThisTime;
-				numSamples -= numThisTime;
-				state->leftOverSamplesFromLastBuffer -= numThisTime;
-			}
-
-			while (numSamples >= downsampleFactor)
-			{
-				auto value = calculateNewValue();
-
-				
-
-				FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), value, downsampleFactor);
-
-				numSamples -= downsampleFactor;
-				startSample += downsampleFactor;
-			}
-
-			if (numSamples > 0)
-			{
-				auto value = calculateNewValue();
-
-				FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), value, numSamples);
-
-				state->leftOverSamplesFromLastBuffer = downsampleFactor - numSamples;
-				startSample += numSamples;
-				
-				jassert(state->leftOverSamplesFromLastBuffer > 0);
-			}
-		}
-		else
-		{
-			while (numSamples > 0)
-			{
-				internalBuffer.setSample(0, startSample, calculateNewValue());
-				++startSample;
-				numSamples--;
-			}
+			internalBuffer.setSample(0, startSample, calculateNewValue(voiceIndex));
+			++startSample;
+			numSamples--;
 		}
 
 		
 	}
 
 #if ENABLE_ALL_PEAK_METERS
-	if (isMonophonic || polyManager.getCurrentVoice() == polyManager.getLastStartedVoice()) setOutputValue(internalBuffer.getSample(0, startSample-1));
+	const bool isActiveVoice = polyManager.getCurrentVoice() == polyManager.getLastStartedVoice();
+
+	if (isMonophonic || isActiveVoice)
+	{
+		if (state->current_state != stateInfo.state)
+		{
+			stateInfo.state = state->current_state;
+			stateInfo.changeTime = getMainController()->getUptime();
+		}
+	}
 #endif
 }
 
@@ -364,11 +349,18 @@ void AhdsrEnvelope::reset(int voiceIndex)
 {
 	if (isMonophonic)
 	{
+		stateInfo.state = AhdsrEnvelopeState::IDLE;
 		return;
 	}
 	else
 	{
 		EnvelopeModulator::reset(voiceIndex);
+
+#if ENABLE_ALL_PEAK_METERS
+		if (voiceIndex == polyManager.getLastStartedVoice())
+			stateInfo.state = AhdsrEnvelopeState::IDLE;
+#endif
+
 
 		state = static_cast<AhdsrEnvelopeState*>(states[voiceIndex]);
 		state->current_state = AhdsrEnvelopeState::IDLE;
@@ -378,10 +370,8 @@ void AhdsrEnvelope::reset(int voiceIndex)
 
 void AhdsrEnvelope::handleHiseEvent(const HiseEvent &e)
 {
-	for(int i = 0; i < numInternalChains; i++)
-	{
-		internalChains[i]->handleHiseEvent(e);
-	}
+	for (auto& mb : internalChains)
+		mb.handleHiseEvent(e);
 };
 
 float AhdsrEnvelope::getDefaultValue(int parameterIndex) const
@@ -424,9 +414,7 @@ void AhdsrEnvelope::setInternalAttribute(int parameterIndex, float newValue)
 	case Release:		setReleaseRate(newValue); break;
 	case AttackCurve:	setAttackCurve(newValue); break;
 	case DecayCurve:	setDecayCurve(newValue); break;
-	case EcoMode:		setDownsampleFactor(newValue);
-
-						break;
+	case EcoMode:		break; // not needed anymore...
 	default:			jassertfalse;
 	}
 }
@@ -448,7 +436,7 @@ float AhdsrEnvelope::getAttribute(int parameterIndex) const
 	case Release:		return release;
 	case AttackCurve:	return attackCurve;
 	case DecayCurve:	return decayCurve;
-	case EcoMode:		return (float)downsampleFactor;
+	case EcoMode:		return 1.0f; // not needed anymore...
 	default:		jassertfalse; return -1;
 	}
 }
@@ -457,12 +445,13 @@ void AhdsrEnvelope::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	EnvelopeModulator::prepareToPlay(sampleRate, samplesPerBlock);
 
+	for (auto& mb : internalChains)
+		mb.prepareToPlay(sampleRate, samplesPerBlock);
+
 	setAttackRate(attack);
 	setDecayRate(decay);
 	setReleaseRate(release);
 	setSustainLevel(sustain);
-	
-
 }
 
 bool AhdsrEnvelope::isPlaying(int voiceIndex) const
@@ -483,7 +472,7 @@ void AhdsrEnvelope::calculateCoefficients(float timeInMilliSeconds, float base, 
 	stateBase = (exp1 *invertedBase - invertedBase) * maximum;
 }
 
-float AhdsrEnvelope::calculateNewValue()
+float AhdsrEnvelope::calculateNewValue(int /*voiceIndex*/)
 {
     const float thisSustain = sustain * state->modValues[SustainLevelChain];
     
@@ -737,6 +726,255 @@ void AhdsrEnvelope::AhdsrEnvelopeState::setReleaseRate(float rate)
 		releaseCoef = envelope->releaseCoef;
 		releaseBase = envelope->releaseBase;
 	}
+}
+
+
+
+AhdsrGraph::AhdsrGraph(Processor *p) :
+	processor(p)
+{
+	setBufferedToImage(true);
+
+	if (dynamic_cast<AhdsrEnvelope*>(p) != nullptr)
+		startTimer(50);
+	else
+		jassertfalse;
+
+	setColour(lineColour, Colours::lightgrey.withAlpha(0.3f));
+}
+
+AhdsrGraph::~AhdsrGraph()
+{
+	
+}
+
+void AhdsrGraph::paint(Graphics &g)
+{
+	if (flatDesign)
+	{
+		g.setColour(findColour(bgColour));
+		g.fillAll();
+		g.setColour(findColour(fillColour));
+		g.fillPath(envelopePath);
+		g.setColour(findColour(lineColour));
+		g.strokePath(envelopePath, PathStrokeType(1.0f));
+		g.setColour(findColour(outlineColour));
+		g.drawRect(getLocalBounds(), 1);
+	}
+	else
+	{
+		GlobalHiseLookAndFeel::fillPathHiStyle(g, envelopePath, getWidth(), getHeight());
+
+		g.setColour(findColour(lineColour));
+
+		
+		g.strokePath(envelopePath, PathStrokeType(1.0f));
+		g.setColour(Colours::lightgrey.withAlpha(0.1f));
+		g.drawRect(getLocalBounds(), 1);
+	}
+
+	g.setColour(Colours::white.withAlpha(0.1f));
+
+	float xPos = 0.0f;
+
+	float tToUse = 1.0f;
+
+	Path* pToUse = nullptr;
+
+	switch (lastState.state)
+	{
+	case AhdsrEnvelope::AhdsrEnvelopeState::ATTACK: pToUse = &attackPath; tToUse = attack; break;
+	case AhdsrEnvelope::AhdsrEnvelopeState::HOLD: pToUse = &holdPath; tToUse = hold; break;
+	case AhdsrEnvelope::AhdsrEnvelopeState::DECAY: pToUse = &decayPath; tToUse = 0.5f * decay; break;
+	case AhdsrEnvelope::AhdsrEnvelopeState::SUSTAIN: pToUse = &decayPath; 
+													 tToUse = 0.001f; // nasty hack to make the bar stick at the end...
+													 break;
+	case AhdsrEnvelope::AhdsrEnvelopeState::RELEASE: pToUse = &releasePath; tToUse = 0.8f * release; break;
+	default:
+		break;
+	}
+
+	if (pToUse != nullptr)
+	{
+		g.fillPath(*pToUse);
+		
+		auto bounds = pToUse->getBounds();
+		auto duration = (float)(processor->getMainController()->getUptime() - lastState.changeTime) * 1000.0f;
+		
+		auto normalizedDuration = 0.0f;
+
+		if (tToUse != 0.0f)
+			normalizedDuration = jlimit<float>(0.01f, 1.0f, duration / tToUse);
+
+		xPos = bounds.getX() + normalizedDuration * bounds.getWidth();
+
+		const float margin = 3.0f;
+
+		auto l = Line<float>(xPos, 0.0f, xPos, (float)getHeight()-1.0f - margin);
+
+		auto clippedLine = envelopePath.getClippedLine(l, false);
+
+		if (clippedLine.getLength() == 0.0f)
+			return;
+
+		auto circle = Rectangle<float>(clippedLine.getStart(), clippedLine.getStart()).withSizeKeepingCentre(6.0f, 6.0f);
+		
+		g.setColour(findColour(lineColour).withAlpha(1.0f));
+
+		g.fillRoundedRectangle(circle, 2.0f);
+	}
+}
+
+void AhdsrGraph::setUseFlatDesign(bool shouldUseFlatDesign)
+{
+	flatDesign = shouldUseFlatDesign;
+	repaint();
+}
+
+void AhdsrGraph::timerCallback()
+{
+	float this_attack = processor->getAttribute(AhdsrEnvelope::Attack);
+	float this_attackLevel = processor->getAttribute(AhdsrEnvelope::AttackLevel);
+	float this_hold = processor->getAttribute(AhdsrEnvelope::Hold);
+	float this_decay = processor->getAttribute(AhdsrEnvelope::Decay);
+	float this_sustain = processor->getAttribute(AhdsrEnvelope::Sustain);
+	float this_release = processor->getAttribute(AhdsrEnvelope::Release);
+	float this_attackCurve = processor->getAttribute(AhdsrEnvelope::AttackCurve);
+	lastState = dynamic_cast<AhdsrEnvelope*>(processor.get())->getStateInfo();
+
+	if (this_attack != attack ||
+		this_attackCurve != attackCurve ||
+		this_attackLevel != attackLevel ||
+		this_decay != decay ||
+		this_sustain != sustain ||
+		this_hold != hold ||
+		this_release != release)
+	{
+		attack = this_attack;
+		attackLevel = this_attackLevel;
+		hold = this_hold;
+		decay = this_decay;
+		sustain = this_sustain;
+		release = this_release;
+		attackCurve = this_attackCurve;
+
+		rebuildGraph();
+	}
+
+	repaint();
+}
+
+void AhdsrGraph::rebuildGraph()
+{
+	float aln = pow((1.0f - (attackLevel + 100.0f) / 100.0f), 0.4f);
+	const float sn = pow((1.0f - (sustain + 100.0f) / 100.0f), 0.4f);
+
+	const float margin = 3.0f;
+
+	aln = sn < aln ? sn : aln;
+
+	const float width = (float)getWidth() - 2.0f*margin;
+	const float height = (float)getHeight() - 2.0f*margin;
+
+	const float an = pow((attack / 20000.0f), 0.2f) * (0.2f * width);
+	const float hn = pow((hold / 20000.0f), 0.2f) * (0.2f * width);
+	const float dn = pow((decay / 20000.0f), 0.2f) * (0.2f * width);
+	const float rn = pow((release / 20000.0f), 0.2f) * (0.2f * width);
+
+	float x = margin;
+	float lastX = x;
+
+	envelopePath.clear();
+
+	attackPath.clear();
+	decayPath.clear();
+	holdPath.clear();
+	releasePath.clear();
+
+	envelopePath.startNewSubPath(x, margin + height);
+	attackPath.startNewSubPath(x, margin + height);
+
+	// Attack Curve
+
+	lastX = x;
+	x += an;
+
+	const float controlY = margin + aln * height + attackCurve * (height - aln * height);
+
+	envelopePath.quadraticTo((lastX + x) / 2, controlY, x, margin + aln * height);
+	
+	attackPath.quadraticTo((lastX + x) / 2, controlY, x, margin + aln * height);
+	attackPath.lineTo(x, margin + height);
+	attackPath.closeSubPath();
+
+	holdPath.startNewSubPath(x, margin + height);
+	holdPath.lineTo(x, margin + aln*height);
+
+	x += hn;
+
+	envelopePath.lineTo(x, margin + aln * height);
+	holdPath.lineTo(x, margin + aln*height);
+	holdPath.lineTo(x, margin + height);
+	holdPath.closeSubPath();
+	
+	decayPath.startNewSubPath(x, margin + height);
+	decayPath.lineTo(x, margin + aln*height);
+
+	lastX = x;
+	x = jmin<float>(x + (dn*4), 0.8f * width);
+
+	envelopePath.quadraticTo(lastX, margin + sn * height, x, margin + sn * height);
+	decayPath.quadraticTo(lastX, margin + sn * height, x, margin + sn * height);
+
+	x = 0.8f * width;
+
+	envelopePath.lineTo(x, margin + sn*height);
+	decayPath.lineTo(x, margin + sn*height);
+
+	decayPath.lineTo(x, margin + height);
+	decayPath.closeSubPath();
+
+	releasePath.startNewSubPath(x, margin + height);
+	releasePath.lineTo(x, margin + sn*height);
+
+	lastX = x;
+	x += rn;
+
+	envelopePath.quadraticTo(lastX, margin + height, x, margin + height);
+	releasePath.quadraticTo(lastX, margin + height, x, margin + height);
+
+	releasePath.closeSubPath();
+	envelopePath.closeSubPath();
+}
+
+AhdsrGraph::Panel::Panel(FloatingTile* parent) :
+	PanelWithProcessorConnection(parent)
+{
+	setDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour, Colours::transparentBlack);
+	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::white.withAlpha(0.1f));
+	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour2, Colours::white.withAlpha(0.5f));
+	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour3, Colours::white.withAlpha(0.05f));
+}
+
+juce::Component* AhdsrGraph::Panel::createContentComponent(int /*index*/)
+{
+	auto g = new AhdsrGraph(getProcessor());
+	g->setUseFlatDesign(true);
+
+	g->setColour(bgColour, findPanelColour(FloatingTileContent::PanelColourId::bgColour));
+	g->setColour(fillColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour1));
+	g->setColour(lineColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour2));
+	g->setColour(outlineColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour3));
+
+	if (g->findColour(bgColour).isOpaque())
+		g->setOpaque(true);
+
+	return g;
+}
+
+void AhdsrGraph::Panel::fillModuleList(StringArray& moduleList)
+{
+	fillModuleListWithType<AhdsrEnvelope>(moduleList);
 }
 
 } // namespace hise

@@ -57,7 +57,7 @@ class ScriptEditHandler
 {
 public:
 
-	enum class Widgets
+	enum class ComponentType
 	{
 		Knob = 0x1000,
 		Button,
@@ -66,14 +66,12 @@ public:
 		Label,
 		Image,
 		Viewport,
-		Plotter,
-		ModulatorMeter,
 		Panel,
 		AudioWaveform,
 		SliderPack,
 		FloatingTile,
-		duplicateWidget,
-		numWidgets
+		duplicateComponent,
+		numComponentTypes
 	};
 
 	ScriptEditHandler();
@@ -90,7 +88,7 @@ public:
 
 	Component* getAsComponent() { return dynamic_cast<Component*>(this); };
 
-	void createNewComponent(Widgets componentType, int x, int y);
+	void createNewComponent(ComponentType componentType, int x, int y, ScriptComponent* parent=nullptr);
 
 	bool editModeEnabled() const { return useComponentSelectMode; }
 
@@ -110,7 +108,7 @@ private:
 
 	bool useComponentSelectMode = false;
 
-	String isValidWidgetName(const String &id);
+	String isValidComponentName(const String &id);
 
 	Component::SafePointer<ScriptContentComponent> currentContent;
 

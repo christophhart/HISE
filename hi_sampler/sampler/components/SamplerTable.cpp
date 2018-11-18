@@ -100,6 +100,8 @@ SamplerTable::SamplerTable (ModulatorSampler *s, SamplerBody *b):
 
 	numSelected = 0;
 
+	s->getSampleMap()->addListener(this);
+
 	
 	addAndMakeVisible(helpButton = new MarkdownHelpButton());
 
@@ -118,6 +120,10 @@ SamplerTable::SamplerTable (ModulatorSampler *s, SamplerBody *b):
 SamplerTable::~SamplerTable()
 {
     //[Destructor_pre]. You can add your own custom destruction code here..
+
+	if(sampler != nullptr)
+		sampler->getSampleMap()->removeListener(this);
+
     //[/Destructor_pre]
 
     table = nullptr;

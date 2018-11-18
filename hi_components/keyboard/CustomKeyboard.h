@@ -48,9 +48,20 @@ public:
 };
 
 
+class CustomKeyboardLookAndFeelBase : public LookAndFeel_V3
+{
+public:
 
+	virtual ~CustomKeyboardLookAndFeelBase() {}
+	
+	virtual void drawKeyboardBackground(Graphics &g, int width, int height) = 0;
 
-class CustomKeyboardLookAndFeel: public LookAndFeel_V3
+	virtual void drawWhiteNote(CustomKeyboardState* state, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &lineColour, const Colour &textColour) = 0;
+	virtual void drawBlackNote(CustomKeyboardState* state, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &noteFillColour) = 0;
+
+};
+
+class CustomKeyboardLookAndFeel: public CustomKeyboardLookAndFeelBase
 {
 public:
 
@@ -70,6 +81,14 @@ public:
 	static const int white_key_off_pngSize;
 	static const char* white_key_on_png;
 	static const int white_key_on_pngSize;
+
+	bool useVectorGraphics = false;
+	bool useFlatStyle = false;
+
+	Colour bgColour;
+	Colour topLineColour;
+	Colour overlayColour;
+	Colour activityColour;
 
 private:
 
@@ -111,6 +130,10 @@ public:
 	virtual void setEnableToggleMode(bool /*isOn*/) {};
 	virtual void setMidiChannelBase(int /*midiChannel*/) = 0;
 
+	virtual void setUseVectorGraphics(bool shouldUseVectorGraphics, bool useFlatStyle) { ignoreUnused(shouldUseVectorGraphics, useFlatStyle); }
+	virtual bool isUsingVectorGraphics() const { return true; };
+	virtual bool isUsingFlatStyle() const { return false; };
+
 	virtual ~KeyboardBase() {};
 };
 
@@ -140,13 +163,7 @@ public:
         setAvailableRange(lowKey, lowKey + 19);
 	}
 
-	void paint(Graphics &g) override
-	{
-		MidiKeyboardComponent::paint(g);
-		
-		if(!useCustomGraphics)
-			dynamic_cast<CustomKeyboardLookAndFeel*>(&getLookAndFeel())->drawKeyboardBackground(g, getWidth(), getHeight());
-	};
+	void paint(Graphics &g) override;;
 
 
 	void changeListenerCallback(SafeChangeBroadcaster *) override
@@ -179,7 +196,13 @@ public:
 	int getRangeEndBase() const override { return hiKey; };
 
 	int getMidiChannelBase() const override { return getMidiChannel(); }
-	void setMidiChannelBase(int newChannel) override { return setMidiChannel(newChannel); }
+	void setMidiChannelBase(int newChannel) override 
+	{ 
+		setMidiChannel(newChannel); 
+		BigInteger mask = 0;
+		mask.setBit(newChannel-1, true);
+		setMidiChannelsToDisplay(mask.toInteger());
+	}
 
 	int getLowKey() const { return lowKey; }
 	int getHiKey() const { return hiKey; }
@@ -194,9 +217,11 @@ public:
 	bool isToggleModeEnabled() const override { return toggleMode; };
 	void setEnableToggleMode(bool shouldBeEnabled) override { toggleMode = shouldBeEnabled; }
 
-	
+	void setUseVectorGraphics(bool shouldUseVectorGraphics, bool useFlatStyle=false) override;
 
-	
+	bool isUsingVectorGraphics() const override { return laf.useVectorGraphics; }
+
+	bool isUsingFlatStyle() const override { return laf.useFlatStyle; }
 
 	void setRange(int lowKey_, int hiKey_)
 	{
@@ -214,8 +239,8 @@ protected:
 
 private:
 
-	Image upImages[12];
-	Image downImages[12];
+	Array<PooledImage> upImages;
+	Array<PooledImage> downImages;
 
 	MainController* mc;
 
@@ -224,6 +249,7 @@ private:
 	CustomKeyboardState *state;
  
 	bool useCustomGraphics = false;
+	bool useVectorGraphics = false;
 
     bool narrowKeys;
     

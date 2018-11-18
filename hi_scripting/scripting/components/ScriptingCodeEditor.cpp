@@ -182,7 +182,7 @@ bool JavascriptCodeEditor::componentIsDefinedWithFactoryMethod(const Identifier&
 
 	const String allText = getDocument().getAllContent();
 
-	StringArray sa = RegexFunctions::getFirstMatch(regexp, allText, nullptr);
+	StringArray sa = RegexFunctions::getFirstMatch(regexp, allText);
 
 	if (sa.size() == 4)
 	{
@@ -197,7 +197,7 @@ String JavascriptCodeEditor::createNewDefinitionWithFactoryMethod(const String &
 {
 	const String regexp = "(const)?\\s*(global|var|reg)?\\s*" + oldId + "\\s*=\\s*([\\w\\.]+)\\(\\\"(\\w+)\\\"\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)(.*)\\);";
 	const String allText = getDocument().getAllContent();
-	StringArray sa = RegexFunctions::getFirstMatch(regexp, allText, nullptr);
+	StringArray sa = RegexFunctions::getFirstMatch(regexp, allText);
 
 	if (sa.size() == 8)
 	{
@@ -255,9 +255,9 @@ void JavascriptCodeEditor::createMissingCaseStatementsForComponents()
 
 			for (int i = content->getNumComponents()-1; i >= 0 ; i--)
 			{
-				const String widgetName = content->getComponent(i)->getName().toString();
+				const String cName = content->getComponent(i)->getName().toString();
 
-                const String reg = "case " + widgetName;
+                const String reg = "case " + cName;
 
                 const bool hasCaseStatement = allText.contains(reg);
 
@@ -265,7 +265,7 @@ void JavascriptCodeEditor::createMissingCaseStatementsForComponents()
 				{
 					moveCaretTo(insertPos, false);
 
-					String newCaseStatement = "\n\t\tcase " + widgetName + ":\n\t\t{\n";
+					String newCaseStatement = "\n\t\tcase " + cName + ":\n\t\t{\n";
                     newCaseStatement << "\t\t\t// Insert logic here...\n\t\t\tbreak;\n\t\t}";
 
 					insertTextAtCaret(newCaseStatement);
@@ -372,7 +372,7 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &menu, const MouseEvent *
 		const bool isUIDefinitionSelected = selection.startsWith("const var");
 
 		menu.addItem(ContextActions::CreateUiFactoryMethod, "Create UI factory method from selection", isUIDefinitionSelected);
-		menu.addItem(ContextActions::ReplaceConstructorWithReference, "Replace addWidget with Content.getComponent()");
+		menu.addItem(ContextActions::ReplaceConstructorWithReference, "Replace addComponent with Content.getComponent()");
         menu.addSeparator();
         menu.addSectionHeader("Import / Export");
         menu.addItem(ContextActions::SaveScriptFile, "Save Script To File");
@@ -436,7 +436,7 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 	case JavascriptCodeEditor::ReplaceConstructorWithReference:
 	{
 		const String selection = getTextInRange(getHighlightedRegion()).trimEnd().trimStart();
-		const String newText = CodeReplacer::createWidgetReference(selection);
+		const String newText = CodeReplacer::createScriptComponentReference(selection);
 
 		insertTextAtCaret(newText);
 	}
@@ -1420,7 +1420,7 @@ CodeDocument::Position JavascriptCodeEditor::Helpers::getPositionAfterDefinition
 
 	const String allText = doc.getAllContent();
 
-	StringArray sa = RegexFunctions::getFirstMatch(regexp, allText, nullptr);
+	StringArray sa = RegexFunctions::getFirstMatch(regexp, allText);
 
 	if (sa.size() > 0)
 	{

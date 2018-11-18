@@ -37,37 +37,60 @@ MainController(),
 AudioProcessorDriver(deviceManager_, callback_),
 viewUndoManager(new UndoManager())
 {
-	
 	ExtendedApiDocumentation::init();
 
     synthChain = new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES, viewUndoManager);
-
     
 	synthChain->addProcessorsWhenEmpty();
 
 	getSampleManager().getModulatorSamplerSoundPool()->setDebugProcessor(synthChain);
-
 	getMacroManager().setMacroChain(synthChain);
 
-	handleEditorData(false);
-
-	restoreGlobalSettings(this);
+	if (!inUnitTestMode())
+	{
+		handleEditorData(false);
+		restoreGlobalSettings(this);
+	}
 
 	initData(this);
 
-	getAutoSaver().updateAutosaving();
+	if (!inUnitTestMode())
+	{
+		getAutoSaver().updateAutosaving();
+	}
+	
+	clearPreset();
+	getSampleManager().getProjectHandler().addListener(this);
+
+	if (!inUnitTestMode())
+	{
+		auto tmp = getCurrentSampleMapPool(true);
+
+		auto f = [tmp](Processor*)
+		{
+			tmp->loadAllFilesFromProjectFolder();
+			return SafeFunctionCall::OK;
+		};
+
+		getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
+	}
 
 
-	createUserPresetData();
+	
 }
 
 
 BackendProcessor::~BackendProcessor()
 {
+#if JUCE_ENABLE_AUDIO_GUARD
+	AudioThreadGuard::setHandler(nullptr);
+#endif
+
 	getSampleManager().cancelAllJobs();
 
-	ScopedLock sl(getLock());
-	ScopedLock sl2(getSampleManager().getSamplerSoundLock());
+	getSampleManager().getProjectHandler().removeListener(this);
+
+	deletePendingFlag = true;
 
 	clearPreset();
 
@@ -77,6 +100,22 @@ BackendProcessor::~BackendProcessor()
 }
 
 
+
+void BackendProcessor::projectChanged(const File& /*newRootDirectory*/)
+{
+	getExpansionHandler().setCurrentExpansion("");
+	getExpansionHandler().getCurrentPoolCollection()->clear();
+
+	auto tmp = getCurrentSampleMapPool(true);
+
+	auto f = [tmp](Processor*)
+	{
+		tmp->loadAllFilesFromProjectFolder();
+		return SafeFunctionCall::OK;
+	};
+
+	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
+}
 
 void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
@@ -152,7 +191,7 @@ void BackendProcessor::setStateInformation(const void *data, int sizeInBytes)
 
 		tmp.reset();
 
-		return true;
+		return SafeFunctionCall::OK;
 	};
 
 	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);

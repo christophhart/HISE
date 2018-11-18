@@ -38,7 +38,7 @@ PatchBrowser::PatchBrowser(BackendRootWindow *window) :
 SearchableListComponent(window),
 editor(window->getMainPanel()),
 rootWindow(window),
-showChains(true)
+showChains(false)
 {
 	setName("Patch Browser");
 
@@ -629,7 +629,12 @@ lastMouseDown(0)
 	idLabel->setInterceptsMouseClicks(false, true);
 
     idLabel->setColour(Label::ColourIds::textColourId, Colours::white);
-    
+	idLabel->setColour(Label::ColourIds::textWhenEditingColourId, Colours::white);
+	idLabel->setColour(Label::ColourIds::outlineWhenEditingColourId, Colour(SIGNAL_COLOUR));
+	idLabel->setColour(TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR));
+	idLabel->setColour(TextEditor::ColourIds::highlightedTextColourId, Colours::black);
+	idLabel->setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
+
 	setSize(380 - 16, ITEM_HEIGHT);
 
 	setUsePopupMenu(true);

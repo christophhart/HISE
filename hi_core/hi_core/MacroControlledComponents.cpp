@@ -63,11 +63,10 @@ void MacroControlledObject::removeParameterWithPopup()
 {
 	if (macroIndex != -1)
 	{
-		ScopedPointer<PopupLookAndFeel> plaf = new PopupLookAndFeel();
-
 		PopupMenu m;
 
-		m.setLookAndFeel(plaf);
+		auto& plaf = getProcessor()->getMainController()->getGlobalLookAndFeel();
+		m.setLookAndFeel(&plaf);
 
 		m.addItem(1, "Remove Macro control");
 
@@ -104,8 +103,10 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 		numCommands
 	};
 
-	PopupLookAndFeel plaf;
 	PopupMenu m;
+
+	auto mc = getProcessor()->getMainController();
+	auto& plaf = mc->getGlobalLookAndFeel();
 
 	m.setLookAndFeel(&plaf);
 
@@ -134,6 +135,7 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 		m.addItem(Remove, "Remove CC " + String(midiController));
 	}
 	
+#if 0
 	auto container = ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(getProcessor()->getMainController()->getMainSynthChain());
 
 	if (!mods.isEmpty())
@@ -155,6 +157,7 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 
 		m.addSubMenu("Add Modulation", modSubMenu);
 	}
+#endif
 
 	NormalisableRange<double> rangeWithSkew = getRange();
 
@@ -188,6 +191,7 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 	{
 		data.removeConnection(possibleConnection);
 	}
+#if 0
 	else if (result >= GlobalModAddOffset)
 	{
 		auto mod = mods[result - GlobalModAddOffset];
@@ -204,7 +208,7 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 			container->addModulatorControlledParameter(mod, processor, parameter, rangeWithSkew, getMacroIndex());	
 		}
 	}
-	
+#endif
 }
 
 void MacroControlledObject::setAttributeWithUndo(float newValue, bool useCustomOldValue/*=false*/, float customOldValue/*=-1.0f*/)
@@ -378,9 +382,9 @@ HiSlider::HiSlider(const String &name) :
 	addListener(this);
 	setWantsKeyboardFocus(false);
 
-	setColour(HiBackgroundColours::upperBgColour, Colour(0x66333333));
-	setColour(HiBackgroundColours::lowerBgColour, Colour(0xfb111111));
-	setColour(HiBackgroundColours::outlineBgColour, Colours::white.withAlpha(0.3f));
+	setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
+	setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
+	setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
 	setColour(TextEditor::highlightColourId, Colour(SIGNAL_COLOUR).withAlpha(0.5f));
 	setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
 }

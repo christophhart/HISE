@@ -173,7 +173,7 @@ void MacroModulator::handleHiseEvent(const HiseEvent &)
 void MacroModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	TimeVariantModulator::prepareToPlay(sampleRate, samplesPerBlock);
-	smoother.prepareToPlay(getSampleRate());
+	smoother.prepareToPlay(getControlRate());
 
 	if (sampleRate != -1.0) setInternalAttribute(SmoothTime, smoothTime);
 }
@@ -184,16 +184,6 @@ void MacroModulator::calculateBlock(int startSample, int numSamples)
 
 	if (smoothThisBlock)
 	{
-		if (--numSamples >= 0)
-		{
-			currentValue = smoother.smooth(targetValue);
-
-			internalBuffer.setSample(0, startSample, currentValue);
-			++startSample;
-
-
-		}
-
 		while (--numSamples >= 0)
 		{
 			currentValue = smoother.smooth(targetValue);
@@ -208,7 +198,6 @@ void MacroModulator::calculateBlock(int startSample, int numSamples)
 		FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), currentValue, numSamples);
 	}
 
-	setOutputValue(currentValue);
 }
 
 ProcessorEditorBody *MacroModulator::createEditor(ProcessorEditor *parentEditor)

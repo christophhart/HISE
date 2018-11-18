@@ -104,6 +104,8 @@ public:
 		transposeSelector->addListener(this);
 		microTuningSelector->addListener(this);
 
+		auto& plaf = mc->getGlobalLookAndFeel();
+
 		transposeSelector->setLookAndFeel(&plaf);
 		microTuningSelector->setLookAndFeel(&plaf);
 
@@ -214,15 +216,17 @@ private:
 	}
 
 
-	PopupLookAndFeel plaf;
-
 	MainController* mc;
 
 	ScopedPointer<ComboBox> transposeSelector;
 	ScopedPointer<ComboBox> microTuningSelector;
 };
 
+/** A component that is showing application-wide settings (audio drivers etc.)
+	@ingroup hise_ui
 
+	In order to use it, create and hide the Properties you don't want to show.
+*/
 class CustomSettingsWindow : public Component,
 	public ComboBox::Listener,
 	public Button::Listener
@@ -239,21 +243,21 @@ public:
     
 	enum class Properties
 	{
-		Driver = 7, // sloppy, update this when the amount FloatingTileContent::Properties change...
-		Device,
-		Output,
-		BufferSize,
-		SampleRate,
-		GlobalBPM,
-		ScaleFactor,
-		GraphicRendering,
-		StreamingMode,
-		SustainCC,
-		VoiceAmountMultiplier,
-		ClearMidiCC,
-		SampleLocation,
-		DebugMode,
-		ScaleFactorList,
+		Driver = 7, ///< The audio driver (ASIO, CoreAudio etc)
+		Device, ///< the audio device (your soundcard)
+		Output, ///< the output (normally a stereo channel pair)
+		BufferSize, ///< the buffer size
+		SampleRate, ///< the sample rate
+		GlobalBPM, ///< the global BPM if you don't want to tempo sync.
+		ScaleFactor, ///< the global scale factor for the UI
+		GraphicRendering, ///< Whether to use Open GL (deprecated)
+		StreamingMode, ///< Sets the streaming settings
+		SustainCC, ///< remap the sustain pedal CC
+		VoiceAmountMultiplier, ///< the max voice amount per sound generator
+		ClearMidiCC, /// removes all MIDI learn information
+		SampleLocation, /// shows the sample location
+		DebugMode, /// toggles the Debug mode
+		ScaleFactorList, ///< the list of scale factors as Array<var> containing doubles.
 		numProperties
 	};
 
@@ -273,8 +277,7 @@ public:
 
 	void resized() override;
 
-	
-
+	/** Shows / hides the given property. */
 	void setProperty(Properties id, bool shouldBeOn)
 	{
 		properties[(int)id] = shouldBeOn;
@@ -316,7 +319,6 @@ private:
 
 	Array<var> scaleFactorList;
 
-	PopupLookAndFeel plaf;
 	BlackTextButtonLookAndFeel blaf;
 
 	MainController* mc;
@@ -360,7 +362,7 @@ public:
 
 private:
 
-	KnobLookAndFeel klaf;
+	GlobalHiseLookAndFeel klaf;
 	
 
 	int numMidiDevices = 0;

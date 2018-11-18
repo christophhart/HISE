@@ -32,13 +32,27 @@
 
 namespace hise { using namespace juce;
 
+MainController::UserPresetHandler::UserPresetHandler(MainController* mc_) :
+	mc(mc_)
+{
+
+}
+
+
 void MainController::UserPresetHandler::loadUserPreset(const ValueTree& v)
 {
-	auto f = [this, v](Processor*) {loadUserPresetInternal(v); return true; };
+	pendingPreset = v;
 
-	auto synthChain = mc->getMainSynthChain();
+	auto f = [](Processor*p) 
+	{
+		p->getMainController()->getUserPresetHandler().loadUserPresetInternal(); 
+		return SafeFunctionCall::OK; 
+	};
 
-	mc->getKillStateHandler().killVoicesAndCall(synthChain, f, KillStateHandler::TargetThread::SampleLoadingThread);
+	// Send a note off to stop the arpeggiator etc...
+	mc->allNotesOff(false);
+
+	mc->killAndCallOnLoadingThread(f);
 }
 
 void MainController::UserPresetHandler::loadUserPreset(const File& f)
@@ -68,13 +82,26 @@ void MainController::UserPresetHandler::setCurrentlyLoadedFile(const File& f)
 
 void MainController::UserPresetHandler::sendRebuildMessage()
 {
-	for (int i = 0; i < listeners.size(); i++)
+	auto f = [](Dispatchable* obj)
 	{
-		if (listeners[i] != nullptr)
+		auto uph = static_cast<UserPresetHandler*>(obj);
+
+		jassert_dispatched_message_thread(uph->mc);
+
+		ScopedLock sl(uph->listeners.getLock());
+
+		for (int i = 0; i < uph->listeners.size(); i++)
 		{
-			listeners[i]->presetListUpdated();
-		}
-	}
+			uph->mc->checkAndAbortMessageThreadOperation();
+
+			if (uph->listeners[i] != nullptr)
+				uph->listeners[i]->presetListUpdated();
+		};
+
+		return Status::OK;
+	};
+
+	mc->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(this, f);
 }
 
 void MainController::UserPresetHandler::savePreset(String presetName /*= String()*/)
@@ -100,85 +127,106 @@ void MainController::UserPresetHandler::saveUserPresetInternal(const String& nam
 }
 
 
-void MainController::UserPresetHandler::loadUserPresetInternal(const ValueTree& userPresetToLoad)
+void MainController::UserPresetHandler::loadUserPresetInternal()
 {
+	{
+		LockHelpers::freeToGo(mc);
+
+		ValueTree userPresetToLoad = pendingPreset;
 
 #if USE_BACKEND
-	if (!GET_PROJECT_HANDLER(mc->getMainSynthChain()).isActive()) return;
+		if (!GET_PROJECT_HANDLER(mc->getMainSynthChain()).isActive()) return;
 #endif
 
-	jassert(userPresetToLoad.isValid());
+		jassert(userPresetToLoad.isValid());
 
-	jassert(!mc->getMainSynthChain()->areVoicesActive());
+		mc->getSampleManager().setShouldSkipPreloading(true);
 
-	Processor::Iterator<JavascriptMidiProcessor> iter(mc->getMainSynthChain());
+#if USE_RAW_FRONTEND
 
-	mc->getSampleManager().setShouldSkipPreloading(true);
+		auto fp = dynamic_cast<FrontendProcessor*>(mc);
+		
+		fp->getRawDataHolder()->restoreFromValueTree(userPresetToLoad);
 
-	while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
-	{
-		if (!sp->isFront()) continue;
+#else
+		Processor::Iterator<JavascriptMidiProcessor> iter(mc->getMainSynthChain());
 
-		ValueTree v;
-
-		for (int i = 0; i < userPresetToLoad.getNumChildren(); i++)
+		try
 		{
-			if (userPresetToLoad.getChild(i).getProperty("Processor") == sp->getId())
+			while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
 			{
-				v = userPresetToLoad.getChild(i);
-				break;
+				if (!sp->isFront()) continue;
+
+				ValueTree v;
+
+				for (int i = 0; i < userPresetToLoad.getNumChildren(); i++)
+				{
+					if (userPresetToLoad.getChild(i).getProperty("Processor") == sp->getId())
+					{
+						v = userPresetToLoad.getChild(i);
+						break;
+					}
+				}
+
+				if (v.isValid())
+				{
+					sp->getScriptingContent()->restoreAllControlsFromPreset(v);
+				}
 			}
 		}
-
-		if (v.isValid())
+		catch (String& m)
 		{
-			sp->getScriptingContent()->restoreAllControlsFromPreset(v);
+			ignoreUnused(m);
+			jassertfalse;
+			DBG(m);
 		}
+
+#endif
+
+		ValueTree autoData = userPresetToLoad.getChildWithName("MidiAutomation");
+
+		if (autoData.isValid())
+			mc->getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(autoData);
+
+		auto mpeData = userPresetToLoad.getChildWithName("MPEData");
+
+		if (mpeData.isValid())
+		{
+			mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().restoreFromValueTree(mpeData);
+		}
+		else
+		{
+			mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().reset();
+		}
+
+
+
+		auto f = [](Dispatchable* obj)
+		{
+			auto uph = static_cast<UserPresetHandler*>(obj);
+			auto mc_ = uph->mc;
+			ignoreUnused(mc_);
+			jassert_dispatched_message_thread(mc_);
+
+			ScopedLock sl(uph->listeners.getLock());
+
+			for (auto l : uph->listeners)
+			{
+				uph->mc->checkAndAbortMessageThreadOperation();
+
+				if (l != nullptr)
+					l->presetChanged(uph->currentlyLoadedFile);
+			}
+
+			return Status::OK;
+		};
+
+		mc->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(this, f);
 	}
+
+	
 
 	mc->getSampleManager().preloadEverything();
-
-	ValueTree autoData = userPresetToLoad.getChildWithName("MidiAutomation");
-
-	if (autoData.isValid())
-		mc->getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(autoData);
-
-	ValueTree modulationData = userPresetToLoad.getChildWithName("ModulatedParameters");
-
-	if (modulationData.isValid())
-	{
-		auto container = ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(mc->getMainSynthChain());
-
-		if (container != nullptr)
-		{
-			container->restoreModulatedParameters(modulationData);
-		}
-	}
-
-	auto mpeData = userPresetToLoad.getChildWithName("MPEData");
-
-	if (mpeData.isValid())
-	{
-		mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().restoreFromValueTree(mpeData);
-	}
-	else
-	{
-		mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().reset();
-	}
-
-	auto f = [this]()->void
-	{
-		for (auto l : this->listeners)
-		{
-			if (l != nullptr)
-				l->presetChanged(currentlyLoadedFile);
-		}
-	};
-
-	new DelayedFunctionCaller(f, 400);
-
-
-	mc->allNotesOff(true);
 }
 
 
@@ -189,12 +237,13 @@ void MainController::UserPresetHandler::incPreset(bool next, bool stayInSameDire
 #if USE_BACKEND
 	auto userDirectory = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
 #else
-	auto userDirectory = ProjectHandler::Frontend::getUserPresetDirectory();
+	auto userDirectory = FrontendHandler::getUserPresetDirectory();
 #endif
 
 	userDirectory.findChildFiles(allPresets, File::findFiles, true, "*.preset");
+    PresetBrowser::DataBaseHelpers::cleanFileList(allPresets);
 	allPresets.sort();
-
+    
 	if (!currentlyLoadedFile.existsAsFile())
 	{
 		currentlyLoadedFile = allPresets.getFirst();
@@ -205,7 +254,10 @@ void MainController::UserPresetHandler::incPreset(bool next, bool stayInSameDire
 		{
 			allPresets.clear();
 			currentlyLoadedFile.getParentDirectory().findChildFiles(allPresets, File::findFiles, false, "*.preset");
+            PresetBrowser::DataBaseHelpers::cleanFileList(allPresets);
 			allPresets.sort();
+            
+            
 		}
 
 		if (allPresets.size() == 1)

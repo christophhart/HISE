@@ -62,6 +62,8 @@ convolverR(new MultithreadedConvolver())
 wdlPimpl(new WdlPimpl())
 #endif
 {
+	finaliseModChains();
+
 	parameterNames.add("DryGain");
 	parameterNames.add("WetGain");
 	parameterNames.add("Latency");
@@ -213,7 +215,7 @@ ValueTree ConvolutionEffect::exportAsValueTree() const
 
 void ConvolutionEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-	EffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
+	MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
 	ProcessorHelpers::increaseBufferIfNeeded(wetBuffer, samplesPerBlock);
 
@@ -305,6 +307,8 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 		if(convolverR != nullptr)
 			convolverR->process(r, convolutedR, numSamples);
 		
+		
+
 		smoothedGainerDry.processBlock(channels, 2, numSamples);
 
 		
@@ -393,8 +397,8 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 			currentValues.outR = FloatVectorOperations::findMaximum(wetBuffer.getReadPointer(1), availableSamples);
 #endif
 
-			FloatVectorOperations::add(l, wetBuffer.getReadPointer(0), availableSamples);
-			FloatVectorOperations::add(r, wetBuffer.getReadPointer(1), availableSamples);
+			FloatVectorOperations::addWithMultiply(l, wetBuffer.getReadPointer(0), 0.5f, availableSamples);
+			FloatVectorOperations::addWithMultiply(r, wetBuffer.getReadPointer(1), 0.5f, availableSamples);
 
 
 
@@ -471,25 +475,30 @@ void ConvolutionEffect::applyHighFrequencyDamping(AudioSampleBuffer& buffer, int
 	const double factor = -1.0 * (double)numSamples / 8.0;
 
 	SimpleOnePole lp1;
+	lp1.setType(SimpleOnePole::FilterType::LP);
+	lp1.setFrequency(20000.0);
 	lp1.setSampleRate(sampleRate);
 	lp1.setNumChannels(2);
 
 	SimpleOnePole lp2;
+	lp2.setType(SimpleOnePole::FilterType::LP);
+	lp2.setFrequency(20000.0);
 	lp2.setSampleRate(sampleRate);
 	lp2.setNumChannels(2);
+	
 
 	for (int i = 0; i < numSamples; i += 64)
 	{
 		const double multiplier = base + invBase * exp((double)i / factor);
 
-		lp1.setFrequency(multiplier * 20000.0);
-		lp2.setFrequency(multiplier * 20000.0);
-
 		auto numToProcess = jmin<int>(64, numSamples - i);
 
-		lp1.processSamples(buffer, i, numToProcess);
-		lp2.processSamples(buffer, i, numToProcess);
-		
+		FilterHelpers::RenderData r(buffer, i, numToProcess);
+
+		r.freqModValue = multiplier;
+
+		lp1.render(r);
+		lp2.render(r);
 	}
 }
 

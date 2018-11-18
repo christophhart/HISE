@@ -112,9 +112,8 @@ class DebugLogger;
 */
 struct StereoChannelData
 {
-	const void *leftChannel;
-	const void *rightChannel;
-	bool isFloatingPoint = false;
+	hlac::HiseSampleBuffer const* b;
+	int offsetInBuffer = 0;
 };
 
 // ==================================================================================================================================================
@@ -128,7 +127,7 @@ struct StereoChannelData
 
 #if HISE_IOS
 // This is the maximum value for sample pitch manipulation (this means 3 octaves, which should be more than enough
-#define MAX_SAMPLER_PITCH 8
+#define MAX_SAMPLER_PITCH 16
 #else
 #define MAX_SAMPLER_PITCH 16
 #endif
@@ -142,6 +141,12 @@ struct StereoChannelData
 // Deactivate this to use one rounded pitch value for one a buffer (crucial for other interpolation methods than linear interpolation)
 #define USE_SAMPLE_ACCURATE_RESAMPLING 0
 
+#if HISE_IOS
+#define DEFAULT_BUFFER_TYPE_IS_FLOAT false
+#else
+#define DEFAULT_BUFFER_TYPE_IS_FLOAT true
+#endif
+    
 // You can set this to 0, if you want to disable background threaded reading. The files will then be read directly in the audio thread,
 // which is not the smartest thing to do, but it comes to good use for debugging.
 #define USE_BACKGROUND_THREAD 1

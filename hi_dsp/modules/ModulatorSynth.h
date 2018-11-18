@@ -44,17 +44,18 @@ class ModulatorSynthVoice;
 typedef HiseEventBuffer EVENT_BUFFER_TO_USE;
 
 
-class VoiceStack : public UnorderedStack<ModulatorSynthVoice*>
-{
+using VoiceStack = UnorderedStack<ModulatorSynthVoice*>;
 
-};
+/** The base class for all sound generators in HISE.
+	@ingroup dsp_base_classes
 
-/** A ModulatorSynth is a synthesiser with a ModulatorChain for volume and pitch that allows
-*	modulation of these parameters.
-*
-*	Instead of renderNextBlock(), simply call renderNextBlockWithModulators() and it processes the chains.
-*	Also you have to subclass the used voice type from ModulatorSynthVoice and make sure it uses the voice modulation 
-*	values in its renderNextBlock().
+	It is a extension of the juce::Synthesiser class with the following additions:
+
+	- slots for adding MIDI processing modules, modulators and effects
+	- usage of the HiseEvent type instead of the MidiMessage.
+	
+	If you're know your way around writing a sound generator based on the juce::Synthesiser class,
+	the adaption to this class should be very straight forward.
 */
 class ModulatorSynth: public Synthesiser,
 					  public Processor,
@@ -68,13 +69,14 @@ public:
 
 	enum Parameters
 	{
-		Gain = 0,
-		Balance,
-		VoiceLimit,
-		KillFadeTime,
+		Gain = 0, ///< the volume as gain factor from 0...1
+		Balance, ///< the stereo balance from -100 to 100
+		VoiceLimit, ///< the amount of voices
+		KillFadeTime, ///< the fade time when voices are killed \endcond module_list
 		numModulatorSynthParameters
 	};
-
+	
+	
 	/** These are the three Chains that the ModulatorSynth uses. */
 	enum InternalChains
 	{
@@ -104,6 +106,12 @@ public:
 		Quarters = 0,
 		Half = -1,
 		Bar = -2
+	};
+
+	enum BasicChains
+	{
+		GainChain = 0,
+		PitchChain = 1
 	};
 
 	// ===================================================================================================================
@@ -161,11 +169,15 @@ public:
 	/** This method is called to actually render all voices. It operates on the internal buffer of the ModulatorSynth. */
 	void renderVoice(int startSample, int numThisTime);
 
+	void calculateModulationValuesForVoice(ModulatorSynthVoice * v, int startSample, int numThisTime);;
+
+	void clearPendingRemoveVoices();
+
 	/** This method is called to handle all modulatorchains after the voice rendering and handles the GUI metering. It assumes stereo mode.
 	*
 	*	The rendered buffer is supplied as reference to be able to apply changes here after all voices are rendered (eg. gain).
 	*/
-	virtual void postVoiceRendering(int startSample, int numThisTime);;
+	void postVoiceRendering(int startSample, int numThisTime);;
 
 	// ===================================================================================================================
 
@@ -196,6 +208,8 @@ public:
 	virtual void preHiseEventCallback(const HiseEvent &e);
 	virtual void preStartVoice(int voiceIndex, int noteNumber);
 
+	void preStopVoice(int voiceIndex);
+
 	/** This sets up the synth and the ModulatorChains. 
 	*
 	*	Call this instead of Synthesiser::setCurrentPlaybackSampleRate(). 
@@ -211,14 +225,15 @@ public:
 	// ===================================================================================================================
 
 	void setBypassed(bool shouldBeBypassed, NotificationType notifyChangeHandler=dontSendNotification) noexcept override;;
+
+	void softBypassStateChanged(bool isBypassedNow);
+
 	void disableChain(InternalChains chainToDisable, bool shouldBeDisabled);
 	bool isChainDisabled(InternalChains chain) const;;
 
 	// ===================================================================================================================
 
-	void enablePitchModulation(bool shouldBeEnabled);
-	bool isPitchModulationActive() const noexcept;
-
+	
 	// ===================================================================================================================
 
 	/** Kills the note with the specified note number. 
@@ -229,7 +244,7 @@ public:
 	void killAllVoicesWithNoteNumber(int noteNumber);
 
 	/** Kills the voice that is playing for the longest time. */
-	void killLastVoice();
+	int killLastVoice(bool allowTailOff=true);
 
 	
 
@@ -264,6 +279,9 @@ public:
 	void noteOn(const HiseEvent &m);
 
 	void noteOn(int midiChannel, int midiNoteNumber, float velocity) final override;
+
+	/** This method should go through all sounds that are playable and fill the soundsToBeStarted array. */
+	virtual int collectSoundsToBeStarted(const HiseEvent &m);
 
 
 	virtual void noteOff(const HiseEvent &m);
@@ -319,6 +337,10 @@ public:
 		group = parent;
 		disableChain(MidiProcessor, true);
 		disableChain(EffectChain, true);
+
+		// This will get lost otherwise
+		modChains[BasicChains::GainChain].setIncludeMonophonicValuesInVoiceRendering(true);
+
 	};
 
 	/** Returns the ModulatorSynthGroup that this ModulatorSynth belongs to. */
@@ -336,8 +358,6 @@ public:
 
 	const ModulatorSynth* getPlayingSynth() const;
 
-
-
 	/** Sets the interval for the internal clock callback. */
 	void setClockSpeed(ClockSpeed newClockSpeed)
 	{
@@ -351,15 +371,8 @@ public:
 		return !(isGroup || isInGroup());
 	}
 
-
 	/** Returns the pointer to the calculated pitch buffers for the ModulatorSynthVoice's render callback. */
 	const float *getConstantPitchValues() const { return pitchBuffer.getReadPointer(0);	};
-
-	/** returns the lock the synth is using. */
-	const CriticalSection &getSynthLock() const
-	{
-        return getMainController()->getLock();
-	};
 
 	double getSampleRate() const { return Processor::getSampleRate(); }
 
@@ -368,33 +381,67 @@ public:
 	/** specifies the behaviour when a note is started that is already ringing. By default, it is killed, but you can overwrite it to make something else. */
 	virtual void handleRetriggeredNote(ModulatorSynthVoice *voice);
 
-	/** Calculates the voice values with the GainModulationChain and returns a read pointer to the values. */
-	const float *calculateGainValuesForVoice(int voiceIndex, float scriptGainValue, int startSample, int numSamples)
+	
+	/** Returns a read pointer to the calculated pitch values. */
+	float *getPitchValuesForVoice() const 
 	{
-		gainChain->renderVoice(voiceIndex, startSample, numSamples);
-		float *gainData = gainChain->getVoiceValues(voiceIndex);
-		if (scriptGainValue != 1.0f) FloatVectorOperations::multiply(gainData + startSample, scriptGainValue, numSamples);
-
-		return gainData;
+		if (useScratchBufferForArtificialPitch)
+			return modChains[BasicChains::PitchChain].getScratchBuffer();
+		
+		return modChains[BasicChains::PitchChain].getWritePointerForVoiceValues(0);
 	};
 
-	/** calculates the voice pitch values. You can get the values with getPitchValues for voice. */
-	void calculatePitchValuesForVoice(int voiceIndex, float scriptPitchValue, int startSample, int numSamples)
+	void overwritePitchValues(const float* modDataValues, int startSample, int numSamples)
 	{
-        pitchChain->renderVoice(voiceIndex, startSample, numSamples);
-		float *voicePitchValues = pitchChain->getVoiceValues(voiceIndex);
-		const float *timeVariantPitchValues = getConstantPitchValues();
-		FloatVectorOperations::multiply(voicePitchValues, timeVariantPitchValues, startSample + numSamples);
-		if (scriptPitchValue != 1.0f) FloatVectorOperations::multiply(voicePitchValues, scriptPitchValue, startSample + numSamples);
+		useScratchBufferForArtificialPitch = true;
+
+		auto destination = modChains[BasicChains::PitchChain].getScratchBuffer();
+
+		FloatVectorOperations::copy(destination + startSample, modDataValues + startSample, numSamples);
 	}
 
-	/** Returns a read pointer to the calculated pitch values. */
-	const float *getPitchValuesForVoice(int voiceIndex) const { return pitchChain->getVoiceValues(voiceIndex);};
+	const float* getVoiceGainValues() const
+	{
+		return modChains[BasicChains::GainChain].getReadPointerForVoiceValues(0);
+	}
+
+	float getConstantPitchModValue() const
+	{
+		return modChains[BasicChains::PitchChain].getConstantModulationValue();
+	}
+
+	float getConstantGainModValue() const
+	{
+		return modChains[BasicChains::GainChain].getConstantModulationValue();
+	}
+
+
+	float getConstantVoicePitchModulationValueDeleteSoon() const
+	{
+		// Is applied to uptimeDelta already...
+		jassertfalse;
+
+		return 1.0f;
+	}
+
 
 	/** Returns a read pointer to the calculated pitch values. Used by Synthgroups to render their pitch values on the voice value. */
-	float *getPitchValuesForVoice(int voiceIndex) { return pitchChain->getVoiceValues(voiceIndex);};
+	//float *getPitchValuesForVoice(int voiceIndex) { return pitchChain->getVoiceValues(voiceIndex);};
 
 	ModulatorSynthVoice* getFreeVoice(SynthesiserSound* s, int midiChannel, int midiNoteNumber);
+
+	SynthesiserVoice* findVoiceToSteal(SynthesiserSound* soundToPlay, int midiChannel, int midiNoteNumber) const override;
+
+
+	int getNumFreeVoices() const;
+
+	virtual bool handleVoiceLimit(int numSoundsToBeStarted);
+
+protected:
+
+	ModulatorChain::Collection modChains;
+
+public:
 
 	HiseEventBuffer eventBuffer;
 	AudioSampleBuffer internalBuffer;
@@ -404,8 +451,10 @@ public:
 	AudioSampleBuffer pitchBuffer;
 	AudioSampleBuffer gainBuffer;
 
-	ScopedPointer<ModulatorChain> gainChain;
-	ScopedPointer<ModulatorChain> pitchChain;
+	ModulatorChain* gainChain = nullptr;
+	ModulatorChain* pitchChain = nullptr;
+
+	
 	ScopedPointer<MidiProcessorChain> midiProcessorChain;
 	ScopedPointer<EffectProcessorChain> effectChain;
 
@@ -413,14 +462,35 @@ public:
 
 	bool getMidiInputFlag();
 
-	void setSoftBypass(bool shouldBeBypassed);
+	void setSoftBypass(bool shouldBeBypassed, bool bypassFXToo);
 
+	void updateSoftBypassState();
+
+	VoiceStack activeVoices;
 	
+	void flagVoiceAsRemoved(ModulatorSynthVoice* v);
+
+	UnorderedStack<ModulatorSynthSound*> soundsToBeStarted;
+
+private:
+
+	VoiceStack pendingRemoveVoices;
 
 protected:
 
+	
+	void finaliseModChains();
+	
+
+	bool finalised = false;
+
 	bool checkTimerCallback(int timerIndex, int numSamplesThisBlock) const noexcept
 	{
+        if(!anyTimerActive)
+            return false;
+        
+		auto nextCallbackTime = nextTimerCallbackTimes[timerIndex].load();
+
 		if (nextTimerCallbackTimes[timerIndex] == 0.0)
 			return false;
 
@@ -428,17 +498,32 @@ protected:
 		auto timeThisBlock = (double)numSamplesThisBlock / getSampleRate();
 
 		Range<double> rangeThisBlock(uptime, uptime + timeThisBlock);
-		return rangeThisBlock.contains(nextTimerCallbackTimes[timerIndex]);
+		return uptime > nextCallbackTime || rangeThisBlock.contains(nextCallbackTime);
 	};
 	
 	// Used to display the playing position
 	ModulatorSynthVoice *lastStartedVoice;
 
-	VoiceStack activeVoices;
+
+#if JUCE_DEBUG
+	// Makes sure that everything matches...
+	HiseEvent eventForSoundCollection;
+#endif
 
 private:
 
+    void updateShouldHaveEnvelope();
 	
+	bool shouldHaveEnvelope = true;
+
+
+
+	int numActiveVoices;
+
+	
+
+	// kills or resets all voices that have the same start event. */
+	int killVoiceAndSiblings(ModulatorSynthVoice* v, bool allowTailOff);
 
 
 	// ===================================================================================================================
@@ -454,6 +539,11 @@ private:
 	int voiceLimit;
 	int internalVoiceLimit;
 
+	// If this is true, the script fade things have changed the pitch modulation data
+	// and it must be used.
+	bool useScratchBufferForArtificialPitch = false;
+
+	
 
 	bool shouldKillRetriggeredNote = true;
 
@@ -464,7 +554,6 @@ private:
 
 	bool midiInputFlag;
 	bool wasPlayingInLastBuffer;
-	bool pitchModulationActive;
 
 	std::atomic<float> gain;
 
@@ -475,11 +564,11 @@ private:
 	std::atomic<float> vuValue;
 
 	std::atomic<float> killFadeTime;
-	
-	
 
 	std::atomic<bool> bypassState;
 
+    bool anyTimerActive = false;
+    
 	// ===================================================================================================================
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModulatorSynth)
@@ -504,7 +593,6 @@ public:
 		SynthesiserVoice(),
 		ownerSynth(ownerSynth_),
 		voiceIndex(ownerSynth_->getNumVoices()),
-		pitchModulationActive(ownerSynth_->isPitchModulationActive()),
 		voiceUptime(0.0),
 		voiceBuffer(2, 0),
 		uptimeDelta(0.0),
@@ -515,7 +603,8 @@ public:
 		isTailing(false)
 		
 	{
-		
+		pitchFader.setValueWithoutSmoothing(1.0);
+		gainFader.setValue(1.0f);
 	};
 
 	/** If not overriden, this uses a sine generator for an example usage of this voice class. */
@@ -526,41 +615,25 @@ public:
 
 	virtual void calculateBlock(int startSample, int numSamples) = 0;
 	
-	void calculateVoicePitchValues(int startSample, int numSamples)
+	bool isPitchFadeActive() const noexcept
 	{
-		getOwnerSynth()->calculatePitchValuesForVoice(voiceIndex, (float)scriptPitchValue, startSample, numSamples);
-
-		if (pitchFader.isSmoothing())
-		{
-			float* pitchValues = getVoicePitchValues() + startSample;
-
-			float eventPitchFactorFloat = (float)eventPitchFactor;
-
-			while (--numSamples >= 0)
-			{
-				eventPitchFactor = pitchFader.getNextValue();
-				*pitchValues++ *= eventPitchFactorFloat;
-			}
-		}
-		else if (scriptPitchActive)
-		{
-			float* pitchValues = getVoicePitchValues() + startSample;
-
-			FloatVectorOperations::multiply(pitchValues, (float)eventPitchFactor, numSamples);
-		}
+		return pitchFader.isSmoothing();
 	}
 
+	void applyScriptPitchFactors(float* voicePitchModulationData, int numSamples)
+	{
+		jassert(pitchFader.isSmoothing());
+
+		float eventPitchFactorFloat = (float)eventPitchFactor;
+
+		while (--numSamples >= 0)
+		{
+			eventPitchFactor = pitchFader.getNextValue();
+			*voicePitchModulationData++ *= eventPitchFactorFloat;
+		}
+	}
 	
-
-	float *getVoicePitchValues() 
-	{
-		return isPitchModulationActive() ? getOwnerSynth()->getPitchValuesForVoice(voiceIndex) : nullptr;
-	}
-
-	const float *getVoiceGainValues(int startSample, int numSamples)
-	{
-		return getOwnerSynth()->calculateGainValuesForVoice(voiceIndex, scriptGainValue, startSample, numSamples);
-	}
+	
 
 	/** This only checks if the sound is valid, but you can override this with the desired behaviour. */
 	virtual bool canPlaySound(SynthesiserSound *s) override
@@ -589,6 +662,7 @@ public:
 		isTailing = false;
 		voiceUptime = 0.0;
 		uptimeDelta = 0.0;
+		startUptimeDelta = 0.0;
         isActive = true;
 	}
    
@@ -650,8 +724,6 @@ public:
 
 	void applyKillFadeout(int startSample, int numSamples)
 	{
-		
-
 		while(--numSamples >= 0)
 		{
 			killFadeLevel *= killFadeFactor;
@@ -660,9 +732,6 @@ public:
 			{
 				voiceBuffer.getWritePointer(i)[startSample] *= killFadeLevel;
 			}
-
-			//l[startSample] *= killFadeLevel;
-			//r[startSample] *= killFadeLevel;
 
 			startSample++;
 		}
@@ -716,10 +785,6 @@ public:
 
 	void setStartUptime(double newUptime) noexcept { startUptime = newUptime; }
 
-	void enablePitchModulation(bool shouldBeEnabled) noexcept{ pitchModulationActive = shouldBeEnabled; }
-
-	bool isPitchModulationActive() const noexcept{ return pitchModulationActive || scriptPitchActive; }
-
 	void setScriptGainValue(float newGainValue) { scriptGainValue = newGainValue; }
 	void setScriptPitchValue(float newPitchValue) { scriptPitchValue = newPitchValue; }
 
@@ -731,12 +796,11 @@ public:
 		if (fadeTimeSeconds == 0.0)
 		{
 			eventGainFactor = targetVolume;
+			gainFader.setValueWithoutSmoothing(targetVolume);
 		}
 		else
 		{
-			gainFader.setValue(eventGainFactor);
-			gainFader.reset(getSampleRate(), fadeTimeSeconds);
-			gainFader.setValue(targetVolume);
+			gainFader.setValueAndRampTime(targetVolume, getSampleRate(), fadeTimeSeconds);
 		}
 	}
 
@@ -744,27 +808,36 @@ public:
 	{
 		if (fadeTimeSeconds == 0.0)
 		{
-			scriptPitchActive = true;
 			eventPitchFactor = targetPitch;
+			pitchFader.setValueWithoutSmoothing(eventPitchFactor);
 		}
 		else
 		{
-			scriptPitchActive = true;
-			pitchFader.setValue(eventPitchFactor);
-			pitchFader.reset(getSampleRate(), fadeTimeSeconds);
-			pitchFader.setValue(targetPitch);
+			pitchFader.setValueAndRampTime(targetPitch, getSampleRate(), fadeTimeSeconds);
 		}
 	}
 
-	/** Just multiplies the existing pitch factor. */
-	void setUnisonoDetuneAmount(float detuneAmount)
+	
+	void saveStartUptimeDelta()
 	{
-		eventPitchFactor *= detuneAmount;
-		scriptPitchActive = true;
+		startUptimeDelta = uptimeDelta;
 	}
+
+	void setUptimeDeltaValueForBlock()
+	{
+		uptimeDelta = startUptimeDelta * (isPitchFadeActive() ? 1.0 : eventPitchFactor);
+	}
+
+	void applyConstantPitchFactor(double pitchFactorToAdd)
+	{
+		uptimeDelta *= pitchFactorToAdd;
+	}
+
+	void applyGainModulation(int startSample, int numSamples, bool copyLeftChannel);
 
 protected:
 
+	
 
 	/** Returns the ModulatorSynth instance that this voice belongs to.
 	*
@@ -778,6 +851,8 @@ protected:
 	*	The unit can change from Synth to synth (eg. angle vs. sample position ), so it must be calculated for each subclass in its startNote function. 
 	*/
 	double uptimeDelta = 0.0;
+
+	double startUptimeDelta = 0.0;
 
 	/** The total voice uptime. If you want to stop the rendering, set this to 0.0. */
 	double voiceUptime;
@@ -798,13 +873,12 @@ protected:
     
 private:
 
+	
+
 	HiseEvent currentHiseEvent;
 
 	LinearSmoothedValue<double> pitchFader;
 	LinearSmoothedValue<float> gainFader;
-
-	bool pitchModulationActive = false;
-	bool scriptPitchActive = false;
 
 	friend class ModulatorSynthGroupVoice;
 
@@ -812,14 +886,10 @@ private:
 
 	bool isTailing;
 
-    
-    
 	float killFadeLevel;
 	float killFadeFactor;
 	
 	double startUptime;
-
-	
 
 	ModulatorSynth* const ownerSynth;
 
@@ -856,8 +926,7 @@ public:
 		noise,
 		wavetableSynth,
 		audioLooper,
-		modulatorSynthGroup,
-		scriptSynth
+		modulatorSynthGroup
 	};
 
 	ModulatorSynthChainFactoryType(int numVoices_, Processor *ownerProcessor):

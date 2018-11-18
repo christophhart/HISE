@@ -73,6 +73,7 @@ public:
 
     var (const var& valueToCopy);
     var (int value) noexcept;
+	var (uint32 value) noexcept;
     var (int64 value) noexcept;
     var (bool value) noexcept;
     var (double value) noexcept;

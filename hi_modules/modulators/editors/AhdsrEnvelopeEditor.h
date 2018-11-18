@@ -26,20 +26,7 @@ namespace hise { using namespace juce;
 class AhdsrEnvelopeEditor;
 
 
-class AhdsrGraph: public Component
-{
-public:
 
-	AhdsrGraph(Processor *p);
-
-	void paint(Graphics &g);
-
-
-private:
-
-	Processor *processor;
-	AhdsrEnvelopeEditor *editor;
-};
 
 
 
@@ -85,8 +72,6 @@ public:
 		releaseSlider->updateValue();
 		attackCurveSlider->updateValue();
 		decayCurveSlider->updateValue();
-
-		ahdsrGraph->repaint();
 	}
 
 	int getBodyHeight() const override

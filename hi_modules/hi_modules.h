@@ -42,7 +42,7 @@ BEGIN_JUCE_MODULE_DECLARATION
   website:          http://hise.audio
   license:          GPL / Commercial
 
-  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, juce_opengl, hi_core, hi_dsp, hi_components, hi_scripting, hi_sampler
+  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, hi_core, hi_dsp, hi_components, hi_scripting, hi_sampler
 
 END_JUCE_MODULE_DECLARATION
 
@@ -64,10 +64,11 @@ END_JUCE_MODULE_DECLARATION
 #include "synthesisers/editors/WavetableComponents.h"
 
 
-/** @defgroup modulatorTypes ModulatorTypes =========================================================================
-*	@ingroup modulator
+
+/** @defgroup modulatorTypes HISE Modulators
+*	@ingroup types
 *
-*	Here are all actual Modulators that can be used.
+*	A list of all available HISE modulators.
 */
 
 #include "modulators/mods/ConstantModulator.h"
@@ -116,11 +117,11 @@ END_JUCE_MODULE_DECLARATION
 
 #endif
 
-/** @defgroup midiTypes MidiProcessor Types =======================================================================
-*	@ingroup midiProcessor
+
+/** @defgroup midiTypes HISE MidiProcessors
+*	@ingroup types
 *
-*	All actual MidiProcessors that can be used.
-*	There are almost none, because everything can also be achieved using scripts (or hardcoded scripts)
+*	A list of all available HISE MIDI processors.
 */
 
 #include "midi_processor/mps/MidiDelay.h"
@@ -136,15 +137,17 @@ END_JUCE_MODULE_DECLARATION
 
 #endif
 
-/** @defgroup effectTypes Effect Types ===========================================================================
-*	@ingroup dsp
+/** @defgroup effectTypes HISE Effects
+*	@ingroup types
 *
-*	Contains all audio effect classes
+*	A list of all available HISE Effects
 */
 
 #include "effects/MdaEffectWrapper.h"
 
 #include "effects/fx/RouteFX.h"
+#include "effects/fx/FilterTypes.h"
+#include "effects/fx/FilterHelpers.h"
 #include "effects/fx/Filters.h"
 #include "effects/fx/HarmonicFilter.h"
 #include "effects/fx/CurveEq.h"
@@ -197,10 +200,10 @@ END_JUCE_MODULE_DECLARATION
 #include "effects/fx/WrappedAudioProcessors/WrappedAudioProcessors.h"
 
 
-/** @defgroup synthTypes Synth Types ===========================================================================
-*	@ingroup dsp
+/** @defgroup synthTypes HISE Sound Generators
+*	@ingroup types
 *
-*	Contains all synth classes
+*	A list of all available HISE sound generators.
 */
 
 #include "synthesisers/synths/GlobalModulatorContainer.h"
@@ -222,7 +225,14 @@ END_JUCE_MODULE_DECLARATION
 
 #endif
 
-
+#include "raw/raw_ids.h"
+#include "raw/raw_misc.h"
+#include "raw/raw_misc_impl.h"
+#include "raw/raw_builder.h"
+#include "raw/raw_builder_impl.h"
+#include "raw/raw_positioner.h"
+#include "raw/raw_UserPreset.h"
+#include "raw/raw_PluginParameter.h"
 
 
 

@@ -91,7 +91,7 @@ void WaveformComponent::paint(Graphics &g)
 	}
 	else
 	{
-		KnobLookAndFeel::fillPathHiStyle(g, p, (int)w, (int)h);
+		GlobalHiseLookAndFeel::fillPathHiStyle(g, p, (int)w, (int)h);
 	}
 }
 
@@ -245,6 +245,9 @@ Component* WaveformComponent::Panel::createContentComponent(int index)
 	c->setColour(bgColour, findPanelColour(FloatingTileContent::PanelColourId::bgColour));
 	c->setColour(fillColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour1));
 	c->setColour(lineColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour2));
+
+	if (c->findColour(bgColour).isOpaque())
+		c->setOpaque(true);
 
 	return c;
 }

@@ -108,7 +108,7 @@ private:
 		{
 			stopTimer();
 
-			if (dragDistance < 6.0f)
+			if (dragDistance < 8.0f)
 			{
 				parent->touchAndHold(downPosition);
 			}
@@ -129,7 +129,7 @@ private:
 };
 
 
-/** A base class for all control widgets that can be controlled by a MacroControlBroadcaster.
+/** A base class for all control Components that can be controlled by a MacroControlBroadcaster.
 *	@ingroup macroControl
 *
 *	Subclass your component from this class, and set the Processor's Attribute in its specified callback.
@@ -169,14 +169,6 @@ public:
 		macroControlledComponentEnabled(true)
 	{};
     
-    enum HiBackgroundColours
-    {
-        upperBgColour = 0xFF123532,
-        lowerBgColour,
-        outlineBgColour,
-        textColour,
-        numHiBackgroundColours
-    };
 
     virtual ~MacroControlledObject() {};
 
@@ -199,12 +191,12 @@ public:
 
 	void setUseUndoManagerForEvents(bool shouldUseUndo) { useUndoManagerForEvents = shouldUseUndo; }
 
-	/** Initializes the control widget.
+	/** Initializes the control element.
 	*
 	*	It connects to a Processor's parameter and automatically updates its value and changes the attribute. 
-	*	@param p the Processor that is controlled by the widget.
-	*	@param parameter_ the parameter that is controlled by the widget
-	*	@param name_ the name of the widget. This will also be the displayed name in the macro control panel.
+	*	@param p the Processor that is controlled by the element.
+	*	@param parameter_ the parameter that is controlled by the element
+	*	@param name_ the name of the element. This will also be the displayed name in the macro control panel.
 	*/
 	virtual void setup(Processor *p, int parameter_, const String &name_)
 	{
@@ -225,7 +217,7 @@ public:
 		macroIndex = -1;	
 	}
 
-	/** overwrite this method and update the widget to display the current value of the controlled attribute. */
+	/** overwrite this method and update the element to display the current value of the controlled attribute. */
 	virtual void updateValue(NotificationType sendAttributeChange = sendNotification) = 0;
 
 	/** overwrite this method and return the range that the parameter can have. */
@@ -250,7 +242,7 @@ protected:
 	/** checks if the macro learn mode is active.
 	*
 	*	If it is active, it adds this control to the macro and returns true.
-	*	You can use this in the widget callback like:
+	*	You can use this in the element's callback like:
 	*
 	*		if(!checkLearnMode())
 	*		{
@@ -305,10 +297,10 @@ public:
 
         setWantsKeyboardFocus(false);
         
-        setColour(HiBackgroundColours::upperBgColour, Colour(0x66333333));
-        setColour(HiBackgroundColours::lowerBgColour, Colour(0xfb111111));
-        setColour(HiBackgroundColours::outlineBgColour, Colours::white.withAlpha(0.3f));
-        setColour(HiBackgroundColours::textColour, Colours::white);
+        setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
+        setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
+        setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
+        setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
 	};
 
 	void setup(Processor *p, int parameter, const String &name) override;
@@ -406,9 +398,9 @@ public:
 		addListener(this);
 		setWantsKeyboardFocus(false);
         
-        setColour(HiBackgroundColours::upperBgColour, Colour(0x66333333));
-        setColour(HiBackgroundColours::lowerBgColour, Colour(0xfb111111));
-        setColour(HiBackgroundColours::outlineBgColour, Colours::white.withAlpha(0.3f));
+        setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
+        setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
+        setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
 	};
 
 	void setup(Processor *p, int parameter, const String &name) override;
@@ -558,7 +550,30 @@ public:
 	*/
 	HiSlider(const String &name);;
 
+	static String getFrequencyString(float input)
+	{
+		if (input < 30.0f)
+		{
+			return String(input, 1) + " Hz";
+		}
+		if (input < 1000.0f)
+		{
+			return String(roundFloatToInt(input)) + " Hz";
+		}
+		else
+		{
+			return String(input / 1000.0, 1) + " kHz";
+		}
+	}
 	
+	static double getFrequencyFromTextString(const String& t)
+	{
+		if (t.contains("kHz"))
+			return t.getDoubleValue() * 1000.0;
+		else
+			return t.getDoubleValue();
+	}
+
 	void mouseDown(const MouseEvent &e) override;
 
 	void mouseDrag(const MouseEvent& e) override;
@@ -669,6 +684,7 @@ public:
 	{
 		if(mode == Pan) setTextValueSuffix(getModeSuffix());
 
+		if (mode == Frequency) return getFrequencyString((float)value);
 		if(mode == TempoSync) return TempoSyncer::getTempoName((int)(value));
 		else if(mode == NormalizedPercentage) return String((int)(value * 100)) + "%";
 		else				  return Slider::getTextFromValue(value);
@@ -677,6 +693,7 @@ public:
 	/** Overrides the slider method to set the value from the Tempo names */
 	double getValueFromText(const String &text) override
 	{
+		if (mode == Frequency) return getFrequencyFromTextString(text);
 		if(mode == TempoSync) return TempoSyncer::getTempoIndex(text);
 		else if (mode == NormalizedPercentage) return text.getDoubleValue() / 100.0;
 		else				  return Slider::getValueFromText(text);

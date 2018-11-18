@@ -117,6 +117,8 @@ public:
 
 	void checkRelease();
 
+	void resetVoice() override;
+
 	void resetInternal(ModulatorSynth * childSynth, int childVoiceIndex);
 
 	void calculateBlock(int startSample, int numSamples) override;
@@ -125,6 +127,8 @@ public:
 
 	void calculateNoFMVoiceInternal(ModulatorSynth* childSynth, int unisonoIndex, int startSample, int numSamples, const float * voicePitchValues, bool& isFirst);
 
+	void calculatePitchValuesForChildVoice(ModulatorSynth* childSynth, ModulatorSynthVoice * childVoice, int startSample, int numSamples, const float * voicePitchValues, bool applyDetune=true);
+
 	void calculateDetuneMultipliers(int childVoiceIndex);
 
 	void calculateFMBlock(ModulatorSynthGroup * group, int startSample, int numSamples);
@@ -132,6 +136,8 @@ public:
 	void calculateFMCarrierInternal(ModulatorSynthGroup * group, int childVoiceIndex, int startSample, int numSamples, const float * voicePitchValues, bool& isFirst);
 
 	int getChildVoiceAmount() const;
+
+	
 
 private:
 
@@ -237,11 +243,10 @@ private:
 
 
 
-/** A ModulatorSynthGroup is a collection of somehow related ModulatorSynths that are processed together.
+/** A ModulatorSynthGroup is a collection of tightly coupled ModulatorSynth that are processed together.
+	@ingroup synthTypes
 *
-*	This class is designed to process related ModulatorSynths (eg. round-robin groups or multimiced samples) together. Unlike the ModulatorSynthChain,
-*	this structure allows Modulators and effects to control multiple child synths.
-*	In order to ensure correct functionality, the ModulatorSynthGroup assumes that all child synths start at the same time.
+*	Other than the ModulatorSynthChain, it will render its children grouped on voice level which allows stuff like FM synthesis etc.
 *
 *	The ModulatorSynthGroup is rendered like a normal ModulatorSynth using a special kind of voice (the ModulatorSynthGroupVoice).
 *
@@ -258,6 +263,12 @@ class ModulatorSynthGroup : public ModulatorSynth,
 	public Chain
 {
 public:
+
+	enum ModChains
+	{
+		Detune = 2,
+		Spread
+	};
 
 	enum SpecialParameters
 	{
@@ -380,12 +391,23 @@ public:
 	/** Clears the internal buffers of the childs and the group itself. */
 	void initRenderCallback() override;;
 
-	void preStartVoice(int voiceIndex, int noteNumber) override;;
+	int collectSoundsToBeStarted(const HiseEvent& m) override;
+
+	float getDetuneModValue(int startSample) const
+	{
+		return modChains[ModChains::Detune].getOneModulationValue(startSample);
+	}
+
+	float getSpreadModValue(int startSample) const noexcept
+	{
+		return modChains[ModChains::Spread].getOneModulationValue(startSample);
+	}
 
 	void preVoiceRendering(int startSample, int numThisTime) override;;
-	void postVoiceRendering(int startSample, int numThisTime) override;;
 
 	void handleRetriggeredNote(ModulatorSynthVoice *voice) override;
+
+	bool handleVoiceLimit(int numVoicesToClear) override;
 
 	void killAllVoices() override;
 
@@ -440,35 +462,26 @@ public:
 
 	bool fmIsCorrectlySetup() const { return fmCorrectlySetup; };
 
-	const float* calculateDetuneModulationValuesForVoice(int voiceIndex, int startSample, int numSamples)
-	{
-		detuneChain->renderVoice(voiceIndex, startSample, numSamples);
-		float *detuneValues = detuneChain->getVoiceValues(voiceIndex);
-		const float* timeVariantDetuneValues = detuneBuffer.getReadPointer(0);
-
-		FloatVectorOperations::multiply(detuneValues + startSample, timeVariantDetuneValues + startSample, numSamples);
-
-		return detuneChain->getVoiceValues(voiceIndex) + startSample;
-	}
-
-	const float* calculateSpreadModulationValuesForVoice(int voiceIndex, int startSample, int numSamples)
-	{
-		spreadChain->renderVoice(voiceIndex, startSample, numSamples);
-		float *spreadValues = spreadChain->getVoiceValues(voiceIndex);
-		const float* timeVariantSpreadValues = spreadBuffer.getReadPointer(0);
-
-		FloatVectorOperations::multiply(spreadValues + startSample, timeVariantSpreadValues + startSample, numSamples);
-
-		return spreadChain->getVoiceValues(voiceIndex) + startSample;
-	}
-	
 private:
+
+	struct SynthVoiceAmount
+	{
+		bool operator ==(const SynthVoiceAmount& other) const
+		{
+			return other.s == s;
+		}
+
+		ModulatorSynth* s = nullptr;
+		int numVoicesNeeded = 0;
+	};
+
+	UnorderedStack<SynthVoiceAmount> synthVoiceAmounts;
 
 	friend class ChildSynthIterator;
 	friend class ModulatorSynthGroupVoice;
 
-	ScopedPointer<ModulatorChain> detuneChain;
-	ScopedPointer<ModulatorChain> spreadChain;
+	ModulatorChain* detuneChain = nullptr;
+	ModulatorChain* spreadChain = nullptr;
 
 	// the precalculated modvalues for LFOs & stuff
 	AudioSampleBuffer modSynthGainValues;
@@ -487,7 +500,7 @@ private:
 	bool carrierIsSampler = false;
 
 	int unisonoVoiceAmount;
-	int unisonoVoiceLimit;
+	
 	double unisonoDetuneAmount;
 	float unisonoSpreadAmount;
 

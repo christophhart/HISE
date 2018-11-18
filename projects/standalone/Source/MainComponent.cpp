@@ -23,17 +23,11 @@
 //==============================================================================
 MainContentComponent::MainContentComponent(const String &commandLine)
 {
-
 	standaloneProcessor = new hise::StandaloneProcessor();
 
 	addAndMakeVisible(editor = standaloneProcessor->createEditor());
 
 	setSize(editor->getWidth(), editor->getHeight());
-
-	if (dynamic_cast<hise::GlobalSettingManager*>(editor->getAudioProcessor())->useOpenGL)
-	{
-		open.attachTo(*editor);
-	}
 
 	handleCommandLineArguments(commandLine);
 
@@ -76,14 +70,7 @@ MainContentComponent::~MainContentComponent()
 {
 	
 	root = nullptr;
-
-	if (open.isAttached())
-		open.detach();
-
-	open.detach();
 	editor = nullptr;
-
-	
 
 	standaloneProcessor = nullptr;
 }
@@ -104,7 +91,7 @@ void MainContentComponent::resized()
 
 }
 
-void MainContentComponent::requestQuit(const std::function<void(void)>& f)
+void MainContentComponent::requestQuit()
 {
-	standaloneProcessor->requestQuit(f);
+	standaloneProcessor->requestQuit();
 }

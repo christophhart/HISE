@@ -100,7 +100,7 @@ public:
 
 	int getNumChildProcessors() const override {return numTotalChains;};
 
-	void startVoice(int voiceIndex) override;
+	float startVoice(int voiceIndex) override;
 	
 	void stopVoice(int voiceIndex) override;
 
@@ -171,7 +171,7 @@ public:
 
 	int calculateTableLength(float ms)
 	{
-		const int x = (int)(ms * getSampleRate() / 1000.0f);
+		const int x = (int)(ms * getControlRate() / 1000.0f);
 
 		return x;
 
@@ -184,7 +184,7 @@ public:
 	/** @brief returns \c true, if the envelope is not IDLE and not bypassed. */
 	bool isPlaying(int voiceIndex) const override;;
 
-	/** The container for the envelope state. */
+	/** @internal The container for the envelope state. */
     struct TableEnvelopeState: public EnvelopeModulator::ModulatorState
 	{
 	public:
@@ -240,7 +240,7 @@ public:
 
 private:
 
-	float calculateNewValue ();
+	float calculateNewValue(int voiceIndex);
 
 	ScopedPointer<SampleLookupTable> attackTable;
 	ScopedPointer<SampleLookupTable> releaseTable;

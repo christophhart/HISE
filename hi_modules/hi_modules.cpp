@@ -26,13 +26,6 @@ namespace wdl
 
 
 
-
-/** @defgroup modulatorTypes ModulatorTypes =========================================================================
-*	@ingroup modulator
-*
-*	Here are all actual Modulators that can be used.
-*/
-
 #include "modulators/mods/ConstantModulator.cpp"
 #include "modulators/mods/ControlModulator.cpp"
 #include "modulators/mods/LFOModulator.cpp"
@@ -78,13 +71,6 @@ namespace wdl
 
 #endif
 
-/** @defgroup midiTypes MidiProcessor Types =======================================================================
-*	@ingroup midiProcessor
-*
-*	All actual MidiProcessors that can be used.
-*	There are almost none, because everything can also be achieved using scripts (or hardcoded scripts)
-*/
-
 #include "midi_processor/mps/MidiDelay.cpp"
 #include "midi_processor/mps/Transposer.cpp"
 #include "midi_processor/mps/SampleRaster.cpp"
@@ -96,15 +82,17 @@ namespace wdl
 
 #endif
 
-/** @defgroup effectTypes Effect Types ===========================================================================
+/** @defgroup effectTypes HISE Effects
 *	@ingroup dsp
 *
-*	Contains all audio effect classes
+*	A list of all available HISE Effects
 */
 
 #include "effects/MdaEffectWrapper.cpp"
 
 #include "effects/fx/RouteFX.cpp"
+#include "effects/fx/FilterTypes.cpp"
+#include "effects/fx/FilterHelpers.cpp"
 #include "effects/fx/Filters.cpp"
 #include "effects/fx/HarmonicFilter.cpp"
 #include "effects/fx/CurveEq.cpp"
@@ -157,11 +145,7 @@ namespace wdl
 
 #include "effects/editors/AudioProcessorEditorWrapper.cpp"
 
-/** @defgroup synthTypes Synth Types ===========================================================================
-*	@ingroup dsp
-*
-*	Contains all synth classes
-*/
+
 
 #include "synthesisers/synths/GlobalModulatorContainer.cpp"
 #include "synthesisers/synths/SineSynth.cpp"
@@ -183,3 +167,8 @@ namespace wdl
 
 #endif
 
+#include "raw/raw_misc.cpp"
+#include "raw/raw_builder.cpp"
+#include "raw/raw_positioner.cpp"
+#include "raw/raw_UserPreset.cpp"
+#include "raw/raw_PluginParameter.cpp"

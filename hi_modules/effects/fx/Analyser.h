@@ -37,7 +37,9 @@ namespace hise {
 using namespace juce;
 
 
-/** A simple effect that does nothing. */
+/** A analyser that powers one of the available visualisations in HISE (FFT, Oscilloscope or Goniometer.
+	@ingroup effectTypes
+*/
 class AnalyserEffect : public MasterEffectProcessor
 {
 public:
@@ -54,6 +56,8 @@ public:
 		AnalyserEffect(MainController *mc, const String &uid) :
 		MasterEffectProcessor(mc, uid)
 	{
+		finaliseModChains();
+
 		parameterNames.add("PreviewType");
 		parameterNames.add("BufferSize");
 
@@ -135,11 +139,6 @@ public:
 	};
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
-
-	void prepareToPlay(double sampleRate, int samplesPerBlock)
-	{
-		MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
-	}
 
 	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples)
 	{

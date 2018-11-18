@@ -386,7 +386,7 @@ void CCEnvelopeDisplay::paint(Graphics &g)
 
 	p.closeSubPath();
 
-	KnobLookAndFeel::fillPathHiStyle(g, p, getWidth(), getHeight(), true);
+	GlobalHiseLookAndFeel::fillPathHiStyle(g, p, getWidth(), getHeight(), true);
 
 	if (sum != 0.0f)
 	{

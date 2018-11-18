@@ -35,201 +35,1126 @@
 
 namespace hise { using namespace juce;
 
-class ProjectHandler;
-
-
-/** A base class for all objects that can be saved as value tree. 
-*	@ingroup core
-*/
-class RestorableObject
+namespace MetadataIDs
 {
-public:
+const Identifier SampleRate("SampleRate");
+const Identifier LoopEnabled("LoopEnabled");
+const Identifier LoopStart("LoopStart");
+const Identifier LoopEnd("LoopEnd");
+}
+
+class PoolBase;
+
+/** Helper functions for the file pools. 
+*/
+struct PoolHelpers
+{
+	/** If you load a file into the pool you can specify the caching behaviour with one of these. */
+	enum LoadingType
+	{
+		LoadAndCacheWeak = 0, ///< Loads the file, but does not increase the reference count. This results in the file being unloaded if the reference to it gets destroyed. If the file is already loaded, it just returns the reference.
+		LoadAndCacheStrong, ///< Loads the file and increases the reference count to extend the lifetime of the cached data until the pool is destroyed or manually cleaned.
+		ForceReloadWeak, ///< This will bypass the search in the pool and reloads the file no matter if it was loaded before.
+		ForceReloadStrong, ///< reloads the file and increases it's reference count.
+		SkipPoolSearchWeak, ///< skips the check if the file is already pooled.
+		SkipPoolSearchStrong, ///< skips the search in the pool and increases the reference count
+		DontCreateNewEntry, ///< this assumes the file is already in the pool and throws an assertion if it's not.
+		numLoadingTypes
+	};
+
+	static bool isStrong(LoadingType t)
+	{
+		return t == LoadAndCacheStrong || t == ForceReloadStrong || t == SkipPoolSearchStrong;
+	}
+
+	static bool shouldSearchInPool(LoadingType t)
+	{
+		return t == LoadAndCacheStrong || 
+			   t == LoadAndCacheWeak || 
+			   t == ForceReloadStrong || 
+			   t == ForceReloadWeak || 
+			   t == DontCreateNewEntry;
+	}
+
+	static bool shouldForceReload(LoadingType t)
+	{
+		return t == ForceReloadStrong || t == ForceReloadWeak;
+	}
+
+    static void sendErrorMessage(MainController* mc, const String& errorMessage);
     
-    virtual ~RestorableObject() {};
+	// Using an empty parameter to get the correct Subdirectory type
+	static ProjectHandler::SubDirectories getSubDirectoryType(const AudioSampleBuffer& emptyData);
+	static ProjectHandler::SubDirectories getSubDirectoryType(const Image& emptyImage);
+	static ProjectHandler::SubDirectories getSubDirectoryType(const ValueTree& emptyTree);
 
-	/** Overwrite this method and return a representation of the object as ValueTree.
-	*
-	*	It's best practice to only store variables that are not internal (eg. states ...)
-	*/
-	virtual ValueTree exportAsValueTree() const = 0;
+	/** @internal (used by the template instantiations. */
+	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, AudioSampleBuffer& data, var* additionalData);
+	/** @internal (used by the template instantiations. */
+	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, Image& data, var* additionalData);
+	/** @internal (used by the template instantiations. */
+	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, ValueTree& data, var* additionalData);
 
-	/** Overwrite this method and restore the properties of this object using the referenced ValueTree.
+	/** @internal (used by the template instantiations. */
+	static void fillMetadata(AudioSampleBuffer& data, var* additionalData);
+	/** @internal (used by the template instantiations. */
+	static void fillMetadata(Image& data, var* additionalData);
+	/** @internal (used by the template instantiations. */
+	static void fillMetadata(ValueTree& data, var* additionalData);
+
+	/** @internal (used by the template instantiations. */
+	static size_t getDataSize(const AudioSampleBuffer* buffer);
+	/** @internal (used by the template instantiations. */
+	static size_t getDataSize(const Image* img);
+	/** @internal (used by the template instantiations. */
+	static size_t getDataSize(const ValueTree* img);
+
+	/** @internal (used by the template instantiations. */
+	static bool isValid(const AudioSampleBuffer* buffer);
+	/** @internal (used by the template instantiations. */
+	static bool isValid(const Image* buffer);
+	/** @internal (used by the template instantiations. */
+	static bool isValid(const ValueTree* buffer);
+
+	/** @internal (used by the template instantiations. */
+	static Identifier getPrettyName(const AudioSampleBuffer* /*buffer*/) { RETURN_STATIC_IDENTIFIER("AudioFilePool"); }
+	/** @internal (used by the template instantiations. */
+	static Identifier getPrettyName(const Image* /*img*/) { RETURN_STATIC_IDENTIFIER("ImagePool"); }
+	/** @internal (used by the template instantiations. */
+	static Identifier getPrettyName(const ValueTree* /*img*/) { RETURN_STATIC_IDENTIFIER("SampleMapPool"); }
+
+	static Image getEmptyImage(int width, int height);
+
+	/** A lightweight object that encapsulates all different sources for a pool with a 
+		hash code and a relative path system.
+		
+		@ingroup core
+		
+		Whenever you need to access external / embedded resources, this class is used to 
+		resolve the path / ID to fetch the data. 
+		
+		Normally, you create one of these just with a String and it will figure out automatically
+		whether it's a absolute path, a path relative to the project folder or an embedded resource.
 	*/
-	virtual void restoreFromValueTree(const ValueTree &previouslyExportedState) = 0;
+	struct Reference
+	{
+		struct Comparator
+		{
+			int compareElements(const Reference& first, const Reference& second)
+			{
+				return first.reference.compare(second.reference);
+			}
+		};
+
+		/** The data sources for the Reference. */
+		enum Mode
+		{
+			Invalid = 0, ///< if the reference can't be resolved
+			AbsolutePath, ///< the reference is an absolute path outside the HISE project folder. This needs to be avoided during development, but for compiled plugins it stores the location to a file specified by the user
+			ExpansionPath, ///< if the resource is bundled in an expansion pack, it will be using this value
+			ProjectPath, ///< a file within the HISE project folder. This will be transformed into a EmbeddedResource when compiling the plugin
+			EmbeddedResource, ///< data that is either embedded in the plugin or shipped as compressed pool data along with the binary
+			LinkToEmbeddedResource, ///< ???
+			numModes_
+		};
+
+		/** Creates a Invalid reference. */
+		Reference();
+
+		/** Creates a reference using the given string. */
+		Reference(const MainController* mc, const String& referenceStringOrFile, ProjectHandler::SubDirectories directoryType);
+
+		/** Creates a reference from a drag description. */
+		Reference(const var& dragDescription);
+
+		/** Creates a reference from an embedded resource. */
+		Reference(PoolBase* pool, const String& embeddedReference, ProjectHandler::SubDirectories directoryType);
+
+		/** This can be used to type shorter conditions. */
+		explicit operator bool() const
+		{
+			return isValid();
+		}
+
+		bool operator ==(const Reference& other) const;
+		bool operator !=(const Reference& other) const;
+
+		/** Returns the type of the reference. */
+		Mode getMode() const { return m; }
+
+		/** Returns the String that was passed in the constructor. */
+		String getReferenceString() const;
+
+		/** Returns the Identifier as used by the pool. */
+		Identifier getId() const;
+
+		/** If this is a file based reference, it will return the file. */
+		File getFile() const;
+
+		bool isRelativeReference() const;
+		bool isAbsoluteFile() const;
+		bool isEmbeddedReference() const;;
+
+		/** This creates an input stream for the reference. If it's file based, it will be a FileInputStream, and for embedded references you'll get a MemoryInputStream. */
+	 	InputStream* createInputStream() const;
+
+		/** Upon creation it creates a hash code that will be used by the pool to identify
+			and return already cached data.
+		*/
+		int64 getHashCode() const;
+		bool isValid() const;
+
+		/** Returns the data type. A Reference has the data type baked in it (because you hardly want to load images into a convolution reverb). 
+		*/
+		ProjectHandler::SubDirectories getFileType() const;
+
+		/** @internal. */
+		var createDragDescription() const;
+
+	private:
+
+		void parseDragDescription(const var& v);
+		void parseReferenceString(const MainController* mc, const String& input);
+
+		String reference;
+		File f;
+		Identifier id;
+		Mode m;
+
+		int64 hashCode;
+
+		PoolBase* pool;
+		ProjectHandler::SubDirectories directoryType;
+	};
+
 };
 
 
-class SharedPoolBase : public RestorableObject,
-					   public SafeChangeBroadcaster
+class PoolCollection;
+
+using PoolReference = PoolHelpers::Reference;
+
+
+/** The base class for all resource pools.
+*
+*	This class handles the caching of resources and provides the data. */
+class PoolBase : public ControlledObject
 {
 public:
 
-	SharedPoolBase(MainController* mc_) :
-		mc(mc_)
-	{};
+	enum EventType
+	{
+		Added,
+		Removed,
+		Changed,
+		Reloaded,
+		numEventTypes
+	};
+
+	struct ScopedNotificationDelayer
+	{
+		ScopedNotificationDelayer(PoolBase& parent_, EventType type):
+			parent(parent_),
+			t(type)
+		{
+			parent.skipNotification = true;
+		}
+
+		~ScopedNotificationDelayer()
+		{
+			parent.skipNotification = false;
+			parent.sendPoolChangeMessage(t, sendNotificationAsync);
+		}
+
+		EventType t;
+		PoolBase& parent;
+	};
+
+	/** The internal data management class for embedded resources. */
+	class DataProvider
+	{
+	public:
+
+		class Compressor
+		{
+		public:
+
+			virtual ~Compressor() {};
+
+			virtual void write(OutputStream& output, const ValueTree& data, const File& originalFile) const;
+			virtual void write(OutputStream& output, const Image& data, const File& originalFile) const;
+			virtual void write(OutputStream& output, const AudioSampleBuffer& data, const File& originalFile) const;
+
+			virtual void create(MemoryInputStream* mis, ValueTree* data) const;
+			virtual void create(MemoryInputStream* mis, Image* data) const;
+			virtual void create(MemoryInputStream* mis, AudioSampleBuffer* data) const;
+		};
+
+		DataProvider(PoolBase* pool_) :
+			pool(pool_),
+			metadataOffset(-1),
+			compressor(new Compressor())
+		{}
+
+		virtual ~DataProvider() {}
+
+		bool isEmbeddedResource(PoolReference r);
+
+		PoolReference getEmbeddedReference(PoolReference other);
+
+		virtual Result restorePool(InputStream* ownedInputStream);
+
+		MemoryInputStream* createInputStream(const String& referenceString);
+
+		virtual Result writePool(OutputStream* ownedOutputStream, double* progress=nullptr);
+
+		var createAdditionalData(PoolReference r);
+
+		const Compressor* getCompressor() const { return compressor; };
+
+		void setCompressor(Compressor* newCompressor) { compressor = newCompressor; };
+
+		Array<PoolReference> getListOfAllEmbeddedReferences() const;
+
+	private:
+
+		ValueTree metadata;
+		int64 metadataOffset;
+
+		PoolBase* pool = nullptr;
+		ScopedPointer<InputStream> input;
+		Array<int64> hashCodes;
+
+		ScopedPointer<Compressor> compressor;
+	};
+
+	/** A interface class that will be notified about changes to the pool. 
+	*
+	*	If you want to reflect the state of a pool in your UI, subclass this and overwrite the callbacks.
+	*	They will be asynchronously called after the state of the pool changes.
+	*/
+	class Listener
+	{
+	public:
+
+		virtual ~Listener() {};
+
+		/** Called whenever a pool entry was added. */
+		virtual void poolEntryAdded() {};
+
+		/** Called when a pool entry was removed. */
+		virtual void poolEntryRemoved() {};
+
+		/** If a pool entry gets changed, this will be called. */
+		virtual void poolEntryChanged(PoolReference referenceThatWasChanged) {};
 
 
-	virtual ~SharedPoolBase() {};
+		virtual void poolEntryReloaded(PoolReference referenceThatWasChanged) {};
 
-	virtual Identifier getFileTypeName() const = 0;
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener)
+	};
 
-	virtual int getNumLoadedFiles() const = 0;
+	void sendPoolChangeMessage(EventType t, NotificationType notify=sendNotificationAsync, PoolReference r=PoolReference())
+	{
+		if (skipNotification && notify == sendNotificationAsync)
+			return;
 
-	virtual void storeItemInValueTree(ValueTree& childItem, int index) const = 0;
-	virtual void restoreItemFromValueTree(ValueTree& childItem) = 0;
+		lastType = t;
+		lastReference = r;
 
-	virtual void clearData() = 0;
+		if (notify == sendNotificationAsync)
+			notifier.triggerAsyncUpdate();
+		else
+			notifier.handleAsyncUpdate();
+	}
 
-	virtual Identifier getIdForIndex(int index) const = 0;
+	void addListener(Listener* l)
+	{
+		listeners.addIfNotAlreadyThere(l);
+	}
+
+	void removeListener(Listener* l)
+	{
+		listeners.removeAllInstancesOf(l);
+	}
+
+	void setDataProvider(DataProvider* newDataProvider)
+	{
+		dataProvider = newDataProvider;
+	}
+
 	
-	virtual String getFileNameForId(Identifier identifier) const = 0;
-
+	virtual int getNumLoadedFiles() const = 0;
+	virtual PoolReference getReference(int index) const = 0;
+	virtual void clearData() = 0;
+	virtual var getAdditionalData(PoolReference r) const = 0;
 	virtual StringArray getTextDataForId(int index) const = 0;
 
-	void notifyTable();
+	virtual void writeItemToOutput(OutputStream& output, PoolReference r) = 0;
 
-	File getFileFromFileNameString(const String& fileName);
+	DataProvider* getDataProvider() { return dataProvider; };
+	const DataProvider* getDataProvider() const { return dataProvider; };
 
-	Identifier getIdForFileName(const String &absoluteFileName) const;
+	FileHandlerBase::SubDirectories getFileType() const
+	{
+		return type;
+	}
 
-	ValueTree exportAsValueTree() const override;
-	void restoreFromValueTree(const ValueTree &v) override;
-
-	ProjectHandler& getProjectHandler();
-
-	const ProjectHandler& getProjectHandler() const;
+	void setUseSharedPool(bool shouldUse)
+	{
+		useSharedCache = shouldUse;
+	}
 
 protected:
 
-	template <class DataType> struct PoolEntry
+	virtual Identifier getFileTypeName() const = 0;
+
+	PoolBase(MainController* mc):
+	  ControlledObject(mc),
+	  notifier(*this),
+      type(FileHandlerBase::SubDirectories::numSubDirectories),
+	  dataProvider(new DataProvider(this))
+
 	{
-		PoolEntry() :
-			fileName(String()),
-			id(Identifier()),
-			data(DataType())
+
+	}
+
+	FileHandlerBase::SubDirectories type;
+
+	bool useSharedCache = false;
+
+private:
+
+	struct Notifier: public AsyncUpdater
+	{
+		Notifier(PoolBase& parent_) :
+			parent(parent_)
 		{};
 
-		PoolEntry(const Identifier& id_) :
-			id(id_),
-			data(DataType())
-		{}
-
-		StringArray getTextData(const Identifier& typeName) const
+		~Notifier()
 		{
-			StringArray info;
-			info.add(id.toString());
-			info.add("100kB"); // because no one cares actually.
-			info.add(typeName.toString());
-			info.add("1");
-
-			return info;
+			cancelPendingUpdate();
 		}
 
-		bool operator==(const PoolEntry& other) const
+		void handleAsyncUpdate() override
 		{
-			return this->id == other.id;
-		};
+			ScopedLock sl(parent.listeners.getLock());
+			
+			for (auto& l : parent.listeners)
+			{
+				if (l != nullptr)
+				{
+					switch (parent.lastType)
+					{
+					case Added: l->poolEntryAdded(); break;
+					case Removed: l->poolEntryRemoved(); break;
+					case Changed: l->poolEntryChanged(parent.lastReference); break;
+					case Reloaded: l->poolEntryReloaded(parent.lastReference); break;
+					default:
+						break;
+					}
+				}
+			}
+		}
 
-		Identifier id;
-		String fileName;
-		DataType data;
-		var additionalData;
+
+		PoolBase& parent;
+
 	};
 
-	MainController* mc;
+	Notifier notifier;
+
+	bool skipNotification = false;
+
+	EventType lastType;
+	PoolReference lastReference;
+
+	Array<WeakReference<Listener>, CriticalSection> listeners;
+
+	ScopedPointer<DataProvider> dataProvider;
+	
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PoolBase)
+};
+
+
+template <class DataType> class PoolEntry : public ReferenceCountedObject
+{
+public:
+
+	PoolEntry(PoolReference& r) :
+		ref(r),
+		data(DataType())
+	{};
+
+	PoolEntry() :
+		ref(PoolReference()),
+		data(DataType())
+	{};
+
+	~PoolEntry()
+	{
+	}
+
+	bool operator ==(const PoolEntry& other) const
+	{
+		return other.ref == ref;
+	}
+
+	explicit operator bool() const { return ref.isValid() && PoolHelpers::isValid(data); };
+
+	PoolReference ref;
+	DataType data;
+	var additionalData;
+	
+	JUCE_DECLARE_WEAK_REFERENCEABLE(PoolEntry<DataType>);
+};
+
+
+/** This class extends the pool to a global data storage used across all instances of the plugin.
+*
+*	This is useful if you have a lot of read-only data (like images), which would increase the memory
+*	usage when multiple instances of your plugin are used. */
+template <class DataType> class SharedCache
+{
+
+public:
+
+	SharedCache()
+	{
+		DataType* unused = nullptr;
+		DBG("Create Shared Cache Pool for " + PoolHelpers::getPrettyName(unused));
+		ignoreUnused(unused);
+	}
+
+	bool contains(int64 hashCode)
+	{
+		for (const auto& i : sharedItems)
+		{
+			if (i->ref.getHashCode() == hashCode)
+				return true;
+		}
+
+		return false;
+	}
+
+	PoolEntry<DataType>* getSharedData(int64 hashCode)
+	{
+		for (const auto& i: sharedItems)
+		{
+			if (i->ref.getHashCode() == hashCode)
+				return i;
+		}
+
+		jassertfalse;
+		return {};
+	}
+
+	void store(PoolEntry<DataType>* newEntry)
+	{
+		if (contains(newEntry->ref.getHashCode()))
+			return;
+
+		sharedItems.add(newEntry);
+	}
+
+	~SharedCache()
+	{
+		DataType* unused = nullptr;
+		DBG("Delete Shared Cache Pool for " + PoolHelpers::getPrettyName(unused));
+		ignoreUnused(unused);
+	}
+
+private:
+
+	ReferenceCountedArray<PoolEntry<DataType>> sharedItems;
+};
+
+
+
+
+
+/** Implementations of the data pool. */
+template <class DataType> class SharedPoolBase : public PoolBase
+{
+public:
+
+	using PoolItem = PoolEntry<DataType>;
+
+	/** A ManagedPtr is a wrapper around a reference in the pool. Normally you don't create them
+	*	manually, but use the loadFromReference() method which creates and returns this object. 
+	*/
+	class ManagedPtr
+	{
+	public:
+
+		ManagedPtr(SharedPoolBase<DataType>* pool_, PoolItem* object, bool refCounted) :
+			pool(pool_),
+			isRefCounted(refCounted),
+			weak(refCounted ? nullptr : object),
+			strong(refCounted ? object : nullptr)
+		{
+			
+		}
+
+		ManagedPtr() :
+			pool(nullptr),
+			weak(nullptr),
+			strong(nullptr),
+			isRefCounted(true)
+		{
+
+		}
+
+		ManagedPtr& operator= (const ManagedPtr& other)
+		{
+			if(isRefCounted)
+				clear();
+
+			pool = other.pool;
+			weak = other.weak;
+			strong = other.strong;
+			isRefCounted = other.isRefCounted;
+
+			return *this;
+		}
+
+		bool operator==(const ManagedPtr& other) const
+		{
+			return getRef() == other.getRef();
+		}
+
+		explicit operator bool() const { return get() != nullptr;};
+
+		PoolItem* get() { return isRefCounted ? strong.get() : weak.get(); };
+		const PoolItem* get() const { return isRefCounted ? strong.get() : weak.get(); };
+
+		operator PoolItem*() const noexcept { return get(); }
+
+		PoolItem* operator->() noexcept { return get(); }
+
+		const PoolItem* operator->() const noexcept { return get(); }
+
+		~ManagedPtr()
+		{
+			weak = nullptr;
+
+			if (isRefCounted)
+				clear();
+		}
+
+		StringArray getTextData() const
+		{
+			StringArray sa;
+
+			if (*this)
+			{
+				sa.add(getRef().getReferenceString());
+				auto dataSize = PoolHelpers::getDataSize(getData());
+
+				String s = String((float)dataSize / 1024.0f, 1) + " kB";
+
+				sa.add(s);
+				sa.add(String(get()->getReferenceCount()));
+			}
+
+			return sa;
+		}
+
+		const DataType* getData() const { return *this ? &get()->data : nullptr; };
+		DataType* getData() { return *this ? &get()->data : nullptr; };
+		
+		PoolReference getRef() const { return *this ? get()->ref : PoolReference(); };
+
+		var getAdditionalData() const { return *this ? get()->additionalData : var(); }
+
+		void clear()
+		{
+			if (!getRef())
+				return;
+
+			jassert(isRefCounted);
+			
+			if(*this)
+				pool->releaseIfUnused(*this);
+		}
+
+		void clearStrongReference()
+		{
+			strong = nullptr;
+			isRefCounted = false;
+		}
+
+	private:
+
+		bool isRefCounted;
+
+		WeakReference<SharedPoolBase<DataType>> pool;
+		ReferenceCountedObjectPtr<PoolEntry<DataType>> strong;
+		WeakReference<PoolEntry<DataType>> weak;
+	};
+
+	SharedPoolBase(MainController* mc_) :
+      PoolBase(mc_)
+	{
+        type = PoolHelpers::getSubDirectoryType(empty);
+        
+		if (type == FileHandlerBase::SubDirectories::AudioFiles)
+		{
+			afm.registerBasicFormats();
+			afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
+		}
+
+	};
+
+
+	~SharedPoolBase()
+	{
+		clearData();
+	};
+
+	Identifier getFileTypeName() const override
+	{
+		return ProjectHandler::getIdentifier(type);
+	}
+
+	/** Returns the number of loaded files. */
+	int getNumLoadedFiles() const override
+	{
+		return weakPool.size();
+	}
+
+	/** Clears the pool. */
+	void clearData() override
+	{
+		ScopedNotificationDelayer snd(*this, EventType::Removed);
+
+		refCountedPool.clear();
+
+		weakPool.clear();
+		sendPoolChangeMessage(Removed);
+	}
+
+	void refreshPoolAfterUpdate(PoolReference r=PoolReference())
+	{
+		if (r.isValid())
+		{
+			loadFromReference(r, PoolHelpers::ForceReloadStrong);
+		}
+		else
+		{
+			clearData();
+			loadAllFilesFromProjectFolder();
+		}
+
+		
+	}
+
+	/** Checks if the hash code is used by the pool. Use this method with the hash code of a PoolReference. */
+	bool contains(int64 hashCode) const
+	{
+		for (int i = 0; i < getNumLoadedFiles(); i++)
+		{
+			if (weakPool.getReference(i).getRef().getHashCode() == hashCode)
+				return true;
+		}
+
+		return false;
+	}
+
+	/** Returns the PoolReference at the given index. */
+	PoolReference getReference(int index) const override
+	{
+		if (index >= 0 && index < getNumLoadedFiles())
+			return weakPool.getReference(index).getRef();
+
+		return PoolReference();
+	}
+
+	int indexOf(PoolReference ref) const
+	{
+		for (int i = 0; i < getNumLoadedFiles(); i++)
+		{
+			if (weakPool.getReference(i).getRef() == ref)
+				return i;
+		}
+
+		return -1;
+	}
+
+	/** Every pool item has a storage object for additional metadata (eg. the sample rate for audio files). */
+	var getAdditionalData(PoolReference r) const override
+	{
+		auto i = indexOf(r);
+
+		if (i >= 0)
+			return weakPool.getReference(i).getAdditionalData();
+
+		return {};
+	}
+
+	/** Creates a list of all cached data. */
+	Array<PoolReference> getListOfAllReferences(bool includeEmbeddedButUnloadedReferences) const
+	{
+		Array<PoolReference> references;
+
+		for (int i = 0; i < getNumLoadedFiles(); i++)
+			references.add(getReference(i));
+
+		if (includeEmbeddedButUnloadedReferences)
+		{
+			auto additionalRefs = getDataProvider()->getListOfAllEmbeddedReferences();
+
+			for (const auto& r : additionalRefs)
+				references.addIfNotAlreadyThere(r);
+		}
+
+		return references;
+	}
+
+	StringArray getTextDataForId(int index) const override
+	{
+		if (index >= 0 && index < getNumLoadedFiles())
+			return weakPool.getReference(index).getTextData();
+
+		return {};
+	}
+
+	void loadAllFilesFromDataProvider()
+	{
+		ScopedNotificationDelayer snd(*this, EventType::Added);
+
+		auto refList = getDataProvider()->getListOfAllEmbeddedReferences();
+
+		for (auto r : refList)
+			loadFromReference(r, PoolHelpers::LoadAndCacheStrong);
+	}
+
+	void loadAllFilesFromProjectFolder()
+	{
+		ScopedNotificationDelayer snd(*this, EventType::Added);
+
+		auto fileList = getMainController()->getCurrentFileHandler().getFileList(type, false, true);
+
+		for (auto f : fileList)
+		{
+			PoolReference ref(getMainController(), f.getFullPathName(), type);
+
+			loadFromReference(ref, PoolHelpers::LoadAndCacheStrong);
+		}
+	}
+
+	/** Returns a statistic string with the size and memory usage of the pool. */
+	String getStatistics() const
+	{
+		String s;
+
+		s << "Size: " << weakPool.size();
+
+		size_t dataSize = 0;
+
+		for (const auto& d : weakPool)
+		{
+			if (d)
+				dataSize += PoolHelpers::getDataSize(d.getData());
+		}
+
+		s << " (" << String(dataSize / 1024.0f / 1024.0f, 2) << " MB)";
+
+		return s;
+	}
+
+	StringArray getIdList() const
+	{
+		StringArray sa;
+
+		for (const auto& d : weakPool)
+			sa.add(d.getRef().getReferenceString());
+
+		return sa;
+	}
+
+	void releaseIfUnused(ManagedPtr& mptr)
+	{
+		jassert(mptr);
+		jassert(mptr.getRef().isValid());
+
+		PoolReference r(mptr.getRef());
+
+		for (int i = 0; i < weakPool.size(); i++)
+		{
+			if (weakPool.getReference(i) == mptr)
+			{
+				mptr.clearStrongReference();
+
+				if (weakPool.getReference(i).get() == nullptr)
+				{
+					weakPool.remove(i--);
+					sendPoolChangeMessage(PoolBase::EventType::Removed, sendNotificationAsync, r);
+				}
+				else
+					sendPoolChangeMessage(PoolBase::EventType::Changed, sendNotificationAsync, r);
+
+				return;
+			}
+		}
+	}
+
+	void writeItemToOutput(OutputStream& output, PoolReference r)
+	{
+		auto d = getWeakReferenceToItem(r);
+
+		if(d)
+			getDataProvider()->getCompressor()->write(output, *d.getData(), d.getRef().getFile());
+	}
+
+	ManagedPtr getWeakReferenceToItem(PoolReference r)
+	{
+		auto index = indexOf(r);
+
+		if (index != -1)
+			return ManagedPtr(this, weakPool.getReference(index).get(), false);
+
+		jassertfalse;
+		return ManagedPtr();
+	}
+
+	ManagedPtr createAsEmbeddedReference(PoolReference r, DataType t)
+	{
+		ReferenceCountedObjectPtr<PoolItem> ne = new PoolItem(r);
+
+		ne->data = t;
+
+		PoolHelpers::fillMetadata(ne->data, &ne->additionalData);
+
+		refCountedPool.add(ManagedPtr(this, ne.getObject(), true));
+		weakPool.add(ManagedPtr(this, ne.getObject(), false));
+
+		return ManagedPtr(this, ne.getObject(), true);
+	}
+
+	/** Loads a reference with the given LoadingType. Use this whenever you need to access data,
+		as it will check if the data was already cached. 
+	*/
+	ManagedPtr loadFromReference(PoolReference r, PoolHelpers::LoadingType loadingType)
+	{
+		if (getDataProvider()->isEmbeddedResource(r))
+			r = getDataProvider()->getEmbeddedReference(r);
+
+		if (useSharedCache && sharedCache->contains(r.getHashCode()))
+		{
+			return ManagedPtr(this, sharedCache->getSharedData(r.getHashCode()), true);
+		}
+
+		if (PoolHelpers::shouldSearchInPool(loadingType))
+		{
+			int index = indexOf(r);
+
+			if (index != -1)
+			{
+				auto& d = weakPool.getReference(index);
+
+				jassert(d);
+
+				if (PoolHelpers::shouldForceReload(loadingType))
+				{
+					jassert(!r.isEmbeddedReference());
+
+					if (auto inputStream = r.createInputStream())
+					{
+                        auto ad = d.getAdditionalData();
+                        jassert(ad.isObject());
+                        
+						PoolHelpers::loadData(afm, inputStream, r.getHashCode(), *d.getData(), &ad);
+
+						sendPoolChangeMessage(PoolBase::Reloaded, sendNotificationSync, r);
+						return ManagedPtr(this, d.get(), true);
+					}
+					else
+					{
+						getMainController()->getDebugLogger().logMessage(r.getReferenceString() + " wasn't found.");
+
+						jassertfalse; // This shouldn't happen...
+						return ManagedPtr();
+					}
+				}
+				else
+				{
+					sendPoolChangeMessage(PoolBase::Changed, sendNotificationAsync, r);
+					return ManagedPtr(this, d.get(), true);
+				}
+			}
+		}
+
+		if (loadingType == PoolHelpers::DontCreateNewEntry)
+		{
+			jassertfalse;
+			return ManagedPtr();
+		}
+
+		ReferenceCountedObjectPtr<PoolItem> ne = new PoolItem(r);
+		
+		if (r.isEmbeddedReference())
+		{
+			if (auto mis = getDataProvider()->createInputStream(r.getReferenceString()))
+			{
+				getDataProvider()->getCompressor()->create(mis, &ne->data);
+
+				ne->additionalData = getDataProvider()->createAdditionalData(r);
+
+				if (useSharedCache)
+				{
+					sharedCache->store(ne);
+				}
+				else
+				{
+					weakPool.add(ManagedPtr(this, ne.getObject(), false));
+					refCountedPool.add(ManagedPtr(this, ne.getObject(), true));
+				}
+
+				
+				sendPoolChangeMessage(PoolBase::Added);
+
+				return ManagedPtr(this, ne.getObject(), true);
+			}
+			else
+			{
+				jassertfalse;
+                
+                PoolHelpers::sendErrorMessage(getMainController(), "The file " + r.getReferenceString() + " is not embedded correctly.");
+                
+				return ManagedPtr();
+			}
+		}
+		else
+		{
+			if (auto inputStream = r.createInputStream())
+			{
+				PoolHelpers::loadData(afm, inputStream, r.getHashCode(), ne->data, &ne->additionalData);
+
+
+				if (useSharedCache)
+				{
+					sharedCache->store(ne);
+				}
+				else
+				{
+					weakPool.add(ManagedPtr(this, ne.getObject(), false));
+
+					if (PoolHelpers::isStrong(loadingType))
+						refCountedPool.add(ManagedPtr(this, ne.getObject(), true));
+				}
+				
+				sendPoolChangeMessage(PoolBase::Added);
+
+				return ManagedPtr(this, ne.getObject(), true);
+			}
+			else
+			{
+				getMainController()->getDebugLogger().logMessage(r.getReferenceString() + " wasn't found.");
+				return ManagedPtr();
+			}
+		}
+	}
+
+	
+
+private:
+
+	SharedResourcePointer<SharedCache<DataType>> sharedCache;
+
+	DataType empty;
+
+	Array<ManagedPtr> weakPool;
+	Array<ManagedPtr> refCountedPool;
+
+
+	ProjectHandler::SubDirectories type;
+
+	AudioFormatManager afm;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SharedPoolBase<DataType>);
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SharedPoolBase)
 };
 
+using AudioSampleBufferPool = SharedPoolBase<AudioSampleBuffer>;
+using ImagePool = SharedPoolBase<Image>;
+using PooledAudioFile = AudioSampleBufferPool::ManagedPtr;
+using PooledImage = ImagePool::ManagedPtr;
 
-/** A pool for audio samples
-*
-*	This is used to embed impulse responses into the binary file and load it from there instead of having the impulse file as seperate audio file.
-*	In order to use it, create a object, call loadExternalFilesFromValueTree() and the convolution effect checks automatically if it should load the file from disk or from the pool.
-*/
-class AudioSampleBufferPool : public SharedPoolBase
+using SampleMapPool = SharedPoolBase<ValueTree>;
+using PooledSampleMap = SampleMapPool::ManagedPtr;
+
+class PoolCollection: public ControlledObject
 {
 public:
 
-	typedef SharedPoolBase::PoolEntry<AudioSampleBuffer> BufferEntry;
+	PoolCollection(MainController* mc);;
 
-	AudioSampleBufferPool(MainController* mc);;
-	~AudioSampleBufferPool();
+	~PoolCollection();
 
-	Identifier getFileTypeName() const override;
+	void clear();
 
-	int getNumLoadedFiles() const override
+	template<class DataType> SharedPoolBase<DataType>* getPool()
 	{
-		return loadedSamples.size();
+		auto type = PoolHelpers::getSubDirectoryType(DataType());
+		jassert(dataPools[type] != nullptr);
+		return static_cast<SharedPoolBase<DataType>*>(dataPools[type]);
 	}
 
-	Identifier getIdForIndex(int index) const override;
+	template<class DataType> const SharedPoolBase<DataType>* getPool() const
+	{
+		auto type = PoolHelpers::getSubDirectoryType(DataType());
+		jassert(dataPools[type] != nullptr);
+		return static_cast<SharedPoolBase<DataType>*>(dataPools[type]);
+	}
 
-	String getFileNameForId(Identifier identifier) const override;
-	StringArray getTextDataForId(int index) const;
+	const AudioSampleBufferPool& getAudioSampleBufferPool() const;
+	AudioSampleBufferPool& getAudioSampleBufferPool();
 
-	void clearData() override;
+	const ImagePool& getImagePool() const;
+	ImagePool& getImagePool();
 
-	void storeItemInValueTree(ValueTree& child, int i) const override;
-	void restoreItemFromValueTree(ValueTree& child) override;
-
-	AudioThumbnailCache *getCache() { return cache; }
-
-	AudioSampleBuffer loadFileIntoPool(const String& fileName);
-
-	double getSampleRateForFile(const Identifier& id);
-
-private:
-
-	ScopedPointer<AudioThumbnailCache> cache;
-
-	void loadFromStream(BufferEntry& ne, InputStream* ownedStream);
+	const SampleMapPool& getSampleMapPool() const;
+	SampleMapPool& getSampleMapPool();
 
 	AudioFormatManager afm;
 
-	Array<BufferEntry> loadedSamples;
+private:
 
+	PoolBase * dataPools[(int)ProjectHandler::SubDirectories::numSubDirectories];
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(PoolCollection);
 };
 
-
-
-/** A pool for images. */
-class ImagePool: public SharedPoolBase
+template <class DataType> class PoolDropTarget : public DragAndDropTarget
 {
-public:
-
-	typedef SharedPoolBase::PoolEntry<Image> ImageEntry;
-
-	ImagePool(MainController* mc_);;
-
-	~ImagePool();
-
-	int getNumLoadedFiles() const override;
-	Identifier getIdForIndex(int index) const override;
-	String getFileNameForId(Identifier identifier) const override;
-	void clearData() override;
-	StringArray getTextDataForId(int index) const;
-
-	void storeItemInValueTree(ValueTree& child, int i) const override;
-	void restoreItemFromValueTree(ValueTree& child) override;
-
-	Identifier getFileTypeName() const override;
-	static Identifier getStaticIdentifier() { RETURN_STATIC_IDENTIFIER("ImagePool") };
-	size_t getFileSize(const Image *image) const;
-
-	StringArray getFileNameList() const;
-
-	Image loadFileIntoPool(const String& fileName);
-
-	static Image getEmptyImage(int width, int height);
-	static Image loadImageFromReference(MainController* mc, const String referenceToImage);
-
 protected:
 
-	
+	PoolDropTarget(MainController* mc_):
+		mc(mc_),
+		type(PoolHelpers::getSubDirectoryType(DataType()))
+	{
+	}
 
-	Array<ImageEntry> loadedImages;
+public:
+
+	/** Overwrite this method and load the given reference. */
+	virtual void poolItemWasDropped(PoolReference ref) = 0;
+
+	bool hasHoveringPoolItem() const { return over; };
+
+private:
+
+	MainController * mc;
+
+	FileHandlerBase::SubDirectories type;
+
+	bool over = false;
 };
+
+
 
 } // namespace hise
 

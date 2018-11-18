@@ -64,6 +64,7 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(BundleIdentifier);
 	ids.add(PluginCode);
 	ids.add(EmbedAudioFiles);
+	ids.add(SupportFullDynamicsHLAC);
 	ids.add(AdditionalDspLibraries);
 	ids.add(OSXStaticLibs);
 	ids.add(WindowsStaticLibFolder);
@@ -72,6 +73,9 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(ExtraDefinitionsIOS);
 	ids.add(AppGroupID);
 	ids.add(RedirectSampleFolder);
+	ids.add(AAXCategoryFX);
+	ids.add(SupportMonoFX);
+	ids.add(UseRawFrontend);
 
 	return ids;
 }
@@ -83,6 +87,8 @@ Array<juce::Identifier> HiseSettings::Compiler::getAllIds()
 	ids.add(HisePath);
 	ids.add(VisualStudioVersion);
 	ids.add(UseIPP);
+	ids.add(RebuildPoolFiles);
+	ids.add(Support32BitMacOS);
 
 	return ids;
 }
@@ -119,6 +125,7 @@ Array<juce::Identifier> HiseSettings::Other::getAllIds()
 
 	ids.add(EnableAutosave);
 	ids.add(AutosaveInterval);
+	ids.add(AudioThreadGuardEnabled);
 
 	return ids;
 }
@@ -210,6 +217,13 @@ struct SettingDescription
 		D("the compiler will crash with an **out of heap space** error, so in this case you're better off not embedding them.");
 		P_();
 
+		P(HiseSettings::Project::SupportFullDynamicsHLAC);
+		D("If enabled, the user can extract the sample monolith files to support the full dynamic range of 24 bit.");
+		D("The HLAC codec is 16bit only, but with this feature enabled, it normalises the audio data in chunks of 1024 samples in order to recreate higher bit depths. This results in a lower compression ratio, but removes the quantisation noise that can occur under certain circumstances:");
+		D("For normal sample libraries without heavy dynamics processing this feature is not required, but for projects that heavily process the dynamic range (eg. drum libraries that squash the samples with a compressor) the quantisation noise floor of -96dB might get attenuated into the audible range. So: If you start to hear quantisation noise, enable this, otherwise enjoy the low disk usage and performance of 16bit samples.");
+		D("> The end user can still choose whether he wants to use the samples in the full dynamics range. However in order to make this work, create the sample archive with the **Support Full Dynamics** option set to true.");
+		P_();
+
 		P(HiseSettings::Project::AdditionalDspLibraries);
 		D("If you have written custom DSP objects that you want to embed statically, you have to supply the class names of each DspModule class here");
 		P_();
@@ -260,6 +274,35 @@ struct SettingDescription
 		D("> HISE will create a file called `LinkWindows` / `LinkOSX` in the samples folder that contains the link to the real folder.");
 		P_();
 
+		P(HiseSettings::Project::AAXCategoryFX);
+		D("If you export an effect plugin, you can specify the category it will show up in ProTools here");
+		
+		D("| ID | Description |");
+		D("| ------ | ---- |");
+		D("| AAX_ePlugInCategory_EQ | Equalization |");
+		D("| AAX_ePlugInCategory_Dynamics | Compressor, expander, limiter, etc. |");
+		D("| AAX_ePlugInCategory_PitchShift | Pitch processing |");
+		D("| AAX_ePlugInCategory_Reverb | Reverberation and room/space simulation |");
+		D("| AAX_ePlugInCategory_Delay | Delay and echo |");
+		D("| AAX_ePlugInCategory_Modulation | Phasing, flanging, chorus, etc. |");
+		D("| AAX_ePlugInCategory_Harmonic | Distortion, saturation, and harmonic enhancement |");
+		D("| AAX_ePlugInCategory_NoiseReduction | Noise reduction |");
+		D("| AAX_ePlugInCategory_Dither | Dither, noise shaping, etc. |");
+		D("| AAX_ePlugInCategory_SoundField | Pan, auto-pan, upmix and downmix, and surround handling |");
+		D("| AAX_EPlugInCategory_Effect | Special effects |");
+		D("> This setting will have no effect for virtual instruments.");
+		P_();
+
+		P(HiseSettings::Project::SupportMonoFX);
+		D("If enabled, the effect plugin will also be compatible to mono channel tracks.");
+		D("> This setting will have no effect for virtual instruments.");
+		P_();
+
+		P(HiseSettings::Project::UseRawFrontend);
+		D("If enabled, the project will not use the preset structure and scripted user interface and lets you use HISE as C++ framework.");
+		D("You will have to implement a custom C++ class in the `AdditionalSourceCode` subfolder.");
+		P_();
+
 		P(HiseSettings::User::Company);
 		D("Your company name. This will be used for the path to the app data directory so make sure you don't use weird characters here");
 		P_();
@@ -290,9 +333,21 @@ struct SettingDescription
 		D("> If you use the convolution reverb in your project, this is almost mandatory, but there are a few other places that benefit from having this library");
 		P_();
 
+		P(HiseSettings::Compiler::RebuildPoolFiles);
+		D("If enabled, the pool files for SampleMaps, AudioFiles and Images are deleted and rebuild everytime you export a plugin.");
+		D("You can turn this off in order to speed up compilation times, however be aware that in this case you need to delete them manually");
+		D("whenever you change the referenced data in any way or it will use the deprecated cached files.");
+		P_();
+
 		P(HiseSettings::Scripting::CodeFontSize);
 		D("Changes the font size of the scripting editor. Beware that on newer versions of macOS, some font sizes will not be displayed (Please don't ask why...).  ");
 		D("So if you're script is invisible, this might be the reason.");
+		P_();
+
+		P(HiseSettings::Compiler::Support32BitMacOS);
+		D("If enabled (which is still the default), the compiler will build both 32bit and 64bit versions as universal binary on macOS. However since 32bit binaries are deprecated in the most recent versions of macOS / XCode, you can tell the exporter to just generate 64bit binaries by disabling this flag. If you see this error messag in the compile terminal:");
+		D("> error: The i386 architecture is deprecated. You should update your ARCHS build setting to remove the i386 architecture.");
+		D("Just disable this flag and try again.");
 		P_();
 
 		P(HiseSettings::Scripting::EnableCallstack);
@@ -318,7 +373,7 @@ struct SettingDescription
 		P_();
 
 		P(HiseSettings::Scripting::GlobalScriptPath);
-		D("There is a folder that can be used to store global script files like additional API functions or generic UI widget definitions.");
+		D("There is a folder that can be used to store global script files like additional API functions or generic UI Component definitions.");
 		D("By default, this folder is stored in the application data folder, but you can choose to redirect it to another location, which may be useful if you want to put it under source control.");
 		D("You can include scripts that are stored in this location by using the `{GLOBAL_SCRIPT_FOLDER}` wildcard:");
 		D("```javascript");
@@ -339,6 +394,10 @@ struct SettingDescription
 
 		P(HiseSettings::Other::AutosaveInterval);
 		D("The interval for the autosaver in minutes. This must be a number between `1` and `30`.");
+		P_();
+
+		P(HiseSettings::Other::AudioThreadGuardEnabled);
+		D("Watches for illegal calls in the audio thread. Use this during script development to catch allocations etc.");
 		P_();
 
 		return s;
@@ -363,19 +422,27 @@ HiseSettings::Data::Data(MainController* mc_) :
 
 juce::File HiseSettings::Data::getFileForSetting(const Identifier& id) const
 {
-	auto handler = &GET_PROJECT_HANDLER(mc->getMainSynthChain());
-	auto appDataFolder = File(PresetHandler::getDataFolder());
+	
+	auto appDataFolder = NativeFileHandler::getAppDataDirectory();
 
-	if		(id == SettingFiles::ProjectSettings)	return handler->getWorkDirectory().getChildFile("project_info.xml");
-	else if (id == SettingFiles::UserSettings)		return handler->getWorkDirectory().getChildFile("user_info.xml");
-	else if (id == SettingFiles::CompilerSettings)	return appDataFolder.getChildFile("compilerSettings.xml");
-	else if (id == SettingFiles::AudioSettings)		return appDataFolder.getChildFile("DeviceSettings.xml");
+	if (id == SettingFiles::AudioSettings)		return appDataFolder.getChildFile("DeviceSettings.xml");
 	else if (id == SettingFiles::MidiSettings)		return appDataFolder.getChildFile("DeviceSettings.xml");
 	else if (id == SettingFiles::GeneralSettings)	return appDataFolder.getChildFile("GeneralSettings.xml");
+
+#if USE_BACKEND
+
+	auto handler_ = &GET_PROJECT_HANDLER(mc->getMainSynthChain());
+
+	if (id == SettingFiles::ProjectSettings)	return handler_->getWorkDirectory().getChildFile("project_info.xml");
+	else if (id == SettingFiles::UserSettings)		return handler_->getWorkDirectory().getChildFile("user_info.xml");
+	else if (id == SettingFiles::CompilerSettings)	return appDataFolder.getChildFile("compilerSettings.xml");
 	else if (id == SettingFiles::ScriptingSettings)	return appDataFolder.getChildFile("ScriptSettings.xml");
 	else if (id == SettingFiles::OtherSettings)		return appDataFolder.getChildFile("OtherSettings.xml");
 
 	jassertfalse;
+
+#endif
+	
 	return File();
 }
 
@@ -447,11 +514,32 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Compiler::UseIPP ||
 		id == Scripting::EnableCallstack ||
 		id == Other::EnableAutosave ||
-		id == Scripting::EnableDebugMode)
+		id == Scripting::EnableDebugMode ||
+		id == Other::AudioThreadGuardEnabled ||
+		id == Compiler::RebuildPoolFiles ||
+		id == Compiler::Support32BitMacOS ||
+		id == Project::SupportMonoFX ||
+		id == Project::UseRawFrontend ||
+		id == Project::SupportFullDynamicsHLAC)
 		return { "Yes", "No" };
 
 	if (id == Compiler::VisualStudioVersion)
 		return { "Visual Studio 2015", "Visual Studio 2017" };
+
+	if (id == Project::AAXCategoryFX)
+		return {
+			"AAX_ePlugInCategory_EQ",
+			"AAX_ePlugInCategory_Dynamics",
+			"AAX_ePlugInCategory_PitchShift",
+			"AAX_ePlugInCategory_Reverb",
+			"AAX_ePlugInCategory_Delay",
+			"AAX_ePlugInCategory_Modulation",
+			"AAX_ePlugInCategory_Harmonic",
+			"AAX_ePlugInCategory_NoiseReduction",
+			"AAX_ePlugInCategory_Dither",
+			"AAX_ePlugInCategory_SoundField",
+			"AAX_EPlugInCategory_Effect"
+		};
 
 #if IS_STANDALONE_APP
 	else if (Audio::getAllIds().contains(id))
@@ -566,40 +654,45 @@ void HiseSettings::Data::initialiseAudioDriverData(bool forceReload/*=false*/)
 	}
 
 #endif
-
-
 }
-
-
 
 var HiseSettings::Data::getDefaultSetting(const Identifier& id)
 {
-	auto& handler = GET_PROJECT_HANDLER(mc->getMainSynthChain());
+	BACKEND_ONLY(auto& handler_ = GET_PROJECT_HANDLER(mc->getMainSynthChain()));
 
 	if (id == Project::Name)
 	{
-		
-		return handler.getWorkDirectory().getFileName();
+		BACKEND_ONLY(return handler_.getWorkDirectory().getFileName());
 	}
 	else if (id == Project::Version)			    return "1.0.0";
 	else if (id == Project::BundleIdentifier)	    return "com.myCompany.product";
 	else if (id == Project::PluginCode)			    return "Abcd";
 	else if (id == Project::EmbedAudioFiles)		return "Yes";
-	else if (id == Project::RedirectSampleFolder)	return handler.isRedirected(ProjectHandler::SubDirectories::Samples) ? handler.getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName() : "";
+	else if (id == Project::SupportFullDynamicsHLAC)	return "No";
+	else if (id == Project::RedirectSampleFolder)	BACKEND_ONLY(return handler_.isRedirected(ProjectHandler::SubDirectories::Samples) ? handler_.getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName() : "");
+	else if (id == Project::AAXCategoryFX)			return "AAX_ePlugInCategory_Modulation";
+	else if (id == Project::SupportMonoFX)			return "No";
+	else if (id == Project::UseRawFrontend)			return "No";
 	else if (id == Other::EnableAutosave)			return "Yes";
 	else if (id == Other::AutosaveInterval)			return 5;
+	else if (id == Other::AudioThreadGuardEnabled)  return "Yes";
 	else if (id == Scripting::CodeFontSize)			return 17.0;
 	else if (id == Scripting::EnableCallstack)		return "No";
 	else if (id == Scripting::CompileTimeout)		return 5.0;
 	else if (id == Compiler::VisualStudioVersion)	return "Visual Studio 2017";
 	else if (id == Compiler::UseIPP)				return "Yes";
+	else if (id == Compiler::RebuildPoolFiles)		return "Yes";
+	else if (id == Compiler::Support32BitMacOS)		return "Yes";
+
 	else if (id == User::CompanyURL)				return "http://yourcompany.com";
 	else if (id == User::CompanyCopyright)			return "(c)2017, Company";
 	else if (id == User::CompanyCode)				return "Abcd";
 	else if (id == User::Company)					return "My Company";
 	else if (id == Scripting::GlobalScriptPath)		
 	{
-		File scriptFolder = File(PresetHandler::getDataFolder()).getChildFile("scripts");
+		FRONTEND_ONLY(jassertfalse);
+
+		File scriptFolder = File(NativeFileHandler::getAppDataDirectory()).getChildFile("scripts");
 		if (!scriptFolder.isDirectory())
 			scriptFolder.createDirectory();
 
@@ -707,14 +800,14 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 {
 	if (id == Project::RedirectSampleFolder)
 	{
-		auto& handler = GET_PROJECT_HANDLER(mc->getMainSynthChain());
-
+#if USE_BACKEND
+		auto& handler_ = GET_PROJECT_HANDLER(mc->getMainSynthChain());
 
 		if (File::isAbsolutePath(newValue.toString()))
-			handler.createLinkFile(ProjectHandler::SubDirectories::Samples, File(newValue.toString()));
+			handler_.createLinkFile(ProjectHandler::SubDirectories::Samples, File(newValue.toString()));
 		else
-			ProjectHandler::getLinkFile(handler.getWorkDirectory().getChildFile("Samples")).deleteFile();
-	
+			ProjectHandler::getLinkFile(handler_.getWorkDirectory().getChildFile("Samples")).deleteFile();
+#endif
 	}
 
 	if (id == Scripting::EnableCallstack)
@@ -725,6 +818,8 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 
 	else if (id == Other::EnableAutosave || id == Other::AutosaveInterval)
 		mc->getAutoSaver().updateAutosaving();
+	else if (id == Other::AudioThreadGuardEnabled)
+		mc->getKillStateHandler().enableAudioThreadGuard(newValue);
 
 	else if (id == Scripting::EnableDebugMode)
 		newValue ? mc->getDebugLogger().startLogging() : mc->getDebugLogger().stopLogging();
@@ -734,59 +829,67 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 		dynamic_cast<AudioProcessorDriver*>(mc)->setCurrentBlockSize(newValue.toString().getIntValue());
 	else if (id == Audio::Driver)
 	{
-		auto driver = dynamic_cast<AudioProcessorDriver*>(mc);
-		driver->deviceManager->setCurrentAudioDeviceType(newValue.toString(), true);
-		auto device = driver->deviceManager->getCurrentAudioDevice();
-
-		if (device == nullptr)
+		if (newValue.toString().isNotEmpty())
 		{
-			PresetHandler::showMessageWindow("Error initialising driver", "The audio driver could not be opened. The default settings will be loaded.", PresetHandler::IconType::Error);
-			driver->resetToDefault();
-		}
+			auto driver = dynamic_cast<AudioProcessorDriver*>(mc);
+			driver->deviceManager->setCurrentAudioDeviceType(newValue.toString(), true);
+			auto device = driver->deviceManager->getCurrentAudioDevice();
 
-		initialiseAudioDriverData(true);
-		sendChangeMessage();
+			if (device == nullptr)
+			{
+				PresetHandler::showMessageWindow("Error initialising driver", "The audio driver could not be opened. The default settings will be loaded.", PresetHandler::IconType::Error);
+				driver->resetToDefault();
+			}
+
+			initialiseAudioDriverData(true);
+			sendChangeMessage();
+		}
 	}
 	else if (id == Audio::Output)
 	{
-		auto driver = dynamic_cast<AudioProcessorDriver*>(mc);
-		auto device = driver->deviceManager->getCurrentAudioDevice();
-		auto list = ConversionHelpers::getChannelPairs(device);
-		auto outputIndex = list.indexOf(newValue.toString());
-
-		if (outputIndex != -1)
+		if (newValue.toString().isNotEmpty())
 		{
-			AudioDeviceManager::AudioDeviceSetup config;
-			driver->deviceManager->getAudioDeviceSetup(config);
+			auto driver = dynamic_cast<AudioProcessorDriver*>(mc);
+			auto device = driver->deviceManager->getCurrentAudioDevice();
+			auto list = ConversionHelpers::getChannelPairs(device);
+			auto outputIndex = list.indexOf(newValue.toString());
 
-			auto& original = config.outputChannels;
+			if (outputIndex != -1)
+			{
+				AudioDeviceManager::AudioDeviceSetup config;
+				driver->deviceManager->getAudioDeviceSetup(config);
 
-			original.clear();
-			original.setBit(outputIndex * 2, 1);
-			original.setBit(outputIndex * 2 + 1, 1);
+				auto& original = config.outputChannels;
 
-			config.useDefaultOutputChannels = false;
+				original.clear();
+				original.setBit(outputIndex * 2, 1);
+				original.setBit(outputIndex * 2 + 1, 1);
 
-			driver->deviceManager->setAudioDeviceSetup(config, true);
+				config.useDefaultOutputChannels = false;
+
+				driver->deviceManager->setAudioDeviceSetup(config, true);
+			}
 		}
-
-		
 	}
 	else if (id == Audio::Device)
 	{
-		auto driver = dynamic_cast<AudioProcessorDriver*>(mc);
-		driver->setAudioDevice(newValue.toString());
-
-		auto device = driver->deviceManager->getCurrentAudioDevice();
-
-		if (device == nullptr)
+		if (newValue.toString().isNotEmpty())
 		{
-			PresetHandler::showMessageWindow("Error initialising driver", "The audio driver could not be opened. The default settings will be loaded.", PresetHandler::IconType::Error);
-			driver->resetToDefault();
-		}
+			auto driver = dynamic_cast<AudioProcessorDriver*>(mc);
 
-		initialiseAudioDriverData(true);
-		sendChangeMessage();
+			driver->setAudioDevice(newValue.toString());
+
+			auto device = driver->deviceManager->getCurrentAudioDevice();
+
+			if (device == nullptr)
+			{
+				PresetHandler::showMessageWindow("Error initialising driver", "The audio driver could not be opened. The default settings will be loaded.", PresetHandler::IconType::Error);
+				driver->resetToDefault();
+			}
+
+			initialiseAudioDriverData(true);
+			sendChangeMessage();
+		}
 	}
 	else if (id == Midi::MidiInput)
 	{

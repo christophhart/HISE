@@ -164,7 +164,7 @@ private:
 		return -1;
 	}
 
-	static ModulatorSamplerSound::Property getSamplerProperty(Opcode opcode);
+	static Identifier getSamplerProperty(Opcode opcode);
 	
 	void applyGlobalOpcodesToRegion();
 

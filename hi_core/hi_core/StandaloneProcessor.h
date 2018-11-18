@@ -188,10 +188,7 @@ public:
 
 	void saveDeviceSettingsAsXml();
 
-	void setAudioDeviceType(const String deviceName)
-	{
-		deviceManager->setCurrentAudioDeviceType(deviceName, true);
-	}
+	void setAudioDeviceType(const String deviceName);
 
 	void resetToDefault();
 
@@ -310,7 +307,7 @@ public:
 #endif
 	}
 
-	void requestQuit(const std::function<void(void)>& f);
+	void requestQuit();
 
 private:
 

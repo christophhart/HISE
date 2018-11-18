@@ -55,10 +55,7 @@ public:
 		ModulatorSynthVoice(ownerSynth),
 		octaveTransposeFactor(1.0)
 	{
-		for(int i = 0; i < 2048; i++)
-		{
-			sinTable[i] = sinf(i * float_Pi / 1024.0f);
-		}
+        initTable();
 	};
 
 	bool canPlaySound(SynthesiserSound *) override
@@ -91,13 +88,23 @@ public:
 
 private:
 
-	float sinTable[2048];
-
+    static void initTable();
+    
+	static float sinTable[2048];
+    static bool tableInitialised;
+    
 	double octaveTransposeFactor;
 
 
 };
 
+/** A sine wave generator.
+	@ingroup synthTypes.
+
+	This is a rather lightweight module, however if you're planning to do stuff like
+	additive synthesis, I'd recommend writing your own module to save CPU since this
+	would calculate the pitch modulation / event triggering for each SineSynth instance.
+*/
 class SineSynth: public ModulatorSynth,
 				 public WaveformComponent::Broadcaster
 {
@@ -107,36 +114,19 @@ public:
 
 	SET_PROCESSOR_NAME("SineSynth", "Sine Wave Generator");
 
+	/** The parameters. */
 	enum SpecialParameters
 	{
-		OctaveTranspose = ModulatorSynth::numModulatorSynthParameters,
-		SemiTones,
-		UseFreqRatio,
-		CoarseFreqRatio,
-		FineFreqRatio,
-		SaturationAmount,
+		OctaveTranspose = ModulatorSynth::numModulatorSynthParameters, ///< The octave transpose amount (+- 5)
+		SemiTones, ///< the semitones transpose amount (+- 12)
+		UseFreqRatio, ///< switches between musical and harmonic-based tuning
+		CoarseFreqRatio, ///< the harmonic index (= frequency multiplier)
+		FineFreqRatio, ///< the harmonic detune amount
+		SaturationAmount, ///< the amount of the inbuilt saturator effect
 		numSineSynthParameters
 	};
 
-	SineSynth(MainController *mc, const String &id, int numVoices):
-		ModulatorSynth(mc, id, numVoices),
-		octaveTranspose((int)getDefaultValue(OctaveTranspose)),
-		semiTones((int)getDefaultValue(SemiTones)),
-		useRatio(false),
-		fineRatio(getDefaultValue(FineFreqRatio)),
-		coarseRatio(getDefaultValue(CoarseFreqRatio)),
-		saturationAmount(getDefaultValue(SaturationAmount))
-	{
-		parameterNames.add("OctaveTranspose");
-		parameterNames.add("SemiTones");
-		parameterNames.add("UseFreqRatio");
-		parameterNames.add("CoarseFreqRatio");
-		parameterNames.add("FineFreqRatio");
-		parameterNames.add("SaturationAmount");
-
-		for(int i = 0; i < numVoices; i++) addVoice(new SineSynthVoice(this));
-		addSound (new SineWaveSound());	
-	};
+	SineSynth(MainController *mc, const String &id, int numVoices);;
 
 	void restoreFromValueTree(const ValueTree &v) override
 	{
@@ -271,6 +261,8 @@ private:
 	float coarseRatio;
 	float fineRatio;
 	bool useRatio;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SineSynth);
 };
 
 

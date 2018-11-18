@@ -65,24 +65,24 @@ FilterEditor::FilterEditor (ProcessorEditor *p)
     modeSelector->setJustificationType (Justification::centredLeft);
     modeSelector->setTextWhenNothingSelected (TRANS("Filter mode"));
     modeSelector->setTextWhenNoChoicesAvailable (TRANS("(no choices)"));
-    modeSelector->setColour(MacroControlledObject::HiBackgroundColours::textColour, Colours::white);
-	modeSelector->addItem(TRANS("1 Pole LP"), MonoFilterEffect::FilterMode::OnePoleLowPass + 1);
-	modeSelector->addItem(TRANS("1 Pole HP"), MonoFilterEffect::FilterMode::OnePoleHighPass + 1);
-	modeSelector->addItem(TRANS("SVF LP"), MonoFilterEffect::FilterMode::StateVariableLP + 1);
-	modeSelector->addItem(TRANS("SVF HP"), MonoFilterEffect::FilterMode::StateVariableHP + 1);
-	//modeSelector->addItem(TRANS("SVF Peak"), MonoFilterEffect::FilterMode::StateVariablePeak + 1);
-	modeSelector->addItem(TRANS("SVF Notch"), MonoFilterEffect::FilterMode::StateVariableNotch + 1);
-	modeSelector->addItem(TRANS("SVF BP"), MonoFilterEffect::FilterMode::StateVariableBandPass + 1);
-	modeSelector->addItem(TRANS("Allpass"), MonoFilterEffect::FilterMode::Allpass + 1);
-	modeSelector->addItem(TRANS("Moog LP"), MonoFilterEffect::FilterMode::MoogLP + 1);
-	modeSelector->addItem (TRANS("Biquad LP"), MonoFilterEffect::FilterMode::LowPass + 1);
-    modeSelector->addItem (TRANS("Biquad HP"), MonoFilterEffect::FilterMode::HighPass + 1);
-	modeSelector->addItem(TRANS("Biquad LP Rez"), MonoFilterEffect::FilterMode::ResoLow + 1);
-    modeSelector->addItem (TRANS("Low Shelf EQ"), MonoFilterEffect::FilterMode::LowShelf + 1);
-    modeSelector->addItem (TRANS("High Shelf EQ"), MonoFilterEffect::FilterMode::HighShelf + 1);
-    modeSelector->addItem (TRANS("Peak EQ"), MonoFilterEffect::FilterMode::Peak + 1);
-	modeSelector->addItem(TRANS("Ladder 4Pole LP"), MonoFilterEffect::FilterMode::LadderFourPoleLP + 1);
-	modeSelector->addItem(TRANS("Ring Mod"), MonoFilterEffect::FilterMode::RingMod + 1);
+    modeSelector->setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
+	modeSelector->addItem(TRANS("1 Pole LP"), FilterBank::FilterMode::OnePoleLowPass + 1);
+	modeSelector->addItem(TRANS("1 Pole HP"), FilterBank::FilterMode::OnePoleHighPass + 1);
+	modeSelector->addItem(TRANS("SVF LP"), FilterBank::FilterMode::StateVariableLP + 1);
+	modeSelector->addItem(TRANS("SVF HP"), FilterBank::FilterMode::StateVariableHP + 1);
+	//modeSelector->addItem(TRANS("SVF Peak"), FilterBank::FilterMode::StateVariablePeak + 1);
+	modeSelector->addItem(TRANS("SVF Notch"), FilterBank::FilterMode::StateVariableNotch + 1);
+	modeSelector->addItem(TRANS("SVF BP"), FilterBank::FilterMode::StateVariableBandPass + 1);
+	modeSelector->addItem(TRANS("Allpass"), FilterBank::FilterMode::Allpass + 1);
+	modeSelector->addItem(TRANS("Moog LP"), FilterBank::FilterMode::MoogLP + 1);
+	modeSelector->addItem (TRANS("Biquad LP"), FilterBank::FilterMode::LowPass + 1);
+    modeSelector->addItem (TRANS("Biquad HP"), FilterBank::FilterMode::HighPass + 1);
+	modeSelector->addItem(TRANS("Biquad LP Rez"), FilterBank::FilterMode::ResoLow + 1);
+    modeSelector->addItem (TRANS("Low Shelf EQ"), FilterBank::FilterMode::LowShelf + 1);
+    modeSelector->addItem (TRANS("High Shelf EQ"), FilterBank::FilterMode::HighShelf + 1);
+    modeSelector->addItem (TRANS("Peak EQ"), FilterBank::FilterMode::Peak + 1);
+	modeSelector->addItem(TRANS("Ladder 4Pole LP"), FilterBank::FilterMode::LadderFourPoleLP + 1);
+	modeSelector->addItem(TRANS("Ring Mod"), FilterBank::FilterMode::RingMod + 1);
     modeSelector->addListener (this);
 
     addAndMakeVisible (filterGraph = new FilterGraph (1));
@@ -129,10 +129,15 @@ FilterEditor::FilterEditor (ProcessorEditor *p)
 
     //[Constructor] You can add your own custom stuff here..
 
+	
+
 	h = getHeight();
 
     ProcessorEditorLookAndFeel::setupEditorNameLabel(label);
     
+	timerCallback();
+	updateNameLabel(true);
+
 	freqSlider->setIsUsingModulatedRing(true);
 	bipolarFreqSlider->setIsUsingModulatedRing(true);
 
@@ -157,6 +162,36 @@ FilterEditor::~FilterEditor()
     //[/Destructor]
 }
 
+void FilterEditor::timerCallback()
+{
+	IIRCoefficients c = dynamic_cast<FilterEffect*>(getProcessor())->getCurrentCoefficients();
+
+	if (!sameCoefficients(c, currentCoefficients))
+	{
+		currentCoefficients = c;
+
+		filterGraph->setCoefficients(0, getProcessor()->getSampleRate(), dynamic_cast<FilterEffect*>(getProcessor())->getCurrentCoefficients());
+	}
+
+	freqSlider->setDisplayValue(getProcessor()->getChildProcessor(MonoFilterEffect::FrequencyChain)->getOutputValue());
+	bipolarFreqSlider->setDisplayValue(getProcessor()->getChildProcessor(MonoFilterEffect::BipolarFrequencyChain)->getOutputValue());
+
+	updateNameLabel();
+}
+
+void FilterEditor::updateNameLabel(bool forceUpdate/*=false*/)
+{
+	auto polyFilter = dynamic_cast<PolyFilterEffect*>(getProcessor());
+
+	const bool thisPoly = polyFilter != nullptr && polyFilter->hasPolyMods();
+
+	if (forceUpdate || thisPoly != isPoly)
+	{
+		isPoly = thisPoly;
+		label->setText(isPoly ? "poly filter" : "mono filter", dontSendNotification);
+	}
+}
+
 //==============================================================================
 void FilterEditor::paint (Graphics& g)
 {
@@ -168,7 +203,7 @@ void FilterEditor::paint (Graphics& g)
 
     ProcessorEditorLookAndFeel::fillEditorBackgroundRectFixed(g, this, 600);
     
-	KnobLookAndFeel::drawHiBackground(g, filterGraph->getX() - 5, filterGraph->getY() - 5, filterGraph->getWidth() + 10, filterGraph->getHeight() + 10, nullptr, false);
+	GlobalHiseLookAndFeel::drawHiBackground(g, filterGraph->getX(), filterGraph->getY(), filterGraph->getWidth(), filterGraph->getHeight(), nullptr, false);
 
     //[/UserPaint]
 }
@@ -176,17 +211,20 @@ void FilterEditor::paint (Graphics& g)
 void FilterEditor::resized()
 {
     //[UserPreResize] Add your own custom resize code here..
+
+	const int x = (((getWidth() / 2) + -73 - (128 / 2)) + 128 - -16) + 128 - -23;
+
     //[/UserPreResize]
 
     freqSlider->setBounds ((getWidth() / 2) + -73 - (128 / 2), 118, 128, 48);
     qSlider->setBounds (((getWidth() / 2) + -73 - (128 / 2)) + 128 - -16, 118, 128, 48);
     gainSlider->setBounds (((getWidth() / 2) + -73 - (128 / 2)) + -16 - 128, 118, 128, 48);
-    modeSelector->setBounds ((((getWidth() / 2) + -73 - (128 / 2)) + 128 - -16) + 128 - -23, 82, 128, 28);
+    modeSelector->setBounds (x, 82, 128, 28);
     filterGraph->setBounds ((getWidth() / 2) + -69 - (proportionOfWidth (0.5075f) / 2), 16, proportionOfWidth (0.5075f), 88);
-    label->setBounds ((getWidth() / 2) + 242 - (100 / 2), 7, 100, 40);
+    label->setBounds (x, 7, 128, 40);
     //[UserResized] Add your own custom resize handling here..
 
-	bipolarFreqSlider->setBounds(qSlider->getRight() + 16, qSlider->getY(), 128, 48);
+	bipolarFreqSlider->setBounds(x, qSlider->getY(), 128, 48);
 
     //[/UserResized]
 }

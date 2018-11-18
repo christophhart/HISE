@@ -243,7 +243,7 @@ const Processor * CCEnvelope::getChildProcessor(int processorIndex) const
 	}
 }
 
-void CCEnvelope::startVoice(int voiceIndex)
+float CCEnvelope::startVoice(int voiceIndex)
 {
 	CCEnvelopeState *state = static_cast<CCEnvelopeState*>(states[voiceIndex]);
 
@@ -272,6 +272,7 @@ void CCEnvelope::startVoice(int voiceIndex)
 	state->uptime = 0;
 
 	state->current_state = CCEnvelopeState::HOLD;
+	return 0.0f;
 }
 
 void CCEnvelope::stopVoice(int voiceIndex)
