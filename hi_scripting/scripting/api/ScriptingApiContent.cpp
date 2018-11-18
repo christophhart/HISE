@@ -2736,6 +2736,12 @@ void ScriptingApi::Content::ScriptPanel::setLoadingCallback(var loadingCallback)
 		getScriptProcessor()->getMainController_()->getSampleManager().addPreloadListener(this);
 		loadRoutine = loadingCallback;
 	}
+    else
+    {
+        getScriptProcessor()->getMainController_()->getSampleManager().removePreloadListener(this);
+        loadRoutine = var();
+    }
+    
 }
 
 
