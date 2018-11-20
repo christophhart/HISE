@@ -96,7 +96,7 @@ class ScriptComponentEditPanel : public Component,
 
 public:
 
-	ScriptComponentEditPanel(BackendRootWindow* rootWindow, Processor* p);
+	ScriptComponentEditPanel(MainController* mc_, Processor* p);
 
 	~ScriptComponentEditPanel();
 
