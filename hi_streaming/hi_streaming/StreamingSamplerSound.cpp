@@ -966,8 +966,8 @@ float StreamingSamplerSound::FileReader::calculatePeakValue()
 
 	closeFileHandles();
 
-	const float maxLeft = jmax<float>(std::fabsf(l1), std::fabsf(l2));
-	const float maxRight = jmax<float>(std::fabsf(r1), std::fabsf(r2));
+	const float maxLeft = jmax<float>(abs(l1), abs(l2));
+	const float maxRight = jmax<float>(abs(r1), abs(r2));
 
 	return jmax<float>(maxLeft, maxRight);
 }

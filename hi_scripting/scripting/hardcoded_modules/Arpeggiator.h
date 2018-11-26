@@ -62,6 +62,15 @@ public:
 		CurrentStep
 	};
 
+	enum Direction
+	{
+		enumSeqUP = 1,
+		enumSeqDN = 2,
+		enumSeqUPDN = 3,
+		enumSeqDNUP = 4,
+		enumSeqRND
+	};
+
 	Arpeggiator(MainController *mc, const String &id, ModulatorSynth *ms);;
 
 	~Arpeggiator();
@@ -174,14 +183,7 @@ private:
 	// direction stuff
 	bool do_use_step_semitone_offsets = true;
 	
-	enum Direction
-	{
-		enumSeqUP = 1,
-		enumSeqDN = 2,
-		enumSeqUPDN = 3,
-		enumSeqDNUP = 4,
-		enumSeqRND
-	};
+	
 
 	int curSeqPatternEnum = 1;
 	
