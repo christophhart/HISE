@@ -387,7 +387,7 @@ class ProjectHandler;
 
 
 class SampleDataExporter : public DialogWindowWithBackgroundThread,
-	public hlac::HlacArchiver::Listener
+						   public hlac::HlacArchiver::Listener
 {
 public:
 
@@ -404,6 +404,7 @@ public:
 
 	void logVerboseMessage(const String& verboseMessage) override;
 	void logStatusMessage(const String& message) override;
+	void criticalErrorOccured(const String& message) override;
 
 	void run() override;;
 	void threadFinished() override;
@@ -426,7 +427,9 @@ private:
 
 	ModulatorSynthChain* synthChain;
 
-	
+	String fullLog;
+	String criticalError;
+
 	ScopedPointer<FilenameComponent> targetFile;
 	ScopedPointer<ProgressBar> totalProgressBar;
 	double totalProgress = 0.0;
@@ -456,6 +459,8 @@ public:
 
 	void logStatusMessage(const String& message) override;
 
+	void criticalErrorOccured(const String& message) override;
+
 	void run() override;
 
 	void threadFinished() override;
@@ -482,6 +487,8 @@ private:
 	}
 
 	Result result;
+
+	String criticalError;
 
 	File archiveFile;
 
