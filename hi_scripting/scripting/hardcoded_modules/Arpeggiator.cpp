@@ -556,7 +556,7 @@ void Arpeggiator::playNote()
 		curSeqPatternEnum = sequenceComboBox->getValue();
 
 		// check if we need to reverse sequence based on up/dn mode
-		if ((int)sequenceComboBox->getValue() >= Direction::enumSeqUPDN && MidiSequenceArray.size() > 1)
+		if ((int)sequenceComboBox->getValue() >= 3 && MidiSequenceArray.size() > 1)
 		{
 			if (arpDirMod > 0 && curHeldNoteIdx == MidiSequenceArray.size() - 1)
 				arpDirMod = -abs(arpDirMod);

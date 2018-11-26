@@ -117,7 +117,7 @@ struct CompressionHelpers
 		{
 			if (roundUp)
 			{
-				auto value = std::ceilf((float)samplePosition / (float)normaliseBlockSize);
+				auto value = std::ceil((double)samplePosition / (double)normaliseBlockSize);
 				return (uint16)roundToInt(value);
 			}
 			else
