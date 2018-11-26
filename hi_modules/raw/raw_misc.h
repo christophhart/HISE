@@ -236,6 +236,7 @@ template <typename DataType> struct Data
 		}
 	};
 
+	/** Loads / saves a samplemap. Expects a String with the SampleMap ID. */
 	struct SampleMap
 	{
 		static DataType save(Processor* p)
@@ -257,6 +258,7 @@ template <typename DataType> struct Data
 		}
 	};
 
+	/** Loads / saves the bypass state. Use the template argument to invert the logic (so that true = enabled). */
 	template <bool inverted = false> struct Bypassed
 	{
 		static DataType save(Processor* p)
@@ -276,6 +278,7 @@ template <typename DataType> struct Data
 		}
 	};
 
+	/** Loads / saves a Processor's attribute. */
 	template <int attributeIndex> struct Attribute
 	{
 		static DataType save(Processor* p)
@@ -291,6 +294,7 @@ template <typename DataType> struct Data
 		}
 	};
 
+	/** Loads / saves the table data. */
 	template <int tableIndex = 0> struct Table
 	{
 		static DataType save(Processor* p)
@@ -522,6 +526,7 @@ public:
 	
 };
 
+/** The base class for storing data as user preset. */
 class GenericStorage : public Data<juce::var>,
 	public RestorableObject
 {
@@ -556,7 +561,10 @@ public:
 private:
 };
 
+/** An object that automatically handles the loading / saving in a ValueTree. 
 
+Use this to implement your custom user preset system. 
+*/
 template <class FunctionClass> class Storage : public GenericStorage
 {
 public:
@@ -586,9 +594,7 @@ private:
 
 	SaveFunction saveFunction;
 	LoadFunction loadFunction;
-
 };
-
 
 }
 

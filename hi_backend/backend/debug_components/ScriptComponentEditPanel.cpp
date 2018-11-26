@@ -73,9 +73,9 @@ ML("- Click on the **Paste** button and all selected properties will be pasted f
 END_MARKDOWN()
 END_MARKDOWN_CHAPTER()
 
-ScriptComponentEditPanel::ScriptComponentEditPanel(BackendRootWindow* rootWindow, Processor* p) :
+ScriptComponentEditPanel::ScriptComponentEditPanel(MainController* mc_, Processor* p) :
 	ScriptComponentEditListener(p),
-	mc(rootWindow->getBackendProcessor()),
+	mc(mc_),
 	connectedProcessor(p)
 {
 	addAsScriptEditListener();
@@ -528,11 +528,7 @@ Identifier ScriptComponentEditPanel::Panel::getProcessorTypeId() const
 
 Component* ScriptComponentEditPanel::Panel::createContentComponent(int /*index*/)
 {
-	auto rootWindow = getParentShell()->getRootFloatingTile()->findParentComponentOfClass<BackendRootWindow>();
-
-	jassert(rootWindow != nullptr);
-
-	return new ScriptComponentEditPanel(rootWindow, getConnectedProcessor());
+	return new ScriptComponentEditPanel(getMainController(), getConnectedProcessor());
 }
 
 } // namespace hise

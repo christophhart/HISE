@@ -68,15 +68,13 @@ void hise::raw::Builder::add(T* processor, Processor* parent, int chainIndex /*=
 template <class T>
 T* hise::raw::Builder::addInternal(Processor* p, Chain* c)
 {
-	auto newId = FactoryType::getUniqueName(p);
-
-	p->setId(newId);
-
 	if (ProcessorHelpers::is<ModulatorSynth>(p) && 
 		dynamic_cast<ModulatorSynthGroup*>(c) == nullptr)
 		dynamic_cast<ModulatorSynth*>(p)->addProcessorsWhenEmpty();
 
 	c->getHandler()->add(p, nullptr);
+
+	PresetHandler::setUniqueIdsForProcessor(p);
 
 	return dynamic_cast<T*>(p);
 }

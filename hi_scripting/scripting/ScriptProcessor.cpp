@@ -1437,6 +1437,9 @@ void JavascriptThreadPool::addJob(Task::Type t, JavascriptProcessor* p, const Ta
 		jassertfalse;
 		break;
 	}
+    default:
+        jassertfalse;
+        break;
 	};
 }
 

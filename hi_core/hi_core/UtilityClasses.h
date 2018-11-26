@@ -757,73 +757,7 @@ private:
 	MainController *mc;
 };
 
-=======
-/** This class is used to simulate different devices.
-*
-*	In the backend application you can choose the current device. In compiled apps
-*	it will be automatically set to the actual model.
-*
-*	It will use different UX paradigms depending on the model as well.
-*
-*	Due to simplicity, it uses a static variable which may cause some glitches when used with plugins, so 
-*	it's recommended to use this only in standalone mode.
-*/
-class HiseDeviceSimulator
-{
-public:
-	enum class DeviceType
-	{
-		Desktop = 0,
-		iPad,
-		iPadAUv3,
-		iPhone,
-        iPhoneAUv3,
-		numDeviceTypes
-	};
 
-    static void init(AudioProcessor::WrapperType wrapper);
-
-	static void setDeviceType(DeviceType newDeviceTye)
-	{
-		currentDevice = newDeviceTye;
-	}
-
-	static DeviceType getDeviceType() { return currentDevice; }
-	
-	static String getDeviceName(int index=-1);
-
-	static bool fileNameContainsDeviceWildcard(const File& f);
-
-	static bool isMobileDevice() { return currentDevice > DeviceType::Desktop; }
-	
-    static bool isAUv3() { return currentDevice == DeviceType::iPadAUv3 || currentDevice == DeviceType::iPhoneAUv3; };
-    
-    static bool isiPhone()
-    {
-        return currentDevice == DeviceType::iPhone || currentDevice == DeviceType::iPhoneAUv3;
-    }
-    
-    static bool isStandalone()
-    {
-#if HISE_IOS
-        return !isAUv3();
-#else
-      
-#if IS_STANDALONE_FRONTEND || (USE_BACKEND && IS_STANDALONE_APP)
-        return true;
-#else
-        return false;
-#endif
-        
-#endif
-    }
-    
-	static Rectangle<int> getDisplayResolution();
-
-	private:
-
-	static DeviceType currentDevice;
-};
 
 class SemanticVersionChecker
 {

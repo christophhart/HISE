@@ -36,7 +36,7 @@ BEGIN_JUCE_MODULE_DECLARATION
 
   ID:               hi_streaming
   vendor:           Hart Instruments
-  version:          1.6.0
+  version:          2.0.0
   name:             HISE Streaming module
   description:      The streaming sampler classes for HISE
   website:          http://hise.audio

@@ -135,7 +135,7 @@ struct DebugLogger::StringMessage : public DebugLogger::Message
 struct DebugLogger::Event : public DebugLogger::Message
 {
 	Event(int messageIndex, int callbackIndex, const HiseEvent& e_) :
-		Message(messageIndex, callbackIndex, timestamp, Location::MainRenderCallback, nullptr, Identifier()),
+		Message(messageIndex, callbackIndex, 0, Location::MainRenderCallback, nullptr, Identifier()),
 		e(e_)
 	{}
     

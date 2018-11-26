@@ -91,6 +91,10 @@
  #define   USE_FRONTEND 0
 #endif
 
+#ifndef    USE_RAW_FRONTEND
+ //#define USE_RAW_FRONTEND 1
+#endif
+
 #ifndef    IS_STANDALONE_APP
  #define   IS_STANDALONE_APP 0
 #endif
@@ -113,6 +117,14 @@
 
 #ifndef    USE_CUSTOM_FRONTEND_TOOLBAR
  #define   USE_CUSTOM_FRONTEND_TOOLBAR 0
+#endif
+
+#ifndef    HI_SUPPORT_MONO_CHANNEL_LAYOUT
+ //#define HI_SUPPORT_MONO_CHANNEL_LAYOUT 1
+#endif
+
+#ifndef    HI_SUPPORT_FULL_DYNAMICS_HLAC
+ //#define HI_SUPPORT_FULL_DYNAMICS_HLAC 1
 #endif
 
 #ifndef    IS_STANDALONE_FRONTEND
@@ -396,6 +408,10 @@
 
 #ifndef    JUCE_USE_XCURSOR
  //#define JUCE_USE_XCURSOR 1
+#endif
+
+#ifndef    JUCE_HEADLESS_PLUGIN_CLIENT
+ //#define JUCE_HEADLESS_PLUGIN_CLIENT 1
 #endif
 
 //==============================================================================
