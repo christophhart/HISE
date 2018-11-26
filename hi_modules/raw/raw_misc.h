@@ -294,7 +294,7 @@ template <typename DataType> struct Data
 		}
 	};
 
-	/** Loads / saves the table data. */
+	/** Loads / saves the table data as encoded String. */
 	template <int tableIndex = 0> struct Table
 	{
 		static DataType save(Processor* p)
@@ -316,6 +316,35 @@ template <typename DataType> struct Data
 				table->restoreData(newValue.toString());
 				table->sendChangeMessage();
 			}
+		}
+	};
+
+	/** Loads / saves the slider pack data as encoded String. */
+	template <int sliderPackIndex = 0> struct SliderPack
+	{
+		static DataType save(Processor* p)
+		{
+			if (auto sp = dynamic_cast<hise::SliderPackProcessor*>(p))
+			{
+				return DataType(sp->getSliderPackData(sliderPackIndex)->toBase64());
+			}
+
+			return {};
+		}
+
+		static void load(Processor* p, const DataType& newValue)
+		{
+			if (auto sp = dynamic_cast<hise::SliderPackProcessor*>(p))
+			{
+				if (auto spData = sp->getSliderPackData(sliderPackIndex))
+				{
+					spData->fromBase64(String(newValue));
+				}
+				else
+					jassertfalse; // no sliderpack at the given index.
+			}
+			else
+				jassertfalse; // no slider pack processor.
 		}
 	};
 
@@ -362,6 +391,36 @@ class MyInterface
 class UIConnection
 {
 public:
+
+	/** A small helper class that manages the ownership of an UI connection object.
+	
+		You can use it as member variable and assign an object to it in your editor's constructor.
+	*/
+	struct Ptr
+	{
+
+		/** assigns a new element to this holder. It will be automatically deleted when this goes out of scope.
+		*
+		*	It uses a pointer of the type hise::ControlledObject as least common denominator to prevent typing 
+		*	template arguments more than once.
+		*/
+		ControlledObject* operator=(ControlledObject* objectToOwn)
+		{
+			ownedObject = objectToOwn;
+
+			return objectToOwn;
+		}
+
+		/** Make sure you call this before deleting the connected UI element. */
+		void release()
+		{
+			ownedObject = nullptr;
+		}
+
+	private:
+
+		ScopedPointer<ControlledObject> ownedObject;
+	};
 
 	/** The base class for the connection implementation of each UI widget. 
 	
@@ -423,12 +482,11 @@ public:
 	
 
 	/** A connection between a Processor's parameter and a juce::Slider. */
-	template <int parameterIndex> class Slider: private Base<juce::Slider, float>
+	template <int parameterIndex> class Slider: public Base<juce::Slider, float>
 	{
 	public:
 
-		Slider(juce::Slider* s, MainController* mc, 
-					  const String& processorID);
+		Slider(juce::Slider* s, MainController* mc, const String& processorID);
 
 	private:
 
@@ -451,7 +509,9 @@ public:
 		Button(juce::Button* b, MainController* mc,
 			const String& processorID) :
 			Base(b, mc, processorID)
-		{}
+		{
+			changeListenerCallback(nullptr);
+		}
 
 	private:
 
@@ -476,7 +536,9 @@ public:
 		ComboBox(juce::ComboBox* b, MainController* mc,
 			const String& processorID):
 			Base(b, mc, processorID)
-		{}
+		{
+			changeListenerCallback(nullptr);
+		}
 
 		enum Mode
 		{
