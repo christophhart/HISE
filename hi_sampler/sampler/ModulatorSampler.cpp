@@ -707,13 +707,8 @@ void ModulatorSampler::setVoiceAmount(int newVoiceAmount)
 		if (getAttribute(ModulatorSynth::VoiceLimit) > voiceAmount)
 			setAttribute(ModulatorSynth::VoiceLimit, float(voiceAmount), sendNotification);
 
-		const bool synchronous = !isOnAir() ||
-			(!getMainController()->getKillStateHandler().isAudioRunning() &&
-			getMainController()->getKillStateHandler().isSuspendableThread());
-
 		auto f = [](Processor*p) { static_cast<ModulatorSampler*>(p)->setVoiceAmountInternal(); return SafeFunctionCall::OK; };
 		killAllVoicesAndCall(f, false);
-
 		
 	}
 }

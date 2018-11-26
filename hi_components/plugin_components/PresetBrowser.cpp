@@ -1091,8 +1091,7 @@ void PresetBrowser::setOptions(const Options& newOptions)
 void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const File& file, bool /*doubleClick*/)
 {
 	const bool showCategoryColumn = numColumns == 3;
-	const bool showBankColumns = numColumns >= 2;
-
+	
 	if (columnIndex == 0)
 	{
 		currentBankFile = file;

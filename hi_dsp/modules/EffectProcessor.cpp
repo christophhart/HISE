@@ -56,8 +56,7 @@ bool EffectProcessor::isSilent(AudioSampleBuffer& b, int startSample, int numSam
 	}
 
 	constexpr int sseSize = SSEFloat::SIMDRegisterSize / sizeof(float);
-	const auto limit = 0.001f;
-
+	
 	while (numAligned > sseSize)
 	{
 		auto l_ = SSEFloat::fromRawArray(alignedL);

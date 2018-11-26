@@ -60,19 +60,18 @@ END_JUCE_MODULE_DECLARATION
 /** @defgroup ui UI
 
 	All class related to the interface design using C++	
-*/
 
-/** @defgroup event_handling Event Handling
+
+    @defgroup event_handling Event Handling
 	@ingroup ui
 	
 	Classes and helpers for communication between audio rendering
 	and the user interface.
-/*
 
-/** @defgroup hise_ui HISE Components
-*	@ingroup ui
-*
-*	All HISE UI Components that can be used in compiled plugins.
+    @defgroup hise_ui HISE Components
+	@ingroup ui
+
+	All HISE UI Components that can be used in compiled plugins.
 */
 
 
