@@ -574,6 +574,45 @@ public:
 	{
 	public:
 
+		struct TagDataBase
+		{
+			struct CachedTag
+			{
+				int64 hashCode;
+				Array<Identifier> tags;
+				bool shown = false;
+			};
+
+			void setRootDirectory(const File& newRoot);;
+
+			void buildDataBase(bool force = false);
+
+			/** If you want to use the tag system, supply a list of Strings and it will
+			create the tags automatically.
+			*/
+			void setTagList(const StringArray& newTagList)
+			{
+				tagList = newTagList;
+			}
+
+			/** @internal */
+			const StringArray& getTagList() const { return tagList; }
+
+			const Array<CachedTag>& getCachedTags() const { return cachedTags; }
+
+		private:
+
+			StringArray tagList;
+
+			File root;
+
+			Array<CachedTag> cachedTags;
+
+			void buildInternal();
+
+			bool dirty = true;
+		};
+
 		/** A class that will be notified about user preset changes. */
 		class Listener
 		{
@@ -627,17 +666,11 @@ public:
 		/** Deregisters a listener. */
 		void removeListener(Listener* listener);
 
-		/** If you want to use the tag system, supply a list of Strings and it will
-			create the tags automatically.
-		*/
-		void setTagList(const StringArray& newTagList);
-
-		/** @internal */
-		const StringArray& getTagList() const { return tagList; }
+		TagDataBase& getTagDataBase() const	{ return tagDataBase.get();}
 
 	private:
 
-		StringArray tagList;
+		SharedResourcePointer<TagDataBase> tagDataBase;
 
 		void loadUserPresetInternal();
 		void saveUserPresetInternal(const String& name=String());

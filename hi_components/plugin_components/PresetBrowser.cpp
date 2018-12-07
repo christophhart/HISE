@@ -605,13 +605,13 @@ void PresetBrowser::ModalWindow::confirmReplacement(const File& oldFile, const F
 	refreshModalWindow();
 }
 
-PresetBrowser::PresetBrowser(MainController* mc_, int width, int height) :
-mc(mc_)
+PresetBrowser::PresetBrowser(MainController* mc, int width, int height) :
+ControlledObject(mc)
 {
 	setName("Preset Browser");
 
 #if USE_BACKEND
-	rootFile = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
+	rootFile = GET_PROJECT_HANDLER(getMainController()->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
 #else
     
     try
@@ -620,14 +620,17 @@ mc(mc_)
     }
     catch(String& s)
     {
-        mc->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, s);
+		getMainController()->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, s);
     }
     
 #endif
 
+	mc->getUserPresetHandler().getTagDataBase().setRootDirectory(rootFile);
+
+
 	loadPresetDatabase(rootFile);
 
-	mc->getUserPresetHandler().addListener(this);
+	getMainController()->getUserPresetHandler().addListener(this);
 
 	addAndMakeVisible(bankColumn = new PresetBrowserColumn(mc, this, 0, rootFile, this));
 	addAndMakeVisible(categoryColumn = new PresetBrowserColumn(mc, this, 1, rootFile, this));
@@ -690,7 +693,7 @@ mc(mc_)
 
 PresetBrowser::~PresetBrowser()
 {
-	mc->getUserPresetHandler().removeListener(this);
+	getMainController()->getUserPresetHandler().removeListener(this);
 
 	savePresetDatabase(rootFile);
 
@@ -756,7 +759,7 @@ void PresetBrowser::rebuildAllPresets()
 		}
 	}
 
-	File f = mc->getUserPresetHandler().getCurrentlyLoadedFile();
+	File f = getMainController()->getUserPresetHandler().getCurrentlyLoadedFile();
 
 	currentlyLoadedPreset = allPresets.indexOf(f);
 
@@ -1023,7 +1026,7 @@ void PresetBrowser::setShowCloseButton(bool shouldShowButton)
 
 void PresetBrowser::incPreset(bool next, bool stayInSameDirectory/*=false*/)
 {
-	mc->getUserPresetHandler().incPreset(next, stayInSameDirectory);
+	getMainController()->getUserPresetHandler().incPreset(next, stayInSameDirectory);
 }
 
 void PresetBrowser::setCurrentPreset(const File& f, NotificationType /*sendNotification*/)
@@ -1252,16 +1255,14 @@ void PresetBrowser::buttonClicked(Button* b)
 	}
 	else if (b == saveButton)
 	{
-		if (mc->getUserPresetHandler().getCurrentlyLoadedFile().existsAsFile())
+		if (getMainController()->getUserPresetHandler().getCurrentlyLoadedFile().existsAsFile())
 		{
 			
 
-			auto fileToBeReplaced = mc->getUserPresetHandler().getCurrentlyLoadedFile();
-
+			auto fileToBeReplaced = getMainController()->getUserPresetHandler().getCurrentlyLoadedFile();
 			File tempFile = fileToBeReplaced.getSiblingFile("tempFileBeforeMove.preset");
 
-			UserPresetHelpers::saveUserPreset(mc->getMainSynthChain(), tempFile.getFullPathName(), dontSendNotification);
-
+			UserPresetHelpers::saveUserPreset(getMainController()->getMainSynthChain(), tempFile.getFullPathName(), dontSendNotification);
 			confirmReplace(tempFile, fileToBeReplaced);
 		}
 	}
@@ -1269,7 +1270,7 @@ void PresetBrowser::buttonClicked(Button* b)
 	{
 		PopupMenu p;
 
-		auto& plaf = mc->getGlobalLookAndFeel();
+		auto& plaf = getMainController()->getGlobalLookAndFeel();
 		p.setLookAndFeel(&plaf);
 
 		enum ID
@@ -1358,7 +1359,7 @@ void PresetBrowser::loadPreset(const File& f)
 {
     if(f.existsAsFile())
     {
-		UserPresetHelpers::loadUserPreset(mc->getMainSynthChain(), f);
+		UserPresetHelpers::loadUserPreset(getMainController()->getMainSynthChain(), f);
         currentlyLoadedPreset = allPresets.indexOf(f);
         
 		noteLabel->setText(DataBaseHelpers::getNoteFromXml(f), dontSendNotification);

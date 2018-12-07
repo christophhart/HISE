@@ -35,7 +35,7 @@ namespace hise { using namespace juce;
 MainController::UserPresetHandler::UserPresetHandler(MainController* mc_) :
 	mc(mc_)
 {
-
+	
 }
 
 
@@ -293,5 +293,50 @@ void MainController::UserPresetHandler::removeListener(Listener* listener)
 {
 	listeners.removeAllInstancesOf(listener);
 }
+
+void MainController::UserPresetHandler::TagDataBase::buildDataBase(bool force /*= false*/)
+{
+	if (force || dirty)
+	{
+		buildInternal();
+	}
+}
+
+void MainController::UserPresetHandler::TagDataBase::buildInternal()
+{
+	cachedTags.clear();
+
+	Array<File> allPresets;
+
+	root.findChildFiles(allPresets, File::findFiles, true, "*.preset");
+
+	PresetBrowser::DataBaseHelpers::cleanFileList(allPresets);
+
+	for (auto f : allPresets)
+	{
+		auto sa = PresetBrowser::DataBaseHelpers::getTagsFromXml(f);
+
+		CachedTag newTag;
+		newTag.hashCode = f.hashCode64();
+		for (auto t : sa)
+			newTag.tags.add(Identifier(t));
+
+		cachedTags.add(std::move(newTag));
+	}
+
+	dirty = false;
+}
+
+void MainController::UserPresetHandler::TagDataBase::setRootDirectory(const File& newRoot)
+{
+
+	if (root != newRoot)
+	{
+		root = newRoot;
+		dirty = true;
+	}
+}
+
+
 
 } // namespace hise

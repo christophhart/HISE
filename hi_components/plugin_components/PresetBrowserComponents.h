@@ -292,10 +292,14 @@ class PresetBrowserColumn : public Component,
 public:
 	// ============================================================================================
 
+	
+
 	class ColumnListModel : public ListBoxModel,
 							public PresetBrowserChildComponentBase
 	{
 	public:
+
+		using CachedTag = MainController::UserPresetHandler::TagDataBase::CachedTag;
 
 		class Listener
 		{
@@ -319,6 +323,8 @@ public:
 		void paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected) override;
 
 		void update() override {};
+
+		const Array<CachedTag>& getCachedTags() const;
 
 		bool isEmpty() const
 		{
@@ -385,14 +391,7 @@ public:
 
 		void updateTags(const StringArray& newSelection);
 
-		struct CachedTag
-		{
-			int64 hashCode;
-			Array<Identifier> tags;
-			bool shown = false;
-		};
-
-		Array<CachedTag> cachedTags;
+		
 
 		bool allowRecursiveSearch = false;
 		bool deleteOnClick = false;

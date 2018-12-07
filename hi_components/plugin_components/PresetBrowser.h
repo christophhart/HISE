@@ -51,6 +51,7 @@ namespace hise { using namespace juce;
 
 */
 class PresetBrowser :			 public Component,
+								 public ControlledObject,
 							     public QuasiModalComponent,
 								 public Button::Listener,
 								 public PresetBrowserColumn::ColumnListModel::Listener,
@@ -201,8 +202,6 @@ private:
 	void setShowNotesLabel(bool shouldBeShown);
 	void setShowEditButtons(bool showEditButtons);
 	void setShowCloseButton(bool shouldShowButton);
-
-	MainController * mc;
 
 	// ============================================================================================
 
