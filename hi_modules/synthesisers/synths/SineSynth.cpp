@@ -66,21 +66,6 @@ SET_DOCUMENTATION(SineSynth)
 
 }
 
-float SineSynthVoice::sinTable[2048];
-bool SineSynthVoice::tableInitialised = false;
-    
-void SineSynthVoice::initTable()
-{
-    if(tableInitialised)
-        return;
-    
-    tableInitialised = true;
-    
-    for(int i = 0; i < 2048; i++)
-    {
-        sinTable[i] = sinf(i * float_Pi / 1024.0f);
-    }
-}
     
 SineSynth::SineSynth(MainController *mc, const String &id, int numVoices) :
 	ModulatorSynth(mc, id, numVoices),
@@ -124,8 +109,6 @@ ProcessorEditorBody* SineSynth::createEditor(ProcessorEditor *parentEditor)
 
 float const * SineSynth::getSaturatedTableValues()
 {
-	
-
 	for (int i = 0; i < 128; i++)
 	{
 		const float sinValue = sin((float)i / 64.0f * float_Pi);
@@ -143,8 +126,7 @@ void SineSynthVoice::calculateBlock(int startSample, int numSamples)
 
 	float saturation = static_cast<SineSynth*>(getOwnerSynth())->saturationAmount;
 	float *leftValues = voiceBuffer.getWritePointer(0, startSample);
-	
-	
+	const auto& sinTable = table.get();
 
 	if (auto voicePitchValues = getOwnerSynth()->getPitchValuesForVoice())
 	{
@@ -152,65 +134,17 @@ void SineSynthVoice::calculateBlock(int startSample, int numSamples)
 
 		while (--numSamples >= 0)
 		{
-			int index = (int)voiceUptime;
-
-			float v1 = sinTable[index & 2047];
-			float v2 = sinTable[(index + 1) & 2047];
-
-			const float alpha = float(voiceUptime) - (float)index;
-			const float invAlpha = 1.0f - alpha;
-
-			const float currentSample = invAlpha * v1 + alpha * v2;
-
-			*leftValues++ = currentSample;
-
+			*leftValues++ = sinTable.getInterpolatedValue(voiceUptime);
 			const double thisPitchValue = *voicePitchValues++;
-
 			voiceUptime += (uptimeDelta * thisPitchValue);
-
 		}
 	}
 	else
 	{
-		while (numSamples > 4)
+		while (--numSamples >= 0)
 		{
-			for (int i = 0; i < 4; i++)
-			{
-				int index = (int)voiceUptime;
-
-				float v1 = sinTable[index & 2047];
-				float v2 = sinTable[(index + 1) & 2047];
-
-				const float alpha = float(voiceUptime) - (float)index;
-				const float invAlpha = 1.0f - alpha;
-
-				const float currentSample = invAlpha * v1 + alpha * v2;
-
-				*leftValues++ = currentSample;
-
-				voiceUptime += uptimeDelta;
-			}
-
-			numSamples -= 4;
-		}
-
-		while (numSamples > 0)
-		{
-			int index = (int)voiceUptime;
-
-			float v1 = sinTable[index & 2047];
-			float v2 = sinTable[(index + 1) & 2047];
-
-			const float alpha = float(voiceUptime) - (float)index;
-			const float invAlpha = 1.0f - alpha;
-
-			const float currentSample = invAlpha * v1 + alpha * v2;
-
-			*leftValues++ = currentSample;
-
+			*leftValues++ = sinTable.getInterpolatedValue(voiceUptime);
 			voiceUptime += uptimeDelta;
-
-			numSamples--;
 		}
 	}
 
@@ -246,14 +180,9 @@ void SineSynthVoice::calculateBlock(int startSample, int numSamples)
 		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), gainValue, samplesToCopy);
 	}
 		
-
 	FloatVectorOperations::copy(voiceBuffer.getWritePointer(1, startIndex), voiceBuffer.getReadPointer(0, startIndex), samplesToCopy);
 
 	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
-
-	
-	
-		
 }
 
 } // namespace hise
