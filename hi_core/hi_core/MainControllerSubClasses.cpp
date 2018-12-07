@@ -188,6 +188,10 @@ MainController::CodeHandler::CodeHandler(MainController* mc_):
 	mc(mc_),
 	pendingMessages(8192)
 {
+#if USE_BACKEND
+	suspend(false);
+#endif
+
 	consoleData.setDisableUndo(true);
 }
 

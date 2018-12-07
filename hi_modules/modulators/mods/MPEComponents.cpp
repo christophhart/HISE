@@ -1195,6 +1195,8 @@ MPEKeyboard::MPEKeyboard(MainController* mc) :
 	pendingMessages(1024),
 	channelRange({2, 16})
 {
+	suspend(false);
+
 	pendingMessages.setThreadTokens(mc->getKillStateHandler().createPublicTokenList(MainController::KillStateHandler::AudioThreadIsProducer |																									  MainController::KillStateHandler::MessageThreadIsProducer));
 
 	state.addListener(this);

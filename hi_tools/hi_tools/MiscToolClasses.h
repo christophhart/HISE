@@ -35,19 +35,95 @@
 namespace hise {
 using namespace juce;
 
+class SuspendableTimer
+{
+public:
+
+	struct Manager
+	{
+		virtual void suspendStateChanged(bool shouldBeSuspended) = 0;
+	};
+
+	SuspendableTimer() :
+		internalTimer(*this)
+	{};
+
+	virtual ~SuspendableTimer() { internalTimer.stopTimer(); };
+
+	void startTimer(int milliseconds)
+	{
+		lastTimerInterval = milliseconds;
+
+		if (!suspended)
+			internalTimer.startTimer(milliseconds);
+	}
+
+	void stopTimer()
+	{
+		lastTimerInterval = -1;
+
+		if (!suspended)
+		{
+			internalTimer.stopTimer();
+		}
+		else
+		{
+			// Must be stopped by suspendTimer
+			jassert(!internalTimer.isTimerRunning());
+		}
+	}
+
+	void suspendTimer(bool shouldBeSuspended)
+	{
+		if (shouldBeSuspended != suspended)
+		{
+			suspended = shouldBeSuspended;
+
+			if (suspended)
+				internalTimer.stopTimer();
+			else if (lastTimerInterval != -1)
+				internalTimer.startTimer(lastTimerInterval);
+		}
+	}
+
+	virtual void timerCallback() = 0;
+
+private:
+
+	struct Internal : public Timer
+	{
+		Internal(SuspendableTimer& parent_) :
+			parent(parent_)
+		{};
+
+		void timerCallback() override { parent.timerCallback(); };
+
+		SuspendableTimer& parent;
+	};
+
+	Internal internalTimer;
+
+#if USE_BACKEND
+	bool suspended = false;
+#else
+	bool suspended = true;
+#endif
+
+	int lastTimerInterval = -1;
+};
 
 /** Coallescates timer updates.
 	@ingroup event_handling
 	
 */
-class PooledUIUpdater : public Timer
+class PooledUIUpdater : public SuspendableTimer
 {
 public:
 
 	PooledUIUpdater() :
 		pendingHandlers(8192)
 	{
-		startTimer(50);
+		startTimer(30);
 	}
 
 	class Broadcaster;
@@ -83,6 +159,8 @@ public:
 
 		bool isHandlerInitialised() const { return handler != nullptr; };
 
+		bool pending = false;
+
 	private:
 
 		friend class PooledUIUpdater;
@@ -100,6 +178,8 @@ public:
 
 		while (pendingHandlers.pop(b))
 		{
+			b->pending = false;
+
 			if (b != nullptr)
 			{
 				for (auto l : b->pooledListeners)
@@ -108,7 +188,6 @@ public:
 						l->handlePooledMessage(b);
 				}
 			}
-
 		}
 	}
 
@@ -147,67 +226,7 @@ private:
 };
 
 
-class SuspendableTimer
-{
-public:
 
-	SuspendableTimer() :
-		internalTimer(*this)
-	{};
-
-    virtual ~SuspendableTimer() { internalTimer.stopTimer(); };
-    
-	void startTimer(int milliseconds)
-	{
-		if (!suspended)
-		{
-			internalTimer.startTimer(milliseconds);
-			lastTimerInterval = milliseconds;
-		}
-	}
-
-	void stopTimer()
-	{
-		if (!suspended)
-		{
-			internalTimer.stopTimer();
-			lastTimerInterval = -1;
-		}
-	}
-
-	void suspendTimer(bool shouldBeSuspended)
-	{
-		if (shouldBeSuspended != suspended)
-		{
-			suspended = shouldBeSuspended;
-
-			if (suspended)
-				stopTimer();
-			else if (lastTimerInterval != -1)
-				startTimer(lastTimerInterval);
-		}
-	}
-
-	virtual void timerCallback() = 0;
-
-private:
-
-	struct Internal : public Timer
-	{
-		Internal(SuspendableTimer& parent_) :
-			parent(parent_)
-		{};
-
-		void timerCallback() override { parent.timerCallback(); };
-
-		SuspendableTimer& parent;
-	};
-
-	Internal internalTimer;
-
-	bool suspended = false;
-	int lastTimerInterval = -1;
-};
 
 
 /** A drop in replacement for the ChangeBroadcaster class from JUCE but with weak references.
@@ -224,14 +243,12 @@ public:
 
 	SafeChangeBroadcaster(const String& name_ = {}) :
 		dispatcher(this),
-		flagTimer(this),
 		name(name_)
 	{};
 
 	virtual ~SafeChangeBroadcaster()
 	{
 		dispatcher.cancelPendingUpdate();
-		flagTimer.stopTimer();
 	};
 
 	/** Sends a synchronous change message to all the registered listeners.
@@ -270,50 +287,9 @@ public:
 
 	void enablePooledUpdate(PooledUIUpdater* updater);
 
-	void enableAllocationFreeMessages(int timerIntervalMilliseconds);
-
 	bool hasChangeListeners() const noexcept { return !listeners.isEmpty(); }
 
 private:
-
-	class FlagTimer : public Timer
-	{
-	public:
-
-
-		FlagTimer(SafeChangeBroadcaster *parent_) :
-			parent(parent_),
-			send(false)
-		{
-
-		}
-
-		~FlagTimer()
-		{
-			stopTimer();
-		}
-
-		void triggerUpdate()
-		{
-			send.store(true);
-		}
-
-		void timerCallback() override
-		{
-			const bool shouldUpdate = send.load();
-
-			if (shouldUpdate)
-			{
-				parent->sendSynchronousChangeMessage();
-				send.store(false);
-			}
-		}
-
-		SafeChangeBroadcaster *parent;
-		std::atomic<bool> send;
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FlagTimer)
-	};
 
 	class AsyncBroadcaster : public AsyncUpdater
 	{
@@ -335,7 +311,6 @@ private:
 	const String name;
 
 	AsyncBroadcaster dispatcher;
-	FlagTimer flagTimer;
 
 	String currentString;
 
@@ -441,22 +416,9 @@ public:
 */
 class LockfreeAsyncUpdater
 {
-public:
-
-	virtual ~LockfreeAsyncUpdater();
-
-	virtual void handleAsyncUpdate() = 0;
-
-	void triggerAsyncUpdate();
-	void cancelPendingUpdate();
-
-protected:
-
-	LockfreeAsyncUpdater();
-
 private:
 
-	struct TimerPimpl : private Timer
+	struct TimerPimpl : public SuspendableTimer
 	{
 		explicit TimerPimpl(LockfreeAsyncUpdater* p_) :
 			parent(*p_)
@@ -497,6 +459,24 @@ private:
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TimerPimpl);
 	};
+
+public:
+
+	virtual ~LockfreeAsyncUpdater();
+
+	virtual void handleAsyncUpdate() = 0;
+
+	void triggerAsyncUpdate();
+	void cancelPendingUpdate();
+
+	void suspend(bool shouldBeSuspended)
+	{
+		pimpl.suspendTimer(shouldBeSuspended);
+	}
+
+protected:
+
+	LockfreeAsyncUpdater();
 
 	TimerPimpl pimpl;
 

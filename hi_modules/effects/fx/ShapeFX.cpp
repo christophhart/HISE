@@ -78,7 +78,7 @@ ShapeFX::ShapeFX(MainController *mc, const String &uid):
 	tableUpdater = new TableUpdater(*this);
 
 	tableBroadcaster->addChangeListener(tableUpdater);
-	tableBroadcaster->enableAllocationFreeMessages(50);
+	tableBroadcaster->enablePooledUpdate(mc->getGlobalUIUpdater());
 
 	memset(displayTable, 0, sizeof(float)*SAMPLE_LOOKUP_TABLE_SIZE);
     memset(unusedTable, 0, sizeof(float)*SAMPLE_LOOKUP_TABLE_SIZE);

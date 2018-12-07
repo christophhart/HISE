@@ -448,22 +448,22 @@ void SliderPack::mouseDrag(const MouseEvent &e)
 		if (sliderIndex < 0) sliderIndex = 0;
 		if (sliderIndex >= sliders.size()) sliderIndex = sliders.size() - 1;
 
-		Slider *s = sliders[sliderIndex];
+		if (auto s = sliders[sliderIndex])
+		{
+			double normalizedValue = (double)(getHeight() - y) / (double)getHeight();
 
-		double normalizedValue = (double)(getHeight() - y) / (double)getHeight();
+			double value = s->proportionOfLengthToValue(normalizedValue);
 
-		double value = s->proportionOfLengthToValue(normalizedValue);
+			currentlyDragged = true;
+			currentlyDraggedSlider = sliderIndex;
+			currentlyDraggedSliderValue = value;
 
-		currentlyDragged = true;
-		currentlyDraggedSlider = sliderIndex;
-		currentlyDraggedSliderValue = value;
+			s->setValue(value, sendNotificationSync);
 
-		s->setValue(value, sendNotificationSync);
+			currentlyDraggedSliderValue = s->getValue();
 
-		currentlyDraggedSliderValue = s->getValue();
-
-		repaint();
-		
+			repaint();
+		}
 	}
 	else
 	{

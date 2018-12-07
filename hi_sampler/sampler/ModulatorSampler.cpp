@@ -131,7 +131,9 @@ temporaryVoiceBuffer(DEFAULT_BUFFER_TYPE_IS_FLOAT, 2, 0)
 
 	setGain(1.0);
 
-	enableAllocationFreeMessages(50);
+	enablePooledUpdate(mc->getGlobalUIUpdater());
+
+	//enableAllocationFreeMessages(50);
 
 	parameterNames.add("PreloadSize");
 	parameterNames.add("BufferSize");
