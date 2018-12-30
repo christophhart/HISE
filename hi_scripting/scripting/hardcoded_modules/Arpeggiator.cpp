@@ -655,15 +655,8 @@ void Arpeggiator::playNote()
 		}
 		else
 		{
-			auto l = jmax<int>(minNoteLenSamples, currentNoteLengthInSamples);
+			stopCurrentNote();
 
-			for (int i = 0; i < currentlyPlayingEventIds.size(); ++i)
-			{
-				//Synth.addNoteOff(midiChannel, currentlyPlayingEventIds[i], );
-				Synth.noteOffDelayedByEventId(currentlyPlayingEventIds[i], l);
-			}
-
-			currentlyPlayingEventIds.clearQuick();
 		}
 
 		if (next_step_will_be_skipped())
@@ -693,10 +686,21 @@ void Arpeggiator::playNote()
 	// increment and wrap around current step index
 	currentStep = incAndWrapValueFromZeroToMax((int)stepSkipSlider->getValue(), currentStep, numStepSlider->getValue());
 
-
-
 	// increment master step to know when to do a full sequence reset, don't do this is the feature is turned off i.e. numStepsBeforeReset > 0
 	if ((int)stepReset->getValue() > 0) ++curMasterStep;
+}
+
+void Arpeggiator::stopCurrentNote()
+{
+	auto l = jmax<int>(minNoteLenSamples, currentNoteLengthInSamples);
+
+	for (int i = 0; i < currentlyPlayingEventIds.size(); ++i)
+	{
+		//Synth.addNoteOff(midiChannel, currentlyPlayingEventIds[i], );
+		Synth.noteOffDelayedByEventId(currentlyPlayingEventIds[i], l);
+	}
+
+	currentlyPlayingEventIds.clearQuick();
 }
 
 void Arpeggiator::sendNoteOff(int eventId)
@@ -834,6 +838,15 @@ void Arpeggiator::start()
 
 	Synth.startTimer(timeInterval * shuffleFactor);
 	is_playing = true;
+}
+
+void Arpeggiator::stop()
+{
+	stopCurrentNote();
+
+	Synth.stopTimer();
+	is_playing = false;
+	shuffleNextNote = false;
 }
 
 } // namespace hise
