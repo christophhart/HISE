@@ -274,13 +274,17 @@ FrontendProcessor::~FrontendProcessor()
 {
 	numInstances--;
 
+	getKillStateHandler().deinitialise();
+	deletePendingFlag = true;
+
 	storeAllSamplesFound(GET_PROJECT_HANDLER(getMainSynthChain()).areSamplesLoadedCorrectly());
 
 	getSampleManager().cancelAllJobs();
+	getJavascriptThreadPool().cancelAllJobs();
 
 	setEnabledMidiChannels(synthChain->getActiveChannelData()->exportData());
 
-	deletePendingFlag = true;
+	
 	clearPreset();
 	synthChain = nullptr;
 

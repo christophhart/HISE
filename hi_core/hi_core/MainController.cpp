@@ -103,11 +103,18 @@ MainController::MainController() :
 
 MainController::~MainController()
 {
-	sampleManager = nullptr;
+
+	javascriptThreadPool->cancelAllJobs();
+	sampleManager->cancelAllJobs();
+
+	
 	Logger::setCurrentLogger(nullptr);
 	logger = nullptr;
 	masterReference.clear();
 	customTypeFaces.clear();
+
+	sampleManager = nullptr;
+	javascriptThreadPool = nullptr;
 }
 
 
@@ -1217,5 +1224,7 @@ void MainController::updateMultiChannelBuffer(int numNewChannels)
 
 	ProcessorHelpers::increaseBufferIfNeeded(multiChannelBuffer, maxBufferSize.get());
 }
+
+
 
 } // namespace hise

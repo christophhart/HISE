@@ -973,6 +973,8 @@ public:
 
 		bool initialised() const noexcept;
 
+		void deinitialise();
+
 		/** Returns true if the current thread can be safely suspended by a call to Thread::sleep().
 		*
 		*	This will return true only for the sample loading thread and the scripting thread. */

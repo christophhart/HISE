@@ -727,6 +727,15 @@ public:
 		stopThread(1000);
 	}
 
+	void cancelAllJobs()
+	{
+		LockHelpers::SafeLock ss(getMainController(), LockHelpers::ScriptLock);
+
+		stopThread(1000);
+		compilationQueue.clear();
+		lowPriorityQueue.clear();
+		highPriorityQueue.clear();
+	}
 	
 	class Task
 	{

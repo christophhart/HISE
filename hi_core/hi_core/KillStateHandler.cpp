@@ -249,6 +249,11 @@ bool MainController::KillStateHandler::initialised() const noexcept
 	return init && currentState != ShutdownComplete;
 }
 
+void MainController::KillStateHandler::deinitialise()
+{
+	currentState = State::PendingShutdown;
+}
+
 bool MainController::KillStateHandler::invalidateTicket(uint16 ticket)
 {
 	//DBG("Invalidate Ticket " + String(ticket));

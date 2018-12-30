@@ -343,7 +343,6 @@ MidiControllerAutomationHandler::MPEData::MPEData(MainController* mc) :
 
 }
 
-
 MidiControllerAutomationHandler::MPEData::~MPEData()
 {
 	jassert(listeners.size() == 0);
@@ -354,8 +353,6 @@ void MidiControllerAutomationHandler::MPEData::AsyncRestorer::timerCallback()
 {
 
 }
-
-
 
 void MidiControllerAutomationHandler::MPEData::restoreFromValueTree(const ValueTree &v)
 {
