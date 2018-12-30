@@ -1803,6 +1803,7 @@ struct ScriptingObjects::TimerObject::Wrapper
 
 ScriptingObjects::TimerObject::TimerObject(ProcessorWithScriptingContent *p) :
 	DynamicScriptingObject(p),
+	ControlledObject(p->getMainController_(), true),
 	it(this)
 {
 	ADD_DYNAMIC_METHOD(startTimer);

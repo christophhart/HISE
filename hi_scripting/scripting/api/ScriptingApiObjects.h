@@ -894,7 +894,8 @@ public:
 	};
 
 
-	class TimerObject : public DynamicScriptingObject
+	class TimerObject : public DynamicScriptingObject,
+					    public ControlledObject
 	{
 	public:
 
@@ -902,6 +903,8 @@ public:
 
 		TimerObject(ProcessorWithScriptingContent *p);
 		~TimerObject();
+
+		void mainControllerIsDeleted() { stopTimer(); };
 
 		// ============================================================================================================
 

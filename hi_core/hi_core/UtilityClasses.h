@@ -311,9 +311,12 @@ class ControlledObject
 public:
 
 	/** Creates a new ControlledObject. The MainController must be supplied. */
-	ControlledObject(MainController *m);
+	ControlledObject(MainController *m, bool notifyOnShutdown=false);
 
 	virtual ~ControlledObject();
+
+	/** Overwrite this and make sure that it stops accessing the main controller. */
+	virtual void mainControllerIsDeleted() {};
 
 	/** Provides read-only access to the main controller. */
 	const MainController *getMainController() const noexcept
@@ -331,8 +334,9 @@ public:
 
 private:
 
-	friend class WeakReference<ControlledObject>;
-	WeakReference<ControlledObject>::Master masterReference;
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ControlledObject);
+
+	bool registerShutdown = false;
 
 	MainController* const controller;
 

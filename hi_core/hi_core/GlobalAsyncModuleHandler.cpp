@@ -35,6 +35,8 @@ namespace hise { using namespace juce;
 
 void MainController::GlobalAsyncModuleHandler::removeAsync(Processor* p, const SafeFunctionCall::Function& removeFunction)
 {
+	bool synchronous = p->getMainController()->isBeingDeleted();
+
 	if (removeFunction)
 	{
 		auto f = [removeFunction](Processor* p)
@@ -48,7 +50,10 @@ void MainController::GlobalAsyncModuleHandler::removeAsync(Processor* p, const S
 			return result;
 		};
 
-		mc->getKillStateHandler().killVoicesAndCall(p, f, KillStateHandler::SampleLoadingThread);
+		if (synchronous)
+			f(p);
+		else
+			mc->getKillStateHandler().killVoicesAndCall(p, f, KillStateHandler::SampleLoadingThread);
 	}
 	else
 	{
@@ -84,6 +89,8 @@ void MainController::GlobalAsyncModuleHandler::addAsync(Processor* p, const Safe
 
 void MainController::GlobalAsyncModuleHandler::addPendingUIJob(Processor* p, What what)
 {
+	bool synchronous = p->getMainController()->isBeingDeleted();
+
 	if (what == Add)
 	{
 		auto f = [](Dispatchable* obj)
@@ -97,7 +104,10 @@ void MainController::GlobalAsyncModuleHandler::addPendingUIJob(Processor* p, Wha
 			return Dispatchable::Status::OK;
 		};
 
-		mc->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(p, f);
+		if (synchronous)
+			f(p);
+		else
+			mc->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(p, f);
 	}
 	else
 	{
@@ -116,9 +126,13 @@ void MainController::GlobalAsyncModuleHandler::addPendingUIJob(Processor* p, Wha
 			return Dispatchable::Status::OK;
 		};
 
-		p->setIsWaitingForDeletion();
-
-		mc->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(p, f);
+		if (synchronous)
+			f(p);
+		else
+		{
+			p->setIsWaitingForDeletion();
+			mc->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(p, f);
+		}
 	}
 }
 

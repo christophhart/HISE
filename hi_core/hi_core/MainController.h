@@ -1052,6 +1052,8 @@ public:
 
 	virtual ~MainController();
 
+	void notifyShutdownToRegisteredObjects();
+
 	SampleManager &getSampleManager() noexcept {return *sampleManager; };
 	const SampleManager &getSampleManager() const noexcept { return *sampleManager; };
 
@@ -1367,7 +1369,9 @@ public:
 
 	UndoManager* getControlUndoManager() { return controlUndoManager; }
 
-	
+	void registerControlledObject(ControlledObject* obj) { registeredObjects.add(obj); }
+
+	void removeControlledObject(ControlledObject* obj) { registeredObjects.removeAllInstancesOf(obj); }
 
 private: // Never call this directly, but wrap it through DelayedRenderer...
 
@@ -1435,6 +1439,8 @@ protected:
 	
 
 private:
+
+	Array<WeakReference<ControlledObject>> registeredObjects;
 
 	PooledUIUpdater globalUIUpdater;
 

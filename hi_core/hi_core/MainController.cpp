@@ -103,6 +103,7 @@ MainController::MainController() :
 
 MainController::~MainController()
 {
+	notifyShutdownToRegisteredObjects();
 
 	javascriptThreadPool->cancelAllJobs();
 	sampleManager->cancelAllJobs();
@@ -117,6 +118,17 @@ MainController::~MainController()
 	javascriptThreadPool = nullptr;
 }
 
+
+void MainController::notifyShutdownToRegisteredObjects()
+{
+	for (auto obj : registeredObjects)
+	{
+		if (obj.get() != nullptr)
+			obj->mainControllerIsDeleted();
+	}
+
+	registeredObjects.clear();
+}
 
 const CriticalSection & MainController::getLock() const
 {
@@ -185,7 +197,10 @@ void MainController::clearPreset()
 		return SafeFunctionCall::OK;
 	};
 
-	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::SampleLoadingThread);
+	if (isBeingDeleted())
+		f(getMainSynthChain());
+	else
+		getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::SampleLoadingThread);
 }
 
 void MainController::loadPresetFromValueTree(const ValueTree &v, Component* /*mainEditor*/)
