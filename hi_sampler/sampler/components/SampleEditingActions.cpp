@@ -238,7 +238,7 @@ void SampleEditHandler::SampleEditingActions::pasteSelectedSounds(SampleEditHand
 	
 	checkMicPositionAmountBeforePasting(v, s);
 
-	auto f = [handler, v](Processor* p)
+	auto f = [handler, v](Processor* )
 	{
 		auto s = handler->getSampler();
 

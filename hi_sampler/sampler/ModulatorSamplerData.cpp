@@ -997,7 +997,7 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 
 		bool ok = outputFile.deleteFile();
 
-		jassert(ok);
+		jassert(ok); ignoreUnused(ok);
 
 		outputFile.create();
 		
