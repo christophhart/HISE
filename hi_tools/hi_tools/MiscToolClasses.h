@@ -178,10 +178,10 @@ public:
 
 		while (pendingHandlers.pop(b))
 		{
-			b->pending = false;
-
-			if (b != nullptr)
+			if (b.get() != nullptr)
 			{
+				b->pending = false;
+
 				for (auto l : b->pooledListeners)
 				{
 					if (l != nullptr)
