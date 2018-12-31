@@ -256,17 +256,10 @@ public:
 	bool isActive() const;
 	
 	
-
-	
-
-	
 	/** */
 	void setProjectSettings(Component *mainEditor=nullptr);
 
 	/** Fills the given array with the contents of the specified directory. If 'sortByTime' is true, the most recent files will be the first items in the list. */
-
-	
-
 	void createRSAKey() const;
 
 	String getPublicKey() const;
