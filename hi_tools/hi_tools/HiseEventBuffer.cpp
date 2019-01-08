@@ -141,9 +141,17 @@ double HiseEvent::getPitchFactorForEvent() const
 {
 	if (semitones == 0 && cents == 0) return 1.0;
 
-	const float detuneFactor = (float)semitones + (float)cents / 100.0f;
+	const double detuneFactor = (double)semitones + (double)cents / 100.0;
 
-	return (double)Modulation::PitchConverters::octaveRangeToPitchFactor(detuneFactor);
+	return std::exp2(detuneFactor / 12.0);
+}
+
+double HiseEvent::getFrequency() const
+{
+	int n = getNoteNumber();
+	n += getTransposeAmount();
+	auto freq = MidiMessage::getMidiNoteInHertz(n);
+	return freq * getPitchFactorForEvent();
 }
 
 HiseEvent HiseEvent::createVolumeFade(uint16 eventId, int fadeTimeMilliseconds, int8 targetValue)
@@ -583,5 +591,199 @@ void HiseEventBuffer::insertEventAtPosition(const HiseEvent& e, int positionInBu
         jassertfalse;
     }
 }
+
+
+
+EventIdHandler::EventIdHandler(HiseEventBuffer& masterBuffer_) :
+	masterBuffer(masterBuffer_),
+	currentEventId(1)
+{
+	firstCC.store(-1);
+	secondCC.store(-1);
+
+	//for (int i = 0; i < 128; i++)
+	//realNoteOnEvents[i] = HiseEvent();
+
+	memset(realNoteOnEvents, 0, sizeof(HiseEvent) * 128);
+
+	artificialEvents.calloc(HISE_EVENT_ID_ARRAY_SIZE, sizeof(HiseEvent));
+}
+
+EventIdHandler::~EventIdHandler()
+{
+
+}
+
+void EventIdHandler::handleEventIds()
+{
+	if (transposeValue != 0)
+	{
+		HiseEventBuffer::Iterator transposer(masterBuffer);
+
+		while (HiseEvent* m = transposer.getNextEventPointer())
+		{
+			if (m->isNoteOnOrOff())
+			{
+				int newNoteNumber = jlimit<int>(0, 127, m->getNoteNumber() + transposeValue);
+
+				m->setNoteNumber(newNoteNumber);
+			}
+
+
+		}
+	}
+
+	HiseEventBuffer::Iterator it(masterBuffer);
+
+	while (HiseEvent *m = it.getNextEventPointer())
+	{
+		// This operates on a global level before artificial notes are possible
+		jassert(!m->isArtificial());
+
+		if (m->isAllNotesOff())
+		{
+			memset(realNoteOnEvents, 0, sizeof(HiseEvent) * 128 * 16);
+		}
+
+		if (m->isNoteOn())
+		{
+			auto channel = jlimit<int>(0, 15, m->getChannel() - 1);
+
+			if (realNoteOnEvents[channel][m->getNoteNumber()].isEmpty())
+			{
+				m->setEventId(currentEventId);
+				realNoteOnEvents[channel][m->getNoteNumber()] = HiseEvent(*m);
+				currentEventId++;
+			}
+			else
+			{
+				// There is something fishy here so deactivate this event
+				m->ignoreEvent(true);
+			}
+		}
+		else if (m->isNoteOff())
+		{
+			auto channel = jlimit<int>(0, 15, m->getChannel() - 1);
+
+			if (!realNoteOnEvents[channel][m->getNoteNumber()].isEmpty())
+			{
+				HiseEvent* on = &realNoteOnEvents[channel][m->getNoteNumber()];
+
+				uint16 id = on->getEventId();
+				m->setEventId(id);
+				m->setTransposeAmount(on->getTransposeAmount());
+				*on = HiseEvent();
+			}
+			else
+			{
+				// There is something fishy here so deactivate this event
+				m->ignoreEvent(true);
+			}
+		}
+		else if (firstCC != -1 && m->isController())
+		{
+			const int ccNumber = m->getControllerNumber();
+
+			if (ccNumber == firstCC)
+			{
+				m->setControllerNumber(secondCC);
+			}
+			else if (ccNumber == secondCC)
+			{
+				m->setControllerNumber(firstCC);
+			}
+		}
+	}
+}
+
+uint16 EventIdHandler::getEventIdForNoteOff(const HiseEvent &noteOffEvent)
+{
+	jassert(noteOffEvent.isNoteOff());
+
+	const int noteNumber = noteOffEvent.getNoteNumber();
+
+	if (!noteOffEvent.isArtificial())
+	{
+		auto channel = jlimit<int>(0, 15, noteOffEvent.getChannel() - 1);
+
+		const HiseEvent* e = realNoteOnEvents[channel] + noteNumber;
+
+		return e->getEventId();
+
+		//return realNoteOnEvents +noteNumber.getEventId();
+	}
+	else
+	{
+		const uint16 eventId = noteOffEvent.getEventId();
+
+		if (eventId != 0)
+			return eventId;
+
+		else
+			return lastArtificialEventIds[noteOffEvent.getNoteNumber()];
+	}
+}
+
+void EventIdHandler::pushArtificialNoteOn(HiseEvent& noteOnEvent) noexcept
+{
+	jassert(noteOnEvent.isNoteOn());
+	jassert(noteOnEvent.isArtificial());
+
+	noteOnEvent.setEventId(currentEventId);
+	artificialEvents[currentEventId % HISE_EVENT_ID_ARRAY_SIZE] = noteOnEvent;
+	lastArtificialEventIds[noteOnEvent.getNoteNumber()] = currentEventId;
+
+	currentEventId++;
+}
+
+
+HiseEvent EventIdHandler::peekNoteOn(const HiseEvent& noteOffEvent)
+{
+	if (noteOffEvent.isArtificial())
+	{
+		if (noteOffEvent.getEventId() != 0)
+		{
+			return artificialEvents[noteOffEvent.getEventId() % HISE_EVENT_ID_ARRAY_SIZE];
+		}
+		else
+		{
+			jassertfalse;
+
+			return HiseEvent();
+		}
+	}
+	else
+	{
+		auto channel = jlimit<int>(0, 15, noteOffEvent.getChannel() - 1);
+
+		return realNoteOnEvents[channel][noteOffEvent.getNoteNumber()];
+	}
+}
+
+HiseEvent EventIdHandler::popNoteOnFromEventId(uint16 eventId)
+{
+	HiseEvent e;
+	e.swapWith(artificialEvents[eventId % HISE_EVENT_ID_ARRAY_SIZE]);
+
+	return e;
+}
+
+void EventIdHandler::setGlobalTransposeValue(int newTransposeValue)
+{
+	transposeValue = newTransposeValue;
+}
+
+void EventIdHandler::addCCRemap(int firstCC_, int secondCC_)
+{
+	firstCC = firstCC_;
+	secondCC = secondCC_;
+
+	if (firstCC_ == secondCC_)
+	{
+		firstCC_ = -1;
+		secondCC_ = -1;
+	}
+}
+
 
 } // namespace hise

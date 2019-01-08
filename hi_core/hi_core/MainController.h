@@ -377,64 +377,7 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MacroManager)
 	};
 
-	/** This class will iterate over incoming MIDI messages, and transform them
-	*	into HiseEvents with a succesive index for note-on / note-off messages.
-	*	
-	*	Normally, you won't use this class, but rather benefit from it in the MIDI
-	*	processing world using Message.getEventId(), but there are a few methods
-	*	that can access these things directly.
-	*/
-	class EventIdHandler
-	{
-	public:
-
-		// ===========================================================================================================
-
-		EventIdHandler(HiseEventBuffer& masterBuffer_);
-		~EventIdHandler();
-
-		// ===========================================================================================================
-
-		/** Fills note on / note off messages with the event id and returns the current value for external storage. */
-		void handleEventIds();
-
-		/** Removes the matching noteOn event for the given noteOff event. */
-		uint16 getEventIdForNoteOff(const HiseEvent &noteOffEvent);
-
-		/** Returns the matching note on event for the given note off event (but doesn't remove it). */
-		HiseEvent peekNoteOn(const HiseEvent& noteOffEvent);
-
-		/** Adds the artificial event to the internal stack array. */
-		void pushArtificialNoteOn(HiseEvent& noteOnEvent) noexcept;
-
-		/** Searches all active note on events and returns the one with the given event id. */
-		HiseEvent popNoteOnFromEventId(uint16 eventId);
-
-		/** You can specify a global transpose value here that will be added to all note on / note off messages. */
-		void setGlobalTransposeValue(int transposeValue);
-
-		/** Adds a CC remapping configuration. If this is enabled, the CC numbers will be swapped. If you pass in the same numbers, it will be deactivated. */
-		void addCCRemap(int firstCC_, int secondCC_);;
-
-		// ===========================================================================================================
-
-	private:
-
-        std::atomic<int> firstCC;
-        std::atomic<int> secondCC;
-
-		const HiseEventBuffer &masterBuffer;
-		HeapBlock<HiseEvent> artificialEvents;
-		uint16 lastArtificialEventIds[128];
-		HiseEvent realNoteOnEvents[16][128];
-		uint16 currentEventId;
-
-		int transposeValue = 0;
-
-		// ===========================================================================================================
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(EventIdHandler)
-	};
+	
 
 	/** This class is a dispatcher for methods that are being called by either the message thread or the sample loading thread.
 	*

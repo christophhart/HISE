@@ -80,6 +80,7 @@ END_JUCE_MODULE_DECLARATION
 #include "Macros.h"
 
 #include "hi_tools/CustomDataContainers.h"
+#include "hi_tools/HiseEventBuffer.h"
 
 #include "hi_tools/MiscToolClasses.h"
 

@@ -55,6 +55,7 @@
 #endif
 
 #include "hi_tools/CustomDataContainers.cpp"
+#include "hi_tools/HiseEventBuffer.cpp"
 
 #include "hi_tools/MiscToolClasses.cpp"
 

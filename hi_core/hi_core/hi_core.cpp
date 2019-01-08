@@ -80,7 +80,6 @@
 #include "MiscComponents.cpp"
 #include "MacroControlledComponents.cpp"
 #include "MacroControlBroadcaster.cpp"
-#include "HiseEventBuffer.cpp"
 #include "StandaloneProcessor.cpp"
 
 #if HI_RUN_UNIT_TESTS

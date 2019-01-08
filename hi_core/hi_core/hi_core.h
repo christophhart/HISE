@@ -77,7 +77,6 @@
 */
 #include "UtilityClasses.h"
 
-#include "HiseEventBuffer.h"
 #include "DebugLogger.h"
 #include "ThreadWithQuasiModalProgressWindow.h"
 #include "Popup.h"

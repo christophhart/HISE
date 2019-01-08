@@ -146,7 +146,7 @@ public:
 		return height;
 	}
 
-	void draw(Graphics& g, Rectangle<float> area)
+	void draw(Graphics& g, Rectangle<float> area) const
 	{
 		for (auto* e : elements)
 		{
