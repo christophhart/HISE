@@ -41,8 +41,67 @@ using namespace juce;
 class MarkdownParser
 {
 public:
-
 	
+    struct LayoutCache
+    {
+        void clear() { cachedLayouts.clear(); }
+        
+        const TextLayout& getLayout(const AttributedString& s, float w);
+        
+    private:
+        
+        struct Layout
+        {
+            Layout(const AttributedString& s, float w);
+            
+            TextLayout l;
+            int64 hashCode;
+            float width;
+            
+            JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Layout);
+        };
+        
+        OwnedArray<Layout> cachedLayouts;
+        
+        JUCE_DECLARE_WEAK_REFERENCEABLE(LayoutCache);
+    };
+        
+	struct HyperLink
+	{
+		bool valid = false;
+		Rectangle<float> area = {};
+		String url = {};
+		String tooltip;
+		Range<int> urlRange = {};
+	};
+
+	struct Listener
+	{
+		virtual ~Listener() {};
+		virtual void markdownWasParsed(const Result& r) = 0;
+
+	private:
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+	};
+
+	struct LinkResolver
+	{
+		virtual ~LinkResolver() {};
+		virtual String getContent(const String& url) = 0;
+	};
+
+	struct FileLinkResolver: public LinkResolver
+	{
+		FileLinkResolver(const File& root_) :
+			root(root_)
+		{};
+
+		String getContent(const String& url) override;
+
+		File root;
+	};
+
 	class ImageProvider
 	{
 	public:
@@ -57,20 +116,21 @@ public:
 		*
 		*	The default function just returns a placeholder.
 		*/
-		virtual Image getImage(const String& /*imageURL*/, float width)
-		{
-			Image img = Image(Image::PixelFormat::ARGB, (int)width, (int)width, true);
-			Graphics g(img);
-			g.fillAll(Colours::grey);
-			g.setColour(Colours::black);
-			g.drawRect(0.0f, 0.0f, width, width, 1.0f);
-			g.setFont(GLOBAL_BOLD_FONT());
-			g.drawText("Empty", 0, 0, (int)width, (int)width, Justification::centred);
-			return img;
-		}
+		virtual Image getImage(const String& /*imageURL*/, float width);
 
 	protected:
 		MarkdownParser * parent;
+	};
+
+	class FileBasedImageProvider : public ImageProvider
+	{
+	public:
+
+		FileBasedImageProvider(MarkdownParser* parent, const File& root);;
+
+		Image getImage(const String& imageURL, float width) override;
+
+		File r;
 	};
 
 	template <class FactoryType> class PathProvider: public ImageProvider
@@ -111,11 +171,16 @@ public:
 		FactoryType f;
 	};
 
-	MarkdownParser(const String& markdownCode);
+	MarkdownParser(const String& markdownCode, LayoutCache* cToUse=nullptr);
 
 	void setFonts(Font normalFont, Font codeFont, Font headlineFont, float defaultFontSize);
 
 	void setTextColour(Colour c) { textColour = c; }
+
+	void setLinkResolver(LinkResolver* ownedResolver)
+	{
+		linkResolver = ownedResolver;
+	}
 
 	template <class ProviderType> void setNewImageProvider()
 	{
@@ -129,104 +194,81 @@ public:
 
 	void parse();
 
-	void setDefaultTextSize(float fontSize)
+	Result getParseResult() const { return currentParseResult; }
+
+	void setDefaultTextSize(float fontSize);
+
+	float getHeightForWidth(float width);
+
+	void draw(Graphics& g, Rectangle<float> area) const;
+
+	bool canNavigate(bool back) const
 	{
-		defaultFontSize = fontSize;
+		if (back)
+			return historyIndex < history.size();
+		else
+			return historyIndex < (history.size() - 1);
 	}
 
-	float getHeightForWidth(float width)
+	void navigate(bool back)
 	{
-		float height = 0.0f;
+		if (back)
+			historyIndex = jmax<int>(historyIndex - 1, 0);
+		else
+			historyIndex = jmin<int>(historyIndex + 1, history.size() - 1);
 
-		for (auto* e : elements)
-		{
-			height += e->getHeightForWidth(width);
-		}
-
-		return height;
+		setNewText(history[historyIndex]);
 	}
 
-	void draw(Graphics& g, Rectangle<float> area) const
-	{
-		for (auto* e : elements)
-		{
-			auto heightToUse = e->getHeightForWidth(area.getWidth());
-			auto ar = area.removeFromTop(heightToUse);
+	void setNewText(const String& newText);
+	bool gotoLink(const MouseEvent& event, Rectangle<float> area);
 
-			e->draw(g, ar);
-		}
-	}
+	HyperLink getHyperLinkForEvent(const MouseEvent& event, Rectangle<float> area);
+
+	void addListener(Listener* l) { listeners.addIfNotAlreadyThere(l); }
+	void removeListener(Listener* l) { listeners.removeAllInstancesOf(l); }
+
+	struct SnippetTokeniser : public CodeTokeniser
+	{
+		SnippetTokeniser() {};
+
+		int readNextToken(CodeDocument::Iterator& source) override;
+		CodeEditorComponent::ColourScheme getDefaultColourScheme();
+	};
+
+	struct Tokeniser: public CodeTokeniser
+	{
+		Tokeniser() {};
+
+		int readNextToken(CodeDocument::Iterator& source);
+		CodeEditorComponent::ColourScheme getDefaultColourScheme();
+	};
+
+	const TextLayout& getTextLayoutForString(const AttributedString& s, float width);
 
 private:
 
-	struct Iterator
+    WeakReference<LayoutCache> layoutCache;
+    TextLayout uncachedLayout;
+    
+	class Iterator
 	{
 	public:
 
-		Iterator(const String& text_) :
-			text(text_),
-			it(text.getCharPointer())
-		{
+		Iterator(const String& text_);
 
-		}
-
-		juce_wchar peek()
-		{
-			if (it.isEmpty())
-				return 0;
-
-			return *(it);
-		}
-
-		bool advance(int numCharsToSkip=1)
-		{
-			it += numCharsToSkip;
-
-			return !it.isEmpty();
-		}
-
-		bool advance(const String& stringToSkip)
-		{
-			return advance(stringToSkip.length());
-		}
-
-
-
-		bool next(juce::juce_wchar& c)
-		{
-			if (it.isEmpty())
-				return false;
-
-			c = *it++;
-
-			return c != 0;
-
-		}
-
-		bool match(juce_wchar expected)
-		{
-			juce_wchar c;
-
-			if (!next(c))
-				return false;
-
-			jassert(c == expected);
-
-			return c == expected;
-		}
-
+		juce_wchar peek();
+		bool advanceIfNotEOF(int numCharsToSkip = 1);
+		bool advance(int numCharsToSkip = 1);
+		bool advance(const String& stringToSkip);
+		bool next(juce::juce_wchar& c);
+		bool match(juce_wchar expected);
 		void skipWhitespace();
-
-		String getRestString() const
-		{
-			if (it.isEmpty())
-				return {};
-
-			return String(it);
-		}
+		String getRestString() const;
 
 	private:
-		const String text;
+
+		String text;
 		CharPointer_UTF8 it;
 	};
 
@@ -234,7 +276,9 @@ private:
 	{
 		Element(MarkdownParser* parent_) :
 			parent(parent_)
-		{};
+		{
+			hyperLinks.insertArray(0, parent->currentLinks.getRawDataPointer(), parent->currentLinks.size());
+		};
 
 		virtual ~Element() {};
 
@@ -242,12 +286,31 @@ private:
 
 		virtual float getHeightForWidth(float width) = 0;
 
+		virtual int getTopMargin() const = 0;
+
+		Array<HyperLink> hyperLinks;
+
+		float getHeightForWidthCached(float width)
+		{
+			if (width != lastWidth)
+			{
+				cachedHeight = getHeightForWidth(width);
+				lastWidth = width;
+				return cachedHeight;
+			}
+
+			return cachedHeight;
+		}
+
+		static void recalculateHyperLinkAreas(TextLayout& l, Array<HyperLink>& links, float topMargin);
+
 	protected:
 
 		MarkdownParser* parent;
-	};
 
-	
+		float lastWidth = -1.0f;
+		float cachedHeight = 0.0f;
+	};
 
 	struct TextBlock;	struct Headline;		struct BulletPointList;		struct Comment;
 	struct CodeBlock;	struct MarkdownTable;	struct ImageElement;
@@ -262,6 +325,7 @@ private:
 		AttributedString s;
 
 		String imageURL;
+		Array<HyperLink> cellLinks;
 	};
 
 	using RowContent = Array<CellContent>;
@@ -270,38 +334,28 @@ private:
 
 	struct Helpers
 	{
+		static bool isNewElement(juce_wchar c);
 		static bool isEndOfLine(juce_wchar c);
+		static bool isNewToken(juce_wchar c, bool isCode);
+		static bool belongsToTextBlock(juce_wchar c, bool isCode, bool stopAtLineEnd);
 	};
-
-
-	void parseLine();
 
 	void resetForNewLine();
 
+	void parseLine();
 	void parseHeadline();
-
 	void parseBulletList();
-
-	void parseText();
-
+	void parseText(bool stopAtEndOfLine=true);
 	void parseBlock();
-
 	void parseJavascriptBlock();
-
 	void parseTable();
-
+	void parseComment();
 	ImageElement* parseImage();
-
 	RowContent parseTableRow();
-
 	bool isJavascriptBlock() const;
-
 	bool isImageLink() const;
-
 	void addCharacterToCurrentBlock(juce_wchar c);
-
 	void resetCurrentBlock();
-
 	void skipTagAndTrailingSpace();
 
 	bool isBold = false;
@@ -309,32 +363,30 @@ private:
 	bool isCode = false;
 
 	float defaultFontSize = 17.0f;
-
 	Colour textColour = Colours::black;
-
 	Colour currentColour;
 
 	Font normalFont;
 	Font boldFont;
 	Font codeFont;
 	Font headlineFont;
-
 	Font currentFont;
 	
-	Iterator it;
-
-	ScopedPointer<ImageProvider> imageProvider;
-
-	AttributedString currentlyParsedBlock;
 	String markdownCode;
-
-	void parseComment();
+	Iterator it;
+	Result currentParseResult;
+	ScopedPointer<ImageProvider> imageProvider;
+	AttributedString currentlyParsedBlock;
+	Array<HyperLink> currentLinks;
+	ScopedPointer<LinkResolver> linkResolver;
+	Array<WeakReference<Listener>> listeners;
+	StringArray history;
+	int historyIndex;
 };
 
 class HiseShapeButton : public ShapeButton
 {
 public:
-
 	
 	HiseShapeButton(const String& name, ButtonListener* listener, PathFactory& factory, const String& offName = String()) :
 		ShapeButton(name, Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white)

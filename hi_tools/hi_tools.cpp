@@ -63,7 +63,9 @@
 
 
 #include "hi_tools/JavascriptTokeniser.cpp"
+#include "hi_tools/MarkdownElements.cpp"
 #include "hi_tools/Markdown.cpp"
+#include "hi_tools/MarkdownParser.cpp"
 #include "hi_tools/VariantBuffer.cpp"
 #include "hi_tools/Tables.cpp"
 

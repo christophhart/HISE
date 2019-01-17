@@ -1454,9 +1454,10 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 	jassert(listener != nullptr);
 	jassert(thread != nullptr);
 
+#if USE_BACKEND
+
 	bool ok = true;
 
-#if USE_BACKEND
 	const String& metadataJSON = data.metadataJSON;
 
 	int bitDepth = (int)JSON::parse(metadataJSON).getProperty("BitDepth", 16);

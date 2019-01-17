@@ -35,568 +35,85 @@ namespace hise {
 using namespace juce;
 
 
-
-
-struct MarkdownParser::TextBlock : public MarkdownParser::Element
+const juce::TextLayout& MarkdownParser::LayoutCache::getLayout(const AttributedString& s, float w)
 {
-	TextBlock(MarkdownParser* parent, const AttributedString& s) :
-		Element(parent),
-		content(s)
-	{}
+	int64 hash = s.getText().hashCode64();
 
-	void draw(Graphics& g, Rectangle<float> area) override
+	for (auto l : cachedLayouts)
 	{
-		area.removeFromTop(intendation);
-		area.removeFromBottom(intendation);
-
-		content.draw(g, area);
+		if (l->hashCode == hash && l->width == w)
+			return l->l;
 	}
 
-	float getHeightForWidth(float width) override
-	{
-		if (lastWidth == width)
-		{
-			return lastHeight;
-		}
-		else
-		{
-			TextLayout l;
-			l.createLayoutWithBalancedLineLengths(content, width);
+	auto newLayout = new Layout(s, w);
 
-			lastWidth = width;
-			lastHeight = l.getHeight();
+	cachedLayouts.add(newLayout);
+	return newLayout->l;
+}
 
-			lastHeight += 2.0f * intendation;
 
-			return lastHeight;
-		}
-	}
-
-	AttributedString content;
-
-	const float intendation = 5.0f;
-
-	float lastWidth = -1.0f;
-	float lastHeight = -1.0f;
-
-};
-
-struct MarkdownParser::Headline : public MarkdownParser::Element
+MarkdownParser::LayoutCache::Layout::Layout(const AttributedString& s, float w)
 {
-	Headline(MarkdownParser* parent, int level_, const AttributedString& s, bool isFirst_) :
-		Element(parent),
-		content(s),
-		level(level_),
-		isFirst(isFirst_)
-	{
-
-	}
-
-	void draw(Graphics& g, Rectangle<float> area) override;
-
-	float getHeightForWidth(float /*width*/) override
-	{
-
-
-		float marginTop = isFirst ? 0.0f : 20.0f;
-
-		float marginBottom = 10.0f;
-
-		if (content.getNumAttributes() > 0)
-		{
-			return content.getAttribute(0).font.getHeight() + marginTop + marginBottom;
-		}
-
-		return 0.0f;
+	hashCode = s.getText().hashCode64();
+	width = w;
+	l.createLayoutWithBalancedLineLengths(s, width);
+}
 
 
 
-	}
-
-	AttributedString content;
-	int level;
-	bool isFirst;
-};
-
-struct MarkdownParser::BulletPointList : public MarkdownParser::Element
+juce::String MarkdownParser::FileLinkResolver::getContent(const String& url)
 {
-	struct Row
-	{
-		AttributedString content;
-		float height;
-	};
+	File f = root.getChildFile(url);
 
-	BulletPointList(MarkdownParser* parser, Array<AttributedString>& ar) :
-		Element(parser)
-	{
-		for (const auto& r : ar)
-			rows.add({ r, -1.0f });
-	}
-
-	void draw(Graphics& g, Rectangle<float> area) override
-	{
-		area.removeFromTop(intendation);
-
-		for (const auto& r : rows)
-		{
-			area.removeFromTop(bulletMargin);
-
-			auto ar = area.removeFromTop(r.height);
+	if (f.existsAsFile())
+		return f.loadFileAsString();
+	else
+		return "File `" + f.getFullPathName() + "` not found";
+}
 
 
-			auto font = parent->normalFont.withHeight(parent->defaultFontSize);
-
-			static const String bp = CharPointer_UTF8(" \xe2\x80\xa2 ");
-
-			auto i = font.getStringWidthFloat(bp) + 10.0f;
-
-			auto ba = ar.removeFromLeft(i);
-
-			g.setColour(parent->textColour);
-			g.setFont(font);
-			g.drawText(bp, ba, Justification::topLeft);
-
-			r.content.draw(g, ar);
-		}
-	}
-
-	float getHeightForWidth(float width) override
-	{
-		if (lastWidth == width)
-			return lastHeight;
-
-		lastWidth = width;
-		lastHeight = 0.0f;
-
-		float bulletPointIntendation = parent->defaultFontSize * 2.0f;
-
-		for (auto& r : rows)
-		{
-			TextLayout l;
-			l.createLayoutWithBalancedLineLengths(r.content, width - bulletPointIntendation);
-
-			r.height = l.getHeight();
-			lastHeight += l.getHeight();
-
-			lastHeight += bulletMargin;
-		}
-
-		lastHeight += 2.0f* intendation;
-
-		return lastHeight;
-	}
-
-	const float intendation = 8.0f;
-
-	const float bulletMargin = 10.0f;
-
-	Array<Row> rows;
-
-	float lastWidth = -1.0f;
-	float lastHeight = -1.0f;
-};
-
-struct MarkdownParser::Comment : public MarkdownParser::Element
+juce::Image MarkdownParser::ImageProvider::getImage(const String& /*imageURL*/, float width)
 {
-	Comment(MarkdownParser* p, const AttributedString& c) :
-		Element(p),
-		content(c)
-	{};
-
-	void draw(Graphics& g, Rectangle<float> area) override
-	{
-		area.removeFromTop(intendation);
-		area.removeFromBottom(intendation);
-
-		g.setColour(Colours::grey.withAlpha(0.2f));
-
-		g.fillRect(area);
-		g.fillRect(area.withWidth(3.0f));
-
-		content.draw(g, area.reduced(intendation));
-	}
-
-	float getHeightForWidth(float width) override
-	{
-		float widthToUse = width - 2.0f * intendation;
-
-		if (widthToUse != lastWidth)
-		{
-			lastWidth = widthToUse;
-
-			TextLayout l;
-			l.createLayoutWithBalancedLineLengths(content, widthToUse);
-
-			lastHeight = l.getHeight() + 4.0f * intendation;
-
-			return lastHeight;
-		}
-		else
-			return lastHeight;
-	}
+	Image img = Image(Image::PixelFormat::ARGB, (int)width, (int)width, true);
+	Graphics g(img);
+	g.fillAll(Colours::grey);
+	g.setColour(Colours::black);
+	g.drawRect(0.0f, 0.0f, width, width, 1.0f);
+	g.setFont(GLOBAL_BOLD_FONT());
+	g.drawText("Empty", 0, 0, (int)width, (int)width, Justification::centred);
+	return img;
+}
 
 
-
-
-	const float intendation = 12.0f;
-
-	float lastWidth = -1.0f;
-	float lastHeight = -1.0f;
-
-	AttributedString content;
-};
-
-struct MarkdownParser::CodeBlock : public MarkdownParser::Element
+MarkdownParser::FileBasedImageProvider::FileBasedImageProvider(MarkdownParser* parent, const File& root) :
+	ImageProvider(parent),
+	r(root)
 {
-	CodeBlock(MarkdownParser* parent, const String& code_) :
-		Element(parent),
-		code(code_)
-	{
-		code = code.trim();
-		code << "\n"; // hacky..
-	}
 
-	void draw(Graphics& g, Rectangle<float> area) override
-	{
-        g.setOpacity(1.0f);
-		g.drawImageAt(renderedCodePreview, (int)area.getX(), (int)area.getY() + 10);
-	}
+}
 
-	float getHeightForWidth(float width) override
-	{
-		if (width != lastWidth)
-		{
-			int numLines = StringArray::fromLines(code).size();
-
-			ScopedPointer<CodeDocument> doc = new CodeDocument();
-			ScopedPointer<JavascriptTokeniser> tok = new JavascriptTokeniser();
-
-			
-
-			doc->replaceAllContent(code);
-
-			ScopedPointer<CodeEditorComponent> editor = new CodeEditorComponent(*doc, tok);
-
-			
-
-			editor->setColour(CodeEditorComponent::backgroundColourId, Colour(0xff262626));
-			editor->setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFCCCCCC));
-			editor->setColour(CodeEditorComponent::ColourIds::lineNumberTextId, Colour(0xFFCCCCCC));
-			editor->setColour(CodeEditorComponent::ColourIds::lineNumberBackgroundId, Colour(0xff363636));
-			editor->setColour(CodeEditorComponent::ColourIds::highlightColourId, Colour(0xff666666));
-			editor->setColour(CaretComponent::ColourIds::caretColourId, Colour(0xFFDDDDDD));
-			editor->setColour(ScrollBar::ColourIds::thumbColourId, Colour(0x3dffffff));
-			editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(17.0f));
-			
-			editor->setSize((int)width, editor->getLineHeight() * numLines + 25);
-
-			renderedCodePreview = editor->createComponentSnapshot(editor->getLocalBounds());
-
-			renderedCodePreview = renderedCodePreview.getClippedImage({ 0, 0, renderedCodePreview.getWidth(), renderedCodePreview.getHeight() - 22 });
-
-			lastWidth = width;
-			lastHeight = (float)renderedCodePreview.getHeight() + 3.0f;
-
-			return lastHeight;
-		}
-		else
-			return lastHeight;
-
-
-	}
-
-	String code;
-
-	Image renderedCodePreview;
-
-	float lastWidth = -1.0f;
-	float lastHeight = -1.0f;
-};
-
-
-struct MarkdownParser::ImageElement : public MarkdownParser::Element
+juce::Image MarkdownParser::FileBasedImageProvider::getImage(const String& imageURL, float width)
 {
-	ImageElement(MarkdownParser* parent, const String& imageName_, const String& imageURL_) :
-		Element(parent),
-		imageName(imageName_),
-		imageURL(imageURL_)
-	{};
+	File imageFile = r.getChildFile(imageURL);
 
-	float getHeightForWidth(float width) override
+	if (imageFile.existsAsFile() && ImageFileFormat::findImageFormatForFileExtension(imageFile) != nullptr)
 	{
-		if (!img.isNull())
-			return (float)img.getHeight();
-
-		if (parent->imageProvider != nullptr)
-		{
-			img = parent->imageProvider->getImage(imageURL, width);
-			return (float)img.getHeight();
-		}
-
-		return 0.0f;
+		return ImageCache::getFromFile(imageFile);
 	}
 
-	void draw(Graphics& g, Rectangle<float> area)
-	{
-		g.setOpacity(1.0f);
-		g.drawImageAt(img, (int)area.getX(), (int)area.getY());
-	}
+	return ImageProvider::getImage(imageURL, width);
+}
 
-	String getImageURL() const { return imageURL; }
-
-private:
-
-	Image img;
-
-	float lastWidth = -1.0f;
-	float lastHeight = -1.0f;
-
-	String imageName;
-	String imageURL;
-};
-
-
-struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
+MarkdownParser::MarkdownParser(const String& markdownCode_, LayoutCache* c) :
+	markdownCode(markdownCode_.replace("\r\n", "\n")),
+	it(markdownCode),
+	imageProvider(new ImageProvider(this)),
+	currentParseResult(Result::fail("Nothing parsed yet")),
+    layoutCache(c)
 {
-	MarkdownTable(MarkdownParser* p, const RowContent& headerItems, const Array<int>& lengths, const Array<RowContent>& entries) :
-		Element(p)
-	{
-		int index = 0;
+	history.add(markdownCode);
+	historyIndex = 0;
 
-		for (const auto& h : headerItems)
-		{
-			Cell c;
-			c.content = h.s;
-			c.imageURL = h.imageURL;
-			c.index = index;
-			c.area = {};
-			c.length = lengths[index];
-
-			headers.columns.add(c);
-
-			index++;
-		}
-
-		index = 0;
-
-		for (const auto& e : entries)
-		{
-			Row newRow;
-
-			int j = 0;
-
-			for (const auto& cell_ : e)
-			{
-                Cell c;
-                
-                c.content = cell_.s;
-                c.imageURL = cell_.imageURL;
-                c.index = j;
-                c.area = {};
-                c.length = lengths[j];
-                
-				newRow.columns.add(c);
-				j++;
-			}
-
-			newRow.index = index++;
-
-			rows.add(newRow);
-		}
-	};
-
-	void draw(Graphics& g, Rectangle<float> area) override
-	{
-		area.removeFromTop(10.0f);
-		area.removeFromBottom(10.0f);
-
-		
-
-		g.setColour(Colours::grey.withAlpha(0.2f));
-		g.fillRect(area);
-
-		auto headerArea = area.removeFromTop(headers.rowHeight);
-		g.fillRect(headerArea);
-		
-		g.setColour(Colours::grey.withAlpha(0.2f));
-
-		g.drawVerticalLine((int)area.getX(), area.getY(), area.getBottom());
-
-		for (const auto& c : headers.columns)
-		{
-			
-			if(c.index != headers.columns.getLast().index)
-				g.drawVerticalLine((int)c.area.getRight(), area.getY(), area.getBottom());
-
-		}
-
-		g.drawVerticalLine((int)area.getRight()-1, area.getY(), area.getBottom());
-		
-		
-
-
-		headers.draw(g, headerArea);
-
-
-		for (auto& r : rows)
-		{
-			auto rowArea = area.removeFromTop(r.rowHeight);
-			r.draw(g, rowArea);
-
-			g.setColour(Colours::grey.withAlpha(0.2f));
-			g.drawHorizontalLine((int)rowArea.getBottom(), rowArea.getX(), rowArea.getRight());
-		}
-	}
-
-	float getHeightForWidth(float width) override
-	{
-		if (width != lastWidth)
-		{
-			lastWidth = width;
-
-			lastHeight = 20.0f;
-
-			float y = 0.0f;
-
-			headers.updateHeight(width, y, parent);
-
-			lastHeight += headers.rowHeight;
-
-			for (auto& r : rows)
-			{
-				r.updateHeight(width, y, parent);
-				lastHeight += r.rowHeight;
-			}
-
-			return lastHeight;
-		}
-		else
-			return lastHeight;
-	}
-
-	struct Cell
-	{
-		bool operator ==(const Cell& other) const
-		{
-			return index == other.index;
-		}
-
-		AttributedString content;
-		String imageURL;
-		int index = -1;
-		Rectangle<float> area;
-		int length;
-		Image img;
-	};
-
-	struct Row
-	{
-		const float intendation = 8.0f;
-
-		float calculateHeightForCell(Cell& c, float width, MarkdownParser* parser)
-		{
-			if (!c.content.getText().isEmpty())
-			{
-				return getHeightForAttributedString(c.content, width);
-			}
-			else
-			{
-				c.img = parser->imageProvider->getImage(c.imageURL, width - 4.0f);
-				return (float)c.img.getHeight();
-			}
-		}
-
-		void updateHeight(float width, float& y, MarkdownParser* parser)
-		{
-			rowHeight = 0.0f;
-
-			float x = 0.0f;
-
-			totalLength = 0;
-
-			for (const auto& c : columns)
-				totalLength += c.length;
-
-
-			for (auto& h : columns)
-			{
-				float w = getColumnWidth(width, h.index);
-
-				rowHeight = jmax<float>(rowHeight, calculateHeightForCell(h, w - 2.0f * intendation, parser) + 2.0f * intendation );
-
-				h.area = Rectangle<float>(x, 0.0f, w, rowHeight);
-
-				x += w;
-			}
-
-			y += rowHeight;
-		}
-
-		void draw(Graphics& g, Rectangle<float> area)
-		{
-			for (const auto& c : columns)
-			{
-				auto ar = c.area.withX(c.area.getX() + area.getX());
-				ar = ar.withY(ar.getY() + area.getY());
-
-				Random r;
-
-				if (c.img.isNull())
-				{
-					c.content.draw(g, ar.reduced(intendation));
-				}
-				else
-				{
-					g.setOpacity(1.0f);
-					ar = ar.withSizeKeepingCentre((float)c.img.getWidth(), (float)c.img.getHeight());
-					g.drawImageAt(c.img, (int)ar.getX(), (int)ar.getY());
-				}
-			}
-		}
-
-		float getColumnWidth(float width, int columnIndex) const
-		{
-			if (totalLength > 0)
-			{
-				float fraction = (float)columns[columnIndex].length / (float)totalLength;
-				return fraction * width;
-			}
-			else return
-				0.0f;
-		}
-
-		Array<Cell> columns;
-		int index = -1;
-
-		float rowHeight = -1.0f;
-
-		int totalLength;
-	};
-
-	static float getHeightForAttributedString(const AttributedString& s, float width)
-	{
-		TextLayout l;
-		l.createLayoutWithBalancedLineLengths(s, width);
-
-		return l.getHeight();
-	}
-
-	Row headers;
-	Array<Row> rows;
-
-	const float intendation = 12.0f;
-
-	float lastWidth = -1.0f;
-	float lastHeight = -1.0f;
-
-	
-};
-
-MarkdownParser::MarkdownParser(const String& markdownCode_) :
-	markdownCode(markdownCode_),
-	it(markdownCode_),
-	imageProvider(new ImageProvider(this))
-{
 	normalFont = GLOBAL_FONT();
 	boldFont = GLOBAL_BOLD_FONT();
 	headlineFont = GLOBAL_FONT();
@@ -611,395 +128,115 @@ void MarkdownParser::setFonts(Font normalFont_, Font codeFont_, Font headlineFon
 	defaultFontSize = defaultFontSize_;
 }
 
-void MarkdownParser::Iterator::skipWhitespace()
-{
-	juce_wchar c = peek();
 
-	while (CharacterFunctions::isWhitespace(c))
+void MarkdownParser::setDefaultTextSize(float fontSize)
+{
+	defaultFontSize = fontSize;
+}
+
+float MarkdownParser::getHeightForWidth(float width)
+{
+	float height = 0.0f;
+
+	for (auto* e : elements)
 	{
-		if (!next(c))
-			break;
+		height += e->getTopMargin();
+		height += e->getHeightForWidthCached(width);
+	}
+
+	return height;
+}
+
+
+void MarkdownParser::draw(Graphics& g, Rectangle<float> area) const
+{
+	for (auto* e : elements)
+	{
+		auto heightToUse = e->getHeightForWidthCached(area.getWidth());
+		auto topMargin = e->getTopMargin();
+		area.removeFromTop(topMargin);
+		auto ar = area.removeFromTop(heightToUse);
+
+		e->draw(g, ar);
 	}
 }
 
 
-void MarkdownParser::parse()
+void MarkdownParser::setNewText(const String& newText)
 {
-	while (it.peek() != 0)
-		parseBlock();
-	
-}
-
-void MarkdownParser::parseLine()
-{
-	resetForNewLine();
-	currentColour = textColour.withAlpha(0.8f);
-	parseText(); 
-	elements.add(new TextBlock(this, currentlyParsedBlock));
-}
-
-void MarkdownParser::resetForNewLine()
-{
-	currentFont = normalFont.withHeight(defaultFontSize);
-	currentFont.setBold(false);
-	currentColour = textColour;
 	resetCurrentBlock();
+	elements.clear();
+
+	markdownCode = newText;
+	it = Iterator(markdownCode);
+	parse();
 }
 
-void MarkdownParser::parseHeadline()
+
+bool MarkdownParser::gotoLink(const MouseEvent& event, Rectangle<float> area)
 {
-	resetCurrentBlock();
+	auto link = getHyperLinkForEvent(event, area);
 
-	currentColour = Colour(SIGNAL_COLOUR);
-
-	juce::juce_wchar c = it.peek();
-	int headlineLevel = 3;
-
-	while (it.next(c) && c == '#' && headlineLevel > 0)
+	if (link.valid && linkResolver != nullptr)
 	{
-		headlineLevel--;
+		if (link.url.startsWith("CLIPBOARD::"))
+		{
+			String content = link.url.fromFirstOccurrenceOf("CLIPBOARD::", false, false);
+
+			SystemClipboard::copyTextToClipboard(content);
+			return true;
+		}
+
+		if (link.url.startsWith("http"))
+		{
+			URL url(link.url);
+			url.launchInDefaultBrowser();
+			return true;
+		}
+
+		String newText = linkResolver->getContent(link.url).replace("\r\n", "\n");
+
+		history.removeRange(historyIndex, -1);
+		history.add(newText);
+		historyIndex = history.size() - 1;
+
+		setNewText(newText);
+		return true;
 	}
 
-	currentFont = headlineFont.withHeight(defaultFontSize + 5 * headlineLevel);
-	currentFont.setBold(true);
-
-	if (it.peek() == ' ')
-		it.advance();
-
-	parseText();
-
-	isBold = false;
-
-	elements.add(new Headline(this, headlineLevel, currentlyParsedBlock, elements.size() == 0));
-
-}
-
-void MarkdownParser::parseBulletList()
-{
-	Array<AttributedString> bulletpoints;
-
-	while (it.peek() == '-')
-	{
-		skipTagAndTrailingSpace();
-
-		resetCurrentBlock();
-		resetForNewLine();
-
-		parseText();
-
-		bulletpoints.add(currentlyParsedBlock);
-	}
-
-	elements.add(new BulletPointList(this, bulletpoints));
-
-
-	currentFont = normalFont.withHeight(defaultFontSize);
-
+	return false;
 }
 
 
-
-void MarkdownParser::parseText()
+hise::MarkdownParser::HyperLink MarkdownParser::getHyperLinkForEvent(const MouseEvent& event, Rectangle<float> area)
 {
-	juce_wchar c;
+	bool matchesURL = false;
+	float y = 0.0f;
 
-	it.next(c);
-
-	while (!Helpers::isEndOfLine(c))
+	for (auto* e : elements)
 	{
-		switch (c)
+		auto heightToUse = e->getHeightForWidthCached(area.getWidth());
+		heightToUse += e->getTopMargin();
+		Rectangle<float> eBounds(area.getX(), y, area.getWidth(), heightToUse);
+
+		if (eBounds.contains(event.getPosition().toFloat()))
 		{
-		case '*':
-		{
-			if (!isCode)
+			auto translatedPoint = event.getPosition().toFloat();
+			translatedPoint.addXY(eBounds.getX(), -eBounds.getY());
+
+			for (auto& h : e->hyperLinks)
 			{
-				if (it.peek() == '*')
-				{
-					it.next(c);
-
-					isBold = !isBold;
-
-					float size = currentFont.getHeight();
-
-					if (isBold)
-						currentFont = boldFont.withHeight(size);
-					else
-						currentFont = normalFont.withHeight(size);
-				}
-				else
-				{
-					isItalic = !isItalic;
-					currentFont.setItalic(isItalic);
-				}
+				if (h.area.contains(translatedPoint))
+					return h;
 			}
-			else
-			{
-				addCharacterToCurrentBlock(c);
-			}
-
-			break;
-		}
-		case '`':
-		{
-			isCode = !isCode;
-
-			auto size = currentFont.getHeight();
-			auto b = currentFont.isBold();
-			auto i = currentFont.isItalic();
-			auto u = currentFont.isUnderlined();
-
-			currentFont = isCode ? codeFont : normalFont;
-
-			currentColour = isCode ? textColour : textColour.withAlpha(0.8f);
-
-			currentFont.setHeight(size);
-			currentFont.setBold(b);
-			currentFont.setItalic(i);
-			currentFont.setUnderline(u);
-
-			break;
-		}
-		case ' ':
-		{
-			if (it.peek() == ' ')
-			{
-				it.next(c);
-				addCharacterToCurrentBlock('\n');
-			}
-			else
-			{
-				addCharacterToCurrentBlock(c);
-			}
-
-			break;
-		}
-		case '|':
-			if (!isCode)
-			{
-				return;
-			}
-		default:
-			addCharacterToCurrentBlock(c);
-			
 		}
 
-		if (!it.next(c))
-			return;
-	}
-}
-
-
-
-void MarkdownParser::parseBlock()
-{
-	juce_wchar c = it.peek();
-
-	switch (c)
-	{
-	case '#': parseHeadline(); 
-			  break;
-	case '-': parseBulletList(); 
-			  break;
-	case '>': parseComment(); 
-			  break;
-	case '`': if (isJavascriptBlock())
-				  parseJavascriptBlock();
-			  else
-				  parseLine();
-			  break;
-	case '|': parseTable();
-			  break;
-	case '!': if (isImageLink())
-				  elements.add(parseImage());
-			  else
-				  parseLine();
-			  break;
-	default:  parseLine(); 
-			  break;
-	
-	};
-}
-
-void MarkdownParser::parseJavascriptBlock()
-{
-	auto code = it.getRestString();
-	
-	code = code.fromFirstOccurrenceOf("```javascript", false, false);
-	
-	code = code.upToFirstOccurrenceOf("```", false, false);
-
-	it.advance(code.length() + 16);
-
-	elements.add(new CodeBlock(this, code));
-}
-
-void MarkdownParser::parseTable()
-{
-	RowContent headerItems;
-
-
-	it.peek();
-
-	while (!Helpers::isEndOfLine(it.peek()))
-	{
-		skipTagAndTrailingSpace();
-
-		resetForNewLine();
-		resetCurrentBlock();
-
-		CellContent newCell;
-
-		if (isImageLink())
-		{
-			ScopedPointer<ImageElement> e = parseImage();
-			newCell.imageURL = e->getImageURL();
-		}
-		else
-		{
-			parseText();
-			currentlyParsedBlock.setFont(boldFont.withHeight(defaultFontSize));
-			newCell.s = currentlyParsedBlock;
-		}
-			
-
-		if(!newCell.isEmpty())
-			headerItems.add(newCell);
+		y += eBounds.getHeight();
 	}
 
-	
-	it.advance();
-
-	Array<int> lengths;
-	
-	while (!Helpers::isEndOfLine(it.peek()))
-	{
-		resetCurrentBlock();
-
-		parseText();
-
-		if(!currentlyParsedBlock.getText().containsOnly("-=_ "))	
-		{
-			jassertfalse;
-			return;
-		}
-
-		auto text = currentlyParsedBlock.getText().trim();
-
-		if(text.isNotEmpty())
-			lengths.add(text.length());
-	}
-	
-	Array<RowContent> rows;
-
-	it.advance();
-
-	while (it.peek() == '|')
-	{
-		rows.add(parseTableRow());
-	}
-	
-	elements.add(new MarkdownTable(this, headerItems, lengths, rows));
-
+	return {};
 }
 
-MarkdownParser::ImageElement* MarkdownParser::parseImage()
-{
-	it.match('!');
-	it.match('[');
-
-	auto imageName = it.getRestString().upToFirstOccurrenceOf("]", false, false);
-
-	it.advance(imageName);
-
-	it.match(']');
-	it.match('(');
-
-	auto imageLink = it.getRestString().upToFirstOccurrenceOf(")", false, false);
-
-	it.advance(imageLink);
-
-	it.match(')');
-
-	return new ImageElement(this, imageName, imageLink);
-
-	
-}
-
-Array<MarkdownParser::CellContent> MarkdownParser::parseTableRow()
-{
-	Array<CellContent> entries;
-
-	while (!Helpers::isEndOfLine(it.peek()))
-	{
-		skipTagAndTrailingSpace();
-		resetCurrentBlock();
-		resetForNewLine();
-
-		CellContent c;
-
-		if (isImageLink())
-		{
-			ScopedPointer<ImageElement> e = parseImage();
-			c.imageURL = e->getImageURL();
-		}
-		else
-		{
-			parseText();
-			c.s = currentlyParsedBlock;
-		}
-		
-		if (!c.isEmpty())
-			entries.add(c);
-	}
-
-	it.advance();
-
-	return entries;
-}
-
-bool MarkdownParser::isJavascriptBlock() const
-{
-	auto restString = it.getRestString();
-	return restString.startsWith("```javascript");
-}
-
-bool MarkdownParser::isImageLink() const
-{
-	auto restString = it.getRestString();
-	return restString.startsWith("![");
-}
-
-void MarkdownParser::addCharacterToCurrentBlock(juce_wchar c)
-{
-	currentlyParsedBlock.append(String::charToString(c), currentFont, currentColour);
-}
-
-void MarkdownParser::resetCurrentBlock()
-{
-	currentlyParsedBlock = AttributedString();
-	currentlyParsedBlock.setLineSpacing(8.0f);
-}
-
-void MarkdownParser::skipTagAndTrailingSpace()
-{
-	it.advance();
-
-	if (it.peek() == ' ')
-		it.advance();
-}
-
-void MarkdownParser::parseComment()
-{
-	resetForNewLine();
-
-	skipTagAndTrailingSpace();
-
-	parseText();
-
-	elements.add(new Comment(this, currentlyParsedBlock));
-
-	
-}
 
 struct MarkdownHelpButton::MarkdownHelp : public Component
 {
@@ -1062,7 +299,7 @@ void MarkdownHelpButton::buttonClicked(Button* /*b*/)
 		{
 			auto nc = new MarkdownHelp(parser, popupWidth);
 
-			auto window = getTopLevelComponent();
+			auto window = getParentComponent()->getParentComponent()->getParentComponent(); //getTopLevelComponent();
 			auto lb = window->getLocalArea(this, getLocalBounds());
 
 			if (nc->getHeight() > 700)
@@ -1109,9 +346,38 @@ juce::Path MarkdownHelpButton::getPath()
 }
 
 
+bool MarkdownParser::Helpers::isNewElement(juce_wchar c)
+{
+	return c == '#' || c == '|' || c == '!' || c == '>' || c == '-' || c == 0 || c == '\n';
+}
+
 bool MarkdownParser::Helpers::isEndOfLine(juce_wchar c)
 {
 	return c == '\r' || c == '\n' || c == 0;
+}
+
+
+bool MarkdownParser::Helpers::isNewToken(juce_wchar c, bool isCode)
+{
+	if (c == '0')
+		return true;
+
+	const static String codeDelimiters("`\n\r");
+	const static String delimiters("|>#");
+
+	if (isCode)
+		return codeDelimiters.indexOfChar(c) != -1;
+	else
+		return delimiters.indexOfChar(c) != -1;
+}
+
+
+bool MarkdownParser::Helpers::belongsToTextBlock(juce_wchar c, bool isCode, bool stopAtLineEnd)
+{
+	if (stopAtLineEnd)
+		return !isEndOfLine(c);
+
+	return !isNewToken(c, isCode);
 }
 
 void MarkdownParser::Headline::draw(Graphics& g, Rectangle<float> area)
@@ -1130,6 +396,220 @@ void MarkdownParser::Headline::draw(Graphics& g, Rectangle<float> area)
 
 	content.draw(g, area);
 
+}
+
+void MarkdownParser::Element::recalculateHyperLinkAreas(TextLayout& l, Array<HyperLink>& links, float topMargin)
+{
+	for (auto& link : links)
+	{
+		bool found = false;
+
+		
+		for (int i = 0; i < l.getNumLines(); i++)
+		{
+			if (found)
+				break;
+
+			auto& line = l.getLine(i);
+
+			for (auto r : line.runs)
+			{
+				if (r->font.isUnderlined())
+				{
+					if (r->glyphs.size() > 0)
+					{
+						int i1 = 0;
+						int i2 = r->glyphs.size() - 1;
+
+						auto x = r->glyphs.getReference(i1).anchor.getX();
+						auto& last = r->glyphs.getReference(i2);
+						auto right = last.anchor.getX() + last.width;
+
+						auto offset = line.leading;
+
+						auto yRange = line.getLineBoundsY();
+
+						link.area = { x + offset, yRange.getStart() + topMargin,
+							right - x, yRange.getLength() };
+
+						found = true;
+						break;
+					}
+				}
+			}
+
+		}
+	}
+}
+
+
+MarkdownParser::Iterator::Iterator(const String& text_) :
+	text(text_),
+	it(text.getCharPointer())
+{
+
+}
+
+juce::juce_wchar MarkdownParser::Iterator::peek()
+{
+	if (it.isEmpty())
+		return 0;
+
+	return *(it);
+}
+
+bool MarkdownParser::Iterator::advanceIfNotEOF(int numCharsToSkip /*= 1*/)
+{
+	if (it.isEmpty())
+		return false;
+
+	it += numCharsToSkip;
+	return !it.isEmpty();
+}
+
+bool MarkdownParser::Iterator::advance(int numCharsToSkip /*= 1*/)
+{
+	it += numCharsToSkip;
+	return !it.isEmpty();
+}
+
+bool MarkdownParser::Iterator::advance(const String& stringToSkip)
+{
+	return advance(stringToSkip.length());
+}
+
+bool MarkdownParser::Iterator::next(juce::juce_wchar& c)
+{
+	if (it.isEmpty())
+		return false;
+
+	c = *it++;
+	return c != 0;
+}
+
+bool MarkdownParser::Iterator::match(juce_wchar expected)
+{
+	juce_wchar c;
+
+	if (!next(c))
+		return false;
+
+	if (c != expected)
+	{
+		String s;
+
+		s << "Expected: " << expected;
+		s << ", Actual: " << c;
+		throw s;
+	}
+
+	return c == expected;
+}
+
+void MarkdownParser::Iterator::skipWhitespace()
+{
+	juce_wchar c = peek();
+
+	while (CharacterFunctions::isWhitespace(c))
+	{
+		if (!next(c))
+			break;
+	}
+}
+
+juce::String MarkdownParser::Iterator::getRestString() const
+{
+	if (it.isEmpty())
+		return {};
+
+	return String(it);
+}
+
+
+int MarkdownParser::Tokeniser::readNextToken(CodeDocument::Iterator& source)
+{
+	source.skipWhitespace();
+
+	const juce_wchar firstChar = source.peekNextChar();
+
+	switch (firstChar)
+	{
+	case '#':
+	{
+		source.skipToEndOfLine();
+		return 1;
+	}
+	case '*':
+	{
+		while (source.peekNextChar() == '*')
+			source.skip();
+
+		while (!source.isEOF() && source.peekNextChar() != '*')
+			source.skip();
+
+		while (source.peekNextChar() == '*')
+			source.skip();
+
+		return 2;
+	}
+	case '`':
+	{
+		source.skip();
+
+		while (!source.isEOF() && source.peekNextChar() != '`')
+		{
+			source.skip();
+		}
+
+		source.skip();
+
+		return 3;
+	}
+	case '>':
+	{
+		source.skipToEndOfLine();
+		return 4;
+	}
+	default: source.skip(); return 0;
+	}
+}
+
+juce::CodeEditorComponent::ColourScheme MarkdownParser::Tokeniser::getDefaultColourScheme()
+{
+	CodeEditorComponent::ColourScheme s;
+
+	s.set("normal", Colour(0xFFAAAAAA));
+	s.set("headline", Colour(SIGNAL_COLOUR).withAlpha(0.7f));
+	s.set("highlighted", Colours::white);
+	s.set("fixed", Colours::lightblue);
+	s.set("comment", Colour(0xFF777777));
+
+	return s;
+}
+
+
+int MarkdownParser::SnippetTokeniser::readNextToken(CodeDocument::Iterator& source)
+{
+
+	auto c = source.nextChar();
+
+	if (c == '{')
+	{
+		source.skipToEndOfLine();
+		return 1;
+	}
+	else
+		return 0;
+}
+
+juce::CodeEditorComponent::ColourScheme MarkdownParser::SnippetTokeniser::getDefaultColourScheme()
+{
+	CodeEditorComponent::ColourScheme s;
+
+	s.set("normal", Colour(0xFFAAAAAA));
+	s.set("content", Colour(0xFF555555));
+
+	return s;
 }
 
 }

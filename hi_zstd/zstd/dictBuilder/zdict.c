@@ -76,7 +76,16 @@ static const U32 g_selectivity_default = 9;
 #define DISPLAYLEVEL(l, ...) if (notificationLevel>=l) { DISPLAY(__VA_ARGS__); }    /* 0 : no display;   1: errors;   2: default;  3: details;  4: debug */
 #endif
 
+#if JUCE_MSVC
+#pragma warning (push)
+#pragma warning (disable: 4505)
+#endif
+
 static clock_t ZDICT_clockSpan(clock_t nPrevious) { return clock() - nPrevious; }
+
+#if JUCE_MSVC
+#pragma warning (pop)
+#endif
 
 static void ZDICT_printHex(const void* ptr, size_t length)
 {
