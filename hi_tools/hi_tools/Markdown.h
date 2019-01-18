@@ -163,7 +163,7 @@ public:
 				return img;
 			}
 			else
-				return ImageProvider::getImage(imageURL, width);
+				return {};
 		}
 
 	private:
@@ -177,19 +177,45 @@ public:
 
 	void setTextColour(Colour c) { textColour = c; }
 
+	String resolveLink(const String& url)
+	{
+		for (auto lr : linkResolvers)
+		{
+			auto link = lr->getContent(url);
+
+			if (link.isNotEmpty())
+				return link;
+		}
+
+		return {};
+	}
+
+	Image resolveImage(const String& imageUrl, float width)
+	{
+		for (int i = imageProviders.size()-1; i >= 0; i--)
+		{
+			auto img = imageProviders[i]->getImage(imageUrl, width);
+			
+			if (img.isValid())
+				return img;
+		}
+
+		return {};
+	}
+
 	void setLinkResolver(LinkResolver* ownedResolver)
 	{
-		linkResolver = ownedResolver;
+		linkResolvers.add(ownedResolver);
 	}
 
 	template <class ProviderType> void setNewImageProvider()
 	{
-		imageProvider = new ProviderType(this);
+		imageProviders.add(new ProviderType(this));
 	};
 
 	template <class ProviderType> void setImageProvider(ProviderType* newProvider)
 	{
-		imageProvider = newProvider;
+		imageProviders.add(newProvider);
 	};
 
 	void parse();
@@ -375,11 +401,13 @@ private:
 	String markdownCode;
 	Iterator it;
 	Result currentParseResult;
-	ScopedPointer<ImageProvider> imageProvider;
+	OwnedArray<ImageProvider> imageProviders;
 	AttributedString currentlyParsedBlock;
 	Array<HyperLink> currentLinks;
-	ScopedPointer<LinkResolver> linkResolver;
+	
+	OwnedArray<LinkResolver> linkResolvers;
 	Array<WeakReference<Listener>> listeners;
+	
 	StringArray history;
 	int historyIndex;
 };
@@ -481,11 +509,31 @@ public:
 			ownerComponent->removeComponentListener(this);
 	}
 
-	template <class ProviderType=MarkdownParser::ImageProvider> void setHelpText(const String& markdownText)
+	void setup()
 	{
-		parser = new MarkdownParser(markdownText);
+		parser = new MarkdownParser("");
 		parser->setTextColour(Colours::white);
 		parser->setDefaultTextSize(fontSizeToUse);
+	}
+
+	MarkdownParser* getParser() { return parser; }
+
+	void addImageProvider(MarkdownParser::ImageProvider* newImageProvider)
+	{
+		if (parser != nullptr)
+		{
+			parser->setImageProvider(newImageProvider);
+		}
+		else
+			jassertfalse; // you need to call setup before that.
+	}
+
+	template <class ProviderType=MarkdownParser::ImageProvider> void setHelpText(const String& markdownText)
+	{
+		if (parser == nullptr)
+			setup();
+
+		parser->setNewText(markdownText);
 		parser->setNewImageProvider<ProviderType>();
 
 		parser->parse();

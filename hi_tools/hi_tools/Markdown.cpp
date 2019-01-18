@@ -101,16 +101,18 @@ juce::Image MarkdownParser::FileBasedImageProvider::getImage(const String& image
 		return ImageCache::getFromFile(imageFile);
 	}
 
-	return ImageProvider::getImage(imageURL, width);
+	return {};
 }
 
 MarkdownParser::MarkdownParser(const String& markdownCode_, LayoutCache* c) :
 	markdownCode(markdownCode_.replace("\r\n", "\n")),
 	it(markdownCode),
-	imageProvider(new ImageProvider(this)),
+	
 	currentParseResult(Result::fail("Nothing parsed yet")),
     layoutCache(c)
 {
+	imageProviders.add(new ImageProvider(this)),
+
 	history.add(markdownCode);
 	historyIndex = 0;
 
@@ -177,7 +179,7 @@ bool MarkdownParser::gotoLink(const MouseEvent& event, Rectangle<float> area)
 {
 	auto link = getHyperLinkForEvent(event, area);
 
-	if (link.valid && linkResolver != nullptr)
+	if (link.valid)
 	{
 		if (link.url.startsWith("CLIPBOARD::"))
 		{
@@ -194,7 +196,7 @@ bool MarkdownParser::gotoLink(const MouseEvent& event, Rectangle<float> area)
 			return true;
 		}
 
-		String newText = linkResolver->getContent(link.url).replace("\r\n", "\n");
+		String newText = resolveLink(link.url).replace("\r\n", "\n");
 
 		history.removeRange(historyIndex, -1);
 		history.add(newText);

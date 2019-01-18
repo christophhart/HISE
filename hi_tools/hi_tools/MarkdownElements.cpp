@@ -372,11 +372,10 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 		if (!img.isNull())
 			return (float)img.getHeight();
 
-		if (parent->imageProvider != nullptr)
-		{
-			img = parent->imageProvider->getImage(imageURL, width);
+		img = parent->resolveImage(imageURL, width);
+
+		if (!img.isNull())
 			return (float)img.getHeight();
-		}
 
 		return 0.0f;
 	}
@@ -543,7 +542,7 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 				return getHeightForAttributedString(c.content, width, parser);
 			else
 			{
-				c.img = parser->imageProvider->getImage(c.imageURL, width - 4.0f);
+				c.img = parser->resolveImage(c.imageURL, width - 4.0f);
 				return (float)c.img.getHeight();
 			}
 		}
