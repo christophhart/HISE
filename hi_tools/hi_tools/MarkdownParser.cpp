@@ -549,7 +549,7 @@ void MarkdownParser::parseComment()
 
 const juce::TextLayout& MarkdownParser::getTextLayoutForString(const AttributedString& s, float width)
 {
-	if (layoutCache != nullptr)
+	if (layoutCache.get() != nullptr)
 		return layoutCache->getLayout(s, width);
 
 	uncachedLayout = TextLayout();
