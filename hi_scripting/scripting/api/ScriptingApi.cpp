@@ -1502,10 +1502,7 @@ var ScriptingApi::Engine::loadFromJSON(String fileName)
 	if (f.existsAsFile())
 		return JSON::parse(f);
 	else
-	{
-		reportScriptError("File not found");
-		RETURN_IF_NO_THROW(var())
-	}
+		return {};
 }
 
 
