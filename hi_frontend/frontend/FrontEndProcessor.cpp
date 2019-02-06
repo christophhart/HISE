@@ -120,12 +120,14 @@ void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& mid
 
 void FrontendProcessor::incActiveEditors()
 {
-	if (numActiveEditors == 0)
+	if (numActiveEditors <= 0)
 	{
-		Processor::Iterator<ProcessorWithScriptingContent> iter(getMainSynthChain());
+		Processor::Iterator<SuspendableTimer::Manager> iter(getMainSynthChain());
 
-		while (auto pwsc = iter.getNextProcessor())
-			pwsc->getScriptingContent()->suspendPanelTimers(false);
+		while (auto sm = iter.getNextProcessor())
+			sm->suspendStateChanged(false);
+
+		getGlobalUIUpdater()->suspendTimer(false);
 	}
 
 	numActiveEditors++;
@@ -137,10 +139,12 @@ void FrontendProcessor::decActiveEditors()
 
 	if (numActiveEditors == 0)
 	{
-		Processor::Iterator<ProcessorWithScriptingContent> iter(getMainSynthChain());
+		Processor::Iterator<SuspendableTimer::Manager> iter(getMainSynthChain());
 
-		while (auto pwsc = iter.getNextProcessor())
-			pwsc->getScriptingContent()->suspendPanelTimers(true);
+		while (auto sm = iter.getNextProcessor())
+			sm->suspendStateChanged(true);
+
+		getGlobalUIUpdater()->suspendTimer(true);
 	}
 }
 
@@ -270,14 +274,20 @@ FrontendProcessor::~FrontendProcessor()
 {
 	numInstances--;
 
+	notifyShutdownToRegisteredObjects();
+	getKillStateHandler().deinitialise();
+	deletePendingFlag = true;
+
 	storeAllSamplesFound(GET_PROJECT_HANDLER(getMainSynthChain()).areSamplesLoadedCorrectly());
 
+	
+	getJavascriptThreadPool().cancelAllJobs();
 	getSampleManager().cancelAllJobs();
 
 	setEnabledMidiChannels(synthChain->getActiveChannelData()->exportData());
-
-	deletePendingFlag = true;
+	
 	clearPreset();
+	
 	synthChain = nullptr;
 
 #if USE_RAW_FRONTEND
@@ -326,8 +336,6 @@ void FrontendProcessor::createPreset(const ValueTree& synthData)
 		LOG_START("Initialising audio callback");
 		synthChain->prepareToPlay(getSampleRate(), getBlockSize());
 	}
-
-	decActiveEditors();
 }
 
 const String FrontendProcessor::getName(void) const

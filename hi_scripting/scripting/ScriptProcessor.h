@@ -44,7 +44,7 @@ class ModulatorSynthGroup;
 *
 *	This is tightly coupled with the JavascriptProcessor class (so every JavascriptProcessor must also be derived from this class).
 */
-class ProcessorWithScriptingContent
+class ProcessorWithScriptingContent: public SuspendableTimer::Manager
 {
 public:
 
@@ -73,6 +73,8 @@ public:
 	}
 
 	virtual int getCallbackEditorStateOffset() const { return Processor::EditorState::numEditorStates; }
+
+	void suspendStateChanged(bool shouldBeSuspended) override;
 
 	ScriptingApi::Content *getScriptingContent() const
 	{
@@ -725,6 +727,15 @@ public:
 		stopThread(1000);
 	}
 
+	void cancelAllJobs()
+	{
+		LockHelpers::SafeLock ss(getMainController(), LockHelpers::ScriptLock);
+
+		stopThread(1000);
+		compilationQueue.clear();
+		lowPriorityQueue.clear();
+		highPriorityQueue.clear();
+	}
 	
 	class Task
 	{

@@ -557,10 +557,10 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 				{
 					if (auto d = draggers.getFirst())
 					{
-						auto b = d->getLocalArea(this, d->getLocalBounds());
+						auto bounds = d->getLocalArea(this, d->getLocalBounds());
 
-						insertX += b.getX();
-						insertY += b.getY();
+						insertX += bounds.getX();
+						insertY += bounds.getY();
 					}
 				}
 

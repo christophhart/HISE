@@ -785,12 +785,6 @@ MonolithExporter::MonolithExporter(SampleMap* sampleMap_) :
 
 	if (!monolithDirectory.isDirectory()) monolithDirectory.createDirectory();
 
-	StringArray sa;
-
-	sa.add("No compression");
-	sa.add("Fast Decompression");
-	sa.add("Low file size (recommended)");
-	
 	File fileToUse;
 	auto ref = sampleMap_->getReference();
 	
@@ -804,10 +798,6 @@ MonolithExporter::MonolithExporter(SampleMap* sampleMap_) :
 	fc->setSize(400, 24);
 
 	addCustomComponent(fc);
-
-	addComboBox("compressionOptions", sa, "HLAC Compression options");
-
-	getComboBoxComponent("compressionOptions")->setSelectedItemIndex(2, dontSendNotification);
 
 	StringArray sa2;
 
@@ -1007,7 +997,7 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 
 		bool ok = outputFile.deleteFile();
 
-		jassert(ok);
+		jassert(ok); ignoreUnused(ok);
 
 		outputFile.create();
 		
@@ -1015,9 +1005,7 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 
 		FileOutputStream* hlacOutput = new FileOutputStream(outputFile);
 
-		int cIndex = getComboBoxComponent("compressionOptions")->getSelectedItemIndex();
-
-		hlac::HlacEncoder::CompressorOptions options = hlac::HlacEncoder::CompressorOptions::getPreset((hlac::HlacEncoder::CompressorOptions::Presets)cIndex);
+		auto options = hlac::HlacEncoder::CompressorOptions::getPreset(hlac::HlacEncoder::CompressorOptions::Presets::Diff);
 
 		options.applyDithering = false;
 		options.normalisationMode = (uint8)getComboBoxComponent("normalise")->getSelectedItemIndex();
@@ -1071,8 +1059,6 @@ void MonolithExporter::updateSampleMap()
 	largestSample = 0;
 	int64 offset = 0;
 
-	const bool usePaddingForCompression = getComboBoxComponent("compressionOptions")->getSelectedItemIndex() > 0;
-
 	for (int i = 0; i < numSamples; i++)
 	{
 		ValueTree s = v.getChild(i);
@@ -1085,7 +1071,7 @@ void MonolithExporter::updateSampleMap()
 
 			if (reader != nullptr)
 			{
-				const int64 length = usePaddingForCompression ? (int64)hlac::CompressionHelpers::getPaddedSampleSize((int)reader->lengthInSamples) : reader->lengthInSamples;
+				const auto length = (int64)hlac::CompressionHelpers::getPaddedSampleSize((int)reader->lengthInSamples);
 
 				largestSample = jmax<int64>(largestSample, length);
 
@@ -1104,14 +1090,6 @@ BatchReencoder::BatchReencoder(ModulatorSampler* s) :
 	ControlledObject(s->getMainController()),
 	sampler(s)
 {
-	StringArray sa;
-
-	sa.add("No compression");
-	sa.add("Fast Decompression");
-	sa.add("Low file size (recommended)");
-
-	addComboBox("compressionOptions", sa, "HLAC Compression options");
-
 	StringArray sa2;
 
 	sa2.add("No normalisation");

@@ -41,6 +41,11 @@ ProcessorWithScriptingContent::~ProcessorWithScriptingContent()
 	
 }
 
+void ProcessorWithScriptingContent::suspendStateChanged(bool shouldBeSuspended)
+{
+	getScriptingContent()->suspendPanelTimers(shouldBeSuspended);
+}
+
 void ProcessorWithScriptingContent::setControlValue(int index, float newValue)
 {
 	jassert(content.get() != nullptr);
@@ -569,14 +574,8 @@ JavascriptProcessor::JavascriptProcessor(MainController *mc) :
 
 JavascriptProcessor::~JavascriptProcessor()
 {
-	
-
-	
-
 	deleteAllPopups();
-
 	
-
 	scriptEngine = nullptr;
 }
 

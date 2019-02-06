@@ -145,6 +145,7 @@ hise::raw::UIConnection::Slider<parameterIndex>::Slider(juce::Slider* s, MainCon
 	Base(s, mc, processorID)
 {
 	setData<Data::Attribute<parameterIndex>>();
+	changeListenerCallback(nullptr);
 }
 
 template <int parameterIndex>

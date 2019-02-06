@@ -399,6 +399,7 @@ struct HlacArchiver
 		double* progress = nullptr;
 		double* partProgress = nullptr;
 		double* totalProgress = nullptr;
+		bool debugLogMode = false;
 
 	};
 
@@ -413,6 +414,8 @@ struct HlacArchiver
 		virtual void logStatusMessage(const String& message) = 0;
 
 		virtual void logVerboseMessage(const String& verboseMessage) = 0;
+
+		virtual void criticalErrorOccured(const String& message) = 0;
 	};
 
 	/** Extracts the compressed data from the given file. */

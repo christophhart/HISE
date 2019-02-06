@@ -192,11 +192,17 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
 		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
 	}
+	else
+	{
+		const float constantGainValue = getOwnerSynth()->getConstantGainModValue();
+
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), constantGainValue, samplesToCopy);
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), constantGainValue, samplesToCopy);
+	}
 
 	if (isLastVoice && looper->length != 0 && looper->inputMerger.shouldUpdate())
 	{
 		const int samplePos = getSamplePos((int)voiceUptime, length, loopOffset, isReversed, end);
-
 		const int actualLength = looper->getActualRange().getLength();
 
 		//const float inputValue = (float)((int)voiceUptime % looper->length) / (float)looper->length;

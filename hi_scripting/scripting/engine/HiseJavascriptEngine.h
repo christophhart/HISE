@@ -149,6 +149,8 @@ public:
 
 	void registerGlobalStorge(DynamicObject *globaObject);
 
+	void abortEverything();
+
 	void extendTimeout(int milliSeconds);
 
 	/** Registers a callback to the engine.

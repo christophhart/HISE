@@ -103,13 +103,32 @@ MainController::MainController() :
 
 MainController::~MainController()
 {
-	sampleManager = nullptr;
+	notifyShutdownToRegisteredObjects();
+
+	javascriptThreadPool->cancelAllJobs();
+	sampleManager->cancelAllJobs();
+
+	
 	Logger::setCurrentLogger(nullptr);
 	logger = nullptr;
 	masterReference.clear();
 	customTypeFaces.clear();
+
+	sampleManager = nullptr;
+	javascriptThreadPool = nullptr;
 }
 
+
+void MainController::notifyShutdownToRegisteredObjects()
+{
+	for (auto obj : registeredObjects)
+	{
+		if (obj.get() != nullptr)
+			obj->mainControllerIsDeleted();
+	}
+
+	registeredObjects.clear();
+}
 
 const CriticalSection & MainController::getLock() const
 {
@@ -178,7 +197,10 @@ void MainController::clearPreset()
 		return SafeFunctionCall::OK;
 	};
 
-	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::SampleLoadingThread);
+	if (isBeingDeleted())
+		f(getMainSynthChain());
+	else
+		getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::SampleLoadingThread);
 }
 
 void MainController::loadPresetFromValueTree(const ValueTree &v, Component* /*mainEditor*/)
@@ -1218,9 +1240,6 @@ void MainController::updateMultiChannelBuffer(int numNewChannels)
 	ProcessorHelpers::increaseBufferIfNeeded(multiChannelBuffer, maxBufferSize.get());
 }
 
-void MainController::UserPresetHandler::setTagList(const StringArray& newTagList)
-{
-	tagList = newTagList;
-}
+
 
 } // namespace hise

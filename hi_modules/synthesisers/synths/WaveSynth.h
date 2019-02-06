@@ -249,9 +249,9 @@ public:
 
 	int getNumInternalChains() const override {return numInternalChains; };
 
-	virtual Processor *getChildProcessor(int processorIndex) override;;
+	Processor *getChildProcessor(int processorIndex) override;
 
-	virtual const Processor *getChildProcessor(int processorIndex) const override;;
+	const Processor *getChildProcessor(int processorIndex) const override;
 
 	
 	float getDefaultValue(int parameterIndex) const override;;

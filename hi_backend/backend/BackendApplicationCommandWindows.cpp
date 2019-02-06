@@ -910,19 +910,11 @@ public:
 
 		addTextEditor("directorySeparator", "::", "Directory separation character");
 
-		StringArray sa;
-
-		sa.add("No compression");
-		sa.add("Fast Decompression");
-		sa.add("Low file size (recommended)");
-
-		addComboBox("compressionOptions", sa, "HLAC Compression options");
-
 		StringArray sa2;
 
-		sa.add("No normalisation");
-		sa.add("Normalise every sample");
-		sa.add("Full Dynamics");
+		sa2.add("No normalisation");
+		sa2.add("Normalise every sample");
+		sa2.add("Full Dynamics");
 
 		addComboBox("normalise", sa2, "Normalization");
 

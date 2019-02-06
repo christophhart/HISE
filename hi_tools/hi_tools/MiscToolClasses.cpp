@@ -108,21 +108,13 @@ void SafeChangeBroadcaster::sendChangeMessage(const String &/*identifier*/ /*= S
 
 void SafeChangeBroadcaster::sendAllocationFreeChangeMessage()
 {
-	// You need to call enableAllocationFreeMessages() first...
-	jassert(flagTimer.isTimerRunning());
-
-	flagTimer.triggerUpdate();
+	jassert(isHandlerInitialised());
+	sendPooledChangeMessage();
 }
 
 void SafeChangeBroadcaster::enablePooledUpdate(PooledUIUpdater* updater)
 {
 	setHandler(updater);
-	flagTimer.stopTimer();
-}
-
-void SafeChangeBroadcaster::enableAllocationFreeMessages(int timerIntervalMilliseconds)
-{
-	flagTimer.startTimer(timerIntervalMilliseconds);
 }
 
 
@@ -513,8 +505,15 @@ Rectangle<int> HiseDeviceSimulator::getDisplayResolution()
 
 void PooledUIUpdater::Broadcaster::sendPooledChangeMessage()
 {
+	if (pending)
+		return;
+
 	if (handler != nullptr)
+	{
 		handler.get()->pendingHandlers.push(this);
+		pending = true;
+	}
+		
 	else
 		jassertfalse; // you need to register it...
 }

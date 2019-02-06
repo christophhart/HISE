@@ -98,6 +98,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuProjectNew,
 		MenuProjectLoad,
 		MenuCloseProject,
+		MenuFileCreateRecoveryXml,
 		MenuFileArchiveProject,
 		MenuFileDownloadNewProject,
 		MenuProjectShowInFinder,
@@ -297,6 +298,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuExportFileAsSnippet:
 		setCommandTarget(result, "Export as HISE Snippet", true, false, 'X', false);
+		break;
+	case MenuFileCreateRecoveryXml:
+		setCommandTarget(result, "Create recovery XML from HIP", true, false, 'x', false);
 		break;
 	case MenuExportSampleDataForInstaller:
 		setCommandTarget(result, "Export Samples for Installer", true, false, 'X', false);
@@ -579,6 +583,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuFileArchiveProject:		Actions::archiveProject(bpe); return true;
 	case MenuFileDownloadNewProject:	Actions::downloadNewProject(bpe); return true;
 	case MenuProjectShowInFinder:		Actions::showProjectInFinder(bpe); return true;
+	case MenuFileCreateRecoveryXml:		Actions::createRecoveryXml(bpe); return true;
     case MenuFileSaveUserPreset:        Actions::saveUserPreset(bpe); return true;
 	case MenuFileSettingsPreset:		Actions::showFilePresetSettings(bpe); return true;
 	case MenuFileSettingsProject:		Actions::showFileProjectSettings(bpe); return true;
@@ -725,7 +730,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		
 
 		
-
+		
 		ADD_ALL_PLATFORMS(MenuOpenXmlBackup);
 		ADD_ALL_PLATFORMS(MenuSaveFileAsXmlBackup);
 
@@ -763,7 +768,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 
 		
 		ADD_ALL_PLATFORMS(MenuReplaceWithClipboardContent);
-		
+		ADD_ALL_PLATFORMS(MenuFileCreateRecoveryXml);
 		
 
 
@@ -852,6 +857,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsCollectExternalFiles);
 		ADD_DESKTOP_ONLY(MenuToolsCheckUnusedImages);
 		ADD_DESKTOP_ONLY(MenuToolsForcePoolSearch);
+		
 		ADD_DESKTOP_ONLY(MenuToolsConvertSampleMapToWavetableBanks);
 		ADD_DESKTOP_ONLY(MenuToolsConvertAllSamplesToMonolith);
 		ADD_DESKTOP_ONLY(MenuToolsUpdateSampleMapIdsBasedOnFileName);
@@ -2449,6 +2455,40 @@ void BackendCommandTarget::Actions::copyMissingSampleListToClipboard(BackendRoot
 
 		SystemClipboard::copyTextToClipboard(text);
 		PresetHandler::showMessageWindow("Missing samples detected", "There were " + String(missingSounds.size()) + " missing samples.", PresetHandler::IconType::Warning);
+	}
+}
+
+void BackendCommandTarget::Actions::createRecoveryXml(BackendRootWindow * bpe)
+{
+	FileChooser fc("Choose .hip file to recover", bpe->getBackendProcessor()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Presets), "*.hip", true);
+
+	if (fc.browseForFileToOpen())
+	{
+		auto f = fc.getResult();
+
+		FileInputStream fis(f);
+
+		auto vt = ValueTree::readFromStream(fis);
+
+		if (vt.isValid())
+		{
+			ScopedPointer<XmlElement> xml = vt.createXml();
+
+			if (xml != nullptr)
+			{
+				auto xmlContent = xml->createDocument("");
+
+				File s = f.getSiblingFile(f.getFileNameWithoutExtension() + "_Recovered.xml");
+
+				s.replaceWithText(xmlContent);
+
+				PresetHandler::showMessageWindow("HIP file successfully recovered", "The XML file was written to " + s.getFullPathName());
+				f.getParentDirectory().revealToUser();
+				return;
+			}
+		}
+
+		PresetHandler::showMessageWindow("Danger!", "The file you supplied got corrupted", PresetHandler::IconType::Error);
 	}
 }
 

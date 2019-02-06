@@ -1363,7 +1363,7 @@ void ScriptingApi::Engine::setUserPresetTagList(var listOfTags)
 		for (auto l : *ar)
 			sa.add(l.toString());
 
-		getProcessor()->getMainController()->getUserPresetHandler().setTagList(sa);
+		getProcessor()->getMainController()->getUserPresetHandler().getTagDataBase().setTagList(sa);
 	}
 
 	

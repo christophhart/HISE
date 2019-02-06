@@ -126,7 +126,7 @@ double& MainController::SampleManager::getPreloadProgress()
 void MainController::SampleManager::cancelAllJobs()
 {
 	internalPreloadJob.signalJobShouldExit();
-	samplerLoaderThreadPool->stopThread(2000);
+	samplerLoaderThreadPool->stopThread(5000);
 }
 
 

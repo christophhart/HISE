@@ -105,6 +105,8 @@ public:
 
 	void playNote();;
 
+	void stopCurrentNote();
+
 private:
 
 	bool killIncomingNotes = true;
@@ -247,12 +249,7 @@ private:
 
 	void start();;
 
-	void stop()
-	{
-		Synth.stopTimer();
-		is_playing = false;
-		shuffleNextNote = false;
-	};
+	void stop();;
 
 	bool keys_are_held()
 	{

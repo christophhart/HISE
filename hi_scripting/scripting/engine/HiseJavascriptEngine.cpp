@@ -76,6 +76,8 @@ namespace TokenTypes
 
 HiseJavascriptEngine::~HiseJavascriptEngine()
 {
+	abortEverything();
+
 	if (auto content = dynamic_cast<ScriptingApi::Content*>(root->getProperty("Content").getObject()))
 	{
 		for (int i = 0; i < content->getNumComponents(); i++)
@@ -1021,6 +1023,12 @@ void HiseJavascriptEngine::extendTimeout(int milliSeconds)
 	auto newTimeout = root->timeout.toMilliseconds() + milliSeconds;
 
 	root->timeout = Time(newTimeout);
+}
+
+void HiseJavascriptEngine::abortEverything()
+{
+	if(root != nullptr)
+		root->timeout = Time(0);
 }
 
 HiseJavascriptEngine::RootObject::Callback::Callback(const Identifier &id, int numArgs_, double bufferTime_) :

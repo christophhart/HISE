@@ -73,6 +73,13 @@ public:
 
 	Path getSpecialSymbol() const override;
 
+	void suspendStateChanged(bool shouldBeSuspended) override
+	{
+		ScriptBaseMidiProcessor::suspendStateChanged(shouldBeSuspended);
+
+		deferredExecutioner.suspend(shouldBeSuspended);
+	}
+
 	ValueTree exportAsValueTree() const override;;
 	void restoreFromValueTree(const ValueTree &v) override;
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
@@ -120,7 +127,7 @@ public:
 
 private:
 
-	struct DeferredExecutioner : private LockfreeAsyncUpdater
+	struct DeferredExecutioner : public LockfreeAsyncUpdater
 	{
 		DeferredExecutioner(JavascriptMidiProcessor* jp) :
 			parent(*jp),

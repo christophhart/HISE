@@ -94,8 +94,10 @@ public:
 		MenuCloseProject,
 		MenuFileArchiveProject,
 		MenuFileDownloadNewProject,
+		MenuFileCreateRecoveryXml,
 		MenuProjectShowInFinder,
 		MenuProjectRecentOffset,
+		
 		MenuRevertFile = 0x26000,
         MenuFileSaveUserPreset,
         MenuFileUserPresetMenuOffset,
@@ -192,6 +194,7 @@ public:
 		MenuToolsEnableAutoSaving,
 		MenuToolsEnableDebugLogging,
 		MenuToolsRecordOneSecond,
+		
 		MenuToolsDeviceSimulatorOffset,
 		MenuHelpShowAboutPage = 0x70000,
         MenuHelpCheckVersion,
@@ -355,6 +358,7 @@ public:
 		static void exportCompileFilesInPool(BackendRootWindow* bpe);
 		static void checkDeviceSanity(BackendRootWindow * bpe);
 		static void copyMissingSampleListToClipboard(BackendRootWindow * bpe);
+		static void createRecoveryXml(BackendRootWindow * bpe);
 	};
 
 private:

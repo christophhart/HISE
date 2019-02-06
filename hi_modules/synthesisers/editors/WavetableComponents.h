@@ -63,9 +63,9 @@ public:
 		numWaveformTypes
 	};
 
-	class Broadcaster
+	class Broadcaster: public SuspendableTimer::Manager
 	{
-		class Updater : public Timer
+		class Updater : public SuspendableTimer
 		{
 		public:
 
@@ -99,6 +99,10 @@ public:
 
 		virtual ~Broadcaster() {};
 
+		void suspendStateChanged(bool shouldBeSuspended) override
+		{
+			updater.suspendTimer(shouldBeSuspended);
+		}
 		
 		void triggerWaveformUpdate() { updater.changeFlag = true; };
 

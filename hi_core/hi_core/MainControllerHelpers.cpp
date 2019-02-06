@@ -343,7 +343,6 @@ MidiControllerAutomationHandler::MPEData::MPEData(MainController* mc) :
 
 }
 
-
 MidiControllerAutomationHandler::MPEData::~MPEData()
 {
 	jassert(listeners.size() == 0);
@@ -354,8 +353,6 @@ void MidiControllerAutomationHandler::MPEData::AsyncRestorer::timerCallback()
 {
 
 }
-
-
 
 void MidiControllerAutomationHandler::MPEData::restoreFromValueTree(const ValueTree &v)
 {
@@ -820,13 +817,21 @@ void ConsoleLogger::logMessage(const String &message)
 	
 }
 
-ControlledObject::ControlledObject(MainController *m) :
-	controller(m) {
+ControlledObject::ControlledObject(MainController *m, bool notifyOnShutdown) :
+	controller(m),
+	registerShutdown(notifyOnShutdown)
+{
+	if(registerShutdown)
+		controller->registerControlledObject(this);
+
 	jassert(m != nullptr);
 };
 
 ControlledObject::~ControlledObject()
 {
+	if(registerShutdown)
+		controller->removeControlledObject(this);
+
 	// Oops, this ControlledObject was not connected to a MainController
 	jassert(controller != nullptr);
 

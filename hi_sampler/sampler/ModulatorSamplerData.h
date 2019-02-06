@@ -224,6 +224,12 @@ public:
 	int getNumRRGroups() const;
 
 	void saveAndReloadMap();
+
+	void suspendInternalTimers(bool shouldBeSuspended)
+	{
+		notifier.asyncUpdateCollector.suspend(shouldBeSuspended);
+	}
+
 private:
 
 	struct ChangeWatcher : private ValueTree::Listener
@@ -321,8 +327,6 @@ private:
 		void addPropertyChange(int index, const Identifier& id, const var& newValue);
 		void sendSampleAmountChangeMessage(NotificationType n);
 
-	private:
-
 		struct Collector : public LockfreeAsyncUpdater
 		{
 			Collector(Notifier& parent_) :
@@ -333,10 +337,12 @@ private:
 
 		private:
 
-			
-
 			Notifier& parent;
 		};
+
+		Collector asyncUpdateCollector;
+
+	private:
 
 		struct AsyncPropertyChange
 		{
@@ -391,7 +397,7 @@ private:
 
 		ScopedPointer<ChangeWatcher> changeWatcher;
 
-		Collector asyncUpdateCollector;
+		
 
 		OwnedArray<PropertyChange, CriticalSection> pendingChanges;
 		Array<AsyncPropertyChange, CriticalSection> asyncPendingChanges;

@@ -139,7 +139,7 @@ void TagList::presetChanged(const File& newPreset)
 
 void TagList::rebuildTags()
 {
-	auto& sa = getMainController()->getUserPresetHandler().getTagList();
+	auto& sa = getMainController()->getUserPresetHandler().getTagDataBase().getTagList();
 
 	tags.clear();
 
@@ -191,6 +191,8 @@ void TagList::toggleTag(Tag* n)
 
 		PresetBrowser::DataBaseHelpers::writeTagsInXml(currentFile, currentlyActiveTags);
 
+		parent->getMainController()->getUserPresetHandler().getTagDataBase().buildDataBase(true);
+
 		for (auto l : listeners)
 		{
 			if (l != nullptr)
@@ -199,6 +201,8 @@ void TagList::toggleTag(Tag* n)
 	}
 	else
 	{
+		parent->getMainController()->getUserPresetHandler().getTagDataBase().buildDataBase();
+
 		bool shouldBeSelected = !n->selected;
 
 		n->setSelected(shouldBeSelected);
@@ -274,6 +278,8 @@ int PresetBrowserColumn::ColumnListModel::getNumRows()
 
 			if (currentlyActiveTags.size() > 0)
 			{
+				const auto& cachedTags = getCachedTags();
+
 				for (auto& t : cachedTags)
 				{
 					if (t.hashCode == hash)
@@ -352,25 +358,9 @@ void PresetBrowserColumn::ColumnListModel::returnKeyPressed(int row)
 
 void PresetBrowserColumn::ColumnListModel::rebuildCachedTagList()
 {
-	cachedTags.clear();
+	
 
-	Array<File> allPresets;
-
-	totalRoot.findChildFiles(allPresets, File::findFiles, true, "*.preset");
-
-	PresetBrowser::DataBaseHelpers::cleanFileList(allPresets);
-
-	for (auto f : allPresets)
-	{
-		auto sa = PresetBrowser::DataBaseHelpers::getTagsFromXml(f);
-
-		CachedTag newTag;
-		newTag.hashCode = f.hashCode64();
-		for (auto t : sa)
-			newTag.tags.add(Identifier(t));
-
-		cachedTags.add(std::move(newTag));
-	}
+	
 }
 
 void PresetBrowserColumn::ColumnListModel::updateTags(const StringArray& newSelection)
@@ -379,6 +369,10 @@ void PresetBrowserColumn::ColumnListModel::updateTags(const StringArray& newSele
 
 	for (auto s : newSelection)
 		currentlyActiveTags.add(Identifier(s));
+
+	
+
+	const auto& cachedTags = parent->getMainController()->getUserPresetHandler().getTagDataBase().getCachedTags();
 
 	for (auto& t : cachedTags)
 	{
@@ -403,6 +397,11 @@ void PresetBrowserColumn::ColumnListModel::paintListBoxItem(int rowNumber, Graph
 		auto position = Rectangle<int>(0, 1, width, height - 2);
 		getPresetBrowserLookAndFeel().drawListItem(g, index, rowNumber, itemName, position, rowIsSelected, deleteOnClick);
 	}
+}
+
+const juce::Array<PresetBrowserColumn::ColumnListModel::CachedTag>& PresetBrowserColumn::ColumnListModel::getCachedTags() const
+{
+	return parent->getMainController()->getUserPresetHandler().getTagDataBase().getCachedTags();
 }
 
 Component* PresetBrowserColumn::ColumnListModel::refreshComponentForRow(int rowNumber, bool /*isRowSelected*/, Component* existingComponentToUpdate)

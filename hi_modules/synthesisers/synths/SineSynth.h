@@ -47,6 +47,43 @@ public:
 	bool appliesToVelocity (int /*midiChannel*/) override  { return true; }
 };
 
+template <int TableSize> class SineLookupTable
+{
+public:
+
+	SineLookupTable()
+	{
+		for (int i = 0; i < TableSize; i++)
+		{
+			sinTable[i] = sinf(i * float_Pi / (float)(TableSize/2));
+		}
+	}
+
+	constexpr int getTableSize() const { return TableSize; };
+
+	float getInterpolatedValue(double uptime) const
+	{
+		int index = (int)uptime;
+
+		const float v1 = getWrappedValue(index);
+		const float v2 = getWrappedValue(index + 1);
+		const float alpha = float(uptime) - (float)index;
+		const float invAlpha = 1.0f - alpha;
+		const float currentSample = invAlpha * v1 + alpha * v2;
+
+		return currentSample;
+	}
+
+private:
+
+	float getWrappedValue(int index) const noexcept
+	{
+		return sinTable[index & (TableSize - 1)];
+	}
+
+	float sinTable[TableSize];
+};
+
 class SineSynthVoice: public ModulatorSynthVoice
 {
 public:
@@ -54,9 +91,7 @@ public:
 	SineSynthVoice(ModulatorSynth *ownerSynth):
 		ModulatorSynthVoice(ownerSynth),
 		octaveTransposeFactor(1.0)
-	{
-        initTable();
-	};
+	{};
 
 	bool canPlaySound(SynthesiserSound *) override
 	{
@@ -74,7 +109,7 @@ public:
         const double cyclesPerSecond = MidiMessage::getMidiNoteInHertz (midiNoteNumber);
 		const double cyclesPerSample = cyclesPerSecond / getSampleRate();
 
-		uptimeDelta = cyclesPerSample * 2048.0 * octaveTransposeFactor;
+		uptimeDelta = cyclesPerSample * table->getTableSize() * octaveTransposeFactor;
         
         uptimeDelta *= getOwnerSynth()->getMainController()->getGlobalPitchFactor();
     }
@@ -88,14 +123,9 @@ public:
 
 private:
 
-    static void initTable();
-    
-	static float sinTable[2048];
-    static bool tableInitialised;
-    
+	SharedResourcePointer<SineLookupTable<2048>> table;
+
 	double octaveTransposeFactor;
-
-
 };
 
 /** A sine wave generator.

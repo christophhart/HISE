@@ -538,7 +538,7 @@ public:
 		
 	}
 
-	int size() const noexcept { return numUsed; };
+	int size() const noexcept { return (int)numUsed; };
 
 	inline ObjectType* begin() const noexcept
 	{

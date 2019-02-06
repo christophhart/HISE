@@ -372,7 +372,7 @@ public:
 		timeKnob->setRange(0, 20, 0.1);
 		table = Content.addTable("TimeTable", 140, 0);
 
-		table->enableAllocationFreeMessages(30);
+		table->enablePooledUpdate(mc->getGlobalUIUpdater());
 		table->setPosition(140, 0, 480, 100);
 
 		attenuationLevel = 1.0; 

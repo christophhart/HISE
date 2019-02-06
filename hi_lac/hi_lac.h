@@ -74,8 +74,7 @@ SampleMap bugs:
 #define HI_LAC_INCLUDED
 
 #include "AppConfig.h"
-
-#include <juce_audio_formats/juce_audio_formats.h>
+#include "../JUCE/modules/juce_audio_formats/juce_audio_formats.h"
 
 #if !JUCE_IOS
 #include <nmmintrin.h> 

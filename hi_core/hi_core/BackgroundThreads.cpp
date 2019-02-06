@@ -413,6 +413,8 @@ SampleDataExporter::SampleDataExporter(ModalBaseWindow* mbw) :
 	File f = {};
 #endif
 
+	addComboBox("resume", sa3, "Resume on existing archive");
+
 	targetFile = new FilenameComponent("Target directory", f, true, true, true, "", "", "Choose export directory");
 	targetFile->setSize(300, 24);
 	addCustomComponent(targetFile);
@@ -431,6 +433,7 @@ void SampleDataExporter::logVerboseMessage(const String& verboseMessage)
 {
 #if USE_BACKEND
 	debugToConsole(synthChain, verboseMessage);
+
 #else
 	ignoreUnused(verboseMessage);
 #endif
@@ -438,7 +441,14 @@ void SampleDataExporter::logVerboseMessage(const String& verboseMessage)
 
 void SampleDataExporter::logStatusMessage(const String& message)
 {
+	fullLog << message << "\n";
+
 	showStatusMessage(message);
+}
+
+void SampleDataExporter::criticalErrorOccured(const String& message)
+{
+	criticalError = message; fullLog << "CRITICAL ERROR: " << criticalError;
 }
 
 void SampleDataExporter::run()
@@ -477,7 +487,16 @@ void SampleDataExporter::run()
 
 void SampleDataExporter::threadFinished()
 {
-	PresetHandler::showMessageWindow("Samples successfully exported", "All samples were exported without errors");
+	if (criticalError.isNotEmpty())
+	{
+		PresetHandler::showMessageWindow("Export Error", criticalError, PresetHandler::IconType::Error);
+		File f = File::getSpecialLocation(File::userDesktopDirectory).getChildFile("HLACLog.txt");
+		f.replaceWithText(fullLog);
+	}
+	else
+	{
+		PresetHandler::showMessageWindow("Samples successfully exported", "All samples were exported without errors");
+	}
 }
 
 Array<File> SampleDataExporter::collectMonoliths()
@@ -609,6 +628,17 @@ SampleDataImporter::SampleDataImporter(ModalBaseWindow* mbw) :
 	targetFile->setSize(300, 24);
 	addCustomComponent(targetFile);
 
+#if USE_BACKEND
+
+	StringArray sa6;
+
+	sa6.add("Write samples in subdirectory");
+	sa6.add("Verify Archive structure");
+
+	addComboBox("verify", sa6, "Import mode");
+
+#endif
+
 #if USE_FRONTEND
 
 	sampleDirectory = new FilenameComponent("Sample Folder", sampleDestination, true, true, true, "", "", "Choose the Sample location folder");
@@ -628,6 +658,8 @@ SampleDataImporter::SampleDataImporter(ModalBaseWindow* mbw) :
 	addComboBox("fullDynamics", sa5, "Sample bit depth");
 
 #endif
+
+
 
 	StringArray sa;
 
@@ -698,6 +730,12 @@ void SampleDataImporter::logStatusMessage(const String& message)
 	showStatusMessage(message);
 }
 
+void SampleDataImporter::criticalErrorOccured(const String& message)
+{
+	showStatusMessage(message);
+	criticalError = message;
+}
+
 void SampleDataImporter::run()
 {
 #if USE_FRONTEND
@@ -736,6 +774,10 @@ void SampleDataImporter::run()
 	data.partProgress = &partProgress;
 	data.totalProgress = &totalProgress;
 
+#if USE_BACKEND
+	data.debugLogMode = getComboBoxComponent("verify")->getSelectedItemIndex() == 1;
+#endif
+
 	hlac::HlacArchiver decompressor(getCurrentThread());
 
 	decompressor.setListener(this);
@@ -764,7 +806,11 @@ void SampleDataImporter::run()
 
 void SampleDataImporter::threadFinished()
 {
-	if (!result.wasOk())
+	if (criticalError.isNotEmpty())
+	{
+		PresetHandler::showMessageWindow("Error during sample installation", criticalError);
+	}
+	else if (!result.wasOk())
 	{
 		PresetHandler::showMessageWindow("Error during sample installation", result.getErrorMessage());
 	}

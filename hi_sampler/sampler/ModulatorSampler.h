@@ -50,7 +50,8 @@ class SampleEditHandler;
 *	- Different playback modes (pitch tracking / one shot, etc.)
 */
 class ModulatorSampler: public ModulatorSynth,
-						public LookupTableProcessor
+						public LookupTableProcessor,
+						public SuspendableTimer::Manager
 {
 public:
 
@@ -117,6 +118,10 @@ public:
 		WeakReference<ModulatorSampler> s;
 	};
 
+	void suspendStateChanged(bool shouldBeSuspended) override
+	{
+		getSampleMap()->suspendInternalTimers(shouldBeSuspended);
+	}
 
 	SET_PROCESSOR_NAME("StreamingSampler", "Sampler")
 
