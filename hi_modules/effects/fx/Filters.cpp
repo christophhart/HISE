@@ -489,7 +489,7 @@ void PolyFilterEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 void PolyFilterEffect::renderNextBlock(AudioSampleBuffer &b, int startSample, int numSamples)
 {
-	if (hasPolyMods() || !blockIsActive)
+	if (!forceMono && (hasPolyMods() || !blockIsActive))
 		return;
 
 	while (numSamples > 0)
