@@ -527,6 +527,14 @@ public:
 	{
 		for (auto& mb : modChains)
 			mb.calculateMonophonicModulationValues(startSample, numSamples);
+
+		if (forceMono)
+		{
+			for (auto& mb : modChains)
+			{
+				mb.calculateModulationValuesForCurrentVoice(0, startSample, numSamples);
+			}
+		}
 	}
 
 	/** A wrapper function around the actual processing.
@@ -604,6 +612,16 @@ public:
 		for (auto& mb : modChains)
 			mb.handleHiseEvent(m);
 	};
+
+
+	void setForceMonoMode(bool shouldUseMonoMode)
+	{
+		forceMono = shouldUseMonoMode;
+	}
+
+protected:
+
+	bool forceMono = false;
 };
 
 } // namespace hise

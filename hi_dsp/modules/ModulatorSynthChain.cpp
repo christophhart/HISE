@@ -70,6 +70,7 @@ ModulatorSynthChain::ModulatorSynthChain(MainController *mc, const String &id, i
 	gainChain->getFactoryType()->setConstrainer(constrainer, false);
 
 	effectChain->getFactoryType()->setConstrainer(constrainer, false);
+	effectChain->setForceMonophonicProcessingOfPolyphonicEffects(true);
 
 	disableChain(PitchModulation, true);
 }
@@ -499,7 +500,6 @@ NoMidiInputConstrainer::NoMidiInputConstrainer()
 {
 	Array<FactoryType::ProcessorEntry> typeNames;
 
-    ADD_NAME_TO_TYPELIST(PolyFilterEffect);
     ADD_NAME_TO_TYPELIST(HarmonicFilter);
     ADD_NAME_TO_TYPELIST(StereoEffect);
     ADD_NAME_TO_TYPELIST(PolyshapeFX);
