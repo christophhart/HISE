@@ -751,7 +751,7 @@ private:
 
 	const HiseEventBuffer &masterBuffer;
 	HeapBlock<HiseEvent> artificialEvents;
-	uint16 lastArtificialEventIds[128];
+	uint16 lastArtificialEventIds[16][128];
 	HiseEvent realNoteOnEvents[16][128];
 	uint16 currentEventId;
 

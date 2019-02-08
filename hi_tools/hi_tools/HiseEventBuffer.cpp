@@ -604,7 +604,8 @@ EventIdHandler::EventIdHandler(HiseEventBuffer& masterBuffer_) :
 	//for (int i = 0; i < 128; i++)
 	//realNoteOnEvents[i] = HiseEvent();
 
-	memset(realNoteOnEvents, 0, sizeof(HiseEvent) * 128);
+	memset(realNoteOnEvents, 0, sizeof(HiseEvent) * 128 * 16);
+	memset(lastArtificialEventIds, 0, sizeof(uint16) * 128 * 16);
 
 	artificialEvents.calloc(HISE_EVENT_ID_ARRAY_SIZE, sizeof(HiseEvent));
 }
@@ -720,7 +721,7 @@ uint16 EventIdHandler::getEventIdForNoteOff(const HiseEvent &noteOffEvent)
 			return eventId;
 
 		else
-			return lastArtificialEventIds[noteOffEvent.getNoteNumber()];
+			return lastArtificialEventIds[noteOffEvent.getChannel() % 16][noteOffEvent.getNoteNumber()];
 	}
 }
 
@@ -731,7 +732,7 @@ void EventIdHandler::pushArtificialNoteOn(HiseEvent& noteOnEvent) noexcept
 
 	noteOnEvent.setEventId(currentEventId);
 	artificialEvents[currentEventId % HISE_EVENT_ID_ARRAY_SIZE] = noteOnEvent;
-	lastArtificialEventIds[noteOnEvent.getNoteNumber()] = currentEventId;
+	lastArtificialEventIds[noteOnEvent.getChannel() % 16][noteOnEvent.getNoteNumber()] = currentEventId;
 
 	currentEventId++;
 }
