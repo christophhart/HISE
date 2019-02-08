@@ -298,6 +298,22 @@ Point<float> ApiHelpers::getPointFromVar(const var& data, Result* r /*= nullptr*
 	}
 }
 
+var ApiHelpers::getVarRectangle(Rectangle<float> floatRectangle, Result* r /*= nullptr*/)
+{
+	ignoreUnused(r);
+
+	Array<var> newRect;
+
+	newRect.add(floatRectangle.getX());
+	newRect.add(floatRectangle.getY());
+	newRect.add(floatRectangle.getWidth());
+	newRect.add(floatRectangle.getHeight());
+
+	return var(newRect);
+}
+
+
+
 Rectangle<float> ApiHelpers::getRectangleFromVar(const var &data, Result *r/*=nullptr*/)
 {
 	if (data.isArray())
@@ -2162,6 +2178,7 @@ struct ScriptingApi::Synth::Wrapper
 	API_METHOD_WRAPPER_1(Synth, getMidiProcessor);
 	API_METHOD_WRAPPER_1(Synth, getChildSynth);
 	API_METHOD_WRAPPER_1(Synth, getChildSynthByIndex);
+	API_METHOD_WRAPPER_1(Synth, createMidiOverlay);
 	API_METHOD_WRAPPER_1(Synth, getIdList);
 	API_METHOD_WRAPPER_2(Synth, getModulatorIndex);
 	API_METHOD_WRAPPER_1(Synth, getAllModulators);
@@ -2217,6 +2234,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_4(setModulatorAttribute);
 	ADD_API_METHOD_3(addModulator);
 	ADD_API_METHOD_3(addEffect);
+	ADD_API_METHOD_1(createMidiOverlay);
 	ADD_API_METHOD_1(removeEffect);
 	ADD_API_METHOD_1(removeModulator);
 	ADD_API_METHOD_1(getModulator);
@@ -2897,6 +2915,22 @@ ScriptingApi::Synth::ScriptSlotFX* ScriptingApi::Synth::getSlotFX(const String& 
 		reportIllegalCall("getScriptingAudioSampleProcessor()", "onInit");
 		RETURN_IF_NO_THROW(new ScriptSlotFX(getScriptProcessor(), nullptr))
 	}
+}
+
+ScriptingObjects::ScriptedMidiOverlay* ScriptingApi::Synth::createMidiOverlay(const String& playerId)
+{
+	auto p = ProcessorHelpers::getFirstProcessorWithName(getScriptProcessor()->getMainController_()->getMainSynthChain(), playerId);
+
+	if (p == nullptr)
+		reportScriptError(playerId + " was not found");
+
+	if (auto mp = dynamic_cast<MidiFilePlayer*>(p))
+	{
+		return new ScriptingObjects::ScriptedMidiOverlay(getScriptProcessor(), mp);
+	}
+	else
+		reportScriptError(playerId + " is not a MIDI Player");
+
 }
 
 void ScriptingApi::Synth::setAttribute(int attributeIndex, float newAttribute)

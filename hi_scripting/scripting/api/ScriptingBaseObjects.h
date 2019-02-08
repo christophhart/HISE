@@ -137,6 +137,7 @@ private:
 
 	String name;
 
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ConstScriptingObject);
 };
 
 /** The base class for all objects that can be created by a script. 

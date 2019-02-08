@@ -68,6 +68,8 @@ public:
 
 	static Point<float> getPointFromVar(const var& data, Result* r = nullptr);
 
+	static var getVarRectangle(Rectangle<float> floatRectangle, Result* r = nullptr);
+
 	static Rectangle<float> getRectangleFromVar(const var &data, Result *r = nullptr);
 
 	static Rectangle<int> getIntRectangleFromVar(const var &data, Result* r = nullptr);
@@ -958,6 +960,64 @@ public:
         JUCE_DECLARE_WEAK_REFERENCEABLE(TimerObject);
 	};
 
+
+	class ScriptedMidiOverlay : public MidiFilePlayerBaseType,
+								public ConstScriptingObject,
+							    public DebugableObject,
+								public SuspendableTimer
+	{
+	public:
+
+		ScriptedMidiOverlay(ProcessorWithScriptingContent* p, MidiFilePlayer* player_);
+		~ScriptedMidiOverlay();
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("MidiOverlay"); }
+
+		String getDebugValue() const override;
+
+		String getDebugName() const override;
+
+		void sequenceLoaded(HiseMidiSequence::Ptr newSequence) override;
+		void trackIndexChanged() override;
+		void sequenceIndexChanged() override;
+		void sequencesCleared() override;
+
+		void timerCallback() override;
+
+		// ============================================================================================================ API Methods
+
+		/** Returns an array containing all notes converted to the space supplied with the target bounds [x, y, w, h]. */
+		var getNoteRectangleList(var targetBounds);
+
+		/** Sets the playback position in the current loop. Input must be between 0.0 and 1.0. */
+		void setPlaybackPosition(var newPosition);
+
+		/** Returns the playback position in the current loop between 0.0 and 1.0. */
+		var getPlaybackPosition();
+
+		/** If true, the panel will get a repaint() call whenever the playback position changes. 
+		
+			Otherwise it will only be updated when the sequence changes. */
+		void setRepaintOnPositionChange(var shouldRepaintPanel);
+
+		/** Connect this to the panel and it will be automatically updated when something changes. */
+		void connectToPanel(var panel);
+
+		// ============================================================================================================
+
+		struct Wrapper;
+
+	private:
+
+		bool repaintOnPlaybackChange = false;
+
+		double lastPlaybackChange = 0.0;
+
+		WeakReference<ConstScriptingObject> connectedPanel;
+
+		bool sequenceLoaded() { return getSequence() != nullptr; }
+		HiseMidiSequence* getSequence() { return getPlayer()->getCurrentSequence(); }
+	};
 
 	class PathObject : public ConstScriptingObject,
 					   public DebugableObject

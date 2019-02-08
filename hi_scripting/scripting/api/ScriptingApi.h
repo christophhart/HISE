@@ -515,6 +515,7 @@ public:
 		typedef ScriptingObjects::ScriptingAudioSampleProcessor ScriptAudioSampleProcessor;
 		typedef ScriptingObjects::ScriptingTableProcessor ScriptTableProcessor;
 		typedef ScriptingObjects::ScriptingSlotFX ScriptSlotFX;
+		typedef ScriptingObjects::ScriptedMidiOverlay MidiOverlay;
 
 		// ============================================================================================================ API Methods
 
@@ -667,6 +668,9 @@ public:
 
 		/** Returns the first slot with the given name. */
 		ScriptSlotFX* getSlotFX(const String& name);
+
+		/** Creates a MIDI overlay object for the given player that can be connected to a Panel. */
+		MidiOverlay* createMidiOverlay(const String& playerId);
 
 		/** Returns the index of the Modulator in the chain with the supplied chainId */
 		int getModulatorIndex(int chainId, const String &id) const;

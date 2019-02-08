@@ -2999,4 +2999,149 @@ bool ScriptingObjects::ExpansionHandlerObject::loadExpansion(const String expans
 	return handler.setCurrentExpansion(expansionName);
 }
 
+struct ScriptingObjects::ScriptedMidiOverlay::Wrapper
+{
+	API_METHOD_WRAPPER_0(ScriptedMidiOverlay, getPlaybackPosition);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiOverlay, setPlaybackPosition);
+	API_METHOD_WRAPPER_1(ScriptedMidiOverlay, getNoteRectangleList);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiOverlay, connectToPanel);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiOverlay, setRepaintOnPositionChange);
+};
+
+ScriptingObjects::ScriptedMidiOverlay::ScriptedMidiOverlay(ProcessorWithScriptingContent* p, MidiFilePlayer* player_):
+	MidiFilePlayerBaseType(player_),
+	ConstScriptingObject(p, 3)
+{
+	ADD_API_METHOD_0(getPlaybackPosition);
+	ADD_API_METHOD_1(setPlaybackPosition);
+	ADD_API_METHOD_1(getNoteRectangleList);
+	ADD_API_METHOD_1(connectToPanel);
+	ADD_API_METHOD_1(setRepaintOnPositionChange);
+
+	addConstant("STOP", 0);
+	addConstant("PLAY", 1);
+	addConstant("RECORD", 2);
+}
+
+ScriptingObjects::ScriptedMidiOverlay::~ScriptedMidiOverlay()
+{
+	connectedPanel = nullptr;
+}
+
+juce::String ScriptingObjects::ScriptedMidiOverlay::getDebugValue() const
+{
+
+	return String(getPlayer()->getPlaybackPosition(), 2);
+}
+
+juce::String ScriptingObjects::ScriptedMidiOverlay::getDebugName() const
+{
+
+	if (auto seq = getPlayer()->getCurrentSequence())
+		return seq->getId().toString();
+
+	return "No sequence loaded";
+}
+
+void ScriptingObjects::ScriptedMidiOverlay::trackIndexChanged()
+{
+	if (auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(connectedPanel.get()))
+	{
+		panel->repaint();
+	}
+}
+
+void ScriptingObjects::ScriptedMidiOverlay::sequenceIndexChanged()
+{
+	if (auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(connectedPanel.get()))
+	{
+		panel->repaint();
+	}
+}
+
+void ScriptingObjects::ScriptedMidiOverlay::sequencesCleared()
+{
+	if (auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(connectedPanel.get()))
+	{
+		panel->repaint();
+	}
+}
+
+void ScriptingObjects::ScriptedMidiOverlay::timerCallback()
+{
+	if (repaintOnPlaybackChange && ((double)getPlaybackPosition() != lastPlaybackChange))
+	{
+		lastPlaybackChange = getPlaybackPosition();
+
+		if (auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(connectedPanel.get()))
+		{
+			panel->repaint();
+		}
+	}
+}
+
+var ScriptingObjects::ScriptedMidiOverlay::getNoteRectangleList(var targetBounds)
+{
+	if (!sequenceLoaded())
+		return {};
+
+	Result r = Result::ok();
+
+	auto rect = ApiHelpers::getRectangleFromVar(targetBounds, &r);
+
+	auto list = getSequence()->getRectangleList(rect);
+
+	Array<var> returnArray;
+
+	for (auto rect : list)
+		returnArray.add(ApiHelpers::getVarRectangle(rect, &r));
+
+	return var(returnArray);
+}
+
+void ScriptingObjects::ScriptedMidiOverlay::setPlaybackPosition(var newPosition)
+{
+	if (!sequenceLoaded())
+		return;
+
+	getPlayer()->setAttribute(MidiFilePlayer::CurrentPosition, jlimit<float>(0.0f, 1.0f, (float)newPosition), sendNotification);
+
+}
+
+var ScriptingObjects::ScriptedMidiOverlay::getPlaybackPosition()
+{
+	if (!sequenceLoaded())
+		return 0.0;
+
+	return getPlayer()->getPlaybackPosition();
+}
+
+void ScriptingObjects::ScriptedMidiOverlay::setRepaintOnPositionChange(var shouldRepaintPanel)
+{
+	if ((bool)shouldRepaintPanel != repaintOnPlaybackChange)
+	{
+		repaintOnPlaybackChange = (bool)shouldRepaintPanel;
+
+		if (repaintOnPlaybackChange)
+			startTimer(50);
+		else
+			stopTimer();
+	}
+}
+
+void ScriptingObjects::ScriptedMidiOverlay::connectToPanel(var panel)
+{
+	if (auto p = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(panel.getObject()))
+	{
+		connectedPanel = dynamic_cast<ConstScriptingObject*>(p);
+	}
+	else
+		reportScriptError("Invalid panel");
+}
+
+void ScriptingObjects::ScriptedMidiOverlay::sequenceLoaded(HiseMidiSequence::Ptr newSequence)
+{
+
+}
+
 } // namespace hise
