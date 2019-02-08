@@ -30,34 +30,13 @@
 *   ===========================================================================
 */
 
-#include "JuceHeader.h"
 
 
-#include "resizable_height_component/ResizableHeightComponent.cpp"
+
+namespace hise {
+using namespace juce;
 
 
-#include "keyboard/CustomKeyboard.cpp"
-#include "plugin_components/VoiceCpuBpmComponent.cpp"
-#include "plugin_components/PresetBrowserComponents.cpp"
-#include "plugin_components/PresetBrowser.cpp"
-#include "plugin_components/StandalonePopupComponents.cpp"
-#include "plugin_components/PanelTypes.cpp"
-#include "plugin_components/FrontendBar.cpp"
+MidiOverlayFactory* MidiOverlayFactory::instance = nullptr;
 
-#if USE_BACKEND
-#include "plugin_components/PluginPreviewWindow.cpp"
-#endif
-
-
-#include "eq_plot/FilterInfo.cpp"
-#include "eq_plot/FilterGraph.cpp"
-#include "eq_plot/EqComponent.cpp"
-
-#include "floating_layout/FloatingLayout.cpp"
-#include "hi_expansion/ExpansionFloatingTiles.cpp"
-
-#include "midi_overlays/SimpleMidiViewer.cpp"
-#include "midi_overlays/MidiDropper.cpp"
-#include "midi_overlays/MidiOverlayFactory.cpp"
-
-#include "wave_components/SampleComponents.cpp"
+}

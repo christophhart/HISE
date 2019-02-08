@@ -550,6 +550,7 @@ public:
 			MacroTable,
 			MidiLearnPanel,
 			MidiKeyboard,
+			MidiPlayerOverlay,
 			PresetBrowser,
 			SampleConnector,
 			SampleEditor,

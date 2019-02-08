@@ -954,6 +954,7 @@ void MainController::addTempoListener(TempoListener *t)
 	LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
 
 	tempoListeners.addIfNotAlreadyThere(t);
+	t->tempoChanged(getBpm());
 }
 
 void MainController::removeTempoListener(TempoListener *t)

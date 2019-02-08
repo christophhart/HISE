@@ -104,6 +104,12 @@ void MidiProcessorChain::renderNextHiseEventBuffer(HiseEventBuffer &buffer, int 
 		allNotesOffAtNextBuffer = false;
 	}
 
+	if (!wholeBufferProcessors.isEmpty())
+	{
+		for (auto wmp : wholeBufferProcessors)
+			wmp->preprocessBuffer(buffer, numSamples);
+	}
+
 	if (buffer.isEmpty() && futureEventBuffer.isEmpty() && artificialEvents.isEmpty()) return;
 
 	HiseEventBuffer::Iterator it(buffer);
@@ -127,6 +133,7 @@ MidiProcessorFactoryType::MidiProcessorFactoryType(Processor *p) :
 {
 	ADD_NAME_TO_TYPELIST(JavascriptMidiProcessor);
 	ADD_NAME_TO_TYPELIST(Transposer);
+	ADD_NAME_TO_TYPELIST(MidiFilePlayer);
 
 	typeNames.addArray(hardcodedScripts->getAllowedTypes());
 };
@@ -167,14 +174,17 @@ Processor *MidiProcessorFactoryType::createProcessor(int typeIndex, const String
 	}
 	else
 	{
+		auto ms = dynamic_cast<ModulatorSynth*>(getOwnerProcessor());
+
 		switch(typeIndex)
 		{
 			case scriptProcessor:		mp = new JavascriptMidiProcessor(m, id); break;
 			case transposer:			mp = new Transposer(m, id); break;
+			case midiFilePlayer:		mp = new MidiFilePlayer(m, id, ms); break;
 			default:					jassertfalse; return nullptr;
 		}
 
-		mp->setOwnerSynth(dynamic_cast<ModulatorSynth*>(getOwnerProcessor()));
+		mp->setOwnerSynth(ms);
 
 	}
 
@@ -232,8 +242,6 @@ void MidiProcessorChain::MidiProcessorChainHandler::add(Processor *newProcessor,
 		const int index = siblingToInsertBefore == nullptr ? -1 : chain->processors.indexOf(dynamic_cast<MidiProcessor*>(siblingToInsertBefore));
 
 		newProcessor->prepareToPlay(chain->getSampleRate(), chain->getLargestBlockSize());
-
-		
 		newProcessor->setParentProcessor(chain);
 
 		{
@@ -241,6 +249,9 @@ void MidiProcessorChain::MidiProcessorChainHandler::add(Processor *newProcessor,
 
 			newProcessor->setIsOnAir(chain->isOnAir());
 			chain->processors.insert(index, m);
+
+			if (m->isProcessingWholeBuffer())
+				chain->addWholeBufferProcessor(m);
 		}
 
 		if (JavascriptMidiProcessor* sp = dynamic_cast<JavascriptMidiProcessor*>(newProcessor))

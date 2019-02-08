@@ -30,34 +30,57 @@
 *   ===========================================================================
 */
 
-#include "JuceHeader.h"
+
+#pragma once
+
+namespace hise {
+using namespace juce;
 
 
-#include "resizable_height_component/ResizableHeightComponent.cpp"
+/** A read only MIDI file content display. */
+class SimpleMidiViewer : public Component,
+	public MidiFilePlayerBaseType,
+	public Timer
+{
+public:
+
+	ENABLE_OVERLAY_FACTORY(SimpleMidiViewer, "Midi Viewer");
+
+	SimpleMidiViewer(MidiFilePlayer* player);;
+
+	void timerCallback() override;
+
+	void sequenceLoaded(HiseMidiSequence::Ptr) override {};
+
+	void resized() override;
+
+	int getPreferredHeight() const override { return 80; }
+
+	void sequencesCleared() override
+	{
+		rebuildRectangles();
+	};
+
+	void sequenceIndexChanged() override
+	{
+		rebuildRectangles();
+	}
+
+	void trackIndexChanged() override
+	{
+		rebuildRectangles();
+	}
+
+	void paint(Graphics& g) override;
+
+	void rebuildRectangles();
+
+	void mouseDown(const MouseEvent& e) override;
+
+private:
+
+	RectangleList<float> currentRectangles;
+};
 
 
-#include "keyboard/CustomKeyboard.cpp"
-#include "plugin_components/VoiceCpuBpmComponent.cpp"
-#include "plugin_components/PresetBrowserComponents.cpp"
-#include "plugin_components/PresetBrowser.cpp"
-#include "plugin_components/StandalonePopupComponents.cpp"
-#include "plugin_components/PanelTypes.cpp"
-#include "plugin_components/FrontendBar.cpp"
-
-#if USE_BACKEND
-#include "plugin_components/PluginPreviewWindow.cpp"
-#endif
-
-
-#include "eq_plot/FilterInfo.cpp"
-#include "eq_plot/FilterGraph.cpp"
-#include "eq_plot/EqComponent.cpp"
-
-#include "floating_layout/FloatingLayout.cpp"
-#include "hi_expansion/ExpansionFloatingTiles.cpp"
-
-#include "midi_overlays/SimpleMidiViewer.cpp"
-#include "midi_overlays/MidiDropper.cpp"
-#include "midi_overlays/MidiOverlayFactory.cpp"
-
-#include "wave_components/SampleComponents.cpp"
+}

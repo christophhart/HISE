@@ -103,6 +103,10 @@ END_JUCE_MODULE_DECLARATION
 
 #include "hi_expansion/ExpansionFloatingTiles.h"
 
+#include "midi_overlays/SimpleMidiViewer.h"
+#include "midi_overlays/MidiDropper.h"
+#include "midi_overlays/MidiOverlayFactory.h"
+
 namespace hise {
 using namespace juce;
 
