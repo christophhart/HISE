@@ -127,10 +127,10 @@ public:
 	void setType(Type t) noexcept { type = t; }
 
 	/** Checks if the message was marked as ignored (by a script). */
-    bool isIgnored() const noexcept{ return ignored; };
+    bool isIgnored() const noexcept;;
 
 	/** Ignores the event. Ignored events will not be processed, but remain in the buffer (they are not cleared). */
-    void ignoreEvent(bool shouldBeIgnored) noexcept{ ignored = shouldBeIgnored; };
+    void ignoreEvent(bool shouldBeIgnored) noexcept;;
 
 	/** Returns the event ID of the message. The event IDs will be automatically created
 	    by HISE when it is processing the incoming MIDI messages and associates sequentially
@@ -151,7 +151,7 @@ public:
 
 	/** If the event was created artificially by a MIDI Processor, it will call this method.
 		You don't need to use this yourself. */
-    void setArtificial() noexcept { artificial = true; }
+    void setArtificial() noexcept;
 
 	/** Returns true if this method was created artificially. 
 	
@@ -163,7 +163,7 @@ public:
 		This information can be useful sometimes in order to prevent endless recursive loops.
 		Also, the HiseEventBuffer::Iterator class can be told to skip artificial events. 
 	*/
-    bool isArtificial() const noexcept{ return artificial; };
+    bool isArtificial() const noexcept;;
 
 	/** Sets the transpose amount of the given event ID.
 	
@@ -228,6 +228,8 @@ public:
 	*/
 	static HiseEvent createTimerEvent(uint8 timerIndex, uint16 offset);
 
+	
+
 	/** Returns true if the event is a volume fade. */
 	bool isVolumeFade() const noexcept{ return type == Type::VolumeFade; };
 
@@ -250,30 +252,32 @@ public:
 		buffer size, the message will be delayed until the buffer range contains
 		the time stamp.
 	*/
-	uint16 getTimeStamp() const noexcept{ return timeStamp; };
+	int getTimeStamp() const noexcept;;
 
 	/** Sets the timestamp to a sample offset in the future. */
-	void setTimeStamp(int newTimestamp) noexcept;;
-
-	void setTimeStampRaw(uint16 newTimestamp) noexcept;
+	void setTimeStamp(int newTimestamp) noexcept;
 
 	template <int Alignment> void alignToRaster(int maxTimestamp) noexcept
 	{
-		const uint16 odd = timeStamp % (uint16)Alignment;
-		constexpr uint16 half = static_cast<uint16>(Alignment) / 2;
+		int thisTimeStamp = getTimeStamp();
 
-		uint16 roundUpValue = (uint16)(static_cast<uint16>(odd > half) * static_cast<uint16>(Alignment));
-		uint16 delta = roundUpValue - odd;
+		const int odd = thisTimeStamp % (int)Alignment;
+		constexpr int half = static_cast<int>(Alignment) / 2;
 
-		timeStamp += delta;
+		int roundUpValue = (int)(static_cast<int>(odd > half) * static_cast<int>(Alignment));
+		int delta = roundUpValue - odd;
 
-		uint16 limitRoundDownValue = static_cast<uint16>(timeStamp >= maxTimestamp) * static_cast<uint16>(Alignment);
+		thisTimeStamp += delta;
 
-		timeStamp -= limitRoundDownValue;
+		int limitRoundDownValue = static_cast<int>(thisTimeStamp >= maxTimestamp) * static_cast<int>(Alignment);
+
+		thisTimeStamp -= limitRoundDownValue;
+
+		setTimeStamp(thisTimeStamp);
 	}
 
 	/** Adds the delta value to the timestamp. */
-	void addToTimeStamp(int16 delta) noexcept;
+	void addToTimeStamp(int delta) noexcept;
 
 	/** Returns the MIDI channel. */
 	int getChannel() const noexcept{ return (int)channel; };
@@ -442,24 +446,20 @@ public:
 
 private:
 
-	Type type = Type::Empty;
-
+	Type type = Type::Empty;		// DWord 1
 	uint8 channel = 0;
 	uint8 number = 0;
 	uint8 value = 0;
 
-	int8 transposeValue = 0;
-
+	int8 transposeValue = 0;		// DWord 2
 	int8 gain = 0;
 	int8 semitones = 0;
 	int8 cents = 0;
 
-	uint16 eventId = 0;
-	uint16 timeStamp = 0;
+	uint16 eventId = 0;				// DWord 3
 	uint16 startOffset = 0;
-	
-	bool ignored = false;
-	bool artificial = false;
+
+	uint32 timestamp;
 };
 
 #define HISE_EVENT_BUFFER_SIZE 256
@@ -633,9 +633,9 @@ public:
 
 	bool timeStampsAreSorted() const;
 	
-	uint16 getMinTimeStamp() const;
+	int getMinTimeStamp() const;
 
-	uint16 getMaxTimeStamp() const;
+	int getMaxTimeStamp() const;
 
 	struct CopyHelpers
 	{

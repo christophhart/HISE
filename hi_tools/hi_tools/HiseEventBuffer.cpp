@@ -82,6 +82,8 @@ HiseEvent::HiseEvent(const HiseEvent &other) noexcept
 
 void HiseEvent::swapWith(HiseEvent &other)
 {
+	
+
 	// Only works with struct size of 16 bytes...
 	jassert(sizeof(HiseEvent) == 16);
 
@@ -137,6 +139,41 @@ String HiseEvent::getTypeAsString() const noexcept
 
 
 
+bool HiseEvent::isIgnored() const noexcept
+{
+
+	constexpr int ignoreMask = 0x40000000;
+	bool ignored = timestamp & ignoreMask;
+	return ignored;
+}
+
+void HiseEvent::ignoreEvent(bool shouldBeIgnored) noexcept
+{
+
+	constexpr int ignoreMask = 0x40000000;
+	constexpr int everythingElse = 0xBFFFFFFF;
+
+	if (shouldBeIgnored)
+		timestamp |= ignoreMask;
+	else
+		timestamp &= everythingElse;
+}
+
+void HiseEvent::setArtificial() noexcept
+{
+
+	constexpr int aMask = 0x80000000;
+	timestamp |= aMask;
+}
+
+bool HiseEvent::isArtificial() const noexcept
+{
+
+	constexpr int aMask = 0x80000000;
+	bool artificial = (timestamp & aMask) != 0;
+	return artificial;
+}
+
 double HiseEvent::getPitchFactorForEvent() const
 {
 	if (semitones == 0 && cents == 0) return 1.0;
@@ -189,28 +226,26 @@ HiseEvent HiseEvent::createTimerEvent(uint8 timerIndex, uint16 offset)
 	return e;
 }
 
+int HiseEvent::getTimeStamp() const noexcept
+{
+
+	constexpr uint32 tsMask = 0x0FFFFFFF;
+	return static_cast<int>(timestamp & tsMask);
+}
+
 void HiseEvent::setTimeStamp(int newTimestamp) noexcept
 {
-	timeStamp = static_cast<uint16>(jlimit<int>(0, UINT16_MAX, newTimestamp));
+	constexpr uint32 tsMask = 0x3FFFFFFF;
+	constexpr uint32 flagMask = 0xC0000000;
+	uint32 flagValues = timestamp & flagMask;
+	timestamp = flagValues | (static_cast<uint32>(newTimestamp) & tsMask);
 }
 
-void HiseEvent::setTimeStampRaw(uint16 newTimestamp) noexcept
+void HiseEvent::addToTimeStamp(int delta) noexcept
 {
-	timeStamp = newTimestamp;
-}
-
-void HiseEvent::addToTimeStamp(int16 delta) noexcept
-{
-	if (delta < 0)
-	{
-		int v = (int)timeStamp + delta;
-		timeStamp = (uint16)jmax<int>(0, v);
-	}
-	else
-	{
-		int v = (int)timeStamp + delta;
-		timeStamp = (uint16)jmin<int>(UINT16_MAX, v);
-	}
+	int v = getTimeStamp() + delta;
+	v = jmax<int>(0, v);
+	setTimeStamp(v);
 }
 
 bool HiseEvent::isNoteOn(bool returnTrueForVelocity0 /*= false*/) const noexcept
@@ -378,7 +413,7 @@ bool HiseEventBuffer::timeStampsAreSorted() const
 	return true;
 }
 
-uint16 HiseEventBuffer::getMinTimeStamp() const
+int HiseEventBuffer::getMinTimeStamp() const
 {
 	jassert(timeStampsAreSorted());
 
@@ -388,7 +423,7 @@ uint16 HiseEventBuffer::getMinTimeStamp() const
 	return buffer[0].getTimeStamp();
 }
 
-uint16 HiseEventBuffer::getMaxTimeStamp() const
+int HiseEventBuffer::getMaxTimeStamp() const
 {
 	jassert(timeStampsAreSorted());
 
@@ -418,7 +453,7 @@ void HiseEventBuffer::subtractFromTimeStamps(int delta)
 
 	for (int i = 0; i < numUsed; i++)
 	{
-		buffer[i].addToTimeStamp((int16)-delta);
+		buffer[i].addToTimeStamp(-delta);
 	}
 
 	jassert(timeStampsAreSorted());
@@ -437,7 +472,7 @@ void HiseEventBuffer::moveEventsBelow(HiseEventBuffer& targetBuffer, int highest
 
 	while (HiseEvent* e = iter.getNextEventPointer())
 	{
-		if (e->getTimeStamp() < (uint32)highestTimestamp)
+		if (e->getTimeStamp() < highestTimestamp)
 		{
 			targetBuffer.addEvent(*e);
 			numCopied++;
@@ -463,14 +498,14 @@ void HiseEventBuffer::moveEventsBelow(HiseEventBuffer& targetBuffer, int highest
 
 void HiseEventBuffer::moveEventsAbove(HiseEventBuffer& targetBuffer, int lowestTimestamp)
 {
-	if (numUsed == 0 || (buffer[numUsed - 1].getTimeStamp() < (uint32)lowestTimestamp)) 
+	if (numUsed == 0 || (buffer[numUsed - 1].getTimeStamp() < lowestTimestamp)) 
 		return; // Skip the work if no events with bigger timestamps
 
 	int indexOfFirstElementToMove = -1;
 
 	for (int i = 0; i < numUsed; i++)
 	{
-		if (buffer[i].getTimeStamp() >= (uint32)lowestTimestamp)
+		if (buffer[i].getTimeStamp() >= lowestTimestamp)
 		{
 			indexOfFirstElementToMove = i;
 			break;
