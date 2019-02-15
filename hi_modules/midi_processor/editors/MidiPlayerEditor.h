@@ -72,10 +72,8 @@ public:
 
 	int getBodyHeight() const override
 	{
-		return 32 + 2 * margin + (currentPlayerType != nullptr ? (currentPlayerType->getPreferredHeight() + margin) : 0);
+		return 32 + 2 * margin + dropper.getPreferredHeight() + (currentPlayerType != nullptr ? (currentPlayerType->getPreferredHeight() + margin) : 0);
 	}
-
-
 
 	void resized() override;
 
@@ -139,6 +137,7 @@ private:
 	int currentTrackAmount = 0;
 
 	ScopedPointer<MidiFilePlayerBaseType> currentPlayerType;
+	MidiFileDragAndDropper dropper;
 
 	HiComboBox currentSequence;
 	HiComboBox currentTrack;

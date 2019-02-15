@@ -63,7 +63,7 @@ void MidiFileDragAndDropper::sequencesCleared()
 	repaint();
 }
 
-bool MidiFileDragAndDropper::shouldDropFilesWhenDraggedExternally(const DragAndDropTarget::SourceDetails &sourceDetails, StringArray &files, bool &canMoveFiles)
+bool MidiFileDragAndDropper::shouldDropFilesWhenDraggedExternally(const DragAndDropTarget::SourceDetails &, StringArray &, bool &)
 {
 	if (currentSequence != nullptr)
 	{
@@ -84,13 +84,12 @@ void MidiFileDragAndDropper::dragOperationEnded(const DragAndDropTarget::SourceD
 	{
 		StringArray files;
 		files.add(draggedTempFile.getFullPathName());
-		bool success = performExternalDragDropOfFiles(files, true);
-
+		performExternalDragDropOfFiles(files, true);
 		draggedTempFile.deleteFile();
 	}
 }
 
-void MidiFileDragAndDropper::mouseDown(const MouseEvent& event)
+void MidiFileDragAndDropper::mouseDown(const MouseEvent& )
 {
 	startDragging(currentSequenceId.toString(), this, createSnapshot(), true);
 }
@@ -137,7 +136,7 @@ void MidiFileDragAndDropper::filesDropped(const StringArray& files, int, int)
 	newSequence->loadFrom(fis);
 
 	getPlayer()->addSequence(newSequence);
-	getPlayer()->setAttribute(MidiFilePlayer::CurrentSequence, getPlayer()->getNumSequences(), sendNotification);
+	getPlayer()->setAttribute(MidiFilePlayer::CurrentSequence, (float)getPlayer()->getNumSequences(), sendNotification);
 
 	hover = false;
 	repaint();

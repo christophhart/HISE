@@ -207,7 +207,11 @@ public:
 	static Identifier getId() { RETURN_STATIC_IDENTIFIER("undefined"); }
 
 	// "Overwrite" this and return a new object for the given object for the factory
-	static MidiFilePlayerBaseType* create(MidiFilePlayer* player) { return nullptr; };
+	static MidiFilePlayerBaseType* create(MidiFilePlayer* player) 
+	{
+		ignoreUnused(player);
+		return nullptr; 
+	};
 
 	virtual ~MidiFilePlayerBaseType();
 	virtual int getPreferredHeight() const { return 0; }

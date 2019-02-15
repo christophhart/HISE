@@ -43,13 +43,13 @@ MidiFilePlayerEditor::MidiFilePlayerEditor(ProcessorEditor* p) :
 	currentTrack("Current Track"),
 	playButton("Start", this, factory),
 	stopButton("Stop", this, factory),
-	recordButton("Record", this, factory)
+	recordButton("Record", this, factory),
+	dropper(dynamic_cast<MidiFilePlayer*>(getProcessor()))
 {
 	dynamic_cast<MidiFilePlayer*>(getProcessor())->addSequenceListener(this);
 
 	addAndMakeVisible(typeSelector);
 	p->getProcessor()->getMainController()->skin(typeSelector);
-
 
 	auto availableOverlays = MidiOverlayFactory::getInstance().getIdList();
 	int overlayIndex = 1;
@@ -59,6 +59,10 @@ MidiFilePlayerEditor::MidiFilePlayerEditor(ProcessorEditor* p) :
 
 	typeSelector.addListener(this);
 	typeSelector.setTextWhenNothingSelected("Set Player type");
+
+	
+
+	addAndMakeVisible(dropper);
 
 	addAndMakeVisible(currentPosition);
 	currentPosition.setSliderStyle(Slider::LinearBar);
@@ -97,8 +101,9 @@ MidiFilePlayerEditor::MidiFilePlayerEditor(ProcessorEditor* p) :
 	currentSequence.setTextWhenNoChoicesAvailable("Nothing loaded");
 	currentSequence.setTextWhenNothingSelected("Nothing loaded");
 
-
 	startTimer(50);
+
+	typeSelector.setSelectedItemIndex(1, sendNotificationAsync);
 }
 
 MidiFilePlayerEditor::~MidiFilePlayerEditor()
@@ -122,12 +127,12 @@ void MidiFilePlayerEditor::timerCallback()
 
 	{
 		// Update the track amount
-		auto currentSequence = mp->getCurrentSequence();
+		auto thisSequence = mp->getCurrentSequence();
 
 		int newTrackAmount = 0;
 
-		if (currentSequence != nullptr)
-			newTrackAmount = currentSequence->getNumTracks();
+		if (thisSequence != nullptr)
+			newTrackAmount = thisSequence->getNumTracks();
 
 		if (newTrackAmount != currentTrackAmount)
 		{
@@ -137,7 +142,7 @@ void MidiFilePlayerEditor::timerCallback()
 			for (int i = 0; i < currentTrackAmount; i++)
 				currentTrack.addItem("Track" + String(i + 1), i + 1);
 
-			currentTrack.setSelectedId(getProcessor()->getAttribute(MidiFilePlayer::CurrentTrack), dontSendNotification);
+			currentTrack.setSelectedId((int)getProcessor()->getAttribute(MidiFilePlayer::CurrentTrack), dontSendNotification);
 		}
 	}
 
@@ -150,17 +155,11 @@ void MidiFilePlayerEditor::timerCallback()
 			currentSequence.clear();
 
 			for (int i = 0; i < actualNumSequences; i++)
-			{
 				currentSequence.addItem(mp->getSequenceId(i).toString(), i + 1);
-			}
 
-			currentSequence.setSelectedId(mp->getAttribute(MidiFilePlayer::CurrentSequence), dontSendNotification);
+			currentSequence.setSelectedId((int)mp->getAttribute(MidiFilePlayer::CurrentSequence), dontSendNotification);
 		}
-
-
 	}
-
-	int lastTrack = currentTrack.getSelectedId();
 }
 
 void MidiFilePlayerEditor::updateGui()
@@ -201,11 +200,15 @@ void MidiFilePlayerEditor::resized()
 {
 	auto ar = getLocalBounds();
 
+
+
 	if (currentPlayerType != nullptr)
 	{
 		auto typeBounds = ar.removeFromBottom(currentPlayerType->getPreferredHeight() + margin);
 		dynamic_cast<Component*>(currentPlayerType.get())->setBounds(typeBounds.reduced(margin));
 	}
+
+	dropper.setBounds(ar.removeFromBottom(dropper.getPreferredHeight()).reduced(margin));
 
 	typeSelector.setBounds(ar.removeFromLeft(128 + 2 * margin).reduced(margin));
 
@@ -243,6 +246,8 @@ juce::Path MidiFilePlayerEditor::TransportPaths::createPath(const String& name) 
 		p.addEllipse({ 0.0f, 0.0f, 1.0f, 1.0f });
 		return p;
 	}
+
+	return {};
 }
 
 

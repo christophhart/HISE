@@ -191,10 +191,10 @@ void HiseMidiSequence::loadFrom(InputStream& input)
 
 		DBG("Track " + String(i + 1));
 
-		for (int i = 0; i < newSequence->getNumEvents(); i++)
+		for (int j = 0; j < newSequence->getNumEvents(); j++)
 		{
-			if (newSequence->getEventPointer(i)->message.isMetaEvent())
-				newSequence->deleteEvent(i--, false);
+			if (newSequence->getEventPointer(j)->message.isMetaEvent())
+				newSequence->deleteEvent(j--, false);
 		}
 
 		if(newSequence->getNumEvents() > 0)
@@ -305,7 +305,7 @@ juce::RectangleList<float> HiseMidiSequence::getRectangleList(Rectangle<float> t
 	return list;
 }
 
-MidiFilePlayer::MidiFilePlayer(MainController *mc, const String &id, ModulatorSynth* ms) :
+MidiFilePlayer::MidiFilePlayer(MainController *mc, const String &id, ModulatorSynth* ) :
 	MidiProcessor(mc, id)
 {
 	addAttributeID(Stop);
@@ -422,6 +422,8 @@ float MidiFilePlayer::getAttribute(int index) const
 	default:
 		break;
 	}
+
+	return 0.0f;
 }
 
 void MidiFilePlayer::setInternalAttribute(int index, float newAmount)
@@ -534,11 +536,11 @@ void MidiFilePlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 
 					auto noteOffTimeStamp = (int)MidiPlayerHelpers::ticksToSamples(noteOffTimeStampInBuffer, getMainController()->getBpm(), getSampleRate());
 
-					auto id = getMainController()->getEventHandler().getEventIdForNoteOff(newNoteOff);
+					auto on_id = getMainController()->getEventHandler().getEventIdForNoteOff(newNoteOff);
 
-					jassert(newEvent.getEventId() == id);
+					jassert(newEvent.getEventId() == on_id);
 
-					newNoteOff.setEventId(id);
+					newNoteOff.setEventId(on_id);
 					newNoteOff.setTimeStamp(noteOffTimeStamp);
 
 					if (noteOffTimeStamp < numSamples)
@@ -650,7 +652,7 @@ MidiFilePlayerBaseType::MidiFilePlayerBaseType(MidiFilePlayer* player_) :
 	player->addChangeListener(this);
 }
 
-void MidiFilePlayerBaseType::changeListenerCallback(SafeChangeBroadcaster* b)
+void MidiFilePlayerBaseType::changeListenerCallback(SafeChangeBroadcaster* )
 {
 	int thisSequence = (int)getPlayer()->getAttribute(MidiFilePlayer::CurrentSequence);
 

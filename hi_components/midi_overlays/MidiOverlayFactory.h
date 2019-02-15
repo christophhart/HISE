@@ -151,6 +151,8 @@ public:
 
 			return asComponent;
 		}
+
+		return nullptr;
 	}
 
 	int getFixedHeight() const override

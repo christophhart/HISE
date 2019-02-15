@@ -2925,12 +2925,11 @@ ScriptingObjects::ScriptedMidiOverlay* ScriptingApi::Synth::createMidiOverlay(co
 		reportScriptError(playerId + " was not found");
 
 	if (auto mp = dynamic_cast<MidiFilePlayer*>(p))
-	{
 		return new ScriptingObjects::ScriptedMidiOverlay(getScriptProcessor(), mp);
-	}
 	else
 		reportScriptError(playerId + " is not a MIDI Player");
 
+	RETURN_IF_NO_THROW(new ScriptingObjects::ScriptedMidiOverlay(getScriptProcessor(), nullptr));
 }
 
 void ScriptingApi::Synth::setAttribute(int attributeIndex, float newAttribute)

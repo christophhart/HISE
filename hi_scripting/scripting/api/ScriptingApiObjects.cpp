@@ -3093,8 +3093,8 @@ var ScriptingObjects::ScriptedMidiOverlay::getNoteRectangleList(var targetBounds
 
 	Array<var> returnArray;
 
-	for (auto rect : list)
-		returnArray.add(ApiHelpers::getVarRectangle(rect, &r));
+	for (auto re : list)
+		returnArray.add(ApiHelpers::getVarRectangle(re, &r));
 
 	return var(returnArray);
 }
