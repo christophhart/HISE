@@ -37,7 +37,9 @@ using namespace juce;
 MidiFileDragAndDropper::MidiFileDragAndDropper(MidiFilePlayer* player) :
 	MidiFilePlayerBaseType(player)
 {
-
+	setColour(HiseColourScheme::ComponentBackgroundColour, Colour(0x11000000));
+	setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
+	setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white);
 }
 
 bool MidiFileDragAndDropper::isMidiFile(const String& s)

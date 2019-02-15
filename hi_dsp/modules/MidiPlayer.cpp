@@ -464,7 +464,12 @@ void MidiFilePlayer::setInternalAttribute(int index, float newAmount)
 
 		break;
 	}
-	case CurrentTrack:			currentTrackIndex = jmax<int>(0, (int)(newAmount - 1)); break;
+	case CurrentTrack:			
+	{
+		currentTrackIndex = jmax<int>(0, (int)(newAmount - 1)); 
+		getCurrentSequence()->setCurrentTrackIndex(currentTrackIndex);
+		break;
+	}
 	default:
 		break;
 	}
@@ -657,9 +662,9 @@ void MidiFilePlayerBaseType::changeListenerCallback(SafeChangeBroadcaster* b)
 
 	int trackIndex = (int)getPlayer()->getAttribute(MidiFilePlayer::CurrentTrack);
 
-	if (thisSequence != lastSequenceIndex)
+	if (trackIndex != lastTrackIndex)
 	{
-		lastSequenceIndex = thisSequence;
+		lastTrackIndex = trackIndex;
 		trackIndexChanged();
 	}
 }
