@@ -1133,6 +1133,8 @@ public:
 	/** Returns the uptime in seconds. */
 	double getUptime() const noexcept { return uptime; }
 
+	double getSampleRate() const noexcept { return sampleRate; }
+
 	/** returns the tempo as bpm. */
     double getBpm() const noexcept
     {

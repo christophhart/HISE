@@ -314,6 +314,15 @@ public:
 		/** Adds the given sample amount to the current timestamp. */
 		void addToTimestamp(int deltaSamples);
 
+		/** Returns true if the event is a note-on event. */
+		bool isNoteOn() const;
+
+		/** Returns true if the event is a note-off event. */
+		bool isNoteOff() const;
+
+		/** Returns true if the event is a CC controller event. */
+		bool isController() const;
+
 		/** Creates a info string for debugging. */
 		String dump() const;
 
@@ -961,17 +970,17 @@ public:
 	};
 
 
-	class ScriptedMidiOverlay : public MidiFilePlayerBaseType,
+	class ScriptedMidiPlayer : public MidiFilePlayerBaseType,
 								public ConstScriptingObject,
 							    public DebugableObject,
 								public SuspendableTimer
 	{
 	public:
 
-		ScriptedMidiOverlay(ProcessorWithScriptingContent* p, MidiFilePlayer* player_);
-		~ScriptedMidiOverlay();
+		ScriptedMidiPlayer(ProcessorWithScriptingContent* p, MidiFilePlayer* player_);
+		~ScriptedMidiPlayer();
 
-		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("MidiOverlay"); }
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("MidiPlayer"); }
 
 		String getDebugValue() const override;
 
@@ -1003,6 +1012,15 @@ public:
 		/** Connect this to the panel and it will be automatically updated when something changes. */
 		void connectToPanel(var panel);
 
+		/** Creates an array containing all MIDI messages wrapped into MessageHolders for processing. */
+		var getEventList();
+
+		/** Writes the given array of MessageHolder objects into the current sequence. This is undoable. */
+		void flushMessageList(var messageList);
+
+		/** Resets the current sequence to the last loaded file. */
+		void reset();
+
 		// ============================================================================================================
 
 		struct Wrapper;
@@ -1015,8 +1033,8 @@ public:
 
 		WeakReference<ConstScriptingObject> connectedPanel;
 
-		bool sequenceLoaded() { return getSequence() != nullptr; }
-		HiseMidiSequence* getSequence() { return getPlayer()->getCurrentSequence(); }
+		bool sequenceValid() const { return getPlayer() != nullptr && getSequence() != nullptr; }
+		HiseMidiSequence* getSequence() const { return getPlayer()->getCurrentSequence(); }
 	};
 
 	class PathObject : public ConstScriptingObject,

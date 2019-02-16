@@ -2584,6 +2584,10 @@ struct ScriptingObjects::ScriptingMessageHolder::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, setGain);
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getGain);
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getTimestamp);
+	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, setTimestamp);
+	API_METHOD_WRAPPER_0(ScriptingMessageHolder, isNoteOn);
+	API_METHOD_WRAPPER_0(ScriptingMessageHolder, isNoteOff);
+	API_METHOD_WRAPPER_0(ScriptingMessageHolder, isController);
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, dump);
 };
 
@@ -2611,6 +2615,10 @@ ScriptingObjects::ScriptingMessageHolder::ScriptingMessageHolder(ProcessorWithSc
 	ADD_API_METHOD_1(setFineDetune);
 	ADD_API_METHOD_0(getFineDetune);
 	ADD_API_METHOD_0(getTimestamp);
+	ADD_API_METHOD_1(setTimestamp);
+	ADD_API_METHOD_0(isNoteOn);
+	ADD_API_METHOD_0(isNoteOff);
+	ADD_API_METHOD_0(isController);
 	ADD_API_METHOD_0(dump);
 
 	addConstant("Empty", 0);
@@ -2651,6 +2659,9 @@ int ScriptingObjects::ScriptingMessageHolder::getGain() const { return (int)e.ge
 int ScriptingObjects::ScriptingMessageHolder::getTimestamp() const { return (int)e.getTimeStamp(); }
 void ScriptingObjects::ScriptingMessageHolder::setTimestamp(int timestampSamples) { e.setTimeStamp(timestampSamples);}
 void ScriptingObjects::ScriptingMessageHolder::addToTimestamp(int deltaSamples) { e.addToTimeStamp((int16)deltaSamples); }
+bool ScriptingObjects::ScriptingMessageHolder::isNoteOn() const { return e.isNoteOn(); }
+bool ScriptingObjects::ScriptingMessageHolder::isNoteOff() const { return e.isNoteOff(); }
+bool ScriptingObjects::ScriptingMessageHolder::isController() const { return e.isController(); }
 
 String ScriptingObjects::ScriptingMessageHolder::dump() const
 {
@@ -2999,16 +3010,19 @@ bool ScriptingObjects::ExpansionHandlerObject::loadExpansion(const String expans
 	return handler.setCurrentExpansion(expansionName);
 }
 
-struct ScriptingObjects::ScriptedMidiOverlay::Wrapper
+struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 {
-	API_METHOD_WRAPPER_0(ScriptedMidiOverlay, getPlaybackPosition);
-	API_VOID_METHOD_WRAPPER_1(ScriptedMidiOverlay, setPlaybackPosition);
-	API_METHOD_WRAPPER_1(ScriptedMidiOverlay, getNoteRectangleList);
-	API_VOID_METHOD_WRAPPER_1(ScriptedMidiOverlay, connectToPanel);
-	API_VOID_METHOD_WRAPPER_1(ScriptedMidiOverlay, setRepaintOnPositionChange);
+	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getPlaybackPosition);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setPlaybackPosition);
+	API_METHOD_WRAPPER_1(ScriptedMidiPlayer, getNoteRectangleList);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, connectToPanel);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setRepaintOnPositionChange);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, flushMessageList);
+	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getEventList);
+	API_VOID_METHOD_WRAPPER_0(ScriptedMidiPlayer, reset);
 };
 
-ScriptingObjects::ScriptedMidiOverlay::ScriptedMidiOverlay(ProcessorWithScriptingContent* p, MidiFilePlayer* player_):
+ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingContent* p, MidiFilePlayer* player_):
 	MidiFilePlayerBaseType(player_),
 	ConstScriptingObject(p, 3)
 {
@@ -3017,25 +3031,33 @@ ScriptingObjects::ScriptedMidiOverlay::ScriptedMidiOverlay(ProcessorWithScriptin
 	ADD_API_METHOD_1(getNoteRectangleList);
 	ADD_API_METHOD_1(connectToPanel);
 	ADD_API_METHOD_1(setRepaintOnPositionChange);
+	ADD_API_METHOD_0(getEventList);
+	ADD_API_METHOD_1(flushMessageList);
+	ADD_API_METHOD_0(reset);
 
 	addConstant("STOP", 0);
 	addConstant("PLAY", 1);
 	addConstant("RECORD", 2);
 }
 
-ScriptingObjects::ScriptedMidiOverlay::~ScriptedMidiOverlay()
+ScriptingObjects::ScriptedMidiPlayer::~ScriptedMidiPlayer()
 {
 	connectedPanel = nullptr;
 }
 
-juce::String ScriptingObjects::ScriptedMidiOverlay::getDebugValue() const
+juce::String ScriptingObjects::ScriptedMidiPlayer::getDebugValue() const
 {
+	if (!sequenceValid())
+		return {};
 
 	return String(getPlayer()->getPlaybackPosition(), 2);
 }
 
-juce::String ScriptingObjects::ScriptedMidiOverlay::getDebugName() const
+juce::String ScriptingObjects::ScriptedMidiPlayer::getDebugName() const
 {
+
+	if (!sequenceValid())
+		return {};
 
 	if (auto seq = getPlayer()->getCurrentSequence())
 		return seq->getId().toString();
@@ -3043,7 +3065,7 @@ juce::String ScriptingObjects::ScriptedMidiOverlay::getDebugName() const
 	return "No sequence loaded";
 }
 
-void ScriptingObjects::ScriptedMidiOverlay::trackIndexChanged()
+void ScriptingObjects::ScriptedMidiPlayer::trackIndexChanged()
 {
 	if (auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(connectedPanel.get()))
 	{
@@ -3051,7 +3073,7 @@ void ScriptingObjects::ScriptedMidiOverlay::trackIndexChanged()
 	}
 }
 
-void ScriptingObjects::ScriptedMidiOverlay::sequenceIndexChanged()
+void ScriptingObjects::ScriptedMidiPlayer::sequenceIndexChanged()
 {
 	if (auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(connectedPanel.get()))
 	{
@@ -3059,7 +3081,7 @@ void ScriptingObjects::ScriptedMidiOverlay::sequenceIndexChanged()
 	}
 }
 
-void ScriptingObjects::ScriptedMidiOverlay::sequencesCleared()
+void ScriptingObjects::ScriptedMidiPlayer::sequencesCleared()
 {
 	if (auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(connectedPanel.get()))
 	{
@@ -3067,7 +3089,7 @@ void ScriptingObjects::ScriptedMidiOverlay::sequencesCleared()
 	}
 }
 
-void ScriptingObjects::ScriptedMidiOverlay::timerCallback()
+void ScriptingObjects::ScriptedMidiPlayer::timerCallback()
 {
 	if (repaintOnPlaybackChange && ((double)getPlaybackPosition() != lastPlaybackChange))
 	{
@@ -3080,9 +3102,9 @@ void ScriptingObjects::ScriptedMidiOverlay::timerCallback()
 	}
 }
 
-var ScriptingObjects::ScriptedMidiOverlay::getNoteRectangleList(var targetBounds)
+var ScriptingObjects::ScriptedMidiPlayer::getNoteRectangleList(var targetBounds)
 {
-	if (!sequenceLoaded())
+	if (!sequenceValid())
 		return {};
 
 	Result r = Result::ok();
@@ -3099,24 +3121,24 @@ var ScriptingObjects::ScriptedMidiOverlay::getNoteRectangleList(var targetBounds
 	return var(returnArray);
 }
 
-void ScriptingObjects::ScriptedMidiOverlay::setPlaybackPosition(var newPosition)
+void ScriptingObjects::ScriptedMidiPlayer::setPlaybackPosition(var newPosition)
 {
-	if (!sequenceLoaded())
+	if (!sequenceValid())
 		return;
 
 	getPlayer()->setAttribute(MidiFilePlayer::CurrentPosition, jlimit<float>(0.0f, 1.0f, (float)newPosition), sendNotification);
 
 }
 
-var ScriptingObjects::ScriptedMidiOverlay::getPlaybackPosition()
+var ScriptingObjects::ScriptedMidiPlayer::getPlaybackPosition()
 {
-	if (!sequenceLoaded())
+	if (!sequenceValid())
 		return 0.0;
 
 	return getPlayer()->getPlaybackPosition();
 }
 
-void ScriptingObjects::ScriptedMidiOverlay::setRepaintOnPositionChange(var shouldRepaintPanel)
+void ScriptingObjects::ScriptedMidiPlayer::setRepaintOnPositionChange(var shouldRepaintPanel)
 {
 	if ((bool)shouldRepaintPanel != repaintOnPlaybackChange)
 	{
@@ -3129,7 +3151,7 @@ void ScriptingObjects::ScriptedMidiOverlay::setRepaintOnPositionChange(var shoul
 	}
 }
 
-void ScriptingObjects::ScriptedMidiOverlay::connectToPanel(var panel)
+void ScriptingObjects::ScriptedMidiPlayer::connectToPanel(var panel)
 {
 	if (auto p = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(panel.getObject()))
 	{
@@ -3139,7 +3161,60 @@ void ScriptingObjects::ScriptedMidiOverlay::connectToPanel(var panel)
 		reportScriptError("Invalid panel");
 }
 
-void ScriptingObjects::ScriptedMidiOverlay::sequenceLoaded(HiseMidiSequence::Ptr newSequence)
+var ScriptingObjects::ScriptedMidiPlayer::getEventList()
+{
+	if (!sequenceValid())
+		return {};
+
+	auto list = MidiSequenceEditor::createBufferFromSequence(getPlayer()->getCurrentSequence(), getPlayer()->getSampleRate(),
+		getPlayer()->getMainController()->getBpm());
+
+	Array<var> eventHolders;
+
+	for (const auto& e : list)
+	{
+		ScopedPointer<ScriptingMessageHolder> holder = new ScriptingMessageHolder(getScriptProcessor());
+		holder->setMessage(e);
+		eventHolders.add(holder.release());
+	}
+
+	return var(eventHolders);
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::flushMessageList(var messageList)
+{
+	if (!sequenceValid())
+		return;
+
+	if (auto ar = messageList.getArray())
+	{
+		Array<HiseEvent> events;
+
+		for (auto e : *ar)
+		{
+			if (auto holder = dynamic_cast<ScriptingMessageHolder*>(e.getObject()))
+				events.add(holder->getMessageCopy());
+			else
+				reportScriptError("Illegal item in message list: " + e.toString());
+		}
+
+		MidiSequenceEditor editor(getPlayer());
+		editor.setEvents(events);
+		editor.write();
+	}
+	else
+		reportScriptError("Input is not an array");
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::reset()
+{
+	if (!sequenceValid())
+		return;
+
+	getPlayer()->getCurrentSequence()->reset();
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::sequenceLoaded(HiseMidiSequence::Ptr newSequence)
 {
 
 }

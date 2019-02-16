@@ -479,7 +479,7 @@ void ScriptingApi::Message::delayEvent(int samplesToDelay)
 	}	
 #endif
 
-	messageHolder->addToTimeStamp((int16)samplesToDelay);
+	messageHolder->addToTimeStamp(samplesToDelay);
 };
 
 void ScriptingApi::Message::setNoteNumber(int newValue)
@@ -2178,7 +2178,7 @@ struct ScriptingApi::Synth::Wrapper
 	API_METHOD_WRAPPER_1(Synth, getMidiProcessor);
 	API_METHOD_WRAPPER_1(Synth, getChildSynth);
 	API_METHOD_WRAPPER_1(Synth, getChildSynthByIndex);
-	API_METHOD_WRAPPER_1(Synth, createMidiOverlay);
+	API_METHOD_WRAPPER_1(Synth, getMidiPlayer);
 	API_METHOD_WRAPPER_1(Synth, getIdList);
 	API_METHOD_WRAPPER_2(Synth, getModulatorIndex);
 	API_METHOD_WRAPPER_1(Synth, getAllModulators);
@@ -2234,7 +2234,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_4(setModulatorAttribute);
 	ADD_API_METHOD_3(addModulator);
 	ADD_API_METHOD_3(addEffect);
-	ADD_API_METHOD_1(createMidiOverlay);
+	ADD_API_METHOD_1(getMidiPlayer);
 	ADD_API_METHOD_1(removeEffect);
 	ADD_API_METHOD_1(removeModulator);
 	ADD_API_METHOD_1(getModulator);
@@ -2395,9 +2395,9 @@ void ScriptingApi::Synth::addVolumeFade(int eventId, int fadeTimeMilliseconds, i
                             reportScriptError("Hell breaks loose if you kill real events artificially!");
                         }
 #endif
-                        const uint16 timeStampOffset = (uint16)(1.0 + (double)fadeTimeMilliseconds / 1000.0 * getProcessor()->getSampleRate());
+                        const int timeStampOffset = (int)(1.0 + (double)fadeTimeMilliseconds / 1000.0 * getProcessor()->getSampleRate());
                         
-                        uint16 timestamp = timeStampOffset;
+                        int timestamp = timeStampOffset;
                         
                         const HiseEvent* current = parentMidiProcessor->getCurrentHiseEvent();
                         
@@ -2917,7 +2917,7 @@ ScriptingApi::Synth::ScriptSlotFX* ScriptingApi::Synth::getSlotFX(const String& 
 	}
 }
 
-ScriptingObjects::ScriptedMidiOverlay* ScriptingApi::Synth::createMidiOverlay(const String& playerId)
+ScriptingObjects::ScriptedMidiPlayer* ScriptingApi::Synth::getMidiPlayer(const String& playerId)
 {
 	auto p = ProcessorHelpers::getFirstProcessorWithName(getScriptProcessor()->getMainController_()->getMainSynthChain(), playerId);
 
@@ -2925,11 +2925,11 @@ ScriptingObjects::ScriptedMidiOverlay* ScriptingApi::Synth::createMidiOverlay(co
 		reportScriptError(playerId + " was not found");
 
 	if (auto mp = dynamic_cast<MidiFilePlayer*>(p))
-		return new ScriptingObjects::ScriptedMidiOverlay(getScriptProcessor(), mp);
+		return new ScriptingObjects::ScriptedMidiPlayer(getScriptProcessor(), mp);
 	else
 		reportScriptError(playerId + " is not a MIDI Player");
 
-	RETURN_IF_NO_THROW(new ScriptingObjects::ScriptedMidiOverlay(getScriptProcessor(), nullptr));
+	RETURN_IF_NO_THROW(new ScriptingObjects::ScriptedMidiPlayer(getScriptProcessor(), nullptr));
 }
 
 void ScriptingApi::Synth::setAttribute(int attributeIndex, float newAttribute)

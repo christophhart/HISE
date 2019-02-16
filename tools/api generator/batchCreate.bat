@@ -41,7 +41,7 @@ xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_preset_storage.xml" "xm
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_slot_f_x.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_graphics_object.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_path_object.xml" "xml\selection"
-xcopy "xml\classhise_1_1_scripting_objects_1_1_scripted_midi_overlay.xml" "xml\selection"
+xcopy "xml\classhise_1_1_scripting_objects_1_1_scripted_midi_player.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_timer_object.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_expansion_handler_object.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_expansion_object.xml" "xml\selection"
@@ -92,7 +92,7 @@ ren "xml\selection\classhise_1_1_scripting_objects_1_1_path_object.xml" "Path.xm
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_timer_object.xml" "Timer.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_expansion_handler_object.xml" "ExpansionHandler.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_expansion_object.xml" "Expansion.xml"
-ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripted_midi_overlay.xml" "MidiOverlay.xml"
+ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripted_midi_player.xml" "MidiPlayer.xml"
 
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_button.xml" "ScriptButton.xml"
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_combo_box.xml" "ScriptComboBox.xml"

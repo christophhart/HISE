@@ -80,9 +80,10 @@ public:
 	void setId(const Identifier& newId);
 	Identifier getId() const noexcept { return id; }
 
-	const juce::MidiMessageSequence* getReadPointer(int trackIndex) const;
-	juce::MidiMessageSequence* getWritePointer(int trackIndex);
+	const juce::MidiMessageSequence* getReadPointer(int trackIndex=-1) const;
+	juce::MidiMessageSequence* getWritePointer(int trackIndex=-1);
 
+	int getNumEvents() const;
 	int getNumTracks() const { return sequences.size(); }
 	void setCurrentTrackIndex(int index);
 	void resetPlayback();
@@ -91,7 +92,43 @@ public:
 
 	RectangleList<float> getRectangleList(Rectangle<float> targetBounds) const;
 
+	void swapCurrentSequence(MidiMessageSequence* sequenceToSwap);
+
+	void reset()
+	{
+		if (loadedFile.existsAsFile())
+		{
+			FileInputStream fis(loadedFile);
+			loadFrom(fis);
+		}
+	}
+
 private:
+
+	/** A simple, non reentrant lock with read-write access. */
+	struct SimpleReadWriteLock
+	{
+		struct ScopedReadLock
+		{
+			ScopedReadLock(SimpleReadWriteLock &lock_);
+			~ScopedReadLock();
+			SimpleReadWriteLock& lock;
+		};
+
+		struct ScopedWriteLock
+		{
+			ScopedWriteLock(SimpleReadWriteLock &lock_);
+			~ScopedWriteLock();
+			SimpleReadWriteLock& lock;
+		};
+
+		std::atomic<int> numReadLocks = 0;
+		bool isBeingWritten = false;
+	};
+
+	File loadedFile;
+
+	mutable SimpleReadWriteLock swapLock;
 
 	Identifier id;
 	OwnedArray<MidiMessageSequence> sequences;
@@ -101,6 +138,7 @@ private:
 	JUCE_DECLARE_WEAK_REFERENCEABLE(HiseMidiSequence);
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HiseMidiSequence);
 };
+
 
 
 /** A MIDI File player.
@@ -167,7 +205,10 @@ public:
 	int getNumSequences() const { return currentSequences.size(); }
 	HiseMidiSequence* getCurrentSequence() const;
 	Identifier getSequenceId(int index) const;
+	Identifier getCurrentSequenceId() const;
 	double getPlaybackPosition() const;
+
+	void swapCurrentSequence(MidiMessageSequence* newSequence);
 
 private:
 
@@ -193,6 +234,78 @@ private:
 	uint16 currentTimestampInBuffer = 0;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(MidiFilePlayer);
+};
+
+
+
+/** A class for editing MIDI sequences. */
+class MidiSequenceEditor
+{
+public:
+
+	class Action : public UndoableAction
+	{
+	public:
+
+		Action(WeakReference<MidiFilePlayer> currentPlayer_, const Array<HiseEvent>& newContent, double sampleRate_, double bpm_) :
+			UndoableAction(),
+			currentPlayer(currentPlayer_),
+			newEvents(newContent),
+			sampleRate(sampleRate_),
+			bpm(bpm_)
+		{
+			oldEvents = createBufferFromSequence(currentPlayer->getCurrentSequence(), sampleRate, bpm);
+			
+			if (currentPlayer == nullptr)
+				return;
+
+			if (auto seq = currentPlayer->getCurrentSequence())
+				sequenceId = seq->getId();
+		};
+
+		bool perform() override;
+		bool undo() override;
+
+	private:
+
+		void writeArrayToSequence(Array<HiseEvent>& arrayToWrite);
+
+		
+		WeakReference<MidiFilePlayer> currentPlayer;
+		Array<HiseEvent> newEvents;
+		Array<HiseEvent> oldEvents;
+		double sampleRate;
+		double bpm;
+		Identifier sequenceId;
+	};
+
+	MidiSequenceEditor(MidiFilePlayer* player_) :
+		player(player_)
+	{}
+
+	static Array<HiseEvent> createBufferFromSequence(HiseMidiSequence::Ptr seq, double sampleRate, double bpm);
+
+	/** Copy the current sequence from the given MIDI sequence. */
+	bool copySequencyFrom(HiseMidiSequence::Ptr sequence);
+
+	/** Removes and returns the HiseEvent at the position i. */
+	HiseEvent popHiseEvent(int index);
+
+	HiseEvent getNoteOffForEventId(int eventId);
+	HiseEvent getNoteOnForEventId(int eventId);
+
+	/** Adds the given message. */
+	void pushHiseEvent(const HiseEvent& e);
+
+	/** Writes the processed sequence back to the original sequence. */
+	void write();
+
+	void setEvents(const Array<HiseEvent>& events);
+
+	WeakReference<MidiFilePlayer> player;
+	Array<HiseEvent> currentEvents;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(MidiSequenceEditor);
 };
 
 

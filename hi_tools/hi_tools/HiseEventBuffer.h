@@ -110,6 +110,9 @@ public:
 	/** Creates a bit-wise copy of another event. */
 	HiseEvent(const HiseEvent &other) noexcept;
 
+	/** Converts the HiseEvent back to a MidiMessage. This isn't lossless obviously. */
+	MidiMessage toMidiMesage() const;
+
 	/** checks whether the event is equal to another. This checks for
 		bit-equality. */
 	bool operator==(const HiseEvent &other) const;
@@ -611,6 +614,8 @@ public:
 
 	HiseEvent getEvent(int index) const;
 
+	HiseEvent popEvent(int index);
+
 	void subtractFromTimeStamps(int delta);
 	void moveEventsBelow(HiseEventBuffer& targetBuffer, int highestTimestamp);
 	void moveEventsAbove(HiseEventBuffer& targetBuffer, int lowestTimestamp);
@@ -623,6 +628,7 @@ public:
 	void addEvents(const MidiBuffer& otherBuffer);
 
 	void addEvents(const HiseEventBuffer &otherBuffer);
+	
 	
 
 	template <int Alignment> void alignEventsToRaster(int maxTimeStamp)

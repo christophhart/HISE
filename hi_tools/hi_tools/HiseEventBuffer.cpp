@@ -80,6 +80,23 @@ HiseEvent::HiseEvent(const HiseEvent &other) noexcept
 	data[1] = otherData[1];
 }
 
+juce::MidiMessage HiseEvent::toMidiMesage() const
+{
+	switch (type)
+	{
+	case Type::NoteOn:		return MidiMessage::noteOn(channel, number, value);
+	case Type::NoteOff:		return MidiMessage::noteOff(channel, number);
+	case Type::Controller:	return MidiMessage::controllerEvent(channel, number, value);
+	case Type::PitchBend:	return MidiMessage::pitchWheel(channel, getPitchWheelValue());
+	case Type::Aftertouch:	return MidiMessage::aftertouchChange(channel, number, value);
+	case Type::ProgramChange: return MidiMessage::programChange(channel, getPitchWheelValue());
+	}
+
+	// the other types can't be converted correctly...
+	jassertfalse;
+	return MidiMessage();
+}
+
 void HiseEvent::swapWith(HiseEvent &other)
 {
 	
@@ -136,7 +153,6 @@ String HiseEvent::getTypeAsString() const noexcept
 
 	return "Undefined";
 }
-
 
 
 bool HiseEvent::isIgnored() const noexcept
@@ -228,7 +244,6 @@ HiseEvent HiseEvent::createTimerEvent(uint8 timerIndex, uint16 offset)
 
 int HiseEvent::getTimeStamp() const noexcept
 {
-
 	constexpr uint32 tsMask = 0x0FFFFFFF;
 	return static_cast<int>(timestamp & tsMask);
 }
@@ -441,6 +456,24 @@ HiseEvent HiseEventBuffer::getEvent(int index) const
 	}
 
 	return HiseEvent();
+}
+
+hise::HiseEvent HiseEventBuffer::popEvent(int index)
+{
+	if (isPositiveAndBelow(index, numUsed))
+	{
+		auto e = getEvent(index);
+
+		for (int i = index; i < numUsed; i++)
+			buffer[index] = buffer[index + 1];
+
+		buffer[numUsed - 1] = {};
+		numUsed--;
+
+		return e;
+	}
+	else
+		return {};
 }
 
 void HiseEventBuffer::subtractFromTimeStamps(int delta)
