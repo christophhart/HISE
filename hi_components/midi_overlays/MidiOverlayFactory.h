@@ -65,7 +65,7 @@ public:
 		return *instance;
 	}
 
-	MidiFilePlayerBaseType* create(const Identifier& id, MidiFilePlayer* player)
+	MidiPlayerBaseType* create(const Identifier& id, MidiPlayer* player)
 	{
 		for (const auto& item : items)
 		{
@@ -97,9 +97,10 @@ private:
 	{
 		registerType<hise::MidiFileDragAndDropper>();
 		registerType<hise::SimpleMidiViewer>();
+		registerType<hise::MidiLooper>();
 	}
 
-	using CreateFunction = std::function<MidiFilePlayerBaseType*(MidiFilePlayer*)>;
+	using CreateFunction = std::function<MidiPlayerBaseType*(MidiPlayer*)>;
 
 	struct Item
 	{
@@ -133,7 +134,7 @@ public:
 
 	Component* createContentComponent(int index) override
 	{
-		if (auto mp = dynamic_cast<MidiFilePlayer*>(getProcessor()))
+		if (auto mp = dynamic_cast<MidiPlayer*>(getProcessor()))
 		{
 			auto id = MidiOverlayFactory::getInstance().getIdList()[index];
 
@@ -157,7 +158,7 @@ public:
 
 	int getFixedHeight() const override
 	{
-		if (auto mfpb = getContent<MidiFilePlayerBaseType>())
+		if (auto mfpb = getContent<MidiPlayerBaseType>())
 		{
 			return mfpb->getPreferredHeight();
 		}
@@ -167,7 +168,7 @@ public:
 
 	void fillModuleList(StringArray& moduleList) override
 	{
-		fillModuleListWithType<MidiFilePlayer>(moduleList);
+		fillModuleListWithType<MidiPlayer>(moduleList);
 	}
 
 	bool hasSubIndex() const override { return true; }

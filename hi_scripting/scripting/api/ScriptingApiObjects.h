@@ -973,14 +973,14 @@ public:
 	};
 
 
-	class ScriptedMidiPlayer : public MidiFilePlayerBaseType,
+	class ScriptedMidiPlayer : public MidiPlayerBaseType,
 								public ConstScriptingObject,
 							    public DebugableObject,
 								public SuspendableTimer
 	{
 	public:
 
-		ScriptedMidiPlayer(ProcessorWithScriptingContent* p, MidiFilePlayer* player_);
+		ScriptedMidiPlayer(ProcessorWithScriptingContent* p, MidiPlayer* player_);
 		~ScriptedMidiPlayer();
 
 		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("MidiPlayer"); }

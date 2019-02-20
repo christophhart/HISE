@@ -39,7 +39,7 @@ using namespace juce;
 
 
 class MidiFileDragAndDropper : public Component,
-	public MidiFilePlayerBaseType,
+	public MidiPlayerBaseType,
 	public FileDragAndDropTarget,
 	public DragAndDropContainer,
 	public DragAndDropTarget
@@ -48,7 +48,7 @@ public:
 
 	ENABLE_OVERLAY_FACTORY(MidiFileDragAndDropper, "Drag 'n Drop");
 
-	MidiFileDragAndDropper(MidiFilePlayer* player);;
+	MidiFileDragAndDropper(MidiPlayer* player);;
 
 	static bool isMidiFile(const String& s);
 

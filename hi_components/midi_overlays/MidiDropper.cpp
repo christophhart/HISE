@@ -34,8 +34,8 @@
 namespace hise {
 using namespace juce;
 
-MidiFileDragAndDropper::MidiFileDragAndDropper(MidiFilePlayer* player) :
-	MidiFilePlayerBaseType(player)
+MidiFileDragAndDropper::MidiFileDragAndDropper(MidiPlayer* player) :
+	MidiPlayerBaseType(player)
 {
 	setColour(HiseColourScheme::ComponentBackgroundColour, Colour(0x11000000));
 	setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
@@ -89,10 +89,27 @@ void MidiFileDragAndDropper::dragOperationEnded(const DragAndDropTarget::SourceD
 	}
 }
 
-void MidiFileDragAndDropper::mouseDown(const MouseEvent& )
+void MidiFileDragAndDropper::mouseDown(const MouseEvent& e)
 {
-	auto d = getPlayer()->getPoolReference().createDragDescription();
-	startDragging(d, this, createSnapshot(), true);
+	if (e.mods.isRightButtonDown())
+	{
+		FileChooser fc("Open MIDI File", getPlayer()->getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::MidiFiles), "*.mid");
+
+		if (fc.browseForFileToOpen())
+		{
+			auto f = fc.getResult();
+			
+			PoolReference ref(getPlayer()->getMainController(), f.getFullPathName(), FileHandlerBase::MidiFiles);
+			getPlayer()->loadMidiFile(ref);
+		}
+	}
+	else
+	{
+		auto d = getPlayer()->getPoolReference().createDragDescription();
+		startDragging(d, this, createSnapshot(), true);
+	}
+
+	
 }
 
 juce::Image MidiFileDragAndDropper::createSnapshot() const

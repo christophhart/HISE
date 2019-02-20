@@ -36,8 +36,8 @@ using namespace juce;
 
 
 
-SimpleMidiViewer::SimpleMidiViewer(MidiFilePlayer* player) :
-	MidiFilePlayerBaseType(player)
+SimpleMidiViewer::SimpleMidiViewer(MidiPlayer* player) :
+	MidiPlayerBaseType(player)
 {
 	setColour(HiseColourScheme::ComponentOutlineColourId, Colours::black.withAlpha(0.5f));
 	setColour(HiseColourScheme::ComponentFillTopColourId, Colours::black.withAlpha(0.6f));
@@ -70,7 +70,12 @@ void SimpleMidiViewer::paint(Graphics& g)
 		g.drawRect(r, 1.0f);
 	}
 
-	int posX = roundDoubleToInt(getPlayer()->getPlaybackPosition() * (double)getWidth());
+	double posToUse = currentSeekPosition;
+
+	if (posToUse == -1)
+		posToUse = getPlayer()->getPlaybackPosition();
+
+	int posX = roundDoubleToInt(posToUse * (double)getWidth());
 
 	g.setColour(findColour(HiseColourScheme::ComponentFillBottomColourId));
 	g.drawVerticalLine(posX, 0.0f, (float)getHeight());
@@ -80,16 +85,42 @@ void SimpleMidiViewer::rebuildRectangles()
 {
 	if (auto seq = getPlayer()->getCurrentSequence())
 	{
-		currentRectangles = seq->getRectangleList(getBounds().toFloat());
+		currentRectangles = seq->getRectangleList(getLocalBounds().toFloat());
 		repaint();
 	}
 }
 
 void SimpleMidiViewer::mouseDown(const MouseEvent& e)
 {
-	auto position = (float)e.getPosition().getX() / (float)getWidth();
+	resume = getPlayer()->getPlayState() == MidiPlayer::PlayState::Play;
 
-	getPlayer()->setAttribute(MidiFilePlayer::CurrentPosition, position, sendNotification);
+	getPlayer()->stop();
+	updateSeekPosition(e);
+}
+
+void SimpleMidiViewer::mouseDrag(const MouseEvent& e)
+{
+	updateSeekPosition(e);
+}
+
+void SimpleMidiViewer::mouseUp(const MouseEvent& e)
+{
+	updateSeekPosition(e);
+	
+
+	if (resume)
+	{
+		getPlayer()->play();
+		getPlayer()->setAttribute(MidiPlayer::CurrentPosition, currentSeekPosition, sendNotification);
+	}
+	
+	currentSeekPosition = -1.0;
+}
+
+void SimpleMidiViewer::updateSeekPosition(const MouseEvent& e)
+{
+	currentSeekPosition = (float)e.getPosition().getX() / (float)getWidth();
+	repaint();
 }
 
 }

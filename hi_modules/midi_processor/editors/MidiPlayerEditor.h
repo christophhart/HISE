@@ -36,11 +36,11 @@
 namespace hise {
 using namespace juce;
 
-class MidiFilePlayerEditor : public ProcessorEditorBody,
+class MidiPlayerEditor : public ProcessorEditorBody,
 	public ComboBoxListener,
 	public ButtonListener,
 	public Timer,
-	public MidiFilePlayer::SequenceListener
+	public MidiPlayer::SequenceListener
 {
 public:
 
@@ -51,8 +51,8 @@ public:
 		Path createPath(const String& name) const override;
 	};
 
-	MidiFilePlayerEditor(ProcessorEditor* p);;
-	~MidiFilePlayerEditor();
+	MidiPlayerEditor(ProcessorEditor* p);;
+	~MidiPlayerEditor();
 
 	void timerCallback() override;
 
@@ -77,7 +77,7 @@ public:
 
 	void resized() override;
 
-	void setNewPlayerType(MidiFilePlayerBaseType* newType)
+	void setNewPlayerType(MidiPlayerBaseType* newType)
 	{
 		currentPlayerType = newType;
 
@@ -92,7 +92,7 @@ private:
 
 	void updateLabel()
 	{
-		auto currentState = dynamic_cast<MidiFilePlayer*>(getProcessor())->getPlayState();
+		auto currentState = dynamic_cast<MidiPlayer*>(getProcessor())->getPlayState();
 
 		if (currentState != buttonPlayState)
 		{
@@ -101,9 +101,9 @@ private:
 			Colour onColour = Colours::white;
 			Colour offColour = Colours::white.withAlpha(0.5f);
 
-			bool isPlay = buttonPlayState == MidiFilePlayer::PlayState::Play;
-			bool isStop = buttonPlayState == MidiFilePlayer::PlayState::Stop;
-			bool isRecord = buttonPlayState == MidiFilePlayer::PlayState::Record;
+			bool isPlay = buttonPlayState == MidiPlayer::PlayState::Play;
+			bool isStop = buttonPlayState == MidiPlayer::PlayState::Stop;
+			bool isRecord = buttonPlayState == MidiPlayer::PlayState::Record;
 
 			playButton.setColours((isPlay ? onColour : offColour).withMultipliedAlpha(0.8f),
 				isPlay ? onColour : offColour,
@@ -133,10 +133,10 @@ private:
 	HiseShapeButton stopButton;
 	HiseShapeButton recordButton;
 
-	MidiFilePlayer::PlayState buttonPlayState = MidiFilePlayer::PlayState::Stop;
+	MidiPlayer::PlayState buttonPlayState = MidiPlayer::PlayState::Stop;
 	int currentTrackAmount = 0;
 
-	ScopedPointer<MidiFilePlayerBaseType> currentPlayerType;
+	ScopedPointer<MidiPlayerBaseType> currentPlayerType;
 	MidiFileDragAndDropper dropper;
 
 	HiComboBox currentSequence;

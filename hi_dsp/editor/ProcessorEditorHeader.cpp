@@ -1288,7 +1288,7 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 		
 		if (dynamic_cast<ModulatorSampler*>(getProcessor()) != nullptr)
 			m.addItem(CreateSamplerScriptReference, "Create typed Sampler script reference");
-		else if (dynamic_cast<MidiFilePlayer*>(getProcessor()) != nullptr)
+		else if (dynamic_cast<MidiPlayer*>(getProcessor()) != nullptr)
 			m.addItem(CreateMidiPlayerScriptReference, "Create typed MIDI Player script reference");
 		else if (dynamic_cast<SlotFX*>(getProcessor()) != nullptr)
 			m.addItem(CreateSlotFXReference, "Create typed SlotFX script reference");

@@ -39,14 +39,14 @@ using namespace juce;
 
 /** A read only MIDI file content display. */
 class SimpleMidiViewer : public Component,
-	public MidiFilePlayerBaseType,
+	public MidiPlayerBaseType,
 	public Timer
 {
 public:
 
 	ENABLE_OVERLAY_FACTORY(SimpleMidiViewer, "Midi Viewer");
 
-	SimpleMidiViewer(MidiFilePlayer* player);;
+	SimpleMidiViewer(MidiPlayer* player);;
 
 	void timerCallback() override;
 
@@ -80,7 +80,16 @@ public:
 
 	void mouseDown(const MouseEvent& e) override;
 
+	void mouseDrag(const MouseEvent& e) override;
+
+	void mouseUp(const MouseEvent& e) override;
+
 private:
+
+	void updateSeekPosition(const MouseEvent& e);
+
+	double currentSeekPosition = -1.0;
+	bool resume = false;
 
 	RectangleList<float> currentRectangles;
 };

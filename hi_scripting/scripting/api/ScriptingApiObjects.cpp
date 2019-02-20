@@ -1604,7 +1604,7 @@ void ScriptingObjects::ScriptingMidiProcessor::restoreScriptControls(String base
 
 var ScriptingObjects::ScriptingMidiProcessor::asMidiPlayer()
 {
-	if (auto player = dynamic_cast<MidiFilePlayer*>(mp.get()))
+	if (auto player = dynamic_cast<MidiPlayer*>(mp.get()))
 	{
 		return var(new ScriptedMidiPlayer(getScriptProcessor(), player));
 	}
@@ -3040,8 +3040,8 @@ struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 	API_METHOD_WRAPPER_1(ScriptedMidiPlayer, record);
 };
 
-ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingContent* p, MidiFilePlayer* player_):
-	MidiFilePlayerBaseType(player_),
+ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingContent* p, MidiPlayer* player_):
+	MidiPlayerBaseType(player_),
 	ConstScriptingObject(p, 0)
 {
 	ADD_API_METHOD_0(getPlaybackPosition);
@@ -3145,7 +3145,7 @@ void ScriptingObjects::ScriptedMidiPlayer::setPlaybackPosition(var newPosition)
 	if (!sequenceValid())
 		return;
 
-	getPlayer()->setAttribute(MidiFilePlayer::CurrentPosition, jlimit<float>(0.0f, 1.0f, (float)newPosition), sendNotification);
+	getPlayer()->setAttribute(MidiPlayer::CurrentPosition, jlimit<float>(0.0f, 1.0f, (float)newPosition), sendNotification);
 
 }
 

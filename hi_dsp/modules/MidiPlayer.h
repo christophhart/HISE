@@ -88,6 +88,9 @@ public:
 	/** Returns the length of the MIDI sequence in quarter beats. */
 	double getLengthInQuarters();
 
+	/** Forces the length of the sequence to this value. If you want to use the original length, pass in -1.0. */
+	void setLengthInQuarters(double newLength);
+
 	/** Creates a temporary MIDI file with the content of this sequence.
 		
 		This is used by the drag to external target functionality.
@@ -140,6 +143,9 @@ public:
 	/** Loads from a MidiFile. */
 	void loadFrom(const MidiFile& file);
 
+	/** Creates an empty track and selects it. */
+	void createEmptyTrack();
+
 private:
 
 	/** A simple, non reentrant lock with read-write access. */
@@ -170,20 +176,22 @@ private:
 	int currentTrackIndex = 0;
 	int lastPlayedIndex = -1;
 
+	double artificialLengthInQuarters = -1.0;
+
 	JUCE_DECLARE_WEAK_REFERENCEABLE(HiseMidiSequence);
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HiseMidiSequence);
 };
 
 
 
-/** A MIDI File player.
+/** A player for MIDI sequences.
 *	@ingroup midiTypes
 *
 *	This module plays MidiFiles when its internal transport is activated.
 *	It acts as common core module for multiple "overlays" (MIDI loopers, Piano roll, step sequencer, etc.)
 */
-class MidiFilePlayer : public MidiProcessor,
-					   public TempoListener
+class MidiPlayer : public MidiProcessor,
+				   public TempoListener
 {
 public:
 
@@ -220,7 +228,7 @@ public:
 		
 		    Upon construction, it will create a list of events from the current sequence that
 			will be used for undo operations. */
-		EditAction(WeakReference<MidiFilePlayer> currentPlayer_, const Array<HiseEvent>& newContent, double sampleRate_, double bpm_);;
+		EditAction(WeakReference<MidiPlayer> currentPlayer_, const Array<HiseEvent>& newContent, double sampleRate_, double bpm_);;
 
 		/** Applies the given event list. */
 		bool perform() override;
@@ -228,12 +236,14 @@ public:
 		/** Restores the previous event list. */
 		bool undo() override;
 
+		static void writeArrayToSequence(HiseMidiSequence::Ptr destination, const Array<HiseEvent>& arrayToWrite, double bpm, double sampleRate);
+
 	private:
 
-		/**@ internal */
-		void writeArrayToSequence(Array<HiseEvent>& arrayToWrite);
+		
+		
 
-		WeakReference<MidiFilePlayer> currentPlayer;
+		WeakReference<MidiPlayer> currentPlayer;
 		Array<HiseEvent> newEvents;
 		Array<HiseEvent> oldEvents;
 		double sampleRate;
@@ -241,10 +251,10 @@ public:
 		Identifier sequenceId;
 	};
 
-	SET_PROCESSOR_NAME("MidiFilePlayer", "MIDI File Player");
+	SET_PROCESSOR_NAME("MidiPlayer", "MIDI Player");
 
-	MidiFilePlayer(MainController *mc, const String &id, ModulatorSynth* ms);;
-	~MidiFilePlayer();
+	MidiPlayer(MainController *mc, const String &id, ModulatorSynth* ms);;
+	~MidiPlayer();
 
 	/**@ internal */
 	void tempoChanged(double newTempo) override;
@@ -255,6 +265,15 @@ public:
 		Play,
 		Record,
 		numPlayStates
+	};
+
+	enum class RecordState
+	{
+		Idle,
+		PreparationPending,
+		Prepared,
+		FlushPending,
+		numRecordStates
 	};
 
 	enum SpecialParameters
@@ -360,7 +379,23 @@ public:
 	/** Starts recording. If the sequence is already playing, it switches into overdub mode, otherwise it also starts playing. */
 	bool record(int timestampInBuffer=0);
 
+	/** This prepares the internal event queue for recording. Can be called on any thread including the audio thread. */
+	void prepareForRecording(bool copyExistingEvents=true);
+
+	/** Finishes the recording. Can be called on any thread including the audio thread. */
+	void finishRecording();
+
+	/** Creates a temporary sequence containing all the events from the currently recorded event list. */
+	HiseMidiSequence::Ptr getListOfCurrentlyRecordedEvents();
+
 private:
+
+	Array<HiseEvent> currentlyRecordedEvents;
+
+	std::atomic<RecordState> recordState = RecordState::Idle;
+
+
+	bool isRecording() const noexcept { return getPlayState() == PlayState::Record; }
 
 	void sendSequenceUpdateMessage(NotificationType notification);
 
@@ -372,6 +407,8 @@ private:
 	void changeTransportState(PlayState newState);
 
 	void updatePositionInCurrentSequence();
+
+	int lastBlockSize = -1;
 
 	ReferenceCountedArray<HiseMidiSequence> currentSequences;
 
@@ -387,13 +424,13 @@ private:
 	double ticksPerSample = 0.0;
 	int currentTimestampInBuffer = 0;
 
-	JUCE_DECLARE_WEAK_REFERENCEABLE(MidiFilePlayer);
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MidiFilePlayer);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(MidiPlayer);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MidiPlayer);
 };
 
 
 /** Subclass this and implement your MIDI file player type. */
-class MidiFilePlayerBaseType : public MidiFilePlayer::SequenceListener,
+class MidiPlayerBaseType : public MidiPlayer::SequenceListener,
 							   private SafeChangeListener
 {
 public:
@@ -402,13 +439,13 @@ public:
 	static Identifier getId() { RETURN_STATIC_IDENTIFIER("undefined"); }
 
 	// "Overwrite" this and return a new object for the given object for the factory
-	static MidiFilePlayerBaseType* create(MidiFilePlayer* player) 
+	static MidiPlayerBaseType* create(MidiPlayer* player) 
 	{
 		ignoreUnused(player);
 		return nullptr; 
 	};
 
-	virtual ~MidiFilePlayerBaseType();
+	virtual ~MidiPlayerBaseType();
 	virtual int getPreferredHeight() const { return 0; }
 
 	void setFont(Font f)
@@ -418,10 +455,10 @@ public:
 
 protected:
 
-	MidiFilePlayerBaseType(MidiFilePlayer* player_);;
+	MidiPlayerBaseType(MidiPlayer* player_);;
 
-	MidiFilePlayer* getPlayer() { return player.get(); }
-	const MidiFilePlayer* getPlayer() const { return player.get(); }
+	MidiPlayer* getPlayer() { return player.get(); }
+	const MidiPlayer* getPlayer() const { return player.get(); }
 
 	virtual void sequenceIndexChanged() {};
 
@@ -441,13 +478,13 @@ private:
 	int lastTrackIndex = 0;
 	int lastSequenceIndex = -1;
 
-	WeakReference<MidiFilePlayer> player;
+	WeakReference<MidiPlayer> player;
 
-	JUCE_DECLARE_WEAK_REFERENCEABLE(MidiFilePlayerBaseType);
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MidiFilePlayerBaseType);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(MidiPlayerBaseType);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MidiPlayerBaseType);
 };
 
-#define ENABLE_OVERLAY_FACTORY(className, name) static MidiFilePlayerBaseType* create(MidiFilePlayer* player) { return new className(player); }; \
+#define ENABLE_OVERLAY_FACTORY(className, name) static MidiPlayerBaseType* create(MidiPlayer* player) { return new className(player); }; \
 												static Identifier getId() { RETURN_STATIC_IDENTIFIER(name); };
 
 

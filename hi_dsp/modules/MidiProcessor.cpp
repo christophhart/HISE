@@ -133,7 +133,7 @@ MidiProcessorFactoryType::MidiProcessorFactoryType(Processor *p) :
 {
 	ADD_NAME_TO_TYPELIST(JavascriptMidiProcessor);
 	ADD_NAME_TO_TYPELIST(Transposer);
-	ADD_NAME_TO_TYPELIST(MidiFilePlayer);
+	ADD_NAME_TO_TYPELIST(MidiPlayer);
 
 	typeNames.addArray(hardcodedScripts->getAllowedTypes());
 };
@@ -180,7 +180,7 @@ Processor *MidiProcessorFactoryType::createProcessor(int typeIndex, const String
 		{
 			case scriptProcessor:		mp = new JavascriptMidiProcessor(m, id); break;
 			case transposer:			mp = new Transposer(m, id); break;
-			case midiFilePlayer:		mp = new MidiFilePlayer(m, id, ms); break;
+			case midiFilePlayer:		mp = new MidiPlayer(m, id, ms); break;
 			default:					jassertfalse; return nullptr;
 		}
 

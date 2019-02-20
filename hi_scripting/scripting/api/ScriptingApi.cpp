@@ -2926,7 +2926,7 @@ ScriptingObjects::ScriptedMidiPlayer* ScriptingApi::Synth::getMidiPlayer(const S
 	if (p == nullptr)
 		reportScriptError(playerId + " was not found");
 
-	if (auto mp = dynamic_cast<MidiFilePlayer*>(p))
+	if (auto mp = dynamic_cast<MidiPlayer*>(p))
 		return new ScriptingObjects::ScriptedMidiPlayer(getScriptProcessor(), mp);
 	else
 		reportScriptError(playerId + " is not a MIDI Player");
@@ -2939,12 +2939,12 @@ hise::ScriptingApi::Synth::ScriptRoutingMatrix* ScriptingApi::Synth::getRoutingM
 	auto p = ProcessorHelpers::getFirstProcessorWithName(getScriptProcessor()->getMainController_()->getMainSynthChain(), processorId);
 
 	if (p == nullptr)
-		reportScriptError(playerId + " was not found");
+		reportScriptError(processorId + " was not found");
 
 	if (auto rt = dynamic_cast<RoutableProcessor*>(p))
 		return new ScriptingObjects::ScriptRoutingMatrix(getScriptProcessor(), p);
 	else
-		reportScriptError(playerId + " does not have a routing matrix");
+		reportScriptError(processorId + " does not have a routing matrix");
 
 	RETURN_IF_NO_THROW(new ScriptingObjects::ScriptRoutingMatrix(getScriptProcessor(), nullptr));
 }

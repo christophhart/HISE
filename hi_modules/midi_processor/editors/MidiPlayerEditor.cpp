@@ -37,17 +37,17 @@ namespace hise {
 using namespace juce;
 
 
-MidiFilePlayerEditor::MidiFilePlayerEditor(ProcessorEditor* p) :
+MidiPlayerEditor::MidiPlayerEditor(ProcessorEditor* p) :
 	ProcessorEditorBody(p),
 	currentSequence("Current Sequence"),
 	currentTrack("Current Track"),
 	playButton("Start", this, factory),
 	stopButton("Stop", this, factory),
 	recordButton("Record", this, factory),
-	dropper(dynamic_cast<MidiFilePlayer*>(getProcessor())),
+	dropper(dynamic_cast<MidiPlayer*>(getProcessor())),
 	loopButton("Loop Enabled")
 {
-	dynamic_cast<MidiFilePlayer*>(getProcessor())->addSequenceListener(this);
+	dynamic_cast<MidiPlayer*>(getProcessor())->addSequenceListener(this);
 
 	addAndMakeVisible(typeSelector);
 	p->getProcessor()->getMainController()->skin(typeSelector);
@@ -76,8 +76,9 @@ MidiFilePlayerEditor::MidiFilePlayerEditor(ProcessorEditor* p) :
 	updateLabel();
 
 	addAndMakeVisible(currentTrack);
-	currentTrack.setup(getProcessor(), MidiFilePlayer::CurrentTrack, "Track");
+	currentTrack.setup(getProcessor(), MidiPlayer::CurrentTrack, "Track");
 	currentTrack.setTextWhenNoChoicesAvailable("No tracks");
+	currentTrack.setTextWhenNothingSelected("No tracks");
 
 	addAndMakeVisible(clearButton);
 	getProcessor()->getMainController()->skin(clearButton);
@@ -98,36 +99,36 @@ MidiFilePlayerEditor::MidiFilePlayerEditor(ProcessorEditor* p) :
 	recordButton.setRadioGroupId(1, dontSendNotification);
 
 	addAndMakeVisible(currentSequence);
-	currentSequence.setup(getProcessor(), MidiFilePlayer::CurrentSequence, "Current Sequence");
+	currentSequence.setup(getProcessor(), MidiPlayer::CurrentSequence, "Current Sequence");
 	currentSequence.setTextWhenNoChoicesAvailable("Nothing loaded");
 	currentSequence.setTextWhenNothingSelected("Nothing loaded");
 
 	addAndMakeVisible(loopButton);
-	loopButton.setup(getProcessor(), MidiFilePlayer::LoopEnabled, "Loop Enabled");
+	loopButton.setup(getProcessor(), MidiPlayer::LoopEnabled, "Loop Enabled");
 
 	startTimer(50);
 
 	typeSelector.setSelectedItemIndex(1, sendNotificationAsync);
 }
 
-MidiFilePlayerEditor::~MidiFilePlayerEditor()
+MidiPlayerEditor::~MidiPlayerEditor()
 {
-	if (auto fp = dynamic_cast<MidiFilePlayer*>(getProcessor()))
+	if (auto fp = dynamic_cast<MidiPlayer*>(getProcessor()))
 		fp->removeSequenceListener(this);
 }
 
-void MidiFilePlayerEditor::timerCallback()
+void MidiPlayerEditor::timerCallback()
 {
 	{
 		// Update the position
 
-		double currentPos = getProcessor()->getAttribute(MidiFilePlayer::CurrentPosition);
+		double currentPos = getProcessor()->getAttribute(MidiPlayer::CurrentPosition);
 
 		if (currentPosition.getValue() != currentPos)
 			currentPosition.setValue(currentPos, dontSendNotification);
 	}
 
-	auto mp = dynamic_cast<MidiFilePlayer*>(getProcessor());
+	auto mp = dynamic_cast<MidiPlayer*>(getProcessor());
 
 	{
 		// Update the track amount
@@ -146,7 +147,7 @@ void MidiFilePlayerEditor::timerCallback()
 			for (int i = 0; i < currentTrackAmount; i++)
 				currentTrack.addItem("Track" + String(i + 1), i + 1);
 
-			currentTrack.setSelectedId((int)getProcessor()->getAttribute(MidiFilePlayer::CurrentTrack), dontSendNotification);
+			currentTrack.setSelectedId((int)getProcessor()->getAttribute(MidiPlayer::CurrentTrack), dontSendNotification);
 		}
 	}
 
@@ -161,12 +162,12 @@ void MidiFilePlayerEditor::timerCallback()
 			for (int i = 0; i < actualNumSequences; i++)
 				currentSequence.addItem(mp->getSequenceId(i).toString(), i + 1);
 
-			currentSequence.setSelectedId((int)mp->getAttribute(MidiFilePlayer::CurrentSequence), dontSendNotification);
+			currentSequence.setSelectedId((int)mp->getAttribute(MidiPlayer::CurrentSequence), dontSendNotification);
 		}
 	}
 }
 
-void MidiFilePlayerEditor::updateGui()
+void MidiPlayerEditor::updateGui()
 {
 	updateLabel();
 	currentSequence.updateValue(dontSendNotification);
@@ -174,9 +175,9 @@ void MidiFilePlayerEditor::updateGui()
 	loopButton.updateValue(dontSendNotification);
 }
 
-void MidiFilePlayerEditor::buttonClicked(Button* b)
+void MidiPlayerEditor::buttonClicked(Button* b)
 {
-	auto pl = dynamic_cast<MidiFilePlayer*>(getProcessor());
+	auto pl = dynamic_cast<MidiPlayer*>(getProcessor());
 
 	if (b == &clearButton)
 		pl->clearSequences();
@@ -188,22 +189,22 @@ void MidiFilePlayerEditor::buttonClicked(Button* b)
 		pl->record(0);
 }
 
-void MidiFilePlayerEditor::sequenceLoaded(HiseMidiSequence::Ptr newSequence)
+void MidiPlayerEditor::sequenceLoaded(HiseMidiSequence::Ptr newSequence)
 {
 
 }
 
-void MidiFilePlayerEditor::comboBoxChanged(ComboBox* c)
+void MidiPlayerEditor::comboBoxChanged(ComboBox* c)
 {
 	if (c == &typeSelector)
 	{
 		auto type = Identifier(c->getText());
-		auto mp = dynamic_cast<MidiFilePlayer*>(getProcessor());
+		auto mp = dynamic_cast<MidiPlayer*>(getProcessor());
 		setNewPlayerType(MidiOverlayFactory::getInstance().create(type, mp));
 	}
 }
 
-void MidiFilePlayerEditor::resized()
+void MidiPlayerEditor::resized()
 {
 	auto ar = getLocalBounds();
 
@@ -235,7 +236,7 @@ void MidiFilePlayerEditor::resized()
 	currentPosition.setBounds(ar.reduced(margin));
 }
 
-juce::Path MidiFilePlayerEditor::TransportPaths::createPath(const String& name) const
+juce::Path MidiPlayerEditor::TransportPaths::createPath(const String& name) const
 {
 	if (name == "Start")
 	{
