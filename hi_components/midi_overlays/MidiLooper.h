@@ -30,35 +30,48 @@
 *   ===========================================================================
 */
 
-#include "JuceHeader.h"
+
+#pragma once
+
+namespace hise {
+using namespace juce;
 
 
-#include "resizable_height_component/ResizableHeightComponent.cpp"
 
+class MidiLooper : public Component,
+				   public MidiPlayerBaseType,
+				   public Timer,
+				   public ComboBox::Listener,
+				   public Button::Listener
+{
+public:
 
-#include "keyboard/CustomKeyboard.cpp"
-#include "plugin_components/VoiceCpuBpmComponent.cpp"
-#include "plugin_components/PresetBrowserComponents.cpp"
-#include "plugin_components/PresetBrowser.cpp"
-#include "plugin_components/StandalonePopupComponents.cpp"
-#include "plugin_components/PanelTypes.cpp"
-#include "plugin_components/FrontendBar.cpp"
+	ENABLE_OVERLAY_FACTORY(MidiLooper, "Looper");
 
-#if USE_BACKEND
-#include "plugin_components/PluginPreviewWindow.cpp"
-#endif
+	MidiLooper(MidiPlayer* p);;
 
+	void sequenceLoaded(HiseMidiSequence::Ptr newSequence) override;
 
-#include "eq_plot/FilterInfo.cpp"
-#include "eq_plot/FilterGraph.cpp"
-#include "eq_plot/EqComponent.cpp"
+	void sequencesCleared() override;
 
-#include "floating_layout/FloatingLayout.cpp"
-#include "hi_expansion/ExpansionFloatingTiles.cpp"
+	int getPreferredHeight() const override;
 
-#include "midi_overlays/SimpleMidiViewer.cpp"
-#include "midi_overlays/MidiDropper.cpp"
-#include "midi_overlays/MidiLooper.cpp"
-#include "midi_overlays/MidiOverlayFactory.cpp"
+	void comboBoxChanged(ComboBox* ) override;
+	void buttonClicked(Button* b) override;
+	void paint(Graphics& g) override;
+	void timerCallback() override;
+	void resized() override;
 
-#include "wave_components/SampleComponents.cpp"
+private:
+
+	int loopUuid = 1;
+	ComboBox loopLength;
+	TextButton clearButton;
+	TextButton addButton;
+	TextButton undoButton;
+
+	float flashAlpha = 0.0f;
+	int lastPos;
+};
+
+}

@@ -105,6 +105,7 @@ END_JUCE_MODULE_DECLARATION
 
 #include "midi_overlays/SimpleMidiViewer.h"
 #include "midi_overlays/MidiDropper.h"
+#include "midi_overlays/MidiLooper.h"
 #include "midi_overlays/MidiOverlayFactory.h"
 
 namespace hise {
