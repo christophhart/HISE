@@ -615,11 +615,17 @@ String ProcessorHelpers::getScriptVariableDeclaration(const Processor *p, bool c
 	else if (is<EffectProcessor>(p)) typeName = "Effect";
 	else return String();
 
+	return getTypedScriptVariableDeclaration(p, typeName, copyToClipboard);
+
+}
+
+juce::String ProcessorHelpers::getTypedScriptVariableDeclaration(const Processor* p, String typeName, bool copyToClipboard/*=true*/)
+{
 	String code;
 
 	String name = p->getId();
 	String id = name.removeCharacters(" \n\t\"\'!$%&/()");
-	
+
 	code << "const var " << id << " = Synth.get" << typeName << "(\"" << name << "\");";
 
 	if (copyToClipboard)

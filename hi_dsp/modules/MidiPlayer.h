@@ -42,11 +42,15 @@ using namespace juce;
 	
 	- reference counted
 	- save to / load from ValueTrees
-	- unique ID (for pooling)
+	- unique ID
 	- normalised tempo
 	- defined length
-	- a pointer to the last played note
+	- temporary copy of pooled read-only content
+	- operations with undo support
 
+	This object is used by the MidiFilePlayer for the playback logic. It is considered to be a temporary, non-writable
+	object that is constructed from pooled MIDI files and have some operations applied to it. Currently the only way
+	to get the content of a MIDI sequence to the outside world is dragging it to another location (with writeToTempFile()) . 
 */
 class HiseMidiSequence : public ReferenceCountedObject,
 						 public RestorableObject
@@ -83,9 +87,6 @@ public:
 
 	/** Returns the length of the MIDI sequence in quarter beats. */
 	double getLengthInQuarters();
-
-	/** Loads a sequence from a MIDI file input stream. */
-	void loadFrom(InputStream& input);
 
 	/** Creates a temporary MIDI file with the content of this sequence.
 		
@@ -136,10 +137,10 @@ public:
 	/** Swaps the current track with the given MidiMessageSequence. */
 	void swapCurrentSequence(MidiMessageSequence* sequenceToSwap);
 
-private:
-
-	/** @internal */
+	/** Loads from a MidiFile. */
 	void loadFrom(const MidiFile& file);
+
+private:
 
 	/** A simple, non reentrant lock with read-write access. */
 	struct SimpleReadWriteLock
@@ -248,15 +249,20 @@ public:
 	/**@ internal */
 	void tempoChanged(double newTempo) override;
 
+	enum class PlayState
+	{
+		Stop,
+		Play,
+		Record,
+		numPlayStates
+	};
+
 	enum SpecialParameters
 	{
-		Stop = 0,				   ///< stops it at the provided timestamp (non-persistent)
-		Play,					   ///< plays it at the given timestamp (non-persistent)
-		Record,					   ///< starts recording at the current timestamp (non-persistent)
 		CurrentPosition,		   ///< the current position within the current MIDI file (non-persistent)
 		CurrentSequence,		   ///< the index of the currently played sequence (not zero based for combobox compatibility)
 		CurrentTrack,			   ///< the index of the currently played track within a sequence.
-		ClearSequences,			   ///< clears the sequences (non-persistent)
+		LoopEnabled,			   ///< toggles between oneshot and loop playback
 		numSpecialParameters
 	};
 
@@ -300,8 +306,8 @@ public:
 	/** Removes a sequence listener that was registered to this player. */
 	void removeSequenceListener(SequenceListener* listenerToRemove);
 
-	/** Returns the playstate as integer. */
-	int getPlayState() const { return (int)playState; };
+	/** Returns the play state as integer. */
+	PlayState getPlayState() const { return playState; };
 
 	/** Returns the number of sequences loaded into this player. */
 	int getNumSequences() const { return currentSequences.size(); }
@@ -318,10 +324,10 @@ public:
 	void swapCurrentSequence(MidiMessageSequence* newSequence);
 	void setEnableUndoManager(bool shouldBeEnabled);
 
-	/** Applies the list of events to the currently loaded sequence. This operation is undoable. 
+	/** Applies the list of events to the currently loaded sequence. This operation is undo-able. 
 	
 		It locks the sequence just for a very short time so you should be able to use this from any
-		thread without bothering about multithreading. */
+		thread without bothering about multi-threading. */
 	void flushEdit(const Array<HiseEvent>& newEvents);
 
 	/** Returns the undo manager used for all editing operations. 
@@ -331,13 +337,28 @@ public:
 		and MIDI edits. */
 	UndoManager* getUndoManager() { return undoManager; };
 
-	/** Resets the current sequence back to its pooled state. This operation is undoable. */
+	/** Resets the current sequence back to its pooled state. This operation is undo-able. */
 	void resetCurrentSequence();
 
 	/** Returns the PoolReference for the given sequence. 
 	
 	    If -1 is passed, the current sequence index will be used. */
 	PoolReference getPoolReference(int index = -1);
+
+	/** Starts playing the sequence from the beginning. 
+	
+		You can supply a timestamp that delays this operation - this can also be used for sample accurate triggering
+		by passing in the timestamp of the current event within the buffer. */
+	bool play(int timestampInBuffer=0);
+
+	/** Stops the playback and resets the position. 
+	
+		You can supply a timestamp that delays this operation - this can also be used for sample accurate triggering
+		by passing in the timestamp of the current event within the buffer. */
+	bool stop(int timestampInBuffer=0);
+
+	/** Starts recording. If the sequence is already playing, it switches into overdub mode, otherwise it also starts playing. */
+	bool record(int timestampInBuffer=0);
 
 private:
 
@@ -348,25 +369,23 @@ private:
 	Array<PoolReference> currentlyLoadedFiles;
 
 	Array<WeakReference<SequenceListener>> sequenceListeners;
-	void changeTransportState(SpecialParameters newState);
+	void changeTransportState(PlayState newState);
 
-	void play();
-	void stop();
-	void record();
 	void updatePositionInCurrentSequence();
 
 	ReferenceCountedArray<HiseMidiSequence> currentSequences;
 
-	SpecialParameters playState = SpecialParameters::Stop;
+	PlayState playState = PlayState::Stop;
 
 	double currentPosition = -1.0;
 	int currentSequenceIndex = -1;
 	int currentTrackIndex = 0;
+	bool loopEnabled = true;
 
-	uint16 timeStampForNextCommand = 0;
+	int timeStampForNextCommand = 0;
 
 	double ticksPerSample = 0.0;
-	uint16 currentTimestampInBuffer = 0;
+	int currentTimestampInBuffer = 0;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(MidiFilePlayer);
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MidiFilePlayer);
@@ -407,8 +426,6 @@ protected:
 	virtual void sequenceIndexChanged() {};
 
 	virtual void trackIndexChanged() {};
-	
-	
 
 	Font getFont() const
 	{

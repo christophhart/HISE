@@ -157,7 +157,9 @@ void HiseMidiSequence::restoreFromValueTree(const ValueTree &v)
 		zstd::ZDefaultCompressor compressor;
 		compressor.expandInplace(mb);
 		MemoryInputStream mis(mb, false);
-		loadFrom(mis);
+		MidiFile mf;
+		mf.readFrom(mis);
+		loadFrom(mf);
 	}
 }
 
@@ -230,14 +232,6 @@ double HiseMidiSequence::getLengthInQuarters()
 		return currentSequence->getEndTime() / (double)TicksPerQuarter;
 
 	return 0.0;
-}
-
-void HiseMidiSequence::loadFrom(InputStream& input)
-{
-	MidiFile currentFile;
-	currentFile.readFrom(input);
-
-	loadFrom(currentFile);
 }
 
 
@@ -460,7 +454,7 @@ MidiFilePlayer::EditAction::EditAction(WeakReference<MidiFilePlayer> currentPlay
 
 bool MidiFilePlayer::EditAction::perform()
 {
-	if (currentPlayer != nullptr && currentPlayer->getCurrentSequenceId() == sequenceId)
+	if (currentPlayer != nullptr && currentPlayer->getSequenceId() == sequenceId)
 	{
 		writeArrayToSequence(newEvents);
 		return true;
@@ -471,7 +465,7 @@ bool MidiFilePlayer::EditAction::perform()
 
 bool MidiFilePlayer::EditAction::undo()
 {
-	if (currentPlayer != nullptr && currentPlayer->getCurrentSequenceId() == sequenceId)
+	if (currentPlayer != nullptr && currentPlayer->getSequenceId() == sequenceId)
 	{
 		writeArrayToSequence(oldEvents);
 		return true;
@@ -534,6 +528,7 @@ juce::ValueTree MidiFilePlayer::exportAsValueTree() const
 
 	saveID(CurrentSequence);
 	saveID(CurrentTrack);
+	saveID(LoopEnabled);
 
 	ValueTree seq("MidiFiles");
 
@@ -575,6 +570,7 @@ void MidiFilePlayer::restoreFromValueTree(const ValueTree &v)
 
 	loadID(CurrentSequence);
 	loadID(CurrentTrack);
+	loadID(LoopEnabled);
 }
 
 void MidiFilePlayer::addSequence(HiseMidiSequence::Ptr newSequence, bool select)
@@ -634,12 +630,10 @@ float MidiFilePlayer::getAttribute(int index) const
 
 	switch (s)
 	{
-	case Play:
-	case Stop:
-	case Record:				return (float)(playState == index);
 	case CurrentPosition:		return (float)getPlaybackPosition();
 	case CurrentSequence:		return (float)(currentSequenceIndex + 1);
 	case CurrentTrack:			return (float)(currentTrackIndex + 1);
+	case LoopEnabled:			return loopEnabled ? 1.0f : 0.0f;
 	default:
 		break;
 	}
@@ -653,9 +647,6 @@ void MidiFilePlayer::setInternalAttribute(int index, float newAmount)
 
 	switch (s)
 	{
-	case Play:
-	case Stop:
-	case Record:				timeStampForNextCommand = (uint16)newAmount; changeTransportState(s); break;
 	case CurrentPosition:		
 	{
 		currentPosition = jlimit<double>(0.0, 1.0, (double)newAmount); 
@@ -693,6 +684,7 @@ void MidiFilePlayer::setInternalAttribute(int index, float newAmount)
 		getCurrentSequence()->setCurrentTrackIndex(currentTrackIndex);
 		break;
 	}
+	case LoopEnabled: loopEnabled = newAmount > 0.5f; break;
 	default:
 		break;
 	}
@@ -722,6 +714,12 @@ void MidiFilePlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 {
 	if (currentSequenceIndex >= 0 && currentPosition != -1.0)
 	{
+		if (!loopEnabled && currentPosition > 1.0)
+		{
+			stop();
+			return;
+		}
+
 		auto seq = getCurrentSequence();
 		seq->setCurrentTrackIndex(currentTrackIndex);
 
@@ -732,7 +730,12 @@ void MidiFilePlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 
 		auto delta = tickThisTime / lengthInTicks;
 
-		Range<double> currentRange(positionInTicks, positionInTicks + tickThisTime);
+		Range<double> currentRange;
+		
+		if(loopEnabled)
+			currentRange = { positionInTicks, positionInTicks + tickThisTime };
+		else
+			currentRange = { positionInTicks, jmin<double>(lengthInTicks, positionInTicks + tickThisTime) };
 
 		while (auto e = seq->getNextEvent(currentRange))
 		{
@@ -824,15 +827,13 @@ void MidiFilePlayer::sendSequenceUpdateMessage(NotificationType notification)
 		update();
 }
 
-void MidiFilePlayer::changeTransportState(SpecialParameters newState)
+void MidiFilePlayer::changeTransportState(PlayState newState)
 {
-	playState = newState;
-
 	switch (newState)
-	{
-	case Play:	play(); return;
-	case Stop:	stop();	return;
-	case Record: record(); return;
+	{						// Supposed to be immediately...
+	case PlayState::Play:	play(0);	return;
+	case PlayState::Stop:	stop(0);	return;
+	case PlayState::Record: record(0);	return;
 	}
 }
 
@@ -916,25 +917,49 @@ hise::PoolReference MidiFilePlayer::getPoolReference(int index /*= -1*/)
 	return currentlyLoadedFiles[index];
 }
 
-void MidiFilePlayer::play()
+bool MidiFilePlayer::play(int timestamp)
 {
-	currentPosition = 0.0;
+	sendAllocationFreeChangeMessage();
 
 	if (auto seq = getCurrentSequence())
+	{
+		playState = PlayState::Play;
+		timeStampForNextCommand = timestamp;
+		currentPosition = 0.0;
 		seq->resetPlayback();
+		return true;
+	}
+		
+	return false;
 }
 
-void MidiFilePlayer::stop()
+bool MidiFilePlayer::stop(int timestamp)
 {
-	currentPosition = -1.0;
+	sendAllocationFreeChangeMessage();
+
 	if (auto seq = getCurrentSequence())
+	{
 		seq->resetPlayback();
+		playState = PlayState::Stop;
+		timeStampForNextCommand = timestamp;
+		currentPosition = -1.0;
+		return true;
+	}
+		
+	return false;
 }
 
-void MidiFilePlayer::record()
+bool MidiFilePlayer::record(int timestamp)
 {
+	sendAllocationFreeChangeMessage();
+
+	playState = PlayState::Record;
+	timeStampForNextCommand = timestamp;
+
 	// Not yet implemented
 	jassertfalse;
+
+	return false;
 }
 
 

@@ -44,7 +44,8 @@ MidiFilePlayerEditor::MidiFilePlayerEditor(ProcessorEditor* p) :
 	playButton("Start", this, factory),
 	stopButton("Stop", this, factory),
 	recordButton("Record", this, factory),
-	dropper(dynamic_cast<MidiFilePlayer*>(getProcessor()))
+	dropper(dynamic_cast<MidiFilePlayer*>(getProcessor())),
+	loopButton("Loop Enabled")
 {
 	dynamic_cast<MidiFilePlayer*>(getProcessor())->addSequenceListener(this);
 
@@ -100,6 +101,9 @@ MidiFilePlayerEditor::MidiFilePlayerEditor(ProcessorEditor* p) :
 	currentSequence.setup(getProcessor(), MidiFilePlayer::CurrentSequence, "Current Sequence");
 	currentSequence.setTextWhenNoChoicesAvailable("Nothing loaded");
 	currentSequence.setTextWhenNothingSelected("Nothing loaded");
+
+	addAndMakeVisible(loopButton);
+	loopButton.setup(getProcessor(), MidiFilePlayer::LoopEnabled, "Loop Enabled");
 
 	startTimer(50);
 
@@ -167,18 +171,21 @@ void MidiFilePlayerEditor::updateGui()
 	updateLabel();
 	currentSequence.updateValue(dontSendNotification);
 	currentTrack.updateValue(dontSendNotification);
+	loopButton.updateValue(dontSendNotification);
 }
 
 void MidiFilePlayerEditor::buttonClicked(Button* b)
 {
+	auto pl = dynamic_cast<MidiFilePlayer*>(getProcessor());
+
 	if (b == &clearButton)
-		dynamic_cast<MidiFilePlayer*>(getProcessor())->clearSequences();
+		pl->clearSequences();
 	else if (b == &playButton)
-		getProcessor()->setAttribute(MidiFilePlayer::Play, 0, sendNotification);
+		pl->play(0);
 	else if (b == &stopButton)
-		getProcessor()->setAttribute(MidiFilePlayer::Stop, 0, sendNotification);
+		pl->stop(0);
 	else if (b == &recordButton)
-		getProcessor()->setAttribute(MidiFilePlayer::Record, 0, sendNotification);
+		pl->record(0);
 }
 
 void MidiFilePlayerEditor::sequenceLoaded(HiseMidiSequence::Ptr newSequence)
@@ -218,6 +225,8 @@ void MidiFilePlayerEditor::resized()
 	currentTrack.setBounds(ar.removeFromLeft(128 + 2 * margin).reduced(margin));
 
 	clearButton.setBounds(ar.removeFromLeft(80 + 2 * margin).reduced(margin));
+	loopButton.setBounds(ar.removeFromLeft(80 + 2 * margin).reduced(margin));
+
 
 	playButton.setBounds(ar.removeFromLeft(32 + 2 * margin).reduced(margin));
 	stopButton.setBounds(ar.removeFromLeft(32 + 2 * margin).reduced(margin));

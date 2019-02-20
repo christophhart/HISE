@@ -2172,6 +2172,7 @@ struct ScriptingApi::Synth::Wrapper
 	API_METHOD_WRAPPER_1(Synth, getModulator);
 	API_METHOD_WRAPPER_1(Synth, getAudioSampleProcessor);
 	API_METHOD_WRAPPER_1(Synth, getTableProcessor);
+	API_METHOD_WRAPPER_1(Synth, getRoutingMatrix);
 	API_METHOD_WRAPPER_1(Synth, getSampler);
 	API_METHOD_WRAPPER_1(Synth, getSlotFX);
 	API_METHOD_WRAPPER_1(Synth, getEffect);
@@ -2243,6 +2244,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_1(getSampler);
 	ADD_API_METHOD_1(getSlotFX);
 	ADD_API_METHOD_1(getEffect);
+	ADD_API_METHOD_1(getRoutingMatrix);
 	ADD_API_METHOD_1(getMidiProcessor);
 	ADD_API_METHOD_1(getChildSynth);
 	ADD_API_METHOD_1(getChildSynthByIndex);
@@ -2930,6 +2932,21 @@ ScriptingObjects::ScriptedMidiPlayer* ScriptingApi::Synth::getMidiPlayer(const S
 		reportScriptError(playerId + " is not a MIDI Player");
 
 	RETURN_IF_NO_THROW(new ScriptingObjects::ScriptedMidiPlayer(getScriptProcessor(), nullptr));
+}
+
+hise::ScriptingApi::Synth::ScriptRoutingMatrix* ScriptingApi::Synth::getRoutingMatrix(const String& processorId)
+{
+	auto p = ProcessorHelpers::getFirstProcessorWithName(getScriptProcessor()->getMainController_()->getMainSynthChain(), processorId);
+
+	if (p == nullptr)
+		reportScriptError(playerId + " was not found");
+
+	if (auto rt = dynamic_cast<RoutableProcessor*>(p))
+		return new ScriptingObjects::ScriptRoutingMatrix(getScriptProcessor(), p);
+	else
+		reportScriptError(playerId + " does not have a routing matrix");
+
+	RETURN_IF_NO_THROW(new ScriptingObjects::ScriptRoutingMatrix(getScriptProcessor(), nullptr));
 }
 
 void ScriptingApi::Synth::setAttribute(int attributeIndex, float newAttribute)

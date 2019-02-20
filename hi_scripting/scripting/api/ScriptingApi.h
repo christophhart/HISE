@@ -515,7 +515,8 @@ public:
 		typedef ScriptingObjects::ScriptingAudioSampleProcessor ScriptAudioSampleProcessor;
 		typedef ScriptingObjects::ScriptingTableProcessor ScriptTableProcessor;
 		typedef ScriptingObjects::ScriptingSlotFX ScriptSlotFX;
-		typedef ScriptingObjects::ScriptedMidiPlayer MidiPlayer;
+		typedef ScriptingObjects::ScriptedMidiPlayer ScriptMidiPlayer;
+		typedef ScriptingObjects::ScriptRoutingMatrix ScriptRoutingMatrix;
 
 		// ============================================================================================================ API Methods
 
@@ -670,7 +671,10 @@ public:
 		ScriptSlotFX* getSlotFX(const String& name);
 
 		/** Creates a reference to the given MIDI player. */
-		MidiPlayer* getMidiPlayer(const String& playerId);
+		ScriptMidiPlayer* getMidiPlayer(const String& playerId);
+
+		/** Creates a reference to the routing matrix of the given processor. */
+		ScriptRoutingMatrix* getRoutingMatrix(const String& processorId);
 
 		/** Returns the index of the Modulator in the chain with the supplied chainId */
 		int getModulatorIndex(int chainId, const String &id) const;

@@ -1445,6 +1445,7 @@ struct ScriptingObjects::ScriptingMidiProcessor::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptingMidiProcessor, restoreScriptControls);
 	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, exportScriptControls);
 	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, getId);
+	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, asMidiPlayer);
 	
 };
 
@@ -1477,6 +1478,7 @@ mp(mp_)
 	ADD_API_METHOD_1(restoreScriptControls);
 	ADD_API_METHOD_0(exportScriptControls);
 	ADD_API_METHOD_0(getNumAttributes);
+	ADD_API_METHOD_0(asMidiPlayer);
 }
 
 void ScriptingObjects::ScriptingMidiProcessor::rightClickCallback(const MouseEvent& e, Component* t)
@@ -1598,6 +1600,17 @@ void ScriptingObjects::ScriptingMidiProcessor::restoreScriptControls(String base
 	{
 		ProcessorHelpers::restoreFromBase64String(mp, base64Controls, true);
 	}
+}
+
+var ScriptingObjects::ScriptingMidiProcessor::asMidiPlayer()
+{
+	if (auto player = dynamic_cast<MidiFilePlayer*>(mp.get()))
+	{
+		return var(new ScriptedMidiPlayer(getScriptProcessor(), player));
+	}
+
+	reportScriptError("The module is not a MIDI player");
+	RETURN_IF_NO_THROW(var());
 }
 
 // ScriptingAudioSampleProcessor ==============================================================================================================
@@ -3022,11 +3035,14 @@ struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 	API_VOID_METHOD_WRAPPER_0(ScriptedMidiPlayer, reset);
 	API_VOID_METHOD_WRAPPER_0(ScriptedMidiPlayer, undo);
 	API_VOID_METHOD_WRAPPER_0(ScriptedMidiPlayer, redo);
+	API_METHOD_WRAPPER_1(ScriptedMidiPlayer, play);
+	API_METHOD_WRAPPER_1(ScriptedMidiPlayer, stop);
+	API_METHOD_WRAPPER_1(ScriptedMidiPlayer, record);
 };
 
 ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingContent* p, MidiFilePlayer* player_):
 	MidiFilePlayerBaseType(player_),
-	ConstScriptingObject(p, 3)
+	ConstScriptingObject(p, 0)
 {
 	ADD_API_METHOD_0(getPlaybackPosition);
 	ADD_API_METHOD_1(setPlaybackPosition);
@@ -3038,10 +3054,9 @@ ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingC
 	ADD_API_METHOD_0(reset);
 	ADD_API_METHOD_0(undo);
 	ADD_API_METHOD_0(redo);
-
-	addConstant("STOP", 0);
-	addConstant("PLAY", 1);
-	addConstant("RECORD", 2);
+	ADD_API_METHOD_1(play);
+	ADD_API_METHOD_1(stop);
+	ADD_API_METHOD_1(record);
 }
 
 ScriptingObjects::ScriptedMidiPlayer::~ScriptedMidiPlayer()
@@ -3235,6 +3250,24 @@ void ScriptingObjects::ScriptedMidiPlayer::redo()
 		um->redo();
 	else
 		reportScriptError("Undo is deactivated");
+}
+
+bool ScriptingObjects::ScriptedMidiPlayer::play(int timestamp)
+{
+	if (auto pl = getPlayer())
+		return pl->play(timestamp);
+}
+
+bool ScriptingObjects::ScriptedMidiPlayer::stop(int timestamp)
+{
+	if (auto pl = getPlayer())
+		return pl->play(timestamp);
+}
+
+bool ScriptingObjects::ScriptedMidiPlayer::record(int timestamp)
+{
+	if (auto pl = getPlayer())
+		return pl->play(timestamp);
 }
 
 void ScriptingObjects::ScriptedMidiPlayer::sequenceLoaded(HiseMidiSequence::Ptr newSequence)

@@ -249,14 +249,18 @@ juce::Image PoolTableHelpers::getPreviewImage(const ValueTree* v, float width)
 juce::Image PoolTableHelpers::getPreviewImage(const MidiFileReference* v, float width)
 {
 	auto f = v->getFile();
+
+#if 0
+	
 	MemoryOutputStream mos;
 	f.writeTo(mos);
 
 	MemoryBlock mb = mos.getMemoryBlock();
 	MemoryInputStream mis(mb, true);
+#endif
 
 	HiseMidiSequence seq;
-	seq.loadFrom(mis);
+	seq.loadFrom(f);
 
 	auto l = seq.getRectangleList({ 0.0f, 0.0f, width, 200.0f });
 

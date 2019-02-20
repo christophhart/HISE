@@ -101,9 +101,9 @@ private:
 			Colour onColour = Colours::white;
 			Colour offColour = Colours::white.withAlpha(0.5f);
 
-			bool isPlay = buttonPlayState == MidiFilePlayer::Play;
-			bool isStop = buttonPlayState == MidiFilePlayer::Stop;
-			bool isRecord = buttonPlayState == MidiFilePlayer::Record;
+			bool isPlay = buttonPlayState == MidiFilePlayer::PlayState::Play;
+			bool isStop = buttonPlayState == MidiFilePlayer::PlayState::Stop;
+			bool isRecord = buttonPlayState == MidiFilePlayer::PlayState::Record;
 
 			playButton.setColours((isPlay ? onColour : offColour).withMultipliedAlpha(0.8f),
 				isPlay ? onColour : offColour,
@@ -133,7 +133,7 @@ private:
 	HiseShapeButton stopButton;
 	HiseShapeButton recordButton;
 
-	int buttonPlayState = MidiFilePlayer::Stop;
+	MidiFilePlayer::PlayState buttonPlayState = MidiFilePlayer::PlayState::Stop;
 	int currentTrackAmount = 0;
 
 	ScopedPointer<MidiFilePlayerBaseType> currentPlayerType;
@@ -142,6 +142,7 @@ private:
 	HiComboBox currentSequence;
 	HiComboBox currentTrack;
 	ToggleButton clearButton;
+	HiToggleButton loopButton;
 };
 
 }

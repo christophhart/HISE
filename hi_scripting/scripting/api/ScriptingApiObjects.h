@@ -799,6 +799,9 @@ public:
 		/** Restores the control values for scripts (without recompiling). */
 		void restoreScriptControls(String base64Controls);
 
+		/** Returns a reference of type ScriptedMidiPlayer that can be used to control the playback. */
+		var asMidiPlayer();
+
 		// ============================================================================================================
 
 		struct Wrapper;
@@ -1026,6 +1029,15 @@ public:
 
 		/** Redo the last edit. */
 		void redo();
+
+		/** Starts playing. Use the timestamp to delay the event or use the currents event timestamp for sample accurate playback. */
+		bool play(int timestamp);
+
+		/** Starts playing. Use the timestamp to delay the event or use the currents event timestamp for sample accurate playback. */
+		bool stop(int timestamp);
+
+		/** Starts recording (not yet implemented). Use the timestamp to delay the event or use the currents event timestamp for sample accurate playback. */
+		bool record(int timestamp);
 
 		// ============================================================================================================
 
