@@ -1088,6 +1088,16 @@ public:
 		return &getCurrentFileHandler(forceDefault).pool->getSampleMapPool();
 	}
 
+	MidiFilePool* getCurrentMidiFilePool(bool forceDefault = false)
+	{
+		return &getCurrentFileHandler(forceDefault).pool->getMidiFilePool();
+	}
+
+	const MidiFilePool* getCurrentMidiFilePool(bool forceDefault = false) const
+	{
+		return &getCurrentFileHandler(forceDefault).pool->getMidiFilePool();
+	}
+
 	KillStateHandler& getKillStateHandler() { return killStateHandler; };
 	const KillStateHandler& getKillStateHandler() const { return killStateHandler; };
 #if USE_BACKEND

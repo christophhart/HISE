@@ -577,6 +577,7 @@ public:
 			AudioFileTable,
 			SamplePoolTable,
 			SampleMapPoolTable,
+			MidiFilePoolTable,
 			PopoutButton,
 			PerformanceStatistics,
 			ActivityLed,

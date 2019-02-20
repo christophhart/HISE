@@ -2667,9 +2667,9 @@ String ScriptingObjects::ScriptingMessageHolder::dump() const
 {
 	String x;
 	x << "Type: " << e.getTypeAsString() << ", ";
+	x << "Channel: " << String(e.getChannel()) << ", ";
 	x << "Number: " << String(e.getNoteNumber()) << ", ";
 	x << "Value: " << String(e.getVelocity()) << ", ";
-	x << "Channel: " << String(e.getChannel()) << ", ";
 	x << "EventId: " << String(e.getEventId()) << ", ";
 	x << "Timestamp: " << String(e.getTimeStamp()) << ", ";
 
@@ -3020,6 +3020,8 @@ struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, flushMessageList);
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getEventList);
 	API_VOID_METHOD_WRAPPER_0(ScriptedMidiPlayer, reset);
+	API_VOID_METHOD_WRAPPER_0(ScriptedMidiPlayer, undo);
+	API_VOID_METHOD_WRAPPER_0(ScriptedMidiPlayer, redo);
 };
 
 ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingContent* p, MidiFilePlayer* player_):
@@ -3034,6 +3036,8 @@ ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingC
 	ADD_API_METHOD_0(getEventList);
 	ADD_API_METHOD_1(flushMessageList);
 	ADD_API_METHOD_0(reset);
+	ADD_API_METHOD_0(undo);
+	ADD_API_METHOD_0(redo);
 
 	addConstant("STOP", 0);
 	addConstant("PLAY", 1);
@@ -3166,8 +3170,7 @@ var ScriptingObjects::ScriptedMidiPlayer::getEventList()
 	if (!sequenceValid())
 		return {};
 
-	auto list = MidiSequenceEditor::createBufferFromSequence(getPlayer()->getCurrentSequence(), getPlayer()->getSampleRate(),
-		getPlayer()->getMainController()->getBpm());
+	auto list = getPlayer()->getCurrentSequence()->getEventList(getPlayer()->getSampleRate(), getPlayer()->getMainController()->getBpm());
 
 	Array<var> eventHolders;
 
@@ -3198,9 +3201,7 @@ void ScriptingObjects::ScriptedMidiPlayer::flushMessageList(var messageList)
 				reportScriptError("Illegal item in message list: " + e.toString());
 		}
 
-		MidiSequenceEditor editor(getPlayer());
-		editor.setEvents(events);
-		editor.write();
+		getPlayer()->flushEdit(events);
 	}
 	else
 		reportScriptError("Input is not an array");
@@ -3211,7 +3212,29 @@ void ScriptingObjects::ScriptedMidiPlayer::reset()
 	if (!sequenceValid())
 		return;
 
-	getPlayer()->getCurrentSequence()->reset();
+	getPlayer()->resetCurrentSequence();
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::undo()
+{
+	if (!sequenceValid())
+		return;
+
+	if (auto um = getPlayer()->getUndoManager())
+		um->undo();
+	else
+		reportScriptError("Undo is deactivated");
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::redo()
+{
+	if (!sequenceValid())
+		return;
+
+	if (auto um = getPlayer()->getUndoManager())
+		um->redo();
+	else
+		reportScriptError("Undo is deactivated");
 }
 
 void ScriptingObjects::ScriptedMidiPlayer::sequenceLoaded(HiseMidiSequence::Ptr newSequence)

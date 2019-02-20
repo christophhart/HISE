@@ -36,7 +36,7 @@
 namespace hise {
 using namespace juce;
 
-/** A wrapper around a MIDI sequence. 
+/** A wrapper around a MIDI file. 
 
 	This uses the juce::MidiMessageSequence object but extends it with these capabilities:
 	
@@ -47,17 +47,19 @@ using namespace juce;
 	- defined length
 	- a pointer to the last played note
 
-	They act as data structure for the MIDIFilePlayer.
 */
 class HiseMidiSequence : public ReferenceCountedObject,
 						 public RestorableObject
 {
 public:
 
+	/** The internal resolution (set to a sensible high default). */
 	static constexpr int TicksPerQuarter = 960;
 
+	/** This object is ref-counted so this can be used as reference pointer. */
 	using Ptr = ReferenceCountedObjectPtr<HiseMidiSequence>;
 
+	/** Creates an empty new sequence object. */
 	HiseMidiSequence();
 
 	/** Saves the sequence into a ValueTree. It stores the ID and the
@@ -65,45 +67,79 @@ public:
 	*/
 	ValueTree exportAsValueTree() const override;
 
+	/** Loads the sequence from the value tree. */
 	void restoreFromValueTree(const ValueTree &v) override;
 
+	/** Gets the next event of the current track in the given range. This also advances the playback pointer
+		so you should only use it in the audio thread for playback. 
+	*/
 	MidiMessage* getNextEvent(Range<double> rangeToLookForTicks);
+
+	/** Returns the MIDI note off message for the current note on message. */
 	MidiMessage* getMatchingNoteOffForCurrentEvent();
 
+	/** Returns the length in ticks (as defined with TicksPerQuarter). */
 	double getLength() const;
+
+	/** Returns the length of the MIDI sequence in quarter beats. */
 	double getLengthInQuarters();
 
 	/** Loads a sequence from a MIDI file input stream. */
 	void loadFrom(InputStream& input);
+
+	/** Creates a temporary MIDI file with the content of this sequence.
+		
+		This is used by the drag to external target functionality.
+	*/
 	File writeToTempFile();
 
+	/** Sets the ID of this sequence. */
 	void setId(const Identifier& newId);
+
+	/** Returns the ID of this sequence. */
 	Identifier getId() const noexcept { return id; }
 
+	/** Returns a read only pointer to the given track.
+	
+		If the argument is omitted, it will return the current track. 
+	*/
 	const juce::MidiMessageSequence* getReadPointer(int trackIndex=-1) const;
+
+	/** Returns a write pointer to the given track.
+
+	If the argument is omitted, it will return the current track. 
+	*/
 	juce::MidiMessageSequence* getWritePointer(int trackIndex=-1);
 
+	/** Get the number of events in the current track. */
 	int getNumEvents() const;
+
+	/** Get the number of tracks in this MIDI sequence. */
 	int getNumTracks() const { return sequences.size(); }
+
+	/** Sets the current track. */
 	void setCurrentTrackIndex(int index);
+
+	/** Resets the playback position. */
 	void resetPlayback();
 
+	/** Sets the playback position. This will search through all events in the current track and set the index to point to the next event so this operation is not trivial. */
 	void setPlaybackPosition(double normalisedPosition);
 
+	/** Returns a rectangle list of all note events in the current track that can be used by UI elements to draw notes. It automatically scales them to the supplied targetBounds.
+	*/
 	RectangleList<float> getRectangleList(Rectangle<float> targetBounds) const;
 
+	/** Returns a list of all events of the current track converted to HiseEvents. This is used by editing operations. */
+	Array<HiseEvent> getEventList(double sampleRate, double bpm);
+
+	/** Swaps the current track with the given MidiMessageSequence. */
 	void swapCurrentSequence(MidiMessageSequence* sequenceToSwap);
 
-	void reset()
-	{
-		if (loadedFile.existsAsFile())
-		{
-			FileInputStream fis(loadedFile);
-			loadFrom(fis);
-		}
-	}
-
 private:
+
+	/** @internal */
+	void loadFrom(const MidiFile& file);
 
 	/** A simple, non reentrant lock with read-write access. */
 	struct SimpleReadWriteLock
@@ -125,8 +161,6 @@ private:
 		std::atomic<int> numReadLocks = 0;
 		bool isBeingWritten = false;
 	};
-
-	File loadedFile;
 
 	mutable SimpleReadWriteLock swapLock;
 
@@ -157,10 +191,53 @@ public:
 	{
 		virtual ~SequenceListener() {};
 
+		/** Will be called whenever a new sequence is loaded or the current sequence is changed. 
+		
+			This will always happen on the message thread.
+		*/
 		virtual void sequenceLoaded(HiseMidiSequence::Ptr newSequence) = 0;
+
+		/** Will be called whenever the sequences are cleared. 
+		
+			This will always happen on the message thread.
+		*/
 		virtual void sequencesCleared() = 0;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(SequenceListener);
+	};
+
+	/** A undoable edit action that takes a list of events and overwrites the events in the current sequence.
+
+		You need to supply the samplerate and BPM because the domain of the timestamps in the event list are
+		samples (to stay consistent with the scripting API).
+	*/
+	class EditAction : public UndoableAction
+	{
+	public:
+
+		/** Creates a new action. 
+		
+		    Upon construction, it will create a list of events from the current sequence that
+			will be used for undo operations. */
+		EditAction(WeakReference<MidiFilePlayer> currentPlayer_, const Array<HiseEvent>& newContent, double sampleRate_, double bpm_);;
+
+		/** Applies the given event list. */
+		bool perform() override;
+
+		/** Restores the previous event list. */
+		bool undo() override;
+
+	private:
+
+		/**@ internal */
+		void writeArrayToSequence(Array<HiseEvent>& arrayToWrite);
+
+		WeakReference<MidiFilePlayer> currentPlayer;
+		Array<HiseEvent> newEvents;
+		Array<HiseEvent> oldEvents;
+		double sampleRate;
+		double bpm;
+		Identifier sequenceId;
 	};
 
 	SET_PROCESSOR_NAME("MidiFilePlayer", "MIDI File Player");
@@ -168,12 +245,13 @@ public:
 	MidiFilePlayer(MainController *mc, const String &id, ModulatorSynth* ms);;
 	~MidiFilePlayer();
 
+	/**@ internal */
 	void tempoChanged(double newTempo) override;
 
 	enum SpecialParameters
 	{
 		Stop = 0,				   ///< stops it at the provided timestamp (non-persistent)
-		Play,					   ///< stops it at the given timestamp (non-persistent)
+		Play,					   ///< plays it at the given timestamp (non-persistent)
 		Record,					   ///< starts recording at the current timestamp (non-persistent)
 		CurrentPosition,		   ///< the current position within the current MIDI file (non-persistent)
 		CurrentSequence,		   ///< the index of the currently played sequence (not zero based for combobox compatibility)
@@ -182,35 +260,92 @@ public:
 		numSpecialParameters
 	};
 
+	void addSequence(HiseMidiSequence::Ptr newSequence, bool select=true);
+	void clearSequences(NotificationType notifyListeners=sendNotification);
+
+	// ======================================================================== Processor methods
+
+	/**@ internal */
 	ValueTree exportAsValueTree() const override;;
+
+	/**@ internal */
 	virtual void restoreFromValueTree(const ValueTree &v) override;
 
-	void addSequence(HiseMidiSequence::Ptr newSequence);
-	void clearSequences();
-
+	/**@ internal */
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
+	/**@ internal */
 	float getAttribute(int index) const;;
+	/**@ internal */
 	void setInternalAttribute(int index, float newAmount) override;;
 
+	/** Loads the given pooled MIDI file and adds it to the end of the list. */
+	void loadMidiFile(PoolReference reference);
+
+	/**@ internal */
 	bool isProcessingWholeBuffer() const override { return true; }
+
+	/**@ internal */
 	void prepareToPlay(double sampleRate_, int samplesPerBlock_);
+
+	/**@ internal */
 	void preprocessBuffer(HiseEventBuffer& buffer, int numSamples) override;
+
+	/**@ internal */
 	void processHiseEvent(HiseEvent &m) noexcept override;
 
+	/** Adds a sequence listener that will be notified about changes to the sequences. */
 	void addSequenceListener(SequenceListener* newListener);
+
+	/** Removes a sequence listener that was registered to this player. */
 	void removeSequenceListener(SequenceListener* listenerToRemove);
 
+	/** Returns the playstate as integer. */
 	int getPlayState() const { return (int)playState; };
+
+	/** Returns the number of sequences loaded into this player. */
 	int getNumSequences() const { return currentSequences.size(); }
+
+	/** Returns the currently played sequence. */
 	HiseMidiSequence* getCurrentSequence() const;
-	Identifier getSequenceId(int index) const;
-	Identifier getCurrentSequenceId() const;
+
+	/** Returns the ID used for the given sequence. If -1 is used as index, the current sequence will be used. */
+	Identifier getSequenceId(int index=-1) const;
+
+	/** Returns the current playback position from 0...1. */
 	double getPlaybackPosition() const;
 
 	void swapCurrentSequence(MidiMessageSequence* newSequence);
+	void setEnableUndoManager(bool shouldBeEnabled);
+
+	/** Applies the list of events to the currently loaded sequence. This operation is undoable. 
+	
+		It locks the sequence just for a very short time so you should be able to use this from any
+		thread without bothering about multithreading. */
+	void flushEdit(const Array<HiseEvent>& newEvents);
+
+	/** Returns the undo manager used for all editing operations. 
+	
+		This differs from the default undo manager for parameter changes because edits might
+		get triggered by UI controls and it would be difficult to deinterleave parameter changes
+		and MIDI edits. */
+	UndoManager* getUndoManager() { return undoManager; };
+
+	/** Resets the current sequence back to its pooled state. This operation is undoable. */
+	void resetCurrentSequence();
+
+	/** Returns the PoolReference for the given sequence. 
+	
+	    If -1 is passed, the current sequence index will be used. */
+	PoolReference getPoolReference(int index = -1);
 
 private:
+
+	void sendSequenceUpdateMessage(NotificationType notification);
+
+	ScopedPointer<UndoManager> undoManager;
+
+	Array<PoolReference> currentlyLoadedFiles;
 
 	Array<WeakReference<SequenceListener>> sequenceListeners;
 	void changeTransportState(SpecialParameters newState);
@@ -234,80 +369,8 @@ private:
 	uint16 currentTimestampInBuffer = 0;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(MidiFilePlayer);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MidiFilePlayer);
 };
-
-
-
-/** A class for editing MIDI sequences. */
-class MidiSequenceEditor
-{
-public:
-
-	class Action : public UndoableAction
-	{
-	public:
-
-		Action(WeakReference<MidiFilePlayer> currentPlayer_, const Array<HiseEvent>& newContent, double sampleRate_, double bpm_) :
-			UndoableAction(),
-			currentPlayer(currentPlayer_),
-			newEvents(newContent),
-			sampleRate(sampleRate_),
-			bpm(bpm_)
-		{
-			oldEvents = createBufferFromSequence(currentPlayer->getCurrentSequence(), sampleRate, bpm);
-			
-			if (currentPlayer == nullptr)
-				return;
-
-			if (auto seq = currentPlayer->getCurrentSequence())
-				sequenceId = seq->getId();
-		};
-
-		bool perform() override;
-		bool undo() override;
-
-	private:
-
-		void writeArrayToSequence(Array<HiseEvent>& arrayToWrite);
-
-		
-		WeakReference<MidiFilePlayer> currentPlayer;
-		Array<HiseEvent> newEvents;
-		Array<HiseEvent> oldEvents;
-		double sampleRate;
-		double bpm;
-		Identifier sequenceId;
-	};
-
-	MidiSequenceEditor(MidiFilePlayer* player_) :
-		player(player_)
-	{}
-
-	static Array<HiseEvent> createBufferFromSequence(HiseMidiSequence::Ptr seq, double sampleRate, double bpm);
-
-	/** Copy the current sequence from the given MIDI sequence. */
-	bool copySequencyFrom(HiseMidiSequence::Ptr sequence);
-
-	/** Removes and returns the HiseEvent at the position i. */
-	HiseEvent popHiseEvent(int index);
-
-	HiseEvent getNoteOffForEventId(int eventId);
-	HiseEvent getNoteOnForEventId(int eventId);
-
-	/** Adds the given message. */
-	void pushHiseEvent(const HiseEvent& e);
-
-	/** Writes the processed sequence back to the original sequence. */
-	void write();
-
-	void setEvents(const Array<HiseEvent>& events);
-
-	WeakReference<MidiFilePlayer> player;
-	Array<HiseEvent> currentEvents;
-
-	JUCE_DECLARE_WEAK_REFERENCEABLE(MidiSequenceEditor);
-};
-
 
 
 /** Subclass this and implement your MIDI file player type. */

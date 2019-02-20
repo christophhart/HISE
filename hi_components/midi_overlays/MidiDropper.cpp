@@ -91,7 +91,8 @@ void MidiFileDragAndDropper::dragOperationEnded(const DragAndDropTarget::SourceD
 
 void MidiFileDragAndDropper::mouseDown(const MouseEvent& )
 {
-	startDragging(currentSequenceId.toString(), this, createSnapshot(), true);
+	auto d = getPlayer()->getPoolReference().createDragDescription();
+	startDragging(d, this, createSnapshot(), true);
 }
 
 juce::Image MidiFileDragAndDropper::createSnapshot() const
@@ -128,15 +129,41 @@ void MidiFileDragAndDropper::fileDragExit(const StringArray&)
 
 void MidiFileDragAndDropper::filesDropped(const StringArray& files, int, int)
 {
-	File f(files[0]);
-	FileInputStream fis(f);
+	PoolReference ref(getPlayer()->getMainController(), files[0], FileHandlerBase::MidiFiles);
 
-	HiseMidiSequence::Ptr newSequence = new HiseMidiSequence();
-	newSequence->setId(f.getFileNameWithoutExtension());
-	newSequence->loadFrom(fis);
+	getPlayer()->loadMidiFile(ref);
 
-	getPlayer()->addSequence(newSequence);
-	getPlayer()->setAttribute(MidiFilePlayer::CurrentSequence, (float)getPlayer()->getNumSequences(), sendNotification);
+	
+
+	hover = false;
+	repaint();
+}
+
+
+void MidiFileDragAndDropper::itemDragEnter(const SourceDetails& dragSourceDetails)
+{
+	hover = true;
+	repaint();
+}
+
+
+void MidiFileDragAndDropper::itemDragExit(const SourceDetails& dragSourceDetails)
+{
+	hover = false;
+	repaint();
+}
+
+bool MidiFileDragAndDropper::isInterestedInDragSource(const SourceDetails& dragSourceDetails)
+{
+	PoolReference ref(dragSourceDetails.description);
+	return ref.isValid() && ref.getFileType() == FileHandlerBase::MidiFiles;
+}
+
+
+void MidiFileDragAndDropper::itemDropped(const SourceDetails& dragSourceDetails)
+{
+	PoolReference ref(dragSourceDetails.description);
+	getPlayer()->loadMidiFile(ref);
 
 	hover = false;
 	repaint();

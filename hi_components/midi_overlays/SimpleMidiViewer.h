@@ -50,7 +50,10 @@ public:
 
 	void timerCallback() override;
 
-	void sequenceLoaded(HiseMidiSequence::Ptr) override {};
+	void sequenceLoaded(HiseMidiSequence::Ptr) override 
+	{
+		rebuildRectangles();
+	};
 
 	void resized() override;
 

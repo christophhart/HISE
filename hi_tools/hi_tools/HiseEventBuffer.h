@@ -709,6 +709,9 @@ private:
 	int numUsed = 0;
 };
 
+
+
+
 /** This class will iterate over incoming MIDI messages, and transform them
 *	into HiseEvents with a succesive index for note-on / note-off messages.
 *

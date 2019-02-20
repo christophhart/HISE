@@ -41,7 +41,8 @@ using namespace juce;
 class MidiFileDragAndDropper : public Component,
 	public MidiFilePlayerBaseType,
 	public FileDragAndDropTarget,
-	public DragAndDropContainer
+	public DragAndDropContainer,
+	public DragAndDropTarget
 {
 public:
 
@@ -64,6 +65,13 @@ public:
 	void fileDragEnter(const StringArray&, int, int) override;
 	void fileDragExit(const StringArray&) override;
 	void filesDropped(const StringArray& files, int, int) override;
+
+	void itemDragEnter(const SourceDetails& dragSourceDetails) override;
+	void itemDragExit(const SourceDetails& dragSourceDetails) override;
+
+	bool isInterestedInDragSource(const SourceDetails& dragSourceDetails) override;
+
+	void itemDropped(const SourceDetails& dragSourceDetails) override;
 
 	void paint(Graphics& g) override;
 

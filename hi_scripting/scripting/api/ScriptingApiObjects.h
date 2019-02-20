@@ -237,7 +237,7 @@ public:
 		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Message"); }
 
 		String getDebugName() const override { return "MessageHolder"; };
-		String getDebugValue() const override { return e.getTypeAsString() + "[" + String(e.getNoteNumber()) + "," + String(e.getVelocity()) + "," + String(e.getChannel()) + "]"; };
+		String getDebugValue() const override { return dump(); };
 		
 		// ============================================================================================================
 
@@ -1020,6 +1020,12 @@ public:
 
 		/** Resets the current sequence to the last loaded file. */
 		void reset();
+
+		/** Undo the last edit. */
+		void undo();
+
+		/** Redo the last edit. */
+		void redo();
 
 		// ============================================================================================================
 

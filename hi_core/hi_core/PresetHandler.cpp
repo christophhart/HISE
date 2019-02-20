@@ -1200,6 +1200,7 @@ juce::File FrontendHandler::getSubDirectory(SubDirectories directory) const
 	case hise::FileHandlerBase::XMLPresetBackups:
 	case hise::FileHandlerBase::AdditionalSourceCode:
 	case hise::FileHandlerBase::numSubDirectories:
+	case hise::FileHandlerBase::MidiFiles:
 		jassertfalse;
 		break;
 	case hise::FileHandlerBase::UserPresets:
@@ -2218,6 +2219,7 @@ juce::String FileHandlerBase::getIdentifier(SubDirectories dir)
 	case SubDirectories::AudioFiles:		return "AudioFiles/";
 	case SubDirectories::UserPresets:		return "UserPresets/";
 	case SubDirectories::SampleMaps:		return "SampleMaps/";
+	case SubDirectories::MidiFiles:			return "MidiFiles/";
 	case SubDirectories::numSubDirectories:
 	default:								jassertfalse; return String();
 	}
@@ -2344,6 +2346,7 @@ juce::String FileHandlerBase::getWildcardForFiles(SubDirectories directory)
 	case hise::FileHandlerBase::Scripts:				return "*.js";
 	case hise::FileHandlerBase::Presets:				return "*.hip";
 	case hise::FileHandlerBase::XMLPresetBackups:		return "*.xml";
+	case hise::FileHandlerBase::MidiFiles:				return "*.mid;*.MID";
 	case hise::FileHandlerBase::Binaries:				
 	case hise::FileHandlerBase::AdditionalSourceCode:
 	case hise::FileHandlerBase::numSubDirectories:		
@@ -2370,11 +2373,12 @@ void FileHandlerBase::exportAllPoolsToTemporaryDirectory(ModulatorSynthChain* ch
 	if (!folder.isDirectory())
 		folder.createDirectory();
 
-	File imageOutputFile, sampleOutputFile, samplemapFile;
+	File imageOutputFile, sampleOutputFile, samplemapFile, midiOutputFile;
 
 	samplemapFile = getTempFileForPool(SampleMaps);
 	imageOutputFile = getTempFileForPool(Images);
 	sampleOutputFile = getTempFileForPool(AudioFiles);
+	midiOutputFile = getTempFileForPool(MidiFiles);
 
 	loadOtherReferencedImages(chain);
 
@@ -2384,6 +2388,7 @@ void FileHandlerBase::exportAllPoolsToTemporaryDirectory(ModulatorSynthChain* ch
 	sampleOutputFile.deleteFile();
 	imageOutputFile.deleteFile();
 	samplemapFile.deleteFile();
+	midiOutputFile.deleteFile();
 
 	auto previousLogger = Logger::getCurrentLogger();
 
@@ -2402,6 +2407,9 @@ void FileHandlerBase::exportAllPoolsToTemporaryDirectory(ModulatorSynthChain* ch
 
 	if (logData != nullptr) logData->logFunction("Export samplemap files");
 	chain->getMainController()->getCurrentSampleMapPool(true)->getDataProvider()->writePool(new FileOutputStream(samplemapFile), progress);
+
+	if (logData != nullptr) logData->logFunction("Export MIDI files");
+	chain->getMainController()->getCurrentMidiFilePool(true)->getDataProvider()->writePool(new FileOutputStream(samplemapFile), progress);
 
 	Logger::setCurrentLogger(previousLogger);
 
@@ -2429,6 +2437,7 @@ juce::File FileHandlerBase::getTempFileForPool(SubDirectories dir) const
 	case Images:		return parent.getChildFile("ImageResources.dat");
 	case SampleMaps:	return parent.getChildFile("SampleMaps.dat");
 	case AudioFiles:	return parent.getChildFile("AudioResources.dat");
+	case MidiFiles:		return parent.getChildFile("MidiFiles.dat");
 	default:			jassertfalse;
 						break;
 	}
