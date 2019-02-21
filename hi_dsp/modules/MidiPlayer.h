@@ -286,6 +286,8 @@ public:
 	};
 
 	void addSequence(HiseMidiSequence::Ptr newSequence, bool select=true);
+
+	/** Clears all sequences. This also clears the undo history. */
 	void clearSequences(NotificationType notifyListeners=sendNotification);
 
 	// ======================================================================== Processor methods

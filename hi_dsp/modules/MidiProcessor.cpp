@@ -121,10 +121,9 @@ void MidiProcessorChain::renderNextHiseEventBuffer(HiseEventBuffer &buffer, int 
 	}
 
 	artificialEvents.moveEventsBelow(buffer, numSamples);
-
+	buffer.moveEventsAbove(artificialEvents, numSamples);
 	artificialEvents.subtractFromTimeStamps(numSamples);
 	
-	buffer.moveEventsAbove(artificialEvents, numSamples);
 }
 
 MidiProcessorFactoryType::MidiProcessorFactoryType(Processor *p) :

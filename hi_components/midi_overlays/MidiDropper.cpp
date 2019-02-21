@@ -52,7 +52,8 @@ bool MidiFileDragAndDropper::isMidiFile(const String& s)
 void MidiFileDragAndDropper::sequenceLoaded(HiseMidiSequence::Ptr newSequence)
 {
 	currentSequence = newSequence;
-	currentSequenceId = newSequence->getId();
+
+	currentSequenceId = newSequence != nullptr ? newSequence->getId() : Identifier();
 	repaint();
 }
 

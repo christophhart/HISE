@@ -3038,6 +3038,8 @@ struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 	API_METHOD_WRAPPER_1(ScriptedMidiPlayer, play);
 	API_METHOD_WRAPPER_1(ScriptedMidiPlayer, stop);
 	API_METHOD_WRAPPER_1(ScriptedMidiPlayer, record);
+	API_METHOD_WRAPPER_3(ScriptedMidiPlayer, setFile);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setTrack);
 };
 
 ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingContent* p, MidiPlayer* player_):
@@ -3057,6 +3059,8 @@ ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingC
 	ADD_API_METHOD_1(play);
 	ADD_API_METHOD_1(stop);
 	ADD_API_METHOD_1(record);
+	ADD_API_METHOD_3(setFile);
+	ADD_API_METHOD_1(setTrack);
 }
 
 ScriptingObjects::ScriptedMidiPlayer::~ScriptedMidiPlayer()
@@ -3261,13 +3265,37 @@ bool ScriptingObjects::ScriptedMidiPlayer::play(int timestamp)
 bool ScriptingObjects::ScriptedMidiPlayer::stop(int timestamp)
 {
 	if (auto pl = getPlayer())
-		return pl->play(timestamp);
+		return pl->stop(timestamp);
 }
 
 bool ScriptingObjects::ScriptedMidiPlayer::record(int timestamp)
 {
 	if (auto pl = getPlayer())
-		return pl->play(timestamp);
+		return pl->record(timestamp);
+}
+
+bool ScriptingObjects::ScriptedMidiPlayer::setFile(String fileName, bool clearExistingSequences, bool selectNewSequence)
+{
+	if (auto pl = getPlayer())
+	{
+		if (clearExistingSequences)
+			pl->clearSequences(dontSendNotification);
+
+		PoolReference r(pl->getMainController(), fileName, FileHandlerBase::MidiFiles);
+		pl->loadMidiFile(r);
+		if (selectNewSequence)
+			pl->setAttribute(MidiPlayer::CurrentSequence, pl->getNumSequences(), sendNotification);
+
+		return r.isValid();
+	}
+		
+	return false;
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::setTrack(int trackIndex)
+{
+	if (auto pl = getPlayer())
+		pl->setAttribute(MidiPlayer::CurrentTrack, trackIndex, sendNotification);
 }
 
 void ScriptingObjects::ScriptedMidiPlayer::sequenceLoaded(HiseMidiSequence::Ptr newSequence)

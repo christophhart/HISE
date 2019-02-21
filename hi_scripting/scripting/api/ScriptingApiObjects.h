@@ -1039,6 +1039,12 @@ public:
 		/** Starts recording (not yet implemented). Use the timestamp to delay the event or use the currents event timestamp for sample accurate playback. */
 		bool record(int timestamp);
 
+		/** Loads a MIDI file and switches to this sequence if specified. */
+		bool setFile(String fileName, bool clearExistingSequences, bool selectNewSequence);
+
+		/** Sets the track index (starting with one). */
+		void setTrack(int trackIndex);
+
 		// ============================================================================================================
 
 		struct Wrapper;

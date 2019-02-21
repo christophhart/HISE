@@ -146,7 +146,7 @@ void HiseMidiSequence::restoreFromValueTree(const ValueTree &v)
 	// This property isn't used in this class, but if you want to
 	// have any kind of connection to a pooled MidiFile, you will
 	// need to add this externally (see MidiPlayer::exportAsValueTree())
-	jassert(v.getProperty("FileName"));
+	jassert(v.hasProperty("FileName"));
 
 	String encodedState = v.getProperty("Data");
 
@@ -341,7 +341,7 @@ int HiseMidiSequence::getNumEvents() const
 
 void HiseMidiSequence::setCurrentTrackIndex(int index)
 {
-	if (index != currentTrackIndex)
+	if (isPositiveAndBelow(index, sequences.size()) && index != currentTrackIndex)
 	{
 		double lastTimestamp = 0.0;
 
@@ -622,15 +622,14 @@ void MidiPlayer::addSequence(HiseMidiSequence::Ptr newSequence, bool select)
 		sendChangeMessage();
 	}
 
-	for (auto l : sequenceListeners)
-	{
-		if (l != nullptr)
-			l->sequenceLoaded(newSequence);
-	}
+	sendSequenceUpdateMessage(sendNotificationAsync);
 }
 
 void MidiPlayer::clearSequences(NotificationType notifyListeners)
 {
+	if (undoManager != nullptr)
+		undoManager->clearUndoHistory();
+
 	currentSequences.clear();
 	currentlyLoadedFiles.clear();
 
@@ -726,7 +725,9 @@ void MidiPlayer::setInternalAttribute(int index, float newAmount)
 	case CurrentTrack:			
 	{
 		currentTrackIndex = jmax<int>(0, (int)(newAmount - 1)); 
-		getCurrentSequence()->setCurrentTrackIndex(currentTrackIndex);
+
+		if(auto seq = getCurrentSequence())
+			seq->setCurrentTrackIndex(currentTrackIndex);
 
 		currentlyRecordedEvents.clear();
 		recordState.store(RecordState::Idle);
