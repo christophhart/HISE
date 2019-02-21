@@ -355,9 +355,8 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &menu, const MouseEvent *
 	}
 
 	menu.addItem(ContextActions::OpenInPopup, "Open in external window", true, false);
-
 	menu.addItem(ContextActions::JumpToDefinition, "Jump to definition", true, false);
-
+	menu.addItem(ContextActions::ClearAllBreakpoints, "Clear all breakpoints", scriptProcessor->anyBreakpointsActive());
 	menu.addItem(ContextActions::FindAllOccurences, "Find all occurrences", true, false);
 
     CodeEditorComponent::addPopupMenuItems(menu, e);
@@ -439,6 +438,13 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 		const String newText = CodeReplacer::createScriptComponentReference(selection);
 
 		insertTextAtCaret(newText);
+		return;
+	}
+	case ContextActions::ClearAllBreakpoints:
+	{
+		scriptProcessor->removeAllBreakpoints();
+		repaint();
+		return;
 	}
 	case JavascriptCodeEditor::JumpToDefinition:
 	{
@@ -1093,6 +1099,21 @@ bool JavascriptCodeEditor::keyPressed(const KeyPress& k)
 
 		return true;
 	}
+	else if (k.isKeyCode(KeyPress::F9Key))
+	{
+		if (k.getModifiers().isShiftDown())
+		{
+			scriptProcessor->removeAllBreakpoints();
+			repaint();
+			return true;
+		}
+		else
+		{
+			scriptProcessor->toggleBreakpoint(snippetId, getCaretPos().getLineNumber(), getCaretPos().getPosition());
+			repaint();
+			return true;
+		}
+	}
 
 #endif
 
@@ -1304,8 +1325,9 @@ void JavascriptCodeEditor::mouseDown(const MouseEvent& e)
 		if (e.mods.isShiftDown())
 		{
 			scriptProcessor->removeAllBreakpoints();
+			repaint();
 		}
-		else
+		else if (e.mods.isCommandDown())
 		{
 			int lineNumber = e.y / getLineHeight() + getFirstLineOnScreen();
 			CodeDocument::Position start(getDocument(), lineNumber, 0);

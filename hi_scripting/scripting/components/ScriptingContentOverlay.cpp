@@ -470,6 +470,7 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 			{
 				createCallbackDefinition = 10000,
 				addDefinition,
+				DeleteSelection,
 				showCallback,
 				restoreToData,
 				copySnapshot,
@@ -501,27 +502,12 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 			{
 				m.addSeparator();
 
-				if (components.size() == 1)
-				{
-					m.addItem(editComponentOffset, "Edit \"" + components[0]->getName().toString() + "\" in Panel");
-				}
-				else
-				{
-					PopupMenu editSub;
-
-					for (int i = 0; i < components.size(); i++)
-					{
-						editSub.addItem(editComponentOffset + i, components[i]->getName().toString());
-					}
-
-					m.addSubMenu("Edit in Panel", editSub, components.size() != 0);
-
-				}
+				m.addItem(DeleteSelection, "Delete Selection");
 
 				m.addSeparator();
 
+				m.addItem(addDefinition, "Create script reference for selection");
 				m.addItem(createCallbackDefinition, "Create custom callback for selection");
-				m.addItem(addDefinition, "Create script definition for selection");
 
 				auto first = components.getFirst();
 
@@ -565,6 +551,12 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 				}
 
 				handler->createNewComponent((ScriptEditHandler::ComponentType)result, insertX, insertY, parent);
+			}
+			else if (result == DeleteSelection)
+			{
+				auto pwsc = dynamic_cast<ProcessorWithScriptingContent*>(handler->getScriptEditHandlerProcessor());
+
+				ScriptingApi::Content::Helpers::deleteSelection(pwsc->getScriptingContent(), b);
 			}
 			else if (result == showCallback)
 			{

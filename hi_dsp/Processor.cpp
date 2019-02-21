@@ -770,8 +770,6 @@ StringArray ProcessorHelpers::getListOfAllConnectableProcessors(const Processor*
 
 	Array<const Processor*> processorList;
 
-	processorList.add(mainSynthChain);
-
 	while (const Processor *p = boxIter.getNextProcessor())
 	{
 		if (p == processorToSkip)
@@ -783,6 +781,8 @@ StringArray ProcessorHelpers::getListOfAllConnectableProcessors(const Processor*
 	}
 
 	StringArray processorIdList;
+
+	processorIdList.add(" ");
 
 	for (int i = 0; i < processorList.size(); i++)
 	{

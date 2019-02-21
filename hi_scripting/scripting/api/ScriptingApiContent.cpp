@@ -193,7 +193,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	setDefaultValue(Properties::linkedTo, "");
 	setDefaultValue(Properties::useUndoManager, false);
 	setDefaultValue(Properties::parentComponent, "");
-	setDefaultValue(Properties::processorId, "");
+	setDefaultValue(Properties::processorId, " ");
 	setDefaultValue(Properties::parameterId, "");
 
 	ADD_API_METHOD_2(set);
@@ -453,7 +453,12 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 	{
 		auto pId = newValue.toString();
 
-		if (pId.isNotEmpty())
+		if (pId == " " || pId == "")
+		{
+			connectedProcessor = nullptr;
+			setScriptObjectPropertyWithChangeMessage(getIdFor(parameterId), "", sendNotification);
+		}
+		else if (pId.isNotEmpty())
 		{
 			connectedProcessor = ProcessorHelpers::getFirstProcessorWithName(getScriptProcessor()->getMainController_()->getMainSynthChain(), pId);
 		}
@@ -4575,18 +4580,47 @@ void ScriptingApi::Content::Helpers::createNewComponentData(Content* c, ValueTre
 
 String ScriptingApi::Content::Helpers::createScriptVariableDeclaration(ReferenceCountedArray<ScriptComponent> selection)
 {
-
 	String s;
 	NewLine nl;
 
-	for (int i = 0; i < selection.size(); i++)
+	String variableName = PresetHandler::getCustomName("Array", "Enter the name for the array variable or nothing for a list of single statements");
+
+	if (selection.size() == 1 || variableName.isEmpty())
 	{
-		auto c = selection[i];
+		for (int i = 0; i < selection.size(); i++)
+		{
+			auto c = selection[i];
 
-		s << "const var " << c->name.toString() << " = Content.getComponent(\"" << c->name.toString() << "\");" << nl;;
+			s << "const var " << c->name.toString() << " = Content.getComponent(\"" << c->name.toString() << "\");" << nl;;
+		}
+
+		s << nl;
+
+		
 	}
+	else
+	{
+		s << "const var " << variableName << " = [";
 
-	s << nl;
+		int length = s.length();
+
+		for (int i = 0; i < selection.size(); i++)
+		{
+			auto c = selection[i];
+
+			s << "Content.getComponent(\"" << c->name.toString() << "\")";
+
+			if (i != selection.size() - 1)
+			{
+				s << "," << nl;
+				
+				for (int j = 0; j < length; j++)
+					s << " ";
+			}
+		}
+
+		s << "];" << nl;
+	}
 
 	return s;
 }

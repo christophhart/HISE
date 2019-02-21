@@ -66,6 +66,7 @@ public:
 		SaveScriptClipboard,
 		LoadScriptClipboard,
 		JumpToDefinition,
+		ClearAllBreakpoints,
 		FindAllOccurences,
 		SearchReplace,
 		AddCodeBookmark,
