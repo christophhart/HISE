@@ -143,6 +143,9 @@ private:
 
 #define loadAttribute(name, nameAsString) (setAttribute(name, (float)v.getProperty(nameAsString, false), dontSendNotification))
 #define saveAttribute(name, nameAsString) (v.setProperty(nameAsString, getAttribute(name), nullptr))
+#define saveID(name) v.setProperty(#name, getAttribute(name), nullptr);
+#define loadID(name) setAttribute(name, (float)v.getProperty(#name, false), dontSendNotification);
+#define addAttributeID(name) parameterNames.add(Identifier(#name));
 
 #define loadAttributeWithDefault(parameterId) setAttribute(parameterId, v.getProperty(getIdentifierForParameterIndex(parameterId), getDefaultValue(parameterId)), dontSendNotification);
 
@@ -1023,6 +1026,8 @@ public:
 	*	- ModulatorSynths
 	*/
 	static String getScriptVariableDeclaration(const Processor *p, bool copyToClipboard=true);
+
+	static String getTypedScriptVariableDeclaration(const Processor* p, String typeName, bool copyToClipboard=true);
 
 	static String getBase64String(const Processor* p, bool copyToClipboard=true, bool exportContentOnly=false);
 

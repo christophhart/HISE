@@ -53,6 +53,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<GenericPanel<FileBrowser>>(PopupMenuOptions::FileBrowser);
 	registerType<GenericPanel<SamplePoolTable>>(PopupMenuOptions::SamplePoolTable);
 	registerType<GenericPanel<PoolTableSubTypes::ImageFilePoolTable>>(PopupMenuOptions::ImageTable);
+	registerType<GenericPanel<PoolTableSubTypes::MidiFilePoolTable>>(PopupMenuOptions::MidiFilePoolTable);
 	registerType<GenericPanel<PoolTableSubTypes::AudioFilePoolTable>>(PopupMenuOptions::AudioFileTable);
 	registerType<GenericPanel<PoolTableSubTypes::SampleMapPoolTable>>(PopupMenuOptions::SampleMapPoolTable);
 	registerType<MainTopBar>(PopupMenuOptions::MenuCommandOffset);
@@ -118,6 +119,7 @@ void FloatingTileContent::Factory::registerFrontendPanelTypes()
 	registerType<AboutPagePanel>(PopupMenuOptions::AboutPage);
 	registerType<MidiKeyboardPanel>(PopupMenuOptions::MidiKeyboard);
 	registerType<PerformanceLabelPanel>(PopupMenuOptions::PerformanceStatistics);
+	registerType<MidiOverlayPanel>(PopupMenuOptions::MidiPlayerOverlay);
 	registerType<ActivityLedPanel>(PopupMenuOptions::ActivityLed);
 	registerType<CustomSettingsWindowPanel>(PopupMenuOptions::PluginSettings),
 	registerType<MidiSourcePanel>(PopupMenuOptions::MidiSourceList);
@@ -614,6 +616,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(m, PopupMenuOptions::AudioFileTable, "Audio File Pool Table");
 			addToPopupMenu(m, PopupMenuOptions::ImageTable, "Image Pool Table");
 			addToPopupMenu(m, PopupMenuOptions::SampleMapPoolTable, "SampleMap Pool Table");
+			addToPopupMenu(m, PopupMenuOptions::MidiFilePoolTable, "MidiFile Pool Table");
 
 			PopupMenu fm;
 
@@ -625,6 +628,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(fm, PopupMenuOptions::MidiChannelList, "Midi Channel List");
 			addToPopupMenu(fm, PopupMenuOptions::TooltipPanel, "Tooltip Bar");
 			addToPopupMenu(fm, PopupMenuOptions::MidiLearnPanel, "MIDI Learn Panel");
+			addToPopupMenu(fm, PopupMenuOptions::MidiPlayerOverlay, "MIDI Player Overlay");
 			addToPopupMenu(fm, PopupMenuOptions::SampleMapBrowser, "Sample Map Browser");
 			addToPopupMenu(fm, PopupMenuOptions::AudioAnalyser, "Audio Analyser");
 			addToPopupMenu(fm, PopupMenuOptions::MPEPanel, "MPE Panel");
@@ -704,6 +708,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::MidiSourceList:		parent->setNewContent(GET_PANEL_NAME(MidiSourcePanel)); break;
 	case PopupMenuOptions::MidiChannelList:		parent->setNewContent(GET_PANEL_NAME(MidiChannelPanel)); break;
 	case PopupMenuOptions::MidiLearnPanel:		parent->setNewContent(GET_PANEL_NAME(MidiLearnPanel)); break;
+	case PopupMenuOptions::MidiPlayerOverlay:	parent->setNewContent(GET_PANEL_NAME(MidiOverlayPanel)); break;
 	case PopupMenuOptions::TooltipPanel:		parent->setNewContent(GET_PANEL_NAME(TooltipPanel)); break;
 	case PopupMenuOptions::ApiCollection:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ApiCollection>)); break;
 	case PopupMenuOptions::PatchBrowser:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<PatchBrowser>)); break;
@@ -715,6 +720,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::AudioFileTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<PoolTableSubTypes::AudioFilePoolTable>)); break;
 	case PopupMenuOptions::SampleMapPoolTable:  parent->setNewContent(GET_PANEL_NAME(GenericPanel<PoolTableSubTypes::SampleMapPoolTable>)); break;
 	case PopupMenuOptions::ImageTable:			parent->setNewContent(GET_PANEL_NAME(GenericPanel<PoolTableSubTypes::ImageFilePoolTable>)); break;
+	case PopupMenuOptions::MidiFilePoolTable:  parent->setNewContent(GET_PANEL_NAME(GenericPanel<PoolTableSubTypes::MidiFilePoolTable>)); break;
 	case PopupMenuOptions::ScriptWatchTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ScriptWatchTable>)); break;
 	case PopupMenuOptions::toggleGlobalLayoutMode:    parent->getRootFloatingTile()->setLayoutModeEnabled(!parent->isLayoutModeEnabled()); break;
 	case PopupMenuOptions::exportAsJSON:		SystemClipboard::copyTextToClipboard(parent->exportAsJSON()); break;

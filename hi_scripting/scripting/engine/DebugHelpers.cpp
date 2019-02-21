@@ -241,7 +241,10 @@ var DebugableObject::Helpers::getCleanedObjectForJSONDisplay(const var& object)
 	}
 	else if (auto debugObject = dynamic_cast<DebugableObject*>(object.getObject()))
 	{
-		return var(debugObject->getDebugName());
+		String valueText;
+		valueText << debugObject->getDebugName() << ": " << debugObject->getDebugValue();
+
+		return var(valueText);
 	}
 	else
 		return object;

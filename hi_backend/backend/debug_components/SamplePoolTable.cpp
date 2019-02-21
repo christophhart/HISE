@@ -246,4 +246,33 @@ juce::Image PoolTableHelpers::getPreviewImage(const ValueTree* v, float width)
 	return img;
 }
 
+juce::Image PoolTableHelpers::getPreviewImage(const MidiFileReference* v, float width)
+{
+	auto f = v->getFile();
+
+#if 0
+	
+	MemoryOutputStream mos;
+	f.writeTo(mos);
+
+	MemoryBlock mb = mos.getMemoryBlock();
+	MemoryInputStream mis(mb, true);
+#endif
+
+	HiseMidiSequence seq;
+	seq.loadFrom(f);
+
+	auto l = seq.getRectangleList({ 0.0f, 0.0f, width, 200.0f });
+
+	Image img(Image::PixelFormat::ARGB, width, 200, true);
+	Graphics g(img);
+
+	g.setColour(Colours::white);
+
+	for (auto note : l)
+		g.fillRect(note);
+
+	return img;
+}
+
 } // namespace hise

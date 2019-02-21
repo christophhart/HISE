@@ -210,6 +210,30 @@ public:
 		/** Converts milli seconds to samples */
 		double getSamplesForMilliSeconds(double milliSeconds) const;;
 		
+		/** Converts samples to quarter beats using the current tempo. */
+		double getQuarterBeatsForSamples(double samples);
+
+		/** Converts milliseconds to quarter beats using the current tempo. */
+		double getQuarterBeatsForMilliSeconds(double milliSeconds);
+
+		/** Converts quarter beats to samples using the current tempo. */
+		double getSamplesForQuarterBeats(double quarterBeats);
+
+		/** Converts quarter beats to milliseconds using the current tempo. */
+		double getMilliSecondsForQuarterBeats(double quarterBeats);
+
+		/** Converts samples to quarter beats using the given tempo. */
+		double getQuarterBeatsForSamplesWithTempo(double samples, double bpm);
+
+		/** Converts milliseconds to quarter beats using the given tempo. */
+		double getQuarterBeatsForMilliSecondsWithTempo(double milliSeconds, double bpm);
+
+		/** Converts quarter beats to samples using the given tempo. */
+		double getSamplesForQuarterBeatsWithTempo(double quarterBeats, double bpm);
+
+		/** Converts quarter beats to milliseconds using the given tempo. */
+		double getMilliSecondsForQuarterBeatsWithTempo(double quarterBeats, double bpm);
+
 		/** Converts samples to milli seconds. */
 		double getMilliSecondsForSamples(double samples) const { return samples / getSampleRate() * 1000.0; };
 		
@@ -515,6 +539,8 @@ public:
 		typedef ScriptingObjects::ScriptingAudioSampleProcessor ScriptAudioSampleProcessor;
 		typedef ScriptingObjects::ScriptingTableProcessor ScriptTableProcessor;
 		typedef ScriptingObjects::ScriptingSlotFX ScriptSlotFX;
+		typedef ScriptingObjects::ScriptedMidiPlayer ScriptMidiPlayer;
+		typedef ScriptingObjects::ScriptRoutingMatrix ScriptRoutingMatrix;
 
 		// ============================================================================================================ API Methods
 
@@ -667,6 +693,12 @@ public:
 
 		/** Returns the first slot with the given name. */
 		ScriptSlotFX* getSlotFX(const String& name);
+
+		/** Creates a reference to the given MIDI player. */
+		ScriptMidiPlayer* getMidiPlayer(const String& playerId);
+
+		/** Creates a reference to the routing matrix of the given processor. */
+		ScriptRoutingMatrix* getRoutingMatrix(const String& processorId);
 
 		/** Returns the index of the Modulator in the chain with the supplied chainId */
 		int getModulatorIndex(int chainId, const String &id) const;

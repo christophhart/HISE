@@ -76,9 +76,11 @@ namespace wdl
 #include "midi_processor/mps/SampleRaster.cpp"
 #include "midi_processor/mps/RoundRobin.cpp"
 
+
 #if USE_BACKEND
 
 #include "midi_processor/editors/TransposerEditor.cpp"
+#include "midi_processor/editors/MidiPlayerEditor.cpp"
 
 #endif
 

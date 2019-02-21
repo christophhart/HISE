@@ -129,6 +129,12 @@ public:
 	{
 		if(isBypassed()) return;
 
+		if (renderPolyFxAsMono)
+		{
+			// Make sure the modulation values get calculated...
+			FOR_EACH_VOICE_EFFECT(preRenderCallback(startSample, numSamples));
+		}
+
 		FOR_ALL_EFFECTS(renderNextBlock(buffer, startSample, numSamples));
 
 	};
@@ -275,8 +281,15 @@ public:
 		EffectProcessorChain *chain;
 	};
 
+	/** Enable this to enforce the rendering of polyphonic effects (namely the filter in a container effect chain. */
+	void setForceMonophonicProcessingOfPolyphonicEffects(bool shouldProcessPolyFX)
+	{
+		renderPolyFxAsMono = shouldProcessPolyFX;
+	}
 
 private:
+
+	bool renderPolyFxAsMono = false;
 
 	// Gives it a limit of 6 million years...
 	int64 resetCounter = -1;

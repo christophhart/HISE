@@ -80,8 +80,27 @@ HiseEvent::HiseEvent(const HiseEvent &other) noexcept
 	data[1] = otherData[1];
 }
 
+juce::MidiMessage HiseEvent::toMidiMesage() const
+{
+	switch (type)
+	{
+	case Type::NoteOn:		return MidiMessage::noteOn(channel, number, value);
+	case Type::NoteOff:		return MidiMessage::noteOff(channel, number);
+	case Type::Controller:	return MidiMessage::controllerEvent(channel, number, value);
+	case Type::PitchBend:	return MidiMessage::pitchWheel(channel, getPitchWheelValue());
+	case Type::Aftertouch:	return MidiMessage::aftertouchChange(channel, number, value);
+	case Type::ProgramChange: return MidiMessage::programChange(channel, getPitchWheelValue());
+	}
+
+	// the other types can't be converted correctly...
+	jassertfalse;
+	return MidiMessage();
+}
+
 void HiseEvent::swapWith(HiseEvent &other)
 {
+	
+
 	// Only works with struct size of 16 bytes...
 	jassert(sizeof(HiseEvent) == 16);
 
@@ -136,6 +155,40 @@ String HiseEvent::getTypeAsString() const noexcept
 }
 
 
+bool HiseEvent::isIgnored() const noexcept
+{
+
+	constexpr int ignoreMask = 0x40000000;
+	bool ignored = timestamp & ignoreMask;
+	return ignored;
+}
+
+void HiseEvent::ignoreEvent(bool shouldBeIgnored) noexcept
+{
+
+	constexpr int ignoreMask = 0x40000000;
+	constexpr int everythingElse = 0xBFFFFFFF;
+
+	if (shouldBeIgnored)
+		timestamp |= ignoreMask;
+	else
+		timestamp &= everythingElse;
+}
+
+void HiseEvent::setArtificial() noexcept
+{
+
+	constexpr int aMask = 0x80000000;
+	timestamp |= aMask;
+}
+
+bool HiseEvent::isArtificial() const noexcept
+{
+
+	constexpr int aMask = 0x80000000;
+	bool artificial = (timestamp & aMask) != 0;
+	return artificial;
+}
 
 double HiseEvent::getPitchFactorForEvent() const
 {
@@ -179,7 +232,7 @@ HiseEvent HiseEvent::createPitchFade(uint16 eventId, int fadeTimeMilliseconds, i
 	return e;
 }
 
-HiseEvent HiseEvent::createTimerEvent(uint8 timerIndex, uint16 offset)
+HiseEvent HiseEvent::createTimerEvent(uint8 timerIndex, int offset)
 {
 	HiseEvent e(Type::TimerEvent, 0, 0, timerIndex);
 
@@ -189,28 +242,25 @@ HiseEvent HiseEvent::createTimerEvent(uint8 timerIndex, uint16 offset)
 	return e;
 }
 
+int HiseEvent::getTimeStamp() const noexcept
+{
+	constexpr uint32 tsMask = 0x0FFFFFFF;
+	return static_cast<int>(timestamp & tsMask);
+}
+
 void HiseEvent::setTimeStamp(int newTimestamp) noexcept
 {
-	timeStamp = static_cast<uint16>(jlimit<int>(0, UINT16_MAX, newTimestamp));
+	constexpr uint32 tsMask = 0x3FFFFFFF;
+	constexpr uint32 flagMask = 0xC0000000;
+	uint32 flagValues = timestamp & flagMask;
+	timestamp = flagValues | (static_cast<uint32>(newTimestamp) & tsMask);
 }
 
-void HiseEvent::setTimeStampRaw(uint16 newTimestamp) noexcept
+void HiseEvent::addToTimeStamp(int delta) noexcept
 {
-	timeStamp = newTimestamp;
-}
-
-void HiseEvent::addToTimeStamp(int16 delta) noexcept
-{
-	if (delta < 0)
-	{
-		int v = (int)timeStamp + delta;
-		timeStamp = (uint16)jmax<int>(0, v);
-	}
-	else
-	{
-		int v = (int)timeStamp + delta;
-		timeStamp = (uint16)jmin<int>(UINT16_MAX, v);
-	}
+	int v = getTimeStamp() + delta;
+	v = jmax<int>(0, v);
+	setTimeStamp(v);
 }
 
 bool HiseEvent::isNoteOn(bool returnTrueForVelocity0 /*= false*/) const noexcept
@@ -297,11 +347,16 @@ void HiseEventBuffer::addEvent(const HiseEvent& hiseEvent)
 		if (timestampInBuffer > messageTimestamp)
 		{
 			insertEventAtPosition(hiseEvent, i);
+
+			jassert(timeStampsAreSorted());
+
 			return;
 		}
 	}
 
 	insertEventAtPosition(hiseEvent, numUsed);
+
+	jassert(timeStampsAreSorted());
 }
 
 void HiseEventBuffer::addEvent(const MidiMessage& midiMessage, int sampleNumber)
@@ -310,6 +365,7 @@ void HiseEventBuffer::addEvent(const MidiMessage& midiMessage, int sampleNumber)
 	e.setTimeStamp(sampleNumber);
 
 	addEvent(e);
+	jassert(timeStampsAreSorted());
 }
 
 void HiseEventBuffer::addEvents(const MidiBuffer& otherBuffer)
@@ -346,6 +402,8 @@ void HiseEventBuffer::addEvents(const MidiBuffer& otherBuffer)
 
 		index++;
 	}
+
+	jassert(timeStampsAreSorted());
 }
 
 
@@ -357,13 +415,33 @@ void HiseEventBuffer::addEvents(const HiseEventBuffer &otherBuffer)
 	{
 		addEvent(*e);
 	}
+
+	jassert(timeStampsAreSorted());
+}
+
+void HiseEventBuffer::sortTimestamps()
+{
+	int timestamp = 0;
+
+	for (int i = 0; i < numUsed; i++)
+	{
+		auto thisStamp = buffer[i].getTimeStamp();
+
+		if (thisStamp < timestamp)
+		{
+			auto e = popEvent(i);
+			addEvent(e);
+		}
+
+		timestamp = thisStamp;
+	}
 }
 
 bool HiseEventBuffer::timeStampsAreSorted() const
 {
 	if (numUsed == 0) return true;
 
-	uint16 timeStamp = 0;
+	int timeStamp = 0;
 
 	for (int i = 0; i < numUsed; i++)
 	{
@@ -378,7 +456,7 @@ bool HiseEventBuffer::timeStampsAreSorted() const
 	return true;
 }
 
-uint16 HiseEventBuffer::getMinTimeStamp() const
+int HiseEventBuffer::getMinTimeStamp() const
 {
 	jassert(timeStampsAreSorted());
 
@@ -388,7 +466,7 @@ uint16 HiseEventBuffer::getMinTimeStamp() const
 	return buffer[0].getTimeStamp();
 }
 
-uint16 HiseEventBuffer::getMaxTimeStamp() const
+int HiseEventBuffer::getMaxTimeStamp() const
 {
 	jassert(timeStampsAreSorted());
 
@@ -408,6 +486,24 @@ HiseEvent HiseEventBuffer::getEvent(int index) const
 	return HiseEvent();
 }
 
+hise::HiseEvent HiseEventBuffer::popEvent(int index)
+{
+	if (isPositiveAndBelow(index, numUsed))
+	{
+		auto e = getEvent(index);
+
+		for (int i = index; i < numUsed; i++)
+			buffer[index] = buffer[index + 1];
+
+		buffer[numUsed - 1] = {};
+		numUsed--;
+
+		return e;
+	}
+	else
+		return {};
+}
+
 void HiseEventBuffer::subtractFromTimeStamps(int delta)
 {
 	if (numUsed == 0) return;
@@ -418,7 +514,7 @@ void HiseEventBuffer::subtractFromTimeStamps(int delta)
 
 	for (int i = 0; i < numUsed; i++)
 	{
-		buffer[i].addToTimeStamp((int16)-delta);
+		buffer[i].addToTimeStamp(-delta);
 	}
 
 	jassert(timeStampsAreSorted());
@@ -437,7 +533,7 @@ void HiseEventBuffer::moveEventsBelow(HiseEventBuffer& targetBuffer, int highest
 
 	while (HiseEvent* e = iter.getNextEventPointer())
 	{
-		if (e->getTimeStamp() < (uint32)highestTimestamp)
+		if (e->getTimeStamp() < highestTimestamp)
 		{
 			targetBuffer.addEvent(*e);
 			numCopied++;
@@ -463,14 +559,14 @@ void HiseEventBuffer::moveEventsBelow(HiseEventBuffer& targetBuffer, int highest
 
 void HiseEventBuffer::moveEventsAbove(HiseEventBuffer& targetBuffer, int lowestTimestamp)
 {
-	if (numUsed == 0 || (buffer[numUsed - 1].getTimeStamp() < (uint32)lowestTimestamp)) 
+	if (numUsed == 0 || (buffer[numUsed - 1].getTimeStamp() < lowestTimestamp)) 
 		return; // Skip the work if no events with bigger timestamps
 
 	int indexOfFirstElementToMove = -1;
 
 	for (int i = 0; i < numUsed; i++)
 	{
-		if (buffer[i].getTimeStamp() >= (uint32)lowestTimestamp)
+		if (buffer[i].getTimeStamp() >= lowestTimestamp)
 		{
 			indexOfFirstElementToMove = i;
 			break;
@@ -604,7 +700,8 @@ EventIdHandler::EventIdHandler(HiseEventBuffer& masterBuffer_) :
 	//for (int i = 0; i < 128; i++)
 	//realNoteOnEvents[i] = HiseEvent();
 
-	memset(realNoteOnEvents, 0, sizeof(HiseEvent) * 128);
+	memset(realNoteOnEvents, 0, sizeof(HiseEvent) * 128 * 16);
+	memset(lastArtificialEventIds, 0, sizeof(uint16) * 128 * 16);
 
 	artificialEvents.calloc(HISE_EVENT_ID_ARRAY_SIZE, sizeof(HiseEvent));
 }
@@ -720,7 +817,7 @@ uint16 EventIdHandler::getEventIdForNoteOff(const HiseEvent &noteOffEvent)
 			return eventId;
 
 		else
-			return lastArtificialEventIds[noteOffEvent.getNoteNumber()];
+			return lastArtificialEventIds[noteOffEvent.getChannel() % 16][noteOffEvent.getNoteNumber()];
 	}
 }
 
@@ -731,7 +828,7 @@ void EventIdHandler::pushArtificialNoteOn(HiseEvent& noteOnEvent) noexcept
 
 	noteOnEvent.setEventId(currentEventId);
 	artificialEvents[currentEventId % HISE_EVENT_ID_ARRAY_SIZE] = noteOnEvent;
-	lastArtificialEventIds[noteOnEvent.getNoteNumber()] = currentEventId;
+	lastArtificialEventIds[noteOnEvent.getChannel() % 16][noteOnEvent.getNoteNumber()] = currentEventId;
 
 	currentEventId++;
 }

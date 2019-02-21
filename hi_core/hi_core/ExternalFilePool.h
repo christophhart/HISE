@@ -43,6 +43,54 @@ const Identifier LoopStart("LoopStart");
 const Identifier LoopEnd("LoopEnd");
 }
 
+/** A wrapper around a MIDI file with the same properties as the 
+	other wrappers (shared instance, ref-counted, etc). */
+class MidiFileReference
+{
+public:
+
+	MidiFileReference() :
+		data(new SharedObject())
+	{};
+
+	MidiFileReference(const MidiFileReference& other) :
+		data(other.data)
+	{};
+
+	bool isValid() const { return !getId().isNull(); };
+
+	MidiFileReference& operator=(const MidiFileReference& other)
+	{
+		data = other.data;
+		return *this;
+	}
+
+	MidiFile& getFile() const
+	{
+		return data->file;
+	}
+
+	Identifier getId() const
+	{
+		return data->id;
+	}
+
+	void setId(const Identifier& id)
+	{
+		data->id = id;
+	}
+
+private:
+
+	struct SharedObject : public ReferenceCountedObject
+	{
+		MidiFile file;
+		Identifier id;
+	};
+
+	ReferenceCountedObjectPtr<SharedObject> data;
+};
+
 class PoolBase;
 
 /** Helper functions for the file pools. 
@@ -87,13 +135,17 @@ struct PoolHelpers
 	static ProjectHandler::SubDirectories getSubDirectoryType(const AudioSampleBuffer& emptyData);
 	static ProjectHandler::SubDirectories getSubDirectoryType(const Image& emptyImage);
 	static ProjectHandler::SubDirectories getSubDirectoryType(const ValueTree& emptyTree);
-
+	static ProjectHandler::SubDirectories getSubDirectoryType(const MidiFileReference& emptyTree);
+	
 	/** @internal (used by the template instantiations. */
 	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, AudioSampleBuffer& data, var* additionalData);
 	/** @internal (used by the template instantiations. */
 	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, Image& data, var* additionalData);
 	/** @internal (used by the template instantiations. */
 	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, ValueTree& data, var* additionalData);
+	/** @internal (used by the template instantiations. */
+	static void loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode,
+		MidiFileReference& data, var* additionalData);
 
 	/** @internal (used by the template instantiations. */
 	static void fillMetadata(AudioSampleBuffer& data, var* additionalData);
@@ -101,6 +153,8 @@ struct PoolHelpers
 	static void fillMetadata(Image& data, var* additionalData);
 	/** @internal (used by the template instantiations. */
 	static void fillMetadata(ValueTree& data, var* additionalData);
+	/** @internal (used by the template instantiations. */
+	static void fillMetadata(MidiFileReference& data, var* additionalData);
 
 	/** @internal (used by the template instantiations. */
 	static size_t getDataSize(const AudioSampleBuffer* buffer);
@@ -108,6 +162,8 @@ struct PoolHelpers
 	static size_t getDataSize(const Image* img);
 	/** @internal (used by the template instantiations. */
 	static size_t getDataSize(const ValueTree* img);
+	/** @internal (used by the template instantiations. */
+	static size_t getDataSize(const MidiFileReference* midiFile);
 
 	/** @internal (used by the template instantiations. */
 	static bool isValid(const AudioSampleBuffer* buffer);
@@ -115,6 +171,8 @@ struct PoolHelpers
 	static bool isValid(const Image* buffer);
 	/** @internal (used by the template instantiations. */
 	static bool isValid(const ValueTree* buffer);
+	/** @internal (used by the template instantiations. */
+	static bool isValid(const MidiFileReference* file);
 
 	/** @internal (used by the template instantiations. */
 	static Identifier getPrettyName(const AudioSampleBuffer* /*buffer*/) { RETURN_STATIC_IDENTIFIER("AudioFilePool"); }
@@ -122,6 +180,7 @@ struct PoolHelpers
 	static Identifier getPrettyName(const Image* /*img*/) { RETURN_STATIC_IDENTIFIER("ImagePool"); }
 	/** @internal (used by the template instantiations. */
 	static Identifier getPrettyName(const ValueTree* /*img*/) { RETURN_STATIC_IDENTIFIER("SampleMapPool"); }
+	static Identifier getPrettyName(const MidiFileReference* /*img*/) { RETURN_STATIC_IDENTIFIER("MidiFilePool"); }
 
 	static Image getEmptyImage(int width, int height);
 
@@ -284,10 +343,12 @@ public:
 			virtual void write(OutputStream& output, const ValueTree& data, const File& originalFile) const;
 			virtual void write(OutputStream& output, const Image& data, const File& originalFile) const;
 			virtual void write(OutputStream& output, const AudioSampleBuffer& data, const File& originalFile) const;
+			virtual void write(OutputStream& output, const MidiFileReference& data, const File& originalFile) const;
 
 			virtual void create(MemoryInputStream* mis, ValueTree* data) const;
 			virtual void create(MemoryInputStream* mis, Image* data) const;
 			virtual void create(MemoryInputStream* mis, AudioSampleBuffer* data) const;
+			virtual void create(MemoryInputStream* mis, MidiFileReference* data) const;
 		};
 
 		DataProvider(PoolBase* pool_) :
@@ -1080,11 +1141,15 @@ private:
 
 using AudioSampleBufferPool = SharedPoolBase<AudioSampleBuffer>;
 using ImagePool = SharedPoolBase<Image>;
+
 using PooledAudioFile = AudioSampleBufferPool::ManagedPtr;
 using PooledImage = ImagePool::ManagedPtr;
 
 using SampleMapPool = SharedPoolBase<ValueTree>;
 using PooledSampleMap = SampleMapPool::ManagedPtr;
+
+using MidiFilePool = SharedPoolBase<MidiFileReference>;
+using PooledMidiFile = MidiFilePool::ManagedPtr;
 
 class PoolCollection: public ControlledObject
 {
@@ -1118,6 +1183,9 @@ public:
 
 	const SampleMapPool& getSampleMapPool() const;
 	SampleMapPool& getSampleMapPool();
+
+	const MidiFilePool& getMidiFilePool() const;
+	MidiFilePool& getMidiFilePool();
 
 	AudioFormatManager afm;
 

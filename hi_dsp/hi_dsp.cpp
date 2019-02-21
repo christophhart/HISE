@@ -55,6 +55,7 @@
 #include "modules/Modulators.cpp"
 #include "modules/ModulatorChain.cpp"
 #include "modules/MidiProcessor.cpp"
+#include "modules/MidiPlayer.cpp"
 #include "modules/EffectProcessor.cpp"
 #include "modules/EffectProcessorChain.cpp"
 #include "modules/ModulatorSynth.cpp"

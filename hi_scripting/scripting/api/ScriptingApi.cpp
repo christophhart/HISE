@@ -298,6 +298,22 @@ Point<float> ApiHelpers::getPointFromVar(const var& data, Result* r /*= nullptr*
 	}
 }
 
+var ApiHelpers::getVarRectangle(Rectangle<float> floatRectangle, Result* r /*= nullptr*/)
+{
+	ignoreUnused(r);
+
+	Array<var> newRect;
+
+	newRect.add(floatRectangle.getX());
+	newRect.add(floatRectangle.getY());
+	newRect.add(floatRectangle.getWidth());
+	newRect.add(floatRectangle.getHeight());
+
+	return var(newRect);
+}
+
+
+
 Rectangle<float> ApiHelpers::getRectangleFromVar(const var &data, Result *r/*=nullptr*/)
 {
 	if (data.isArray())
@@ -463,7 +479,7 @@ void ScriptingApi::Message::delayEvent(int samplesToDelay)
 	}	
 #endif
 
-	messageHolder->addToTimeStamp((int16)samplesToDelay);
+	messageHolder->addToTimeStamp(samplesToDelay);
 };
 
 void ScriptingApi::Message::setNoteNumber(int newValue)
@@ -917,6 +933,14 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, getMilliSecondsForTempo);
 	API_METHOD_WRAPPER_1(Engine, getSamplesForMilliSeconds);
 	API_METHOD_WRAPPER_1(Engine, getMilliSecondsForSamples);
+	API_METHOD_WRAPPER_1(Engine, getQuarterBeatsForMilliSeconds);
+	API_METHOD_WRAPPER_1(Engine, getQuarterBeatsForSamples);
+	API_METHOD_WRAPPER_1(Engine, getSamplesForQuarterBeats);
+	API_METHOD_WRAPPER_1(Engine, getMilliSecondsForQuarterBeats);
+	API_METHOD_WRAPPER_2(Engine, getQuarterBeatsForMilliSecondsWithTempo);
+	API_METHOD_WRAPPER_2(Engine, getQuarterBeatsForSamplesWithTempo);
+	API_METHOD_WRAPPER_2(Engine, getSamplesForQuarterBeatsWithTempo);
+	API_METHOD_WRAPPER_2(Engine, getMilliSecondsForQuarterBeatsWithTempo);
 	API_METHOD_WRAPPER_1(Engine, getGainFactorForDecibels);
 	API_METHOD_WRAPPER_1(Engine, getDecibelsForGainFactor);
 	API_METHOD_WRAPPER_1(Engine, getFrequencyForMidiNoteNumber);
@@ -988,6 +1012,15 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(getMilliSecondsForTempo);
 	ADD_API_METHOD_1(getSamplesForMilliSeconds);
 	ADD_API_METHOD_1(getMilliSecondsForSamples);
+	ADD_API_METHOD_1(getMilliSecondsForSamples);
+	ADD_API_METHOD_1(getQuarterBeatsForMilliSeconds);
+	ADD_API_METHOD_1(getQuarterBeatsForSamples);
+	ADD_API_METHOD_1(getSamplesForQuarterBeats);
+	ADD_API_METHOD_1(getMilliSecondsForQuarterBeats);
+	ADD_API_METHOD_2(getQuarterBeatsForMilliSecondsWithTempo);
+	ADD_API_METHOD_2(getQuarterBeatsForSamplesWithTempo);
+	ADD_API_METHOD_2(getSamplesForQuarterBeatsWithTempo);
+	ADD_API_METHOD_2(getMilliSecondsForQuarterBeatsWithTempo);
 	ADD_API_METHOD_1(getGainFactorForDecibels);
 	ADD_API_METHOD_1(getDecibelsForGainFactor);
 	ADD_API_METHOD_1(getFrequencyForMidiNoteNumber);
@@ -1097,6 +1130,55 @@ void ScriptingApi::Engine::setGlobalFont(String fontName)
 double ScriptingApi::Engine::getSampleRate() const { return const_cast<MainController*>(getProcessor()->getMainController())->getMainSynthChain()->getSampleRate(); }
 double ScriptingApi::Engine::getSamplesForMilliSeconds(double milliSeconds) const { return (milliSeconds / 1000.0) * getSampleRate(); }
 
+
+
+double ScriptingApi::Engine::getQuarterBeatsForSamples(double samples)
+{
+	return getQuarterBeatsForSamplesWithTempo(samples, getHostBpm());
+}
+
+double ScriptingApi::Engine::getQuarterBeatsForMilliSeconds(double milliSeconds)
+{
+	auto samples = getSamplesForMilliSeconds(milliSeconds);
+	return getQuarterBeatsForSamples(samples);
+}
+
+double ScriptingApi::Engine::getSamplesForQuarterBeats(double quarterBeats)
+{
+	return getSamplesForQuarterBeatsWithTempo(quarterBeats, getHostBpm());
+}
+
+double ScriptingApi::Engine::getMilliSecondsForQuarterBeats(double quarterBeats)
+{
+	auto samples = getSamplesForQuarterBeats(quarterBeats);
+	return getMilliSecondsForSamples(samples);
+}
+
+
+double ScriptingApi::Engine::getQuarterBeatsForSamplesWithTempo(double samples, double bpm)
+{
+	auto samplesPerQuarter = (double)TempoSyncer::getTempoInSamples(bpm, getSampleRate(), TempoSyncer::Quarter);
+	return (double)samples / samplesPerQuarter;
+}
+
+double ScriptingApi::Engine::getQuarterBeatsForMilliSecondsWithTempo(double milliSeconds, double bpm)
+{
+	auto samples = getSamplesForMilliSeconds(milliSeconds);
+	return getQuarterBeatsForSamplesWithTempo(samples, bpm);
+}
+
+double ScriptingApi::Engine::getSamplesForQuarterBeatsWithTempo(double quarterBeats, double bpm)
+{
+	auto samplesPerQuarter = (double)TempoSyncer::getTempoInSamples(bpm, getSampleRate(), TempoSyncer::Quarter);
+
+	return samplesPerQuarter * quarterBeats;
+}
+
+double ScriptingApi::Engine::getMilliSecondsForQuarterBeatsWithTempo(double quarterBeats, double bpm)
+{
+	auto samples = getSamplesForQuarterBeatsWithTempo(quarterBeats, bpm);
+	return getMilliSecondsForSamples(samples);
+}
 
 double ScriptingApi::Engine::getUptime() const		 
 {
@@ -2156,12 +2238,14 @@ struct ScriptingApi::Synth::Wrapper
 	API_METHOD_WRAPPER_1(Synth, getModulator);
 	API_METHOD_WRAPPER_1(Synth, getAudioSampleProcessor);
 	API_METHOD_WRAPPER_1(Synth, getTableProcessor);
+	API_METHOD_WRAPPER_1(Synth, getRoutingMatrix);
 	API_METHOD_WRAPPER_1(Synth, getSampler);
 	API_METHOD_WRAPPER_1(Synth, getSlotFX);
 	API_METHOD_WRAPPER_1(Synth, getEffect);
 	API_METHOD_WRAPPER_1(Synth, getMidiProcessor);
 	API_METHOD_WRAPPER_1(Synth, getChildSynth);
 	API_METHOD_WRAPPER_1(Synth, getChildSynthByIndex);
+	API_METHOD_WRAPPER_1(Synth, getMidiPlayer);
 	API_METHOD_WRAPPER_1(Synth, getIdList);
 	API_METHOD_WRAPPER_2(Synth, getModulatorIndex);
 	API_METHOD_WRAPPER_1(Synth, getAllModulators);
@@ -2217,6 +2301,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_4(setModulatorAttribute);
 	ADD_API_METHOD_3(addModulator);
 	ADD_API_METHOD_3(addEffect);
+	ADD_API_METHOD_1(getMidiPlayer);
 	ADD_API_METHOD_1(removeEffect);
 	ADD_API_METHOD_1(removeModulator);
 	ADD_API_METHOD_1(getModulator);
@@ -2225,6 +2310,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_1(getSampler);
 	ADD_API_METHOD_1(getSlotFX);
 	ADD_API_METHOD_1(getEffect);
+	ADD_API_METHOD_1(getRoutingMatrix);
 	ADD_API_METHOD_1(getMidiProcessor);
 	ADD_API_METHOD_1(getChildSynth);
 	ADD_API_METHOD_1(getChildSynthByIndex);
@@ -2377,9 +2463,9 @@ void ScriptingApi::Synth::addVolumeFade(int eventId, int fadeTimeMilliseconds, i
                             reportScriptError("Hell breaks loose if you kill real events artificially!");
                         }
 #endif
-                        const uint16 timeStampOffset = (uint16)(1.0 + (double)fadeTimeMilliseconds / 1000.0 * getProcessor()->getSampleRate());
+                        const int timeStampOffset = (int)(1.0 + (double)fadeTimeMilliseconds / 1000.0 * getProcessor()->getSampleRate());
                         
-                        uint16 timestamp = timeStampOffset;
+                        int timestamp = timeStampOffset;
                         
                         const HiseEvent* current = parentMidiProcessor->getCurrentHiseEvent();
                         
@@ -2897,6 +2983,36 @@ ScriptingApi::Synth::ScriptSlotFX* ScriptingApi::Synth::getSlotFX(const String& 
 		reportIllegalCall("getScriptingAudioSampleProcessor()", "onInit");
 		RETURN_IF_NO_THROW(new ScriptSlotFX(getScriptProcessor(), nullptr))
 	}
+}
+
+ScriptingObjects::ScriptedMidiPlayer* ScriptingApi::Synth::getMidiPlayer(const String& playerId)
+{
+	auto p = ProcessorHelpers::getFirstProcessorWithName(getScriptProcessor()->getMainController_()->getMainSynthChain(), playerId);
+
+	if (p == nullptr)
+		reportScriptError(playerId + " was not found");
+
+	if (auto mp = dynamic_cast<MidiPlayer*>(p))
+		return new ScriptingObjects::ScriptedMidiPlayer(getScriptProcessor(), mp);
+	else
+		reportScriptError(playerId + " is not a MIDI Player");
+
+	RETURN_IF_NO_THROW(new ScriptingObjects::ScriptedMidiPlayer(getScriptProcessor(), nullptr));
+}
+
+hise::ScriptingApi::Synth::ScriptRoutingMatrix* ScriptingApi::Synth::getRoutingMatrix(const String& processorId)
+{
+	auto p = ProcessorHelpers::getFirstProcessorWithName(getScriptProcessor()->getMainController_()->getMainSynthChain(), processorId);
+
+	if (p == nullptr)
+		reportScriptError(processorId + " was not found");
+
+	if (auto rt = dynamic_cast<RoutableProcessor*>(p))
+		return new ScriptingObjects::ScriptRoutingMatrix(getScriptProcessor(), p);
+	else
+		reportScriptError(processorId + " does not have a routing matrix");
+
+	RETURN_IF_NO_THROW(new ScriptingObjects::ScriptRoutingMatrix(getScriptProcessor(), nullptr));
 }
 
 void ScriptingApi::Synth::setAttribute(int attributeIndex, float newAttribute)

@@ -158,7 +158,7 @@ public:
         or 2 - see the midi file spec for more info about that.
         @returns true if the operation succeeded.
     */
-    bool writeTo (OutputStream& destStream, int midiFileType = 1);
+    bool writeTo (OutputStream& destStream, int midiFileType = 1) const;
 
     /** Converts the timestamp of all the midi events from midi ticks to seconds.
 
@@ -174,7 +174,7 @@ private:
     short timeFormat;
 
     void readNextTrack (const uint8*, int size);
-    bool writeTrack (OutputStream&, int trackNum);
+    bool writeTrack (OutputStream&, int trackNum) const;
 
     JUCE_LEAK_DETECTOR (MidiFile)
 };

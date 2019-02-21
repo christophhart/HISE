@@ -240,6 +240,30 @@ File UserPresetHelpers::getUserPresetFile(ModulatorSynthChain *chain, const Stri
 #endif
 }
 
+ValueTree parseUserPreset(const File& f)
+{
+	if (!f.hasFileExtension(".preset") || f.getFileName().startsWith("."))
+		return {};
+
+	ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+
+	if (xml != nullptr)
+	{
+		ValueTree p = ValueTree("PresetFile");
+		p.setProperty("FileName", f.getFileNameWithoutExtension(), nullptr);
+		ValueTree pContent = ValueTree::fromXml(*xml);
+		p.setProperty("isDirectory", false, nullptr);
+		p.addChild(pContent, -1, nullptr);
+
+		return p;
+	}
+
+	jassertfalse;
+
+	return {};
+	
+}
+
 ValueTree UserPresetHelpers::collectAllUserPresets(ModulatorSynthChain* chain)
 {
 	ValueTree v("UserPresets");
@@ -247,8 +271,10 @@ ValueTree UserPresetHelpers::collectAllUserPresets(ModulatorSynthChain* chain)
 	auto presetRoot = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
 	
 	Array<File> banks;
+	Array<File> presetsOnBankLevel;
 
 	presetRoot.findChildFiles(banks, File::findDirectories, false);
+	presetRoot.findChildFiles(presetsOnBankLevel, File::findFiles, false, "*.preset");
 
 	for (auto bank : banks)
 	{
@@ -256,13 +282,16 @@ ValueTree UserPresetHelpers::collectAllUserPresets(ModulatorSynthChain* chain)
 		b.setProperty("FileName", bank.getFileNameWithoutExtension(), nullptr);
 
 		Array<File> categories;
+		Array<File> presetsOnCategoryLevel;
 
 		bank.findChildFiles(categories, File::findDirectories, false);
+		bank.findChildFiles(presetsOnCategoryLevel, File::findFiles, false, "*.preset");
 
 		for (auto cat : categories)
 		{
 			ValueTree c("Category");
 			c.setProperty("FileName", cat.getFileNameWithoutExtension(), nullptr);
+			c.setProperty("isDirectory", true, nullptr);
 
 			Array<File> presets;
 
@@ -270,31 +299,71 @@ ValueTree UserPresetHelpers::collectAllUserPresets(ModulatorSynthChain* chain)
 
 			for (auto preset : presets)
 			{
-				ScopedPointer<XmlElement> xml = XmlDocument::parse(preset);
+				auto np = parseUserPreset(preset);
 
-				if (xml != nullptr)
-				{
-					ValueTree p = ValueTree("PresetFile");
-					p.setProperty("FileName", preset.getFileNameWithoutExtension(), nullptr);
-					ValueTree pContent = ValueTree::fromXml(*xml);
-					p.setProperty("isDirectory", false, nullptr);
-					p.addChild(pContent, -1, nullptr);
-
-					c.addChild(p, -1, nullptr);
-				}
-				
+				if(np.isValid())
+					c.addChild(np, -1, nullptr);
 			}
 
 			c.setProperty("isDirectory", true, nullptr);
 			b.addChild(c, -1, nullptr);
 		}
 
+		for (auto preset : presetsOnCategoryLevel)
+		{
+			auto np = parseUserPreset(preset);
+
+			if (np.isValid())
+				b.addChild(np, -1, nullptr);
+		}
+			
 		b.setProperty("isDirectory", true, nullptr);
 		v.addChild(b, -1, nullptr);
 	}
 
+	presetRoot.findChildFiles(presetsOnBankLevel, File::findFiles, false);
+
+	for (auto preset : presetsOnBankLevel)
+	{
+		auto np = parseUserPreset(preset);
+
+		if (np.isValid())
+			v.addChild(np, -1, nullptr);
+	}
+
 	return v;
 }
+
+void extractPreset(ValueTree preset, File parent)
+{
+	auto presetName = preset.getProperty("FileName").toString();
+	auto presetFile = parent.getChildFile(presetName + ".preset");
+	auto presetContent = preset.getChild(0);
+
+	presetFile.replaceWithText(presetContent.toXmlString());
+}
+
+void extractDirectory(ValueTree directory, File parent)
+{
+	for (auto category : directory)
+	{
+		if (category.getProperty("isDirectory"))
+		{
+			auto subDirectoryName = category.getProperty("FileName").toString();
+
+			if (subDirectoryName.isNotEmpty())
+			{
+				auto subDirectory = parent.getChildFile(subDirectoryName);
+				subDirectory.createDirectory();
+				extractDirectory(category, subDirectory);
+			}
+		}
+		else
+			extractPreset(category, parent);
+	}
+}
+
+
 
 void UserPresetHelpers::extractUserPresets(const char* userPresetData, size_t size)
 {
@@ -316,34 +385,9 @@ void UserPresetHelpers::extractUserPresets(const char* userPresetData, size_t si
 
 	decompressor.expand(mb, presetTree);
 
-	
+	DBG(presetTree.createXml()->createDocument(""));
 
-	for (auto bank : presetTree)
-	{
-		jassert(bank.getProperty("isDirectory"));
-
-		auto bankName = bank.getProperty("FileName").toString();
-		auto bankFile = userPresetDirectory.getChildFile(bankName);
-		bankFile.createDirectory();
-
-		for (auto category : bank)
-		{
-			jassert(category.getProperty("isDirectory"));
-
-			auto catName = category.getProperty("FileName").toString();
-			auto catFile = bankFile.getChildFile(catName);
-			catFile.createDirectory();
-
-			for (auto preset : category)
-			{
-				auto presetName = preset.getProperty("FileName").toString();
-				auto presetFile = catFile.getChildFile(presetName + ".preset");
-				auto presetContent = preset.getChild(0);
-				
-				presetFile.replaceWithText(presetContent.toXmlString());
-			}
-		}
-	}
+	extractDirectory(presetTree, userPresetDirectory);
 
 #else
 	ignoreUnused(userPresetData, size);
@@ -1156,6 +1200,7 @@ juce::File FrontendHandler::getSubDirectory(SubDirectories directory) const
 	case hise::FileHandlerBase::XMLPresetBackups:
 	case hise::FileHandlerBase::AdditionalSourceCode:
 	case hise::FileHandlerBase::numSubDirectories:
+	case hise::FileHandlerBase::MidiFiles:
 		jassertfalse;
 		break;
 	case hise::FileHandlerBase::UserPresets:
@@ -2174,6 +2219,7 @@ juce::String FileHandlerBase::getIdentifier(SubDirectories dir)
 	case SubDirectories::AudioFiles:		return "AudioFiles/";
 	case SubDirectories::UserPresets:		return "UserPresets/";
 	case SubDirectories::SampleMaps:		return "SampleMaps/";
+	case SubDirectories::MidiFiles:			return "MidiFiles/";
 	case SubDirectories::numSubDirectories:
 	default:								jassertfalse; return String();
 	}
@@ -2300,6 +2346,7 @@ juce::String FileHandlerBase::getWildcardForFiles(SubDirectories directory)
 	case hise::FileHandlerBase::Scripts:				return "*.js";
 	case hise::FileHandlerBase::Presets:				return "*.hip";
 	case hise::FileHandlerBase::XMLPresetBackups:		return "*.xml";
+	case hise::FileHandlerBase::MidiFiles:				return "*.mid;*.MID";
 	case hise::FileHandlerBase::Binaries:				
 	case hise::FileHandlerBase::AdditionalSourceCode:
 	case hise::FileHandlerBase::numSubDirectories:		
@@ -2326,11 +2373,12 @@ void FileHandlerBase::exportAllPoolsToTemporaryDirectory(ModulatorSynthChain* ch
 	if (!folder.isDirectory())
 		folder.createDirectory();
 
-	File imageOutputFile, sampleOutputFile, samplemapFile;
+	File imageOutputFile, sampleOutputFile, samplemapFile, midiOutputFile;
 
 	samplemapFile = getTempFileForPool(SampleMaps);
 	imageOutputFile = getTempFileForPool(Images);
 	sampleOutputFile = getTempFileForPool(AudioFiles);
+	midiOutputFile = getTempFileForPool(MidiFiles);
 
 	loadOtherReferencedImages(chain);
 
@@ -2340,6 +2388,7 @@ void FileHandlerBase::exportAllPoolsToTemporaryDirectory(ModulatorSynthChain* ch
 	sampleOutputFile.deleteFile();
 	imageOutputFile.deleteFile();
 	samplemapFile.deleteFile();
+	midiOutputFile.deleteFile();
 
 	auto previousLogger = Logger::getCurrentLogger();
 
@@ -2358,6 +2407,9 @@ void FileHandlerBase::exportAllPoolsToTemporaryDirectory(ModulatorSynthChain* ch
 
 	if (logData != nullptr) logData->logFunction("Export samplemap files");
 	chain->getMainController()->getCurrentSampleMapPool(true)->getDataProvider()->writePool(new FileOutputStream(samplemapFile), progress);
+
+	if (logData != nullptr) logData->logFunction("Export MIDI files");
+	chain->getMainController()->getCurrentMidiFilePool(true)->getDataProvider()->writePool(new FileOutputStream(samplemapFile), progress);
 
 	Logger::setCurrentLogger(previousLogger);
 
@@ -2385,6 +2437,7 @@ juce::File FileHandlerBase::getTempFileForPool(SubDirectories dir) const
 	case Images:		return parent.getChildFile("ImageResources.dat");
 	case SampleMaps:	return parent.getChildFile("SampleMaps.dat");
 	case AudioFiles:	return parent.getChildFile("AudioResources.dat");
+	case MidiFiles:		return parent.getChildFile("MidiFiles.dat");
 	default:			jassertfalse;
 						break;
 	}

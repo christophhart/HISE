@@ -134,6 +134,7 @@ END_JUCE_MODULE_DECLARATION
 #if USE_BACKEND
 
 #include "midi_processor/editors/TransposerEditor.h"
+#include "midi_processor/editors/MidiPlayerEditor.h"
 
 #endif
 

@@ -98,6 +98,7 @@ class ProcessorEditor;
 #include "modules/ModulatorChain.h"
 
 #include "modules/MidiProcessor.h"
+#include "modules/MidiPlayer.h"
 
 
 #include "modules/EffectProcessor.h"

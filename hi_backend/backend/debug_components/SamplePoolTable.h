@@ -122,6 +122,7 @@ struct PoolTableHelpers
 	static Image getPreviewImage(const AudioSampleBuffer* buffer, float width);
 	static Image getPreviewImage(const Image* img, float width);
 	static Image getPreviewImage(const ValueTree* v, float width);
+	static Image getPreviewImage(const MidiFileReference* v, float width);
 };
 
 
@@ -574,6 +575,7 @@ struct PoolTableSubTypes
 	using AudioFilePoolTable = ExternalFileTableBase<AudioSampleBuffer>;
 	using ImageFilePoolTable = ExternalFileTableBase<Image>;
 	using SampleMapPoolTable = ExternalFileTableBase<ValueTree>;
+	using MidiFilePoolTable = ExternalFileTableBase<MidiFileReference>;
 };
 
 

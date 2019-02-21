@@ -127,6 +127,7 @@ public:
 		AudioFiles, ///< all audio files that will not be used by the streaming engine (impulse responses, loops, one-shot samples)
 		Images, ///< image resources
 		SampleMaps, ///< files containing the mapping information for a particular sample set.
+		MidiFiles, ///< MIDI files that are embedded into the project
 		UserPresets, ///< restorable UI states
 		Samples, ///< audio files that are used by the streaming engine
 		Scripts, ///< Javascript files

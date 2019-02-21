@@ -65,10 +65,12 @@ viewUndoManager(new UndoManager())
 	if (!inUnitTestMode())
 	{
 		auto tmp = getCurrentSampleMapPool(true);
+		auto tmp2 = getCurrentMidiFilePool(true);
 
-		auto f = [tmp](Processor*)
+		auto f = [tmp, tmp2](Processor*)
 		{
 			tmp->loadAllFilesFromProjectFolder();
+			tmp2->loadAllFilesFromProjectFolder();
 			return SafeFunctionCall::OK;
 		};
 
@@ -107,10 +109,12 @@ void BackendProcessor::projectChanged(const File& /*newRootDirectory*/)
 	getExpansionHandler().getCurrentPoolCollection()->clear();
 
 	auto tmp = getCurrentSampleMapPool(true);
+	auto tmp2 = getCurrentMidiFilePool(true);
 
-	auto f = [tmp](Processor*)
+	auto f = [tmp, tmp2](Processor*)
 	{
 		tmp->loadAllFilesFromProjectFolder();
+		tmp2->loadAllFilesFromProjectFolder();
 		return SafeFunctionCall::OK;
 	};
 
