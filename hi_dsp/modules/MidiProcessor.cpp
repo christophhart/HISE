@@ -114,16 +114,21 @@ void MidiProcessorChain::renderNextHiseEventBuffer(HiseEventBuffer &buffer, int 
 
 	HiseEventBuffer::Iterator it(buffer);
 	
+	jassert(buffer.timeStampsAreSorted());
 
 	while (HiseEvent* e = it.getNextEventPointer(true, false))
 	{
 		processHiseEvent(*e);
 	}
 
+	buffer.sortTimestamps();
+	artificialEvents.sortTimestamps();
+
+	jassert(buffer.timeStampsAreSorted());
+
 	artificialEvents.moveEventsBelow(buffer, numSamples);
 	buffer.moveEventsAbove(artificialEvents, numSamples);
 	artificialEvents.subtractFromTimeStamps(numSamples);
-	
 }
 
 MidiProcessorFactoryType::MidiProcessorFactoryType(Processor *p) :

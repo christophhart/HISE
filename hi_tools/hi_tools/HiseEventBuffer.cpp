@@ -232,7 +232,7 @@ HiseEvent HiseEvent::createPitchFade(uint16 eventId, int fadeTimeMilliseconds, i
 	return e;
 }
 
-HiseEvent HiseEvent::createTimerEvent(uint8 timerIndex, uint16 offset)
+HiseEvent HiseEvent::createTimerEvent(uint8 timerIndex, int offset)
 {
 	HiseEvent e(Type::TimerEvent, 0, 0, timerIndex);
 
@@ -347,11 +347,16 @@ void HiseEventBuffer::addEvent(const HiseEvent& hiseEvent)
 		if (timestampInBuffer > messageTimestamp)
 		{
 			insertEventAtPosition(hiseEvent, i);
+
+			jassert(timeStampsAreSorted());
+
 			return;
 		}
 	}
 
 	insertEventAtPosition(hiseEvent, numUsed);
+
+	jassert(timeStampsAreSorted());
 }
 
 void HiseEventBuffer::addEvent(const MidiMessage& midiMessage, int sampleNumber)
@@ -360,6 +365,7 @@ void HiseEventBuffer::addEvent(const MidiMessage& midiMessage, int sampleNumber)
 	e.setTimeStamp(sampleNumber);
 
 	addEvent(e);
+	jassert(timeStampsAreSorted());
 }
 
 void HiseEventBuffer::addEvents(const MidiBuffer& otherBuffer)
@@ -396,6 +402,8 @@ void HiseEventBuffer::addEvents(const MidiBuffer& otherBuffer)
 
 		index++;
 	}
+
+	jassert(timeStampsAreSorted());
 }
 
 
@@ -407,13 +415,33 @@ void HiseEventBuffer::addEvents(const HiseEventBuffer &otherBuffer)
 	{
 		addEvent(*e);
 	}
+
+	jassert(timeStampsAreSorted());
+}
+
+void HiseEventBuffer::sortTimestamps()
+{
+	int timestamp = 0;
+
+	for (int i = 0; i < numUsed; i++)
+	{
+		auto thisStamp = buffer[i].getTimeStamp();
+
+		if (thisStamp < timestamp)
+		{
+			auto e = popEvent(i);
+			addEvent(e);
+		}
+
+		timestamp = thisStamp;
+	}
 }
 
 bool HiseEventBuffer::timeStampsAreSorted() const
 {
 	if (numUsed == 0) return true;
 
-	uint16 timeStamp = 0;
+	int timeStamp = 0;
 
 	for (int i = 0; i < numUsed; i++)
 	{

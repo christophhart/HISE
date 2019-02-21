@@ -229,7 +229,7 @@ public:
 		                  contain the index (0-3).
 		@param offset the sample offset within the current buffer [0 - buffer size).
 	*/
-	static HiseEvent createTimerEvent(uint8 timerIndex, uint16 offset);
+	static HiseEvent createTimerEvent(uint8 timerIndex, int offset);
 
 	
 
@@ -629,6 +629,7 @@ public:
 
 	void addEvents(const HiseEventBuffer &otherBuffer);
 	
+	void sortTimestamps();
 	
 
 	template <int Alignment> void alignEventsToRaster(int maxTimeStamp)
