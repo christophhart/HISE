@@ -101,7 +101,14 @@ protected:
 
 	void controlCallback(ScriptingApi::Content::ScriptComponent *component, var controllerValue) override
 	{
-		onControl(component, controllerValue);
+		try
+		{
+			onControl(component, controllerValue);
+		}
+		catch (String& s)
+		{
+			debugToConsole(this, s);
+		}
 	}
 
 	

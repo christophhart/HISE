@@ -43,8 +43,7 @@ public:
 
 	SET_GENERIC_PANEL_ID("ModuleBrowser");
 
-	class ModuleItem : public SearchableListComponent::Item,
-					   public DragAndDropContainer
+	class ModuleItem : public SearchableListComponent::Item
 	{
 	public:
 
@@ -60,7 +59,6 @@ public:
 
 		void paint(Graphics& g) override;
 
-		void mouseDrag(const MouseEvent&) override;
 		void mouseEnter(const MouseEvent&) override;
 		void mouseUp(const MouseEvent&) override;
 		void mouseExit(const MouseEvent&) override { repaint(); }

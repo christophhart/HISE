@@ -1817,15 +1817,14 @@ void PresetHandler::setUniqueIdsForProcessor(Processor * p)
 	{
 		for (int i = 0; i < p->getNumChildProcessors(); i++)
 		{
-			Chain *childChain = dynamic_cast<Chain*>(p->getChildProcessor(i));
-
-			for (int j = 0; j < childChain->getHandler()->getNumProcessors(); j++)
+			if (auto childChain = dynamic_cast<Chain*>(p->getChildProcessor(i)))
 			{
-				Processor *cp = childChain->getHandler()->getProcessor(j);
-
-				const String newUniqueId = FactoryType::getUniqueName(cp);
-
-				cp->setId(newUniqueId);
+				for (int j = 0; j < childChain->getHandler()->getNumProcessors(); j++)
+				{
+					Processor *cp = childChain->getHandler()->getProcessor(j);
+					const String newUniqueId = FactoryType::getUniqueName(cp);
+					cp->setId(newUniqueId);
+				}
 			}
 		}
 	}
