@@ -366,6 +366,7 @@ public:
 			if (fileChooser.browseForDirectory())
 			{
 				parent.v = fileChooser.getResult().getFullPathName();
+				parent.refresh();
 			}
 		}
 
