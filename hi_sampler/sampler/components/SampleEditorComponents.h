@@ -195,7 +195,7 @@ private:
 /** A simple rectangle which represents a ModulatorSamplerSound within a SamplerSoundMap.
 *	@ingroup components
 */
-class SampleComponent: public Timer
+class SampleComponent
 {
 public:
 
@@ -206,20 +206,15 @@ public:
 		masterReference.clear();
 	};
 
-	void timerCallback();
-
-	void triggerNoteOnAnimation(int velocity)
+	void setSampleIsPlayed(bool isPlayed)
 	{
-		transparency = 0.3f + 0.7f * sound->getGainValueForVelocityXFade(velocity);
-		startTimer(30);
+		transparency = isPlayed ? 0.8f : 0.3f;
 	}
 
 	Colour getColourForSound(bool wantsOutlineColour) const
 	{
 		if(sound.get() == nullptr) return Colours::transparentBlack;
         
-		
-
 		if (selected) return wantsOutlineColour ? Colour(SIGNAL_COLOUR) : Colour(SIGNAL_COLOUR).withBrightness(transparency).withAlpha(0.6f);
 
 		if (sound->isMissing())
@@ -234,10 +229,7 @@ public:
 		}
 	}
 
-	bool samplePathContains(Point<int> localPoint)
-	{
-		return bounds.contains(localPoint);
-	}
+	bool samplePathContains(Point<int> localPoint) const;
 
     void drawSampleRectangle(Graphics &g, Rectangle<int> area);
 

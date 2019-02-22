@@ -105,16 +105,8 @@ SampleComponent::SampleComponent(ModulatorSamplerSound *s, SamplerSoundMap *pare
 	enabled(true),
 	visible(true)
 {
-
-	//setInterceptsMouseClicks(false, true);
-
-	//addMouseListener(map, true);
-    
-
 	if (sound->isMissing() || sound->isPurged())
-	{
 		enabled = false;
-	}
 };
 
 #pragma warning( push )
@@ -122,13 +114,13 @@ SampleComponent::SampleComponent(ModulatorSamplerSound *s, SamplerSoundMap *pare
 
 #pragma warning( pop )
 
-void SampleComponent::timerCallback()
+
+bool SampleComponent::samplePathContains(Point<int> localPoint) const
 {
-	transparency *= 0.9f;
-	if(transparency <= 0.3f)
-	{
-		stopTimer();
-	}
+	if (outline.isEmpty())
+		return bounds.contains(localPoint);
+	else
+		return outline.contains(localPoint.toFloat(), 0.0f);
 }
 
 void SampleComponent::drawSampleRectangle(Graphics &g, Rectangle<int> areaInt)
@@ -336,7 +328,11 @@ void SamplerSoundMap::selectNeighbourSample(Neighbour direction)
 
 void SamplerSoundMap::endSampleDragging(bool copyDraggedSounds)
 {
-    if(currentDragDeltaX == 0 && currentDragDeltaY == 0) return;
+	if (currentDragDeltaX == 0 && currentDragDeltaY == 0)
+	{
+		dragStartData.clear();
+		return;
+	}
     
 	ownerSampler->getUndoManager()->beginNewTransaction("Dragging of " + String(dragStartData.size()) + " samples");
 
@@ -739,6 +735,8 @@ void SamplerSoundMap::mouseDown(const MouseEvent &e)
 
 void SamplerSoundMap::mouseUp(const MouseEvent &e)
 {
+	refreshGraphics();
+
 	if(sampleDraggingEnabled)
 	{
 		endSampleDragging(e.mods.isAltDown());
@@ -975,23 +973,22 @@ void SamplerSoundMap::setPressedKeys(const uint8 *pressedKeyData)
 		const int number = i;
 		const int velocity = pressedKeyData[i];
 
-		const bool newNote = velocity != -1 && velocity != pressedKeys[i];
+		const bool change = velocity != pressedKeys[i];
 
-		if(newNote)
+		if(change)
 		{
-			for(int j = 0; j < sampleComponents.size(); j++)
+			for (int j = 0; j < sampleComponents.size(); j++)
 			{
-				if(sampleComponents[j]->isVisible() && sampleComponents[j]->getSound() != nullptr &&
+				if (sampleComponents[j]->isVisible() && sampleComponents[j]->getSound() != nullptr &&
 					sampleComponents[j]->getSound()->appliesToMessage(1, number, velocity) &&
 					sampleComponents[j]->getSound()->appliesToRRGroup(ownerSampler->getSamplerDisplayValues().currentGroup))
 				{
-					sampleComponents[j]->triggerNoteOnAnimation(velocity);
+					sampleComponents[j]->setSampleIsPlayed(velocity > 0);
 				}
 			}
 		}
 
-		pressedKeys[i] = pressedKeyData[i];
-
+		pressedKeys[i] = velocity;
 	}
 
 	repaint();
@@ -1168,6 +1165,9 @@ void MapWithKeyboard::mouseDown(const MouseEvent &e)
 	const int velocity = (int)(127.0f * ((float)(e.getMouseDownY() - keyboardArea.getY()) / 20.0f));
 
 	HiseEvent m(HiseEvent::Type::NoteOn, (uint8)lastNoteNumber, (uint8)velocity, 1);
+	m.setArtificial();
+
+	sampler->getMainController()->getEventHandler().pushArtificialNoteOn(m);
 
     ScopedLock sl(sampler->getMainController()->getLock());
 	sampler->preHiseEventCallback(m);
@@ -1186,6 +1186,9 @@ void MapWithKeyboard::mouseUp(const MouseEvent &e)
 	}
 
 	HiseEvent m(HiseEvent::Type::NoteOff, (uint8)lastNoteNumber, 127, 1);
+	m.setArtificial();
+
+	m.setEventId(sampler->getMainController()->getEventHandler().getEventIdForNoteOff(m));
 
 	sampler->preHiseEventCallback(m);
     
