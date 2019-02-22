@@ -396,6 +396,8 @@ public:
 	/** updates the position / size of all sounds. */
 	void updateSampleComponents();
 
+	bool isDragOperation(const MouseEvent& e);
+
 	void mouseDown(const MouseEvent &e) override;
 	void mouseUp(const MouseEvent &e) override;
 	void mouseExit(const MouseEvent &) override;
@@ -468,7 +470,7 @@ private:
 
 	Rectangle<int> dragArea;
 	Array<DragData> dragStartData;
-	bool sampleDraggingEnabled;
+	bool sampleDraggingEnabled = false;
 	BigInteger draggedFileRootNotes;
 	int currentDragDeltaX;
 	int currentDragDeltaY;
