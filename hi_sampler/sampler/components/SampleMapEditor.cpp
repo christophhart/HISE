@@ -42,17 +42,10 @@ ML("| -- | ------ | ---- | ------------------- |");
 ML("| ![](New SampleMap) | **New SampleMap** | `Cmd + N` | Deletes all samples and creates a new sample map |");
 ML("| ![](Save SampleMap) | **Save SampleMap** | `Cmd + S` | Saves the current samplemap as XML file. Use this before saving the sampler. |");
 ML("| ![](Save as Monolith) | **Save as Monolith** | `` | Collects all samples of the current samplemap and writes them into one monolithic file. You can compress this file using the HLAC codec to save space. **This is the recommended way of distributing sample content in a finished project**. |");
-
 ML("| ![](Zoom In) | **Zoom In** | `Cmd +` | Zooms the samplemap horizontally. |");
 ML("| ![](Zoom Out) | **Zoom Out** | `Cmd -` | Zooms the samplemap horizontally. |");
-ML("| ![](Toggle Vertical Size) | **Toggle Vertical Size** | `` | Toggles the vertical size. |");
-
-
 ML("| ![](Cut) | **Cut** | `Cmd+X` | Cuts the currently selected samples |");
 ML("| ![](Copy) | **Copy** | `Cmd+C` | Copies the currently selected samples |");
-
-
-
 ML("### Editing Sample Properties")
 ML("You can change the MIDI related properties of each sample by setting its property.");
 ML("You can either use the **+ / -** buttons to change the values relatively, or directly enter a value (in this case it will be applied to the whole selection).");
@@ -212,7 +205,6 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 
 	addMenuButton(ZoomIn);
 	addMenuButton(ZoomOut);
-	addMenuButton(ToggleVerticalSize);
 	addMenuButton(NewSampleMap);
 	addMenuButton(SaveSampleMap);
 	addMenuButton(SaveSampleMapAsMonolith);
@@ -229,7 +221,6 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 	addMenuButton(FillNoteGaps);
 	addMenuButton(FillVelocityGaps);
 	addMenuButton(RefreshVelocityXFade);
-	addMenuButton(TrimSampleStart);
 
     //[/UserPreSize]
 
@@ -364,7 +355,6 @@ void SampleMapEditor::resized()
 	{
 		PLACE_BUTTON(getButton(ZoomIn));
 		PLACE_BUTTON(getButton(ZoomOut));
-		PLACE_BUTTON(getButton(ToggleVerticalSize));
 	}
 
 	ADD_SPACER(8);
@@ -393,7 +383,6 @@ void SampleMapEditor::resized()
 	PLACE_BUTTON(getButton(FillNoteGaps));
 	PLACE_BUTTON(getButton(FillVelocityGaps));
 	PLACE_BUTTON(getButton(RefreshVelocityXFade));
-	PLACE_BUTTON(getButton(TrimSampleStart));
 
 	ADD_SPACER(8);
 

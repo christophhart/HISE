@@ -301,7 +301,11 @@ void MarkdownHelpButton::buttonClicked(Button* /*b*/)
 		{
 			auto nc = new MarkdownHelp(parser, popupWidth);
 
-			auto window = getParentComponent()->getParentComponent()->getParentComponent(); //getTopLevelComponent();
+			auto window = getTopLevelComponent();
+
+			if (window == nullptr)
+				return;
+
 			auto lb = window->getLocalArea(this, getLocalBounds());
 
 			if (nc->getHeight() > 700)
