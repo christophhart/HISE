@@ -690,6 +690,32 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 
 
 
+void JSONEditor::addButtonAndLabel()
+{
+	addAndMakeVisible(changeLabel = new Label());
+	changeLabel->setColour(Label::ColourIds::backgroundColourId, Colour(0xff363636));
+	changeLabel->setFont(GLOBAL_BOLD_FONT());
+	changeLabel->setColour(Label::ColourIds::textColourId, Colours::white);
+	changeLabel->setEditable(false, false, false);
+
+	addAndMakeVisible(applyButton = new TextButton("Apply"));
+	applyButton->setConnectedEdges(Button::ConnectedOnLeft | Button::ConnectedOnRight);
+	applyButton->addListener(this);
+	applyButton->setColour(TextButton::buttonColourId, Colour(0xa2616161));
+	
+}
+
+void JSONEditor::setChanged()
+{
+	auto now = Time::getApproximateMillisecondCounter();
+
+	if ((now - constructionTime) < 1000)
+		return;
+
+	changeLabel->setColour(Label::backgroundColourId, Colour(0x22FF000000));
+	changeLabel->setText("Press F5 or Apply to apply the changes", dontSendNotification);
+}
+
 void JSONEditor::replace()
 {
 	if (editedComponent.getComponent() != nullptr)
