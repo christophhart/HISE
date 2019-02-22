@@ -271,7 +271,7 @@ public:
 	
 	void sampleAmountChanged() override;
 
-	void samplePropertyWasChanged(ModulatorSamplerSound* /*s*/, const Identifier& /*id*/, const var& /*newValue*/) override;
+	void samplePropertyWasChanged(ModulatorSamplerSound* /*s*/, const Identifier& id, const var& /*newValue*/) override;
 
 	void updateWarningButton();
 

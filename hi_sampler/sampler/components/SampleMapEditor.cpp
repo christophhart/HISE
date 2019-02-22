@@ -673,7 +673,7 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	case Undo:				sampler->getUndoManager()->undo(); return true;
 	case Redo:				sampler->getUndoManager()->redo(); return true;
 	case ToggleVerticalSize:toggleVerticalSize(); return true;
-	case NewSampleMap:		if (PresetHandler::showYesNoWindow("Clear Sample Map", "Do you want to clear the sample map?", PresetHandler::IconType::Question))
+	case NewSampleMap:		if (PresetHandler::showYesNoWindow("Create new samplemap", "Do you want to create a new sample map? The current samplemap will be discarded", PresetHandler::IconType::Question))
 	{
 		auto f = [](Processor* p) {dynamic_cast<ModulatorSampler*>(p)->clearSampleMap(sendNotificationAsync); return SafeFunctionCall::OK; };
 		sampler->killAllVoicesAndCall(f, true);
@@ -820,9 +820,12 @@ void SampleMapEditor::sampleAmountChanged()
 	updateWarningButton();
 }
 
-void SampleMapEditor::samplePropertyWasChanged(ModulatorSamplerSound* /*s*/, const Identifier& /*id*/, const var& /*newValue*/)
+void SampleMapEditor::samplePropertyWasChanged(ModulatorSamplerSound* /*s*/, const Identifier& id, const var& /*newValue*/)
 {
 	updateWarningButton();
+
+	if (id == SampleIds::Root)
+		refreshRootNotes();
 }
 
 void SampleMapEditor::updateWarningButton()
