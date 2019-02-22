@@ -235,6 +235,13 @@ bool SampleImporter::createSoundAndAddToSampler(ModulatorSampler *sampler, const
 
 void SampleImporter::importNewAudioFiles(Component *childComponentOfMainEditor, ModulatorSampler *sampler, const StringArray &fileNames, BigInteger draggedRootNotes/*=0*/)
 {
+	if (sampler->getSampleMap()->isMonolith())
+	{
+		PresetHandler::showMessageWindow("Can't add samples to a monolith samplemap", "If you want to add samples to this samplemap, you have to convert it back to single files", PresetHandler::IconType::Error);
+
+		return;
+	}
+
 	AlertWindowLookAndFeel laf;
 
 	AlertWindow w("Wave File Import Settings", String(), AlertWindow::AlertIconType::NoIcon);
@@ -306,7 +313,6 @@ void SampleImporter::importNewAudioFiles(Component *childComponentOfMainEditor, 
 
 void SampleImporter::loadAudioFilesUsingDropPoint(Component* /*childComponentOfMainEditor*/, ModulatorSampler *sampler, const StringArray &fileNames, BigInteger rootNotes)
 {
-	
 	LockHelpers::freeToGo(sampler->getMainController());
 
 	const int startIndex = sampler->getNumSounds();
