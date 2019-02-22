@@ -459,15 +459,20 @@ void SamplerSoundMap::drawSoundMap(Graphics &g)
     const float noteWidth = (float)getWidth() / 128.0f;
     //const float velocityHeight = (float)getHeight() / 128.0f;
     
-    if(notePosition != -1)
+    if(ownerSampler->getSampleMap()->isMonolith())
     {
-        g.setColour(Colours::black.withAlpha(0.3f));
-        g.fillRect(0, 0, 20, 20);
-        
-        String x = MidiMessage::getMidiNoteName(notePosition, true, true, 3);
-        g.setFont(GLOBAL_MONOSPACE_FONT());
-        g.setColour(Colours::white.withAlpha(0.6f));
-        g.drawText(x, 0, 0, 20, 20, Justification::centredLeft, false);
+		String mt = "Monolith";
+
+		Font f = GLOBAL_BOLD_FONT();
+
+		int width = f.getStringWidth(mt) + 20;
+
+        g.setColour(Colours::black.withAlpha(0.2f));
+        g.fillRect(0, 0, width, 20);
+		
+        g.setFont(f);
+        g.setColour(Colours::white.withAlpha(0.5f));
+        g.drawText(mt, 0, 0, width, 20, Justification::centred, false);
     }
     
     if(!draggedFileRootNotes.isZero())
