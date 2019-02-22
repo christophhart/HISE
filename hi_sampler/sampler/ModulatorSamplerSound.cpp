@@ -196,7 +196,7 @@ juce::String ModulatorSamplerSound::getPropertyAsString(const Identifier& id) co
 	auto v = getSampleProperty(id);
 
 	if( id == SampleIds::Root)			return MidiMessage::getMidiNoteName((int)v, true, true, 3);
-	else if (id == SampleIds::FileName)		return firstSound->getFileName(false);
+	else if (id == SampleIds::FileName)		return firstSound->getFileName(true);
 	else if( id == SampleIds::HiKey)		return MidiMessage::getMidiNoteName((int)v, true, true, 3);
 	else if( id == SampleIds::LoKey)		return MidiMessage::getMidiNoteName((int)v, true, true, 3);
 	else if( id == SampleIds::Volume)		return String(Decibels::gainToDecibels(gain.load()), 1) + " dB";

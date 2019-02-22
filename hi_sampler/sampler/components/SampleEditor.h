@@ -258,7 +258,11 @@ public:
 
 			const bool useGain = selection.getLast()->getNormalizedPeak() != 1.0f;
 
-			const String fileName = selection.getLast()->getPropertyAsString(SampleIds::FileName);
+			String fileName = selection.getLast()->getPropertyAsString(SampleIds::FileName);
+
+			PoolReference ref(sampler->getMainController(), fileName, FileHandlerBase::Samples);
+
+			fileName = ref.getReferenceString();
 
 			const String autogain = useGain ? ("Autogain: " + String(Decibels::gainToDecibels(selection.getLast()->getNormalizedPeak()), 1) + " dB") : String();
 
@@ -273,25 +277,11 @@ public:
 			g.setFont(GLOBAL_BOLD_FONT());
 
 			
-			
-
 			g.drawText(fileName, area, Justification::topRight, false);
 
 			if(useGain)
-			{
 				g.drawText(autogain, area, Justification::bottomRight, false);
-			}
-
-
-
-
-
 		}
-
-
-
-
-
 	}
 
 	void updateWaveform()
