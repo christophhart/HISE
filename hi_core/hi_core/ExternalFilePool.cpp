@@ -492,21 +492,19 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 		}
 
 #if USE_BACKEND
-		auto projectFolder = mc->getSampleManager().getProjectHandler().getWorkDirectory();
+		auto subFolder = mc->getCurrentFileHandler(true).getSubDirectory(directoryType);
 
-		if (f.isAChildOf(projectFolder))
+		if (f.isAChildOf(subFolder))
 		{
 			m = ProjectPath;
 
-			auto relativePath = f.getRelativePathFrom(projectFolder).replace("\\", "/");
-			auto subDirectoryName = ProjectHandler::getIdentifier(directoryType);
-			relativePath = relativePath.fromFirstOccurrenceOf(subDirectoryName, false, false);
+			auto relativePath = f.getRelativePathFrom(subFolder).replace("\\", "/");
 
 			if (directoryType == FileHandlerBase::SampleMaps)
 				reference = relativePath.upToLastOccurrenceOf(".xml", false, false);
 			else
 				reference = projectFolderWildcard + relativePath;
-			
+
 			return;
 		}
 #endif
