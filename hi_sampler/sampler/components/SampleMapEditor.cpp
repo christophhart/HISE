@@ -475,6 +475,7 @@ void SampleMapEditor::labelTextChanged (Label* labelThatHasChanged)
 		int index = getCurrentRRGroup();
 
 		map->map->soloGroup(index);
+		sampler->getSamplerDisplayValues().currentlyDisplayedGroup = index;
         //[/UserLabelCode_groupDisplay]
     }
 

@@ -356,7 +356,7 @@ public:
 	const SampleEditHandler* getSampleEditHandler() const { return sampleEditHandler; }
 #endif
 
-	struct SamplerDisplayValues : public Processor::DisplayValues
+	struct SamplerDisplayValues
 	{
 		SamplerDisplayValues() : currentSamplePos(0.0)
 		{
@@ -366,7 +366,8 @@ public:
 		double currentSamplePos;
 		double currentSampleStartPos;
 		float crossfadeTableValue;
-		int currentGroup;
+		int currentGroup = 1;
+		int currentlyDisplayedGroup = 0;
 
 		uint8 currentNotes[128];
 	};

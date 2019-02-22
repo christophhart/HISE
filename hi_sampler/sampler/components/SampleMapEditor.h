@@ -201,13 +201,19 @@ public:
 	{
 		currentRRGroupLabel->setText(String(sampler->getCurrentRRGroup()), dontSendNotification);
 
+		auto& x = sampler->getSamplerDisplayValues();
+
 		if (followRRGroup)
 		{
-			setCurrentRRGroup(sampler->getCurrentRRGroup());
+			setCurrentRRGroup(x.currentGroup);
 		}
-
-		auto& x = sampler->getSamplerDisplayValues();
+		else
+		{
+			map->map->soloGroup(getCurrentRRGroup());
+		}
+		
 		setPressedKeys(x.currentNotes);
+
 		updateSoundData();
 	}
 

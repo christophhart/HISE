@@ -343,6 +343,11 @@ void SampleImporter::loadAudioFilesUsingDropPoint(Component* /*childComponentOfM
 		data.rootNote = noteNumber;
 		data.lowKey = noteNumber;
 		
+		auto currentGroup = sampler->getSamplerDisplayValues().currentlyDisplayedGroup;
+
+		if (currentGroup > 0)
+			data.group = currentGroup;
+		
 		if(mapToVelocity)
 		{
 			data.hiKey = noteNumber;
