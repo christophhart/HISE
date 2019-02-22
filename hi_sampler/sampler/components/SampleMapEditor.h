@@ -199,6 +199,13 @@ public:
 
 	void updateInterface() override
 	{
+		currentRRGroupLabel->setText(String(sampler->getCurrentRRGroup()), dontSendNotification);
+
+		if (followRRGroup)
+		{
+			setCurrentRRGroup(sampler->getCurrentRRGroup());
+		}
+
 		auto& x = sampler->getSamplerDisplayValues();
 		setPressedKeys(x.currentNotes);
 		updateSoundData();
@@ -573,6 +580,12 @@ public:
 
 	void mouseDown(const MouseEvent &e) override
 	{
+		if (e.eventComponent == currentRRGroupLabel)
+		{
+			toggleFollowRRGroup();
+			return;
+		}
+
 		getCommandManager()->setFirstCommandTarget(this);
 		getCommandManager()->commandStatusChanged();
 
@@ -608,6 +621,8 @@ public:
 			parentCopy->popoutCopy = nullptr;
 		}
 	}
+
+	void toggleFollowRRGroup();
 
 	void toggleVerticalSize();
 
@@ -672,6 +687,8 @@ private:
 
 	ScopedPointer<MarkdownHelpButton> warningButton;
 
+	bool followRRGroup = false;
+
     //[/UserVariables]
 
     //==============================================================================
@@ -683,9 +700,11 @@ private:
     ScopedPointer<ValueSettingComponent> rrGroupSetter;
     ScopedPointer<Label> displayGroupLabel;
     ScopedPointer<PopupLabel> groupDisplay;
+	ScopedPointer<Label> currentRRGroupLabel;
     ScopedPointer<Viewport> viewport;
     ScopedPointer<Toolbar> toolbar;
 
+	
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SampleMapEditor)

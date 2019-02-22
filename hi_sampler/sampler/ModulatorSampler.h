@@ -510,6 +510,8 @@ public:
 		return preloadScaleFactor;
 	}
 
+	int getCurrentRRGroup() const noexcept { return currentRRGroupIndex; }
+
 	void setNumMicPositions(StringArray &micPositions);
 	
 	String getStringForMicPositions() const

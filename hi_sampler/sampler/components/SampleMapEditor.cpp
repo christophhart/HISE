@@ -107,6 +107,20 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
     groupDisplay->setColour (TextEditor::highlightColourId, Colour (0x407a0000));
     groupDisplay->addListener (this);
 
+	addAndMakeVisible(currentRRGroupLabel = new Label("new label",
+		TRANS("All")));
+	currentRRGroupLabel->setFont(GLOBAL_BOLD_FONT());
+	currentRRGroupLabel->setJustificationType(Justification::centred);
+	currentRRGroupLabel->setEditable(false, false, false);
+	currentRRGroupLabel->setColour(Label::backgroundColourId, Colour(0x44ffffff));
+	currentRRGroupLabel->setColour(Label::outlineColourId, Colour(0x38ffffff));
+	currentRRGroupLabel->setColour(TextEditor::textColourId, Colours::black);
+	currentRRGroupLabel->setColour(TextEditor::backgroundColourId, Colour(0x00000000));
+	currentRRGroupLabel->setColour(TextEditor::highlightColourId, Colour(0x407a0000));
+	currentRRGroupLabel->setText("1", dontSendNotification);
+	currentRRGroupLabel->setTooltip("The current RR group. Click to enable auto-follow");
+	currentRRGroupLabel->addMouseListener(this, true);
+
     addAndMakeVisible (viewport = new Viewport ("new viewport"));
     viewport->setScrollBarsShown (false, true);
     viewport->setScrollBarThickness (12);
@@ -324,6 +338,8 @@ void SampleMapEditor::resized()
     toolbar->setBounds (12, 10, getWidth() - 140, 20);
     //[UserResized] Add your own custom resize handling here..
 
+
+
 	toolbar->setVisible(false);
 
 	auto topBar = Rectangle<int>(12, 8, getWidth() - 132, 24);
@@ -438,7 +454,11 @@ void SampleMapEditor::resized()
 	highXFadeSetter->setBounds(highKeySetter->getBounds());
 
 	
-	
+	auto gb = groupDisplay->getBounds();
+
+	currentRRGroupLabel->setBounds(gb.removeFromRight(gb.getHeight()*3/2));
+
+	groupDisplay->setBounds(gb);
 
     //[/UserResized]
 }
@@ -809,12 +829,16 @@ void SampleMapEditor::sampleAmountChanged()
 	updateWarningButton();
 }
 
-void SampleMapEditor::samplePropertyWasChanged(ModulatorSamplerSound* /*s*/, const Identifier& id, const var& /*newValue*/)
+void SampleMapEditor::samplePropertyWasChanged(ModulatorSamplerSound* /*s*/, const Identifier& id, const var& newValue)
 {
 	updateWarningButton();
 
 	if (id == SampleIds::Root)
 		refreshRootNotes();
+
+	if (id == SampleIds::RRGroup)
+		setCurrentRRGroup((int)newValue);
+
 }
 
 void SampleMapEditor::updateWarningButton()
@@ -923,6 +947,21 @@ bool SampleMapEditor::keyPressed(const KeyPress& k)
 void SampleMapEditor::refreshSampleMapPool()
 {
 	sampler->getMainController()->getCurrentSampleMapPool()->refreshPoolAfterUpdate();
+}
+
+void SampleMapEditor::toggleFollowRRGroup()
+{
+	followRRGroup = !followRRGroup;
+
+	if (followRRGroup)
+	{
+		currentRRGroupLabel->setColour(Label::ColourIds::outlineColourId, Colour(SIGNAL_COLOUR));
+	}
+	else
+	{
+		currentRRGroupLabel->setColour(Label::ColourIds::outlineColourId, Colour(0x38FFFFFF));
+		setCurrentRRGroup(0);
+	}
 }
 
 void SampleMapEditor::toggleVerticalSize()
