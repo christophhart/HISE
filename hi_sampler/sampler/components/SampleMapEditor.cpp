@@ -677,10 +677,8 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	{
 		auto f = [](Processor* p) {dynamic_cast<ModulatorSampler*>(p)->clearSampleMap(sendNotificationAsync); return SafeFunctionCall::OK; };
 		sampler->killAllVoicesAndCall(f, true);
-
-		return true;
 	}
-								
+	return true;
 	case LoadSampleMap:				loadSampleMap(); return true;
 	case RevertSampleMap:
 	{
