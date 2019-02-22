@@ -142,13 +142,21 @@ juce::Range<int> ModulatorSamplerSound::getPropertyRange(const Identifier& id) c
 	if (s == nullptr)
 		return {};
 
-	if( id == SampleIds::ID)				return Range<int>(0, INT_MAX);
-	else if( id == SampleIds::FileName)		return Range<int>();
-	else if( id == SampleIds::Root)		return Range<int>(0, 127);
-	else if( id == SampleIds::HiKey)		return Range<int>((int)getSampleProperty(SampleIds::LoKey), 127);
-	else if( id == SampleIds::LoKey)		return Range<int>(0, (int)getSampleProperty(SampleIds::HiKey));
-	else if( id == SampleIds::LoVel)		return Range<int>(0, (int)getSampleProperty(SampleIds::HiVel) - 1);
-	else if( id == SampleIds::HiVel)		return Range<int>((int)getSampleProperty(SampleIds::LoVel) + 1, 127);
+	if (id == SampleIds::ID)				return Range<int>(0, INT_MAX);
+	else if (id == SampleIds::FileName)		return Range<int>();
+	else if (id == SampleIds::Root)		return Range<int>(0, 127);
+	else if (id == SampleIds::HiKey)		return Range<int>((int)getSampleProperty(SampleIds::LoKey), 127);
+	else if (id == SampleIds::LoKey)		return Range<int>(0, (int)getSampleProperty(SampleIds::HiKey));
+	else if( id == SampleIds::LoVel)		
+		return Range<int>(0, (int)getSampleProperty(SampleIds::HiVel) -
+							 (int)getSampleProperty(SampleIds::LowerVelocityXFade) -
+							 (int)getSampleProperty(SampleIds::UpperVelocityXFade) - 
+							 1);
+	else if( id == SampleIds::HiVel)		
+		return Range<int>((int)getSampleProperty(SampleIds::LoVel) +
+						  (int)getSampleProperty(SampleIds::LowerVelocityXFade) +
+						  (int)getSampleProperty(SampleIds::UpperVelocityXFade) +
+						  1, 127);
 	else if( id == SampleIds::Volume)		return Range<int>(-100, 18);
 	else if( id == SampleIds::Pan)			return Range<int>(-100, 100);
 	else if( id == SampleIds::Normalized)	return Range<int>(0, 1);
