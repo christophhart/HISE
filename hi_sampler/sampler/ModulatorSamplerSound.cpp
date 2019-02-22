@@ -543,11 +543,11 @@ void ModulatorSamplerSound::updateInternalData(const Identifier& id, const var& 
 		}
 		else if (id == SampleIds::LowerVelocityXFade)
 		{
-			upperVeloXFadeValue = newValue;
+			lowerVeloXFadeValue = newValue;
 		}
 		else if (id == SampleIds::UpperVelocityXFade)
 		{
-			lowerVeloXFadeValue = newValue;
+			upperVeloXFadeValue = newValue;
 		}
 	}
 	else
