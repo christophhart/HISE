@@ -36,7 +36,7 @@ namespace hise { using namespace juce;
 struct SampleThreadPool::Pimpl
 {
 	Pimpl() :
-		jobQueue(2048),
+		jobQueue(8192),
 		currentlyExecutedJob(nullptr),
 		diskUsage(0.0),
 		counter(0)
@@ -44,7 +44,7 @@ struct SampleThreadPool::Pimpl
 
 	~Pimpl()
 	{
-		if (Job* currentJob = currentlyExecutedJob.load())
+		if (auto currentJob = currentlyExecutedJob.load())
 		{
 			currentJob->signalJobShouldExit();
 		}
@@ -69,13 +69,13 @@ SampleThreadPool::SampleThreadPool() :
 {
 
 	startThread(9);
+	
 }
 
 SampleThreadPool::~SampleThreadPool()
 {
+	stopThread(1000);
 	pimpl = nullptr;
-
-	stopThread(300);
 }
 
 double SampleThreadPool::getDiskUsage() const noexcept
@@ -109,9 +109,11 @@ void SampleThreadPool::run()
 {
 	while (!threadShouldExit())
 	{
-		if (WeakReference<Job>* next = pimpl->jobQueue.peek())
+		WeakReference<Job> next;
+
+		if (pimpl->jobQueue.try_dequeue(next))
 		{
-			Job* j = next->get();
+			Job* j = next.get();
 
 #if ENABLE_CPU_MEASUREMENT
 
@@ -133,9 +135,12 @@ void SampleThreadPool::run()
 
 				if (status == Job::jobHasFinished)
 				{
-					pimpl->jobQueue.pop();
 					j->queued.store(false);
 					--pimpl->counter;
+				}
+				else if (status == Job::jobNeedsRunningAgain)
+				{
+					pimpl->jobQueue.enqueue(next);
 				}
 
 				pimpl->currentlyExecutedJob.store(nullptr);
