@@ -257,6 +257,7 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 		
 		deleteButton->setTooltip("Delete the Modulator.");
 		bypassButton->setTooltip("Bypass the Modulator.");
+		bipolarModButton->setTooltip("Use bipolar Modulation (0...1) -> (-1...1)");
 
 		bipolarModButton->setVisible(false);
 
