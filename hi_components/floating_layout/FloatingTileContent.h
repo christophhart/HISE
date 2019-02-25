@@ -316,17 +316,17 @@ public:
 
 	void addButtonAndLabel();
 
-	void buttonClicked(Button* b) override
+	void buttonClicked(Button* /*b*/) override
 	{
 		executeCallback();
 	}
 
-	void codeDocumentTextInserted(const String& newText, int insertIndex)
+	void codeDocumentTextInserted(const String& /*newText*/, int /*insertIndex*/)
 	{
 		setChanged();
 	}
 
-	void codeDocumentTextDeleted(int startIndex, int endIndex)
+	void codeDocumentTextDeleted(int /*startIndex*/, int /*endIndex*/)
 	{
 		setChanged();
 	}

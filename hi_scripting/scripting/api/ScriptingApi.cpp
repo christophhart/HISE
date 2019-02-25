@@ -1524,6 +1524,11 @@ void ScriptingApi::Engine::loadImageIntoPool(const String& id)
 		PoolReference r(mc, id, FileHandlerBase::Images);
 		pool->loadFromReference(r, PoolHelpers::LoadAndCacheStrong);
 	}
+#else
+
+	// We don't need that method in compiled plugins...
+	ignoreUnused(id);
+
 #endif
 }
 

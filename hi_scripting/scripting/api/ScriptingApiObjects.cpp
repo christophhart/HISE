@@ -3260,18 +3260,24 @@ bool ScriptingObjects::ScriptedMidiPlayer::play(int timestamp)
 {
 	if (auto pl = getPlayer())
 		return pl->play(timestamp);
+
+	return false;
 }
 
 bool ScriptingObjects::ScriptedMidiPlayer::stop(int timestamp)
 {
 	if (auto pl = getPlayer())
 		return pl->stop(timestamp);
+
+	return false;
 }
 
 bool ScriptingObjects::ScriptedMidiPlayer::record(int timestamp)
 {
 	if (auto pl = getPlayer())
 		return pl->record(timestamp);
+
+	return false;
 }
 
 bool ScriptingObjects::ScriptedMidiPlayer::setFile(String fileName, bool clearExistingSequences, bool selectNewSequence)

@@ -251,8 +251,6 @@ void MarkdownParser::parseText(bool stopAtEndOfLine)
 			{
 				auto text = currentlyParsedBlock.getText();
 
-				auto numReturns = StringArray::fromLines(text).size() - 1;
-
 				auto start = text.length();
 
 				currentFont.setUnderline(true);

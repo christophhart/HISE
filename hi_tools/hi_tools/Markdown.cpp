@@ -92,7 +92,7 @@ MarkdownParser::FileBasedImageProvider::FileBasedImageProvider(MarkdownParser* p
 
 }
 
-juce::Image MarkdownParser::FileBasedImageProvider::getImage(const String& imageURL, float width)
+juce::Image MarkdownParser::FileBasedImageProvider::getImage(const String& imageURL, float /*width*/)
 {
 	File imageFile = r.getChildFile(imageURL);
 
@@ -212,7 +212,6 @@ bool MarkdownParser::gotoLink(const MouseEvent& event, Rectangle<float> area)
 
 hise::MarkdownParser::HyperLink MarkdownParser::getHyperLinkForEvent(const MouseEvent& event, Rectangle<float> area)
 {
-	bool matchesURL = false;
 	float y = 0.0f;
 
 	for (auto* e : elements)
