@@ -184,6 +184,7 @@ String CompileExporter::getCompileResult(ErrorCodes result)
 	case CompileExporter::AAXSDKMissing: return "AAX SDK is missing";
 	case CompileExporter::ASIOSDKMissing: return "ASIO SDK is missing";
 	case CompileExporter::HISEPathNotSpecified: return "HISE path not set";
+	case CompileExporter::CorruptedPoolFiles:	return "Pooled binary resources are corrupt. Clean build folder and retry.";
 	case CompileExporter::numErrorCodes: return "OK";
 		
 	default:
@@ -497,14 +498,16 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 		auto iof = handler.getTempFileForPool(FileHandlerBase::Images);
 		auto sof = handler.getTempFileForPool(FileHandlerBase::AudioFiles);
 		auto smof = handler.getTempFileForPool(FileHandlerBase::SampleMaps);
+		auto mof = handler.getTempFileForPool(FileHandlerBase::MidiFiles);
 
-		bool alreadyExported = iof.existsAsFile() || sof.existsAsFile() || smof.existsAsFile();
+		bool alreadyExported = iof.existsAsFile() || sof.existsAsFile() || smof.existsAsFile() || mof.existsAsFile();
 
 		if (rawMode || (alreadyExported && data.getSetting(HiseSettings::Compiler::RebuildPoolFiles)))
 		{
 			iof.deleteFile();
 			sof.deleteFile();
 			smof.deleteFile();
+			mof.deleteFile();
 
 			std::cout << "Exporting the pooled resources...";
 
@@ -539,12 +542,15 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 				auto audioPool = mc->getCurrentAudioSampleBufferPool(true);
 				auto imagePool = mc->getCurrentImagePool(true);
 				auto sampleMapPool = mc->getCurrentSampleMapPool(true);
+				auto midiPool = mc->getCurrentMidiFilePool(true);
 
 				printExportedFiles(mc, audioPool->getListOfAllReferences(false), ProjectHandler::AudioFiles);
 
 				printExportedFiles(mc, imagePool->getListOfAllReferences(false), ProjectHandler::Images);
 
 				printExportedFiles(mc, sampleMapPool->getListOfAllReferences(false), ProjectHandler::SampleMaps);
+
+				printExportedFiles(mc, midiPool->getListOfAllReferences(false), ProjectHandler::MidiFiles);
 			}
 
 			alreadyExported = true;
@@ -555,7 +561,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 			handler.exportAllPoolsToTemporaryDirectory(chainToExport, nullptr);
 		}
 
-		File imageOutputFile, sampleOutputFile, samplemapFile;
+		File imageOutputFile, sampleOutputFile, samplemapFile, midiFile;
 
 		if (embedFiles)
 		{
@@ -564,7 +570,14 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 			if (smof.existsAsFile())
 				smof.copyFileTo(samplemapFile);
 			else
-				return ErrorCodes::CompileError;
+				return ErrorCodes::CorruptedPoolFiles;
+
+			midiFile = tempDirectory.getChildFile("midiFiles");
+			
+			if (mof.existsAsFile())
+				mof.copyFileTo(midiFile);
+			else
+				return ErrorCodes::CorruptedPoolFiles;
 
 			if (IS_SETTING_TRUE(HiseSettings::Project::EmbedAudioFiles))
 			{
@@ -574,12 +587,12 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 				if (iof.existsAsFile())
 					iof.copyFileTo(imageOutputFile);
 				else
-					return ErrorCodes::CompileError;
+					return ErrorCodes::CorruptedPoolFiles;
 
 				if (sof.existsAsFile())
 					sof.copyFileTo(sampleOutputFile);
 				else
-					return ErrorCodes::CompileError;
+					return ErrorCodes::CorruptedPoolFiles;
 			}
 		}
 		else if (BuildOptionHelpers::isIOS(option))
@@ -590,12 +603,14 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 				samplemapFile = tempDirectory.getChildFile("samplemaps");
 				imageOutputFile = tempDirectory.getChildFile("images");
 				sampleOutputFile = tempDirectory.getChildFile("impulses");
+				midiFile = tempDirectory.getChildFile("midiFiles");
 
 				const String unused = "unused";
 
 				samplemapFile.replaceWithText(unused);
 				imageOutputFile.replaceWithText(unused);
 				sampleOutputFile.replaceWithText(unused);
+				midiFile.replaceWithText(unused);
 			}
 
 			auto resourceFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("EmbeddedResources");
@@ -606,6 +621,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 			sampleOutputFile = resourceFolder.getChildFile("AudioResources.dat");
 			imageOutputFile = resourceFolder.getChildFile("ImageResources.dat");
 			samplemapFile = resourceFolder.getChildFile("SampleMapResources.dat");
+			midiFile = resourceFolder.getChildFile("MidiFilesResources.dat");
 
 			if (smof.existsAsFile())
 				smof.copyFileTo(samplemapFile);
@@ -615,6 +631,9 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 			if (sof.existsAsFile())
 				sof.copyFileTo(sampleOutputFile);
+
+			if (mof.existsAsFile())
+				mof.copyFileTo(midiFile);
 		}
 
 		String presetDataString("PresetData");

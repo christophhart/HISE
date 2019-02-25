@@ -2408,7 +2408,7 @@ void FileHandlerBase::exportAllPoolsToTemporaryDirectory(ModulatorSynthChain* ch
 	chain->getMainController()->getCurrentSampleMapPool(true)->getDataProvider()->writePool(new FileOutputStream(samplemapFile), progress);
 
 	if (logData != nullptr) logData->logFunction("Export MIDI files");
-	chain->getMainController()->getCurrentMidiFilePool(true)->getDataProvider()->writePool(new FileOutputStream(samplemapFile), progress);
+	chain->getMainController()->getCurrentMidiFilePool(true)->getDataProvider()->writePool(new FileOutputStream(midiOutputFile), progress);
 
 	Logger::setCurrentLogger(previousLogger);
 

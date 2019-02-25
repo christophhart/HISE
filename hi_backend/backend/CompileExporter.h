@@ -152,6 +152,7 @@ public:
 		MissingArguments,
 		BuildOptionInvalid,
 		CompileError,
+		CorruptedPoolFiles,
 		VSTSDKMissing,
 		AAXSDKMissing,
 		ASIOSDKMissing,
