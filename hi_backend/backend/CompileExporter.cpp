@@ -90,12 +90,12 @@ juce::ValueTree BaseExporter::exportEmbeddedFiles()
 {
 	ValueTree externalScriptFiles = FileChangeListener::collectAllScriptFiles(chainToExport);
 	ValueTree customFonts = chainToExport->getMainController()->exportCustomFontsAsValueTree();
+	ValueTree markdownDocs = chainToExport->getMainController()->exportAllMarkdownDocsAsValueTree();
 	
-	
-
 	ValueTree externalFiles("ExternalFiles");
 	externalFiles.addChild(externalScriptFiles, -1, nullptr);
 	externalFiles.addChild(customFonts, -1, nullptr);
+	externalFiles.addChild(markdownDocs, -1, nullptr);
 
 	return externalFiles;
 }

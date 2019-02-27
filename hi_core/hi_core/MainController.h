@@ -1248,7 +1248,11 @@ public:
 	void fillWithCustomFonts(StringArray &fontList);
 	juce::Typeface* getFont(const String &fontName) const;
 	ValueTree exportCustomFontsAsValueTree() const;
+	ValueTree exportAllMarkdownDocsAsValueTree() const;
 	void restoreCustomFontValueTree(const ValueTree &v);
+	void restoreEmbeddedMarkdownDocs(const ValueTree& v);
+
+	String getEmbeddedMarkdownContent(const String& url) const;
 
 	Font getFontFromString(const String& fontName, float fontSize) const;
 
@@ -1458,6 +1462,7 @@ private:
 
 	Array<CustomTypeFace> customTypeFaces;
 	ValueTree customTypeFaceData;
+	ValueTree embeddedMarkdownDocs;
 
 	DynamicObject::Ptr globalVariableObject;
 	DynamicObject::Ptr hostInfo;

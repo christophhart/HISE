@@ -1085,6 +1085,52 @@ ValueTree MainController::exportCustomFontsAsValueTree() const
 }
 
 
+juce::ValueTree MainController::exportAllMarkdownDocsAsValueTree() const
+{
+	ValueTree v("MarkdownDocs");
+
+	auto r = getCurrentFileHandler(true).getSubDirectory(FileHandlerBase::Scripts);
+
+	Array<File> docFiles;
+
+	r.findChildFiles(docFiles, File::findFiles, true, "*.md");
+
+	for (const auto& f : docFiles)
+	{
+		if (f.getFileName().startsWith("."))
+			continue;
+
+		ValueTree doc("MarkdownContent");
+		doc.setProperty("ID", "{PROJECT_FOLDER}" + f.getRelativePathFrom(r), nullptr);
+		doc.setProperty("Content", f.loadFileAsString(), nullptr);
+
+		v.addChild(doc, -1, nullptr);
+	}
+
+	return v;
+}
+
+void MainController::restoreEmbeddedMarkdownDocs(const ValueTree& v)
+{
+	if (v.isValid())
+		embeddedMarkdownDocs = v;
+}
+
+
+
+juce::String MainController::getEmbeddedMarkdownContent(const String& url) const
+{
+	for (auto c : embeddedMarkdownDocs)
+	{
+		auto id = c.getProperty("ID").toString().replace("\\", "/");
+
+		if (id == url)
+			return c.getProperty("Content").toString();
+	}
+
+	return {};
+}
+
 void MainController::restoreCustomFontValueTree(const ValueTree &v)
 {
 	customTypeFaceData = v;
