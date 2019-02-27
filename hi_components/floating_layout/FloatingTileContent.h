@@ -641,6 +641,7 @@ public:
 			SampleMapBrowser,
 			WavetablePreview,
 			AHDSRGraph,
+			MarkdownPreviewPanel,
 			FilterGraphPanel,
 			MPEPanel,
 			Matrix2x2,

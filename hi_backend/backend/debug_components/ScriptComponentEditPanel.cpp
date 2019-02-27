@@ -53,7 +53,7 @@ ML("| `visible` | Boolean | true | If the control is displayed or hidden.Child c
 ML("| `tooltip` | String | Empty | A informative text that will popup if you hover over the control. |");
 ML("| `useUndoManager` | Boolean | false | If enabled, value changes can be undone with the scripting calls `Engine.undo()` |");
 ML("| `macroControl` | Number(1 - 8) | -1 | Connect this control to a macro control slot. |");
-ML("| `linkedTo` | String | Empty | This property can be used to link certain controls to another control (the value must be the ID of the other control. In this case it will simply mirror the other one and can be used to duplicate controls on different pages.");
+ML("| `linkedTo` | String | Empty | This property can be used to link certain controls to another control (the value must be the ID of the other control. In this case it will simply mirror the other one and can be used to duplicate controls on different pages. |");
 ML("| `saveInPreset` | Boolean | Depends on the type | If true, this control will be saved in a user preset as well as restored on recompilation.If false, controls will not be stored in the preset and their control callback will not be fired after compilation.This is a very important property and you definitely need to know when to use it. |");
 ML("| `isPluginParameter` | Boolean | false | If enabled, it exposes this control to a DAW for host automation. |");
 ML("| `pluginParameterName` | String | Empty | If this control is a plugin parameter, it will use this name for displaying in the host. |");

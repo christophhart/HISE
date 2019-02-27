@@ -609,4 +609,43 @@ void ScriptContentComponent::getScriptComponentsFor(Array<ScriptingApi::Content:
 	}
 }
 
+
+void MarkdownPreviewPanel::fromDynamicObject(const var& object)
+{
+	FloatingTileContent::fromDynamicObject(object);
+
+	contentFile = object.getProperty("ContentFile", {});
+
+	if (getWidth() > 0)
+		parseContent();
+
+
+}
+
+void MarkdownPreviewPanel::parseContent()
+{
+	if (contentFile.isNotEmpty())
+	{
+		ScopedPointer<MarkdownParser::LinkResolver> resolver = new ProjectLinkResolver(getMainController());
+		auto content = resolver->getContent(contentFile);
+
+		preview.internalComponent.providers.add(new PooledImageProvider(getMainController(), nullptr));
+		preview.internalComponent.resolvers.add(resolver.release());
+
+		if (content.isNotEmpty())
+		{
+			MarkdownLayout::StyleData d;
+
+			d.f = getFont();
+			d.fontSize = getFont().getHeight();
+			d.textColour = findPanelColour(PanelColourId::textColour);
+			d.headlineColour = findPanelColour(PanelColourId::itemColour1);
+
+			preview.setStyleData(d);
+
+			preview.setNewText(content, {});
+		}
+	}
+}
+
 } // namespace hise

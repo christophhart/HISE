@@ -203,6 +203,13 @@ public:
 				return PoolTableHelpers::getPreviewImage(&data->data, width);
 			}
 
+			ImageProvider* clone(MarkdownParser* newParser) const override
+			{
+				return new TypedImageProvider(newParser, data);
+			}
+
+			Identifier getId() const override { RETURN_STATIC_IDENTIFIER("PoolPreviewImageProvider"); };
+
 		private:
 
 			WeakReference<PoolEntry<DataType>> data;
