@@ -50,3 +50,5 @@ projects/standalone/JuceLibraryCode/
 extras/basic_expansion_project/Binaries/
 extras/mpe_demo/Binaries/
 extras/demo_project/PooledResources/
+tools/markdown_editor/Builds/
+tools/markdown_editor/JuceLibraryCode/
