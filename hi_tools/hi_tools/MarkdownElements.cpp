@@ -34,19 +34,24 @@
 namespace hise {
 using namespace juce;
 
+float getHeightForLayout(const MarkdownLayout& l)
+{
+	return l.getHeight();
+}
+
 struct MarkdownParser::TextBlock : public MarkdownParser::Element
 {
 	TextBlock(MarkdownParser* parent, const AttributedString& s) :
 		Element(parent),
-		content(s)
+		content(s),
+		l(content, 0.0f)
 	{}
 
 	void draw(Graphics& g, Rectangle<float> area) override
 	{
 		area.removeFromTop(intendation);
 		area.removeFromBottom(intendation);
-
-		content.draw(g, area);
+		l.drawCopyWithOffset(g, area.getY());
 	}
 
 	float getHeightForWidth(float width) override
@@ -57,11 +62,15 @@ struct MarkdownParser::TextBlock : public MarkdownParser::Element
 		}
 		else
 		{
-			auto l = parent->getTextLayoutForString(content, width);
+			l = { content, width };
+
+			l.addYOffset(getTopMargin());
+			l.styleData = parent->styleData;
+
 			recalculateHyperLinkAreas(l, hyperLinks, getTopMargin());
 
 			lastWidth = width;
-			lastHeight = l.getHeight();
+			lastHeight = getHeightForLayout(l);
 
 			lastHeight += 2.0f * intendation;
 
@@ -72,6 +81,7 @@ struct MarkdownParser::TextBlock : public MarkdownParser::Element
 	int getTopMargin() const override { return 10; };
 
 	AttributedString content;
+	MarkdownLayout l;
 
 	const float intendation = 5.0f;
 
@@ -86,51 +96,70 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 		Element(parent),
 		content(s),
 		level(level_),
-		isFirst(isFirst_)
-	{}
+		isFirst(isFirst_),
+		l(s, 0.0f)
+	{
+		anchorURL = "#" + s.getText().toLowerCase().replaceCharacters(" ", "-");
+	}
 
-	void draw(Graphics& g, Rectangle<float> area) override;
+	void draw(Graphics& g, Rectangle<float> area) override
+	{
+		anchorY = area.getY() - 15.0f;
+
+		float marginTop = isFirst ? 0.0f : 20.0f;
+		area.removeFromTop(marginTop);
+
+		g.setColour(Colours::grey.withAlpha(0.2f));
+		g.drawHorizontalLine((int)area.getBottom() - 8, area.getX(), area.getRight());
+
+		l.drawCopyWithOffset(g, area.getY());
+	}
 
 	float getHeightForWidth(float width) override
 	{
 		float marginTop = isFirst ? 0.0f : 20.0f;
 		float marginBottom = 10.0f;
 
-		if (!hyperLinks.isEmpty())
-		{
-			TextLayout l;
-			l.createLayout(content, width);
-			recalculateHyperLinkAreas(l, hyperLinks, getTopMargin());
-		}
+		l = { content, width };
+		l.addYOffset(getTopMargin());
 
-		if (content.getNumAttributes() > 0)
-		{
-			return content.getAttribute(0).font.getHeight() + marginTop + marginBottom;
-		}
+		l.styleData = parent->styleData;
 
-		return 0.0f;
+		l.styleData.textColour = l.styleData.headlineColour;
+		l.styleData.codeColour = l.styleData.headlineColour;
+		l.styleData.linkColour = l.styleData.headlineColour;
+		l.styleData.linkBackgroundColour = Colours::white.withAlpha(0.1f);
+		l.styleData.codebackgroundColour = Colours::white.withAlpha(0.1f);
+
+		return l.getHeight() + marginTop + marginBottom;
 	}
 
 	int getTopMargin() const override { return 20 - jmax<int>(0, 3 - level) * 5; };
 
+	float anchorY;
+	String anchorURL;
+
 	AttributedString content;
+	MarkdownLayout l;
 	int level;
 	bool isFirst;
 };
+
+
 
 struct MarkdownParser::BulletPointList : public MarkdownParser::Element
 {
 	struct Row
 	{
 		AttributedString content;
-		float height;
+		MarkdownLayout l;
 	};
 
 	BulletPointList(MarkdownParser* parser, Array<AttributedString>& ar) :
 		Element(parser)
 	{
 		for (const auto& r : ar)
-			rows.add({ r, -1.0f });
+			rows.add({ r, {r, 0.0f} });
 	}
 
 	void draw(Graphics& g, Rectangle<float> area) override
@@ -140,23 +169,16 @@ struct MarkdownParser::BulletPointList : public MarkdownParser::Element
 		for (const auto& r : rows)
 		{
 			area.removeFromTop(bulletMargin);
-
-			auto ar = area.removeFromTop(r.height);
-
-
-			auto font = parent->normalFont.withHeight(parent->defaultFontSize);
-
+			auto ar = area.removeFromTop(r.l.getHeight());
+			auto font = parent->styleData.f.withHeight(parent->styleData.fontSize);
 			static const String bp = CharPointer_UTF8(" \xe2\x80\xa2 ");
-
 			auto i = font.getStringWidthFloat(bp) + 10.0f;
 
-			auto ba = ar.removeFromLeft(i);
-
-			g.setColour(parent->textColour);
+			g.setColour(parent->styleData.textColour);
 			g.setFont(font);
-			g.drawText(bp, ba, Justification::topLeft);
+			g.drawText(bp, ar.translated(0.0f, (float)-font.getHeight()), Justification::topLeft);
 
-			r.content.draw(g, ar);
+			r.l.drawCopyWithOffset(g, ar.getY());
 		}
 	}
 
@@ -168,15 +190,14 @@ struct MarkdownParser::BulletPointList : public MarkdownParser::Element
 		lastWidth = width;
 		lastHeight = 0.0f;
 
-		float bulletPointIntendation = parent->defaultFontSize * 2.0f;
+		float bulletPointIntendation = parent->styleData.fontSize * 1.2f;
 
 		for (auto& r : rows)
 		{
-			auto l = parent->getTextLayoutForString(r.content, width - bulletPointIntendation);
-
-			r.height = l.getHeight();
-			lastHeight += l.getHeight();
-
+			r.l = parent->getTextLayoutForString(r.content, width - bulletPointIntendation);
+			r.l.addXOffset(bulletPointIntendation);
+			r.l.styleData = parent->styleData;
+			lastHeight += r.l.getHeight();
 			lastHeight += bulletMargin;
 		}
 
@@ -197,24 +218,57 @@ struct MarkdownParser::BulletPointList : public MarkdownParser::Element
 	float lastHeight = -1.0f;
 };
 
-struct MarkdownParser::Comment : public MarkdownParser::Element
+struct MarkdownParser::EnumerationList : public MarkdownParser::BulletPointList
 {
-	Comment(MarkdownParser* p, const AttributedString& c) :
-		Element(p),
-		content(c)
+	EnumerationList(MarkdownParser* parent, Array<AttributedString>& list) :
+		BulletPointList(parent, list)
 	{};
 
 	void draw(Graphics& g, Rectangle<float> area) override
 	{
 		area.removeFromTop(intendation);
-		area.removeFromBottom(intendation);
 
+		int rowIndex = 1;
+
+		for (const auto& r : rows)
+		{
+			area.removeFromTop(bulletMargin);
+			auto ar = area.removeFromTop(r.l.getHeight());
+			auto font = parent->styleData.f.withHeight(parent->styleData.fontSize).boldened();
+			
+			String bp;
+			bp << rowIndex++ << ".";
+
+			auto i = font.getStringWidthFloat(bp) + 10.0f;
+
+			float xDelta = 5.0f;
+			float yDelta = 3.0f;
+
+			g.setColour(parent->styleData.textColour.withMultipliedAlpha(0.8f));
+			g.setFont(font);
+			g.drawText(bp, ar.translated(xDelta, yDelta + (float)-font.getHeight()), Justification::topLeft);
+
+			r.l.drawCopyWithOffset(g, ar.getY());
+		}
+	}
+};
+
+struct MarkdownParser::Comment : public MarkdownParser::Element
+{
+	Comment(MarkdownParser* p, const AttributedString& c) :
+		Element(p),
+		l(c, 0.0f),
+		content(c)
+	{};
+
+	void draw(Graphics& g, Rectangle<float> area) override
+	{
 		g.setColour(Colours::grey.withAlpha(0.2f));
 
 		g.fillRect(area);
 		g.fillRect(area.withWidth(3.0f));
 
-		content.draw(g, area.reduced(intendation));
+		l.drawCopyWithOffset(g, area.getY());
 	}
 
 	float getHeightForWidth(float width) override
@@ -225,13 +279,13 @@ struct MarkdownParser::Comment : public MarkdownParser::Element
 		{
 			lastWidth = widthToUse;
 
-			auto l = parent->getTextLayoutForString(content, widthToUse);
+			l = { content, widthToUse - intendation };
+			l.addYOffset(getTopMargin() + intendation);
+			l.addXOffset(intendation);
+			l.styleData = parent->styleData;
 			recalculateHyperLinkAreas(l, hyperLinks, getTopMargin());
 
-			for (auto& h : hyperLinks)
-				h.area.translate(intendation, 2.0f * intendation);
-
-			lastHeight = l.getHeight() + 4.0f * intendation;
+			lastHeight = l.getHeight() + intendation;
 
 			return lastHeight;
 		}
@@ -240,13 +294,14 @@ struct MarkdownParser::Comment : public MarkdownParser::Element
 	}
 
 
-	int getTopMargin() const override { return 20; };
+	int getTopMargin() const override { return 10; };
 
 	const float intendation = 12.0f;
 
 	float lastWidth = -1.0f;
 	float lastHeight = -1.0f;
 
+	MarkdownLayout l;
 	AttributedString content;
 };
 
@@ -281,7 +336,8 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 		p.loadPathFromData(EditorIcons::pasteIcon, sizeof(EditorIcons::pasteIcon)
 		);
 
-		auto pathBounds = hyperLinks.getFirst().area.translated(0.0, area.getY());
+		auto pathBounds = hyperLinks.getFirst().area.translated(0.0, area.getY() - getTopMargin());
+
 
 		p.scaleToFit(pathBounds.getX(), pathBounds.getY(), pathBounds.getWidth(), pathBounds.getHeight(), true);
 
@@ -314,7 +370,7 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 			hyperLinks.clear();
 			
 			HyperLink copy;
-			copy.area = { 2.0f, 12.0f, 14.0f, 14.0f };
+			copy.area = { 2.0f, 12.0f + getTopMargin(), 14.0f, 14.0f };
 			copy.url << "CLIPBOARD::" << code << "";
 			copy.valid = true;
 			copy.tooltip = "Copy code to clipboard";
@@ -333,10 +389,10 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 
 			renderedCodePreview = editor->createComponentSnapshot(editor->getLocalBounds());
 
-			renderedCodePreview = renderedCodePreview.getClippedImage({ 0, 0, renderedCodePreview.getWidth(), renderedCodePreview.getHeight() - 22 });
+			renderedCodePreview = renderedCodePreview.getClippedImage({ 0, 0, renderedCodePreview.getWidth(), renderedCodePreview.getHeight() - 20 });
 
 			lastWidth = width;
-			lastHeight = (float)renderedCodePreview.getHeight() + 3.0f;
+			lastHeight = (float)renderedCodePreview.getHeight() + 6.0f;
 
 			return lastHeight;
 		}
@@ -434,7 +490,7 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 
 			for (const auto& cell_ : e)
 			{
-                Cell c;
+				Cell c;
                 
                 c.content = cell_.s;
                 c.imageURL = cell_.imageURL;
@@ -518,12 +574,16 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 
 	struct Cell
 	{
+		Cell() : l({}, 0.0f) {};
+
 		bool operator ==(const Cell& other) const
 		{
 			return index == other.index;
 		}
 
 		AttributedString content;
+		MarkdownLayout l;
+
 		String imageURL;
 		int index = -1;
 		Rectangle<float> area;
@@ -539,7 +599,7 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 		float calculateHeightForCell(Cell& c, float width, MarkdownParser* parser)
 		{
 			if (!c.content.getText().isEmpty())
-				return getHeightForAttributedString(c.content, width, parser);
+				return c.l.getHeight();
 			else
 			{
 				c.img = parser->resolveImage(c.imageURL, width - 4.0f);
@@ -561,16 +621,25 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 				float w = getColumnWidth(width, h.index);
 				auto contentWidth = w - 2.0f * intendation;
 
-				rowHeight = jmax<float>(rowHeight, calculateHeightForCell(h, contentWidth, parser) + 2.0f * intendation );
+				h.l = MarkdownLayout(h.content, contentWidth);
+				h.l.styleData = parser->styleData;
+				
+				rowHeight = jmax(rowHeight, calculateHeightForCell(h, contentWidth, parser) + 2.0f * intendation);
 
-				TextLayout l;
-				l.createLayoutWithBalancedLineLengths(h.content, contentWidth);
-				Element::recalculateHyperLinkAreas(l, h.cellLinks, 0.0f);
+				h.l.addYOffset(2.0f * intendation + 10);
+				
+				h.l.addXOffset(x + intendation);
+
+				Element::recalculateHyperLinkAreas(h.l, h.cellLinks, y + 2.0f * intendation);
+
+				
 
 				h.area = Rectangle<float>(x, 0.0f, w, rowHeight);
 
+#if 0
 				for (auto& link : h.cellLinks)
 					link.area.translate(x + intendation, y + 2.0f * intendation);
+#endif
 
 				x += w;
 			}
@@ -588,7 +657,7 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 				Random r;
 
 				if (c.img.isNull())
-					c.content.draw(g, ar.reduced(intendation));
+					c.l.drawCopyWithOffset(g, area.getY());
 				else
 				{
 					g.setOpacity(1.0f);
@@ -614,12 +683,6 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 		float rowHeight = -1.0f;
 		int totalLength;
 	};
-
-	static float getHeightForAttributedString(const AttributedString& s, float width, MarkdownParser* p)
-	{
-		auto l = p->getTextLayoutForString(s, width);
-		return l.getHeight();
-	}
 
 	void addLinksFromRow(Row& r)
 	{

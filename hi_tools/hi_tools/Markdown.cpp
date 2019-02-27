@@ -35,7 +35,7 @@ namespace hise {
 using namespace juce;
 
 
-const juce::TextLayout& MarkdownParser::LayoutCache::getLayout(const AttributedString& s, float w)
+const MarkdownLayout& MarkdownParser::LayoutCache::getLayout(const AttributedString& s, float w)
 {
 	int64 hash = s.getText().hashCode64();
 
@@ -52,11 +52,11 @@ const juce::TextLayout& MarkdownParser::LayoutCache::getLayout(const AttributedS
 }
 
 
-MarkdownParser::LayoutCache::Layout::Layout(const AttributedString& s, float w)
+MarkdownParser::LayoutCache::Layout::Layout(const AttributedString& s, float w):
+	l(s, w)
 {
 	hashCode = s.getText().hashCode64();
 	width = w;
-	l.createLayoutWithBalancedLineLengths(s, width);
 }
 
 
@@ -92,14 +92,12 @@ MarkdownParser::FileBasedImageProvider::FileBasedImageProvider(MarkdownParser* p
 
 }
 
-juce::Image MarkdownParser::FileBasedImageProvider::getImage(const String& imageURL, float /*width*/)
+juce::Image MarkdownParser::FileBasedImageProvider::getImage(const String& imageURL, float width)
 {
 	File imageFile = r.getChildFile(imageURL);
 
 	if (imageFile.existsAsFile() && ImageFileFormat::findImageFormatForFileExtension(imageFile) != nullptr)
-	{
-		return ImageCache::getFromFile(imageFile);
-	}
+		return resizeImageToFit(ImageCache::getFromFile(imageFile), width);
 
 	return {};
 }
@@ -109,31 +107,27 @@ MarkdownParser::MarkdownParser(const String& markdownCode_, LayoutCache* c) :
 	it(markdownCode),
 	
 	currentParseResult(Result::fail("Nothing parsed yet")),
-    layoutCache(c)
+    layoutCache(c),
+	uncachedLayout({}, 0.0f)
 {
 	imageProviders.add(new ImageProvider(this)),
 
 	history.add(markdownCode);
 	historyIndex = 0;
 
-	normalFont = GLOBAL_FONT();
-	boldFont = GLOBAL_BOLD_FONT();
-	headlineFont = GLOBAL_FONT();
-	codeFont = GLOBAL_MONOSPACE_FONT();
 }
 
 void MarkdownParser::setFonts(Font normalFont_, Font codeFont_, Font headlineFont_, float defaultFontSize_)
 {
-	normalFont = normalFont_;
-	codeFont = codeFont_;
-	headlineFont = headlineFont_;
-	defaultFontSize = defaultFontSize_;
+	styleData.f = normalFont_;
+	
+	styleData.fontSize = defaultFontSize_;
 }
 
 
 void MarkdownParser::setDefaultTextSize(float fontSize)
 {
-	defaultFontSize = fontSize;
+	styleData.fontSize = fontSize;
 }
 
 float MarkdownParser::getHeightForWidth(float width)
@@ -196,6 +190,25 @@ bool MarkdownParser::gotoLink(const MouseEvent& event, Rectangle<float> area)
 			return true;
 		}
 
+		if (link.url.startsWith("#"))
+		{
+			for (auto e : elements)
+			{
+				if (auto headLine = dynamic_cast<Headline*>(e))
+				{
+					if (link.url == headLine->anchorURL)
+					{
+						for (auto l : listeners)
+						{
+							l->scrollToAnchor(headLine->anchorY);
+						}
+					}
+				}
+			}
+
+			return true;
+		}
+
 		String newText = resolveLink(link.url).replace("\r\n", "\n");
 
 		history.removeRange(historyIndex, -1);
@@ -237,6 +250,8 @@ hise::MarkdownParser::HyperLink MarkdownParser::getHyperLinkForEvent(const Mouse
 
 	return {};
 }
+
+
 
 
 struct MarkdownHelpButton::MarkdownHelp : public Component
@@ -385,30 +400,28 @@ bool MarkdownParser::Helpers::belongsToTextBlock(juce_wchar c, bool isCode, bool
 	return !isNewToken(c, isCode);
 }
 
-void MarkdownParser::Headline::draw(Graphics& g, Rectangle<float> area)
+void MarkdownParser::Element::recalculateHyperLinkAreas(MarkdownLayout& l, Array<HyperLink>& links, float topMargin)
 {
-	float marginTop = isFirst ? 0.0f : 20.0f;
-	area.removeFromTop(marginTop);
+	for (const auto& area : l.linkRanges)
+	{
+		auto r = std::get<0>(area);
 
-	g.setColour(Colours::grey.withAlpha(0.2f));
-	g.drawHorizontalLine((int)area.getBottom() - 8, area.getX(), area.getRight());
+		for (auto& link : links)
+		{
+			if (link.urlRange == r)
+			{
+				link.area = std::get<1>(area).translated(0.0f, topMargin);
+				break;
+			}
+		}
+	}
 
-	
-
-	
-
-	
-
-	content.draw(g, area);
-
-}
-
-void MarkdownParser::Element::recalculateHyperLinkAreas(TextLayout& l, Array<HyperLink>& links, float topMargin)
-{
+#if 0
 	for (auto& link : links)
 	{
 		bool found = false;
 
+		
 		
 		for (int i = 0; i < l.getNumLines(); i++)
 		{
@@ -416,35 +429,46 @@ void MarkdownParser::Element::recalculateHyperLinkAreas(TextLayout& l, Array<Hyp
 				break;
 
 			auto& line = l.getLine(i);
-
+			
 			for (auto r : line.runs)
 			{
 				if (r->font.isUnderlined())
 				{
+					
+
 					if (r->glyphs.size() > 0)
 					{
-						int i1 = 0;
-						int i2 = r->glyphs.size() - 1;
+						auto thisRange = r->stringRange;
+						auto urlRange = link.urlRange;
 
-						auto x = r->glyphs.getReference(i1).anchor.getX();
-						auto& last = r->glyphs.getReference(i2);
-						auto right = last.anchor.getX() + last.width;
+						if (!thisRange.getIntersectionWith(urlRange).isEmpty())
+						{
+							int i1 = 0;
+							int i2 = r->glyphs.size() - 1;
 
-						auto offset = line.leading;
 
-						auto yRange = line.getLineBoundsY();
 
-						link.area = { x + offset, yRange.getStart() + topMargin,
-							right - x, yRange.getLength() };
+							auto x = r->glyphs.getReference(i1).anchor.getX();
+							auto& last = r->glyphs.getReference(i2);
+							auto right = last.anchor.getX() + last.width;
 
-						found = true;
-						break;
+							auto offset = line.leading;
+
+							auto yRange = line.getLineBoundsY();
+
+							link.area = { x + offset, yRange.getStart() + topMargin,
+								right - x, yRange.getLength() };
+
+							found = true;
+							break;
+						}
 					}
 				}
 			}
 
 		}
 	}
+#endif
 }
 
 
@@ -615,6 +639,502 @@ juce::CodeEditorComponent::ColourScheme MarkdownParser::SnippetTokeniser::getDef
 	s.set("content", Colour(0xFF555555));
 
 	return s;
+}
+
+
+MarkdownPreview::MarkdownPreview()
+{
+	viewport.setViewedComponent(&internalComponent, false);
+	addAndMakeVisible(viewport);
+}
+
+void MarkdownPreview::setNewText(const String& newText, const File& f)
+{
+	internalComponent.setNewText(newText, f);
+}
+
+void MarkdownPreview::resized()
+{
+
+	viewport.setBounds(getLocalBounds());
+
+	auto h = internalComponent.getTextHeight();
+
+	internalComponent.setSize(viewport.getWidth() - viewport.getScrollBarThickness(), h);
+}
+
+MarkdownPreview::InternalComponent::InternalComponent() :
+	layoutCache(new MarkdownParser::LayoutCache)
+{
+
+}
+
+MarkdownPreview::InternalComponent::~InternalComponent()
+{
+
+}
+
+int MarkdownPreview::InternalComponent::getTextHeight()
+{
+	if(parser != nullptr)
+		return (int)parser->getHeightForWidth((float)getWidth());
+
+	return 5;
+}
+
+void MarkdownPreview::InternalComponent::setNewText(const String& s, const File& f)
+{
+	lastText = s;
+	lastFile = f;
+
+	parser = new MarkdownParser(s, layoutCache);
+	parser->setStyleData(styleData);
+	parser->addListener(this);
+
+	for (auto lr : resolvers)
+		parser->setLinkResolver(lr->clone(parser));
+
+	for (auto ip : providers)
+		parser->setImageProvider(ip->clone(parser));
+
+	if (f.existsAsFile())
+	{
+		parser->setLinkResolver(new MarkdownParser::FileLinkResolver(f.getParentDirectory()));
+		parser->setImageProvider(new MarkdownParser::FileBasedImageProvider(parser, f.getParentDirectory()));
+	}
+	
+	parser->setImageProvider(new MarkdownParser::HiseDocImageProvider(parser));
+	parser->parse();
+
+	auto result = parser->getParseResult();
+
+	if (result.failed())
+		errorMessage = result.getErrorMessage();
+	else
+		errorMessage = {};
+
+	repaint();
+}
+
+void MarkdownPreview::InternalComponent::markdownWasParsed(const Result& r)
+{
+	if (r.wasOk())
+	{
+		auto h = parser->getHeightForWidth((float)getWidth());
+
+		setSize(getWidth(), (int)h);
+	}
+}
+
+void MarkdownPreview::InternalComponent::mouseDown(const MouseEvent& e)
+{
+	if (parser == nullptr)
+		return;
+
+	if (e.mods.isRightButtonDown())
+	{
+		PopupMenu m;
+		hise::PopupLookAndFeel plaf;
+		m.setLookAndFeel(&plaf);
+
+		m.addItem(1, "Back", parser->canNavigate(true));
+		m.addItem(2, "Forward", parser->canNavigate(false));
+
+		auto result = m.show();
+
+		if (result == 1)
+		{
+			parser->navigate(true);
+			repaint();
+		}
+		if (result == 2)
+		{
+			parser->navigate(false);
+			repaint();
+		}
+	}
+	else
+	{
+		repaint();
+	}
+}
+
+void MarkdownPreview::InternalComponent::mouseUp(const MouseEvent& e)
+{
+	if (e.mods.isLeftButtonDown())
+	{
+		clickedLink = {};
+
+		parser->gotoLink(e, getLocalBounds().toFloat());
+		repaint();
+	}
+}
+
+void MarkdownPreview::InternalComponent::mouseMove(const MouseEvent& event)
+{
+	if (parser != nullptr)
+	{
+		auto link = parser->getHyperLinkForEvent(event, getLocalBounds().toFloat());
+
+		if (link.valid)
+		{
+			if (link.tooltip.isEmpty())
+				setTooltip(link.url);
+			else
+				setTooltip(link.tooltip);
+		}
+		else
+			setTooltip("");
+
+		setMouseCursor(link.valid ? MouseCursor::PointingHandCursor : MouseCursor::NormalCursor);
+	}
+}
+
+void MarkdownPreview::InternalComponent::scrollToAnchor(float v)
+{
+	if (auto viewPort = findParentComponentOfClass<Viewport>())
+	{
+		viewPort->setViewPosition({ 0, (int)v });
+	}
+}
+
+void MarkdownPreview::InternalComponent::paint(Graphics & g)
+{
+	if (errorMessage.isNotEmpty())
+	{
+		g.setColour(Colours::white);
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText(errorMessage, getLocalBounds(), Justification::centred);
+		return;
+	}
+
+	if (!clickedLink.isEmpty())
+	{
+		g.setColour(Colours::white.withAlpha(0.2f));
+		g.fillRect(clickedLink);
+	}
+
+	if (parser != nullptr)
+	{
+		float height = (float)getTextHeight();
+
+		auto ar = Rectangle<float>(0, 0, (float)getWidth(), height);
+
+		parser->draw(g, ar);
+	}
+}
+
+void MarkdownEditor::addPopupMenuItems(PopupMenu& menuToAddTo, const MouseEvent* mouseClickEvent)
+{
+
+	menuToAddTo.addItem(AdditionalCommands::LoadFile, "Load file");
+	menuToAddTo.addItem(AdditionalCommands::SaveFile, "Save file");
+	menuToAddTo.addSeparator();
+
+	CodeEditorComponent::addPopupMenuItems(menuToAddTo, mouseClickEvent);
+}
+
+void MarkdownEditor::performPopupMenuAction(int menuItemID)
+{
+	if (menuItemID == AdditionalCommands::LoadFile)
+	{
+		FileChooser fc("Load file", File(), "*.md");
+
+		if (fc.browseForFileToOpen())
+		{
+			currentFile = fc.getResult();
+
+			getDocument().replaceAllContent(currentFile.loadFileAsString());
+		}
+
+		return;
+	}
+	if (menuItemID == AdditionalCommands::SaveFile)
+	{
+		FileChooser fc("Save file", currentFile, "*.md");
+
+		if (fc.browseForFileToSave(true))
+		{
+			currentFile = fc.getResult();
+
+			currentFile.replaceWithText(getDocument().getAllContent());
+		}
+
+		return;
+	}
+
+	CodeEditorComponent::performPopupMenuAction(menuItemID);
+}
+
+
+MarkdownLayout::MarkdownLayout(const AttributedString& s, float width)
+{
+	constexpr float marginBetweenAttributes = 5.0f;
+
+	if (width == 0.0f)
+		return;
+
+	float currentX = 0.0f;
+	float yPos = 0.0f;
+	bool allowedToWrap = false;
+
+	auto completeText = s.getText();
+
+	for (int i = 0; i < s.getNumAttributes(); i++)
+	{
+		currentX += marginBetweenAttributes;
+
+		const auto& a = s.getAttribute(i);
+
+		auto r = s.getAttribute(i).range;
+		auto thisString = completeText.substring(r.getStart(), r.getEnd());
+
+		Array<juce::PositionedGlyph> glyphs;
+
+		if (thisString.isNotEmpty())
+		{
+			Array<int> newGlyphs;
+			Array<float> xOffsets;
+			a.font.getGlyphPositions(thisString, newGlyphs, xOffsets);
+			auto textLen = newGlyphs.size();
+			glyphs.ensureStorageAllocated(glyphs.size() + textLen);
+
+			auto t = thisString.getCharPointer();
+
+			for (int i = 0; i < textLen; ++i)
+			{
+				auto getXDeltaForWordEnd = [](String::CharPointerType copy, Font f)
+				{
+					auto end = copy;
+
+					while (*end != 0 && !CharacterFunctions::isWhitespace(*end))
+						end++;
+
+					String word(copy, end);
+
+					return f.getStringWidthFloat(word);
+				};
+
+				if (CharacterFunctions::isWhitespace(*t))
+					allowedToWrap = true;
+
+				auto deltaX = xOffsets.getUnchecked(i + 1) - xOffsets.getUnchecked(i);
+
+				auto wordEndX = currentX + getXDeltaForWordEnd(t, a.font);
+
+				const bool isNewLine = *t == '\n';
+				
+				if (allowedToWrap && ((wordEndX > width + 1.0f) || isNewLine))
+				{
+					yPos += a.font.getHeight() * 1.5f;
+					currentX = marginBetweenAttributes;
+					allowedToWrap = false;
+
+					if (isNewLine)
+					{
+						t++;
+						continue;
+					}
+				}
+
+				auto thisX = xOffsets.getUnchecked(i);
+				bool isWhitespace = t.isWhitespace();
+
+				if (isWhitespace && (thisString.getCharPointer() + thisString.length() - 1 == t))
+					break;
+
+				glyphs.add(PositionedGlyph(a.font, t.getAndAdvance(),
+					newGlyphs.getUnchecked(i),
+					currentX,
+					yPos,
+					deltaX, isWhitespace));
+
+				currentX += deltaX;
+			}
+		}
+
+		const bool isLink = a.font.isUnderlined();
+		const bool isCode = a.font.getTypefaceName() == GLOBAL_MONOSPACE_FONT().getTypefaceName();
+
+		GlyphArrangement newLink;
+
+		auto& aToUse = isLink ? newLink : (isCode ? codeText : normalText);
+
+		RectangleList<float> linkRectangles;
+
+		for (const auto& g : glyphs)
+		{
+			aToUse.addGlyph(g);
+
+			if (isLink)
+				linkRectangles.add(g.getBounds().expanded(marginBetweenAttributes, 0.0f));
+
+			if (isCode)
+				codeBoxes.add(g.getBounds().expanded(marginBetweenAttributes, 0.0f));
+		}
+
+		if (isLink)
+		{
+			linkRectangles.consolidate();
+			hyperlinkRectangles.add(linkRectangles.getBounds());
+			linkRanges.add({ a.range, linkRectangles.getBounds() });
+			linkTexts.add(newLink);
+		}
+
+		//currentX = glyphs.getLast().getRight() + 3.0f;
+	}
+
+	codeBoxes.consolidate();
+	hyperlinkRectangles.consolidate();
+}
+
+void MarkdownLayout::addYOffset(float delta)
+{
+	normalText.moveRangeOfGlyphs(0, -1, 0.0f, delta);
+
+	for(auto& lt: linkTexts)
+		lt.moveRangeOfGlyphs(0, -1, 0.0f, delta);
+
+	codeText.moveRangeOfGlyphs(0, -1, 0.0f, delta);
+	codeBoxes.offsetAll(0.0f, delta);
+	hyperlinkRectangles.offsetAll(0.0f, delta);
+
+	for (auto& linkArea : linkRanges)
+		std::get<1>(linkArea).translate(0.0f, delta);
+}
+
+void MarkdownLayout::addXOffset(float delta)
+{
+	normalText.moveRangeOfGlyphs(0, -1, delta, 0.0f);
+	
+	for (auto& lt : linkTexts)
+		lt.moveRangeOfGlyphs(0, -1, delta, 0.0f);
+
+	codeText.moveRangeOfGlyphs(0, -1, delta, 0.0f);
+	codeBoxes.offsetAll(delta, 0.0f);
+	hyperlinkRectangles.offsetAll(delta, 0.0f);
+
+	for (auto& linkArea : linkRanges)
+		std::get<1>(linkArea).translate(delta, 0.0f);
+}
+
+void MarkdownLayout::draw(Graphics& g)
+{
+	g.setColour(styleData.codebackgroundColour);
+	for (auto r : codeBoxes)
+		g.fillRoundedRectangle(r, 2.0f);
+
+	g.setColour(styleData.linkBackgroundColour);
+
+	for (auto r : hyperlinkRectangles)
+		g.fillRoundedRectangle(r, 2.0f);
+
+	g.setColour(styleData.textColour);
+
+	normalText.draw(g);
+
+	g.setColour(styleData.codeColour);
+
+	codeText.draw(g);
+
+	g.setColour(styleData.linkColour);
+
+	for (auto& lt : linkTexts)
+		lt.draw(g);
+}
+
+void MarkdownLayout::drawCopyWithOffset(Graphics& g, float offset) const
+{
+	auto copy = MarkdownLayout(*this);
+	copy.addYOffset(offset);
+	copy.draw(g);
+}
+
+float MarkdownLayout::getHeight() const
+{
+	float t2 = 0.0f; // Nice one...
+	float b2 = 0.0f;
+
+	for (auto lt : linkTexts)
+	{
+		t2 = jmin<float>(lt.getBoundingBox(0, -1, true).getY(), t2);
+		b2 = jmax<float>(lt.getBoundingBox(0, -1, true).getBottom(), b2);
+	}
+		
+
+
+	auto t1 = normalText.getBoundingBox(0, -1, true).getY();
+	auto t3 = codeText.getBoundingBox(0, -1, true).getY();
+
+	auto b1 = normalText.getBoundingBox(0, -1, true).getBottom();
+	auto b3 = codeText.getBoundingBox(0, -1, true).getBottom();
+
+	return jmax<float>(b1, b2, b3) - jmin<float>(t1, t2, t3);
+}
+
+MarkdownLayout::StyleData::StyleData()
+{
+	linkColour = JUCE_LIVE_CONSTANT_OFF(Colour(0xFFAAAAFF));
+	textColour = Colours::white;
+	headlineColour = Colour(SIGNAL_COLOUR);
+	linkBackgroundColour = JUCE_LIVE_CONSTANT_OFF(Colour(0x228888FF));
+	codebackgroundColour = JUCE_LIVE_CONSTANT_OFF(Colour(0x33888888));
+	codeColour = JUCE_LIVE_CONSTANT_OFF(Colour(0xffffffff));
+	
+	f = GLOBAL_FONT();
+	fontSize = 17.0f;
+}
+
+struct DownloadWaiter: public URL::DownloadTask::Listener
+{
+	void finished(URL::DownloadTask* task, bool success) override
+	{
+		if (success)
+			done = true;
+	}
+
+	bool done = false;
+};
+
+juce::Image MarkdownParser::HiseDocImageProvider::getImage(const String& urlName, float width)
+{
+	const String onlineImageDirectory = "http://hise.audio/manual/";
+
+	auto rootDirectory = File("D:/tempImages");
+
+	auto file = rootDirectory.getChildFile(urlName);
+
+	if (file.existsAsFile())
+	{
+		return resizeImageToFit(ImageCache::getFromFile(file), width);
+	}
+	
+	URL root(onlineImageDirectory);
+	auto fileUrl = root.getChildURL(urlName);
+	
+	int32 start = Time::getApproximateMillisecondCounter();
+
+	file.create();
+
+	ScopedPointer<URL::DownloadTask> task = fileUrl.downloadToFile(file);
+
+	if (task == nullptr)
+		return {};
+
+	while (!task->isFinished())
+	{
+		auto duration = Time::getApproximateMillisecondCounter();
+
+		if (duration - start > 5000)
+			break;
+	}
+
+	if (task->isFinished() && !task->hadError())
+	{
+		return resizeImageToFit(ImageCache::getFromFile(file), width);
+	}
+	else
+		return {};
 }
 
 }

@@ -60,7 +60,7 @@ void MarkdownParser::parse()
 void MarkdownParser::parseLine()
 {
 	resetForNewLine();
-	currentColour = textColour.withAlpha(0.8f);
+	currentColour = styleData.textColour.withAlpha(0.8f);
 
 	parseText();
 
@@ -74,9 +74,9 @@ void MarkdownParser::parseLine()
 
 void MarkdownParser::resetForNewLine()
 {
-	currentFont = normalFont.withHeight(defaultFontSize);
+	currentFont = styleData.f.withHeight(styleData.fontSize);
 	currentFont.setBold(false);
-	currentColour = textColour;
+	currentColour = styleData.textColour;
 	resetCurrentBlock();
 }
 
@@ -94,7 +94,7 @@ void MarkdownParser::parseHeadline()
 		headlineLevel--;
 	}
 
-	currentFont = headlineFont.withHeight(defaultFontSize + 5 * headlineLevel);
+	currentFont = styleData.f.withHeight(styleData.fontSize + 5 * headlineLevel);
 	currentFont.setBold(true);
 
 	if (it.peek() == ' ')
@@ -127,9 +127,36 @@ void MarkdownParser::parseBulletList()
 	elements.add(new BulletPointList(this, bulletpoints));
 
 
-	currentFont = normalFont.withHeight(defaultFontSize);
+	currentFont = styleData.getFont();
 
 }
+
+void MarkdownParser::parseEnumeration()
+{
+	Array<AttributedString> listItems;
+
+	while (CharacterFunctions::isDigit(it.peek()))
+	{
+		while(CharacterFunctions::isDigit(it.peek()))
+			skipTagAndTrailingSpace();
+		
+		skipTagAndTrailingSpace(); // the dot
+
+		while (it.peek() != 0 && !CharacterFunctions::isDigit(it.peek()))
+		{
+			resetCurrentBlock();
+			resetForNewLine();
+			parseText();
+
+			listItems.add(currentlyParsedBlock);
+		}
+	}
+
+	elements.add(new EnumerationList(this, listItems));
+
+	currentFont = styleData.getFont();
+}
+
 
 
 
@@ -160,9 +187,9 @@ void MarkdownParser::parseText(bool stopAtEndOfLine)
 					float size = currentFont.getHeight();
 
 					if (isBold)
-						currentFont = boldFont.withHeight(size);
+						currentFont = GLOBAL_BOLD_FONT().withHeight(size);
 					else
-						currentFont = normalFont.withHeight(size);
+						currentFont = styleData.getFont().withHeight(size);
 				}
 				else
 				{
@@ -186,9 +213,9 @@ void MarkdownParser::parseText(bool stopAtEndOfLine)
 			auto i = currentFont.isItalic();
 			auto u = currentFont.isUnderlined();
 
-			currentFont = isCode ? codeFont : normalFont;
+			currentFont = isCode ? GLOBAL_MONOSPACE_FONT() : styleData.getFont();
 
-			currentColour = isCode ? textColour : textColour.withAlpha(0.8f);
+			currentColour = isCode ? styleData.textColour : styleData.textColour.withAlpha(0.8f);
 
 			currentFont.setHeight(size);
 			currentFont.setBold(b);
@@ -253,6 +280,24 @@ void MarkdownParser::parseText(bool stopAtEndOfLine)
 
 				auto start = text.length();
 
+				// This is extremely annoying, but the glyph's string range will duplicate space characters...
+				auto duplicateSpaces = [](int& number, const String& s)
+				{
+					auto c = s.getCharPointer();
+
+					while (*c != 0)
+					{
+						if (*c == ' ')
+							number++;
+						if (*c == '\n')
+							number++;
+
+						c++;
+					}
+				};
+
+				//duplicateSpaces(start, text);
+
 				currentFont.setUnderline(true);
 				currentlyParsedBlock.append(urlId, currentFont, Colour(SIGNAL_COLOUR));
 				currentFont.setUnderline(false);
@@ -263,6 +308,7 @@ void MarkdownParser::parseText(bool stopAtEndOfLine)
 
 				hyperLink.url = url;
 				hyperLink.urlRange = { start, stop };
+				hyperLink.displayString = urlId;
 				hyperLink.valid = true;
 
 				currentLinks.add(std::move(hyperLink));
@@ -300,6 +346,15 @@ void MarkdownParser::parseBlock()
 
 	switch (c)
 	{
+	case '1':
+	case '2':
+	case '3':
+	case '4':
+	case '5':
+	case '6':
+	case '7':
+	case '8':
+	case '9': parseEnumeration(); break;
 	case '#': parseHeadline();
 		break;
 	case '-': parseBulletList();
@@ -397,7 +452,7 @@ void MarkdownParser::parseTable()
 		else
 		{
 			parseText();
-			currentlyParsedBlock.setFont(boldFont.withHeight(defaultFontSize));
+			currentlyParsedBlock.setFont(styleData.getFont().boldened());
 			newCell.s = currentlyParsedBlock;
 		}
 
@@ -526,6 +581,9 @@ void MarkdownParser::resetCurrentBlock()
 
 void MarkdownParser::skipTagAndTrailingSpace()
 {
+	if (it.peek() == 0)
+		return;
+
 	it.advance();
 
 	if (it.peek() == ' ')
@@ -545,15 +603,13 @@ void MarkdownParser::parseComment()
 
 }
 
-const juce::TextLayout& MarkdownParser::getTextLayoutForString(const AttributedString& s, float width)
+const MarkdownLayout& MarkdownParser::getTextLayoutForString(const AttributedString& s, float width)
 {
 	if (layoutCache.get() != nullptr)
 		return layoutCache->getLayout(s, width);
 
-	uncachedLayout = TextLayout();
-	uncachedLayout.createLayoutWithBalancedLineLengths(s, width);
-
-	return uncachedLayout;
+	uncachedLayout = { s, width };
+	return  uncachedLayout;
 }
 
 

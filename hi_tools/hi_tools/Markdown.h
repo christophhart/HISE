@@ -36,6 +36,47 @@
 namespace hise {
 using namespace juce;
 
+struct MarkdownLayout
+{
+	MarkdownLayout(const AttributedString& s, float width);
+
+	struct StyleData
+	{
+		StyleData();
+
+		Font f;
+		float fontSize;
+		Colour codebackgroundColour;
+		Colour linkBackgroundColour;
+		Colour textColour;
+		Colour codeColour;
+		Colour linkColour;
+		Colour headlineColour;
+
+		Font getFont() const { return f.withHeight(fontSize); }
+	};
+
+	
+
+	void addYOffset(float delta);
+
+	void addXOffset(float delta);
+
+	void draw(Graphics& g);
+
+	void drawCopyWithOffset(Graphics& g, float offset) const;
+
+	float getHeight() const;
+
+	StyleData styleData;
+
+	juce::GlyphArrangement normalText;
+	juce::GlyphArrangement codeText;
+	Array<juce::GlyphArrangement> linkTexts;
+	RectangleList<float> codeBoxes;
+	RectangleList<float> hyperlinkRectangles;
+	Array<std::tuple<Range<int>, Rectangle<float>>> linkRanges;
+};
 
 /** a simple markdown parser that renders markdown formatted code. */
 class MarkdownParser
@@ -46,7 +87,7 @@ public:
     {
         void clear() { cachedLayouts.clear(); }
         
-        const TextLayout& getLayout(const AttributedString& s, float w);
+        const MarkdownLayout& getLayout(const AttributedString& s, float w);
         
     private:
         
@@ -54,7 +95,7 @@ public:
         {
             Layout(const AttributedString& s, float w);
             
-            TextLayout l;
+            MarkdownLayout l;
             int64 hashCode;
             float width;
             
@@ -72,6 +113,7 @@ public:
 		Rectangle<float> area = {};
 		String url = {};
 		String tooltip;
+		String displayString;
 		Range<int> urlRange = {};
 	};
 
@@ -79,6 +121,8 @@ public:
 	{
 		virtual ~Listener() {};
 		virtual void markdownWasParsed(const Result& r) = 0;
+
+		virtual void scrollToAnchor(float v) {};
 
 	private:
 
@@ -89,6 +133,8 @@ public:
 	{
 		virtual ~LinkResolver() {};
 		virtual String getContent(const String& url) = 0;
+		virtual LinkResolver* clone(MarkdownParser* parent) const = 0;
+		virtual Identifier getId() const = 0;
 	};
 
 	struct FileLinkResolver: public LinkResolver
@@ -99,12 +145,21 @@ public:
 
 		String getContent(const String& url) override;
 
+		Identifier getId() const override { RETURN_STATIC_IDENTIFIER("FileLinkResolver"); };
+		LinkResolver* clone(MarkdownParser* p) const override { return new FileLinkResolver(root); }
+
 		File root;
 	};
 
+	
 	class ImageProvider
 	{
 	public:
+
+		bool operator==(const ImageProvider& other) const
+		{
+			return getId() == other.getId();
+		}
 
 		ImageProvider(MarkdownParser* parent_):
 			parent(parent_)
@@ -117,9 +172,38 @@ public:
 		*	The default function just returns a placeholder.
 		*/
 		virtual Image getImage(const String& /*imageURL*/, float width);
+		virtual ImageProvider* clone(MarkdownParser* newParent) const { return new ImageProvider(newParent); }
+		virtual Identifier getId() const { RETURN_STATIC_IDENTIFIER("EmptyImageProvider"); };
+
+		/** Helper function that makes sure that the image doesn't exceed the given width. */
+		static Image resizeImageToFit(const Image& otherImage, float width)
+		{
+			if (width == 0.0)
+				return {};
+
+			if (otherImage.isNull() || otherImage.getWidth() < (int)width)
+				return otherImage;
+
+			float ratio = (float)otherImage.getWidth() / width;
+			return otherImage.rescaled((int)width, (int)((float)otherImage.getHeight() / ratio));
+		}
 
 	protected:
 		MarkdownParser * parent;
+	};
+
+	class HiseDocImageProvider: public ImageProvider
+	{
+	public:
+
+		HiseDocImageProvider(MarkdownParser* parent) :
+			ImageProvider(parent)
+		{};
+			
+		Image getImage(const String& urlName, float width) override;
+
+		ImageProvider* clone(MarkdownParser* newParent) const override { return new HiseDocImageProvider(newParent); }
+		Identifier getId() const override { RETURN_STATIC_IDENTIFIER("HiseDocImageProvider"); }
 	};
 
 	class FileBasedImageProvider : public ImageProvider
@@ -129,6 +213,8 @@ public:
 		FileBasedImageProvider(MarkdownParser* parent, const File& root);;
 
 		Image getImage(const String& imageURL, float width) override;
+		ImageProvider* clone(MarkdownParser* newParent) const override { return new FileBasedImageProvider(newParent, r); }
+		Identifier getId() const override { RETURN_STATIC_IDENTIFIER("FileBasedImageProvider"); }
 
 		File r;
 	};
@@ -157,7 +243,7 @@ public:
 
 				Graphics g(img);
 
-				g.setColour(parent->textColour);
+				g.setColour(parent->styleData.textColour);
 				g.fillPath(p);
 
 				return img;
@@ -165,6 +251,9 @@ public:
 			else
 				return {};
 		}
+
+		ImageProvider* clone(MarkdownParser* newParent) const override { return new PathProvider<FactoryType>(newParent); }
+		Identifier getId() const override { RETURN_STATIC_IDENTIFIER("PathProvider"); }
 
 	private:
 
@@ -175,7 +264,7 @@ public:
 
 	void setFonts(Font normalFont, Font codeFont, Font headlineFont, float defaultFontSize);
 
-	void setTextColour(Colour c) { textColour = c; }
+	void setTextColour(Colour c) { styleData.textColour = c; }
 
 	String resolveLink(const String& url)
 	{
@@ -205,17 +294,41 @@ public:
 
 	void setLinkResolver(LinkResolver* ownedResolver)
 	{
-		linkResolvers.add(ownedResolver);
+		ScopedPointer<LinkResolver> owned = ownedResolver;
+
+		for (auto r : linkResolvers)
+		{
+			if (r->getId() == owned->getId())
+				return;
+		}
+
+		linkResolvers.add(owned.release());
 	}
 
 	template <class ProviderType> void setNewImageProvider()
 	{
-		imageProviders.add(new ProviderType(this));
+		ScopedPointer<ImageProvider> newProvider = new ProviderType(this);
+
+		for (auto p : imageProviders)
+		{
+			if (*p == *newProvider)
+				return;
+		}
+
+		imageProviders.add(newProvider.release());
 	};
 
 	template <class ProviderType> void setImageProvider(ProviderType* newProvider)
 	{
-		imageProviders.add(newProvider);
+		ScopedPointer<ImageProvider> owned = newProvider;
+
+		for (auto p : imageProviders)
+		{
+			if (*p == *newProvider)
+				return;
+		}
+
+		imageProviders.add(owned.release());
 	};
 
 	void parse();
@@ -270,12 +383,17 @@ public:
 		CodeEditorComponent::ColourScheme getDefaultColourScheme();
 	};
 
-	const TextLayout& getTextLayoutForString(const AttributedString& s, float width);
+	const MarkdownLayout& getTextLayoutForString(const AttributedString& s, float width);
+
+	void setStyleData(MarkdownLayout::StyleData newStyleData)
+	{
+		styleData = newStyleData;
+	}
 
 private:
 
     WeakReference<LayoutCache> layoutCache;
-    TextLayout uncachedLayout;
+    MarkdownLayout uncachedLayout;
     
 	class Iterator
 	{
@@ -314,6 +432,12 @@ private:
 
 		virtual int getTopMargin() const = 0;
 
+		virtual String getTextForRange(Range<int> range) const
+		{
+			jassertfalse;
+			return {};
+		}
+
 		Array<HyperLink> hyperLinks;
 
 		float getHeightForWidthCached(float width)
@@ -328,7 +452,7 @@ private:
 			return cachedHeight;
 		}
 
-		static void recalculateHyperLinkAreas(TextLayout& l, Array<HyperLink>& links, float topMargin);
+		static void recalculateHyperLinkAreas(MarkdownLayout& l, Array<HyperLink>& links, float topMargin);
 
 	protected:
 
@@ -339,7 +463,7 @@ private:
 	};
 
 	struct TextBlock;	struct Headline;		struct BulletPointList;		struct Comment;
-	struct CodeBlock;	struct MarkdownTable;	struct ImageElement;
+	struct CodeBlock;	struct MarkdownTable;	struct ImageElement;		struct EnumerationList;
 
 	struct CellContent
 	{
@@ -371,6 +495,8 @@ private:
 	void parseLine();
 	void parseHeadline();
 	void parseBulletList();
+	void parseEnumeration();
+
 	void parseText(bool stopAtEndOfLine=true);
 	void parseBlock();
 	void parseJavascriptBlock();
@@ -388,16 +514,23 @@ private:
 	bool isItalic = false;
 	bool isCode = false;
 
+#if 0
 	float defaultFontSize = 17.0f;
 	Colour textColour = Colours::black;
-	Colour currentColour;
+	
 
 	Font normalFont;
 	Font boldFont;
 	Font codeFont;
 	Font headlineFont;
-	Font currentFont;
 	
+#endif
+	
+	Colour currentColour;
+	Font currentFont;
+
+	MarkdownLayout::StyleData styleData;
+
 	String markdownCode;
 	Iterator it;
 	Result currentParseResult;
@@ -665,6 +798,93 @@ private:
 	
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MarkdownHelpButton);
+};
+
+
+class MarkdownPreview : public Component
+{
+public:
+
+	MarkdownPreview();;
+
+	void setNewText(const String& newText, const File& f);
+
+	struct InternalComponent : public Component,
+		public MarkdownParser::Listener,
+		public juce::SettableTooltipClient
+	{
+		InternalComponent();
+
+		~InternalComponent();
+
+		int getTextHeight();
+
+		void setNewText(const String& s, const File& f);
+
+		String lastText;
+		File lastFile;
+
+		void markdownWasParsed(const Result& r) override;
+
+		void mouseDown(const MouseEvent& e) override;
+
+		void mouseUp(const MouseEvent& e) override;
+
+		void mouseMove(const MouseEvent& event) override;
+
+		void scrollToAnchor(float v) override;
+
+		void paint(Graphics & g) override;
+
+		ScopedPointer<MarkdownParser::LayoutCache> layoutCache;
+
+		ScopedPointer<hise::MarkdownParser> parser;
+		String errorMessage;
+
+		MarkdownLayout::StyleData styleData;
+
+		Rectangle<float> clickedLink;
+		OwnedArray<MarkdownParser::ImageProvider> providers;
+		OwnedArray<MarkdownParser::LinkResolver> resolvers;
+	};
+
+	void setStyleData(MarkdownLayout::StyleData d)
+	{
+		internalComponent.styleData = d;
+	}
+
+	void resized() override;
+
+	Viewport viewport;
+	InternalComponent internalComponent;
+
+	
+};
+
+
+
+class MarkdownEditor : public CodeEditorComponent
+{
+public:
+
+	enum AdditionalCommands
+	{
+		LoadFile = 759,
+		SaveFile,
+		numCommands
+	};
+
+	MarkdownEditor(CodeDocument& doc, CodeTokeniser* tok) :
+		CodeEditorComponent(doc, tok)
+	{}
+
+	void addPopupMenuItems(PopupMenu& menuToAddTo,
+		const MouseEvent* mouseClickEvent);
+
+
+	void performPopupMenuAction(int menuItemID);
+
+	File currentFile;
 };
 
 
