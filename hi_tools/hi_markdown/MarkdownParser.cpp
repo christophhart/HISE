@@ -37,6 +37,9 @@ using namespace juce;
 
 void MarkdownParser::parse()
 {
+	lastWidth = -1.0f;
+	firstDraw = true;
+
 	try
 	{
 		while (it.peek() != 0)
@@ -74,8 +77,7 @@ void MarkdownParser::parseLine()
 
 void MarkdownParser::resetForNewLine()
 {
-	currentFont = styleData.f.withHeight(styleData.fontSize);
-	currentFont.setBold(false);
+	currentFont = styleData.getFont();
 	currentColour = styleData.textColour;
 	resetCurrentBlock();
 }
@@ -94,8 +96,12 @@ void MarkdownParser::parseHeadline()
 		headlineLevel--;
 	}
 
-	currentFont = styleData.f.withHeight(styleData.fontSize + 5 * headlineLevel);
-	currentFont.setBold(true);
+	headlineLevel = jmax(0, headlineLevel);
+
+	currentFont = styleData.f.withHeight(styleData.fontSize * 3 / 2 + 7 * headlineLevel);
+
+	currentFont = FontHelpers::getFontBoldened(currentFont);
+
 
 	if (it.peek() == ' ')
 		it.advance();
@@ -140,15 +146,24 @@ void MarkdownParser::parseEnumeration()
 		while(CharacterFunctions::isDigit(it.peek()))
 			skipTagAndTrailingSpace();
 		
-		skipTagAndTrailingSpace(); // the dot
-
-		while (it.peek() != 0 && !CharacterFunctions::isDigit(it.peek()))
+		if (it.peek() == '.')
 		{
+			skipTagAndTrailingSpace(); // the dot
+
 			resetCurrentBlock();
 			resetForNewLine();
-			parseText();
+
+			while (!Helpers::isNewElement(it.peek()))
+			{
+				parseText();
+			}
 
 			listItems.add(currentlyParsedBlock);
+		}
+		else
+		{
+			parseLine();
+			return;
 		}
 	}
 
@@ -187,14 +202,18 @@ void MarkdownParser::parseText(bool stopAtEndOfLine)
 					float size = currentFont.getHeight();
 
 					if (isBold)
-						currentFont = GLOBAL_BOLD_FONT().withHeight(size);
+						currentFont = FontHelpers::getFontBoldened(styleData.getFont().withHeight(size));
 					else
 						currentFont = styleData.getFont().withHeight(size);
 				}
 				else
 				{
 					isItalic = !isItalic;
-					currentFont.setItalic(isItalic);
+
+					if (isItalic)
+						currentFont = FontHelpers::getFontItalicised(currentFont);
+					else
+						currentFont = FontHelpers::getFontNormalised(currentFont);
 				}
 			}
 			else
@@ -240,81 +259,97 @@ void MarkdownParser::parseText(bool stopAtEndOfLine)
 		}
 		case '[':
 		{
-			String urlId;
-			String url;
-
-			bool ok = false;
-
-			while (it.next(c))
+			if (isCode)
 			{
-				if (c == ']')
-				{
-					ok = true;
-					break;
-				}
-				else
-					urlId << c;
+				addCharacterToCurrentBlock(c);
 			}
-
-			if (ok)
+			else
 			{
-				it.match('(');
+				String urlId;
+				String url;
 
-				ok = false;
+				bool ok = false;
 
 				while (it.next(c))
 				{
-					if (c == ')')
+					if (c == ']')
 					{
 						ok = true;
 						break;
 					}
 					else
-						url << c;
+						urlId << c;
 				}
-			}
 
-			if (ok)
-			{
-				auto text = currentlyParsedBlock.getText();
-
-				auto start = text.length();
-
-				// This is extremely annoying, but the glyph's string range will duplicate space characters...
-				auto duplicateSpaces = [](int& number, const String& s)
+				if (ok)
 				{
-					auto c = s.getCharPointer();
+					it.match('(');
 
-					while (*c != 0)
+					ok = false;
+
+					while (it.next(c))
 					{
-						if (*c == ' ')
-							number++;
-						if (*c == '\n')
-							number++;
-
-						c++;
+						if (c == ')')
+						{
+							ok = true;
+							break;
+						}
+						else
+							url << c;
 					}
-				};
+				}
 
-				//duplicateSpaces(start, text);
+				if (urlId.toLowerCase().startsWith("button: "))
+				{
+					urlId = urlId.fromFirstOccurrenceOf("Button: ", false, true);
 
-				currentFont.setUnderline(true);
-				currentlyParsedBlock.append(urlId, currentFont, Colour(SIGNAL_COLOUR));
-				currentFont.setUnderline(false);
 
-				auto stop = start + urlId.length();
+				}
 
-				HyperLink hyperLink;
+				if (ok)
+				{
+					auto text = currentlyParsedBlock.getText();
 
-				hyperLink.url = url;
-				hyperLink.urlRange = { start, stop };
-				hyperLink.displayString = urlId;
-				hyperLink.valid = true;
+					auto start = text.length();
 
-				currentLinks.add(std::move(hyperLink));
+					// This is extremely annoying, but the glyph's string range will duplicate space characters...
+					auto duplicateSpaces = [](int& number, const String& s)
+					{
+						auto c = s.getCharPointer();
+
+						while (*c != 0)
+						{
+							if (*c == ' ')
+								number++;
+							if (*c == '\n')
+								number++;
+
+							c++;
+						}
+					};
+
+					//duplicateSpaces(start, text);
+
+					currentFont.setUnderline(true);
+					currentlyParsedBlock.append(urlId, currentFont, Colour(SIGNAL_COLOUR));
+					currentFont.setUnderline(false);
+
+					auto stop = start + urlId.length();
+
+					HyperLink hyperLink;
+
+					hyperLink.url = url;
+					hyperLink.urlRange = { start, stop };
+					hyperLink.displayString = urlId;
+					hyperLink.valid = true;
+
+					currentLinks.add(std::move(hyperLink));
+				}
+				else
+					throw String("Error at parsing URL link");
 			}
-			else
-				throw String("Error at parsing URL link");
+
+			
 
 			break;
 		}
@@ -368,6 +403,8 @@ void MarkdownParser::parseBlock()
 		break;
 	case '|': parseTable();
 		break;
+	case '$': parseButton();
+		break;
 	case '!': if (isImageLink())
 		elements.add(parseImage());
 			  else
@@ -402,6 +439,11 @@ void MarkdownParser::parseJavascriptBlock()
 		type = CodeBlock::SyntaxType::Javascript;
 		numToSkip = 10;
 	}
+	else if (code.startsWith("!javascript"))
+	{
+		type = CodeBlock::SyntaxType::LiveJavascript;
+		numToSkip = 11;
+	}
 	else if (code.startsWith("xml"))
 	{
 		type = CodeBlock::SyntaxType::XML;
@@ -428,6 +470,63 @@ void MarkdownParser::parseJavascriptBlock()
 	elements.add(new CodeBlock(this, code, type));
 }
 
+void MarkdownParser::parseButton()
+{
+	it.match('$');
+	it.match('[');
+
+	String urlId;
+	String link;
+
+	juce_wchar c;
+
+	bool ok = false;
+
+	while (it.next(c))
+	{
+		if (c == ']')
+		{
+			ok = true;
+			break;
+		}
+		else
+			urlId << c;
+	}
+
+	if (ok)
+	{
+		it.match('(');
+
+		while (it.next(c))
+		{
+			if (c == ')')
+			{
+				ok = true;
+				break;
+			}
+			else
+				link << c;
+		}
+
+		if (!ok)
+		{
+			it.match(')');
+			jassertfalse;
+		}
+	}
+	else
+	{
+		// should throw
+		it.match('[');
+
+		jassertfalse;
+	}
+
+	elements.add(new ActionButton(this, urlId, link));
+}
+
+
+
 void MarkdownParser::parseTable()
 {
 	RowContent headerItems;
@@ -452,7 +551,7 @@ void MarkdownParser::parseTable()
 		else
 		{
 			parseText();
-			currentlyParsedBlock.setFont(styleData.getFont().boldened());
+			currentlyParsedBlock.setFont(FontHelpers::getFontBoldened(styleData.getFont()));
 			newCell.s = currentlyParsedBlock;
 		}
 

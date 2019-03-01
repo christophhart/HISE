@@ -36,53 +36,35 @@
 namespace hise {
 using namespace juce;
 
-struct MarkdownLayout
-{
-	MarkdownLayout(const AttributedString& s, float width);
-
-	struct StyleData
-	{
-		StyleData();
-
-		Font f;
-		float fontSize;
-		Colour codebackgroundColour;
-		Colour linkBackgroundColour;
-		Colour textColour;
-		Colour codeColour;
-		Colour linkColour;
-		Colour headlineColour;
-
-		Font getFont() const { return f.withHeight(fontSize); }
-	};
-
-	
-
-	void addYOffset(float delta);
-
-	void addXOffset(float delta);
-
-	void draw(Graphics& g);
-
-	void drawCopyWithOffset(Graphics& g, float offset) const;
-
-	float getHeight() const;
-
-	StyleData styleData;
-
-	juce::GlyphArrangement normalText;
-	juce::GlyphArrangement codeText;
-	Array<juce::GlyphArrangement> linkTexts;
-	RectangleList<float> codeBoxes;
-	RectangleList<float> hyperlinkRectangles;
-	Array<std::tuple<Range<int>, Rectangle<float>>> linkRanges;
-};
-
 /** a simple markdown parser that renders markdown formatted code. */
 class MarkdownParser
 {
 public:
 	
+	struct TableOfContent
+	{
+		int getMaxWidth(Font f)
+		{
+			int maxWidth = 0;
+
+			for (const auto& e : entries)
+			{
+				maxWidth = jmax<int>(maxWidth, f.getStringWidth(e.title) + e.hierarchy * 10 + 10);
+			}
+
+			return maxWidth;
+		}
+
+		struct Entry
+		{
+			int hierarchy;
+			String title;
+			String anchorId;
+		};
+
+		Array<Entry> entries;
+	};
+
     struct LayoutCache
     {
         void clear() { cachedLayouts.clear(); }
@@ -135,6 +117,36 @@ public:
 		virtual String getContent(const String& url) = 0;
 		virtual LinkResolver* clone(MarkdownParser* parent) const = 0;
 		virtual Identifier getId() const = 0;
+		
+		/** Overwrite this method and do something if the url matches, then return 
+		    true or false whether the resolver consumed this event. 
+		*/
+		virtual bool linkWasClicked(const String& url) 
+		{ 
+			return false; 
+		}
+	};
+
+	struct DefaultLinkResolver : public LinkResolver
+	{
+		DefaultLinkResolver(MarkdownParser* parser_):
+			parser(parser_)
+		{
+
+		}
+
+		Identifier getId() const override { RETURN_STATIC_IDENTIFIER("DefaultLinkResolver"); }
+
+		String getContent(const String& url) override { return {}; }
+
+		bool linkWasClicked(const String& url) override;
+
+		LinkResolver* clone(MarkdownParser* newParser) const override
+		{
+			return new DefaultLinkResolver(newParser);
+		}
+
+		MarkdownParser* parser;
 	};
 
 	struct FileLinkResolver: public LinkResolver
@@ -144,6 +156,8 @@ public:
 		{};
 
 		String getContent(const String& url) override;
+
+		bool linkWasClicked(const String& url) override;
 
 		Identifier getId() const override { RETURN_STATIC_IDENTIFIER("FileLinkResolver"); };
 		LinkResolver* clone(MarkdownParser* p) const override { return new FileLinkResolver(root); }
@@ -192,6 +206,69 @@ public:
 		MarkdownParser * parent;
 	};
 
+	class URLImageProvider : public ImageProvider
+	{
+	public:
+
+		URLImageProvider(File& tempdirectory_, MarkdownParser* parent) :
+			ImageProvider(parent),
+			tempDirectory(tempdirectory_)
+		{
+			if (!tempDirectory.isDirectory())
+				tempDirectory.createDirectory();
+		};
+
+		Image getImage(const String& urlName, float width) override
+		{
+			if (URL::isProbablyAWebsiteURL(urlName))
+			{
+				URL url(urlName);
+
+				auto path = url.getSubPath();
+				auto imageFile = tempDirectory.getChildFile(path);
+
+				if (imageFile.existsAsFile())
+					return resizeImageToFit(ImageCache::getFromFile(imageFile), width);
+
+				imageFile.create();
+
+				ScopedPointer<URL::DownloadTask> task = url.downloadToFile(imageFile);
+
+				if (task == nullptr)
+				{
+					jassertfalse;
+					return {};
+				}
+
+				int timeout = 5000;
+
+				auto start = Time::getApproximateMillisecondCounter();
+
+				while (!task->isFinished())
+				{
+					if (Time::getApproximateMillisecondCounter() - start > timeout)
+						break;
+
+					Thread::sleep(500);
+				}
+				
+				if (task->isFinished() && !task->hadError())
+				{
+					return resizeImageToFit(ImageCache::getFromFile(imageFile), width);
+				}
+
+				return {};
+			}
+
+			return {};
+		}
+
+		Identifier getId() const override { RETURN_STATIC_IDENTIFIER("URLImageProvider"); };
+		ImageProvider* clone(MarkdownParser* newParser) { return new URLImageProvider(tempDirectory, newParser); }
+
+		File tempDirectory;
+	};
+
 	class HiseDocImageProvider: public ImageProvider
 	{
 	public:
@@ -204,6 +281,29 @@ public:
 
 		ImageProvider* clone(MarkdownParser* newParent) const override { return new HiseDocImageProvider(newParent); }
 		Identifier getId() const override { RETURN_STATIC_IDENTIFIER("HiseDocImageProvider"); }
+	};
+
+	class FolderTocCreator : public LinkResolver
+	{
+	public:
+
+		FolderTocCreator(const File& rootFile_) :
+			LinkResolver(),
+			rootFile(rootFile_)
+		{
+
+		}
+
+		Identifier getId() const override { RETURN_STATIC_IDENTIFIER("FolderTocCreator"); };
+
+		String getContent(const String& url) override;
+
+		LinkResolver* clone(MarkdownParser* parent) const override
+		{
+			return new FolderTocCreator(rootFile);
+		}
+
+		File rootFile;
 	};
 
 	class FileBasedImageProvider : public ImageProvider
@@ -262,35 +362,22 @@ public:
 
 	MarkdownParser(const String& markdownCode, LayoutCache* cToUse=nullptr);
 
+	~MarkdownParser() 
+	{ 
+		setTargetComponent(nullptr);
+
+		elements.clear();
+		linkResolvers.clear();
+		imageProviders.clear();
+	}
+
 	void setFonts(Font normalFont, Font codeFont, Font headlineFont, float defaultFontSize);
 
 	void setTextColour(Colour c) { styleData.textColour = c; }
 
-	String resolveLink(const String& url)
-	{
-		for (auto lr : linkResolvers)
-		{
-			auto link = lr->getContent(url);
+	String resolveLink(const String& url);
 
-			if (link.isNotEmpty())
-				return link;
-		}
-
-		return {};
-	}
-
-	Image resolveImage(const String& imageUrl, float width)
-	{
-		for (int i = imageProviders.size()-1; i >= 0; i--)
-		{
-			auto img = imageProviders[i]->getImage(imageUrl, width);
-			
-			if (img.isValid())
-				return img;
-		}
-
-		return {};
-	}
+	Image resolveImage(const String& imageUrl, float width);
 
 	void setLinkResolver(LinkResolver* ownedResolver)
 	{
@@ -339,7 +426,9 @@ public:
 
 	float getHeightForWidth(float width);
 
-	void draw(Graphics& g, Rectangle<float> area) const;
+	void draw(Graphics& g, Rectangle<float> totalArea, Rectangle<int> viewedArea = {}) const;
+
+	TableOfContent createTableOfContent() const;
 
 	bool canNavigate(bool back) const
 	{
@@ -359,10 +448,85 @@ public:
 		setNewText(history[historyIndex]);
 	}
 
+	String getCurrentText() const;
+
+	String getLastLink(bool includeLink, bool includeAnchor) const 
+	{ 
+		String l;
+
+		if (includeLink)
+			l << lastLink;
+
+		if (includeAnchor)
+			l << lastAnchor;
+
+		return l;
+	}
+
+	RectangleList<float> searchInContent(const String& searchString)
+	{
+		RectangleList<float> positions;
+
+		float y = 0.0f;
+
+		for (auto e : elements)
+		{
+			e->searchInContent(searchString);
+			
+			y += e->getTopMargin();
+
+			for (auto r : e->searchResults)
+			{
+				positions.add(r.translated(0.0f, y));
+			}
+
+			y += e->getLastHeight();
+		}
+
+		return positions;
+	}
+
+	String getSelectionContent() const
+	{
+		String s;
+
+		for (auto e : elements)
+		{
+			if (e->selected)
+			{
+				s << e->getTextToCopy() << "\n";
+			}
+		}
+
+		return s;
+	}
+
+	void updateSelection(Rectangle<float> area)
+	{
+		Range<float> yRange(area.getY(), area.getBottom());
+
+		float y = 0.0f;
+
+		for (auto e : elements)
+		{
+			float h = e->getTopMargin() + e->getLastHeight();
+
+			e->setSelected(Range<float>(y, y + h).intersects(yRange));
+
+			y += h;
+		}
+	}
+
 	void setNewText(const String& newText);
 	bool gotoLink(const MouseEvent& event, Rectangle<float> area);
 
+	bool gotoLink(const String& url);
+
+	String getAnchorForY(int y) const;
+
 	HyperLink getHyperLinkForEvent(const MouseEvent& event, Rectangle<float> area);
+
+	static void createDatabaseEntriesForFile(File root, MarkdownDataBase::Item& item, File f, Colour c);
 
 	void addListener(Listener* l) { listeners.addIfNotAlreadyThere(l); }
 	void removeListener(Listener* l) { listeners.removeAllInstancesOf(l); }
@@ -388,9 +552,60 @@ public:
 	void setStyleData(MarkdownLayout::StyleData newStyleData)
 	{
 		styleData = newStyleData;
+
+		if (markdownCode.isNotEmpty())
+		{
+			setNewText(markdownCode);
+		}
+	}
+
+	void setTargetComponent(Component* newTarget)
+	{
+		if (targetComponent == newTarget)
+			return;
+
+		if (auto existing = targetComponent.getComponent())
+		{
+			for (auto e : elements)
+			{
+				if(auto c = e->createComponent(existing->getWidth()))
+					existing->removeChildComponent(c);
+			}
+		}
+
+		targetComponent = newTarget;
+	}
+
+	void updateCreatedComponents()
+	{
+		if (targetComponent == nullptr)
+			return;
+
+		float y = 0.0f;
+
+		for (auto e : elements)
+		{
+			y += e->getTopMargin();
+
+			if (auto c = e->createComponent(targetComponent->getWidth()))
+			{
+				if(c->getParentComponent() == nullptr)
+					targetComponent->addAndMakeVisible(c);
+
+				jassert(c->getWidth() > 0);
+				jassert(c->getHeight() > 0);
+
+				c->setTopLeftPosition(0, (int)y);
+			}
+			
+			y += e->getLastHeight();
+		}
 	}
 
 private:
+
+	String lastLink;
+	String lastAnchor;
 
     WeakReference<LayoutCache> layoutCache;
     MarkdownLayout uncachedLayout;
@@ -432,13 +647,42 @@ private:
 
 		virtual int getTopMargin() const = 0;
 
+		virtual Component* createComponent(int maxWidth) { return nullptr; }
+
 		virtual String getTextForRange(Range<int> range) const
 		{
 			jassertfalse;
 			return {};
 		}
 
+		void drawHighlight(Graphics& g, Rectangle<float> area)
+		{
+			if (selected)
+			{
+				g.setColour(parent->styleData.backgroundColour.contrasting().withAlpha(0.05f));
+				g.fillRoundedRectangle(area, 3.0f);
+			}
+
+			for (auto r : searchResults)
+			{
+				g.setColour(Colours::red.withAlpha(0.5f));
+
+				auto r_t = r.translated(area.getX(), area.getY());
+				g.fillRoundedRectangle(r_t, 3.0f);
+				g.drawRoundedRectangle(r_t, 3.0f, 1.0f);
+			}
+		};
+
+		
+
+		virtual void searchInContent(const String& s) { }
+
 		Array<HyperLink> hyperLinks;
+
+		float getLastHeight()
+		{
+			return cachedHeight;
+		}
 
 		float getHeightForWidthCached(float width)
 		{
@@ -454,7 +698,21 @@ private:
 
 		static void recalculateHyperLinkAreas(MarkdownLayout& l, Array<HyperLink>& links, float topMargin);
 
+		void setSelected(bool isSelected)
+		{
+			selected = isSelected;
+		}
+
+		virtual String getTextToCopy() const = 0;
+
+		bool selected = false;
+		RectangleList<float> searchResults;
+
 	protected:
+
+		static Array<Range<int>> getMatchRanges(const String& fullText, const String& searchString, bool countNewLines);
+
+		void searchInStringInternal(const AttributedString& textToSearch, const String& searchString);
 
 		MarkdownParser* parent;
 
@@ -464,6 +722,7 @@ private:
 
 	struct TextBlock;	struct Headline;		struct BulletPointList;		struct Comment;
 	struct CodeBlock;	struct MarkdownTable;	struct ImageElement;		struct EnumerationList;
+	struct ActionButton;
 
 	struct CellContent
 	{
@@ -501,6 +760,7 @@ private:
 	void parseBlock();
 	void parseJavascriptBlock();
 	void parseTable();
+	void parseButton();
 	void parseComment();
 	ImageElement* parseImage();
 	RowContent parseTableRow();
@@ -538,354 +798,22 @@ private:
 	AttributedString currentlyParsedBlock;
 	Array<HyperLink> currentLinks;
 	
+	Array<Component::SafePointer<Component>> createdComponents;
+	Component::SafePointer<Component> targetComponent;
+
 	OwnedArray<LinkResolver> linkResolvers;
 	Array<WeakReference<Listener>> listeners;
 	
 	StringArray history;
 	int historyIndex;
+	mutable bool firstDraw = true;
+	float lastHeight = -1.0f;
+	float lastWidth = -1.0f;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MarkdownParser);
 };
 
-class HiseShapeButton : public ShapeButton
-{
-public:
-	
-	HiseShapeButton(const String& name, ButtonListener* listener, PathFactory& factory, const String& offName = String()) :
-		ShapeButton(name, Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white)
-	{
-		onShape = factory.createPath(name);
 
-		if (offName.isEmpty())
-			offShape = onShape;
-		else
-			offShape = factory.createPath(offName);
-
-		if (listener != nullptr)
-			addListener(listener);
-
-		refreshShape();
-		refreshButtonColours();
-	}
-
-
-	void refreshButtonColours()
-	{
-		if (getToggleState())
-		{
-			setColours(Colour(SIGNAL_COLOUR).withAlpha(0.8f), Colour(SIGNAL_COLOUR), Colour(SIGNAL_COLOUR));
-		}
-		else
-		{
-			setColours(Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white);
-		}
-	}
-
-	bool operator==(const String& id) const
-	{
-		return getName() == id;
-	}
-
-	void refreshShape()
-	{
-		if (getToggleState())
-		{
-			setShape(onShape, false, true, true);
-		}
-		else
-			setShape(offShape, false, true, true);
-	}
-
-	void refresh()
-	{
-		refreshShape();
-		refreshButtonColours();
-	}
-
-	void toggle()
-	{
-		setToggleState(!getToggleState(), dontSendNotification);
-
-		refresh();
-	}
-
-	void setShapes(Path newOnShape, Path newOffShape)
-	{
-		onShape = newOnShape;
-		offShape = newOffShape;
-	}
-
-	Path onShape;
-	Path offShape;
-};
-
-
-class MarkdownHelpButton : public ShapeButton,
-						   public ButtonListener,
-						   public ComponentListener
-{
-public:
-
-	enum AttachmentType
-	{
-		Overlay,
-		OverlayLeft,
-		OverlayRight,
-		TopRight,
-		Left,
-		numAttachmentTypes
-	};
-
-	MarkdownHelpButton();
-
-	~MarkdownHelpButton()
-	{
-		if(ownerComponent != nullptr)
-			ownerComponent->removeComponentListener(this);
-	}
-
-	void setup()
-	{
-		parser = new MarkdownParser("");
-		parser->setTextColour(Colours::white);
-		parser->setDefaultTextSize(fontSizeToUse);
-	}
-
-	MarkdownParser* getParser() { return parser; }
-
-	void addImageProvider(MarkdownParser::ImageProvider* newImageProvider)
-	{
-		if (parser != nullptr)
-		{
-			parser->setImageProvider(newImageProvider);
-		}
-		else
-			jassertfalse; // you need to call setup before that.
-	}
-
-	template <class ProviderType=MarkdownParser::ImageProvider> void setHelpText(const String& markdownText)
-	{
-		if (parser == nullptr)
-			setup();
-
-		parser->setNewText(markdownText);
-		parser->setNewImageProvider<ProviderType>();
-
-		parser->parse();
-	}
-
-	void setPopupWidth(int newPopupWidth)
-	{
-		popupWidth = newPopupWidth;
-	}
-
-	void setFontSize(float fontSize)
-	{
-		fontSizeToUse = fontSize;
-	}
-
-	void buttonClicked(Button* b) override;
-
-	void attachTo(Component* componentToAttach, AttachmentType attachmentType_)
-	{
-		if (ownerComponent != nullptr)
-			ownerComponent->removeComponentListener(this);
-
-		ownerComponent = componentToAttach;
-		attachmentType = attachmentType_;
-
-		if (ownerComponent != nullptr)
-		{
-			jassert(getParentComponent() == nullptr);
-
-			if (auto parent = ownerComponent->getParentComponent())
-			{
-				parent->addAndMakeVisible(this);
-			}
-			else
-				jassertfalse; // You tried to attach a help button to a component without a parent...
-
-			setVisible(ownerComponent->isVisible());
-			ownerComponent->addComponentListener(this);
-			componentMovedOrResized(*ownerComponent, true, true);
-		}
-	}
-
-	void componentMovedOrResized(Component& c, bool /*wasMoved*/, bool /*wasResized*/) override
-	{
-		auto cBounds = c.getBoundsInParent();
-
-		switch (attachmentType)
-		{
-		case Overlay:
-		{
-			setBounds(cBounds.withSizeKeepingCentre(16, 16));
-			break;
-		}
-		case OverlayLeft:
-		{
-			auto square = cBounds.removeFromLeft(20);
-
-			setBounds(square.withSizeKeepingCentre(16, 16));
-
-			break;
-		}
-		case OverlayRight:
-		{
-			auto square = cBounds.removeFromRight(20);
-
-			setBounds(square.withSizeKeepingCentre(16, 16));
-
-			break;
-		}
-		case Left:
-		{
-			setBounds(cBounds.getX() - 20, cBounds.getY() + 2, 16, 16);
-			break;
-		}
-		case TopRight:
-		{
-			Rectangle<int> r( cBounds.getRight() - 16, cBounds.getY() - 16, 16, 16 );
-			setBounds(r);
-		}
-        default:
-                break;
-		}
-	}
-
-	void componentVisibilityChanged(Component& c) override
-	{
-		setVisible(c.isVisible());
-	}
-
-	void setIgnoreKeyStrokes(bool shouldIgnoreKeyStrokes)
-	{
-		setWantsKeyboardFocus(shouldIgnoreKeyStrokes);
-		ignoreKeyStrokes = shouldIgnoreKeyStrokes;
-		
-	}
-
-	void componentBeingDeleted(Component& component) override
-	{
-		component.removeComponentListener(this);
-
-		getParentComponent()->removeChildComponent(this);
-
-		delete this;
-	}
-
-	static Path getPath();
-
-private:
-
-	bool ignoreKeyStrokes = false;
-
-	float fontSizeToUse = 17.0f;
-
-	Component::SafePointer<CallOutBox> currentPopup;
-
-	ScopedPointer<MarkdownParser> parser;
-
-	int popupWidth = 400;
-
-	Component::SafePointer<Component> ownerComponent;
-
-	AttachmentType attachmentType;
-
-	struct MarkdownHelp;
-
-	
-	
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MarkdownHelpButton);
-};
-
-
-class MarkdownPreview : public Component
-{
-public:
-
-	MarkdownPreview();;
-
-	void setNewText(const String& newText, const File& f);
-
-	struct InternalComponent : public Component,
-		public MarkdownParser::Listener,
-		public juce::SettableTooltipClient
-	{
-		InternalComponent();
-
-		~InternalComponent();
-
-		int getTextHeight();
-
-		void setNewText(const String& s, const File& f);
-
-		String lastText;
-		File lastFile;
-
-		void markdownWasParsed(const Result& r) override;
-
-		void mouseDown(const MouseEvent& e) override;
-
-		void mouseUp(const MouseEvent& e) override;
-
-		void mouseMove(const MouseEvent& event) override;
-
-		void scrollToAnchor(float v) override;
-
-		void paint(Graphics & g) override;
-
-		ScopedPointer<MarkdownParser::LayoutCache> layoutCache;
-
-		ScopedPointer<hise::MarkdownParser> parser;
-		String errorMessage;
-
-		MarkdownLayout::StyleData styleData;
-
-		Rectangle<float> clickedLink;
-		OwnedArray<MarkdownParser::ImageProvider> providers;
-		OwnedArray<MarkdownParser::LinkResolver> resolvers;
-	};
-
-	void setStyleData(MarkdownLayout::StyleData d)
-	{
-		internalComponent.styleData = d;
-	}
-
-	void resized() override;
-
-	Viewport viewport;
-	InternalComponent internalComponent;
-
-	
-};
-
-
-
-class MarkdownEditor : public CodeEditorComponent
-{
-public:
-
-	enum AdditionalCommands
-	{
-		LoadFile = 759,
-		SaveFile,
-		numCommands
-	};
-
-	MarkdownEditor(CodeDocument& doc, CodeTokeniser* tok) :
-		CodeEditorComponent(doc, tok)
-	{}
-
-	void addPopupMenuItems(PopupMenu& menuToAddTo,
-		const MouseEvent* mouseClickEvent);
-
-
-	void performPopupMenuAction(int menuItemID);
-
-	File currentFile;
-};
 
 
 }

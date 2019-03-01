@@ -59,6 +59,7 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_audio_devices/juce_audio_devices.h"
 #include "../JUCE/modules/juce_audio_utils/juce_audio_utils.h"
 #include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
+#include "../JUCE/modules/juce_opengl/juce_opengl.h"
 #include "../hi_zstd/hi_zstd.h"
 #include "../hi_streaming/hi_streaming.h"
 
@@ -98,7 +99,12 @@ END_JUCE_MODULE_DECLARATION
 #endif
 
 
-#include "hi_tools/Markdown.h"
+
+#include "hi_markdown/MarkdownDatabase.h"
+#include "hi_markdown/MarkdownLayout.h"
+#include "hi_markdown/Markdown.h"
+#include "hi_markdown/MarkdownComponents.h"
+#include "hi_markdown/MarkdownPreview.h"
 
 #include "hi_tools/JavascriptTokeniser.h"
 #include "hi_tools/JavascriptTokeniserFunctions.h"

@@ -36,16 +36,19 @@
     <FILE id="bCNzxT" name="oxygen.regular.ttf" compile="0" resource="1"
           file="../../hi_core/hi_images/oxygen.regular.ttf"/>
     <FILE id="KDrMTM" name="toggle_200.png" compile="0" resource="1" file="../../hi_core/hi_images/toggle_200.png"/>
+    <FILE id="r7v8kX" name="XmlApi.cpp" compile="1" resource="0" file="../../hi_scripting/scripting/api/XmlApi.cpp"/>
+    <FILE id="AiwIb5" name="XmlApi.h" compile="0" resource="0" file="../../hi_scripting/scripting/api/XmlApi.h"/>
   </MAINGROUP>
   <EXPORTFORMATS>
-    <VS2017 targetFolder="Builds/VisualStudio2017">
+    <VS2017 targetFolder="Builds/VisualStudio2017" windowsTargetPlatformVersion="10.0.16299.0">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
                        debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
                        linkTimeOptimisation="0" isDebug="1" optimisation="1" targetName="MarkdownEditor"/>
         <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
                        debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
-                       linkTimeOptimisation="1" isDebug="0" optimisation="3" targetName="MarkdownEditor"/>
+                       linkTimeOptimisation="1" isDebug="0" optimisation="3" targetName="MarkdownEditor"
+                       alwaysGenerateDebugSymbols="1"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_core" path="../../JUCE/modules"/>

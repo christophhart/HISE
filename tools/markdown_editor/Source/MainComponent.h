@@ -12,7 +12,6 @@
 
 
 
-
 //==============================================================================
 /*
     This component lives inside our window, and this is where you should put all
@@ -48,6 +47,8 @@ public:
 
 private:
 
+	MarkdownDataBase database;
+
 	juce::TooltipWindow tooltip;
 
 	MarkdownParser::Tokeniser tokeniser;
@@ -57,7 +58,6 @@ private:
 	
 	MarkdownPreview preview;
 	
-
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainContentComponent)
 };

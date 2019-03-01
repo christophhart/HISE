@@ -30,53 +30,55 @@
 *   ===========================================================================
 */
 
+#pragma once
 
-#if USE_VDSP_FFT
-#define Point DummyPoint
-#define Component DummyComponent
-#define MemoryBlock DummyMB
-#include <Accelerate/Accelerate.h>
-#undef Point
-#undef Component
-#undef MemoryBlock
-#endif
-
-#include <atomic>
-#include <float.h>
-#include <limits.h>
-#include <regex>
-
-#include "hi_tools.h"
-
-#include "hi_binary_data/hi_binary_data.cpp"
-
-#if USE_IPP
-#include "hi_tools/IppFFT.cpp"
-#endif
-
-#include "hi_tools/CustomDataContainers.cpp"
-#include "hi_tools/HiseEventBuffer.cpp"
-
-#include "hi_tools/MiscToolClasses.cpp"
-
-#include "hi_tools/HI_LookAndFeels.cpp"
+namespace hise {
+using namespace juce;
 
 
-#include "hi_tools/JavascriptTokeniser.cpp"
-#include "hi_markdown/MarkdownDatabase.cpp"
-#include "hi_markdown/MarkdownLayout.cpp"
-#include "hi_markdown/MarkdownElements.cpp"
-#include "hi_markdown/Markdown.cpp"
-#include "hi_markdown/MarkdownParser.cpp"
-#include "hi_markdown/MarkdownComponents.cpp"
-#include "hi_markdown/MarkdownPreview.cpp"
 
-#include "hi_tools/VariantBuffer.cpp"
-#include "hi_tools/Tables.cpp"
+struct MarkdownLayout
+{
+	MarkdownLayout(const AttributedString& s, float width, bool allInOne=false);
 
-#include "hi_standalone_components/SampleDisplayComponent.cpp"
+	struct StyleData
+	{
+		StyleData();
 
-#include "hi_standalone_components/VuMeter.cpp"
-#include "hi_standalone_components/Plotter.cpp"
-#include "hi_standalone_components/SliderPack.cpp"
-#include "hi_standalone_components/TableEditor.cpp"
+		Font f;
+		float fontSize;
+		Colour codebackgroundColour;
+		Colour linkBackgroundColour;
+		Colour textColour;
+		Colour codeColour;
+		Colour linkColour;
+		Colour headlineColour;
+		Colour backgroundColour;
+
+		Font getFont() const { return f.withHeight(fontSize); }
+	};
+
+
+
+	void addYOffset(float delta);
+
+	void addXOffset(float delta);
+
+	void draw(Graphics& g);
+
+	void drawCopyWithOffset(Graphics& g, Rectangle<float> targetArea) const;
+
+	float getHeight() const;
+
+	StyleData styleData;
+
+	juce::GlyphArrangement normalText;
+	juce::GlyphArrangement codeText;
+	Array<juce::GlyphArrangement> linkTexts;
+	RectangleList<float> codeBoxes;
+	RectangleList<float> hyperlinkRectangles;
+	Array<std::tuple<Range<int>, Rectangle<float>>> linkRanges;
+};
+
+
+}

@@ -51,7 +51,10 @@ struct MarkdownParser::TextBlock : public MarkdownParser::Element
 	{
 		area.removeFromTop(intendation);
 		area.removeFromBottom(intendation);
-		l.drawCopyWithOffset(g, area.getY());
+
+		drawHighlight(g, area);
+
+		l.drawCopyWithOffset(g, area);
 	}
 
 	float getHeightForWidth(float width) override
@@ -78,6 +81,16 @@ struct MarkdownParser::TextBlock : public MarkdownParser::Element
 		}
 	}
 
+	void searchInContent(const String& searchString) override
+	{
+		searchInStringInternal(content, searchString);
+	}
+
+	String getTextToCopy() const override
+	{
+		return content.getText();
+	}
+
 	int getTopMargin() const override { return 10; };
 
 	AttributedString content;
@@ -87,6 +100,120 @@ struct MarkdownParser::TextBlock : public MarkdownParser::Element
 
 	float lastWidth = -1.0f;
 	float lastHeight = -1.0f;
+
+};
+
+
+struct MarkdownParser::ActionButton : public Element,
+									  public ButtonListener
+{
+	struct ButtonLookAndFeel : public LookAndFeel_V3
+	{
+		ButtonLookAndFeel(MarkdownParser& parent_) :
+			parent(parent_)
+		{}
+
+		void drawButtonBackground(Graphics& g, Button&, const Colour& backgroundColour, bool isMouseOverButton, bool isButtonDown) override
+		{
+			g.setColour(parent.styleData.linkBackgroundColour);
+
+			g.fillAll();
+
+			if (isMouseOverButton)
+			{
+				g.fillAll(Colours::black.withAlpha(0.1f));
+			}
+
+			if (isButtonDown)
+			{
+				g.fillAll(Colours::black.withAlpha(0.1f));
+			}
+		}
+
+		void drawButtonText(Graphics& g, TextButton& b, bool isMouseOverButton, bool isButtonDown) override
+		{
+			g.setFont(parent.styleData.getFont());
+			g.setColour(parent.styleData.textColour);
+			g.drawText(b.getButtonText(), b.getLocalBounds().toFloat(), Justification::centred);
+		}
+
+		MarkdownParser& parent;
+	};
+
+	ActionButton(MarkdownParser* parent, const String& text_, const String& url_) :
+		Element(parent),
+		blaf(*parent),
+		text(text_),
+		url(url_)
+	{};
+
+	~ActionButton()
+	{
+		button = nullptr;
+	}
+
+	void draw(Graphics& g, Rectangle<float> totalArea) override
+	{
+
+	}
+
+	int getTopMargin() const override
+	{
+		return 20;
+	}
+
+	void searchInContent(const String& searchString) override
+	{
+		
+	}
+
+	String getTextToCopy() const override
+	{
+		return text;
+	}
+
+	float getHeightForWidth(float width) override
+	{
+		return (float)getPreferredHeight();
+	}
+
+	Component* createComponent(int maxWidth) override
+	{
+		if (button == nullptr)
+		{
+			button = new TextButton();
+			
+			button->setButtonText(text);
+			button->addListener(this);
+			button->setLookAndFeel(&blaf);
+			button->setSize(jmin(maxWidth, 200), getPreferredHeight());
+		}
+		
+		return button;
+	}
+
+	int getPreferredHeight() const
+	{
+		return parent->styleData.getFont().getHeight() + 20;
+	}
+
+	void buttonClicked(Button* b) override
+	{
+		auto f = [this]()
+		{
+			parent->gotoLink(url);
+		};
+
+		MessageManager::callAsync(f);
+	}
+
+	ButtonLookAndFeel blaf;
+
+	ScopedPointer<TextButton> button;
+	String text;
+	String url;
+
+
 
 };
 
@@ -109,10 +236,12 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 		float marginTop = isFirst ? 0.0f : 20.0f;
 		area.removeFromTop(marginTop);
 
+		drawHighlight(g, area);
+
 		g.setColour(Colours::grey.withAlpha(0.2f));
 		g.drawHorizontalLine((int)area.getBottom() - 8, area.getX(), area.getRight());
 
-		l.drawCopyWithOffset(g, area.getY());
+		l.drawCopyWithOffset(g, area);
 	}
 
 	float getHeightForWidth(float width) override
@@ -134,7 +263,20 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 		return l.getHeight() + marginTop + marginBottom;
 	}
 
-	int getTopMargin() const override { return 20 - jmax<int>(0, 3 - level) * 5; };
+	String getTextToCopy() const override
+	{
+		return content.getText();
+	}
+
+	void searchInContent(const String& searchString) override
+	{
+		searchInStringInternal(content, searchString);
+	}
+
+	int getTopMargin() const override 
+	{ 
+		return 30 - jmax<int>(0, 3 - level) * 5; 
+	};
 
 	float anchorY;
 	String anchorURL;
@@ -164,6 +306,8 @@ struct MarkdownParser::BulletPointList : public MarkdownParser::Element
 
 	void draw(Graphics& g, Rectangle<float> area) override
 	{
+		drawHighlight(g, area);
+
 		area.removeFromTop(intendation);
 
 		for (const auto& r : rows)
@@ -178,9 +322,44 @@ struct MarkdownParser::BulletPointList : public MarkdownParser::Element
 			g.setFont(font);
 			g.drawText(bp, ar.translated(0.0f, (float)-font.getHeight()), Justification::topLeft);
 
-			r.l.drawCopyWithOffset(g, ar.getY());
+			r.l.drawCopyWithOffset(g, ar);
 		}
 	}
+
+	String getTextToCopy() const override
+	{
+		String s;
+
+		for (auto r : rows)
+			s << "- " << r.content.getText() << "\n";
+
+		return s;
+	}
+
+	void searchInContent(const String& searchString) override
+	{
+		RectangleList<float> allMatches;
+
+		float bulletPointIntendation = parent->styleData.fontSize * 1.2f;
+
+		float y = bulletMargin;
+
+		for (auto r : rows)
+		{
+			searchInStringInternal(r.content, searchString);
+
+			searchResults.offsetAll(bulletPointIntendation, y);
+
+			y += r.l.getHeight();
+			y += bulletMargin;
+
+			for (auto r : searchResults)
+				allMatches.add(r);
+		}
+
+		searchResults = allMatches;
+	}
+	
 
 	float getHeightForWidth(float width) override
 	{
@@ -224,8 +403,22 @@ struct MarkdownParser::EnumerationList : public MarkdownParser::BulletPointList
 		BulletPointList(parent, list)
 	{};
 
+	String getTextToCopy() const override
+	{
+		String s;
+
+		int index = 1;
+
+		for (auto r : rows)
+			s << index++ << ". " << r.content.getText() << "\n";
+
+		return s;
+	}
+
 	void draw(Graphics& g, Rectangle<float> area) override
 	{
+		drawHighlight(g, area);
+
 		area.removeFromTop(intendation);
 
 		int rowIndex = 1;
@@ -234,7 +427,7 @@ struct MarkdownParser::EnumerationList : public MarkdownParser::BulletPointList
 		{
 			area.removeFromTop(bulletMargin);
 			auto ar = area.removeFromTop(r.l.getHeight());
-			auto font = parent->styleData.f.withHeight(parent->styleData.fontSize).boldened();
+			auto font = FontHelpers::getFontBoldened(parent->styleData.getFont());
 			
 			String bp;
 			bp << rowIndex++ << ".";
@@ -248,7 +441,7 @@ struct MarkdownParser::EnumerationList : public MarkdownParser::BulletPointList
 			g.setFont(font);
 			g.drawText(bp, ar.translated(xDelta, yDelta + (float)-font.getHeight()), Justification::topLeft);
 
-			r.l.drawCopyWithOffset(g, ar.getY());
+			r.l.drawCopyWithOffset(g, ar);
 		}
 	}
 };
@@ -263,12 +456,14 @@ struct MarkdownParser::Comment : public MarkdownParser::Element
 
 	void draw(Graphics& g, Rectangle<float> area) override
 	{
+		drawHighlight(g, area);
+
 		g.setColour(Colours::grey.withAlpha(0.2f));
 
 		g.fillRect(area);
 		g.fillRect(area.withWidth(3.0f));
 
-		l.drawCopyWithOffset(g, area.getY());
+		l.drawCopyWithOffset(g, area);
 	}
 
 	float getHeightForWidth(float width) override
@@ -293,6 +488,17 @@ struct MarkdownParser::Comment : public MarkdownParser::Element
 			return lastHeight;
 	}
 
+	void searchInContent(const String& searchString) override
+	{
+		searchInStringInternal(content, searchString);
+		searchResults.offsetAll(intendation, intendation);
+
+	}
+
+	String getTextToCopy() const override
+	{
+		return content.getText();
+	}
 
 	int getTopMargin() const override { return 10; };
 
@@ -312,6 +518,7 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 		Undefined,
 		Cpp,
 		Javascript,
+		LiveJavascript,
 		XML,
 		Snippet,
 		numSyntaxTypes
@@ -328,6 +535,8 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 
 	void draw(Graphics& g, Rectangle<float> area) override
 	{
+		
+
         g.setOpacity(1.0f);
 		g.drawImageAt(renderedCodePreview, (int)area.getX(), (int)area.getY() + 10);
 
@@ -343,20 +552,55 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 
 		g.setColour(Colour(0xFF777777));
 		g.fillPath(p);
+
+		drawHighlight(g, area);
 	}
 
-	float getHeightForWidth(float width) override
+	String getTextToCopy() const override
 	{
-		if (width != lastWidth)
-		{
-			int numLines = StringArray::fromLines(code).size();
+		return code;
+	}
 
-			ScopedPointer<CodeDocument> doc = new CodeDocument();
-			ScopedPointer<CodeTokeniser> tok;
+	void searchInContent(const String& searchString) override
+	{
+		if (code.contains(searchString))
+		{
+			searchResults.clear();
+
+			ScopedPointer<Content> c = createEditor();
+
+			auto ranges = getMatchRanges(code, searchString, true);
 			
+			for (auto r : ranges)
+			{
+				RectangleList<float> area;
+
+				for (int i = 0; i < r.getLength(); i++)
+				{
+					CodeDocument::Position pos(*c->doc, r.getStart() + i);
+					area.add(c->editor->getCharacterBounds(pos).toFloat());
+				}
+
+				area.consolidate();
+				
+				searchResults.add(area.getBounds());
+			}
+
+			searchResults.offsetAll(0.0f, 10.0f);
+		}
+	}
+
+	struct Content: public Component,
+					public ButtonListener
+	{
+		Content(SyntaxType syntax, String code, float width, int numLines)
+		{
+			doc = new CodeDocument();
+
 			switch (syntax)
 			{
 			case Cpp: tok = new CPlusPlusCodeTokeniser(); break;
+			case LiveJavascript:
 			case Javascript: tok = new JavascriptTokeniser(); break;
 			case XML:	tok = new XmlTokeniser(); break;
 			case Snippet: tok = new SnippetTokeniser(); break;
@@ -365,16 +609,7 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 
 			doc->replaceAllContent(code);
 
-			ScopedPointer<CodeEditorComponent> editor = new CodeEditorComponent(*doc, tok);
-
-			hyperLinks.clear();
-			
-			HyperLink copy;
-			copy.area = { 2.0f, 12.0f + getTopMargin(), 14.0f, 14.0f };
-			copy.url << "CLIPBOARD::" << code << "";
-			copy.valid = true;
-			copy.tooltip = "Copy code to clipboard";
-			hyperLinks.add(std::move(copy));
+			editor = new CodeEditorComponent(*doc, tok);
 
 			editor->setColour(CodeEditorComponent::backgroundColourId, Colour(0xff262626));
 			editor->setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFCCCCCC));
@@ -384,23 +619,172 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 			editor->setColour(CaretComponent::ColourIds::caretColourId, Colour(0xFFDDDDDD));
 			editor->setColour(ScrollBar::ColourIds::thumbColourId, Colour(0x3dffffff));
 			editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(17.0f));
-			
+
 			editor->setSize((int)width, editor->getLineHeight() * numLines + 25);
 
-			renderedCodePreview = editor->createComponentSnapshot(editor->getLocalBounds());
+			addAndMakeVisible(editor);
 
-			renderedCodePreview = renderedCodePreview.getClippedImage({ 0, 0, renderedCodePreview.getWidth(), renderedCodePreview.getHeight() - 20 });
+			if (syntax == LiveJavascript)
+			{
+				addAndMakeVisible(runButton = new TextButton("Run"));
+				addAndMakeVisible(resultLabel = new Label());
+				runButton->setLookAndFeel(&blaf);
+				runButton->addListener(this);
 
-			lastWidth = width;
-			lastHeight = (float)renderedCodePreview.getHeight() + 6.0f;
+				resultLabel->setColour(Label::ColourIds::backgroundColourId, Colour(0xff363636));
+				resultLabel->setColour(Label::ColourIds::textColourId, Colours::white);
+				resultLabel->setFont(GLOBAL_MONOSPACE_FONT());
+				resultLabel->setText("Click Run to evaluate this code", dontSendNotification);
+			}
 
-			return lastHeight;
+			setWantsKeyboardFocus(true);
+		}
+
+		bool keyPressed(const KeyPress& key) override
+		{
+			if (key == KeyPress::F5Key)
+			{
+				runButton->triggerClick();
+				return true;
+			}
+		}
+
+		void buttonClicked(Button* b) override
+		{
+			String code;
+			
+			code << "function run(){";
+			code << doc->getAllContent();
+			code << "}";
+
+			juce::JavascriptEngine engine;
+
+			Result r = Result::ok();
+
+			r = engine.execute(code);
+
+			if (r.wasOk())
+			{
+				var thisObject;
+				var::NativeFunctionArgs args(thisObject, nullptr, 0);
+
+				auto result = engine.callFunction("run", args, &r);
+
+				if (r.wasOk())
+				{
+					resultLabel->setText("Result: " + result.toString(), dontSendNotification);
+				}
+				else
+				{
+					resultLabel->setText("Error: " + r.getErrorMessage(), dontSendNotification);
+				}
+			}
+			else
+			{
+				resultLabel->setText("Error: " + r.getErrorMessage(), dontSendNotification);
+			}
+		}
+
+		void resized() override
+		{
+			editor->setTopLeftPosition(0, 0);
+
+			if (runButton != nullptr)
+			{
+				auto ar = getLocalBounds();
+				ar.removeFromTop(editor->getHeight());
+				runButton->setBounds(ar.removeFromLeft(80));
+				resultLabel->setBounds(ar);
+			}
+		}
+
+		Image getSnapshot()
+		{
+			return editor->createComponentSnapshot(editor->getLocalBounds());
+		}
+
+		void paint(Graphics& g) override
+		{
+			g.fillAll(Colour(0xff363636));
+		}
+
+		AlertWindowLookAndFeel blaf;
+
+		ScopedPointer<CodeDocument> doc;
+		ScopedPointer<CodeTokeniser> tok;
+		ScopedPointer<CodeEditorComponent> editor;
+
+		ScopedPointer<TextButton> runButton;
+		ScopedPointer<Label> resultLabel;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Content);
+	};
+
+	Content* createEditor()
+	{
+		int numLines = StringArray::fromLines(code).size();
+
+		if (syntax == LiveJavascript)
+			numLines = jmax(numLines, 12);
+
+		return new Content(syntax, code, lastWidth, numLines);
+	}
+
+	Component* createComponent(int maxWidth)
+	{
+		if (syntax == LiveJavascript && content == nullptr)
+		{
+			content = createEditor();
+			content->setSize(content->editor->getWidth(), content->editor->getHeight() + 32);
+		}
+
+		return content;
+	}
+
+	float getHeightForWidth(float width) override
+	{
+		if (width != lastWidth)
+		{
+			if (syntax == LiveJavascript)
+			{
+				lastWidth = width;
+
+				content = dynamic_cast<Content*>(createComponent(width));
+
+				return (float)content->getHeight();
+			}
+			else
+			{
+				hyperLinks.clear();
+
+				HyperLink copy;
+				copy.area = { 2.0f, 12.0f + getTopMargin(), 14.0f, 14.0f };
+				copy.url << "CLIPBOARD::" << code << "";
+				copy.valid = true;
+				copy.tooltip = "Copy code to clipboard";
+				hyperLinks.add(std::move(copy));
+
+				lastWidth = width;
+
+				ScopedPointer<Content> c = createEditor();
+
+				renderedCodePreview = c->getSnapshot();
+
+				renderedCodePreview = renderedCodePreview.getClippedImage({ 0, 0, renderedCodePreview.getWidth(), renderedCodePreview.getHeight() - 20 });
+
+				lastWidth = width;
+				lastHeight = (float)renderedCodePreview.getHeight() + 6.0f;
+
+				return lastHeight;
+			}
+
+			
 		}
 		else
 			return lastHeight;
-
-
 	}
+
+	ScopedPointer<Content> content;
 
 	int getTopMargin() const override { return 20; };
 
@@ -425,13 +809,18 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 
 	float getHeightForWidth(float width) override
 	{
-		if (!img.isNull())
+		if (!img.isNull() && width == lastWidth)
 			return (float)img.getHeight();
+
+		lastWidth = width;
 
 		img = parent->resolveImage(imageURL, width);
 
+		if (imageURL.endsWith("gif"))
+			isGif = true;
+
 		if (!img.isNull())
-			return (float)img.getHeight();
+			return (float)img.getHeight() + (isGif ? 50.0f : 0.0f);
 
 		return 0.0f;
 	}
@@ -442,12 +831,99 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 		g.drawImageAt(img, (int)area.getX(), (int)area.getY());
 	}
 
+	String getTextToCopy() const override
+	{
+		return imageName;
+	}
+
 	String getImageURL() const { return imageURL; }
 
 	int getTopMargin() const override { return 5; };
 
+	Component* createComponent(int maxWidth) override
+	{
+		if (isGif && gifPlayer == nullptr)
+		{
+			gifPlayer = new GifPlayer(*this);
+			gifPlayer->setSize(img.getWidth(), img.getHeight());
+		}
+
+		return gifPlayer;
+	}
+
+	struct GifPlayer : public Component,
+					   public MarkdownPreview::CustomViewport::Listener
+	{
+		GifPlayer(ImageElement& parent):
+			p(parent)
+		{
+
+		}
+
+		void paint(Graphics& g) override
+		{
+			g.fillAll(Colours::grey.withAlpha(0.5f));
+			g.setColour(Colours::black.withAlpha(0.5f));
+			
+			auto ar = getLocalBounds().withSizeKeepingCentre(100, 100).toFloat();
+
+			g.fillEllipse(ar.toFloat());
+			g.setColour(Colours::white.withAlpha(0.5f));
+
+			Path p;
+
+			p.addTriangle(0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.5f);
+			ar = ar.reduced(25.0f);
+
+			p.scaleToFit(ar.getX() + 5.0f, ar.getY(), ar.getWidth(), ar.getHeight(), true);
+			g.fillPath(p);
+
+		}
+
+		void scrolled(Rectangle<int> visibleArea) override
+		{
+			if (!visibleArea.contains(getBoundsInParent()))
+			{
+				gifPlayer = nullptr;
+			}
+		}
+
+		void mouseEnter(const MouseEvent& e)
+		{
+			setMouseCursor(MouseCursor(MouseCursor::PointingHandCursor));
+		}
+
+		void mouseExit(const MouseEvent& e)
+		{
+			setMouseCursor(MouseCursor(MouseCursor::NormalCursor));
+		}
+
+		void mouseDown(const MouseEvent&)
+		{
+			if(auto viewport = findParentComponentOfClass<MarkdownPreview::CustomViewport>())
+			{
+				viewport->addListener(this);
+			}
+
+			setMouseCursor(MouseCursor(MouseCursor::NormalCursor));
+
+			addAndMakeVisible(gifPlayer = new WebBrowserComponent());
+			gifPlayer->setSize(p.img.getWidth() + 50, p.img.getHeight() + 50);
+			gifPlayer->setTopLeftPosition(0, 0);
+			gifPlayer->goToURL(p.imageURL);
+			gifPlayer->addMouseListener(this, true);
+		}
+
+		ImageElement& p;
+		ScopedPointer<WebBrowserComponent> gifPlayer;
+
+	};
+
 private:
 
+	ScopedPointer<GifPlayer> gifPlayer;
+
+	bool isGif = false;
 	Image img;
 
 	float lastWidth = -1.0f;
@@ -508,6 +984,11 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 			rows.add(newRow);
 		}
 	};
+
+	String getTextToCopy() const override
+	{
+		return "Table";
+	}
 
 	void draw(Graphics& g, Rectangle<float> area) override
 	{
@@ -657,7 +1138,7 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 				Random r;
 
 				if (c.img.isNull())
-					c.l.drawCopyWithOffset(g, area.getY());
+					c.l.drawCopyWithOffset(g, area);
 				else
 				{
 					g.setOpacity(1.0f);
@@ -700,6 +1181,7 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 
 	
 };
+
 
 }
 
