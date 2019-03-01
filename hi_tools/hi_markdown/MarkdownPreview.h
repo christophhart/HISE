@@ -640,22 +640,19 @@ public:
 							{
 								ScopedPointer<ItemComponent> newItem(new ItemComponent(item, parent.parent.internalComponent.styleData));
 
-								
-
 								if (matchLevel == 1)
 								{
-									
-									displayedItems.add(newItem);
-									content.addAndMakeVisible(newItem);
-									exactMatches.add(newItem.release());
+									if(exactMatches.size() < 50)
+                                    {
+                                        content.addAndMakeVisible(newItem);
+                                        exactMatches.add(newItem.release());
+                                    }
 								}
 								else
 								{
-									if (fuzzyMatches.size() < 6)
+									if (fuzzyMatches.size() < 10)
 									{
-										displayedItems.add(newItem);
 										content.addAndMakeVisible(newItem);
-
 										newItem->isFuzzyMatch = true;
 										fuzzyMatches.add(newItem.release());
 									}
@@ -663,28 +660,22 @@ public:
 									
 							}
 						}
+                        
+                        
 					}
 
+                    for(auto i: exactMatches)
+                        displayedItems.add(i);
+                    
+                    for(auto i: fuzzyMatches)
+                        displayedItems.add(i);
+                    
 					content.setSize(viewport.getMaximumVisibleWidth(), 20);
 
 					int y = 0;
 					auto w = (float)getWidth();
 
-					for (auto d : exactMatches)
-					{
-						auto h = d->calculateHeight(content.getWidth());
-
-						d->setBounds(0, y, content.getWidth(), h);
-						y += h;
-
-						if (h == 0)
-							continue;
-
-						y += 2;
-
-					}
-
-					for (auto d : fuzzyMatches)
+					for (auto d : displayedItems)
 					{
 						auto h = d->calculateHeight(content.getWidth());
 
@@ -706,6 +697,7 @@ public:
 					searchString = s;
 
 					startTimer(200);
+                    itemIndex = 0;
 				}
 
 				void paint(Graphics& g) override
@@ -717,9 +709,9 @@ public:
 				
 
 				String searchString;
-				OwnedArray<ItemComponent> displayedItems;
-				Array<ItemComponent*> exactMatches;
-				Array<ItemComponent*> fuzzyMatches;
+				Array<ItemComponent*> displayedItems;
+				OwnedArray<ItemComponent> exactMatches;
+				OwnedArray<ItemComponent> fuzzyMatches;
 
 				TextButton textSearchButton;
 
@@ -734,7 +726,7 @@ public:
 				HiseShapeButton prevButton;
 				Label textSearchResults;
 				int currentIndex = -1;
-				int itemIndex = -1;
+				int itemIndex = 0;
 				WeakReference<ItemComponent> currentSelection;
 				RectangleList<float> currentSearchResultPositions;
 
@@ -869,16 +861,20 @@ public:
 				Colour c = Colours::white;
 
 				tocButton.setColours(c.withAlpha(0.8f), c, c);
-				homeButton.setColours(c.withAlpha(0.8f), c, c);
-				backButton.setColours(c.withAlpha(0.8f), c, c);
-				forwardButton.setColours(c.withAlpha(0.8f), c, c);
+				//homeButton.setColours(c.withAlpha(0.8f), c, c);
+				//backButton.setColours(c.withAlpha(0.8f), c, c);
+				//forwardButton.setColours(c.withAlpha(0.8f), c, c);
 				lightSchemeButton.setColours(c.withAlpha(0.8f), c, c);
 				dragButton.setColours(c.withAlpha(0.8f), c, c);
 				selectButton.setColours(c.withAlpha(0.8f), c, c);
 
+                homeButton.setVisible(false);
+                backButton.setVisible(false);
+                forwardButton.setVisible(false);
+                
 				auto ar = getLocalBounds();
-				int buttonMargin = 9;
-				int margin = 4;
+				int buttonMargin = 12;
+				int margin = 0;
 				int height = ar.getHeight();
 
 				tocButton.setBounds(ar.removeFromLeft(height).reduced(buttonMargin));
@@ -894,14 +890,14 @@ public:
 				selectButton.setBounds(ar.removeFromLeft(height).reduced(buttonMargin));
 				ar.removeFromLeft(margin);
 
-				auto delta = parent.toc.getWidth() - ar.getX();
+                auto delta = 0; //parent.toc.getWidth() - ar.getX();
 
 				ar.removeFromLeft(delta);
 
 				auto sBounds = ar.removeFromLeft(height).reduced(buttonMargin).toFloat();
 				searchPath.scaleToFit(sBounds.getX(), sBounds.getY(), sBounds.getWidth(), sBounds.getHeight(), true);
 
-				searchBar.setBounds(ar.reduced(buttonMargin));
+				searchBar.setBounds(ar.reduced(5.0f));
 			}
 
 			void paint(Graphics& g) override

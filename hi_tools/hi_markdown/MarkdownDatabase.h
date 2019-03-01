@@ -67,7 +67,7 @@ public:
 				// Direct keyword matches first
 				for (int i = 0; i < arrayToBeSorted.size(); i++)
 				{
-					auto& item = arrayToBeSorted[i];
+					auto item = arrayToBeSorted[i];
 
 					if (item.type != Keyword)
 						continue;
@@ -78,7 +78,7 @@ public:
 
 				for (int i = 0; i < arrayToBeSorted.size(); i++)
 				{
-					auto& item = arrayToBeSorted[i];
+					auto item = arrayToBeSorted[i];
 
 					if (item.keywords.contains(searchString))
 						s.add(arrayToBeSorted.removeAndReturn(i--));
@@ -87,7 +87,7 @@ public:
 				// Keyword items first
 				for (int i = 0; i < arrayToBeSorted.size(); i++)
 				{
-					auto& item = arrayToBeSorted[i];
+					auto item = arrayToBeSorted[i];
 
 					if (item.type == Keyword)
 						s.add(arrayToBeSorted.removeAndReturn(i--));

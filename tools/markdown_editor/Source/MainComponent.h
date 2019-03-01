@@ -50,6 +50,7 @@ private:
 	MarkdownDataBase database;
 
 	juce::TooltipWindow tooltip;
+    OpenGLContext context;
 
 	MarkdownParser::Tokeniser tokeniser;
 	hise::GlobalHiseLookAndFeel klaf;

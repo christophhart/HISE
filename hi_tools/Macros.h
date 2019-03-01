@@ -91,7 +91,12 @@ static Typeface::Ptr sourceCodeProBoldTypeFace = Typeface::createSystemTypefaceF
 
 #define GLOBAL_FONT() (Font(oxygenTypeFace).withHeight(13.0f))
 #define GLOBAL_BOLD_FONT() (Font(oxygenBoldTypeFace).withHeight(14.0f))
+    
+#if JUCE_IOS
+#define GLOBAL_MONOSPACE_FONT() Font(Font::getDefaultMonospacedFontName(), 14.0f, Font::plain)
+#else
 #define GLOBAL_MONOSPACE_FONT() (Font(sourceCodeProTypeFace).withHeight(14.0f))
+#endif
 
 #else
 

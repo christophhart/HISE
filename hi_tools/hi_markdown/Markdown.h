@@ -210,7 +210,7 @@ public:
 	{
 	public:
 
-		URLImageProvider(File& tempdirectory_, MarkdownParser* parent) :
+		URLImageProvider(File tempdirectory_, MarkdownParser* parent) :
 			ImageProvider(parent),
 			tempDirectory(tempdirectory_)
 		{

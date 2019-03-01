@@ -81,7 +81,7 @@ void MarkdownPreview::resized()
 {
 	auto ar = getLocalBounds();
 
-	auto topBounds = ar.removeFromTop(40);
+	auto topBounds = ar.removeFromTop(46);
 
 	if (toc.isVisible())
 	{
@@ -91,9 +91,13 @@ void MarkdownPreview::resized()
 
 	topbar.setBounds(topBounds);
 
-	
+#if JUCE_IOS
+    int margin = 3;
+#else
+    int margin = 32;
+#endif
 
-	viewport.setBounds(ar.reduced(32));
+	viewport.setBounds(ar.reduced(margin));
 
 	auto h = internalComponent.getTextHeight();
 
@@ -158,6 +162,8 @@ void MarkdownPreview::InternalComponent::setNewText(const String& s, const File&
 	else
 		errorMessage = {};
 
+    scrollToAnchor(0.0f);
+    
 	repaint();
 }
 
@@ -173,6 +179,9 @@ void MarkdownPreview::InternalComponent::markdownWasParsed(const Result& r)
 		parser->setTargetComponent(this);
 		setSize(getWidth(), (int)h);
 		parser->updateCreatedComponents();
+        
+        if(parser->getLastLink(false, true).isEmpty())
+            scrollToAnchor(0.0f);
 
 	}
 }
@@ -198,6 +207,7 @@ void MarkdownPreview::InternalComponent::mouseDown(const MouseEvent& e)
 
 		m.addItem(1, "Back", parser->canNavigate(true));
 		m.addItem(2, "Forward", parser->canNavigate(false));
+        m.addItem(3, "Copy link");
 
 		auto result = m.show();
 
@@ -211,6 +221,12 @@ void MarkdownPreview::InternalComponent::mouseDown(const MouseEvent& e)
 			parser->navigate(false);
 			repaint();
 		}
+        if(result == 3)
+        {
+            String s;
+            s << "docs://" << parser->getLastLink(true, true);
+            SystemClipboard::copyTextToClipboard(s);
+        }
 	}
 	else
 	{

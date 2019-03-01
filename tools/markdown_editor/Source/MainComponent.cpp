@@ -11,7 +11,7 @@
 
 struct FunkyStuff 
 {
-	static constexpr char apiWildcard[] = "{SCRIPTING_API}";
+	static constexpr char apiWildcard[] = "Scripting API";
 
 	struct Data
 	{
@@ -152,7 +152,7 @@ struct FunkyStuff
 
 				String s;
 
-				s << "# Works motherfucker";
+				s << "# Scripting API";
 
 				return s;
 			}
@@ -198,7 +198,14 @@ MainContentComponent::MainContentComponent() :
 	editor(doc, &tokeniser)
 {
 	
+#if JUCE_WINDOWS
 	File root("D:\\docdummy");
+#elif JUCE_IOS
+    File root = File::getSpecialLocation(File::SpecialLocationType::userDocumentsDirectory);
+#else
+    File root("/Volumes/Shared/docdummy");
+    root.createDirectory();
+#endif
 
 	database.addItemGenerator(new MarkdownDataBase::DirectoryItemGenerator(root.getChildFile("Tutorials"), Colours::orange));
 	database.addItemGenerator(new FunkyStuff::ItemGenerator());
@@ -231,18 +238,29 @@ MainContentComponent::MainContentComponent() :
 	editor.setColour(CodeEditorComponent::ColourIds::backgroundColourId, Colour(0xFF333333));
 	editor.setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
 	editor.setFont(GLOBAL_MONOSPACE_FONT().withHeight(18.0f));
-	//editor.setVisible(false);
+	
 
 	preview.setNewText(" ", root);
 
 	doc.addListener(this);
 
+#if JUCE_IOS
+    editor.setVisible(false);
+    //context.attachTo(*this);
+    
+    auto b = Desktop::getInstance().getDisplays().getMainDisplay().userArea;
+    
+    setSize(b.getWidth(), b.getHeight());
+    
+#else
     setSize (1280, 800);
+#endif
 }
 
 MainContentComponent::~MainContentComponent()
 {
-	doc.removeListener(this);
+    //context.detach();
+    doc.removeListener(this);
 }
 
 void MainContentComponent::paint (Graphics& g)
@@ -257,6 +275,8 @@ void MainContentComponent::resized()
 {
 	auto ar = getLocalBounds();
 
-	editor.setBounds(ar.removeFromLeft(getWidth() / 2));
+#if !JUCE_IOS
+	editor.setBounds(ar.removeFromLeft(getWidth() / 3));
+#endif
 	preview.setBounds(ar);
 }
