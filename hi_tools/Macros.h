@@ -95,6 +95,8 @@ static Typeface::Ptr sourceCodeProBoldTypeFace = Typeface::createSystemTypefaceF
 
 #else
 
+
+
 class LinuxFontHandler
 {
     public:
@@ -138,6 +140,55 @@ class LinuxFontHandler
 #define GLOBAL_MONOSPACE_FONT() (LinuxFontHandler::Instance().getGlobalMonospaceFont())
 
 #endif
+
+struct FontHelpers
+{
+	static Font getFontBoldened(Font f)
+	{
+		if (f.isBold())
+			return f;
+
+		if (f.getTypefaceName().startsWith("Oxygen"))
+			return GLOBAL_BOLD_FONT().withHeight(f.getHeight());
+
+		if (f.getTypefaceName().startsWith("Source"))
+			return GLOBAL_MONOSPACE_FONT().withHeight(f.getHeight());
+
+		return f.boldened();
+	}
+
+	static Font getFontNormalised(Font f)
+	{
+		if (f.getTypefaceName().startsWith("Oxygen"))
+			return GLOBAL_FONT().withHeight(f.getHeight());
+
+		if (f.getTypefaceName().startsWith("Source"))
+			return GLOBAL_MONOSPACE_FONT().withHeight(f.getHeight());
+
+		if (f.isBold() || f.isItalic())
+		{
+			f.setBold(false);
+			f.setItalic(false);
+			return f;
+		}
+
+		return f;
+	}
+
+	static Font getFontItalicised(Font f)
+	{
+		if (f.isItalic())
+			return f;
+
+		if (f.getTypefaceName().startsWith("Oxygen"))
+			return GLOBAL_BOLD_FONT().withHeight(f.getHeight());
+
+		if (f.getTypefaceName().startsWith("Source"))
+			return GLOBAL_MONOSPACE_FONT().withHeight(f.getHeight());
+
+		return f.italicised();
+	}
+};
 
 
 #if ENABLE_MARKDOWN
