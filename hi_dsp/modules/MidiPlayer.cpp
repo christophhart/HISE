@@ -1062,7 +1062,10 @@ void MidiPlayer::prepareForRecording(bool copyExistingEvents/*=true*/)
 		if (auto seq = mp->getCurrentSequence())
 		{
 			if (copyExistingEvents)
-				newEvents.swapWith(seq->getEventList(p->getSampleRate(), p->getMainController()->getBpm()));
+            {
+                auto l = seq->getEventList(p->getSampleRate(), p->getMainController()->getBpm());
+                newEvents.swapWith(l);
+            }
 		}
 
 		newEvents.ensureStorageAllocated(2048);
