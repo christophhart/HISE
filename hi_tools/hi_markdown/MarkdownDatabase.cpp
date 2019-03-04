@@ -34,6 +34,18 @@ namespace hise {
 using namespace juce;
 
 
+juce::String MarkdownDataBase::generateHtmlToc(const String& activeUrl) const
+{
+	HtmlGenerator g;
+
+	String s;
+
+	for (auto c : rootItem.children)
+		s << c.generateHtml(rootDirectory.getChildFile("html").getFullPathName() + "/", activeUrl);
+
+	return g.surroundWithTag(s, "div", "class=\"toc\"");
+}
+
 void MarkdownDataBase::buildDataBase()
 {
 	rootItem = {};
@@ -97,5 +109,37 @@ void MarkdownDataBase::DirectoryItemGenerator::addFileRecursive(Item& folder, Fi
 	}
 }
 
+
+juce::String MarkdownDataBase::Item::generateHtml(const String& rootString, const String& activeURL) const
+{
+	String html;
+
+	HtmlGenerator g;
+
+	String styleTag;
+	
+	styleTag << "style=\"padding-left: 10px; border-left: 3px solid #" << c.toDisplayString(false) << "\"";
+
+	auto urlWithoutAnchor = url.upToFirstOccurrenceOf("#", false, false);
+	auto anchor = url.fromFirstOccurrenceOf("#", true, false);
+
+	auto urlWithoutExtension = urlWithoutAnchor.upToLastOccurrenceOf(".", false, false);
+	auto realURL = rootString + urlWithoutExtension + ".html" + anchor;
+
+
+
+	auto link = g.surroundWithTag(tocString, "a", "href=\"" + realURL + "\"");
+
+	auto d = g.surroundWithTag(link, "summary", styleTag);
+
+	html << d;
+
+	for (auto c : children)
+	{
+		html << c.generateHtml(rootString, activeURL);
+	}
+
+	return g.surroundWithTag(html, "details", activeURL.contains(url) ? "open" : "");
+}
 
 }

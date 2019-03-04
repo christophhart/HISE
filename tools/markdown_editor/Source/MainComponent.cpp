@@ -11,7 +11,7 @@
 
 struct FunkyStuff 
 {
-	static constexpr char apiWildcard[] = "Scripting API";
+	static constexpr char apiWildcard[] = "Scripting API/";
 
 	struct Data
 	{
@@ -61,7 +61,7 @@ struct FunkyStuff
 				i.fileName = "Scripting API";
 				i.tocString = "Scripting API";
 				i.description = "The scripting API reference";
-				i.url << apiWildcard << "/";
+				i.url << apiWildcard;
 			}
 			else if (v.getType() == method)
 			{
@@ -77,8 +77,8 @@ struct FunkyStuff
 			{
 				i.type = hise::MarkdownDataBase::Item::Keyword;
 				i.description << "API class reference: `" << v.getType().toString() << "`";
-				i.fileName = i.keywords[0];
 				i.tocString = v.getType().toString();
+				i.fileName = i.tocString;
 				i.url << apiWildcard << v.getType().toString();
 			}
 
@@ -156,6 +156,8 @@ struct FunkyStuff
 
 				return s;
 			}
+
+			return {};
 		}
 
 		String createMethodText(ValueTree& mv)
@@ -193,6 +195,306 @@ struct FunkyStuff
 };
 
 
+class DatabaseCrawler
+{
+public:
+
+	struct Provider : public MarkdownParser::ImageProvider
+	{
+		struct Data
+		{
+			void createFromFile(File root)
+			{
+				if (v.isValid())
+					return;
+
+				File contentFile = root.getChildFile("Images.dat");
+
+				zstd::ZDefaultCompressor comp;
+
+				comp.expand(contentFile, v);
+			}
+
+			ValueTree v;
+		};
+
+		Image findImageRecursive(ValueTree& t, const String& url)
+		{
+			if (t.getProperty("URL").toString() == url)
+			{
+				PNGImageFormat format;
+
+				if (auto mb = t.getProperty("Data").getBinaryData())
+					return format.loadFrom(mb->getData(), mb->getSize());
+				else
+					return {};
+			}
+				
+			for (auto c : t)
+			{
+				auto s = findImageRecursive(c, url);
+
+				if (s.isValid())
+					return s;
+			}
+
+			return {};
+		}
+
+		Image getImage(const String& url, float width) override
+		{
+			return resizeImageToFit(findImageRecursive(data->v, url), width);
+		}
+
+		Provider(File root_, MarkdownParser* parent) :
+			ImageProvider(parent),
+			root(root_)
+		{
+			data->createFromFile(root);
+		}
+
+		Identifier getId() const override
+		{
+			return "DatabaseImageProvider";
+		}
+
+		ImageProvider* clone(MarkdownParser* newParent) const override
+		{
+			return new Provider(root, newParent);
+		}
+
+		SharedResourcePointer<Data> data;
+		File root;
+	};
+
+	struct Resolver: public MarkdownParser::LinkResolver
+	{
+		struct Data
+		{
+			void createFromFile(File root)
+			{
+				if (v.isValid())
+					return;
+
+				File contentFile = root.getChildFile("Content.dat");
+
+				zstd::ZDefaultCompressor comp;
+
+				comp.expand(contentFile, v);
+			}
+
+			ValueTree v;
+		};
+
+		String findContentRecursive(ValueTree& t, const String& url)
+		{
+			if (t.getProperty("URL").toString() == url)
+				return t.getProperty("Content").toString();
+
+			for (auto c : t)
+			{
+				auto s = findContentRecursive(c, url);
+
+				if (s.isNotEmpty())
+					return s;
+			}
+
+			return {};
+		}
+
+		LinkResolver* clone(MarkdownParser* parent) const
+		{
+			return new Resolver(root);
+		}
+
+		virtual Identifier getId() const { return "CompressedDatabaseResolver"; };
+
+		String getContent(const String& url) override
+		{
+			return findContentRecursive(data->v, url);
+		}
+
+		Resolver(File root)
+		{
+			data->createFromFile(root);
+		}
+
+		File root;
+		SharedResourcePointer<Data> data;
+	};
+
+	DatabaseCrawler(const MarkdownDataBase& database) :
+		db(database)
+	{};
+
+	void addContentToValueTree(ValueTree& v)
+	{
+		auto url = v.getProperty("URL").toString();
+
+		if (v.getProperty("Type").toString() == "Headline")
+			return;
+
+		for (auto r : linkResolvers)
+		{
+			String content = r->getContent(url);
+
+			if (content.isNotEmpty())
+			{
+				v.setProperty("Content", content, nullptr);
+				numResolved++;
+				break;
+			}
+		}
+
+		if (!v.hasProperty("Content"))
+		{
+			DBG("Unresolved: " + url);
+			numUnresolved++;
+		}
+			
+
+		for (auto& c : v)
+			addContentToValueTree(c);
+	}
+
+	ValueTree createContentTree()
+	{
+		auto dbTree = db.rootItem.createValueTree();
+		addContentToValueTree(dbTree);
+	
+		DBG("Num Resolved: " + String(numResolved));
+		DBG("Num Unresolved: " + String(numUnresolved));
+
+		return dbTree;
+	}
+
+	void addImagesFromContent(ValueTree& imageTree, const ValueTree& contentTree, float maxWidth=1000.0f)
+	{
+		auto content = contentTree.getProperty("Content").toString();
+
+		if (content.isNotEmpty())
+		{
+			MarkdownParser p(content);
+
+			for (auto ip : imageProviders)
+				p.setImageProvider(ip->clone(&p));
+
+			p.parse();
+			auto imageLinks = p.getImageLinks();
+
+			for (auto imgUrl : imageLinks)
+			{
+				if (imageTree.getChildWithProperty("URL", imgUrl).isValid())
+				{
+					continue;
+				}
+
+				auto img = p.resolveImage(imgUrl, maxWidth);
+
+				if (img.isValid())
+				{
+					DBG("Writing image " + imgUrl);
+
+					juce::PNGImageFormat format;
+					MemoryOutputStream output;
+					format.writeImageToStream(img, output);
+					
+					ValueTree c("Image");
+					c.setProperty("URL", imgUrl, nullptr);
+					c.setProperty("Data", output.getMemoryBlock(), nullptr);
+
+					imageTree.addChild(c, -1, nullptr);
+				}
+			}
+		}
+
+		for (auto c : contentTree)
+			addImagesFromContent(imageTree, c);
+	}
+
+	void createInternal(File currentRoot, ValueTree v)
+	{
+		MarkdownDataBase::Item item;
+		item.loadFromValueTree(v);
+
+		if (item.type == MarkdownDataBase::Item::Folder)
+		{
+			DBG("Create directory " + currentRoot.getChildFile(item.fileName).getFullPathName());
+		}
+		if (item.type == MarkdownDataBase::Item::Type::Keyword)
+		{
+			File f = currentRoot.getChildFile(item.fileName).withFileExtension(".html");
+
+			f.create();
+
+			auto markdownCode = v.getProperty("Content").toString();
+
+			MarkdownParser p(markdownCode);
+			p.parse();
+
+			f.replaceWithText(p.generateHtml(db, item.url));
+
+			DBG("Create file" + f.getFullPathName());
+		}
+
+		for (auto c : v)
+			createInternal(currentRoot.getChildFile(item.fileName), c);
+	}
+
+	void createHtmlFiles(File root, ValueTree content)
+	{
+		for (auto c : content)
+			createInternal(root, c);
+	}
+
+	ValueTree createImageTree(const ValueTree& contentTree)
+	{
+		ValueTree imageTree("Images");
+
+		addImagesFromContent(imageTree, contentTree);
+
+		return imageTree;
+	}
+
+	void writeImagesToSubDirectory(const File& htmlDirectory, ValueTree imageTree)
+	{
+		File imageDirectory = htmlDirectory.getChildFile("images");
+
+		for (auto c : imageTree)
+		{
+			auto fileName = c.getProperty("URL").toString().fromLastOccurrenceOf("/", false, false);
+
+			File f = imageDirectory.getChildFile(fileName).withFileExtension(".png");
+
+			PNGImageFormat format;
+
+			if (auto mb = c.getProperty("Data").getBinaryData())
+			{
+				auto img = format.loadFrom(mb->getData(), mb->getSize());
+
+				FileOutputStream fos(f);
+				f.create();
+
+				DBG("Writing image to " + f.getFullPathName());
+
+				format.writeImageToStream(img, fos);
+			}
+
+			
+			
+		}
+	}
+
+	int numResolved = 0;
+	int numUnresolved = 0;
+
+	OwnedArray<MarkdownParser::LinkResolver> linkResolvers;
+	OwnedArray<MarkdownParser::ImageProvider> imageProviders;
+
+	const MarkdownDataBase& db;
+};
+
+
 //==============================================================================
 MainContentComponent::MainContentComponent() :
 	editor(doc, &tokeniser)
@@ -213,6 +515,8 @@ MainContentComponent::MainContentComponent() :
 	database.setRoot(root);
 	database.buildDataBase();
 	
+
+
 	MarkdownLayout::StyleData l;
 	l.textColour = Colour(0xFF222222);
 	l.headlineColour = Colours::black;
@@ -225,9 +529,44 @@ MainContentComponent::MainContentComponent() :
 	editor.setLookAndFeel(&klaf);
 	preview.setLookAndFeel(&klaf);
 	preview.setDatabase(&database);
+
 	preview.internalComponent.resolvers.add(new MarkdownParser::FileLinkResolver(database.getRoot()));
 	preview.internalComponent.resolvers.add(new MarkdownParser::FolderTocCreator(database.getRoot()));
 	preview.internalComponent.resolvers.add(new FunkyStuff::Resolver(root.getChildFile("Scripting API")));
+
+	//preview.internalComponent.resolvers.add(new DatabaseCrawler::Resolver(root));
+	//preview.internalComponent.providers.add(new DatabaseCrawler::Provider(root, nullptr));
+
+
+
+	DatabaseCrawler crawler(database);
+	crawler.linkResolvers.add(new MarkdownParser::FolderTocCreator(database.getRoot()));
+	crawler.linkResolvers.add(new MarkdownParser::FileLinkResolver(database.getRoot()));
+	crawler.linkResolvers.add(new FunkyStuff::Resolver(root.getChildFile("Scripting API")));
+	auto v = crawler.createContentTree();
+	//crawler.createHtmlFiles(root.getChildFile("html"), v);
+
+	crawler.imageProviders.add(new MarkdownParser::URLImageProvider(File::getSpecialLocation(File::tempDirectory).getChildFile("TempImagesForMarkdown"), this));
+
+	auto imageTree = crawler.createImageTree(v);
+
+	crawler.writeImagesToSubDirectory(root.getChildFile("html"), imageTree);
+
+
+#if 0
+
+	auto v = crawler.createContentTree();
+
+	zstd::ZDefaultCompressor comp;
+
+	File targetF(root.getChildFile("Content.dat"));
+	File imageF(root.getChildFile("Images.dat"));
+
+	auto img = crawler.createImageTree(v);
+
+	comp.compress(img, imageF);
+	comp.compress(v, targetF);
+#endif
 
 	addAndMakeVisible(editor);
 	addAndMakeVisible(preview);
@@ -243,6 +582,8 @@ MainContentComponent::MainContentComponent() :
 	preview.setNewText(" ", root);
 
 	doc.addListener(this);
+
+	//editor.setVisible(false);
 
 #if JUCE_IOS
     editor.setVisible(false);

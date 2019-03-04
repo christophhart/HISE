@@ -39,6 +39,7 @@ float getHeightForLayout(const MarkdownLayout& l)
 	return l.getHeight();
 }
 
+
 struct MarkdownParser::TextBlock : public MarkdownParser::Element
 {
 	TextBlock(MarkdownParser* parent, const AttributedString& s) :
@@ -84,6 +85,19 @@ struct MarkdownParser::TextBlock : public MarkdownParser::Element
 	void searchInContent(const String& searchString) override
 	{
 		searchInStringInternal(content, searchString);
+	}
+
+	String generateHtml() const override
+	{
+		String html;
+		NewLine nl;
+
+		HtmlGenerator g;
+
+		auto c = g.createFromAttributedString(content);
+		html << g.surroundWithTag(c, "p");
+
+		return html;
 	}
 
 	String getTextToCopy() const override
@@ -268,6 +282,20 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 		return content.getText();
 	}
 
+	String generateHtml() const override
+	{
+		String html;
+		NewLine nl;
+
+		HtmlGenerator g;
+
+
+		auto c = g.createFromAttributedString(content);
+		html << g.surroundWithTag(c, "h" + String(3 - level), "id=\"" + anchorURL.substring(1) + "\"");
+
+		return html;
+	}
+
 	void searchInContent(const String& searchString) override
 	{
 		searchInStringInternal(content, searchString);
@@ -334,6 +362,28 @@ struct MarkdownParser::BulletPointList : public MarkdownParser::Element
 			s << "- " << r.content.getText() << "\n";
 
 		return s;
+	}
+
+	virtual String getHtmlListTag() const { return "ul"; }
+
+	String generateHtml() const override
+	{
+		String html;
+		NewLine nl;
+
+		HtmlGenerator g;
+
+		String listItems;
+
+		for (auto r : rows)
+		{
+			auto c = g.createFromAttributedString(r.content);
+			listItems << g.surroundWithTag(c, "li");
+		}
+
+		html << g.surroundWithTag(listItems, getHtmlListTag());
+
+		return html;
 	}
 
 	void searchInContent(const String& searchString) override
@@ -415,6 +465,8 @@ struct MarkdownParser::EnumerationList : public MarkdownParser::BulletPointList
 		return s;
 	}
 
+	virtual String getHtmlListTag() const { return "ol"; }
+
 	void draw(Graphics& g, Rectangle<float> area) override
 	{
 		drawHighlight(g, area);
@@ -464,6 +516,17 @@ struct MarkdownParser::Comment : public MarkdownParser::Element
 		g.fillRect(area.withWidth(3.0f));
 
 		l.drawCopyWithOffset(g, area);
+	}
+
+	String generateHtml() const override
+	{
+		String html;
+
+		HtmlGenerator g;
+		auto c = g.createFromAttributedString(content);
+		html << g.surroundWithTag(c, "p", "class=\"comment\"");
+		
+		return html;
 	}
 
 	float getHeightForWidth(float width) override
@@ -535,16 +598,15 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 
 	void draw(Graphics& g, Rectangle<float> area) override
 	{
-		
-
+        return;
         g.setOpacity(1.0f);
-		g.drawImageAt(renderedCodePreview, (int)area.getX(), (int)area.getY() + 10);
+		//g.drawImageAt(renderedCodePreview, (int)area.getX(), (int)area.getY() + 10);
 
 		Path p;
 
 		p.loadPathFromData(EditorIcons::pasteIcon, sizeof(EditorIcons::pasteIcon)
 		);
-
+  
 		auto pathBounds = hyperLinks.getFirst().area.translated(0.0, area.getY() - getTopMargin());
 
 
@@ -559,6 +621,17 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 	String getTextToCopy() const override
 	{
 		return code;
+	}
+
+	String generateHtml() const override
+	{
+		HtmlGenerator g;
+
+		String s = "<pre><code class=\"language-javascript line-numbers\">";
+		s << code;
+		s << "</code></pre>\n";
+		
+		return s;
 	}
 
 	void searchInContent(const String& searchString) override
@@ -636,6 +709,10 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 				resultLabel->setFont(GLOBAL_MONOSPACE_FONT());
 				resultLabel->setText("Click Run to evaluate this code", dontSendNotification);
 			}
+            else
+            {
+                editor->setReadOnly(true);
+            }
 
 			setWantsKeyboardFocus(true);
 		}
@@ -732,10 +809,13 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 
 	Component* createComponent(int maxWidth)
 	{
-		if (syntax == LiveJavascript && content == nullptr)
+		if (content == nullptr)
 		{
 			content = createEditor();
-			content->setSize(content->editor->getWidth(), content->editor->getHeight() + 32);
+            
+            auto bottom = syntax == LiveJavascript ? 32 : -10;
+            
+			content->setSize(content->editor->getWidth(), content->editor->getHeight() + bottom);
 		}
 
 		return content;
@@ -836,9 +916,21 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 		return imageName;
 	}
 
+	void addImageLinks(StringArray& sa) override
+	{
+		sa.add(imageURL);
+	}
+
 	String getImageURL() const { return imageURL; }
 
 	int getTopMargin() const override { return 5; };
+
+	String generateHtml() const override
+	{
+		HtmlGenerator g;
+
+		return g.surroundWithTag(imageName, "img", "src=\"" + imageURL + "\"");
+	}
 
 	Component* createComponent(int maxWidth) override
 	{
@@ -990,6 +1082,51 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 		return "Table";
 	}
 
+	String generateHtml() const override
+	{
+		String html;
+
+		HtmlGenerator g;
+
+		String headHtml;
+
+		for (auto& c : headers.columns)
+		{
+			auto cContent = g.createFromAttributedString(c.content);
+
+			headHtml << g.surroundWithTag(cContent, "td");
+			
+		}
+
+		html << g.surroundWithTag(headHtml, "thead");
+
+		for (auto& r : rows)
+		{
+			String rowHtml;
+
+			for (auto& c : r.columns)
+			{
+				auto cContent = g.createFromAttributedString(c.content);
+
+				rowHtml << g.surroundWithTag(cContent, "td");
+				
+			}
+			
+			html << g.surroundWithTag(rowHtml, "tr");
+
+		}
+
+		return g.surroundWithTag(html, "table");
+	}
+
+	void addImageLinks(StringArray& sa) override
+	{
+		headers.addImageLinks(sa);
+
+		for (auto& r : rows)
+			r.addImageLinks(sa);
+	}
+
 	void draw(Graphics& g, Rectangle<float> area) override
 	{
 		area.removeFromTop(10.0f);
@@ -1076,6 +1213,15 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 	struct Row
 	{
 		const float intendation = 8.0f;
+
+		void addImageLinks(StringArray& sa)
+		{
+			for (auto& c : columns)
+			{
+				if (c.imageURL.isNotEmpty())
+					sa.add(c.imageURL);
+			}
+		}
 
 		float calculateHeightForCell(Cell& c, float width, MarkdownParser* parser)
 		{

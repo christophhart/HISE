@@ -136,6 +136,7 @@ public:
 			return 0;
 		}
 
+		String generateHtml(const String& rootString, const String& activeUrl) const;
 		
 		Item() {};
 
@@ -176,12 +177,9 @@ public:
 			v.setProperty("Keywords", keywords.joinIntoString(";"), nullptr);
 			v.setProperty("URL", url, nullptr);
 
-			if (type == Folder)
-			{
-				for (const auto& c : children)
+			for (const auto& c : children)
 					v.addChild(c.createValueTree(), -1, nullptr);
-			}
-
+			
 			return v;
 		}
 
@@ -193,14 +191,11 @@ public:
 			description = v.getProperty("Description");
 			url = v.getProperty("URL");
 
-			if (type == Folder)
+			for (auto c : v)
 			{
-				for (auto c : v)
-				{
-					Item newChild;
-					newChild.loadFromValueTree(c);
-					children.add(newChild);
-				}
+				Item newChild;
+				newChild.loadFromValueTree(c);
+				children.add(newChild);
 			}
 		}
 
@@ -278,6 +273,8 @@ public:
 	}
 
 	File getRoot() const { return rootDirectory; }
+
+	String generateHtmlToc(const String& activeUrl) const;
 
 	void buildDataBase();
 

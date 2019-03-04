@@ -139,13 +139,14 @@ void MarkdownPreview::InternalComponent::setNewText(const String& s, const File&
 	for (auto ip : providers)
 		parser->setImageProvider(ip->clone(parser));
 
+#if 0
 	if (f.existsAsFile())
 	{
 		parser->setLinkResolver(new MarkdownParser::FileLinkResolver(f.getParentDirectory()));
 		parser->setImageProvider(new MarkdownParser::FileBasedImageProvider(parser, f.getParentDirectory()));
 	}
+#endif
 
-	parser->setImageProvider(new MarkdownParser::HiseDocImageProvider(parser));
 	parser->parse();
 	
 
@@ -161,6 +162,8 @@ void MarkdownPreview::InternalComponent::setNewText(const String& s, const File&
 		errorMessage = result.getErrorMessage();
 	else
 		errorMessage = {};
+
+
 
     scrollToAnchor(0.0f);
     

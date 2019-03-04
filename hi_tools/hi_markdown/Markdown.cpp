@@ -70,9 +70,11 @@ MarkdownParser::MarkdownParser(const String& markdownCode_, LayoutCache* c) :
 	uncachedLayout({}, 0.0f)
 {
 	imageProviders.add(new ImageProvider(this));
+
 	imageProviders.add(new URLImageProvider(File::getSpecialLocation(File::tempDirectory).getChildFile("TempImagesForMarkdown"), this));
+
 	linkResolvers.add(new DefaultLinkResolver(this));
-	
+
 	history.add(markdownCode);
 	historyIndex = 0;
 
@@ -258,6 +260,79 @@ juce::String MarkdownParser::getAnchorForY(int y) const
 		return lastHeadline->anchorURL;
 
 	return {};
+}
+
+
+juce::String MarkdownParser::generateHtml(const MarkdownDataBase& db, const String& activeLink)
+{
+	String html;
+	NewLine nl;
+
+	html << "<html>" << nl;
+	html << "<head>" << nl;
+
+	html << "<link href=\"https://fonts.googleapis.com/css?family=Oxygen\" rel=\"stylesheet\">" << nl;
+
+	html << "<link href=\"http://hise.audio/manual/css/prism.css\" rel=\"stylesheet\">" << nl;
+
+	html << "<style>" << nl;
+	
+	html << "body{ margin: 0px; color: #333; font-family: Oxygen; line-height: 1.5em;}" << nl;
+	html << "h1, h2, h3{  font-weight: 900; border-bottom: 1px solid #eee; color: #555; }" << nl;
+	
+	html << "table { display: table; border-spacing: 0; border-collapse: collapse; }" << nl;
+
+	html << "thead { color: #444; background-color: #eee; font-weight: 700; box-sizing: border-box; display: table-header-group; vertical-align: middle; border-color: inherit; }" << nl;
+
+	html << "tr { display: table-row; vertical-align: inherit; border-color: inherit; }" << nl;
+
+	html << "th, td { border: 1px solid #ddd; padding: 10px; }" << nl;
+	html << "th { background-color: #eee; font-weight: 900; }" << nl;
+
+	html << "p.comment { margin-top: 20px; background-color: #eee; border-left: 3px solid #ccc; padding: 20px; }" << nl;
+
+	html << "div.menu { width: 100%; height: 30px; background-color: #444; color: #fff; padding: 10px; padding-top: 20px; }" << nl;
+	html << "div.toc { width: 300px; padding: 10px; min-height: 100%; float: left; background-color: #333; color: #fff; }" << nl;
+	html << "div.content { max-width: 900px; margin: 0 auto; padding: 30px; float: left; }" << nl;
+
+	html << "div.toc a { color: #fff; text-decoration: none; font-weight: 700; font-size: 0.9em; }" << nl;
+
+	html << "details  { padding-left: 10px; }" << nl;
+	html << "details details  { padding-left: 20px; }" << nl;
+
+	html << "</style>" << nl;
+	html << "<body>" << nl;
+
+	html << "<div class=\"menu\">HISE Docs</div>" << nl;
+
+	html << db.generateHtmlToc(activeLink) << nl;
+
+	html << "<div class=\"content\">" << nl;
+
+	for (auto e : elements)
+		html << e->generateHtml();
+
+	html << "<script src=\"http://hise.audio/manual/js/prism.js\"></script>" << nl;
+
+	html << "</div>" << nl;
+
+	html << "</body>" << nl;
+	html << "</html>";
+
+	return html;
+}
+
+
+juce::StringArray MarkdownParser::getImageLinks() const
+{
+	StringArray sa;
+
+	for (auto e : elements)
+	{
+		e->addImageLinks(sa);
+	}
+
+	return sa;
 }
 
 hise::MarkdownParser::HyperLink MarkdownParser::getHyperLinkForEvent(const MouseEvent& event, Rectangle<float> area)

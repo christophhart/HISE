@@ -36,6 +36,55 @@
 namespace hise {
 using namespace juce;
 
+
+struct HtmlGenerator
+{
+	HtmlGenerator() {};
+
+	String surroundWithTag(const String& content, const String& tag, String additionalProperties = {})
+	{
+		String s;
+
+		s << "<" << tag << " " << additionalProperties << ">\n";
+		s << content << "\n";
+		s << "</" << tag << ">\n";
+
+		return s;
+	}
+
+	String getSubString(const AttributedString& s, int index)
+	{
+		const auto attribute = s.getAttribute(index);
+		return s.getText().substring(attribute.range.getStart(), attribute.range.getEnd()).replace("\n", "<br>");
+	}
+
+	String createFromAttributedString(const AttributedString& s)
+	{
+		String html;
+
+		String content = s.getText();
+
+		for (int i = 0; i < s.getNumAttributes(); i++)
+		{
+			const auto& a = s.getAttribute(i);
+
+			if (a.font.isUnderlined())
+				html << surroundWithTag(getSubString(s, i), "a", "href=\"LINK\"");
+			else if (a.font.isBold())
+				html << surroundWithTag(getSubString(s, i), "b");
+			else if (a.font.isItalic())
+				html << surroundWithTag(getSubString(s, i), "i");
+			else if (a.font.getTypefaceName() == GLOBAL_MONOSPACE_FONT().getTypefaceName())
+				html << surroundWithTag(getSubString(s, i), "code");
+			else
+				html << getSubString(s, i);
+		}
+
+		return html;
+	}
+};
+
+
 /** a simple markdown parser that renders markdown formatted code. */
 class MarkdownParser
 {
@@ -524,6 +573,10 @@ public:
 
 	String getAnchorForY(int y) const;
 
+	String generateHtml(const MarkdownDataBase& db, const String& activeURL);
+
+	StringArray getImageLinks() const;
+
 	HyperLink getHyperLinkForEvent(const MouseEvent& event, Rectangle<float> area);
 
 	static void createDatabaseEntriesForFile(File root, MarkdownDataBase::Item& item, File f, Colour c);
@@ -649,6 +702,8 @@ private:
 
 		virtual Component* createComponent(int maxWidth) { return nullptr; }
 
+		virtual String generateHtml() const { return {}; }
+
 		virtual String getTextForRange(Range<int> range) const
 		{
 			jassertfalse;
@@ -676,6 +731,8 @@ private:
 		
 
 		virtual void searchInContent(const String& s) { }
+
+		virtual void addImageLinks(StringArray& sa) {};
 
 		Array<HyperLink> hyperLinks;
 
