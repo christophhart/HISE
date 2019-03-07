@@ -6,494 +6,7 @@
   ==============================================================================
 */
 
-#include "../../../hi_scripting/scripting/api/XmlApi.h"
 #include "MainComponent.h"
-
-struct FunkyStuff 
-{
-	static constexpr char apiWildcard[] = "Scripting API/";
-
-	struct Data
-	{
-		Data()
-		{
-			v = ValueTree::readFromData(XmlApi::apivaluetree_dat, XmlApi::apivaluetree_datSize);
-		}
-
-		~Data()
-		{
-
-		}
-
-		ValueTree v;
-	};
-
-	
-
-	
-
-	struct ItemGenerator: public hise::MarkdownDataBase::ItemGeneratorBase
-	{
-		MarkdownDataBase::Item createRootItem(MarkdownDataBase& parent) override
-		{
-			auto v = data->v;
-
-			auto i = createFromValueTree(data->v);
-
-			return i;
-		}
-
-		MarkdownDataBase::Item createFromValueTree(ValueTree& v)
-		{
-			const static Identifier root("Api");
-			const static Identifier method("method");
-			
-
-			MarkdownDataBase::Item i;
-
-			i.keywords.add("Scripting API");
-
-			i.c = Colour(0xFFC65638).withMultipliedSaturation(0.8f);
-
-			if (v.getType() == root)
-			{
-				i.type = hise::MarkdownDataBase::Item::Folder;
-				i.fileName = "Scripting API";
-				i.tocString = "Scripting API";
-				i.description = "The scripting API reference";
-				i.url << apiWildcard;
-			}
-			else if (v.getType() == method)
-			{
-				auto parent = v.getParent();
-				auto className = parent.getType().toString();
-				i.type = hise::MarkdownDataBase::Item::Headline;
-				i.tocString = v.getProperty("name").toString();
-				i.description << "`" << className << "." << i.tocString << "()`  ";
-				i.description << v.getProperty("description").toString();
-				i.url << apiWildcard << className << "#" << v.getProperty("name").toString().toLowerCase();
-			}
-			else
-			{
-				i.type = hise::MarkdownDataBase::Item::Keyword;
-				i.description << "API class reference: `" << v.getType().toString() << "`";
-				i.tocString = v.getType().toString();
-				i.fileName = i.tocString;
-				i.url << apiWildcard << v.getType().toString();
-			}
-
-			for (auto c : v)
-				i.children.add(createFromValueTree(c));
-
-			MarkdownDataBase::Item::Sorter sorter;
-
-			i.children.sort(sorter);
-
-			return i;
-		}
-
-		SharedResourcePointer<Data> data;
-	};
-		
-	struct Resolver : public hise::MarkdownParser::LinkResolver
-	{
-		Resolver(File scriptingDocRoot):
-			LinkResolver(),
-			docRoot(scriptingDocRoot)
-		{}
-
-		Identifier getId() const override
-		{
-			RETURN_STATIC_IDENTIFIER("FunkyLinkResolver");
-		}
-
-		LinkResolver* clone(MarkdownParser* parent) const override
-		{
-			return new Resolver(docRoot);
-		}
-
-		String getContent(const String& url) override
-		{
-			if (url.startsWith(apiWildcard))
-			{
-				auto cleaned = url.fromFirstOccurrenceOf(apiWildcard, false, false);
-
-				auto classLink = cleaned.upToFirstOccurrenceOf("#", false, false);
-				auto anchor = cleaned.fromFirstOccurrenceOf("#", true, false);
-
-				auto classTree = data->v.getChildWithName(classLink);
-
-				if (classTree.isValid())
-				{
-					
-
-
-					String s;
-
-					s << "# API class reference `" << classLink << "`\n";
-
-					auto classDoc = docRoot.getChildFile(classLink + "/README.md");
-
-					if (classDoc.existsAsFile())
-					{
-						s << classDoc.loadFileAsString();
-						s << "  \n";
-
-						s << "# Class methods  \n";
-					}
-
-					for (auto c : classTree)
-					{
-						s << createMethodText(c);
-					}
-
-					return s;
-				}
-
-				String s;
-
-				s << "# Scripting API";
-
-				return s;
-			}
-
-			return {};
-		}
-
-		String createMethodText(ValueTree& mv)
-		{
-			String s;
-
-			String className = mv.getParent().getType().toString();
-			String methodName = mv.getProperty("name").toString();
-
-			s << "## `" << methodName << "`\n";
-
-			s << "> " << mv.getProperty("description").toString() << "  \n";
-
-			s << "```javascript\n" << className << "." << methodName << mv.getProperty("arguments").toString() << "```  \n";
-
-			
-			
-
-			File additionalDoc = docRoot.getChildFile(className + "/" + methodName + ".md");
-			if (additionalDoc.existsAsFile())
-			{
-				s << additionalDoc.loadFileAsString();
-				s << "  \n";
-			}
-
-			
-
-			return s;
-		}
-
-		SharedResourcePointer<Data> data;
-
-		File docRoot;
-	};
-};
-
-
-class DatabaseCrawler
-{
-public:
-
-	struct Provider : public MarkdownParser::ImageProvider
-	{
-		struct Data
-		{
-			void createFromFile(File root)
-			{
-				if (v.isValid())
-					return;
-
-				File contentFile = root.getChildFile("Images.dat");
-
-				zstd::ZDefaultCompressor comp;
-
-				comp.expand(contentFile, v);
-			}
-
-			ValueTree v;
-		};
-
-		Image findImageRecursive(ValueTree& t, const String& url)
-		{
-			if (t.getProperty("URL").toString() == url)
-			{
-				PNGImageFormat format;
-
-				if (auto mb = t.getProperty("Data").getBinaryData())
-					return format.loadFrom(mb->getData(), mb->getSize());
-				else
-					return {};
-			}
-				
-			for (auto c : t)
-			{
-				auto s = findImageRecursive(c, url);
-
-				if (s.isValid())
-					return s;
-			}
-
-			return {};
-		}
-
-		Image getImage(const String& url, float width) override
-		{
-			return resizeImageToFit(findImageRecursive(data->v, url), width);
-		}
-
-		Provider(File root_, MarkdownParser* parent) :
-			ImageProvider(parent),
-			root(root_)
-		{
-			data->createFromFile(root);
-		}
-
-		Identifier getId() const override
-		{
-			return "DatabaseImageProvider";
-		}
-
-		ImageProvider* clone(MarkdownParser* newParent) const override
-		{
-			return new Provider(root, newParent);
-		}
-
-		SharedResourcePointer<Data> data;
-		File root;
-	};
-
-	struct Resolver: public MarkdownParser::LinkResolver
-	{
-		struct Data
-		{
-			void createFromFile(File root)
-			{
-				if (v.isValid())
-					return;
-
-				File contentFile = root.getChildFile("Content.dat");
-
-				zstd::ZDefaultCompressor comp;
-
-				comp.expand(contentFile, v);
-			}
-
-			ValueTree v;
-		};
-
-		String findContentRecursive(ValueTree& t, const String& url)
-		{
-			if (t.getProperty("URL").toString() == url)
-				return t.getProperty("Content").toString();
-
-			for (auto c : t)
-			{
-				auto s = findContentRecursive(c, url);
-
-				if (s.isNotEmpty())
-					return s;
-			}
-
-			return {};
-		}
-
-		LinkResolver* clone(MarkdownParser* parent) const
-		{
-			return new Resolver(root);
-		}
-
-		virtual Identifier getId() const { return "CompressedDatabaseResolver"; };
-
-		String getContent(const String& url) override
-		{
-			return findContentRecursive(data->v, url);
-		}
-
-		Resolver(File root)
-		{
-			data->createFromFile(root);
-		}
-
-		File root;
-		SharedResourcePointer<Data> data;
-	};
-
-	DatabaseCrawler(const MarkdownDataBase& database) :
-		db(database)
-	{};
-
-	void addContentToValueTree(ValueTree& v)
-	{
-		auto url = v.getProperty("URL").toString();
-
-		if (v.getProperty("Type").toString() == "Headline")
-			return;
-
-		for (auto r : linkResolvers)
-		{
-			String content = r->getContent(url);
-
-			if (content.isNotEmpty())
-			{
-				v.setProperty("Content", content, nullptr);
-				numResolved++;
-				break;
-			}
-		}
-
-		if (!v.hasProperty("Content"))
-		{
-			DBG("Unresolved: " + url);
-			numUnresolved++;
-		}
-			
-
-		for (auto& c : v)
-			addContentToValueTree(c);
-	}
-
-	ValueTree createContentTree()
-	{
-		auto dbTree = db.rootItem.createValueTree();
-		addContentToValueTree(dbTree);
-	
-		DBG("Num Resolved: " + String(numResolved));
-		DBG("Num Unresolved: " + String(numUnresolved));
-
-		return dbTree;
-	}
-
-	void addImagesFromContent(ValueTree& imageTree, const ValueTree& contentTree, float maxWidth=1000.0f)
-	{
-		auto content = contentTree.getProperty("Content").toString();
-
-		if (content.isNotEmpty())
-		{
-			MarkdownParser p(content);
-
-			for (auto ip : imageProviders)
-				p.setImageProvider(ip->clone(&p));
-
-			p.parse();
-			auto imageLinks = p.getImageLinks();
-
-			for (auto imgUrl : imageLinks)
-			{
-				if (imageTree.getChildWithProperty("URL", imgUrl).isValid())
-				{
-					continue;
-				}
-
-				auto img = p.resolveImage(imgUrl, maxWidth);
-
-				if (img.isValid())
-				{
-					DBG("Writing image " + imgUrl);
-
-					juce::PNGImageFormat format;
-					MemoryOutputStream output;
-					format.writeImageToStream(img, output);
-					
-					ValueTree c("Image");
-					c.setProperty("URL", imgUrl, nullptr);
-					c.setProperty("Data", output.getMemoryBlock(), nullptr);
-
-					imageTree.addChild(c, -1, nullptr);
-				}
-			}
-		}
-
-		for (auto c : contentTree)
-			addImagesFromContent(imageTree, c);
-	}
-
-	void createInternal(File currentRoot, ValueTree v)
-	{
-		MarkdownDataBase::Item item;
-		item.loadFromValueTree(v);
-
-		if (item.type == MarkdownDataBase::Item::Folder)
-		{
-			DBG("Create directory " + currentRoot.getChildFile(item.fileName).getFullPathName());
-		}
-		if (item.type == MarkdownDataBase::Item::Type::Keyword)
-		{
-			File f = currentRoot.getChildFile(item.fileName).withFileExtension(".html");
-
-			f.create();
-
-			auto markdownCode = v.getProperty("Content").toString();
-
-			MarkdownParser p(markdownCode);
-			p.parse();
-
-			f.replaceWithText(p.generateHtml(db, item.url));
-
-			DBG("Create file" + f.getFullPathName());
-		}
-
-		for (auto c : v)
-			createInternal(currentRoot.getChildFile(item.fileName), c);
-	}
-
-	void createHtmlFiles(File root, ValueTree content)
-	{
-		for (auto c : content)
-			createInternal(root, c);
-	}
-
-	ValueTree createImageTree(const ValueTree& contentTree)
-	{
-		ValueTree imageTree("Images");
-
-		addImagesFromContent(imageTree, contentTree);
-
-		return imageTree;
-	}
-
-	void writeImagesToSubDirectory(const File& htmlDirectory, ValueTree imageTree)
-	{
-		File imageDirectory = htmlDirectory.getChildFile("images");
-
-		for (auto c : imageTree)
-		{
-			auto fileName = c.getProperty("URL").toString().fromLastOccurrenceOf("/", false, false);
-
-			File f = imageDirectory.getChildFile(fileName).withFileExtension(".png");
-
-			PNGImageFormat format;
-
-			if (auto mb = c.getProperty("Data").getBinaryData())
-			{
-				auto img = format.loadFrom(mb->getData(), mb->getSize());
-
-				FileOutputStream fos(f);
-				f.create();
-
-				DBG("Writing image to " + f.getFullPathName());
-
-				format.writeImageToStream(img, fos);
-			}
-
-			
-			
-		}
-	}
-
-	int numResolved = 0;
-	int numUnresolved = 0;
-
-	OwnedArray<MarkdownParser::LinkResolver> linkResolvers;
-	OwnedArray<MarkdownParser::ImageProvider> imageProviders;
-
-	const MarkdownDataBase& db;
-};
-
 
 //==============================================================================
 MainContentComponent::MainContentComponent() :
@@ -509,13 +22,32 @@ MainContentComponent::MainContentComponent() :
     root.createDirectory();
 #endif
 
-	database.addItemGenerator(new MarkdownDataBase::DirectoryItemGenerator(root.getChildFile("Tutorials"), Colours::orange));
-	database.addItemGenerator(new FunkyStuff::ItemGenerator());
-	database.addItemGenerator(new MarkdownDataBase::DirectoryItemGenerator(root.getChildFile("Reference Guides"), Colours::lightcyan));
+	root.getChildFile("Content.dat");
+
+	database.addItemGenerator(new MarkdownDataBase::DirectoryItemGenerator(root.getChildFile("Introduction"), Colours::orange));
+	
+	database.addItemGenerator(new MarkdownDataBase::DirectoryItemGenerator(root.getChildFile("Working with HISE"), Colours::lightblue));
+
+	database.addItemGenerator(new MarkdownDataBase::DirectoryItemGenerator(root.getChildFile("Project Management"), Colours::grey));
+
+	database.addItemGenerator(new MarkdownDataBase::DirectoryItemGenerator(root.getChildFile("Scripting"), Colours::lightcyan));
+
+	database.addItemGenerator(new MarkdownDataBase::DirectoryItemGenerator(root.getChildFile("HISE Modules"), Colours::lightcoral));
+
+	database.addItemGenerator(new MarkdownDataBase::DirectoryItemGenerator(root.getChildFile("UI Components"), Colours::aliceblue));
+
+	database.addItemGenerator(new hise::ScriptingApiDatabase::ItemGenerator(root));
+
+	database.addItemGenerator(new MarkdownDataBase::DirectoryItemGenerator(root.getChildFile("Glossary"), Colours::honeydew));
+
+	database.addItemGenerator(new MarkdownDataBase::DirectoryItemGenerator(root.getChildFile("Tutorials"), Colours::chocolate));
+
 	database.setRoot(root);
 	database.buildDataBase();
+
 	
 
+	database.getHtmlSearchDatabaseDump();
 
 	MarkdownLayout::StyleData l;
 	l.textColour = Colour(0xFF222222);
@@ -532,25 +64,29 @@ MainContentComponent::MainContentComponent() :
 
 	preview.internalComponent.resolvers.add(new MarkdownParser::FileLinkResolver(database.getRoot()));
 	preview.internalComponent.resolvers.add(new MarkdownParser::FolderTocCreator(database.getRoot()));
-	preview.internalComponent.resolvers.add(new FunkyStuff::Resolver(root.getChildFile("Scripting API")));
+	preview.internalComponent.resolvers.add(new ScriptingApiDatabase::Resolver(root));
 
-	//preview.internalComponent.resolvers.add(new DatabaseCrawler::Resolver(root));
-	//preview.internalComponent.providers.add(new DatabaseCrawler::Provider(root, nullptr));
+	preview.internalComponent.resolvers.add(new DatabaseCrawler::Resolver(root));
+	preview.internalComponent.providers.add(new DatabaseCrawler::Provider(root, nullptr));
 
-
+#if 0
 
 	DatabaseCrawler crawler(database);
-	crawler.linkResolvers.add(new MarkdownParser::FolderTocCreator(database.getRoot()));
-	crawler.linkResolvers.add(new MarkdownParser::FileLinkResolver(database.getRoot()));
-	crawler.linkResolvers.add(new FunkyStuff::Resolver(root.getChildFile("Scripting API")));
-	auto v = crawler.createContentTree();
-	//crawler.createHtmlFiles(root.getChildFile("html"), v);
+	
+	crawler.addLinkResolver(new ScriptingApiDatabase::Resolver(root.getChildFile("Scripting API")));
+	crawler.addImageProvider(new MarkdownParser::URLImageProvider(File::getSpecialLocation(File::tempDirectory).getChildFile("TempImagesForMarkdown"), nullptr));
 
-	crawler.imageProviders.add(new MarkdownParser::URLImageProvider(File::getSpecialLocation(File::tempDirectory).getChildFile("TempImagesForMarkdown"), this));
+	crawler.createDataFiles(root);
 
-	auto imageTree = crawler.createImageTree(v);
+	//crawler.loadDataFiles(root);
 
-	crawler.writeImagesToSubDirectory(root.getChildFile("html"), imageTree);
+	
+	//crawler.writeImagesToSubDirectory(root.getChildFile("html"));
+	crawler.createHtmlFiles(root.getChildFile("html"), root.getChildFile("template"), Markdown2HtmlConverter::LinkMode::LocalFile, root.getChildFile("html").getFullPathName());
+
+#endif
+
+
 
 
 #if 0
@@ -584,6 +120,8 @@ MainContentComponent::MainContentComponent() :
 	doc.addListener(this);
 
 	//editor.setVisible(false);
+
+	//context.attachTo(preview);
 
 #if JUCE_IOS
     editor.setVisible(false);

@@ -37,11 +37,13 @@ using namespace juce;
 
 void MarkdownParser::parse()
 {
-	lastWidth = -1.0f;
-	firstDraw = true;
-
 	try
 	{
+		if (it.getRestString().startsWith("---"))
+		{
+			parseYamlHeader();
+		}
+		
 		while (it.peek() != 0)
 			parseBlock();
 
@@ -50,12 +52,6 @@ void MarkdownParser::parse()
 	catch (String& s)
 	{
 		currentParseResult = Result::fail(s);
-	}
-
-	for (auto l : listeners)
-	{
-		if (l.get() != nullptr)
-			l->markdownWasParsed(currentParseResult);
 	}
 }
 
@@ -117,6 +113,7 @@ void MarkdownParser::parseHeadline()
 void MarkdownParser::parseBulletList()
 {
 	Array<AttributedString> bulletpoints;
+	Array<Array<HyperLink>> links;
 
 	while (it.peek() == '-')
 	{
@@ -127,10 +124,11 @@ void MarkdownParser::parseBulletList()
 
 		parseText();
 
+		links.add(currentLinks);
 		bulletpoints.add(currentlyParsedBlock);
 	}
 
-	elements.add(new BulletPointList(this, bulletpoints));
+	elements.add(new BulletPointList(this, bulletpoints, links));
 
 
 	currentFont = styleData.getFont();
@@ -140,6 +138,8 @@ void MarkdownParser::parseBulletList()
 void MarkdownParser::parseEnumeration()
 {
 	Array<AttributedString> listItems;
+
+	Array<Array<HyperLink>> links;
 
 	while (CharacterFunctions::isDigit(it.peek()))
 	{
@@ -158,6 +158,7 @@ void MarkdownParser::parseEnumeration()
 				parseText();
 			}
 
+			links.add(currentLinks);
 			listItems.add(currentlyParsedBlock);
 		}
 		else
@@ -167,7 +168,7 @@ void MarkdownParser::parseEnumeration()
 		}
 	}
 
-	elements.add(new EnumerationList(this, listItems));
+	elements.add(new EnumerationList(this, listItems, links));
 
 	currentFont = styleData.getFont();
 }
@@ -270,8 +271,17 @@ void MarkdownParser::parseText(bool stopAtEndOfLine)
 
 				bool ok = false;
 
+				bool useCodeFontForLink = false;
+
 				while (it.next(c))
 				{
+					if (c == '`')
+					{
+						useCodeFontForLink = true;
+						continue;
+					}
+						
+
 					if (c == ']')
 					{
 						ok = true;
@@ -302,8 +312,6 @@ void MarkdownParser::parseText(bool stopAtEndOfLine)
 				if (urlId.toLowerCase().startsWith("button: "))
 				{
 					urlId = urlId.fromFirstOccurrenceOf("Button: ", false, true);
-
-
 				}
 
 				if (ok)
@@ -312,33 +320,19 @@ void MarkdownParser::parseText(bool stopAtEndOfLine)
 
 					auto start = text.length();
 
-					// This is extremely annoying, but the glyph's string range will duplicate space characters...
-					auto duplicateSpaces = [](int& number, const String& s)
-					{
-						auto c = s.getCharPointer();
-
-						while (*c != 0)
-						{
-							if (*c == ' ')
-								number++;
-							if (*c == '\n')
-								number++;
-
-							c++;
-						}
-					};
-
-					//duplicateSpaces(start, text);
-
+					currentFont = useCodeFontForLink ? GLOBAL_MONOSPACE_FONT().withHeight(styleData.fontSize) : styleData.getFont();
+					
 					currentFont.setUnderline(true);
 					currentlyParsedBlock.append(urlId, currentFont, Colour(SIGNAL_COLOUR));
 					currentFont.setUnderline(false);
+
+					currentFont = isCode ? GLOBAL_MONOSPACE_FONT().withHeight(styleData.fontSize) : styleData.getFont();
 
 					auto stop = start + urlId.length();
 
 					HyperLink hyperLink;
 
-					hyperLink.url = url;
+					hyperLink.url = HtmlGenerator::getSanitizedFilename(url);
 					hyperLink.urlRange = { start, stop };
 					hyperLink.displayString = urlId;
 					hyperLink.valid = true;
@@ -702,14 +696,65 @@ void MarkdownParser::parseComment()
 
 }
 
-const MarkdownLayout& MarkdownParser::getTextLayoutForString(const AttributedString& s, float width)
-{
-	if (layoutCache.get() != nullptr)
-		return layoutCache->getLayout(s, width);
 
-	uncachedLayout = { s, width };
-	return  uncachedLayout;
+void MarkdownParser::parseYamlHeader()
+{
+	it.advance("---");
+	it.match('\n');
+
+	StringArray lines;
+
+
+	while (!it.getRestString().startsWith("---"))
+	{
+		auto line = it.advanceLine().trim();
+		
+		if (line.isEmpty())
+			break;
+
+		lines.add(line);
+	}
+
+	yamlHeader = {};
+
+	
+	
+	for (auto line : lines)
+	{
+		if (line.contains(":"))
+		{
+			YamlHeader::Item newItem;
+
+			newItem.key = line.upToFirstOccurrenceOf(":", false, false).trim();
+			
+			auto samelineValue = line.fromFirstOccurrenceOf(":", false, false).trim();
+
+			if (samelineValue.isNotEmpty())
+				newItem.values.add(samelineValue);
+
+			yamlHeader.items.add(std::move(newItem));
+		}
+		else
+		{
+			auto nextValue = line.fromFirstOccurrenceOf("-", false, false).trim();
+
+			if (nextValue.isEmpty())
+				it.match(':');
+
+			if (yamlHeader.items.isEmpty())
+				it.match(':');
+
+			yamlHeader.items.getReference(yamlHeader.items.size() - 1).values.add(nextValue);
+		}
+	}
+
+	it.match('-');
+	it.match('-');
+	it.match('-');
+	it.match('\n');
 }
+
+
 
 
 }

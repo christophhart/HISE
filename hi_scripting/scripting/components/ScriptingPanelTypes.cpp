@@ -573,7 +573,7 @@ ScriptContentPanel::Editor::Editor(Processor* p):
 	addAndMakeVisible(helpButton = new MarkdownHelpButton());
 	helpButton->setPopupWidth(600);
 	
-	helpButton->setHelpText<MarkdownParser::PathProvider<Factory>>(InterfaceDesignerHelp::Help());
+	helpButton->setHelpText<PathProvider<Factory>>(InterfaceDesignerHelp::Help());
 
 	setWantsKeyboardFocus(true);
 
@@ -1024,17 +1024,18 @@ Component* ScriptWatchTablePanel::createContentComponent(int /*index*/)
 
 juce::Path ScriptContentPanel::Factory::createPath(const String& id) const
 {
-	if (id == "Edit")	return ColumnIcons::getPath(OverlayIcons::penShape, sizeof(OverlayIcons::penShape));
-	if (id == "EditOff")return ColumnIcons::getPath(OverlayIcons::lockShape, sizeof(OverlayIcons::lockShape));
-	if (id == "Cancel") return ColumnIcons::getPath(EditorIcons::cancelIcon, sizeof(EditorIcons::cancelIcon));
-	if (id == "Undo")	return ColumnIcons::getPath(EditorIcons::undoIcon, sizeof(EditorIcons::undoIcon));
-	if (id == "Redo")	return ColumnIcons::getPath(EditorIcons::redoIcon, sizeof(EditorIcons::redoIcon));
-	if (id == "Rebuild")return ColumnIcons::getPath(ColumnIcons::moveIcon, sizeof(ColumnIcons::moveIcon));
+	auto url = HtmlGenerator::getSanitizedFilename(id);
 
-	if (id == "Vertical Align") return ColumnIcons::getPath(ColumnIcons::verticalAlign, sizeof(ColumnIcons::verticalAlign));
-	if (id == "Horizontal Align") return ColumnIcons::getPath(ColumnIcons::horizontalAlign, sizeof(ColumnIcons::horizontalAlign));
-	if (id == "Vertical Distribute") return ColumnIcons::getPath(ColumnIcons::verticalDistribute, sizeof(ColumnIcons::verticalDistribute));
-	if (id == "Horizontal Distribute") return ColumnIcons::getPath(ColumnIcons::horizontalDistribute, sizeof(ColumnIcons::horizontalDistribute));
+	if (url == "edit")	return ColumnIcons::getPath(OverlayIcons::penShape, sizeof(OverlayIcons::penShape));
+	if (url == "editoff")return ColumnIcons::getPath(OverlayIcons::lockShape, sizeof(OverlayIcons::lockShape));
+	if (url == "cancel") return ColumnIcons::getPath(EditorIcons::cancelIcon, sizeof(EditorIcons::cancelIcon));
+	if (url == "undo")	return ColumnIcons::getPath(EditorIcons::undoIcon, sizeof(EditorIcons::undoIcon));
+	if (url == "redo")	return ColumnIcons::getPath(EditorIcons::redoIcon, sizeof(EditorIcons::redoIcon));
+	if (url == "rebuild")return ColumnIcons::getPath(ColumnIcons::moveIcon, sizeof(ColumnIcons::moveIcon));
+	if (url == "vertical-align") return ColumnIcons::getPath(ColumnIcons::verticalAlign, sizeof(ColumnIcons::verticalAlign));
+	if (url == "horizontal-align") return ColumnIcons::getPath(ColumnIcons::horizontalAlign, sizeof(ColumnIcons::horizontalAlign));
+	if (url == "vertical-distribute") return ColumnIcons::getPath(ColumnIcons::verticalDistribute, sizeof(ColumnIcons::verticalDistribute));
+	if (url == "horizontal-distribute") return ColumnIcons::getPath(ColumnIcons::horizontalDistribute, sizeof(ColumnIcons::horizontalDistribute));
 
 	return Path();
 }

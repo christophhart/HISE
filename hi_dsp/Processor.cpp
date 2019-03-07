@@ -964,26 +964,79 @@ hise::MarkdownHelpButton* ProcessorDocumentation::createHelpButton()
 
 	t << "# " << name << "\n";
 	t << description << "\n";
-	t << "## Parameters \n";
-
-	t << "| `#` | ID | Description |\n";
-	t << "| - | --- | ----------- |\n";
-
-	for (auto& e : parameters)
-		t << e.getMarkdownLine(false) << "\n";
-
-	t << "## Chains \n";
-
-	t << "| `#` | Icon | ID | Description |\n";
-	t << "| - | - | --- | ----------- |\n";
-
-	for (auto& e : chains)
-		t << e.getMarkdownLine(true) << "\n";
+	
+	t << createHelpText();
 
 	auto b = new MarkdownHelpButton();
-	b->setHelpText<MarkdownParser::PathProvider<ChainBarPathFactory>>(t);
+	b->setHelpText<PathProvider<ChainBarPathFactory>>(t);
 
 	return b;
+}
+
+juce::String ProcessorDocumentation::createHelpText()
+{
+	String t;
+
+	
+
+	if (parameterOffset < parameters.size())
+	{
+		t << "## Parameters \n";
+
+		t << "| `#` | ID | Description |\n";
+		t << "| - | --- | ----------- |\n";
+
+		int p = 0;
+
+		for (auto& e : parameters)
+		{
+			if (p++ < parameterOffset)
+				continue;
+
+			t << e.getMarkdownLine(false) << "\n";
+		}
+			
+	}
+
+	if (chainOffset < chains.size())
+	{
+		t << "## Chains \n";
+
+		t << "| `#` | Icon | ID | Description |\n";
+		t << "| - | - | --- | ----------- |\n";
+
+		int c = 0;
+
+		for (auto& e : chains)
+		{
+			if (c < chainOffset)
+				continue;
+
+			t << e.getMarkdownLine(true) << "\n";
+		}
+			
+	}
+
+	return t;
+}
+
+void ProcessorDocumentation::fillMissingParameters(Processor* p)
+{
+	for (int i = 0; i < p->getNumParameters(); i++)
+	{
+		auto id = p->getIdentifierForParameterIndex(i);
+
+		Entry e;
+		e.id = id;
+		e.helpText = p->getDescriptionForParameters(i);
+		e.index = i;
+		e.name = id.toString();
+
+		if (!parameters.contains(e))
+			parameters.add(e);
+	}
+
+	parameters.sort(Entry::Sorter());
 }
 
 juce::String ProcessorDocumentation::Entry::getMarkdownLine(bool getChain) const
@@ -994,7 +1047,7 @@ juce::String ProcessorDocumentation::Entry::getMarkdownLine(bool getChain) const
 	
 	if (getChain)
 	{
-		s << "![" << name << "](" << name << ") | " << name;
+		s << "![" << name << "](/images/icon_" << HtmlGenerator::getSanitizedFilename(name) << ") | " << name;
 	}
 	else
 	{

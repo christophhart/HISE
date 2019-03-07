@@ -247,7 +247,7 @@ public:
 		String className;
 		String arguments;
 
-		ScopedPointer<MarkdownParser> parser;
+		ScopedPointer<MarkdownRenderer> parser;
 
 		const ValueTree methodTree;
 	};

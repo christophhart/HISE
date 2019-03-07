@@ -94,7 +94,8 @@ struct MarkdownParser::TextBlock : public MarkdownParser::Element
 
 		HtmlGenerator g;
 
-		auto c = g.createFromAttributedString(content);
+		int linkIndex = 0;
+		auto c = g.createFromAttributedString(content, linkIndex);
 		html << g.surroundWithTag(c, "p");
 
 		return html;
@@ -247,21 +248,22 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 	{
 		anchorY = area.getY() - 15.0f;
 
-		float marginTop = isFirst ? 0.0f : 20.0f;
+		float marginTop = isFirst ? 0.0f : 20.0f * getZoomRatio();
 		area.removeFromTop(marginTop);
 
 		drawHighlight(g, area);
 
 		g.setColour(Colours::grey.withAlpha(0.2f));
-		g.drawHorizontalLine((int)area.getBottom() - 8, area.getX(), area.getRight());
+
+		g.drawHorizontalLine((int)(area.getBottom() - 12.0f * getZoomRatio()), area.getX(), area.getRight());
 
 		l.drawCopyWithOffset(g, area);
 	}
 
 	float getHeightForWidth(float width) override
 	{
-		float marginTop = isFirst ? 0.0f : 20.0f;
-		float marginBottom = 10.0f;
+		float marginTop = isFirst ? 0.0f : 20.0f * getZoomRatio();
+		float marginBottom = 10.0f * getZoomRatio();
 
 		l = { content, width };
 		l.addYOffset(getTopMargin());
@@ -289,8 +291,8 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 
 		HtmlGenerator g;
 
-
-		auto c = g.createFromAttributedString(content);
+		int linkIndex = 0;
+		auto c = g.createFromAttributedString(content, linkIndex);
 		html << g.surroundWithTag(c, "h" + String(3 - level), "id=\"" + anchorURL.substring(1) + "\"");
 
 		return html;
@@ -303,7 +305,7 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 
 	int getTopMargin() const override 
 	{ 
-		return 30 - jmax<int>(0, 3 - level) * 5; 
+		return (int)((float)(30 - jmax<int>(0, 3 - level) * 5) * getZoomRatio()); 
 	};
 
 	float anchorY;
@@ -323,13 +325,14 @@ struct MarkdownParser::BulletPointList : public MarkdownParser::Element
 	{
 		AttributedString content;
 		MarkdownLayout l;
+		Array<HyperLink> links;
 	};
 
-	BulletPointList(MarkdownParser* parser, Array<AttributedString>& ar) :
+	BulletPointList(MarkdownParser* parser, Array<AttributedString>& ar, Array<Array<HyperLink>>& links) :
 		Element(parser)
 	{
-		for (const auto& r : ar)
-			rows.add({ r, {r, 0.0f} });
+		for (int i = 0; i < ar.size(); i++)
+			rows.add({ ar[i],{ ar[i], 0.0f }, links[i] });
 	}
 
 	void draw(Graphics& g, Rectangle<float> area) override
@@ -373,11 +376,12 @@ struct MarkdownParser::BulletPointList : public MarkdownParser::Element
 
 		HtmlGenerator g;
 
+		int linkIndex = 0;
 		String listItems;
 
 		for (auto r : rows)
 		{
-			auto c = g.createFromAttributedString(r.content);
+			auto c = g.createFromAttributedString(r.content, linkIndex);
 			listItems << g.surroundWithTag(c, "li");
 		}
 
@@ -421,14 +425,29 @@ struct MarkdownParser::BulletPointList : public MarkdownParser::Element
 
 		float bulletPointIntendation = parent->styleData.fontSize * 1.2f;
 
+		hyperLinks.clear();
+
 		for (auto& r : rows)
 		{
-			r.l = parent->getTextLayoutForString(r.content, width - bulletPointIntendation);
+			r.l = { r.content, width - bulletPointIntendation };
 			r.l.addXOffset(bulletPointIntendation);
 			r.l.styleData = parent->styleData;
-			lastHeight += r.l.getHeight();
+
 			lastHeight += bulletMargin;
+
+			recalculateHyperLinkAreas(r.l, r.links, lastHeight + getTopMargin() + intendation);
+
+			lastHeight += r.l.getHeight();
+			
+
+			for (auto link : r.links)
+				hyperLinks.add(link);
+
 		}
+
+		
+
+
 
 		lastHeight += 2.0f* intendation;
 
@@ -449,8 +468,8 @@ struct MarkdownParser::BulletPointList : public MarkdownParser::Element
 
 struct MarkdownParser::EnumerationList : public MarkdownParser::BulletPointList
 {
-	EnumerationList(MarkdownParser* parent, Array<AttributedString>& list) :
-		BulletPointList(parent, list)
+	EnumerationList(MarkdownParser* parent, Array<AttributedString>& list, Array<Array<HyperLink>>& links) :
+		BulletPointList(parent, list, links)
 	{};
 
 	String getTextToCopy() const override
@@ -513,7 +532,7 @@ struct MarkdownParser::Comment : public MarkdownParser::Element
 		g.setColour(Colours::grey.withAlpha(0.2f));
 
 		g.fillRect(area);
-		g.fillRect(area.withWidth(3.0f));
+		g.fillRect(area.withWidth(3.0f * getZoomRatio()));
 
 		l.drawCopyWithOffset(g, area);
 	}
@@ -523,7 +542,8 @@ struct MarkdownParser::Comment : public MarkdownParser::Element
 		String html;
 
 		HtmlGenerator g;
-		auto c = g.createFromAttributedString(content);
+		int linkIndex = 0;
+		auto c = g.createFromAttributedString(content, linkIndex);
 		html << g.surroundWithTag(c, "p", "class=\"comment\"");
 		
 		return html;
@@ -531,19 +551,21 @@ struct MarkdownParser::Comment : public MarkdownParser::Element
 
 	float getHeightForWidth(float width) override
 	{
-		float widthToUse = width - 2.0f * intendation;
+		auto thisIndentation = intendation * getZoomRatio();
+
+		float widthToUse = width - (2.0f * thisIndentation);
 
 		if (widthToUse != lastWidth)
 		{
 			lastWidth = widthToUse;
 
-			l = { content, widthToUse - intendation };
-			l.addYOffset(getTopMargin() + intendation);
-			l.addXOffset(intendation);
+			l = { content, widthToUse - thisIndentation };
+			l.addYOffset(getTopMargin() + thisIndentation);
+			l.addXOffset(thisIndentation);
 			l.styleData = parent->styleData;
 			recalculateHyperLinkAreas(l, hyperLinks, getTopMargin());
 
-			lastHeight = l.getHeight() + intendation;
+			lastHeight = l.getHeight() + thisIndentation;
 
 			return lastHeight;
 		}
@@ -553,8 +575,10 @@ struct MarkdownParser::Comment : public MarkdownParser::Element
 
 	void searchInContent(const String& searchString) override
 	{
+		auto thisIndentation = intendation * getZoomRatio();
+
 		searchInStringInternal(content, searchString);
-		searchResults.offsetAll(intendation, intendation);
+		searchResults.offsetAll(thisIndentation, thisIndentation);
 
 	}
 
@@ -563,7 +587,7 @@ struct MarkdownParser::Comment : public MarkdownParser::Element
 		return content.getText();
 	}
 
-	int getTopMargin() const override { return 10; };
+	int getTopMargin() const override { return intendation * getZoomRatio(); };
 
 	const float intendation = 12.0f;
 
@@ -666,7 +690,7 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 	struct Content: public Component,
 					public ButtonListener
 	{
-		Content(SyntaxType syntax, String code, float width, int numLines)
+		Content(SyntaxType syntax, String code, float width, int numLines, float fontsize)
 		{
 			doc = new CodeDocument();
 
@@ -691,7 +715,7 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 			editor->setColour(CodeEditorComponent::ColourIds::highlightColourId, Colour(0xff666666));
 			editor->setColour(CaretComponent::ColourIds::caretColourId, Colour(0xFFDDDDDD));
 			editor->setColour(ScrollBar::ColourIds::thumbColourId, Colour(0x3dffffff));
-			editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(17.0f));
+			editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(fontsize));
 
 			editor->setSize((int)width, editor->getLineHeight() * numLines + 25);
 
@@ -804,7 +828,7 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 		if (syntax == LiveJavascript)
 			numLines = jmax(numLines, 12);
 
-		return new Content(syntax, code, lastWidth, numLines);
+		return new Content(syntax, code, lastWidth, numLines, parent->styleData.fontSize);
 	}
 
 	Component* createComponent(int maxWidth)
@@ -930,6 +954,12 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 		HtmlGenerator g;
 
 		return g.surroundWithTag(imageName, "img", "src=\"" + imageURL + "\"");
+	}
+
+	void prepareLinksForHtmlExport(const String& baseURL)
+	{
+		Element::prepareLinksForHtmlExport(baseURL);
+		imageURL = HtmlGenerator::createImageLink(imageURL, baseURL);
 	}
 
 	Component* createComponent(int maxWidth) override
@@ -1088,11 +1118,12 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 
 		HtmlGenerator g;
 
+		int linkIndex = 0;
 		String headHtml;
 
 		for (auto& c : headers.columns)
 		{
-			auto cContent = g.createFromAttributedString(c.content);
+			auto cContent = g.createFromAttributedString(c.content, linkIndex);
 
 			headHtml << g.surroundWithTag(cContent, "td");
 			
@@ -1106,7 +1137,18 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 
 			for (auto& c : r.columns)
 			{
-				auto cContent = g.createFromAttributedString(c.content);
+				String cContent;
+
+				if (c.imageURL.isNotEmpty())
+				{
+					cContent << g.surroundWithTag("", "img", "src=\"" + c.imageURL + "\"");
+				}
+				else
+				{
+					cContent << g.createFromAttributedString(c.content, linkIndex);
+				}
+
+				
 
 				rowHtml << g.surroundWithTag(cContent, "td");
 				
@@ -1125,6 +1167,16 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 
 		for (auto& r : rows)
 			r.addImageLinks(sa);
+	}
+
+	void prepareLinksForHtmlExport(const String& baseURL) override
+	{
+		Element::prepareLinksForHtmlExport(baseURL);
+
+		headers.prepareImageLinks(baseURL);
+
+		for (auto& r : rows)
+			r.prepareImageLinks(baseURL);
 	}
 
 	void draw(Graphics& g, Rectangle<float> area) override
@@ -1220,6 +1272,15 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 			{
 				if (c.imageURL.isNotEmpty())
 					sa.add(c.imageURL);
+			}
+		}
+
+		void prepareImageLinks(const String& baseURL)
+		{
+			for (auto& c : columns)
+			{
+				if (c.imageURL.isNotEmpty())
+					c.imageURL = HtmlGenerator::createImageLink(c.imageURL, baseURL);
 			}
 		}
 

@@ -36,14 +36,14 @@ using namespace juce;
 
 struct MarkdownHelpButton::MarkdownHelp : public Component
 {
-	MarkdownHelp(MarkdownParser* parser, int lineWidth)
+	MarkdownHelp(MarkdownRenderer* renderer, int lineWidth)
 	{
 		setWantsKeyboardFocus(false);
 
-		img = Image(Image::ARGB, lineWidth, (int)parser->getHeightForWidth((float)lineWidth), true);
+		img = Image(Image::ARGB, lineWidth, (int)renderer->getHeightForWidth((float)lineWidth), true);
 		Graphics g(img);
 
-		parser->draw(g, { 0.0f, 0.0f, (float)img.getWidth(), (float)img.getHeight() });
+		renderer->draw(g, { 0.0f, 0.0f, (float)img.getWidth(), (float)img.getHeight() });
 
 		setSize(img.getWidth() + 40, img.getHeight() + 40);
 
@@ -65,8 +65,6 @@ struct MarkdownHelpButton::MarkdownHelp : public Component
 	}
 
 	Image img;
-
-	MarkdownParser* parser;
 };
 
 MarkdownHelpButton::MarkdownHelpButton() :

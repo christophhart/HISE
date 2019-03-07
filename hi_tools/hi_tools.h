@@ -115,6 +115,10 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_markdown/MarkdownDatabase.h"
 #include "hi_markdown/MarkdownLayout.h"
 #include "hi_markdown/Markdown.h"
+#include "hi_markdown/MarkdownDefaultProviders.h"
+#include "hi_markdown/MarkdownRenderer.h"
+#include "hi_markdown/MarkdownHtmlExporter.h"
+#include "hi_markdown/MarkdownDatabaseCrawler.h"
 #include "hi_markdown/MarkdownComponents.h"
 #include "hi_markdown/MarkdownPreview.h"
 

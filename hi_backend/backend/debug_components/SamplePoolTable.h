@@ -102,21 +102,7 @@ struct PoolTableHelpers
 {
 	class Factory : public PathFactory
 	{
-		Path createPath(const String& name) const override
-		{
-			if (name == "Preview")
-			{
-				Path p;
-				p.loadPathFromData(HiBinaryData::FrontendBinaryData::infoButtonShape, sizeof(HiBinaryData::FrontendBinaryData::infoButtonShape));
-				return p;
-			}
-			else if (name == "Reload")
-			{
-				return ColumnIcons::getPath(ColumnIcons::moveIcon, sizeof(ColumnIcons::moveIcon));
-			}
-
-			return Path();
-		}
+		Path createPath(const String& name) const override;
 	};
 
 	static Image getPreviewImage(const AudioSampleBuffer* buffer, float width);
@@ -270,8 +256,7 @@ public:
 		}
 
 		WeakReference < PoolEntry<DataType>> data;
-		MarkdownParser p;
-		
+		MarkdownRenderer p;
 	};
 
 	// ========================================================================================================= ExternalFileTable

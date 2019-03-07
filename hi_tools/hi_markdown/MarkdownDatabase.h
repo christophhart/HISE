@@ -42,12 +42,11 @@ public:
 
 	struct Item
 	{
+		using IteratorFunction = std::function<bool(Item&)>;
+
 		struct Sorter
 		{
-			static int compareElements(Item& first, Item& second)
-			{
-				return first.tocString.compareNatural(second.tocString);
-			}
+			static int compareElements(Item& first, Item& second);
 		};
 
 		struct PrioritySorter
@@ -56,47 +55,7 @@ public:
 				searchString(searchString_)
 			{};
 
-			Array<Item> sortItems(Array<Item>& arrayToBeSorted)
-			{
-				Array<Item> s;
-				s.ensureStorageAllocated(arrayToBeSorted.size());
-
-				Sorter sorter;
-				arrayToBeSorted.sort(sorter);
-				
-				// Direct keyword matches first
-				for (int i = 0; i < arrayToBeSorted.size(); i++)
-				{
-					auto item = arrayToBeSorted[i];
-
-					if (item.type != Keyword)
-						continue;
-
-					if (item.keywords.contains(searchString))
-						s.add(arrayToBeSorted.removeAndReturn(i--));
-				}
-
-				for (int i = 0; i < arrayToBeSorted.size(); i++)
-				{
-					auto item = arrayToBeSorted[i];
-
-					if (item.keywords.contains(searchString))
-						s.add(arrayToBeSorted.removeAndReturn(i--));
-				}
-
-				// Keyword items first
-				for (int i = 0; i < arrayToBeSorted.size(); i++)
-				{
-					auto item = arrayToBeSorted[i];
-
-					if (item.type == Keyword)
-						s.add(arrayToBeSorted.removeAndReturn(i--));
-				}
-				
-				s.addArray(arrayToBeSorted);
-
-				return s;
-			}
+			Array<Item> sortItems(Array<Item>& arrayToBeSorted);
 
 			String searchString;
 		};
@@ -112,92 +71,33 @@ public:
 			numTypes
 		};
 
-		int fits(String search) const
+		bool containsURL(const String& urlToLookFor) const;
+
+		bool callForEach(const IteratorFunction& f)
 		{
-			search = search.toLowerCase().removeCharacters("\\/[]()`* ").substring(0, 64);
+			if (f(*this))
+				return true;
 
-			StringArray sa;
-
-			sa.addArray(keywords);
-			sa.add(description);
-			sa.add(fileName);
-			sa.add(tocString);
-
-			for (auto& s : sa)
+			for (auto& c : children)
 			{
-				s = s.toLowerCase().removeCharacters("\\/[]()`* ").substring(0, 64);
-				if (s.contains(search))
-					return 1;
+				if (c.callForEach(f))
+					return true;
 			}
 
-			if (!FuzzySearcher::searchForIndexes(search, sa, 0.3f).isEmpty())
-				return 2;
-
-			return 0;
+			return false;
 		}
 
-		String generateHtml(const String& rootString, const String& activeUrl) const;
-		
+		Item* findChildWithURL(const String& urlToLookFor) const;
+
+		Item(Type t, File root, File f, const StringArray& keywords_, String description_);
 		Item() {};
 
-		void addToList(Array<Item>& list) const
-		{
-			list.add(*this);
+		int fits(String search) const;
+		String generateHtml(const String& rootString, const String& activeUrl) const;
+		void addToList(Array<Item>& list) const;
 
-			for (auto c : children)
-				c.addToList(list);
-		}
-
-		Item(Type t, File root, File f, const String& lastLine) :
-			type(t),
-			fileName(f.getFileName()),
-			url(f.getRelativePathFrom(root).replace("\\", "/"))
-		{
-			auto s = StringArray::fromTokens(lastLine, "|", "");
-
-			if (s.size() == 2)
-			{
-				auto kw = s[0].trim().fromFirstOccurrenceOf("keywords:", false, true).trim();
-
-				keywords = StringArray::fromTokens(kw, ";", "\"");
-
-				for (auto& k : keywords)
-					k = k.removeCharacters("\"");
-
-				description = s[1].trim().fromFirstOccurrenceOf("description:", false, true).trim();
-			}
-		}
-
-		ValueTree createValueTree() const
-		{
-			ValueTree v("Item");
-			v.setProperty("Type", (int)type, nullptr);
-			v.setProperty("Filename", fileName, nullptr);
-			v.setProperty("Description", description, nullptr);
-			v.setProperty("Keywords", keywords.joinIntoString(";"), nullptr);
-			v.setProperty("URL", url, nullptr);
-
-			for (const auto& c : children)
-					v.addChild(c.createValueTree(), -1, nullptr);
-			
-			return v;
-		}
-
-		void loadFromValueTree(ValueTree& v)
-		{
-			type = (Type)(int)v.getProperty("Type");
-			fileName = v.getProperty("Filename");
-			keywords = StringArray::fromTokens(v.getProperty("Keywords").toString(), ";", "");
-			description = v.getProperty("Description");
-			url = v.getProperty("URL");
-
-			for (auto c : v)
-			{
-				Item newChild;
-				newChild.loadFromValueTree(c);
-				children.add(newChild);
-			}
-		}
+		ValueTree createValueTree() const;
+		void loadFromValueTree(ValueTree& v);
 
 		Array<Item> children;
 
@@ -212,75 +112,54 @@ public:
 
 	struct ItemGeneratorBase
 	{
-		virtual ~ItemGeneratorBase() {};
+		ItemGeneratorBase(File rootDirectory_):
+			rootDirectory(rootDirectory_)
+		{}
 
+		void setRootURL(const String& newRootURL)
+		{
+			rootURL = newRootURL;
+		}
+
+		File getFolderReadmeFile(const String& folderURL);
+
+		virtual ~ItemGeneratorBase() {};
 		virtual Item createRootItem(MarkdownDataBase& parent) = 0;
+
+
+		File rootDirectory;
+		MarkdownDataBase::Item rootItem;
+		String rootURL;
 	};
 
 	struct DirectoryItemGenerator : public ItemGeneratorBase
 	{
-		DirectoryItemGenerator(const File& rootDirectory, Colour colour) :
-			ItemGeneratorBase(),
-			root(rootDirectory),
-			c(colour)
-		{}
-
-		Item createRootItem(MarkdownDataBase& parent) override
-		{
-			dbRoot = parent.getRoot();
-			Item rItem;
-			addFileRecursive(rItem, root);
-			return rItem;
-		}
-
+		DirectoryItemGenerator(const File& rootDirectory, Colour colour);
+		Item createRootItem(MarkdownDataBase& parent) override;
 		void addFileRecursive(Item& folder, File f);
 
-		File root;
-		File dbRoot;
+		File startDirectory;
 		Colour c;
 	};
 
-	MarkdownDataBase()
-	{
-
-	}
-
-	~MarkdownDataBase()
-	{
-#if 0
-		auto v = rootItem.createValueTree();
-
-		zstd::ZDefaultCompressor comp;
-		comp.compress(v, getDatabaseFile());
-#endif
-	}
+	MarkdownDataBase();
+	~MarkdownDataBase();
 
 	Item rootItem;
+	const Array<Item>& getFlatList();
 
-	const Array<Item>& getFlatList()
-	{
-		if (cachedFlatList.isEmpty())
-		{
-			rootItem.addToList(cachedFlatList);
-		}
-
-		return cachedFlatList;
-	}
-
-	void setRoot(const File& newRootDirectory)
-	{
-		rootDirectory = newRootDirectory;
-	}
-
+	void setRoot(const File& newRootDirectory);
 	File getRoot() const { return rootDirectory; }
 
 	String generateHtmlToc(const String& activeUrl) const;
-
 	void buildDataBase();
+	void addItemGenerator(ItemGeneratorBase* newItemGenerator);
 
-	void addItemGenerator(ItemGeneratorBase* newItemGenerator)
+	var getHtmlSearchDatabaseDump();
+
+	File getDatabaseFile()
 	{
-		itemGenerators.add(newItemGenerator);
+		return getRoot().getChildFile("Content.dat");
 	}
 
 private:
@@ -290,10 +169,7 @@ private:
 	File rootDirectory;
 	OwnedArray<ItemGeneratorBase> itemGenerators;
 
-	File getDatabaseFile()
-	{
-		return getRoot().getChildFile("database.dat");
-	}
+	
 
 	void loadFromValueTree(ValueTree& v)
 	{
@@ -303,5 +179,9 @@ private:
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MarkdownDataBase);
 };
+
+
+
+
 
 }

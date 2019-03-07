@@ -74,7 +74,7 @@ public:
 	void setNewText(const String& newText, const File& f);
 
 	struct InternalComponent : public Component,
-		public MarkdownParser::Listener,
+		public MarkdownRenderer::Listener,
 		public juce::SettableTooltipClient
 	{
 		InternalComponent(MarkdownPreview& parent);
@@ -109,7 +109,9 @@ public:
 			setMouseCursor(MouseCursor::NormalCursor);
 		}
 
-		void mouseMove(const MouseEvent& event) override;
+		void mouseMove(const MouseEvent& e) override;
+
+		void mouseWheelMove(const MouseEvent& event, const MouseWheelDetails& details) override;
 
 		void scrollToAnchor(float v) override;
 
@@ -125,9 +127,9 @@ public:
 			}
 		}
 
-		ScopedPointer<MarkdownParser::LayoutCache> layoutCache;
+		ScopedPointer<MarkdownRenderer::LayoutCache> layoutCache;
 
-		ScopedPointer<hise::MarkdownParser> parser;
+		ScopedPointer<hise::MarkdownRenderer> parser;
 		String errorMessage;
 
 		MarkdownLayout::StyleData styleData;
@@ -400,7 +402,7 @@ public:
 				Rectangle<int> kBounds;
 				Rectangle<int> starBounds;
 				const MarkdownLayout::StyleData& style;
-				MarkdownParser p;
+				MarkdownRenderer p;
 				int height = 0;
 				MarkdownDataBase::Item item;
 				bool isFuzzyMatch = false;
@@ -791,7 +793,7 @@ public:
 						MarkdownLayout::StyleData l;
 						l.textColour = Colour(0xFF333333);
 						l.headlineColour = Colour(0xFF444444);
-						l.backgroundColour = Colours::white;
+						l.backgroundColour = Colour(0xFFEEEEEE);
 						l.linkColour = Colour(0xFF000044);
 						l.codeColour = Colour(0xFF333333);
 						parent.internalComponent.styleData = l;
@@ -843,7 +845,7 @@ public:
 				}
 				else if (key == KeyPress::tabKey)
 				{
-					
+
 					if (parent.currentSearchResults != nullptr)
 						parent.currentSearchResults->nextButton.triggerClick();
 
@@ -851,7 +853,7 @@ public:
 				}
 
 				return false;
-				
+
 			}
 
 			void resized() override
@@ -868,10 +870,10 @@ public:
 				dragButton.setColours(c.withAlpha(0.8f), c, c);
 				selectButton.setColours(c.withAlpha(0.8f), c, c);
 
-                homeButton.setVisible(false);
-                backButton.setVisible(false);
-                forwardButton.setVisible(false);
-                
+				homeButton.setVisible(false);
+				backButton.setVisible(false);
+				forwardButton.setVisible(false);
+
 				auto ar = getLocalBounds();
 				int buttonMargin = 12;
 				int margin = 0;
@@ -890,7 +892,7 @@ public:
 				selectButton.setBounds(ar.removeFromLeft(height).reduced(buttonMargin));
 				ar.removeFromLeft(margin);
 
-                auto delta = 0; //parent.toc.getWidth() - ar.getX();
+				auto delta = 0; //parent.toc.getWidth() - ar.getX();
 
 				ar.removeFromLeft(delta);
 
@@ -911,91 +913,121 @@ public:
 		};
 
 
-	class MarkdownDatabaseTreeview : public Component
-	{
-	public:
-
-		struct Item : public juce::TreeViewItem
+		class MarkdownDatabaseTreeview : public Component
 		{
-			Item(MarkdownDataBase::Item item_, MarkdownPreview& previewParent_) :
-				TreeViewItem(),
-				item(item_),
-				previewParent(previewParent_)
-			{}
+		public:
 
-			bool mightContainSubItems() override { return !item.children.isEmpty(); }
-
-			String getUniqueName() const override { return item.url; }
-
-			void itemOpennessChanged(bool isNowOpen) override
+			struct Item : public juce::TreeViewItem,
+				public juce::KeyListener
 			{
-				clearSubItems();
-
-				if (isNowOpen)
+				Item(MarkdownDataBase::Item item_, MarkdownPreview& previewParent_) :
+					TreeViewItem(),
+					item(item_),
+					previewParent(previewParent_)
 				{
-					for (auto c : item.children)
-						addSubItem(new Item(c, previewParent));
+					previewParent_.toc.tree.addKeyListener(this);
 				}
 
-				//previewParent.resized();
-			}
-
-			MarkdownParser* getCurrentParser()
-			{
-				return previewParent.internalComponent.parser.get();
-			}
-
-			Item* selectIfURLMatches(const String& url)
-			{
-				if (item.url == url)
+				~Item()
 				{
-					return this;
+					previewParent.toc.tree.removeKeyListener(this);
 				}
 
-				for (int i = 0; i < getNumSubItems(); i++)
+				bool keyPressed(const KeyPress& key,
+					Component* originatingComponent) override
 				{
-					if (auto it = dynamic_cast<Item*>(getSubItem(i))->selectIfURLMatches(url))
-						return it;
-				}
-
-				return nullptr;
-			}
-			
-
-			void itemClicked(const MouseEvent& e)
-			{
-				if (auto p = getCurrentParser())
-				{
-					previewParent.currentSearchResults = nullptr;
-
-					auto link = item.url.upToFirstOccurrenceOf("#", false, false);
-
-					if(p->getLastLink(true, false) != link)
-						p->gotoLink(item.url);
-
-					auto anchor = item.url.fromFirstOccurrenceOf("#", true, false);
-
-					if (anchor.isNotEmpty())
+					if (key.getKeyCode() == KeyPress::returnKey)
 					{
-						auto mp = &previewParent;
+						gotoLink();
+						return true;
+					}
 
-						auto it = this;
+					return false;
+				}
 
-						auto f2 = [mp, anchor, it]()
+				bool mightContainSubItems() override { return !item.children.isEmpty(); }
+
+				String getUniqueName() const override { return item.url; }
+
+				void itemOpennessChanged(bool isNowOpen) override
+				{
+					clearSubItems();
+
+					if (isNowOpen)
+					{
+						for (auto c : item.children)
 						{
-							if (auto p = mp->internalComponent.parser.get())
+							if (c.tocString.isEmpty())
+								continue;
+
+							addSubItem(new Item(c, previewParent));
+						}
+						
+					}
+
+					//previewParent.resized();
+				}
+
+				MarkdownParser* getCurrentParser()
+				{
+					return previewParent.internalComponent.parser.get();
+				}
+
+				Item* selectIfURLMatches(const String& url)
+				{
+					if (item.url == url)
+					{
+						return this;
+					}
+
+					for (int i = 0; i < getNumSubItems(); i++)
+					{
+						if (auto it = dynamic_cast<Item*>(getSubItem(i))->selectIfURLMatches(url))
+							return it;
+					}
+
+					return nullptr;
+				}
+			
+				void gotoLink()
+				{
+					if (auto p = getCurrentParser())
+					{
+						previewParent.currentSearchResults = nullptr;
+
+						auto link = item.url.upToFirstOccurrenceOf("#", false, false);
+
+						if (p->getLastLink(true, false) != link)
+							p->gotoLink(item.url);
+
+						auto anchor = item.url.fromFirstOccurrenceOf("#", true, false);
+
+						if (anchor.isNotEmpty())
+						{
+							auto mp = &previewParent;
+
+							auto it = this;
+
+							auto f2 = [mp, anchor, it]()
 							{
-								if (anchor.isNotEmpty())
-									p->gotoLink(anchor);
+								if (auto p = mp->internalComponent.parser.get())
+								{
+									if (anchor.isNotEmpty())
+										p->gotoLink(anchor);
 
-								it->setSelected(true, true);
-							}
-						};
+									it->setSelected(true, true);
+								}
+							};
 
-						MessageManager::callAsync(f2);
+							MessageManager::callAsync(f2);
+						}
 					}
 				}
-			}
+
+				void itemClicked(const MouseEvent& e)
+				{
+					gotoLink();
+				}
 
 			bool canBeSelected() const override
 			{
@@ -1004,9 +1036,7 @@ public:
 
 			int getItemHeight() const override
 			{
-				const auto& s = previewParent.internalComponent.styleData;
-
-				return s.getFont().getHeight() * 3 / 2;
+				return 24.0f;
 			}
 
 			int getItemWidth() const 
@@ -1014,7 +1044,7 @@ public:
 				auto intendation = getItemPosition(false).getX();
 				
 				const auto& s = previewParent.internalComponent.styleData;
-				auto f = FontHelpers::getFontBoldened(s.getFont());
+				auto f = FontHelpers::getFontBoldened(s.getFont().withHeight(16.0f));
 
 				int thisWidth = intendation + f.getStringWidth(item.tocString) + 30.0f;   
 				
@@ -1048,7 +1078,10 @@ public:
 				g.fillRect(r);
 
 				g.setColour(Colours::white.withAlpha(0.8f));
-				g.setFont(FontHelpers::getFontBoldened(s.getFont()));
+
+				auto f = FontHelpers::getFontBoldened(s.getFont().withHeight(16.0f));
+
+				g.setFont(f);
 
 				g.drawText(item.tocString, area, Justification::centredLeft);
 			}

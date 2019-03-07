@@ -35,7 +35,7 @@ namespace hise {
 using namespace juce;
 
 
-const MarkdownLayout& MarkdownParser::LayoutCache::getLayout(const AttributedString& s, float w)
+const MarkdownLayout& MarkdownRenderer::LayoutCache::getLayout(const AttributedString& s, float w)
 {
 	int64 hash = s.getText().hashCode64();
 
@@ -52,7 +52,7 @@ const MarkdownLayout& MarkdownParser::LayoutCache::getLayout(const AttributedStr
 }
 
 
-MarkdownParser::LayoutCache::Layout::Layout(const AttributedString& s, float w):
+MarkdownRenderer::LayoutCache::Layout::Layout(const AttributedString& s, float w):
 	l(s, w)
 {
 	hashCode = s.getText().hashCode64();
@@ -61,23 +61,23 @@ MarkdownParser::LayoutCache::Layout::Layout(const AttributedString& s, float w):
 
 
 
-MarkdownParser::MarkdownParser(const String& markdownCode_, LayoutCache* c) :
+MarkdownParser::MarkdownParser(const String& markdownCode_) :
 	markdownCode(markdownCode_.replace("\r\n", "\n")),
 	it(markdownCode),
-	
-	currentParseResult(Result::fail("Nothing parsed yet")),
-    layoutCache(c),
-	uncachedLayout({}, 0.0f)
+	currentParseResult(Result::fail("Nothing parsed yet"))
 {
-	imageProviders.add(new ImageProvider(this));
+	setImageProvider(new ImageProvider(this));
+	setImageProvider(new URLImageProvider(File::getSpecialLocation(File::tempDirectory).getChildFile("TempImagesForMarkdown"), this));
+	setLinkResolver(new DefaultLinkResolver(this));
+}
 
-	imageProviders.add(new URLImageProvider(File::getSpecialLocation(File::tempDirectory).getChildFile("TempImagesForMarkdown"), this));
 
-	linkResolvers.add(new DefaultLinkResolver(this));
+MarkdownParser::~MarkdownParser()
+{
 
-	history.add(markdownCode);
-	historyIndex = 0;
-
+	elements.clear();
+	linkResolvers.clear();
+	imageProviders.clear();
 }
 
 void MarkdownParser::setFonts(Font normalFont_, Font codeFont_, Font headlineFont_, float defaultFontSize_)
@@ -103,9 +103,9 @@ juce::String MarkdownParser::resolveLink(const String& url)
 
 juce::Image MarkdownParser::resolveImage(const String& imageUrl, float width)
 {
-	for (int i = imageProviders.size() - 1; i >= 0; i--)
+	for (auto ip: imageProviders)
 	{
-		auto img = imageProviders[i]->getImage(imageUrl, width);
+		auto img = ip->getImage(imageUrl, width);
 
 		if (img.isValid())
 			return img;
@@ -117,69 +117,6 @@ juce::Image MarkdownParser::resolveImage(const String& imageUrl, float width)
 void MarkdownParser::setDefaultTextSize(float fontSize)
 {
 	styleData.fontSize = fontSize;
-}
-
-float MarkdownParser::getHeightForWidth(float width)
-{
-	if (width == lastWidth)
-		return lastHeight;
-
-	float height = 0.0f;
-
-	for (auto* e : elements)
-	{
-		if (auto h = dynamic_cast<Headline*>(e))
-		{
-			h->anchorY = height;
-		}
-
-		height += e->getTopMargin();
-		height += e->getHeightForWidthCached(width);
-	}
-
-	lastWidth = width;
-	lastHeight = height;
-	firstDraw = true;
-
-	return height;
-}
-
-
-void MarkdownParser::draw(Graphics& g, Rectangle<float> totalArea, Rectangle<int> viewedArea) const
-{
-	for (auto* e : elements)
-	{
-		auto heightToUse = e->getHeightForWidthCached(totalArea.getWidth());
-		auto topMargin = e->getTopMargin();
-		totalArea.removeFromTop(topMargin);
-		auto ar = totalArea.removeFromTop(heightToUse);
-
-		if(firstDraw || viewedArea.isEmpty() || ar.toNearestInt().intersects(viewedArea))
-			e->draw(g, ar);
-	}
-
-	firstDraw = false;
-}
-
-
-hise::MarkdownParser::TableOfContent MarkdownParser::createTableOfContent() const
-{
-	TableOfContent toc;
-
-	for (const auto e : elements)
-	{
-		if (auto h = dynamic_cast<const Headline*>(e))
-		{
-			int intendation = 2 - h->level;
-
-			if (intendation < 0)
-				continue;
-
-			toc.entries.add({ intendation, h->content.getText(), h->anchorURL});
-		}
-	}
-
-	return toc;
 }
 
 String MarkdownParser::getCurrentText() const
@@ -228,98 +165,8 @@ bool MarkdownParser::gotoLink(const String& url)
 
 	String newText = resolveLink(url).replace("\r\n", "\n");
 
-	history.removeRange(historyIndex, -1);
-	history.add(newText);
-	historyIndex = history.size() - 1;
-
 	setNewText(newText);
 	return true;
-}
-
-juce::String MarkdownParser::getAnchorForY(int y) const
-{
-	int currentY = 0;
-
-	Headline* lastHeadline = nullptr;
-
-	for (auto e : elements)
-	{
-		if (auto h = dynamic_cast<Headline*>(e))
-		{
-			lastHeadline = h;
-		}
-
-		currentY += e->getTopMargin();
-		currentY += e->getLastHeight();
-
-		if (y <= currentY)
-			break;
-	}
-
-	if (lastHeadline != nullptr)
-		return lastHeadline->anchorURL;
-
-	return {};
-}
-
-
-juce::String MarkdownParser::generateHtml(const MarkdownDataBase& db, const String& activeLink)
-{
-	String html;
-	NewLine nl;
-
-	html << "<html>" << nl;
-	html << "<head>" << nl;
-
-	html << "<link href=\"https://fonts.googleapis.com/css?family=Oxygen\" rel=\"stylesheet\">" << nl;
-
-	html << "<link href=\"http://hise.audio/manual/css/prism.css\" rel=\"stylesheet\">" << nl;
-
-	html << "<style>" << nl;
-	
-	html << "body{ margin: 0px; color: #333; font-family: Oxygen; line-height: 1.5em;}" << nl;
-	html << "h1, h2, h3{  font-weight: 900; border-bottom: 1px solid #eee; color: #555; }" << nl;
-	
-	html << "table { display: table; border-spacing: 0; border-collapse: collapse; }" << nl;
-
-	html << "thead { color: #444; background-color: #eee; font-weight: 700; box-sizing: border-box; display: table-header-group; vertical-align: middle; border-color: inherit; }" << nl;
-
-	html << "tr { display: table-row; vertical-align: inherit; border-color: inherit; }" << nl;
-
-	html << "th, td { border: 1px solid #ddd; padding: 10px; }" << nl;
-	html << "th { background-color: #eee; font-weight: 900; }" << nl;
-
-	html << "p.comment { margin-top: 20px; background-color: #eee; border-left: 3px solid #ccc; padding: 20px; }" << nl;
-
-	html << "div.menu { width: 100%; height: 30px; background-color: #444; color: #fff; padding: 10px; padding-top: 20px; }" << nl;
-	html << "div.toc { width: 300px; padding: 10px; min-height: 100%; float: left; background-color: #333; color: #fff; }" << nl;
-	html << "div.content { max-width: 900px; margin: 0 auto; padding: 30px; float: left; }" << nl;
-
-	html << "div.toc a { color: #fff; text-decoration: none; font-weight: 700; font-size: 0.9em; }" << nl;
-
-	html << "details  { padding-left: 10px; }" << nl;
-	html << "details details  { padding-left: 20px; }" << nl;
-
-	html << "</style>" << nl;
-	html << "<body>" << nl;
-
-	html << "<div class=\"menu\">HISE Docs</div>" << nl;
-
-	html << db.generateHtmlToc(activeLink) << nl;
-
-	html << "<div class=\"content\">" << nl;
-
-	for (auto e : elements)
-		html << e->generateHtml();
-
-	html << "<script src=\"http://hise.audio/manual/js/prism.js\"></script>" << nl;
-
-	html << "</div>" << nl;
-
-	html << "</body>" << nl;
-	html << "</html>";
-
-	return html;
 }
 
 
@@ -378,33 +225,41 @@ void MarkdownParser::createDatabaseEntriesForFile(File root, MarkdownDataBase::I
 		DBG(p.getParseResult().getErrorMessage());
 	}
 
-	auto last = p.elements.getLast();
-
-	if (auto t = dynamic_cast<Comment*>(p.elements.getLast()))
+	try
 	{
-		auto lastText = t->content.getText();
-
-		item = MarkdownDataBase::Item(MarkdownDataBase::Item::Keyword, root, f, lastText);
+		item = MarkdownDataBase::Item(MarkdownDataBase::Item::Keyword, root, f, p.yamlHeader.getKeywords(), p.yamlHeader.getDescription());
 		item.c = c;
 		item.tocString = item.keywords[0];
+
+		MarkdownDataBase::Item lastHeadLine;
+		int lastLevel = -59;
 
 		for (auto e : p.elements)
 		{
 			if (auto h = dynamic_cast<Headline*>(e))
 			{
-				if (h->level > 1)
-					continue;
-
-				MarkdownDataBase::Item headLineItem(MarkdownDataBase::Item::Headline, root, f, lastText);
+				MarkdownDataBase::Item headLineItem(MarkdownDataBase::Item::Headline, root, f, p.yamlHeader.getKeywords(), p.yamlHeader.getDescription());
 
 				headLineItem.description = h->content.getText();
 				headLineItem.url << h->anchorURL;
 				headLineItem.c = c;
-				headLineItem.tocString = headLineItem.description;
+
+				headLineItem.tocString << headLineItem.description;
+
+				if (h->level <= 0)
+					headLineItem.tocString = {};
+
 
 				item.children.add(headLineItem);
+
 			}
 		}
+	}
+	catch (String& s)
+	{
+		DBG("---");
+		DBG("Error parsing metadata for file " + f.getFullPathName());
+		DBG(s);
 	}
 }
 
@@ -444,6 +299,38 @@ bool MarkdownParser::Helpers::belongsToTextBlock(juce_wchar c, bool isCode, bool
 		return !isEndOfLine(c);
 
 	return !isNewToken(c, isCode);
+}
+
+
+void MarkdownParser::Element::drawHighlight(Graphics& g, Rectangle<float> area)
+{
+	if (selected)
+	{
+		g.setColour(parent->styleData.backgroundColour.contrasting().withAlpha(0.05f));
+		g.fillRoundedRectangle(area, 3.0f);
+	}
+
+	for (auto r : searchResults)
+	{
+		g.setColour(Colours::red.withAlpha(0.5f));
+
+		auto r_t = r.translated(area.getX(), area.getY());
+		g.fillRoundedRectangle(r_t, 3.0f);
+		g.drawRoundedRectangle(r_t, 3.0f, 1.0f);
+	}
+}
+
+
+float MarkdownParser::Element::getHeightForWidthCached(float width)
+{
+	if (width != lastWidth)
+	{
+		cachedHeight = getHeightForWidth(width);
+		lastWidth = width;
+		return cachedHeight;
+	}
+
+	return cachedHeight;
 }
 
 void MarkdownParser::Element::recalculateHyperLinkAreas(MarkdownLayout& l, Array<HyperLink>& links, float topMargin)
@@ -517,6 +404,17 @@ void MarkdownParser::Element::recalculateHyperLinkAreas(MarkdownLayout& l, Array
 #endif
 }
 
+
+void MarkdownParser::Element::prepareLinksForHtmlExport(const String& baseURL)
+{
+	for (auto& l : hyperLinks)
+	{
+		DBG("Found a link: " + l.url);
+		auto newURL = HtmlGenerator::createHtmlLink(l.url, baseURL);
+		DBG("Resolved: " + newURL);
+		l.url = newURL;
+	}
+}
 
 juce::Array<juce::Range<int>> MarkdownParser::Element::getMatchRanges(const String& fullText, const String& searchString, bool countNewLines)
 {
@@ -683,6 +581,28 @@ juce::String MarkdownParser::Iterator::getRestString() const
 }
 
 
+juce::String MarkdownParser::Iterator::advanceLine()
+{
+	String s;
+
+	juce_wchar c;
+	
+	if (!next(c))
+		return s;
+
+	while (c != 0 && c != '\n')
+	{
+		s << c;
+		if (!next(c))
+			break;
+	}
+
+	if (c == '\n')
+		s << c;
+
+	return s;
+}
+
 int MarkdownParser::Tokeniser::readNextToken(CodeDocument::Iterator& source)
 {
 	source.skipWhitespace();
@@ -695,6 +615,19 @@ int MarkdownParser::Tokeniser::readNextToken(CodeDocument::Iterator& source)
 	{
 		source.skipToEndOfLine();
 		return 1;
+	}
+	case '!':
+		source.skip();
+	case '[':
+	{
+		source.skip();
+
+		while (!source.isEOF() && source.peekNextChar() != ')')
+			source.skip();
+
+		source.skip();
+
+		return 6;
 	}
 	case '*':
 	{
@@ -727,6 +660,36 @@ int MarkdownParser::Tokeniser::readNextToken(CodeDocument::Iterator& source)
 		source.skipToEndOfLine();
 		return 4;
 	}
+	case '-':
+	{
+		source.skip();
+
+		if (source.nextChar() == '-')
+		{
+			if (source.nextChar() == '-')
+			{
+				source.skipToEndOfLine();
+
+				while (!source.isEOF())
+				{
+					if (source.nextChar() == '-')
+					{
+						if (source.nextChar() == '-')
+						{
+							if (source.nextChar() == '-')
+							{
+								break;
+							}
+						}
+					}
+
+					source.skipToEndOfLine();
+				}
+				
+				return 5;
+			}
+		}
+	}
 	default: source.skip(); return 0;
 	}
 }
@@ -740,6 +703,8 @@ juce::CodeEditorComponent::ColourScheme MarkdownParser::Tokeniser::getDefaultCol
 	s.set("highlighted", Colours::white);
 	s.set("fixed", Colours::lightblue);
 	s.set("comment", Colour(0xFF777777));
+	s.set("metadata", Colour(0xFFaa7777));
+	s.set("linke", Colour(0xFF8888FF));
 
 	return s;
 }
@@ -770,165 +735,31 @@ juce::CodeEditorComponent::ColourScheme MarkdownParser::SnippetTokeniser::getDef
 }
 
 
-juce::String MarkdownParser::FileLinkResolver::getContent(const String& url)
-{
-	File f = root.getChildFile(url.upToFirstOccurrenceOf("#", false, true));
-
-	if (f.existsAsFile())
-		return f.loadFileAsString();
-	else
-		return {};
-}
-
-
-bool MarkdownParser::FileLinkResolver::linkWasClicked(const String& url)
-{
-	return false;
-}
-
 juce::Image MarkdownParser::ImageProvider::getImage(const String& /*imageURL*/, float width)
 {
-	Image img = Image(Image::PixelFormat::ARGB, (int)width, (int)width, true);
+	Image img = Image(Image::PixelFormat::ARGB, (int)width, (int)40.0f, true);
 	Graphics g(img);
 	g.fillAll(Colours::grey);
 	g.setColour(Colours::black);
-	g.drawRect(0.0f, 0.0f, width, width, 1.0f);
+	g.drawRect(0.0f, 0.0f, width, 40.0f, 1.0f);
 	g.setFont(GLOBAL_BOLD_FONT());
-	g.drawText("Empty", 0, 0, (int)width, (int)width, Justification::centred);
+	g.drawText("Empty", 0, 0, (int)width, (int)40.0f, Justification::centred);
 	return img;
 }
 
 
-MarkdownParser::FileBasedImageProvider::FileBasedImageProvider(MarkdownParser* parent, const File& root) :
-	ImageProvider(parent),
-	r(root)
+juce::Image MarkdownParser::ImageProvider::resizeImageToFit(const Image& otherImage, float width)
 {
-
-}
-
-juce::Image MarkdownParser::FileBasedImageProvider::getImage(const String& imageURL, float width)
-{
-	File imageFile = r.getChildFile(imageURL);
-
-	if (imageFile.existsAsFile() && ImageFileFormat::findImageFormatForFileExtension(imageFile) != nullptr)
-		return resizeImageToFit(ImageCache::getFromFile(imageFile), width);
-
-	return {};
-}
-
-
-juce::Image MarkdownParser::HiseDocImageProvider::getImage(const String& urlName, float width)
-{
-	if (URL::isProbablyAWebsiteURL(urlName))
+	if (width == 0.0)
 		return {};
 
-	const String onlineImageDirectory = "http://hise.audio/manual/";
+	if (otherImage.isNull() || otherImage.getWidth() < (int)width)
+		return otherImage;
 
-	auto rootDirectory = File("D:/tempImages");
-
-	auto file = rootDirectory.getChildFile(urlName);
-
-	if (file.existsAsFile())
-	{
-		return resizeImageToFit(ImageCache::getFromFile(file), width);
-	}
-	
-	URL root(onlineImageDirectory);
-	auto fileUrl = root.getChildURL(urlName);
-	
-	int32 start = Time::getApproximateMillisecondCounter();
-
-	file.create();
-
-	ScopedPointer<URL::DownloadTask> task = fileUrl.downloadToFile(file);
-
-	if (task == nullptr)
-		return {};
-
-	while (!task->isFinished())
-	{
-		auto duration = Time::getApproximateMillisecondCounter();
-
-		if (duration - start > 5000)
-			break;
-	}
-
-	if (task->isFinished() && !task->hadError())
-	{
-		return resizeImageToFit(ImageCache::getFromFile(file), width);
-	}
-	else
-		return {};
+	float ratio = (float)otherImage.getWidth() / width;
+	return otherImage.rescaled((int)width, (int)((float)otherImage.getHeight() / ratio));
 }
 
-bool MarkdownParser::DefaultLinkResolver::linkWasClicked(const String& url)
-{
-	if (url.startsWith("CLIPBOARD::"))
-	{
-		String content = url.fromFirstOccurrenceOf("CLIPBOARD::", false, false);
-
-		SystemClipboard::copyTextToClipboard(content);
-		return true;
-	}
-
-	if (url.startsWith("http"))
-	{
-		URL u(url);
-		u.launchInDefaultBrowser();
-		return true;
-	}
-
-	if (url.startsWith("#"))
-	{
-		for (auto e : parser->elements)
-		{
-			if (auto headLine = dynamic_cast<Headline*>(e))
-			{
-				if (url == headLine->anchorURL)
-				{
-					for (auto l : parser->listeners)
-					{
-						if(l.get() != nullptr)
-							l->scrollToAnchor(headLine->anchorY);
-					}
-				}
-			}
-		}
-
-		return true;
-	}
-
-	return false;
-}
-
-juce::String MarkdownParser::FolderTocCreator::getContent(const String& url)
-{
-	if(url.startsWith("{FOLDER_TOC}"))
-	{
-		auto filePath = url.fromFirstOccurrenceOf("{FOLDER_TOC}", false, false);
-
-		auto directory = rootFile.getChildFile(filePath.replace("\\", "/"));
-
-		jassert(directory.isDirectory());
-
-		String s;
-
-		s << "# Content of " << directory.getFileName() << "  \n";
-
-		Array<File> files;
-
-		directory.findChildFiles(files, File::findFilesAndDirectories, false);
-
-		for (auto f : files)
-		{
-			s << "[" << f.getFileNameWithoutExtension() << "](" << f.getRelativePathFrom(rootFile) << ")  \n";
-		}
-
-		return s;
-	}
-
-	return {};
-}
 
 }
 

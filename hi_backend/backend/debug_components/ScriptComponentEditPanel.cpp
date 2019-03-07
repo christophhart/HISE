@@ -110,7 +110,7 @@ ScriptComponentEditPanel::ScriptComponentEditPanel(MainController* mc_, Processo
 	
 	addAndMakeVisible(helpButton = new MarkdownHelpButton());
 	helpButton->setPopupWidth(600);
-	helpButton->setHelpText<MarkdownParser::PathProvider<Factory>>(PropertyPanelHelp::Help());
+	helpButton->setHelpText<PathProvider<Factory>>(PropertyPanelHelp::Help());
 
 	addAndMakeVisible(panel = new PropertyPanel());
 

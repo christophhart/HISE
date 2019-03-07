@@ -379,6 +379,15 @@ public:
 #endif
 		}
 
+		MarkdownParser::ResolveType getPriority() const override 
+		{ 
+#if USE_BACKEND
+			return MarkdownParser::ResolveType::FileBased;
+#else
+			return MarkdownParser::ResolveType::Cached; 
+#endif
+		}
+
 		LinkResolver* clone(MarkdownParser* parent) const override { return new ProjectLinkResolver(const_cast<MainController*>(getMainController())); };
 		Identifier getId() const override { RETURN_STATIC_IDENTIFIER("ProjectLinkResolver"); };
 	};
@@ -412,6 +421,16 @@ public:
 				return resizeImageToFit(*d, width);
 
 			return {};
+		}
+
+
+		MarkdownParser::ResolveType getPriority() const override
+		{
+#if USE_BACKEND
+			return MarkdownParser::ResolveType::FileBased;
+#else
+			return MarkdownParser::ResolveType::Cached;
+#endif
 		}
 
 		ImageProvider* clone(MarkdownParser* newParent) const override { return new PooledImageProvider(const_cast<MainController*>(getMainController()), newParent); };

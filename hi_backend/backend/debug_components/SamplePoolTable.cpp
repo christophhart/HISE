@@ -275,4 +275,22 @@ juce::Image PoolTableHelpers::getPreviewImage(const MidiFileReference* v, float 
 	return img;
 }
 
+juce::Path PoolTableHelpers::Factory::createPath(const String& name) const
+{
+	auto url = HtmlGenerator::getSanitizedFilename(name);
+
+	if (url == "preview")
+	{
+		Path p;
+		p.loadPathFromData(HiBinaryData::FrontendBinaryData::infoButtonShape, sizeof(HiBinaryData::FrontendBinaryData::infoButtonShape));
+		return p;
+	}
+	else if (url == "reload")
+	{
+		return ColumnIcons::getPath(ColumnIcons::moveIcon, sizeof(ColumnIcons::moveIcon));
+	}
+
+	return Path();
+}
+
 } // namespace hise

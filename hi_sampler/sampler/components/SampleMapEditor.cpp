@@ -211,7 +211,7 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 
 	addAndMakeVisible(helpButton = new MarkdownHelpButton());
 
-	helpButton->setHelpText<MarkdownParser::PathProvider<Factory>>(SampleMapEditorHelp::Help());
+	helpButton->setHelpText<PathProvider<Factory>>(SampleMapEditorHelp::Help());
 	helpButton->setFontSize(14.0f);
 	helpButton->setPopupWidth(600);
 
@@ -1120,9 +1120,11 @@ END_JUCER_METADATA
 
 juce::Path SampleMapEditor::Factory::createPath(const String& name) const
 {
+	auto url = HtmlGenerator::getSanitizedFilename(name);
+
 	Path path;
 
-	if (name == "Warning")
+	if (url == "warning")
 	{
 		static const unsigned char pathData[] = { 110,109,0,2,22,67,128,64,223,67,108,0,2,22,67,128,64,223,67,108,52,245,21,67,156,64,223,67,108,111,232,21,67,10,65,223,67,108,184,219,21,67,201,65,223,67,108,25,207,21,67,218,66,223,67,108,153,194,21,67,59,68,223,67,108,65,182,21,67,235,69,223,67,108,
 			24,170,21,67,234,71,223,67,108,37,158,21,67,54,74,223,67,108,113,146,21,67,206,76,223,67,108,4,135,21,67,176,79,223,67,108,227,123,21,67,218,82,223,67,108,23,113,21,67,74,86,223,67,108,167,102,21,67,254,89,223,67,108,153,92,21,67,244,93,223,67,108,243,
@@ -1150,7 +1152,7 @@ juce::Path SampleMapEditor::Factory::createPath(const String& name) const
 		
 		path.loadPathFromData(pathData, sizeof(pathData));
 	}
-	else if (name == "Cut")
+	else if (url == "cut")
 	{
 		static const unsigned char pathData[] = { 110,109,3,139,29,67,1,163,87,67,98,185,8,29,67,151,230,86,67,60,57,28,67,142,92,86,67,124,81,27,67,12,40,86,67,98,214,179,26,67,68,4,86,67,200,19,26,67,246,10,86,67,128,136,25,67,18,58,86,67,108,244,239,23,67,162,232,83,67,98,1,91,25,67,56,191,81,67,
 			212,116,27,67,109,140,78,67,186,184,27,67,249,41,78,67,98,172,94,28,67,12,57,77,67,59,78,27,67,155,45,76,67,135,66,27,67,105,34,76,67,108,101,243,26,67,39,214,75,67,108,49,170,22,67,119,15,82,67,108,233,96,18,67,72,214,75,67,108,199,17,18,67,138,34,76,
@@ -1169,7 +1171,7 @@ juce::Path SampleMapEditor::Factory::createPath(const String& name) const
 
 		path.loadPathFromData(pathData, sizeof(pathData));
 	}
-	else if (name == "Copy")
+	else if (url == "copy")
 	{
 		static const unsigned char pathData[] = { 110,109,0,0,240,65,0,0,0,0,108,0,0,32,65,0,0,0,0,98,4,86,14,65,0,0,0,0,0,0,0,65,184,30,101,63,0,0,0,65,0,0,0,64,108,0,0,0,65,0,0,0,65,108,0,0,0,64,0,0,0,65,98,66,96,101,63,0,0,0,65,0,0,0,0,236,81,14,65,0,0,0,0,0,0,32,65,108,0,0,0,0,0,0,240,65,98,0,0,
 			0,0,254,212,248,65,66,96,101,63,0,0,0,66,0,0,0,64,0,0,0,66,108,0,0,176,65,0,0,0,66,98,10,215,184,65,0,0,0,66,0,0,192,65,254,212,248,65,0,0,192,65,0,0,240,65,108,0,0,192,65,0,0,192,65,108,0,0,240,65,0,0,192,65,98,254,212,248,65,0,0,192,65,0,0,0,66,254,
@@ -1180,11 +1182,11 @@ juce::Path SampleMapEditor::Factory::createPath(const String& name) const
 
 		path.loadPathFromData(pathData, sizeof(pathData));
 	}
-	else if (name == "Paste")
+	else if (url == "paste")
 	{
 		path.loadPathFromData(EditorIcons::pasteIcon, sizeof(EditorIcons::pasteIcon));
 	}
-	else if (name == "Delete")
+	else if (url == "delete")
 	{
 		static const unsigned char pathData[] = { 110,109,77,57,87,67,170,11,183,66,108,77,57,45,67,170,11,183,66,98,152,91,41,67,170,11,183,66,77,57,38,67,64,80,189,66,77,57,38,67,170,11,197,66,108,77,57,38,67,84,182,201,66,108,77,57,94,67,84,182,201,66,108,77,57,94,67,170,11,197,66,98,77,57,94,67,
 			64,80,189,66,2,23,91,67,170,11,183,66,77,57,87,67,170,11,183,66,99,109,70,255,74,67,85,182,173,66,108,198,6,76,67,0,113,188,66,108,212,107,56,67,0,113,188,66,108,74,115,57,67,85,182,173,66,108,70,255,74,67,85,182,173,66,109,162,142,75,67,0,97,164,66,
@@ -1197,7 +1199,7 @@ juce::Path SampleMapEditor::Factory::createPath(const String& name) const
 
 		path.loadPathFromData(pathData, sizeof(pathData));
 	}
-	else if (name == "Duplicate")
+	else if (url == "duplicate")
 	{
 		static const unsigned char pathData[] = { 110,109,206,114,185,66,122,177,183,193,108,206,119,137,66,122,177,183,193,98,135,4,138,66,6,165,202,193,183,175,139,66,109,120,220,193,97,121,142,66,178,43,237,193,98,9,67,145,66,240,222,253,193,145,125,150,66,104,202,8,194,250,40,158,66,171,38,20,194,
 			98,117,216,162,66,33,29,27,194,185,215,165,66,188,102,32,194,200,38,167,66,127,3,36,194,98,211,117,168,66,56,160,39,194,90,29,169,66,14,14,43,194,92,29,169,66,1,77,46,194,98,90,29,169,66,236,206,49,194,128,119,168,66,48,206,52,194,207,43,167,66,208,74,
@@ -1211,21 +1213,21 @@ juce::Path SampleMapEditor::Factory::createPath(const String& name) const
 
 		path.loadPathFromData(pathData, sizeof(pathData));
 	}
-	else if (name == "Fill Note Gaps")
+	else if (url == "fill-note-gaps")
 	{
 		static const unsigned char pathData[] = { 110,109,0,0,0,0,39,49,12,65,108,221,36,12,65,26,47,140,65,108,196,32,12,65,200,118,70,65,108,133,235,169,65,249,126,70,65,108,133,235,169,65,26,47,140,65,108,0,0,240,65,39,49,12,65,108,133,235,169,65,0,0,0,0,108,133,235,169,65,217,206,163,64,108,196,
 			32,12,65,217,206,163,64,108,221,36,12,65,0,0,0,0,99,101,0,0 };
 
 		path.loadPathFromData(pathData, sizeof(pathData));
 	}
-	else if (name == "Fill Velocity Gaps")
+	else if (url == "fill-velocity-gaps")
 	{
 		static const unsigned char pathData[] = { 110,109,244,253,111,65,203,161,199,192,108,204,161,199,64,222,79,33,64,108,82,184,53,65,124,63,33,64,108,33,176,53,65,37,6,112,65,108,203,161,199,64,37,6,112,65,108,244,253,111,65,142,23,190,65,108,142,23,190,65,38,6,112,65,108,216,35,149,65,38,6,112,
 			65,108,216,35,149,65,128,63,33,64,108,142,23,190,65,226,79,33,64,99,101,0,0 };
 
 		path.loadPathFromData(pathData, sizeof(pathData));
 	}
-	else if (name == "New SampleMap")
+	else if (url == "new-samplemap")
 	{
 		static const unsigned char pathData[] = { 110,109,202,148,45,67,240,190,35,66,108,166,167,28,67,200,20,192,65,98,54,23,28,67,71,145,187,65,170,98,27,67,167,46,184,65,2,138,26,67,167,46,184,65,108,234,246,250,66,167,46,184,65,98,74,148,247,66,167,46,184,65,25,194,244,66,105,119,195,65,25,194,
 			244,66,236,1,209,65,108,25,194,244,66,17,31,174,66,98,25,194,244,66,178,129,177,66,74,148,247,66,170,11,180,66,234,246,250,66,170,11,180,66,108,37,119,43,67,170,11,180,66,98,117,40,45,67,170,11,180,66,142,145,46,67,178,129,177,66,142,145,46,67,17,31,
@@ -1236,7 +1238,7 @@ juce::Path SampleMapEditor::Factory::createPath(const String& name) const
 
 		path.loadPathFromData(pathData, sizeof(pathData));
 	}
-	else if (name == "Load SampleMap")
+	else if (url == "load-samplemap")
 	{
 		static const unsigned char pathData[] = { 110,109,249,109,142,67,168,198,186,65,98,181,96,143,67,168,198,186,65,200,125,144,67,164,246,176,65,160,229,144,67,138,149,163,65,108,36,201,152,67,123,139,22,193,98,236,65,153,67,185,157,51,193,74,146,152,67,183,237,68,193,18,86,151,67,183,237,68,193,
 			108,192,94,143,67,183,237,68,193,108,192,94,143,67,63,138,155,193,98,192,94,143,67,11,61,175,193,86,94,142,67,168,67,191,193,42,35,141,67,168,67,191,193,108,82,69,115,67,168,67,191,193,108,124,96,112,67,102,7,252,193,98,90,19,112,67,129,43,1,194,189,
@@ -1248,7 +1250,7 @@ juce::Path SampleMapEditor::Factory::createPath(const String& name) const
 
 		path.loadPathFromData(pathData, sizeof(pathData));
 	}
-	else if (name == "Save SampleMap")
+	else if (url == "save-samplemap")
 	{
 		static const unsigned char pathData[] = { 110,109,0,0,144,65,0,0,0,64,108,0,0,176,65,0,0,0,64,108,0,0,176,65,0,0,48,65,108,0,0,144,65,0,0,48,65,99,109,0,0,192,64,0,0,208,65,108,0,0,208,65,0,0,208,65,108,0,0,208,65,0,0,224,65,108,0,0,192,64,0,0,224,65,99,109,0,0,192,64,0,0,176,65,108,0,0,208,
 			65,0,0,176,65,108,0,0,208,65,0,0,192,65,108,0,0,192,64,0,0,192,65,99,109,0,0,192,64,0,0,144,65,108,0,0,208,65,0,0,144,65,108,0,0,208,65,0,0,160,65,108,0,0,192,64,0,0,160,65,99,109,0,0,208,65,0,0,0,0,108,0,0,192,65,0,0,0,0,108,0,0,192,65,0,0,80,65,108,
@@ -1257,7 +1259,7 @@ juce::Path SampleMapEditor::Factory::createPath(const String& name) const
 
 		path.loadPathFromData(pathData, sizeof(pathData));
 	}
-	else if (name == "Import SFZ file format")
+	else if (url == "import-sfz-file-format")
 	{
 		static const unsigned char pathData[] = { 110,109,0,192,152,67,0,120,186,67,98,79,191,150,67,0,120,186,67,0,8,149,67,24,22,188,67,0,8,149,67,0,28,190,67,108,0,8,149,67,0,212,215,67,98,0,8,149,67,232,217,217,67,79,191,150,67,0,120,219,67,0,192,152,67,0,120,219,67,108,0,164,180,67,0,120,219,67,
 			98,177,164,182,67,0,120,219,67,0,92,184,67,232,217,217,67,0,92,184,67,0,212,215,67,108,0,92,184,67,0,28,190,67,98,0,92,184,67,24,22,188,67,177,164,182,67,0,120,186,67,0,164,180,67,0,120,186,67,108,0,192,152,67,0,120,186,67,99,109,0,192,152,67,0,160,189,
@@ -1322,7 +1324,7 @@ juce::Path SampleMapEditor::Factory::createPath(const String& name) const
 
 		path.loadPathFromData(pathData, sizeof(pathData));
 	}
-	else if (name == "Convert to Monolith")
+	else if (url == "convert-to-monolith")
 	{
 		static const unsigned char pathData[] = { 110,109,166,92,181,67,88,209,231,193,98,31,230,165,67,88,209,231,193,166,92,153,67,88,206,121,192,166,92,153,67,168,46,216,65,98,166,92,153,67,142,203,103,66,31,230,165,67,170,11,166,66,166,92,181,67,170,11,166,66,98,45,211,196,67,170,11,166,66,166,92,
 			209,67,142,203,103,66,166,92,209,67,168,46,216,65,98,166,92,209,67,88,206,121,192,45,211,196,67,88,209,231,193,166,92,181,67,88,209,231,193,99,109,166,92,181,67,88,109,101,66,108,70,135,168,67,168,46,216,65,108,230,177,176,67,168,46,216,65,108,230,177,
@@ -1330,7 +1332,7 @@ juce::Path SampleMapEditor::Factory::createPath(const String& name) const
 
 		path.loadPathFromData(pathData, sizeof(pathData));
 	}
-	else if (name == "Zoom In")
+	else if (url == "zoom-in")
 	{
 		static const unsigned char pathData[] = { 110,109,0,0,0,65,0,0,128,64,108,0,0,192,64,0,0,128,64,108,0,0,192,64,0,0,192,64,108,0,0,128,64,0,0,192,64,108,0,0,128,64,0,0,0,65,108,0,0,192,64,0,0,0,65,108,0,0,192,64,0,0,32,65,108,0,0,0,65,0,0,32,65,108,0,0,0,65,0,0,0,65,108,0,0,32,65,0,0,0,65,108,
 			0,0,32,65,0,0,192,64,108,0,0,0,65,0,0,192,64,108,0,0,0,65,0,0,128,64,99,109,98,16,122,65,63,53,94,65,108,10,215,75,65,0,0,48,65,98,18,131,88,65,10,215,29,65,0,0,96,65,217,206,7,65,0,0,96,65,0,0,224,64,98,0,0,96,65,117,147,72,64,35,219,45,65,0,0,0,0,0,
@@ -1340,7 +1342,7 @@ juce::Path SampleMapEditor::Factory::createPath(const String& name) const
 
 		path.loadPathFromData(pathData, sizeof(pathData));
 	}
-	else if (name == "Zoom Out")
+	else if (url == "zoom-out")
 	{
 		static const unsigned char pathData[] = { 110,109,0,169,123,64,230,209,197,64,108,64,234,30,65,230,209,197,64,108,64,234,30,65,230,209,255,64,108,0,169,123,64,230,209,255,64,99,109,98,16,122,65,63,53,94,65,108,10,215,75,65,0,0,48,65,98,18,131,88,65,10,215,29,65,0,0,96,65,217,206,7,65,0,0,96,
 			65,0,0,224,64,98,0,0,96,65,117,147,72,64,35,219,45,65,0,0,0,0,0,0,224,64,0,0,0,0,98,117,147,72,64,0,0,0,0,0,0,0,0,117,147,72,64,0,0,0,0,0,0,224,64,98,0,0,0,0,35,219,45,65,117,147,72,64,0,0,96,65,0,0,224,64,0,0,96,65,98,217,206,7,65,0,0,96,65,10,215,29,
@@ -1350,7 +1352,7 @@ juce::Path SampleMapEditor::Factory::createPath(const String& name) const
 
 		path.loadPathFromData(pathData, sizeof(pathData));
 	}
-	else if (name == "Toggle Vertical Size")
+	else if (url == "toggle-vertical-size")
 	{
 		static const unsigned char pathData[] = { 110, 109, 128, 109, 151, 67, 0, 185, 239, 66, 98, 102, 225, 114, 67, 0, 185, 239, 66, 225, 122, 59, 67, 13, 29, 13, 67, 0, 32, 18, 67, 128, 197, 50, 67, 98, 130, 21, 197, 66, 251, 25, 94, 67, 0, 164, 138, 66, 174, 38, 140, 67, 0, 164, 138, 66, 0, 31, 175, 67, 98, 0, 164, 138, 66, 154, 216, 197, 67, 86, 242, 152, 66, 79, 0,
 			216, 67, 0, 196, 196, 66, 192, 29, 229, 67, 108, 0, 194, 196, 66, 64, 30, 229, 67, 98, 255, 65, 228, 66, 177, 139, 238, 67, 77, 121, 7, 67, 33, 160, 245, 67, 128, 140, 32, 67, 64, 197, 250, 67, 98, 149, 250, 33, 67, 6, 129, 2, 68, 240, 210, 40, 67, 56, 149, 9, 68, 128, 53, 57, 67, 128, 6, 13, 68, 98, 199, 182, 82, 67, 29, 99,
@@ -1372,14 +1374,14 @@ juce::Path SampleMapEditor::Factory::createPath(const String& name) const
 
 		path.loadPathFromData(pathData, sizeof(pathData));
 	}
-	else if (name == "Refresh Velocity Crossfades.")
+	else if (url == "refresh-velocity-crossfades.")
 	{
 		static const unsigned char pathData[] = { 110, 109, 0, 0, 220, 66, 64, 174, 223, 67, 108, 0, 0, 47, 67, 32, 151, 2, 68, 108, 0, 0, 47, 67, 64, 174, 223, 67, 108, 0, 0, 220, 66, 64, 174, 223, 67, 99, 109, 0, 0, 220, 66, 64, 174, 228, 67, 108, 0, 0, 220, 66, 32, 23, 5, 68, 108, 0, 0, 47, 67, 32, 23, 5, 68, 108, 0, 0, 220, 66, 64, 174, 228, 67, 99, 101, 0, 0 };
 
 		path.loadPathFromData(pathData, sizeof(pathData));
 
 	}
-	else if (name == "Select all Samples")
+	else if (url == "select-all-samples")
 	{
 		static const unsigned char pathData[] = { 110,109,0,128,147,67,128,161,185,67,108,0,128,147,67,128,161,185,67,108,246,120,147,67,173,161,185,67,108,241,113,147,67,53,162,185,67,108,245,106,147,67,23,163,185,67,108,6,100,147,67,81,164,185,67,108,42,93,147,67,228,165,185,67,108,99,86,147,67,206,
 			167,185,67,108,184,79,147,67,15,170,185,67,108,43,73,147,67,164,172,185,67,108,193,66,147,67,139,175,185,67,108,127,60,147,67,196,178,185,67,108,104,54,147,67,76,182,185,67,108,128,48,147,67,33,186,185,67,108,203,42,147,67,64,190,185,67,108,76,37,147,
@@ -1482,17 +1484,17 @@ juce::Path SampleMapEditor::Factory::createPath(const String& name) const
 		path.loadPathFromData(pathData, sizeof(pathData));
 
 	}
-	else if (name == "Trim Sample Start")
+	else if (url == "trim-sample-start")
 	{
 		static const unsigned char pathData[] = { 110,109,0,128,187,67,64,46,201,67,108,0,128,187,67,64,46,211,67,108,0,0,190,67,64,46,207,67,108,0,0,195,67,64,46,206,67,108,0,0,190,67,64,46,205,67,108,0,128,187,67,64,46,201,67,99,109,0,20,185,67,64,61,204,67,108,0,20,185,67,192,53,205,67,108,64,106,
 			183,67,192,53,205,67,108,64,106,183,67,0,39,207,67,108,0,20,185,67,0,39,207,67,108,0,20,185,67,128,31,208,67,108,192,189,186,67,64,46,206,67,108,0,20,185,67,64,61,204,67,99,101,0,0 };
 
 		path.loadPathFromData(pathData, sizeof(pathData));
 	}
-	else if (name == "Deselect all Samples") return ColumnIcons::getPath(EditorIcons::cancelIcon, sizeof(EditorIcons::cancelIcon));
-	else if (name == "Undo")	return ColumnIcons::getPath(EditorIcons::undoIcon, sizeof(EditorIcons::undoIcon));
-	else if (name == "Redo")	return ColumnIcons::getPath(EditorIcons::redoIcon, sizeof(EditorIcons::redoIcon));
-	else if (name == "Rebuild")return ColumnIcons::getPath(ColumnIcons::moveIcon, sizeof(ColumnIcons::moveIcon));
+	else if (url == "deselect-all-samples") return ColumnIcons::getPath(EditorIcons::cancelIcon, sizeof(EditorIcons::cancelIcon));
+	else if (url == "undo")	return ColumnIcons::getPath(EditorIcons::undoIcon, sizeof(EditorIcons::undoIcon));
+	else if (url == "redo")	return ColumnIcons::getPath(EditorIcons::redoIcon, sizeof(EditorIcons::redoIcon));
+	else if (url == "rebuild")return ColumnIcons::getPath(ColumnIcons::moveIcon, sizeof(ColumnIcons::moveIcon));
 	else
 	{
 		jassertfalse;

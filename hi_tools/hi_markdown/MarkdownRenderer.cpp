@@ -1,0 +1,102 @@
+/*  ===========================================================================
+*
+*   This file is part of HISE.
+*   Copyright 2016 Christoph Hart
+*
+*   HISE is free software: you can redistribute it and/or modify
+*   it under the terms of the GNU General Public License as published by
+*   the Free Software Foundation, either version 3 of the License, or
+*   (at your option) any later version.
+*
+*   HISE is distributed in the hope that it will be useful,
+*   but WITHOUT ANY WARRANTY; without even the implied warranty of
+*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*   GNU General Public License for more details.
+*
+*   You should have received a copy of the GNU General Public License
+*   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
+*
+*   Commercial licenses for using HISE in an closed source project are
+*   available on request. Please visit the project's website to get more
+*   information about commercial licensing:
+*
+*   http://www.hise.audio/
+*
+*   HISE is based on the JUCE library,
+*   which must be separately licensed for closed source applications:
+*
+*   http://www.juce.com
+*
+*   ===========================================================================
+*/
+
+
+namespace hise {
+using namespace juce;
+
+float MarkdownRenderer::getHeightForWidth(float width)
+{
+	if (width == lastWidth)
+		return lastHeight;
+
+	float height = 0.0f;
+
+	for (auto* e : elements)
+	{
+		if (auto h = dynamic_cast<MarkdownParser::Headline*>(e))
+		{
+			h->anchorY = height;
+		}
+
+		height += e->getTopMargin();
+		height += e->getHeightForWidthCached(width);
+	}
+
+	lastWidth = width;
+	lastHeight = height;
+	firstDraw = true;
+
+	return height;
+}
+
+void MarkdownRenderer::parse()
+{
+	lastWidth = -1.0f;
+	firstDraw = true;
+
+	MarkdownParser::parse();
+
+	for (auto l : listeners)
+	{
+		if (l.get() != nullptr)
+			l->markdownWasParsed(getParseResult());
+	}
+}
+
+juce::String MarkdownRenderer::getAnchorForY(int y) const
+{
+	int currentY = 0;
+
+	Headline* lastHeadline = nullptr;
+
+	for (auto e : elements)
+	{
+		if (auto h = dynamic_cast<Headline*>(e))
+		{
+			lastHeadline = h;
+		}
+
+		currentY += e->getTopMargin();
+		currentY += e->getLastHeight();
+
+		if (y <= currentY)
+			break;
+	}
+
+	if (lastHeadline != nullptr)
+		return lastHeadline->anchorURL;
+
+	return {};
+}
+
+}

@@ -105,9 +105,10 @@ void MarkdownPreview::resized()
 }
 
 MarkdownPreview::InternalComponent::InternalComponent(MarkdownPreview& parent_) :
-	layoutCache(new MarkdownParser::LayoutCache),
+	layoutCache(new MarkdownRenderer::LayoutCache),
 	parent(parent_)
 {
+	
 }
 
 MarkdownPreview::InternalComponent::~InternalComponent()
@@ -129,7 +130,7 @@ void MarkdownPreview::InternalComponent::setNewText(const String& s, const File&
 	lastText = s;
 	lastFile = f;
 
-	parser = new MarkdownParser(s, layoutCache);
+	parser = new MarkdownRenderer(s, layoutCache);
 	parser->setStyleData(styleData);
 	parser->addListener(this);
 
@@ -200,6 +201,8 @@ void MarkdownPreview::InternalComponent::mouseDown(const MouseEvent& e)
 		currentLasso.setSize(0, 0);
 
 		parser->updateSelection({});
+
+		repaint();
 	}
 	
 	if (e.mods.isRightButtonDown())
@@ -231,10 +234,6 @@ void MarkdownPreview::InternalComponent::mouseDown(const MouseEvent& e)
             SystemClipboard::copyTextToClipboard(s);
         }
 	}
-	else
-	{
-		repaint();
-	}
 }
 
 void MarkdownPreview::InternalComponent::mouseDrag(const MouseEvent& e)
@@ -256,9 +255,10 @@ void MarkdownPreview::InternalComponent::mouseUp(const MouseEvent& e)
 	{
 		clickedLink = {};
 
-		parser->gotoLink(e, getLocalBounds().toFloat());
-		repaint();
+		if(parser->gotoLink(e, getLocalBounds().toFloat()))
+			repaint();
 	}
+	
 }
 
 void MarkdownPreview::InternalComponent::mouseMove(const MouseEvent& event)
@@ -279,6 +279,24 @@ void MarkdownPreview::InternalComponent::mouseMove(const MouseEvent& event)
 
 		setMouseCursor(link.valid ? MouseCursor::PointingHandCursor : MouseCursor::NormalCursor);
 	}
+}
+
+
+void MarkdownPreview::InternalComponent::mouseWheelMove(const MouseEvent& event, const MouseWheelDetails& details)
+{
+	if (event.mods.isCommandDown())
+	{
+		float delta = details.deltaY > 0 ? 1.0f : -1.0f;
+
+		styleData.fontSize = jlimit<float>(17.0f, 30.0f, styleData.fontSize + delta);
+
+		parser->setStyleData(styleData);
+	}
+	else
+	{
+		Component::mouseWheelMove(event, details);
+	}
+
 }
 
 void MarkdownPreview::InternalComponent::scrollToAnchor(float v)

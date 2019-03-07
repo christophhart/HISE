@@ -135,7 +135,7 @@ public:
 
 	void setup()
 	{
-		parser = new MarkdownParser("");
+		parser = new MarkdownRenderer("");
 		parser->setTextColour(Colours::white);
 		parser->setDefaultTextSize(fontSizeToUse);
 	}
@@ -158,7 +158,7 @@ public:
 			setup();
 
 		parser->setNewText(markdownText);
-		parser->setNewImageProvider<ProviderType>();
+		parser->setImageProvider(new ProviderType(parser));
 
 		parser->parse();
 	}
@@ -270,7 +270,7 @@ private:
 	bool ignoreKeyStrokes = false;
 	float fontSizeToUse = 17.0f;
 	Component::SafePointer<CallOutBox> currentPopup;
-	ScopedPointer<MarkdownParser> parser;
+	ScopedPointer<MarkdownRenderer> parser;
 	int popupWidth = 400;
 	Component::SafePointer<Component> ownerComponent;
 	AttachmentType attachmentType;

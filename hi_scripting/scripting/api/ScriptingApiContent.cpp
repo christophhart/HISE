@@ -1953,9 +1953,8 @@ void ScriptingApi::Content::ScriptTable::setScriptObjectPropertyWithChangeMessag
 
 void ScriptingApi::Content::ScriptTable::connectToOtherTable(const String &otherTableId, int index)
 {
-	
-
-	if (otherTableId.isEmpty()) return;
+	if (otherTableId.isEmpty() || otherTableId == " ")
+		return;
 
 	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
 	if (mp == nullptr) return;
@@ -2168,7 +2167,8 @@ int ScriptingApi::Content::ScriptSliderPack::getNumSliders() const
 
 void ScriptingApi::Content::ScriptSliderPack::connectToOtherSliderPack(const String &newPackId)
 {
-	if (newPackId.isEmpty()) return;
+	if (newPackId.isEmpty() || newPackId == " ")
+		return;
 
 	otherPackId = newPackId;
 
