@@ -740,7 +740,7 @@ private:
 
 	void enableAutoSaving()
 	{
-		startTimer(1000 * 60 * getIntervalInMinutes()); // autosave all 5 minutes
+		IF_NOT_HEADLESS(startTimer(1000 * 60 * getIntervalInMinutes())); // autosave all 5 minutes
 	}
 
 	void disableAutoSaving()

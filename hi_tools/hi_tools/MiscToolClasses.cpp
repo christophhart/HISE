@@ -103,7 +103,7 @@ void SafeChangeBroadcaster::removeAllChangeListeners()
 
 void SafeChangeBroadcaster::sendChangeMessage(const String &/*identifier*/ /*= String()*/)
 {
-	dispatcher.triggerAsyncUpdate();
+	IF_NOT_HEADLESS(dispatcher.triggerAsyncUpdate());
 }
 
 void SafeChangeBroadcaster::sendAllocationFreeChangeMessage()
@@ -306,11 +306,6 @@ bool FuzzySearcher::fitsSearch(const String &searchTerm, const String &stringToM
 
 	// Calculate the score:
 	double score = 1.0 - (double)levenshteinDistance / length;
-
-	DBG("Search for: " + searchTerm + " in " + stringToMatch);
-	DBG("Result" + String(score, 2));
-	DBG("Distance" + String(levenshteinDistance));
-	DBG("-----");
 
 	// Match?
 	return score > fuzzyness;

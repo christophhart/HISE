@@ -111,6 +111,20 @@ public:
 
 };
 
+#if HISE_HEADLESS
+class DummyBackendComponent
+{
+public:
+
+	BackendRootWindow * getBackendRootWindow() { return nullptr; }
+
+	const BackendRootWindow* getBackendRootWindow() const { return nullptr; }
+
+	FloatingTile* getRootFloatingTile() { return nullptr; }
+
+};
+#endif
+
 class FloatingTileContainer;
 class FloatingTileContent;
 

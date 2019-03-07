@@ -691,7 +691,7 @@ void ProjectHandler::createNewProject(File &workingDirectory, Component* mainEdi
 
 juce::Result ProjectHandler::setWorkingProject(const File &workingDirectory, Component* /*mainEditor*/)
 {
-	MessageManagerLock mm;
+	IF_NOT_HEADLESS(MessageManagerLock mm);
 
 	if (!workingDirectory.exists()) return Result::fail(workingDirectory.getFullPathName() + " is not a valid folder");;
 

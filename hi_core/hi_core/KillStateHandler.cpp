@@ -463,12 +463,12 @@ bool MainController::KillStateHandler::test() const noexcept
 
 juce::Array<MultithreadedQueueHelpers::PublicToken> MainController::KillStateHandler::createPublicTokenList(int producerFlags /*= AllProducers*/)
 {
-	jassert(initialised());
+	IF_NOT_HEADLESS(jassert(initialised()));
 
 	WARN_IF_AUDIO_THREAD(true, IllegalOps::Compilation);
 
 	/** You can't call this before initialising the audio threads. */
-	jassert(!audioThreads.isEmpty());
+	IF_NOT_HEADLESS(jassert(!audioThreads.isEmpty()));
 
 	MultithreadedQueueHelpers::PublicToken audioThreadToken;
 	audioThreadToken.canBeProducer = producerFlags & QueueProducerFlags::AudioThreadIsProducer;

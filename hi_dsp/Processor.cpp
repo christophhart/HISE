@@ -315,7 +315,7 @@ const hise::Processor* Processor::getParentProcessor(bool getOwnerSynth, bool as
 {
 	if (parentProcessor == nullptr)
 	{
-		jassert(!assertIfFalse || this == getMainController()->getMainSynthChain());
+		IF_NOT_HEADLESS(jassert(!assertIfFalse || this == getMainController()->getMainSynthChain()));
 		return nullptr;
 	}
 		
@@ -758,7 +758,7 @@ bool Processor::isValidAndInitialised(bool checkOnAir) const
 
 	// Normally you expect this method to be true, so this assertion will fire here
 	// so that you can check the reason from the bools above...
-	jassert(isValid);
+	IF_NOT_HEADLESS(jassert(isValid));
 	return isValid;
 }
 

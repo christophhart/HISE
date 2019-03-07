@@ -30,10 +30,10 @@
 *   ===========================================================================
 */
 
-#ifndef SCRIPTINGPANELTYPES_H_INCLUDED
-#define SCRIPTINGPANELTYPES_H_INCLUDED
+#pragma once
 
-namespace hise { using namespace juce;
+namespace hise { 
+using namespace juce;
 
 class CodeEditorPanel : public PanelWithProcessorConnection,
 						public GlobalScriptCompileListener
@@ -409,4 +409,4 @@ struct BackendCommandIcons
 
 
 } // namespace hise
-#endif  // SCRIPTINGPANELTYPES_H_INCLUDED
+

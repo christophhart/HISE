@@ -330,7 +330,7 @@ private:
 
 			if (notificationType == sendNotificationAsync)
 			{
-				triggerAsyncUpdate();
+				IF_NOT_HEADLESS(triggerAsyncUpdate());
 			}
 			else if (notificationType == sendNotificationSync)
 			{

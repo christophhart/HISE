@@ -75,6 +75,18 @@ END_JUCE_MODULE_DECLARATION
 #endif
 
 
+#ifndef HISE_HEADLESS
+#define HISE_HEADLESS 0
+#endif
+
+
+#if HISE_HEADLESS
+#define IF_NOT_HEADLESS(x) 
+#else
+#define IF_NOT_HEADLESS(x) x
+#endif
+
+
 
 #include "hi_binary_data/hi_binary_data.h"
 

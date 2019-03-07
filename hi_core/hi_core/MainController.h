@@ -238,7 +238,9 @@ public:
 			PreloadListenerUpdater(SampleManager* manager_) :
 				manager(manager_)
 			{
+#if !HISE_HEADLESS
 				startTimer(30);
+#endif
 			};
 
 			~PreloadListenerUpdater()
@@ -248,7 +250,11 @@ public:
 
 			void triggerAsyncUpdate()
 			{
+#if HISE_HEADLESS
+				handleAsyncUpdate();
+#else
 				dirty = true;
+#endif
 			}
 
 		private:

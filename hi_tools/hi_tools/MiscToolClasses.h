@@ -54,8 +54,10 @@ public:
 	{
 		lastTimerInterval = milliseconds;
 
+#if !HISE_HEADLESS
 		if (!suspended)
 			internalTimer.startTimer(milliseconds);
+#endif
 	}
 
 	void stopTimer()
@@ -79,10 +81,12 @@ public:
 		{
 			suspended = shouldBeSuspended;
 
+#if !HISE_HEADLESS
 			if (suspended)
 				internalTimer.stopTimer();
 			else if (lastTimerInterval != -1)
 				internalTimer.startTimer(lastTimerInterval);
+#endif
 		}
 	}
 

@@ -569,7 +569,7 @@ private:
 			parent(parent_)
 		{
 			flag = false;
-			startTimer(300);
+			IF_NOT_HEADLESS(startTimer(300));
 		};
 
 		void triggerAsyncUpdate()

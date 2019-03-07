@@ -180,7 +180,7 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 
 	setOpaque(true);
 
-#if IS_STANDALONE_APP 
+#if IS_STANDALONE_APP && !HISE_HEADLESS
 
 	if (owner->callback->getCurrentProcessor() == nullptr &&  !CompileExporter::isExportingFromCommandLine())
 		showSettingsWindow();
