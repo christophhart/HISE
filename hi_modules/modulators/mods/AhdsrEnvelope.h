@@ -63,7 +63,7 @@ class AhdsrEnvelope: public EnvelopeModulator
 {
 public:
 
-	SET_PROCESSOR_NAME("AHDSR", "AHDSR Envelope")
+	SET_PROCESSOR_NAME("AHDSR", "AHDSR Envelope", "A envelope modulator with five states")
 
 	/// @brief special parameters for AhdsrEnvelope
 	enum SpecialParameters

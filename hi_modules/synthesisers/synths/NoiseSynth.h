@@ -103,7 +103,7 @@ public:
 		numTestSignals
 	};
 
-	SET_PROCESSOR_NAME("Noise", "Noise Generator")
+	SET_PROCESSOR_NAME("Noise", "Noise Generator", "A simple noise generator.");
 
 	NoiseSynth(MainController *mc, const String &id, int numVoices);
 

@@ -55,7 +55,7 @@ class JavascriptMidiProcessor : public ScriptBaseMidiProcessor,
 {
 public:
 
-	SET_PROCESSOR_NAME("ScriptProcessor", "Script Processor")
+	SET_PROCESSOR_NAME("ScriptProcessor", "Script Processor", "MIDI Processor that allows scripting.")
 
 	enum SnippetsOpen
 	{
@@ -232,7 +232,7 @@ public:
 		numScriptEditorStates
 	};
 
-	SET_PROCESSOR_NAME("ScriptVoiceStartModulator", "Script Voice Start Modulator")
+	SET_PROCESSOR_NAME("ScriptVoiceStartModulator", "Script Voice Start Modulator", "Creates a scriptable modulation value at the start of the voice.")
 
 
 	JavascriptVoiceStartModulator(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m);;
@@ -290,7 +290,7 @@ class JavascriptTimeVariantModulator : public JavascriptProcessor,
 {
 public:
 
-	SET_PROCESSOR_NAME("ScriptTimeVariantModulator", "Script Time Variant Modulator")
+	SET_PROCESSOR_NAME("ScriptTimeVariantModulator", "Script Time Variant Modulator", "Creates a scriptable monophonic modulation signal.")
 
 	enum Callback
 	{
@@ -380,7 +380,7 @@ class JavascriptEnvelopeModulator : public JavascriptProcessor,
 {
 public:
 
-	SET_PROCESSOR_NAME("ScriptEnvelopeModulator", "Script Envelope Modulator")
+	SET_PROCESSOR_NAME("ScriptEnvelopeModulator", "Script Envelope Modulator", "Creates a scriptable polyphonic modulation signal.")
 
 	enum Callback
 	{
@@ -492,7 +492,7 @@ class JavascriptModulatorSynth : public JavascriptProcessor,
 public:
 
 
-	SET_PROCESSOR_NAME("ScriptSynth", "Script Synthesiser")
+	SET_PROCESSOR_NAME("ScriptSynth", "Script Synthesiser", "deprecated");
 
 	enum class EditorStates
 	{
@@ -596,7 +596,7 @@ class JavascriptMasterEffect : public JavascriptProcessor,
 {
 public:
 
-	SET_PROCESSOR_NAME("ScriptFX", "Script FX")
+	SET_PROCESSOR_NAME("ScriptFX", "Script FX", "A scriptable audio effect.");
 
 	enum class Callback
 	{

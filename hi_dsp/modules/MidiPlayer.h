@@ -251,7 +251,7 @@ public:
 		Identifier sequenceId;
 	};
 
-	SET_PROCESSOR_NAME("MidiPlayer", "MIDI Player");
+	SET_PROCESSOR_NAME("MidiPlayer", "MIDI Player", "A player for MIDI sequences.");
 
 	MidiPlayer(MainController *mc, const String &id, ModulatorSynth* ms);;
 	~MidiPlayer();

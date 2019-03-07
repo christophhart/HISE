@@ -325,7 +325,7 @@ public:
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 	};
 
-	SET_PROCESSOR_NAME("GlobalModulatorContainer", "Global Modulator Container");
+	SET_PROCESSOR_NAME("GlobalModulatorContainer", "Global Modulator Container", "A container that processes Modulator instances that can be used at different locations.");
 
 	float getVoiceStartValueFor(const Processor *voiceStartModulator);
 

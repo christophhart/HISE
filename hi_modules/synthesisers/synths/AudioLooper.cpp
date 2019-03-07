@@ -32,6 +32,18 @@
 
 namespace hise { using namespace juce;
 
+SET_DOCUMENTATION(AudioLooper)
+{
+	SET_DOC_NAME(AudioLooper);
+
+	ADD_PARAMETER_DOC_WITH_NAME(SyncMode, "Sync Mode", "Syncs the looper to the host tempo");
+	ADD_PARAMETER_DOC_WITH_NAME(LoopEnabled, "Loop Enabled", "Enables looped playback");
+	ADD_PARAMETER_DOC_WITH_NAME(PitchTracking, "Pitch Tracking", "Repitches the sample based on the note and the root note.");
+	ADD_PARAMETER_DOC_WITH_NAME(RootNote, "Root Note", "Sets the root note when pitch tracking is enabled");
+	ADD_PARAMETER_DOC_WITH_NAME(SampleStartMod, "Sample Start modulation", "Modulates the sample start");
+	ADD_PARAMETER_DOC_WITH_NAME(Reversed, "Reversed", "Reverses the sample");
+}
+
 AudioLooperVoice::AudioLooperVoice(ModulatorSynth *ownerSynth) :
 ModulatorSynthVoice(ownerSynth),
 syncFactor(1.0f)

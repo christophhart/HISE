@@ -50,7 +50,7 @@ class MacroModulator: public TimeVariantModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("MacroModulator", "Macro Control Modulator")
+	SET_PROCESSOR_NAME("MacroModulator", "Macro Control Modulator", "A Modulator that enhances the macro control system.")
 
 	/** The special Parameters for the Modulator. */
 	enum SpecialParameters

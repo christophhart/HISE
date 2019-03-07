@@ -41,7 +41,7 @@ class RoundRobinMidiProcessor: public MidiProcessor
 {
 public:
 
-	SET_PROCESSOR_NAME("RoundRobin", "Round Robin");
+	SET_PROCESSOR_NAME("RoundRobin", "Round Robin", "deprecated");
 
 	RoundRobinMidiProcessor(MainController *mc, const String &id):
 		MidiProcessor(mc, id),

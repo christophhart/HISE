@@ -79,7 +79,7 @@ public:
 	void mpeModeChanged(bool isEnabled) override { mpeMode = isEnabled; reset(true, true); }
 	void mpeModulatorAssigned(MPEModulator* /*m*/, bool /*wasAssigned*/) override {};
 
-	SET_PROCESSOR_NAME("Arpeggiator", "Arpeggiator");
+	SET_PROCESSOR_NAME("Arpeggiator", "Arpeggiator", "A arpeggiator module");
 
 	int getNumSliderPacks();
 

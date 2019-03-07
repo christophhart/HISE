@@ -32,6 +32,26 @@
 
 namespace hise { using namespace juce;
 
+SET_DOCUMENTATION(ModulatorSynthGroup)
+{
+	SET_DOC_NAME(ModulatorSynthGroup);
+
+	ADD_PARAMETER_DOC_WITH_NAME(EnableFM, "Enable FM", "Enables FM synthesis for this group.");
+	ADD_PARAMETER_DOC_WITH_NAME(CarrierIndex, "Carrier Index", "the index for the FM carrier.");
+	ADD_PARAMETER_DOC_WITH_NAME(ModulatorIndex, "Modulator Index", "the index for the FM Modulator");
+	ADD_PARAMETER_DOC_WITH_NAME(UnisonoVoiceAmount, "Unisono Voices", "the number of unisono voices");
+	ADD_PARAMETER_DOC_WITH_NAME(UnisonoDetune, "Unisono Detune", "The detune amount for the unisono voices");
+	ADD_PARAMETER_DOC_WITH_NAME(UnisonoSpread, "Unisono Spread", "the spread amount for the unisono voices");
+	ADD_PARAMETER_DOC_WITH_NAME(ForceMono, "Force Mono", "if enabled, the voices will be rendered as mono voice");
+	ADD_PARAMETER_DOC_WITH_NAME(KillSecondVoices, "Kill second voices", "kills the second voices");
+
+	ADD_CHAIN_DOC(DetuneModulation, "Detune Mod",
+		"Modulates the unisono detune amount.");
+
+	ADD_CHAIN_DOC(SpreadModulation, "Spread mod",
+		"Modulates the unisono stereo spread amount.");
+}
+
 ModulatorSynthGroupVoice::ModulatorSynthGroupVoice(ModulatorSynth *ownerSynth) :
 	ModulatorSynthVoice(ownerSynth)
 {

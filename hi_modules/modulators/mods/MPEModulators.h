@@ -55,7 +55,7 @@ class MPEModulator : public EnvelopeModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("MPEModulator", "MPE Modulator");
+	SET_PROCESSOR_NAME("MPEModulator", "MPE Modulator", "A modulator that uses MPE messages to create a polyphonic modulation signal.");
 
 	enum Gesture
 	{

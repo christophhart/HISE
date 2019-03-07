@@ -142,7 +142,7 @@ public:
 
 	ADD_DOCUMENTATION_WITH_BASECLASS(ModulatorSynth);
 
-	SET_PROCESSOR_NAME("SineSynth", "Sine Wave Generator");
+	SET_PROCESSOR_NAME("SineSynth", "Sine Wave Generator", "A sine wave generator");
 
 	/** The parameters. */
 	enum SpecialParameters

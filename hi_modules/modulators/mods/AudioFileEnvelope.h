@@ -130,7 +130,7 @@ class AudioFileEnvelope: public TimeVariantModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("AudioFileEnvelope", "Audio File Envelope")
+	SET_PROCESSOR_NAME("AudioFileEnvelope", "Audio File Envelope", "deprecated")
 
 	AudioFileEnvelope(MainController *mc, const String &id, Modulation::Mode m);
 

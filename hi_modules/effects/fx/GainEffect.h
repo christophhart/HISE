@@ -40,7 +40,7 @@ class EmptyFX : public MasterEffectProcessor
 {
 public:
 
-	SET_PROCESSOR_NAME("EmptyFX", "Empty")
+	SET_PROCESSOR_NAME("EmptyFX", "Empty", "A simple effect that does nothing.");
 
 	EmptyFX(MainController *mc, const String &uid) :
 		MasterEffectProcessor(mc, uid)
@@ -93,7 +93,7 @@ class GainEffect: public MasterEffectProcessor
 {
 public:
 
-	SET_PROCESSOR_NAME("SimpleGain", "Simple Gain")
+	SET_PROCESSOR_NAME("SimpleGain", "Simple Gain", "A utility effect that allows smooth gain changes, static delays and panning.")
 
 	enum InternalChains
 	{

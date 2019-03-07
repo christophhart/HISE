@@ -51,15 +51,17 @@ public:
 		numParameters
 	};
 
-	SET_PROCESSOR_NAME("Analyser", "Analyser")
+	SET_PROCESSOR_NAME("Analyser", "Analyser", "A audio analysis module");
 
-		AnalyserEffect(MainController *mc, const String &uid) :
+	AnalyserEffect(MainController *mc, const String &uid) :
 		MasterEffectProcessor(mc, uid)
 	{
 		finaliseModChains();
 
-		parameterNames.add("PreviewType");
+		parameterNames.add("PreviewType"); 
+		parameterDescriptions.add("The index of the visualisation type.");
 		parameterNames.add("BufferSize");
+		parameterDescriptions.add("The buffer size of the internal ring buffer.");
 
 		setAnalyserBufferSize(8192);
 

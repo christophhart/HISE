@@ -106,7 +106,7 @@ class ModulatorSynthChain: public ModulatorSynth,
 {
 public:
 
-	SET_PROCESSOR_NAME("SynthChain", "Container");
+	SET_PROCESSOR_NAME("SynthChain", "Container", "A container for other Sound generators.");
 
 	enum EditorStates
 	{

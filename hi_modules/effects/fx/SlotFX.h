@@ -22,7 +22,7 @@ class SlotFX : public MasterEffectProcessor
 {
 public:
 
-	SET_PROCESSOR_NAME("SlotFX", "Effect Slot")
+	SET_PROCESSOR_NAME("SlotFX", "Effect Slot", "A placeholder for another effect that can be swapped dynamically.")
 
 	SlotFX(MainController *mc, const String &uid);
 

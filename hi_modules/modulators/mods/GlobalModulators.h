@@ -131,7 +131,7 @@ class GlobalVoiceStartModulator : public VoiceStartModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("GlobalVoiceStartModulator", "Global Voice Start Modulator");
+	SET_PROCESSOR_NAME("GlobalVoiceStartModulator", "Global Voice Start Modulator", "A modulator that connects to a global VoiceStartModulator (eg. Velocity).");
 
 	GlobalModulator::ModulatorType getModulatorType() const override { return GlobalModulator::VoiceStart; };
 
@@ -164,7 +164,7 @@ class GlobalStaticTimeVariantModulator : public VoiceStartModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("GlobalStaticTimeVariantModulator", "Global Static Time Variant Modulator");
+	SET_PROCESSOR_NAME("GlobalStaticTimeVariantModulator", "Global Static Time Variant Modulator", "A voice start modulator that connects to a global TimeVariantModulator (eg. LFO).");
 
 	GlobalModulator::ModulatorType getModulatorType() const override { return GlobalModulator::StaticTimeVariant; };
 
@@ -194,7 +194,7 @@ class GlobalTimeVariantModulator : public TimeVariantModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("GlobalTimeVariantModulator", "Global Time Variant Modulator");
+	SET_PROCESSOR_NAME("GlobalTimeVariantModulator", "Global Time Variant Modulator", "A modulator that connects to a global TimeVariantModulator (eg. LFO).");
 
 	GlobalModulator::ModulatorType getModulatorType() const override { return GlobalModulator::TimeVariant; };
 

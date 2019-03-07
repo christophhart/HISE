@@ -159,7 +159,7 @@ class MidiProcessorChain: public MidiProcessor,
 {
 public:
 
-	SET_PROCESSOR_NAME("MidiProcessorChain", "Midi Processor Chain");
+	SET_PROCESSOR_NAME("MidiProcessorChain", "Midi Processor Chain", "chain");
 
 	MidiProcessorChain(MainController *m, const String &id, Processor *ownerProcessor);
 

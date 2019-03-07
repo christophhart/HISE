@@ -264,6 +264,8 @@ class ModulatorSynthGroup : public ModulatorSynth,
 {
 public:
 
+	ADD_DOCUMENTATION_WITH_BASECLASS(ModulatorSynth);
+	
 	enum ModChains
 	{
 		Detune = 2,
@@ -283,7 +285,7 @@ public:
 		numSynthGroupParameters
 	};
 
-	SET_PROCESSOR_NAME("SynthGroup", "Syntesizer Group")
+	SET_PROCESSOR_NAME("SynthGroup", "Syntesizer Group", "A container for other Sound generators that allows FM and other additional synthesis types.");
 
 		enum InternalChains
 	{

@@ -238,19 +238,21 @@ void MidiPlayerEditor::resized()
 
 juce::Path MidiPlayerEditor::TransportPaths::createPath(const String& name) const
 {
-	if (name == "Start")
+	auto url = HtmlGenerator::getSanitizedFilename(name);
+
+	if (url == "start")
 	{
 		Path p;
 		p.addTriangle({ 0.0f, 0.0f }, { 0.0f, 1.0f }, { 1.0f, 0.5f });
 		return p;
 	}
-	if (name == "Stop")
+	if (url == "stop")
 	{
 		Path p;
 		p.addRectangle<float>({ 0.0f, 0.0f, 1.0f, 1.0f });
 		return p;
 	}
-	if (name == "Record")
+	if (url == "record")
 	{
 		Path p;
 		p.addEllipse({ 0.0f, 0.0f, 1.0f, 1.0f });

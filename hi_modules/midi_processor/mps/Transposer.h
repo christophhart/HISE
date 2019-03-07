@@ -37,14 +37,12 @@ namespace hise { using namespace juce;
 
 /** Transposes all midi note messages by the specified amount.
 *	@ingroup midiTypes
-*
-*	If the amount is changed, a all note off message is sent to prevent hanging notes.
 */
 class Transposer: public MidiProcessor
 {
 public:
 
-	SET_PROCESSOR_NAME("Transposer", "Transposer");
+	SET_PROCESSOR_NAME("Transposer", "Transposer", "Transposes all midi note messages by the specified amount.");
 
 	Transposer(MainController *mc, const String &id):
 		MidiProcessor(mc, id),

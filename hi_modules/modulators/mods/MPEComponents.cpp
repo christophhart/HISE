@@ -120,21 +120,23 @@ END_MARKDOWN_CHAPTER()
 
 juce::Path MPEPanel::Factory::createPath(const String& id) const
 {
-	if (id == "Delete")
+	auto url = HtmlGenerator::getSanitizedFilename(id);
+
+	if (url == "delete")
 	{
 		Path deletePath;
 		deletePath.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon));
 
 		return deletePath;
 	}
-	else if (id == "Bypass")
+	else if (url == "bypass")
 	{
 		Path p;
 
 		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::bypassShape, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::bypassShape));
 		return p;
 	}
-	else if (id == "Stroke")
+	else if (url == "stroke")
 	{
 		static const unsigned char pathData[] = { 110,109,0,12,223,66,128,179,176,67,108,0,21,212,66,128,235,177,67,108,255,131,214,66,64,74,179,67,108,0,0,2,67,192,223,204,67,108,0,190,24,67,64,74,179,67,108,128,245,25,67,128,235,177,67,108,0,122,20,67,128,179,176,67,108,0,66,19,67,128,18,178,67,108,
 			0,0,2,67,192,124,197,67,108,0,124,225,66,128,18,178,67,108,0,12,223,66,128,179,176,67,99,101,0,0 };
@@ -144,7 +146,7 @@ juce::Path MPEPanel::Factory::createPath(const String& id) const
 
 		return path;
 	}
-	else if (id == "Press")
+	else if (url == "press")
 	{
 		static const unsigned char pathData[] = { 110,109,0,0,27,67,0,115,212,67,98,138,219,11,67,0,115,212,67,0,18,255,66,5,156,218,67,0,18,255,66,64,46,226,67,98,0,18,255,66,123,192,233,67,138,219,11,67,192,233,239,67,0,0,27,67,192,233,239,67,98,118,36,42,67,192,233,239,67,0,119,54,67,123,192,233,
 			67,0,119,54,67,64,46,226,67,98,0,119,54,67,5,156,218,67,118,36,42,67,0,115,212,67,0,0,27,67,0,115,212,67,99,109,0,0,27,67,0,158,214,67,98,127,204,39,67,0,158,214,67,128,32,50,67,0,200,219,67,128,32,50,67,64,46,226,67,98,128,32,50,67,128,148,232,67,127,
@@ -172,7 +174,7 @@ juce::Path MPEPanel::Factory::createPath(const String& id) const
 
 		return path;
 	}
-	else if (id == "Glide")
+	else if (url == "glide")
 	{
 		static const unsigned char pathData[] = { 110,109,0,114,144,67,64,217,222,67,108,128,178,135,67,64,174,228,67,108,128,178,144,67,64,174,234,67,108,0,0,145,67,64,174,234,67,108,0,0,145,67,64,174,232,67,108,128,77,145,67,64,174,232,67,108,128,77,139,67,64,174,228,67,108,0,142,145,67,64,131,224,
 			67,108,0,114,144,67,64,217,222,67,99,109,0,142,150,67,64,217,222,67,108,0,114,149,67,64,131,224,67,108,128,178,155,67,64,174,228,67,108,0,114,149,67,64,217,232,67,108,0,142,150,67,64,131,234,67,108,128,77,159,67,64,174,228,67,108,0,142,150,67,64,217,
@@ -183,7 +185,7 @@ juce::Path MPEPanel::Factory::createPath(const String& id) const
 
 		return path;
 	}
-	else if (id == "Lift")
+	else if (url == "lift")
 	{
 		static const unsigned char pathData[] = { 110,109,0,0,67,67,128,51,174,67,108,0,66,44,67,0,201,199,67,108,128,10,43,67,0,40,201,67,108,0,134,48,67,192,95,202,67,108,0,190,49,67,0,1,201,67,108,0,0,67,67,192,150,181,67,108,0,66,84,67,0,1,201,67,108,0,122,85,67,192,95,202,67,108,128,245,90,67,0,
 			40,201,67,108,0,190,89,67,0,201,199,67,108,0,0,67,67,128,51,174,67,99,101,0,0 };
@@ -194,7 +196,7 @@ juce::Path MPEPanel::Factory::createPath(const String& id) const
 		return path;
 
 	}
-	else if (id == "Slide")
+	else if (url == "slide")
 	{
 		static const unsigned char pathData[] = { 110,109,128,138,166,67,82,122,193,67,108,128,181,160,67,210,186,184,67,108,128,181,154,67,210,186,193,67,108,128,181,154,67,82,8,194,67,108,128,181,156,67,82,8,194,67,108,128,181,156,67,210,85,194,67,108,128,181,160,67,210,85,188,67,108,128,224,164,67,
 			82,150,194,67,108,128,138,166,67,82,122,193,67,99,109,128,138,166,67,82,150,199,67,108,128,224,164,67,82,122,198,67,108,128,181,160,67,210,186,204,67,108,128,138,156,67,82,122,198,67,108,128,224,154,67,82,150,199,67,108,128,181,160,67,210,85,208,67,108,
@@ -382,7 +384,7 @@ MPEPanel::MPEPanel(FloatingTile* parent) :
 
 	helpButton->attachTo(&enableMPEButton, MarkdownHelpButton::OverlayRight);
 
-	helpButton->setHelpText<MarkdownParser::PathProvider<Factory>>(MpeHelp::Help());
+	helpButton->setHelpText<PathProvider<Factory>>(MpeHelp::Help());
 	helpButton->setPopupWidth(600);
 #endif
 	

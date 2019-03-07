@@ -123,7 +123,7 @@ public:
 		getSampleMap()->suspendInternalTimers(shouldBeSuspended);
 	}
 
-	SET_PROCESSOR_NAME("StreamingSampler", "Sampler")
+	SET_PROCESSOR_NAME("StreamingSampler", "Sampler", "The main sampler class of HISE.");
 
 	/** Special Parameters for the ModulatorSampler. */
 	enum Parameters

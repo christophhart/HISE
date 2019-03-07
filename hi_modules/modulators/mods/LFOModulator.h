@@ -53,7 +53,7 @@ struct WaveformLookupTables
 
 #define LFO_DOWNSAMPLING_FACTOR 32
 
-/** A Lfo Modulator modulates the signal with a low frequency
+/** A LFO Modulator modulates the signal with a low frequency
 *
 *	@ingroup modulatorTypes
 *
@@ -68,13 +68,11 @@ class LfoModulator: public TimeVariantModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("LFO", "LFO Modulator")
+	SET_PROCESSOR_NAME("LFO", "LFO Modulator", "A LFO Modulator modulates the signal with a low frequency")
 
 	LfoModulator(MainController *mc, const String &id, Modulation::Mode m);
 
 	~LfoModulator();
-
-	
 
 	enum Waveform
 	{

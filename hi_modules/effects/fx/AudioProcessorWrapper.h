@@ -51,7 +51,7 @@ class AudioProcessorWrapper : public MasterEffectProcessor
 {
 public:
 
-	SET_PROCESSOR_NAME("AudioProcessorWrapper", "Plugin Wrapper")
+	SET_PROCESSOR_NAME("AudioProcessorWrapper", "Plugin Wrapper", "deprecated")
 
 	enum InternalChains
 	{

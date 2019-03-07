@@ -39,7 +39,7 @@ class GainCollector : public MasterEffectProcessor
 {
 public:
 
-	SET_PROCESSOR_NAME("GainCollector", "Gain Collector");
+	SET_PROCESSOR_NAME("GainCollector", "Gain Collector", "deprecated");
 
 	/** The parameters */
 	enum Parameters
