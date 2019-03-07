@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<JUCERPROJECT id="v5Vi2v" name="doc_builder" displaySplashScreen="0" reportAppUsage="0"
+              splashScreenColour="Dark" projectType="consoleapp" version="1.0.0"
+              bundleIdentifier="com.yourcompany.doc_builder" includeBinaryInAppConfig="1"
+              cppLanguageStandard="14" companyCopyright="" jucerVersion="5.2.0">
+  <MAINGROUP id="CBhHJQ" name="doc_builder">
+    <GROUP id="{1BF6A806-D526-1F84-0778-2A3D496375C7}" name="Source">
+      <FILE id="RG17Js" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
+    </GROUP>
+    <FILE id="hCbbzQ" name="balanceKnob_200.png" compile="0" resource="1"
+          file="../../hi_core/hi_images/balanceKnob_200.png"/>
+    <FILE id="fOYD9L" name="FrontendKnob_Bipolar.png" compile="0" resource="1"
+          file="../../hi_core/hi_images/FrontendKnob_Bipolar.png"/>
+    <FILE id="JGXDv5" name="FrontendKnob_Unipolar.png" compile="0" resource="1"
+          file="../../hi_core/hi_images/FrontendKnob_Unipolar.png"/>
+    <FILE id="GYZVe6" name="infoError.png" compile="0" resource="1" file="../../hi_core/hi_images/infoError.png"/>
+    <FILE id="Ws0H9N" name="infoInfo.png" compile="0" resource="1" file="../../hi_core/hi_images/infoInfo.png"/>
+    <FILE id="LXqaFy" name="infoQuestion.png" compile="0" resource="1"
+          file="../../hi_core/hi_images/infoQuestion.png"/>
+    <FILE id="Qm1mo7" name="infoWarning.png" compile="0" resource="1" file="../../hi_core/hi_images/infoWarning.png"/>
+    <FILE id="RZ1bii" name="knobEmpty_200.png" compile="0" resource="1"
+          file="../../hi_core/hi_images/knobEmpty_200.png"/>
+    <FILE id="eMeDMN" name="knobModulated_200.png" compile="0" resource="1"
+          file="../../hi_core/hi_images/knobModulated_200.png"/>
+    <FILE id="sS8Cjo" name="knobUnmodulated_200.png" compile="0" resource="1"
+          file="../../hi_core/hi_images/knobUnmodulated_200.png"/>
+    <FILE id="ps6xH1" name="logo_mini.png" compile="0" resource="1" file="../../hi_core/hi_images/logo_mini.png"/>
+    <FILE id="uBwWN0" name="logo_new.png" compile="0" resource="1" file="../../hi_core/hi_images/logo_new.png"/>
+    <FILE id="dt0HjM" name="oxygen.bold.ttf" compile="0" resource="1" file="../../hi_core/hi_images/oxygen.bold.ttf"/>
+    <FILE id="kWKPmy" name="oxygen.mono.regular.otf" compile="0" resource="1"
+          file="../../hi_core/hi_images/oxygen.mono.regular.otf"/>
+    <FILE id="LZJu3q" name="oxygen.regular.ttf" compile="0" resource="1"
+          file="../../hi_core/hi_images/oxygen.regular.ttf"/>
+    <FILE id="ou7EhB" name="toggle_200.png" compile="0" resource="1" file="../../hi_core/hi_images/toggle_200.png"/>
+  </MAINGROUP>
+  <EXPORTFORMATS>
+    <VS2017 targetFolder="Builds/VisualStudio2017" windowsTargetPlatformVersion="10.0.16299.0"
+            IPPLibrary="Sequential" smallIcon="uBwWN0" bigIcon="uBwWN0">
+      <CONFIGURATIONS>
+        <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
+                       debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
+                       linkTimeOptimisation="0" isDebug="1" optimisation="1" targetName="doc_builder"/>
+        <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
+                       debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
+                       linkTimeOptimisation="1" isDebug="0" optimisation="3" targetName="doc_builder"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_core" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_events" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_graphics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_cryptography" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_basics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_zstd" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_lac" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_modules" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_core" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_dsp" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_dsp_library" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_components" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_scripting" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_sampler" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_streaming" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_backend" path="../../../HISE modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
+      </MODULEPATHS>
+    </VS2017>
+  </EXPORTFORMATS>
+  <MODULES>
+    <MODULE id="hi_backend" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_components" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_core" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_dsp_library" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_lac" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_modules" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_sampler" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_scripting" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_streaming" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_tools" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_zstd" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_devices" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_formats" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_processors" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_utils" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_cryptography" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_opengl" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_product_unlocking" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="0"/>
+  </MODULES>
+  <JUCEOPTIONS USE_BACKEND="enabled" USE_FRONTEND="disabled" USE_RAW_FRONTEND="disabled"
+               IS_STANDALONE_APP="enabled" USE_COPY_PROTECTION="disabled" USE_IPP="enabled"
+               USE_VDSP_FFT="disabled" FRONTEND_IS_PLUGIN="disabled" JUCE_ASIO="disabled"
+               HI_EXPORT_DSP_LIBRARY="disabled"/>
+</JUCERPROJECT>

@@ -52,3 +52,5 @@ extras/mpe_demo/Binaries/
 extras/demo_project/PooledResources/
 tools/markdown_editor/Builds/
 tools/markdown_editor/JuceLibraryCode/
+tools/doc_builder/Builds/
+tools/doc_builder/JuceLibraryCode/

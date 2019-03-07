@@ -36,8 +36,6 @@
     <FILE id="bCNzxT" name="oxygen.regular.ttf" compile="0" resource="1"
           file="../../hi_core/hi_images/oxygen.regular.ttf"/>
     <FILE id="KDrMTM" name="toggle_200.png" compile="0" resource="1" file="../../hi_core/hi_images/toggle_200.png"/>
-    <FILE id="r7v8kX" name="XmlApi.cpp" compile="1" resource="0" file="../../hi_scripting/scripting/api/XmlApi.cpp"/>
-    <FILE id="AiwIb5" name="XmlApi.h" compile="0" resource="0" file="../../hi_scripting/scripting/api/XmlApi.h"/>
   </MAINGROUP>
   <EXPORTFORMATS>
     <VS2017 targetFolder="Builds/VisualStudio2017" windowsTargetPlatformVersion="10.0.16299.0">
@@ -68,6 +66,17 @@
         <MODULEPATH id="hi_zstd" path="../../"/>
         <MODULEPATH id="hi_lac" path="../../"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_backend" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_core" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_dsp" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_dsp_library" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_components" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_sampler" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_scripting" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_modules" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_streaming" path="../../../HISE modules"/>
+        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </VS2017>
     <XCODE_MAC targetFolder="Builds/MacOSX">
@@ -95,6 +104,17 @@
         <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="hi_lac" path="../../"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_backend" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_core" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_dsp" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_dsp_library" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_components" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_sampler" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_scripting" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_modules" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_streaming" path="../../../HISE modules"/>
+        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="landscape" iPadScreenOrientation="landscape"
@@ -124,17 +144,38 @@
         <MODULEPATH id="hi_zstd" path="../../"/>
         <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="hi_lac" path="../../"/>
+        <MODULEPATH id="hi_backend" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_core" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_dsp" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_dsp_library" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_components" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_sampler" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_scripting" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_modules" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_streaming" path="../../../HISE modules"/>
+        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
   </EXPORTFORMATS>
   <MODULES>
+    <MODULE id="hi_backend" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_components" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_core" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_dsp_library" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_lac" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_modules" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_sampler" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_scripting" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_streaming" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_tools" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_zstd" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_audio_devices" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_audio_formats" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_audio_processors" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_audio_utils" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_cryptography" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
@@ -144,7 +185,10 @@
     <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_opengl" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_product_unlocking" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="0"/>
     <MODULE id="juce_video" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
   </MODULES>
-  <JUCEOPTIONS/>
+  <JUCEOPTIONS JUCE_USE_DIRECTWRITE="enabled" USE_BACKEND="enabled" USE_FRONTEND="disabled"
+               IS_STANDALONE_APP="enabled" USE_IPP="disabled" HI_EXPORT_DSP_LIBRARY="disabled"/>
 </JUCERPROJECT>
