@@ -97,6 +97,12 @@ void printHelp()
 
 int createHtml(const StringArray& args)
 {
+#if 0
+	BackendProcessor bp(nullptr, nullptr);
+	//BackendRootWindow b(&bp, {});
+	b.
+
+
 	StandardLogger l;
 
 	if (args.size() < 4)
@@ -126,10 +132,6 @@ int createHtml(const StringArray& args)
 
 			htmlDir.deleteRecursively();
 			
-
-			hise::MarkdownDataBase database;
-			
-
 #if 0
 			database.addItemGenerator(new MarkdownDataBase::DirectoryItemGenerator(root.getChildFile("Introduction"), Colours::orange));
 
@@ -152,16 +154,10 @@ int createHtml(const StringArray& args)
 			
 #endif
 
-			database.addItemGenerator(new UIComponentDatabase::ItemGenerator(root));
-			database.addItemGenerator(new HiseModuleDatabase::ItemGenerator(root));
-			
-			
+			bp.getDatabase().getDatabaseFile().deleteFile();
 
-			database.setRoot(root);
-			database.getDatabaseFile().deleteFile();
-			database.buildDataBase();
+			hise::DatabaseCrawler crawler(bp);
 
-			hise::DatabaseCrawler crawler(database);
 			crawler.setLogger(new StandardLogger());
 
 			MarkdownLayout::StyleData l;
@@ -173,21 +169,6 @@ int createHtml(const StringArray& args)
 
 			crawler.setStyleData(l);
 
-#if 0
-			
-			crawler.addLinkResolver(new ScriptingApiDatabase::Resolver(root));
-			
-			
-			crawler.addImageProvider(new MarkdownParser::URLImageProvider(File::getSpecialLocation(File::tempDirectory).getChildFile("TempImagesForMarkdown"), nullptr));
-#endif
-
-			
-			crawler.addLinkResolver(new UIComponentDatabase::Resolver(root));
-			crawler.addImageProvider(new UIComponentDatabase::ScreenshotProvider(nullptr));
-
-			crawler.addLinkResolver(new HiseModuleDatabase::Resolver(root));
-			crawler.addImageProvider(new HiseModuleDatabase::ScreenshotProvider(nullptr));
-
 			crawler.createContentTree();
 			crawler.createImageTree();
 
@@ -195,7 +176,7 @@ int createHtml(const StringArray& args)
 
 			crawler.writeImagesToSubDirectory(htmlDir);
 
-			crawler.createHtmlFiles(htmlDir, root.getChildFile("template"), Markdown2HtmlConverter::LinkMode::LocalFile, htmlDir.getFullPathName());
+			//crawler.createHtmlFiles(htmlDir, root.getChildFile("template"), Markdown2HtmlConverter::LinkMode::LocalFile, htmlDir.getFullPathName());
 
 			return 0;
 		}
@@ -207,10 +188,14 @@ int createHtml(const StringArray& args)
 
 		
 	}
+#endif
+	return 1;
 }
 
 int createCache(const StringArray& args)
 {
+	BackendProcessor bp;
+	
 	StandardLogger l;
 
 	if (args.size() < 3)
@@ -232,19 +217,14 @@ int createCache(const StringArray& args)
 			l << "ERROR: The path you supplied is not a directory";
 		}
 
-		hise::MarkdownDataBase database;
-		database.addItemGenerator(new MarkdownDataBase::DirectoryItemGenerator(root.getChildFile("Tutorials"), Colours::orange));
-		database.addItemGenerator(new ScriptingApiDatabase::ItemGenerator(root));
-		database.addItemGenerator(new MarkdownDataBase::DirectoryItemGenerator(root.getChildFile("Reference Guides"), Colours::lightcyan));
-		database.setRoot(root);
-		database.buildDataBase();
+		hise::DatabaseCrawler crawler(bp);
 
-		hise::DatabaseCrawler crawler(database);
+		bp.setDatabaseRootDirectory(root);
+		bp.addContentProcessor(&crawler);
+
+		bp.rebuildDatabase();
+
 		crawler.setLogger(new StandardLogger());
-
-		crawler.addLinkResolver(new ScriptingApiDatabase::Resolver(root.getChildFile("Scripting API")));
-		crawler.addImageProvider(new MarkdownParser::URLImageProvider(File::getSpecialLocation(File::tempDirectory).getChildFile("TempImagesForMarkdown"), nullptr));
-
 		crawler.createDataFiles(root, !skipImages);
 
 		return 0;
