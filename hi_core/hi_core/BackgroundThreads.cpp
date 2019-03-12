@@ -258,6 +258,14 @@ void DialogWindowWithBackgroundThread::AdditionalRow::addButton(const String& na
 	addCustomComponent(t, "", width);
 }
 
+void DialogWindowWithBackgroundThread::AdditionalRow::setInfoTextForLastComponent(const String& infoToShow)
+{
+	if (auto last = columns.getLast())
+	{
+		last->infoButton->setHelpText(infoToShow);
+	}
+}
+
 void DialogWindowWithBackgroundThread::AdditionalRow::resized()
 {
 	if (getWidth() == 0)
@@ -359,6 +367,9 @@ void ModalBaseWindow::clearModalComponent()
 
 const hise::MainController* ModalBaseWindow::getMainController() const
 {
+	if (auto mc = getMainControllerToUse())
+		return mc;
+
 #if USE_BACKEND
 	return dynamic_cast<const BackendRootWindow*>(this)->getBackendProcessor();
 	
@@ -370,6 +381,9 @@ const hise::MainController* ModalBaseWindow::getMainController() const
 
 hise::MainController* ModalBaseWindow::getMainController()
 {
+	if (auto mc = getMainControllerToUse())
+		return mc;
+
 #if USE_BACKEND
 	return dynamic_cast<BackendRootWindow*>(this)->getBackendProcessor();
 #else
@@ -899,6 +913,32 @@ String SampleDataImporter::getMetadata() const
 File SampleDataImporter::getSourceFile() const
 {
 	return targetFile->getCurrentFile();
+}
+
+DialogWindowWithBackgroundThread::AdditionalRow::Column::Column(Component* t, const String& name_, int width_) :
+	name(name_),
+	width(width_)
+{
+	addAndMakeVisible(component = t);
+	if (name.isNotEmpty())
+	{
+		addAndMakeVisible(infoButton = new MarkdownHelpButton());
+
+	}
+}
+
+void DialogWindowWithBackgroundThread::AdditionalRow::Column::resized()
+{
+	auto area = getLocalBounds();
+
+	if (name.isNotEmpty())
+	{
+		auto topBar = area.removeFromTop(16);
+
+		infoButton->setBounds(topBar.removeFromRight(16));
+	}
+
+	component->setBounds(area);
 }
 
 } // namespace hise

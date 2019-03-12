@@ -70,6 +70,9 @@ public:
 
 	MainController* getMainController();
 
+	virtual const MainController* getMainControllerToUse() const { return nullptr; }
+	virtual MainController* getMainControllerToUse() { return nullptr; }
+
 	ScopedPointer<Component> modalComponent;
 	DropShadow s;
 	ScopedPointer<DropShadower> shadow;
@@ -149,13 +152,7 @@ public:
 
 		void addButton(const String& name, const KeyPress& k=KeyPress(), int width=0);
 
-		void setInfoTextForLastComponent(const String& infoToShow)
-		{
-			if (auto last = columns.getLast())
-			{
-				last->infoButton->setHelpText(infoToShow);
-			}
-		}
+		void setInfoTextForLastComponent(const String& infoToShow);
 
 		template <class ComponentType> ComponentType* getComponent(const String& name)
 		{
@@ -180,17 +177,7 @@ public:
 		{
 			
 
-			Column(Component* t, const String& name_, int width_):
-				name(name_),
-				width(width_)
-			{
-				addAndMakeVisible(component = t);
-				if (name.isNotEmpty())
-				{
-					addAndMakeVisible(infoButton = new MarkdownHelpButton());
-					
-				}
-			}
+			Column(Component* t, const String& name_, int width_);
 
 			void buttonClicked(Button* /*b*/) override
 			{
@@ -217,19 +204,7 @@ public:
 
 			
 
-			void resized() override
-			{
-				auto area = getLocalBounds();
-
-				if (name.isNotEmpty())
-				{
-					auto topBar = area.removeFromTop(16);
-
-					infoButton->setBounds(topBar.removeFromRight(16));
-				}
-
-				component->setBounds(area);
-			}
+			void resized() override;
 
 			ScopedPointer<Component> component;
 			ScopedPointer<MarkdownHelpButton> infoButton;

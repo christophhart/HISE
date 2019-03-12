@@ -195,7 +195,9 @@ Set this to 0 to deactivate the plotter data collection
 #define ENABLE_PLOTTER 1
 #endif
 
-
+#ifndef IS_MARKDOWN_EDITOR
+#define IS_MARKDOWN_EDITOR 0
+#endif
 
 /** Config: ENABLE_SCRIPTING_SAFE_CHECKS
 
