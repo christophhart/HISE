@@ -74,9 +74,7 @@ public:
 
 	juce::Identifier getProcessorTypeId() const
 	{
-		static Identifier fid("FilterGraphProcessor");
-		
-		return fid;
+		return PolyFilterEffect::getClassType();
 	}
 
 	

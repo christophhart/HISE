@@ -185,7 +185,7 @@ public:
 	ModulatorSampler(MainController *mc, const String &id, int numVoices);;
 	~ModulatorSampler();
 
-	SET_PROCESSOR_CONNECTOR_TYPE_ID("ModulatorSampler");
+	SET_PROCESSOR_CONNECTOR_TYPE_ID("StreamingSampler");
 
 	void restoreFromValueTree(const ValueTree &v) override;
 	ValueTree exportAsValueTree() const override;

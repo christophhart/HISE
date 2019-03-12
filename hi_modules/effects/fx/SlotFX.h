@@ -211,6 +211,8 @@ private:
 
 	class Constrainer : public FactoryType::Constrainer
 	{
+		String getDescription() const override { return "No poly FX"; }
+
 #define DEACTIVATE(x) if (typeName == x::getClassType()) return false;
 
 		bool allowType(const Identifier &typeName) override

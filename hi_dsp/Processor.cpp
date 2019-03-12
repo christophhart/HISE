@@ -315,7 +315,7 @@ const hise::Processor* Processor::getParentProcessor(bool getOwnerSynth, bool as
 {
 	if (parentProcessor == nullptr)
 	{
-		IF_NOT_HEADLESS(jassert(!assertIfFalse || this == getMainController()->getMainSynthChain()));
+		ASSERT_STRICT_PROCESSOR_STRUCTURE(!assertIfFalse || this == getMainController()->getMainSynthChain());
 		return nullptr;
 	}
 		
@@ -758,7 +758,7 @@ bool Processor::isValidAndInitialised(bool checkOnAir) const
 
 	// Normally you expect this method to be true, so this assertion will fire here
 	// so that you can check the reason from the bools above...
-	IF_NOT_HEADLESS(jassert(isValid));
+	ASSERT_STRICT_PROCESSOR_STRUCTURE(isValid);
 	return isValid;
 }
 
@@ -1002,14 +1002,14 @@ juce::String ProcessorDocumentation::createHelpText()
 	{
 		t << "## Chains \n";
 
-		t << "| `#` | Icon | ID | Description |\n";
-		t << "| - | - | --- | ----------- |\n";
+		t << "| `#` | ID | Restriction | Description |\n";
+		t << "| - | --- | ----- | ----------- |\n";
 
 		int c = 0;
 
 		for (auto& e : chains)
 		{
-			if (c < chainOffset)
+			if (c++ < chainOffset)
 				continue;
 
 			t << e.getMarkdownLine(true) << "\n";
@@ -1022,7 +1022,7 @@ juce::String ProcessorDocumentation::createHelpText()
 
 void ProcessorDocumentation::fillMissingParameters(Processor* p)
 {
-	for (int i = 0; i < p->getNumParameters(); i++)
+	for (int i = parameterOffset; i < p->getNumParameters(); i++)
 	{
 		auto id = p->getIdentifierForParameterIndex(i);
 
@@ -1036,6 +1036,26 @@ void ProcessorDocumentation::fillMissingParameters(Processor* p)
 			parameters.add(e);
 	}
 
+	for (int i = chainOffset; i < p->getNumInternalChains(); i++)
+	{
+		Entry e;
+
+		e.name = p->getChildProcessor(i)->getId();
+		e.helpText = "-";
+		e.index = i;
+		
+		auto c = dynamic_cast<Chain*>(p->getChildProcessor(i));
+		auto constrainer = c->getFactoryType()->getConstrainer();
+
+		if (constrainer == nullptr)
+			e.constrainer = "All types";
+		else
+			e.constrainer = constrainer->getDescription();
+
+		if (!chains.contains(e))
+			chains.add(e);
+	}
+
 	parameters.sort(Entry::Sorter());
 }
 
@@ -1047,7 +1067,7 @@ juce::String ProcessorDocumentation::Entry::getMarkdownLine(bool getChain) const
 	
 	if (getChain)
 	{
-		s << "![" << name << "](/images/icon_" << HtmlGenerator::getSanitizedFilename(name) << ") | " << name;
+		s << name << " | " << constrainer << " |";
 	}
 	else
 	{

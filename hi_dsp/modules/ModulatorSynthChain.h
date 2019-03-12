@@ -45,7 +45,7 @@ public:
 
 	NoMidiInputConstrainer();
 
-	
+	String getDescription() const override { return "No voice modulators"; }
 
 	bool allowType(const Identifier &typeName) override
 	{
@@ -67,6 +67,8 @@ class SynthGroupConstrainer : public FactoryType::Constrainer
 public:
 
 	SynthGroupConstrainer();
+
+	String getDescription() const override { return "No container modules"; }
 
 	bool allowType(const Identifier &typeName) override
 	{

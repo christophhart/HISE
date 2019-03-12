@@ -64,6 +64,8 @@ class BaseConstrainer
 
 #define SET_DOCUMENTATION(className) className::Documentation::Documentation()
 
+class MarkdownHelpButton;
+
 /** A object that holds all the documentation available for a certain processor.
 *
 *	In order to use it, subclass it as a inner class of your processor called ProcessorType::Documentation
@@ -75,6 +77,8 @@ class BaseConstrainer
 */
 class ProcessorDocumentation
 {
+public:
+
 	struct Entry
 	{
 		struct Sorter
@@ -96,6 +100,7 @@ class ProcessorDocumentation
 		Identifier id;
 		String name;
 		String helpText;
+		String constrainer;
 
 		String getMarkdownLine(bool usePrettyName) const;
 
@@ -128,8 +133,6 @@ public:
 		chainOffset = cOffset;
 	}
 
-protected:
-
 	ProcessorDocumentation()
 	{};
 
@@ -154,9 +157,6 @@ protected:
 	}
 
 	String description;
-
-private:
-
 	int parameterOffset = 0;
 	int chainOffset = 0;
 
@@ -629,7 +629,7 @@ public:
 			jassert(root->isValidAndInitialised());
 			WARN_IF_AUDIO_THREAD(true, MainController::KillStateHandler::IllegalOps::IteratorCreation);
 
-			LockHelpers::SafeLock sl(root->getMainController(), LockHelpers::Type::IteratorLock);
+			LockHelpers::SafeLock sl(root->getMainController(), LockHelpers::Type::IteratorLock, !root->getMainController()->isFlakyThreadingAllowed());
 
 			if (useHierarchy)
 			{

@@ -164,6 +164,36 @@ void PanelWithProcessorConnection::incIndex(bool up)
 	setContentWithUndo(currentProcessor, newIndex);
 }
 
+hise::Processor* PanelWithProcessorConnection::createDummyProcessorForDocumentation(MainController* mc)
+{
+	ScopedPointer<FactoryType> f = new ModulatorSynthChainFactoryType(1, mc->getMainSynthChain());
+
+	auto id = getProcessorTypeId();
+	auto index = f->getProcessorTypeIndex(id);
+
+	if (index == -1)
+	{
+		f = new ModulatorChainFactoryType(1, Modulation::GainMode, mc->getMainSynthChain());
+		index = f->getProcessorTypeIndex(id);
+	}
+
+	if (index == -1)
+	{
+		f = new EffectProcessorChainFactoryType(1, mc->getMainSynthChain());
+		index = f->getProcessorTypeIndex(id);
+	}
+
+	if (index == -1)
+	{
+		f = new MidiProcessorFactoryType(mc->getMainSynthChain());
+		index = f->getProcessorTypeIndex(id);
+	}
+
+	jassert(index != -1);
+
+	return f->createProcessor(index, "Dummy Processor");
+}
+
 void PanelWithProcessorConnection::moduleListChanged(Processor* b, MainController::ProcessorChangeHandler::EventType type)
 {
 	if (type == MainController::ProcessorChangeHandler::EventType::ProcessorBypassed ||
@@ -303,6 +333,16 @@ void PanelWithProcessorConnection::processorDeleted(Processor* /*deletedProcesso
 	jassert_message_thread;
 
 	setContentWithUndo(nullptr, -1);
+}
+
+bool PanelWithProcessorConnection::shouldHideSelector() const
+{
+#if USE_BACKEND
+	return findParentComponentOfClass<ScriptContentComponent>() != nullptr ||
+		findParentComponentOfClass<MarkdownPreview>() != nullptr;
+#else
+	return true;
+#endif
 }
 
 void PanelWithProcessorConnection::refreshConnectionList()

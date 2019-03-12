@@ -233,6 +233,11 @@ public:
 
 		SET_PANEL_NAME("AudioAnalyser");
 
+		Identifier getProcessorTypeId() const override
+		{
+			return AnalyserEffect::getClassType();
+		}
+
 		Component* createContentComponent(int index) override;
 
 		void fillModuleList(StringArray& moduleList) override

@@ -108,6 +108,8 @@ private:
 /** Deactivates Globals (this is used in Global Containers. */
 class NoGlobalsConstrainer : public FactoryType::Constrainer
 {
+	String getDescription() const override { return "No global modulators"; }
+
 	bool allowType(const Identifier &typeName) override
 	{
 		return !typeName.toString().startsWith("Global");
@@ -121,6 +123,8 @@ class NoGlobalEnvelopeConstrainer : public FactoryType::Constrainer
 	{
 		return !typeName.toString().startsWith("GlobalEnvelope");
 	}
+
+	String getDescription() const override { return "No global modulators"; }
 };
 
 /** A modulator that connects to a global VoiceStartModulator (eg. Velocity).
