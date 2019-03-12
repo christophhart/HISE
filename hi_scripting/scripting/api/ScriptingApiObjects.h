@@ -1201,7 +1201,7 @@ public:
 		/** Draws the given path. */
 		void drawPath(var path, var area, var thickNess);
 
-		/** Rotates the canvas around center ([x, y]) by the given amount in radian. */
+		/** Rotates the canvas around center `[x, y]` by the given amount in radian. */
 		void rotate(var angleInRadian, var center);
 		
 		// ============================================================================================================

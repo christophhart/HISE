@@ -349,6 +349,8 @@ public:
 
 		String getScriptObjectPropertiesAsJSON() const;
 		
+		
+
 		bool isPropertyDeactivated(Identifier &id) const;
 		bool hasProperty(const Identifier& id) const;
 
@@ -478,6 +480,9 @@ public:
 
 		/** Call this to indicate that the value has changed (the onControl callback will be executed. */
 		void changed();
+
+		/** Returns a list of all property IDs as array. */
+		var getAllProperties();
 
 		// End of API Methods ============================================================================================
 
