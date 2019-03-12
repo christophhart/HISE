@@ -398,6 +398,9 @@ public:
 
 private:
     //==============================================================================
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(CodeDocument);
+
     struct InsertAction;
     struct DeleteAction;
     friend class Iterator;

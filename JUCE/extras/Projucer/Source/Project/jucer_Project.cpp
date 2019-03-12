@@ -355,6 +355,8 @@ static bool isAnyModuleNewerThanProjucer (const OwnedArray<ModuleDescription>& m
 
 void Project::warnAboutOldProjucerVersion()
 {
+	return;
+
     ModuleList available;
 
     available.scanGlobalJuceModulePath();

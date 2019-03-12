@@ -12,73 +12,73 @@ namespace BinaryData
     const int            gradlewrapper_jarSize = 53636;
 
     extern const char*   gradlew;
-    const int            gradlewSize = 4971;
+    const int            gradlewSize = 5131;
 
     extern const char*   gradlew_bat;
     const int            gradlew_batSize = 2404;
 
     extern const char*   LICENSE;
-    const int            LICENSESize = 11325;
+    const int            LICENSESize = 11527;
 
     extern const char*   background_logo_svg;
     const int            background_logo_svgSize = 3117;
 
     extern const char*   export_android_svg;
-    const int            export_android_svgSize = 3586;
+    const int            export_android_svgSize = 3606;
 
     extern const char*   export_clion_svg;
-    const int            export_clion_svgSize = 2244;
+    const int            export_clion_svgSize = 2278;
 
     extern const char*   export_codeBlocks_svg;
-    const int            export_codeBlocks_svgSize = 1726;
+    const int            export_codeBlocks_svgSize = 1742;
 
     extern const char*   export_linux_svg;
-    const int            export_linux_svgSize = 28184;
+    const int            export_linux_svgSize = 28234;
 
     extern const char*   export_visualStudio_svg;
-    const int            export_visualStudio_svgSize = 1706;
+    const int            export_visualStudio_svgSize = 1724;
 
     extern const char*   export_xcode_svg;
-    const int            export_xcode_svgSize = 12295;
+    const int            export_xcode_svgSize = 12323;
 
     extern const char*   huckleberry_icon_svg;
-    const int            huckleberry_icon_svgSize = 3375;
+    const int            huckleberry_icon_svgSize = 3425;
 
     extern const char*   jucelogowithtext_svg;
-    const int            jucelogowithtext_svgSize = 5312;
+    const int            jucelogowithtext_svgSize = 5455;
 
     extern const char*   juce_icon_png;
     const int            juce_icon_pngSize = 45854;
 
     extern const char*   wizard_AnimatedApp_svg;
-    const int            wizard_AnimatedApp_svgSize = 5978;
+    const int            wizard_AnimatedApp_svgSize = 6152;
 
     extern const char*   wizard_AudioApp_svg;
-    const int            wizard_AudioApp_svgSize = 17791;
+    const int            wizard_AudioApp_svgSize = 18542;
 
     extern const char*   wizard_AudioPlugin_svg;
-    const int            wizard_AudioPlugin_svgSize = 21296;
+    const int            wizard_AudioPlugin_svgSize = 22149;
 
     extern const char*   wizard_ConsoleApp_svg;
-    const int            wizard_ConsoleApp_svgSize = 3249;
+    const int            wizard_ConsoleApp_svgSize = 3333;
 
     extern const char*   wizard_DLL_svg;
-    const int            wizard_DLL_svgSize = 7503;
+    const int            wizard_DLL_svgSize = 7771;
 
     extern const char*   wizard_GUI_svg;
-    const int            wizard_GUI_svgSize = 6528;
+    const int            wizard_GUI_svgSize = 6695;
 
     extern const char*   wizard_Highlight_svg;
-    const int            wizard_Highlight_svgSize = 1798;
+    const int            wizard_Highlight_svgSize = 1845;
 
     extern const char*   wizard_Openfile_svg;
-    const int            wizard_Openfile_svgSize = 1859;
+    const int            wizard_Openfile_svgSize = 1908;
 
     extern const char*   wizard_OpenGL_svg;
-    const int            wizard_OpenGL_svgSize = 4551;
+    const int            wizard_OpenGL_svgSize = 4676;
 
     extern const char*   wizard_StaticLibrary_svg;
-    const int            wizard_StaticLibrary_svgSize = 7488;
+    const int            wizard_StaticLibrary_svgSize = 7756;
 
     extern const char*   jucer_AnimatedComponentTemplate_cpp;
     const int            jucer_AnimatedComponentTemplate_cppSize = 1887;
@@ -150,7 +150,7 @@ namespace BinaryData
     const int            colourscheme_light_xmlSize = 1050;
 
     extern const char*   offlinepage_html;
-    const int            offlinepage_htmlSize = 1155;
+    const int            offlinepage_htmlSize = 1196;
 
     extern const char*   projucer_EULA_txt;
     const int            projucer_EULA_txtSize = 14361;

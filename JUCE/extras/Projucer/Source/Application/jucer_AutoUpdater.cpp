@@ -611,6 +611,8 @@ URL LatestVersionChecker::getLatestVersionURL (String& headers) const
 
 void LatestVersionChecker::checkForNewVersion()
 {
+	return;
+
     hasAttemptedToReadWebsite = true;
 
     {

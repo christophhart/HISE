@@ -287,7 +287,9 @@ void Timer::startTimer (int interval) noexcept
 {
     // If you're calling this before (or after) the MessageManager is
     // running, then you're not going to get any timer callbacks!
-    jassert (MessageManager::getInstanceWithoutCreating() != nullptr);
+#if !HISE_HEADLESS
+	jassert(MessageManager::getInstanceWithoutCreating() != nullptr);
+#endif
 
     const TimerThread::LockType::ScopedLockType sl (TimerThread::lock);
 

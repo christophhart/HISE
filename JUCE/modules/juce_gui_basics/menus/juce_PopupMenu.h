@@ -107,6 +107,8 @@ public:
     /** Resets the menu, removing all its items. */
     void clear();
 
+	
+
     /** Describes a popup menu item. */
     struct JUCE_API  Item
     {
@@ -364,6 +366,8 @@ public:
         (This doesn't count separators).
     */
     int getNumItems() const noexcept;
+
+	const Item* getItem(int index) const { return items[index]; }
 
     /** Returns true if the menu contains a command item that triggers the given command. */
     bool containsCommandItem (int commandID) const;
