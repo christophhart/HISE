@@ -1219,7 +1219,7 @@ bool MainController::checkAndResetMidiInputFlag()
 
 float MainController::getGlobalCodeFontSize() const
 {
-	return (float)dynamic_cast<const GlobalSettingManager*>(this)->getSettingsObject().getSetting(HiseSettings::Scripting::CodeFontSize);
+	return jmax<float>(14.0f, (float)dynamic_cast<const GlobalSettingManager*>(this)->getSettingsObject().getSetting(HiseSettings::Scripting::CodeFontSize));
 }
 
 

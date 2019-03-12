@@ -576,6 +576,10 @@ String PresetHandler::getCustomName(const String &typeName, const String& thisMe
 
 bool PresetHandler::showYesNoWindow(const String &title, const String &message, PresetHandler::IconType type)
 {
+#if HISE_HEADLESS
+		return true;
+#endif
+
 #if USE_BACKEND
 	if (CompileExporter::isExportingFromCommandLine())
 	{

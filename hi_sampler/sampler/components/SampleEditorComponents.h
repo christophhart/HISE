@@ -377,7 +377,11 @@ public:
 	/** returns the root notes for all files that are dragged over the component. */
 	BigInteger getRootNotesForDraggedFiles() const { return draggedFileRootNotes; };
 
-	void resized() override { updateSampleComponents(); };
+	void resized() override 
+	{ 
+		timerCallback();
+		updateSampleComponents(); 
+	};
 
 	/** updates the position / size of the specified sound. */
 	void updateSampleComponentWithSound(ModulatorSamplerSound *sound);

@@ -1192,6 +1192,8 @@ public:
 
 	void rebuildVoiceLimits();
 
+
+
 #if USE_BACKEND
 
 	void setScriptWatchTable(ScriptWatchTable *table);
@@ -1201,6 +1203,16 @@ public:
 	
 
 #endif
+
+	void setAllowFlakyThreading(bool shouldAllowWeirdThreadingStuff)
+	{
+		flakyThreadingAllowed = shouldAllowWeirdThreadingStuff;
+	}
+
+	bool isFlakyThreadingAllowed() const noexcept 
+	{ 
+		return flakyThreadingAllowed; 
+	}
 
 	void setPlotter(Plotter *p);
 
@@ -1411,6 +1423,8 @@ private:
 	int previewBufferIndex = -1;
 	float fadeOutPreviewBufferGain = 1.0f;
 	bool fadeOutPreviewBuffer = false;
+
+	bool flakyThreadingAllowed = false;
 
 	void loadPresetInternal(const ValueTree& v);
 

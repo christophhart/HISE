@@ -246,7 +246,7 @@ bool MainController::KillStateHandler::currentThreadHoldsLock(LockHelpers::Type 
 
 bool MainController::KillStateHandler::initialised() const noexcept
 {
-	return init && currentState != ShutdownComplete;
+	return (init && currentState != ShutdownComplete);
 }
 
 void MainController::KillStateHandler::deinitialise()
@@ -463,12 +463,12 @@ bool MainController::KillStateHandler::test() const noexcept
 
 juce::Array<MultithreadedQueueHelpers::PublicToken> MainController::KillStateHandler::createPublicTokenList(int producerFlags /*= AllProducers*/)
 {
-	IF_NOT_HEADLESS(jassert(initialised()));
+	IF_NOT_HEADLESS(jassert(mc->isFlakyThreadingAllowed() || initialised()));
 
 	WARN_IF_AUDIO_THREAD(true, IllegalOps::Compilation);
 
 	/** You can't call this before initialising the audio threads. */
-	IF_NOT_HEADLESS(jassert(!audioThreads.isEmpty()));
+	IF_NOT_HEADLESS(jassert(mc->isFlakyThreadingAllowed() || !audioThreads.isEmpty()));
 
 	MultithreadedQueueHelpers::PublicToken audioThreadToken;
 	audioThreadToken.canBeProducer = producerFlags & QueueProducerFlags::AudioThreadIsProducer;
