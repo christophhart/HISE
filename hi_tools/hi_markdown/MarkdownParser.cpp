@@ -41,7 +41,7 @@ void MarkdownParser::parse()
 	{
 		if (it.getRestString().startsWith("---"))
 		{
-			parseYamlHeader();
+			parseMarkdownHeader();
 		}
 		
 		while (it.peek() != 0)
@@ -84,10 +84,12 @@ void MarkdownParser::parseHeadline()
 
 	currentColour = Colour(SIGNAL_COLOUR);
 
+	
+
 	juce::juce_wchar c = it.peek();
 	int headlineLevel = 3;
 
-	while (it.next(c) && c == '#' && headlineLevel > 0)
+	while (it.matchIf('#'))
 	{
 		headlineLevel--;
 	}
@@ -98,15 +100,37 @@ void MarkdownParser::parseHeadline()
 
 	currentFont = FontHelpers::getFontBoldened(currentFont);
 
+	String imageURL;
 
-	if (it.peek() == ' ')
-		it.advance();
+	it.skipWhitespace();
+
+	if (it.peek() == '!')
+	{
+		it.match('!');
+		it.match('[');
+		
+		while (it.next(c))
+		{
+			if (c == ']')
+				break;
+		}
+
+		it.match('(');
+
+		while (it.next(c))
+		{
+			if (c == ')')
+				break;
+
+			imageURL << c;
+		}
+	}
 
 	parseText();
 
 	isBold = false;
 
-	elements.add(new Headline(this, headlineLevel, currentlyParsedBlock, elements.size() == 0));
+	elements.add(new Headline(this, headlineLevel, imageURL, currentlyParsedBlock, elements.size() == 0));
 
 }
 
@@ -293,20 +317,27 @@ void MarkdownParser::parseText(bool stopAtEndOfLine)
 
 				if (ok)
 				{
-					it.match('(');
 
-					ok = false;
-
-					while (it.next(c))
+					if (it.matchIf('('))
 					{
-						if (c == ')')
+						ok = false;
+
+						while (it.next(c))
 						{
-							ok = true;
-							break;
+							if (c == ')')
+							{
+								ok = true;
+								break;
+							}
+							else
+								url << c;
 						}
-						else
-							url << c;
 					}
+					else
+					{
+						ok = false;
+					}
+
 				}
 
 				if (urlId.toLowerCase().startsWith("button: "))
@@ -332,7 +363,7 @@ void MarkdownParser::parseText(bool stopAtEndOfLine)
 
 					HyperLink hyperLink;
 
-					hyperLink.url = HtmlGenerator::getSanitizedFilename(url);
+					hyperLink.url = MarkdownLink::Helpers::getSanitizedFilename(url);
 					hyperLink.urlRange = { start, stop };
 					hyperLink.displayString = urlId;
 					hyperLink.valid = true;
@@ -340,7 +371,10 @@ void MarkdownParser::parseText(bool stopAtEndOfLine)
 					currentLinks.add(std::move(hyperLink));
 				}
 				else
-					throw String("Error at parsing URL link");
+				{
+					currentlyParsedBlock.append("[" + urlId + "]");
+				}
+					
 			}
 
 			
@@ -412,57 +446,6 @@ void MarkdownParser::parseBlock()
 	};
 }
 
-void MarkdownParser::parseJavascriptBlock()
-{
-	auto code = it.getRestString();
-
-	code = code.fromFirstOccurrenceOf("```", false, false);
-
-	auto type = CodeBlock::SyntaxType::Undefined;
-
-	int numToSkip = 0;
-
-	if (code.startsWith("cpp"))
-	{
-		type = CodeBlock::SyntaxType::Cpp;
-		numToSkip = 3;
-
-	}
-	else if (code.startsWith("javascript"))
-	{
-		type = CodeBlock::SyntaxType::Javascript;
-		numToSkip = 10;
-	}
-	else if (code.startsWith("!javascript"))
-	{
-		type = CodeBlock::SyntaxType::LiveJavascript;
-		numToSkip = 11;
-	}
-	else if (code.startsWith("xml"))
-	{
-		type = CodeBlock::SyntaxType::XML;
-		numToSkip = 3;
-	}
-	else if (code.startsWith("snippet"))
-	{
-		type = CodeBlock::SyntaxType::Snippet;
-		numToSkip = 7;
-	}
-
-	code = code.substring(numToSkip);
-
-	code = code.upToFirstOccurrenceOf("```", true, false);
-
-	if (!code.endsWith("```"))
-		throw String("missing end tag for code block. ```");
-
-	code = code.upToFirstOccurrenceOf("```", false, false);
-
-	if (!it.advanceIfNotEOF(code.length() + numToSkip + 6))
-		throw String("End tag missing");
-
-	elements.add(new CodeBlock(this, code, type));
-}
 
 void MarkdownParser::parseButton()
 {
@@ -565,15 +548,25 @@ void MarkdownParser::parseTable()
 
 		parseText();
 
-		if (!currentlyParsedBlock.getText().containsOnly("-=_ "))
+		int length = 0;
+
+		auto columnLine = currentlyParsedBlock.getText().trim();
+
+		if (columnLine.contains(":"))
+		{
+			length = MarkdownTable::FixOffset + currentlyParsedBlock.getText().fromFirstOccurrenceOf(":", false, false).getIntValue();
+		}
+		else if (!columnLine.containsOnly("-=_ "))
 		{
 			throw String("Table lines illegal text: " + currentlyParsedBlock.getText());
 		}
+		else
+		{
+			length = columnLine.length();
+		}
 
-		auto text = currentlyParsedBlock.getText().trim();
-
-		if (text.isNotEmpty())
-			lengths.add(text.length());
+		if(length != 0)
+			lengths.add(length);
 	}
 
 	Array<RowContent> rows;
@@ -697,7 +690,7 @@ void MarkdownParser::parseComment()
 }
 
 
-void MarkdownParser::parseYamlHeader()
+void MarkdownParser::parseMarkdownHeader()
 {
 	it.advance("---");
 	it.match('\n');
@@ -715,15 +708,15 @@ void MarkdownParser::parseYamlHeader()
 		lines.add(line);
 	}
 
-	yamlHeader = {};
+	MarkdownHeader = {};
 
 	
 	
 	for (auto line : lines)
 	{
-		if (line.contains(":"))
+		if (line.contains(":") && !line.trim().startsWith("-"))
 		{
-			YamlHeader::Item newItem;
+			MarkdownHeader::Item newItem;
 
 			newItem.key = line.upToFirstOccurrenceOf(":", false, false).trim();
 			
@@ -732,19 +725,19 @@ void MarkdownParser::parseYamlHeader()
 			if (samelineValue.isNotEmpty())
 				newItem.values.add(samelineValue);
 
-			yamlHeader.items.add(std::move(newItem));
+			MarkdownHeader.items.add(std::move(newItem));
 		}
 		else
 		{
 			auto nextValue = line.fromFirstOccurrenceOf("-", false, false).trim();
 
 			if (nextValue.isEmpty())
-				it.match(':');
+				throw String("Error at YAML Header parsing: no value");
 
-			if (yamlHeader.items.isEmpty())
-				it.match(':');
+			if (MarkdownHeader.items.isEmpty())
+				throw String("Error at YAML Header parsing: no item for list");
 
-			yamlHeader.items.getReference(yamlHeader.items.size() - 1).values.add(nextValue);
+			MarkdownHeader.items.getReference(MarkdownHeader.items.size() - 1).values.add(nextValue);
 		}
 	}
 
@@ -752,6 +745,22 @@ void MarkdownParser::parseYamlHeader()
 	it.match('-');
 	it.match('-');
 	it.match('\n');
+
+	auto headline = MarkdownHeader.getKeywords()[0];
+
+	if (headline.isNotEmpty())
+	{
+		AttributedString s;
+
+		auto f = styleData.f.withHeight(styleData.fontSize * 3 / 2 + 7 * 3);
+
+		f = FontHelpers::getFontBoldened(f);
+
+		s.append(headline, f, styleData.headlineColour);
+
+		elements.add(new Headline(this, 3, MarkdownHeader.getKeyValue("icon"), s, true));
+	}
+
 }
 
 

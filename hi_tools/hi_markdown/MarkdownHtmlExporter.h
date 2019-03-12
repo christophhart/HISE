@@ -58,20 +58,7 @@ struct HtmlGenerator
 		return s.getText().substring(attribute.range.getStart(), attribute.range.getEnd()).replace("\n", "<br>");
 	}
 
-	static String removeLeadingNumbers(const String& p)
-	{
-
-		auto path = p.replaceCharacter('\\', '/').trimCharactersAtStart("01234567890 ");
-
-		auto regex = R"((\/[0-9]{2} ))";
-
-		auto matches = RegexFunctions::search(regex, path);
-
-		for (auto m : matches)
-			path = path.replace(m, "/");
-
-		return path;
-	}
+	
 
 	static String createImageLink(String imageURL, const String& rootString)
 	{
@@ -83,80 +70,9 @@ struct HtmlGenerator
 			imageURL << oldExtension;
 		}
 			
-		return createHtmlLink(imageURL, rootString).replace(".html", oldExtension);
+		return MarkdownLink::Helpers::createHtmlLink(imageURL, rootString).replace(".html", oldExtension);
 	}
 
-	static File getLocalFileForSanitizedURL(File root, const String& url, File::TypesOfFileToFind filetype = File::findFiles, const String& extension = "*")
-	{
-		auto urlToUse = url;
-
-		if (urlToUse.startsWithChar('/'))
-			urlToUse = urlToUse.substring(1);
-
-		Array<File> files;
-
-		root.findChildFiles(files, filetype, true, extension);
-
-		for (auto f : files)
-		{
-			auto path = f.getRelativePathFrom(root);
-
-			path = getSanitizedFilename(path);
-
-			if (path == urlToUse)
-				return f;
-		}
-
-		return {};
-	}
-
-	static String getSanitizedFilename(const String& path)
-	{
-		if (path.startsWith("http"))
-			return path;
-
-		auto p = removeLeadingNumbers(path);
-
-		p = p.replace(".md", "");
-
-		return p.replaceCharacter(' ', '-').toLowerCase();
-	}
-
-	static String createHtmlLink(const String& url, const String& rootString)
-	{
-		if (url.startsWith("http"))
-		{
-			return url;
-		}
-
-		String absoluteFilePath = rootString + url;
-
-		auto urlWithoutAnchor = url.upToFirstOccurrenceOf("#", false, false);
-		auto anchor = url.fromFirstOccurrenceOf("#", true, false);
-
-		auto urlWithoutExtension = urlWithoutAnchor.upToLastOccurrenceOf(".", false, false);
-
-		bool isFile = urlWithoutExtension != urlWithoutAnchor;
-
-		String realURL;
-
-		realURL << rootString;
-
-		if (!rootString.endsWith("/") && !urlWithoutExtension.startsWith("/"))
-			realURL << "/";
-
-		realURL << getSanitizedFilename(urlWithoutExtension);
-
-		if (isFile)
-			realURL << ".html";
-		else
-			realURL << "/index.html";
-
-		realURL << anchor;
-
-
-		return realURL;
-	};
 
 	String createFromAttributedString(const AttributedString& s, int& linkIndex)
 	{

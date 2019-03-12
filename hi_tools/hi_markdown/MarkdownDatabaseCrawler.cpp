@@ -42,9 +42,12 @@ void DatabaseCrawler::Provider::Data::createFromFile(File root)
 
 	File contentFile = root.getChildFile("Images.dat");
 
-	zstd::ZDefaultCompressor comp;
+	if (contentFile.existsAsFile())
+	{
+		zstd::ZDefaultCompressor comp;
 
-	comp.expand(contentFile, v);
+		comp.expand(contentFile, v);
+	}
 }
 
 DatabaseCrawler::Provider::Provider(File root_, MarkdownParser* parent) :
@@ -54,23 +57,42 @@ DatabaseCrawler::Provider::Provider(File root_, MarkdownParser* parent) :
 	data->createFromFile(root);
 }
 
-juce::Image DatabaseCrawler::Provider::findImageRecursive(ValueTree& t, const String& url)
+juce::Image DatabaseCrawler::Provider::findImageRecursive(ValueTree& t, const MarkdownLink& url, float width)
 {
 	auto thisURL = t.getProperty("URL").toString();
 
-	if (thisURL == url)
+	if (thisURL == url.toString(MarkdownLink::Everything))
 	{
-		PNGImageFormat format;
+		if (url.getType() == MarkdownLink::SVGImage)
+		{
+			if (auto mb = t.getProperty("Data").getBinaryData())
+			{
+				ScopedPointer<XmlElement> xml = XmlDocument::parse(mb->toString());
 
-		if (auto mb = t.getProperty("Data").getBinaryData())
-			return format.loadFrom(mb->getData(), mb->getSize());
+				if (xml != nullptr)
+				{
+					ScopedPointer<Drawable> d = Drawable::createFromSVG(*xml);
+
+					return MarkdownParser::FileBasedImageProvider::createImageFromSvg(d, width);
+				}
+			}
+			else
+				return {};
+		}
 		else
-			return {};
+		{
+			PNGImageFormat format;
+
+			if (auto mb = t.getProperty("Data").getBinaryData())
+				return format.loadFrom(mb->getData(), mb->getSize());
+			else
+				return {};
+		}
 	}
 
 	for (auto c : t)
 	{
-		auto s = findImageRecursive(c, url);
+		auto s = findImageRecursive(c, url, width);
 
 		if (s.isValid())
 			return s;
@@ -79,9 +101,11 @@ juce::Image DatabaseCrawler::Provider::findImageRecursive(ValueTree& t, const St
 	return {};
 }
 
-juce::Image DatabaseCrawler::Provider::getImage(const String& url, float width)
+juce::Image DatabaseCrawler::Provider::getImage(const MarkdownLink& url, float width)
 {
-	return resizeImageToFit(findImageRecursive(data->v, url), width);
+	updateWidthFromURL(url, width);
+
+	return resizeImageToFit(findImageRecursive(data->v, url, width), width);
 }
 
 void DatabaseCrawler::Resolver::Data::createFromFile(File root)
@@ -91,19 +115,23 @@ void DatabaseCrawler::Resolver::Data::createFromFile(File root)
 
 	File contentFile = root.getChildFile("Content.dat");
 
-	zstd::ZDefaultCompressor comp;
+	if (contentFile.existsAsFile())
+	{
+		zstd::ZDefaultCompressor comp;
 
-	comp.expand(contentFile, v);
+		comp.expand(contentFile, v);
+	}
 }
 
-DatabaseCrawler::Resolver::Resolver(File root)
+DatabaseCrawler::Resolver::Resolver(File root_):
+	root(root_)
 {
 	data->createFromFile(root);
 }
 
-juce::String DatabaseCrawler::Resolver::findContentRecursive(ValueTree& t, const String& url)
+juce::String DatabaseCrawler::Resolver::findContentRecursive(ValueTree& t, const MarkdownLink& url)
 {
-	if (t.getProperty("URL").toString() == url)
+	if (t.getProperty("URL").toString() == url.toString(MarkdownLink::UrlWithoutAnchor))
 		return t.getProperty("Content").toString();
 
 	for (auto c : t)
@@ -117,29 +145,36 @@ juce::String DatabaseCrawler::Resolver::findContentRecursive(ValueTree& t, const
 	return {};
 }
 
-juce::String DatabaseCrawler::Resolver::getContent(const String& url)
+juce::String DatabaseCrawler::Resolver::getContent(const MarkdownLink& url)
 {
 	return findContentRecursive(data->v, url);
 }
 
-DatabaseCrawler::DatabaseCrawler(MarkdownDataBase& database) :
-	db(database)
+DatabaseCrawler::DatabaseCrawler(MarkdownDatabaseHolder& holder) :
+	MarkdownContentProcessor(holder),
+	db(holder.getDatabase())
 {
 	setLogger(new Logger());
 
-	linkResolvers.add(new MarkdownParser::FolderTocCreator(database.getRoot()));
-	linkResolvers.add(new MarkdownParser::FileLinkResolver(database.getRoot()));
+	linkResolvers.add(new MarkdownParser::FolderTocCreator(holder.getDatabaseRootDirectory()));
+	linkResolvers.add(new MarkdownParser::FileLinkResolver(holder.getDatabaseRootDirectory()));
 }
 
 void DatabaseCrawler::addContentToValueTree(ValueTree& v)
 {
-	auto url = v.getProperty("URL").toString();
+	currentLink++;
+
+	if (progressCounter != nullptr && totalLinks > 0)
+		*progressCounter = (double)currentLink / (double)totalLinks;
 
 	if ((int)v.getProperty("Type") == MarkdownDataBase::Item::Type::Headline)
 		return;
 
+	auto url = MarkdownLink(getHolder().getDatabaseRootDirectory(), v.getProperty("URL").toString());
+
 	for (auto r : linkResolvers)
 	{
+		MessageManagerLock lock;
 		String content = r->getContent(url);
 
 		if (content.isNotEmpty())
@@ -152,7 +187,7 @@ void DatabaseCrawler::addContentToValueTree(ValueTree& v)
 
 	if (!v.hasProperty("Content"))
 	{
-		logMessage("Can't resolve URL " + url);
+		logMessage("Can't resolve URL " + url.toString(MarkdownLink::Everything));
 		numUnresolved++;
 	}
 
@@ -164,6 +199,8 @@ void DatabaseCrawler::createContentTree()
 {
 	if (contentTree.isValid())
 		return;
+
+	totalLinks = db.getFlatList().size();
 
 	contentTree = db.rootItem.createValueTree();
 	addContentToValueTree(contentTree);
@@ -182,6 +219,9 @@ void DatabaseCrawler::addImagesFromContent(float maxWidth /*= 1000.0f*/)
 
 void DatabaseCrawler::addImagesInternal(ValueTree cTree, float maxWidth)
 {
+	if (progressCounter != nullptr && totalLinks > 0)
+		*progressCounter = (double)(currentLink++) / (double)totalLinks;
+
 	auto content = cTree.getProperty("Content").toString();
 
 	if (content.isNotEmpty())
@@ -203,19 +243,44 @@ void DatabaseCrawler::addImagesInternal(ValueTree cTree, float maxWidth)
 				continue;
 			}
 
-			auto img = p.resolveImage(imgUrl, maxWidth);
+			MarkdownLink l(getHolder().getDatabaseRootDirectory(), imgUrl);
+
+			Image img;
+
+			{
+				MessageManagerLock lock;
+				img = p.resolveImage(l, maxWidth);
+			}
 
 			if (img.isValid())
 			{
 				logMessage("Writing image " + imgUrl);
 
-				juce::PNGImageFormat format;
-				MemoryOutputStream output;
-				format.writeImageToStream(img, output);
+				MarkdownLink l(getHolder().getDatabaseRootDirectory(), imgUrl);
+
+				
 
 				ValueTree c("Image");
 				c.setProperty("URL", imgUrl, nullptr);
-				c.setProperty("Data", output.getMemoryBlock(), nullptr);
+				
+
+				if (l.getType() == MarkdownLink::Image)
+				{
+					juce::PNGImageFormat format;
+					MemoryOutputStream output;
+					format.writeImageToStream(img, output);
+					
+				}
+				if (l.getType() == MarkdownLink::SVGImage)
+				{
+					auto vectorFile = l.toFile(MarkdownLink::FileType::ImageFile);
+					jassert(vectorFile.existsAsFile());
+
+					MemoryBlock mb;
+
+					vectorFile.loadFileAsData(mb);
+					c.setProperty("Data", mb, nullptr);
+				}
 
 				imageTree.addChild(c, -1, nullptr);
 			}
@@ -237,24 +302,18 @@ void DatabaseCrawler::createHtmlInternal(File currentRoot, ValueTree v)
 	if (item.type == MarkdownDataBase::Item::Invalid)
 		return;
 
-	auto fileNameWithoutWhitespace = HtmlGenerator::getSanitizedFilename(item.fileName);
-
-	if (fileNameWithoutWhitespace[0] == '/')
-		fileNameWithoutWhitespace = fileNameWithoutWhitespace.substring(1);
-
-
 	File f;
 
 	if (item.type == MarkdownDataBase::Item::Folder)
 	{
 		
-		f = currentRoot.getChildFile(fileNameWithoutWhitespace).getChildFile("index.html");
+		f = item.url.toFile(MarkdownLink::FileType::HtmlFile);
 		logMessage("Create directory index" + f.getFullPathName());
 		f.create();
 	}
 	else if (item.type == MarkdownDataBase::Item::Type::Keyword)
 	{
-		f = currentRoot.getChildFile(fileNameWithoutWhitespace).withFileExtension(".html");
+		f = item.url.toFile(MarkdownLink::FileType::HtmlFile);
 		f.create();
 		logMessage("Create HTML file" + f.getFullPathName());
 	}
@@ -269,10 +328,10 @@ void DatabaseCrawler::createHtmlInternal(File currentRoot, ValueTree v)
 
 	p.setHeaderFile(templateDirectory.getChildFile("header.html"));
 	p.setFooterFile(templateDirectory.getChildFile("footer.html"));
-	p.writeToFile(f, item.url);
+	p.writeToFile(f, item.url.toString(MarkdownLink::Everything));
 
 	for (auto c : v)
-		createHtmlInternal(currentRoot.getChildFile(fileNameWithoutWhitespace), c);
+		createHtmlInternal(item.url.getDirectory({}), c);
 }
 
 void DatabaseCrawler::createHtmlFiles(File root, File htmlTemplateDirectoy, Markdown2HtmlConverter::LinkMode m, const String& linkBase)
@@ -295,6 +354,11 @@ void DatabaseCrawler::createImageTree()
 		return;
 
 	imageTree = ValueTree("Images");
+
+	if (progressCounter != nullptr)
+		*progressCounter = 0.0;
+	
+	currentLink = 0;
 
 	addImagesFromContent();
 }

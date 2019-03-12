@@ -30,38 +30,55 @@
 *   ===========================================================================
 */
 
-#include "JuceHeader.h"
+#pragma once
 
+namespace hise {
+using namespace juce;
 
-#include "resizable_height_component/ResizableHeightComponent.cpp"
+/** A markdown header is a datastructure containing metadata for a markdown document.
 
+	It is formatted using the Front Matter YAML specification.
 
-#include "keyboard/CustomKeyboard.cpp"
-#include "plugin_components/VoiceCpuBpmComponent.cpp"
-#include "plugin_components/PresetBrowserComponents.cpp"
-#include "plugin_components/PresetBrowser.cpp"
-#include "plugin_components/StandalonePopupComponents.cpp"
-#include "plugin_components/PanelTypes.cpp"
-#include "plugin_components/FrontendBar.cpp"
+	The most important keys are "keywords" and "summary"
+*/
+struct MarkdownHeader
+{
+	/** Returns the value for the key "keywords". */
+	StringArray getKeywords();
 
-#include "markdown_components/MarkdownComponents.cpp"
-#include "markdown_components/MarkdownPreview.cpp"
+	/** Returns the first value for the key "keywords". */
+	String getFirstKeyword();
 
-#if USE_BACKEND
-#include "plugin_components/PluginPreviewWindow.cpp"
-#endif
+	/** Returns the value for the key "summary". */
+	String getDescription();
 
+	String getIcon() const;
 
-#include "eq_plot/FilterInfo.cpp"
-#include "eq_plot/FilterGraph.cpp"
-#include "eq_plot/EqComponent.cpp"
+	String getKeyValue(const String& key) const;
 
-#include "floating_layout/FloatingLayout.cpp"
-#include "hi_expansion/ExpansionFloatingTiles.cpp"
+	/** Creates a String representation of the header. */
+	String toString() const;
 
-#include "midi_overlays/SimpleMidiViewer.cpp"
-#include "midi_overlays/MidiDropper.cpp"
-#include "midi_overlays/MidiLooper.cpp"
-#include "midi_overlays/MidiOverlayFactory.cpp"
+	/** This returns a version of this header with only the header and the description. */
+	MarkdownHeader cleaned() const;
 
-#include "wave_components/SampleComponents.cpp"
+	StringArray getKeyList(const String& key) const;
+
+	void checkValid();
+
+	static MarkdownHeader getHeaderForFile(File root, const String& url);
+
+	static File createEmptyMarkdownFileWithMarkdownHeader(File parent, String childName, String description);
+
+	struct Item
+	{
+		String toString() const;
+
+		String key;
+		StringArray values;
+	};
+
+	Array<Item> items;
+};
+
+}

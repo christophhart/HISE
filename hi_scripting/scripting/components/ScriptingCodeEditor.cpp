@@ -454,30 +454,37 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 
 		if (token.isNotEmpty())
 		{
-			Result result = Result::ok();
-
 			const String c = namespaceId.isEmpty() ? token : namespaceId + "." + token;
 
-			var t = s->getScriptEngine()->evaluate(c, &result);
-
-			if (result.wasOk())
+			auto f = [c](Processor* p)
 			{
-				if (auto obj = dynamic_cast<HiseJavascriptEngine::RootObject::InlineFunction::Object*>(t.getObject()))
-				{
-					auto parent = findParentComponentOfClass<ScriptingEditor>();
+				Result result = Result::ok();
 
-					DebugableObject::Helpers::gotoLocation(parent, s, obj->location);
-				}
-				else
+				auto s = dynamic_cast<JavascriptProcessor*>(p);
+
+				var t = s->getScriptEngine()->evaluate(c, &result);
+
+				if (result.wasOk())
 				{
 					auto info = DebugableObject::Helpers::getDebugInformation(s->getScriptEngine(), t);
 
-					if (info != nullptr)
+					auto f2 = [info, s]()
 					{
-						DebugableObject::Helpers::gotoLocation(dynamic_cast<Processor*>(s), info);
-					}
+						if (info != nullptr)
+						{
+							DebugableObject::Helpers::gotoLocation(dynamic_cast<Processor*>(s), info);
+						}
+					};
+
+					MessageManager::callAsync(f2);
 				}
-			}
+
+				return SafeFunctionCall::OK;
+			};
+
+			processor->getMainController()->getKillStateHandler().killVoicesAndCall(processor, f, MainController::KillStateHandler::ScriptingThread);
+
+			
 		}
 
 		return;
@@ -1336,18 +1343,7 @@ void JavascriptCodeEditor::mouseDown(const MouseEvent& e)
 
 			const String content = getDocument().getAllContent().substring(charNumber);
 
-			HiseJavascriptEngine::RootObject::TokenIterator it(content, "");
-
-			try
-			{
-				it.skipWhitespaceAndComments();
-			}
-			catch (String &)
-			{
-
-			}
-
-			const int offsetToFirstToken = (int)(it.location.location - content.getCharPointer());
+			const int offsetToFirstToken = Helpers::getOffsetToFirstToken(content);
 
 			CodeDocument::Position tokenStart(getDocument(), charNumber + offsetToFirstToken);
 
@@ -1692,5 +1688,659 @@ void DebugConsoleTextEditor::textEditorReturnKeyPressed(TextEditor& /*t*/)
 		}
 	}
 }
+
+
+
+struct MarkdownParser::CodeBlock : public MarkdownParser::Element
+{
+	enum SyntaxType
+	{
+		Undefined,
+		Cpp,
+		Javascript,
+		LiveJavascript,
+		LiveJavascriptWithInterface,
+		EditableFloatingTile,
+		XML,
+		Snippet,
+		ScriptContent,
+		numSyntaxTypes
+	};
+
+	CodeBlock(MarkdownParser* parent, const String& code_, SyntaxType t):
+		Element(parent),
+		code(code_),
+		syntax(t)
+	{
+		code = code.trim();
+		//code << "\n"; // hacky..
+	}
+
+	void draw(Graphics& g, Rectangle<float> area) override
+	{
+	}
+
+	String getTextToCopy() const override
+	{
+		return code;
+	}
+
+	
+
+	String generateHtml() const override
+	{
+		HtmlGenerator g;
+
+		String s = "<pre><code class=\"language-javascript line-numbers\">";
+		s << code;
+		s << "</code></pre>\n";
+
+		return s;
+	}
+
+	void searchInContent(const String& searchString) override
+	{
+		if (code.contains(searchString))
+		{
+			searchResults.clear();
+
+			ScopedPointer<Content> c = createEditor();
+
+			auto ranges = getMatchRanges(code, searchString, true);
+
+			for (auto r : ranges)
+			{
+				RectangleList<float> area;
+
+				for (int i = 0; i < r.getLength(); i++)
+				{
+					CodeDocument::Position pos(*c->usedDocument, r.getStart() + i);
+					area.add(c->editor->getCharacterBounds(pos).toFloat());
+				}
+
+				area.consolidate();
+
+				searchResults.add(area.getBounds());
+			}
+
+			searchResults.offsetAll(0.0f, 10.0f);
+		}
+	}
+
+	struct Content : public Component,
+		public ButtonListener
+	{
+
+		struct Helpers
+		{
+			static bool createProcessor(SyntaxType t)
+			{
+				return t == LiveJavascriptWithInterface || t == LiveJavascript || t == ScriptContent;
+			}
+
+			static bool createContent(SyntaxType t)
+			{
+				return t == LiveJavascriptWithInterface || t == ScriptContent;
+			}
+		};
+		
+
+		struct Factory : public PathFactory
+		{
+			String getId() const override { return "Copy Icon"; }
+
+			Path createPath(const String& url) const override
+			{
+				Path p;
+
+				LOAD_PATH_IF_URL("copy", EditorIcons::pasteIcon);
+
+				return p;
+			}
+		};
+
+		Factory f;
+
+		Content(SyntaxType syntax, String code, float width, float fontsize, MainController* mc, Component* parent):
+			copyButton("copy", this, f)
+		{
+			ownedDoc = new CodeDocument();
+
+			switch (syntax)
+			{
+			case Cpp: tok = new CPlusPlusCodeTokeniser(); break;
+			case LiveJavascript:
+			case LiveJavascriptWithInterface:
+			case EditableFloatingTile:
+			case Javascript: tok = new JavascriptTokeniser(); break;
+			case XML:	tok = new XmlTokeniser(); break;
+			case Snippet: tok = new SnippetTokeniser(); break;
+			default: break;
+			}
+
+			ownedDoc->replaceAllContent(code);
+
+			if (mc != nullptr && Helpers::createProcessor(syntax))
+			{
+				jp = new JavascriptMidiProcessor(mc, "TestProcessor");
+				jp->setOwnerSynth(mc->getMainSynthChain());
+
+				if (Helpers::createContent(ScriptContent))
+				{
+					scriptContent = new ScriptContentComponent(jp);
+				}
+
+				addAndMakeVisible(scriptContent);
+
+				usedDocument = jp->getSnippet(0);
+				usedDocument->replaceAllContent(code);
+
+				editor = new JavascriptCodeEditor(*usedDocument, tok, jp, "onInit");
+
+				editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(fontsize));
+				
+				addBottomRow();
+			}
+			else
+			{
+				usedDocument = ownedDoc;
+
+				editor = new CodeEditorComponent(*usedDocument, tok);
+
+				editor->setColour(CodeEditorComponent::backgroundColourId, Colour(0xff262626));
+				editor->setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFCCCCCC));
+				editor->setColour(CodeEditorComponent::ColourIds::lineNumberTextId, Colour(0xFFCCCCCC));
+				editor->setColour(CodeEditorComponent::ColourIds::lineNumberBackgroundId, Colour(0xff363636));
+				editor->setColour(CodeEditorComponent::ColourIds::highlightColourId, Colour(0xff666666));
+				editor->setColour(CaretComponent::ColourIds::caretColourId, Colour(0xFFDDDDDD));
+				editor->setColour(ScrollBar::ColourIds::thumbColourId, Colour(0x3dffffff));
+				editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(fontsize));
+
+				if (syntax == EditableFloatingTile)
+				{
+					auto data = JSON::parse(code);
+
+					parent->addAndMakeVisible(this);
+
+					addAndMakeVisible(floatingTile = new FloatingTile(mc, nullptr, {}));
+					floatingTile->setOpaque(true);
+
+					floatingTile->setContent(data);
+
+					addBottomRow();
+
+					if (auto pc = dynamic_cast<PanelWithProcessorConnection*>(floatingTile->getCurrentFloatingPanel()))
+					{
+						floatingTileProcessor = pc->createDummyProcessorForDocumentation(mc);
+						pc->setContentWithUndo(floatingTileProcessor, 0);
+						floatingTile->getCurrentFloatingPanel()->setPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF363636));
+					}
+				}
+				else
+				{
+					editor->setReadOnly(true);
+				}
+			}
+
+			addAndMakeVisible(editor);
+			addAndMakeVisible(o);
+
+			addAndMakeVisible(copyButton);
+
+			addAndMakeVisible(expandButton = new TextButton("Expand this code"));
+			expandButton->setLookAndFeel(&blaf);
+			expandButton->addListener(this);
+
+			if (syntax == ScriptContent)
+			{
+				showContentOnly = true;
+				editor->setVisible(false);
+				runButton->triggerClick();
+			}
+
+			setWantsKeyboardFocus(true);
+		}
+
+		~Content()
+		{
+			floatingTile = nullptr;
+			floatingTileProcessor = nullptr;
+		}
+
+		void addBottomRow()
+		{
+			addAndMakeVisible(runButton = new TextButton("Run"));
+			addAndMakeVisible(resultLabel = new Label());
+			runButton->setLookAndFeel(&blaf);
+			runButton->addListener(this);
+			resultLabel->setColour(Label::ColourIds::backgroundColourId, Colour(0xff363636));
+			resultLabel->setColour(Label::ColourIds::textColourId, Colours::white);
+			resultLabel->setFont(GLOBAL_MONOSPACE_FONT());
+			resultLabel->setText("Click Run to evaluate this code", dontSendNotification);
+		}
+
+		bool keyPressed(const KeyPress& key) override
+		{
+			if (key == KeyPress::F5Key && runButton != nullptr)
+			{
+				runButton->triggerClick();
+				return true;
+			}
+
+			return false;
+		}
+
+		void updateHeightInParent()
+		{
+			if (auto parentPreview = findParentComponentOfClass<MarkdownPreview>())
+			{
+				parentPreview->renderer.updateHeight();
+			}
+		}
+
+		void buttonClicked(Button* b) override
+		{
+			if (b == &copyButton)
+			{
+				SystemClipboard::copyTextToClipboard(editor->getDocument().getAllContent());
+				return;
+			}
+			if (b == expandButton)
+			{
+				isExpanded = true;
+				updateHeightInParent();
+				return;
+			}
+
+			if (jp != nullptr)
+			{
+				auto f = [this](const JavascriptProcessor::SnippetResult& result)
+				{
+					auto fc = [this, result]()
+					{
+						isActive = true;
+						String s;
+
+						if (result.r.ok())
+						{
+							auto consoleContent = jp->getMainController()->getConsoleHandler().getConsoleData()->getAllContent();
+							s = consoleContent.removeCharacters("\n").fromFirstOccurrenceOf(":", false, false);
+						}
+						else
+							s = "Error: " + result.r.getErrorMessage();
+
+						
+
+						resultLabel->setText(s, dontSendNotification);
+						repaint();
+
+						updateHeightInParent();
+					};
+
+					new DelayedFunctionCaller(fc, 100);
+
+				};
+
+				jp->getMainController()->getConsoleHandler().clearConsole();
+				jp->compileScript(f);				
+			}
+			else if (floatingTile != nullptr)
+			{
+				auto value = JSON::parse(editor->getDocument().getAllContent());
+
+				floatingTile->setContent(value);
+				
+				if (auto pc = dynamic_cast<PanelWithProcessorConnection*>(floatingTile->getCurrentFloatingPanel()))
+				{
+					pc->setContentWithUndo(floatingTileProcessor, 0);
+				}
+			}
+		}
+
+		bool autoHideEditor() const
+		{
+			return !isExpanded && (floatingTile != nullptr || usedDocument->getNumLines() > 20);
+		}
+
+		int getGutterWidth() const
+		{
+			return editor->getGutterComponent()->getWidth();
+		}
+
+		int getEditorHeight() const
+		{
+			int height = editor->getLineHeight() * (usedDocument->getNumLines() + 1);
+
+			return height;
+		}
+
+		int getPreferredHeight() const
+		{
+			if (showContentOnly)
+			{
+				return scriptContent->getContentHeight() + 20;
+			}
+			else
+			{
+				int y = scriptContent != nullptr ? (scriptContent->getContentHeight() + 20) : 0;
+
+				if (floatingTile != nullptr)
+				{
+					int size = floatingTile->getCurrentFloatingPanel()->getPreferredHeight();
+
+					if (size == 0)
+						size = 400;
+
+					y += size;
+					y += 2 * getGutterWidth();
+				}
+
+				if (runButton != nullptr)
+					y += (autoHideEditor() ? 2 : 1) * editor->getLineHeight();
+
+				y += autoHideEditor() ? (2 * editor->getLineHeight()) : (getEditorHeight() + editor->getLineHeight());
+
+				return y;
+			}
+		}
+
+		void resized() override
+		{
+			if (showContentOnly)
+			{
+				scriptContent->setBounds(10, 10, getWidth(), scriptContent->getContentHeight());
+				editor->setVisible(false);
+				expandButton->setVisible(false);
+				runButton->setVisible(false);
+				resultLabel->setVisible(false);
+			}
+			else
+			{
+				int y = 0;
+
+				if (scriptContent != nullptr)
+				{
+
+					scriptContent->setBounds(10, 10, getWidth(), scriptContent->getContentHeight());
+					y += scriptContent->getContentHeight() + 20;
+				}
+
+				if (floatingTile != nullptr)
+				{
+					int size = floatingTile->getCurrentFloatingPanel()->getPreferredHeight();;
+
+					if (size == 0)
+						size = 400;
+
+					y += size;
+
+					auto gWidth = getGutterWidth();
+
+					floatingTile->setBounds(gWidth, gWidth, getWidth()-2*gWidth, size);
+					
+					y += 2 * gWidth;
+
+				}
+
+				editor->scrollToLine(0);
+
+				if (autoHideEditor())
+				{
+					o.setVisible(true);
+					expandButton->setVisible(true);
+
+					editor->setSize(getWidth(), 2 * editor->getLineHeight());
+					editor->setTopLeftPosition(0, y + editor->getLineHeight() / 2);
+
+					auto b = editor->getBounds();
+
+					b.removeFromLeft(getGutterWidth());
+
+					expandButton->setBounds(b.withSizeKeepingCentre(130, editor->getLineHeight()));
+					editor->setEnabled(false);
+
+					auto ob = editor->getBounds();
+					ob.removeFromLeft(getGutterWidth());
+
+					o.setBounds(ob);
+
+				}
+				else
+				{
+					y += editor->getLineHeight();
+
+					editor->setSize(getWidth(), getEditorHeight());
+					editor->setTopLeftPosition(0, y);
+
+					o.setVisible(false);
+
+					expandButton->setVisible(false);
+					editor->setEnabled(true);
+
+
+				}
+
+				if (runButton != nullptr)
+				{
+					auto ar = getLocalBounds();
+					ar = ar.removeFromBottom(editor->getLineHeight());
+					runButton->setBounds(ar.removeFromLeft(getGutterWidth()));
+					resultLabel->setBounds(ar);
+				}
+
+				copyButton.setBounds(Rectangle<int>(0, y, 24, 24).reduced(4));
+			}
+
+			
+		}
+
+		void paint(Graphics& g) override
+		{
+			g.fillAll(Colour(0xff363636));
+			
+			auto b = getLocalBounds();
+			auto lb = b.removeFromLeft(getGutterWidth());
+
+			g.setColour(editor->findColour(CodeEditorComponent::ColourIds::backgroundColourId));
+			g.fillRect(b);
+
+			if (floatingTile != nullptr)
+			{
+				g.setColour(Colour(0xff363636));
+				g.fillRect(0, 0, getWidth(), floatingTile->getHeight() + 2 * getGutterWidth());
+			}
+
+			if (scriptContent != nullptr)
+			{
+				
+
+				auto h = getLocalBounds().removeFromTop(scriptContent->getContentHeight() + 20);
+
+				g.setColour(Colour(0xff363636));
+				g.fillRect(h);
+
+				if (!isActive)
+				{
+					g.setFont(GLOBAL_BOLD_FONT());
+					g.setColour(Colours::white.withAlpha(0.5f));
+					g.drawText("Press run to show the result", h.toFloat(), Justification::centred);
+				}
+
+			}
+
+		}
+
+		struct Overlay : public Component
+		{
+			void paint(Graphics& g) override
+			{
+				g.fillAll(Colour(0xAA262626));
+			}
+		};
+
+		Overlay o;
+
+		AlertWindowLookAndFeel blaf;
+
+		ScopedPointer<ScriptContentComponent> scriptContent;
+		ScopedPointer<CodeDocument> ownedDoc;
+		WeakReference<CodeDocument> usedDocument;
+		ScopedPointer<CodeTokeniser> tok;
+
+		ScopedPointer<JavascriptMidiProcessor> jp;
+
+		ScopedPointer<CodeEditorComponent> editor;
+
+		Rectangle<float> pathBounds;
+
+		ScopedPointer<FloatingTile> floatingTile;
+		ScopedPointer<Processor> floatingTileProcessor;
+		ScopedPointer<TextButton> expandButton;
+		ScopedPointer<TextButton> runButton;
+		ScopedPointer<Label> resultLabel;
+
+		bool isActive = false;
+		bool isExpanded = false;
+
+		bool showContentOnly = false;
+
+		HiseShapeButton copyButton;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Content);
+	};
+
+	Content* createEditor()
+	{
+		auto mainController = dynamic_cast<MainController*>(parent->getHolder());
+
+		auto parentComponent = dynamic_cast<MarkdownRenderer*>(parent)->getTargetComponent();
+		
+
+		return new Content(syntax, code, lastWidth, parent->styleData.fontSize, mainController, parentComponent);
+	}
+
+	Component* createComponent(int maxWidth)
+	{
+		if (content == nullptr)
+			content = createEditor();
+
+		content->setSize(maxWidth, content->getPreferredHeight());
+		content->resized();
+
+		return content;
+	}
+
+	float getHeightForWidth(float width) override
+	{
+		if (width != lastWidth)
+		{
+			createComponent((int)width);
+
+			return (float)content->getPreferredHeight() + 20;
+		}
+		else
+			return lastHeight;
+	}
+
+	ScopedPointer<Content> content;
+
+	int getTopMargin() const override { return 20; };
+
+	String code;
+
+	Image renderedCodePreview;
+
+	SyntaxType syntax;
+
+	float lastWidth = -1.0f;
+	float lastHeight = -1.0f;
+};
+
+
+void MarkdownParser::parseJavascriptBlock()
+{
+	it.match('`');
+	it.match('`');
+	it.match('`');
+
+	juce_wchar c;
+
+	int numFences = 0;
+
+	String code;
+
+	bool foundEnd = false;
+
+	while (it.next(c))
+	{
+		if (c == '`')
+			numFences++;
+		else
+			numFences = 0;
+		
+		code << c;
+		
+		if (numFences == 3)
+		{
+			foundEnd = true;
+			break;
+		}
+	}
+
+	code = code.upToLastOccurrenceOf("```", false, false);
+
+	if (!foundEnd)
+		throw String("end tag ``` missing");
+
+	auto type = CodeBlock::SyntaxType::Undefined;
+
+	int numToSkip = 0;
+
+	if (code.startsWith("cpp"))
+	{
+		type = CodeBlock::SyntaxType::Cpp;
+		numToSkip = 3;
+
+	}
+	else if (code.startsWith("javascript"))
+	{
+		type = CodeBlock::SyntaxType::Javascript;
+		numToSkip = 10;
+	}
+	else if (code.startsWith("!javascript"))
+	{
+		type = CodeBlock::SyntaxType::LiveJavascript;
+		numToSkip = 11;
+	}
+	else if (code.startsWith("!!javascript"))
+	{
+		type = CodeBlock::SyntaxType::LiveJavascriptWithInterface;
+		numToSkip = 12;
+	}
+	else if (code.startsWith("floating-tile"))
+	{
+		type = CodeBlock::SyntaxType::EditableFloatingTile;
+		numToSkip = 13;
+	}
+	else if (code.startsWith("xml"))
+	{
+		type = CodeBlock::SyntaxType::XML;
+		numToSkip = 3;
+	}
+	else if (code.startsWith("snippet"))
+	{
+		type = CodeBlock::SyntaxType::Snippet;
+		numToSkip = 7;
+	}
+	else if (code.startsWith("scriptcontent"))
+	{
+		type = CodeBlock::SyntaxType::ScriptContent;
+		numToSkip = 13;
+	}
+
+	code = code.substring(numToSkip);
+	elements.add(new CodeBlock(this, code, type));
+}
+
 
 } // namespace hise

@@ -88,7 +88,7 @@ void MarkdownParser::setFonts(Font normalFont_, Font codeFont_, Font headlineFon
 }
 
 
-juce::String MarkdownParser::resolveLink(const String& url)
+juce::String MarkdownParser::resolveLink(const MarkdownLink& url)
 {
 	for (auto lr : linkResolvers)
 	{
@@ -98,10 +98,10 @@ juce::String MarkdownParser::resolveLink(const String& url)
 			return link;
 	}
 
-	return "Can't resolve link " + url;
+	return "Can't resolve link " + url.toString(MarkdownLink::UrlFull);
 }
 
-juce::Image MarkdownParser::resolveImage(const String& imageUrl, float width)
+juce::Image MarkdownParser::resolveImage(const MarkdownLink& imageUrl, float width)
 {
 	for (auto ip: imageProviders)
 	{
@@ -119,10 +119,17 @@ void MarkdownParser::setDefaultTextSize(float fontSize)
 	styleData.fontSize = fontSize;
 }
 
-String MarkdownParser::getCurrentText() const
+String MarkdownParser::getCurrentText(bool includeMarkdownHeader) const
 {
-	return markdownCode;
+	if (includeMarkdownHeader)
+		return markdownCode;
+	else
+		return markdownCode.fromLastOccurrenceOf("---\n", false, false);
 }
+
+
+
+
 
 void MarkdownParser::setNewText(const String& newText)
 {
@@ -135,27 +142,17 @@ void MarkdownParser::setNewText(const String& newText)
 }
 
 
-bool MarkdownParser::gotoLink(const MouseEvent& event, Rectangle<float> area)
+bool MarkdownParser::gotoLink(const MarkdownLink& url)
 {
-	auto link = getHyperLinkForEvent(event, area);
-
-	if (link.valid)
+	if (url.isSamePage(lastLink))
 	{
-		return gotoLink(link.url);
+		lastLink = url;
+		jumpToCurrentAnchor();
+		return true;
 	}
 
-	return false;
-}
-
-
-bool MarkdownParser::gotoLink(const String& url)
-{
-	auto newLink = url.upToFirstOccurrenceOf("#", false, false);
-
-	if (newLink.isNotEmpty())
-		lastLink = newLink;
-
-	lastAnchor = url.fromFirstOccurrenceOf("#", true, false);
+	auto lastAnchor = lastLink.toString(MarkdownLink::AnchorWithHashtag);
+	lastLink = url;
 
 	for (auto r : linkResolvers)
 	{
@@ -166,9 +163,19 @@ bool MarkdownParser::gotoLink(const String& url)
 	String newText = resolveLink(url).replace("\r\n", "\n");
 
 	setNewText(newText);
+	
+	if (url.toString(MarkdownLink::AnchorWithHashtag) != lastAnchor)
+		jumpToCurrentAnchor();
+
 	return true;
 }
 
+
+juce::String MarkdownParser::getLinkForMouseEvent(const MouseEvent& event, Rectangle<float> whatArea)
+{
+	auto link = getHyperLinkForEvent(event, whatArea);
+	return link.url;
+}
 
 juce::StringArray MarkdownParser::getImageLinks() const
 {
@@ -213,6 +220,8 @@ hise::MarkdownParser::HyperLink MarkdownParser::getHyperLinkForEvent(const Mouse
 
 void MarkdownParser::createDatabaseEntriesForFile(File root, MarkdownDataBase::Item& item, File f, Colour c)
 {
+	jassert(root.isDirectory());
+
 	DBG(f.getFullPathName());
 	DBG("-------------------------------------------------");
 
@@ -227,9 +236,16 @@ void MarkdownParser::createDatabaseEntriesForFile(File root, MarkdownDataBase::I
 
 	try
 	{
-		item = MarkdownDataBase::Item(MarkdownDataBase::Item::Keyword, root, f, p.yamlHeader.getKeywords(), p.yamlHeader.getDescription());
+		auto saveURL = item.url;
+
+		item = MarkdownDataBase::Item(MarkdownDataBase::Item::Keyword, root, f, p.MarkdownHeader.getKeywords(), p.MarkdownHeader.getDescription());
+
+		if (saveURL.isValid())
+			item.url = saveURL;
+
 		item.c = c;
 		item.tocString = item.keywords[0];
+		item.icon = p.getHeader().getKeyValue("icon");
 
 		MarkdownDataBase::Item lastHeadLine;
 		int lastLevel = -59;
@@ -238,10 +254,14 @@ void MarkdownParser::createDatabaseEntriesForFile(File root, MarkdownDataBase::I
 		{
 			if (auto h = dynamic_cast<Headline*>(e))
 			{
-				MarkdownDataBase::Item headLineItem(MarkdownDataBase::Item::Headline, root, f, p.yamlHeader.getKeywords(), p.yamlHeader.getDescription());
+				MarkdownDataBase::Item headLineItem(MarkdownDataBase::Item::Headline, root, f, p.MarkdownHeader.getKeywords(), p.MarkdownHeader.getDescription());
 
 				headLineItem.description = h->content.getText();
-				headLineItem.url << h->anchorURL;
+
+				if (headLineItem.description.trim() == item.tocString)
+					continue;
+
+				headLineItem.url = item.url.getChildUrl(h->anchorURL);
 				headLineItem.c = c;
 
 				headLineItem.tocString << headLineItem.description;
@@ -321,9 +341,9 @@ void MarkdownParser::Element::drawHighlight(Graphics& g, Rectangle<float> area)
 }
 
 
-float MarkdownParser::Element::getHeightForWidthCached(float width)
+float MarkdownParser::Element::getHeightForWidthCached(float width, bool forceUpdate)
 {
-	if (width != lastWidth)
+	if (width != lastWidth || forceUpdate)
 	{
 		cachedHeight = getHeightForWidth(width);
 		lastWidth = width;
@@ -410,7 +430,7 @@ void MarkdownParser::Element::prepareLinksForHtmlExport(const String& baseURL)
 	for (auto& l : hyperLinks)
 	{
 		DBG("Found a link: " + l.url);
-		auto newURL = HtmlGenerator::createHtmlLink(l.url, baseURL);
+		auto newURL = MarkdownLink::Helpers::createHtmlLink(l.url, baseURL);
 		DBG("Resolved: " + newURL);
 		l.url = newURL;
 	}
@@ -561,11 +581,21 @@ bool MarkdownParser::Iterator::match(juce_wchar expected)
 	return c == expected;
 }
 
+bool MarkdownParser::Iterator::matchIf(juce_wchar expected)
+{
+	juce_wchar c;
+
+	if (peek() == expected)
+		return next(c);
+
+	return false;
+}
+
 void MarkdownParser::Iterator::skipWhitespace()
 {
 	juce_wchar c = peek();
 
-	while (CharacterFunctions::isWhitespace(c))
+	while (CharacterFunctions::isWhitespace(peek()))
 	{
 		if (!next(c))
 			break;
@@ -616,19 +646,6 @@ int MarkdownParser::Tokeniser::readNextToken(CodeDocument::Iterator& source)
 		source.skipToEndOfLine();
 		return 1;
 	}
-	case '!':
-		source.skip();
-	case '[':
-	{
-		source.skip();
-
-		while (!source.isEOF() && source.peekNextChar() != ')')
-			source.skip();
-
-		source.skip();
-
-		return 6;
-	}
 	case '*':
 	{
 		while (source.peekNextChar() == '*')
@@ -655,6 +672,7 @@ int MarkdownParser::Tokeniser::readNextToken(CodeDocument::Iterator& source)
 
 		return 3;
 	}
+	
 	case '>':
 	{
 		source.skipToEndOfLine();
@@ -685,11 +703,28 @@ int MarkdownParser::Tokeniser::readNextToken(CodeDocument::Iterator& source)
 
 					source.skipToEndOfLine();
 				}
-				
+
 				return 5;
 			}
+			else
+				return 0;
 		}
+		else
+			return 0;
 	}
+	case '!':
+	case '[':
+	{
+		source.skip();
+
+		while (!source.isEOF() && source.peekNextChar() != ')')
+			source.skip();
+
+		source.skip();
+
+		return 6;
+	}
+	case '|': source.skipToEndOfLine(); return 7;
 	default: source.skip(); return 0;
 	}
 }
@@ -704,7 +739,8 @@ juce::CodeEditorComponent::ColourScheme MarkdownParser::Tokeniser::getDefaultCol
 	s.set("fixed", Colours::lightblue);
 	s.set("comment", Colour(0xFF777777));
 	s.set("metadata", Colour(0xFFaa7777));
-	s.set("linke", Colour(0xFF8888FF));
+	s.set("link", Colour(0xFF8888FF));
+	s.set("table", Colour(0xFFCCCCCC));
 
 	return s;
 }
@@ -735,7 +771,7 @@ juce::CodeEditorComponent::ColourScheme MarkdownParser::SnippetTokeniser::getDef
 }
 
 
-juce::Image MarkdownParser::ImageProvider::getImage(const String& /*imageURL*/, float width)
+juce::Image MarkdownParser::ImageProvider::getImage(const MarkdownLink& /*imageURL*/, float width)
 {
 	Image img = Image(Image::PixelFormat::ARGB, (int)width, (int)40.0f, true);
 	Graphics g(img);
@@ -757,7 +793,11 @@ juce::Image MarkdownParser::ImageProvider::resizeImageToFit(const Image& otherIm
 		return otherImage;
 
 	float ratio = (float)otherImage.getWidth() / width;
-	return otherImage.rescaled((int)width, (int)((float)otherImage.getHeight() / ratio));
+
+	auto newWidth = jmax((int)width, 10);
+	auto newHeight = jmax((int)((float)otherImage.getHeight() / ratio), 10);
+
+	return otherImage.rescaled(newWidth, newHeight);
 }
 
 

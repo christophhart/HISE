@@ -40,11 +40,11 @@ struct MarkdownParser::DefaultLinkResolver : public LinkResolver
 	DefaultLinkResolver(MarkdownParser* parser_);
 
 	Identifier getId() const override { RETURN_STATIC_IDENTIFIER("DefaultLinkResolver"); }
-	String getContent(const String& url) override { return {}; }
+	String getContent(const MarkdownLink& url) override { return {}; }
 
 	ResolveType getPriority() const override { return ResolveType::Fallback; }
 
-	bool linkWasClicked(const String& url) override;
+	bool linkWasClicked(const MarkdownLink& url) override;
 	LinkResolver* clone(MarkdownParser* newParser) const override;
 
 	MarkdownParser* parser;
@@ -54,8 +54,8 @@ struct MarkdownParser::FileLinkResolver : public LinkResolver
 {
 	FileLinkResolver(const File& root_);;
 
-	String getContent(const String& url) override;
-	bool linkWasClicked(const String& url) override;
+	String getContent(const MarkdownLink& url) override;
+	bool linkWasClicked(const MarkdownLink& url) override;
 	ResolveType getPriority() const override { return ResolveType::FileBased; }
 	Identifier getId() const override { RETURN_STATIC_IDENTIFIER("FileLinkResolver"); };
 	LinkResolver* clone(MarkdownParser* p) const override { return new FileLinkResolver(root); }
@@ -74,7 +74,7 @@ public:
 
 	ResolveType getPriority() const override { return ResolveType::FileBased; }
 
-	String getContent(const String& url) override;
+	String getContent(const MarkdownLink& url) override;
 	LinkResolver* clone(MarkdownParser* parent) const override;
 
 	File rootFile;
@@ -98,16 +98,19 @@ public:
 	ImageProvider* clone(MarkdownParser* newParser) const override { return new GlobalPathProvider(newParser); }
 	Identifier getId() const override { RETURN_STATIC_IDENTIFIER("GlobalPathProvider"); };
 
-	Image getImage(const String& urlName, float width) override;
+	Image getImage(const MarkdownLink& urlName, float width) override;
 
 	template <class T> void registerFactory()
 	{
 		factories->factories.add(new T());
+		factories->factories.getLast()->createPath("");
 	}
 
 	SharedResourcePointer<GlobalPool> factories;
 
 };
+
+
 
 class MarkdownParser::URLImageProvider : public ImageProvider
 {
@@ -115,7 +118,7 @@ public:
 
 	URLImageProvider(File tempdirectory_, MarkdownParser* parent);;
 
-	Image getImage(const String& urlName, float width) override;
+	Image getImage(const MarkdownLink& urlName, float width) override;
 
 	ResolveType getPriority() const override { return ResolveType::WebBased; }
 
@@ -129,9 +132,26 @@ class MarkdownParser::FileBasedImageProvider : public ImageProvider
 {
 public:
 
+	static Image createImageFromSvg(Drawable* drawable, float width)
+	{
+		if (drawable != nullptr)
+		{
+			float maxWidth = jmax(10.0f, width);
+			float height = drawable->getOutlineAsPath().getBounds().getAspectRatio(false) * maxWidth;
+
+			Image img(Image::PixelFormat::ARGB, (int)maxWidth, (int)height, true);
+			Graphics g(img);
+			drawable->drawWithin(g, { 0.0f, 0.0f, maxWidth, height }, RectanglePlacement::centred, 1.0f);
+
+			return img;
+		}
+
+		return {};
+	}
+
 	FileBasedImageProvider(MarkdownParser* parent, const File& root);;
 
-	Image getImage(const String& imageURL, float width) override;
+	Image getImage(const MarkdownLink& imageURL, float width) override;
 
 	ResolveType getPriority() const override { return ResolveType::FileBased; }
 
@@ -149,9 +169,9 @@ public:
 		ImageProvider(parent)
 	{};
 
-	virtual Image getImage(const String& imageURL, float width) override
+	virtual Image getImage(const MarkdownLink& imageURL, float width) override
 	{
-		Path p = f.createPath(imageURL);
+		Path p = f.createPath(imageURL.toString(MarkdownLink::UrlFull));
 
 		if (!p.isEmpty())
 		{

@@ -366,16 +366,15 @@ public:
 			LinkResolver()
 		{};
 
-		String getContent(const String& url) override
+		String getContent(const MarkdownLink& url) override
 		{
 #if USE_BACKEND
-			auto f = getMainController()->getCurrentFileHandler(true).getSubDirectory(FileHandlerBase::Scripts).getChildFile(url);
-			if (f.existsAsFile())
-				return f.loadFileAsString();
+
+			jassertfalse; // Do this correctly soon...
 
 			return {};
 #else
-			return getMainController()->getEmbeddedMarkdownContent("{PROJECT_FOLDER}" + url);
+			return getMainController()->getEmbeddedMarkdownContent("{PROJECT_FOLDER}" + url.toString(MarkdownLink::Everything));
 #endif
 		}
 
@@ -402,10 +401,10 @@ public:
 
 		}
 
-		Image getImage(const String& url, float width) override
+		Image getImage(const MarkdownLink& url, float width) override
 		{
 #if USE_BACKEND
-			PoolReference ref(getMainController(), "{PROJECT_FOLDER}" + url, FileHandlerBase::Images);
+			PoolReference ref(getMainController(), "{PROJECT_FOLDER}" + url.toString(MarkdownLink::Everything), FileHandlerBase::Images);
 
 			if (!ref.isValid())
 				return {};
@@ -445,15 +444,7 @@ public:
 		numSpecialPanelIds
 	};
 
-	MarkdownPreviewPanel(FloatingTile* parent) :
-		FloatingTileContent(parent)
-	{
-		addAndMakeVisible(preview);
-
-		setDefaultPanelColour(PanelColourId::bgColour, Colours::transparentBlack);
-		setDefaultPanelColour(PanelColourId::itemColour1, Colour(SIGNAL_COLOUR));
-		setDefaultPanelColour(PanelColourId::textColour, Colours::white);
-	}
+	MarkdownPreviewPanel(FloatingTile* parent);
 
 	void paint(Graphics& g) override
 	{

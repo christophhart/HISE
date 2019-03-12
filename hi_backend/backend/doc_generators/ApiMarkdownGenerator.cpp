@@ -45,32 +45,70 @@ ScriptingApiDatabase::Data::~Data()
 
 hise::MarkdownDataBase::Item ScriptingApiDatabase::ItemGenerator::createRootItem(MarkdownDataBase& parent)
 {
+	auto item = DirectoryItemGenerator::createRootItem(parent);
+
 	auto v = data->v;
-	auto i = createFromValueTree(data->v);
-	return i;
+	auto scriptingApi = updateWithValueTree(item.getChildWithName("scripting-api") ,data->v);
+
+	item.swapChildWithName(scriptingApi, "scripting-api");
+
+	
+
+
+	return item;
 }
 
-hise::MarkdownDataBase::Item ScriptingApiDatabase::ItemGenerator::createFromValueTree(ValueTree& v)
+hise::MarkdownDataBase::Item ScriptingApiDatabase::ItemGenerator::updateWithValueTree(MarkdownDataBase::Item& item, ValueTree& v)
 {
 	const static Identifier root("Api");
 	const static Identifier method("method");
 
+	if (v.getType() == root)
+	{
+		Array<MarkdownDataBase::Item> newItems;
 
-	MarkdownDataBase::Item i;
+		// Create all classes
+		for (auto c : v)
+		{
+			auto t = MarkdownLink::Helpers::getSanitizedFilename(c.getType().toString());
 
-	i.keywords.add("Scripting API");
+			MarkdownDataBase::Item i = item.getChildWithName(t);
 
-	i.c = Colour(0xFFC65638).withMultipliedSaturation(0.8f);
+			if (i.type == MarkdownDataBase::Item::Invalid)
+			{
+				i.type = hise::MarkdownDataBase::Item::Folder;
+				i.description << "API class reference: `" << c.getType().toString() << "`";
+				i.tocString = c.getType().toString();
+				i.url = rootUrl.getChildUrl(c.getType().toString());
+			}
+			else
+			{
+				i.tocString = c.getType().toString();
+			}
 
+
+			newItems.add(updateWithValueTree(i, c));
+		}
+
+		item.children.swapWith(newItems);
+	}
+
+	
+
+#if 0
 	if (v.getType() == root)
 	{
 		i.type = hise::MarkdownDataBase::Item::Folder;
 		i.fileName = "Scripting API";
 		i.tocString = "Scripting API";
 		i.description = "The scripting API reference";
-		i.url << apiWildcard;
+		i.url = rootUrl;
 
-		auto readme = getFolderReadmeFile(i.url);
+		FloatingTileContent::FloatingTilePathFactory f;
+
+		i.icon = "/images/icon_script";
+
+		auto readme = i.url.getMarkdownFile({});
 
 		if (readme.existsAsFile())
 		{
@@ -89,36 +127,47 @@ hise::MarkdownDataBase::Item ScriptingApiDatabase::ItemGenerator::createFromValu
 			}
 		}
 	}
-	else if (v.getType() == method)
+#endif
+	if (v.getType() != method && v.getType() != root)
 	{
-		auto parent = v.getParent();
-		auto className = parent.getType().toString();
-		i.type = hise::MarkdownDataBase::Item::Headline;
-		i.tocString = v.getProperty("name").toString();
-		i.description << "`" << className << "." << i.tocString << "()`  ";
-		i.description << v.getProperty("description").toString();
-		i.url << apiWildcard << "/" << className.toLowerCase() << "#" << v.getProperty("name").toString().toLowerCase();
+		for (auto c : v)
+		{
+			MarkdownDataBase::Item i;
+
+			i.c = item.c;
+			auto className = v.getType().toString();
+			i.type = hise::MarkdownDataBase::Item::Headline;
+			i.tocString = c.getProperty("name").toString();
+			i.description << "`" << className << "." << i.tocString << "()`  ";
+			i.description << c.getProperty("description").toString();
+
+			i.url = rootUrl.getChildUrl(className).getChildUrl(c.getProperty("name").toString(), true);
+
+			DBG(i.url.toString(MarkdownLink::Everything));
+
+			item.children.add(std::move(i));
+		}
+
+		MarkdownDataBase::Item::Sorter sorter;
+
+		item.children.sort(sorter);
 	}
 	else
 	{
+		
+
+#if 0
 		i.type = hise::MarkdownDataBase::Item::Folder;
 		i.description << "API class reference: `" << v.getType().toString() << "`";
 		i.tocString = v.getType().toString();
 		i.fileName = i.tocString;
-		i.url << apiWildcard << "/" << v.getType().toString().toLowerCase();
-
-		
-
+		i.url = rootUrl.getChildUrl(v.getType().toString());
+#endif
 	}
 
-	for (auto c : v)
-		i.children.add(createFromValueTree(c));
+	
 
-	MarkdownDataBase::Item::Sorter sorter;
-
-	i.children.sort(sorter);
-
-	return i;
+	return item;
 }
 
 ValueTree getChildWithSanitizedName(ValueTree v, const String& sanitizedName)
@@ -137,28 +186,17 @@ ValueTree getChildWithSanitizedName(ValueTree v, const String& sanitizedName)
 	return {};
 }
 
-juce::String ScriptingApiDatabase::Resolver::getContent(const String& url)
+juce::String ScriptingApiDatabase::Resolver::getContent(const MarkdownLink& url)
 {
-	if (url.startsWith(apiWildcard))
+	if (url.isChildOf(rootURL))
 	{
-		auto cleaned = url.fromFirstOccurrenceOf(apiWildcard, false, false);
+		auto anchor = url.toString(MarkdownLink::AnchorWithoutHashtag);
 
-		auto classLink = cleaned.upToFirstOccurrenceOf("#", false, false).removeCharacters("/");
-		auto anchor = cleaned.fromFirstOccurrenceOf("#", true, false);
+		auto classLink = url.toString(MarkdownLink::UrlSubPath);
 
+		// Just load the readme
 		if (classLink.isEmpty())
-		{
-			auto dr = HtmlGenerator::getLocalFileForSanitizedURL(docRoot, url, File::findDirectories);
-			
-			jassert(dr.isDirectory());
-
-			auto readme = dr.getChildFile("readme.md");
-
-			if (readme.existsAsFile())
-				return readme.loadFileAsString();
-
-			return {};
-		}
+			return url.toString(MarkdownLink::ContentFull);
 
 		auto classTree = getChildWithSanitizedName(data->v, classLink);
 
@@ -166,27 +204,14 @@ juce::String ScriptingApiDatabase::Resolver::getContent(const String& url)
 		{
 			String s;
 
+			s << url.toString(MarkdownLink::ContentFull);
+
+			if (s.isEmpty())
+				s << "# " << classTree.getType() << "\n";
+
+			s << "  \n";
+			s << "# Class methods  \n";
 			
-
-
-			auto classDirectory = HtmlGenerator::getLocalFileForSanitizedURL(docRoot, url, File::findDirectories);
-
-			if (classDirectory.isDirectory())
-			{
-				auto mdFile = classDirectory.getChildFile("readme.md");
-
-				if (mdFile.existsAsFile())
-				{
-					s << mdFile.loadFileAsString();
-					s << "  \n";
-
-					s << "# Class methods  \n";
-				}
-				else
-					s << "# " << classTree.getType() << "\n";
-			}
-			
-
 			for (auto c : classTree)
 			{
 				s << createMethodText(c);
@@ -214,24 +239,77 @@ juce::String ScriptingApiDatabase::Resolver::createMethodText(ValueTree& mv)
 
 	s << "## `" << methodName << "`\n";
 
-	s << "> " << mv.getProperty("description").toString() << "  \n";
+	s << "> " << mv.getProperty("description").toString().trim() << "\n";
 
 	s << "```javascript\n" << className << "." << methodName << mv.getProperty("arguments").toString() << "```  \n";
 
-
-
-	auto dRoot = HtmlGenerator::getLocalFileForSanitizedURL(docRoot, apiWildcard, File::findDirectories);
-
-	File additionalDoc = dRoot.getChildFile(className + "/" + methodName + ".md");
-	if (additionalDoc.existsAsFile())
-	{
-		s << additionalDoc.loadFileAsString();
-		s << "  \n";
-	}
-
-
+	auto fileLink = rootURL.getChildUrl(className).getChildUrl(methodName);
+	s << fileLink.toString(MarkdownLink::ContentWithoutHeader, rootURL.getRoot());
+	s << "  \n";
 
 	return s;
+}
+
+juce::File ScriptingApiDatabase::Resolver::getFileToEdit(const MarkdownLink& url)
+{
+	if(!url.isChildOf(rootURL))
+		return {};
+
+	if (url.toString(MarkdownLink::AnchorWithoutHashtag).isEmpty())
+		return {};
+
+	auto folderUrl = url.withAnchor({});
+
+	
+
+	bool anchorValid = false;
+
+	auto className = folderUrl.toString(MarkdownLink::UrlSubPath);
+	auto anchorName = url.toString(MarkdownLink::AnchorWithoutHashtag);
+
+	for (const auto& c : data->v)
+	{
+		if (MarkdownLink::Helpers::getSanitizedFilename(c.getType().toString()) == className)
+		{
+			for (const auto& m : c)
+			{
+				if (MarkdownLink::Helpers::getSanitizedFilename(m.getProperty("name").toString()) == anchorName)
+				{
+					anchorValid = true;
+					break;
+				}
+			}
+
+			if (anchorValid)
+				break;
+		}
+	}
+
+	if (!anchorValid)
+	{
+		PresetHandler::showMessageWindow("You tried to edit a sub headline of a API method", "Please click on the headline of the method to edit.", PresetHandler::IconType::Error);
+		return {};
+	}
+		
+
+	auto f = folderUrl.toFile(MarkdownLink::FileType::Directory);
+
+	if (!f.isDirectory())
+		f.createDirectory();
+
+	if (f.isDirectory())
+	{
+		auto e = f.getChildFile(url.toString(MarkdownLink::AnchorWithoutHashtag) + ".md");
+
+		if (!e.existsAsFile() && PresetHandler::showYesNoWindow("Create File for method description", "Do you want to create the file\n" + e.getFullPathName()))
+		{
+			e.create();
+		}
+
+		return e;
+	}
+	
+	return {};
 }
 
 }

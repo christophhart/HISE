@@ -183,7 +183,7 @@ public:
 				data(d)
 			{};
 
-			Image getImage(const String& /*imageURL*/, float width) override
+			Image getImage(const MarkdownLink& /*imageURL*/, float width) override
 			{
 				if (data == nullptr)
 					return Image();

@@ -48,17 +48,35 @@ public:
 
 		struct Data
 		{
+			Data()
+			{
+				bp.setAllowFlakyThreading(true);
+			}
+
+			~Data()
+			{
+				allProcessors.clear();
+			}
+
 			void createAllProcessors();
 			void addFromFactory(FactoryType* f);
 
 			BackendProcessor bp;
 			OwnedArray<Processor> allProcessors;
+
+			struct CachedImage
+			{
+				MarkdownLink url;
+				Image cachedImage;
+			};
+
+			Array<CachedImage> cachedImage;
 		};
 
 		SharedResourcePointer<Data> data;
 
-		String getProcessorIdFromURL(const String& url, bool forceModuleWildcard, String idPrefix);
-		Processor* getProcessorForURL(const String& url, bool forceModuleWildcard, String prefix);
+		String getProcessorIdFromURL(const MarkdownLink& url);
+		Processor* getProcessorForURL(const MarkdownLink& url);
 	};
 
 	class ItemGenerator : public hise::MarkdownDataBase::ItemGeneratorBase,
@@ -70,12 +88,20 @@ public:
 			ItemGeneratorBase(root_)
 		{}
 
+		~ItemGenerator()
+		{
+
+		}
+
 		MarkdownDataBase::Item createRootItem(MarkdownDataBase& parent) override;
 
 	private:
 
 		MarkdownDataBase::Item createItemForProcessor(Processor* p, const MarkdownDataBase::Item& parent);
-		MarkdownDataBase::Item createItemForFactory(FactoryType* owned, const String& factoryName, const MarkdownDataBase::Item& parent);
+		MarkdownDataBase::Item createItemForFactory(FactoryType* owned, const String& factoryName, MarkdownDataBase::Item& parent);
+
+		MarkdownDataBase::Item createItemForCategory(const String& categoryName, const MarkdownDataBase::Item& parent);
+
 	};
 
 	class Resolver : public MarkdownParser::LinkResolver,
@@ -89,7 +115,7 @@ public:
 		Identifier getId() const override { RETURN_STATIC_IDENTIFIER("ModuleDescription"); }
 		LinkResolver* clone(MarkdownParser* newParent) const override { return new Resolver(root); }
 
-		String getContent(const String& url) override;
+		String getContent(const MarkdownLink& url) override;
 
 		File root;
 	};
@@ -106,7 +132,7 @@ public:
 		Identifier getId() const override { RETURN_STATIC_IDENTIFIER("ModuleScreenshotProvider"); }
 		ImageProvider* clone(MarkdownParser* newParent) const override { return new ScreenshotProvider(newParent); }
 
-		Image getImage(const String& url, float width) override;
+		Image getImage(const MarkdownLink& url, float width) override;
 
 		LookAndFeel_V3 laf;
 
@@ -115,5 +141,6 @@ public:
 		RootWindow* w;
 	};
 };
+
 
 }

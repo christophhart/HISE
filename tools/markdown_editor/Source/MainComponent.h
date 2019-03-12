@@ -18,8 +18,8 @@
     your controls and content.
 */
 class MainContentComponent   : public Component,
-							   public CodeDocument::Listener,
-							   public Timer
+							   public hise::ComponentWithBackendConnection,
+							   public hise::ModalBaseWindow
 {
 public:
     //==============================================================================
@@ -29,36 +29,31 @@ public:
     void paint (Graphics&) override;
     void resized() override;
 
-	void codeDocumentTextDeleted(int startIndex, int endIndex) override
-	{
-		startTimer(300);
-	}
+	
+	MainController* getMainControllerToUse() override { return &bp; }
+	const MainController* getMainControllerToUse() const override { return &bp; }
 
-	void codeDocumentTextInserted(const String& newText, int insertIndex) override
-	{
-		startTimer(300);
-	}
+	BackendRootWindow* getBackendRootWindow() { return &b; }
 
-	void timerCallback() override
-	{
-		preview.setNewText(doc.getAllContent(), editor.currentFile);
-		stopTimer();
-	}
+	const BackendRootWindow* getBackendRootWindow() const { return &b; }
+
+	FloatingTile* getRootFloatingTile() { return &ft; }
 
 private:
 
+	BackendProcessor bp;
+	BackendRootWindow b;
+	FloatingTile ft;
+
 	MarkdownDataBase database;
 
-	juce::TooltipWindow tooltip;
-    OpenGLContext context;
+	hise::GlobalHiseLookAndFeel laf;
 
-	MarkdownParser::Tokeniser tokeniser;
-	hise::GlobalHiseLookAndFeel klaf;
-	CodeDocument doc;
-	MarkdownEditor editor;
+	juce::TooltipWindow tooltip;
+
+	Component::SafePointer<MarkdownPreview> preview;
 	
-	MarkdownPreview preview;
-	
+
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainContentComponent)
 };

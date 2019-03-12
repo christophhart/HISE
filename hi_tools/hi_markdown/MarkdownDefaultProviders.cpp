@@ -39,43 +39,17 @@ MarkdownParser::DefaultLinkResolver::DefaultLinkResolver(MarkdownParser* parser_
 
 }
 
-bool MarkdownParser::DefaultLinkResolver::linkWasClicked(const String& url)
+bool MarkdownParser::DefaultLinkResolver::linkWasClicked(const MarkdownLink& url)
 {
-	if (url.startsWith("CLIPBOARD::"))
+	if (url.getType() == MarkdownLink::WebContent)
 	{
-		String content = url.fromFirstOccurrenceOf("CLIPBOARD::", false, false);
-
-		SystemClipboard::copyTextToClipboard(content);
-		return true;
-	}
-
-	if (url.startsWith("http"))
-	{
-		URL u(url);
+		URL u(url.toString(MarkdownLink::UrlFull));
 		u.launchInDefaultBrowser();
 		return true;
 	}
 
-	if (url.startsWith("#"))
-	{
-		if (auto renderer = dynamic_cast<MarkdownRenderer*>(parser))
-		{
-			for (auto e : parser->elements)
-			{
-				if (auto headLine = dynamic_cast<Headline*>(e))
-				{
-					if (url == headLine->anchorURL)
-						renderer->scrollToY(headLine->anchorY);
-				}
-			}
-
-			return true;
-		}
-		else
-			return false;
-
-		
-	}
+	if(url.getType() == MarkdownLink::SimpleAnchor)
+		parser->gotoLink(url);
 
 	return false;
 }
@@ -93,23 +67,16 @@ MarkdownParser::FileLinkResolver::FileLinkResolver(const File& root_) :
 }
 
 
-juce::String MarkdownParser::FileLinkResolver::getContent(const String& url)
+juce::String MarkdownParser::FileLinkResolver::getContent(const MarkdownLink& url)
 {
-	String urlToUse = url;
+	if (url.fileExists({}))
+		return url.toString(MarkdownLink::ContentFull);
 
-	if (urlToUse.startsWith("/"))
-		urlToUse = urlToUse.fromFirstOccurrenceOf("/", false, false);
-
-	File match = HtmlGenerator::getLocalFileForSanitizedURL(root, url, File::findFiles, "*.md");
-
-	if (match.existsAsFile())
-		return match.loadFileAsString();
-	else
-		return {};
+	return {};
 }
 
 
-bool MarkdownParser::FileLinkResolver::linkWasClicked(const String& url)
+bool MarkdownParser::FileLinkResolver::linkWasClicked(const MarkdownLink& url)
 {
 	return false;
 }
@@ -121,61 +88,67 @@ MarkdownParser::FileBasedImageProvider::FileBasedImageProvider(MarkdownParser* p
 
 }
 
-juce::Image MarkdownParser::FileBasedImageProvider::getImage(const String& imageURL, float width)
+juce::Image MarkdownParser::FileBasedImageProvider::getImage(const MarkdownLink& imageURL, float width)
 {
-	File imageFile = r.getChildFile(imageURL);
+	updateWidthFromURL(imageURL, width);
 
-	if (imageFile.existsAsFile() && ImageFileFormat::findImageFormatForFileExtension(imageFile) != nullptr)
-		return resizeImageToFit(ImageCache::getFromFile(imageFile), width);
+	if(imageURL.fileExists(r))
+	{
+		auto imageFile = imageURL.getImageFile(r);
+
+		if (imageURL.getType() == MarkdownLink::SVGImage)
+		{
+			ScopedPointer<Drawable> drawable = Drawable::createFromSVGFile(imageFile);
+
+			return createImageFromSvg(drawable, width);
+		}
+		else
+			return resizeImageToFit(ImageCache::getFromFile(imageFile), width);
+	}
 
 	return {};
 }
 
 
 
-juce::String MarkdownParser::FolderTocCreator::getContent(const String& url)
+juce::String MarkdownParser::FolderTocCreator::getContent(const MarkdownLink& url)
 {
-	String urlToUse = url.upToFirstOccurrenceOf("#", false, false);
-
-	if (urlToUse.startsWith("/"))
-		urlToUse = urlToUse.substring(1);
-
-	File directory = HtmlGenerator::getLocalFileForSanitizedURL(rootFile, url, File::findDirectories);
-
-	if (directory.isDirectory())
+	if (url.getType() == MarkdownLink::Folder)
 	{
-		String s;
-
-		auto readme = directory.getChildFile("Readme.md");
+		auto readme = url.getMarkdownFile({});
 
 		if (readme.existsAsFile())
-		{
-			s << readme.loadFileAsString();
-			s << "  \n";
-
-			return s;
-		}
+			return readme.loadFileAsString();
 		else
 		{
-			s << "## Content of " << HtmlGenerator::removeLeadingNumbers(directory.getFileName()) << "  \n";
+			File directory = url.getDirectory({});
 
-			Array<File> files;
-
-			directory.findChildFiles(files, File::findFilesAndDirectories, false);
-
-			files.sort();
-
-			for (auto f : files)
+			if (directory.isDirectory())
 			{
-				if (f == readme)
-					continue;
+				String s;
 
-				auto path = f.getRelativePathFrom(rootFile);
+				s << "## Content of " << url.getPrettyFileName() << "  \n";
 
-				s << "[" << HtmlGenerator::removeLeadingNumbers(f.getFileNameWithoutExtension()) << "](" << HtmlGenerator::getSanitizedFilename(path) << ")  \n";
+				Array<File> files;
+
+				directory.findChildFiles(files, File::findFilesAndDirectories, false);
+
+				files.sort();
+
+				for (auto f : files)
+				{
+					MarkdownLink fLink(url.getRoot(), f.getRelativePathFrom(rootFile));
+
+					if (f.getFileNameWithoutExtension().toLowerCase() == "readme")
+						continue;
+
+					auto path = f.getRelativePathFrom(rootFile);
+
+					s << fLink.toString(MarkdownLink::FormattedLinkMarkdown) + "  \n";
+				}
+
+				return s;
 			}
-
-			return s;
 		}
 	}
 
@@ -194,11 +167,13 @@ hise::MarkdownParser::LinkResolver* MarkdownParser::FolderTocCreator::clone(Mark
 	return new FolderTocCreator(rootFile);
 }
 
-juce::Image MarkdownParser::URLImageProvider::getImage(const String& urlName, float width)
+juce::Image MarkdownParser::URLImageProvider::getImage(const MarkdownLink& urlLink, float width)
 {
-	if (URL::isProbablyAWebsiteURL(urlName))
+	if(urlLink.getType() == MarkdownLink::WebContent)
 	{
-		URL url(urlName);
+		return {};
+
+		URL url(urlLink.toString(MarkdownLink::UrlFull));
 
 		auto path = url.getSubPath();
 		auto imageFile = tempDirectory.getChildFile(path);
@@ -247,15 +222,17 @@ MarkdownParser::URLImageProvider::URLImageProvider(File tempdirectory_, Markdown
 		tempDirectory.createDirectory();
 }
 
-juce::Image MarkdownParser::GlobalPathProvider::getImage(const String& urlName, float width)
+juce::Image MarkdownParser::GlobalPathProvider::getImage(const MarkdownLink& urlName, float width)
 {
-	if (urlName.startsWith(path_wildcard))
+	if(urlName.getType() == MarkdownLink::Icon)
 	{
-		float widthToUseMax = jmin(width, 64.0f);
+		updateWidthFromURL(urlName, width);
+
+		float widthToUseMax = jmax(width, 10.0f);
 
 		Path p;
 
-		String nameToCheck = urlName.fromFirstOccurrenceOf(path_wildcard, false, false);
+		String nameToCheck = urlName.toString(MarkdownLink::FormattedLinkIcon);
 
 		for (auto f : factories->factories)
 		{
@@ -277,7 +254,10 @@ juce::Image MarkdownParser::GlobalPathProvider::getImage(const String& urlName, 
 		Image img(Image::ARGB, (int)widthToUseMax, (int)widthToUseMax, true);
 		Graphics g(img);
 		
-		g.setColour(parent->getStyleData().textColour);
+		if (parent != nullptr)
+			g.setColour(parent->getStyleData().textColour);
+		else
+			g.setColour(Colours::white);
 
 		g.fillPath(p);
 

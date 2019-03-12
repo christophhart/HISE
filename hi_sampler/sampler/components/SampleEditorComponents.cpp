@@ -218,8 +218,9 @@ SamplerSoundMap::SamplerSoundMap(ModulatorSampler *ownerSampler_):
 
 	updateSoundData();
 
-	setOpaque(true);
+	
 
+	setOpaque(true);
 };
 
 SamplerSoundMap::~SamplerSoundMap()
@@ -533,11 +534,16 @@ void SamplerSoundMap::drawSoundMap(Graphics &g)
 
 void SamplerSoundMap::paint(Graphics &g)
 {
-    g.drawImageAt(currentSnapshot, 0, 0);
+	g.drawImageAt(currentSnapshot, 0, 0);
+
+	
 };
 
 void SamplerSoundMap::paintOverChildren(Graphics &g)
 {
+	
+	
+
 	if (isPreloading)
 	{
 		g.fillAll(Colour(0xAA222222));

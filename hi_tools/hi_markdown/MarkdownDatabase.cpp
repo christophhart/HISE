@@ -34,6 +34,8 @@ namespace hise {
 using namespace juce;
 
 
+
+
 MarkdownDataBase::MarkdownDataBase()
 {
 
@@ -75,7 +77,7 @@ void MarkdownDataBase::buildDataBase()
 {
 	rootItem = {};
 	rootItem.type = Item::Root;
-	rootItem.url = "/";
+	rootItem.url = { rootDirectory, "/" };
 
 	if (getDatabaseFile().existsAsFile())
 	{
@@ -94,18 +96,7 @@ void MarkdownDataBase::buildDataBase()
 	for (auto g : itemGenerators)
 	{
 		auto newItem = g->createRootItem(*this);
-
-		if(g->rootURL.isEmpty())
-			rootItem.children.add(newItem);
-		else
-		{
-			if (auto c = rootItem.findChildWithURL(g->rootURL))
-			{
-				*c = newItem;
-			}
-			else
-				jassertfalse; // Can't resolve URL
-		}
+		rootItem.children.add(newItem);
 	}
 }
 
@@ -120,8 +111,9 @@ juce::var MarkdownDataBase::getHtmlSearchDatabaseDump()
 	Array<var> list;
 
 	var v(list);
+	auto f = getRoot();
 
-	rootItem.callForEach([v](Item& item)
+	rootItem.callForEach([v, f](Item& item)
 	{ 
 		if (item.children.isEmpty())
 			return false;
@@ -136,12 +128,14 @@ juce::var MarkdownDataBase::getHtmlSearchDatabaseDump()
 
 			String s = item.tocString + ": " + c.tocString;
 
-			if (c.url.startsWith("/scripting/scripting-api/") && c.url.contains("#"))
+			MarkdownLink scriptRoot(f, "/scripting/scripting-api/");
+
+			if(c.url.isChildOf(scriptRoot) && c.url.toString(MarkdownLink::AnchorWithHashtag).isNotEmpty())
 			{
 				s = item.tocString + "." + c.tocString + "()";
 			}
 
-			String url = HtmlGenerator::createHtmlLink(c.url, "");
+			String url = c.url.toString(MarkdownLink::FormattedLinkHtml);
 			String colour = "#" + c.c.toDisplayString(false);
 			DynamicObject* obj = new DynamicObject();
 			obj->setProperty("key", s);
@@ -187,24 +181,24 @@ void MarkdownDataBase::DirectoryItemGenerator::addFileRecursive(Item& folder, Fi
 	{
 		folder.c = c;
 		folder.type = Item::Folder;
-		folder.description = "Folder";
-		folder.fileName = f.getFileName();
-		folder.keywords.add(folder.fileName);
+		folder.url = { rootDirectory, f.getRelativePathFrom(rootDirectory) };
+
+		auto header = folder.url.getHeaderFromFile(rootDirectory, false);
+
+		folder.icon = header.getIcon();
+		folder.keywords = header.getKeywords();
+		folder.description = header.getDescription();
+		folder.tocString = header.getFirstKeyword();
+		if (folder.tocString.isEmpty())
+			folder.tocString = f.getFileName();
 		
-		
-		auto path = f.getRelativePathFrom(rootDirectory).replaceCharacter('\\', '/');
 
-		path = HtmlGenerator::getSanitizedFilename(path);
 
-		folder.tocString = folder.fileName.trimCharactersAtStart("01234567890 ");
-
-		folder.url = "/" + path;
-
-		if (f.getChildFile("Readme.md").existsAsFile())
+		if (folder.url.fileExists({}))
 		{
 			Item ni;
 
-			MarkdownParser::createDatabaseEntriesForFile(rootDirectory, ni, f.getChildFile("Readme.md"), folder.c);
+			MarkdownParser::createDatabaseEntriesForFile(rootDirectory, ni, folder.url.getMarkdownFile({}), folder.c);
 
 			if (ni.type != Item::Invalid)
 			{
@@ -307,7 +301,6 @@ int MarkdownDataBase::Item::fits(String search) const
 
 	sa.addArray(keywords);
 	sa.add(description);
-	sa.add(fileName);
 	sa.add(tocString);
 
 	for (auto& s : sa)
@@ -335,9 +328,7 @@ juce::String MarkdownDataBase::Item::generateHtml(const String& rootString, cons
 	
 	styleTag << "style=\"padding-left: 10px; border-left: 3px solid #" << c.toDisplayString(false) << "\"";
 
-	String urlToUse = url;
-
-	auto realURL = HtmlGenerator::createHtmlLink(urlToUse, rootString);
+	auto realURL = url.toString(MarkdownLink::FormattedLinkHtml);
 
 	auto link = g.surroundWithTag(tocString, "a", "href=\"" + realURL + "\"");
 
@@ -350,10 +341,7 @@ juce::String MarkdownDataBase::Item::generateHtml(const String& rootString, cons
 		html << c.generateHtml(rootString, activeURL);
 	}
 
-
-
-
-	return g.surroundWithTag(html, "details", containsURL(activeURL) ? "open" : "");
+	return g.surroundWithTag(html, "details", "");// containsURL(activeURL) ? "open" : "");
 }
 
 void MarkdownDataBase::Item::addToList(Array<Item>& list) const
@@ -364,48 +352,73 @@ void MarkdownDataBase::Item::addToList(Array<Item>& list) const
 		c.addToList(list);
 }
 
-bool MarkdownDataBase::Item::containsURL(const String& urlToLookFor) const
+void MarkdownDataBase::Item::addTocChildren(File root)
 {
-	for (const auto& c : children)
-	{
-		if (c.containsURL(urlToLookFor))
-			return true;
-	}
+	auto f = url.getMarkdownFile(root);
 
-	return url == urlToLookFor;
+	if (f.existsAsFile())
+	{
+		MarkdownParser::createDatabaseEntriesForFile(root, *this, f, c);
+	}
 }
 
-MarkdownDataBase::Item* MarkdownDataBase::Item::findChildWithURL(const String& urlToLookFor) const
+MarkdownDataBase::Item MarkdownDataBase::Item::createChildItem(const String& subPath) const
 {
-	if (url == urlToLookFor)
-		return const_cast<Item*>(this);
-
-	for (const auto& c : children)
-	{
-		if (auto r = c.findChildWithURL(urlToLookFor))
-			return r;
-	}
-
-	return nullptr;
+	MarkdownDataBase::Item item;
+	item.url = url.getChildUrl(subPath);
+	item.c = c;
+	return item;
 }
 
 MarkdownDataBase::Item::Item(Type t, File root, File f, const StringArray& keywords_, String description_) :
 	type(t),
-	fileName(f.getFileName()),
-	url(HtmlGenerator::getSanitizedFilename(f.getRelativePathFrom(root)))
+	url({ root, f.getRelativePathFrom(root) })
 {
+	// If you construct an item like this, you need a directory...
+	jassert(root.isDirectory());
 	keywords = keywords_;
 	description = description_;
+}
+
+MarkdownDataBase::Item::Item(const MarkdownLink& link):
+	url(link)
+{
+	// You need to pass in a valid root
+	jassert(url.getRoot().isDirectory());
+
+	auto header = link.getHeaderFromFile({}, false);
+
+	keywords = header.getKeywords();
+	description = header.getDescription();
+	tocString = keywords[0];
+
+	if (link.getType() == MarkdownLink::Folder)
+	{
+		Array<File> childFiles;
+
+		link.getDirectory({}).findChildFiles(childFiles, File::findFilesAndDirectories, false);
+
+		for (auto cf : childFiles)
+		{
+			auto cUrl = url.getChildUrlWithRoot(cf.getFileNameWithoutExtension(), false);
+
+			Item cItem(cUrl);
+			children.add(cItem);
+		}
+	}
+	if (link.getType() == MarkdownLink::Type::MarkdownFile)
+	{
+		MarkdownParser::createDatabaseEntriesForFile(url.getRoot(), *this, link.toFile(MarkdownLink::FileType::ContentFile), c);
+	}
 }
 
 juce::ValueTree MarkdownDataBase::Item::createValueTree() const
 {
 	ValueTree v("Item");
 	v.setProperty("Type", (int)type, nullptr);
-	v.setProperty("Filename", fileName, nullptr);
 	v.setProperty("Description", description, nullptr);
 	v.setProperty("Keywords", keywords.joinIntoString(";"), nullptr);
-	v.setProperty("URL", url, nullptr);
+	v.setProperty("URL", url.toString(MarkdownLink::Everything), nullptr);
 	v.setProperty("TocString", tocString, nullptr);
 	v.setProperty("Colour", c.toString(), nullptr);
 
@@ -418,10 +431,9 @@ juce::ValueTree MarkdownDataBase::Item::createValueTree() const
 void MarkdownDataBase::Item::loadFromValueTree(ValueTree& v)
 {
 	type = (Type)(int)v.getProperty("Type");
-	fileName = v.getProperty("Filename");
 	keywords = StringArray::fromTokens(v.getProperty("Keywords").toString(), ";", "");
 	description = v.getProperty("Description");
-	url = v.getProperty("URL");
+	url = MarkdownLink::createWithoutRoot(v.getProperty("URL"));
 	tocString = v.getProperty("TocString");
 	c = Colour::fromString(v.getProperty("Colour").toString());
 
@@ -435,12 +447,62 @@ void MarkdownDataBase::Item::loadFromValueTree(ValueTree& v)
 
 juce::File MarkdownDataBase::ItemGeneratorBase::getFolderReadmeFile(const String& folderURL)
 {
-	auto f = HtmlGenerator::getLocalFileForSanitizedURL(rootDirectory, folderURL, File::findDirectories);
+	return MarkdownLink(rootDirectory, folderURL).getMarkdownFile({});
+}
 
-	if (f.isDirectory())
-		return f.getChildFile("Readme.md");
+void MarkdownDatabaseHolder::rebuildDatabase()
+{
+	if(progressCounter != nullptr)
+		*progressCounter = 0.0;
 
-	return {};
+	db.clear();
+
+	if (shouldUseCachedData())
+		db.setRoot(getCachedDocFolder());
+	else
+		db.setRoot(getDatabaseRootDirectory());
+
+	registerItemGenerators();
+
+	if (progressCounter != nullptr)
+		*progressCounter = 0.5;
+
+	double delta = 0.5 / (double)jmax(1, contentProcessors.size());
+
+	for (auto c : contentProcessors)
+	{
+		if (c.get() == nullptr)
+			continue;
+
+		c->clearResolvers();
+		
+		if (progressCounter != nullptr)
+			*progressCounter += delta;
+
+		registerContentProcessor(c);
+		c->resolversUpdated();
+	}
+		
+
+	if (shouldUseCachedData() && !db.getDatabaseFile().existsAsFile())
+	{
+		jassertfalse;
+	}
+
+	db.buildDataBase();
+
+	for (auto l : listeners)
+	{
+		if (l != nullptr)
+			l->databaseWasRebuild();
+	}
+}
+
+void MarkdownDatabaseHolder::addContentProcessor(MarkdownContentProcessor* contentProcessor)
+{
+	contentProcessors.add(contentProcessor);
+	contentProcessor->clearResolvers();
+	registerContentProcessor(contentProcessor);
 }
 
 }

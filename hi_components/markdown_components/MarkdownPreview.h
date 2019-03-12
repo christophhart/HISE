@@ -36,7 +36,136 @@ namespace hise {
 using namespace juce;
 
 
-class MarkdownPreview : public Component
+class DocUpdater : public DialogWindowWithBackgroundThread,
+				   public MarkdownContentProcessor,
+				   public DatabaseCrawler::Logger
+{
+public:
+
+	DocUpdater(MarkdownDatabaseHolder& holder_, bool fastMode_, bool allowEdit):
+		MarkdownContentProcessor(holder_),
+		DialogWindowWithBackgroundThread("Update documentation", false),
+		holder(holder_),
+		crawler(holder),
+		fastMode(fastMode_),
+		editingShouldBeEnabled(allowEdit)
+	{
+		holder.addContentProcessor(this);
+
+		if (!fastMode)
+		{
+
+			holder.addContentProcessor(&crawler);
+
+			StringArray sa = { "Update local cached file", "Update docs from server" , "Create local HTML offline docs" };
+
+			addComboBox("action", sa, "Action");
+
+			markdownRepository = new FilenameComponent("Markdown Repository", holder.getDatabaseRootDirectory(), false, true, false, {}, {}, "No markdown repository specified");
+			markdownRepository->setSize(400, 32);
+
+
+			htmlDirectory = new FilenameComponent("Target directory", {}, true, true, true, {}, {}, "Select a HTML target directory");
+			htmlDirectory->setSize(400, 32);
+
+			htmlDirectory->setEnabled(false);
+
+			addCustomComponent(markdownRepository);
+
+			addCustomComponent(htmlDirectory);
+
+			crawler.setProgressCounter(&getProgressCounter());
+			holder.setProgressCounter(&getProgressCounter());
+
+			addBasicComponents(true);
+		}
+		else
+		{
+			addBasicComponents(false);
+			DialogWindowWithBackgroundThread::runThread();
+		}
+	}
+
+	~DocUpdater()
+	{
+		holder.setProgressCounter(nullptr);
+		holder.removeContentProcessor(this);
+		holder.removeContentProcessor(&crawler);
+	}
+	
+
+	void logMessage(const String& message) override
+	{
+		showStatusMessage(message);
+	}
+
+	void run() override
+	{
+		if (fastMode)
+		{
+			auto mc = dynamic_cast<MainController*>(&holder);
+			mc->setAllowFlakyThreading(true);
+			holder.setProgressCounter(&getProgressCounter());
+			getHolder().setForceCachedDataUse(!editingShouldBeEnabled);
+			mc->setAllowFlakyThreading(false);
+		}
+		else
+		{
+
+
+
+			auto b = getComboBoxComponent("action");
+
+			auto mc = dynamic_cast<MainController*>(&holder);
+
+			mc->setAllowFlakyThreading(true);
+
+			if (b->getSelectedItemIndex() == 0)
+			{
+				showStatusMessage("Rebuilding index");
+				holder.setForceCachedDataUse(false);
+
+				showStatusMessage("Create Content cache");
+				crawler.createContentTree();
+
+				showStatusMessage("Create Image cache");
+				crawler.createImageTree();
+			}
+
+			mc->setAllowFlakyThreading(false);
+		}
+	}
+
+	void threadFinished() override
+	{
+		auto b = getComboBoxComponent("action");
+
+		if (!fastMode && b->getSelectedItemIndex() == 0)
+		{
+			PresetHandler::showMessageWindow("Cache was updated", "Press OK to rebuild the indexes");
+			holder.setForceCachedDataUse(true);
+		}
+
+		
+	}
+
+	void databaseWasRebuild() override
+	{
+
+	}
+	
+	bool fastMode = false;
+	bool editingShouldBeEnabled = false;
+	MarkdownDatabaseHolder& holder;
+	ScopedPointer<juce::FilenameComponent> markdownRepository;
+	ScopedPointer<juce::FilenameComponent> htmlDirectory;
+	DatabaseCrawler crawler;
+};
+
+
+
+class MarkdownPreview : public Component,
+					    public MarkdownContentProcessor
 {
 public:
 
@@ -47,12 +176,144 @@ public:
 		numMouseModes
 	};
 
-	MarkdownPreview();;
-
-	void setDatabase(MarkdownDataBase* newDataBase)
+	enum EditingMenuCommands
 	{
-		topbar.database = newDataBase;
-		toc.setDatabase(*newDataBase);
+		EditCurrentPage = 1000,
+		CreateMarkdownLink,
+		CopyLink,
+		RevealFile,
+		DebugExactContent,
+		numEditingMenuCommands
+	};
+
+	MarkdownPreview(MarkdownDatabaseHolder& holder);
+
+	~MarkdownPreview();
+
+	void resolversUpdated() override
+	{
+		renderer.clearResolvers();
+
+		for (auto l : linkResolvers)
+			renderer.setLinkResolver(l->clone(&renderer));
+
+		for (auto ip : imageProviders)
+			renderer.setImageProvider(ip->clone(&renderer));
+	}
+
+	void editCurrentPage(const MarkdownLink& link, bool showExactContent=false);
+
+	void addEditingMenuItems(PopupMenu& m)
+	{
+		m.addItem(EditingMenuCommands::CopyLink, "Copy link");
+
+		if (editingEnabled)
+		{
+			m.addSectionHeader("Editing Tools");
+			m.addItem(EditingMenuCommands::EditCurrentPage, "Edit this page in new editor tab");
+			m.addItem(EditingMenuCommands::CreateMarkdownLink, "Create markdown formatted link", true);
+			m.addItem(EditingMenuCommands::RevealFile, "Show file");
+			m.addItem(EditingMenuCommands::DebugExactContent, "Debug current content");
+		}
+	}
+
+	bool performPopupMenuForEditingIcons(int result, MarkdownLink& linkToUse)
+	{
+		if (result == EditingMenuCommands::EditCurrentPage)
+		{
+			editCurrentPage(linkToUse);
+			return true;
+		}
+		if (result == EditingMenuCommands::CreateMarkdownLink)
+		{
+			SystemClipboard::copyTextToClipboard(linkToUse.toString(MarkdownLink::FormattedLinkMarkdown));
+			return true;
+		}
+		if (result == EditingMenuCommands::CopyLink)
+		{
+			SystemClipboard::copyTextToClipboard(linkToUse.toString(MarkdownLink::Everything));
+			return true;
+		}
+		if (result == EditingMenuCommands::RevealFile)
+		{
+			auto f = linkToUse.getDirectory({});
+
+			if (f.isDirectory())
+			{
+				f.revealToUser();
+				return true;
+			}
+
+			f = linkToUse.getMarkdownFile({});
+
+			if (f.existsAsFile())
+			{
+				f.revealToUser();
+				return true;
+			}
+		}
+		if (result == EditingMenuCommands::DebugExactContent)
+		{
+			editCurrentPage({}, true);
+			return true;
+		}
+
+		return false;
+	}
+
+	void enableEditing(bool shouldBeEnabled)
+	{
+		if (editingEnabled != shouldBeEnabled)
+		{
+			editingEnabled = shouldBeEnabled;
+
+			if (!editingEnabled && PresetHandler::showYesNoWindow("Update local cached documentation", "Do you want to update the local cached documentation from your edited files"))
+			{
+				auto d = new DocUpdater(getHolder(), false, editingEnabled);
+				d->setModalBaseWindowComponent(this);
+			}
+			else
+			{
+				auto d = new DocUpdater(getHolder(), true, editingEnabled);
+				d->setModalBaseWindowComponent(this);
+			}
+
+			
+
+			if (auto ft = findParentComponentOfClass<FloatingTile>())
+			{
+				ft->getCurrentFloatingPanel()->setCustomTitle(editingEnabled ? "Preview" : "HISE Documentation");
+
+				if (auto c = ft->getParentContainer())
+				{
+					c->getComponent(0)->getLayoutData().setVisible(editingEnabled);
+					c->getComponent(1)->getLayoutData().setVisible(editingEnabled);
+					ft->refreshRootLayout();
+				}
+			}
+		}
+	}
+
+	bool editingEnabled = true;
+
+	void mouseDown(const MouseEvent& e) override
+	{
+		if (renderer.navigateFromXButtons(e))
+			return;
+
+		if (e.mods.isRightButtonDown())
+		{
+			PopupLookAndFeel plaf;
+			PopupMenu m;
+			m.setLookAndFeel(&plaf);
+
+			addEditingMenuItems(m);
+
+			int result = m.show();
+
+			if (performPopupMenuForEditingIcons(result, renderer.getLastLink()))
+				return;
+		}
 	}
 
 	bool keyPressed(const KeyPress& k);
@@ -84,9 +345,6 @@ public:
 		int getTextHeight();
 
 		void setNewText(const String& s, const File& f);
-
-		String lastText;
-		File lastFile;
 
 		void markdownWasParsed(const Result& r) override;
 
@@ -121,23 +379,17 @@ public:
 
 		void resized() override
 		{
-			if (parser != nullptr)
-			{
-				parser->updateCreatedComponents();
-			}
+			renderer.updateCreatedComponents();
 		}
 
-		ScopedPointer<MarkdownRenderer::LayoutCache> layoutCache;
-
-		ScopedPointer<hise::MarkdownRenderer> parser;
+		MarkdownPreview& parent;
+		MarkdownRenderer& renderer;
+		
 		String errorMessage;
 
 		MarkdownLayout::StyleData styleData;
 
 		Rectangle<float> clickedLink;
-		OwnedArray<MarkdownParser::ImageProvider> providers;
-		OwnedArray<MarkdownParser::LinkResolver> resolvers;
-		MarkdownPreview& parent;
 
 		Rectangle<float> currentSearchResult;
 
@@ -145,19 +397,9 @@ public:
 		bool enableSelect = true;
 	};
 
-	struct CustomViewport : public Viewport
+
+	struct CustomViewport : public ViewportWithScrollCallback
 	{
-		class Listener
-		{
-		public:
-
-			virtual ~Listener() {}
-
-			virtual void scrolled(Rectangle<int> visibleArea) = 0;
-
-			JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
-		};
-
 		CustomViewport(MarkdownPreview& parent_) :
 			parent(parent_)
 		{
@@ -166,36 +408,15 @@ public:
 
 		void visibleAreaChanged(const Rectangle<int>& newVisibleArea) override
 		{
-			visibleArea = newVisibleArea;
+			auto s = parent.renderer.getAnchorForY(newVisibleArea.getY());
+			parent.toc.setCurrentAnchor(s);
 
-			if (auto p = parent.internalComponent.parser.get())
-			{
-				auto s = p->getAnchorForY(newVisibleArea.getY());
-				parent.toc.setCurrentAnchor(s);
-			}
-
-			for (int i = 0; i < listeners.size(); i++)
-			{
-				if (listeners[i].get() == nullptr)
-				{
-					listeners.remove(i--);
-				}
-				else
-				{
-					listeners[i]->scrolled(visibleArea);
-				}
-			}
+			ViewportWithScrollCallback::visibleAreaChanged(newVisibleArea);
 		}
-
-		void addListener(Listener* l) { listeners.addIfNotAlreadyThere(l); }
-		void removeListener(Listener* l) { listeners.removeAllInstancesOf(l); }
-
-		Array<WeakReference<Listener>> listeners;
-
-		Rectangle<int> visibleArea;
 
 		MarkdownPreview& parent;
 	};
+
 
 	struct Topbar : public Component,
 		public ButtonListener,
@@ -212,10 +433,12 @@ public:
 			forwardButton("Forward", this, factory),
 			searchPath(factory.createPath("Search")),
 			lightSchemeButton("Sun", this, factory, "Night"),
-			dragButton("Drag", this, factory),
-			selectButton("Select", this, factory)
+			selectButton("Select", this, factory, "Drag"),
+			refreshButton("Rebuild", this, factory),
+			editButton("Edit", this, factory, "Lock")
 		{
-
+			selectButton.setToggleModeWithColourChange(true);
+			editButton.setToggleModeWithColourChange(true);
 
 			addAndMakeVisible(homeButton);
 			addAndMakeVisible(tocButton);
@@ -223,8 +446,9 @@ public:
 			addAndMakeVisible(forwardButton);
 			addAndMakeVisible(lightSchemeButton);
 			addAndMakeVisible(searchBar);
-			addAndMakeVisible(dragButton);
 			addAndMakeVisible(selectButton);
+			addAndMakeVisible(editButton);
+			addAndMakeVisible(refreshButton);
 			lightSchemeButton.setClickingTogglesState(true);
 
 			const auto& s = parent.internalComponent.styleData;
@@ -244,6 +468,8 @@ public:
 
 		struct TopbarPaths : public PathFactory
 		{
+			String getId() const override { return "Markdown Preview"; }
+
 			Path createPath(const String& id) const override;
 		};
 
@@ -257,7 +483,8 @@ public:
 		HiseShapeButton forwardButton;
 		HiseShapeButton lightSchemeButton;
 		HiseShapeButton selectButton;
-		HiseShapeButton dragButton;
+		HiseShapeButton refreshButton;
+		HiseShapeButton editButton;
 		Label searchBar;
 		Path searchPath;
 	
@@ -296,29 +523,40 @@ public:
 				{
 					down = true;
 					repaint();
+
+					if (e.mods.isRightButtonDown())
+					{
+						PopupLookAndFeel plaf;
+						PopupMenu m;
+						m.setLookAndFeel(&plaf);
+
+						auto mp = findParentComponentOfClass<MarkdownPreview>();
+						mp->addEditingMenuItems(m);
+
+						
+
+						
+
+						int result = m.show();
+
+						if (mp->performPopupMenuForEditingIcons(result, item.url))
+							return;
+
+						
+
+					}
 				}
 
 				void gotoLink()
 				{
-					auto link = item.url.upToFirstOccurrenceOf("#", false, false);
-					auto anchor = item.url.fromFirstOccurrenceOf("#", true, false);
-
-					auto f = findParentComponentOfClass<MarkdownPreview>()->topbar.database->getRoot();
-
-					if (auto p = findParentComponentOfClass<MarkdownPreview>()->internalComponent.parser.get())
+					if (auto mp = findParentComponentOfClass<MarkdownPreview>())
 					{
-						p->gotoLink(link);
+						auto& r = mp->renderer;
 
-						auto mp = findParentComponentOfClass<MarkdownPreview>();
+						r.gotoLink(item.url.withRoot(mp->rootDirectory));
 
-						auto f2 = [mp, anchor]()
+						auto f2 = [mp]()
 						{
-							if (auto p = mp->internalComponent.parser.get())
-							{
-								if (anchor.isNotEmpty())
-									p->gotoLink(anchor);
-							}
-
 							mp->currentSearchResults = nullptr;
 						};
 
@@ -328,10 +566,13 @@ public:
 
 				void mouseUp(const MouseEvent& e) override
 				{
+					
+
 					down = false;
 					repaint();
 
-					gotoLink();
+					if(!e.mods.isRightButtonDown())
+						gotoLink();
 				}
 
 				void paint(Graphics& g) override
@@ -499,17 +740,11 @@ public:
 
 				void timerCallback() override
 				{
-					
+					currentSearchResultPositions = parent.parent.renderer.searchInContent(searchString);
 
-					if (auto p = parent.parent.internalComponent.parser.get())
-					{
-						currentSearchResultPositions = p->searchInContent(searchString);
+					refreshTextResultLabel();
 
-						refreshTextResultLabel();
-
-						parent.parent.repaint();
-					}
-
+					parent.parent.repaint();
 
 					int textSearchOffset = currentSearchResultPositions.isEmpty() ? 0 : 32;
 
@@ -596,13 +831,13 @@ public:
 
 					auto allItems = parent.database->getFlatList();
 
-					if (searchString.startsWith("docs://"))
+					if (searchString.startsWith("/"))
 					{
 						displayedItems.clear();
 						exactMatches.clear();
 						fuzzyMatches.clear();
 
-						auto linkURL = searchString.fromFirstOccurrenceOf("docs://", false, false);
+						MarkdownLink linkURL = { parent.parent.rootDirectory, searchString };
 
 						MarkdownDataBase::Item linkItem;
 
@@ -740,7 +975,11 @@ public:
 
 			void labelTextChanged(Label* labelThatHasChanged) override
 			{
-
+				if (labelThatHasChanged->getText().startsWith("/"))
+				{
+					MarkdownLink l(parent.getHolder().getDatabaseRootDirectory(), labelThatHasChanged->getText());
+					parent.renderer.gotoLink(l);
+				}
 			}
 
 			void textEditorTextChanged(TextEditor& ed)
@@ -779,8 +1018,34 @@ public:
 				ed.removeListener(this);
 			}
 
+			void updateNavigationButtons()
+			{
+				//forwardButton.setEnabled(parent.renderer.canNavigate(false));
+				//backButton.setEnabled(parent.renderer.canNavigate(true));
+			}
+
 			void buttonClicked(Button* b) override
 			{
+				if (b == &refreshButton)
+				{
+					parent.renderer.updateHeight();
+					parent.internalComponent.repaint();
+				}
+				if (b == &editButton)
+				{
+					bool on = b->getToggleState();
+
+					parent.enableEditing(on);
+
+				}
+				if (b == &forwardButton)
+				{
+					parent.renderer.navigate(false);
+				}
+				if (b == &backButton)
+				{
+					parent.renderer.navigate(true);
+				}
 				if (b == &tocButton)
 				{
 					parent.toc.setVisible(!parent.toc.isVisible());
@@ -804,7 +1069,7 @@ public:
 						parent.internalComponent.styleData = {};
 					}
 
-					parent.internalComponent.parser->setStyleData(parent.internalComponent.styleData);
+					parent.renderer.setStyleData(parent.internalComponent.styleData);
 
 					parent.repaint();
 
@@ -812,11 +1077,7 @@ public:
 				}
 				if (b == &selectButton)
 				{
-					parent.setMouseMode(Select);
-				}
-				if (b == &dragButton)
-				{
-					parent.setMouseMode(Drag);
+					parent.setMouseMode(b->getToggleState() ? Select : Drag);
 				}
 			}
 
@@ -838,6 +1099,15 @@ public:
 				}
 				else if (key == KeyPress::returnKey)
 				{
+					if (searchBar.getText(true).startsWith("/"))
+					{
+
+						parent.renderer.gotoLink({ parent.rootDirectory, searchBar.getText(true) });
+						searchBar.hideEditor(false);
+						parent.currentSearchResults = nullptr;
+						return true;
+					}
+
 					if (parent.currentSearchResults != nullptr)
 						parent.currentSearchResults->gotoSelection();
 
@@ -863,16 +1133,16 @@ public:
 				Colour c = Colours::white;
 
 				tocButton.setColours(c.withAlpha(0.8f), c, c);
+
+				
+
 				//homeButton.setColours(c.withAlpha(0.8f), c, c);
 				//backButton.setColours(c.withAlpha(0.8f), c, c);
 				//forwardButton.setColours(c.withAlpha(0.8f), c, c);
 				lightSchemeButton.setColours(c.withAlpha(0.8f), c, c);
-				dragButton.setColours(c.withAlpha(0.8f), c, c);
 				selectButton.setColours(c.withAlpha(0.8f), c, c);
 
 				homeButton.setVisible(false);
-				backButton.setVisible(false);
-				forwardButton.setVisible(false);
 
 				auto ar = getLocalBounds();
 				int buttonMargin = 12;
@@ -881,16 +1151,17 @@ public:
 
 				tocButton.setBounds(ar.removeFromLeft(height).reduced(buttonMargin));
 				ar.removeFromLeft(margin);
-				homeButton.setBounds(ar.removeFromLeft(height).reduced(buttonMargin));
+				refreshButton.setBounds(ar.removeFromLeft(height).reduced(buttonMargin));
 				ar.removeFromLeft(margin);
+				//homeButton.setBounds(ar.removeFromLeft(height).reduced(buttonMargin));
 				backButton.setBounds(ar.removeFromLeft(height).reduced(buttonMargin));
 				forwardButton.setBounds(ar.removeFromLeft(height).reduced(buttonMargin));
 				ar.removeFromLeft(margin);
 				lightSchemeButton.setBounds(ar.removeFromLeft(height).reduced(buttonMargin));
 				ar.removeFromLeft(margin);
-				dragButton.setBounds(ar.removeFromLeft(height).reduced(buttonMargin));
 				selectButton.setBounds(ar.removeFromLeft(height).reduced(buttonMargin));
 				ar.removeFromLeft(margin);
+
 
 				auto delta = 0; //parent.toc.getWidth() - ar.getX();
 
@@ -899,13 +1170,15 @@ public:
 				auto sBounds = ar.removeFromLeft(height).reduced(buttonMargin).toFloat();
 				searchPath.scaleToFit(sBounds.getX(), sBounds.getY(), sBounds.getWidth(), sBounds.getHeight(), true);
 
+				editButton.setBounds(ar.removeFromRight(height).reduced(buttonMargin));
+				
 				searchBar.setBounds(ar.reduced(5.0f));
 			}
 
 			void paint(Graphics& g) override
 			{
-				g.fillAll(Colour(0xFF333333));
-				g.fillAll(Colours::white.withAlpha(0.05f));
+				g.fillAll(Colour(0xFF444444));
+				//g.fillAll(Colours::white.withAlpha(0.05f));
 				g.setColour(Colours::white.withAlpha(0.7f));
 				g.fillPath(searchPath);
 			}
@@ -913,7 +1186,8 @@ public:
 		};
 
 
-		class MarkdownDatabaseTreeview : public Component
+		class MarkdownDatabaseTreeview : public Component,
+										 public MarkdownDatabaseHolder::DatabaseListener
 		{
 		public:
 
@@ -947,10 +1221,13 @@ public:
 
 				bool mightContainSubItems() override { return !item.children.isEmpty(); }
 
-				String getUniqueName() const override { return item.url; }
+				String getUniqueName() const override { return item.url.toString(MarkdownLink::UrlFull); }
 
 				void itemOpennessChanged(bool isNowOpen) override
 				{
+					if (item.isAlwaysOpen && !isNowOpen)
+						return;
+
 					clearSubItems();
 
 					if (isNowOpen)
@@ -960,7 +1237,18 @@ public:
 							if (c.tocString.isEmpty())
 								continue;
 
-							addSubItem(new Item(c, previewParent));
+							auto i = new Item(c, previewParent);
+
+							addSubItem(i);
+
+							auto currentLink = previewParent.renderer.getLastLink();
+
+							const bool open = c.isAlwaysOpen || currentLink.isChildOf(c.url);
+
+							if (open)
+								i->setOpen(true);
+
+							
 						}
 						
 					}
@@ -970,10 +1258,10 @@ public:
 
 				MarkdownParser* getCurrentParser()
 				{
-					return previewParent.internalComponent.parser.get();
+					return &previewParent.renderer;
 				}
 
-				Item* selectIfURLMatches(const String& url)
+				Item* selectIfURLMatches(const MarkdownLink& url)
 				{
 					if (item.url == url)
 					{
@@ -995,6 +1283,9 @@ public:
 					{
 						previewParent.currentSearchResults = nullptr;
 
+						previewParent.renderer.gotoLink(item.url.withRoot(previewParent.rootDirectory));
+
+#if 0
 						auto link = item.url.upToFirstOccurrenceOf("#", false, false);
 
 						if (p->getLastLink(true, false) != link)
@@ -1010,23 +1301,39 @@ public:
 
 							auto f2 = [mp, anchor, it]()
 							{
-								if (auto p = mp->internalComponent.parser.get())
-								{
-									if (anchor.isNotEmpty())
-										p->gotoLink(anchor);
+								if (anchor.isNotEmpty())
+									mp->renderer.gotoLink(anchor);
 
-									it->setSelected(true, true);
-								}
+								it->setSelected(true, true);
 							};
 
 							MessageManager::callAsync(f2);
 						}
+#endif
 					}
 				}
 
 				void itemClicked(const MouseEvent& e)
 				{
-					gotoLink();
+					if (e.mods.isRightButtonDown())
+					{
+						PopupLookAndFeel plaf;
+						PopupMenu m;
+						m.setLookAndFeel(&plaf);
+
+						previewParent.addEditingMenuItems(m);
+
+						int result = m.show();
+
+						if (previewParent.performPopupMenuForEditingIcons(result, item.url))
+							return;
+					}
+					else
+					{
+						gotoLink();
+					}
+
+					
 				}
 
 			bool canBeSelected() const override
@@ -1036,7 +1343,7 @@ public:
 
 			int getItemHeight() const override
 			{
-				return 24.0f;
+				return 26.0f;
 			}
 
 			int getItemWidth() const 
@@ -1060,7 +1367,12 @@ public:
 
 			void paintItem(Graphics& g, int width, int height)
 			{
+
+				
+
 				Rectangle<float> area({ 0.0f, 0.0f, (float)width, (float)height });
+
+				
 
 				if (isSelected())
 				{
@@ -1083,6 +1395,24 @@ public:
 
 				g.setFont(f);
 
+				
+
+				if (!item.icon.isEmpty())
+				{
+					if (auto globalPath = previewParent.getTypedImageProvider<MarkdownParser::GlobalPathProvider>())
+					{
+						auto img = globalPath->getImage({ previewParent.rootDirectory, item.icon }, (float)height - 4.0f);
+
+						auto pArea = area.removeFromLeft((float)height).reduced(4.0f);
+
+						area.removeFromLeft(5.0f);
+
+						g.drawImageAt(img, pArea.getX(), pArea.getY());
+					}
+
+					
+				}
+
 				g.drawText(item.tocString, area, Justification::centredLeft);
 			}
 
@@ -1093,18 +1423,32 @@ public:
 		MarkdownDatabaseTreeview(MarkdownPreview& parent_):
 			parent(parent_)
 		{
+			parent.getHolder().addDatabaseListener(this);
 			addAndMakeVisible(tree);
+
+			tree.setColour(TreeView::ColourIds::backgroundColourId, Colour(0xFF222222));
+			tree.setColour(TreeView::ColourIds::selectedItemBackgroundColourId, Colours::transparentBlack);
+			tree.setColour(TreeView::ColourIds::linesColourId, Colours::red);
+			tree.setRootItemVisible(false);
+
+			tree.getViewport()->setScrollBarsShown(true, false);
+			databaseWasRebuild();
 		}
 
 		~MarkdownDatabaseTreeview()
 		{
+			parent.getHolder().removeDatabaseListener(this);
+
 			tree.setRootItem(nullptr);
 			rootItem = nullptr;
 		}
 
-		void scrollToLink(const String& l)
+		void scrollToLink(const MarkdownLink& l)
 		{
 			auto root = tree.getRootItem();
+
+			if (root == nullptr)
+				return;
 
 			bool found = false;
 
@@ -1121,15 +1465,22 @@ public:
 			}
 		}
 		
-
-		void setDatabase(MarkdownDataBase& database)
+		void databaseWasRebuild() override
 		{
-			tree.setColour(TreeView::ColourIds::backgroundColourId, Colour(0xFF222222));
-			tree.setColour(TreeView::ColourIds::selectedItemBackgroundColourId, Colours::transparentBlack);
-			tree.setColour(TreeView::ColourIds::linesColourId, Colours::red);
-			tree.setRootItemVisible(false);
-			tree.setRootItem(rootItem = new Item(database.rootItem, parent));
-			tree.getViewport()->setScrollBarsShown(true, false);
+			Component::SafePointer<MarkdownDatabaseTreeview> tmp(this);
+
+			auto f = [tmp]()
+			{
+				if (tmp.getComponent() == nullptr)
+					return;
+
+				auto t = tmp.getComponent();
+
+				t->tree.setRootItem(t->rootItem = new Item(t->parent.getHolder().getDatabase().rootItem, t->parent));
+				t->resized();
+			};
+
+			MessageManager::callAsync(f);
 		}
 
 		void openAll(TreeViewItem* item)
@@ -1150,9 +1501,9 @@ public:
 			item->setOpen(false);
 		}
 
-		bool closeIfNoMatch(TreeViewItem* item, const String& id)
+		bool closeIfNoMatch(TreeViewItem* item, const MarkdownLink& id)
 		{
-			if (item->getUniqueName() == id)
+			if (dynamic_cast<Item*>(item)->item.url == id)
 				return true;
 
 			item->setOpen(true);
@@ -1174,22 +1525,23 @@ public:
 
 		void setCurrentAnchor(const String& s)
 		{
-			if (auto p = parent.internalComponent.parser.get())
+			if (tree.getRootItem() == nullptr)
+				return;
+
+			auto nl = parent.renderer.getLastLink();
+
+			if (auto t = dynamic_cast<Item*>(tree.getRootItem())->selectIfURLMatches(nl.withAnchor(s)))
 			{
-				String nl = p->getLastLink(true, false);
-
-				nl << s;
-
-				if (auto t = dynamic_cast<Item*>(tree.getRootItem())->selectIfURLMatches(nl))
-				{
-					t->setSelected(true, true);
-					tree.scrollToKeepItemVisible(t);
-				}
+				t->setSelected(true, true);
+				tree.scrollToKeepItemVisible(t);
 			}
 		}
 
 		int getPreferredWidth() const
 		{
+			if (rootItem == nullptr)
+				return 300;
+
 			return jmax(300, tree.getRootItem()->getItemWidth());
 		}
 
@@ -1207,6 +1559,7 @@ public:
 		juce::TreeView tree;
 		ScopedPointer<Item> rootItem;
 		MarkdownPreview& parent;
+		MarkdownDataBase* db = nullptr;
 	};
 
 
@@ -1224,13 +1577,14 @@ public:
 
 	LookAndFeel_V3 laf;
 	
-	String lastText;
-	File lastFile;
+	MarkdownRenderer::LayoutCache layoutCache;
+	MarkdownRenderer renderer;
 
 	MarkdownDatabaseTreeview toc;
 	CustomViewport viewport;
 	InternalComponent internalComponent;
 	Topbar topbar;
+	File rootDirectory;
 	ScopedPointer<Topbar::SearchResults> currentSearchResults;
 };
 

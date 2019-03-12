@@ -35,9 +35,51 @@
 namespace hise {
 using namespace juce;
 
-class MarkdownRenderer : public MarkdownParser
+class MarkdownRenderer : public MarkdownParser,
+						 public ViewportWithScrollCallback::Listener
 {
 public:
+
+	struct NavigationAction : public UndoableAction
+	{
+		NavigationAction(MarkdownRenderer* renderer, const MarkdownLink& newLink):
+			currentLink(newLink),
+			parent(renderer)
+		{
+			lastLink = renderer->getLastLink();
+			lastY = renderer->currentY;
+		};
+
+		bool perform()
+		{
+			if (parent != nullptr)
+			{
+				parent->MarkdownParser::gotoLink(currentLink);
+				return true;
+			}
+
+			return false;
+		}
+
+		bool undo() override
+		{
+			if (parent != nullptr)
+			{
+				parent->MarkdownParser::gotoLink(lastLink);
+				parent->scrollToY(lastY);
+				return true;
+			}
+
+			return false;
+		}
+
+		float lastY = 0.0f;
+		
+		MarkdownLink lastLink;
+		MarkdownLink currentLink;
+		
+		WeakReference<MarkdownRenderer> parent;
+	};
 
 	struct LayoutCache
 	{
@@ -105,36 +147,29 @@ public:
 		firstDraw = false;
 	}
 
-	float getHeightForWidth(float width);
+	float getHeightForWidth(float width, bool forceUpdate=false);
 
 	void parse() override;
 
 	bool canNavigate(bool back) const
 	{
 		if (back)
-			return historyIndex < history.size();
+			return undoManager.canUndo();
 		else
-			return historyIndex < (history.size() - 1);
+			return undoManager.canRedo();
 	}
 
 	void navigate(bool back)
 	{
 		if (back)
-			historyIndex = jmax<int>(historyIndex - 1, 0);
+			undoManager.undo();
 		else
-			historyIndex = jmin<int>(historyIndex + 1, history.size() - 1);
-
-		setNewText(history[historyIndex]);
+			undoManager.redo();
 	}
 
-	void scrollToY(float y)
-	{
-		for (auto l : listeners)
-		{
-			if (l.get() != nullptr)
-				l->scrollToAnchor(y);
-		}
-	}
+	void jumpToCurrentAnchor();
+
+	
 
 	RectangleList<float> searchInContent(const String& searchString)
 	{
@@ -149,9 +184,7 @@ public:
 			y += e->getTopMargin();
 
 			for (auto r : e->searchResults)
-			{
 				positions.add(r.translated(0.0f, y));
-			}
 
 			y += e->getLastHeight();
 		}
@@ -159,9 +192,12 @@ public:
 		return positions;
 	}
 
+	void scrolled(Rectangle<int> visibleArea) override
+	{
+		currentY = (float)visibleArea.getY();
+	}
+
 	String getAnchorForY(int y) const;
-
-
 
 	String getSelectionContent() const
 	{
@@ -192,6 +228,12 @@ public:
 
 			y += h;
 		}
+	}
+
+	bool gotoLink(const MarkdownLink& url) override
+	{
+		undoManager.beginNewTransaction("New Link");
+		return undoManager.perform(new NavigationAction(this, url));
 	}
 
 	void addListener(Listener* l) { listeners.addIfNotAlreadyThere(l); }
@@ -226,6 +268,27 @@ public:
 		targetComponent = newTarget;
 	}
 
+	Component* getTargetComponent() const
+	{
+		return targetComponent.getComponent();
+	}
+
+	void updateHeight()
+	{
+		float y = currentY;
+
+		getHeightForWidth(lastWidth, true);
+		
+		for (auto l : listeners)
+		{
+			if (l != nullptr)
+				l->markdownWasParsed(getParseResult());
+		}
+
+		scrollToY(y);
+
+	}
+
 	void updateCreatedComponents()
 	{
 		if (targetComponent == nullptr)
@@ -246,28 +309,70 @@ public:
 				jassert(c->getHeight() > 0);
 
 				c->setTopLeftPosition(0, (int)y);
+
+				y += (float)e->getLastHeight();
+			}
+			else
+			{
+				y += e->getLastHeight();
 			}
 
-			y += e->getLastHeight();
+			
 		}
 	}
 
-	private:
+	bool navigateFromXButtons(const MouseEvent& e)
+	{
+		if (e.mods.isX1ButtonDown())
+		{
+			navigate(true);
+			return true;
+		}
+		if (e.mods.isX2ButtonDown())
+		{
+			navigate(false);
+			return true;
+		}
 
-		StringArray history;
-		int historyIndex;
+		false;
+	}
 
-		WeakReference<LayoutCache> layoutCache;
-		MarkdownLayout uncachedLayout;
+private:
 
-		Array<Component::SafePointer<Component>> createdComponents;
-		Component::SafePointer<Component> targetComponent;
+	float currentY;
 
-		Array<WeakReference<Listener>> listeners;
+	void scrollToY(float y)
+	{
+		auto f = [this, y]()
+		{
+			for (auto l : listeners)
+			{
+				if (l.get() != nullptr)
+					l->scrollToAnchor(y);
+			}
+		};
 
-		mutable bool firstDraw = true;
-		float lastHeight = -1.0f;
-		float lastWidth = -1.0f;
+		MessageManager::callAsync(f);
+	}
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(MarkdownRenderer);
+
+	UndoManager undoManager;
+
+	StringArray history;
+	int historyIndex;
+
+	WeakReference<LayoutCache> layoutCache;
+	MarkdownLayout uncachedLayout;
+
+	Array<Component::SafePointer<Component>> createdComponents;
+	Component::SafePointer<Component> targetComponent;
+
+	Array<WeakReference<Listener>> listeners;
+
+	mutable bool firstDraw = true;
+	float lastHeight = -1.0f;
+	float lastWidth = -1.0f;
 };
 
 

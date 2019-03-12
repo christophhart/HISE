@@ -37,7 +37,79 @@ using namespace juce;
 
 
 
-class DatabaseCrawler
+class MarkdownContentProcessor: public MarkdownDatabaseHolder::DatabaseListener
+{
+public:
+
+	MarkdownContentProcessor(MarkdownDatabaseHolder& holder_):
+		holder(holder_)
+	{
+		holder.addDatabaseListener(this);
+	}
+
+	virtual ~MarkdownContentProcessor()
+	{
+		holder.removeDatabaseListener(this);
+	}
+
+	virtual void databaseWasRebuild() {};
+
+	MarkdownDatabaseHolder& getHolder() { return holder; }
+
+	void clearResolvers()
+	{
+		imageProviders.clear();
+		linkResolvers.clear();
+	}
+
+	virtual void resolversUpdated() {}
+
+	void addLinkResolver(MarkdownParser::LinkResolver* resolver)
+	{
+		linkResolvers.addSorted(MarkdownParser::LinkResolver::Sorter(), resolver);
+	}
+
+	void addImageProvider(MarkdownParser::ImageProvider* provider)
+	{
+		imageProviders.addSorted(MarkdownParser::ImageProvider::Sorter(), provider);
+	}
+
+	template <class T> T* getTypedImageProvider()
+	{
+		for (auto ip : imageProviders)
+		{
+			if (auto t = dynamic_cast<T*>(ip))
+				return t;
+		}
+
+		return nullptr;
+	}
+
+	template <class T> T* getLinkResolver()
+	{
+		for (auto lr : linkResolvers)
+		{
+			if (auto t = dynamic_cast<T*>(lr))
+				return t;
+		}
+
+		return nullptr;
+	}
+
+protected:
+
+	OwnedArray<MarkdownParser::ImageProvider> imageProviders;
+	OwnedArray<MarkdownParser::LinkResolver> linkResolvers;
+
+private:
+
+	MarkdownDatabaseHolder& holder;
+	
+	JUCE_DECLARE_WEAK_REFERENCEABLE(MarkdownContentProcessor);
+
+};
+
+class DatabaseCrawler: public MarkdownContentProcessor
 {
 public:
 
@@ -62,8 +134,8 @@ public:
 		Provider(File root_, MarkdownParser* parent);
 
 		MarkdownParser::ResolveType getPriority() const override { return MarkdownParser::ResolveType::Cached; }
-		Image findImageRecursive(ValueTree& t, const String& url);
-		Image getImage(const String& url, float width) override;
+		Image findImageRecursive(ValueTree& t, const MarkdownLink& url, float width);
+		Image getImage(const MarkdownLink& url, float width) override;
 		Identifier getId() const override { RETURN_STATIC_IDENTIFIER("DatabaseImageProvider"); }
 		ImageProvider* clone(MarkdownParser* newParent) const override
 		{
@@ -84,11 +156,11 @@ public:
 
 		Resolver(File root);
 
-		String findContentRecursive(ValueTree& t, const String& url);
+		String findContentRecursive(ValueTree& t, const MarkdownLink& url);
 
 		MarkdownParser::ResolveType getPriority() const override { return MarkdownParser::ResolveType::Cached; }
 		Identifier getId() const override { RETURN_STATIC_IDENTIFIER("CompressedDatabaseResolver"); };
-		String getContent(const String& url) override;
+		String getContent(const MarkdownLink& url) override;
 		LinkResolver* clone(MarkdownParser* parent) const override
 		{
 			return new Resolver(root);
@@ -98,7 +170,7 @@ public:
 		SharedResourcePointer<Data> data;
 	};
 
-	DatabaseCrawler(MarkdownDataBase& database);;
+	DatabaseCrawler(MarkdownDatabaseHolder& holder);
 
 	void createContentTree();
 	void addImagesFromContent(float maxWidth = 1000.0f);
@@ -107,15 +179,9 @@ public:
 	void createImageTree();
 	void writeImagesToSubDirectory(File htmlDirectory);
 
-	void addLinkResolver(MarkdownParser::LinkResolver* resolver)
-	{
-		linkResolvers.addSorted(MarkdownParser::LinkResolver::Sorter(), resolver);
-	}
+	
 
-	void addImageProvider(MarkdownParser::ImageProvider* provider)
-	{
-		imageProviders.addSorted(MarkdownParser::ImageProvider::Sorter(), provider);
-	}
+	
 
 	void createDataFiles(File root, bool createImages);
 
@@ -131,7 +197,20 @@ public:
 		styleData = newStyleData;
 	}
 
+	void setProgressCounter(double* p)
+	{
+		progressCounter = p;
+	}
+
 private:
+
+	double* progressCounter = nullptr;
+
+	int totalLinks = 0;
+	int currentLink = 0;
+
+	int totalImages = 0;
+	int currentImage = 0;
 
 	MarkdownLayout::StyleData styleData;
 
@@ -159,9 +238,6 @@ private:
 
 	int numResolved = 0;
 	int numUnresolved = 0;
-
-	OwnedArray<MarkdownParser::LinkResolver> linkResolvers;
-	OwnedArray<MarkdownParser::ImageProvider> imageProviders;
 
 	MarkdownDataBase& db;
 };

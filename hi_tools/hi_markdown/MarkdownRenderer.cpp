@@ -34,9 +34,9 @@
 namespace hise {
 using namespace juce;
 
-float MarkdownRenderer::getHeightForWidth(float width)
+float MarkdownRenderer::getHeightForWidth(float width, bool forceUpdate/*=false*/)
 {
-	if (width == lastWidth)
+	if (width == lastWidth && !forceUpdate)
 		return lastHeight;
 
 	float height = 0.0f;
@@ -49,7 +49,7 @@ float MarkdownRenderer::getHeightForWidth(float width)
 		}
 
 		height += e->getTopMargin();
-		height += e->getHeightForWidthCached(width);
+		height += e->getHeightForWidthCached(width, forceUpdate);
 	}
 
 	lastWidth = width;
@@ -70,6 +70,23 @@ void MarkdownRenderer::parse()
 	{
 		if (l.get() != nullptr)
 			l->markdownWasParsed(getParseResult());
+	}
+}
+
+void MarkdownRenderer::jumpToCurrentAnchor()
+{
+	auto thisAnchor = getLastLink().toString(MarkdownLink::AnchorWithHashtag);
+
+	for (auto e : elements)
+	{
+		if (auto headLine = dynamic_cast<Headline*>(e))
+		{
+			if (thisAnchor == headLine->anchorURL)
+			{
+				scrollToY(headLine->anchorY);
+			}
+
+		}
 	}
 }
 

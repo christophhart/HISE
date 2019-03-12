@@ -35,67 +35,47 @@
 namespace hise {
 using namespace juce;
 
+struct ViewportWithScrollCallback : public Viewport
+{
+	class Listener
+	{
+	public:
+
+		virtual ~Listener() {}
+
+		virtual void scrolled(Rectangle<int> visibleArea) = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
+	};
+
+
+	void visibleAreaChanged(const Rectangle<int>& newVisibleArea) override
+	{
+		visibleArea = newVisibleArea;
+
+		for (int i = 0; i < listeners.size(); i++)
+		{
+			if (listeners[i].get() == nullptr)
+				listeners.remove(i--);
+			else
+				listeners[i]->scrolled(visibleArea);
+		}
+	}
+
+	void addListener(Listener* l) { listeners.addIfNotAlreadyThere(l); }
+	void removeListener(Listener* l) { listeners.removeAllInstancesOf(l); }
+
+	Array<WeakReference<Listener>> listeners;
+
+	Rectangle<int> visibleArea;
+};
+
 /** a simple markdown parser that renders markdown formatted code. */
 class MarkdownParser
 {
 public:
 	
-	struct YamlHeader
-	{
-		StringArray getKeywords()
-		{
-			checkValid();
-			return items[0].values;
-		}
-
-		String getDescription()
-		{
-			checkValid();
-			return items[1].values[0];
-		}
-
-		String getKeyValue(const String& key) const
-		{
-			for (const auto& item : items)
-			{
-				if (item.key == key)
-					return item.values[0];
-			}
-
-			return {};
-		}
-
-		StringArray getKeyList(const String& key) const
-		{
-			for (const auto& item : items)
-			{
-				if (item.key == key)
-					return item.values;
-			}
-
-			return {};
-		}
-
-		struct Item
-		{
-			String key;
-			StringArray values;
-		};
-
-		void checkValid()
-		{
-			if (items[0].key != "keywords")
-				throw String(items[0].key + "; expected: keywords");
-
-			if(items[1].key != "summary")
-				throw String(items[1].key + "; expected: summary");
-
-			if (items[1].values.size() != 1)
-				throw String("summary value not single string");
-		}
-
-		Array<Item> items;
-	};
+	
 
 	enum ResolveType
 	{
@@ -110,7 +90,7 @@ public:
 	{
 		bool valid = false;
 		Rectangle<float> area = {};
-		String url = {};
+		String url = {}; // TODO_LINK: Use markdown link
 		String tooltip;
 		String displayString;
 		Range<int> urlRange = {};
@@ -135,16 +115,18 @@ public:
 		};
 
 		virtual ~LinkResolver() {};
-		virtual String getContent(const String& url) = 0;
+		virtual String getContent(const MarkdownLink& url) = 0;
 		virtual LinkResolver* clone(MarkdownParser* parent) const = 0;
 		virtual Identifier getId() const = 0;
 		
+		virtual File getFileToEdit(const MarkdownLink& url) { return {}; };
+
 		virtual ResolveType getPriority() const = 0;
 
 		/** Overwrite this method and do something if the url matches, then return 
 		    true or false whether the resolver consumed this event. 
 		*/
-		virtual bool linkWasClicked(const String& url) 
+		virtual bool linkWasClicked(const MarkdownLink& url) 
 		{ 
 			return false; 
 		}
@@ -187,10 +169,35 @@ public:
 		*
 		*	The default function just returns a placeholder.
 		*/
-		virtual Image getImage(const String& /*imageURL*/, float width);
+		virtual Image getImage(const MarkdownLink& /*imageURL*/, float width);
 		virtual ImageProvider* clone(MarkdownParser* newParent) const { return new ImageProvider(newParent); }
 		virtual Identifier getId() const { RETURN_STATIC_IDENTIFIER("EmptyImageProvider"); };
 
+		void updateWidthFromURL(const MarkdownLink& url, float& widthToUpdate)
+		{
+			auto extraData = url.getExtraData();
+
+			if (extraData.isEmpty())
+				return;
+
+			float widthValue = widthToUpdate;
+
+			auto size = MarkdownLink::Helpers::getSizeFromExtraData(extraData);
+
+			if (size > 0.0)
+			{
+				widthValue = (float)size;
+				
+			}
+			else
+			{
+				widthValue *= (-1.0f * (float)size);
+			}
+
+			widthToUpdate = jmin(widthToUpdate, widthValue);
+			
+			return;
+		}
 
 
 		/** Helper function that makes sure that the image doesn't exceed the given width. */
@@ -202,6 +209,7 @@ public:
 
 	class DefaultLinkResolver;	class FileLinkResolver;			class FolderTocCreator;
 	class URLImageProvider;		class FileBasedImageProvider;	class GlobalPathProvider;
+	class PathDescriptionResolver;
 	
 	MarkdownParser(const String& markdownCode);
 
@@ -211,9 +219,9 @@ public:
 
 	void setTextColour(Colour c) { styleData.textColour = c; }
 
-	String resolveLink(const String& url);
+	String resolveLink(const MarkdownLink& url);
 
-	Image resolveImage(const String& imageUrl, float width);
+	Image resolveImage(const MarkdownLink& imageUrl, float width);
 
 	void setLinkResolver(LinkResolver* ownedResolver)
 	{
@@ -247,25 +255,25 @@ public:
 
 	void setDefaultTextSize(float fontSize);
 
-	String getCurrentText() const;
+	void setDatabaseHolder(MarkdownDatabaseHolder* holder_)
+	{
+		holder = holder_;
+	}
+	
+	String getCurrentText(bool includeMarkdownHeader=true) const;
 
-	String getLastLink(bool includeLink, bool includeAnchor) const 
+	MarkdownLink getLastLink() const 
 	{ 
-		String l;
-
-		if (includeLink)
-			l << lastLink;
-
-		if (includeAnchor)
-			l << lastAnchor;
-
-		return l;
+		return lastLink;
 	}
 
 	void setNewText(const String& newText);
-	bool gotoLink(const MouseEvent& event, Rectangle<float> area);
+	
+	String getLinkForMouseEvent(const MouseEvent& event, Rectangle<float> whatArea);
 
-	bool gotoLink(const String& url);
+	virtual void jumpToCurrentAnchor() {};
+
+	virtual bool gotoLink(const MarkdownLink& url);
 
 	StringArray getImageLinks() const;
 
@@ -289,6 +297,12 @@ public:
 		CodeEditorComponent::ColourScheme getDefaultColourScheme();
 	};
 
+	void clearResolvers()
+	{
+		imageProviders.clear();
+		linkResolvers.clear();
+	}
+
 	void setStyleData(MarkdownLayout::StyleData newStyleData)
 	{
 		styleData = newStyleData;
@@ -299,8 +313,17 @@ public:
 		}
 	}
 
+	MarkdownDatabaseHolder* getHolder() { return holder; }
+
 	MarkdownLayout::StyleData& getStyleData() { return styleData; }
 	
+	MarkdownHeader getHeader() const { return MarkdownHeader; }
+
+	void clearCurrentLink()
+	{
+		lastLink = {};
+	}
+
 protected:
 
 	struct Element
@@ -338,7 +361,7 @@ protected:
 			return cachedHeight;
 		}
 
-		float getHeightForWidthCached(float width);
+		float getHeightForWidthCached(float width, bool forceUpdate=false);
 
 		static void recalculateHyperLinkAreas(MarkdownLayout& l, Array<HyperLink>& links, float topMargin);
 
@@ -385,7 +408,7 @@ protected:
 
 	struct TextBlock;	struct Headline;		struct BulletPointList;		struct Comment;
 	struct CodeBlock;	struct MarkdownTable;	struct ImageElement;		struct EnumerationList;
-	struct ActionButton;
+	struct ActionButton; struct LiveCodeBlock;
 
 	struct CellContent
 	{
@@ -408,10 +431,13 @@ protected:
 
 private:
 
-	YamlHeader yamlHeader;
+	MarkdownDatabaseHolder* holder = nullptr;
 
-	String lastLink;
-	String lastAnchor;
+	friend class JavascriptCodeEditor;
+	
+	MarkdownHeader MarkdownHeader;
+
+	MarkdownLink lastLink;
 
     class Iterator
 	{
@@ -425,6 +451,7 @@ private:
 		bool advance(const String& stringToSkip);
 		bool next(juce::juce_wchar& c);
 		bool match(juce_wchar expected);
+		bool matchIf(juce_wchar expected);
 		void skipWhitespace();
 		String getRestString() const;
 		String advanceLine();
@@ -451,7 +478,7 @@ private:
 	void parseEnumeration();
 
 	void parseText(bool stopAtEndOfLine=true);
-	void parseYamlHeader();
+	void parseMarkdownHeader();
 	void parseBlock();
 	void parseJavascriptBlock();
 	void parseTable();
@@ -501,6 +528,6 @@ private:
 };
 
 
-
+class MarkdownHelpButton;
 
 }

@@ -119,7 +119,8 @@ END_JUCE_MODULE_DECLARATION
 #endif
 
 
-
+#include "hi_markdown/MarkdownHeader.h"
+#include "hi_markdown/MarkdownLink.h"
 #include "hi_markdown/MarkdownDatabase.h"
 #include "hi_markdown/MarkdownLayout.h"
 #include "hi_markdown/Markdown.h"
@@ -127,8 +128,7 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_markdown/MarkdownRenderer.h"
 #include "hi_markdown/MarkdownHtmlExporter.h"
 #include "hi_markdown/MarkdownDatabaseCrawler.h"
-#include "hi_markdown/MarkdownComponents.h"
-#include "hi_markdown/MarkdownPreview.h"
+
 
 #include "hi_tools/JavascriptTokeniser.h"
 #include "hi_tools/JavascriptTokeniserFunctions.h"

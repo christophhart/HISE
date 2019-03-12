@@ -48,7 +48,8 @@ class BackendProcessor;
 class BackendProcessor: public PluginParameterAudioProcessor,
 					    public AudioProcessorDriver,
 						public MainController,
-						public ProjectHandler::Listener
+						public ProjectHandler::Listener,
+						public MarkdownDatabaseHolder
 {
 public:
 	BackendProcessor(AudioDeviceManager *deviceManager_=nullptr, AudioProcessorPlayer *callback_=nullptr);
@@ -117,6 +118,16 @@ public:
 
 	const ModulatorSynthChain *getMainSynthChain() const override { return synthChain; }
 
+	void registerItemGenerators() override;
+	void registerContentProcessor(MarkdownContentProcessor* processor) override;
+	File getCachedDocFolder() const override;
+	File getDatabaseRootDirectory() const override;
+
+	void setDatabaseRootDirectory(File newDatabaseDirectory)
+	{
+		databaseRoot = newDatabaseDirectory;
+	}
+
 	/// @brief returns the number of PluginParameter objects, that are added in the constructor
     int getNumParameters() override
 	{
@@ -155,6 +166,8 @@ public:
 
 	void setEditorData(var editorState);
 private:
+
+	File databaseRoot;
 
 	MemoryBlock tempLoadingData;
 

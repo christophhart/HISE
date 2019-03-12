@@ -238,7 +238,9 @@ void MidiPlayerEditor::resized()
 
 juce::Path MidiPlayerEditor::TransportPaths::createPath(const String& name) const
 {
-	auto url = HtmlGenerator::getSanitizedFilename(name);
+	auto url = MarkdownLink::Helpers::getSanitizedFilename(name);
+
+	ids.addIfNotAlreadyThere(url);
 
 	if (url == "start")
 	{
