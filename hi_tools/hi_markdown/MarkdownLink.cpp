@@ -356,6 +356,9 @@ hise::MarkdownHeader MarkdownLink::getHeaderFromFile(const File& rootDirectory, 
 
 bool MarkdownLink::fileExists(const File& rootDirectory) const noexcept
 {
+	if (type == WebContent)
+		return false;
+
 	if (type == Icon)
 		return false;
 
