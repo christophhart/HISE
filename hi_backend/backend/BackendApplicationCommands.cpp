@@ -242,36 +242,47 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	}
 	case MenuNewFile:
 		setCommandTarget(result, "New", true, false, 'N');
+		result.categoryName = "File";
 		break;
 	case MenuOpenFile:
 		setCommandTarget(result, "Open Archive", true, false, 'X', false);
+		result.categoryName = "File";
 		break;
 	case MenuSaveFile:
 		setCommandTarget(result, "Save Archive", true, false, 'S');
+		result.categoryName = "File";
 		break;
 	case MenuSaveFileAs:
 		setCommandTarget(result, "Save As Archive", true, false, 'X', false);
+		result.categoryName = "File";
 		break;
 	case MenuSaveFileAsXmlBackup:
 		setCommandTarget(result, "Save as XML", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
+		result.categoryName = "File";
 		break;
 	case MenuOpenXmlBackup:
 		setCommandTarget(result, "Open XML", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'O');
+		result.categoryName = "File";
 		break;
 	case MenuProjectNew:
 		setCommandTarget(result, "Create new Project folder", true, false, 'X', false);
+		result.categoryName = "File";
 		break;
 	case MenuProjectLoad:
 		setCommandTarget(result, "Load Project", true, false, 'X', false);
+		result.categoryName = "File";
 		break;
 	case MenuCloseProject:
 		setCommandTarget(result, "Close Project", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
+		result.categoryName = "File";
 		break;
 	case MenuFileArchiveProject:
 		setCommandTarget(result, "Archive Project", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
+		result.categoryName = "File";
 		break;
 	case MenuFileDownloadNewProject:
 		setCommandTarget(result, "Download archived Project", true, false, 'X', false);
+		result.categoryName = "File";
 		break;
 	case MenuProjectShowInFinder:
 #if JUCE_WINDOWS
@@ -280,39 +291,51 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Show Project folder in Finder",
 #endif
         GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
+		result.categoryName = "File";
 		break;
     case MenuFileSaveUserPreset:
         setCommandTarget(result, "Save current state as new User Preset", true, false, 'X', false);
+		result.categoryName = "File";
         break;
     case MenuExportFileAsPlugin:
         setCommandTarget(result, "Export as Instrument (VSTi / AUi) plugin", true, false, 'X', false);
+		result.categoryName = "Export";
         break;
 	case MenuExportFileAsEffectPlugin:
 		setCommandTarget(result, "Export as FX plugin", true, false, 'X', false);
+		result.categoryName = "Export";
 		break;
 	case MenuExportFileAsStandaloneApp:
 		setCommandTarget(result, "Export as Standalone Application", true, false, 'X', false);
+		result.categoryName = "Export";
 		break;
 	case MenuExportFileAsPlayerLibrary:
 		setCommandTarget(result, "Export as HISE Player Library", true, false, 'X', false);
+		result.categoryName = "Export";
 		break;
 	case MenuExportFileAsSnippet:
 		setCommandTarget(result, "Export as HISE Snippet", true, false, 'X', false);
+		result.categoryName = "Export";
 		break;
 	case MenuFileCreateRecoveryXml:
 		setCommandTarget(result, "Create recovery XML from HIP", true, false, 'x', false);
+		result.categoryName = "File";
 		break;
 	case MenuExportSampleDataForInstaller:
 		setCommandTarget(result, "Export Samples for Installer", true, false, 'X', false);
+		result.categoryName = "Export";
 		break;
 	case MenuExportCompileFilesInPool:
 		setCommandTarget(result, "Export Pooled Files to Binary Resource", true, false, 'X', false);
+		result.categoryName = "Export";
 		break;
 	case MenuFileSettingsPreset:
 		setCommandTarget(result, "Preset Properties", true, false, 'X', false);
+		
 		break;
 	case MenuFileSettingsProject:
 		setCommandTarget(result, "Preferences", true, false, 'X', false);
+		result.categoryName = "File";
 		break;
 	case MenuFileSettingsUser:
 		setCommandTarget(result, "User Settings", true, false, 'X', false);
@@ -325,23 +348,30 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuFileSettingsCleanBuildDirectory:
 		setCommandTarget(result, "Clean Build directory", true, false, 'X', false);
+		result.categoryName = "Export";
 		break;
 	case MenuReplaceWithClipboardContent:
 		setCommandTarget(result, "Import HISE Snippet", true, false, 'X', false);
+		result.categoryName = "File";
 		break;
 	case MenuFileQuit:
 		setCommandTarget(result, "Quit", true, false, 'X', false); break;
+		result.categoryName = "File";
 	case MenuEditUndo:
 		setCommandTarget(result, "Undo: " + bpe->owner->getControlUndoManager()->getUndoDescription(), bpe->owner->getControlUndoManager()->canUndo(), false, 'Z', true, ModifierKeys::commandModifier);
+		result.categoryName = "Edit";
 		break;
 	case MenuEditRedo:
 		setCommandTarget(result, "Redo: " + bpe->owner->getControlUndoManager()->getRedoDescription(), bpe->owner->getControlUndoManager()->canRedo(), false, 'Y', true, ModifierKeys::commandModifier);
+		result.categoryName = "Edit";
 		break;
 	case MenuEditCopy:
 		setCommandTarget(result, "Copy", currentCopyPasteTarget.get() != nullptr, false, 'C');
+		result.categoryName = "Edit";
 		break;
 	case MenuEditPaste:
 		setCommandTarget(result, "Paste", currentCopyPasteTarget.get() != nullptr, false, 'V');
+		result.categoryName = "Edit";
 		break;
 	case MenuEditMoveUp:
 		setCommandTarget(result, "Move up", currentCopyPasteTarget.get() != nullptr, false, 'X', false);
@@ -353,9 +383,11 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuEditCreateScriptVariable:
 		setCommandTarget(result, "Create script variable", currentCopyPasteTarget.get() != nullptr, false, 'C', true, ModifierKeys::commandModifier | ModifierKeys::shiftModifier);
+		result.categoryName = "Edit";
 		break;
 	case MenuEditCreateBase64State:
 		setCommandTarget(result, "Create Base64 encoded state", currentCopyPasteTarget.get() != nullptr, false, 'C', false);
+		result.categoryName = "Edit";
 		break;
     case MenuEditPlotModulator:
         {
@@ -383,6 +415,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 
     case MenuEditCloseAllChains:
         setCommandTarget(result, "Close all chains", clipBoardNotEmpty(), false, 'X', false);
+		result.categoryName = "Edit";
         break;
 	case MenuToolsCreateInterface:
 		setCommandTarget(result, "Create User Interface", true, false, 'X', false);
@@ -390,119 +423,156 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsRecompile:
                          setCommandTarget(result, "Recompile all scripts", true, false, 'X', false);
                          result.addDefaultKeypress(KeyPress::F5Key, ModifierKeys::shiftModifier);
+						 result.categoryName = "Tools";
         break;
 	case MenuToolsSetCompileTimeOut:
 		setCommandTarget(result, "Change compile time out duration", true, false, 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsUseBackgroundThreadForCompile:
 		setCommandTarget(result, "Use background thread for script compiling", true, bpe->getBackendProcessor()->isUsingBackgroundThreadForCompiling(), 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsEnableCallStack:
 		setCommandTarget(result, "Enable Scripting Call Stack ", true, bpe->getBackendProcessor()->isCallStackEnabled(), 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsCheckCyclicReferences:
 		setCommandTarget(result, "Check Javascript objects for cyclic references", true, false, 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsRecompileScriptsOnReload:
 		setCommandTarget(result, "Recompile all scripts on preset load", true, bpe->getBackendProcessor()->isCompilingAllScriptsOnPresetLoad(), 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsCreateToolbarPropertyDefinition:
 		setCommandTarget(result, "Create default Toolbar JSON definition", true, false, 'X', false);
 		break;
 	case MenuToolsCreateExternalScriptFile:
 		setCommandTarget(result, "Create external script file", true, false, 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsCreateUIDataFromDesktop:
 		setCommandTarget(result, "Copy UI Data from Desktop", Helpers::canCopyDeviceType(bpe), Helpers::deviceTypeHasUIData(bpe), 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsCheckDeviceSanity:
 		setCommandTarget(result, "Check Sanity for defined Devices", true, false, 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsValidateUserPresets:
 		setCommandTarget(result, "Validate User Presets", true, false, 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsDeleteMissingSamples:
 		setCommandTarget(result, "Delete missing samples", true, false, 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsResolveMissingSamples:
 		setCommandTarget(result, "Resolve missing samples", true, false, 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsGetMissingSampleList:
 		setCommandTarget(result, "Copy list of missing samples to clipboard", true, false, 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsCheckAllSampleMaps:
 		setCommandTarget(result, "Check all sample maps", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsImportArchivedSamples:
 		setCommandTarget(result, "Import archived samples", true, false, 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsCollectExternalFiles:
 		setCommandTarget(result, "Collect external files into Project folder", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsCheckUnusedImages:
 		setCommandTarget(result, "Check for unreferenced images", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
+		result.categoryName = "Tools";
 		break;
     
 	case MenuToolsRedirectScriptFolder:
 		setCommandTarget(result, "Redirect script folder", true, false, 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsForcePoolSearch:
 		setCommandTarget(result, "Force duplicate search in pool when loading samples", true, bpe->getBackendProcessor()->getSampleManager().getModulatorSamplerSoundPool()->isPoolSearchForced(), 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsConvertAllSamplesToMonolith:
 		setCommandTarget(result, "Convert all samples to Monolith + Samplemap", true, false, 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsConvertSampleMapToWavetableBanks:
 		setCommandTarget(result, "Convert samplemap to Wavetable Bank", true, false, 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsUpdateSampleMapIdsBasedOnFileName:
 		setCommandTarget(result, "Update SampleMap Ids based on file names", true, false, 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsConvertSfzToSampleMaps:
 		setCommandTarget(result, "Convert SFZ files to SampleMaps", true, false, 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsRemoveAllSampleMaps:
 		setCommandTarget(result, "Clear all Samplemaps", true, false, 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsUnloadAllAudioFiles:
 		setCommandTarget(result, "Unload all audio files", true, false, 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsEnableDebugLogging:
 		setCommandTarget(result, "Enable Debug Logger", true, bpe->owner->getDebugLogger().isLogging(), 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsRecordOneSecond:
 		setCommandTarget(result, "Record one second audio file", true, false, 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsCreateRSAKeys:
 		setCommandTarget(result, "Create RSA Key pair", true, false, 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuToolsCreateDummyLicenseFile:
 		setCommandTarget(result, "Create Dummy License File", true, false, 'X', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuViewReset:
 		setCommandTarget(result, "Reset Workspaces", true, false, 'X', false);
+		result.categoryName = "View";
 		break;
     case MenuViewFullscreen:
         setCommandTarget(result, "Toggle Fullscreen", true, bpe->isFullScreenMode(), 'X', false);
+		result.categoryName = "View";
         break;
 	case MenuViewBack:
 		setCommandTarget(result, "Back: " + bpe->mainEditor->getViewUndoManager()->getUndoDescription(), bpe->mainEditor->getViewUndoManager()->canUndo(), false, 'X', false);
+		result.categoryName = "View";
 		break;
 	case MenuViewForward:
 		setCommandTarget(result, "Forward: " + bpe->mainEditor->getViewUndoManager()->getRedoDescription(), bpe->mainEditor->getViewUndoManager()->canRedo(), false, 'X', false);
+		result.categoryName = "View";
 		break;
 	case MenuViewEnableGlobalLayoutMode:
 		setCommandTarget(result, "Enable Layout Mode", true, bpe->getRootFloatingTile()->isLayoutModeEnabled(), 'X', false);
 		result.addDefaultKeypress(KeyPress::F6Key, ModifierKeys::noModifiers);
+		result.categoryName = "View";
 		break;
 	case MenuViewAddFloatingWindow:
 		setCommandTarget(result, "Add floating window", true, false, 'x', false);
+		result.categoryName = "View";
 		break;
 	case MenuViewAddInterfacePreview:
 		setCommandTarget(result, "Add Interface preview", true, false, 'x', false);
+		result.categoryName = "View";
 		break;
 	case MenuViewEnableOpenGL:
 		setCommandTarget(result, "Enable Open GL rendering", true, dynamic_cast<GlobalSettingManager*>(bpe->getBackendProcessor())->useOpenGL, 'x', false);
+		result.categoryName = "View";
 		break;
 	case MenuOneColumn:
 		setCommandTarget(result, "One Column", true, currentColumnMode == OneColumn, '1', true, ModifierKeys::altModifier);
@@ -540,16 +610,20 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
     case MenuToolsCheckDuplicate:
         setCommandTarget(result, "Check duplicate IDs", true, false, 'X', false);
+		result.categoryName = "Tools";
         break;
     case MenuToolsClearConsole:
         setCommandTarget(result, "Clear Console", true, false, 'X', false);
+		result.categoryName = "Tools";
         break;
 	case MenuHelpShowAboutPage:
 		setCommandTarget(result, "About HISE", true, false, 'X', false);
+		result.categoryName = "Help";
 
 		break;
     case MenuHelpCheckVersion:
         setCommandTarget(result, "Check for newer version", true, false, 'X', false);
+		result.categoryName = "Help";
         break;
             
 	default:					jassertfalse; return;

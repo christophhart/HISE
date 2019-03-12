@@ -57,7 +57,7 @@ public:
 
 	/** set the given panel to the content and returns true on success. */
 
-	template <typename ContentType> int setNewContentType(int index)
+	template <typename ContentType> bool setNewContentType(int index)
 	{
 		auto panelToUse = createdComponents[index].getComponent();
 

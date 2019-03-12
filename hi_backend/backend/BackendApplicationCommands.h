@@ -203,7 +203,8 @@ public:
 
 	virtual ~BackendCommandTarget()
 	{
-		mainCommandManager->setFirstCommandTarget(nullptr);
+		if(mainCommandManager != nullptr)
+			mainCommandManager->setFirstCommandTarget(nullptr);
 
 		CopyPasteTarget::setHandlerFunction(nullptr);
 	};

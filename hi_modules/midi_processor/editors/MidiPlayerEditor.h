@@ -48,6 +48,8 @@ public:
 
 	class TransportPaths : public PathFactory
 	{
+		String getId() const override { return "MIDI Tranport"; }
+
 		Path createPath(const String& name) const override;
 	};
 

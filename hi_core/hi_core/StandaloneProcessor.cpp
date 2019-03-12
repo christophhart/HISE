@@ -292,6 +292,9 @@ void AudioProcessorDriver::updateMidiToggleList(MainController* mc, ToggleButton
 
 juce::BigInteger AudioProcessorDriver::getMidiInputState() const
 {
+	if (deviceManager == nullptr)
+		return 0;
+
 	BigInteger state = 0;
 
 	

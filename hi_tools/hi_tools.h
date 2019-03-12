@@ -80,9 +80,16 @@ END_JUCE_MODULE_DECLARATION
 #endif
 
 
+
 #if HISE_HEADLESS
+#ifndef ASSERT_STRICT_PROCESSOR_STRUCTURE
+#define ASSERT_STRICT_PROCESSOR_STRUCTURE(x) 
+#endif
 #define IF_NOT_HEADLESS(x) 
 #else
+#ifndef ASSERT_STRICT_PROCESSOR_STRUCTURE
+#define ASSERT_STRICT_PROCESSOR_STRUCTURE(x) jassert(x);
+#endif
 #define IF_NOT_HEADLESS(x) x
 #endif
 
@@ -98,6 +105,7 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_tools/UpdateMerger.h"
 #include "hi_tools/MiscToolClasses.h"
 
+#include "hi_tools/PathFactory.h"
 #include "hi_tools/HI_LookAndFeels.h"
 
 #include "hi_tools/VariantBuffer.h"

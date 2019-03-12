@@ -60,28 +60,20 @@ void HiseModuleDatabase::CommonData::Data::addFromFactory(FactoryType* f)
 	}
 }
 
-juce::String HiseModuleDatabase::CommonData::getProcessorIdFromURL(const String& url, bool forceModuleWildcard, String idPrefix)
+juce::String HiseModuleDatabase::CommonData::getProcessorIdFromURL(const MarkdownLink& url)
 {
-	if (idPrefix.isEmpty())
-		idPrefix = "/";
-
-	if (!forceModuleWildcard || url.startsWith(moduleWildcard))
-	{
-		return url.fromLastOccurrenceOf(idPrefix, false, false).upToLastOccurrenceOf(".", false, false);
-	}
-
-	return {};
+	return url.toString(MarkdownLink::UrlSubPath);
 }
 
-hise::Processor* HiseModuleDatabase::CommonData::getProcessorForURL(const String& url, bool forceModuleWildcard, String prefix)
+hise::Processor* HiseModuleDatabase::CommonData::getProcessorForURL(const MarkdownLink& url)
 {
-	auto id = getProcessorIdFromURL(url, forceModuleWildcard, prefix);
+	auto id = getProcessorIdFromURL(url);
 
 	if (id.isNotEmpty())
 	{
 		for (auto p : data->allProcessors)
 		{
-			auto sanitizedId = HtmlGenerator::getSanitizedFilename(p->getName());
+			auto sanitizedId = MarkdownLink::Helpers::getSanitizedFilename(p->getType().toString());
 
 			if (sanitizedId == id)
 				return p;
@@ -98,26 +90,42 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createItemForPro
 	newItem.tocString << p->getName();
 	newItem.type = MarkdownDataBase::Item::Keyword;
 	newItem.keywords.add(p->getName());
+	newItem.description = p->getDescription();
+	
 
 	newItem.c = p->getColour();
-	newItem.url << parent.url << "/" << HtmlGenerator::getSanitizedFilename(p->getName()) << ".md";
-	newItem.fileName = p->getName();
+	newItem.url = parent.url.getChildUrl(p->getType().toString());
+
+	auto f = newItem.url.getMarkdownFile(rootDirectory);
+
+	if (f.existsAsFile())
+	{
+		MarkdownParser::createDatabaseEntriesForFile(rootDirectory, newItem, f, newItem.c);
+	}
+
+	MarkdownDataBase::Item pItem;
+
+	pItem.type = MarkdownDataBase::Item::Headline;
+	pItem.tocString << "Parameters";
+	pItem.url = newItem.url.getChildUrl("parameters", true);
+	pItem.c = newItem.c;
+
+	newItem.children.add(pItem);
+	
 
 	return newItem;
 }
 
-hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createItemForFactory(FactoryType* owned, const String& factoryName, const MarkdownDataBase::Item& parent)
+hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createItemForFactory(FactoryType* owned, const String& factoryName, MarkdownDataBase::Item& parent)
 {
 	ScopedPointer<FactoryType> f = owned;
 
-	MarkdownDataBase::Item item;
-
-	item.tocString << factoryName;
-	item.url << parent.url << "/" << HtmlGenerator::getSanitizedFilename(factoryName);
-	item.fileName = factoryName;
-	item.type = MarkdownDataBase::Item::Folder;
-
 	auto n = f->getNumProcessors();
+
+	MarkdownDataBase::Item list;
+	list.url = parent.url.getChildUrl("list");
+	list.tocString = "List of " + factoryName;
+	list.keywords.add(factoryName);
 
 	for (int i = 0; i < n; i++)
 	{
@@ -126,31 +134,24 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createItemForFac
 		if (p->getDescription() == "deprecated")
 			continue;
 
-		item.c = p->getColour();
-
-		item.children.add(createItemForProcessor(p, item));
+		parent.c = p->getColour();
+		list.children.add(createItemForProcessor(p, list));
 	}
+	list.isAlwaysOpen = true;
+	list.children.sort(MarkdownDataBase::Item::Sorter());
+	
+	return list;
+}
 
-	item.children.sort(MarkdownDataBase::Item::Sorter());
+hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createItemForCategory(const String& categoryName, const MarkdownDataBase::Item& parent)
+{
+	MarkdownDataBase::Item item;
 
-	auto d = HtmlGenerator::getLocalFileForSanitizedURL(rootDirectory, item.url, File::findDirectories);
+	item.tocString << categoryName;
+	item.url = parent.url.getChildUrl(categoryName);
+	item.type = MarkdownDataBase::Item::Folder;
 
-	if (d.isDirectory())
-	{
-		auto readme = d.getChildFile("Readme.md");
-
-		if (readme.existsAsFile())
-		{
-
-			MarkdownDataBase::Item rItem;
-
-			MarkdownParser::createDatabaseEntriesForFile(rootDirectory, rItem, readme, item.c);
-
-			item.children.insert(0, rItem);
-		}
-	}
-
-
+	item.addTocChildren(rootDirectory);
 
 	return item;
 }
@@ -161,60 +162,74 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createRootItem(M
 
 	rootItem.type = MarkdownDataBase::Item::Folder;
 	rootItem.tocString = "HISE Modules";
-	rootItem.url << moduleWildcard;
-	rootItem.fileName = rootItem.url;
-
+	rootItem.url = { rootDirectory, moduleWildcard };
+	
 	auto& bp = data->bp;
 
 	ScopedPointer<FactoryType> f = new ModulatorSynthChainFactoryType(NUM_POLYPHONIC_VOICES, bp.getMainSynthChain());
 
-	auto sg = createItemForFactory(new ModulatorSynthChainFactoryType(1, bp.getMainSynthChain()),
-		"Sound Generators", rootItem);
+	auto sg = createItemForCategory("Sound Generators", rootItem);
 
-	auto mp = createItemForFactory(new MidiProcessorFactoryType(bp.getMainSynthChain()), "MIDI Processors", rootItem);
+	auto sg2 = createItemForFactory(new ModulatorSynthChainFactoryType(1, bp.getMainSynthChain()),
+		"Sound Generators", sg);
 
+	sg.children.add(std::move(sg2));
 
+	rootItem.children.add(std::move(sg));
 
-	MarkdownDataBase::Item modItem;
-	modItem.tocString << "Modulators";
-	modItem.url << moduleWildcard << "/" << "modulators";
-	modItem.fileName = modItem.tocString;
-	modItem.type = MarkdownDataBase::Item::Folder;
+	auto mp = createItemForCategory("MIDI Processors", rootItem);
 
-	auto vs = createItemForFactory(new VoiceStartModulatorFactoryType(1, Modulation::GainMode, bp.getMainSynthChain()),
-		"Voice Start", modItem);
+	auto mp2 = createItemForFactory(new MidiProcessorFactoryType(bp.getMainSynthChain()), "MIDI Processors", mp);
+	mp.children.add(std::move(mp2));
+
+	rootItem.children.add(std::move(mp));
+
+	auto modItem = createItemForCategory("Modulators", rootItem);
+
+	
+	auto vs = createItemForCategory("Voice Start Modulators", modItem);
+
+	auto vs2 = createItemForFactory(new VoiceStartModulatorFactoryType(1, Modulation::GainMode, bp.getMainSynthChain()),
+		"Voice Start Modulators", vs);
+
+	vs.children.add(std::move(vs2));
+
+	vs.isAlwaysOpen = false;
 
 	modItem.children.add(vs);
 
-	auto tv = createItemForFactory(new TimeVariantModulatorFactoryType(Modulation::GainMode, bp.getMainSynthChain()),
-		"Time Variant", modItem);
+	auto tv = createItemForCategory("Time Variant Modulators", modItem);
 
-	modItem.children.add(tv);
+	auto tv2 = createItemForFactory(new TimeVariantModulatorFactoryType(Modulation::GainMode, bp.getMainSynthChain()),
+		"Time Variant Modulators", tv);
+
+	tv.children.add(std::move(tv2));
+	tv.isAlwaysOpen = false;
+
+	modItem.children.add(std::move(tv));
+	
 
 	auto em = createItemForFactory(new EnvelopeModulatorFactoryType(1, Modulation::GainMode, bp.getMainSynthChain()),
 		"Envelopes", modItem);
 
+	em.isAlwaysOpen = false;
+
 	modItem.children.add(em);
-
-
 	modItem.c = Colour(0xffbe952c);
 
 	for (auto& i : modItem.children)
 	{
-
 		i.c = modItem.c;
 
 		for (auto& s : i.children)
 			s.c = modItem.c;
 	}
-
-
-	auto poly = createItemForFactory(new EffectProcessorChainFactoryType(1, bp.getMainSynthChain()), "Effects", rootItem);
-
-	rootItem.children.add(std::move(sg));
-	rootItem.children.add(std::move(mp));
 	rootItem.children.add(std::move(modItem));
-	rootItem.children.add(std::move(poly));
+
+	auto fx = createItemForCategory("Effects", rootItem);
+	auto fx2 = createItemForFactory(new EffectProcessorChainFactoryType(1, bp.getMainSynthChain()), "Effects", fx);
+	fx.children.add(std::move(fx2));
+	rootItem.children.add(std::move(fx));
 
 	return rootItem;
 }
@@ -233,35 +248,78 @@ struct DummyProcessorDoc : public ProcessorDocumentation
 };
 
 
-juce::String HiseModuleDatabase::Resolver::getContent(const String& url)
+juce::String HiseModuleDatabase::Resolver::getContent(const MarkdownLink& url)
 {
-	if (auto p = getProcessorForURL(url, true, {}))
+	if (auto p = getProcessorForURL(url))
 	{
 		String s;
+
+		String fileContent;
+
 		NewLine nl;
 
-		s << "# " << p->getName() << nl;
+		auto f = url.getMarkdownFile(root);
+
+
+		if (!f.existsAsFile() && MessageManager::getInstance()->isThisTheMessageThread())
+		{
+			if (PresetHandler::showYesNoWindow("Create file", "Do you want to create a file for this module"))
+			{
+				f = MarkdownHeader::createEmptyMarkdownFileWithMarkdownHeader(f.getParentDirectory(), p->getType().toString(), p->getDescription());
+			}
+		}
+
+		MarkdownHeader header = url.getHeaderFromFile(root, false);
+
+		s << url.toString(MarkdownLink::ContentHeader, root);
+
 		s << "Type ID: `" << p->getType() << "`  " << nl;
 
-		s << "**" << p->getDescription() << "**  " << nl;
+		StringArray interfaces;
 
-		auto id = getProcessorIdFromURL(url, true, {});
+		if (dynamic_cast<SlotFX*>(p) != nullptr)
+			interfaces.add("SlotFX");
+		if (dynamic_cast<MidiPlayer*>(p) != nullptr)
+			interfaces.add("MidiPlayer");
+		if (dynamic_cast<ModulatorSampler*>(p) != nullptr)
+			interfaces.add("Sampler");
+		if (dynamic_cast<AudioSampleProcessor*>(p) != nullptr)
+			interfaces.add("AudioSampleProcessor");
+		if (dynamic_cast<LookupTableProcessor*>(p) != nullptr)
+			interfaces.add("TableProcessor");
+		if (dynamic_cast<SliderPackProcessor*>(p) != nullptr)
+			interfaces.add("SliderPackProcessor");
+		if (dynamic_cast<RoutableProcessor*>(p) != nullptr)
+			interfaces.add("RoutingMatrix");
+		
+		if (interfaces.size() > 0)
+		{
+			s << "Interface classes: ";
+
+			MarkdownLink iLink(root, ScriptingApiDatabase::apiWildcard);
+
+			for (auto i : interfaces)
+			{
+				//s << iLink.getChildUrl(i).toString(MarkdownLink::FormattedLinkMarkdown);
+
+				s << "[`" << i << "`](/scripting/scripting-api/" << MarkdownLink::Helpers::getSanitizedFilename(i) << ") ";
+			}
+
+			s << " \n";
+		}
+
+		s << "> **" << header.getDescription() << "**  " << nl << nl;
+
+		auto id = getProcessorIdFromURL(url);
 
 		s << "![](/images/module_screenshot_" << id << ".png)  " << nl;
 
-		auto f = HtmlGenerator::getLocalFileForSanitizedURL(root, url.replace(".md", ""), File::findFiles, "*.md");
-
-		if (f.existsAsFile())
-		{
-			s << f.loadFileAsString() << nl;
-		}
+		s << url.toString(MarkdownLink::ContentWithoutHeader);
 
 		ScopedPointer<ProcessorDocumentation> doc = p->createDocumentation();
 
 		if (doc == nullptr)
 			doc = new DummyProcessorDoc();
-
-		doc->fillMissingParameters(p);
 
 		if (ProcessorHelpers::is<ModulatorSynth>(p))
 		{
@@ -269,18 +327,44 @@ juce::String HiseModuleDatabase::Resolver::getContent(const String& url)
 				ModulatorSynth::numInternalChains);
 		}
 
+		doc->fillMissingParameters(p);
+		auto pList = header.getKeyList("parameters");
+
+		for (auto& p : doc->parameters)
+		{
+			if (p.helpText == "-")
+			{
+				auto id = p.id.toString();
+
+				for (const auto& s : pList)
+				{
+					if (s.startsWith(id))
+						p.helpText = s.fromFirstOccurrenceOf(":", false, false).trim();
+				}
+			}
+		}
+
+		auto cList = header.getKeyList("chains");
+
+		for (auto& c : doc->chains)
+		{
+			if (c.helpText == "-")
+			{
+				auto id = c.id.toString();
+
+				for (const auto& s : cList)
+				{
+					if (s.startsWith(id))
+						c.helpText = s.fromFirstOccurrenceOf(":", false, false).trim();
+				}
+			}
+		}
+
 		s << doc->createHelpText();
 
 		return s;
 	}
-	else if (url.contains(moduleWildcard))
-	{
-		auto f = HtmlGenerator::getLocalFileForSanitizedURL(root, url, File::findDirectories).getChildFile("Readme.md");
-
-		if (f.existsAsFile())
-			return f.loadFileAsString();
-	}
-
+	
 	return {};
 }
 
@@ -302,9 +386,14 @@ struct HiseModuleDatabase::ScreenshotProvider::RootWindow : public Component,
 HiseModuleDatabase::ScreenshotProvider::ScreenshotProvider(MarkdownParser* parent) :
 	ImageProvider(parent)
 {
-	w = new RootWindow(&data->bp);
+	{
+		MessageManagerLock mmLock;
 
-	w->setLookAndFeel(&laf);
+		w = new RootWindow(&data->bp);
+
+		w->setLookAndFeel(&laf);
+	}
+	
 	data->createAllProcessors();
 }
 
@@ -313,33 +402,55 @@ HiseModuleDatabase::ScreenshotProvider::~ScreenshotProvider()
 	delete w;
 }
 
-juce::Image HiseModuleDatabase::ScreenshotProvider::getImage(const String& url, float width)
+juce::Image HiseModuleDatabase::ScreenshotProvider::getImage(const MarkdownLink& url, float width)
 {
-	data->bp.getMainSynthChain()->setId("Autogenerated");
+	auto urlString = url.toString(MarkdownLink::UrlFull);
 
-	if (auto p = getProcessorForURL(url, false, "module_screenshot_"))
+	if (urlString.contains("module_screenshot_"))
 	{
-		ScopedPointer<ProcessorEditorContainer> c = new ProcessorEditorContainer();
+		auto pId = urlString.fromFirstOccurrenceOf("module_screenshot_", false, false).upToFirstOccurrenceOf(".png", false, false);
 
-		w->addAndMakeVisible(c);
+		MarkdownLink imageURL(url.getRoot(), pId);
 
-		p->setParentProcessor(data->bp.getMainSynthChain());
+		data->bp.getMainSynthChain()->setId("Autogenerated");
 
-		if (auto mod = dynamic_cast<Modulator*>(p))
-			mod->setColour(Colour(0xffbe952c));
+		if (auto p = getProcessorForURL(imageURL))
+		{
+			for (auto ci : data->cachedImage)
+			{
+				if (ci.url == url)
+					return ci.cachedImage;
+			}
 
-		p->setId(p->getName());
+			ScopedPointer<ProcessorEditorContainer> c = new ProcessorEditorContainer();
 
-		ScopedPointer<ProcessorEditor> editor = new ProcessorEditor(c, 1, p, nullptr);
+			w->addAndMakeVisible(c);
 
-		w->addAndMakeVisible(editor);
+			p->setParentProcessor(data->bp.getMainSynthChain());
 
-		editor->setLookAndFeel(&laf);
+			if (auto mod = dynamic_cast<Modulator*>(p))
+				mod->setColour(Colour(0xffbe952c));
 
-		return editor->createComponentSnapshot(editor->getLocalBounds());
+			p->setId(p->getName());
+
+			ScopedPointer<ProcessorEditor> editor = new ProcessorEditor(c, 1, p, nullptr);
+
+			w->addAndMakeVisible(editor);
+
+			editor->setLookAndFeel(&laf);
+
+			auto img = editor->createComponentSnapshot(editor->getLocalBounds());
+
+			data->cachedImage.add({ url, img });
+
+			return img;
+		}
 	}
+
+	
 
 	return {};
 }
+
 
 }
