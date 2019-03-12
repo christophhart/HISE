@@ -975,6 +975,8 @@ void ScriptContentPanel::Editor::Actions::undo(Editor * e, bool shouldUndo)
 	
 }
 
+
+
 bool ScriptContentPanel::Editor::keyPressed(const KeyPress& key)
 {
 	if (key == KeyPress::F4Key)
@@ -1022,22 +1024,42 @@ Component* ScriptWatchTablePanel::createContentComponent(int /*index*/)
 	return swt;
 }
 
+
+Array<PathFactory::KeyMapping> ScriptContentPanel::Factory::getKeyMapping() const
+{
+	Array<KeyMapping> km;
+
+	km.add({ "edit", KeyPress::F4Key });
+	km.add({ "editoff", KeyPress::F4Key });
+	km.add({ "cancel", KeyPress::escapeKey });
+	km.add({ "Compile", KeyPress::F5Key });
+	km.add({ "Rebuild", KeyPress::F5Key, ModifierKeys::commandModifier });
+	km.add({ "Zoom in", '+', ModifierKeys::commandModifier });
+	km.add({ "Zoom out", '-', ModifierKeys::commandModifier });
+	km.add({ "Undo", 'z', ModifierKeys::commandModifier });
+	km.add({ "Redo", 'y', ModifierKeys::commandModifier });
+
+	return km;
+}
+
+
 juce::Path ScriptContentPanel::Factory::createPath(const String& id) const
 {
-	auto url = HtmlGenerator::getSanitizedFilename(id);
+	auto url = MarkdownLink::Helpers::getSanitizedFilename(id);
+	Path p;
 
-	if (url == "edit")	return ColumnIcons::getPath(OverlayIcons::penShape, sizeof(OverlayIcons::penShape));
-	if (url == "editoff")return ColumnIcons::getPath(OverlayIcons::lockShape, sizeof(OverlayIcons::lockShape));
-	if (url == "cancel") return ColumnIcons::getPath(EditorIcons::cancelIcon, sizeof(EditorIcons::cancelIcon));
-	if (url == "undo")	return ColumnIcons::getPath(EditorIcons::undoIcon, sizeof(EditorIcons::undoIcon));
-	if (url == "redo")	return ColumnIcons::getPath(EditorIcons::redoIcon, sizeof(EditorIcons::redoIcon));
-	if (url == "rebuild")return ColumnIcons::getPath(ColumnIcons::moveIcon, sizeof(ColumnIcons::moveIcon));
-	if (url == "vertical-align") return ColumnIcons::getPath(ColumnIcons::verticalAlign, sizeof(ColumnIcons::verticalAlign));
-	if (url == "horizontal-align") return ColumnIcons::getPath(ColumnIcons::horizontalAlign, sizeof(ColumnIcons::horizontalAlign));
-	if (url == "vertical-distribute") return ColumnIcons::getPath(ColumnIcons::verticalDistribute, sizeof(ColumnIcons::verticalDistribute));
-	if (url == "horizontal-distribute") return ColumnIcons::getPath(ColumnIcons::horizontalDistribute, sizeof(ColumnIcons::horizontalDistribute));
+	LOAD_PATH_IF_URL("edit", OverlayIcons::penShape);
+	LOAD_PATH_IF_URL("editoff"				, OverlayIcons::lockShape);
+	LOAD_PATH_IF_URL("cancel"				, EditorIcons::cancelIcon);
+	LOAD_PATH_IF_URL("undo"				, EditorIcons::undoIcon);
+	LOAD_PATH_IF_URL("redo"				, EditorIcons::redoIcon);
+	LOAD_PATH_IF_URL("rebuild"				, ColumnIcons::moveIcon);
+	LOAD_PATH_IF_URL("vertical-align"		, ColumnIcons::verticalAlign);
+	LOAD_PATH_IF_URL("horizontal-align"	, ColumnIcons::horizontalAlign);
+	LOAD_PATH_IF_URL("vertical-distribute" , ColumnIcons::verticalDistribute);
+	LOAD_PATH_IF_URL("horizontal-distribute", ColumnIcons::horizontalDistribute);
 
-	return Path();
+	return p;
 }
 
 } // namespace hise

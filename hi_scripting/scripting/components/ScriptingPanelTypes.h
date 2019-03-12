@@ -94,7 +94,13 @@ public:
 	class Factory : public PathFactory
 	{
 	public:
+
+		String getId() const override { return "Canvas"; }
+
 		Path createPath(const String& id) const override;
+
+		Array<KeyMapping> getKeyMapping() const override;
+
 	};
 
 	struct Canvas;

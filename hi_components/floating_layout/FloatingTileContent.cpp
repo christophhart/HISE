@@ -822,4 +822,16 @@ hise::FloatingTileContent* FloatingTileContent::Factory::createFromId(const Iden
 	}
 }
 
+juce::Path FloatingTileContent::FloatingTilePathFactory::createPath(const String& id) const
+{
+	auto url = MarkdownLink::Helpers::getSanitizedFilename(id);
+
+	auto index = ids.indexOf(url);
+
+	if (index != -1)
+		return Factory::getPath(f.getIndex(index));
+
+	return {};
+}
+
 } // namespace hise

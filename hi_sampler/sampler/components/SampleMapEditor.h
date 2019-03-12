@@ -63,6 +63,60 @@ public:
 	{
 	public:
 		
+		Array<Description> getDescription() const override
+		{
+			Array<Description> dm;
+
+			dm.add({ "Zoom In", "Zoom in the sample map" });
+			dm.add({ "Zoom Out", "Zoom out the sample map" });
+			dm.add({ "New SampleMap", "Create a new SampleMap" });
+			dm.add({ "Load SampleMap", "Load a SampleMap from the pool." });
+			dm.add({ "Save SampleMap", "Save the current SampleMap" });
+			dm.add({ "Convert to Monolith", "Convert the current samplemap to HLAC monolith format" });
+			dm.add({ "Import SFZ file format", "Import SFZ file format" });
+			dm.add({ "Undo", "Undo the last operation" });
+			dm.add({ "Redo", "Redo the last operation" });
+			
+			dm.add({ "Duplicate", "Duplicate all selected samples" });
+			dm.add({ "Cut", "Cut selected samples"});
+			dm.add({ "Copy", "Copy samples to clipboard"});
+			dm.add({ "Paste", "Paste samples from clipboard" });
+			dm.add({ "Delete", "Delete all selected samples" });
+			dm.add({ "Select all Samples", "Select all Samples" });
+			dm.add({ "Deselect all Samples", "Deselect all Samples" });
+			dm.add({ "Fill Note Gaps", "Fill note gaps in SampleMap" });
+			dm.add({ "Fill Velocity Gaps", "Fill velocity gaps in SampleMap" });
+			dm.add({ "Automap Velocity", "Sort the sounds along the velocity range according to their volume" });
+			dm.add({ "Refresh Velocity Crossfades.", "Adds a crossfade to overlapping sounds in a group." });
+			dm.add({ "Trim Sample Start", "Removes the silence at the beginning of samples" });
+
+			return dm;
+		}
+
+		Array<KeyMapping> getKeyMapping() const override
+		{
+			Array<KeyMapping> km;
+
+			km.add({ "zoom-in", '+', ModifierKeys::commandModifier});
+			km.add({ "zoom-out", '-', ModifierKeys::commandModifier });
+			km.add({ "new-samplemap", 'n', ModifierKeys::commandModifier });
+			km.add({ "load-samplemap", 'l', ModifierKeys::commandModifier });
+			km.add({ "save-samplemap", 's', ModifierKeys::commandModifier });
+			km.add({ "undo", 'z', ModifierKeys::commandModifier });
+			km.add({ "redo", 'y', ModifierKeys::commandModifier });
+			km.add({ "duplicate", 'd', ModifierKeys::commandModifier });
+			km.add({ "cut", 'x', ModifierKeys::commandModifier });
+			km.add({ "copy", 'c', ModifierKeys::commandModifier });
+			km.add({ "paste", 'v', ModifierKeys::commandModifier });
+			km.add({ "delete", KeyPress::deleteKey });
+			km.add({ "select-all-samples", 'a', ModifierKeys::commandModifier });
+			km.add({ "deselect-all-samples", KeyPress::escapeKey });
+
+			return km;
+		}
+
+		String getId() const override { return "Sample Map Editor"; }
+
 		Path createPath(const String& name) const override;
 	};
 
@@ -692,6 +746,8 @@ private:
 	ScopedPointer<ComboBox> sampleMaps;
 
 	ScopedPointer<MarkdownHelpButton> warningButton;
+
+	Factory f;
 
 	bool followRRGroup = false;
 

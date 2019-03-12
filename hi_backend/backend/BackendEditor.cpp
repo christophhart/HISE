@@ -396,6 +396,8 @@ void BackendProcessorEditor::clearModuleList()
 MainTopBar::MainTopBar(FloatingTile* parent) :
 	FloatingTileContent(parent)
 {
+	MainToolbarFactory f;
+
 	addAndMakeVisible(hiseButton = new ImageButton("HISE"));
 
 	Image hise = ImageCache::getFromMemory(BinaryData::logo_mini_png, BinaryData::logo_mini_pngSize);
@@ -405,79 +407,57 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 	hiseButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::MenuHelpShowAboutPage, true);
 
 	addAndMakeVisible(backButton = new ShapeButton("Back", Colours::white.withAlpha(0.4f), Colours::white.withAlpha(0.8f), Colours::white));
-	ScopedPointer<DrawablePath> bPath = dynamic_cast<DrawablePath*>(MainToolbarFactory::MainToolbarPaths::createPath(BackendCommandTarget::MenuViewBack, true));
-	backButton->setShape(bPath->getPath(), false, true, true);
+	backButton->setShape(f.createPath("back"), false, true, true);
 	backButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::MenuViewBack, true);
 
 	parent->getRootFloatingTile()->addPopupListener(this);
 
 	addAndMakeVisible(forwardButton = new ShapeButton("Forward", Colours::white.withAlpha(0.4f), Colours::white.withAlpha(0.8f), Colours::white));
-	ScopedPointer<DrawablePath> fPath = dynamic_cast<DrawablePath*>(MainToolbarFactory::MainToolbarPaths::createPath(BackendCommandTarget::MenuViewForward, true));
-	forwardButton->setShape(fPath->getPath(), false, true, true);
+	forwardButton->setShape(f.createPath("forward"), false, true, true);
 	forwardButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::MenuViewForward, true);
 
 	addAndMakeVisible(macroButton = new ShapeButton("Macro Controls", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colours::white));
 	macroButton->setTooltip("Show 8 Macro Controls");
-	macroButton->setShape(FloatingTileContent::Factory::getPath(FloatingTileContent::Factory::PopupMenuOptions::MacroControls), false, true, true);
+	macroButton->setShape(f.createPath("Macro Controls"), false, true, true);
 	macroButton->addListener(this);
 
 	addAndMakeVisible(presetBrowserButton = new ShapeButton("Preset Browser", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colours::white));
 	presetBrowserButton->setTooltip("Show Preset Browser");
-	presetBrowserButton->setShape(FloatingTileContent::Factory::getPath(FloatingTileContent::Factory::PopupMenuOptions::PresetBrowser), false, true, true);
+	presetBrowserButton->setShape(f.createPath("Preset Browser"), false, true, true);
 	presetBrowserButton->addListener(this);
 
 	addAndMakeVisible(pluginPreviewButton = new ShapeButton("Plugin Preview", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colours::white));
 	pluginPreviewButton->setTooltip("Show Plugin Preview");
-	pluginPreviewButton->setShape(FloatingTileContent::Factory::getPath(FloatingTileContent::Factory::PopupMenuOptions::ScriptContent), false, true, true);
+	pluginPreviewButton->setShape(f.createPath("Plugin Preview"), false, true, true);
 	pluginPreviewButton->addListener(this);
 
 
 
 	addAndMakeVisible(mainWorkSpaceButton = new ShapeButton("Main Workspace", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colour(SIGNAL_COLOUR)));
 	mainWorkSpaceButton->setTooltip("Show Main Workspace");
-	mainWorkSpaceButton->setShape(FloatingTileContent::Factory::getPath(FloatingTileContent::Factory::PopupMenuOptions::numOptions), false, true, true);
+	mainWorkSpaceButton->setShape(f.createPath("Main Workspace"), false, true, true);
 	mainWorkSpaceButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::WorkspaceMain, true);
 
 	addAndMakeVisible(scriptingWorkSpaceButton = new ShapeButton("Scripting Workspace", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colour(SIGNAL_COLOUR)));
 	scriptingWorkSpaceButton->setTooltip("Show Scripting Workspace");
-	scriptingWorkSpaceButton->setShape(FloatingTileContent::Factory::getPath(FloatingTileContent::Factory::PopupMenuOptions::ScriptEditor), false, true, true);
+	scriptingWorkSpaceButton->setShape(f.createPath("Scripting Workspace"), false, true, true);
 	scriptingWorkSpaceButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::WorkspaceScript, true);
 
 	addAndMakeVisible(samplerWorkSpaceButton = new ShapeButton("Sampler Workspace", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colour(SIGNAL_COLOUR)));
-	samplerWorkSpaceButton->setTooltip("Show Scripting Workspace");
-	samplerWorkSpaceButton->setShape(FloatingTileContent::Factory::getPath(FloatingTileContent::Factory::PopupMenuOptions::SampleEditor), false, true, true);
+	samplerWorkSpaceButton->setTooltip("Show Sampler Workspace");
+	samplerWorkSpaceButton->setShape(f.createPath("Sampler Workspace"), false, true, true);
 	samplerWorkSpaceButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::WorkspaceSampler, true);
 
 	addAndMakeVisible(customWorkSpaceButton = new ShapeButton("Custom Workspace", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colour(SIGNAL_COLOUR)));
 	customWorkSpaceButton->setTooltip("Show Scripting Workspace");
-	customWorkSpaceButton->setShape(ColumnIcons::getPath(ColumnIcons::customizeIcon, sizeof(ColumnIcons::customizeIcon)), false, true, true);
+	customWorkSpaceButton->setShape(f.createPath("Custom Workspace"), false, true, true);
 	customWorkSpaceButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::WorkspaceCustom, true);
 	
 	addAndMakeVisible(peakMeter = new ProcessorPeakMeter(getRootWindow()->getMainSynthChain()));
 
 	addAndMakeVisible(settingsButton = new ShapeButton("Audio Settings", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colours::white));
 	settingsButton->setTooltip("Show Audio Settings");
-
-
-	static const unsigned char settings[] = { 110,109,8,103,132,67,84,212,84,67,98,3,255,131,67,84,212,84,67,159,170,131,67,25,125,85,67,159,170,131,67,73,77,86,67,98,159,170,131,67,64,29,87,67,3,255,131,67,99,198,87,67,8,103,132,67,99,198,87,67,98,22,207,132,67,99,198,87,67,219,34,133,67,65,29,
-		87,67,219,34,133,67,73,77,86,67,98,219,34,133,67,25,125,85,67,22,207,132,67,84,212,84,67,8,103,132,67,84,212,84,67,99,109,202,224,133,67,213,37,87,67,108,212,190,133,67,113,201,87,67,108,102,251,133,67,94,183,88,67,108,99,3,134,67,201,214,88,67,108,103,
-		175,133,67,194,126,89,67,108,156,37,133,67,152,252,88,67,108,205,211,132,67,201,63,89,67,108,72,170,132,67,255,61,90,67,108,251,164,132,67,189,95,90,67,108,70,46,132,67,189,95,90,67,108,230,250,131,67,206,64,89,67,108,24,169,131,67,83,253,88,67,108,244,
-		49,131,67,47,118,89,67,108,63,34,131,67,231,133,89,67,108,76,206,130,67,20,222,88,67,108,78,15,131,67,87,202,87,67,108,154,237,130,67,223,38,87,67,108,181,110,130,67,249,211,86,67,108,224,93,130,67,17,201,86,67,108,224,93,130,67,203,219,85,67,108,115,
-		237,130,67,230,116,85,67,108,39,15,131,67,149,209,84,67,108,195,210,130,67,37,227,83,67,108,202,202,130,67,221,195,83,67,108,161,30,131,67,46,28,83,67,108,156,168,131,67,31,158,83,67,108,79,250,131,67,146,90,83,67,108,203,35,132,67,127,92,82,67,108,37,
-		41,132,67,213,58,82,67,108,210,159,132,67,213,58,82,67,108,59,211,132,67,35,90,83,67,108,209,36,133,67,175,157,83,67,108,0,156,133,67,194,36,83,67,108,219,171,133,67,207,20,83,67,108,197,255,133,67,126,188,83,67,108,195,190,133,67,2,208,84,67,108,91,
-		224,133,67,178,115,85,67,108,156,95,134,67,170,198,85,67,108,86,112,134,67,93,209,85,67,108,86,112,134,67,143,190,86,67,108,203,224,133,67,208,37,87,67,99,109,112,6,129,67,84,140,74,67,98,83,76,128,67,84,140,74,67,176,106,127,67,74,186,75,67,176,106,
-		127,67,198,46,77,67,98,176,106,127,67,221,162,78,67,83,76,128,67,121,209,79,67,112,6,129,67,121,209,79,67,98,157,192,129,67,121,209,79,67,126,86,130,67,219,162,78,67,126,86,130,67,198,46,77,67,98,125,86,130,67,74,186,75,67,157,192,129,67,84,140,74,67,
-		112,6,129,67,84,140,74,67,99,109,80,170,131,67,54,178,78,67,108,142,109,131,67,240,214,79,67,108,238,217,131,67,161,128,81,67,108,60,232,131,67,213,184,81,67,108,248,81,131,67,94,229,82,67,108,110,91,130,67,127,252,81,67,108,17,201,129,67,181,116,82,
-		67,108,199,126,129,67,139,59,84,67,108,72,117,129,67,232,119,84,67,108,227,160,128,67,232,119,84,67,108,249,68,128,67,136,118,82,67,108,56,101,127,67,204,253,81,67,108,227,186,125,67,7,214,82,67,108,174,130,125,67,30,242,82,67,108,71,86,124,67,216,197,
-		81,67,108,230,62,125,67,127,216,79,67,108,75,198,124,67,9,180,78,67,108,58,0,123,67,183,31,78,67,108,253,195,122,67,60,12,78,67,108,253,195,122,67,182,99,76,67,108,194,197,124,67,158,171,75,67,108,93,62,125,67,105,135,74,67,108,68,102,124,67,205,220,
-		72,67,108,193,73,124,67,220,164,72,67,108,195,117,125,67,217,120,71,67,108,128,99,127,67,87,97,72,67,108,235,67,128,67,121,232,71,67,108,36,142,128,67,230,33,70,67,108,180,151,128,67,170,229,69,67,108,7,108,129,67,170,229,69,67,108,2,200,129,67,178,231,
-		71,67,108,251,89,130,67,144,96,72,67,108,56,47,131,67,52,136,71,67,108,149,75,131,67,177,107,71,67,108,184,225,131,67,180,151,72,67,108,105,109,131,67,168,132,74,67,108,132,169,131,67,133,169,75,67,108,50,141,132,67,247,61,76,67,108,30,171,132,67,23,
-		81,76,67,108,30,171,132,67,123,249,77,67,108,76,170,131,67,56,178,78,67,99,101,0,0 };
-
-	Path settingsPath;
-	settingsPath.loadPathFromData(settings, sizeof(settings));
-
-	settingsButton->setShape(settingsPath, false, true, true);
+	settingsButton->setShape(f.createPath("Settings"), false, true, true);
 	settingsButton->addListener(this);
 
 	addAndMakeVisible(layoutButton = new ShapeButton("Toggle Layout", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colour(SIGNAL_COLOUR)));

@@ -102,6 +102,8 @@ struct PoolTableHelpers
 {
 	class Factory : public PathFactory
 	{
+		String getId() const override { return "Pool Table Icons"; }
+
 		Path createPath(const String& name) const override;
 	};
 

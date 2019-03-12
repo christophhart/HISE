@@ -30,8 +30,7 @@
 *   ===========================================================================
 */
 
-#ifndef HI_LOOKANDFEELS_H_INCLUDED
-#define HI_LOOKANDFEELS_H_INCLUDED
+#pragma once
 
 namespace hise { using namespace juce;
 
@@ -1478,34 +1477,6 @@ private:
     static const int balanceKnob_pngSize;
 };
 
-/** A simple interface class. Give it a String and get a path back. */
-class PathFactory
-{
-public:
-    
-	struct GlobalPool: public DeletedAtShutdown
-	{
-		OwnedArray<PathFactory> allFactories;
-	};
-
-    PathFactory()
-	{
-
-	};
-            
-    virtual ~PathFactory() {};
-    virtual Path createPath(const String& id) const = 0;
-};
-
-#define REGISTER_PATH_FACTORY_AT_GLOBAL_POOL(className) className(){ registerPathFactory<className>(); }
-
-class ChainBarPathFactory : public PathFactory
-{
-public:
-
-	Path createPath(const String& id) const override;
-};
-
 class ChainBarButtonLookAndFeel: public LookAndFeel_V3
 {
 public:
@@ -1615,5 +1586,3 @@ private:
 };
 
 } // namespace hise
-
-#endif
