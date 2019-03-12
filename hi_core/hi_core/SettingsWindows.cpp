@@ -63,6 +63,7 @@ SettingWindows::SettingWindows(HiseSettings::Data& dataObject_) :
 	projectSettings("Project"),
 	developmentSettings("Development"),
 	audioSettings("Audio & Midi"),
+	docSettings("Documentation"),
 	allSettings("All"),
 	applyButton("Save"),
 	cancelButton("Cancel"),
@@ -70,6 +71,7 @@ SettingWindows::SettingWindows(HiseSettings::Data& dataObject_) :
 {
 	dataObject.addChangeListener(this);
 
+#if !IS_MARKDOWN_EDITOR
 	addAndMakeVisible(&projectSettings);
 	projectSettings.addListener(this);
 	projectSettings.setLookAndFeel(&tblaf);
@@ -78,10 +80,15 @@ SettingWindows::SettingWindows(HiseSettings::Data& dataObject_) :
 	developmentSettings.addListener(this);
 	developmentSettings.setLookAndFeel(&tblaf);
 
+	addAndMakeVisible(&docSettings);
+	docSettings.addListener(this);
+	docSettings.setLookAndFeel(&tblaf);
+
 #if IS_STANDALONE_APP
 	addAndMakeVisible(&audioSettings);
 	audioSettings.addListener(this);
 	audioSettings.setLookAndFeel(&tblaf);
+#endif
 #endif
 
 	addAndMakeVisible(&allSettings);
@@ -109,8 +116,6 @@ SettingWindows::SettingWindows(HiseSettings::Data& dataObject_) :
 	audioSettings.setRadioGroupId(1, dontSendNotification);
 
 	addAndMakeVisible(currentContent = new Content());
-
-	
 
 	addAndMakeVisible(&fuzzySearchBox);
 	fuzzySearchBox.addListener(this);
@@ -154,6 +159,7 @@ void SettingWindows::buttonClicked(Button* b)
 												HiseSettings::SettingFiles::OtherSettings});
 	if (b == &audioSettings)	   setContent({ HiseSettings::SettingFiles::AudioSettings,
 												HiseSettings::SettingFiles::MidiSettings});
+	if (b == &docSettings)		   setContent({ HiseSettings::SettingFiles::DocSettings });
 	
 	if (b == &applyButton)
 	{
@@ -187,9 +193,17 @@ void SettingWindows::resized()
 	auto left = area.removeFromLeft(120);
 
 	allSettings.setBounds(left.removeFromTop(40));
+
+#if IS_MARKDOWN_EDITOR
+	docSettings.setBounds(left.removeFromTop(40));
+#else
+
 	projectSettings.setBounds(left.removeFromTop(40));
 	developmentSettings.setBounds(left.removeFromTop(40));
+	docSettings.setBounds(left.removeFromTop(40));
 	audioSettings.setBounds(left.removeFromTop(40));
+	
+#endif
 
 	currentContent->setBounds(area.reduced(10));
 }
@@ -493,7 +507,7 @@ void SettingWindows::fillPropertyPanel(const Identifier& s, PropertyPanel& panel
 		{
 			auto n = pr->getName().removeCharacters(" ");
 
-			auto help = SettingDescription::getDescription(n);
+			auto help = HiseSettings::SettingDescription::getDescription(n);
 
 			if (help.isNotEmpty())
 			{
@@ -510,7 +524,7 @@ void SettingWindows::addProperty(ValueTree& c, Array<PropertyComponent*>& props)
 {
 	auto value = c.getPropertyAsValue("value", &undoManager);
 	auto type = c.getProperty("type").toString();
-	auto name = getUncamelcasedId(c.getType());
+	auto name = HiseSettings::ConversionHelpers::getUncamelcasedId(c.getType());
 	auto id = c.getType();
 
 	auto items = dataObject.getOptionsFor(id);
@@ -556,7 +570,7 @@ void SettingWindows::addProperty(ValueTree& c, Array<PropertyComponent*>& props)
 
 juce::String SettingWindows::getSettingNameToDisplay(const Identifier& s) const
 {
-	return getUncamelcasedId(getValueTree(s).getType());
+	return HiseSettings::ConversionHelpers::getUncamelcasedId(getValueTree(s).getType());
 }
 
 juce::ValueTree SettingWindows::getValueTree(const Identifier& s) const
