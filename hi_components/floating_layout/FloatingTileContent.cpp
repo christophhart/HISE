@@ -194,6 +194,13 @@ int FloatingTileContent::getFixedSizeForOrientation() const
 		return 0;
 }
 
+int FloatingTileContent::getPreferredHeight() const
+{
+
+	jassert(getParentShell()->getParentType() == FloatingTile::ParentType::Root);
+	return getFixedHeight();
+}
+
 struct FloatingPanelTemplates::Helpers
 {
 	static void addNewShellTo(FloatingTileContainer* parent)

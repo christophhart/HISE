@@ -666,11 +666,13 @@ const BackendRootWindow* FloatingTile::getBackendRootWindow() const
 
 BackendRootWindow* FloatingTile::getBackendRootWindow()
 {
+	auto root = getRootFloatingTile();
+	jassert(root != nullptr);
 
-	auto rw = getRootFloatingTile()->findParentComponentOfClass<ComponentWithBackendConnection>()->getBackendRootWindow();
+	auto cbc = root->findParentComponentOfClass<ComponentWithBackendConnection>();
+	jassert(cbc != nullptr);
 
-	//auto rw = dynamic_cast<ComponentWithBackendConnection*>(getRootFloatingTile()->getParentComponent())->getBackendRootWindow();
-
+	auto rw = cbc->getBackendRootWindow();
 	jassert(rw != nullptr);
 
 	return rw;

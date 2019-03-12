@@ -32,14 +32,21 @@
 
 namespace hise { using namespace juce;
 
-void FloatingTileContent::Factory::registerAllPanelTypes()
+void FloatingTileContent::Factory::registerLayoutPanelTypes()
 {
-	
 	registerType<SpacerPanel>(PopupMenuOptions::Spacer);
 	registerType<VisibilityToggleBar>(PopupMenuOptions::VisibilityToggleBar);
 	registerType<HorizontalTile>(PopupMenuOptions::HorizontalTile);
 	registerType<VerticalTile>(PopupMenuOptions::VerticalTile);
 	registerType<FloatingTabComponent>(PopupMenuOptions::Tabs);
+}
+
+
+
+void FloatingTileContent::Factory::registerAllPanelTypes()
+{
+	registerLayoutPanelTypes();
+	
 	registerType<Note>(PopupMenuOptions::Note);
 
 	registerType<ExpansionEditBar>(PopupMenuOptions::ExpansionEditBar);
@@ -61,6 +68,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<ScriptWatchTablePanel>(PopupMenuOptions::ScriptWatchTable);
 	registerType<ConsolePanel>(PopupMenuOptions::Console);
 	registerType<ScriptComponentList::Panel>(PopupMenuOptions::ScriptComponentList);
+	registerType<MarkdownEditorPanel>(PopupMenuOptions::MarkdownEditor);
 #endif
 
 	registerFrontendPanelTypes();
@@ -678,6 +686,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::WavetablePreview:	parent->setNewContent(GET_PANEL_NAME(WaveformComponent::Panel)); break;
 	case PopupMenuOptions::AHDSRGraph:			parent->setNewContent(GET_PANEL_NAME(AhdsrGraph::Panel)); break;
 	case PopupMenuOptions::MarkdownPreviewPanel:parent->setNewContent(GET_PANEL_NAME(MarkdownPreviewPanel)); break;
+	case PopupMenuOptions::MarkdownEditor:		parent->setNewContent(GET_PANEL_NAME(MarkdownEditorPanel)); break;
 	case PopupMenuOptions::FilterGraphPanel:	parent->setNewContent(GET_PANEL_NAME(FilterGraph::Panel)); break;
 	case PopupMenuOptions::MPEPanel:			parent->setNewContent(GET_PANEL_NAME(MPEPanel)); break;
 	case PopupMenuOptions::ScriptEditor:		parent->setNewContent(GET_PANEL_NAME(CodeEditorPanel)); break;
