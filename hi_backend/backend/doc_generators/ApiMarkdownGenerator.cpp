@@ -48,7 +48,8 @@ hise::MarkdownDataBase::Item ScriptingApiDatabase::ItemGenerator::createRootItem
 	auto item = DirectoryItemGenerator::createRootItem(parent);
 
 	auto v = data->v;
-	auto scriptingApi = updateWithValueTree(item.getChildWithName("scripting-api") ,data->v);
+    auto c = item.getChildWithName("scripting-api");
+	auto scriptingApi = updateWithValueTree(c ,data->v);
 
 	item.swapChildWithName(scriptingApi, "scripting-api");
 

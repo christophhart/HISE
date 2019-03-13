@@ -66,12 +66,14 @@ public:
 
 	void addLinkResolver(MarkdownParser::LinkResolver* resolver)
 	{
-		linkResolvers.addSorted(MarkdownParser::LinkResolver::Sorter(), resolver);
+        MarkdownParser::LinkResolver::Sorter s;
+		linkResolvers.addSorted(s, resolver);
 	}
 
 	void addImageProvider(MarkdownParser::ImageProvider* provider)
 	{
-		imageProviders.addSorted(MarkdownParser::ImageProvider::Sorter(), provider);
+        MarkdownParser::ImageProvider::Sorter s;
+		imageProviders.addSorted(s, provider);
 	}
 
 	template <class T> T* getTypedImageProvider()

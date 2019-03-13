@@ -191,7 +191,7 @@ void DatabaseCrawler::addContentToValueTree(ValueTree& v)
 		numUnresolved++;
 	}
 
-	for (auto& c : v)
+	for (auto c : v)
 		addContentToValueTree(c);
 }
 

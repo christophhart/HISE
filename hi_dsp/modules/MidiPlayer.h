@@ -165,7 +165,7 @@ private:
 			SimpleReadWriteLock& lock;
 		};
 
-		std::atomic<int> numReadLocks = 0;
+        std::atomic<int> numReadLocks{0};
 		bool isBeingWritten = false;
 	};
 
@@ -394,7 +394,7 @@ private:
 
 	Array<HiseEvent> currentlyRecordedEvents;
 
-	std::atomic<RecordState> recordState = RecordState::Idle;
+    std::atomic<RecordState> recordState{ RecordState::Idle};
 
 
 	bool isRecording() const noexcept { return getPlayState() == PlayState::Record; }

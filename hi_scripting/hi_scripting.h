@@ -48,8 +48,7 @@ END_JUCE_MODULE_DECLARATION
 
 ******************************************************************************/
 
-#ifndef HI_SCRIPTING_INCLUDED
-#define HI_SCRIPTING_INCLUDED
+#pragma once
 
 #define INCLUDE_TCC 0
 
@@ -118,5 +117,5 @@ END_JUCE_MODULE_DECLARATION
 
 
 
-#endif
+
 

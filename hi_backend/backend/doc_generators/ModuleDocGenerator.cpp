@@ -138,7 +138,8 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createItemForFac
 		list.children.add(createItemForProcessor(p, list));
 	}
 	list.isAlwaysOpen = true;
-	list.children.sort(MarkdownDataBase::Item::Sorter());
+    MarkdownDataBase::Item::Sorter s;
+	list.children.sort(s);
 	
 	return list;
 }

@@ -217,7 +217,7 @@ public:
 		}
 	}
 
-	bool performPopupMenuForEditingIcons(int result, MarkdownLink& linkToUse)
+	bool performPopupMenuForEditingIcons(int result, const MarkdownLink& linkToUse)
 	{
 		if (result == EditingMenuCommands::EditCurrentPage)
 		{

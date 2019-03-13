@@ -225,7 +225,7 @@ public:
 	{
 		itemGenerators.clear();
 		cachedFlatList.clear();
-		rootDirectory = {};
+        rootDirectory = File();
 		rootItem = {};
 	}
 

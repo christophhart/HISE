@@ -233,7 +233,8 @@ public:
 				return;
 		}
 
-		linkResolvers.addSorted(LinkResolver::Sorter(), owned.release());
+        LinkResolver::Sorter s;
+		linkResolvers.addSorted(s, owned.release());
 	}
 
 	void setImageProvider(ImageProvider* newProvider)
@@ -246,7 +247,8 @@ public:
 				return;
 		}
 
-		imageProviders.addSorted(ImageProvider::Sorter(), owned.release());
+        ImageProvider::Sorter s;
+		imageProviders.addSorted(s, owned.release());
 	};
 
 	virtual void parse();

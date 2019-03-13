@@ -1056,7 +1056,8 @@ void ProcessorDocumentation::fillMissingParameters(Processor* p)
 			chains.add(e);
 	}
 
-	parameters.sort(Entry::Sorter());
+    Entry::Sorter s;
+	parameters.sort(s);
 }
 
 juce::String ProcessorDocumentation::Entry::getMarkdownLine(bool getChain) const

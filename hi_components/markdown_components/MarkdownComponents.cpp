@@ -747,7 +747,7 @@ void MarkdownEditorPanel::buttonClicked(Button* b)
 
 void MarkdownEditorPanel::loadText(const String& s)
 {
-	currentFile = {};
+	currentFile = File();
 	doc.replaceAllContent(s);
 	setCustomTitle("Editor");
 	getParentShell()->refreshRootLayout();

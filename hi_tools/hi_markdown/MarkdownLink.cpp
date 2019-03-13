@@ -115,7 +115,7 @@ MarkdownLink::MarkdownLink(const File& rootDirectory, const String& url) :
 	else if (url.startsWith("#"))
 	{
 		sanitizedURL = "";
-		file = {};
+		file = File();
 		anchor = url;
 		type = SimpleAnchor;
 	}
@@ -127,13 +127,13 @@ MarkdownLink::MarkdownLink(const File& rootDirectory, const String& url) :
 		sanitizedURL = httpHeader + Helpers::removeExtraData(withoutHeader);
 		extraString = Helpers::getExtraData(withoutHeader);
 		type = WebContent;
-		file = {};
+		file = File();
 	}
 	else if (url.startsWith("/images/icon_"))
 	{
 		sanitizedURL = Helpers::getSanitizedURL(Helpers::removeExtraData(url));
 		extraString = Helpers::getExtraData(url);
-		file = {};
+		file = File();
 		type = Icon;
 	}
 	else
@@ -179,7 +179,7 @@ MarkdownLink::MarkdownLink(const File& rootDirectory, const String& url) :
 		else
 		{
 			type = MarkdownFileOrFolder;
-			file = {};
+			file = File();
 		}
 	}
 }

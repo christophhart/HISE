@@ -440,7 +440,7 @@ public:
 
 	enum SpecialPanelIds
 	{
-		ContentFile = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		ContentFile = (int)FloatingTileContent::PanelPropertyId::numPropertyIds,
 		numSpecialPanelIds
 	};
 
