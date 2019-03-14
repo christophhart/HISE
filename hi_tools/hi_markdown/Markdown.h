@@ -305,6 +305,11 @@ public:
 		linkResolvers.clear();
 	}
 
+	void setCreateFooter(bool shouldCreateFooter)
+	{
+		createFooter = shouldCreateFooter;
+	}
+
 	void setStyleData(MarkdownLayout::StyleData newStyleData)
 	{
 		styleData = newStyleData;
@@ -319,7 +324,7 @@ public:
 
 	MarkdownLayout::StyleData& getStyleData() { return styleData; }
 	
-	MarkdownHeader getHeader() const { return MarkdownHeader; }
+	MarkdownHeader getHeader() const { return header; }
 
 	void clearCurrentLink()
 	{
@@ -410,7 +415,7 @@ protected:
 
 	struct TextBlock;	struct Headline;		struct BulletPointList;		struct Comment;
 	struct CodeBlock;	struct MarkdownTable;	struct ImageElement;		struct EnumerationList;
-	struct ActionButton; struct LiveCodeBlock;
+	struct ActionButton; struct LiveCodeBlock;	struct ContentFooter;
 
 	struct CellContent
 	{
@@ -433,11 +438,13 @@ protected:
 
 private:
 
+	bool createFooter = false;
+
 	MarkdownDatabaseHolder* holder = nullptr;
 
 	friend class JavascriptCodeEditor;
 	
-	MarkdownHeader MarkdownHeader;
+	MarkdownHeader header;
 
 	MarkdownLink lastLink;
 
@@ -527,6 +534,7 @@ private:
 	
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MarkdownParser);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(MarkdownParser);
 };
 
 

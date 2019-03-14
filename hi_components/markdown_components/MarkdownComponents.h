@@ -182,6 +182,16 @@ public:
 
 	}
 
+	static MarkdownHelpButton* createAndAddToComponent(Component* c, const String& s, int popupWidth = 400)
+	{
+		auto h = new MarkdownHelpButton();
+
+		h->attachTo(c, MarkdownHelpButton::TopRight);
+		h->setHelpText(s);
+		h->setPopupWidth(popupWidth);
+		return h;
+	}
+
 	void componentBeingDeleted(Component& component) override
 	{
 		component.removeComponentListener(this);

@@ -204,6 +204,8 @@ public:
 		progressCounter = p;
 	}
 
+	int64 getHashFromFileContent(const File& f) const;
+
 private:
 
 	double* progressCounter = nullptr;

@@ -238,7 +238,7 @@ void MarkdownParser::createDatabaseEntriesForFile(File root, MarkdownDataBase::I
 	{
 		auto saveURL = item.url;
 
-		item = MarkdownDataBase::Item(MarkdownDataBase::Item::Keyword, root, f, p.MarkdownHeader.getKeywords(), p.MarkdownHeader.getDescription());
+		item = MarkdownDataBase::Item(MarkdownDataBase::Item::Keyword, root, f, p.header.getKeywords(), p.header.getDescription());
 
 		if (saveURL.isValid())
 			item.url = saveURL;
@@ -254,7 +254,7 @@ void MarkdownParser::createDatabaseEntriesForFile(File root, MarkdownDataBase::I
 		{
 			if (auto h = dynamic_cast<Headline*>(e))
 			{
-				MarkdownDataBase::Item headLineItem(MarkdownDataBase::Item::Headline, root, f, p.MarkdownHeader.getKeywords(), p.MarkdownHeader.getDescription());
+				MarkdownDataBase::Item headLineItem(MarkdownDataBase::Item::Headline, root, f, p.header.getKeywords(), p.header.getDescription());
 
 				headLineItem.description = h->content.getText();
 

@@ -73,13 +73,13 @@ juce::String MarkdownDataBase::generateHtmlToc(const String& activeUrl) const
 	return g.surroundWithTag(s, "div", "class=\"toc\"");
 }
 
-void MarkdownDataBase::buildDataBase()
+void MarkdownDataBase::buildDataBase(bool useCache)
 {
 	rootItem = {};
 	rootItem.type = Item::Root;
 	rootItem.url = { rootDirectory, "/" };
 
-	if (getDatabaseFile().existsAsFile())
+	if (useCache && getDatabaseFile().existsAsFile())
 	{
 		zstd::ZDefaultCompressor compressor;
 
@@ -93,8 +93,14 @@ void MarkdownDataBase::buildDataBase()
 		}
 	}
 
+	int numTotal = itemGenerators.size();
+	int p = 0;
+
 	for (auto g : itemGenerators)
 	{
+		if (progressCounter != nullptr)
+			*progressCounter = (double)p++ / (double)numTotal;
+
 		auto newItem = g->createRootItem(*this);
 		rootItem.children.add(newItem);
 	}
@@ -467,6 +473,12 @@ void MarkdownDatabaseHolder::rebuildDatabase()
 
 	registerItemGenerators();
 
+
+
+	db.setProgressCounter(progressCounter);
+	db.buildDataBase(shouldUseCachedData());
+
+
 	if (progressCounter != nullptr)
 		*progressCounter = 0.5;
 
@@ -491,8 +503,6 @@ void MarkdownDatabaseHolder::rebuildDatabase()
 	{
 		jassertfalse;
 	}
-
-	db.buildDataBase();
 
 	for (auto l : listeners)
 	{

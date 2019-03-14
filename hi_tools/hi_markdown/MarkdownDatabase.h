@@ -145,6 +145,7 @@ public:
 			return {};
 		}
 
+
 		Item createChildItem(const String& subPath) const;
 
 		Item(Type t, File root, File f, const StringArray& keywords_, String description_);
@@ -231,6 +232,7 @@ public:
 
 	void clear()
 	{
+		discussions.clear();
 		itemGenerators.clear();
 		cachedFlatList.clear();
         rootDirectory = File();
@@ -252,18 +254,49 @@ public:
 
 		}
 	}
+
+	struct ForumDiscussionLink
+	{
+		MarkdownLink contentLink;
+		MarkdownLink forumLink;
+	};
+
+	void addForumDiscussion(const ForumDiscussionLink& link)
+	{
+		discussions.add(link);
+	}
+
+
+	MarkdownLink getForumDiscussion(const MarkdownLink& contentLink) const
+	{
+		for (auto d : discussions)
+		{
+			if (d.contentLink == contentLink)
+				return d.forumLink;
+		}
+
+		return {};
+	}
+	
+	void setProgressCounter(double* newProgressCounter)
+	{
+		progressCounter = newProgressCounter;
+	}
+
 private:
+
+	Array<ForumDiscussionLink> discussions;
 
 	friend class MarkdownDatabaseHolder;
 
-	void buildDataBase();
+	void buildDataBase(bool useCache);
 
 	Array<Item> cachedFlatList;
 
 	File rootDirectory;
 	OwnedArray<ItemGeneratorBase> itemGenerators;
 
-	
+	double* progressCounter = nullptr;
 
 	void loadFromValueTree(ValueTree& v)
 	{
@@ -278,6 +311,8 @@ class MarkdownContentProcessor;
 
 struct MarkdownDatabaseHolder
 {
+	
+
 	struct DatabaseListener
 	{
 		virtual ~DatabaseListener() {};
@@ -353,9 +388,15 @@ struct MarkdownDatabaseHolder
 	void setProgressCounter(double* p)
 	{
 		progressCounter = p;
+		db.setProgressCounter(p);
 	}
 
+	
+
+
 private:
+
+	
 
 	double* progressCounter = nullptr;
 

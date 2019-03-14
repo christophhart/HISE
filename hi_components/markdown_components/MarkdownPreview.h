@@ -38,53 +38,50 @@ using namespace juce;
 
 class DocUpdater : public DialogWindowWithBackgroundThread,
 				   public MarkdownContentProcessor,
-				   public DatabaseCrawler::Logger
+				   public DatabaseCrawler::Logger,
+				   public URL::DownloadTask::Listener	
 {
 public:
 
-	DocUpdater(MarkdownDatabaseHolder& holder_, bool fastMode_, bool allowEdit):
-		MarkdownContentProcessor(holder_),
-		DialogWindowWithBackgroundThread("Update documentation", false),
-		holder(holder_),
-		crawler(holder),
-		fastMode(fastMode_),
-		editingShouldBeEnabled(allowEdit)
+	enum DownloadResult
 	{
-		holder.addContentProcessor(this);
+		NotExecuted = 0,
+		FileErrorContent =  0b1110,
+		FileErrorImage =    0b1101,
+		CantResolveServer = 0b1000,
+		ImagesUpdated =     0b0101,
+		ContentUpdated =    0b0110,
+		EverythingUpdated = 0b0111,
+		NothingUpdated =    0b0100
+	};
 
-		if (!fastMode)
+	struct Helpers
+	{
+		static int withError(int result)
 		{
-
-			holder.addContentProcessor(&crawler);
-
-			StringArray sa = { "Update local cached file", "Update docs from server" , "Create local HTML offline docs" };
-
-			addComboBox("action", sa, "Action");
-
-			markdownRepository = new FilenameComponent("Markdown Repository", holder.getDatabaseRootDirectory(), false, true, false, {}, {}, "No markdown repository specified");
-			markdownRepository->setSize(400, 32);
-
-
-			htmlDirectory = new FilenameComponent("Target directory", {}, true, true, true, {}, {}, "Select a HTML target directory");
-			htmlDirectory->setSize(400, 32);
-
-			htmlDirectory->setEnabled(false);
-
-			addCustomComponent(markdownRepository);
-
-			addCustomComponent(htmlDirectory);
-
-			crawler.setProgressCounter(&getProgressCounter());
-			holder.setProgressCounter(&getProgressCounter());
-
-			addBasicComponents(true);
+			return result |= CantResolveServer;
 		}
-		else
+
+		static bool wasOk(int r)
 		{
-			addBasicComponents(false);
-			DialogWindowWithBackgroundThread::runThread();
+			return r & 0b1000 == 0;
 		}
-	}
+
+		static bool somethingDownloaded(DownloadResult r)
+		{
+			return wasOk(r) && (r & 0xb0100 != 0);
+		}
+
+		static int getIndexFromFileName(const String& fileName)
+		{
+			if (fileName == "Content.dat")
+				return 0b0110;
+			else
+				return 0b0101;
+		}
+	};
+
+	DocUpdater(MarkdownDatabaseHolder& holder_, bool fastMode_, bool allowEdit);
 
 	~DocUpdater()
 	{
@@ -99,67 +96,43 @@ public:
 		showStatusMessage(message);
 	}
 
-	void run() override
-	{
-		if (fastMode)
-		{
-			auto mc = dynamic_cast<MainController*>(&holder);
-			mc->setAllowFlakyThreading(true);
-			holder.setProgressCounter(&getProgressCounter());
-			getHolder().setForceCachedDataUse(!editingShouldBeEnabled);
-			mc->setAllowFlakyThreading(false);
-		}
-		else
-		{
+	void run() override;
 
+	void threadFinished() override;
 
+	void addForumLinks();
 
-			auto b = getComboBoxComponent("action");
-
-			auto mc = dynamic_cast<MainController*>(&holder);
-
-			mc->setAllowFlakyThreading(true);
-
-			if (b->getSelectedItemIndex() == 0)
-			{
-				showStatusMessage("Rebuilding index");
-				holder.setForceCachedDataUse(false);
-
-				showStatusMessage("Create Content cache");
-				crawler.createContentTree();
-
-				showStatusMessage("Create Image cache");
-				crawler.createImageTree();
-			}
-
-			mc->setAllowFlakyThreading(false);
-		}
-	}
-
-	void threadFinished() override
-	{
-		auto b = getComboBoxComponent("action");
-
-		if (!fastMode && b->getSelectedItemIndex() == 0)
-		{
-			PresetHandler::showMessageWindow("Cache was updated", "Press OK to rebuild the indexes");
-			holder.setForceCachedDataUse(true);
-		}
-
-		
-	}
+	void updateFromServer();
 
 	void databaseWasRebuild() override
 	{
 
 	}
 	
+	void downloadAndTestFile(const String& targetFileName);
+
+	void progress(URL::DownloadTask* task, int64 bytesDownloaded, int64 totalLength) override
+	{
+		setProgress((double)bytesDownloaded / (double)totalLength);
+	}
+
+	void finished(URL::DownloadTask* task, bool success) override
+	{
+
+	}
+
+	ScopedPointer<MarkdownHelpButton> helpButton1;
+	ScopedPointer<MarkdownHelpButton> helpButton2;
+
 	bool fastMode = false;
 	bool editingShouldBeEnabled = false;
 	MarkdownDatabaseHolder& holder;
 	ScopedPointer<juce::FilenameComponent> markdownRepository;
 	ScopedPointer<juce::FilenameComponent> htmlDirectory;
 	DatabaseCrawler crawler;
+
+	int result = NotExecuted;
+	ScopedPointer<URL::DownloadTask> currentDownload;
 };
 
 
@@ -294,7 +267,7 @@ public:
 		}
 	}
 
-	bool editingEnabled = true;
+	bool editingEnabled = false;
 
 	void mouseDown(const MouseEvent& e) override
 	{
@@ -380,6 +353,7 @@ public:
 		void resized() override
 		{
 			renderer.updateCreatedComponents();
+			renderer.updateHeight();
 		}
 
 		MarkdownPreview& parent;
@@ -772,21 +746,28 @@ public:
 
 				void selectNextItem(bool inc)
 				{
-					if (inc)
+					if (currentSelection == nullptr)
 					{
-						itemIndex++;
-
-						if (itemIndex >= displayedItems.size())
-							itemIndex = 0;
+						itemIndex = 0;
 					}
 					else
 					{
-						itemIndex--;
+						if (inc)
+						{
+							itemIndex++;
 
-						if (itemIndex < 0)
-							itemIndex = displayedItems.size();
+							if (itemIndex >= displayedItems.size())
+								itemIndex = 0;
+						}
+						else
+						{
+							itemIndex--;
+
+							if (itemIndex < 0)
+								itemIndex = displayedItems.size();
+						}
 					}
-					
+
 					if (currentSelection = displayedItems[itemIndex])
 					{
 						for (auto s : displayedItems)
@@ -944,7 +925,6 @@ public:
 				}
 
 				
-
 				String searchString;
 				Array<ItemComponent*> displayedItems;
 				OwnedArray<ItemComponent> exactMatches;
@@ -994,15 +974,20 @@ public:
 			{
 				ed.addListener(this);
 				ed.addKeyListener(this);
+				showPopup();
+			}
+
+			void showPopup()
+			{
 				if (parent.currentSearchResults == nullptr)
 				{
 					parent.addAndMakeVisible(parent.currentSearchResults = new SearchResults(*this));
 
-					auto bl = l->getBounds().getBottomLeft();
+					auto bl = searchBar.getBounds().getBottomLeft();
 
 					auto tl = parent.getLocalPoint(this, bl);
 
-					parent.currentSearchResults->setSize(l->getWidth(), 24);
+					parent.currentSearchResults->setSize(searchBar.getWidth(), 24);
 					parent.currentSearchResults->setTopLeftPosition(tl);
 					parent.currentSearchResults->grabKeyboardFocus();
 				}
@@ -1028,8 +1013,8 @@ public:
 			{
 				if (b == &refreshButton)
 				{
-					parent.renderer.updateHeight();
-					parent.internalComponent.repaint();
+					auto doc = new DocUpdater(parent.getHolder(), false, parent.editingEnabled);
+					doc->setModalBaseWindowComponent(this);
 				}
 				if (b == &editButton)
 				{
@@ -1083,6 +1068,11 @@ public:
 
 			bool keyPressed(const KeyPress& key, Component* originatingComponent) override
 			{
+				if (key == KeyPress('f') && key.getModifiers().isCommandDown())
+				{
+					showPopup();
+					return true;
+				}
 				if (key == KeyPress::upKey)
 				{
 					if (parent.currentSearchResults != nullptr)

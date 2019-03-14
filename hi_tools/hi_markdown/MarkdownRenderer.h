@@ -294,6 +294,9 @@ public:
 		if (targetComponent == nullptr)
 			return;
 
+		if (targetComponent->getWidth() == 0)
+			return;
+
 		float y = 0.0f;
 
 		for (auto e : elements)
@@ -316,9 +319,9 @@ public:
 			{
 				y += e->getLastHeight();
 			}
-
-			
 		}
+
+		
 	}
 
 	bool navigateFromXButtons(const MouseEvent& e)

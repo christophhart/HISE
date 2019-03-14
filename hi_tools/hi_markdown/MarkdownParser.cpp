@@ -47,6 +47,9 @@ void MarkdownParser::parse()
 		while (it.peek() != 0)
 			parseBlock();
 
+		if(createFooter)
+			elements.add(new ContentFooter(this, header));
+
 		currentParseResult = Result::ok();
 	}
 	catch (String& s)
@@ -708,7 +711,7 @@ void MarkdownParser::parseMarkdownHeader()
 		lines.add(line);
 	}
 
-	MarkdownHeader = {};
+	header = {};
 
 	
 	
@@ -725,7 +728,7 @@ void MarkdownParser::parseMarkdownHeader()
 			if (samelineValue.isNotEmpty())
 				newItem.values.add(samelineValue);
 
-			MarkdownHeader.items.add(std::move(newItem));
+			header.items.add(std::move(newItem));
 		}
 		else
 		{
@@ -734,10 +737,10 @@ void MarkdownParser::parseMarkdownHeader()
 			if (nextValue.isEmpty())
 				throw String("Error at YAML Header parsing: no value");
 
-			if (MarkdownHeader.items.isEmpty())
+			if (header.items.isEmpty())
 				throw String("Error at YAML Header parsing: no item for list");
 
-			MarkdownHeader.items.getReference(MarkdownHeader.items.size() - 1).values.add(nextValue);
+			header.items.getReference(header.items.size() - 1).values.add(nextValue);
 		}
 	}
 
@@ -746,7 +749,7 @@ void MarkdownParser::parseMarkdownHeader()
 	it.match('-');
 	it.match('\n');
 
-	auto headline = MarkdownHeader.getKeywords()[0];
+	auto headline = header.getKeywords()[0];
 
 	if (headline.isNotEmpty())
 	{
@@ -758,7 +761,7 @@ void MarkdownParser::parseMarkdownHeader()
 
 		s.append(headline, f, styleData.headlineColour);
 
-		elements.add(new Headline(this, 3, MarkdownHeader.getKeyValue("icon"), s, true));
+		elements.add(new Headline(this, 3, header.getKeyValue("icon"), s, true));
 	}
 
 }

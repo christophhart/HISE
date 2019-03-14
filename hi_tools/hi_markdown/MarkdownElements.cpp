@@ -701,8 +701,11 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 		if (isGif && gifPlayer == nullptr)
 		{
 			gifPlayer = new GifPlayer(*this);
-			gifPlayer->setSize(img.getWidth(), img.getHeight());
+			
 		}
+
+		if(gifPlayer != nullptr)
+			gifPlayer->setSize(jmax(50, img.getWidth()), jmax(50, img.getHeight()));
 
 		return gifPlayer;
 	}
@@ -1142,6 +1145,301 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 	float lastHeight = -1.0f;
 
 	
+};
+
+struct MarkdownParser::ContentFooter : public MarkdownParser::Element
+{
+	ContentFooter(MarkdownParser* parent, const MarkdownHeader& header):
+		Element(parent)
+	{
+		auto f = parent->styleData.getFont().withHeight(parent->styleData.fontSize * 0.75f);
+
+		s.append("Author: " + header.getKeyValue("author") + "\n", Colours::grey);
+		s.append("Modified: " + header.getKeyValue("modified"), Colours::grey);
+	}
+
+	Component* createComponent(int maxWidth) override
+	{
+		if (content == nullptr)
+		{
+			auto list = parent->getHolder()->getDatabase().getFlatList();
+
+			auto thisLink = parent->getLastLink();
+			MarkdownLink nextLink;
+			String nextName;
+
+			for (int i = 0; i < list.size(); i++)
+			{
+				if (list[i].url == thisLink)
+				{
+					int nextIndex = i + 1;
+
+					while (nextIndex < list.size())
+					{
+						if (list[nextIndex].type != MarkdownDataBase::Item::Headline)
+							break;
+
+						nextIndex++;
+					}
+
+					nextLink = list[nextIndex].url;
+					nextName = list[nextIndex].tocString;
+					break;
+				}
+					
+			}
+
+			content = new Content(*this, thisLink, nextLink, nextName);
+
+		}
+			
+
+		content->setSize(maxWidth, content->getPreferredHeight());
+
+		return content;
+	}
+
+	virtual void draw(Graphics& g, Rectangle<float> area)
+	{
+
+	}
+	
+	String getTextToCopy() const override
+	{
+		return s.getText();
+	}
+
+	virtual float getHeightForWidth(float width)
+	{
+		createComponent(width);
+
+		return content->getPreferredHeight();
+	}
+
+	virtual int getTopMargin() const override
+	{
+		return 30;
+	}
+
+	Font getFont() const
+	{
+		
+		return parent->getStyleData().getFont();
+	}
+
+	Colour getTextColour()
+	{
+		return parent->getStyleData().textColour;
+	}
+
+	String getCurrentKeyword()
+	{
+		return parent->getHeader().getKeywords()[0];
+	}
+
+	MarkdownParser* getParser()
+	{
+		return parent;
+	}
+
+	class Content: public Component,
+				   public ButtonListener
+	{
+	public:
+
+		class Factory : public PathFactory
+		{
+		public:
+
+			String getId() const override { return "FooterFactory"; }
+			Path createPath(const String& l) const override
+			{
+				Path p;
+				auto url = MarkdownLink::Helpers::getSanitizedFilename(l);
+
+				LOAD_PATH_IF_URL("next", MainToolbarIcons::forward);
+				LOAD_PATH_IF_URL("discussion", MainToolbarIcons::comment);
+
+				return p;
+			}
+		};
+
+		struct ButtonLookAndFeel : public LookAndFeel_V3
+		{
+			void drawButtonBackground(Graphics& g, Button& button, const Colour& backgroundColour, bool isMouseOverButton, bool isButtonDown) override
+			{
+				if (isMouseOverButton)
+					g.fillAll(Colours::grey.withAlpha(0.1f));
+				if(isButtonDown)
+					g.fillAll(Colours::grey.withAlpha(0.1f));
+
+				bool isNextLink = button.getButtonText() != "Discussion";
+
+				auto bounds = button.getLocalBounds();
+
+				auto pathBounds = isNextLink ? bounds.removeFromRight(h) : bounds.removeFromLeft(h);
+
+				auto pb = pathBounds.reduced(pathBounds.getHeight() / 8, pathBounds.getHeight() / 8).toFloat();
+
+				auto p = f.createPath(button.getButtonText());
+
+				p.scaleToFit(pb.getX(), pb.getY(), pb.getWidth(), pb.getHeight(), true);
+
+				g.setColour(textColour.withAlpha(button.isEnabled() ? 1.0f : 0.1f));
+
+				g.fillPath(p);
+			}
+
+			void drawButtonText(Graphics& g, TextButton& button, bool isMouseOverButton, bool isButtonDown)
+			{
+				bool isNextLink = button.getButtonText() != "Discussion";
+				
+
+				auto bounds = button.getLocalBounds();
+				auto pBounds = isNextLink ? bounds.removeFromRight(h) : bounds.removeFromLeft(h);
+
+				g.setFont(font);
+				g.setColour(textColour.withAlpha(button.isEnabled() ? 1.0f : 0.1f));
+
+				String s;
+
+				if (isNextLink)
+				{
+					s << "Next: " << nextLink;
+				}
+				else
+				{
+					s << "Read the discussion";
+				}
+
+				g.drawText(s, bounds.toFloat().reduced(5.0f), isNextLink ? Justification::centredRight : Justification::centredLeft);
+			}
+
+			int h = 0;
+			Colour textColour;
+			Font font;
+			Factory f;
+			String nextLink;
+		};
+
+		void checkForumLink()
+		{
+			forumLink = parent.getParser()->getHolder()->getDatabase().getForumDiscussion(currentPage);
+			forumButton.setEnabled(forumLink.isValid());
+		}
+
+		Content(ContentFooter& parent_, const MarkdownLink& currentPage_, const MarkdownLink& nextLink_, const String& nextName_):
+			parent(parent_),
+			forumButton("Discussion"),
+			nextButton("Next"),
+			nextLink(nextLink_),
+			currentPage(currentPage_),
+			nextName(nextName_)
+		{
+			addAndMakeVisible(forumButton);
+			addAndMakeVisible(nextButton);
+
+			forumButton.addListener(this);
+			nextButton.addListener(this);
+			
+			nextButton.setEnabled(nextLink.isValid());
+
+			checkForumLink();
+
+			
+
+			blaf.textColour = parent.getTextColour();
+			blaf.nextLink = nextName;
+			blaf.font = parent.getFont();
+
+			forumButton.setLookAndFeel(&blaf);
+			nextButton.setLookAndFeel(&blaf);
+
+		}
+
+		void buttonClicked(Button* b) override
+		{
+			if (b == &nextButton)
+			{
+				WeakReference<MarkdownParser> p = parent.getParser();
+				auto t = nextLink;
+				auto f = [p, t]()
+				{ 
+					if(p != nullptr)
+						p.get()->gotoLink(t);
+				};
+
+				MessageManager::callAsync(f);
+
+				return;
+			}
+
+			if (b == &forumButton && forumLink.isValid())
+			{
+				URL(forumLink.toString(MarkdownLink::UrlFull)).launchInDefaultBrowser();
+			}
+		}
+
+		int getPreferredHeight() const
+		{
+			return getButtonHeight() * 4;
+		}
+
+		int getButtonHeight() const
+		{
+			return parent.getFont().getHeight() * 2;
+		}
+
+		void paint(Graphics& g) override
+		{
+			
+
+			g.setColour(Colours::black.withAlpha(0.1f));
+
+			auto bounds = getLocalBounds();
+			
+			bounds.removeFromTop(getButtonHeight());
+
+			g.setColour(parent.getTextColour().withAlpha(0.2f));
+			bounds.removeFromTop(10.0f);
+			g.fillRect(bounds.removeFromTop(2.0f));
+			bounds.removeFromTop(6.0f);
+
+			parent.s.draw(g, bounds.toFloat().reduced(10.0f));
+
+		}
+
+		void resized() override
+		{
+			blaf.h = getButtonHeight();
+			auto bounds = getLocalBounds();
+			auto top = bounds.removeFromTop(getButtonHeight());
+			forumButton.setBounds(top.removeFromLeft(bounds.getWidth() / 4));
+
+			int nextWidth = blaf.font.getStringWidth(nextName) + getButtonHeight() * 3;
+
+			nextButton.setBounds(top.removeFromRight(nextWidth));
+		}
+
+		ButtonLookAndFeel blaf;
+		TextButton forumButton;
+		TextButton nextButton;
+
+		MarkdownLink forumLink;
+		String nextName;
+
+		ContentFooter& parent;
+		MarkdownLink currentPage;
+		MarkdownLink nextLink;
+	};
+
+	ScopedPointer<Content> content;
+
+	MarkdownLink discussion;
+	MarkdownLink next;
+	AttributedString s;
+	
+
 };
 
 

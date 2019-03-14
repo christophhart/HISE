@@ -364,7 +364,7 @@ public:
 
 	/** Creates a string representation. */
 	String toString(Format format, const File& rootDirectory = {}) const noexcept;
-
+	
 	/** Returns the type. */
 	Type getType() const noexcept;
 
@@ -428,6 +428,8 @@ public:
 	bool fileExists(const File& rootDirectory) const noexcept;
 
 private:
+
+	
 
 	File root;
 	Type type;

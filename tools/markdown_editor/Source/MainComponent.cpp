@@ -46,6 +46,9 @@ MainContentComponent::MainContentComponent() :
 	ib.setDynamic(0, false);
 	ib.setSizes(0, { 32.0, -0.5, -0.5 });
 	ib.setFoldable(0, false, { false, true, true });
+
+	ib.setVisibility(0, true, { false, false, true });
+
 	ib.finalizeAndReturnRoot();
 
 	auto panel = dynamic_cast<MarkdownPreviewPanel*>(ib.getContent(p));
@@ -56,11 +59,11 @@ MainContentComponent::MainContentComponent() :
 
 	editorPanel->setPreview(preview);
 
+	preview->renderer.gotoLink({ {}, "/" });
+
 	addAndMakeVisible(ft);
 
     setSize (1280, 800);
-
-	preview->enableEditing(false);
 }
 
 MainContentComponent::~MainContentComponent()

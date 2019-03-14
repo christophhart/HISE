@@ -269,7 +269,7 @@ void DatabaseCrawler::addImagesInternal(ValueTree cTree, float maxWidth)
 					juce::PNGImageFormat format;
 					MemoryOutputStream output;
 					format.writeImageToStream(img, output);
-					
+					c.setProperty("Data", output.getMemoryBlock(), nullptr);
 				}
 				if (l.getType() == MarkdownLink::SVGImage)
 				{
@@ -401,14 +401,21 @@ void DatabaseCrawler::createDataFiles(File root, bool createImages)
 
 	comp.compress(contentTree, targetF);
 
+	File imageF(root.getChildFile("Images.dat"));
+
 	if (createImages)
 	{
 		createImageTree();
-
-		File imageF(root.getChildFile("Images.dat"));
 		imageF.deleteFile();
 		comp.compress(imageTree, imageF);
 	}
+
+	DynamicObject::Ptr obj = new DynamicObject();
+	obj->setProperty("content-hash", getHashFromFileContent(targetF));
+	obj->setProperty("image-hash", getHashFromFileContent(imageF));
+
+	auto metaF = root.getChildFile("Hash.json");
+	metaF.replaceWithText(JSON::toString(var(obj)));
 }
 
 void DatabaseCrawler::loadDataFiles(File root)
@@ -423,6 +430,13 @@ void DatabaseCrawler::loadDataFiles(File root)
 
 	linkResolvers.add(new Resolver(root));
 	imageProviders.add(new Provider(root, nullptr));
+}
+
+juce::int64 DatabaseCrawler::getHashFromFileContent(const File& f) const
+{
+	MemoryBlock mb;
+	f.loadFileAsData(mb);
+	return mb.toBase64Encoding().hashCode64();
 }
 
 }
