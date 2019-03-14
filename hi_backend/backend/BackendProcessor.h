@@ -128,6 +128,17 @@ public:
 		databaseRoot = newDatabaseDirectory;
 	}
 
+	BackendRootWindow* getDocWindow();
+
+	bool databaseDirectoryInitialised() const override
+	{
+		auto path = getSettingsObject().getSetting(HiseSettings::Documentation::DocRepository).toString();
+
+		auto d = File(path);
+		
+		return d.isDirectory() && d.getChildFile("hise-modules").isDirectory();
+	}
+
 	/// @brief returns the number of PluginParameter objects, that are added in the constructor
     int getNumParameters() override
 	{
@@ -180,6 +191,8 @@ private:
 	ScopedPointer<UndoManager> viewUndoManager;
 
 	var editorInformation;
+
+	ScopedPointer<BackendRootWindow> docWindow;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BackendProcessor)
 };

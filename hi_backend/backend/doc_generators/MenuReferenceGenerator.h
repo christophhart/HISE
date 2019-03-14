@@ -73,7 +73,7 @@ struct MenuReferenceDocGenerator
 
 				MessageManagerLock mmLock;
 
-				r = new BackendRootWindow(bp, {});
+				r = bp->getDocWindow();
 
 			}
 
@@ -103,7 +103,7 @@ struct MenuReferenceDocGenerator
 
 			File root;
 			BackendProcessor* bp = nullptr;
-			ScopedPointer<BackendRootWindow> r;
+			Component::SafePointer<BackendRootWindow> r;
 		};
 
 		template <class T> void registerFactories()
@@ -123,6 +123,7 @@ struct MenuReferenceDocGenerator
 			CommonData(root)
 		{
 			data->bp = dynamic_cast<BackendProcessor*>(&holder);
+			colour = Colour(0xFFaca3dd);
 		};
 
 		void createMenuReference(MarkdownDataBase::Item& parent);

@@ -366,6 +366,11 @@ struct MarkdownDatabaseHolder
 	void addDatabaseListener(DatabaseListener* l) { listeners.addIfNotAlreadyThere(l); }
 	void removeDatabaseListener(DatabaseListener* l) { listeners.removeAllInstancesOf(l); }
 
+	virtual bool databaseDirectoryInitialised() const
+	{
+		return getDatabaseRootDirectory().isDirectory();
+	}
+
 	void rebuildDatabase();
 
 	void setColourForLastItem(Colour c)
@@ -391,12 +396,12 @@ struct MarkdownDatabaseHolder
 		db.setProgressCounter(p);
 	}
 
-	
+	bool nothingInHere() const { return nothingToShow; }
 
 
 private:
 
-	
+	bool nothingToShow = false;
 
 	double* progressCounter = nullptr;
 
@@ -407,6 +412,8 @@ private:
 	bool forceUseCachedData = true;
 
 	Array<WeakReference<DatabaseListener>> listeners;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(MarkdownDatabaseHolder)
 };
 
 

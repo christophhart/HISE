@@ -59,14 +59,15 @@ MarkdownPreview::MarkdownPreview(MarkdownDatabaseHolder& holder) :
 	topbar.database = &holder.getDatabase();
 	
 	holder.addContentProcessor(this);
+	holder.addDatabaseListener(this);
 
 	setNewText(" ", {});
-
 }
 
 MarkdownPreview::~MarkdownPreview()
 {
 	viewport.removeListener(&renderer);
+	getHolder().removeDatabaseListener(this);
 }
 
 void MarkdownPreview::editCurrentPage(const MarkdownLink& lastLink, bool showExactContent)
@@ -88,7 +89,7 @@ void MarkdownPreview::editCurrentPage(const MarkdownLink& lastLink, bool showExa
 
 		if (!f.existsAsFile())
 		{
-			f = lastLink.getMarkdownFile({});
+			f = lastLink.getMarkdownFile(rootDirectory);
 
 			if (!f.existsAsFile())
 			{
@@ -133,6 +134,91 @@ void MarkdownPreview::editCurrentPage(const MarkdownLink& lastLink, bool showExa
 		PresetHandler::showMessageWindow("File not found", "The file for the URL " + lastLink.toString(MarkdownLink::Everything) + " + wasn't found.");
 	}
 
+}
+
+
+void MarkdownPreview::enableEditing(bool shouldBeEnabled)
+{
+	if (editingEnabled != shouldBeEnabled)
+	{
+		if (shouldBeEnabled && !getHolder().databaseDirectoryInitialised())
+		{
+			if (PresetHandler::showYesNoWindow("Setup documentation repository for editing", "You haven't setup a folder for the hise_documentation repository. Do you want to do this now?\nIf you want to edit this documentation, you have to clone the hise_documentation repository and select the folder here."))
+			{
+				FileChooser fc("Select hise_documentation repository folder", {}, {}, true);
+
+				if (fc.browseForDirectory())
+				{
+					auto d = fc.getResult();
+
+					bool ok = d.isDirectory() && d.getChildFile("hise-modules").isDirectory();
+
+					if (ok)
+					{
+
+						auto& dataObject = dynamic_cast<GlobalSettingManager*>(&getHolder())->getSettingsObject();
+
+						auto vt = dataObject.data;
+
+						if (vt.isValid())
+						{
+							auto c = vt.getChildWithName(HiseSettings::SettingFiles::DocSettings);
+
+							ValueTree cProp = c.getChildWithName(HiseSettings::Documentation::DocRepository);
+							cProp.setProperty("value", d.getFullPathName(), nullptr);
+
+							dataObject.settingWasChanged(HiseSettings::Documentation::DocRepository, d.getFullPathName());
+
+							ScopedPointer<XmlElement> xml = HiseSettings::ConversionHelpers::getConvertedXml(c);
+
+							auto f = dataObject.getFileForSetting(HiseSettings::SettingFiles::DocSettings);
+
+							xml->writeToFile(f, "");
+
+							PresetHandler::showMessageWindow("Success", "You've setup the documentation folder successfully. You can start editing the files and make pull requests to improve this documentation.");
+						}
+
+					}
+					else
+					{
+						PresetHandler::showMessageWindow("Invalid folder", "The directory you specified isn't the repository root folder.\nPlease pull the latest state and select the root folder", PresetHandler::IconType::Error);
+						topbar.editButton.setToggleStateAndUpdateIcon(false);
+						return;
+					}
+				}
+			}
+			else
+			{
+				topbar.editButton.setToggleStateAndUpdateIcon(false);
+				return;
+			}
+		}
+
+		editingEnabled = shouldBeEnabled;
+
+		if (!editingEnabled && PresetHandler::showYesNoWindow("Update local cached documentation", "Do you want to update the local cached documentation from your edited files"))
+		{
+			auto d = new DocUpdater(getHolder(), false, editingEnabled);
+			d->setModalBaseWindowComponent(this);
+		}
+		else
+		{
+			auto d = new DocUpdater(getHolder(), true, editingEnabled);
+			d->setModalBaseWindowComponent(this);
+		}
+
+		if (auto ft = findParentComponentOfClass<FloatingTile>())
+		{
+			ft->getCurrentFloatingPanel()->setCustomTitle(editingEnabled ? "Preview" : "HISE Documentation");
+
+			if (auto c = ft->getParentContainer())
+			{
+				c->getComponent(0)->getLayoutData().setVisible(editingEnabled);
+				c->getComponent(1)->getLayoutData().setVisible(editingEnabled);
+				ft->refreshRootLayout();
+			}
+		}
+	}
 }
 
 bool MarkdownPreview::keyPressed(const KeyPress& k)
@@ -246,6 +332,15 @@ void MarkdownPreview::InternalComponent::setNewText(const String& s, const File&
 
 void MarkdownPreview::InternalComponent::markdownWasParsed(const Result& r)
 {
+	if (parent.getHolder().nothingInHere())
+	{
+		parent.viewport.setVisible(false);
+	}
+	else
+	{
+		parent.viewport.setVisible(true);
+	}
+
 	if (r.wasOk())
 	{
 		errorMessage = {};
@@ -544,13 +639,10 @@ void DocUpdater::run()
 	{
 		showStatusMessage("Rebuilding Documentation Index");
 		auto mc = dynamic_cast<MainController*>(&holder);
-		mc->setAllowFlakyThreading(true);
 		holder.setProgressCounter(&getProgressCounter());
 		getHolder().setForceCachedDataUse(!editingShouldBeEnabled);
 
 		addForumLinks();
-
-		mc->setAllowFlakyThreading(false);
 	}
 	else
 	{
@@ -559,8 +651,6 @@ void DocUpdater::run()
 		if (b->getSelectedItemIndex() == 0)
 		{
 			auto mc = dynamic_cast<MainController*>(&holder);
-
-			mc->setAllowFlakyThreading(true);
 
 			showStatusMessage("Rebuilding index");
 			holder.setForceCachedDataUse(false);
@@ -574,8 +664,6 @@ void DocUpdater::run()
 			crawler.createImageTree();
 
 			crawler.createDataFiles(AutogeneratedDocHelpers::getCachedDocFolder(), true);
-
-			mc->setAllowFlakyThreading(false);
 		}
 		if (b->getSelectedItemIndex() == 1)
 		{
@@ -747,6 +835,30 @@ void DocUpdater::downloadAndTestFile(const String& targetFileName)
 
 	result |= Helpers::getIndexFromFileName(targetFileName);
 
+}
+
+
+void MarkdownPreview::Topbar::databaseWasRebuild()
+{
+	if (parent.getHolder().nothingInHere())
+	{
+		WeakReference<MarkdownDatabaseHolder> h(&parent.getHolder());
+		Component::SafePointer<Component> tmp = this;
+
+		auto f = [h, tmp]()
+		{
+			if (h.get() != nullptr && tmp.getComponent() != nullptr)
+			{
+				PresetHandler::showMessageWindow("Setup documentation", "The documentation is not part of the HISE app but has to be downloaded separately.\nPress OK to load the documentation from the HISE doc server");
+
+				auto n = new DocUpdater(*h, false, false);
+				n->setModalBaseWindowComponent(tmp.getComponent());
+			}
+		};
+
+		MessageManager::callAsync(f);
+
+	}
 }
 
 }

@@ -33,16 +33,16 @@ public:
 	MainController* getMainControllerToUse() override { return &bp; }
 	const MainController* getMainControllerToUse() const override { return &bp; }
 
-	BackendRootWindow* getBackendRootWindow() { return &b; }
+	BackendRootWindow* getBackendRootWindow() { return b; }
 
-	const BackendRootWindow* getBackendRootWindow() const { return &b; }
+	const BackendRootWindow* getBackendRootWindow() const { return b; }
 
 	FloatingTile* getRootFloatingTile() { return &ft; }
 
 private:
 
 	BackendProcessor bp;
-	BackendRootWindow b;
+	Component::SafePointer<BackendRootWindow> b;
 	FloatingTile ft;
 
 	MarkdownDataBase database;

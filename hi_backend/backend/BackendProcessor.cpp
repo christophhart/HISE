@@ -81,6 +81,9 @@ viewUndoManager(new UndoManager())
 
 BackendProcessor::~BackendProcessor()
 {
+	docWindow = nullptr;
+	getDatabase().clear();
+
 #if JUCE_ENABLE_AUDIO_GUARD
 	AudioThreadGuard::setHandler(nullptr);
 #endif
@@ -236,6 +239,14 @@ juce::File BackendProcessor::getDatabaseRootDirectory() const
 	}
 
 	return root;
+}
+
+hise::BackendRootWindow* BackendProcessor::getDocWindow()
+{
+	if (docWindow == nullptr)
+		docWindow = new BackendRootWindow(this, {});
+
+	return docWindow;
 }
 
 void BackendProcessor::setEditorData(var editorState)

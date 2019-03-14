@@ -87,6 +87,9 @@ dutyVoice(INT_MAX)
 
 CCEnvelope::~CCEnvelope()
 {
+	decayChain = nullptr;
+	endLevelChain = nullptr;
+	startLevelChain = nullptr;
 	holdChain = nullptr;
 };
 

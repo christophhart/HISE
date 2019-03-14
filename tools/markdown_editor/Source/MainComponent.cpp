@@ -11,9 +11,10 @@
 //==============================================================================
 MainContentComponent::MainContentComponent() :
 	bp(nullptr, nullptr),
-	b(&bp, {}),
+	b(bp.getDocWindow()),
 	ft(&bp, nullptr, {})
 {
+	bp.setAllowFlakyThreading(true);
 	bp.prepareToPlay(44100.0, 512);
 	
 	bp.rebuildDatabase();

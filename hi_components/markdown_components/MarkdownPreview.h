@@ -138,7 +138,8 @@ public:
 
 
 class MarkdownPreview : public Component,
-					    public MarkdownContentProcessor
+					    public MarkdownContentProcessor,
+						public MarkdownDatabaseHolder::DatabaseListener
 {
 public:
 
@@ -162,6 +163,11 @@ public:
 	MarkdownPreview(MarkdownDatabaseHolder& holder);
 
 	~MarkdownPreview();
+
+	void databaseWasRebuild() override
+	{
+		rootDirectory = getHolder().getDatabaseRootDirectory();
+	}
 
 	void resolversUpdated() override
 	{
@@ -234,38 +240,7 @@ public:
 		return false;
 	}
 
-	void enableEditing(bool shouldBeEnabled)
-	{
-		if (editingEnabled != shouldBeEnabled)
-		{
-			editingEnabled = shouldBeEnabled;
-
-			if (!editingEnabled && PresetHandler::showYesNoWindow("Update local cached documentation", "Do you want to update the local cached documentation from your edited files"))
-			{
-				auto d = new DocUpdater(getHolder(), false, editingEnabled);
-				d->setModalBaseWindowComponent(this);
-			}
-			else
-			{
-				auto d = new DocUpdater(getHolder(), true, editingEnabled);
-				d->setModalBaseWindowComponent(this);
-			}
-
-			
-
-			if (auto ft = findParentComponentOfClass<FloatingTile>())
-			{
-				ft->getCurrentFloatingPanel()->setCustomTitle(editingEnabled ? "Preview" : "HISE Documentation");
-
-				if (auto c = ft->getParentContainer())
-				{
-					c->getComponent(0)->getLayoutData().setVisible(editingEnabled);
-					c->getComponent(1)->getLayoutData().setVisible(editingEnabled);
-					ft->refreshRootLayout();
-				}
-			}
-		}
-	}
+	void enableEditing(bool shouldBeEnabled);
 
 	bool editingEnabled = false;
 
@@ -396,6 +371,7 @@ public:
 		public ButtonListener,
 		public LabelListener,
 		public TextEditor::Listener,
+		public MarkdownDatabaseHolder::DatabaseListener,
 		public KeyListener
 	{
 
@@ -411,6 +387,7 @@ public:
 			refreshButton("Rebuild", this, factory),
 			editButton("Edit", this, factory, "Lock")
 		{
+			parent.getHolder().addDatabaseListener(this);
 			selectButton.setToggleModeWithColourChange(true);
 			editButton.setToggleModeWithColourChange(true);
 
@@ -437,8 +414,15 @@ public:
 			searchBar.setColour(TextEditor::ColourIds::highlightedTextColourId, Colours::black);
 			searchBar.setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
 			searchBar.addListener(this);
+			databaseWasRebuild();
 		}
 
+		~Topbar()
+		{
+			parent.getHolder().removeDatabaseListener(this);
+		}
+
+		void databaseWasRebuild() override;
 
 		struct TopbarPaths : public PathFactory
 		{

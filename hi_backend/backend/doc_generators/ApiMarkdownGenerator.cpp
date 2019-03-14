@@ -138,11 +138,7 @@ hise::MarkdownDataBase::Item ScriptingApiDatabase::ItemGenerator::updateWithValu
 			i.tocString = c.getProperty("name").toString();
 			i.description << "`" << className << "." << i.tocString << "()`  ";
 			i.description << c.getProperty("description").toString();
-
 			i.url = rootUrl.getChildUrl(className).getChildUrl(c.getProperty("name").toString(), true);
-
-			DBG(i.url.toString(MarkdownLink::Everything));
-
 			item.children.add(std::move(i));
 		}
 

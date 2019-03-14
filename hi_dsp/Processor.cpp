@@ -313,6 +313,9 @@ void Processor::sendRebuildMessage(bool forceUpdate/*=false*/)
 
 const hise::Processor* Processor::getParentProcessor(bool getOwnerSynth, bool assertIfFalse) const
 {
+	if (getMainController()->isFlakyThreadingAllowed())
+		assertIfFalse = false;
+
 	if (parentProcessor == nullptr)
 	{
 		ASSERT_STRICT_PROCESSOR_STRUCTURE(!assertIfFalse || this == getMainController()->getMainSynthChain());
@@ -754,7 +757,7 @@ bool Processor::isValidAndInitialised(bool checkOnAir) const
 	const bool isMainSynthChain = getMainController()->getMainSynthChain() == this;
 	const bool hasParent = getParentProcessor(false) != nullptr;
 
-	const bool isValid = onAir_ && (isMainSynthChain || hasParent);
+	const bool isValid = onAir_ && (isMainSynthChain || hasParent) || getMainController()->isFlakyThreadingAllowed();
 
 	// Normally you expect this method to be true, so this assertion will fire here
 	// so that you can check the reason from the bools above...

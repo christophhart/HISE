@@ -50,7 +50,7 @@ public:
 		{
 			Data()
 			{
-				bp.setAllowFlakyThreading(true);
+				
 			}
 
 			~Data()
@@ -61,7 +61,7 @@ public:
 			void createAllProcessors();
 			void addFromFactory(FactoryType* f);
 
-			BackendProcessor bp;
+			BackendProcessor* bp = nullptr;
 			OwnedArray<Processor> allProcessors;
 
 			struct CachedImage
@@ -84,9 +84,12 @@ public:
 	{
 	public:
 
-		ItemGenerator(File root_) :
+		ItemGenerator(File root_, BackendProcessor& bp) :
 			ItemGeneratorBase(root_)
-		{}
+		{
+			data->bp = &bp;
+			colour = Colour(0xFFb53038);
+		}
 
 		~ItemGenerator()
 		{

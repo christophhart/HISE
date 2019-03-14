@@ -461,6 +461,8 @@ juce::File MarkdownDataBase::ItemGeneratorBase::getFolderReadmeFile(const String
 
 void MarkdownDatabaseHolder::rebuildDatabase()
 {
+	nothingToShow = false;
+
 	if(progressCounter != nullptr)
 		*progressCounter = 0.0;
 
@@ -501,8 +503,9 @@ void MarkdownDatabaseHolder::rebuildDatabase()
 
 	if (shouldUseCachedData() && !db.getDatabaseFile().existsAsFile())
 	{
-		jassertfalse;
+		nothingToShow = true;
 	}
+	
 
 	for (auto l : listeners)
 	{

@@ -127,6 +127,13 @@ using namespace juce;
 				removeListener(this);
 		}
 
+		void setToggleStateAndUpdateIcon(bool shouldBeEnabled)
+		{
+			setToggleState(shouldBeEnabled, dontSendNotification);
+			refreshButtonColours();
+			refreshShape();
+		}
+
 		void buttonClicked(Button* b) override
 		{
 			refreshShape();

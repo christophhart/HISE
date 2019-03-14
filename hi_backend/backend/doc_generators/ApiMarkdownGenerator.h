@@ -62,7 +62,9 @@ struct ScriptingApiDatabase
 		  rootFile(rootFile_),
 		  rootUrl(rootFile_, apiWildcard),
 		  holder(holder_)
-		{}
+		{
+			colour = Colour(0xFF6bc77e);
+		}
 
 		MarkdownDataBase::Item createRootItem(MarkdownDataBase& parent) override;
 
