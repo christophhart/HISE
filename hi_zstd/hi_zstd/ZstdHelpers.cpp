@@ -51,7 +51,10 @@ void DictionaryHelpers::checkResult(size_t code)
 
 size_t DictionaryHelpers::getDecompressedSize(const MemoryBlock& mb)
 {
-	return ZSTD_getFrameContentSize(mb.getData(), mb.getSize());
+	auto s = ZSTD_getFrameContentSize(mb.getData(), mb.getSize());
+
+	if (s == ZSTD_CONTENTSIZE_ERROR)
+		throw String("Can't resolve content size");
 }
 
 size_t DictionaryHelpers::decompressWithOptionalDictionary(const MemoryBlock& input, size_t numBytesToDecompress, MemoryBlock& output, PointerTypes::DecompressionContext* context, PointerTypes::DecompressionDictionary* dictionary)

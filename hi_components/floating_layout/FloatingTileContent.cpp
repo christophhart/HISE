@@ -105,10 +105,15 @@ var FloatingTileContent::toDynamicObject() const
 	storePropertyInObject(obj, (int)PanelPropertyId::StyleData, var(styleData));
 	storePropertyInObject(obj, (int)PanelPropertyId::Font, fontName);
 	storePropertyInObject(obj, (int)PanelPropertyId::FontSize, fontSize);
-	storePropertyInObject(obj, (int)PanelPropertyId::LayoutData, var(getParentShell()->getLayoutData().getLayoutDataObject()));
+
+	if (getParentShell() != nullptr)
+		storePropertyInObject(obj, (int)PanelPropertyId::LayoutData, var(getParentShell()->getLayoutData().getLayoutDataObject()));
+	else
+		jassertfalse;
+
 	storePropertyInObject(obj, (int)PanelPropertyId::ColourData, colourData.toDynamicObject());
 
-	if (getFixedSizeForOrientation() != 0)
+	if (getParentShell() != nullptr && getFixedSizeForOrientation() != 0)
 		o->removeProperty("Size");
 
 	return obj;
