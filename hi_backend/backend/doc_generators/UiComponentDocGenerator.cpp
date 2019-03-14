@@ -147,15 +147,23 @@ hise::MarkdownDataBase::Item UIComponentDatabase::ItemGenerator::createRootItem(
 	
 	item.children.add(floatingTileItem);
 
+	applyColour(item);
+
 	return item;
 }
 
 
 void UIComponentDatabase::ItemGenerator::createFloatingTileApi(MarkdownDataBase::Item& item)
 {
-	BackendRootWindow root(dynamic_cast<BackendProcessor*>(&holder), {});
-	FloatingTileContent::Factory f3;
+	ScopedPointer<BackendRootWindow> root;
 
+	{
+		MessageManagerLock mm;
+
+		root = new BackendRootWindow(dynamic_cast<BackendProcessor*>(&holder), {});
+	}
+
+	FloatingTileContent::Factory f3;
 	f3.registerLayoutPanelTypes();
 
 	auto layoutList = f3.getIdList();

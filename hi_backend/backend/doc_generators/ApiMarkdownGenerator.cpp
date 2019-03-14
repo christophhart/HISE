@@ -52,10 +52,7 @@ hise::MarkdownDataBase::Item ScriptingApiDatabase::ItemGenerator::createRootItem
 	auto scriptingApi = updateWithValueTree(c ,data->v);
 
 	item.swapChildWithName(scriptingApi, "scripting-api");
-
-	
-
-
+	applyColour(item);
 	return item;
 }
 
@@ -223,7 +220,7 @@ juce::String ScriptingApiDatabase::Resolver::getContent(const MarkdownLink& url)
 
 		String s;
 
-		s << "# Scripting API";
+		s << url.toString(MarkdownLink::ContentFull);
 
 		return s;
 	}

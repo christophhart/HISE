@@ -232,6 +232,8 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createRootItem(M
 	fx.children.add(std::move(fx2));
 	rootItem.children.add(std::move(fx));
 
+	applyColour(rootItem);
+
 	return rootItem;
 }
 
@@ -315,7 +317,7 @@ juce::String HiseModuleDatabase::Resolver::getContent(const MarkdownLink& url)
 
 		s << "![](/images/module_screenshot_" << id << ".png)  " << nl;
 
-		s << url.toString(MarkdownLink::ContentWithoutHeader);
+		s << url.toString(MarkdownLink::ContentWithoutHeader) << nl;
 
 		ScopedPointer<ProcessorDocumentation> doc = p->createDocumentation();
 

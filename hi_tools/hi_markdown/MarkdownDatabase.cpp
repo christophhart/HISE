@@ -172,6 +172,9 @@ hise::MarkdownDataBase::Item MarkdownDataBase::DirectoryItemGenerator::createRoo
 	rootDirectory = parent.getRoot();
 	Item rItem;
 	addFileRecursive(rItem, startDirectory);
+
+	applyColour(rItem);
+
 	return rItem;
 }
 

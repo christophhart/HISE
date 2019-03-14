@@ -181,10 +181,18 @@ public:
 		{}
 
 		File getFolderReadmeFile(const String& folderURL);
+		void setColour(Colour c) { colour = c; };
 
 		virtual ~ItemGeneratorBase() {};
 		virtual Item createRootItem(MarkdownDataBase& parent) = 0;
 
+		void applyColour(Item& item)
+		{
+			Colour c_ = colour;
+			item.callForEach([c_](Item& item) { item.c = c_; return false; });
+		}
+
+		Colour colour;
 		File rootDirectory;
 		MarkdownDataBase::Item rootItem;
 	};
@@ -229,6 +237,21 @@ public:
 		rootItem = {};
 	}
 
+
+	void setColourForLastItem(Colour c)
+	{
+		if (!rootItem.children.isEmpty())
+		{
+			auto f = [c](MarkdownDataBase::Item& item)
+			{
+				item.c = c;
+				return false;
+			};
+
+			rootItem.children.getReference(rootItem.children.size() - 1).callForEach(f);
+
+		}
+	}
 private:
 
 	friend class MarkdownDatabaseHolder;
@@ -310,6 +333,10 @@ struct MarkdownDatabaseHolder
 
 	void rebuildDatabase();
 
+	void setColourForLastItem(Colour c)
+	{
+		db.setColourForLastItem(c);
+	}
 
 	void addContentProcessor(MarkdownContentProcessor* contentProcessor);
 

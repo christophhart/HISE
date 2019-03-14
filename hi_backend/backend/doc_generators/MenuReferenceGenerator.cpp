@@ -351,6 +351,9 @@ hise::MarkdownDataBase::Item MenuReferenceDocGenerator::ItemGenerator::createRoo
 	createMenuReference(item);
 	createSettingsItem(item);
 
+
+	applyColour(item);
+
 	return item;
 }
 
