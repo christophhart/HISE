@@ -162,6 +162,8 @@ public:
 		ValueTree createValueTree() const;
 		void loadFromValueTree(ValueTree& v);
 
+		void fillMetadataFromURL();
+
 		Array<Item> children;
 
 		Type type = Type::Invalid;
@@ -205,7 +207,6 @@ public:
 		void addFileRecursive(Item& folder, File f);
 
 		File startDirectory;
-		Colour c;
 	};
 
 	

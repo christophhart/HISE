@@ -82,6 +82,7 @@ viewUndoManager(new UndoManager())
 BackendProcessor::~BackendProcessor()
 {
 	docWindow = nullptr;
+	docProcessor = nullptr;
 	getDatabase().clear();
 
 #if JUCE_ENABLE_AUDIO_GUARD
@@ -241,10 +242,29 @@ juce::File BackendProcessor::getDatabaseRootDirectory() const
 	return root;
 }
 
+hise::BackendProcessor* BackendProcessor::getDocProcessor()
+{
+	if (isFlakyThreadingAllowed())
+		return this;
+
+	if (docProcessor == nullptr)
+	{
+		docProcessor = new BackendProcessor(deviceManager, callback);
+		docProcessor->setAllowFlakyThreading(true);
+		docProcessor->prepareToPlay(44100.0, 512);
+		
+	}
+
+	return docProcessor;
+}
+
 hise::BackendRootWindow* BackendProcessor::getDocWindow()
 {
+	if (getDocProcessor() != this)
+		return getDocProcessor()->getDocWindow();
+
 	if (docWindow == nullptr)
-		docWindow = new BackendRootWindow(this, {});
+		docWindow = new BackendRootWindow(getDocProcessor(), {});
 
 	return docWindow;
 }

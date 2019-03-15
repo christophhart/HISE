@@ -30,8 +30,8 @@ public:
     void resized() override;
 
 	
-	MainController* getMainControllerToUse() override { return &bp; }
-	const MainController* getMainControllerToUse() const override { return &bp; }
+	MainController* getMainControllerToUse() override { return bp.getDocProcessor(); }
+	const MainController* getMainControllerToUse() const override { return bp.getDocProcessor(); }
 
 	BackendRootWindow* getBackendRootWindow() { return b; }
 
@@ -41,7 +41,8 @@ public:
 
 private:
 
-	BackendProcessor bp;
+	mutable BackendProcessor bp;
+	BackendProcessor* docProcessor = nullptr;
 	Component::SafePointer<BackendRootWindow> b;
 	FloatingTile ft;
 
@@ -51,7 +52,6 @@ private:
 
 	juce::TooltipWindow tooltip;
 
-	Component::SafePointer<MarkdownPreview> preview;
 	
 
     //==============================================================================

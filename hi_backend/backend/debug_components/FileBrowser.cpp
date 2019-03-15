@@ -187,7 +187,8 @@ FileBrowser::FileBrowser(BackendRootWindow* rootWindow_) :
     
 	GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).addListener(this);
 
-	directorySearcher.startThread(3);
+    if(!rootWindow_->getBackendProcessor()->isFlakyThreadingAllowed())
+       directorySearcher.startThread(3);
 
 	fileFilter = new HiseFileBrowserFilter();
 

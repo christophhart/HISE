@@ -165,12 +165,11 @@ juce::var MarkdownDataBase::getHtmlSearchDatabaseDump()
 	return v;
 }
 
-MarkdownDataBase::DirectoryItemGenerator::DirectoryItemGenerator(const File& rootDirectory, Colour colour) :
+MarkdownDataBase::DirectoryItemGenerator::DirectoryItemGenerator(const File& rootDirectory, Colour colour_) :
 	ItemGeneratorBase(rootDirectory),
-	startDirectory(rootDirectory),
-	c(colour)
+	startDirectory(rootDirectory)
 {
-
+	colour = colour_;
 }
 
 hise::MarkdownDataBase::Item MarkdownDataBase::DirectoryItemGenerator::createRootItem(MarkdownDataBase& parent)
@@ -188,26 +187,16 @@ void MarkdownDataBase::DirectoryItemGenerator::addFileRecursive(Item& folder, Fi
 {
 	if (f.isDirectory())
 	{
-		folder.c = c;
 		folder.type = Item::Folder;
 		folder.url = { rootDirectory, f.getRelativePathFrom(rootDirectory) };
 
-		auto header = folder.url.getHeaderFromFile(rootDirectory, false);
-
-		folder.icon = header.getIcon();
-		folder.keywords = header.getKeywords();
-		folder.description = header.getDescription();
-		folder.tocString = header.getFirstKeyword();
-		if (folder.tocString.isEmpty())
-			folder.tocString = f.getFileName();
-		
-
+		folder.fillMetadataFromURL();
 
 		if (folder.url.fileExists({}))
 		{
 			Item ni;
 
-			MarkdownParser::createDatabaseEntriesForFile(rootDirectory, ni, folder.url.getMarkdownFile({}), folder.c);
+			MarkdownParser::createDatabaseEntriesForFile(rootDirectory, ni, folder.url.getMarkdownFile(folder.url.getRoot()), folder.c);
 
 			if (ni.type != Item::Invalid)
 			{
@@ -247,7 +236,7 @@ void MarkdownDataBase::DirectoryItemGenerator::addFileRecursive(Item& folder, Fi
 		if (f.getFileName().toLowerCase() == "readme.md")
 			return;
 
-		MarkdownParser::createDatabaseEntriesForFile(rootDirectory, folder, f, c);
+		MarkdownParser::createDatabaseEntriesForFile(rootDirectory, folder, f, colour);
 	}
 }
 
@@ -374,7 +363,7 @@ void MarkdownDataBase::Item::addTocChildren(File root)
 MarkdownDataBase::Item MarkdownDataBase::Item::createChildItem(const String& subPath) const
 {
 	MarkdownDataBase::Item item;
-	item.url = url.getChildUrl(subPath);
+	item.url = url.getChildUrlWithRoot(subPath);
 	item.c = c;
 	return item;
 }
@@ -430,6 +419,8 @@ juce::ValueTree MarkdownDataBase::Item::createValueTree() const
 	v.setProperty("URL", url.toString(MarkdownLink::Everything), nullptr);
 	v.setProperty("TocString", tocString, nullptr);
 	v.setProperty("Colour", c.toString(), nullptr);
+	v.setProperty("Icon", icon, nullptr);
+	v.setProperty("AlwaysOpen", this->isAlwaysOpen, nullptr);
 
 	for (const auto& c : children)
 		v.addChild(c.createValueTree(), -1, nullptr);
@@ -445,12 +436,32 @@ void MarkdownDataBase::Item::loadFromValueTree(ValueTree& v)
 	url = MarkdownLink::createWithoutRoot(v.getProperty("URL"));
 	tocString = v.getProperty("TocString");
 	c = Colour::fromString(v.getProperty("Colour").toString());
+	icon = v.getProperty("Icon", "");
+	isAlwaysOpen = v.getProperty("AlwaysOpen", false);
 
 	for (auto c : v)
 	{
 		Item newChild;
 		newChild.loadFromValueTree(c);
 		children.add(newChild);
+	}
+}
+
+
+void MarkdownDataBase::Item::fillMetadataFromURL()
+{
+	auto f = url.toFile(MarkdownLink::FileType::ContentFile);
+	
+	if (f.existsAsFile())
+	{
+		auto headerString = url.toString(MarkdownLink::ContentHeader);
+		MarkdownParser p(headerString);
+		p.parse();
+		auto header = p.getHeader();
+		keywords = header.getKeywords();
+		tocString = header.getFirstKeyword();
+		description = header.getDescription();
+		icon = header.getIcon();
 	}
 }
 

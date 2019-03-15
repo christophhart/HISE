@@ -128,6 +128,8 @@ public:
 		databaseRoot = newDatabaseDirectory;
 	}
 
+	BackendProcessor* getDocProcessor();
+
 	BackendRootWindow* getDocWindow();
 
 	bool databaseDirectoryInitialised() const override
@@ -178,6 +180,8 @@ public:
 	void setEditorData(var editorState);
 private:
 
+	
+
 	File databaseRoot;
 
 	MemoryBlock tempLoadingData;
@@ -192,6 +196,7 @@ private:
 
 	var editorInformation;
 
+	ScopedPointer<BackendProcessor> docProcessor;
 	ScopedPointer<BackendRootWindow> docWindow;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BackendProcessor)
