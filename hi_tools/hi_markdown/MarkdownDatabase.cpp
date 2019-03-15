@@ -308,8 +308,10 @@ int MarkdownDataBase::Item::fits(String search) const
 			return 1;
 	}
 
+#if 0
 	if (!FuzzySearcher::searchForIndexes(search, sa, 0.3f).isEmpty())
 		return 2;
+#endif
 
 	return 0;
 }
