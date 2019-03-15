@@ -109,7 +109,7 @@ DialogWindowWithBackgroundThread::~DialogWindowWithBackgroundThread()
 {
 	if (thread != nullptr)
 	{
-		thread->stopThread(6000);
+		thread->stopThread(timeoutMs);
 	}
 }
 

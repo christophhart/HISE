@@ -45,10 +45,11 @@ public:
 
 	enum DownloadResult
 	{
-		NotExecuted = 0,
+		NotExecuted =       0b0000,
 		FileErrorContent =  0b1110,
 		FileErrorImage =    0b1101,
 		CantResolveServer = 0b1000,
+		UserCancelled =    0b11000,
 		ImagesUpdated =     0b0101,
 		ContentUpdated =    0b0110,
 		EverythingUpdated = 0b0111,
@@ -61,6 +62,8 @@ public:
 		{
 			return result |= CantResolveServer;
 		}
+
+		
 
 		static bool wasOk(int r)
 		{
@@ -83,12 +86,7 @@ public:
 
 	DocUpdater(MarkdownDatabaseHolder& holder_, bool fastMode_, bool allowEdit);
 
-	~DocUpdater()
-	{
-		holder.setProgressCounter(nullptr);
-		holder.removeContentProcessor(this);
-		holder.removeContentProcessor(&crawler);
-	}
+	~DocUpdater();
 	
 
 	void logMessage(const String& message) override

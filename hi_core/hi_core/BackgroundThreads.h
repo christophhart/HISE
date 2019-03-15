@@ -279,7 +279,10 @@ protected:
 	/** Call this method in your constructor after you created all custom methods. */
 	void addBasicComponents(bool addOkButton = true);
 	
-	
+	void setTimeoutMs(int newTimeout)
+	{
+		timeoutMs = newTimeout;
+	}
 
 	Thread* getCurrentThread()
 	{
@@ -319,6 +322,7 @@ private:
 
 	const bool synchronous;
 
+	int timeoutMs = 6000;
 	
 	bool isQuasiModal;
 	AlertWindowLookAndFeel laf;

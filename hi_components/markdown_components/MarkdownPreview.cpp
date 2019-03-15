@@ -44,6 +44,8 @@ MarkdownPreview::MarkdownPreview(MarkdownDatabaseHolder& holder) :
 	topbar(*this),
 	rootDirectory(holder.getDatabaseRootDirectory())
 {
+	jassert(dynamic_cast<MainController*>(&holder)->isFlakyThreadingAllowed());
+
 	renderer.setDatabaseHolder(&holder);
 	renderer.setCreateFooter(true);
 
@@ -59,7 +61,6 @@ MarkdownPreview::MarkdownPreview(MarkdownDatabaseHolder& holder) :
 	topbar.database = &holder.getDatabase();
 	
 	holder.addContentProcessor(this);
-	holder.addDatabaseListener(this);
 
 	setNewText(" ", {});
 }
@@ -67,7 +68,6 @@ MarkdownPreview::MarkdownPreview(MarkdownDatabaseHolder& holder) :
 MarkdownPreview::~MarkdownPreview()
 {
 	viewport.removeListener(&renderer);
-	getHolder().removeDatabaseListener(this);
 }
 
 void MarkdownPreview::editCurrentPage(const MarkdownLink& lastLink, bool showExactContent)
@@ -574,6 +574,7 @@ DocUpdater::DocUpdater(MarkdownDatabaseHolder& holder_, bool fastMode_, bool all
 	fastMode(fastMode_),
 	editingShouldBeEnabled(allowEdit)
 {
+
 	holder.addContentProcessor(this);
 
 	if (!fastMode)
@@ -633,12 +634,23 @@ DocUpdater::DocUpdater(MarkdownDatabaseHolder& holder_, bool fastMode_, bool all
 	}
 }
 
+
+DocUpdater::~DocUpdater()
+{
+	currentDownload = nullptr;
+
+	holder.setProgressCounter(nullptr);
+	holder.removeContentProcessor(this);
+	holder.removeContentProcessor(&crawler);
+}
+
 void DocUpdater::run()
 {
 	if (fastMode)
 	{
 		showStatusMessage("Rebuilding Documentation Index");
 		auto mc = dynamic_cast<MainController*>(&holder);
+		
 		holder.setProgressCounter(&getProgressCounter());
 		getHolder().setForceCachedDataUse(!editingShouldBeEnabled);
 
@@ -691,6 +703,7 @@ void DocUpdater::threadFinished()
 		switch (result)
 		{
 		case DownloadResult::NotExecuted:			break;
+		case DownloadResult::UserCancelled:			s = "Operation aborted by user"; break;
 		case DownloadResult::ImagesUpdated:			s = "Updated Image blob"; break;
 		case DownloadResult::ContentUpdated:		s = "Updated Content blob"; break;
 		case DownloadResult::EverythingUpdated:		s = "Updated Content and Image blob"; break;
@@ -717,9 +730,21 @@ void DocUpdater::addForumLinks()
 	auto forumUrl = baseUrl.getChildURL("api/category/13/");
 	auto itemList = holder.getDatabase().getFlatList();
 
+	setTimeoutMs(-1);
+
 	auto response = forumUrl.readEntireTextStream(false);
 
+	setTimeoutMs(6000);
+
+	if (threadShouldExit())
+	{
+		result = UserCancelled;
+		return;
+	}
+
 	auto v = JSON::parse(response);
+
+	
 
 	int numFound = 0;
 
@@ -760,7 +785,15 @@ void DocUpdater::updateFromServer()
 	
 	auto hashURL = base.getChildURL("Hash.json");
 
+	setTimeoutMs(-1);
 	auto content = hashURL.readEntireTextStream(false);
+	setTimeoutMs(6000);
+
+	if (threadShouldExit())
+	{
+		result = UserCancelled;
+		return;
+	}
 
 	if (content.isEmpty())
 	{
@@ -785,8 +818,21 @@ void DocUpdater::updateFromServer()
 	if (webContentHash != localContentHash)
 		downloadAndTestFile("Content.dat");
 	
+	if (threadShouldExit())
+	{
+		result = UserCancelled;
+		return;
+	}
+		
+
 	if (webImageHash != localImageHash)
 		downloadAndTestFile("Images.dat");
+
+	if (threadShouldExit())
+	{
+		result = UserCancelled;
+		return;
+	}
 
 	localFile.replaceWithText(JSON::toString(webHash));
 
@@ -808,11 +854,40 @@ void DocUpdater::downloadAndTestFile(const String& targetFileName)
 	auto realFile = holder.getCachedDocFolder().getChildFile(targetFileName);
 	auto tmpFile = realFile.getSiblingFile("temp.dat");
 
+	setTimeoutMs(-1);
+
 	currentDownload = contentURL.downloadToFile(tmpFile, {}, this);
 
-	while (!currentDownload->isFinished())
+	if (threadShouldExit())
 	{
+		result = UserCancelled;
+		currentDownload = nullptr;
+		tmpFile.deleteFile();
+		return;
+	}
+
+	while (currentDownload != nullptr && !currentDownload->isFinished())
+	{
+		if (threadShouldExit())
+		{
+			result = UserCancelled;
+			currentDownload = nullptr;
+			tmpFile.deleteFile();
+			return;
+		}
+
 		Thread::sleep(500);
+	}
+
+	currentDownload = nullptr;
+	setTimeoutMs(6000);
+
+	if (threadShouldExit())
+	{
+		result = UserCancelled;
+		currentDownload = nullptr;
+		tmpFile.deleteFile();
+		return;
 	}
 
 	showStatusMessage("Check file integrity");
@@ -820,8 +895,6 @@ void DocUpdater::downloadAndTestFile(const String& targetFileName)
 	zstd::ZDefaultCompressor comp;
 
 	ValueTree test;
-
-	currentDownload = nullptr;
 
 	auto r = comp.expand(tmpFile, test);
 
@@ -834,7 +907,6 @@ void DocUpdater::downloadAndTestFile(const String& targetFileName)
 	jassert(ok);
 
 	result |= Helpers::getIndexFromFileName(targetFileName);
-
 }
 
 
