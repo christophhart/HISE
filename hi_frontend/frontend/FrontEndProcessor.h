@@ -255,6 +255,8 @@ public:
 
 	void decActiveEditors();
     
+    void updateSuspendState();
+    
 	void handleControllersForMacroKnobs(const MidiBuffer &midiMessages);
  
 	AudioProcessorEditor* createEditor();
@@ -296,6 +298,34 @@ public:
     
 private:
 
+    struct SuspendUpdater: private Timer
+    {
+        SuspendUpdater(FrontendProcessor& parent_):
+          parent(parent_)
+        {}
+        
+        void updateDelayed()
+        {
+            startTimer(10000);
+        }
+        
+        bool suspendState = false;
+        
+    private:
+        
+        void timerCallback() override
+        {
+            parent.updateSuspendState();
+            stopTimer();
+        }
+        
+        FrontendProcessor& parent;
+    };
+    
+    
+    
+    SuspendUpdater updater;
+    
 	friend class FrontendProcessorEditor;
 	friend class DefaultFrontendBar;
 
