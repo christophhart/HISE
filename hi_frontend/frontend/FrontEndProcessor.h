@@ -140,7 +140,15 @@ public:
 
 		v.setProperty("UserPreset", getUserPresetHandler().getCurrentlyLoadedFile().getFullPathName(), nullptr);
 
+        auto mpeData = getMacroManager().getMidiControlAutomationHandler()->getMPEData().exportAsValueTree();
+        
+        v.addChild(mpeData, -1, nullptr);
+        
 		v.writeToStream(output);
+        
+        
+        
+        
 #endif
 	};
     
@@ -156,6 +164,7 @@ public:
 
 		rawDataHolder->restoreFromValueTree(v);
 #else
+        
 		ValueTree v = ValueTree::readFromData(data, sizeInBytes);
 
 		currentlyLoadedProgram = v.getProperty("Program");
@@ -174,6 +183,17 @@ public:
 		}
 
 		synthChain->restoreInterfaceValues(v.getChildWithName("InterfaceData"));
+        
+        auto mpeData = v.getChildWithName("MPEData");
+        
+        if (mpeData.isValid())
+        {
+            getMacroManager().getMidiControlAutomationHandler()->getMPEData().restoreFromValueTree(mpeData);
+        }
+        else
+        {
+            getMacroManager().getMidiControlAutomationHandler()->getMPEData().reset();
+        }
 #endif
 	}
 

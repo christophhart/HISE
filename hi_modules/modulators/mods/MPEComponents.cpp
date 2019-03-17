@@ -1197,8 +1197,6 @@ MPEKeyboard::MPEKeyboard(MainController* mc) :
 {
 	suspend(false);
 
-	pendingMessages.setThreadTokens(mc->getKillStateHandler().createPublicTokenList(MainController::KillStateHandler::AudioThreadIsProducer |																									  MainController::KillStateHandler::MessageThreadIsProducer));
-
 	state.addListener(this);
 
 	setLookAndFeel(&dlaf);
