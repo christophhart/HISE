@@ -167,21 +167,20 @@ juce::File MarkdownHeader::createEmptyMarkdownFileWithMarkdownHeader(File parent
 	if (f.existsAsFile())
 		return f;
 
-	f.create();
-
 	String s;
 
 	s << "---\n";
 	s << "keywords: " << titleToUse << "\n";
 	s << "summary:  " << (description.isEmpty() ? "[Enter summary]" : description) << "\n";
-	s << "weight:   50\n";
-	s << "index:    01\n";
-	s << "author:   " << File::getSpecialLocation(File::userHomeDirectory).getFileName() << "\n";
+	s << "author:   " << "Christoph Hart" << "\n";
+	s << "modified: " << Time::getCurrentTime().formatted("%d.%m.%Y") << "\n";
 	s << "---\n";
 
+	s << "  \n";
 	s << "![warning](/images/icon_warning:64px)  \n";
-	s << "> Oops, this document has not been created yet. Luckily, you can help out. If you want to learn how to contribute to the documentation, please visit[this site](glossary/contributing#contributing) to learn more.  \n";
+	s << "> Oops, this document has not been created yet. Luckily, you can help out. If you want to learn how to contribute to the documentation, please visit [this site](glossary/contributing#contributing) to learn more.  \n";
 
+	f.create();
 	f.replaceWithText(s);
 
 	return f;
