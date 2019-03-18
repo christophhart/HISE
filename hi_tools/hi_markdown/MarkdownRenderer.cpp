@@ -77,6 +77,13 @@ void MarkdownRenderer::jumpToCurrentAnchor()
 {
 	auto thisAnchor = getLastLink().toString(MarkdownLink::AnchorWithHashtag);
 
+	if (thisAnchor.isEmpty())
+	{
+		scrollToY(0.0f);
+		return;
+	}
+		
+
 	for (auto e : elements)
 	{
 		if (auto headLine = dynamic_cast<Headline*>(e))
@@ -110,7 +117,7 @@ juce::String MarkdownRenderer::getAnchorForY(int y) const
 			break;
 	}
 
-	if (lastHeadline != nullptr)
+	if (lastHeadline != nullptr && lastHeadline != elements.getFirst())
 		return lastHeadline->anchorURL;
 
 	return {};

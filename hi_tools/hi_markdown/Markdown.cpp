@@ -164,8 +164,11 @@ bool MarkdownParser::gotoLink(const MarkdownLink& url)
 
 	setNewText(newText);
 	
-	if (url.toString(MarkdownLink::AnchorWithHashtag) != lastAnchor)
+	auto thisAnchor = url.toString(MarkdownLink::AnchorWithHashtag);
+
+	if (thisAnchor.isEmpty() || thisAnchor != lastAnchor)
 		jumpToCurrentAnchor();
+	
 
 	return true;
 }
@@ -222,9 +225,6 @@ void MarkdownParser::createDatabaseEntriesForFile(File root, MarkdownDataBase::I
 {
 	jassert(root.isDirectory());
 
-	DBG(f.getFullPathName());
-	DBG("-------------------------------------------------");
-
 	MarkdownParser p(f.loadFileAsString());
 	
 	p.parse();
@@ -246,6 +246,7 @@ void MarkdownParser::createDatabaseEntriesForFile(File root, MarkdownDataBase::I
 		item.c = c;
 		item.tocString = item.keywords[0];
 		item.icon = p.getHeader().getKeyValue("icon");
+		item.type = MarkdownDataBase::Item::Keyword;
 
 		MarkdownDataBase::Item lastHeadLine;
 		int lastLevel = -59;
@@ -270,7 +271,7 @@ void MarkdownParser::createDatabaseEntriesForFile(File root, MarkdownDataBase::I
 					headLineItem.tocString = {};
 
 
-				item.children.add(headLineItem);
+				item.addChild(std::move(headLineItem));
 
 			}
 		}
@@ -430,7 +431,10 @@ void MarkdownParser::Element::prepareLinksForHtmlExport(const String& baseURL)
 	for (auto& l : hyperLinks)
 	{
 		DBG("Found a link: " + l.url);
-		auto newURL = MarkdownLink::Helpers::createHtmlLink(l.url, baseURL);
+
+		MarkdownLink link({}, l.url);
+
+		auto newURL = link.toString(MarkdownLink::FormattedLinkHtml);
 		DBG("Resolved: " + newURL);
 		l.url = newURL;
 	}

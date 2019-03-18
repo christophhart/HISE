@@ -136,17 +136,18 @@ hise::MarkdownDataBase::Item UIComponentDatabase::ItemGenerator::createRootItem(
 		cItem.url = pluginItem.url.getChildUrlWithRoot(MarkdownLink::Helpers::getSanitizedFilename(c->getName().toString()), false);
 		cItem.fillMetadataFromURL();
 		
-		pluginItem.children.add(cItem);
+		pluginItem.addChild(std::move(cItem));
 	}
 
-	item.children.add(std::move(pluginItem));
+	item.addChild(std::move(pluginItem));
 
 	MarkdownDataBase::Item floatingTileItem = item.createChildItem("floating-tiles");
+	floatingTileItem.type = MarkdownDataBase::Item::Folder;
 	floatingTileItem.tocString = "Floating Tiles";
 
 	createFloatingTileApi(floatingTileItem);
 	
-	item.children.add(floatingTileItem);
+	item.addChild(std::move(floatingTileItem));
 
 	applyColour(item);
 
@@ -176,10 +177,10 @@ void UIComponentDatabase::ItemGenerator::createFloatingTileApi(MarkdownDataBase:
 
 	for (auto id : layoutList)
 	{
-		layout.children.add(createItemForFloatingTile(layout, f3, id, root->getRootFloatingTile()));
+		layout.addChild(createItemForFloatingTile(layout, f3, id, root->getRootFloatingTile()));
 	}
 
-	item.children.add(std::move(layout));
+	item.addChild(std::move(layout));
 
 	FloatingTileContent::Factory f;
 
@@ -196,7 +197,7 @@ void UIComponentDatabase::ItemGenerator::createFloatingTileApi(MarkdownDataBase:
 
 	for (auto id : frontendList)
 	{
-		frontend.children.add(createItemForFloatingTile(frontend, f, id, root->getRootFloatingTile()));
+		frontend.addChild(createItemForFloatingTile(frontend, f, id, root->getRootFloatingTile()));
 	}
 
 	FloatingTileContent::Factory f2;
@@ -218,11 +219,11 @@ void UIComponentDatabase::ItemGenerator::createFloatingTileApi(MarkdownDataBase:
 		if (layoutList.contains(id))
 			continue;
 
-		backend.children.add(createItemForFloatingTile(backend, f2, id, root->getRootFloatingTile()));
+		backend.addChild(createItemForFloatingTile(backend, f2, id, root->getRootFloatingTile()));
 	}
 
-	item.children.add(std::move(frontend));
-	item.children.add(std::move(backend));
+	item.addChild(std::move(frontend));
+	item.addChild(std::move(backend));
 
 	{
 		MessageManagerLock mm;

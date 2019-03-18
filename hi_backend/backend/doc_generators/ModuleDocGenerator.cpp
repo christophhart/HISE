@@ -112,9 +112,8 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createItemForPro
 	pItem.url = newItem.url.getChildUrl("parameters", true);
 	pItem.c = newItem.c;
 
-	newItem.children.add(pItem);
+	newItem.addChild(std::move(pItem));
 	
-
 	return newItem;
 }
 
@@ -128,6 +127,7 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createItemForFac
 	list.url = parent.url.getChildUrl("list");
 	list.tocString = "List of " + factoryName;
 	list.keywords.add(factoryName);
+	list.type = MarkdownDataBase::Item::Folder;
 
 	for (int i = 0; i < n; i++)
 	{
@@ -137,11 +137,10 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createItemForFac
 			continue;
 
 		parent.c = p->getColour();
-		list.children.add(createItemForProcessor(p, list));
+		list.addChild(createItemForProcessor(p, list));
 	}
 	list.isAlwaysOpen = true;
-    MarkdownDataBase::Item::Sorter s;
-	list.children.sort(s);
+	list.sortChildren();
 	
 	return list;
 }
@@ -165,6 +164,7 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createRootItem(M
 
 	rootItem.type = MarkdownDataBase::Item::Folder;
 	rootItem.tocString = "HISE Modules";
+	rootItem.type = MarkdownDataBase::Item::Folder;
 	rootItem.url = { rootDirectory, moduleWildcard };
 	
 	auto bp = data->bp;
@@ -176,16 +176,16 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createRootItem(M
 	auto sg2 = createItemForFactory(new ModulatorSynthChainFactoryType(1, bp->getMainSynthChain()),
 		"Sound Generators", sg);
 
-	sg.children.add(std::move(sg2));
+	sg.addChild(std::move(sg2));
 
-	rootItem.children.add(std::move(sg));
+	rootItem.addChild(std::move(sg));
 
 	auto mp = createItemForCategory("MIDI Processors", rootItem);
 
 	auto mp2 = createItemForFactory(new MidiProcessorFactoryType(bp->getMainSynthChain()), "MIDI Processors", mp);
-	mp.children.add(std::move(mp2));
+	mp.addChild(std::move(mp2));
 
-	rootItem.children.add(std::move(mp));
+	rootItem.addChild(std::move(mp));
 
 	auto modItem = createItemForCategory("Modulators", rootItem);
 
@@ -195,21 +195,21 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createRootItem(M
 	auto vs2 = createItemForFactory(new VoiceStartModulatorFactoryType(1, Modulation::GainMode, bp->getMainSynthChain()),
 		"Voice Start Modulators", vs);
 
-	vs.children.add(std::move(vs2));
+	vs.addChild(std::move(vs2));
 
 	vs.isAlwaysOpen = false;
 
-	modItem.children.add(vs);
+	modItem.addChild(std::move(vs));
 
 	auto tv = createItemForCategory("Time Variant Modulators", modItem);
 
 	auto tv2 = createItemForFactory(new TimeVariantModulatorFactoryType(Modulation::GainMode, bp->getMainSynthChain()),
 		"Time Variant Modulators", tv);
 
-	tv.children.add(std::move(tv2));
+	tv.addChild(std::move(tv2));
 	tv.isAlwaysOpen = false;
 
-	modItem.children.add(std::move(tv));
+	modItem.addChild(std::move(tv));
 	
 
 	auto em = createItemForFactory(new EnvelopeModulatorFactoryType(1, Modulation::GainMode, bp->getMainSynthChain()),
@@ -217,22 +217,14 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createRootItem(M
 
 	em.isAlwaysOpen = false;
 
-	modItem.children.add(em);
-	modItem.c = Colour(0xffbe952c);
+	modItem.addChild(std::move(em));
 
-	for (auto& i : modItem.children)
-	{
-		i.c = modItem.c;
-
-		for (auto& s : i.children)
-			s.c = modItem.c;
-	}
-	rootItem.children.add(std::move(modItem));
+	rootItem.addChild(std::move(modItem));
 
 	auto fx = createItemForCategory("Effects", rootItem);
 	auto fx2 = createItemForFactory(new EffectProcessorChainFactoryType(1, bp->getMainSynthChain()), "Effects", fx);
-	fx.children.add(std::move(fx2));
-	rootItem.children.add(std::move(fx));
+	fx.addChild(std::move(fx2));
+	rootItem.addChild(std::move(fx));
 
 	applyColour(rootItem);
 

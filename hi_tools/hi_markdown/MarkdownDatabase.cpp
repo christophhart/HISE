@@ -65,12 +65,15 @@ juce::String MarkdownDataBase::generateHtmlToc(const String& activeUrl) const
 {
 	HtmlGenerator g;
 
+#if 0
 	String s;
+
 
 	for (auto c : rootItem.children)
 		s << c.generateHtml(rootDirectory.getChildFile("html").getFullPathName() + "/", activeUrl);
+#endif
 
-	return g.surroundWithTag(s, "div", "class=\"toc\"");
+	return g.surroundWithTag("Insert funky js here", "nav", "class=\"toc\"");
 }
 
 void MarkdownDataBase::buildDataBase(bool useCache)
@@ -102,7 +105,7 @@ void MarkdownDataBase::buildDataBase(bool useCache)
 			*progressCounter = (double)p++ / (double)numTotal;
 
 		auto newItem = g->createRootItem(*this);
-		rootItem.children.add(newItem);
+		rootItem.addChild(std::move(newItem));
 	}
 }
 
@@ -117,17 +120,18 @@ juce::var MarkdownDataBase::getHtmlSearchDatabaseDump()
 	Array<var> list;
 
 	var v(list);
+
 	auto f = getRoot();
 
 	rootItem.callForEach([v, f](Item& item)
 	{ 
-		if (item.children.isEmpty())
+		if (!item.hasChildren())
 			return false;
 
 		if (item.tocString.isEmpty())
 			return false;
 
-		for (auto& c : item.children)
+		for (auto& c : item)
 		{
 			if (c.tocString.isEmpty())
 				continue;
@@ -140,6 +144,23 @@ juce::var MarkdownDataBase::getHtmlSearchDatabaseDump()
 			{
 				s = item.tocString + "." + c.tocString + "()";
 			}
+
+			if (c.type == MarkdownDataBase::Item::Keyword)
+				c.url.setType(MarkdownLink::MarkdownFile);
+			if (c.type == MarkdownDataBase::Item::Folder)
+				c.url.setType(MarkdownLink::Folder);
+			if (c.type == MarkdownDataBase::Item::Headline)
+			{
+				
+				if (auto parent = c.getParentItem())
+				{
+					if (parent->type == MarkdownDataBase::Item::Keyword)
+						c.url.setType(MarkdownLink::MarkdownFile);
+					else if (parent->type == MarkdownDataBase::Item::Folder)
+						c.url.setType(MarkdownLink::Folder);
+				}
+			}
+				
 
 			String url = c.url.toString(MarkdownLink::FormattedLinkHtml);
 			String colour = "#" + c.c.toDisplayString(false);
@@ -206,8 +227,8 @@ void MarkdownDataBase::DirectoryItemGenerator::addFileRecursive(Item& folder, Fi
 
 				ni.callForEach([](Item& i) { i.tocString = {}; return false; });
 
-				for (auto c : ni.children)
-					folder.children.add(c);
+				for (auto c : ni)
+					folder.addChild(std::move(c));
 
 			}
 		}
@@ -227,7 +248,7 @@ void MarkdownDataBase::DirectoryItemGenerator::addFileRecursive(Item& folder, Fi
 			addFileRecursive(newItem, c);
 
 			if (newItem.type != Item::Invalid)
-				folder.children.add(newItem);
+				folder.addChild(std::move(newItem));
 		}
 	}
 	else
@@ -403,7 +424,7 @@ MarkdownDataBase::Item::Item(const MarkdownLink& link):
 			auto cUrl = url.getChildUrlWithRoot(cf.getFileNameWithoutExtension(), false);
 
 			Item cItem(cUrl);
-			children.add(cItem);
+			addChild(std::move(cItem));
 		}
 	}
 	if (link.getType() == MarkdownLink::Type::MarkdownFile)
@@ -412,9 +433,48 @@ MarkdownDataBase::Item::Item(const MarkdownLink& link):
 	}
 }
 
+MarkdownDataBase::Item::Item(const Item& other)
+{
+	type =        std::move(other.type);
+	description = std::move(other.description);
+	keywords =    std::move(other.keywords);
+	url = other.url;
+	tocString = other.tocString;
+	icon = other.icon;
+	c = other.c;
+	isAlwaysOpen = other.isAlwaysOpen;
+
+	children = other.children;
+
+	for (auto& c : children)
+		c.parent = this;
+}
+
+hise::MarkdownDataBase::Item& MarkdownDataBase::Item::operator=(const Item& other)
+{
+	type = std::move(other.type);
+	description = std::move(other.description);
+	keywords = std::move(other.keywords);
+	url = other.url;
+	tocString = other.tocString;
+	icon = other.icon;
+	c = other.c;
+	isAlwaysOpen = other.isAlwaysOpen;
+
+	children = other.children;
+
+	for (auto& c : children)
+		c.parent = this;
+
+	return *this;
+}
+
 juce::ValueTree MarkdownDataBase::Item::createValueTree() const
 {
 	ValueTree v("Item");
+
+	jassert(type != Invalid);
+
 	v.setProperty("Type", (int)type, nullptr);
 	v.setProperty("Description", description, nullptr);
 	v.setProperty("Keywords", keywords.joinIntoString(";"), nullptr);
@@ -445,7 +505,7 @@ void MarkdownDataBase::Item::loadFromValueTree(ValueTree& v)
 	{
 		Item newChild;
 		newChild.loadFromValueTree(c);
-		children.add(newChild);
+		addChild(std::move(newChild));
 	}
 }
 

@@ -47,7 +47,7 @@ void MarkdownParser::parse()
 		while (it.peek() != 0)
 			parseBlock();
 
-		if(createFooter)
+		if(createFooter && dynamic_cast<ContentFooter*>(elements.getLast()) == nullptr)
 			elements.add(new ContentFooter(this, header));
 
 		currentParseResult = Result::ok();

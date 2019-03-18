@@ -129,6 +129,34 @@ public:
 			return false;
 		}
 
+		var toJSONObject() const
+		{
+			auto urlCopy = url;
+
+			if (type == Root)
+				urlCopy.setType(MarkdownLink::Folder);
+			else if (type == Folder)
+				urlCopy.setType(MarkdownLink::Folder);
+			else if (type == Keyword)
+				urlCopy.setType(MarkdownLink::MarkdownFile);
+			else if (type == Headline)
+				urlCopy.setType(MarkdownLink::MarkdownFile);
+
+			DynamicObject::Ptr newObject = new DynamicObject();
+			newObject->setProperty("URL", urlCopy.toString(MarkdownLink::FormattedLinkHtml));
+			newObject->setProperty("Title", tocString);
+			newObject->setProperty("Colour", "#" + c.toDisplayString(false));
+
+			Array<var> childrenArray;
+
+			for (const auto& c : children)
+				childrenArray.add(c.toJSONObject());
+
+			newObject->setProperty("Children", childrenArray);
+
+			return var(newObject);
+		}
+		
 		Item getChildWithName(const String& name) const
 		{
 			if (url.toString(MarkdownLink::UrlSubPath) == name)
@@ -138,18 +166,21 @@ public:
 			{
 				auto i = c.getChildWithName(name);
 
-				if (i.type != Invalid)
+				if (i.url.isValid())
 					return i;
 			}
 
 			return {};
 		}
 
-
 		Item createChildItem(const String& subPath) const;
 
 		Item(Type t, File root, File f, const StringArray& keywords_, String description_);
 		Item() {};
+
+		Item(const Item& other);
+
+		Item& operator=(const Item& other);
 
 		Item(const MarkdownLink& link);
 
@@ -164,9 +195,6 @@ public:
 
 		void fillMetadataFromURL();
 
-		Array<Item> children;
-
-		Type type = Type::Invalid;
 		String tocString;
 		
 		MarkdownLink url;
@@ -175,6 +203,53 @@ public:
 		bool isAlwaysOpen = false;
 		Colour c;
 		String icon;
+
+		void addChild(Item&& item)
+		{
+			item.parent = this;
+			
+			children.add(item);
+		}
+
+		void sortChildren()
+		{
+			MarkdownDataBase::Item::Sorter sorter;
+			children.sort(sorter);
+		}
+
+		void removeChild(int index)
+		{
+			children.remove(index);
+		}
+
+		void swapChildren(Array<Item>& other)
+		{
+			children.swapWith(other);
+		}
+
+		int getNumChildren() const { return children.size(); }
+
+		Item& operator[](int index) const { return children.getReference(index); };
+
+		bool hasChildren() const { return !children.isEmpty(); }
+
+		Item* begin() const
+		{
+			return children.begin();
+		}
+
+		Item* end() const
+		{
+			return children.end();
+		}
+
+		Item* getParentItem() const { return parent; }
+
+	private:
+
+		Item* parent = nullptr;
+
+		Array<Item> children;
 	};
 
 	struct ItemGeneratorBase
@@ -226,9 +301,14 @@ public:
 
 	var getHtmlSearchDatabaseDump();
 
+	var getJSONObjectForToc()
+	{
+		return rootItem.toJSONObject();
+	}
+
 	File getDatabaseFile()
 	{
-		return getRoot().getChildFile("Content.dat");
+		return getRoot().getChildFile("content.dat");
 	}
 
 	void clear()
@@ -238,22 +318,6 @@ public:
 		cachedFlatList.clear();
         rootDirectory = File();
 		rootItem = {};
-	}
-
-
-	void setColourForLastItem(Colour c)
-	{
-		if (!rootItem.children.isEmpty())
-		{
-			auto f = [c](MarkdownDataBase::Item& item)
-			{
-				item.c = c;
-				return false;
-			};
-
-			rootItem.children.getReference(rootItem.children.size() - 1).callForEach(f);
-
-		}
 	}
 
 	struct ForumDiscussionLink
@@ -373,11 +437,6 @@ struct MarkdownDatabaseHolder
 	}
 
 	void rebuildDatabase();
-
-	void setColourForLastItem(Colour c)
-	{
-		db.setColourForLastItem(c);
-	}
 
 	void addContentProcessor(MarkdownContentProcessor* contentProcessor);
 

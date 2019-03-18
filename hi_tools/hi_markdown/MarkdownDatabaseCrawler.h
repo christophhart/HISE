@@ -123,6 +123,8 @@ public:
 		{
 			DBG(message);
 		}
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Logger);
 	};
 
 	struct Provider : public MarkdownParser::ImageProvider
@@ -177,7 +179,7 @@ public:
 	void createContentTree();
 	void addImagesFromContent(float maxWidth = 1000.0f);
 
-	void createHtmlFiles(File root, File htmlTemplateDirectoy, Markdown2HtmlConverter::LinkMode m, const String& linkBase);
+	void createHtmlFiles(File htmlTemplateDirectoy, Markdown2HtmlConverter::LinkMode m, const String& linkBase);
 	void createImageTree();
 	void writeImagesToSubDirectory(File htmlDirectory);
 
@@ -189,9 +191,14 @@ public:
 
 	void loadDataFiles(File root);
 
-	void setLogger(Logger* l)
+	void writeJSONTocFile(File htmlDirectory);
+
+	void setLogger(Logger* l, bool ownThisLogger)
 	{
-		logger = l;
+		if (ownThisLogger)
+			logger = l;
+		else
+			nonOwnedLogger = l;
 	}
 
 	void setStyleData(MarkdownLayout::StyleData& newStyleData)
@@ -206,7 +213,20 @@ public:
 
 	int64 getHashFromFileContent(const File& f) const;
 
+	String getContentFromCachedTree(const MarkdownLink& l);
+
 private:
+
+	void addPathResolver()
+	{
+		for (auto lr : linkResolvers)
+		{
+			if (lr->getPriority() == MarkdownParser::ResolveType::EmbeddedPath)
+				return;
+		}
+
+		addImageProvider(new MarkdownParser::GlobalPathProvider(nullptr));
+	}
 
 	double* progressCounter = nullptr;
 
@@ -227,13 +247,16 @@ private:
 	{
 		if (logger != nullptr)
 			logger->logMessage(message);
+		if (nonOwnedLogger != nullptr)
+			logger->logMessage(message);
 	}
 
+	WeakReference<Logger> nonOwnedLogger;
 	ScopedPointer<Logger> logger;
 
 	void addImagesInternal(ValueTree c, float maxWidth);
 
-	void createHtmlInternal(File currentRoot, ValueTree v);
+	void createHtmlInternal(ValueTree v);
 
 	void addContentToValueTree(ValueTree& v);
 

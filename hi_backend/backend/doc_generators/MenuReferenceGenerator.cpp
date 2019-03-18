@@ -39,7 +39,9 @@ using namespace juce;
 
 juce::String MenuReferenceDocGenerator::Resolver::getContent(const MarkdownLink& url)
 {
-	if(url.isChildOf(rootURL))
+	auto workspaceRoot = rootURL.getChildUrl("workspaces");
+
+	if(url.isChildOf(workspaceRoot))
 	{
 		auto s = url.toString(MarkdownLink::ContentFull);
 
@@ -165,17 +167,20 @@ void MenuReferenceDocGenerator::ItemGenerator::createMenuReference(MarkdownDataB
 	
 	for (auto s : categories)
 	{
+		if (s == "Unused")
+			continue;
+
 		createMenu(wItem, s);
 	}
 
-	parent.children.add(wItem);
+	parent.addChild(std::move(wItem));
 }
 
 void MenuReferenceDocGenerator::ItemGenerator::createMenu(MarkdownDataBase::Item& parent, const String& menuName)
 {
 
 	MarkdownDataBase::Item menuItem;
-	menuItem.type = MarkdownDataBase::Item::Keyword;
+	menuItem.type = MarkdownDataBase::Item::Folder;
 	menuItem.c = parent.c;
 	menuItem.tocString = menuName;
 	menuItem.url = parent.url.getChildUrl(menuName);
@@ -185,22 +190,25 @@ void MenuReferenceDocGenerator::ItemGenerator::createMenu(MarkdownDataBase::Item
 
 	for (const auto& info : data->commandInfos)
 	{
+		if (info.categoryName == "Unused")
+			continue;
+
 		if (info.categoryName == menuName)
 		{
 			MarkdownDataBase::Item rItem;
 
 			rItem.c = menuItem.c;
 			rItem.type = MarkdownDataBase::Item::Headline;
-			rItem.url = menuItem.url.getChildUrl(info.shortName);
-			rItem.tocString;
+			rItem.url = menuItem.url.getChildUrl(info.shortName, true);
+			rItem.tocString = info.shortName;
 			rItem.keywords.add("Menu | " + menuName);
 			rItem.description = info.shortName;
 
-			menuItem.children.add(rItem);
+			menuItem.addChild(std::move(rItem));
 		}
 	}
 
-	parent.children.add(menuItem);
+	parent.addChild(std::move(menuItem));
 }
 
 void MenuReferenceDocGenerator::ItemGenerator::createAndAddWorkspacesItem(MarkdownDataBase::Item& parent)
@@ -210,12 +218,13 @@ void MenuReferenceDocGenerator::ItemGenerator::createAndAddWorkspacesItem(Markdo
 	wItem.c = parent.c;
 	wItem.tocString = "Workspaces";
 	wItem.url = parent.url.getChildUrl(wItem.tocString);
+	wItem.type = MarkdownDataBase::Item::Folder;
 
 	createAndAddWorkspace(wItem, "Main Workspace");
 	createAndAddWorkspace(wItem, "Scripting Workspace");
 	createAndAddWorkspace(wItem, "Sampler Workspace");
 
-	parent.children.add(wItem);
+	parent.addChild(std::move(wItem));
 }
 
 void MenuReferenceDocGenerator::ItemGenerator::createAndAddWorkspace(MarkdownDataBase::Item& parent, const String& id)
@@ -225,7 +234,7 @@ void MenuReferenceDocGenerator::ItemGenerator::createAndAddWorkspace(MarkdownDat
 	wItem.c = parent.c;
 	wItem.tocString = id;
 	wItem.url = parent.url.getChildUrl(id).withRoot(rootDirectory);
-
+	wItem.type = MarkdownDataBase::Item::Folder;
 	wItem.icon = wItem.url.getHeaderFromFile({}, false).getIcon();
 
 
@@ -244,10 +253,10 @@ void MenuReferenceDocGenerator::ItemGenerator::createAndAddWorkspace(MarkdownDat
 		i.url = { rootDirectory, f.getRelativePathFrom(rootDirectory) };
 
 		MarkdownParser::createDatabaseEntriesForFile(rootDirectory, i, f, wItem.c);
-		wItem.children.add(i);
+		wItem.addChild(std::move(i));
 	}
 
-	parent.children.add(wItem);
+	parent.addChild(std::move(wItem));
 }
 
 void MenuReferenceDocGenerator::ItemGenerator::createSettingsItem(MarkdownDataBase::Item& parent)
@@ -267,6 +276,7 @@ void MenuReferenceDocGenerator::ItemGenerator::createSettingsItem(MarkdownDataBa
 
 	sItem.tocString << header.getDescription();
 	sItem.c = parent.c;
+	sItem.type = MarkdownDataBase::Item::Folder;
 	sItem.icon = header.getKeyValue("icon");
 
 	createSettingSubMenu(sItem, "Project");
@@ -274,7 +284,7 @@ void MenuReferenceDocGenerator::ItemGenerator::createSettingsItem(MarkdownDataBa
 
 	createSettingSubMenu(sItem, "Audio MIDI");
 	
-	parent.children.add(sItem);
+	parent.addChild(std::move(sItem));
 }
 
 void MenuReferenceDocGenerator::ItemGenerator::createSettingSubMenu(MarkdownDataBase::Item& parent, const String& name)
@@ -286,6 +296,7 @@ void MenuReferenceDocGenerator::ItemGenerator::createSettingSubMenu(MarkdownData
 	MarkdownDataBase::Item subItem(MarkdownDataBase::Item::Keyword, rootDirectory, f, header.getKeywords(), header.getDescription());
 
 	subItem.url = url;
+	subItem.type = MarkdownDataBase::Item::Folder;
 	subItem.tocString << name;
 
 	auto subId = MarkdownLink::Helpers::getSanitizedFilename(name);
@@ -308,7 +319,7 @@ void MenuReferenceDocGenerator::ItemGenerator::createSettingSubMenu(MarkdownData
 		addItemForSettingList(HiseSettings::Midi::getAllIds(), "MIDI", subItem);
 	}
 
-	parent.children.add(subItem);
+	parent.addChild(std::move(subItem));
 }
 
 void MenuReferenceDocGenerator::ItemGenerator::addItemForSettingList(const Array<Identifier>& idList, const String& subName, MarkdownDataBase::Item& parent)
@@ -316,13 +327,15 @@ void MenuReferenceDocGenerator::ItemGenerator::addItemForSettingList(const Array
 	for (auto id : idList)
 	{
 		MarkdownDataBase::Item item;
-		item.type == MarkdownDataBase::Item::Keyword;
+		item.type = MarkdownDataBase::Item::Headline;
 		item.keywords.add("Settings | " + subName);
+		
 		item.description = HiseSettings::ConversionHelpers::getUncamelcasedId(id);
-		item.url = parent.url.getChildUrl(item.description);
+		item.tocString = item.description;
+		item.url = parent.url.getChildUrl(item.description, true);
 		item.c = parent.c;
 
-		parent.children.add(std::move(item));
+		parent.addChild(std::move(item));
 	}
 }
 
@@ -331,6 +344,7 @@ hise::MarkdownDataBase::Item MenuReferenceDocGenerator::ItemGenerator::createRoo
 	MarkdownDataBase::Item item;
 
 	item.c = Colours::burlywood;
+	item.type = MarkdownDataBase::Item::Folder;
 	item.keywords.add("Working with HISE");
 	item.url = rootURL;
 	item.tocString = "Working with HISE";
@@ -344,7 +358,7 @@ hise::MarkdownDataBase::Item MenuReferenceDocGenerator::ItemGenerator::createRoo
 	{
 		MarkdownDataBase::DirectoryItemGenerator fGenerator(f, item.c);
 		auto pItem = fGenerator.createRootItem(parent);
-		item.children.add(pItem);
+		item.addChild(std::move(pItem));
 	}
 
 	createAndAddWorkspacesItem(item);
@@ -362,15 +376,20 @@ juce::String MenuReferenceDocGenerator::MenuGenerator::getContent(const Markdown
 	if (!url.isChildOf(rootURL.getChildUrl("Menu Reference")))
 		return {};
 
-	auto f = url.getMarkdownFile({});
+	auto urlWithoutAnchor = url.withAnchor({});
+
+	auto f = urlWithoutAnchor.getMarkdownFile({});
 
 	if (f.existsAsFile())
 	{
 		String s;
 
-		auto name = url.toString(MarkdownLink::UrlSubPath);
 		
-		s << url.toString(MarkdownLink::ContentFull) << "\n";
+
+
+		auto name = urlWithoutAnchor.toString(MarkdownLink::UrlSubPath);
+		
+		s << urlWithoutAnchor.toString(MarkdownLink::ContentFull) << "\n";
 
 		data->createMenuCommandInfos();
 
@@ -385,7 +404,7 @@ juce::String MenuReferenceDocGenerator::MenuGenerator::getContent(const Markdown
 					s << "**Shortcut:** `" << info.defaultKeypresses.getFirst().getTextDescriptionWithIcons() << "`  \n";
 				}
 
-				auto child = url.getChildUrlWithRoot(info.shortName);
+				auto child = urlWithoutAnchor.getChildUrlWithRoot(info.shortName);
 
 				s << child.toString(MarkdownLink::ContentWithoutHeader) << "\n";
 			}

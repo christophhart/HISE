@@ -88,7 +88,7 @@ hise::MarkdownDataBase::Item ScriptingApiDatabase::ItemGenerator::updateWithValu
 			newItems.add(updateWithValueTree(i, c));
 		}
 
-		item.children.swapWith(newItems);
+		item.swapChildren(newItems);
 	}
 
 	
@@ -128,6 +128,14 @@ hise::MarkdownDataBase::Item ScriptingApiDatabase::ItemGenerator::updateWithValu
 #endif
 	if (v.getType() != method && v.getType() != root)
 	{
+		for(int i = 0; i < item.getNumChildren(); i++)
+		{
+			auto type = item[i].type;
+			
+			if (type != MarkdownDataBase::Item::Headline)
+				item.removeChild(i--);
+		}
+
 		for (auto c : v)
 		{
 			MarkdownDataBase::Item i;
@@ -139,12 +147,10 @@ hise::MarkdownDataBase::Item ScriptingApiDatabase::ItemGenerator::updateWithValu
 			i.description << "`" << className << "." << i.tocString << "()`  ";
 			i.description << c.getProperty("description").toString();
 			i.url = rootUrl.getChildUrl(className).getChildUrl(c.getProperty("name").toString(), true);
-			item.children.add(std::move(i));
+			item.addChild(std::move(i));
 		}
 
-		MarkdownDataBase::Item::Sorter sorter;
-
-		item.children.sort(sorter);
+		item.sortChildren();
 	}
 	else
 	{

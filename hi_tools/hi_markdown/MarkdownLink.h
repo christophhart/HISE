@@ -51,15 +51,20 @@ public:
 			auto n = urlToPrettify.replaceCharacter('-', ' ');
 			String pretty;
 			auto ptr = n.getCharPointer();
-			bool lastWasUppercase = true;
+			
+			bool nextIsUppercase = true;
 
 			while (!ptr.isEmpty())
 			{
-				if (ptr.isUpperCase() && !lastWasUppercase)
-					pretty << " ";
+				auto thisChar = *ptr;
 
-				lastWasUppercase = ptr.isUpperCase();
-				pretty << ptr.getAddress()[0];
+				if (nextIsUppercase)
+					pretty << CharacterFunctions::toUpperCase(thisChar);
+				else
+					pretty << thisChar;
+
+				nextIsUppercase = thisChar == ' ';
+
 				ptr++;
 			}
 
@@ -175,6 +180,8 @@ public:
 
 			auto p = removeLeadingNumbers(path);
 
+			p = p.removeCharacters("():,;");
+
 			if (!p.isEmpty() && p.endsWith("/"))
 				p = p.upToLastOccurrenceOf("/", false, false);
 
@@ -219,6 +226,7 @@ public:
 
 		static double getSizeFromExtraData(const String& extraData);
 
+#if 0
 		static String createHtmlLink(const String& url, const String& rootString)
 		{
 			if (url.startsWith("http"))
@@ -226,6 +234,11 @@ public:
 				return url;
 			}
 
+			MarkdownLink l({}, url);
+
+			return l.toString(FormattedLinkHtml);
+
+#if 0
 			String absoluteFilePath = rootString + url;
 
 			auto urlWithoutAnchor = url.upToFirstOccurrenceOf("#", false, false);
@@ -253,7 +266,9 @@ public:
 
 
 			return realURL;
+#endif
 		};
+#endif
 
 
 
@@ -406,6 +421,11 @@ public:
 
 	MarkdownHeader getHeaderFromFile(const File& rootDirectory, bool createIfNonExistent) const;
 
+	void setType(Type t)
+	{
+		type = t;
+	}
+
 	explicit operator bool() const 
 	{ 
 		switch (type)
@@ -427,8 +447,18 @@ public:
 
 	bool fileExists(const File& rootDirectory) const noexcept;
 
+	String getHtmlStringForBaseURL(const String& baseURL)
+	{
+		String u;
+
+		u << baseURL;
+		u << toString(FormattedLinkHtml);
+		return u;
+	}
+
 private:
 
+	String createHtmlLink() const noexcept;
 	
 
 	File root;

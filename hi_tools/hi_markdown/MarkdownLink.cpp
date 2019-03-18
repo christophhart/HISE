@@ -76,7 +76,11 @@ File MarkdownLink::toFile(FileType type, File rootToUse) const noexcept
 
 	switch (type)
 	{
-	case FileType::HtmlFile:		return Helpers::createHtmlLink(sanitizedURL, rootToUse.getFullPathName());
+	case FileType::HtmlFile:		
+	{
+		jassert(getType() == MarkdownFile || getType() == Folder);
+		return rootToUse.getChildFile(toString(FormattedLinkHtml, {}).substring(1).upToFirstOccurrenceOf("#", false, false));
+	}
 	case FileType::ContentFile:	
 	{
 		auto f = Helpers::getLocalFileForSanitizedURL(rootToUse, sanitizedURL, File::findFiles, "*.md");
@@ -97,7 +101,17 @@ File MarkdownLink::toFile(FileType type, File rootToUse) const noexcept
 	}
 	case FileType::ImageFile:
 	{
-		return Helpers::getLocalFileForSanitizedURL(rootToUse, sanitizedURL, File::findFiles, "*");
+		String path = sanitizedURL;
+
+		if (path.startsWith("/"))
+			path = path.substring(1);
+
+		if (getType() == Icon)
+		{
+			path << ".png";
+		}
+
+		return rootToUse.getChildFile(path);
 	}
 	}
 
@@ -138,7 +152,8 @@ MarkdownLink::MarkdownLink(const File& rootDirectory, const String& url) :
 	}
 	else
 	{
-		sanitizedURL = Helpers::getSanitizedURL(url);
+		extraString = Helpers::getExtraData(url);
+		sanitizedURL = Helpers::getSanitizedURL(Helpers::removeExtraData(url));
 		anchor = Helpers::getAnchor(sanitizedURL);
 		sanitizedURL = Helpers::getSanitizedURL(Helpers::removeAnchor(sanitizedURL));
 
@@ -149,15 +164,10 @@ MarkdownLink::MarkdownLink(const File& rootDirectory, const String& url) :
 			if (root.isDirectory())
 				file = Helpers::getLocalFileForSanitizedURL(root, sanitizedURL, File::findFiles, "*.svg");
 
-			sanitizedURL = Helpers::removeExtraData(url);
-			extraString = Helpers::getExtraData(url);
 		}
 		else if (Helpers::isImageLink(sanitizedURL))
 		{
 			type = Image;
-			sanitizedURL = Helpers::removeExtraData(url);
-			extraString = Helpers::getExtraData(url);
-
 			if (root.isDirectory())
 				file = Helpers::getLocalFileForSanitizedURL(root, sanitizedURL, File::findFiles);
 		}
@@ -172,8 +182,16 @@ MarkdownLink::MarkdownLink(const File& rootDirectory, const String& url) :
 			}
 			else
 			{
-				file = Helpers::getLocalFileForSanitizedURL(root, sanitizedURL, File::findFiles, "*.md");
-				type = Type::MarkdownFile;
+				if (possibleFolder.existsAsFile())
+				{
+					file = Helpers::getLocalFileForSanitizedURL(root, sanitizedURL, File::findFiles, "*.md");
+					type = Type::MarkdownFile;
+				}
+				else
+				{
+					file = {};
+					type = Type::MarkdownFileOrFolder;
+				}
 			}
 		}
 		else
@@ -228,7 +246,7 @@ juce::String MarkdownLink::toString(Format format, const File& rootDirectory) co
 	case UrlWithoutAnchor:				return sanitizedURL;
 	case AnchorWithHashtag:		return anchor;
 	case AnchorWithoutHashtag:	return anchor.substring(1);
-	case FormattedLinkHtml:					return Helpers::createHtmlLink(sanitizedURL + anchor, "/");
+	case FormattedLinkHtml:		return createHtmlLink();
 	case FormattedLinkMarkdown:		return "[" + getNameFromHeader() + "](" + toString(UrlFull) + ")";
 	case FormattedLinkMarkdownImage:		return "!" + toString(FormattedLinkMarkdown);
 	case FormattedLinkIcon:		return sanitizedURL.fromFirstOccurrenceOf("/images/icon_", false, false);
@@ -363,6 +381,31 @@ bool MarkdownLink::fileExists(const File& rootDirectory) const noexcept
 		return false;
 
 	return getMarkdownFile(rootDirectory).existsAsFile();
+}
+
+
+juce::String MarkdownLink::createHtmlLink() const noexcept
+{
+	// You have to set the type before creating the link
+	// Use the LinkType property from the content value tree
+	jassert(getType() == Type::Folder || getType() == Type::MarkdownFile);
+
+	
+	String s;
+
+	s << sanitizedURL;
+
+	if (getType() == Type::MarkdownFile)
+		s << ".html";
+	else if (getType() == Type::Folder)
+		s << "";
+	else
+		jassertfalse;
+	
+	if(anchor.isNotEmpty() && anchor != "#")
+		s << anchor;
+
+	return s;
 }
 
 double MarkdownLink::Helpers::getSizeFromExtraData(const String& extraData)

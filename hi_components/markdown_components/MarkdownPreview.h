@@ -39,7 +39,8 @@ using namespace juce;
 class DocUpdater : public DialogWindowWithBackgroundThread,
 				   public MarkdownContentProcessor,
 				   public DatabaseCrawler::Logger,
-				   public URL::DownloadTask::Listener	
+				   public URL::DownloadTask::Listener,
+				   public ComboBox::Listener
 {
 public:
 
@@ -77,7 +78,7 @@ public:
 
 		static int getIndexFromFileName(const String& fileName)
 		{
-			if (fileName == "Content.dat")
+			if (fileName == "content.dat")
 				return 0b0110;
 			else
 				return 0b0101;
@@ -85,9 +86,9 @@ public:
 	};
 
 	DocUpdater(MarkdownDatabaseHolder& holder_, bool fastMode_, bool allowEdit);
-
 	~DocUpdater();
-	
+
+	void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override;
 
 	void logMessage(const String& message) override
 	{
@@ -99,7 +100,6 @@ public:
 	void threadFinished() override;
 
 	void addForumLinks();
-
 	void updateFromServer();
 
 	void databaseWasRebuild() override
@@ -107,6 +107,8 @@ public:
 
 	}
 	
+	void createLocalHtmlFiles();
+
 	void downloadAndTestFile(const String& targetFileName);
 
 	void progress(URL::DownloadTask* task, int64 bytesDownloaded, int64 totalLength) override
@@ -1021,20 +1023,9 @@ public:
 				if (b == &lightSchemeButton)
 				{
 					if (b->getToggleState())
-					{
-						MarkdownLayout::StyleData l;
-						l.textColour = Colour(0xFF333333);
-						l.headlineColour = Colour(0xFF444444);
-						l.backgroundColour = Colour(0xFFEEEEEE);
-						l.linkColour = Colour(0xFF000044);
-						l.codeColour = Colour(0xFF333333);
-						parent.internalComponent.styleData = l;
-
-					}
+						parent.internalComponent.styleData = MarkdownLayout::StyleData::createBrightStyle();
 					else
-					{
-						parent.internalComponent.styleData = {};
-					}
+						parent.internalComponent.styleData = MarkdownLayout::StyleData::createDarkStyle();
 
 					parent.renderer.setStyleData(parent.internalComponent.styleData);
 
@@ -1191,7 +1182,7 @@ public:
 					return false;
 				}
 
-				bool mightContainSubItems() override { return !item.children.isEmpty(); }
+				bool mightContainSubItems() override { return item.hasChildren(); }
 
 				String getUniqueName() const override { return item.url.toString(MarkdownLink::UrlFull); }
 
@@ -1204,7 +1195,7 @@ public:
 
 					if (isNowOpen)
 					{
-						for (auto c : item.children)
+						for (auto c : item)
 						{
 							if (c.tocString.isEmpty())
 								continue;

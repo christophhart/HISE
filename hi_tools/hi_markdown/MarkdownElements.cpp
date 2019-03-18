@@ -693,7 +693,10 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 	void prepareLinksForHtmlExport(const String& baseURL)
 	{
 		Element::prepareLinksForHtmlExport(baseURL);
-		imageURL = HtmlGenerator::createImageLink(imageURL, baseURL);
+
+		MarkdownLink l({}, imageURL);
+
+		imageURL = l.toString(MarkdownLink::FormattedLinkHtml);
 	}
 
 	Component* createComponent(int maxWidth) override
@@ -1027,7 +1030,11 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 			for (auto& c : columns)
 			{
 				if (c.imageURL.isNotEmpty())
-					c.imageURL = HtmlGenerator::createImageLink(c.imageURL, baseURL);
+				{
+					auto link = MarkdownLink({}, c.imageURL);
+					c.imageURL = link.toString(MarkdownLink::FormattedLinkHtml, {});;
+				}
+					
 			}
 		}
 
@@ -1163,6 +1170,7 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 		if (content == nullptr)
 		{
 			auto list = parent->getHolder()->getDatabase().getFlatList();
+			auto root = parent->getHolder()->getDatabaseRootDirectory();
 
 			auto thisLink = parent->getLastLink();
 			MarkdownLink nextLink;
@@ -1182,7 +1190,7 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 						nextIndex++;
 					}
 
-					nextLink = list[nextIndex].url;
+					nextLink = list[nextIndex].url.withRoot(root);
 					nextName = list[nextIndex].tocString;
 					break;
 				}

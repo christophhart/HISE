@@ -59,9 +59,10 @@ struct HtmlGenerator
 	}
 
 	
-
+#if 0
 	static String createImageLink(String imageURL, const String& rootString)
 	{
+	
 		auto oldExtension = imageURL.fromLastOccurrenceOf(".", true, true);
 
 		if (oldExtension == imageURL)
@@ -72,6 +73,7 @@ struct HtmlGenerator
 			
 		return MarkdownLink::Helpers::createHtmlLink(imageURL, rootString).replace(".html", oldExtension);
 	}
+#endif
 
 
 	String createFromAttributedString(const AttributedString& s, int& linkIndex)
@@ -141,24 +143,19 @@ public:
 		NewLine nl;
 
 		html << headerContent;
-		html << "<body>" << nl;
-		html << "<div class=\"menu\">HISE Docs</div>" << nl;
-		html << database.generateHtmlToc(activeLink) << nl;
-		html << "<div class=\"content\">" << nl;
-
+		
 		for (auto e : elements)
 			html << e->generateHtmlAndResolveLinks();
 
 		html << footerContent;
-		html << "</div>" << nl;
-		html << "</body>" << nl;
-		html << "</html>";
 
 		return html;
 	}
 
 	void writeToFile(File f, const String& activeLink)
 	{
+		auto r = f.create();
+		
 		f.replaceWithText(generateHtml(activeLink));
 	}
 

@@ -55,6 +55,23 @@ struct MarkdownLayout
 		Colour headlineColour;
 		Colour backgroundColour;
 
+		static StyleData createBrightStyle()
+		{
+			MarkdownLayout::StyleData l;
+			l.textColour = Colour(0xFF333333);
+			l.headlineColour = Colour(0xFF444444);
+			l.backgroundColour = Colour(0xFFEEEEEE);
+			l.linkColour = Colour(0xFF000044);
+			l.codeColour = Colour(0xFF333333);
+			
+			return l;
+		}
+
+		static StyleData createDarkStyle()
+		{
+			return {};
+		}
+
 		Font getFont() const { return f.withHeight(fontSize); }
 	};
 
