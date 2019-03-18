@@ -206,6 +206,8 @@ void BackendCommandTarget::createMenuBarNames()
 
 void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationCommandInfo &result)
 {
+	result.categoryName = "Hidden";
+
 	switch (commandID)
 	{
 	case HamburgerMenu:
@@ -223,16 +225,19 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case WorkspaceMain:
 	{
 		setCommandTarget(result, "Show Main Workspace", true, bpe->getCurrentWorkspace() == WorkspaceMain, 'X', false);
+		result.categoryName = "View";
 		break;
 	}
 	case WorkspaceScript:
 	{
 		setCommandTarget(result, "Show Scripting Workspace", true, bpe->getCurrentWorkspace() == WorkspaceScript, 'X', false);
+		result.categoryName = "View";
 		break;
 	}
 	case WorkspaceSampler:
 	{
 		setCommandTarget(result, "Show Sampler Workspace", true, bpe->getCurrentWorkspace() == WorkspaceSampler, 'X', false);
+		result.categoryName = "View";
 		break;
 	}
 	case WorkspaceCustom:
@@ -355,7 +360,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		result.categoryName = "File";
 		break;
 	case MenuFileQuit:
-		setCommandTarget(result, "Quit", true, false, 'X', false); break;
+		setCommandTarget(result, "Quit", true, false, 'X', false);
 		result.categoryName = "File";
 	case MenuEditUndo:
 		setCommandTarget(result, "Undo: " + bpe->owner->getControlUndoManager()->getUndoDescription(), bpe->owner->getControlUndoManager()->canUndo(), false, 'Z', true, ModifierKeys::commandModifier);
@@ -375,10 +380,12 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuEditMoveUp:
 		setCommandTarget(result, "Move up", currentCopyPasteTarget.get() != nullptr, false, 'X', false);
+		result.categoryName = "Edit";
 		result.addDefaultKeypress(KeyPress::upKey, ModifierKeys::ctrlModifier);
 		break;
 	case MenuEditMoveDown:
 		setCommandTarget(result, "Move down", currentCopyPasteTarget.get() != nullptr, false, 'X', false);
+		result.categoryName = "Edit";
 		result.addDefaultKeypress(KeyPress::downKey, ModifierKeys::ctrlModifier);
 		break;
 	case MenuEditCreateScriptVariable:
@@ -410,6 +417,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
             }
             
             setCommandTarget(result, "Plot Modulator", active, ticked, 'P');
+			result.categoryName = "Edit";
             break;
         }
 
@@ -585,6 +593,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuViewShowPluginPopupPreview:
 		setCommandTarget(result, "Open Plugin Preview Window", bpe->mainEditor->isPluginPreviewCreatable(), !bpe->mainEditor->isPluginPreviewShown(), 'X', false);
+		result.categoryName = "View";
 		break;
     case MenuViewIncreaseCodeFontSize:
         setCommandTarget(result, "Increase code font size", true, false, 'X', false);

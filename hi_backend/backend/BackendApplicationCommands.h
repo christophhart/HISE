@@ -215,7 +215,7 @@ public:
 	};
 
 	void setCommandTarget(ApplicationCommandInfo &result, const String &name, bool active, bool ticked, char shortcut, bool useShortCut=true, ModifierKeys mod=ModifierKeys::commandModifier) {
-		result.setInfo(name, name, "Target", 0);
+		result.setInfo(name, name, "Unused", 0);
 		result.setActive(active); 
 		result.setTicked(ticked);
 
