@@ -127,7 +127,7 @@ hise::MarkdownDataBase::Item ScriptingApiDatabase::ItemGenerator::updateWithValu
 #endif
 	if (v.getType() != method && v.getType() != root)
 	{
-		item.url.setType(MarkdownLink::Folder);
+		item.url.setType(MarkdownLink::MarkdownFile);
 
 		Array<MarkdownDataBase::Item> newChildren;
 

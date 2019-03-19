@@ -386,9 +386,14 @@ bool MarkdownLink::fileExists(const File& rootDirectory) const noexcept
 
 juce::String MarkdownLink::createHtmlLink() const noexcept
 {
+	if (getType() == WebContent)
+		return sanitizedURL;
+
 	// You have to set the type before creating the link
 	// Use the LinkType property from the content value tree
-	jassert(getType() == Type::Folder || getType() == Type::MarkdownFile);
+	jassert(getType() == Type::Folder || getType() == Type::MarkdownFile ||
+	        getType() == Type::Image || getType() == Type::SVGImage ||
+	        getType() == Type::Icon);
 
 	
 	String s;
@@ -399,8 +404,9 @@ juce::String MarkdownLink::createHtmlLink() const noexcept
 		s << ".html";
 	else if (getType() == Type::Folder)
 		s << "";
-	else
-		jassertfalse;
+	else if (getType() == Type::Icon)
+		s << ".png";
+	
 	
 	if(anchor.isNotEmpty() && anchor != "#")
 		s << anchor;

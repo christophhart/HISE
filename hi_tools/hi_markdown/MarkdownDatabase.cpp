@@ -319,7 +319,10 @@ void MarkdownDataBase::Item::addToList(Array<Item>& list) const
 	list.add(*this);
 
 	for (auto c : children)
+	{
 		c.addToList(list);
+	}
+		
 }
 
 void MarkdownDataBase::Item::addTocChildren(File root)
@@ -455,6 +458,33 @@ void MarkdownDataBase::Item::loadFromValueTree(ValueTree& v)
 	}
 }
 
+
+hise::MarkdownLink MarkdownDataBase::getLink(const String& link)
+{
+	MarkdownLink linkToReturn({}, link);
+
+	auto linkString = linkToReturn.toString(MarkdownLink::UrlFull);
+
+	if (linkToReturn.getType() == MarkdownLink::MarkdownFileOrFolder)
+	{
+		MarkdownLink* tmp = &linkToReturn;
+
+		rootItem.callForEach([linkString, tmp](Item& r)
+		{
+			auto thisLink = r.url.toString(MarkdownLink::UrlFull);
+
+			if (thisLink == linkString)
+			{
+				*tmp = MarkdownLink(r.url);
+				return true;
+			}
+
+			return false;
+		});
+	}
+
+	return linkToReturn;
+}
 
 void MarkdownDataBase::Item::fillMetadataFromURL()
 {

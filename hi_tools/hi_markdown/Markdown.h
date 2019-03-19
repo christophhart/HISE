@@ -278,6 +278,11 @@ public:
 
 	virtual bool gotoLink(const MarkdownLink& url);
 
+	void setLinkWithoutAction(const MarkdownLink& url)
+	{
+		lastLink = url;
+	}
+
 	StringArray getImageLinks() const;
 
 	HyperLink getHyperLinkForEvent(const MouseEvent& event, Rectangle<float> area);

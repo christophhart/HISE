@@ -276,6 +276,8 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 		l.drawCopyWithOffset(g, area);
 	}
 
+
+
 	float getHeightForWidth(float width) override
 	{
 		float marginTop = isFirst ? 0.0f : 20.0f * getZoomRatio();
@@ -305,6 +307,24 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 		return l.getHeight() + marginTop + marginBottom;
 	}
 
+	virtual void addImageLinks(StringArray& sa) override
+	{
+		if (imageURL.isNotEmpty())
+			sa.add(imageURL + ":256px");
+	};
+
+	void prepareLinksForHtmlExport(const String& baseURL)
+	{
+		Element::prepareLinksForHtmlExport(baseURL);
+
+		if (imageURL.isNotEmpty())
+		{
+			MarkdownLink l({}, imageURL);
+
+			imageURL = l.toString(MarkdownLink::FormattedLinkHtml);
+		}
+	}
+
 	String getTextToCopy() const override
 	{
 		return content.getText();
@@ -318,7 +338,17 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 		HtmlGenerator g;
 
 		int linkIndex = 0;
-		auto c = g.createFromAttributedString(content, linkIndex);
+
+		String c;
+
+		if (imageURL.isNotEmpty())
+		{
+			c << g.surroundWithTag("", "img", "style=\"max-height: 1.5em;\" src=\"" + imageURL + "\"");
+
+		}
+
+		c << g.createFromAttributedString(content, linkIndex);
+
 		html << g.surroundWithTag(c, "h" + String(3 - level), "id=\"" + anchorURL.substring(1) + "\"");
 
 		return html;
@@ -1184,12 +1214,15 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 
 					while (nextIndex < list.size() && nextLink == thisLink)
 					{
-						nextLink = list[nextIndex].url.withAnchor("");
-
 						nextIndex++;
+						nextLink = list[nextIndex].url.withAnchor("");
 					}
 
-					nextLink = list[nextIndex].url.withRoot(root);
+					auto linkWithoutAnchor = list[nextIndex].url.withAnchor("");
+					
+					nextLink = parent->getHolder()->getDatabase().getLink(linkWithoutAnchor.toString(MarkdownLink::UrlFull));
+
+					jassert(nextLink.getType() != MarkdownLink::MarkdownFileOrFolder);
 					nextName = list[nextIndex].tocString;
 					break;
 				}
@@ -1211,6 +1244,40 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 
 	}
 	
+	String generateHtml() const override
+	{
+		
+		HtmlGenerator g;
+
+		String s;
+		String nl = "\n";
+
+		{
+			MessageManagerLock mm;
+			const_cast<ContentFooter*>(this)->createComponent(900.0f);
+		}
+		
+		auto forumLink = content->forumLink;
+
+		if (forumLink.isInvalid())
+			forumLink = { {}, "https://forum.hise.audio" };
+
+		auto fl = g.surroundWithTag("Join Discussion", "a", "href=\"" + forumLink.toString(MarkdownLink::FormattedLinkHtml) + "\"");
+
+		auto next = "Next: " + g.surroundWithTag(content->nextName, "a", "href=\"" + content->nextLink.toString(MarkdownLink::FormattedLinkHtml) + "\"");
+
+		s << g.surroundWithTag(fl, "span", "class=\"content-footer-left\"") << nl;
+		s << g.surroundWithTag(next, "span", "class=\"content-footer-right\"") << nl;
+		String metadata;
+
+		metadata << parent->getHeader().getKeyValue("author") << "<br>";
+		metadata << parent->getHeader().getKeyValue("modified") << "<br>";
+
+		s << g.surroundWithTag(metadata, "p", "class=\"content-footer-metadata\"");
+
+		return g.surroundWithTag(s, "div", "class=\"content-footer\"");
+	}
+
 	String getTextToCopy() const override
 	{
 		return s.getText();

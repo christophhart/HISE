@@ -429,13 +429,17 @@ void MarkdownParser::Element::prepareLinksForHtmlExport(const String& baseURL)
 {
 	for (auto& l : hyperLinks)
 	{
-		DBG("Found a link: " + l.url);
+		auto link = parent->getHolder()->getDatabase().getLink(l.url);
 
-		MarkdownLink link({}, l.url);
-
-		auto newURL = link.toString(MarkdownLink::FormattedLinkHtml);
-		DBG("Resolved: " + newURL);
-		l.url = newURL;
+		if (link.getType() == MarkdownLink::MarkdownFileOrFolder)
+		{
+			throw String("Can't resolve link `" + l.url + "`");
+		}
+		else
+		{
+			auto newURL = link.toString(MarkdownLink::FormattedLinkHtml);
+			l.url = newURL;
+		}
 	}
 }
 

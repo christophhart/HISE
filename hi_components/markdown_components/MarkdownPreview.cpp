@@ -879,7 +879,7 @@ void DocUpdater::createLocalHtmlFiles()
 	
 	crawler.setProgressCounter(&getProgressCounter());
 	crawler.loadDataFiles(getHolder().getCachedDocFolder());
-	//crawler.writeImagesToSubDirectory(contentDirectory);
+	crawler.writeImagesToSubDirectory(contentDirectory);
 	crawler.createHtmlFiles(contentDirectory, Markdown2HtmlConverter::LinkMode::LocalFile, "");
 }
 

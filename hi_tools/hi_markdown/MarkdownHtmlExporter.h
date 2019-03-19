@@ -120,7 +120,7 @@ public:
 		MarkdownParser(markdownCode),
 		database(db)
 	{
-		
+		setCreateFooter(true);
 		parse();
 	}
 

@@ -372,9 +372,6 @@ void DatabaseCrawler::createHtmlInternal(ValueTree v)
 	auto url = item.url.withRoot(templateDirectory);
 	url.setType(type);
 
-	DBG(url.getHtmlStringForBaseURL(linkBaseURL));
-
-#if 0
 	auto fFile = templateDirectory.getChildFile(fPath).withFileExtension(".html");
 
 	if (fFile.getFileNameWithoutExtension().toLowerCase() == "readme")
@@ -386,16 +383,22 @@ void DatabaseCrawler::createHtmlInternal(ValueTree v)
 
 	Markdown2HtmlConverter p(db, markdownCode);
 
+	p.setLinkWithoutAction(url);
+	p.setDatabaseHolder(&getHolder());
 	
-
+	try
+	{
+		p.setLinkMode(linkMode, linkBaseURL);
+	}
+	catch (String& s)
+	{
+		logMessage("ERROR: " + f.getFullPathName() + " : " + s);
+	}
 	
-
-	p.setLinkMode(linkMode, linkBaseURL);
 
 	p.setHeaderFile(templateDirectory.getChildFile("template/header.html"));
 	p.setFooterFile(templateDirectory.getChildFile("template/footer.html"));
 	p.writeToFile(fFile, item.url.toString(MarkdownLink::Everything));
-#endif
 
 	for (auto c : v)
 		createHtmlInternal(c);
@@ -465,11 +468,11 @@ void DatabaseCrawler::writeImagesToSubDirectory(File htmlDirectory)
 		{
 			PNGImageFormat format;
 
-			FileOutputStream fos(f);
-			f.create();
-
 			if (f.existsAsFile())
 				continue;
+
+			FileOutputStream fos(f);
+			f.create();
 
 			if (auto mb = c.getProperty("Data").getBinaryData())
 			{

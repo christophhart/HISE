@@ -761,7 +761,7 @@ void MarkdownParser::parseMarkdownHeader()
 
 		s.append(headline, f, styleData.headlineColour);
 
-		elements.add(new Headline(this, 3, header.getKeyValue("icon"), s, true));
+		elements.add(new Headline(this, 2, header.getKeyValue("icon"), s, true));
 	}
 
 }

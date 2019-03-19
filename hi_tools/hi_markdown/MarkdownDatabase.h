@@ -189,6 +189,8 @@ public:
 		ValueTree createValueTree() const;
 		void loadFromValueTree(ValueTree& v);
 
+		
+
 		void fillMetadataFromURL();
 
 		String tocString;
@@ -349,6 +351,8 @@ public:
 	{
 		progressCounter = newProgressCounter;
 	}
+
+	MarkdownLink getLink(const String& link);
 
 private:
 
