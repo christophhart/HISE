@@ -154,6 +154,15 @@ public:
     
     void setStateInformation(const void *data,int sizeInBytes) override
 	{
+        bool suspendAfterLoad = false;
+        
+        if(updater.suspendState)
+        {
+            suspendAfterLoad = true;
+            updater.suspendState = false;
+            updateSuspendState();
+        }
+        
 #if USE_RAW_FRONTEND
 		MemoryInputStream in(data, sizeInBytes, false);
 		MemoryBlock mb;
@@ -167,6 +176,8 @@ public:
         
 		ValueTree v = ValueTree::readFromData(data, sizeInBytes);
 
+        ScopedValueSetter<bool> svs(getKillStateHandler().getStateLoadFlag(), true);
+        
 		currentlyLoadedProgram = v.getProperty("Program");
 
 		getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(v.getChildWithName("MidiAutomation"));
@@ -187,12 +198,14 @@ public:
         auto mpeData = v.getChildWithName("MPEData");
         
         if (mpeData.isValid())
-        {
             getMacroManager().getMidiControlAutomationHandler()->getMPEData().restoreFromValueTree(mpeData);
-        }
         else
-        {
             getMacroManager().getMidiControlAutomationHandler()->getMPEData().reset();
+        
+        if(suspendAfterLoad)
+        {
+            updater.suspendState = true;
+            updater.updateDelayed();
         }
 #endif
 	}
@@ -306,7 +319,7 @@ private:
         
         void updateDelayed()
         {
-            startTimer(10000);
+            startTimer(500);
         }
         
         bool suspendState = false;

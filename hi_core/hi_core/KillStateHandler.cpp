@@ -246,7 +246,7 @@ bool MainController::KillStateHandler::currentThreadHoldsLock(LockHelpers::Type 
 
 bool MainController::KillStateHandler::initialised() const noexcept
 {
-	return init && currentState != ShutdownComplete;
+	return init && !stateIsLoading && currentState != ShutdownComplete;
 }
 
 void MainController::KillStateHandler::deinitialise()
@@ -344,7 +344,8 @@ bool MainController::KillStateHandler::killVoicesAndCall(Processor* p, const Pro
 	if (!initialised())
 	{
 		jassert(currentState == State::WaitingForInitialisation || 
-		        currentState == State::ShutdownComplete);
+		        currentState == State::ShutdownComplete ||
+                stateIsLoading);
 
 		functionToExecuteWhenKilled(p);
 		return true;

@@ -916,6 +916,8 @@ public:
 
 		bool initialised() const noexcept;
 
+        bool& getStateLoadFlag() { return stateIsLoading; };
+        
 		void deinitialise();
 
 		/** Returns true if the current thread can be safely suspended by a call to Thread::sleep().
@@ -977,6 +979,7 @@ public:
 		};
 
 		bool init = false;
+        bool stateIsLoading = false;
 
 		UnorderedStack<uint16, 4096> pendingTickets;
 		uint16 ticketCounter = 0;
