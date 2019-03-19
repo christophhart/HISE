@@ -246,7 +246,6 @@ void MarkdownParser::createDatabaseEntriesForFile(File root, MarkdownDataBase::I
 		item.c = c;
 		item.tocString = item.keywords[0];
 		item.icon = p.getHeader().getKeyValue("icon");
-		item.type = MarkdownDataBase::Item::Keyword;
 
 		MarkdownDataBase::Item lastHeadLine;
 		int lastLevel = -59;

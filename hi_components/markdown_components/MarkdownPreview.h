@@ -580,7 +580,7 @@ public:
 				{
 					kBounds = { 0, 0, GLOBAL_BOLD_FONT().getStringWidth(item.keywords[0]) + 20, 0 };
 
-					starBounds = item.type == MarkdownDataBase::Item::Keyword ? Rectangle<int>(kBounds.getRight(), 0, 30, 0) : Rectangle<int>();
+					starBounds = {};
 					
 
 					if (height == 0)
@@ -815,7 +815,7 @@ public:
 							}
 						}
 
-						if (linkItem.type != MarkdownDataBase::Item::Invalid)
+						if (linkItem)
 						{
 							ScopedPointer<ItemComponent> newItem(new ItemComponent(linkItem, parent.parent.internalComponent.styleData));
 

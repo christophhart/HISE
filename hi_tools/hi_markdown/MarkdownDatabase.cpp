@@ -79,7 +79,6 @@ juce::String MarkdownDataBase::generateHtmlToc(const String& activeUrl) const
 void MarkdownDataBase::buildDataBase(bool useCache)
 {
 	rootItem = {};
-	rootItem.type = Item::Root;
 	rootItem.url = { rootDirectory, "/" };
 
 	if (useCache && getDatabaseFile().existsAsFile())
@@ -145,22 +144,7 @@ juce::var MarkdownDataBase::getHtmlSearchDatabaseDump()
 				s = item.tocString + "." + c.tocString + "()";
 			}
 
-			if (c.type == MarkdownDataBase::Item::Keyword)
-				c.url.setType(MarkdownLink::MarkdownFile);
-			if (c.type == MarkdownDataBase::Item::Folder)
-				c.url.setType(MarkdownLink::Folder);
-			if (c.type == MarkdownDataBase::Item::Headline)
-			{
-				
-				if (auto parent = c.getParentItem())
-				{
-					if (parent->type == MarkdownDataBase::Item::Keyword)
-						c.url.setType(MarkdownLink::MarkdownFile);
-					else if (parent->type == MarkdownDataBase::Item::Folder)
-						c.url.setType(MarkdownLink::Folder);
-				}
-			}
-				
+			jassert(c.url.getType() == MarkdownLink::MarkdownFile || c.url.getType() == MarkdownLink::Folder);
 
 			String url = c.url.toString(MarkdownLink::FormattedLinkHtml);
 			String colour = "#" + c.c.toDisplayString(false);
@@ -208,8 +192,8 @@ void MarkdownDataBase::DirectoryItemGenerator::addFileRecursive(Item& folder, Fi
 {
 	if (f.isDirectory())
 	{
-		folder.type = Item::Folder;
 		folder.url = { rootDirectory, f.getRelativePathFrom(rootDirectory) };
+		jassert(folder.url.getType() == MarkdownLink::Folder);
 
 		folder.fillMetadataFromURL();
 
@@ -219,7 +203,7 @@ void MarkdownDataBase::DirectoryItemGenerator::addFileRecursive(Item& folder, Fi
 
 			MarkdownParser::createDatabaseEntriesForFile(rootDirectory, ni, folder.url.getMarkdownFile(folder.url.getRoot()), folder.c);
 
-			if (ni.type != Item::Invalid)
+			if (ni)
 			{
 				folder.description = ni.description;
 
@@ -247,7 +231,7 @@ void MarkdownDataBase::DirectoryItemGenerator::addFileRecursive(Item& folder, Fi
 			Item newItem;
 			addFileRecursive(newItem, c);
 
-			if (newItem.type != Item::Invalid)
+			if (newItem)
 				folder.addChild(std::move(newItem));
 		}
 	}
@@ -270,44 +254,9 @@ int MarkdownDataBase::Item::Sorter::compareElements(Item& first, Item& second)
 
 juce::Array<hise::MarkdownDataBase::Item> MarkdownDataBase::Item::PrioritySorter::sortItems(Array<Item>& arrayToBeSorted)
 {
-	Array<Item> s;
-	s.ensureStorageAllocated(arrayToBeSorted.size());
+	jassertfalse;
 
-	Sorter sorter;
-	arrayToBeSorted.sort(sorter);
-
-	// Direct keyword matches first
-	for (int i = 0; i < arrayToBeSorted.size(); i++)
-	{
-		auto item = arrayToBeSorted[i];
-
-		if (item.type != Keyword)
-			continue;
-
-		if (item.keywords.contains(searchString))
-			s.add(arrayToBeSorted.removeAndReturn(i--));
-	}
-
-	for (int i = 0; i < arrayToBeSorted.size(); i++)
-	{
-		auto item = arrayToBeSorted[i];
-
-		if (item.keywords.contains(searchString))
-			s.add(arrayToBeSorted.removeAndReturn(i--));
-	}
-
-	// Keyword items first
-	for (int i = 0; i < arrayToBeSorted.size(); i++)
-	{
-		auto item = arrayToBeSorted[i];
-
-		if (item.type == Keyword)
-			s.add(arrayToBeSorted.removeAndReturn(i--));
-	}
-
-	s.addArray(arrayToBeSorted);
-
-	return s;
+	return arrayToBeSorted;
 }
 
 
@@ -392,7 +341,6 @@ MarkdownDataBase::Item MarkdownDataBase::Item::createChildItem(const String& sub
 }
 
 MarkdownDataBase::Item::Item(Type t, File root, File f, const StringArray& keywords_, String description_) :
-	type(t),
 	url({ root, f.getRelativePathFrom(root) })
 {
 	// If you construct an item like this, you need a directory...
@@ -435,7 +383,6 @@ MarkdownDataBase::Item::Item(const MarkdownLink& link):
 
 MarkdownDataBase::Item::Item(const Item& other)
 {
-	type =        std::move(other.type);
 	description = std::move(other.description);
 	keywords =    std::move(other.keywords);
 	url = other.url;
@@ -452,7 +399,6 @@ MarkdownDataBase::Item::Item(const Item& other)
 
 hise::MarkdownDataBase::Item& MarkdownDataBase::Item::operator=(const Item& other)
 {
-	type = std::move(other.type);
 	description = std::move(other.description);
 	keywords = std::move(other.keywords);
 	url = other.url;
@@ -473,12 +419,12 @@ juce::ValueTree MarkdownDataBase::Item::createValueTree() const
 {
 	ValueTree v("Item");
 
-	jassert(type != Invalid);
+	jassert(*this);
 
-	v.setProperty("Type", (int)type, nullptr);
 	v.setProperty("Description", description, nullptr);
 	v.setProperty("Keywords", keywords.joinIntoString(";"), nullptr);
 	v.setProperty("URL", url.toString(MarkdownLink::Everything), nullptr);
+	v.setProperty("LinkType", url.getType(), nullptr);
 	v.setProperty("TocString", tocString, nullptr);
 	v.setProperty("Colour", c.toString(), nullptr);
 	v.setProperty("Icon", icon, nullptr);
@@ -492,10 +438,10 @@ juce::ValueTree MarkdownDataBase::Item::createValueTree() const
 
 void MarkdownDataBase::Item::loadFromValueTree(ValueTree& v)
 {
-	type = (Type)(int)v.getProperty("Type");
 	keywords = StringArray::fromTokens(v.getProperty("Keywords").toString(), ";", "");
 	description = v.getProperty("Description");
 	url = MarkdownLink::createWithoutRoot(v.getProperty("URL"));
+	url.setType((MarkdownLink::Type)(int)v.getProperty("LinkType", (int)MarkdownLink::MarkdownFileOrFolder));
 	tocString = v.getProperty("TocString");
 	c = Colour::fromString(v.getProperty("Colour").toString());
 	icon = v.getProperty("Icon", "");

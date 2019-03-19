@@ -131,19 +131,10 @@ public:
 
 		var toJSONObject() const
 		{
-			auto urlCopy = url;
-
-			if (type == Root)
-				urlCopy.setType(MarkdownLink::Folder);
-			else if (type == Folder)
-				urlCopy.setType(MarkdownLink::Folder);
-			else if (type == Keyword)
-				urlCopy.setType(MarkdownLink::MarkdownFile);
-			else if (type == Headline)
-				urlCopy.setType(MarkdownLink::MarkdownFile);
+			jassert(url.getType() == MarkdownLink::Folder || url.getType() == MarkdownLink::MarkdownFile);
 
 			DynamicObject::Ptr newObject = new DynamicObject();
-			newObject->setProperty("URL", urlCopy.toString(MarkdownLink::FormattedLinkHtml));
+			newObject->setProperty("URL", url.toString(MarkdownLink::FormattedLinkHtml));
 			newObject->setProperty("Title", tocString);
 			newObject->setProperty("Colour", "#" + c.toDisplayString(false));
 
@@ -171,6 +162,11 @@ public:
 			}
 
 			return {};
+		}
+
+		explicit operator bool() const
+		{
+			return url.isValid();
 		}
 
 		Item createChildItem(const String& subPath) const;
@@ -208,6 +204,12 @@ public:
 		{
 			item.parent = this;
 			
+			if (item.url.getType() == MarkdownLink::Type::MarkdownFileOrFolder)
+			{
+				jassert(item.url.hasAnchor());
+				item.url.setType(url.getType());
+			}
+
 			children.add(item);
 		}
 

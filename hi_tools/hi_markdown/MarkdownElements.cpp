@@ -1172,8 +1172,8 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 			auto list = parent->getHolder()->getDatabase().getFlatList();
 			auto root = parent->getHolder()->getDatabaseRootDirectory();
 
-			auto thisLink = parent->getLastLink();
-			MarkdownLink nextLink;
+			auto thisLink = parent->getLastLink().withAnchor("");
+			MarkdownLink nextLink = thisLink;
 			String nextName;
 
 			for (int i = 0; i < list.size(); i++)
@@ -1182,10 +1182,9 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 				{
 					int nextIndex = i + 1;
 
-					while (nextIndex < list.size())
+					while (nextIndex < list.size() && nextLink == thisLink)
 					{
-						if (list[nextIndex].type != MarkdownDataBase::Item::Headline)
-							break;
+						nextLink = list[nextIndex].url.withAnchor("");
 
 						nextIndex++;
 					}

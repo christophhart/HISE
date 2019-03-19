@@ -409,6 +409,8 @@ public:
 	/** Returns a pretty version of the filename without leading numbers. */
 	String getPrettyFileName() const noexcept;
 
+	bool hasAnchor() const noexcept { return toString(AnchorWithoutHashtag).isNotEmpty(); }
+
 	bool isValid() const noexcept { return type != Invalid; }
 
 	bool isInvalid() const noexcept { return type == Invalid; }

@@ -90,13 +90,13 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createItemForPro
 	MarkdownDataBase::Item newItem;
 
 	newItem.tocString << p->getName();
-	newItem.type = MarkdownDataBase::Item::Keyword;
 	newItem.keywords.add(p->getName());
 	newItem.description = p->getDescription();
 	
 
 	newItem.c = p->getColour();
 	newItem.url = parent.url.getChildUrl(p->getType().toString());
+	newItem.url.setType(MarkdownLink::MarkdownFile);
 
 	auto f = newItem.url.getMarkdownFile(rootDirectory);
 
@@ -107,7 +107,6 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createItemForPro
 
 	MarkdownDataBase::Item pItem;
 
-	pItem.type = MarkdownDataBase::Item::Headline;
 	pItem.tocString << "Parameters";
 	pItem.url = newItem.url.getChildUrl("parameters", true);
 	pItem.c = newItem.c;
@@ -125,9 +124,10 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createItemForFac
 
 	MarkdownDataBase::Item list;
 	list.url = parent.url.getChildUrl("list");
+	list.url.setType(MarkdownLink::Folder);
 	list.tocString = "List of " + factoryName;
 	list.keywords.add(factoryName);
-	list.type = MarkdownDataBase::Item::Folder;
+	
 
 	for (int i = 0; i < n; i++)
 	{
@@ -151,7 +151,7 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createItemForCat
 
 	item.tocString << categoryName;
 	item.url = parent.url.getChildUrl(categoryName);
-	item.type = MarkdownDataBase::Item::Folder;
+	item.url.setType(MarkdownLink::Folder);
 
 	item.addTocChildren(rootDirectory);
 
@@ -162,9 +162,7 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createRootItem(M
 {
 	MarkdownDataBase::Item rootItem;
 
-	rootItem.type = MarkdownDataBase::Item::Folder;
 	rootItem.tocString = "HISE Modules";
-	rootItem.type = MarkdownDataBase::Item::Folder;
 	rootItem.url = { rootDirectory, moduleWildcard };
 	
 	auto bp = data->bp;

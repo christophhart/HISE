@@ -168,10 +168,11 @@ void DatabaseCrawler::addContentToValueTree(ValueTree& v)
 	if (progressCounter != nullptr && totalLinks > 0)
 		*progressCounter = (double)currentLink / (double)totalLinks;
 
-	if ((int)v.getProperty("Type") == MarkdownDataBase::Item::Type::Headline)
-		return;
-
 	auto url = MarkdownLink(getHolder().getDatabaseRootDirectory(), v.getProperty("URL").toString());
+	url.setType((MarkdownLink::Type)(int)v.getProperty("LinkType", 0));
+
+	if (url.hasAnchor())
+		return;
 
 	auto f = url.getMarkdownFile(getHolder().getDatabaseRootDirectory());
 	
@@ -335,10 +336,10 @@ void DatabaseCrawler::createHtmlInternal(ValueTree v)
 	MarkdownDataBase::Item item;
 	item.loadFromValueTree(v);
 
-	if (item.type == MarkdownDataBase::Item::Headline)
+	if (!item)
 		return;
 
-	if (item.type == MarkdownDataBase::Item::Invalid)
+	if (item.url.hasAnchor())
 		return;
 
 #if 0

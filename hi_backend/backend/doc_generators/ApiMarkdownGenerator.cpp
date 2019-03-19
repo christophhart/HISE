@@ -72,9 +72,8 @@ hise::MarkdownDataBase::Item ScriptingApiDatabase::ItemGenerator::updateWithValu
 
 			MarkdownDataBase::Item i = item.getChildWithName(t);
 
-			if (i.type == MarkdownDataBase::Item::Invalid)
+			if (!i)
 			{
-				i.type = hise::MarkdownDataBase::Item::Folder;
 				i.description << "API class reference: `" << c.getType().toString() << "`";
 				i.tocString = c.getType().toString();
 				i.url = rootUrl.getChildUrl(c.getType().toString());
@@ -128,13 +127,21 @@ hise::MarkdownDataBase::Item ScriptingApiDatabase::ItemGenerator::updateWithValu
 #endif
 	if (v.getType() != method && v.getType() != root)
 	{
+		item.url.setType(MarkdownLink::Folder);
+
+		Array<MarkdownDataBase::Item> newChildren;
+
+		item.swapChildren(newChildren);
+
+#if 0
 		for(int i = 0; i < item.getNumChildren(); i++)
 		{
-			auto type = item[i].type;
+			auto url = item[i].url;
 			
-			if (type != MarkdownDataBase::Item::Headline)
+			if (url.hasAnchor())
 				item.removeChild(i--);
 		}
+#endif
 
 		for (auto c : v)
 		{
@@ -142,7 +149,6 @@ hise::MarkdownDataBase::Item ScriptingApiDatabase::ItemGenerator::updateWithValu
 
 			i.c = item.c;
 			auto className = v.getType().toString();
-			i.type = hise::MarkdownDataBase::Item::Headline;
 			i.tocString = c.getProperty("name").toString();
 			i.description << "`" << className << "." << i.tocString << "()`  ";
 			i.description << c.getProperty("description").toString();
@@ -301,9 +307,12 @@ juce::File ScriptingApiDatabase::Resolver::getFileToEdit(const MarkdownLink& url
 	{
 		auto e = f.getChildFile(url.toString(MarkdownLink::AnchorWithoutHashtag) + ".md");
 
-		if (!e.existsAsFile() && PresetHandler::showYesNoWindow("Create File for method description", "Do you want to create the file\n" + e.getFullPathName()))
+		if (MessageManager::getInstance()->isThisTheMessageThread())
 		{
-			e.create();
+			if (!e.existsAsFile() && PresetHandler::showYesNoWindow("Create File for method description", "Do you want to create the file\n" + e.getFullPathName()))
+			{
+				e.create();
+			}
 		}
 
 		return e;

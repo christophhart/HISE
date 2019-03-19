@@ -180,10 +180,10 @@ void MenuReferenceDocGenerator::ItemGenerator::createMenu(MarkdownDataBase::Item
 {
 
 	MarkdownDataBase::Item menuItem;
-	menuItem.type = MarkdownDataBase::Item::Folder;
 	menuItem.c = parent.c;
 	menuItem.tocString = menuName;
 	menuItem.url = parent.url.getChildUrl(menuName);
+	menuItem.url.setType(MarkdownLink::Folder);
 	menuItem.keywords.add(menuName);
 	
 	data->createMenuCommandInfos();
@@ -198,7 +198,6 @@ void MenuReferenceDocGenerator::ItemGenerator::createMenu(MarkdownDataBase::Item
 			MarkdownDataBase::Item rItem;
 
 			rItem.c = menuItem.c;
-			rItem.type = MarkdownDataBase::Item::Headline;
 			rItem.url = menuItem.url.getChildUrl(info.shortName, true);
 			rItem.tocString = info.shortName;
 			rItem.keywords.add("Menu | " + menuName);
@@ -218,7 +217,7 @@ void MenuReferenceDocGenerator::ItemGenerator::createAndAddWorkspacesItem(Markdo
 	wItem.c = parent.c;
 	wItem.tocString = "Workspaces";
 	wItem.url = parent.url.getChildUrl(wItem.tocString);
-	wItem.type = MarkdownDataBase::Item::Folder;
+	wItem.url.setType(MarkdownLink::Folder);
 
 	createAndAddWorkspace(wItem, "Main Workspace");
 	createAndAddWorkspace(wItem, "Scripting Workspace");
@@ -234,7 +233,6 @@ void MenuReferenceDocGenerator::ItemGenerator::createAndAddWorkspace(MarkdownDat
 	wItem.c = parent.c;
 	wItem.tocString = id;
 	wItem.url = parent.url.getChildUrl(id).withRoot(rootDirectory);
-	wItem.type = MarkdownDataBase::Item::Folder;
 	wItem.icon = wItem.url.getHeaderFromFile({}, false).getIcon();
 
 
@@ -276,7 +274,6 @@ void MenuReferenceDocGenerator::ItemGenerator::createSettingsItem(MarkdownDataBa
 
 	sItem.tocString << header.getDescription();
 	sItem.c = parent.c;
-	sItem.type = MarkdownDataBase::Item::Folder;
 	sItem.icon = header.getKeyValue("icon");
 
 	createSettingSubMenu(sItem, "Project");
@@ -296,7 +293,7 @@ void MenuReferenceDocGenerator::ItemGenerator::createSettingSubMenu(MarkdownData
 	MarkdownDataBase::Item subItem(MarkdownDataBase::Item::Keyword, rootDirectory, f, header.getKeywords(), header.getDescription());
 
 	subItem.url = url;
-	subItem.type = MarkdownDataBase::Item::Folder;
+	subItem.url.setType(MarkdownLink::MarkdownFile);
 	subItem.tocString << name;
 
 	auto subId = MarkdownLink::Helpers::getSanitizedFilename(name);
@@ -327,7 +324,6 @@ void MenuReferenceDocGenerator::ItemGenerator::addItemForSettingList(const Array
 	for (auto id : idList)
 	{
 		MarkdownDataBase::Item item;
-		item.type = MarkdownDataBase::Item::Headline;
 		item.keywords.add("Settings | " + subName);
 		
 		item.description = HiseSettings::ConversionHelpers::getUncamelcasedId(id);
@@ -344,7 +340,6 @@ hise::MarkdownDataBase::Item MenuReferenceDocGenerator::ItemGenerator::createRoo
 	MarkdownDataBase::Item item;
 
 	item.c = Colours::burlywood;
-	item.type = MarkdownDataBase::Item::Folder;
 	item.keywords.add("Working with HISE");
 	item.url = rootURL;
 	item.tocString = "Working with HISE";
