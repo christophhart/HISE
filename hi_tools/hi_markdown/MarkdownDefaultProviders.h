@@ -376,7 +376,7 @@ struct SnapshotMarkdownCodeComponent : public MarkdownCodeComponentBase
 
 		if (syntax == MarkdownCodeComponentBase::EditableFloatingTile)
 		{
-			String link = floatingTile_screenshotWildcard;
+			String link = "/images/floating-tile_";
 
 			String s = JSON::parse(code).getProperty("Type", "").toString();
 

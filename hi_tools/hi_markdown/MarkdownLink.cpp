@@ -194,7 +194,7 @@ MarkdownLink::MarkdownLink(const File& rootDirectory, const String& url) :
 				}
 				else
 				{
-					file = {};
+					file = File();
 					type = Type::MarkdownFileOrFolder;
 				}
 			}
