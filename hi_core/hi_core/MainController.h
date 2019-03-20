@@ -21,7 +21,6 @@
 *   information about commercial licensing:
 *
 *   http://www.hise.audio/
-*
 *   HISE is based on the JUCE library,
 *   which must be separately licensed for closed source applications:
 *
@@ -944,7 +943,6 @@ public:
 				threadsForLock[LockHelpers::SampleLock] = TargetThread::Free;
 				threadsForLock[LockHelpers::IteratorLock] = TargetThread::Free;
 				threadsForLock[LockHelpers::ScriptLock] = TargetThread::Free;
-				threadsForLock[LockHelpers::numLockTypes] = TargetThread::Free;
 			}
 
 			std::atomic<TargetThread> threadsForLock[LockHelpers::Type::numLockTypes];
