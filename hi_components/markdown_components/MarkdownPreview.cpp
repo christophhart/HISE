@@ -869,18 +869,7 @@ void DocUpdater::createLocalHtmlFiles()
 {
 	showStatusMessage("Create local HTML files");
 
-	DatabaseCrawler crawler(getHolder());
-
-	auto contentDirectory = htmlDirectory->getCurrentFile();
-
-	crawler.setLogger(this, false);
-
-	crawler.writeJSONTocFile(htmlDirectory->getCurrentFile());
-	
-	crawler.setProgressCounter(&getProgressCounter());
-	crawler.loadDataFiles(getHolder().getCachedDocFolder());
-	crawler.writeImagesToSubDirectory(contentDirectory);
-	crawler.createHtmlFiles(contentDirectory, Markdown2HtmlConverter::LinkMode::LocalFile, "");
+	DatabaseCrawler::dudel(htmlDirectory->getCurrentFile(), getHolder(), this, &getProgressCounter());
 }
 
 void DocUpdater::downloadAndTestFile(const String& targetFileName)

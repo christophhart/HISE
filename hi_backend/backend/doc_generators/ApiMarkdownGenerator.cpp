@@ -81,8 +81,8 @@ hise::MarkdownDataBase::Item ScriptingApiDatabase::ItemGenerator::updateWithValu
 			else
 			{
 				i.tocString = c.getType().toString();
+				i.url = rootUrl.getChildUrl(c.getType().toString());
 			}
-
 
 			newItems.add(updateWithValueTree(i, c));
 		}
@@ -127,7 +127,8 @@ hise::MarkdownDataBase::Item ScriptingApiDatabase::ItemGenerator::updateWithValu
 #endif
 	if (v.getType() != method && v.getType() != root)
 	{
-		item.url.setType(MarkdownLink::MarkdownFile);
+
+		item.url.setType(MarkdownLink::Folder);
 
 		Array<MarkdownDataBase::Item> newChildren;
 

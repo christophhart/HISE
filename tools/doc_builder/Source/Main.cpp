@@ -11,22 +11,6 @@
 #include "../JuceLibraryCode/JuceHeader.h"
 
 
-REGISTER_STATIC_DSP_LIBRARIES()
-{
-	REGISTER_STATIC_DSP_FACTORY(HiseCoreDspFactory);
-
-#if ENABLE_JUCE_DSP
-	REGISTER_STATIC_DSP_FACTORY(JuceDspModuleFactory);
-#endif
-}
-
-AudioProcessor* hise::StandaloneProcessor::createProcessor()
-{
-	return new hise::BackendProcessor(deviceManager, callback);
-}
-
-
-
 struct StandardLogger : public hise::DatabaseCrawler::Logger
 {
 	virtual void logMessage(const String& m)
@@ -77,32 +61,53 @@ void printHelp()
 	l << "-----------";
 	l << "";
 	l << "help:    Show this help.";
-	l << "cache:   Creates the cached .dat files for the inbuild help.";
 	l << "html:    Creates the HTML files.";
 	l << "clean:   Deletes the cached files and the html directory.";
-	l << "full:    cache + html in one go.";
 	l << "";
 	l << "# Arguments:";
 	l << "------------";
 	l << "";
 	l << "-skip_image:  Skip the creation of images.";
-	l << "-use_cache:   Use the cached files instead of the raw markdown files";
-	l << "-local_links: Create the links that work for a local copy of the HTML doc";
-	l << "              Use this option when building your offline documentation.";
-	l << "-web:         Create links that work for the online copy. This is hardwired to";
-	l << "              http://docs.hise.audio";
 	l << "";
 	l << "--------------------------------------------------------------------------------";
 }
 
+class CachedHolder : public MarkdownDatabaseHolder
+{
+public:
+
+	CachedHolder(File cacheRoot_) :
+		cacheRoot(cacheRoot_)
+	{};
+
+	virtual void registerItemGenerators()
+	{
+		
+	}
+
+	virtual void registerContentProcessor(MarkdownContentProcessor* processor)
+	{
+		processor->addLinkResolver(new DatabaseCrawler::Resolver(getCachedDocFolder()));
+		processor->addImageProvider(new DatabaseCrawler::Provider(getCachedDocFolder(), nullptr));
+
+		//registerGlobalPathFactory(c, {});
+	}
+
+	virtual File getCachedDocFolder() const
+	{
+		return cacheRoot;
+	}
+
+	virtual File getDatabaseRootDirectory() const
+	{
+		return cacheRoot;
+	}
+
+	File cacheRoot;
+};
+
 int createHtml(const StringArray& args)
 {
-#if 0
-	BackendProcessor bp(nullptr, nullptr);
-	//BackendRootWindow b(&bp, {});
-	b.
-
-
 	StandardLogger l;
 
 	if (args.size() < 4)
@@ -126,11 +131,14 @@ int createHtml(const StringArray& args)
 			return 1;
 		}
 
+		CachedHolder holder(root);
+		holder.setForceCachedDataUse(true, true);
+
 		if (File::isAbsolutePath(fileName2))
 		{
 			File htmlDir(fileName2);
 
-			htmlDir.deleteRecursively();
+			//htmlDir.deleteRecursively();
 			
 #if 0
 			database.addItemGenerator(new MarkdownDataBase::DirectoryItemGenerator(root.getChildFile("Introduction"), Colours::orange));
@@ -154,11 +162,14 @@ int createHtml(const StringArray& args)
 			
 #endif
 
-			bp.getDatabase().getDatabaseFile().deleteFile();
+			ScopedPointer<DatabaseCrawler::Logger> logger = new StandardLogger();
 
-			hise::DatabaseCrawler crawler(bp);
+			hise::DatabaseCrawler::dudel(htmlDir, holder, logger, nullptr);
 
-			crawler.setLogger(new StandardLogger());
+#if 0
+			hise::DatabaseCrawler crawler(holder);
+
+			crawler.setLogger(new StandardLogger(), true);
 
 			MarkdownLayout::StyleData l;
 			l.textColour = Colour(0xFF333333);
@@ -177,6 +188,7 @@ int createHtml(const StringArray& args)
 			crawler.writeImagesToSubDirectory(htmlDir);
 
 			//crawler.createHtmlFiles(htmlDir, root.getChildFile("template"), Markdown2HtmlConverter::LinkMode::LocalFile, htmlDir.getFullPathName());
+#endif
 
 			return 0;
 		}
@@ -185,51 +197,11 @@ int createHtml(const StringArray& args)
 			l << "ERROR: the HTML path is not a valid path";
 			return 1;
 		}
-
-		
 	}
-#endif
+
 	return 1;
 }
 
-int createCache(const StringArray& args)
-{
-	BackendProcessor bp;
-	
-	StandardLogger l;
-
-	if (args.size() < 3)
-	{
-		l << "ERROR: You have to specify a markdown directory;";
-		return 1;
-	}
-
-	String fileName = args[2];
-
-	bool skipImages = args.contains("-skip_image");
-
-	if (File::isAbsolutePath(fileName))
-	{
-		File root(fileName);
-
-		if (!root.isDirectory())
-		{
-			l << "ERROR: The path you supplied is not a directory";
-		}
-
-		hise::DatabaseCrawler crawler(bp);
-
-		bp.setDatabaseRootDirectory(root);
-		bp.addContentProcessor(&crawler);
-
-		bp.rebuildDatabase();
-
-		crawler.setLogger(new StandardLogger());
-		crawler.createDataFiles(root, !skipImages);
-
-		return 0;
-	}
-}
 
 //==============================================================================
 int main (int argc, char* argv[])
@@ -253,16 +225,15 @@ int main (int argc, char* argv[])
 		return 0;
 	}
 
-	if (action == "cache")
-	{
-		return createCache(args);
-	}
-
 	if (action == "html")
 	{
 		return createHtml(args);
 	}
-	
 
     return 0;
+}
+
+void hise::MarkdownParser::parseJavascriptBlock()
+{
+	parseLine();
 }

@@ -176,6 +176,7 @@ void DatabaseCrawler::addContentToValueTree(ValueTree& v)
 
 	auto f = url.getMarkdownFile(getHolder().getDatabaseRootDirectory());
 	
+#if 0
 	if (!f.existsAsFile())
 	{
 		for (auto lr : linkResolvers)
@@ -189,6 +190,7 @@ void DatabaseCrawler::addContentToValueTree(ValueTree& v)
 			}
 		}
 	}
+#endif
 	
 	auto path = f.getRelativePathFrom(getHolder().getDatabaseRootDirectory());
 	v.setProperty("FilePath", path, nullptr);
@@ -261,14 +263,15 @@ void DatabaseCrawler::addImagesInternal(ValueTree cTree, float maxWidth)
 
 	if (content.isNotEmpty())
 	{
-		MarkdownParser p(content);
+		MarkdownParser p("");
 
 		p.setStyleData(styleData);
 
 		for (auto ip : imageProviders)
 			p.setImageProvider(ip->clone(&p));
 
-		p.parse();
+		p.setNewText(content);
+
 		auto imageLinks = p.getImageLinks();
 
 		for (auto imgUrl : imageLinks)
@@ -282,7 +285,9 @@ void DatabaseCrawler::addImagesInternal(ValueTree cTree, float maxWidth)
 			Image img;
 
 			{
+#if !HISE_HEADLESS
 				MessageManagerLock lock;
+#endif
 				img = p.resolveImage(l, maxWidth);
 			}
 
@@ -365,6 +370,17 @@ void DatabaseCrawler::createHtmlInternal(ValueTree v)
 		jassertfalse;
 #endif
 
+	
+
+	auto type = (MarkdownLink::Type)(int)v.getProperty("LinkType", (int)MarkdownLink::Type::Invalid);
+
+	auto url = item.url.withRoot(templateDirectory);
+	url.setType(type);
+
+
+	auto f = url.toFile(MarkdownLink::FileType::HtmlFile);
+
+#if 0
 	auto fPath = v.getProperty("FilePath").toString();
 
 	auto type = (MarkdownLink::Type)(int)v.getProperty("LinkType", (int)MarkdownLink::Type::Invalid);
@@ -372,18 +388,43 @@ void DatabaseCrawler::createHtmlInternal(ValueTree v)
 	auto url = item.url.withRoot(templateDirectory);
 	url.setType(type);
 
+	File f;
+
+	if (type == MarkdownLink::Type::Folder)
+	{
+		f = templateDirectory.getChildFile(fPath);
+
+		if (f.getFileNameWithoutExtension().toLowerCase() == "readme")
+			f = f.getParentDirectory();
+		
+		f = f.getChildFile("index.html");
+	}
+	else if (type == MarkdownLink::Type::MarkdownFile)
+	{
+		f = templateDirectory.getChildFile(fPath).withFileExtension(".html");
+	}
+#endif
+
+	DBG(url.getTypeString() + ": " + f.getFullPathName());
+
+#if 0
+	bool containsA = fPath.contains("array");
+
+	
+
 	auto fFile = templateDirectory.getChildFile(fPath).withFileExtension(".html");
 
 	if (fFile.getFileNameWithoutExtension().toLowerCase() == "readme")
 		fFile = fFile.getSiblingFile("index.html");
 
 	auto f = item.url.toFile(MarkdownLink::FileType::HtmlFile, templateDirectory);
+#endif
 
 	auto markdownCode = v.getProperty("Content").toString();
 
 	Markdown2HtmlConverter p(db, markdownCode);
 
-	p.setLinkWithoutAction(url);
+	p.setLinkWithoutAction(item.url);
 	p.setDatabaseHolder(&getHolder());
 	
 	try
@@ -398,13 +439,13 @@ void DatabaseCrawler::createHtmlInternal(ValueTree v)
 
 	p.setHeaderFile(templateDirectory.getChildFile("template/header.html"));
 	p.setFooterFile(templateDirectory.getChildFile("template/footer.html"));
-	p.writeToFile(fFile, item.url.toString(MarkdownLink::Everything));
+	p.writeToFile(f, item.url.toString(MarkdownLink::Everything));
 
 	for (auto c : v)
 		createHtmlInternal(c);
 }
 
-void DatabaseCrawler::createHtmlFiles(File htmlTemplateDirectoy, Markdown2HtmlConverter::LinkMode m, const String& linkBase)
+void DatabaseCrawler::createHtmlFilesInternal(File htmlTemplateDirectoy, Markdown2HtmlConverter::LinkMode m, const String& linkBase)
 {
 	linkMode = m;
 	linkBaseURL = linkBase;
@@ -438,8 +479,10 @@ void DatabaseCrawler::writeImagesToSubDirectory(File htmlDirectory)
 {
 	styleData = MarkdownLayout::StyleData::createBrightStyle();
 
+#if !HISE_HEADLESS
 	imageTree = {};
 	createImageTree();
+#endif
 
 	File imageDirectory = htmlDirectory.getChildFile("images");
 

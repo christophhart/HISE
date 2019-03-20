@@ -1253,7 +1253,9 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 		String nl = "\n";
 
 		{
+#if !HISE_HEADLESS
 			MessageManagerLock mm;
+#endif
 			const_cast<ContentFooter*>(this)->createComponent(900.0f);
 		}
 		

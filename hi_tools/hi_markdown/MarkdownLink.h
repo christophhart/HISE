@@ -383,6 +383,8 @@ public:
 	/** Returns the type. */
 	Type getType() const noexcept;
 
+	String getTypeString() const noexcept;
+
 	String getNameFromHeader() const;
 
 	/** Returns a child URL for the given subpath. If it's a folder it will return a child url.

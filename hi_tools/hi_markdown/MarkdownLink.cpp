@@ -76,12 +76,17 @@ File MarkdownLink::toFile(FileType type, File rootToUse) const noexcept
 
 	switch (type)
 	{
-	case FileType::HtmlFile:		
+	case FileType::HtmlFile:
 	{
+		if (getType() == MarkdownFile)
+		{
+
+		}
+
 		jassert(getType() == MarkdownFile || getType() == Folder);
 		return rootToUse.getChildFile(toString(FormattedLinkHtml, {}).substring(1).upToFirstOccurrenceOf("#", false, false));
 	}
-	case FileType::ContentFile:	
+	case FileType::ContentFile:
 	{
 		auto f = Helpers::getLocalFileForSanitizedURL(rootToUse, sanitizedURL, File::findFiles, "*.md");
 
@@ -202,7 +207,7 @@ MarkdownLink::MarkdownLink(const File& rootDirectory, const String& url) :
 	}
 }
 
-MarkdownLink::MarkdownLink():
+MarkdownLink::MarkdownLink() :
 	type(Invalid)
 {
 
@@ -274,7 +279,7 @@ juce::String MarkdownLink::getNameFromHeader() const
 	if (root.isDirectory())
 	{
 		auto header = getHeaderFromFile(root, false);
-		
+
 		name = header.getFirstKeyword();
 	}
 
@@ -302,7 +307,7 @@ MarkdownLink MarkdownLink::getParentUrl() const
 {
 	if (type == MarkdownFile)
 	{
-		if(anchor.isNotEmpty())
+		if (anchor.isNotEmpty())
 			return { root, sanitizedURL };
 		else
 		{
@@ -315,7 +320,7 @@ MarkdownLink MarkdownLink::getParentUrl() const
 		auto parentDirectory = file.getParentDirectory();
 		return { root, parentDirectory.getRelativePathFrom(root) };
 	}
-	
+
 	jassertfalse;
 	return {};
 }
@@ -334,7 +339,7 @@ bool MarkdownLink::isSamePage(const MarkdownLink& otherLink) const
 {
 	auto thisPage = toString(UrlWithoutAnchor);
 	auto otherPage = otherLink.toString(UrlWithoutAnchor);
-	
+
 	return thisPage == otherPage;
 }
 
@@ -392,10 +397,10 @@ juce::String MarkdownLink::createHtmlLink() const noexcept
 	// You have to set the type before creating the link
 	// Use the LinkType property from the content value tree
 	jassert(getType() == Type::Folder || getType() == Type::MarkdownFile ||
-	        getType() == Type::Image || getType() == Type::SVGImage ||
-	        getType() == Type::Icon);
+		getType() == Type::Image || getType() == Type::SVGImage ||
+		getType() == Type::Icon);
 
-	
+
 	String s;
 
 	s << sanitizedURL;
@@ -403,12 +408,12 @@ juce::String MarkdownLink::createHtmlLink() const noexcept
 	if (getType() == Type::MarkdownFile)
 		s << ".html";
 	else if (getType() == Type::Folder)
-		s << "";
+		s << "/index.html";
 	else if (getType() == Type::Icon)
 		s << ".png";
-	
-	
-	if(anchor.isNotEmpty() && anchor != "#")
+
+
+	if (anchor.isNotEmpty() && anchor != "#")
 		s << anchor;
 
 	return s;
@@ -439,6 +444,29 @@ juce::String MarkdownLink::Helpers::getMarkdownHeader(const String& content)
 	if (content.contains("---"))
 	{
 		return content.upToLastOccurrenceOf("---\n", true, true);
+	}
+
+	return {};
+}
+
+juce::String MarkdownLink::getTypeString() const noexcept
+{
+	switch (type)
+	{
+	case Type::Invalid:					return "invalid";
+	case Type::Rootless:	return "rootless";
+	case Type::MarkdownFileOrFolder:	return "fileOrFolder";
+	case Type::MarkdownFile:	return "file";
+	case Type::Folder:	return "folder";
+	case Type::SimpleAnchor:	return "anchor";
+	case Type::WebContent:	return "web";
+	case Type::Icon:	return "icon";
+	case Type::Image:	return "image";
+	case Type::SVGImage:	return "svg";
+	case Type::numTypes:
+		break;
+	default:
+		break;
 	}
 
 	return {};

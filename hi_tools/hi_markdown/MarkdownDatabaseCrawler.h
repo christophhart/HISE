@@ -179,7 +179,23 @@ public:
 	void createContentTree();
 	void addImagesFromContent(float maxWidth = 1000.0f);
 
-	void createHtmlFiles(File htmlTemplateDirectoy, Markdown2HtmlConverter::LinkMode m, const String& linkBase);
+	static void dudel(File htmlRoot, MarkdownDatabaseHolder& holder, DatabaseCrawler::Logger* nonOwnedLogger, double* progress)
+	{
+		DatabaseCrawler crawler(holder);
+
+		auto contentDirectory = htmlRoot;
+
+		crawler.setLogger(nonOwnedLogger, false);
+
+		crawler.writeJSONTocFile(htmlRoot);
+
+		crawler.setProgressCounter(progress);
+		crawler.loadDataFiles(holder.getCachedDocFolder());
+		crawler.writeImagesToSubDirectory(contentDirectory);
+		crawler.createHtmlFilesInternal(contentDirectory, Markdown2HtmlConverter::LinkMode::LocalFile, "");
+	}
+
+	
 	void createImageTree();
 	void writeImagesToSubDirectory(File htmlDirectory);
 
@@ -217,6 +233,8 @@ public:
 
 private:
 
+	void createHtmlFilesInternal(File htmlTemplateDirectoy, Markdown2HtmlConverter::LinkMode m, const String& linkBase);
+
 	void addPathResolver()
 	{
 		for (auto lr : linkResolvers)
@@ -248,7 +266,7 @@ private:
 		if (logger != nullptr)
 			logger->logMessage(message);
 		if (nonOwnedLogger != nullptr)
-			logger->logMessage(message);
+			nonOwnedLogger->logMessage(message);
 	}
 
 	WeakReference<Logger> nonOwnedLogger;

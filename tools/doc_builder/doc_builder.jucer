@@ -61,15 +61,7 @@
         <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
         <MODULEPATH id="hi_zstd" path="../../../HISE modules"/>
         <MODULEPATH id="hi_lac" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_modules" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_core" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_dsp" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_dsp_library" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_components" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_scripting" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_sampler" path="../../../HISE modules"/>
         <MODULEPATH id="hi_streaming" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_backend" path="../../../HISE modules"/>
         <MODULEPATH id="juce_audio_utils" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
@@ -77,15 +69,7 @@
     </VS2017>
   </EXPORTFORMATS>
   <MODULES>
-    <MODULE id="hi_backend" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
-    <MODULE id="hi_components" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
-    <MODULE id="hi_core" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
-    <MODULE id="hi_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
-    <MODULE id="hi_dsp_library" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_lac" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
-    <MODULE id="hi_modules" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
-    <MODULE id="hi_sampler" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
-    <MODULE id="hi_scripting" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_streaming" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_tools" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_zstd" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
