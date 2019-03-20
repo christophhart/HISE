@@ -239,7 +239,7 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 		content(s),
 		level(level_),
 		isFirst(isFirst_),
-		imageURL(imageURL_),
+		imageURL({}, imageURL_),
 		l(s, 0.0f)
 	{
 		anchorURL = "#" + s.getText().toLowerCase().replaceCharacters(" ", "-");
@@ -296,34 +296,22 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 		l.styleData.linkBackgroundColour = Colours::white.withAlpha(0.1f);
 		l.styleData.codebackgroundColour = Colours::white.withAlpha(0.1f);
 
-		if (imageURL.isNotEmpty())
+		if (imageURL.isValid())
 		{
 			Colour tColour = parent->getStyleData().textColour;
 			parent->getStyleData().textColour = parent->getStyleData().headlineColour;
-			img = parent->resolveImage(MarkdownLink::createWithoutRoot(imageURL), l.getHeight());
+			img = parent->resolveImage(imageURL, l.getHeight());
 			parent->getStyleData().textColour = tColour;
 		}
 
 		return l.getHeight() + marginTop + marginBottom;
 	}
 
-	virtual void addImageLinks(StringArray& sa) override
+	virtual void addImageLinks(Array<MarkdownLink>& sa) override
 	{
-		if (imageURL.isNotEmpty())
-			sa.add(imageURL + ":256px");
+		if (imageURL.isValid())
+			sa.add(imageURL.withExtraData("256px"));
 	};
-
-	void prepareLinksForHtmlExport(const String& baseURL)
-	{
-		Element::prepareLinksForHtmlExport(baseURL);
-
-		if (imageURL.isNotEmpty())
-		{
-			MarkdownLink l({}, imageURL);
-
-			imageURL = l.toString(MarkdownLink::FormattedLinkHtml);
-		}
-	}
 
 	String getTextToCopy() const override
 	{
@@ -341,9 +329,11 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 
 		String c;
 
-		if (imageURL.isNotEmpty())
+		if (imageURL.isValid())
 		{
-			c << g.surroundWithTag("", "img", "style=\"max-height: 1.5em;\" src=\"" + imageURL + "\"");
+			auto imageString = imageURL.toString(MarkdownLink::FormattedLinkHtml);
+
+			c << g.surroundWithTag("", "img", "style=\"max-height: 1.5em;\" src=\"" + imageString + "\"");
 
 		}
 
@@ -371,7 +361,7 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 	MarkdownLayout l;
 	int level;
 	bool isFirst;
-	String imageURL;
+	MarkdownLink imageURL;
 	Image img;
 };
 
@@ -672,7 +662,7 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 	ImageElement(MarkdownParser* parent, const String& imageName_, const String& imageURL_) :
 		Element(parent),
 		imageName(imageName_),
-		imageURL(imageURL_)
+		imageURL({}, imageURL_)
 	{};
 
 	float getHeightForWidth(float width) override
@@ -682,9 +672,9 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 
 		lastWidth = width;
 
-		img = parent->resolveImage(MarkdownLink::createWithoutRoot(imageURL), width);
+		img = parent->resolveImage(imageURL, width);
 
-		if (imageURL.endsWith("gif"))
+		if (imageURL.toString(MarkdownLink::UrlSubPath).endsWith("gif"))
 			isGif = true;
 
 		if (!img.isNull())
@@ -704,12 +694,12 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 		return imageName;
 	}
 
-	void addImageLinks(StringArray& sa) override
+	void addImageLinks(Array<MarkdownLink>& sa) override
 	{
 		sa.add(imageURL);
 	}
 
-	String getImageURL() const { return imageURL; }
+	MarkdownLink getImageURL() const { return imageURL; }
 
 	int getTopMargin() const override { return 5; };
 
@@ -717,16 +707,7 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 	{
 		HtmlGenerator g;
 
-		return g.surroundWithTag(imageName, "img", "src=\"" + imageURL + "\"");
-	}
-
-	void prepareLinksForHtmlExport(const String& baseURL)
-	{
-		Element::prepareLinksForHtmlExport(baseURL);
-
-		MarkdownLink l({}, imageURL);
-
-		imageURL = l.toString(MarkdownLink::FormattedLinkHtml);
+		return g.surroundWithTag(imageName, "img", "src=\"" + imageURL.toString(MarkdownLink::FormattedLinkHtml) + "\"");
 	}
 
 	Component* createComponent(int maxWidth) override
@@ -802,7 +783,7 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 			addAndMakeVisible(gifPlayer = new WebBrowserComponent());
 			gifPlayer->setSize(p.img.getWidth() + 50, p.img.getHeight() + 50);
 			gifPlayer->setTopLeftPosition(0, 0);
-			gifPlayer->goToURL(p.imageURL);
+			gifPlayer->goToURL(p.imageURL.toString(MarkdownLink::UrlFull));
 			gifPlayer->addMouseListener(this, true);
 		}
 
@@ -822,7 +803,143 @@ private:
 	float lastHeight = -1.0f;
 
 	String imageName;
-	String imageURL;
+	MarkdownLink imageURL;
+};
+
+
+struct MarkdownParser::CodeBlock : public MarkdownParser::Element
+{
+	CodeBlock(MarkdownParser* parent, const String& code_, MarkdownCodeComponentBase::SyntaxType t) :
+		Element(parent),
+		code(code_),
+		syntax(t)
+	{
+		code = code.trim();
+		//code << "\n"; // hacky..
+	}
+
+	void draw(Graphics& g, Rectangle<float> area) override
+	{
+	}
+
+	String getTextToCopy() const override
+	{
+		return code;
+	}
+
+	String generateHtml() const override
+	{
+
+#if !HISE_HEADLESS
+		MessageManagerLock mm;
+#endif
+
+		const_cast<CodeBlock*>(this)->createComponent(900);
+
+		if (content != nullptr)
+			return content->generateHtml();
+
+		return {};
+	}
+
+	void searchInContent(const String& searchString) override
+	{
+		if (code.contains(searchString))
+		{
+			searchResults.clear();
+
+			ScopedPointer<MarkdownCodeComponentBase> c = createEditor(lastWidth);
+
+			auto ranges = getMatchRanges(code, searchString, true);
+
+			for (auto r : ranges)
+			{
+				RectangleList<float> area;
+
+				for (int i = 0; i < r.getLength(); i++)
+				{
+					CodeDocument::Position pos(*c->usedDocument, r.getStart() + i);
+					area.add(c->editor->getCharacterBounds(pos).toFloat());
+				}
+
+				area.consolidate();
+
+				searchResults.add(area.getBounds());
+			}
+
+			searchResults.offsetAll(0.0f, 10.0f);
+		}
+	}
+
+	MarkdownCodeComponentBase* createEditor(int newWidth)
+	{
+		auto widthToUse = lastWidth;
+
+		if (widthToUse == -1.0f)
+			widthToUse = (float)newWidth;
+
+#if HI_MARKDOWN_ENABLE_INTERACTIVE_CODE
+		
+		return MarkdownCodeComponentFactory::createInteractiveEditor(parent, syntax, code, widthToUse);
+
+#else
+		if (useSnapshot)
+			return MarkdownCodeComponentFactory::createSnapshotEditor(parent, syntax, code, widthToUse);
+		else
+			return MarkdownCodeComponentFactory::createBaseEditor(parent, syntax, code, widthToUse);
+#endif
+	}
+
+	
+	
+	bool useSnapshot = true;
+
+	Component* createComponent(int maxWidth)
+	{
+		if (content == nullptr)
+			content = createEditor(maxWidth);
+
+		content->setSize(maxWidth, content->getPreferredHeight());
+		content->resized();
+
+		return content;
+	}
+
+	void addImageLinks(Array<MarkdownLink>& sa) override
+	{
+#if !HISE_HEADLESS
+		MessageManagerLock mm;
+#endif
+
+		createComponent(900);
+
+		content->addImageLinks(sa);
+	}
+
+	float getHeightForWidth(float width) override
+	{
+		if (width != lastWidth)
+		{
+			createComponent((int)width);
+
+			return (float)content->getPreferredHeight() + 20;
+		}
+		else
+			return lastHeight;
+	}
+
+	ScopedPointer<MarkdownCodeComponentBase> content;
+
+	int getTopMargin() const override { return 20; };
+
+	String code;
+
+	Image renderedCodePreview;
+
+	MarkdownCodeComponentBase::SyntaxType syntax;
+
+	float lastWidth = -1.0f;
+	float lastHeight = -1.0f;
 };
 
 
@@ -911,9 +1028,9 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 			{
 				String cContent;
 
-				if (c.imageURL.isNotEmpty())
+				if (c.imageURL.isValid())
 				{
-					cContent << g.surroundWithTag("", "img", "src=\"" + c.imageURL + "\"");
+					cContent << g.surroundWithTag("", "img", "src=\"" + c.imageURL.toString(MarkdownLink::FormattedLinkHtml) + "\"");
 				}
 				else
 				{
@@ -933,22 +1050,12 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 		return g.surroundWithTag(html, "table");
 	}
 
-	void addImageLinks(StringArray& sa) override
+	void addImageLinks(Array<MarkdownLink>& sa) override
 	{
 		headers.addImageLinks(sa);
 
 		for (auto& r : rows)
 			r.addImageLinks(sa);
-	}
-
-	void prepareLinksForHtmlExport(const String& baseURL) override
-	{
-		Element::prepareLinksForHtmlExport(baseURL);
-
-		headers.prepareImageLinks(baseURL);
-
-		for (auto& r : rows)
-			r.prepareImageLinks(baseURL);
 	}
 
 	void draw(Graphics& g, Rectangle<float> area) override
@@ -1034,7 +1141,7 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 			return -1;
 		}
 
-		String imageURL;
+		MarkdownLink imageURL;
 		int index = -1;
 		Rectangle<float> area;
 		int length;
@@ -1046,25 +1153,12 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 	{
 		const float intendation = 8.0f;
 
-		void addImageLinks(StringArray& sa)
+		void addImageLinks(Array<MarkdownLink>& sa)
 		{
 			for (auto& c : columns)
 			{
-				if (c.imageURL.isNotEmpty())
+				if (c.imageURL.isValid())
 					sa.add(c.imageURL);
-			}
-		}
-
-		void prepareImageLinks(const String& baseURL)
-		{
-			for (auto& c : columns)
-			{
-				if (c.imageURL.isNotEmpty())
-				{
-					auto link = MarkdownLink({}, c.imageURL);
-					c.imageURL = link.toString(MarkdownLink::FormattedLinkHtml, {});;
-				}
-					
 			}
 		}
 
@@ -1074,7 +1168,7 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 				return c.l.getHeight();
 			else
 			{
-				c.img = parser->resolveImage(MarkdownLink::createWithoutRoot(c.imageURL), width - 4.0f);
+				c.img = parser->resolveImage(c.imageURL, width - 4.0f);
 				return (float)c.img.getHeight();
 			}
 		}

@@ -263,20 +263,22 @@ void DatabaseCrawler::addImagesInternal(ValueTree cTree, float maxWidth)
 
 	if (content.isNotEmpty())
 	{
-		MarkdownParser p("");
-
-		p.setStyleData(styleData);
+		
+		ScopedPointer<MarkdownRenderer> p = new MarkdownRenderer("");
+	
+		p->setStyleData(styleData);
+		p->setDatabaseHolder(&getHolder());
 
 		for (auto ip : imageProviders)
-			p.setImageProvider(ip->clone(&p));
+			p->setImageProvider(ip->clone(p));
 
-		p.setNewText(content);
+		p->setNewText(content);
 
-		auto imageLinks = p.getImageLinks();
+		auto imageLinks = p->getImageLinks();
 
 		for (auto imgUrl : imageLinks)
 		{
-			MarkdownLink l(getHolder().getDatabaseRootDirectory(), imgUrl);
+			auto l = imgUrl.withRoot(getHolder().getDatabaseRootDirectory());
 			auto existingChild = imageTree.getChildWithProperty("URL", l.toString(MarkdownLink::UrlFull));
 
 			if (existingChild.isValid())
@@ -288,19 +290,16 @@ void DatabaseCrawler::addImagesInternal(ValueTree cTree, float maxWidth)
 #if !HISE_HEADLESS
 				MessageManagerLock lock;
 #endif
-				img = p.resolveImage(l, maxWidth);
+				img = p->resolveImage(l, maxWidth);
 			}
 
 			if (img.isValid())
 			{
 				
 
-				logMessage("Writing image " + imgUrl);
+				logMessage("Writing image " + imgUrl.toString(MarkdownLink::UrlFull));
 
-				MarkdownLink l(getHolder().getDatabaseRootDirectory(), imgUrl);
-
-
-
+				
 				ValueTree c("Image");
 				c.setProperty("URL", l.toString(MarkdownLink::UrlFull), nullptr);
 				
@@ -326,6 +325,11 @@ void DatabaseCrawler::addImagesInternal(ValueTree cTree, float maxWidth)
 				imageTree.addChild(c, -1, nullptr);
 			}
 		}
+
+#if !HISE_HEADLESS
+		MessageManagerLock mmLock;
+#endif
+		p = nullptr;
 	}
 
 	for (auto c : cTree)

@@ -93,6 +93,9 @@ END_JUCE_MODULE_DECLARATION
 #define IF_NOT_HEADLESS(x) x
 #endif
 
+#ifndef HI_MARKDOWN_ENABLE_INTERACTIVE_CODE
+#define HI_MARKDOWN_ENABLE_INTERACTIVE_CODE 1
+#endif
 
 
 #include "hi_binary_data/hi_binary_data.h"

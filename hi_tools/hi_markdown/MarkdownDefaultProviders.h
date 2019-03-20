@@ -200,4 +200,246 @@ private:
 	FactoryType f;
 };
 
+
+struct MarkdownCodeComponentBase : public Component,
+	public ButtonListener
+{
+	enum SyntaxType
+	{
+		Undefined,
+		Cpp,
+		Javascript,
+		LiveJavascript,
+		LiveJavascriptWithInterface,
+		EditableFloatingTile,
+		XML,
+		Snippet,
+		ScriptContent,
+		numSyntaxTypes
+	};
+
+	struct Helpers
+	{
+		static bool createProcessor(SyntaxType t)
+		{
+			return t == LiveJavascriptWithInterface || t == LiveJavascript || t == ScriptContent;
+		}
+
+		static bool createContent(SyntaxType t)
+		{
+			return t == LiveJavascriptWithInterface || t == ScriptContent;
+		}
+	};
+
+	struct Factory : public PathFactory
+	{
+		String getId() const override { return "Copy Icon"; }
+
+		Path createPath(const String& url) const override
+		{
+			Path p;
+
+			LOAD_PATH_IF_URL("copy", EditorIcons::pasteIcon);
+
+			return p;
+		}
+	};
+
+	Factory f;
+
+	virtual ~MarkdownCodeComponentBase() {};
+
+	virtual void addImageLinks(Array<MarkdownLink>& sa) {};
+
+	virtual String generateHtml() const;
+
+	MarkdownCodeComponentBase(SyntaxType syntax_, String code, float width, float fontsize, MarkdownParser* parent);
+
+	void createChildComponents()
+	{
+		addAndMakeVisible(editor);
+		addAndMakeVisible(o);
+
+		addAndMakeVisible(expandButton = new TextButton("Expand this code"));
+		expandButton->setLookAndFeel(&blaf);
+		expandButton->addListener(this);
+	}
+
+	virtual void initialiseEditor()
+	{
+		usedDocument = ownedDoc;
+
+		editor = new CodeEditorComponent(*usedDocument, tok);
+
+		editor->setColour(CodeEditorComponent::backgroundColourId, Colour(0xff262626));
+		editor->setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFCCCCCC));
+		editor->setColour(CodeEditorComponent::ColourIds::lineNumberTextId, Colour(0xFFCCCCCC));
+		editor->setColour(CodeEditorComponent::ColourIds::lineNumberBackgroundId, Colour(0xff363636));
+		editor->setColour(CodeEditorComponent::ColourIds::highlightColourId, Colour(0xff666666));
+		editor->setColour(CaretComponent::ColourIds::caretColourId, Colour(0xFFDDDDDD));
+		editor->setColour(ScrollBar::ColourIds::thumbColourId, Colour(0x3dffffff));
+		editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(fontSize));
+		editor->setReadOnly(true);
+	}
+
+	virtual int getPreferredHeight() const
+	{
+		return autoHideEditor() ? (2 * editor->getLineHeight()) : (getEditorHeight() + editor->getLineHeight());
+	}
+
+	virtual bool autoHideEditor() const
+	{
+		return !isExpanded && (usedDocument->getNumLines() > 20);
+	}
+
+	int getGutterWidth() const
+	{
+		return editor->getGutterComponent()->getWidth();
+	}
+
+	void buttonClicked(Button* b) override
+	{
+		if (b == expandButton)
+		{
+			isExpanded = true;
+			updateHeightInParent();
+			return;
+		}
+	}
+
+	int getEditorHeight() const
+	{
+		int height = editor->getLineHeight() * (usedDocument->getNumLines() + 1);
+
+		return height;
+	}
+
+	struct Overlay : public Component
+	{
+		void paint(Graphics& g) override
+		{
+			g.fillAll(Colour(0xAA262626));
+		}
+	};
+
+	void updateHeightInParent();
+
+	void resized() override
+	{
+		editor->setBounds(getLocalBounds());
+
+		editor->scrollToLine(0);
+
+		auto b = getLocalBounds();
+		b.removeFromLeft(getGutterWidth());
+
+		if (autoHideEditor())
+		{
+			o.setVisible(true);
+			o.setBounds(b);
+			expandButton->setVisible(true);
+			expandButton->setBounds(b.withSizeKeepingCentre(130, editor->getLineHeight()));
+		}
+		else
+		{
+			o.setVisible(false);
+			expandButton->setVisible(false);
+		}
+	}
+
+	Overlay o;
+
+	SyntaxType syntax;
+	float fontSize;
+	ScopedPointer<CodeDocument> ownedDoc;
+	WeakReference<CodeDocument> usedDocument;
+	ScopedPointer<CodeTokeniser> tok;
+	ScopedPointer<CodeEditorComponent> editor;
+
+	AlertWindowLookAndFeel blaf;
+	ScopedPointer<TextButton> expandButton;
+
+	bool isExpanded = false;
+	MarkdownParser* parent = nullptr;
+};
+
+
+struct SnapshotMarkdownCodeComponent : public MarkdownCodeComponentBase
+{
+	static constexpr char floatingTile_screenshotWildcard[] = "/images/floating-tile_";
+
+	SnapshotMarkdownCodeComponent(SyntaxType syntax, String code, float width, MarkdownParser* parent) :
+		MarkdownCodeComponentBase(syntax, code, width, parent->getStyleData().fontSize, parent)
+	{
+		initialiseEditor();
+		createChildComponents();
+
+		if (syntax == MarkdownCodeComponentBase::EditableFloatingTile)
+		{
+			String link = floatingTile_screenshotWildcard;
+
+			String s = JSON::parse(code).getProperty("Type", "").toString();
+
+			link << s << ".png";
+			l = { {}, link };
+			l = l.withPostData(code);
+		}
+	}
+
+	String generateHtml() const override;
+
+	void addImageLinks(Array<MarkdownLink>& sa)
+	{
+		if (syntax == MarkdownCodeComponentBase::EditableFloatingTile)
+		{
+			sa.add(l);
+		}
+	}
+
+	int getPreferredHeight() const override
+	{
+		if (syntax == MarkdownCodeComponentBase::EditableFloatingTile && screenshot.isNull())
+		{
+			screenshot = parent->resolveImage(l, 900);
+		}
+
+		return jmax<int>(50, screenshot.getHeight());
+	}
+
+	void paint(Graphics& g) override
+	{
+		g.drawImageAt(screenshot, 0, 0);
+	}
+
+	void resized() override
+	{
+		editor->setVisible(false);
+	}
+
+	MarkdownLink l;
+	mutable Image screenshot;
+
+};
+
+struct MarkdownCodeComponentFactory
+{
+	static MarkdownCodeComponentBase* createBaseEditor(MarkdownParser* parent, MarkdownCodeComponentBase::SyntaxType syntax, const String& code, float width)
+	{
+		ScopedPointer<MarkdownCodeComponentBase> newC = new MarkdownCodeComponentBase(syntax, code, width, parent->getStyleData().fontSize, parent);
+		newC->initialiseEditor();
+		newC->createChildComponents();
+		return newC.release();
+	}
+
+	static MarkdownCodeComponentBase* createSnapshotEditor(MarkdownParser* parent, MarkdownCodeComponentBase::SyntaxType syntax, const String& code, float width)
+	{
+		return new SnapshotMarkdownCodeComponent(syntax, code, width, parent);
+	}
+
+#if HI_MARKDOWN_ENABLE_INTERACTIVE_CODE
+	static MarkdownCodeComponentBase* createInteractiveEditor(MarkdownParser* parent, MarkdownCodeComponentBase::SyntaxType syntax, const String& code, float width);
+#endif
+};
+
+
 }

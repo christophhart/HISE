@@ -171,6 +171,11 @@ hise::Processor* PanelWithProcessorConnection::createDummyProcessorForDocumentat
 	auto id = getProcessorTypeId();
 	auto index = f->getProcessorTypeIndex(id);
 
+	auto idAsString = id.toString();
+
+	if (idAsString == "Skip" || idAsString == "unsupported")
+		return nullptr;
+
 	if (index == -1)
 	{
 		f = new ModulatorChainFactoryType(1, Modulation::GainMode, mc->getMainSynthChain());

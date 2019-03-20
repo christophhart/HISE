@@ -421,6 +421,12 @@ public:
 
 	MarkdownLink withRoot(const File& rootDirectory) const;
 
+	MarkdownLink withPostData(const String& postData) const;
+
+	MarkdownLink withExtraData(String extraData) const;
+
+	String getPostData() const noexcept { return postData; }
+
 	String getExtraData() const noexcept;
 
 	MarkdownHeader getHeaderFromFile(const File& rootDirectory, bool createIfNonExistent) const;
@@ -471,6 +477,7 @@ private:
 	String sanitizedURL;
 	String anchor;
 	String extraString;
+	String postData;
 	File file;
 };
 

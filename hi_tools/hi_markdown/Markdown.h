@@ -91,7 +91,10 @@ public:
 	{
 		bool valid = false;
 		Rectangle<float> area = {};
-		String url = {}; // TODO_LINK: Use markdown link
+
+		MarkdownLink url = {};
+
+		//String url = {}; // TODO_LINK: Use markdown link
 		String tooltip;
 		String displayString;
 		Range<int> urlRange = {};
@@ -272,7 +275,7 @@ public:
 
 	void setNewText(const String& newText);
 	
-	String getLinkForMouseEvent(const MouseEvent& event, Rectangle<float> whatArea);
+	MarkdownLink getLinkForMouseEvent(const MouseEvent& event, Rectangle<float> whatArea);
 
 	virtual void jumpToCurrentAnchor() {};
 
@@ -283,7 +286,7 @@ public:
 		lastLink = url;
 	}
 
-	StringArray getImageLinks() const;
+	Array<MarkdownLink> getImageLinks() const;
 
 	HyperLink getHyperLinkForEvent(const MouseEvent& event, Rectangle<float> area);
 
@@ -365,7 +368,7 @@ protected:
 		void drawHighlight(Graphics& g, Rectangle<float> area);;
 
 		virtual void searchInContent(const String& s) { }
-		virtual void addImageLinks(StringArray& sa) {};
+		virtual void addImageLinks(Array<MarkdownLink>& sa) {};
 
 		Array<HyperLink> hyperLinks;
 
@@ -399,7 +402,7 @@ protected:
 			for (const auto& link : hyperLinks)
 			{
 				String linkWildcard = "{LINK" + String(index++) + "}";
-				s = s.replace(linkWildcard, link.url);
+				s = s.replace(linkWildcard, link.url.toString(MarkdownLink::FormattedLinkHtml));
 			}
 
 			return s;
@@ -427,12 +430,12 @@ protected:
 	{
 		bool isEmpty() const
 		{
-			return imageURL.isEmpty() && s.getText().isEmpty();
+			return imageURL.isInvalid() && s.getText().isEmpty();
 		}
 
 		AttributedString s;
 
-		String imageURL;
+		MarkdownLink imageURL;
 		Array<HyperLink> cellLinks;
 	};
 

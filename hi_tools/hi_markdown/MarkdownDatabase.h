@@ -405,6 +405,8 @@ struct MarkdownDatabaseHolder
 		return db;
 	}
 
+	virtual Component* getRootComponent() { return nullptr; };
+
 	virtual void registerItemGenerators() = 0;
 	
 	virtual File getCachedDocFolder() const = 0;

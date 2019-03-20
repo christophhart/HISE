@@ -186,11 +186,11 @@ public:
 		auto contentDirectory = htmlRoot;
 
 		crawler.setLogger(nonOwnedLogger, false);
-
-		crawler.writeJSONTocFile(htmlRoot);
-
 		crawler.setProgressCounter(progress);
+
 		crawler.loadDataFiles(holder.getCachedDocFolder());
+		crawler.writeJSONTocFile(htmlRoot);
+		
 		crawler.writeImagesToSubDirectory(contentDirectory);
 		crawler.createHtmlFilesInternal(contentDirectory, Markdown2HtmlConverter::LinkMode::LocalFile, "");
 	}

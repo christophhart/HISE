@@ -132,6 +132,8 @@ public:
 
 	BackendRootWindow* getDocWindow();
 
+	Component* getRootComponent() override;
+
 	bool databaseDirectoryInitialised() const override
 	{
 		auto path = getSettingsObject().getSetting(HiseSettings::Documentation::DocRepository).toString();

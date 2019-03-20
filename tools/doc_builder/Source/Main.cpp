@@ -133,6 +133,7 @@ int createHtml(const StringArray& args)
 
 		CachedHolder holder(root);
 		holder.setForceCachedDataUse(true, true);
+		holder.rebuildDatabase();
 
 		if (File::isAbsolutePath(fileName2))
 		{
@@ -233,7 +234,3 @@ int main (int argc, char* argv[])
     return 0;
 }
 
-void hise::MarkdownParser::parseJavascriptBlock()
-{
-	parseLine();
-}

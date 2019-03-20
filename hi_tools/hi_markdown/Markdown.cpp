@@ -174,15 +174,15 @@ bool MarkdownParser::gotoLink(const MarkdownLink& url)
 }
 
 
-juce::String MarkdownParser::getLinkForMouseEvent(const MouseEvent& event, Rectangle<float> whatArea)
+MarkdownLink MarkdownParser::getLinkForMouseEvent(const MouseEvent& event, Rectangle<float> whatArea)
 {
 	auto link = getHyperLinkForEvent(event, whatArea);
 	return link.url;
 }
 
-juce::StringArray MarkdownParser::getImageLinks() const
+Array<MarkdownLink> MarkdownParser::getImageLinks() const
 {
-	StringArray sa;
+	Array<MarkdownLink> sa;
 
 	for (auto e : elements)
 	{
@@ -429,16 +429,15 @@ void MarkdownParser::Element::prepareLinksForHtmlExport(const String& baseURL)
 {
 	for (auto& l : hyperLinks)
 	{
-		auto link = parent->getHolder()->getDatabase().getLink(l.url);
+		auto link = parent->getHolder()->getDatabase().getLink(l.url.toString(MarkdownLink::UrlFull));
 
 		if (link.getType() == MarkdownLink::MarkdownFileOrFolder)
 		{
-			throw String("Can't resolve link `" + l.url + "`");
+			throw String("Can't resolve link `" + l.url.toString(MarkdownLink::UrlFull) + "`");
 		}
 		else
 		{
-			auto newURL = link.toString(MarkdownLink::FormattedLinkHtml);
-			l.url = newURL;
+			l.url = link;
 		}
 	}
 }

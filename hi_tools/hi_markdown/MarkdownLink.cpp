@@ -360,7 +360,27 @@ bool MarkdownLink::isImageType() const noexcept
 
 MarkdownLink MarkdownLink::withRoot(const File& rootDirectory) const
 {
-	return MarkdownLink(rootDirectory, toString(Everything));
+	return MarkdownLink(rootDirectory, toString(Everything)).withPostData(postData);
+}
+
+
+hise::MarkdownLink MarkdownLink::withPostData(const String& postData) const
+{
+	auto copy = *this;
+	copy.postData = postData;
+	return copy;
+}
+
+
+MarkdownLink MarkdownLink::withExtraData(String extraData) const
+{
+	if (extraData.startsWith(":"))
+		extraData = extraData.substring(1);
+
+	auto copy = *this;
+	copy.extraString = extraData;
+
+	return copy;
 }
 
 juce::String MarkdownLink::getExtraData() const noexcept
@@ -396,10 +416,12 @@ juce::String MarkdownLink::createHtmlLink() const noexcept
 
 	// You have to set the type before creating the link
 	// Use the LinkType property from the content value tree
-	jassert(getType() == Type::Folder || getType() == Type::MarkdownFile ||
+	bool ok = (getType() == Type::Folder || getType() == Type::MarkdownFile ||
 		getType() == Type::Image || getType() == Type::SVGImage ||
 		getType() == Type::Icon);
 
+	if (!ok)
+		DBG("Unresolved: " + getTypeString());
 
 	String s;
 

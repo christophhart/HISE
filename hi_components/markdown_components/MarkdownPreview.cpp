@@ -438,23 +438,8 @@ void MarkdownPreview::InternalComponent::mouseUp(const MouseEvent& e)
 
 		auto l = renderer.getLinkForMouseEvent(e, getLocalBounds().toFloat());
 
-		if(l.isNotEmpty())
-		{
-			renderer.gotoLink({ parent.rootDirectory, l });
-		}
-
-#if 0
-		auto oldAnchor = renderer.getLastLink(false, true);
-
-		if(renderer.gotoLink(e, getLocalBounds().toFloat()))
-			repaint();
-
-		
-		auto newAnchor = renderer.getLastLink(false, true);
-
-		if (oldAnchor != newAnchor)
-			renderer.gotoLink(newAnchor);
-#endif
+		if(l.isValid())
+			renderer.gotoLink(l.withRoot(parent.rootDirectory));
 	}
 	
 	repaint();
@@ -467,7 +452,7 @@ void MarkdownPreview::InternalComponent::mouseMove(const MouseEvent& event)
 	if (link.valid)
 	{
 		if (link.tooltip.isEmpty())
-			setTooltip(link.url);
+			setTooltip(link.url.toString(MarkdownLink::UrlFull));
 		else
 			setTooltip(link.tooltip);
 	}

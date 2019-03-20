@@ -1690,656 +1690,352 @@ void DebugConsoleTextEditor::textEditorReturnKeyPressed(TextEditor& /*t*/)
 }
 
 
-
-struct MarkdownParser::CodeBlock : public MarkdownParser::Element
+struct InteractiveEditor : public MarkdownCodeComponentBase,
+	public ControlledObject
 {
-	enum SyntaxType
+	void initialiseEditor() override
 	{
-		Undefined,
-		Cpp,
-		Javascript,
-		LiveJavascript,
-		LiveJavascriptWithInterface,
-		EditableFloatingTile,
-		XML,
-		Snippet,
-		ScriptContent,
-		numSyntaxTypes
-	};
-
-	CodeBlock(MarkdownParser* parent, const String& code_, SyntaxType t):
-		Element(parent),
-		code(code_),
-		syntax(t)
-	{
-		code = code.trim();
-		//code << "\n"; // hacky..
-	}
-
-	void draw(Graphics& g, Rectangle<float> area) override
-	{
-	}
-
-	String getTextToCopy() const override
-	{
-		return code;
-	}
-
-	
-
-	String generateHtml() const override
-	{
-		HtmlGenerator g;
-
-		String s = "<pre><code class=\"language-javascript line-numbers\">";
-		s << code;
-		s << "</code></pre>\n";
-
-		return s;
-	}
-
-	void searchInContent(const String& searchString) override
-	{
-		if (code.contains(searchString))
+		if (getMainController() != nullptr && Helpers::createProcessor(syntax))
 		{
-			searchResults.clear();
+			jp = new JavascriptMidiProcessor(getMainController(), "TestProcessor");
+			jp->setOwnerSynth(getMainController()->getMainSynthChain());
 
-			ScopedPointer<Content> c = createEditor();
+			if (Helpers::createContent(ScriptContent))
+				scriptContent = new ScriptContentComponent(jp);
 
-			auto ranges = getMatchRanges(code, searchString, true);
+			addAndMakeVisible(scriptContent);
 
-			for (auto r : ranges)
-			{
-				RectangleList<float> area;
+			usedDocument = jp->getSnippet(0);
+			usedDocument->replaceAllContent(ownedDoc->getAllContent());
 
-				for (int i = 0; i < r.getLength(); i++)
-				{
-					CodeDocument::Position pos(*c->usedDocument, r.getStart() + i);
-					area.add(c->editor->getCharacterBounds(pos).toFloat());
-				}
+			editor = new JavascriptCodeEditor(*usedDocument, tok, jp, "onInit");
 
-				area.consolidate();
+			editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(fontSize));
 
-				searchResults.add(area.getBounds());
-			}
-
-			searchResults.offsetAll(0.0f, 10.0f);
+			addBottomRow();
 		}
-	}
-
-	struct Content : public Component,
-		public ButtonListener
-	{
-
-		struct Helpers
+		else
 		{
-			static bool createProcessor(SyntaxType t)
+			MarkdownCodeComponentBase::initialiseEditor();
+
+			if (syntax == EditableFloatingTile)
 			{
-				return t == LiveJavascriptWithInterface || t == LiveJavascript || t == ScriptContent;
-			}
+				editor->setReadOnly(false);
 
-			static bool createContent(SyntaxType t)
-			{
-				return t == LiveJavascriptWithInterface || t == ScriptContent;
-			}
-		};
-		
+				auto data = JSON::parse(ownedDoc->getAllContent());
 
-		struct Factory : public PathFactory
-		{
-			String getId() const override { return "Copy Icon"; }
+				parent->addAndMakeVisible(this);
 
-			Path createPath(const String& url) const override
-			{
-				Path p;
+				addAndMakeVisible(floatingTile = new FloatingTile(getMainController(), nullptr, {}));
+				floatingTile->setOpaque(true);
 
-				LOAD_PATH_IF_URL("copy", EditorIcons::pasteIcon);
+				floatingTile->setContent(data);
 
-				return p;
-			}
-		};
-
-		Factory f;
-
-		Content(SyntaxType syntax, String code, float width, float fontsize, MainController* mc, Component* parent):
-			copyButton("copy", this, f)
-		{
-			ownedDoc = new CodeDocument();
-
-			switch (syntax)
-			{
-			case Cpp: tok = new CPlusPlusCodeTokeniser(); break;
-			case LiveJavascript:
-			case LiveJavascriptWithInterface:
-			case EditableFloatingTile:
-			case Javascript: tok = new JavascriptTokeniser(); break;
-			case XML:	tok = new XmlTokeniser(); break;
-			case Snippet: tok = new SnippetTokeniser(); break;
-			default: break;
-			}
-
-			ownedDoc->replaceAllContent(code);
-
-			if (mc != nullptr && Helpers::createProcessor(syntax))
-			{
-				jp = new JavascriptMidiProcessor(mc, "TestProcessor");
-				jp->setOwnerSynth(mc->getMainSynthChain());
-
-				if (Helpers::createContent(ScriptContent))
-				{
-					scriptContent = new ScriptContentComponent(jp);
-				}
-
-				addAndMakeVisible(scriptContent);
-
-				usedDocument = jp->getSnippet(0);
-				usedDocument->replaceAllContent(code);
-
-				editor = new JavascriptCodeEditor(*usedDocument, tok, jp, "onInit");
-
-				editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(fontsize));
-				
 				addBottomRow();
-			}
-			else
-			{
-				usedDocument = ownedDoc;
 
-				editor = new CodeEditorComponent(*usedDocument, tok);
-
-				editor->setColour(CodeEditorComponent::backgroundColourId, Colour(0xff262626));
-				editor->setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFCCCCCC));
-				editor->setColour(CodeEditorComponent::ColourIds::lineNumberTextId, Colour(0xFFCCCCCC));
-				editor->setColour(CodeEditorComponent::ColourIds::lineNumberBackgroundId, Colour(0xff363636));
-				editor->setColour(CodeEditorComponent::ColourIds::highlightColourId, Colour(0xff666666));
-				editor->setColour(CaretComponent::ColourIds::caretColourId, Colour(0xFFDDDDDD));
-				editor->setColour(ScrollBar::ColourIds::thumbColourId, Colour(0x3dffffff));
-				editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(fontsize));
-
-				if (syntax == EditableFloatingTile)
-				{
-					auto data = JSON::parse(code);
-
-					parent->addAndMakeVisible(this);
-
-					addAndMakeVisible(floatingTile = new FloatingTile(mc, nullptr, {}));
-					floatingTile->setOpaque(true);
-
-					floatingTile->setContent(data);
-
-					addBottomRow();
-
-					if (auto pc = dynamic_cast<PanelWithProcessorConnection*>(floatingTile->getCurrentFloatingPanel()))
-					{
-						floatingTileProcessor = pc->createDummyProcessorForDocumentation(mc);
-						pc->setContentWithUndo(floatingTileProcessor, 0);
-						floatingTile->getCurrentFloatingPanel()->setPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF363636));
-					}
-				}
-				else
-				{
-					editor->setReadOnly(true);
-				}
-			}
-
-			addAndMakeVisible(editor);
-			addAndMakeVisible(o);
-
-			addAndMakeVisible(copyButton);
-
-			addAndMakeVisible(expandButton = new TextButton("Expand this code"));
-			expandButton->setLookAndFeel(&blaf);
-			expandButton->addListener(this);
-
-			if (syntax == ScriptContent)
-			{
-				showContentOnly = true;
-				editor->setVisible(false);
-				runButton->triggerClick();
-			}
-
-			setWantsKeyboardFocus(true);
-		}
-
-		~Content()
-		{
-			floatingTile = nullptr;
-			floatingTileProcessor = nullptr;
-		}
-
-		void addBottomRow()
-		{
-			addAndMakeVisible(runButton = new TextButton("Run"));
-			addAndMakeVisible(resultLabel = new Label());
-			runButton->setLookAndFeel(&blaf);
-			runButton->addListener(this);
-			resultLabel->setColour(Label::ColourIds::backgroundColourId, Colour(0xff363636));
-			resultLabel->setColour(Label::ColourIds::textColourId, Colours::white);
-			resultLabel->setFont(GLOBAL_MONOSPACE_FONT());
-			resultLabel->setText("Click Run to evaluate this code", dontSendNotification);
-		}
-
-		bool keyPressed(const KeyPress& key) override
-		{
-			if (key == KeyPress::F5Key && runButton != nullptr)
-			{
-				runButton->triggerClick();
-				return true;
-			}
-
-			return false;
-		}
-
-		void updateHeightInParent()
-		{
-			if (auto parentPreview = findParentComponentOfClass<MarkdownPreview>())
-			{
-				parentPreview->renderer.updateHeight();
-			}
-		}
-
-		void buttonClicked(Button* b) override
-		{
-			if (b == &copyButton)
-			{
-				SystemClipboard::copyTextToClipboard(editor->getDocument().getAllContent());
-				return;
-			}
-			if (b == expandButton)
-			{
-				isExpanded = true;
-				updateHeightInParent();
-				return;
-			}
-
-			if (jp != nullptr)
-			{
-				auto f = [this](const JavascriptProcessor::SnippetResult& result)
-				{
-					auto fc = [this, result]()
-					{
-						isActive = true;
-						String s;
-
-						if (result.r.ok())
-						{
-							auto consoleContent = jp->getMainController()->getConsoleHandler().getConsoleData()->getAllContent();
-							s = consoleContent.removeCharacters("\n").fromFirstOccurrenceOf(":", false, false);
-						}
-						else
-							s = "Error: " + result.r.getErrorMessage();
-
-						
-
-						resultLabel->setText(s, dontSendNotification);
-						repaint();
-
-						updateHeightInParent();
-					};
-
-					new DelayedFunctionCaller(fc, 100);
-
-				};
-
-				jp->getMainController()->getConsoleHandler().clearConsole();
-				jp->compileScript(f);				
-			}
-			else if (floatingTile != nullptr)
-			{
-				auto value = JSON::parse(editor->getDocument().getAllContent());
-
-				floatingTile->setContent(value);
-				
 				if (auto pc = dynamic_cast<PanelWithProcessorConnection*>(floatingTile->getCurrentFloatingPanel()))
 				{
+					floatingTileProcessor = pc->createDummyProcessorForDocumentation(getMainController());
 					pc->setContentWithUndo(floatingTileProcessor, 0);
+					floatingTile->getCurrentFloatingPanel()->setPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF363636));
 				}
 			}
 		}
+	}
 
-		bool autoHideEditor() const
+	InteractiveEditor(SyntaxType syntax, String code, float width, float fontsize, MainController* mc, Component* parent_, MarkdownParser* parser) :
+		MarkdownCodeComponentBase(syntax, code, width, fontsize, parser),
+		ControlledObject(mc),
+		copyButton("copy", this, f)
+	{
+		initialiseEditor();
+		createChildComponents();
+
+		addAndMakeVisible(copyButton);
+
+		if (syntax == ScriptContent)
 		{
-			return !isExpanded && (floatingTile != nullptr || usedDocument->getNumLines() > 20);
+			showContentOnly = true;
+			editor->setVisible(false);
+			runButton->triggerClick();
 		}
 
-		int getGutterWidth() const
+		setWantsKeyboardFocus(true);
+	}
+
+	~InteractiveEditor()
+	{
+		floatingTile = nullptr;
+		floatingTileProcessor = nullptr;
+		scriptContent = nullptr;
+		editor = nullptr;
+		jp = nullptr;
+		tok = nullptr;
+		ownedDoc = nullptr;
+	}
+
+	void addBottomRow()
+	{
+		addAndMakeVisible(runButton = new TextButton("Run"));
+		addAndMakeVisible(resultLabel = new Label());
+		runButton->setLookAndFeel(&blaf);
+		runButton->addListener(this);
+		resultLabel->setColour(Label::ColourIds::backgroundColourId, Colour(0xff363636));
+		resultLabel->setColour(Label::ColourIds::textColourId, Colours::white);
+		resultLabel->setFont(GLOBAL_MONOSPACE_FONT());
+		resultLabel->setText("Click Run to evaluate this code", dontSendNotification);
+	}
+
+	bool keyPressed(const KeyPress& key) override
+	{
+		if (key == KeyPress::F5Key && runButton != nullptr)
 		{
-			return editor->getGutterComponent()->getWidth();
+			runButton->triggerClick();
+			return true;
 		}
 
-		int getEditorHeight() const
-		{
-			int height = editor->getLineHeight() * (usedDocument->getNumLines() + 1);
+		return false;
+	}
 
-			return height;
+	void buttonClicked(Button* b) override // TODO: => base class
+	{
+		MarkdownCodeComponentBase::buttonClicked(b);
+
+		if (b == &copyButton)
+		{
+			SystemClipboard::copyTextToClipboard(editor->getDocument().getAllContent());
+			return;
 		}
 
-		int getPreferredHeight() const
+
+		if (jp != nullptr)
 		{
-			if (showContentOnly)
+			auto f = [this](const JavascriptProcessor::SnippetResult& result)
 			{
-				return scriptContent->getContentHeight() + 20;
-			}
-			else
-			{
-				int y = scriptContent != nullptr ? (scriptContent->getContentHeight() + 20) : 0;
-
-				if (floatingTile != nullptr)
+				auto fc = [this, result]()
 				{
-					int size = floatingTile->getCurrentFloatingPanel()->getPreferredHeight();
+					isActive = true;
+					String s;
 
-					if (size == 0)
-						size = 400;
+					if (result.r.ok())
+					{
+						auto consoleContent = jp->getMainController()->getConsoleHandler().getConsoleData()->getAllContent();
+						s = consoleContent.removeCharacters("\n").fromFirstOccurrenceOf(":", false, false);
+					}
+					else
+						s = "Error: " + result.r.getErrorMessage();
 
-					y += size;
-					y += 2 * getGutterWidth();
-				}
 
-				if (runButton != nullptr)
-					y += (autoHideEditor() ? 2 : 1) * editor->getLineHeight();
 
-				y += autoHideEditor() ? (2 * editor->getLineHeight()) : (getEditorHeight() + editor->getLineHeight());
+					resultLabel->setText(s, dontSendNotification);
+					repaint();
 
-				return y;
+					updateHeightInParent();
+				};
+
+				new DelayedFunctionCaller(fc, 100);
+
+			};
+
+			jp->getMainController()->getConsoleHandler().clearConsole();
+			jp->compileScript(f);
+		}
+		else if (floatingTile != nullptr)
+		{
+			auto value = JSON::parse(editor->getDocument().getAllContent());
+
+			floatingTile->setContent(value);
+
+			if (auto pc = dynamic_cast<PanelWithProcessorConnection*>(floatingTile->getCurrentFloatingPanel()))
+			{
+				pc->setContentWithUndo(floatingTileProcessor, 0);
 			}
 		}
+	}
 
-		void resized() override
+	bool autoHideEditor() const override
+	{
+		return !isExpanded && (floatingTile != nullptr || usedDocument->getNumLines() > 20);
+	}
+
+	int getPreferredHeight() const
+	{
+		if (showContentOnly)
 		{
-			if (showContentOnly)
-			{
-				scriptContent->setBounds(10, 10, getWidth(), scriptContent->getContentHeight());
-				editor->setVisible(false);
-				expandButton->setVisible(false);
-				runButton->setVisible(false);
-				resultLabel->setVisible(false);
-			}
-			else
-			{
-				int y = 0;
-
-				if (scriptContent != nullptr)
-				{
-
-					scriptContent->setBounds(10, 10, getWidth(), scriptContent->getContentHeight());
-					y += scriptContent->getContentHeight() + 20;
-				}
-
-				if (floatingTile != nullptr)
-				{
-					int size = floatingTile->getCurrentFloatingPanel()->getPreferredHeight();;
-
-					if (size == 0)
-						size = 400;
-
-					y += size;
-
-					auto gWidth = getGutterWidth();
-
-					floatingTile->setBounds(gWidth, gWidth, getWidth()-2*gWidth, size);
-					
-					y += 2 * gWidth;
-
-				}
-
-				editor->scrollToLine(0);
-
-				if (autoHideEditor())
-				{
-					o.setVisible(true);
-					expandButton->setVisible(true);
-
-					editor->setSize(getWidth(), 2 * editor->getLineHeight());
-					editor->setTopLeftPosition(0, y + editor->getLineHeight() / 2);
-
-					auto b = editor->getBounds();
-
-					b.removeFromLeft(getGutterWidth());
-
-					expandButton->setBounds(b.withSizeKeepingCentre(130, editor->getLineHeight()));
-					editor->setEnabled(false);
-
-					auto ob = editor->getBounds();
-					ob.removeFromLeft(getGutterWidth());
-
-					o.setBounds(ob);
-
-				}
-				else
-				{
-					y += editor->getLineHeight();
-
-					editor->setSize(getWidth(), getEditorHeight());
-					editor->setTopLeftPosition(0, y);
-
-					o.setVisible(false);
-
-					expandButton->setVisible(false);
-					editor->setEnabled(true);
-
-
-				}
-
-				if (runButton != nullptr)
-				{
-					auto ar = getLocalBounds();
-					ar = ar.removeFromBottom(editor->getLineHeight());
-					runButton->setBounds(ar.removeFromLeft(getGutterWidth()));
-					resultLabel->setBounds(ar);
-				}
-
-				copyButton.setBounds(Rectangle<int>(0, y, 24, 24).reduced(4));
-			}
-
-			
+			return scriptContent->getContentHeight() + 20;
 		}
-
-		void paint(Graphics& g) override
+		else
 		{
-			g.fillAll(Colour(0xff363636));
-			
-			auto b = getLocalBounds();
-			auto lb = b.removeFromLeft(getGutterWidth());
-
-			g.setColour(editor->findColour(CodeEditorComponent::ColourIds::backgroundColourId));
-			g.fillRect(b);
+			int y = scriptContent != nullptr ? (scriptContent->getContentHeight() + 20) : 0;
 
 			if (floatingTile != nullptr)
 			{
-				g.setColour(Colour(0xff363636));
-				g.fillRect(0, 0, getWidth(), floatingTile->getHeight() + 2 * getGutterWidth());
+				int size = floatingTile->getCurrentFloatingPanel()->getPreferredHeight();
+
+				if (size == 0)
+					size = 400;
+
+				y += size;
+				y += 2 * getGutterWidth();
 			}
+
+			if (runButton != nullptr)
+				y += (autoHideEditor() ? 2 : 1) * editor->getLineHeight();
+
+			y += MarkdownCodeComponentBase::getPreferredHeight();
+
+			return y;
+		}
+	}
+
+
+
+	void resized() override
+	{
+		if (showContentOnly)
+		{
+			scriptContent->setBounds(10, 10, getWidth(), scriptContent->getContentHeight());
+			editor->setVisible(false);
+			expandButton->setVisible(false);
+			runButton->setVisible(false);
+			resultLabel->setVisible(false);
+		}
+		else
+		{
+			int y = 0;
 
 			if (scriptContent != nullptr)
 			{
-				
 
-				auto h = getLocalBounds().removeFromTop(scriptContent->getContentHeight() + 20);
-
-				g.setColour(Colour(0xff363636));
-				g.fillRect(h);
-
-				if (!isActive)
-				{
-					g.setFont(GLOBAL_BOLD_FONT());
-					g.setColour(Colours::white.withAlpha(0.5f));
-					g.drawText("Press run to show the result", h.toFloat(), Justification::centred);
-				}
-
+				scriptContent->setBounds(10, 10, getWidth(), scriptContent->getContentHeight());
+				y += scriptContent->getContentHeight() + 20;
 			}
 
-		}
-
-		struct Overlay : public Component
-		{
-			void paint(Graphics& g) override
+			if (floatingTile != nullptr)
 			{
-				g.fillAll(Colour(0xAA262626));
+				int size = floatingTile->getCurrentFloatingPanel()->getPreferredHeight();;
+
+				if (size == 0)
+					size = 400;
+
+				y += size;
+
+				auto gWidth = getGutterWidth();
+
+				floatingTile->setBounds(gWidth, gWidth, getWidth() - 2 * gWidth, size);
+
+				y += 2 * gWidth;
 			}
-		};
 
-		Overlay o;
+			editor->scrollToLine(0);
 
-		AlertWindowLookAndFeel blaf;
+			if (autoHideEditor())
+			{
+				o.setVisible(true);
+				expandButton->setVisible(true);
 
-		ScopedPointer<ScriptContentComponent> scriptContent;
-		ScopedPointer<CodeDocument> ownedDoc;
-		WeakReference<CodeDocument> usedDocument;
-		ScopedPointer<CodeTokeniser> tok;
+				editor->setSize(getWidth(), 2 * editor->getLineHeight());
+				editor->setTopLeftPosition(0, y + editor->getLineHeight() / 2);
 
-		ScopedPointer<JavascriptMidiProcessor> jp;
+				auto b = editor->getBounds();
 
-		ScopedPointer<CodeEditorComponent> editor;
+				b.removeFromLeft(getGutterWidth());
 
-		Rectangle<float> pathBounds;
+				expandButton->setBounds(b.withSizeKeepingCentre(130, editor->getLineHeight()));
+				editor->setEnabled(false);
 
-		ScopedPointer<FloatingTile> floatingTile;
-		ScopedPointer<Processor> floatingTileProcessor;
-		ScopedPointer<TextButton> expandButton;
-		ScopedPointer<TextButton> runButton;
-		ScopedPointer<Label> resultLabel;
+				auto ob = editor->getBounds();
+				ob.removeFromLeft(getGutterWidth());
 
-		bool isActive = false;
-		bool isExpanded = false;
+				o.setBounds(ob);
+			}
+			else
+			{
+				y += editor->getLineHeight();
 
-		bool showContentOnly = false;
+				editor->setSize(getWidth(), getEditorHeight());
+				editor->setTopLeftPosition(0, y);
 
-		HiseShapeButton copyButton;
+				o.setVisible(false);
 
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Content);
-	};
+				expandButton->setVisible(false);
+				editor->setEnabled(true);
+			}
 
-	Content* createEditor()
-	{
-		auto mainController = dynamic_cast<MainController*>(parent->getHolder());
+			if (runButton != nullptr)
+			{
+				auto ar = getLocalBounds();
+				ar = ar.removeFromBottom(editor->getLineHeight());
+				runButton->setBounds(ar.removeFromLeft(getGutterWidth()));
+				resultLabel->setBounds(ar);
+			}
 
-		auto parentComponent = dynamic_cast<MarkdownRenderer*>(parent)->getTargetComponent();
-		
-
-		return new Content(syntax, code, lastWidth, parent->styleData.fontSize, mainController, parentComponent);
-	}
-
-	Component* createComponent(int maxWidth)
-	{
-		if (content == nullptr)
-			content = createEditor();
-
-		content->setSize(maxWidth, content->getPreferredHeight());
-		content->resized();
-
-		return content;
-	}
-
-	float getHeightForWidth(float width) override
-	{
-		if (width != lastWidth)
-		{
-			createComponent((int)width);
-
-			return (float)content->getPreferredHeight() + 20;
+			copyButton.setBounds(Rectangle<int>(0, y, 24, 24).reduced(4));
 		}
-		else
-			return lastHeight;
 	}
 
-	ScopedPointer<Content> content;
+	void paint(Graphics& g) override
+	{
+		g.fillAll(Colour(0xff363636));
 
-	int getTopMargin() const override { return 20; };
+		auto b = getLocalBounds();
+		auto lb = b.removeFromLeft(getGutterWidth());
 
-	String code;
+		g.setColour(editor->findColour(CodeEditorComponent::ColourIds::backgroundColourId));
+		g.fillRect(b);
 
-	Image renderedCodePreview;
+		if (floatingTile != nullptr)
+		{
+			g.setColour(Colour(0xff363636));
+			g.fillRect(0, 0, getWidth(), floatingTile->getHeight() + 2 * getGutterWidth());
+		}
 
-	SyntaxType syntax;
+		if (scriptContent != nullptr)
+		{
+			auto h = getLocalBounds().removeFromTop(scriptContent->getContentHeight() + 20);
 
-	float lastWidth = -1.0f;
-	float lastHeight = -1.0f;
+			g.setColour(Colour(0xff363636));
+			g.fillRect(h);
+
+			if (!isActive)
+			{
+				g.setFont(GLOBAL_BOLD_FONT());
+				g.setColour(Colours::white.withAlpha(0.5f));
+				g.drawText("Press run to show the result", h.toFloat(), Justification::centred);
+			}
+
+		}
+
+	}
+
+	ScopedPointer<ScriptContentComponent> scriptContent;
+	ScopedPointer<JavascriptMidiProcessor> jp;
+
+	Component* parent = nullptr;
+
+	Rectangle<float> pathBounds;
+
+	ScopedPointer<FloatingTile> floatingTile;
+	ScopedPointer<Processor> floatingTileProcessor;
+
+	ScopedPointer<TextButton> runButton;
+	ScopedPointer<Label> resultLabel;
+
+	bool isActive = false;
+	bool showContentOnly = false;
+
+	HiseShapeButton copyButton;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(InteractiveEditor);
 };
 
 
-void MarkdownParser::parseJavascriptBlock()
+hise::MarkdownCodeComponentBase* MarkdownCodeComponentFactory::createInteractiveEditor(MarkdownParser* parent, MarkdownCodeComponentBase::SyntaxType syntax, const String& code, float width)
 {
-	it.match('`');
-	it.match('`');
-	it.match('`');
+	auto mainController = dynamic_cast<MainController*>(parent->getHolder());
+	auto parentComponent = dynamic_cast<MarkdownRenderer*>(parent)->getTargetComponent();
 
-	juce_wchar c;
-
-	int numFences = 0;
-
-	String code;
-
-	bool foundEnd = false;
-
-	while (it.next(c))
-	{
-		if (c == '`')
-			numFences++;
-		else
-			numFences = 0;
-		
-		code << c;
-		
-		if (numFences == 3)
-		{
-			foundEnd = true;
-			break;
-		}
-	}
-
-	code = code.upToLastOccurrenceOf("```", false, false);
-
-	if (!foundEnd)
-		throw String("end tag ``` missing");
-
-	auto type = CodeBlock::SyntaxType::Undefined;
-
-	int numToSkip = 0;
-
-	if (code.startsWith("cpp"))
-	{
-		type = CodeBlock::SyntaxType::Cpp;
-		numToSkip = 3;
-
-	}
-	else if (code.startsWith("javascript"))
-	{
-		type = CodeBlock::SyntaxType::Javascript;
-		numToSkip = 10;
-	}
-	else if (code.startsWith("!javascript"))
-	{
-		type = CodeBlock::SyntaxType::LiveJavascript;
-		numToSkip = 11;
-	}
-	else if (code.startsWith("!!javascript"))
-	{
-		type = CodeBlock::SyntaxType::LiveJavascriptWithInterface;
-		numToSkip = 12;
-	}
-	else if (code.startsWith("floating-tile"))
-	{
-		type = CodeBlock::SyntaxType::EditableFloatingTile;
-		numToSkip = 13;
-	}
-	else if (code.startsWith("xml"))
-	{
-		type = CodeBlock::SyntaxType::XML;
-		numToSkip = 3;
-	}
-	else if (code.startsWith("snippet"))
-	{
-		type = CodeBlock::SyntaxType::Snippet;
-		numToSkip = 7;
-	}
-	else if (code.startsWith("scriptcontent"))
-	{
-		type = CodeBlock::SyntaxType::ScriptContent;
-		numToSkip = 13;
-	}
-
-	code = code.substring(numToSkip);
-	elements.add(new CodeBlock(this, code, type));
+	return new InteractiveEditor(syntax, code, width, parent->getStyleData().fontSize, mainController, parentComponent, parent);
 }
 
 

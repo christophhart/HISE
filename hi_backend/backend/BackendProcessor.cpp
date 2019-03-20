@@ -269,6 +269,11 @@ hise::BackendRootWindow* BackendProcessor::getDocWindow()
 	return docWindow;
 }
 
+juce::Component* BackendProcessor::getRootComponent()
+{
+	return dynamic_cast<Component*>(getDocWindow());
+}
+
 void BackendProcessor::setEditorData(var editorState)
 {
 	editorInformation = editorState;

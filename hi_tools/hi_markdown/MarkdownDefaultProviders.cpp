@@ -110,7 +110,6 @@ juce::Image MarkdownParser::FileBasedImageProvider::getImage(const MarkdownLink&
 }
 
 
-
 juce::String MarkdownParser::FolderTocCreator::getContent(const MarkdownLink& url)
 {
 	if (url.getType() == MarkdownLink::Folder)
@@ -271,6 +270,74 @@ MarkdownParser::GlobalPathProvider::GlobalPathProvider(MarkdownParser* parent) :
 	ImageProvider(parent)
 {
 
+}
+
+juce::String MarkdownCodeComponentBase::generateHtml() const
+{
+	HtmlGenerator g;
+
+	String syntaxString = "language-javascript";
+
+	if (syntax == XML)
+		syntaxString = "language-xml";
+
+	if (syntax == SyntaxType::Cpp)
+		syntaxString = "language-cpp";
+
+	String s = "<pre><code class=\"" + syntaxString + " line-numbers\">";
+	s << usedDocument->getAllContent();
+	s << "</code></pre>\n";
+
+	return s;
+}
+
+MarkdownCodeComponentBase::MarkdownCodeComponentBase(SyntaxType syntax_, String code, float width, float fontsize, MarkdownParser* parent_) :
+	syntax(syntax_),
+	fontSize(fontsize),
+	parent(parent_)
+{
+	ownedDoc = new CodeDocument();
+
+	switch (syntax)
+	{
+	case Cpp: tok = new CPlusPlusCodeTokeniser(); break;
+	case LiveJavascript:
+	case LiveJavascriptWithInterface:
+	case EditableFloatingTile:
+	case SyntaxType::ScriptContent:
+	case Javascript: tok = new JavascriptTokeniser(); break;
+	case XML:	tok = new XmlTokeniser(); break;
+	case Snippet: tok = new MarkdownParser::SnippetTokeniser(); break;
+	default: break;
+	}
+
+	ownedDoc->replaceAllContent(code);
+}
+
+void MarkdownCodeComponentBase::updateHeightInParent()
+{
+	if (auto renderer = dynamic_cast<MarkdownRenderer*>(parent))
+	{
+		renderer->updateHeight();
+	}
+}
+
+
+
+juce::String SnapshotMarkdownCodeComponent::generateHtml() const
+{
+	if (syntax == MarkdownCodeComponentBase::EditableFloatingTile)
+	{
+		HtmlGenerator g;
+
+		auto imageLink = g.surroundWithTag("", "img", "src=\"" + l.toString(MarkdownLink::FormattedLinkHtml) + "\"");
+
+		return g.surroundWithTag(imageLink, "p");
+	}
+	else
+	{
+		return MarkdownCodeComponentBase::generateHtml();
+	}
 }
 
 }

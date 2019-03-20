@@ -366,7 +366,7 @@ void MarkdownParser::parseText(bool stopAtEndOfLine)
 
 					HyperLink hyperLink;
 
-					hyperLink.url = MarkdownLink::Helpers::getSanitizedFilename(url);
+					hyperLink.url = { (getHolder() != nullptr ? getHolder()->getDatabaseRootDirectory() : File()), url };
 					hyperLink.urlRange = { start, stop };
 					hyperLink.displayString = urlId;
 					hyperLink.valid = true;
@@ -503,6 +503,92 @@ void MarkdownParser::parseButton()
 	}
 
 	elements.add(new ActionButton(this, urlId, link));
+}
+
+
+void MarkdownParser::parseJavascriptBlock()
+{
+	it.match('`');
+	it.match('`');
+	it.match('`');
+
+	juce_wchar c;
+
+	int numFences = 0;
+
+	String code;
+
+	bool foundEnd = false;
+
+	while (it.next(c))
+	{
+		if (c == '`')
+			numFences++;
+		else
+			numFences = 0;
+
+		code << c;
+
+		if (numFences == 3)
+		{
+			foundEnd = true;
+			break;
+		}
+	}
+
+	code = code.upToLastOccurrenceOf("```", false, false);
+
+	if (!foundEnd)
+		throw String("end tag ``` missing");
+
+	auto type = MarkdownCodeComponentBase::SyntaxType::Undefined;
+
+	int numToSkip = 0;
+
+	if (code.startsWith("cpp"))
+	{
+		type = MarkdownCodeComponentBase::SyntaxType::Cpp;
+		numToSkip = 3;
+
+	}
+	else if (code.startsWith("javascript"))
+	{
+		type = MarkdownCodeComponentBase::SyntaxType::Javascript;
+		numToSkip = 10;
+	}
+	else if (code.startsWith("!javascript"))
+	{
+		type = MarkdownCodeComponentBase::SyntaxType::LiveJavascript;
+		numToSkip = 11;
+	}
+	else if (code.startsWith("!!javascript"))
+	{
+		type = MarkdownCodeComponentBase::SyntaxType::LiveJavascriptWithInterface;
+		numToSkip = 12;
+	}
+	else if (code.startsWith("floating-tile"))
+	{
+		type = MarkdownCodeComponentBase::SyntaxType::EditableFloatingTile;
+		numToSkip = 13;
+	}
+	else if (code.startsWith("xml"))
+	{
+		type = MarkdownCodeComponentBase::SyntaxType::XML;
+		numToSkip = 3;
+	}
+	else if (code.startsWith("snippet"))
+	{
+		type = MarkdownCodeComponentBase::SyntaxType::Snippet;
+		numToSkip = 7;
+	}
+	else if (code.startsWith("scriptcontent"))
+	{
+		type = MarkdownCodeComponentBase::SyntaxType::ScriptContent;
+		numToSkip = 13;
+	}
+
+	code = code.substring(numToSkip);
+	elements.add(new CodeBlock(this, code, type));
 }
 
 

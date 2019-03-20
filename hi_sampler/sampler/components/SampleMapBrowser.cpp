@@ -245,6 +245,7 @@ var SampleMapBrowser::toDynamicObject() const
 
 void SampleMapBrowser::fromDynamicObject(const var& object)
 {
+	return;
 	FloatingTileContent::fromDynamicObject(object);
 
 	var sl = getPropertyWithDefault(object, SpecialPanelIds::SampleList);
