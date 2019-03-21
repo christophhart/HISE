@@ -266,6 +266,7 @@ void DatabaseCrawler::addImagesInternal(ValueTree cTree, float maxWidth)
 		
 		ScopedPointer<MarkdownRenderer> p = new MarkdownRenderer("");
 	
+		p->setTargetComponent(getHolder().getRootComponent());
 		p->setStyleData(styleData);
 		p->setDatabaseHolder(&getHolder());
 
@@ -430,7 +431,7 @@ void DatabaseCrawler::createHtmlInternal(ValueTree v)
 
 	p.setLinkWithoutAction(item.url);
 	p.setDatabaseHolder(&getHolder());
-	
+
 	try
 	{
 		p.setLinkMode(linkMode, linkBaseURL);

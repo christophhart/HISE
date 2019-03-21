@@ -432,6 +432,8 @@ juce::Image HiseModuleDatabase::ScreenshotProvider::getImage(const MarkdownLink&
 
 			w->addAndMakeVisible(editor);
 
+			editor->setSize(800, editor->getHeight());
+
 			editor->setLookAndFeel(&laf);
 
 			auto img = editor->createComponentSnapshot(editor->getLocalBounds());

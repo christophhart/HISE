@@ -800,7 +800,7 @@ juce::Image UIComponentDatabase::FloatingTileScreenshotProvider::getImage(const 
 		if (height == 0)
 			height = 400;
 
-		floatingTile->setSize(900, height);
+		floatingTile->setSize(800, height);
 		return floatingTile->createComponentSnapshot(floatingTile->getLocalBounds());
 	}
 	

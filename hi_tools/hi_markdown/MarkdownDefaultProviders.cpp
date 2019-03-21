@@ -274,21 +274,7 @@ MarkdownParser::GlobalPathProvider::GlobalPathProvider(MarkdownParser* parent) :
 
 juce::String MarkdownCodeComponentBase::generateHtml() const
 {
-	HtmlGenerator g;
-
-	String syntaxString = "language-javascript";
-
-	if (syntax == XML)
-		syntaxString = "language-xml";
-
-	if (syntax == SyntaxType::Cpp)
-		syntaxString = "language-cpp";
-
-	String s = "<pre><code class=\"" + syntaxString + " line-numbers\">";
-	s << usedDocument->getAllContent();
-	s << "</code></pre>\n";
-
-	return s;
+	return HtmlHelpers::createCodeBlock(syntax, usedDocument->getAllContent());
 }
 
 MarkdownCodeComponentBase::MarkdownCodeComponentBase(SyntaxType syntax_, String code, float width, float fontsize, MarkdownParser* parent_) :
@@ -300,7 +286,11 @@ MarkdownCodeComponentBase::MarkdownCodeComponentBase(SyntaxType syntax_, String 
 
 	switch (syntax)
 	{
-	case Cpp: tok = new CPlusPlusCodeTokeniser(); break;
+	case Cpp: 
+	{
+		tok = new CPlusPlusCodeTokeniser();	
+		break;
+	}
 	case LiveJavascript:
 	case LiveJavascriptWithInterface:
 	case EditableFloatingTile:
@@ -326,9 +316,35 @@ void MarkdownCodeComponentBase::updateHeightInParent()
 
 juce::String SnapshotMarkdownCodeComponent::generateHtml() const
 {
+	return HtmlHelpers::createSnapshot(syntax, "");
+}
+
+juce::String MarkdownCodeComponentBase::HtmlHelpers::createCodeBlock(SyntaxType syntax, String code)
+{
+	HtmlGenerator g;
+
+	String syntaxString = "language-javascript";
+
+	if (syntax == XML)
+		syntaxString = "language-xml";
+
+	if (syntax == SyntaxType::Cpp)
+		syntaxString = "language-cpp";
+
+	String s = "<pre><code class=\"" + syntaxString + " line-numbers\">";
+	s << code;
+	s << "</code></pre>\n";
+
+	return s;
+}
+
+juce::String MarkdownCodeComponentBase::HtmlHelpers::createSnapshot(SyntaxType syntax, String code)
+{
 	if (syntax == MarkdownCodeComponentBase::EditableFloatingTile)
 	{
 		HtmlGenerator g;
+
+		MarkdownLink l;
 
 		auto imageLink = g.surroundWithTag("", "img", "src=\"" + l.toString(MarkdownLink::FormattedLinkHtml) + "\"");
 
@@ -336,7 +352,7 @@ juce::String SnapshotMarkdownCodeComponent::generateHtml() const
 	}
 	else
 	{
-		return MarkdownCodeComponentBase::generateHtml();
+		return HtmlHelpers::createCodeBlock(syntax, code);
 	}
 }
 

@@ -254,8 +254,6 @@ int MarkdownDataBase::Item::Sorter::compareElements(Item& first, Item& second)
 
 juce::Array<hise::MarkdownDataBase::Item> MarkdownDataBase::Item::PrioritySorter::sortItems(Array<Item>& arrayToBeSorted)
 {
-	jassertfalse;
-
 	return arrayToBeSorted;
 }
 

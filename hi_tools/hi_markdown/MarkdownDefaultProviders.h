@@ -204,6 +204,8 @@ private:
 struct MarkdownCodeComponentBase : public Component,
 	public ButtonListener
 {
+	
+	
 	enum SyntaxType
 	{
 		Undefined,
@@ -217,6 +219,14 @@ struct MarkdownCodeComponentBase : public Component,
 		ScriptContent,
 		numSyntaxTypes
 	};
+
+	struct HtmlHelpers
+	{
+		static String createCodeBlock(SyntaxType syntax, String code);
+
+		static String createSnapshot(SyntaxType syntax, String code);
+	};
+
 
 	struct Helpers
 	{
@@ -270,6 +280,39 @@ struct MarkdownCodeComponentBase : public Component,
 		usedDocument = ownedDoc;
 
 		editor = new CodeEditorComponent(*usedDocument, tok);
+
+		if (syntax == Cpp)
+		{
+			struct Type
+			{
+				const char* name;
+				uint32 colour;
+			};
+
+			const Type types[] =
+			{
+				{ "Error", 0xffBB3333 },
+				{ "Comment", 0xff77CC77 },
+				{ "Keyword", 0xffbbbbff },
+				{ "Operator", 0xffCCCCCC },
+				{ "Identifier", 0xffDDDDFF },
+				{ "Integer", 0xffDDAADD },
+				{ "Float", 0xffEEAA00 },
+				{ "String", 0xffDDAAAA },
+				{ "Bracket", 0xffFFFFFF },
+				{ "Punctuation", 0xffCCCCCC },
+				{ "Preprocessor Text", 0xffCC7777 }
+			};
+
+			CodeEditorComponent::ColourScheme cs;
+
+			for (unsigned int i = 0; i < sizeof(types) / sizeof(types[0]); ++i)  // (NB: numElementsInArray doesn't work here in GCC4.2)
+				cs.set(types[i].name, Colour(types[i].colour));
+
+			editor->setColourScheme(cs);
+		}
+
+		
 
 		editor->setColour(CodeEditorComponent::backgroundColourId, Colour(0xff262626));
 		editor->setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFCCCCCC));
@@ -400,7 +443,7 @@ struct SnapshotMarkdownCodeComponent : public MarkdownCodeComponentBase
 	{
 		if (syntax == MarkdownCodeComponentBase::EditableFloatingTile && screenshot.isNull())
 		{
-			screenshot = parent->resolveImage(l, 900);
+			screenshot = parent->resolveImage(l, 800);
 		}
 
 		return jmax<int>(50, screenshot.getHeight());

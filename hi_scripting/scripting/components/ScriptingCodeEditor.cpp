@@ -1746,6 +1746,7 @@ struct InteractiveEditor : public MarkdownCodeComponentBase,
 	InteractiveEditor(SyntaxType syntax, String code, float width, float fontsize, MainController* mc, Component* parent_, MarkdownParser* parser) :
 		MarkdownCodeComponentBase(syntax, code, width, fontsize, parser),
 		ControlledObject(mc),
+		parent(parent_),
 		copyButton("copy", this, f)
 	{
 		initialiseEditor();

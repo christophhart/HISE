@@ -45,8 +45,13 @@ struct HtmlGenerator
 	{
 		String s;
 
-		s << "<" << tag << " " << additionalProperties << ">\n";
-		s << content << "\n";
+		s << "<" << tag;
+		
+		if (additionalProperties.isNotEmpty())
+			s << " " << additionalProperties;
+		
+		s<< ">";
+		s << content << "";
 		s << "</" << tag << ">\n";
 
 		return s;

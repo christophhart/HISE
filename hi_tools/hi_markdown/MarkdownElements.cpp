@@ -333,7 +333,7 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 		{
 			auto imageString = imageURL.toString(MarkdownLink::FormattedLinkHtml);
 
-			c << g.surroundWithTag("", "img", "style=\"max-height: 1.5em;\" src=\"" + imageString + "\"");
+			c << g.surroundWithTag("", "img", "src=\"" + imageString + "\"");
 
 		}
 
@@ -707,7 +707,7 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 	{
 		HtmlGenerator g;
 
-		return g.surroundWithTag(imageName, "img", "src=\"" + imageURL.toString(MarkdownLink::FormattedLinkHtml) + "\"");
+		return g.surroundWithTag("", "img", "src=\"" + imageURL.toString(MarkdownLink::FormattedLinkHtml) + "\"");
 	}
 
 	Component* createComponent(int maxWidth) override
@@ -832,9 +832,13 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 
 #if !HISE_HEADLESS
 		MessageManagerLock mm;
+		const_cast<CodeBlock*>(this)->createComponent(800);
+
+
 #endif
 
-		const_cast<CodeBlock*>(this)->createComponent(900);
+		return MarkdownCodeComponentBase::HtmlHelpers::createSnapshot(syntax, code);
+		
 
 		if (content != nullptr)
 			return content->generateHtml();
@@ -911,7 +915,7 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 		MessageManagerLock mm;
 #endif
 
-		createComponent(900);
+		createComponent(800);
 
 		content->addImageLinks(sa);
 	}
@@ -1289,42 +1293,59 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 		s.append("Modified: " + header.getKeyValue("modified"), Colours::grey);
 	}
 
+	struct ContentLinks
+	{
+		MarkdownLink thisLink;
+		MarkdownLink nextLink;
+		MarkdownLink forumLink;
+		String nextName;
+	};
+
+	static ContentLinks createContentLinks(MarkdownParser* parent)
+	{
+		auto list = parent->getHolder()->getDatabase().getFlatList();
+		auto root = parent->getHolder()->getDatabaseRootDirectory();
+
+		ContentLinks links;
+
+		links.thisLink = parent->getLastLink().withAnchor("");
+		links.nextLink = links.thisLink;
+
+		for (int i = 0; i < list.size(); i++)
+		{
+			if (list[i].url == links.thisLink)
+			{
+				int nextIndex = i + 1;
+
+				while (nextIndex < list.size() && links.nextLink == links.thisLink)
+				{
+					nextIndex++;
+					links.nextLink = list[nextIndex].url.withAnchor("");
+				}
+
+				auto linkWithoutAnchor = list[nextIndex].url.withAnchor("");
+
+				links.nextLink = parent->getHolder()->getDatabase().getLink(linkWithoutAnchor.toString(MarkdownLink::UrlFull));
+
+				jassert(links.nextLink.getType() != MarkdownLink::MarkdownFileOrFolder);
+				links.nextName = list[nextIndex].tocString;
+				break;
+			}
+
+		}
+
+		links.forumLink = parent->getHolder()->getDatabase().getForumDiscussion(links.thisLink);
+
+		return links;
+
+	}
+
 	Component* createComponent(int maxWidth) override
 	{
 		if (content == nullptr)
 		{
-			auto list = parent->getHolder()->getDatabase().getFlatList();
-			auto root = parent->getHolder()->getDatabaseRootDirectory();
-
-			auto thisLink = parent->getLastLink().withAnchor("");
-			MarkdownLink nextLink = thisLink;
-			String nextName;
-
-			for (int i = 0; i < list.size(); i++)
-			{
-				if (list[i].url == thisLink)
-				{
-					int nextIndex = i + 1;
-
-					while (nextIndex < list.size() && nextLink == thisLink)
-					{
-						nextIndex++;
-						nextLink = list[nextIndex].url.withAnchor("");
-					}
-
-					auto linkWithoutAnchor = list[nextIndex].url.withAnchor("");
-					
-					nextLink = parent->getHolder()->getDatabase().getLink(linkWithoutAnchor.toString(MarkdownLink::UrlFull));
-
-					jassert(nextLink.getType() != MarkdownLink::MarkdownFileOrFolder);
-					nextName = list[nextIndex].tocString;
-					break;
-				}
-					
-			}
-
-			content = new Content(*this, thisLink, nextLink, nextName);
-
+			ContentLinks links = createContentLinks(parent);
+			content = new Content(*this,  links.thisLink, links.nextLink, links.nextName);
 		}
 			
 
@@ -1346,21 +1367,16 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 		String s;
 		String nl = "\n";
 
-		{
-#if !HISE_HEADLESS
-			MessageManagerLock mm;
-#endif
-			const_cast<ContentFooter*>(this)->createComponent(900.0f);
-		}
-		
-		auto forumLink = content->forumLink;
+		ContentFooter::ContentLinks links = ContentFooter::createContentLinks(parent);
+
+		auto forumLink = links.forumLink;
 
 		if (forumLink.isInvalid())
 			forumLink = { {}, "https://forum.hise.audio" };
 
 		auto fl = g.surroundWithTag("Join Discussion", "a", "href=\"" + forumLink.toString(MarkdownLink::FormattedLinkHtml) + "\"");
 
-		auto next = "Next: " + g.surroundWithTag(content->nextName, "a", "href=\"" + content->nextLink.toString(MarkdownLink::FormattedLinkHtml) + "\"");
+		auto next = "Next: " + g.surroundWithTag(links.nextName, "a", "href=\"" + links.nextLink.toString(MarkdownLink::FormattedLinkHtml) + "\"");
 
 		s << g.surroundWithTag(fl, "span", "class=\"content-footer-left\"") << nl;
 		s << g.surroundWithTag(next, "span", "class=\"content-footer-right\"") << nl;

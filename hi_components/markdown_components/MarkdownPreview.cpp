@@ -274,7 +274,7 @@ void MarkdownPreview::resized()
 
 	auto h = internalComponent.getTextHeight();
 
-	internalComponent.setSize(jmin(1300, viewport.getWidth() - viewport.getScrollBarThickness()), h);
+	internalComponent.setSize(jmin(800, viewport.getWidth() - viewport.getScrollBarThickness()), h);
 }
 
 MarkdownPreview::InternalComponent::InternalComponent(MarkdownPreview& parent_) :
