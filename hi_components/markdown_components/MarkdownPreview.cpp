@@ -854,7 +854,8 @@ void DocUpdater::createLocalHtmlFiles()
 {
 	showStatusMessage("Create local HTML files");
 
-	DatabaseCrawler::dudel(htmlDirectory->getCurrentFile(), getHolder(), this, &getProgressCounter());
+	DatabaseCrawler::createImagesInHtmlFolder(htmlDirectory->getCurrentFile(), getHolder(), this, &getProgressCounter());
+	DatabaseCrawler::createHtmlFilesInHtmlFolder(htmlDirectory->getCurrentFile(), getHolder(), this, &getProgressCounter());
 }
 
 void DocUpdater::downloadAndTestFile(const String& targetFileName)

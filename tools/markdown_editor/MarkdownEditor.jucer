@@ -66,15 +66,15 @@
         <MODULEPATH id="hi_zstd" path="../../"/>
         <MODULEPATH id="hi_lac" path="../../"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_backend" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_core" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_dsp" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_dsp_library" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_components" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_sampler" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_scripting" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_modules" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_streaming" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_backend" path="../../"/>
+        <MODULEPATH id="hi_core" path="../../"/>
+        <MODULEPATH id="hi_dsp" path="../../"/>
+        <MODULEPATH id="hi_dsp_library" path="../../"/>
+        <MODULEPATH id="hi_components" path="../../"/>
+        <MODULEPATH id="hi_sampler" path="../../"/>
+        <MODULEPATH id="hi_scripting" path="../../"/>
+        <MODULEPATH id="hi_modules" path="../../"/>
+        <MODULEPATH id="hi_streaming" path="../../"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_audio_utils" path="../../JUCE/modules"/>
       </MODULEPATHS>
@@ -106,15 +106,15 @@
         <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="hi_lac" path="../../"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_backend" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_core" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_dsp" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_dsp_library" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_components" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_sampler" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_scripting" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_modules" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_streaming" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_backend" path="../../"/>
+        <MODULEPATH id="hi_core" path="../../"/>
+        <MODULEPATH id="hi_dsp" path="../../"/>
+        <MODULEPATH id="hi_dsp_library" path="../../"/>
+        <MODULEPATH id="hi_components" path="../../"/>
+        <MODULEPATH id="hi_sampler" path="../../"/>
+        <MODULEPATH id="hi_scripting" path="../../"/>
+        <MODULEPATH id="hi_modules" path="../../"/>
+        <MODULEPATH id="hi_streaming" path="../../"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_audio_utils" path="../../JUCE/modules"/>
       </MODULEPATHS>
@@ -146,15 +146,15 @@
         <MODULEPATH id="hi_zstd" path="../../"/>
         <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="hi_lac" path="../../"/>
-        <MODULEPATH id="hi_backend" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_core" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_dsp" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_dsp_library" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_components" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_sampler" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_scripting" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_modules" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_streaming" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_backend" path="../../"/>
+        <MODULEPATH id="hi_core" path="../../"/>
+        <MODULEPATH id="hi_dsp" path="../../"/>
+        <MODULEPATH id="hi_dsp_library" path="../../"/>
+        <MODULEPATH id="hi_components" path="../../"/>
+        <MODULEPATH id="hi_sampler" path="../../"/>
+        <MODULEPATH id="hi_scripting" path="../../"/>
+        <MODULEPATH id="hi_modules" path="../../"/>
+        <MODULEPATH id="hi_streaming" path="../../"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_audio_utils" path="../../JUCE/modules"/>
       </MODULEPATHS>
