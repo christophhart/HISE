@@ -68,6 +68,8 @@ void printHelp()
 	l << "------------";
 	l << "";
 	l << "-skip_image:  Skip the creation of images.";
+	l << "-skip-if-old-hash: Skips the building if the hash file in the app's directory";
+	l << "                   is the same as the hash in the cache folder.";
 	l << "";
 	l << "--------------------------------------------------------------------------------";
 }
@@ -116,8 +118,13 @@ int createHtml(const StringArray& args)
 		return 1;
 	}
 
+	l << "Building new HTML docs";
+	l << Time::getCurrentTime().toString(true, true, true, true);
+
 	String fileName = args[2];
 	String fileName2 = args[3];
+
+	
 
 	bool skipImages = args.contains("-skip_image");
 
@@ -129,6 +136,36 @@ int createHtml(const StringArray& args)
 		{
 			l << "ERROR: The path you supplied is not a directory";
 			return 1;
+		}
+
+		bool skipHash = args.contains("skip-if-old-hash");
+
+		bool skipContent = false;
+		
+
+		if (skipHash)
+		{
+			auto executableRoot = File::getSpecialLocation(File::invokedExecutableFile).getParentDirectory();
+
+			auto oldHash = executableRoot.getChildFile("hash.json").loadFileAsString();
+			
+
+			auto oh = JSON::parse(oldHash);
+
+			if (oh.getDynamicObject() != nullptr)
+			{
+				auto newHash = root.getChildFile("hash.json").loadFileAsString();
+
+				auto nh = JSON::parse(newHash);
+
+				if (nh.getDynamicObject() == nullptr)
+				{
+					l << "ERROR: Can't load hash.json from cached folder";
+				}
+
+				skipContent = oh.getProperty("content-hash", 9) == nh.getProperty("content-hash", 12);
+				skipImages |= oh.getProperty("image-hash", 5) == nh.getProperty("image-hash", 41);
+			}   
 		}
 
 		CachedHolder holder(root);
@@ -165,7 +202,22 @@ int createHtml(const StringArray& args)
 
 			ScopedPointer<DatabaseCrawler::Logger> logger = new StandardLogger();
 
-			hise::DatabaseCrawler::dudel(htmlDir, holder, logger, nullptr);
+			if (skipImages)
+				l << "Skipping image file creation";
+			else
+			{
+				l << "Creating image files";
+				hise::DatabaseCrawler::createImagesInHtmlFolder(htmlDir, holder, logger, nullptr);
+			}
+				
+
+			if (skipContent)
+				l << "Skipping HTML files because hash didn't change.";
+			else
+			{
+				l << "Creating HTML files";
+				hise::DatabaseCrawler::createHtmlFilesInHtmlFolder(htmlDir, holder, logger, nullptr);
+			}
 
 #if 0
 			hise::DatabaseCrawler crawler(holder);

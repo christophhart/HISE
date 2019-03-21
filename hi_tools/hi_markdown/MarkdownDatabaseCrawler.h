@@ -179,7 +179,19 @@ public:
 	void createContentTree();
 	void addImagesFromContent(float maxWidth = 1000.0f);
 
-	static void dudel(File htmlRoot, MarkdownDatabaseHolder& holder, DatabaseCrawler::Logger* nonOwnedLogger, double* progress)
+	static void createImagesInHtmlFolder(File htmlRoot, MarkdownDatabaseHolder& holder, DatabaseCrawler::Logger* nonOwnedLogger, double* progress)
+	{
+		DatabaseCrawler crawler(holder);
+
+		auto contentDirectory = htmlRoot;
+
+		crawler.setLogger(nonOwnedLogger, false);
+		crawler.setProgressCounter(progress);
+		crawler.loadDataFiles(holder.getCachedDocFolder());
+		crawler.writeImagesToSubDirectory(contentDirectory);
+	}
+
+	static void createHtmlFilesInHtmlFolder(File htmlRoot, MarkdownDatabaseHolder& holder, DatabaseCrawler::Logger* nonOwnedLogger, double* progress)
 	{
 		DatabaseCrawler crawler(holder);
 
@@ -190,8 +202,6 @@ public:
 
 		crawler.loadDataFiles(holder.getCachedDocFolder());
 		crawler.writeJSONTocFile(htmlRoot);
-		
-		crawler.writeImagesToSubDirectory(contentDirectory);
 		crawler.createHtmlFilesInternal(contentDirectory, Markdown2HtmlConverter::LinkMode::LocalFile, "");
 	}
 
