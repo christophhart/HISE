@@ -58,3 +58,5 @@ tools/cpp_api_builder/xml/
 tools/cpp_api_builder/CppBuilder/Builds/
 tools/cpp_api_builder/CppBuilder/JuceLibraryCode/include_juce_audio_devices.mm
 tools/cpp_api_builder/CppBuilder/JuceLibraryCode/
+tools/cpp_api_builder/output/
+tools/cpp_api_builder/input/
