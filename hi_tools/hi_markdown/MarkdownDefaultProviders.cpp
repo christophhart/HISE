@@ -329,7 +329,7 @@ juce::String MarkdownCodeComponentBase::HtmlHelpers::createCodeBlock(SyntaxType 
 		syntaxString = "language-xml";
 
 	if (syntax == SyntaxType::Cpp)
-		syntaxString = "language-cpp";
+		syntaxString = "language-clike";
 
 	String s = "<pre><code class=\"" + syntaxString + " line-numbers\">";
 	s << code;
