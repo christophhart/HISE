@@ -143,7 +143,10 @@ MarkdownLayout::MarkdownLayout(const AttributedString& s, float width, bool allI
 		{
 			linkRectangles.consolidate();
 			hyperlinkRectangles.add(linkRectangles.getBounds());
-			linkRanges.add({ a.range, linkRectangles.getBounds() });
+
+			std::tuple<Range<int>, Rectangle<float>> newItem(a.range, linkRectangles.getBounds().toFloat());
+
+			linkRanges.add(newItem);
 			linkTexts.add(newLink);
 		}
 
