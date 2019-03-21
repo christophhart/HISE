@@ -1,0 +1,464 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.8.6">
+  <compounddef id="classhise_1_1_hise_event_buffer" kind="class" prot="public">
+    <compoundname>hise::HiseEventBuffer</compoundname>
+    <includes refid="_hise_event_buffer_8h" local="no">HiseEventBuffer.h</includes>
+    <innerclass refid="structhise_1_1_hise_event_buffer_1_1_copy_helpers" prot="public">hise::HiseEventBuffer::CopyHelpers</innerclass>
+    <innerclass refid="classhise_1_1_hise_event_buffer_1_1_event_stack" prot="public">hise::HiseEventBuffer::EventStack</innerclass>
+    <innerclass refid="classhise_1_1_hise_event_buffer_1_1_iterator" prot="public">hise::HiseEventBuffer::Iterator</innerclass>
+      <sectiondef kind="friend">
+      <memberdef kind="friend" id="classhise_1_1_hise_event_buffer_1a9830fc407400559db7e7783cc10a9394" prot="private" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>friend class</type>
+        <definition>friend class Iterator</definition>
+        <argsstring></argsstring>
+        <name>Iterator</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="704" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" bodystart="704" bodyend="-1"/>
+      </memberdef>
+      </sectiondef>
+      <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classhise_1_1_hise_event_buffer_1ad432659a3aa897ea5f1fc7238427daec" prot="private" static="no" mutable="no">
+        <type><ref refid="classhise_1_1_hise_event" kindref="compound">HiseEvent</ref></type>
+        <definition>HiseEvent hise::HiseEventBuffer::buffer[HISE_EVENT_BUFFER_SIZE]</definition>
+        <argsstring>[HISE_EVENT_BUFFER_SIZE]</argsstring>
+        <name>buffer</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="708" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" bodystart="708" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_hise_event_buffer_1a030dd351477aae98aaf0348ca0ccdbaa" prot="private" static="no" mutable="no">
+        <type>int</type>
+        <definition>int hise::HiseEventBuffer::numUsed</definition>
+        <argsstring></argsstring>
+        <name>numUsed</name>
+        <initializer>= 0</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="710" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" bodystart="710" bodyend="-1"/>
+      </memberdef>
+      </sectiondef>
+      <sectiondef kind="public-func">
+      <memberdef kind="function" id="classhise_1_1_hise_event_buffer_1aada2b27bc6f2d13753c026250944d368" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type></type>
+        <definition>hise::HiseEventBuffer::HiseEventBuffer</definition>
+        <argsstring>()</argsstring>
+        <name>HiseEventBuffer</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="580" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.cpp" bodystart="307" bodyend="311"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_hise_event_buffer_1a035bcbf942fb330aecd5f08db00cbc66" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool hise::HiseEventBuffer::operator==</definition>
+        <argsstring>(const HiseEventBuffer &amp;other)</argsstring>
+        <name>operator==</name>
+        <param>
+          <type>const <ref refid="classhise_1_1_hise_event_buffer" kindref="compound">HiseEventBuffer</ref> &amp;</type>
+          <declname>other</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="582" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" bodystart="582" bodyend="604"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_hise_event_buffer_1a3427f2b2239a0ad8a3fdac29fb9d1ad5" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::HiseEventBuffer::clear</definition>
+        <argsstring>()</argsstring>
+        <name>clear</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Clears the buffer. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="607" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.cpp" bodystart="313" bodyend="321"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_hise_event_buffer_1a64b810f05b44dcddd9392908d496677a" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool hise::HiseEventBuffer::isEmpty</definition>
+        <argsstring>() const noexcept</argsstring>
+        <name>isEmpty</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>checks if the buffer is empty. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="610" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" bodystart="610" bodyend="610"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_hise_event_buffer_1a92abab3694b1b44e28d2b1d0e2c570eb" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>int</type>
+        <definition>int hise::HiseEventBuffer::getNumUsed</definition>
+        <argsstring>() const </argsstring>
+        <name>getNumUsed</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Returns the number of events in this buffer. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="613" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" bodystart="613" bodyend="613"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_hise_event_buffer_1a6f5df8002622dcf06a9075cdd4deb158" prot="public" static="no" const="yes" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="classhise_1_1_hise_event" kindref="compound">HiseEvent</ref></type>
+        <definition>HiseEvent hise::HiseEventBuffer::getEvent</definition>
+        <argsstring>(int index) const </argsstring>
+        <name>getEvent</name>
+        <param>
+          <type>int</type>
+          <declname>index</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="615" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.cpp" bodystart="479" bodyend="487"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_hise_event_buffer_1a92e2f3122d2495fa0a9787ac1fa19f72" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="classhise_1_1_hise_event" kindref="compound">HiseEvent</ref></type>
+        <definition>hise::HiseEvent hise::HiseEventBuffer::popEvent</definition>
+        <argsstring>(int index)</argsstring>
+        <name>popEvent</name>
+        <param>
+          <type>int</type>
+          <declname>index</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="617" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.cpp" bodystart="489" bodyend="505"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_hise_event_buffer_1a7560bab8fbd6a9a88ee530b66c342362" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::HiseEventBuffer::subtractFromTimeStamps</definition>
+        <argsstring>(int delta)</argsstring>
+        <name>subtractFromTimeStamps</name>
+        <param>
+          <type>int</type>
+          <declname>delta</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="619" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.cpp" bodystart="507" bodyend="521"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_hise_event_buffer_1aad1e9bb9951e0984cc0a68e8c42b7009" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::HiseEventBuffer::moveEventsBelow</definition>
+        <argsstring>(HiseEventBuffer &amp;targetBuffer, int highestTimestamp)</argsstring>
+        <name>moveEventsBelow</name>
+        <param>
+          <type><ref refid="classhise_1_1_hise_event_buffer" kindref="compound">HiseEventBuffer</ref> &amp;</type>
+          <declname>targetBuffer</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>highestTimestamp</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="620" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.cpp" bodystart="523" bodyend="558"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_hise_event_buffer_1acad58ba9bc3e5b03b30fd123bff8cf1a" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::HiseEventBuffer::moveEventsAbove</definition>
+        <argsstring>(HiseEventBuffer &amp;targetBuffer, int lowestTimestamp)</argsstring>
+        <name>moveEventsAbove</name>
+        <param>
+          <type><ref refid="classhise_1_1_hise_event_buffer" kindref="compound">HiseEventBuffer</ref> &amp;</type>
+          <declname>targetBuffer</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>lowestTimestamp</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="621" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.cpp" bodystart="560" bodyend="586"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_hise_event_buffer_1a5e28bfb73232e9ac2c14707619ee2908" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::HiseEventBuffer::copyFrom</definition>
+        <argsstring>(const HiseEventBuffer &amp;otherBuffer)</argsstring>
+        <name>copyFrom</name>
+        <param>
+          <type>const <ref refid="classhise_1_1_hise_event_buffer" kindref="compound">HiseEventBuffer</ref> &amp;</type>
+          <declname>otherBuffer</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="623" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.cpp" bodystart="588" bodyend="597"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_hise_event_buffer_1afa27cd678c91a36c07d57dd282595409" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::HiseEventBuffer::addEvent</definition>
+        <argsstring>(const HiseEvent &amp;hiseEvent)</argsstring>
+        <name>addEvent</name>
+        <param>
+          <type>const <ref refid="classhise_1_1_hise_event" kindref="compound">HiseEvent</ref> &amp;</type>
+          <declname>hiseEvent</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="625" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.cpp" bodystart="323" bodyend="360"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_hise_event_buffer_1a23b437aa011752fe2c31a477f7354b1b" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::HiseEventBuffer::addEvent</definition>
+        <argsstring>(const MidiMessage &amp;midiMessage, int sampleNumber)</argsstring>
+        <name>addEvent</name>
+        <param>
+          <type>const MidiMessage &amp;</type>
+          <declname>midiMessage</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>sampleNumber</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="627" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.cpp" bodystart="362" bodyend="369"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_hise_event_buffer_1a2f37341125c3bb2e0d439c6fcecf1a7f" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::HiseEventBuffer::addEvents</definition>
+        <argsstring>(const MidiBuffer &amp;otherBuffer)</argsstring>
+        <name>addEvents</name>
+        <param>
+          <type>const MidiBuffer &amp;</type>
+          <declname>otherBuffer</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="628" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.cpp" bodystart="371" bodyend="407"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_hise_event_buffer_1af421394da55ba1b6e78f2b15c215ad1d" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::HiseEventBuffer::addEvents</definition>
+        <argsstring>(const HiseEventBuffer &amp;otherBuffer)</argsstring>
+        <name>addEvents</name>
+        <param>
+          <type>const <ref refid="classhise_1_1_hise_event_buffer" kindref="compound">HiseEventBuffer</ref> &amp;</type>
+          <declname>otherBuffer</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="630" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.cpp" bodystart="410" bodyend="420"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_hise_event_buffer_1a4dc372775f24b561e885d9d02532dc3b" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::HiseEventBuffer::sortTimestamps</definition>
+        <argsstring>()</argsstring>
+        <name>sortTimestamps</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="632" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.cpp" bodystart="422" bodyend="438"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_hise_event_buffer_1ae91773b54d228cf908793c4a84b193fd" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>int</type>
+            <declname>Alignment</declname>
+            <defname>Alignment</defname>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void hise::HiseEventBuffer::alignEventsToRaster</definition>
+        <argsstring>(int maxTimeStamp)</argsstring>
+        <name>alignEventsToRaster</name>
+        <param>
+          <type>int</type>
+          <declname>maxTimeStamp</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="635" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" bodystart="635" bodyend="639"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_hise_event_buffer_1ada953f0612fbba090865cca6bb057fd5" prot="public" static="no" const="yes" explicit="no" inline="no" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool hise::HiseEventBuffer::timeStampsAreSorted</definition>
+        <argsstring>() const </argsstring>
+        <name>timeStampsAreSorted</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="641" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.cpp" bodystart="440" bodyend="457"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_hise_event_buffer_1a27355efe5d73c36d1f4c654a1010534d" prot="public" static="no" const="yes" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int hise::HiseEventBuffer::getMinTimeStamp</definition>
+        <argsstring>() const </argsstring>
+        <name>getMinTimeStamp</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="643" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.cpp" bodystart="459" bodyend="467"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_hise_event_buffer_1aa6aa1f14a46359daa0d4c5b47c61f28d" prot="public" static="no" const="yes" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int hise::HiseEventBuffer::getMaxTimeStamp</definition>
+        <argsstring>() const </argsstring>
+        <name>getMaxTimeStamp</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="645" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.cpp" bodystart="469" bodyend="477"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_hise_event_buffer_1a26a388bc509f29ba73c4b58af5b2a99a" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type><ref refid="classhise_1_1_hise_event" kindref="compound">HiseEvent</ref> *</type>
+        <definition>HiseEvent* hise::HiseEventBuffer::begin</definition>
+        <argsstring>() const noexcept</argsstring>
+        <name>begin</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>compatibility for standard C++ type iterators. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="691" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" bodystart="691" bodyend="694"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_hise_event_buffer_1af4037a8161d253f6e9a6b312858077e6" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type><ref refid="classhise_1_1_hise_event" kindref="compound">HiseEvent</ref> *</type>
+        <definition>HiseEvent* hise::HiseEventBuffer::end</definition>
+        <argsstring>() const noexcept</argsstring>
+        <name>end</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>compatibility for standard C++ type iterators. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="697" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" bodystart="697" bodyend="700"/>
+      </memberdef>
+      </sectiondef>
+      <sectiondef kind="private-func">
+      <memberdef kind="function" id="classhise_1_1_hise_event_buffer_1a4eba10c2798ff16c62063bdc51bb2d57" prot="private" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::HiseEventBuffer::insertEventAtPosition</definition>
+        <argsstring>(const HiseEvent &amp;e, int positionInBuffer)</argsstring>
+        <name>insertEventAtPosition</name>
+        <param>
+          <type>const <ref refid="classhise_1_1_hise_event" kindref="compound">HiseEvent</ref> &amp;</type>
+          <declname>e</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>positionInBuffer</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="706" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.cpp" bodystart="659" bodyend="689"/>
+      </memberdef>
+      </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+<para>The buffer type for the <ref refid="classhise_1_1_hise_event" kindref="compound">HiseEvent</ref>. </para>    </detaileddescription>
+    <location file="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" line="474" column="1" bodyfile="D:/Development/HISE modules/hi_tools/hi_tools/HiseEventBuffer.h" bodystart="473" bodyend="711"/>
+    <listofallmembers>
+      <member refid="classhise_1_1_hise_event_buffer_1afa27cd678c91a36c07d57dd282595409" prot="public" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>addEvent</name></member>
+      <member refid="classhise_1_1_hise_event_buffer_1a23b437aa011752fe2c31a477f7354b1b" prot="public" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>addEvent</name></member>
+      <member refid="classhise_1_1_hise_event_buffer_1a2f37341125c3bb2e0d439c6fcecf1a7f" prot="public" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>addEvents</name></member>
+      <member refid="classhise_1_1_hise_event_buffer_1af421394da55ba1b6e78f2b15c215ad1d" prot="public" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>addEvents</name></member>
+      <member refid="classhise_1_1_hise_event_buffer_1ae91773b54d228cf908793c4a84b193fd" prot="public" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>alignEventsToRaster</name></member>
+      <member refid="classhise_1_1_hise_event_buffer_1a26a388bc509f29ba73c4b58af5b2a99a" prot="public" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>begin</name></member>
+      <member refid="classhise_1_1_hise_event_buffer_1ad432659a3aa897ea5f1fc7238427daec" prot="private" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>buffer</name></member>
+      <member refid="classhise_1_1_hise_event_buffer_1a3427f2b2239a0ad8a3fdac29fb9d1ad5" prot="public" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>clear</name></member>
+      <member refid="classhise_1_1_hise_event_buffer_1a5e28bfb73232e9ac2c14707619ee2908" prot="public" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>copyFrom</name></member>
+      <member refid="classhise_1_1_hise_event_buffer_1af4037a8161d253f6e9a6b312858077e6" prot="public" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>end</name></member>
+      <member refid="classhise_1_1_hise_event_buffer_1a6f5df8002622dcf06a9075cdd4deb158" prot="public" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>getEvent</name></member>
+      <member refid="classhise_1_1_hise_event_buffer_1aa6aa1f14a46359daa0d4c5b47c61f28d" prot="public" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>getMaxTimeStamp</name></member>
+      <member refid="classhise_1_1_hise_event_buffer_1a27355efe5d73c36d1f4c654a1010534d" prot="public" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>getMinTimeStamp</name></member>
+      <member refid="classhise_1_1_hise_event_buffer_1a92abab3694b1b44e28d2b1d0e2c570eb" prot="public" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>getNumUsed</name></member>
+      <member refid="classhise_1_1_hise_event_buffer_1aada2b27bc6f2d13753c026250944d368" prot="public" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>HiseEventBuffer</name></member>
+      <member refid="classhise_1_1_hise_event_buffer_1a4eba10c2798ff16c62063bdc51bb2d57" prot="private" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>insertEventAtPosition</name></member>
+      <member refid="classhise_1_1_hise_event_buffer_1a64b810f05b44dcddd9392908d496677a" prot="public" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>isEmpty</name></member>
+      <member refid="classhise_1_1_hise_event_buffer_1acad58ba9bc3e5b03b30fd123bff8cf1a" prot="public" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>moveEventsAbove</name></member>
+      <member refid="classhise_1_1_hise_event_buffer_1aad1e9bb9951e0984cc0a68e8c42b7009" prot="public" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>moveEventsBelow</name></member>
+      <member refid="classhise_1_1_hise_event_buffer_1a030dd351477aae98aaf0348ca0ccdbaa" prot="private" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>numUsed</name></member>
+      <member refid="classhise_1_1_hise_event_buffer_1a035bcbf942fb330aecd5f08db00cbc66" prot="public" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>operator==</name></member>
+      <member refid="classhise_1_1_hise_event_buffer_1a92e2f3122d2495fa0a9787ac1fa19f72" prot="public" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>popEvent</name></member>
+      <member refid="classhise_1_1_hise_event_buffer_1a4dc372775f24b561e885d9d02532dc3b" prot="public" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>sortTimestamps</name></member>
+      <member refid="classhise_1_1_hise_event_buffer_1a7560bab8fbd6a9a88ee530b66c342362" prot="public" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>subtractFromTimeStamps</name></member>
+      <member refid="classhise_1_1_hise_event_buffer_1ada953f0612fbba090865cca6bb057fd5" prot="public" virt="non-virtual"><scope>hise::HiseEventBuffer</scope><name>timeStampsAreSorted</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

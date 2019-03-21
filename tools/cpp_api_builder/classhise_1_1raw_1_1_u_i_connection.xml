@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.8.6">
+  <compounddef id="classhise_1_1raw_1_1_u_i_connection" kind="class" prot="public">
+    <compoundname>hise::raw::UIConnection</compoundname>
+    <includes refid="raw__misc_8h" local="no">raw_misc.h</includes>
+    <innerclass refid="classhise_1_1raw_1_1_u_i_connection_1_1_base" prot="public">hise::raw::UIConnection::Base</innerclass>
+    <innerclass refid="classhise_1_1raw_1_1_u_i_connection_1_1_button" prot="public">hise::raw::UIConnection::Button</innerclass>
+    <innerclass refid="classhise_1_1raw_1_1_u_i_connection_1_1_combo_box" prot="public">hise::raw::UIConnection::ComboBox</innerclass>
+    <innerclass refid="structhise_1_1raw_1_1_u_i_connection_1_1_ptr" prot="public">hise::raw::UIConnection::Ptr</innerclass>
+    <innerclass refid="classhise_1_1raw_1_1_u_i_connection_1_1_slider" prot="public">hise::raw::UIConnection::Slider</innerclass>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+<para>This class offers a bidirectional connection between <ref refid="structhise_1_1raw_1_1_data" kindref="compound">Data</ref> and its UI representation.</para><para>In order to use it, just add one of these as Member variable in your interface class:</para><para><programlisting><codeline><highlight class="keyword">class<sp/></highlight><highlight class="normal">MyInterface</highlight></codeline>
+<codeline><highlight class="normal">{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>MyInterface(<ref refid="classhise_1_1_main_controller" kindref="compound">hise::MainController</ref>*<sp/>mc):</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>s(</highlight><highlight class="stringliteral">&quot;My<sp/>Funky<sp/>Slider&quot;</highlight><highlight class="normal">),</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>connection(&amp;s,<sp/>mc,<sp/></highlight><highlight class="stringliteral">&quot;Sine<sp/>1&quot;</highlight><highlight class="normal">,<sp/>hise::SineSynth::SaturationAmount)</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>addAndMakeVisible(s);</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>s.setRange(0.0,<sp/>1.0,<sp/>0.01);</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>}</highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>juce::Slider<sp/>s;</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>raw::UIConnection::Slider<sp/>connection;</highlight></codeline>
+<codeline><highlight class="normal">}</highlight></codeline>
+</programlisting> <verbatim>If you just want a more generic, but unidirectional connection (Processor-&gt;UI) take a look at the Reference class.</verbatim> </para>    </detaileddescription>
+    <location file="D:/Development/HISE modules/hi_modules/raw/raw_misc.h" line="392" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_misc.h" bodystart="391" bodyend="589"/>
+    <listofallmembers>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

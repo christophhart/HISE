@@ -1,0 +1,531 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.8.6">
+  <compounddef id="classhise_1_1_project_handler" kind="class" prot="public">
+    <compoundname>hise::ProjectHandler</compoundname>
+    <basecompoundref refid="classhise_1_1_file_handler_base" prot="public" virt="non-virtual">hise::FileHandlerBase</basecompoundref>
+    <includes refid="_preset_handler_8h" local="no">PresetHandler.h</includes>
+    <innerclass refid="structhise_1_1_project_handler_1_1_listener" prot="public">hise::ProjectHandler::Listener</innerclass>
+      <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classhise_1_1_project_handler_1a7069daa41fe220872a2f2154d9b16323" prot="private" static="no" mutable="no">
+        <type>Array&lt; WeakReference&lt; Listener &gt;, CriticalSection &gt;</type>
+        <definition>Array&lt;WeakReference&lt;Listener&gt;, CriticalSection&gt; hise::ProjectHandler::listeners</definition>
+        <argsstring></argsstring>
+        <name>listeners</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="305" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" bodystart="305" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_project_handler_1a82699c1ab142cb853a4b41930baa7fc6" prot="private" static="no" mutable="no">
+        <type>File</type>
+        <definition>File hise::ProjectHandler::currentWorkDirectory</definition>
+        <argsstring></argsstring>
+        <name>currentWorkDirectory</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="307" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" bodystart="307" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_project_handler_1a8df57cb4c2dbac75f7f2c8734d412ad1" prot="private" static="no" mutable="no">
+        <type>Component::SafePointer&lt; Component &gt;</type>
+        <definition>Component::SafePointer&lt;Component&gt; hise::ProjectHandler::window</definition>
+        <argsstring></argsstring>
+        <name>window</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="311" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" bodystart="311" bodyend="-1"/>
+      </memberdef>
+      </sectiondef>
+      <sectiondef kind="private-static-attrib">
+      <memberdef kind="variable" id="classhise_1_1_project_handler_1a9c5760e5ee08328a6825904b41f68ff0" prot="private" static="yes" mutable="no">
+        <type>StringArray</type>
+        <definition>StringArray hise::ProjectHandler::recentWorkDirectories</definition>
+        <argsstring></argsstring>
+        <name>recentWorkDirectories</name>
+        <initializer>= StringArray()</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="309" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" bodystart="309" bodyend="-1"/>
+      </memberdef>
+      </sectiondef>
+      <sectiondef kind="public-func">
+      <memberdef kind="function" id="classhise_1_1_project_handler_1a87bf6eb316e402f10bc0c994bcf2a312" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>hise::ProjectHandler::ProjectHandler</definition>
+        <argsstring>(MainController *mc_)</argsstring>
+        <name>ProjectHandler</name>
+        <param>
+          <type><ref refid="classhise_1_1_main_controller" kindref="compound">MainController</ref> *</type>
+          <declname>mc_</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="215" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" bodystart="215" bodyend="221"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_project_handler_1addc008d62c68bf25457281b2d9d1a852" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::ProjectHandler::createNewProject</definition>
+        <argsstring>(File &amp;workingDirectory, Component *mainEditor)</argsstring>
+        <name>createNewProject</name>
+        <param>
+          <type>File &amp;</type>
+          <declname>workingDirectory</declname>
+        </param>
+        <param>
+          <type>Component *</type>
+          <declname>mainEditor</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="239" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.cpp" bodystart="662" bodyend="694"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_project_handler_1a739dba0347a0fb78a71befe499d31347" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>Result</type>
+        <definition>juce::Result hise::ProjectHandler::setWorkingProject</definition>
+        <argsstring>(const File &amp;workingDirectory, Component *mainEditor)</argsstring>
+        <name>setWorkingProject</name>
+        <param>
+          <type>const File &amp;</type>
+          <declname>workingDirectory</declname>
+        </param>
+        <param>
+          <type>Component *</type>
+          <declname>mainEditor</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="241" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.cpp" bodystart="696" bodyend="759"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_project_handler_1a76391e3763599accda2d6e82ee390040" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="virtual">
+        <type>File</type>
+        <definition>File hise::ProjectHandler::getRootFolder</definition>
+        <argsstring>() const override</argsstring>
+        <name>getRootFolder</name>
+        <reimplements refid="classhise_1_1_file_handler_base_1a41c02d36c357ce8c3ab508280dc57616">getRootFolder</reimplements>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="245" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" bodystart="245" bodyend="245"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_project_handler_1af4f8f7f6763a2ca8a41c54df65eaeed9" prot="public" static="no" const="yes" explicit="no" inline="no" virt="non-virtual">
+        <type>File</type>
+        <definition>File hise::ProjectHandler::getWorkDirectory</definition>
+        <argsstring>() const </argsstring>
+        <name>getWorkDirectory</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="247" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.cpp" bodystart="892" bodyend="900"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_project_handler_1a1ffc7574644c8ea9be0e16bca3df810a" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool hise::ProjectHandler::isRedirected</definition>
+        <argsstring>(ProjectHandler::SubDirectories dir) const </argsstring>
+        <name>isRedirected</name>
+        <param>
+          <type><ref refid="classhise_1_1_file_handler_base_1a2e5cd405ac7fdb49adace52d634ad0f5" kindref="member">ProjectHandler::SubDirectories</ref></type>
+          <declname>dir</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Checks if a directory is redirected. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="251" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" bodystart="251" bodyend="254"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_project_handler_1afa950e71c4d4728824c003f89321cf8e" prot="public" static="no" const="yes" explicit="no" inline="no" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool hise::ProjectHandler::isActive</definition>
+        <argsstring>() const </argsstring>
+        <name>isActive</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Checks if the <ref refid="classhise_1_1_project_handler" kindref="compound">ProjectHandler</ref> is active (if a directory is set). </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="257" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.cpp" bodystart="1163" bodyend="1166"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_project_handler_1a3e4c10ea04a46a82f6ff25d54ef1a9fa" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::ProjectHandler::setProjectSettings</definition>
+        <argsstring>(Component *mainEditor=nullptr)</argsstring>
+        <name>setProjectSettings</name>
+        <param>
+          <type>Component *</type>
+          <declname>mainEditor</declname>
+          <defval>nullptr</defval>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="261" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.cpp" bodystart="1168" bodyend="1175"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_project_handler_1afe7f0cdb847a66bff069ac75fc45d098" prot="public" static="no" const="yes" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::ProjectHandler::createRSAKey</definition>
+        <argsstring>() const </argsstring>
+        <name>createRSAKey</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Fills the given array with the contents of the specified directory. If &apos;sortByTime&apos; is true, the most recent files will be the first items in the list. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="264" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.cpp" bodystart="915" bodyend="968"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_project_handler_1aae39ce88abd9c9464f2e822d0d82a7e5" prot="public" static="no" const="yes" explicit="no" inline="no" virt="non-virtual">
+        <type>String</type>
+        <definition>String hise::ProjectHandler::getPublicKey</definition>
+        <argsstring>() const </argsstring>
+        <name>getPublicKey</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="266" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.cpp" bodystart="970" bodyend="979"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_project_handler_1a99c317b1869c4e8316b2de55e78b61fd" prot="public" static="no" const="yes" explicit="no" inline="no" virt="non-virtual">
+        <type>String</type>
+        <definition>String hise::ProjectHandler::getPrivateKey</definition>
+        <argsstring>() const </argsstring>
+        <name>getPrivateKey</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="268" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.cpp" bodystart="981" bodyend="990"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_project_handler_1a75007107eec305bd9e0a8c7804eb7c1a" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::ProjectHandler::checkActiveProject</definition>
+        <argsstring>()</argsstring>
+        <name>checkActiveProject</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="270" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.cpp" bodystart="992" bodyend="995"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_project_handler_1a22f2e9c6c1099323b7dd679a336c2bf3" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::ProjectHandler::checkAllSampleMaps</definition>
+        <argsstring>()</argsstring>
+        <name>checkAllSampleMaps</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="272" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.cpp" bodystart="1000" bodyend="1045"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_project_handler_1a3b2e97e5f0d05fd0951275aad7ee6a04" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::ProjectHandler::addListener</definition>
+        <argsstring>(Listener *newProjectListener)</argsstring>
+        <name>addListener</name>
+        <param>
+          <type>Listener *</type>
+          <declname>newProjectListener</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="274" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" bodystart="274" bodyend="277"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_project_handler_1ac244abcbcf9a0f1e4ee26cf380a646c3" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::ProjectHandler::removeListener</definition>
+        <argsstring>(Listener *listenerToRemove)</argsstring>
+        <name>removeListener</name>
+        <param>
+          <type>Listener *</type>
+          <declname>listenerToRemove</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="279" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" bodystart="279" bodyend="282"/>
+      </memberdef>
+      </sectiondef>
+      <sectiondef kind="public-static-func">
+      <memberdef kind="function" id="classhise_1_1_project_handler_1ae2d2a645313717a00d7ae8e2afa727e4" prot="public" static="yes" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>const StringArray &amp;</type>
+        <definition>static const StringArray&amp; hise::ProjectHandler::getRecentWorkDirectories</definition>
+        <argsstring>()</argsstring>
+        <name>getRecentWorkDirectories</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="243" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" bodystart="243" bodyend="243"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_project_handler_1a9a4d62a760bbcca9b3647ed18b16e056" prot="public" static="yes" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>File</type>
+        <definition>juce::File hise::ProjectHandler::getAppDataDirectory</definition>
+        <argsstring>()</argsstring>
+        <name>getAppDataDirectory</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="285" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.cpp" bodystart="1047" bodyend="1078"/>
+      </memberdef>
+      </sectiondef>
+      <sectiondef kind="private-func">
+      <memberdef kind="function" id="classhise_1_1_project_handler_1adb37de38b43d5544c98ca5380062b882" prot="private" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::ProjectHandler::restoreWorkingProjects</definition>
+        <argsstring>()</argsstring>
+        <name>restoreWorkingProjects</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="292" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.cpp" bodystart="761" bodyend="784"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_project_handler_1a6de469ddeeca0e3ba3d537bd79ea939e" prot="private" static="no" const="yes" explicit="no" inline="no" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool hise::ProjectHandler::isValidProjectFolder</definition>
+        <argsstring>(const File &amp;file) const </argsstring>
+        <name>isValidProjectFolder</name>
+        <param>
+          <type>const File &amp;</type>
+          <declname>file</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="294" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.cpp" bodystart="786" bodyend="808"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_project_handler_1ac801d93c8db292568ee367d9ec807032" prot="private" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::ProjectHandler::checkSubDirectories</definition>
+        <argsstring>()</argsstring>
+        <name>checkSubDirectories</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="298" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.cpp" bodystart="811" bodyend="828"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_project_handler_1ab23e486c7141c394b02fdeaf39d48f2c" prot="private" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>File</type>
+        <definition>File hise::ProjectHandler::checkSubDirectory</definition>
+        <argsstring>(SubDirectories dir)</argsstring>
+        <name>checkSubDirectory</name>
+        <param>
+          <type><ref refid="classhise_1_1_file_handler_base_1a2e5cd405ac7fdb49adace52d634ad0f5" kindref="member">SubDirectories</ref></type>
+          <declname>dir</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="300" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.cpp" bodystart="830" bodyend="882"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_project_handler_1ac1f76a801c7f9b9e3311419c33b7ff03" prot="private" static="no" const="yes" explicit="no" inline="no" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool hise::ProjectHandler::anySubdirectoryExists</definition>
+        <argsstring>(const File &amp;possibleProjectFolder) const </argsstring>
+        <name>anySubdirectoryExists</name>
+        <param>
+          <type>const File &amp;</type>
+          <declname>possibleProjectFolder</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="301" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.cpp" bodystart="884" bodyend="890"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_project_handler_1a4ad0418f38fb3ca6d1ff78f4bee7eea9" prot="private" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type></type>
+        <definition>hise::ProjectHandler::JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR</definition>
+        <argsstring>(ProjectHandler)</argsstring>
+        <name>JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR</name>
+        <param>
+          <type><ref refid="classhise_1_1_project_handler" kindref="compound">ProjectHandler</ref></type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="313" column="1"/>
+      </memberdef>
+      </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+<para>This class handles the file management inside HISE.</para><para>It assumes a working directory and supplies correct paths for all OSes relative to the project root folder. </para>    </detaileddescription>
+    <inheritancegraph>
+      <node id="2702">
+        <label>hise::ProjectHandler</label>
+        <link refid="classhise_1_1_project_handler"/>
+        <childnode refid="2703" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2703">
+        <label>hise::FileHandlerBase</label>
+        <link refid="classhise_1_1_file_handler_base"/>
+        <childnode refid="2704" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2704">
+        <label>hise::ControlledObject</label>
+        <link refid="classhise_1_1_controlled_object"/>
+      </node>
+    </inheritancegraph>
+    <collaborationgraph>
+      <node id="2705">
+        <label>hise::ProjectHandler</label>
+        <link refid="classhise_1_1_project_handler"/>
+        <childnode refid="2706" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2706">
+        <label>hise::FileHandlerBase</label>
+        <link refid="classhise_1_1_file_handler_base"/>
+        <childnode refid="2707" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2707">
+        <label>hise::ControlledObject</label>
+        <link refid="classhise_1_1_controlled_object"/>
+      </node>
+    </collaborationgraph>
+    <location file="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" line="212" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/PresetHandler.h" bodystart="211" bodyend="314"/>
+    <listofallmembers>
+      <member refid="classhise_1_1_file_handler_base_1a2e5cd405ac7fdb49adace52d634ad0f5a49808a8bd64fb9caf91af695f3f68693" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>AdditionalSourceCode</name></member>
+      <member refid="classhise_1_1_project_handler_1a3b2e97e5f0d05fd0951275aad7ee6a04" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>addListener</name></member>
+      <member refid="classhise_1_1_project_handler_1ac1f76a801c7f9b9e3311419c33b7ff03" prot="private" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>anySubdirectoryExists</name></member>
+      <member refid="classhise_1_1_file_handler_base_1a2e5cd405ac7fdb49adace52d634ad0f5af317165fb44403ed38f074cb11813a9d" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>AudioFiles</name></member>
+      <member refid="classhise_1_1_file_handler_base_1a2e5cd405ac7fdb49adace52d634ad0f5a3ce2d003ec603f09ced9f4c1152b333a" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>Binaries</name></member>
+      <member refid="classhise_1_1_project_handler_1a75007107eec305bd9e0a8c7804eb7c1a" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>checkActiveProject</name></member>
+      <member refid="classhise_1_1_project_handler_1a22f2e9c6c1099323b7dd679a336c2bf3" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>checkAllSampleMaps</name></member>
+      <member refid="classhise_1_1_project_handler_1ac801d93c8db292568ee367d9ec807032" prot="private" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>checkSubDirectories</name></member>
+      <member refid="classhise_1_1_project_handler_1ab23e486c7141c394b02fdeaf39d48f2c" prot="private" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>checkSubDirectory</name></member>
+      <member refid="classhise_1_1_controlled_object_1a5939c875190a8c6b985f2ad8c5cf3107" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>ControlledObject</name></member>
+      <member refid="classhise_1_1_file_handler_base_1ad923e9ebe8a67be56052e763fba9f364" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>createLinkFile</name></member>
+      <member refid="classhise_1_1_file_handler_base_1a2d976595342901106649161de2307d31" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>createLinkFileInFolder</name></member>
+      <member refid="classhise_1_1_project_handler_1addc008d62c68bf25457281b2d9d1a852" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>createNewProject</name></member>
+      <member refid="classhise_1_1_project_handler_1afe7f0cdb847a66bff069ac75fc45d098" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>createRSAKey</name></member>
+      <member refid="classhise_1_1_project_handler_1a82699c1ab142cb853a4b41930baa7fc6" prot="private" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>currentWorkDirectory</name></member>
+      <member refid="classhise_1_1_file_handler_base_1a72906007ef02c083fcf1e6e34bf412c7" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>exportAllPoolsToTemporaryDirectory</name></member>
+      <member refid="classhise_1_1_file_handler_base_1ab058e36c08844b9200c0addcd704112a" prot="protected" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>FileHandlerBase</name></member>
+      <member refid="classhise_1_1_project_handler_1a9a4d62a760bbcca9b3647ed18b16e056" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>getAppDataDirectory</name></member>
+      <member refid="classhise_1_1_file_handler_base_1aac4d53050952b8fc56ce5fafcb01b096" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>getFileList</name></member>
+      <member refid="classhise_1_1_file_handler_base_1ae1de38b094c1a7151f25a6a83e9d1834" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>getFilePath</name></member>
+      <member refid="classhise_1_1_file_handler_base_1aafa8a1d85a5178bc1f4fe562fcb3bbea" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>getFileReference</name></member>
+      <member refid="classhise_1_1_file_handler_base_1a24b25fad87b238ba0fdf1d04668291e6" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>getIdentifier</name></member>
+      <member refid="classhise_1_1_file_handler_base_1ac7bd178484cf9bc23f9ab9fbc86095c1" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>getLinkFile</name></member>
+      <member refid="classhise_1_1_controlled_object_1ae8e59a6130e7af1ac02a999168946795" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>getMainController</name></member>
+      <member refid="classhise_1_1_controlled_object_1aeb7312c0b6e319daae2f155f3dcab1f7" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>getMainController</name></member>
+      <member refid="classhise_1_1_project_handler_1a99c317b1869c4e8316b2de55e78b61fd" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>getPrivateKey</name></member>
+      <member refid="classhise_1_1_project_handler_1aae39ce88abd9c9464f2e822d0d82a7e5" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>getPublicKey</name></member>
+      <member refid="classhise_1_1_project_handler_1ae2d2a645313717a00d7ae8e2afa727e4" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>getRecentWorkDirectories</name></member>
+      <member refid="classhise_1_1_project_handler_1a76391e3763599accda2d6e82ee390040" prot="public" virt="virtual"><scope>hise::ProjectHandler</scope><name>getRootFolder</name></member>
+      <member refid="classhise_1_1_file_handler_base_1a8cabdf5fc1510e08d1f95c01168ecd91" prot="public" virt="virtual"><scope>hise::ProjectHandler</scope><name>getSubDirectory</name></member>
+      <member refid="classhise_1_1_file_handler_base_1a842b6eebe8fb77fc40fe302aa2265286" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>getSubDirectoryForIdentifier</name></member>
+      <member refid="classhise_1_1_file_handler_base_1a852f641b06a5b1d756b7d9be89c5f0cc" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>getTempFileForPool</name></member>
+      <member refid="classhise_1_1_file_handler_base_1a13935b8ac5dd616bc08d2839872d74f5" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>getTempFolderForPoolResources</name></member>
+      <member refid="classhise_1_1_file_handler_base_1a25cbf4ab9ca7787490b5e325a285117b" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>getWildcardForFiles</name></member>
+      <member refid="classhise_1_1_project_handler_1af4f8f7f6763a2ca8a41c54df65eaeed9" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>getWorkDirectory</name></member>
+      <member refid="classhise_1_1_file_handler_base_1a2e5cd405ac7fdb49adace52d634ad0f5ac9493fbdce963e91dfb3e8ac77856875" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>Images</name></member>
+      <member refid="classhise_1_1_file_handler_base_1a2bd1d74a570a4ac882eb05db42df0e01" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>isAbsolutePathCrossPlatform</name></member>
+      <member refid="classhise_1_1_project_handler_1afa950e71c4d4728824c003f89321cf8e" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>isActive</name></member>
+      <member refid="classhise_1_1_project_handler_1a1ffc7574644c8ea9be0e16bca3df810a" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>isRedirected</name></member>
+      <member refid="classhise_1_1_project_handler_1a6de469ddeeca0e3ba3d537bd79ea939e" prot="private" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>isValidProjectFolder</name></member>
+      <member refid="classhise_1_1_project_handler_1a4ad0418f38fb3ca6d1ff78f4bee7eea9" prot="private" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR</name></member>
+      <member refid="classhise_1_1_project_handler_1a7069daa41fe220872a2f2154d9b16323" prot="private" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>listeners</name></member>
+      <member refid="classhise_1_1_file_handler_base_1ada20ce73c40e60e3c996ea87ba770842" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>loadOtherReferencedImages</name></member>
+      <member refid="classhise_1_1_controlled_object_1a008d5066f54e27a36ab2a803fcf76bc8" prot="public" virt="virtual"><scope>hise::ProjectHandler</scope><name>mainControllerIsDeleted</name></member>
+      <member refid="classhise_1_1_file_handler_base_1a2e5cd405ac7fdb49adace52d634ad0f5a99b80cce6f61890d1450d53a97c66ac7" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>MidiFiles</name></member>
+      <member refid="classhise_1_1_file_handler_base_1a2e5cd405ac7fdb49adace52d634ad0f5a1b2f272e1c47cfeba592f0171e9df9bd" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>numSubDirectories</name></member>
+      <member refid="classhise_1_1_file_handler_base_1a3fde21b5732f6ed00f4896bd403591ec" prot="protected" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>pool</name></member>
+      <member refid="classhise_1_1_file_handler_base_1a2e5cd405ac7fdb49adace52d634ad0f5a6f9ae33e13a26e174745e9535fb0c220" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>Presets</name></member>
+      <member refid="classhise_1_1_project_handler_1a87bf6eb316e402f10bc0c994bcf2a312" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>ProjectHandler</name></member>
+      <member refid="classhise_1_1_project_handler_1a9c5760e5ee08328a6825904b41f68ff0" prot="private" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>recentWorkDirectories</name></member>
+      <member refid="classhise_1_1_project_handler_1ac244abcbcf9a0f1e4ee26cf380a646c3" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>removeListener</name></member>
+      <member refid="classhise_1_1_project_handler_1adb37de38b43d5544c98ca5380062b882" prot="private" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>restoreWorkingProjects</name></member>
+      <member refid="classhise_1_1_file_handler_base_1a2e5cd405ac7fdb49adace52d634ad0f5a18c7dc6e1aceee49ca44e346add14c9c" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>SampleMaps</name></member>
+      <member refid="classhise_1_1_file_handler_base_1a2e5cd405ac7fdb49adace52d634ad0f5ab8487956e4c10dd2c7e9df5c1ced30ce" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>Samples</name></member>
+      <member refid="classhise_1_1_file_handler_base_1a2e5cd405ac7fdb49adace52d634ad0f5a52a72cafb29cfd830863438faae4e9fa" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>Scripts</name></member>
+      <member refid="classhise_1_1_project_handler_1a3e4c10ea04a46a82f6ff25d54ef1a9fa" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>setProjectSettings</name></member>
+      <member refid="classhise_1_1_project_handler_1a739dba0347a0fb78a71befe499d31347" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>setWorkingProject</name></member>
+      <member refid="classhise_1_1_file_handler_base_1a3a2a879484ad58c5555bae323526a5db" prot="protected" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>subDirectories</name></member>
+      <member refid="classhise_1_1_file_handler_base_1a2e5cd405ac7fdb49adace52d634ad0f5" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>SubDirectories</name></member>
+      <member refid="classhise_1_1_file_handler_base_1a2e5cd405ac7fdb49adace52d634ad0f5ac1338afeef12a6e900afbcba53017c5b" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>UserPresets</name></member>
+      <member refid="classhise_1_1_project_handler_1a8df57cb4c2dbac75f7f2c8734d412ad1" prot="private" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>window</name></member>
+      <member refid="classhise_1_1_file_handler_base_1a2e5cd405ac7fdb49adace52d634ad0f5a7a8c3ce37ec754be7beeb6f0c361c277" prot="public" virt="non-virtual"><scope>hise::ProjectHandler</scope><name>XMLPresetBackups</name></member>
+      <member refid="classhise_1_1_controlled_object_1a7671d32f27b658b281a1daee2ed4ffe8" prot="public" virt="virtual"><scope>hise::ProjectHandler</scope><name>~ControlledObject</name></member>
+      <member refid="classhise_1_1_file_handler_base_1ae29df3705774950d2d1a7c6897c4767c" prot="public" virt="virtual"><scope>hise::ProjectHandler</scope><name>~FileHandlerBase</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

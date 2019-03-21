@@ -54,3 +54,7 @@ tools/markdown_editor/Builds/
 tools/markdown_editor/JuceLibraryCode/
 tools/doc_builder/Builds/
 tools/doc_builder/JuceLibraryCode/
+tools/cpp_api_builder/xml/
+tools/cpp_api_builder/CppBuilder/Builds/
+tools/cpp_api_builder/CppBuilder/JuceLibraryCode/include_juce_audio_devices.mm
+tools/cpp_api_builder/CppBuilder/JuceLibraryCode/

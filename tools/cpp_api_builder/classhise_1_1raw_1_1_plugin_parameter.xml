@@ -1,0 +1,420 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.8.6">
+  <compounddef id="classhise_1_1raw_1_1_plugin_parameter" kind="class" prot="public">
+    <compoundname>hise::raw::PluginParameter</compoundname>
+    <basecompoundref prot="public" virt="non-virtual">AudioProcessorParameterWithID</basecompoundref>
+    <basecompoundref refid="structhise_1_1raw_1_1_data" prot="public" virt="non-virtual">hise::raw::Data&lt; float &gt;</basecompoundref>
+    <basecompoundref refid="classhise_1_1_controlled_object" prot="public" virt="non-virtual">hise::ControlledObject</basecompoundref>
+    <includes refid="raw___plugin_parameter_8h" local="no">raw_PluginParameter.h</includes>
+    <templateparamlist>
+      <param>
+        <type>class FunctionType</type>
+      </param>
+    </templateparamlist>
+      <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classhise_1_1raw_1_1_plugin_parameter_1a725a1a748f5b338da23cd1d7ad833353" prot="private" static="no" mutable="no">
+        <type>int</type>
+        <definition>int hise::raw::PluginParameter&lt; FunctionType &gt;::type</definition>
+        <argsstring></argsstring>
+        <name>type</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" line="195" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" bodystart="195" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1raw_1_1_plugin_parameter_1a823f3bc6f37527e35a3cd7da77183c23" prot="private" static="no" mutable="no">
+        <type>WeakReference&lt; <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> &gt;</type>
+        <definition>WeakReference&lt;Processor&gt; hise::raw::PluginParameter&lt; FunctionType &gt;::p</definition>
+        <argsstring></argsstring>
+        <name>p</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" line="197" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" bodystart="197" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1raw_1_1_plugin_parameter_1a6151a1c94501e4a40aa62f4db3903f29" prot="private" static="no" mutable="no">
+        <type>NormalisableRange&lt; float &gt;</type>
+        <definition>NormalisableRange&lt;float&gt; hise::raw::PluginParameter&lt; FunctionType &gt;::parameterRange</definition>
+        <argsstring></argsstring>
+        <name>parameterRange</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" line="198" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" bodystart="198" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1raw_1_1_plugin_parameter_1a83348cafe37c7ef8c60a646dce5fec78" prot="private" static="no" mutable="no">
+        <type>String</type>
+        <definition>String hise::raw::PluginParameter&lt; FunctionType &gt;::suffix</definition>
+        <argsstring></argsstring>
+        <name>suffix</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" line="200" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" bodystart="200" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1raw_1_1_plugin_parameter_1add357443b01f2664815f44ca1896c894" prot="private" static="no" mutable="no">
+        <type>StringArray</type>
+        <definition>StringArray hise::raw::PluginParameter&lt; FunctionType &gt;::itemList</definition>
+        <argsstring></argsstring>
+        <name>itemList</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" line="201" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" bodystart="201" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1raw_1_1_plugin_parameter_1ad5482da5fbbc6007aed98755459674f5" prot="private" static="no" mutable="no">
+        <type>bool</type>
+        <definition>bool hise::raw::PluginParameter&lt; FunctionType &gt;::isMeta</definition>
+        <argsstring></argsstring>
+        <name>isMeta</name>
+        <initializer>= false</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" line="202" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" bodystart="202" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1raw_1_1_plugin_parameter_1a57a31b6aa8ece30393eb86a49aaec86f" prot="private" static="no" mutable="no">
+        <type>float</type>
+        <definition>float hise::raw::PluginParameter&lt; FunctionType &gt;::lastValue</definition>
+        <argsstring></argsstring>
+        <name>lastValue</name>
+        <initializer>= -1.0f</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" line="204" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" bodystart="204" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1raw_1_1_plugin_parameter_1a6b5d17603a84541b55819800a512a330" prot="private" static="no" mutable="no">
+        <type>bool</type>
+        <definition>bool hise::raw::PluginParameter&lt; FunctionType &gt;::lastValueInitialised</definition>
+        <argsstring></argsstring>
+        <name>lastValueInitialised</name>
+        <initializer>= false</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" line="205" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" bodystart="205" bodyend="-1"/>
+      </memberdef>
+      </sectiondef>
+      <sectiondef kind="public-func">
+      <memberdef kind="function" id="classhise_1_1raw_1_1_plugin_parameter_1a26c2f7038fabd617265d7dd38af9239f" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>hise::raw::PluginParameter&lt; FunctionType &gt;::PluginParameter</definition>
+        <argsstring>(MainController *mc, const String &amp;name)</argsstring>
+        <name>PluginParameter</name>
+        <param>
+          <type><ref refid="classhise_1_1_main_controller" kindref="compound">MainController</ref> *</type>
+          <declname>mc</declname>
+        </param>
+        <param>
+          <type>const String &amp;</type>
+          <declname>name</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" line="52" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" bodystart="52" bodyend="56"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1raw_1_1_plugin_parameter_1add54f7915a8399709a2eac1070fb12d2" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::raw::PluginParameter&lt; FunctionType &gt;::setup</definition>
+        <argsstring>(int t, const String &amp;processorId, NormalisableRange&lt; float &gt; range, float midPoint)</argsstring>
+        <name>setup</name>
+        <param>
+          <type>int</type>
+          <declname>t</declname>
+        </param>
+        <param>
+          <type>const String &amp;</type>
+          <declname>processorId</declname>
+        </param>
+        <param>
+          <type>NormalisableRange&lt; float &gt;</type>
+          <declname>range</declname>
+        </param>
+        <param>
+          <type>float</type>
+          <declname>midPoint</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" line="58" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" bodystart="58" bodyend="64"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1raw_1_1_plugin_parameter_1adeadc1cef880802ed16aa75711eaf67d" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>float</type>
+        <definition>float hise::raw::PluginParameter&lt; FunctionType &gt;::getValue</definition>
+        <argsstring>() const override</argsstring>
+        <name>getValue</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" line="68" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" bodystart="68" bodyend="71"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1raw_1_1_plugin_parameter_1a2a09a93e674cb8c625cce626e17729e4" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::raw::PluginParameter&lt; FunctionType &gt;::setValue</definition>
+        <argsstring>(float newValue) override</argsstring>
+        <name>setValue</name>
+        <param>
+          <type>float</type>
+          <declname>newValue</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" line="73" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" bodystart="73" bodyend="92"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1raw_1_1_plugin_parameter_1ad19ca90c28f0fa7dd6c176469fee5126" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>float</type>
+        <definition>float hise::raw::PluginParameter&lt; FunctionType &gt;::getDefaultValue</definition>
+        <argsstring>() const override</argsstring>
+        <name>getDefaultValue</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" line="94" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" bodystart="94" bodyend="97"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1raw_1_1_plugin_parameter_1acfd0dc6e21abf9f9bcea00cdbb8f12dd" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>String</type>
+        <definition>String hise::raw::PluginParameter&lt; FunctionType &gt;::getLabel</definition>
+        <argsstring>() const override</argsstring>
+        <name>getLabel</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" line="99" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" bodystart="99" bodyend="106"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1raw_1_1_plugin_parameter_1a25f05a0bca1c689348a6fec099530238" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>String</type>
+        <definition>String hise::raw::PluginParameter&lt; FunctionType &gt;::getText</definition>
+        <argsstring>(float value, int) const override</argsstring>
+        <name>getText</name>
+        <param>
+          <type>float</type>
+          <declname>value</declname>
+        </param>
+        <param>
+          <type>int</type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" line="108" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" bodystart="108" bodyend="131"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1raw_1_1_plugin_parameter_1a2bb3fc8aef2d7e24ff63ef62b2611f71" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>float</type>
+        <definition>float hise::raw::PluginParameter&lt; FunctionType &gt;::getValueForText</definition>
+        <argsstring>(const String &amp;text) const override</argsstring>
+        <name>getValueForText</name>
+        <param>
+          <type>const String &amp;</type>
+          <declname>text</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" line="134" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" bodystart="134" bodyend="152"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1raw_1_1_plugin_parameter_1ab722b69a40dead48b7ceea9c7eeb4656" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>int</type>
+        <definition>int hise::raw::PluginParameter&lt; FunctionType &gt;::getNumSteps</definition>
+        <argsstring>() const override</argsstring>
+        <name>getNumSteps</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" line="155" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" bodystart="155" bodyend="171"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1raw_1_1_plugin_parameter_1a003450a00a565ecfe235803435707b25" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::raw::PluginParameter&lt; FunctionType &gt;::setParameterNotifyingHost</definition>
+        <argsstring>(int index, float newValue)</argsstring>
+        <name>setParameterNotifyingHost</name>
+        <param>
+          <type>int</type>
+          <declname>index</declname>
+        </param>
+        <param>
+          <type>float</type>
+          <declname>newValue</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" line="174" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" bodystart="174" bodyend="182"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1raw_1_1_plugin_parameter_1a679f141cdc691fb48c33404a70350646" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool hise::raw::PluginParameter&lt; FunctionType &gt;::isAutomatable</definition>
+        <argsstring>() const override</argsstring>
+        <name>isAutomatable</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" line="184" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" bodystart="184" bodyend="184"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1raw_1_1_plugin_parameter_1a5df2b2af8bbbd77cd00bb4f92eb6c352" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool hise::raw::PluginParameter&lt; FunctionType &gt;::isMetaParameter</definition>
+        <argsstring>() const override</argsstring>
+        <name>isMetaParameter</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" line="186" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" bodystart="186" bodyend="189"/>
+      </memberdef>
+      </sectiondef>
+      <sectiondef kind="private-func">
+      <memberdef kind="function" id="classhise_1_1raw_1_1_plugin_parameter_1a2d4b5ce0ba9b05b5c628247582d13d1b" prot="private" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type></type>
+        <definition>hise::raw::PluginParameter&lt; FunctionType &gt;::JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR</definition>
+        <argsstring>(PluginParameter)</argsstring>
+        <name>JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR</name>
+        <param>
+          <type><ref refid="classhise_1_1raw_1_1_plugin_parameter" kindref="compound">PluginParameter</ref></type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" line="207" column="1"/>
+      </memberdef>
+      </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+<para>A connection to processor attributes as plugin parameter. </para>    </detaileddescription>
+    <inheritancegraph>
+      <node id="2522">
+        <label>hise::raw::Data&lt; float &gt;</label>
+        <link refid="structhise_1_1raw_1_1_data"/>
+      </node>
+      <node id="2523">
+        <label>hise::ControlledObject</label>
+        <link refid="classhise_1_1_controlled_object"/>
+      </node>
+      <node id="2521">
+        <label>hise::raw::PluginParameter&lt; FunctionType &gt;</label>
+        <link refid="classhise_1_1raw_1_1_plugin_parameter"/>
+        <childnode refid="2522" relation="public-inheritance">
+        </childnode>
+        <childnode refid="2523" relation="public-inheritance">
+        </childnode>
+      </node>
+    </inheritancegraph>
+    <collaborationgraph>
+      <node id="2525">
+        <label>hise::raw::Data&lt; float &gt;</label>
+        <link refid="structhise_1_1raw_1_1_data"/>
+      </node>
+      <node id="2526">
+        <label>hise::ControlledObject</label>
+        <link refid="classhise_1_1_controlled_object"/>
+      </node>
+      <node id="2524">
+        <label>hise::raw::PluginParameter&lt; FunctionType &gt;</label>
+        <link refid="classhise_1_1raw_1_1_plugin_parameter"/>
+        <childnode refid="2525" relation="public-inheritance">
+        </childnode>
+        <childnode refid="2526" relation="public-inheritance">
+        </childnode>
+      </node>
+    </collaborationgraph>
+    <location file="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" line="45" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_PluginParameter.h" bodystart="42" bodyend="210"/>
+    <listofallmembers>
+      <member refid="classhise_1_1_controlled_object_1a5939c875190a8c6b985f2ad8c5cf3107" prot="public" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>ControlledObject</name></member>
+      <member refid="structhise_1_1raw_1_1_data_1ad8b974cae4b5999d10a325a14b09e658" prot="public" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>Data</name></member>
+      <member refid="classhise_1_1raw_1_1_plugin_parameter_1ad19ca90c28f0fa7dd6c176469fee5126" prot="public" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>getDefaultValue</name></member>
+      <member refid="classhise_1_1raw_1_1_plugin_parameter_1acfd0dc6e21abf9f9bcea00cdbb8f12dd" prot="public" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>getLabel</name></member>
+      <member refid="classhise_1_1_controlled_object_1ae8e59a6130e7af1ac02a999168946795" prot="public" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>getMainController</name></member>
+      <member refid="classhise_1_1_controlled_object_1aeb7312c0b6e319daae2f155f3dcab1f7" prot="public" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>getMainController</name></member>
+      <member refid="classhise_1_1raw_1_1_plugin_parameter_1ab722b69a40dead48b7ceea9c7eeb4656" prot="public" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>getNumSteps</name></member>
+      <member refid="classhise_1_1raw_1_1_plugin_parameter_1a25f05a0bca1c689348a6fec099530238" prot="public" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>getText</name></member>
+      <member refid="classhise_1_1raw_1_1_plugin_parameter_1adeadc1cef880802ed16aa75711eaf67d" prot="public" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>getValue</name></member>
+      <member refid="classhise_1_1raw_1_1_plugin_parameter_1a2bb3fc8aef2d7e24ff63ef62b2611f71" prot="public" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>getValueForText</name></member>
+      <member refid="structhise_1_1raw_1_1_data_1a7bca9e0baf9a39ebc1d80896d8af5e1f" prot="protected" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>id</name></member>
+      <member refid="classhise_1_1raw_1_1_plugin_parameter_1a679f141cdc691fb48c33404a70350646" prot="public" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>isAutomatable</name></member>
+      <member refid="classhise_1_1raw_1_1_plugin_parameter_1ad5482da5fbbc6007aed98755459674f5" prot="private" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>isMeta</name></member>
+      <member refid="classhise_1_1raw_1_1_plugin_parameter_1a5df2b2af8bbbd77cd00bb4f92eb6c352" prot="public" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>isMetaParameter</name></member>
+      <member refid="classhise_1_1raw_1_1_plugin_parameter_1add357443b01f2664815f44ca1896c894" prot="private" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>itemList</name></member>
+      <member refid="classhise_1_1raw_1_1_plugin_parameter_1a2d4b5ce0ba9b05b5c628247582d13d1b" prot="private" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR</name></member>
+      <member refid="classhise_1_1raw_1_1_plugin_parameter_1a57a31b6aa8ece30393eb86a49aaec86f" prot="private" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>lastValue</name></member>
+      <member refid="classhise_1_1raw_1_1_plugin_parameter_1a6b5d17603a84541b55819800a512a330" prot="private" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>lastValueInitialised</name></member>
+      <member refid="structhise_1_1raw_1_1_data_1a8a00d5da8dcae8d8f02d0d8c3188794e" prot="public" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>LoadFunction</name></member>
+      <member refid="classhise_1_1_controlled_object_1a008d5066f54e27a36ab2a803fcf76bc8" prot="public" virt="virtual"><scope>hise::raw::PluginParameter</scope><name>mainControllerIsDeleted</name></member>
+      <member refid="classhise_1_1raw_1_1_plugin_parameter_1a823f3bc6f37527e35a3cd7da77183c23" prot="private" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>p</name></member>
+      <member refid="classhise_1_1raw_1_1_plugin_parameter_1a6151a1c94501e4a40aa62f4db3903f29" prot="private" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>parameterRange</name></member>
+      <member refid="classhise_1_1raw_1_1_plugin_parameter_1a26c2f7038fabd617265d7dd38af9239f" prot="public" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>PluginParameter</name></member>
+      <member refid="structhise_1_1raw_1_1_data_1a5b6712ebe836e18bcc65fe7b3789b947" prot="public" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>SaveFunction</name></member>
+      <member refid="classhise_1_1raw_1_1_plugin_parameter_1a003450a00a565ecfe235803435707b25" prot="public" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>setParameterNotifyingHost</name></member>
+      <member refid="classhise_1_1raw_1_1_plugin_parameter_1add54f7915a8399709a2eac1070fb12d2" prot="public" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>setup</name></member>
+      <member refid="classhise_1_1raw_1_1_plugin_parameter_1a2a09a93e674cb8c625cce626e17729e4" prot="public" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>setValue</name></member>
+      <member refid="classhise_1_1raw_1_1_plugin_parameter_1a83348cafe37c7ef8c60a646dce5fec78" prot="private" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>suffix</name></member>
+      <member refid="classhise_1_1raw_1_1_plugin_parameter_1a725a1a748f5b338da23cd1d7ad833353" prot="private" virt="non-virtual"><scope>hise::raw::PluginParameter</scope><name>type</name></member>
+      <member refid="classhise_1_1_controlled_object_1a7671d32f27b658b281a1daee2ed4ffe8" prot="public" virt="virtual"><scope>hise::raw::PluginParameter</scope><name>~ControlledObject</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

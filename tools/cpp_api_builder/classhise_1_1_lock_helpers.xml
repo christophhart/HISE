@@ -1,0 +1,231 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.8.6">
+  <compounddef id="classhise_1_1_lock_helpers" kind="class" prot="public">
+    <compoundname>hise::LockHelpers</compoundname>
+    <innerclass refid="structhise_1_1_lock_helpers_1_1_bad_lock_exception" prot="public">hise::LockHelpers::BadLockException</innerclass>
+    <innerclass refid="structhise_1_1_lock_helpers_1_1_safe_lock" prot="public">hise::LockHelpers::SafeLock</innerclass>
+      <sectiondef kind="public-type">
+      <memberdef kind="enum" id="classhise_1_1_lock_helpers_1a1033594155b788050661c7c7cc588fcc" prot="public" static="no">
+        <name>Type</name>
+        <enumvalue id="classhise_1_1_lock_helpers_1a1033594155b788050661c7c7cc588fcca7e4c2bc8eef06204a5907be3b4e6e422" prot="public">
+          <name>MessageLock</name>
+          <initializer>= 0</initializer>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="classhise_1_1_lock_helpers_1a1033594155b788050661c7c7cc588fccaeb93621d9a8e593ec725bd057bbc29f7" prot="public">
+          <name>ScriptLock</name>
+          <briefdescription>
+<para>This lock will be held whenever a script is executed or compiled. </para>          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="classhise_1_1_lock_helpers_1a1033594155b788050661c7c7cc588fcca57d208b6e0c5d59e886e81eb4cbb5596" prot="public">
+          <name>SampleLock</name>
+          <briefdescription>
+<para>This lock will be held whenever samples are added / removed. </para>          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="classhise_1_1_lock_helpers_1a1033594155b788050661c7c7cc588fcca7d15356fc6d3b5d2f82bbe2740d39636" prot="public">
+          <name>IteratorLock</name>
+          <briefdescription>
+<para>This lock will be held whenver you add / remove a processor to the chain or when the iterator is constructed. </para>          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="classhise_1_1_lock_helpers_1a1033594155b788050661c7c7cc588fcca4b42c2138840c6df50628869477e0feb" prot="public">
+          <name>AudioLock</name>
+          <briefdescription>
+<para>This lock will be held during the audio callback. </para>          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="classhise_1_1_lock_helpers_1a1033594155b788050661c7c7cc588fcca510cd2cf0975406014e99c8363b69f8c" prot="public">
+          <name>numLockTypes</name>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>These are the locks. They are sorted in ascending priority, which means that you can&apos;t acquire a lock with lower priority while holding a lock with higher priority on the same thread. This prevents priority inversion and deadlocks.</para><para>You can of course acquire multiple locks in the correct order. In order to use this correctly, always use a SafeLock object instead of a standard ScopedLock.</para><para>An exception is the MessageLock. If you&apos;re not on the message thread, you should lock the message lock for the shortest time possible. So whenever you try to obtain another lock on a different thread than the message thread while holding the message lock, it will throw a BadLockException.</para><para>Another thing to know is that the internal priority of the IteratorLock and the SampleLock is equal, which means you can&apos;t acquire one of those while holding the other (there&apos;s no situation where you need both of those locks). </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/LockHelpers.h" line="64" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/LockHelpers.h" bodystart="63" bodyend="71"/>
+      </memberdef>
+      </sectiondef>
+      <sectiondef kind="public-static-func">
+      <memberdef kind="function" id="classhise_1_1_lock_helpers_1acc0dd398484e9804df56b4a7b247ed07" prot="public" static="yes" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool hise::LockHelpers::freeToGo</definition>
+        <argsstring>(MainController *mc)</argsstring>
+        <name>freeToGo</name>
+        <param>
+          <type><ref refid="classhise_1_1_main_controller" kindref="compound">MainController</ref> *</type>
+          <declname>mc</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/LockHelpers.h" line="95" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/LockHelpers.cpp" bodystart="37" bodyend="86"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_lock_helpers_1a55108b6fb40252ad88a9ead27fc08b7a" prot="public" static="yes" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool hise::LockHelpers::noMessageThreadBeyondInitialisation</definition>
+        <argsstring>(const MainController *mc)</argsstring>
+        <name>noMessageThreadBeyondInitialisation</name>
+        <param>
+          <type>const <ref refid="classhise_1_1_main_controller" kindref="compound">MainController</ref> *</type>
+          <declname>mc</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/LockHelpers.h" line="97" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/LockHelpers.cpp" bodystart="88" bodyend="98"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_lock_helpers_1af87c3bc87407d72685514f62887eff18" prot="public" static="yes" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool hise::LockHelpers::isMessageThreadBeyondInitialisation</definition>
+        <argsstring>(const MainController *mc)</argsstring>
+        <name>isMessageThreadBeyondInitialisation</name>
+        <param>
+          <type>const <ref refid="classhise_1_1_main_controller" kindref="compound">MainController</ref> *</type>
+          <declname>mc</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/LockHelpers.h" line="99" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/LockHelpers.cpp" bodystart="100" bodyend="108"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_lock_helpers_1aca828f1e492c471427c5ec6c11662344" prot="public" static="yes" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool hise::LockHelpers::isLockedBySameThread</definition>
+        <argsstring>(const MainController *mc, Type lockToCheck)</argsstring>
+        <name>isLockedBySameThread</name>
+        <param>
+          <type>const <ref refid="classhise_1_1_main_controller" kindref="compound">MainController</ref> *</type>
+          <declname>mc</declname>
+        </param>
+        <param>
+          <type>Type</type>
+          <declname>lockToCheck</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/LockHelpers.h" line="101" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/LockHelpers.cpp" bodystart="110" bodyend="116"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_lock_helpers_1a184d40ea464b23f3d2b1412246042cf7" prot="public" static="yes" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool hise::LockHelpers::isDuringInitialisation</definition>
+        <argsstring>(const MainController *mc)</argsstring>
+        <name>isDuringInitialisation</name>
+        <param>
+          <type>const <ref refid="classhise_1_1_main_controller" kindref="compound">MainController</ref> *</type>
+          <declname>mc</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/LockHelpers.h" line="103" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/LockHelpers.cpp" bodystart="118" bodyend="121"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_lock_helpers_1a31e6c752b3c963357131a6a5e9ca1e32" prot="public" static="yes" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool hise::LockHelpers::noMessageLockFromAnotherThread</definition>
+        <argsstring>()</argsstring>
+        <name>noMessageLockFromAnotherThread</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Checks if the current thread (!= message thread) holds the message lock.</para><para>On the message thread it also returns false. This method can be used to check for illegal locking in different threads. Call this method before you acquire one of the other locks to make sure there&apos;s no possible deadlock situation. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/LockHelpers.h" line="111" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/LockHelpers.cpp" bodystart="123" bodyend="129"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_lock_helpers_1a8a88f2f3f0ba806002f47ba2c8ee0772" prot="public" static="yes" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>const CriticalSection &amp;</type>
+        <definition>const juce::CriticalSection &amp; hise::LockHelpers::getLockChecked</definition>
+        <argsstring>(const MainController *mc, Type lockType)</argsstring>
+        <name>getLockChecked</name>
+        <param>
+          <type>const <ref refid="classhise_1_1_main_controller" kindref="compound">MainController</ref> *</type>
+          <declname>mc</declname>
+        </param>
+        <param>
+          <type>Type</type>
+          <declname>lockType</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Returns the lock for the given type. If it can&apos;t be acquired, it will throw a BadLockException.</para><para>Normally, you don&apos;t call this method directly, but wrap it into BEGIN_SAFE_LOCKED_BLOCK / END_SAFE_LOCKED_BLOCK macros which resolve to a unchecked version if the locking is disabled. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/LockHelpers.h" line="118" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/LockHelpers.cpp" bodystart="131" bodyend="184"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_lock_helpers_1aac54665dca2cf9fbafbca70521d53f22" prot="public" static="yes" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>const CriticalSection &amp;</type>
+        <definition>const juce::CriticalSection &amp; hise::LockHelpers::getLockUnchecked</definition>
+        <argsstring>(const MainController *mc, Type lockType)</argsstring>
+        <name>getLockUnchecked</name>
+        <param>
+          <type>const <ref refid="classhise_1_1_main_controller" kindref="compound">MainController</ref> *</type>
+          <declname>mc</declname>
+        </param>
+        <param>
+          <type>Type</type>
+          <declname>lockType</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_core/hi_core/LockHelpers.h" line="119" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/LockHelpers.cpp" bodystart="186" bodyend="202"/>
+      </memberdef>
+      </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="D:/Development/HISE modules/hi_core/hi_core/LockHelpers.h" line="42" column="1" bodyfile="D:/Development/HISE modules/hi_core/hi_core/LockHelpers.h" bodystart="41" bodyend="120"/>
+    <listofallmembers>
+      <member refid="classhise_1_1_lock_helpers_1a1033594155b788050661c7c7cc588fcca4b42c2138840c6df50628869477e0feb" prot="public" virt="non-virtual"><scope>hise::LockHelpers</scope><name>AudioLock</name></member>
+      <member refid="classhise_1_1_lock_helpers_1acc0dd398484e9804df56b4a7b247ed07" prot="public" virt="non-virtual"><scope>hise::LockHelpers</scope><name>freeToGo</name></member>
+      <member refid="classhise_1_1_lock_helpers_1a8a88f2f3f0ba806002f47ba2c8ee0772" prot="public" virt="non-virtual"><scope>hise::LockHelpers</scope><name>getLockChecked</name></member>
+      <member refid="classhise_1_1_lock_helpers_1aac54665dca2cf9fbafbca70521d53f22" prot="public" virt="non-virtual"><scope>hise::LockHelpers</scope><name>getLockUnchecked</name></member>
+      <member refid="classhise_1_1_lock_helpers_1a184d40ea464b23f3d2b1412246042cf7" prot="public" virt="non-virtual"><scope>hise::LockHelpers</scope><name>isDuringInitialisation</name></member>
+      <member refid="classhise_1_1_lock_helpers_1aca828f1e492c471427c5ec6c11662344" prot="public" virt="non-virtual"><scope>hise::LockHelpers</scope><name>isLockedBySameThread</name></member>
+      <member refid="classhise_1_1_lock_helpers_1af87c3bc87407d72685514f62887eff18" prot="public" virt="non-virtual"><scope>hise::LockHelpers</scope><name>isMessageThreadBeyondInitialisation</name></member>
+      <member refid="classhise_1_1_lock_helpers_1a1033594155b788050661c7c7cc588fcca7d15356fc6d3b5d2f82bbe2740d39636" prot="public" virt="non-virtual"><scope>hise::LockHelpers</scope><name>IteratorLock</name></member>
+      <member refid="classhise_1_1_lock_helpers_1a1033594155b788050661c7c7cc588fcca7e4c2bc8eef06204a5907be3b4e6e422" prot="public" virt="non-virtual"><scope>hise::LockHelpers</scope><name>MessageLock</name></member>
+      <member refid="classhise_1_1_lock_helpers_1a31e6c752b3c963357131a6a5e9ca1e32" prot="public" virt="non-virtual"><scope>hise::LockHelpers</scope><name>noMessageLockFromAnotherThread</name></member>
+      <member refid="classhise_1_1_lock_helpers_1a55108b6fb40252ad88a9ead27fc08b7a" prot="public" virt="non-virtual"><scope>hise::LockHelpers</scope><name>noMessageThreadBeyondInitialisation</name></member>
+      <member refid="classhise_1_1_lock_helpers_1a1033594155b788050661c7c7cc588fcca510cd2cf0975406014e99c8363b69f8c" prot="public" virt="non-virtual"><scope>hise::LockHelpers</scope><name>numLockTypes</name></member>
+      <member refid="classhise_1_1_lock_helpers_1a1033594155b788050661c7c7cc588fcca57d208b6e0c5d59e886e81eb4cbb5596" prot="public" virt="non-virtual"><scope>hise::LockHelpers</scope><name>SampleLock</name></member>
+      <member refid="classhise_1_1_lock_helpers_1a1033594155b788050661c7c7cc588fccaeb93621d9a8e593ec725bd057bbc29f7" prot="public" virt="non-virtual"><scope>hise::LockHelpers</scope><name>ScriptLock</name></member>
+      <member refid="classhise_1_1_lock_helpers_1a1033594155b788050661c7c7cc588fcc" prot="public" virt="non-virtual"><scope>hise::LockHelpers</scope><name>Type</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

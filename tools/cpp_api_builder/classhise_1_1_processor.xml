@@ -1,0 +1,2056 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.8.6">
+  <compounddef id="classhise_1_1_processor" kind="class" prot="public" abstract="yes">
+    <compoundname>hise::Processor</compoundname>
+    <basecompoundref refid="classhise_1_1_safe_change_broadcaster" prot="public" virt="non-virtual">hise::SafeChangeBroadcaster</basecompoundref>
+    <basecompoundref refid="classhise_1_1_restorable_object" prot="public" virt="non-virtual">hise::RestorableObject</basecompoundref>
+    <basecompoundref refid="classhise_1_1_controlled_object" prot="public" virt="non-virtual">hise::ControlledObject</basecompoundref>
+    <basecompoundref refid="structhise_1_1_dispatchable" prot="public" virt="non-virtual">hise::Dispatchable</basecompoundref>
+    <derivedcompoundref refid="classhise_1_1_effect_processor" prot="public" virt="non-virtual">hise::EffectProcessor</derivedcompoundref>
+    <derivedcompoundref refid="classhise_1_1_effect_processor_chain" prot="public" virt="non-virtual">hise::EffectProcessorChain</derivedcompoundref>
+    <derivedcompoundref refid="classhise_1_1_midi_processor" prot="public" virt="non-virtual">hise::MidiProcessor</derivedcompoundref>
+    <derivedcompoundref refid="classhise_1_1_modulator" prot="public" virt="non-virtual">hise::Modulator</derivedcompoundref>
+    <derivedcompoundref refid="classhise_1_1_modulator_synth" prot="public" virt="non-virtual">hise::ModulatorSynth</derivedcompoundref>
+    <includes refid="_processor_8h" local="no">Processor.h</includes>
+    <innerclass refid="structhise_1_1_processor_1_1_bypass_listener" prot="public">hise::Processor::BypassListener</innerclass>
+    <innerclass refid="structhise_1_1_processor_1_1_delete_listener" prot="public">hise::Processor::DeleteListener</innerclass>
+    <innerclass refid="structhise_1_1_processor_1_1_display_values" prot="public">hise::Processor::DisplayValues</innerclass>
+    <innerclass refid="classhise_1_1_processor_1_1_iterator" prot="public">hise::Processor::Iterator</innerclass>
+      <sectiondef kind="public-type">
+      <memberdef kind="enum" id="classhise_1_1_processor_1a695b60227dca8198fd49e9a05422a800" prot="public" static="no">
+        <name>SpecialParameters</name>
+        <enumvalue id="classhise_1_1_processor_1a695b60227dca8198fd49e9a05422a800a41308763ae1c594ccbf478485156535f" prot="public">
+          <name>numParameters</name>
+          <initializer>= 0</initializer>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Overwrite this enum and add new parameters. This is used by the set- / getAttribute methods. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="221" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="220" bodyend="223"/>
+      </memberdef>
+      <memberdef kind="enum" id="classhise_1_1_processor_1a20388d324e09206b512b5c76e7e2beb2" prot="public" static="no">
+        <name>InternalChains</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Overwrite this enum and list all internal chains. This can be used to access them by index. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="226" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="226" bodyend="226"/>
+      </memberdef>
+      <memberdef kind="enum" id="classhise_1_1_processor_1a7843f45218e53132ed06d68238c32fb6" prot="public" static="no">
+        <name>EditorState</name>
+        <enumvalue id="classhise_1_1_processor_1a7843f45218e53132ed06d68238c32fb6a12c32a9e482627e9f3e9be8ae345c183" prot="public">
+          <name>Folded</name>
+          <initializer>= 0</initializer>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="classhise_1_1_processor_1a7843f45218e53132ed06d68238c32fb6afd42fb80ec139cfdd071bfb02c1a4443" prot="public">
+          <name>BodyShown</name>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="classhise_1_1_processor_1a7843f45218e53132ed06d68238c32fb6afc1a0d36f56e03e3cb7571f2a60b4aba" prot="public">
+          <name>Visible</name>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="classhise_1_1_processor_1a7843f45218e53132ed06d68238c32fb6adcfe19adcbccac2b2a0bda6f383df0cc" prot="public">
+          <name>Solo</name>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="classhise_1_1_processor_1a7843f45218e53132ed06d68238c32fb6a19c9a8a393aba68792d5457b6d29d3ed" prot="public">
+          <name>numEditorStates</name>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="229" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="228" bodyend="235"/>
+      </memberdef>
+      </sectiondef>
+      <sectiondef kind="protected-attrib">
+      <memberdef kind="variable" id="classhise_1_1_processor_1acbd09a4268816dd7dc133434f5cc94a1" prot="protected" static="no" mutable="no">
+        <type>DisplayValues</type>
+        <definition>DisplayValues hise::Processor::currentValues</definition>
+        <argsstring></argsstring>
+        <name>currentValues</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="882" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="882" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1a042001b684a389e4cc7a185332fca8b6" prot="protected" static="no" mutable="no">
+        <type>bool</type>
+        <definition>bool hise::Processor::consoleEnabled</definition>
+        <argsstring></argsstring>
+        <name>consoleEnabled</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="918" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="918" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1a10b6886e6942a8ac8c37696eb69dab5e" prot="protected" static="no" mutable="no">
+        <type>Array&lt; Identifier &gt;</type>
+        <definition>Array&lt;Identifier&gt; hise::Processor::parameterNames</definition>
+        <argsstring></argsstring>
+        <name>parameterNames</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="920" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="920" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1acd09a082fa863d1f5128e51dc2ff1cb9" prot="protected" static="no" mutable="no">
+        <type>StringArray</type>
+        <definition>StringArray hise::Processor::parameterDescriptions</definition>
+        <argsstring></argsstring>
+        <name>parameterDescriptions</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="921" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="921" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1a9e22be749f8ef522a56ca2d8382b72a2" prot="protected" static="no" mutable="no">
+        <type>Array&lt; Identifier &gt;</type>
+        <definition>Array&lt;Identifier&gt; hise::Processor::editorStateIdentifiers</definition>
+        <argsstring></argsstring>
+        <name>editorStateIdentifiers</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="922" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="922" bodyend="-1"/>
+      </memberdef>
+      </sectiondef>
+      <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classhise_1_1_processor_1a767d55167388ba6b8d8189696db11d1a" prot="private" static="no" mutable="no">
+        <type>bool</type>
+        <definition>bool hise::Processor::rebuildMessagePending</definition>
+        <argsstring></argsstring>
+        <name>rebuildMessagePending</name>
+        <initializer>= false</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="928" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="928" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1ac9a2d14b383b0b51787d8bf5327a0d07" prot="private" static="no" mutable="no">
+        <type>Array&lt; WeakReference&lt; DeleteListener &gt; &gt;</type>
+        <definition>Array&lt;WeakReference&lt;DeleteListener&gt; &gt; hise::Processor::deleteListeners</definition>
+        <argsstring></argsstring>
+        <name>deleteListeners</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="930" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="930" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1af35fa26ef30c866a6d5aec8053dc851a" prot="private" static="no" mutable="no">
+        <type>Array&lt; WeakReference&lt; BypassListener &gt; &gt;</type>
+        <definition>Array&lt;WeakReference&lt;BypassListener&gt; &gt; hise::Processor::bypassListeners</definition>
+        <argsstring></argsstring>
+        <name>bypassListeners</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="932" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="932" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1a9719c5f2115e62c7fdf048a4f39789f8" prot="private" static="no" mutable="no">
+        <type>CriticalSection</type>
+        <definition>CriticalSection hise::Processor::dummyLock</definition>
+        <argsstring></argsstring>
+        <name>dummyLock</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="934" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="934" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1ae4207a6e8a85d663dea0de14d4780f8a" prot="private" static="no" mutable="no">
+        <type>bool</type>
+        <definition>bool hise::Processor::onAir</definition>
+        <argsstring></argsstring>
+        <name>onAir</name>
+        <initializer>= false</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="936" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="936" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1aed0714e289dae3316903bf27341a9206" prot="private" static="no" mutable="no">
+        <type>bool</type>
+        <definition>bool hise::Processor::pendingDelete</definition>
+        <argsstring></argsstring>
+        <name>pendingDelete</name>
+        <initializer>= false</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="938" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="938" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1a4c0c4e1603fb5e343e1d82557ef6e5ba" prot="private" static="no" mutable="no">
+        <type>WeakReference&lt; <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> &gt;</type>
+        <definition>WeakReference&lt;Processor&gt; hise::Processor::parentProcessor</definition>
+        <argsstring></argsstring>
+        <name>parentProcessor</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="940" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="940" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1ae811581792d4e462a6b47ebf5e17a50c" prot="private" static="no" mutable="no">
+        <type>Path</type>
+        <definition>Path hise::Processor::symbol</definition>
+        <argsstring></argsstring>
+        <name>symbol</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="942" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="942" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1aae757cbd43f151aa289afe589157d899" prot="private" static="no" mutable="no">
+        <type>WeakReference&lt; <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> &gt;::Master</type>
+        <definition>WeakReference&lt;Processor&gt;::Master hise::Processor::masterReference</definition>
+        <argsstring></argsstring>
+        <name>masterReference</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="944" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="944" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1a282a01312648275b56c08a1d6b5316ba" prot="private" static="no" mutable="no">
+        <type>Array&lt; bool &gt;</type>
+        <definition>Array&lt;bool&gt; hise::Processor::editorStateAsBoolList</definition>
+        <argsstring></argsstring>
+        <name>editorStateAsBoolList</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="947" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="947" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1ae0cde39016e0e0498246be09b1ac4085" prot="private" static="no" mutable="no">
+        <type>BigInteger</type>
+        <definition>BigInteger hise::Processor::editorState</definition>
+        <argsstring></argsstring>
+        <name>editorState</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="949" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="949" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1a60d0c08b7c3cc616a354b41f6b1f1836" prot="private" static="no" mutable="no">
+        <type>NamedValueSet</type>
+        <definition>NamedValueSet hise::Processor::editorStateValueSet</definition>
+        <argsstring></argsstring>
+        <name>editorStateValueSet</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="951" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="951" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1afcb23ddb247d6ec8b327ba76513d6ac7" prot="private" static="no" mutable="no">
+        <type>const int</type>
+        <definition>const int hise::Processor::numVoices</definition>
+        <argsstring></argsstring>
+        <name>numVoices</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="953" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="953" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1a27d963535183cc482cd12e6fc4b35a0e" prot="private" static="no" mutable="no">
+        <type>float</type>
+        <definition>float hise::Processor::inputValue</definition>
+        <argsstring></argsstring>
+        <name>inputValue</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="955" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="955" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1a5c5ac3c90542d971a4824ef8c97b9e6d" prot="private" static="no" mutable="no">
+        <type>double</type>
+        <definition>double hise::Processor::outputValue</definition>
+        <argsstring></argsstring>
+        <name>outputValue</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="956" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="956" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1a4c8279764c3541402e97250513b40e2b" prot="private" static="no" mutable="no">
+        <type>bool</type>
+        <definition>bool hise::Processor::bypassed</definition>
+        <argsstring></argsstring>
+        <name>bypassed</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="958" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="958" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1aa132d1eb648d416487f744b04b55147c" prot="private" static="no" mutable="no">
+        <type>bool</type>
+        <definition>bool hise::Processor::visible</definition>
+        <argsstring></argsstring>
+        <name>visible</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="959" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="959" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1a4b894ecc0d4787f2328bf6411e2f4f18" prot="private" static="no" mutable="no">
+        <type>double</type>
+        <definition>double hise::Processor::samplerate</definition>
+        <argsstring></argsstring>
+        <name>samplerate</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="961" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="961" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1a950bbb4f3d48907d683b74f55b747587" prot="private" static="no" mutable="no">
+        <type>int</type>
+        <definition>int hise::Processor::largestBlockSize</definition>
+        <argsstring></argsstring>
+        <name>largestBlockSize</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="963" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="963" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1a101daff096cc561c5bc31e34fa293672" prot="private" static="no" mutable="no">
+        <type>OwnedArray&lt; <ref refid="classhise_1_1_chain" kindref="compound">Chain</ref> &gt;</type>
+        <definition>OwnedArray&lt;Chain&gt; hise::Processor::chains</definition>
+        <argsstring></argsstring>
+        <name>chains</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="965" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="965" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1ab7ba4c447978a50fdedd4166f8fc82f2" prot="private" static="no" mutable="no">
+        <type>String</type>
+        <definition>String hise::Processor::id</definition>
+        <argsstring></argsstring>
+        <name>id</name>
+        <briefdescription>
+<para>the unique id of the <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> </para>        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="968" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="968" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="classhise_1_1_processor_1ab0efc09f25e361f87581b18d4075d52a" prot="private" static="no" mutable="no">
+        <type>Identifier</type>
+        <definition>Identifier hise::Processor::idAsIdentifier</definition>
+        <argsstring></argsstring>
+        <name>idAsIdentifier</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="970" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="970" bodyend="-1"/>
+      </memberdef>
+      </sectiondef>
+      <sectiondef kind="friend">
+      <memberdef kind="friend" id="classhise_1_1_processor_1a39a19ee86670697746c076e0274779be" prot="private" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>friend class</type>
+        <definition>friend class WeakReference&lt; Processor &gt;</definition>
+        <argsstring></argsstring>
+        <name>WeakReference&lt; Processor &gt;</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="944" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="945" bodyend="-1"/>
+      </memberdef>
+      </sectiondef>
+      <sectiondef kind="public-func">
+      <memberdef kind="function" id="classhise_1_1_processor_1a478dfc43984cd437270ac1084ecd6d72" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type></type>
+        <definition>hise::Processor::Processor</definition>
+        <argsstring>(MainController *m, const String &amp;id_, int numVoices)</argsstring>
+        <name>Processor</name>
+        <param>
+          <type><ref refid="classhise_1_1_main_controller" kindref="compound">MainController</ref> *</type>
+          <declname>m</declname>
+        </param>
+        <param>
+          <type>const String &amp;</type>
+          <declname>id_</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>numVoices</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Creates a new <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> with the given Identifier. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="214" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.cpp" bodystart="45" bodyend="78"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1ae2ddf2b31f010670078eb30ef6ea64f0" prot="public" static="no" const="no" explicit="no" inline="no" virt="virtual">
+        <type></type>
+        <definition>hise::Processor::~Processor</definition>
+        <argsstring>()</argsstring>
+        <name>~Processor</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Overwrite this if you need custom destruction behaviour. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="217" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.cpp" bodystart="80" bodyend="89"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1ac84b7bf6203e771abc73d5caa871fc3f" prot="public" static="no" const="no" explicit="no" inline="no" virt="pure-virtual">
+        <type><ref refid="classhise_1_1_processor_editor_body" kindref="compound">ProcessorEditorBody</ref> *</type>
+        <definition>virtual ProcessorEditorBody* hise::Processor::createEditor</definition>
+        <argsstring>(ProcessorEditor *parentEditor)=0</argsstring>
+        <name>createEditor</name>
+        <reimplementedby refid="classhise_1_1_javascript_midi_processor_1a4a67963ba9c18bdbf9237a0be4f9913c">createEditor</reimplementedby>
+        <reimplementedby refid="classhise_1_1_midi_processor_1a2adb8273140c83aaa1a5876d7db784b1">createEditor</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_chain_1a499e47a863e7683ded544a908d2d55cd">createEditor</reimplementedby>
+        <reimplementedby refid="classhise_1_1_hardcoded_script_processor_1a83206064e59c103132129ff20079c5d2">createEditor</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_1a4d53fc80381d07cd8ecabc012355174f">createEditor</reimplementedby>
+        <reimplementedby refid="classhise_1_1_effect_processor_chain_1a07c63e9c70823a81c3acd74cc864387e">createEditor</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_group_1aeabd2b7ae61fef3fab9e6cdcd262d9ab">createEditor</reimplementedby>
+        <reimplementedby refid="classhise_1_1_midi_player_1a8dd89cdd47f1af047f320931d0fd2d38">createEditor</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_chain_1aede0196bd7f0552e13bcdafb8f547a2c">createEditor</reimplementedby>
+        <param>
+          <type>ProcessorEditor *</type>
+          <declname>parentEditor</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Creates a ProcessorEditor for this <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> and returns the pointer.</para><para>If you subclass this, just allocate a ProcessorEditor of the desired type on the heap and return it. Remember to pass the <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> as parameter to allow asynchronous GUI notification. The concept between <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> and ProcessorEditor is the same as AudioProcessor and AudioProcessorEditor. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="243" column="1"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a1a6a4b75c327c85dc4a033ffb4ea2bab" prot="public" static="no" const="yes" explicit="no" inline="no" virt="virtual">
+        <type>ValueTree</type>
+        <definition>juce::ValueTree hise::Processor::exportAsValueTree</definition>
+        <argsstring>() const override</argsstring>
+        <name>exportAsValueTree</name>
+        <reimplements refid="classhise_1_1_restorable_object_1a33d4776402fd9702be5120285c3aee96">exportAsValueTree</reimplements>
+        <reimplementedby refid="classhise_1_1_javascript_midi_processor_1a6096430aaba5cc98086096c6a8c2e7bf">exportAsValueTree</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_1aa592a84fb91b6f5859858100caaaaf04">exportAsValueTree</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_chain_1aa9eadc1840cc68f4754217f2d301f2bb">exportAsValueTree</reimplementedby>
+        <reimplementedby refid="classhise_1_1_script_base_midi_processor_1a42ea6eebb6e68d00954012e9547126fe">exportAsValueTree</reimplementedby>
+        <reimplementedby refid="classhise_1_1_master_effect_processor_1a3bef6a3ecaaf34c71bcf1ca326b91b2a">exportAsValueTree</reimplementedby>
+        <reimplementedby refid="classhise_1_1_midi_player_1ae4c744da5135c89f899059f8be38374c">exportAsValueTree</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_group_1a20193e9a2d56853f21380da53d755942">exportAsValueTree</reimplementedby>
+        <reimplementedby refid="classhise_1_1_voice_start_modulator_1aac33ec2a70c956b54cf361ce78c75b25">exportAsValueTree</reimplementedby>
+        <reimplementedby refid="classhise_1_1_time_variant_modulator_1a24012f16481def2571f2e45a7a919524">exportAsValueTree</reimplementedby>
+        <reimplementedby refid="classhise_1_1_envelope_modulator_1a425c9eec0471d7cb5ff0df3025eeca94">exportAsValueTree</reimplementedby>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>This saves the <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref>.</para><para>It saves the ID, the bypassed state and the fold state. It also saves all child processors. You can overwrite this function and add more properties and their child processors but make sure you call the base class method.</para><para>For primitive values, you can use the macro saveAttribute(name, nameAsString):</para><para>You don&apos;t need to save the editor states, as the first 32 bits of EditorState is saved.</para><para><programlisting><codeline><highlight class="normal">ValueTree<sp/><ref refid="classhise_1_1_processor_1a1a6a4b75c327c85dc4a033ffb4ea2bab" kindref="member">exportAsValueTree</ref>()</highlight><highlight class="keyword"><sp/>const<sp/>override</highlight></codeline>
+<codeline><highlight class="keyword"></highlight><highlight class="normal">{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>must<sp/>be<sp/>named<sp/>&apos;v&apos;<sp/>for<sp/>the<sp/>macros</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>ValueTree<sp/>v<sp/>=<sp/>BaseClass::exportAsValueTree();<sp/></highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>saveAttribute(attributeName,<sp/></highlight><highlight class="stringliteral">&quot;AttributeName&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>...</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal">(useTable)<sp/>saveTable(tableVariableName,<sp/></highlight><highlight class="stringliteral">&quot;TableVariableNameData&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>v;</highlight></codeline>
+<codeline><highlight class="normal">};</highlight></codeline>
+</programlisting></para><para><simplesect kind="see"><para><ref refid="classhise_1_1_processor_1aca0c491c0c57341b6dfdcf7ad4be1fad" kindref="member">restoreFromValueTree()</ref> </para></simplesect>
+</para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="274" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.cpp" bodystart="91" bodyend="130"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1aca0c491c0c57341b6dfdcf7ad4be1fad" prot="public" static="no" const="no" explicit="no" inline="no" virt="virtual">
+        <type>void</type>
+        <definition>void hise::Processor::restoreFromValueTree</definition>
+        <argsstring>(const ValueTree &amp;previouslyExportedProcessorState) override</argsstring>
+        <name>restoreFromValueTree</name>
+        <reimplements refid="classhise_1_1_restorable_object_1a20d85661fce908ad7362a1e9e6a1677a">restoreFromValueTree</reimplements>
+        <reimplementedby refid="classhise_1_1_hardcoded_script_processor_1a0b8127435c739fcf1d2eb332156ee43b">restoreFromValueTree</reimplementedby>
+        <reimplementedby refid="classhise_1_1_javascript_midi_processor_1a2ecfa7beb65d7ea55139e30d2f47f88a">restoreFromValueTree</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_1ac73f1254cf047402d19938c3cae6c840">restoreFromValueTree</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_chain_1a4f6816e9e17b6f870c0f3916fd3895b2">restoreFromValueTree</reimplementedby>
+        <reimplementedby refid="classhise_1_1_script_base_midi_processor_1a9151c34e6b64aa05bbfdd2c5deaafd86">restoreFromValueTree</reimplementedby>
+        <reimplementedby refid="classhise_1_1_master_effect_processor_1ae6dc150d6894cfc473565a76e821d939">restoreFromValueTree</reimplementedby>
+        <reimplementedby refid="classhise_1_1_midi_player_1a1d495e176e1059c9cdf07d8ff8d66799">restoreFromValueTree</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_group_1a30ea322e39ed13269ef34996906e7ab5">restoreFromValueTree</reimplementedby>
+        <reimplementedby refid="classhise_1_1_voice_start_modulator_1a4724ef48f582f65fa73b4d035c6f31bf">restoreFromValueTree</reimplementedby>
+        <reimplementedby refid="classhise_1_1_time_variant_modulator_1aaf761dd7eb46ee63ee98dfe14487659d">restoreFromValueTree</reimplementedby>
+        <reimplementedby refid="classhise_1_1_envelope_modulator_1a338e053bdaef8de7f7d0d534928de127">restoreFromValueTree</reimplementedby>
+        <param>
+          <type>const ValueTree &amp;</type>
+          <declname>previouslyExportedProcessorState</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Restores a previously saved ValueTree.</para><para>The value tree must be created with exportAsValueTree or it will be unpredictable. The child processors are created automatically (both for chains and processors with fixed internal chains, but you should overwrite this method if your <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> uses parameters.</para><para>There is a handy macro saveAttribute(name, nameAsString) for this purpose.</para><para><programlisting><codeline><highlight class="normal"><ref refid="classhise_1_1_processor_1aca0c491c0c57341b6dfdcf7ad4be1fad" kindref="member">restoreFromValueTree</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>ValueTree<sp/>&amp;v)<sp/></highlight><highlight class="keyword">override</highlight><highlight class="normal"><sp/></highlight><highlight class="comment">//<sp/>parameter<sp/>must<sp/>be<sp/>named<sp/>&apos;v&apos;<sp/>for<sp/>the<sp/>macros</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal">{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>replace<sp/>BaseClass<sp/>with<sp/>the<sp/>class<sp/>name<sp/>of<sp/>the<sp/>immediate<sp/>base<sp/>class</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>BaseClass::restoreFromValueTree(v);<sp/></highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>loadAttribute(attributeName,<sp/></highlight><highlight class="stringliteral">&quot;AttributeName&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>...</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="comment">//<sp/>If<sp/>your<sp/>Processor<sp/>uses<sp/>tables:<sp/></highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">if</highlight><highlight class="normal">(useTable)<sp/>loadTable(tableVariableName,<sp/></highlight><highlight class="stringliteral">&quot;TableVariableData&quot;</highlight><highlight class="normal">);</highlight></codeline>
+<codeline><highlight class="normal">}</highlight></codeline>
+</programlisting></para><para><simplesect kind="see"><para><ref refid="classhise_1_1_processor_1a1a6a4b75c327c85dc4a033ffb4ea2bab" kindref="member">exportAsValueTree()</ref> </para></simplesect>
+</para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="300" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.cpp" bodystart="132" bodyend="176"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1ad2a7ca9b47734704a90fc832519cc436" prot="public" static="no" const="yes" explicit="no" inline="no" virt="pure-virtual">
+        <type>const Identifier</type>
+        <definition>virtual const Identifier hise::Processor::getType</definition>
+        <argsstring>() const =0</argsstring>
+        <name>getType</name>
+        <reimplementedby refid="classhise_1_1_demo_hardcoded_script_processor_1aedda87e5159e17507de727b19b3c44a1">getType</reimplementedby>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Overwrite this method to specify the name.</para><para>Use non-whitespace Strings (best practice is CamelCase). In most cases, this will be enough: <verbatim>const String getType() const { return &quot;ProcessorName&quot;;}; </verbatim> </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="308" column="1"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1afee66240cc304edb1d20b03f5f0b2aa1" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="virtual">
+        <type><ref refid="classhise_1_1_processor_documentation" kindref="compound">ProcessorDocumentation</ref> *</type>
+        <definition>virtual ProcessorDocumentation* hise::Processor::createDocumentation</definition>
+        <argsstring>() const </argsstring>
+        <name>createDocumentation</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="310" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="310" bodyend="310"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a4aea075c4390ce156b3537035690f896" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>const Path</type>
+        <definition>const Path hise::Processor::getSymbol</definition>
+        <argsstring>() const </argsstring>
+        <name>getSymbol</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Returns the symbol of the <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref>.</para><para>It either checks if a special symbol is set for this particular <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref>, or returns the default one defined in <ref refid="classhise_1_1_processor_1a3414a5d66ee25a3e84ebfe3f923aa400" kindref="member">getSpecialSymbol()</ref> </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="316" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="316" bodyend="323"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a3a66942de2a407d59bf8ccc687593d9e" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::Processor::setSymbol</definition>
+        <argsstring>(Path newSymbol)</argsstring>
+        <name>setSymbol</name>
+        <param>
+          <type>Path</type>
+          <declname>newSymbol</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Sets a special symbol for the <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref>.</para><para>If this method is used, the <ref refid="classhise_1_1_processor_1a4aea075c4390ce156b3537035690f896" kindref="member">getSymbol()</ref> method will return this Path instead of the default one defined in <ref refid="classhise_1_1_processor_1a3414a5d66ee25a3e84ebfe3f923aa400" kindref="member">getSpecialSymbol()</ref>; </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="329" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="329" bodyend="329"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1aecfdee3f333c808f5b165c6cae4537f6" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::Processor::setAttribute</definition>
+        <argsstring>(int parameterIndex, float newValue, juce::NotificationType notifyEditor)</argsstring>
+        <name>setAttribute</name>
+        <param>
+          <type>int</type>
+          <declname>parameterIndex</declname>
+        </param>
+        <param>
+          <type>float</type>
+          <declname>newValue</declname>
+        </param>
+        <param>
+          <type>juce::NotificationType</type>
+          <declname>notifyEditor</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Changes a <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> parameter.</para><para>This can be used in the audio thread eg. by other Processors. Overwrite the method <ref refid="classhise_1_1_processor_1aca0650b1c8a63ac38ca4023bdc0ef4f9" kindref="member">setInternalAttribute()</ref> to store the parameters in private member variables. If the <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> is polyphonic, the attributes must stay the same for different voices. In this case store a multiplicator for the attribute in a ProcessorState.</para><para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>parameterIndex</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>the parameter index (use a enum from the derived class) </para></parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>newValue</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>the new value between 0.0 and 1.0 </para></parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>notifyEditor</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>if sendNotification, then a asynchronous message is sent. </para></parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="342" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="342" bodyend="347"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a22cf8c92e8b32874c88a9fbb41d43ea5" prot="public" static="no" const="yes" explicit="no" inline="no" virt="pure-virtual">
+        <type>float</type>
+        <definition>virtual float hise::Processor::getAttribute</definition>
+        <argsstring>(int parameterIndex) const =0</argsstring>
+        <name>getAttribute</name>
+        <reimplementedby refid="classhise_1_1_effect_processor_chain_1a431aba1f3b1ec5dca252ef530ba0c559">getAttribute</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_1af03fec569670bc4ac5e3ace50f628a82">getAttribute</reimplementedby>
+        <reimplementedby refid="classhise_1_1_script_base_midi_processor_1a5c0f09901ecde1bb05d5ad221e751053">getAttribute</reimplementedby>
+        <reimplementedby refid="classhise_1_1_midi_player_1a0d4831d9b574e61c1481acb0a52fbbbc">getAttribute</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_group_1a8039484048292609d590600ce9a9f48f">getAttribute</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_chain_1a0d45caa415abc508f1755154e7d2e8b7">getAttribute</reimplementedby>
+        <reimplementedby refid="classhise_1_1_envelope_modulator_1a4f3e0abef5a0081e89236a6037bad898">getAttribute</reimplementedby>
+        <param>
+          <type>int</type>
+          <declname>parameterIndex</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>returns the attribute with the specified index (use a enum in the derived class). </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="350" column="1"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a5402502339ab8dac16271369a92070c3" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="virtual">
+        <type>float</type>
+        <definition>virtual float hise::Processor::getDefaultValue</definition>
+        <argsstring>(int) const </argsstring>
+        <name>getDefaultValue</name>
+        <reimplementedby refid="classhise_1_1_modulator_synth_1ab8d5a395d0ad364bc8ff86311e26872d">getDefaultValue</reimplementedby>
+        <reimplementedby refid="classhise_1_1_script_base_midi_processor_1a0b23f4fcd044831164b05423cffab1a9">getDefaultValue</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_group_1ad9f34eb770f271c1d27c2b020b557f36">getDefaultValue</reimplementedby>
+        <reimplementedby refid="classhise_1_1_envelope_modulator_1a99bae774c5e1329658e9957bff75d957">getDefaultValue</reimplementedby>
+        <param>
+          <type>int</type>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Overwrite this and return the default value. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="353" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="353" bodyend="353"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a3df9a4e163c03766bdc1dd1521a27dc2" prot="public" static="no" const="no" explicit="no" inline="no" virt="pure-virtual">
+        <type><ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> *</type>
+        <definition>virtual Processor* hise::Processor::getChildProcessor</definition>
+        <argsstring>(int processorIndex)=0</argsstring>
+        <name>getChildProcessor</name>
+        <reimplementedby refid="classhise_1_1_midi_processor_1ad9d505cd98ecc9bbfcf1432f107d1421">getChildProcessor</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_1a18284eaa4a1222902617b236c5faa10a">getChildProcessor</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_chain_1af7206d5d48dda3fe7240351649311e85">getChildProcessor</reimplementedby>
+        <reimplementedby refid="classhise_1_1_effect_processor_chain_1ae1b29dd3f31a37033c8d37890b33216c">getChildProcessor</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_group_1a3e50fa02abbd0daafff0ec5a182cd2ec">getChildProcessor</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_chain_1acd7c75b8aabb7ab3c46038ce50d35def">getChildProcessor</reimplementedby>
+        <reimplementedby refid="classhise_1_1_voice_start_modulator_1abcd18dbf4eb53cbafc6f522ad853a700">getChildProcessor</reimplementedby>
+        <param>
+          <type>int</type>
+          <declname>processorIndex</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>This must be overriden by every <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> and return the <ref refid="classhise_1_1_chain" kindref="compound">Chain</ref> with the <ref refid="classhise_1_1_chain" kindref="compound">Chain</ref> index.</para><para>You can either:<itemizedlist>
+<listitem><para>return nullptr, if the <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> uses no internal chains</para></listitem><listitem><para>one of the internal chains (it&apos;s recommended to use the InternalChains enum for this case)</para></listitem><listitem><para>return the <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> at the index if the <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> is a <ref refid="classhise_1_1_chain" kindref="compound">Chain</ref>. You can use it&apos;s handler&apos;s getProcessor() method. </para></listitem></itemizedlist>
+</para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="362" column="1"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1adb0d325fb0a8ad4bc0e2cba47de2ad36" prot="public" static="no" const="yes" explicit="no" inline="no" virt="pure-virtual">
+        <type>const <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> *</type>
+        <definition>virtual const Processor* hise::Processor::getChildProcessor</definition>
+        <argsstring>(int processorIndex) const =0</argsstring>
+        <name>getChildProcessor</name>
+        <reimplementedby refid="classhise_1_1_midi_processor_1a01eac2e38367099885210928d4ed8649">getChildProcessor</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_chain_1ac546f8551c383e14af36b6b5f68b2138">getChildProcessor</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_1a81b0bdd1c099755c624ac83669083e03">getChildProcessor</reimplementedby>
+        <reimplementedby refid="classhise_1_1_effect_processor_chain_1a27b5fc20779da21316ef23e50c5a5452">getChildProcessor</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_group_1ade4cd017d15bafd1ee83b944e387fd60">getChildProcessor</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_chain_1a215a1ad59582883094fe237b8f8404b3">getChildProcessor</reimplementedby>
+        <reimplementedby refid="classhise_1_1_voice_start_modulator_1af4a75cfba21879d8239005b293590048">getChildProcessor</reimplementedby>
+        <param>
+          <type>int</type>
+          <declname>processorIndex</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="364" column="1"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a2fa68ab906d08f7eed5cdb228a52cba4" prot="public" static="no" const="yes" explicit="no" inline="no" virt="pure-virtual">
+        <type>int</type>
+        <definition>virtual int hise::Processor::getNumChildProcessors</definition>
+        <argsstring>() const =0</argsstring>
+        <name>getNumChildProcessors</name>
+        <reimplementedby refid="classhise_1_1_midi_processor_1af89a0a2f42a256cda7e9383ecaee830d">getNumChildProcessors</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_chain_1a18fa1f6273b955a60ade79d39a45730f">getNumChildProcessors</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_1a8dc8211242d6de8b869cdec4d9f77df8">getNumChildProcessors</reimplementedby>
+        <reimplementedby refid="classhise_1_1_effect_processor_chain_1aea89b5150884f2973089f07a9cd8323e">getNumChildProcessors</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_group_1a8887dcdb93c345eebab8b0c65a57dabc">getNumChildProcessors</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_1a645cb414c2c28e388e0bd8b257e37dc4">getNumChildProcessors</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_chain_1a207a9774f3a86a3765c266ee525f56e8">getNumChildProcessors</reimplementedby>
+        <reimplementedby refid="classhise_1_1_voice_start_modulator_1af1913ab2a6d0a99b8e9c78367e55dd4d">getNumChildProcessors</reimplementedby>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>This must return the number of Child processors.</para><para>If this <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> is a <ref refid="classhise_1_1_chain" kindref="compound">Chain</ref>, you can use it&apos;s getHandler()-&gt;getNumProcessor() method. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="370" column="1"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1ac4667da3c7fa12b6e745daed9260260c" prot="public" static="no" const="yes" explicit="no" inline="no" virt="pure-virtual">
+        <type>String</type>
+        <definition>virtual String hise::Processor::getDescription</definition>
+        <argsstring>() const =0</argsstring>
+        <name>getDescription</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Return a one-line description of the processor. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="373" column="1"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a2fd0030d59ffc0cc4259dc74b0d4cb68" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="virtual">
+        <type>int</type>
+        <definition>virtual int hise::Processor::getNumInternalChains</definition>
+        <argsstring>() const </argsstring>
+        <name>getNumInternalChains</name>
+        <reimplementedby refid="classhise_1_1_modulator_synth_1a024e7df17295593d0c0d0750b7b26d60">getNumInternalChains</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_group_1a1f0cbf67b9ce6471d6bcfc9458a56453">getNumInternalChains</reimplementedby>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>If your processor uses internal chains, you can return the number here.</para><para>This is used by the ProcessorEditor to make the chain button bar. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="379" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="379" bodyend="379"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1ac1c030bf02e30315ed22fcf7da7fda7b" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::Processor::setConstrainerForAllInternalChains</definition>
+        <argsstring>(BaseConstrainer *constrainer)</argsstring>
+        <name>setConstrainerForAllInternalChains</name>
+        <param>
+          <type>BaseConstrainer *</type>
+          <declname>constrainer</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="381" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.cpp" bodystart="178" bodyend="196"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a6050f885583f8289dbff89548386ecf6" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::Processor::enableConsoleOutput</definition>
+        <argsstring>(bool shouldBeEnabled)</argsstring>
+        <name>enableConsoleOutput</name>
+        <param>
+          <type>bool</type>
+          <declname>shouldBeEnabled</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Enables the <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> to output messages to the Console.</para><para>This method itself does nothing, but you can use this to make a button or something else. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="387" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="387" bodyend="387"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a4cb2c743b5ca88947b7a07d783d9b86a" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="virtual">
+        <type>Colour</type>
+        <definition>virtual Colour hise::Processor::getColour</definition>
+        <argsstring>() const </argsstring>
+        <name>getColour</name>
+        <reimplementedby refid="classhise_1_1_midi_processor_1ae7015d15b24751897749e6c3082678a9">getColour</reimplementedby>
+        <reimplementedby refid="classhise_1_1_effect_processor_chain_1a03fd2d8053567b5d72b6d1893d4ee309">getColour</reimplementedby>
+        <reimplementedby refid="classhise_1_1_effect_processor_1a53135d687905ca6f9857a854bc43bbdc">getColour</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_1afaeecec6a995a508799328cb3361f922">getColour</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_1a1d0c6894a38c223b8562084722219b1e">getColour</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_chain_1a462684435162ea2c89ed85484382e5a0">getColour</reimplementedby>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Overwrite this method if you want a special colour.</para><para>This colour will be used in the debug console and in the editor. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="393" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="393" bodyend="396"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1af552a67d2e79483c9a950104b6efd2b3" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>int</type>
+        <definition>int hise::Processor::getVoiceAmount</definition>
+        <argsstring>() const noexcept</argsstring>
+        <name>getVoiceAmount</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>getNumVoices() is occupied by the Synthesiser class, d&apos;oh! </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="399" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="399" bodyend="399"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a83efaafd10a27f2b9c918bbaeee87866" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>const String &amp;</type>
+        <definition>const String&amp; hise::Processor::getId</definition>
+        <argsstring>() const </argsstring>
+        <name>getId</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Returns the unique id of the <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> instance (!= the <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> name).</para><para>It must be a valid Identifier (so no whitespace and weird characters). </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="405" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="405" bodyend="405"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a2864f53ecbf57f18062c24decaa60dc6" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="virtual">
+        <type>const String</type>
+        <definition>virtual const String hise::Processor::getName</definition>
+        <argsstring>() const </argsstring>
+        <name>getName</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Overwrite this and return a pretty name. If you don&apos;t overwrite it, the <ref refid="classhise_1_1_processor_1ad2a7ca9b47734704a90fc832519cc436" kindref="member">getType()</ref> method is used. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="408" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="408" bodyend="411"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a2705953be730a155538893b25283f303" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::Processor::setId</definition>
+        <argsstring>(const String &amp;newId, NotificationType notifyChangeHandler=dontSendNotification)</argsstring>
+        <name>setId</name>
+        <param>
+          <type>const String &amp;</type>
+          <declname>newId</declname>
+        </param>
+        <param>
+          <type>NotificationType</type>
+          <declname>notifyChangeHandler</declname>
+          <defval>dontSendNotification</defval>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="413" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="413" bodyend="431"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a8a4682dfb06dc8c2cbf1b41fb022a3c3" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>const Identifier &amp;</type>
+        <definition>const Identifier&amp; hise::Processor::getIDAsIdentifier</definition>
+        <argsstring>() const </argsstring>
+        <name>getIDAsIdentifier</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="433" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="433" bodyend="436"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a11989e1350a0132e348ced4e63ec6ee3" prot="public" static="no" const="no" explicit="no" inline="yes" virt="virtual">
+        <type>void</type>
+        <definition>virtual void hise::Processor::setBypassed</definition>
+        <argsstring>(bool shouldBeBypassed, NotificationType notifyChangeHandler=dontSendNotification) noexcept</argsstring>
+        <name>setBypassed</name>
+        <reimplementedby refid="classhise_1_1_master_effect_processor_1a7f723f450eb240f94acb70b58cca4226">setBypassed</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_1ad553df2d51b83fa95556cb6c19cd343b">setBypassed</reimplementedby>
+        <param>
+          <type>bool</type>
+          <declname>shouldBeBypassed</declname>
+        </param>
+        <param>
+          <type>NotificationType</type>
+          <declname>notifyChangeHandler</declname>
+          <defval>dontSendNotification</defval>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>This bypasses the processor. You don&apos;t have to check in the processors logic itself, normally the chain should do that for you. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="439" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="439" bodyend="448"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1ad46dd948912d4a512b5ccf3e8b81d61c" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool hise::Processor::isBypassed</definition>
+        <argsstring>() const noexcept</argsstring>
+        <name>isBypassed</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Returns true if the processor is bypassed. For checking the bypass state of ModulatorSynths, better use isSoftBypassed(). </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="451" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="451" bodyend="451"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1ab39487a14ac940d1dd58af295775c9bf" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::Processor::sendSynchronousBypassChangeMessage</definition>
+        <argsstring>()</argsstring>
+        <name>sendSynchronousBypassChangeMessage</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="453" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="453" bodyend="458"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a203a0f54d3c3fed1e9527a339adb825a" prot="public" static="no" const="no" explicit="no" inline="yes" virt="virtual">
+        <type>void</type>
+        <definition>virtual void hise::Processor::prepareToPlay</definition>
+        <argsstring>(double sampleRate_, int samplesPerBlock_)</argsstring>
+        <name>prepareToPlay</name>
+        <reimplementedby refid="classhise_1_1_effect_processor_chain_1a3f6c4cdac612f0764aab9fc8166a32d5">prepareToPlay</reimplementedby>
+        <reimplementedby refid="classhise_1_1_effect_processor_1ad538809734d9667d0e2600442e2203ff">prepareToPlay</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_chain_1a7aa5ec5743a7d98a34c974b4c6f978e5">prepareToPlay</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_1a9b705293915fe716b1841082d8b3c0fa">prepareToPlay</reimplementedby>
+        <reimplementedby refid="classhise_1_1_master_effect_processor_1ac83697fa0db6c2cfa597746a7f5abb39">prepareToPlay</reimplementedby>
+        <reimplementedby refid="classhise_1_1_midi_player_1ab47ccb4c6bab6241160eb14d866e8b4d">prepareToPlay</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_chain_1a523cfca4acb1b2d2e09de4eb0074efdb">prepareToPlay</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_group_1aa33fe21cbc93ccd05ab3db4464b84fb0">prepareToPlay</reimplementedby>
+        <reimplementedby refid="classhise_1_1_time_variant_modulator_1aeedd47a586e7983b044e2728a8643dce">prepareToPlay</reimplementedby>
+        <reimplementedby refid="classhise_1_1_envelope_modulator_1ae73f5e6bf08f85548e1c8e0be7d919d0">prepareToPlay</reimplementedby>
+        <param>
+          <type>double</type>
+          <declname>sampleRate_</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>samplesPerBlock_</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Sets the sample rate and the block size. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="461" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="461" bodyend="465"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1aa6a5bf92169f954f882edda1f8d6153e" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>double</type>
+        <definition>double hise::Processor::getSampleRate</definition>
+        <argsstring>() const </argsstring>
+        <name>getSampleRate</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Returns the sample rate. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="468" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="468" bodyend="468"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a4a0ac5b97cbaeb30ecc056324994c644" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>int</type>
+        <definition>int hise::Processor::getLargestBlockSize</definition>
+        <argsstring>() const </argsstring>
+        <name>getLargestBlockSize</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Returns the block size. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="471" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="471" bodyend="474"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1af70b9568d82e34978c0b74f1ad69b4f0" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>float</type>
+        <definition>float hise::Processor::getOutputValue</definition>
+        <argsstring>() const </argsstring>
+        <name>getOutputValue</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>This can be used to display the Processors output value. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="488" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="488" bodyend="488"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1af9647800c371adbb9c43a2e1cac9898a" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>float</type>
+        <definition>float hise::Processor::getInputValue</definition>
+        <argsstring>() const </argsstring>
+        <name>getInputValue</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>This can be used to display the Processors input value. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="491" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="491" bodyend="494"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a2757dfd1df0b83113f0825e0ae8cc4c9" prot="public" static="no" const="yes" explicit="no" inline="no" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool hise::Processor::isValidAndInitialised</definition>
+        <argsstring>(bool checkOnAir=false) const </argsstring>
+        <name>isValidAndInitialised</name>
+        <param>
+          <type>bool</type>
+          <declname>checkOnAir</declname>
+          <defval>false</defval>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="496" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.cpp" bodystart="754" bodyend="766"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a0c0dab68fe966ee73751290f3b1c01de" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::Processor::setEditorState</definition>
+        <argsstring>(int state, bool isOn, NotificationType notifyView=sendNotification)</argsstring>
+        <name>setEditorState</name>
+        <param>
+          <type>int</type>
+          <declname>state</declname>
+        </param>
+        <param>
+          <type>bool</type>
+          <declname>isOn</declname>
+        </param>
+        <param>
+          <type>NotificationType</type>
+          <declname>notifyView</declname>
+          <defval>sendNotification</defval>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Saves the state of the <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref>&apos;s editor. It must be saved within the <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref>, because the Editor can be deleted.</para><para>You can add more states in your subclass (they should be expressable as bool). Best use a enum: <verbatim>enum EditorState
+{
+    newState = Processor::numEditorStates,
+};</verbatim> </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="507" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="507" bodyend="517"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a268d9d14efbf5be00c21424a337a1700" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>const var</type>
+        <definition>const var hise::Processor::getEditorState</definition>
+        <argsstring>(Identifier editorStateId) const </argsstring>
+        <name>getEditorState</name>
+        <param>
+          <type>Identifier</type>
+          <declname>editorStateId</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="519" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="519" bodyend="522"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a882419a38d3caa2a5801a757351a122c" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::Processor::setEditorState</definition>
+        <argsstring>(Identifier state, var stateValue, NotificationType notifyView=sendNotification)</argsstring>
+        <name>setEditorState</name>
+        <param>
+          <type>Identifier</type>
+          <declname>state</declname>
+        </param>
+        <param>
+          <type>var</type>
+          <declname>stateValue</declname>
+        </param>
+        <param>
+          <type>NotificationType</type>
+          <declname>notifyView</declname>
+          <defval>sendNotification</defval>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="524" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="524" bodyend="534"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a74424eeebb9f332024743b9647b1e75b" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>Identifier</type>
+        <definition>Identifier hise::Processor::getEditorStateForIndex</definition>
+        <argsstring>(int index) const </argsstring>
+        <name>getEditorStateForIndex</name>
+        <param>
+          <type>int</type>
+          <declname>index</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="536" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="536" bodyend="542"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a53a2286090b6553f56945630c5d11b4b" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::Processor::toggleEditorState</definition>
+        <argsstring>(int index, NotificationType notifyEditor)</argsstring>
+        <name>toggleEditorState</name>
+        <param>
+          <type>int</type>
+          <declname>index</declname>
+        </param>
+        <param>
+          <type>NotificationType</type>
+          <declname>notifyEditor</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="544" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="544" bodyend="549"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a0e3c41077ea1033cd1ee8fede8632ef6" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool hise::Processor::getEditorState</definition>
+        <argsstring>(int state) const </argsstring>
+        <name>getEditorState</name>
+        <param>
+          <type>int</type>
+          <declname>state</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Restores the state of the <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref>&apos;s editor. It must be saved within the <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref>, because the Editor can be deleted. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="552" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="552" bodyend="557"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1aff3aacea50b25f9b1689cecb76261524" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>XmlElement *</type>
+        <definition>XmlElement* hise::Processor::getCompleteEditorState</definition>
+        <argsstring>() const </argsstring>
+        <name>getCompleteEditorState</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="559" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="559" bodyend="566"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1aca4f5a2ba4a8e1c6a4e9784d0c73861e" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::Processor::restoreCompleteEditorState</definition>
+        <argsstring>(const XmlElement *storedState)</argsstring>
+        <name>restoreCompleteEditorState</name>
+        <param>
+          <type>const XmlElement *</type>
+          <declname>storedState</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Restores the EditorState from a BigInteger that was retrieved using getCompleteEditorState. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="569" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="569" bodyend="575"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a3b681536b8c2a14068da0055cb52a044" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>DisplayValues</type>
+        <definition>DisplayValues hise::Processor::getDisplayValues</definition>
+        <argsstring>() const </argsstring>
+        <name>getDisplayValues</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="600" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="600" bodyend="600"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1adc99ceb8037e9d271c56d0169b351596" prot="public" static="no" const="yes" explicit="no" inline="no" virt="virtual">
+        <type>Identifier</type>
+        <definition>Identifier hise::Processor::getIdentifierForParameterIndex</definition>
+        <argsstring>(int parameterIndex) const </argsstring>
+        <name>getIdentifierForParameterIndex</name>
+        <reimplementedby refid="classhise_1_1_script_base_midi_processor_1a78777c7c0a5d15a4707c97999e0d5018">getIdentifierForParameterIndex</reimplementedby>
+        <param>
+          <type>int</type>
+          <declname>parameterIndex</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>This returns a Identifier with the name of the parameter.</para><para>If you want to use this feature (this lets you access Parameters with the script, you should add the parameter name for each parameter in your subtype constructor. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="776" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.cpp" bodystart="198" bodyend="203"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1ad3f06386a62273f206947a5298f0e058" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>String</type>
+        <definition>String hise::Processor::getDescriptionForParameters</definition>
+        <argsstring>(int parameterIndex)</argsstring>
+        <name>getDescriptionForParameters</name>
+        <param>
+          <type>int</type>
+          <declname>parameterIndex</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="778" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="778" bodyend="784"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1ac607da2e4413d85637bdb8300305099d" prot="public" static="no" const="yes" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int hise::Processor::getNumParameters</definition>
+        <argsstring>() const </argsstring>
+        <name>getNumParameters</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>This returns the number of (named) parameters. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="787" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.cpp" bodystart="206" bodyend="214"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1acbc46bd8c134c52250a0cea11fccc0a1" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::Processor::setIsOnAir</definition>
+        <argsstring>(bool isBeingProcessedInAudioThread)</argsstring>
+        <name>setIsOnAir</name>
+        <param>
+          <type>bool</type>
+          <declname>isBeingProcessedInAudioThread</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Call this method after inserting the processor in the signal chain.</para><para>If you call prepareToPlay before calling this method, it won&apos;t lock which makes inserting new processors nicer. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="793" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.cpp" bodystart="216" bodyend="231"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a1192cb729a22b3a42e20320b647e05c9" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool hise::Processor::isOnAir</definition>
+        <argsstring>() const noexcept</argsstring>
+        <name>isOnAir</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="795" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="795" bodyend="795"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a3859965744b4bdda417fa090270842b9" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::Processor::addDeleteListener</definition>
+        <argsstring>(DeleteListener *listener)</argsstring>
+        <name>addDeleteListener</name>
+        <param>
+          <type>DeleteListener *</type>
+          <declname>listener</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="814" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="814" bodyend="817"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a1599a1d7fa9af857089044e837aae31a" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::Processor::setIsWaitingForDeletion</definition>
+        <argsstring>()</argsstring>
+        <name>setIsWaitingForDeletion</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="819" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="819" bodyend="827"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a0d5803b9f0919326bf9613dd15d4513a" prot="public" static="no" const="yes" explicit="no" inline="yes" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool hise::Processor::isWaitingForDeletion</definition>
+        <argsstring>() const noexcept</argsstring>
+        <name>isWaitingForDeletion</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="829" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="829" bodyend="832"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a61557b32fa0c71bdd87c50b1efe96413" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::Processor::removeDeleteListener</definition>
+        <argsstring>(DeleteListener *listener)</argsstring>
+        <name>removeDeleteListener</name>
+        <param>
+          <type>DeleteListener *</type>
+          <declname>listener</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="834" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="834" bodyend="837"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1af3c7ba4d50ef6b5ef9bddcc09f73389a" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::Processor::sendDeleteMessage</definition>
+        <argsstring>()</argsstring>
+        <name>sendDeleteMessage</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="839" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.cpp" bodystart="234" bodyend="247"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a46d28c653fbffd5a8efd6699c485e2ab" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::Processor::addBypassListener</definition>
+        <argsstring>(BypassListener *l)</argsstring>
+        <name>addBypassListener</name>
+        <param>
+          <type>BypassListener *</type>
+          <declname>l</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="841" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="841" bodyend="844"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1aefdaf1f891a547073c6e80b32c8f045a" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::Processor::removeBypassListener</definition>
+        <argsstring>(BypassListener *l)</argsstring>
+        <name>removeBypassListener</name>
+        <param>
+          <type>BypassListener *</type>
+          <declname>l</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="846" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="846" bodyend="849"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a57d2ba94ee7ff6743532fef11b909172" prot="public" static="no" const="yes" explicit="no" inline="no" virt="non-virtual">
+        <type>bool</type>
+        <definition>bool hise::Processor::isRebuildMessagePending</definition>
+        <argsstring>() const noexcept</argsstring>
+        <name>isRebuildMessagePending</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="851" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.cpp" bodystart="249" bodyend="260"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1aec5ab299e22f7e0984ad10e62c05097b" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::Processor::cleanRebuildFlagForThisAndParents</definition>
+        <argsstring>()</argsstring>
+        <name>cleanRebuildFlagForThisAndParents</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="853" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.cpp" bodystart="262" bodyend="271"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a97b57ede3bfb61e69b7450d4c68cb00d" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::Processor::sendRebuildMessage</definition>
+        <argsstring>(bool forceUpdate=false)</argsstring>
+        <name>sendRebuildMessage</name>
+        <param>
+          <type>bool</type>
+          <declname>forceUpdate</declname>
+          <defval>false</defval>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="855" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.cpp" bodystart="273" bodyend="312"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a5a6fac74868f59d3a1b60d57f03d0d08" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> *</type>
+        <definition>hise::Processor * hise::Processor::getParentProcessor</definition>
+        <argsstring>(bool getOwnerSynth, bool assertIfFalse=true)</argsstring>
+        <name>getParentProcessor</name>
+        <param>
+          <type>bool</type>
+          <declname>getOwnerSynth</declname>
+        </param>
+        <param>
+          <type>bool</type>
+          <declname>assertIfFalse</declname>
+          <defval>true</defval>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="857" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.cpp" bodystart="340" bodyend="343"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a08cfd96e5cc470b98dea4f19c4f7d229" prot="public" static="no" const="yes" explicit="no" inline="no" virt="non-virtual">
+        <type>const <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> *</type>
+        <definition>const hise::Processor * hise::Processor::getParentProcessor</definition>
+        <argsstring>(bool getOwnerSynth, bool assertIfFalse=true) const </argsstring>
+        <name>getParentProcessor</name>
+        <param>
+          <type>bool</type>
+          <declname>getOwnerSynth</declname>
+        </param>
+        <param>
+          <type>bool</type>
+          <declname>assertIfFalse</declname>
+          <defval>true</defval>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="859" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.cpp" bodystart="314" bodyend="337"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a8cce39d3e4e48dfa1dc14164b1ae897d" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::Processor::setParentProcessor</definition>
+        <argsstring>(Processor *newParent)</argsstring>
+        <name>setParentProcessor</name>
+        <param>
+          <type><ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> *</type>
+          <declname>newParent</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="861" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="861" bodyend="872"/>
+      </memberdef>
+      </sectiondef>
+      <sectiondef kind="protected-func">
+      <memberdef kind="function" id="classhise_1_1_processor_1a3414a5d66ee25a3e84ebfe3f923aa400" prot="protected" static="no" const="yes" explicit="no" inline="yes" virt="virtual">
+        <type>Path</type>
+        <definition>virtual Path hise::Processor::getSpecialSymbol</definition>
+        <argsstring>() const </argsstring>
+        <name>getSpecialSymbol</name>
+        <reimplementedby refid="classhise_1_1_javascript_midi_processor_1a2c3e759bb87e816aa9752c2ce5027c6a">getSpecialSymbol</reimplementedby>
+        <reimplementedby refid="classhise_1_1_midi_processor_1a122e4442c7bbb293f465e91bff813740">getSpecialSymbol</reimplementedby>
+        <reimplementedby refid="classhise_1_1_master_effect_processor_1ac93045c5ec8a11b9aec4631598f3a259">getSpecialSymbol</reimplementedby>
+        <reimplementedby refid="classhise_1_1_voice_effect_processor_1a09854518dcbdc8049a9363aedb998b26">getSpecialSymbol</reimplementedby>
+        <reimplementedby refid="classhise_1_1_voice_start_modulator_1a8246b194320b182ca77aa8a8a35523c5">getSpecialSymbol</reimplementedby>
+        <reimplementedby refid="classhise_1_1_time_variant_modulator_1ac8f18ed2ff5e375b650c7dd31228bee2">getSpecialSymbol</reimplementedby>
+        <reimplementedby refid="classhise_1_1_envelope_modulator_1a4d8006f160650cd14978302ede9c10bf">getSpecialSymbol</reimplementedby>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Overwrite this method if you want to supply a custom symbol for the <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref>.</para><para>By default, it creates an empty Path, so you either have to set a custom Symbol using <ref refid="classhise_1_1_processor_1a3a66942de2a407d59bf8ccc687593d9e" kindref="member">setSymbol()</ref>, or overwrite the <ref refid="classhise_1_1_processor_1a3414a5d66ee25a3e84ebfe3f923aa400" kindref="member">getSpecialSymbol()</ref> method in a subclass. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="880" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="880" bodyend="880"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a0229132880aa18c7d278126cc41dfc14" prot="protected" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::Processor::setOutputValue</definition>
+        <argsstring>(float newValue)</argsstring>
+        <name>setOutputValue</name>
+        <param>
+          <type>float</type>
+          <declname>newValue</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Call this from the baseclass whenever you want its editor to display a value change. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="885" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="885" bodyend="891"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1a2fb9468a113f09a34836b4d53533967b" prot="protected" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::Processor::setInputValue</definition>
+        <argsstring>(float newValue, NotificationType notify=sendNotification)</argsstring>
+        <name>setInputValue</name>
+        <param>
+          <type>float</type>
+          <declname>newValue</declname>
+        </param>
+        <param>
+          <type>NotificationType</type>
+          <declname>notify</declname>
+          <defval>sendNotification</defval>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Call this from the baseclass whenever you want its editor to display a input value change.</para><para>For most stuff a 0.0 ... 1.0 range is assumed. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="897" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="897" bodyend="905"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1_processor_1aca0650b1c8a63ac38ca4023bdc0ef4f9" prot="protected" static="no" const="no" explicit="no" inline="no" virt="pure-virtual">
+        <type>void</type>
+        <definition>virtual void hise::Processor::setInternalAttribute</definition>
+        <argsstring>(int parameterIndex, float newValue)=0</argsstring>
+        <name>setInternalAttribute</name>
+        <reimplementedby refid="classhise_1_1_effect_processor_chain_1af9f09391a580d856e4b0183f58e7c2e3">setInternalAttribute</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_1a3a27a4359c928d8595cb3609f94470b9">setInternalAttribute</reimplementedby>
+        <reimplementedby refid="classhise_1_1_script_base_midi_processor_1a2c8827d3cac783146f07cb71fd69c8bf">setInternalAttribute</reimplementedby>
+        <reimplementedby refid="classhise_1_1_midi_player_1a9c560a51b829b799e2102ec27e4144bb">setInternalAttribute</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_synth_group_1afe1ec88b4836d8941f1c884d2877e6cf">setInternalAttribute</reimplementedby>
+        <reimplementedby refid="classhise_1_1_modulator_chain_1a783f4648506027b763a25f8a0e747938">setInternalAttribute</reimplementedby>
+        <reimplementedby refid="classhise_1_1_envelope_modulator_1a50e803f2282de421f751465aaf50399a">setInternalAttribute</reimplementedby>
+        <param>
+          <type>int</type>
+          <declname>parameterIndex</declname>
+        </param>
+        <param>
+          <type>float</type>
+          <declname>newValue</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Changes a <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> parameter.</para><para>Overwrite this method to do your handling. Call the overloaded method with the notification type parameter for external changes.</para><para><parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>parameterIndex</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>the parameter index (use a enum from the derived class) </para></parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>newValue</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>the new value between 0.0 and 1.0 </para></parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="916" column="1"/>
+      </memberdef>
+      </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+<para>The base class for all HISE modules in the signal path.</para><para>Every object within HISE that processes audio or MIDI is derived from this base class to share the following features:</para><para><itemizedlist>
+<listitem><para>handling of child processors (and special treatment for child processors which are Chains)</para></listitem><listitem><para>bypassing &amp; parameter management (using the &apos;float&apos; type for compatibility with audio processing &amp; plugin parameters): <ref refid="classhise_1_1_processor_1aecfdee3f333c808f5b165c6cae4537f6" kindref="member">setAttribute()</ref> / <ref refid="classhise_1_1_processor_1a22cf8c92e8b32874c88a9fbb41d43ea5" kindref="member">getAttribute()</ref></para></listitem><listitem><para>set input / output values for metering and visualization (<ref refid="classhise_1_1_processor_1a2fb9468a113f09a34836b4d53533967b" kindref="member">setInputValue()</ref>, <ref refid="classhise_1_1_processor_1a0229132880aa18c7d278126cc41dfc14" kindref="member">setOutputValue()</ref>)</para></listitem><listitem><para>access to the global <ref refid="classhise_1_1_main_controller" kindref="compound">MainController</ref> object (see <ref refid="classhise_1_1_controlled_object" kindref="compound">ControlledObject</ref>)</para></listitem><listitem><para>import / export via ValueTree (see <ref refid="classhise_1_1_restorable_object" kindref="compound">RestorableObject</ref>)</para></listitem><listitem><para>methods for identification (<ref refid="classhise_1_1_processor_1a83efaafd10a27f2b9c918bbaeee87866" kindref="member">getId()</ref>, <ref refid="classhise_1_1_processor_1ad2a7ca9b47734704a90fc832519cc436" kindref="member">getType()</ref>, <ref refid="classhise_1_1_processor_1a2864f53ecbf57f18062c24decaa60dc6" kindref="member">getName()</ref>, <ref refid="classhise_1_1_processor_1a4aea075c4390ce156b3537035690f896" kindref="member">getSymbol()</ref>, <ref refid="classhise_1_1_processor_1a4cb2c743b5ca88947b7a07d783d9b86a" kindref="member">getColour()</ref>)</para></listitem><listitem><para>access to the console</para></listitem></itemizedlist>
+</para><para>The general architecture of a HISE patch is a tree of <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> objects, all residing in a main container of the type <ref refid="classhise_1_1_modulator_synth_chain" kindref="compound">ModulatorSynthChain</ref> (which can be obtained using <ref refid="classhise_1_1_controlled_object_1aeb7312c0b6e319daae2f155f3dcab1f7" kindref="member">getMainController()</ref>-&gt;getMainSynthChain()). There is a small helper class <ref refid="classhise_1_1_processor_helpers" kindref="compound">ProcessorHelpers</ref>, which contains some static methods for searching &amp; checking the type of the <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref>.</para><para>Normally, you would not derive from this class directly, but use some of its less generic subclasses (<ref refid="classhise_1_1_midi_processor" kindref="compound">MidiProcessor</ref>, <ref refid="classhise_1_1_modulator" kindref="compound">Modulator</ref>, <ref refid="classhise_1_1_effect_processor" kindref="compound">EffectProcessor</ref> or <ref refid="classhise_1_1_modulator_synth" kindref="compound">ModulatorSynth</ref>). There are also some additional interface classes to extend the <ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> class with specific features: <ref refid="group__processor__interfaces" kindref="compound">Processor Interface Classes</ref> </para>    </detaileddescription>
+    <inheritancegraph>
+      <node id="2606">
+        <label>hise::MidiPlayer</label>
+        <link refid="classhise_1_1_midi_player"/>
+        <childnode refid="2605" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2607">
+        <label>hise::ScriptBaseMidiProcessor</label>
+        <link refid="classhise_1_1_script_base_midi_processor"/>
+        <childnode refid="2605" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2610">
+        <label>hise::CCSwapper</label>
+        <link refid="classhise_1_1_c_c_swapper"/>
+        <childnode refid="2608" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2597">
+        <label>hise::SafeChangeBroadcaster</label>
+        <link refid="classhise_1_1_safe_change_broadcaster"/>
+      </node>
+      <node id="2613">
+        <label>hise::DemoHardcodedScriptProcessor</label>
+        <link refid="classhise_1_1_demo_hardcoded_script_processor"/>
+        <childnode refid="2608" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2608">
+        <label>hise::HardcodedScriptProcessor</label>
+        <link refid="classhise_1_1_hardcoded_script_processor"/>
+        <childnode refid="2607" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2621">
+        <label>hise::MonophonicEnvelope</label>
+        <link refid="classhise_1_1_monophonic_envelope"/>
+        <childnode refid="2619" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2601">
+        <label>hise::EffectProcessor</label>
+        <link refid="classhise_1_1_effect_processor"/>
+        <childnode refid="2596" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2603">
+        <label>hise::VoiceEffectProcessor</label>
+        <link refid="classhise_1_1_voice_effect_processor"/>
+        <childnode refid="2601" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2622">
+        <label>hise::TimeVariantModulator</label>
+        <link refid="classhise_1_1_time_variant_modulator"/>
+        <childnode refid="2618" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2624">
+        <label>hise::ModulatorSynth</label>
+        <link refid="classhise_1_1_modulator_synth"/>
+        <childnode refid="2596" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2612">
+        <label>hise::ChannelSetterScriptProcessor</label>
+        <link refid="classhise_1_1_channel_setter_script_processor"/>
+        <childnode refid="2608" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2626">
+        <label>hise::ModulatorSynthGroup</label>
+        <link refid="classhise_1_1_modulator_synth_group"/>
+        <childnode refid="2624" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2616">
+        <label>hise::ReleaseTriggerScriptProcessor</label>
+        <link refid="classhise_1_1_release_trigger_script_processor"/>
+        <childnode refid="2608" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2615">
+        <label>hise::MuteAllScriptProcessor</label>
+        <link refid="classhise_1_1_mute_all_script_processor"/>
+        <childnode refid="2608" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2604">
+        <label>hise::EffectProcessorChain</label>
+        <link refid="classhise_1_1_effect_processor_chain"/>
+        <childnode refid="2596" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2609">
+        <label>hise::Arpeggiator</label>
+        <link refid="classhise_1_1_arpeggiator"/>
+        <childnode refid="2608" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2618">
+        <label>hise::Modulator</label>
+        <link refid="classhise_1_1_modulator"/>
+        <childnode refid="2596" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2619">
+        <label>hise::EnvelopeModulator</label>
+        <link refid="classhise_1_1_envelope_modulator"/>
+        <childnode refid="2618" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2605">
+        <label>hise::MidiProcessor</label>
+        <link refid="classhise_1_1_midi_processor"/>
+        <childnode refid="2596" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2599">
+        <label>hise::ControlledObject</label>
+        <link refid="classhise_1_1_controlled_object"/>
+      </node>
+      <node id="2625">
+        <label>hise::ModulatorSynthChain</label>
+        <link refid="classhise_1_1_modulator_synth_chain"/>
+        <childnode refid="2624" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2598">
+        <label>hise::RestorableObject</label>
+        <link refid="classhise_1_1_restorable_object"/>
+      </node>
+      <node id="2617">
+        <label>hise::JavascriptMidiProcessor</label>
+        <link refid="classhise_1_1_javascript_midi_processor"/>
+        <childnode refid="2607" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2620">
+        <label>hise::ModulatorChain</label>
+        <link refid="classhise_1_1_modulator_chain"/>
+        <childnode refid="2619" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2602">
+        <label>hise::MasterEffectProcessor</label>
+        <link refid="classhise_1_1_master_effect_processor"/>
+        <childnode refid="2601" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2614">
+        <label>hise::LegatoProcessor</label>
+        <link refid="classhise_1_1_legato_processor"/>
+        <childnode refid="2608" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2611">
+        <label>hise::ChannelFilterScriptProcessor</label>
+        <link refid="classhise_1_1_channel_filter_script_processor"/>
+        <childnode refid="2608" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2596">
+        <label>hise::Processor</label>
+        <link refid="classhise_1_1_processor"/>
+        <childnode refid="2597" relation="public-inheritance">
+        </childnode>
+        <childnode refid="2598" relation="public-inheritance">
+        </childnode>
+        <childnode refid="2599" relation="public-inheritance">
+        </childnode>
+        <childnode refid="2600" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2600">
+        <label>hise::Dispatchable</label>
+        <link refid="structhise_1_1_dispatchable"/>
+      </node>
+      <node id="2623">
+        <label>hise::VoiceStartModulator</label>
+        <link refid="classhise_1_1_voice_start_modulator"/>
+        <childnode refid="2618" relation="public-inheritance">
+        </childnode>
+      </node>
+    </inheritancegraph>
+    <collaborationgraph>
+      <node id="2628">
+        <label>hise::SafeChangeBroadcaster</label>
+        <link refid="classhise_1_1_safe_change_broadcaster"/>
+      </node>
+      <node id="2630">
+        <label>hise::ControlledObject</label>
+        <link refid="classhise_1_1_controlled_object"/>
+      </node>
+      <node id="2629">
+        <label>hise::RestorableObject</label>
+        <link refid="classhise_1_1_restorable_object"/>
+      </node>
+      <node id="2627">
+        <label>hise::Processor</label>
+        <link refid="classhise_1_1_processor"/>
+        <childnode refid="2628" relation="public-inheritance">
+        </childnode>
+        <childnode refid="2629" relation="public-inheritance">
+        </childnode>
+        <childnode refid="2630" relation="public-inheritance">
+        </childnode>
+        <childnode refid="2631" relation="public-inheritance">
+        </childnode>
+      </node>
+      <node id="2631">
+        <label>hise::Dispatchable</label>
+        <link refid="structhise_1_1_dispatchable"/>
+      </node>
+    </collaborationgraph>
+    <location file="D:/Development/HISE modules/hi_dsp/Processor.h" line="210" column="1" bodyfile="D:/Development/HISE modules/hi_dsp/Processor.h" bodystart="206" bodyend="971"/>
+    <listofallmembers>
+      <member refid="classhise_1_1_processor_1a46d28c653fbffd5a8efd6699c485e2ab" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>addBypassListener</name></member>
+      <member refid="classhise_1_1_safe_change_broadcaster_1a521ebae8411a718678580c4fcfde646e" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>addChangeListener</name></member>
+      <member refid="classhise_1_1_processor_1a3859965744b4bdda417fa090270842b9" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>addDeleteListener</name></member>
+      <member refid="classhise_1_1_pooled_u_i_updater_1_1_broadcaster_1a7551f3614ccc8e4b6121cefc5721d4a0" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>addPooledChangeListener</name></member>
+      <member refid="classhise_1_1_processor_1a7843f45218e53132ed06d68238c32fb6afd42fb80ec139cfdd071bfb02c1a4443" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>BodyShown</name></member>
+      <member refid="classhise_1_1_pooled_u_i_updater_1_1_broadcaster_1ad6c5452d465994d6c39fc8752c77e3cb" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>Broadcaster</name></member>
+      <member refid="classhise_1_1_processor_1a4c8279764c3541402e97250513b40e2b" prot="private" virt="non-virtual"><scope>hise::Processor</scope><name>bypassed</name></member>
+      <member refid="classhise_1_1_processor_1af35fa26ef30c866a6d5aec8053dc851a" prot="private" virt="non-virtual"><scope>hise::Processor</scope><name>bypassListeners</name></member>
+      <member refid="classhise_1_1_processor_1a101daff096cc561c5bc31e34fa293672" prot="private" virt="non-virtual"><scope>hise::Processor</scope><name>chains</name></member>
+      <member refid="classhise_1_1_processor_1aec5ab299e22f7e0984ad10e62c05097b" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>cleanRebuildFlagForThisAndParents</name></member>
+      <member refid="classhise_1_1_processor_1a042001b684a389e4cc7a185332fca8b6" prot="protected" virt="non-virtual"><scope>hise::Processor</scope><name>consoleEnabled</name></member>
+      <member refid="classhise_1_1_controlled_object_1a5939c875190a8c6b985f2ad8c5cf3107" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>ControlledObject</name></member>
+      <member refid="classhise_1_1_processor_1afee66240cc304edb1d20b03f5f0b2aa1" prot="public" virt="virtual"><scope>hise::Processor</scope><name>createDocumentation</name></member>
+      <member refid="classhise_1_1_processor_1ac84b7bf6203e771abc73d5caa871fc3f" prot="public" virt="pure-virtual"><scope>hise::Processor</scope><name>createEditor</name></member>
+      <member refid="classhise_1_1_processor_1acbd09a4268816dd7dc133434f5cc94a1" prot="protected" virt="non-virtual"><scope>hise::Processor</scope><name>currentValues</name></member>
+      <member refid="classhise_1_1_processor_1ac9a2d14b383b0b51787d8bf5327a0d07" prot="private" virt="non-virtual"><scope>hise::Processor</scope><name>deleteListeners</name></member>
+      <member refid="classhise_1_1_processor_1a9719c5f2115e62c7fdf048a4f39789f8" prot="private" virt="non-virtual"><scope>hise::Processor</scope><name>dummyLock</name></member>
+      <member refid="classhise_1_1_processor_1ae0cde39016e0e0498246be09b1ac4085" prot="private" virt="non-virtual"><scope>hise::Processor</scope><name>editorState</name></member>
+      <member refid="classhise_1_1_processor_1a7843f45218e53132ed06d68238c32fb6" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>EditorState</name></member>
+      <member refid="classhise_1_1_processor_1a282a01312648275b56c08a1d6b5316ba" prot="private" virt="non-virtual"><scope>hise::Processor</scope><name>editorStateAsBoolList</name></member>
+      <member refid="classhise_1_1_processor_1a9e22be749f8ef522a56ca2d8382b72a2" prot="protected" virt="non-virtual"><scope>hise::Processor</scope><name>editorStateIdentifiers</name></member>
+      <member refid="classhise_1_1_processor_1a60d0c08b7c3cc616a354b41f6b1f1836" prot="private" virt="non-virtual"><scope>hise::Processor</scope><name>editorStateValueSet</name></member>
+      <member refid="classhise_1_1_processor_1a6050f885583f8289dbff89548386ecf6" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>enableConsoleOutput</name></member>
+      <member refid="classhise_1_1_safe_change_broadcaster_1a809ce4026e745812703cf4187979b918" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>enablePooledUpdate</name></member>
+      <member refid="classhise_1_1_processor_1a1a6a4b75c327c85dc4a033ffb4ea2bab" prot="public" virt="virtual"><scope>hise::Processor</scope><name>exportAsValueTree</name></member>
+      <member refid="classhise_1_1_processor_1a7843f45218e53132ed06d68238c32fb6a12c32a9e482627e9f3e9be8ae345c183" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>Folded</name></member>
+      <member refid="structhise_1_1_dispatchable_1a14c20d02eb925002bce908ac067bd444" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>Function</name></member>
+      <member refid="classhise_1_1_processor_1a22cf8c92e8b32874c88a9fbb41d43ea5" prot="public" virt="pure-virtual"><scope>hise::Processor</scope><name>getAttribute</name></member>
+      <member refid="classhise_1_1_processor_1a3df9a4e163c03766bdc1dd1521a27dc2" prot="public" virt="pure-virtual"><scope>hise::Processor</scope><name>getChildProcessor</name></member>
+      <member refid="classhise_1_1_processor_1adb0d325fb0a8ad4bc0e2cba47de2ad36" prot="public" virt="pure-virtual"><scope>hise::Processor</scope><name>getChildProcessor</name></member>
+      <member refid="classhise_1_1_processor_1a4cb2c743b5ca88947b7a07d783d9b86a" prot="public" virt="virtual"><scope>hise::Processor</scope><name>getColour</name></member>
+      <member refid="classhise_1_1_processor_1aff3aacea50b25f9b1689cecb76261524" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>getCompleteEditorState</name></member>
+      <member refid="classhise_1_1_processor_1a5402502339ab8dac16271369a92070c3" prot="public" virt="virtual"><scope>hise::Processor</scope><name>getDefaultValue</name></member>
+      <member refid="classhise_1_1_processor_1ac4667da3c7fa12b6e745daed9260260c" prot="public" virt="pure-virtual"><scope>hise::Processor</scope><name>getDescription</name></member>
+      <member refid="classhise_1_1_processor_1ad3f06386a62273f206947a5298f0e058" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>getDescriptionForParameters</name></member>
+      <member refid="classhise_1_1_processor_1a3b681536b8c2a14068da0055cb52a044" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>getDisplayValues</name></member>
+      <member refid="classhise_1_1_processor_1a268d9d14efbf5be00c21424a337a1700" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>getEditorState</name></member>
+      <member refid="classhise_1_1_processor_1a0e3c41077ea1033cd1ee8fede8632ef6" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>getEditorState</name></member>
+      <member refid="classhise_1_1_processor_1a74424eeebb9f332024743b9647b1e75b" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>getEditorStateForIndex</name></member>
+      <member refid="classhise_1_1_processor_1a83efaafd10a27f2b9c918bbaeee87866" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>getId</name></member>
+      <member refid="classhise_1_1_processor_1a8a4682dfb06dc8c2cbf1b41fb022a3c3" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>getIDAsIdentifier</name></member>
+      <member refid="classhise_1_1_processor_1adc99ceb8037e9d271c56d0169b351596" prot="public" virt="virtual"><scope>hise::Processor</scope><name>getIdentifierForParameterIndex</name></member>
+      <member refid="classhise_1_1_processor_1af9647800c371adbb9c43a2e1cac9898a" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>getInputValue</name></member>
+      <member refid="classhise_1_1_processor_1a4a0ac5b97cbaeb30ecc056324994c644" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>getLargestBlockSize</name></member>
+      <member refid="classhise_1_1_controlled_object_1ae8e59a6130e7af1ac02a999168946795" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>getMainController</name></member>
+      <member refid="classhise_1_1_controlled_object_1aeb7312c0b6e319daae2f155f3dcab1f7" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>getMainController</name></member>
+      <member refid="classhise_1_1_processor_1a2864f53ecbf57f18062c24decaa60dc6" prot="public" virt="virtual"><scope>hise::Processor</scope><name>getName</name></member>
+      <member refid="classhise_1_1_processor_1a2fa68ab906d08f7eed5cdb228a52cba4" prot="public" virt="pure-virtual"><scope>hise::Processor</scope><name>getNumChildProcessors</name></member>
+      <member refid="classhise_1_1_processor_1a2fd0030d59ffc0cc4259dc74b0d4cb68" prot="public" virt="virtual"><scope>hise::Processor</scope><name>getNumInternalChains</name></member>
+      <member refid="classhise_1_1_processor_1ac607da2e4413d85637bdb8300305099d" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>getNumParameters</name></member>
+      <member refid="classhise_1_1_processor_1af70b9568d82e34978c0b74f1ad69b4f0" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>getOutputValue</name></member>
+      <member refid="classhise_1_1_processor_1a5a6fac74868f59d3a1b60d57f03d0d08" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>getParentProcessor</name></member>
+      <member refid="classhise_1_1_processor_1a08cfd96e5cc470b98dea4f19c4f7d229" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>getParentProcessor</name></member>
+      <member refid="classhise_1_1_processor_1aa6a5bf92169f954f882edda1f8d6153e" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>getSampleRate</name></member>
+      <member refid="classhise_1_1_processor_1a3414a5d66ee25a3e84ebfe3f923aa400" prot="protected" virt="virtual"><scope>hise::Processor</scope><name>getSpecialSymbol</name></member>
+      <member refid="classhise_1_1_processor_1a4aea075c4390ce156b3537035690f896" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>getSymbol</name></member>
+      <member refid="classhise_1_1_processor_1ad2a7ca9b47734704a90fc832519cc436" prot="public" virt="pure-virtual"><scope>hise::Processor</scope><name>getType</name></member>
+      <member refid="classhise_1_1_processor_1af552a67d2e79483c9a950104b6efd2b3" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>getVoiceAmount</name></member>
+      <member refid="classhise_1_1_safe_change_broadcaster_1a93d6ee67c92d20fe724432c3f37ee08a" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>hasChangeListeners</name></member>
+      <member refid="classhise_1_1_processor_1ab7ba4c447978a50fdedd4166f8fc82f2" prot="private" virt="non-virtual"><scope>hise::Processor</scope><name>id</name></member>
+      <member refid="classhise_1_1_processor_1ab0efc09f25e361f87581b18d4075d52a" prot="private" virt="non-virtual"><scope>hise::Processor</scope><name>idAsIdentifier</name></member>
+      <member refid="classhise_1_1_processor_1a27d963535183cc482cd12e6fc4b35a0e" prot="private" virt="non-virtual"><scope>hise::Processor</scope><name>inputValue</name></member>
+      <member refid="classhise_1_1_processor_1a20388d324e09206b512b5c76e7e2beb2" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>InternalChains</name></member>
+      <member refid="classhise_1_1_processor_1ad46dd948912d4a512b5ccf3e8b81d61c" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>isBypassed</name></member>
+      <member refid="classhise_1_1_pooled_u_i_updater_1_1_broadcaster_1a0e103b9ef0d56a61e077f18f69a84aab" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>isHandlerInitialised</name></member>
+      <member refid="classhise_1_1_processor_1a1192cb729a22b3a42e20320b647e05c9" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>isOnAir</name></member>
+      <member refid="classhise_1_1_processor_1a57d2ba94ee7ff6743532fef11b909172" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>isRebuildMessagePending</name></member>
+      <member refid="classhise_1_1_processor_1a2757dfd1df0b83113f0825e0ae8cc4c9" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>isValidAndInitialised</name></member>
+      <member refid="classhise_1_1_processor_1a0d5803b9f0919326bf9613dd15d4513a" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>isWaitingForDeletion</name></member>
+      <member refid="classhise_1_1_processor_1a950bbb4f3d48907d683b74f55b747587" prot="private" virt="non-virtual"><scope>hise::Processor</scope><name>largestBlockSize</name></member>
+      <member refid="classhise_1_1_controlled_object_1a008d5066f54e27a36ab2a803fcf76bc8" prot="public" virt="virtual"><scope>hise::Processor</scope><name>mainControllerIsDeleted</name></member>
+      <member refid="classhise_1_1_processor_1aae757cbd43f151aa289afe589157d899" prot="private" virt="non-virtual"><scope>hise::Processor</scope><name>masterReference</name></member>
+      <member refid="classhise_1_1_processor_1a7843f45218e53132ed06d68238c32fb6a19c9a8a393aba68792d5457b6d29d3ed" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>numEditorStates</name></member>
+      <member refid="classhise_1_1_processor_1a695b60227dca8198fd49e9a05422a800a41308763ae1c594ccbf478485156535f" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>numParameters</name></member>
+      <member refid="classhise_1_1_processor_1afcb23ddb247d6ec8b327ba76513d6ac7" prot="private" virt="non-virtual"><scope>hise::Processor</scope><name>numVoices</name></member>
+      <member refid="classhise_1_1_processor_1ae4207a6e8a85d663dea0de14d4780f8a" prot="private" virt="non-virtual"><scope>hise::Processor</scope><name>onAir</name></member>
+      <member refid="classhise_1_1_processor_1a5c5ac3c90542d971a4824ef8c97b9e6d" prot="private" virt="non-virtual"><scope>hise::Processor</scope><name>outputValue</name></member>
+      <member refid="classhise_1_1_processor_1acd09a082fa863d1f5128e51dc2ff1cb9" prot="protected" virt="non-virtual"><scope>hise::Processor</scope><name>parameterDescriptions</name></member>
+      <member refid="classhise_1_1_processor_1a10b6886e6942a8ac8c37696eb69dab5e" prot="protected" virt="non-virtual"><scope>hise::Processor</scope><name>parameterNames</name></member>
+      <member refid="classhise_1_1_processor_1a4c0c4e1603fb5e343e1d82557ef6e5ba" prot="private" virt="non-virtual"><scope>hise::Processor</scope><name>parentProcessor</name></member>
+      <member refid="classhise_1_1_pooled_u_i_updater_1_1_broadcaster_1a9140b34fefa971abac8d9d486e172ed5" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>pending</name></member>
+      <member refid="classhise_1_1_processor_1aed0714e289dae3316903bf27341a9206" prot="private" virt="non-virtual"><scope>hise::Processor</scope><name>pendingDelete</name></member>
+      <member refid="classhise_1_1_processor_1a203a0f54d3c3fed1e9527a339adb825a" prot="public" virt="virtual"><scope>hise::Processor</scope><name>prepareToPlay</name></member>
+      <member refid="classhise_1_1_processor_1a478dfc43984cd437270ac1084ecd6d72" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>Processor</name></member>
+      <member refid="classhise_1_1_processor_1a767d55167388ba6b8d8189696db11d1a" prot="private" virt="non-virtual"><scope>hise::Processor</scope><name>rebuildMessagePending</name></member>
+      <member refid="classhise_1_1_safe_change_broadcaster_1af33469e30997297a70c2d347edcc2a76" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>removeAllChangeListeners</name></member>
+      <member refid="classhise_1_1_processor_1aefdaf1f891a547073c6e80b32c8f045a" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>removeBypassListener</name></member>
+      <member refid="classhise_1_1_safe_change_broadcaster_1a70476c49eadbf2bcd7a856dc458edb09" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>removeChangeListener</name></member>
+      <member refid="classhise_1_1_processor_1a61557b32fa0c71bdd87c50b1efe96413" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>removeDeleteListener</name></member>
+      <member refid="classhise_1_1_pooled_u_i_updater_1_1_broadcaster_1a5122ba7da38224f453a709cb3ad7697d" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>removePooledChangeListener</name></member>
+      <member refid="classhise_1_1_processor_1aca4f5a2ba4a8e1c6a4e9784d0c73861e" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>restoreCompleteEditorState</name></member>
+      <member refid="classhise_1_1_processor_1aca0c491c0c57341b6dfdcf7ad4be1fad" prot="public" virt="virtual"><scope>hise::Processor</scope><name>restoreFromValueTree</name></member>
+      <member refid="classhise_1_1_safe_change_broadcaster_1a18374464c51ac1139b4b035e6eafa79b" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>SafeChangeBroadcaster</name></member>
+      <member refid="classhise_1_1_processor_1a4b894ecc0d4787f2328bf6411e2f4f18" prot="private" virt="non-virtual"><scope>hise::Processor</scope><name>samplerate</name></member>
+      <member refid="classhise_1_1_safe_change_broadcaster_1a3a0eeac1c29365f476b2245487e4ebf9" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>sendAllocationFreeChangeMessage</name></member>
+      <member refid="classhise_1_1_safe_change_broadcaster_1a457e15a37d69a4f7bf0435a88bd71753" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>sendChangeMessage</name></member>
+      <member refid="classhise_1_1_processor_1af3c7ba4d50ef6b5ef9bddcc09f73389a" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>sendDeleteMessage</name></member>
+      <member refid="classhise_1_1_pooled_u_i_updater_1_1_broadcaster_1aa29e372eec3ad3d23135ecbd680d192a" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>sendPooledChangeMessage</name></member>
+      <member refid="classhise_1_1_processor_1a97b57ede3bfb61e69b7450d4c68cb00d" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>sendRebuildMessage</name></member>
+      <member refid="classhise_1_1_processor_1ab39487a14ac940d1dd58af295775c9bf" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>sendSynchronousBypassChangeMessage</name></member>
+      <member refid="classhise_1_1_safe_change_broadcaster_1ab95befafc0c230416ad27531b00e25b6" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>sendSynchronousChangeMessage</name></member>
+      <member refid="classhise_1_1_processor_1aecfdee3f333c808f5b165c6cae4537f6" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>setAttribute</name></member>
+      <member refid="classhise_1_1_processor_1a11989e1350a0132e348ced4e63ec6ee3" prot="public" virt="virtual"><scope>hise::Processor</scope><name>setBypassed</name></member>
+      <member refid="classhise_1_1_processor_1ac1c030bf02e30315ed22fcf7da7fda7b" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>setConstrainerForAllInternalChains</name></member>
+      <member refid="classhise_1_1_processor_1a0c0dab68fe966ee73751290f3b1c01de" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>setEditorState</name></member>
+      <member refid="classhise_1_1_processor_1a882419a38d3caa2a5801a757351a122c" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>setEditorState</name></member>
+      <member refid="classhise_1_1_pooled_u_i_updater_1_1_broadcaster_1a4ed59fd9f8821845ec170b88aa4c6ed5" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>setHandler</name></member>
+      <member refid="classhise_1_1_processor_1a2705953be730a155538893b25283f303" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>setId</name></member>
+      <member refid="classhise_1_1_processor_1a2fb9468a113f09a34836b4d53533967b" prot="protected" virt="non-virtual"><scope>hise::Processor</scope><name>setInputValue</name></member>
+      <member refid="classhise_1_1_processor_1aca0650b1c8a63ac38ca4023bdc0ef4f9" prot="protected" virt="pure-virtual"><scope>hise::Processor</scope><name>setInternalAttribute</name></member>
+      <member refid="classhise_1_1_processor_1acbc46bd8c134c52250a0cea11fccc0a1" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>setIsOnAir</name></member>
+      <member refid="classhise_1_1_processor_1a1599a1d7fa9af857089044e837aae31a" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>setIsWaitingForDeletion</name></member>
+      <member refid="classhise_1_1_processor_1a0229132880aa18c7d278126cc41dfc14" prot="protected" virt="non-virtual"><scope>hise::Processor</scope><name>setOutputValue</name></member>
+      <member refid="classhise_1_1_processor_1a8cce39d3e4e48dfa1dc14164b1ae897d" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>setParentProcessor</name></member>
+      <member refid="classhise_1_1_processor_1a3a66942de2a407d59bf8ccc687593d9e" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>setSymbol</name></member>
+      <member refid="classhise_1_1_processor_1a7843f45218e53132ed06d68238c32fb6adcfe19adcbccac2b2a0bda6f383df0cc" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>Solo</name></member>
+      <member refid="classhise_1_1_processor_1a695b60227dca8198fd49e9a05422a800" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>SpecialParameters</name></member>
+      <member refid="structhise_1_1_dispatchable_1aca0bd944ce2c575feacbac1b4d389444" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>Status</name></member>
+      <member refid="classhise_1_1_processor_1ae811581792d4e462a6b47ebf5e17a50c" prot="private" virt="non-virtual"><scope>hise::Processor</scope><name>symbol</name></member>
+      <member refid="classhise_1_1_processor_1a53a2286090b6553f56945630c5d11b4b" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>toggleEditorState</name></member>
+      <member refid="classhise_1_1_processor_1a7843f45218e53132ed06d68238c32fb6afc1a0d36f56e03e3cb7571f2a60b4aba" prot="public" virt="non-virtual"><scope>hise::Processor</scope><name>Visible</name></member>
+      <member refid="classhise_1_1_processor_1aa132d1eb648d416487f744b04b55147c" prot="private" virt="non-virtual"><scope>hise::Processor</scope><name>visible</name></member>
+      <member refid="classhise_1_1_pooled_u_i_updater_1_1_broadcaster_1a214c4726a083bedb6b5766f01512c4c6" prot="public" virt="virtual"><scope>hise::Processor</scope><name>~Broadcaster</name></member>
+      <member refid="classhise_1_1_controlled_object_1a7671d32f27b658b281a1daee2ed4ffe8" prot="public" virt="virtual"><scope>hise::Processor</scope><name>~ControlledObject</name></member>
+      <member refid="structhise_1_1_dispatchable_1aaced68bfc29de898f4aa2ec498637e19" prot="public" virt="virtual"><scope>hise::Processor</scope><name>~Dispatchable</name></member>
+      <member refid="classhise_1_1_processor_1ae2ddf2b31f010670078eb30ef6ea64f0" prot="public" virt="virtual"><scope>hise::Processor</scope><name>~Processor</name></member>
+      <member refid="classhise_1_1_restorable_object_1a6c34009ff53273c844a171605b492527" prot="public" virt="virtual"><scope>hise::Processor</scope><name>~RestorableObject</name></member>
+      <member refid="classhise_1_1_safe_change_broadcaster_1ad5c48d84ded9e83fe41e2a7d73900c53" prot="public" virt="virtual"><scope>hise::Processor</scope><name>~SafeChangeBroadcaster</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>

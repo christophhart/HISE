@@ -1,0 +1,280 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.8.6">
+  <compounddef id="classhise_1_1raw_1_1_builder" kind="class" prot="public">
+    <compoundname>hise::raw::Builder</compoundname>
+    <includes refid="raw__builder_8h" local="no">raw_builder.h</includes>
+      <sectiondef kind="private-attrib">
+      <memberdef kind="variable" id="classhise_1_1raw_1_1_builder_1a197d9d7920d20fc8f9a1fec3ded41d2f" prot="private" static="no" mutable="no">
+        <type><ref refid="classhise_1_1_main_controller" kindref="compound">MainController</ref> *</type>
+        <definition>MainController* hise::raw::Builder::mc</definition>
+        <argsstring></argsstring>
+        <name>mc</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_builder.h" line="150" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_builder.h" bodystart="150" bodyend="-1"/>
+      </memberdef>
+      </sectiondef>
+      <sectiondef kind="public-func">
+      <memberdef kind="function" id="classhise_1_1raw_1_1_builder_1ae890ad8949a38cbbebcf776b43e73d43" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type></type>
+        <definition>hise::raw::Builder::Builder</definition>
+        <argsstring>(MainController *mc_)</argsstring>
+        <name>Builder</name>
+        <param>
+          <type><ref refid="classhise_1_1_main_controller" kindref="compound">MainController</ref> *</type>
+          <declname>mc_</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_builder.h" line="99" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_builder.h" bodystart="99" bodyend="107"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1raw_1_1_builder_1a0866ef40d8ae7b146608d02428d7bf2c" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>class T</type>
+          </param>
+        </templateparamlist>
+        <type><ref refid="classhise_1_1raw_1_1_reference" kindref="compound">Reference</ref>&lt; T &gt;</type>
+        <definition>Reference&lt;T&gt; hise::raw::Builder::find</definition>
+        <argsstring>(const String &amp;name)</argsstring>
+        <name>find</name>
+        <param>
+          <type>const String &amp;</type>
+          <declname>name</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Finds and creates a reference object to the module with the given ID. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_builder.h" line="110" column="1"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1raw_1_1_builder_1ad1c8dc5a7c32c962b440cb06d16cd0fc" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>class T</type>
+          </param>
+        </templateparamlist>
+        <type>void</type>
+        <definition>void hise::raw::Builder::add</definition>
+        <argsstring>(T *processor, Processor *parent, int chainIndex=IDs::Chains::Direct)</argsstring>
+        <name>add</name>
+        <param>
+          <type>T *</type>
+          <declname>processor</declname>
+        </param>
+        <param>
+          <type><ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> *</type>
+          <declname>parent</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>chainIndex</declname>
+          <defval><ref refid="namespacehise_1_1raw_1_1_i_ds_1_1_chains_1a3c50974b8f9d13dc1046b784bf9feca6" kindref="member">IDs::Chains::Direct</ref></defval>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Adds the given module to the parent processor. Specify the chainIndex for modulators / effects. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_builder.h" line="113" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_builder_impl.h" bodystart="49" bodyend="65"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1raw_1_1_builder_1a0d9bc76c104fe3a87064780ba111df46" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>class T</type>
+          </param>
+        </templateparamlist>
+        <type>T *</type>
+        <definition>T * hise::raw::Builder::create</definition>
+        <argsstring>(Processor *parent, int chainIndex=IDs::Chains::Direct)</argsstring>
+        <name>create</name>
+        <param>
+          <type><ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> *</type>
+          <declname>parent</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>chainIndex</declname>
+          <defval><ref refid="namespacehise_1_1raw_1_1_i_ds_1_1_chains_1a3c50974b8f9d13dc1046b784bf9feca6" kindref="member">IDs::Chains::Direct</ref></defval>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Creates a module of the given class and adds it to the parent with the specified chainIndex. See ChainIndexes.</para><para>This only works with HISE modules that are registered at one of the factories, so if you want to add a custom module, use the <ref refid="classhise_1_1raw_1_1_builder_1ad1c8dc5a7c32c962b440cb06d16cd0fc" kindref="member">add()</ref> function instead. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_builder.h" line="120" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_builder_impl.h" bodystart="90" bodyend="117"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1raw_1_1_builder_1af0262ad8700d5042347fda46e51b062f" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>class T</type>
+          </param>
+        </templateparamlist>
+        <type>bool</type>
+        <definition>bool hise::raw::Builder::remove</definition>
+        <argsstring>(Processor *p)</argsstring>
+        <name>remove</name>
+        <param>
+          <type><ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> *</type>
+          <declname>p</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Removes a processor and all its child processors from the signal path. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_builder.h" line="123" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_builder_impl.h" bodystart="84" bodyend="87"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1raw_1_1_builder_1a73dfda31705ab8516fbb8e8bb55e3eaa" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> *</type>
+        <definition>Processor * hise::raw::Builder::createFromBase64State</definition>
+        <argsstring>(const String &amp;base64EncodedString, Processor *parent, int chainIndex=IDs::Chains::Direct)</argsstring>
+        <name>createFromBase64State</name>
+        <param>
+          <type>const String &amp;</type>
+          <declname>base64EncodedString</declname>
+        </param>
+        <param>
+          <type><ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> *</type>
+          <declname>parent</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>chainIndex</declname>
+          <defval><ref refid="namespacehise_1_1raw_1_1_i_ds_1_1_chains_1a3c50974b8f9d13dc1046b784bf9feca6" kindref="member">IDs::Chains::Direct</ref></defval>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Creates a module from the given Base64 encoded String and adds it to the parent module with the suppliedChainIndex. </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_builder.h" line="126" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_builder.cpp" bodystart="10" bodyend="24"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1raw_1_1_builder_1a05f893613d7ef358091f5208bd639d0e" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>void</type>
+        <definition>void hise::raw::Builder::setAttributes</definition>
+        <argsstring>(Processor *p, const AttributeCollection &amp;collection)</argsstring>
+        <name>setAttributes</name>
+        <param>
+          <type><ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> *</type>
+          <declname>p</declname>
+        </param>
+        <param>
+          <type>const <ref refid="namespacehise_1_1raw_1a2eee84f75b4bbbe3ad0decbcb62a02a9" kindref="member">AttributeCollection</ref> &amp;</type>
+          <declname>collection</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Sets all the attributes from the given collection.</para><para>You can use std::initialiser_lists for a clean syntax:</para><para><programlisting><codeline><highlight class="normal"><ref refid="namespacehise_1_1raw_1a2eee84f75b4bbbe3ad0decbcb62a02a9" kindref="member">AttributeCollection</ref><sp/>c<sp/>=</highlight></codeline>
+<codeline><highlight class="normal">{</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>{<sp/>SimpleEnvelope::Attack,<sp/>10.0f<sp/>},</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>{<sp/>SimpleEnvelope::Release,<sp/>248.0f<sp/>}</highlight></codeline>
+<codeline><highlight class="normal">};</highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keywordflow">for</highlight><highlight class="normal">(</highlight><highlight class="keyword">auto</highlight><highlight class="normal">*<sp/>envelope:<sp/>myEnvelopes)</highlight></codeline>
+<codeline><highlight class="normal"><sp/><sp/><sp/><sp/>builder.setAttributes(envelope,<sp/>c);</highlight></codeline>
+</programlisting> </para>        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_builder.h" line="144" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_builder.cpp" bodystart="26" bodyend="32"/>
+      </memberdef>
+      <memberdef kind="function" id="classhise_1_1raw_1_1_builder_1adb88762517010f39aea987dbe722ccca" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>class T</type>
+          </param>
+        </templateparamlist>
+        <type><ref refid="classhise_1_1raw_1_1_reference" kindref="compound">raw::Reference</ref>&lt; T &gt;</type>
+        <definition>raw::Reference&lt;T&gt; hise::raw::Builder::find</definition>
+        <argsstring>(const String &amp;name)</argsstring>
+        <name>find</name>
+        <param>
+          <type>const String &amp;</type>
+          <declname>name</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_builder_impl.h" line="42" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_builder_impl.h" bodystart="42" bodyend="45"/>
+      </memberdef>
+      </sectiondef>
+      <sectiondef kind="private-func">
+      <memberdef kind="function" id="classhise_1_1raw_1_1_builder_1a1fc972e5164d099a45510f548f986318" prot="private" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <templateparamlist>
+          <param>
+            <type>class T</type>
+          </param>
+        </templateparamlist>
+        <type>T *</type>
+        <definition>T * hise::raw::Builder::addInternal</definition>
+        <argsstring>(Processor *p, Chain *c)</argsstring>
+        <name>addInternal</name>
+        <param>
+          <type><ref refid="classhise_1_1_processor" kindref="compound">Processor</ref> *</type>
+          <declname>p</declname>
+        </param>
+        <param>
+          <type><ref refid="classhise_1_1_chain" kindref="compound">Chain</ref> *</type>
+          <declname>c</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="D:/Development/HISE modules/hi_modules/raw/raw_builder.h" line="148" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_builder_impl.h" bodystart="69" bodyend="80"/>
+      </memberdef>
+      </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+<para>The builder is a low overhead helper class that provides functions to add modules.</para><para>Create one of those, supply the <ref refid="classhise_1_1_main_controller" kindref="compound">MainController</ref> instance and call its methods to build up the architecture of your plugin.</para><para><programlisting><codeline><highlight class="comment">//<sp/>The<sp/>main<sp/>controller<sp/>of<sp/>this<sp/>project</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>mc<sp/>=<sp/>getMainController();</highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>The<sp/>root<sp/>container<sp/>of<sp/>this<sp/>project</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>masterContainer<sp/>=<sp/>mc-&gt;<ref refid="classhise_1_1_main_controller_1a7f64d85557e5d218202cfba6e6fcd173" kindref="member">getMainSynthChain</ref>();</highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal">Builder<sp/>b(mc);</highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>Adds<sp/>a<sp/>sine<sp/>wave<sp/>generator</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>sine<sp/>=<sp/>b.create&lt;hise::SineSynth&gt;(masterContainer,<sp/><ref refid="namespacehise_1_1raw_1_1_i_ds_1_1_chains_1a3c50974b8f9d13dc1046b784bf9feca6" kindref="member">IDs::Chains::Direct</ref>);</highlight></codeline>
+<codeline><highlight class="normal">sine-&gt;setAttribute(hise::SineSynth::OctaveTranspose,<sp/>5.0f,<sp/>sendNotification);</highlight></codeline>
+<codeline><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="comment">//<sp/>Adds<sp/>a<sp/>reverb<sp/>to<sp/>the<sp/>sine<sp/>wave<sp/>generator</highlight><highlight class="normal"></highlight></codeline>
+<codeline><highlight class="normal"></highlight><highlight class="keyword">auto</highlight><highlight class="normal"><sp/>reverb<sp/>=<sp/>b.create&lt;hise::SimpleReverbEffect&gt;(sine,<sp/><ref refid="namespacehise_1_1raw_1_1_i_ds_1_1_chains_1a0262ad38f516f46e4ee637b5b4fa2af0" kindref="member">IDs::Chains::FX</ref>);</highlight></codeline>
+<codeline><highlight class="normal">reverb-&gt;setAttribute(hise::SimpleReverbEffect::WetLevel,<sp/>0.5f,<sp/>sendNotification);</highlight></codeline>
+</programlisting></para><para>Important: This class can only be used from the <ref refid="namespacehise_1_1raw_1_1_i_ds_1_1_threads_1afd1054f564f495f686cae90e94f812bc" kindref="member">IDs::Threads::Loading</ref> thread in a suspended state. If you want to use this class from another thread, wrap it into a lambda and give it to the <ref refid="classhise_1_1raw_1_1_task_after_suspension" kindref="compound">TaskAfterSuspension</ref> class. </para>    </detaileddescription>
+    <location file="D:/Development/HISE modules/hi_modules/raw/raw_builder.h" line="94" column="1" bodyfile="D:/Development/HISE modules/hi_modules/raw/raw_builder.h" bodystart="93" bodyend="151"/>
+    <listofallmembers>
+      <member refid="classhise_1_1raw_1_1_builder_1ad1c8dc5a7c32c962b440cb06d16cd0fc" prot="public" virt="non-virtual"><scope>hise::raw::Builder</scope><name>add</name></member>
+      <member refid="classhise_1_1raw_1_1_builder_1a1fc972e5164d099a45510f548f986318" prot="private" virt="non-virtual"><scope>hise::raw::Builder</scope><name>addInternal</name></member>
+      <member refid="classhise_1_1raw_1_1_builder_1ae890ad8949a38cbbebcf776b43e73d43" prot="public" virt="non-virtual"><scope>hise::raw::Builder</scope><name>Builder</name></member>
+      <member refid="classhise_1_1raw_1_1_builder_1a0d9bc76c104fe3a87064780ba111df46" prot="public" virt="non-virtual"><scope>hise::raw::Builder</scope><name>create</name></member>
+      <member refid="classhise_1_1raw_1_1_builder_1a73dfda31705ab8516fbb8e8bb55e3eaa" prot="public" virt="non-virtual"><scope>hise::raw::Builder</scope><name>createFromBase64State</name></member>
+      <member refid="classhise_1_1raw_1_1_builder_1a0866ef40d8ae7b146608d02428d7bf2c" prot="public" virt="non-virtual"><scope>hise::raw::Builder</scope><name>find</name></member>
+      <member refid="classhise_1_1raw_1_1_builder_1adb88762517010f39aea987dbe722ccca" prot="public" virt="non-virtual"><scope>hise::raw::Builder</scope><name>find</name></member>
+      <member refid="classhise_1_1raw_1_1_builder_1a197d9d7920d20fc8f9a1fec3ded41d2f" prot="private" virt="non-virtual"><scope>hise::raw::Builder</scope><name>mc</name></member>
+      <member refid="classhise_1_1raw_1_1_builder_1af0262ad8700d5042347fda46e51b062f" prot="public" virt="non-virtual"><scope>hise::raw::Builder</scope><name>remove</name></member>
+      <member refid="classhise_1_1raw_1_1_builder_1a05f893613d7ef358091f5208bd639d0e" prot="public" virt="non-virtual"><scope>hise::raw::Builder</scope><name>setAttributes</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>
