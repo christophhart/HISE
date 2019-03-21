@@ -1757,7 +1757,7 @@ struct InteractiveEditor : public MarkdownCodeComponentBase,
 		{
 			showContentOnly = true;
 			editor->setVisible(false);
-			runButton->triggerClick();
+			//runButton->triggerClick();
 		}
 
 		setWantsKeyboardFocus(true);
@@ -2029,7 +2029,7 @@ struct InteractiveEditor : public MarkdownCodeComponentBase,
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(InteractiveEditor);
 };
 
-
+#if HI_MARKDOWN_ENABLE_INTERACTIVE_CODE
 hise::MarkdownCodeComponentBase* MarkdownCodeComponentFactory::createInteractiveEditor(MarkdownParser* parent, MarkdownCodeComponentBase::SyntaxType syntax, const String& code, float width)
 {
 	auto mainController = dynamic_cast<MainController*>(parent->getHolder());
@@ -2037,6 +2037,7 @@ hise::MarkdownCodeComponentBase* MarkdownCodeComponentFactory::createInteractive
 
 	return new InteractiveEditor(syntax, code, width, parent->getStyleData().fontSize, mainController, parentComponent, parent);
 }
+#endif
 
 
 } // namespace hise
