@@ -703,11 +703,6 @@ void MarkdownEditorPanel::buttonClicked(Button* b)
 				currentFile.replaceWithText(doc.getAllContent());
 			}
 		}
-
-		if (preview != nullptr)
-		{
-			preview->getHolder().rebuildDatabase();
-		}
 	}
 	if (b == &settingsButton)
 	{
