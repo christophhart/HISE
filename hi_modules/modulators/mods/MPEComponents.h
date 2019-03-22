@@ -467,7 +467,7 @@ private:
 
 	DefaultLookAndFeel dlaf;
 
-	MultithreadedLockfreeQueue<MidiMessage, MultithreadedQueueHelpers::Configuration::NoAllocationsNoTokenlessUsage> pendingMessages;
+	MultithreadedLockfreeQueue<MidiMessage, MultithreadedQueueHelpers::Configuration::NoAllocationsTokenlessUsageAllowed> pendingMessages;
 
 	
 

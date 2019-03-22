@@ -21,7 +21,6 @@
 *   information about commercial licensing:
 *
 *   http://www.hise.audio/
-*
 *   HISE is based on the JUCE library,
 *   which must be separately licensed for closed source applications:
 *
@@ -920,6 +919,8 @@ public:
 
 		bool initialised() const noexcept;
 
+        bool& getStateLoadFlag() { return stateIsLoading; };
+        
 		void deinitialise();
 
 		/** Returns true if the current thread can be safely suspended by a call to Thread::sleep().
@@ -946,7 +947,6 @@ public:
 				threadsForLock[LockHelpers::SampleLock] = TargetThread::Free;
 				threadsForLock[LockHelpers::IteratorLock] = TargetThread::Free;
 				threadsForLock[LockHelpers::ScriptLock] = TargetThread::Free;
-				threadsForLock[LockHelpers::numLockTypes] = TargetThread::Free;
 			}
 
 			std::atomic<TargetThread> threadsForLock[LockHelpers::Type::numLockTypes];
@@ -981,6 +981,7 @@ public:
 		};
 
 		bool init = false;
+        bool stateIsLoading = false;
 
 		UnorderedStack<uint16, 4096> pendingTickets;
 		uint16 ticketCounter = 0;
