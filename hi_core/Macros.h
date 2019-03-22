@@ -101,7 +101,9 @@ namespace hise { using namespace juce;
 #define SET_CHANGED_FROM_PARENT_EDITOR()
 #endif
 
-#ifdef LOG_SYNTH_EVENTS
+#define LOG_SYNTH_EVENTS 0
+
+#if LOG_SYNTH_EVENTS
 #define LOG_SYNTH_EVENT(x) DBG(x)
 #else
 #define LOG_SYNTH_EVENT(x)

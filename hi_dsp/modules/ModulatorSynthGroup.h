@@ -38,6 +38,15 @@ namespace hise { using namespace juce;
 
 #define NUM_MAX_UNISONO_VOICES 16
 
+constexpr int getNumInts()
+{
+#if NUM_POLYPHONIC_VOICES < 64
+		return 1;
+#else
+		return NUM_POLYPHONIC_VOICES / 64;
+#endif
+}
+
 // TODO: Fix unisono kill voice when > 8 voices.
 
 class ModulatorSynthGroupSound : public ModulatorSynthSound
@@ -154,7 +163,27 @@ private:
 
 		void addVoice(ModulatorSynthVoice* v)
 		{
+			jassert(numVoices < 8);
 			voices[numVoices++] = v;
+		}
+
+		bool removeVoice(ModulatorSynthVoice* v)
+		{
+			for (int i = 0; i < numVoices; i++)
+			{
+				if (voices[i] == v)
+				{
+					for (int j = i; j < numVoices-1; j++)
+					{
+						voices[j] = voices[j + 1];
+					}
+
+					voices[numVoices--] = nullptr;
+					return true;
+				}
+			}
+
+			return false;
 		}
 
 		ModulatorSynthVoice* getVoice(int index)
@@ -200,6 +229,75 @@ private:
 
 	ModulatorSynth* getFMCarrier();
 
+	struct UnisonoState
+	{
+		static constexpr int bitsPerNumber = 64;
+
+		uint64 getIndex(int index) const
+		{
+			return static_cast<uint64>(index % bitsPerNumber);
+		}
+
+		uint64 getOffset(int index) const
+		{
+			return static_cast<uint64>(index / bitsPerNumber);
+		}
+
+		UnisonoState()
+		{
+			clear();
+		}
+
+		bool anyActive() const noexcept
+		{
+			bool active = false;
+
+			for (int i = 0; i < getNumInts(); i++)
+			{
+				active |= state[i] != 0;
+			}
+
+			return active;
+		}
+
+		void clearBit(int index)
+		{
+			auto i = getIndex(index);
+			auto offset = getOffset(index);
+			auto v = ~(uint64(1) << i);
+
+			state[offset] &= v;
+		}
+
+		bool isBitSet(int index) const
+		{
+			auto i = getIndex(index);
+			auto offset = getOffset(index);
+			auto v = uint64(1) << i;
+
+			return (state[offset] & v) != 0;
+		}
+
+		void setBit(int index)
+		{
+			auto i = getIndex(index);
+			auto offset = getOffset(index);
+
+			auto v = uint64(1) << i;
+
+			state[offset] |= v;
+		}
+
+		void clear()
+		{
+			memset(state, 0, sizeof(uint64) * getNumInts());
+		}
+
+		
+
+		uint64 state[getNumInts()];
+	} unisonoStates;
+
 	Random startOffsetRandomizer;
 
 	int numUnisonoVoices = 1;
@@ -236,6 +334,7 @@ private:
 	Array<ChildSynth> childSynths;
 
 	float fmModBuffer[2048];
+	
 	void handleActiveStateForChildSynths();
 };
 
