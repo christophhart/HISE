@@ -388,6 +388,15 @@ public:
 
 	var getSampleProperty(const Identifier& id) const;
 
+	void setDeletePending()
+	{
+		deletePending = true;
+	}
+
+	bool isDeletePending() const
+	{
+		return deletePending;
+	}
 	
 
 private:
@@ -430,7 +439,7 @@ private:
 
 	bool allFilesExist;
 	const bool isMultiMicSound;
-
+	bool deletePending = false;
 
 	StreamingSamplerSoundArray soundArray;
 	WeakReference<StreamingSamplerSound> firstSound;

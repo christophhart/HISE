@@ -115,6 +115,10 @@ void MainController::SampleManager::preloadEverything()
 void MainController::SampleManager::addDeferredFunction(Processor* p, const ProcessorFunction& f)
 {
 	pendingFunctions.push({ SafeFunctionCall(p, f), mc });
+
+	// Not threadsafe, but should be OK
+	pendingProcessors.add(p);
+
 	triggerSamplePreloading();
 }
 
@@ -129,6 +133,12 @@ void MainController::SampleManager::cancelAllJobs()
 	samplerLoaderThreadPool->stopThread(5000);
 }
 
+
+bool MainController::SampleManager::hasPendingFunction(Processor* p) const
+{
+	return pendingProcessors.contains(p);
+
+}
 
 void MainController::SampleManager::initialiseQueue()
 {
@@ -232,6 +242,8 @@ SampleThreadPool::Job::JobStatus MainController::SampleManager::PreloadJob::runJ
 
 	SampleFunction c;
 
+	auto& pendingProcessors = mc->getSampleManager().pendingProcessors;
+
 	while (pFunctions.pop(c))
 	{
 		mc->getSampleManager().setCurrentPreloadMessage("Kill voices...");
@@ -244,6 +256,9 @@ SampleThreadPool::Job::JobStatus MainController::SampleManager::PreloadJob::runJ
 
 		auto result = c.getFunction().call();
 		
+		auto pToDelete = c.getFunction().p.get();
+		pendingProcessors.removeFirstMatchingValue(pToDelete);
+
 		if (shouldExit())
 		{
 			break;
@@ -253,6 +268,8 @@ SampleThreadPool::Job::JobStatus MainController::SampleManager::PreloadJob::runJ
 			break;
 	}
 
+	
+	jassert(pendingProcessors.isEmpty());
 	mc->getSampleManager().clearPreloadFlag();
 	mc->getSampleManager().initialiseQueue();
 

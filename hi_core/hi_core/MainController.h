@@ -227,6 +227,8 @@ public:
 
 		void initialiseQueue();
 
+		bool hasPendingFunction(Processor* p) const;
+
 	private:
 
 		String currentPreloadMessage;
@@ -317,6 +319,8 @@ public:
 		static constexpr auto config = MultithreadedQueueHelpers::Configuration::AllocationsAllowedAndTokenlessUsageAllowed;
 
 		MultithreadedLockfreeQueue<SampleFunction, config> pendingFunctions;
+
+		Array<WeakReference<Processor>> pendingProcessors;
 
 		std::atomic<int> pendingTasksWithSuspension;
 
