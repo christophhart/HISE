@@ -163,6 +163,9 @@ DatabaseCrawler::DatabaseCrawler(MarkdownDatabaseHolder& holder) :
 
 void DatabaseCrawler::addContentToValueTree(ValueTree& v)
 {
+	if (getHolder().shouldAbort())
+		return;
+
 	currentLink++;
 
 	if (progressCounter != nullptr && totalLinks > 0)
@@ -211,6 +214,9 @@ void DatabaseCrawler::addContentToValueTree(ValueTree& v)
 
 	for (auto r : linkResolvers)
 	{
+		if (getHolder().shouldAbort())
+			return;
+
 		MessageManagerLock lock;
 		String content = r->getContent(url);
 
@@ -256,6 +262,9 @@ void DatabaseCrawler::addImagesFromContent(float maxWidth /*= 1000.0f*/)
 
 void DatabaseCrawler::addImagesInternal(ValueTree cTree, float maxWidth)
 {
+	if (getHolder().shouldAbort())
+		return;
+
 	if (progressCounter != nullptr && totalLinks > 0)
 		*progressCounter = (double)(currentLink++) / (double)totalLinks;
 
@@ -279,6 +288,9 @@ void DatabaseCrawler::addImagesInternal(ValueTree cTree, float maxWidth)
 
 		for (auto imgUrl : imageLinks)
 		{
+			if (getHolder().shouldAbort())
+				return;
+
 			auto l = imgUrl.withRoot(getHolder().getDatabaseRootDirectory());
 			auto existingChild = imageTree.getChildWithProperty("URL", l.toString(MarkdownLink::UrlFull));
 

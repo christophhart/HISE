@@ -363,6 +363,7 @@ juce::String HiseModuleDatabase::Resolver::getContent(const MarkdownLink& url)
 	return {};
 }
 
+#if 0
 struct HiseModuleDatabase::ScreenshotProvider::RootWindow : public Component,
 	public ComponentWithBackendConnection
 {
@@ -377,24 +378,22 @@ struct HiseModuleDatabase::ScreenshotProvider::RootWindow : public Component,
 	FloatingTile* getRootFloatingTile() { return &root; }
 	FloatingTile root;
 };
+#endif
 
-HiseModuleDatabase::ScreenshotProvider::ScreenshotProvider(MarkdownParser* parent) :
-	ImageProvider(parent)
+HiseModuleDatabase::ScreenshotProvider::ScreenshotProvider(MarkdownParser* parent, BackendProcessor* bp_) :
+	ImageProvider(parent),
+	bp(bp_->getDocProcessor())
 {
-	{
-		MessageManagerLock mmLock;
+	w = bp->getDocProcessor()->getDocWindow();
 
-		w = new RootWindow(data->bp);
+	jassert(w != nullptr);
 
-		w->setLookAndFeel(&laf);
-	}
-	
 	data->createAllProcessors();
 }
 
 HiseModuleDatabase::ScreenshotProvider::~ScreenshotProvider()
 {
-	delete w;
+	
 }
 
 juce::Image HiseModuleDatabase::ScreenshotProvider::getImage(const MarkdownLink& url, float width)
@@ -433,8 +432,6 @@ juce::Image HiseModuleDatabase::ScreenshotProvider::getImage(const MarkdownLink&
 			w->addAndMakeVisible(editor);
 
 			editor->setSize(800, editor->getHeight());
-
-			editor->setLookAndFeel(&laf);
 
 			auto img = editor->createComponentSnapshot(editor->getLocalBounds());
 

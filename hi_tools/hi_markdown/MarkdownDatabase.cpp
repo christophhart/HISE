@@ -103,6 +103,12 @@ void MarkdownDataBase::buildDataBase(bool useCache)
 		if (progressCounter != nullptr)
 			*progressCounter = (double)p++ / (double)numTotal;
 
+		if (!MessageManager::getInstance()->isThisTheMessageThread() &&
+			Thread::getCurrentThread()->threadShouldExit())
+		{
+			break;
+		}
+
 		auto newItem = g->createRootItem(*this);
 		rootItem.addChild(std::move(newItem));
 	}
@@ -520,13 +526,20 @@ void MarkdownDatabaseHolder::rebuildDatabase()
 	else
 		db.setRoot(getDatabaseRootDirectory());
 
+	if (shouldAbort())
+		return;
+
 	registerItemGenerators();
 
+	if (shouldAbort())
+		return;
 
 
 	db.setProgressCounter(progressCounter);
 	db.buildDataBase(shouldUseCachedData());
 
+	if (shouldAbort())
+		return;
 
 	if (progressCounter != nullptr)
 		*progressCounter = 0.5;
@@ -537,6 +550,9 @@ void MarkdownDatabaseHolder::rebuildDatabase()
 	{
 		if (c.get() == nullptr)
 			continue;
+
+		if (shouldAbort())
+			return;
 
 		c->clearResolvers();
 		
@@ -556,6 +572,9 @@ void MarkdownDatabaseHolder::rebuildDatabase()
 
 	for (auto l : listeners)
 	{
+		if (shouldAbort())
+			return;
+
 		if (l != nullptr)
 			l->databaseWasRebuild();
 	}

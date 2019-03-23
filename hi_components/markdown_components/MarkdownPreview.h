@@ -129,7 +129,7 @@ public:
 	MarkdownDatabaseHolder& holder;
 	ScopedPointer<juce::FilenameComponent> markdownRepository;
 	ScopedPointer<juce::FilenameComponent> htmlDirectory;
-	DatabaseCrawler crawler;
+	ScopedPointer<DatabaseCrawler> crawler;
 
 	int result = NotExecuted;
 	ScopedPointer<URL::DownloadTask> currentDownload;

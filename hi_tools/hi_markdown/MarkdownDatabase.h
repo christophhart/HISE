@@ -444,6 +444,18 @@ struct MarkdownDatabaseHolder
 		return getDatabaseRootDirectory().isDirectory();
 	}
 
+
+	bool shouldAbort() const
+	{
+		if (!MessageManager::getInstance()->isThisTheMessageThread() &&
+			Thread::getCurrentThread()->threadShouldExit())
+		{
+			return true;
+		}
+
+		return false;
+	}
+
 	void rebuildDatabase();
 
 	void addContentProcessor(MarkdownContentProcessor* contentProcessor);

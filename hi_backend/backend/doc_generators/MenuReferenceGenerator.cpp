@@ -157,10 +157,16 @@ void MenuReferenceDocGenerator::ItemGenerator::createMenuReference(MarkdownDataB
 
 	data->createMenuCommandInfos();
 
+	if (data->bp->shouldAbort())
+		return;
+
 	StringArray categories;
 
 	for (const auto& r : data->commandInfos)
 	{
+		if (data->bp->shouldAbort())
+			return;
+
 		if (r.categoryName.isNotEmpty())
 			categories.addIfNotAlreadyThere(r.categoryName);
 	}
@@ -169,6 +175,9 @@ void MenuReferenceDocGenerator::ItemGenerator::createMenuReference(MarkdownDataB
 	{
 		if (s == "Unused")
 			continue;
+
+		if (data->bp->shouldAbort())
+			return;
 
 		createMenu(wItem, s);
 	}
@@ -356,10 +365,19 @@ hise::MarkdownDataBase::Item MenuReferenceDocGenerator::ItemGenerator::createRoo
 		item.addChild(std::move(pItem));
 	}
 
+	if (data->bp->shouldAbort())
+		return item;
+
 	createAndAddWorkspacesItem(item);
 	createMenuReference(item);
+
+	if (data->bp->shouldAbort())
+		return item;
+
 	createSettingsItem(item);
 
+	if (data->bp->shouldAbort())
+		return item;
 
 	applyColour(item);
 
