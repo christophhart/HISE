@@ -264,10 +264,7 @@ int MarkdownDataBase::Item::Sorter::compareElements(Item& first, Item& second)
 			else if (first.index > second.index)
 				return 1;
 			else
-			{
-				jassertfalse;
 				return 0;
-			}
 		}
 		else
 		{

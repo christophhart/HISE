@@ -667,15 +667,17 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 
 	float getHeightForWidth(float width) override
 	{
+		if (imageURL.toString(MarkdownLink::UrlSubPath).endsWith("gif"))
+			isGif = true;
+
 		if (!img.isNull() && width == lastWidth)
-			return (float)img.getHeight();
+			return (float)img.getHeight() + (isGif ? 50.0f : 0.0f);
 
 		lastWidth = width;
 
 		img = parent->resolveImage(imageURL, width);
 
-		if (imageURL.toString(MarkdownLink::UrlSubPath).endsWith("gif"))
-			isGif = true;
+		
 
 		if (!img.isNull())
 			return (float)img.getHeight() + (isGif ? 50.0f : 0.0f);
@@ -719,7 +721,7 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 		}
 
 		if(gifPlayer != nullptr)
-			gifPlayer->setSize(jmax(50, img.getWidth()), jmax(50, img.getHeight()));
+			gifPlayer->setSize(jmax(50, img.getWidth()), jmax(50, 50 + img.getHeight()));
 
 		return gifPlayer;
 	}

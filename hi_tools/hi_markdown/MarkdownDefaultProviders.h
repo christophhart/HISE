@@ -123,9 +123,9 @@ public:
 	ResolveType getPriority() const override { return ResolveType::WebBased; }
 
 	Identifier getId() const override { RETURN_STATIC_IDENTIFIER("URLImageProvider"); };
-	ImageProvider* clone(MarkdownParser* newParser) const { return new URLImageProvider(tempDirectory, newParser); }
+	ImageProvider* clone(MarkdownParser* newParser) const { return new URLImageProvider(imageDirectory, newParser); }
 
-	File tempDirectory;
+	File imageDirectory;
 };
 
 class MarkdownParser::FileBasedImageProvider : public ImageProvider

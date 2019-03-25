@@ -317,7 +317,8 @@ void DatabaseCrawler::addImagesInternal(ValueTree cTree, float maxWidth)
 				c.setProperty("URL", l.toString(MarkdownLink::UrlFull), nullptr);
 				
 				if (l.getType() == MarkdownLink::Image ||
-					l.getType() == MarkdownLink::Icon)
+					l.getType() == MarkdownLink::Icon ||
+					l.getType() == MarkdownLink::WebContent)
 				{
 					juce::PNGImageFormat format;
 					MemoryOutputStream output;

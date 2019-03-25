@@ -67,7 +67,7 @@ MarkdownParser::MarkdownParser(const String& markdownCode_) :
 	currentParseResult(Result::fail("Nothing parsed yet"))
 {
 	setImageProvider(new ImageProvider(this));
-	setImageProvider(new URLImageProvider(File::getSpecialLocation(File::tempDirectory).getChildFile("TempImagesForMarkdown"), this));
+	
 	setLinkResolver(new DefaultLinkResolver(this));
 }
 

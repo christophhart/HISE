@@ -170,12 +170,10 @@ juce::Image MarkdownParser::URLImageProvider::getImage(const MarkdownLink& urlLi
 {
 	if(urlLink.getType() == MarkdownLink::WebContent)
 	{
-		return {};
-
 		URL url(urlLink.toString(MarkdownLink::UrlFull));
 
-		auto path = url.getSubPath();
-		auto imageFile = tempDirectory.getChildFile(path);
+		auto path = urlLink.toString(MarkdownLink::UrlSubPath);
+		auto imageFile = imageDirectory.getChildFile(path);
 
 		if (imageFile.existsAsFile())
 			return resizeImageToFit(ImageCache::getFromFile(imageFile), width);
@@ -215,10 +213,10 @@ juce::Image MarkdownParser::URLImageProvider::getImage(const MarkdownLink& urlLi
 
 MarkdownParser::URLImageProvider::URLImageProvider(File tempdirectory_, MarkdownParser* parent) :
 	ImageProvider(parent),
-	tempDirectory(tempdirectory_)
+	imageDirectory(tempdirectory_)
 {
-	if (!tempDirectory.isDirectory())
-		tempDirectory.createDirectory();
+	if (!imageDirectory.isDirectory())
+		imageDirectory.createDirectory();
 }
 
 juce::Image MarkdownParser::GlobalPathProvider::getImage(const MarkdownLink& urlName, float width)
