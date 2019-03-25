@@ -349,10 +349,9 @@ hise::MarkdownDataBase::Item MenuReferenceDocGenerator::ItemGenerator::createRoo
 	MarkdownDataBase::Item item;
 
 	item.c = Colours::burlywood;
-	item.keywords.add("Working with HISE");
 	item.url = rootURL;
-	item.tocString = "Working with HISE";
 	item.icon = "/images/icon_hise";
+	item.fillMetadataFromURL();
 
 	auto url = rootURL.getChildUrl("project-management");
 

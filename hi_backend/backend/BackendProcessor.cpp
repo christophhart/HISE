@@ -264,7 +264,11 @@ hise::BackendRootWindow* BackendProcessor::getDocWindow()
 		return getDocProcessor()->getDocWindow();
 
 	if (docWindow == nullptr)
+	{
+		MessageManagerLock mmLock;
 		docWindow = new BackendRootWindow(getDocProcessor(), {});
+	}
+		
 
 	return docWindow;
 }

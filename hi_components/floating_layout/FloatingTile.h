@@ -621,7 +621,8 @@ private:
 #if USE_BACKEND
 
 class FloatingTileDocumentWindow : public DocumentWindow,
-								   public ComponentWithBackendConnection
+								   public ComponentWithBackendConnection,
+							       public ModalBaseWindow
 {
 public:
 
@@ -641,6 +642,9 @@ public:
 	const BackendRootWindow* getBackendRootWindow() const override { return parent; };
 
 	FloatingTile* getRootFloatingTile() override;;
+
+	virtual const MainController* getMainControllerToUse() const;
+	virtual MainController* getMainControllerToUse();
 
 private:
 

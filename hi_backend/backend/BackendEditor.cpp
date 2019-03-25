@@ -471,13 +471,16 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 	tooltipBar->setColour(TooltipBar::ColourIds::iconColour, Colours::white);
 	//tooltipBar->setShowInfoIcon(false);
 
-	getRootWindow()->getBackendProcessor()->getCommandManager()->addListener(this);
+
+	//getRootWindow()->getBackendProcessor()->getCommandManager()->addListener(this);
 }
 
 MainTopBar::~MainTopBar()
 {
 	getParentShell()->getRootFloatingTile()->removePopupListener(this);
-	getRootWindow()->getBackendProcessor()->getCommandManager()->removeListener(this);
+
+
+	//getRootWindow()->getBackendProcessor()->getCommandManager()->removeListener(this);
 }
 
 void setColoursForButton(ShapeButton* b, bool on)

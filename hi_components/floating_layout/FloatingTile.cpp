@@ -1580,6 +1580,16 @@ FloatingTile* FloatingTileDocumentWindow::getRootFloatingTile()
 	return dynamic_cast<FloatingTile*>(getContentComponent());
 }
 
+const hise::MainController* FloatingTileDocumentWindow::getMainControllerToUse() const
+{
+	return parent->getBackendProcessor();
+}
+
+hise::MainController* FloatingTileDocumentWindow::getMainControllerToUse()
+{
+	return parent->getBackendProcessor();
+}
+
 #endif
 
 } // namespace hise

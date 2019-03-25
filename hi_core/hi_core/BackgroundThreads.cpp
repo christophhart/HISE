@@ -36,7 +36,8 @@ void QuasiModalComponent::setModalBaseWindowComponent(Component * childComponent
 {
 	ModalBaseWindow *editor = dynamic_cast<ModalBaseWindow*>(childComponentOfModalBaseWindow);
 
-	if (editor == nullptr) editor = childComponentOfModalBaseWindow->findParentComponentOfClass<ModalBaseWindow>();
+	if (editor == nullptr) 
+		editor = childComponentOfModalBaseWindow->findParentComponentOfClass<ModalBaseWindow>();
 
 	jassert(editor != nullptr);
 

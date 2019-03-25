@@ -203,6 +203,7 @@ void UIComponentDatabase::ItemGenerator::createFloatingTileApi(MarkdownDataBase:
 
 	MarkdownDataBase::Item backend;
 	backend.url = item.url.getChildUrl("hise");
+	backend.url.setType(MarkdownLink::Folder);
 	backend.tocString = "HISE Floating tiles";
 
 	for (auto id : allList)

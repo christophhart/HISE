@@ -89,15 +89,17 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createItemForPro
 {
 	MarkdownDataBase::Item newItem;
 
+#if 0
 	newItem.tocString << p->getName();
 	newItem.keywords.add(p->getName());
 	newItem.description = p->getDescription();
+#endif
 	
 
 	newItem.c = p->getColour();
-	newItem.url = parent.url.getChildUrl(p->getType().toString());
+	newItem.url = parent.url.getChildUrl(p->getType().toString()).withRoot(rootDirectory);
 	newItem.url.setType(MarkdownLink::MarkdownFile);
-
+	
 	auto f = newItem.url.getMarkdownFile(rootDirectory);
 
 	if (f.existsAsFile())
