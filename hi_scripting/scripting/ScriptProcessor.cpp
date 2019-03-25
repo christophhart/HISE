@@ -1307,17 +1307,19 @@ notifier(*this)
 		emptyText << "\t\n";
 		emptyText << "}\n";
 	};
+
+	emptyText << " ";
 	
+	setDisableUndo(true);
+
 	replaceAllContent(emptyText);
     
-    getUndoManager().clearUndoHistory();
+	setDisableUndo(false);
 }
 
 void JavascriptProcessor::SnippetDocument::checkIfScriptActive()
 {
 	isActive = true;
-
-    
     auto text = getSnippetAsFunction();
     
 	if (!text.containsNonWhitespaceChars()) isActive = false;
