@@ -446,6 +446,11 @@ public:
 
 	MarkdownPreviewPanel(FloatingTile* parent);
 
+	~MarkdownPreviewPanel()
+	{
+		preview = nullptr;
+	}
+
 	void paint(Graphics& g) override
 	{
 		g.fillAll(findPanelColour(PanelColourId::bgColour));
@@ -494,11 +499,11 @@ public:
 
 	void resized() override
 	{
-		preview.setBounds(getParentShell()->getContentBounds());
+		preview->setBounds(getParentShell()->getContentBounds());
 		parseContent();
 	}
 
-	MarkdownPreview preview;
+	ScopedPointer<MarkdownPreview> preview;
 	String contentFile;
 };
 

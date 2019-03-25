@@ -611,10 +611,11 @@ void ScriptContentComponent::getScriptComponentsFor(Array<ScriptingApi::Content:
 
 
 MarkdownPreviewPanel::MarkdownPreviewPanel(FloatingTile* parent) :
-	FloatingTileContent(parent),
-	preview(*dynamic_cast<MarkdownDatabaseHolder*>(parent->getMainController()))
+	FloatingTileContent(parent)
 {
-	addAndMakeVisible(preview);
+	auto holder = dynamic_cast<BackendProcessor*>(getMainController())->getDocProcessor();
+
+	addAndMakeVisible(preview = new MarkdownPreview(*holder));
 
 	setDefaultPanelColour(PanelColourId::bgColour, Colours::transparentBlack);
 	setDefaultPanelColour(PanelColourId::itemColour1, Colour(SIGNAL_COLOUR));
@@ -641,8 +642,8 @@ void MarkdownPreviewPanel::parseContent()
 
 		auto content = resolver->getContent(MarkdownLink::createWithoutRoot(contentFile));
 
-		preview.addImageProvider(new PooledImageProvider(getMainController(), nullptr));
-		preview.addLinkResolver(resolver.release());
+		preview->addImageProvider(new PooledImageProvider(getMainController(), nullptr));
+		preview->addLinkResolver(resolver.release());
 
 		if (content.isNotEmpty())
 		{
@@ -653,8 +654,8 @@ void MarkdownPreviewPanel::parseContent()
 			d.textColour = findPanelColour(PanelColourId::textColour);
 			d.headlineColour = findPanelColour(PanelColourId::itemColour1);
 
-			preview.setStyleData(d);
-			preview.setNewText(content, {});
+			preview->setStyleData(d);
+			preview->setNewText(content, {});
 		}
 	}
 }

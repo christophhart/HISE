@@ -146,7 +146,7 @@ MidiKeyboardPanel::MidiKeyboardPanel(FloatingTile* parent) :
 	addAndMakeVisible(keyboard->asComponent());
 
 	keyboard->setLowestKeyBase(12);
-
+	keyboard->setUseVectorGraphics(true, false);
 	setDefaultPanelColour(PanelColourId::itemColour1, Colours::white.withAlpha(0.1f));
 	setDefaultPanelColour(PanelColourId::itemColour2, Colours::white);
 	setDefaultPanelColour(PanelColourId::itemColour3, Colour(SIGNAL_COLOUR));
@@ -327,7 +327,7 @@ var MidiKeyboardPanel::getDefaultProperty(int index) const
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::MPEKeyboard, false);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::MPEStartChannel, 2);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::MPEEndChannel, 16);
-	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::UseVectorGraphics, false);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::UseVectorGraphics, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::UseFlatStyle, false);
 
 	jassertfalse;

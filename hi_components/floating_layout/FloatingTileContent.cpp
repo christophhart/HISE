@@ -676,6 +676,7 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 	ib.getPanel(mainColumn)->getLayoutData().setForceFoldButton(true);
 	ib.getPanel(keyboard)->getLayoutData().setForceFoldButton(true);
 	ib.getPanel(keyboard)->resized();
+	
 
 	ib.setCustomName(firstVertical, "", { "Left Panel", "", "Right Panel" });
 

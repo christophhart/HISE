@@ -197,6 +197,7 @@ public:
 		
 		MenuToolsDeviceSimulatorOffset,
 		MenuHelpShowAboutPage = 0x70000,
+		MenuHelpShowDocumentation,
         MenuHelpCheckVersion,
 		numCommands
 	};
@@ -360,6 +361,7 @@ public:
 		static void checkDeviceSanity(BackendRootWindow * bpe);
 		static void copyMissingSampleListToClipboard(BackendRootWindow * bpe);
 		static void createRecoveryXml(BackendRootWindow * bpe);
+		static void showDocWindow(BackendRootWindow * bpe);
 	};
 
 private:

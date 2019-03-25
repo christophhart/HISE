@@ -416,10 +416,10 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 	forwardButton->setShape(f.createPath("forward"), false, true, true);
 	forwardButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::MenuViewForward, true);
 
-	addAndMakeVisible(macroButton = new ShapeButton("Macro Controls", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colours::white));
+	addAndMakeVisible(macroButton = new HiseShapeButton("Macro Controls", this, f));
+	macroButton->setToggleModeWithColourChange(true);
 	macroButton->setTooltip("Show 8 Macro Controls");
-	macroButton->setShape(f.createPath("Macro Controls"), false, true, true);
-	macroButton->addListener(this);
+	
 
 	addAndMakeVisible(presetBrowserButton = new ShapeButton("Preset Browser", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colours::white));
 	presetBrowserButton->setTooltip("Show Preset Browser");
@@ -433,24 +433,20 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 
 
 
-	addAndMakeVisible(mainWorkSpaceButton = new ShapeButton("Main Workspace", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colour(SIGNAL_COLOUR)));
+	addAndMakeVisible(mainWorkSpaceButton = new HiseShapeButton("Main Workspace", this, f));
 	mainWorkSpaceButton->setTooltip("Show Main Workspace");
-	mainWorkSpaceButton->setShape(f.createPath("Main Workspace"), false, true, true);
 	mainWorkSpaceButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::WorkspaceMain, true);
 
-	addAndMakeVisible(scriptingWorkSpaceButton = new ShapeButton("Scripting Workspace", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colour(SIGNAL_COLOUR)));
+	addAndMakeVisible(scriptingWorkSpaceButton = new HiseShapeButton("Scripting Workspace", this, f));
 	scriptingWorkSpaceButton->setTooltip("Show Scripting Workspace");
-	scriptingWorkSpaceButton->setShape(f.createPath("Scripting Workspace"), false, true, true);
 	scriptingWorkSpaceButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::WorkspaceScript, true);
 
-	addAndMakeVisible(samplerWorkSpaceButton = new ShapeButton("Sampler Workspace", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colour(SIGNAL_COLOUR)));
+	addAndMakeVisible(samplerWorkSpaceButton = new HiseShapeButton("Sampler Workspace", this, f));
 	samplerWorkSpaceButton->setTooltip("Show Sampler Workspace");
-	samplerWorkSpaceButton->setShape(f.createPath("Sampler Workspace"), false, true, true);
 	samplerWorkSpaceButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::WorkspaceSampler, true);
 
-	addAndMakeVisible(customWorkSpaceButton = new ShapeButton("Custom Workspace", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colour(SIGNAL_COLOUR)));
+	addAndMakeVisible(customWorkSpaceButton = new HiseShapeButton("Custom Workspace", this, f));
 	customWorkSpaceButton->setTooltip("Show Scripting Workspace");
-	customWorkSpaceButton->setShape(f.createPath("Custom Workspace"), false, true, true);
 	customWorkSpaceButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::WorkspaceCustom, true);
 	
 	addAndMakeVisible(peakMeter = new ProcessorPeakMeter(getRootWindow()->getMainSynthChain()));
@@ -474,11 +470,14 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 	tooltipBar->setColour(TooltipBar::ColourIds::textColour, Colours::white);
 	tooltipBar->setColour(TooltipBar::ColourIds::iconColour, Colours::white);
 	//tooltipBar->setShowInfoIcon(false);
+
+	getRootWindow()->getBackendProcessor()->getCommandManager()->addListener(this);
 }
 
 MainTopBar::~MainTopBar()
 {
 	getParentShell()->getRootFloatingTile()->removePopupListener(this);
+	getRootWindow()->getBackendProcessor()->getCommandManager()->removeListener(this);
 }
 
 void setColoursForButton(ShapeButton* b, bool on)
@@ -787,7 +786,7 @@ void MainTopBar::buttonClicked(Button* b)
 {
 	if (b == macroButton)
 	{
-		togglePopup(PopupType::Macro, !b->getToggleState());
+		togglePopup(PopupType::Macro, b->getToggleState());
 	}
 	else if (b == settingsButton)
 	{
