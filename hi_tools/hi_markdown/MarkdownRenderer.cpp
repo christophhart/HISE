@@ -99,7 +99,7 @@ void MarkdownRenderer::jumpToCurrentAnchor()
 
 juce::String MarkdownRenderer::getAnchorForY(int y) const
 {
-	int currentY = 0;
+	int thisY = 0;
 
 	Headline* lastHeadline = nullptr;
 
@@ -110,10 +110,10 @@ juce::String MarkdownRenderer::getAnchorForY(int y) const
 			lastHeadline = h;
 		}
 
-		currentY += e->getTopMargin();
-		currentY += e->getLastHeight();
+		thisY += e->getTopMargin();
+		thisY += (int)e->getLastHeight();
 
-		if (y <= currentY)
+		if (y <= thisY)
 			break;
 	}
 

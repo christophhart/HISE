@@ -199,8 +199,6 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 	sampler->getSampleMap()->addListener(this);
 	sampler->getMainController()->getCurrentSampleMapPool()->addListener(this);
 
-	Factory f;
-
 	addAndMakeVisible(warningButton = new MarkdownHelpButton());
 
 	warningButton->setShape(f.createPath("Warning"), false, true, true);
@@ -495,8 +493,6 @@ void SampleMapEditor::addMenuButton(SampleMapCommands commandId)
 
 	getCommandInfo(commandId, r);
 
-	Factory f;
-
 	auto b = new HiseShapeButton(r.shortName, nullptr, f);
 	b->setCommandToTrigger(getCommandManager(), commandId, true);
 
@@ -691,8 +687,8 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	case ToggleVerticalSize:toggleVerticalSize(); return true;
 	case NewSampleMap:		if (PresetHandler::showYesNoWindow("Create new samplemap", "Do you want to create a new sample map? The current samplemap will be discarded", PresetHandler::IconType::Question))
 	{
-		auto f = [](Processor* p) {dynamic_cast<ModulatorSampler*>(p)->clearSampleMap(sendNotificationAsync); return SafeFunctionCall::OK; };
-		sampler->killAllVoicesAndCall(f, true);
+		auto f2 = [](Processor* p) {dynamic_cast<ModulatorSampler*>(p)->clearSampleMap(sendNotificationAsync); return SafeFunctionCall::OK; };
+		sampler->killAllVoicesAndCall(f2, true);
 	}
 	return true;
 	case LoadSampleMap:				loadSampleMap(); return true;
@@ -702,8 +698,8 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 		{
 			auto ref = sampler->getSampleMap()->getReference();
 			sampler->getMainController()->getCurrentSampleMapPool()->loadFromReference(ref, PoolHelpers::ForceReloadStrong);
-			auto f = [ref](Processor* p) {dynamic_cast<ModulatorSampler*>(p)->loadSampleMap(ref); return SafeFunctionCall::OK; };
-			sampler->killAllVoicesAndCall(f, true);
+			auto f2 = [ref](Processor* p) {dynamic_cast<ModulatorSampler*>(p)->loadSampleMap(ref); return SafeFunctionCall::OK; };
+			sampler->killAllVoicesAndCall(f2, true);
 		}
 		
 		return true;
@@ -718,13 +714,13 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
                             AudioFormatManager afm;
                             afm.registerBasicFormats();
 
-                            FileChooser f("Load new samples", GET_PROJECT_HANDLER(sampler).getRootFolder(), afm.getWildcardForAllFormats(), true);
-							if(f.browseForMultipleFilesToOpen())
+                            FileChooser fc("Load new samples", GET_PROJECT_HANDLER(sampler).getRootFolder(), afm.getWildcardForAllFormats(), true);
+							if(fc.browseForMultipleFilesToOpen())
 							{
 								StringArray fileNames;
-								for(int i = 0; i < f.getResults().size(); i++)
+								for(int i = 0; i < fc.getResults().size(); i++)
 								{
-									fileNames.add(f.getResults()[i].getFullPathName());
+									fileNames.add(fc.getResults()[i].getFullPathName());
 								}
 
 								SampleImporter::importNewAudioFiles(this, sampler, fileNames);
@@ -771,15 +767,15 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 
 void SampleMapEditor::importSfz()
 {
-	FileChooser f("Import sfz", GET_PROJECT_HANDLER(sampler).getRootFolder(), "*.sfz");
+	FileChooser fc("Import sfz", GET_PROJECT_HANDLER(sampler).getRootFolder(), "*.sfz");
 
-	if (f.browseForFileToOpen())
+	if (fc.browseForFileToOpen())
 	{
 		try
 		{
 			sampler->clearSampleMap(dontSendNotification);
 
-			SfzImporter sfz(sampler, f.getResult());
+			SfzImporter sfz(sampler, fc.getResult());
 			sfz.importSfzFile();
 		}
 		catch (SfzImporter::SfzParsingError error)
@@ -793,10 +789,10 @@ void SampleMapEditor::loadSampleMap()
 {
 	auto rootFile = sampler->getSampleEditHandler()->getCurrentSampleMapDirectory();
 
-	FileChooser f("Load new samplemap", rootFile, "*.xml");
-	if (f.browseForFileToOpen())
+	FileChooser fc("Load new samplemap", rootFile, "*.xml");
+	if (fc.browseForFileToOpen())
 	{
-		PoolReference ref(sampler->getMainController(), f.getResult().getFullPathName(), FileHandlerBase::SampleMaps);
+		PoolReference ref(sampler->getMainController(), fc.getResult().getFullPathName(), FileHandlerBase::SampleMaps);
 
 		sampler->loadSampleMap(ref);
 	}
@@ -868,13 +864,13 @@ void SampleMapEditor::comboBoxChanged(ComboBox* b)
 
 	PoolReference r(sampler->getMainController(), t, FileHandlerBase::SampleMaps);
 
-	auto f = [r](Processor* p)
+	auto f2 = [r](Processor* p)
 	{
 		dynamic_cast<ModulatorSampler*>(p)->loadSampleMap(r);
 		return SafeFunctionCall::OK;
 	};
 
-	sampler->killAllVoicesAndCall(f);
+	sampler->killAllVoicesAndCall(f2);
 }
 
 ApplicationCommandManager * SampleMapEditor::getCommandManager()
@@ -997,12 +993,12 @@ void SampleMapEditor::paintOverChildren(Graphics& g)
 	}
 	else if (sampler->getNumSounds() == 0)
 	{
-		Font f = GLOBAL_BOLD_FONT();
+		Font font = GLOBAL_BOLD_FONT();
 
-		g.setFont(f);
+		g.setFont(font);
 
 		static const String text = "Drop samples or samplemaps from browser";
-		const int w = f.getStringWidth(text) + 20;
+		const int w = font.getStringWidth(text) + 20;
 
 		g.setColour(Colours::white.withAlpha(0.3f));
 
@@ -1021,7 +1017,7 @@ void SampleMapEditor::updateSampleMapSelector(bool rebuild)
 	Component::SafePointer<ComboBox> cb(sampleMaps.get());
 	WeakReference<ModulatorSampler> s(sampler);
 
-	auto f = [rebuild, cb, s]()
+	auto f2 = [rebuild, cb, s]()
 	{
 		if (cb.getComponent() == nullptr)
 			return;
@@ -1053,7 +1049,7 @@ void SampleMapEditor::updateSampleMapSelector(bool rebuild)
 			cb.getComponent()->setText(currentRef.getReferenceString(), dontSendNotification);
 	};
 
-	MessageManager::callAsync(f);
+	MessageManager::callAsync(f2);
 }
 
 //[/MiscUserCode]

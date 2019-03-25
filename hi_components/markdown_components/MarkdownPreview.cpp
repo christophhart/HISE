@@ -293,7 +293,7 @@ int MarkdownPreview::InternalComponent::getTextHeight()
 	return (int)renderer.getHeightForWidth((float)getWidth());
 }
 
-void MarkdownPreview::InternalComponent::setNewText(const String& s, const File& f)
+void MarkdownPreview::InternalComponent::setNewText(const String& s, const File& )
 {
 	currentSearchResult = {};
 
@@ -654,8 +654,6 @@ void DocUpdater::run()
 	if (fastMode)
 	{
 		showStatusMessage("Rebuilding Documentation Index");
-		auto mc = dynamic_cast<MainController*>(&holder);
-		
 		holder.setProgressCounter(&getProgressCounter());
 		getHolder().setForceCachedDataUse(!editingShouldBeEnabled);
 
@@ -667,8 +665,6 @@ void DocUpdater::run()
 
 		if (b->getSelectedItemIndex() == 0)
 		{
-			auto mc = dynamic_cast<MainController*>(&holder);
-
 			showStatusMessage("Rebuilding index");
 			holder.setForceCachedDataUse(false);
 			
@@ -929,6 +925,7 @@ void DocUpdater::downloadAndTestFile(const String& targetFileName)
 		tmpFile.copyFileTo(realFile);
 
 	auto ok = tmpFile.deleteFile();
+	ignoreUnused(ok);
 	jassert(ok);
 
 	result |= Helpers::getIndexFromFileName(targetFileName);

@@ -139,13 +139,12 @@ public:
 		footerContent = footerFile.loadFileAsString();
 	}
 
-	String generateHtml(const String& activeLink)
+	String generateHtml(const String& /*activeLink*/)
 	{
 		jassert(headerContent.isNotEmpty());
 		jassert(footerContent.isNotEmpty());
 
 		String html;
-		NewLine nl;
 
 		html << headerContent;
 		

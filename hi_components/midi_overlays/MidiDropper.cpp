@@ -158,14 +158,14 @@ void MidiFileDragAndDropper::filesDropped(const StringArray& files, int, int)
 }
 
 
-void MidiFileDragAndDropper::itemDragEnter(const SourceDetails& dragSourceDetails)
+void MidiFileDragAndDropper::itemDragEnter(const SourceDetails& )
 {
 	hover = true;
 	repaint();
 }
 
 
-void MidiFileDragAndDropper::itemDragExit(const SourceDetails& dragSourceDetails)
+void MidiFileDragAndDropper::itemDragExit(const SourceDetails& )
 {
 	hover = false;
 	repaint();

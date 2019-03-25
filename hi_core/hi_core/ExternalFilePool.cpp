@@ -172,7 +172,7 @@ void PoolHelpers::loadData(AudioFormatManager& /*afm*/, InputStream* ownedStream
 	fillMetadata(data, additionalData);
 }
 
-void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, MidiFileReference& data, var* additionalData)
+void PoolHelpers::loadData(AudioFormatManager& /*afm*/, InputStream* ownedStream, int64 /*hashCode*/, MidiFileReference& data, var* additionalData)
 {
 	ScopedPointer<InputStream> inputStream = ownedStream;
 	data.getFile().readFrom(*inputStream);
@@ -805,7 +805,7 @@ void PoolBase::DataProvider::Compressor::write(OutputStream& output, const Audio
 	}
 }
 
-void PoolBase::DataProvider::Compressor::write(OutputStream& output, const MidiFileReference& data, const File& originalFile) const
+void PoolBase::DataProvider::Compressor::write(OutputStream& output, const MidiFileReference& data, const File& /*originalFile*/) const
 {
 	data.getFile().writeTo(output);
 }

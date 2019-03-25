@@ -3290,7 +3290,7 @@ bool ScriptingObjects::ScriptedMidiPlayer::setFile(String fileName, bool clearEx
 		PoolReference r(pl->getMainController(), fileName, FileHandlerBase::MidiFiles);
 		pl->loadMidiFile(r);
 		if (selectNewSequence)
-			pl->setAttribute(MidiPlayer::CurrentSequence, pl->getNumSequences(), sendNotification);
+			pl->setAttribute(MidiPlayer::CurrentSequence, (float)pl->getNumSequences(), sendNotification);
 
 		return r.isValid();
 	}
@@ -3301,7 +3301,7 @@ bool ScriptingObjects::ScriptedMidiPlayer::setFile(String fileName, bool clearEx
 void ScriptingObjects::ScriptedMidiPlayer::setTrack(int trackIndex)
 {
 	if (auto pl = getPlayer())
-		pl->setAttribute(MidiPlayer::CurrentTrack, trackIndex, sendNotification);
+		pl->setAttribute(MidiPlayer::CurrentTrack, (float)trackIndex, sendNotification);
 }
 
 void ScriptingObjects::ScriptedMidiPlayer::sequenceLoaded(HiseMidiSequence::Ptr newSequence)

@@ -123,7 +123,11 @@ public:
 		virtual LinkResolver* clone(MarkdownParser* parent) const = 0;
 		virtual Identifier getId() const = 0;
 		
-		virtual File getFileToEdit(const MarkdownLink& url) { return {}; };
+		virtual File getFileToEdit(const MarkdownLink& url) 
+		{ 
+			ignoreUnused(url);
+			return {}; 
+		};
 
 		virtual ResolveType getPriority() const = 0;
 
@@ -132,6 +136,7 @@ public:
 		*/
 		virtual bool linkWasClicked(const MarkdownLink& url) 
 		{ 
+			ignoreUnused(url);
 			return false; 
 		}
 	};
@@ -355,20 +360,32 @@ protected:
 		virtual void draw(Graphics& g, Rectangle<float> area) = 0;
 		virtual float getHeightForWidth(float width) = 0;
 		virtual int getTopMargin() const = 0;
-		virtual Component* createComponent(int maxWidth) { return nullptr; }
+		virtual Component* createComponent(int maxWidth)
+		{ 
+			ignoreUnused(maxWidth);
+			return nullptr; 
+		}
 		
 		float getZoomRatio() const { return parent->styleData.fontSize / 17.0f; }
 
 		virtual String getTextForRange(Range<int> range) const
 		{
+			ignoreUnused(range);
 			jassertfalse;
 			return {};
 		}
 
 		void drawHighlight(Graphics& g, Rectangle<float> area);;
 
-		virtual void searchInContent(const String& s) { }
-		virtual void addImageLinks(Array<MarkdownLink>& sa) {};
+		virtual void searchInContent(const String& s) 
+		{
+			ignoreUnused(s);
+		}
+
+		virtual void addImageLinks(Array<MarkdownLink>& sa) 
+		{
+			ignoreUnused(sa);
+		};
 
 		Array<HyperLink> hyperLinks;
 

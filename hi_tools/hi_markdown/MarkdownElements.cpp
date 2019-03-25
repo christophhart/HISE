@@ -68,10 +68,10 @@ struct MarkdownParser::TextBlock : public MarkdownParser::Element
 		{
 			l = { content, width };
 
-			l.addYOffset(getTopMargin());
+			l.addYOffset((float)getTopMargin());
 			l.styleData = parent->styleData;
 
-			recalculateHyperLinkAreas(l, hyperLinks, getTopMargin());
+			recalculateHyperLinkAreas(l, hyperLinks, (float)getTopMargin());
 
 			lastWidth = width;
 			lastHeight = getHeightForLayout(l);
@@ -90,7 +90,6 @@ struct MarkdownParser::TextBlock : public MarkdownParser::Element
 	String generateHtml() const override
 	{
 		String html;
-		NewLine nl;
 
 		HtmlGenerator g;
 
@@ -128,24 +127,20 @@ struct MarkdownParser::ActionButton : public Element,
 			parent(parent_)
 		{}
 
-		void drawButtonBackground(Graphics& g, Button&, const Colour& backgroundColour, bool isMouseOverButton, bool isButtonDown) override
+		void drawButtonBackground(Graphics& g, Button&, const Colour& , bool isMouseOverButton, bool isButtonDown) override
 		{
 			g.setColour(parent.styleData.linkBackgroundColour);
 
 			g.fillAll();
 
 			if (isMouseOverButton)
-			{
 				g.fillAll(Colours::black.withAlpha(0.1f));
-			}
 
 			if (isButtonDown)
-			{
 				g.fillAll(Colours::black.withAlpha(0.1f));
-			}
 		}
 
-		void drawButtonText(Graphics& g, TextButton& b, bool isMouseOverButton, bool isButtonDown) override
+		void drawButtonText(Graphics& g, TextButton& b, bool /*isMouseOverButton*/, bool /*isButtonDown*/) override
 		{
 			g.setFont(parent.styleData.getFont());
 			g.setColour(parent.styleData.textColour);
@@ -167,7 +162,7 @@ struct MarkdownParser::ActionButton : public Element,
 		button = nullptr;
 	}
 
-	void draw(Graphics& g, Rectangle<float> totalArea) override
+	void draw(Graphics& , Rectangle<float> ) override
 	{
 
 	}
@@ -177,7 +172,7 @@ struct MarkdownParser::ActionButton : public Element,
 		return 20;
 	}
 
-	void searchInContent(const String& searchString) override
+	void searchInContent(const String& ) override
 	{
 		
 	}
@@ -187,7 +182,7 @@ struct MarkdownParser::ActionButton : public Element,
 		return text;
 	}
 
-	float getHeightForWidth(float width) override
+	float getHeightForWidth(float ) override
 	{
 		return (float)getPreferredHeight();
 	}
@@ -209,10 +204,10 @@ struct MarkdownParser::ActionButton : public Element,
 
 	int getPreferredHeight() const
 	{
-		return parent->styleData.getFont().getHeight() + 20;
+		return (int)parent->styleData.getFont().getHeight() + 20;
 	}
 
-	void buttonClicked(Button* b) override
+	void buttonClicked(Button* ) override
 	{
 		auto f = [this]()
 		{
@@ -256,9 +251,9 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 
 		if (img.isValid())
 		{
-			auto b = area.removeFromLeft(img.getWidth()).toNearestInt().reduced(5);
+			auto b = area.removeFromLeft((float)img.getWidth()).toNearestInt().reduced(5);
 
-			g.drawImageAt(img, b.getX(), area.getY());
+			g.drawImageAt(img, b.getX(), (int)area.getY());
 
 			area.removeFromLeft(5.0f);
 
@@ -284,7 +279,7 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 		float marginBottom = 10.0f * getZoomRatio();
 
 		l = { content, width };
-		l.addYOffset(getTopMargin());
+		l.addYOffset((float)getTopMargin());
 
 		
 
@@ -321,24 +316,17 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 	String generateHtml() const override
 	{
 		String html;
-		NewLine nl;
-
 		HtmlGenerator g;
-
 		int linkIndex = 0;
-
 		String c;
 
 		if (imageURL.isValid())
 		{
 			auto imageString = imageURL.toString(MarkdownLink::FormattedLinkHtml);
-
 			c << g.surroundWithTag("", "img", "src=\"" + imageString + "\"");
-
 		}
 
 		c << g.createFromAttributedString(content, linkIndex);
-
 		html << g.surroundWithTag(c, "h" + String(3 - level), "id=\"" + anchorURL.substring(1) + "\"");
 
 		return html;
@@ -395,7 +383,6 @@ struct MarkdownParser::BulletPointList : public MarkdownParser::Element
 			auto ar = area.removeFromTop(r.l.getHeight());
 			auto font = parent->styleData.f.withHeight(parent->styleData.fontSize);
 			static const String bp = CharPointer_UTF8(" \xe2\x80\xa2 ");
-			auto i = font.getStringWidthFloat(bp) + 10.0f;
 
 			g.setColour(parent->styleData.textColour);
 			g.setFont(font);
@@ -420,10 +407,7 @@ struct MarkdownParser::BulletPointList : public MarkdownParser::Element
 	String generateHtml() const override
 	{
 		String html;
-		NewLine nl;
-
 		HtmlGenerator g;
-
 		int linkIndex = 0;
 		String listItems;
 
@@ -434,7 +418,6 @@ struct MarkdownParser::BulletPointList : public MarkdownParser::Element
 		}
 
 		html << g.surroundWithTag(listItems, getHtmlListTag());
-
 		return html;
 	}
 
@@ -455,8 +438,8 @@ struct MarkdownParser::BulletPointList : public MarkdownParser::Element
 			y += r.l.getHeight();
 			y += bulletMargin;
 
-			for (auto r : searchResults)
-				allMatches.add(r);
+			for (auto result : searchResults)
+				allMatches.add(result);
 		}
 
 		searchResults = allMatches;
@@ -551,8 +534,6 @@ struct MarkdownParser::EnumerationList : public MarkdownParser::BulletPointList
 			String bp;
 			bp << rowIndex++ << ".";
 
-			auto i = font.getStringWidthFloat(bp) + 10.0f;
-
 			float xDelta = 5.0f;
 			float yDelta = 3.0f;
 
@@ -616,10 +597,10 @@ struct MarkdownParser::Comment : public MarkdownParser::Element
 			lastWidth = widthToUse;
 
 			l = { content, widthToUse - thisIndentation };
-			l.addYOffset(getTopMargin() + thisIndentation);
+			l.addYOffset((float)getTopMargin() + thisIndentation);
 			l.addXOffset(thisIndentation);
 			l.styleData = parent->styleData;
-			recalculateHyperLinkAreas(l, hyperLinks, getTopMargin());
+			recalculateHyperLinkAreas(l, hyperLinks, (float)getTopMargin());
 
 			lastHeight = l.getHeight() + thisIndentation;
 
@@ -645,7 +626,7 @@ struct MarkdownParser::Comment : public MarkdownParser::Element
 		return content.getText();
 	}
 
-	int getTopMargin() const override { return intendation * getZoomRatio(); };
+	int getTopMargin() const override { return (int)(intendation * getZoomRatio()); };
 
 	const float intendation = 12.0f;
 
@@ -712,7 +693,7 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 		return g.surroundWithTag("", "img", "src=\"" + imageURL.toString(MarkdownLink::FormattedLinkHtml) + "\"");
 	}
 
-	Component* createComponent(int maxWidth) override
+	Component* createComponent(int) override
 	{
 		if (isGif && gifPlayer == nullptr)
 		{
@@ -745,13 +726,13 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 			g.fillEllipse(ar.toFloat());
 			g.setColour(Colours::white.withAlpha(0.5f));
 
-			Path p;
+			Path path;
 
-			p.addTriangle(0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.5f);
+			path.addTriangle(0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.5f);
 			ar = ar.reduced(25.0f);
 
-			p.scaleToFit(ar.getX() + 5.0f, ar.getY(), ar.getWidth(), ar.getHeight(), true);
-			g.fillPath(p);
+			path.scaleToFit(ar.getX() + 5.0f, ar.getY(), ar.getWidth(), ar.getHeight(), true);
+			g.fillPath(path);
 
 		}
 
@@ -763,12 +744,12 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 			}
 		}
 
-		void mouseEnter(const MouseEvent& e)
+		void mouseEnter(const MouseEvent& )
 		{
 			setMouseCursor(MouseCursor(MouseCursor::PointingHandCursor));
 		}
 
-		void mouseExit(const MouseEvent& e)
+		void mouseExit(const MouseEvent& )
 		{
 			setMouseCursor(MouseCursor(MouseCursor::NormalCursor));
 		}
@@ -820,7 +801,7 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 		//code << "\n"; // hacky..
 	}
 
-	void draw(Graphics& g, Rectangle<float> area) override
+	void draw(Graphics& , Rectangle<float> ) override
 	{
 	}
 
@@ -831,21 +812,7 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 
 	String generateHtml() const override
 	{
-
-#if !HISE_HEADLESS
-		MessageManagerLock mm;
-		const_cast<CodeBlock*>(this)->createComponent(800);
-
-
-#endif
-
 		return MarkdownCodeComponentBase::HtmlHelpers::createSnapshot(syntax, code);
-		
-
-		if (content != nullptr)
-			return content->generateHtml();
-
-		return {};
 	}
 
 	void searchInContent(const String& searchString) override
@@ -854,7 +821,7 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 		{
 			searchResults.clear();
 
-			ScopedPointer<MarkdownCodeComponentBase> c = createEditor(lastWidth);
+			ScopedPointer<MarkdownCodeComponentBase> c = createEditor((int)lastWidth);
 
 			auto ranges = getMatchRanges(code, searchString, true);
 
@@ -1356,7 +1323,7 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 		return content;
 	}
 
-	virtual void draw(Graphics& g, Rectangle<float> area)
+	virtual void draw(Graphics& , Rectangle<float> )
 	{
 
 	}
@@ -1366,7 +1333,7 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 		
 		HtmlGenerator g;
 
-		String s;
+		String html;
 		String nl = "\n";
 
 		ContentFooter::ContentLinks links = ContentFooter::createContentLinks(parent);
@@ -1378,18 +1345,18 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 
 		auto fl = g.surroundWithTag("Join Discussion", "a", "href=\"" + forumLink.toString(MarkdownLink::FormattedLinkHtml) + "\"");
 
-		auto next = "Next: " + g.surroundWithTag(links.nextName, "a", "href=\"" + links.nextLink.toString(MarkdownLink::FormattedLinkHtml) + "\"");
+		auto nextString = "Next: " + g.surroundWithTag(links.nextName, "a", "href=\"" + links.nextLink.toString(MarkdownLink::FormattedLinkHtml) + "\"");
 
-		s << g.surroundWithTag(fl, "span", "class=\"content-footer-left\"") << nl;
-		s << g.surroundWithTag(next, "span", "class=\"content-footer-right\"") << nl;
+		html << g.surroundWithTag(fl, "span", "class=\"content-footer-left\"") << nl;
+		html << g.surroundWithTag(nextString, "span", "class=\"content-footer-right\"") << nl;
 		String metadata;
 
 		metadata << parent->getHeader().getKeyValue("author") << "<br>";
 		metadata << parent->getHeader().getKeyValue("modified") << "<br>";
 
-		s << g.surroundWithTag(metadata, "p", "class=\"content-footer-metadata\"");
+		html << g.surroundWithTag(metadata, "p", "class=\"content-footer-metadata\"");
 
-		return g.surroundWithTag(s, "div", "class=\"content-footer\"");
+		return g.surroundWithTag(html, "div", "class=\"content-footer\"");
 	}
 
 	String getTextToCopy() const override
@@ -1399,9 +1366,9 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 
 	virtual float getHeightForWidth(float width)
 	{
-		createComponent(width);
+		createComponent((int)width);
 
-		return content->getPreferredHeight();
+		return (float)content->getPreferredHeight();
 	}
 
 	virtual int getTopMargin() const override
@@ -1454,7 +1421,7 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 
 		struct ButtonLookAndFeel : public LookAndFeel_V3
 		{
-			void drawButtonBackground(Graphics& g, Button& button, const Colour& backgroundColour, bool isMouseOverButton, bool isButtonDown) override
+			void drawButtonBackground(Graphics& g, Button& button, const Colour&, bool isMouseOverButton, bool isButtonDown) override
 			{
 				if (isMouseOverButton)
 					g.fillAll(Colours::grey.withAlpha(0.1f));
@@ -1462,23 +1429,16 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 					g.fillAll(Colours::grey.withAlpha(0.1f));
 
 				bool isNextLink = button.getButtonText() != "Discussion";
-
 				auto bounds = button.getLocalBounds();
-
 				auto pathBounds = isNextLink ? bounds.removeFromRight(h) : bounds.removeFromLeft(h);
-
 				auto pb = pathBounds.reduced(pathBounds.getHeight() / 8, pathBounds.getHeight() / 8).toFloat();
-
 				auto p = f.createPath(button.getButtonText());
-
 				p.scaleToFit(pb.getX(), pb.getY(), pb.getWidth(), pb.getHeight(), true);
-
 				g.setColour(textColour.withAlpha(button.isEnabled() ? 1.0f : 0.1f));
-
 				g.fillPath(p);
 			}
 
-			void drawButtonText(Graphics& g, TextButton& button, bool isMouseOverButton, bool isButtonDown)
+			void drawButtonText(Graphics& g, TextButton& button, bool /*isMouseOverButton*/, bool /*isButtonDown*/)
 			{
 				bool isNextLink = button.getButtonText() != "Discussion";
 				
@@ -1489,18 +1449,14 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 				g.setFont(font);
 				g.setColour(textColour.withAlpha(button.isEnabled() ? 1.0f : 0.1f));
 
-				String s;
+				String text;
 
 				if (isNextLink)
-				{
-					s << "Next: " << nextLink;
-				}
+					text << "Next: " << nextLink;
 				else
-				{
-					s << "Read the discussion";
-				}
+					text << "Read the discussion";
 
-				g.drawText(s, bounds.toFloat().reduced(5.0f), isNextLink ? Justification::centredRight : Justification::centredLeft);
+				g.drawText(text, bounds.toFloat().reduced(5.0f), isNextLink ? Justification::centredRight : Justification::centredLeft);
 			}
 
 			int h = 0;
@@ -1575,7 +1531,7 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 
 		int getButtonHeight() const
 		{
-			return parent.getFont().getHeight() * 2;
+			return (int)parent.getFont().getHeight() * 2;
 		}
 
 		void paint(Graphics& g) override
@@ -1589,9 +1545,9 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 			bounds.removeFromTop(getButtonHeight());
 
 			g.setColour(parent.getTextColour().withAlpha(0.2f));
-			bounds.removeFromTop(10.0f);
-			g.fillRect(bounds.removeFromTop(2.0f));
-			bounds.removeFromTop(6.0f);
+			bounds.removeFromTop(10);
+			g.fillRect(bounds.removeFromTop(2));
+			bounds.removeFromTop(6);
 
 			parent.s.draw(g, bounds.toFloat().reduced(10.0f));
 

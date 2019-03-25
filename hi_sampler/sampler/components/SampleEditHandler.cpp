@@ -41,22 +41,22 @@ void SampleEditHandler::moveSamples(SamplerSoundMap::Neighbour direction)
 	int lowestValue = 127;
 	int highestValue = 0;
 
-	for (auto s : selectedSamplerSounds)
+	for (auto sound : selectedSamplerSounds)
 	{
 		switch (direction)
 		{
 		case SamplerSoundMap::Right:
 		case SamplerSoundMap::Left:
 		{
-			lowestValue = jmin<int>(lowestValue, s->getSampleProperty(SampleIds::LoKey));
-			highestValue = jmax<int>(highestValue, s->getSampleProperty(SampleIds::HiKey));
+			lowestValue = jmin<int>(lowestValue, sound->getSampleProperty(SampleIds::LoKey));
+			highestValue = jmax<int>(highestValue, sound->getSampleProperty(SampleIds::HiKey));
 			break;
 		}
 		case SamplerSoundMap::Up:
 		case SamplerSoundMap::Down:
 		{
-			lowestValue = jmin<int>(lowestValue, s->getSampleProperty(SampleIds::LoVel));
-			highestValue = jmax<int>(highestValue, s->getSampleProperty(SampleIds::HiVel));
+			lowestValue = jmin<int>(lowestValue, sound->getSampleProperty(SampleIds::LoVel));
+			highestValue = jmax<int>(highestValue, sound->getSampleProperty(SampleIds::HiVel));
 			break;
 		}
 		}

@@ -121,7 +121,7 @@ hise::MarkdownHeader MarkdownHeader::getHeaderForFile(File root, const String& u
 	auto f = MarkdownLink::Helpers::getFolderReadmeFile(root, url);
 
 	if (!f.existsAsFile())
-		f = MarkdownLink::Helpers::getLocalFileForSanitizedURL(root, url, File::findFiles, "*.md");
+		f = MarkdownLink::Helpers::getLocalFileForSanitizedURL(root, url, File::findFiles);
 
 	if (f.existsAsFile())
 	{

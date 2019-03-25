@@ -76,7 +76,7 @@ juce::String MarkdownParser::FileLinkResolver::getContent(const MarkdownLink& ur
 }
 
 
-bool MarkdownParser::FileLinkResolver::linkWasClicked(const MarkdownLink& url)
+bool MarkdownParser::FileLinkResolver::linkWasClicked(const MarkdownLink& )
 {
 	return false;
 }
@@ -161,7 +161,7 @@ MarkdownParser::FolderTocCreator::FolderTocCreator(const File& rootFile_) :
 
 }
 
-hise::MarkdownParser::LinkResolver* MarkdownParser::FolderTocCreator::clone(MarkdownParser* parent) const
+hise::MarkdownParser::LinkResolver* MarkdownParser::FolderTocCreator::clone(MarkdownParser* ) const
 {
 	return new FolderTocCreator(rootFile);
 }
@@ -188,13 +188,13 @@ juce::Image MarkdownParser::URLImageProvider::getImage(const MarkdownLink& urlLi
 			return {};
 		}
 
-		int timeout = 5000;
+		uint32 timeout = 5000;
 
 		auto start = Time::getApproximateMillisecondCounter();
 
 		while (!task->isFinished())
 		{
-			if (Time::getApproximateMillisecondCounter() - start > timeout)
+			if ((Time::getApproximateMillisecondCounter() - start) > timeout)
 				break;
 
 			Thread::sleep(500);
@@ -275,7 +275,7 @@ juce::String MarkdownCodeComponentBase::generateHtml() const
 	return HtmlHelpers::createCodeBlock(syntax, usedDocument->getAllContent());
 }
 
-MarkdownCodeComponentBase::MarkdownCodeComponentBase(SyntaxType syntax_, String code, float width, float fontsize, MarkdownParser* parent_) :
+MarkdownCodeComponentBase::MarkdownCodeComponentBase(SyntaxType syntax_, String code, float , float fontsize, MarkdownParser* parent_) :
 	syntax(syntax_),
 	fontSize(fontsize),
 	parent(parent_)

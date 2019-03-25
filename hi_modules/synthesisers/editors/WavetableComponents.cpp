@@ -84,14 +84,14 @@ void WaveformComponent::paint(Graphics &g)
 		g.fillAll();
 
 		g.setColour(findColour(fillColour));
-		g.fillPath(p);
+		g.fillPath(path);
 
 		g.setColour(findColour(lineColour));
-		g.strokePath(p, PathStrokeType(2.0f));
+		g.strokePath(path, PathStrokeType(2.0f));
 	}
 	else
 	{
-		GlobalHiseLookAndFeel::fillPathHiStyle(g, p, (int)w, (int)h);
+		GlobalHiseLookAndFeel::fillPathHiStyle(g, path, (int)w, (int)h);
 	}
 }
 
@@ -138,14 +138,14 @@ void WaveformComponent::rebuildPath()
 {
 	if (bypassed)
 	{
-		p.clear();
+		path.clear();
 		repaint();
 		return;
 	}
 
 	auto broadcaster = dynamic_cast<Broadcaster*>(processor.get());
 
-	p.clear();
+	path.clear();
 
 	if (broadcaster == nullptr)
 		return;
@@ -160,7 +160,7 @@ void WaveformComponent::rebuildPath()
 	float w = (float)getWidth();
 	float h = (float)getHeight();
 
-	p.startNewSubPath(0.0, h / 2.0f);
+	path.startNewSubPath(0.0, h / 2.0f);
 
 	const float cycle = tableLength / w;
 
@@ -192,13 +192,13 @@ void WaveformComponent::rebuildPath()
 
 			jassert(tableIndex < tableLength);
 
-			p.lineTo((float)i, value * -(h - 2) / 2 + h / 2);
+			path.lineTo((float)i, value * -(h - 2) / 2 + h / 2);
 		}
 	}
 
-	p.lineTo(w, h / 2.0f);
+	path.lineTo(w, h / 2.0f);
 
-	p.closeSubPath();
+	path.closeSubPath();
 
 	repaint();
 }

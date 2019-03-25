@@ -35,12 +35,14 @@
 namespace hise {
 using namespace juce;
 
-struct MarkdownParser::DefaultLinkResolver : public LinkResolver
+class MarkdownParser::DefaultLinkResolver : public LinkResolver
 {
+public:
+
 	DefaultLinkResolver(MarkdownParser* parser_);
 
 	Identifier getId() const override { RETURN_STATIC_IDENTIFIER("DefaultLinkResolver"); }
-	String getContent(const MarkdownLink& url) override { return {}; }
+	String getContent(const MarkdownLink& ) override { return {}; }
 
 	ResolveType getPriority() const override { return ResolveType::Fallback; }
 
@@ -50,15 +52,16 @@ struct MarkdownParser::DefaultLinkResolver : public LinkResolver
 	MarkdownParser* parser;
 };
 
-struct MarkdownParser::FileLinkResolver : public LinkResolver
+class MarkdownParser::FileLinkResolver : public LinkResolver
 {
+public:
 	FileLinkResolver(const File& root_);;
 
 	String getContent(const MarkdownLink& url) override;
 	bool linkWasClicked(const MarkdownLink& url) override;
 	ResolveType getPriority() const override { return ResolveType::FileBased; }
 	Identifier getId() const override { RETURN_STATIC_IDENTIFIER("FileLinkResolver"); };
-	LinkResolver* clone(MarkdownParser* p) const override { return new FileLinkResolver(root); }
+	LinkResolver* clone(MarkdownParser* /*p*/) const override { return new FileLinkResolver(root); }
 
 	File root;
 };
@@ -259,7 +262,10 @@ struct MarkdownCodeComponentBase : public Component,
 
 	virtual ~MarkdownCodeComponentBase() {};
 
-	virtual void addImageLinks(Array<MarkdownLink>& sa) {};
+	virtual void addImageLinks(Array<MarkdownLink>& sa)
+	{
+		ignoreUnused(sa);
+	};
 
 	virtual String generateHtml() const;
 

@@ -164,7 +164,7 @@ public:
 				break;
 			}
 
-			return p - start;
+			return (int)(p - start);
 		}
 
 		static String getRegexForUIDefinition(ScriptComponent* sc)

@@ -68,12 +68,12 @@ public:
 
 		static bool wasOk(int r)
 		{
-			return r & 0b1000 == 0;
+			return (r & 0b1000) == 0;
 		}
 
 		static bool somethingDownloaded(DownloadResult r)
 		{
-			return wasOk(r) && (r & 0xb0100 != 0);
+			return wasOk(r) && ((r & 0xb0100) != 0);
 		}
 
 		static int getIndexFromFileName(const String& fileName)
@@ -111,12 +111,12 @@ public:
 
 	void downloadAndTestFile(const String& targetFileName);
 
-	void progress(URL::DownloadTask* task, int64 bytesDownloaded, int64 totalLength) override
+	void progress(URL::DownloadTask* /*task*/, int64 bytesDownloaded, int64 totalLength) override
 	{
 		setProgress((double)bytesDownloaded / (double)totalLength);
 	}
 
-	void finished(URL::DownloadTask* task, bool success) override
+	void finished(URL::DownloadTask* , bool ) override
 	{
 
 	}
@@ -138,8 +138,7 @@ public:
 
 
 class MarkdownPreview : public Component,
-					    public MarkdownContentProcessor,
-						public MarkdownDatabaseHolder::DatabaseListener
+					    public MarkdownContentProcessor
 {
 public:
 
@@ -302,7 +301,7 @@ public:
 
 		void mouseUp(const MouseEvent& e) override;
 
-		void mouseEnter(const MouseEvent& e) override
+		void mouseEnter(const MouseEvent& ) override
 		{
 			if (enableSelect)
 				setMouseCursor(MouseCursor(MouseCursor::IBeamCursor));
@@ -310,7 +309,7 @@ public:
 				setMouseCursor(MouseCursor(MouseCursor::DraggingHandCursor));
 		}
 
-		void mouseExit(const MouseEvent& e) override
+		void mouseExit(const MouseEvent& ) override
 		{
 			setMouseCursor(MouseCursor::NormalCursor);
 		}
@@ -462,14 +461,14 @@ public:
 					setInterceptsMouseClicks(true, true);
 				}
 
-				void mouseEnter(const MouseEvent& e) override
+				void mouseEnter(const MouseEvent& ) override
 				{
 					hover = true;
 					setMouseCursor(MouseCursor(MouseCursor::PointingHandCursor));
 					repaint();
 				}
 
-				void mouseExit(const MouseEvent& e) override
+				void mouseExit(const MouseEvent&) override
 				{
 					hover = false;
 					setMouseCursor(MouseCursor(MouseCursor::NormalCursor));
@@ -561,9 +560,9 @@ public:
 
 						g.setColour(item.c);
 						
-						Path p;
-						p.addStar(starBounds.toFloat().getCentre(), 5, 5.0f, 10.0f);
-						g.fillPath(p);
+						Path starPath;
+						starPath.addStar(starBounds.toFloat().getCentre(), 5, 5.0f, 10.0f);
+						g.fillPath(starPath);
 					}
 
 					
@@ -585,7 +584,7 @@ public:
 
 					if (height == 0)
 					{
-						height = p.getHeightForWidth((float)(width - 10.0f - kBounds.getWidth() - starBounds.getWidth()));
+						height = (int)p.getHeightForWidth((float)(width - 10.0f - kBounds.getWidth() - starBounds.getWidth()));
 					}
 
 					kBounds.setHeight(height);
@@ -875,7 +874,6 @@ public:
 					content.setSize(viewport.getMaximumVisibleWidth(), 20);
 
 					int y = 0;
-					auto w = (float)getWidth();
 
 					for (auto d : displayedItems)
 					{
@@ -954,7 +952,7 @@ public:
 				}
 			}
 
-			void editorShown(Label* l, TextEditor& ed) override
+			void editorShown(Label* , TextEditor& ed) override
 			{
 				ed.addListener(this);
 				ed.addKeyListener(this);
@@ -1039,7 +1037,7 @@ public:
 				}
 			}
 
-			bool keyPressed(const KeyPress& key, Component* originatingComponent) override
+			bool keyPressed(const KeyPress& key, Component* ) override
 			{
 				if (key == KeyPress('f') && key.getModifiers().isCommandDown())
 				{
@@ -1091,8 +1089,6 @@ public:
 
 			void resized() override
 			{
-				const auto& s = parent.internalComponent.styleData;
-
 				Colour c = Colours::white;
 
 				tocButton.setColours(c.withAlpha(0.8f), c, c);
@@ -1135,7 +1131,7 @@ public:
 
 				editButton.setBounds(ar.removeFromRight(height).reduced(buttonMargin));
 				
-				searchBar.setBounds(ar.reduced(5.0f));
+				searchBar.setBounds(ar.reduced(5));
 			}
 
 			void paint(Graphics& g) override
@@ -1170,8 +1166,7 @@ public:
 					previewParent.toc.tree.removeKeyListener(this);
 				}
 
-				bool keyPressed(const KeyPress& key,
-					Component* originatingComponent) override
+				bool keyPressed(const KeyPress& key, Component* ) override
 				{
 					if (key.getKeyCode() == KeyPress::returnKey)
 					{
@@ -1307,7 +1302,7 @@ public:
 
 			int getItemHeight() const override
 			{
-				return 26.0f;
+				return 26;
 			}
 
 			int getItemWidth() const 
@@ -1317,7 +1312,7 @@ public:
 				const auto& s = previewParent.internalComponent.styleData;
 				auto f = FontHelpers::getFontBoldened(s.getFont().withHeight(16.0f));
 
-				int thisWidth = intendation + f.getStringWidth(item.tocString) + 30.0f;   
+				int thisWidth = intendation + f.getStringWidth(item.tocString) + 30;   
 				
 				int maxWidth = thisWidth;
 
@@ -1353,31 +1348,19 @@ public:
 				g.setColour(item.c);
 				g.fillRect(r);
 
+				
+				
+
 				g.setColour(Colours::white.withAlpha(0.8f));
 
 				auto f = FontHelpers::getFontBoldened(s.getFont().withHeight(16.0f));
 
 				g.setFont(f);
 
-				
-
-				if (!item.icon.isEmpty())
-				{
-					if (auto globalPath = previewParent.getTypedImageProvider<MarkdownParser::GlobalPathProvider>())
-					{
-						auto img = globalPath->getImage({ previewParent.rootDirectory, item.icon }, (float)height - 4.0f);
-
-						auto pArea = area.removeFromLeft((float)height).reduced(4.0f);
-
-						area.removeFromLeft(5.0f);
-
-						g.drawImageAt(img, pArea.getX(), pArea.getY());
-					}
-
-					
-				}
-
 				g.drawText(item.tocString, area, Justification::centredLeft);
+
+				auto b_ = area.removeFromRight(50);
+				g.drawText(String(item.getWeight()), b_, Justification::centred);
 			}
 
 			MarkdownDataBase::Item item;

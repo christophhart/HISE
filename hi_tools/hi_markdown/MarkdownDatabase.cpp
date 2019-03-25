@@ -61,19 +61,9 @@ void MarkdownDataBase::setRoot(const File& newRootDirectory)
 	rootDirectory = newRootDirectory;
 }
 
-juce::String MarkdownDataBase::generateHtmlToc(const String& activeUrl) const
+juce::String MarkdownDataBase::generateHtmlToc(const String&) const
 {
-	HtmlGenerator g;
-
-#if 0
-	String s;
-
-
-	for (auto c : rootItem.children)
-		s << c.generateHtml(rootDirectory.getChildFile("html").getFullPathName() + "/", activeUrl);
-#endif
-
-	return g.surroundWithTag("Insert funky js here", "nav", "class=\"toc\"");
+	return {};
 }
 
 void MarkdownDataBase::buildDataBase(bool useCache)
@@ -343,9 +333,9 @@ juce::String MarkdownDataBase::Item::generateHtml(const String& rootString, cons
 
 	html << d;
 
-	for (auto c : children)
+	for (const auto& child : children)
 	{
-		html << c.generateHtml(rootString, activeURL);
+		html << child.generateHtml(rootString, activeURL);
 	}
 
 	return g.surroundWithTag(html, "details", "");// containsURL(activeURL) ? "open" : "");
@@ -355,9 +345,9 @@ void MarkdownDataBase::Item::addToList(Array<Item>& list) const
 {
 	list.add(*this);
 
-	for (auto c : children)
+	for (const auto& child : children)
 	{
-		c.addToList(list);
+		child.addToList(list);
 	}
 		
 }
@@ -380,7 +370,7 @@ MarkdownDataBase::Item MarkdownDataBase::Item::createChildItem(const String& sub
 	return item;
 }
 
-MarkdownDataBase::Item::Item(Type t, File root, File f, const StringArray& keywords_, String description_) :
+MarkdownDataBase::Item::Item(File root, File f, const StringArray& keywords_, String description_) :
 	url({ root, f.getRelativePathFrom(root) })
 {
 	// If you construct an item like this, you need a directory...
@@ -395,7 +385,7 @@ MarkdownDataBase::Item::Item(const MarkdownLink& link):
 	// You need to pass in a valid root
 	jassert(url.getRoot().isDirectory());
 
-	auto header = link.getHeaderFromFile({}, false);
+	auto header = link.getHeaderFromFile({});
 
 	keywords = header.getKeywords();
 	description = header.getDescription();
@@ -437,8 +427,8 @@ MarkdownDataBase::Item::Item(const Item& other)
 
 	children = other.children;
 
-	for (auto& c : children)
-		c.parent = this;
+	for (auto& child : children)
+		child.parent = this;
 }
 
 hise::MarkdownDataBase::Item& MarkdownDataBase::Item::operator=(const Item& other)
@@ -457,8 +447,8 @@ hise::MarkdownDataBase::Item& MarkdownDataBase::Item::operator=(const Item& othe
 
 	children = other.children;
 
-	for (auto& c : children)
-		c.parent = this;
+	for (auto& child : children)
+		child.parent = this;
 
 	return *this;
 }
@@ -481,8 +471,8 @@ juce::ValueTree MarkdownDataBase::Item::createValueTree() const
 	v.setProperty("DeltaWeight", deltaWeight, nullptr);
 	v.setProperty("AbsoluteWeight", absoluteWeight, nullptr);
 
-	for (const auto& c : children)
-		v.addChild(c.createValueTree(), -1, nullptr);
+	for (const auto& child : children)
+		v.addChild(child.createValueTree(), -1, nullptr);
 
 	return v;
 }
@@ -501,10 +491,10 @@ void MarkdownDataBase::Item::loadFromValueTree(ValueTree& v)
 	absoluteWeight = v.getProperty("AbsoluteWeight", -1);
 	index = v.getProperty("Index", -1);
 
-	for (auto c : v)
+	for (auto child : v)
 	{
 		Item newChild;
-		newChild.loadFromValueTree(c);
+		newChild.loadFromValueTree(child);
 		addChild(std::move(newChild));
 	}
 }

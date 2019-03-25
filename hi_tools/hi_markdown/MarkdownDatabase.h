@@ -85,9 +85,9 @@ public:
 			if (f(*this))
 				return true;
 
-			for (auto& c : children)
+			for (auto& child : children)
 			{
-				if (c.callForEach(f))
+				if (child.callForEach(f))
 					return true;
 			}
 
@@ -119,8 +119,8 @@ public:
 
 			Array<var> childrenArray;
 
-			for (const auto& c : children)
-				childrenArray.add(c.toJSONObject());
+			for (const auto& child : children)
+				childrenArray.add(child.toJSONObject());
 
 			newObject->setProperty("Children", childrenArray);
 
@@ -132,9 +132,9 @@ public:
 			if (url.toString(MarkdownLink::UrlSubPath) == name)
 				return *this;
 
-			for (const auto& c : children)
+			for (const auto& child : children)
 			{
-				auto i = c.getChildWithName(name);
+				auto i = child.getChildWithName(name);
 
 				if (i.url.isValid())
 					return i;
@@ -150,7 +150,7 @@ public:
 
 		Item createChildItem(const String& subPath) const;
 
-		Item(Type t, File root, File f, const StringArray& keywords_, String description_);
+		Item(File root, File f, const StringArray& keywords_, String description_);
 		Item() {};
 
 		Item(const Item& other);
@@ -202,9 +202,9 @@ public:
 			children.sort(sorter);
 		}
 
-		void removeChild(int index)
+		void removeChild(int childIndex)
 		{
-			children.remove(index);
+			children.remove(childIndex);
 		}
 
 		void swapChildren(Array<Item>& other)
@@ -214,7 +214,7 @@ public:
 
 		int getNumChildren() const { return children.size(); }
 
-		Item& operator[](int index) const { return children.getReference(index); };
+		Item& operator[](int childIndex) const { return children.getReference(childIndex); };
 
 		bool hasChildren() const { return !children.isEmpty(); }
 
@@ -244,8 +244,8 @@ public:
 		{
 			autoWeight = newAutoWeight;
 
-			for (auto& c : children)
-				c.setAutoweight(getWeight() - 10);
+			for (auto& child : children)
+				child.setAutoweight(getWeight() - 10);
 		}
 
 		void applyWeightFromHeader(const MarkdownHeader& h)
@@ -403,9 +403,9 @@ private:
 
 class MarkdownContentProcessor;
 
-struct MarkdownDatabaseHolder
+class MarkdownDatabaseHolder
 {
-	
+public:
 
 	struct DatabaseListener
 	{

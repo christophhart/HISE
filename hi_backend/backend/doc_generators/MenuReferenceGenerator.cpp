@@ -91,10 +91,10 @@ juce::String MenuReferenceDocGenerator::Resolver::generateIconTable(const String
 		parser.parse();
 		auto sa = parser.getHeader().getKeyList("items");
 
-		for (const auto& s : sa)
+		for (const auto& s2 : sa)
 		{
-			auto key = s.upToFirstOccurrenceOf(":", false, false);
-			auto value = s.fromFirstOccurrenceOf(":", false, false);
+			auto key = s2.upToFirstOccurrenceOf(":", false, false);
+			auto value = s2.fromFirstOccurrenceOf(":", false, false);
 
 			descriptions.add({ key, value });
 		}
@@ -242,7 +242,7 @@ void MenuReferenceDocGenerator::ItemGenerator::createAndAddWorkspace(MarkdownDat
 	wItem.c = parent.c;
 	wItem.tocString = id;
 	wItem.url = parent.url.getChildUrl(id).withRoot(rootDirectory);
-	wItem.icon = wItem.url.getHeaderFromFile({}, false).getIcon();
+	wItem.icon = wItem.url.getHeaderFromFile({}).getIcon();
 
 
 	auto d = wItem.url.getDirectory({});
@@ -271,10 +271,9 @@ void MenuReferenceDocGenerator::ItemGenerator::createSettingsItem(MarkdownDataBa
 	auto url = parent.url.getChildUrlWithRoot("settings");
 
 	auto f = url.getMarkdownFile({});
-	auto header = url.getHeaderFromFile({},false);
+	auto header = url.getHeaderFromFile({});
 
-	MarkdownDataBase::Item sItem(MarkdownDataBase::Item::Keyword,
-		rootDirectory,
+	MarkdownDataBase::Item sItem(rootDirectory,
 		f,
 		header.getKeywords(),
 		header.getDescription());
@@ -297,9 +296,9 @@ void MenuReferenceDocGenerator::ItemGenerator::createSettingSubMenu(MarkdownData
 {
 	auto url = parent.url.getChildUrlWithRoot(name);
 	auto f = url.getMarkdownFile({});
-	auto header = url.getHeaderFromFile({},false);
+	auto header = url.getHeaderFromFile({});
 
-	MarkdownDataBase::Item subItem(MarkdownDataBase::Item::Keyword, rootDirectory, f, header.getKeywords(), header.getDescription());
+	MarkdownDataBase::Item subItem(rootDirectory, f, header.getKeywords(), header.getDescription());
 
 	subItem.url = url;
 	subItem.url.setType(MarkdownLink::MarkdownFile);

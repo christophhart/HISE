@@ -1811,7 +1811,7 @@ struct InteractiveEditor : public MarkdownCodeComponentBase,
 
 		if (jp != nullptr)
 		{
-			auto f = [this](const JavascriptProcessor::SnippetResult& result)
+			auto f2 = [this](const JavascriptProcessor::SnippetResult& result)
 			{
 				auto fc = [this, result]()
 				{
@@ -1839,7 +1839,7 @@ struct InteractiveEditor : public MarkdownCodeComponentBase,
 			};
 
 			jp->getMainController()->getConsoleHandler().clearConsole();
-			jp->compileScript(f);
+			jp->compileScript(f2);
 		}
 		else if (floatingTile != nullptr)
 		{

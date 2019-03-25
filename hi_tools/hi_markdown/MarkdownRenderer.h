@@ -110,7 +110,10 @@ public:
 		virtual ~Listener() {};
 		virtual void markdownWasParsed(const Result& r) = 0;
 
-		virtual void scrollToAnchor(float v) {};
+		virtual void scrollToAnchor(float v) 
+		{
+			ignoreUnused(v);
+		};
 
 	private:
 
@@ -137,7 +140,7 @@ public:
 		{
 			auto heightToUse = e->getHeightForWidthCached(totalArea.getWidth());
 			auto topMargin = e->getTopMargin();
-			totalArea.removeFromTop(topMargin);
+			totalArea.removeFromTop((float)topMargin);
 			auto ar = totalArea.removeFromTop(heightToUse);
 
 			if (firstDraw || viewedArea.isEmpty() || ar.toNearestInt().intersects(viewedArea))
@@ -337,7 +340,7 @@ public:
 			return true;
 		}
 
-		false;
+		return false;
 	}
 
 private:

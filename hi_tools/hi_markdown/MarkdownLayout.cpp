@@ -67,7 +67,7 @@ MarkdownLayout::MarkdownLayout(const AttributedString& s, float width, bool allI
 
 			auto t = thisString.getCharPointer();
 
-			for (int i = 0; i < textLen; ++i)
+			for (int j = 0; j < textLen; ++j)
 			{
 				auto getXDeltaForWordEnd = [](String::CharPointerType copy, Font f)
 				{
@@ -84,7 +84,7 @@ MarkdownLayout::MarkdownLayout(const AttributedString& s, float width, bool allI
 				if (CharacterFunctions::isWhitespace(*t))
 					allowedToWrap = true;
 
-				auto deltaX = xOffsets.getUnchecked(i + 1) - xOffsets.getUnchecked(i);
+				auto deltaX = xOffsets.getUnchecked(j + 1) - xOffsets.getUnchecked(j);
 
 				auto wordEndX = currentX + getXDeltaForWordEnd(t, a.font);
 
@@ -103,14 +103,13 @@ MarkdownLayout::MarkdownLayout(const AttributedString& s, float width, bool allI
 					}
 				}
 
-				auto thisX = xOffsets.getUnchecked(i);
 				bool isWhitespace = t.isWhitespace();
 
 				if (*t == '\n' && (thisString.getCharPointer() + thisString.length() - 1 == t))
 					break;
 
 				glyphs.add(PositionedGlyph(a.font, t.getAndAdvance(),
-					newGlyphs.getUnchecked(i),
+					newGlyphs.getUnchecked(j),
 					currentX,
 					yPos,
 					deltaX, isWhitespace));

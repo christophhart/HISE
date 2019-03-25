@@ -238,7 +238,7 @@ void MarkdownParser::createDatabaseEntriesForFile(File root, MarkdownDataBase::I
 	{
 		auto saveURL = item.url;
 
-		item = MarkdownDataBase::Item(MarkdownDataBase::Item::Keyword, root, f, p.header.getKeywords(), p.header.getDescription());
+		item = MarkdownDataBase::Item(root, f, p.header.getKeywords(), p.header.getDescription());
 
 		if (saveURL.isValid())
 			item.url = saveURL;
@@ -251,13 +251,12 @@ void MarkdownParser::createDatabaseEntriesForFile(File root, MarkdownDataBase::I
 		item.applyWeightFromHeader(p.getHeader());
 
 		MarkdownDataBase::Item lastHeadLine;
-		int lastLevel = -59;
 
 		for (auto e : p.elements)
 		{
 			if (auto h = dynamic_cast<Headline*>(e))
 			{
-				MarkdownDataBase::Item headLineItem(MarkdownDataBase::Item::Headline, root, f, p.header.getKeywords(), p.header.getDescription());
+				MarkdownDataBase::Item headLineItem(root, f, p.header.getKeywords(), p.header.getDescription());
 
 				headLineItem.description = h->content.getText();
 
@@ -280,6 +279,7 @@ void MarkdownParser::createDatabaseEntriesForFile(File root, MarkdownDataBase::I
 	}
 	catch (String& s)
 	{
+		ignoreUnused(s);
 		DBG("---");
 		DBG("Error parsing metadata for file " + f.getFullPathName());
 		DBG(s);
@@ -428,7 +428,7 @@ void MarkdownParser::Element::recalculateHyperLinkAreas(MarkdownLayout& l, Array
 }
 
 
-void MarkdownParser::Element::prepareLinksForHtmlExport(const String& baseURL)
+void MarkdownParser::Element::prepareLinksForHtmlExport(const String& )
 {
 	for (auto& l : hyperLinks)
 	{
@@ -490,7 +490,7 @@ void MarkdownParser::Element::searchInStringInternal(const AttributedString& tex
 	if (ranges.size() > 0)
 	{
 		MarkdownLayout searchLayout(textToSearch, lastWidth, true);
-		searchLayout.addYOffset(getTopMargin());
+		searchLayout.addYOffset((float)getTopMargin());
 
 		for (auto r : ranges)
 		{

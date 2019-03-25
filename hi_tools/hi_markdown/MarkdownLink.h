@@ -110,7 +110,7 @@ public:
 			return url.upToFirstOccurrenceOf(":", false, false);
 		}
 
-		static File getLocalFileForSanitizedURL(File root, const String& url, File::TypesOfFileToFind filetype = File::findFiles, const String& extension = "*")
+		static File getLocalFileForSanitizedURL(File root, const String& url, File::TypesOfFileToFind filetype = File::findFiles)
 		{
 			auto urlToUse = url;
 			if (urlToUse.startsWith("/"))
@@ -283,7 +283,7 @@ public:
 			if (f.existsAsFile())
 				return f;
 
-			f = getLocalFileForSanitizedURL(root, url, File::findFiles, "*.md");
+			f = getLocalFileForSanitizedURL(root, url, File::findFiles);
 
 			if (f.existsAsFile())
 				return f;
@@ -429,7 +429,7 @@ public:
 
 	String getExtraData() const noexcept;
 
-	MarkdownHeader getHeaderFromFile(const File& rootDirectory, bool createIfNonExistent) const;
+	MarkdownHeader getHeaderFromFile(const File& rootDirectory) const;
 
 	void setType(Type t)
 	{

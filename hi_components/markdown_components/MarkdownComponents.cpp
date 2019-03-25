@@ -208,7 +208,7 @@ struct MarkdownEditorPopupComponents
 			return false;
 		}
 
-		void buttonClicked(Button* b) override
+		void buttonClicked(Button* ) override
 		{
 			auto t = getTextToInsert();
 			auto pos = parent.editor.getCaretPos();
@@ -533,7 +533,7 @@ struct MarkdownEditorPopupComponents
 					auto currentKeyword = parent.preview.getComponent()->renderer.getHeader().getKeywords()[0];
 					linkName = currentKeyword.isEmpty() ? "Link" : currentKeyword;
 				}
-				catch (String& s)
+				catch (String& )
 				{
 					linkName = "Link";
 				}
@@ -748,9 +748,9 @@ void MarkdownEditorPanel::loadText(const String& s)
 	getParentShell()->refreshRootLayout();
 }
 
-void MarkdownEditorPanel::loadFile(File f)
+void MarkdownEditorPanel::loadFile(File file)
 {
-	currentFile = f;
+	currentFile = file;
 	doc.replaceAllContent(currentFile.loadFileAsString());
 
 	

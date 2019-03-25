@@ -857,7 +857,7 @@ void MidiPlayer::processHiseEvent(HiseEvent &m) noexcept
 			auto lengthInQuarters = seq->getLengthInQuarters() * getPlaybackPosition();
 			auto ticks = lengthInQuarters * HiseMidiSequence::TicksPerQuarter;
 
-			auto timestampSamples = MidiPlayerHelpers::ticksToSamples(ticks, getMainController()->getBpm(), getSampleRate());
+			auto timestampSamples = (int)MidiPlayerHelpers::ticksToSamples(ticks, getMainController()->getBpm(), getSampleRate());
 
 			// This will be processed after the position has advanced so we need to subtract the last blocksize and add the message's timestamp.
 			timestampSamples -= lastBlockSize;
@@ -1114,7 +1114,7 @@ void MidiPlayer::finishRecording()
 
 				if (!found)
 				{
-					HiseEvent artificialNoteOff(HiseEvent::Type::NoteOff, currentEvent.getNoteNumber(), 1, currentEvent.getChannel());
+					HiseEvent artificialNoteOff(HiseEvent::Type::NoteOff, (uint8)currentEvent.getNoteNumber(), 1, (uint8)currentEvent.getChannel());
 					artificialNoteOff.setTimeStamp(lastTimestamp);
 					artificialNoteOff.setEventId(currentEvent.getEventId());
 					l.add(artificialNoteOff);

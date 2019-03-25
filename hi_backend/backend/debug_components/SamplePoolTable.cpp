@@ -264,7 +264,7 @@ juce::Image PoolTableHelpers::getPreviewImage(const MidiFileReference* v, float 
 
 	auto l = seq.getRectangleList({ 0.0f, 0.0f, width, 200.0f });
 
-	Image img(Image::PixelFormat::ARGB, width, 200, true);
+	Image img(Image::PixelFormat::ARGB, (int)width, 200, true);
 	Graphics g(img);
 
 	g.setColour(Colours::white);

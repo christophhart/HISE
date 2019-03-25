@@ -111,7 +111,7 @@ void SimpleMidiViewer::mouseUp(const MouseEvent& e)
 	if (resume)
 	{
 		getPlayer()->play();
-		getPlayer()->setAttribute(MidiPlayer::CurrentPosition, currentSeekPosition, sendNotification);
+		getPlayer()->setAttribute(MidiPlayer::CurrentPosition, (float)currentSeekPosition, sendNotification);
 	}
 	
 	currentSeekPosition = -1.0;

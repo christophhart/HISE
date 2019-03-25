@@ -226,7 +226,7 @@ private:
 
 	void rebuildPath();
 
-	Path p;
+	Path path;
 	
 	bool useFlatDesign = false;
 

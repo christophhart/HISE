@@ -243,19 +243,8 @@ var SampleMapBrowser::toDynamicObject() const
 	return obj;
 }
 
-void SampleMapBrowser::fromDynamicObject(const var& object)
+void SampleMapBrowser::fromDynamicObject(const var& )
 {
-	return;
-	FloatingTileContent::fromDynamicObject(object);
-
-	var sl = getPropertyWithDefault(object, SpecialPanelIds::SampleList);
-
-	if (sl.isArray())
-		sampleList = Array<var>(*sl.getArray());
-
-	samplerId = getPropertyWithDefault(object, SpecialPanelIds::SamplerId);
-
-	rebuildColumns();
 }
 
 Identifier SampleMapBrowser::getDefaultablePropertyId(int index) const

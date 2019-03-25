@@ -725,7 +725,7 @@ void JSONEditor::setChanged()
 	if ((now - constructionTime) < 1000)
 		return;
 
-	changeLabel->setColour(Label::backgroundColourId, Colour(0x22FF000000));
+	changeLabel->setColour(Label::backgroundColourId, Colour(0x22FF0000));
 	changeLabel->setText("Press F5 or Apply to apply the changes", dontSendNotification);
 }
 

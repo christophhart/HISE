@@ -370,6 +370,7 @@ public:
 		{
 #if USE_BACKEND
 
+			ignoreUnused(url);
 			jassertfalse; // Do this correctly soon...
 
 			return {};
@@ -387,7 +388,7 @@ public:
 #endif
 		}
 
-		LinkResolver* clone(MarkdownParser* parent) const override { return new ProjectLinkResolver(const_cast<MainController*>(getMainController())); };
+		LinkResolver* clone(MarkdownParser* ) const override { return new ProjectLinkResolver(const_cast<MainController*>(getMainController())); };
 		Identifier getId() const override { RETURN_STATIC_IDENTIFIER("ProjectLinkResolver"); };
 	};
 

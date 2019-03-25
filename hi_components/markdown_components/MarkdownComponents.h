@@ -357,13 +357,13 @@ public:
 			
 	}
 
-	void codeDocumentTextDeleted(int startIndex, int endIndex) override
+	void codeDocumentTextDeleted(int , int ) override
 	{
 		if(livePreview.getToggleState())
 			startTimer(300);
 	}
 
-	void codeDocumentTextInserted(const String& newText, int insertIndex) override
+	void codeDocumentTextInserted(const String&, int ) override
 	{
 		if (livePreview.getToggleState())
 			startTimer(300);

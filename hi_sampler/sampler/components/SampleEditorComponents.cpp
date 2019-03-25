@@ -340,7 +340,7 @@ void SamplerSoundMap::endSampleDragging(bool copyDraggedSounds)
     if(copyDraggedSounds) 
 		SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(handler);
 
-	auto f = [this, copyDraggedSounds](Processor* p)
+	auto f = [this, copyDraggedSounds](Processor* )
 	{
 		for (int i = 0; i < dragStartData.size(); i++)
 		{
@@ -994,7 +994,7 @@ void SamplerSoundMap::setPressedKeys(const uint8 *pressedKeyData)
 			}
 		}
 
-		pressedKeys[i] = velocity;
+		pressedKeys[i] = (uint8)velocity;
 	}
 
 	repaint();

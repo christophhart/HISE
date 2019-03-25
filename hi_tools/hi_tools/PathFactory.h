@@ -134,7 +134,7 @@ using namespace juce;
 			refreshShape();
 		}
 
-		void buttonClicked(Button* b) override
+		void buttonClicked(Button* /*b*/) override
 		{
 			refreshShape();
 			refreshButtonColours();

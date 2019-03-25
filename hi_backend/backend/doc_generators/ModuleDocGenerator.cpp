@@ -160,34 +160,34 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createItemForCat
 	return item;
 }
 
-hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createRootItem(MarkdownDataBase& parent)
+hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createRootItem(MarkdownDataBase& )
 {
-	MarkdownDataBase::Item rootItem;
+	MarkdownDataBase::Item rItem;
 
-	rootItem.tocString = "HISE Modules";
-	rootItem.url = { rootDirectory, moduleWildcard };
+	rItem.tocString = "HISE Modules";
+	rItem.url = { rootDirectory, moduleWildcard };
 	
 	auto bp = data->bp;
 
 	ScopedPointer<FactoryType> f = new ModulatorSynthChainFactoryType(NUM_POLYPHONIC_VOICES, bp->getMainSynthChain());
 
-	auto sg = createItemForCategory("Sound Generators", rootItem);
+	auto sg = createItemForCategory("Sound Generators", rItem);
 
 	auto sg2 = createItemForFactory(new ModulatorSynthChainFactoryType(1, bp->getMainSynthChain()),
 		"Sound Generators", sg);
 
 	sg.addChild(std::move(sg2));
 
-	rootItem.addChild(std::move(sg));
+	rItem.addChild(std::move(sg));
 
-	auto mp = createItemForCategory("MIDI Processors", rootItem);
+	auto mp = createItemForCategory("MIDI Processors", rItem);
 
 	auto mp2 = createItemForFactory(new MidiProcessorFactoryType(bp->getMainSynthChain()), "MIDI Processors", mp);
 	mp.addChild(std::move(mp2));
 
-	rootItem.addChild(std::move(mp));
+	rItem.addChild(std::move(mp));
 
-	auto modItem = createItemForCategory("Modulators", rootItem);
+	auto modItem = createItemForCategory("Modulators", rItem);
 
 	
 	auto vs = createItemForCategory("Voice Start Modulators", modItem);
@@ -219,16 +219,16 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createRootItem(M
 
 	modItem.addChild(std::move(em));
 
-	rootItem.addChild(std::move(modItem));
+	rItem.addChild(std::move(modItem));
 
-	auto fx = createItemForCategory("Effects", rootItem);
+	auto fx = createItemForCategory("Effects", rItem);
 	auto fx2 = createItemForFactory(new EffectProcessorChainFactoryType(1, bp->getMainSynthChain()), "Effects", fx);
 	fx.addChild(std::move(fx2));
-	rootItem.addChild(std::move(fx));
+	rItem.addChild(std::move(fx));
 
-	applyColour(rootItem);
+	applyColour(rItem);
 
-	return rootItem;
+	return rItem;
 }
 
 HiseModuleDatabase::Resolver::Resolver(File root_) :
@@ -266,7 +266,7 @@ juce::String HiseModuleDatabase::Resolver::getContent(const MarkdownLink& url)
 			}
 		}
 
-		MarkdownHeader header = url.getHeaderFromFile(root, false);
+		MarkdownHeader header = url.getHeaderFromFile(root);
 
 		s << url.toString(MarkdownLink::ContentHeader, root);
 
@@ -327,16 +327,16 @@ juce::String HiseModuleDatabase::Resolver::getContent(const MarkdownLink& url)
 		doc->fillMissingParameters(p);
 		auto pList = header.getKeyList("parameters");
 
-		for (auto& p : doc->parameters)
+		for (auto& parameter : doc->parameters)
 		{
-			if (p.helpText == "-")
+			if (parameter.helpText == "-")
 			{
-				auto id = p.id.toString();
+				auto pId = parameter.id.toString();
 
-				for (const auto& s : pList)
+				for (const auto& possibleMatch : pList)
 				{
-					if (s.startsWith(id))
-						p.helpText = s.fromFirstOccurrenceOf(":", false, false).trim();
+					if (possibleMatch.startsWith(pId))
+						parameter.helpText = possibleMatch.fromFirstOccurrenceOf(":", false, false).trim();
 				}
 			}
 		}
@@ -347,12 +347,12 @@ juce::String HiseModuleDatabase::Resolver::getContent(const MarkdownLink& url)
 		{
 			if (c.helpText == "-")
 			{
-				auto id = c.id.toString();
+				auto chainId = c.id.toString();
 
-				for (const auto& s : cList)
+				for (const auto& possibleMatch : cList)
 				{
-					if (s.startsWith(id))
-						c.helpText = s.fromFirstOccurrenceOf(":", false, false).trim();
+					if (possibleMatch.startsWith(chainId))
+						c.helpText = possibleMatch.fromFirstOccurrenceOf(":", false, false).trim();
 				}
 			}
 		}
@@ -398,7 +398,7 @@ HiseModuleDatabase::ScreenshotProvider::~ScreenshotProvider()
 	
 }
 
-juce::Image HiseModuleDatabase::ScreenshotProvider::getImage(const MarkdownLink& url, float width)
+juce::Image HiseModuleDatabase::ScreenshotProvider::getImage(const MarkdownLink& url, float )
 {
 	auto urlString = url.toString(MarkdownLink::UrlFull);
 

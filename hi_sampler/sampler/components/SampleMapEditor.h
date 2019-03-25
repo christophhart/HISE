@@ -279,9 +279,9 @@ public:
 		{
 			String firstName = dragSourceDetails.description.toString().upToFirstOccurrenceOf(";", false, true);
 
-			File f(firstName);
+			File file(firstName);
 
-			if (f.isDirectory())
+			if (file.isDirectory())
 			{
 				filesInFolder.clear();
 
@@ -321,9 +321,9 @@ public:
 		{
 			String firstName = dragSourceDetails.description.toString().upToFirstOccurrenceOf(";", false, true);
 
-			File f(firstName);
+			File file(firstName);
 
-			return f.isDirectory() || AudioSampleBufferComponent::isAudioFile(firstName) || f.hasFileExtension("xml");
+			return file.isDirectory() || AudioSampleBufferComponent::isAudioFile(firstName) || file.hasFileExtension("xml");
 		}
 		else
 		{
@@ -354,7 +354,7 @@ public:
 		}
 		else if(auto ref = PoolReference(dragSourceDetails.description))
 		{
-			auto f = [ref](Processor* p)
+			auto f2 = [ref](Processor* p)
 			{
 				auto s = static_cast<ModulatorSampler*>(p);
 				s->loadSampleMap(ref);
@@ -362,7 +362,7 @@ public:
 				return SafeFunctionCall::OK;
 			};
 
-			sampler->killAllVoicesAndCall(f);
+			sampler->killAllVoicesAndCall(f2);
 		}
 
 		mapIsHovered = false;
@@ -376,13 +376,13 @@ public:
 	{
 		if (files.size() == 0) return false;
 
-		File f(files[0]);
+		File file(files[0]);
 
-		if (f.hasFileExtension(".wav")) return true;
-		if (f.hasFileExtension(".aif")) return true;
-		if (f.hasFileExtension(".aiff")) return true;
-		if (f.hasFileExtension(".xml")) return true;
-		if (f.hasFileExtension(".sfz")) return true;
+		if (file.hasFileExtension(".wav")) return true;
+		if (file.hasFileExtension(".aif")) return true;
+		if (file.hasFileExtension(".aiff")) return true;
+		if (file.hasFileExtension(".xml")) return true;
+		if (file.hasFileExtension(".sfz")) return true;
 
 		return false;
 	}
@@ -451,22 +451,22 @@ public:
 	void filesDropped(const StringArray &files, int /*x*/, int /*y*/) override
 	{
 
-		File f(files[0]);
+		File file(files[0]);
 
-		if (f.getFileExtension() == ".xml")
+		if (file.getFileExtension() == ".xml")
 		{
-			PoolReference ref(sampler->getMainController(), f.getFullPathName(), FileHandlerBase::SampleMaps);
+			PoolReference ref(sampler->getMainController(), file.getFullPathName(), FileHandlerBase::SampleMaps);
 
 			sampler->loadSampleMap(ref);
 		}
-		else if (f.getFileExtension() == ".sfz")
+		else if (file.getFileExtension() == ".sfz")
 		{
 			try
 			{
 
 				sampler->clearSampleMap(sendNotificationAsync);
 
-				SfzImporter sfz(sampler, f);
+				SfzImporter sfz(sampler, file);
 				sfz.importSfzFile();
 
 			}
@@ -475,7 +475,7 @@ public:
 				debugError(sampler, error.getErrorMessage());
 			}
 		}
-		else if (f.getFileExtension() == ".wav" || ".aif")
+		else if (file.getFileExtension() == ".wav" || ".aif")
 		{
 			SampleImporter::importNewAudioFiles(this, sampler, files, getRootNotesForDragPosition());
 		}

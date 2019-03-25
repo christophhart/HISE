@@ -121,6 +121,7 @@ public:
 
 		virtual void logMessage(const String& message) 
 		{
+			ignoreUnused(message);
 			DBG(message);
 		}
 
@@ -165,7 +166,7 @@ public:
 		MarkdownParser::ResolveType getPriority() const override { return MarkdownParser::ResolveType::Cached; }
 		Identifier getId() const override { RETURN_STATIC_IDENTIFIER("CompressedDatabaseResolver"); };
 		String getContent(const MarkdownLink& url) override;
-		LinkResolver* clone(MarkdownParser* parent) const override
+		LinkResolver* clone(MarkdownParser* ) const override
 		{
 			return new Resolver(root);
 		}

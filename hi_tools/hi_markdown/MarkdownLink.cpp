@@ -59,7 +59,7 @@ MarkdownLink MarkdownLink::createWithoutRoot(const String& validURL)
 
 
 
-File MarkdownLink::toFile(FileType type, File rootToUse) const noexcept
+File MarkdownLink::toFile(FileType fileType, File rootToUse) const noexcept
 {
 	if (file.existsAsFile() && rootToUse == root)
 		return file;
@@ -74,7 +74,7 @@ File MarkdownLink::toFile(FileType type, File rootToUse) const noexcept
 		jassertfalse;
 	}
 
-	switch (type)
+	switch (fileType)
 	{
 	case FileType::HtmlFile:
 	{
@@ -88,7 +88,7 @@ File MarkdownLink::toFile(FileType type, File rootToUse) const noexcept
 	}
 	case FileType::ContentFile:
 	{
-		auto f = Helpers::getLocalFileForSanitizedURL(rootToUse, sanitizedURL, File::findFiles, "*.md");
+		auto f = Helpers::getLocalFileForSanitizedURL(rootToUse, sanitizedURL, File::findFiles);
 
 		if (f.existsAsFile())
 			return f;
@@ -167,7 +167,7 @@ MarkdownLink::MarkdownLink(const File& rootDirectory, const String& url) :
 			type = SVGImage;
 
 			if (root.isDirectory())
-				file = Helpers::getLocalFileForSanitizedURL(root, sanitizedURL, File::findFiles, "*.svg");
+				file = Helpers::getLocalFileForSanitizedURL(root, sanitizedURL, File::findFiles);
 
 		}
 		else if (Helpers::isImageLink(sanitizedURL))
@@ -189,7 +189,7 @@ MarkdownLink::MarkdownLink(const File& rootDirectory, const String& url) :
 			{
 				if (possibleFolder.existsAsFile())
 				{
-					file = Helpers::getLocalFileForSanitizedURL(root, sanitizedURL, File::findFiles, "*.md");
+					file = Helpers::getLocalFileForSanitizedURL(root, sanitizedURL, File::findFiles);
 					type = Type::MarkdownFile;
 				}
 				else
@@ -278,7 +278,7 @@ juce::String MarkdownLink::getNameFromHeader() const
 
 	if (root.isDirectory())
 	{
-		auto header = getHeaderFromFile(root, false);
+		auto header = getHeaderFromFile(root);
 
 		name = header.getFirstKeyword();
 	}
@@ -364,10 +364,10 @@ MarkdownLink MarkdownLink::withRoot(const File& rootDirectory) const
 }
 
 
-hise::MarkdownLink MarkdownLink::withPostData(const String& postData) const
+hise::MarkdownLink MarkdownLink::withPostData(const String& newPostData) const
 {
 	auto copy = *this;
-	copy.postData = postData;
+	copy.postData = newPostData;
 	return copy;
 }
 
@@ -390,7 +390,7 @@ juce::String MarkdownLink::getExtraData() const noexcept
 	return extraString;
 }
 
-hise::MarkdownHeader MarkdownLink::getHeaderFromFile(const File& rootDirectory, bool createIfNonExistent) const
+hise::MarkdownHeader MarkdownLink::getHeaderFromFile(const File& rootDirectory ) const
 {
 	MarkdownParser p(toString(ContentHeader, rootDirectory));
 	p.parse();
@@ -421,7 +421,10 @@ juce::String MarkdownLink::createHtmlLink() const noexcept
 		getType() == Type::Icon);
 
 	if (!ok)
+	{
 		DBG("Unresolved: " + getTypeString());
+	}
+		
 
 	String s;
 
