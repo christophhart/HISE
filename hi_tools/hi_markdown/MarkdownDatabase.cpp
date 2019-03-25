@@ -159,6 +159,7 @@ juce::var MarkdownDataBase::getHtmlSearchDatabaseDump()
 			DynamicObject* obj = new DynamicObject();
 			obj->setProperty("key", s);
 			obj->setProperty("url", url);
+			obj->setProperty("weight", c.getWeight());
 			obj->setProperty("color", colour);
 
 			v.getArray()->add(var(obj));
