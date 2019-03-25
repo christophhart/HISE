@@ -112,6 +112,8 @@ void MarkdownDataBase::buildDataBase(bool useCache)
 		auto newItem = g->createRootItem(*this);
 		rootItem.addChild(std::move(newItem));
 	}
+
+	rootItem.sortChildren();
 }
 
 
@@ -253,17 +255,50 @@ void MarkdownDataBase::DirectoryItemGenerator::addFileRecursive(Item& folder, Fi
 
 int MarkdownDataBase::Item::Sorter::compareElements(Item& first, Item& second)
 {
+	if (first.index != -1)
+	{
+		if (second.index != -1)
+		{
+			if (first.index < second.index)
+				return -1;
+			else if (first.index > second.index)
+				return 1;
+			else
+			{
+				jassertfalse;
+				return 0;
+			}
+		}
+		else
+		{
+			// items without index are always sorted last
+			return -1;
+		}
+	}
+	if (second.index != -1)
+	{
+		return 1;
+	}
+
 	return first.tocString.compareNatural(second.tocString);
 }
+
+int MarkdownDataBase::Item::PrioritySorter::PSorter::compareElements(const Item& first, const Item& second) const
+{
+	if (first.getWeight() > second.getWeight())
+		return -1;
+	else return 1;
+}
+
 
 
 
 juce::Array<hise::MarkdownDataBase::Item> MarkdownDataBase::Item::PrioritySorter::sortItems(Array<Item>& arrayToBeSorted)
 {
+	PSorter s(searchString);
+	arrayToBeSorted.sort(s, false);
 	return arrayToBeSorted;
 }
-
-
 
 int MarkdownDataBase::Item::fits(String search) const
 {
@@ -397,6 +432,10 @@ MarkdownDataBase::Item::Item(const Item& other)
 	icon = other.icon;
 	c = other.c;
 	isAlwaysOpen = other.isAlwaysOpen;
+	autoWeight = other.autoWeight;
+	deltaWeight = other.deltaWeight;
+	absoluteWeight = other.absoluteWeight;
+	index = other.index;
 
 	children = other.children;
 
@@ -413,6 +452,10 @@ hise::MarkdownDataBase::Item& MarkdownDataBase::Item::operator=(const Item& othe
 	icon = other.icon;
 	c = other.c;
 	isAlwaysOpen = other.isAlwaysOpen;
+	autoWeight = other.autoWeight;
+	deltaWeight = other.deltaWeight;
+	absoluteWeight = other.absoluteWeight;
+	index = other.index;
 
 	children = other.children;
 
@@ -436,6 +479,9 @@ juce::ValueTree MarkdownDataBase::Item::createValueTree() const
 	v.setProperty("Colour", c.toString(), nullptr);
 	v.setProperty("Icon", icon, nullptr);
 	v.setProperty("AlwaysOpen", this->isAlwaysOpen, nullptr);
+	v.setProperty("Index", index, nullptr);
+	v.setProperty("DeltaWeight", deltaWeight, nullptr);
+	v.setProperty("AbsoluteWeight", absoluteWeight, nullptr);
 
 	for (const auto& c : children)
 		v.addChild(c.createValueTree(), -1, nullptr);
@@ -453,6 +499,9 @@ void MarkdownDataBase::Item::loadFromValueTree(ValueTree& v)
 	c = Colour::fromString(v.getProperty("Colour").toString());
 	icon = v.getProperty("Icon", "");
 	isAlwaysOpen = v.getProperty("AlwaysOpen", false);
+	deltaWeight = v.getProperty("DeltaWeight", 0);
+	absoluteWeight = v.getProperty("AbsoluteWeight", -1);
+	index = v.getProperty("Index", -1);
 
 	for (auto c : v)
 	{
@@ -504,6 +553,23 @@ void MarkdownDataBase::Item::fillMetadataFromURL()
 		tocString = header.getFirstKeyword();
 		description = header.getDescription();
 		icon = header.getIcon();
+		
+		setIndexFromHeader(header);
+		applyWeightFromHeader(header);
+	}
+}
+
+void MarkdownDataBase::Item::applyWeightString(const String& weightString)
+{
+	if (weightString.contains("!"))
+		absoluteWeight = weightString.upToFirstOccurrenceOf("!", false, false).getIntValue();
+	else if (weightString.contains("+"))
+	{
+		deltaWeight = weightString.fromFirstOccurrenceOf("+", false, false).getIntValue();
+	}
+	else if (weightString.contains("-"))
+	{
+		deltaWeight = -1 * weightString.fromFirstOccurrenceOf("-", false, false).getIntValue();
 	}
 }
 

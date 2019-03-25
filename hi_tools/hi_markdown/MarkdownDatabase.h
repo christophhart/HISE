@@ -51,6 +51,15 @@ public:
 
 		struct PrioritySorter
 		{
+			struct PSorter
+			{
+				PSorter(const String& s_) : s(s_) {};
+
+				int compareElements(const Item& first, const Item& second) const;
+
+				String s;
+			};
+
 			PrioritySorter(const String& searchString_) :
 				searchString(searchString_)
 			{};
@@ -71,20 +80,6 @@ public:
 			numTypes
 		};
 
-#if 0
-		bool containsURL(const String& urlToLookFor) const
-		{
-			for (const auto& c : children)
-			{
-				if (c.containsURL(urlToLookFor))
-					return true;
-			}
-
-			return urlToLookFor.url == urlToLookFor;
-		}
-#endif
-
-
 		bool callForEach(const IteratorFunction& f)
 		{
 			if (f(*this))
@@ -98,22 +93,6 @@ public:
 
 			return false;
 		}
-
-#if 0
-		Item* findChildWithURL(const String& urlToLookFor) const
-		{
-			if (url == urlToLookFor)
-				return const_cast<Item*>(this);
-
-			for (const auto& c : children)
-			{
-				if (auto r = c.findChildWithURL(urlToLookFor))
-					return r;
-			}
-
-			return nullptr;
-		}
-#endif
 
 		bool swapChildWithName(Item& itemToSwap, const String& name)
 		{
@@ -201,11 +180,13 @@ public:
 		bool isAlwaysOpen = false;
 		Colour c;
 		String icon;
+		
 
 		void addChild(Item&& item)
 		{
 			item.parent = this;
-			
+			item.setAutoweight(getWeight() - 10);
+
 			if (item.url.getType() == MarkdownLink::Type::MarkdownFileOrFolder)
 			{
 				jassert(item.url.hasAnchor());
@@ -249,11 +230,53 @@ public:
 
 		Item* getParentItem() const { return parent; }
 
+		int index = -1;
+		
+		int getWeight() const
+		{
+			if (absoluteWeight != -1)
+				return absoluteWeight + deltaWeight;
+			else
+				return autoWeight + deltaWeight;
+		}
+
+		void setAutoweight(int newAutoWeight)
+		{
+			autoWeight = newAutoWeight;
+
+			for (auto& c : children)
+				c.setAutoweight(getWeight() - 10);
+		}
+
+		void applyWeightFromHeader(const MarkdownHeader& h)
+		{
+			auto weightString = h.getKeyValue("weight");
+
+			if (weightString.isNotEmpty())
+				applyWeightString(weightString);
+		}
+
+		void setIndexFromHeader(const MarkdownHeader& h)
+		{
+			auto indexString = h.getKeyValue("index");
+
+			if (indexString.isNotEmpty())
+				index = indexString.getIntValue();
+		}
+
 	private:
+
+		void applyWeightString(const String& weightString);
+
+		int deltaWeight = 0;
+		int absoluteWeight = -1;
+		int autoWeight = 100;
 
 		Item* parent = nullptr;
 
 		Array<Item> children;
+
+		
 	};
 
 	struct ItemGeneratorBase
