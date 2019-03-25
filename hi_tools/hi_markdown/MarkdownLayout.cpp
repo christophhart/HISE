@@ -247,7 +247,7 @@ MarkdownLayout::StyleData::StyleData()
 	linkColour = JUCE_LIVE_CONSTANT_OFF(Colour(0xFFAAAAFF));
 	textColour = Colours::white;
 	headlineColour = Colour(SIGNAL_COLOUR);
-	linkBackgroundColour = JUCE_LIVE_CONSTANT_OFF(Colour(0x228888FF));
+	linkBackgroundColour = JUCE_LIVE_CONSTANT_OFF(Colour(0x008888FF));
 	codebackgroundColour = JUCE_LIVE_CONSTANT_OFF(Colour(0x33888888));
 	codeColour = JUCE_LIVE_CONSTANT_OFF(Colour(0xffffffff));
 

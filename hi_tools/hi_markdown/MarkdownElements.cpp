@@ -232,7 +232,7 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 	Headline(MarkdownParser* parent, int level_, const String& imageURL_, const AttributedString& s, bool isFirst_) :
 		Element(parent),
 		content(s),
-		level(level_),
+		headlineLevel(level_),
 		isFirst(isFirst_),
 		imageURL({}, imageURL_),
 		l(s, 0.0f)
@@ -265,12 +265,16 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 		g.setColour(Colours::grey.withAlpha(0.2f));
 
 		
-
-		g.drawHorizontalLine((int)(area.getBottom() - 12.0f * getZoomRatio()), area.getX() + imgOffset, area.getRight());
+		if(headlineLevel <= 3)
+			g.drawHorizontalLine((int)(area.getBottom() - 12.0f * getZoomRatio()), area.getX() + imgOffset, area.getRight());
 
 		l.drawCopyWithOffset(g, area);
 	}
 
+	static int getSizeLevelForHeadline(int headlineLevel)
+	{
+		return 3 - jmin<int>(headlineLevel, 3);
+	}
 
 
 	float getHeightForWidth(float width) override
@@ -280,8 +284,6 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 
 		l = { content, width };
 		l.addYOffset((float)getTopMargin());
-
-		
 
 		l.styleData = parent->styleData;
 
@@ -327,7 +329,7 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 		}
 
 		c << g.createFromAttributedString(content, linkIndex);
-		html << g.surroundWithTag(c, "h" + String(3 - level), "id=\"" + anchorURL.substring(1) + "\"");
+		html << g.surroundWithTag(c, "h" + String(headlineLevel), "id=\"" + anchorURL.substring(1) + "\"");
 
 		return html;
 	}
@@ -339,7 +341,10 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 
 	int getTopMargin() const override 
 	{ 
-		return (int)((float)(30 - jmax<int>(0, 3 - level) * 5) * getZoomRatio()); 
+		if (headlineLevel == 4)
+			return 5;
+
+		return 15 + (int)((float)((4 - headlineLevel) * 5) * getZoomRatio()); 
 	};
 
 	float anchorY;
@@ -347,7 +352,10 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 
 	AttributedString content;
 	MarkdownLayout l;
-	int level;
+	//int level;
+
+	int headlineLevel;
+
 	bool isFirst;
 	MarkdownLink imageURL;
 	Image img;
@@ -669,7 +677,9 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 	void draw(Graphics& g, Rectangle<float> area)
 	{
 		g.setOpacity(1.0f);
-		g.drawImageAt(img, (int)area.getX(), (int)area.getY());
+
+
+		g.drawImageAt(img, (int)area.getX(), (int)area.getY() - getTopMargin()/2);
 	}
 
 	String getTextToCopy() const override
@@ -684,7 +694,7 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 
 	MarkdownLink getImageURL() const { return imageURL; }
 
-	int getTopMargin() const override { return 5; };
+	int getTopMargin() const override { return 30; };
 
 	String generateHtml() const override
 	{
@@ -738,10 +748,14 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 
 		void scrolled(Rectangle<int> visibleArea) override
 		{
+			ignoreUnused(visibleArea);
+
+#if USE_BACKEND
 			if (!visibleArea.contains(getBoundsInParent()))
 			{
 				gifPlayer = nullptr;
 			}
+#endif
 		}
 
 		void mouseEnter(const MouseEvent& )
@@ -763,15 +777,20 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 
 			setMouseCursor(MouseCursor(MouseCursor::NormalCursor));
 
+#if USE_BACKEND
 			addAndMakeVisible(gifPlayer = new WebBrowserComponent());
 			gifPlayer->setSize(p.img.getWidth() + 50, p.img.getHeight() + 50);
 			gifPlayer->setTopLeftPosition(0, 0);
 			gifPlayer->goToURL(p.imageURL.toString(MarkdownLink::UrlFull));
 			gifPlayer->addMouseListener(this, true);
+#endif
 		}
 
 		ImageElement& p;
+
+#if USE_BACKEND
 		ScopedPointer<WebBrowserComponent> gifPlayer;
+#endif
 
 	};
 

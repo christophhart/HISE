@@ -1700,11 +1700,12 @@ struct InteractiveEditor : public MarkdownCodeComponentBase,
 			jp = new JavascriptMidiProcessor(getMainController(), "TestProcessor");
 			jp->setOwnerSynth(getMainController()->getMainSynthChain());
 
-			if (Helpers::createContent(ScriptContent))
+			if (Helpers::createContent(syntax))
+			{
 				scriptContent = new ScriptContentComponent(jp);
-
-			addAndMakeVisible(scriptContent);
-
+				addAndMakeVisible(scriptContent);
+			}
+				
 			usedDocument = jp->getSnippet(0);
 			usedDocument->replaceAllContent(ownedDoc->getAllContent());
 

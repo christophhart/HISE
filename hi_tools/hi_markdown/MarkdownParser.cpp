@@ -90,16 +90,23 @@ void MarkdownParser::parseHeadline()
 	
 
 	juce::juce_wchar c = it.peek();
-	int headlineLevel = 3;
+	int headlineLevel = 0;
 
 	while (it.matchIf('#'))
 	{
-		headlineLevel--;
+		headlineLevel++;
 	}
 
-	headlineLevel = jmax(0, headlineLevel);
+	headlineLevel = jmin(4, headlineLevel);
 
-	currentFont = styleData.f.withHeight(styleData.fontSize * 3 / 2 + 7 * headlineLevel);
+	auto level = Headline::getSizeLevelForHeadline(headlineLevel);
+
+	auto fontSize = styleData.fontSize * 3.0f / 2.0f + (float)(7 * level);
+
+	if (headlineLevel == 4)
+		fontSize = 1.2f * styleData.fontSize;
+
+	currentFont = styleData.f.withHeight(fontSize);
 
 	currentFont = FontHelpers::getFontBoldened(currentFont);
 
@@ -847,7 +854,7 @@ void MarkdownParser::parseMarkdownHeader()
 
 		s.append(headline, f, styleData.headlineColour);
 
-		elements.add(new Headline(this, 2, header.getKeyValue("icon"), s, true));
+		elements.add(new Headline(this, 1, header.getKeyValue("icon"), s, true));
 	}
 
 }

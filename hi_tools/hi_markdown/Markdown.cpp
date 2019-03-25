@@ -268,7 +268,7 @@ void MarkdownParser::createDatabaseEntriesForFile(File root, MarkdownDataBase::I
 
 				headLineItem.tocString << headLineItem.description;
 
-				if (h->level <= 0)
+				if (h->headlineLevel >= 3)
 					headLineItem.tocString = {};
 
 
@@ -330,7 +330,7 @@ void MarkdownParser::Element::drawHighlight(Graphics& g, Rectangle<float> area)
 	if (selected)
 	{
 		g.setColour(parent->styleData.backgroundColour.contrasting().withAlpha(0.05f));
-		g.fillRoundedRectangle(area, 3.0f);
+		g.fillRoundedRectangle(area.expanded(0.0f, 6.0f), 3.0f);
 	}
 
 	for (auto r : searchResults)
