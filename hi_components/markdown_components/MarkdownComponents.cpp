@@ -706,7 +706,7 @@ void MarkdownEditorPanel::buttonClicked(Button* b)
 	}
 	if (b == &settingsButton)
 	{
-		auto window = new SettingWindows(dynamic_cast<BackendProcessor*>(getMainController())->getSettingsObject());
+		auto window = new SettingWindows(dynamic_cast<GlobalSettingManager*>(getMainController())->getSettingsObject());
 		window->setLookAndFeel(&laf);
 
 		window->setModalBaseWindowComponent(this);

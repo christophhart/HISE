@@ -613,7 +613,11 @@ void ScriptContentComponent::getScriptComponentsFor(Array<ScriptingApi::Content:
 MarkdownPreviewPanel::MarkdownPreviewPanel(FloatingTile* parent) :
 	FloatingTileContent(parent)
 {
+#if USE_BACKEND
 	auto holder = dynamic_cast<BackendProcessor*>(getMainController())->getDocProcessor();
+#else
+	auto holder = dynamic_cast<MarkdownDatabaseHolder*>(getMainController());
+#endif
 
 	addAndMakeVisible(preview = new MarkdownPreview(*holder));
 

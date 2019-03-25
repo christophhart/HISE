@@ -412,7 +412,7 @@ public:
 
 			auto f = getMainController()->getCurrentImagePool()->loadFromReference(ref, PoolHelpers::LoadAndCacheStrong);
 #else
-			PoolReference ref(getMainController()->getCurrentImagePool(), "{PROJECT_FOLDER}" + url, FileHandlerBase::Images);
+			PoolReference ref(getMainController()->getCurrentImagePool(), "{PROJECT_FOLDER}" + url.toString(MarkdownLink::UrlWithoutAnchor), FileHandlerBase::Images);
 
 			auto f = getMainController()->getCurrentImagePool()->loadFromReference(ref, PoolHelpers::LoadAndCacheWeak);
 #endif

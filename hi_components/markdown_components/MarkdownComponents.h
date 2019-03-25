@@ -274,7 +274,10 @@ public:
 			LOAD_PATH_IF_URL("create-link", EditorIcons::urlIcon);
 			LOAD_PATH_IF_URL("create-image", EditorIcons::imageIcon);
 			LOAD_PATH_IF_URL("create-table", EditorIcons::tableIcon);
+
+#if USE_BACKEND
 			LOAD_PATH_IF_URL("show-settings", BackendBinaryData::ToolbarIcons::settings);
+#endif
 
 			return p;
 		}
