@@ -35,7 +35,7 @@ using namespace juce;
 
 MarkdownLayout::MarkdownLayout(const AttributedString& s, float width, bool allInOne)
 {
-	constexpr float marginBetweenAttributes = 5.0f;
+	constexpr float marginBetweenAttributes = 2.0f;
 
 	if (width == 0.0f)
 		return;

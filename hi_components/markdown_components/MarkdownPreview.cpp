@@ -264,13 +264,13 @@ void MarkdownPreview::resized()
 
 	topbar.setBounds(topBounds);
 
-#if JUCE_IOS
-    int margin = 3;
-#else
-    int margin = 32;
-#endif
 
-	viewport.setBounds(ar.reduced(margin));
+	ar.removeFromLeft(32);
+	ar.removeFromTop(16);
+	ar.removeFromRight(16);
+	ar.removeFromBottom(16);
+
+	viewport.setBounds(ar);
 
 	auto h = internalComponent.getTextHeight();
 

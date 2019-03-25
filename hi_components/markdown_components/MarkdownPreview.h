@@ -1293,6 +1293,7 @@ public:
 					}
 					else
 					{
+						setOpen(true);
 						gotoLink();
 					}
 
