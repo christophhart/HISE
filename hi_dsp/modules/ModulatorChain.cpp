@@ -67,15 +67,20 @@ struct ModBufferExpansion
 
 			constexpr float ratio = 1.0f / (float)HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
 
-			for (int i = 0; i < numSamples_cr; i++)
+			if (ratio != 1.0f)
 			{
-				AlignedSSERamper<HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR> ramper(d);
+				for (int i = 0; i < numSamples_cr; i++)
+				{
+					AlignedSSERamper<HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR> ramper(d);
 
-				const float delta1 = (temp[i] - rampStart) * ratio;
-				ramper.ramp(rampStart, delta1);
-				rampStart = temp[i];
-				d += HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+					const float delta1 = (temp[i] - rampStart) * ratio;
+					ramper.ramp(rampStart, delta1);
+					rampStart = temp[i];
+					d += HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+				}
 			}
+
+			
 
 			return true;
 		}
