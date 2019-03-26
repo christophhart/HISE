@@ -35,10 +35,8 @@
 namespace hise {
 using namespace juce;
 
-class UIComponentDatabase
+namespace UIComponentDatabase
 {
-public:
-
 	struct CommonData
 	{
 		struct Data

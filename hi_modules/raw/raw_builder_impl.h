@@ -51,7 +51,7 @@ raw::Reference<T> hise::raw::Builder::findWithIndex(const Identifier& id, int in
 	String s = id.toString();
 	s << String(index + 1);
 
-	return find(s);
+	return find<T>(s);
 }
 
 template <class T>

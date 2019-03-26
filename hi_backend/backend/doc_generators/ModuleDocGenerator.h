@@ -36,10 +36,8 @@ namespace hise {
 using namespace juce;
 
 
-class HiseModuleDatabase
+namespace HiseModuleDatabase
 {
-public:
-
 	static constexpr char moduleWildcard[] = "/hise-modules";
 
 	class CommonData

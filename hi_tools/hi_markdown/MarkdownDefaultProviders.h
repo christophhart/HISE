@@ -415,8 +415,6 @@ struct MarkdownCodeComponentBase : public Component,
 
 struct SnapshotMarkdownCodeComponent : public MarkdownCodeComponentBase
 {
-	static constexpr char floatingTile_screenshotWildcard[] = "/images/floating-tile_";
-
 	SnapshotMarkdownCodeComponent(SyntaxType syntax, String code, float width, MarkdownParser* parent) :
 		MarkdownCodeComponentBase(syntax, code, width, parent->getStyleData().fontSize, parent)
 	{

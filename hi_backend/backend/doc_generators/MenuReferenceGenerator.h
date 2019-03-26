@@ -36,7 +36,7 @@
 namespace hise {
 using namespace juce;
 
-struct MenuReferenceDocGenerator
+namespace MenuReferenceDocGenerator
 {
 	constexpr static char descriptionWildcard[] = "/working-with-hise";
 
