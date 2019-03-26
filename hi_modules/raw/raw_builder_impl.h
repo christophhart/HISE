@@ -45,8 +45,17 @@ raw::Reference<T> hise::raw::Builder::find(const String& name)
 }
 
 
+template <class T> 
+raw::Reference<T> hise::raw::Builder::findWithIndex(const Identifier& id, int index)
+{
+	String s = id.toString();
+	s << String(index + 1);
+
+	return find(s);
+}
+
 template <class T>
-void hise::raw::Builder::add(T* processor, Processor* parent, int chainIndex /*= -1*/)
+T* hise::raw::Builder::add(T* processor, Processor* parent, int chainIndex /*= -1*/)
 {
 	Chain* c = nullptr;
 
@@ -58,10 +67,10 @@ void hise::raw::Builder::add(T* processor, Processor* parent, int chainIndex /*=
 	if (c == nullptr)
 	{
 		jassertfalse;
-		return;
+		return nullptr;
 	}
 
-	addInternal<T>(processor, c);
+	return addInternal<T>(processor, c);
 }
 
 
