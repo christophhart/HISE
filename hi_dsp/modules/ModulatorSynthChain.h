@@ -242,6 +242,8 @@ private:
 	ScopedPointer<FactoryType> modulatorSynthFactory;
 	ScopedPointer<FactoryType::Constrainer> constrainer;
 	String packageName;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ModulatorSynthChain);
 };
 
 } // namespace hise

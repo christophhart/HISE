@@ -79,7 +79,9 @@ public:
 
 private:
 
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ConstantModulator)
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ConstantModulator);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ConstantModulator);
+
 };
 
 

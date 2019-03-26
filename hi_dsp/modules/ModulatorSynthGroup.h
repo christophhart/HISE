@@ -514,6 +514,8 @@ private:
 	BigInteger allowStates;
 	OwnedArray<ModulatorSynth> synths;
 	ScopedPointer<FactoryType> modulatorSynthFactory;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ModulatorSynthGroup);
 };
 
 } // namespace hise

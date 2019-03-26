@@ -334,6 +334,8 @@ private:
 	Path holdPath;
 	Path decayPath;
 	Path releasePath;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(AhdsrEnvelope);
 };
 
 } // namespace hise

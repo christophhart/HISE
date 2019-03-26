@@ -327,6 +327,7 @@ private:
 	ScriptingApi::Content::ScriptSlider *firstCC;
 	ScriptingApi::Content::ScriptSlider *secondCC;
 
+	JUCE_DECLARE_WEAK_REFERENCEABLE(CCSwapper);
 };
 
 /** Allows release trigger functionality with a time variant decrease of the velocity. 
@@ -475,6 +476,8 @@ private:
 	float attenuationLevel;
 	int timeIndex;
 	double lengthValues[128];
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ReleaseTriggerScriptProcessor);
 };
 
 
@@ -738,6 +741,8 @@ private:
 
 	int channel;
 	BigInteger mpeRange;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ChannelFilterScriptProcessor);
 };
 
 /** Changes the MIDI channel of every incoming message.
@@ -795,6 +800,7 @@ private:
 
 	int channel;
 
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ChannelSetterScriptProcessor);
 };
 
 /** Mutes the incoming note-on messages, but leaves everything else through.
@@ -874,6 +880,8 @@ private:
 	bool fix = false;
 
 	BigInteger noteOns;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(MuteAllScriptProcessor);
 };
 
 
