@@ -2321,6 +2321,7 @@ void CompileExporter::HeaderHelpers::addBasicIncludeLines(String& p, bool isIOS)
     {
         p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::AudioFiles, PresetData::impulses, PresetData::impulsesSize);";
         p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::Images, PresetData::images, PresetData::imagesSize);";
+		p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::MidiFiles, PresetData::midiFiles, PresetData::midiFilesSize);";
         p << "\nDEFINE_EMBEDDED_DATA(hise::FileHandlerBase::SampleMaps, PresetData::samplemaps, PresetData::samplemapsSize);";
     }
 

@@ -81,7 +81,7 @@ class FrontendProcessor: public PluginParameterAudioProcessor,
 						 public MainController
 {
 public:
-	FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, MemoryInputStream *imageData_ = nullptr, MemoryInputStream *impulseData = nullptr, MemoryInputStream* sampleMapData = nullptr, ValueTree *externalScriptData = nullptr, ValueTree *userPresets = nullptr);
+	FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, MemoryInputStream *imageData_ = nullptr, MemoryInputStream *impulseData = nullptr, MemoryInputStream* sampleMapData = nullptr, MemoryInputStream* midiData = nullptr, ValueTree *externalScriptData = nullptr, ValueTree *userPresets = nullptr);
 
 	void createPreset(const ValueTree& synthData);
 

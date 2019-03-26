@@ -749,7 +749,7 @@ void MidiPlayer::loadMidiFile(PoolReference reference)
 
 	HiseMidiSequence::Ptr newSequence = new HiseMidiSequence();
 	newSequence->loadFrom(newContent->data.getFile());
-	newSequence->setId(reference.getFile().getFileNameWithoutExtension());
+	//newSequence->setId(reference.getFile().getFileNameWithoutExtension());
 	addSequence(newSequence);
 	
 }
