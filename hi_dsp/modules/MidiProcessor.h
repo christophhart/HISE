@@ -229,6 +229,14 @@ public:
 		}
 	};
 
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override
+	{
+		Processor::prepareToPlay(sampleRate, samplesPerBlock);
+
+		for (auto p : processors)
+			p->prepareToPlay(sampleRate, samplesPerBlock);
+	}
+
 	void addWholeBufferProcessor(MidiProcessor* midiProcessor)
 	{
 		jassert(midiProcessor->isProcessingWholeBuffer());
