@@ -178,6 +178,8 @@ class Pool : public hise::ControlledObject
 {
 public:
 
+	static constexpr char projectFolderWildcard[] = "{PROJECT_FOLDER}";
+
 	Pool(MainController* mc, bool allowLoading = false) :
 		ControlledObject(mc),
 		allowUnusedSources(allowLoading)
@@ -197,6 +199,8 @@ public:
 
 	PoolReference createSampleMapReference(const String& referenceString);
 
+	PoolReference createMidiFileReference(const String& referenceString);
+
 private:
 
 	bool allowUnusedSources = false;
@@ -212,8 +216,10 @@ private:
 	- templated data type for best performance without overhead
 	- ready made accessor-classes for the most important data in HISE (Processor attributes, bypass states, samplemaps, table data)
 	
-	In order to use it, pass it as template argument to one of the more high-level classes (UIConnection and Storage) and
-	it will magically synchronize with the actual data in your Processor tree.
+	In order to use it, pass one of the subclasses as template argument to one of the more high-level classes (UIConnection and Storage)
+	and they will synchronize with the actual data in your Processor tree.
+
+	You can also write your own handler classes - just make sure it has two functions that match the SaveFunction and LoadFunction prototype
 */
 template <typename DataType> struct Data
 {
@@ -447,10 +453,17 @@ public:
 		Base(ComponentType* c, MainController* mc, const String& id);
 		virtual ~Base();
 
+		/** Call this function to specify which data you want. */
 		template <class FunctionClass> void setData()
 		{
 			loadFunction = FunctionClass::load;
 			saveFunction = FunctionClass::save;
+		}
+
+		/** If this is enabled, it will wrap the execution of the callback into a SafeFunction call. */
+		void setUseLoadingThread(bool shouldUseLoadingThread)
+		{
+			useLoadingThread = shouldUseLoadingThread;
 		}
 
 	protected:
@@ -467,6 +480,8 @@ public:
 		void changeListenerCallback(SafeChangeBroadcaster* b) override;
 
 	private:
+
+		bool useLoadingThread = false;
 
 		ValueType lastValue;
 
@@ -638,7 +653,7 @@ public:
 		loadFunction(FunctionClass::load)
 	{};
 
-	~Storage() {};
+	virtual ~Storage() {};
 
 	void load(const var& newValue) override
 	{

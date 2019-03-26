@@ -36,41 +36,6 @@ using namespace juce;
 namespace raw
 {
 
-
-#if 0
-UIConnection::Button::Button(juce::Button* b, MainController* mc, const String& processorID, int parameterIndex) :
-	Base(b, mc, processorID)
-{}
-
-void UIConnection::Button::updateUI(float newValue)
-{
-	getComponent().setToggleState(newValue > 0.5f, dontSendNotification);
-}
-
-void UIConnection::Button::buttonClicked(juce::Button*)
-{
-	auto value = getComponent().getToggleState();
-
-	getComponent().setToggleState(!value, dontSendNotification);
-	parameterChangedFromUI(!value ? 1.0f : 0.0f);
-}
-
-UIConnection::ComboBox::ComboBox(juce::ComboBox* b, MainController* mc, const String& processorID, int parameterIndex) :
-	Base(b, mc, processorID)
-{}
-
-void UIConnection::ComboBox::updateUI(float newValue)
-{
-	getComponent().setSelectedItemIndex((int)newValue, dontSendNotification);
-}
-
-void UIConnection::ComboBox::comboBoxChanged(juce::ComboBox*)
-{
-	int itemIndex = getComponent().getSelectedItemIndex();
-	parameterChangedFromUI((float)itemIndex);
-}
-#endif
-
 void Pool::allowLoadingOfUnusedResources()
 {
 	allowUnusedSources = true;
@@ -135,6 +100,11 @@ juce::StringArray Pool::getSampleMapList() const
 hise::PoolReference Pool::createSampleMapReference(const String& referenceString)
 {
 	return PoolReference(getMainController(), referenceString, FileHandlerBase::SampleMaps);
+}
+
+hise::PoolReference Pool::createMidiFileReference(const String& referenceString)
+{
+	return PoolReference(getMainController(), referenceString, FileHandlerBase::MidiFiles);
 }
 
 }
