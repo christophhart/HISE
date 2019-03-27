@@ -208,7 +208,16 @@ void MarkdownDataBase::DirectoryItemGenerator::addFileRecursive(Item& folder, Fi
 
 				folder.keywords = ni.keywords;
 
-				ni.callForEach([](Item& i) { i.tocString = {}; return false; });
+				auto u = folder.url;
+
+				ni.callForEach([u](Item& i) 
+				{ 
+					i.index = 0; 
+					i.url = u.withAnchor(i.url.toString(MarkdownLink::AnchorWithoutHashtag));
+
+					int x = 5;
+					return false;
+				});
 
 				for (auto c : ni)
 					folder.addChild(std::move(c));
@@ -233,6 +242,8 @@ void MarkdownDataBase::DirectoryItemGenerator::addFileRecursive(Item& folder, Fi
 			if (newItem)
 				folder.addChild(std::move(newItem));
 		}
+
+		folder.sortChildren();
 	}
 	else
 	{

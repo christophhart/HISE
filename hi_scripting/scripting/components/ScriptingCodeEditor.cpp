@@ -1759,7 +1759,7 @@ struct InteractiveEditor : public MarkdownCodeComponentBase,
 		{
 			showContentOnly = true;
 			editor->setVisible(false);
-			//runButton->triggerClick();
+			runButton->triggerClick();
 		}
 
 		setWantsKeyboardFocus(true);
@@ -1814,14 +1814,19 @@ struct InteractiveEditor : public MarkdownCodeComponentBase,
 		{
 			auto f2 = [this](const JavascriptProcessor::SnippetResult& result)
 			{
-				auto fc = [this, result]()
+				Component::SafePointer<InteractiveEditor> tmp = this;
+
+				auto fc = [tmp, result]()
 				{
-					isActive = true;
+					if (tmp.getComponent() == nullptr)
+						return;
+
+					tmp.getComponent()->isActive = true;
 					String s;
 
 					if (result.r.ok())
 					{
-						auto consoleContent = jp->getMainController()->getConsoleHandler().getConsoleData()->getAllContent();
+						auto consoleContent = tmp.getComponent()->jp->getMainController()->getConsoleHandler().getConsoleData()->getAllContent();
 						s = consoleContent.removeCharacters("\n").fromFirstOccurrenceOf(":", false, false);
 					}
 					else
@@ -1829,10 +1834,10 @@ struct InteractiveEditor : public MarkdownCodeComponentBase,
 
 
 
-					resultLabel->setText(s, dontSendNotification);
-					repaint();
+					tmp.getComponent()->resultLabel->setText(s, dontSendNotification);
+					tmp.getComponent()->repaint();
 
-					updateHeightInParent();
+					tmp.getComponent()->updateHeightInParent();
 				};
 
 				new DelayedFunctionCaller(fc, 100);

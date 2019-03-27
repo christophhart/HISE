@@ -180,7 +180,7 @@ public:
 
 			auto p = removeLeadingNumbers(path);
 
-			p = p.removeCharacters("():,;");
+			p = p.removeCharacters("():,;?");
 
 			if (!p.isEmpty() && p.endsWith("/"))
 				p = p.upToLastOccurrenceOf("/", false, false);

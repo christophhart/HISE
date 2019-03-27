@@ -252,7 +252,7 @@ MarkdownLayout::StyleData::StyleData()
 	codeColour = JUCE_LIVE_CONSTANT_OFF(Colour(0xffffffff));
 
 	f = GLOBAL_FONT();
-	fontSize = 17.0f;
+	fontSize = 18.0f;
 }
 
 }
