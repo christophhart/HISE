@@ -629,7 +629,11 @@ DocUpdater::~DocUpdater()
 {
 	MessageManagerLock mm;
 
-	getCurrentThread()->stopThread(6000);
+	if (auto t = getCurrentThread())
+	{
+		t->stopThread(6000);
+	}
+	
 
 	currentDownload = nullptr;
 

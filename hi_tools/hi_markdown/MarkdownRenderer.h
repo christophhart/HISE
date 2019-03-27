@@ -349,13 +349,19 @@ private:
 
 	void scrollToY(float y)
 	{
-		auto f = [this, y]()
+		WeakReference<MarkdownRenderer> r = this;
+
+		auto f = [r, y]()
 		{
-			for (auto l : listeners)
+			if (r != nullptr)
 			{
-				if (l.get() != nullptr)
-					l->scrollToAnchor(y);
+				for (auto l : r->listeners)
+				{
+					if (l.get() != nullptr)
+						l->scrollToAnchor(y);
+				}
 			}
+			
 		};
 
 		MessageManager::callAsync(f);
