@@ -167,6 +167,8 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createRootItem(M
 	rItem.tocString = "HISE Modules";
 	rItem.url = { rootDirectory, moduleWildcard };
 	
+	rItem.fillMetadataFromURL();
+
 	auto bp = data->bp;
 
 	ScopedPointer<FactoryType> f = new ModulatorSynthChainFactoryType(NUM_POLYPHONIC_VOICES, bp->getMainSynthChain());

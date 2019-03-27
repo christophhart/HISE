@@ -1358,9 +1358,6 @@ public:
 				g.setFont(f);
 
 				g.drawText(item.tocString, area, Justification::centredLeft);
-
-				auto b_ = area.removeFromRight(50);
-				g.drawText(String(item.getWeight()), b_, Justification::centred);
 			}
 
 			MarkdownDataBase::Item item;

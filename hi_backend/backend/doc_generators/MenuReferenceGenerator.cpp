@@ -182,6 +182,8 @@ void MenuReferenceDocGenerator::ItemGenerator::createMenuReference(MarkdownDataB
 		createMenu(wItem, s);
 	}
 
+	wItem.sortChildren();
+
 	parent.addChild(std::move(wItem));
 }
 

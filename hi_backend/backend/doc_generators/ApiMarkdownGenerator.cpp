@@ -51,6 +51,8 @@ hise::MarkdownDataBase::Item ScriptingApiDatabase::ItemGenerator::createRootItem
     auto c = item.getChildWithName("scripting-api");
 	auto scriptingApi = updateWithValueTree(c ,data->v);
 
+	scriptingApi.fillMetadataFromURL();
+
 	item.swapChildWithName(scriptingApi, "scripting-api");
 	applyColour(item);
 	return item;
