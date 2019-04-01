@@ -248,8 +248,6 @@ public:
 	/** Loads an Image from the given ID. */
 	Image loadImage(const String& id);
 
-	StringArray getSampleMapList() const;
-
 	PoolReference createSampleMapReference(const String& referenceString);
 
 	PoolReference createMidiFileReference(const String& referenceString);
@@ -257,7 +255,10 @@ public:
 	/** Returns a list of the references to every embedded resource of the given type. */
 	StringArray getListOfEmbeddedResources(FileHandlerBase::SubDirectories directory, bool useExpansionPool=false);
 
+	
 private:
+
+	Array<PoolReference> getListOfReferences(FileHandlerBase::SubDirectories directory, FileHandlerBase* handler);
 
 	bool allowUnusedSources = false;
 };

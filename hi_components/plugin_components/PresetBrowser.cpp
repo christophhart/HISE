@@ -1392,14 +1392,15 @@ void PresetBrowser::DataBaseHelpers::setFavorite(const var& database, const File
 	}
 }
 
-void PresetBrowser::DataBaseHelpers::cleanFileList(Array<File>& filesToClean)
+void PresetBrowser::DataBaseHelpers::cleanFileList(MainController* mc, Array<File>& filesToClean)
 {
 	for (int i = 0; i < filesToClean.size(); i++)
 	{
 		const bool isNoPresetFile = filesToClean[i].isHidden() || filesToClean[i].getFileName().startsWith(".") || filesToClean[i].getFileExtension() != ".preset";
 		const bool isNoDirectory = !filesToClean[i].isDirectory();
+		const bool requiresMissingExpansions = !matchesAvailableExpansions(mc, filesToClean[i]);
 
-		if (isNoPresetFile && isNoDirectory)
+		if ((isNoPresetFile && isNoDirectory) || requiresMissingExpansions)
 		{
 			filesToClean.remove(i--);
 			continue;
@@ -1492,6 +1493,49 @@ juce::String PresetBrowser::DataBaseHelpers::getNoteFromXml(const File& currentP
 
 	return String();
 }
+
+bool PresetBrowser::DataBaseHelpers::matchesAvailableExpansions(MainController* mc, const File& currentPreset)
+{
+#if HISE_ENABLE_EXPANSIONS
+	
+	if (mc == nullptr)
+		return true;
+
+	if (currentPreset.isDirectory())
+		return true;
+
+	auto s = currentPreset.loadFileAsString();
+
+	auto m = s.fromFirstOccurrenceOf("RequiredExpansions=\"", false, false).upToFirstOccurrenceOf("\"", false, false);
+
+	if (m.isNotEmpty())
+	{
+		auto sa = StringArray::fromTokens(m, ";", "");
+
+		sa.removeEmptyStrings(true);
+
+		bool allFound = true;
+
+		auto& handler = mc->getExpansionHandler();
+
+		for (int i = 0; i < handler.getNumExpansions(); i++)
+		{
+			int index = sa.indexOf(String(handler.getExpansion(i)->name));
+
+			if (index != -1)
+				sa.remove(index);
+		}
+
+		return sa.isEmpty();
+	}
+
+	return true;
+#else
+	ignoreUnused(mc, currentPreset);
+	return true;
+#endif
+}
+
 
 bool PresetBrowser::DataBaseHelpers::isFavorite(const var& database, const File& presetFile)
 {

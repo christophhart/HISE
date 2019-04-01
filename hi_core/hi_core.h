@@ -216,6 +216,14 @@ If this is set to 1, the application will crash instantly if there is a drop out
 #endif
 
 
+/** Config: HISE_ENABLE_EXPANSIONS
+
+If this is enabled, you can use expansion packs to add additional content to your project.
+*/
+#ifndef HISE_ENABLE_EXPANSIONS
+#define HISE_ENABLE_EXPANSIONS 0
+#endif
+
 /** Config: ENABLE_SCRIPTING_BREAKPOINTS
 
 */

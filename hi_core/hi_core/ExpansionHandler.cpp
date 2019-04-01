@@ -37,17 +37,26 @@ using namespace juce;
 
 
 
-void ExpansionHandler::Helpers::createFrontendLayoutWithExpansionEditing(FloatingTile* root)
+void ExpansionHandler::Helpers::createFrontendLayoutWithExpansionEditing(FloatingTile* root, bool putInTabWithMainInterface)
 {
 #if HI_ENABLE_EXPANSION_EDITING
 	FloatingInterfaceBuilder ib(root);
 
-	ib.setNewContentType<FloatingTabComponent>(0);
-
 	int mainTabs = 0;
+	int expansionRoot;
 
-	auto interface = ib.addChild<InterfaceContentPanel>(mainTabs);
-	auto expansionRoot = ib.addChild<HorizontalTile>(mainTabs);
+	if (putInTabWithMainInterface)
+	{
+		ib.setNewContentType<FloatingTabComponent>(mainTabs);
+		auto interface = ib.addChild<InterfaceContentPanel>(mainTabs);
+		expansionRoot = ib.addChild<HorizontalTile>(mainTabs);
+		ib.setCustomName(interface, "Interface");
+	}
+	else
+	{
+		ib.setNewContentType<HorizontalTile>(mainTabs);
+		expansionRoot = mainTabs;
+	}
 
 	auto topBar = ib.addChild<VerticalTile>(expansionRoot);
 
@@ -63,15 +72,25 @@ void ExpansionHandler::Helpers::createFrontendLayoutWithExpansionEditing(Floatin
 	auto connector = ib.addChild<GlobalConnectorPanel<ModulatorSampler>>(expansionRoot);
 	auto editor = ib.addChild<SampleEditorPanel>(expansionRoot);
 	auto mapEditor = ib.addChild<SampleMapEditorPanel>(expansionRoot);
-	auto keyboard = ib.addChild<MidiKeyboardPanel>(expansionRoot);
+
+	if (putInTabWithMainInterface)
+	{
+		auto keyboard = ib.addChild<MidiKeyboardPanel>(expansionRoot);
+		ib.getPanel(keyboard)->setCanBeFolded(true);
+	}
+		
 
 	ib.getContent(editor)->setStyleProperty("showConnectionBar", false);
 	ib.getContent(mapEditor)->setStyleProperty("showConnectionBar", false);
 
-	ib.setCustomName(interface, "Interface");
+	
+
+	
 	ib.setCustomName(expansionRoot, "Expansion Editing");
 
 	auto c = ib.getContent<GlobalConnectorPanel<ModulatorSampler>>(connector);
+
+	ib.setVisibility(connector, false, {});
 
 	if (auto s = ProcessorHelpers::getFirstProcessorWithType<ModulatorSampler>(root->getMainController()->getMainSynthChain()))
 	{
@@ -79,7 +98,7 @@ void ExpansionHandler::Helpers::createFrontendLayoutWithExpansionEditing(Floatin
 	}
 	
 
-	ib.getPanel(keyboard)->setCanBeFolded(true);
+	
 
 	ib.finalizeAndReturnRoot();
 
@@ -126,7 +145,18 @@ juce::File ExpansionHandler::getExpansionFolder() const
 	if (!f.isDirectory())
 		f.createDirectory();
 
-	return f;
+	
+
+#if JUCE_WINDOWS
+	auto linkFile = f.getChildFile("LinkWindows");
+#else
+	auto linkFile = f.getChildFile("LinkOSX");
+#endif
+
+	if (linkFile.existsAsFile())
+		return File(linkFile.loadFileAsString());
+	else
+		return f;
 }
 
 void ExpansionHandler::createAvailableExpansions()
@@ -135,15 +165,33 @@ void ExpansionHandler::createAvailableExpansions()
 
 	getExpansionFolder().findChildFiles(folders, File::findDirectories, false);
 
+	bool didSomething = false;
+
 	for (auto f : folders)
 	{
+		bool exists = false;
+
+		for (auto e : expansionList)
+		{
+			if (e->getRootFolder() == f)
+			{
+				exists = true;
+				break;
+			}
+		}
+			
+		if (exists)
+			continue;
+
 		if (Helpers::isValidExpansion(f))
 		{
 			expansionList.add(new Expansion(mc, f));
+			didSomething = true;
 		}
 	}
 
-	notifier.sendNotification(Notifier::EventType::ExpansionCreated);
+	if(didSomething)
+		notifier.sendNotification(Notifier::EventType::ExpansionCreated);
 }
 
 var ExpansionHandler::getListOfAvailableExpansions() const
@@ -173,6 +221,8 @@ bool ExpansionHandler::setCurrentExpansion(const String& expansionName)
 		if (e->name == expansionName)
 		{
 			currentExpansion = e;
+
+			currentExpansion->pool->getSampleMapPool().loadAllFilesFromProjectFolder();
 
 			notifier.sendNotification(Notifier::EventType::ExpansionLoaded);
 

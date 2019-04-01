@@ -66,6 +66,7 @@ public:
 		afm.registerBasicFormats();
 		afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
 
+		pool->getSampleMapPool().loadAllFilesFromProjectFolder();
 		
 		saveExpansionInfoFile();
 	}
@@ -93,6 +94,16 @@ public:
 
 	ValueTree getSampleMap(const String& sampleMapId);
 
+	bool isActive() const noexcept { return numActiveReferences != 0; }
+
+	void incActiveRefCount() { numActiveReferences++; }
+	void decActiveRefCount() 
+	{
+		jassert(numActiveReferences > 0);
+
+		numActiveReferences = jmax(0, numActiveReferences - 1);
+	}
+
 	File root;
 	bool isEncrypted = false;
 	ValueTree v;
@@ -104,6 +115,8 @@ public:
 	CachedValue<String> blowfishKey;
 
 private:
+
+	int numActiveReferences = 0;
 
 	var getFileListInternal(ProjectHandler::SubDirectories type, const String& wildcards, bool addExtension);
 
@@ -126,6 +139,7 @@ private:
 		addFolder(ProjectHandler::SubDirectories::AudioFiles);
 		addFolder(ProjectHandler::SubDirectories::Images);
 		addFolder(ProjectHandler::SubDirectories::SampleMaps);
+		addFolder(ProjectHandler::SubDirectories::MidiFiles);
 		addFolder(ProjectHandler::SubDirectories::UserPresets);
 	}
 
@@ -237,7 +251,7 @@ public:
 
 	struct Helpers
 	{
-		static void createFrontendLayoutWithExpansionEditing(FloatingTile* root);
+		static void createFrontendLayoutWithExpansionEditing(FloatingTile* root, bool putInTabWithMainInterface=true);
 		static bool isValidExpansion(const File& directory);
 		static Identifier getSanitizedIdentifier(const String& idToSanitize);
 	};
@@ -294,6 +308,7 @@ public:
     PoolCollection* getCurrentPoolCollection();
     
 	void clearPools();
+
 private:
 
 	template <class DataType> void getPoolForReferenceString(const PoolReference& p, SharedPoolBase<DataType>** pool)

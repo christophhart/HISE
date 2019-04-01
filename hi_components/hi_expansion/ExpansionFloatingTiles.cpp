@@ -149,6 +149,11 @@ void ExpansionEditBar::buttonClicked(Button* b)
 			refreshExpansionList();
 		}
 	}
+	if (b->getName() == "Rebuild")
+	{
+		handler.createAvailableExpansions();
+		refreshExpansionList();
+	}
 }
 
 void ExpansionEditBar::expansionPackLoaded(Expansion* e)

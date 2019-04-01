@@ -49,7 +49,11 @@ class SampleMapEditor  : public Component,
                          public LabelListener,
 						 public PoolBase::Listener,
 						 public ComboBox::Listener,
+#if HI_ENABLE_EXPANSION_EDITING
+						 public ExpansionHandler::Listener,
+#endif
 						 public SampleMap::Listener
+
 {
 public:
     //==============================================================================
@@ -314,6 +318,8 @@ public:
 		mapIsHovered = false;
 		repaint();
 	}
+
+	void expansionPackLoaded(Expansion* currentExpansion) override;
 
 	bool isInterestedInDragSource(const SourceDetails &dragSourceDetails) override
 	{

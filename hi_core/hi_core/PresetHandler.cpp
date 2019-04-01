@@ -106,6 +106,21 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 
 		preset.setProperty("Version", getCurrentVersionNumber(chain), nullptr);
 
+#if HISE_ENABLE_EXPANSIONS
+		auto& expHandler = chain->getMainController()->getExpansionHandler();
+
+			String s;
+
+			for (int i = 0; i < expHandler.getNumExpansions(); i++)
+			{
+				if (expHandler.getExpansion(i)->isActive())
+					s << expHandler.getExpansion(i)->name << ";";
+			}
+
+			if(s.isNotEmpty())
+				preset.setProperty("RequiredExpansions", s, nullptr);
+#endif
+
 		preset.addChild(autoData, -1, nullptr);
 		preset.addChild(mpeData, -1, nullptr);
 
@@ -2359,7 +2374,7 @@ juce::String FileHandlerBase::getWildcardForFiles(SubDirectories directory)
 
 FileHandlerBase::FileHandlerBase(MainController* mc_) :
 	ControlledObject(mc_),
-	pool(new PoolCollection(mc_))
+	pool(new PoolCollection(mc_, this))
 {
 
 }

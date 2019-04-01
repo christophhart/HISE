@@ -80,23 +80,6 @@ juce::Image Pool::loadImage(const String& id)
 	return {};
 }
 
-juce::StringArray Pool::getSampleMapList() const
-{
-	auto pool = getMainController()->getCurrentSampleMapPool();
-
-	StringArray sampleMapNames;
-	auto references = pool->getListOfAllReferences(true);
-	PoolReference::Comparator comparator;
-	references.sort(comparator);
-
-	sampleMapNames.ensureStorageAllocated(references.size());
-
-	for (auto r : references)
-		sampleMapNames.add(r.getReferenceString());
-
-	return sampleMapNames;
-}
-
 hise::PoolReference Pool::createSampleMapReference(const String& referenceString)
 {
 	return PoolReference(getMainController(), referenceString, FileHandlerBase::SampleMaps);
@@ -109,20 +92,44 @@ hise::PoolReference Pool::createMidiFileReference(const String& referenceString)
 
 juce::StringArray Pool::getListOfEmbeddedResources(FileHandlerBase::SubDirectories directory, bool useExpansionPool)
 {
+	auto references = getListOfReferences(directory, &getMainController()->getCurrentFileHandler(true));
+
+	if (useExpansionPool)
+	{
+		auto& expHandler = getMainController()->getExpansionHandler();
+
+		for (int i = 0; i < expHandler.getNumExpansions(); i++)
+		{
+			auto expansion = expHandler.getExpansion(i);
+			references.addArray(getListOfReferences(directory, expansion));
+		}
+	}
+
+	StringArray sa;
+
+	for (auto r : references)
+		sa.add(r.getReferenceString());
+
+	return sa;
+}
+
+juce::Array<hise::PoolReference> Pool::getListOfReferences(FileHandlerBase::SubDirectories directory, FileHandlerBase* handler)
+{
 	Array<PoolReference> references;
 
 	switch (directory)
 	{
 	case hise::FileHandlerBase::AudioFiles:
-		references = getMainController()->getCurrentAudioSampleBufferPool(!useExpansionPool)->getListOfAllReferences(true);
+		references = handler->pool->getAudioSampleBufferPool().getListOfAllReferences(true);
 		break;
 	case hise::FileHandlerBase::Images:
-		references = getMainController()->getCurrentImagePool(!useExpansionPool)->getListOfAllReferences(true);
+		references = handler->pool->getImagePool().getListOfAllReferences(true);
 		break;
 	case hise::FileHandlerBase::SampleMaps:
-		return getSampleMapList();
+		references = handler->pool->getSampleMapPool().getListOfAllReferences(true);
+		break;
 	case hise::FileHandlerBase::MidiFiles:
-		references = getMainController()->getCurrentMidiFilePool(!useExpansionPool)->getListOfAllReferences(true);
+		references = handler->pool->getMidiFilePool().getListOfAllReferences(true);
 		break;
 	case hise::FileHandlerBase::UserPresets:
 	case hise::FileHandlerBase::Samples:
@@ -137,12 +144,7 @@ juce::StringArray Pool::getListOfEmbeddedResources(FileHandlerBase::SubDirectori
 		break;
 	}
 
-	StringArray sa;
-
-	for (auto r : references)
-		sa.add(r.getReferenceString());
-
-	return sa;
+	return references;
 }
 
 void FloatingTileProperties::set(FloatingTile& floatingTile, const std::initializer_list<Property>& list)

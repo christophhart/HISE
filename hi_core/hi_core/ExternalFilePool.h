@@ -471,12 +471,12 @@ protected:
 
 	virtual Identifier getFileTypeName() const = 0;
 
-	PoolBase(MainController* mc):
+	PoolBase(MainController* mc, FileHandlerBase* handler):
 	  ControlledObject(mc),
 	  notifier(*this),
       type(FileHandlerBase::SubDirectories::numSubDirectories),
-	  dataProvider(new DataProvider(this))
-
+	  dataProvider(new DataProvider(this)),
+	  parentHandler(handler)
 	{
 
 	}
@@ -484,6 +484,8 @@ protected:
 	FileHandlerBase::SubDirectories type;
 
 	bool useSharedCache = false;
+
+	FileHandlerBase* parentHandler = nullptr;
 
 private:
 
@@ -534,6 +536,7 @@ private:
 	Array<WeakReference<Listener>, CriticalSection> listeners;
 
 	ScopedPointer<DataProvider> dataProvider;
+	
 	
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PoolBase)
@@ -628,6 +631,8 @@ public:
 	}
 
 private:
+
+	
 
 	ReferenceCountedArray<PoolEntry<DataType>> sharedItems;
 };
@@ -756,8 +761,8 @@ public:
 		WeakReference<PoolEntry<DataType>> weak;
 	};
 
-	SharedPoolBase(MainController* mc_) :
-      PoolBase(mc_)
+	SharedPoolBase(MainController* mc_, FileHandlerBase* handler) :
+      PoolBase(mc_, handler)
 	{
         type = PoolHelpers::getSubDirectoryType(empty);
         
@@ -896,7 +901,7 @@ public:
 	{
 		ScopedNotificationDelayer snd(*this, EventType::Added);
 
-		auto fileList = getMainController()->getCurrentFileHandler().getFileList(type, false, true);
+		auto fileList = parentHandler->getFileList(type, false, true);
 
 		for (auto f : fileList)
 		{
@@ -1155,11 +1160,13 @@ using PooledSampleMap = SampleMapPool::ManagedPtr;
 using MidiFilePool = SharedPoolBase<MidiFileReference>;
 using PooledMidiFile = MidiFilePool::ManagedPtr;
 
+class FileHandlerBase;
+
 class PoolCollection: public ControlledObject
 {
 public:
 
-	PoolCollection(MainController* mc);;
+	PoolCollection(MainController* mc, FileHandlerBase* handler);;
 
 	~PoolCollection();
 
@@ -1196,6 +1203,8 @@ public:
 private:
 
 	PoolBase * dataPools[(int)ProjectHandler::SubDirectories::numSubDirectories];
+
+	FileHandlerBase* parentHandler = nullptr;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(PoolCollection);
 };

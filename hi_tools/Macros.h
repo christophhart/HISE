@@ -60,10 +60,10 @@ namespace hise { using namespace juce;
 #endif
 
 
-#if USE_FRONTEND
-#define ENABLE_MARKDOWN false
-#else
+#if HI_ENABLE_EXPANSION_EDITING || USE_BACKEND
 #define ENABLE_MARKDOWN true
+#else
+#define ENABLE_MARKDOWN false
 #endif
 
 #if (defined (_WIN32) || defined (_WIN64))

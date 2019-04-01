@@ -478,7 +478,7 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 
 		auto expansionFolder = mc->getExpansionHandler().getExpansionFolder();
 
-
+#if HISE_ENABLE_EXPANSIONS
 		if (f.isAChildOf(expansionFolder))
 		{
 			m = ExpansionPath;
@@ -490,6 +490,7 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 			reference = "{EXP::" + expansionName + "}" + relativePath;
 			return;
 		}
+#endif
 
 #if USE_BACKEND
 		auto subFolder = mc->getCurrentFileHandler(true).getSubDirectory(directoryType);
@@ -515,6 +516,18 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 		reference = input;
 		return;
 	}
+
+#if HISE_ENABLE_EXPANSIONS
+	if (auto e = mc->getExpansionHandler().getExpansionForWildcardReference(input))
+	{
+		m = ExpansionPath;
+
+		reference = input;
+		f = e->getSubDirectory(directoryType).getChildFile(reference.fromFirstOccurrenceOf("}", false, false));
+		return;
+	}
+#endif
+	
 
 	if (input.startsWith(projectFolderWildcard) || directoryType == FileHandlerBase::SampleMaps)
 	{
@@ -558,13 +571,7 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 		return;
 	}
 
-	if (auto e = mc->getExpansionHandler().getExpansionForWildcardReference(input))
-	{
-		m = ExpansionPath;
-
-		reference = input;
-		f = e->getSubDirectory(directoryType).getChildFile(reference.fromFirstOccurrenceOf("}", false, false));
-	}
+	
 }
 
 
@@ -856,24 +863,25 @@ void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, MidiFile
 	data->getFile().readFrom(*mis);
 }
 
-PoolCollection::PoolCollection(MainController* mc) :
-	ControlledObject(mc)
+PoolCollection::PoolCollection(MainController* mc, FileHandlerBase* handler) :
+	ControlledObject(mc),
+	parentHandler(handler)
 {
 	for (int i = 0; i < (int)ProjectHandler::SubDirectories::numSubDirectories; i++)
 	{
 		switch ((ProjectHandler::SubDirectories)i)
 		{
 		case ProjectHandler::SubDirectories::AudioFiles:
-			dataPools[i] = new AudioSampleBufferPool(mc);
+			dataPools[i] = new AudioSampleBufferPool(mc, parentHandler);
 			break;
 		case ProjectHandler::SubDirectories::Images:
-			dataPools[i] = new ImagePool(mc);
+			dataPools[i] = new ImagePool(mc, parentHandler);
 			break;
 		case ProjectHandler::SubDirectories::SampleMaps:
-			dataPools[i] = new SampleMapPool(mc);
+			dataPools[i] = new SampleMapPool(mc, parentHandler);
 			break;
 		case ProjectHandler::SubDirectories::MidiFiles:
-			dataPools[i] = new MidiFilePool(mc);
+			dataPools[i] = new MidiFilePool(mc, parentHandler);
 			break;
 		default:
 			dataPools[i] = nullptr;

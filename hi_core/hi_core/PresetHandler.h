@@ -183,6 +183,8 @@ public:
 
 	static void loadOtherReferencedImages(ModulatorSynthChain* chainToExport);
 
+	ScopedPointer<PoolCollection> pool;
+
 protected:
 
 	friend class MainController;
@@ -197,7 +199,7 @@ protected:
 		File file;
 	};
 
-	ScopedPointer<PoolCollection> pool;
+	
 
 	Array<FolderReference> subDirectories;
 };

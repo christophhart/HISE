@@ -80,6 +80,8 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 
     //[/Constructor_pre]
 
+	s->getMainController()->getExpansionHandler().addListener(this);
+
     addAndMakeVisible (rootNoteSetter = new ValueSettingComponent());
     addAndMakeVisible (lowKeySetter = new ValueSettingComponent());
     addAndMakeVisible (highKeySetter = new ValueSettingComponent());
@@ -234,6 +236,8 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 	addMenuButton(FillVelocityGaps);
 	addMenuButton(RefreshVelocityXFade);
 
+	
+
     //[/UserPreSize]
 
     setSize (800, 245);
@@ -252,6 +256,8 @@ SampleMapEditor::~SampleMapEditor()
 
 	sampler->getSampleMap()->removeListener(this);
 	sampler->getMainController()->getCurrentSampleMapPool()->removeListener(this);
+
+	sampler->getMainController()->getExpansionHandler().removeListener(this);
 
 	if (getCommandManager()->getFirstCommandTarget(CopySamples))
 	{
@@ -819,6 +825,11 @@ void SampleMapEditor::refreshRootNotes()
 	{
 		map->repaint();
 	}
+}
+
+void SampleMapEditor::expansionPackLoaded(Expansion* currentExpansion)
+{
+	updateSampleMapSelector(true);
 }
 
 void SampleMapEditor::sampleMapWasChanged(PoolReference newSampleMap)
