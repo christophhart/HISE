@@ -1666,6 +1666,50 @@ void CompileExporter::ProjectTemplateHelpers::handleVisualStudioVersion(const Hi
 	}
 }
 
+XmlElement* createXmlElementForFile(ModulatorSynthChain* chainToExport, String& templateProject, File f, bool allowCompilation)
+{
+	if (f.getFileName().startsWith("."))
+		return nullptr;
+
+	ScopedPointer<XmlElement> xml = new XmlElement(f.isDirectory() ? "GROUP" : "FILE");
+
+	auto fileId = FileHelpers::createAlphaNumericUID();
+
+	xml->setAttribute("id", fileId);
+	xml->setAttribute("name", f.getFileName());
+
+	if (f.isDirectory())
+	{
+		Array<File> children;
+
+		f.findChildFiles(children, File::findFilesAndDirectories, false);
+
+		for (auto c : children)
+		{
+			if (auto c_xml = createXmlElementForFile(chainToExport, templateProject, c, false))
+			{
+				xml->addChildElement(c_xml);
+			}
+		}
+	}
+	else
+	{
+		if (f.getFileName() == "Icon.png")
+			templateProject = templateProject.replace("%ICON_FILE%", "smallIcon=\"" + fileId + "\" bigIcon=\"" + fileId + "\"");
+
+		bool isSourceFile = allowCompilation && f.hasFileExtension(".cpp");
+		bool isSplashScreen = f.getFileName().contains("SplashScreen");
+
+		xml->setAttribute("compile", isSourceFile ? 1 : 0);
+		xml->setAttribute("resource", isSplashScreen ? 1 : 0);
+
+		const String relativePath = f.getRelativePathFrom(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries));
+
+		xml->setAttribute("file", relativePath);
+	}
+	
+	return xml.release();
+}
 
 
 void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(CompileExporter* exporter, String &templateProject, BuildOption /*option*/)
@@ -1680,8 +1724,9 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 
 	File additionalSourceCodeDirectory = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AdditionalSourceCode);
 
-	additionalSourceCodeDirectory.findChildFiles(additionalSourceFiles, File::findFiles, true, "*.h");
-	additionalSourceCodeDirectory.findChildFiles(additionalSourceFiles, File::findFiles, true, "*.cpp");
+	additionalSourceCodeDirectory.findChildFiles(additionalSourceFiles, File::findFiles, false, "*.h");
+	additionalSourceCodeDirectory.findChildFiles(additionalSourceFiles, File::findFiles, false, "*.cpp");
+	additionalSourceCodeDirectory.findChildFiles(additionalSourceFiles, File::findDirectories, false);
 
 	for (int i = 0; i < additionalSourceFiles.size(); i++)
 	{
@@ -1764,23 +1809,21 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 
 		for (int i = 0; i < additionalSourceFiles.size(); i++)
 		{
-			bool isSourceFile = additionalSourceFiles[i].hasFileExtension(".cpp");
-            bool isSplashScreen = additionalSourceFiles[i].getFileName().contains("SplashScreen");
+			ScopedPointer<XmlElement> fileEntry = createXmlElementForFile(chainToExport, templateProject, additionalSourceFiles[i], true);
 
-			const String relativePath = additionalSourceFiles[i].getRelativePathFrom(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries));
-
-			String newAditionalSourceLine;
+			String newAditionalSourceLine = fileEntry->createDocument("", false, false);
             
+
+
+#if 0
             String fileId = FileHelpers::createAlphaNumericUID();
             
-            if(additionalSourceFiles[i].getFileName() == "Icon.png")
-            {
-                templateProject = templateProject.replace("%ICON_FILE%", "smallIcon=\"" + fileId + "\" bigIcon=\"" + fileId + "\"");
-            }
+            
             
 			newAditionalSourceLine << "      <FILE id=\"" << fileId << "\" name=\"" << additionalSourceFiles[i].getFileName() << "\" compile=\"" << (isSourceFile ? "1" : "0") << "\" ";
 			newAditionalSourceLine << "resource=\"" << (isSplashScreen ? "1" : "0") << "\"\r\n";
 			newAditionalSourceLine << "            file=\"" << relativePath << "\"/>\r\n";
+#endif
 
 			additionalFileDefinitions.add(newAditionalSourceLine);
 		}
