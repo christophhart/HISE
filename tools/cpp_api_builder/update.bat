@@ -67,6 +67,9 @@ REM Copy raw class files
 
 xcopy "%raw_prefix%_builder.xml" "%raw_input_dir%" 1>nul
 xcopy "%raw_prefix%_generic_storage.xml" "%raw_input_dir%" 1>nul
+xcopy "%raw_prefix%_main_processor.xml" "%raw_input_dir%" 1>nul
+xcopy "%raw_prefix%_data_holder_base.xml" "%raw_input_dir%" 1>nul
+xcopy "%raw_prefix%_data_holder.xml" "%raw_input_dir%" 1>nul
 xcopy "%raw_prefix%_plugin_parameter.xml" "%raw_input_dir%" 1>nul
 xcopy "%raw_prefix%_pool.xml" "%raw_input_dir%" 1>nul
 xcopy "%raw_prefix%_positioner.xml" "%raw_input_dir%" 1>nul

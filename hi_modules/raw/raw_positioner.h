@@ -165,6 +165,9 @@ public:
 		(so you can leave the child component's resized() callback alone). */
 	void apply(Component& c);
 
+	/** The same as apply(), but doesn't change the root component position. */
+	void applyToChildren(Component& c);
+
 	/** This prints out a statistic of all components that were positioned and those who could not be resolved. 
 		This is helpful during development so you can quickly check which components you need to fix. */
 	void printSummary();

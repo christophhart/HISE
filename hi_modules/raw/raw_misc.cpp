@@ -107,6 +107,66 @@ hise::PoolReference Pool::createMidiFileReference(const String& referenceString)
 	return PoolReference(getMainController(), referenceString, FileHandlerBase::MidiFiles);
 }
 
+juce::StringArray Pool::getListOfEmbeddedResources(FileHandlerBase::SubDirectories directory, bool useExpansionPool)
+{
+	Array<PoolReference> references;
+
+	switch (directory)
+	{
+	case hise::FileHandlerBase::AudioFiles:
+		references = getMainController()->getCurrentAudioSampleBufferPool(!useExpansionPool)->getListOfAllReferences(true);
+		break;
+	case hise::FileHandlerBase::Images:
+		references = getMainController()->getCurrentImagePool(!useExpansionPool)->getListOfAllReferences(true);
+		break;
+	case hise::FileHandlerBase::SampleMaps:
+		return getSampleMapList();
+	case hise::FileHandlerBase::MidiFiles:
+		references = getMainController()->getCurrentMidiFilePool(!useExpansionPool)->getListOfAllReferences(true);
+		break;
+	case hise::FileHandlerBase::UserPresets:
+	case hise::FileHandlerBase::Samples:
+	case hise::FileHandlerBase::Scripts:
+	case hise::FileHandlerBase::Binaries:
+	case hise::FileHandlerBase::Presets:
+	case hise::FileHandlerBase::XMLPresetBackups:
+	case hise::FileHandlerBase::AdditionalSourceCode:
+	case hise::FileHandlerBase::numSubDirectories:
+	default:
+		jassertfalse;
+		break;
+	}
+
+	StringArray sa;
+
+	for (auto r : references)
+		sa.add(r.getReferenceString());
+
+	return sa;
+}
+
+void FloatingTileProperties::set(FloatingTile& floatingTile, const std::initializer_list<Property>& list)
+{
+	auto content = floatingTile.getCurrentFloatingPanel();
+
+	DynamicObject::Ptr obj = new DynamicObject();
+
+	for (const auto& p : list)
+	{
+		auto id = content->getDefaultablePropertyId(p.id);
+		obj->setProperty(id, p.value);
+	}
+
+	content->fromDynamicObject(var(obj));
+}
+
+FloatingTileProperties::Property::Property(int id_, const var& value_) :
+	id(id_),
+	value(value_)
+{
+
+}
+
 }
 
 } // namespace hise;

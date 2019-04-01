@@ -172,5 +172,7 @@ namespace wdl
 #include "raw/raw_misc.cpp"
 #include "raw/raw_builder.cpp"
 #include "raw/raw_positioner.cpp"
+#include "raw/raw_main_processor.cpp"
+#include "raw/raw_main_editor.cpp"
 #include "raw/raw_UserPreset.cpp"
 #include "raw/raw_PluginParameter.cpp"

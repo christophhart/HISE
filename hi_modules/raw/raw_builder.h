@@ -68,7 +68,7 @@ using AttributeCollection = std::vector<AttributeItem>;
 
 Create one of those, supply the MainController instance and call its methods to build up the architecture of your plugin. 
 
-\code
+\code{.cpp}
 // The main controller of this project
 auto mc = getMainController();
 
@@ -150,15 +150,13 @@ public:
 
 		If renameChildProcessors is true, then it will recursively change the IDs of all children, appending their parent IDs.
 
-		```cpp
-
-
+		\code{.cpp}
 		sine is a sine wave generator with a filter that is modulated by the velocity
 		builder.setIdWithIndex(sine, "mySine", 4);
 
 		// the velocity modulator will be named
 		// "mySine5_Filter_Velocity
-		```
+		\endcode
 	*/
 	void setIdWithIndex(Processor* p, const Identifier& prefix, int index, bool renameChildProcessors=false)
 	{

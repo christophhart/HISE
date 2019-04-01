@@ -180,37 +180,14 @@ public:
 
 #if USE_RAW_FRONTEND
 
-	/** This class is supposed to hold all data defined by your C++ project. 
 	
-		Just create subclass it, create one of these when you need to store data and
-		it will take ownership of it and delete it properly at shutdown. 
-	*/
-	class RawDataBase: public ControlledObject,
-						 public RestorableObject
-	{
-	public:
 
-		RawDataBase(MainController* mc):
-		  ControlledObject(mc)
-		{};
-
-		/** Overwrite this method and return your plugin's main editor. */
-		virtual Component* createEditor() = 0;
-
-		virtual ~RawDataBase() {};
-
-	private:
-
-		JUCE_DECLARE_WEAK_REFERENCEABLE(RawDataBase);
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RawDataBase);
-	};
-
-	ScopedPointer<RawDataBase> rawDataHolder;
+	ScopedPointer<raw::DataHolderBase> rawDataHolder;
 
 	/** Overwrite this method and return your subclassed data model. */
-	RawDataBase* createPresetRaw();
+	raw::DataHolderBase* createPresetRaw();
 
-	RawDataBase* getRawDataHolder()
+	raw::DataHolderBase* getRawDataHolder()
 	{
 		return rawDataHolder.get();
 	}
