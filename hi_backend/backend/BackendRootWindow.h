@@ -53,7 +53,8 @@ class BackendRootWindow : public AudioProcessorEditor,
 						  public ComponentWithKeyboard,
 						  public ModalBaseWindow,
 						  public ComponentWithBackendConnection,
-						  public DragAndDropContainer
+						  public DragAndDropContainer,
+						  public ComponentWithHelp::GlobalHandler
 {
 public:
 
@@ -162,7 +163,19 @@ public:
 	void removeFloatingWindow(FloatingTileDocumentWindow* windowToRemove)
 	{
 		popoutWindows.removeObject(windowToRemove, true);
+
+		if (docWindow = windowToRemove)
+			docWindow = nullptr;
 	}
+
+	void showHelp(ComponentWithHelp* h) override
+	{
+		auto doc = createOrShowDocWindow();
+
+		doc->renderer.gotoLink({ {}, h->getMarkdownHelpUrl() });
+	}
+
+	MarkdownPreview* createOrShowDocWindow();
 
 private:
 
@@ -197,6 +210,8 @@ private:
 
 
 	ScopedPointer<FloatingTile> floatingRoot;
+
+	ScopedPointer<FloatingTileDocumentWindow> docWindow;
 
 	bool resetOnClose = false;
 

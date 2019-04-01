@@ -80,7 +80,82 @@ public:
 
 
 
+class ComponentWithHelp
+{
+public:
 
+	struct GlobalHandler
+	{
+
+		virtual ~GlobalHandler() {};
+
+		bool isHelpEnabled() const { return helpEnabled; }
+
+		virtual void showHelp(ComponentWithHelp* h) = 0;
+		
+
+		void toggleHelp()
+		{
+			helpEnabled = !helpEnabled;
+
+			for (auto c : registeredHelpers)
+			{
+				if (auto asComponent = dynamic_cast<Component*>(c.get()))
+				{
+					asComponent->repaint();
+				}
+			}
+		}
+
+		void registerHelper(ComponentWithHelp* c)
+		{
+			registeredHelpers.addIfNotAlreadyThere(c);
+		}
+
+		void removeHelper(ComponentWithHelp* c)
+		{
+			registeredHelpers.removeAllInstancesOf(c);
+		}
+
+	private:
+
+
+		Array<WeakReference<ComponentWithHelp>> registeredHelpers;
+
+		bool helpEnabled = false;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(GlobalHandler);
+	};
+
+	ComponentWithHelp(GlobalHandler* handler_):
+		handler(handler_)
+	{
+		p.loadPathFromData(MainToolbarIcons::help, sizeof(MainToolbarIcons::help));
+
+		if (handler != nullptr)
+			handler->registerHelper(this);
+	}
+
+	~ComponentWithHelp()
+	{
+		if (handler != nullptr)
+			handler->removeHelper(this);
+	}
+
+	virtual String getMarkdownHelpUrl() const = 0;
+
+	void openHelp();
+
+	void paintHelp(Graphics& g);
+
+private:
+
+	Path p;
+
+	WeakReference<GlobalHandler> handler;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ComponentWithHelp);
+};
 
 
 /** A dialog window that performs an operation on a background thread.

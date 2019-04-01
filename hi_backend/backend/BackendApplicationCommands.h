@@ -198,6 +198,7 @@ public:
 		MenuToolsDeviceSimulatorOffset,
 		MenuHelpShowAboutPage = 0x70000,
 		MenuHelpShowDocumentation,
+		MenuHelpShowHelpForComponents,
         MenuHelpCheckVersion,
 		numCommands
 	};
@@ -262,7 +263,6 @@ public:
 
 		updateCommands();
 	}
-
 
 	void createMenuBarNames();
 

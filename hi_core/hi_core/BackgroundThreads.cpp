@@ -942,4 +942,32 @@ void DialogWindowWithBackgroundThread::AdditionalRow::Column::resized()
 	component->setBounds(area);
 }
 
+void ComponentWithHelp::openHelp()
+{
+	if (handler != nullptr && handler->isHelpEnabled())
+	{
+		handler->showHelp(this);
+	}
+}
+
+void ComponentWithHelp::paintHelp(Graphics& g)
+{
+	if (handler != nullptr && handler->isHelpEnabled())
+	{
+		g.fillAll(Colours::black.withAlpha(0.5f));
+
+		auto c = dynamic_cast<Component*>(this);
+
+		auto pBounds = c->getLocalBounds().toFloat().withSizeKeepingCentre(30, 30);
+
+		p.scaleToFit(pBounds.getX(), pBounds.getY(), pBounds.getWidth(), pBounds.getHeight(), true);
+
+		g.setColour(c->isMouseOver(true) ? Colour(SIGNAL_COLOUR) : Colours::white.withAlpha(0.5f));
+
+		g.fillPath(p);
+
+		
+	}
+}
+
 } // namespace hise

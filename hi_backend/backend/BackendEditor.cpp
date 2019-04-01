@@ -394,9 +394,12 @@ void BackendProcessorEditor::clearModuleList()
 
 
 MainTopBar::MainTopBar(FloatingTile* parent) :
-	FloatingTileContent(parent)
+	FloatingTileContent(parent),
+	ComponentWithHelp(parent->getBackendRootWindow())
 {
 	MainToolbarFactory f;
+
+	setRepaintsOnMouseActivity(true);
 
 	addAndMakeVisible(hiseButton = new ImageButton("HISE"));
 
@@ -773,6 +776,8 @@ void MainTopBar::popupChanged(Component* newComponent)
 
 void MainTopBar::paint(Graphics& g)
 {
+	
+
 	Colour c1 = JUCE_LIVE_CONSTANT_OFF(Colour(0xFF424242));
 	Colour c2 = JUCE_LIVE_CONSTANT_OFF(Colour(0xFF404040));
 
@@ -783,6 +788,13 @@ void MainTopBar::paint(Graphics& g)
 	g.setFont(GLOBAL_BOLD_FONT());
 	g.drawText("Frontend Panels", frontendArea.withTrimmedBottom(11), Justification::centredBottom);
 	g.drawText("Workspaces", workspaceArea.withTrimmedBottom(11), Justification::centredBottom);
+
+	
+}
+
+void MainTopBar::paintOverChildren(Graphics& g)
+{
+	ComponentWithHelp::paintHelp(g);
 }
 
 void MainTopBar::buttonClicked(Button* b)

@@ -315,7 +315,8 @@ class MainTopBar : public FloatingTileContent,
 				   public Component,
 				   public ButtonListener,
 				   public FloatingTile::PopupListener,
-				   public juce::ApplicationCommandManagerListener
+				   public juce::ApplicationCommandManagerListener,
+				   public ComponentWithHelp
 {
 public:
 	
@@ -338,6 +339,11 @@ public:
 		return 60;
 	}
 
+	String getMarkdownHelpUrl() const override
+	{
+		return "/ui-components/floating-tiles/hise/maintopbar";
+	}
+
 	bool showTitleInPresentationMode() const override
 	{
 		return false;
@@ -346,6 +352,16 @@ public:
 	void popupChanged(Component* newComponent) override;
 
 	void paint(Graphics& g) override;
+
+	void paintOverChildren(Graphics& g) override;
+
+	void mouseDown(const MouseEvent& event)
+	{
+		ComponentWithHelp::openHelp();
+	}
+
+	
+
 
 	void buttonClicked(Button* b) override;
 
