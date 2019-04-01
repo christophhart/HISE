@@ -99,20 +99,9 @@ protected:
 	Component::SafePointer<PresetBrowser> parent;
 };
 
-class BetterLabel : public Label,
-					public PresetBrowserChildComponentBase
+class NiceLabel : public Label
 {
 public:
-
-	BetterLabel(PresetBrowser* p) :
-		PresetBrowserChildComponentBase(p)
-	{}
-
-	void update() override
-	{
-		setColour(Label::backgroundColourId, getPresetBrowserLookAndFeel().highlightColour.withAlpha(0.1f));
-		setFont(getPresetBrowserLookAndFeel().font);
-	}
 
 	virtual TextEditor* createEditorComponent()
 	{
@@ -142,6 +131,24 @@ public:
 	}
 
 	bool refreshWithEachKey = true;
+};
+
+class BetterLabel : public NiceLabel,
+					public PresetBrowserChildComponentBase
+{
+public:
+
+	BetterLabel(PresetBrowser* p) :
+		PresetBrowserChildComponentBase(p)
+	{}
+
+	void update() override
+	{
+		setColour(Label::backgroundColourId, getPresetBrowserLookAndFeel().highlightColour.withAlpha(0.1f));
+		setFont(getPresetBrowserLookAndFeel().font);
+	}
+
+	
 
 };
 

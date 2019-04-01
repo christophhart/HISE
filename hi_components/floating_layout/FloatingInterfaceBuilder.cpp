@@ -59,19 +59,22 @@ void FloatingInterfaceBuilder::setVisibility(int index, bool shouldBeVisible, Ar
 {
 	getPanel(index)->getLayoutData().setVisible(shouldBeVisible);
 
-	if (auto c = getTileManager(index)) // Tabs don't need to toggle the visibility of their children
+	if (!childVisibleStates.isEmpty())
 	{
-		if (childVisibleStates.size() != c->getNumComponents())
+		if (auto c = getTileManager(index)) // Tabs don't need to toggle the visibility of their children
 		{
-			jassertfalse;
-			return;
-		}
+			if (childVisibleStates.size() != c->getNumComponents())
+			{
+				jassertfalse;
+				return;
+			}
 
-		for (int i = 0; i < c->getNumComponents(); i++)
-			c->getComponent(i)->getLayoutData().setVisible(childVisibleStates[i]);
+			for (int i = 0; i < c->getNumComponents(); i++)
+				c->getComponent(i)->getLayoutData().setVisible(childVisibleStates[i]);
+		}
+		else
+			jassertfalse;
 	}
-	else
-		jassertfalse;
 
 	if (shouldUpdateLayout)
 		getPanel(index)->refreshRootLayout();
