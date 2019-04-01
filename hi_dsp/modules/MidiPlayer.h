@@ -455,9 +455,13 @@ public:
 		font = f;
 	}
 
+	void initMidiPlayer(MidiPlayer* player);
+
 protected:
 
 	MidiPlayerBaseType(MidiPlayer* player_);;
+
+	
 
 	MidiPlayer* getPlayer() { return player.get(); }
 	const MidiPlayer* getPlayer() const { return player.get(); }

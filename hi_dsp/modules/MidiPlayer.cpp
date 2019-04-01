@@ -1182,9 +1182,21 @@ MidiPlayerBaseType::MidiPlayerBaseType(MidiPlayer* player_) :
 	player(player_),
 	font(GLOBAL_BOLD_FONT())
 {
-	player->addSequenceListener(this);
-	player->addChangeListener(this);
+	initMidiPlayer(player);
 }
+
+void MidiPlayerBaseType::initMidiPlayer(MidiPlayer* newPlayer)
+{
+	player = newPlayer;
+
+	if (player != nullptr)
+	{
+		player->addSequenceListener(this);
+		player->addChangeListener(this);
+	}
+}
+
+
 
 void MidiPlayerBaseType::changeListenerCallback(SafeChangeBroadcaster* )
 {
