@@ -193,6 +193,7 @@ private:
     
 	AudioSampleBuffer internalBuffer;
 
+	JUCE_DECLARE_WEAK_REFERENCEABLE(AnalyserEffect);
 };
 
 
@@ -256,6 +257,8 @@ protected:
 	const AnalyserEffect* getAnalyser() const;
 
 	WeakReference<Processor> processor;
+
+	
 };
 
 class FFTDisplay : public AudioAnalyserComponent
