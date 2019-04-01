@@ -107,6 +107,7 @@ struct PoolHelpers
 		SkipPoolSearchWeak, ///< skips the check if the file is already pooled.
 		SkipPoolSearchStrong, ///< skips the search in the pool and increases the reference count
 		DontCreateNewEntry, ///< this assumes the file is already in the pool and throws an assertion if it's not.
+		BypassAllCaches, ///< skips the entire caching and just returns the decoded data.
 		numLoadingTypes
 	};
 
@@ -1063,17 +1064,20 @@ public:
 
 				ne->additionalData = getDataProvider()->createAdditionalData(r);
 
-				if (useSharedCache)
+
+				if (loadingType != PoolHelpers::BypassAllCaches)
 				{
-					sharedCache->store(ne);
-				}
-				else
-				{
-					weakPool.add(ManagedPtr(this, ne.getObject(), false));
-					refCountedPool.add(ManagedPtr(this, ne.getObject(), true));
+					if (useSharedCache)
+					{
+						sharedCache->store(ne);
+					}
+					else
+					{
+						weakPool.add(ManagedPtr(this, ne.getObject(), false));
+						refCountedPool.add(ManagedPtr(this, ne.getObject(), true));
+					}
 				}
 
-				
 				sendPoolChangeMessage(PoolBase::Added);
 
 				return ManagedPtr(this, ne.getObject(), true);
