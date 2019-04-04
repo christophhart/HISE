@@ -1372,7 +1372,7 @@ void BackendCommandTarget::Actions::checkUnusedImages(BackendRootWindow * bpe)
 
 	Array<File> referencedFiles;
 
-	auto imagePool = bpe->getBackendProcessor()->getCurrentImagePool(true);
+	auto imagePool = bpe->getBackendProcessor()->getCurrentImagePool();
 
 	for (int i = 0; i < allFiles.size(); i++)
 	{

@@ -1089,7 +1089,7 @@ juce::ValueTree MainController::exportAllMarkdownDocsAsValueTree() const
 {
 	ValueTree v("MarkdownDocs");
 
-	auto r = getCurrentFileHandler(true).getSubDirectory(FileHandlerBase::Scripts);
+	auto r = getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts);
 
 	Array<File> docFiles;
 

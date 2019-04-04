@@ -743,7 +743,20 @@ void MidiPlayer::setInternalAttribute(int index, float newAmount)
 
 void MidiPlayer::loadMidiFile(PoolReference reference)
 {
-	auto newContent = getMainController()->getCurrentMidiFilePool(true)->loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
+	PooledMidiFile newContent;
+
+#if HISE_ENABLE_EXPANSIONS
+
+	if (auto e = getMainController()->getExpansionHandler().getExpansionForWildcardReference(reference.getReferenceString()))
+		newContent = e->pool->getMidiFilePool().loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
+	else
+		newContent = getMainController()->getCurrentMidiFilePool()->loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
+
+#else
+
+	newContent = getMainController()->getCurrentMidiFilePool()->loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
+
+#endif
 
 	currentlyLoadedFiles.add(reference);
 

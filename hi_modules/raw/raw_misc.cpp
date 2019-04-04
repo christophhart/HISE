@@ -92,7 +92,7 @@ hise::PoolReference Pool::createMidiFileReference(const String& referenceString)
 
 juce::StringArray Pool::getListOfEmbeddedResources(FileHandlerBase::SubDirectories directory, bool useExpansionPool)
 {
-	auto references = getListOfReferences(directory, &getMainController()->getCurrentFileHandler(true));
+	auto references = getListOfReferences(directory, &getMainController()->getCurrentFileHandler());
 
 	if (useExpansionPool)
 	{

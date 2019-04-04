@@ -524,7 +524,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 					std::cout << "Exported " << name << " resources: " << nl;
 
-					auto& handler = mc->getCurrentFileHandler(true);
+					auto& handler = mc->getCurrentFileHandler();
 
 					
 					auto folder = handler.getSubDirectory(d);
@@ -539,10 +539,10 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 				auto mc = chainToExport->getMainController();
 
-				auto audioPool = mc->getCurrentAudioSampleBufferPool(true);
-				auto imagePool = mc->getCurrentImagePool(true);
-				auto sampleMapPool = mc->getCurrentSampleMapPool(true);
-				auto midiPool = mc->getCurrentMidiFilePool(true);
+				auto audioPool = mc->getCurrentAudioSampleBufferPool();
+				auto imagePool = mc->getCurrentImagePool();
+				auto sampleMapPool = mc->getCurrentSampleMapPool();
+				auto midiPool = mc->getCurrentMidiFilePool();
 
 				printExportedFiles(mc, audioPool->getListOfAllReferences(false), ProjectHandler::AudioFiles);
 
@@ -682,7 +682,7 @@ String checkSampleReferences(ModulatorSynthChain* chainToExport)
 	{
 		PoolReference ref(chainToExport->getMainController(), f.getFullPathName(), FileHandlerBase::SampleMaps);
 
-		maps.add(chainToExport->getMainController()->getCurrentSampleMapPool(true)->loadFromReference(ref, PoolHelpers::LoadAndCacheStrong));
+		maps.add(chainToExport->getMainController()->getCurrentSampleMapPool()->loadFromReference(ref, PoolHelpers::LoadAndCacheStrong));
 	}
 
 	for (auto d : maps)

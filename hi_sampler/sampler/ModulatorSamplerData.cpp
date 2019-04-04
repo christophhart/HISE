@@ -689,18 +689,16 @@ void SampleMap::load(const PoolReference& reference)
 
 	clear(dontSendNotification);
 
-	if (reference.getMode() == PoolReference::Mode::ExpansionPath)
-	{
-		auto expansion = getSampler()->getMainController()->getExpansionHandler().getExpansionForWildcardReference(reference.getReferenceString());
-
-		if (expansion != nullptr)
-		{
-			currentPool = &expansion->pool->getSampleMapPool();
-		}
-
-	}
-
 	currentPool = getSampler()->getMainController()->getCurrentSampleMapPool();
+
+#if HISE_ENABLE_EXPANSIONS
+	if (auto expansion = getSampler()->getMainController()->getExpansionHandler().getExpansionForWildcardReference(reference.getReferenceString()))
+	{
+		currentPool = &expansion->pool->getSampleMapPool();
+	}
+#endif
+
+	
 
 	sampleMapData = currentPool->loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
 	currentPool->addListener(this);

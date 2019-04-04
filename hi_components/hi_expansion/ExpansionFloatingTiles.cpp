@@ -52,6 +52,7 @@ class ExpansionPathFactory : public PathFactory
 		LOAD_PATH_IF_URL("rebuild", ColumnIcons::moveIcon);
 		LOAD_PATH_IF_URL("undo", EditorIcons::undoIcon);
 		LOAD_PATH_IF_URL("redo", EditorIcons::redoIcon);
+		LOAD_PATH_IF_URL("encode", SampleMapIcons::monolith);
 
 		return p;
 	};
@@ -69,6 +70,7 @@ ExpansionEditBar::ExpansionEditBar(FloatingTile* parent) :
 	buttons.add(new HiseShapeButton("Rebuild", this, f)); buttons.getLast()->setTooltip("Refresh the expansion pack data");
 	buttons.add(new HiseShapeButton("Undo", this, f)); buttons.getLast()->setTooltip("Undo");
 	buttons.add(new HiseShapeButton("Redo", this, f)); buttons.getLast()->setTooltip("Redo");
+	buttons.add(new HiseShapeButton("Encode", this, f)); buttons.getLast()->setTooltip("Encode this expansion pack");
 
 	addAndMakeVisible(expansionSelector = new ComboBox("Expansion Selector"));
 
@@ -133,6 +135,10 @@ void ExpansionEditBar::resized()
 
 	getButton("Undo")->setBounds(area.removeFromLeft(widthForIcon));
 	getButton("Redo")->setBounds(area.removeFromLeft(widthForIcon));
+
+	area.removeFromLeft(spacerWidth);
+
+	getButton("Encode")->setBounds(area.removeFromLeft(widthForIcon));
 }
 
 void ExpansionEditBar::buttonClicked(Button* b)
@@ -154,13 +160,20 @@ void ExpansionEditBar::buttonClicked(Button* b)
 		handler.createAvailableExpansions();
 		refreshExpansionList();
 	}
+	if (b->getName() == "Encode")
+	{
+		if (auto e = handler.getCurrentExpansion())
+		{
+			e->encodeExpansion();
+		}
+	}
 }
 
 void ExpansionEditBar::expansionPackLoaded(Expansion* e)
 {
 	if (e != nullptr)
 	{
-		expansionSelector->setText(e->name.get(), dontSendNotification);
+		expansionSelector->setText(e->getProperty(ExpansionIds::Name), dontSendNotification);
 	}
 	else
 	{

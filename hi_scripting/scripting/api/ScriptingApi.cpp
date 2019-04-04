@@ -968,7 +968,6 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, createTimerObject);
 	API_METHOD_WRAPPER_0(Engine, createMessageHolder);
 	API_METHOD_WRAPPER_0(Engine, getPlayHead);
-	API_METHOD_WRAPPER_0(Engine, getExpansionHandler);
 	API_VOID_METHOD_WRAPPER_2(Engine, dumpAsJSON);
 	API_METHOD_WRAPPER_1(Engine, loadFromJSON);
 	API_VOID_METHOD_WRAPPER_1(Engine, setCompileProgress);
@@ -1035,7 +1034,6 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(showMessage);
 	ADD_API_METHOD_1(setLowestKeyToDisplay);
     ADD_API_METHOD_1(openWebsite);
-	ADD_API_METHOD_0(getExpansionHandler);
 	ADD_API_METHOD_1(loadNextUserPreset);
 	ADD_API_METHOD_1(loadPreviousUserPreset);
 	ADD_API_METHOD_1(setUserPresetTagList);
@@ -1313,11 +1311,6 @@ int ScriptingApi::Engine::getMidiNoteFromName(String midiNoteName) const
 
 void ScriptingApi::Engine::setKeyColour(int keyNumber, int colourAsHex) { getProcessor()->getMainController()->setKeyboardCoulour(keyNumber, Colour(colourAsHex));}
 
-var ScriptingApi::Engine::getExpansionHandler()
-{
-	return new ScriptingObjects::ExpansionHandlerObject(getScriptProcessor());
-}
-
 void ScriptingApi::Engine::extendTimeOut(int additionalMilliseconds)
 {
 	dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine()->extendTimeout(additionalMilliseconds);
@@ -1484,7 +1477,7 @@ void ScriptingApi::Engine::setAllowDuplicateSamples(bool shouldAllow)
 void ScriptingApi::Engine::loadAudioFilesIntoPool()
 {
 #if USE_BACKEND
-	auto pool = getScriptProcessor()->getMainController_()->getCurrentAudioSampleBufferPool(true);
+	auto pool = getScriptProcessor()->getMainController_()->getCurrentAudioSampleBufferPool();
 	pool->loadAllFilesFromProjectFolder();
 #endif
 }
@@ -1495,7 +1488,7 @@ void ScriptingApi::Engine::loadImageIntoPool(const String& id)
 
 	auto mc = getScriptProcessor()->getMainController_();
 
-	auto pool = mc->getCurrentImagePool(true);
+	auto pool = mc->getCurrentImagePool();
 	const bool isWildcard = id.contains("*");
 
 	if (isWildcard)

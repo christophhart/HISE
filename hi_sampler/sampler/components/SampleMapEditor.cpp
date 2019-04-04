@@ -1035,9 +1035,28 @@ void SampleMapEditor::updateSampleMapSelector(bool rebuild)
 
 		if (rebuild)
 		{
+			cb.getComponent()->setTextWhenNothingSelected("Select SampleMap");
+
 			cb.getComponent()->clear(dontSendNotification);
 
-			auto pool = s.get()->getMainController()->getCurrentSampleMapPool();
+			auto mc = s.get()->getMainController();
+
+			SampleMapPool* pool = nullptr;
+
+			if (auto e = mc->getExpansionHandler().getCurrentExpansion())
+			{
+				if (e->getExpansionType() != Expansion::FileBased)
+				{
+					cb.getComponent()->setTextWhenNothingSelected("Encrypted Expansion");
+					return;
+				}
+
+				pool = &e->pool->getSampleMapPool();
+			}
+				
+			else
+				pool = &mc->getCurrentFileHandler().pool->getSampleMapPool();
+
 			auto ref = pool->getListOfAllReferences(true);
 
 			PoolReference::Comparator comp;

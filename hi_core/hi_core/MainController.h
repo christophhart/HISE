@@ -1041,67 +1041,54 @@ public:
 
 	GlobalHiseLookAndFeel& getGlobalLookAndFeel() const { return *mainLookAndFeel; }
 
-	const FileHandlerBase& getCurrentFileHandler(bool forceDefault=false) const
+	const FileHandlerBase& getCurrentFileHandler() const
 	{
-		if (forceDefault)
-			return getSampleManager().getProjectHandler();
-
-		if (auto e = getExpansionHandler().getCurrentExpansion())
-			return *e;
-
 		return getSampleManager().getProjectHandler();
 	}
 
-	FileHandlerBase& getCurrentFileHandler(bool forceDefault=false)
+	FileHandlerBase& getCurrentFileHandler()
 	{
-		if(forceDefault)
-			return getSampleManager().getProjectHandler();
-
-		if (auto e = getExpansionHandler().getCurrentExpansion())
-			return *e;
-
 		return getSampleManager().getProjectHandler();
 	}
-
 	
-	const AudioSampleBufferPool *getCurrentAudioSampleBufferPool(bool forceDefault=false) const 
+	const AudioSampleBufferPool *getCurrentAudioSampleBufferPool() const 
 	{ 
-		return &getCurrentFileHandler(forceDefault).pool->getAudioSampleBufferPool(); 
+		return &getSampleManager().getProjectHandler().pool->getAudioSampleBufferPool();
 	};
 
-	AudioSampleBufferPool *getCurrentAudioSampleBufferPool(bool forceDefault = false)
+	AudioSampleBufferPool *getCurrentAudioSampleBufferPool()
 	{
-		return &getCurrentFileHandler(forceDefault).pool->getAudioSampleBufferPool();
+		return &getSampleManager().getProjectHandler().pool->getAudioSampleBufferPool();
 	};
 
-	const ImagePool *getCurrentImagePool(bool forceDefault = false) const
+	const ImagePool *getCurrentImagePool() const
 	{
-		return &getCurrentFileHandler(forceDefault).pool->getImagePool();
+		return &getSampleManager().getProjectHandler().pool->getImagePool();
 	};
 
-	ImagePool *getCurrentImagePool(bool forceDefault = false)
+	ImagePool *getCurrentImagePool()
 	{
-		return &getCurrentFileHandler(forceDefault).pool->getImagePool();
+		return &getSampleManager().getProjectHandler().pool->getImagePool();
 	};
 
-	SampleMapPool* getCurrentSampleMapPool(bool forceDefault = false)
+	SampleMapPool* getCurrentSampleMapPool()
 	{
-		return &getCurrentFileHandler(forceDefault).pool->getSampleMapPool();
+		return &getSampleManager().getProjectHandler().pool->getSampleMapPool();
 	}
 
-	const SampleMapPool* getCurrentSampleMapPool(bool forceDefault = false) const
+	const SampleMapPool* getCurrentSampleMapPool() const
 	{
-		return &getCurrentFileHandler(forceDefault).pool->getSampleMapPool();
+		return &getSampleManager().getProjectHandler().pool->getSampleMapPool();
 	}
 
-	MidiFilePool* getCurrentMidiFilePool(bool forceDefault = false)
+	MidiFilePool* getCurrentMidiFilePool()
 	{
-		return &getCurrentFileHandler(forceDefault).pool->getMidiFilePool();
+		return &getSampleManager().getProjectHandler().pool->getMidiFilePool();
 	}
 
-	const MidiFilePool* getCurrentMidiFilePool(bool forceDefault = false) const
+	const MidiFilePool* getCurrentMidiFilePool() const
 	{
-		return &getCurrentFileHandler(forceDefault).pool->getMidiFilePool();
+		return &getSampleManager().getProjectHandler().pool->getMidiFilePool();
 	}
 
 	KillStateHandler& getKillStateHandler() { return killStateHandler; };

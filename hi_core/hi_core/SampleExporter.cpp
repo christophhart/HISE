@@ -120,8 +120,8 @@ mc(mc_)
 {
 	numTotalSamples = mc->getSampleManager().getModulatorSamplerSoundPool()->getNumSoundsInPool();
 
-	numTotalImages = mc->getCurrentImagePool(true)->getNumLoadedFiles();
-	numTotalAudioFiles = mc->getCurrentAudioSampleBufferPool(true)->getNumLoadedFiles();
+	numTotalImages = mc->getCurrentImagePool()->getNumLoadedFiles();
+	numTotalAudioFiles = mc->getCurrentAudioSampleBufferPool()->getNumLoadedFiles();
 
 	addTextBlock("Number of total samples: " + String(numTotalSamples));
 	addTextBlock("Number of total images: " + String(numTotalImages));

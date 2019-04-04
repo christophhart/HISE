@@ -78,6 +78,8 @@ FrontendProcessor* FrontendFactory::createPluginWithAudioFiles(AudioDeviceManage
         fp->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, s);
     }
 	 
+	fp->getExpansionHandler().createAvailableExpansions();
+
 	return fp;
 }
 
@@ -200,10 +202,10 @@ void FrontendProcessor::restorePool(InputStream* inputStream, FileHandlerBase::S
     
     switch(directory)
     {
-        case FileHandlerBase::Images: getCurrentImagePool(true)->getDataProvider()->restorePool(streamToUse); break;
-        case FileHandlerBase::AudioFiles: getCurrentAudioSampleBufferPool(true)->getDataProvider()->restorePool(streamToUse); break;
-        case FileHandlerBase::SampleMaps: getCurrentSampleMapPool(true)->getDataProvider()->restorePool(streamToUse); break;
-		case FileHandlerBase::SubDirectories::MidiFiles: getCurrentMidiFilePool(true)->getDataProvider()->restorePool(streamToUse); break;
+        case FileHandlerBase::Images: getCurrentImagePool()->getDataProvider()->restorePool(streamToUse); break;
+        case FileHandlerBase::AudioFiles: getCurrentAudioSampleBufferPool()->getDataProvider()->restorePool(streamToUse); break;
+        case FileHandlerBase::SampleMaps: getCurrentSampleMapPool()->getDataProvider()->restorePool(streamToUse); break;
+		case FileHandlerBase::SubDirectories::MidiFiles: getCurrentMidiFilePool()->getDataProvider()->restorePool(streamToUse); break;
         default: jassertfalse; break;
     }
 }
@@ -249,9 +251,16 @@ unlockCounter(0)
     
   	LOG_START("Load samplemaps");
     restorePool(sampleMapData, FileHandlerBase::SampleMaps, "SampleMapResources.dat");
+
+
     
 	LOG_START("Load Midi Files");
 	restorePool(midiFileData, FileHandlerBase::MidiFiles, "MidiFiles.dat");
+
+#if HI_ENABLE_EXPANSION_EDITING
+	getCurrentFileHandler().pool->getSampleMapPool().loadAllFilesFromDataProvider();
+	getCurrentFileHandler().pool->getMidiFilePool().loadAllFilesFromDataProvider();
+#endif
 
 	if (externalFiles != nullptr)
 	{
