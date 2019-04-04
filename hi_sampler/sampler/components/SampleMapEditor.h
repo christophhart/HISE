@@ -49,9 +49,7 @@ class SampleMapEditor  : public Component,
                          public LabelListener,
 						 public PoolBase::Listener,
 						 public ComboBox::Listener,
-#if HI_ENABLE_EXPANSION_EDITING
 						 public ExpansionHandler::Listener,
-#endif
 						 public SampleMap::Listener
 
 {

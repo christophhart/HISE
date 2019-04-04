@@ -263,10 +263,8 @@ void FileBrowser::expansionPackLoaded(Expansion* currentExpansion)
 	}
 	else
 	{
-		goToDirectory(currentExpansion->root, false);
+		goToDirectory(currentExpansion->getRootFolder(), false);
 	}
-
-	
 
 	browseUndoManager->clearUndoHistory();
 }

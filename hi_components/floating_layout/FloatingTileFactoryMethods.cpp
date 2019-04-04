@@ -51,6 +51,11 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 
 	registerType<ExpansionEditBar>(PopupMenuOptions::ExpansionEditBar);
 
+	registerType<PoolTableSubTypes::ImageFilePoolTable>(PopupMenuOptions::ImageTable);
+	registerType<PoolTableSubTypes::MidiFilePoolTable>(PopupMenuOptions::MidiFilePoolTable);
+	registerType<PoolTableSubTypes::AudioFilePoolTable>(PopupMenuOptions::AudioFileTable);
+	registerType<PoolTableSubTypes::SampleMapPoolTable>(PopupMenuOptions::SampleMapPoolTable);
+
 #if USE_BACKEND
 	registerType<GenericPanel<MacroComponent>>(PopupMenuOptions::MacroControls);
 	registerType < GenericPanel<MacroParameterTable>>(PopupMenuOptions::MacroTable);
@@ -59,10 +64,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<GenericPanel<PatchBrowser>>(PopupMenuOptions::PatchBrowser);
 	registerType<GenericPanel<FileBrowser>>(PopupMenuOptions::FileBrowser);
 	registerType<GenericPanel<SamplePoolTable>>(PopupMenuOptions::SamplePoolTable);
-	registerType<GenericPanel<PoolTableSubTypes::ImageFilePoolTable>>(PopupMenuOptions::ImageTable);
-	registerType<GenericPanel<PoolTableSubTypes::MidiFilePoolTable>>(PopupMenuOptions::MidiFilePoolTable);
-	registerType<GenericPanel<PoolTableSubTypes::AudioFilePoolTable>>(PopupMenuOptions::AudioFileTable);
-	registerType<GenericPanel<PoolTableSubTypes::SampleMapPoolTable>>(PopupMenuOptions::SampleMapPoolTable);
+	
 	registerType<MainTopBar>(PopupMenuOptions::MenuCommandOffset);
 	registerType<BackendProcessorEditor>(PopupMenuOptions::MenuCommandOffset);
 	registerType<ScriptWatchTablePanel>(PopupMenuOptions::ScriptWatchTable);

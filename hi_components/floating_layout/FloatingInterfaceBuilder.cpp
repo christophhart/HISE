@@ -152,6 +152,31 @@ void FloatingInterfaceBuilder::setId(int index, const String& newID)
 
 
 
+int FloatingInterfaceBuilder::addChild(int index, const Identifier& panelId)
+{
+	auto c = createdComponents[index].getComponent();
+
+	if (c != nullptr)
+	{
+		if (auto container = dynamic_cast<FloatingTileContainer*>(c->getCurrentFloatingPanel()))
+		{
+			auto newPanel = new FloatingTile(container->getParentShell()->getMainController(), container);
+
+			container->addFloatingTile(newPanel);
+
+			createdComponents.add(newPanel);
+
+			newPanel->setNewContent(panelId);
+
+			removeFirstChildOfNewContainer(newPanel);
+
+			return createdComponents.size() - 1;
+		}
+	}
+
+	return -1;
+}
+
 FloatingTile* FloatingInterfaceBuilder::getPanel(int index)
 {
 	return createdComponents[index].getComponent();

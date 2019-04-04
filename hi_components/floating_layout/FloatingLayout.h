@@ -52,9 +52,7 @@ class FloatingTile;
 #include "SamplerPanelTypes.h"
 #endif
 
-#if USE_BACKEND
 #include "BackendPanelTypes.h"
-#endif
 
 #include "MiscFloatingPanelTypes.h"
 #include "FrontendPanelTypes.h"

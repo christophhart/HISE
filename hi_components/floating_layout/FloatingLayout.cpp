@@ -39,9 +39,7 @@
 #include "SamplerPanelTypes.cpp"
 #endif
 
-#if USE_BACKEND
 #include "BackendPanelTypes.cpp"
-#endif
 
 #include "MiscFloatingPanelTypes.cpp"
 #include "FrontendPanelTypes.cpp"
