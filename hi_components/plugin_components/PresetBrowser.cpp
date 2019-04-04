@@ -606,7 +606,8 @@ void PresetBrowser::ModalWindow::confirmReplacement(const File& oldFile, const F
 }
 
 PresetBrowser::PresetBrowser(MainController* mc, int width, int height) :
-ControlledObject(mc)
+ControlledObject(mc),
+pblaf(new PresetBrowserLookAndFeel())
 {
 	setName("Preset Browser");
 
@@ -688,7 +689,7 @@ ControlledObject(mc)
 	updateFavoriteButton();
     
     setOpaque(true);
-	setLookAndFeel(&pblaf);
+	setLookAndFeel(pblaf);
 }
 
 PresetBrowser::~PresetBrowser()
@@ -740,7 +741,7 @@ void PresetBrowser::presetListUpdated()
 
 void PresetBrowser::paint(Graphics& g)
 {
-	pblaf.drawPresetBrowserBackground(g, *this);
+	pblaf->drawPresetBrowserBackground(g, *this);
 }
 
 void PresetBrowser::rebuildAllPresets()
@@ -956,9 +957,9 @@ void PresetBrowser::setShowFavorites(bool shouldShowFavorites)
 
 void PresetBrowser::setHighlightColourAndFont(Colour c, Colour bgColour, Font f)
 {
-	pblaf.backgroundColour = bgColour;
-	pblaf.font = f;
-	pblaf.highlightColour = c;
+	pblaf->backgroundColour = bgColour;
+	pblaf->font = f;
+	pblaf->highlightColour = c;
 
 	
 
@@ -1073,7 +1074,7 @@ void PresetBrowser::showLoadedPreset()
 void PresetBrowser::setOptions(const Options& newOptions)
 {
 	setHighlightColourAndFont(newOptions.highlightColour, newOptions.backgroundColour, newOptions.font);
-	pblaf.textColour = newOptions.textColour;
+	pblaf->textColour = newOptions.textColour;
 	setNumColumns(newOptions.numColumns);
 	setShowButton(0, newOptions.showFolderButton);
 	setShowButton(1, newOptions.showSaveButtons);
@@ -1520,7 +1521,7 @@ bool PresetBrowser::DataBaseHelpers::matchesAvailableExpansions(MainController* 
 
 		for (int i = 0; i < handler.getNumExpansions(); i++)
 		{
-			int index = sa.indexOf(String(handler.getExpansion(i)->name));
+			int index = sa.indexOf(handler.getExpansion(i)->getProperty(ExpansionIds::Name));
 
 			if (index != -1)
 				sa.remove(index);

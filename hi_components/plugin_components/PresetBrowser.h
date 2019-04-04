@@ -187,7 +187,7 @@ public:
 		static Identifier getIdForFile(const File& presetFile);
 	};
 
-	PresetBrowserLookAndFeel pblaf;
+	ScopedPointer<PresetBrowserLookAndFeel> pblaf;
 
 	void setOptions(const Options& newOptions);
 

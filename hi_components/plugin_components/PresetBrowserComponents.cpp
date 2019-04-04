@@ -732,7 +732,7 @@ PresetBrowserChildComponentBase::PresetBrowserChildComponentBase(PresetBrowser* 
 
 PresetBrowserLookAndFeel& PresetBrowserChildComponentBase::getPresetBrowserLookAndFeel()
 {
-	return parent->pblaf;
+	return *parent->pblaf;
 }
 
 }
