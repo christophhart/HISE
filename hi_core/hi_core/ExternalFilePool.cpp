@@ -65,6 +65,11 @@ hise::ProjectHandler::SubDirectories PoolHelpers::getSubDirectoryType(const Midi
 }
 
 
+hise::ProjectHandler::SubDirectories PoolHelpers::getSubDirectoryType(const AdditionalDataReference& emptyTree)
+{
+	return ProjectHandler::SubDirectories::AdditionalSourceCode;
+}
+
 void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 /*hashCode*/, AudioSampleBuffer& data, var* additionalData)
 {
 	ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(ownedStream);
@@ -179,6 +184,13 @@ void PoolHelpers::loadData(AudioFormatManager& /*afm*/, InputStream* ownedStream
 	fillMetadata(data, additionalData);
 }
 
+void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 hashCode, AdditionalDataReference& data, var* additionalData)
+{
+	ScopedPointer<InputStream> inputStream = ownedStream;
+	data.getFile() = inputStream->readEntireStreamAsString();
+	fillMetadata(data, additionalData);
+}
+
 void PoolHelpers::fillMetadata(AudioSampleBuffer& /*data*/, var* /*additionalData*/)
 {
 
@@ -224,6 +236,13 @@ void PoolHelpers::fillMetadata(MidiFileReference& data, var* additionalData)
 	*additionalData = var(meta);
 }
 
+void PoolHelpers::fillMetadata(AdditionalDataReference& data, var* additionalData)
+{
+	DynamicObject::Ptr meta = new DynamicObject();
+
+	*additionalData = var(meta);
+}
+
 size_t PoolHelpers::getDataSize(const Image* img)
 {
 	return img ? img->getWidth() * img->getHeight() * 4 : 0;
@@ -246,6 +265,11 @@ size_t PoolHelpers::getDataSize(const MidiFileReference* midiFile)
 	return (size_t)(4 * (int)f.getLastTimestamp() / ticksPerQuarter);
 }
 
+size_t PoolHelpers::getDataSize(const AdditionalDataReference* stringContent)
+{
+	return stringContent->getFile().length();
+}
+
 bool PoolHelpers::isValid(const AudioSampleBuffer* buffer)
 {
 	return buffer ? buffer->getNumChannels() != 0 && buffer->getNumSamples() != 0 : false;
@@ -264,6 +288,11 @@ bool PoolHelpers::isValid(const ValueTree* v)
 bool PoolHelpers::isValid(const MidiFileReference* file)
 {
 	return file ? file->isValid() : false;
+}
+
+bool PoolHelpers::isValid(const AdditionalDataReference* file)
+{
+	return file->getFile().isNotEmpty();
 }
 
 juce::Image PoolHelpers::getEmptyImage(int width, int height)
@@ -493,7 +522,7 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 #endif
 
 #if USE_BACKEND
-		auto subFolder = mc->getCurrentFileHandler(true).getSubDirectory(directoryType);
+		auto subFolder = mc->getCurrentFileHandler().getSubDirectory(directoryType);
 
 		if (f.isAChildOf(subFolder))
 		{
@@ -520,11 +549,21 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 #if HISE_ENABLE_EXPANSIONS
 	if (auto e = mc->getExpansionHandler().getExpansionForWildcardReference(input))
 	{
-		m = ExpansionPath;
+		if (e->getExpansionType() == Expansion::FileBased)
+		{
+			m = ExpansionPath;
 
-		reference = input;
-		f = e->getSubDirectory(directoryType).getChildFile(reference.fromFirstOccurrenceOf("}", false, false));
-		return;
+			reference = input;
+			f = e->getSubDirectory(directoryType).getChildFile(reference.fromFirstOccurrenceOf("}", false, false));
+			return;
+		}
+		else
+		{
+			m = EmbeddedResource;
+			reference = input;
+			f = {};
+			return;
+		}
 	}
 #endif
 	
@@ -704,7 +743,16 @@ juce::Result PoolBase::DataProvider::writePool(OutputStream* ownedOutputStream, 
 
 	zstd::ZDefaultCompressor mComp;
 
-	mComp.compress(metadata, compressedMetadata);
+	auto result = mComp.compress(metadata, compressedMetadata);
+
+	if (result.failed())
+	{
+		jassertfalse;
+		DBG(result.getErrorMessage());
+		return result;
+	}
+
+
 
 	MemoryOutputStream metadataOutputStream;
 
@@ -817,6 +865,11 @@ void PoolBase::DataProvider::Compressor::write(OutputStream& output, const MidiF
 	data.getFile().writeTo(output);
 }
 
+void PoolBase::DataProvider::Compressor::write(OutputStream& output, const AdditionalDataReference& data, const File& originalFile) const
+{
+	output.writeString(data.getFile());
+}
+
 void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, ValueTree* data) const
 {
 	ScopedPointer<MemoryInputStream> scopedInput = mis;
@@ -863,6 +916,12 @@ void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, MidiFile
 	data->getFile().readFrom(*mis);
 }
 
+void PoolBase::DataProvider::Compressor::create(MemoryInputStream* mis, AdditionalDataReference* data) const
+{
+	ScopedPointer<MemoryInputStream> scopedInput = mis;
+	data->getFile().swapWith(mis->readEntireStreamAsString());
+}
+
 PoolCollection::PoolCollection(MainController* mc, FileHandlerBase* handler) :
 	ControlledObject(mc),
 	parentHandler(handler)
@@ -871,6 +930,11 @@ PoolCollection::PoolCollection(MainController* mc, FileHandlerBase* handler) :
 	{
 		switch ((ProjectHandler::SubDirectories)i)
 		{
+#if HISE_ENABLE_EXPANSIONS
+		case ProjectHandler::SubDirectories::AdditionalSourceCode:
+			dataPools[i] = new AdditionalDataPool(mc, parentHandler);
+			break;
+#endif
 		case ProjectHandler::SubDirectories::AudioFiles:
 			dataPools[i] = new AudioSampleBufferPool(mc, parentHandler);
 			break;
@@ -939,6 +1003,16 @@ const hise::ImagePool& PoolCollection::getImagePool() const
 hise::ImagePool& PoolCollection::getImagePool()
 {
 	return *getPool<Image>();
+}
+
+hise::AdditionalDataPool& PoolCollection::getAdditionalDataPool()
+{
+	return *dynamic_cast<SharedPoolBase<AdditionalDataReference>*>(getPoolBase(FileHandlerBase::AdditionalSourceCode));
+}
+
+const hise::AdditionalDataPool& PoolCollection::getAdditionalDataPool() const
+{
+	return *dynamic_cast<const SharedPoolBase<AdditionalDataReference>*>(dataPools[FileHandlerBase::AdditionalSourceCode]);
 }
 
 const hise::SampleMapPool& PoolCollection::getSampleMapPool() const
