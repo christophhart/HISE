@@ -202,8 +202,6 @@ protected:
 		CachedValue<String> projectName;
 		CachedValue<String> version;
 		CachedValue<String> projectVersion;
-
-		
 	};
 
 	ScopedPointer<Data> data;
@@ -237,6 +235,8 @@ protected:
 
 	void addMissingFolders()
 	{
+		addFolder(ProjectHandler::SubDirectories::Samples);
+
 		if (getExpansionType() != FileBased)
 			return;
 
@@ -250,7 +250,7 @@ protected:
 
 	void addFolder(ProjectHandler::SubDirectories directory)
 	{
-		jassert(getExpansionType() == FileBased);
+		jassert(getExpansionType() == FileBased || directory == Samples);
 
 		auto d = root.getChildFile(ProjectHandler::getIdentifier(directory));
 
@@ -416,7 +416,7 @@ private:
 			*pool = e->pool->getPool<DataType>();
 		}
 		else
-			jassertfalse;
+			*pool = mc->getCurrentFileHandler().pool->getPool<DataType>();
 	}
 
 	struct Notifier : private AsyncUpdater
