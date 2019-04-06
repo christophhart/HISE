@@ -33,7 +33,7 @@
 namespace hise { using namespace juce;
 
 SliderPackData::SliderPackData(UndoManager* undoManager_, PooledUIUpdater* updater) :
-stepSize(0.1),
+stepSize(0.01),
 nextIndexToDisplay(-1),
 showValueOverlay(true),
 flashActive(true),
