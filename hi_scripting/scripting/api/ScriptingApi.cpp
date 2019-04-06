@@ -1196,7 +1196,16 @@ void ScriptingApi::Engine::setHostBpm(double newTempo)
 
 double ScriptingApi::Engine::getMemoryUsage() const
 {
-	auto bytes = getProcessor()->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->getMemoryUsageForAllSamples();
+	auto bytes = getProcessor()->getMainController()->getSampleManager().getModulatorSamplerSoundPool2()->getMemoryUsageForAllSamples();
+
+#if HISE_ENABLE_EXPANSIONS
+	auto& handler = getProcessor()->getMainController()->getExpansionHandler();
+
+	for (int i = 0; i < handler.getNumExpansions(); i++)
+	{
+		bytes += handler.getExpansion(i)->pool->getSamplePool()->getMemoryUsageForAllSamples();
+	}
+#endif
 
 	return (double)bytes / 1024.0 / 1024.0;
 }
@@ -1471,7 +1480,7 @@ var ScriptingApi::Engine::getUserPresetList() const
 
 void ScriptingApi::Engine::setAllowDuplicateSamples(bool shouldAllow)
 {
-	getProcessor()->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->setAllowDuplicateSamples(shouldAllow);
+	getProcessor()->getMainController()->getSampleManager().getModulatorSamplerSoundPool2()->setAllowDuplicateSamples(shouldAllow);
 }
 
 void ScriptingApi::Engine::loadAudioFilesIntoPool()
@@ -2086,7 +2095,7 @@ void ScriptingApi::Sampler::refreshInterface()
 	}
 
 	s->sendChangeMessage();
-	s->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
+	s->getMainController()->getSampleManager().getModulatorSamplerSoundPool2()->sendChangeMessage();
 }
 
 void ScriptingApi::Sampler::loadSampleMap(const String &fileName)

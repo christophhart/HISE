@@ -46,7 +46,6 @@ MainController::SampleManager::SampleManager(MainController *mc_) :
 	mc(mc_),
 	samplerLoaderThreadPool(new SampleThreadPool()),
 	projectHandler(mc_),
-	globalSamplerSoundPool(new ModulatorSamplerSoundPool(mc)),
 	sampleClipboard(ValueTree("clipboard")),
 	internalPreloadJob(mc_),
 	preloadListenerUpdater(this),
@@ -110,6 +109,17 @@ void MainController::SampleManager::preloadEverything()
 		}
 	}
 }
+
+hise::ModulatorSamplerSoundPool * MainController::SampleManager::getModulatorSamplerSoundPool2() const
+{
+
+	auto pb = mc->getCurrentFileHandler().pool->getPoolBase(FileHandlerBase::Samples);
+
+	jassert(pb != nullptr);
+
+	return dynamic_cast<ModulatorSamplerSoundPool*>(pb);
+}
+
 
 
 void MainController::SampleManager::addDeferredFunction(Processor* p, const ProcessorFunction& f)

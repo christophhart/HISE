@@ -244,6 +244,9 @@ struct PoolHelpers
 		/** Creates a reference from an embedded resource. */
 		Reference(PoolBase* pool, const String& embeddedReference, ProjectHandler::SubDirectories directoryType);
 
+		/** Returns a copy of the reference pointing to the given file handler. */
+		Reference withFileHandler(FileHandlerBase* handler);
+
 		/** This can be used to type shorter conditions. */
 		explicit operator bool() const
 		{
@@ -482,6 +485,8 @@ public:
 	{
 		useSharedCache = shouldUse;
 	}
+
+	FileHandlerBase* getFileHandler() const { return parentHandler; }
 
 protected:
 
@@ -1182,6 +1187,7 @@ using AdditionalDataPool = SharedPoolBase<AdditionalDataReference>;
 using PooledAdditionalData = AdditionalDataPool::ManagedPtr;
 
 class FileHandlerBase;
+class ModulatorSamplerSoundPool;
 
 class PoolCollection: public ControlledObject
 {
@@ -1221,6 +1227,9 @@ public:
 
 	const MidiFilePool& getMidiFilePool() const;
 	MidiFilePool& getMidiFilePool();
+
+	const ModulatorSamplerSoundPool* getSamplePool() const;
+	ModulatorSamplerSoundPool* getSamplePool();
 
 	AudioFormatManager afm;
 

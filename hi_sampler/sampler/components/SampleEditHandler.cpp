@@ -178,7 +178,12 @@ void SampleEditHandler::changeProperty(ModulatorSamplerSound *s, const Identifie
 
 juce::File SampleEditHandler::getCurrentSampleMapDirectory() const
 {
-	return sampler->getMainController()->getCurrentFileHandler().getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+	auto handler = &sampler->getMainController()->getCurrentFileHandler();
+
+	if (auto exp = sampler->getMainController()->getExpansionHandler().getCurrentExpansion())
+		handler = exp;
+
+	return handler->getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
 }
 
 void SampleEditHandler::SampleEditingActions::createMultimicSampleMap(SampleEditHandler* handler)

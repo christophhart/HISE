@@ -165,7 +165,7 @@ public:
 		SampleThreadPool *getGlobalSampleThreadPool() { return samplerLoaderThreadPool; }
 
 		/** returns a pointer to the global sample pool */
-		ModulatorSamplerSoundPool *getModulatorSamplerSoundPool() const { return globalSamplerSoundPool; }
+		ModulatorSamplerSoundPool *getModulatorSamplerSoundPool2() const;
 
 		void copySamplesToClipboard(const void* soundsToCopy);
 
@@ -304,7 +304,6 @@ public:
 		ValueTree sampleClipboard;
 		ValueTree sampleMaps;
 
-		ScopedPointer<ModulatorSamplerSoundPool> globalSamplerSoundPool;
 		ScopedPointer<SampleThreadPool> samplerLoaderThreadPool;
 
 		bool hddMode = false;

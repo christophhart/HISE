@@ -587,7 +587,9 @@ void ModulatorSampler::deleteAllSounds()
 		if (getNumSounds() != 0)
 		{
 			clearSounds();
-			getMainController()->getSampleManager().getModulatorSamplerSoundPool()->clearUnreferencedMonoliths();
+
+			if(getSampleMap() != nullptr)
+				getSampleMap()->getCurrentSamplePool()->clearUnreferencedMonoliths();
 		}
 	}
 	
@@ -690,7 +692,7 @@ void ModulatorSampler::refreshMemoryUsage()
 	memoryUsage = actualPreloadSize + streamBufferSizePerVoice * getNumVoices();
 
 	sendChangeMessage();
-	getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
+	getSampleMap()->getCurrentSamplePool()->sendChangeMessage();
 }
 
 void ModulatorSampler::setVoiceAmount(int newVoiceAmount)
@@ -771,7 +773,7 @@ void ModulatorSampler::AsyncPurger::timerCallback()
 
 void ModulatorSampler::AsyncPurger::handleAsyncUpdate()
 {
-	if (sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->isPreloading())
+	if (sampler->getSampleMap()->getCurrentSamplePool()->isPreloading())
 	{
 		startTimer(100);
 		return;

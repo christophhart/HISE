@@ -543,7 +543,13 @@ void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo
 		result.setInfo("Duplicate as Reference", "Creates a copy of this samplemap and reuses the current monolith", "SampleMap Handling", 0);
 		result.setActive(true);
 		break;
-	case SaveSampleMapAsMonolith:	result.setInfo("Convert to Monolith", "Convert the current samplemap to HLAC monolith format", "SampleMap Handling", 0);
+
+	case SaveSampleMapAsMonolith:	
+#if USE_BACKEND
+		result.setInfo("Convert to Monolith", "Convert the current samplemap to HLAC monolith format", "SampleMap Handling", 0);
+#else
+		result.setInfo("Convert to Monolith", "Encode all samples in this expansion as HLAC monolith", "SampleMap Handling", 0);
+#endif
 		result.setActive(true);
 		break;
 	case RevertSampleMap:result.setInfo("Revert sample map", "Discards all changes and reloads the samplemap from disk", "SampleMap Handling", 0);
@@ -685,7 +691,7 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	case CreateMultiMicSampleMap:	SampleEditHandler::SampleEditingActions::createMultimicSampleMap(handler); return true;
 	case ExtractToSingleMicSamples:	SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(handler); return true;
 	case ReencodeMonolith:	SampleEditHandler::SampleEditingActions::reencodeMonolith(this, handler); return true;
-	case EncodeAllMonoliths:	SampleEditHandler::SampleEditingActions::encodeAllMonoliths(this, handler); return true;
+	
 	case ZoomIn:			zoom(false); return true;
 	case ZoomOut:			zoom(true); return true;
 	case Undo:				sampler->getUndoManager()->undo(); return true;
@@ -712,7 +718,12 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	}
 	case SaveSampleMap:				sampler->saveSampleMap(); refreshSampleMapPool(); return true;
 	case DuplicateSampleMapAsReference:	sampler->saveSampleMapAsReference(); refreshSampleMapPool(); return true;
-	case SaveSampleMapAsMonolith:	sampler->saveSampleMapAsMonolith(this); return true;
+	case SaveSampleMapAsMonolith:	
+#if USE_BACKEND
+		sampler->saveSampleMapAsMonolith(this); return true;
+#endif
+	case EncodeAllMonoliths:	SampleEditHandler::SampleEditingActions::encodeAllMonoliths(this, handler); return true;
+
 	case ImportSfz:					importSfz(); return true;
 
 	case ImportFiles:		{

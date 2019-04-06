@@ -190,7 +190,7 @@ bool SampleImporter::createSoundAndAddToSampler(ModulatorSampler *sampler, const
 	SET(SampleIds::HiVel, basicData.hiVelocity);
 	SET(SampleIds::RRGroup, basicData.group);
 
-	String allowedWildcards = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->afm.getWildcardForAllFormats();
+	String allowedWildcards = sampler->getSampleMap()->getCurrentSamplePool()->afm.getWildcardForAllFormats();
 
 	if (basicData.files.size() == 1)
 	{
@@ -661,7 +661,7 @@ void FileImportDialogWindow::run()
 
 	SampleImporter::SampleCollection collection;
 
-	ModulatorSamplerSoundPool *pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
+	auto pool = sampler->getSampleMap()->getCurrentSamplePool();
 	
 	if (getComboBoxComponent("poolSearch")->getSelectedItemIndex() == 1)
 	{
@@ -744,7 +744,7 @@ void FileImportDialogWindow::run()
 	pool->setUpdatePool(true);
 	pool->setDeactivatePoolSearch(false);
 
-	sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
+	sampler->getSampleMap()->getCurrentSamplePool()->sendChangeMessage();
 	sampler->sendChangeMessage();
 }
 

@@ -351,6 +351,22 @@ PoolHelpers::Reference::Reference(PoolBase* pool_, const String& embeddedReferen
 	m = EmbeddedResource;
 }
 
+PoolHelpers::Reference PoolHelpers::Reference::withFileHandler(FileHandlerBase* handler)
+{
+	jassert(m == ProjectPath);
+
+#if HISE_ENABLE_EXPANSIONS
+	if (auto exp = dynamic_cast<Expansion*>(handler))
+	{
+		auto path = reference.fromFirstOccurrenceOf("{PROJECT_FOLDER}", false, false);
+
+		return exp->createReferenceForFile(path, directoryType);
+	}
+#endif
+
+	return Reference(*this);
+}
+
 juce::String PoolHelpers::Reference::getReferenceString() const
 {
 	return reference;
@@ -941,6 +957,9 @@ PoolCollection::PoolCollection(MainController* mc, FileHandlerBase* handler) :
 		case ProjectHandler::SubDirectories::Images:
 			dataPools[i] = new ImagePool(mc, parentHandler);
 			break;
+		case ProjectHandler::SubDirectories::Samples:
+			dataPools[i] = new ModulatorSamplerSoundPool(mc, parentHandler);
+			break;
 		case ProjectHandler::SubDirectories::SampleMaps:
 			dataPools[i] = new SampleMapPool(mc, parentHandler);
 			break;
@@ -1033,6 +1052,16 @@ const MidiFilePool& PoolCollection::getMidiFilePool() const
 MidiFilePool& PoolCollection::getMidiFilePool()
 {
 	return *getPool<MidiFileReference>();
+}
+
+const ModulatorSamplerSoundPool* PoolCollection::getSamplePool() const
+{
+	return static_cast<const ModulatorSamplerSoundPool*>(dataPools[FileHandlerBase::Samples]);
+}
+
+ModulatorSamplerSoundPool* PoolCollection::getSamplePool()
+{
+	return static_cast<ModulatorSamplerSoundPool*>(dataPools[FileHandlerBase::Samples]);
 }
 
 } // namespace hise

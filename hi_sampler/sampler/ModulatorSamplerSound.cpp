@@ -35,9 +35,12 @@ namespace hise { using namespace juce;
 
 void ModulatorSamplerSound::loadSampleFromValueTree(const ValueTree& sampleData, HlacMonolithInfo* hmaf)
 {
-	auto pool = getMainController()->getSampleManager().getModulatorSamplerSoundPool();
+	auto pool = parentMap->getCurrentSamplePool();
 
 	PoolReference ref(getMainController(), sampleData.getProperty("FileName").toString(), ProjectHandler::SubDirectories::Samples);
+
+	ref = ref.withFileHandler(parentMap->getCurrentFileHandler());
+
 
 	auto existingSample = pool->getSampleFromPool(ref);
 
@@ -122,8 +125,9 @@ ModulatorSamplerSound::ModulatorSamplerSound(SampleMap* parent, const ValueTree&
 }
 
 ModulatorSamplerSound::~ModulatorSamplerSound()
-{    
-	getMainController()->getSampleManager().getModulatorSamplerSoundPool()->clearUnreferencedSamples();
+{   
+	if(parentMap != nullptr)
+		parentMap->getCurrentSamplePool()->clearUnreferencedSamples();
 
 	firstSound = nullptr;
 	soundArray.clear();
@@ -652,7 +656,8 @@ var ModulatorSamplerSound::getSampleProperty(const Identifier& id) const
 
 // ====================================================================================================================
 
-ModulatorSamplerSoundPool::ModulatorSamplerSoundPool(MainController *mc_) :
+ModulatorSamplerSoundPool::ModulatorSamplerSoundPool(MainController *mc_, FileHandlerBase* handler) :
+PoolBase(mc, handler),
 mc(mc_),
 debugProcessor(nullptr),
 mainAudioProcessor(nullptr),
