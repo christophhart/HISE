@@ -333,7 +333,7 @@ public:
 	*	@param sampleIndex the sample index from 0 to SAMPLE_LOOKUP_TABLE_SIZE (default 512). Doesn't need to be an integer, of course.
 	*	@returns the value of the table between 0.0 and 1.0
 	*/
-	float getInterpolatedValue(double sampleIndex)
+	float getInterpolatedValue(double sampleIndex) const
 	{
 		const double indexInTable = coefficient * sampleIndex;
 

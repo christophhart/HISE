@@ -695,6 +695,11 @@ juce::MemoryInputStream* PoolBase::DataProvider::createInputStream(const String&
 				return new MemoryInputStream(mb, true);
 			}
 		}
+		else
+		{
+			for (auto i : metadata)
+				DBG(i.getProperty("ID").toString());
+		}
 
 		jassertfalse;
 		return nullptr;

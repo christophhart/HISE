@@ -92,7 +92,11 @@ T* hise::raw::Builder::addInternal(Processor* p, Chain* c)
 template <class T>
 bool hise::raw::Builder::remove(Processor* p)
 {
+	auto c = dynamic_cast<Chain*>(p->getParentProcessor(false, true));
+	
+	c->getHandler()->remove(p);
 
+	return true;
 }
 
 template <class T>
