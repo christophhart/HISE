@@ -155,10 +155,10 @@ struct ResynthesisHelpers
 		float* freq = (float*)alloca(sizeof(float) * buffer.getNumSamples());
 		float* amp = (float*)alloca(sizeof(float) * buffer.getNumSamples());
 		float* time = nullptr;
-		float* dw = (float*)alloca(sizeof(float) * buffer.getNumSamples() + 1);
-		float* rw = (float*)alloca(sizeof(float) * buffer.getNumSamples() + 1);
+		float* dw = (float*)alloca(sizeof(float) * (buffer.getNumSamples() + 1));
+		float* rw = (float*)alloca(sizeof(float) * (buffer.getNumSamples() + 1));
 		float aic[4];
-		float* w = (float*)alloca(sizeof(float) * buffer.getNumSamples() + 1);
+		float* w = (float*)alloca(sizeof(float) * (buffer.getNumSamples() + 1));
 
 		icstdsp::VectorFunctions::blackman(w, buffer.getNumSamples());
 		FloatVectorOperations::copy(data_, buffer.getReadPointer(0), buffer.getNumSamples());
@@ -519,15 +519,15 @@ juce::Result SampleMapToWavetableConverter::calculateHarmonicMap()
 
 	int partIndex = 0;
 
+    int index = 0;
+    
 	for (const auto& p : parts)
 	{
 		AudioSampleBuffer harmonics(2, numHarmonics);
 
 		auto estimatedPitch = MidiMessage::getMidiNoteInHertz(m.index.noteNumber);
-		
 		auto thisPitch = ResynthesisHelpers::getRootFrequencyInBuffer(p, sampleRate, estimatedPitch);
-
-		auto estimatedRatio = thisPitch / estimatedPitch;
+        auto estimatedRatio = thisPitch / estimatedPitch;
 
 		if(isBetween(estimatedRatio, 0.0, 0.33) || estimatedRatio > 3.0)
 		{
