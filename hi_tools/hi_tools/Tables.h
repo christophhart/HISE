@@ -94,6 +94,18 @@ public:
 	*/
 	virtual String exportData() const
 	{
+		if (graphPoints.size() == 2)
+		{
+			auto first = graphPoints.getFirst();
+			auto second = graphPoints.getLast();
+
+			if (first.x == 0.0f && first.y == 0.0f)
+			{
+				if (second.x == 1.0f && second.y == 1.0f && second.curve == 0.5f)
+					return "";
+			}
+		}
+
 		Array<GraphPoint> copy = Array<GraphPoint>(graphPoints);
 
 		MemoryBlock b(copy.getRawDataPointer(), sizeof(Table::GraphPoint) * copy.size());
@@ -107,6 +119,13 @@ public:
 	*/
 	virtual void restoreData(const String &savedString)
 	{
+		if (savedString.isEmpty())
+		{
+			reset();
+			return;
+		}
+			
+
 		MemoryBlock b;
 		
 		b.fromBase64Encoding(savedString);
