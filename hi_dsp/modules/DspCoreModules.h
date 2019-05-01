@@ -86,6 +86,11 @@ public:
 		
 	}
 
+	float getLastValue()
+	{
+		return delayBuffer[readIndex];
+	}
+
 	float getDelayedValue(float inputValue)
 	{
 		SpinLock::ScopedLockType sl(processLock);

@@ -354,6 +354,8 @@ private:
 	int lastIndex = 0;
 
 	TempoSyncer::Tempo currentTempo;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(LfoModulator);
 };
 
 

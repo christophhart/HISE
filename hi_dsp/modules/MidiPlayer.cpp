@@ -336,7 +336,10 @@ juce::MidiMessageSequence* HiseMidiSequence::getWritePointer(int trackIndex)
 
 int HiseMidiSequence::getNumEvents() const
 {
-	return sequences[currentTrackIndex]->getNumEvents();
+	if(isPositiveAndBelow(currentTrackIndex, sequences.size()))
+		return sequences[currentTrackIndex]->getNumEvents();
+
+	return 0;
 }
 
 void HiseMidiSequence::setCurrentTrackIndex(int index)
@@ -422,25 +425,26 @@ Array<HiseEvent> HiseMidiSequence::getEventList(double sampleRate, double bpm)
 	uint16 currentEventId = 1;
 	memset(eventIds, 0, sizeof(uint16) * 127);
 
-	auto mSeq = getReadPointer();
-
-	for (const auto& ev : *mSeq)
+	if (auto mSeq = getReadPointer())
 	{
-		auto m = ev->message;
-
-		auto timeStamp = (int)(samplePerQuarter * m.getTimeStamp() / (double)HiseMidiSequence::TicksPerQuarter);
-		HiseEvent newEvent(m);
-		newEvent.setTimeStamp(timeStamp);
-
-		if (newEvent.isNoteOn())
+		for (const auto& ev : *mSeq)
 		{
-			newEvent.setEventId(currentEventId);
-			eventIds[newEvent.getNoteNumber()] = currentEventId++;
-		}
-		if (newEvent.isNoteOff())
-			newEvent.setEventId(eventIds[newEvent.getNoteNumber()]);
+			auto m = ev->message;
 
-		newBuffer.add(newEvent);
+			auto timeStamp = (int)(samplePerQuarter * m.getTimeStamp() / (double)HiseMidiSequence::TicksPerQuarter);
+			HiseEvent newEvent(m);
+			newEvent.setTimeStamp(timeStamp);
+
+			if (newEvent.isNoteOn())
+			{
+				newEvent.setEventId(currentEventId);
+				eventIds[newEvent.getNoteNumber()] = currentEventId++;
+			}
+			if (newEvent.isNoteOff())
+				newEvent.setEventId(eventIds[newEvent.getNoteNumber()]);
+
+			newBuffer.add(newEvent);
+		}
 	}
 
 	return newBuffer;
@@ -531,7 +535,6 @@ void MidiPlayer::EditAction::writeArrayToSequence(HiseMidiSequence::Ptr destinat
 
 	newSeq->sort();
 	newSeq->updateMatchedPairs();
-
 	destination->swapCurrentSequence(newSeq.release());
 }
 
