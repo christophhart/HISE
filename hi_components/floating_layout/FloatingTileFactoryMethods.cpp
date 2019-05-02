@@ -75,20 +75,10 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 
 	registerFrontendPanelTypes();
 
-
 	registerType<PopoutButtonPanel>(PopupMenuOptions::PopoutButton);
-	
-	
 	registerType<ActivationWindow>(PopupMenuOptions::ActivationPanel);
-
 	registerType<InterfaceContentPanel>(PopupMenuOptions::InterfaceContent);
-
-	registerType<TuningWindow::Panel>(PopupMenuOptions::TuningWindow),
-	
-
 	registerType<SampleMapBrowser>(PopupMenuOptions::SampleMapBrowser);
-
-	
 
 	//MidiSourceList
 

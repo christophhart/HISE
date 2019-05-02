@@ -661,7 +661,6 @@ void HiseEventBuffer::insertEventAtPosition(const HiseEvent& e, int positionInBu
 	if (numUsed == 0)
 	{
 		buffer[0] = HiseEvent(e);
-
 		numUsed = 1;
 
 		return;
@@ -672,7 +671,6 @@ void HiseEventBuffer::insertEventAtPosition(const HiseEvent& e, int positionInBu
 		for (int i = jmin<int>(numUsed-1, HISE_EVENT_BUFFER_SIZE-2); i >= positionInBuffer; i--)
 		{
 			jassert(i + 1 < HISE_EVENT_BUFFER_SIZE);
-
 			buffer[i + 1] = buffer[i];
 		}
 	}
@@ -688,18 +686,10 @@ void HiseEventBuffer::insertEventAtPosition(const HiseEvent& e, int positionInBu
     }
 }
 
-
-
 EventIdHandler::EventIdHandler(HiseEventBuffer& masterBuffer_) :
 	masterBuffer(masterBuffer_),
 	currentEventId(1)
 {
-	firstCC.store(-1);
-	secondCC.store(-1);
-
-	//for (int i = 0; i < 128; i++)
-	//realNoteOnEvents[i] = HiseEvent();
-
 	memset(realNoteOnEvents, 0, sizeof(HiseEvent) * 128 * 16);
 	memset(lastArtificialEventIds, 0, sizeof(uint16) * 128 * 16);
 
@@ -713,23 +703,6 @@ EventIdHandler::~EventIdHandler()
 
 void EventIdHandler::handleEventIds()
 {
-	if (transposeValue != 0)
-	{
-		HiseEventBuffer::Iterator transposer(masterBuffer);
-
-		while (HiseEvent* m = transposer.getNextEventPointer())
-		{
-			if (m->isNoteOnOrOff())
-			{
-				int newNoteNumber = jlimit<int>(0, 127, m->getNoteNumber() + transposeValue);
-
-				m->setNoteNumber(newNoteNumber);
-			}
-
-
-		}
-	}
-
 	HiseEventBuffer::Iterator it(masterBuffer);
 
 	while (HiseEvent *m = it.getNextEventPointer())
@@ -863,23 +836,6 @@ HiseEvent EventIdHandler::popNoteOnFromEventId(uint16 eventId)
 	e.swapWith(artificialEvents[eventId % HISE_EVENT_ID_ARRAY_SIZE]);
 
 	return e;
-}
-
-void EventIdHandler::setGlobalTransposeValue(int newTransposeValue)
-{
-	transposeValue = newTransposeValue;
-}
-
-void EventIdHandler::addCCRemap(int firstCC_, int secondCC_)
-{
-	firstCC = firstCC_;
-	secondCC = secondCC_;
-
-	if (firstCC_ == secondCC_)
-	{
-		firstCC_ = -1;
-		secondCC_ = -1;
-	}
 }
 
 

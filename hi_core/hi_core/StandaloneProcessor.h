@@ -76,8 +76,6 @@ public:
 
 	float getGlobalScaleFactor() const noexcept { return (float)scaleFactor; }
 
-	void setUseOpenGLRenderer(bool shouldUseOpenGL);
-
 	void addScaleFactorListener(ScaleFactorListener* newListener)
 	{
 		listeners.addIfNotAlreadyThere(newListener);
@@ -114,16 +112,11 @@ public:
 	int diskMode = 0;
 	bool allSamplesFound = false;
 	
-	double microTuning = 0.0;
-	int transposeValue = 0;
-	int ccSustainValue = 64;
 	int globalBPM = -1;
 
 	int voiceAmountMultiplier = 2;
 
 	int channelData = 1;
-
-	bool useOpenGL = false;
 
 private:
 

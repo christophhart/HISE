@@ -214,8 +214,6 @@ void MarkdownDataBase::DirectoryItemGenerator::addFileRecursive(Item& folder, Fi
 				{ 
 					i.index = 0; 
 					i.url = u.withAnchor(i.url.toString(MarkdownLink::AnchorWithoutHashtag));
-
-					int x = 5;
 					return false;
 				});
 

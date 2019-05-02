@@ -113,6 +113,9 @@ public:
 	/** Converts the HiseEvent back to a MidiMessage. This isn't lossless obviously. */
 	MidiMessage toMidiMesage() const;
 
+	/** Allows using the empty check in a scoped if-condition. */
+	explicit operator bool() const noexcept { return isEmpty(); }
+
 	/** checks whether the event is equal to another. This checks for
 		bit-equality. */
 	bool operator==(const HiseEvent &other) const;
@@ -746,18 +749,9 @@ public:
 	/** Searches all active note on events and returns the one with the given event id. */
 	HiseEvent popNoteOnFromEventId(uint16 eventId);
 
-	/** You can specify a global transpose value here that will be added to all note on / note off messages. */
-	void setGlobalTransposeValue(int transposeValue);
-
-	/** Adds a CC remapping configuration. If this is enabled, the CC numbers will be swapped. If you pass in the same numbers, it will be deactivated. */
-	void addCCRemap(int firstCC_, int secondCC_);;
-
 	// ===========================================================================================================
 
 private:
-
-	std::atomic<int> firstCC;
-	std::atomic<int> secondCC;
 
 	const HiseEventBuffer &masterBuffer;
 	HeapBlock<HiseEvent> artificialEvents;
@@ -765,7 +759,6 @@ private:
 	HiseEvent realNoteOnEvents[16][128];
 	uint16 currentEventId;
 
-	int transposeValue = 0;
 
 	// ===========================================================================================================
 

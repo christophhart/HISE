@@ -95,35 +95,6 @@ void ToggleButtonList::setValue(int index, bool value, NotificationType notify /
 }
 
 
-
-
-
-class TuningWindow::Panel : public FloatingTileContent,
-	public Component
-{
-public:
-
-	Panel(FloatingTile* parent) :
-		FloatingTileContent(parent)
-	{
-		addAndMakeVisible(window = new TuningWindow(getMainController()));
-	}
-
-	SET_PANEL_NAME("TuningWindow");
-
-	void resized()
-	{
-		window->setBounds(getLocalBounds());
-	};
-
-	bool showTitleInPresentationMode() const override { return false; }
-
-private:
-
-	ScopedPointer<TuningWindow> window;
-
-};
-
 #define ADD(x) propIds.add(Identifier(#x));
 
 CustomSettingsWindow::CustomSettingsWindow(MainController* mc_, bool buildMenus) :
@@ -141,9 +112,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_, bool buildMenus)
 	ADD(SampleRate);
 	ADD(GlobalBPM);
 	ADD(ScaleFactor);
-	ADD(GraphicRendering);
 	ADD(StreamingMode);
-	ADD(SustainCC);
 	ADD(VoiceAmountMultiplier);
 	ADD(ClearMidiCC);
 	ADD(SampleLocation);
@@ -182,8 +151,6 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_, bool buildMenus)
 	bpmSelector->addListener(this);
 	bpmSelector->setLookAndFeel(&plaf);
 
-	addAndMakeVisible(ccSustainSelector = new ComboBox("Sustain CC"));
-    addAndMakeVisible(graphicRenderSelector = new ComboBox("Graphic Rendering"));
 	addAndMakeVisible(scaleFactorSelector = new ComboBox("Scale Factor"));
 	addAndMakeVisible(diskModeSelector = new ComboBox("Hard Disk"));
 	addAndMakeVisible(voiceAmountMultiplier = new ComboBox("Voice Amount"));
@@ -191,9 +158,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_, bool buildMenus)
 	addAndMakeVisible(relocateButton = new TextButton("Change sample folder location"));
 	addAndMakeVisible(debugButton = new TextButton("Toggle Debug Mode"));
 
-	ccSustainSelector->addListener(this);
 	scaleFactorSelector->addListener(this);
-	graphicRenderSelector->addListener(this);
 	diskModeSelector->addListener(this);
 	clearMidiLearn->addListener(this);
 	relocateButton->addListener(this);
@@ -202,9 +167,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_, bool buildMenus)
 	voiceAmountMultiplier->addListener(this);
 	voiceAmountMultiplier->setLookAndFeel(&plaf);
 
-	ccSustainSelector->setLookAndFeel(&plaf);
 	scaleFactorSelector->setLookAndFeel(&plaf);
-	graphicRenderSelector->setLookAndFeel(&plaf);
 	diskModeSelector->setLookAndFeel(&plaf);
 	clearMidiLearn->setLookAndFeel(&blaf);
 	
@@ -219,7 +182,6 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_, bool buildMenus)
 
 	if (HiseDeviceSimulator::isMobileDevice())
 	{
-		setProperty(Properties::GraphicRendering, false);
 		setProperty(Properties::ScaleFactor, false);
 		setProperty(Properties::StreamingMode, false);
 		setProperty(Properties::SampleLocation, false);
@@ -251,7 +213,6 @@ CustomSettingsWindow::~CustomSettingsWindow()
 	voiceAmountMultiplier->removeListener(this);
 
 	scaleFactorSelector->removeListener(this);
-	graphicRenderSelector->removeListener(this);
 	debugButton->removeListener(this);
 
 	deviceSelector = nullptr;
@@ -266,7 +227,6 @@ CustomSettingsWindow::~CustomSettingsWindow()
 
 void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDevices)
 {
-	
 	AudioProcessorDriver* driver = dynamic_cast<AudioProcessorDriver*>(mc);
     
 	if (driver->deviceManager == nullptr)
@@ -369,15 +329,9 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
     
 	rebuildScaleFactorList();
     
-	graphicRenderSelector->clear(dontSendNotification);
-	graphicRenderSelector->addItem("Software Renderer", 1);
-	graphicRenderSelector->addItem("Open GL Renderer", 2);
-
 	diskModeSelector->clear(dontSendNotification);
 	diskModeSelector->addItem("Fast - SSD", 1);
 	diskModeSelector->addItem("Slow - HDD", 2);
-
-
 
 	voiceAmountMultiplier->clear(dontSendNotification);
 	voiceAmountMultiplier->addItem(String(NUM_POLYPHONIC_VOICES) + " voices", 1);
@@ -387,20 +341,9 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 	
 	voiceAmountMultiplier->setSelectedId(driver->voiceAmountMultiplier, dontSendNotification);
 
-	ccSustainSelector->clear(dontSendNotification);
-
-	for (int i = 1; i < 127; i++)
-	{
-		ccSustainSelector->addItem(String("CC ") + String(i), i);
-	}
-
-	graphicRenderSelector->setSelectedItemIndex(driver->useOpenGL ? 1 : 0, dontSendNotification);
-
 	bpmSelector->setSelectedId(driver->globalBPM > 0 ? driver->globalBPM : 1, dontSendNotification);
 
-	ccSustainSelector->setSelectedId(driver->ccSustainValue, dontSendNotification);
 	diskModeSelector->setSelectedItemIndex(driver->diskMode, dontSendNotification);
-	
 }
 
 
@@ -486,8 +429,6 @@ void CustomSettingsWindow::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 {
 	AudioProcessorDriver* driver = dynamic_cast<AudioProcessorDriver*>(mc);
 
-	
-
 	if (comboBoxThatHasChanged == deviceSelector)
 	{
 		const String deviceName = deviceSelector->getText();
@@ -524,14 +465,6 @@ void CustomSettingsWindow::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 		const double sampleRate = (double)sampleRateSelector->getText().getIntValue();
 		driver->setCurrentSampleRate(sampleRate);
 	}
-	else if (comboBoxThatHasChanged == ccSustainSelector)
-	{
-		int newSustainCC = comboBoxThatHasChanged->getSelectedId();
-
-		driver->ccSustainValue = newSustainCC;
-
-		mc->getEventHandler().addCCRemap(newSustainCC, 64);
-	}
 	else if (comboBoxThatHasChanged == voiceAmountMultiplier)
 	{
 		int newVoiceAmount = comboBoxThatHasChanged->getSelectedId();
@@ -566,18 +499,10 @@ void CustomSettingsWindow::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 
 		driver->globalBPM = selectedId;
 	}
-	else if (comboBoxThatHasChanged == graphicRenderSelector)
-	{
-		driver->setUseOpenGLRenderer(graphicRenderSelector->getSelectedItemIndex() == 1);
-
-		PresetHandler::showMessageWindow("Graphic engine changed", "Please reopen this window to apply the change", PresetHandler::IconType::Info);
-	}
 	else if (comboBoxThatHasChanged == diskModeSelector)
 	{
 		const int index = diskModeSelector->getSelectedItemIndex();
-
 		driver->diskMode = index;
-
 		mc->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)index);
 	}
 }
@@ -598,10 +523,8 @@ void CustomSettingsWindow::paint(Graphics& g)
 	DRAW_LABEL(Properties::BufferSize, "Buffer Size");
 	DRAW_LABEL(Properties::SampleRate, "Sample Rate");
 	DRAW_LABEL(Properties::GlobalBPM, "Global BPM");
-	DRAW_LABEL(Properties::GraphicRendering, "UI Engine");
 	DRAW_LABEL(Properties::ScaleFactor, "UI Zoom Factor");
 	DRAW_LABEL(Properties::StreamingMode, "Streaming Mode");
-	DRAW_LABEL(Properties::SustainCC, "Sustain CC");
 	DRAW_LABEL(Properties::VoiceAmountMultiplier, "Max Voices");
 
 	if (isOn(Properties::ClearMidiCC))
@@ -640,10 +563,8 @@ void CustomSettingsWindow::resized()
 	POSITION_COMBOBOX(Properties::BufferSize, bufferSelector);
 	POSITION_COMBOBOX(Properties::SampleRate, sampleRateSelector);
 	POSITION_COMBOBOX(Properties::GlobalBPM, bpmSelector);
-	POSITION_COMBOBOX(Properties::GraphicRendering, graphicRenderSelector);
 	POSITION_COMBOBOX(Properties::ScaleFactor, scaleFactorSelector);
 	POSITION_COMBOBOX(Properties::StreamingMode, diskModeSelector);
-	POSITION_COMBOBOX(Properties::SustainCC, ccSustainSelector);
 	POSITION_COMBOBOX(Properties::VoiceAmountMultiplier, voiceAmountMultiplier);
 
 	POSITION_BUTTON(Properties::ClearMidiCC, clearMidiLearn);

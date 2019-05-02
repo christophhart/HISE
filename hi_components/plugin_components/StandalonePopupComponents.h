@@ -90,138 +90,6 @@ private:
 };
 
 
-class TuningWindow : public Component,
-					 public ComboBox::Listener
-{
-public:
-
-	TuningWindow(MainController* mc_) :
-		mc(mc_)
-	{
-		addAndMakeVisible(transposeSelector = new ComboBox("Transpose"));
-		addAndMakeVisible(microTuningSelector = new ComboBox("MicroTuning"));
-
-		transposeSelector->addListener(this);
-		microTuningSelector->addListener(this);
-
-		auto& plaf = mc->getGlobalLookAndFeel();
-
-		transposeSelector->setLookAndFeel(&plaf);
-		microTuningSelector->setLookAndFeel(&plaf);
-
-		for (int i = -12; i < 13; i++)
-		{
-			transposeSelector->addItem(String(-i) + " semitones", i + 13);
-		}
-
-		transposeSelector->setSelectedId(getIndexForTransposeValue(dynamic_cast<GlobalSettingManager*>(mc)->transposeValue), dontSendNotification);
-
-		microTuningSelector->addItem("+25 cent", 1);
-		microTuningSelector->addItem("+20 cent", 2);
-		microTuningSelector->addItem("+15 cent", 3);
-		microTuningSelector->addItem("+10 cent", 4);
-		microTuningSelector->addItem("+5 cent", 5);
-		microTuningSelector->addItem("0 cent", 6);
-		microTuningSelector->addItem("-5 cent", 7);
-		microTuningSelector->addItem("-10 cent", 8);
-		microTuningSelector->addItem("-15 cent", 9);
-		microTuningSelector->addItem("-20 cent", 10);
-		microTuningSelector->addItem("-25 cent", 11);
-
-		microTuningSelector->setSelectedId(getIndexForPitchFactor(mc->getGlobalPitchFactorSemiTones()), dontSendNotification);
-
-		setSize(250, 90);
-	}
-
-	void paint(Graphics& g) override
-	{
-		g.setFont(GLOBAL_BOLD_FONT());
-		g.setColour(Colours::white);
-
-		int y = 10;
-
-		g.drawText("Transpose:", 0, y, getWidth() / 2 - 20, 30, Justification::centredRight);
-
-		y += 40;
-
-		g.drawText("Microtuning:", 0, y, getWidth() / 2 - 20, 30, Justification::centredRight);
-	}
-
-	void resized() override
-	{
-		int x = getWidth() / 2 - 10;
-		int w = getWidth() - x - 10;
-
-		int y = 10;
-
-		transposeSelector->setBounds(x, y, w, 30);
-
-		y += 40;
-
-		microTuningSelector->setBounds(x, y, w, 30);
-	}
-
-	void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override
-	{
-		if (comboBoxThatHasChanged == transposeSelector)
-		{
-			int transposeValue = comboBoxThatHasChanged->getText().getIntValue();
-
-			mc->allNotesOff();
-			mc->getEventHandler().setGlobalTransposeValue(transposeValue);
-			dynamic_cast<AudioProcessorDriver*>(mc)->transposeValue = transposeValue;
-		}
-		else if (comboBoxThatHasChanged == microTuningSelector)
-		{
-			int cent = microTuningSelector->getText().getIntValue();
-
-			double semiTones = (double)cent / 100.0;
-
-			dynamic_cast<AudioProcessorDriver*>(mc)->microTuning = semiTones;
-
-			mc->setGlobalPitchFactor(semiTones);
-		}
-	}
-
-	class Panel;
-
-	
-
-private:
-
-	int getIndexForPitchFactor(double pitchFactorInSemiTones)
-	{
-		int cent = roundDoubleToInt(pitchFactorInSemiTones * 100.0);
-
-		switch (cent)
-		{
-		case 25: return 1;
-		case 20: return 2;
-		case 15: return 3;
-		case 10: return 4;
-		case 5: return 5;
-		case 0: return 6;
-		case -5: return 7;
-		case -10: return 8;
-		case -15: return 9;
-		case -20: return 10;
-		case -25: return 11;
-		default: return 6;
-		}
-	}
-
-	int getIndexForTransposeValue(int transposeValue)
-	{
-		return -transposeValue + 13;
-	}
-
-
-	MainController* mc;
-
-	ScopedPointer<ComboBox> transposeSelector;
-	ScopedPointer<ComboBox> microTuningSelector;
-};
-
 /** A component that is showing application-wide settings (audio drivers etc.)
 	@ingroup hise_ui
 
@@ -250,9 +118,7 @@ public:
 		SampleRate, ///< the sample rate
 		GlobalBPM, ///< the global BPM if you don't want to tempo sync.
 		ScaleFactor, ///< the global scale factor for the UI
-		GraphicRendering, ///< Whether to use Open GL (deprecated)
 		StreamingMode, ///< Sets the streaming settings
-		SustainCC, ///< remap the sustain pedal CC
 		VoiceAmountMultiplier, ///< the max voice amount per sound generator
 		ClearMidiCC, /// removes all MIDI learn information
 		SampleLocation, /// shows the sample location
@@ -330,9 +196,7 @@ private:
 	ScopedPointer<ComboBox> sampleRateSelector;
 	ScopedPointer<ComboBox> bpmSelector;
 	ScopedPointer<ComboBox> diskModeSelector;
-	ScopedPointer<ComboBox> graphicRenderSelector;
 	ScopedPointer<ComboBox> scaleFactorSelector;
-	ScopedPointer<ComboBox> ccSustainSelector;
 	ScopedPointer<ComboBox> voiceAmountMultiplier;
 	ScopedPointer<TextButton> clearMidiLearn;
 	ScopedPointer<TextButton> relocateButton;

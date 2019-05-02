@@ -266,11 +266,6 @@ void GlobalSettingManager::setGlobalScaleFactor(double newScaleFactor, Notificat
 	}
 }
 
-void GlobalSettingManager::setUseOpenGLRenderer(bool shouldUseOpenGL)
-{
-	useOpenGL = shouldUseOpenGL;
-}
-
 void AudioProcessorDriver::updateMidiToggleList(MainController* mc, ToggleButtonList* listToUpdate)
 {
 #if USE_BACKEND || IS_STANDALONE_APP
@@ -335,8 +330,6 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
 
 		gm->diskMode = globalSettings->getIntAttribute("DISK_MODE");
 		gm->scaleFactor = globalSettings->getDoubleAttribute("SCALE_FACTOR", 1.0);
-		gm->microTuning = globalSettings->getDoubleAttribute("MICRO_TUNING", 0.0);
-		gm->transposeValue = globalSettings->getIntAttribute("TRANSPOSE", 0);
 
 #if IS_STANDALONE_APP
 		// Don't save this for plugins as they are usually synced to the host
@@ -345,17 +338,7 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
 
 		gm->channelData = globalSettings->getIntAttribute("MIDI_CHANNELS", 1);
 
-		gm->ccSustainValue = globalSettings->getIntAttribute("SUSTAIN_CC", 64);
-
-		gm->useOpenGL = globalSettings->getBoolAttribute("OPEN_GL", false);
-
-		mc->setGlobalPitchFactor(gm->microTuning);
-
-		mc->getEventHandler().setGlobalTransposeValue(gm->transposeValue);
-
 		gm->voiceAmountMultiplier = globalSettings->getIntAttribute("VOICE_AMOUNT_MULTIPLIER", 2);
-
-		mc->getEventHandler().addCCRemap(gm->ccSustainValue, 64);
 
 		LOG_START("Setting disk mode");
 
@@ -389,9 +372,6 @@ void GlobalSettingManager::saveSettingsAsXml()
 
 	settings->setAttribute("DISK_MODE", diskMode);
 	settings->setAttribute("SCALE_FACTOR", scaleFactor);
-	settings->setAttribute("MICRO_TUNING", microTuning);
-	settings->setAttribute("TRANSPOSE", transposeValue);
-	settings->setAttribute("SUSTAIN_CC", ccSustainValue);
 	settings->setAttribute("VOICE_AMOUNT_MULTIPLIER", voiceAmountMultiplier);
 
 #if IS_STANDALONE_APP
@@ -399,7 +379,6 @@ void GlobalSettingManager::saveSettingsAsXml()
 	settings->setAttribute("GLOBAL_BPM", globalBPM);
 #endif
 
-	settings->setAttribute("OPEN_GL", useOpenGL);
 	settings->setAttribute("MIDI_CHANNELS", channelData);
 
 #if USE_FRONTEND

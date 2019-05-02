@@ -140,7 +140,6 @@ public:
 		MenuViewEnableGlobalLayoutMode,
 		MenuViewAddFloatingWindow,
 		MenuViewAddInterfacePreview,
-		MenuViewEnableOpenGL,
 		MenuOneColumn,
 		MenuTwoColumns,
 		MenuThreeColumns,
@@ -341,7 +340,6 @@ public:
 		static void createBase64State(CopyPasteTarget* target);
 		static void createUserInterface(BackendRootWindow * bpe);
 		static void checkUnusedImages(BackendRootWindow * bpe);
-		static void toggleOpenGLMode(BackendRootWindow * bpe);
 		static void addInterfacePreview(BackendRootWindow * bpe);
 		static void updateSampleMapIds(BackendRootWindow * bpe);
 		static void toggleCallStackEnabled(BackendRootWindow * bpe);
