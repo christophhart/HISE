@@ -434,12 +434,12 @@ public:
 
 	ValueTree exportAsValueTree() const override
 	{
-		return getMainProcessor()->exportAsValueTree();
+        return MainProcessor::ConnectedObject<MainProcessorClass>::getMainProcessor()->exportAsValueTree();
 	}
 
 	void restoreFromValueTree(const ValueTree &previouslyExportedState) override
 	{
-		getMainProcessor()->restoreFromValueTree(previouslyExportedState);
+		MainProcessor::ConnectedObject<MainProcessorClass>::getMainProcessor()->restoreFromValueTree(previouslyExportedState);
 	}
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DataHolder);

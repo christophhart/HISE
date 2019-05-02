@@ -302,7 +302,12 @@ void ExpansionHandler::clearPools()
 		
 }
 
-PoolCollection* ExpansionHandler::getCurrentPoolCollection2()
+FileHandlerBase* ExpansionHandler::getFileHandler(MainController* mc)
+{
+    return &mc->getCurrentFileHandler();
+}
+    
+PoolCollection* ExpansionHandler::getCurrentPoolCollection()
     {
         return mc->getCurrentFileHandler().pool;
     }

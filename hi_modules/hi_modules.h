@@ -227,13 +227,15 @@ END_JUCE_MODULE_DECLARATION
 #endif
 
 #include "raw/raw_ids.h"
+
 #include "raw/raw_misc.h"
 #include "raw/raw_misc_impl.h"
+#include "raw/raw_builder.h"
+#include "raw/raw_builder_impl.h"
 #include "raw/raw_main_processor.h"
 #include "raw/raw_main_processor_impl.h"
 #include "raw/raw_main_editor.h"
-#include "raw/raw_builder.h"
-#include "raw/raw_builder_impl.h"
+
 #include "raw/raw_positioner.h"
 #include "raw/raw_UserPreset.h"
 #include "raw/raw_PluginParameter.h"

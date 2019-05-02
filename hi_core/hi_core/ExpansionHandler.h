@@ -393,17 +393,21 @@ public:
 
 	Expansion* getCurrentExpansion() const { return currentExpansion.get(); }
 
-	template <class DataType> SharedPoolBase<DataType>* getCurrentPool2()
+	template <class DataType> SharedPoolBase<DataType>* getCurrentPool()
 	{
 		return getCurrentPoolCollection()->getPool<DataType>();
 	}
 
-    PoolCollection* getCurrentPoolCollection2();
+    PoolCollection* getCurrentPoolCollection();
     
 	void clearPools();
 
+    
+    
 private:
 
+    FileHandlerBase* getFileHandler(MainController* mc);
+    
 	template <class DataType> void getPoolForReferenceString(const PoolReference& p, SharedPoolBase<DataType>** pool)
 	{
 		auto type = PoolHelpers::getSubDirectoryType(DataType());
@@ -416,7 +420,7 @@ private:
 			*pool = e->pool->getPool<DataType>();
 		}
 		else
-			*pool = mc->getCurrentFileHandler().pool->getPool<DataType>();
+			*pool = getFileHandler(mc)->pool->getPool<DataType>();
 	}
 
 	struct Notifier : private AsyncUpdater

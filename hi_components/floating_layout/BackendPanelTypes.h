@@ -297,9 +297,9 @@ public:
 		}
 
 		if (auto e = getMainController()->getExpansionHandler().getCurrentExpansion())
-			pool = e->pool->getPool<DataType>();
+			pool = e->pool->template getPool<DataType>();
 		else
-			pool = getMainController()->getCurrentFileHandler().pool->getPool<DataType>();
+			pool = getMainController()->getCurrentFileHandler().pool->template getPool<DataType>();
 
 		pool->addListener(this);
 
