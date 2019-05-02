@@ -661,7 +661,6 @@ void HiseEventBuffer::insertEventAtPosition(const HiseEvent& e, int positionInBu
 	if (numUsed == 0)
 	{
 		buffer[0] = HiseEvent(e);
-
 		numUsed = 1;
 
 		return;
@@ -672,7 +671,6 @@ void HiseEventBuffer::insertEventAtPosition(const HiseEvent& e, int positionInBu
 		for (int i = jmin<int>(numUsed-1, HISE_EVENT_BUFFER_SIZE-2); i >= positionInBuffer; i--)
 		{
 			jassert(i + 1 < HISE_EVENT_BUFFER_SIZE);
-
 			buffer[i + 1] = buffer[i];
 		}
 	}
@@ -688,18 +686,10 @@ void HiseEventBuffer::insertEventAtPosition(const HiseEvent& e, int positionInBu
     }
 }
 
-
-
 EventIdHandler::EventIdHandler(HiseEventBuffer& masterBuffer_) :
 	masterBuffer(masterBuffer_),
 	currentEventId(1)
 {
-	firstCC.store(-1);
-	secondCC.store(-1);
-
-	//for (int i = 0; i < 128; i++)
-	//realNoteOnEvents[i] = HiseEvent();
-
 	memset(realNoteOnEvents, 0, sizeof(HiseEvent) * 128 * 16);
 	memset(lastArtificialEventIds, 0, sizeof(uint16) * 128 * 16);
 
@@ -713,23 +703,6 @@ EventIdHandler::~EventIdHandler()
 
 void EventIdHandler::handleEventIds()
 {
-	if (transposeValue != 0)
-	{
-		HiseEventBuffer::Iterator transposer(masterBuffer);
-
-		while (HiseEvent* m = transposer.getNextEventPointer())
-		{
-			if (m->isNoteOnOrOff())
-			{
-				int newNoteNumber = jlimit<int>(0, 127, m->getNoteNumber() + transposeValue);
-
-				m->setNoteNumber(newNoteNumber);
-			}
-
-
-		}
-	}
-
 	HiseEventBuffer::Iterator it(masterBuffer);
 
 	while (HiseEvent *m = it.getNextEventPointer())
@@ -738,25 +711,18 @@ void EventIdHandler::handleEventIds()
 		jassert(!m->isArtificial());
 
 		if (m->isAllNotesOff())
-		{
 			memset(realNoteOnEvents, 0, sizeof(HiseEvent) * 128 * 16);
-		}
 
 		if (m->isNoteOn())
 		{
 			auto channel = jlimit<int>(0, 15, m->getChannel() - 1);
 
+			m->setEventId(currentEventId++);
+
 			if (realNoteOnEvents[channel][m->getNoteNumber()].isEmpty())
-			{
-				m->setEventId(currentEventId);
 				realNoteOnEvents[channel][m->getNoteNumber()] = HiseEvent(*m);
-				currentEventId++;
-			}
 			else
-			{
-				// There is something fishy here so deactivate this event
-				m->ignoreEvent(true);
-			}
+				overlappingNoteOns.insertWithoutSearch(HiseEvent(*m));
 		}
 		else if (m->isNoteOff())
 		{
@@ -773,21 +739,29 @@ void EventIdHandler::handleEventIds()
 			}
 			else
 			{
-				// There is something fishy here so deactivate this event
-				m->ignoreEvent(true);
-			}
-		}
-		else if (firstCC != -1 && m->isController())
-		{
-			const int ccNumber = m->getControllerNumber();
+				int s = overlappingNoteOns.size();
+				bool found = false;
 
-			if (ccNumber == firstCC)
-			{
-				m->setControllerNumber(secondCC);
-			}
-			else if (ccNumber == secondCC)
-			{
-				m->setControllerNumber(firstCC);
+				for (int i = 0; i < s; i++)
+				{
+					auto on = overlappingNoteOns[i];
+
+					if (on.getNoteNumber() == m->getNoteNumber() && on.getChannel() == m->getChannel())
+					{
+						auto id = on.getEventId();
+						m->setEventId(id);
+						m->setTransposeAmount(on.getTransposeAmount());
+						overlappingNoteOns.removeElement(i);
+						found = true;
+						break;
+					}
+				}
+
+				if (!found)
+				{
+					// There is something fishy here so deactivate this event
+					m->ignoreEvent(true);
+				}
 			}
 		}
 	}
@@ -805,9 +779,21 @@ uint16 EventIdHandler::getEventIdForNoteOff(const HiseEvent &noteOffEvent)
 
 		const HiseEvent* e = realNoteOnEvents[channel] + noteNumber;
 
-		return e->getEventId();
+		if (!e->isEmpty())
+		{
+			return e->getEventId();
+		}
+		else
+		{
+			for (auto no : overlappingNoteOns)
+			{
+				if (noteOffEvent.getNoteNumber() == no.getNoteNumber() && noteOffEvent.getChannel() == no.getChannel())
+					return no.getEventId();
+			}
 
-		//return realNoteOnEvents +noteNumber.getEventId();
+			jassertfalse;
+			return 0;
+		}
 	}
 	else
 	{
@@ -853,7 +839,19 @@ HiseEvent EventIdHandler::peekNoteOn(const HiseEvent& noteOffEvent)
 	{
 		auto channel = jlimit<int>(0, 15, noteOffEvent.getChannel() - 1);
 
-		return realNoteOnEvents[channel][noteOffEvent.getNoteNumber()];
+		if (auto e = realNoteOnEvents[channel][noteOffEvent.getNoteNumber()])
+			return e;
+		
+		for (auto no : overlappingNoteOns)
+		{
+			if (no.getNoteNumber() == noteOffEvent.getNoteNumber() && no.getChannel() == channel)
+			{
+				return no;
+			}
+		}
+
+		jassertfalse;
+		return HiseEvent();
 	}
 }
 
@@ -863,23 +861,6 @@ HiseEvent EventIdHandler::popNoteOnFromEventId(uint16 eventId)
 	e.swapWith(artificialEvents[eventId % HISE_EVENT_ID_ARRAY_SIZE]);
 
 	return e;
-}
-
-void EventIdHandler::setGlobalTransposeValue(int newTransposeValue)
-{
-	transposeValue = newTransposeValue;
-}
-
-void EventIdHandler::addCCRemap(int firstCC_, int secondCC_)
-{
-	firstCC = firstCC_;
-	secondCC = secondCC_;
-
-	if (firstCC_ == secondCC_)
-	{
-		firstCC_ = -1;
-		secondCC_ = -1;
-	}
 }
 
 

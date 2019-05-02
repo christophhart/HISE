@@ -94,6 +94,18 @@ public:
 	*/
 	virtual String exportData() const
 	{
+		if (graphPoints.size() == 2)
+		{
+			auto first = graphPoints.getFirst();
+			auto second = graphPoints.getLast();
+
+			if (first.x == 0.0f && first.y == 0.0f)
+			{
+				if (second.x == 1.0f && second.y == 1.0f && second.curve == 0.5f)
+					return "";
+			}
+		}
+
 		Array<GraphPoint> copy = Array<GraphPoint>(graphPoints);
 
 		MemoryBlock b(copy.getRawDataPointer(), sizeof(Table::GraphPoint) * copy.size());
@@ -107,6 +119,13 @@ public:
 	*/
 	virtual void restoreData(const String &savedString)
 	{
+		if (savedString.isEmpty())
+		{
+			reset();
+			return;
+		}
+			
+
 		MemoryBlock b;
 		
 		b.fromBase64Encoding(savedString);
@@ -333,7 +352,7 @@ public:
 	*	@param sampleIndex the sample index from 0 to SAMPLE_LOOKUP_TABLE_SIZE (default 512). Doesn't need to be an integer, of course.
 	*	@returns the value of the table between 0.0 and 1.0
 	*/
-	float getInterpolatedValue(double sampleIndex)
+	float getInterpolatedValue(double sampleIndex) const
 	{
 		const double indexInTable = coefficient * sampleIndex;
 

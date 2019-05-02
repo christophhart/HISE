@@ -97,7 +97,7 @@ public:
 
 	void incIndex(bool up);
 
-
+	Processor* createDummyProcessorForDocumentation(MainController* mc);
 
 	void moduleListChanged(Processor* b, MainController::ProcessorChangeHandler::EventType type) override;
 
@@ -113,14 +113,7 @@ public:
 		return Identifier("unsupported");
 	}
 	
-	bool shouldHideSelector() const
-	{
-#if USE_BACKEND
-		return findParentComponentOfClass<ScriptContentComponent>() != nullptr;
-#else
-		return true;
-#endif
-	}
+	bool shouldHideSelector() const;
 
 	virtual var getAdditionalUndoInformation() const { return var(); }
 

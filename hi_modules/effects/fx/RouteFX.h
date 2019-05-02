@@ -45,7 +45,7 @@ class RouteEffect : public MasterEffectProcessor
 {
 public:
 
-	SET_PROCESSOR_NAME("RouteFX", "Routing Matrix");
+	SET_PROCESSOR_NAME("RouteFX", "Routing Matrix", "A signal chain tool that allows to duplicate and send the signal to other channels to build AUX signal paths.");
 
 	RouteEffect(MainController *mc, const String &uid);;
 

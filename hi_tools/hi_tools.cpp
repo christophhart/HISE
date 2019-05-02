@@ -59,13 +59,23 @@
 
 #include "hi_tools/MiscToolClasses.cpp"
 
+#include "hi_tools/PathFactory.cpp"
 #include "hi_tools/HI_LookAndFeels.cpp"
 
 
 #include "hi_tools/JavascriptTokeniser.cpp"
-#include "hi_tools/MarkdownElements.cpp"
-#include "hi_tools/Markdown.cpp"
-#include "hi_tools/MarkdownParser.cpp"
+#include "hi_markdown/MarkdownLink.cpp"
+#include "hi_markdown/MarkdownHeader.cpp"
+#include "hi_markdown/MarkdownDatabase.cpp"
+#include "hi_markdown/MarkdownLayout.cpp"
+#include "hi_markdown/MarkdownElements.cpp"
+#include "hi_markdown/Markdown.cpp"
+#include "hi_markdown/MarkdownDefaultProviders.cpp"
+#include "hi_markdown/MarkdownRenderer.cpp"
+#include "hi_markdown/MarkdownHtmlExporter.cpp"
+#include "hi_markdown/MarkdownDatabaseCrawler.cpp"
+#include "hi_markdown/MarkdownParser.cpp"
+
 #include "hi_tools/VariantBuffer.cpp"
 #include "hi_tools/Tables.cpp"
 

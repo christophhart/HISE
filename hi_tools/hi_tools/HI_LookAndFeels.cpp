@@ -938,4 +938,5 @@ void HiPropertyPanelLookAndFeel::drawPropertyComponentBackground(Graphics& g, in
 
 }
 
+
 } // namespace hise

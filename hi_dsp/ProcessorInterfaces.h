@@ -598,6 +598,8 @@ public:
 		/** Overwrite this and return true if the FactoryType can create this Processor and false, if not. */
 		virtual bool allowType(const Identifier &typeName) = 0;
 
+		virtual String getDescription() const = 0;
+
 	};
 
 	// ================================================================================================================

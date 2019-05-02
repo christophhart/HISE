@@ -105,10 +105,15 @@ var FloatingTileContent::toDynamicObject() const
 	storePropertyInObject(obj, (int)PanelPropertyId::StyleData, var(styleData));
 	storePropertyInObject(obj, (int)PanelPropertyId::Font, fontName);
 	storePropertyInObject(obj, (int)PanelPropertyId::FontSize, fontSize);
-	storePropertyInObject(obj, (int)PanelPropertyId::LayoutData, var(getParentShell()->getLayoutData().getLayoutDataObject()));
+
+	if (getParentShell() != nullptr)
+		storePropertyInObject(obj, (int)PanelPropertyId::LayoutData, var(getParentShell()->getLayoutData().getLayoutDataObject()));
+	else
+		jassertfalse;
+
 	storePropertyInObject(obj, (int)PanelPropertyId::ColourData, colourData.toDynamicObject());
 
-	if (getFixedSizeForOrientation() != 0)
+	if (getParentShell() != nullptr && getFixedSizeForOrientation() != 0)
 		o->removeProperty("Size");
 
 	return obj;
@@ -192,6 +197,13 @@ int FloatingTileContent::getFixedSizeForOrientation() const
 		return getFixedHeight();
 	else
 		return 0;
+}
+
+int FloatingTileContent::getPreferredHeight() const
+{
+
+	jassert(getParentShell()->getParentType() == FloatingTile::ParentType::Root);
+	return getFixedHeight();
 }
 
 struct FloatingPanelTemplates::Helpers
@@ -664,6 +676,7 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 	ib.getPanel(mainColumn)->getLayoutData().setForceFoldButton(true);
 	ib.getPanel(keyboard)->getLayoutData().setForceFoldButton(true);
 	ib.getPanel(keyboard)->resized();
+	
 
 	ib.setCustomName(firstVertical, "", { "Left Panel", "", "Right Panel" });
 
@@ -712,7 +725,7 @@ void JSONEditor::setChanged()
 	if ((now - constructionTime) < 1000)
 		return;
 
-	changeLabel->setColour(Label::backgroundColourId, Colour(0x22FF000000));
+	changeLabel->setColour(Label::backgroundColourId, Colour(0x22FF0000));
 	changeLabel->setText("Press F5 or Apply to apply the changes", dontSendNotification);
 }
 
@@ -820,6 +833,18 @@ hise::FloatingTileContent* FloatingTileContent::Factory::createFromId(const Iden
 		jassertfalse;
 		return functions[0](parent);
 	}
+}
+
+juce::Path FloatingTileContent::FloatingTilePathFactory::createPath(const String& id) const
+{
+	auto url = MarkdownLink::Helpers::getSanitizedFilename(id);
+
+	auto index = ids.indexOf(url);
+
+	if (index != -1)
+		return Factory::getPath(f.getIndex(index));
+
+	return {};
 }
 
 } // namespace hise

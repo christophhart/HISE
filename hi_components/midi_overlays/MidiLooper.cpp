@@ -54,7 +54,7 @@ MidiLooper::MidiLooper(MidiPlayer* p) :
 	loopLength.addItem("2 Bars", 2);
 	loopLength.addItem("4 Bars", 4);
 	loopLength.addListener(this);
-	loopLength.setSelectedId(1, false);
+	loopLength.setSelectedId(1, dontSendNotification);
 
 	addAndMakeVisible(clearButton);
 	clearButton.addListener(this);

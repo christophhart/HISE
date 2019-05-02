@@ -314,7 +314,9 @@ private:
 class MainTopBar : public FloatingTileContent,
 				   public Component,
 				   public ButtonListener,
-				   public FloatingTile::PopupListener
+				   public FloatingTile::PopupListener,
+				   public juce::ApplicationCommandManagerListener,
+				   public ComponentWithHelp
 {
 public:
 	
@@ -337,6 +339,11 @@ public:
 		return 60;
 	}
 
+	String getMarkdownHelpUrl() const override
+	{
+		return "/ui-components/floating-tiles/hise/maintopbar";
+	}
+
 	bool showTitleInPresentationMode() const override
 	{
 		return false;
@@ -346,6 +353,13 @@ public:
 
 	void paint(Graphics& g) override;
 
+	void paintOverChildren(Graphics& g) override;
+
+	void mouseDown(const MouseEvent& )
+	{
+		ComponentWithHelp::openHelp();
+	}
+
 	void buttonClicked(Button* b) override;
 
 	void resized() override;
@@ -354,6 +368,41 @@ public:
 
 	void togglePopup(PopupType t, bool shouldShow);
 
+	void applicationCommandInvoked(const ApplicationCommandTarget::InvocationInfo& info) override
+	{
+		switch (info.commandID)
+		{
+		case BackendCommandTarget::WorkspaceMain:
+			mainWorkSpaceButton->setToggleStateAndUpdateIcon(true);
+			scriptingWorkSpaceButton->setToggleStateAndUpdateIcon(false);
+			samplerWorkSpaceButton->setToggleStateAndUpdateIcon(false);
+			customWorkSpaceButton->setToggleStateAndUpdateIcon(false);
+			break;
+		case BackendCommandTarget::WorkspaceScript: 
+			mainWorkSpaceButton->setToggleStateAndUpdateIcon(false);
+			scriptingWorkSpaceButton->setToggleStateAndUpdateIcon(true);
+			samplerWorkSpaceButton->setToggleStateAndUpdateIcon(false);
+			customWorkSpaceButton->setToggleStateAndUpdateIcon(false);
+			break;
+		case BackendCommandTarget::WorkspaceSampler:
+			mainWorkSpaceButton->setToggleStateAndUpdateIcon(false);
+			scriptingWorkSpaceButton->setToggleStateAndUpdateIcon(false);
+			samplerWorkSpaceButton->setToggleStateAndUpdateIcon(true);
+			customWorkSpaceButton->setToggleStateAndUpdateIcon(false);
+			break;
+		
+		case BackendCommandTarget::WorkspaceCustom:
+			mainWorkSpaceButton->setToggleStateAndUpdateIcon(false);
+			scriptingWorkSpaceButton->setToggleStateAndUpdateIcon(false);
+			samplerWorkSpaceButton->setToggleStateAndUpdateIcon(false);
+			customWorkSpaceButton->setToggleStateAndUpdateIcon(true);
+			break;
+		}
+
+	}
+
+	
+	void applicationCommandListChanged() {};
 	
 
 private:
@@ -373,14 +422,14 @@ private:
 	ScopedPointer<ShapeButton> settingsButton;
 	ScopedPointer<ShapeButton> layoutButton;
 
-	ScopedPointer<ShapeButton> macroButton;
+	ScopedPointer<HiseShapeButton> macroButton;
 	ScopedPointer<ShapeButton> pluginPreviewButton;
 	ScopedPointer<ShapeButton> presetBrowserButton;
 
-	ScopedPointer<ShapeButton> mainWorkSpaceButton;
-	ScopedPointer<ShapeButton> scriptingWorkSpaceButton;
-	ScopedPointer<ShapeButton> samplerWorkSpaceButton;
-	ScopedPointer<ShapeButton> customWorkSpaceButton;
+	ScopedPointer<HiseShapeButton> mainWorkSpaceButton;
+	ScopedPointer<HiseShapeButton> scriptingWorkSpaceButton;
+	ScopedPointer<HiseShapeButton> samplerWorkSpaceButton;
+	ScopedPointer<HiseShapeButton> customWorkSpaceButton;
 
 };
 

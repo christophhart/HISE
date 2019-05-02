@@ -81,8 +81,8 @@
         <MODULEPATH id="hi_streaming" path="../../"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_zstd" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_zstd" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
@@ -123,8 +123,8 @@
         <MODULEPATH id="hi_streaming" path="../../"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_zstd" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_zstd" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
@@ -183,8 +183,8 @@
         <MODULEPATH id="hi_streaming" path="../../"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_zstd" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_zstd" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </VS2017>

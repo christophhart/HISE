@@ -47,7 +47,7 @@ class ControlModulator: public TimeVariantModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("MidiController", "Midi Controller")
+	SET_PROCESSOR_NAME("MidiController", "Midi Controller", "Creates a modulation signal from MIDI-CC messages.");
 
 	/** Special Parameters for the ControlModulator. */
 	enum Parameters

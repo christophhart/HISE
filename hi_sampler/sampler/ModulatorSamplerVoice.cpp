@@ -81,6 +81,7 @@ void ModulatorSamplerVoice::startNote(int midiNoteNumber,
 	uptimeDelta = wrappedVoice.uptimeDelta;
     isActive = true;
 
+	jassert(uptimeDelta > 0.0);
 	jassert(uptimeDelta < MAX_SAMPLER_PITCH);
 }
 

@@ -44,6 +44,9 @@
 #include "plugin_components/PanelTypes.cpp"
 #include "plugin_components/FrontendBar.cpp"
 
+#include "markdown_components/MarkdownComponents.cpp"
+#include "markdown_components/MarkdownPreview.cpp"
+
 #if USE_BACKEND
 #include "plugin_components/PluginPreviewWindow.cpp"
 #endif

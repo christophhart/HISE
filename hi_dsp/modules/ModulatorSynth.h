@@ -936,6 +936,11 @@ public:
 		fillTypeNameList();
 	};
 
+	void setNumVoices(int newNumVoices)
+	{
+		numVoices = newNumVoices;
+	}
+
 	void fillTypeNameList();
 
 	Processor* createProcessor	(int typeIndex, const String &id) override;

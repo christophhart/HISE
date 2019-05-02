@@ -73,7 +73,7 @@ void GlobalScriptCompileBroadcaster::sendScriptCompileMessage(JavascriptProcesso
 
 double GlobalScriptCompileBroadcaster::getCompileTimeOut() const noexcept
 {
-	return (double)dynamic_cast<const GlobalSettingManager*>(this)->getSettingsObject().getSetting(HiseSettings::Scripting::CompileTimeout);
+	return jmax(2.0, (double)dynamic_cast<const GlobalSettingManager*>(this)->getSettingsObject().getSetting(HiseSettings::Scripting::CompileTimeout));
 
 }
 

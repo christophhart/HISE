@@ -146,7 +146,7 @@ MidiKeyboardPanel::MidiKeyboardPanel(FloatingTile* parent) :
 	addAndMakeVisible(keyboard->asComponent());
 
 	keyboard->setLowestKeyBase(12);
-
+	keyboard->setUseVectorGraphics(true, false);
 	setDefaultPanelColour(PanelColourId::itemColour1, Colours::white.withAlpha(0.1f));
 	setDefaultPanelColour(PanelColourId::itemColour2, Colours::white);
 	setDefaultPanelColour(PanelColourId::itemColour3, Colour(SIGNAL_COLOUR));
@@ -327,7 +327,7 @@ var MidiKeyboardPanel::getDefaultProperty(int index) const
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::MPEKeyboard, false);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::MPEStartChannel, 2);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::MPEEndChannel, 16);
-	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::UseVectorGraphics, false);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::UseVectorGraphics, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::UseFlatStyle, false);
 
 	jassertfalse;
@@ -460,7 +460,20 @@ void PerformanceLabelPanel::timerCallback()
 
 	const int cpuUsage = (int)mc->getCpuUsage();
 	const int voiceAmount = mc->getNumActiveVoices();
-	const double ramUsage = (double)mc->getSampleManager().getModulatorSamplerSoundPool()->getMemoryUsageForAllSamples() / 1024.0 / 1024.0;
+
+
+	auto bytes = mc->getSampleManager().getModulatorSamplerSoundPool2()->getMemoryUsageForAllSamples();
+
+#if HISE_ENABLE_EXPANSIONS
+	auto& handler = getMainController()->getExpansionHandler();
+
+	for (int i = 0; i < handler.getNumExpansions(); i++)
+	{
+		bytes += handler.getExpansion(i)->pool->getSamplePool()->getMemoryUsageForAllSamples();
+	}
+#endif
+
+	const double ramUsage = (double)bytes / 1024.0 / 1024.0;
 
 	//const bool midiFlag = mc->checkAndResetMidiInputFlag();
 

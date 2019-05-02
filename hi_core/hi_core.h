@@ -195,7 +195,9 @@ Set this to 0 to deactivate the plotter data collection
 #define ENABLE_PLOTTER 1
 #endif
 
-
+#ifndef IS_MARKDOWN_EDITOR
+#define IS_MARKDOWN_EDITOR 0
+#endif
 
 /** Config: ENABLE_SCRIPTING_SAFE_CHECKS
 
@@ -213,6 +215,14 @@ If this is set to 1, the application will crash instantly if there is a drop out
 #define CRASH_ON_GLITCH 0
 #endif
 
+
+/** Config: HISE_ENABLE_EXPANSIONS
+
+If this is enabled, you can use expansion packs to add additional content to your project.
+*/
+#ifndef HISE_ENABLE_EXPANSIONS
+#define HISE_ENABLE_EXPANSIONS 0
+#endif
 
 /** Config: ENABLE_SCRIPTING_BREAKPOINTS
 

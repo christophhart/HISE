@@ -353,5 +353,162 @@ private:
 
 
 
+class MarkdownPreviewPanel : public Component,
+	public FloatingTileContent
+{
+public:
+
+	struct ProjectLinkResolver : public ControlledObject,
+		public MarkdownParser::LinkResolver
+	{
+		ProjectLinkResolver(MainController* mc) :
+			ControlledObject(mc),
+			LinkResolver()
+		{};
+
+		String getContent(const MarkdownLink& url) override
+		{
+#if USE_BACKEND
+
+			ignoreUnused(url);
+			jassertfalse; // Do this correctly soon...
+
+			return {};
+#else
+			return getMainController()->getEmbeddedMarkdownContent("{PROJECT_FOLDER}" + url.toString(MarkdownLink::Everything));
+#endif
+		}
+
+		MarkdownParser::ResolveType getPriority() const override 
+		{ 
+#if USE_BACKEND
+			return MarkdownParser::ResolveType::FileBased;
+#else
+			return MarkdownParser::ResolveType::Cached; 
+#endif
+		}
+
+		LinkResolver* clone(MarkdownParser* ) const override { return new ProjectLinkResolver(const_cast<MainController*>(getMainController())); };
+		Identifier getId() const override { RETURN_STATIC_IDENTIFIER("ProjectLinkResolver"); };
+	};
+
+	struct PooledImageProvider : public ControlledObject,
+		public MarkdownParser::ImageProvider
+	{
+		PooledImageProvider(MainController* mc, MarkdownParser* parent) :
+			ControlledObject(mc),
+			ImageProvider(parent)
+		{
+
+		}
+
+		Image getImage(const MarkdownLink& url, float width) override
+		{
+#if USE_BACKEND
+			PoolReference ref(getMainController(), "{PROJECT_FOLDER}" + url.toString(MarkdownLink::Everything), FileHandlerBase::Images);
+
+			if (!ref.isValid())
+				return {};
+
+			auto f = getMainController()->getCurrentImagePool()->loadFromReference(ref, PoolHelpers::LoadAndCacheStrong);
+#else
+			PoolReference ref(getMainController()->getCurrentImagePool(), "{PROJECT_FOLDER}" + url.toString(MarkdownLink::UrlWithoutAnchor), FileHandlerBase::Images);
+
+			auto f = getMainController()->getCurrentImagePool()->loadFromReference(ref, PoolHelpers::LoadAndCacheWeak);
+#endif
+
+			if (auto d = f.getData())
+				return resizeImageToFit(*d, width);
+
+			return {};
+		}
+
+
+		MarkdownParser::ResolveType getPriority() const override
+		{
+#if USE_BACKEND
+			return MarkdownParser::ResolveType::FileBased;
+#else
+			return MarkdownParser::ResolveType::Cached;
+#endif
+		}
+
+		ImageProvider* clone(MarkdownParser* newParent) const override { return new PooledImageProvider(const_cast<MainController*>(getMainController()), newParent); };
+		Identifier getId() const override { RETURN_STATIC_IDENTIFIER("PooledImageProvider"); };
+	};
+
+	SET_PANEL_NAME("MarkdownPanel");
+
+	enum SpecialPanelIds
+	{
+		ContentFile = (int)FloatingTileContent::PanelPropertyId::numPropertyIds,
+		numSpecialPanelIds
+	};
+
+	MarkdownPreviewPanel(FloatingTile* parent);
+
+	~MarkdownPreviewPanel()
+	{
+		preview = nullptr;
+	}
+
+	void paint(Graphics& g) override
+	{
+		g.fillAll(findPanelColour(PanelColourId::bgColour));
+	}
+
+	void fromDynamicObject(const var& object) override;
+
+	var toDynamicObject() const override
+	{
+		auto v = FloatingTileContent::toDynamicObject();
+
+		v.getDynamicObject()->setProperty("ContentFile", contentFile);
+
+		return v;
+	}
+
+	void parseContent();
+
+	int getNumDefaultableProperties() const override
+	{
+		return SpecialPanelIds::numSpecialPanelIds;
+	}
+
+	Identifier getDefaultablePropertyId(int index) const override
+	{
+		if (index < (int)FloatingTileContent::PanelPropertyId::numPropertyIds)
+			return FloatingTileContent::getDefaultablePropertyId(index);
+
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ContentFile, "ContentFile");
+
+		jassertfalse;
+		return{};
+	}
+
+	var getDefaultProperty(int index) const override
+	{
+		if (index < (int)FloatingTileContent::PanelPropertyId::numPropertyIds)
+			return FloatingTileContent::getDefaultProperty(index);
+
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ContentFile, "");
+
+		jassertfalse;
+		return{};
+	}
+
+
+	void resized() override
+	{
+		preview->setBounds(getParentShell()->getContentBounds());
+		parseContent();
+	}
+
+	ScopedPointer<MarkdownPreview> preview;
+	String contentFile;
+};
+
+
+
 } // namespace hise
 #endif  // SCRIPTINGCONTENTCOMPONENT_H_INCLUDED

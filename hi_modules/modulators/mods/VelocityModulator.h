@@ -44,7 +44,7 @@ class VelocityModulator: public VoiceStartModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("Velocity", "Velocity Modulator")
+	SET_PROCESSOR_NAME("Velocity", "Velocity Modulator", "Creates a modulation value from the velocity of a incoming message.")
 
 	/// Additional parameters
 	enum SpecialParameters

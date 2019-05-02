@@ -193,7 +193,7 @@ class LegatoProcessor: public HardcodedScriptProcessor
 {
 public:
 
-	SET_PROCESSOR_NAME("LegatoWithRetrigger", "Legato with Retrigger");
+	SET_PROCESSOR_NAME("LegatoWithRetrigger", "Legato with Retrigger", "Enables monophonic mode and retriggers the pressed key if there was a key release. ");
 
 	LegatoProcessor(MainController *mc, const String &id, ModulatorSynth *ms):
 		HardcodedScriptProcessor(mc, id, ms)
@@ -288,7 +288,7 @@ class CCSwapper: public HardcodedScriptProcessor
 {
 public:
 
-	SET_PROCESSOR_NAME("CCSwapper", "CC Swapper");
+	SET_PROCESSOR_NAME("CCSwapper", "CC Swapper", "Swaps two control change numbers.");
 
 	CCSwapper(MainController *mc, const String &id, ModulatorSynth *ms):
 		HardcodedScriptProcessor(mc, id, ms)
@@ -327,6 +327,7 @@ private:
 	ScriptingApi::Content::ScriptSlider *firstCC;
 	ScriptingApi::Content::ScriptSlider *secondCC;
 
+	JUCE_DECLARE_WEAK_REFERENCEABLE(CCSwapper);
 };
 
 /** Allows release trigger functionality with a time variant decrease of the velocity. 
@@ -337,7 +338,7 @@ class ReleaseTriggerScriptProcessor: public HardcodedScriptProcessor,
 {
 public:
 
-	SET_PROCESSOR_NAME("ReleaseTrigger", "Release Trigger");
+	SET_PROCESSOR_NAME("ReleaseTrigger", "Release Trigger", "Allows release trigger functionality with a time variant decrease of the velocity. ");
 
 	ReleaseTriggerScriptProcessor(MainController *mc, const String &id, ModulatorSynth *ms):
 		HardcodedScriptProcessor(mc, id, ms)
@@ -475,6 +476,8 @@ private:
 	float attenuationLevel;
 	int timeIndex;
 	double lengthValues[128];
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ReleaseTriggerScriptProcessor);
 };
 
 
@@ -482,7 +485,7 @@ class CCToNoteProcessor : public HardcodedScriptProcessor
 {
 public:
 
-	SET_PROCESSOR_NAME("CC2Note", "MIDI CC to Note Generator");
+	SET_PROCESSOR_NAME("CC2Note", "MIDI CC to Note Generator", "deprecated");
 
 	CCToNoteProcessor(MainController *mc, const String &id, ModulatorSynth *ms) :
 		HardcodedScriptProcessor(mc, id, ms)
@@ -608,7 +611,7 @@ class ChannelFilterScriptProcessor : public HardcodedScriptProcessor,
 {
 public:
 
-	SET_PROCESSOR_NAME("ChannelFilter", "MIDI Channel Filter");
+	SET_PROCESSOR_NAME("ChannelFilter", "MIDI Channel Filter", "Filters messages that do not fit the given channel.");
 
 	ChannelFilterScriptProcessor(MainController *mc, const String &id, ModulatorSynth *ms) :
 		HardcodedScriptProcessor(mc, id, ms)
@@ -738,6 +741,8 @@ private:
 
 	int channel;
 	BigInteger mpeRange;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ChannelFilterScriptProcessor);
 };
 
 /** Changes the MIDI channel of every incoming message.
@@ -750,7 +755,7 @@ class ChannelSetterScriptProcessor : public HardcodedScriptProcessor
 {
 public:
 
-	SET_PROCESSOR_NAME("ChannelSetter", "MIDI Channel Setter");
+	SET_PROCESSOR_NAME("ChannelSetter", "MIDI Channel Setter", "Changes the MIDI channel of every incoming message.");
 
 	ChannelSetterScriptProcessor(MainController *mc, const String &id, ModulatorSynth *ms) :
 		HardcodedScriptProcessor(mc, id, ms)
@@ -795,6 +800,7 @@ private:
 
 	int channel;
 
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ChannelSetterScriptProcessor);
 };
 
 /** Mutes the incoming note-on messages, but leaves everything else through.
@@ -807,7 +813,7 @@ class MuteAllScriptProcessor : public HardcodedScriptProcessor
 {
 public:
 
-	SET_PROCESSOR_NAME("MidiMuter", "MidiMuter");
+	SET_PROCESSOR_NAME("MidiMuter", "MidiMuter", "Mutes the incoming note-on messages, but leaves everything else through.");
 
 	MuteAllScriptProcessor(MainController *mc, const String &id, ModulatorSynth *ms) :
 		HardcodedScriptProcessor(mc, id, ms)
@@ -874,6 +880,8 @@ private:
 	bool fix = false;
 
 	BigInteger noteOns;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(MuteAllScriptProcessor);
 };
 
 

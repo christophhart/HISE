@@ -37,17 +37,26 @@ using namespace juce;
 
 
 
-void ExpansionHandler::Helpers::createFrontendLayoutWithExpansionEditing(FloatingTile* root)
+void ExpansionHandler::Helpers::createFrontendLayoutWithExpansionEditing(FloatingTile* root, bool putInTabWithMainInterface)
 {
 #if HI_ENABLE_EXPANSION_EDITING
 	FloatingInterfaceBuilder ib(root);
 
-	ib.setNewContentType<FloatingTabComponent>(0);
-
 	int mainTabs = 0;
+	int expansionRoot;
 
-	auto interface = ib.addChild<InterfaceContentPanel>(mainTabs);
-	auto expansionRoot = ib.addChild<HorizontalTile>(mainTabs);
+	if (putInTabWithMainInterface)
+	{
+		ib.setNewContentType<FloatingTabComponent>(mainTabs);
+		auto interface = ib.addChild<InterfaceContentPanel>(mainTabs);
+		expansionRoot = ib.addChild<HorizontalTile>(mainTabs);
+		ib.setCustomName(interface, "Interface");
+	}
+	else
+	{
+		ib.setNewContentType<HorizontalTile>(mainTabs);
+		expansionRoot = mainTabs;
+	}
 
 	auto topBar = ib.addChild<VerticalTile>(expansionRoot);
 
@@ -63,23 +72,30 @@ void ExpansionHandler::Helpers::createFrontendLayoutWithExpansionEditing(Floatin
 	auto connector = ib.addChild<GlobalConnectorPanel<ModulatorSampler>>(expansionRoot);
 	auto editor = ib.addChild<SampleEditorPanel>(expansionRoot);
 	auto mapEditor = ib.addChild<SampleMapEditorPanel>(expansionRoot);
-	auto keyboard = ib.addChild<MidiKeyboardPanel>(expansionRoot);
+
+	if (putInTabWithMainInterface)
+	{
+		auto keyboard = ib.addChild<MidiKeyboardPanel>(expansionRoot);
+		ib.getPanel(keyboard)->setCanBeFolded(true);
+	}
+		
 
 	ib.getContent(editor)->setStyleProperty("showConnectionBar", false);
 	ib.getContent(mapEditor)->setStyleProperty("showConnectionBar", false);
 
-	ib.setCustomName(interface, "Interface");
+	
+
+	
 	ib.setCustomName(expansionRoot, "Expansion Editing");
 
 	auto c = ib.getContent<GlobalConnectorPanel<ModulatorSampler>>(connector);
+
+	ib.setVisibility(connector, false, {});
 
 	if (auto s = ProcessorHelpers::getFirstProcessorWithType<ModulatorSampler>(root->getMainController()->getMainSynthChain()))
 	{
 		c->setContentWithUndo(s, 0);
 	}
-	
-
-	ib.getPanel(keyboard)->setCanBeFolded(true);
 
 	ib.finalizeAndReturnRoot();
 
@@ -92,8 +108,13 @@ void ExpansionHandler::Helpers::createFrontendLayoutWithExpansionEditing(Floatin
 
 bool ExpansionHandler::Helpers::isValidExpansion(const File& directory)
 {
-	return Expansion::Helpers::getExpansionInfoFile(directory, false).existsAsFile() ||
-		   Expansion::Helpers::getExpansionInfoFile(directory, true).existsAsFile();
+#if HI_ENABLE_EXPANSION_EDITING
+	return Expansion::Helpers::getExpansionInfoFile(directory, Expansion::FileBased).existsAsFile() ||
+		   Expansion::Helpers::getExpansionInfoFile(directory, Expansion::Intermediate).existsAsFile() ||
+		   Expansion::Helpers::getExpansionInfoFile(directory, Expansion::Encrypted).existsAsFile();
+#else
+	return Expansion::Helpers::getExpansionInfoFile(directory, Expansion::Encrypted).existsAsFile();
+#endif
 }
 
 juce::Identifier ExpansionHandler::Helpers::getSanitizedIdentifier(const String& idToSanitize)
@@ -107,7 +128,7 @@ ExpansionHandler::ExpansionHandler(MainController* mc_):
 	mc(mc_),
 	notifier(*this)
 {
-	createAvailableExpansions();
+	
 }
 
 void ExpansionHandler::createNewExpansion(const File& expansionFolder)
@@ -115,7 +136,7 @@ void ExpansionHandler::createNewExpansion(const File& expansionFolder)
 	if (Helpers::isValidExpansion(expansionFolder))
 		return;
 
-	expansionList.add(new Expansion(mc, expansionFolder));
+	expansionList.add(createExpansionForFile(expansionFolder));
 	notifier.sendNotification(Notifier::EventType::ExpansionCreated);
 }
 
@@ -126,7 +147,16 @@ juce::File ExpansionHandler::getExpansionFolder() const
 	if (!f.isDirectory())
 		f.createDirectory();
 
-	return f;
+#if JUCE_WINDOWS
+	auto linkFile = f.getChildFile("LinkWindows");
+#else
+	auto linkFile = f.getChildFile("LinkOSX");
+#endif
+
+	if (linkFile.existsAsFile())
+		return File(linkFile.loadFileAsString());
+	else
+		return f;
 }
 
 void ExpansionHandler::createAvailableExpansions()
@@ -135,16 +165,44 @@ void ExpansionHandler::createAvailableExpansions()
 
 	getExpansionFolder().findChildFiles(folders, File::findDirectories, false);
 
+	bool didSomething = false;
+
 	for (auto f : folders)
 	{
+		bool exists = false;
+
+		for (auto e : expansionList)
+		{
+			if (e->getRootFolder() == f)
+			{
+				exists = true;
+				break;
+			}
+		}
+			
+		if (exists)
+			continue;
+
 		if (Helpers::isValidExpansion(f))
 		{
-			expansionList.add(new Expansion(mc, f));
+			expansionList.add(createExpansionForFile(f));
+			didSomething = true;
 		}
 	}
 
-	notifier.sendNotification(Notifier::EventType::ExpansionCreated);
+	if(didSomething)
+		notifier.sendNotification(Notifier::EventType::ExpansionCreated);
 }
+
+
+#if !HISE_USE_CUSTOM_EXPANSION_TYPE
+hise::Expansion* ExpansionHandler::createExpansionForFile(const File& f)
+{
+	auto e = new Expansion(mc, f);
+	e->initialise();
+	return e;
+}
+#endif
 
 var ExpansionHandler::getListOfAvailableExpansions() const
 {
@@ -152,7 +210,7 @@ var ExpansionHandler::getListOfAvailableExpansions() const
 
 	for (auto e : expansionList)
 	{
-		ar.add(e->name.get());
+		ar.add(e->getProperty(ExpansionIds::Name));
 	}
 
 	return var(ar);
@@ -170,7 +228,7 @@ bool ExpansionHandler::setCurrentExpansion(const String& expansionName)
 
 	for (auto e : expansionList)
 	{
-		if (e->name == expansionName)
+		if (e->getProperty(ExpansionIds::Name) == expansionName)
 		{
 			currentExpansion = e;
 
@@ -225,7 +283,7 @@ hise::Expansion* ExpansionHandler::getExpansionForWildcardReference(const String
 	{
 		for (auto e : expansionList)
 		{
-			if (e->name == id)
+			if (e->getProperty(ExpansionIds::Name) == id)
 				return e;
 		}
 
@@ -244,77 +302,19 @@ void ExpansionHandler::clearPools()
 		
 }
 
-PoolCollection* ExpansionHandler::getCurrentPoolCollection()
+PoolCollection* ExpansionHandler::getCurrentPoolCollection2()
     {
         return mc->getCurrentFileHandler().pool;
     }
-    
-var Expansion::getSampleMapList()
+
+
+hise::PoolReference Expansion::createReferenceForFile(const String& relativePath, FileHandlerBase::SubDirectories fileType)
 {
-	if (isEncrypted)
-	{
-		jassertfalse;
-		return var();
-	}
-	else
-	{
-		return getFileListInternal(ProjectHandler::SubDirectories::SampleMaps, "*.xml", false);
-	}
-}
+	auto directory = getSubDirectory(fileType);
 
-var Expansion::getImageList()
-{
-	if (isEncrypted)
-	{
-		jassertfalse;
-		return var();
-	}
-	else
-	{
-		return getFileListInternal(ProjectHandler::SubDirectories::Images, "*.png;*.jpg;*.PNG;*.JPG", true);
-	}
-}
+	auto p = directory.getChildFile(relativePath);
 
-var Expansion::getAudioFileList()
-{
-	if (isEncrypted)
-	{
-		jassertfalse;
-		return var();
-	}
-	else
-	{
-		return getFileListInternal(ProjectHandler::SubDirectories::AudioFiles, afm.getWildcardForAllFormats(), true);
-	}
-}
-
-var Expansion::getFileListInternal(ProjectHandler::SubDirectories type, const String& wildcards, bool addExtension)
-{
-	Array<var> list;
-
-	Array<File> childFiles;
-
-	auto subRoot = getSubDirectory(type);
-
-	subRoot.findChildFiles(childFiles, File::findFiles, true, wildcards);
-
-	childFiles.sort();
-
-	for (int i = 0; i < childFiles.size(); i++)
-	{
-		auto n = childFiles[i].getRelativePathFrom(subRoot);
-		
-		n = n.replace(File::getSeparatorString(), "/");
-		
-		if (!addExtension)
-		{
-			n = n.upToLastOccurrenceOf(".", false, true);
-		}
-		
-		list.add(n);
-	}
-
-	return var(list);
+	return PoolReference(getMainController(), p.getFullPathName(), fileType);
 }
 
 
@@ -333,6 +333,7 @@ PooledImage Expansion::loadImageFile(const PoolReference& imageId)
 	return pool->getImagePool().loadFromReference(imageId, PoolHelpers::LoadAndCacheWeak);
 }
 
+#if 0
 juce::String Expansion::getSampleMapReference(const String& sampleMapId)
 {
 	if (isEncrypted)
@@ -360,38 +361,13 @@ juce::String Expansion::getSampleMapReference(const String& sampleMapId)
 		return {};
 	}
 }
+#endif
 
-juce::ValueTree Expansion::getSampleMap(const String& sampleMapId)
+PooledAdditionalData Expansion::loadAdditionalData(const String& relativePath)
 {
-	if (isEncrypted)
-	{
-		jassertfalse;
-		return ValueTree();
-	}
-	else
-	{
-		Array<File> sampleMapFiles;
-		getSubDirectory(ProjectHandler::SubDirectories::SampleMaps).findChildFiles(sampleMapFiles, File::findFiles, true, "*.xml");
+	auto ref = createReferenceForFile(relativePath, FileHandlerBase::AdditionalSourceCode);
 
-		String expStart = "{EXP::" + name.get() + "}";
-
-		for (auto f : sampleMapFiles)
-		{
-			String thisId = expStart + f.getFileNameWithoutExtension();
-
-			if (thisId == sampleMapId)
-			{
-				ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
-
-				if (xml != nullptr)
-				{
-					return ValueTree::fromXml(*xml);
-				}
-			}
-		}
-
-		throw String("!Sample Map with id " + sampleMapId.fromFirstOccurrenceOf("}", false, false) + " not found");
-	}
+	return pool->getPool<AdditionalDataReference>()->loadFromReference(ref, PoolHelpers::LoadAndCacheWeak);
 }
 
 juce::String Expansion::Helpers::getExpansionIdFromReference(const String& referenceId)

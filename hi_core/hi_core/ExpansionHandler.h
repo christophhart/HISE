@@ -38,99 +38,220 @@ using namespace juce;
 
 class FloatingTile;
 
+#define DECLARE_ID(x) static const Identifier x(#x);
 
+namespace ExpansionIds
+{
+DECLARE_ID(ExpansionInfo);
+DECLARE_ID(PrivateInfo);
+DECLARE_ID(Name);
+DECLARE_ID(ProjectName);
+DECLARE_ID(Version);
+DECLARE_ID(Key);
+DECLARE_ID(PoolData);
+DECLARE_ID(Data);
+}
+
+#undef DECLARE_ID
 
 class Expansion: public FileHandlerBase
 {
 public:
 
+	enum ExpansionType
+	{
+		FileBased,
+		Intermediate,
+		Encrypted,
+		numExpansionType
+	};
+
 	Expansion(MainController* mc, const File& expansionFolder) :
 		FileHandlerBase(mc),
-		root(expansionFolder),
-		v(loadValueTree()),
-		name(v, "Name", nullptr, expansionFolder.getFileNameWithoutExtension()),
-#if USE_BACKEND
-		projectName(v, "ProjectName", nullptr, "unused"),
-		projectVersion(v, "ProjectName", nullptr, "1.0.0"),
-#else
-		projectName(v, "ProjectName", nullptr, FrontendHandler::getProjectName()),
-		projectVersion(v, "ProjectName", nullptr, FrontendHandler::getVersionString()),
-#endif
-		version(v, "Version", nullptr, "1.0.0"),
-		blowfishKey(v, "Key", nullptr, Helpers::createBlowfishKey())
+		root(expansionFolder)
 	{
-		
-
-		addMissingFolders();
-
 		afm.registerBasicFormats();
 		afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
-
-		
-		saveExpansionInfoFile();
 	}
 
 	~Expansion()
 	{
 		saveExpansionInfoFile();
-
-		
 	}
+
+	
+
+	/** Override this method and initialise the expansion. You need to do at least those things:
+	
+		- create a Data object
+	    - setup the pools
+	*/
+	virtual void initialise() 
+	{
+		addMissingFolders();
+		pool->getSampleMapPool().loadAllFilesFromProjectFolder();
+
+		data = new Data(root, Helpers::loadValueTreeForFileBasedExpansion(root));
+
+		saveExpansionInfoFile();
+	};
+
+	virtual void encodeExpansion()
+	{
+		jassertfalse;
+	}
+
+	virtual ExpansionType getExpansionType() const { return ExpansionType::FileBased; }
 
 	File getRootFolder() const override { return root; }
 
-	var getSampleMapList();
-
-	var getAudioFileList();
-
-	var getImageList();
+	virtual PoolReference createReferenceForFile(const String& relativePath, FileHandlerBase::SubDirectories fileType);
 
 	PooledAudioFile loadAudioFile(const PoolReference& audioFileId);
 
 	PooledImage loadImageFile(const PoolReference& imageId);
 
-	String getSampleMapReference(const String& sampleMapId);
+	PooledAdditionalData loadAdditionalData(const String& relativePath);
 
-	ValueTree getSampleMap(const String& sampleMapId);
+#if 0
+	ValueTree getSampleMap(const String& sampleMapId)
+	{
+		if (isEncrypted)
+		{
+			jassertfalse;
+			return ValueTree();
+		}
+		else
+		{
+			Array<File> sampleMapFiles;
+			getSubDirectory(ProjectHandler::SubDirectories::SampleMaps).findChildFiles(sampleMapFiles, File::findFiles, true, "*.xml");
+
+			String expStart = "{EXP::" + name.get() + "}";
+
+			for (auto f : sampleMapFiles)
+			{
+				String thisId = expStart + f.getFileNameWithoutExtension();
+
+				if (thisId == sampleMapId)
+				{
+					ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+
+					if (xml != nullptr)
+					{
+						return ValueTree::fromXml(*xml);
+					}
+				}
+			}
+
+			throw String("!Sample Map with id " + sampleMapId.fromFirstOccurrenceOf("}", false, false) + " not found");
+		}
+	}
+#endif
+
+	bool isActive() const noexcept { return numActiveReferences != 0; }
+
+	void incActiveRefCount() { numActiveReferences++; }
+	void decActiveRefCount() 
+	{
+		jassert(numActiveReferences > 0);
+
+		numActiveReferences = jmax(0, numActiveReferences - 1);
+	}
+
+	String getProperty(const Identifier& id) const
+	{
+		if(data != nullptr)
+			return data->v.getProperty(id).toString();
+
+		jassertfalse;
+		return {};
+
+	}
+
+protected:
 
 	File root;
-	bool isEncrypted = false;
-	ValueTree v;
 
-	CachedValue<String> name;
-	CachedValue<String> projectName;
-	CachedValue<String> version;
-	CachedValue<String> projectVersion;
-	CachedValue<String> blowfishKey;
+	struct Data
+	{
+		
 
-private:
+		Data(const File& root, ValueTree expansionInfo) :
+			v(expansionInfo),
+			name(v, "Name", nullptr, root.getFileNameWithoutExtension()),
+#if USE_BACKEND
+			projectName(v, "ProjectName", nullptr, "unused"),
+			projectVersion(v, "ProjectName", nullptr, "1.0.0"),
+#else
+			projectName(v, "ProjectName", nullptr, FrontendHandler::getProjectName()),
+			projectVersion(v, "ProjectName", nullptr, FrontendHandler::getVersionString()),
+#endif
+			version(v, "Version", nullptr, "1.0.0")
+		{
+			Helpers::initCachedValue(v, name);
+			Helpers::initCachedValue(v, version);
+			Helpers::initCachedValue(v, projectName);
+			Helpers::initCachedValue(v, projectVersion);
+		}
 
-	var getFileListInternal(ProjectHandler::SubDirectories type, const String& wildcards, bool addExtension);
+		virtual ~Data() {};
+
+		ValueTree v;
+
+		CachedValue<String> name;
+		CachedValue<String> projectName;
+		CachedValue<String> version;
+		CachedValue<String> projectVersion;
+	};
+
+	ScopedPointer<Data> data;
+
+	int numActiveReferences = 0;
 
 	AudioFormatManager afm;
 
-	
+	Array<SubDirectories> getListOfPooledSubDirectories()
+	{
+		Array<SubDirectories> sub;
+		sub.add(AdditionalSourceCode);
+		sub.add(AudioFiles);
+		sub.add(Images);
+		sub.add(MidiFiles);
+		sub.add(SampleMaps);
+		
+		return sub;
+	}
 
 	void saveExpansionInfoFile()
 	{
-		if (isEncrypted)
+		if (Helpers::getExpansionInfoFile(root, Intermediate).existsAsFile() ||
+			Helpers::getExpansionInfoFile(root, Encrypted).existsAsFile())
 			return;
 
-		auto file = Helpers::getExpansionInfoFile(root, false);
+		auto file = Helpers::getExpansionInfoFile(root, FileBased);
 
-		file.replaceWithText(v.toXmlString());
+		file.replaceWithText(data->v.toXmlString());
 	}
 
 	void addMissingFolders()
 	{
+		addFolder(ProjectHandler::SubDirectories::Samples);
+
+		if (getExpansionType() != FileBased)
+			return;
+
+		addFolder(ProjectHandler::SubDirectories::AdditionalSourceCode);
 		addFolder(ProjectHandler::SubDirectories::AudioFiles);
 		addFolder(ProjectHandler::SubDirectories::Images);
 		addFolder(ProjectHandler::SubDirectories::SampleMaps);
+		addFolder(ProjectHandler::SubDirectories::MidiFiles);
 		addFolder(ProjectHandler::SubDirectories::UserPresets);
 	}
 
 	void addFolder(ProjectHandler::SubDirectories directory)
 	{
+		jassert(getExpansionType() == FileBased || directory == Samples);
+
 		auto d = root.getChildFile(ProjectHandler::getIdentifier(directory));
 
 		subDirectories.add({ directory, false, d });
@@ -139,68 +260,52 @@ private:
 			d.createDirectory();
 	}
 
-	
-
-	ValueTree loadValueTree()
+	String getWildcard() const
 	{
-		auto infoFile = Helpers::getExpansionInfoFile(root, false);
-		
-		if (infoFile.existsAsFile())
-		{
-			ScopedPointer<XmlElement> xml = XmlDocument::parse(infoFile);
-
-			if (xml != nullptr)
-			{
-				auto tree = ValueTree::fromXml(*xml);
-				isEncrypted = false;
-				return tree;
-			}
-		}
-
-		auto encryptedInfoFile = Helpers::getExpansionInfoFile(root, true);
-
-		if (encryptedInfoFile.existsAsFile())
-		{
-			isEncrypted = true;
-
-			auto tree = ValueTree("ExpansionInfo");
-
-			return tree;
-		}
-
-		isEncrypted = false;
-
-		return ValueTree("ExpansionInfo");
-	};
+		String s;
+		s << "{EXP::" << getProperty(ExpansionIds::Name) << "}";
+		return s;
+	}
 
 	struct Helpers
 	{
-		
 
-		static File getExpansionInfoFile(const File& expansionRoot, bool getEncrypted)
+
+		static ValueTree loadValueTreeForFileBasedExpansion(const File& root)
 		{
-			if (getEncrypted) return expansionRoot.getChildFile("info.hxd");
-			else			  return expansionRoot.getChildFile("expansion_info.xml");
+			auto infoFile = Helpers::getExpansionInfoFile(root, FileBased);
+
+			if (infoFile.existsAsFile())
+			{
+				ScopedPointer<XmlElement> xml = XmlDocument::parse(infoFile);
+
+				if (xml != nullptr)
+				{
+					auto tree = ValueTree::fromXml(*xml);
+					return tree;
+				}
+			}
+
+			return ValueTree("ExpansionInfo");
+		};
+
+		template <class T> static void initCachedValue(ValueTree v, const T& cachedValue)
+		{
+			if (!v.hasProperty(cachedValue.getPropertyID()))
+			{
+				v.setProperty(cachedValue.getPropertyID(), cachedValue.getDefault(), nullptr);
+			}
+		}
+
+		static File getExpansionInfoFile(const File& expansionRoot, ExpansionType type)
+		{
+			if (type == Encrypted)		   return expansionRoot.getChildFile("info.hxp");
+			else if (type == Intermediate) return expansionRoot.getChildFile("info.hxi");
+			else						   return expansionRoot.getChildFile("expansion_info.xml");
 		}
 
 		static String getExpansionIdFromReference(const String& referenceId);
 
-		static String createBlowfishKey()
-		{
-			MemoryBlock mb;
-			mb.setSize(72, true);
-
-			Random r;
-
-			char* data = (char*)mb.getData();
-
-			for (int i = 0; i < 72; i++)
-			{
-				data[i] = (char)r.nextInt(128);
-			}
-
-			return mb.toBase64Encoding();
-		}
 	};
 
 	friend class ExpansionHandler;
@@ -237,7 +342,7 @@ public:
 
 	struct Helpers
 	{
-		static void createFrontendLayoutWithExpansionEditing(FloatingTile* root);
+		static void createFrontendLayoutWithExpansionEditing(FloatingTile* root, bool putInTabWithMainInterface=true);
 		static bool isValidExpansion(const File& directory);
 		static Identifier getSanitizedIdentifier(const String& idToSanitize);
 	};
@@ -245,6 +350,8 @@ public:
 	void createNewExpansion(const File& expansionFolder);
 	File getExpansionFolder() const;
 	void createAvailableExpansions();
+
+	Expansion* createExpansionForFile(const File& f);
 
 	var getListOfAvailableExpansions() const;
 
@@ -286,14 +393,15 @@ public:
 
 	Expansion* getCurrentExpansion() const { return currentExpansion.get(); }
 
-	template <class DataType> SharedPoolBase<DataType>* getCurrentPool()
+	template <class DataType> SharedPoolBase<DataType>* getCurrentPool2()
 	{
 		return getCurrentPoolCollection()->getPool<DataType>();
 	}
 
-    PoolCollection* getCurrentPoolCollection();
+    PoolCollection* getCurrentPoolCollection2();
     
 	void clearPools();
+
 private:
 
 	template <class DataType> void getPoolForReferenceString(const PoolReference& p, SharedPoolBase<DataType>** pool)
@@ -303,9 +411,12 @@ private:
 		ignoreUnused(p, type);
 		jassert(p.getFileType() == type);
 		
-        PoolCollection* poolCollection = getCurrentPoolCollection();
-
-		*pool = poolCollection->getPool<DataType>();
+		if (auto e = getExpansionForWildcardReference(p.getReferenceString()))
+		{
+			*pool = e->pool->getPool<DataType>();
+		}
+		else
+			*pool = mc->getCurrentFileHandler().pool->getPool<DataType>();
 	}
 
 	struct Notifier : private AsyncUpdater
@@ -330,7 +441,7 @@ private:
 
 			if (notificationType == sendNotificationAsync)
 			{
-				triggerAsyncUpdate();
+				IF_NOT_HEADLESS(triggerAsyncUpdate());
 			}
 			else if (notificationType == sendNotificationSync)
 			{

@@ -51,15 +51,17 @@ public:
 		numParameters
 	};
 
-	SET_PROCESSOR_NAME("Analyser", "Analyser")
+	SET_PROCESSOR_NAME("Analyser", "Analyser", "A audio analysis module");
 
-		AnalyserEffect(MainController *mc, const String &uid) :
+	AnalyserEffect(MainController *mc, const String &uid) :
 		MasterEffectProcessor(mc, uid)
 	{
 		finaliseModChains();
 
-		parameterNames.add("PreviewType");
+		parameterNames.add("PreviewType"); 
+		parameterDescriptions.add("The index of the visualisation type.");
 		parameterNames.add("BufferSize");
+		parameterDescriptions.add("The buffer size of the internal ring buffer.");
 
 		setAnalyserBufferSize(8192);
 
@@ -191,6 +193,7 @@ private:
     
 	AudioSampleBuffer internalBuffer;
 
+	JUCE_DECLARE_WEAK_REFERENCEABLE(AnalyserEffect);
 };
 
 
@@ -231,6 +234,11 @@ public:
 
 		SET_PANEL_NAME("AudioAnalyser");
 
+		Identifier getProcessorTypeId() const override
+		{
+			return AnalyserEffect::getClassType();
+		}
+
 		Component* createContentComponent(int index) override;
 
 		void fillModuleList(StringArray& moduleList) override
@@ -249,6 +257,8 @@ protected:
 	const AnalyserEffect* getAnalyser() const;
 
 	WeakReference<Processor> processor;
+
+	
 };
 
 class FFTDisplay : public AudioAnalyserComponent

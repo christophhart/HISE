@@ -40,7 +40,7 @@ class CCDucker : public TimeVariantModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("CCDucker", "CC Ducker")
+	SET_PROCESSOR_NAME("CCDucker", "CC Ducker", "deprecated")
 
 		/** The special Parameters for the Modulator. */
 	enum SpecialParameters

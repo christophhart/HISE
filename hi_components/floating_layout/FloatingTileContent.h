@@ -585,6 +585,10 @@ public:
 	{
 	public:
 
+		
+
+		
+
 		enum class PopupMenuOptions
 		{
 			Cancel = 0,
@@ -641,6 +645,8 @@ public:
 			SampleMapBrowser,
 			WavetablePreview,
 			AHDSRGraph,
+			MarkdownEditor,
+			MarkdownPreviewPanel,
 			FilterGraphPanel,
 			MPEPanel,
 			Matrix2x2,
@@ -676,6 +682,8 @@ public:
 
 		void handlePopupMenu(PopupMenu& m, FloatingTile* parent);
 
+		void registerLayoutPanelTypes();
+
 		void registerAllPanelTypes();
 
 		void registerFrontendPanelTypes();
@@ -684,12 +692,13 @@ public:
 		void registerExternalPanelTypes();
 #endif
 
-
 		Drawable* getIcon(PopupMenuOptions type) const;
 
 		static Path getPath(PopupMenuOptions path);
 
 		void addToPopupMenu(PopupMenu& m, PopupMenuOptions type, const String& name, bool isEnabled=true, bool isTicked=false);
+
+		PopupMenuOptions getIndex(int i) const { return idIndexes[i]; }
 
 	private:
 
@@ -702,6 +711,24 @@ public:
 		Array<Identifier> ids;
 		Array<PopupMenuOptions> idIndexes;
 		Array <PCreateFunc> functions;;
+	};
+
+	struct FloatingTilePathFactory: public hise::PathFactory
+	{
+		FloatingTilePathFactory()
+		{
+			f.registerAllPanelTypes();
+
+			for (const auto& id : f.getIdList())
+				ids.add(MarkdownLink::Helpers::getSanitizedFilename(id.toString()));
+		}
+
+		String getId() const override { return "FloatingTile Icons"; };
+
+		Path createPath(const String& id) const override;
+
+		StringArray sa;
+		Factory f;
 	};
 
 	/** @internal */
@@ -729,6 +756,8 @@ public:
 			return defaultValue;
 	}
 
+	int getPreferredHeight() const;
+
 protected:
 
 	/** Overwrite this method if the component has a fixed width. */
@@ -736,6 +765,7 @@ protected:
 
 	/** Overwrite this method if the component has a fixed height. */
 	virtual int getFixedHeight() const { return 0; }
+	
 	
 	
 

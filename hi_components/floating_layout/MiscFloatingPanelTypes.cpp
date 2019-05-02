@@ -610,4 +610,9 @@ void ActivationWindow::refreshStatusLabel()
 
 }
 
+juce::Identifier PlotterPanel::getProcessorTypeId() const
+{
+	return LfoModulator::getClassType();
+}
+
 } // namespace hise

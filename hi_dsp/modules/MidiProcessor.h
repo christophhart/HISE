@@ -159,7 +159,7 @@ class MidiProcessorChain: public MidiProcessor,
 {
 public:
 
-	SET_PROCESSOR_NAME("MidiProcessorChain", "Midi Processor Chain");
+	SET_PROCESSOR_NAME("MidiProcessorChain", "Midi Processor Chain", "chain");
 
 	MidiProcessorChain(MainController *m, const String &id, Processor *ownerProcessor);
 
@@ -228,6 +228,14 @@ public:
 			processors[i]->processHiseEvent(m);
 		}
 	};
+
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override
+	{
+		Processor::prepareToPlay(sampleRate, samplesPerBlock);
+
+		for (auto p : processors)
+			p->prepareToPlay(sampleRate, samplesPerBlock);
+	}
 
 	void addWholeBufferProcessor(MidiProcessor* midiProcessor)
 	{

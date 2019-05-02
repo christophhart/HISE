@@ -176,17 +176,18 @@ public:
 	struct DataBaseHelpers
 	{
 		static void setFavorite(const var& database, const File& presetFile, bool isFavorite);
-		static void cleanFileList(Array<File>& filesToClean);
+		static void cleanFileList(MainController* mc, Array<File>& filesToClean);
 		static void writeTagsInXml(const File& currentPreset, const StringArray& tags);
 		static bool matchesTags(const StringArray& currentlyActiveTags, const File& presetToTest);
 		static void writeNoteInXml(const File& currentPreset, const String& newNote);
 		static StringArray getTagsFromXml(const File& currentPreset);
 		static String getNoteFromXml(const File& currentPreset);
+		static bool matchesAvailableExpansions(MainController* mc, const File& currentPreset);
 		static bool isFavorite(const var& database, const File& presetFile);
 		static Identifier getIdForFile(const File& presetFile);
 	};
 
-	PresetBrowserLookAndFeel pblaf;
+	ScopedPointer<PresetBrowserLookAndFeel> pblaf;
 
 	void setOptions(const Options& newOptions);
 

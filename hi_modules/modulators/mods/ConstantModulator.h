@@ -43,7 +43,7 @@ class ConstantModulator: public VoiceStartModulator
 {
 public:
 
-	SET_PROCESSOR_NAME("Constant", "Constant")	
+	SET_PROCESSOR_NAME("Constant", "Constant", "creates a constant modulation signal (1.0).");
 
 	/// Additional Parameters for the constant modulator
 	enum SpecialParameters
@@ -79,7 +79,9 @@ public:
 
 private:
 
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ConstantModulator)
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ConstantModulator);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ConstantModulator);
+
 };
 
 

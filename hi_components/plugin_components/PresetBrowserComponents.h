@@ -52,15 +52,14 @@ public:
 
 	void drawListItem(Graphics& g, int columnIndex, int rowNumber, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode);
 
+	virtual void drawColumnBackground(Graphics& g, Rectangle<int> listArea, const String& emptyText);
 
-	void drawColumnBackground(Graphics& g, Rectangle<int> listArea, const String& emptyText);
+	virtual void drawTag(Graphics& g, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position);
 
-	void drawTag(Graphics& g, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position);
-
-	void drawPresetBrowserBackground(Graphics& g, PresetBrowser& p);
+	virtual void drawPresetBrowserBackground(Graphics& g, PresetBrowser& p);
 
 
-	void drawModalOverlay(Graphics& g, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command);
+	virtual void drawModalOverlay(Graphics& g, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command);
 
 	enum ColourIds
 	{
@@ -99,20 +98,9 @@ protected:
 	Component::SafePointer<PresetBrowser> parent;
 };
 
-class BetterLabel : public Label,
-					public PresetBrowserChildComponentBase
+class NiceLabel : public Label
 {
 public:
-
-	BetterLabel(PresetBrowser* p) :
-		PresetBrowserChildComponentBase(p)
-	{}
-
-	void update() override
-	{
-		setColour(Label::backgroundColourId, getPresetBrowserLookAndFeel().highlightColour.withAlpha(0.1f));
-		setFont(getPresetBrowserLookAndFeel().font);
-	}
 
 	virtual TextEditor* createEditorComponent()
 	{
@@ -142,6 +130,24 @@ public:
 	}
 
 	bool refreshWithEachKey = true;
+};
+
+class BetterLabel : public NiceLabel,
+					public PresetBrowserChildComponentBase
+{
+public:
+
+	BetterLabel(PresetBrowser* p) :
+		PresetBrowserChildComponentBase(p)
+	{}
+
+	void update() override
+	{
+		setColour(Label::backgroundColourId, getPresetBrowserLookAndFeel().highlightColour.withAlpha(0.1f));
+		setFont(getPresetBrowserLookAndFeel().font);
+	}
+
+	
 
 };
 

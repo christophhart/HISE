@@ -52,7 +52,7 @@ class EffectProcessorChain: public Processor,
 {
 public:
 
-	SET_PROCESSOR_NAME("EffectChain", "FX Chain")
+	SET_PROCESSOR_NAME("EffectChain", "FX Chain", "chain");
 
 	EffectProcessorChain(Processor *parentProcessor, const String &id, int numVoices);
 

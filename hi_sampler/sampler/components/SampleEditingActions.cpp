@@ -1189,7 +1189,7 @@ bool SampleEditHandler::SampleEditingActions::metadataWasFound(ModulatorSampler*
 	while (auto sound = sIter.getNextSound())
 		sounds.add(sound.get());
 
-	AudioFormatManager *afm = &(sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->afm);
+	AudioFormatManager *afm = &(sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool2()->afm);
 
 	for (int i = 0; i < sounds.size(); i++)
 	{
@@ -1232,7 +1232,7 @@ void SampleEditHandler::SampleEditingActions::automapUsingMetadata(ModulatorSamp
 		sounds.add(sound.get());
 	}
 
-	AudioFormatManager *afm = &(sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->afm);
+	AudioFormatManager *afm = &(sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool2()->afm);
 
 	bool metadataWasFound = false;
 

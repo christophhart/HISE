@@ -43,7 +43,7 @@ class ArrayModulator : public VoiceStartModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("ArrayModulator", "Array Modulator")
+	SET_PROCESSOR_NAME("ArrayModulator", "Array Modulator", "Creates a modulation signal from an array (note-number based).")
 
 		/// Additional Parameters for the constant modulator
 	enum SpecialParameters
@@ -115,7 +115,8 @@ private:
 
 	ScopedPointer<SliderPackData> data;
 
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ArrayModulator)
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ArrayModulator);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ArrayModulator);
 };
 
 

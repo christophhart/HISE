@@ -271,6 +271,12 @@ void GainEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int num
 		FloatVectorOperations::multiply(buffer.getWritePointer(0, startIndex), leftGain, samplesToCopy);
 		FloatVectorOperations::multiply(buffer.getWritePointer(1, startIndex), rightGain, samplesToCopy);
 	}
+
+
+#if ENABLE_PEAK_METERS_FOR_GAIN_EFFECT
+	currentValues.outL = buffer.getMagnitude(0, startIndex, samplesToCopy);
+	currentValues.outR = buffer.getMagnitude(1, startIndex, samplesToCopy);
+#endif
 }
 
 

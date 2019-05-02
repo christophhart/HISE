@@ -32,17 +32,29 @@
 
 namespace hise { using namespace juce;
 
-void FloatingTileContent::Factory::registerAllPanelTypes()
+void FloatingTileContent::Factory::registerLayoutPanelTypes()
 {
-	
 	registerType<SpacerPanel>(PopupMenuOptions::Spacer);
 	registerType<VisibilityToggleBar>(PopupMenuOptions::VisibilityToggleBar);
 	registerType<HorizontalTile>(PopupMenuOptions::HorizontalTile);
 	registerType<VerticalTile>(PopupMenuOptions::VerticalTile);
 	registerType<FloatingTabComponent>(PopupMenuOptions::Tabs);
+}
+
+
+
+void FloatingTileContent::Factory::registerAllPanelTypes()
+{
+	registerLayoutPanelTypes();
+	
 	registerType<Note>(PopupMenuOptions::Note);
 
 	registerType<ExpansionEditBar>(PopupMenuOptions::ExpansionEditBar);
+
+	registerType<PoolTableSubTypes::ImageFilePoolTable>(PopupMenuOptions::ImageTable);
+	registerType<PoolTableSubTypes::MidiFilePoolTable>(PopupMenuOptions::MidiFilePoolTable);
+	registerType<PoolTableSubTypes::AudioFilePoolTable>(PopupMenuOptions::AudioFileTable);
+	registerType<PoolTableSubTypes::SampleMapPoolTable>(PopupMenuOptions::SampleMapPoolTable);
 
 #if USE_BACKEND
 	registerType<GenericPanel<MacroComponent>>(PopupMenuOptions::MacroControls);
@@ -52,33 +64,21 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<GenericPanel<PatchBrowser>>(PopupMenuOptions::PatchBrowser);
 	registerType<GenericPanel<FileBrowser>>(PopupMenuOptions::FileBrowser);
 	registerType<GenericPanel<SamplePoolTable>>(PopupMenuOptions::SamplePoolTable);
-	registerType<GenericPanel<PoolTableSubTypes::ImageFilePoolTable>>(PopupMenuOptions::ImageTable);
-	registerType<GenericPanel<PoolTableSubTypes::MidiFilePoolTable>>(PopupMenuOptions::MidiFilePoolTable);
-	registerType<GenericPanel<PoolTableSubTypes::AudioFilePoolTable>>(PopupMenuOptions::AudioFileTable);
-	registerType<GenericPanel<PoolTableSubTypes::SampleMapPoolTable>>(PopupMenuOptions::SampleMapPoolTable);
+	
 	registerType<MainTopBar>(PopupMenuOptions::MenuCommandOffset);
 	registerType<BackendProcessorEditor>(PopupMenuOptions::MenuCommandOffset);
 	registerType<ScriptWatchTablePanel>(PopupMenuOptions::ScriptWatchTable);
 	registerType<ConsolePanel>(PopupMenuOptions::Console);
 	registerType<ScriptComponentList::Panel>(PopupMenuOptions::ScriptComponentList);
+	registerType<MarkdownEditorPanel>(PopupMenuOptions::MarkdownEditor);
 #endif
 
 	registerFrontendPanelTypes();
 
-
 	registerType<PopoutButtonPanel>(PopupMenuOptions::PopoutButton);
-	
-	
 	registerType<ActivationWindow>(PopupMenuOptions::ActivationPanel);
-
 	registerType<InterfaceContentPanel>(PopupMenuOptions::InterfaceContent);
-
-	registerType<TuningWindow::Panel>(PopupMenuOptions::TuningWindow),
-	
-
 	registerType<SampleMapBrowser>(PopupMenuOptions::SampleMapBrowser);
-
-	
 
 	//MidiSourceList
 
@@ -131,6 +131,7 @@ void FloatingTileContent::Factory::registerFrontendPanelTypes()
 	registerType<FilterGraph::Panel>(PopupMenuOptions::FilterGraphPanel);
 	registerType<MPEPanel>(PopupMenuOptions::MPEPanel);
 	registerType<AhdsrGraph::Panel>(PopupMenuOptions::AHDSRGraph);
+	registerType<MarkdownPreviewPanel>(PopupMenuOptions::MarkdownPreviewPanel);
 
 #if HI_ENABLE_EXTERNAL_CUSTOM_TILES
 	registerExternalPanelTypes();
@@ -155,7 +156,14 @@ Drawable* FloatingTileContent::Factory::getIcon(PopupMenuOptions type) const
 		return nullptr;
 }
 
-
+namespace FloatingTileIcons
+{
+static const unsigned char spacerIcon[] = { 110,109,0,120,111,66,255,167,242,66,108,0,120,111,66,0,84,4,67,108,0,134,111,66,0,84,4,67,108,0,134,111,66,128,86,4,67,108,0,195,141,66,128,86,4,67,108,0,195,141,66,128,86,1,67,108,0,120,123,66,128,86,1,67,108,0,120,123,66,255,167,242,66,108,0,120,111,
+		66,255,167,242,66,99,109,0,150,20,66,0,180,242,66,108,0,150,20,66,128,93,1,67,108,0,24,233,65,128,93,1,67,108,0,24,233,65,128,93,4,67,108,0,140,32,66,128,93,4,67,108,0,140,32,66,0,90,4,67,108,0,150,32,66,0,90,4,67,108,0,150,32,66,0,180,242,66,108,0,150,
+		20,66,0,180,242,66,99,109,0,120,232,65,0,61,24,67,108,0,120,232,65,0,61,27,67,108,0,74,20,66,0,61,27,67,108,0,74,20,66,128,63,35,67,108,0,74,32,66,128,63,35,67,108,0,74,32,66,128,63,24,67,108,0,60,32,66,128,63,24,67,108,0,60,32,66,0,61,24,67,108,0,120,
+		232,65,0,61,24,67,99,109,0,84,112,66,0,86,24,67,108,0,84,112,66,128,89,24,67,108,0,74,112,66,128,89,24,67,108,0,74,112,66,128,89,35,67,108,0,74,124,66,128,89,35,67,108,0,74,124,66,0,86,27,67,108,0,42,142,66,0,86,27,67,108,0,42,142,66,0,86,24,67,108,0,
+		84,112,66,0,86,24,67,99,101,0,0 };
+}
 
 Path FloatingTileContent::Factory::getPath(PopupMenuOptions type) 
 {
@@ -170,13 +178,9 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 		break;
 	case FloatingTileContent::Factory::PopupMenuOptions::Spacer:
 	{
-		static const unsigned char pathData[] = { 110,109,0,120,111,66,255,167,242,66,108,0,120,111,66,0,84,4,67,108,0,134,111,66,0,84,4,67,108,0,134,111,66,128,86,4,67,108,0,195,141,66,128,86,4,67,108,0,195,141,66,128,86,1,67,108,0,120,123,66,128,86,1,67,108,0,120,123,66,255,167,242,66,108,0,120,111,
-			66,255,167,242,66,99,109,0,150,20,66,0,180,242,66,108,0,150,20,66,128,93,1,67,108,0,24,233,65,128,93,1,67,108,0,24,233,65,128,93,4,67,108,0,140,32,66,128,93,4,67,108,0,140,32,66,0,90,4,67,108,0,150,32,66,0,90,4,67,108,0,150,32,66,0,180,242,66,108,0,150,
-			20,66,0,180,242,66,99,109,0,120,232,65,0,61,24,67,108,0,120,232,65,0,61,27,67,108,0,74,20,66,0,61,27,67,108,0,74,20,66,128,63,35,67,108,0,74,32,66,128,63,35,67,108,0,74,32,66,128,63,24,67,108,0,60,32,66,128,63,24,67,108,0,60,32,66,0,61,24,67,108,0,120,
-			232,65,0,61,24,67,99,109,0,84,112,66,0,86,24,67,108,0,84,112,66,128,89,24,67,108,0,74,112,66,128,89,24,67,108,0,74,112,66,128,89,35,67,108,0,74,124,66,128,89,35,67,108,0,74,124,66,0,86,27,67,108,0,42,142,66,0,86,27,67,108,0,42,142,66,0,86,24,67,108,0,
-			84,112,66,0,86,24,67,99,101,0,0 };
-
-		path.loadPathFromData(pathData, sizeof(pathData));
+		
+		path.loadPathFromData(ColumnIcons::layoutIcon, sizeof(ColumnIcons::layoutIcon));
+		//path.loadPathFromData(pathData, sizeof(pathData));
 
 		return path;
 	}
@@ -237,31 +241,14 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 	}
 	case PopupMenuOptions::MacroTable:
 	{
-		static const unsigned char pathData[] = { 110,109,201,97,103,67,46,11,152,67,98,169,154,101,67,46,11,152,67,45,29,100,67,152,139,152,67,73,77,99,67,110,22,153,67,98,100,125,98,67,68,161,153,67,201,35,98,67,251,61,154,67,201,35,98,67,174,223,154,67,108,201,35,98,67,238,4,198,67,98,201,35,98,67,
-			161,166,198,67,100,125,98,67,88,67,199,67,73,77,99,67,46,206,199,67,98,45,29,100,67,4,89,200,67,169,154,101,67,110,217,200,67,201,97,103,67,110,217,200,67,108,36,192,158,67,110,217,200,67,98,180,163,159,67,110,217,200,67,177,98,160,67,4,89,200,67,164,
-			202,160,67,46,206,199,67,98,150,50,161,67,88,67,199,67,36,95,161,67,161,166,198,67,36,95,161,67,238,4,198,67,108,36,95,161,67,174,223,154,67,98,36,95,161,67,251,61,154,67,150,50,161,67,68,161,153,67,164,202,160,67,110,22,153,67,98,177,98,160,67,152,139,
-			152,67,180,163,159,67,46,11,152,67,36,192,158,67,46,11,152,67,108,200,97,103,67,46,11,152,67,99,109,201,35,106,67,46,11,156,67,108,37,95,157,67,46,11,156,67,108,37,95,157,67,110,217,196,67,108,202,35,106,67,110,217,196,67,108,202,35,106,67,46,11,156,
-			67,99,109,36,145,136,67,46,13,159,67,98,2,212,126,67,46,13,159,67,72,231,111,67,203,131,166,67,72,231,111,67,238,170,175,67,98,72,231,111,67,17,210,184,67,2,212,126,67,110,72,192,67,36,145,136,67,110,72,192,67,98,71,184,145,67,110,72,192,67,228,46,153,
-			67,17,210,184,67,228,46,153,67,238,170,175,67,98,228,46,153,67,203,131,166,67,71,184,145,67,46,13,159,67,36,145,136,67,46,13,159,67,99,109,36,145,136,67,46,13,163,67,98,222,142,143,67,46,13,163,67,228,46,149,67,52,173,168,67,228,46,149,67,238,170,175,
-			67,98,228,46,149,67,168,168,182,67,222,142,143,67,110,72,188,67,36,145,136,67,110,72,188,67,98,153,239,133,67,110,72,188,67,184,127,131,67,109,124,187,67,100,123,129,67,174,30,186,67,108,228,77,137,67,238,115,178,67,108,36,129,134,67,174,152,175,67,108,
-			200,34,125,67,46,96,183,67,98,215,218,121,67,50,63,181,67,72,231,119,67,143,147,178,67,72,231,119,67,238,170,175,67,98,72,231,119,67,52,173,168,67,106,147,129,67,46,13,163,67,36,145,136,67,46,13,163,67,99,101,0,0 };
-
-		
-		path.loadPathFromData(pathData, sizeof(pathData));
+		path.loadPathFromData(MainToolbarIcons::macroControlTable, sizeof(MainToolbarIcons::macroControlTable));
 
 		break;
 	}
 	case PopupMenuOptions::PresetBrowser:
 	{
-		static const unsigned char pathData[] = { 110,109,0,58,235,67,0,39,153,67,108,0,206,229,67,64,182,167,67,108,192,69,214,67,64,12,168,67,108,192,113,226,67,0,180,177,67,108,128,246,221,67,64,148,192,67,108,64,232,234,67,128,252,183,67,108,192,171,247,67,128,216,192,67,108,128,189,246,67,128,129,
-			189,67,108,128,127,243,67,0,225,177,67,108,64,222,255,67,128,122,168,67,108,64,88,240,67,64,210,167,67,108,0,58,235,67,0,39,153,67,99,109,128,38,235,67,128,133,160,67,108,64,139,238,67,64,63,170,67,108,0,214,248,67,192,174,170,67,108,128,162,240,67,128,
-			234,176,67,108,192,102,243,67,192,214,186,67,108,64,240,234,67,0,247,180,67,108,64,91,226,67,128,169,186,67,108,192,83,229,67,128,204,176,67,108,128,65,221,67,128,101,170,67,108,64,142,231,67,192,44,170,67,108,128,38,235,67,128,133,160,67,99,101,0,0 };
-
-		
-		path.loadPathFromData(pathData, sizeof(pathData));
-
+		path.loadPathFromData(MainToolbarIcons::presetBrowser, sizeof(MainToolbarIcons::presetBrowser));
 		break;
-
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::MidiKeyboard:
 #if USE_BACKEND
@@ -322,6 +309,17 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 
 		break;
 	}
+	case PopupMenuOptions::MarkdownPreviewPanel:
+	{
+		static const unsigned char pathData[] = { 110,109,219,137,109,68,0,0,64,67,108,39,177,147,66,0,0,64,67,98,12,130,4,66,0,0,64,67,0,0,0,0,131,32,97,67,0,0,0,0,74,236,132,67,108,0,0,0,0,220,137,61,68,98,0,0,0,0,0,184,71,68,12,130,4,66,0,0,80,68,39,177,147,66,0,0,80,68,108,219,137,109,68,0,0,80,
+68,98,0,184,119,68,0,0,80,68,0,0,128,68,0,184,71,68,0,0,128,68,219,137,61,68,108,0,0,128,68,74,236,132,67,98,0,0,128,68,131,32,97,67,0,184,119,68,0,0,64,67,219,137,109,68,0,0,64,67,99,109,0,0,16,68,0,248,47,68,108,0,0,224,67,0,0,48,68,108,0,0,224,67,
+0,0,0,68,108,0,0,176,67,238,196,30,68,108,0,0,128,67,0,0,0,68,108,0,0,128,67,0,0,48,68,108,0,0,0,67,0,0,48,68,108,0,0,0,67,0,0,160,67,108,0,0,128,67,0,0,160,67,108,0,0,176,67,0,0,224,67,108,0,0,224,67,0,0,160,67,108,0,0,16,68,0,240,159,67,108,0,0,16,
+68,0,248,47,68,99,109,211,197,63,68,0,248,55,68,108,0,0,24,68,0,0,0,68,108,0,0,48,68,0,0,0,68,108,0,0,48,68,0,0,160,67,108,0,0,80,68,0,0,160,67,108,0,0,80,68,0,0,0,68,108,0,0,104,68,0,0,0,68,108,211,197,63,68,0,248,55,68,99,101,0,0 };
+
+		path.loadPathFromData(pathData, sizeof(pathData));
+		break;
+	}
+	case PopupMenuOptions::MarkdownEditor:
 	case FloatingTileContent::Factory::PopupMenuOptions::ScriptEditor:
 	{
 		path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor));
@@ -330,14 +328,14 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 	case FloatingTileContent::Factory::PopupMenuOptions::ScriptContent:
 	{
 #if USE_BACKEND
-		path.loadPathFromData(BackendBinaryData::ToolbarIcons::customInterface, sizeof(BackendBinaryData::ToolbarIcons::customInterface));
+		path.loadPathFromData(MainToolbarIcons::home, sizeof(MainToolbarIcons::home));
 #endif
 		break;
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::ScriptComponentList:
 	{
 #if USE_BACKEND
-		path.loadPathFromData(BackendBinaryData::ToolbarIcons::customInterface, sizeof(BackendBinaryData::ToolbarIcons::customInterface));
+		path.loadPathFromData(MainToolbarIcons::home, sizeof(MainToolbarIcons::home));
 #endif
 		break;
 	}
@@ -394,15 +392,7 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 	}
 	case PopupMenuOptions::SampleEditor:
 	{
-		static const unsigned char pathData[] = { 110,109,0,252,128,66,64,154,192,67,108,0,0,118,66,192,173,192,67,108,97,252,116,66,11,194,208,67,108,216,29,117,66,17,195,208,67,108,1,214,128,66,70,148,206,67,108,1,4,135,66,134,66,221,67,108,232,242,137,66,33,50,224,67,108,1,254,140,66,133,61,221,67,
-			108,1,100,145,66,197,114,207,67,108,1,4,149,66,5,66,216,67,108,30,39,152,66,5,89,218,67,108,1,251,154,66,69,69,216,67,108,1,145,158,66,133,204,208,67,108,1,160,162,66,5,140,214,67,108,1,178,167,66,197,2,212,67,108,1,190,172,66,69,42,215,67,108,1,72,180,
-			66,5,40,207,67,108,1,111,187,66,69,106,213,67,108,1,231,193,66,5,164,209,67,108,1,178,197,66,197,2,212,67,108,1,19,203,66,5,82,209,67,108,74,135,210,66,69,12,210,67,108,184,240,225,66,206,230,208,67,108,73,111,212,66,32,175,208,67,108,109,246,209,66,
-			23,165,208,67,108,0,237,200,66,197,10,207,67,108,0,78,198,66,69,90,208,67,108,0,24,194,66,197,184,205,67,108,0,145,188,66,133,242,208,67,108,0,184,179,66,133,52,201,67,108,0,65,171,66,69,50,210,67,108,0,78,168,66,5,90,208,67,108,0,96,165,66,5,209,209,
-			67,108,0,244,160,66,5,141,203,67,108,194,173,157,66,82,211,200,67,108,0,5,155,66,131,151,203,67,108,0,58,152,66,67,104,209,67,108,0,255,147,66,67,32,199,67,108,67,242,143,66,187,61,197,67,108,0,5,142,66,131,36,199,67,108,0,150,137,66,3,9,213,67,108,0,
-			252,128,66,67,154,192,67,99,101,0,0 };
-
-		path.loadPathFromData(pathData, sizeof(pathData));
-
+		path.loadPathFromData(MainToolbarIcons::samplerWorkspace , sizeof(MainToolbarIcons::samplerWorkspace));
 		return path;
 	}
 	case PopupMenuOptions::SampleMapEditor:
@@ -502,10 +492,8 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 	}
 	case PopupMenuOptions::numOptions:
 	{
-		static const unsigned char pathData[] = { 110,109,0,0,117,67,64,174,143,67,108,0,0,117,67,64,174,168,67,108,0,0,130,67,64,174,168,67,108,0,0,130,67,64,174,143,67,108,0,0,117,67,64,174,143,67,99,109,0,128,132,67,64,174,143,67,108,0,128,132,67,64,174,168,67,108,0,0,150,67,64,174,168,67,108,0,0,
-			150,67,64,174,143,67,108,0,128,132,67,64,174,143,67,99,109,0,128,152,67,64,174,143,67,108,0,128,152,67,64,174,168,67,108,0,0,160,67,64,174,168,67,108,0,0,160,67,64,174,143,67,108,0,128,152,67,64,174,143,67,99,101,0,0 };
-
-		path.loadPathFromData(pathData, sizeof(pathData));
+		
+		path.loadPathFromData(MainToolbarIcons::mainWorkspace, sizeof(MainToolbarIcons::mainWorkspace));
 
 		return path;
 	}
@@ -632,6 +620,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(fm, PopupMenuOptions::SampleMapBrowser, "Sample Map Browser");
 			addToPopupMenu(fm, PopupMenuOptions::AudioAnalyser, "Audio Analyser");
 			addToPopupMenu(fm, PopupMenuOptions::MPEPanel, "MPE Panel");
+			addToPopupMenu(fm, PopupMenuOptions::MarkdownPreviewPanel, "Markdown Panel");
 
 			m.addSubMenu("Frontend Panels", fm);
 
@@ -688,6 +677,8 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::SamplerTable:		parent->setNewContent(GET_PANEL_NAME(SamplerTablePanel)); break;
 	case PopupMenuOptions::WavetablePreview:	parent->setNewContent(GET_PANEL_NAME(WaveformComponent::Panel)); break;
 	case PopupMenuOptions::AHDSRGraph:			parent->setNewContent(GET_PANEL_NAME(AhdsrGraph::Panel)); break;
+	case PopupMenuOptions::MarkdownPreviewPanel:parent->setNewContent(GET_PANEL_NAME(MarkdownPreviewPanel)); break;
+	case PopupMenuOptions::MarkdownEditor:		parent->setNewContent(GET_PANEL_NAME(MarkdownEditorPanel)); break;
 	case PopupMenuOptions::FilterGraphPanel:	parent->setNewContent(GET_PANEL_NAME(FilterGraph::Panel)); break;
 	case PopupMenuOptions::MPEPanel:			parent->setNewContent(GET_PANEL_NAME(MPEPanel)); break;
 	case PopupMenuOptions::ScriptEditor:		parent->setNewContent(GET_PANEL_NAME(CodeEditorPanel)); break;
@@ -717,10 +708,10 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::SamplePoolTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<SamplePoolTable>)); break;
 	case PopupMenuOptions::SampleMapBrowser:	parent->setNewContent(GET_PANEL_NAME(SampleMapBrowser)); break;
 	case PopupMenuOptions::AboutPage:			parent->setNewContent(GET_PANEL_NAME(AboutPagePanel)); break;
-	case PopupMenuOptions::AudioFileTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<PoolTableSubTypes::AudioFilePoolTable>)); break;
-	case PopupMenuOptions::SampleMapPoolTable:  parent->setNewContent(GET_PANEL_NAME(GenericPanel<PoolTableSubTypes::SampleMapPoolTable>)); break;
-	case PopupMenuOptions::ImageTable:			parent->setNewContent(GET_PANEL_NAME(GenericPanel<PoolTableSubTypes::ImageFilePoolTable>)); break;
-	case PopupMenuOptions::MidiFilePoolTable:  parent->setNewContent(GET_PANEL_NAME(GenericPanel<PoolTableSubTypes::MidiFilePoolTable>)); break;
+	case PopupMenuOptions::AudioFileTable:		parent->setNewContent(GET_PANEL_NAME(PoolTableSubTypes::AudioFilePoolTable)); break;
+	case PopupMenuOptions::SampleMapPoolTable:  parent->setNewContent(GET_PANEL_NAME(PoolTableSubTypes::SampleMapPoolTable)); break;
+	case PopupMenuOptions::ImageTable:			parent->setNewContent(GET_PANEL_NAME(PoolTableSubTypes::ImageFilePoolTable)); break;
+	case PopupMenuOptions::MidiFilePoolTable:  parent->setNewContent(GET_PANEL_NAME( PoolTableSubTypes::MidiFilePoolTable)); break;
 	case PopupMenuOptions::ScriptWatchTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ScriptWatchTable>)); break;
 	case PopupMenuOptions::toggleGlobalLayoutMode:    parent->getRootFloatingTile()->setLayoutModeEnabled(!parent->isLayoutModeEnabled()); break;
 	case PopupMenuOptions::exportAsJSON:		SystemClipboard::copyTextToClipboard(parent->exportAsJSON()); break;

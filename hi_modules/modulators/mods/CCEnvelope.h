@@ -73,7 +73,7 @@ class CCEnvelope : public EnvelopeModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("CCEnvelope", "Midi CC Attack Envelope")
+	SET_PROCESSOR_NAME("CCEnvelope", "Midi CC Attack Envelope", "deprecated")
 
 	/// @brief special parameters for SimpleEnvelope
 	enum SpecialParameters

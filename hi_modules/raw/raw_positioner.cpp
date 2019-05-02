@@ -135,7 +135,10 @@ void Positioner::Data::apply(Component& c, StringArray& processedComponents) con
 {
 	// If you hit this, you must ensure that your root component has the same name as the positioning data.
 	jassert(c.getName() == name);
-	c.setBounds(bounds);
+
+	if(!bounds.isEmpty())
+		c.setBounds(bounds);
+
 	processedComponents.add(name);
 
 	for (int i = 0; i < c.getNumChildComponents(); i++)
@@ -178,7 +181,16 @@ juce::String Positioner::toString()
 
 void Positioner::apply(Component& c)
 {
+
 	data.apply(c, processedComponents);
+}
+
+void Positioner::applyToChildren(Component& c)
+{
+	auto originBounds = data.bounds;
+	data.bounds = {};
+	data.apply(c, processedComponents);
+	data.bounds = originBounds;
 }
 
 void Positioner::printSummary()

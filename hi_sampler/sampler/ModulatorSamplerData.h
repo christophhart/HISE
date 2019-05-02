@@ -109,8 +109,7 @@ public:
 
 	FileList createFileList();
 
-	~SampleMap()
-	{};
+	~SampleMap();;
 
 	/** Checks if the samplemap was changed and deletes it. */
 	void changeListenerCallback(SafeChangeBroadcaster *b);
@@ -153,6 +152,10 @@ public:
 		data.setProperty("ID", sampleMapId.toString(), nullptr);
     }
     
+	FileHandlerBase* getCurrentFileHandler() const;
+
+	ModulatorSamplerSoundPool* getCurrentSamplePool() const;
+
     Identifier getId() const { return sampleMapId; };
     
 	static String checkReferences(MainController* mc, ValueTree& v, const File& sampleRootFolder, Array<File>& sampleList);
@@ -514,7 +517,14 @@ public:
     
 protected:
     
+	void setError(const String& errorMessage)
+	{
+		error = errorMessage;
+	}
+
     File sampleMapFile;
+
+	File monolithDirectory;
 
 private:
 
@@ -536,7 +546,7 @@ private:
 	int numChannels;
 	int numSamples;
 	File sampleMapDirectory;
-	const File monolithDirectory;
+	
 	
 
 	String error;

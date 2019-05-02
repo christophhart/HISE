@@ -165,7 +165,7 @@ public:
 		SampleThreadPool *getGlobalSampleThreadPool() { return samplerLoaderThreadPool; }
 
 		/** returns a pointer to the global sample pool */
-		ModulatorSamplerSoundPool *getModulatorSamplerSoundPool() const { return globalSamplerSoundPool; }
+		ModulatorSamplerSoundPool *getModulatorSamplerSoundPool2() const;
 
 		void copySamplesToClipboard(const void* soundsToCopy);
 
@@ -194,6 +194,8 @@ public:
 		bool isPreloading() const noexcept { return preloadFlag; };
 
 		bool shouldSkipPreloading() const { return skipPreloading; };
+
+		ModulatorSamplerSoundPool* getModulatorSamplerSoundPool();;
 
 		/** If you load multiple samplemaps at once (eg. at startup), call this and it will coallescate the preloading. */
 		void setShouldSkipPreloading(bool skip);
@@ -238,7 +240,9 @@ public:
 			PreloadListenerUpdater(SampleManager* manager_) :
 				manager(manager_)
 			{
+#if !HISE_HEADLESS
 				startTimer(30);
+#endif
 			};
 
 			~PreloadListenerUpdater()
@@ -248,7 +252,11 @@ public:
 
 			void triggerAsyncUpdate()
 			{
+#if HISE_HEADLESS
+				handleAsyncUpdate();
+#else
 				dirty = true;
+#endif
 			}
 
 		private:
@@ -298,7 +306,6 @@ public:
 		ValueTree sampleClipboard;
 		ValueTree sampleMaps;
 
-		ScopedPointer<ModulatorSamplerSoundPool> globalSamplerSoundPool;
 		ScopedPointer<SampleThreadPool> samplerLoaderThreadPool;
 
 		bool hddMode = false;
@@ -1035,67 +1042,54 @@ public:
 
 	GlobalHiseLookAndFeel& getGlobalLookAndFeel() const { return *mainLookAndFeel; }
 
-	const FileHandlerBase& getCurrentFileHandler(bool forceDefault=false) const
+	const FileHandlerBase& getCurrentFileHandler() const
 	{
-		if (forceDefault)
-			return getSampleManager().getProjectHandler();
-
-		if (auto e = getExpansionHandler().getCurrentExpansion())
-			return *e;
-
 		return getSampleManager().getProjectHandler();
 	}
 
-	FileHandlerBase& getCurrentFileHandler(bool forceDefault=false)
+	FileHandlerBase& getCurrentFileHandler()
 	{
-		if(forceDefault)
-			return getSampleManager().getProjectHandler();
-
-		if (auto e = getExpansionHandler().getCurrentExpansion())
-			return *e;
-
 		return getSampleManager().getProjectHandler();
 	}
-
 	
-	const AudioSampleBufferPool *getCurrentAudioSampleBufferPool(bool forceDefault=false) const 
+	const AudioSampleBufferPool *getCurrentAudioSampleBufferPool() const 
 	{ 
-		return &getCurrentFileHandler(forceDefault).pool->getAudioSampleBufferPool(); 
+		return &getSampleManager().getProjectHandler().pool->getAudioSampleBufferPool();
 	};
 
-	AudioSampleBufferPool *getCurrentAudioSampleBufferPool(bool forceDefault = false)
+	AudioSampleBufferPool *getCurrentAudioSampleBufferPool()
 	{
-		return &getCurrentFileHandler(forceDefault).pool->getAudioSampleBufferPool();
+		return &getSampleManager().getProjectHandler().pool->getAudioSampleBufferPool();
 	};
 
-	const ImagePool *getCurrentImagePool(bool forceDefault = false) const
+	const ImagePool *getCurrentImagePool() const
 	{
-		return &getCurrentFileHandler(forceDefault).pool->getImagePool();
+		return &getSampleManager().getProjectHandler().pool->getImagePool();
 	};
 
-	ImagePool *getCurrentImagePool(bool forceDefault = false)
+	ImagePool *getCurrentImagePool()
 	{
-		return &getCurrentFileHandler(forceDefault).pool->getImagePool();
+		return &getSampleManager().getProjectHandler().pool->getImagePool();
 	};
 
-	SampleMapPool* getCurrentSampleMapPool(bool forceDefault = false)
+	SampleMapPool* getCurrentSampleMapPool()
 	{
-		return &getCurrentFileHandler(forceDefault).pool->getSampleMapPool();
+		return &getSampleManager().getProjectHandler().pool->getSampleMapPool();
 	}
 
-	const SampleMapPool* getCurrentSampleMapPool(bool forceDefault = false) const
+	const SampleMapPool* getCurrentSampleMapPool() const
 	{
-		return &getCurrentFileHandler(forceDefault).pool->getSampleMapPool();
+		return &getSampleManager().getProjectHandler().pool->getSampleMapPool();
 	}
 
-	MidiFilePool* getCurrentMidiFilePool(bool forceDefault = false)
+	MidiFilePool* getCurrentMidiFilePool()
 	{
-		return &getCurrentFileHandler(forceDefault).pool->getMidiFilePool();
+		return &getSampleManager().getProjectHandler().pool->getMidiFilePool();
 	}
 
-	const MidiFilePool* getCurrentMidiFilePool(bool forceDefault = false) const
+	const MidiFilePool* getCurrentMidiFilePool() const
 	{
-		return &getCurrentFileHandler(forceDefault).pool->getMidiFilePool();
+		return &getSampleManager().getProjectHandler().pool->getMidiFilePool();
 	}
 
 	KillStateHandler& getKillStateHandler() { return killStateHandler; };
@@ -1186,6 +1180,8 @@ public:
 
 	void rebuildVoiceLimits();
 
+
+
 #if USE_BACKEND
 
 	void setScriptWatchTable(ScriptWatchTable *table);
@@ -1195,6 +1191,16 @@ public:
 	
 
 #endif
+
+	void setAllowFlakyThreading(bool shouldAllowWeirdThreadingStuff)
+	{
+		flakyThreadingAllowed = shouldAllowWeirdThreadingStuff;
+	}
+
+	bool isFlakyThreadingAllowed() const noexcept 
+	{ 
+		return flakyThreadingAllowed; 
+	}
 
 	void setPlotter(Plotter *p);
 
@@ -1248,7 +1254,11 @@ public:
 	void fillWithCustomFonts(StringArray &fontList);
 	juce::Typeface* getFont(const String &fontName) const;
 	ValueTree exportCustomFontsAsValueTree() const;
+	ValueTree exportAllMarkdownDocsAsValueTree() const;
 	void restoreCustomFontValueTree(const ValueTree &v);
+	void restoreEmbeddedMarkdownDocs(const ValueTree& v);
+
+	String getEmbeddedMarkdownContent(const String& url) const;
 
 	Font getFontFromString(const String& fontName, float fontSize) const;
 
@@ -1402,6 +1412,8 @@ private:
 	float fadeOutPreviewBufferGain = 1.0f;
 	bool fadeOutPreviewBuffer = false;
 
+	bool flakyThreadingAllowed = false;
+
 	void loadPresetInternal(const ValueTree& v);
 
 	CriticalSection processLock;
@@ -1458,6 +1470,7 @@ private:
 
 	Array<CustomTypeFace> customTypeFaces;
 	ValueTree customTypeFaceData;
+	ValueTree embeddedMarkdownDocs;
 
 	DynamicObject::Ptr globalVariableObject;
 	DynamicObject::Ptr hostInfo;

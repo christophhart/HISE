@@ -38,7 +38,9 @@ MainController::LockFreeDispatcher::LockFreeDispatcher(MainController* mc_) :
 	mc(mc_),
 	pendingTasks(1024)
 {
+#if !HISE_HEADLESS
 	startTimer(30);
+#endif
 }
 
 MainController::LockFreeDispatcher::~LockFreeDispatcher()

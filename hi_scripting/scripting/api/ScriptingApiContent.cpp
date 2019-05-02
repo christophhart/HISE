@@ -121,6 +121,7 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
     API_METHOD_WRAPPER_0(ScriptComponent, getGlobalPositionX);
     API_METHOD_WRAPPER_0(ScriptComponent, getGlobalPositionY);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setControlCallback);
+	API_METHOD_WRAPPER_0(ScriptComponent, getAllProperties);
 };
 
 #define ADD_SCRIPT_PROPERTY(id, name) static const Identifier id(name); propertyIds.add(id);
@@ -214,6 +215,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_API_METHOD_0(getGlobalPositionX);
 	ADD_API_METHOD_0(getGlobalPositionY);
 	ADD_API_METHOD_1(setControlCallback);
+	ADD_API_METHOD_0(getAllProperties);
 
 	//setName(name_.toString());
 
@@ -1017,6 +1019,23 @@ juce::Array<hise::ScriptingApi::Content::ScriptComponent::PropertyWithValue> Scr
 	vArray.add({ Properties::parameterId, "" });
 
 	return vArray;
+}
+
+var ScriptingApi::Content::ScriptComponent::getAllProperties()
+{
+	Array<var> list;
+
+	for (int i = 0; i < getNumIds(); i++)
+	{
+		auto id = getIdFor(i);
+
+		if (deactivatedProperties.contains(id))
+			continue;
+
+		list.add(id.toString());
+	}
+
+	return var(list);
 }
 
 struct ScriptingApi::Content::ScriptSlider::Wrapper
@@ -1953,9 +1972,8 @@ void ScriptingApi::Content::ScriptTable::setScriptObjectPropertyWithChangeMessag
 
 void ScriptingApi::Content::ScriptTable::connectToOtherTable(const String &otherTableId, int index)
 {
-	
-
-	if (otherTableId.isEmpty()) return;
+	if (otherTableId.isEmpty() || otherTableId == " ")
+		return;
 
 	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
 	if (mp == nullptr) return;
@@ -2168,7 +2186,8 @@ int ScriptingApi::Content::ScriptSliderPack::getNumSliders() const
 
 void ScriptingApi::Content::ScriptSliderPack::connectToOtherSliderPack(const String &newPackId)
 {
-	if (newPackId.isEmpty()) return;
+	if (newPackId.isEmpty() || newPackId == " ")
+		return;
 
 	otherPackId = newPackId;
 

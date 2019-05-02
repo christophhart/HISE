@@ -68,3 +68,8 @@
 #include "backend/CompileExporter.cpp"
 #include "backend/HisePlayerExporter.cpp"
 
+#include "backend/doc_generators/ApiMarkdownGenerator.cpp"
+#include "backend/doc_generators/ModuleDocGenerator.cpp"
+#include "backend/doc_generators/MenuReferenceGenerator.cpp"
+#include "backend/doc_generators/UiComponentDocGenerator.cpp"
+

@@ -189,10 +189,7 @@ Processor *MidiProcessorFactoryType::createProcessor(int typeIndex, const String
 		}
 
 		mp->setOwnerSynth(ms);
-
 	}
-
-	
 
 	return mp;
 };

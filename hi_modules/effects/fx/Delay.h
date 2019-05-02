@@ -43,7 +43,7 @@ class DelayEffect: public MasterEffectProcessor,
 {
 public:
 
-	SET_PROCESSOR_NAME("Delay", "Delay")
+	SET_PROCESSOR_NAME("Delay", "Delay", "A stereo delay effect");
 
 	/** The parameters*/
 	enum Parameters

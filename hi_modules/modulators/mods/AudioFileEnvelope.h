@@ -95,13 +95,18 @@ public:
 		void setAttack(float newAttack)
 		{
 			attack = newAttack;
-			calculateCoefficients();
+
+			if (attack == 0.0f)
+				attackCoefficient = 1.0;
+
+			else
+				calculateCoefficients();
 		};
 
 		void setRelease(float newRelease);;
 		
-		float getAttack() const noexcept { return attack; };
-		float getRelease() const noexcept { return release; };
+		float getAttack() const noexcept { return (float)attack; };
+		float getRelease() const noexcept { return (float)release; };
 
 	private:
 
@@ -110,8 +115,8 @@ public:
 		float attack, release;
 
 		double sampleRate;
-		float attackCoefficient, releaseCoefficient;
-		float lastValue;
+		double attackCoefficient, releaseCoefficient;
+		double lastValue;
 	};
 
 };
@@ -130,7 +135,7 @@ class AudioFileEnvelope: public TimeVariantModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("AudioFileEnvelope", "Audio File Envelope")
+	SET_PROCESSOR_NAME("AudioFileEnvelope", "Audio File Envelope", "deprecated")
 
 	AudioFileEnvelope(MainController *mc, const String &id, Modulation::Mode m);
 

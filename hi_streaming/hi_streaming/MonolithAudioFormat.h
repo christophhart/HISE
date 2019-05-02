@@ -367,7 +367,10 @@ public:
 
 	bool operator ==(const Identifier& sampleMapId) const
 	{
-		return sampleMapId == id;
+		auto first = sampleMapId.toString().replaceCharacter('/', '_');
+		auto second = id.toString().replaceCharacter('/', '_');
+
+		return first == second;
 	}
 
 	HlacMonolithInfo(const Array<File>& monolithicFiles_)

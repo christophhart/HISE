@@ -41,7 +41,7 @@
 #define GET_ROOT_FLOATING_TILE(child) GET_BACKEND_ROOT_WINDOW(child)->getRootFloatingTile()
 
 // This is a simple counter that gets bumped everytime the layout is changed and shows a hint to reset the workspace
-#define BACKEND_UI_VERSION 5
+#define BACKEND_UI_VERSION 6
 
 namespace hise { using namespace juce;
 
@@ -53,7 +53,8 @@ class BackendRootWindow : public AudioProcessorEditor,
 						  public ComponentWithKeyboard,
 						  public ModalBaseWindow,
 						  public ComponentWithBackendConnection,
-						  public DragAndDropContainer
+						  public DragAndDropContainer,
+						  public ComponentWithHelp::GlobalHandler
 {
 public:
 
@@ -162,7 +163,19 @@ public:
 	void removeFloatingWindow(FloatingTileDocumentWindow* windowToRemove)
 	{
 		popoutWindows.removeObject(windowToRemove, true);
+
+		if (docWindow = windowToRemove)
+			docWindow = nullptr;
 	}
+
+	void showHelp(ComponentWithHelp* h) override
+	{
+		auto doc = createOrShowDocWindow();
+
+		doc->renderer.gotoLink({ {}, h->getMarkdownHelpUrl() });
+	}
+
+	MarkdownPreview* createOrShowDocWindow();
 
 private:
 
@@ -197,6 +210,8 @@ private:
 
 
 	ScopedPointer<FloatingTile> floatingRoot;
+
+	ScopedPointer<FloatingTileDocumentWindow> docWindow;
 
 	bool resetOnClose = false;
 

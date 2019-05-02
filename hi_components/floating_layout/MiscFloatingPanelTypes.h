@@ -333,6 +333,11 @@ public:
 		return 26;
 	}
 
+	int getFixedWidth() const override
+	{
+		return 32;
+	}
+
 	void paint(Graphics& g) override
 	{
 		auto c = findPanelColour(PanelColourId::bgColour);
@@ -501,6 +506,8 @@ public:
 
 		return p;
 	}
+
+	Identifier getProcessorTypeId() const override;
 
 	void fillModuleList(StringArray& moduleList) override
 	{

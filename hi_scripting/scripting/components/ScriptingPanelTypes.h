@@ -30,10 +30,10 @@
 *   ===========================================================================
 */
 
-#ifndef SCRIPTINGPANELTYPES_H_INCLUDED
-#define SCRIPTINGPANELTYPES_H_INCLUDED
+#pragma once
 
-namespace hise { using namespace juce;
+namespace hise { 
+using namespace juce;
 
 class CodeEditorPanel : public PanelWithProcessorConnection,
 						public GlobalScriptCompileListener
@@ -94,7 +94,13 @@ public:
 	class Factory : public PathFactory
 	{
 	public:
+
+		String getId() const override { return "Canvas"; }
+
 		Path createPath(const String& id) const override;
+
+		Array<KeyMapping> getKeyMapping() const override;
+
 	};
 
 	struct Canvas;
@@ -409,4 +415,4 @@ struct BackendCommandIcons
 
 
 } // namespace hise
-#endif  // SCRIPTINGPANELTYPES_H_INCLUDED
+

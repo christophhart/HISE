@@ -173,10 +173,65 @@ private:
 };
 
 
+
+/** This class offers a drop-in replacement to the juce::AsyncUpdater class with the following modifications:
+
+	- it doesn't use the OS message queue for posting update messages but a global timer instead.
+	  This fixes the issues that occur when many objects are used that might clog the OS message loop.
+	- real-time safe. Calling triggerAsyncUpdate() normally allocates a little bit of memory and should not
+	  be used from the audio thread. This model uses a lockfree queue that offers allocation free and thread-safe
+	  notifications to the UI thread.
+	- the updates will not be executed when there is no plugin-editor visible. This improves the UI performance
+	  when many instances of the plugin are used. This is trivial if the class that subclasses it is a Component
+	  (in this case, the object most likely won't exist), however if your using this class somewhere in your data
+	  model, it might have a drastic performance increase.
+
+	You can use it just like the normal juce::AsyncUpdater class: call triggerAsyncUpdate() and override
+	handleAsyncUpdate().
+*/
+struct SuspendableAsyncUpdater : public  hise::ControlledObject,
+	private hise::SafeChangeListener,
+	private hise::SafeChangeBroadcaster
+{
+	/** Creates an instance of this. You need to supply the main controller for the global UI timer. */
+	SuspendableAsyncUpdater(MainController* mc) :
+		ControlledObject(mc)
+	{
+		enablePooledUpdate(getMainController()->getGlobalUIUpdater());
+	}
+
+	virtual ~SuspendableAsyncUpdater()
+	{
+		removeChangeListener(this);
+	}
+
+	/** Override this message. */
+	virtual void handleAsyncUpdate() = 0;
+
+	/** Call this to trigger a update that will be executed sometime in the future on the message thread.
+
+		This is completely lockfree and threadsafe and can be called from any thread, including the audio thread.
+	*/
+	void triggerAsyncUpdate()
+	{
+		sendPooledChangeMessage();
+	}
+
+private:
+
+	void changeListenerCallback(SafeChangeBroadcaster *) override
+	{
+		handleAsyncUpdate();
+	}
+};
+
+
 /** A object that handles the embedded resources (audio files, images and samplemaps). */
 class Pool : public hise::ControlledObject
 {
 public:
+
+	static constexpr char projectFolderWildcard[] = "{PROJECT_FOLDER}";
 
 	Pool(MainController* mc, bool allowLoading = false) :
 		ControlledObject(mc),
@@ -193,11 +248,17 @@ public:
 	/** Loads an Image from the given ID. */
 	Image loadImage(const String& id);
 
-	StringArray getSampleMapList() const;
-
 	PoolReference createSampleMapReference(const String& referenceString);
 
+	PoolReference createMidiFileReference(const String& referenceString);
+
+	/** Returns a list of the references to every embedded resource of the given type. */
+	StringArray getListOfEmbeddedResources(FileHandlerBase::SubDirectories directory, bool useExpansionPool=false);
+
+	
 private:
+
+	Array<PoolReference> getListOfReferences(FileHandlerBase::SubDirectories directory, FileHandlerBase* handler);
 
 	bool allowUnusedSources = false;
 };
@@ -212,8 +273,10 @@ private:
 	- templated data type for best performance without overhead
 	- ready made accessor-classes for the most important data in HISE (Processor attributes, bypass states, samplemaps, table data)
 	
-	In order to use it, pass it as template argument to one of the more high-level classes (UIConnection and Storage) and
-	it will magically synchronize with the actual data in your Processor tree.
+	In order to use it, pass one of the subclasses as template argument to one of the more high-level classes (UIConnection and Storage)
+	and they will synchronize with the actual data in your Processor tree.
+
+	You can also write your own handler classes - just make sure it has two functions that match the SaveFunction and LoadFunction prototype
 */
 template <typename DataType> struct Data
 {
@@ -447,10 +510,17 @@ public:
 		Base(ComponentType* c, MainController* mc, const String& id);
 		virtual ~Base();
 
+		/** Call this function to specify which data you want. */
 		template <class FunctionClass> void setData()
 		{
 			loadFunction = FunctionClass::load;
 			saveFunction = FunctionClass::save;
+		}
+
+		/** If this is enabled, it will wrap the execution of the callback into a SafeFunction call. */
+		void setUseLoadingThread(bool shouldUseLoadingThread)
+		{
+			useLoadingThread = shouldUseLoadingThread;
 		}
 
 	protected:
@@ -467,6 +537,8 @@ public:
 		void changeListenerCallback(SafeChangeBroadcaster* b) override;
 
 	private:
+
+		bool useLoadingThread = false;
 
 		ValueType lastValue;
 
@@ -598,6 +670,11 @@ public:
 		Data<juce::var>(id)
 	{};
 
+	void storeAsProperty(ValueTree& v) const
+	{
+		v.setProperty(id, var(save()), nullptr);
+	}
+
 	ValueTree exportAsValueTree() const override
 	{
 		ValueTree v("Control");
@@ -605,6 +682,11 @@ public:
 		v.setProperty("id", id.toString(), nullptr);
 		v.setProperty("value", var(save()), nullptr);
 		return v;
+	}
+
+	void loadFromProperty(const ValueTree& v)
+	{
+		load(v.getProperty(id));
 	}
 
 	void restoreFromValueTree(const ValueTree &previouslyExportedState) override
@@ -623,6 +705,42 @@ public:
 private:
 };
 
+template <typename DataType> class LambdaStorage: public GenericStorage
+{
+public:
+
+	using SaveFunction = std::function<DataType()>;
+	using LoadFunction = std::function<void(DataType)>;
+
+	LambdaStorage(const Identifier& id, Processor* p_):
+		GenericStorage(id),
+		p(p_)
+	{}
+
+	var save() const override
+	{
+		if (saveFunction)
+		{
+			return var(saveFunction());
+		}
+
+		return {};
+	}
+
+	void load(const var& newValue) override
+	{
+		if (loadFunction)
+		{
+			loadFunction((DataType)newValue);
+		}
+	}
+
+	WeakReference<Processor> p;
+
+	LoadFunction loadFunction;
+	SaveFunction saveFunction;
+};
+
 /** An object that automatically handles the loading / saving in a ValueTree. 
 
 Use this to implement your custom user preset system. 
@@ -638,7 +756,7 @@ public:
 		loadFunction(FunctionClass::load)
 	{};
 
-	~Storage() {};
+	virtual ~Storage() {};
 
 	void load(const var& newValue) override
 	{
@@ -657,6 +775,48 @@ private:
 	SaveFunction saveFunction;
 	LoadFunction loadFunction;
 };
+
+
+/** A Helper class that can be used to change a selection of FloatingTile properties.
+
+	This saves you some time because you don't need to setup a DynamicObject yourself.
+	Just call the set() method, pass a FloatingTile instance and it will set the properties.
+
+	```cpp
+	hise::FloatingTile t;
+	t.setNewContent("Keyboard");
+
+	raw::FloatingTileProperties::set(t,
+	{
+		{ MidiKeyboardPanel::LowKey, 15 },
+		{ MidiKeyboardPanel::CustomGraphics, true }
+	});
+	```
+
+	As you can see, you can use a std::initializer_list for a lean syntax. You have to use
+	the property indexes (look them up in the API) for the ID.
+
+	Be aware that this will reset all unspecified properties to the default value.
+*/
+class FloatingTileProperties
+{
+	struct Property
+	{
+		Property(int id_, const var& value_);;
+
+		int id;
+		var value;
+	};
+
+public:
+
+	/** Sets the given property set to the given FloatingTile reference.
+
+		It assumes that the type is already setup correctly.
+	*/
+	static void set(FloatingTile& floatingTile, const std::initializer_list<Property>& list);
+};
+
 
 }
 

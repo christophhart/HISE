@@ -267,9 +267,6 @@ public:
 		/** Sets a key of the global keyboard to the specified colour (using the form 0x00FF00 for eg. of the key to the specified colour. */
 		void setKeyColour(int keyNumber, int colourAsHex);
 		
-		/** Creates a reference to the expansion handler. */
-		var getExpansionHandler();
-
 		/** Extends the compilation timeout. Use this if you have a long task that would get cancelled otherwise. This is doing nothing in compiled plugins. */
 		void extendTimeOut(int additionalMilliseconds);
 

@@ -336,7 +336,10 @@ juce::MidiMessageSequence* HiseMidiSequence::getWritePointer(int trackIndex)
 
 int HiseMidiSequence::getNumEvents() const
 {
-	return sequences[currentTrackIndex]->getNumEvents();
+	if(isPositiveAndBelow(currentTrackIndex, sequences.size()))
+		return sequences[currentTrackIndex]->getNumEvents();
+
+	return 0;
 }
 
 void HiseMidiSequence::setCurrentTrackIndex(int index)
@@ -422,25 +425,26 @@ Array<HiseEvent> HiseMidiSequence::getEventList(double sampleRate, double bpm)
 	uint16 currentEventId = 1;
 	memset(eventIds, 0, sizeof(uint16) * 127);
 
-	auto mSeq = getReadPointer();
-
-	for (const auto& ev : *mSeq)
+	if (auto mSeq = getReadPointer())
 	{
-		auto m = ev->message;
-
-		auto timeStamp = (int)(samplePerQuarter * m.getTimeStamp() / (double)HiseMidiSequence::TicksPerQuarter);
-		HiseEvent newEvent(m);
-		newEvent.setTimeStamp(timeStamp);
-
-		if (newEvent.isNoteOn())
+		for (const auto& ev : *mSeq)
 		{
-			newEvent.setEventId(currentEventId);
-			eventIds[newEvent.getNoteNumber()] = currentEventId++;
-		}
-		if (newEvent.isNoteOff())
-			newEvent.setEventId(eventIds[newEvent.getNoteNumber()]);
+			auto m = ev->message;
 
-		newBuffer.add(newEvent);
+			auto timeStamp = (int)(samplePerQuarter * m.getTimeStamp() / (double)HiseMidiSequence::TicksPerQuarter);
+			HiseEvent newEvent(m);
+			newEvent.setTimeStamp(timeStamp);
+
+			if (newEvent.isNoteOn())
+			{
+				newEvent.setEventId(currentEventId);
+				eventIds[newEvent.getNoteNumber()] = currentEventId++;
+			}
+			if (newEvent.isNoteOff())
+				newEvent.setEventId(eventIds[newEvent.getNoteNumber()]);
+
+			newBuffer.add(newEvent);
+		}
 	}
 
 	return newBuffer;
@@ -531,7 +535,6 @@ void MidiPlayer::EditAction::writeArrayToSequence(HiseMidiSequence::Ptr destinat
 
 	newSeq->sort();
 	newSeq->updateMatchedPairs();
-
 	destination->swapCurrentSequence(newSeq.release());
 }
 
@@ -743,13 +746,26 @@ void MidiPlayer::setInternalAttribute(int index, float newAmount)
 
 void MidiPlayer::loadMidiFile(PoolReference reference)
 {
-	auto newContent = getMainController()->getCurrentMidiFilePool(true)->loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
+	PooledMidiFile newContent;
+
+#if HISE_ENABLE_EXPANSIONS
+
+	if (auto e = getMainController()->getExpansionHandler().getExpansionForWildcardReference(reference.getReferenceString()))
+		newContent = e->pool->getMidiFilePool().loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
+	else
+		newContent = getMainController()->getCurrentMidiFilePool()->loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
+
+#else
+
+	newContent = getMainController()->getCurrentMidiFilePool()->loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
+
+#endif
 
 	currentlyLoadedFiles.add(reference);
 
 	HiseMidiSequence::Ptr newSequence = new HiseMidiSequence();
 	newSequence->loadFrom(newContent->data.getFile());
-	newSequence->setId(reference.getFile().getFileNameWithoutExtension());
+	//newSequence->setId(reference.getFile().getFileNameWithoutExtension());
 	addSequence(newSequence);
 	
 }
@@ -857,7 +873,7 @@ void MidiPlayer::processHiseEvent(HiseEvent &m) noexcept
 			auto lengthInQuarters = seq->getLengthInQuarters() * getPlaybackPosition();
 			auto ticks = lengthInQuarters * HiseMidiSequence::TicksPerQuarter;
 
-			auto timestampSamples = MidiPlayerHelpers::ticksToSamples(ticks, getMainController()->getBpm(), getSampleRate());
+			auto timestampSamples = (int)MidiPlayerHelpers::ticksToSamples(ticks, getMainController()->getBpm(), getSampleRate());
 
 			// This will be processed after the position has advanced so we need to subtract the last blocksize and add the message's timestamp.
 			timestampSamples -= lastBlockSize;
@@ -1063,9 +1079,9 @@ void MidiPlayer::prepareForRecording(bool copyExistingEvents/*=true*/)
 		{
 			if (copyExistingEvents)
             {
-                auto l = seq->getEventList(p->getSampleRate(), p->getMainController()->getBpm());
-                newEvents.swapWith(l);
-            }
+                auto newList = seq->getEventList(p->getSampleRate(), p->getMainController()->getBpm());
+				newEvents.swapWith(newList);            
+      }
 		}
 
 		newEvents.ensureStorageAllocated(2048);
@@ -1114,7 +1130,7 @@ void MidiPlayer::finishRecording()
 
 				if (!found)
 				{
-					HiseEvent artificialNoteOff(HiseEvent::Type::NoteOff, currentEvent.getNoteNumber(), 1, currentEvent.getChannel());
+					HiseEvent artificialNoteOff(HiseEvent::Type::NoteOff, (uint8)currentEvent.getNoteNumber(), 1, (uint8)currentEvent.getChannel());
 					artificialNoteOff.setTimeStamp(lastTimestamp);
 					artificialNoteOff.setEventId(currentEvent.getEventId());
 					l.add(artificialNoteOff);
@@ -1182,9 +1198,21 @@ MidiPlayerBaseType::MidiPlayerBaseType(MidiPlayer* player_) :
 	player(player_),
 	font(GLOBAL_BOLD_FONT())
 {
-	player->addSequenceListener(this);
-	player->addChangeListener(this);
+	initMidiPlayer(player);
 }
+
+void MidiPlayerBaseType::initMidiPlayer(MidiPlayer* newPlayer)
+{
+	player = newPlayer;
+
+	if (player != nullptr)
+	{
+		player->addSequenceListener(this);
+		player->addChangeListener(this);
+	}
+}
+
+
 
 void MidiPlayerBaseType::changeListenerCallback(SafeChangeBroadcaster* )
 {

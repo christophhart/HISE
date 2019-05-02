@@ -34,14 +34,14 @@
 
 namespace hise { using namespace juce;
 
-/** A general purpose phase effect used for phasers and stuff.
+/** A general purpose phase effect used for phasers.
 	@ingroup effectTypes
 */
 class PhaseFX: public MasterEffectProcessor
 {
 public:
     
-    SET_PROCESSOR_NAME("PhaseFX", "Phase FX")
+	SET_PROCESSOR_NAME("PhaseFX", "Phase FX", "A general purpose phase effect used for phasers.");
     
     enum Attributes
     {

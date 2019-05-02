@@ -259,6 +259,8 @@ public:
 	static String getClassType() {return "Limiter";};
 	static String getClassName() {return "Limiter";};
 
+	String getDescription() const override { return "deprecated"; };
+
 	enum Parameters
 	{
 		Threshhold = 0,
@@ -281,6 +283,7 @@ public:
 
 	static String getClassType() {return "Degrade";};
 	static String getClassName() {return "Degrade";};
+	String getDescription() const override { return "deprecated"; }
 
 	enum InternalChains
 	{

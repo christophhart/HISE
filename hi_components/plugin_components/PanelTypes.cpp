@@ -76,9 +76,7 @@ var CustomSettingsWindowPanel::toDynamicObject() const
 	SET(CustomSettingsWindow::Properties::SampleRate);
 	SET(CustomSettingsWindow::Properties::GlobalBPM);
 	SET(CustomSettingsWindow::Properties::StreamingMode);
-	SET(CustomSettingsWindow::Properties::GraphicRendering);
 	SET(CustomSettingsWindow::Properties::ScaleFactor);
-	SET(CustomSettingsWindow::Properties::SustainCC);
 	SET(CustomSettingsWindow::Properties::VoiceAmountMultiplier);
 	SET(CustomSettingsWindow::Properties::ClearMidiCC);
 	SET(CustomSettingsWindow::Properties::SampleLocation);
@@ -104,9 +102,7 @@ void CustomSettingsWindowPanel::fromDynamicObject(const var& object)
 	SET(CustomSettingsWindow::Properties::SampleRate);
 	SET(CustomSettingsWindow::Properties::GlobalBPM);
 	SET(CustomSettingsWindow::Properties::StreamingMode);
-	SET(CustomSettingsWindow::Properties::GraphicRendering);
 	SET(CustomSettingsWindow::Properties::ScaleFactor);
-	SET(CustomSettingsWindow::Properties::SustainCC);
 	SET(CustomSettingsWindow::Properties::VoiceAmountMultiplier);
 	SET(CustomSettingsWindow::Properties::ClearMidiCC);
 	SET(CustomSettingsWindow::Properties::SampleLocation);
@@ -150,9 +146,7 @@ Identifier CustomSettingsWindowPanel::getDefaultablePropertyId(int index) const
 	SET(CustomSettingsWindow::Properties::SampleRate);
 	SET(CustomSettingsWindow::Properties::GlobalBPM);
 	SET(CustomSettingsWindow::Properties::StreamingMode);
-	SET(CustomSettingsWindow::Properties::GraphicRendering);
 	SET(CustomSettingsWindow::Properties::ScaleFactor);
-	SET(CustomSettingsWindow::Properties::SustainCC);
 	SET(CustomSettingsWindow::Properties::VoiceAmountMultiplier);
 	SET(CustomSettingsWindow::Properties::ClearMidiCC);
 	SET(CustomSettingsWindow::Properties::SampleLocation);
@@ -179,9 +173,7 @@ var CustomSettingsWindowPanel::getDefaultProperty(int index) const
 	SET(CustomSettingsWindow::Properties::SampleRate);
 	SET(CustomSettingsWindow::Properties::GlobalBPM);
 	SET(CustomSettingsWindow::Properties::StreamingMode);
-	SET(CustomSettingsWindow::Properties::GraphicRendering);
 	SET(CustomSettingsWindow::Properties::ScaleFactor);
-	SET(CustomSettingsWindow::Properties::SustainCC);
 	SET(CustomSettingsWindow::Properties::VoiceAmountMultiplier);
 	SET(CustomSettingsWindow::Properties::ClearMidiCC);
 	SET(CustomSettingsWindow::Properties::SampleLocation);

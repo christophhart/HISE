@@ -54,7 +54,6 @@ hise::raw::Reference<ProcessorType>::Reference(MainController* mc, const String&
 		processor->addChangeListener(this);
 }
 
-
 template <class ProcessorType>
 void hise::raw::Reference<ProcessorType>::addParameterToWatch(int parameterIndex, const ParameterCallback& callbackFunction)
 {
@@ -65,11 +64,8 @@ template <class ProcessorType>
 hise::raw::Reference<ProcessorType>::~Reference()
 {
 	if (processor != nullptr)
-	{
 		processor->removeChangeListener(this);
-	}
 }
-
 
 template <class ProcessorType>
 ProcessorType* hise::raw::Reference<ProcessorType>::getProcessor() const noexcept
@@ -125,19 +121,40 @@ hise::raw::UIConnection::Base<ComponentType, ValueType>::~Base()
 template <class ComponentType, typename ValueType>
 void hise::raw::UIConnection::Base<ComponentType, ValueType>::changeListenerCallback(SafeChangeBroadcaster* )
 {
-	auto newValue = static_cast<ValueType>(saveFunction(processor));
-
-	if (newValue != lastValue)
+	if (saveFunction)
 	{
-		lastValue = newValue;
-		updateUI(newValue);
+		auto newValue = static_cast<ValueType>(saveFunction(processor));
+
+		if (newValue != lastValue)
+		{
+			lastValue = newValue;
+			updateUI(newValue);
+		}
 	}
 }
 
 template <class ComponentType, typename ValueType>
 void hise::raw::UIConnection::Base<ComponentType, ValueType>::parameterChangedFromUI(ValueType newValue)
 {
-	loadFunction(processor, newValue);
+	if (!loadFunction)
+		jassertfalse;
+
+	if (useLoadingThread)
+	{
+		auto tmp = loadFunction;
+		auto f = [tmp, newValue](Processor* p)
+		{
+			tmp(p, newValue);
+			return SafeFunctionCall::OK;
+		};
+
+		TaskAfterSuspension::call(processor, f);
+	}
+	else
+	{
+		loadFunction(processor, newValue);
+	}
+	
 }
 
 template <int parameterIndex>

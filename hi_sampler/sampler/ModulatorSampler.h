@@ -123,7 +123,7 @@ public:
 		getSampleMap()->suspendInternalTimers(shouldBeSuspended);
 	}
 
-	SET_PROCESSOR_NAME("StreamingSampler", "Sampler")
+	SET_PROCESSOR_NAME("StreamingSampler", "Sampler", "The main sampler class of HISE.");
 
 	/** Special Parameters for the ModulatorSampler. */
 	enum Parameters
@@ -185,7 +185,7 @@ public:
 	ModulatorSampler(MainController *mc, const String &id, int numVoices);;
 	~ModulatorSampler();
 
-	SET_PROCESSOR_CONNECTOR_TYPE_ID("ModulatorSampler");
+	SET_PROCESSOR_CONNECTOR_TYPE_ID("StreamingSampler");
 
 	void restoreFromValueTree(const ValueTree &v) override;
 	ValueTree exportAsValueTree() const override;

@@ -243,7 +243,7 @@ int PresetBrowserColumn::ColumnListModel::getNumRows()
 		entries.clear();
 		rootToUse.findChildFiles(entries, displayDirectories ? File::findDirectories : File::findFiles, allowRecursiveSearch || showFavoritesOnly);
 
-		PresetBrowser::DataBaseHelpers::cleanFileList(entries);
+		PresetBrowser::DataBaseHelpers::cleanFileList(parent->getMainController(), entries);
 
 		if (showFavoritesOnly && index == 2)
 		{
@@ -732,7 +732,7 @@ PresetBrowserChildComponentBase::PresetBrowserChildComponentBase(PresetBrowser* 
 
 PresetBrowserLookAndFeel& PresetBrowserChildComponentBase::getPresetBrowserLookAndFeel()
 {
-	return parent->pblaf;
+	return *parent->pblaf;
 }
 
 }

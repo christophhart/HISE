@@ -77,7 +77,7 @@ class GainMatcherVoiceStartModulator : public VoiceStartModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("GainMatcherVoiceStartModulator", "Voice Start Gain Matcher")
+	SET_PROCESSOR_NAME("GainMatcherVoiceStartModulator", "Voice Start Gain Matcher", "deprecated");
 
 	GainMatcherVoiceStartModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m);
 
@@ -105,7 +105,7 @@ class GainMatcherTimeVariantModulator : public TimeVariantModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("GainMatcherTimeVariantModulator", "Time Variant Gain Matcher")
+	SET_PROCESSOR_NAME("GainMatcherTimeVariantModulator", "Time Variant Gain Matcher", "deprecated");
 
 	GainMatcherTimeVariantModulator(MainController *mc, const String &id, Modulation::Mode m);
 	~GainMatcherTimeVariantModulator();

@@ -193,7 +193,7 @@ class WaveSynth: public ModulatorSynth,
 {
 public:
 
-	SET_PROCESSOR_NAME("WaveSynth", "Waveform Generator")
+	SET_PROCESSOR_NAME("WaveSynth", "Waveform Generator", "A waveform generator based on BLIP synthesis of common synthesiser waveforms.");
 
 	enum EditorStates
 	{

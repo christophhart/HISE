@@ -45,7 +45,7 @@ class CurveEq: public MasterEffectProcessor
 {
 public:
 
-	SET_PROCESSOR_NAME("CurveEq", "Parametriq EQ")
+	SET_PROCESSOR_NAME("CurveEq", "Parametriq EQ", "A parametric EQ with a variable amount of filter bands.")
 
 	enum Parameters
 	{
@@ -210,12 +210,23 @@ public:
 	{
 		finaliseModChains();
 
-		parameterNames.add("Gain");
+		parameterNames.add("Gain");			
+		parameterDescriptions.add("The gain in decibels if supported from the filter type.");
+
 		parameterNames.add("Freq");
+		parameterDescriptions.add("The frequency in Hz.");
+
 		parameterNames.add("Q");
+		parameterDescriptions.add("The bandwidth of the filter if supported.");
+
 		parameterNames.add("Enabled");
+		parameterDescriptions.add("the state of the filter band.");
+
 		parameterNames.add("Type");
+		parameterDescriptions.add("the filter type of the filter band.");
+
 		parameterNames.add("BandOffset");
+		parameterDescriptions.add("the offset that can be used to get the desired formula.");
 
 		FloatVectorOperations::fill(fftData, 0.0f, 256);
 	};

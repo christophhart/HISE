@@ -87,11 +87,13 @@ class AudioLooper : public ModulatorSynth,
 {
 public:
 
-	SET_PROCESSOR_NAME("AudioLooper", "Audio Loop Player");
+	ADD_DOCUMENTATION_WITH_BASECLASS(ModulatorSynth);
+
+	SET_PROCESSOR_NAME("AudioLooper", "Audio Loop Player", "Plays a single audio sample.");
 
 	enum SpecialParameters
 	{
-		SyncMode = ModulatorSynth::numModulatorSynthParameters,
+		SyncMode = ModulatorSynth::numModulatorSynthParameters, 
 		LoopEnabled,
 		PitchTracking,
 		RootNote,

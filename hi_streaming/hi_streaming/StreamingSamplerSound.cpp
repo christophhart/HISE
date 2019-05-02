@@ -772,7 +772,8 @@ void StreamingSamplerSound::FileReader::refreshFileInformation()
 
 AudioFormatReader * StreamingSamplerSound::FileReader::getReader()
 {
-	if (!fileHandlesOpen) openFileHandles();
+	if (!fileHandlesOpen) 
+		openFileHandles();
 
 	if (memoryReader != nullptr) return memoryReader;
 	else if (normalReader != nullptr) return normalReader;

@@ -183,6 +183,8 @@ public:
 
 	static void loadOtherReferencedImages(ModulatorSynthChain* chainToExport);
 
+	ScopedPointer<PoolCollection> pool;
+
 protected:
 
 	friend class MainController;
@@ -197,7 +199,7 @@ protected:
 		File file;
 	};
 
-	ScopedPointer<PoolCollection> pool;
+	
 
 	Array<FolderReference> subDirectories;
 };
@@ -266,6 +268,9 @@ public:
 	String getPublicKey() const;
 
 	String getPrivateKey() const;
+
+	static String getPublicKeyFromFile(const File& f);
+	static String getPrivateKeyFromFile(const File& f);
 
 	void checkActiveProject();
 
@@ -454,9 +459,16 @@ public:
 
     static File getUserPresetFile(ModulatorSynthChain *chain, const String &fileNameWithoutExtension);
 
-	static ValueTree collectAllUserPresets(ModulatorSynthChain* chain);
+	static ValueTree collectAllUserPresets(ModulatorSynthChain* chain, FileHandlerBase* expansion=nullptr);
 
 	static void extractUserPresets(const char* userPresetData, size_t size);
+
+
+	static void extractPreset(ValueTree preset, File parent);
+
+	static void extractDirectory(ValueTree directory, File parent);
+
+
 };
 
 /** A helper class which provides loading and saving Processors to files and clipboard. 

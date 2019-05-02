@@ -49,7 +49,9 @@ class SampleMapEditor  : public Component,
                          public LabelListener,
 						 public PoolBase::Listener,
 						 public ComboBox::Listener,
+						 public ExpansionHandler::Listener,
 						 public SampleMap::Listener
+
 {
 public:
     //==============================================================================
@@ -63,6 +65,60 @@ public:
 	{
 	public:
 		
+		Array<Description> getDescription() const override
+		{
+			Array<Description> dm;
+
+			dm.add({ "Zoom In", "Zoom in the sample map" });
+			dm.add({ "Zoom Out", "Zoom out the sample map" });
+			dm.add({ "New SampleMap", "Create a new SampleMap" });
+			dm.add({ "Load SampleMap", "Load a SampleMap from the pool." });
+			dm.add({ "Save SampleMap", "Save the current SampleMap" });
+			dm.add({ "Convert to Monolith", "Convert the current samplemap to HLAC monolith format" });
+			dm.add({ "Import SFZ file format", "Import SFZ file format" });
+			dm.add({ "Undo", "Undo the last operation" });
+			dm.add({ "Redo", "Redo the last operation" });
+			
+			dm.add({ "Duplicate", "Duplicate all selected samples" });
+			dm.add({ "Cut", "Cut selected samples"});
+			dm.add({ "Copy", "Copy samples to clipboard"});
+			dm.add({ "Paste", "Paste samples from clipboard" });
+			dm.add({ "Delete", "Delete all selected samples" });
+			dm.add({ "Select all Samples", "Select all Samples" });
+			dm.add({ "Deselect all Samples", "Deselect all Samples" });
+			dm.add({ "Fill Note Gaps", "Fill note gaps in SampleMap" });
+			dm.add({ "Fill Velocity Gaps", "Fill velocity gaps in SampleMap" });
+			dm.add({ "Automap Velocity", "Sort the sounds along the velocity range according to their volume" });
+			dm.add({ "Refresh Velocity Crossfades.", "Adds a crossfade to overlapping sounds in a group." });
+			dm.add({ "Trim Sample Start", "Removes the silence at the beginning of samples" });
+
+			return dm;
+		}
+
+		Array<KeyMapping> getKeyMapping() const override
+		{
+			Array<KeyMapping> km;
+
+			km.add({ "zoom-in", '+', ModifierKeys::commandModifier});
+			km.add({ "zoom-out", '-', ModifierKeys::commandModifier });
+			km.add({ "new-samplemap", 'n', ModifierKeys::commandModifier });
+			km.add({ "load-samplemap", 'l', ModifierKeys::commandModifier });
+			km.add({ "save-samplemap", 's', ModifierKeys::commandModifier });
+			km.add({ "undo", 'z', ModifierKeys::commandModifier });
+			km.add({ "redo", 'y', ModifierKeys::commandModifier });
+			km.add({ "duplicate", 'd', ModifierKeys::commandModifier });
+			km.add({ "cut", 'x', ModifierKeys::commandModifier });
+			km.add({ "copy", 'c', ModifierKeys::commandModifier });
+			km.add({ "paste", 'v', ModifierKeys::commandModifier });
+			km.add({ "delete", KeyPress::deleteKey });
+			km.add({ "select-all-samples", 'a', ModifierKeys::commandModifier });
+			km.add({ "deselect-all-samples", KeyPress::escapeKey });
+
+			return km;
+		}
+
+		String getId() const override { return "Sample Map Editor"; }
+
 		Path createPath(const String& name) const override;
 	};
 
@@ -225,9 +281,9 @@ public:
 		{
 			String firstName = dragSourceDetails.description.toString().upToFirstOccurrenceOf(";", false, true);
 
-			File f(firstName);
+			File file(firstName);
 
-			if (f.isDirectory())
+			if (file.isDirectory())
 			{
 				filesInFolder.clear();
 
@@ -261,15 +317,17 @@ public:
 		repaint();
 	}
 
+	void expansionPackLoaded(Expansion* currentExpansion) override;
+
 	bool isInterestedInDragSource(const SourceDetails &dragSourceDetails) override
 	{
 		if (dynamic_cast<FileTreeComponent*>(dragSourceDetails.sourceComponent.get()) != nullptr)
 		{
 			String firstName = dragSourceDetails.description.toString().upToFirstOccurrenceOf(";", false, true);
 
-			File f(firstName);
+			File file(firstName);
 
-			return f.isDirectory() || AudioSampleBufferComponent::isAudioFile(firstName) || f.hasFileExtension("xml");
+			return file.isDirectory() || AudioSampleBufferComponent::isAudioFile(firstName) || file.hasFileExtension("xml");
 		}
 		else
 		{
@@ -300,7 +358,7 @@ public:
 		}
 		else if(auto ref = PoolReference(dragSourceDetails.description))
 		{
-			auto f = [ref](Processor* p)
+			auto f2 = [ref](Processor* p)
 			{
 				auto s = static_cast<ModulatorSampler*>(p);
 				s->loadSampleMap(ref);
@@ -308,7 +366,7 @@ public:
 				return SafeFunctionCall::OK;
 			};
 
-			sampler->killAllVoicesAndCall(f);
+			sampler->killAllVoicesAndCall(f2);
 		}
 
 		mapIsHovered = false;
@@ -322,13 +380,13 @@ public:
 	{
 		if (files.size() == 0) return false;
 
-		File f(files[0]);
+		File file(files[0]);
 
-		if (f.hasFileExtension(".wav")) return true;
-		if (f.hasFileExtension(".aif")) return true;
-		if (f.hasFileExtension(".aiff")) return true;
-		if (f.hasFileExtension(".xml")) return true;
-		if (f.hasFileExtension(".sfz")) return true;
+		if (file.hasFileExtension(".wav")) return true;
+		if (file.hasFileExtension(".aif")) return true;
+		if (file.hasFileExtension(".aiff")) return true;
+		if (file.hasFileExtension(".xml")) return true;
+		if (file.hasFileExtension(".sfz")) return true;
 
 		return false;
 	}
@@ -397,22 +455,22 @@ public:
 	void filesDropped(const StringArray &files, int /*x*/, int /*y*/) override
 	{
 
-		File f(files[0]);
+		File file(files[0]);
 
-		if (f.getFileExtension() == ".xml")
+		if (file.getFileExtension() == ".xml")
 		{
-			PoolReference ref(sampler->getMainController(), f.getFullPathName(), FileHandlerBase::SampleMaps);
+			PoolReference ref(sampler->getMainController(), file.getFullPathName(), FileHandlerBase::SampleMaps);
 
 			sampler->loadSampleMap(ref);
 		}
-		else if (f.getFileExtension() == ".sfz")
+		else if (file.getFileExtension() == ".sfz")
 		{
 			try
 			{
 
 				sampler->clearSampleMap(sendNotificationAsync);
 
-				SfzImporter sfz(sampler, f);
+				SfzImporter sfz(sampler, file);
 				sfz.importSfzFile();
 
 			}
@@ -421,7 +479,7 @@ public:
 				debugError(sampler, error.getErrorMessage());
 			}
 		}
-		else if (f.getFileExtension() == ".wav" || ".aif")
+		else if (file.getFileExtension() == ".wav" || ".aif")
 		{
 			SampleImporter::importNewAudioFiles(this, sampler, files, getRootNotesForDragPosition());
 		}
@@ -692,6 +750,8 @@ private:
 	ScopedPointer<ComboBox> sampleMaps;
 
 	ScopedPointer<MarkdownHelpButton> warningButton;
+
+	Factory f;
 
 	bool followRRGroup = false;
 

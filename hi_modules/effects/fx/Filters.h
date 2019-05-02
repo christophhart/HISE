@@ -44,7 +44,7 @@ class MonoFilterEffect: public MonophonicEffectProcessor,
 {
 public:
 
-	SET_PROCESSOR_NAME("MonophonicFilter", "Monophonic Filter");
+	SET_PROCESSOR_NAME("MonophonicFilter", "Monophonic Filter", "deprecated");
 
 	enum InternalChains
 	{
@@ -130,7 +130,7 @@ private:
 
 };
 
-/** The polyphonic filter module of HISE. 
+/** The filter module of HISE. 
 	@ingroup effectTypes
 
 	This is the filter module of HISE that will apply monophonic or polyphonic filtering
@@ -142,7 +142,7 @@ class PolyFilterEffect: public VoiceEffectProcessor,
 {
 public:
 
-	SET_PROCESSOR_NAME("PolyphonicFilter", "Filter");
+	SET_PROCESSOR_NAME("PolyphonicFilter", "Filter", "The filter module of HISE.");
 
 	enum InternalChains
 	{

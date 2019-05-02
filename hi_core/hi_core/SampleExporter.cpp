@@ -111,17 +111,14 @@ void SampleMapSearcher::searchInternal(ValueTree &treeToSearch, bool stripPath)
 	}
 };
 
-
-
-
 ExternalResourceCollector::ExternalResourceCollector(MainController *mc_) :
-DialogWindowWithBackgroundThread("Copying external files into the project folder"),
-mc(mc_)
+	DialogWindowWithBackgroundThread("Copying external files into the project folder"),
+	mc(mc_)
 {
-	numTotalSamples = mc->getSampleManager().getModulatorSamplerSoundPool()->getNumSoundsInPool();
+	numTotalSamples = mc->getSampleManager().getModulatorSamplerSoundPool2()->getNumSoundsInPool();
 
-	numTotalImages = mc->getCurrentImagePool(true)->getNumLoadedFiles();
-	numTotalAudioFiles = mc->getCurrentAudioSampleBufferPool(true)->getNumLoadedFiles();
+	numTotalImages = mc->getCurrentImagePool()->getNumLoadedFiles();
+	numTotalAudioFiles = mc->getCurrentAudioSampleBufferPool()->getNumLoadedFiles();
 
 	addTextBlock("Number of total samples: " + String(numTotalSamples));
 	addTextBlock("Number of total images: " + String(numTotalImages));
@@ -144,7 +141,7 @@ void ExternalResourceCollector::run()
 
 	if (getComboBoxComponent("options")->getSelectedItemIndex() == 0)
 	{
-		ModulatorSamplerSoundPool *pool = mc->getSampleManager().getModulatorSamplerSoundPool();
+		ModulatorSamplerSoundPool *pool = mc->getSampleManager().getModulatorSamplerSoundPool2();
 
 		StringArray sampleList = pool->getFileNameList();
 

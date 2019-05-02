@@ -42,6 +42,13 @@ class WaveformComponent : public Component,
 {
 public:
 
+	struct WaveformFactory : public PathFactory
+	{
+		String getId() const override { return "Waveform Icons"; }
+
+		Path createPath(const String& id) const override;
+	};
+
 	enum InterpolationMode
 	{
 		Truncate,
@@ -219,7 +226,7 @@ private:
 
 	void rebuildPath();
 
-	Path p;
+	Path path;
 	
 	bool useFlatDesign = false;
 

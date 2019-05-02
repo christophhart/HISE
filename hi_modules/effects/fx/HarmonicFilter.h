@@ -284,7 +284,7 @@ class HarmonicFilter : public VoiceEffectProcessor,
 {
 public:
 
-	SET_PROCESSOR_NAME("HarmonicFilter", "Harmonic Filter");
+	SET_PROCESSOR_NAME("HarmonicFilter", "Harmonic Filter", "A set of tuned hi-resonant peak filters that are set to the root frequency and harmonics of each note");
 
 	enum InternalChains
 	{
@@ -383,7 +383,7 @@ class HarmonicMonophonicFilter : public MonophonicEffectProcessor,
 {
 public:
 
-	SET_PROCESSOR_NAME("HarmonicFilterMono", "Harmonic Filter Monophonic");
+	SET_PROCESSOR_NAME("HarmonicFilterMono", "Harmonic Filter Monophonic", "A set of tuned hi-resonant peak filters that are set to the root frequency and harmonics of the last played note");
 
 	enum InternalChains
 	{

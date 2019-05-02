@@ -48,6 +48,8 @@ FrontendProcessor* FrontendFactory::createPluginWithAudioFiles(AudioDeviceManage
 	LOG_START("Loading embedded impulse responses"); 
 	auto impulseData = getEmbeddedData(FileHandlerBase::AudioFiles);
 	auto sampleMapData = getEmbeddedData(FileHandlerBase::SampleMaps);
+	auto midiData = getEmbeddedData(FileHandlerBase::MidiFiles);
+
 	LOG_START("Loading embedded other data")
 
 	ValueTree externalFiles;
@@ -59,7 +61,7 @@ FrontendProcessor* FrontendFactory::createPluginWithAudioFiles(AudioDeviceManage
 
 	//ValueTree externalFiles =  hise::PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true); 
 	LOG_START("Creating Frontend Processor")
-	auto fp = new hise::FrontendProcessor(presetData, deviceManager, callback, imageData, impulseData, sampleMapData, &externalFiles, nullptr); 
+	auto fp = new hise::FrontendProcessor(presetData, deviceManager, callback, imageData, impulseData, sampleMapData, midiData, &externalFiles, nullptr); 
 
 	ScopedPointer<MemoryInputStream> uis = getEmbeddedData(FileHandlerBase::UserPresets);
 
@@ -76,6 +78,8 @@ FrontendProcessor* FrontendFactory::createPluginWithAudioFiles(AudioDeviceManage
         fp->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, s);
     }
 	 
+	fp->getExpansionHandler().createAvailableExpansions();
+
 	return fp;
 }
 
@@ -198,16 +202,17 @@ void FrontendProcessor::restorePool(InputStream* inputStream, FileHandlerBase::S
     
     switch(directory)
     {
-        case FileHandlerBase::Images: getCurrentImagePool(true)->getDataProvider()->restorePool(streamToUse); break;
-        case FileHandlerBase::AudioFiles: getCurrentAudioSampleBufferPool(true)->getDataProvider()->restorePool(streamToUse); break;
-        case FileHandlerBase::SampleMaps: getCurrentSampleMapPool(true)->getDataProvider()->restorePool(streamToUse); break;
+        case FileHandlerBase::Images: getCurrentImagePool()->getDataProvider()->restorePool(streamToUse); break;
+        case FileHandlerBase::AudioFiles: getCurrentAudioSampleBufferPool()->getDataProvider()->restorePool(streamToUse); break;
+        case FileHandlerBase::SampleMaps: getCurrentSampleMapPool()->getDataProvider()->restorePool(streamToUse); break;
+		case FileHandlerBase::SubDirectories::MidiFiles: getCurrentMidiFilePool()->getDataProvider()->restorePool(streamToUse); break;
         default: jassertfalse; break;
     }
 }
     
 static int numInstances = 0;
 
-FrontendProcessor::FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, MemoryInputStream *imageData/*=nullptr*/, MemoryInputStream *impulseData/*=nullptr*/, MemoryInputStream* sampleMapData, ValueTree *externalFiles/*=nullptr*/, ValueTree *) :
+FrontendProcessor::FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, MemoryInputStream *imageData/*=nullptr*/, MemoryInputStream *impulseData/*=nullptr*/, MemoryInputStream* sampleMapData, MemoryInputStream* midiFileData, ValueTree *externalFiles/*=nullptr*/, ValueTree *) :
 MainController(),
 PluginParameterAudioProcessor(FrontendHandler::getProjectName()),
 AudioProcessorDriver(manager, callback_),
@@ -246,11 +251,22 @@ unlockCounter(0)
     
   	LOG_START("Load samplemaps");
     restorePool(sampleMapData, FileHandlerBase::SampleMaps, "SampleMapResources.dat");
+
+
     
+	LOG_START("Load Midi Files");
+	restorePool(midiFileData, FileHandlerBase::MidiFiles, "MidiFiles.dat");
+
+#if HI_ENABLE_EXPANSION_EDITING
+	getCurrentFileHandler().pool->getSampleMapPool().loadAllFilesFromDataProvider();
+	getCurrentFileHandler().pool->getMidiFilePool().loadAllFilesFromDataProvider();
+#endif
+
 	if (externalFiles != nullptr)
 	{
 		setExternalScriptData(externalFiles->getChildWithName("ExternalScripts"));
 		restoreCustomFontValueTree(externalFiles->getChildWithName("CustomFonts"));
+		restoreEmbeddedMarkdownDocs(externalFiles->getChildWithName("MarkdownDocs"));
 
 	}
     

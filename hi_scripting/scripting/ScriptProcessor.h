@@ -434,7 +434,7 @@ public:
 	JavascriptProcessor(MainController *mc);
 	virtual ~JavascriptProcessor();
 
-	SET_PROCESSOR_CONNECTOR_TYPE_ID("JavascriptProcessor");
+	SET_PROCESSOR_CONNECTOR_TYPE_ID("ScriptProcessor");
 
 	void breakpointWasHit(int index) override
 	{

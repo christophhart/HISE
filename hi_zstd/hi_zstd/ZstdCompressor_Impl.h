@@ -175,8 +175,8 @@ Result zstd::ZCompressor<ProviderType>::expandInplace(MemoryBlock& compressedDat
 {
 	try
 	{
-        auto v = expandRaw(compressedData);
-		compressedData.swapWith(v);
+        auto d = expandRaw(compressedData);
+		compressedData.swapWith(d);
 		return Result::ok();
 	}
 	catch (const String& errorMessage)
@@ -190,8 +190,8 @@ Result zstd::ZCompressor<ProviderType>::compressInplace(MemoryBlock& uncompresse
 {
 	try
 	{
-        auto v = compressRaw(uncompressedData);
-        uncompressedData.swapWith(v);
+        auto d = compressRaw(uncompressedData);
+		uncompressedData.swapWith(d);
 		return Result::ok();
 	}
 	catch (const String& errorMessage)

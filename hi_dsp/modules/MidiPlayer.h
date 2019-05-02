@@ -251,7 +251,7 @@ public:
 		Identifier sequenceId;
 	};
 
-	SET_PROCESSOR_NAME("MidiPlayer", "MIDI Player");
+	SET_PROCESSOR_NAME("MidiPlayer", "MIDI Player", "A player for MIDI sequences.");
 
 	MidiPlayer(MainController *mc, const String &id, ModulatorSynth* ms);;
 	~MidiPlayer();
@@ -394,7 +394,8 @@ private:
 
 	Array<HiseEvent> currentlyRecordedEvents;
 
-    std::atomic<RecordState> recordState{RecordState::Idle};
+
+  std::atomic<RecordState> recordState{ RecordState::Idle};
 
 
 	bool isRecording() const noexcept { return getPlayState() == PlayState::Record; }
@@ -455,9 +456,13 @@ public:
 		font = f;
 	}
 
+	void initMidiPlayer(MidiPlayer* player);
+
 protected:
 
 	MidiPlayerBaseType(MidiPlayer* player_);;
+
+	
 
 	MidiPlayer* getPlayer() { return player.get(); }
 	const MidiPlayer* getPlayer() const { return player.get(); }

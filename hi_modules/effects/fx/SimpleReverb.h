@@ -44,7 +44,7 @@ class SimpleReverbEffect: public MasterEffectProcessor
 {
 public:
 
-	SET_PROCESSOR_NAME("SimpleReverb", "Simple Reverb");
+	SET_PROCESSOR_NAME("SimpleReverb", "Simple Reverb", "a algorithmic reverb based on Freeverb.");
 
 	/** The parameters */
 	enum Parameters

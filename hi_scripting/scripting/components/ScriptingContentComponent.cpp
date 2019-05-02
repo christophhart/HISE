@@ -609,4 +609,59 @@ void ScriptContentComponent::getScriptComponentsFor(Array<ScriptingApi::Content:
 	}
 }
 
+
+MarkdownPreviewPanel::MarkdownPreviewPanel(FloatingTile* parent) :
+	FloatingTileContent(parent)
+{
+#if USE_BACKEND
+	auto holder = dynamic_cast<BackendProcessor*>(getMainController())->getDocProcessor();
+#else
+	auto holder = dynamic_cast<MarkdownDatabaseHolder*>(getMainController());
+#endif
+
+	addAndMakeVisible(preview = new MarkdownPreview(*holder));
+
+	setDefaultPanelColour(PanelColourId::bgColour, Colours::transparentBlack);
+	setDefaultPanelColour(PanelColourId::itemColour1, Colour(SIGNAL_COLOUR));
+	setDefaultPanelColour(PanelColourId::textColour, Colours::white);
+}
+
+void MarkdownPreviewPanel::fromDynamicObject(const var& object)
+{
+	FloatingTileContent::fromDynamicObject(object);
+
+	contentFile = object.getProperty("ContentFile", {});
+
+	if (getWidth() > 0)
+		parseContent();
+
+
+}
+
+void MarkdownPreviewPanel::parseContent()
+{
+	if (contentFile.isNotEmpty())
+	{
+		ScopedPointer<MarkdownParser::LinkResolver> resolver = new ProjectLinkResolver(getMainController());
+
+		auto content = resolver->getContent(MarkdownLink::createWithoutRoot(contentFile));
+
+		preview->addImageProvider(new PooledImageProvider(getMainController(), nullptr));
+		preview->addLinkResolver(resolver.release());
+
+		if (content.isNotEmpty())
+		{
+			MarkdownLayout::StyleData d;
+
+			d.f = getFont();
+			d.fontSize = getFont().getHeight();
+			d.textColour = findPanelColour(PanelColourId::textColour);
+			d.headlineColour = findPanelColour(PanelColourId::itemColour1);
+
+			preview->setStyleData(d);
+			preview->setNewText(content, {});
+		}
+	}
+}
+
 } // namespace hise

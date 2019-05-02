@@ -290,6 +290,7 @@ public:
 	void setColourForSliders(int colourId, Colour c);
 
 	const SliderPackData* getData() const { return data; }
+	SliderPackData* getData() { return data; }
 
 	void resized() override;
 	void setValuesFromLine();

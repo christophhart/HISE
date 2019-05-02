@@ -140,7 +140,6 @@ public:
 		MenuViewEnableGlobalLayoutMode,
 		MenuViewAddFloatingWindow,
 		MenuViewAddInterfacePreview,
-		MenuViewEnableOpenGL,
 		MenuOneColumn,
 		MenuTwoColumns,
 		MenuThreeColumns,
@@ -197,13 +196,16 @@ public:
 		
 		MenuToolsDeviceSimulatorOffset,
 		MenuHelpShowAboutPage = 0x70000,
+		MenuHelpShowDocumentation,
+		MenuHelpShowHelpForComponents,
         MenuHelpCheckVersion,
 		numCommands
 	};
 
 	virtual ~BackendCommandTarget()
 	{
-		mainCommandManager->setFirstCommandTarget(nullptr);
+		if(mainCommandManager != nullptr)
+			mainCommandManager->setFirstCommandTarget(nullptr);
 
 		CopyPasteTarget::setHandlerFunction(nullptr);
 	};
@@ -214,7 +216,7 @@ public:
 	};
 
 	void setCommandTarget(ApplicationCommandInfo &result, const String &name, bool active, bool ticked, char shortcut, bool useShortCut=true, ModifierKeys mod=ModifierKeys::commandModifier) {
-		result.setInfo(name, name, "Target", 0);
+		result.setInfo(name, name, "Unused", 0);
 		result.setActive(active); 
 		result.setTicked(ticked);
 
@@ -260,7 +262,6 @@ public:
 
 		updateCommands();
 	}
-
 
 	void createMenuBarNames();
 
@@ -339,7 +340,6 @@ public:
 		static void createBase64State(CopyPasteTarget* target);
 		static void createUserInterface(BackendRootWindow * bpe);
 		static void checkUnusedImages(BackendRootWindow * bpe);
-		static void toggleOpenGLMode(BackendRootWindow * bpe);
 		static void addInterfacePreview(BackendRootWindow * bpe);
 		static void updateSampleMapIds(BackendRootWindow * bpe);
 		static void toggleCallStackEnabled(BackendRootWindow * bpe);
@@ -359,6 +359,7 @@ public:
 		static void checkDeviceSanity(BackendRootWindow * bpe);
 		static void copyMissingSampleListToClipboard(BackendRootWindow * bpe);
 		static void createRecoveryXml(BackendRootWindow * bpe);
+		static void showDocWindow(BackendRootWindow * bpe);
 	};
 
 private:
